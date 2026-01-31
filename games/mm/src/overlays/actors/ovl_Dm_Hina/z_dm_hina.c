@@ -142,7 +142,7 @@ void func_80A1F9AC(DmHina* this, PlayState* play) {
 
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, (u8)(this->unk14C * 100.0f) + 155, this->unk17F);
         gDPSetEnvColor(POLY_XLU_DISP++, 255, 255, (u8)(this->unk150 * 100.0f) + 50, 0);
-        gSPDisplayList(POLY_XLU_DISP++, gLightOrbMaterial1DL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gLightOrbMaterial1DL);
 
         MM_Matrix_Translate(this->actor.world.pos.x,
                          this->actor.world.pos.y + (this->unk154 * this->unk15C) + (40.0f * this->unk15C),
@@ -152,7 +152,7 @@ void func_80A1F9AC(DmHina* this, PlayState* play) {
         Matrix_RotateZF(MM_Rand_ZeroFloat(2 * M_PIf), MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gLightOrbModelDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gLightOrbModelDL);
 
         CLOSE_DISPS(gfxCtx);
     }

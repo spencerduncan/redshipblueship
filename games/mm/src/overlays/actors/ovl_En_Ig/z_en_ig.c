@@ -1073,16 +1073,16 @@ void EnIg_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, 
         MM_Matrix_MultVec3f(&D_80BF3528, &this->actor.focus.pos);
         Math_Vec3s_Copy(&this->actor.focus.rot, &this->actor.world.rot);
 
-        gSPDisplayList((*gfx)++, object_dai_DL_008710);
-        gSPDisplayList((*gfx)++, object_dai_DL_0087B8);
+        MM_gSPDisplayList((*gfx)++, object_dai_DL_008710);
+        MM_gSPDisplayList((*gfx)++, object_dai_DL_0087B8);
     }
 
     if (limbIndex == OBJECT_DAI_LIMB_0C) {
-        gSPDisplayList((*gfx)++, object_dai_DL_0089D8);
+        MM_gSPDisplayList((*gfx)++, object_dai_DL_0089D8);
     }
 
     if (limbIndex == OBJECT_DAI_LIMB_09) {
-        gSPDisplayList((*gfx)++, object_dai_DL_008B00);
+        MM_gSPDisplayList((*gfx)++, object_dai_DL_008B00);
         MM_Matrix_MultVec3f(&D_80BF351C, &sp2C);
         Math_Vec3f_ToVec3s(&this->collider2.dim.worldSphere.center, &sp2C);
     }
@@ -1137,7 +1137,7 @@ void EnIg_Draw(Actor* thisx, PlayState* play) {
 
         Scene_SetRenderModeXlu(play, 0, 1);
 
-        gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(D_80BF3534[this->unk_3F2]));
+        MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(D_80BF3534[this->unk_3F2]));
 
         POLY_OPA_DISP = SubS_DrawTransformFlex(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
                                                this->skelAnime.dListCount, EnIg_OverrideLimbDraw, EnIg_PostLimbDraw,
@@ -1145,7 +1145,7 @@ void EnIg_Draw(Actor* thisx, PlayState* play) {
         MM_Matrix_Put(&this->unk_190);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, object_dai_DL_00C538);
+        MM_gSPDisplayList(POLY_OPA_DISP++, object_dai_DL_00C538);
 
         CLOSE_DISPS(play->state.gfxCtx);
     }

@@ -4,6 +4,7 @@
  * This file implements the standard game interface that allows the combo
  * launcher to load and run MM as a shared library.
  */
+#ifndef RSBS_SINGLE_EXECUTABLE
 
 #include "combo/GameExports.h"
 #include "combo/ComboContextBridge.h"
@@ -125,9 +126,9 @@ GAME_EXPORT int Game_Init(int argc, char** argv) {
     // Set up message queues
     fprintf(stderr, "[MM INIT DEBUG] Setting up message queues...\n");
     fflush(stderr);
-    osCreateMesgQueue(&sSerialEventQueue, sSerialMsgBuf, ARRAY_COUNT(sSerialMsgBuf));
-    osSetEventMesg(OS_EVENT_SI, &sSerialEventQueue, OS_MESG_PTR(NULL));
-    osCreateMesgQueue(&sIrqMgrMsgQueue, sIrqMgrMsgBuf, ARRAY_COUNT(sIrqMgrMsgBuf));
+    MM_osCreateMesgQueue(&sSerialEventQueue, sSerialMsgBuf, ARRAY_COUNT(sSerialMsgBuf));
+    MM_osSetEventMesg(OS_EVENT_SI, &sSerialEventQueue, OS_MESG_PTR(NULL));
+    MM_osCreateMesgQueue(&sIrqMgrMsgQueue, sIrqMgrMsgBuf, ARRAY_COUNT(sIrqMgrMsgBuf));
 
     // Initialize PadMgr and AudioMgr - these are required for MM_Graph_ThreadEntry
     // Note: Stack addresses are handled differently in shared library context
@@ -269,3 +270,5 @@ extern "C" uint16_t Combo_CheckEntranceSwitch(uint16_t entranceIndex) {
 
     return result;
 }
+
+#endif // !RSBS_SINGLE_EXECUTABLE

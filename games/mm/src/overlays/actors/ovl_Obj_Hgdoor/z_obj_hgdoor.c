@@ -202,11 +202,11 @@ void ObjHgdoor_Draw(Actor* thisx, PlayState* play) {
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
     if (OBJHGDOOR_IS_RIGHT_DOOR(thisx)) {
-        gSPDisplayList(POLY_OPA_DISP++, object_hgdoor_DL_001AB0);
-        gSPDisplayList(POLY_OPA_DISP++, object_hgdoor_DL_001BA8);
+        MM_gSPDisplayList(POLY_OPA_DISP++, object_hgdoor_DL_001AB0);
+        MM_gSPDisplayList(POLY_OPA_DISP++, object_hgdoor_DL_001BA8);
     } else {
-        gSPDisplayList(POLY_OPA_DISP++, object_hgdoor_DL_001670);
-        gSPDisplayList(POLY_OPA_DISP++, object_hgdoor_DL_001768);
+        MM_gSPDisplayList(POLY_OPA_DISP++, object_hgdoor_DL_001670);
+        MM_gSPDisplayList(POLY_OPA_DISP++, object_hgdoor_DL_001768);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);

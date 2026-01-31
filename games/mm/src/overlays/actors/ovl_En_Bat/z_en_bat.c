@@ -530,11 +530,11 @@ void EnBat_Draw(Actor* thisx, PlayState* play) {
 
         gfx = POLY_OPA_DISP;
 
-        gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
+        MM_gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
         MATRIX_FINALIZE_AND_LOAD(&gfx[1], play->state.gfxCtx);
-        gSPDisplayList(&gfx[2], gBadBatSetupDL);
-        gSPDisplayList(&gfx[3], gBadBatBodyDL);
-        gSPDisplayList(&gfx[4], sWingsDLs[this->animationFrame]);
+        MM_gSPDisplayList(&gfx[2], gBadBatSetupDL);
+        MM_gSPDisplayList(&gfx[3], gBadBatBodyDL);
+        MM_gSPDisplayList(&gfx[4], sWingsDLs[this->animationFrame]);
 
         POLY_OPA_DISP = &gfx[5];
 

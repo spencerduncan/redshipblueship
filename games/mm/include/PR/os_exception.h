@@ -37,7 +37,7 @@ typedef u32 OSHWIntr;
 
 
 //OSIntMask osGetIntMask(void);
-//OSIntMask osSetIntMask(OSIntMask im);
+//OSIntMask MM_osSetIntMask(OSIntMask im);
 
 
 // Internal

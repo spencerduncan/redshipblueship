@@ -127,7 +127,7 @@ void ObjLightswitch_SpawnEffects(ObjLightswitch* this, PlayState* play) {
         } else {
             tempResult = SQ(30.0f) - SQ(tempResultDiff);
             tempResult = CLAMP_MIN(tempResult, SQ(10.0f));
-            tempResult = sqrtf(tempResult);
+            tempResult = MM_sqrtf(tempResult);
         }
 
         tempResult = 2.0f * ((MM_Rand_ZeroOne() - 0.5f) * tempResult);
@@ -371,14 +371,14 @@ void ObjLightSwitch_DrawOpa(ObjLightswitch* this, PlayState* play) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
     gDPSetEnvColor(POLY_OPA_DISP++, (u8)(this->colorR >> 6), (u8)(this->colorG >> 6),
                    ((void)0, (u8)(this->colorB >> 6)), (u8)(this->colorAlpha >> 6));
-    gSPSegment(POLY_OPA_DISP++, 0x09, D_801AEFA0);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x09, D_801AEFA0);
 
     tempPos.x = this->actor.world.pos.x;
     tempPos.y = this->actor.world.pos.y + (this->actor.shape.yOffset * this->actor.scale.y);
     tempPos.z = this->actor.world.pos.z;
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sLightswitchFaceGfx[this->faceState]));
-    gSPDisplayList(POLY_OPA_DISP++, object_lightswitch_DL_000260);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sLightswitchFaceGfx[this->faceState]));
+    MM_gSPDisplayList(POLY_OPA_DISP++, object_lightswitch_DL_000260);
 
     tempRot.x = this->actor.shape.rot.x;
     tempRot.y = this->actor.shape.rot.y;
@@ -386,13 +386,13 @@ void ObjLightSwitch_DrawOpa(ObjLightswitch* this, PlayState* play) {
     MM_Matrix_SetTranslateRotateYXZ(tempPos.x, tempPos.y, tempPos.z, &tempRot);
     MM_Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, object_lightswitch_DL_000398);
+    MM_gSPDisplayList(POLY_OPA_DISP++, object_lightswitch_DL_000398);
 
     tempRot.z = this->actor.shape.rot.z - this->edgeRot;
     MM_Matrix_SetTranslateRotateYXZ(tempPos.x, tempPos.y, tempPos.z, &tempRot);
     MM_Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, object_lightswitch_DL_000408);
+    MM_gSPDisplayList(POLY_OPA_DISP++, object_lightswitch_DL_000408);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -407,14 +407,14 @@ void ObjLightSwitch_DrawXlu(ObjLightswitch* this, PlayState* play) {
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
     gDPSetEnvColor(POLY_XLU_DISP++, (u8)(this->colorR >> 6), (u8)(this->colorG >> 6),
                    ((void)0, (u8)(this->colorB >> 6)), (u8)(this->colorAlpha >> 6));
-    gSPSegment(POLY_XLU_DISP++, 0x09, D_801AEF88);
+    MM_gSPSegment(POLY_XLU_DISP++, 0x09, D_801AEF88);
 
     tempPos.x = this->actor.world.pos.x;
     tempPos.y = this->actor.world.pos.y + (this->actor.shape.yOffset * this->actor.scale.y);
     tempPos.z = this->actor.world.pos.z;
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(sLightswitchFaceGfx[this->faceState]));
-    gSPDisplayList(POLY_XLU_DISP++, object_lightswitch_DL_000260);
+    MM_gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(sLightswitchFaceGfx[this->faceState]));
+    MM_gSPDisplayList(POLY_XLU_DISP++, object_lightswitch_DL_000260);
 
     tempRot.x = this->actor.shape.rot.x;
     tempRot.y = this->actor.shape.rot.y;
@@ -422,13 +422,13 @@ void ObjLightSwitch_DrawXlu(ObjLightswitch* this, PlayState* play) {
     MM_Matrix_SetTranslateRotateYXZ(tempPos.x, tempPos.y, tempPos.z, &tempRot);
     MM_Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, object_lightswitch_DL_000398);
+    MM_gSPDisplayList(POLY_XLU_DISP++, object_lightswitch_DL_000398);
 
     tempRot.z = this->actor.shape.rot.z - this->edgeRot;
     MM_Matrix_SetTranslateRotateYXZ(tempPos.x, tempPos.y, tempPos.z, &tempRot);
     MM_Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, object_lightswitch_DL_000408);
+    MM_gSPDisplayList(POLY_XLU_DISP++, object_lightswitch_DL_000408);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

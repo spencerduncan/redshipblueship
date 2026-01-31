@@ -1115,7 +1115,7 @@ void MM_EnJs_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* ro
             MM_Matrix_Translate(D_8096ABF4[this->maskType], D_8096AC08[this->maskType], D_8096AC1C[this->maskType],
                              MTXMODE_APPLY);
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_OPA_DISP++, D_8096ABCC[this->maskType]);
+            MM_gSPDisplayList(POLY_OPA_DISP++, D_8096ABCC[this->maskType]);
 
             CLOSE_DISPS(play->state.gfxCtx);
         }

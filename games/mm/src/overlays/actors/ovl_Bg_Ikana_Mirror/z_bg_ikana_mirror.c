@@ -382,13 +382,13 @@ void BgIkanaMirror_Draw(Actor* thisx, PlayState* play) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, gStoneTowerTempleMirrorDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gStoneTowerTempleMirrorDL);
 
     if (this->lightAbsorptionAlpha > 0) {
         AnimatedMat_Draw(play, this->lightAbsorptionTexScroll);
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0x80, 255, 255, 255, this->lightAbsorptionAlpha);
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gStoneTowerTempleMirrorLightAbsorptionDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gStoneTowerTempleMirrorLightAbsorptionDL);
     }
 
     if (this->lightEmissionAlpha > 0) {
@@ -400,7 +400,7 @@ void BgIkanaMirror_Draw(Actor* thisx, PlayState* play) {
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0x80, 255, 255, 255, primColorAlpha);
         gDPSetEnvColor(POLY_XLU_DISP++, 215, 215, 255, envColorAlpha);
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gStoneTowerTempleMirrorLightEmissionDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gStoneTowerTempleMirrorLightEmissionDL);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);

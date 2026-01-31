@@ -310,7 +310,7 @@ void EnSlime_Idle(EnSlime* this, PlayState* play) {
     f32 scale;
 
     this->timer--;
-    timerFactor = sqrtf(this->timer) * 0.2f;
+    timerFactor = MM_sqrtf(this->timer) * 0.2f;
     EnSlime_Blink(this);
 
     scale = ((MM_Math_SinF(this->timer * (2.0f * M_PIf / 5.0f)) * (0.13f * timerFactor)) + 1.0f) * 0.01f;
@@ -551,7 +551,7 @@ void EnSlime_Land(EnSlime* this, PlayState* play) {
     EnSlime_Blink(this);
     this->timer--;
     scaleY = ((this->timer / 5) + 1) * 1.6f;
-    rotXZ = sqrtf(this->timer) * 0.2f;
+    rotXZ = MM_sqrtf(this->timer) * 0.2f;
     scaleXZ = ((MM_Math_CosF(this->timer * (2.0f * M_PIf / 5.0f)) * (0.05f * scaleY)) + 1.0f) * 0.01f;
     this->actor.scale.x = scaleXZ;
     this->actor.scale.z = scaleXZ;
@@ -606,7 +606,7 @@ void EnSlime_ReactToBluntHit(EnSlime* this, PlayState* play) {
     EnSlime_Blink(this);
     this->timer--;
     MM_Math_StepToF(&this->actor.speed, 0.0f, 1.0f);
-    timerFactor = sqrtf(this->timer);
+    timerFactor = MM_sqrtf(this->timer);
     if (this->timer < 30) {
         scale = ((MM_Math_CosF(this->timer * (2.0f * M_PIf / 5.0f)) * (0.08f * timerFactor)) + 1.0f) * 0.01f;
         this->actor.scale.x = scale;
@@ -1178,7 +1178,7 @@ void EnSlime_Draw(Actor* thisx, PlayState* play) {
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
     func_800B8118(&this->actor, play, 0);
     if (this->iceBlockTimer != ICE_BLOCK_UNUSED) {
-        gSPSegment(POLY_XLU_DISP++, 10, D_801AEFA0);
+        MM_gSPSegment(POLY_XLU_DISP++, 10, D_801AEFA0);
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 170, 255, 255, 255, 255);
         gDPSetEnvColor(POLY_XLU_DISP++, 150, 255, 255, this->iceBlockTimer);
     } else {
@@ -1202,22 +1202,22 @@ void EnSlime_Draw(Actor* thisx, PlayState* play) {
     }
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, gChuchuBodyDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gChuchuBodyDL);
 
     if (this->iceBlockTimer == ICE_BLOCK_UNUSED) {
         // Ice block is not active
         Scene_SetRenderModeXlu(play, 0, 1);
 
-        gSPSegment(POLY_OPA_DISP++, 0x09, MM_sEyeTextures[this->eyeTexIndex]);
+        MM_gSPSegment(POLY_OPA_DISP++, 0x09, MM_sEyeTextures[this->eyeTexIndex]);
         gDPSetEnvColor(POLY_OPA_DISP++, 0, 30, 70, 255);
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, gChuchuEyesDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, gChuchuEyesDL);
 
     } else {
         Scene_SetRenderModeXlu(play, 1, 2);
-        gSPSegment(POLY_XLU_DISP++, 0x09, MM_sEyeTextures[this->eyeTexIndex]);
+        MM_gSPSegment(POLY_XLU_DISP++, 0x09, MM_sEyeTextures[this->eyeTexIndex]);
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gChuchuEyesDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gChuchuEyesDL);
     }
 
     for (i = 0; i < EN_SLIME_BODYPART_MAX; i++) {
@@ -1233,7 +1233,7 @@ void EnSlime_Draw(Actor* thisx, PlayState* play) {
         MM_Matrix_Scale(this->reviveScale.x, this->reviveScale.y, this->reviveScale.z, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gChuchuPuddleDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gChuchuPuddleDL);
 
         FrameInterpolation_RecordCloseChild();
     }
@@ -1249,9 +1249,9 @@ void EnSlime_Draw(Actor* thisx, PlayState* play) {
             if (GameInteractor_Should(VB_DRAW_SLIME_BODY_ITEM, true, this)) {
                 MM_Matrix_Scale(0.03f, 0.03f, 0.03f, MTXMODE_APPLY);
 
-                gSPSegment(POLY_OPA_DISP++, 8, (uintptr_t)this->itemDropTex);
+                MM_gSPSegment(POLY_OPA_DISP++, 8, (uintptr_t)this->itemDropTex);
                 MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-                gSPDisplayList(POLY_OPA_DISP++, gItemDropDL);
+                MM_gSPDisplayList(POLY_OPA_DISP++, gItemDropDL);
             }
         }
     }

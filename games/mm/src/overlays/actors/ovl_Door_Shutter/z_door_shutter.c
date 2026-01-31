@@ -716,17 +716,17 @@ void MM_DoorShutter_Draw(Actor* thisx, PlayState* play) {
                 Matrix_RotateYF(M_PIf, MTXMODE_APPLY);
             }
         } else if (this->doorType == DOORSHUTTER_TYPE_BOSS_DOOR) {
-            gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(D_808A22DC[this->slidingDoor.unk_15E]));
+            MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(D_808A22DC[this->slidingDoor.unk_15E]));
         }
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, sp44->unk_00);
+        MM_gSPDisplayList(POLY_OPA_DISP++, sp44->unk_00);
 
         if ((this->unk_168 != 0.0f) && (sp44->unk_04 != 0)) {
             MM_Matrix_Translate(0.0f, sp44->unk_08 * (1.0f - this->unk_168), sp44->translateZ, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_OPA_DISP++, sp44->unk_04);
+            MM_gSPDisplayList(POLY_OPA_DISP++, sp44->unk_04);
         }
 
         if (this->unk_166 != 0) {

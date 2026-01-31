@@ -97,7 +97,7 @@ void EnSth2_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot
 
         OPEN_DISPS(play->state.gfxCtx);
 
-        gSPDisplayList(POLY_OPA_DISP++, gEnSth2HairDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, gEnSth2HairDL);
 
         CLOSE_DISPS(play->state.gfxCtx);
     }
@@ -113,9 +113,9 @@ void EnSth2_Draw(Actor* thisx, PlayState* play2) {
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    gSPSegment(POLY_OPA_DISP++, 0x08,
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08,
                MM_Gfx_EnvColor(play->state.gfxCtx, MM_sEnvColors[1].r, MM_sEnvColors[1].g, MM_sEnvColors[1].b, 255));
-    gSPSegment(POLY_OPA_DISP++, 0x09, MM_Gfx_EnvColor(play->state.gfxCtx, 90, 110, 130, 255));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x09, MM_Gfx_EnvColor(play->state.gfxCtx, 90, 110, 130, 255));
     MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           EnSth2_OverrideLimbDraw, EnSth2_PostLimbDraw, &this->actor);
 

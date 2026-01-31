@@ -766,7 +766,7 @@ void EnIshi_DrawGameplayKeepSmallRock(EnIshi* this, PlayState* play) {
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, (s32)alpha);
-        gSPDisplayList(POLY_XLU_DISP++, gFieldSmallRockXluDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gFieldSmallRockXluDL);
 
         CLOSE_DISPS(play->state.gfxCtx);
     }
@@ -787,10 +787,10 @@ void EnIshi_DrawGameplayKeepBoulder(EnIshi* this, PlayState* play) {
 
         Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-        gSPSegment(POLY_OPA_DISP++, 0x08, D_801AEFA0); // empty displaylist
+        MM_gSPSegment(POLY_OPA_DISP++, 0x08, D_801AEFA0); // empty displaylist
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
         gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 255, 255, 255, 255);
-        gSPDisplayList(POLY_OPA_DISP++, gFieldSilverBoulderDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, gFieldSilverBoulderDL);
 
     } else if (this->actor.projectedPos.z < 2250.0f) { // falling after breaking
         f32 alpha = (2250.0f - this->actor.projectedPos.z) * 2.55f;
@@ -799,10 +799,10 @@ void EnIshi_DrawGameplayKeepBoulder(EnIshi* this, PlayState* play) {
 
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
-        gSPSegment(POLY_XLU_DISP++, 0x08, D_801AEF88); // in z_actor, transparency dl I think
+        MM_gSPSegment(POLY_XLU_DISP++, 0x08, D_801AEF88); // in z_actor, transparency dl I think
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, (s32)alpha);
-        gSPDisplayList(POLY_XLU_DISP++, gFieldSilverBoulderDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gFieldSilverBoulderDL);
 
     } else {
         this->actor.shape.shadowAlpha = 0;

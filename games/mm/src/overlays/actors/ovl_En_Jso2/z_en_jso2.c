@@ -1824,7 +1824,7 @@ void EnJso2_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot
         OPEN_DISPS(play->state.gfxCtx);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, gGaroMasterEyesDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, gGaroMasterEyesDL);
 
         CLOSE_DISPS(play->state.gfxCtx);
 
@@ -1897,7 +1897,7 @@ void EnJso2_Draw(Actor* thisx, PlayState* play2) {
             MM_Matrix_Push();
             MM_Matrix_Translate(this->flamePos[i].x, this->flamePos[i].y, this->flamePos[i].z, MTXMODE_NEW);
             MM_Matrix_Scale(this->flameScale[i].x, this->flameScale[i].y, this->flameScale[i].z, MTXMODE_APPLY);
-            gSPSegment(POLY_XLU_DISP++, 0x08,
+            MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                        MM_Gfx_TwoTexScroll(play->state.gfxCtx, G_TX_RENDERTILE, 0, 0, 32, 64, 1, 0,
                                         ((this->flameScroll * 10) - (play->state.frames * 20)) & 0x1FF, 32, 128));
             gDPPipeSync(POLY_XLU_DISP++);
@@ -1905,7 +1905,7 @@ void EnJso2_Draw(Actor* thisx, PlayState* play2) {
             gDPSetEnvColor(POLY_XLU_DISP++, 255, 50, 0, 255);
             MM_Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
             MM_Matrix_Pop();
         }
     }

@@ -185,7 +185,7 @@ void EnEncount3_Draw(Actor* thisx, PlayState* play) {
         MM_Matrix_Push();
 
         gDPPipeSync(POLY_XLU_DISP++);
-        gSPSegment(POLY_XLU_DISP++, 0x08,
+        MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                    MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, (s32)play->gameplayFrames, 0, 0x20, 0x40, 1,
                                     (s32)play->gameplayFrames * -2, (s32)play->gameplayFrames * -8, 0x20, 0x20));
 
@@ -197,7 +197,7 @@ void EnEncount3_Draw(Actor* thisx, PlayState* play) {
         MM_Matrix_Scale(this->unk168, this->unk174, this->unk168, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gRingOfFireDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gRingOfFireDL);
 
         MM_Matrix_Pop();
         CLOSE_DISPS(play->state.gfxCtx);

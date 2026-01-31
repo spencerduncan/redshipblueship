@@ -208,7 +208,7 @@ void ObjChikuwa_Draw(Actor* thisx, PlayState* play) {
                 MM_Matrix_Scale(0.15f, 0.2f, 0.05f, MTXMODE_APPLY);
 
                 MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-                gSPDisplayList(POLY_OPA_DISP++, gDampeGraveBrownElevatorDL);
+                MM_gSPDisplayList(POLY_OPA_DISP++, gDampeGraveBrownElevatorDL);
             }
         }
     }
@@ -221,7 +221,7 @@ void ObjChikuwa_Draw(Actor* thisx, PlayState* play) {
                 MM_Matrix_Scale(temp2->unk_00.x, temp2->unk_00.y, temp2->unk_00.z, MTXMODE_APPLY);
 
                 MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-                gSPDisplayList(POLY_OPA_DISP++, gDampeGraveBrownElevatorDL);
+                MM_gSPDisplayList(POLY_OPA_DISP++, gDampeGraveBrownElevatorDL);
             }
         }
     }

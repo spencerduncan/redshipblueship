@@ -497,14 +497,14 @@ void MM_EnMThunder_Draw(Actor* thisx, PlayState* play2) {
     switch (this->subtype) {
         case ENMTHUNDER_SUBTYPE_SPIN_GREAT:
         case ENMTHUNDER_SUBTYPE_SPIN_REGULAR:
-            gSPSegment(POLY_XLU_DISP++, 0x08,
+            MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                        MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0xFF - ((u16)(s32)(this->scroll * 30.0f) & 0xFF), 0, 64,
                                         32, 1, 0xFF - ((u16)(s32)(this->scroll * 20.0f) & 0xFF), 0, 8, 8));
             break;
 
         case ENMTHUNDER_SUBTYPE_SWORDBEAM_GREAT:
         case ENMTHUNDER_SUBTYPE_SWORDBEAM_REGULAR:
-            gSPSegment(POLY_XLU_DISP++, 0x08,
+            MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                        MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 16, 64, 1, 0,
                                         0x1FF - ((u16)(s32)(this->scroll * 10.0f) & 0x1FF), 32, 128));
             break;
@@ -517,27 +517,27 @@ void MM_EnMThunder_Draw(Actor* thisx, PlayState* play2) {
         case ENMTHUNDER_SUBTYPE_SPIN_GREAT:
             gDPSetPrimColorOverride(POLY_XLU_DISP++, 0, 0x80, 255, 255, 170, (u16)(this->alphaFrac * 255.0f),
                                     COSMETIC_ELEMENT_GREAT_SPIN_BURST);
-            gSPDisplayList(POLY_XLU_DISP++, gGreatSpinAttackDiskDL);
-            gSPDisplayList(POLY_XLU_DISP++, gGreatSpinAttackCylinderDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gGreatSpinAttackDiskDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gGreatSpinAttackCylinderDL);
             break;
 
         case ENMTHUNDER_SUBTYPE_SPIN_REGULAR:
             gDPSetPrimColorOverride(POLY_XLU_DISP++, 0, 0x80, 170, 255, 255, (u16)(this->alphaFrac * 255.0f),
                                     COSMETIC_ELEMENT_SPIN_SLASH_BURST);
-            gSPDisplayList(POLY_XLU_DISP++, gSpinAttackDiskDL);
-            gSPDisplayList(POLY_XLU_DISP++, gSpinAttackCylinderDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gSpinAttackDiskDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gSpinAttackCylinderDL);
             break;
 
         case ENMTHUNDER_SUBTYPE_SWORDBEAM_REGULAR:
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0x80, 170, 255, 255, (u16)(this->alphaFrac * 255.0f));
             gDPSetEnvColor(POLY_XLU_DISP++, 0, 100, 255, 128);
-            gSPDisplayList(POLY_XLU_DISP++, gSwordBeamDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gSwordBeamDL);
             break;
 
         case ENMTHUNDER_SUBTYPE_SWORDBEAM_GREAT:
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0x80, 0, 255, 255, (u16)(this->alphaFrac * 255.0f));
             gDPSetEnvColor(POLY_XLU_DISP++, 200, 200, 200, 128);
-            gSPDisplayList(POLY_XLU_DISP++, gSwordBeamDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gSwordBeamDL);
             break;
 
         default:
@@ -575,10 +575,10 @@ void MM_EnMThunder_Draw(Actor* thisx, PlayState* play2) {
     MM_Matrix_Scale(1.0f, scale, scale, MTXMODE_APPLY);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPSegment(POLY_XLU_DISP++, 0x09,
+    MM_gSPSegment(POLY_XLU_DISP++, 0x09,
                MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, (play->gameplayFrames * 5) & 0xFF, 0, 32, 32, 1,
                                 (play->gameplayFrames * 20) & 0xFF, (play->gameplayFrames * y2Scroll) & 0xFF, 8, 8));
-    gSPDisplayList(POLY_XLU_DISP++, gSpinAttackChargingDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gSpinAttackChargingDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

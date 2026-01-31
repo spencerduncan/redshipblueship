@@ -113,7 +113,7 @@ void EffectSsKirakira_Draw(PlayState* play, u32 index, EffectSs* this) {
                         (((s8)((55.0f / this->rLifespan) * this->life) + 200)));
         gDPSetEnvColor(POLY_XLU_DISP++, this->rEnvColorR, this->rEnvColorG, this->rEnvColorB, this->rEnvColorA);
         gSPClearGeometryMode(POLY_XLU_DISP++, G_FOG | G_LIGHTING);
-        gSPDisplayList(POLY_XLU_DISP++, this->gfx);
+        MM_gSPDisplayList(POLY_XLU_DISP++, this->gfx);
         gSPSetGeometryMode(POLY_XLU_DISP++, G_FOG | G_LIGHTING);
     }
 

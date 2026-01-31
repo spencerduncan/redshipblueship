@@ -116,7 +116,7 @@ void EnEgblock_Draw(Actor* thisx, PlayState* play2) {
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
         gDPSetPrimColor(POLY_OPA_DISP++, 0x00, 0x80, 255, 255, 255, 255);
         gDPSetEnvColor(POLY_OPA_DISP++, 255, 255, 255, 255);
-        gSPDisplayList(POLY_OPA_DISP++, gEyegoreBlockDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, gEyegoreBlockDL);
 
         CLOSE_DISPS(play->state.gfxCtx);
     }
@@ -211,9 +211,9 @@ void EnEgblock_DrawEffects(EnEgblock* this, PlayState* play) {
                     gDPSetEnvColor(POLY_OPA_DISP++, 255, 255, 255, effect->alpha);
 
                     if (effect->type == EGBLOCK_EFFECT_DEBRIS_SOLID) {
-                        gSPDisplayList(POLY_OPA_DISP++, gEyegoreEffectSolidDebrisDL);
+                        MM_gSPDisplayList(POLY_OPA_DISP++, gEyegoreEffectSolidDebrisDL);
                     } else {
-                        gSPDisplayList(POLY_OPA_DISP++, gEyegoreEffectFlatDebrisDL);
+                        MM_gSPDisplayList(POLY_OPA_DISP++, gEyegoreEffectFlatDebrisDL);
                     }
 
                     MM_Matrix_Pop();

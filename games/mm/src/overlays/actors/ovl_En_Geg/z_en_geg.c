@@ -1002,7 +1002,7 @@ void EnGeg_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot,
 
             OPEN_DISPS(play->state.gfxCtx);
 
-            gSPDisplayList(POLY_OPA_DISP++, gGoronDonGeroMaskDL);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gGoronDonGeroMaskDL);
 
             CLOSE_DISPS(play->state.gfxCtx);
         }
@@ -1097,7 +1097,7 @@ void func_80BB3BE0(EnGeg* this, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(D_80BB4088[this->unk_23E]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(D_80BB4088[this->unk_23E]));
     gDPPipeSync(POLY_OPA_DISP++);
 
     SkelAnime_DrawTransformFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
@@ -1123,7 +1123,7 @@ void func_80BB3CB4(EnGeg* this, PlayState* play) {
     Matrix_RotateXS(sp24, MTXMODE_APPLY);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, gGoronRolledUpDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gGoronRolledUpDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

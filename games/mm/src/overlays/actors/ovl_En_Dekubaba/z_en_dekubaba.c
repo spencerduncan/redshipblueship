@@ -1234,7 +1234,7 @@ void MM_EnDekubaba_DrawStemRetracted(EnDekubaba* this, PlayState* play) {
     MM_Matrix_RotateZYX(this->stemSectionAngle[0], this->actor.shape.rot.y, 0, MTXMODE_APPLY);
     MM_Matrix_Scale(horizontalScale, horizontalScale, horizontalScale, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, gDekuBabaStemTopDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gDekuBabaStemTopDL);
 
     for (i = DEKUBABA_BODYPART_1; i < DEKUBABA_BODYPART_MAX; i++) {
         Matrix_MultZero(&this->bodyPartsPos[i]);
@@ -1275,7 +1275,7 @@ void MM_EnDekubaba_DrawStemExtended(EnDekubaba* this, PlayState* play) {
         MM_Matrix_Put(&mf);
         MM_Matrix_RotateZYX(this->stemSectionAngle[i], this->actor.shape.rot.y, 0, MTXMODE_APPLY);
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, sStemDLists[i]);
+        MM_gSPDisplayList(POLY_OPA_DISP++, sStemDLists[i]);
 
         MM_Collider_UpdateSpheres(51 + 2 * i, &this->collider);
         MM_Collider_UpdateSpheres(52 + 2 * i, &this->collider);
@@ -1303,7 +1303,7 @@ void MM_EnDekubaba_DrawStemBasePruned(EnDekubaba* this, PlayState* play) {
 
     MM_Matrix_RotateZYX(this->stemSectionAngle[2], this->actor.shape.rot.y, 0, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, gDekuBabaStemBaseDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gDekuBabaStemBaseDL);
 
     MM_Collider_UpdateSpheres(55, &this->collider);
     MM_Collider_UpdateSpheres(56, &this->collider);
@@ -1328,7 +1328,7 @@ void EnDekubaba_DrawShadow(EnDekubaba* this, PlayState* play) {
     horizontalScale = this->size * 0.15f;
     MM_Matrix_Scale(horizontalScale, 1.0f, horizontalScale, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, gCircleShadowDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gCircleShadowDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -1364,7 +1364,7 @@ void MM_EnDekubaba_Draw(Actor* thisx, PlayState* play) {
         Matrix_RotateYS(this->actor.home.rot.y, MTXMODE_APPLY);
         MM_Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, gDekuBabaBaseLeavesDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, gDekuBabaBaseLeavesDL);
 
         if (this->actionFunc == EnDekubaba_PrunedSomersaultDie) {
             MM_EnDekubaba_DrawStemBasePruned(this, play);
@@ -1377,7 +1377,7 @@ void MM_EnDekubaba_Draw(Actor* thisx, PlayState* play) {
     } else if ((this->timer > 40) || ((this->timer % 2) != 0)) {
         MM_Matrix_Translate(0.0f, 0.0f, 200.0f, MTXMODE_APPLY);
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, gDekuBabaStickDropDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, gDekuBabaStickDropDL);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);

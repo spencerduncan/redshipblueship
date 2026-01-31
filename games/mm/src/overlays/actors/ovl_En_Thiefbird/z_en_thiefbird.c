@@ -1099,7 +1099,7 @@ void EnThiefbird_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s
         gfx = POLY_OPA_DISP;
         MM_Matrix_ReplaceRotation(&play->billboardMtxF);
         MATRIX_FINALIZE_AND_LOAD(&gfx[0], play->state.gfxCtx);
-        gSPDisplayList(&gfx[1], this->unk_3E4);
+        MM_gSPDisplayList(&gfx[1], this->unk_3E4);
         POLY_OPA_DISP = &gfx[2];
 
         CLOSE_DISPS(play->state.gfxCtx);
@@ -1114,7 +1114,7 @@ void EnThiefbird_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s
             }
 
             MATRIX_FINALIZE_AND_LOAD(&gfx[0], play->state.gfxCtx);
-            gSPDisplayList(&gfx[1], this->unk_3E8);
+            MM_gSPDisplayList(&gfx[1], this->unk_3E8);
 
             if (this->unk_3E8 == gTakkuriStolenBottleDL) {
                 POLY_XLU_DISP = &gfx[2];
@@ -1148,8 +1148,8 @@ void func_80C13354(EnThiefbird* this, PlayState* play2) {
     OPEN_DISPS(play->state.gfxCtx);
 
     gfx = POLY_OPA_DISP;
-    gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
-    gSPDisplayList(&gfx[1], gTakkuriFeatherMaterialDL);
+    MM_gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
+    MM_gSPDisplayList(&gfx[1], gTakkuriFeatherMaterialDL);
     gfx = &gfx[2];
 
     for (i = 0; i < ARRAY_COUNT(this->unk_3F0); i++, ptr++) {
@@ -1163,7 +1163,7 @@ void func_80C13354(EnThiefbird* this, PlayState* play2) {
             MM_Matrix_Scale(ptr->unk_18, ptr->unk_18, 1.0f, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(&gfx[0], play->state.gfxCtx);
-            gSPDisplayList(&gfx[1], gTakkuriFeatherModelDL);
+            MM_gSPDisplayList(&gfx[1], gTakkuriFeatherModelDL);
             gfx = &gfx[2];
             FrameInterpolation_RecordCloseChild();
         }

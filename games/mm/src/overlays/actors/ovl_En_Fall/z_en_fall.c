@@ -772,7 +772,7 @@ void EnFall_Moon_Draw(Actor* thisx, PlayState* play) {
     primColor = (this->eyeGlowIntensity * 200.0f) + 40.0f;
     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0x80, primColor, primColor, primColor, 255);
 
-    gSPDisplayList(POLY_OPA_DISP++, gMoonDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gMoonDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -789,7 +789,7 @@ void EnFall_OpenMouthMoon_Draw(Actor* thisx, PlayState* play) {
     primColor = (this->eyeGlowIntensity * 200.0f) + 40.0f;
     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0x80, primColor, primColor, primColor, 255);
 
-    gSPDisplayList(POLY_OPA_DISP++, gOpenMouthMoonDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gOpenMouthMoonDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -811,9 +811,9 @@ void EnFall_LodMoon_Draw(Actor* thisx, PlayState* play) {
     primColor = (this->eyeGlowIntensity * 200.0f) + 40.0f;
     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0x80, primColor, primColor, primColor, 255);
 
-    gSPDisplayList(POLY_OPA_DISP++, gLodmoonEyesDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gLodmoonEyesDL);
     gSPLoadGeometryMode(POLY_OPA_DISP++, G_ZBUFFER | G_SHADE | G_CULL_BACK | G_LIGHTING | G_SHADING_SMOOTH);
-    gSPDisplayList(POLY_OPA_DISP++, gLodmoonMoonDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gLodmoonMoonDL);
     POLY_OPA_DISP = MM_Play_SetFog(play, POLY_OPA_DISP);
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -869,18 +869,18 @@ void EnFall_Fireball_Draw(Actor* thisx, PlayState* play) {
         (s32)(20.0f * (1.0f - this->fireballIntensity)), (s32)(20.0f * (1.0f - this->fireballIntensity)), 255);
 
     // For the glowing sphere of fire
-    gSPSegment(POLY_XLU_DISP++, 0x09,
+    MM_gSPSegment(POLY_XLU_DISP++, 0x09,
                MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, gameplayFrames, -this->fireballYTexScroll2, 64, 64, 1,
                                 -gameplayFrames, -this->fireballYTexScroll1, 64, 64));
 
     // For the "flecks" of fire around the fireball
-    gSPSegment(POLY_XLU_DISP++, 0x0A,
+    MM_gSPSegment(POLY_XLU_DISP++, 0x0A,
                MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, gameplayFrames * 2, -this->fireballYTexScroll1, 64, 64, 1,
                                 -gameplayFrames * 2, -this->fireballYTexScroll1, 64, 64));
 
     gDPSetColorDither(POLY_XLU_DISP++, G_CD_NOISE);
     gDPSetAlphaDither(POLY_XLU_DISP++, G_AD_NOISE);
-    gSPDisplayList(POLY_XLU_DISP++, gMoonFireballDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gMoonFireballDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -894,7 +894,7 @@ void EnFall_RisingDebris_Draw(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, gMoonDebrisMaterialDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gMoonDebrisMaterialDL);
     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 255, 255, 255, 255);
     gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, 255);
 
@@ -904,7 +904,7 @@ void EnFall_RisingDebris_Draw(Actor* thisx, PlayState* play) {
             MM_Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
             MM_Matrix_RotateZYX(debrisEffects[i].rot.x, debrisEffects[i].rot.y, debrisEffects[i].rot.z, MTXMODE_APPLY);
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_OPA_DISP++, sDebrisModelDLists[debrisEffects[i].modelIndex]);
+            MM_gSPDisplayList(POLY_OPA_DISP++, sDebrisModelDLists[debrisEffects[i].modelIndex]);
         }
     }
 
@@ -931,7 +931,7 @@ void EnFall_FireRing_Draw(Actor* thisx, PlayState* play) {
 
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0x80, 255, 255, 255, (s32)(this->fireRingAlpha * 255.0f));
 
-        gSPDisplayList(POLY_XLU_DISP++, gMoonFireRingDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gMoonFireRingDL);
 
         CLOSE_DISPS(play->state.gfxCtx);
     }
@@ -946,13 +946,13 @@ void EnFall_MoonsTear_Draw(Actor* thisx, PlayState* play) {
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-    gSPDisplayList(POLY_OPA_DISP++, gFallingMoonsTearDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gFallingMoonsTearDL);
 
     MM_Matrix_Scale(3.0f, 3.0f, 6.0f, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
-    gSPDisplayList(POLY_XLU_DISP++, gFallingMoonsTearFireDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gFallingMoonsTearFireDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

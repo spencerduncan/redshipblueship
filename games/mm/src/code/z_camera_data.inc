@@ -42,99 +42,99 @@ typedef struct {
  *=====================================================================
  */
 
-CameraModeValue sSetNormal0ModeNormalData[] = {
+CameraModeValue MM_sSetNormal0ModeNormalData[] = {
     CAM_FUNCDATA_NORM1(-20, 280, 320, 10, 22, 15, 40, 60, 84,
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_NONE, CAM_HUD_VISIBILITY_ALL,
                                            NORMAL1_FLAG_7 | NORMAL1_FLAG_1 | NORMAL1_FLAG_0)),
 };
 
-CameraModeValue sSetNormal0ModeTargetData[] = {
+CameraModeValue MM_sSetNormal0ModeTargetData[] = {
     CAM_FUNCDATA_PARA1(0, 350, 50, 0, 0, 5, 5, 45, 50,
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_MEDIUM, CAM_HUD_VISIBILITY_ALL, PARALLEL1_FLAG_1), 60, 0),
 };
 
-CameraModeValue sSetNormal0ModeFollowTargetData[] = {
+CameraModeValue MM_sSetNormal0ModeFollowTargetData[] = {
     CAM_FUNCDATA_KEEP1(-30, 180, 200, 20, 40, -5, 10, 15, 45, 60,
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_MEDIUM, CAM_HUD_VISIBILITY_ALL, KEEPON1_FLAG_0), 30),
 };
 
-CameraModeValue sSetNormal0ModeBattleData[] = {
+CameraModeValue MM_sSetNormal0ModeBattleData[] = {
     CAM_FUNCDATA_BATT1(-30, 150, 250, 10, 60, -5, 20, 35, 55, 70,
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_MEDIUM, CAM_HUD_VISIBILITY_ALL, BATTLE1_FLAG_1), 25, 40),
 };
 
-CameraModeValue sSetNormal0ModeFirstPersonData[] = {
+CameraModeValue MM_sSetNormal0ModeFirstPersonData[] = {
     CAM_FUNCDATA_SUBJ1(0, 5, 50, 10, 0, 0, 0, 45, CAM_INTERFACE_FLAGS(CAM_LETTERBOX_NONE, CAM_HUD_VISIBILITY_ALL, 0)),
 };
 
-CameraModeValue sSetNormal0ModeTalkData[] = {
+CameraModeValue MM_sSetNormal0ModeTalkData[] = {
     CAM_FUNCDATA_KEEP3(-20, 80, 150, 50, 5, 20, 5, 40, 35, 50, 20,
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_LARGE, CAM_HUD_VISIBILITY_A_HEARTS_MAGIC_WITH_OVERWRITE, 0),
                        60),
 };
 
-CameraModeValue sSetNormal0ModeClimbData[] = {
+CameraModeValue MM_sSetNormal0ModeClimbData[] = {
     CAM_FUNCDATA_JUMP2(-20, 280, 320, 20, 5, 5, 60, 40,
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_NONE, CAM_HUD_VISIBILITY_ALL, 0)),
 };
 
-CameraModeValue sSetNormal0ModeBowArrowData[] = {
+CameraModeValue MM_sSetNormal0ModeBowArrowData[] = {
     CAM_FUNCDATA_SUBJ1(0xFFF9, 0xE, 50, 10, 0, -30, -5, 45,
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_MEDIUM, CAM_HUD_VISIBILITY_ALL, 0)),
 };
 
-CameraModeValue sSetNormal0ModeBowArrowZData[] = {
+CameraModeValue MM_sSetNormal0ModeBowArrowZData[] = {
     CAM_FUNCDATA_SUBJ1(20, 70, 70, 10, 0xFF88, 20, 0, 45,
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_MEDIUM, CAM_HUD_VISIBILITY_ALL, 0)),
 };
 
-CameraModeValue sSetNormal0ModeHookshotData[] = {
+CameraModeValue MM_sSetNormal0ModeHookshotData[] = {
     CAM_FUNCDATA_SPEC5(-20, 80, 250, 45, 60, 40, 6,
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_MEDIUM, CAM_HUD_VISIBILITY_ALL, 0)),
 };
 
-CameraModeValue sSetNormal0ModeBoomerangData[] = {
+CameraModeValue MM_sSetNormal0ModeBoomerangData[] = {
     CAM_FUNCDATA_SUBJ1(5, 50, 50, 10, 0, 0, 0, 45,
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_MEDIUM, CAM_HUD_VISIBILITY_ALL, 0)),
 };
 
-CameraModeValue sSetNormal0ModeSlingshotData[] = {
+CameraModeValue MM_sSetNormal0ModeSlingshotData[] = {
     CAM_FUNCDATA_SUBJ1(0xFFF9, 14, 50, 10, 0, -50, -10, 45,
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_MEDIUM, CAM_HUD_VISIBILITY_ALL, 0)),
 };
 
-CameraModeValue sSetNormal0ModeClimbZData[] = {
+CameraModeValue MM_sSetNormal0ModeClimbZData[] = {
     CAM_FUNCDATA_JUMP2(-20, 280, 320, 20, 999, 5, 60, 40,
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_MEDIUM, CAM_HUD_VISIBILITY_ALL, JUMP2_FLAG_2 | JUMP2_FLAG_1)),
 };
 
-CameraModeValue sSetNormal0ModeJumpData[] = {
+CameraModeValue MM_sSetNormal0ModeJumpData[] = {
     CAM_FUNCDATA_NORM1(-20, 240, 340, 10, 30, 12, 40, 60, 50,
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_NONE, CAM_HUD_VISIBILITY_ALL,
                                            NORMAL1_FLAG_7 | NORMAL1_FLAG_3 | NORMAL1_FLAG_1 | NORMAL1_FLAG_0)),
 };
 
-CameraModeValue sSetNormal0ModeHangData[] = {
+CameraModeValue MM_sSetNormal0ModeHangData[] = {
     CAM_FUNCDATA_PARA1(-40, 320, 50, 40, 0, 8, 5, 60, 50,
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_NONE, CAM_HUD_VISIBILITY_ALL,
                                            PARALLEL1_FLAG_7 | PARALLEL1_FLAG_2 | PARALLEL1_FLAG_1),
                        60, 12),
 };
 
-CameraModeValue sSetNormal0ModeHangZData[] = {
+CameraModeValue MM_sSetNormal0ModeHangZData[] = {
     CAM_FUNCDATA_PARA1(0xFFB0, 300, 50, 70, 0, 12, 5, 45, 50,
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_MEDIUM, CAM_HUD_VISIBILITY_ALL,
                                            PARALLEL1_FLAG_7 | PARALLEL1_FLAG_2 | PARALLEL1_FLAG_1),
                        60, 2),
 };
 
-CameraModeValue sSetNormal0ModeFreeFallData[] = {
+CameraModeValue MM_sSetNormal0ModeFreeFallData[] = {
     CAM_FUNCDATA_PARA1(
         -10, 320, 100, 70, 0, 4, 5, 70, 20,
         CAM_INTERFACE_FLAGS(CAM_LETTERBOX_NONE, CAM_HUD_VISIBILITY_ALL, PARALLEL1_FLAG_7 | PARALLEL1_FLAG_3), 60, 12),
 };
 
-CameraModeValue sSetNormal0ModeChargeData[] = {
+CameraModeValue MM_sSetNormal0ModeChargeData[] = {
     CAM_FUNCDATA_PARA1(0xFFB0, 300, -20, 50, 0, 50, 5, 80, 20,
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_NONE, CAM_HUD_VISIBILITY_ALL, 0), 60, 10),
 };
@@ -144,19 +144,19 @@ CameraModeValue sSetNormal0ModeChargeZData[] = {
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_NONE, CAM_HUD_VISIBILITY_ALL, PARALLEL1_FLAG_1), 60, 0),
 };
 
-CameraModeValue sSetNormal0ModeStillData[] = {
+CameraModeValue MM_sSetNormal0ModeStillData[] = {
     CAM_FUNCDATA_NORM1(-20, 280, 320, 10, 100, 100, 100, 60, 20,
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_IGNORE, CAM_HUD_VISIBILITY_ALL,
                                            NORMAL1_FLAG_5 | NORMAL1_FLAG_1 | NORMAL1_FLAG_0)),
 };
 
-CameraModeValue sSetNormal0ModePushPullData[] = {
+CameraModeValue MM_sSetNormal0ModePushPullData[] = {
     CAM_FUNCDATA_PARA1(
         0, 350, 5, 45, 0, 5, 5, 70, 30,
         CAM_INTERFACE_FLAGS(CAM_LETTERBOX_MEDIUM, CAM_HUD_VISIBILITY_ALL, PARALLEL1_FLAG_5 | PARALLEL1_FLAG_1), 80, 0),
 };
 
-CameraModeValue sSetNormal0ModeFollowBoomerangData[] = {
+CameraModeValue MM_sSetNormal0ModeFollowBoomerangData[] = {
     CAM_FUNCDATA_KEEP1(-5, 220, 240, 5, 75, 10, 5, 40, 50, 40,
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_MEDIUM, CAM_HUD_VISIBILITY_ALL, KEEPON1_FLAG_0), 30),
 };
@@ -208,12 +208,12 @@ CameraModeValue sSetNormal0ModeZoraFinData[] = {
  *=====================================================================
  */
 
-CameraModeValue sSetNormal3ModeNormalData[] = {
+CameraModeValue MM_sSetNormal3ModeNormalData[] = {
     CAM_FUNCDATA_JUMP3(-40, 280, 300, 20, 15, 5, 40, 60, 100,
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_NONE, CAM_HUD_VISIBILITY_ALL, JUMP3_FLAG_7 | JUMP3_FLAG_2)),
 };
 
-CameraModeValue sSetNormal3ModeTargetData[] = {
+CameraModeValue MM_sSetNormal3ModeTargetData[] = {
     CAM_FUNCDATA_PARA1(
         -50, 280, 40, 10, 0, 15, 5, 60, 100,
         CAM_INTERFACE_FLAGS(CAM_LETTERBOX_MEDIUM, CAM_HUD_VISIBILITY_ALL, PARALLEL1_FLAG_1 | PARALLEL1_FLAG_0), 80, 0),
@@ -269,13 +269,13 @@ CameraModeValue sSetPivotDivingModeTargetData[] = {
  *=====================================================================
  */
 
-CameraModeValue sSetHorseModeNormalData[] = {
+CameraModeValue MM_sSetHorseModeNormalData[] = {
     CAM_FUNCDATA_NORM3(-50, 220, 250, 10, 10, 20, 60, 80,
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_NONE, CAM_HUD_VISIBILITY_A_HEARTS_MAGIC_MINIMAP_WITH_OVERWRITE,
                                            NORMAL3_FLAG_5)),
 };
 
-CameraModeValue sSetHorseModeTargetData[] = {
+CameraModeValue MM_sSetHorseModeTargetData[] = {
     CAM_FUNCDATA_NORM3(-40, 180, 200, -3, 2, 100, 50, 90,
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_MEDIUM,
                                            CAM_HUD_VISIBILITY_A_HEARTS_MAGIC_MINIMAP_WITH_OVERWRITE, NORMAL3_FLAG_1)),
@@ -287,7 +287,7 @@ CameraModeValue sSetHorseModeJumpData[] = {
         CAM_INTERFACE_FLAGS(CAM_LETTERBOX_NONE, CAM_HUD_VISIBILITY_A_HEARTS_MAGIC_MINIMAP_WITH_OVERWRITE, 0)),
 };
 
-CameraModeValue sSetHorseModeBowArrowData[] = {
+CameraModeValue MM_sSetHorseModeBowArrowData[] = {
     CAM_FUNCDATA_SUBJ1(
         0xFFF9, 14, 100, 10, 0, -30, -5, 40,
         CAM_INTERFACE_FLAGS(CAM_LETTERBOX_MEDIUM, CAM_HUD_VISIBILITY_A_HEARTS_MAGIC_MINIMAP_WITH_OVERWRITE, 0)),
@@ -303,14 +303,14 @@ CameraModeValue sSetHorseModeBattleData[] = {
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_MEDIUM, CAM_HUD_VISIBILITY_ALL, BATTLE1_FLAG_1), 25, 40),
 };
 
-CameraModeValue sSetHorseModeFollowTargetData[] = {
+CameraModeValue MM_sSetHorseModeFollowTargetData[] = {
     CAM_FUNCDATA_KEEP1(0xFFC4, 180, 220, 25, 45, -5, 15, 15, 45, 50,
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_MEDIUM,
                                            CAM_HUD_VISIBILITY_A_HEARTS_MAGIC_MINIMAP_WITH_OVERWRITE, KEEPON1_FLAG_0),
                        20),
 };
 
-CameraModeValue sSetHorseModeTalkData[] = {
+CameraModeValue MM_sSetHorseModeTalkData[] = {
     CAM_FUNCDATA_KEEP3(-50, 140, 200, 40, 10, 0, 5, 100, 45, 50, 20,
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_LARGE, CAM_HUD_VISIBILITY_A_HEARTS_MAGIC_WITH_OVERWRITE, 0),
                        60),
@@ -346,7 +346,7 @@ CameraModeValue sSetPrerendFixedModeNormalData[] = {
  *=====================================================================
  */
 
-CameraModeValue sSetPrerendPivotModeNormalData[] = {
+CameraModeValue MM_sSetPrerendPivotModeNormalData[] = {
     CAM_FUNCDATA_UNIQ7(60, CAM_INTERFACE_FLAGS(CAM_LETTERBOX_NONE, CAM_HUD_VISIBILITY_ALL, 0)),
 };
 
@@ -355,7 +355,7 @@ CameraModeValue sSetPrerendPivotModeNormalData[] = {
  *=====================================================================
  */
 
-CameraModeValue sSetDoorCModeNormalData[] = {
+CameraModeValue MM_sSetDoorCModeNormalData[] = {
     CAM_FUNCDATA_SPEC9(-5, 60, CAM_INTERFACE_FLAGS(CAM_LETTERBOX_NONE_4, CAM_HUD_VISIBILITY_NONE_ALT, SPECIAL9_FLAG_1)),
 };
 
@@ -411,12 +411,12 @@ CameraModeValue D_801B4F78[] = {
  *=====================================================================
  */
 
-CameraModeValue sSetNormal1ModeNormalData[] = {
+CameraModeValue MM_sSetNormal1ModeNormalData[] = {
     CAM_FUNCDATA_NORM1(-20, 280, 320, 15, 18, 12, 70, 60, 80,
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_NONE, CAM_HUD_VISIBILITY_ALL, NORMAL1_FLAG_1)),
 };
 
-CameraModeValue sSetNormal1ModeStillData[] = {
+CameraModeValue MM_sSetNormal1ModeStillData[] = {
     CAM_FUNCDATA_NORM1(-20, 280, 320, 15, 100, 100, 100, 60, 20,
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_IGNORE, CAM_HUD_VISIBILITY_ALL,
                                            NORMAL1_FLAG_5 | NORMAL1_FLAG_1 | NORMAL1_FLAG_0)),
@@ -478,24 +478,24 @@ CameraModeValue sSetSpiralDoorModeNormalData[] = {
  *=====================================================================
  */
 
-CameraModeValue sSetDungeon0ModeNormalData[] = {
+CameraModeValue MM_sSetDungeon0ModeNormalData[] = {
     CAM_FUNCDATA_NORM1(-20, 150, 250, 5, 18, 5, 45, 60, 80,
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_NONE, CAM_HUD_VISIBILITY_ALL,
                                            NORMAL1_FLAG_7 | NORMAL1_FLAG_1 | NORMAL1_FLAG_0)),
 };
 
-CameraModeValue sSetDungeon0ModeTargetData[] = {
+CameraModeValue MM_sSetDungeon0ModeTargetData[] = {
     CAM_FUNCDATA_PARA1(
         0, 200, 25, 5, 0, 5, 5, 45, 50,
         CAM_INTERFACE_FLAGS(CAM_LETTERBOX_MEDIUM, CAM_HUD_VISIBILITY_ALL, PARALLEL1_FLAG_6 | PARALLEL1_FLAG_1), 80, 0),
 };
 
-CameraModeValue sSetDungeon0ModeFollowTargetData[] = {
+CameraModeValue MM_sSetDungeon0ModeFollowTargetData[] = {
     CAM_FUNCDATA_KEEP1(-20, 120, 140, 25, 45, -5, 15, 15, 45, 50,
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_MEDIUM, CAM_HUD_VISIBILITY_ALL, KEEPON1_FLAG_0), 20),
 };
 
-CameraModeValue sSetDungeon0ModeBattleData[] = {
+CameraModeValue MM_sSetDungeon0ModeBattleData[] = {
     CAM_FUNCDATA_BATT1(-30, 150, 240, 10, 50, 5, 10, 25, 50, 60,
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_MEDIUM, CAM_HUD_VISIBILITY_ALL, BATTLE1_FLAG_1), 25, 50),
 };
@@ -505,29 +505,29 @@ CameraModeValue sSetDungeon0ModeFollowBoomerangData[] = {
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_MEDIUM, CAM_HUD_VISIBILITY_ALL, KEEPON1_FLAG_0), 30),
 };
 
-CameraModeValue sSetDungeon0ModeJumpData[] = {
+CameraModeValue MM_sSetDungeon0ModeJumpData[] = {
     CAM_FUNCDATA_NORM1(-20, 150, 250, 5, 24, 5, 50, 60, 50,
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_NONE, CAM_HUD_VISIBILITY_ALL,
                                            NORMAL1_FLAG_7 | NORMAL1_FLAG_3 | NORMAL1_FLAG_1 | NORMAL1_FLAG_0)),
 };
 
-CameraModeValue sSetDungeon0ModeFreeFallData[] = {
+CameraModeValue MM_sSetDungeon0ModeFreeFallData[] = {
     CAM_FUNCDATA_PARA1(
         -10, 250, 100, 70, 0, 4, 5, 70, 10,
         CAM_INTERFACE_FLAGS(CAM_LETTERBOX_NONE, CAM_HUD_VISIBILITY_ALL, PARALLEL1_FLAG_7 | PARALLEL1_FLAG_3), 70, 12),
 };
 
-CameraModeValue sSetDungeon0ModeClimbData[] = {
+CameraModeValue MM_sSetDungeon0ModeClimbData[] = {
     CAM_FUNCDATA_JUMP2(-40, 150, 250, 20, 5, 5, 60, 20,
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_NONE, CAM_HUD_VISIBILITY_ALL, 0)),
 };
 
-CameraModeValue sSetDungeon0ModeClimbZData[] = {
+CameraModeValue MM_sSetDungeon0ModeClimbZData[] = {
     CAM_FUNCDATA_JUMP2(-40, 250, 250, 20, 999, 5, 60, 40,
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_MEDIUM, CAM_HUD_VISIBILITY_ALL, JUMP2_FLAG_2 | JUMP2_FLAG_1)),
 };
 
-CameraModeValue sSetDungeon0ModeChargeData[] = {
+CameraModeValue MM_sSetDungeon0ModeChargeData[] = {
     CAM_FUNCDATA_PARA1(0, 250, -20, 50, 0, 50, 5, 60, 20,
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_NONE, CAM_HUD_VISIBILITY_ALL, 0), 60, 10),
 };
@@ -537,21 +537,21 @@ CameraModeValue sSetDungeon0ModeChargeZData[] = {
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_NONE, CAM_HUD_VISIBILITY_ALL, PARALLEL1_FLAG_1), 60, 0),
 };
 
-CameraModeValue sSetDungeon0ModeHangData[] = {
+CameraModeValue MM_sSetDungeon0ModeHangData[] = {
     CAM_FUNCDATA_PARA1(-40, 220, 50, 40, 0, 12, 5, 60, 10,
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_NONE, CAM_HUD_VISIBILITY_ALL,
                                            PARALLEL1_FLAG_7 | PARALLEL1_FLAG_2 | PARALLEL1_FLAG_1),
                        60, 12),
 };
 
-CameraModeValue sSetDungeon0ModeHangZData[] = {
+CameraModeValue MM_sSetDungeon0ModeHangZData[] = {
     CAM_FUNCDATA_PARA1(0xFFB0, 250, 50, 70, 0, 10, 5, 45, 10,
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_MEDIUM, CAM_HUD_VISIBILITY_ALL,
                                            PARALLEL1_FLAG_7 | PARALLEL1_FLAG_2 | PARALLEL1_FLAG_1),
                        60, 2),
 };
 
-CameraModeValue sSetDungeon0ModeStillData[] = {
+CameraModeValue MM_sSetDungeon0ModeStillData[] = {
     CAM_FUNCDATA_NORM1(
         -10, 180, 220, 10, 100, 100, 100, 60, 10,
         CAM_INTERFACE_FLAGS(CAM_LETTERBOX_IGNORE, CAM_HUD_VISIBILITY_ALL, NORMAL1_FLAG_1 | NORMAL1_FLAG_0)),
@@ -779,25 +779,25 @@ CameraModeValue sSetLongChestOpeningModeNormalData[] = {
  *=====================================================================
  */
 
-CameraModeValue sSetDungeon1ModeNormalData[] = {
+CameraModeValue MM_sSetDungeon1ModeNormalData[] = {
     CAM_FUNCDATA_NORM1(-20, 350, 400, 45, 50, 20, 70, 50, 80,
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_NONE, CAM_HUD_VISIBILITY_ALL,
                                            NORMAL1_FLAG_7 | NORMAL1_FLAG_1 | NORMAL1_FLAG_0)),
 };
 
-CameraModeValue sSetDungeon1ModeJumpData[] = {
+CameraModeValue MM_sSetDungeon1ModeJumpData[] = {
     CAM_FUNCDATA_NORM1(-20, 350, 400, 40, 50, 20, 50, 50, 50,
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_NONE, CAM_HUD_VISIBILITY_ALL,
                                            NORMAL1_FLAG_7 | NORMAL1_FLAG_3 | NORMAL1_FLAG_1 | NORMAL1_FLAG_0)),
 };
 
-CameraModeValue sSetDungeon1ModeStillData[] = {
+CameraModeValue MM_sSetDungeon1ModeStillData[] = {
     CAM_FUNCDATA_NORM1(-20, 350, 400, 45, 100, 100, 100, 50, 20,
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_IGNORE, CAM_HUD_VISIBILITY_ALL,
                                            NORMAL1_FLAG_5 | NORMAL1_FLAG_1 | NORMAL1_FLAG_0)),
 };
 
-CameraModeValue sSetDungeon1ModePushPullData[] = {
+CameraModeValue MM_sSetDungeon1ModePushPullData[] = {
     CAM_FUNCDATA_PARA1(
         0, 250, 5, 30, 0, 5, 5, 70, 30,
         CAM_INTERFACE_FLAGS(CAM_LETTERBOX_MEDIUM, CAM_HUD_VISIBILITY_ALL, PARALLEL1_FLAG_5 | PARALLEL1_FLAG_1), 30, 0),
@@ -896,12 +896,12 @@ CameraModeValue D_801B58F4[] = {
  *=====================================================================
  */
 
-CameraModeValue sSetTowerClimbModeNormalData[] = {
+CameraModeValue MM_sSetTowerClimbModeNormalData[] = {
     CAM_FUNCDATA_NORM0(0, 350, 400, 20, 20, 50, 65, 50,
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_NONE, CAM_HUD_VISIBILITY_ALL, NORMAL0_FLAG_0)),
 };
 
-CameraModeValue sSetTowerClimbModeJumpData[] = {
+CameraModeValue MM_sSetTowerClimbModeJumpData[] = {
     CAM_FUNCDATA_NORM1(-20, 340, 400, 10, 30, 12, 40, 65, 50,
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_NONE, CAM_HUD_VISIBILITY_ALL,
                                            NORMAL1_FLAG_7 | NORMAL1_FLAG_3 | NORMAL1_FLAG_1 | NORMAL1_FLAG_0)),
@@ -1002,30 +1002,30 @@ CameraModeValue D_801B5A64[] = {
  *=====================================================================
  */
 
-CameraModeValue sSetDungeon2ModeNormalData[] = {
+CameraModeValue MM_sSetDungeon2ModeNormalData[] = {
     CAM_FUNCDATA_NORM1(-10, 270, 300, 20, 0x001C, 20, 65, 60, 80,
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_NONE, CAM_HUD_VISIBILITY_ALL,
                                            NORMAL1_FLAG_7 | NORMAL1_FLAG_1 | NORMAL1_FLAG_0)),
 };
 
-CameraModeValue sSetDungeon2ModeBattleData[] = {
+CameraModeValue MM_sSetDungeon2ModeBattleData[] = {
     CAM_FUNCDATA_BATT1(-40, 200, 240, 50, 20, 5, 10, 20, 50, 60,
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_MEDIUM, CAM_HUD_VISIBILITY_ALL, BATTLE1_FLAG_1), 25, 40),
 };
 
-CameraModeValue sSetDungeon2ModeJumpData[] = {
+CameraModeValue MM_sSetDungeon2ModeJumpData[] = {
     CAM_FUNCDATA_NORM1(-20, 270, 300, 40, 50, 20, 50, 60, 50,
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_NONE, CAM_HUD_VISIBILITY_ALL,
                                            NORMAL1_FLAG_7 | NORMAL1_FLAG_3 | NORMAL1_FLAG_1 | NORMAL1_FLAG_0)),
 };
 
-CameraModeValue sSetDungeon2ModeStillData[] = {
+CameraModeValue MM_sSetDungeon2ModeStillData[] = {
     CAM_FUNCDATA_NORM1(-10, 270, 300, 20, 100, 100, 100, 60, 20,
                        CAM_INTERFACE_FLAGS(CAM_LETTERBOX_IGNORE, CAM_HUD_VISIBILITY_ALL,
                                            NORMAL1_FLAG_5 | NORMAL1_FLAG_1 | NORMAL1_FLAG_0)),
 };
 
-CameraModeValue sSetDungeon2ModePushPullData[] = {
+CameraModeValue MM_sSetDungeon2ModePushPullData[] = {
     CAM_FUNCDATA_PARA1(
         0, 200, 5, 15, 0, 5, 5, 70, 30,
         CAM_INTERFACE_FLAGS(CAM_LETTERBOX_MEDIUM, CAM_HUD_VISIBILITY_ALL, PARALLEL1_FLAG_5 | PARALLEL1_FLAG_1), 30, 0),
@@ -2077,70 +2077,70 @@ CameraModeValue sSetDungeon4ModeStillData[] = {
 #define CAM_SETTING_MODE_NULL \
     { CAM_FUNC_NONE, 0, NULL }
 
-CameraMode sCamSetNormal0Modes[] = {
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeNormalData),          // CAM_MODE_NORMAL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeJumpData),            // CAM_MODE_JUMP
+CameraMode MM_sCamSetNormal0Modes[] = {
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, MM_sSetNormal0ModeNormalData),          // CAM_MODE_NORMAL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, MM_sSetNormal0ModeJumpData),            // CAM_MODE_JUMP
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeGoronDashData),       // CAM_MODE_GORONDASH
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeDekuShootData),      // CAM_MODE_DEKUSHOOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeDekuFlyData),         // CAM_MODE_DEKUFLY
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeZoraFinData),        // CAM_MODE_ZORAFIN
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeTargetData),        // CAM_MODE_TARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, sSetNormal0ModeTalkData),            // CAM_MODE_TALK
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeSlingshotData),      // CAM_MODE_SLINGSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowData),       // CAM_MODE_BOWARROW
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, sSetNormal0ModeBattleData),          // CAM_MODE_BATTLE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeTargetData),        // CAM_MODE_TARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, MM_sSetNormal0ModeTalkData),            // CAM_MODE_TALK
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeSlingshotData),      // CAM_MODE_SLINGSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowData),       // CAM_MODE_BOWARROW
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, MM_sSetNormal0ModeBattleData),          // CAM_MODE_BATTLE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuHideData),      // CAM_MODE_DEKUHIDE
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeStillData),           // CAM_MODE_STILL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeChargeData),        // CAM_MODE_CHARGE
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetNormal0ModeClimbData),             // CAM_MODE_CLIMB
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetNormal0ModeClimbZData),            // CAM_MODE_CLIMBZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, sSetNormal0ModeHookshotData),       // CAM_MODE_HOOKSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeFreeFallData),      // CAM_MODE_FREEFALL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeHangData),          // CAM_MODE_HANG
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeHangZData),         // CAM_MODE_HANGZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModePushPullData),      // CAM_MODE_PUSHPULL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, MM_sSetNormal0ModeStillData),           // CAM_MODE_STILL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeChargeData),        // CAM_MODE_CHARGE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetNormal0ModeClimbData),             // CAM_MODE_CLIMB
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetNormal0ModeClimbZData),            // CAM_MODE_CLIMBZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, MM_sSetNormal0ModeHookshotData),       // CAM_MODE_HOOKSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeFreeFallData),      // CAM_MODE_FREEFALL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeHangData),          // CAM_MODE_HANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeHangZData),         // CAM_MODE_HANGZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModePushPullData),      // CAM_MODE_PUSHPULL
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuFlyZData),      // CAM_MODE_DEKUFLYZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeGoronJumpData),       // CAM_MODE_GORONJUMP
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBoomerangData),      // CAM_MODE_BOOMERANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBoomerangData),      // CAM_MODE_BOOMERANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeChargeZData),       // CAM_MODE_CHARGEZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeTargetData),        // CAM_MODE_ZORAFINZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeTargetData),        // CAM_MODE_ZORAFINZ
 };
 
-CameraMode sCamSetNormal3Modes[] = {
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP3, sSetNormal3ModeNormalData),            // CAM_MODE_NORMAL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeJumpData),            // CAM_MODE_JUMP
+CameraMode MM_sCamSetNormal3Modes[] = {
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP3, MM_sSetNormal3ModeNormalData),            // CAM_MODE_NORMAL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, MM_sSetNormal0ModeJumpData),            // CAM_MODE_JUMP
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP3, sSetNormal3ModeGoronDashData),         // CAM_MODE_GORONDASH
     CAM_SETTING_MODE_NULL,                                                        // CAM_MODE_DEKUSHOOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP3, sSetNormal3ModeDekuFlyData),           // CAM_MODE_DEKUFLY
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeZoraFinData),        // CAM_MODE_ZORAFIN
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal3ModeTargetData),        // CAM_MODE_TARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, sSetNormal0ModeTalkData),            // CAM_MODE_TALK
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal3ModeTargetData),        // CAM_MODE_TARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, MM_sSetNormal0ModeTalkData),            // CAM_MODE_TALK
     CAM_SETTING_MODE_NULL,                                                        // CAM_MODE_SLINGSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowData),       // CAM_MODE_BOWARROW
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, sSetNormal0ModeBattleData),          // CAM_MODE_BATTLE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowData),       // CAM_MODE_BOWARROW
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, MM_sSetNormal0ModeBattleData),          // CAM_MODE_BATTLE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP3, sSetNormal3ModeDekuHideData),          // CAM_MODE_DEKUHIDE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal3ModeStillData),           // CAM_MODE_STILL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeChargeData),        // CAM_MODE_CHARGE
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetNormal0ModeClimbData),             // CAM_MODE_CLIMB
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetNormal0ModeClimbZData),            // CAM_MODE_CLIMBZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, sSetNormal0ModeHookshotData),       // CAM_MODE_HOOKSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeChargeData),        // CAM_MODE_CHARGE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetNormal0ModeClimbData),             // CAM_MODE_CLIMB
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetNormal0ModeClimbZData),            // CAM_MODE_CLIMBZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, MM_sSetNormal0ModeHookshotData),       // CAM_MODE_HOOKSHOT
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP3, sSetNormal3ModeFreeFallData),          // CAM_MODE_FREEFALL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeHangData),          // CAM_MODE_HANG
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeHangZData),         // CAM_MODE_HANGZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModePushPullData),      // CAM_MODE_PUSHPULL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeHangData),          // CAM_MODE_HANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeHangZData),         // CAM_MODE_HANGZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModePushPullData),      // CAM_MODE_PUSHPULL
     CAM_SETTING_MODE_NULL,                                                        // CAM_MODE_DEKUFLYZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP3, sSetNormal3ModeGoronJumpData),         // CAM_MODE_GORONJUMP
 };
 
-CameraMode sCamSetPivotDivingModes[] = {
+CameraMode MM_sCamSetPivotDivingModes[] = {
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_UNIQUE2, sSetPivotDivingModeNormalData), // CAM_MODE_NORMAL
     CAM_SETTING_MODE_NULL,                                                   // CAM_MODE_JUMP
     CAM_SETTING_MODE_NULL,                                                   // CAM_MODE_GORONDASH
@@ -2154,21 +2154,21 @@ CameraMode sCamSetPivotDivingModes[] = {
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_UNIQUE2, sSetPivotDivingModeTargetData), // CAM_MODE_TARGET
 };
 
-CameraMode sCamSetHorseModes[] = {
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL3, sSetHorseModeNormalData),       // CAM_MODE_NORMAL
+CameraMode MM_sCamSetHorseModes[] = {
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL3, MM_sSetHorseModeNormalData),       // CAM_MODE_NORMAL
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL3, sSetHorseModeJumpData),         // CAM_MODE_JUMP
     CAM_SETTING_MODE_NULL,                                                   // CAM_MODE_GORONDASH
     CAM_SETTING_MODE_NULL,                                                   // CAM_MODE_DEKUSHOOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowZData), // CAM_MODE_BOWARROWZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowZData), // CAM_MODE_BOWARROWZ
     CAM_SETTING_MODE_NULL,                                                   // CAM_MODE_DEKUFLY
     CAM_SETTING_MODE_NULL,                                                   // CAM_MODE_FIRSTPERSON
     CAM_SETTING_MODE_NULL,                                                   // CAM_MODE_FOLLOWBOOMERANG
     CAM_SETTING_MODE_NULL,                                                   // CAM_MODE_ZORAFIN
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetHorseModeFollowTargetData), // CAM_MODE_FOLLOWTARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL3, sSetHorseModeTargetData),       // CAM_MODE_TARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, sSetHorseModeTalkData),         // CAM_MODE_TALK
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetHorseModeFollowTargetData), // CAM_MODE_FOLLOWTARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL3, MM_sSetHorseModeTargetData),       // CAM_MODE_TARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, MM_sSetHorseModeTalkData),         // CAM_MODE_TALK
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetHorseModeSlingShotData),   // CAM_MODE_SLINGSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetHorseModeBowArrowData),    // CAM_MODE_BOWARROW
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetHorseModeBowArrowData),    // CAM_MODE_BOWARROW
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, sSetHorseModeBattleData),       // CAM_MODE_BATTLE
     CAM_SETTING_MODE_NULL,                                                   // CAM_MODE_DEKUHIDE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL3, sSetHorseModeStillData),        // CAM_MODE_STILL
@@ -2178,23 +2178,23 @@ CameraMode sCamSetZoraDivingModes[] = {
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL3, sSetZoraDivingModeNormalData), // CAM_MODE_NORMAL
 };
 
-CameraMode sCamSetPreRendFixedModes[] = {
+CameraMode MM_sCamSetPreRendFixedModes[] = {
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_FIXED3, sSetPrerendFixedModeNormalData), // CAM_MODE_NORMAL
 };
 
-CameraMode sCamSetPreRendPivotModes[] = {
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_UNIQUE7, sSetPrerendPivotModeNormalData), // CAM_MODE_NORMAL
+CameraMode MM_sCamSetPreRendPivotModes[] = {
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_UNIQUE7, MM_sSetPrerendPivotModeNormalData), // CAM_MODE_NORMAL
 };
 
-CameraMode sCamSetDoorCModes[] = {
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL9, sSetDoorCModeNormalData), // CAM_MODE_NORMAL
+CameraMode MM_sCamSetDoorCModes[] = {
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL9, MM_sSetDoorCModeNormalData), // CAM_MODE_NORMAL
 };
 
 CameraMode sCamSetDemo0Modes[] = {
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_DEMO1, D_801B4EF0), // CAM_MODE_NORMAL
 };
 
-CameraMode sCamSetFree0Modes[] = {
+CameraMode MM_sCamSetFree0Modes[] = {
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_UNIQUE6, sSetCutscenesModeNormalData), // CAM_MODE_NORMAL
 };
 
@@ -2203,85 +2203,85 @@ CameraMode sCamSetFukan0Modes[] = {
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, D_801B4F50),                         // CAM_MODE_JUMP
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeGoronDashData),       // CAM_MODE_GORONDASH
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeDekuShootData),      // CAM_MODE_DEKUSHOOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeDekuFlyData),         // CAM_MODE_DEKUFLY
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeZoraFinData),        // CAM_MODE_ZORAFIN
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, D_801B4F20),                       // CAM_MODE_TARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, sSetNormal0ModeTalkData),            // CAM_MODE_TALK
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeSlingshotData),      // CAM_MODE_SLINGSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowData),       // CAM_MODE_BOWARROW
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, sSetNormal0ModeBattleData),          // CAM_MODE_BATTLE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, MM_sSetNormal0ModeTalkData),            // CAM_MODE_TALK
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeSlingshotData),      // CAM_MODE_SLINGSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowData),       // CAM_MODE_BOWARROW
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, MM_sSetNormal0ModeBattleData),          // CAM_MODE_BATTLE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuHideData),      // CAM_MODE_DEKUHIDE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, D_801B4F78),                         // CAM_MODE_STILL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeChargeData),        // CAM_MODE_CHARGE
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetNormal0ModeClimbData),             // CAM_MODE_CLIMB
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetNormal0ModeClimbZData),            // CAM_MODE_CLIMBZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, sSetNormal0ModeHookshotData),       // CAM_MODE_HOOKSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeFreeFallData),      // CAM_MODE_FREEFALL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeHangData),          // CAM_MODE_HANG
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeHangZData),         // CAM_MODE_HANGZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeChargeData),        // CAM_MODE_CHARGE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetNormal0ModeClimbData),             // CAM_MODE_CLIMB
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetNormal0ModeClimbZData),            // CAM_MODE_CLIMBZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, MM_sSetNormal0ModeHookshotData),       // CAM_MODE_HOOKSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeFreeFallData),      // CAM_MODE_FREEFALL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeHangData),          // CAM_MODE_HANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeHangZData),         // CAM_MODE_HANGZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, D_801B4EF8),                         // CAM_MODE_PUSHPULL
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuFlyZData),      // CAM_MODE_DEKUFLYZ
 };
 
-CameraMode sCamSetNormal1Modes[] = {
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal1ModeNormalData),          // CAM_MODE_NORMAL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeJumpData),            // CAM_MODE_JUMP
+CameraMode MM_sCamSetNormal1Modes[] = {
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, MM_sSetNormal1ModeNormalData),          // CAM_MODE_NORMAL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, MM_sSetNormal0ModeJumpData),            // CAM_MODE_JUMP
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeGoronDashData),       // CAM_MODE_GORONDASH
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeDekuShootData),      // CAM_MODE_DEKUSHOOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeDekuFlyData),         // CAM_MODE_DEKUFLY
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeZoraFinData),        // CAM_MODE_ZORAFIN
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeTargetData),        // CAM_MODE_TARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, sSetNormal0ModeTalkData),            // CAM_MODE_TALK
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeSlingshotData),      // CAM_MODE_SLINGSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowData),       // CAM_MODE_BOWARROW
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, sSetNormal0ModeBattleData),          // CAM_MODE_BATTLE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeTargetData),        // CAM_MODE_TARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, MM_sSetNormal0ModeTalkData),            // CAM_MODE_TALK
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeSlingshotData),      // CAM_MODE_SLINGSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowData),       // CAM_MODE_BOWARROW
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, MM_sSetNormal0ModeBattleData),          // CAM_MODE_BATTLE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuHideData),      // CAM_MODE_DEKUHIDE
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal1ModeStillData),           // CAM_MODE_STILL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeChargeData),        // CAM_MODE_CHARGE
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetNormal0ModeClimbData),             // CAM_MODE_CLIMB
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetNormal0ModeClimbZData),            // CAM_MODE_CLIMBZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, sSetNormal0ModeHookshotData),       // CAM_MODE_HOOKSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeFreeFallData),      // CAM_MODE_FREEFALL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeHangData),          // CAM_MODE_HANG
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeHangZData),         // CAM_MODE_HANGZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModePushPullData),      // CAM_MODE_PUSHPULL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, MM_sSetNormal1ModeStillData),           // CAM_MODE_STILL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeChargeData),        // CAM_MODE_CHARGE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetNormal0ModeClimbData),             // CAM_MODE_CLIMB
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetNormal0ModeClimbZData),            // CAM_MODE_CLIMBZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, MM_sSetNormal0ModeHookshotData),       // CAM_MODE_HOOKSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeFreeFallData),      // CAM_MODE_FREEFALL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeHangData),          // CAM_MODE_HANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeHangZData),         // CAM_MODE_HANGZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModePushPullData),      // CAM_MODE_PUSHPULL
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuFlyZData),      // CAM_MODE_DEKUFLYZ
 };
 
 CameraMode sCamSetNanameModes[] = {
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL4, D_801B4FF0),                         // CAM_MODE_NORMAL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeJumpData),            // CAM_MODE_JUMP
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, MM_sSetNormal0ModeJumpData),            // CAM_MODE_JUMP
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeGoronDashData),       // CAM_MODE_GORONDASH
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeDekuShootData),      // CAM_MODE_DEKUSHOOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeDekuFlyData),         // CAM_MODE_DEKUFLY
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeZoraFinData),        // CAM_MODE_ZORAFIN
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeTargetData),        // CAM_MODE_TARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, sSetNormal0ModeTalkData),            // CAM_MODE_TALK
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeSlingshotData),      // CAM_MODE_SLINGSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowData),       // CAM_MODE_BOWARROW
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, sSetNormal0ModeBattleData),          // CAM_MODE_BATTLE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeTargetData),        // CAM_MODE_TARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, MM_sSetNormal0ModeTalkData),            // CAM_MODE_TALK
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeSlingshotData),      // CAM_MODE_SLINGSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowData),       // CAM_MODE_BOWARROW
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, MM_sSetNormal0ModeBattleData),          // CAM_MODE_BATTLE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuHideData),      // CAM_MODE_DEKUHIDE
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeStillData),           // CAM_MODE_STILL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeChargeData),        // CAM_MODE_CHARGE
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetNormal0ModeClimbData),             // CAM_MODE_CLIMB
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetNormal0ModeClimbZData),            // CAM_MODE_CLIMBZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, sSetNormal0ModeHookshotData),       // CAM_MODE_HOOKSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeFreeFallData),      // CAM_MODE_FREEFALL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeHangData),          // CAM_MODE_HANG
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeHangZData),         // CAM_MODE_HANGZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModePushPullData),      // CAM_MODE_PUSHPULL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, MM_sSetNormal0ModeStillData),           // CAM_MODE_STILL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeChargeData),        // CAM_MODE_CHARGE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetNormal0ModeClimbData),             // CAM_MODE_CLIMB
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetNormal0ModeClimbZData),            // CAM_MODE_CLIMBZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, MM_sSetNormal0ModeHookshotData),       // CAM_MODE_HOOKSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeFreeFallData),      // CAM_MODE_FREEFALL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeHangData),          // CAM_MODE_HANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeHangZData),         // CAM_MODE_HANGZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModePushPullData),      // CAM_MODE_PUSHPULL
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuFlyZData),      // CAM_MODE_DEKUFLYZ
 };
 
@@ -2290,15 +2290,15 @@ CameraMode sCamSetCirc0Modes[] = {
     CAM_SETTING_MODE_NULL,                                                        // CAM_MODE_JUMP
     CAM_SETTING_MODE_NULL,                                                        // CAM_MODE_GORONDASH
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeDekuShootData),      // CAM_MODE_DEKUSHOOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
     CAM_SETTING_MODE_NULL,                                                        // CAM_MODE_DEKUFLY
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeZoraFinData),        // CAM_MODE_ZORAFIN
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_FIXED2, D_801B5034),                          // CAM_MODE_FOLLOWTARGET
     CAM_SETTING_MODE_NULL,                                                        // CAM_MODE_TARGET
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_FIXED2, D_801B5050),                          // CAM_MODE_TALK
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeSlingshotData),      // CAM_MODE_SLINGSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeSlingshotData),      // CAM_MODE_SLINGSHOT
 };
 
 CameraMode sCamSetFixed0Modes[] = {
@@ -2306,52 +2306,52 @@ CameraMode sCamSetFixed0Modes[] = {
     CAM_SETTING_MODE_NULL,                                                        // CAM_MODE_JUMP
     CAM_SETTING_MODE_NULL,                                                        // CAM_MODE_GORONDASH
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeDekuShootData),      // CAM_MODE_DEKUSHOOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
     CAM_SETTING_MODE_NULL,                                                        // CAM_MODE_DEKUFLY
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeZoraFinData),        // CAM_MODE_ZORAFIN
     CAM_SETTING_MODE_NULL,                                                        // CAM_MODE_FOLLOWTARGET
     CAM_SETTING_MODE_NULL,                                                        // CAM_MODE_TARGET
     CAM_SETTING_MODE_NULL,                                                        // CAM_MODE_TALK
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeSlingshotData),      // CAM_MODE_SLINGSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeSlingshotData),      // CAM_MODE_SLINGSHOT
 };
 
 CameraMode sCamSetSpiralDoorModes[] = {
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL8, sSetSpiralDoorModeNormalData), // CAM_MODE_NORMAL
 };
 
-CameraMode sCamSetDungeon0Modes[] = {
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetDungeon0ModeNormalData),          // CAM_MODE_NORMAL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetDungeon0ModeJumpData),            // CAM_MODE_JUMP
+CameraMode MM_sCamSetDungeon0Modes[] = {
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, MM_sSetDungeon0ModeNormalData),          // CAM_MODE_NORMAL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, MM_sSetDungeon0ModeJumpData),            // CAM_MODE_JUMP
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeGoronDashData),        // CAM_MODE_GORONDASH
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeDekuShootData),       // CAM_MODE_DEKUSHOOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowZData),       // CAM_MODE_BOWARROWZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowZData),       // CAM_MODE_BOWARROWZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeDekuFlyData),          // CAM_MODE_DEKUFLY
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeFirstPersonData),     // CAM_MODE_FIRSTPERSON
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeFirstPersonData),     // CAM_MODE_FIRSTPERSON
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetDungeon0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeZoraFinData),         // CAM_MODE_ZORAFIN
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetDungeon0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeTargetData),        // CAM_MODE_TARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, sSetNormal0ModeTalkData),             // CAM_MODE_TALK
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeSlingshotData),       // CAM_MODE_SLINGSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowData),        // CAM_MODE_BOWARROW
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, sSetDungeon0ModeBattleData),          // CAM_MODE_BATTLE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetDungeon0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeTargetData),        // CAM_MODE_TARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, MM_sSetNormal0ModeTalkData),             // CAM_MODE_TALK
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeSlingshotData),       // CAM_MODE_SLINGSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowData),        // CAM_MODE_BOWARROW
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, MM_sSetDungeon0ModeBattleData),          // CAM_MODE_BATTLE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuHideData),       // CAM_MODE_DEKUHIDE
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetDungeon0ModeStillData),           // CAM_MODE_STILL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeChargeData),        // CAM_MODE_CHARGE
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetDungeon0ModeClimbData),             // CAM_MODE_CLIMB
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetDungeon0ModeClimbZData),            // CAM_MODE_CLIMBZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, sSetNormal0ModeHookshotData),        // CAM_MODE_HOOKSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeFreeFallData),      // CAM_MODE_FREEFALL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeHangData),          // CAM_MODE_HANG
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeHangZData),         // CAM_MODE_HANGZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, MM_sSetDungeon0ModeStillData),           // CAM_MODE_STILL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeChargeData),        // CAM_MODE_CHARGE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetDungeon0ModeClimbData),             // CAM_MODE_CLIMB
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetDungeon0ModeClimbZData),            // CAM_MODE_CLIMBZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, MM_sSetNormal0ModeHookshotData),        // CAM_MODE_HOOKSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeFreeFallData),      // CAM_MODE_FREEFALL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeHangData),          // CAM_MODE_HANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeHangZData),         // CAM_MODE_HANGZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModePushPullData),      // CAM_MODE_PUSHPULL
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuFlyZData),       // CAM_MODE_DEKUFLYZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeGoronJumpData),        // CAM_MODE_GORONJUMP
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBoomerangData),       // CAM_MODE_BOOMERANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBoomerangData),       // CAM_MODE_BOOMERANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeChargeZData),       // CAM_MODE_CHARGEZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeTargetData),         // CAM_MODE_ZORAFINZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeTargetData),         // CAM_MODE_ZORAFINZ
 };
 
 CameraMode sCamSetItem0Modes[] = {
@@ -2438,32 +2438,32 @@ CameraMode sCamSetWarp1Modes[] = {
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_DEMO3, sSetCutscenesModeNormalData), // CAM_MODE_NORMAL
 };
 
-CameraMode sCamSetDungeon1Modes[] = {
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetDungeon1ModeNormalData),          // CAM_MODE_NORMAL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetDungeon1ModeJumpData),            // CAM_MODE_JUMP
+CameraMode MM_sCamSetDungeon1Modes[] = {
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, MM_sSetDungeon1ModeNormalData),          // CAM_MODE_NORMAL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, MM_sSetDungeon1ModeJumpData),            // CAM_MODE_JUMP
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeGoronDashData),        // CAM_MODE_GORONDASH
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeDekuShootData),       // CAM_MODE_DEKUSHOOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowZData),       // CAM_MODE_BOWARROWZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowZData),       // CAM_MODE_BOWARROWZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeDekuFlyData),          // CAM_MODE_DEKUFLY
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeFirstPersonData),     // CAM_MODE_FIRSTPERSON
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeFirstPersonData),     // CAM_MODE_FIRSTPERSON
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetDungeon0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeZoraFinData),         // CAM_MODE_ZORAFIN
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetDungeon0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeTargetData),        // CAM_MODE_TARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, sSetNormal0ModeTalkData),             // CAM_MODE_TALK
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeSlingshotData),       // CAM_MODE_SLINGSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowData),        // CAM_MODE_BOWARROW
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, sSetDungeon0ModeBattleData),          // CAM_MODE_BATTLE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetDungeon0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeTargetData),        // CAM_MODE_TARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, MM_sSetNormal0ModeTalkData),             // CAM_MODE_TALK
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeSlingshotData),       // CAM_MODE_SLINGSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowData),        // CAM_MODE_BOWARROW
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, MM_sSetDungeon0ModeBattleData),          // CAM_MODE_BATTLE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuHideData),       // CAM_MODE_DEKUHIDE
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetDungeon1ModeStillData),           // CAM_MODE_STILL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeChargeData),        // CAM_MODE_CHARGE
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetDungeon0ModeClimbData),             // CAM_MODE_CLIMB
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetDungeon0ModeClimbZData),            // CAM_MODE_CLIMBZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, sSetNormal0ModeHookshotData),        // CAM_MODE_HOOKSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeFreeFallData),      // CAM_MODE_FREEFALL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeHangData),          // CAM_MODE_HANG
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeHangZData),         // CAM_MODE_HANGZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon1ModePushPullData),      // CAM_MODE_PUSHPULL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, MM_sSetDungeon1ModeStillData),           // CAM_MODE_STILL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeChargeData),        // CAM_MODE_CHARGE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetDungeon0ModeClimbData),             // CAM_MODE_CLIMB
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetDungeon0ModeClimbZData),            // CAM_MODE_CLIMBZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, MM_sSetNormal0ModeHookshotData),        // CAM_MODE_HOOKSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeFreeFallData),      // CAM_MODE_FREEFALL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeHangData),          // CAM_MODE_HANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeHangZData),         // CAM_MODE_HANGZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon1ModePushPullData),      // CAM_MODE_PUSHPULL
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuFlyZData),       // CAM_MODE_DEKUFLYZ
 };
 
@@ -2496,15 +2496,15 @@ CameraMode sCamSetCirc3Modes[] = {
     CAM_SETTING_MODE_NULL,                                                        // CAM_MODE_JUMP
     CAM_SETTING_MODE_NULL,                                                        // CAM_MODE_GORONDASH
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeDekuShootData),      // CAM_MODE_DEKUSHOOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
     CAM_SETTING_MODE_NULL,                                                        // CAM_MODE_DEKUFLY
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeZoraFinData),        // CAM_MODE_ZORAFIN
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_FIXED2, D_801B5034),                          // CAM_MODE_FOLLOWTARGET
     CAM_SETTING_MODE_NULL,                                                        // CAM_MODE_TARGET
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_FIXED2, D_801B5050),                          // CAM_MODE_TALK
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeSlingshotData),      // CAM_MODE_SLINGSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeSlingshotData),      // CAM_MODE_SLINGSHOT
 };
 
 CameraMode sCamSetCirc4Modes[] = {
@@ -2516,43 +2516,43 @@ CameraMode sCamSetFixed3Modes[] = {
     CAM_SETTING_MODE_NULL,                                                        // CAM_MODE_JUMP
     CAM_SETTING_MODE_NULL,                                                        // CAM_MODE_GORONDASH
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeDekuShootData),      // CAM_MODE_DEKUSHOOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
     CAM_SETTING_MODE_NULL,                                                        // CAM_MODE_DEKUFLY
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeZoraFinData),        // CAM_MODE_ZORAFIN
     CAM_SETTING_MODE_NULL,                                                        // CAM_MODE_FOLLOWTARGET
     CAM_SETTING_MODE_NULL,                                                        // CAM_MODE_TARGET
     CAM_SETTING_MODE_NULL,                                                        // CAM_MODE_TALK
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeSlingshotData),      // CAM_MODE_SLINGSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeSlingshotData),      // CAM_MODE_SLINGSHOT
 };
 
-CameraMode sCamSetTowerClimbModes[] = {
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL0, sSetTowerClimbModeNormalData),       // CAM_MODE_NORMAL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetTowerClimbModeJumpData),         // CAM_MODE_JUMP
+CameraMode MM_sCamSetTowerClimbModes[] = {
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL0, MM_sSetTowerClimbModeNormalData),       // CAM_MODE_NORMAL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, MM_sSetTowerClimbModeJumpData),         // CAM_MODE_JUMP
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeGoronDashData),       // CAM_MODE_GORONDASH
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeDekuShootData),      // CAM_MODE_DEKUSHOOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeDekuFlyData),         // CAM_MODE_DEKUFLY
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeZoraFinData),        // CAM_MODE_ZORAFIN
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeTargetData),        // CAM_MODE_TARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, sSetNormal0ModeTalkData),            // CAM_MODE_TALK
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeSlingshotData),      // CAM_MODE_SLINGSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowData),       // CAM_MODE_BOWARROW
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, sSetNormal0ModeBattleData),          // CAM_MODE_BATTLE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeTargetData),        // CAM_MODE_TARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, MM_sSetNormal0ModeTalkData),            // CAM_MODE_TALK
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeSlingshotData),      // CAM_MODE_SLINGSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowData),       // CAM_MODE_BOWARROW
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, MM_sSetNormal0ModeBattleData),          // CAM_MODE_BATTLE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuHideData),      // CAM_MODE_DEKUHIDE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetTowerClimbModeStillData),        // CAM_MODE_STILL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeChargeData),        // CAM_MODE_CHARGE
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetNormal0ModeClimbData),             // CAM_MODE_CLIMB
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetNormal0ModeClimbZData),            // CAM_MODE_CLIMBZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, sSetNormal0ModeHookshotData),       // CAM_MODE_HOOKSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeFreeFallData),      // CAM_MODE_FREEFALL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeHangData),          // CAM_MODE_HANG
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeHangZData),         // CAM_MODE_HANGZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModePushPullData),      // CAM_MODE_PUSHPULL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeChargeData),        // CAM_MODE_CHARGE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetNormal0ModeClimbData),             // CAM_MODE_CLIMB
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetNormal0ModeClimbZData),            // CAM_MODE_CLIMBZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, MM_sSetNormal0ModeHookshotData),       // CAM_MODE_HOOKSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeFreeFallData),      // CAM_MODE_FREEFALL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeHangData),          // CAM_MODE_HANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeHangZData),         // CAM_MODE_HANGZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModePushPullData),      // CAM_MODE_PUSHPULL
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuFlyZData),      // CAM_MODE_DEKUFLYZ
 };
 
@@ -2568,7 +2568,7 @@ CameraMode sCamSetSubjectDModes[] = {
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, D_801B59D0), // CAM_MODE_NORMAL
 };
 
-CameraMode sCamSetStart0Modes[] = {
+CameraMode MM_sCamSetStart0Modes[] = {
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_UNIQUE0, D_801B59F4), // CAM_MODE_NORMAL
 };
 
@@ -2585,44 +2585,44 @@ CameraMode sCamSetBoatCruiseModes[] = {
     CAM_SETTING_MODE_NULL,                                                     // CAM_MODE_JUMP
     CAM_SETTING_MODE_NULL,                                                     // CAM_MODE_GORONDASH
     CAM_SETTING_MODE_NULL,                                                     // CAM_MODE_DEKUSHOOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowZData),   // CAM_MODE_BOWARROWZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowZData),   // CAM_MODE_BOWARROWZ
     CAM_SETTING_MODE_NULL,                                                     // CAM_MODE_DEKUFLY
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeFirstPersonData), // CAM_MODE_FIRSTPERSON
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeFirstPersonData), // CAM_MODE_FIRSTPERSON
     CAM_SETTING_MODE_NULL,                                                     // CAM_MODE_FOLLOWBOOMERANG
     CAM_SETTING_MODE_NULL,                                                     // CAM_MODE_ZORAFIN
     CAM_SETTING_MODE_NULL,                                                     // CAM_MODE_FOLLOWTARGET
     CAM_SETTING_MODE_NULL,                                                     // CAM_MODE_TARGET
     CAM_SETTING_MODE_NULL,                                                     // CAM_MODE_TALK
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeSlingshotData),   // CAM_MODE_SLINGSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowData),    // CAM_MODE_BOWARROW
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeSlingshotData),   // CAM_MODE_SLINGSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowData),    // CAM_MODE_BOWARROW
 };
 
 CameraMode sCamSetVerticalClimbModes[] = {
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeNormalData),          // CAM_MODE_NORMAL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeJumpData),            // CAM_MODE_JUMP
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, MM_sSetNormal0ModeNormalData),          // CAM_MODE_NORMAL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, MM_sSetNormal0ModeJumpData),            // CAM_MODE_JUMP
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeGoronDashData),       // CAM_MODE_GORONDASH
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeDekuShootData),      // CAM_MODE_DEKUSHOOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeDekuFlyData),         // CAM_MODE_DEKUFLY
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeZoraFinData),        // CAM_MODE_ZORAFIN
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeTargetData),        // CAM_MODE_TARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, sSetNormal0ModeTalkData),            // CAM_MODE_TALK
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeSlingshotData),      // CAM_MODE_SLINGSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowData),       // CAM_MODE_BOWARROW
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, sSetNormal0ModeBattleData),          // CAM_MODE_BATTLE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeTargetData),        // CAM_MODE_TARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, MM_sSetNormal0ModeTalkData),            // CAM_MODE_TALK
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeSlingshotData),      // CAM_MODE_SLINGSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowData),       // CAM_MODE_BOWARROW
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, MM_sSetNormal0ModeBattleData),          // CAM_MODE_BATTLE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuHideData),      // CAM_MODE_DEKUHIDE
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeStillData),           // CAM_MODE_STILL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeChargeData),        // CAM_MODE_CHARGE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, MM_sSetNormal0ModeStillData),           // CAM_MODE_STILL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeChargeData),        // CAM_MODE_CHARGE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetVerticalClimbModeClimbData),   // CAM_MODE_CLIMB
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetVerticalClimbModeClimbData),   // CAM_MODE_CLIMBZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, sSetNormal0ModeHookshotData),       // CAM_MODE_HOOKSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeFreeFallData),      // CAM_MODE_FREEFALL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeHangData),          // CAM_MODE_HANG
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeHangZData),         // CAM_MODE_HANGZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModePushPullData),      // CAM_MODE_PUSHPULL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, MM_sSetNormal0ModeHookshotData),       // CAM_MODE_HOOKSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeFreeFallData),      // CAM_MODE_FREEFALL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeHangData),          // CAM_MODE_HANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeHangZData),         // CAM_MODE_HANGZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModePushPullData),      // CAM_MODE_PUSHPULL
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuFlyZData),      // CAM_MODE_DEKUFLYZ
 };
 
@@ -2630,32 +2630,32 @@ CameraMode sCamSetSidedModes[] = {
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, D_801B5A64), // CAM_MODE_NORMAL
 };
 
-CameraMode sCamSetDungeon2Modes[] = {
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetDungeon2ModeNormalData),          // CAM_MODE_NORMAL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetDungeon2ModeJumpData),            // CAM_MODE_JUMP
+CameraMode MM_sCamSetDungeon2Modes[] = {
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, MM_sSetDungeon2ModeNormalData),          // CAM_MODE_NORMAL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, MM_sSetDungeon2ModeJumpData),            // CAM_MODE_JUMP
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeGoronDashData),        // CAM_MODE_GORONDASH
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeDekuShootData),       // CAM_MODE_DEKUSHOOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowZData),       // CAM_MODE_BOWARROWZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowZData),       // CAM_MODE_BOWARROWZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeDekuFlyData),          // CAM_MODE_DEKUFLY
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeFirstPersonData),     // CAM_MODE_FIRSTPERSON
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeFirstPersonData),     // CAM_MODE_FIRSTPERSON
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetDungeon0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeZoraFinData),         // CAM_MODE_ZORAFIN
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetDungeon0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeTargetData),        // CAM_MODE_TARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, sSetNormal0ModeTalkData),             // CAM_MODE_TALK
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeSlingshotData),       // CAM_MODE_SLINGSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowData),        // CAM_MODE_BOWARROW
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, sSetDungeon2ModeBattleData),          // CAM_MODE_BATTLE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetDungeon0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeTargetData),        // CAM_MODE_TARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, MM_sSetNormal0ModeTalkData),             // CAM_MODE_TALK
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeSlingshotData),       // CAM_MODE_SLINGSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowData),        // CAM_MODE_BOWARROW
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, MM_sSetDungeon2ModeBattleData),          // CAM_MODE_BATTLE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuHideData),       // CAM_MODE_DEKUHIDE
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetDungeon2ModeStillData),           // CAM_MODE_STILL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeChargeData),        // CAM_MODE_CHARGE
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetDungeon0ModeClimbData),             // CAM_MODE_CLIMB
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetDungeon0ModeClimbZData),            // CAM_MODE_CLIMBZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, sSetNormal0ModeHookshotData),        // CAM_MODE_HOOKSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeFreeFallData),      // CAM_MODE_FREEFALL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeHangData),          // CAM_MODE_HANG
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeHangZData),         // CAM_MODE_HANGZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon2ModePushPullData),      // CAM_MODE_PUSHPULL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, MM_sSetDungeon2ModeStillData),           // CAM_MODE_STILL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeChargeData),        // CAM_MODE_CHARGE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetDungeon0ModeClimbData),             // CAM_MODE_CLIMB
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetDungeon0ModeClimbZData),            // CAM_MODE_CLIMBZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, MM_sSetNormal0ModeHookshotData),        // CAM_MODE_HOOKSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeFreeFallData),      // CAM_MODE_FREEFALL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeHangData),          // CAM_MODE_HANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeHangZData),         // CAM_MODE_HANGZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon2ModePushPullData),      // CAM_MODE_PUSHPULL
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuFlyZData),       // CAM_MODE_DEKUFLYZ
 };
 
@@ -2664,56 +2664,56 @@ CameraMode sCamSetBossOdolwaModes[] = {
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetBossOdolwaModeJumpData),          // CAM_MODE_JUMP
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeGoronDashData),        // CAM_MODE_GORONDASH
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeDekuShootData),       // CAM_MODE_DEKUSHOOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowZData),       // CAM_MODE_BOWARROWZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowZData),       // CAM_MODE_BOWARROWZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeDekuFlyData),          // CAM_MODE_DEKUFLY
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeFirstPersonData),     // CAM_MODE_FIRSTPERSON
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeFirstPersonData),     // CAM_MODE_FIRSTPERSON
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetDungeon0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeZoraFinData),         // CAM_MODE_ZORAFIN
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetBossOdolwaModeFollowTargetData),  // CAM_MODE_FOLLOWTARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeTargetData),        // CAM_MODE_TARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeTargetData),        // CAM_MODE_TARGET
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, sSetBossOdolwaModeTalkData),          // CAM_MODE_TALK
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeSlingshotData),       // CAM_MODE_SLINGSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowData),        // CAM_MODE_BOWARROW
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeSlingshotData),       // CAM_MODE_SLINGSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowData),        // CAM_MODE_BOWARROW
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, sSetBossOdolwaModeBattleData),        // CAM_MODE_BATTLE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuHideData),       // CAM_MODE_DEKUHIDE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetBossOdolwaModeStillData),         // CAM_MODE_STILL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeChargeData),        // CAM_MODE_CHARGE
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetDungeon0ModeClimbData),             // CAM_MODE_CLIMB
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeClimbZData),        // CAM_MODE_CLIMBZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, sSetNormal0ModeHookshotData),        // CAM_MODE_HOOKSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeFreeFallData),      // CAM_MODE_FREEFALL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeHangData),          // CAM_MODE_HANG
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeHangZData),         // CAM_MODE_HANGZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeChargeData),        // CAM_MODE_CHARGE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetDungeon0ModeClimbData),             // CAM_MODE_CLIMB
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeClimbZData),        // CAM_MODE_CLIMBZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, MM_sSetNormal0ModeHookshotData),        // CAM_MODE_HOOKSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeFreeFallData),      // CAM_MODE_FREEFALL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeHangData),          // CAM_MODE_HANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeHangZData),         // CAM_MODE_HANGZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModePushPullData),      // CAM_MODE_PUSHPULL
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuFlyZData),       // CAM_MODE_DEKUFLYZ
 };
 
 CameraMode sCamSetKeepBackModes[] = {
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, D_801B5C80),                       // CAM_MODE_NORMAL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeJumpData),            // CAM_MODE_JUMP
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, MM_sSetNormal0ModeJumpData),            // CAM_MODE_JUMP
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeGoronDashData),       // CAM_MODE_GORONDASH
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeDekuShootData),      // CAM_MODE_DEKUSHOOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeDekuFlyData),         // CAM_MODE_DEKUFLY
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeZoraFinData),        // CAM_MODE_ZORAFIN
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeTargetData),        // CAM_MODE_TARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, sSetNormal0ModeTalkData),            // CAM_MODE_TALK
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeSlingshotData),      // CAM_MODE_SLINGSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowData),       // CAM_MODE_BOWARROW
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, sSetNormal0ModeBattleData),          // CAM_MODE_BATTLE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeTargetData),        // CAM_MODE_TARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, MM_sSetNormal0ModeTalkData),            // CAM_MODE_TALK
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeSlingshotData),      // CAM_MODE_SLINGSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowData),       // CAM_MODE_BOWARROW
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, MM_sSetNormal0ModeBattleData),          // CAM_MODE_BATTLE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuHideData),      // CAM_MODE_DEKUHIDE
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeStillData),           // CAM_MODE_STILL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeChargeData),        // CAM_MODE_CHARGE
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetNormal0ModeClimbData),             // CAM_MODE_CLIMB
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, MM_sSetNormal0ModeStillData),           // CAM_MODE_STILL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeChargeData),        // CAM_MODE_CHARGE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetNormal0ModeClimbData),             // CAM_MODE_CLIMB
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetVerticalClimbModeClimbData),   // CAM_MODE_CLIMBZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, sSetNormal0ModeHookshotData),       // CAM_MODE_HOOKSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeFreeFallData),      // CAM_MODE_FREEFALL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeHangData),          // CAM_MODE_HANG
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeHangZData),         // CAM_MODE_HANGZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModePushPullData),      // CAM_MODE_PUSHPULL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, MM_sSetNormal0ModeHookshotData),       // CAM_MODE_HOOKSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeFreeFallData),      // CAM_MODE_FREEFALL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeHangData),          // CAM_MODE_HANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeHangZData),         // CAM_MODE_HANGZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModePushPullData),      // CAM_MODE_PUSHPULL
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuFlyZData),      // CAM_MODE_DEKUFLYZ
 };
 
@@ -2730,26 +2730,26 @@ CameraMode sCamSetMiniBossModes[] = {
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetMiniBossModeJumpData),            // CAM_MODE_JUMP
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeGoronDashData),        // CAM_MODE_GORONDASH
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeDekuShootData),       // CAM_MODE_DEKUSHOOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowZData),       // CAM_MODE_BOWARROWZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowZData),       // CAM_MODE_BOWARROWZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeDekuFlyData),          // CAM_MODE_DEKUFLY
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeFirstPersonData),     // CAM_MODE_FIRSTPERSON
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeFirstPersonData),     // CAM_MODE_FIRSTPERSON
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetDungeon0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeZoraFinData),         // CAM_MODE_ZORAFIN
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetMiniBossModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeTargetData),        // CAM_MODE_TARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, sSetNormal0ModeTalkData),             // CAM_MODE_TALK
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeSlingshotData),       // CAM_MODE_SLINGSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowData),        // CAM_MODE_BOWARROW
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeTargetData),        // CAM_MODE_TARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, MM_sSetNormal0ModeTalkData),             // CAM_MODE_TALK
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeSlingshotData),       // CAM_MODE_SLINGSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowData),        // CAM_MODE_BOWARROW
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, sSetMiniBossModeBattleData),          // CAM_MODE_BATTLE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuHideData),       // CAM_MODE_DEKUHIDE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetMiniBossModeStillData),           // CAM_MODE_STILL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeChargeData),        // CAM_MODE_CHARGE
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetDungeon0ModeClimbData),             // CAM_MODE_CLIMB
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetDungeon0ModeClimbZData),            // CAM_MODE_CLIMBZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, sSetNormal0ModeHookshotData),        // CAM_MODE_HOOKSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeFreeFallData),      // CAM_MODE_FREEFALL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeHangData),          // CAM_MODE_HANG
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeHangZData),         // CAM_MODE_HANGZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeChargeData),        // CAM_MODE_CHARGE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetDungeon0ModeClimbData),             // CAM_MODE_CLIMB
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetDungeon0ModeClimbZData),            // CAM_MODE_CLIMBZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, MM_sSetNormal0ModeHookshotData),        // CAM_MODE_HOOKSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeFreeFallData),      // CAM_MODE_FREEFALL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeHangData),          // CAM_MODE_HANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeHangZData),         // CAM_MODE_HANGZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModePushPullData),      // CAM_MODE_PUSHPULL
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuFlyZData),       // CAM_MODE_DEKUFLYZ
 };
@@ -2785,26 +2785,26 @@ CameraMode sCamSetFukan1Modes[] = {
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, D_801B4F50),                         // CAM_MODE_JUMP
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeGoronDashData),       // CAM_MODE_GORONDASH
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeDekuShootData),      // CAM_MODE_DEKUSHOOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeDekuFlyData),         // CAM_MODE_DEKUFLY
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeZoraFinData),        // CAM_MODE_ZORAFIN
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, D_801B4F20),                       // CAM_MODE_TARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, sSetNormal0ModeTalkData),            // CAM_MODE_TALK
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeSlingshotData),      // CAM_MODE_SLINGSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowData),       // CAM_MODE_BOWARROW
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, sSetNormal0ModeBattleData),          // CAM_MODE_BATTLE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, MM_sSetNormal0ModeTalkData),            // CAM_MODE_TALK
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeSlingshotData),      // CAM_MODE_SLINGSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowData),       // CAM_MODE_BOWARROW
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, MM_sSetNormal0ModeBattleData),          // CAM_MODE_BATTLE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuHideData),      // CAM_MODE_DEKUHIDE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, D_801B5E8C),                         // CAM_MODE_STILL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeChargeData),        // CAM_MODE_CHARGE
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetNormal0ModeClimbData),             // CAM_MODE_CLIMB
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetNormal0ModeClimbZData),            // CAM_MODE_CLIMBZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, sSetNormal0ModeHookshotData),       // CAM_MODE_HOOKSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeFreeFallData),      // CAM_MODE_FREEFALL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeHangData),          // CAM_MODE_HANG
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeHangZData),         // CAM_MODE_HANGZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeChargeData),        // CAM_MODE_CHARGE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetNormal0ModeClimbData),             // CAM_MODE_CLIMB
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetNormal0ModeClimbZData),            // CAM_MODE_CLIMBZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, MM_sSetNormal0ModeHookshotData),       // CAM_MODE_HOOKSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeFreeFallData),      // CAM_MODE_FREEFALL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeHangData),          // CAM_MODE_HANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeHangZData),         // CAM_MODE_HANGZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, D_801B4EF8),                         // CAM_MODE_PUSHPULL
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuFlyZData),      // CAM_MODE_DEKUFLYZ
 };
@@ -2814,26 +2814,26 @@ CameraMode sCamSetDungeon3Modes[] = {
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetDungeon3ModeJumpData),            // CAM_MODE_JUMP
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeGoronDashData),        // CAM_MODE_GORONDASH
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeDekuShootData),       // CAM_MODE_DEKUSHOOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowZData),       // CAM_MODE_BOWARROWZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowZData),       // CAM_MODE_BOWARROWZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeDekuFlyData),          // CAM_MODE_DEKUFLY
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeFirstPersonData),     // CAM_MODE_FIRSTPERSON
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeFirstPersonData),     // CAM_MODE_FIRSTPERSON
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetDungeon0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeZoraFinData),         // CAM_MODE_ZORAFIN
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetDungeon0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetDungeon0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon3ModeTargetData),        // CAM_MODE_TARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, sSetNormal0ModeTalkData),             // CAM_MODE_TALK
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeSlingshotData),       // CAM_MODE_SLINGSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowData),        // CAM_MODE_BOWARROW
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, sSetDungeon0ModeBattleData),          // CAM_MODE_BATTLE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, MM_sSetNormal0ModeTalkData),             // CAM_MODE_TALK
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeSlingshotData),       // CAM_MODE_SLINGSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowData),        // CAM_MODE_BOWARROW
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, MM_sSetDungeon0ModeBattleData),          // CAM_MODE_BATTLE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuHideData),       // CAM_MODE_DEKUHIDE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetDungeon3ModeStillData),           // CAM_MODE_STILL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeChargeData),        // CAM_MODE_CHARGE
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetDungeon0ModeClimbData),             // CAM_MODE_CLIMB
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetDungeon0ModeClimbZData),            // CAM_MODE_CLIMBZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, sSetNormal0ModeHookshotData),        // CAM_MODE_HOOKSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeFreeFallData),      // CAM_MODE_FREEFALL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeHangData),          // CAM_MODE_HANG
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeHangZData),         // CAM_MODE_HANGZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeChargeData),        // CAM_MODE_CHARGE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetDungeon0ModeClimbData),             // CAM_MODE_CLIMB
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetDungeon0ModeClimbZData),            // CAM_MODE_CLIMBZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, MM_sSetNormal0ModeHookshotData),        // CAM_MODE_HOOKSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeFreeFallData),      // CAM_MODE_FREEFALL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeHangData),          // CAM_MODE_HANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeHangZData),         // CAM_MODE_HANGZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon3ModePushPullData),      // CAM_MODE_PUSHPULL
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuFlyZData),       // CAM_MODE_DEKUFLYZ
 };
@@ -2862,30 +2862,30 @@ CameraMode sCamSetRoom0Modes[] = {
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, D_801B6154),                      // CAM_MODE_JUMP
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, D_801B62F4),                      // CAM_MODE_GORONDASH
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeDekuShootData),   // CAM_MODE_DEKUSHOOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowZData),   // CAM_MODE_BOWARROWZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowZData),   // CAM_MODE_BOWARROWZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, D_801B634C),                      // CAM_MODE_DEKUFLY
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeFirstPersonData), // CAM_MODE_FIRSTPERSON
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeFirstPersonData), // CAM_MODE_FIRSTPERSON
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, D_801B62C4),                      // CAM_MODE_FOLLOWBOOMERANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeZoraFinData),     // CAM_MODE_ZORAFIN
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, D_801B6074),                      // CAM_MODE_FOLLOWTARGET
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, D_801B6044),                    // CAM_MODE_TARGET
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, D_801B60A4),                      // CAM_MODE_TALK
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeSlingshotData),   // CAM_MODE_SLINGSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowData),    // CAM_MODE_BOWARROW
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeSlingshotData),   // CAM_MODE_SLINGSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowData),    // CAM_MODE_BOWARROW
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, D_801B60D8),                      // CAM_MODE_BATTLE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, D_801B631C),                    // CAM_MODE_DEKUHIDE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, D_801B626C),                      // CAM_MODE_STILL
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, D_801B620C),                    // CAM_MODE_CHARGE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, D_801B610C),                        // CAM_MODE_CLIMB
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, D_801B6130),                        // CAM_MODE_CLIMBZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, sSetNormal0ModeHookshotData),    // CAM_MODE_HOOKSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, MM_sSetNormal0ModeHookshotData),    // CAM_MODE_HOOKSHOT
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, D_801B61DC),                    // CAM_MODE_FREEFALL
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, D_801B617C),                    // CAM_MODE_HANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, D_801B61AC),                    // CAM_MODE_HANGZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, D_801B6294),                    // CAM_MODE_PUSHPULL
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, D_801B6374),                    // CAM_MODE_DEKUFLYZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, D_801B63A4),                      // CAM_MODE_GORONJUMP
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBoomerangData),   // CAM_MODE_BOOMERANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBoomerangData),   // CAM_MODE_BOOMERANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, D_801B623C),                    // CAM_MODE_CHARGEZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, D_801B63CC),                    // CAM_MODE_ZORAFINZ
 };
@@ -2899,15 +2899,15 @@ CameraMode sCamSetCirc9Modes[] = {
     CAM_SETTING_MODE_NULL,                                                        // CAM_MODE_JUMP
     CAM_SETTING_MODE_NULL,                                                        // CAM_MODE_GORONDASH
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeDekuShootData),      // CAM_MODE_DEKUSHOOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
     CAM_SETTING_MODE_NULL,                                                        // CAM_MODE_DEKUFLY
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeZoraFinData),        // CAM_MODE_ZORAFIN
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_FIXED2, D_801B5034),                          // CAM_MODE_FOLLOWTARGET
     CAM_SETTING_MODE_NULL,                                                        // CAM_MODE_TARGET
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_FIXED2, D_801B5050),                          // CAM_MODE_TALK
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeSlingshotData),      // CAM_MODE_SLINGSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeSlingshotData),      // CAM_MODE_SLINGSHOT
 };
 
 CameraMode sCamSetOnThePoleModes[] = {
@@ -2915,27 +2915,27 @@ CameraMode sCamSetOnThePoleModes[] = {
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, D_801B648C),                          // CAM_MODE_JUMP
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeGoronDashData),        // CAM_MODE_GORONDASH
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeDekuShootData),       // CAM_MODE_DEKUSHOOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowZData),       // CAM_MODE_BOWARROWZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowZData),       // CAM_MODE_BOWARROWZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeDekuFlyData),          // CAM_MODE_DEKUFLY
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeFirstPersonData),     // CAM_MODE_FIRSTPERSON
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeFirstPersonData),     // CAM_MODE_FIRSTPERSON
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetDungeon0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeZoraFinData),         // CAM_MODE_ZORAFIN
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetDungeon0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetDungeon0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, D_801B645C),                        // CAM_MODE_TARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, sSetNormal0ModeTalkData),             // CAM_MODE_TALK
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeSlingshotData),       // CAM_MODE_SLINGSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowData),        // CAM_MODE_BOWARROW
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, sSetDungeon0ModeBattleData),          // CAM_MODE_BATTLE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, MM_sSetNormal0ModeTalkData),             // CAM_MODE_TALK
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeSlingshotData),       // CAM_MODE_SLINGSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowData),        // CAM_MODE_BOWARROW
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, MM_sSetDungeon0ModeBattleData),          // CAM_MODE_BATTLE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuHideData),       // CAM_MODE_DEKUHIDE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, D_801B655C),                          // CAM_MODE_STILL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeChargeData),        // CAM_MODE_CHARGE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeChargeData),        // CAM_MODE_CHARGE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, D_801B64B4),                            // CAM_MODE_CLIMB
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, D_801B64D8),                            // CAM_MODE_CLIMBZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, sSetNormal0ModeHookshotData),        // CAM_MODE_HOOKSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeFreeFallData),      // CAM_MODE_FREEFALL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, MM_sSetNormal0ModeHookshotData),        // CAM_MODE_HOOKSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeFreeFallData),      // CAM_MODE_FREEFALL
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, D_801B64FC),                        // CAM_MODE_HANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, D_801B652C),                        // CAM_MODE_HANGZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon1ModePushPullData),      // CAM_MODE_PUSHPULL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon1ModePushPullData),      // CAM_MODE_PUSHPULL
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuFlyZData),       // CAM_MODE_DEKUFLYZ
 };
 
@@ -2944,26 +2944,26 @@ CameraMode sCamSetInBushModes[] = {
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, D_801B6698),                         // CAM_MODE_JUMP
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeGoronDashData),       // CAM_MODE_GORONDASH
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeDekuShootData),      // CAM_MODE_DEKUSHOOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeDekuFlyData),         // CAM_MODE_DEKUFLY
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, D_801B6674),                        // CAM_MODE_FIRSTPERSON
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeZoraFinData),        // CAM_MODE_ZORAFIN
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, D_801B65DC),                         // CAM_MODE_FOLLOWTARGET
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, D_801B65AC),                       // CAM_MODE_TARGET
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, D_801B660C),                         // CAM_MODE_TALK
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeSlingshotData),      // CAM_MODE_SLINGSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowData),       // CAM_MODE_BOWARROW
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeSlingshotData),      // CAM_MODE_SLINGSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowData),       // CAM_MODE_BOWARROW
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, D_801B6640),                         // CAM_MODE_BATTLE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuHideData),      // CAM_MODE_DEKUHIDE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, D_801B66C0),                         // CAM_MODE_STILL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeChargeData),        // CAM_MODE_CHARGE
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetNormal0ModeClimbData),             // CAM_MODE_CLIMB
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetNormal0ModeClimbZData),            // CAM_MODE_CLIMBZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, sSetNormal0ModeHookshotData),       // CAM_MODE_HOOKSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeFreeFallData),      // CAM_MODE_FREEFALL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeHangData),          // CAM_MODE_HANG
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeHangZData),         // CAM_MODE_HANGZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeChargeData),        // CAM_MODE_CHARGE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetNormal0ModeClimbData),             // CAM_MODE_CLIMB
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetNormal0ModeClimbZData),            // CAM_MODE_CLIMBZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, MM_sSetNormal0ModeHookshotData),       // CAM_MODE_HOOKSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeFreeFallData),      // CAM_MODE_FREEFALL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeHangData),          // CAM_MODE_HANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeHangZData),         // CAM_MODE_HANGZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, D_801B4EF8),                         // CAM_MODE_PUSHPULL
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuFlyZData),      // CAM_MODE_DEKUFLYZ
 };
@@ -2973,26 +2973,26 @@ CameraMode sCamSetBossMajoraModes[] = {
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetBossMajoraModeJumpData),          // CAM_MODE_JUMP
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeGoronDashData),        // CAM_MODE_GORONDASH
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeDekuShootData),       // CAM_MODE_DEKUSHOOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowZData),       // CAM_MODE_BOWARROWZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowZData),       // CAM_MODE_BOWARROWZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeDekuFlyData),          // CAM_MODE_DEKUFLY
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeFirstPersonData),     // CAM_MODE_FIRSTPERSON
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeFirstPersonData),     // CAM_MODE_FIRSTPERSON
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetDungeon0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeZoraFinData),         // CAM_MODE_ZORAFIN
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetBossMajoraModeFollowTargetData),  // CAM_MODE_FOLLOWTARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeTargetData),        // CAM_MODE_TARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, sSetNormal0ModeTalkData),             // CAM_MODE_TALK
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeSlingshotData),       // CAM_MODE_SLINGSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowData),        // CAM_MODE_BOWARROW
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeTargetData),        // CAM_MODE_TARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, MM_sSetNormal0ModeTalkData),             // CAM_MODE_TALK
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeSlingshotData),       // CAM_MODE_SLINGSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowData),        // CAM_MODE_BOWARROW
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, sSetBossMajoraModeBattleData),        // CAM_MODE_BATTLE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuHideData),       // CAM_MODE_DEKUHIDE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetBossMajoraModeStillData),         // CAM_MODE_STILL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeChargeData),        // CAM_MODE_CHARGE
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetDungeon0ModeClimbData),             // CAM_MODE_CLIMB
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeClimbZData),        // CAM_MODE_CLIMBZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, sSetNormal0ModeHookshotData),        // CAM_MODE_HOOKSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeFreeFallData),      // CAM_MODE_FREEFALL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeHangData),          // CAM_MODE_HANG
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeHangZData),         // CAM_MODE_HANGZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeChargeData),        // CAM_MODE_CHARGE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetDungeon0ModeClimbData),             // CAM_MODE_CLIMB
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeClimbZData),        // CAM_MODE_CLIMBZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, MM_sSetNormal0ModeHookshotData),        // CAM_MODE_HOOKSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeFreeFallData),      // CAM_MODE_FREEFALL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeHangData),          // CAM_MODE_HANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeHangZData),         // CAM_MODE_HANGZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModePushPullData),      // CAM_MODE_PUSHPULL
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuFlyZData),       // CAM_MODE_DEKUFLYZ
 };
@@ -3002,27 +3002,27 @@ CameraMode sCamSetBossTwinmoldModes[] = {
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetBossTwinmoldModeJumpData),         // CAM_MODE_JUMP
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeGoronDashData),         // CAM_MODE_GORONDASH
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeDekuShootData),        // CAM_MODE_DEKUSHOOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowZData),        // CAM_MODE_BOWARROWZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowZData),        // CAM_MODE_BOWARROWZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeDekuFlyData),           // CAM_MODE_DEKUFLY
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeFirstPersonData),      // CAM_MODE_FIRSTPERSON
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowBoomerangData),   // CAM_MODE_FOLLOWBOOMERANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeFirstPersonData),      // CAM_MODE_FIRSTPERSON
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowBoomerangData),   // CAM_MODE_FOLLOWBOOMERANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeZoraFinData),          // CAM_MODE_ZORAFIN
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetBossTwinmoldModeFollowTargetData), // CAM_MODE_FOLLOWTARGET
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetBossTwinmoldModeTargetData),     // CAM_MODE_TARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, sSetNormal0ModeTalkData),              // CAM_MODE_TALK
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeSlingshotData),        // CAM_MODE_SLINGSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowData),         // CAM_MODE_BOWARROW
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, MM_sSetNormal0ModeTalkData),              // CAM_MODE_TALK
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeSlingshotData),        // CAM_MODE_SLINGSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowData),         // CAM_MODE_BOWARROW
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, sSetBossTwinmoldModeBattleData),       // CAM_MODE_BATTLE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuHideData),        // CAM_MODE_DEKUHIDE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetBossTwinmoldModeStillData),        // CAM_MODE_STILL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeChargeData),          // CAM_MODE_CHARGE
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetNormal0ModeClimbData),               // CAM_MODE_CLIMB
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeClimbZData),          // CAM_MODE_CLIMBZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, sSetNormal0ModeHookshotData),         // CAM_MODE_HOOKSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeFreeFallData),        // CAM_MODE_FREEFALL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeHangData),            // CAM_MODE_HANG
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeHangZData),           // CAM_MODE_HANGZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModePushPullData),        // CAM_MODE_PUSHPULL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeChargeData),          // CAM_MODE_CHARGE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetNormal0ModeClimbData),               // CAM_MODE_CLIMB
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeClimbZData),          // CAM_MODE_CLIMBZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, MM_sSetNormal0ModeHookshotData),         // CAM_MODE_HOOKSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeFreeFallData),        // CAM_MODE_FREEFALL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeHangData),            // CAM_MODE_HANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeHangZData),           // CAM_MODE_HANGZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModePushPullData),        // CAM_MODE_PUSHPULL
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuFlyZData),        // CAM_MODE_DEKUFLYZ
 };
 
@@ -3031,56 +3031,56 @@ CameraMode sCamSetBossGohtModes[] = {
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetBossGohtModeJumpData),            // CAM_MODE_JUMP
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetBossGohtModeGoronDashData),       // CAM_MODE_GORONDASH
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeDekuShootData),       // CAM_MODE_DEKUSHOOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowZData),       // CAM_MODE_BOWARROWZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowZData),       // CAM_MODE_BOWARROWZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeDekuFlyData),          // CAM_MODE_DEKUFLY
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeFirstPersonData),     // CAM_MODE_FIRSTPERSON
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeFirstPersonData),     // CAM_MODE_FIRSTPERSON
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetDungeon0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeZoraFinData),         // CAM_MODE_ZORAFIN
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowTargetData),     // CAM_MODE_FOLLOWTARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeTargetData),         // CAM_MODE_TARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, sSetNormal0ModeTalkData),             // CAM_MODE_TALK
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeSlingshotData),       // CAM_MODE_SLINGSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowData),        // CAM_MODE_BOWARROW
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowTargetData),     // CAM_MODE_FOLLOWTARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeTargetData),         // CAM_MODE_TARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, MM_sSetNormal0ModeTalkData),             // CAM_MODE_TALK
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeSlingshotData),       // CAM_MODE_SLINGSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowData),        // CAM_MODE_BOWARROW
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, sSetBossGohtModeBattleData),          // CAM_MODE_BATTLE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuHideData),       // CAM_MODE_DEKUHIDE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetBossGohtModeStillData),           // CAM_MODE_STILL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeChargeData),        // CAM_MODE_CHARGE
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetDungeon0ModeClimbData),             // CAM_MODE_CLIMB
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeClimbZData),        // CAM_MODE_CLIMBZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, sSetNormal0ModeHookshotData),        // CAM_MODE_HOOKSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeFreeFallData),      // CAM_MODE_FREEFALL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeHangData),          // CAM_MODE_HANG
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeHangZData),         // CAM_MODE_HANGZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeChargeData),        // CAM_MODE_CHARGE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetDungeon0ModeClimbData),             // CAM_MODE_CLIMB
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeClimbZData),        // CAM_MODE_CLIMBZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, MM_sSetNormal0ModeHookshotData),        // CAM_MODE_HOOKSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeFreeFallData),      // CAM_MODE_FREEFALL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeHangData),          // CAM_MODE_HANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeHangZData),         // CAM_MODE_HANGZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModePushPullData),      // CAM_MODE_PUSHPULL
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuFlyZData),       // CAM_MODE_DEKUFLYZ
 };
 
 CameraMode sCamSetBossGyorgModes[] = {
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP3, sSetBossGyorgModeNormalData),          // CAM_MODE_NORMAL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeJumpData),            // CAM_MODE_JUMP
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, MM_sSetNormal0ModeJumpData),            // CAM_MODE_JUMP
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP3, sSetNormal3ModeGoronDashData),         // CAM_MODE_GORONDASH
     CAM_SETTING_MODE_NULL,                                                        // CAM_MODE_DEKUSHOOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP3, sSetBossGyorgModeDekuFlyData),         // CAM_MODE_DEKUFLY
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeZoraFinData),        // CAM_MODE_ZORAFIN
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetBossGyorgModeFollowTargetData),  // CAM_MODE_FOLLOWTARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeTargetData),        // CAM_MODE_TARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, sSetNormal0ModeTalkData),            // CAM_MODE_TALK
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeTargetData),        // CAM_MODE_TARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, MM_sSetNormal0ModeTalkData),            // CAM_MODE_TALK
     CAM_SETTING_MODE_NULL,                                                        // CAM_MODE_SLINGSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowData),       // CAM_MODE_BOWARROW
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowData),       // CAM_MODE_BOWARROW
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, sSetBossGyorgModeBattleData),        // CAM_MODE_BATTLE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP3, sSetBossGyorgModeDekuHideData),        // CAM_MODE_DEKUHIDE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetBossGyorgModeStillData),         // CAM_MODE_STILL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeChargeData),        // CAM_MODE_CHARGE
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetNormal0ModeClimbData),             // CAM_MODE_CLIMB
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetNormal0ModeClimbZData),            // CAM_MODE_CLIMBZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, sSetNormal0ModeHookshotData),       // CAM_MODE_HOOKSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeChargeData),        // CAM_MODE_CHARGE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetNormal0ModeClimbData),             // CAM_MODE_CLIMB
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetNormal0ModeClimbZData),            // CAM_MODE_CLIMBZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, MM_sSetNormal0ModeHookshotData),       // CAM_MODE_HOOKSHOT
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP3, sSetNormal3ModeFreeFallData),          // CAM_MODE_FREEFALL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeHangData),          // CAM_MODE_HANG
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeHangZData),         // CAM_MODE_HANGZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModePushPullData),      // CAM_MODE_PUSHPULL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeHangData),          // CAM_MODE_HANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeHangZData),         // CAM_MODE_HANGZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModePushPullData),      // CAM_MODE_PUSHPULL
     CAM_SETTING_MODE_NULL,                                                        // CAM_MODE_DEKUFLYZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP3, sSetBossGyorgModeGoronJumpData),       // CAM_MODE_GORONJUMP
 };
@@ -3091,30 +3091,30 @@ CameraMode sCamSetConnect0Modes[] = {
 
 CameraMode sCamSetPinnacleRockModes[] = {
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP3, sSetPinnacleRockModeNormalData),       // CAM_MODE_NORMAL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeJumpData),            // CAM_MODE_JUMP
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, MM_sSetNormal0ModeJumpData),            // CAM_MODE_JUMP
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP3, sSetPinnacleRockModeGoronDashData),    // CAM_MODE_GORONDASH
     CAM_SETTING_MODE_NULL,                                                        // CAM_MODE_DEKUSHOOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP3, sSetPinnacleRockModeDekuFlyData),      // CAM_MODE_DEKUFLY
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeZoraFinData),        // CAM_MODE_ZORAFIN
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetPinnacleRockModeTargetData),   // CAM_MODE_TARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, sSetNormal0ModeTalkData),            // CAM_MODE_TALK
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, MM_sSetNormal0ModeTalkData),            // CAM_MODE_TALK
     CAM_SETTING_MODE_NULL,                                                        // CAM_MODE_SLINGSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowData),       // CAM_MODE_BOWARROW
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, sSetNormal0ModeBattleData),          // CAM_MODE_BATTLE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowData),       // CAM_MODE_BOWARROW
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, MM_sSetNormal0ModeBattleData),          // CAM_MODE_BATTLE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP3, sSetPinnacleRockModeDekuHideData),     // CAM_MODE_DEKUHIDE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetPinnacleRockModeStillData),      // CAM_MODE_STILL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeChargeData),        // CAM_MODE_CHARGE
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetNormal0ModeClimbData),             // CAM_MODE_CLIMB
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetNormal0ModeClimbZData),            // CAM_MODE_CLIMBZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, sSetNormal0ModeHookshotData),       // CAM_MODE_HOOKSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeChargeData),        // CAM_MODE_CHARGE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetNormal0ModeClimbData),             // CAM_MODE_CLIMB
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetNormal0ModeClimbZData),            // CAM_MODE_CLIMBZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, MM_sSetNormal0ModeHookshotData),       // CAM_MODE_HOOKSHOT
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP3, sSetNormal3ModeFreeFallData),          // CAM_MODE_FREEFALL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeHangData),          // CAM_MODE_HANG
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeHangZData),         // CAM_MODE_HANGZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModePushPullData),      // CAM_MODE_PUSHPULL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeHangData),          // CAM_MODE_HANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeHangZData),         // CAM_MODE_HANGZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModePushPullData),      // CAM_MODE_PUSHPULL
     CAM_SETTING_MODE_NULL,                                                        // CAM_MODE_DEKUFLYZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP3, sSetPinnacleRockModeGoronJumpData),    // CAM_MODE_GORONJUMP
 };
@@ -3124,27 +3124,27 @@ CameraMode sCamSetNormal2Modes[] = {
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal2ModeJumpData),            // CAM_MODE_JUMP
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeGoronDashData),       // CAM_MODE_GORONDASH
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeDekuShootData),      // CAM_MODE_DEKUSHOOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeDekuFlyData),         // CAM_MODE_DEKUFLY
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeZoraFinData),        // CAM_MODE_ZORAFIN
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal2ModeTargetData),        // CAM_MODE_TARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, sSetNormal0ModeTalkData),            // CAM_MODE_TALK
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeSlingshotData),      // CAM_MODE_SLINGSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowData),       // CAM_MODE_BOWARROW
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, sSetNormal0ModeBattleData),          // CAM_MODE_BATTLE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, MM_sSetNormal0ModeTalkData),            // CAM_MODE_TALK
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeSlingshotData),      // CAM_MODE_SLINGSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowData),       // CAM_MODE_BOWARROW
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, MM_sSetNormal0ModeBattleData),          // CAM_MODE_BATTLE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuHideData),      // CAM_MODE_DEKUHIDE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal2ModeStillData),           // CAM_MODE_STILL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeChargeData),        // CAM_MODE_CHARGE
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetNormal0ModeClimbData),             // CAM_MODE_CLIMB
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetNormal0ModeClimbZData),            // CAM_MODE_CLIMBZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, sSetNormal0ModeHookshotData),       // CAM_MODE_HOOKSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeFreeFallData),      // CAM_MODE_FREEFALL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeHangData),          // CAM_MODE_HANG
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeHangZData),         // CAM_MODE_HANGZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModePushPullData),      // CAM_MODE_PUSHPULL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeChargeData),        // CAM_MODE_CHARGE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetNormal0ModeClimbData),             // CAM_MODE_CLIMB
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetNormal0ModeClimbZData),            // CAM_MODE_CLIMBZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, MM_sSetNormal0ModeHookshotData),       // CAM_MODE_HOOKSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeFreeFallData),      // CAM_MODE_FREEFALL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeHangData),          // CAM_MODE_HANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeHangZData),         // CAM_MODE_HANGZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModePushPullData),      // CAM_MODE_PUSHPULL
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuFlyZData),      // CAM_MODE_DEKUFLYZ
 };
 
@@ -3153,23 +3153,23 @@ CameraMode sCamSetBombBowlModes[] = {
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, D_801B6D24),                      // CAM_MODE_JUMP
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, D_801B62F4),                      // CAM_MODE_GORONDASH
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeDekuShootData),   // CAM_MODE_DEKUSHOOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowZData),   // CAM_MODE_BOWARROWZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowZData),   // CAM_MODE_BOWARROWZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, D_801B634C),                      // CAM_MODE_DEKUFLY
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeFirstPersonData), // CAM_MODE_FIRSTPERSON
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeFirstPersonData), // CAM_MODE_FIRSTPERSON
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, D_801B62C4),                      // CAM_MODE_FOLLOWBOOMERANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeZoraFinData),     // CAM_MODE_ZORAFIN
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, D_801B6CC0),                      // CAM_MODE_FOLLOWTARGET
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, D_801B6044),                    // CAM_MODE_TARGET
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, D_801B6CF0),                      // CAM_MODE_TALK
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeSlingshotData),   // CAM_MODE_SLINGSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowData),    // CAM_MODE_BOWARROW
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeSlingshotData),   // CAM_MODE_SLINGSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowData),    // CAM_MODE_BOWARROW
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, D_801B60D8),                      // CAM_MODE_BATTLE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, D_801B631C),                    // CAM_MODE_DEKUHIDE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, D_801B6D4C),                      // CAM_MODE_STILL
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, D_801B620C),                    // CAM_MODE_CHARGE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, D_801B610C),                        // CAM_MODE_CLIMB
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, D_801B6130),                        // CAM_MODE_CLIMBZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, sSetNormal0ModeHookshotData),    // CAM_MODE_HOOKSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, MM_sSetNormal0ModeHookshotData),    // CAM_MODE_HOOKSHOT
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, D_801B61DC),                    // CAM_MODE_FREEFALL
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, D_801B617C),                    // CAM_MODE_HANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, D_801B61AC),                    // CAM_MODE_HANGZ
@@ -3183,30 +3183,30 @@ CameraMode sCamSetCircAModes[] = {
 
 CameraMode sCamSetWhirlpoolModes[] = {
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP3, sSetWhirlpoolModeNormalData),          // CAM_MODE_NORMAL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeJumpData),            // CAM_MODE_JUMP
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, MM_sSetNormal0ModeJumpData),            // CAM_MODE_JUMP
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP3, sSetWhirlpoolModeGoronDashData),       // CAM_MODE_GORONDASH
     CAM_SETTING_MODE_NULL,                                                        // CAM_MODE_DEKUSHOOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP3, sSetWhirlpoolModeDekuFlyData),         // CAM_MODE_DEKUFLY
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeZoraFinData),        // CAM_MODE_ZORAFIN
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetPinnacleRockModeTargetData),   // CAM_MODE_TARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, sSetNormal0ModeTalkData),            // CAM_MODE_TALK
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, MM_sSetNormal0ModeTalkData),            // CAM_MODE_TALK
     CAM_SETTING_MODE_NULL,                                                        // CAM_MODE_SLINGSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowData),       // CAM_MODE_BOWARROW
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, sSetNormal0ModeBattleData),          // CAM_MODE_BATTLE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowData),       // CAM_MODE_BOWARROW
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, MM_sSetNormal0ModeBattleData),          // CAM_MODE_BATTLE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP3, sSetWhirlpoolModeDekuHideData),        // CAM_MODE_DEKUHIDE
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeStillData),           // CAM_MODE_STILL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeChargeData),        // CAM_MODE_CHARGE
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetNormal0ModeClimbData),             // CAM_MODE_CLIMB
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetNormal0ModeClimbZData),            // CAM_MODE_CLIMBZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, sSetNormal0ModeHookshotData),       // CAM_MODE_HOOKSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, MM_sSetNormal0ModeStillData),           // CAM_MODE_STILL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeChargeData),        // CAM_MODE_CHARGE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetNormal0ModeClimbData),             // CAM_MODE_CLIMB
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetNormal0ModeClimbZData),            // CAM_MODE_CLIMBZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, MM_sSetNormal0ModeHookshotData),       // CAM_MODE_HOOKSHOT
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP3, sSetWhirlpoolModeFreeFallData),        // CAM_MODE_FREEFALL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeHangData),          // CAM_MODE_HANG
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeHangZData),         // CAM_MODE_HANGZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModePushPullData),      // CAM_MODE_PUSHPULL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeHangData),          // CAM_MODE_HANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeHangZData),         // CAM_MODE_HANGZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModePushPullData),      // CAM_MODE_PUSHPULL
     CAM_SETTING_MODE_NULL,                                                        // CAM_MODE_DEKUFLYZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP3, sSetWhirlpoolModeGoronJumpData),       // CAM_MODE_GORONJUMP
 };
@@ -3216,27 +3216,27 @@ CameraMode sCamSetCuccoShackModes[] = {
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal2ModeJumpData),            // CAM_MODE_JUMP
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeGoronDashData),       // CAM_MODE_GORONDASH
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeDekuShootData),      // CAM_MODE_DEKUSHOOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
     CAM_SETTING_MODE_NULL,                                                        // CAM_MODE_DEKUFLY
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeZoraFinData),        // CAM_MODE_ZORAFIN
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal2ModeTargetData),        // CAM_MODE_TARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, sSetNormal0ModeTalkData),            // CAM_MODE_TALK
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeSlingshotData),      // CAM_MODE_SLINGSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowData),       // CAM_MODE_BOWARROW
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, sSetNormal0ModeBattleData),          // CAM_MODE_BATTLE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, MM_sSetNormal0ModeTalkData),            // CAM_MODE_TALK
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeSlingshotData),      // CAM_MODE_SLINGSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowData),       // CAM_MODE_BOWARROW
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, MM_sSetNormal0ModeBattleData),          // CAM_MODE_BATTLE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetCuccoShackModeDekuHideData),     // CAM_MODE_DEKUHIDE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetCuccoShackModeStillData),        // CAM_MODE_STILL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeChargeData),        // CAM_MODE_CHARGE
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetNormal0ModeClimbData),             // CAM_MODE_CLIMB
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetNormal0ModeClimbZData),            // CAM_MODE_CLIMBZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, sSetNormal0ModeHookshotData),       // CAM_MODE_HOOKSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeFreeFallData),      // CAM_MODE_FREEFALL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeHangData),          // CAM_MODE_HANG
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeHangZData),         // CAM_MODE_HANGZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModePushPullData),      // CAM_MODE_PUSHPULL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeChargeData),        // CAM_MODE_CHARGE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetNormal0ModeClimbData),             // CAM_MODE_CLIMB
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetNormal0ModeClimbZData),            // CAM_MODE_CLIMBZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, MM_sSetNormal0ModeHookshotData),       // CAM_MODE_HOOKSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeFreeFallData),      // CAM_MODE_FREEFALL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeHangData),          // CAM_MODE_HANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeHangZData),         // CAM_MODE_HANGZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModePushPullData),      // CAM_MODE_PUSHPULL
 };
 
 CameraMode sCamSetGiantModes[] = {
@@ -3244,27 +3244,27 @@ CameraMode sCamSetGiantModes[] = {
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetGiantModeJumpData),              // CAM_MODE_JUMP
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeGoronDashData),       // CAM_MODE_GORONDASH
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeDekuShootData),      // CAM_MODE_DEKUSHOOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeDekuFlyData),         // CAM_MODE_DEKUFLY
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeZoraFinData),        // CAM_MODE_ZORAFIN
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetGiantModeTargetData),          // CAM_MODE_TARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, sSetNormal0ModeTalkData),            // CAM_MODE_TALK
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeSlingshotData),      // CAM_MODE_SLINGSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowData),       // CAM_MODE_BOWARROW
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, sSetNormal0ModeBattleData),          // CAM_MODE_BATTLE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, MM_sSetNormal0ModeTalkData),            // CAM_MODE_TALK
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeSlingshotData),      // CAM_MODE_SLINGSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowData),       // CAM_MODE_BOWARROW
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, MM_sSetNormal0ModeBattleData),          // CAM_MODE_BATTLE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuHideData),      // CAM_MODE_DEKUHIDE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetGiantModeStillData),             // CAM_MODE_STILL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeChargeData),        // CAM_MODE_CHARGE
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetNormal0ModeClimbData),             // CAM_MODE_CLIMB
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetNormal0ModeClimbZData),            // CAM_MODE_CLIMBZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, sSetNormal0ModeHookshotData),       // CAM_MODE_HOOKSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeFreeFallData),      // CAM_MODE_FREEFALL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeHangData),          // CAM_MODE_HANG
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeHangZData),         // CAM_MODE_HANGZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModePushPullData),      // CAM_MODE_PUSHPULL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeChargeData),        // CAM_MODE_CHARGE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetNormal0ModeClimbData),             // CAM_MODE_CLIMB
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetNormal0ModeClimbZData),            // CAM_MODE_CLIMBZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, MM_sSetNormal0ModeHookshotData),       // CAM_MODE_HOOKSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeFreeFallData),      // CAM_MODE_FREEFALL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeHangData),          // CAM_MODE_HANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeHangZData),         // CAM_MODE_HANGZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModePushPullData),      // CAM_MODE_PUSHPULL
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuFlyZData),      // CAM_MODE_DEKUFLYZ
 };
 
@@ -3277,56 +3277,56 @@ CameraMode sCamSetRoom1Modes[] = {
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, D_801B703C),                      // CAM_MODE_JUMP
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeGoronDashData),    // CAM_MODE_GORONDASH
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeDekuShootData),   // CAM_MODE_DEKUSHOOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowZData),   // CAM_MODE_BOWARROWZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowZData),   // CAM_MODE_BOWARROWZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeDekuFlyData),      // CAM_MODE_DEKUFLY
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeFirstPersonData), // CAM_MODE_FIRSTPERSON
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeFirstPersonData), // CAM_MODE_FIRSTPERSON
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, D_801B62C4),                      // CAM_MODE_FOLLOWBOOMERANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeZoraFinData),     // CAM_MODE_ZORAFIN
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, D_801B6FD8),                      // CAM_MODE_FOLLOWTARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeTargetData),    // CAM_MODE_TARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeTargetData),    // CAM_MODE_TARGET
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, D_801B60A4),                      // CAM_MODE_TALK
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeSlingshotData),   // CAM_MODE_SLINGSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowData),    // CAM_MODE_BOWARROW
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeSlingshotData),   // CAM_MODE_SLINGSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowData),    // CAM_MODE_BOWARROW
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, D_801B7008),                      // CAM_MODE_BATTLE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuHideData),   // CAM_MODE_DEKUHIDE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, D_801B7064),                      // CAM_MODE_STILL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeChargeData),    // CAM_MODE_CHARGE
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetDungeon0ModeClimbData),         // CAM_MODE_CLIMB
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetDungeon0ModeClimbZData),        // CAM_MODE_CLIMBZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, sSetNormal0ModeHookshotData),    // CAM_MODE_HOOKSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeFreeFallData),  // CAM_MODE_FREEFALL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeHangData),      // CAM_MODE_HANG
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeHangZData),     // CAM_MODE_HANGZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeChargeData),    // CAM_MODE_CHARGE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetDungeon0ModeClimbData),         // CAM_MODE_CLIMB
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetDungeon0ModeClimbZData),        // CAM_MODE_CLIMBZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, MM_sSetNormal0ModeHookshotData),    // CAM_MODE_HOOKSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeFreeFallData),  // CAM_MODE_FREEFALL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeHangData),      // CAM_MODE_HANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeHangZData),     // CAM_MODE_HANGZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, D_801B708C),                    // CAM_MODE_PUSHPULL
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuFlyZData),   // CAM_MODE_DEKUFLYZ
 };
 
 CameraMode sCamSetWater2Modes[] = {
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP3, D_801B70BC),                           // CAM_MODE_NORMAL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeJumpData),            // CAM_MODE_JUMP
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, MM_sSetNormal0ModeJumpData),            // CAM_MODE_JUMP
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP3, D_801B7148),                           // CAM_MODE_GORONDASH
     CAM_SETTING_MODE_NULL,                                                        // CAM_MODE_DEKUSHOOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP3, sSetNormal3ModeDekuFlyData),           // CAM_MODE_DEKUFLY
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeZoraFinData),        // CAM_MODE_ZORAFIN
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, D_801B70E4),                       // CAM_MODE_TARGET
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, D_801B7114),                         // CAM_MODE_TALK
     CAM_SETTING_MODE_NULL,                                                        // CAM_MODE_SLINGSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowData),       // CAM_MODE_BOWARROW
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, sSetNormal0ModeBattleData),          // CAM_MODE_BATTLE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowData),       // CAM_MODE_BOWARROW
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, MM_sSetNormal0ModeBattleData),          // CAM_MODE_BATTLE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP3, sSetNormal3ModeDekuHideData),          // CAM_MODE_DEKUHIDE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal3ModeStillData),           // CAM_MODE_STILL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeChargeData),        // CAM_MODE_CHARGE
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetNormal0ModeClimbData),             // CAM_MODE_CLIMB
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetNormal0ModeClimbZData),            // CAM_MODE_CLIMBZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, sSetNormal0ModeHookshotData),       // CAM_MODE_HOOKSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeChargeData),        // CAM_MODE_CHARGE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetNormal0ModeClimbData),             // CAM_MODE_CLIMB
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetNormal0ModeClimbZData),            // CAM_MODE_CLIMBZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, MM_sSetNormal0ModeHookshotData),       // CAM_MODE_HOOKSHOT
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP3, sSetNormal3ModeFreeFallData),          // CAM_MODE_FREEFALL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeHangData),          // CAM_MODE_HANG
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeHangZData),         // CAM_MODE_HANGZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModePushPullData),      // CAM_MODE_PUSHPULL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeHangData),          // CAM_MODE_HANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeHangZData),         // CAM_MODE_HANGZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModePushPullData),      // CAM_MODE_PUSHPULL
     CAM_SETTING_MODE_NULL,                                                        // CAM_MODE_DEKUFLYZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP3, sSetNormal3ModeGoronJumpData),         // CAM_MODE_GORONJUMP
 };
@@ -3336,89 +3336,89 @@ CameraMode sCamSetWoodfallSwampModes[] = {
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_UNIQUE3, D_801B6698),                         // CAM_MODE_JUMP
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_UNIQUE3, sSetNormal0ModeGoronDashData),       // CAM_MODE_GORONDASH
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeDekuShootData),      // CAM_MODE_DEKUSHOOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_UNIQUE3, sSetNormal0ModeDekuFlyData),         // CAM_MODE_DEKUFLY
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, D_801B6674),                        // CAM_MODE_FIRSTPERSON
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeZoraFinData),        // CAM_MODE_ZORAFIN
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, D_801B65DC),                         // CAM_MODE_FOLLOWTARGET
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_UNIQUE4, D_801B65AC),                         // CAM_MODE_TARGET
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, D_801B660C),                         // CAM_MODE_TALK
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeSlingshotData),      // CAM_MODE_SLINGSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowData),       // CAM_MODE_BOWARROW
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeSlingshotData),      // CAM_MODE_SLINGSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowData),       // CAM_MODE_BOWARROW
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_UNIQUE5, D_801B6640),                         // CAM_MODE_BATTLE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_UNIQUE4, sSetNormal0ModeDekuHideData),        // CAM_MODE_DEKUHIDE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_UNIQUE3, D_801B66C0),                         // CAM_MODE_STILL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_UNIQUE4, sSetNormal0ModeChargeData),          // CAM_MODE_CHARGE
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetDungeon0ModeClimbData),            // CAM_MODE_CLIMB
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetDungeon0ModeClimbZData),           // CAM_MODE_CLIMBZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, sSetNormal0ModeHookshotData),       // CAM_MODE_HOOKSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_UNIQUE4, sSetNormal0ModeFreeFallData),        // CAM_MODE_FREEFALL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_UNIQUE4, sSetNormal0ModeHangData),            // CAM_MODE_HANG
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_UNIQUE4, sSetNormal0ModeHangZData),           // CAM_MODE_HANGZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_UNIQUE4, MM_sSetNormal0ModeChargeData),          // CAM_MODE_CHARGE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetDungeon0ModeClimbData),            // CAM_MODE_CLIMB
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetDungeon0ModeClimbZData),           // CAM_MODE_CLIMBZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, MM_sSetNormal0ModeHookshotData),       // CAM_MODE_HOOKSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_UNIQUE4, MM_sSetNormal0ModeFreeFallData),        // CAM_MODE_FREEFALL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_UNIQUE4, MM_sSetNormal0ModeHangData),            // CAM_MODE_HANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_UNIQUE4, MM_sSetNormal0ModeHangZData),           // CAM_MODE_HANGZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_UNIQUE3, D_801B6584),                         // CAM_MODE_PUSHPULL
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_UNIQUE4, sSetNormal0ModeDekuFlyZData),        // CAM_MODE_DEKUFLYZ
 };
 
 CameraMode sCamSetForceKeepModes[] = {
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeNormalData),          // CAM_MODE_NORMAL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeJumpData),            // CAM_MODE_JUMP
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, MM_sSetNormal0ModeNormalData),          // CAM_MODE_NORMAL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, MM_sSetNormal0ModeJumpData),            // CAM_MODE_JUMP
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeGoronDashData),       // CAM_MODE_GORONDASH
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeDekuShootData),      // CAM_MODE_DEKUSHOOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeDekuFlyData),         // CAM_MODE_DEKUFLY
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeZoraFinData),        // CAM_MODE_ZORAFIN
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, D_801B7170),                         // CAM_MODE_FOLLOWTARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeTargetData),        // CAM_MODE_TARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, sSetNormal0ModeTalkData),            // CAM_MODE_TALK
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeSlingshotData),      // CAM_MODE_SLINGSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowData),       // CAM_MODE_BOWARROW
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeTargetData),        // CAM_MODE_TARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, MM_sSetNormal0ModeTalkData),            // CAM_MODE_TALK
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeSlingshotData),      // CAM_MODE_SLINGSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowData),       // CAM_MODE_BOWARROW
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, D_801B71A0),                         // CAM_MODE_BATTLE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuHideData),      // CAM_MODE_DEKUHIDE
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeStillData),           // CAM_MODE_STILL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeChargeData),        // CAM_MODE_CHARGE
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetNormal0ModeClimbData),             // CAM_MODE_CLIMB
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetNormal0ModeClimbZData),            // CAM_MODE_CLIMBZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, sSetNormal0ModeHookshotData),       // CAM_MODE_HOOKSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeFreeFallData),      // CAM_MODE_FREEFALL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeHangData),          // CAM_MODE_HANG
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeHangZData),         // CAM_MODE_HANGZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModePushPullData),      // CAM_MODE_PUSHPULL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, MM_sSetNormal0ModeStillData),           // CAM_MODE_STILL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeChargeData),        // CAM_MODE_CHARGE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetNormal0ModeClimbData),             // CAM_MODE_CLIMB
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetNormal0ModeClimbZData),            // CAM_MODE_CLIMBZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, MM_sSetNormal0ModeHookshotData),       // CAM_MODE_HOOKSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeFreeFallData),      // CAM_MODE_FREEFALL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeHangData),          // CAM_MODE_HANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeHangZData),         // CAM_MODE_HANGZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModePushPullData),      // CAM_MODE_PUSHPULL
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuFlyZData),      // CAM_MODE_DEKUFLYZ
 };
 
 CameraMode sCamSetParallel1Modes[] = {
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, D_801B71D4),                       // CAM_MODE_NORMAL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeJumpData),            // CAM_MODE_JUMP
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, MM_sSetNormal0ModeJumpData),            // CAM_MODE_JUMP
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeGoronDashData),       // CAM_MODE_GORONDASH
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeDekuShootData),      // CAM_MODE_DEKUSHOOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeDekuFlyData),         // CAM_MODE_DEKUFLY
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeZoraFinData),        // CAM_MODE_ZORAFIN
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeTargetData),        // CAM_MODE_TARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, sSetNormal0ModeTalkData),            // CAM_MODE_TALK
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeSlingshotData),      // CAM_MODE_SLINGSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowData),       // CAM_MODE_BOWARROW
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, sSetNormal0ModeBattleData),          // CAM_MODE_BATTLE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeTargetData),        // CAM_MODE_TARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, MM_sSetNormal0ModeTalkData),            // CAM_MODE_TALK
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeSlingshotData),      // CAM_MODE_SLINGSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowData),       // CAM_MODE_BOWARROW
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, MM_sSetNormal0ModeBattleData),          // CAM_MODE_BATTLE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuHideData),      // CAM_MODE_DEKUHIDE
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeStillData),           // CAM_MODE_STILL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeChargeData),        // CAM_MODE_CHARGE
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetNormal0ModeClimbData),             // CAM_MODE_CLIMB
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetNormal0ModeClimbZData),            // CAM_MODE_CLIMBZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, sSetNormal0ModeHookshotData),       // CAM_MODE_HOOKSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeFreeFallData),      // CAM_MODE_FREEFALL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeHangData),          // CAM_MODE_HANG
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeHangZData),         // CAM_MODE_HANGZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModePushPullData),      // CAM_MODE_PUSHPULL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, MM_sSetNormal0ModeStillData),           // CAM_MODE_STILL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeChargeData),        // CAM_MODE_CHARGE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetNormal0ModeClimbData),             // CAM_MODE_CLIMB
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetNormal0ModeClimbZData),            // CAM_MODE_CLIMBZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, MM_sSetNormal0ModeHookshotData),       // CAM_MODE_HOOKSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeFreeFallData),      // CAM_MODE_FREEFALL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeHangData),          // CAM_MODE_HANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeHangZData),         // CAM_MODE_HANGZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModePushPullData),      // CAM_MODE_PUSHPULL
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuFlyZData),      // CAM_MODE_DEKUFLYZ
 };
 
-CameraMode sCamSetStart1Modes[] = {
+CameraMode MM_sCamSetStart1Modes[] = {
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_UNIQUE0, D_801B7204), // CAM_MODE_NORMAL
 };
 
@@ -3427,56 +3427,56 @@ CameraMode sCamSetRoom2Modes[] = {
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, D_801B703C),                      // CAM_MODE_JUMP
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeGoronDashData),    // CAM_MODE_GORONDASH
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeDekuShootData),   // CAM_MODE_DEKUSHOOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowZData),   // CAM_MODE_BOWARROWZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowZData),   // CAM_MODE_BOWARROWZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeDekuFlyData),      // CAM_MODE_DEKUFLY
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeFirstPersonData), // CAM_MODE_FIRSTPERSON
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeFirstPersonData), // CAM_MODE_FIRSTPERSON
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, D_801B62C4),                      // CAM_MODE_FOLLOWBOOMERANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeZoraFinData),     // CAM_MODE_ZORAFIN
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, D_801B6FD8),                      // CAM_MODE_FOLLOWTARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeTargetData),    // CAM_MODE_TARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeTargetData),    // CAM_MODE_TARGET
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, D_801B7210),                      // CAM_MODE_TALK
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeSlingshotData),   // CAM_MODE_SLINGSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowData),    // CAM_MODE_BOWARROW
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeSlingshotData),   // CAM_MODE_SLINGSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowData),    // CAM_MODE_BOWARROW
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, D_801B7008),                      // CAM_MODE_BATTLE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuHideData),   // CAM_MODE_DEKUHIDE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, D_801B7064),                      // CAM_MODE_STILL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeChargeData),    // CAM_MODE_CHARGE
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetDungeon0ModeClimbData),         // CAM_MODE_CLIMB
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetDungeon0ModeClimbZData),        // CAM_MODE_CLIMBZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, sSetNormal0ModeHookshotData),    // CAM_MODE_HOOKSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeFreeFallData),  // CAM_MODE_FREEFALL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeHangData),      // CAM_MODE_HANG
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeHangZData),     // CAM_MODE_HANGZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeChargeData),    // CAM_MODE_CHARGE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetDungeon0ModeClimbData),         // CAM_MODE_CLIMB
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetDungeon0ModeClimbZData),        // CAM_MODE_CLIMBZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, MM_sSetNormal0ModeHookshotData),    // CAM_MODE_HOOKSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeFreeFallData),  // CAM_MODE_FREEFALL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeHangData),      // CAM_MODE_HANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeHangZData),     // CAM_MODE_HANGZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, D_801B708C),                    // CAM_MODE_PUSHPULL
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuFlyZData),   // CAM_MODE_DEKUFLYZ
 };
 
 CameraMode sCamSetNorm4Modes[] = {
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeNormalData),          // CAM_MODE_NORMAL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeJumpData),            // CAM_MODE_JUMP
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, MM_sSetNormal0ModeNormalData),          // CAM_MODE_NORMAL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, MM_sSetNormal0ModeJumpData),            // CAM_MODE_JUMP
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeGoronDashData),       // CAM_MODE_GORONDASH
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeDekuShootData),      // CAM_MODE_DEKUSHOOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowZData),      // CAM_MODE_BOWARROWZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeDekuFlyData),         // CAM_MODE_DEKUFLY
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeFirstPersonData),    // CAM_MODE_FIRSTPERSON
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeZoraFinData),        // CAM_MODE_ZORAFIN
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetNormal0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeTargetData),        // CAM_MODE_TARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetNormal0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeTargetData),        // CAM_MODE_TARGET
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, sSetNormal4ModeTalkData),            // CAM_MODE_TALK
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeSlingshotData),      // CAM_MODE_SLINGSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowData),       // CAM_MODE_BOWARROW
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, sSetNormal0ModeBattleData),          // CAM_MODE_BATTLE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeSlingshotData),      // CAM_MODE_SLINGSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowData),       // CAM_MODE_BOWARROW
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, MM_sSetNormal0ModeBattleData),          // CAM_MODE_BATTLE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuHideData),      // CAM_MODE_DEKUHIDE
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeStillData),           // CAM_MODE_STILL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeChargeData),        // CAM_MODE_CHARGE
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetNormal0ModeClimbData),             // CAM_MODE_CLIMB
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetNormal0ModeClimbZData),            // CAM_MODE_CLIMBZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, sSetNormal0ModeHookshotData),       // CAM_MODE_HOOKSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeFreeFallData),      // CAM_MODE_FREEFALL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeHangData),          // CAM_MODE_HANG
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeHangZData),         // CAM_MODE_HANGZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModePushPullData),      // CAM_MODE_PUSHPULL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, MM_sSetNormal0ModeStillData),           // CAM_MODE_STILL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeChargeData),        // CAM_MODE_CHARGE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetNormal0ModeClimbData),             // CAM_MODE_CLIMB
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetNormal0ModeClimbZData),            // CAM_MODE_CLIMBZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, MM_sSetNormal0ModeHookshotData),       // CAM_MODE_HOOKSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeFreeFallData),      // CAM_MODE_FREEFALL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeHangData),          // CAM_MODE_HANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModeHangZData),         // CAM_MODE_HANGZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetNormal0ModePushPullData),      // CAM_MODE_PUSHPULL
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuFlyZData),      // CAM_MODE_DEKUFLYZ
 };
 
@@ -3494,49 +3494,49 @@ CameraMode sCamSetDungeon4Modes[] = {
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetDungeon4ModeJumpData),            // CAM_MODE_JUMP
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeGoronDashData),        // CAM_MODE_GORONDASH
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeDekuShootData),       // CAM_MODE_DEKUSHOOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowZData),       // CAM_MODE_BOWARROWZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowZData),       // CAM_MODE_BOWARROWZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetNormal0ModeDekuFlyData),          // CAM_MODE_DEKUFLY
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeFirstPersonData),     // CAM_MODE_FIRSTPERSON
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeFirstPersonData),     // CAM_MODE_FIRSTPERSON
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetDungeon0ModeFollowBoomerangData), // CAM_MODE_FOLLOWBOOMERANG
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeZoraFinData),         // CAM_MODE_ZORAFIN
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, sSetDungeon0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON1, MM_sSetDungeon0ModeFollowTargetData),    // CAM_MODE_FOLLOWTARGET
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon4ModeTargetData),        // CAM_MODE_TARGET
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, sSetNormal0ModeTalkData),             // CAM_MODE_TALK
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeSlingshotData),       // CAM_MODE_SLINGSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, sSetNormal0ModeBowArrowData),        // CAM_MODE_BOWARROW
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, sSetDungeon0ModeBattleData),          // CAM_MODE_BATTLE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_KEEPON3, MM_sSetNormal0ModeTalkData),             // CAM_MODE_TALK
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeSlingshotData),       // CAM_MODE_SLINGSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SUBJECT1, MM_sSetNormal0ModeBowArrowData),        // CAM_MODE_BOWARROW
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_BATTLE1, MM_sSetDungeon0ModeBattleData),          // CAM_MODE_BATTLE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuHideData),       // CAM_MODE_DEKUHIDE
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_NORMAL1, sSetDungeon4ModeStillData),           // CAM_MODE_STILL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeChargeData),        // CAM_MODE_CHARGE
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetDungeon0ModeClimbData),             // CAM_MODE_CLIMB
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, sSetDungeon0ModeClimbZData),            // CAM_MODE_CLIMBZ
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, sSetNormal0ModeHookshotData),        // CAM_MODE_HOOKSHOT
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeFreeFallData),      // CAM_MODE_FREEFALL
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeHangData),          // CAM_MODE_HANG
-    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModeHangZData),         // CAM_MODE_HANGZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeChargeData),        // CAM_MODE_CHARGE
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetDungeon0ModeClimbData),             // CAM_MODE_CLIMB
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_JUMP2, MM_sSetDungeon0ModeClimbZData),            // CAM_MODE_CLIMBZ
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_SPECIAL5, MM_sSetNormal0ModeHookshotData),        // CAM_MODE_HOOKSHOT
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeFreeFallData),      // CAM_MODE_FREEFALL
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeHangData),          // CAM_MODE_HANG
+    CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, MM_sSetDungeon0ModeHangZData),         // CAM_MODE_HANGZ
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetDungeon0ModePushPullData),      // CAM_MODE_PUSHPULL
     CAM_SETTING_MODE_ENTRY(CAM_FUNC_PARALLEL1, sSetNormal0ModeDekuFlyZData),       // CAM_MODE_DEKUFLYZ
 };
 
-CameraSetting sCameraSettings[] = {
+CameraSetting MM_sCameraSettings[] = {
     { 0x00000000, 0x00000000, NULL },                              // CAM_SET_NONE
-    { 0x3FFFFFFF, 0x00000005, sCamSetNormal0Modes },               // CAM_SET_NORMAL0
-    { 0x05FFEFF7, 0x00000005, sCamSetNormal3Modes },               // CAM_SET_NORMAL3
-    { 0x00000401, 0x00000005, sCamSetPivotDivingModes },           // CAM_SET_PIVOT_DIVING
-    { 0x00017E13, 0x80000005, sCamSetHorseModes },                 // CAM_SET_HORSE
+    { 0x3FFFFFFF, 0x00000005, MM_sCamSetNormal0Modes },               // CAM_SET_NORMAL0
+    { 0x05FFEFF7, 0x00000005, MM_sCamSetNormal3Modes },               // CAM_SET_NORMAL3
+    { 0x00000401, 0x00000005, MM_sCamSetPivotDivingModes },           // CAM_SET_PIVOT_DIVING
+    { 0x00017E13, 0x80000005, MM_sCamSetHorseModes },                 // CAM_SET_HORSE
     { 0x00000001, 0x80000005, sCamSetZoraDivingModes },            // CAM_SET_ZORA_DIVING
-    { 0x00000001, 0x8000000C, sCamSetPreRendFixedModes },          // CAM_SET_PREREND_FIXED
-    { 0x00000001, 0x8000000C, sCamSetPreRendPivotModes },          // CAM_SET_PREREND_PIVOT
-    { 0x00000001, 0xC0000007, sCamSetDoorCModes },                 // CAM_SET_DOORC
+    { 0x00000001, 0x8000000C, MM_sCamSetPreRendFixedModes },          // CAM_SET_PREREND_FIXED
+    { 0x00000001, 0x8000000C, MM_sCamSetPreRendPivotModes },          // CAM_SET_PREREND_PIVOT
+    { 0x00000001, 0xC0000007, MM_sCamSetDoorCModes },                 // CAM_SET_DOORC
     { 0x00000001, 0xC000000E, sCamSetDemo0Modes },                 // CAM_SET_DEMO0
-    { 0x00000001, 0x80000005, sCamSetFree0Modes },                 // CAM_SET_FREE0
+    { 0x00000001, 0x80000005, MM_sCamSetFree0Modes },                 // CAM_SET_FREE0
     { 0x03FFFFFF, 0x00000005, sCamSetFukan0Modes },                // CAM_SET_BIRDS_EYE_VIEW_0
-    { 0x03FFFFFF, 0x00000005, sCamSetNormal1Modes },               // CAM_SET_NORMAL1
+    { 0x03FFFFFF, 0x00000005, MM_sCamSetNormal1Modes },               // CAM_SET_NORMAL1
     { 0x03FFFFFF, 0x80000005, sCamSetNanameModes },                // CAM_SET_NANAME
     { 0x00001BD9, 0x80000005, sCamSetCirc0Modes },                 // CAM_SET_CIRCLE0
     { 0x000011D9, 0x80000005, sCamSetFixed0Modes },                // CAM_SET_FIXED0
     { 0x00000001, 0x40000005, sCamSetSpiralDoorModes },            // CAM_SET_SPIRAL_DOOR
-    { 0x3FFFFFFF, 0x00000005, sCamSetDungeon0Modes },              // CAM_SET_DUNGEON0
+    { 0x3FFFFFFF, 0x00000005, MM_sCamSetDungeon0Modes },              // CAM_SET_DUNGEON0
     { 0x0000002F, 0x00000005, sCamSetItem0Modes },                 // CAM_SET_ITEM0
     { 0x0000002F, 0x00000005, sCamSetItem1Modes },                 // CAM_SET_ITEM1
     { 0x0000002F, 0x00000005, sCamSetItem2Modes },                 // CAM_SET_ITEM2
@@ -3549,7 +3549,7 @@ CameraSetting sCameraSettings[] = {
     { 0x00000003, 0x00000005, sCamSetMaskTransformationModes },    // CAM_SET_MASK_TRANSFORMATION
     { 0x00000001, 0x00000005, sCamSetAttentionModes },             // CAM_SET_ATTENTION
     { 0x00000001, 0x00000005, sCamSetWarp1Modes },                 // CAM_SET_WARP_PAD_ENTRANCE
-    { 0x03FFFFFF, 0x00000005, sCamSetDungeon1Modes },              // CAM_SET_DUNGEON1
+    { 0x03FFFFFF, 0x00000005, MM_sCamSetDungeon1Modes },              // CAM_SET_DUNGEON1
     { 0x00000001, 0x80000005, sCamSetFixed1Modes },                // CAM_SET_FIXED1
     { 0x00000001, 0x80000005, sCamSetFixed2Modes },                // CAM_SET_FIXED2
     { 0x00000001, 0x00000005, sCamSetMazeModes },                  // CAM_SET_MAZE
@@ -3559,17 +3559,17 @@ CameraSetting sCameraSettings[] = {
     { 0x00001BD9, 0x80000005, sCamSetCirc3Modes },                 // CAM_SET_CIRCLE3
     { 0x00000001, 0x80000005, sCamSetCirc4Modes },                 // CAM_SET_CIRCLE4
     { 0x000011D9, 0x80000005, sCamSetFixed3Modes },                // CAM_SET_FIXED3
-    { 0x03FFFFFF, 0x80000005, sCamSetTowerClimbModes },            // CAM_SET_TOWER_ASCENT
+    { 0x03FFFFFF, 0x80000005, MM_sCamSetTowerClimbModes },            // CAM_SET_TOWER_ASCENT
     { 0x00000001, 0x80000005, sCamSetParallel0Modes },             // CAM_SET_PARALLEL0
     { 0x00000001, 0x00000005, sCamSetNormDModes },                 // CAM_SET_NORMALD
     { 0x00000001, 0x00000005, sCamSetSubjectDModes },              // CAM_SET_SUBJECTD
-    { 0x00000001, 0xC0000008, sCamSetStart0Modes },                // CAM_SET_START0
+    { 0x00000001, 0xC0000008, MM_sCamSetStart0Modes },                // CAM_SET_START0
     { 0x00000001, 0xC0000008, sCamSetStart2Modes },                // CAM_SET_START2
     { 0x00000001, 0x00000005, sCamSetStop0Modes },                 // CAM_SET_STOP0
     { 0x00003051, 0x00000005, sCamSetBoatCruiseModes },            // CAM_SET_BOAT_CRUISE
     { 0x03FFFFFF, 0x00000005, sCamSetVerticalClimbModes },         // CAM_SET_VERTICAL_CLIMB
     { 0x00000001, 0x00000005, sCamSetSidedModes },                 // CAM_SET_SIDED
-    { 0x03FFFFFF, 0x00000005, sCamSetDungeon2Modes },              // CAM_SET_DUNGEON2
+    { 0x03FFFFFF, 0x00000005, MM_sCamSetDungeon2Modes },              // CAM_SET_DUNGEON2
     { 0x03FFFFFF, 0x00000005, sCamSetBossOdolwaModes },            // CAM_SET_BOSS_ODOLWA
     { 0x03FFFFFF, 0x80000005, sCamSetKeepBackModes },              // CAM_SET_KEEPBACK
     { 0x00000001, 0x80000005, sCamSetCirc6Modes },                 // CAM_SET_CIRCLE6
@@ -3605,7 +3605,7 @@ CameraSetting sCameraSettings[] = {
     { 0x03FFFFFF, 0x00000005, sCamSetWoodfallSwampModes },         // CAM_SET_WOODFALL_SWAMP
     { 0x03FFFFFF, 0x00000005, sCamSetForceKeepModes },             // CAM_SET_FORCEKEEP
     { 0x03FFFFFF, 0x80000005, sCamSetParallel1Modes },             // CAM_SET_PARALLEL1
-    { 0x00000001, 0xC0000008, sCamSetStart1Modes },                // CAM_SET_START1
+    { 0x00000001, 0xC0000008, MM_sCamSetStart1Modes },                // CAM_SET_START1
     { 0x03FFFFFF, 0x00000005, sCamSetRoom2Modes },                 // CAM_SET_ROOM2
     { 0x03FFFFFF, 0x00000005, sCamSetNorm4Modes },                 // CAM_SET_NORMAL4
     { 0x0000002F, 0x00000005, sCamSetElegyShellModes },            // CAM_SET_ELEGY_SHELL
@@ -3790,7 +3790,7 @@ CameraUpdateFunc sCameraUpdateHandlers[] = {
 };
 
 s16 sCameraNextUID = 0;
-s32 sCameraInterfaceFlags = 1;
+s32 MM_sCameraInterfaceFlags = 1;
 s32 sCameraHudVisibility = 2;
 s32 sCameraLetterboxSize = 32;
 s32 sCameraNegOne = -1;
@@ -3805,6 +3805,6 @@ s16 D_801B9E34[] = {
     0x0000, 0x02C6, 0x058C, 0x0000, 0x0000, 0xFD3A, 0x0000, 0x0852, 0x0000, 0x0000, 0x0B18, 0x02C6, 0xFA74, 0x0000,
 };
 
-s32 sUpdateCameraDirection = false;
+s32 MM_sUpdateCameraDirection = false;
 static s32 sIsFalse = false;
 s32 sCameraInitSceneTimer = 0;

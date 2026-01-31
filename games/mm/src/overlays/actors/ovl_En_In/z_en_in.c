@@ -1676,8 +1676,8 @@ s32 MM_EnIn_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f*
     if (limbIndex == OBJECT_IN_LIMB_10) {
         TexturePtr sp38[] = { object_in_Tex_0035E0, object_in_Tex_004820, object_in_Tex_004C20, object_in_Tex_0043E0 };
 
-        gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sp38[this->unk482]));
-        gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(object_in_Tex_003520));
+        MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sp38[this->unk482]));
+        MM_gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(object_in_Tex_003520));
     } else {
         AnimatedMat_DrawStep(play, Lib_SegmentedToVirtual(object_in_Matanimheader_001C30), this->unk4AC & 8 ? 1 : 0);
     }
@@ -1742,10 +1742,10 @@ void MM_EnIn_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* ro
                 OPEN_DISPS(play->state.gfxCtx);
 
                 if (limbIndex == OBJECT_IN_LIMB_0C) {
-                    gSPDisplayList(POLY_OPA_DISP++, object_in_DL_007A70);
+                    MM_gSPDisplayList(POLY_OPA_DISP++, object_in_DL_007A70);
                 }
                 if (limbIndex == OBJECT_IN_LIMB_0F) {
-                    gSPDisplayList(POLY_OPA_DISP++, object_in_DL_007C48);
+                    MM_gSPDisplayList(POLY_OPA_DISP++, object_in_DL_007C48);
                 }
 
                 CLOSE_DISPS(play->state.gfxCtx);
@@ -1756,7 +1756,7 @@ void MM_EnIn_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* ro
         OPEN_DISPS(play->state.gfxCtx);
 
         if (limbIndex == OBJECT_IN_LIMB_0C) {
-            gSPDisplayList(POLY_OPA_DISP++, object_in_DL_007C48);
+            MM_gSPDisplayList(POLY_OPA_DISP++, object_in_DL_007C48);
         }
 
         CLOSE_DISPS(play->state.gfxCtx);

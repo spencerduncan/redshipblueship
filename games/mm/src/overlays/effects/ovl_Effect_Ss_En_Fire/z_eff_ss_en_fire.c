@@ -91,14 +91,14 @@ void MM_EffectSsEnFire_Draw(PlayState* play, u32 index, EffectSs* this) {
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
     gDPSetEnvColor(POLY_XLU_DISP++, redGreen * 12.7f, 0, 0, 0);
     gDPSetPrimColor(POLY_XLU_DISP++, 0x0, 0x80, redGreen * 12.7f, redGreen * 12.7f, 0, 255);
-    gSPSegment(
+    MM_gSPSegment(
         POLY_XLU_DISP++, 0x08,
         MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 0x20, 0x40, 1, 0, (this->rScroll * -20) & 0x1FF, 0x20, 0x80));
 
     if ((this->rFlags & 0x7FFF) || (this->life < 18)) {
-        gSPDisplayList(POLY_XLU_DISP++, gEffFire2DL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gEffFire2DL);
     } else {
-        gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
     }
 
     CLOSE_DISPS(gfxCtx);

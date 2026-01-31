@@ -183,7 +183,7 @@ void MM_KaleidoScope_DrawQuestStatus(PlayState* play) {
             gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 255, 255, 255, pauseCtx->alpha);
             gDPSetEnvColor(POLY_OPA_DISP++, sQuestRemainsEnvRed[i], sQuestRemainsEnvGreen[i], sQuestRemainsEnvBlue[i],
                            0);
-            gSPVertex(POLY_OPA_DISP++, &pauseCtx->questVtx[j], 4, 0);
+            MM_gSPVertex(POLY_OPA_DISP++, &pauseCtx->questVtx[j], 4, 0);
             KaleidoScope_DrawTexQuadRGBA32(play->state.gfxCtx, MM_gItemIcons[ITEM_REMAINS_ODOLWA + i], 32, 32, 0);
         }
     }
@@ -201,7 +201,7 @@ void MM_KaleidoScope_DrawQuestStatus(PlayState* play) {
     gDPSetCombineMode(POLY_OPA_DISP++, G_CC_MODULATEIA_PRIM, G_CC_MODULATEIA_PRIM);
 
     if (GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SHIELD) != EQUIP_VALUE_SHIELD_NONE) {
-        gSPVertex(POLY_OPA_DISP++, &pauseCtx->questVtx[j], 4, 0);
+        MM_gSPVertex(POLY_OPA_DISP++, &pauseCtx->questVtx[j], 4, 0);
         KaleidoScope_DrawTexQuadRGBA32(play->state.gfxCtx, MM_gItemIcons[(ITEM_SHIELD_HERO - 1) + GET_CUR_EQUIP_VALUE(1)],
                                        32, 32, 0);
     }
@@ -210,7 +210,7 @@ void MM_KaleidoScope_DrawQuestStatus(PlayState* play) {
 
     // Draw Sword
     if (GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SWORD) != EQUIP_VALUE_SWORD_NONE) {
-        gSPVertex(POLY_OPA_DISP++, &pauseCtx->questVtx[j], 4, 0);
+        MM_gSPVertex(POLY_OPA_DISP++, &pauseCtx->questVtx[j], 4, 0);
         KaleidoScope_DrawTexQuadRGBA32(play->state.gfxCtx, MM_gItemIcons[(ITEM_SWORD_KOKIRI - 1) + GET_CUR_EQUIP_VALUE(0)],
                                        32, 32, 0);
     }
@@ -246,7 +246,7 @@ void MM_KaleidoScope_DrawQuestStatus(PlayState* play) {
 
             gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, sQuestSongsPrimRed[i], sQuestSongsPrimGreen[i],
                             sQuestSongsPrimBlue[i], pauseCtx->alpha);
-            gSPVertex(POLY_OPA_DISP++, &pauseCtx->questVtx[j], 4, 0);
+            MM_gSPVertex(POLY_OPA_DISP++, &pauseCtx->questVtx[j], 4, 0);
             gSP1Quadrangle(POLY_OPA_DISP++, 0, 2, 3, 1, 0);
         }
     }
@@ -257,7 +257,7 @@ void MM_KaleidoScope_DrawQuestStatus(PlayState* play) {
     gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, 255);
 
     if (CHECK_QUEST_ITEM(QUEST_BOMBERS_NOTEBOOK)) {
-        gSPVertex(POLY_OPA_DISP++, &pauseCtx->questVtx[j], 4, 0);
+        MM_gSPVertex(POLY_OPA_DISP++, &pauseCtx->questVtx[j], 4, 0);
         KaleidoScope_DrawTexQuadRGBA32(play->state.gfxCtx, gItemIconBombersNotebookTex, 32, 32, 0);
     }
 
@@ -268,7 +268,7 @@ void MM_KaleidoScope_DrawQuestStatus(PlayState* play) {
 
     // Loop over quest item upgrades
     for (i = 0; i < 2; i++, j += 4) {
-        gSPVertex(POLY_OPA_DISP++, &pauseCtx->questVtx[j], 4, 0);
+        MM_gSPVertex(POLY_OPA_DISP++, &pauseCtx->questVtx[j], 4, 0);
         gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 255, 255, 255, pauseCtx->alpha);
 
         if (GET_CUR_UPG_VALUE(sQuestUpgrades[i]) != 0) {
@@ -340,7 +340,7 @@ void MM_KaleidoScope_DrawQuestStatus(PlayState* play) {
         }
 
         gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, 255);
-        gSPVertex(POLY_OPA_DISP++, &pauseCtx->questVtx[j], 4, 0);
+        MM_gSPVertex(POLY_OPA_DISP++, &pauseCtx->questVtx[j], 4, 0);
 
         POLY_OPA_DISP = Gfx_DrawTexQuadIA8(
             POLY_OPA_DISP,
@@ -390,7 +390,7 @@ void MM_KaleidoScope_DrawQuestStatus(PlayState* play) {
                         gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 255, 255, 50, sQuestSongPlayedOcarinaButtonsAlpha[i]);
                     }
 
-                    gSPVertex(POLY_OPA_DISP++, &pauseCtx->questVtx[j], 4, 0);
+                    MM_gSPVertex(POLY_OPA_DISP++, &pauseCtx->questVtx[j], 4, 0);
 
                     POLY_OPA_DISP = Gfx_DrawTexQuadIA8(
                         POLY_OPA_DISP, sOcarinaButtonTextures[sQuestSongPlayedOcarinaButtons[i]], 16, 16, 0);
@@ -425,7 +425,7 @@ void MM_KaleidoScope_DrawQuestStatus(PlayState* play) {
                     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 150, 150, 150, 150);
                 }
 
-                gSPVertex(POLY_OPA_DISP++, &pauseCtx->questVtx[j], 4, 0);
+                MM_gSPVertex(POLY_OPA_DISP++, &pauseCtx->questVtx[j], 4, 0);
 
                 POLY_OPA_DISP = Gfx_DrawTexQuadIA8(
                     POLY_OPA_DISP, sOcarinaButtonTextures[gOcarinaSongButtons[sp1C8].buttonIndex[k]], 16, 16, 0);
@@ -475,7 +475,7 @@ void MM_KaleidoScope_DrawQuestStatus(PlayState* play) {
                         gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 255, 255, 50, sQuestSongPlayedOcarinaButtonsAlpha[k]);
                     }
 
-                    gSPVertex(POLY_OPA_DISP++, &pauseCtx->questVtx[j], 4, 0);
+                    MM_gSPVertex(POLY_OPA_DISP++, &pauseCtx->questVtx[j], 4, 0);
 
                     POLY_OPA_DISP = Gfx_DrawTexQuadIA8(
                         POLY_OPA_DISP, sOcarinaButtonTextures[sQuestSongPlayedOcarinaButtons[k]], 16, 16, 0);
@@ -522,7 +522,7 @@ void MM_KaleidoScope_DrawQuestStatus(PlayState* play) {
         }
 
         //! @bug: &pauseCtx->questVtx[84] is the questVtx for skull tokens
-        gSPVertex(POLY_OPA_DISP++, &pauseCtx->questVtx[152], 24, 0);
+        MM_gSPVertex(POLY_OPA_DISP++, &pauseCtx->questVtx[152], 24, 0);
 
         // Loop over two sets of digits, the first is shadowed, the second is colored
         for (k = 0, i = 0; k < 2; k++) {

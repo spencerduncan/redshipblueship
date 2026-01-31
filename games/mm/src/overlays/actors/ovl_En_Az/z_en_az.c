@@ -1706,7 +1706,7 @@ void func_80A982E0(PlayState* play, ActorPathing* actorPathing) {
     actorPathing->distSqToCurPointXZ = MM_Math3D_Dist1DSq(sp28.x, sp28.z);
     actorPathing->distSqToCurPoint = MM_Math3D_Vec3fMagnitudeSq(&sp28);
     actorPathing->rotToCurPoint.y = Math_Atan2S_XY(sp28.z, sp28.x);
-    actorPathing->rotToCurPoint.x = Math_Atan2S_XY(sqrtf(actorPathing->distSqToCurPointXZ), -sp28.y);
+    actorPathing->rotToCurPoint.x = Math_Atan2S_XY(MM_sqrtf(actorPathing->distSqToCurPointXZ), -sp28.y);
     actorPathing->rotToCurPoint.z = 0;
 }
 
@@ -1899,8 +1899,8 @@ void EnAz_Draw(Actor* thisx, PlayState* play2) {
     } else {
         OPEN_DISPS(play->state.gfxCtx);
 
-        gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sYoungerBrotherEyeTextures[this->unk_37E]));
-        gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(sYoungerBrotherBeltTextures[this->unk_380]));
+        MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sYoungerBrotherEyeTextures[this->unk_37E]));
+        MM_gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(sYoungerBrotherBeltTextures[this->unk_380]));
         MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                               EnAz_OverrideLimbDraw, EnAz_PostLimbDraw, &this->actor);
 
@@ -1931,14 +1931,14 @@ void EnAz_Draw(Actor* thisx, PlayState* play2) {
                 func_80124618(D_80A991A4[i], this->unk_39C, &sp98);
                 MM_Matrix_Scale(sp98.x, sp98.y, sp98.z, MTXMODE_APPLY);
                 if (this->unk_374 & 0x800) {
-                    gSPSegment(POLY_XLU_DISP++, 0x09,
+                    MM_gSPSegment(POLY_XLU_DISP++, 0x09,
                                Gfx_PrimColor(play->state.gfxCtx, 0x80, 255, 255, 255, D_80A99194[i]));
                 } else {
-                    gSPSegment(POLY_XLU_DISP++, 0x09,
+                    MM_gSPSegment(POLY_XLU_DISP++, 0x09,
                                Gfx_PrimColor(play->state.gfxCtx, 0x80, 255, 255, 255, D_80A9919C[i]));
                 }
                 MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-                gSPDisplayList(POLY_XLU_DISP++, D_80A9916C[i]);
+                MM_gSPDisplayList(POLY_XLU_DISP++, D_80A9916C[i]);
                 MM_Matrix_Pop();
             }
         } else {
@@ -1947,18 +1947,18 @@ void EnAz_Draw(Actor* thisx, PlayState* play2) {
             Matrix_RotateZS(DEG_TO_BINANG(D_80A993D0[this->unk_384].z), MTXMODE_APPLY);
             MM_Matrix_Scale(D_80A993AC[this->unk_384].x, D_80A993AC[this->unk_384].y, 0.0f, MTXMODE_APPLY);
             if (this->unk_374 & 0x800) {
-                gSPSegment(POLY_XLU_DISP++, 0x08, Gfx_PrimColor(play->state.gfxCtx, 0x80, 255, 255, 255, 255));
+                MM_gSPSegment(POLY_XLU_DISP++, 0x08, Gfx_PrimColor(play->state.gfxCtx, 0x80, 255, 255, 255, 255));
             } else {
-                gSPSegment(POLY_XLU_DISP++, 0x08, Gfx_PrimColor(play->state.gfxCtx, 0x80, 255, 255, 255, 85));
+                MM_gSPSegment(POLY_XLU_DISP++, 0x08, Gfx_PrimColor(play->state.gfxCtx, 0x80, 255, 255, 255, 85));
             }
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, gBeaverYoungerBrotherTailVortexDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gBeaverYoungerBrotherTailVortexDL);
             MM_Matrix_Pop();
             MM_Matrix_Translate(0.0f, 2000.0f, -2100.0f, MTXMODE_APPLY);
             Matrix_RotateZS(DEG_TO_BINANG(D_80A993D0[this->unk_384].z), MTXMODE_APPLY);
             MM_Matrix_Scale(D_80A993D0[this->unk_384].x, D_80A993D0[this->unk_384].y, 0.0f, MTXMODE_APPLY);
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, gBeaverYoungerBrotherTailSplashDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gBeaverYoungerBrotherTailSplashDL);
         }
     }
 

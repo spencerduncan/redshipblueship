@@ -298,8 +298,8 @@ void EnWaterEffect_Draw(Actor* thisx, PlayState* play2) {
             if (!phi_s4) {
                 POLY_XLU_DISP = MM_Gfx_SetupDL(POLY_XLU_DISP, SETUPDL_0);
 
-                gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(gEffDust1Tex));
-                gSPDisplayList(POLY_XLU_DISP++, object_water_effect_DL_004260);
+                MM_gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(gEffDust1Tex));
+                MM_gSPDisplayList(POLY_XLU_DISP++, object_water_effect_DL_004260);
                 gDPSetEnvColor(POLY_XLU_DISP++, 250, 250, 255, 0);
                 phi_s4++;
             }
@@ -318,7 +318,7 @@ void EnWaterEffect_Draw(Actor* thisx, PlayState* play2) {
             Matrix_RotateZF(ptr->unk_2C.z, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, object_water_effect_DL_0042B0);
+            MM_gSPDisplayList(POLY_XLU_DISP++, object_water_effect_DL_0042B0);
             FrameInterpolation_RecordCloseChild();
         }
     }
@@ -332,9 +332,9 @@ void EnWaterEffect_Draw(Actor* thisx, PlayState* play2) {
             if (!phi_s4) {
                 Gfx_SetupDL44_Xlu(gfxCtx);
 
-                gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(gEffDust1Tex));
+                MM_gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(gEffDust1Tex));
                 gDPSetEnvColor(POLY_XLU_DISP++, 250, 250, 255, 0);
-                gSPDisplayList(POLY_XLU_DISP++, object_water_effect_DL_004260);
+                MM_gSPDisplayList(POLY_XLU_DISP++, object_water_effect_DL_004260);
                 phi_s4++;
             }
 
@@ -346,7 +346,7 @@ void EnWaterEffect_Draw(Actor* thisx, PlayState* play2) {
             Matrix_RotateYF(ptr->unk_2C.z, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, object_water_effect_DL_0042F8);
+            MM_gSPDisplayList(POLY_XLU_DISP++, object_water_effect_DL_0042F8);
             FrameInterpolation_RecordCloseChild();
         }
     }
@@ -536,14 +536,14 @@ void func_80A5A184(Actor* thisx, PlayState* play2) {
         if (ptr->unk_00 == 4) {
             FrameInterpolation_RecordOpenChild(ptr, ptr->unk_00);
             if (!flag) {
-                gSPDisplayList(POLY_XLU_DISP++, object_water_effect_DL_004340);
+                MM_gSPDisplayList(POLY_XLU_DISP++, object_water_effect_DL_004340);
                 gDPSetEnvColor(POLY_XLU_DISP++, 255, 10, 0, 0);
                 POLY_OPA_DISP = MM_Gfx_SetFog(POLY_OPA_DISP, 255, 0, 0, 255, 500, 3600);
                 flag++;
             }
 
             gDPSetPrimColor(POLY_XLU_DISP++, 0x80, 0x80, (u8)ptr->unk_38, 0, 0, (u8)ptr->unk_3C);
-            gSPSegment(POLY_XLU_DISP++, 0x08,
+            MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                        MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 0x20, 0x40, 1, 0, (ptr->unk_01 * -20) & 0x1FF,
                                         0x20, 0x80));
 
@@ -562,7 +562,7 @@ void func_80A5A184(Actor* thisx, PlayState* play2) {
             }
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, object_water_effect_DL_0043E8);
+            MM_gSPDisplayList(POLY_XLU_DISP++, object_water_effect_DL_0043E8);
 
             if ((ptr->unk_2A & 1) == 0) {
                 MM_Matrix_Translate(ptr->unk_04.x, ptr->unk_04.y + 5.0f, ptr->unk_04.z, MTXMODE_NEW);
@@ -570,7 +570,7 @@ void func_80A5A184(Actor* thisx, PlayState* play2) {
                 MM_Matrix_Scale(ptr->unk_2C.z, ptr->unk_2C.z, ptr->unk_2C.z, MTXMODE_APPLY);
 
                 MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-                gSPDisplayList(POLY_OPA_DISP++, gameplay_keep_DL_06AB30);
+                MM_gSPDisplayList(POLY_OPA_DISP++, gameplay_keep_DL_06AB30);
             }
             FrameInterpolation_RecordCloseChild();
         }
@@ -647,7 +647,7 @@ void func_80A5A6B8(Actor* thisx, PlayState* play2) {
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, (u8)this->unk_E2C);
-            gSPDisplayList(POLY_XLU_DISP++, object_water_effect_DL_000420);
+            MM_gSPDisplayList(POLY_XLU_DISP++, object_water_effect_DL_000420);
             FrameInterpolation_RecordCloseChild();
         }
 
@@ -661,7 +661,7 @@ void func_80A5A6B8(Actor* thisx, PlayState* play2) {
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, (u8)this->unk_E30);
-            gSPDisplayList(POLY_XLU_DISP++, object_water_effect_DL_000730);
+            MM_gSPDisplayList(POLY_XLU_DISP++, object_water_effect_DL_000730);
             FrameInterpolation_RecordCloseChild();
         }
         MM_Matrix_Pop();
@@ -678,7 +678,7 @@ void func_80A5A6B8(Actor* thisx, PlayState* play2) {
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, (u8)this->unk_E34);
-        gSPDisplayList(POLY_XLU_DISP++, object_water_effect_DL_000A48);
+        MM_gSPDisplayList(POLY_XLU_DISP++, object_water_effect_DL_000A48);
         FrameInterpolation_RecordCloseChild();
     }
 
@@ -693,7 +693,7 @@ void func_80A5A6B8(Actor* thisx, PlayState* play2) {
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, (u8)this->unk_E38);
-        gSPDisplayList(POLY_XLU_DISP++, object_water_effect_DL_000CD8);
+        MM_gSPDisplayList(POLY_XLU_DISP++, object_water_effect_DL_000CD8);
         FrameInterpolation_RecordCloseChild();
     }
 
@@ -706,9 +706,9 @@ void func_80A5A6B8(Actor* thisx, PlayState* play2) {
                 if (!phi_s4) {
                     Gfx_SetupDL44_Xlu(play->state.gfxCtx);
 
-                    gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(gEffDust1Tex));
+                    MM_gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(gEffDust1Tex));
                     gDPSetEnvColor(POLY_XLU_DISP++, 250, 250, 255, 0);
-                    gSPDisplayList(POLY_XLU_DISP++, object_water_effect_DL_004260);
+                    MM_gSPDisplayList(POLY_XLU_DISP++, object_water_effect_DL_004260);
                     phi_s4++;
                 }
 
@@ -720,7 +720,7 @@ void func_80A5A6B8(Actor* thisx, PlayState* play2) {
                 Matrix_RotateYF(ptr->unk_2C.z, MTXMODE_APPLY);
 
                 MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-                gSPDisplayList(POLY_XLU_DISP++, object_water_effect_DL_0042F8);
+                MM_gSPDisplayList(POLY_XLU_DISP++, object_water_effect_DL_0042F8);
                 FrameInterpolation_RecordCloseChild();
             }
         }

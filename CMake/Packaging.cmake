@@ -77,8 +77,9 @@ execute_process(
     --appimage-extract-and-run
     --appdir=${CPACK_TEMPORARY_DIRECTORY}
     --executable=$<TARGET_FILE:redship>
-    --library=$<TARGET_FILE:soh>
-    --library=$<TARGET_FILE:2ship>
+    # In single-exe mode, games are OBJECT libraries (no separate .so files)
+    $<$<NOT:$<BOOL:${SINGLE_EXECUTABLE_BUILD}>>:--library=$<TARGET_FILE:soh>>
+    $<$<NOT:$<BOOL:${SINGLE_EXECUTABLE_BUILD}>>:--library=$<TARGET_FILE:2ship>>
     $<$<BOOL:$<TARGET_PROPERTY:redship,APPIMAGE_DESKTOP_FILE>>:--desktop-file=$<TARGET_PROPERTY:redship,APPIMAGE_DESKTOP_FILE>>
     $<$<BOOL:$<TARGET_PROPERTY:redship,APPIMAGE_ICON_FILE>>:--icon-file=$<TARGET_PROPERTY:redship,APPIMAGE_ICON_FILE>>
     --output=appimage

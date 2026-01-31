@@ -1112,10 +1112,10 @@ void MM_EnGs_Draw(Actor* thisx, PlayState* play) {
     }
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, gGossipStoneMaterialDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gGossipStoneMaterialDL);
     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, this->unk_1FA.r, this->unk_1FA.g, this->unk_1FA.b, 255);
-    gSPDisplayList(POLY_OPA_DISP++, gGossipStoneDL);
-    gSPDisplayList(POLY_OPA_DISP++, gGossipStoneBottomModelDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gGossipStoneDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gGossipStoneBottomModelDL);
 
     MM_Matrix_Pop();
 
@@ -1125,11 +1125,11 @@ void MM_EnGs_Draw(Actor* thisx, PlayState* play) {
         MM_Matrix_Scale(0.05f, -0.05f, 1.0f, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPSegment(POLY_XLU_DISP++, 0x08,
+        MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                    MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 0x20, 0x40, 1, 0, -frames * 20, 0x20, 0x80));
         gDPSetPrimColor(POLY_XLU_DISP++, 0x80, 0x80, 255, 255, 0, 255);
         gDPSetEnvColor(POLY_XLU_DISP++, 255, 0, 0, 0);
-        gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);

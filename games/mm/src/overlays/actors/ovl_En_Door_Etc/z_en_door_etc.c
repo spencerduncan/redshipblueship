@@ -242,8 +242,8 @@ void EnDoorEtc_Draw(Actor* thisx, PlayState* play) {
     MM_Matrix_Translate(-2900.0f, 0.0f, 0.0f, MTXMODE_APPLY);
     Matrix_RotateZS(this->angle, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, gDoorLeftDL);
-    gSPDisplayList(POLY_OPA_DISP++, gDoorRightDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gDoorLeftDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gDoorRightDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

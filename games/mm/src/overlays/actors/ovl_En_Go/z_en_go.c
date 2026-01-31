@@ -787,7 +787,7 @@ void EnGo_DrawSteam(EnGoEffect effect[ENGO_EFFECT_COUNT], PlayState* play2) {
 
         gDPPipeSync(POLY_XLU_DISP++);
         if (!isMaterialSet) {
-            gSPDisplayList(POLY_XLU_DISP++, gGoronSteamMaterialDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gGoronSteamMaterialDL);
             isMaterialSet = true;
         }
 
@@ -797,7 +797,7 @@ void EnGo_DrawSteam(EnGoEffect effect[ENGO_EFFECT_COUNT], PlayState* play2) {
         alpha = (f32)effect->alphaNumer / effect->alphaDenom;
         alpha *= 255.0f;
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 195, 225, 235, (u8)alpha);
-        gSPSegment(POLY_XLU_DISP++, 0x08,
+        MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                    MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, (effect->alphaNumer + (i * 3)) * 3,
                                     (effect->alphaNumer + (i * 3)) * 15, 0x20, 0x40, 1, 0, 0, 0x20, 0x20));
 
@@ -806,7 +806,7 @@ void EnGo_DrawSteam(EnGoEffect effect[ENGO_EFFECT_COUNT], PlayState* play2) {
         MM_Matrix_Scale(effect->scaleXY, effect->scaleXY, 1.0f, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gGoronSteamModelDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gGoronSteamModelDL);
 
         MM_Matrix_Pop();
         FrameInterpolation_RecordCloseChild();
@@ -883,7 +883,7 @@ void EnGo_DrawDust(EnGoEffect effect[ENGO_EFFECT_COUNT], PlayState* play2) {
 
         if (!isMaterialSet) {
             POLY_XLU_DISP = MM_Gfx_SetupDL(POLY_XLU_DISP, SETUPDL_0);
-            gSPDisplayList(POLY_XLU_DISP++, gGoronDustMaterialDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gGoronDustMaterialDL);
             isMaterialSet = true;
         }
 
@@ -903,8 +903,8 @@ void EnGo_DrawDust(EnGoEffect effect[ENGO_EFFECT_COUNT], PlayState* play2) {
         MM_Matrix_ReplaceRotation(&play->billboardMtxF);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sDustTextures[(s32)(alpha * 7.0f)]));
-        gSPDisplayList(POLY_XLU_DISP++, gGoronDustModelDL);
+        MM_gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sDustTextures[(s32)(alpha * 7.0f)]));
+        MM_gSPDisplayList(POLY_XLU_DISP++, gGoronDustModelDL);
 
         MM_Matrix_Pop();
         FrameInterpolation_RecordCloseChild();
@@ -1053,7 +1053,7 @@ void EnGo_DrawSnow(EnGoEffect effect[ENGO_SNOW_EFFECT_COUNT], PlayState* play, G
         }
 
         if (!isMaterialSet) {
-            gSPDisplayList(POLY_OPA_DISP++, material);
+            MM_gSPDisplayList(POLY_OPA_DISP++, material);
             isMaterialSet = true;
         }
 
@@ -1066,7 +1066,7 @@ void EnGo_DrawSnow(EnGoEffect effect[ENGO_SNOW_EFFECT_COUNT], PlayState* play, G
         Matrix_RotateYS(effect->rot.y, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, model);
+        MM_gSPDisplayList(POLY_OPA_DISP++, model);
 
         MM_Matrix_Pop();
         FrameInterpolation_RecordCloseChild();
@@ -1805,10 +1805,10 @@ void EnGo_DrawIceBlockWhenFrozen(EnGo* this, PlayState* play, f32 scale, f32 alp
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
         y1 = play->gameplayFrames % 256;
         y2 = (play->gameplayFrames * 2) % 256;
-        gSPSegment(POLY_XLU_DISP++, 0x08,
+        MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                    MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, y1, 0x20, 0x10, 1, 0, y2, 0x40, 0x20));
         gDPSetEnvColor(POLY_XLU_DISP++, 0, 50, 100, (u8)alpha);
-        gSPDisplayList(POLY_XLU_DISP++, gEffIceFragment3DL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gEffIceFragment3DL);
 
         CLOSE_DISPS(play->state.gfxCtx);
 
@@ -2888,7 +2888,7 @@ void EnGo_Draw_NoSkeleton(EnGo* this, PlayState* play) {
     Matrix_RotateXS(this->actor.shape.rot.x, MTXMODE_APPLY);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, (this->actionFlags & ENGO_FLAG_SNOWBALLED) ? gGoronSnowballDL : gGoronRolledUpDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, (this->actionFlags & ENGO_FLAG_SNOWBALLED) ? gGoronSnowballDL : gGoronRolledUpDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -2992,7 +2992,7 @@ void MM_EnGo_Draw(Actor* thisx, PlayState* play) {
 
         Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-        gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeTexIndex]));
+        MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeTexIndex]));
 
         if (this->animIndex == ENGO_ANIM_SITTING_STRETCH) {
             MM_Matrix_Translate(0.0f, 0.0f, -4000.0f, MTXMODE_APPLY);

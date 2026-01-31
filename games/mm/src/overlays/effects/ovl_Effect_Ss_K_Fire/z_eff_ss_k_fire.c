@@ -56,7 +56,7 @@ void MM_EffectSsKFire_Draw(PlayState* play, u32 index, EffectSs* this) {
     MM_Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
     MM_Matrix_Scale(xzScale, yScale, xzScale, MTXMODE_APPLY);
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
-    gSPSegment(POLY_XLU_DISP++, 0x08,
+    MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 0x20, 0x40, 1, 0, play->state.frames * this->rScroll, 0x20,
                                 0x80));
 
@@ -76,7 +76,7 @@ void MM_EffectSsKFire_Draw(PlayState* play, u32 index, EffectSs* this) {
     }
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
 
     CLOSE_DISPS(gfxCtx);
 }

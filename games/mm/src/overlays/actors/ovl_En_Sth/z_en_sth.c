@@ -740,7 +740,7 @@ void MM_EnSth_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* r
         if (!STH_GET_SWAMP_BODY(&this->actor)) {
             OPEN_DISPS(play->state.gfxCtx);
 
-            gSPDisplayList(POLY_OPA_DISP++, gEnSthExtraHairDL);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gEnSthExtraHairDL);
 
             CLOSE_DISPS(play->state.gfxCtx);
         } else {
@@ -753,8 +753,8 @@ void MM_EnSth_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* r
                     MM_Matrix_Translate(0.0f, 190.0f, 0.0f, MTXMODE_APPLY);
 
                     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-                    gSPSegment(POLY_OPA_DISP++, 0x0A, play->objectCtx.slots[this->maskOfTruthObjectSlot].segment);
-                    gSPDisplayList(POLY_OPA_DISP++, object_mask_truth_DL_0001A0);
+                    MM_gSPSegment(POLY_OPA_DISP++, 0x0A, play->objectCtx.slots[this->maskOfTruthObjectSlot].segment);
+                    MM_gSPDisplayList(POLY_OPA_DISP++, object_mask_truth_DL_0001A0);
 
                     MM_Matrix_Pop();
                 }
@@ -773,9 +773,9 @@ void MM_EnSth_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x08,
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08,
                MM_Gfx_EnvColor(play->state.gfxCtx, sShirtColors[1].r, sShirtColors[1].g, sShirtColors[1].b, 255));
-    gSPSegment(POLY_OPA_DISP++, 0x09, MM_Gfx_EnvColor(play->state.gfxCtx, 90, 110, 130, 255));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x09, MM_Gfx_EnvColor(play->state.gfxCtx, 90, 110, 130, 255));
 
     MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           MM_EnSth_OverrideLimbDraw, MM_EnSth_PostLimbDraw, &this->actor);

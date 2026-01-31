@@ -816,7 +816,7 @@ void MM_EnNiw_Update(Actor* thisx, PlayState* play2) {
         viewAtToEye.x = play->view.at.x - play->view.eye.x;
         viewAtToEye.y = play->view.at.y - play->view.eye.y;
         viewAtToEye.z = play->view.at.z - play->view.eye.z;
-        viewAtToEyeNormY = viewAtToEye.y / sqrtf(SQXYZ(viewAtToEye));
+        viewAtToEyeNormY = viewAtToEye.y / MM_sqrtf(SQXYZ(viewAtToEye));
 
         this->actor.world.pos.x = this->actor.home.pos.x;
         this->actor.world.pos.z = this->actor.home.pos.z;
@@ -1000,7 +1000,7 @@ void EnNiw_DrawFeathers(EnNiw* this, PlayState* play) {
         if (feather->isEnabled == true) {
             // Apply the feather material if it has not already been applied.
             if (!isMaterialApplied) {
-                gSPDisplayList(POLY_XLU_DISP++, gNiwFeatherMaterialDL);
+                MM_gSPDisplayList(POLY_XLU_DISP++, gNiwFeatherMaterialDL);
                 isMaterialApplied++;
             }
 
@@ -1012,7 +1012,7 @@ void EnNiw_DrawFeathers(EnNiw* this, PlayState* play) {
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
 
-            gSPDisplayList(POLY_XLU_DISP++, gNiwFeatherDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gNiwFeatherDL);
         }
     }
 

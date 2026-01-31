@@ -8,8 +8,8 @@ OSMesgQueue __osPiAccessQueue;
 
 void __osPiCreateAccessQueue(void) {
     __osPiAccessQueueEnabled = 1;
-    osCreateMesgQueue(&__osPiAccessQueue, MM_piAccessBuf, ARRAY_COUNT(MM_piAccessBuf));
-    osSendMesg(&__osPiAccessQueue, NULL, OS_MESG_NOBLOCK);
+    MM_osCreateMesgQueue(&__osPiAccessQueue, MM_piAccessBuf, ARRAY_COUNT(MM_piAccessBuf));
+    MM_osSendMesg(&__osPiAccessQueue, NULL, OS_MESG_NOBLOCK);
 }
 
 void __osPiGetAccess(void) {
@@ -18,9 +18,9 @@ void __osPiGetAccess(void) {
     if (!__osPiAccessQueueEnabled) {
         __osPiCreateAccessQueue();
     }
-    osRecvMesg(&__osPiAccessQueue, &dummyMesg, OS_MESG_BLOCK);
+    MM_osRecvMesg(&__osPiAccessQueue, &dummyMesg, OS_MESG_BLOCK);
 }
 
 void __osPiRelAccess(void) {
-    osSendMesg(&__osPiAccessQueue, NULL, OS_MESG_NOBLOCK);
+    MM_osSendMesg(&__osPiAccessQueue, NULL, OS_MESG_NOBLOCK);
 }

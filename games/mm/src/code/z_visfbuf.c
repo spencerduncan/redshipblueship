@@ -58,7 +58,7 @@ void VisFbuf_DrawBgToColorImage(Gfx** gfxP, uObjBg* bg, void* img, s32 width, s3
     gDPPipeSync(gfx++);
     // Reset the color image and scissor to frame's defaults
     gDPSetColorImage(gfx++, G_IM_FMT_RGBA, G_IM_SIZ_16b, gCfbWidth, D_0F000000_TO_SEGMENTED);
-    gSPDisplayList(gfx++, D_0E000000_TO_SEGMENTED(setScissor));
+    MM_gSPDisplayList(gfx++, D_0E000000_TO_SEGMENTED(setScissor));
 
     *gfxP = gfx;
 }
@@ -108,7 +108,7 @@ void VisFbuf_SetBg(Gfx** gfxP, void* source, void* img, s32 width, s32 height, f
     bg->b.imagePtr = source;
 
     if (!!(cycleMode & VIS_FBUF_BG_CYC_COPY) != 0) { //! FAKE: may possibly be a better way
-        guS2DInitBg(bg);
+        MM_guS2DInitBg(bg);
     } else {
         bg->s.scaleW = (s32)((1 << 10) / scaleX);
         bg->s.scaleH = (s32)((1 << 10) / scaleY);

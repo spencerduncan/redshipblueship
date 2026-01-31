@@ -242,7 +242,7 @@ s32 func_80A68CE4(Vec3f* arg0, Vec3f* arg1, f32 arg2) {
         return 1;
     }
 
-    MM_Math_Vec3f_Scale(&sp34, arg2 / sqrtf(temp_f0));
+    MM_Math_Vec3f_Scale(&sp34, arg2 / MM_sqrtf(temp_f0));
     sp34.x += arg0->x;
     sp34.y += arg0->y;
     sp34.z += arg0->z;

@@ -213,7 +213,7 @@ void KaleidoScope_DrawMaskSelect(PlayState* play) {
             if (GET_CUR_FORM_BTN_SLOT(i + 1) >= ITEM_NUM_SLOTS) {
                 ItemId item = GET_CUR_FORM_BTN_ITEM(i + 1);
                 if (GameInteractor_Should(VB_DRAW_ITEM_EQUIPPED_OUTLINE, true, &item)) {
-                    gSPVertex(POLY_OPA_DISP++, &pauseCtx->maskVtx[j], 4, 0);
+                    MM_gSPVertex(POLY_OPA_DISP++, &pauseCtx->maskVtx[j], 4, 0);
                     POLY_OPA_DISP = Gfx_DrawTexQuadIA8(POLY_OPA_DISP, gEquippedItemOutlineTex, 32, 32, 0);
                 }
             }
@@ -226,7 +226,7 @@ void KaleidoScope_DrawMaskSelect(PlayState* play) {
                 if (DPAD_GET_CUR_FORM_BTN_SLOT(i) >= ITEM_NUM_SLOTS) {
                     ItemId item = DPAD_GET_CUR_FORM_BTN_ITEM(i);
                     if (GameInteractor_Should(VB_DRAW_ITEM_EQUIPPED_OUTLINE, true, &item)) {
-                        gSPVertex(POLY_OPA_DISP++, &pauseCtx->maskVtx[j], 4, 0);
+                        MM_gSPVertex(POLY_OPA_DISP++, &pauseCtx->maskVtx[j], 4, 0);
                         POLY_OPA_DISP = Gfx_DrawTexQuadIA8(POLY_OPA_DISP, gEquippedItemOutlineTex, 32, 32, 0);
                     }
                 }
@@ -277,7 +277,7 @@ void KaleidoScope_DrawMaskSelect(PlayState* play) {
                     }
                 }
 
-                gSPVertex(POLY_OPA_DISP++, &pauseCtx->maskVtx[j + 0], 4, 0);
+                MM_gSPVertex(POLY_OPA_DISP++, &pauseCtx->maskVtx[j + 0], 4, 0);
                 KaleidoScope_DrawTexQuadRGBA32(
                     play->state.gfxCtx,
                     MM_gItemIcons[((void)0, gSaveContext.save.saveInfo.inventory.items[i + ITEM_NUM_SLOTS])], 32, 32, 0);

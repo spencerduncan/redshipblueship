@@ -1615,10 +1615,10 @@ void func_80B7AF30(ObjUm* this, PlayState* play) {
         sp30.z = (this->unk_2D0.z + this->unk_2E8.z) * 0.5f;
 
         this->dyna.actor.shape.rot.x =
-            (s16)MM_Math_Atan2S(sp30.y - this->dyna.actor.world.pos.y, sqrtf(SQ(sp30.x - this->dyna.actor.world.pos.x) +
+            (s16)MM_Math_Atan2S(sp30.y - this->dyna.actor.world.pos.y, MM_sqrtf(SQ(sp30.x - this->dyna.actor.world.pos.x) +
                                                                           SQ(sp30.z - this->dyna.actor.world.pos.z)));
         this->dyna.actor.shape.rot.z = (s16)-MM_Math_Atan2S(
-            sp30.y - this->unk_2D0.y, sqrtf(SQ(sp30.x - this->unk_2D0.x) + SQ(sp30.z - this->unk_2D0.z)));
+            sp30.y - this->unk_2D0.y, MM_sqrtf(SQ(sp30.x - this->unk_2D0.x) + SQ(sp30.z - this->unk_2D0.z)));
         if (this->flags & OBJ_UM_FLAG_MOVING) {
             this->dyna.actor.shape.rot.x += BINANG_SUB((MM_Rand_ZeroOne() * 100.0f), 50.0f);
             this->dyna.actor.shape.rot.z += BINANG_SUB((MM_Rand_ZeroOne() * 100.0f), 50.0f);
@@ -1808,8 +1808,8 @@ s32 ObjUm_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* p
     if (limbIndex == UM_LIMB_CREMIA_HEAD) {
         OPEN_DISPS(play->state.gfxCtx);
 
-        gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeTexIndex]));
-        gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(MM_sMouthTextures[this->mouthTexIndex]));
+        MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeTexIndex]));
+        MM_gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(MM_sMouthTextures[this->mouthTexIndex]));
 
         CLOSE_DISPS(play->state.gfxCtx);
     }
@@ -1954,10 +1954,10 @@ void ObjUm_PostLimbDraw(PlayState* play2, s32 limbIndex, Gfx** dList, Vec3s* rot
             gSPMatrix(POLY_OPA_DISP++, mtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
 
             if (spFC[this->potsLife[i]] != NULL) {
-                gSPDisplayList(POLY_OPA_DISP++, spFC[this->potsLife[i]]);
+                MM_gSPDisplayList(POLY_OPA_DISP++, spFC[this->potsLife[i]]);
 
                 if (spE4[this->potsLife[i]] != NULL) {
-                    gSPDisplayList(POLY_OPA_DISP++, spE4[this->potsLife[i]]);
+                    MM_gSPDisplayList(POLY_OPA_DISP++, spE4[this->potsLife[i]]);
                 }
             }
         }
@@ -2002,7 +2002,7 @@ void func_80B7BEA4(Vec3f* cartBedPos, s16 arg1, Vec3f* arg2, u8 alpha, PlayState
         POLY_OPA_DISP = MM_Gfx_SetupDL(POLY_OPA_DISP, SETUPDL_44);
         gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 0, 0, 0, alpha);
         gSPMatrix(POLY_OPA_DISP++, sp100, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-        gSPDisplayList(POLY_OPA_DISP++, gSquareShadowDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, gSquareShadowDL);
 
         CLOSE_DISPS(play->state.gfxCtx);
     }

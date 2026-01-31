@@ -618,7 +618,7 @@ void EnZod_DrawDrums(EnZod* this, PlayState* play) {
         }
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, sTijoDrumsDLs[i]);
+        MM_gSPDisplayList(POLY_OPA_DISP++, sTijoDrumsDLs[i]);
         MM_Matrix_Pop();
     }
 
@@ -640,8 +640,8 @@ void EnZod_Draw(Actor* thisx, PlayState* play) {
 
     gfx = POLY_OPA_DISP;
 
-    gSPSegment(&gfx[0], 0x08, Lib_SegmentedToVirtual(sTijoEyeTextures[this->eyeIndex]));
-    gSPSegment(&gfx[1], 0x09, Lib_SegmentedToVirtual(&gTijoMouthClosedTex));
+    MM_gSPSegment(&gfx[0], 0x08, Lib_SegmentedToVirtual(sTijoEyeTextures[this->eyeIndex]));
+    MM_gSPSegment(&gfx[1], 0x09, Lib_SegmentedToVirtual(&gTijoMouthClosedTex));
 
     POLY_OPA_DISP = &gfx[2];
 

@@ -84,7 +84,7 @@ f32 MM_Math_FAtanTaylorF(f32 x) {
     } else if (x == 0.0f) {
         return 0.0f;
     } else {
-        return qNaN0x10000;
+        return MM_qNaN0x10000;
     }
 
     if (t <= M_SQRT2f - 1.0f) {
@@ -125,7 +125,7 @@ f32 MM_Math_FAtanContFracF(f32 x) {
         sector = -1;
         x = 1.0f / x;
     } else {
-        return qNaN0x10000;
+        return MM_qNaN0x10000;
     }
 
     // Builds the continued fraction from the innermost fraction out
@@ -171,7 +171,7 @@ f32 MM_Math_FAtan2F(f32 y, f32 x) {
         } else if (y < 0.0f) {
             return -M_PIf / 2;
         } else {
-            return qNaN0x10000;
+            return MM_qNaN0x10000;
         }
     } else if (x >= 0.0f) {
         return MM_Math_FAtanF(y / x);
@@ -183,7 +183,7 @@ f32 MM_Math_FAtan2F(f32 y, f32 x) {
 }
 
 f32 MM_Math_FAsinF(f32 x) {
-    return MM_Math_FAtan2F(x, sqrtf(1.0f - SQ(x)));
+    return MM_Math_FAtan2F(x, MM_sqrtf(1.0f - SQ(x)));
 }
 
 f32 MM_Math_FAcosF(f32 x) {

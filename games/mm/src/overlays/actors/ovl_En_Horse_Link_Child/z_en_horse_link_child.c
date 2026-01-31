@@ -643,7 +643,7 @@ s32 EnHorseLinkChild_OverrideSkinDraw(Actor* thisx, PlayState* play, s32 limbInd
     if (limbIndex == OBJECT_HORSE_LINK_CHILD_LIMB_0D) {
         u8 index = sEyeTextureIndexOverride[this->eyeTexIndex];
 
-        gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[index]));
+        MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[index]));
     }
 
     CLOSE_DISPS(play->state.gfxCtx);

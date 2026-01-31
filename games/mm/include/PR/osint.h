@@ -25,7 +25,7 @@ void __osDequeueThread(OSThread** queue, OSThread* t);
 void __osEnqueueThread(OSThread** param_1, OSThread* param_2);
 OSThread* __osPopThread(OSThread** param_1);
 void __osDispatchThread(void);
-void __osCleanupThread(void);
+void MM___osCleanupThread(void);
 
 void __osSetTimerIntr(OSTime tim);
 OSTime __osInsertTimer(OSTimer* t);

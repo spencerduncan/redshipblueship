@@ -732,7 +732,7 @@ void func_809DAB78(Boss02* this, PlayState* play) {
     if ((this->unk_0144 != 10) && (this->unk_0144 <= 20)) {
         MM_SkelAnime_Update(&this->skelAnime);
         temp_s0 = MM_Math_Atan2S(spCC, spC4);
-        temp_s2 = MM_Math_Atan2S(spC8, sqrtf(SQ(spCC) + SQ(spC4)));
+        temp_s2 = MM_Math_Atan2S(spC8, MM_sqrtf(SQ(spCC) + SQ(spC4)));
         MM_Math_ApproachS(&this->actor.world.rot.y, temp_s0, 0x14, this->unk_0164);
         MM_Math_ApproachS(&this->actor.shape.rot.x, temp_s2, 0x14, this->unk_0164);
         MM_Math_ApproachS(&this->unk_0198, this->unk_019A, 1, 0x20);
@@ -870,7 +870,7 @@ void func_809DAB78(Boss02* this, PlayState* play) {
             } else {
                 phi_f2 = 500.0f;
             }
-            if (sqrtf(SQ(spCC) + SQ(spC8) + SQ(spC4)) < (phi_f2 * sGiantModeScaleFactor)) {
+            if (MM_sqrtf(SQ(spCC) + SQ(spC8) + SQ(spC4)) < (phi_f2 * sGiantModeScaleFactor)) {
                 this->unk_0144 = 3;
                 this->unk_01B0.y = -3000.0f * sGiantModeScaleFactor;
                 if (sIsInGiantMode) {
@@ -937,7 +937,7 @@ void func_809DAB78(Boss02* this, PlayState* play) {
             return;
 
         case 12:
-            if (sqrtf(SQ(spCC) + SQ(spC8) + SQ(spC4)) < 500.0f) {
+            if (MM_sqrtf(SQ(spCC) + SQ(spC8) + SQ(spC4)) < 500.0f) {
                 this->unk_1D1A++;
                 this->unk_0164 = 0.0f;
                 if (this->unk_1D1A > 8) {
@@ -1014,13 +1014,13 @@ void func_809DAB78(Boss02* this, PlayState* play) {
 
                     spCC = player->actor.world.pos.x - this->actor.world.pos.x;
                     spC4 = player->actor.world.pos.z - this->actor.world.pos.z;
-                    if (sqrtf(SQ(spCC) + SQ(spC4)) < (400.0f * sGiantModeScaleFactor)) {
+                    if (MM_sqrtf(SQ(spCC) + SQ(spC4)) < (400.0f * sGiantModeScaleFactor)) {
                         this->actor.speed = 15.0f * sGiantModeScaleFactor;
                     }
 
                     spCC = this->actor.world.pos.x;
                     spC4 = this->actor.world.pos.z;
-                    if (sqrtf(SQ(spCC) + SQ(spC4)) < (400.0f * sGiantModeScaleFactor)) {
+                    if (MM_sqrtf(SQ(spCC) + SQ(spC4)) < (400.0f * sGiantModeScaleFactor)) {
                         this->actor.speed = 15.0f * sGiantModeScaleFactor;
                     }
 
@@ -1396,12 +1396,12 @@ void Boss02_Twinmold_Draw(Actor* thisx, PlayState* play2) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
     if (TWINMOLD_GET_TYPE(&this->actor) == TWINMOLD_TYPE_RED) {
-        gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(gTwinmoldRedSkinTex));
+        MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(gTwinmoldRedSkinTex));
     } else {
-        gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(gTwinmoldBlueSkinTex));
+        MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(gTwinmoldBlueSkinTex));
     }
 
-    gSPSegment(POLY_OPA_DISP++, 0x0D, mtxHead);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x0D, mtxHead);
 
     if (!sIsInGiantMode) {
         sp98 = -500.0f;
@@ -1467,7 +1467,7 @@ void Boss02_Twinmold_Draw(Actor* thisx, PlayState* play2) {
 
         if (i < this->unk_1678) {
             if (sp98 < this->unk_01BC[phi_v0].y) {
-                gSPDisplayList(POLY_OPA_DISP++, D_809DFA9C[i]);
+                MM_gSPDisplayList(POLY_OPA_DISP++, D_809DFA9C[i]);
             }
             POLY_OPA_DISP = MM_Play_SetFog(play, POLY_OPA_DISP);
         }
@@ -1574,7 +1574,7 @@ void Boss02_DrawEffects(PlayState* play) {
             FrameInterpolation_RecordOpenChild(effect, (effect->epoch << 4) | effect->type);
             FrameInterpolation_IgnoreActorMtx();
             if (!flag) {
-                gSPDisplayList(POLY_XLU_DISP++, gTwinmoldDustMaterialDL);
+                MM_gSPDisplayList(POLY_XLU_DISP++, gTwinmoldDustMaterialDL);
                 gDPSetEnvColor(POLY_XLU_DISP++, 185, 140, 70, 128);
                 flag++;
             }
@@ -1585,7 +1585,7 @@ void Boss02_DrawEffects(PlayState* play) {
             }
 
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 185, 140, 70, alpha);
-            gSPSegment(POLY_XLU_DISP++, 0x08,
+            MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                        MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, effect->timer + (i * 3), (effect->timer + (i * 3)) * 5,
                                         32, 64, 1, 0, 0, 32, 32));
 
@@ -1595,7 +1595,7 @@ void Boss02_DrawEffects(PlayState* play) {
                          MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, gTwinmoldDustModelDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gTwinmoldDustModelDL);
             FrameInterpolation_RecordCloseChild();
         }
     }
@@ -1619,7 +1619,7 @@ void Boss02_DrawEffects(PlayState* play) {
                          effect->scale * sGiantModeScaleFactor, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_OPA_DISP++, gEffFragments1DL);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gEffFragments1DL);
             FrameInterpolation_RecordCloseChild();
         }
     }
@@ -1630,7 +1630,7 @@ void Boss02_DrawEffects(PlayState* play) {
             FrameInterpolation_RecordOpenChild(effect, (effect->epoch << 4) | effect->type);
             FrameInterpolation_IgnoreActorMtx();
             if (!flag) { //! @bug - dev forgot to set flag to 1, should only apply to first entry?
-                gSPDisplayList(POLY_XLU_DISP++, gLightOrbMaterial1DL);
+                MM_gSPDisplayList(POLY_XLU_DISP++, gLightOrbMaterial1DL);
                 gDPSetEnvColor(POLY_XLU_DISP++, 255, 0, 0, 128);
             }
 
@@ -1642,7 +1642,7 @@ void Boss02_DrawEffects(PlayState* play) {
                          MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, gLightOrbModelDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gLightOrbModelDL);
             FrameInterpolation_RecordCloseChild();
         }
     }
@@ -1653,13 +1653,13 @@ void Boss02_DrawEffects(PlayState* play) {
             FrameInterpolation_RecordOpenChild(effect, (effect->epoch << 4) | effect->type);
             FrameInterpolation_IgnoreActorMtx();
             if (!flag) {
-                gSPDisplayList(POLY_XLU_DISP++, gTwinmoldDustMaterialDL);
+                MM_gSPDisplayList(POLY_XLU_DISP++, gTwinmoldDustMaterialDL);
                 gDPSetEnvColor(POLY_XLU_DISP++, 30, 30, 30, 128);
                 flag++;
             }
 
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 30, 30, 30, (u8)effect->alpha);
-            gSPSegment(POLY_XLU_DISP++, 0x08,
+            MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                        MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, effect->timer + (i * 3), (effect->timer + (i * 3)) * 5,
                                         32, 64, 1, 0, 0, 32, 32));
 
@@ -1669,7 +1669,7 @@ void Boss02_DrawEffects(PlayState* play) {
                          MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, gTwinmoldDustModelDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gTwinmoldDustModelDL);
             FrameInterpolation_RecordCloseChild();
         }
     }

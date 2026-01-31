@@ -312,7 +312,7 @@ void EnBigokuta_SuckInPlayer(EnBigokuta* this, PlayState* play) {
 
     player->av2.actionVar2 = 0;
     MM_Math_Vec3f_Copy(&player->actor.world.pos, &this->playerPos);
-    if (Math_Vec3f_StepTo(&player->actor.world.pos, &this->playerHoldPos, sqrtf(this->timer) * 5.0f) < 0.1f) {
+    if (Math_Vec3f_StepTo(&player->actor.world.pos, &this->playerHoldPos, MM_sqrtf(this->timer) * 5.0f) < 0.1f) {
         s16 rotY = this->picto.actor.shape.rot.y;
 
         if (MM_Math_ScaledStepToS(&this->picto.actor.shape.rot.y, this->picto.actor.home.rot.y, 0x800)) {
@@ -685,7 +685,7 @@ void MM_EnBigokuta_Draw(Actor* thisx, PlayState* play) {
     if ((this->actionFunc != EnBigokuta_PlayDeathEffects) || (this->timer != 0)) {
         Scene_SetRenderModeXlu(play, 0, 1);
         gfx = POLY_OPA_DISP;
-        gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
+        MM_gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
         gDPSetEnvColor(&gfx[1], 255, 255, 255, 255);
         POLY_OPA_DISP =
             MM_SkelAnime_DrawFlex(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
@@ -693,7 +693,7 @@ void MM_EnBigokuta_Draw(Actor* thisx, PlayState* play) {
     } else {
         Scene_SetRenderModeXlu(play, 1, 2);
         gfx = POLY_XLU_DISP;
-        gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
+        MM_gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
         gDPSetEnvColor(&gfx[1], 0, 0, 0, (this->picto.actor.scale.y * 7727.273f));
         POLY_XLU_DISP =
             MM_SkelAnime_DrawFlex(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,

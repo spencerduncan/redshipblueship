@@ -211,8 +211,8 @@ void DayTelop_Main(GameState* thisx) {
     func_8012CF0C(this->state.gfxCtx, true, true, 0, 0, 0);
 
     OPEN_DISPS(this->state.gfxCtx);
-    gSPSegment(POLY_OPA_DISP++, 0x09, this->daytelopStaticFile);
-    gSPSegment(POLY_OPA_DISP++, 0x0C, this->gameoverStaticFile);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x09, this->daytelopStaticFile);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x0C, this->gameoverStaticFile);
     CLOSE_DISPS(this->state.gfxCtx);
 
     DayTelop_Draw(this);

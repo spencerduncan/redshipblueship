@@ -948,7 +948,7 @@ void MM_EnSsh_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* r
     if ((limbIndex == OBJECT_SSH_LIMB_05) && (this->stateFlags & SSH_STATE_FATHER)) {
         OPEN_DISPS(play->state.gfxCtx);
 
-        gSPDisplayList(POLY_OPA_DISP++, object_ssh_DL_0000D8);
+        MM_gSPDisplayList(POLY_OPA_DISP++, object_ssh_DL_0000D8);
 
         CLOSE_DISPS(play->state.gfxCtx);
     }
@@ -967,7 +967,7 @@ void MM_EnSsh_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x08, SEGMENTED_TO_K0(D_80976178[this->blinkState]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, SEGMENTED_TO_K0(D_80976178[this->blinkState]));
 
     MM_SkelAnime_DrawOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, MM_EnSsh_OverrideLimbDraw,
                       MM_EnSsh_PostLimbDraw, &this->actor);

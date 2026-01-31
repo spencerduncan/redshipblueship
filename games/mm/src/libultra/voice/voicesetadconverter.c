@@ -43,9 +43,9 @@ s32 __osVoiceSetADConverter(OSMesgQueue* mq, s32 channel, u8 data) {
         SWRITEFORMAT(ptr)->scrc = __osContAddressCrc(data << 3);
 
         __osSiRawStartDma(OS_WRITE, &__osPfsPifRam);
-        osRecvMesg(mq, NULL, OS_MESG_BLOCK);
+        MM_osRecvMesg(mq, NULL, OS_MESG_BLOCK);
         __osSiRawStartDma(OS_READ, &__osPfsPifRam);
-        osRecvMesg(mq, NULL, OS_MESG_BLOCK);
+        MM_osRecvMesg(mq, NULL, OS_MESG_BLOCK);
 
         errorCode = CHNL_ERR(*SWRITEFORMAT(ptr));
 

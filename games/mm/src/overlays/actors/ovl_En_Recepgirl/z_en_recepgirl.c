@@ -207,7 +207,7 @@ void EnRecepgirl_Draw(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    gSPSegment(POLY_OPA_DISP++, 0x08, MM_sEyeTextures[this->eyeTexIndex]);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, MM_sEyeTextures[this->eyeTexIndex]);
 
     SkelAnime_DrawTransformFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
                                    this->skelAnime.dListCount, EnRecepgirl_OverrideLimbDraw, NULL,

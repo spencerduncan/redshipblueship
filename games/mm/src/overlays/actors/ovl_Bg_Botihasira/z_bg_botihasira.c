@@ -95,7 +95,7 @@ void BgBotihasira_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, object_botihasira_DL_000638);
+    MM_gSPDisplayList(POLY_OPA_DISP++, object_botihasira_DL_000638);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

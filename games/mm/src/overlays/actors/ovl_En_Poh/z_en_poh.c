@@ -902,7 +902,7 @@ void MM_EnPoh_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* r
 
     if ((this->actionFunc == func_80B2D300) && (this->unk_18E >= 2) && (limbIndex == POE_LIMB_TOP_CLOAK)) {
         MATRIX_FINALIZE_AND_LOAD((*gfx)++, play->state.gfxCtx);
-        gSPDisplayList((*gfx)++, gPoeBurnDL);
+        MM_gSPDisplayList((*gfx)++, gPoeBurnDL);
     }
 
     if (limbIndex == POE_LIMB_LANTERN) {
@@ -949,9 +949,9 @@ void EnPoh_Draw(Actor* thisx, PlayState* play) {
     if ((this->unk_197 == 255) || (this->unk_197 == 0)) {
         gfx = POLY_OPA_DISP;
 
-        gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
+        MM_gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
         gDPSetEnvColor(&gfx[1], this->unk_194, this->unk_195, this->unk_196, this->unk_197);
-        gSPSegment(&gfx[2], 0x08, D_801AEFA0);
+        MM_gSPSegment(&gfx[2], 0x08, D_801AEFA0);
 
         gfx = MM_SkelAnime_Draw(play, this->skelAnime.skeleton, this->skelAnime.jointTable, MM_EnPoh_OverrideLimbDraw,
                              MM_EnPoh_PostLimbDraw, &this->actor, &gfx[3]);
@@ -960,15 +960,15 @@ void EnPoh_Draw(Actor* thisx, PlayState* play) {
     } else {
         gfx = POLY_XLU_DISP;
 
-        gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
+        MM_gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
         gDPSetEnvColor(&gfx[1], 255, 255, 255, this->unk_197);
-        gSPSegment(&gfx[2], 0x08, D_801AEF88);
+        MM_gSPSegment(&gfx[2], 0x08, D_801AEF88);
 
         POLY_XLU_DISP = MM_SkelAnime_Draw(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
                                        MM_EnPoh_OverrideLimbDraw, MM_EnPoh_PostLimbDraw, &this->actor, &gfx[3]);
 
         gfx = POLY_OPA_DISP;
-        gSPDisplayList(gfx++, gSetupDLs[SETUPDL_25]);
+        MM_gSPDisplayList(gfx++, gSetupDLs[SETUPDL_25]);
     }
 
     gDPPipeSync(&gfx[0]);
@@ -977,7 +977,7 @@ void EnPoh_Draw(Actor* thisx, PlayState* play) {
     MM_Matrix_Put(&this->unk_3D8);
 
     MATRIX_FINALIZE_AND_LOAD(&gfx[2], play->state.gfxCtx);
-    gSPDisplayList(&gfx[3], gPoeLanternDL);
+    MM_gSPDisplayList(&gfx[3], gPoeLanternDL);
 
     POLY_OPA_DISP = &gfx[4];
     Actor_DrawDamageEffects(play, &this->actor, this->bodyPartsPos, POE_BODYPART_MAX,
@@ -1009,7 +1009,7 @@ void func_80B2F37C(Actor* thisx, PlayState* play) {
     if (this->actionFunc == func_80B2DD2C) {
         gfx = POLY_OPA_DISP;
 
-        gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
+        MM_gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
         gDPSetEnvColor(&gfx[1], this->unk_198, this->unk_199, this->unk_19A, 255);
 
         func_80B2C910(&sp7C, play);
@@ -1017,13 +1017,13 @@ void func_80B2F37C(Actor* thisx, PlayState* play) {
                                 this->actor.world.pos.z + sp7C.z, this->unk_198, this->unk_199, this->unk_19A, 200);
 
         MATRIX_FINALIZE_AND_LOAD(&gfx[2], play->state.gfxCtx);
-        gSPDisplayList(&gfx[3], gPoeLanternDL);
+        MM_gSPDisplayList(&gfx[3], gPoeLanternDL);
 
         POLY_OPA_DISP = &gfx[4];
     } else {
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
-        gSPSegment(
+        MM_gSPSegment(
             POLY_XLU_DISP++, 0x08,
             MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 0x20, 0x40, 1, 0, (this->unk_190 * -8) & 0x1FF, 0x20, 0x80));
         gDPSetPrimColor(POLY_XLU_DISP++, 0x80, 0x80, 255, 170, 255, this->unk_197);
@@ -1032,7 +1032,7 @@ void func_80B2F37C(Actor* thisx, PlayState* play) {
         Matrix_RotateYF(BINANG_TO_RAD(MM_Camera_GetCamDirYaw(GET_ACTIVE_CAM(play)) + 0x8000), MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gPoeSoulDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gPoeSoulDL);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);

@@ -36,13 +36,13 @@ void Graph_ProcessFrame(void (*run_one_game_iter)(void));
 
 void MM_Graph_FaultClient(void) {
     MM_FaultDrawer_DrawText(30, 100, "ShowFrameBuffer PAGE 0/1");
-    osViSwapBuffer(SysCfb_GetFramebuffer(0));
-    osViSetMode(gActiveViMode);
-    osViSetSpecialFeatures(OS_VI_DITHER_FILTER_ON | OS_VI_GAMMA_OFF);
+    MM_osViSwapBuffer(SysCfb_GetFramebuffer(0));
+    MM_osViSetMode(gActiveViMode);
+    MM_osViSetSpecialFeatures(OS_VI_DITHER_FILTER_ON | OS_VI_GAMMA_OFF);
     MM_Fault_WaitForInput();
-    osViSwapBuffer(SysCfb_GetFramebuffer(1));
-    osViSetMode(gActiveViMode);
-    osViSetSpecialFeatures(OS_VI_DITHER_FILTER_ON | OS_VI_GAMMA_OFF);
+    MM_osViSwapBuffer(SysCfb_GetFramebuffer(1));
+    MM_osViSetMode(gActiveViMode);
+    MM_osViSetSpecialFeatures(OS_VI_DITHER_FILTER_ON | OS_VI_GAMMA_OFF);
 }
 
 void MM_Graph_InitTHGA(TwoHeadGfxArena* arena, Gfx* buffer, s32 size) {
@@ -131,7 +131,7 @@ void MM_Graph_Init(GraphicsContext* gfxCtx) {
     gfxCtx->viConfigFeatures = MM_gViConfigFeatures;
     gfxCtx->xScale = MM_gViConfigXScale;
     gfxCtx->yScale = MM_gViConfigYScale;
-    osCreateMesgQueue(&gfxCtx->queue, gfxCtx->msgBuff, ARRAY_COUNT(gfxCtx->msgBuff));
+    MM_osCreateMesgQueue(&gfxCtx->queue, gfxCtx->msgBuff, ARRAY_COUNT(gfxCtx->msgBuff));
     // MM_Fault_AddClient(&MM_sGraphFaultClient, (void*)MM_Graph_FaultClient, NULL, NULL);
     // MM_Fault_AddAddrConvClient(&sGraphFaultAddrConvClient, Graph_FaultAddrConv, NULL);
 }
@@ -156,9 +156,9 @@ void MM_Graph_TaskSet00(GraphicsContext* gfxCtx, GameState* gameState) {
     CfbInfo* cfb;
 
 retry:
-// osSetTimer(&timer, OS_USEC_TO_CYCLES(3 * 1000 * 1000), 0, &gfxCtx->queue, (OSMesg)666);
-// osRecvMesg(&gfxCtx->queue, &msg, OS_MESG_BLOCK);
-// osStopTimer(&timer);
+// MM_osSetTimer(&timer, OS_USEC_TO_CYCLES(3 * 1000 * 1000), 0, &gfxCtx->queue, (OSMesg)666);
+// MM_osRecvMesg(&gfxCtx->queue, &msg, OS_MESG_BLOCK);
+// MM_osStopTimer(&timer);
 #if 0
     if (msg == (OSMesg)666) {
         osSyncPrintf("GRAPH SP TIMEOUT\n");
@@ -186,8 +186,8 @@ retry:
     // task->ucode_data = SysUcode_GetUCodeData();
     task->ucode_size = SP_UCODE_SIZE;
     task->ucode_data_size = SP_UCODE_DATA_SIZE;
-    task->dram_stack = (u64*)gGfxSPTaskStack;
-    task->dram_stack_size = sizeof(gGfxSPTaskStack);
+    task->dram_stack = (u64*)MM_gGfxSPTaskStack;
+    task->dram_stack_size = sizeof(MM_gGfxSPTaskStack);
     task->output_buff = gGfxSPTaskOutputBufferPtr;
     task->output_buff_size = gGfxSPTaskOutputBufferEnd;
     task->data_ptr = (u64*)gGfxMasterDL;
@@ -233,11 +233,11 @@ retry:
     scTask->framebuffer = cfb;
 
     while (gfxCtx->queue.validCount != 0) {
-        osRecvMesg(&gfxCtx->queue, NULL, OS_MESG_NOBLOCK);
+        MM_osRecvMesg(&gfxCtx->queue, NULL, OS_MESG_NOBLOCK);
     }
 
     gfxCtx->schedMsgQ = &MM_gSchedContext.cmdQ;
-    osSendMesg(&MM_gSchedContext.cmdQ, OS_MESG_PTR(scTask), OS_MESG_BLOCK);
+    MM_osSendMesg(&MM_gSchedContext.cmdQ, OS_MESG_PTR(scTask), OS_MESG_BLOCK);
     MM_Sched_SendEntryMsg(&MM_gSchedContext);
 }
 
@@ -279,12 +279,12 @@ void Graph_ExecuteAndDraw(GraphicsContext* gfxCtx, GameState* gameState) {
     {
         Gfx* gfx = gGfxMasterDL->taskStart;
 
-        gSPSegment(gfx++, 0x0E, gGfxMasterDL);
-        gSPDisplayList(gfx++, D_0E000000_TO_SEGMENTED(disps[3]));     // Work buffer
-        gSPDisplayList(gfx++, D_0E000000_TO_SEGMENTED(disps[0]));     // OPA buffer
-        gSPDisplayList(gfx++, D_0E000000_TO_SEGMENTED(disps[1]));     // XLU buffer
-        gSPDisplayList(gfx++, D_0E000000_TO_SEGMENTED(disps[2]));     // Overlay buffer
-        gSPDisplayList(gfx++, D_0E000000_TO_SEGMENTED(debugDisp[0])); // Debug buffer
+        MM_gSPSegment(gfx++, 0x0E, gGfxMasterDL);
+        MM_gSPDisplayList(gfx++, D_0E000000_TO_SEGMENTED(disps[3]));     // Work buffer
+        MM_gSPDisplayList(gfx++, D_0E000000_TO_SEGMENTED(disps[0]));     // OPA buffer
+        MM_gSPDisplayList(gfx++, D_0E000000_TO_SEGMENTED(disps[1]));     // XLU buffer
+        MM_gSPDisplayList(gfx++, D_0E000000_TO_SEGMENTED(disps[2]));     // Overlay buffer
+        MM_gSPDisplayList(gfx++, D_0E000000_TO_SEGMENTED(debugDisp[0])); // Debug buffer
 
         gDPPipeSync(gfx++);
         gDPFullSync(gfx++);
@@ -332,7 +332,7 @@ void Graph_ExecuteAndDraw(GraphicsContext* gfxCtx, GameState* gameState) {
     }
 
     {
-        OSTime time = osGetTime();
+        OSTime time = MM_osGetTime();
 
         gRSPGfxTimeTotal = gRSPGfxTimeAcc;
         gRSPAudioTimeTotal = gRSPAudioTimeAcc;

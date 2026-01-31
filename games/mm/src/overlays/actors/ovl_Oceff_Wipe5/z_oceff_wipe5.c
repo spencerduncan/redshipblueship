@@ -141,7 +141,7 @@ void OceffWipe5_Draw(Actor* thisx, PlayState* play) {
 
     AnimatedMat_Draw(play, gOceff5TexAnim);
 
-    gSPDisplayList(POLY_XLU_DISP++, &gOceff5DL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, &gOceff5DL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

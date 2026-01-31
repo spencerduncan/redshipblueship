@@ -70,7 +70,7 @@ void MM_EffectSpark_Init(void* thisx, void* initParamsx) {
             elem->velocity.y = MM_Rand_ZeroOne() - 0.5f;
             elem->velocity.z = MM_Rand_ZeroOne() - 0.5f;
 
-            velocityNorm = sqrtf(SQXYZ(elem->velocity));
+            velocityNorm = MM_sqrtf(SQXYZ(elem->velocity));
 
             if (!(fabsf(velocityNorm) < 0.008f)) {
                 elem->velocity.x *= this->speed * (1.0f / velocityNorm);
@@ -258,7 +258,7 @@ void MM_EffectSpark_Draw(void* thisx, GraphicsContext* gfxCtx) {
             }
 
             gSPMatrix(POLY_XLU_DISP++, mtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-            gSPVertex(POLY_XLU_DISP++, &vtx[4 * i], 4, 0);
+            MM_gSPVertex(POLY_XLU_DISP++, &vtx[4 * i], 4, 0);
             gSP2Triangles(POLY_XLU_DISP++, 2, 0, 3, 0, 2, 3, 1, 0);
         }
 

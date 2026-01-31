@@ -251,7 +251,7 @@ u16 sObjSoundMainBgmSeqId = NA_BGM_GENERAL_SFX;
 
 // Weights distance strongest by depth (z), weaker by left/right screen (x), and weakest by top/bottom screen (y)
 #define SEQ_SCREEN_WEIGHTED_DIST(projectedPos) \
-    (sqrtf(SQ((projectedPos)->z) + ((SQ((projectedPos)->x) / 4.0f) + (SQ((projectedPos)->y) / 6.0f))))
+    (MM_sqrtf(SQ((projectedPos)->z) + ((SQ((projectedPos)->x) / 4.0f) + (SQ((projectedPos)->y) / 6.0f))))
 
 // Allows enemy bgm
 #define SEQ_FLAG_ENEMY (1 << 0)
@@ -4039,7 +4039,7 @@ void AudioSfx_SetProperties(u8 bankId, u8 entryIndex, u8 channelIndex) {
             }
             // fallthrough
         case BANK_OCARINA:
-            entry->dist = sqrtf(entry->dist * 10.0f);
+            entry->dist = MM_sqrtf(entry->dist * 10.0f);
             volume = AudioSfx_ComputeVolume(bankId, entryIndex) * *entry->volume;
             reverb = AudioSfx_ComputeReverb(bankId, entryIndex, channelIndex);
             panSigned = AudioSfx_ComputePanSigned(*entry->posX, *entry->posZ, entry->token);
@@ -5390,13 +5390,13 @@ void MM_Audio_PlaySariaBgm(Vec3f* pos, u16 seqId, u16 distMax) {
         return;
     }
 
-    dist = sqrtf(SQ(pos->z) + (SQ(pos->x) + SQ(pos->y)));
+    dist = MM_sqrtf(SQ(pos->z) + (SQ(pos->x) + SQ(pos->y)));
 
     if (sRiverSoundBgmPos == NULL) {
         sRiverSoundBgmPos = pos;
         Audio_PlaySequenceWithSeqPlayerIO(SEQ_PLAYER_BGM_SUB, seqId, 0, 7, 2);
     } else {
-        prevDist = sqrtf(SQ(sRiverSoundBgmPos->z) + SQ(sRiverSoundBgmPos->x));
+        prevDist = MM_sqrtf(SQ(sRiverSoundBgmPos->z) + SQ(sRiverSoundBgmPos->x));
         if (dist < prevDist) {
             sRiverSoundBgmPos = pos;
         } else {

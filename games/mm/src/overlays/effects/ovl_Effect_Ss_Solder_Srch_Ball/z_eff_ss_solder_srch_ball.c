@@ -54,15 +54,15 @@ void MM_EffectSsSolderSrchBall_Draw(PlayState* play, u32 index, EffectSs* this) 
     MM_Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
     MM_Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
     POLY_XLU_DISP = MM_Gfx_SetupDL(POLY_XLU_DISP, SETUPDL_20);
-    gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(gSun1Tex));
-    gSPDisplayList(POLY_XLU_DISP++, gSunSparkleMaterialDL);
+    MM_gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(gSun1Tex));
+    MM_gSPDisplayList(POLY_XLU_DISP++, gSunSparkleMaterialDL);
     gDPPipeSync(POLY_XLU_DISP++);
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, 255);
     gDPSetEnvColor(POLY_XLU_DISP++, 250, 180, 255, 255);
     MM_Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
     Matrix_RotateZF(DEG_TO_RAD(20.0f * play->state.frames), MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, gSunSparkleModelDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gSunSparkleModelDL);
 
     CLOSE_DISPS(gfxCtx);
 }
@@ -80,11 +80,11 @@ void MM_EffectSsSolderSrchBall_Update(PlayState* play, u32 index, EffectSs* this
     diffZ = player->actor.world.pos.z - this->pos.z;
 
     if (this->rFlags >= SOLDERSRCHBALL_SMALL_DETECT_RADIUS) {
-        if ((sqrtf(SQ(diffX) + SQ(diffZ)) < 10.0f) && (sqrtf(SQ(diffY)) < 10.0f)) {
+        if ((MM_sqrtf(SQ(diffX) + SQ(diffZ)) < 10.0f) && (MM_sqrtf(SQ(diffY)) < 10.0f)) {
             *playerDetected = true;
         }
     } else if (!MM_BgCheck_SphVsFirstWall(&play->colCtx, &this->pos, 30.0f)) {
-        if ((sqrtf(SQ(diffX) + SQ(diffZ)) < 40.0f) && (sqrtf(SQ(diffY)) < 80.0f)) {
+        if ((MM_sqrtf(SQ(diffX) + SQ(diffZ)) < 40.0f) && (MM_sqrtf(SQ(diffY)) < 80.0f)) {
             *playerDetected = true;
         }
     } else if (this->life > 1) {

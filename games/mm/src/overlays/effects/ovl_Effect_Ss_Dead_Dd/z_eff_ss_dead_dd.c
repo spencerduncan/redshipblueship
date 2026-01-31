@@ -116,7 +116,7 @@ void MM_EffectSsDeadDd_Draw(PlayState* play, u32 index, EffectSs* this) {
         gSPMatrix(POLY_XLU_DISP++, D_01000000_TO_SEGMENTED, G_MTX_NOPUSH | G_MTX_MUL | G_MTX_MODELVIEW);
         gDPSetCombineLERP(POLY_XLU_DISP++, 0, 0, 0, PRIMITIVE, TEXEL0, 0, PRIMITIVE, 0, 0, 0, 0, PRIMITIVE, TEXEL0, 0,
                           PRIMITIVE, 0);
-        gSPDisplayList(POLY_XLU_DISP++, gLensFlareCircleDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gLensFlareCircleDL);
     }
 
     CLOSE_DISPS(gfxCtx);

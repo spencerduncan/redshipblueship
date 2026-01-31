@@ -21,14 +21,14 @@ void Room_DrawNormal(PlayState* play, Room* room, u32 flags) {
 
     if (flags & ROOM_DRAW_OPA) {
         func_800BCBF4(&MM_sZeroVec, play);
-        gSPSegment(POLY_OPA_DISP++, 0x03, room->segment);
+        MM_gSPSegment(POLY_OPA_DISP++, 0x03, room->segment);
         func_8012C268(&play->state);
         gSPMatrix(POLY_OPA_DISP++, &gIdentityMtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     }
 
     if (flags & ROOM_DRAW_XLU) {
         func_800BCC68(&MM_sZeroVec, play);
-        gSPSegment(POLY_XLU_DISP++, 0x03, room->segment);
+        MM_gSPSegment(POLY_XLU_DISP++, 0x03, room->segment);
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
         gSPMatrix(POLY_XLU_DISP++, &gIdentityMtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     }
@@ -37,11 +37,11 @@ void Room_DrawNormal(PlayState* play, Room* room, u32 flags) {
     entry = Lib_SegmentedToVirtual(roomShape->entries);
     for (i = 0; i < roomShape->numEntries; i++) {
         if ((flags & ROOM_DRAW_OPA) && (entry->opa != NULL)) {
-            gSPDisplayList(POLY_OPA_DISP++, entry->opa);
+            MM_gSPDisplayList(POLY_OPA_DISP++, entry->opa);
         }
 
         if ((flags & ROOM_DRAW_XLU) && (entry->xlu != NULL)) {
-            gSPDisplayList(POLY_XLU_DISP++, entry->xlu);
+            MM_gSPDisplayList(POLY_XLU_DISP++, entry->xlu);
         }
 
         entry++;
@@ -85,9 +85,9 @@ void Room_DrawCullable(PlayState* play, Room* room, u32 flags) {
     if (flags & ROOM_DRAW_OPA) {
         func_800BCBF4(&MM_sZeroVec, play);
 
-        gSPSegment(POLY_OPA_DISP++, 0x03, room->segment);
+        MM_gSPSegment(POLY_OPA_DISP++, 0x03, room->segment);
         if (play->roomCtx.unk74 != NULL) {
-            gSPSegment(POLY_OPA_DISP++, 0x06, play->roomCtx.unk74);
+            MM_gSPSegment(POLY_OPA_DISP++, 0x06, play->roomCtx.unk74);
         }
         func_8012C268(&play->state);
         gSPMatrix(POLY_OPA_DISP++, &gIdentityMtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
@@ -95,9 +95,9 @@ void Room_DrawCullable(PlayState* play, Room* room, u32 flags) {
 
     if (flags & ROOM_DRAW_XLU) {
         func_800BCC68(&MM_sZeroVec, play);
-        gSPSegment(POLY_XLU_DISP++, 0x03, room->segment);
+        MM_gSPSegment(POLY_XLU_DISP++, 0x03, room->segment);
         if (play->roomCtx.unk74 != NULL) {
-            gSPSegment(POLY_XLU_DISP++, 0x06, play->roomCtx.unk74);
+            MM_gSPSegment(POLY_XLU_DISP++, 0x06, play->roomCtx.unk74);
         }
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
         gSPMatrix(POLY_XLU_DISP++, &gIdentityMtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
@@ -123,14 +123,14 @@ void Room_DrawCullable(PlayState* play, Room* room, u32 flags) {
                     if (flags & ROOM_DRAW_OPA) {
                         displayList = roomShapeCullableEntry->opa;
                         if (displayList != NULL) {
-                            gSPDisplayList(POLY_OPA_DISP++, displayList);
+                            MM_gSPDisplayList(POLY_OPA_DISP++, displayList);
                         }
                     }
 
                     if (flags & ROOM_DRAW_XLU) {
                         displayList = roomShapeCullableEntry->xlu;
                         if (displayList != NULL) {
-                            gSPDisplayList(POLY_XLU_DISP++, displayList);
+                            MM_gSPDisplayList(POLY_XLU_DISP++, displayList);
                         }
                     }
                 }
@@ -138,14 +138,14 @@ void Room_DrawCullable(PlayState* play, Room* room, u32 flags) {
                 if (flags & ROOM_DRAW_OPA) {
                     displayList = roomShapeCullableEntry->opa;
                     if (displayList != NULL) {
-                        gSPDisplayList(POLY_OPA_DISP++, displayList);
+                        MM_gSPDisplayList(POLY_OPA_DISP++, displayList);
                     }
                 }
 
                 if (flags & ROOM_DRAW_XLU) {
                     displayList = roomShapeCullableEntry->xlu;
                     if (displayList != NULL) {
-                        gSPDisplayList(POLY_XLU_DISP++, displayList);
+                        MM_gSPDisplayList(POLY_XLU_DISP++, displayList);
                     }
                 }
             }
@@ -244,13 +244,13 @@ void Room_DrawCullable(PlayState* play, Room* room, u32 flags) {
 
                         displayList = roomShapeCullableEntry->opa;
                         if (displayList != NULL) {
-                            gSPDisplayList(POLY_OPA_DISP++, displayList);
+                            MM_gSPDisplayList(POLY_OPA_DISP++, displayList);
                         }
                     }
                 } else {
                     displayList = roomShapeCullableEntry->opa;
                     if (displayList != NULL) {
-                        gSPDisplayList(POLY_OPA_DISP++, displayList);
+                        MM_gSPDisplayList(POLY_OPA_DISP++, displayList);
                     }
                 }
             }
@@ -277,10 +277,10 @@ void Room_DrawCullable(PlayState* play, Room* room, u32 flags) {
                                 var_a1 = 255 - (s32)((temp_fv0 / temp_fv1) * 255.0f);
                             }
                             gDPSetEnvColor(POLY_XLU_DISP++, 255, 255, 255, var_a1);
-                            gSPDisplayList(POLY_XLU_DISP++, displayList);
+                            MM_gSPDisplayList(POLY_XLU_DISP++, displayList);
                         }
                     } else {
-                        gSPDisplayList(POLY_XLU_DISP++, displayList);
+                        MM_gSPDisplayList(POLY_XLU_DISP++, displayList);
                     }
                 }
             }
@@ -318,12 +318,12 @@ void Room_DrawImageSingle(PlayState* play, Room* room, u32 flags) {
     drawXlu = (flags & ROOM_DRAW_XLU) && (entry->xlu != NULL) && !(R_ROOM_IMAGE_NODRAW_FLAGS & ROOM_IMAGE_NODRAW_XLU);
 
     if (drawOpa || drawBackground) {
-        gSPSegment(POLY_OPA_DISP++, 0x03, room->segment);
+        MM_gSPSegment(POLY_OPA_DISP++, 0x03, room->segment);
 
         if (drawOpa) {
             Gfx_SetupDL25_Opa(play->state.gfxCtx);
             gSPMatrix(POLY_OPA_DISP++, &gIdentityMtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-            gSPDisplayList(POLY_OPA_DISP++, entry->opa);
+            MM_gSPDisplayList(POLY_OPA_DISP++, entry->opa);
         }
 
         if (drawBackground) {
@@ -350,10 +350,10 @@ void Room_DrawImageSingle(PlayState* play, Room* room, u32 flags) {
     }
 
     if (drawXlu) {
-        gSPSegment(POLY_XLU_DISP++, 0x03, room->segment);
+        MM_gSPSegment(POLY_XLU_DISP++, 0x03, room->segment);
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
         gSPMatrix(POLY_XLU_DISP++, &gIdentityMtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-        gSPDisplayList(POLY_XLU_DISP++, entry->xlu);
+        MM_gSPDisplayList(POLY_XLU_DISP++, entry->xlu);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -417,12 +417,12 @@ void Room_DrawImageMulti(PlayState* play, Room* room, u32 flags) {
         (flags & ROOM_DRAW_XLU) && (dListsEntry->xlu != NULL) && !(R_ROOM_IMAGE_NODRAW_FLAGS & ROOM_IMAGE_NODRAW_XLU);
 
     if (drawOpa || drawBackground) {
-        gSPSegment(POLY_OPA_DISP++, 0x03, room->segment);
+        MM_gSPSegment(POLY_OPA_DISP++, 0x03, room->segment);
 
         if (drawOpa) {
             Gfx_SetupDL25_Opa(play->state.gfxCtx);
             gSPMatrix(POLY_OPA_DISP++, &gIdentityMtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-            gSPDisplayList(POLY_OPA_DISP++, dListsEntry->opa);
+            MM_gSPDisplayList(POLY_OPA_DISP++, dListsEntry->opa);
         }
 
         if (drawBackground) {
@@ -449,10 +449,10 @@ void Room_DrawImageMulti(PlayState* play, Room* room, u32 flags) {
     }
 
     if (drawXlu) {
-        gSPSegment(POLY_XLU_DISP++, 0x03, room->segment);
+        MM_gSPSegment(POLY_XLU_DISP++, 0x03, room->segment);
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
         gSPMatrix(POLY_XLU_DISP++, &gIdentityMtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-        gSPDisplayList(POLY_XLU_DISP++, dListsEntry->xlu);
+        MM_gSPDisplayList(POLY_XLU_DISP++, dListsEntry->xlu);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -591,7 +591,7 @@ s32 Room_RequestNewRoom(PlayState* play, RoomContext* roomCtx, s32 index) {
         roomCtx->roomRequestAddr = (void*)(ALIGN16((uintptr_t)roomCtx->bufPtrs[roomCtx->activeBufPage] -
                                                    (size + 8) * roomCtx->activeBufPage - 7));
 
-        osCreateMesgQueue(&roomCtx->loadQueue, roomCtx->loadMsg, ARRAY_COUNT(roomCtx->loadMsg));
+        MM_osCreateMesgQueue(&roomCtx->loadQueue, roomCtx->loadMsg, ARRAY_COUNT(roomCtx->loadMsg));
         DmaMgr_RequestAsync(&roomCtx->dmaRequest, roomCtx->roomRequestAddr, play->roomList.romFiles[index].vromStart,
                             size, 0, &roomCtx->loadQueue, NULL);
         roomCtx->activeBufPage ^= 1;
@@ -616,7 +616,7 @@ s32 Room_ProcessRoomRequest(PlayState* play, RoomContext* roomCtx) {
     return OTRfunc_800973FC(play, roomCtx);
 #if 0
     if (roomCtx->status == 1) {
-        if (osRecvMesg(&roomCtx->loadQueue, NULL, OS_MESG_NOBLOCK) == 0) {
+        if (MM_osRecvMesg(&roomCtx->loadQueue, NULL, OS_MESG_NOBLOCK) == 0) {
             roomCtx->status = 0;
             roomCtx->curRoom.segment = roomCtx->roomRequestAddr;
             MM_gSegments[0x03] = OS_K0_TO_PHYSICAL(roomCtx->curRoom.segment);
@@ -643,7 +643,7 @@ s32 Room_ProcessRoomRequest(PlayState* play, RoomContext* roomCtx) {
 #endif
 }
 
-RoomDrawHandler sRoomDrawHandlers[] = {
+RoomDrawHandler MM_sRoomDrawHandlers[] = {
     Room_DrawNormal,   // ROOM_SHAPE_TYPE_NORMAL
     Room_DrawImage,    // ROOM_SHAPE_TYPE_IMAGE
     Room_DrawCullable, // ROOM_SHAPE_TYPE_CULLABLE
@@ -653,7 +653,7 @@ RoomDrawHandler sRoomDrawHandlers[] = {
 void MM_Room_Draw(PlayState* play, Room* room, u32 flags) {
     if (room->segment != NULL) {
         MM_gSegments[3] = OS_K0_TO_PHYSICAL(room->segment);
-        sRoomDrawHandlers[room->roomShape->base.type](play, room, flags);
+        MM_sRoomDrawHandlers[room->roomShape->base.type](play, room, flags);
     }
     return;
 }

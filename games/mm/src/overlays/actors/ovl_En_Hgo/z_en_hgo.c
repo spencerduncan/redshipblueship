@@ -428,12 +428,12 @@ void EnHgo_Draw(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeIndex]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeIndex]));
     MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           EnHgo_OverrideLimbDraw, EnHgo_PostLimbDraw, &this->actor);
     MM_Matrix_Put(&this->mf);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, gPamelasFatherHumanEyebrowsDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gPamelasFatherHumanEyebrowsDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

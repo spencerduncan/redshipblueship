@@ -554,7 +554,7 @@ void func_80B35C84(EnGgStruct* ptr, PlayState* play) {
         MM_Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gEffFlash1DL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gEffFlash1DL);
     }
 
     MM_Matrix_Pop();
@@ -578,7 +578,7 @@ void func_80B35C84(EnGgStruct* ptr, PlayState* play) {
         MM_Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gEffFlash1DL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gEffFlash1DL);
     }
 
     MM_Matrix_Pop();
@@ -631,7 +631,7 @@ void func_80B3610C(EnGgStruct* ptr, PlayState* play) {
             MM_Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, gEffFlash1DL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gEffFlash1DL);
         }
 
         MM_Matrix_Pop();
@@ -819,7 +819,7 @@ void EnGg_Draw(Actor* thisx, PlayState* play) {
     if (CHECK_WEEKEVENTREG(WEEKEVENTREG_19_80)) {
         Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-        gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(D_80B36DFC[this->unk_2E2]));
+        MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(D_80B36DFC[this->unk_2E2]));
 
         POLY_OPA_DISP =
             MM_SkelAnime_DrawFlex(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
@@ -827,7 +827,7 @@ void EnGg_Draw(Actor* thisx, PlayState* play) {
     } else if (CHECK_FLAG_ALL(this->actor.flags, ACTOR_FLAG_REACT_TO_LENS) || (this->unk_308 == 1)) {
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
-        gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(D_80B36DFC[this->unk_2E2]));
+        MM_gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(D_80B36DFC[this->unk_2E2]));
 
         POLY_XLU_DISP =
             MM_SkelAnime_DrawFlex(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,

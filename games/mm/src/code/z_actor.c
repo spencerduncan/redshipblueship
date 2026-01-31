@@ -147,7 +147,7 @@ void MM_ActorShadow_Draw(Actor* actor, Lights* lights, PlayState* play, Gfx* dli
             MM_Matrix_Scale(actor->scale.x * shadowScale, 1.0f, actor->scale.z * shadowScale, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_OPA_DISP++, dlist);
+            MM_gSPDisplayList(POLY_OPA_DISP++, dlist);
 
             CLOSE_DISPS(play->state.gfxCtx);
         }
@@ -204,7 +204,7 @@ void MM_ActorShadow_DrawFoot(PlayState* play, Light* light, MtxF* arg2, s32 ligh
     MM_Matrix_Scale(shadowScaleX, 1.0f, shadowScaleX * shadowScaleZ, MTXMODE_APPLY);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, gFootShadowDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gFootShadowDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -621,7 +621,7 @@ void Attention_Draw(Attention* attention, PlayState* play) {
                         MM_Matrix_Push();
                         MM_Matrix_Translate(reticle->radius, reticle->radius, 0.0f, MTXMODE_APPLY);
                         MATRIX_FINALIZE_AND_LOAD(OVERLAY_DISP++, play->state.gfxCtx);
-                        gSPDisplayList(OVERLAY_DISP++, gLockOnReticleTriangleDL);
+                        MM_gSPDisplayList(OVERLAY_DISP++, gLockOnReticleTriangleDL);
                         MM_Matrix_Pop();
                     }
                 }
@@ -653,7 +653,7 @@ void Attention_Draw(Attention* attention, PlayState* play) {
                             attentionColor->primary.b, 255);
         }
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gLockOnArrowDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gLockOnArrowDL);
         FrameInterpolation_RecordCloseChild();
     }
 
@@ -1701,7 +1701,7 @@ s32 MM_Actor_IsFacingAndNearPlayer(Actor* actor, f32 range, s16 maxAngleDiff) {
     if (ABS_ALT(yaw) < maxAngleDiff) {
         s16 pad;
 
-        if (sqrtf(SQ(actor->xzDistToPlayer) + SQ(actor->playerHeightRel)) < range) {
+        if (MM_sqrtf(SQ(actor->xzDistToPlayer) + SQ(actor->playerHeightRel)) < range) {
             return true;
         }
     }
@@ -1823,7 +1823,7 @@ void MM_Actor_UpdateBgCheckInfo(PlayState* play, Actor* actor, f32 wallCheckHeig
 
             actor->bgCheckFlags |= BGCHECKFLAG_WALL;
             if ((updBgCheckInfoFlags & UPDBGCHECKINFO_FLAG_200) && (actor->bgCheckFlags & BGCHECKFLAG_PLAYER_1000) &&
-                ((s32)sp7C->normal.y > 0) && (sqrtf(SQXYZ(actor->colChkInfo.displacement)) < 10.0f)) {
+                ((s32)sp7C->normal.y > 0) && (MM_sqrtf(SQXYZ(actor->colChkInfo.displacement)) < 10.0f)) {
                 actor->bgCheckFlags &= ~BGCHECKFLAG_WALL;
             } else if (actor->bgCheckFlags & BGCHECKFLAG_WALL) {
                 MM_Math_Vec3f_Copy(&actor->world.pos, &pos);
@@ -1922,7 +1922,7 @@ Gfx* Hilite_Draw(Vec3f* object, Vec3f* eye, Vec3f* lightDir, GraphicsContext* gf
 
     *hiliteP = GRAPH_ALLOC(gfxCtx, sizeof(Hilite));
 
-    guLookAtHilite(&sActorHiliteMtx, lookAt, *hiliteP, correctedEyeX, eye->y, eye->z, object->x, object->y, object->z,
+    MM_guLookAtHilite(&sActorHiliteMtx, lookAt, *hiliteP, correctedEyeX, eye->y, eye->z, object->x, object->y, object->z,
                    0.0f, 1.0f, 0.0f, lightDir->x, lightDir->y, lightDir->z, lightDir->x, lightDir->y, lightDir->z, 0x10,
                    0x10);
 
@@ -1967,7 +1967,7 @@ void func_800B8050(Actor* actor, PlayState* play, s32 flag) {
 
         gDPSetHilite1Tile(gfx++, 1, hilite, 0x10, 0x10);
         gSPEndDisplayList(gfx++);
-        gSPSegment(POLY_OPA_DISP++, 0x07, gfxHead);
+        MM_gSPSegment(POLY_OPA_DISP++, 0x07, gfxHead);
 
         CLOSE_DISPS(play->state.gfxCtx);
     }
@@ -1984,7 +1984,7 @@ void func_800B8118(Actor* actor, PlayState* play, s32 flag) {
 
         gDPSetHilite1Tile(gfx++, 1, hilite, 0x10, 0x10);
         gSPEndDisplayList(gfx++);
-        gSPSegment(POLY_XLU_DISP++, 0x07, gfxHead);
+        MM_gSPSegment(POLY_XLU_DISP++, 0x07, gfxHead);
 
         CLOSE_DISPS(play->state.gfxCtx);
     }
@@ -2956,8 +2956,8 @@ void MM_Actor_Draw(PlayState* play, Actor* actor) {
     MM_Matrix_Scale(actor->scale.x, actor->scale.y, actor->scale.z, MTXMODE_APPLY);
     MM_Actor_SetObjectDependency(play, actor);
 
-    gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[actor->objectSlot].segment);
-    gSPSegment(POLY_XLU_DISP++, 0x06, play->objectCtx.slots[actor->objectSlot].segment);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[actor->objectSlot].segment);
+    MM_gSPSegment(POLY_XLU_DISP++, 0x06, play->objectCtx.slots[actor->objectSlot].segment);
 
     if (actor->colorFilterTimer != 0) {
         s32 colorFlag = COLORFILTER_GET_COLORFLAG(actor->colorFilterParams);
@@ -3448,7 +3448,7 @@ void Actor_DrawAll(PlayState* play, ActorContext* actorCtx) {
     EffFootmark_Draw(play);
 
     ref2 = POLY_XLU_DISP;
-    gSPDisplayList(sp58, &ref2[1]);
+    MM_gSPDisplayList(sp58, &ref2[1]);
     POLY_XLU_DISP = &ref2[1];
 
     if (play->actorCtx.lensActive) {
@@ -4457,7 +4457,7 @@ void func_800BC620(Vec3f* pos, Vec3f* scale, u8 alpha, PlayState* play) {
     MM_Matrix_Scale(scale->x, 1.0f, scale->z, MTXMODE_APPLY);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, gCircleShadowDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gCircleShadowDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -4534,7 +4534,7 @@ void MM_Actor_DrawDoorLock(PlayState* play, s32 frame, s32 type) {
         }
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, entry->chainDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, entry->chainDL);
 
         if ((i % 2) != 0) {
             rotZStep = 2.0f * entry->chainAngle;
@@ -4549,7 +4549,7 @@ void MM_Actor_DrawDoorLock(PlayState* play, s32 frame, s32 type) {
     MM_Matrix_Scale(frame * 0.1f, frame * 0.1f, frame * 0.1f, MTXMODE_APPLY);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, entry->lockDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, entry->lockDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -5049,7 +5049,7 @@ void func_800BD9E0(PlayState* play, SkelAnime* skelAnime, OverrideLimbDraw overr
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
     gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, alpha);
-    gSPSegment(POLY_OPA_DISP++, 0x0C, MM_gEmptyDL);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x0C, MM_gEmptyDL);
 
     POLY_OPA_DISP = MM_SkelAnime_DrawFlex(play, skelAnime->skeleton, skelAnime->jointTable, skelAnime->dListCount,
                                        overrideLimbDraw, postLimbDraw, actor, POLY_OPA_DISP);
@@ -5064,7 +5064,7 @@ void func_800BDAA0(PlayState* play, SkelAnime* skelAnime, OverrideLimbDraw overr
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
     gDPSetEnvColor(POLY_XLU_DISP++, 0, 0, 0, alpha);
-    gSPSegment(POLY_XLU_DISP++, 0x0C, func_800BD9A0(play->state.gfxCtx));
+    MM_gSPSegment(POLY_XLU_DISP++, 0x0C, func_800BD9A0(play->state.gfxCtx));
 
     POLY_XLU_DISP = MM_SkelAnime_DrawFlex(play, skelAnime->skeleton, skelAnime->jointTable, skelAnime->dListCount,
                                        overrideLimbDraw, postLimbDraw, actor, POLY_XLU_DISP);
@@ -5077,7 +5077,7 @@ s16 func_800BDB6C(Actor* actor, PlayState* play, s16 arg2, f32 arg3) {
     Player* player = GET_PLAYER(play);
     f32 phi_f2;
 
-    if ((play->csCtx.state != CS_STATE_IDLE) || gDbgCamEnabled) {
+    if ((play->csCtx.state != CS_STATE_IDLE) || MM_gDbgCamEnabled) {
         phi_f2 = MM_Math_Vec3f_DistXYZ(&actor->world.pos, &play->view.eye) * 0.25f;
     } else {
         phi_f2 = MM_Math_Vec3f_DistXYZ(&actor->world.pos, &player->actor.world.pos);
@@ -5145,9 +5145,9 @@ void MM_Gfx_DrawDListOpa(PlayState* play, Gfx* dlist) {
 
     dl = POLY_OPA_DISP;
 
-    gSPDisplayList(&dl[0], gSetupDLs[SETUPDL_25]);
+    MM_gSPDisplayList(&dl[0], gSetupDLs[SETUPDL_25]);
     MATRIX_FINALIZE_AND_LOAD(&dl[1], play->state.gfxCtx);
-    gSPDisplayList(&dl[2], dlist);
+    MM_gSPDisplayList(&dl[2], dlist);
 
     POLY_OPA_DISP = &dl[3];
 
@@ -5164,9 +5164,9 @@ void MM_Gfx_DrawDListXlu(PlayState* play, Gfx* dlist) {
 
     dl = POLY_XLU_DISP;
 
-    gSPDisplayList(&dl[0], gSetupDLs[SETUPDL_25]);
+    MM_gSPDisplayList(&dl[0], gSetupDLs[SETUPDL_25]);
     MATRIX_FINALIZE_AND_LOAD(&dl[1], play->state.gfxCtx);
-    gSPDisplayList(&dl[2], dlist);
+    MM_gSPDisplayList(&dl[2], dlist);
 
     POLY_XLU_DISP = &dl[3];
 
@@ -5272,7 +5272,7 @@ void func_800BE33C(Vec3f* arg0, Vec3f* arg1, Vec3s* dst, s32 arg3) {
     f32 yDiff = arg3 ? (arg1->y - arg0->y) : (arg0->y - arg1->y);
 
     dst->y = Math_Atan2S_XY(zDiff, xDiff);
-    dst->x = Math_Atan2S_XY(sqrtf(SQ(xDiff) + SQ(zDiff)), yDiff);
+    dst->x = Math_Atan2S_XY(MM_sqrtf(SQ(xDiff) + SQ(zDiff)), yDiff);
 }
 
 void func_800BE3D0(Actor* actor, s16 angle, Vec3s* arg2) {
@@ -5393,11 +5393,11 @@ void Actor_DrawDamageEffects(PlayState* play, Actor* actor, Vec3f bodyPartsPos[]
 
                 // Setup to draw ice over frozen actor
 
-                gSPSegment(POLY_XLU_DISP++, 0x08,
+                MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                            MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, gameplayFrames & 0xFF, 32, 16, 1, 0,
                                             (gameplayFrames * 2) & 0xFF, 64, 32));
                 gDPSetPrimColor(POLY_XLU_DISP++, 0, 0x80, 170, 255, 255, 255);
-                gSPDisplayList(POLY_XLU_DISP++, gEffIceFragment2MaterialDL);
+                MM_gSPDisplayList(POLY_XLU_DISP++, gEffIceFragment2MaterialDL);
 
                 effectAlphaScaled = effectAlpha * 255.0f;
 
@@ -5428,7 +5428,7 @@ void Actor_DrawDamageEffects(PlayState* play, Actor* actor, Vec3f bodyPartsPos[]
 
                     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
 
-                    gSPDisplayList(POLY_XLU_DISP++, gEffIceFragment2ModelDL);
+                    MM_gSPDisplayList(POLY_XLU_DISP++, gEffIceFragment2ModelDL);
                     FrameInterpolation_RecordCloseChild();
                 }
 
@@ -5438,7 +5438,7 @@ void Actor_DrawDamageEffects(PlayState* play, Actor* actor, Vec3f bodyPartsPos[]
 
                 gDPSetColorDither(POLY_XLU_DISP++, G_CD_BAYER);
                 gDPSetAlphaDither(POLY_XLU_DISP++, G_AD_PATTERN);
-                gSPDisplayList(POLY_XLU_DISP++, gFrozenSteamMaterialDL);
+                MM_gSPDisplayList(POLY_XLU_DISP++, gFrozenSteamMaterialDL);
 
                 alpha = effectAlpha * 100.0f;
                 if (alpha > 100.0f) {
@@ -5451,7 +5451,7 @@ void Actor_DrawDamageEffects(PlayState* play, Actor* actor, Vec3f bodyPartsPos[]
                 for (bodyPartIndex = 0; bodyPartIndex < bodyPartsCount; bodyPartIndex++, bodyPartsPos++) {
                     FrameInterpolation_RecordOpenChild(bodyPartsPos, type);
                     twoTexScrollParam = ((bodyPartIndex * 3) + gameplayFrames);
-                    gSPSegment(POLY_XLU_DISP++, 0x08,
+                    MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                                MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, twoTexScrollParam * 3, twoTexScrollParam * -12,
                                                 32, 64, 1, 0, 0, 32, 32));
 
@@ -5461,7 +5461,7 @@ void Actor_DrawDamageEffects(PlayState* play, Actor* actor, Vec3f bodyPartsPos[]
 
                     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
 
-                    gSPDisplayList(POLY_XLU_DISP++, gFrozenSteamModelDL);
+                    MM_gSPDisplayList(POLY_XLU_DISP++, gFrozenSteamModelDL);
                     FrameInterpolation_RecordCloseChild();
                 }
                 break;
@@ -5499,7 +5499,7 @@ void Actor_DrawDamageEffects(PlayState* play, Actor* actor, Vec3f bodyPartsPos[]
                     // = 255 for ACTOR_DRAW_DMGEFF_BLUE_FIRE
                     gDPSetPrimColor(POLY_XLU_DISP++, 0x80, 0x80, 255, 255, type, (u8)alpha);
 
-                    gSPSegment(POLY_XLU_DISP++, 0x08,
+                    MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                                MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 32, 64, 1, 0,
                                                 ((bodyPartIndex * 10 + gameplayFrames) * -20) & 0x1FF, 32, 128));
 
@@ -5510,7 +5510,7 @@ void Actor_DrawDamageEffects(PlayState* play, Actor* actor, Vec3f bodyPartsPos[]
 
                     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
 
-                    gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
+                    MM_gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
                     FrameInterpolation_RecordCloseChild();
                 }
                 break;
@@ -5522,7 +5522,7 @@ void Actor_DrawDamageEffects(PlayState* play, Actor* actor, Vec3f bodyPartsPos[]
 
                 lightOrbsScale = ((KREG(19) * 0.01f) + 4.0f) * effectScale;
 
-                gSPDisplayList(POLY_XLU_DISP++, gLightOrbMaterial1DL);
+                MM_gSPDisplayList(POLY_XLU_DISP++, gLightOrbMaterial1DL);
 
                 alpha = effectAlpha * 255.0f;
                 if (alpha > 255.0f) {
@@ -5553,7 +5553,7 @@ void Actor_DrawDamageEffects(PlayState* play, Actor* actor, Vec3f bodyPartsPos[]
 
                     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
 
-                    gSPDisplayList(POLY_XLU_DISP++, gLightOrbModelDL);
+                    MM_gSPDisplayList(POLY_XLU_DISP++, gLightOrbModelDL);
                     FrameInterpolation_RecordCloseChild();
                 }
                 break;
@@ -5569,10 +5569,10 @@ void Actor_DrawDamageEffects(PlayState* play, Actor* actor, Vec3f bodyPartsPos[]
                     electricSparksScale = (KREG(19) * 0.01f + 2.0f) * effectScale;
                 }
 
-                gSPSegment(POLY_XLU_DISP++, 0x08,
+                MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                            Lib_SegmentedToVirtual(sElectricSparkTextures[play->gameplayFrames % 4]));
 
-                gSPDisplayList(POLY_XLU_DISP++, gElectricSparkMaterialDL);
+                MM_gSPDisplayList(POLY_XLU_DISP++, gElectricSparkMaterialDL);
 
                 gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, (u8)(sREG(16) + 255), (u8)(sREG(17) + 255), (u8)(sREG(18) + 150),
                                 (u8)(sREG(19) + 255));
@@ -5594,7 +5594,7 @@ void Actor_DrawDamageEffects(PlayState* play, Actor* actor, Vec3f bodyPartsPos[]
 
                     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
 
-                    gSPDisplayList(POLY_XLU_DISP++, gElectricSparkModelDL);
+                    MM_gSPDisplayList(POLY_XLU_DISP++, gElectricSparkModelDL);
 
                     // second electric spark
                     Matrix_RotateXFApply(MM_Rand_ZeroFloat(2 * M_PIf));
@@ -5605,7 +5605,7 @@ void Actor_DrawDamageEffects(PlayState* play, Actor* actor, Vec3f bodyPartsPos[]
 
                     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
 
-                    gSPDisplayList(POLY_XLU_DISP++, gElectricSparkModelDL);
+                    MM_gSPDisplayList(POLY_XLU_DISP++, gElectricSparkModelDL);
                     FrameInterpolation_RecordCloseChild();
                 }
 

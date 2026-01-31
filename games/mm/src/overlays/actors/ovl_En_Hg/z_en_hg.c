@@ -461,7 +461,7 @@ void EnHg_Draw(Actor* thisx, PlayState* play) {
                           EnHg_OverrideLimbDraw, EnHg_PostLimbDraw, &this->actor);
     MM_Matrix_Put(&this->mf);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, gPamelasFatherGibdoEyebrowsDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gPamelasFatherGibdoEyebrowsDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

@@ -58,7 +58,7 @@ void MM_SkelAnime_DrawLimbLod(PlayState* play, s32 limbIndex, void** skeleton, V
 
             MATRIX_FINALIZE_AND_LOAD(&polyTemp[0], play->state.gfxCtx);
 
-            gSPDisplayList(&polyTemp[1], dList);
+            MM_gSPDisplayList(&polyTemp[1], dList);
             POLY_OPA_DISP = &polyTemp[2];
         }
     }
@@ -115,7 +115,7 @@ void MM_SkelAnime_DrawLod(PlayState* play, void** skeleton, Vec3s* jointTable, O
 
             MATRIX_FINALIZE_AND_LOAD(&polyTemp[0], play->state.gfxCtx);
 
-            gSPDisplayList(&polyTemp[1], dList);
+            MM_gSPDisplayList(&polyTemp[1], dList);
 
             POLY_OPA_DISP = &polyTemp[2];
         }
@@ -167,7 +167,7 @@ void MM_SkelAnime_DrawFlexLimbLod(PlayState* play, s32 limbIndex, void** skeleto
         if (newDList != NULL) {
             MM_Matrix_ToMtx(*mtx);
             gSPMatrix(POLY_OPA_DISP++, *mtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-            gSPDisplayList(POLY_OPA_DISP++, newDList);
+            MM_gSPDisplayList(POLY_OPA_DISP++, newDList);
             (*mtx)++;
         } else if (limbDList != NULL) {
             MM_Matrix_ToMtx(*mtx);
@@ -216,7 +216,7 @@ void MM_SkelAnime_DrawFlexLod(PlayState* play, void** skeleton, Vec3s* jointTabl
 
     OPEN_DISPS(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x0D, mtx);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x0D, mtx);
     MM_Matrix_Push();
 
     rootLimb = Lib_SegmentedToVirtual(skeleton[0]);
@@ -234,7 +234,7 @@ void MM_SkelAnime_DrawFlexLod(PlayState* play, void** skeleton, Vec3s* jointTabl
             Gfx* polyTemp = POLY_OPA_DISP;
 
             gSPMatrix(&polyTemp[0], MM_Matrix_ToMtx(mtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-            gSPDisplayList(&polyTemp[1], newDList);
+            MM_gSPDisplayList(&polyTemp[1], newDList);
             POLY_OPA_DISP = &polyTemp[2];
             mtx++;
         } else if (limbDList != NULL) {
@@ -285,7 +285,7 @@ void MM_SkelAnime_DrawLimbOpa(PlayState* play, s32 limbIndex, void** skeleton, V
             Gfx* polyTemp = POLY_OPA_DISP;
 
             MATRIX_FINALIZE_AND_LOAD(&polyTemp[0], play->state.gfxCtx);
-            gSPDisplayList(&polyTemp[1], dList);
+            MM_gSPDisplayList(&polyTemp[1], dList);
             POLY_OPA_DISP = &polyTemp[2];
         }
     }
@@ -340,7 +340,7 @@ void MM_SkelAnime_DrawOpa(PlayState* play, void** skeleton, Vec3s* jointTable, O
             Gfx* polyTemp = POLY_OPA_DISP;
 
             MATRIX_FINALIZE_AND_LOAD(&polyTemp[0], play->state.gfxCtx);
-            gSPDisplayList(&polyTemp[1], dList);
+            MM_gSPDisplayList(&polyTemp[1], dList);
             POLY_OPA_DISP = &polyTemp[2];
         }
     }
@@ -386,7 +386,7 @@ void MM_SkelAnime_DrawFlexLimbOpa(PlayState* play, s32 limbIndex, void** skeleto
         if (newDList != NULL) {
             MM_Matrix_ToMtx(*limbMatricies);
             gSPMatrix(POLY_OPA_DISP++, *limbMatricies, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-            gSPDisplayList(POLY_OPA_DISP++, newDList);
+            MM_gSPDisplayList(POLY_OPA_DISP++, newDList);
             (*limbMatricies)++;
         } else if (limbDList != NULL) {
             MM_Matrix_ToMtx(*limbMatricies);
@@ -434,7 +434,7 @@ void MM_SkelAnime_DrawFlexOpa(PlayState* play, void** skeleton, Vec3s* jointTabl
 
     OPEN_DISPS(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x0D, mtx);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x0D, mtx);
 
     MM_Matrix_Push();
 
@@ -453,7 +453,7 @@ void MM_SkelAnime_DrawFlexOpa(PlayState* play, void** skeleton, Vec3s* jointTabl
             Gfx* polyTemp = POLY_OPA_DISP;
 
             gSPMatrix(&polyTemp[0], MM_Matrix_ToMtx(mtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-            gSPDisplayList(&polyTemp[1], newDList);
+            MM_gSPDisplayList(&polyTemp[1], newDList);
             POLY_OPA_DISP = &polyTemp[2];
             mtx++;
         } else {
@@ -511,7 +511,7 @@ void SkelAnime_DrawTransformFlexLimbOpa(PlayState* play, s32 limbIndex, void** s
             Gfx* polyTemp = POLY_OPA_DISP;
 
             gSPMatrix(&polyTemp[0], MM_Matrix_ToMtx(*mtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-            gSPDisplayList(&polyTemp[1], newDList);
+            MM_gSPDisplayList(&polyTemp[1], newDList);
             POLY_OPA_DISP = &polyTemp[2];
             (*mtx)++;
         } else {
@@ -570,7 +570,7 @@ void SkelAnime_DrawTransformFlexOpa(PlayState* play, void** skeleton, Vec3s* joi
 
     mtx = GRAPH_ALLOC(play->state.gfxCtx, dListCount * sizeof(Mtx));
 
-    gSPSegment(POLY_OPA_DISP++, 0x0D, mtx);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x0D, mtx);
 
     MM_Matrix_Push();
 
@@ -593,7 +593,7 @@ void SkelAnime_DrawTransformFlexOpa(PlayState* play, void** skeleton, Vec3s* joi
             Gfx* polyTemp = POLY_OPA_DISP;
 
             gSPMatrix(&polyTemp[0], MM_Matrix_ToMtx(mtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-            gSPDisplayList(&polyTemp[1], newDList);
+            MM_gSPDisplayList(&polyTemp[1], newDList);
             POLY_OPA_DISP = &polyTemp[2];
             mtx++;
         } else {
@@ -690,7 +690,7 @@ Gfx* MM_SkelAnime_DrawLimb(PlayState* play, s32 limbIndex, void** skeleton, Vec3
         MM_Matrix_TranslateRotateZYX(&pos, &rot);
         if (dList != NULL) {
             MATRIX_FINALIZE_AND_LOAD(&gfx[0], play->state.gfxCtx);
-            gSPDisplayList(&gfx[1], dList);
+            MM_gSPDisplayList(&gfx[1], dList);
             gfx = &gfx[2];
         }
     }
@@ -744,7 +744,7 @@ Gfx* MM_SkelAnime_Draw(PlayState* play, void** skeleton, Vec3s* jointTable, Over
         MM_Matrix_TranslateRotateZYX(&pos, &rot);
         if (dList != NULL) {
             MATRIX_FINALIZE_AND_LOAD(&gfx[0], play->state.gfxCtx);
-            gSPDisplayList(&gfx[1], dList);
+            MM_gSPDisplayList(&gfx[1], dList);
             gfx = &gfx[2];
         }
     }
@@ -791,7 +791,7 @@ Gfx* MM_SkelAnime_DrawFlexLimb(PlayState* play, s32 limbIndex, void** skeleton, 
         MM_Matrix_TranslateRotateZYX(&pos, &rot);
         if (newDList != NULL) {
             gSPMatrix(&gfx[0], MM_Matrix_ToMtx(*mtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-            gSPDisplayList(&gfx[1], newDList);
+            MM_gSPDisplayList(&gfx[1], newDList);
             gfx = &gfx[2];
             (*mtx)++;
         } else {
@@ -842,7 +842,7 @@ Gfx* MM_SkelAnime_DrawFlex(PlayState* play, void** skeleton, Vec3s* jointTable, 
 
     mtx = GRAPH_ALLOC(play->state.gfxCtx, dListCount * sizeof(Mtx));
 
-    gSPSegment(gfx++, 0x0D, mtx);
+    MM_gSPSegment(gfx++, 0x0D, mtx);
 
     MM_Matrix_Push();
 
@@ -860,7 +860,7 @@ Gfx* MM_SkelAnime_DrawFlex(PlayState* play, void** skeleton, Vec3s* jointTable, 
         MM_Matrix_TranslateRotateZYX(&pos, &rot);
         if (newDList != NULL) {
             gSPMatrix(&gfx[0], MM_Matrix_ToMtx(mtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-            gSPDisplayList(&gfx[1], newDList);
+            MM_gSPDisplayList(&gfx[1], newDList);
             gfx = &gfx[2];
             mtx++;
         } else {
@@ -1047,7 +1047,7 @@ void AnimTaskQueue_AddLoadPlayerFrame(PlayState* play, PlayerAnimationHeader* an
         PlayerAnimationHeader* playerAnimHeader = Lib_SegmentedToVirtual(animation);
         Vec3s* ram = frameTable;
 
-        // osCreateMesgQueue(&task->data.loadPlayerFrame.msgQueue, task->data.loadPlayerFrame.msg,
+        // MM_osCreateMesgQueue(&task->data.loadPlayerFrame.msgQueue, task->data.loadPlayerFrame.msg,
         //                   ARRAY_COUNT(task->data.loadPlayerFrame.msg));
         //
         // char animPath[2048];
@@ -1164,7 +1164,7 @@ void AnimTaskQueue_AddActorMovement(PlayState* play, Actor* actor, SkelAnime* sk
 void AnimTask_LoadPlayerFrame(PlayState* play, AnimTaskData* data) {
     AnimTaskLoadPlayerFrame* task = &data->loadPlayerFrame;
 
-    // osRecvMesg(&task->msgQueue, NULL, OS_MESG_BLOCK);
+    // MM_osRecvMesg(&task->msgQueue, NULL, OS_MESG_BLOCK);
 }
 
 /**

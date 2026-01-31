@@ -651,7 +651,7 @@ void EnWiz_MoveGhosts(EnWiz* this) {
             diffZ = this->platforms[ghostNextPlatformIndex]->world.pos.z - this->ghostPos[i].z;
             playSfx++;
 
-            if (sqrtf(SQ(diffX) + SQ(diffZ)) < 30.0f) {
+            if (MM_sqrtf(SQ(diffX) + SQ(diffZ)) < 30.0f) {
                 this->ghostNextPlatformIndex[i]--;
                 if (this->ghostNextPlatformIndex[i] < 0) {
                     this->ghostNextPlatformIndex[i] = this->platformCount - 1;
@@ -867,7 +867,7 @@ void EnWiz_SecondPhaseCutscene(EnWiz* this, PlayState* play) {
         f32 diffZ = this->actor.world.pos.z - this->platforms[this->nextPlatformIndex]->world.pos.z;
         s32 pad;
 
-        if (sqrtf(SQ(diffX) + SQ(diffZ)) < 30.0f) {
+        if (MM_sqrtf(SQ(diffX) + SQ(diffZ)) < 30.0f) {
             if (!this->hasRunToEveryPlatform) {
                 this->nextPlatformIndex++;
                 if (this->nextPlatformIndex >= this->platformCount) {
@@ -881,7 +881,7 @@ void EnWiz_SecondPhaseCutscene(EnWiz* this, PlayState* play) {
                 s32 i;
 
                 this->actor.flags |= ACTOR_FLAG_LOCK_ON_DISABLED;
-                if (sqrtf(SQ(diffX) + SQ(diffZ)) < 20.0f) {
+                if (MM_sqrtf(SQ(diffX) + SQ(diffZ)) < 20.0f) {
                     for (i = 0; i < this->platformCount; i++) {
                         MM_Math_Vec3f_Copy(&this->ghostPos[i], &gZeroVec3f);
                     }
@@ -1551,7 +1551,7 @@ void EnWiz_Draw(Actor* thisx, PlayState* play) {
         }
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gWizrobePlatformLightDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gWizrobePlatformLightDL);
 
         MM_Matrix_Pop();
     }
@@ -1559,7 +1559,7 @@ void EnWiz_Draw(Actor* thisx, PlayState* play) {
     // Draw the flame at the tip of the Wizrobe's staff
     MM_Matrix_Translate(this->staffFlamePos.x, this->staffFlamePos.y, this->staffFlamePos.z, MTXMODE_NEW);
     MM_Matrix_Scale(this->staffFlameScale.x, this->staffFlameScale.y, this->staffFlameScale.z, MTXMODE_APPLY);
-    gSPSegment(POLY_XLU_DISP++, 0x08,
+    MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 32, 64, 1, 0,
                                 ((this->staffFlameScroll * 10) - (play->state.frames * 20)) % 512, 32, 128));
     gDPPipeSync(POLY_XLU_DISP++);
@@ -1574,7 +1574,7 @@ void EnWiz_Draw(Actor* thisx, PlayState* play) {
 
     MM_Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

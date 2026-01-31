@@ -17,7 +17,7 @@ u32 __additional_scanline = 0;
 
 void MM_viMgrMain(void*);
 
-void osCreateViManager(OSPri pri) {
+void MM_osCreateViManager(OSPri pri) {
     u32 prevInt;
     OSPri newPri;
     OSPri currentPri;
@@ -25,23 +25,23 @@ void osCreateViManager(OSPri pri) {
     if (!__osViDevMgr.active) {
         __osTimerServicesInit();
         __additional_scanline = 0;
-        osCreateMesgQueue(&viEventQueue, MM_viEventBuf, ARRAY_COUNT(MM_viEventBuf) - 1);
+        MM_osCreateMesgQueue(&viEventQueue, MM_viEventBuf, ARRAY_COUNT(MM_viEventBuf) - 1);
         viRetraceMsg.hdr.type = OS_MESG_TYPE_VRETRACE;
         viRetraceMsg.hdr.pri = OS_MESG_PRI_NORMAL;
         viRetraceMsg.hdr.retQueue = NULL;
         viCounterMsg.hdr.type = OS_MESG_TYPE_COUNTER;
         viCounterMsg.hdr.pri = OS_MESG_PRI_NORMAL;
         viCounterMsg.hdr.retQueue = NULL;
-        osSetEventMesg(OS_EVENT_VI, &viEventQueue, &viRetraceMsg);
-        osSetEventMesg(OS_EVENT_COUNTER, &viEventQueue, &viCounterMsg);
+        MM_osSetEventMesg(OS_EVENT_VI, &viEventQueue, &viRetraceMsg);
+        MM_osSetEventMesg(OS_EVENT_COUNTER, &viEventQueue, &viCounterMsg);
         newPri = -1;
-        currentPri = osGetThreadPri(NULL);
+        currentPri = MM_osGetThreadPri(NULL);
         if (currentPri < pri) {
             newPri = currentPri;
-            osSetThreadPri(NULL, pri);
+            MM_osSetThreadPri(NULL, pri);
         }
 
-        prevInt = __osDisableInt();
+        prevInt = MM___osDisableInt();
         __osViDevMgr.active = true;
         __osViDevMgr.thread = &MM_viThread;
         __osViDevMgr.cmdQueue = &viEventQueue;
@@ -50,12 +50,12 @@ void osCreateViManager(OSPri pri) {
         __osViDevMgr.piDmaCallback = NULL;
         __osViDevMgr.epiDmaCallback = NULL;
 
-        osCreateThread(&MM_viThread, 0, &MM_viMgrMain, &__osViDevMgr, STACK_TOP(sViStack), pri);
+        MM_osCreateThread(&MM_viThread, 0, &MM_viMgrMain, &__osViDevMgr, STACK_TOP(sViStack), pri);
         __osViInit();
-        osStartThread(&MM_viThread);
-        __osRestoreInt(prevInt);
+        MM_osStartThread(&MM_viThread);
+        MM___osRestoreInt(prevInt);
         if (newPri != -1) {
-            osSetThreadPri(NULL, newPri);
+            MM_osSetThreadPri(NULL, newPri);
         }
     }
 }
@@ -76,7 +76,7 @@ void MM_viMgrMain(void* arg) {
     dmArgs = (OSDevMgr*)arg;
 
     while (true) {
-        osRecvMesg(dmArgs->evtQueue, (OSMesg*)&mesg, OS_MESG_BLOCK);
+        MM_osRecvMesg(dmArgs->evtQueue, (OSMesg*)&mesg, OS_MESG_BLOCK);
         switch (mesg->hdr.type) {
             case OS_MESG_TYPE_VRETRACE:
                 __osViSwapContext();
@@ -84,7 +84,7 @@ void MM_viMgrMain(void* arg) {
                 if (!viRetrace) {
                     __OSViContext* ctx = __osViGetCurrentContext();
                     if (ctx->mq) {
-                        osSendMesg(ctx->mq, ctx->msg, OS_MESG_NOBLOCK);
+                        MM_osSendMesg(ctx->mq, ctx->msg, OS_MESG_NOBLOCK);
                     }
                     viRetrace = ctx->retraceCount;
                 }

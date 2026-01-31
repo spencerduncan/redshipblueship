@@ -1197,7 +1197,7 @@ void MM_EnTite_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* 
         Matrix_RotateZS(this->actor.world.rot.z, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, this->unk_3A8);
+        MM_gSPDisplayList(POLY_OPA_DISP++, this->unk_3A8);
 
         CLOSE_DISPS(play->state.gfxCtx);
     }
@@ -1211,16 +1211,16 @@ void MM_EnTite_Draw(Actor* thisx, PlayState* play) {
 
     gfx = POLY_OPA_DISP;
 
-    gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
+    MM_gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
 
     if (this->actor.params == ENTITE_MINUS_2) {
-        gSPSegment(&gfx[1], 0x08, D_80896B24[0][0]);
-        gSPSegment(&gfx[2], 0x09, D_80896B24[0][1]);
-        gSPSegment(&gfx[3], 0x0A, D_80896B24[0][2]);
+        MM_gSPSegment(&gfx[1], 0x08, D_80896B24[0][0]);
+        MM_gSPSegment(&gfx[2], 0x09, D_80896B24[0][1]);
+        MM_gSPSegment(&gfx[3], 0x0A, D_80896B24[0][2]);
     } else {
-        gSPSegment(&gfx[1], 0x08, D_80896B24[1][0]);
-        gSPSegment(&gfx[2], 0x09, D_80896B24[1][1]);
-        gSPSegment(&gfx[3], 0x0A, D_80896B24[1][2]);
+        MM_gSPSegment(&gfx[1], 0x08, D_80896B24[1][0]);
+        MM_gSPSegment(&gfx[2], 0x09, D_80896B24[1][1]);
+        MM_gSPSegment(&gfx[3], 0x0A, D_80896B24[1][2]);
     }
 
     POLY_OPA_DISP = &gfx[4];

@@ -1087,10 +1087,10 @@ void EnOt_Draw(Actor* thisx, PlayState* play) {
     gDPSetDither(&gfx[0], G_CD_NOISE);
     gDPSetCombineLERP(&gfx[1], 0, 0, 0, PRIMITIVE, TEXEL0, 0, PRIMITIVE, 0, 0, 0, 0, PRIMITIVE, TEXEL0, 0, PRIMITIVE,
                       0);
-    gSPDisplayList(&gfx[2], gameplay_keep_DL_029CB0);
+    MM_gSPDisplayList(&gfx[2], gameplay_keep_DL_029CB0);
     gDPSetPrimColor(&gfx[3], 0, 0, this->unk_747.r, this->unk_747.g, this->unk_747.b, 50);
     MATRIX_FINALIZE_AND_LOAD(&gfx[4], play->state.gfxCtx);
-    gSPDisplayList(&gfx[5], gameplay_keep_DL_029CF0);
+    MM_gSPDisplayList(&gfx[5], gameplay_keep_DL_029CF0);
 
     POLY_XLU_DISP = &gfx[6];
 
@@ -1105,7 +1105,7 @@ void EnOt_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, 
         OPEN_DISPS(play->state.gfxCtx);
         Gfx* gfx = POLY_OPA_DISP;
 
-        gSPDisplayList(&gfx[0], object_ot_DL_0004A0);
+        MM_gSPDisplayList(&gfx[0], object_ot_DL_0004A0);
         POLY_OPA_DISP = &gfx[1];
         MM_Matrix_MultVec3f(&D_80B5E410, &this->unk_74C);
 
@@ -1185,7 +1185,7 @@ void func_80B5E1D8(PlayState* play, EnOtUnkStruct* arg1, s32 arg2) {
         }
 
         if (!flag) {
-            gSPDisplayList(POLY_OPA_DISP++, object_ot_DL_000040);
+            MM_gSPDisplayList(POLY_OPA_DISP++, object_ot_DL_000040);
             flag = true;
         }
 
@@ -1193,9 +1193,9 @@ void func_80B5E1D8(PlayState* play, EnOtUnkStruct* arg1, s32 arg2) {
         Matrix_RotateYS(BINANG_ROT180(MM_Camera_GetCamDirYaw(GET_ACTIVE_CAM(play))), MTXMODE_APPLY);
         MM_Matrix_Scale(arg1->unk_04, arg1->unk_04, arg1->unk_04, MTXMODE_APPLY);
 
-        gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(gDropRecoveryHeartTex));
+        MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(gDropRecoveryHeartTex));
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, object_ot_DL_000078);
+        MM_gSPDisplayList(POLY_OPA_DISP++, object_ot_DL_000078);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);

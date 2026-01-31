@@ -141,9 +141,9 @@ void EnTest2_Draw(Actor* thisx, PlayState* play) {
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
 
         if (dList != NULL) {
-            gSPDisplayList(POLY_XLU_DISP++, dList);
+            MM_gSPDisplayList(POLY_XLU_DISP++, dList);
         }
-        gSPDisplayList(POLY_XLU_DISP++, MM_sModelInfo[ENTEST2_GET_TYPE(&this->actor)].dList1);
+        MM_gSPDisplayList(POLY_XLU_DISP++, MM_sModelInfo[ENTEST2_GET_TYPE(&this->actor)].dList1);
 
         CLOSE_DISPS(play->state.gfxCtx);
     } else {

@@ -200,7 +200,7 @@ void MM_ArrowLight_Draw(Actor* thisx, PlayState* play) {
                             (s32)(150.0f * this->screenFillIntensity) & 0xFF);
             gDPSetAlphaDither(POLY_XLU_DISP++, G_AD_DISABLE);
             gDPSetColorDither(POLY_XLU_DISP++, G_CD_DISABLE);
-            gSPDisplayList(POLY_XLU_DISP++, D_0E000000_TO_SEGMENTED(fillRect));
+            MM_gSPDisplayList(POLY_XLU_DISP++, D_0E000000_TO_SEGMENTED(fillRect));
         }
 
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
@@ -219,11 +219,11 @@ void MM_ArrowLight_Draw(Actor* thisx, PlayState* play) {
         MM_Matrix_Translate(0.0f, -700.0f, 0.0f, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gLightArrowMaterialDL);
-        gSPDisplayList(POLY_XLU_DISP++,
+        MM_gSPDisplayList(POLY_XLU_DISP++, gLightArrowMaterialDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++,
                        MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 511 - ((frames * 5) % 512), 0, 4, 32, 1,
                                         511 - ((frames * 10) % 512), 511 - ((frames * 30) % 512), 8, 16));
-        gSPDisplayList(POLY_XLU_DISP++, gLightArrowModelDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gLightArrowModelDL);
         CLOSE_DISPS(play->state.gfxCtx);
     }
 }

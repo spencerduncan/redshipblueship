@@ -1,7 +1,12 @@
 #include "global.h"
 #include <string.h>
 
+/* In single-exe mode, gSaveContext is provided by unified_save.c */
+#ifndef RSBS_SINGLE_EXECUTABLE
 SaveContext gSaveContext;
+#else
+extern SaveContext gSaveContext;
+#endif
 
 void OoT_SaveContext_Init(void) {
     memset(&gSaveContext, 0, sizeof(gSaveContext));

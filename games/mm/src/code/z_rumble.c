@@ -34,7 +34,7 @@ void Rumble_Override(f32 distSq, u8 sourceIntensity, u8 decayTimer, u8 decayStep
     if (SQ(1000.0f) < distSq) {
         distance = 1000;
     } else {
-        distance = sqrtf(distSq);
+        distance = MM_sqrtf(distSq);
     }
 
     if ((distance < 1000) && (sourceIntensity != 0) && (decayStep != 0)) {
@@ -56,7 +56,7 @@ void Rumble_Request(f32 distSq, u8 sourceIntensity, u8 decayTimer, u8 decayStep)
     if (SQ(1000.0f) < distSq) {
         distance = 1000;
     } else {
-        distance = sqrtf(distSq);
+        distance = MM_sqrtf(distSq);
     }
 
     if ((distance < 1000) && (sourceIntensity != 0) && (decayStep != 0)) {

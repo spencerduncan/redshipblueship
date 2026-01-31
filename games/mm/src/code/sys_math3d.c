@@ -517,7 +517,7 @@ f32 MM_Math3D_Dist1DSq(f32 a, f32 b) {
  * Returns the distance between `a` and `b` on a single axis
  */
 f32 MM_Math3D_Dist1D(f32 a, f32 b) {
-    return sqrtf(MM_Math3D_Dist1DSq(a, b));
+    return MM_sqrtf(MM_Math3D_Dist1DSq(a, b));
 }
 
 /**
@@ -531,7 +531,7 @@ f32 MM_Math3D_Dist2DSq(f32 x0, f32 y0, f32 x1, f32 y1) {
  * Returns the distance between points (`x0`,`y0`) and (`x1`,`y1`)
  */
 f32 MM_Math3D_Dist2D(f32 x0, f32 y0, f32 x1, f32 y1) {
-    return sqrtf(MM_Math3D_Dist2DSq(x0, y0, x1, y1));
+    return MM_sqrtf(MM_Math3D_Dist2DSq(x0, y0, x1, y1));
 }
 
 /**
@@ -545,7 +545,7 @@ f32 MM_Math3D_Vec3fMagnitudeSq(Vec3f* vec) {
  * Returns the magnitude (length) of `vec`
  */
 f32 MM_Math3D_Vec3fMagnitude(Vec3f* vec) {
-    return sqrtf(MM_Math3D_Vec3fMagnitudeSq(vec));
+    return MM_sqrtf(MM_Math3D_Vec3fMagnitudeSq(vec));
 }
 
 /**
@@ -978,7 +978,7 @@ void MM_Math3D_DefPlane(Vec3f* va, Vec3f* vb, Vec3f* vc, f32* nx, f32* ny, f32* 
     f32 normMagInv;
 
     MM_Math3D_SurfaceNorm(va, vb, vc, &sNormal);
-    normMagnitude = sqrtf(SQ(sNormal.x) + SQ(sNormal.y) + SQ(sNormal.z));
+    normMagnitude = MM_sqrtf(SQ(sNormal.x) + SQ(sNormal.y) + SQ(sNormal.z));
     if (!IS_ZERO(normMagnitude)) {
         normMagInv = 1.0f / normMagnitude;
         *nx = sNormal.x * normMagInv;
@@ -1021,7 +1021,7 @@ f32 MM_Math3D_UDistPlaneToPos(f32 nx, f32 ny, f32 nz, f32 originDist, Vec3f* p) 
  * `nx`, `ny`, `nz`, and `originDist`
  */
 f32 MM_Math3D_DistPlaneToPos(f32 nx, f32 ny, f32 nz, f32 originDist, Vec3f* p) {
-    f32 normMagnitude = sqrtf(SQ(nx) + SQ(ny) + SQ(nz));
+    f32 normMagnitude = MM_sqrtf(SQ(nx) + SQ(ny) + SQ(nz));
 
     if (IS_ZERO(normMagnitude)) {
         return 0.0f;
@@ -1954,7 +1954,7 @@ s32 MM_Math3D_CylVsLineSeg(Cylinder16* cyl, Vec3f* linePointA, Vec3f* linePointB
             sideIntA = 1;
             sideIntB = 0;
         }
-        distCent2 = sqrtf(SQ(dot2AB) - (4.0f * SQXZ(ptAToPtB) * radSqDiff));
+        distCent2 = MM_sqrtf(SQ(dot2AB) - (4.0f * SQXZ(ptAToPtB) * radSqDiff));
         if (sideIntA != 0) {
             // fraction of length along AB for side intersection closer to A
             fracA = (distCent2 - dot2AB) / (2.0f * SQXZ(ptAToPtB));
@@ -2118,7 +2118,7 @@ s32 MM_Math3D_CylTriVsIntersect(Cylinder16* cyl, TriNorm* tri, Vec3f* intersect)
         midpointv0v1.z = (tri->vtx[0].z + tri->vtx[1].z) * 0.5f;
 
         MM_Math_Vec3f_Diff(&midpointv0v1, &cylIntersectCenter, &diffMidpointIntersect);
-        distFromCylYIntersectTov0v1 = sqrtf(SQ(diffMidpointIntersect.x) + SQ(diffMidpointIntersect.z));
+        distFromCylYIntersectTov0v1 = MM_sqrtf(SQ(diffMidpointIntersect.x) + SQ(diffMidpointIntersect.z));
 
         if (IS_ZERO(distFromCylYIntersectTov0v1)) {
             MM_Math_Vec3f_Copy(intersect, &midpointv0v1);
@@ -2182,7 +2182,7 @@ s32 Math3D_SphVsSphOverlapCenterDist(Sphere16* sphereA, Sphere16* sphereB, f32* 
     diff.y = (f32)sphereA->center.y - (f32)sphereB->center.y;
     diff.z = (f32)sphereA->center.z - (f32)sphereB->center.z;
 
-    *centerDist = sqrtf(SQ(diff.x) + SQ(diff.y) + SQ(diff.z));
+    *centerDist = MM_sqrtf(SQ(diff.x) + SQ(diff.y) + SQ(diff.z));
 
     *overlapSize = (((f32)sphereA->radius + (f32)sphereB->radius) - *centerDist);
     if (*overlapSize > 0.008f) {
@@ -2229,7 +2229,7 @@ s32 MM_Math3D_SphVsCylOverlapCenterDist(Sphere16* sph, Cylinder16* cyl, f32* ove
     x = (f32)sph->center.x - cyl->pos.x;
     z = (f32)sph->center.z - cyl->pos.z;
     combinedRadius = (f32)sph->radius + cyl->radius;
-    *centerDist = sqrtf(SQ(x) + SQ(z));
+    *centerDist = MM_sqrtf(SQ(x) + SQ(z));
     if (combinedRadius < *centerDist) {
         // if the combined radii is less than the distance to the centers, they cannot be touching.
         return false;
@@ -2276,7 +2276,7 @@ s32 Math3D_CylVsCylOverlapCenterDist(Cylinder16* ca, Cylinder16* cb, f32* overla
     sCbf.yShift = cb->yShift;
     sCbf.height = cb->height;
 
-    *centerDist = sqrtf(SQ(sCaf.pos.x - sCbf.pos.x) + SQ(sCaf.pos.z - sCbf.pos.z));
+    *centerDist = MM_sqrtf(SQ(sCaf.pos.x - sCbf.pos.x) + SQ(sCaf.pos.z - sCbf.pos.z));
 
     // The combined radii are within the xz distance
     if ((sCaf.radius + sCbf.radius) < *centerDist) {
@@ -2426,11 +2426,11 @@ s32 Math3D_CircleLineIntersections(f32 centreX, f32 centerY, f32 radius, f32 poi
     }
 
     if (delta > 0.0f) { // Two roots if discriminant > 0
-        rootN = (-b - sqrtf(delta)) / (2.0f * a);
+        rootN = (-b - MM_sqrtf(delta)) / (2.0f * a);
         *intersectAX = dirX * rootN + pointX;
         *intersectAY = dirY * rootN + pointY;
 
-        rootP = (-b + sqrtf(delta)) / (2.0f * a);
+        rootP = (-b + MM_sqrtf(delta)) / (2.0f * a);
         *intersectBX = dirX * rootP + pointX;
         *intersectBY = dirY * rootP + pointY;
 
@@ -2455,7 +2455,7 @@ void func_8017FD44(Vec3f* arg0, Vec3f* arg1, Vec3f* dst, f32 arg3) {
 
     sp2C.x = (arg0->x + arg1->x) / 2.0f;
     sp2C.z = (arg0->z + arg1->z) / 2.0f;
-    sp24 = sqrtf(SQ(sp2C.x - arg0->x) + SQ(sp2C.z - arg0->z));
+    sp24 = MM_sqrtf(SQ(sp2C.x - arg0->x) + SQ(sp2C.z - arg0->z));
     dst->y = (arg1->y - arg0->y) * arg3 + arg0->y;
     sp2A = MM_Math_Vec3f_Yaw(&sp2C, arg0);
     dst->x = MM_Math_SinS(TRUNCF_BINANG(0x7FFF * arg3) + sp2A) * sp24 + sp2C.x;

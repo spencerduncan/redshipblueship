@@ -202,10 +202,10 @@ void BgAstrBombwall_Draw(Actor* thixs, PlayState* play) {
         OPEN_DISPS(play->state.gfxCtx);
 
         opa = POLY_OPA_DISP;
-        gSPDisplayList(&opa[0], gSetupDLs[SETUPDL_25]);
+        MM_gSPDisplayList(&opa[0], gSetupDLs[SETUPDL_25]);
         MATRIX_FINALIZE_AND_LOAD(&opa[1], play->state.gfxCtx);
         gSPSetGeometryMode(&opa[2], G_LIGHTING_POSITIONAL);
-        gSPDisplayList(&opa[3], object_astr_obj_DL_002380);
+        MM_gSPDisplayList(&opa[3], object_astr_obj_DL_002380);
         POLY_OPA_DISP = &opa[4];
 
         CLOSE_DISPS(play->state.gfxCtx);
@@ -216,10 +216,10 @@ void BgAstrBombwall_Draw(Actor* thixs, PlayState* play) {
         OPEN_DISPS(play->state.gfxCtx);
 
         xlu = POLY_XLU_DISP;
-        gSPDisplayList(&xlu[0], gSetupDLs[SETUPDL_25]);
+        MM_gSPDisplayList(&xlu[0], gSetupDLs[SETUPDL_25]);
         MATRIX_FINALIZE_AND_LOAD(&xlu[1], play->state.gfxCtx);
         gSPSetGeometryMode(&xlu[2], G_LIGHTING_POSITIONAL);
-        gSPDisplayList(&xlu[3], object_astr_obj_DL_0022E0);
+        MM_gSPDisplayList(&xlu[3], object_astr_obj_DL_0022E0);
         POLY_XLU_DISP = &xlu[4];
 
         CLOSE_DISPS(play->state.gfxCtx);

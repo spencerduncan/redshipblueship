@@ -165,7 +165,7 @@ void EffKamejimaWave_Draw(Actor* thisx, PlayState* play) {
     AnimatedMat_Draw(play, D_80BCF1C4);
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0x80, primColor.r, primColor.g, primColor.b, 255);
     gDPSetEnvColor(POLY_XLU_DISP++, envColor.r, envColor.g, envColor.b, 255);
-    gSPDisplayList(POLY_XLU_DISP++, gTurtleWaveDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gTurtleWaveDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

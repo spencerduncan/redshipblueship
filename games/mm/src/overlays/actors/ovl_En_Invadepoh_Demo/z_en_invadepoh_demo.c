@@ -641,14 +641,14 @@ void EnInvadepohDemo_Alien_Draw(EnInvadepohDemo* this, PlayState* play) {
 
         if (mtx != NULL) {
             gSPMatrix(gfx++, mtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-            gSPDisplayList(gfx++, gAlienEyeBeamDL);
+            MM_gSPDisplayList(gfx++, gAlienEyeBeamDL);
             MM_Matrix_Mult(&sInvadepohDemoAlienRightEyeBeamMtxF, MTXMODE_NEW);
 
             mtx = Matrix_Finalize(play->state.gfxCtx);
 
             if (mtx != NULL) {
                 gSPMatrix(gfx++, mtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-                gSPDisplayList(gfx++, gAlienEyeBeamDL);
+                MM_gSPDisplayList(gfx++, gAlienEyeBeamDL);
                 POLY_XLU_DISP = gfx;
             }
         }
@@ -682,14 +682,14 @@ void EnInvadepohDemo_Alien_Draw(EnInvadepohDemo* this, PlayState* play) {
         MM_Matrix_Translate(this->actor.world.pos.x + glowOffset.x, this->actor.world.pos.y + glowOffset.y + 25.0f,
                          this->actor.world.pos.z + glowOffset.z, MTXMODE_NEW);
         MM_Matrix_Scale(0.15f, 0.15f, 0.15f, MTXMODE_APPLY);
-        gSPDisplayList(gfx++, gameplay_keep_DL_029CB0);
+        MM_gSPDisplayList(gfx++, gameplay_keep_DL_029CB0);
         gDPSetPrimColor(gfx++, 0, 0, 240, 180, 100, 100);
 
         mtx = Matrix_Finalize(play->state.gfxCtx);
 
         if (mtx != NULL) {
             gSPMatrix(gfx++, mtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-            gSPDisplayList(gfx++, gameplay_keep_DL_029CF0);
+            MM_gSPDisplayList(gfx++, gameplay_keep_DL_029CF0);
             POLY_XLU_DISP = gfx;
         }
 
@@ -705,8 +705,8 @@ void EnInvadepohDemo_Romani_Draw(EnInvadepohDemo* this, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(&gRomaniEyeSadTex));
-    gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(&gRomaniMouthHangingOpenTex));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(&gRomaniEyeSadTex));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(&gRomaniMouthHangingOpenTex));
     MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount, NULL,
                           NULL, &this->actor);
 
@@ -749,7 +749,7 @@ void EnInvadepohDemo_Ufo_Draw(EnInvadepohDemo* this, PlayState* play) {
         gSPMatrix(POLY_XLU_DISP++, mtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
         gDPSetPrimColor(POLY_XLU_DISP++, 0xFF, 0x80, 255, 255, 0, 180);
         gDPSetEnvColor(POLY_XLU_DISP++, 255, 50, 0, 0);
-        gSPDisplayList(POLY_XLU_DISP++, gEffFlash1DL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gEffFlash1DL);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);

@@ -1078,8 +1078,8 @@ void BombersNotebook_Draw(BombersNotebook* this, GraphicsContext* gfxCtx) {
     gfx = POLY_OPA_DISP;
 
     if (this->loadState == BOMBERS_NOTEBOOK_LOAD_STATE_DONE) {
-        // gSPSegment(gfx++, 0x07, this->scheduleDmaSegment);
-        // gSPSegment(gfx++, 0x08, this->scheduleSegment);
+        // MM_gSPSegment(gfx++, 0x07, this->scheduleDmaSegment);
+        // MM_gSPSegment(gfx++, 0x08, this->scheduleSegment);
         gfx = Gfx_SetupDL39(gfx);
         gDPSetCombineLERP(gfx++, PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0, PRIMITIVE,
                           ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0);
@@ -1106,7 +1106,7 @@ void BombersNotebook_Draw(BombersNotebook* this, GraphicsContext* gfxCtx) {
 
         gDPPipeSync(gfx++);
 
-        gSPDisplayList(gfx++, D_0E000000_TO_SEGMENTED(setScissor));
+        MM_gSPDisplayList(gfx++, D_0E000000_TO_SEGMENTED(setScissor));
 
         BombersNotebook_DrawTimeOfDay(&gfx);
 
@@ -1130,14 +1130,14 @@ void BombersNotebook_LoadFiles(BombersNotebook* this, s32 flag) {
                 break;
             }
             CmpDma_LoadAllFiles(this->scheduleDmaSegmentStart, this->scheduleDmaSegment, this->scheduleDmaSegmentSize);
-            osCreateMesgQueue(&this->loadQueue, this->loadMsg, ARRAY_COUNT(this->loadMsg));
+            MM_osCreateMesgQueue(&this->loadQueue, this->loadMsg, ARRAY_COUNT(this->loadMsg));
             MM_DmaMgr_SendRequestImpl(&this->dmaRequest, this->scheduleSegment, this->scheduleSegmentStart,
                                    this->scheduleSegmentSize, 0, &this->loadQueue, OS_MESG_PTR(NULL));
 #endif
             this->loadState = BOMBERS_NOTEBOOK_LOAD_STATE_STARTED;
             // fallthrough
         case BOMBERS_NOTEBOOK_LOAD_STATE_STARTED:
-            // if (osRecvMesg(&this->loadQueue, NULL, flag) == 0) {
+            // if (MM_osRecvMesg(&this->loadQueue, NULL, flag) == 0) {
             this->loadState = BOMBERS_NOTEBOOK_LOAD_STATE_DONE;
             //}
             break;

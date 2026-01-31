@@ -823,7 +823,7 @@ s32 EnDno_ActorPathing_UpdateActorInfo(PlayState* play, ActorPathing* actorPath)
     if (actorPath->distSqToCurPoint < SQ(thisx->speed)) {
         ret = true;
     } else {
-        sp38 = thisx->speed / sqrtf(actorPath->distSqToCurPointXZ);
+        sp38 = thisx->speed / MM_sqrtf(actorPath->distSqToCurPointXZ);
         sp2C = ABS(actorPath->rotToCurPoint.x - thisx->world.rot.x);
         temp_v0_2 = sp2C;
         temp_v0_2 *= sp38;
@@ -1089,7 +1089,7 @@ void EnDno_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot,
 
         gfxOpa = POLY_OPA_DISP;
         MATRIX_FINALIZE_AND_LOAD(gfxOpa, play->state.gfxCtx);
-        gSPDisplayList(&gfxOpa[1], *dList);
+        MM_gSPDisplayList(&gfxOpa[1], *dList);
 
         POLY_OPA_DISP = &gfxOpa[2];
         CLOSE_DISPS(play->state.gfxCtx);
@@ -1110,11 +1110,11 @@ void EnDno_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot,
         gfxXlu = Gfx_SetupDL71(POLY_XLU_DISP);
 
         MATRIX_FINALIZE_AND_LOAD(gfxXlu, play->state.gfxCtx);
-        gSPSegment(&gfxXlu[1], 0x08,
+        MM_gSPSegment(&gfxXlu[1], 0x08,
                    MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 0x20, 0x40, 1, 0, -frames * 20, 0x20, 0x80));
         gDPSetPrimColor(&gfxXlu[2], 0x80, 0x80, 255, 255, 0, 255);
         gDPSetEnvColor(&gfxXlu[3], 255, 0, 0, 0);
-        gSPDisplayList(&gfxXlu[4], gEffFire1DL);
+        MM_gSPDisplayList(&gfxXlu[4], gEffFire1DL);
 
         POLY_XLU_DISP = &gfxXlu[5];
 

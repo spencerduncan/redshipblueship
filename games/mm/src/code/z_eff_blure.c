@@ -473,7 +473,7 @@ void MM_EffectBlure_DrawElemNoInterpolation(EffectBlure* this, EffectBlureElemen
         vtx[3].v.cn[2] = sp78.b;
         vtx[3].v.cn[3] = sp78.a;
 
-        gSPVertex(POLY_XLU_DISP++, vtx, 4, 0);
+        MM_gSPVertex(POLY_XLU_DISP++, vtx, 4, 0);
         gSP2Triangles(POLY_XLU_DISP++, 0, 1, 2, 0, 0, 2, 3, 0);
     }
 
@@ -635,7 +635,7 @@ void MM_EffectBlure_DrawElemHermiteInterpolation(EffectBlure* this, EffectBlureE
             vtx[j2].v.cn[3] = EffectSs_LerpU8(sp1A0.a, sp198.a, temp_f28);
         }
 
-        gSPVertex(POLY_XLU_DISP++, vtx, 16, 0);
+        MM_gSPVertex(POLY_XLU_DISP++, vtx, 16, 0);
         gSP2Triangles(POLY_XLU_DISP++, 0, 1, 3, 0, 0, 3, 2, 0);
         gSP2Triangles(POLY_XLU_DISP++, 2, 3, 5, 0, 2, 5, 4, 0);
         gSP2Triangles(POLY_XLU_DISP++, 4, 5, 7, 0, 4, 7, 6, 0);
@@ -751,7 +751,7 @@ void MM_EffectBlure_SetupSimpleAlt(GraphicsContext* gfxCtx, EffectBlure* this, V
 
 typedef void (*SetupHandler)(GraphicsContext* gfxCtx, EffectBlure* this, Vtx* vtx);
 
-SetupHandler sSetupHandlers[EFF_BLURE_DRAW_MODE_MAX] = {
+SetupHandler MM_sSetupHandlers[EFF_BLURE_DRAW_MODE_MAX] = {
     MM_EffectBlure_SetupSimple,    // EFF_BLURE_DRAW_MODE_SIMPLE
     MM_EffectBlure_SetupSimpleAlt, // EFF_BLURE_DRAW_MODE_SIMPLE_ALT_COLORS
     NULL,                       // EFF_BLURE_DRAW_MODE_SMOOTH
@@ -762,7 +762,7 @@ void MM_EffectBlure_DrawSimpleVertices(GraphicsContext* gfxCtx, EffectBlure* thi
 
     OPEN_DISPS(gfxCtx);
 
-    sSetupHandlers[this->drawMode](gfxCtx, this, vtx);
+    MM_sSetupHandlers[this->drawMode](gfxCtx, this, vtx);
     gDPPipeSync(POLY_XLU_DISP++);
 
     {
@@ -788,7 +788,7 @@ void MM_EffectBlure_DrawSimpleVertices(GraphicsContext* gfxCtx, EffectBlure* thi
                 gDPPipeSync(POLY_XLU_DISP++);
             }
 
-            gSPVertex(POLY_XLU_DISP++, &vtx[j], 4, 0);
+            MM_gSPVertex(POLY_XLU_DISP++, &vtx[j], 4, 0);
             gSP2Triangles(POLY_XLU_DISP++, 0, 1, 3, 0, 0, 3, 2, 0);
 
             if (!(this->flags & EFFECT_BLURE_FLAG_4)) {
@@ -803,7 +803,7 @@ void MM_EffectBlure_DrawSimpleVertices(GraphicsContext* gfxCtx, EffectBlure* thi
             sp1A4.z = ((f32)vtx[4 * i + 2].v.ob[2] + (f32)vtx[4 * i + 3].v.ob[2]) / 2.0f;
 
             MM_Math_Vec3f_Diff(&sp1A4, &sp1B0, &sp198);
-            scale = sqrtf(SQXYZ(sp198));
+            scale = MM_sqrtf(SQXYZ(sp198));
 
             if (fabsf(scale) > 0.0005f) {
                 scale = 1.0f / scale;
@@ -821,7 +821,7 @@ void MM_EffectBlure_DrawSimpleVertices(GraphicsContext* gfxCtx, EffectBlure* thi
                 }
 
                 gSPMatrix(POLY_XLU_DISP++, mtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-                gSPVertex(POLY_XLU_DISP++, &vtx[j], 4, 0);
+                MM_gSPVertex(POLY_XLU_DISP++, &vtx[j], 4, 0);
                 gSP2Triangles(POLY_XLU_DISP++, 0, 1, 3, 0, 0, 3, 2, 0);
                 gSPMatrix(POLY_XLU_DISP++, &gIdentityMtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
             }
@@ -1026,7 +1026,7 @@ void MM_EffectBlure_Draw(void* thisx, GraphicsContext* gfxCtx) {
                 phi_t2 = 0;
                 j = 0;
 
-                gSPVertex(POLY_XLU_DISP++, vtx, 32, 0);
+                MM_gSPVertex(POLY_XLU_DISP++, vtx, 32, 0);
 
                 for (i = 0; i < this->numElements; i++) {
                     elem = &this->elements[i];

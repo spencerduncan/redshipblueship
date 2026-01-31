@@ -162,7 +162,7 @@ void EnWarpTag_RespawnPlayer(EnWarptag* this, PlayState* play) {
         f32 diffX = player->actor.world.pos.x - this->dyna.actor.world.pos.x;
         Vec3f newRespawnPos;
         f32 diffZ = player->actor.world.pos.z - this->dyna.actor.world.pos.z;
-        f32 distance = sqrtf(SQ(diffX) + SQ(diffZ));
+        f32 distance = MM_sqrtf(SQ(diffX) + SQ(diffZ));
 
         // some weird float behavior prevention?
         if (distance != 0.0f) {
@@ -263,7 +263,7 @@ void EnWarpTag_Draw(Actor* thisx, PlayState* play) {
     AnimatedMat_Draw(play, Lib_SegmentedToVirtual(gWarpTagRainbowTexAnim));
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
 
-    gSPDisplayList(POLY_OPA_DISP++, gWarpTagGoronTrialBaseDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gWarpTagGoronTrialBaseDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

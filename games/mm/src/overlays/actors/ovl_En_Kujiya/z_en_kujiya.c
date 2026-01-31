@@ -376,16 +376,16 @@ void EnKujiya_Draw(Actor* thisx, PlayState* play) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, gLotteryShopCylinderDL);
-    gSPDisplayList(POLY_OPA_DISP++, gLotteryShopBackSignDL);
-    gSPDisplayList(POLY_OPA_DISP++, gLotteryShopOpenBoxDL);
-    gSPDisplayList(POLY_OPA_DISP++, gLotteryShopScrollingEffectsDL);
-    gSPDisplayList(POLY_OPA_DISP++, gLotteryShopRedRupeesDL);
-    gSPDisplayList(POLY_OPA_DISP++, gLotteryShopGreenRupeesDL);
-    gSPDisplayList(POLY_OPA_DISP++, gLotteryShopBlueRupeesDL);
-    gSPDisplayList(POLY_OPA_DISP++, gLotteryShopTargetArrowAndSignDL);
-    gSPDisplayList(POLY_OPA_DISP++, gLotteryShopScrollingArrowDL);
-    gSPDisplayList(POLY_OPA_DISP++, gLotteryShopMaskDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gLotteryShopCylinderDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gLotteryShopBackSignDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gLotteryShopOpenBoxDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gLotteryShopScrollingEffectsDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gLotteryShopRedRupeesDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gLotteryShopGreenRupeesDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gLotteryShopBlueRupeesDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gLotteryShopTargetArrowAndSignDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gLotteryShopScrollingArrowDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gLotteryShopMaskDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

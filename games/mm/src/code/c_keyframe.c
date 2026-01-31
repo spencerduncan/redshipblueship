@@ -706,10 +706,10 @@ void Keyframe_DrawFlexLimb(PlayState* play, KFSkelAnimeFlex* kfSkelAnime, s32* l
 
                 if (drawFlags & KEYFRAME_DRAW_XLU) {
                     gSPMatrix(POLY_XLU_DISP++, *mtxStack, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-                    gSPDisplayList(POLY_XLU_DISP++, newDList);
+                    MM_gSPDisplayList(POLY_XLU_DISP++, newDList);
                 } else {
                     gSPMatrix(POLY_OPA_DISP++, *mtxStack, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-                    gSPDisplayList(POLY_OPA_DISP++, newDList);
+                    MM_gSPDisplayList(POLY_OPA_DISP++, newDList);
                 }
 
                 (*mtxStack)++;
@@ -759,8 +759,8 @@ void Keyframe_DrawFlex(PlayState* play, KFSkelAnimeFlex* kfSkelAnime, Mtx* mtxSt
 
     OPEN_DISPS(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x0D, mtxStack);
-    gSPSegment(POLY_XLU_DISP++, 0x0D, mtxStack);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x0D, mtxStack);
+    MM_gSPSegment(POLY_XLU_DISP++, 0x0D, mtxStack);
 
     limbIndex = 0;
     Keyframe_DrawFlexLimb(play, kfSkelAnime, &limbIndex, overrideKeyframeDraw, postKeyframeDraw, arg, &mtxStack);
@@ -1241,10 +1241,10 @@ void Keyframe_DrawStandardLimb(PlayState* play, KFSkelAnime* kfSkelAnime, s32* l
 
             if (drawFlags & KEYFRAME_DRAW_XLU) {
                 gSPMatrix(POLY_XLU_DISP++, *mtxStack, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-                gSPDisplayList(POLY_XLU_DISP++, newDList);
+                MM_gSPDisplayList(POLY_XLU_DISP++, newDList);
             } else {
                 gSPMatrix(POLY_OPA_DISP++, *mtxStack, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-                gSPDisplayList(POLY_OPA_DISP++, newDList);
+                MM_gSPDisplayList(POLY_OPA_DISP++, newDList);
             }
             (*mtxStack)++;
         } else if (limbDList != NULL) {
@@ -1292,8 +1292,8 @@ void Keyframe_DrawStandard(PlayState* play, KFSkelAnime* kfSkelAnime, Mtx* mtxSt
 
     OPEN_DISPS(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x0D, mtxStack);
-    gSPSegment(POLY_XLU_DISP++, 0x0D, mtxStack);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x0D, mtxStack);
+    MM_gSPSegment(POLY_XLU_DISP++, 0x0D, mtxStack);
 
     limbIndex = 0;
     Keyframe_DrawStandardLimb(play, kfSkelAnime, &limbIndex, overrideKeyframeDraw, postKeyframeDraw, arg, &mtxStack);

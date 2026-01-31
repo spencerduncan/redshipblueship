@@ -2000,7 +2000,7 @@ void EnGm_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, 
     OPEN_DISPS(play->state.gfxCtx);
 
     if ((limbIndex == OBJECT_IN2_LIMB_0F) && (this->unk_3A4 & 0x800)) {
-        gSPDisplayList(POLY_OPA_DISP++, object_in2_DL_007528);
+        MM_gSPDisplayList(POLY_OPA_DISP++, object_in2_DL_007528);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -2064,7 +2064,7 @@ void MM_EnGm_Draw(Actor* thisx, PlayState* play) {
 
         Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-        gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(D_80951E30[this->unk_3CE]));
+        MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(D_80951E30[this->unk_3CE]));
 
         SkelAnime_DrawTransformFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
                                        this->skelAnime.dListCount, EnGm_OverrideLimbDraw, EnGm_PostLimbDraw,

@@ -508,7 +508,7 @@ void MM_EnVm_Draw(Actor* thisx, PlayState* play) {
 
     gfx = POLY_OPA_DISP;
 
-    gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
+    MM_gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
 
     POLY_OPA_DISP = &gfx[1];
 
@@ -518,7 +518,7 @@ void MM_EnVm_Draw(Actor* thisx, PlayState* play) {
     if (this->unk_210 == 2) {
         gfx = POLY_XLU_DISP;
 
-        gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_60]);
+        MM_gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_60]);
         gDPSetColorDither(&gfx[1], G_CD_DISABLE);
 
         MM_Matrix_Translate(this->unk_234.x, this->unk_234.y + 10.0f, this->unk_234.z, MTXMODE_NEW);
@@ -527,8 +527,8 @@ void MM_EnVm_Draw(Actor* thisx, PlayState* play) {
         MATRIX_FINALIZE_AND_LOAD(&gfx[2], play->state.gfxCtx);
         gDPSetPrimColor(&gfx[3], 0, 0, 255, 255, 255, 168);
         gDPSetEnvColor(&gfx[4], 0, 0, 255, 0);
-        gSPSegment(&gfx[5], 0x08, D_808CD58C[play->gameplayFrames & 7]);
-        gSPDisplayList(&gfx[6], gEffEnemyDeathFlameDL);
+        MM_gSPSegment(&gfx[5], 0x08, D_808CD58C[play->gameplayFrames & 7]);
+        MM_gSPDisplayList(&gfx[6], gEffEnemyDeathFlameDL);
 
         POLY_XLU_DISP = &gfx[7];
     }
@@ -536,14 +536,14 @@ void MM_EnVm_Draw(Actor* thisx, PlayState* play) {
     if (this->unk_224 > 0.0f) {
         gfx = POLY_OPA_DISP;
 
-        gSPSegment(&gfx[0], 0x08, func_8012CB28(play->state.gfxCtx, 0, this->unk_212));
+        MM_gSPSegment(&gfx[0], 0x08, func_8012CB28(play->state.gfxCtx, 0, this->unk_212));
 
         MM_Matrix_Translate(this->actor.focus.pos.x, this->actor.focus.pos.y, this->actor.focus.pos.z, MTXMODE_NEW);
         MM_Matrix_RotateZYX(this->unk_216, this->unk_218 + this->actor.shape.rot.y, 0, MTXMODE_APPLY);
         MM_Matrix_Scale(this->unk_220, this->unk_220, this->unk_224 * 0.0015f, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(&gfx[1], play->state.gfxCtx);
-        gSPDisplayList(&gfx[2], gBeamosLaserDL);
+        MM_gSPDisplayList(&gfx[2], gBeamosLaserDL);
 
         POLY_OPA_DISP = &gfx[3];
     }

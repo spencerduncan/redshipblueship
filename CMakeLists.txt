@@ -29,7 +29,13 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
     vcpkg_bootstrap()
     vcpkg_install_packages(zlib bzip2 libzip libpng sdl2 sdl2-net glew glfw3 nlohmann-json tinyxml2 spdlog libogg libvorbis opus opusfile)
     if (CMAKE_C_COMPILER_LAUNCHER MATCHES "ccache|sccache")
-        set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT Embedded)
+        # Use Embedded (/Z7) for Debug to work with ccache/sccache
+        # Skip debug info in Release to avoid 4GB COFF .lib limit
+        if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+            set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT Embedded)
+        else()
+            set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "")
+        endif()
     endif()
 endif()
 
@@ -213,10 +219,40 @@ if(SINGLE_EXECUTABLE_BUILD)
     include(CMake/SingleExecutable.cmake)
     # rsbs is still used for shared code
     add_subdirectory(rsbs)
-    # Games are built but NOT as shared libraries - they provide object libraries
-    # For now, we still add the subdirectories but they will check SINGLE_EXECUTABLE_BUILD
+    # Games are built as OBJECT libraries for linking into single exe
     add_subdirectory(games/oot)
     add_subdirectory(games/mm)
+
+    # Link game STATIC libraries into redship (must be done after games are added)
+    # Each game is split into 2 STATIC libs to stay under MSVC limits:
+    # - LNK1170: OBJECT libs expand all .obj paths (>131K chars)
+    # - LNK1248: single STATIC lib >4GB COFF limit
+    # Split into src (decompiled game code) + port (port-specific code) keeps each <4GB.
+    #
+    # Use --start-group/--end-group on Linux to resolve circular deps
+    # between game libs, OTRExporter, ZAPDLib, and libultraship.
+    if(UNIX AND NOT APPLE)
+        target_link_libraries(redship PRIVATE
+            -Wl,--start-group
+            ${SOH_STATIC_TARGETS} ${TWOSHIP_STATIC_TARGETS}
+            ${REDSHIP_LIBRARY_DEPS}
+            -Wl,--end-group
+        )
+    else()
+        # Windows: Use /FORCE:MULTIPLE to handle duplicate symbols from
+        # ZAPDLib_OoT and ZAPDLib_MM both bringing in OTRExporter variants.
+        # This is needed for ROM extraction at first launch.
+        # Note: IPO (/GL) is disabled for OTRExporter/ZAPDLib in single-exe mode
+        # because /GL is incompatible with /FORCE:MULTIPLE (causes LNK1179).
+        if(MSVC)
+            target_link_options(redship PRIVATE /FORCE:MULTIPLE)
+        endif()
+        target_link_libraries(redship PRIVATE
+            ${SOH_STATIC_TARGETS} ${TWOSHIP_STATIC_TARGETS}
+            ${REDSHIP_LIBRARY_DEPS}
+        )
+    endif()
+    message(STATUS "Linking OoT (${SOH_STATIC_TARGETS}) and MM (${TWOSHIP_STATIC_TARGETS}) into redship")
 else()
     # Dynamic library architecture (combo/ approach)
     add_subdirectory(combo)
@@ -231,8 +267,11 @@ else()
 endif()
 
 if("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
-install(TARGETS soh LIBRARY DESTINATION . COMPONENT ship)
-install(TARGETS 2ship LIBRARY DESTINATION . COMPONENT ship)
+if(NOT SINGLE_EXECUTABLE_BUILD)
+    # soh/2ship are STATIC libraries in single-exe mode, not installable
+    install(TARGETS soh LIBRARY DESTINATION . COMPONENT ship)
+    install(TARGETS 2ship LIBRARY DESTINATION . COMPONENT ship)
+endif()
 install(FILES "${CMAKE_BINARY_DIR}/soh/soh.o2r" DESTINATION . COMPONENT ship)
 install(TARGETS ZAPD_OoT DESTINATION ./assets/extractor COMPONENT extractor)
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/games/oot/assets/extractor/" DESTINATION ./assets COMPONENT extractor)

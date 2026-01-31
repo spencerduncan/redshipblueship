@@ -57,7 +57,7 @@ void TransitionTile_InitGraphics(TransitionTile* this) {
 
     guMtxIdent(&this->modelView);
     guMtxIdent(&this->unk_98);
-    guOrtho(&this->projection, 0.0f, SCREEN_WIDTH, SCREEN_HEIGHT, 0.0f, -1000.0f, 1000.0f, 1.0f);
+    MM_guOrtho(&this->projection, 0.0f, SCREEN_WIDTH, SCREEN_HEIGHT, 0.0f, -1000.0f, 1000.0f, 1.0f);
 
     for (frame = 0; frame < 2; frame++) {
         this->frame = frame;
@@ -75,7 +75,7 @@ void TransitionTile_InitGraphics(TransitionTile* this) {
 
     gfx = this->gfx;
     for (rowTex = 0, row = 0; row < this->rows; row++, rowTex += 0x20) {
-        gSPVertex(gfx++, SEGMENT_ADDR(0xA, (u32)row * (this->cols + 1) * sizeof(Vtx)), 2 * (this->cols + 1), 0);
+        MM_gSPVertex(gfx++, SEGMENT_ADDR(0xA, (u32)row * (this->cols + 1) * sizeof(Vtx)), 2 * (this->cols + 1), 0);
 
         colTex = 0;
         col2 = 0;
@@ -191,14 +191,14 @@ void TransitionTile_SetVtx(TransitionTile* this) {
 void TransitionTile_Draw(TransitionTile* this, Gfx** gfxP) {
     Gfx* gfx = *gfxP;
 
-    gSPDisplayList(gfx++, sTransTileSetupDL);
+    MM_gSPDisplayList(gfx++, sTransTileSetupDL);
     TransitionTile_SetVtx(this);
     gSPMatrix(gfx++, &this->projection, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_PROJECTION);
     gSPMatrix(gfx++, &this->modelView, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-    gSPSegment(gfx++, 0xA, this->frame == 0 ? this->vtxFrame1 : this->vtxFrame2);
-    gSPSegment(gfx++, 0xB, this->zBuffer);
-    gSPDisplayList(gfx++, sTransTileSetupDL);
-    gSPDisplayList(gfx++, this->gfx);
+    MM_gSPSegment(gfx++, 0xA, this->frame == 0 ? this->vtxFrame1 : this->vtxFrame2);
+    MM_gSPSegment(gfx++, 0xB, this->zBuffer);
+    MM_gSPDisplayList(gfx++, sTransTileSetupDL);
+    MM_gSPDisplayList(gfx++, this->gfx);
     gDPPipeSync(gfx++);
     this->frame ^= 1;
     *gfxP = gfx;

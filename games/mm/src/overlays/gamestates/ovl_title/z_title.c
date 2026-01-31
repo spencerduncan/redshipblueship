@@ -158,7 +158,7 @@ void ConsoleLogo_Draw(GameState* thisx) {
     MM_Matrix_RotateZYX(0, sTitleRotation, 0, MTXMODE_APPLY);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, this->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, gNintendo64LogoNDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gNintendo64LogoNDL);
 
     Gfx_SetupDL39_Opa(this->state.gfxCtx);
 
@@ -203,7 +203,7 @@ void ConsoleLogo_Main(GameState* thisx) {
 
     OPEN_DISPS(this->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x01, this->staticSegment);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x01, this->staticSegment);
 
     ConsoleLogo_UpdateCounters(this);
     FrameInterpolation_StartRecord();

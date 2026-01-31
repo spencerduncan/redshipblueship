@@ -278,7 +278,7 @@ void FlagSet_Draw(GameState* gameState) {
 
     polyOpa = POLY_OPA_DISP;
     gfx = MM_Graph_GfxPlusOne(polyOpa);
-    gSPDisplayList(OVERLAY_DISP++, gfx);
+    MM_gSPDisplayList(OVERLAY_DISP++, gfx);
 
     MM_GfxPrint_Init(&printer);
     MM_GfxPrint_Open(&printer, gfx);

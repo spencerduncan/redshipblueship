@@ -383,12 +383,12 @@ void ObjChan_Draw(Actor* thisx, PlayState* play) {
 
     opa = MM_Gfx_SetupDL(POLY_OPA_DISP, SETUPDL_25);
     MATRIX_FINALIZE_AND_LOAD(&opa[0], play->state.gfxCtx);
-    gSPDisplayList(&opa[1], gChandelierCenterDL);
+    MM_gSPDisplayList(&opa[1], gChandelierCenterDL);
     POLY_OPA_DISP = &opa[2];
 
     xlu = Gfx_SetupDL71(POLY_XLU_DISP);
     MATRIX_FINALIZE_AND_LOAD(&xlu[0], play->state.gfxCtx);
-    gSPDisplayList(&xlu[1], gChandelierPotHolderDL);
+    MM_gSPDisplayList(&xlu[1], gChandelierPotHolderDL);
     POLY_XLU_DISP = &xlu[2];
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -409,7 +409,7 @@ void ObjChan_DrawPot(Actor* thisx, PlayState* play) {
 
     dl = MM_Gfx_SetupDL(POLY_OPA_DISP, SETUPDL_25);
     MATRIX_FINALIZE_AND_LOAD(&dl[0], play->state.gfxCtx);
-    gSPDisplayList(&dl[1], gChandelierPotDL);
+    MM_gSPDisplayList(&dl[1], gChandelierPotDL);
     POLY_OPA_DISP = &dl[2];
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -435,10 +435,10 @@ void ObjChan_DrawFire(ObjChan* this, PlayState* play) {
 
     dl = Gfx_SetupDL71(POLY_XLU_DISP);
     MATRIX_FINALIZE_AND_LOAD(&dl[0], play->state.gfxCtx);
-    gSPSegment(&dl[1], 0x08, MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 32, 64, 1, 0, -sp4C * 20, 32, 128));
+    MM_gSPSegment(&dl[1], 0x08, MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 32, 64, 1, 0, -sp4C * 20, 32, 128));
     gDPSetPrimColor(&dl[2], 128, 128, 255, 255, 0, 255);
     gDPSetEnvColor(&dl[3], 255, 0, 0, 0);
-    gSPDisplayList(&dl[4], gEffFire1DL);
+    MM_gSPDisplayList(&dl[4], gEffFire1DL);
     POLY_XLU_DISP = &dl[5];
 
     CLOSE_DISPS(play->state.gfxCtx);
