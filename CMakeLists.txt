@@ -242,9 +242,10 @@ if(SINGLE_EXECUTABLE_BUILD)
         # Windows: Use /FORCE:MULTIPLE to handle duplicate symbols from
         # ZAPDLib_OoT and ZAPDLib_MM both bringing in OTRExporter variants.
         # This is needed for ROM extraction at first launch.
-        # /LTCG required because OTRExporter is compiled with /GL (whole program opt)
+        # Note: IPO (/GL) is disabled for OTRExporter/ZAPDLib in single-exe mode
+        # because /GL is incompatible with /FORCE:MULTIPLE (causes LNK1179).
         if(MSVC)
-            target_link_options(redship PRIVATE /FORCE:MULTIPLE /LTCG)
+            target_link_options(redship PRIVATE /FORCE:MULTIPLE)
         endif()
         target_link_libraries(redship PRIVATE
             ${SOH_STATIC_TARGETS} ${TWOSHIP_STATIC_TARGETS}
