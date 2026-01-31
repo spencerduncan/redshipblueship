@@ -57,6 +57,8 @@ RUN apt-get update && apt-get install -y \
     # Tools
     ccache \
     curl \
+    lsb-release \
+    imagemagick \
     && rm -rf /var/lib/apt/lists/*
 
 # Create build directory for dependencies
