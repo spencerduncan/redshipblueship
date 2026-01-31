@@ -350,10 +350,18 @@ jobs:
       id: restore-cache-vcpkg
       uses: actions/cache/restore@v4
       with:
-        key: ${{ runner.os }}-vcpkg-v1-${{ hashFiles('CMakeLists.txt') }}
+        key: ${{ runner.os }}-vcpkg-v2-${{ hashFiles('CMakeLists.txt') }}
         restore-keys: |
-          ${{ runner.os }}-vcpkg-v1-
+          ${{ runner.os }}-vcpkg-v2-
         path: vcpkg
+    # Enable vcpkg binary caching to avoid recompiling packages
+    - name: Setup vcpkg binary cache
+      uses: actions/cache@v4
+      with:
+        key: ${{ runner.os }}-vcpkg-binary-v1-${{ hashFiles('CMakeLists.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-vcpkg-binary-v1-
+        path: ${{ github.workspace }}/vcpkg-binary-cache
     - name: Configure Developer Command Prompt
       uses: ilammy/msvc-dev-cmd@v1
     - name: Download soh.o2r
@@ -364,6 +372,8 @@ jobs:
     - name: Build SoH
       env:
         VCPKG_ROOT: ${{github.workspace}}/vcpkg
+        # Enable vcpkg binary caching - skips compilation if binaries exist
+        VCPKG_BINARY_SOURCES: "clear;files,${{github.workspace}}/vcpkg-binary-cache,readwrite"
       run: |
         set $env:PATH="$env:USERPROFILE/.cargo/bin;$env:PATH"
         cmake -S . -B bw -G Ninja -DCMAKE_MAKE_PROGRAM=ninja -DCMAKE_BUILD_TYPE:STRING=Release -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache -DBUILD_REMOTE_CONTROL=1 -DREDSHIP_BUILD_SHARED=ON
@@ -372,6 +382,9 @@ jobs:
         (cd bw && cpack)
         cd ..
         mv _packages/*.zip _packages/rsbs-windows.zip
+    - name: Show sccache statistics
+      if: always()
+      run: sccache --show-stats
     - name: Unzip package
       run: Expand-Archive -Path _packages/rsbs-windows.zip -DestinationPath rsbs-windows
     - name: Upload build
@@ -383,5 +396,5 @@ jobs:
       if: ${{ github.ref_name == github.event.repository.default_branch }}
       uses: actions/cache/save@v4
       with:
-        key: ${{ runner.os }}-vcpkg-v1-${{ hashFiles('CMakeLists.txt') }}
+        key: ${{ runner.os }}-vcpkg-v2-${{ hashFiles('CMakeLists.txt') }}
         path: vcpkg

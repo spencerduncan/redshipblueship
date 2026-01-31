@@ -114,7 +114,19 @@ macro(vcpkg_bootstrap)
 endmacro()
 
 macro(_install_or_update_vcpkg)
-    if(NOT EXISTS ${VCPKG_ROOT})
+    if(WIN32)
+        set(VCPKG_EXEC ${VCPKG_ROOT}/vcpkg.exe)
+        set(VCPKG_BOOTSTRAP ${VCPKG_ROOT}/bootstrap-vcpkg.bat)
+    else()
+        set(VCPKG_EXEC ${VCPKG_ROOT}/vcpkg)
+        set(VCPKG_BOOTSTRAP ${VCPKG_ROOT}/bootstrap-vcpkg.sh)
+    endif()
+
+    # Skip clone/update if vcpkg executable already exists (from cache)
+    # This saves significant time in CI when vcpkg folder is restored from cache
+    if(EXISTS ${VCPKG_EXEC})
+        message(STATUS "Using cached vcpkg at ${VCPKG_ROOT}")
+    elseif(NOT EXISTS ${VCPKG_ROOT})
         message(STATUS "Cloning vcpkg in ${VCPKG_ROOT}")
         execute_process(COMMAND git clone https://github.com/Microsoft/vcpkg.git ${VCPKG_ROOT} --depth 1)
 
@@ -122,21 +134,12 @@ macro(_install_or_update_vcpkg)
         # following line and pin the vcpkg repository to a specific githash.
         # execute_process(COMMAND git checkout 745a0aea597771a580d0b0f4886ea1e3a94dbca6 WORKING_DIRECTORY ${VCPKG_ROOT})
     else()
-        # The following command has no effect if the vcpkg repository is in a detached head state.
-        message(STATUS "Auto-updating vcpkg in ${VCPKG_ROOT}")
-        execute_process(COMMAND git pull WORKING_DIRECTORY ${VCPKG_ROOT})
+        # vcpkg folder exists but no executable - need to bootstrap
+        message(STATUS "vcpkg folder exists but needs bootstrap")
     endif()
 
-    if(NOT EXISTS ${VCPKG_ROOT}/README.md)
+    if(NOT EXISTS ${VCPKG_ROOT}/README.md AND NOT EXISTS ${VCPKG_EXEC})
         message(FATAL_ERROR "***** FATAL ERROR: Could not clone vcpkg *****")
-    endif()
-
-    if(WIN32)
-        set(VCPKG_EXEC ${VCPKG_ROOT}/vcpkg.exe)
-        set(VCPKG_BOOTSTRAP ${VCPKG_ROOT}/bootstrap-vcpkg.bat)
-    else()
-        set(VCPKG_EXEC ${VCPKG_ROOT}/vcpkg)
-        set(VCPKG_BOOTSTRAP ${VCPKG_ROOT}/bootstrap-vcpkg.sh)
     endif()
 
     if(NOT EXISTS ${VCPKG_EXEC})
@@ -147,25 +150,44 @@ macro(_install_or_update_vcpkg)
     if(NOT EXISTS ${VCPKG_EXEC})
         message(FATAL_ERROR "***** FATAL ERROR: Could not bootstrap vcpkg *****")
     endif()
-   
+
 endmacro()
 
 # Installs the list of packages given as parameters using Vcpkg
 macro(vcpkg_install_packages)
-    
-    # Need the given list to be space-separated
-    #string (REPLACE ";" " " PACKAGES_LIST_STR "${ARGN}")
-
-    message(STATUS "Installing/Updating the following vcpkg-packages: ${PACKAGES_LIST_STR}")
+    # Check if all packages are already installed by looking for the vcpkg_installed directory
+    # This is a fast check that can save significant time in CI when packages are cached
+    set(_VCPKG_INSTALLED_DIR "${VCPKG_ROOT}/installed")
+    set(_VCPKG_PACKAGES_INSTALLED TRUE)
 
     if (VCPKG_TRIPLET)
         set(ENV{VCPKG_DEFAULT_TRIPLET} "${VCPKG_TRIPLET}")
+        set(_TRIPLET_DIR "${_VCPKG_INSTALLED_DIR}/${VCPKG_TRIPLET}")
+    else()
+        set(_TRIPLET_DIR "${_VCPKG_INSTALLED_DIR}/x64-windows")
+    endif()
+
+    # Quick check: if the triplet directory doesn't exist, we need to install
+    if(NOT EXISTS "${_TRIPLET_DIR}/lib" OR NOT EXISTS "${_TRIPLET_DIR}/include")
+        set(_VCPKG_PACKAGES_INSTALLED FALSE)
+    endif()
+
+    if(_VCPKG_PACKAGES_INSTALLED)
+        message(STATUS "vcpkg packages appear to be installed (found ${_TRIPLET_DIR})")
+        message(STATUS "Running vcpkg install to verify/update packages (uses binary cache)...")
+    else()
+        message(STATUS "Installing vcpkg packages: ${ARGN}")
     endif()
 
     execute_process(
         COMMAND ${VCPKG_EXEC} install ${ARGN}
         WORKING_DIRECTORY ${VCPKG_ROOT}
-        )
+        RESULT_VARIABLE _VCPKG_INSTALL_RESULT
+    )
+
+    if(NOT _VCPKG_INSTALL_RESULT EQUAL 0)
+        message(WARNING "vcpkg install returned non-zero: ${_VCPKG_INSTALL_RESULT}")
+    endif()
 endmacro()
     
 # MIT License
