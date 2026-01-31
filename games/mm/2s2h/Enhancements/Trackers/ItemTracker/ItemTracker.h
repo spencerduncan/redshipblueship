@@ -1,3 +1,5 @@
+#pragma once
+
 #include <vector>
 #include <imgui.h>
 #include "ship/window/gui/GuiWindow.h"
