@@ -229,13 +229,14 @@ if(SINGLE_EXECUTABLE_BUILD)
     # - LNK1248: single STATIC lib >4GB COFF limit
     # Split into src (decompiled game code) + port (port-specific code) keeps each <4GB.
     #
-    # Use CMake's LINK_GROUP with RESCAN to resolve circular deps between
-    # game libs, OTRExporter, ZAPDLib, and libultraship. This is better than
-    # manual --start-group because it captures transitive deps like ZAPDLib's
-    # PUBLIC --whole-archive on OTRExporter.
+    # Use --start-group/--end-group on Linux to resolve circular deps
+    # between game libs, OTRExporter, ZAPDLib, and libultraship.
     if(UNIX AND NOT APPLE)
         target_link_libraries(redship PRIVATE
-            "$<LINK_GROUP:RESCAN,${SOH_STATIC_TARGETS},${TWOSHIP_STATIC_TARGETS},${REDSHIP_LIBRARY_DEPS}>"
+            -Wl,--start-group
+            ${SOH_STATIC_TARGETS} ${TWOSHIP_STATIC_TARGETS}
+            ${REDSHIP_LIBRARY_DEPS}
+            -Wl,--end-group
         )
     else()
         # Windows: Use /FORCE:MULTIPLE to handle duplicate symbols from

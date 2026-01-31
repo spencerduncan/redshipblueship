@@ -117,16 +117,19 @@ endif()
 # after the objects that reference them).
 # Store them in a variable for the root CMakeLists.txt to use.
 #
-# NOTE: ZAPDLib links OTRExporter with --whole-archive as a PUBLIC dependency.
-# This creates circular deps that require both variants on Linux for proper
-# symbol resolution. On Windows, this causes duplicate symbols (LNK2005) which
-# we handle with /FORCE:MULTIPLE.
+# NOTE: Both ZAPDLib and OTRExporter variants are needed for ROM extraction:
+# - OTRExporter_OoT extracts OoT ROM assets
+# - OTRExporter_MM extracts MM ROM assets
+# On Windows, duplicate symbols are handled with /FORCE:MULTIPLE (safe because
+# the variants only differ by compile-time GAME_OOT/GAME_MM defines).
 set(REDSHIP_LIBRARY_DEPS
     redship_common
     rsbs
     libultraship
     ZAPDLib_OoT
     ZAPDLib_MM
+    OTRExporter_OoT
+    OTRExporter_MM
     Ogg::ogg
     Vorbis::vorbis
     Vorbis::vorbisfile
