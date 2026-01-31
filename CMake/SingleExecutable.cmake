@@ -127,6 +127,7 @@ set(REDSHIP_LIBRARY_DEPS
     rsbs
     libultraship
     ZAPDLib_OoT
+    OTRExporter_OoT
     Ogg::ogg
     Vorbis::vorbis
     Vorbis::vorbisfile
