@@ -117,19 +117,16 @@ endif()
 # after the objects that reference them).
 # Store them in a variable for the root CMakeLists.txt to use.
 #
-# NOTE: ZAPDLib links OTRExporter with --whole-archive, and OTRExporter depends
-# on BinaryWriter from ZAPDLib (circular dependency). To resolve this on Linux,
-# we need ZAPDLib variants and ONE OTRExporter variant in the same link group.
-# We only link ONE OTRExporter because both variants have identical symbols
-# (only differ by compile-time GAME_OOT/GAME_MM defines) and would cause
-# duplicate symbol errors (LNK2005) on Windows.
+# NOTE: ZAPDLib links OTRExporter with --whole-archive as a PUBLIC dependency.
+# For single-exe builds, we only need ONE ZAPDLib variant because:
+# 1. OTRExporter is only used for asset extraction, not runtime
+# 2. Both ZAPDLib variants would bring duplicate OTRExporter symbols (LNK2005)
+# 3. The ZAPDLib code is identical between variants at link time
 set(REDSHIP_LIBRARY_DEPS
     redship_common
     rsbs
     libultraship
     ZAPDLib_OoT
-    ZAPDLib_MM
-    OTRExporter_OoT
     Ogg::ogg
     Vorbis::vorbis
     Vorbis::vorbisfile
