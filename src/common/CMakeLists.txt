@@ -15,6 +15,7 @@ set(COMMON_SOURCES
     game.c
     context.cpp
     entrance.cpp
+    game_lifecycle.c
     test_runner.cpp
     game_stubs.cpp
 )
@@ -23,6 +24,7 @@ set(COMMON_HEADERS
     game.h
     context.h
     entrance.h
+    game_lifecycle.h
     test_runner.h
 )
 
