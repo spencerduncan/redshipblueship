@@ -119,7 +119,10 @@ endif()
 #
 # NOTE: ZAPDLib links OTRExporter with --whole-archive, and OTRExporter depends
 # on BinaryWriter from ZAPDLib (circular dependency). To resolve this on Linux,
-# we need both ZAPDLib variants and OTRExporter variants in the same link group.
+# we need ZAPDLib variants and ONE OTRExporter variant in the same link group.
+# We only link ONE OTRExporter because both variants have identical symbols
+# (only differ by compile-time GAME_OOT/GAME_MM defines) and would cause
+# duplicate symbol errors (LNK2005) on Windows.
 set(REDSHIP_LIBRARY_DEPS
     redship_common
     rsbs
@@ -127,7 +130,6 @@ set(REDSHIP_LIBRARY_DEPS
     ZAPDLib_OoT
     ZAPDLib_MM
     OTRExporter_OoT
-    OTRExporter_MM
     Ogg::ogg
     Vorbis::vorbis
     Vorbis::vorbisfile
