@@ -279,13 +279,13 @@ void ObjTokeiStep_DrawOpen(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     gfx = POLY_OPA_DISP;
-    gSPDisplayList(gfx++, gSetupDLs[SETUPDL_25]);
+    MM_gSPDisplayList(gfx++, gSetupDLs[SETUPDL_25]);
 
     for (i = 0; i < ARRAY_COUNT(this->panels); i++) {
         panel = &this->panels[i];
         ObjTokeiStep_SetMatrixTranslation(panel);
         MATRIX_FINALIZE_AND_LOAD(gfx++, play->state.gfxCtx);
-        gSPDisplayList(gfx++, gClocktowerPanelDL);
+        MM_gSPDisplayList(gfx++, gClocktowerPanelDL);
     }
     POLY_OPA_DISP = gfx;
 

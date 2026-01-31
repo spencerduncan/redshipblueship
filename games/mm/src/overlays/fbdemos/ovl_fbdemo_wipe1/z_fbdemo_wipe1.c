@@ -42,8 +42,8 @@ void TransitionWipe1_Start(void* thisx) {
         this->texY = (s32)(153.0f * (1 << 2));
     }
 
-    guPerspective(&this->projection, &this->normal, 60.0f, (4.0f / 3.0f), 10.0f, 12800.0f, 1.0f);
-    guLookAt(&this->lookAt, 0.0f, 0.0f, 400.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
+    MM_guPerspective(&this->projection, &this->normal, 60.0f, (4.0f / 3.0f), 10.0f, 12800.0f, 1.0f);
+    MM_guLookAt(&this->lookAt, 0.0f, 0.0f, 400.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
 }
 
 void* TransitionWipe1_Init(void* thisx) {
@@ -85,11 +85,11 @@ void TransitionWipe1_Draw(void* thisx, Gfx** gfxP) {
     this->frame ^= 1;
 
     guScale(&modelView[0], 0.56f, 0.56f, 1.0f);
-    guRotate(&modelView[1], 0.0f, 0.0f, 0.0f, 1.0f);
+    MM_guRotate(&modelView[1], 0.0f, 0.0f, 0.0f, 1.0f);
     guTranslate(&modelView[2], 0.0f, 0.0f, 0.0f);
     gDPPipeSync(gfx++);
     texScroll = MM_Gfx_BranchTexScroll(&gfx, this->texX, this->texY, 0, 0);
-    gSPSegment(gfx++, 8, texScroll);
+    MM_gSPSegment(gfx++, 8, texScroll);
     gDPSetPrimColor(gfx++, 0, 0x80, this->primColor.r, this->primColor.g, this->primColor.b, 255);
     gSPMatrix(gfx++, &this->projection, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_PROJECTION);
     gSPPerspNormalize(gfx++, this->normal);
@@ -97,7 +97,7 @@ void TransitionWipe1_Draw(void* thisx, Gfx** gfxP) {
     gSPMatrix(gfx++, &modelView[0], G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     gSPMatrix(gfx++, &modelView[1], G_MTX_NOPUSH | G_MTX_MUL | G_MTX_MODELVIEW);
     gSPMatrix(gfx++, &modelView[2], G_MTX_NOPUSH | G_MTX_MUL | G_MTX_MODELVIEW);
-    gSPDisplayList(gfx++, sTransWipe1DL);
+    MM_gSPDisplayList(gfx++, sTransWipe1DL);
     gDPPipeSync(gfx++);
     *gfxP = gfx;
 }

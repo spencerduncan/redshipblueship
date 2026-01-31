@@ -54,7 +54,7 @@ void MM_EffectSsIceSmoke_Draw(PlayState* play, u32 index, EffectSs* this) {
 
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 195, 235, 235, this->rAlpha);
-    gSPSegment(POLY_XLU_DISP++, 0x08,
+    MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, this->rScrollX * this->life, this->rScrollY * this->life, 0x20,
                                 0x40, 1, 0, 0, 0x20, 0x20));
     MM_Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
@@ -64,7 +64,7 @@ void MM_EffectSsIceSmoke_Draw(PlayState* play, u32 index, EffectSs* this) {
     mtx = Matrix_Finalize(play->state.gfxCtx);
     if (mtx != NULL) {
         gSPMatrix(POLY_XLU_DISP++, mtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-        gSPDisplayList(POLY_XLU_DISP++, gEffIceSmokeDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gEffIceSmokeDL);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);

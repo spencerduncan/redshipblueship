@@ -200,7 +200,7 @@ void EnEstone_Draw(Actor* thisx, PlayState* play2) {
         gDPSetPrimColor(POLY_OPA_DISP++, 0, 0x80, 255, 255, 255, 255);
         gDPSetEnvColor(POLY_OPA_DISP++, 255, 255, 255, 255);
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, gEyegoreStoneDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, gEyegoreStoneDL);
 
         CLOSE_DISPS(play->state.gfxCtx);
 
@@ -276,7 +276,7 @@ void EnEstone_DrawEffects(EnEstone* this, PlayState* play) {
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, gfxCtx);
             gDPSetPrimColor(POLY_OPA_DISP++, 0x00, 0x80, 255, 255, 255, 255);
             gDPSetEnvColor(POLY_OPA_DISP++, 255, 255, 255, 255);
-            gSPDisplayList(POLY_OPA_DISP++, gameplay_keep_DL_06AB30);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gameplay_keep_DL_06AB30);
             FrameInterpolation_RecordCloseChild();
         }
     }

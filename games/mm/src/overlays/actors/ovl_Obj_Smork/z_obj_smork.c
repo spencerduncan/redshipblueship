@@ -121,11 +121,11 @@ void func_80A3D9C4(ObjSmork* this, PlayState* play) {
         // 2S2H [Port] Opting to use correct XLU setup for proper rendering
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
-        gSPSegment(POLY_XLU_DISP++, 0x08,
+        MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                    MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, sp57, 0x20, 0x20, 1, 0, sp56, 0x20, 0x20));
-        gSPSegment(POLY_XLU_DISP++, 0x09, Lib_SegmentedToVirtual(this->unk_148));
+        MM_gSPSegment(POLY_XLU_DISP++, 0x09, Lib_SegmentedToVirtual(this->unk_148));
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, object_f53_obj_DL_001C00);
+        MM_gSPDisplayList(POLY_XLU_DISP++, object_f53_obj_DL_001C00);
 
         CLOSE_DISPS(play->state.gfxCtx);
     }

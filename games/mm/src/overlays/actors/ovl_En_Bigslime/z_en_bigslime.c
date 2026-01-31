@@ -607,7 +607,7 @@ void EnBigslime_UpdateBigslimeCollider(EnBigslime* this, PlayState* play) {
                 vtxRingMinY[i] = dynamicVtx->n.ob[1];
             }
 
-            xzDist = sqrtf(SQ(dynamicVtx->n.ob[0]) + SQ(dynamicVtx->n.ob[2]));
+            xzDist = MM_sqrtf(SQ(dynamicVtx->n.ob[0]) + SQ(dynamicVtx->n.ob[2]));
             if (vtxRingMaxXZDist[i] < xzDist) {
                 vtxRingMaxXZDist[i] = xzDist;
             }
@@ -1172,7 +1172,7 @@ void EnBigslime_SetTargetVtxToWideCone(EnBigslime* this) {
         for (j = sVtxRingStartIndex[i]; j < sVtxRingStartIndex[i + 1]; j++) {
             staticVtx = &sBigslimeStaticVtxData[j];
             targetVtx = &sBigslimeTargetVtxData[j];
-            xzDist = sqrtf(SQ(staticVtx->n.ob[0]) + SQ(staticVtx->n.ob[2]));
+            xzDist = MM_sqrtf(SQ(staticVtx->n.ob[0]) + SQ(staticVtx->n.ob[2]));
 
             if (xzDist > 1.0f) {
                 xzScaleVtx = (BIGSLIME_RADIUS_F / (5.0f * xzDist)) * i;
@@ -1191,7 +1191,7 @@ void EnBigslime_SetTargetVtxToWideCone(EnBigslime* this) {
         for (j = sVtxRingStartIndex[i]; j < sVtxRingStartIndex[i + 1]; j++) {
             staticVtx = &sBigslimeStaticVtxData[j];
             targetVtx = &sBigslimeTargetVtxData[j];
-            xzDist = sqrtf(SQ(staticVtx->n.ob[0]) + SQ(staticVtx->n.ob[2]));
+            xzDist = MM_sqrtf(SQ(staticVtx->n.ob[0]) + SQ(staticVtx->n.ob[2]));
             if (xzDist > 1.0f) {
                 xzScaleVtx = (BIGSLIME_RADIUS_F / (8.0f * xzDist)) * (14 - i);
             } else {
@@ -1304,7 +1304,7 @@ void EnBigslime_SetTargetVtxToThinCone(EnBigslime* this) {
         for (j = sVtxRingStartIndex[i]; j < sVtxRingStartIndex[i + 1]; j++) {
             staticVtx = &sBigslimeStaticVtxData[j];
             targetVtx = &sBigslimeTargetVtxData[j];
-            xzDistVtx = sqrtf(SQ(staticVtx->n.ob[0]) + SQ(staticVtx->n.ob[2]));
+            xzDistVtx = MM_sqrtf(SQ(staticVtx->n.ob[0]) + SQ(staticVtx->n.ob[2]));
             xzDistVtx = (BIGSLIME_RADIUS_F / (5.0f * xzDistVtx)) * i;
             // xzDistVtx is always less than 500.0f
             xzScaleVtx =
@@ -1377,7 +1377,7 @@ void EnBigslime_SetTargetVtxToInverseCone(EnBigslime* this) {
         for (j = sVtxRingStartIndex[i]; j < sVtxRingStartIndex[i + 1]; j++) {
             staticVtx = &sBigslimeStaticVtxData[j];
             targetVtx = &sBigslimeTargetVtxData[j];
-            xzDistVtx = sqrtf(SQ(staticVtx->n.ob[0]) + SQ(staticVtx->n.ob[2]));
+            xzDistVtx = MM_sqrtf(SQ(staticVtx->n.ob[0]) + SQ(staticVtx->n.ob[2]));
             xzDistVtx = (BIGSLIME_RADIUS_F / (6.0f * xzDistVtx)) * (BIGSLIME_NUM_RING_FACES - i);
             // xzDistVtx is always less than 500.0f
             xzScaleVtx =
@@ -2301,7 +2301,7 @@ void EnBigslime_FormBigslime(EnBigslime* this, PlayState* play) {
     }
 
     if (this->minislimeCounter > 0) {
-        yScaleFactor = sqrtf(this->minislimeCounter * (2.0f / 30.0f)) * 0.6f + 0.4f;
+        yScaleFactor = MM_sqrtf(this->minislimeCounter * (2.0f / 30.0f)) * 0.6f + 0.4f;
         xzScale = 0.15f * yScaleFactor;
         this->actor.scale.x = xzScale;
         this->actor.scale.y = 0.079f * yScaleFactor;
@@ -2712,7 +2712,7 @@ void EnBigslime_AddIceShardEffect(EnBigslime* this, PlayState* play) {
             randPitch = MM_Rand_S16Offset(0x1000, 0x3000);
             vtxZ = targetVtx->n.ob[2];
             vtxX = targetVtx->n.ob[0];
-            xzDist = sqrtf(SQ(vtxZ) + SQ(vtxX));
+            xzDist = MM_sqrtf(SQ(vtxZ) + SQ(vtxX));
             randFloat = MM_Rand_ZeroFloat(5.0f) + 14.0f;
             if (xzDist > 1.0f) {
                 xzDist = MM_Math_CosS(randPitch) * randFloat / xzDist;
@@ -2911,7 +2911,7 @@ void EnBigslime_SetSysMatrix(Vec3f* pos, PlayState* play, Gfx* shadowDList, f32 
 
     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 0, 0, 0, (u8)(alpha * zx));
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, shadowDList);
+    MM_gSPDisplayList(POLY_OPA_DISP++, shadowDList);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -2956,14 +2956,14 @@ void EnBigslime_DrawMinislime(EnBigslime* this, PlayState* play2) {
         MM_Matrix_Scale(minislime->actor.scale.x, minislime->actor.scale.y, minislime->actor.scale.z, MTXMODE_APPLY);
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0x80, 255, 255, 255, minislime->actor.shape.shadowAlpha);
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, &gMinislimeNormalDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, &gMinislimeNormalDL);
         if (minislime->frozenAlpha > 0) {
             MM_Matrix_Translate(0.0f, (0.1f - minislime->frozenScale) * -4000.0f, 0.0f, MTXMODE_APPLY);
             MM_Matrix_Scale(0.1f, minislime->frozenScale, 0.1f, MTXMODE_APPLY);
             AnimatedMat_Draw(play, this->minislimeFrozenTexAnim);
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0x80, 255, 255, 255, minislime->frozenAlpha);
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, &gMinislimeFrozenDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, &gMinislimeFrozenDL);
         }
 
         EnBigslime_SetSysMatrix(&minislime->actor.world.pos, play, gBigslimeShadowDL,
@@ -2996,18 +2996,18 @@ void EnBigslime_DrawBigslime(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     // Draw Bigslime
-    gSPSegment(POLY_XLU_DISP++, 0x09, sBigslimeDynamicVtxData[this->dynamicVtxState]);
+    MM_gSPSegment(POLY_XLU_DISP++, 0x09, sBigslimeDynamicVtxData[this->dynamicVtxState]);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, gBigslimeNormalMaterialDL);
-    gSPDisplayList(POLY_XLU_DISP++, gBigslimeModelDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gBigslimeNormalMaterialDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gBigslimeModelDL);
 
     // Draw frozen Bigslime
     if ((this->actionFunc == EnBigslime_Freeze) || (this->actionFunc == EnBigslime_FrozenGround) ||
         (this->actionFunc == EnBigslime_FrozenFall) || (this->actionFunc == EnBigslime_Melt)) {
         AnimatedMat_Draw(play, this->bigslimeFrozenTexAnim);
-        gSPSegment(POLY_XLU_DISP++, 0x09, sBigslimeTargetVtxData);
-        gSPDisplayList(POLY_XLU_DISP++, gBigslimeFrozenMaterialDL);
-        gSPDisplayList(POLY_XLU_DISP++, gBigslimeModelDL);
+        MM_gSPSegment(POLY_XLU_DISP++, 0x09, sBigslimeTargetVtxData);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gBigslimeFrozenMaterialDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gBigslimeModelDL);
     }
 
     // Draw bubbles inside Bigslime
@@ -3026,7 +3026,7 @@ void EnBigslime_DrawBigslime(Actor* thisx, PlayState* play) {
             billboardMtxF->zw =
                 dynamicVtx->n.ob[2] * this->actor.scale.z * bubblesInfoPtr->scaleVtx + this->actor.world.pos.z;
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, gBigslimeBubbleDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gBigslimeBubbleDL);
         }
     }
 
@@ -3151,18 +3151,18 @@ void EnBigslime_DrawShatteringEffects(EnBigslime* this, PlayState* play) {
     // Draw Shockwave
     if (this->shockwaveAlpha > 0) {
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 195, 225, 235, this->shockwaveAlpha);
-        gSPSegment(POLY_XLU_DISP++, 0x0D,
+        MM_gSPSegment(POLY_XLU_DISP++, 0x0D,
                    MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, play->gameplayFrames % 128, (u8)(play->gameplayFrames * 8),
                                     32, 64, 1, (-play->gameplayFrames * 2) % 64, 0, 16, 16));
         MM_Matrix_Translate(this->frozenPos.x, this->frozenPos.y, this->frozenPos.z, MTXMODE_NEW);
         MM_Matrix_Scale(this->shockwaveScale, this->shockwaveScale, this->shockwaveScale, MTXMODE_APPLY);
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gBigslimeShockwaveDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gBigslimeShockwaveDL);
     }
 
     // Draw Ice Shards
     AnimatedMat_Draw(play, this->iceShardTexAnim);
-    gSPDisplayList(POLY_XLU_DISP++, gBigslimeIceShardDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gBigslimeIceShardDL);
 
     for (i = 0; i < BIGSLIME_NUM_ICE_SHARD; i++) {
         iceShardEffect = &this->iceShardEffect[i];
@@ -3172,7 +3172,7 @@ void EnBigslime_DrawShatteringEffects(EnBigslime* this, PlayState* play) {
                                          &iceShardEffect->rot);
             MM_Matrix_Scale(iceShardEffect->scale, iceShardEffect->scale, iceShardEffect->scale, MTXMODE_APPLY);
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, gBigslimeIceShardVtxDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gBigslimeIceShardVtxDL);
         }
         FrameInterpolation_RecordCloseChild();
     }

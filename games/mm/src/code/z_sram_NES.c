@@ -2064,7 +2064,7 @@ void Sram_StartWriteToFlashDefault(SramContext* sramCtx) {
     // async flash write
     SysFlashrom_WriteDataAsync(sramCtx->saveBuf, sramCtx->curPage, sramCtx->numPages);
 
-    sramCtx->startWriteOsTime = osGetTime();
+    sramCtx->startWriteOsTime = MM_osGetTime();
     sramCtx->status = 2;
 }
 
@@ -2079,7 +2079,7 @@ void Sram_UpdateWriteToFlashDefault(SramContext* sramCtx) {
                 sramCtx->status = 4;
             }
         }
-    } else if (OSTIME_TO_TIMER(osGetTime() - sramCtx->startWriteOsTime) >=
+    } else if (OSTIME_TO_TIMER(MM_osGetTime() - sramCtx->startWriteOsTime) >=
                SECONDS_TO_TIMER(CVarGetInteger("gEnhancements.Saving.DisableSaveDelay", 0) ? 0 : 2)) {
         // 2S2H [Port] Some tricks require a save delay so we can't just force it to MM_zero
         // Finished status is hardcoded to 2 seconds instead of when the task finishes
@@ -2096,7 +2096,7 @@ void Sram_SetFlashPagesOwlSave(SramContext* sramCtx, s32 curPage, s32 numPages) 
 void Sram_StartWriteToFlashOwlSave(SramContext* sramCtx) {
     SysFlashrom_WriteDataAsync(sramCtx->saveBuf, sramCtx->curPage, sramCtx->numPages);
 
-    sramCtx->startWriteOsTime = osGetTime();
+    sramCtx->startWriteOsTime = MM_osGetTime();
     sramCtx->status = 7;
 }
 
@@ -2119,7 +2119,7 @@ void Sram_UpdateWriteToFlashOwlSave(SramContext* sramCtx) {
                 sramCtx->status = 4;
             }
         }
-    } else if (OSTIME_TO_TIMER(osGetTime() - sramCtx->startWriteOsTime) >=
+    } else if (OSTIME_TO_TIMER(MM_osGetTime() - sramCtx->startWriteOsTime) >=
                SECONDS_TO_TIMER(CVarGetInteger("gEnhancements.Saving.DisableSaveDelay", 0) ? 0 : 2)) {
         // 2S2H [Port] Some tricks require a save delay so we can't just force it to MM_zero
         // Finished status is hardcoded to 2 seconds instead of when the task finishes

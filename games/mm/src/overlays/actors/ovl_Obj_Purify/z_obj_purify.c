@@ -255,12 +255,12 @@ void func_80A851C8(Actor* thisx, PlayState* play) {
     if (opaDList != NULL) {
         Gfx_SetupDL25_Opa(play->state.gfxCtx);
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, opaDList);
+        MM_gSPDisplayList(POLY_OPA_DISP++, opaDList);
     }
     if (xluDList != NULL) {
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, xluDList);
+        MM_gSPDisplayList(POLY_XLU_DISP++, xluDList);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -290,7 +290,7 @@ void func_80A85304(Actor* thisx, PlayState* play) {
         AnimatedMat_Draw(play, Lib_SegmentedToVirtual(info->animMat[index]));
         ObjPurify_SetSysMatrix(this->unk168[index]);
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, info->xluDLists[index]);
+        MM_gSPDisplayList(POLY_XLU_DISP++, info->xluDLists[index]);
     };
 
     CLOSE_DISPS(play->state.gfxCtx);

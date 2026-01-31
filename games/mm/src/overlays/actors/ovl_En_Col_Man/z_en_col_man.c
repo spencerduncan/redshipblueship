@@ -238,7 +238,7 @@ void func_80AFE414(Actor* thisx, PlayState* play) {
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
     func_800B8118(&this->actor, play, 0);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, gHeartPieceInteriorDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gHeartPieceInteriorDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -253,9 +253,9 @@ void func_80AFE4AC(Actor* thisx, PlayState* play) {
 
     POLY_OPA_DISP = MM_Play_SetFog(play, POLY_OPA_DISP);
     POLY_OPA_DISP = Gfx_SetupDL66(POLY_OPA_DISP);
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(gDropRecoveryHeartTex));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(gDropRecoveryHeartTex));
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, gItemDropDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gItemDropDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -269,7 +269,7 @@ void func_80AFE584(Actor* thisx, PlayState* play) {
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0x80, 255, 255, 255, 255);
     gDPSetEnvColor(POLY_OPA_DISP++, 255, 255, 255, 255);
-    gSPDisplayList(POLY_OPA_DISP++, gameplay_keep_DL_06AB30);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gameplay_keep_DL_06AB30);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -281,9 +281,9 @@ void func_80AFE650(Actor* thisx, PlayState* play) {
 
     POLY_OPA_DISP = MM_Play_SetFog(play, POLY_OPA_DISP);
     POLY_OPA_DISP = Gfx_SetupDL66(POLY_OPA_DISP);
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(gDropBombTex));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(gDropBombTex));
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, gItemDropDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gItemDropDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

@@ -299,7 +299,7 @@ void ObjMine_Air_InitChain(ObjMine* this, s32 linkCount) {
 
     // Sets restoring force and drag. Longer chains have lower frequency and less drag.
     if (linkCount > 0) {
-        airChain->restore = -sqrtf((0.124992f / OBJMINE_CHAIN_MAX) / linkCountF);  // constant is close to 1/8
+        airChain->restore = -MM_sqrtf((0.124992f / OBJMINE_CHAIN_MAX) / linkCountF);  // constant is close to 1/8
         airChain->drag = 0.95f + ((0.02000004f / OBJMINE_CHAIN_MAX) * linkCountF); // constant is close to 1/50
     }
 
@@ -1105,8 +1105,8 @@ void ObjMine_Path_Draw(Actor* thisx, PlayState* play) {
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
     gDPSetRenderMode(POLY_OPA_DISP++, G_RM_PASS, G_RM_AA_ZB_OPA_SURF2);
     gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, 255);
-    gSPDisplayList(POLY_OPA_DISP++, object_ny_DL_002068);
-    gSPDisplayList(POLY_OPA_DISP++, object_ny_DL_002188);
+    MM_gSPDisplayList(POLY_OPA_DISP++, object_ny_DL_002068);
+    MM_gSPDisplayList(POLY_OPA_DISP++, object_ny_DL_002188);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -1122,7 +1122,7 @@ void ObjMine_DrawExplosion(Actor* thisx, PlayState* play) {
     gDPSetRenderMode(POLY_XLU_DISP++, G_RM_PASS, G_RM_AA_ZB_XLU_SURF2);
     gDPSetEnvColor(POLY_XLU_DISP++, 0, 0, 0, 75);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, object_ny_DL_002068);
+    MM_gSPDisplayList(POLY_XLU_DISP++, object_ny_DL_002068);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -1143,9 +1143,9 @@ void ObjMine_Air_Draw(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
     gfx = POLY_OPA_DISP;
 
-    gSPDisplayList(gfx++, &gSetupDLs[SETUPDL_25]);
+    MM_gSPDisplayList(gfx++, &gSetupDLs[SETUPDL_25]);
     MATRIX_FINALIZE_AND_LOAD(gfx++, play->state.gfxCtx);
-    gSPDisplayList(gfx++, object_ny_DL_000030);
+    MM_gSPDisplayList(gfx++, object_ny_DL_000030);
 
     ObjMine_SetMatrixRotation(&airChain->basis);
     MM_Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
@@ -1165,7 +1165,7 @@ void ObjMine_Air_Draw(Actor* thisx, PlayState* play) {
             ObjMine_SetMatrixTranslation(&linkPos);
 
             MATRIX_FINALIZE_AND_LOAD(gfx++, play->state.gfxCtx);
-            gSPDisplayList(gfx++, object_ny_DL_000030);
+            MM_gSPDisplayList(gfx++, object_ny_DL_000030);
         }
     }
 
@@ -1176,8 +1176,8 @@ void ObjMine_Air_Draw(Actor* thisx, PlayState* play) {
     gDPPipeSync(gfx++);
     gDPSetRenderMode(gfx++, G_RM_PASS, G_RM_AA_ZB_OPA_SURF2);
     gDPSetEnvColor(gfx++, 0, 0, 0, 255);
-    gSPDisplayList(gfx++, object_ny_DL_002068);
-    gSPDisplayList(gfx++, object_ny_DL_002188);
+    MM_gSPDisplayList(gfx++, object_ny_DL_002068);
+    MM_gSPDisplayList(gfx++, object_ny_DL_002188);
 
     POLY_OPA_DISP = gfx;
 
@@ -1198,9 +1198,9 @@ void ObjMine_Water_Draw(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
     gfx = POLY_OPA_DISP;
 
-    gSPDisplayList(gfx++, &gSetupDLs[SETUPDL_25]);
+    MM_gSPDisplayList(gfx++, &gSetupDLs[SETUPDL_25]);
     MATRIX_FINALIZE_AND_LOAD(gfx++, play->state.gfxCtx);
-    gSPDisplayList(gfx++, object_ny_DL_000030);
+    MM_gSPDisplayList(gfx++, object_ny_DL_000030);
 
     for (i = 0, waterLink = waterChain->links; i < linkCount; i++, waterLink++) {
         ObjMine_SetMatrixRotation(&waterLink->basis);
@@ -1212,7 +1212,7 @@ void ObjMine_Water_Draw(Actor* thisx, PlayState* play) {
         ObjMine_SetMatrixTranslation(&waterLink->pos);
 
         MATRIX_FINALIZE_AND_LOAD(gfx++, play->state.gfxCtx);
-        gSPDisplayList(gfx++, object_ny_DL_000030);
+        MM_gSPDisplayList(gfx++, object_ny_DL_000030);
     }
 
     Matrix_RotateXS(0x2000, MTXMODE_APPLY);
@@ -1222,8 +1222,8 @@ void ObjMine_Water_Draw(Actor* thisx, PlayState* play) {
     gDPPipeSync(gfx++);
     gDPSetRenderMode(gfx++, G_RM_PASS, G_RM_AA_ZB_OPA_SURF2);
     gDPSetEnvColor(gfx++, 0, 0, 0, 255);
-    gSPDisplayList(gfx++, object_ny_DL_002068);
-    gSPDisplayList(gfx++, object_ny_DL_002188);
+    MM_gSPDisplayList(gfx++, object_ny_DL_002068);
+    MM_gSPDisplayList(gfx++, object_ny_DL_002188);
 
     POLY_OPA_DISP = gfx;
 

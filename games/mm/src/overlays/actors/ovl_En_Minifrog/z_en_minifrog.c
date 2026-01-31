@@ -632,7 +632,7 @@ void EnMinifrog_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s*
 
         MM_Matrix_ReplaceRotation(&play->billboardMtxF);
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, *dList);
+        MM_gSPDisplayList(POLY_OPA_DISP++, *dList);
 
         CLOSE_DISPS(play->state.gfxCtx);
     }
@@ -658,8 +658,8 @@ void EnMinifrog_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
     envColor = &sFrogEnvColors[this->frogIndex];
-    gSPSegment(POLY_OPA_DISP++, 0x08, MM_sEyeTextures[0]);
-    gSPSegment(POLY_OPA_DISP++, 0x09, MM_sEyeTextures[0]);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, MM_sEyeTextures[0]);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x09, MM_sEyeTextures[0]);
     gDPSetEnvColor(POLY_OPA_DISP++, envColor->r, envColor->g, envColor->b, envColor->a);
     MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           EnMinifrog_OverrideLimbDraw, EnMinifrog_PostLimbDraw, &this->actor);

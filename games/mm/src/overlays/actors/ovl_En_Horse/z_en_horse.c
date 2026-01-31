@@ -3680,7 +3680,7 @@ void MM_EnHorse_MountDismount(EnHorse* this, PlayState* play) {
 }
 
 void MM_EnHorse_StickDirection(Vec2f* curStick, f32* stickMag, s16* angle) {
-    *stickMag = sqrtf(SQ(curStick->x) + SQ(curStick->z));
+    *stickMag = MM_sqrtf(SQ(curStick->x) + SQ(curStick->z));
     *stickMag = CLAMP_MAX(*stickMag, 60.0f);
     *angle = MM_Math_Atan2S(-curStick->x, curStick->z);
 }
@@ -3709,7 +3709,7 @@ void MM_EnHorse_ResolveCollision(EnHorse* this, PlayState* play, CollisionPoly* 
     if (!(MM_Math_CosS(BINANG_ROT180(this->actor.world.rot.y - MM_Math_Atan2S(colPoly->normal.x, colPoly->normal.z))) <
           0.7071f)) { // cos(45 degrees)
         dist = MM_Math3D_DistPlaneToPos(nx, ny, nz, colPoly->dist, &this->actor.world.pos);
-        offset = (1.0f / sqrtf(SQ(nx) + SQ(nz)));
+        offset = (1.0f / MM_sqrtf(SQ(nx) + SQ(nz)));
         offset = (30.0f - dist) * offset;
         this->actor.world.pos.x += offset * nx;
         this->actor.world.pos.z += offset * nz;
@@ -3833,7 +3833,7 @@ void MM_EnHorse_UpdateBgCheckInfo(EnHorse* this, PlayState* play) {
 
     if (MM_BgCheck_EntityLineTest1(&play->colCtx, &startPos, &endPos, &intersect, &wall, true, false, false, true,
                                 &bgId) == true) {
-        intersectDist = sqrtf(MM_Math3D_Vec3fDistSq(&startPos, &intersect));
+        intersectDist = MM_sqrtf(MM_Math3D_Vec3fDistSq(&startPos, &intersect));
         this->stateFlags |= ENHORSE_OBSTACLE;
     }
 
@@ -4679,7 +4679,7 @@ s32 MM_EnHorse_OverrideLimbDraw(Actor* thisx, PlayState* play, s32 limbIndex, Sk
         if ((limbIndex == 13) && (this->type == HORSE_TYPE_2)) {
             u8 idx = D_80889210[this->blinkTimer];
 
-            gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(D_80889204[idx]));
+            MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(D_80889204[idx]));
         } else if ((this->type == HORSE_TYPE_HNI) && (this->stateFlags & ENHORSE_FLAG_18) && (limbIndex == 30)) {
             drawOriginalLimb = false;
         }

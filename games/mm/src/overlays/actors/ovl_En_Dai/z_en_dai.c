@@ -72,7 +72,7 @@ void func_80B3E168(EnDaiEffect* effect, PlayState* play2) {
             gDPPipeSync(POLY_XLU_DISP++);
 
             if (!isDisplayListSet) {
-                gSPDisplayList(POLY_XLU_DISP++, object_dai_DL_000230);
+                MM_gSPDisplayList(POLY_XLU_DISP++, object_dai_DL_000230);
                 isDisplayListSet = true;
             }
 
@@ -83,7 +83,7 @@ void func_80B3E168(EnDaiEffect* effect, PlayState* play2) {
 
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 195, 225, 235, (u8)alpha);
 
-            gSPSegment(POLY_XLU_DISP++, 0x08,
+            MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                        MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, (effect->unk_02 + (i * 3)) * 3,
                                         (effect->unk_02 + (i * 3)) * 15, 0x20, 0x40, 1, 0, 0, 0x20, 0x20));
 
@@ -92,7 +92,7 @@ void func_80B3E168(EnDaiEffect* effect, PlayState* play2) {
             MM_Matrix_Scale(effect->unk_34, effect->unk_34, 1.0f, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, object_dai_DL_0002E8);
+            MM_gSPDisplayList(POLY_XLU_DISP++, object_dai_DL_0002E8);
 
             MM_Matrix_Pop();
             FrameInterpolation_RecordCloseChild();
@@ -710,7 +710,7 @@ void func_80B3F78C(EnDai* this, PlayState* play) {
     Scene_SetRenderModeXlu(play, 2, 2);
 
     gDPSetEnvColor(POLY_XLU_DISP++, 0, 0, 0, 255);
-    gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(D_80B3FE58[this->unk_1D6]));
+    MM_gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(D_80B3FE58[this->unk_1D6]));
 
     POLY_XLU_DISP = SubS_DrawTransformFlex(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
                                            this->skelAnime.dListCount, EnDai_OverrideLimbDraw, EnDai_PostLimbDraw,
@@ -719,7 +719,7 @@ void func_80B3F78C(EnDai* this, PlayState* play) {
         MM_Matrix_Put(&this->unk_18C);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, object_dai_DL_00C538);
+        MM_gSPDisplayList(POLY_XLU_DISP++, object_dai_DL_00C538);
     }
 
     func_80B3E5B4(this, play);
@@ -742,7 +742,7 @@ void func_80B3F920(EnDai* this, PlayState* play) {
 
         Scene_SetRenderModeXlu(play, 0, 1);
 
-        gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(D_80B3FE70[this->unk_1D6]));
+        MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(D_80B3FE70[this->unk_1D6]));
 
         POLY_OPA_DISP = SubS_DrawTransformFlex(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
                                                this->skelAnime.dListCount, EnDai_OverrideLimbDraw, EnDai_PostLimbDraw,
@@ -750,7 +750,7 @@ void func_80B3F920(EnDai* this, PlayState* play) {
         MM_Matrix_Put(&this->unk_18C);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, object_dai_DL_00C538);
+        MM_gSPDisplayList(POLY_OPA_DISP++, object_dai_DL_00C538);
 
         CLOSE_DISPS(play->state.gfxCtx);
     } else {
@@ -761,7 +761,7 @@ void func_80B3F920(EnDai* this, PlayState* play) {
         Scene_SetRenderModeXlu(play, 2, 2);
 
         gDPSetEnvColor(POLY_XLU_DISP++, 0, 0, 0, this->unk_1CD);
-        gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(D_80B3FE70[this->unk_1D6]));
+        MM_gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(D_80B3FE70[this->unk_1D6]));
 
         POLY_XLU_DISP = SubS_DrawTransformFlex(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
                                                this->skelAnime.dListCount, EnDai_OverrideLimbDraw, EnDai_PostLimbDraw,
@@ -769,7 +769,7 @@ void func_80B3F920(EnDai* this, PlayState* play) {
         MM_Matrix_Put(&this->unk_18C);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, object_dai_DL_00C538);
+        MM_gSPDisplayList(POLY_XLU_DISP++, object_dai_DL_00C538);
 
         CLOSE_DISPS(play->state.gfxCtx);
     }

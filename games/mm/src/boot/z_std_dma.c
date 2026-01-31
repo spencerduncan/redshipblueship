@@ -24,7 +24,7 @@ s32 MM_DmaMgr_DmaRomToRam(uintptr_t rom, void* ram, size_t size) {
     size_t buffSize = MM_gDmaMgrDmaBuffSize;
 
     osInvalDCache(ram, size);
-    osCreateMesgQueue(&queue, msg, ARRAY_COUNT(msg));
+    MM_osCreateMesgQueue(&queue, msg, ARRAY_COUNT(msg));
 
     if (buffSize != 0) {
         while (buffSize < size) {
@@ -33,12 +33,12 @@ s32 MM_DmaMgr_DmaRomToRam(uintptr_t rom, void* ram, size_t size) {
             ioMsg.devAddr = rom;
             ioMsg.dramAddr = ram;
             ioMsg.size = buffSize;
-            ret = osEPiStartDma(MM_gCartHandle, &ioMsg, 0);
+            ret = MM_osEPiStartDma(MM_gCartHandle, &ioMsg, 0);
             if (ret != 0) {
                 goto END;
             }
 
-            osRecvMesg(&queue, NULL, OS_MESG_BLOCK);
+            MM_osRecvMesg(&queue, NULL, OS_MESG_BLOCK);
             size -= buffSize;
             rom += buffSize;
             ram = (u8*)ram + buffSize;
@@ -49,12 +49,12 @@ s32 MM_DmaMgr_DmaRomToRam(uintptr_t rom, void* ram, size_t size) {
     ioMsg.devAddr = rom;
     ioMsg.dramAddr = ram;
     ioMsg.size = size;
-    ret = osEPiStartDma(MM_gCartHandle, &ioMsg, 0);
+    ret = MM_osEPiStartDma(MM_gCartHandle, &ioMsg, 0);
     if (ret != 0) {
         goto END;
     }
 
-    osRecvMesg(&queue, NULL, OS_MESG_BLOCK);
+    MM_osRecvMesg(&queue, NULL, OS_MESG_BLOCK);
 
     osInvalDCache(ram, size);
 
@@ -65,7 +65,7 @@ END:
 }
 
 s32 MM_DmaMgr_DmaHandler(OSPiHandle* pihandle, OSIoMesg* mb, s32 direction) {
-    // return osEPiStartDma(pihandle, mb, direction);
+    // return MM_osEPiStartDma(pihandle, mb, direction);
 }
 
 DmaEntry* DmaMgr_FindDmaEntry(uintptr_t vrom) {
@@ -160,9 +160,9 @@ void MM_DmaMgr_ProcessMsg(DmaRequest* req) {
             MM_Fault_AddHungupAndCrash("../z_std_dma.c", 525);
         }
 
-        osSetThreadPri(NULL, 10);
+        MM_osSetThreadPri(NULL, 10);
         MM_Yaz0_Decompress(romStart, ram, romSize);
-        osSetThreadPri(NULL, 17);
+        MM_osSetThreadPri(NULL, 17);
     } else {
         MM_Fault_AddHungupAndCrash("../z_std_dma.c", 558);
     }
@@ -175,7 +175,7 @@ void MM_DmaMgr_ThreadEntry(void* a0) {
     DmaRequest* req;
 
     while (1) {
-        osRecvMesg(&sDmaMgrMsgQueue, &msg, OS_MESG_BLOCK);
+        MM_osRecvMesg(&sDmaMgrMsgQueue, &msg, OS_MESG_BLOCK);
 
         if (msg.ptr == NULL) {
             break;
@@ -185,7 +185,7 @@ void MM_DmaMgr_ThreadEntry(void* a0) {
 
         MM_DmaMgr_ProcessMsg(req);
         if (req->notifyQueue) {
-            osSendMesg(req->notifyQueue, req->notifyMsg, OS_MESG_NOBLOCK);
+            MM_osSendMesg(req->notifyQueue, req->notifyMsg, OS_MESG_NOBLOCK);
         }
     }
 #endif
@@ -205,7 +205,7 @@ s32 MM_DmaMgr_SendRequestImpl(DmaRequest* request, void* vramStart, uintptr_t vr
     request->notifyQueue = queue;
     request->notifyMsg = msg;
 
-    osSendMesg(&sDmaMgrMsgQueue, OS_MESG_PTR(request), OS_MESG_BLOCK);
+    MM_osSendMesg(&sDmaMgrMsgQueue, OS_MESG_PTR(request), OS_MESG_BLOCK);
 #endif
     return 0;
 }
@@ -217,14 +217,14 @@ s32 MM_DmaMgr_SendRequest0(void* vramStart, uintptr_t vromStart, size_t size) {
     OSMesg msg[1];
     s32 ret;
 
-    osCreateMesgQueue(&queue, msg, ARRAY_COUNT(msg));
+    MM_osCreateMesgQueue(&queue, msg, ARRAY_COUNT(msg));
 
     ret = MM_DmaMgr_SendRequestImpl(&req, vramStart, vromStart, size, 0, &queue, OS_MESG_PTR(NULL));
 
     if (ret == -1) {
         return ret;
     } else {
-        osRecvMesg(&queue, NULL, OS_MESG_BLOCK);
+        MM_osRecvMesg(&queue, NULL, OS_MESG_BLOCK);
     }
 #endif
     return 0;
@@ -246,15 +246,15 @@ void DmaMgr_Start(void) {
         sNumDmaEntries = idx;
     }
 
-    osCreateMesgQueue(&sDmaMgrMsgQueue, sDmaMgrMsgs, ARRAY_COUNT(sDmaMgrMsgs));
+    MM_osCreateMesgQueue(&sDmaMgrMsgQueue, sDmaMgrMsgs, ARRAY_COUNT(sDmaMgrMsgs));
     MM_StackCheck_Init(&sDmaMgrStackInfo, sDmaMgrStack, STACK_TOP(sDmaMgrStack), 0, 0x100, "dmamgr");
-    osCreateThread(&sDmaMgrThread, Z_THREAD_ID_DMAMGR, MM_DmaMgr_ThreadEntry, NULL, STACK_TOP(sDmaMgrStack),
+    MM_osCreateThread(&sDmaMgrThread, Z_THREAD_ID_DMAMGR, MM_DmaMgr_ThreadEntry, NULL, STACK_TOP(sDmaMgrStack),
                    Z_PRIORITY_DMAMGR);
 
-    osStartThread(&sDmaMgrThread);
+    MM_osStartThread(&sDmaMgrThread);
 #endif
 }
 
 void DmaMgr_Stop(void) {
-    // osSendMesg(&sDmaMgrMsgQueue, OS_MESG_PTR(NULL), OS_MESG_BLOCK);
+    // MM_osSendMesg(&sDmaMgrMsgQueue, OS_MESG_PTR(NULL), OS_MESG_BLOCK);
 }

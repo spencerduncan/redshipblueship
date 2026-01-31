@@ -4,7 +4,7 @@
 
 OSPiHandle __CartRomHandle ALIGNED(8);
 
-OSPiHandle* osCartRomInit(void) {
+OSPiHandle* MM_osCartRomInit(void) {
     register u32 initialConfig;
     register s32 status;
     register u32 prevInt;
@@ -55,10 +55,10 @@ OSPiHandle* osCartRomInit(void) {
     IO_WRITE(PI_BSD_DOM1_RLS_REG, lastRelDuration);
     IO_WRITE(PI_BSD_DOM1_PWD_REG, lastPulse);
 
-    prevInt = __osDisableInt();
+    prevInt = MM___osDisableInt();
     __CartRomHandle.next = __osPiTable;
     __osPiTable = &__CartRomHandle;
-    __osRestoreInt(prevInt);
+    MM___osRestoreInt(prevInt);
     __osPiRelAccess();
 
     return &__CartRomHandle;

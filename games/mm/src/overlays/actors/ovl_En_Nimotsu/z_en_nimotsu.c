@@ -103,7 +103,7 @@ void EnNimotsu_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, &gBombShopBagDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, &gBombShopBagDL);
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
     position.x = this->actor.world.pos.x + 7.0f;

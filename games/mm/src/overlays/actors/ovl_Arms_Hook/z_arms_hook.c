@@ -176,7 +176,7 @@ void MM_ArmsHook_Shoot(ArmsHook* this, PlayState* play) {
                 this->attachedActor = NULL;
             } else if (this->actor.child != NULL) {
                 f32 curActorOffsetXYZ = MM_Actor_WorldDistXYZToActor(&this->actor, attachedActor);
-                f32 attachPointOffsetXYZ = sqrtf(SQXYZ(this->attachPointOffset));
+                f32 attachPointOffsetXYZ = MM_sqrtf(SQXYZ(this->attachPointOffset));
 
                 // Keep the hookshot actor at the same relative offset as the initial attachment even if the actor moves
                 MM_Math_Vec3f_Diff(&attachedActor->world.pos, &this->attachPointOffset, &this->actor.world.pos);
@@ -229,7 +229,7 @@ void MM_ArmsHook_Shoot(ArmsHook* this, PlayState* play) {
         } else {
             // Pulling Player
             MM_Math_Vec3f_Diff(&bodyDistDiffVec, &newPos, &player->actor.velocity);
-            player->actor.world.rot.x = Math_Atan2S_XY(sqrtf(SQXZ(bodyDistDiffVec)), -bodyDistDiffVec.y);
+            player->actor.world.rot.x = Math_Atan2S_XY(MM_sqrtf(SQXZ(bodyDistDiffVec)), -bodyDistDiffVec.y);
         }
 
         if (phi_f16 < 50.0f) {
@@ -336,17 +336,17 @@ void MM_ArmsHook_Draw(Actor* thisx, PlayState* play) {
         func_80122868(play, player);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, object_link_child_DL_01D960);
+        MM_gSPDisplayList(POLY_OPA_DISP++, object_link_child_DL_01D960);
         MM_Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z, MTXMODE_NEW);
         MM_Math_Vec3f_Diff(&player->rightHandWorld.pos, &this->actor.world.pos, &sp68);
         sp48 = SQXZ(sp68);
-        sp4C = sqrtf(SQXZ(sp68));
+        sp4C = MM_sqrtf(SQXZ(sp68));
         Matrix_RotateYS(MM_Math_Atan2S(sp68.x, sp68.z), MTXMODE_APPLY);
         Matrix_RotateXS(MM_Math_Atan2S(-sp68.y, sp4C), MTXMODE_APPLY);
-        f0 = sqrtf(SQ(sp68.y) + sp48);
+        f0 = MM_sqrtf(SQ(sp68.y) + sp48);
         MM_Matrix_Scale(0.015f, 0.015f, f0 * 0.01f, MTXMODE_APPLY);
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, gHookshotChainDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, gHookshotChainDL);
         func_801229A0(play, player);
 
         CLOSE_DISPS(play->state.gfxCtx);

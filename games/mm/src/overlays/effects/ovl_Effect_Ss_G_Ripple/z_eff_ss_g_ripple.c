@@ -99,7 +99,7 @@ void MM_EffectSsGRipple_DrawRipple(PlayState* play2, EffectSs* this, TexturePtr 
         gDPSetEnvColor(POLY_XLU_DISP++, this->rEnvColorR, this->rEnvColorG, this->rEnvColorB, this->rEnvColorA);
         gDPSetAlphaDither(POLY_XLU_DISP++, G_AD_NOISE);
         gDPSetColorDither(POLY_XLU_DISP++, G_CD_NOISE);
-        gSPDisplayList(POLY_XLU_DISP++, this->gfx);
+        MM_gSPDisplayList(POLY_XLU_DISP++, this->gfx);
     }
 
     CLOSE_DISPS(gfxCtx);

@@ -751,7 +751,7 @@ void EnOkuta_Projectile_Fly(EnOkuta* this, PlayState* play) {
     if (this->timer < 0) {
         this->actor.velocity.y -= 0.5f;
         this->actor.world.rot.x =
-            Math_Atan2S_XY(sqrtf(SQ(this->actor.velocity.x) + SQ(this->actor.velocity.z)), this->actor.velocity.y);
+            Math_Atan2S_XY(MM_sqrtf(SQ(this->actor.velocity.x) + SQ(this->actor.velocity.z)), this->actor.velocity.y);
     }
 
     this->actor.home.rot.z += 0x1554;
@@ -1104,13 +1104,13 @@ void MM_EnOkuta_Draw(Actor* thisx, PlayState* play) {
 
     gfx = POLY_OPA_DISP;
 
-    gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
+    MM_gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
 
     if (EN_OKUTA_GET_TYPE(&this->actor) < EN_OKUTA_TYPE_PROJECTILE_BASE) {
         if (EN_OKUTA_GET_TYPE(&this->actor) == EN_OKUTA_TYPE_RED_OCTOROK) {
-            gSPSegment(&gfx[1], 0x08, D_801AEFA0);
+            MM_gSPSegment(&gfx[1], 0x08, D_801AEFA0);
         } else {
-            gSPSegment(&gfx[1], 0x08, gOctorokBlueMaterialDL);
+            MM_gSPSegment(&gfx[1], 0x08, gOctorokBlueMaterialDL);
         }
 
         POLY_OPA_DISP = &gfx[2];
@@ -1120,7 +1120,7 @@ void MM_EnOkuta_Draw(Actor* thisx, PlayState* play) {
         MM_Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
         Matrix_RotateZS(this->actor.home.rot.z, MTXMODE_APPLY);
         MATRIX_FINALIZE_AND_LOAD(&gfx[1], play->state.gfxCtx);
-        gSPDisplayList(&gfx[2], gOctorokProjectileDL);
+        MM_gSPDisplayList(&gfx[2], gOctorokProjectileDL);
         POLY_OPA_DISP = &gfx[3];
     }
 

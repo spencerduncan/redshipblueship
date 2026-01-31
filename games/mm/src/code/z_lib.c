@@ -231,7 +231,7 @@ void Lib_GetControlStickData(f32* outMagnitude, s16* outAngle, Input* input) {
     f32 magnitude;
 
     x *= GameInteractor_InvertControl(GI_INVERT_MOVEMENT_X);
-    magnitude = sqrtf(SQ(x) + SQ(y));
+    magnitude = MM_sqrtf(SQ(x) + SQ(y));
     *outMagnitude = (60.0f < magnitude) ? 60.0f : magnitude;
 
     if (magnitude > 0.0f) {
@@ -358,24 +358,24 @@ void Math_Vec3f_DistXYZAndStoreNormDiff(Vec3f* a, Vec3f* b, f32 scale, Vec3f* de
 f32 MM_Math_Vec3f_DistXYZ(Vec3f* a, Vec3f* b) {
     Vec3f diff;
     MM_Math_Vec3f_Diff(b, a, &diff);
-    return sqrtf(SQXYZ(diff));
+    return MM_sqrtf(SQXYZ(diff));
 }
 
 f32 MM_Math_Vec3f_DistXYZAndStoreDiff(Vec3f* a, Vec3f* b, Vec3f* dest) {
     MM_Math_Vec3f_Diff(b, a, dest);
-    return sqrtf(SQ(dest->x) + SQ(dest->y) + SQ(dest->z));
+    return MM_sqrtf(SQ(dest->x) + SQ(dest->y) + SQ(dest->z));
 }
 
 f32 MM_Math_Vec3f_DistXZ(Vec3f* a, Vec3f* b) {
     f32 dx = b->x - a->x;
     f32 dz = b->z - a->z;
-    return sqrtf(SQ(dx) + SQ(dz));
+    return MM_sqrtf(SQ(dx) + SQ(dz));
 }
 
 f32 Math_Vec3f_DistXZAndStore(Vec3f* a, Vec3f* b, f32* dx, f32* dz) {
     *dx = b->x - a->x;
     *dz = b->z - a->z;
-    return sqrtf(SQ(*dx) + SQ(*dz));
+    return MM_sqrtf(SQ(*dx) + SQ(*dz));
 }
 
 f32 Math_Vec3f_StepToXZ(Vec3f* start, Vec3f* target, f32 speed) {
@@ -426,7 +426,7 @@ void MM_IChain_Apply_Vec3f(u8* ptr, InitChainEntry* ichain);
 void MM_IChain_Apply_Vec3fdiv1000(u8* ptr, InitChainEntry* ichain);
 void MM_IChain_Apply_Vec3s(u8* ptr, InitChainEntry* ichain);
 
-void (*sInitChainHandlers[])(u8* ptr, InitChainEntry* ichain) = {
+void (*MM_sInitChainHandlers[])(u8* ptr, InitChainEntry* ichain) = {
     MM_IChain_Apply_u8,    MM_IChain_Apply_s8,           MM_IChain_Apply_u16,   MM_IChain_Apply_s16,
     MM_IChain_Apply_u32,   MM_IChain_Apply_s32,          MM_IChain_Apply_f32,   MM_IChain_Apply_f32div1000,
     MM_IChain_Apply_Vec3f, MM_IChain_Apply_Vec3fdiv1000, MM_IChain_Apply_Vec3s,
@@ -434,7 +434,7 @@ void (*sInitChainHandlers[])(u8* ptr, InitChainEntry* ichain) = {
 
 void MM_Actor_ProcessInitChain(struct Actor* actor, InitChainEntry* ichain) {
     do {
-        sInitChainHandlers[ichain->type]((u8*)actor, ichain);
+        MM_sInitChainHandlers[ichain->type]((u8*)actor, ichain);
     } while ((ichain++)->cont);
 }
 

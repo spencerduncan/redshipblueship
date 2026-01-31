@@ -66,11 +66,11 @@ void MM_EffectSsStone1_Draw(PlayState* play, u32 index, EffectSs* this) {
     MM_Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
     Gfx_SetupDL61_Xlu(gfxCtx);
-    gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(drawParams->texture));
+    MM_gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(drawParams->texture));
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, drawParams->primColor.r, drawParams->primColor.g, drawParams->primColor.b,
                     255);
     gDPSetEnvColor(POLY_XLU_DISP++, drawParams->envColor.r, drawParams->envColor.g, drawParams->envColor.b, 255);
-    gSPDisplayList(POLY_XLU_DISP++, gEffStoneDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gEffStoneDL);
 
     CLOSE_DISPS(gfxCtx);
 }

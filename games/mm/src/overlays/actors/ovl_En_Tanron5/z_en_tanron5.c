@@ -610,7 +610,7 @@ void EnTanron5_Draw(Actor* thisx, PlayState* play) {
         Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, this->dList);
+        MM_gSPDisplayList(POLY_OPA_DISP++, this->dList);
 
         CLOSE_DISPS(play->state.gfxCtx);
     }
@@ -640,13 +640,13 @@ void EnTanron5_ItemDrop_Draw(Actor* thisx, PlayState* play) {
 
         POLY_OPA_DISP = Gfx_SetupDL66(POLY_OPA_DISP);
 
-        gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(texture));
+        MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(texture));
 
         MM_Matrix_Translate(0.0f, 200.0f, 0.0f, MTXMODE_APPLY);
         Matrix_RotateZS(this->itemDropRotZ, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, gItemDropDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, gItemDropDL);
 
         CLOSE_DISPS(play->state.gfxCtx);
     }

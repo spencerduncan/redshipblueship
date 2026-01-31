@@ -4,10 +4,10 @@
 #include "align_asset_macro.h"
 
 // #region 2S2H [HD Textures]
-#define drGfxPrintFontData "__OTR__textures/font/MM_sGfxPrintFontData"
+#define drGfxPrintFontData "__OTR__textures/font/sGfxPrintFontData"
 static const ALIGN_ASSET(2) char rGfxPrintFontData[] = drGfxPrintFontData;
 
-#define drGfxPrintFontDataAlt "__OTR__alt/textures/font/MM_sGfxPrintFontData"
+#define drGfxPrintFontDataAlt "__OTR__alt/textures/font/sGfxPrintFontData"
 static const ALIGN_ASSET(2) char rGfxPrintFontDataAlt[] = drGfxPrintFontDataAlt;
 
 bool MM_sHasArchiveTexture = false;

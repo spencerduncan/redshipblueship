@@ -673,15 +673,15 @@ void EnPoComposer_Draw(Actor* thisx, PlayState* play) {
     if ((this->lightColor.a == 255) || (this->lightColor.a == 0)) {
         Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-        gSPSegment(POLY_OPA_DISP++, 0x08,
+        MM_gSPSegment(POLY_OPA_DISP++, 0x08,
                    MM_Gfx_EnvColor(play->state.gfxCtx, this->lightColor.r, this->lightColor.g, this->lightColor.b,
                                 this->lightColor.a));
-        gSPSegment(
+        MM_gSPSegment(
             POLY_OPA_DISP++, 0x0A,
             MM_Gfx_EnvColor(play->state.gfxCtx, clothingColor->r, clothingColor->g, clothingColor->b, this->lightColor.a));
-        gSPSegment(POLY_OPA_DISP++, 0x0B,
+        MM_gSPSegment(POLY_OPA_DISP++, 0x0B,
                    MM_Gfx_EnvColor(play->state.gfxCtx, var_t0->r, var_t0->g, var_t0->b, this->lightColor.a));
-        gSPSegment(POLY_OPA_DISP++, 0x0C, D_801AEFA0);
+        MM_gSPSegment(POLY_OPA_DISP++, 0x0C, D_801AEFA0);
 
         POLY_OPA_DISP =
             MM_SkelAnime_DrawFlex(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
@@ -690,15 +690,15 @@ void EnPoComposer_Draw(Actor* thisx, PlayState* play) {
         Gfx_SetupDL25_Opa(play->state.gfxCtx);
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
-        gSPSegment(POLY_XLU_DISP++, 0x08,
+        MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                    MM_Gfx_EnvColor(play->state.gfxCtx, this->lightColor.r, this->lightColor.g, this->lightColor.b,
                                 this->lightColor.a));
-        gSPSegment(
+        MM_gSPSegment(
             POLY_XLU_DISP++, 0x0A,
             MM_Gfx_EnvColor(play->state.gfxCtx, clothingColor->r, clothingColor->g, clothingColor->b, this->lightColor.a));
-        gSPSegment(POLY_XLU_DISP++, 0x0B,
+        MM_gSPSegment(POLY_XLU_DISP++, 0x0B,
                    MM_Gfx_EnvColor(play->state.gfxCtx, var_t0->r, var_t0->g, var_t0->b, this->lightColor.a));
-        gSPSegment(POLY_XLU_DISP++, 0x0C, D_801AEF88);
+        MM_gSPSegment(POLY_XLU_DISP++, 0x0C, D_801AEF88);
 
         POLY_XLU_DISP =
             MM_SkelAnime_DrawFlex(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
@@ -722,12 +722,12 @@ void EnPoComposer_Draw(Actor* thisx, PlayState* play) {
         MM_Matrix_Put(&this->lanternMtxF);
         MATRIX_FINALIZE_AND_LOAD(&dl[2], play->state.gfxCtx);
 
-        gSPDisplayList(&dl[3], gPoeComposerLanternBaseDL);
-        gSPDisplayList(&dl[4], gPoeComposerLanternGlassDL);
+        MM_gSPDisplayList(&dl[3], gPoeComposerLanternBaseDL);
+        MM_gSPDisplayList(&dl[4], gPoeComposerLanternGlassDL);
 
         gDPPipeSync(&dl[5]);
         gDPSetEnvColor(&dl[6], clothingColor->r, clothingColor->g, clothingColor->b, this->lightColor.a);
-        gSPDisplayList(&dl[7], gPoeComposerLanternTopDL);
+        MM_gSPDisplayList(&dl[7], gPoeComposerLanternTopDL);
 
         if (this->lightColor.a == 255) {
             POLY_OPA_DISP = &dl[8];

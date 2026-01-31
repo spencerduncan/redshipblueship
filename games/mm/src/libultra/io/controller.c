@@ -14,7 +14,7 @@ OSTimer __osEepromTimer;
 OSMesgQueue __osEepromTimerQ ALIGNED(8);
 OSMesg __osEepromTimerMsg[1];
 
-s32 osContInit(OSMesgQueue* mq, u8* bitpattern, OSContStatus* data) {
+s32 MM_osContInit(OSMesgQueue* mq, u8* bitpattern, OSContStatus* data) {
     OSMesg dummy;
     s32 ret = 0;
     OSTime t;
@@ -27,11 +27,11 @@ s32 osContInit(OSMesgQueue* mq, u8* bitpattern, OSContStatus* data) {
 
     __osContinitialized = true;
 
-    t = osGetTime();
+    t = MM_osGetTime();
     if (t < OS_USEC_TO_CYCLES(500000)) {
-        osCreateMesgQueue(&timerMesgQueue, &dummy, 1);
-        osSetTimer(&mytimer, OS_USEC_TO_CYCLES(500000) - t, 0, &timerMesgQueue, &dummy);
-        osRecvMesg(&timerMesgQueue, &dummy, OS_MESG_BLOCK);
+        MM_osCreateMesgQueue(&timerMesgQueue, &dummy, 1);
+        MM_osSetTimer(&mytimer, OS_USEC_TO_CYCLES(500000) - t, 0, &timerMesgQueue, &dummy);
+        MM_osRecvMesg(&timerMesgQueue, &dummy, OS_MESG_BLOCK);
     }
 
     __osMaxControllers = 4;
@@ -39,15 +39,15 @@ s32 osContInit(OSMesgQueue* mq, u8* bitpattern, OSContStatus* data) {
     __osPackRequestData(CONT_CMD_REQUEST_STATUS);
 
     ret = __osSiRawStartDma(OS_WRITE, &__osContPifRam);
-    osRecvMesg(mq, &dummy, OS_MESG_BLOCK);
+    MM_osRecvMesg(mq, &dummy, OS_MESG_BLOCK);
 
     ret = __osSiRawStartDma(OS_READ, &__osContPifRam);
-    osRecvMesg(mq, &dummy, OS_MESG_BLOCK);
+    MM_osRecvMesg(mq, &dummy, OS_MESG_BLOCK);
 
     __osContGetInitData(bitpattern, data);
     __osContLastPoll = 0;
     __osSiCreateAccessQueue();
-    osCreateMesgQueue(&__osEepromTimerQ, __osEepromTimerMsg, ARRAY_COUNT(__osEepromTimerMsg));
+    MM_osCreateMesgQueue(&__osEepromTimerQ, __osEepromTimerMsg, ARRAY_COUNT(__osEepromTimerMsg));
 
     return ret;
 }

@@ -1602,9 +1602,9 @@ void MM_EnWf_Draw(Actor* thisx, PlayState* play) {
         Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
         if (this->actor.params == 0) {
-            gSPSegment(POLY_OPA_DISP++, 0x08, sNormalEyeTextures[this->eyeIndex]);
+            MM_gSPSegment(POLY_OPA_DISP++, 0x08, sNormalEyeTextures[this->eyeIndex]);
         } else {
-            gSPSegment(POLY_OPA_DISP++, 0x08, sWhiteEyeTextures[this->eyeIndex]);
+            MM_gSPSegment(POLY_OPA_DISP++, 0x08, sWhiteEyeTextures[this->eyeIndex]);
         }
 
         CLOSE_DISPS(play->state.gfxCtx);

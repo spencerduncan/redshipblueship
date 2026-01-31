@@ -359,7 +359,7 @@ void EnDnk_PostLimbDraw2(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot
     OPEN_DISPS(play->state.gfxCtx);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, this->unk_260[limbIndex]);
+    MM_gSPDisplayList(POLY_OPA_DISP++, this->unk_260[limbIndex]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -376,7 +376,7 @@ void func_80A51CB8(EnDnk* this, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(D_80A5245C[this->unk_2A0]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(D_80A5245C[this->unk_2A0]));
     gDPPipeSync(POLY_OPA_DISP++);
 
     MM_SkelAnime_DrawOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, EnDnk_OverrideLimbDraw2,
@@ -438,7 +438,7 @@ void EnDnk_PostLimbDraw1(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot
     OPEN_DISPS(play->state.gfxCtx);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, this->unk_260[limbIndex]);
+    MM_gSPDisplayList(POLY_OPA_DISP++, this->unk_260[limbIndex]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

@@ -108,10 +108,10 @@ void MM_OceffWipe2_Draw(Actor* thisx, PlayState* play) {
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 170, 255);
     gDPSetEnvColor(POLY_XLU_DISP++, 255, 100, 0, 128);
-    gSPDisplayList(POLY_XLU_DISP++, sEponaSongFrustumMaterialDL);
-    gSPDisplayList(POLY_XLU_DISP++, MM_Gfx_TwoTexScroll(play->state.gfxCtx, G_TX_RENDERTILE, scroll * 6, scroll * -6, 64,
+    MM_gSPDisplayList(POLY_XLU_DISP++, sEponaSongFrustumMaterialDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, MM_Gfx_TwoTexScroll(play->state.gfxCtx, G_TX_RENDERTILE, scroll * 6, scroll * -6, 64,
                                                      64, 1, scroll * -6, 0, 64, 64));
-    gSPDisplayList(POLY_XLU_DISP++, sEponaSongFrustumModelDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, sEponaSongFrustumModelDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

@@ -471,7 +471,7 @@ void func_8093A418(Actor* thisx, PlayState* play) {
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, (s32)sp28);
-        gSPDisplayList(POLY_XLU_DISP++, object_bombiwa_DL_000AF0);
+        MM_gSPDisplayList(POLY_XLU_DISP++, object_bombiwa_DL_000AF0);
 
         CLOSE_DISPS(play->state.gfxCtx);
     } else {
@@ -497,23 +497,23 @@ void func_8093A608(Actor* thisx, PlayState* play) {
             ((this->unk_203 & 1) && (this->actor.projectedPos.z < 2300.0f))) {
             Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-            gSPSegment(POLY_OPA_DISP++, 0x08, D_801AEFA0);
+            MM_gSPSegment(POLY_OPA_DISP++, 0x08, D_801AEFA0);
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
             gDPSetPrimColor(POLY_OPA_DISP++, 0, 0x9B, 255, 255, 255, 255);
-            gSPDisplayList(POLY_OPA_DISP++, object_bombiwa_DL_004560);
+            MM_gSPDisplayList(POLY_OPA_DISP++, object_bombiwa_DL_004560);
 
             Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, object_bombiwa_DL_004688);
+            MM_gSPDisplayList(POLY_XLU_DISP++, object_bombiwa_DL_004688);
         } else if (this->actor.projectedPos.z < 2300.0f) {
             sp38 = (2300.0f - this->actor.projectedPos.z) * 2.55f;
             Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
-            gSPSegment(POLY_XLU_DISP++, 0x08, D_801AEF88);
+            MM_gSPSegment(POLY_XLU_DISP++, 0x08, D_801AEF88);
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0x9B, 255, 255, 255, (s32)sp38);
-            gSPDisplayList(POLY_XLU_DISP++, object_bombiwa_DL_004560);
+            MM_gSPDisplayList(POLY_XLU_DISP++, object_bombiwa_DL_004560);
         }
     } else {
         Gfx_SetupDL25_Opa(play->state.gfxCtx);
@@ -526,7 +526,7 @@ void func_8093A608(Actor* thisx, PlayState* play) {
                 MM_Matrix_Scale(ptr->unk_00, ptr->unk_00, ptr->unk_00, MTXMODE_APPLY);
 
                 MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-                gSPDisplayList(POLY_OPA_DISP++, object_bombiwa_DL_005990);
+                MM_gSPDisplayList(POLY_OPA_DISP++, object_bombiwa_DL_005990);
             }
         }
     }

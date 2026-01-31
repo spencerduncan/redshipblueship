@@ -108,7 +108,7 @@ void OceffWipe7_Draw(Actor* thisx, PlayState* play) {
     MM_Matrix_Translate(0.0f, 0.0f, -z, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
     AnimatedMat_Draw(play, sSongofHealingEffectTexAnim);
-    gSPDisplayList(POLY_XLU_DISP++, sSongOfHealingEffectFrustumDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, sSongOfHealingEffectFrustumDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

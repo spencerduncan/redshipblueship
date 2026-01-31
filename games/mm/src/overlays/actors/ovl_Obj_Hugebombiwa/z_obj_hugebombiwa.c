@@ -640,31 +640,31 @@ void ObjHugebombiwa_Draw(Actor* thisx, PlayState* play) {
         if (this->actor.projectedPos.z <= 4300.0f) {
             Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-            gSPSegment(POLY_OPA_DISP++, 0x08, D_801AEFA0);
+            MM_gSPSegment(POLY_OPA_DISP++, 0x08, D_801AEFA0);
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
             gDPSetPrimColor(POLY_OPA_DISP++, 0, 0xFF, 255, 255, 255, 255);
-            gSPDisplayList(POLY_OPA_DISP++, object_bombiwa_DL_002F60);
+            MM_gSPDisplayList(POLY_OPA_DISP++, object_bombiwa_DL_002F60);
 
             Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, object_bombiwa_DL_003110);
+            MM_gSPDisplayList(POLY_XLU_DISP++, object_bombiwa_DL_003110);
 
         } else if (this->actor.projectedPos.z < 4500.0f) {
             sp38 = (4500.0f - this->actor.projectedPos.z) * 1.275f;
             Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
-            gSPSegment(POLY_XLU_DISP++, 0x08, D_801AEF88);
+            MM_gSPSegment(POLY_XLU_DISP++, 0x08, D_801AEF88);
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0xFF, 255, 255, 255, (s32)sp38);
-            gSPDisplayList(POLY_XLU_DISP++, object_bombiwa_DL_002F60);
+            MM_gSPDisplayList(POLY_XLU_DISP++, object_bombiwa_DL_002F60);
         }
     } else {
         s32 i;
         EnHugebombiwaStruct* ptr;
         Gfx* gfx = POLY_OPA_DISP;
 
-        gSPDisplayList(gfx++, gSetupDLs[SETUPDL_25]);
+        MM_gSPDisplayList(gfx++, gSetupDLs[SETUPDL_25]);
 
         for (i = 0; i < ARRAY_COUNT(this->unk_190); i++) {
             ptr = &this->unk_190[i];
@@ -675,7 +675,7 @@ void ObjHugebombiwa_Draw(Actor* thisx, PlayState* play) {
                 MM_Matrix_Scale(ptr->unk_00.x, ptr->unk_00.x, ptr->unk_00.x, MTXMODE_APPLY);
 
                 MATRIX_FINALIZE_AND_LOAD(gfx++, play->state.gfxCtx);
-                gSPDisplayList(gfx++, object_bombiwa_DL_001990);
+                MM_gSPDisplayList(gfx++, object_bombiwa_DL_001990);
                 FrameInterpolation_RecordCloseChild();
             }
         }
@@ -701,7 +701,7 @@ void func_80A55B34(Actor* thisx, PlayState* play) {
 
     gfx = POLY_OPA_DISP;
 
-    gSPDisplayList(gfx++, gSetupDLs[SETUPDL_25]);
+    MM_gSPDisplayList(gfx++, gSetupDLs[SETUPDL_25]);
 
     for (i = 0; i < ARRAY_COUNT(this->unk_190); i++) {
         ptr = &this->unk_190[i];
@@ -717,7 +717,7 @@ void func_80A55B34(Actor* thisx, PlayState* play) {
         MM_Matrix_Translate(0.0f, -325.0f, 0.0f, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(gfx++, play->state.gfxCtx);
-        gSPDisplayList(gfx++, object_bombiwa_DL_0009E0);
+        MM_gSPDisplayList(gfx++, object_bombiwa_DL_0009E0);
         FrameInterpolation_RecordCloseChild();
     }
 

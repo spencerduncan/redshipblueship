@@ -966,7 +966,7 @@ void Boss01_JumpAwayFromExplosive(Boss01* this, PlayState* play) {
 
     for (explosive = play->actorCtx.actorLists[ACTORCAT_EXPLOSIVES].first; explosive != NULL;
          explosive = explosive->next) {
-        if (sqrtf(SQ(explosive->world.pos.x - this->actor.world.pos.x) +
+        if (MM_sqrtf(SQ(explosive->world.pos.x - this->actor.world.pos.x) +
                   SQ(explosive->world.pos.y - this->actor.world.pos.y) +
                   SQ(explosive->world.pos.z - this->actor.world.pos.z)) < 150.0f) {
             Boss01_SetupJump(this, play, false);
@@ -2492,7 +2492,7 @@ void Boss01_Update(Actor* thisx, PlayState* play2) {
         diffX = player->actor.world.pos.x - this->actor.focus.pos.x;
         diffY = KREG(36) + ((player->actor.world.pos.y + 25.0f) - this->actor.focus.pos.y);
         diffZ = player->actor.world.pos.z - this->actor.focus.pos.z;
-        targetHeadRotX = MM_Math_Atan2S(diffY, sqrtf(SQ(diffX) + SQ(diffZ)));
+        targetHeadRotX = MM_Math_Atan2S(diffY, MM_sqrtf(SQ(diffX) + SQ(diffZ)));
 
         // This line of code ensures that *not* following the player is the default behavior; if you want Odolwa's head
         // to track the player, you'll need to set this variable to true for every single frame you want this behavior.
@@ -2627,7 +2627,7 @@ void Boss01_DrawSwordTrail(Boss01* this, PlayState* play) {
         vtx[sSwordTrailInnerVertexIndices[i]].v.ob[2] = sinf((i * M_PIf) / sSwordTrailAngularRangeDivisor) * 100.0f;
     }
 
-    gSPSegment(
+    MM_gSPSegment(
         POLY_XLU_DISP++, 0x08,
         MM_Gfx_TwoTexScroll(play->state.gfxCtx, G_TX_RENDERTILE, 0, 0, 32, 32, 1, play->gameplayFrames * 18, 0, 32, 32));
     gDPPipeSync(POLY_XLU_DISP++);
@@ -2641,7 +2641,7 @@ void Boss01_DrawSwordTrail(Boss01* this, PlayState* play) {
     Matrix_RotateYF(sOdolwaSwordTrailRotY, MTXMODE_APPLY);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, gOdolwaSwordTrailDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gOdolwaSwordTrailDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -2869,7 +2869,7 @@ void Boss01_PostLimbDraw(PlayState* play2, s32 limbIndex, Gfx** dList, Vec3s* ro
         MM_Matrix_Scale(0.35f, 0.35f, 0.35f, MTXMODE_APPLY);
         MM_Matrix_ReplaceRotation(&play->billboardMtxF);
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gOdolwaEyeDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gOdolwaEyeDL);
         MM_Matrix_Pop();
 
         MM_Matrix_Push();
@@ -2877,7 +2877,7 @@ void Boss01_PostLimbDraw(PlayState* play2, s32 limbIndex, Gfx** dList, Vec3s* ro
         MM_Matrix_Scale(0.35f, 0.35f, 0.35f, MTXMODE_APPLY);
         MM_Matrix_ReplaceRotation(&play->billboardMtxF);
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gOdolwaEyeDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gOdolwaEyeDL);
         MM_Matrix_Pop();
 
         CLOSE_DISPS(play->state.gfxCtx);
@@ -3110,7 +3110,7 @@ void Boss01_DrawShadowTex(u8* tex, Boss01* this, PlayState* play) {
 
     OPEN_DISPS(gfxCtx);
 
-    gSPInvalidateTexCache(POLY_OPA_DISP++, tex);
+    MM_gSPInvalidateTexCache(POLY_OPA_DISP++, tex);
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
@@ -3123,11 +3123,11 @@ void Boss01_DrawShadowTex(u8* tex, Boss01* this, PlayState* play) {
     MM_Matrix_Translate(this->actor.world.pos.x, this->actor.floorHeight, this->actor.world.pos.z - 20.0f, MTXMODE_NEW);
     MM_Matrix_Scale(1.65f, 1.0f, 1.65f, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, gOdolwaShadowMaterialDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gOdolwaShadowMaterialDL);
     gDPLoadTextureBlock(POLY_OPA_DISP++, tex, G_IM_FMT_I, G_IM_SIZ_8b, ODOLWA_SHADOW_TEX_WIDTH,
                         ODOLWA_SHADOW_TEX_HEIGHT, 0, G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMIRROR | G_TX_CLAMP, 6, 6,
                         G_TX_NOLOD, G_TX_NOLOD);
-    gSPDisplayList(POLY_OPA_DISP++, gOdolwaShadowModelDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gOdolwaShadowModelDL);
 
     CLOSE_DISPS(gfxCtx);
 }
@@ -3295,7 +3295,7 @@ void Boss01_Bug_UpdateDamage(Boss01* this, PlayState* play) {
     }
 
     if ((effect->type == ODOLWA_EFFECT_RING_OF_FIRE) && (effect->timer < 150)) {
-        f32 distXZ = sqrtf(SQ(effect->pos.x - this->actor.world.pos.x) + SQ(effect->pos.z - this->actor.world.pos.z));
+        f32 distXZ = MM_sqrtf(SQ(effect->pos.x - this->actor.world.pos.x) + SQ(effect->pos.z - this->actor.world.pos.z));
 
         // If the bugs touch the ring of fire, it will instantly kill them. Like before, setting the y-velocity to MM_zero
         // here will immediately make the bug shrink and burst into a single red flame.
@@ -3355,9 +3355,9 @@ s32 Boss01_Bug_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec
         OPEN_DISPS(play->state.gfxCtx);
 
         if (sOdolwa->actionFunc == Boss01_SummonBugsCutscene) {
-            gSPDisplayList(POLY_OPA_DISP++, gOdolwaBugBrightLegMaterialDL);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gOdolwaBugBrightLegMaterialDL);
         } else {
-            gSPDisplayList(POLY_OPA_DISP++, gOdolwaBugDullLegMaterialDL);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gOdolwaBugDullLegMaterialDL);
         }
 
         CLOSE_DISPS(play->state.gfxCtx);
@@ -3450,7 +3450,7 @@ void Boss01_UpdateEffects(Boss01* this, PlayState* play) {
                     if (!(player->stateFlags3 & PLAYER_STATE3_1000) && (player->actor.world.pos.y < 70.0f)) {
                         diffX = effect->pos.x - player->actor.world.pos.x;
                         diffZ = effect->pos.z - player->actor.world.pos.z;
-                        temp2 = sqrtf(SQ(diffX) + SQ(diffZ));
+                        temp2 = MM_sqrtf(SQ(diffX) + SQ(diffZ));
 
                         if (player->invincibilityTimer == 0) {
                             if ((temp2 < (KREG(49) + 210.0f)) && ((KREG(49) + 190.0f) < temp2)) {
@@ -3540,7 +3540,7 @@ void Boss01_DrawEffects(PlayState* play) {
             Matrix_RotateXS(effect->rotX, MTXMODE_APPLY);
             MM_Matrix_Scale(effect->scale, effect->scale, effect->scale, MTXMODE_APPLY);
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_OPA_DISP++, gOdolwaFallingBlockDL);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gOdolwaFallingBlockDL);
         }
     }
 
@@ -3553,7 +3553,7 @@ void Boss01_DrawEffects(PlayState* play) {
             MM_Matrix_Translate(effect->pos.x, 0.0f, effect->pos.z, MTXMODE_NEW);
             MM_Matrix_Scale(effect->scale * 50.0f, 1.0f, effect->scale * 50.0f, MTXMODE_APPLY);
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, SEGMENTED_TO_K0(gCircleShadowDL));
+            MM_gSPDisplayList(POLY_XLU_DISP++, SEGMENTED_TO_K0(gCircleShadowDL));
         }
     }
 
@@ -3573,7 +3573,7 @@ void Boss01_DrawEffects(PlayState* play) {
             }
 
             gDPSetPrimColor(POLY_XLU_DISP++, 0x80, 0x80, 255, 255, 0, (u8)alpha);
-            gSPSegment(POLY_XLU_DISP++, 0x08,
+            MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                        MM_Gfx_TwoTexScroll(play->state.gfxCtx, G_TX_RENDERTILE, 0, 0, 32, 64, 1, 0,
                                         ((effect->timer + (i * 10)) * -20) & 0x1FF, 32, 128));
 
@@ -3589,7 +3589,7 @@ void Boss01_DrawEffects(PlayState* play) {
                          1.0f, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
             MM_Matrix_Pop();
         }
     }

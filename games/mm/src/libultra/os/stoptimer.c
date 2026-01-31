@@ -1,6 +1,6 @@
 #include "ultra64.h"
 
-int osStopTimer(OSTimer* t) {
+int MM_osStopTimer(OSTimer* t) {
     register u32 savedMask;
     OSTimer* timep;
 
@@ -8,7 +8,7 @@ int osStopTimer(OSTimer* t) {
         return -1;
     }
 
-    savedMask = __osDisableInt();
+    savedMask = MM___osDisableInt();
 
     timep = t->next;
 
@@ -25,7 +25,7 @@ int osStopTimer(OSTimer* t) {
         __osSetCompare(0);
     }
 
-    __osRestoreInt(savedMask);
+    MM___osRestoreInt(savedMask);
 
     return 0;
 }

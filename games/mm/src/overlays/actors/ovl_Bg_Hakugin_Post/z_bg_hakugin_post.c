@@ -1031,7 +1031,7 @@ void func_80A9D61C(Actor* thisx, PlayState* play) {
             func_80A9B384(&sp68);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_OPA_DISP++, D_80A9D900[unkStruct1->unk_00]);
+            MM_gSPDisplayList(POLY_OPA_DISP++, D_80A9D900[unkStruct1->unk_00]);
         }
     }
 
@@ -1044,7 +1044,7 @@ void func_80A9D61C(Actor* thisx, PlayState* play) {
                 MM_Matrix_Scale(unkStruct2->unk_00, unkStruct2->unk_00, unkStruct2->unk_00, MTXMODE_APPLY);
 
                 MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-                gSPDisplayList(POLY_OPA_DISP++, D_80A9D91C[unkStruct2->unk_2D]);
+                MM_gSPDisplayList(POLY_OPA_DISP++, D_80A9D91C[unkStruct2->unk_2D]);
             }
         }
     }

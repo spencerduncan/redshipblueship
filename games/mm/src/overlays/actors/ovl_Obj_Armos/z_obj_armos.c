@@ -378,7 +378,7 @@ void func_809A5A3C(ObjArmos* this, PlayState* play) {
         MM_Matrix_Scale(0.6f, 1.0f, 0.6f, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gCircleShadowDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gCircleShadowDL);
 
         CLOSE_DISPS(play->state.gfxCtx);
     }

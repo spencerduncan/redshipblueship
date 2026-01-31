@@ -677,17 +677,17 @@ void EnWizFire_DrawIcePool(EnWizFire* this, PlayState* play) {
         gDPPipeSync(POLY_XLU_DISP++);
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, (s8)this->alpha);
         gDPSetEnvColor(POLY_XLU_DISP++, 0, 40, 30, 80);
-        gSPDisplayList(POLY_XLU_DISP++, gWizrobeIcePoolDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gWizrobeIcePoolDL);
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 215, 215, 215, (s8)this->alpha);
         gDPSetEnvColor(POLY_XLU_DISP++, 255, 255, 255, 128);
-        gSPSegment(POLY_XLU_DISP++, 0x08,
+        MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                    MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, -play->state.frames & 0x7F, -play->state.frames & 0x7F, 32,
                                     64, 1, play->state.frames & 0xFF, play->state.frames & 0xFF, 16, 16));
 
         Matrix_RotateYS(0, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gWizrobeIcePoolShineDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gWizrobeIcePoolShineDL);
     }
 
     EnWizFire_DrawEffects(this, play);
@@ -708,14 +708,14 @@ void EnWizFire_DrawFirePoolAndFlame(EnWizFire* this, PlayState* play2) {
         MM_Matrix_Translate(this->actor.world.pos.x, this->actor.floorHeight, this->actor.world.pos.z, MTXMODE_NEW);
         MM_Matrix_Scale(this->poolScale, this->poolScale, this->poolScale, MTXMODE_APPLY);
 
-        gSPSegment(POLY_XLU_DISP++, 0x08,
+        MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                    MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, -play->state.frames % 128, 0, 0x20, 0x20, 1,
                                     (play->state.frames * 2) % 128, 0, 0x20, 0x20));
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
         gDPPipeSync(POLY_XLU_DISP++);
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 100, 40, 0, (s8)this->alpha);
         gDPSetEnvColor(POLY_XLU_DISP++, 255, 245, 255, 128);
-        gSPDisplayList(POLY_XLU_DISP++, gWizrobeFirePoolDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gWizrobeFirePoolDL);
 
         MM_Matrix_Pop();
 
@@ -723,7 +723,7 @@ void EnWizFire_DrawFirePoolAndFlame(EnWizFire* this, PlayState* play2) {
         MM_Matrix_Translate(this->actor.world.pos.x, this->actor.floorHeight, this->actor.world.pos.z, MTXMODE_NEW);
         MM_Matrix_ReplaceRotation(&play->billboardMtxF);
 
-        gSPSegment(POLY_XLU_DISP++, 0x08,
+        MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                    MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, play->state.frames % 128, (-play->state.frames * 6) % 256,
                                     0x20, 0x40, 1, (play->state.frames * 2) % 128, (-play->state.frames * 6) % 256,
                                     0x20, 0x40));
@@ -734,14 +734,14 @@ void EnWizFire_DrawFirePoolAndFlame(EnWizFire* this, PlayState* play2) {
         MM_Matrix_Scale(this->fireSmokeScale, this->fireSmokeScale, this->fireSmokeScale, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gWizrobeFireSmokeDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gWizrobeFireSmokeDL);
 
         MM_Matrix_Pop();
 
         MM_Matrix_Translate(this->actor.world.pos.x, this->actor.floorHeight, this->actor.world.pos.z, MTXMODE_NEW);
         MM_Matrix_ReplaceRotation(&play->billboardMtxF);
 
-        gSPSegment(POLY_XLU_DISP++, 0x08,
+        MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                    MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, (-play->state.frames * 3) % 128, 0, 0x20, 0x20, 1, 0,
                                     (-play->state.frames * 10) % 256, 0x20, 0x40));
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 100, 50, 0, 255);
@@ -751,7 +751,7 @@ void EnWizFire_DrawFirePoolAndFlame(EnWizFire* this, PlayState* play2) {
         MM_Matrix_Scale(this->bigFlameScale, this->bigFlameScale, this->bigFlameScale, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gWizrobeBigFlameDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gWizrobeBigFlameDL);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -787,7 +787,7 @@ void EnWizFire_Draw(Actor* thisx, PlayState* play2) {
             Matrix_RotateZS(this->actor.world.rot.z, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, gWizrobeMagicProjectileDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gWizrobeMagicProjectileDL);
         }
     }
 
@@ -812,7 +812,7 @@ void EnWizFire_DrawSmallFlame(Actor* thisx, PlayState* play) {
     MM_Matrix_Scale(this->scale + this->scaleMod.x, this->scale + this->scaleMod.y, this->scale + this->scaleMod.z,
                  MTXMODE_APPLY);
 
-    gSPSegment(POLY_XLU_DISP++, 0x08,
+    MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 32, 32, 1, this->smallFlameScroll & 0x7F,
                                 (-this->smallFlameScroll * 10) & 0x7F, 32, 32));
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0x80, 100, 50, 0, (s8)this->alpha);
@@ -821,7 +821,7 @@ void EnWizFire_DrawSmallFlame(Actor* thisx, PlayState* play) {
     MM_Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, gWizrobeSmallFlameDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gWizrobeSmallFlameDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -892,12 +892,12 @@ void EnWizFire_DrawEffects(EnWizFire* this, PlayState* play) {
     for (i = 0; i < ARRAY_COUNT(this->effects); i++, effect++) {
         if (effect->isEnabled) {
             if (!materialFlag) {
-                gSPDisplayList(POLY_XLU_DISP++, gWizrobeIceSmokeMaterialDL);
+                MM_gSPDisplayList(POLY_XLU_DISP++, gWizrobeIceSmokeMaterialDL);
                 materialFlag++;
             }
 
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 195, 225, 235, effect->alpha);
-            gSPSegment(POLY_XLU_DISP++, 0x08,
+            MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                        MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, (effect->smokeScroll * 3) & 0x7F,
                                         (effect->smokeScroll * 0xF) & 0xFF, 32, 64, 1, 0, 0, 32, 32));
 
@@ -908,7 +908,7 @@ void EnWizFire_DrawEffects(EnWizFire* this, PlayState* play) {
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
             gDPSetRenderMode(POLY_XLU_DISP++, G_RM_PASS, G_RM_AA_ZB_XLU_SURF2);
             gSPClearGeometryMode(POLY_XLU_DISP++, G_CULL_BACK | G_FOG);
-            gSPDisplayList(POLY_XLU_DISP++, gWizrobeIceSmokeModelDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gWizrobeIceSmokeModelDL);
         }
     }
 

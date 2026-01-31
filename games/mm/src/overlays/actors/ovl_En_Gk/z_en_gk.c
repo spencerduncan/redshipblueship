@@ -1298,8 +1298,8 @@ void EnGk_Draw(Actor* thisx, PlayState* play) {
         Matrix_RotateXS(-0x4000, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, object_gk_DL_006688);
-        gSPDisplayList(POLY_OPA_DISP++, object_gk_DL_006680);
+        MM_gSPDisplayList(POLY_OPA_DISP++, object_gk_DL_006688);
+        MM_gSPDisplayList(POLY_OPA_DISP++, object_gk_DL_006680);
 
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
@@ -1310,7 +1310,7 @@ void EnGk_Draw(Actor* thisx, PlayState* play) {
 
         func_800BC620(&pos, &scale, 255, play);
     } else {
-        gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(D_80B533E4[this->unk_2E0]));
+        MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(D_80B533E4[this->unk_2E0]));
 
         SkelAnime_DrawTransformFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
                                        this->skelAnime.dListCount, EnGk_OverrideLimbDraw, EnGk_PostLimbDraw,

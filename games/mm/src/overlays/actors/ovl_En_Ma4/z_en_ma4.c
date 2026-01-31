@@ -1092,7 +1092,7 @@ void EnMa4_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot,
         if (this->hasBow == true) {
             OPEN_DISPS(play->state.gfxCtx);
 
-            gSPDisplayList(POLY_OPA_DISP++, gRomaniBowDL);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gRomaniBowDL);
 
             CLOSE_DISPS(play->state.gfxCtx);
         }
@@ -1106,13 +1106,13 @@ void EnMa4_Draw(Actor* thisx, PlayState* play) {
 
     if (this->type == MA4_TYPE_ALIENS_WON) {
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, gRomaniWoodenBoxDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, gRomaniWoodenBoxDL);
     }
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x08, SEGMENTED_TO_K0(MM_sEyeTextures[this->eyeTexIndex]));
-    gSPSegment(POLY_OPA_DISP++, 0x09, SEGMENTED_TO_K0(MM_sMouthTextures[this->mouthTexIndex]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, SEGMENTED_TO_K0(MM_sEyeTextures[this->eyeTexIndex]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x09, SEGMENTED_TO_K0(MM_sMouthTextures[this->mouthTexIndex]));
 
     MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           EnMa4_OverrideLimbDraw, EnMa4_PostLimbDraw, &this->actor);

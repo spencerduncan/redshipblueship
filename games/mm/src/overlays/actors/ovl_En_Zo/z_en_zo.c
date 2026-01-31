@@ -422,8 +422,8 @@ void MM_EnZo_Draw(Actor* thisx, PlayState* play) {
     gDPPipeSync(POLY_OPA_DISP++);
     gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, 255);
     gDPPipeSync(POLY_OPA_DISP++);
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(eyeTextures[this->eyeIndex]));
-    gSPSegment(POLY_OPA_DISP++, 0x0C, &sTransparencyDlist[2]);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(eyeTextures[this->eyeIndex]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x0C, &sTransparencyDlist[2]);
 
     POLY_OPA_DISP =
         MM_SkelAnime_DrawFlex(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,

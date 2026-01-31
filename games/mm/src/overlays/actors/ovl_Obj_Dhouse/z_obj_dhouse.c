@@ -506,7 +506,7 @@ void func_80B13C08(Actor* thisx, PlayState* play) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, object_dhouse_DL_004928);
+    MM_gSPDisplayList(POLY_OPA_DISP++, object_dhouse_DL_004928);
 
     for (i = 0, ptr = &this->unk_160[0], ptr3 = &D_80B13E90[0]; i < ARRAY_COUNT(this->unk_160); i++, ptr3++, ptr++) {
         if (ptr->unk_1E >= 0) {
@@ -516,8 +516,8 @@ void func_80B13C08(Actor* thisx, PlayState* play) {
             MM_Matrix_Scale(0.1f, 0.1f, 0.1f, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_OPA_DISP++, ptr3->unk_00);
-            gSPDisplayList(POLY_OPA_DISP++, ptr3->unk_04);
+            MM_gSPDisplayList(POLY_OPA_DISP++, ptr3->unk_00);
+            MM_gSPDisplayList(POLY_OPA_DISP++, ptr3->unk_04);
         }
     }
 
@@ -527,7 +527,7 @@ void func_80B13C08(Actor* thisx, PlayState* play) {
             MM_Matrix_Scale(ptr2->unk_18, ptr2->unk_18, ptr2->unk_18, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_OPA_DISP++, object_dhouse_DL_0081D8);
+            MM_gSPDisplayList(POLY_OPA_DISP++, object_dhouse_DL_0081D8);
         }
     }
 

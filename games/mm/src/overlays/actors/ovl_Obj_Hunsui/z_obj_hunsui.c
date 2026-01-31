@@ -660,10 +660,10 @@ void func_80B9DA60(Actor* thisx, PlayState* play) {
         if ((this->unk_160 == OBJHUNSUI_F000_6) || (this->unk_160 == OBJHUNSUI_F000_5)) {
             OPEN_DISPS(play->state.gfxCtx);
 
-            gSPSegment(POLY_XLU_DISP++, 0x08,
+            MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                        MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, (play->gameplayFrames % 128) * -9, 0x20, 0x20, 1, 0,
                                         (play->gameplayFrames % 128) * -8, 0x20, 0x20));
-            gSPSegment(POLY_XLU_DISP++, 0x09,
+            MM_gSPSegment(POLY_XLU_DISP++, 0x09,
                        MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, (s32)this->unk_1AC, 0x20, 0x20, 1, 0,
                                         (s32)this->unk_1B0, 0x20, 0x20));
 

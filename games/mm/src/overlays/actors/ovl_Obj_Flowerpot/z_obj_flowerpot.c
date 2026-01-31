@@ -668,7 +668,7 @@ void ObjFlowerpot_Draw(Actor* thisx, PlayState* play) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, object_flowerpot_DL_0012E0);
+    MM_gSPDisplayList(POLY_OPA_DISP++, object_flowerpot_DL_0012E0);
 
     if ((this->actionFunc != func_80A1C838) || (this->unk_1EA & 1)) {
         MM_Collider_UpdateSpheres(0, &this->collider);
@@ -686,7 +686,7 @@ void ObjFlowerpot_Draw(Actor* thisx, PlayState* play) {
             }
         }
 
-        gSPDisplayList(POLY_OPA_DISP++, object_flowerpot_DL_001408);
+        MM_gSPDisplayList(POLY_OPA_DISP++, object_flowerpot_DL_001408);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);

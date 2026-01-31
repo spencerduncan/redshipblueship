@@ -109,7 +109,7 @@ u32 EffectSsSbn_Init(PlayState* play, u32 index, EffectSs* this, void* initParam
         bubbleVec.z = -mtx.mf[2][2] * 10.0f;
         MM_Math3D_CosOut(&colPolyVec, &bubbleVec, &angle);
 
-        opposite = (SQ(angle) >= 1.0f) ? 0.0f : sqrtf(1.0f - SQ(angle));
+        opposite = (SQ(angle) >= 1.0f) ? 0.0f : MM_sqrtf(1.0f - SQ(angle));
         if (((mtx.mf[0][0] * colPolyVec.x) + (mtx.mf[0][1] * colPolyVec.y) + (mtx.mf[0][2] * colPolyVec.z)) < 0.0f) {
             this->rRotAngle = Math_Atan2S_XY(angle, opposite);
         } else {
@@ -143,20 +143,20 @@ void EffectSsSbn_DrawSliding(PlayState* play, u32 index, EffectSs* this) {
         {
             TexturePtr tex = sSlidingTextures[this->rTexIndex];
 
-            gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(tex));
+            MM_gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(tex));
         }
         this->rTexIndex++;
         this->rScroll += this->rScrollStep;
     } else {
-        gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(gEffPoppedDekuBubbleSliding12Tex));
+        MM_gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(gEffPoppedDekuBubbleSliding12Tex));
         if ((this->rScrollStep >= 2) && ((play->state.frames % 2) == 0)) {
             this->rScrollStep--;
         }
         this->rScroll += this->rScrollStep;
     }
-    gSPSegment(POLY_XLU_DISP++, 0x09,
+    MM_gSPSegment(POLY_XLU_DISP++, 0x09,
                MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 0x20, 0x40, 1, 0, this->rScroll, 0x20, 0x20));
-    gSPDisplayList(POLY_XLU_DISP++, gEffPoppedDekuBubbleSlidingDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gEffPoppedDekuBubbleSlidingDL);
 
     CLOSE_DISPS(gfxCtx);
 }
@@ -183,13 +183,13 @@ void EffectSsSbn_Draw(PlayState* play, u32 index, EffectSs* this) {
         {
             TexturePtr tex = MM_sTextures[this->rTexIndex];
 
-            gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(tex));
+            MM_gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(tex));
         }
         this->rTexIndex++;
     } else {
-        gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(gEffPoppedDekuBubble5Tex));
+        MM_gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(gEffPoppedDekuBubble5Tex));
     }
-    gSPDisplayList(POLY_XLU_DISP++, gEffPoppedDekuBubbleDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gEffPoppedDekuBubbleDL);
 
     CLOSE_DISPS(gfxCtx);
 }

@@ -425,7 +425,7 @@ void ObjGrass_InitDraw(ObjGrass* this, PlayState* play) {
         grassGroup = &this->grassGroups[i];
 
         eyeDist = MM_Math3D_Vec3fDistSq(&grassGroup->homePos, &GET_ACTIVE_CAM(play)->eye);
-        eyeDist = SQ(sqrtf(eyeDist) / multiplier); // Hijacked
+        eyeDist = SQ(MM_sqrtf(eyeDist) / multiplier); // Hijacked
 
         if ((eyeDist < SQ(1280.0f)) && func_809A9110(play, &grassGroup->homePos)) {
             grassGroup->flags |= OBJ_GRASS_GROUP_DRAW;
@@ -442,14 +442,14 @@ void ObjGrass_InitDraw(ObjGrass* this, PlayState* play) {
                         grassElem->alpha = 255;
                     } else {
                         distSq = MM_Math3D_Vec3fDistSq(&grassElem->pos, &GET_ACTIVE_CAM(play)->eye);
-                        distSq = SQ(sqrtf(distSq) / multiplier); // Hijacked
+                        distSq = SQ(MM_sqrtf(distSq) / multiplier); // Hijacked
                         if ((distSq <= SQ(1080.0f)) ||
                             ((grassElem->flags & OBJ_GRASS_ELEM_UNDERWATER) && (distSq < SQ(1180.0f)))) {
                             grassElem->alpha = 255;
                         } else if (distSq >= SQ(1180.0f)) {
                             grassElem->alpha = 0;
                         } else {
-                            grassElem->alpha = (1180.0f - sqrtf(distSq)) * 2.55f;
+                            grassElem->alpha = (1180.0f - MM_sqrtf(distSq)) * 2.55f;
                         }
                     }
                 }
@@ -475,7 +475,7 @@ void ObjGrass_DrawOpa(Actor* thisx, PlayState* play2) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 255, 255, 255, 255);
-    gSPDisplayList(POLY_OPA_DISP++, gObjGrass_D_809AA9F0);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gObjGrass_D_809AA9F0);
 
     for (i = 0; i < this->activeGrassGroups; i++) {
         grassGroup = &this->grassGroups[i];
@@ -499,7 +499,7 @@ void ObjGrass_DrawOpa(Actor* thisx, PlayState* play2) {
                         }
 
                         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-                        gSPDisplayList(POLY_OPA_DISP++, gObjGrass_D_809AAAE0);
+                        MM_gSPDisplayList(POLY_OPA_DISP++, gObjGrass_D_809AAAE0);
                     }
                     FrameInterpolation_RecordCloseChild();
                 }
@@ -522,7 +522,7 @@ void ObjGrass_DrawXlu(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
-    gSPDisplayList(POLY_XLU_DISP++, gObjGrass_D_809AAA68);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gObjGrass_D_809AAA68);
 
     for (i = 0; i < this->activeGrassGroups; i++) {
         grassGroup = &this->grassGroups[i];
@@ -540,7 +540,7 @@ void ObjGrass_DrawXlu(Actor* thisx, PlayState* play) {
 
                         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
                         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, grassElem->alpha);
-                        gSPDisplayList(POLY_XLU_DISP++, gObjGrass_D_809AAAE0);
+                        MM_gSPDisplayList(POLY_XLU_DISP++, gObjGrass_D_809AAAE0);
                     }
                     FrameInterpolation_RecordCloseChild();
                 }

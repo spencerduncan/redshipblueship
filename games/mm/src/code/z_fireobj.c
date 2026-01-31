@@ -143,7 +143,7 @@ void FireObj_Draw(PlayState* play, FireObj* fire) {
         OPEN_DISPS(play->state.gfxCtx);
 
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
-        gSPSegment(POLY_XLU_DISP++, 0x08,
+        MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                    MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 32, 64, 1, 0, (fire->timer * -20) % 512U, 32, 128));
 
         gDPSetPrimColor(POLY_XLU_DISP++, 0, fireColors->lod, fireColors->primColor.r, fireColors->primColor.g,
@@ -158,7 +158,7 @@ void FireObj_Draw(PlayState* play, FireObj* fire) {
         MM_Matrix_Scale(fire->xScale, fire->yScale, 1.0f, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
 
         CLOSE_DISPS(play->state.gfxCtx);
     }

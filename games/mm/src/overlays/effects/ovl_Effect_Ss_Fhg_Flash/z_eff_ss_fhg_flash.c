@@ -76,7 +76,7 @@ void EffectSsFhgFlash_Draw(PlayState* play, u32 index, EffectSs* this) {
     Matrix_RotateZS(this->rXZRot, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
 
-    gSPDisplayList(POLY_XLU_DISP++, this->gfx);
+    MM_gSPDisplayList(POLY_XLU_DISP++, this->gfx);
 
     CLOSE_DISPS(gfxCtx);
 }

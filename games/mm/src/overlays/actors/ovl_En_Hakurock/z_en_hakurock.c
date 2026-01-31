@@ -410,7 +410,7 @@ void EnHakurock_DrawBoulder(Actor* thisx, PlayState* play) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0x80, 255, 185, 24, 255);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, gameplay_keep_DL_06AB30);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gameplay_keep_DL_06AB30);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -421,8 +421,8 @@ void EnHakurock_DrawStalactite(Actor* thisx, PlayState* play) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
     MM_Matrix_Translate(-100.0f, 0.0f, 0.0f, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, gGohtStalactiteMaterialDL);
-    gSPDisplayList(POLY_OPA_DISP++, gGohtStalactiteModelDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gGohtStalactiteMaterialDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gGohtStalactiteModelDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

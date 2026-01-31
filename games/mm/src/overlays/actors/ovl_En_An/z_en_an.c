@@ -1765,10 +1765,10 @@ void EnAn_DrawAccessory(EnAn* this, PlayState* play, EnAnAccessory accessoryId) 
                 Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
                 MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-                gSPSegment(POLY_XLU_DISP++, 0x08,
+                MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                            MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, this->trayTexScrollTimer1, 0, 16, 16, 1, 0,
                                             this->trayTexScrollTimer2, 16, 16));
-                gSPDisplayList(POLY_XLU_DISP++, gAnju1FoodTrayDL);
+                MM_gSPDisplayList(POLY_XLU_DISP++, gAnju1FoodTrayDL);
 
                 Gfx_SetupDL25_Opa(play->state.gfxCtx);
             }
@@ -1781,13 +1781,13 @@ void EnAn_DrawAccessory(EnAn* this, PlayState* play, EnAnAccessory accessoryId) 
                 static Vec3f D_80B58E54 = { 190.0f, -130.0f, 0.0f };
                 static Vec3s D_80B58E60 = { 0, 0, 0x4168 };
 
-                gSPSegment(POLY_OPA_DISP++, 0x0A, play->objectCtx.slots[otherObjectSlot].segment);
+                MM_gSPSegment(POLY_OPA_DISP++, 0x0A, play->objectCtx.slots[otherObjectSlot].segment);
 
                 MM_Matrix_TranslateRotateZYX(&D_80B58E54, &D_80B58E60);
 
                 MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-                gSPDisplayList(POLY_OPA_DISP++, gKafeisMaskDL);
-                gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[originalObjectSlot].segment);
+                MM_gSPDisplayList(POLY_OPA_DISP++, gKafeisMaskDL);
+                MM_gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[originalObjectSlot].segment);
             }
             break;
 
@@ -1795,9 +1795,9 @@ void EnAn_DrawAccessory(EnAn* this, PlayState* play, EnAnAccessory accessoryId) 
             otherObjectSlot = this->an2ObjectSlot;
             if ((this->stateFlags & ENAN_STATE_DRAW_UMBRELLA) && !this->forceDraw &&
                 (otherObjectSlot > OBJECT_SLOT_NONE)) {
-                gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[otherObjectSlot].segment);
-                gSPDisplayList(POLY_OPA_DISP++, gAnju2UmbrellaDL);
-                gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[originalObjectSlot].segment);
+                MM_gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[otherObjectSlot].segment);
+                MM_gSPDisplayList(POLY_OPA_DISP++, gAnju2UmbrellaDL);
+                MM_gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[originalObjectSlot].segment);
             }
             break;
 
@@ -1805,15 +1805,15 @@ void EnAn_DrawAccessory(EnAn* this, PlayState* play, EnAnAccessory accessoryId) 
             otherObjectSlot = this->an3ObjectSlot;
             if ((this->stateFlags & ENAN_STATE_DRAW_BROOM) && !this->forceDraw &&
                 (otherObjectSlot > OBJECT_SLOT_NONE)) {
-                gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[otherObjectSlot].segment);
-                gSPDisplayList(POLY_OPA_DISP++, gAnju3BroomDL);
-                gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[originalObjectSlot].segment);
+                MM_gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[otherObjectSlot].segment);
+                MM_gSPDisplayList(POLY_OPA_DISP++, gAnju3BroomDL);
+                MM_gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[originalObjectSlot].segment);
             }
             break;
 
         case ENAN_ACCESSORY_CHOPSTICKS:
             if ((this->stateFlags & ENAN_STATE_DRAW_CHOPSTICKS) && !this->forceDraw) {
-                gSPDisplayList(POLY_OPA_DISP++, gAnju1ChopsticksDL);
+                MM_gSPDisplayList(POLY_OPA_DISP++, gAnju1ChopsticksDL);
             }
             break;
 
@@ -1827,9 +1827,9 @@ void EnAn_DrawAccessory(EnAn* this, PlayState* play, EnAnAccessory accessoryId) 
 
                 MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
 
-                gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[otherObjectSlot].segment);
-                gSPDisplayList(POLY_OPA_DISP++, gMoonMaskDL);
-                gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[originalObjectSlot].segment);
+                MM_gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[otherObjectSlot].segment);
+                MM_gSPDisplayList(POLY_OPA_DISP++, gMoonMaskDL);
+                MM_gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[originalObjectSlot].segment);
             }
             break;
 
@@ -3956,8 +3956,8 @@ void EnAn_Draw(Actor* thisx, PlayState* play) {
 
         Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-        gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeTexIndex]));
-        gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(MM_sMouthTextures[this->mouthTexIndex]));
+        MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeTexIndex]));
+        MM_gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(MM_sMouthTextures[this->mouthTexIndex]));
 
         SkelAnime_DrawTransformFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
                                        this->skelAnime.dListCount, NULL, EnAn_PostLimbDraw, EnAn_TransformLimbDraw,

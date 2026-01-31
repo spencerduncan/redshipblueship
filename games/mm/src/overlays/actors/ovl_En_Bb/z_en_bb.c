@@ -675,7 +675,7 @@ void MM_EnBb_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* ro
             currentMatrixState->mf[3][2] = this->bodyPartsPos[sLimbToBodyParts[limbIndex]].z;
             Matrix_RotateZS(thisx->world.rot.z, MTXMODE_APPLY);
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_OPA_DISP++, this->limbDList);
+            MM_gSPDisplayList(POLY_OPA_DISP++, this->limbDList);
 
             CLOSE_DISPS(play->state.gfxCtx);
         }
@@ -691,7 +691,7 @@ void MM_EnBb_Draw(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     gfx = POLY_OPA_DISP;
-    gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
+    MM_gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
     POLY_OPA_DISP = &gfx[1];
     MM_SkelAnime_DrawOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, EnBb_OverrideLimbDraw,
                       MM_EnBb_PostLimbDraw, &this->actor);
@@ -704,12 +704,12 @@ void MM_EnBb_Draw(Actor* thisx, PlayState* play) {
         MM_Matrix_Scale(this->flameScaleX, this->flameScaleY, 1.0f, MTXMODE_APPLY);
         gDPSetPrimColor(POLY_XLU_DISP++, 0x80, 0x80, 255, 255, 255, 255);
         gDPSetEnvColor(POLY_XLU_DISP++, 0, 0, 255, 0);
-        gSPSegment(
+        MM_gSPSegment(
             POLY_XLU_DISP++, 0x08,
             MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 32, 64, 1, 0, (play->gameplayFrames * -20) & 0x1FF, 32, 128));
         currentMatrixState->mf[3][1] -= 47.0f * this->flameScaleY;
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
     }
 
     Actor_DrawDamageEffects(play, &this->actor, this->bodyPartsPos, BUBBLE_BODYPART_MAX, this->drawDmgEffScale,

@@ -702,7 +702,7 @@ void EnMaruta_Draw(Actor* thisx, PlayState* play) {
 
     if (this->unk_210 == 0) {
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, object_maruta_DL_002EC0);
+        MM_gSPDisplayList(POLY_OPA_DISP++, object_maruta_DL_002EC0);
     } else {
         sp50 = D_80B387E4[this->unk_210];
 
@@ -715,7 +715,7 @@ void EnMaruta_Draw(Actor* thisx, PlayState* play) {
 
         for (i = 0; i < 8; i++) {
             if (D_80B386C0[this->unk_210] & (1 << i)) {
-                gSPDisplayList(POLY_OPA_DISP++, D_80B386A0[i]);
+                MM_gSPDisplayList(POLY_OPA_DISP++, D_80B386A0[i]);
             }
         }
 

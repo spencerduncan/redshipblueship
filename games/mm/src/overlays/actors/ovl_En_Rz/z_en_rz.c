@@ -706,11 +706,11 @@ void EnRz_Draw(Actor* thisx, PlayState* play) {
     }
 
     if (this->animIndex == EN_RZ_ANIM_APPLAUDING) {
-        gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(MM_sEyeTextures[4]));
+        MM_gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(MM_sEyeTextures[4]));
     } else if (this->stateFlags & EN_RZ_STATE_2) {
-        gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(MM_sEyeTextures[3]));
+        MM_gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(MM_sEyeTextures[3]));
     } else {
-        gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeIndex]));
+        MM_gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeIndex]));
     }
 
     MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount, NULL,

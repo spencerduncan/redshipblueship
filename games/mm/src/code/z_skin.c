@@ -124,7 +124,7 @@ void MM_Skin_ApplyLimbModifications(GraphicsContext* gfxCtx, Skin* skin, s32 lim
                             vtxBuf, &spDC);
     }
 
-    gSPSegment(POLY_OPA_DISP++, 0x08, vtxEntry->buf[vtxEntry->index]);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, vtxEntry->buf[vtxEntry->index]);
 
     vtxEntry->index = (vtxEntry->index == 0);
 
@@ -149,7 +149,7 @@ void MM_Skin_DrawAnimatedLimb(GraphicsContext* gfxCtx, Skin* skin, s32 limbIndex
         MM_Skin_ApplyLimbModifications(gfxCtx, skin, limbIndex, arg3);
     }
 
-    gSPDisplayList(POLY_OPA_DISP++, data->dlist);
+    MM_gSPDisplayList(POLY_OPA_DISP++, data->dlist);
 
     CLOSE_DISPS(gfxCtx);
 }
@@ -174,7 +174,7 @@ void MM_Skin_DrawLimb(GraphicsContext* gfxCtx, Skin* skin, s32 limbIndex, Gfx* d
 
         if (mtx != NULL) {
             gSPMatrix(POLY_OPA_DISP++, mtx, G_MTX_PUSH | G_MTX_MUL | G_MTX_MODELVIEW);
-            gSPDisplayList(POLY_OPA_DISP++, gfx);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gfx);
             gSPPopMatrix(POLY_OPA_DISP++, G_MTX_MODELVIEW);
             gDPPipeSync(POLY_OPA_DISP++);
         }

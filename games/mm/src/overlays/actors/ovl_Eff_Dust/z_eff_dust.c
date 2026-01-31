@@ -287,7 +287,7 @@ void func_80919768(Actor* thisx, PlayState* play2) {
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, 255);
     gDPSetEnvColor(POLY_XLU_DISP++, 255, 0, 255, 0);
 
-    gSPSegment(POLY_XLU_DISP++, 0x08, D_80919DB0);
+    MM_gSPSegment(POLY_XLU_DISP++, 0x08, D_80919DB0);
 
     for (i = 0; i < ARRAY_COUNT(this->distanceTraveled); i++) {
         FrameInterpolation_RecordOpenChild(distanceTraveled, i);
@@ -306,7 +306,7 @@ void func_80919768(Actor* thisx, PlayState* play2) {
 
             gSPClearGeometryMode(POLY_XLU_DISP++, G_FOG | G_LIGHTING);
 
-            gSPDisplayList(POLY_XLU_DISP++, gEffSparklesDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gEffSparklesDL);
 
             gSPSetGeometryMode(POLY_XLU_DISP++, G_FOG | G_LIGHTING);
         }
@@ -344,7 +344,7 @@ void func_809199FC(Actor* thisx, PlayState* play2) {
         gDPSetEnvColor(POLY_XLU_DISP++, 0, 0, 255, 0);
     }
 
-    gSPSegment(POLY_XLU_DISP++, 0x08, D_80919DB0);
+    MM_gSPSegment(POLY_XLU_DISP++, 0x08, D_80919DB0);
 
     for (i = 0; i < ARRAY_COUNT(this->distanceTraveled); i++) {
         if (*distanceTraveled < 1.0f) {
@@ -365,7 +365,7 @@ void func_809199FC(Actor* thisx, PlayState* play2) {
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
             gSPClearGeometryMode(POLY_XLU_DISP++, G_FOG | G_LIGHTING);
 
-            gSPDisplayList(POLY_XLU_DISP++, gEffSparklesDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gEffSparklesDL);
             gSPSetGeometryMode(POLY_XLU_DISP++, G_FOG | G_LIGHTING);
             FrameInterpolation_RecordCloseChild();
         }

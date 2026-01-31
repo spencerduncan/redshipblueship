@@ -476,8 +476,8 @@ void MM_EnBombf_Draw(Actor* thisx, PlayState* play) {
 
         if (ENBOMBF_GET(&this->actor) != ENBOMBF_0) {
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_OPA_DISP++, gBombFlowerLeavesDL);
-            gSPDisplayList(POLY_OPA_DISP++, gBombFlowerBaseLeavesDL);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gBombFlowerLeavesDL);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gBombFlowerBaseLeavesDL);
 
             MM_Matrix_Translate(0.0f, 1000.0f, 0.0f, MTXMODE_APPLY);
             MM_Matrix_Scale(this->unk_204, this->unk_204, this->unk_204, MTXMODE_APPLY);
@@ -491,10 +491,10 @@ void MM_EnBombf_Draw(Actor* thisx, PlayState* play) {
         {
             Gfx* gfx = func_808AF86C(play->state.gfxCtx, play);
 
-            gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(gfx));
+            MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(gfx));
         }
 
-        gSPDisplayList(POLY_OPA_DISP++, gBombFlowerBombAndSparkDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, gBombFlowerBombAndSparkDL);
     } else {
         MM_Collider_UpdateSpheres(0, &this->colliderJntSph);
     }

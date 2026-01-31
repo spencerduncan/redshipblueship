@@ -26,12 +26,12 @@ void* SystemHeap_Malloc(size_t size) {
         size = 1;
     }
 
-    return __osMalloc(&MM_gSystemArena, size);
+    return MM___osMalloc(&MM_gSystemArena, size);
 }
 
 void SystemHeap_Free(void* ptr) {
     if (ptr != NULL) {
-        __osFree(&MM_gSystemArena, ptr);
+        MM___osFree(&MM_gSystemArena, ptr);
     }
 }
 

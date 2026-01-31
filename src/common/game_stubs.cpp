@@ -1,75 +1,71 @@
 /**
  * @file game_stubs.cpp
- * @brief Stub implementations for game entry points
+ * @brief Stub implementations for game entry points (TEST MODE ONLY)
  *
- * These stubs provide the OoT_* and MM_* namespaced functions that the
- * single executable main.cpp expects. They will be replaced by the actual
- * game code when the full symbol namespacing is integrated.
+ * These stubs are ONLY used when the actual game object libraries are not linked.
+ * They exist to allow infrastructure tests (--test mode) to run without requiring
+ * the full game code.
  *
- * For now, these allow the infrastructure to be tested.
+ * In normal builds, the real implementations are in:
+ * - games/oot/soh/GameExports_SingleExe.cpp
+ * - games/mm/2s2h/GameExports_SingleExe.cpp
+ *
+ * The linker prefers the real implementations (defined in the game object libraries)
+ * over these weak symbols.
  */
 
 #include <cstdio>
 
-// ============================================================================
-// OoT Stub Implementations
-// ============================================================================
+// Mark stubs as weak so the real implementations take priority
+#ifdef __GNUC__
+#define WEAK_SYMBOL __attribute__((weak))
+#else
+#define WEAK_SYMBOL
+#endif
 
 extern "C" {
 
-int OoT_Game_Init(int argc, char** argv) {
+WEAK_SYMBOL int OoT_Game_Init(int argc, char** argv) {
     printf("[OoT STUB] Game_Init called (argc=%d)\n", argc);
-    printf("[OoT STUB] This is a stub implementation for testing.\n");
-    printf("[OoT STUB] Replace with actual OoT code when symbol namespacing is complete.\n");
+    printf("[OoT STUB] This is a stub - real implementation not linked.\n");
     return 0;
 }
 
-void OoT_Game_Run(void) {
-    printf("[OoT STUB] Game_Run called\n");
-    printf("[OoT STUB] Game would run here. Press Ctrl+C to exit.\n");
-    // In a real implementation, this would run the game loop
-    // For testing, we just return immediately
+WEAK_SYMBOL void OoT_Game_Run(void) {
+    printf("[OoT STUB] Game_Run called - stub implementation\n");
 }
 
-void OoT_Game_Shutdown(void) {
+WEAK_SYMBOL void OoT_Game_Shutdown(void) {
     printf("[OoT STUB] Game_Shutdown called\n");
 }
 
-const char* OoT_Game_GetName(void) {
+WEAK_SYMBOL const char* OoT_Game_GetName(void) {
     return "Ocarina of Time (Stub)";
 }
 
-const char* OoT_Game_GetId(void) {
+WEAK_SYMBOL const char* OoT_Game_GetId(void) {
     return "oot";
 }
 
-// ============================================================================
-// MM Stub Implementations
-// ============================================================================
-
-int MM_Game_Init(int argc, char** argv) {
+WEAK_SYMBOL int MM_Game_Init(int argc, char** argv) {
     printf("[MM STUB] Game_Init called (argc=%d)\n", argc);
-    printf("[MM STUB] This is a stub implementation for testing.\n");
-    printf("[MM STUB] Replace with actual MM code when symbol namespacing is complete.\n");
+    printf("[MM STUB] This is a stub - real implementation not linked.\n");
     return 0;
 }
 
-void MM_Game_Run(void) {
-    printf("[MM STUB] Game_Run called\n");
-    printf("[MM STUB] Game would run here. Press Ctrl+C to exit.\n");
-    // In a real implementation, this would run the game loop
-    // For testing, we just return immediately
+WEAK_SYMBOL void MM_Game_Run(void) {
+    printf("[MM STUB] Game_Run called - stub implementation\n");
 }
 
-void MM_Game_Shutdown(void) {
+WEAK_SYMBOL void MM_Game_Shutdown(void) {
     printf("[MM STUB] Game_Shutdown called\n");
 }
 
-const char* MM_Game_GetName(void) {
+WEAK_SYMBOL const char* MM_Game_GetName(void) {
     return "Majora's Mask (Stub)";
 }
 
-const char* MM_Game_GetId(void) {
+WEAK_SYMBOL const char* MM_Game_GetId(void) {
     return "mm";
 }
 

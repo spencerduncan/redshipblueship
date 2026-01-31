@@ -743,15 +743,15 @@ void EnZos_Draw(Actor* thisx, PlayState* play) {
 
     gfx = POLY_OPA_DISP;
 
-    gSPSegment(&gfx[0], 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeIndex]));
+    MM_gSPSegment(&gfx[0], 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeIndex]));
 
     MM_Matrix_Push();
     Matrix_RotateYS(this->actor.home.rot.y - this->actor.shape.rot.y, MTXMODE_APPLY);
     MM_Matrix_Translate(0.0f, 0.0f, -974.4f, MTXMODE_APPLY);
 
     MATRIX_FINALIZE_AND_LOAD(&gfx[1], play->state.gfxCtx);
-    gSPDisplayList(&gfx[2], gEvanUnknownWhiteTriangleDL);
-    gSPDisplayList(&gfx[3], gEvanKeyboardDL);
+    MM_gSPDisplayList(&gfx[2], gEvanUnknownWhiteTriangleDL);
+    MM_gSPDisplayList(&gfx[3], gEvanKeyboardDL);
 
     POLY_OPA_DISP = &gfx[4];
 

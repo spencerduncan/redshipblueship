@@ -141,10 +141,10 @@ void BgLadder_Draw(Actor* thisx, PlayState* play) {
         gfx = POLY_XLU_DISP;
     }
 
-    gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
+    MM_gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
     gDPSetEnvColor(&gfx[1], 255, 255, 255, this->alpha);
     MATRIX_FINALIZE_AND_LOAD(&gfx[2], play->state.gfxCtx);
-    gSPDisplayList(&gfx[3], sLadderDLists[this->dyna.actor.params]);
+    MM_gSPDisplayList(&gfx[3], sLadderDLists[this->dyna.actor.params]);
 
     if (this->alpha == 255) {
         POLY_OPA_DISP = gfx + 4;

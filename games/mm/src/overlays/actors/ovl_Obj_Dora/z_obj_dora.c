@@ -331,20 +331,20 @@ void ObjDora_Draw(Actor* thisx, PlayState* play) {
         MM_Matrix_Push();
         Matrix_RotateXS(this->gongRotation.x, MTXMODE_APPLY);
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, &gDoraChainDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, &gDoraChainDL);
 
         MM_Matrix_Translate(sPos.x, sPos.y + gongForceX, sPos.z + gongForceX, MTXMODE_APPLY);
         Matrix_RotateXS(this->gongRotation.z - this->gongRotation.x, MTXMODE_APPLY);
         MM_Matrix_Translate(-sPos.x, -sPos.y, -sPos.z, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, &gDoraGongDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, &gDoraGongDL);
 
         MM_Matrix_Pop();
     } else {
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, &gDoraGongDL);
-        gSPDisplayList(POLY_OPA_DISP++, &gDoraChainDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, &gDoraGongDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, &gDoraChainDL);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);

@@ -945,7 +945,7 @@ void MM_AudioHeap_Init(void) {
 
     // audio buffer parameters
     gAudioCtx.audioBufferParameters.samplingFreq = spec->samplingFreq;
-    gAudioCtx.audioBufferParameters.aiSamplingFreq = osAiSetFrequency(gAudioCtx.audioBufferParameters.samplingFreq);
+    gAudioCtx.audioBufferParameters.aiSamplingFreq = MM_osAiSetFrequency(gAudioCtx.audioBufferParameters.samplingFreq);
 
     gAudioCtx.audioBufferParameters.numSamplesPerFrameTarget =
         ALIGN16(gAudioCtx.audioBufferParameters.samplingFreq / gAudioCtx.refreshRate);
@@ -1084,9 +1084,9 @@ void MM_AudioHeap_Init(void) {
     gAudioCtx.unk_4 = 0x1000;
     AudioLoad_LoadPermanentSamples();
 
-    intMask = osSetIntMask(1);
+    intMask = MM_osSetIntMask(1);
     osWritebackDCacheAll();
-    osSetIntMask(intMask);
+    MM_osSetIntMask(intMask);
 }
 
 void* MM_AudioHeap_SearchPermanentCache(s32 tableType, s32 id) {

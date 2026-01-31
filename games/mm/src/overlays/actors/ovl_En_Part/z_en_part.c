@@ -135,11 +135,11 @@ void MM_EnPart_Draw(Actor* thisx, PlayState* play) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
     func_800B8050(&this->actor, play, 0);
     if (this->actor.params == ENPART_TYPE_15) {
-        gSPSegment(POLY_OPA_DISP++, 0x0C, MM_gEmptyDL);
+        MM_gSPSegment(POLY_OPA_DISP++, 0x0C, MM_gEmptyDL);
     }
     if (this->dList != NULL) {
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, this->dList);
+        MM_gSPDisplayList(POLY_OPA_DISP++, this->dList);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);

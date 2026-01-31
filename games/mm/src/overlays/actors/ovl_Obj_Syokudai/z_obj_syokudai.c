@@ -295,7 +295,7 @@ void MM_ObjSyokudai_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, MM_sDLists[OBJ_SYOKUDAI_GET_TYPE(thisx)]);
+    MM_gSPDisplayList(POLY_OPA_DISP++, MM_sDLists[OBJ_SYOKUDAI_GET_TYPE(thisx)]);
     if (this->snuffTimer != OBJ_SYOKUDAI_SNUFF_OUT) {
         s32 snuffTimerInitial = OBJ_SYOKUDAI_SNUFF_TIMER_INITIAL(groupSize);
 
@@ -308,7 +308,7 @@ void MM_ObjSyokudai_Draw(Actor* thisx, PlayState* play) {
         }
         flameScale *= 0.0027f;
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
-        gSPSegment(POLY_XLU_DISP++, 0x08,
+        MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                    MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 0x20, 0x40, 1, 0,
                                     (this->flameTexScroll * -OBJ_SYOKUDAI_SNUFF_DEFAULT) & 0x1FF, 0x20, 0x80));
         gDPSetPrimColor(POLY_XLU_DISP++, 0x80, 0x80, 255, 255, 0, 255);
@@ -318,7 +318,7 @@ void MM_ObjSyokudai_Draw(Actor* thisx, PlayState* play) {
         MM_Matrix_Scale(flameScale, flameScale, flameScale, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);

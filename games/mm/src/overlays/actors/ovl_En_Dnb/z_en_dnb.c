@@ -164,7 +164,7 @@ void func_80A50510(EnDnb* this, PlayState* play) {
         Matrix_RotateZS(this->effects[i].unk_18.z, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gfx[i]);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gfx[i]);
 
         MM_Matrix_Pop();
     }
@@ -188,7 +188,7 @@ void func_80A5063C(EnDnb* this, PlayState* play) {
         Matrix_RotateZS(this->effects[i].unk_18.z, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, gfx[i]);
+        MM_gSPDisplayList(POLY_OPA_DISP++, gfx[i]);
 
         MM_Matrix_Pop();
     }
@@ -270,7 +270,7 @@ s32 func_80A50950(EnDnbUnkStruct* arg0, PlayState* play2) {
 
         if (!isGfxSetup) {
             POLY_XLU_DISP = MM_Gfx_SetupDL(POLY_XLU_DISP, SETUPDL_0);
-            gSPDisplayList(POLY_XLU_DISP++, object_hanareyama_obj_DL_000000);
+            MM_gSPDisplayList(POLY_XLU_DISP++, object_hanareyama_obj_DL_000000);
             gDPSetEnvColor(POLY_XLU_DISP++, 255, 255, 255, 0);
             isGfxSetup = true;
         }
@@ -286,8 +286,8 @@ s32 func_80A50950(EnDnbUnkStruct* arg0, PlayState* play2) {
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
         idx = (arg0->unk_01 / (f32)arg0->unk_02) * 8.0f;
-        gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sDustTextures[idx]));
-        gSPDisplayList(POLY_XLU_DISP++, object_hanareyama_obj_DL_000020);
+        MM_gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sDustTextures[idx]));
+        MM_gSPDisplayList(POLY_XLU_DISP++, object_hanareyama_obj_DL_000020);
 
         MM_Matrix_Pop();
         sp5C += 1;
