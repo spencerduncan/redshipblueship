@@ -5056,7 +5056,7 @@ void Audio_StartObjSoundFanfare(u8 seqPlayerIndex, Vec3f* pos, s16 seqId, u16 se
         sIsFinalHoursOrSoaring) {
         sIsFinalHoursOrSoaring = true;
     } else if (pos != NULL) {
-        if ((seqId != AudioSeq_GetActiveSeqId(seqPlayerIndex) & 0xFFFF) &&
+        if ((seqId != (AudioSeq_GetActiveSeqId(seqPlayerIndex) & 0xFFFF)) &&
             !gAudioCtx.seqPlayers[seqPlayerIndex].enabled && (sObjSoundMainBgmSeqId == NA_BGM_GENERAL_SFX)) {
 
             mask = 0xFFFF;
