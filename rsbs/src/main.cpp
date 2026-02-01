@@ -164,14 +164,20 @@ void PrintUsage(const char* progName) {
     printf("Options:\n");
     printf("  --game oot       Run Ocarina of Time\n");
     printf("  --game mm        Run Majora's Mask\n");
-    printf("  --test <name>    Run integration tests\n");
+    printf("  --test <name>    Run integration tests (headless)\n");
+    printf("  --xvfb-test <name>  Run Xvfb gameplay tests (requires display)\n");
+    printf("  --timeout <sec>  Timeout for Xvfb tests (default: 30s)\n");
     printf("  --test-entrance  Use test entrance links (Mido's House)\n");
     printf("  --help, -h       Show this help message\n\n");
-    printf("Test commands:\n");
-    printf("  --test boot-oot  Boot OoT, exit on main menu\n");
-    printf("  --test boot-mm   Boot MM, exit on main menu\n");
-    printf("  --test all       Run all tests\n");
-    printf("  --test list      List available tests\n\n");
+    printf("Headless test commands (--test):\n");
+    printf("  boot-oot         Boot OoT infrastructure check\n");
+    printf("  boot-mm          Boot MM infrastructure check\n");
+    printf("  all              Run all headless tests\n");
+    printf("  list             List available headless tests\n\n");
+    printf("Xvfb gameplay tests (--xvfb-test, requires display):\n");
+    printf("  boot-oot-xvfb    Boot OoT to main menu with display\n");
+    printf("  boot-mm-xvfb     Boot MM to main menu with display\n");
+    printf("  midos-house-gameplay  Test Mido's House cross-game entrance\n\n");
     printf("Hotkeys:\n");
     printf("  F10              Switch between OoT and MM\n");
 }
@@ -219,10 +225,23 @@ int main(int argc, char** argv) {
         return 0;
     }
 
-    // Check for test mode
+    // Check for headless test mode
     const char* testArg = TestRunner_ParseArgs(argc, argv);
     if (testArg != nullptr) {
         return TestRunner_Run(testArg);
+    }
+
+    // Check for Xvfb gameplay test mode
+    const char* xvfbTestArg = TestRunner_ParseXvfbArgs(argc, argv);
+    int xvfbTimeout = TestRunner_ParseTimeoutArg(argc, argv);
+    if (xvfbTimeout == 0) {
+        xvfbTimeout = 30;  // Default timeout: 30 seconds
+    }
+
+    if (xvfbTestArg != nullptr) {
+        printf("=== Xvfb Gameplay Test Mode ===\n");
+        printf("Test: %s, Timeout: %ds\n\n", xvfbTestArg, xvfbTimeout);
+        TestRunner_InitXvfbTest(xvfbTestArg, xvfbTimeout);
     }
 
     // Initialize combo infrastructure
@@ -234,8 +253,8 @@ int main(int argc, char** argv) {
     Entrance_RegisterDefaultLinks();
     // Also register test links (Mido's House) for easy testing
     Entrance_RegisterTestLinks();
-    if (HasTestEntranceFlag(argc, argv)) {
-        printf("Test entrance links also registered (Mido's House <-> Clock Tower)\n");
+    if (HasTestEntranceFlag(argc, argv) || xvfbTestArg != nullptr) {
+        printf("Test entrance links registered (Mido's House <-> Clock Tower)\n");
     }
 
     // ========================================================================
@@ -276,7 +295,17 @@ int main(int argc, char** argv) {
     // Determine which game to run
     GameId selectedGame = ParseGameArg(argc, argv);
     if (selectedGame == GAME_NONE) {
-        selectedGame = ShowGameMenu();
+        // In Xvfb test mode, auto-select based on test name
+        if (xvfbTestArg != nullptr) {
+            if (strstr(xvfbTestArg, "mm") != nullptr) {
+                selectedGame = GAME_MM;
+            } else {
+                selectedGame = GAME_OOT;  // Default to OoT for most tests
+            }
+            printf("[XVFB-TEST] Auto-selected game: %s\n", Game_ToString(selectedGame));
+        } else {
+            selectedGame = ShowGameMenu();
+        }
     }
 
     // Build filtered argv (remove our flags before passing to game)
@@ -301,6 +330,20 @@ int main(int argc, char** argv) {
             continue;
         }
         if (strncmp(argv[i], "--test=", 7) == 0) {
+            continue;
+        }
+        if (strcmp(argv[i], "--xvfb-test") == 0) {
+            i++; // Skip value too
+            continue;
+        }
+        if (strncmp(argv[i], "--xvfb-test=", 12) == 0) {
+            continue;
+        }
+        if (strcmp(argv[i], "--timeout") == 0) {
+            i++; // Skip value too
+            continue;
+        }
+        if (strncmp(argv[i], "--timeout=", 10) == 0) {
             continue;
         }
         gameArgv[gameArgc++] = argv[i];
@@ -387,6 +430,17 @@ int main(int argc, char** argv) {
     GameRunner_ShutdownAll(&runner);
 
     free(gameArgv);
+
+    // Return appropriate exit code for Xvfb tests
+    if (TestRunner_IsXvfbTestMode()) {
+        TestResult result = TestRunner_GetXvfbResult();
+        printf("[XVFB-TEST] Final result: %s\n",
+               result == TEST_PASS ? "PASS" :
+               result == TEST_FAIL ? "FAIL" :
+               result == TEST_SKIP ? "SKIP" : "ERROR");
+        return (result == TEST_PASS) ? 0 : 1;
+    }
+
     printf("Game exited normally.\n");
     return 0;
 }

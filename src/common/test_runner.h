@@ -70,6 +70,85 @@ bool TestRunner_IsTestMode(void);
  */
 GameId TestRunner_GetTargetGame(void);
 
+/**
+ * Check if running Xvfb gameplay test (full SDL loop)
+ */
+bool TestRunner_IsXvfbTestMode(void);
+
+/**
+ * Get the current Xvfb test name (NULL if not in Xvfb mode)
+ */
+const char* TestRunner_GetXvfbTestName(void);
+
+/**
+ * Get the test timeout in seconds (0 = no timeout)
+ */
+int TestRunner_GetTimeout(void);
+
+/**
+ * Parse command line args for Xvfb test mode
+ * @param argc Argument count
+ * @param argv Argument vector
+ * @return Test name if --xvfb-test flag found, NULL otherwise
+ */
+const char* TestRunner_ParseXvfbArgs(int argc, char** argv);
+
+/**
+ * Parse timeout from command line args
+ * @param argc Argument count
+ * @param argv Argument vector
+ * @return Timeout in seconds (0 if not specified)
+ */
+int TestRunner_ParseTimeoutArg(int argc, char** argv);
+
+/**
+ * Initialize Xvfb gameplay test mode
+ * Sets up test entrance links and callbacks
+ */
+void TestRunner_InitXvfbTest(const char* testName, int timeoutSecs);
+
+/**
+ * Called by entrance system when a cross-game entrance is triggered
+ * Used to verify that entrance hooks fire correctly
+ */
+void TestRunner_SignalEntranceTriggered(uint16_t entrance, GameId targetGame);
+
+/**
+ * Check if the expected entrance was triggered
+ */
+bool TestRunner_WasEntranceTriggered(void);
+
+/**
+ * Get the entrance that was triggered
+ */
+uint16_t TestRunner_GetTriggeredEntrance(void);
+
+/**
+ * Get the target game from the triggered entrance
+ */
+GameId TestRunner_GetTriggeredTargetGame(void);
+
+/**
+ * Main game loop hook - checks test timeout and assertions
+ * Returns true if test should continue, false if test should exit
+ */
+bool TestRunner_XvfbLoopTick(void);
+
+/**
+ * Signal that the main menu was reached (for boot tests)
+ */
+void TestRunner_SignalMainMenuReached(void);
+
+/**
+ * Signal that a save was loaded
+ */
+void TestRunner_SignalSaveLoaded(void);
+
+/**
+ * Get the test result after Xvfb test completes
+ */
+TestResult TestRunner_GetXvfbResult(void);
+
 #ifdef __cplusplus
 }
 #endif

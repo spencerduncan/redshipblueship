@@ -173,11 +173,11 @@ if(UNIX AND NOT APPLE)
 endif()
 
 # ============================================================================
-# CTest Integration
+# CTest Integration (Headless Tests)
 # ============================================================================
 
 if(BUILD_TESTING)
-    # Add test targets
+    # Add headless test targets (no display required)
     add_test(NAME BootOoT COMMAND redship --test boot-oot)
     add_test(NAME BootMM COMMAND redship --test boot-mm)
     add_test(NAME SwitchOoTMM COMMAND redship --test switch-oot-mm)
@@ -194,6 +194,25 @@ if(BUILD_TESTING)
         TIMEOUT ${REDSHIP_TEST_TIMEOUT}
         LABELS "redship"
     )
+
+    # ========================================================================
+    # Xvfb Gameplay Tests (require display - run via xvfb-run in CI)
+    # ========================================================================
+    # These tests run the full game loop with SDL2 and require a display.
+    # In CI, they are executed via xvfb-run, not through CTest directly.
+    #
+    # Available Xvfb tests:
+    #   xvfb-run -a --server-args="-screen 0 1280x720x24" \
+    #     ./redship --xvfb-test boot-oot-xvfb --timeout 30
+    #   xvfb-run -a --server-args="-screen 0 1280x720x24" \
+    #     ./redship --xvfb-test boot-mm-xvfb --timeout 30
+    #   xvfb-run -a --server-args="-screen 0 1280x720x24" \
+    #     ./redship --xvfb-test midos-house-gameplay --timeout 30
+    #
+    # The midos-house-gameplay test:
+    # - Boots OoT
+    # - Loads a test save or starts new game
+    # - Verifies Mido's House cross-game entrance triggers switch to MM
 endif()
 
 # ============================================================================

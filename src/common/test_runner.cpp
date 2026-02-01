@@ -9,6 +9,7 @@
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
+#include <chrono>
 
 // Lifecycle unit tests — included directly to avoid static library link ordering issues
 extern "C" {
@@ -24,6 +25,27 @@ namespace {
 bool sTestMode = false;
 GameId sTargetGame = GAME_NONE;
 bool sBootComplete = false;
+
+// ============================================================================
+// Xvfb gameplay test state
+// ============================================================================
+
+bool sXvfbTestMode = false;
+const char* sXvfbTestName = nullptr;
+int sXvfbTimeoutSecs = 0;
+std::chrono::steady_clock::time_point sXvfbStartTime;
+
+// Entrance trigger tracking
+bool sEntranceTriggered = false;
+uint16_t sTriggeredEntrance = 0;
+GameId sTriggeredTargetGame = GAME_NONE;
+
+// Progress tracking
+bool sMainMenuReached = false;
+bool sSaveLoaded = false;
+
+// Test result (determined when test completes)
+TestResult sXvfbResult = TEST_ERROR;
 
 // ============================================================================
 // Test implementations
@@ -388,6 +410,155 @@ bool TestRunner_IsTestMode(void) {
 
 GameId TestRunner_GetTargetGame(void) {
     return sTargetGame;
+}
+
+bool TestRunner_IsXvfbTestMode(void) {
+    return sXvfbTestMode;
+}
+
+const char* TestRunner_GetXvfbTestName(void) {
+    return sXvfbTestName;
+}
+
+int TestRunner_GetTimeout(void) {
+    return sXvfbTimeoutSecs;
+}
+
+const char* TestRunner_ParseXvfbArgs(int argc, char** argv) {
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--xvfb-test") == 0 && i + 1 < argc) {
+            return argv[i + 1];
+        }
+        // Also support --xvfb-test=name syntax
+        if (strncmp(argv[i], "--xvfb-test=", 12) == 0) {
+            return argv[i] + 12;
+        }
+    }
+    return nullptr;
+}
+
+int TestRunner_ParseTimeoutArg(int argc, char** argv) {
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--timeout") == 0 && i + 1 < argc) {
+            return atoi(argv[i + 1]);
+        }
+        if (strncmp(argv[i], "--timeout=", 10) == 0) {
+            return atoi(argv[i] + 10);
+        }
+    }
+    return 0;  // No timeout specified
+}
+
+void TestRunner_InitXvfbTest(const char* testName, int timeoutSecs) {
+    sXvfbTestMode = true;
+    sXvfbTestName = testName;
+    sXvfbTimeoutSecs = timeoutSecs;
+    sXvfbStartTime = std::chrono::steady_clock::now();
+    sXvfbResult = TEST_ERROR;  // Default to error unless test passes
+
+    // Reset tracking state
+    sEntranceTriggered = false;
+    sTriggeredEntrance = 0;
+    sTriggeredTargetGame = GAME_NONE;
+    sMainMenuReached = false;
+    sSaveLoaded = false;
+
+    printf("[XVFB-TEST] Initialized test: %s (timeout: %ds)\n", testName, timeoutSecs);
+}
+
+void TestRunner_SignalEntranceTriggered(uint16_t entrance, GameId targetGame) {
+    if (sXvfbTestMode) {
+        sEntranceTriggered = true;
+        sTriggeredEntrance = entrance;
+        sTriggeredTargetGame = targetGame;
+        printf("[XVFB-TEST] Entrance triggered: 0x%04X -> %s\n",
+               entrance, Game_ToString(targetGame));
+    }
+}
+
+bool TestRunner_WasEntranceTriggered(void) {
+    return sEntranceTriggered;
+}
+
+uint16_t TestRunner_GetTriggeredEntrance(void) {
+    return sTriggeredEntrance;
+}
+
+GameId TestRunner_GetTriggeredTargetGame(void) {
+    return sTriggeredTargetGame;
+}
+
+bool TestRunner_XvfbLoopTick(void) {
+    if (!sXvfbTestMode) {
+        return true;  // Not in test mode, continue normally
+    }
+
+    // Check for timeout
+    if (sXvfbTimeoutSecs > 0) {
+        auto now = std::chrono::steady_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - sXvfbStartTime).count();
+
+        if (elapsed >= sXvfbTimeoutSecs) {
+            printf("[XVFB-TEST] Timeout reached (%ds)\n", sXvfbTimeoutSecs);
+
+            // Determine result based on test name and state
+            if (strcmp(sXvfbTestName, "midos-house-gameplay") == 0) {
+                // For Mido's House test, we succeed if entrance was triggered
+                if (sEntranceTriggered && sTriggeredTargetGame == GAME_MM) {
+                    printf("[XVFB-TEST] PASS: Cross-game entrance triggered successfully\n");
+                    sXvfbResult = TEST_PASS;
+                } else {
+                    printf("[XVFB-TEST] FAIL: Expected cross-game entrance to MM\n");
+                    sXvfbResult = TEST_FAIL;
+                }
+            } else if (strcmp(sXvfbTestName, "boot-oot-xvfb") == 0 ||
+                       strcmp(sXvfbTestName, "boot-mm-xvfb") == 0) {
+                // For boot tests, we succeed if main menu was reached
+                if (sMainMenuReached) {
+                    printf("[XVFB-TEST] PASS: Main menu reached\n");
+                    sXvfbResult = TEST_PASS;
+                } else {
+                    printf("[XVFB-TEST] FAIL: Main menu not reached before timeout\n");
+                    sXvfbResult = TEST_FAIL;
+                }
+            } else {
+                // Unknown test - fail on timeout
+                printf("[XVFB-TEST] FAIL: Unknown test timed out\n");
+                sXvfbResult = TEST_FAIL;
+            }
+
+            return false;  // Signal to exit game loop
+        }
+    }
+
+    // Check for early success conditions
+    if (strcmp(sXvfbTestName, "midos-house-gameplay") == 0) {
+        if (sEntranceTriggered && sTriggeredTargetGame == GAME_MM) {
+            printf("[XVFB-TEST] PASS: Cross-game entrance triggered (early exit)\n");
+            sXvfbResult = TEST_PASS;
+            return false;  // Test passed, exit early
+        }
+    }
+
+    return true;  // Continue test
+}
+
+void TestRunner_SignalMainMenuReached(void) {
+    if (sXvfbTestMode) {
+        sMainMenuReached = true;
+        printf("[XVFB-TEST] Main menu reached\n");
+    }
+}
+
+void TestRunner_SignalSaveLoaded(void) {
+    if (sXvfbTestMode) {
+        sSaveLoaded = true;
+        printf("[XVFB-TEST] Save loaded\n");
+    }
+}
+
+TestResult TestRunner_GetXvfbResult(void) {
+    return sXvfbResult;
 }
 
 } // extern "C"
