@@ -239,13 +239,39 @@ int main(int argc, char** argv) {
     }
 
     // ========================================================================
+    // Create Ship::Context singleton early - before any game init (issue #184)
+    // This ensures the singleton exists before OTRGlobals can interfere.
+    // Games will detect the existing context and reuse it.
+    // ========================================================================
+    fprintf(stderr, "[RSBS] About to create Ship::Context singleton...\n");
+    fflush(stderr);
+    auto shipContext = Ship::Context::CreateUninitializedInstance(
+        "RedShip", "redship", "redship.json");
+    fprintf(stderr, "[RSBS] CreateUninitializedInstance returned: %p\n", (void*)shipContext.get());
+    fflush(stderr);
+    if (!shipContext) {
+        fprintf(stderr, "[RSBS] FATAL: Failed to create Ship::Context singleton\n");
+        return 1;
+    }
+    fprintf(stderr, "[RSBS] Ship::Context singleton created successfully at %p\n", (void*)shipContext.get());
+    fflush(stderr);
+
+    // ========================================================================
     // Set up GameRunner with composable lifecycle
     // ========================================================================
 
+    fprintf(stderr, "[RSBS] Creating GameRunner...\n");
+    fflush(stderr);
     GameRunner runner;
     GameRunner_Init(&runner);
+    fprintf(stderr, "[RSBS] Registering OoT...\n");
+    fflush(stderr);
     GameRunner_RegisterGame(&runner, GAME_OOT, OoT_GetGameOps());
+    fprintf(stderr, "[RSBS] Registering MM...\n");
+    fflush(stderr);
     GameRunner_RegisterGame(&runner, GAME_MM, MM_GetGameOps());
+    fprintf(stderr, "[RSBS] Games registered\n");
+    fflush(stderr);
 
     // Determine which game to run
     GameId selectedGame = ParseGameArg(argc, argv);

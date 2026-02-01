@@ -264,6 +264,19 @@ const char* constCameraStrings[] = {
 };
 
 OTRGlobals::OTRGlobals() {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // In single-exe mode, Ship::Context may already exist from main.cpp.
+    // Reuse it instead of creating a new one to maintain singleton integrity.
+    // This fixes issue #184 where OTRGlobals and MM's BenPort both define
+    // OTRGlobals::Instance, causing the weak_ptr singleton to break.
+    auto existing = Ship::Context::GetInstance();
+    if (existing) {
+        context = existing;
+        fprintf(stderr, "[OoT] Reusing existing Ship::Context singleton\n");
+        return;
+    }
+#endif
+    // Standalone mode: create our own context
     context = Ship::Context::CreateUninitializedInstance("Ship of Harkinian", appShortName, "shipofharkinian.json");
 }
 
