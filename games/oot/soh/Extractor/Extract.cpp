@@ -646,14 +646,25 @@ bool Extractor::CallZapd(std::string installPath, std::string exportdir) {
     std::string romPath = std::filesystem::absolute(mCurrentRomPath).string();
     installPath = std::filesystem::absolute(installPath).string();
     exportdir = std::filesystem::absolute(exportdir).string();
+
+    std::string assetsPath = installPath + "/assets";
+
+    // Verify assets directory exists before proceeding
+    if (!std::filesystem::exists(assetsPath)) {
+        std::string errMsg = "Extractor assets not found at: " + assetsPath +
+                             "\n\nThis may indicate a packaging issue with the AppImage or installation.";
+        ShowErrorBox("Extraction Failed", errMsg.c_str());
+        return false;
+    }
+
     // Work this out in the temporary folder
     std::string tempdir = Mkdtemp();
     std::string curdir = std::filesystem::current_path().string();
 #ifdef _WIN32
-    std::filesystem::copy(installPath + "/assets", tempdir + "/assets",
+    std::filesystem::copy(assetsPath, tempdir + "/assets",
                           std::filesystem::copy_options::recursive | std::filesystem::copy_options::update_existing);
 #else
-    std::filesystem::create_symlink(installPath + "/assets", tempdir + "/assets");
+    std::filesystem::create_symlink(assetsPath, tempdir + "/assets");
 #endif
 
     std::filesystem::current_path(tempdir);
@@ -706,13 +717,23 @@ bool Extractor::CallZapd(std::string installPath, std::string exportdir) {
     ShowWindow(cmdWindow, SW_HIDE);
 #endif
 
+    // Verify the output file was created before attempting to copy
+    if (!std::filesystem::exists(otrFile)) {
+        std::string errMsg = "ZAPD extraction failed - output file was not created: " + std::string(otrFile) +
+                             "\n\nCheck that the ROM file is valid and the assets directory is complete.";
+        ShowErrorBox("Extraction Failed", errMsg.c_str());
+        std::filesystem::current_path(curdir);
+        std::filesystem::remove_all(tempdir);
+        return false;
+    }
+
     std::filesystem::copy(otrFile, exportdir + "/" + otrFile, std::filesystem::copy_options::overwrite_existing);
 
     // Go back to where this game was executed from
     std::filesystem::current_path(curdir);
     std::filesystem::remove_all(tempdir);
 
-    return false;
+    return true;
 }
 
 static void MessageboxWorker() {

@@ -299,12 +299,15 @@ if(NOT SINGLE_EXECUTABLE_BUILD)
     install(TARGETS 2ship LIBRARY DESTINATION . COMPONENT ship)
 endif()
 install(FILES "${CMAKE_BINARY_DIR}/soh/soh.o2r" DESTINATION . COMPONENT ship)
-install(TARGETS ZAPD_OoT DESTINATION ./assets/extractor COMPONENT extractor)
-install(DIRECTORY "${CMAKE_SOURCE_DIR}/games/oot/assets/extractor/" DESTINATION ./assets COMPONENT extractor)
-install(DIRECTORY "${CMAKE_SOURCE_DIR}/games/oot/assets/xml/" DESTINATION ./assets/xml COMPONENT extractor)
-install(TARGETS ZAPD_MM DESTINATION ./assets/extractor COMPONENT extractor)
-install(DIRECTORY "${CMAKE_SOURCE_DIR}/games/mm/assets/extractor/" DESTINATION ./assets COMPONENT extractor)
-install(DIRECTORY "${CMAKE_SOURCE_DIR}/games/mm/assets/xml/" DESTINATION ./assets/xml COMPONENT extractor)
+# Install extractor assets to usr/bin/assets/ so they are relative to the executable.
+# linuxdeploy places the executable at usr/bin/, and GetAppBundlePath() returns that path.
+# The extraction code looks for assets at GetAppBundlePath() + "/assets".
+install(TARGETS ZAPD_OoT DESTINATION usr/bin/assets/extractor COMPONENT extractor)
+install(DIRECTORY "${CMAKE_SOURCE_DIR}/games/oot/assets/extractor/" DESTINATION usr/bin/assets COMPONENT extractor)
+install(DIRECTORY "${CMAKE_SOURCE_DIR}/games/oot/assets/xml/" DESTINATION usr/bin/assets/xml COMPONENT extractor)
+install(TARGETS ZAPD_MM DESTINATION usr/bin/assets/extractor COMPONENT extractor)
+install(DIRECTORY "${CMAKE_SOURCE_DIR}/games/mm/assets/extractor/" DESTINATION usr/bin/assets COMPONENT extractor)
+install(DIRECTORY "${CMAKE_SOURCE_DIR}/games/mm/assets/xml/" DESTINATION usr/bin/assets/xml COMPONENT extractor)
 endif()
 
 if ("${CMAKE_SYSTEM_NAME}" STREQUAL "Windows")
