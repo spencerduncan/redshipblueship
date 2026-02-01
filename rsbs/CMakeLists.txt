@@ -28,7 +28,7 @@ add_library(rsbs STATIC
     # src/libultra/os/seteventmesg.c
 
     # libultra/gu - Graphics utility functions
-    src/libultra/gu/sqrtf.c
+    # sqrtf.c removed - caused infinite recursion when __builtin_sqrtf emits sqrtf call
     src/libultra/gu/position.c
     src/libultra/gu/rotate.c
 )
