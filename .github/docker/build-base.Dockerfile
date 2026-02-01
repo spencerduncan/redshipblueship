@@ -25,39 +25,29 @@ RUN apt-get update && apt-get install -y ca-certificates gpg wget \
     && apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
+# Copy apt-deps.txt to use as single source of truth for apt packages
+# This file is shared with CI workflows to avoid package list drift
+COPY .github/workflows/apt-deps.txt /tmp/apt-deps.txt
+
 # Install apt dependencies
 # Note: We install libtinyxml2-dev initially but will replace it with a newer version
+# Packages from apt-deps.txt are installed via tr/xargs to keep a single source of truth
 RUN apt-get update && apt-get install -y \
-    # Build essentials
+    # Build essentials (not in apt-deps.txt)
     build-essential \
     cmake \
     git \
-    # From apt-deps.txt
-    libusb-dev \
-    libusb-1.0-0-dev \
-    libsdl2-dev \
-    libsdl2-net-dev \
-    libpng-dev \
-    libglew-dev \
-    nlohmann-json3-dev \
-    libtinyxml2-dev \
-    libspdlog-dev \
-    ninja-build \
-    libogg-dev \
-    libopus-dev \
-    opus-tools \
-    libopusfile-dev \
-    libvorbis-dev \
-    libespeak-ng-dev \
-    # Additional dependencies for libzip
+    # Additional dependencies for libzip (not in apt-deps.txt)
     zlib1g-dev \
     libbz2-dev \
     liblzma-dev \
     libzstd-dev \
-    # Tools
+    # Tools (not in apt-deps.txt)
     ccache \
     curl \
-    && rm -rf /var/lib/apt/lists/*
+    # Install packages from apt-deps.txt
+    && tr ' ' '\n' < /tmp/apt-deps.txt | xargs apt-get install -y \
+    && rm -rf /var/lib/apt/lists/* /tmp/apt-deps.txt
 
 # Create build directory for dependencies
 WORKDIR /tmp/deps
