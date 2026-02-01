@@ -61,6 +61,14 @@ redshipblueship/
 └── OTRExporter/      # OTR generation
 ```
 
+## Documentation
+
+- [Building](docs/BUILDING.md) - Build instructions
+- [Error Handling Policy](docs/error-handling.md) - Error handling patterns and guidelines
+- [Modding](docs/MODDING.md) - Modding guide
+- [Custom Music](docs/CUSTOM_MUSIC.md) - Custom music support
+- [Credits](docs/CREDITS.md) - Full credits
+
 ## Quick Start (Once Built)
 
 1. Place `oot.z64` and `mm.z64` ROMs in the game directory
