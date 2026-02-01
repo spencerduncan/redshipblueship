@@ -7,6 +7,7 @@
  */
 
 #include "entrance.h"
+#include "test_runner.h"
 #include <cstring>
 #include <vector>
 #include <algorithm>
@@ -109,6 +110,9 @@ uint16_t Entrance_CheckCrossGame(GameId game, uint16_t entrance) {
     gPendingSwitch.targetEntrance = it->targetEntrance;
     gPendingSwitch.returnEntrance = it->returnEntrance;
     gPendingSwitch.readyToSwitch = false;
+
+    // Signal test runner if in Xvfb test mode
+    TestRunner_SignalEntranceTriggered(it->targetEntrance, it->targetGame);
 
     return entrance;
 }
