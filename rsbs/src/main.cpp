@@ -27,6 +27,7 @@
 #include "context.h"
 #include "entrance.h"
 #include "test_runner.h"
+#include "integration_test_hooks.h"
 
 #include <ship/Context.h>
 #include <ship/resource/ResourceManager.h>
@@ -162,16 +163,22 @@ void PrintUsage(const char* progName) {
     printf("RedShip - Unified OoT+MM Executable\n\n");
     printf("Usage: %s [OPTIONS]\n\n", progName);
     printf("Options:\n");
-    printf("  --game oot       Run Ocarina of Time\n");
-    printf("  --game mm        Run Majora's Mask\n");
-    printf("  --test <name>    Run integration tests\n");
-    printf("  --test-entrance  Use test entrance links (Mido's House)\n");
-    printf("  --help, -h       Show this help message\n\n");
-    printf("Test commands:\n");
-    printf("  --test boot-oot  Boot OoT, exit on main menu\n");
-    printf("  --test boot-mm   Boot MM, exit on main menu\n");
-    printf("  --test all       Run all tests\n");
-    printf("  --test list      List available tests\n\n");
+    printf("  --game oot            Run Ocarina of Time\n");
+    printf("  --game mm             Run Majora's Mask\n");
+    printf("  --test <name>         Run unit tests\n");
+    printf("  --integration-test <name>  Run integration tests (boots game)\n");
+    printf("  --test-entrance       Use test entrance links (Mido's House)\n");
+    printf("  --help, -h            Show this help message\n\n");
+    printf("Unit test commands (--test):\n");
+    printf("  boot-oot        Infrastructure test for OoT boot\n");
+    printf("  boot-mm         Infrastructure test for MM boot\n");
+    printf("  switch-oot-mm   Test OoT -> MM entrance switching\n");
+    printf("  switch-mm-oot   Test MM -> OoT entrance switching\n");
+    printf("  all             Run all unit tests\n");
+    printf("  list            List all available tests\n\n");
+    printf("Integration test commands (--integration-test):\n");
+    printf("  int-boot-oot    Actually boot OoT and verify title screen\n");
+    printf("  int-boot-mm     Actually boot MM and verify title screen\n\n");
     printf("Hotkeys:\n");
     printf("  F10              Switch between OoT and MM\n");
 }
@@ -219,10 +226,20 @@ int main(int argc, char** argv) {
         return 0;
     }
 
-    // Check for test mode
+    // Check for unit test mode (--test)
     const char* testArg = TestRunner_ParseArgs(argc, argv);
     if (testArg != nullptr) {
         return TestRunner_Run(testArg);
+    }
+
+    // Check for integration test mode (--integration-test)
+    const char* integrationTestArg = TestRunner_ParseIntegrationArgs(argc, argv);
+    if (integrationTestArg != nullptr) {
+        if (!TestRunner_SetupIntegrationTest(integrationTestArg)) {
+            return 1; // Test not found
+        }
+        // Continue to game initialization - integration tests actually run the game
+        printf("[INT-TEST] Integration test mode - will boot game with hooks\n");
     }
 
     // Initialize combo infrastructure
@@ -248,9 +265,18 @@ int main(int argc, char** argv) {
     GameRunner_RegisterGame(&runner, GAME_MM, MM_GetGameOps());
 
     // Determine which game to run
-    GameId selectedGame = ParseGameArg(argc, argv);
-    if (selectedGame == GAME_NONE) {
-        selectedGame = ShowGameMenu();
+    GameId selectedGame = GAME_NONE;
+
+    // Integration tests override the game selection
+    if (TestRunner_IsIntegrationTestMode()) {
+        selectedGame = TestRunner_GetIntegrationTestGame();
+        printf("[INT-TEST] Using game from integration test: %s\n",
+               Game_ToString(selectedGame));
+    } else {
+        selectedGame = ParseGameArg(argc, argv);
+        if (selectedGame == GAME_NONE) {
+            selectedGame = ShowGameMenu();
+        }
     }
 
     // Build filtered argv (remove our flags before passing to game)
@@ -277,6 +303,13 @@ int main(int argc, char** argv) {
         if (strncmp(argv[i], "--test=", 7) == 0) {
             continue;
         }
+        if (strcmp(argv[i], "--integration-test") == 0) {
+            i++; // Skip value too
+            continue;
+        }
+        if (strncmp(argv[i], "--integration-test=", 19) == 0) {
+            continue;
+        }
         gameArgv[gameArgc++] = argv[i];
     }
     gameArgv[gameArgc] = nullptr;
@@ -299,6 +332,11 @@ int main(int argc, char** argv) {
         fprintf(stderr, "Error: Failed to initialize game (code %d)\n", initResult);
         free(gameArgv);
         return 1;
+    }
+
+    // Register integration test hooks after game is initialized
+    if (TestRunner_IsIntegrationTestMode()) {
+        IntegrationTest_RegisterHooks(selectedGame);
     }
 
     while (keepRunning) {
@@ -361,6 +399,12 @@ int main(int argc, char** argv) {
     GameRunner_ShutdownAll(&runner);
 
     free(gameArgv);
+
+    // Return integration test result if in integration test mode
+    if (TestRunner_IsIntegrationTestMode()) {
+        return TestRunner_GetIntegrationTestResult();
+    }
+
     printf("Game exited normally.\n");
     return 0;
 }
