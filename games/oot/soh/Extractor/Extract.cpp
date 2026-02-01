@@ -696,6 +696,17 @@ bool Extractor::CallZapd(std::string installPath, std::string exportdir) {
     argv[20] = "-osf";
     argv[21] = "placeholder";
 
+    // Validate config XML exists before calling zapd_main
+    if (!std::filesystem::exists(confPath)) {
+        std::string errMsg = "Extractor config not found: " + std::string(confPath) +
+                             "\n\nThis may indicate an incomplete installation.";
+        fprintf(stderr, "Extractor config not found: %s. This may indicate an incomplete installation.\n", confPath);
+        ShowErrorBox("Extraction Failed", errMsg.c_str());
+        std::filesystem::current_path(curdir);
+        std::filesystem::remove_all(tempdir);
+        return false;
+    }
+
 #ifdef _WIN32
     // Grab a handle to the command window.
     HWND cmdWindow = GetConsoleWindow();
@@ -710,7 +721,28 @@ bool Extractor::CallZapd(std::string installPath, std::string exportdir) {
     mbThread.detach();
 #endif
 
-    zapd_main(argc, (char**)argv.data());
+    try {
+        zapd_main(argc, (char**)argv.data());
+    } catch (const std::exception& e) {
+        fprintf(stderr, "Extraction failed: %s\n", e.what());
+        std::string errMsg = "ZAPD extraction failed with error: " + std::string(e.what());
+        ShowErrorBox("Extraction Failed", errMsg.c_str());
+#ifdef _WIN32
+        ShowWindow(cmdWindow, SW_HIDE);
+#endif
+        std::filesystem::current_path(curdir);
+        std::filesystem::remove_all(tempdir);
+        return false;
+    } catch (...) {
+        fprintf(stderr, "Extraction failed with unknown error\n");
+        ShowErrorBox("Extraction Failed", "ZAPD extraction failed with an unknown error.");
+#ifdef _WIN32
+        ShowWindow(cmdWindow, SW_HIDE);
+#endif
+        std::filesystem::current_path(curdir);
+        std::filesystem::remove_all(tempdir);
+        return false;
+    }
 
 #ifdef _WIN32
     // Hide the command window again.
