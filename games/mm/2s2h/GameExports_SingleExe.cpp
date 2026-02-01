@@ -20,9 +20,11 @@
 #include <ship/window/Window.h>
 
 #include "game_lifecycle.h"
+#include "integration_test_hooks.h"
 #include <ship/Context.h>
 #include <ship/resource/ResourceManager.h>
 #include <ship/resource/archive/ArchiveManager.h>
+#include "GameInteractor/GameInteractor.h"
 
 // From main.c headers
 extern "C" {
@@ -73,6 +75,59 @@ extern "C" {
 // Track if MM has been initialized (for re-entry after game switch)
 static bool sMMInitialized = false;
 static bool sMMArchivesLoaded = false;
+
+// ============================================================================
+// Integration Test Hooks
+// ============================================================================
+
+/**
+ * Register integration test hooks for MM.
+ * Called after MM is initialized when integration test mode is active.
+ */
+static void MM_RegisterIntegrationTestHooks(void) {
+    if (!IntegrationTest_IsActive()) {
+        return;
+    }
+
+    IntegrationTestMode mode = IntegrationTest_GetMode();
+
+    // Only register hooks for MM boot test
+    if (mode == INT_TEST_BOOT_MM) {
+        fprintf(stderr, "[MM] Registering integration test hooks for boot detection\n");
+        fflush(stderr);
+
+        // Register hook for console logo update (early boot detection)
+        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnConsoleLogoUpdate>(
+            []() {
+                static int frameCount = 0;
+                frameCount++;
+                // Wait a few frames to ensure stable boot
+                if (frameCount >= 5) {
+                    fprintf(stderr, "[MM-INT-TEST] OnConsoleLogoUpdate hook fired (frame %d)!\n", frameCount);
+                    fflush(stderr);
+                    IntegrationTest_SignalBootComplete(GAME_MM, "console logo update");
+                }
+            }
+        );
+
+        // Register hook for game state main start (alternative detection)
+        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>(
+            []() {
+                static int frameCount = 0;
+                frameCount++;
+                // Wait a few frames to ensure stable boot
+                if (frameCount >= 10) {
+                    fprintf(stderr, "[MM-INT-TEST] OnGameStateMainStart hook fired (frame %d)!\n", frameCount);
+                    fflush(stderr);
+                    IntegrationTest_SignalBootComplete(GAME_MM, "game state main start");
+                }
+            }
+        );
+
+        fprintf(stderr, "[MM] Integration test hooks registered\n");
+        fflush(stderr);
+    }
+}
 
 /**
  * Load MM archives (mm.o2r, 2ship.o2r) into the shared ArchiveManager.
@@ -224,6 +279,9 @@ int MM_Game_Init(int argc, char** argv) {
     MM_AudioMgr_Init(&sAudioMgr, NULL, Z_PRIORITY_AUDIOMGR, Z_THREAD_ID_AUDIOMGR, &MM_gSchedContext, &MM_gIrqMgr);
 
     sMMInitialized = true;
+
+    // Register integration test hooks if in integration test mode
+    MM_RegisterIntegrationTestHooks();
 
     fprintf(stderr, "[MM] Game_Init complete\n");
     fflush(stderr);

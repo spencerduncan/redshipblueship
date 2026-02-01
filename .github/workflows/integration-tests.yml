@@ -1,0 +1,272 @@
+name: integration-tests
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE*'
+      - '.gitignore'
+  pull_request:
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE*'
+      - '.gitignore'
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  integration-tests-linux:
+    needs: generate-rsbs-otr
+    runs-on: ubuntu-22.04
+    steps:
+    - name: Git Checkout
+      uses: actions/checkout@v4
+      with:
+        submodules: true
+        fetch-depth: 1
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y $(cat .github/workflows/apt-deps.txt)
+        # Xvfb and mesa for headless rendering
+        sudo apt-get install -y xvfb libgl1-mesa-dri libgl1-mesa-glx mesa-utils
+
+    - name: Configure ccache
+      uses: hendrikmuhs/ccache-action@v1.2
+      with:
+        save: ${{ github.ref_name == github.event.repository.default_branch }}
+        key: ${{ runner.os }}-integration-ccache-${{ github.ref }}
+        restore-keys: |
+          ${{ runner.os }}-integration-ccache-${{ github.ref }}
+          ${{ runner.os }}-integration-ccache-refs/heads/main
+          ${{ runner.os }}-integration-ccache
+
+    - name: Restore Cached deps folder
+      id: restore-cache-deps
+      uses: actions/cache/restore@v4
+      with:
+        key: ${{ runner.os }}-deps-v1-${{ hashFiles('.github/workflows/apt-deps.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-deps-v1-
+        path: deps
+
+    - name: Create deps folder
+      run: mkdir -p deps
+
+    - name: Install latest SDL
+      run: |
+        export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
+        if [ ! -d "deps/SDL2-2.30.3" ]; then
+          wget https://github.com/libsdl-org/SDL/releases/download/release-2.30.3/SDL2-2.30.3.tar.gz
+          tar -xzf SDL2-2.30.3.tar.gz -C deps
+        fi
+        cd deps/SDL2-2.30.3
+        if [ ! -f "Makefile" ]; then
+          ./configure --enable-hidapi-libusb
+        fi
+        make -j 10
+        sudo make install
+        sudo cp -av /usr/local/lib/libSDL* /lib/x86_64-linux-gnu/
+
+    - name: Install latest SDL_net
+      run: |
+        export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
+        if [ ! -d "deps/SDL2_net-2.2.0" ]; then
+          wget https://www.libsdl.org/projects/SDL_net/release/SDL2_net-2.2.0.tar.gz
+          tar -xzf SDL2_net-2.2.0.tar.gz -C deps
+        fi
+        cd deps/SDL2_net-2.2.0
+        if [ ! -f "Makefile" ]; then
+          ./configure
+        fi
+        make -j 10
+        sudo make install
+        sudo cp -av /usr/local/lib/libSDL* /lib/x86_64-linux-gnu/
+
+    - name: Install latest tinyxml2
+      run: |
+        sudo apt-get remove libtinyxml2-dev
+        export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
+        if [ ! -d "deps/tinyxml2-10.0.0" ]; then
+          wget https://github.com/leethomason/tinyxml2/archive/refs/tags/10.0.0.tar.gz
+          tar -xzf 10.0.0.tar.gz -C deps
+        fi
+        cd deps/tinyxml2-10.0.0
+        mkdir -p build
+        cd build
+        if [ ! -f "CMakeCache.txt" ] || ! grep -q "CMAKE_POSITION_INDEPENDENT_CODE:BOOL=ON" CMakeCache.txt; then
+          cmake .. -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+        fi
+        make
+        sudo make install
+
+    - name: Install libzip without crypto
+      run: |
+        export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
+        if [ ! -d "deps/libzip-1.10.1" ]; then
+          wget https://github.com/nih-at/libzip/releases/download/v1.10.1/libzip-1.10.1.tar.gz
+          tar -xzf libzip-1.10.1.tar.gz -C deps
+        fi
+        cd deps/libzip-1.10.1
+        mkdir -p build
+        cd build
+        if [ ! -f "CMakeCache.txt" ] || ! grep -q "ENABLE_OPENSSL:BOOL=OFF" CMakeCache.txt; then
+          cmake .. -DENABLE_COMMONCRYPTO=OFF -DENABLE_GNUTLS=OFF -DENABLE_MBEDTLS=OFF -DENABLE_OPENSSL=OFF
+        fi
+        make
+        sudo make install
+        sudo cp -av /usr/local/lib/libzip* /lib/x86_64-linux-gnu/
+
+    - name: Download soh.o2r
+      uses: actions/download-artifact@v4
+      with:
+        name: soh.o2r
+        path: build-cmake/soh
+
+    - name: Build SoH
+      run: |
+        export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
+        cmake --no-warn-unused-cli -H. -Bbuild-cmake -GNinja -DCMAKE_BUILD_TYPE:STRING=Release -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DBUILD_REMOTE_CONTROL=1 -DREDSHIP_BUILD_SHARED=ON
+        cmake --build build-cmake --config Release -j10
+      env:
+        CC: gcc-11
+        CXX: g++-11
+
+    - name: Run unit tests
+      run: ctest --test-dir build-cmake --output-on-failure --label-regex "^redship$"
+
+    - name: Start Xvfb
+      run: |
+        # Start Xvfb on display :99
+        Xvfb :99 -screen 0 1024x768x24 &
+        sleep 2
+        echo "DISPLAY=:99" >> $GITHUB_ENV
+        # Verify Xvfb is running
+        xdpyinfo -display :99 || echo "Note: xdpyinfo failed but Xvfb may still work"
+
+    - name: Integration Test - Boot OoT
+      run: |
+        # Run with timeout to prevent hangs
+        timeout 120 ./build-cmake/redship --integration-test int-boot-oot || exit_code=$?
+        if [ "${exit_code:-0}" -eq 0 ]; then
+          echo "OoT boot test PASSED"
+        elif [ "${exit_code:-0}" -eq 124 ]; then
+          echo "OoT boot test TIMEOUT"
+          exit 1
+        else
+          echo "OoT boot test FAILED with exit code $exit_code"
+          exit $exit_code
+        fi
+      env:
+        DISPLAY: :99
+
+    - name: Integration Test - Boot MM
+      run: |
+        # Run with timeout to prevent hangs
+        timeout 120 ./build-cmake/redship --integration-test int-boot-mm || exit_code=$?
+        if [ "${exit_code:-0}" -eq 0 ]; then
+          echo "MM boot test PASSED"
+        elif [ "${exit_code:-0}" -eq 124 ]; then
+          echo "MM boot test TIMEOUT"
+          exit 1
+        else
+          echo "MM boot test FAILED with exit code $exit_code"
+          exit $exit_code
+        fi
+      env:
+        DISPLAY: :99
+
+  # Reuse the OTR generation from main build workflow
+  generate-rsbs-otr:
+    runs-on: ubuntu-22.04
+    steps:
+    - name: Git Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 1
+    - name: Restore soh.o2r Cache
+      id: rsbs-otr-cache
+      uses: actions/cache@v4
+      with:
+        key: rsbs-otr-v1-${{ hashFiles('games/**/*.c', 'games/**/*.h', 'games/**/*.xml', 'OTRExporter/**/*.cpp', 'OTRExporter/**/*.h', 'ZAPDTR/**/*.cpp', 'ZAPDTR/**/*.h') }}
+        path: soh.o2r
+    - name: Checkout submodules
+      if: steps.rsbs-otr-cache.outputs.cache-hit != 'true'
+      run: git submodule update --init --recursive
+    - name: Configure ccache
+      if: steps.rsbs-otr-cache.outputs.cache-hit != 'true'
+      uses: hendrikmuhs/ccache-action@v1.2
+      with:
+        save: ${{ github.ref_name == github.event.repository.default_branch }}
+        key: ${{ runner.os }}-otr-ccache-${{ github.ref }}
+        restore-keys: |
+          ${{ runner.os }}-otr-ccache-${{ github.ref }}
+          ${{ runner.os }}-otr-ccache-refs/heads/main
+          ${{ runner.os }}-otr-ccache
+    - name: Install dependencies
+      if: steps.rsbs-otr-cache.outputs.cache-hit != 'true'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y $(cat .github/workflows/apt-deps.txt) libzip-dev zipcmp zipmerge ziptool
+    - name: Restore Cached deps folder
+      if: steps.rsbs-otr-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/restore@v4
+      with:
+        key: ${{ runner.os }}-deps-v1-${{ hashFiles('.github/workflows/apt-deps.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-deps-v1-
+        path: deps
+    - name: Create deps folder
+      if: steps.rsbs-otr-cache.outputs.cache-hit != 'true'
+      run: mkdir -p deps
+    - name: Install latest SDL
+      if: steps.rsbs-otr-cache.outputs.cache-hit != 'true'
+      run: |
+        export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
+        if [ ! -d "deps/SDL2-2.30.3" ]; then
+          wget https://github.com/libsdl-org/SDL/releases/download/release-2.30.3/SDL2-2.30.3.tar.gz
+          tar -xzf SDL2-2.30.3.tar.gz -C deps
+        fi
+        cd deps/SDL2-2.30.3
+        ./configure --enable-hidapi-libusb
+        make -j 10
+        sudo make install
+        sudo cp -av /usr/local/lib/libSDL* /lib/x86_64-linux-gnu/
+    - name: Install latest tinyxml2
+      if: steps.rsbs-otr-cache.outputs.cache-hit != 'true'
+      run: |
+        sudo apt-get remove libtinyxml2-dev
+        export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
+        if [ ! -d "deps/tinyxml2-10.0.0" ]; then
+          wget https://github.com/leethomason/tinyxml2/archive/refs/tags/10.0.0.tar.gz
+          tar -xzf 10.0.0.tar.gz -C deps
+        fi
+        cd deps/tinyxml2-10.0.0
+        mkdir -p build
+        cd build
+        cmake .. -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+        make
+        sudo make install
+    - name: Generate soh.o2r
+      if: steps.rsbs-otr-cache.outputs.cache-hit != 'true'
+      run: |
+        export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
+        cmake --no-warn-unused-cli -H. -Bbuild-cmake -GNinja -DCMAKE_BUILD_TYPE:STRING=Release -DREDSHIP_BUILD_SHARED=ON
+        cmake --build build-cmake --config Release --target GenerateSohOtr -j10
+    - name: Upload soh.o2r
+      uses: actions/upload-artifact@v4
+      with:
+        name: soh.o2r
+        path: soh.o2r
+        retention-days: 3
+    - name: Save Cache deps folder
+      if: ${{ github.ref_name == github.event.repository.default_branch }}
+      uses: actions/cache/save@v4
+      with:
+        key: ${{ runner.os }}-deps-v1-${{ hashFiles('.github/workflows/apt-deps.txt') }}
+        path: deps

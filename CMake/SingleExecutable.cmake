@@ -21,6 +21,7 @@ set(REDSHIP_COMMON_SOURCES
     ${CMAKE_SOURCE_DIR}/src/common/switch.cpp
     ${CMAKE_SOURCE_DIR}/src/common/entrance.cpp
     ${CMAKE_SOURCE_DIR}/src/common/test_runner.cpp
+    ${CMAKE_SOURCE_DIR}/src/common/integration_test_hooks.cpp
     # Note: game_stubs.cpp is NOT included - real implementations come from
     # games/oot/soh/GameExports_SingleExe.cpp and games/mm/2s2h/GameExports_SingleExe.cpp
     # Unified SaveContext storage for both games
@@ -47,6 +48,7 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/context.h
     ${CMAKE_SOURCE_DIR}/src/common/entrance.h
     ${CMAKE_SOURCE_DIR}/src/common/test_runner.h
+    ${CMAKE_SOURCE_DIR}/src/common/integration_test_hooks.h
     ${CMAKE_SOURCE_DIR}/src/common/ComboMenuBar.h
     ${CMAKE_SOURCE_DIR}/src/common/game_lifecycle.h
 )
@@ -64,6 +66,10 @@ target_include_directories(redship_common PUBLIC
     ${CMAKE_SOURCE_DIR}/src/common
     ${CMAKE_SOURCE_DIR}/rsbs/include
     ${CMAKE_SOURCE_DIR}/combo/include
+    # GameInteractor headers for integration test hooks
+    ${CMAKE_SOURCE_DIR}/games/oot/soh/Enhancements
+    ${CMAKE_SOURCE_DIR}/games/oot/soh
+    ${CMAKE_SOURCE_DIR}/games/mm/2s2h
 )
 
 target_link_libraries(redship_common PUBLIC
@@ -177,7 +183,9 @@ endif()
 # ============================================================================
 
 if(BUILD_TESTING)
-    # Add test targets
+    # ========================================================================
+    # Unit tests (no display required)
+    # ========================================================================
     add_test(NAME BootOoT COMMAND redship --test boot-oot)
     add_test(NAME BootMM COMMAND redship --test boot-mm)
     add_test(NAME SwitchOoTMM COMMAND redship --test switch-oot-mm)
@@ -193,6 +201,22 @@ if(BUILD_TESTING)
         PROPERTIES
         TIMEOUT ${REDSHIP_TEST_TIMEOUT}
         LABELS "redship"
+    )
+
+    # ========================================================================
+    # Integration tests (requires display - use Xvfb in CI)
+    # These tests actually boot the games and verify boot completion
+    # ========================================================================
+    set(REDSHIP_INTEGRATION_TEST_TIMEOUT 120 CACHE STRING "Integration test timeout in seconds")
+
+    add_test(NAME IntBootOoT COMMAND redship --integration-test int-boot-oot)
+    add_test(NAME IntBootMM COMMAND redship --integration-test int-boot-mm)
+
+    set_tests_properties(
+        IntBootOoT IntBootMM
+        PROPERTIES
+        TIMEOUT ${REDSHIP_INTEGRATION_TEST_TIMEOUT}
+        LABELS "redship;integration"
     )
 endif()
 
