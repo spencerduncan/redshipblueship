@@ -1,19 +1,19 @@
 cmake_minimum_required(VERSION 3.14)
 
-# DEPRECATED: This directory contains the old dynamic library architecture.
-# New code should use src/common/ and the single executable architecture.
-# This CMakeLists.txt is kept for backwards compatibility during transition.
+# MINIMAL: This directory now only provides:
+#   - Export.h / GameExports.h: COMBO_API and GAME_EXPORT macros
+#   - SharedGraphics.h/cpp: Cross-game graphics context sharing
 #
-# The following files have been ported to src/common/:
-#   combo/src/FrozenState.cpp     -> src/common/context.cpp
-#   combo/src/CrossGameEntrance.cpp -> src/common/entrance.cpp
-#   combo/include/combo/Game.h    -> src/common/game.h
-#   combo/src/test/TestRunner.cpp -> src/common/test_runner.cpp
-#   combo/src/main.cpp            -> rsbs/src/main.cpp
+# The following have been removed (replaced by GameOps in src/common/):
+#   - DynamicLibrary.cpp/h: Dynamic library loading (single-exe doesn't need this)
+#   - ComboContextBridge.cpp/h: Game lifecycle (replaced by GameRunner)
+#   - FrozenState.h: State serialization (replaced by suspend/resume)
+#   - CrossGameEntrance.h, Game.h: Compat headers (use src/common/ directly)
+#   - GameArchives.cpp/h, IGame.h, GameAPI.h: Dead code from DLL architecture
+#
+# For new code, use src/common/ headers directly:
+#   - game.h, context.h, entrance.h, game_lifecycle.h
 
-# On Windows, combo must be a DLL so both the launcher and game DLLs can link
-# against it. On other platforms, static is fine since -rdynamic exports symbols
-# from the executable.
 # Common sources from src/common/ (implementations for compatibility headers)
 set(COMMON_SOURCES
     ${CMAKE_SOURCE_DIR}/src/common/game.c
@@ -24,9 +24,6 @@ set(COMMON_SOURCES
 if(WIN32)
     add_library(combo SHARED
         src/placeholder.cpp
-        src/GameArchives.cpp
-        src/DynamicLibrary.cpp
-        src/ComboContextBridge.cpp
         src/SharedGraphics.cpp
         ${COMMON_SOURCES}
     )
@@ -35,9 +32,6 @@ if(WIN32)
 else()
     add_library(combo STATIC
         src/placeholder.cpp
-        src/GameArchives.cpp
-        src/DynamicLibrary.cpp
-        src/ComboContextBridge.cpp
         src/SharedGraphics.cpp
         ${COMMON_SOURCES}
     )
@@ -52,11 +46,6 @@ target_include_directories(combo PUBLIC
 target_link_libraries(combo PUBLIC
     libultraship
 )
-
-# Link against dl for dynamic loading on Unix
-if(UNIX AND NOT APPLE)
-    target_link_libraries(combo PUBLIC ${CMAKE_DL_LIBS})
-endif()
 
 set_target_properties(combo PROPERTIES
     CXX_STANDARD 20
