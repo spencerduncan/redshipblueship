@@ -131,6 +131,16 @@ extern "C" {
 #include "src/overlays/actors/ovl_En_Dns/z_en_dns.h"
 }
 
+// Runtime feature flags for debugging - set env var to "1" to disable subsystem
+static bool RsbsFeatureEnabled(const char* disableEnvVar) {
+    const char* val = std::getenv(disableEnvVar);
+    if (val && val[0] == '1') {
+        fprintf(stderr, "[RSBS] Feature DISABLED via %s\n", disableEnvVar);
+        return false;
+    }
+    return true;
+}
+
 bool SoH_HandleConfigDrop(char* filePath);
 
 OTRGlobals* OTRGlobals::Instance;
@@ -355,7 +365,9 @@ void OTRGlobals::Initialize() {
     overlay->LoadFont("Fipps", 32.0f, "fonts/Fipps-Regular.otf");
     overlay->SetCurrentFont(CVarGetString(CVAR_GAME_OVERLAY_FONT, "Press Start 2P"));
 
-    context->InitAudio({ .SampleRate = 32000, .SampleLength = 1024, .DesiredBuffered = 1680 });
+    if (RsbsFeatureEnabled("RSBS_DISABLE_AUDIO")) {
+        context->InitAudio({ .SampleRate = 32000, .SampleLength = 1024, .DesiredBuffered = 1680 });
+    }
 
     SPDLOG_INFO("Starting Ship of Harkinian version {} (Branch: {} | Commit: {})", (char*)OoT_gBuildVersion,
                 (char*)OoT_gGitBranch, (char*)OoT_gGitCommitHash);
@@ -1292,35 +1304,56 @@ extern "C" void InitOTR(int argc, char* argv[]) {
     conf->RunVersionUpdates();
 
     SohGui::SetupGuiElements();
-    ShipInit::InitAll();
+    if (RsbsFeatureEnabled("RSBS_DISABLE_SHIPINIT")) {
+        ShipInit::InitAll();
+    }
 
-    Rando::StaticData::InitHashMaps();
-    OTRGlobals::Instance->gRandoContext->AddExcludedOptions();
-    AudioCollection::Instance = new AudioCollection();
-    ActorDB::Instance = new ActorDB();
+    if (RsbsFeatureEnabled("RSBS_DISABLE_RANDO")) {
+        Rando::StaticData::InitHashMaps();
+        OTRGlobals::Instance->gRandoContext->AddExcludedOptions();
+    }
+
+    if (RsbsFeatureEnabled("RSBS_DISABLE_AUDIO_COLLECTION")) {
+        AudioCollection::Instance = new AudioCollection();
+    }
+
+    if (RsbsFeatureEnabled("RSBS_DISABLE_ACTOR_DB")) {
+        ActorDB::Instance = new ActorDB();
+    }
+
+    if (RsbsFeatureEnabled("RSBS_DISABLE_SPEECH")) {
 #ifdef __APPLE__
-    SpeechSynthesizer::Instance = new DarwinSpeechSynthesizer();
+        SpeechSynthesizer::Instance = new DarwinSpeechSynthesizer();
 #elif defined(_WIN32)
-    SpeechSynthesizer::Instance = new SAPISpeechSynthesizer();
+        SpeechSynthesizer::Instance = new SAPISpeechSynthesizer();
 #elif ESPEAK
-    SpeechSynthesizer::Instance = new ESpeakSpeechSynthesizer();
+        SpeechSynthesizer::Instance = new ESpeakSpeechSynthesizer();
 #else
-    SpeechSynthesizer::Instance = new SpeechLogger();
+        SpeechSynthesizer::Instance = new SpeechLogger();
 #endif
-    SpeechSynthesizer::Instance->Init();
+        SpeechSynthesizer::Instance->Init();
+    }
 
-    CrowdControl::Instance = new CrowdControl();
-    Sail::Instance = new Sail();
-    Anchor::Instance = new Anchor();
+    if (RsbsFeatureEnabled("RSBS_DISABLE_NETWORK")) {
+        CrowdControl::Instance = new CrowdControl();
+        Sail::Instance = new Sail();
+        Anchor::Instance = new Anchor();
+    }
 
-    OTRMessage_Init();
-    OTRAudio_Init();
-    OTRExtScanner();
-    VanillaItemTable_Init();
-    DebugConsole_Init();
+    if (RsbsFeatureEnabled("RSBS_DISABLE_OTR_INIT")) {
+        OTRMessage_Init();
+        OTRAudio_Init();
+        OTRExtScanner();
+        VanillaItemTable_Init();
+        DebugConsole_Init();
+    }
 
-    InitMods();
-    ActorDB::AddBuiltInCustomActors();
+    if (RsbsFeatureEnabled("RSBS_DISABLE_MODS")) {
+        InitMods();
+        if (ActorDB::Instance) {
+            ActorDB::AddBuiltInCustomActors();
+        }
+    }
     // #region SOH [Randomizer] TODO: Remove these and refactor spoiler file handling for randomizer
     CVarClear(CVAR_GENERAL("RandomizerNewFileDropped"));
     CVarClear(CVAR_GENERAL("RandomizerDroppedFile"));
