@@ -253,14 +253,19 @@ void Extractor::GetRoms(std::vector<std::string>& roms) {
         while ((dir = readdir(d)) != NULL) {
             struct stat path;
 
+            // Construct full path - required for AppImage where cwd differs from search path
+            auto fullPath = std::filesystem::path(mSearchPath) / dir->d_name;
+            auto fullPathString = fullPath.string();
+            const char* fullPathCStr = fullPathString.c_str();
+
             // Check if current entry is not folder
-            stat(dir->d_name, &path);
+            stat(fullPathCStr, &path);
             if (S_ISREG(path.st_mode)) {
 
                 // Get the position of the extension character.
                 char* ext = strrchr(dir->d_name, '.');
                 if (ext != NULL && (strcmp(ext, ".z64") == 0 || strcmp(ext, ".n64") == 0 || strcmp(ext, ".v64") == 0)) {
-                    roms.push_back(dir->d_name);
+                    roms.push_back(fullPathCStr);
                 }
             }
         }
