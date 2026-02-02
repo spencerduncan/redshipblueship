@@ -132,7 +132,8 @@ extern "C" {
 }
 
 // Runtime feature flags for debugging - set env var to "1" to disable subsystem
-static bool RsbsFeatureEnabled(const char* disableEnvVar) {
+// Exported with C linkage so game.c can use it for runtime guards
+extern "C" bool RsbsFeatureEnabled(const char* disableEnvVar) {
     const char* val = std::getenv(disableEnvVar);
     if (val && val[0] == '1') {
         fprintf(stderr, "[RSBS] Feature DISABLED via %s\n", disableEnvVar);
@@ -1573,12 +1574,15 @@ void RunCommands(Gfx* Commands, const std::vector<std::unordered_map<Mtx*, MtxF>
 
 // C->C++ Bridge
 extern "C" void Graph_ProcessGfxCommands(Gfx* commands) {
-    {
-        std::unique_lock<std::mutex> Lock(audio.mutex);
-        audio.processing = true;
-    }
+    // Guard audio runtime calls - only notify audio thread if audio is enabled
+    if (RsbsFeatureEnabled("RSBS_DISABLE_AUDIO")) {
+        {
+            std::unique_lock<std::mutex> Lock(audio.mutex);
+            audio.processing = true;
+        }
 
-    audio.cv_to_thread.notify_one();
+        audio.cv_to_thread.notify_one();
+    }
     std::vector<std::unordered_map<Mtx*, MtxF>> mtx_replacements;
     int target_fps = OTRGlobals::Instance->GetInterpolationFPS();
     static int last_fps;

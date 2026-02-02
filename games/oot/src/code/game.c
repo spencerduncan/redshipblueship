@@ -5,6 +5,7 @@
 #include "soh/Enhancements/game-interactor/GameInteractor.h"
 #include "soh/Enhancements/game-interactor/GameInteractor_Hooks.h"
 #include "soh/ResourceManagerHelpers.h"
+#include "soh/OTRGlobals.h"
 
 #include "message_data_static.h"
 extern MessageTableEntry* sNesMessageEntryTablePtr;
@@ -353,7 +354,10 @@ void OoT_GameState_Update(GameState* gameState) {
         gSaveContext.language = LANGUAGE_ENG;
     }
 
-    GameInteractor_ExecuteOnGameFrameUpdate();
+    // Guard GameInteractor runtime calls - only execute if mods are enabled
+    if (RsbsFeatureEnabled("RSBS_DISABLE_MODS")) {
+        GameInteractor_ExecuteOnGameFrameUpdate();
+    }
     gameState->frames++;
 }
 

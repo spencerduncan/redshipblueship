@@ -98,6 +98,8 @@ void Graph_StartFrame();
 void Graph_ProcessGfxCommands(Gfx* commands);
 void Graph_ProcessFrame(void (*run_one_game_iter)(void));
 void OTRLogString(const char* src);
+// Runtime feature flag check - returns false if env var is set to "1"
+bool RsbsFeatureEnabled(const char* disableEnvVar);
 void OTRGfxPrint(const char* str, void* printer, void (*printImpl)(void*, char));
 void OTRGetPixelDepthPrepare(float x, float y);
 uint16_t OTRGetPixelDepth(float x, float y);
