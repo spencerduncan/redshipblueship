@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.14)
 
 # MINIMAL: This directory now only provides:
-#   - Export.h / GameExports.h: COMBO_API and GAME_EXPORT macros
+#   - Export.h: COMBO_API macro for DLL symbol visibility
 #   - SharedGraphics.h/cpp: Cross-game graphics context sharing
 #
 # The following have been removed (replaced by GameOps in src/common/):
@@ -10,6 +10,8 @@ cmake_minimum_required(VERSION 3.14)
 #   - FrozenState.h: State serialization (replaced by suspend/resume)
 #   - CrossGameEntrance.h, Game.h: Compat headers (use src/common/ directly)
 #   - GameArchives.cpp/h, IGame.h, GameAPI.h: Dead code from DLL architecture
+#   - GameExports.h: Legacy DLL function pointer interface (replaced by GameOps)
+#   - placeholder.cpp: Unused Combo::GetVersion() stub
 #
 # For new code, use src/common/ headers directly:
 #   - game.h, context.h, entrance.h, game_lifecycle.h
@@ -23,7 +25,6 @@ set(COMMON_SOURCES
 
 if(WIN32)
     add_library(combo SHARED
-        src/placeholder.cpp
         src/SharedGraphics.cpp
         ${COMMON_SOURCES}
     )
@@ -31,7 +32,6 @@ if(WIN32)
     target_compile_definitions(combo PRIVATE COMBO_BUILDING_DLL)
 else()
     add_library(combo STATIC
-        src/placeholder.cpp
         src/SharedGraphics.cpp
         ${COMMON_SOURCES}
     )
