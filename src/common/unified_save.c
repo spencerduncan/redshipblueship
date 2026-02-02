@@ -19,13 +19,17 @@
 #include <stddef.h>
 #include <stdalign.h>
 
-/* SaveContext sizes from z64save.h:
- * OoT: 0x1428 (~5KB)
+/* SaveContext sizes:
+ * OoT: 0x21C30 (~138KB) - includes SohStats with 8191 SceneTimestamps
  * MM:  0x48C8 (~18KB)
+ *
+ * Note: OoT's SaveContext grew significantly when Ship of Harkinian added
+ * SohStats with extensive timing/tracking arrays. The original N64 size
+ * was 0x1428 but modern SoH is much larger.
  */
-#define OOT_SAVE_CONTEXT_SIZE 0x1428
+#define OOT_SAVE_CONTEXT_SIZE 0x22000  /* ~138KB with padding */
 #define MM_SAVE_CONTEXT_SIZE  0x48C8
-#define UNIFIED_SAVE_SIZE     MM_SAVE_CONTEXT_SIZE  /* Use larger */
+#define UNIFIED_SAVE_SIZE     OOT_SAVE_CONTEXT_SIZE  /* OoT is now larger */
 
 /**
  * Unified SaveContext storage.
