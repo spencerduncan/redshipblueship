@@ -101,6 +101,10 @@ typedef struct {
     uint32_t sharedFlags[64];
     uint16_t sharedItems[32];
     int32_t saveSlot;
+
+    // Cross-game rando state propagation
+    bool sourceIsRando;        // Source game is in randomizer mode
+    uint32_t sharedRandoSeed;  // Shared seed for synchronization
 } ComboContext;
 
 extern ComboContext gComboCtx;

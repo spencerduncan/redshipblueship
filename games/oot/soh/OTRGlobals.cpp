@@ -2959,6 +2959,7 @@ extern "C" void CheckTracker_RecalculateAvailableChecks() {
 #ifdef SINGLE_EXECUTABLE_BUILD
 
 #include "common/context.h"
+#include "common/entrance.h"
 
 extern "C" {
 
@@ -2966,39 +2967,77 @@ extern "C" {
  * Freeze OoT game state before switching to MM
  * Called by Context_ProcessSwitch() in switch.cpp
  *
- * TODO: Implement actual state freezing:
- * - Save the current SaveContext to frozen state
- * - Save any additional transient state (actor positions, etc.)
- * - Prepare for clean shutdown of OoT systems
+ * Saves the current SaveContext to frozen state and records rando status
+ * for cross-game state propagation.
  */
 void OoT_FreezeState(ComboContext* ctx) {
-    (void)ctx; // Suppress unused parameter warning
+    fprintf(stderr, "[OoT] FreezeState called\n");
 
-    // Stub implementation - actual implementation will:
-    // 1. Get pointer to gSaveContext
-    // 2. Call Context_FreezeState(GAME_OOT, returnEntrance, &gSaveContext, sizeof(gSaveContext))
-    // 3. Save any additional state needed
-    fprintf(stderr, "[OoT] FreezeState called (stub)\n");
+    // Get the return entrance (where we'll spawn when coming back)
+    uint16_t returnEntrance = ctx->sourceEntrance;
+
+    // Save the current SaveContext to frozen state
+    Context_FreezeState(GAME_OOT, returnEntrance, &gSaveContext, sizeof(gSaveContext));
+
+    // Record rando status for the target game (MM)
+    // OoT uses IS_RANDO macro which checks gSaveContext.ship.quest.id == QUEST_RANDOMIZER
+    ctx->sourceIsRando = IS_RANDO;
+    if (ctx->sourceIsRando) {
+        // Get the seed from the randomizer context if available
+        auto randoContext = Rando::Context::GetInstance();
+        if (randoContext) {
+            ctx->sharedRandoSeed = randoContext->GetSeed();
+        }
+    }
+
+    fprintf(stderr, "[OoT] State frozen, return entrance: 0x%04X, isRando: %d, seed: %u\n",
+            returnEntrance, ctx->sourceIsRando, ctx->sharedRandoSeed);
 }
 
 /**
  * Resume OoT from a frozen state or start fresh from MM
  * Called by Context_ProcessSwitch() in switch.cpp
  *
- * TODO: Implement actual state resumption:
- * - If returning (has frozen state): restore SaveContext and spawn at return entrance
- * - If first switch: start fresh at the target entrance
- * - Initialize OoT systems as needed
+ * If returning to OoT (has frozen state): restores SaveContext and spawns at return entrance
+ * If first switch to OoT: this is the initial game, should already be initialized
  */
 void OoT_ResumeFromContext(ComboContext* ctx) {
-    (void)ctx; // Suppress unused parameter warning
+    fprintf(stderr, "[OoT] ResumeFromContext called\n");
 
-    // Stub implementation - actual implementation will:
-    // 1. Check if Context_HasFrozenState(GAME_OOT)
-    // 2. If yes: Context_RestoreState(GAME_OOT, &gSaveContext, sizeof(gSaveContext))
-    // 3. Set entrance to ctx->targetEntrance or return entrance
-    // 4. Trigger scene load
-    fprintf(stderr, "[OoT] ResumeFromContext called (stub)\n");
+    if (Context_HasFrozenState(GAME_OOT)) {
+        // Returning to OoT - restore the frozen SaveContext
+        fprintf(stderr, "[OoT] Restoring frozen state\n");
+
+        Context_RestoreState(GAME_OOT, &gSaveContext, sizeof(gSaveContext));
+
+        // Get the return entrance from frozen state
+        uint16_t returnEntrance = Context_GetFrozenReturnEntrance(GAME_OOT);
+
+        // Apply the target entrance (either return entrance or startup entrance)
+        uint16_t targetEntrance = Combo_GetStartupEntrance();
+        if (targetEntrance == 0) {
+            targetEntrance = returnEntrance;
+        }
+        gSaveContext.entranceIndex = targetEntrance;
+
+        fprintf(stderr, "[OoT] State restored, entrance: 0x%04X\n", targetEntrance);
+    } else {
+        // First switch to OoT from MM - OoT should already be the initial game
+        // This case is rare (MM starting first), but handle it gracefully
+        fprintf(stderr, "[OoT] No frozen state (OoT should be initial game)\n");
+
+        // Apply startup entrance if set
+        uint16_t targetEntrance = Combo_GetStartupEntrance();
+        if (targetEntrance != 0) {
+            gSaveContext.entranceIndex = targetEntrance;
+            fprintf(stderr, "[OoT] Applied startup entrance: 0x%04X\n", targetEntrance);
+        }
+    }
+
+    // Clear the startup entrance now that we've used it
+    Combo_ClearStartupEntrance();
+
+    fprintf(stderr, "[OoT] ResumeFromContext complete\n");
 }
 
 } // extern "C"

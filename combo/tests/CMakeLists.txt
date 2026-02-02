@@ -10,6 +10,7 @@ FetchContent_MakeAvailable(googletest)
 
 add_executable(combo_tests
     sanity_test.cpp
+    context_test.cpp
 )
 
 target_link_libraries(combo_tests

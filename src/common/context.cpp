@@ -193,6 +193,8 @@ void ComboContext_Init(void) {
     gComboCtx.sourceGame = GAME_NONE;
     gComboCtx.sourceEntrance = 0;
     gComboCtx.saveSlot = -1;
+    gComboCtx.sourceIsRando = false;
+    gComboCtx.sharedRandoSeed = 0;
 }
 
 void ComboContext_RequestSwitch(GameId target, uint16_t entrance) {
