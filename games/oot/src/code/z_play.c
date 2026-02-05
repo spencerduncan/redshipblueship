@@ -25,6 +25,10 @@
 extern uint16_t Combo_GetStartupEntrance(void);
 extern void Combo_ClearStartupEntrance(void);
 
+// Cross-game combo support - entrance switch checking
+extern uint16_t Combo_CheckEntranceSwitch(uint16_t entranceIndex);
+extern bool Combo_IsCrossGameSwitch(void);
+
 TransitionUnk sTrnsnUnk;
 s32 gTrnsnUnkState;
 VisMono gPlayVisMono;
@@ -948,6 +952,17 @@ void OoT_Play_Update(PlayState* play) {
                             play->state.running = false;
 
                             if (gSaveContext.gameMode != GAMEMODE_FILE_SELECT) {
+                                // Check for cross-game entrance switch (combo support)
+                                Combo_CheckEntranceSwitch(play->nextEntranceIndex);
+                                if (Combo_IsCrossGameSwitch()) {
+                                    // Cross-game switch triggered - exit game loop
+                                    // main.cpp will handle the switch to the other game
+                                    play->state.running = false;
+                                    play->state.init = NULL;
+                                    play->state.destroy = NULL;
+                                    return;
+                                }
+
                                 SET_NEXT_GAMESTATE(&play->state, OoT_Play_Init, PlayState);
                                 gSaveContext.entranceIndex = play->nextEntranceIndex;
 
@@ -1001,6 +1016,16 @@ void OoT_Play_Update(PlayState* play) {
                     play->envCtx.screenFillColor[3] = (OoT_sTransitionFillTimer / 20.0f) * 255.0f;
 
                     if (OoT_sTransitionFillTimer >= 20) {
+                        // Check for cross-game entrance switch (combo support)
+                        Combo_CheckEntranceSwitch(play->nextEntranceIndex);
+                        if (Combo_IsCrossGameSwitch()) {
+                            // Cross-game switch triggered - exit game loop
+                            play->state.running = false;
+                            play->state.init = NULL;
+                            play->state.destroy = NULL;
+                            return;
+                        }
+
                         play->state.running = false;
                         SET_NEXT_GAMESTATE(&play->state, OoT_Play_Init, PlayState);
                         gSaveContext.entranceIndex = play->nextEntranceIndex;
