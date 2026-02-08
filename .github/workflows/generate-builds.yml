@@ -303,8 +303,13 @@ jobs:
       env:
         CC: gcc-11
         CXX: g++-11
-    - name: Run tests
+    - name: Run unit tests (headless)
       run: ctest --test-dir build-cmake --output-on-failure --label-regex "^redship$"
+    - name: Run Xvfb gameplay tests
+      run: |
+        # Run gameplay tests under Xvfb for SDL2 display support
+        xvfb-run -a --server-args="-screen 0 1280x720x24" \
+          ./build-cmake/redship --xvfb-test midos-house-gameplay --timeout 30
     - name: Package
       run: |
         (cd build-cmake && cpack -G External)
