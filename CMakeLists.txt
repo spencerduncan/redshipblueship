@@ -257,16 +257,10 @@ if(SINGLE_EXECUTABLE_BUILD)
     #
     # Use --start-group/--end-group on Linux to resolve circular deps
     # between game libs, OTRExporter, ZAPDLib, and libultraship.
-    # Enhancement libraries (soh_enh, soh_rando, 2ship_enh, 2ship_rando) use
-    # self-registering static constructors (RegisterShipInitFunc) that require
-    # --whole-archive to prevent the linker from stripping "unreferenced" object files.
     if(UNIX AND NOT APPLE)
         target_link_libraries(redship PRIVATE
             -Wl,--start-group
-            -Wl,--whole-archive
-            soh_enh soh_rando 2ship_enh 2ship_rando
-            -Wl,--no-whole-archive
-            soh_src soh_port 2ship_src 2ship_port
+            ${SOH_STATIC_TARGETS} ${TWOSHIP_STATIC_TARGETS}
             ${REDSHIP_LIBRARY_DEPS}
             -Wl,--end-group
         )
