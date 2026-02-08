@@ -70,6 +70,45 @@ bool TestRunner_IsTestMode(void);
  */
 GameId TestRunner_GetTargetGame(void);
 
+// ============================================================================
+// Integration Test API
+// ============================================================================
+
+/**
+ * Parse command line args for --integration-test flag
+ * @param argc Argument count
+ * @param argv Argument vector
+ * @return Integration test name if --integration-test flag found, NULL otherwise
+ */
+const char* TestRunner_ParseIntegrationArgs(int argc, char** argv);
+
+/**
+ * Set up an integration test
+ * This initializes the integration test mode and registers hooks
+ * @param testName Name of the integration test to run
+ * @return true if setup succeeded, false if test not found
+ */
+bool TestRunner_SetupIntegrationTest(const char* testName);
+
+/**
+ * Check if we're in integration test mode
+ * Integration tests actually boot the game, unlike unit tests
+ */
+bool TestRunner_IsIntegrationTestMode(void);
+
+/**
+ * Get the target game for the current integration test
+ * @return Target game, or GAME_NONE if not in integration test mode
+ */
+GameId TestRunner_GetIntegrationTestGame(void);
+
+/**
+ * Get the result of the integration test
+ * Should be called after the game exits
+ * @return 0 for pass, 1 for fail/error
+ */
+int TestRunner_GetIntegrationTestResult(void);
+
 #ifdef __cplusplus
 }
 #endif

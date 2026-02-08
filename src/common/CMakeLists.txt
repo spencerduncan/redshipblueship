@@ -17,6 +17,7 @@ set(COMMON_SOURCES
     entrance.cpp
     game_lifecycle.c
     test_runner.cpp
+    integration_test_hooks.cpp
     game_stubs.cpp
 )
 
@@ -26,6 +27,7 @@ set(COMMON_HEADERS
     entrance.h
     game_lifecycle.h
     test_runner.h
+    integration_test_hooks.h
 )
 
 # Build as library
