@@ -246,7 +246,7 @@ int main(int argc, char** argv) {
     fprintf(stderr, "[RSBS] About to create Ship::Context singleton...\n");
     fflush(stderr);
     auto shipContext = Ship::Context::CreateUninitializedInstance(
-        "RedShip", "redship", "redship.json");
+        "Ship of Harkinian", "soh", "shipofharkinian.json");
     fprintf(stderr, "[RSBS] CreateUninitializedInstance returned: %p\n", (void*)shipContext.get());
     fflush(stderr);
     if (!shipContext) {

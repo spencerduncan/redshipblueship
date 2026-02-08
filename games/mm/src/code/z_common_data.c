@@ -7,7 +7,12 @@
 #include "z64transition.h"
 #include <string.h>
 
+/* In single-exe mode, gSaveContext is provided by unified_save.c */
+#ifndef RSBS_SINGLE_EXECUTABLE
 SaveContext gSaveContext ALIGNED(16);
+#else
+extern SaveContext gSaveContext;
+#endif
 
 void MM_SaveContext_Init(void) {
     memset(&gSaveContext, 0, sizeof(SaveContext));
