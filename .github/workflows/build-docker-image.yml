@@ -88,7 +88,13 @@ jobs:
           context: .
           file: .github/docker/build-base.Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
+          load: ${{ github.event_name == 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Smoke test image
+        run: |
+          docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }} \
+            sh -c "cmake --version && pkg-config --exists sdl2 tinyxml2 libzip && echo 'Smoke test passed'"
