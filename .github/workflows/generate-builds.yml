@@ -226,7 +226,7 @@ jobs:
         CC: gcc-11
         CXX: g++-11
     - name: Run tests
-      run: ctest --test-dir build-cmake --output-on-failure --label-regex "^redship$"
+      run: ctest --test-dir build-cmake --output-on-failure --label-exclude "^integration$"
     - name: Package
       run: |
         (cd build-cmake && cpack -G External)

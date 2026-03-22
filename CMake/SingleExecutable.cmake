@@ -200,7 +200,7 @@ if(BUILD_TESTING)
         BootOoT BootMM SwitchOoTMM SwitchMMOoT Roundtrip Context AllTests
         PROPERTIES
         TIMEOUT ${REDSHIP_TEST_TIMEOUT}
-        LABELS "redship"
+        LABELS "integration"
     )
 
     # ========================================================================
