@@ -301,9 +301,24 @@ jobs:
         CC: gcc-11
         CXX: g++-11
     - name: Run unit tests (headless)
-      run: ctest --test-dir build-cmake --output-on-failure --label-regex "^redship$"
+      run: ctest --test-dir build-cmake --output-on-failure --label-exclude "^integration$"
     - name: Run Xvfb gameplay tests
       run: |
+        # Check if game archives are available (requires ROM-derived .o2r files)
+        ARCHIVE_FOUND=false
+        for dir in build-cmake build-cmake/soh .; do
+          if [ -f "$dir/oot.o2r" ]; then
+            ARCHIVE_FOUND=true
+            echo "Found oot.o2r in $dir/"
+            break
+          fi
+        done
+
+        if [ "$ARCHIVE_FOUND" = "false" ]; then
+          echo "::notice::Skipping Xvfb gameplay tests: game archives (oot.o2r) not available in CI"
+          exit 0
+        fi
+
         # Run gameplay tests under Xvfb for SDL2 display support
         xvfb-run -a --server-args="-screen 0 1280x720x24" \
           ./build-cmake/redship --xvfb-test midos-house-gameplay --timeout 30
