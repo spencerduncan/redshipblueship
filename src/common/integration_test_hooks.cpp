@@ -24,10 +24,10 @@ extern "C" {
 namespace {
 
 // Integration test state
-IntegrationTestMode sTestMode = INT_TEST_NONE;
+std::atomic<IntegrationTestMode> sTestMode{INT_TEST_NONE};
 std::atomic<bool> sBootPassed{false};
 std::atomic<bool> sExitRequested{false};
-GameId sBootedGame = GAME_NONE;
+std::atomic<GameId> sBootedGame{GAME_NONE};
 
 // Boot detection timeout (60 seconds default)
 constexpr int kBootTimeoutMs = 60000;

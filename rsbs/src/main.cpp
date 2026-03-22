@@ -269,7 +269,14 @@ int main(int argc, char** argv) {
 
     // Integration tests override the game selection
     if (TestRunner_IsIntegrationTestMode()) {
-        selectedGame = TestRunner_GetIntegrationTestGame();
+        GameId testGame = TestRunner_GetIntegrationTestGame();
+        if (testGame == GAME_MM) {
+            // MM requires OoT's Ship::Context — init OoT first, then switch to MM
+            selectedGame = GAME_OOT;
+            printf("[INT-TEST] MM test: booting OoT first for Ship::Context\n");
+        } else {
+            selectedGame = testGame;
+        }
         printf("[INT-TEST] Using game from integration test: %s\n",
                Game_ToString(selectedGame));
     } else {
@@ -336,7 +343,21 @@ int main(int argc, char** argv) {
 
     // Register integration test hooks after game is initialized
     if (TestRunner_IsIntegrationTestMode()) {
-        IntegrationTest_RegisterHooks(selectedGame);
+        GameId testGame = TestRunner_GetIntegrationTestGame();
+        if (testGame == GAME_MM) {
+            // OoT is initialized — now switch to MM for the actual test
+            printf("[INT-TEST] OoT context ready, switching to MM\n");
+            EnsureGameArchivesLoaded(GAME_MM);
+            int switchResult = GameRunner_SwitchTo(&runner, GAME_MM, gameArgc, gameArgv);
+            if (switchResult != 0) {
+                fprintf(stderr, "[INT-TEST] Error: Failed to switch to MM (code %d)\n", switchResult);
+                free(gameArgv);
+                return 1;
+            }
+            IntegrationTest_RegisterHooks(GAME_MM);
+        } else {
+            IntegrationTest_RegisterHooks(testGame);
+        }
     }
 
     while (keepRunning) {

@@ -138,9 +138,29 @@ jobs:
         CXX: g++-11
 
     - name: Run unit tests
-      run: ctest --test-dir build-cmake --output-on-failure --label-regex "^redship$"
+      run: ctest --test-dir build-cmake --output-on-failure --label-exclude "^integration$"
+
+    - name: Check for game archives
+      id: check-archives
+      run: |
+        # Integration tests require game ROM-derived archives (oot.o2r, mm.o2r)
+        # These cannot be distributed — they must be generated from original ROMs
+        has_oot=false
+        has_mm=false
+        for dir in build-cmake build-cmake/soh .; do
+          [ -f "$dir/oot.o2r" ] && has_oot=true
+        done
+        for dir in build-cmake build-cmake/2s2h .; do
+          [ -f "$dir/mm.o2r" ] && has_mm=true
+        done
+        echo "has_oot=$has_oot" >> $GITHUB_OUTPUT
+        echo "has_mm=$has_mm" >> $GITHUB_OUTPUT
+        if [ "$has_oot" = "false" ] && [ "$has_mm" = "false" ]; then
+          echo "::notice::Game archives not found — integration tests will be skipped (requires original ROMs)"
+        fi
 
     - name: Start Xvfb
+      if: steps.check-archives.outputs.has_oot == 'true' || steps.check-archives.outputs.has_mm == 'true'
       run: |
         # Start Xvfb on display :99
         Xvfb :99 -screen 0 1024x768x24 &
@@ -150,6 +170,7 @@ jobs:
         xdpyinfo -display :99 || echo "Note: xdpyinfo failed but Xvfb may still work"
 
     - name: Integration Test - Boot OoT
+      if: steps.check-archives.outputs.has_oot == 'true'
       run: |
         # Run with timeout to prevent hangs
         timeout 120 ./build-cmake/redship --integration-test int-boot-oot || exit_code=$?
@@ -166,6 +187,7 @@ jobs:
         DISPLAY: :99
 
     - name: Integration Test - Boot MM
+      if: steps.check-archives.outputs.has_mm == 'true'
       run: |
         # Run with timeout to prevent hangs
         timeout 120 ./build-cmake/redship --integration-test int-boot-mm || exit_code=$?

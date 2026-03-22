@@ -216,7 +216,7 @@ if(BUILD_TESTING)
         IntBootOoT IntBootMM
         PROPERTIES
         TIMEOUT ${REDSHIP_INTEGRATION_TEST_TIMEOUT}
-        LABELS "redship;integration"
+        LABELS "integration"
     )
 endif()
 
