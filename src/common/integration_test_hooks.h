@@ -46,13 +46,6 @@ IntegrationTestMode IntegrationTest_GetMode(void);
 bool IntegrationTest_IsActive(void);
 
 /**
- * Register hooks for the specified game
- * Should be called after GameInteractor is initialized
- * @param game The game that is being initialized
- */
-void IntegrationTest_RegisterHooks(GameId game);
-
-/**
  * Check if the boot test has passed
  */
 bool IntegrationTest_BootPassed(void);
@@ -62,11 +55,6 @@ bool IntegrationTest_BootPassed(void);
  * Called from hooks when they detect the expected game state
  */
 void IntegrationTest_SignalBootComplete(GameId game, const char* reason);
-
-/**
- * Get the maximum timeout in milliseconds for boot tests
- */
-int IntegrationTest_GetTimeoutMs(void);
 
 /**
  * Request game exit (for use in hooks)

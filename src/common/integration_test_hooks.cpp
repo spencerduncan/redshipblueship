@@ -3,7 +3,7 @@
  * @brief Integration test state management
  *
  * This file provides the state management for integration tests.
- * Hook registration happens in each game's code (OoT/MM) using their
+ * Hook registration happens in each game's init code (OoT/MM) using their
  * respective GameInteractor implementations.
  *
  * See:
@@ -28,9 +28,6 @@ std::atomic<IntegrationTestMode> sTestMode{INT_TEST_NONE};
 std::atomic<bool> sBootPassed{false};
 std::atomic<bool> sExitRequested{false};
 std::atomic<GameId> sBootedGame{GAME_NONE};
-
-// Boot detection timeout (60 seconds default)
-constexpr int kBootTimeoutMs = 60000;
 
 } // anonymous namespace
 
@@ -83,34 +80,12 @@ void IntegrationTest_SignalBootComplete(GameId game, const char* reason) {
     Combo_RequestGameSwitch();
 }
 
-int IntegrationTest_GetTimeoutMs(void) {
-    return kBootTimeoutMs;
-}
-
 void IntegrationTest_RequestExit(void) {
     sExitRequested = true;
 }
 
 bool IntegrationTest_ExitRequested(void) {
     return sExitRequested.load();
-}
-
-void IntegrationTest_RegisterHooks(GameId game) {
-    if (!IntegrationTest_IsActive()) {
-        return;
-    }
-
-    printf("[INT-TEST] Hook registration requested for %s\n", Game_ToString(game));
-    printf("[INT-TEST] Note: Each game registers its own hooks in its init code\n");
-    fflush(stdout);
-
-    // Actual hook registration happens in game-specific code:
-    //   - OoT: games/oot/soh/GameExports_SingleExe.cpp
-    //   - MM: games/mm/2s2h/GameExports_SingleExe.cpp
-    //
-    // This function is called from main.cpp after game init to remind the
-    // game to register hooks. In single-exe mode, each game's GameInteractor
-    // hooks are registered in their respective OoT_Game_Init / MM_Game_Init.
 }
 
 } // extern "C"

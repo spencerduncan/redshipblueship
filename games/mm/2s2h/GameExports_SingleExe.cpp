@@ -21,7 +21,6 @@
 
 #include "game_lifecycle.h"
 #include "integration_test_hooks.h"
-#include <ship/Context.h>
 #include <ship/resource/ResourceManager.h>
 #include <ship/resource/archive/ArchiveManager.h>
 #include "GameInteractor/GameInteractor.h"
@@ -76,6 +75,10 @@ extern "C" {
 static bool sMMInitialized = false;
 static bool sMMArchivesLoaded = false;
 
+// Integration test hook frame counters (reset each time hooks are registered)
+static int sConsoleLogoFrameCount = 0;
+static int sGameStateMainFrameCount = 0;
+
 // ============================================================================
 // Integration Test Hooks
 // ============================================================================
@@ -96,14 +99,17 @@ static void MM_RegisterIntegrationTestHooks(void) {
         fprintf(stderr, "[MM] Registering integration test hooks for boot detection\n");
         fflush(stderr);
 
+        // Reset frame counters for fresh registration
+        sConsoleLogoFrameCount = 0;
+        sGameStateMainFrameCount = 0;
+
         // Register hook for console logo update (early boot detection)
         GameInteractor::Instance->RegisterGameHook<GameInteractor::OnConsoleLogoUpdate>(
             []() {
-                static int frameCount = 0;
-                frameCount++;
+                sConsoleLogoFrameCount++;
                 // Wait a few frames to ensure stable boot
-                if (frameCount >= 5) {
-                    fprintf(stderr, "[MM-INT-TEST] OnConsoleLogoUpdate hook fired (frame %d)!\n", frameCount);
+                if (sConsoleLogoFrameCount >= 5) {
+                    fprintf(stderr, "[MM-INT-TEST] OnConsoleLogoUpdate hook fired (frame %d)!\n", sConsoleLogoFrameCount);
                     fflush(stderr);
                     IntegrationTest_SignalBootComplete(GAME_MM, "console logo update");
                 }
@@ -113,11 +119,10 @@ static void MM_RegisterIntegrationTestHooks(void) {
         // Register hook for game state main start (alternative detection)
         GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>(
             []() {
-                static int frameCount = 0;
-                frameCount++;
+                sGameStateMainFrameCount++;
                 // Wait a few frames to ensure stable boot
-                if (frameCount >= 10) {
-                    fprintf(stderr, "[MM-INT-TEST] OnGameStateMainStart hook fired (frame %d)!\n", frameCount);
+                if (sGameStateMainFrameCount >= 10) {
+                    fprintf(stderr, "[MM-INT-TEST] OnGameStateMainStart hook fired (frame %d)!\n", sGameStateMainFrameCount);
                     fflush(stderr);
                     IntegrationTest_SignalBootComplete(GAME_MM, "game state main start");
                 }

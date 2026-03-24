@@ -341,11 +341,11 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    // Register integration test hooks after game is initialized
+    // For MM integration tests, OoT is initialized first for Ship::Context,
+    // then we switch to MM (which registers its own hooks in MM_Game_Init)
     if (TestRunner_IsIntegrationTestMode()) {
         GameId testGame = TestRunner_GetIntegrationTestGame();
         if (testGame == GAME_MM) {
-            // OoT is initialized — now switch to MM for the actual test
             printf("[INT-TEST] OoT context ready, switching to MM\n");
             EnsureGameArchivesLoaded(GAME_MM);
             int switchResult = GameRunner_SwitchTo(&runner, GAME_MM, gameArgc, gameArgv);
@@ -354,9 +354,6 @@ int main(int argc, char** argv) {
                 free(gameArgv);
                 return 1;
             }
-            IntegrationTest_RegisterHooks(GAME_MM);
-        } else {
-            IntegrationTest_RegisterHooks(testGame);
         }
     }
 
@@ -366,6 +363,12 @@ int main(int argc, char** argv) {
         printf("Starting %s... (Press F10 to switch games)\n", ops ? ops->name : "Unknown");
         if (ops && ops->run) {
             ops->run();
+        }
+
+        // Integration test exit takes priority over game switching
+        if (TestRunner_IsIntegrationTestMode() && IntegrationTest_ExitRequested()) {
+            keepRunning = false;
+            break;
         }
 
         // Check if we need to switch games
