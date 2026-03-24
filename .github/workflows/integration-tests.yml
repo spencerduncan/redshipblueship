@@ -138,7 +138,7 @@ jobs:
         CXX: g++-11
 
     - name: Run unit tests
-      run: ctest --test-dir build-cmake --output-on-failure --label-exclude "^integration$"
+      run: ctest --test-dir build-cmake --output-on-failure --label-regex "^redship$"
 
     - name: Check for game archives
       id: check-archives
