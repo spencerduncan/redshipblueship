@@ -70,38 +70,6 @@ int MM_FaultDrawer_Printf(const char* fmt, ...) {
 void MM_FaultDrawer_SetCharPad(int xPad, int yPad) { (void)xPad; (void)yPad; }
 
 /* ==========================================================================
- * AudioLoad stubs - these need real implementations later
- * For now, stub them out to allow linking
- * ========================================================================== */
-
-void MM_AudioLoad_Init(void* pool, void* data) { (void)pool; (void)data; }
-void MM_AudioLoad_InitAsyncLoads(void) {}
-void MM_AudioLoad_InitSampleDmaBuffers(int num) { (void)num; }
-void MM_AudioLoad_InitScriptLoads(void) {}
-void MM_AudioLoad_InitSlowLoads(void) {}
-void MM_AudioLoad_SetDmaHandler(void* handler) { (void)handler; }
-void MM_AudioLoad_DecreaseSampleDmaTtls(void) {}
-void MM_AudioLoad_ProcessLoads(void) {}
-void MM_AudioLoad_ProcessScriptLoads(void) {}
-int MM_AudioLoad_IsFontLoadComplete(int fontId) { (void)fontId; return 1; }
-int MM_AudioLoad_IsSeqLoadComplete(int seqId) { (void)seqId; return 1; }
-void MM_AudioLoad_SetFontLoadStatus(int fontId, int status) { (void)fontId; (void)status; }
-void MM_AudioLoad_SetSeqLoadStatus(int seqId, int status) { (void)seqId; (void)status; }
-void* MM_AudioLoad_GetFontsForSequence(int seqId, void* out) { (void)seqId; (void)out; return NULL; }
-void MM_AudioLoad_DiscardSeqFonts(int seqId) { (void)seqId; }
-int MM_AudioLoad_SyncInitSeqPlayer(int player, int seqId, int arg2) { (void)player; (void)seqId; (void)arg2; return 0; }
-int MM_AudioLoad_SyncInitSeqPlayerSkipTicks(int player, int seqId, int ticks) { (void)player; (void)seqId; (void)ticks; return 0; }
-void* MM_AudioLoad_SyncLoadInstrument(int fontId, int instId, int drumId) { (void)fontId; (void)instId; (void)drumId; return NULL; }
-void MM_AudioLoad_AsyncLoadFont(int fontId, int param, void* retMsg, void* msgQueue) { (void)fontId; (void)param; (void)retMsg; (void)msgQueue; }
-void MM_AudioLoad_AsyncLoadSampleBank(int bankId, int param, void* retMsg, void* msgQueue) { (void)bankId; (void)param; (void)retMsg; (void)msgQueue; }
-void MM_AudioLoad_AsyncLoadSeq(int seqId, int param, void* retMsg, void* msgQueue) { (void)seqId; (void)param; (void)retMsg; (void)msgQueue; }
-void MM_AudioLoad_LoadPermanentSamples(void) {}
-void MM_AudioLoad_ScriptLoad(int type, int id, void* retMsg, void* msgQueue) { (void)type; (void)id; (void)retMsg; (void)msgQueue; }
-void MM_AudioLoad_SyncLoadSeqParts(int seqId, int param, void* dst, void* bankDst) { (void)seqId; (void)param; (void)dst; (void)bankDst; }
-void MM_AudioLoad_SlowLoadSample(int fontId, int instId, void* dst) { (void)fontId; (void)instId; (void)dst; }
-void MM_AudioLoad_SlowLoadSeq(int seqId, void* dst, void* retMsg) { (void)seqId; (void)dst; (void)retMsg; }
-
-/* ==========================================================================
  * Enhancement layer stubs - these are excluded in single-exe mode
  * ========================================================================== */
 
@@ -201,17 +169,7 @@ void OTRPlay_InitScene(void* play) { (void)play; }
 void* AudioEditor_GetOriginalSeq(int seqId) { (void)seqId; return NULL; }
 
 /* Global variables */
-int gAudioCtxInitalized = 0;
 int currentActorListIndex = 0;
-
-/* Sequence/Font map stubs */
-void* gSequenceMap = NULL;
-int gSequenceMapSize = 0;
-void* gFontMap = NULL;
-int gFontMapSize = 0;
 
 /* ZAPD main stub (not needed at runtime) */
 int zapd_main(int argc, char** argv) { (void)argc; (void)argv; return 0; }
-
-/* func_8018FA60 - MM-specific function, stub for now */
-void func_8018FA60(void* a, int b, int c) { (void)a; (void)b; (void)c; }

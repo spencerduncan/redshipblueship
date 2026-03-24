@@ -260,10 +260,6 @@ if(SINGLE_EXECUTABLE_BUILD)
     # NameTag (in its own directory)
     list(FILTER ship__ EXCLUDE REGEX "2s2h/NameTag/.*\\.cpp$")
 
-    # Audio subsystem (different between games - keep core but need namespacing)
-    # Exclude load.c - has audio loading collisions
-    list(FILTER src__ EXCLUDE REGEX "src/audio/lib/load\\.c$")
-
     # Core colliding files - use OoT versions
     list(FILTER src__ EXCLUDE REGEX "src/code/__osMalloc\\.c$")
     list(FILTER src__ EXCLUDE REGEX "src/libc/printutils\\.c$")
