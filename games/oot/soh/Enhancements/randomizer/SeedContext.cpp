@@ -167,9 +167,10 @@ void Context::AddLocations(const Container& locations, std::vector<RandomizerChe
 
 bool Context::IsQuestOfLocationActive(RandomizerCheck rc) {
     const auto loc = Rando::StaticData::GetLocation(rc);
+    auto dungeon = mDungeons->GetDungeonFromScene(loc->GetScene());
     return loc->GetQuest() == RCQUEST_BOTH ||
-           loc->GetQuest() == RCQUEST_MQ && mDungeons->GetDungeonFromScene(loc->GetScene())->IsMQ() ||
-           loc->GetQuest() == RCQUEST_VANILLA && mDungeons->GetDungeonFromScene(loc->GetScene())->IsVanilla();
+           (dungeon != nullptr && loc->GetQuest() == RCQUEST_MQ && dungeon->IsMQ()) ||
+           (dungeon != nullptr && loc->GetQuest() == RCQUEST_VANILLA && dungeon->IsVanilla());
 }
 
 void Context::GenerateLocationPool() {
