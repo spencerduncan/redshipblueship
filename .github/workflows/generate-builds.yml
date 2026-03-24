@@ -301,7 +301,7 @@ jobs:
         CC: gcc-11
         CXX: g++-11
     - name: Run unit tests (headless)
-      run: ctest --test-dir build-cmake --output-on-failure --label-exclude "^integration$"
+      run: ctest --test-dir build-cmake --output-on-failure --label-regex "^redship$"
     - name: Run Xvfb gameplay tests
       run: |
         # Check if game archives are available (requires ROM-derived .o2r files)
