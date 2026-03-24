@@ -2119,46 +2119,139 @@ extern "C" bool Ship_HandleConsoleCrashAsReset() {
 #ifdef SINGLE_EXECUTABLE_BUILD
 
 #include "common/context.h"
+#include "common/entrance.h"
 
 extern "C" {
+
+// Forward declaration of MM save initialization function
+void MM_Sram_InitNewSave(void);
+
+/**
+ * Initialize a fresh MM SaveContext for first-entry from OoT
+ * Sets up rando-compatible initial state similar to OnFileCreate
+ *
+ * @param ctx The ComboContext with source game info and target entrance
+ */
+static void MM_InitFirstEntrySaveContext(ComboContext* ctx) {
+    fprintf(stderr, "[MM] Initializing first-entry SaveContext\n");
+
+    // Initialize a clean SaveContext using MM's standard initialization
+    MM_Sram_InitNewSave();
+
+    // If source game (OoT) was in randomizer mode, set up MM for rando too
+    if (ctx->sourceIsRando) {
+        fprintf(stderr, "[MM] Source game is rando, setting up MM rando state\n");
+
+        gSaveContext.save.shipSaveInfo.saveType = SAVETYPE_RANDO;
+
+        // Zero out the rando struct
+        memset(&gSaveContext.save.shipSaveInfo.rando, 0, sizeof(gSaveContext.save.shipSaveInfo.rando));
+
+        // Copy dungeon keys initialization (they start as -1, not 0)
+        memcpy(&gSaveContext.save.shipSaveInfo.rando.foundDungeonKeys,
+               &gSaveContext.save.saveInfo.inventory.dungeonKeys,
+               sizeof(gSaveContext.save.saveInfo.inventory.dungeonKeys));
+
+        // Propagate the shared seed
+        gSaveContext.save.shipSaveInfo.rando.finalSeed = ctx->sharedRandoSeed;
+
+        // Skip the first cycle - in Rando we start as Human at south clock town
+        gSaveContext.save.entrance = ENTRANCE(SOUTH_CLOCK_TOWN, 0);
+        gSaveContext.save.cutsceneIndex = 0;
+        gSaveContext.save.hasTatl = true;
+        gSaveContext.save.playerForm = PLAYER_FORM_HUMAN;
+        gSaveContext.save.saveInfo.playerData.threeDayResetCount = 1;
+        gSaveContext.save.isFirstCycle = true;
+
+        // Set required flags for rando start (Tatl acquired, etc.)
+        SET_WEEKEVENTREG(WEEKEVENTREG_59_04);  // Tatl flag 1
+        SET_WEEKEVENTREG(WEEKEVENTREG_31_04);  // Tatl flag 2
+
+        // Happy Mask Salesman cutscene flag
+        gSaveContext.save.saveInfo.permanentSceneFlags[SCENE_INSIDETOWER].switch0 |= (1 << 0);
+
+        // Remove Sword & Shield (rando starts without equipment)
+        SET_EQUIP_VALUE(EQUIP_TYPE_SWORD, EQUIP_VALUE_SWORD_NONE);
+        BUTTON_ITEM_EQUIP(0, EQUIP_SLOT_B) = ITEM_NONE;
+        SET_EQUIP_VALUE(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_NONE);
+
+        fprintf(stderr, "[MM] Rando first-entry setup complete\n");
+    }
+
+    // Apply the target entrance from the cross-game switch
+    uint16_t targetEntrance = Combo_GetStartupEntrance();
+    if (targetEntrance != 0) {
+        gSaveContext.save.entrance = targetEntrance;
+        fprintf(stderr, "[MM] Applied startup entrance: 0x%04X\n", targetEntrance);
+    }
+
+    fprintf(stderr, "[MM] First-entry SaveContext initialized, entrance: 0x%04X, isRando: %d\n",
+            gSaveContext.save.entrance, ctx->sourceIsRando);
+}
 
 /**
  * Freeze MM game state before switching to OoT
  * Called by Context_ProcessSwitch() in switch.cpp
  *
- * TODO: Implement actual state freezing:
- * - Save the current SaveContext to frozen state
- * - Save any additional transient state (actor positions, etc.)
- * - Prepare for clean shutdown of MM systems
+ * Saves the current SaveContext to frozen state and records rando status
+ * for cross-game state propagation.
  */
 void MM_FreezeState(ComboContext* ctx) {
-    (void)ctx; // Suppress unused parameter warning
+    fprintf(stderr, "[MM] FreezeState called\n");
 
-    // Stub implementation - actual implementation will:
-    // 1. Get pointer to gSaveContext
-    // 2. Call Context_FreezeState(GAME_MM, returnEntrance, &gSaveContext, sizeof(gSaveContext))
-    // 3. Save any additional state needed
-    fprintf(stderr, "[MM] FreezeState called (stub)\n");
+    // Get the return entrance (where we'll spawn when coming back)
+    uint16_t returnEntrance = ctx->sourceEntrance;
+
+    // Save the current SaveContext to frozen state
+    Context_FreezeState(GAME_MM, returnEntrance, &gSaveContext, sizeof(gSaveContext));
+
+    // Record rando status for the target game
+    ctx->sourceIsRando = (gSaveContext.save.shipSaveInfo.saveType == SAVETYPE_RANDO);
+    if (ctx->sourceIsRando) {
+        ctx->sharedRandoSeed = gSaveContext.save.shipSaveInfo.rando.finalSeed;
+    }
+
+    fprintf(stderr, "[MM] State frozen, return entrance: 0x%04X, isRando: %d\n",
+            returnEntrance, ctx->sourceIsRando);
 }
 
 /**
  * Resume MM from a frozen state or start fresh from OoT
  * Called by Context_ProcessSwitch() in switch.cpp
  *
- * TODO: Implement actual state resumption:
- * - If returning (has frozen state): restore SaveContext and spawn at return entrance
- * - If first switch: start fresh at the target entrance
- * - Initialize MM systems as needed
+ * If returning to MM (has frozen state): restores SaveContext and spawns at return entrance
+ * If first switch to MM: initializes a rando-compatible SaveContext and spawns at target entrance
  */
 void MM_ResumeFromContext(ComboContext* ctx) {
-    (void)ctx; // Suppress unused parameter warning
+    fprintf(stderr, "[MM] ResumeFromContext called\n");
 
-    // Stub implementation - actual implementation will:
-    // 1. Check if Context_HasFrozenState(GAME_MM)
-    // 2. If yes: Context_RestoreState(GAME_MM, &gSaveContext, sizeof(gSaveContext))
-    // 3. Set entrance to ctx->targetEntrance or return entrance
-    // 4. Trigger scene load
-    fprintf(stderr, "[MM] ResumeFromContext called (stub)\n");
+    if (Context_HasFrozenState(GAME_MM)) {
+        // Returning to MM - restore the frozen SaveContext
+        fprintf(stderr, "[MM] Restoring frozen state\n");
+
+        Context_RestoreState(GAME_MM, &gSaveContext, sizeof(gSaveContext));
+
+        // Get the return entrance from frozen state
+        uint16_t returnEntrance = Context_GetFrozenReturnEntrance(GAME_MM);
+
+        // Apply the target entrance (either return entrance or startup entrance)
+        uint16_t targetEntrance = Combo_GetStartupEntrance();
+        if (targetEntrance == 0) {
+            targetEntrance = returnEntrance;
+        }
+        gSaveContext.save.entrance = targetEntrance;
+
+        fprintf(stderr, "[MM] State restored, entrance: 0x%04X\n", targetEntrance);
+    } else {
+        // First switch to MM - initialize fresh SaveContext
+        fprintf(stderr, "[MM] No frozen state, initializing first-entry SaveContext\n");
+        MM_InitFirstEntrySaveContext(ctx);
+    }
+
+    // Clear the startup entrance now that we've used it
+    Combo_ClearStartupEntrance();
+
+    fprintf(stderr, "[MM] ResumeFromContext complete\n");
 }
 
 } // extern "C"
