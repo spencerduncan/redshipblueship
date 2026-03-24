@@ -239,8 +239,36 @@ if(SINGLE_EXECUTABLE_BUILD)
     # Save Manager
     list(FILTER ship__ EXCLUDE REGEX "2s2h/SaveManager/.*\\.cpp$")
 
-    # Resource importers and types (identical between games)
-    list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/.*\\.cpp$")
+    # Resource importers and types — exclude files that overlap with OoT,
+    # but KEEP MM-only resource types and factories (issue #159):
+    #   importer: PathFactory, TextMMFactory, TextureAnimationFactory, KeyFrameFactory
+    #   type:     Path, TextMM, TextureAnimation, KeyFrame
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/importer/AnimationFactory\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/importer/ArrayFactory\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/importer/AudioSampleFactory\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/importer/AudioSequenceFactory\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/importer/AudioSoundFontFactory\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/importer/BackgroundFactory\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/importer/CollisionHeaderFactory\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/importer/CutsceneFactory\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/importer/PlayerAnimationFactory\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/importer/SceneFactory\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/importer/SkeletonFactory\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/importer/SkeletonLimbFactory\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/importer/scenecommand/.*\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/type/Animation\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/type/Array\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/type/AudioSample\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/type/AudioSequence\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/type/AudioSoundFont\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/type/Background\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/type/CollisionHeader\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/type/Cutscene\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/type/PlayerAnimation\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/type/Scene\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/type/Skeleton\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/type/SkeletonLimb\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/type/scenecommand/.*\\.cpp$")
 
     # Extractor
     list(FILTER ship__Extractor EXCLUDE REGEX "2s2h/Extractor/.*\\.cpp$")
