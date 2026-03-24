@@ -221,7 +221,7 @@ void AudioThread_ProcessGlobalCmd(AudioCmd* cmd) {
             break;
 
         case AUDIOCMD_OP_GLOBAL_E5:
-            func_8018FA60(cmd->arg0, cmd->arg1, cmd->arg2, cmd->asInt);
+            MM_func_8018FA60(cmd->arg0, cmd->arg1, cmd->arg2, cmd->asInt);
             break;
 
         case AUDIOCMD_OP_GLOBAL_SET_REVERB_DATA:

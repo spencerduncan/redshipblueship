@@ -56,6 +56,10 @@ int MM_osRecvMesg(void *mq, void *msg, int flag) { return osRecvMesg(mq, msg, fl
 int MM_osSendMesg(void *mq, void *msg, int flag) { return osSendMesg(mq, msg, flag); }
 void MM_osSetEventMesg(int event, void *mq, void *msg) { osSetEventMesg(event, mq, msg); }
 
+/* osCartRomInit - MM's libultra/io is excluded; audio load.c calls this but
+ * it's a no-op in the port (ROM cart access is replaced by archive loading) */
+void* MM_osCartRomInit(void) { return NULL; }
+
 /* FaultDrawer - stub implementations (OoT uses different fault handling) */
 int MM_FaultDrawer_DrawText(int x, int y, const char* fmt, ...) {
     (void)x; (void)y; (void)fmt;
