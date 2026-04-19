@@ -6,9 +6,11 @@
 #include "test_runner.h"
 #include "context.h"
 #include "entrance.h"
+#include "integration_test_hooks.h"
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
+#include <atomic>
 
 // Lifecycle unit tests — included directly to avoid static library link ordering issues
 extern "C" {
@@ -22,8 +24,10 @@ extern "C" {
 namespace {
 
 bool sTestMode = false;
+bool sIntegrationTestMode = false;
 GameId sTargetGame = GAME_NONE;
-bool sBootComplete = false;
+std::atomic<bool> sBootComplete{false};
+const char* sIntegrationTestName = nullptr;
 
 // ============================================================================
 // Test implementations
@@ -285,8 +289,8 @@ TestResult Test_Context(void) {
 // ============================================================================
 
 const TestDescriptor gTests[] = {
-    {"boot-oot", "Boot OoT to main menu", Test_BootOoT},
-    {"boot-mm", "Boot MM to main menu", Test_BootMM},
+    {"boot-oot", "Boot OoT to main menu (unit test)", Test_BootOoT},
+    {"boot-mm", "Boot MM to main menu (unit test)", Test_BootMM},
     {"switch-oot-mm", "Test game switch OoT -> MM", Test_SwitchOoTMM},
     {"switch-mm-oot", "Test game switch MM -> OoT", Test_SwitchMMOoT},
     {"midos-house", "Test Mido's House entrance (test mode)", Test_MidosHouse},
@@ -295,6 +299,22 @@ const TestDescriptor gTests[] = {
     {"context", "Test context/state management", Test_Context},
     {"lifecycle", "Game lifecycle unit tests", Test_Lifecycle},
     {nullptr, nullptr, nullptr}  // Sentinel
+};
+
+// Integration tests that require actually booting the game
+struct IntegrationTestDescriptor {
+    const char* name;
+    const char* description;
+    IntegrationTestMode mode;
+    GameId targetGame;
+};
+
+const IntegrationTestDescriptor gIntegrationTests[] = {
+    {"int-boot-oot", "Boot OoT and verify title screen (integration)", INT_TEST_BOOT_OOT, GAME_OOT},
+    {"int-boot-mm", "Boot MM and verify title screen (integration)", INT_TEST_BOOT_MM, GAME_MM},
+    {"int-switch-oot-mm", "Boot OoT, switch to MM (integration)", INT_TEST_SWITCH_OOT_MM, GAME_OOT},
+    {"int-switch-mm-oot", "Boot MM, switch to OoT (integration)", INT_TEST_SWITCH_MM_OOT, GAME_MM},
+    {nullptr, nullptr, INT_TEST_NONE, GAME_NONE}  // Sentinel
 };
 
 TestResult RunSingleTest(const char* name) {
@@ -354,13 +374,21 @@ int TestRunner_Run(const char* testName) {
 }
 
 void TestRunner_ListTests(void) {
-    printf("Available tests:\n\n");
+    printf("Available unit tests (--test <name>):\n\n");
     for (int i = 0; gTests[i].name != nullptr; i++) {
         printf("  %-20s %s\n", gTests[i].name, gTests[i].description);
     }
     printf("\nSpecial commands:\n");
-    printf("  %-20s Run all tests\n", "all");
+    printf("  %-20s Run all unit tests\n", "all");
     printf("  %-20s Show this list\n", "list");
+
+    printf("\nIntegration tests (--integration-test <name>):\n");
+    printf("  (These tests actually boot the game - requires display/Xvfb)\n\n");
+    for (int i = 0; gIntegrationTests[i].name != nullptr; i++) {
+        printf("  %-20s %s\n",
+               gIntegrationTests[i].name,
+               gIntegrationTests[i].description);
+    }
 }
 
 const char* TestRunner_ParseArgs(int argc, char** argv) {
@@ -379,6 +407,12 @@ const char* TestRunner_ParseArgs(int argc, char** argv) {
 void TestRunner_SignalBootComplete(GameId game) {
     if (game == sTargetGame) {
         sBootComplete = true;
+        printf("[TEST] Boot complete signaled for %s\n", Game_ToString(game));
+
+        // Also signal through integration test hooks if active
+        if (sIntegrationTestMode) {
+            IntegrationTest_SignalBootComplete(game, "TestRunner_SignalBootComplete");
+        }
     }
 }
 
@@ -388,6 +422,72 @@ bool TestRunner_IsTestMode(void) {
 
 GameId TestRunner_GetTargetGame(void) {
     return sTargetGame;
+}
+
+// ============================================================================
+// Integration Test API
+// ============================================================================
+
+const char* TestRunner_ParseIntegrationArgs(int argc, char** argv) {
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--integration-test") == 0 && i + 1 < argc) {
+            return argv[i + 1];
+        }
+        // Also support --integration-test=name syntax
+        if (strncmp(argv[i], "--integration-test=", 19) == 0) {
+            return argv[i] + 19;
+        }
+    }
+    return nullptr;
+}
+
+bool TestRunner_SetupIntegrationTest(const char* testName) {
+    // Find the integration test
+    for (int i = 0; gIntegrationTests[i].name != nullptr; i++) {
+        if (strcmp(gIntegrationTests[i].name, testName) == 0) {
+            sIntegrationTestMode = true;
+            sTestMode = true;
+            sTargetGame = gIntegrationTests[i].targetGame;
+            sIntegrationTestName = testName;
+            sBootComplete = false;
+
+            // Set up integration test hooks
+            IntegrationTest_SetMode(gIntegrationTests[i].mode);
+
+            printf("[INT-TEST] Setting up integration test: %s\n", testName);
+            printf("[INT-TEST] Target game: %s\n", Game_ToString(sTargetGame));
+
+            return true;
+        }
+    }
+
+    printf("[INT-TEST] ERROR: Unknown integration test '%s'\n", testName);
+    TestRunner_ListTests();
+    return false;
+}
+
+bool TestRunner_IsIntegrationTestMode(void) {
+    return sIntegrationTestMode;
+}
+
+GameId TestRunner_GetIntegrationTestGame(void) {
+    if (!sIntegrationTestMode) {
+        return GAME_NONE;
+    }
+    return sTargetGame;
+}
+
+int TestRunner_GetIntegrationTestResult(void) {
+    if (!sIntegrationTestMode) {
+        return 1; // Error - not in integration test mode
+    }
+
+    bool passed = IntegrationTest_BootPassed();
+    printf("\n=== Integration Test Result ===\n");
+    printf("Test: %s\n", sIntegrationTestName);
+    printf("Result: %s\n", passed ? "PASS" : "FAIL");
+
+    return passed ? 0 : 1;
 }
 
 } // extern "C"

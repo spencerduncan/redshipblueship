@@ -14,6 +14,8 @@
 #include <libultraship/bridge.h>
 
 #include "game_lifecycle.h"
+#include "integration_test_hooks.h"
+#include "soh/Enhancements/game-interactor/GameInteractor.h"
 
 // External declarations from main.c and other C sources
 extern "C" {
@@ -34,6 +36,49 @@ extern "C" {
 // Game state
 static int sArgc = 0;
 static char** sArgv = nullptr;
+
+// ============================================================================
+// Integration Test Hooks
+// ============================================================================
+
+/**
+ * Register integration test hooks for OoT.
+ * Called after OoT is initialized when integration test mode is active.
+ */
+static void OoT_RegisterIntegrationTestHooks(void) {
+    if (!IntegrationTest_IsActive()) {
+        return;
+    }
+
+    IntegrationTestMode mode = IntegrationTest_GetMode();
+
+    // Only register hooks for OoT boot test
+    if (mode == INT_TEST_BOOT_OOT) {
+        fprintf(stderr, "[OoT] Registering integration test hooks for boot detection\n");
+        fflush(stderr);
+
+        // Register hook for title screen init
+        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnZTitleInit>(
+            [](void* gameState) {
+                fprintf(stderr, "[OoT-INT-TEST] OnZTitleInit hook fired!\n");
+                fflush(stderr);
+                IntegrationTest_SignalBootComplete(GAME_OOT, "title screen init");
+            }
+        );
+
+        // Register hook for file select presentation
+        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnPresentFileSelect>(
+            []() {
+                fprintf(stderr, "[OoT-INT-TEST] OnPresentFileSelect hook fired!\n");
+                fflush(stderr);
+                IntegrationTest_SignalBootComplete(GAME_OOT, "file select presented");
+            }
+        );
+
+        fprintf(stderr, "[OoT] Integration test hooks registered\n");
+        fflush(stderr);
+    }
+}
 
 extern "C" {
 
@@ -65,6 +110,9 @@ int OoT_Game_Init(int argc, char** argv) {
     fprintf(stderr, "[OoT] Calling OoT_Heaps_Alloc()...\n");
     fflush(stderr);
     OoT_Heaps_Alloc();
+
+    // Register integration test hooks if in integration test mode
+    OoT_RegisterIntegrationTestHooks();
 
     fprintf(stderr, "[OoT] Game_Init complete\n");
     fflush(stderr);
