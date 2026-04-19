@@ -22,8 +22,16 @@
 #include "game_lifecycle.h"
 #include "integration_test_hooks.h"
 #include <ship/resource/ResourceManager.h>
+#include <ship/resource/ResourceLoader.h>
 #include <ship/resource/archive/ArchiveManager.h>
 #include "GameInteractor/GameInteractor.h"
+#include <ship/resource/File.h>
+
+#include "2s2h/resource/type/2shResourceType.h"
+#include "2s2h/resource/importer/PathFactory.h"
+#include "2s2h/resource/importer/TextMMFactory.h"
+#include "2s2h/resource/importer/TextureAnimationFactory.h"
+#include "2s2h/resource/importer/KeyFrameFactory.h"
 
 // From main.c headers
 extern "C" {
@@ -186,6 +194,38 @@ static int LoadMMArchives() {
 }
 
 /**
+ * Register MM-only resource factories into the shared ResourceLoader.
+ * OoT already registered shared types (Animation, Skeleton, etc.).
+ * MM needs its own factories for Path (overwrites OoT's — MM paths have
+ * extra fields), TextMM, TextureAnimation, and KeyFrame types.
+ */
+static void RegisterMMResourceFactories() {
+    auto loader = Ship::Context::GetInstance()->GetResourceManager()->GetResourceLoader();
+
+    // Path — overwrites OoT's PathV0 because MM paths have additional fields
+    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryBinaryPathMMV0>(), RESOURCE_FORMAT_BINARY,
+                                    "Path", static_cast<uint32_t>(SOH::ResourceType::SOH_Path), 0,
+                                    /*allowOverwrite=*/true);
+
+    // TextMM — MM-only text format
+    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryBinaryTextMMV0>(), RESOURCE_FORMAT_BINARY,
+                                    "TextMM", static_cast<uint32_t>(SOH::ResourceType::TSH_TextMM), 0);
+
+    // TextureAnimation — MM-only
+    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryBinaryTextureAnimationV0>(),
+                                    RESOURCE_FORMAT_BINARY, "TextureAnimation",
+                                    static_cast<uint32_t>(SOH::ResourceType::TSH_TexAnim), 0);
+
+    // KeyFrame animation and skeleton — MM-only
+    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryBinaryKeyFrameAnim>(), RESOURCE_FORMAT_BINARY,
+                                    "KeyFrameAnim", static_cast<uint32_t>(SOH::ResourceType::TSH_CKeyFrameAnim), 0);
+    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryBinaryKeyFrameSkel>(), RESOURCE_FORMAT_BINARY,
+                                    "KeyFrameSkel", static_cast<uint32_t>(SOH::ResourceType::TSH_CKeyFrameSkel), 0);
+
+    fprintf(stderr, "[MM] Registered MM resource factories\n");
+}
+
+/**
  * Verify the shared Ship::Context from OoT is ready for MM's graph thread.
  * MM_Graph_ThreadEntry calls WindowIsRunning(), GfxDebuggerIsDebugging(),
  * WindowGetWidth/Height/AspectRatio() every frame — all route through
@@ -226,6 +266,9 @@ int MM_Game_Init(int argc, char** argv) {
         fprintf(stderr, "[MM] FATAL: Failed to load MM archives\n");
         return -1;
     }
+
+    // Register MM-only resource factories (issue #159).
+    RegisterMMResourceFactories();
 
     fprintf(stderr, "[MM] Allocating heaps...\n");
     fflush(stderr);
