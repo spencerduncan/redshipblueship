@@ -1,0 +1,95 @@
+name: docs-bypass
+# Satisfies the "basic" ruleset's required status checks
+# (build-windows, build-linux, build-macos, clang-format) for PRs that
+# touch only docs / markdown / license / .gitignore, without running heavy CI.
+#
+# Mutually exclusive with generate-builds.yml and clang-format.yml, which have
+# `paths-ignore: ['**.md', 'docs/**', 'LICENSE*', '.gitignore']`. For mixed PRs
+# (docs + code), the `check-docs-only` guard flips `docs_only=false`, causing
+# the dummy jobs below to be skipped; the heavy workflows then provide the
+# authoritative required checks.
+
+on:
+  pull_request:
+    paths:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE*'
+      - '.gitignore'
+  push:
+    branches: [main]
+    paths:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE*'
+      - '.gitignore'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-docs-only:
+    runs-on: ubuntu-latest
+    outputs:
+      docs_only: ${{ steps.diff.outputs.docs_only }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: diff
+        name: Detect whether changeset is docs-only
+        shell: bash
+        run: |
+          set -e
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base="${{ github.event.pull_request.base.sha }}"
+            head="${{ github.event.pull_request.head.sha }}"
+          else
+            base="${{ github.event.before }}"
+            head="${{ github.sha }}"
+          fi
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
+            # Brand-new branch push; default to docs_only=true since the `paths` filter
+            # already confirmed at least one doc file was touched.
+            echo "docs_only=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          changed=$(git diff --name-only "$base" "$head" || true)
+          echo "Changed files:"
+          printf '%s\n' "$changed"
+          # A line is "non-docs" if it does NOT end in .md and is not under
+          # docs/, not LICENSE*, not exactly .gitignore.
+          if printf '%s\n' "$changed" | grep -vE '(\.md$|^docs/|^LICENSE|^\.gitignore$)' | grep -q .; then
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "docs_only=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  build-windows:
+    needs: check-docs-only
+    if: needs.check-docs-only.outputs.docs_only == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "docs-only change; no Windows build required."
+
+  build-linux:
+    needs: check-docs-only
+    if: needs.check-docs-only.outputs.docs_only == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "docs-only change; no Linux build required."
+
+  build-macos:
+    needs: check-docs-only
+    if: needs.check-docs-only.outputs.docs_only == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "docs-only change; no macOS build required."
+
+  clang-format:
+    needs: check-docs-only
+    if: needs.check-docs-only.outputs.docs_only == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "docs-only change; no C++ files to format."
