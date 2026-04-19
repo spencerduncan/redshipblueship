@@ -1803,12 +1803,12 @@ void AudioScript_SequenceChannelProcessScript(SequenceChannel* channel) {
             case 0x10: // channel: load sample
                 if (lowBits < 8) {
                     channel->seqScriptIO[lowBits] = SEQ_IO_VAL_NONE;
-                    if (AudioLoad_SlowLoadSample(channel->fontId, scriptState->value, &channel->seqScriptIO[lowBits]) ==
+                    if (MM_AudioLoad_SlowLoadSample(channel->fontId, scriptState->value, &channel->seqScriptIO[lowBits]) ==
                         -1) {}
                 } else {
                     lowBits -= 8;
                     channel->seqScriptIO[lowBits] = SEQ_IO_VAL_NONE;
-                    if (AudioLoad_SlowLoadSample(channel->fontId, channel->unk_22 + 0x100,
+                    if (MM_AudioLoad_SlowLoadSample(channel->fontId, channel->unk_22 + 0x100,
                                                  &channel->seqScriptIO[lowBits]) == -1) {}
                 }
                 break;
@@ -2183,7 +2183,7 @@ void AudioScript_SequencePlayerProcessSequence(SequencePlayer* seqPlayer) {
                     cmd = AudioScript_ScriptReadU8(seqScript);
                     temp = AudioScript_ScriptReadS16(seqScript);
                     data2 = &seqPlayer->seqData[temp];
-                    AudioLoad_SlowLoadSeq(cmd, data2, &seqPlayer->seqScriptIO[cmdLowBits]);
+                    MM_AudioLoad_SlowLoadSeq(cmd, data2, &seqPlayer->seqScriptIO[cmdLowBits]);
                     break;
 
                 case 0x60: // seqPlayer: async load

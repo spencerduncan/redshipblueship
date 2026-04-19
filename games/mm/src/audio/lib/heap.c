@@ -1078,11 +1078,11 @@ void MM_AudioHeap_Init(void) {
 
     // Initalize Loads
     gAudioCtx.preloadSampleStackTop = 0;
-    AudioLoad_InitSlowLoads();
+    MM_AudioLoad_InitSlowLoads();
     MM_AudioLoad_InitScriptLoads();
-    AudioLoad_InitAsyncLoads();
+    MM_AudioLoad_InitAsyncLoads();
     gAudioCtx.unk_4 = 0x1000;
-    AudioLoad_LoadPermanentSamples();
+    MM_AudioLoad_LoadPermanentSamples();
 
     intMask = MM_osSetIntMask(1);
     osWritebackDCacheAll();
