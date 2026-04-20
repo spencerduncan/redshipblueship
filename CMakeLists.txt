@@ -390,23 +390,12 @@ add_custom_target(
 )
 
 if(CMAKE_SYSTEM_NAME MATCHES "Linux")
-    find_package(ImageMagick COMPONENTS convert)
-    if (ImageMagick_FOUND)
-        execute_process (
-            COMMAND ${ImageMagick_convert_EXECUTABLE} ${CMAKE_SOURCE_DIR}/games/oot/macosx/sohIcon.png -resize 512x512 ${CMAKE_BINARY_DIR}/sohIcon.png
-            RESULT_VARIABLE IMAGEMAGICK_RESULT
-            OUTPUT_VARIABLE outVar
-            ERROR_VARIABLE IMAGEMAGICK_ERROR
-        )
-        if(NOT IMAGEMAGICK_RESULT EQUAL 0)
-            message(WARNING "ImageMagick convert failed (${IMAGEMAGICK_RESULT}): ${IMAGEMAGICK_ERROR}")
-        endif()
-    endif()
-    # Fallback: if ImageMagick failed or wasn't found, copy the source icon directly
-    if(NOT EXISTS "${CMAKE_BINARY_DIR}/sohIcon.png")
-        message(STATUS "Copying sohIcon.png directly (ImageMagick unavailable or failed)")
-        file(COPY "${CMAKE_SOURCE_DIR}/games/oot/macosx/sohIcon.png" DESTINATION "${CMAKE_BINARY_DIR}")
-    endif()
+    # linuxdeploy only accepts standard AppImage icon sizes (512x512 is canonical).
+    configure_file(
+        "${CMAKE_SOURCE_DIR}/games/oot/macosx/sohIcon-512.png"
+        "${CMAKE_BINARY_DIR}/sohIcon.png"
+        COPYONLY
+    )
 endif()
 
 if(CMAKE_SYSTEM_NAME MATCHES "Darwin")

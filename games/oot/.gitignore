@@ -48,6 +48,7 @@ graphs/
 # Assets
 *.png
 !macosx/sohIcon.png
+!macosx/sohIcon-512.png
 *.jpg
 *.mdli
 *.anmi
