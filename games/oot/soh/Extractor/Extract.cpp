@@ -120,19 +120,21 @@ void Extractor::ShowErrorBox(const char* title, const char* text) {
 void Extractor::ShowSizeErrorBox() const {
     std::unique_ptr<char[]> boxBuffer = std::make_unique<char[]>(mCurrentRomPath.size() + 100);
     snprintf(boxBuffer.get(), mCurrentRomPath.size() + 100,
-             "The rom file %s was not a valid size. Was %zu MB, expecting 32, 54, or 64MB.", mCurrentRomPath.c_str(),
-             mCurRomSize / MB_BASE);
-    ShowErrorBox("Invalid Rom Size", boxBuffer.get());
+             "The Ocarina of Time ROM file %s was not a valid size. Was %zu MB, expecting 32, 54, or 64MB.",
+             mCurrentRomPath.c_str(), mCurRomSize / MB_BASE);
+    ShowErrorBox("Ocarina of Time - Invalid Rom Size", boxBuffer.get());
 }
 
 void Extractor::ShowCrcErrorBox() const {
-    ShowErrorBox("Rom CRC invalid",
-                 "Rom CRC did not match the list of known compatible roms. Please find another.\n\n"
+    ShowErrorBox("Ocarina of Time - Rom CRC invalid",
+                 "The selected Ocarina of Time ROM CRC did not match the list of known compatible roms. "
+                 "Please find another.\n\n"
                  "Visit https://ship.equipment/ to validate your ROM and see a list of compatible versions");
 }
 
 void Extractor::ShowCompressedErrorBox() const {
-    ShowErrorBox("File is Compressed", "The selected file appears to be compressed. Please extract before using.");
+    ShowErrorBox("Ocarina of Time - File is Compressed",
+                 "The selected file appears to be compressed. Please extract before using.");
 }
 
 int Extractor::ShowRomPickBox(uint32_t verCrc) const {
@@ -152,13 +154,14 @@ int Extractor::ShowRomPickBox(uint32_t verCrc) const {
     boxData.numbuttons = 3;
     boxData.flags = SDL_MESSAGEBOX_INFORMATION;
     boxData.message = boxBuffer.get();
-    boxData.title = "Rom Detected";
+    boxData.title = "Ocarina of Time - Rom Detected";
     boxData.window = nullptr;
 
     boxData.buttons = buttons;
     snprintf(boxBuffer.get(), mCurrentRomPath.size() + 100,
-             "Rom detected: %s, Header CRC32: %8X. It appears to be: %s. Use this rom?", mCurrentRomPath.c_str(),
-             verCrc, verMap.at(verCrc));
+             "Ocarina of Time ROM detected: %s, Header CRC32: %8X. It appears to be: %s. "
+             "Use this rom for Ocarina of Time?",
+             mCurrentRomPath.c_str(), verCrc, verMap.at(verCrc));
 
     SDL_ShowMessageBox(&boxData, &ret);
     return ret;
@@ -287,7 +290,7 @@ bool Extractor::GetRomPathFromBox() {
     box.lStructSize = sizeof(box);
     box.lpstrFile = nameBuffer;
     box.nMaxFile = sizeof(nameBuffer) / sizeof(nameBuffer[0]);
-    box.lpstrTitle = "Open Rom";
+    box.lpstrTitle = "Open Ocarina of Time Rom";
     box.Flags =
         OFN_NOCHANGEDIR | OFN_ENABLESIZING | OFN_FILEMUSTEXIST | OFN_LONGNAMES | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY;
     box.lpstrFilter = "N64 Roms\0*.z64;*.v64;*.n64\0\0";
@@ -317,7 +320,8 @@ bool Extractor::GetRomPathFromBox() {
     }
     mCurrentRomPath = nameBuffer;
 #else
-    auto selection = pfd::open_file("Select a file", mSearchPath, { "N64 Roms", "*.z64 *.n64 *.v64" }).result();
+    auto selection =
+        pfd::open_file("Select an Ocarina of Time ROM", mSearchPath, { "N64 Roms", "*.z64 *.n64 *.v64" }).result();
 
     if (selection.empty()) {
         return false;
@@ -401,7 +405,7 @@ bool Extractor::ManuallySearchForRom() {
     std::ifstream inFile;
 
     if (!GetRomPathFromBox()) {
-        ShowErrorBox("No rom selected", "No Rom selected. Exiting");
+        ShowErrorBox("Ocarina of Time - No rom selected", "No Ocarina of Time ROM selected. Exiting");
         return false;
     }
 
@@ -427,15 +431,15 @@ bool Extractor::ManuallySearchForRomMatchingType(RomSearchMode searchMode) {
         return false;
     }
 
-    char msgBuf[150];
-    snprintf(
-        msgBuf, 150,
-        "The selected rom does not match the expected game type\nExpected type: %s.\n\nDo you want to search again?",
-        searchMode == RomSearchMode::MQ ? "Master Quest" : "Vanilla");
+    char msgBuf[200];
+    snprintf(msgBuf, sizeof(msgBuf),
+             "The selected Ocarina of Time ROM does not match the expected game type\nExpected type: %s.\n\n"
+             "Do you want to search again?",
+             searchMode == RomSearchMode::MQ ? "Master Quest" : "Vanilla");
 
     while ((searchMode == RomSearchMode::Vanilla && IsMasterQuest()) ||
            (searchMode == RomSearchMode::MQ && !IsMasterQuest())) {
-        int ret = ShowYesNoBox("Wrong Game Type", msgBuf);
+        int ret = ShowYesNoBox("Ocarina of Time - Wrong Game Type", msgBuf);
         switch (ret) {
             case IDYES:
                 if (!ManuallySearchForRom()) {
@@ -491,7 +495,8 @@ bool Extractor::Run(std::string searchPath, RomSearchMode searchMode) {
     FilterRoms(roms, searchMode);
 
     if (roms.empty()) {
-        int ret = ShowYesNoBox("No roms found", "No roms found. Look for one?");
+        int ret = ShowYesNoBox("Ocarina of Time - No roms found",
+                               "No Ocarina of Time ROMs found. Look for one?");
 
         switch (ret) {
             case IDYES:
@@ -500,7 +505,7 @@ bool Extractor::Run(std::string searchPath, RomSearchMode searchMode) {
                 }
                 break;
             case IDNO:
-                ShowErrorBox("No rom selected", "No rom selected. Exiting");
+                ShowErrorBox("Ocarina of Time - No rom selected", "No Ocarina of Time ROM selected. Exiting");
                 return false;
             default:
                 UNREACHABLE;
@@ -530,8 +535,9 @@ bool Extractor::Run(std::string searchPath, RomSearchMode searchMode) {
                     ShowCrcErrorBox();
                 } else {
                     ShowErrorBox(
-                        "Rom CRC invalid",
-                        "Rom CRC did not match the list of known compatible roms. Trying the next one...\n\n"
+                        "Ocarina of Time - Rom CRC invalid",
+                        "The selected Ocarina of Time ROM CRC did not match the list of known compatible roms. "
+                        "Trying the next one...\n\n"
                         "Visit https://ship.equipment/ to validate your ROM and see a list of compatible versions");
                 }
                 continue;
@@ -544,7 +550,7 @@ bool Extractor::Run(std::string searchPath, RomSearchMode searchMode) {
             break;
         } else if (option == (int)ButtonId::NO) {
             if (rom == roms.back()) {
-                ShowErrorBox("No rom provided", "No rom provided. Exiting");
+                ShowErrorBox("Ocarina of Time - No rom provided", "No Ocarina of Time ROM provided. Exiting");
                 return false;
             }
             continue;
