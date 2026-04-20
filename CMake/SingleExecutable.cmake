@@ -178,6 +178,16 @@ if(UNIX AND NOT APPLE)
     target_link_options(redship PRIVATE -rdynamic)
 endif()
 
+if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    # libultraship is a static archive containing the N64 OS stubs
+    # (osCreateMesgQueue, osRecvMesg, osStartThread, ...). ld64 drops archive
+    # members whose symbols look unreferenced; -force_load pulls them all in.
+    # Linux uses -Wl,-export-dynamic via -rdynamic above; macOS requires -force_load.
+    target_link_options(redship PRIVATE
+        "LINKER:-force_load,$<TARGET_FILE:libultraship>"
+    )
+endif()
+
 # ============================================================================
 # CTest Integration
 # ============================================================================
@@ -234,7 +244,13 @@ endif()
 # Installation
 # ============================================================================
 
-install(TARGETS redship RUNTIME DESTINATION . COMPONENT ship)
+if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    # CPack Bundle maps CMAKE_INSTALL_PREFIX to Contents/Resources; the executable
+    # belongs in Contents/MacOS for a valid .app bundle.
+    install(TARGETS redship RUNTIME DESTINATION ../MacOS COMPONENT ship)
+else()
+    install(TARGETS redship RUNTIME DESTINATION . COMPONENT ship)
+endif()
 
 message(STATUS "Single executable 'redship' will be built")
 message(STATUS "Use --test option to run integration tests")

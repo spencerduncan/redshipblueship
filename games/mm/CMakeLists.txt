@@ -849,7 +849,11 @@ execute_process(COMMAND ${CURL} -sSfL https://raw.githubusercontent.com/gabomdq/
 
 if("${CMAKE_SYSTEM_NAME}" STREQUAL "Darwin")
 configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/macosx/Info.plist.in ${CMAKE_BINARY_DIR}/macosx/Info.plist @ONLY)
-INSTALL(TARGETS 2ship DESTINATION ../MacOS COMPONENT 2s2h)
+if(NOT SINGLE_EXECUTABLE_BUILD)
+    # 2ship is a SHARED library in legacy mode; in single-exec mode it's OBJECT libs
+    # linked into redship, so there's nothing to install by that name.
+    INSTALL(TARGETS 2ship DESTINATION ../MacOS COMPONENT 2s2h)
+endif()
 INSTALL(FILES ${CMAKE_BINARY_DIR}/gamecontrollerdb.txt DESTINATION ../MacOS COMPONENT 2s2h)
 INSTALL(FILES ${CMAKE_BINARY_DIR}/mm/2ship.o2r DESTINATION ../Resources COMPONENT 2s2h)
 elseif(NOT "${CMAKE_SYSTEM_NAME}" MATCHES "NintendoSwitch|CafeOS")

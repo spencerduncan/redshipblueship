@@ -416,7 +416,11 @@ add_custom_target(CreateOSXIcons
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     COMMENT "Creating OSX icons ..."
     )
-add_dependencies(soh CreateOSXIcons)
+if(SINGLE_EXECUTABLE_BUILD)
+    add_dependencies(redship CreateOSXIcons)
+else()
+    add_dependencies(soh CreateOSXIcons)
+endif()
 
 install(TARGETS ZAPD_OoT DESTINATION ${CMAKE_BINARY_DIR}/assets)
 
@@ -425,13 +429,20 @@ set(PROGRAM_PERMISSIONS_EXECUTE OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECU
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/games/oot/assets/extractor/" DESTINATION ./assets/)
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/games/oot/assets/xml/" DESTINATION ./assets/xml)
 
-# Rename the installed soh binary to drop the macos suffix
-INSTALL(CODE "FILE(RENAME \${CMAKE_INSTALL_PREFIX}/../MacOS/soh-macos \${CMAKE_INSTALL_PREFIX}/../MacOS/soh)")
+if(SINGLE_EXECUTABLE_BUILD)
+    install(CODE "
+        include(BundleUtilities)
+        fixup_bundle(\"\${CMAKE_INSTALL_PREFIX}/../MacOS/redship\" \"\" \"${dirs}\")
+        ")
+else()
+    # Rename the installed soh binary to drop the macos suffix
+    INSTALL(CODE "FILE(RENAME \${CMAKE_INSTALL_PREFIX}/../MacOS/soh-macos \${CMAKE_INSTALL_PREFIX}/../MacOS/soh)")
 
-install(CODE "
-    include(BundleUtilities)
-    fixup_bundle(\"\${CMAKE_INSTALL_PREFIX}/../MacOS/soh\" \"\" \"${dirs}\")
-    ")
+    install(CODE "
+        include(BundleUtilities)
+        fixup_bundle(\"\${CMAKE_INSTALL_PREFIX}/../MacOS/soh\" \"\" \"${dirs}\")
+        ")
+endif()
 
 endif()
 
