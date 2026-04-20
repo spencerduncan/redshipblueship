@@ -82,19 +82,21 @@ void Extractor::ShowErrorBox(const char* title, const char* text) {
 void Extractor::ShowSizeErrorBox() const {
     std::unique_ptr<char[]> boxBuffer = std::make_unique<char[]>(mCurrentRomPath.size() + 100);
     snprintf(boxBuffer.get(), mCurrentRomPath.size() + 100,
-             "The rom file %s was not a valid size. Was %zu MB, expecting 32, 54, or 64MB.", mCurrentRomPath.c_str(),
-             mCurRomSize / MB_BASE);
-    ShowErrorBox("Invalid Rom Size", boxBuffer.get());
+             "The Majora's Mask ROM file %s was not a valid size. Was %zu MB, expecting 32, 54, or 64MB.",
+             mCurrentRomPath.c_str(), mCurRomSize / MB_BASE);
+    ShowErrorBox("Majora's Mask - Invalid Rom Size", boxBuffer.get());
 }
 
 void Extractor::ShowCrcErrorBox() const {
-    ShowErrorBox("Rom CRC invalid",
-                 "Rom CRC did not match the list of known compatible roms. Please find another.\n\n"
+    ShowErrorBox("Majora's Mask - Rom CRC invalid",
+                 "The selected Majora's Mask ROM CRC did not match the list of known compatible roms. "
+                 "Please find another.\n\n"
                  "Visit https://2ship.equipment/ to validate your ROM and see a list of compatible versions");
 }
 
 void Extractor::ShowCompressedErrorBox() const {
-    ShowErrorBox("File is Compressed", "The selected file appears to be compressed. Please extract before using.");
+    ShowErrorBox("Majora's Mask - File is Compressed",
+                 "The selected file appears to be compressed. Please extract before using.");
 }
 
 int Extractor::ShowRomPickBox(uint32_t verCrc) const {
@@ -114,13 +116,14 @@ int Extractor::ShowRomPickBox(uint32_t verCrc) const {
     boxData.numbuttons = 3;
     boxData.flags = SDL_MESSAGEBOX_INFORMATION;
     boxData.message = boxBuffer.get();
-    boxData.title = "Rom Detected";
+    boxData.title = "Majora's Mask - Rom Detected";
     boxData.window = nullptr;
 
     boxData.buttons = buttons;
     snprintf(boxBuffer.get(), mCurrentRomPath.size() + 100,
-             "Rom detected: %s, Header CRC32: %8X. It appears to be: %s. Use this rom?", mCurrentRomPath.c_str(),
-             verCrc, verMap.at(verCrc));
+             "Majora's Mask ROM detected: %s, Header CRC32: %8X. It appears to be: %s. "
+             "Use this rom for Majora's Mask?",
+             mCurrentRomPath.c_str(), verCrc, verMap.at(verCrc));
 
     SDL_ShowMessageBox(&boxData, &ret);
     return ret;
@@ -253,7 +256,7 @@ bool Extractor::GetRomPathFromBox() {
     box.lStructSize = sizeof(box);
     box.lpstrFile = nameBuffer;
     box.nMaxFile = sizeof(nameBuffer) / sizeof(nameBuffer[0]);
-    box.lpstrTitle = "Open Rom";
+    box.lpstrTitle = "Open Majora's Mask Rom";
     box.Flags =
         OFN_NOCHANGEDIR | OFN_ENABLESIZING | OFN_FILEMUSTEXIST | OFN_LONGNAMES | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY;
     box.lpstrFilter = "N64 Roms\0*.z64;*.v64;*.n64\0\0";
@@ -283,7 +286,8 @@ bool Extractor::GetRomPathFromBox() {
     }
     mCurrentRomPath = nameBuffer;
 #else
-    auto selection = pfd::open_file("Select a file", mSearchPath, { "N64 Roms", "*.z64 *.n64 *.v64" }).result();
+    auto selection =
+        pfd::open_file("Select a Majora's Mask ROM", mSearchPath, { "N64 Roms", "*.z64 *.n64 *.v64" }).result();
 
     if (selection.empty()) {
         return false;
@@ -317,7 +321,7 @@ bool Extractor::ValidateAndFixRom() {
 // The file box will only allow selecting an n64 rom but typing in the file name will allow selecting anything.
 bool Extractor::ValidateNotCompressed() const {
     // ZIP file header
-    if (mRomData[0] == 'MM_P' && mRomData[1] == 'K' && mRomData[2] == 0x03 && mRomData[3] == 0x04) {
+    if (mRomData[0] == 'P' && mRomData[1] == 'K' && mRomData[2] == 0x03 && mRomData[3] == 0x04) {
         return false;
     }
     // RAR file header. Only the first 4 bytes.
@@ -362,7 +366,7 @@ bool Extractor::ManuallySearchForRom() {
     std::ifstream inFile;
 
     if (!GetRomPathFromBox()) {
-        ShowErrorBox("No rom selected", "No Rom selected. Exiting");
+        ShowErrorBox("Majora's Mask - No rom selected", "No Majora's Mask ROM selected. Exiting");
         return false;
     }
 
@@ -388,15 +392,15 @@ bool Extractor::ManuallySearchForRomMatchingType(RomSearchMode searchMode) {
         return false;
     }
 
-    char msgBuf[150];
-    snprintf(
-        msgBuf, 150,
-        "The selected rom does not match the expected game type\nExpected type: %s.\n\nDo you want to search again?",
-        searchMode == RomSearchMode::MQ ? "Master Quest" : "Vanilla");
+    char msgBuf[200];
+    snprintf(msgBuf, sizeof(msgBuf),
+             "The selected Majora's Mask ROM does not match the expected game type\nExpected type: %s.\n\n"
+             "Do you want to search again?",
+             searchMode == RomSearchMode::MQ ? "Master Quest" : "Vanilla");
 
     while ((searchMode == RomSearchMode::Vanilla && IsMasterQuest()) ||
            (searchMode == RomSearchMode::MQ && !IsMasterQuest())) {
-        int ret = ShowYesNoBox("Wrong Game Type", msgBuf);
+        int ret = ShowYesNoBox("Majora's Mask - Wrong Game Type", msgBuf);
         switch (ret) {
             case IDYES:
                 if (!ManuallySearchForRom()) {
@@ -424,7 +428,8 @@ bool Extractor::Run(std::string searchPath, RomSearchMode searchMode) {
     FilterRoms(roms, searchMode);
 
     if (roms.empty()) {
-        int ret = ShowYesNoBox("No roms found", "No roms found. Look for one?");
+        int ret = ShowYesNoBox("Majora's Mask - No roms found",
+                               "No Majora's Mask ROMs found. Look for one?");
 
         switch (ret) {
             case IDYES:
@@ -433,7 +438,7 @@ bool Extractor::Run(std::string searchPath, RomSearchMode searchMode) {
                 }
                 break;
             case IDNO:
-                ShowErrorBox("No rom selected", "No rom selected. Exiting");
+                ShowErrorBox("Majora's Mask - No rom selected", "No Majora's Mask ROM selected. Exiting");
                 return false;
             default:
                 UNREACHABLE;
@@ -442,7 +447,8 @@ bool Extractor::Run(std::string searchPath, RomSearchMode searchMode) {
     }
 
     if (roms.size() > 1) {
-        int ret = ShowYesNoBox("Multiple ROMs Found", "Multiple ROM files were detected. Select one manually?");
+        int ret = ShowYesNoBox("Majora's Mask - Multiple ROMs Found",
+                               "Multiple Majora's Mask ROM files were detected. Select one manually?");
         if (ret == IDYES) {
             if (!ManuallySearchForRomMatchingType(searchMode)) {
                 return false;
@@ -474,8 +480,9 @@ bool Extractor::Run(std::string searchPath, RomSearchMode searchMode) {
                     ShowCrcErrorBox();
                 } else {
                     ShowErrorBox(
-                        "Rom CRC invalid",
-                        "Rom CRC did not match the list of known compatible roms. Trying the next one...\n\n"
+                        "Majora's Mask - Rom CRC invalid",
+                        "The selected Majora's Mask ROM CRC did not match the list of known compatible roms. "
+                        "Trying the next one...\n\n"
                         "Visit https://2ship.equipment/ to validate your ROM and see a list of compatible versions");
                 }
                 continue;
@@ -488,7 +495,7 @@ bool Extractor::Run(std::string searchPath, RomSearchMode searchMode) {
             break;
         } else if (option == (int)ButtonId::NO) {
             if (rom == roms.back()) {
-                ShowErrorBox("No rom provided", "No rom provided. Exiting");
+                ShowErrorBox("Majora's Mask - No rom provided", "No Majora's Mask ROM provided. Exiting");
                 return false;
             }
             continue;
