@@ -366,6 +366,9 @@ int main(int argc, char** argv) {
         free(gameArgv);
         return 1;
     }
+    // Keep context's view of the current game in sync with the runner so that
+    // cross-game entrance hooks dispatch against the right game (issue #170).
+    Context_SetCurrentGame(selectedGame);
 
     // For MM integration tests, OoT is initialized first for Ship::Context,
     // then we switch to MM (which registers its own hooks in MM_Game_Init)
@@ -380,6 +383,7 @@ int main(int argc, char** argv) {
                 free(gameArgv);
                 return 1;
             }
+            Context_SetCurrentGame(GAME_MM);
         }
     }
 
@@ -438,6 +442,10 @@ int main(int argc, char** argv) {
             if (switchResult != 0) {
                 fprintf(stderr, "Error: Failed to switch to game (code %d)\n", switchResult);
                 keepRunning = false;
+            } else {
+                // Track the new active game so cross-game entrance hooks
+                // resolve to the correct side on the next round-trip (#170).
+                Context_SetCurrentGame(nextGame);
             }
         } else {
             // Normal exit
