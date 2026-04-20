@@ -177,11 +177,9 @@ std::unordered_map<RandomizerCheck, std::string> checkNameOverrides;
 
 bool ShouldShowCheck(RandomizerCheck rc);
 bool UpdateFilters();
-void BeginFloatWindows(std::string UniqueName, bool& open, ImGuiWindowFlags flags = 0);
 bool CompareChecks(RandomizerCheck, RandomizerCheck);
 bool CheckByArea(RandomizerCheckArea);
 void DrawLocation(RandomizerCheck);
-void EndFloatWindows();
 void LoadSettings();
 void RainbowTick();
 void UpdateAreas(RandomizerCheckArea area);
@@ -454,7 +452,8 @@ RandomizerCheckArea GetCheckArea() {
     auto scene = static_cast<SceneID>(OoT_gPlayState->sceneNum);
     bool grottoScene = (scene == SCENE_GROTTOS || scene == SCENE_FAIRYS_FOUNTAIN);
     const EntranceData* ent =
-        GetEntranceData(grottoScene ? ENTRANCE_GROTTO_EXIT_START + GetCurrentGrottoId() : gSaveContext.entranceIndex);
+        EntranceTracker::GetEntranceData(grottoScene ? ENTRANCE_GROTTO_EXIT_START + EntranceTracker::GetCurrentGrottoId()
+                                                     : gSaveContext.entranceIndex);
     RandomizerCheckArea area = RCAREA_INVALID;
     if (ent != nullptr && !IsAreaScene(scene) && ent->type != ENTRANCE_TYPE_DUNGEON) {
         if (ent->source == "Desert Colossus" || ent->destination == "Desert Colossus") {
@@ -464,7 +463,7 @@ RandomizerCheckArea GetCheckArea() {
         }
     }
     if (area == RCAREA_INVALID) {
-        if (grottoScene && (GetCurrentGrottoId() == -1) &&
+        if (grottoScene && (EntranceTracker::GetCurrentGrottoId() == -1) &&
             (OTRGlobals::Instance->gRandomizer->GetRandoSettingValue(RSK_SHUFFLE_GROTTO_ENTRANCES) == RO_GENERIC_OFF)) {
             area = previousArea;
         } else {
@@ -1019,11 +1018,17 @@ void CheckTrackerWindow::DrawElement() {
     } else {
         ImGui::SetNextWindowSize(ImVec2(400, 540), ImGuiCond_FirstUseEver);
     }
-    BeginFloatWindows("Check Tracker", mIsVisible, ImGuiWindowFlags_NoScrollbar);
+    if (!Trackers::BeginFloatWindows(
+            "Check Tracker", mIsVisible, Color_Background,
+            static_cast<TrackerWindowType>(CVarGetInteger(CVAR_TRACKER_CHECK("WindowType"), TRACKER_WINDOW_WINDOW)),
+            CVarGetInteger(CVAR_TRACKER_CHECK("Draggable"), 1), ImGuiWindowFlags_NoScrollbar)) {
+        Trackers::EndFloatWindows();
+        return;
+    }
 
     if (!GameInteractor::IsSaveLoaded() || !initialized) {
         ImGui::Text("Waiting for file load..."); // TODO Language
-        EndFloatWindows();
+        Trackers::EndFloatWindows();
         return;
     }
 
@@ -1039,7 +1044,7 @@ void CheckTrackerWindow::DrawElement() {
     float headerHeight = 20.0f;
 #endif
     if (!ImGui::BeginTable("Check Tracker", 1, 0)) {
-        EndFloatWindows();
+        Trackers::EndFloatWindows();
         return;
     }
 
@@ -1122,7 +1127,7 @@ void CheckTrackerWindow::DrawElement() {
     ImGui::TableNextColumn();
     if (!ImGui::BeginTable("CheckTracker##Checks", 1, ImGuiTableFlags_ScrollY)) {
         ImGui::EndTable();
-        EndFloatWindows();
+        Trackers::EndFloatWindows();
         return;
     }
     ImGui::TableNextRow();
@@ -1245,7 +1250,7 @@ void CheckTrackerWindow::DrawElement() {
 
     ImGui::EndTable(); // Checks Lead-out
     ImGui::EndTable(); // Quick Options Lead-out
-    EndFloatWindows();
+    Trackers::EndFloatWindows();
     if (doingCollapseOrExpand) {
         optCollapseAll = false;
         optExpandAll = false;
@@ -1287,41 +1292,6 @@ bool ShouldShowCheck(RandomizerCheck check) {
     }
     return (IsVisibleInCheckTracker(check) &&
             (checkSearch.Filters.Size == 0 || checkSearch.PassFilter(search.c_str())));
-}
-
-// Windowing stuff
-void BeginFloatWindows(std::string UniqueName, bool& open, ImGuiWindowFlags flags) {
-    ImGuiWindowFlags windowFlags = flags;
-
-    if (windowFlags == 0) {
-        windowFlags |= ImGuiWindowFlags_AlwaysVerticalScrollbar | ImGuiWindowFlags_NoFocusOnAppearing;
-    }
-
-    if (CVarGetInteger(CVAR_TRACKER_CHECK("WindowType"), TRACKER_WINDOW_WINDOW) == TRACKER_WINDOW_FLOATING) {
-        ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
-        windowFlags |= ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoTitleBar |
-                       ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar;
-
-        if (!CVarGetInteger(CVAR_TRACKER_CHECK("Draggable"), 1)) {
-            windowFlags |= ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoMove;
-        }
-    }
-    auto maybeParent = ImGui::GetCurrentWindow();
-    ImGuiWindow* window = ImGui::FindWindowByName(UniqueName.c_str());
-    if (window != NULL && window->DockTabIsVisible && window->ParentWindow != NULL &&
-        std::string(window->ParentWindow->Name).compare(0, strlen("Main - Deck"), "Main - Deck") == 0) {
-        Color_Background.a = 255;
-    }
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, VecFromRGBA8(Color_Background));
-    ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0, 0, 0, 0));
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 4.0f);
-    ImGui::Begin(UniqueName.c_str(), &open, windowFlags);
-}
-void EndFloatWindows() {
-    ImGui::PopStyleVar();
-    ImGui::PopStyleColor();
-    ImGui::PopStyleColor();
-    ImGui::End();
 }
 
 void LoadSettings() {
@@ -2097,7 +2067,7 @@ void RecalculateAvailableChecks(RandomizerRegion startingRegion /* = RR_ROOT */)
                 GetPerformanceTimer(PT_RECALCULATE_AVAILABLE_CHECKS).count());
 }
 
-void CheckTracker_LoadFromPreset(nlohmann::json info) {
+void LoadFromPreset(nlohmann::json info) {
     presetLoaded = true;
     presetPos = { info["pos"]["x"], info["pos"]["y"] };
     presetSize = { info["size"]["width"], info["size"]["height"] };

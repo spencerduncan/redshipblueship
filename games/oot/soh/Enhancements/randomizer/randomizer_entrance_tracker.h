@@ -5,6 +5,7 @@
 #include <cstdint>
 
 #include <libultraship/libultraship.h>
+#include "randomizerTypes.h"
 
 typedef enum {
     // ENTRANCE_GROUP_NO_GROUP,
@@ -75,14 +76,15 @@ typedef struct {
     uint16_t GroupOffsets[TRACKER_GROUP_TYPE_COUNT][SPOILER_ENTRANCE_GROUP_COUNT];
 } EntranceTrackingData;
 
-extern EntranceTrackingData gEntranceTrackingData;
-
 #define SINGLE_SCENE_INFO(scene) \
     {                            \
         { scene, -1 }            \
     }
 #define SCENE_NO_SPAWN(scene) \
     { scene, -1 }
+
+namespace EntranceTracker {
+extern EntranceTrackingData gEntranceTrackingData;
 
 void SetCurrentGrottoIDForTracker(int16_t entranceIndex);
 void SetLastEntranceOverrideForTracker(int16_t entranceIndex);
@@ -91,7 +93,7 @@ void InitEntranceTrackingData();
 s16 GetLastEntranceOverride();
 s16 GetCurrentGrottoId();
 const EntranceData* GetEntranceData(s16);
-void EntranceTracker_LoadFromPreset(nlohmann::json info);
+void LoadFromPreset(nlohmann::json info);
 
 class EntranceTrackerSettingsWindow final : public Ship::GuiWindow {
   public:
@@ -112,3 +114,10 @@ class EntranceTrackerWindow final : public Ship::GuiWindow {
     void DrawElement() override;
     void UpdateElement() override{};
 };
+} // namespace EntranceTracker
+
+namespace Trackers {
+bool BeginFloatWindows(std::string UniqueName, bool& open, Color_RGBA8& bgCol, TrackerWindowType windowType,
+                       bool draggable, ImGuiWindowFlags flags = 0);
+void EndFloatWindows();
+} // namespace Trackers

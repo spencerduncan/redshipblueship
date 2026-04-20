@@ -26,6 +26,7 @@ extern PlayState* OoT_gPlayState;
 #define COLOR_GREEN IM_COL32(0, 158, 115, 255)
 #define COLOR_GRAY IM_COL32(155, 155, 155, 255)
 
+namespace EntranceTracker {
 EntranceOverride srcListSortedByArea[ENTRANCE_OVERRIDES_MAX_COUNT] = { 0 };
 EntranceOverride destListSortedByArea[ENTRANCE_OVERRIDES_MAX_COUNT] = { 0 };
 EntranceOverride srcListSortedByType[ENTRANCE_OVERRIDES_MAX_COUNT] = { 0 };
@@ -476,7 +477,7 @@ const EntranceData* GetEntranceData(s16 index) {
     return nullptr;
 }
 
-void EntranceTracker_LoadFromPreset(nlohmann::json info) {
+void LoadFromPreset(nlohmann::json info) {
     presetLoaded = true;
     presetPos = { info["pos"]["x"], info["pos"]["y"] };
     presetSize = { info["size"]["width"], info["size"]["height"] };
@@ -1018,3 +1019,44 @@ void EntranceTrackerWindow::InitElement() {
     GameInteractor::Instance->RegisterGameHook<GameInteractor::OnExitGame>(
         [](int32_t fileNum) { ClearEntranceTrackingData(); });
 }
+} // namespace EntranceTracker
+
+namespace Trackers {
+// Windowing stuff
+bool BeginFloatWindows(std::string UniqueName, bool& open, Color_RGBA8& bgCol, TrackerWindowType windowType,
+                       bool draggable, ImGuiWindowFlags flags) {
+    ImGuiWindowFlags windowFlags = flags;
+
+    if (windowFlags == 0) {
+        windowFlags |= ImGuiWindowFlags_AlwaysVerticalScrollbar | ImGuiWindowFlags_NoFocusOnAppearing;
+    }
+
+    if (windowType == TRACKER_WINDOW_FLOATING) {
+        ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
+        windowFlags |= ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoTitleBar |
+                       ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar;
+
+        if (!draggable) {
+            windowFlags |= ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoMove;
+        }
+    }
+    auto maybeParent = ImGui::GetCurrentWindow();
+    ImGuiWindow* window = ImGui::FindWindowByName(UniqueName.c_str());
+    ImVec4 bgColVec = VecFromRGBA8(bgCol);
+    if (window != NULL && window->DockTabIsVisible && window->ParentWindow != NULL &&
+        std::string(window->ParentWindow->Name).compare(0, strlen("Main - Deck"), "Main - Deck") == 0) {
+        bgColVec.w = 1.0f;
+    }
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, bgColVec);
+    ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0, 0, 0, 0));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 4.0f);
+    return ImGui::Begin(UniqueName.c_str(), &open, windowFlags);
+}
+
+void EndFloatWindows() {
+    ImGui::PopStyleVar();
+    ImGui::PopStyleColor();
+    ImGui::PopStyleColor();
+    ImGui::End();
+}
+} // namespace Trackers
