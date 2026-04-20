@@ -73,7 +73,7 @@ case "${1:-}" in
             else
                 status=$?
                 echo "  Worker for issue #${issue_num} (PID $pid): FAILED (exit $status)"
-                ((failed++))
+                failed=$((failed + 1))
             fi
         done
         echo ""

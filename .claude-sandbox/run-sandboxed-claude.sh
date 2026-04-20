@@ -75,10 +75,12 @@ case "${1:-}" in
         BRANCH_NAME="claude/fix-issue-${ISSUE_NUM}"
         echo "Starting worker for issue #${ISSUE_NUM}..."
 
-        # Check if the target branch already exists remotely
+        # Check if the target branch already exists remotely — skip to avoid
+        # overwriting existing work (matches the PR test plan's "skip" behavior)
         if git ls-remote --exit-code --heads origin "$BRANCH_NAME" &>/dev/null; then
-            echo "WARNING: Branch '$BRANCH_NAME' already exists on remote."
-            echo "The worker may encounter conflicts or overwrite existing work."
+            echo "SKIP: Branch '$BRANCH_NAME' already exists on remote."
+            echo "Delete the remote branch first if you want to re-run this worker."
+            exit 0
         fi
 
         # Set up log capture

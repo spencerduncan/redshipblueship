@@ -30,8 +30,9 @@ RUN apt-get update && apt-get install -y gh \
 RUN useradd -m -s /bin/bash claude \
     && chown -R claude:claude /home/claude
 
-# Allow git operations on the mounted workspace
-RUN git config --global --add safe.directory /workspace
+# Allow git operations on the mounted workspace (--system writes to
+# /etc/gitconfig so the entry survives the USER switch below)
+RUN git config --system --add safe.directory /workspace
 
 USER claude
 
