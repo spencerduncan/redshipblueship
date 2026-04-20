@@ -5,6 +5,7 @@
 
 #include <string>
 #include <vector>
+#include <libultraship/controller/controldeck/ControlDeck.h>
 #include <libultraship/libultraship.h>
 
 extern "C" {
@@ -22,6 +23,8 @@ extern PlayState* OoT_gPlayState;
 #include "soh/Enhancements/game-interactor/GameInteractor.h"
 #include "entrance.h"
 
+using namespace UIWidgets;
+
 #define COLOR_ORANGE IM_COL32(230, 159, 0, 255)
 #define COLOR_GREEN IM_COL32(0, 158, 115, 255)
 #define COLOR_GRAY IM_COL32(155, 155, 155, 255)
@@ -38,6 +41,10 @@ static const EntranceOverride emptyOverride = { 0 };
 static s16 lastEntranceIndex = -1;
 static s16 currentGrottoId = -1;
 static s16 lastSceneOrEntranceDetected = -1;
+
+Color_RGBA8 Color_Background = { 0, 0, 0, 255 };
+static WidgetInfo backgroundColorWidget;
+static WidgetInfo windowTypeWidget;
 
 static bool presetLoaded = false;
 static ImVec2 presetPos;
@@ -702,9 +709,39 @@ void InitEntranceTrackingData() {
 void EntranceTrackerSettingsWindow::DrawElement() {
 
     ImGui::TextWrapped("The entrance tracker will only track shuffled entrances");
-    UIWidgets::Spacer(0);
+    Spacer(0);
 
     ImGui::TableNextColumn();
+    SohGui::GetSohMenu()->MenuDrawItem(backgroundColorWidget, ImGui::GetContentRegionAvail().x, THEME_COLOR);
+
+    SohGui::GetSohMenu()->MenuDrawItem(windowTypeWidget, ImGui::GetContentRegionAvail().x, THEME_COLOR);
+
+    if (CVarGetInteger(CVAR_TRACKER_ENTRANCE("WindowType"), TRACKER_WINDOW_WINDOW) == TRACKER_WINDOW_FLOATING) {
+        CVarCheckbox("Enable Dragging", CVAR_TRACKER_ENTRANCE("Draggable"), CheckboxOptions().Color(THEME_COLOR));
+        CVarCheckbox("Only Enable While Paused", CVAR_TRACKER_ENTRANCE("ShowOnlyPaused"),
+                     CheckboxOptions().Color(THEME_COLOR));
+        CVarCombobox("Display Mode", CVAR_TRACKER_ENTRANCE("DisplayType"), showMode,
+                     ComboboxOptions()
+                         .LabelPosition(LabelPositions::Far)
+                         .ComponentAlignment(ComponentAlignments::Right)
+                         .Color(THEME_COLOR)
+                         .DefaultIndex(0));
+        if (CVarGetInteger(CVAR_TRACKER_ENTRANCE("DisplayType"), TRACKER_DISPLAY_ALWAYS) ==
+            TRACKER_DISPLAY_COMBO_BUTTON) {
+            CVarCombobox("Combo Button 1", CVAR_TRACKER_ENTRANCE("ComboButton1"), buttonStrings,
+                         ComboboxOptions()
+                             .LabelPosition(LabelPositions::Far)
+                             .ComponentAlignment(ComponentAlignments::Right)
+                             .Color(THEME_COLOR)
+                             .DefaultIndex(TRACKER_COMBO_BUTTON_L));
+            CVarCombobox("Combo Button 2", CVAR_TRACKER_ENTRANCE("ComboButton2"), buttonStrings,
+                         ComboboxOptions()
+                             .LabelPosition(LabelPositions::Far)
+                             .ComponentAlignment(ComponentAlignments::Right)
+                             .Color(THEME_COLOR)
+                             .DefaultIndex(TRACKER_COMBO_BUTTON_L));
+        }
+    }
 
     if (ImGui::BeginTable("entranceTrackerSubSettings", 2,
                           ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingStretchProp)) {
@@ -795,6 +832,29 @@ void EntranceTrackerWindow::Draw() {
 }
 
 void EntranceTrackerWindow::DrawElement() {
+    Color_Background = CVarGetColor(CVAR_TRACKER_ENTRANCE("BgColor.Value"), Color_Bg_Default);
+    if (CVarGetInteger(CVAR_TRACKER_ENTRANCE("WindowType"), TRACKER_WINDOW_WINDOW) == TRACKER_WINDOW_FLOATING) {
+        if (CVarGetInteger(CVAR_TRACKER_ENTRANCE("ShowOnlyPaused"), 0) &&
+            (OoT_gPlayState == nullptr || OoT_gPlayState->pauseCtx.state == 0)) {
+            return;
+        }
+
+        if (CVarGetInteger(CVAR_TRACKER_ENTRANCE("DisplayType"), TRACKER_DISPLAY_ALWAYS) ==
+            TRACKER_DISPLAY_COMBO_BUTTON) {
+            int comboButton1Mask =
+                buttons[CVarGetInteger(CVAR_TRACKER_ENTRANCE("ComboButton1"), TRACKER_COMBO_BUTTON_L)];
+            int comboButton2Mask =
+                buttons[CVarGetInteger(CVAR_TRACKER_ENTRANCE("ComboButton2"), TRACKER_COMBO_BUTTON_R)];
+            OSContPad* trackerButtonsPressed =
+                std::dynamic_pointer_cast<LUS::ControlDeck>(Ship::Context::GetInstance()->GetControlDeck())->GetPads();
+            bool comboButtonsHeld = trackerButtonsPressed != nullptr &&
+                                    trackerButtonsPressed[0].button & comboButton1Mask &&
+                                    trackerButtonsPressed[0].button & comboButton2Mask;
+            if (!comboButtonsHeld) {
+                return;
+            }
+        }
+    }
     if (presetLoaded) {
         ImGui::SetNextWindowSize(presetSize);
         ImGui::SetNextWindowPos(presetPos);
@@ -803,8 +863,17 @@ void EntranceTrackerWindow::DrawElement() {
         ImGui::SetNextWindowSize(ImVec2(600, 375), ImGuiCond_FirstUseEver);
     }
 
-    if (!ImGui::Begin("Entrance Tracker", &mIsVisible, ImGuiWindowFlags_NoFocusOnAppearing)) {
-        ImGui::End();
+    if (!Trackers::BeginFloatWindows(
+            "Entrance Tracker", mIsVisible, Color_Background,
+            static_cast<TrackerWindowType>(CVarGetInteger(CVAR_TRACKER_ENTRANCE("WindowType"), TRACKER_WINDOW_WINDOW)),
+            CVarGetInteger(CVAR_TRACKER_ENTRANCE("Draggable"), 1), ImGuiWindowFlags_NoScrollbar)) {
+        Trackers::EndFloatWindows();
+        return;
+    }
+
+    if (!GameInteractor::IsSaveLoaded()) {
+        ImGui::Text("Waiting for file load..."); // TODO Language
+        Trackers::EndFloatWindows();
         return;
     }
 
@@ -1009,7 +1078,7 @@ void EntranceTrackerWindow::DrawElement() {
         }
     }
     ImGui::EndChild();
-    ImGui::End();
+    Trackers::EndFloatWindows();
 }
 
 void EntranceTrackerWindow::InitElement() {
@@ -1019,6 +1088,28 @@ void EntranceTrackerWindow::InitElement() {
     GameInteractor::Instance->RegisterGameHook<GameInteractor::OnExitGame>(
         [](int32_t fileNum) { ClearEntranceTrackingData(); });
 }
+
+void RegisterCheckTrackerWidgets() {
+    backgroundColorWidget = { .name = "Background Color##EntranceTracker",
+                              .type = WidgetType::WIDGET_CVAR_COLOR_PICKER };
+    backgroundColorWidget.CVar(CVAR_TRACKER_ENTRANCE("BgColor"))
+        .Options(
+            ColorPickerOptions().Color(THEME_COLOR).DefaultValue(Color_Bg_Default).UseAlpha().ShowReset().ShowRandom());
+    SohGui::GetSohMenu()->AddSearchWidget(
+        { backgroundColorWidget, "Randomizer", "Entrance Tracker", "General Settings" });
+
+    windowTypeWidget = { .name = "Window Type##EntranceTracker", .type = WidgetType::WIDGET_CVAR_COMBOBOX };
+    windowTypeWidget.CVar(CVAR_TRACKER_ENTRANCE("WindowType"))
+        .Options(ComboboxOptions()
+                     .DefaultIndex(TRACKER_WINDOW_WINDOW)
+                     .ComponentAlignment(ComponentAlignments::Right)
+                     .LabelPosition(LabelPositions::Far)
+                     .Color(THEME_COLOR)
+                     .ComboMap(windowType));
+    SohGui::GetSohMenu()->AddSearchWidget({ windowTypeWidget, "Randomizer", "Entrance Tracker", "General Settings" });
+}
+
+static RegisterMenuInitFunc menuInitFunc(RegisterCheckTrackerWidgets);
 } // namespace EntranceTracker
 
 namespace Trackers {

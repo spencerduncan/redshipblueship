@@ -230,18 +230,17 @@ SceneID DungeonSceneLookupByArea(RandomizerCheckArea area) {
     }
 }
 
-Color_RGBA8 Color_Bg_Default = { 0, 0, 0, 255 };                          // Black
-Color_RGBA8 Color_Main_Default = { 255, 255, 255, 255 };                  // White
-Color_RGBA8 Color_Area_Incomplete_Extra_Default = { 255, 255, 255, 255 }; // White
-Color_RGBA8 Color_Area_Complete_Extra_Default = { 255, 255, 255, 255 };   // White
-Color_RGBA8 Color_Unchecked_Extra_Default = { 255, 255, 255, 255 };       // White
-Color_RGBA8 Color_Skipped_Main_Default = { 160, 160, 160, 255 };          // Grey
-Color_RGBA8 Color_Skipped_Extra_Default = { 160, 160, 160, 255 };         // Grey
-Color_RGBA8 Color_Seen_Extra_Default = { 255, 255, 255, 255 };            // TODO
-Color_RGBA8 Color_Hinted_Extra_Default = { 255, 255, 255, 255 };          // TODO
-Color_RGBA8 Color_Collected_Extra_Default = { 242, 101, 34, 255 };        // Orange
-Color_RGBA8 Color_Scummed_Extra_Default = { 0, 174, 239, 255 };           // Blue
-Color_RGBA8 Color_Saved_Extra_Default = { 0, 185, 0, 255 };               // Green
+const Color_RGBA8 Color_Main_Default = { 255, 255, 255, 255 };                  // White
+const Color_RGBA8 Color_Area_Incomplete_Extra_Default = { 255, 255, 255, 255 }; // White
+const Color_RGBA8 Color_Area_Complete_Extra_Default = { 255, 255, 255, 255 };   // White
+const Color_RGBA8 Color_Unchecked_Extra_Default = { 255, 255, 255, 255 };       // White
+const Color_RGBA8 Color_Skipped_Main_Default = { 160, 160, 160, 255 };          // Grey
+const Color_RGBA8 Color_Skipped_Extra_Default = { 160, 160, 160, 255 };         // Grey
+const Color_RGBA8 Color_Seen_Extra_Default = { 255, 255, 255, 255 };            // TODO
+const Color_RGBA8 Color_Hinted_Extra_Default = { 255, 255, 255, 255 };          // TODO
+const Color_RGBA8 Color_Collected_Extra_Default = { 242, 101, 34, 255 };        // Orange
+const Color_RGBA8 Color_Scummed_Extra_Default = { 0, 174, 239, 255 };           // Blue
+const Color_RGBA8 Color_Saved_Extra_Default = { 0, 185, 0, 255 };               // Green
 
 Color_RGBA8 Color_Background = { 0, 0, 0, 255 };
 
@@ -264,8 +263,6 @@ Color_RGBA8 Color_Scummed_Extra = { 0, 174, 239, 255 };           // Blue
 Color_RGBA8 Color_Saved_Main = { 255, 255, 255, 255 };            // White
 Color_RGBA8 Color_Saved_Extra = { 0, 185, 0, 255 };               // Green
 
-std::vector<uint32_t> buttons = { BTN_A, BTN_B, BTN_CUP,   BTN_CDOWN, BTN_CLEFT, BTN_CRIGHT, BTN_L,
-                                  BTN_Z, BTN_R, BTN_START, BTN_DUP,   BTN_DDOWN, BTN_DLEFT,  BTN_DRIGHT };
 static ImGuiTextFilter checkSearch;
 static bool recalculateAvailable = false;
 std::array<bool, RCAREA_INVALID> filterAreasHidden = { 0 };
@@ -1976,9 +1973,9 @@ void RainbowTick() {
 }
 
 void ImGuiDrawTwoColorPickerSection(const char* text, const char* cvarMainName, const char* cvarExtraName,
-                                    Color_RGBA8& main_color, Color_RGBA8& extra_color, Color_RGBA8& main_default_color,
-                                    Color_RGBA8& extra_default_color, const char* cvarHideName, const char* tooltip,
-                                    UIWidgets::Colors theme) {
+                                    Color_RGBA8& main_color, Color_RGBA8& extra_color,
+                                    const Color_RGBA8& main_default_color, const Color_RGBA8& extra_default_color,
+                                    const char* cvarHideName, const char* tooltip, UIWidgets::Colors theme) {
     Color_RGBA8 cvarMainColor = CVarGetColor(cvarMainName, main_default_color);
     Color_RGBA8 cvarExtraColor = CVarGetColor(cvarExtraName, extra_default_color);
     main_color = cvarMainColor;
@@ -2082,19 +2079,6 @@ void CheckTrackerWindow::Draw() {
     SyncVisibilityConsoleVariable();
 }
 
-static std::map<int32_t, const char*> windowType = { { TRACKER_WINDOW_FLOATING, "Floating" },
-                                                     { TRACKER_WINDOW_WINDOW, "Window" } };
-static std::map<int32_t, const char*> displayType = { { 0, "Always" }, { 1, "Combo Button Hold" } };
-static std::map<int32_t, const char*> buttonStrings = {
-    { TRACKER_COMBO_BUTTON_A, "A Button" },    { TRACKER_COMBO_BUTTON_B, "B Button" },
-    { TRACKER_COMBO_BUTTON_C_UP, "C-Up" },     { TRACKER_COMBO_BUTTON_C_DOWN, "C-Down" },
-    { TRACKER_COMBO_BUTTON_C_LEFT, "C-Left" }, { TRACKER_COMBO_BUTTON_C_RIGHT, "C-Right" },
-    { TRACKER_COMBO_BUTTON_L, "L Button" },    { TRACKER_COMBO_BUTTON_Z, "Z Button" },
-    { TRACKER_COMBO_BUTTON_R, "R Button" },    { TRACKER_COMBO_BUTTON_START, "Start" },
-    { TRACKER_COMBO_BUTTON_D_UP, "D-Up" },     { TRACKER_COMBO_BUTTON_D_DOWN, "D-Down" },
-    { TRACKER_COMBO_BUTTON_D_LEFT, "D-Left" }, { TRACKER_COMBO_BUTTON_D_RIGHT, "D-Right" }
-};
-
 void CheckTrackerSettingsWindow::DrawElement() {
     ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, { 8.0f, 8.0f });
     if (ImGui::BeginTable("CheckTrackerSettingsTable", 2, ImGuiTableFlags_BordersH | ImGuiTableFlags_BordersV)) {
@@ -2122,7 +2106,7 @@ void CheckTrackerSettingsWindow::DrawElement() {
                                     UIWidgets::CheckboxOptions().Color(THEME_COLOR));
             UIWidgets::CVarCheckbox("Only Enable While Paused", CVAR_TRACKER_CHECK("ShowOnlyPaused"),
                                     UIWidgets::CheckboxOptions().Color(THEME_COLOR));
-            UIWidgets::CVarCombobox("Display Mode", CVAR_TRACKER_CHECK("DisplayType"), displayType,
+            UIWidgets::CVarCombobox("Display Mode", CVAR_TRACKER_CHECK("DisplayType"), showMode,
                                     UIWidgets::ComboboxOptions()
                                         .LabelPosition(UIWidgets::LabelPositions::Far)
                                         .ComponentAlignment(UIWidgets::ComponentAlignments::Right)
@@ -2245,14 +2229,14 @@ void CheckTrackerWindow::UpdateElement() {
 }
 
 void RegisterCheckTrackerWidgets() {
-    backgroundColorWidget = { .name = "Background Color##CheckTrackerBgColor",
+    backgroundColorWidget = { .name = "Background Color##CheckTracker",
                               .type = WidgetType::WIDGET_CVAR_COLOR_PICKER };
     backgroundColorWidget.CVar(CVAR_TRACKER_CHECK("BgColor"))
         .Options(
             ColorPickerOptions().Color(THEME_COLOR).DefaultValue(Color_Bg_Default).UseAlpha().ShowReset().ShowRandom());
     SohGui::mSohMenu->AddSearchWidget({ backgroundColorWidget, "Randomizer", "Check Tracker", "General Settings" });
 
-    windowTypeWidget = { .name = "Window Type", .type = WidgetType::WIDGET_CVAR_COMBOBOX };
+    windowTypeWidget = { .name = "Window Type##CheckTracker", .type = WidgetType::WIDGET_CVAR_COMBOBOX };
     windowTypeWidget.CVar(CVAR_TRACKER_CHECK("WindowType"))
         .Options(ComboboxOptions()
                      .DefaultIndex(TRACKER_WINDOW_WINDOW)

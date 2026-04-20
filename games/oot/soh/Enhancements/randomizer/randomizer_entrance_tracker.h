@@ -1,5 +1,6 @@
 #pragma once
 
+#include <map>
 #include <string>
 #include <vector>
 #include <cstdint>
@@ -75,6 +76,23 @@ typedef struct {
     uint16_t GroupEntranceCounts[TRACKER_GROUP_TYPE_COUNT][SPOILER_ENTRANCE_GROUP_COUNT];
     uint16_t GroupOffsets[TRACKER_GROUP_TYPE_COUNT][SPOILER_ENTRANCE_GROUP_COUNT];
 } EntranceTrackingData;
+
+static std::map<int32_t, const char*> windowType = { { TRACKER_WINDOW_FLOATING, "Floating" },
+                                                     { TRACKER_WINDOW_WINDOW, "Window" } };
+static std::map<int32_t, const char*> showMode = { { 0, "Always" }, { 1, "Combo Button Hold" } };
+static std::map<int32_t, const char*> buttonStrings = {
+    { TRACKER_COMBO_BUTTON_A, "A Button" },    { TRACKER_COMBO_BUTTON_B, "B Button" },
+    { TRACKER_COMBO_BUTTON_C_UP, "C-Up" },     { TRACKER_COMBO_BUTTON_C_DOWN, "C-Down" },
+    { TRACKER_COMBO_BUTTON_C_LEFT, "C-Left" }, { TRACKER_COMBO_BUTTON_C_RIGHT, "C-Right" },
+    { TRACKER_COMBO_BUTTON_L, "L Button" },    { TRACKER_COMBO_BUTTON_Z, "Z Button" },
+    { TRACKER_COMBO_BUTTON_R, "R Button" },    { TRACKER_COMBO_BUTTON_START, "Start" },
+    { TRACKER_COMBO_BUTTON_D_UP, "D-Up" },     { TRACKER_COMBO_BUTTON_D_DOWN, "D-Down" },
+    { TRACKER_COMBO_BUTTON_D_LEFT, "D-Left" }, { TRACKER_COMBO_BUTTON_D_RIGHT, "D-Right" }
+};
+
+static const Color_RGBA8 Color_Bg_Default = { 0, 0, 0, 255 }; // Black
+static std::vector<uint32_t> buttons = { BTN_A, BTN_B, BTN_CUP,   BTN_CDOWN, BTN_CLEFT, BTN_CRIGHT, BTN_L,
+                                         BTN_Z, BTN_R, BTN_START, BTN_DUP,   BTN_DDOWN, BTN_DLEFT,  BTN_DRIGHT };
 
 #define SINGLE_SCENE_INFO(scene) \
     {                            \
