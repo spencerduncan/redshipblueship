@@ -327,7 +327,18 @@ jobs:
   build-windows:
     needs: generate-rsbs-otr
     runs-on: windows-latest
+    env:
+      # vcpkg binary caching via GitHub Actions cache. vcpkg stores prebuilt port
+      # binaries keyed by their ABI hash, so unchanged deps skip source compilation.
+      # Requires ACTIONS_CACHE_URL and ACTIONS_RUNTIME_TOKEN, exported below.
+      VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
     steps:
+    - name: Export GitHub Actions cache env vars for vcpkg
+      uses: actions/github-script@v7
+      with:
+        script: |
+          core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+          core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
     - name: Install dependencies
       run: |
         choco install ninja llvm -y
@@ -342,8 +353,7 @@ jobs:
       uses: hendrikmuhs/ccache-action@v1.2
       with:
         variant: sccache
-        max-size: "2G"
-        evict-old-files: job
+        max-size: "5G"
         save: ${{ github.ref_name == github.event.repository.default_branch }}
         key: ${{ runner.os }}-sccache-${{ github.ref }}
         restore-keys: |
@@ -354,8 +364,9 @@ jobs:
       id: restore-cache-vcpkg
       uses: actions/cache/restore@v4
       with:
-        key: ${{ runner.os }}-vcpkg-v1-${{ hashFiles('CMakeLists.txt') }}
+        key: ${{ runner.os }}-vcpkg-v2-${{ hashFiles('CMakeLists.txt', 'CMake/automate-vcpkg.cmake') }}
         restore-keys: |
+          ${{ runner.os }}-vcpkg-v2-
           ${{ runner.os }}-vcpkg-v1-
         path: vcpkg
     - name: Configure Developer Command Prompt
@@ -387,5 +398,5 @@ jobs:
       if: ${{ github.ref_name == github.event.repository.default_branch }}
       uses: actions/cache/save@v4
       with:
-        key: ${{ runner.os }}-vcpkg-v1-${{ hashFiles('CMakeLists.txt') }}
+        key: ${{ runner.os }}-vcpkg-v2-${{ hashFiles('CMakeLists.txt', 'CMake/automate-vcpkg.cmake') }}
         path: vcpkg
