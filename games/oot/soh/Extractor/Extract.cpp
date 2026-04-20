@@ -232,7 +232,8 @@ void Extractor::FilterRoms(std::vector<std::string>& roms, RomSearchMode searchM
 void Extractor::GetRoms(std::vector<std::string>& roms) {
 #ifdef _WIN32
     WIN32_FIND_DATAA ffd;
-    HANDLE h = FindFirstFileA(".\\*", &ffd);
+    std::string search = mSearchPath + "\\*";
+    HANDLE h = FindFirstFileA(search.c_str(), &ffd);
 
     do {
         if (!(ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
@@ -485,13 +486,22 @@ bool Extractor::RunFileStandalone(std::string rom) {
     return true;
 }
 
-bool Extractor::Run(std::string searchPath, RomSearchMode searchMode) {
+bool Extractor::Run(std::string searchPath, RomSearchMode searchMode, std::string installPath) {
     std::vector<std::string> roms;
     std::ifstream inFile;
 
     mSearchPath = searchPath;
-
     GetRoms(roms);
+
+    // On Linux AppImage (and for users who drop a ROM next to the install), also
+    // scan the bundle/install path in addition to the user data directory so
+    // ROMs can be found in either location. Mirrors upstream SOH #6215.
+    if (!installPath.empty() && installPath != searchPath) {
+        mSearchPath = installPath;
+        GetRoms(roms);
+        mSearchPath = searchPath;
+    }
+
     FilterRoms(roms, searchMode);
 
     if (roms.empty()) {
