@@ -127,10 +127,6 @@
 #include "soh/config/ConfigUpdaters.h"
 #include "soh/ShipInit.hpp"
 
-extern "C" {
-#include "src/overlays/actors/ovl_En_Dns/z_en_dns.h"
-}
-
 // Runtime feature flags for debugging - set env var to "1" to disable subsystem
 // Exported with C linkage so game.c can use it for runtime guards
 extern "C" bool RsbsFeatureEnabled(const char* disableEnvVar) {
@@ -475,10 +471,9 @@ void OTRGlobals::Initialize() {
     // startup. We should probably find some code in db_camera that does initialization and only run once, and then
     // dealloc on deinitialization.
     cameraStrings = (char**)malloc(sizeof(constCameraStrings));
-    for (int32_t i = 0; i < sizeof(constCameraStrings) / sizeof(char*); i++) {
+    for (size_t i = 0; i < sizeof(constCameraStrings) / sizeof(char*); i++) {
         // OTRTODO: never deallocated...
-        auto dup = strdup(constCameraStrings[i]);
-        cameraStrings[i] = dup;
+        cameraStrings[i] = strdup(constCameraStrings[i]);
     }
 
     auto versions = context->GetResourceManager()->GetArchiveManager()->GetGameVersions();
@@ -1795,7 +1790,7 @@ void OTRGlobals::CheckSaveFile(size_t sramSize) const {
     std::fstream saveFile(savePath, std::fstream::in | std::fstream::out | std::fstream::binary);
     if (saveFile.fail()) {
         saveFile.open(savePath, std::fstream::in | std::fstream::out | std::fstream::binary | std::fstream::app);
-        for (int i = 0; i < sramSize; ++i) {
+        for (size_t i = 0; i < sramSize; i++) {
             saveFile.write("\0", 1);
         }
     }
@@ -2315,7 +2310,8 @@ extern "C" int CustomMessage_RetrieveIfExists(PlayState* play) {
     s16 actorParams = 0;
     if (IS_RANDO) {
         auto ctx = Rando::Context::GetInstance();
-        if (ctx->GetOption(RSK_SHUFFLE_ENTRANCES)) {
+        if (ctx->GetOption(RSK_SHUFFLE_ENTRANCES) &&
+            CVarGetInteger(CVAR_RANDOMIZER_ENHANCEMENT("EntrancesOnSigns"), 0)) {
             s16 entrance = -1;
             switch (textId) {
                 case TEXT_WATERFALL:
@@ -2356,7 +2352,7 @@ extern "C" int CustomMessage_RetrieveIfExists(PlayState* play) {
                     entrance = ENTR_GROTTOS_13;
                     break;
                 case TEXT_DMT_DC_SIGN:
-                    entrance = ENTR_DEATH_MOUNTAIN_TRAIL_OUTSIDE_DODONGOS_CAVERN;
+                    entrance = ENTR_DODONGOS_CAVERN_ENTRANCE;
                     break;
                 case TEXT_DMT_GC_SIGN:
                     entrance = ENTR_GORON_CITY_UPPER_EXIT;
