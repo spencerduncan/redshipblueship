@@ -1527,4 +1527,16 @@ std::vector<Migration> version4Migrations = {
     { MigrationAction::Rename, "gAudioEditor.SeqNameOverlay", "gAudioEditor.SeqNameNotification" },
     { MigrationAction::Rename, "gAudioEditor.SeqNameOverlayDuration", "gAudioEditor.SeqNameNotificationDuration" },
 };
+
+std::vector<Migration> version6Migrations = {
+    { MigrationAction::Rename, "gSettings.WalkModifier.SpeedToggle", "gCheats.SpeedModifier.SpeedToggle" },
+    { MigrationAction::Rename, "gSettings.WalkModifier.DoesntChangeJump", "gCheats.SpeedModifier.DoesntChangeJump" },
+    { MigrationAction::Rename, "gSettings.WalkModifier.Mapping1", "gCheats.SpeedModifier.Value" },
+    { MigrationAction::Rename, "gSettings.WalkModifier.Mod1Btn", "gCheats.SpeedModifier.Btn" },
+    { MigrationAction::Remove, "gSettings.WalkModifier.Enabled" },
+    { MigrationAction::Remove, "gSettings.WalkModifier.Mapping2" },
+    { MigrationAction::Remove, "gSettings.WalkModifier.SwimMapping1" },
+    { MigrationAction::Remove, "gSettings.WalkModifier.SwimMapping2" },
+    { MigrationAction::Remove, "gSettings.WalkModifier.Mod2Btn" },
+};
 } // namespace SOH

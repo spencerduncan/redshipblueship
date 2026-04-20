@@ -11,6 +11,10 @@ ConfigVersion3Updater::ConfigVersion3Updater() : ConfigVersionUpdater(3) {
 }
 ConfigVersion4Updater::ConfigVersion4Updater() : ConfigVersionUpdater(4) {
 }
+ConfigVersion5Updater::ConfigVersion5Updater() : ConfigVersionUpdater(5) {
+}
+ConfigVersion6Updater::ConfigVersion6Updater() : ConfigVersionUpdater(6) {
+}
 
 void ConfigVersion1Updater::Update(Ship::Config* conf) {
     if (conf->GetInt("Window.Width", 640) == 640) {
@@ -116,6 +120,22 @@ void ConfigVersion3Updater::Update(Ship::Config* conf) {
 
 void ConfigVersion4Updater::Update(Ship::Config* conf) {
     for (Migration migration : version4Migrations) {
+        if (migration.action == MigrationAction::Rename) {
+            CVarCopy(migration.from.c_str(), migration.to.value().c_str());
+        }
+        CVarClear(migration.from.c_str());
+    }
+}
+
+void ConfigVersion5Updater::Update(Ship::Config* conf) {
+    // After removal of Vanilla, make sure it doesn't crash because of an out of range on the combobox
+    if (CVarGetInteger("gRandoSettings.LogicRules", 0) == 2) {
+        CVarSetInteger("gRandoSettings.LogicRules", 0);
+    }
+}
+
+void ConfigVersion6Updater::Update(Ship::Config* conf) {
+    for (Migration migration : version6Migrations) {
         if (migration.action == MigrationAction::Rename) {
             CVarCopy(migration.from.c_str(), migration.to.value().c_str());
         }
