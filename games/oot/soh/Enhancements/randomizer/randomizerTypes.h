@@ -4640,6 +4640,14 @@ typedef enum {
     RG_DEKU_STICK_CAPACITY_30,
     RG_HOOKSHOT,
     RG_LONGSHOT,
+    RG_KEATON_MASK,
+    RG_SKULL_MASK,
+    RG_SPOOKY_MASK,
+    RG_BUNNY_HOOD,
+    RG_GORON_MASK,
+    RG_ZORA_MASK,
+    RG_GERUDO_MASK,
+    RG_MASK_OF_TRUTH,
 
     // Overworld keys
     RG_GUARD_HOUSE_KEY,
@@ -5811,6 +5819,14 @@ typedef enum {
     RHT_OCARINA_C_DOWN_BUTTON,
     RHT_OCARINA_C_LEFT_BUTTON,
     RHT_OCARINA_C_RIGHT_BUTTON,
+    RHT_MASK_KEATON,
+    RHT_MASK_SKULL,
+    RHT_MASK_SPOOKY,
+    RHT_MASK_BUNNY,
+    RHT_MASK_GORON,
+    RHT_MASK_ZORA,
+    RHT_MASK_GERUDO,
+    RHT_MASK_TRUTH,
     RHT_BRONZE_SCALE,
     RHT_CRAWL,
     RHT_FISHING_POLE,
@@ -6512,7 +6528,7 @@ typedef enum {
     RSK_SHUFFLE_CHEST_MINIGAME,
     RSK_BIG_POE_COUNT,
     RSK_SKIP_EPONA_RACE,
-    RSK_COMPLETE_MASK_QUEST,
+    RSK_MASK_QUEST,
     RSK_SKIP_SCARECROWS_SONG,
     RSK_SKIP_PLANTING_BEANS,
     RSK_SKULLS_SUNS_SONG,
@@ -6891,6 +6907,13 @@ typedef enum {
     RO_STARTING_OCARINA_FAIRY,
     RO_STARTING_OCARINA_TIME,
 } RandoOptionStartingOcarina;
+
+// Mask Quest Settings (vanilla, completed, shuffle)
+typedef enum {
+    RO_MASK_QUEST_VANILLA,
+    RO_MASK_QUEST_COMPLETED,
+    RO_MASK_QUEST_SHUFFLE,
+} RandoOptionMaskQuest;
 
 // Item Pool Settings
 typedef enum {

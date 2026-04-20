@@ -465,7 +465,7 @@ extern "C" void Randomizer_InitSaveFile() {
     }
 
     // complete mask quest
-    if (Randomizer_GetSettingValue(RSK_COMPLETE_MASK_QUEST)) {
+    if (Randomizer_GetSettingValue(RSK_MASK_QUEST) == RO_MASK_QUEST_COMPLETED) {
         OoT_Flags_SetInfTable(INFTABLE_GATE_GUARD_PUT_ON_KEATON_MASK);
         OoT_Flags_SetEventChkInf(EVENTCHKINF_PAID_BACK_BUNNY_HOOD_FEE);
 
