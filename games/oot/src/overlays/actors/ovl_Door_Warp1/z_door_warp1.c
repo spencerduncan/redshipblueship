@@ -1034,9 +1034,9 @@ void DoorWarp1_DrawWarp(DoorWarp1* this, PlayState* play) {
     OoT_Matrix_Push();
 
     gSPSegment(POLY_XLU_DISP++, 0x08,
-               OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, spEC & 0xFF, -((s16)(this->unk_19C + this->unk_19C) & 511),
-                                0x100, 0x100, 1, spEC & 0xFF, -((s16)(this->unk_19C + this->unk_19C) & 511), 0x100,
-                                0x100));
+               OoT_Gfx_TwoTexScrollEx(play->state.gfxCtx, 0, spEC & 0xFF, -((s16)(this->unk_19C + this->unk_19C) & 511),
+                                  0x100, 0x100, 1, spEC & 0xFF, -((s16)(this->unk_19C + this->unk_19C) & 511), 0x100,
+                                  0x100, 10, -2, 10, -2));
 
     OoT_Matrix_Translate(0.0f, this->unk_194 * 230.0f, 0.0f, MTXMODE_APPLY);
     xzScale = (((f32)this->unk_1AE * spE8) / 100.0f) + 1.0f;
@@ -1071,8 +1071,8 @@ void DoorWarp1_DrawWarp(DoorWarp1* this, PlayState* play) {
         spEC *= 2;
 
         gSPSegment(POLY_XLU_DISP++, 0x08,
-                   OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, spEC & 0xFF, -((s16)this->unk_19C & 511), 0x100, 0x100, 1,
-                                    spEC & 0xFF, -((s16)this->unk_19C & 511), 0x100, 0x100));
+                   OoT_Gfx_TwoTexScrollEx(play->state.gfxCtx, 0, spEC & 0xFF, -((s16)this->unk_19C & 511), 0x100, 0x100, 1,
+                                      spEC & 0xFF, -((s16)this->unk_19C & 511), 0x100, 0x100, 10, -1, 10, -1));
 
         OoT_Matrix_Translate(0.0f, this->unk_198 * 60.0f, 0.0f, MTXMODE_APPLY);
 

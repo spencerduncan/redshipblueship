@@ -121,16 +121,16 @@ void EfcErupc_Draw(Actor* thisx, PlayState* play) {
     Gfx_SetupDL_25Xlu(play->state.gfxCtx);
 
     gSPSegment(POLY_XLU_DISP++, 0x08,
-               OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, this->unk_14C * 1, this->unk_14E * -4, 32, 64, 1,
-                                this->unk_14C * 4, this->unk_14E * -20, 64, 64));
+               OoT_Gfx_TwoTexScrollEx(play->state.gfxCtx, 0, this->unk_14C * 1, this->unk_14E * -4, 32, 64, 1,
+                                  this->unk_14C * 4, this->unk_14E * -20, 64, 64, 1, -4, 4, -20));
 
-    gSPSegment(
-        POLY_XLU_DISP++, 0x09,
-        OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, this->unk_150 * -4, 16, 128, 1, 0, this->unk_150 * 12, 32, 32));
+    gSPSegment(POLY_XLU_DISP++, 0x09,
+               OoT_Gfx_TwoTexScrollEx(play->state.gfxCtx, 0, 0, this->unk_150 * -4, 16, 128, 1, 0, this->unk_150 * 12, 32,
+                                  32, 0, -4, 0, 12));
 
-    gSPSegment(
-        POLY_XLU_DISP++, 0x0A,
-        OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, this->unk_150 * -4, 16, 128, 1, 0, this->unk_150 * 12, 32, 32));
+    gSPSegment(POLY_XLU_DISP++, 0x0A,
+               OoT_Gfx_TwoTexScrollEx(play->state.gfxCtx, 0, 0, this->unk_150 * -4, 16, 128, 1, 0, this->unk_150 * 12, 32,
+                                  32, 0, -4, 0, 12));
 
     OoT_Matrix_Push();
     OoT_Matrix_Scale(0.8f, 0.8f, 0.8f, MTXMODE_APPLY);
