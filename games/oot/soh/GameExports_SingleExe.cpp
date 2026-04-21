@@ -33,6 +33,10 @@ extern "C" {
     void OoT_Audio_PreNMI(void);
     extern s32 gAudioContextInitalized;
     void Audio_InitMesgQueues(void);
+
+    // OoT's SaveContext (type defined via OTRGlobals.h -> z64save.h).
+    // Declared here so OoT_Game_Resume() can restore it on return from MM (#170).
+    extern SaveContext gSaveContext;
 }
 
 // Game state
@@ -256,9 +260,6 @@ extern "C" {
     bool Combo_IsGameSwitchRequested(void);
     void Combo_ClearGameSwitchRequest(void);
 }
-
-// OoT's SaveContext (type defined via OTRGlobals.h -> z64save.h)
-extern "C" SaveContext gSaveContext;
 
 static bool sLastF10State = false;
 
