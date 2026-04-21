@@ -233,6 +233,10 @@ void SohMenu::AddMenuSettings() {
         .CVar(CVAR_SETTING("A11yNoScreenFlashForFinishingBlow"))
         .RaceDisable(false)
         .Options(CheckboxOptions().Tooltip("Disables the white screen flash on enemy kill."));
+    AddWidget(path, "Disable Jabu Wobble", WIDGET_CVAR_CHECKBOX)
+        .CVar(CVAR_SETTING("A11yNoJabuWobble"))
+        .RaceDisable(false)
+        .Options(CheckboxOptions().Tooltip("Disable the geometry wobble and camera distortion inside Jabu."));
     AddWidget(path, "EXPERIMENTAL", WIDGET_SEPARATOR_TEXT).Options(TextOptions().Color(Colors::Orange));
     AddWidget(path, "ImGui Menu Scaling", WIDGET_CVAR_COMBOBOX)
         .CVar(CVAR_SETTING("ImGuiScale"))
@@ -502,6 +506,10 @@ void SohMenu::AddMenuSettings() {
             });
         })
         .Options(ButtonOptions().Tooltip("Displays a test notification."));
+    AddWidget(path, "Mute Notification Sound", WIDGET_CVAR_CHECKBOX)
+        .CVar(CVAR_SETTING("Notifications.Mute"))
+        .RaceDisable(false)
+        .Options(CheckboxOptions().Tooltip("Prevent notifications from playing a sound."));
 
     // Mod Menu
     path.sidebarName = "Mod Menu";
