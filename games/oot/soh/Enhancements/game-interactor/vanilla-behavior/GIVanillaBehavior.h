@@ -1288,6 +1288,14 @@ typedef enum {
     // ```
     // #### `args`
     // - None
+    VB_JABU_WOBBLE,
+
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - None
     VB_KALEIDO_UNPAUSE_CLOSE,
 
     // #### `result`
@@ -2288,6 +2296,14 @@ typedef enum {
     // #### `args`
     // - `*EnMk`
     VB_USE_EYEDROP_DIALOGUE,
+
+    // #### `result`
+    // ```c
+    // (this->modelAnimType != PLAYER_ANIMTYPE_3) && (play->shootingGalleryStatus == 0)
+    // ```
+    // #### `args`
+    // - `*Player`
+    VB_USE_HELD_ITEM_AFTER_CHANGE,
 
     // #### `result`
     // ```c
