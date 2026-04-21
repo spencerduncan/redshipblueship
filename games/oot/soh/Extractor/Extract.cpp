@@ -406,7 +406,6 @@ bool Extractor::ManuallySearchForRom() {
     std::ifstream inFile;
 
     if (!GetRomPathFromBox()) {
-        ShowErrorBox("Ocarina of Time - No rom selected", "No Ocarina of Time ROM selected. Exiting");
         return false;
     }
 
@@ -486,11 +485,16 @@ bool Extractor::RunFileStandalone(std::string rom) {
     return true;
 }
 
+void Extractor::SetSearchPath(const std::string& path) {
+    mSearchPath = path;
+}
+
 bool Extractor::Run(std::string searchPath, RomSearchMode searchMode, std::string installPath) {
     std::vector<std::string> roms;
     std::ifstream inFile;
 
-    mSearchPath = searchPath;
+    SetSearchPath(searchPath);
+
     GetRoms(roms);
 
     // On Linux AppImage (and for users who drop a ROM next to the install), also
@@ -648,9 +652,11 @@ std::string Extractor::Mkdtemp() {
 }
 
 extern "C" int zapd_main(int argc, char** argv);
-static void MessageboxWorker();
 
-bool Extractor::CallZapd(std::string installPath, std::string exportdir) {
+bool Extractor::CallZapd(std::string installPath, std::string exportdir, std::atomic<size_t>* extractCount,
+                         std::atomic<size_t>* totalExtract) {
+    (void)extractCount;
+    (void)totalExtract;
     constexpr int argc = 22;
     char xmlPath[1024];
     char confPath[1024];
@@ -723,47 +729,25 @@ bool Extractor::CallZapd(std::string installPath, std::string exportdir) {
         return false;
     }
 
-#ifdef _WIN32
-    // Grab a handle to the command window.
-    HWND cmdWindow = GetConsoleWindow();
-
-    // Normally the command window is hidden. We want the window to be shown here so the user can see the progess of the
-    // extraction.
-    ShowWindow(cmdWindow, SW_SHOW);
-    SetWindowPos(cmdWindow, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
-#else
-    // Show extraction in background message until linux/mac can have visual progress
-    std::thread mbThread(MessageboxWorker);
-    mbThread.detach();
-#endif
-
+    // NOTE: progress reporting via zapd_report is not yet wired up in this tree; the ZAPD submodule
+    // pinned here still exposes only zapd_main. The ImGui progress popup owned by RunExtract will
+    // show an indeterminate "Starting Up" state until ZAPD is uplifted.
     try {
         zapd_main(argc, (char**)argv.data());
     } catch (const std::exception& e) {
         fprintf(stderr, "Extraction failed: %s\n", e.what());
         std::string errMsg = "ZAPD extraction failed with error: " + std::string(e.what());
         ShowErrorBox("Extraction Failed", errMsg.c_str());
-#ifdef _WIN32
-        ShowWindow(cmdWindow, SW_HIDE);
-#endif
         std::filesystem::current_path(curdir);
         std::filesystem::remove_all(tempdir);
         return false;
     } catch (...) {
         fprintf(stderr, "Extraction failed with unknown error\n");
         ShowErrorBox("Extraction Failed", "ZAPD extraction failed with an unknown error.");
-#ifdef _WIN32
-        ShowWindow(cmdWindow, SW_HIDE);
-#endif
         std::filesystem::current_path(curdir);
         std::filesystem::remove_all(tempdir);
         return false;
     }
-
-#ifdef _WIN32
-    // Hide the command window again.
-    ShowWindow(cmdWindow, SW_HIDE);
-#endif
 
     // Verify the output file was created before attempting to copy
     if (!std::filesystem::exists(otrFile)) {
@@ -782,11 +766,4 @@ bool Extractor::CallZapd(std::string installPath, std::string exportdir) {
     std::filesystem::remove_all(tempdir);
 
     return true;
-}
-
-static void MessageboxWorker() {
-    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Extracting",
-                             "Extraction will now begin in the background.\n\nPlease be patient for the process to "
-                             "finish. Do not close the main program.",
-                             nullptr);
 }
