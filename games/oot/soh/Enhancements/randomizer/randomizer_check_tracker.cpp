@@ -177,11 +177,9 @@ std::unordered_map<RandomizerCheck, std::string> checkNameOverrides;
 
 bool ShouldShowCheck(RandomizerCheck rc);
 bool UpdateFilters();
-void BeginFloatWindows(std::string UniqueName, bool& open, ImGuiWindowFlags flags = 0);
 bool CompareChecks(RandomizerCheck, RandomizerCheck);
 bool CheckByArea(RandomizerCheckArea);
 void DrawLocation(RandomizerCheck);
-void EndFloatWindows();
 void LoadSettings();
 void RainbowTick();
 void UpdateAreas(RandomizerCheckArea area);
@@ -232,18 +230,17 @@ SceneID DungeonSceneLookupByArea(RandomizerCheckArea area) {
     }
 }
 
-Color_RGBA8 Color_Bg_Default = { 0, 0, 0, 255 };                          // Black
-Color_RGBA8 Color_Main_Default = { 255, 255, 255, 255 };                  // White
-Color_RGBA8 Color_Area_Incomplete_Extra_Default = { 255, 255, 255, 255 }; // White
-Color_RGBA8 Color_Area_Complete_Extra_Default = { 255, 255, 255, 255 };   // White
-Color_RGBA8 Color_Unchecked_Extra_Default = { 255, 255, 255, 255 };       // White
-Color_RGBA8 Color_Skipped_Main_Default = { 160, 160, 160, 255 };          // Grey
-Color_RGBA8 Color_Skipped_Extra_Default = { 160, 160, 160, 255 };         // Grey
-Color_RGBA8 Color_Seen_Extra_Default = { 255, 255, 255, 255 };            // TODO
-Color_RGBA8 Color_Hinted_Extra_Default = { 255, 255, 255, 255 };          // TODO
-Color_RGBA8 Color_Collected_Extra_Default = { 242, 101, 34, 255 };        // Orange
-Color_RGBA8 Color_Scummed_Extra_Default = { 0, 174, 239, 255 };           // Blue
-Color_RGBA8 Color_Saved_Extra_Default = { 0, 185, 0, 255 };               // Green
+const Color_RGBA8 Color_Main_Default = { 255, 255, 255, 255 };                  // White
+const Color_RGBA8 Color_Area_Incomplete_Extra_Default = { 255, 255, 255, 255 }; // White
+const Color_RGBA8 Color_Area_Complete_Extra_Default = { 255, 255, 255, 255 };   // White
+const Color_RGBA8 Color_Unchecked_Extra_Default = { 255, 255, 255, 255 };       // White
+const Color_RGBA8 Color_Skipped_Main_Default = { 160, 160, 160, 255 };          // Grey
+const Color_RGBA8 Color_Skipped_Extra_Default = { 160, 160, 160, 255 };         // Grey
+const Color_RGBA8 Color_Seen_Extra_Default = { 255, 255, 255, 255 };            // TODO
+const Color_RGBA8 Color_Hinted_Extra_Default = { 255, 255, 255, 255 };          // TODO
+const Color_RGBA8 Color_Collected_Extra_Default = { 242, 101, 34, 255 };        // Orange
+const Color_RGBA8 Color_Scummed_Extra_Default = { 0, 174, 239, 255 };           // Blue
+const Color_RGBA8 Color_Saved_Extra_Default = { 0, 185, 0, 255 };               // Green
 
 Color_RGBA8 Color_Background = { 0, 0, 0, 255 };
 
@@ -266,8 +263,6 @@ Color_RGBA8 Color_Scummed_Extra = { 0, 174, 239, 255 };           // Blue
 Color_RGBA8 Color_Saved_Main = { 255, 255, 255, 255 };            // White
 Color_RGBA8 Color_Saved_Extra = { 0, 185, 0, 255 };               // Green
 
-std::vector<uint32_t> buttons = { BTN_A, BTN_B, BTN_CUP,   BTN_CDOWN, BTN_CLEFT, BTN_CRIGHT, BTN_L,
-                                  BTN_Z, BTN_R, BTN_START, BTN_DUP,   BTN_DDOWN, BTN_DLEFT,  BTN_DRIGHT };
 static ImGuiTextFilter checkSearch;
 static bool recalculateAvailable = false;
 std::array<bool, RCAREA_INVALID> filterAreasHidden = { 0 };
@@ -454,7 +449,8 @@ RandomizerCheckArea GetCheckArea() {
     auto scene = static_cast<SceneID>(OoT_gPlayState->sceneNum);
     bool grottoScene = (scene == SCENE_GROTTOS || scene == SCENE_FAIRYS_FOUNTAIN);
     const EntranceData* ent =
-        GetEntranceData(grottoScene ? ENTRANCE_GROTTO_EXIT_START + GetCurrentGrottoId() : gSaveContext.entranceIndex);
+        EntranceTracker::GetEntranceData(grottoScene ? ENTRANCE_GROTTO_EXIT_START + EntranceTracker::GetCurrentGrottoId()
+                                                     : gSaveContext.entranceIndex);
     RandomizerCheckArea area = RCAREA_INVALID;
     if (ent != nullptr && !IsAreaScene(scene) && ent->type != ENTRANCE_TYPE_DUNGEON) {
         if (ent->source == "Desert Colossus" || ent->destination == "Desert Colossus") {
@@ -464,7 +460,7 @@ RandomizerCheckArea GetCheckArea() {
         }
     }
     if (area == RCAREA_INVALID) {
-        if (grottoScene && (GetCurrentGrottoId() == -1) &&
+        if (grottoScene && (EntranceTracker::GetCurrentGrottoId() == -1) &&
             (OTRGlobals::Instance->gRandomizer->GetRandoSettingValue(RSK_SHUFFLE_GROTTO_ENTRANCES) == RO_GENERIC_OFF)) {
             area = previousArea;
         } else {
@@ -1019,11 +1015,17 @@ void CheckTrackerWindow::DrawElement() {
     } else {
         ImGui::SetNextWindowSize(ImVec2(400, 540), ImGuiCond_FirstUseEver);
     }
-    BeginFloatWindows("Check Tracker", mIsVisible, ImGuiWindowFlags_NoScrollbar);
+    if (!Trackers::BeginFloatWindows(
+            "Check Tracker", mIsVisible, Color_Background,
+            static_cast<TrackerWindowType>(CVarGetInteger(CVAR_TRACKER_CHECK("WindowType"), TRACKER_WINDOW_WINDOW)),
+            CVarGetInteger(CVAR_TRACKER_CHECK("Draggable"), 1), ImGuiWindowFlags_NoScrollbar)) {
+        Trackers::EndFloatWindows();
+        return;
+    }
 
     if (!GameInteractor::IsSaveLoaded() || !initialized) {
         ImGui::Text("Waiting for file load..."); // TODO Language
-        EndFloatWindows();
+        Trackers::EndFloatWindows();
         return;
     }
 
@@ -1039,7 +1041,7 @@ void CheckTrackerWindow::DrawElement() {
     float headerHeight = 20.0f;
 #endif
     if (!ImGui::BeginTable("Check Tracker", 1, 0)) {
-        EndFloatWindows();
+        Trackers::EndFloatWindows();
         return;
     }
 
@@ -1122,7 +1124,7 @@ void CheckTrackerWindow::DrawElement() {
     ImGui::TableNextColumn();
     if (!ImGui::BeginTable("CheckTracker##Checks", 1, ImGuiTableFlags_ScrollY)) {
         ImGui::EndTable();
-        EndFloatWindows();
+        Trackers::EndFloatWindows();
         return;
     }
     ImGui::TableNextRow();
@@ -1245,7 +1247,7 @@ void CheckTrackerWindow::DrawElement() {
 
     ImGui::EndTable(); // Checks Lead-out
     ImGui::EndTable(); // Quick Options Lead-out
-    EndFloatWindows();
+    Trackers::EndFloatWindows();
     if (doingCollapseOrExpand) {
         optCollapseAll = false;
         optExpandAll = false;
@@ -1287,41 +1289,6 @@ bool ShouldShowCheck(RandomizerCheck check) {
     }
     return (IsVisibleInCheckTracker(check) &&
             (checkSearch.Filters.Size == 0 || checkSearch.PassFilter(search.c_str())));
-}
-
-// Windowing stuff
-void BeginFloatWindows(std::string UniqueName, bool& open, ImGuiWindowFlags flags) {
-    ImGuiWindowFlags windowFlags = flags;
-
-    if (windowFlags == 0) {
-        windowFlags |= ImGuiWindowFlags_AlwaysVerticalScrollbar | ImGuiWindowFlags_NoFocusOnAppearing;
-    }
-
-    if (CVarGetInteger(CVAR_TRACKER_CHECK("WindowType"), TRACKER_WINDOW_WINDOW) == TRACKER_WINDOW_FLOATING) {
-        ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
-        windowFlags |= ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoTitleBar |
-                       ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar;
-
-        if (!CVarGetInteger(CVAR_TRACKER_CHECK("Draggable"), 1)) {
-            windowFlags |= ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoMove;
-        }
-    }
-    auto maybeParent = ImGui::GetCurrentWindow();
-    ImGuiWindow* window = ImGui::FindWindowByName(UniqueName.c_str());
-    if (window != NULL && window->DockTabIsVisible && window->ParentWindow != NULL &&
-        std::string(window->ParentWindow->Name).compare(0, strlen("Main - Deck"), "Main - Deck") == 0) {
-        Color_Background.a = 255;
-    }
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, VecFromRGBA8(Color_Background));
-    ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0, 0, 0, 0));
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 4.0f);
-    ImGui::Begin(UniqueName.c_str(), &open, windowFlags);
-}
-void EndFloatWindows() {
-    ImGui::PopStyleVar();
-    ImGui::PopStyleColor();
-    ImGui::PopStyleColor();
-    ImGui::End();
 }
 
 void LoadSettings() {
@@ -2006,9 +1973,9 @@ void RainbowTick() {
 }
 
 void ImGuiDrawTwoColorPickerSection(const char* text, const char* cvarMainName, const char* cvarExtraName,
-                                    Color_RGBA8& main_color, Color_RGBA8& extra_color, Color_RGBA8& main_default_color,
-                                    Color_RGBA8& extra_default_color, const char* cvarHideName, const char* tooltip,
-                                    UIWidgets::Colors theme) {
+                                    Color_RGBA8& main_color, Color_RGBA8& extra_color,
+                                    const Color_RGBA8& main_default_color, const Color_RGBA8& extra_default_color,
+                                    const char* cvarHideName, const char* tooltip, UIWidgets::Colors theme) {
     Color_RGBA8 cvarMainColor = CVarGetColor(cvarMainName, main_default_color);
     Color_RGBA8 cvarExtraColor = CVarGetColor(cvarExtraName, extra_default_color);
     main_color = cvarMainColor;
@@ -2097,7 +2064,7 @@ void RecalculateAvailableChecks(RandomizerRegion startingRegion /* = RR_ROOT */)
                 GetPerformanceTimer(PT_RECALCULATE_AVAILABLE_CHECKS).count());
 }
 
-void CheckTracker_LoadFromPreset(nlohmann::json info) {
+void LoadFromPreset(nlohmann::json info) {
     presetLoaded = true;
     presetPos = { info["pos"]["x"], info["pos"]["y"] };
     presetSize = { info["size"]["width"], info["size"]["height"] };
@@ -2111,19 +2078,6 @@ void CheckTrackerWindow::Draw() {
     // Sync up the IsVisible flag if it was changed by ImGui
     SyncVisibilityConsoleVariable();
 }
-
-static std::map<int32_t, const char*> windowType = { { TRACKER_WINDOW_FLOATING, "Floating" },
-                                                     { TRACKER_WINDOW_WINDOW, "Window" } };
-static std::map<int32_t, const char*> displayType = { { 0, "Always" }, { 1, "Combo Button Hold" } };
-static std::map<int32_t, const char*> buttonStrings = {
-    { TRACKER_COMBO_BUTTON_A, "A Button" },    { TRACKER_COMBO_BUTTON_B, "B Button" },
-    { TRACKER_COMBO_BUTTON_C_UP, "C-Up" },     { TRACKER_COMBO_BUTTON_C_DOWN, "C-Down" },
-    { TRACKER_COMBO_BUTTON_C_LEFT, "C-Left" }, { TRACKER_COMBO_BUTTON_C_RIGHT, "C-Right" },
-    { TRACKER_COMBO_BUTTON_L, "L Button" },    { TRACKER_COMBO_BUTTON_Z, "Z Button" },
-    { TRACKER_COMBO_BUTTON_R, "R Button" },    { TRACKER_COMBO_BUTTON_START, "Start" },
-    { TRACKER_COMBO_BUTTON_D_UP, "D-Up" },     { TRACKER_COMBO_BUTTON_D_DOWN, "D-Down" },
-    { TRACKER_COMBO_BUTTON_D_LEFT, "D-Left" }, { TRACKER_COMBO_BUTTON_D_RIGHT, "D-Right" }
-};
 
 void CheckTrackerSettingsWindow::DrawElement() {
     ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, { 8.0f, 8.0f });
@@ -2152,7 +2106,7 @@ void CheckTrackerSettingsWindow::DrawElement() {
                                     UIWidgets::CheckboxOptions().Color(THEME_COLOR));
             UIWidgets::CVarCheckbox("Only Enable While Paused", CVAR_TRACKER_CHECK("ShowOnlyPaused"),
                                     UIWidgets::CheckboxOptions().Color(THEME_COLOR));
-            UIWidgets::CVarCombobox("Display Mode", CVAR_TRACKER_CHECK("DisplayType"), displayType,
+            UIWidgets::CVarCombobox("Display Mode", CVAR_TRACKER_CHECK("DisplayType"), showMode,
                                     UIWidgets::ComboboxOptions()
                                         .LabelPosition(UIWidgets::LabelPositions::Far)
                                         .ComponentAlignment(UIWidgets::ComponentAlignments::Right)
@@ -2275,14 +2229,14 @@ void CheckTrackerWindow::UpdateElement() {
 }
 
 void RegisterCheckTrackerWidgets() {
-    backgroundColorWidget = { .name = "Background Color##CheckTrackerBgColor",
+    backgroundColorWidget = { .name = "Background Color##CheckTracker",
                               .type = WidgetType::WIDGET_CVAR_COLOR_PICKER };
     backgroundColorWidget.CVar(CVAR_TRACKER_CHECK("BgColor"))
         .Options(
             ColorPickerOptions().Color(THEME_COLOR).DefaultValue(Color_Bg_Default).UseAlpha().ShowReset().ShowRandom());
     SohGui::mSohMenu->AddSearchWidget({ backgroundColorWidget, "Randomizer", "Check Tracker", "General Settings" });
 
-    windowTypeWidget = { .name = "Window Type", .type = WidgetType::WIDGET_CVAR_COMBOBOX };
+    windowTypeWidget = { .name = "Window Type##CheckTracker", .type = WidgetType::WIDGET_CVAR_COMBOBOX };
     windowTypeWidget.CVar(CVAR_TRACKER_CHECK("WindowType"))
         .Options(ComboboxOptions()
                      .DefaultIndex(TRACKER_WINDOW_WINDOW)

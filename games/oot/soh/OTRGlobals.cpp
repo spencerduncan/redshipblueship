@@ -2453,7 +2453,7 @@ extern "C" int CustomMessage_RetrieveIfExists(PlayState* play) {
                     if (entranceCtx->entranceOverrides[i].index == entrance) {
                         s16 overrideIndex = entranceCtx->entranceOverrides[i].override;
                         Entrance_SetEntranceDiscovered(entrance, false);
-                        auto data = GetEntranceData(overrideIndex);
+                        auto data = EntranceTracker::GetEntranceData(overrideIndex);
                         font->charTexBuf[0] = (TEXTBOX_TYPE_WOODEN << 4) | TEXTBOX_POS_BOTTOM;
                         return msgCtx->msgLength = font->msgLength = SohUtils::CopyStringToCharBuffer(
                                    buffer, data->destination + CustomMessage::MESSAGE_END(), maxBufferSize);
@@ -2828,11 +2828,11 @@ extern "C" int CustomMessage_RetrieveIfExists(PlayState* play) {
 }
 
 extern "C" void EntranceTracker_SetCurrentGrottoID(s16 entranceIndex) {
-    SetCurrentGrottoIDForTracker(entranceIndex);
+    EntranceTracker::SetCurrentGrottoIDForTracker(entranceIndex);
 }
 
 extern "C" void EntranceTracker_SetLastEntranceOverride(s16 entranceIndex) {
-    SetLastEntranceOverrideForTracker(entranceIndex);
+    EntranceTracker::SetLastEntranceOverrideForTracker(entranceIndex);
 }
 
 extern "C" void Gfx_RegisterBlendedTexture(const char* name, u8* mask, u8* replacement) {
