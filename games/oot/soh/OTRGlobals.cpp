@@ -559,7 +559,9 @@ void OTRGlobals::RunExtract(int argc, char* argv[]) {
                                                   "SoH does not have proper file permissions.\nPlease move it to a "
                                                   "folder that does and run again.",
                                                   "OK", "", [&]() {
-                                                      fclose(tfile);
+                                                      if (tfile) {
+                                                          fclose(tfile);
+                                                      }
                                                       PathTestCleanup(tfile);
                                                       exit(0);
                                                   });
