@@ -26,8 +26,9 @@ void BuildSkulltulaMessage(uint16_t* textId, bool* loadFromMessageTable) {
         // Auto dismiss textbox after 0x3C (60) frames (about 3 seconds for OoT)
         msg = msg + "\x0E\x3C";
     }
-    int16_t gsCount = gSaveContext.inventory.gsTokens + (IS_RANDO ? 1 : 0);
-    msg.Replace("[[gscount]]", std::to_string(gsCount));
+    bool gsTokensShuffled = IS_RANDO && RAND_GET_OPTION(RSK_SHUFFLE_TOKENS).IsNot(RO_TOKENSANITY_OFF);
+    int16_t gsCount = gSaveContext.inventory.gsTokens + (gsTokensShuffled ? 1 : 0);
+    msg.Replace("[[gsCount]]", std::to_string(gsCount));
     msg.AutoFormat(ITEM_SKULL_TOKEN);
     msg.LoadIntoFont();
     *loadFromMessageTable = false;
