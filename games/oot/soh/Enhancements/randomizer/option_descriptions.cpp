@@ -153,6 +153,8 @@ void Settings::CreateOptionDescriptions() {
         "\n"
         "Full - Shuffle the entrances of all boss rooms together. Child may be expected to defeat Phantom Ganon and/or "
         "Bongo Bongo.";
+    mOptionDescriptions[RSK_SHUFFLE_GANONS_TOWER_ENTRANCE] =
+        "Shuffle the entrance from Ganon's Castle to Ganon's Tower into the pool of boss entrances.";
     mOptionDescriptions[RSK_SHUFFLE_OVERWORLD_ENTRANCES] =
         "Shuffle the pool of Overworld entrances, which corresponds to almost all loading zones between overworld "
         "areas.\n"
@@ -256,6 +258,7 @@ void Settings::CreateOptionDescriptions() {
         "\n"
         "If you enter a water entrance without swim you will be respawned on land to prevent infinite death loops.\n"
         "If you void out in Water Temple you will immediately be kicked out to prevent a softlock.";
+    mOptionDescriptions[RSK_SHUFFLE_CRAWL] = "Shuffles the ability to use crawlspaces into the item pool.";
     mOptionDescriptions[RSK_SHUFFLE_WEIRD_EGG] = "Shuffles the Weird Egg from Malon in to the item pool. Enabling "
                                                  "\"Skip Child Zelda\" disables this feature.\n"
                                                  "\n"
@@ -624,8 +627,13 @@ void Settings::CreateOptionDescriptions() {
         "Start with Zelda's Letter and the item Impa would normally give you and skip the sequence up "
         "until after meeting Zelda. Disables the ability to shuffle Weird Egg.";
     mOptionDescriptions[RSK_SKIP_EPONA_RACE] = "Epona can be summoned with Epona's Song without needing to race Ingo.";
-    mOptionDescriptions[RSK_COMPLETE_MASK_QUEST] =
-        "Once the Happy Mask Shop is opened, all masks will be available to be borrowed.";
+    mOptionDescriptions[RSK_MASK_QUEST] =
+        "How masks are acquired.\n"
+        "Vanilla - Mask trade quest.\n"
+        "\n"
+        "Completed - Once the Happy Mask Shop is opened, all masks will be available to be borrowed.\n"
+        "\n"
+        "Shuffle - Happy Mask Shop never opens, masks are shuffled with rest of items.";
     mOptionDescriptions[RSK_SKIP_SCARECROWS_SONG] =
         "Start with the ability to summon Pierre the Scarecrow. Pulling out an Ocarina in the usual locations will "
         "automatically summon him.\n"
