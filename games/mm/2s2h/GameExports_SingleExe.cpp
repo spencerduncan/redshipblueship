@@ -374,15 +374,16 @@ void MM_Game_Resume(void) {
         Context_RestoreState(GAME_MM, &gSaveContext, sizeof(gSaveContext));
 
         // Prefer the startup entrance set for this switch; fall back to the
-        // return entrance recorded when we last froze MM.
-        uint16_t startup = Combo_GetStartupEntrance();
-        uint16_t returnEntrance = Context_GetFrozenReturnEntrance(GAME_MM);
-        uint16_t targetEntrance = startup != 0 ? startup : returnEntrance;
-        if (targetEntrance != 0) {
-            gSaveContext.save.entrance = targetEntrance;
-            fprintf(stderr, "[MM] Resume entrance: 0x%04X (startup=%u)\n",
-                    targetEntrance, startup != 0);
-        }
+        // return entrance recorded when we last froze MM. Use the explicit
+        // Has accessor because entrance 0x0000 is a valid id and treating it
+        // as "unset" would silently drop a legitimate restore.
+        bool hasStartup = Combo_HasStartupEntrance();
+        uint16_t targetEntrance = hasStartup
+            ? Combo_GetStartupEntrance()
+            : Context_GetFrozenReturnEntrance(GAME_MM);
+        gSaveContext.save.entrance = targetEntrance;
+        fprintf(stderr, "[MM] Resume entrance: 0x%04X (startup=%u)\n",
+                targetEntrance, hasStartup);
     }
 
     // TODO: Restore MM audio, reload MM-specific resources if needed

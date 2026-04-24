@@ -181,14 +181,18 @@ void OoT_Game_Resume(void) {
 
         // Prefer an explicit startup entrance (set by main.cpp for this
         // switch); fall back to the return entrance recorded at freeze time.
-        uint16_t startup = Combo_GetStartupEntrance();
-        uint16_t returnEntrance = Context_GetFrozenReturnEntrance(GAME_OOT);
-        uint16_t targetEntrance = startup != 0 ? startup : returnEntrance;
-        if (targetEntrance != 0) {
-            gSaveContext.entranceIndex = targetEntrance;
-            fprintf(stderr, "[OoT] Resume entrance: 0x%04X (startup=%u)\n",
-                    targetEntrance, startup != 0);
-        }
+        // Use Combo_HasStartupEntrance rather than (entrance != 0) — entrance
+        // 0x0000 is the real id for Kokiri Forest from Deku Tree, so a legit
+        // restore to 0 must not be silently dropped. The frozen return
+        // entrance is always trustworthy here because we already checked
+        // Context_HasFrozenState above.
+        bool hasStartup = Combo_HasStartupEntrance();
+        uint16_t targetEntrance = hasStartup
+            ? Combo_GetStartupEntrance()
+            : Context_GetFrozenReturnEntrance(GAME_OOT);
+        gSaveContext.entranceIndex = targetEntrance;
+        fprintf(stderr, "[OoT] Resume entrance: 0x%04X (startup=%u)\n",
+                targetEntrance, hasStartup);
     }
 
     // Reinitialize audio message queues for clean state (issue #160).
@@ -308,13 +312,14 @@ extern "C" bool Combo_CheckHotSwap(void) {
  * z_play.c / z_player.c.
  */
 extern "C" uint16_t Combo_CheckEntranceSwitch(uint16_t entranceIndex) {
-    // If a cross-game switch is already queued (e.g. re-entrant call from a
-    // subsequent transition frame), skip to avoid re-freezing with mutated
-    // state (death sequences, mid-transition saves) — the main loop will
-    // process the existing pending switch on the next iteration.
-    if (Combo_IsCrossGameSwitch()) {
-        return entranceIndex;
-    }
+    // Capture the pending state up front. If a cross-game switch is already
+    // queued when we're called (e.g. a subsequent transition frame after the
+    // initial trigger), we still let Combo_CheckCrossGameEntrance run so the
+    // return value and any pending-switch updates match the pre-#170 contract
+    // exactly — but we suppress the freeze + signal step below, so we don't
+    // capture mutated state from a death sequence or mid-transition save.
+    // The main loop will process the queued switch on the next iteration.
+    bool wasAlreadyPending = Combo_IsCrossGameSwitch();
 
     // Resolve which game is running so we pick the correct entrance table
     // and freeze the correct SaveContext interpretation. Default to OoT when
@@ -324,7 +329,7 @@ extern "C" uint16_t Combo_CheckEntranceSwitch(uint16_t entranceIndex) {
 
     uint16_t result = Combo_CheckCrossGameEntrance(gameId, entranceIndex);
 
-    if (Combo_IsCrossGameSwitch()) {
+    if (Combo_IsCrossGameSwitch() && !wasAlreadyPending) {
         fprintf(stderr, "[COMBO] Cross-game switch (%s)! entrance=0x%04X\n",
                 gameId, entranceIndex);
 
