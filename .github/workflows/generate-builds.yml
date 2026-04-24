@@ -303,7 +303,10 @@ jobs:
       env:
         CC: gcc-11
         CXX: g++-11
-    - name: Run tests
+    - name: Run unit tests
+      # Match the "redship" CMake label (CMake/SingleExecutable.cmake) for the
+      # unit suite only. This workflow has no Xvfb / ROM-derived archives, so
+      # the "integration" suite is run separately in integration-tests.yml.
       run: ctest --test-dir build-cmake --output-on-failure --label-regex "^redship$"
     - name: Package
       run: |

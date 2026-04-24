@@ -138,6 +138,10 @@ jobs:
         CXX: g++-11
 
     - name: Run unit tests
+      # Matches the "redship" CMake label (unit suite) from
+      # CMake/SingleExecutable.cmake. Integration tests (label "integration")
+      # need Xvfb + ROM-derived archives and are run after archive detection
+      # below.
       run: ctest --test-dir build-cmake --output-on-failure --label-regex "^redship$"
 
     - name: Check for game archives
@@ -171,35 +175,17 @@ jobs:
 
     - name: Integration Test - Boot OoT
       if: steps.check-archives.outputs.has_oot == 'true'
-      run: |
-        # Run with timeout to prevent hangs
-        timeout 120 ./build-cmake/redship --integration-test int-boot-oot || exit_code=$?
-        if [ "${exit_code:-0}" -eq 0 ]; then
-          echo "OoT boot test PASSED"
-        elif [ "${exit_code:-0}" -eq 124 ]; then
-          echo "OoT boot test TIMEOUT"
-          exit 1
-        else
-          echo "OoT boot test FAILED with exit code $exit_code"
-          exit $exit_code
-        fi
+      # Matches the "integration" CMake label from CMake/SingleExecutable.cmake,
+      # scoped to IntBootOoT. The CTest registration applies the 120s timeout.
+      run: ctest --test-dir build-cmake --output-on-failure --label-regex "^integration$" --tests-regex "^IntBootOoT$"
       env:
         DISPLAY: :99
 
     - name: Integration Test - Boot MM
       if: steps.check-archives.outputs.has_mm == 'true'
-      run: |
-        # Run with timeout to prevent hangs
-        timeout 120 ./build-cmake/redship --integration-test int-boot-mm || exit_code=$?
-        if [ "${exit_code:-0}" -eq 0 ]; then
-          echo "MM boot test PASSED"
-        elif [ "${exit_code:-0}" -eq 124 ]; then
-          echo "MM boot test TIMEOUT"
-          exit 1
-        else
-          echo "MM boot test FAILED with exit code $exit_code"
-          exit $exit_code
-        fi
+      # Matches the "integration" CMake label from CMake/SingleExecutable.cmake,
+      # scoped to IntBootMM. The CTest registration applies the 120s timeout.
+      run: ctest --test-dir build-cmake --output-on-failure --label-regex "^integration$" --tests-regex "^IntBootMM$"
       env:
         DISPLAY: :99
 

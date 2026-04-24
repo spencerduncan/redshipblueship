@@ -15,7 +15,11 @@ jobs:
   clang-tidy:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/spencerduncan/redshipblueship-build:latest
+      # Pinned to the short-SHA tag produced by .github/workflows/build-docker-image.yml
+      # (type=sha,format=short) for reproducibility. `latest` floats with every
+      # main-branch rebuild of the image. Bump this when the base image is
+      # rebuilt (i.e. when the Dockerfile or apt-deps.txt changes on main).
+      image: ghcr.io/spencerduncan/redshipblueship-build:0c07e39
     steps:
       - name: Install dependencies
         run: |
