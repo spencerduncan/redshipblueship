@@ -116,51 +116,93 @@ TestResult Test_SwitchMMOoT(void) {
 }
 
 TestResult Test_Roundtrip(void) {
-    printf("[TEST] roundtrip: Full round-trip with state verification\n");
+    printf("[TEST] roundtrip: Full round-trip with state verification (issue #170)\n");
 
     // Initialize systems
     Context_InitFrozenStates();
+    Context_ClearAllFrozenStates();
     Entrance_Init();
     Entrance_RegisterDefaultLinks();
 
-    // Simulate OoT -> MM -> OoT round trip
-    // Step 1: OoT triggers switch to MM
-    Entrance_CheckCrossGame(GAME_OOT, OOT_ENTR_HAPPY_MASK_SHOP);
-    if (!Entrance_IsCrossGameSwitch()) {
-        printf("[TEST] FAIL: Step 1 - OoT switch not triggered\n");
+    // ------------------------------------------------------------------
+    // Leg 1: OoT -> MM via Happy Mask Shop
+    // ------------------------------------------------------------------
+    // Use the production C API (Combo_*) — this is the same surface the
+    // game code actually calls from z_play.c. Exercising it here guards
+    // against the pre-#170 bug where Combo_CheckEntranceSwitch hardcoded
+    // "oot" as the source game on both legs.
+    Combo_CheckCrossGameEntrance("oot", OOT_ENTR_HAPPY_MASK_SHOP);
+    if (!Combo_IsCrossGameSwitch()) {
+        printf("[TEST] FAIL: Leg 1 - OoT->MM switch not triggered\n");
+        return TEST_FAIL;
+    }
+    if (strcmp(Combo_GetSwitchTargetGameId(), "mm") != 0) {
+        printf("[TEST] FAIL: Leg 1 - Target should be mm, got %s\n",
+               Combo_GetSwitchTargetGameId());
         return TEST_FAIL;
     }
 
-    // Simulate freezing OoT state
+    // Freeze a fingerprint for OoT so we can verify integrity after the trip.
     uint8_t fakeOoTSave[OOT_SAVE_CONTEXT_SIZE] = {0};
     fakeOoTSave[0] = 0xDE;
     fakeOoTSave[1] = 0xAD;
-    Context_FreezeState(GAME_OOT, OOT_ENTR_MARKET_FROM_MASK_SHOP,
-                        fakeOoTSave, sizeof(fakeOoTSave));
-
+    fakeOoTSave[OOT_SAVE_CONTEXT_SIZE - 1] = 0xEF;  // Tail marker
+    Combo_FreezeState("oot", Combo_GetSwitchReturnEntrance(),
+                      fakeOoTSave, sizeof(fakeOoTSave));
     Entrance_ClearPendingSwitch();
 
-    // Step 2: MM triggers switch back to OoT
-    Entrance_CheckCrossGame(GAME_MM, MM_ENTR_SOUTH_CLOCK_TOWN_0);
-    if (!Entrance_IsCrossGameSwitch()) {
-        printf("[TEST] FAIL: Step 2 - MM switch not triggered\n");
+    // ------------------------------------------------------------------
+    // Leg 2: MM -> OoT via South Clock Town
+    // ------------------------------------------------------------------
+    // This is the leg that pre-#170 silently no-op'd because the shared
+    // Combo_CheckEntranceSwitch implementation looked up "oot" links for
+    // MM's entrance id 0xD800 and always missed.
+    Combo_CheckCrossGameEntrance("mm", MM_ENTR_SOUTH_CLOCK_TOWN_0);
+    if (!Combo_IsCrossGameSwitch()) {
+        printf("[TEST] FAIL: Leg 2 - MM->OoT switch not triggered\n");
+        return TEST_FAIL;
+    }
+    if (strcmp(Combo_GetSwitchTargetGameId(), "oot") != 0) {
+        printf("[TEST] FAIL: Leg 2 - Target should be oot, got %s\n",
+               Combo_GetSwitchTargetGameId());
         return TEST_FAIL;
     }
 
-    // Step 3: Verify OoT state can be restored
+    // Also freeze MM state; both games' frozen states must coexist.
+    uint8_t fakeMMSave[MM_SAVE_CONTEXT_SIZE] = {0};
+    fakeMMSave[0] = 0xBE;
+    fakeMMSave[1] = 0xEF;
+    Combo_FreezeState("mm", Combo_GetSwitchReturnEntrance(),
+                      fakeMMSave, sizeof(fakeMMSave));
+
+    // ------------------------------------------------------------------
+    // Leg 3: Verify OoT state can be restored after the round-trip.
+    // ------------------------------------------------------------------
     uint8_t restoredSave[OOT_SAVE_CONTEXT_SIZE] = {0};
-    if (!Context_RestoreState(GAME_OOT, restoredSave, sizeof(restoredSave))) {
-        printf("[TEST] FAIL: Step 3 - OoT state restore failed\n");
+    if (!Combo_RestoreState("oot", restoredSave, sizeof(restoredSave))) {
+        printf("[TEST] FAIL: Leg 3 - OoT state restore failed\n");
+        return TEST_FAIL;
+    }
+    if (restoredSave[0] != 0xDE || restoredSave[1] != 0xAD ||
+        restoredSave[OOT_SAVE_CONTEXT_SIZE - 1] != 0xEF) {
+        printf("[TEST] FAIL: Leg 3 - Restored OoT data corrupted\n");
         return TEST_FAIL;
     }
 
-    if (restoredSave[0] != 0xDE || restoredSave[1] != 0xAD) {
-        printf("[TEST] FAIL: Step 3 - Restored data mismatch\n");
+    // And MM's frozen state is still intact.
+    uint8_t restoredMM[MM_SAVE_CONTEXT_SIZE] = {0};
+    if (!Combo_RestoreState("mm", restoredMM, sizeof(restoredMM))) {
+        printf("[TEST] FAIL: Leg 3 - MM state restore failed\n");
+        return TEST_FAIL;
+    }
+    if (restoredMM[0] != 0xBE || restoredMM[1] != 0xEF) {
+        printf("[TEST] FAIL: Leg 3 - Restored MM data corrupted\n");
         return TEST_FAIL;
     }
 
-    printf("[TEST] PASS: Round-trip with state preservation verified\n");
+    printf("[TEST] PASS: Full OoT<->MM round-trip preserves both SaveContexts\n");
     Entrance_ClearPendingSwitch();
+    Context_ClearAllFrozenStates();
     return TEST_PASS;
 }
 

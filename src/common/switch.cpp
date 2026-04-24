@@ -164,19 +164,9 @@ bool Context_IsSwitchInProgress(void) {
     return gSwitchInProgress;
 }
 
-/**
- * Set the current game (used during initialization)
- */
-void Context_SetCurrentGame(GameId game) {
-    gCurrentGame = game;
-    fprintf(stderr, "[Switch] Current game set to %s\n", Game_ToString(game));
-}
-
-/**
- * Get the current game
- */
-GameId Context_GetCurrentGame(void) {
-    return gCurrentGame;
-}
-
 } // extern "C"
+
+// Context_SetCurrentGame / Context_GetCurrentGame live in context.cpp so that
+// call sites in main.cpp / GameExports_SingleExe.cpp don't pull switch.cpp.o
+// (and its references to the legacy OoT_/MM_FreezeState/ResumeFromContext
+// symbols, which are only compiled in non-single-exe builds) into the link.

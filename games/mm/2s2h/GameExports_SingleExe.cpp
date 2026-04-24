@@ -21,6 +21,8 @@
 
 #include "game_lifecycle.h"
 #include "integration_test_hooks.h"
+#include "context.h"
+#include "entrance.h"
 #include <ship/resource/ResourceManager.h>
 #include <ship/resource/ResourceLoader.h>
 #include <ship/resource/archive/ArchiveManager.h>
@@ -360,6 +362,30 @@ void MM_Game_Suspend(void) {
 void MM_Game_Resume(void) {
     fprintf(stderr, "[MM] Game_Resume called\n");
     fflush(stderr);
+
+    // Restore the frozen MM SaveContext captured before we left for OoT (#170).
+    // OoT may have scribbled over the unified gSaveContext storage while it
+    // was active (see src/common/unified_save.c), so we must re-hydrate MM's
+    // view on every resume. First boot of MM has no frozen state — in that
+    // case MM_InitFirstEntrySaveContext still handles bootstrap via #168.
+    if (Context_HasFrozenState(GAME_MM)) {
+        fprintf(stderr, "[MM] Restoring frozen SaveContext on resume\n");
+        fflush(stderr);
+        Context_RestoreState(GAME_MM, &gSaveContext, sizeof(gSaveContext));
+
+        // Prefer the startup entrance set for this switch; fall back to the
+        // return entrance recorded when we last froze MM. Use the explicit
+        // Has accessor because entrance 0x0000 is a valid id and treating it
+        // as "unset" would silently drop a legitimate restore.
+        bool hasStartup = Combo_HasStartupEntrance();
+        uint16_t targetEntrance = hasStartup
+            ? Combo_GetStartupEntrance()
+            : Context_GetFrozenReturnEntrance(GAME_MM);
+        gSaveContext.save.entrance = targetEntrance;
+        fprintf(stderr, "[MM] Resume entrance: 0x%04X (startup=%u)\n",
+                targetEntrance, hasStartup);
+    }
+
     // TODO: Restore MM audio, reload MM-specific resources if needed
 }
 

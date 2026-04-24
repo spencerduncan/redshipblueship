@@ -420,3 +420,113 @@ TEST(IntegrationTest, ReturnSwitchToMMRestoresFrozenState) {
     // Cleanup
     Context_ClearAllFrozenStates();
 }
+
+// ============================================================================
+// Return-path regression tests for issue #170
+// ============================================================================
+//
+// Before #170, Combo_CheckEntranceSwitch hardcoded "oot" as the source game
+// even when invoked from MM's z_play.c. That meant MM→OoT transitions never
+// resolved a matching cross-game link, and MM's SaveContext was never frozen.
+// These tests lock in the fix by exercising the C API that the game code
+// actually calls, asserting it works from both sides.
+
+TEST(ReturnPathTest, MMSideCheckFindsReturnEntrance) {
+    Context_Init();
+    Entrance_Init();
+    Entrance_RegisterTestLinks();
+
+    // Simulate MM stepping onto the return entrance (South Clock Town spawn 0).
+    // Using the C API with an explicit "mm" game id — this is the pathway the
+    // production fix takes via Context_GetCurrentGame() dispatch.
+    Combo_CheckCrossGameEntrance("mm", MM_ENTR_SOUTH_CLOCK_TOWN_0);
+
+    EXPECT_TRUE(Combo_IsCrossGameSwitch());
+    EXPECT_STREQ(Combo_GetSwitchTargetGameId(), "oot");
+    EXPECT_EQ(Combo_GetSwitchTargetEntrance(), OOT_ENTR_KOKIRI_FROM_MIDOS);
+
+    Entrance_ClearPendingSwitch();
+    Entrance_ClearLinks();
+}
+
+TEST(ReturnPathTest, OoTSideCheckDoesNotMatchMMEntrance) {
+    // Regression guard: the buggy implementation checked "oot" links for MM
+    // entrance 0xD800, which would silently match nothing. Verify that when
+    // the right game id ("oot") is paired with an MM entrance, no switch
+    // triggers — that's the correct negative behavior.
+    Context_Init();
+    Entrance_Init();
+    Entrance_RegisterTestLinks();
+
+    Combo_CheckCrossGameEntrance("oot", MM_ENTR_SOUTH_CLOCK_TOWN_0);
+    EXPECT_FALSE(Combo_IsCrossGameSwitch());
+
+    Entrance_ClearPendingSwitch();
+    Entrance_ClearLinks();
+}
+
+TEST(ReturnPathTest, FullRoundtripPreservesOoTSaveContext) {
+    Context_Init();
+    Entrance_Init();
+    Entrance_RegisterTestLinks();
+
+    // --- Leg 1: OoT → MM ---
+    // Populate OoT SaveContext with a recognizable fingerprint.
+    uint8_t ootSave[OOT_SAVE_CONTEXT_SIZE];
+    memset(ootSave, 0x11, sizeof(ootSave));
+    ootSave[0] = 'O'; ootSave[1] = 'o'; ootSave[2] = 'T'; ootSave[3] = '!';
+
+    // OoT's entrance hook fires while OoT is current.
+    Context_SetCurrentGame(GAME_OOT);
+    Combo_CheckCrossGameEntrance("oot", OOT_ENTR_MIDOS_HOUSE);
+    EXPECT_TRUE(Combo_IsCrossGameSwitch());
+    uint16_t ootReturn = Combo_GetSwitchReturnEntrance();
+    Combo_FreezeState("oot", ootReturn, ootSave, sizeof(ootSave));
+    Entrance_ClearPendingSwitch();
+
+    // --- Leg 2: pretend to run MM and freeze MM state ---
+    Context_SetCurrentGame(GAME_MM);
+    uint8_t mmSave[MM_SAVE_CONTEXT_SIZE];
+    memset(mmSave, 0x22, sizeof(mmSave));
+    mmSave[0] = 'M'; mmSave[1] = 'M';
+
+    Combo_CheckCrossGameEntrance("mm", MM_ENTR_SOUTH_CLOCK_TOWN_0);
+    EXPECT_TRUE(Combo_IsCrossGameSwitch());
+    EXPECT_STREQ(Combo_GetSwitchTargetGameId(), "oot");
+    uint16_t mmReturn = Combo_GetSwitchReturnEntrance();
+    Combo_FreezeState("mm", mmReturn, mmSave, sizeof(mmSave));
+    Entrance_ClearPendingSwitch();
+
+    // --- Leg 3: restore OoT on return, verify data integrity ---
+    uint8_t restoredOoT[OOT_SAVE_CONTEXT_SIZE] = {0};
+    int result = Combo_RestoreState("oot", restoredOoT, sizeof(restoredOoT));
+    EXPECT_EQ(result, 1);
+    EXPECT_EQ(restoredOoT[0], 'O');
+    EXPECT_EQ(restoredOoT[1], 'o');
+    EXPECT_EQ(restoredOoT[2], 'T');
+    EXPECT_EQ(restoredOoT[3], '!');
+    EXPECT_EQ(Combo_GetFrozenReturnEntrance("oot"), OOT_ENTR_KOKIRI_FROM_MIDOS);
+
+    // MM's frozen state still sits alongside OoT's — both coexist.
+    uint8_t restoredMM[MM_SAVE_CONTEXT_SIZE] = {0};
+    EXPECT_EQ(Combo_RestoreState("mm", restoredMM, sizeof(restoredMM)), 1);
+    EXPECT_EQ(restoredMM[0], 'M');
+
+    // Cleanup
+    Context_ClearAllFrozenStates();
+    Entrance_ClearLinks();
+}
+
+TEST(ReturnPathTest, RestoreWithoutFreezeIsSafe) {
+    // Edge case: first boot of a game — OoT_Game_Resume could be reached
+    // without any prior freeze (e.g. if GameRunner misbehaves). The restore
+    // must refuse rather than memcpy zeros over a live SaveContext.
+    Context_Init();
+    Context_ClearAllFrozenStates();
+
+    uint8_t buffer[OOT_SAVE_CONTEXT_SIZE];
+    memset(buffer, 0xFF, sizeof(buffer));
+    int result = Context_RestoreState(GAME_OOT, buffer, sizeof(buffer));
+    EXPECT_EQ(result, 0);
+    EXPECT_EQ(buffer[0], 0xFF);  // Untouched
+}

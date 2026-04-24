@@ -15,6 +15,8 @@
 
 #include "game_lifecycle.h"
 #include "integration_test_hooks.h"
+#include "context.h"
+#include "entrance.h"
 #include "soh/Enhancements/game-interactor/GameInteractor.h"
 
 // External declarations from main.c and other C sources
@@ -31,6 +33,10 @@ extern "C" {
     void OoT_Audio_PreNMI(void);
     extern s32 gAudioContextInitalized;
     void Audio_InitMesgQueues(void);
+
+    // OoT's SaveContext (type defined via OTRGlobals.h -> z64save.h).
+    // Declared here so OoT_Game_Resume() can restore it on return from MM (#170).
+    extern SaveContext gSaveContext;
 }
 
 // Game state
@@ -156,12 +162,38 @@ void OoT_Game_Suspend(void) {
 }
 
 /**
- * Resume OoT after being suspended for a game switch (issue #160).
- * Reinitializes audio message queues for clean state.
+ * Resume OoT after being suspended for a game switch (issue #160, #170).
+ * - Restores frozen OoT SaveContext so gameplay state survives the MM
+ *   round-trip (MM scribbles over the unified gSaveContext storage while
+ *   it is active — see src/common/unified_save.c).
+ * - Reinitializes audio message queues for clean state.
  */
 void OoT_Game_Resume(void) {
     fprintf(stderr, "[OoT] Game_Resume called\n");
     fflush(stderr);
+
+    // Restore the frozen OoT SaveContext captured before we left for MM (#170).
+    // Only restores when a frozen state exists — first boot of OoT skips this.
+    if (Context_HasFrozenState(GAME_OOT)) {
+        fprintf(stderr, "[OoT] Restoring frozen SaveContext on resume\n");
+        fflush(stderr);
+        Context_RestoreState(GAME_OOT, &gSaveContext, sizeof(gSaveContext));
+
+        // Prefer an explicit startup entrance (set by main.cpp for this
+        // switch); fall back to the return entrance recorded at freeze time.
+        // Use Combo_HasStartupEntrance rather than (entrance != 0) — entrance
+        // 0x0000 is the real id for Kokiri Forest from Deku Tree, so a legit
+        // restore to 0 must not be silently dropped. The frozen return
+        // entrance is always trustworthy here because we already checked
+        // Context_HasFrozenState above.
+        bool hasStartup = Combo_HasStartupEntrance();
+        uint16_t targetEntrance = hasStartup
+            ? Combo_GetStartupEntrance()
+            : Context_GetFrozenReturnEntrance(GAME_OOT);
+        gSaveContext.entranceIndex = targetEntrance;
+        fprintf(stderr, "[OoT] Resume entrance: 0x%04X (startup=%u)\n",
+                targetEntrance, hasStartup);
+    }
 
     // Reinitialize audio message queues for clean state (issue #160).
     // The audio context's queue pointers may be stale after suspend.
@@ -233,9 +265,6 @@ extern "C" {
     void Combo_ClearGameSwitchRequest(void);
 }
 
-// OoT's SaveContext (type defined via OTRGlobals.h -> z64save.h)
-extern "C" SaveContext gSaveContext;
-
 static bool sLastF10State = false;
 
 /**
@@ -272,18 +301,43 @@ extern "C" bool Combo_CheckHotSwap(void) {
 
 /**
  * Check if an entrance triggers a cross-game switch.
- * Called from randomizer_entrance.c Entrance_OverrideNextIndex().
+ *
+ * Dispatches against the currently active game so both OoT→MM and MM→OoT
+ * work (issue #170). In single-exe mode this symbol is shared between both
+ * games' translation units; the MM code path calls into this exact function
+ * via the `Combo_CheckEntranceSwitch` extern, so we must freeze the right
+ * side's SaveContext depending on who's running.
+ *
+ * Called from OoT's z_play.c / randomizer_entrance.c and from MM's
+ * z_play.c / z_player.c.
  */
 extern "C" uint16_t Combo_CheckEntranceSwitch(uint16_t entranceIndex) {
-    // Check if this entrance triggers a cross-game switch
-    uint16_t result = Combo_CheckCrossGameEntrance("oot", entranceIndex);
+    // Capture the pending state up front. If a cross-game switch is already
+    // queued when we're called (e.g. a subsequent transition frame after the
+    // initial trigger), we still let Combo_CheckCrossGameEntrance run so the
+    // return value and any pending-switch updates match the pre-#170 contract
+    // exactly — but we suppress the freeze + signal step below, so we don't
+    // capture mutated state from a death sequence or mid-transition save.
+    // The main loop will process the queued switch on the next iteration.
+    bool wasAlreadyPending = Combo_IsCrossGameSwitch();
 
-    // If a cross-game switch was triggered, freeze our state
-    if (Combo_IsCrossGameSwitch()) {
-        fprintf(stderr, "[COMBO] Cross-game switch! entrance=0x%04X\n", entranceIndex);
+    // Resolve which game is running so we pick the correct entrance table
+    // and freeze the correct SaveContext interpretation. Default to OoT when
+    // the current-game tracker hasn't been populated yet (early boot).
+    GameId currentGame = Context_GetCurrentGame();
+    const char* gameId = (currentGame == GAME_MM) ? "mm" : "oot";
+
+    uint16_t result = Combo_CheckCrossGameEntrance(gameId, entranceIndex);
+
+    if (Combo_IsCrossGameSwitch() && !wasAlreadyPending) {
+        fprintf(stderr, "[COMBO] Cross-game switch (%s)! entrance=0x%04X\n",
+                gameId, entranceIndex);
 
         uint16_t returnEntrance = Combo_GetSwitchReturnEntrance();
-        Combo_FreezeState("oot", returnEntrance, &gSaveContext, sizeof(gSaveContext));
+        // sizeof(gSaveContext) in this TU is OoT's SaveContext layout, but the
+        // underlying unified storage is identical regardless of caller and
+        // Context_FreezeState clamps to the per-game N64 size anyway.
+        Combo_FreezeState(gameId, returnEntrance, &gSaveContext, sizeof(gSaveContext));
         Combo_SignalReadyToSwitch();
     }
 
