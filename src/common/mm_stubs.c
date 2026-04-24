@@ -12,6 +12,8 @@
 #include <stdio.h>
 #include <stdarg.h>
 
+#include <libultraship/color.h>
+
 /* ==========================================================================
  * MM_ -> base function aliases (libultra/libc functions)
  * These were renamed by the namespace tool but should use OoT's implementations
@@ -135,6 +137,16 @@ void Gfx_DrawRect_DropShadowOverride(void* dl, int x, int y, int w, int h) { (vo
 void Gfx_DrawTexRectIA8_DropShadowOverride(void* dl) { (void)dl; }
 void Gfx_DrawTexRectIA8_DropShadowOffsetOverride(void* dl) { (void)dl; }
 void Gfx_DrawTexRectIA16_DropShadowOverride(void* dl) { (void)dl; }
+
+/* CosmeticEditor stub: returns the input color unchanged since the
+ * editor UI is excluded in single-exe builds. Uses the shared Color_RGBA8
+ * typedef from <libultraship/color.h> so the stub ABI matches the declaration
+ * in games/mm/2s2h/BenGui/CosmeticEditor.h exactly. */
+Color_RGBA8 CosmeticEditor_GetChangedColor(uint8_t r, uint8_t g, uint8_t b, uint8_t a, uint8_t elementId) {
+    (void)elementId;
+    Color_RGBA8 c = { r, g, b, a };
+    return c;
+}
 
 /* FrameInterpolation stubs */
 void FrameInterpolation_IgnoreActorMtx(void* actor) { (void)actor; }
