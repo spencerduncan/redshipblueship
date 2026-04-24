@@ -195,7 +195,11 @@ jobs:
     needs: generate-rsbs-otr
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/spencerduncan/redshipblueship-build:latest
+      # Pinned to a specific image tag (not :latest) for build reproducibility.
+      # Bump this tag in the same PR as any .github/docker/build-base.Dockerfile
+      # or .github/workflows/apt-deps.txt change — build-docker-image.yml emits
+      # sha-short tags for every main commit that modifies those inputs.
+      image: ghcr.io/spencerduncan/redshipblueship-build:0c07e39
     steps:
     - name: Git Checkout
       uses: actions/checkout@v4
@@ -226,7 +230,7 @@ jobs:
         CC: gcc-11
         CXX: g++-11
     - name: Run tests
-      run: ctest --test-dir build-cmake --output-on-failure --label-regex "^redship$"
+      run: ctest --test-dir build-cmake --output-on-failure --label-regex "^integration$"
     - name: Package
       run: |
         (cd build-cmake && cpack -G External)
