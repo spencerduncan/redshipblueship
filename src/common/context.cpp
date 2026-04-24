@@ -7,6 +7,7 @@
  */
 
 #include "context.h"
+#include <cstdio>
 #include <cstring>
 #include <vector>
 #include <algorithm>
@@ -232,7 +233,20 @@ bool Context_HasPendingSwitch(void) {
     return ComboContext_IsSwitchPending();
 }
 
-// Note: Context_ProcessSwitch() is implemented in switch.cpp
+void Context_SetCurrentGame(GameId game) {
+    gCurrentGame = game;
+    fprintf(stderr, "[Context] Current game set to %s\n", Game_ToString(game));
+}
+
+GameId Context_GetCurrentGame(void) {
+    return gCurrentGame;
+}
+
+// Note: Context_ProcessSwitch() and Context_IsSwitchInProgress() are implemented
+// in switch.cpp. That translation unit is only linked when the legacy
+// OoT_/MM_FreezeState/ResumeFromContext symbols are also available, i.e. in
+// non-single-exe builds. Single-exe callers should not reference those
+// functions.
 
 // ============================================================================
 // C API implementation
