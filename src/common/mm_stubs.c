@@ -141,7 +141,8 @@ void FrameInterpolation_IgnoreActorMtx(void* actor) { (void)actor; }
 void FrameInterpolation_InterpolateWiderAngles(int wider) { (void)wider; }
 
 /* Ship enhancement stubs */
-int Ship_GetInterpolationFPS(void) { return 20; }
+/* Ship_GetInterpolationFPS is now defined for real in games/oot/soh/OTRGlobals.cpp
+ * (extern "C") as part of the scrolling-texture-interpolation port (#234). */
 const char* Ship_GetSceneName(int sceneId) { (void)sceneId; return "Unknown"; }
 void Ship_HandleConsoleCrashAsReset(void) {}
 void Ship_ExtendedCullingActorRestoreProjectedPos(void* actor) { (void)actor; }
