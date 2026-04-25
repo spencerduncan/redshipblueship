@@ -90,7 +90,10 @@ void GameInteractor_ExecuteBeforeKaleidoDrawPage(void* state, int page) { (void)
 void GameInteractor_ExecuteAfterKaleidoDrawPage(void* state, int page) { (void)state; (void)page; }
 void GameInteractor_ExecuteOnSaveInit(int fileNum) { (void)fileNum; }
 void GameInteractor_ExecuteOnSaveLoad(int fileNum) { (void)fileNum; }
-void GameInteractor_ExecuteOnOpenText(int textId) { (void)textId; }
+/* GameInteractor_ExecuteOnOpenText is now defined for real in
+ * games/oot/soh/Enhancements/game-interactor/GameInteractor_Hooks.cpp with
+ * signature (uint16_t* textId, bool* loadFromMessageTable) as part of the
+ * Custom Messages → Hooks/ShipInit refactor (#228). */
 void GameInteractor_ExecuteOnItemGive(int itemId) { (void)itemId; }
 int GameInteractor_ShouldItemGive(int itemId) { (void)itemId; return 1; }
 int GameInteractor_ShouldActorDraw(void* actor) { (void)actor; return 1; }
