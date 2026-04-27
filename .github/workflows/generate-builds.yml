@@ -354,7 +354,10 @@ jobs:
       with:
         variant: sccache
         max-size: "5G"
-        save: ${{ github.ref_name == github.event.repository.default_branch }}
+        # Save on every branch (default), not just main, so subsequent pushes to
+        # the same PR pick up the previous push's cache instead of cold-restoring
+        # from main. Issue #177 — Phase 2 iteration on Windows-only integration
+        # tests will rebuild many times per PR.
         key: ${{ runner.os }}-sccache-${{ github.ref }}
         restore-keys: |
           ${{ runner.os }}-sccache-${{ github.ref }}
@@ -376,15 +379,28 @@ jobs:
       with:
         name: soh.o2r
         path: bw/soh
-    - name: Build SoH
+    # Build is split into Configure / Build / Package so the GitHub Actions UI
+    # surfaces per-stage timing. Issue #177 — previously a single ~24 min step,
+    # making it impossible to tell whether time was going to vcpkg, compile, link
+    # or cpack. Keep these as separate steps even after tuning is done; the cost
+    # is negligible (~1s of step overhead) and the diagnostic value is permanent.
+    - name: CMake configure (Windows)
       env:
         VCPKG_ROOT: ${{github.workspace}}/vcpkg
       run: |
-        set $env:PATH="$env:USERPROFILE/.cargo/bin;$env:PATH"
+        $env:PATH="$env:USERPROFILE/.cargo/bin;$env:PATH"
         cmake -S . -B bw -G Ninja -DCMAKE_MAKE_PROGRAM=ninja -DCMAKE_BUILD_TYPE:STRING=Release -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache -DBUILD_REMOTE_CONTROL=1 -DREDSHIP_BUILD_SHARED=ON -DUSE_LLD_LINKER=ON
-        cmake --build bw --config Release --parallel 10
-
-        (cd bw && cpack)
+    - name: CMake build (Windows)
+      env:
+        VCPKG_ROOT: ${{github.workspace}}/vcpkg
+      run: cmake --build bw --config Release --parallel 10
+    - name: sccache stats (Windows)
+      if: always()
+      run: sccache --show-stats
+    - name: Package (Windows)
+      run: |
+        cd bw
+        cpack
         cd ..
         mv _packages/*.zip _packages/rsbs-windows.zip
     - name: Unzip package
