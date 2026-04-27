@@ -1,5 +1,6 @@
 #include "BenModals.h"
 #include <imgui.h>
+#include <mutex>
 #include <vector>
 #include <string>
 #include "UIWidgets.hpp"
@@ -17,6 +18,14 @@ std::vector<BenModal> modals;
 
 bool closePopup = false;
 
+// Guards the `modals` queue and `closePopup` flag. Recursive because
+// DrawElement invokes user-supplied button callbacks while holding the
+// lock, and a callback may legitimately register another popup from
+// inside one of those callbacks. Added so any future thread-pool worker
+// that calls RegisterPopup can do so safely against the main-thread
+// DrawElement. Mirrors the SohModalWindow guard added in #268.
+static std::recursive_mutex modalsMutex;
+
 void BenModalWindow::Draw() {
     if (!IsVisible()) {
         return;
@@ -27,6 +36,7 @@ void BenModalWindow::Draw() {
 }
 
 void BenModalWindow::DrawElement() {
+    std::lock_guard<std::recursive_mutex> lock(modalsMutex);
     if (modals.size() > 0) {
         BenModal curModal = modals.at(0);
         if (!ImGui::IsPopupOpen(curModal.title_.c_str())) {
@@ -70,13 +80,16 @@ void BenModalWindow::DrawElement() {
 
 void BenModalWindow::RegisterPopup(std::string title, std::string message, std::string button1, std::string button2,
                                    std::function<void()> button1callback, std::function<void()> button2callback) {
+    std::lock_guard<std::recursive_mutex> lock(modalsMutex);
     modals.push_back({ title, message, button1, button2, button1callback, button2callback });
 }
 
 bool BenModalWindow::IsPopupOpen(std::string title) {
+    std::lock_guard<std::recursive_mutex> lock(modalsMutex);
     return !modals.empty() && modals.at(0).title_ == title;
 }
 
 void BenModalWindow::DismissPopup() {
+    std::lock_guard<std::recursive_mutex> lock(modalsMutex);
     closePopup = true;
 }
