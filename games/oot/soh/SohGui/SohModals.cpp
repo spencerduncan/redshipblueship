@@ -1,5 +1,6 @@
 #include "SohModals.h"
 #include <imgui.h>
+#include <mutex>
 #include <vector>
 #include <string>
 #include <libultraship/bridge.h>
@@ -22,6 +23,14 @@ std::vector<SohModal> modals;
 
 bool closePopup = false;
 
+// Guards the `modals` queue and `closePopup` flag. Recursive because
+// DrawElement invokes user-supplied button callbacks while holding the
+// lock, and several callsites legitimately register another popup from
+// inside one of those callbacks (e.g. OTRGlobals.cpp's "Confirm
+// Re-extract" path). Added so any future thread-pool worker that calls
+// RegisterPopup can do so safely against the main-thread DrawElement.
+static std::recursive_mutex modalsMutex;
+
 void SohModalWindow::Draw() {
     if (!IsVisible()) {
         return;
@@ -32,6 +41,7 @@ void SohModalWindow::Draw() {
 }
 
 void SohModalWindow::DrawElement() {
+    std::lock_guard<std::recursive_mutex> lock(modalsMutex);
     if (modals.size() > 0) {
         SohModal curModal = modals.at(0);
         if (!ImGui::IsPopupOpen(curModal.title_.c_str())) {
@@ -76,17 +86,21 @@ void SohModalWindow::DrawElement() {
 
 void SohModalWindow::RegisterPopup(std::string title, std::string message, std::string button1, std::string button2,
                                    std::function<void()> button1callback, std::function<void()> button2callback) {
+    std::lock_guard<std::recursive_mutex> lock(modalsMutex);
     modals.push_back({ title, message, button1, button2, button1callback, button2callback });
 }
 
 size_t SohModalWindow::PopupsQueued() {
+    std::lock_guard<std::recursive_mutex> lock(modalsMutex);
     return modals.size();
 }
 
 bool SohModalWindow::IsPopupOpen(std::string title) {
+    std::lock_guard<std::recursive_mutex> lock(modalsMutex);
     return !modals.empty() && modals.at(0).title_ == title;
 }
 
 void SohModalWindow::DismissPopup() {
+    std::lock_guard<std::recursive_mutex> lock(modalsMutex);
     closePopup = true;
 }
