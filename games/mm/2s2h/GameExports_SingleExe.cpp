@@ -66,6 +66,12 @@ extern "C" {
     extern s32 gAudioCtxInitalized;
     void AudioThread_InitMesgQueues(void);
 
+    // MM's SaveContext (type defined via global.h -> z64save.h).
+    // Declared here so MM_Game_Resume() can restore it on return from OoT (#170).
+    // Mirrors the explicit extern on the OoT TU — keeps the symbol's visibility
+    // independent of whether global.h ever stops including z64save.h transitively.
+    extern SaveContext gSaveContext;
+
     // Globals from main.c
     extern s32 MM_gScreenWidth;
     extern s32 MM_gScreenHeight;
