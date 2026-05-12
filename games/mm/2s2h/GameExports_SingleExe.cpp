@@ -4,8 +4,14 @@
  * This file provides the MM_Game_* functions expected by the redship
  * main.cpp for single-executable builds.
  *
- * In single-exe mode, the libultraship context is shared with OoT.
- * MM skips InitOTR() since OoT already initialized the shared context.
+ * In single-exe mode, the libultraship context is created and owned by the
+ * harness (rsbs/src/main.cpp) before either game's Init runs. MM skips its
+ * own InitOTR() — the shared context is set up by the harness, and OoT's
+ * OTRGlobals layer adds resource factories on top when OoT is the running
+ * game. MM contributes its own resource factories via
+ * RegisterMMResourceFactories() below. This is symmetric with OoT (which
+ * also reuses the harness-provided context) — neither game depends on the
+ * other having booted first (#271).
  */
 
 #ifdef RSBS_SINGLE_EXECUTABLE
@@ -62,9 +68,10 @@ extern "C" {
     void Check_ExpansionPak(void);
     void Regs_Init(void);
 
-    // Audio reset for cross-game switch (issue #157)
+    // Audio reset for cross-game switch (issue #157) and suspend (issue #270)
     extern s32 gAudioCtxInitalized;
     void AudioThread_InitMesgQueues(void);
+    void MM_Audio_PreNMI(void);
 
     // MM's SaveContext (type defined via global.h -> z64save.h).
     // Declared here so MM_Game_Resume() can restore it on return from OoT (#170).
@@ -234,15 +241,20 @@ static void RegisterMMResourceFactories() {
 }
 
 /**
- * Verify the shared Ship::Context from OoT is ready for MM's graph thread.
+ * Verify the shared Ship::Context is ready for MM's graph thread (#271).
+ *
  * MM_Graph_ThreadEntry calls WindowIsRunning(), GfxDebuggerIsDebugging(),
  * WindowGetWidth/Height/AspectRatio() every frame — all route through
- * Ship::Context::GetInstance(). OoT initializes this singleton; MM reuses it.
+ * Ship::Context::GetInstance(). The harness (rsbs/src/main.cpp) creates
+ * the singleton before either game's Init runs, so this check is a
+ * defensive assertion that the harness did its job — *not* a dependency
+ * on OoT having booted first. OoT and MM are symmetric here: both reuse
+ * the harness-provided context.
  */
 static bool VerifySharedContext(void) {
     auto ctx = Ship::Context::GetInstance();
     if (!ctx) {
-        fprintf(stderr, "[MM] ERROR: Ship::Context is null — OoT must init first\n");
+        fprintf(stderr, "[MM] ERROR: Ship::Context is null — harness must init first\n");
         return false;
     }
     if (!ctx->GetWindow()) {
@@ -262,8 +274,11 @@ int MM_Game_Init(int argc, char** argv) {
     fprintf(stderr, "[MM] Game_Init called, argc=%d\n", argc);
     fflush(stderr);
 
-    // In single-exe mode, skip InitOTR() - OoT already initialized libultraship.
-    // Verify the shared context is ready for MM bridge functions (issue #158).
+    // In single-exe mode, skip InitOTR() — the harness (rsbs/src/main.cpp)
+    // creates Ship::Context before either game's Init runs. MM treats the
+    // harness-provided context as a precondition, the same as OoT does
+    // (#158, #271). This used to claim "OoT initialized libultraship"; that
+    // wording was stale — the harness owns initial Context creation.
     if (!VerifySharedContext()) {
         fprintf(stderr, "[MM] FATAL: Cannot start without Ship::Context\n");
         return -1;
@@ -359,12 +374,40 @@ void MM_Game_Run(void) {
     fflush(stderr);
 }
 
+/**
+ * Suspend MM for a game switch (issue #270).
+ * Stops audio to prevent interference with OoT, keeps libultraship context and
+ * MM heaps alive. Mirrors OoT_Game_Suspend so OoT <-> MM round-trips don't
+ * re-init either game.
+ */
 void MM_Game_Suspend(void) {
     fprintf(stderr, "[MM] Game_Suspend called\n");
     fflush(stderr);
-    // TODO: Stop MM audio playback
+
+    // Stop MM audio playback to prevent interference with OoT (issue #270).
+    // MM_Audio_PreNMI calls AudioThread_PreNMIInternal which halts sequence
+    // players and SFX. Same reasoning as OoT side: the SoH/2S2H port doesn't
+    // run a real OS audio thread, so audio is processed synchronously from
+    // the game loop, which has already returned from MM_Graph_ThreadEntry
+    // before suspend is called — no race.
+    fprintf(stderr, "[MM] Stopping audio via PreNMI path...\n");
+    fflush(stderr);
+    MM_Audio_PreNMI();
+
+    // Mark audio as uninitialized so message-queue re-init works on resume.
+    gAudioCtxInitalized = false;
+
+    fprintf(stderr, "[MM] Game_Suspend complete\n");
+    fflush(stderr);
 }
 
+/**
+ * Resume MM after being suspended for a game switch (issue #170, #270).
+ * - Restores frozen MM SaveContext so gameplay state survives the OoT
+ *   round-trip (OoT scribbles over the unified gSaveContext storage while
+ *   it is active — see src/common/unified_save.c).
+ * - Reinitializes audio message queues for clean state.
+ */
 void MM_Game_Resume(void) {
     fprintf(stderr, "[MM] Game_Resume called\n");
     fflush(stderr);
@@ -392,7 +435,16 @@ void MM_Game_Resume(void) {
                 targetEntrance, hasStartup);
     }
 
-    // TODO: Restore MM audio, reload MM-specific resources if needed
+    // Reinitialize audio message queues for clean state (issue #270).
+    // The audio context's queue pointers may be stale after suspend's
+    // PreNMI shutdown — mirrors the same call MM_Game_Init makes on first
+    // entry, and the same Audio_InitMesgQueues call OoT_Game_Resume makes.
+    fprintf(stderr, "[MM] Reinitializing audio message queues...\n");
+    fflush(stderr);
+    AudioThread_InitMesgQueues();
+
+    fprintf(stderr, "[MM] Game_Resume complete\n");
+    fflush(stderr);
 }
 
 void MM_Game_Shutdown(void) {
