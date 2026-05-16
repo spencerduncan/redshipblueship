@@ -91,10 +91,12 @@ This is Option B (Demotion) from the issue.
 
 ### Later (Phase 2 follow-ups, not in this PR)
 
-- Migrate `rsbs/src/combo_context.c` and `rsbs/include/rsbs/combo_context.h`
+- ~~Migrate `rsbs/src/combo_context.c` and `rsbs/include/rsbs/combo_context.h`
   to `src/common/`. Remove the duplicate struct definition from
   `src/common/context.h` (or remove it from `rsbs/include/rsbs/` if the
-  src/common/ form is the canonical one). Pick a single home.
+  src/common/ form is the canonical one). Pick a single home.~~ Resolved by
+  T8 (#274): the `rsbs/` copy was the duplicate and is removed; the
+  canonical declaration lives in `src/common/context.{h,cpp}`.
 - When `combo/src/SharedGraphics.cpp` is removed (T10), its replacement
   goes to `src/common/` (next to `shared_graphics_win.cpp`).
 - Continue adding `libultra/*` shims to `rsbs/` if more are unified out of
