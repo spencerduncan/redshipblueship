@@ -117,7 +117,6 @@ static void MM_RegisterIntegrationTestHooks(void) {
 
     IntegrationTestMode mode = IntegrationTest_GetMode();
 
-    // Only register hooks for MM boot test
     if (mode == INT_TEST_BOOT_MM) {
         fprintf(stderr, "[MM] Registering integration test hooks for boot detection\n");
         fflush(stderr);
@@ -153,6 +152,32 @@ static void MM_RegisterIntegrationTestHooks(void) {
         );
 
         fprintf(stderr, "[MM] Integration test hooks registered\n");
+        fflush(stderr);
+    } else if (mode == INT_TEST_SWITCH_OOT_HMS_TO_MM) {
+        // T1 (#260) leg 2: MM has been booted via the cross-game switch from
+        // OoT's HMS trigger. Reaching this hook means OoT's freeze + main
+        // loop's hand-off + MM_Game_Init all succeeded end-to-end. Signal pass
+        // once MM's graph thread is running steady frames.
+        fprintf(stderr, "[MM] Registering integration test hooks for HMS->MM switch completion (T1)\n");
+        fflush(stderr);
+
+        sConsoleLogoFrameCount = 0;
+        sGameStateMainFrameCount = 0;
+
+        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>(
+            []() {
+                sGameStateMainFrameCount++;
+                if (sGameStateMainFrameCount >= 10) {
+                    fprintf(stderr,
+                            "[MM-INT-TEST] MM stable after HMS->MM switch (frame %d)\n",
+                            sGameStateMainFrameCount);
+                    fflush(stderr);
+                    IntegrationTest_SignalBootComplete(GAME_MM, "MM stable after HMS->MM switch");
+                }
+            }
+        );
+
+        fprintf(stderr, "[MM] HMS->MM switch hooks registered\n");
         fflush(stderr);
     }
 }

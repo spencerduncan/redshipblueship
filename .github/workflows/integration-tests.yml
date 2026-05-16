@@ -203,6 +203,24 @@ jobs:
       env:
         DISPLAY: :99
 
+    # T1 (#260): needs both oot.o2r and mm.o2r — boots OoT, triggers the Happy
+    # Mask Shop entrance, expects spawn at MM Clock Tower Interior (0xC010).
+    - name: Integration Test - Switch OoT (HMS) to MM
+      if: steps.check-archives.outputs.has_oot == 'true' && steps.check-archives.outputs.has_mm == 'true'
+      run: |
+        timeout 120 ./build-cmake/redship --integration-test int-switch-oot-hms-to-mm || exit_code=$?
+        if [ "${exit_code:-0}" -eq 0 ]; then
+          echo "HMS->MM switch test PASSED"
+        elif [ "${exit_code:-0}" -eq 124 ]; then
+          echo "HMS->MM switch test TIMEOUT"
+          exit 1
+        else
+          echo "HMS->MM switch test FAILED with exit code $exit_code"
+          exit $exit_code
+        fi
+      env:
+        DISPLAY: :99
+
   # Reuse the OTR generation from main build workflow
   generate-rsbs-otr:
     runs-on: ubuntu-22.04

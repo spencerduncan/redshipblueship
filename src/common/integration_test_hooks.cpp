@@ -44,7 +44,7 @@ void IntegrationTest_SetMode(IntegrationTestMode mode) {
         case INT_TEST_NONE: modeName = "none"; break;
         case INT_TEST_BOOT_OOT: modeName = "boot-oot"; break;
         case INT_TEST_BOOT_MM: modeName = "boot-mm"; break;
-        case INT_TEST_SWITCH_OOT_MM: modeName = "switch-oot-mm"; break;
+        case INT_TEST_SWITCH_OOT_HMS_TO_MM: modeName = "switch-oot-hms-to-mm"; break;
         case INT_TEST_SWITCH_MM_OOT: modeName = "switch-mm-oot"; break;
     }
 
