@@ -11,7 +11,6 @@ cmake_minimum_required(VERSION 3.14)
 add_library(rsbs STATIC
     # Core shared utilities
     src/placeholder.c
-    src/combo_context.c
 
     # libultra/os - Unified OS functions (WP-009)
     src/libultra/os/afterprenmi.c
