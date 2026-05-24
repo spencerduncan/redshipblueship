@@ -357,8 +357,9 @@ const IntegrationTestDescriptor gIntegrationTests[] = {
     {"int-switch-oot-hms-to-mm",
      "Boot OoT, trigger Happy Mask Shop entrance (0x0530), verify spawn at MM Clock Tower Interior (0xC010)",
      INT_TEST_SWITCH_OOT_HMS_TO_MM, GAME_OOT},
-    {"int-switch-mm-oot", "Boot MM, switch to OoT (integration) - T2, not yet implemented",
-     INT_TEST_SWITCH_MM_OOT, GAME_MM},
+    {"int-switch-mm-clocktown-south-to-oot",
+     "Boot MM, trigger South Clock Town south exit (0xD800), verify spawn at OoT Market from Mask Shop (0x01D1)",
+     INT_TEST_SWITCH_MM_CLOCKTOWN_SOUTH_TO_OOT, GAME_MM},
     {nullptr, nullptr, INT_TEST_NONE, GAME_NONE}  // Sentinel
 };
 
