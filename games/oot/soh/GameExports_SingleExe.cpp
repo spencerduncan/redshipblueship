@@ -58,7 +58,6 @@ static void OoT_RegisterIntegrationTestHooks(void) {
 
     IntegrationTestMode mode = IntegrationTest_GetMode();
 
-    // Only register hooks for OoT boot test
     if (mode == INT_TEST_BOOT_OOT) {
         fprintf(stderr, "[OoT] Registering integration test hooks for boot detection\n");
         fflush(stderr);
@@ -82,6 +81,64 @@ static void OoT_RegisterIntegrationTestHooks(void) {
         );
 
         fprintf(stderr, "[OoT] Integration test hooks registered\n");
+        fflush(stderr);
+    } else if (mode == INT_TEST_SWITCH_OOT_HMS_TO_MM) {
+        // T1 (#260): Boot OoT, programmatically trigger the Happy Mask Shop
+        // entrance, assert the cross-game switch resolves to MM Clock Tower
+        // Interior. Leg 1 of the test passes when routing is verified here;
+        // final pass is signaled from the MM-side hook after MM stabilizes
+        // post-switch.
+        fprintf(stderr, "[OoT] Registering integration test hooks for HMS->MM switch (T1)\n");
+        fflush(stderr);
+
+        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnPresentFileSelect>(
+            []() {
+                fprintf(stderr, "[OoT-INT-TEST] File select reached; triggering HMS entrance 0x%04X\n",
+                        OOT_ENTR_HAPPY_MASK_SHOP);
+                fflush(stderr);
+
+                // Same call OoT's z_play.c makes when the player walks into the
+                // Happy Mask Shop door — minus the freeze, which T3 covers.
+                Combo_CheckCrossGameEntrance("oot", OOT_ENTR_HAPPY_MASK_SHOP);
+
+                if (!Combo_IsCrossGameSwitch()) {
+                    fprintf(stderr, "[OoT-INT-TEST] FAIL: HMS entrance did not register a cross-game switch\n");
+                    fflush(stderr);
+                    IntegrationTest_RequestExit();
+                    return;
+                }
+
+                const char* target = Combo_GetSwitchTargetGameId();
+                uint16_t targetEntrance = Combo_GetSwitchTargetEntrance();
+
+                if (!target || strcmp(target, "mm") != 0) {
+                    fprintf(stderr, "[OoT-INT-TEST] FAIL: target should be 'mm', got '%s'\n",
+                            target ? target : "(null)");
+                    fflush(stderr);
+                    IntegrationTest_RequestExit();
+                    return;
+                }
+
+                if (targetEntrance != MM_ENTR_CLOCK_TOWER_INTERIOR_1) {
+                    fprintf(stderr,
+                            "[OoT-INT-TEST] FAIL: target entrance should be 0x%04X (Clock Tower Interior), got 0x%04X\n",
+                            MM_ENTR_CLOCK_TOWER_INTERIOR_1, targetEntrance);
+                    fflush(stderr);
+                    IntegrationTest_RequestExit();
+                    return;
+                }
+
+                fprintf(stderr,
+                        "[OoT-INT-TEST] PASS leg 1: HMS routes to MM 0x%04X; main loop will run the switch\n",
+                        targetEntrance);
+                fflush(stderr);
+                // Intentionally NOT signaling boot complete here. The main loop
+                // will see the pending cross-game switch on Combo_CheckHotSwap
+                // and hand off to MM. The MM-side hook signals the final pass.
+            }
+        );
+
+        fprintf(stderr, "[OoT] HMS->MM switch hooks registered\n");
         fflush(stderr);
     }
 }

@@ -354,8 +354,11 @@ struct IntegrationTestDescriptor {
 const IntegrationTestDescriptor gIntegrationTests[] = {
     {"int-boot-oot", "Boot OoT and verify title screen (integration)", INT_TEST_BOOT_OOT, GAME_OOT},
     {"int-boot-mm", "Boot MM and verify title screen (integration)", INT_TEST_BOOT_MM, GAME_MM},
-    {"int-switch-oot-mm", "Boot OoT, switch to MM (integration)", INT_TEST_SWITCH_OOT_MM, GAME_OOT},
-    {"int-switch-mm-oot", "Boot MM, switch to OoT (integration)", INT_TEST_SWITCH_MM_OOT, GAME_MM},
+    {"int-switch-oot-hms-to-mm",
+     "Boot OoT, trigger Happy Mask Shop entrance (0x0530), verify spawn at MM Clock Tower Interior (0xC010)",
+     INT_TEST_SWITCH_OOT_HMS_TO_MM, GAME_OOT},
+    {"int-switch-mm-oot", "Boot MM, switch to OoT (integration) - T2, not yet implemented",
+     INT_TEST_SWITCH_MM_OOT, GAME_MM},
     {nullptr, nullptr, INT_TEST_NONE, GAME_NONE}  // Sentinel
 };
 

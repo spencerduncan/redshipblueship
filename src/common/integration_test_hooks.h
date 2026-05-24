@@ -22,10 +22,10 @@ extern "C" {
  */
 typedef enum {
     INT_TEST_NONE = 0,
-    INT_TEST_BOOT_OOT,      // Boot OoT, exit on title/file select
-    INT_TEST_BOOT_MM,       // Boot MM, exit on title/file select
-    INT_TEST_SWITCH_OOT_MM, // Boot OoT, warp, switch to MM
-    INT_TEST_SWITCH_MM_OOT  // Boot MM, warp, switch to OoT
+    INT_TEST_BOOT_OOT,            // Boot OoT, exit on title/file select
+    INT_TEST_BOOT_MM,             // Boot MM, exit on title/file select
+    INT_TEST_SWITCH_OOT_HMS_TO_MM,// Boot OoT, trigger HMS entrance, verify MM Clock Tower Interior spawn
+    INT_TEST_SWITCH_MM_OOT        // Boot MM, warp, switch to OoT (T2 — not yet implemented)
 } IntegrationTestMode;
 
 /**
