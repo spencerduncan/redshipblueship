@@ -213,9 +213,11 @@ if(BUILD_TESTING)
     add_test(NAME IntBootMM COMMAND redship --integration-test int-boot-mm)
     add_test(NAME IntSwitchOoTHmsToMm
              COMMAND redship --integration-test int-switch-oot-hms-to-mm)
+    add_test(NAME IntSwitchMmClockTownSouthToOoT
+             COMMAND redship --integration-test int-switch-mm-clocktown-south-to-oot)
 
     set_tests_properties(
-        IntBootOoT IntBootMM IntSwitchOoTHmsToMm
+        IntBootOoT IntBootMM IntSwitchOoTHmsToMm IntSwitchMmClockTownSouthToOoT
         PROPERTIES
         TIMEOUT ${REDSHIP_INTEGRATION_TEST_TIMEOUT}
         LABELS "integration"

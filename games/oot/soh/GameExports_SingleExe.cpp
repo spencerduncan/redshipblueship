@@ -43,6 +43,9 @@ extern "C" {
 static int sArgc = 0;
 static char** sArgv = nullptr;
 
+// Integration test hook frame counter (reset each time hooks are registered)
+static int sOoTGameStateMainFrameCount = 0;
+
 // ============================================================================
 // Integration Test Hooks
 // ============================================================================
@@ -139,6 +142,31 @@ static void OoT_RegisterIntegrationTestHooks(void) {
         );
 
         fprintf(stderr, "[OoT] HMS->MM switch hooks registered\n");
+        fflush(stderr);
+    } else if (mode == INT_TEST_SWITCH_MM_CLOCKTOWN_SOUTH_TO_OOT) {
+        // T2 (#261) leg 2: OoT has been booted via the cross-game switch from
+        // MM's SCT-south trigger. Reaching this hook means MM's freeze + main
+        // loop's hand-off + OoT_Game_Init all succeeded end-to-end. Signal pass
+        // once OoT's graph thread is running steady frames.
+        fprintf(stderr, "[OoT] Registering integration test hooks for SCT-south->OoT switch completion (T2)\n");
+        fflush(stderr);
+
+        sOoTGameStateMainFrameCount = 0;
+
+        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>(
+            []() {
+                sOoTGameStateMainFrameCount++;
+                if (sOoTGameStateMainFrameCount >= 10) {
+                    fprintf(stderr,
+                            "[OoT-INT-TEST] OoT stable after SCT-south->OoT switch (frame %d)\n",
+                            sOoTGameStateMainFrameCount);
+                    fflush(stderr);
+                    IntegrationTest_SignalBootComplete(GAME_OOT, "OoT stable after SCT-south->OoT switch");
+                }
+            }
+        );
+
+        fprintf(stderr, "[OoT] SCT-south->OoT switch hooks registered\n");
         fflush(stderr);
     }
 }

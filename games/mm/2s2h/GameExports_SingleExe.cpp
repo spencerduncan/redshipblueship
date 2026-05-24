@@ -179,6 +179,79 @@ static void MM_RegisterIntegrationTestHooks(void) {
 
         fprintf(stderr, "[MM] HMS->MM switch hooks registered\n");
         fflush(stderr);
+    } else if (mode == INT_TEST_SWITCH_MM_CLOCKTOWN_SOUTH_TO_OOT) {
+        // T2 (#261): Boot MM, programmatically trigger the South Clock Town
+        // south exit, assert the cross-game switch resolves to OoT Market.
+        // Mirror of T1: MM is the trigger side here, OoT is the receiver.
+        // MM has no OnPresentFileSelect analog, so we wait N stable frames in
+        // OnGameStateMainStart and then fire the trigger once. Final pass is
+        // signaled from the OoT-side hook after OoT stabilizes post-switch.
+        fprintf(stderr, "[MM] Registering integration test hooks for SCT-south->OoT switch (T2)\n");
+        fflush(stderr);
+
+        sConsoleLogoFrameCount = 0;
+        sGameStateMainFrameCount = 0;
+
+        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>(
+            []() {
+                static bool sTriggered = false;
+                if (sTriggered) {
+                    return;
+                }
+                sGameStateMainFrameCount++;
+                if (sGameStateMainFrameCount < 10) {
+                    return;
+                }
+                sTriggered = true;
+
+                fprintf(stderr,
+                        "[MM-INT-TEST] MM stable; triggering SCT-south entrance 0x%04X\n",
+                        MM_ENTR_SOUTH_CLOCK_TOWN_0);
+                fflush(stderr);
+
+                // Same call MM's z_play.c makes when the player walks south
+                // out of South Clock Town — minus the freeze, which T3 covers.
+                Combo_CheckCrossGameEntrance("mm", MM_ENTR_SOUTH_CLOCK_TOWN_0);
+
+                if (!Combo_IsCrossGameSwitch()) {
+                    fprintf(stderr, "[MM-INT-TEST] FAIL: SCT-south entrance did not register a cross-game switch\n");
+                    fflush(stderr);
+                    IntegrationTest_RequestExit();
+                    return;
+                }
+
+                const char* target = Combo_GetSwitchTargetGameId();
+                uint16_t targetEntrance = Combo_GetSwitchTargetEntrance();
+
+                if (!target || strcmp(target, "oot") != 0) {
+                    fprintf(stderr, "[MM-INT-TEST] FAIL: target should be 'oot', got '%s'\n",
+                            target ? target : "(null)");
+                    fflush(stderr);
+                    IntegrationTest_RequestExit();
+                    return;
+                }
+
+                if (targetEntrance != OOT_ENTR_MARKET_FROM_MASK_SHOP) {
+                    fprintf(stderr,
+                            "[MM-INT-TEST] FAIL: target entrance should be 0x%04X (Market from Mask Shop), got 0x%04X\n",
+                            OOT_ENTR_MARKET_FROM_MASK_SHOP, targetEntrance);
+                    fflush(stderr);
+                    IntegrationTest_RequestExit();
+                    return;
+                }
+
+                fprintf(stderr,
+                        "[MM-INT-TEST] PASS leg 1: SCT-south routes to OoT 0x%04X; main loop will run the switch\n",
+                        targetEntrance);
+                fflush(stderr);
+                // Intentionally NOT signaling boot complete here. The main loop
+                // will see the pending cross-game switch on Combo_CheckHotSwap
+                // and hand off to OoT. The OoT-side hook signals the final pass.
+            }
+        );
+
+        fprintf(stderr, "[MM] SCT-south->OoT switch hooks registered\n");
+        fflush(stderr);
     }
 }
 

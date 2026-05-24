@@ -221,6 +221,24 @@ jobs:
       env:
         DISPLAY: :99
 
+    # T2 (#261): mirror of T1 — boots MM, triggers South Clock Town south exit,
+    # expects spawn at OoT Market from Mask Shop (0x01D1).
+    - name: Integration Test - Switch MM (Clock Town South) to OoT
+      if: steps.check-archives.outputs.has_oot == 'true' && steps.check-archives.outputs.has_mm == 'true'
+      run: |
+        timeout 120 ./build-cmake/redship --integration-test int-switch-mm-clocktown-south-to-oot || exit_code=$?
+        if [ "${exit_code:-0}" -eq 0 ]; then
+          echo "MM(SCT-south)->OoT switch test PASSED"
+        elif [ "${exit_code:-0}" -eq 124 ]; then
+          echo "MM(SCT-south)->OoT switch test TIMEOUT"
+          exit 1
+        else
+          echo "MM(SCT-south)->OoT switch test FAILED with exit code $exit_code"
+          exit $exit_code
+        fi
+      env:
+        DISPLAY: :99
+
   # Reuse the OTR generation from main build workflow
   generate-rsbs-otr:
     runs-on: ubuntu-22.04
