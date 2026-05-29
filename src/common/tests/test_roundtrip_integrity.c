@@ -13,7 +13,7 @@
  * section and entrance.cpp defines with C++ (mangled) linkage. Under extern "C"
  * the unmangled Entrance_Init would instead bind to OoT's randomizer
  * Entrance_Init (randomizer_entrance.c). Compiled as C++ it correctly resolves
- * to the combo entrance system. The Combo_*/Context_*/ComboContext_* symbols
+ * to the combo entrance system. The Combo_, Context_, and ComboContext_ symbols
  * and gComboCtx are genuine C-linkage and resolve identically either way.
  *
  * Headless: no SDL, no real game boot. The roundtrip is driven entirely through
