@@ -97,8 +97,10 @@ This is Option B (Demotion) from the issue.
   src/common/ form is the canonical one). Pick a single home.~~ Resolved by
   T8 (#274): the `rsbs/` copy was the duplicate and is removed; the
   canonical declaration lives in `src/common/context.{h,cpp}`.
-- When `combo/src/SharedGraphics.cpp` is removed (T10), its replacement
-  goes to `src/common/` (next to `shared_graphics_win.cpp`).
+- ~~When `combo/src/SharedGraphics.cpp` is removed (T10), its replacement
+  goes to `src/common/` (next to `shared_graphics_win.cpp`).~~ Resolved by
+  T9 (#275): `SharedGraphics.cpp` and its header now live in `src/common/`;
+  T10 (#265) can delete the remainder of `combo/`.
 - Continue adding `libultra/*` shims to `rsbs/` if more are unified out of
   OoT/MM. Continue adding cross-game host logic to `src/common/`.
 

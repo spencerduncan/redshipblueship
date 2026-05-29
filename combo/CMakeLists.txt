@@ -2,7 +2,8 @@ cmake_minimum_required(VERSION 3.14)
 
 # MINIMAL: This directory now only provides:
 #   - Export.h / GameExports.h: COMBO_API and GAME_EXPORT macros
-#   - SharedGraphics.h/cpp: Cross-game graphics context sharing
+#
+# SharedGraphics.h/cpp moved to src/common/ in T9 (#275) per ADR-0001.
 #
 # The following have been removed (replaced by GameOps in src/common/):
 #   - DynamicLibrary.cpp/h: Dynamic library loading (single-exe doesn't need this)
@@ -12,19 +13,19 @@ cmake_minimum_required(VERSION 3.14)
 #   - GameArchives.cpp/h, IGame.h, GameAPI.h: Dead code from DLL architecture
 #
 # For new code, use src/common/ headers directly:
-#   - game.h, context.h, entrance.h, game_lifecycle.h
+#   - game.h, context.h, entrance.h, game_lifecycle.h, SharedGraphics.h
 
 # Common sources from src/common/ (implementations for compatibility headers)
 set(COMMON_SOURCES
     ${CMAKE_SOURCE_DIR}/src/common/game.c
     ${CMAKE_SOURCE_DIR}/src/common/context.cpp
     ${CMAKE_SOURCE_DIR}/src/common/entrance.cpp
+    ${CMAKE_SOURCE_DIR}/src/common/SharedGraphics.cpp
 )
 
 if(WIN32)
     add_library(combo SHARED
         src/placeholder.cpp
-        src/SharedGraphics.cpp
         ${COMMON_SOURCES}
     )
     # Export symbols from this DLL
@@ -32,7 +33,6 @@ if(WIN32)
 else()
     add_library(combo STATIC
         src/placeholder.cpp
-        src/SharedGraphics.cpp
         ${COMMON_SOURCES}
     )
 endif()

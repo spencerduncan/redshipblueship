@@ -8,7 +8,7 @@
 
 #ifdef _WIN32
 
-#include "combo/SharedGraphics.h"
+#include "SharedGraphics.h"
 
 // Import thunks - these are what __declspec(dllimport) references look for
 // The naming convention is __imp_<function_name>
