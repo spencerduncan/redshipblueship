@@ -192,13 +192,16 @@ if(BUILD_TESTING)
     add_test(NAME SwitchOoTMM COMMAND redship --test switch-oot-mm)
     add_test(NAME SwitchMMOoT COMMAND redship --test switch-mm-oot)
     add_test(NAME Roundtrip COMMAND redship --test roundtrip)
+    add_test(NAME RoundtripIntegrity COMMAND redship --test roundtrip-integrity)
+    add_test(NAME SharedRoundtrip COMMAND redship --test shared-roundtrip)
+    add_test(NAME ArchiveHotswapLogic COMMAND redship --test archive-hotswap-logic)
     add_test(NAME Context COMMAND redship --test context)
     add_test(NAME AllTests COMMAND redship --test all)
 
     # Set reasonable timeout and label our tests
     set(REDSHIP_TEST_TIMEOUT 60 CACHE STRING "Test timeout in seconds")
     set_tests_properties(
-        BootOoT BootMM SwitchOoTMM SwitchMMOoT Roundtrip Context AllTests
+        BootOoT BootMM SwitchOoTMM SwitchMMOoT Roundtrip RoundtripIntegrity SharedRoundtrip ArchiveHotswapLogic Context AllTests
         PROPERTIES
         TIMEOUT ${REDSHIP_TEST_TIMEOUT}
         LABELS "redship"
@@ -216,9 +219,11 @@ if(BUILD_TESTING)
              COMMAND redship --integration-test int-switch-oot-hms-to-mm)
     add_test(NAME IntSwitchMmClockTownSouthToOoT
              COMMAND redship --integration-test int-switch-mm-clocktown-south-to-oot)
+    add_test(NAME IntArchiveHotswapCycle
+             COMMAND redship --integration-test int-archive-hotswap-cycle)
 
     set_tests_properties(
-        IntBootOoT IntBootMM IntSwitchOoTHmsToMm IntSwitchMmClockTownSouthToOoT
+        IntBootOoT IntBootMM IntSwitchOoTHmsToMm IntSwitchMmClockTownSouthToOoT IntArchiveHotswapCycle
         PROPERTIES
         TIMEOUT ${REDSHIP_INTEGRATION_TEST_TIMEOUT}
         LABELS "integration"

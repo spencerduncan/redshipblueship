@@ -17,6 +17,26 @@ extern "C" {
 #include "tests/test_game_lifecycle.c"
 }
 
+// Roundtrip SaveContext byte-integrity test (issue #262). Included at FILE
+// SCOPE (compiled as C++), NOT inside the extern "C" block above: its body
+// calls the C++-linkage Entrance_Init/Entrance_RegisterDefaultLinks. Under
+// extern "C" those would bind to OoT's C-linkage randomizer Entrance_Init
+// instead of the combo entrance system.
+#include "tests/test_roundtrip_integrity.c"
+
+// Shared-state plumbing smoke test (issue #264) — included like the lifecycle
+// test (its own extern "C" block) to avoid static-library link ordering
+// issues. It only references C-linkage ComboContext_* symbols and gComboCtx.
+extern "C" {
+#include "tests/test_shared_state_roundtrip.c"
+}
+
+// Archive hot-swap regression test (issue #263). Included at FILE SCOPE (not
+// inside an extern "C" block): it is compiled as C++ and uses the C++-linkage
+// Entrance_* API for setup. Its cross-TU ArchiveHotswap_* helpers are wrapped
+// in their own extern "C" inside the file.
+#include "tests/test_archive_hotswap.c"
+
 // ============================================================================
 // Internal state
 // ============================================================================
@@ -274,6 +294,12 @@ TestResult Test_StartupEntrance(void) {
     return TEST_PASS;
 }
 
+TestResult Test_RoundtripIntegrity(void) {
+    printf("[TEST] roundtrip-integrity: OoT SaveContext byte-integrity across roundtrip (issue #262)\n");
+    int failures = TestRoundtripIntegrity_Run();
+    return (failures == 0) ? TEST_PASS : TEST_FAIL;
+}
+
 TestResult Test_Lifecycle(void) {
     printf("[TEST] lifecycle: Game lifecycle unit tests\n");
     int failures = TestLifecycle_RunAll();
@@ -338,8 +364,13 @@ const TestDescriptor gTests[] = {
     {"midos-house", "Test Mido's House entrance (test mode)", Test_MidosHouse},
     {"startup-entrance", "Test startup entrance flow", Test_StartupEntrance},
     {"roundtrip", "Full round-trip with state verification", Test_Roundtrip},
+    {"roundtrip-integrity", "OoT SaveContext byte-identical across OoT->MM->OoT (issue #262)", Test_RoundtripIntegrity},
+    {"shared-roundtrip", "Shared flag/seed survive OoT->MM switch (issue #264)", Test_SharedStateRoundtrip},
     {"context", "Test context/state management", Test_Context},
     {"lifecycle", "Game lifecycle unit tests", Test_Lifecycle},
+    // Keep archive-hotswap-logic LAST: it re-inits the entrance table, so it
+    // must not run before any test that relies on the default links.
+    {"archive-hotswap-logic", "Headless multi-switch archive/state regression (#263)", Test_ArchiveHotswapLogic},
     {nullptr, nullptr, nullptr}  // Sentinel
 };
 
@@ -360,6 +391,9 @@ const IntegrationTestDescriptor gIntegrationTests[] = {
     {"int-switch-mm-clocktown-south-to-oot",
      "Boot MM, trigger South Clock Town south exit (0xD800), verify spawn at OoT Market from Mask Shop (0x01D1)",
      INT_TEST_SWITCH_MM_CLOCKTOWN_SOUTH_TO_OOT, GAME_MM},
+    {"int-archive-hotswap-cycle",
+     "Boot OoT, cycle OoT<->MM >=3 times (4 arrivals), verify archives reload each switch and steady-state RSS stays bounded (#263)",
+     INT_TEST_ARCHIVE_HOTSWAP_CYCLE, GAME_OOT},
     {nullptr, nullptr, INT_TEST_NONE, GAME_NONE}  // Sentinel
 };
 
