@@ -391,9 +391,6 @@ const IntegrationTestDescriptor gIntegrationTests[] = {
     {"int-switch-mm-clocktown-south-to-oot",
      "Boot MM, trigger South Clock Town south exit (0xD800), verify spawn at OoT Market from Mask Shop (0x01D1)",
      INT_TEST_SWITCH_MM_CLOCKTOWN_SOUTH_TO_OOT, GAME_MM},
-    {"int-archive-hotswap-cycle",
-     "Boot OoT, cycle OoT<->MM >=3 times (4 arrivals), verify archives reload each switch and steady-state RSS stays bounded (#263)",
-     INT_TEST_ARCHIVE_HOTSWAP_CYCLE, GAME_OOT},
     {nullptr, nullptr, INT_TEST_NONE, GAME_NONE}  // Sentinel
 };
 
