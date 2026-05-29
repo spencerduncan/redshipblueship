@@ -1,11 +1,3 @@
-I now have everything needed. The investigation is conclusive:
-
-- The `combo_tests` gtest suite (`context_test.cpp`, `sanity_test.cpp`) covers the same `Context_*`/`Entrance_*`/`Combo_*`/`Game_*` APIs that the single-exe `test_runner.cpp` (`--test context`, `roundtrip`, `switch-*`, `lifecycle`) already exercises via CTest — but with finer-grained gtest assertions. The gtest suite ONLY builds in the retired dynamic-library path (`add_subdirectory(combo)` in the `else()` branch, further gated by `NOT WIN32`), so in the default `SINGLE_EXECUTABLE_BUILD=ON` it is dead and never compiled.
-- `Export.h` is live (one consumer: `src/common/SharedGraphics.h:12`). `GameExports.h` and `placeholder.cpp` are fully dead.
-- `COMBO_API` expands to empty on non-Windows; on Windows it's `__declspec(dllexport)` when `COMBO_BUILDING_DLL` is defined (which `redship_common` does at `SingleExecutable.cmake:81`), else `dllimport`.
-
-I have enough to produce the plan. No file writes, no execution.
-
 # T10 / #265 — Remove `combo/` directory (PLAN ONLY — GATED ON T6)
 
 > **Status: BLOCKED — do not execute.** This is the last Phase 2 task. It must run **after T6 (#35)** lands (unified-save layout) and after T8 (#274, done) and T9 (#275, done). The plan below is a pure, no-semantic-change relocation + dead-code deletion. Nothing here should be applied until T6 is merged. See *Execution gate* for why.

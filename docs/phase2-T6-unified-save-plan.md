@@ -1,16 +1,3 @@
-I now have everything needed to write a concrete, implementation-ready plan. I have:
-
-- ComboContext struct (magic `"OoT+MM<3"`, version, sharedFlags[64], sharedItems[32], saveSlot, sharedRandoSeed) — `sizeof` ≈ 8+4+...+ items = ~430B (need to note it's larger than the issue's "~256B").
-- The size discrepancy: `game.h` defines `OOT_SAVE_CONTEXT_SIZE 0x1428` (5160B, real), while `unified_save.c` redefines it `0x22000` (SoH-extended) — a real conflict to resolve.
-- Both games are JSON-based SaveManagers (`fileN.sav`), with `Save_SaveFile`/`Save_LoadFile`-style C bridges and `OnSaveFile`/`OnLoadFile`/`OnExitGame` GameInteractor hooks.
-- Concrete save trigger sites: OoT `Save_SaveFile`→`SaveManager::Instance->SaveFile(gSaveContext.fileNum)`; MM `SaveManager_SysFlashrom_WriteData`.
-- File-select: `games/oot/.../ovl_file_choose/z_file_choose.c`, `games/mm/.../ovl_file_choose/z_file_choose_NES.c`; ComboMenuBar in src/common.
-- CTest registration pattern in `SingleExecutable.cmake`; test registry in `test_runner.cpp` (`gTests[]`); `unified_save.c` compiled in `SingleExecutable.cmake` line 28.
-- Playtime fields: OoT `gSaveContext.playTime` (u32) + `totalDays`; MM `gSaveContext.save.time`/`day`. Names: OoT `playerName[8]`, MM `playerName[8]`.
-- T10 (#265) dependency chain confirmed.
-
-Now I'll produce the plan.
-
 # PLAN — Phase 2 T6 / Issue #35: Unified Save System
 
 ## 0. TL;DR
