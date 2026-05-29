@@ -27,7 +27,7 @@ set(REDSHIP_COMMON_SOURCES
     # Unified SaveContext storage for both games
     ${CMAKE_SOURCE_DIR}/src/common/unified_save.c
     # SharedGraphics for cross-game graphics context sharing
-    ${CMAKE_SOURCE_DIR}/combo/src/SharedGraphics.cpp
+    ${CMAKE_SOURCE_DIR}/src/common/SharedGraphics.cpp
     # Unified menu bar for single executable
     ${CMAKE_SOURCE_DIR}/src/common/ComboMenuBar.cpp
     # MM stubs and aliases for single-exe mode
@@ -51,6 +51,7 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/integration_test_hooks.h
     ${CMAKE_SOURCE_DIR}/src/common/ComboMenuBar.h
     ${CMAKE_SOURCE_DIR}/src/common/game_lifecycle.h
+    ${CMAKE_SOURCE_DIR}/src/common/SharedGraphics.h
 )
 
 # ============================================================================
