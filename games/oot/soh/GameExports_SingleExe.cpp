@@ -39,6 +39,16 @@ extern "C" {
     extern SaveContext gSaveContext;
 }
 
+// Archive hot-swap cycle helpers (#263). Defined in
+// src/common/tests/test_archive_hotswap.c (compiled into redship_common via
+// test_runner.cpp); resolved at final link. Record this OoT arrival, query the
+// RSS bound, and read the target arrival count for the cycle-complete check.
+extern "C" {
+    int ArchiveHotswap_RecordArrival(void);
+    int ArchiveHotswap_RssExceeded(void);
+    int ArchiveHotswap_TargetArrivals(void);
+}
+
 // Game state
 static int sArgc = 0;
 static char** sArgv = nullptr;
@@ -167,6 +177,67 @@ static void OoT_RegisterIntegrationTestHooks(void) {
         );
 
         fprintf(stderr, "[OoT] SCT-south->OoT switch hooks registered\n");
+        fflush(stderr);
+    } else if (mode == INT_TEST_ARCHIVE_HOTSWAP_CYCLE) {
+        // T4 (#263): drive >=3 OoT<->MM archive hot-swaps and assert a healthy
+        // runtime. OoT boots first, so OoT is arrivals #1 and #3 of the
+        // OoT->MM->OoT->MM cycle (4 arrivals == 3 transitions).
+        //
+        // Registration runs from OoT_Game_Init, which fires only on OoT's FIRST
+        // entry — later OoT arrivals come back through OoT_Game_Resume (see
+        // GameRunner_SwitchTo: a suspended game is resumed, not re-init'd), so
+        // this hook is registered exactly once and the persistent frame counter
+        // is NOT reset per arrival. The hook therefore re-arms itself: it fires
+        // ~10 stable frames after each (re)entry, then resets the counter so the
+        // next arrival reached via resume is detected the same way.
+        fprintf(stderr, "[OoT] Registering integration test hooks for archive-hotswap cycle (T4)\n");
+        fflush(stderr);
+
+        sOoTGameStateMainFrameCount = 0;
+
+        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>(
+            []() {
+                // Fire once per arrival, ~10 stable frames after (re)entry, then
+                // re-arm for the next OoT arrival (reached via OoT_Game_Resume).
+                sOoTGameStateMainFrameCount++;
+                if (sOoTGameStateMainFrameCount < 10) {
+                    return;
+                }
+                sOoTGameStateMainFrameCount = 0;
+
+                int n = ArchiveHotswap_RecordArrival();
+                fprintf(stderr, "[OoT-INT-TEST] OoT stable; archive-hotswap arrival #%d of %d\n",
+                        n, ArchiveHotswap_TargetArrivals());
+                fflush(stderr);
+
+                if (ArchiveHotswap_RssExceeded()) {
+                    // Steady-state RSS blew the bound — the #154 per-switch leak
+                    // regression. Fail fast: RequestExit does NOT set the pass
+                    // flag, so the run returns non-zero. Combo_RequestGameSwitch()
+                    // right after unblocks the main loop promptly (known fix).
+                    fprintf(stderr, "[OoT-INT-TEST] FAIL: steady-state RSS bound exceeded after %d arrivals\n", n);
+                    fflush(stderr);
+                    IntegrationTest_RequestExit();
+                    Combo_RequestGameSwitch();
+                } else if (n >= ArchiveHotswap_TargetArrivals()) {
+                    // Target arrivals reached with a healthy runtime — PASS.
+                    // SignalBootComplete sets the pass flag and requests the
+                    // switch that unblocks the main loop.
+                    fprintf(stderr, "[OoT-INT-TEST] archive-hotswap cycle complete after %d arrivals\n", n);
+                    fflush(stderr);
+                    IntegrationTest_SignalBootComplete(GAME_OOT, "archive-hotswap cycle complete");
+                } else {
+                    // Keep the cycle going: re-trigger the OoT->MM switch via the
+                    // Happy Mask Shop entrance — same call the T1 branch makes.
+                    fprintf(stderr, "[OoT-INT-TEST] re-triggering HMS entrance 0x%04X to continue cycle\n",
+                            OOT_ENTR_HAPPY_MASK_SHOP);
+                    fflush(stderr);
+                    Combo_CheckCrossGameEntrance("oot", OOT_ENTR_HAPPY_MASK_SHOP);
+                }
+            }
+        );
+
+        fprintf(stderr, "[OoT] archive-hotswap cycle hooks registered\n");
         fflush(stderr);
     }
 }

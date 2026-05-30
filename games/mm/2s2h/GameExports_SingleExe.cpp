@@ -94,6 +94,16 @@ extern "C" {
 
 }
 
+// Archive hot-swap cycle helpers (#263). Defined in
+// src/common/tests/test_archive_hotswap.c (compiled into redship_common via
+// test_runner.cpp); resolved at final link. Record this MM arrival, query the
+// RSS bound, and read the target arrival count for the cycle-complete check.
+extern "C" {
+    int ArchiveHotswap_RecordArrival(void);
+    int ArchiveHotswap_RssExceeded(void);
+    int ArchiveHotswap_TargetArrivals(void);
+}
+
 // Track if MM has been initialized (for re-entry after game switch)
 static bool sMMInitialized = false;
 static bool sMMArchivesLoaded = false;
@@ -251,6 +261,70 @@ static void MM_RegisterIntegrationTestHooks(void) {
         );
 
         fprintf(stderr, "[MM] SCT-south->OoT switch hooks registered\n");
+        fflush(stderr);
+    } else if (mode == INT_TEST_ARCHIVE_HOTSWAP_CYCLE) {
+        // T4 (#263): MM side of the OoT<->MM archive hot-swap cycle. OoT boots
+        // first, so MM is arrivals #2 and #4 (the last) of the
+        // OoT->MM->OoT->MM cycle (4 arrivals == 3 transitions). Because the
+        // target arrival count is even, the FINAL arrival lands on MM, so this
+        // is the side that signals the cycle-complete PASS.
+        //
+        // Registration runs from MM_Game_Init, which fires only on MM's FIRST
+        // entry — later MM arrivals come back through MM_Game_Resume (see
+        // GameRunner_SwitchTo: a suspended game is resumed, not re-init'd), so
+        // this hook is registered exactly once and the persistent frame counter
+        // is NOT reset per arrival. The hook therefore re-arms itself: it fires
+        // ~10 stable frames after each (re)entry, then resets the counter so the
+        // next arrival reached via resume is detected the same way.
+        fprintf(stderr, "[MM] Registering integration test hooks for archive-hotswap cycle (T4)\n");
+        fflush(stderr);
+
+        sConsoleLogoFrameCount = 0;
+        sGameStateMainFrameCount = 0;
+
+        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>(
+            []() {
+                // Fire once per arrival, ~10 stable frames after (re)entry, then
+                // re-arm for the next MM arrival (reached via MM_Game_Resume).
+                sGameStateMainFrameCount++;
+                if (sGameStateMainFrameCount < 10) {
+                    return;
+                }
+                sGameStateMainFrameCount = 0;
+
+                int n = ArchiveHotswap_RecordArrival();
+                fprintf(stderr, "[MM-INT-TEST] MM stable; archive-hotswap arrival #%d of %d\n",
+                        n, ArchiveHotswap_TargetArrivals());
+                fflush(stderr);
+
+                if (ArchiveHotswap_RssExceeded()) {
+                    // Steady-state RSS blew the bound — the #154 per-switch leak
+                    // regression. Fail fast: RequestExit does NOT set the pass
+                    // flag, so the run returns non-zero. Combo_RequestGameSwitch()
+                    // right after unblocks the main loop promptly (known fix).
+                    fprintf(stderr, "[MM-INT-TEST] FAIL: steady-state RSS bound exceeded after %d arrivals\n", n);
+                    fflush(stderr);
+                    IntegrationTest_RequestExit();
+                    Combo_RequestGameSwitch();
+                } else if (n >= ArchiveHotswap_TargetArrivals()) {
+                    // Target arrivals reached with a healthy runtime — PASS.
+                    // SignalBootComplete sets the pass flag and requests the
+                    // switch that unblocks the main loop.
+                    fprintf(stderr, "[MM-INT-TEST] archive-hotswap cycle complete after %d arrivals\n", n);
+                    fflush(stderr);
+                    IntegrationTest_SignalBootComplete(GAME_MM, "archive-hotswap cycle complete");
+                } else {
+                    // Keep the cycle going: re-trigger the MM->OoT switch via the
+                    // South Clock Town south exit — same call the T2 branch makes.
+                    fprintf(stderr, "[MM-INT-TEST] re-triggering SCT-south entrance 0x%04X to continue cycle\n",
+                            MM_ENTR_SOUTH_CLOCK_TOWN_0);
+                    fflush(stderr);
+                    Combo_CheckCrossGameEntrance("mm", MM_ENTR_SOUTH_CLOCK_TOWN_0);
+                }
+            }
+        );
+
+        fprintf(stderr, "[MM] archive-hotswap cycle hooks registered\n");
         fflush(stderr);
     }
 }

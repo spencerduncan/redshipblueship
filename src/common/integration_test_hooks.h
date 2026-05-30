@@ -25,7 +25,8 @@ typedef enum {
     INT_TEST_BOOT_OOT,            // Boot OoT, exit on title/file select
     INT_TEST_BOOT_MM,             // Boot MM, exit on title/file select
     INT_TEST_SWITCH_OOT_HMS_TO_MM,        // Boot OoT, trigger HMS entrance, verify MM Clock Tower Interior spawn
-    INT_TEST_SWITCH_MM_CLOCKTOWN_SOUTH_TO_OOT // Boot MM, trigger South Clock Town south exit, verify OoT Market spawn
+    INT_TEST_SWITCH_MM_CLOCKTOWN_SOUTH_TO_OOT, // Boot MM, trigger South Clock Town south exit, verify OoT Market spawn
+    INT_TEST_ARCHIVE_HOTSWAP_CYCLE        // Boot OoT, hot-swap OoT<->MM >=3 times, verify healthy runtime (#263)
 } IntegrationTestMode;
 
 /**
