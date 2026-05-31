@@ -19,6 +19,11 @@
 // Game switch request (to signal game to exit)
 extern "C" {
     void Combo_RequestGameSwitch(void);
+
+    // Archive hot-swap cycle helpers (defined in src/common/tests/test_archive_hotswap.c,
+    // compiled into redship_common via test_runner.cpp). Reset the cycle counters
+    // when the archive-hotswap integration test mode is selected (#263).
+    void ArchiveHotswap_ResetCycle(void);
 }
 
 namespace {
@@ -46,6 +51,13 @@ void IntegrationTest_SetMode(IntegrationTestMode mode) {
         case INT_TEST_BOOT_MM: modeName = "boot-mm"; break;
         case INT_TEST_SWITCH_OOT_HMS_TO_MM: modeName = "switch-oot-hms-to-mm"; break;
         case INT_TEST_SWITCH_MM_CLOCKTOWN_SOUTH_TO_OOT: modeName = "switch-mm-clocktown-south-to-oot"; break;
+        case INT_TEST_ARCHIVE_HOTSWAP_CYCLE: modeName = "archive-hotswap-cycle"; break;
+    }
+
+    // Archive hot-swap cycle keeps a running arrival count / RSS baseline across
+    // multiple OoT<->MM switches; reset it whenever this mode is (re)selected (#263).
+    if (mode == INT_TEST_ARCHIVE_HOTSWAP_CYCLE) {
+        ArchiveHotswap_ResetCycle();
     }
 
     if (mode != INT_TEST_NONE) {

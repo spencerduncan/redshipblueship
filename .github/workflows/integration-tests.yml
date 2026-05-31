@@ -239,6 +239,24 @@ jobs:
       env:
         DISPLAY: :99
 
+    # T4 (#263): needs both archives — boots OoT, hot-swaps OoT<->MM >=3 times,
+    # asserts healthy runtime (no missing assets, bounded RSS).
+    - name: Integration Test - Archive Hotswap Cycle
+      if: steps.check-archives.outputs.has_oot == 'true' && steps.check-archives.outputs.has_mm == 'true'
+      run: |
+        timeout 120 ./build-cmake/redship --integration-test int-archive-hotswap-cycle || exit_code=$?
+        if [ "${exit_code:-0}" -eq 0 ]; then
+          echo "Archive hotswap cycle test PASSED"
+        elif [ "${exit_code:-0}" -eq 124 ]; then
+          echo "Archive hotswap cycle test TIMEOUT"
+          exit 1
+        else
+          echo "Archive hotswap cycle test FAILED with exit code $exit_code"
+          exit $exit_code
+        fi
+      env:
+        DISPLAY: :99
+
   # Reuse the OTR generation from main build workflow
   generate-rsbs-otr:
     runs-on: ubuntu-22.04
