@@ -37,6 +37,10 @@ extern "C" {
 // in their own extern "C" inside the file.
 #include "tests/test_archive_hotswap.c"
 
+// Unified save (.redsave) headless tests (issue #35, Phase 2 T6). Included at
+// FILE SCOPE (compiled as C++): they drive the C++-linkage rsbs::SaveManager.
+#include "tests/test_save_roundtrip.c"
+
 // ============================================================================
 // Internal state
 // ============================================================================
@@ -368,6 +372,13 @@ const TestDescriptor gTests[] = {
     {"shared-roundtrip", "Shared flag/seed survive OoT->MM switch (issue #264)", Test_SharedStateRoundtrip},
     {"context", "Test context/state management", Test_Context},
     {"lifecycle", "Game lifecycle unit tests", Test_Lifecycle},
+    // Unified save (.redsave) headless coverage (issue #35, Phase 2 T6).
+    {"save-roundtrip-tiers", "Unified .redsave preserves ComboContext + both SaveContexts (#35)", Test_SaveRoundtripTiers},
+    {"save-header", "Unified .redsave header fields + CRC are well-formed (#35)", Test_SaveHeader},
+    {"save-has-delete", "Unified save HasSave/DeleteSave lifecycle (#35)", Test_SaveHasDelete},
+    {"save-version-reject", "Unified save Load rejects unknown version, no clobber (#35)", Test_SaveVersionReject},
+    {"save-size-mismatch", "Unified save Load rejects mismatched tier size, no clobber (#35)", Test_SaveSizeMismatch},
+    {"save-crc-corrupt", "Unified save Load rejects corrupt payload, no clobber (#35)", Test_SaveCrcCorrupt},
     // Keep archive-hotswap-logic LAST: it re-inits the entrance table, so it
     // must not run before any test that relies on the default links.
     {"archive-hotswap-logic", "Headless multi-switch archive/state regression (#263)", Test_ArchiveHotswapLogic},
