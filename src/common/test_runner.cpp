@@ -352,6 +352,19 @@ TestResult Test_Context(void) {
         return TEST_FAIL;
     }
 
+    // ComboContext_Init stamps the magic + zero-inits the cross-game fields.
+    // (Ported from the removed combo/tests/context_test.cpp in T10 #265 so the
+    // one assertion not already covered by the live CTest suite isn't lost.)
+    ComboContext_Init();
+    if (strncmp(gComboCtx.magic, COMBO_CONTEXT_MAGIC, 8) != 0) {
+        printf("[TEST] FAIL: ComboContext magic not initialized\n");
+        return TEST_FAIL;
+    }
+    if (ComboContext_IsSwitchPending() || gComboCtx.targetGame != GAME_NONE) {
+        printf("[TEST] FAIL: ComboContext not in a clean post-init state\n");
+        return TEST_FAIL;
+    }
+
     printf("[TEST] PASS: Context management working correctly\n");
     return TEST_PASS;
 }
