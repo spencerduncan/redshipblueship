@@ -41,6 +41,22 @@
 #define RSBS_SAVE_ENDIAN_LE  1
 #define RSBS_SAVE_MAX_SLOTS  3           // matches each game's MaxFiles
 
+// ---- C-visible per-game metadata-offset descriptor ------------------------
+// Registered by each game's TU (which alone knows its SaveContext layout) so
+// that save.cpp can read player-name / play-time / "valid" marker bytes from a
+// slot file WITHOUT ever including either game's z64save.h. Offsets are
+// relative to the start of that game's SaveContext blob as stored in the slot
+// (= the same bytes Context_GetOoTSaveContext / Context_GetMMSaveContext hand
+// out and that the .redsave file holds in Tier-2 / Tier-3).
+typedef struct RsbsGameMetaDesc {
+    uint32_t playerNameOffset;
+    uint32_t playerNameLen;     // <= 8; ReadMeta clamps to 8 either way
+    uint32_t playTimeOffset;    // u32 read at this offset; 0 if not applicable
+    uint32_t validMarkerOffset;
+    uint32_t validMarkerLen;    // 0 → treat as always-valid (skip the check)
+    uint8_t  validMarker[8];    // expected bytes (e.g. "ZELDAZ", "ZELDA3")
+} RsbsGameMetaDesc;
+
 #ifdef __cplusplus
 
 #include <cstddef>
@@ -48,6 +64,26 @@
 #include <string>
 
 namespace rsbs {
+
+/**
+ * Per-slot summary, cheap to compute (one header read + a handful of byte
+ * pulls). Built so the unified file-select panel can render a slot without
+ * loading + committing the whole 24KB payload. `valid` is true iff the header
+ * passes every check Load() does, EXCLUDING CRC — slot listing must stay fast,
+ * and a bad CRC will still be caught when the user actually clicks Load.
+ */
+struct SlotMeta {
+    bool     exists;       // slot file is present and readable
+    bool     valid;        // header passes all build-compat checks (no CRC)
+    uint8_t  slot;         // mirrors header.slot
+    GameId   lastGame;     // ComboContext.sourceGame (last game played in slot)
+    char     ootName[9];   // NUL-terminated player name from the OoT blob
+    char     mmName[9];    // NUL-terminated player name from the MM blob
+    uint32_t ootPlayTime;  // raw u32 at the registered OoT play-time offset
+    uint32_t mmPlayTime;   // raw u32 at the registered MM play-time offset
+    bool     ootStarted;   // OoT validMarker bytes match (file has been started)
+    bool     mmStarted;    // MM  validMarker bytes match
+};
 
 #pragma pack(push, 1)
 /**
@@ -86,6 +122,23 @@ public:
     void DeleteSave(int slot);
 
     /**
+     * Read a cheap summary of `slot` (header + name/playtime bytes from each
+     * game's blob). Does NOT validate CRC or mutate live state. If the slot
+     * file is missing or the header fails any compat check, returns a
+     * SlotMeta whose `exists`/`valid` reflect that; per-game fields for
+     * unregistered descriptors are zeroed and `started` is left false so the
+     * file-select panel renders "not started" instead of garbage names.
+     */
+    SlotMeta ReadMeta(int slot) const;
+
+    /**
+     * Game-side TUs register the byte offsets save.cpp needs to read each
+     * game's metadata. Stored per-GameId; later calls overwrite. Passing
+     * GAME_NONE / nullptr / an out-of-range game is a no-op.
+     */
+    void RegisterGameMeta(GameId game, const RsbsGameMetaDesc* desc);
+
+    /**
      * Directory the .redsave files live in. Defaults to "Save" relative to the
      * working directory so the headless --test path (which never creates a
      * Ship::Context) can round-trip to a writable location. The game-integration
@@ -105,6 +158,12 @@ private:
     bool DeserializeHeader(std::istream& in, RsbsSaveHeader& outHeader) const;
 
     std::string mSaveDir = "Save";
+
+    // Game-side metadata descriptors, indexed by GameId (GAME_OOT / GAME_MM).
+    // mMetaPresent[i] guards mMetaDescs[i]; an unset descriptor causes
+    // ReadMeta to fill that game's fields with zeros / `started=false`.
+    RsbsGameMetaDesc mMetaDescs[3]{};   // GAME_NONE / GAME_OOT / GAME_MM
+    bool             mMetaPresent[3]{};
 };
 
 }  // namespace rsbs
@@ -120,6 +179,13 @@ int  RsbsSave_Save(int slot);
 int  RsbsSave_Load(int slot);
 int  RsbsSave_HasSave(int slot);
 void RsbsSave_DeleteSave(int slot);
+
+/**
+ * Register a game's metadata-offset descriptor with the SaveManager. Called
+ * once per game during that game's init, from a TU that includes its own
+ * z64save.h, so save.cpp never has to. Passing GAME_NONE or NULL is a no-op.
+ */
+void RsbsSave_RegisterGameMeta(GameId game, const RsbsGameMetaDesc* desc);
 
 #ifdef __cplusplus
 }
