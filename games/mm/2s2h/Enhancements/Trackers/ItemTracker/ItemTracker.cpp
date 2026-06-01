@@ -368,9 +368,11 @@ std::string GetItemCounts(int16_t itemId, bool isRandoItem) {
     std::string countStr = "";
     if (isRandoItem) {
         if (itemId == RI_TRIFORCE_PIECE) {
-            int16_t maxPieces = gSaveContext.save.shipSaveInfo.rando.randoSaveOptions[RO_TRIFORCE_PIECES_REQUIRED];
-            countStr = fmt::format(FORMAT_COUNT, gSaveContext.save.shipSaveInfo.rando.foundTriforcePieces,
-                                   maxPieces == 1000 ? "1k" : std::to_string(maxPieces));
+            if (IS_RANDO && RANDO_SAVE_OPTIONS[RO_SHUFFLE_TRIFORCE_PIECES]) {
+                int16_t maxPieces = gSaveContext.save.shipSaveInfo.rando.randoSaveOptions[RO_TRIFORCE_PIECES_REQUIRED];
+                countStr = fmt::format(FORMAT_COUNT, gSaveContext.save.shipSaveInfo.rando.foundTriforcePieces,
+                                       maxPieces == 1000 ? "1k" : std::to_string(maxPieces));
+            }
         }
     } else {
         int dungeonIndex = 0;
