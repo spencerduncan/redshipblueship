@@ -15,6 +15,17 @@ extern "C" {
 extern FileSelectState* gFileSelectState;
 }
 
+// Unified cross-game save (.redsave) — Phase 2 T6 (#35) integration.
+// MM's GameInteractor does not expose OnSaveFile / OnLoadFile, so we tap the
+// FlashRom funnel (SaveManager_SysFlashrom_Write/ReadData) instead — every
+// per-slot persistence goes through it, including owl saves and new-cycle
+// saves. save.h gives us the RsbsSave_* C shim + the metadata-offset
+// registration API; this TU is also the only place in MM's call chain that
+// knows MM's SaveContext layout, so the descriptor is registered from here.
+#include "save.h"
+#include <cstddef>  // offsetof
+#include <cstring>
+
 // This entire thing is temporary until we have a more robust save system that
 // supports backwards compatibility, migrations, threaded saving, save sections, etc.
 
@@ -302,6 +313,70 @@ bool SaveManager_HandleFileDropped(char* filePath) {
     }
 }
 
+namespace {
+
+// Map a new-cycle FlashSave to the unified slot index (0/1/2). Backups and
+// owl-saves return -1 so we don't double-write or mirror partial owl bytes
+// over the much-richer new-cycle Save substruct.
+int RsbsSlotFromNewCycle(FlashSave fs) {
+    switch (fs) {
+        case FLASH_SAVE_FILE_1_NEW_CYCLE_SAVE:
+            return 0;
+        case FLASH_SAVE_FILE_2_NEW_CYCLE_SAVE:
+            return 1;
+        case FLASH_SAVE_FILE_3_NEW_CYCLE_SAVE:
+            return 2;
+        default:
+            return -1;
+    }
+}
+
+// Map any non-backup file FlashSave (new-cycle OR owl) to the unified slot.
+// Used on the read path: we want to refresh the unified shadow when MM reads
+// either kind of per-slot data, since the .redsave Load is whole-file and
+// idempotent for the same slot.
+int RsbsSlotFromAnyFile(FlashSave fs) {
+    switch (fs) {
+        case FLASH_SAVE_FILE_1_NEW_CYCLE_SAVE:
+        case FLASH_SAVE_FILE_1_OWL_SAVE:
+            return 0;
+        case FLASH_SAVE_FILE_2_NEW_CYCLE_SAVE:
+        case FLASH_SAVE_FILE_2_OWL_SAVE:
+            return 1;
+        case FLASH_SAVE_FILE_3_NEW_CYCLE_SAVE:
+        case FLASH_SAVE_FILE_3_OWL_SAVE:
+            return 2;
+        default:
+            return -1;
+    }
+}
+
+// Registered exactly once; the function-local static gate is thread-safe per
+// C++11 magic statics so it's safe to call from the flashrom funnel.
+void RsbsRegisterMMMetaOnce() {
+    static bool sDone = false;
+    if (sDone) {
+        return;
+    }
+    sDone = true;
+
+    RsbsGameMetaDesc desc{};
+    desc.playerNameOffset = static_cast<uint32_t>(offsetof(SaveContext, save.saveInfo.playerData.playerName));
+    desc.playerNameLen = 8;
+    // MM stores the day count in `save.day` (s32, "totalday"); it's the
+    // closest analogue of a play-time gauge that's actually persisted to the
+    // new-cycle Save substruct.
+    desc.playTimeOffset = static_cast<uint32_t>(offsetof(SaveContext, save.day));
+    desc.validMarkerOffset = static_cast<uint32_t>(offsetof(SaveContext, save.saveInfo.playerData.newf));
+    desc.validMarkerLen = 6;
+    // MM's "newf" sentinel mirrors IS_VALID_FILE here in this same TU.
+    const char kMMNewf[6] = { 'Z', 'E', 'L', 'D', 'A', '3' };
+    std::memcpy(desc.validMarker, kMMNewf, sizeof(kMMNewf));
+    RsbsSave_RegisterGameMeta(GAME_MM, &desc);
+}
+
+}  // namespace
+
 extern "C" void SaveManager_SysFlashrom_WriteData(u8* saveBuffer, u32 pageNum, u32 pageCount) {
     FlashSave flashSave = SaveManager_GetFlashSaveFromPages(pageNum, pageCount);
     std::string fileName = SaveManager_GetFileNameFromFlashSave(flashSave);
@@ -366,10 +441,34 @@ extern "C" void SaveManager_SysFlashrom_WriteData(u8* saveBuffer, u32 pageNum, u
                 j["type"] = "2S2H_SAVE";
 
                 SaveManager_WriteSaveFile(fileName, j);
+
+                // Mirror this slot into the unified .redsave (Phase 2 T6, #35).
+                // We only do it on the primary (non-backup) new-cycle write —
+                // BACKUP cases reach this switch via the recursive call above
+                // and would otherwise double-write. The Save substruct sits at
+                // offset 0 of MM's SaveContext, so its bytes overwrite the
+                // matching prefix of the cross-game shadow; later bytes in the
+                // shadow stay at whatever the last full snapshot wrote, which
+                // is acceptable since only Save is actually changing here.
+                int rsbsSlot = RsbsSlotFromNewCycle(flashSave);
+                if (rsbsSlot >= 0) {
+                    RsbsRegisterMMMetaOnce();
+                    Context_UpdateShadowCopy(GAME_MM, &save, sizeof(Save));
+                    gComboCtx.sourceGame = GAME_MM;
+                    RsbsSave_Save(rsbsSlot);
+                }
             } else {
                 // If IS_VALID_FILE fails, we should delete the save file, even if there is an owl save in it, because
                 // they just deleted the new cycle save
                 SaveManager_DeleteSaveFile(fileName);
+
+                // Keep the unified slot in lock-step with MM's per-game files
+                // so the file-select panel doesn't dangle a "deleted in MM,
+                // still listed in unified" slot.
+                int rsbsSlot = RsbsSlotFromNewCycle(flashSave);
+                if (rsbsSlot >= 0) {
+                    RsbsSave_DeleteSave(rsbsSlot);
+                }
             }
             break;
         }
@@ -495,6 +594,20 @@ extern "C" s32 SaveManager_SysFlashrom_ReadData(void* saveBuffer, u32 pageNum, u
             saveContext.save.saveInfo.checksum = Sram_CalcChecksum(&saveContext, offsetof(SaveContext, fileNum));
 
             memcpy(saveBuffer, &saveContext, offsetof(SaveContext, fileNum));
+
+            // Refresh the cross-game shadow + ComboContext from the unified
+            // .redsave when one exists for this slot (Phase 2 T6, #35). The
+            // Load is whole-file and idempotent, so doing it from either the
+            // owl or new-cycle read path is fine — first one wins, the
+            // second is a cheap no-op against the same bytes.
+            int rsbsSlot = RsbsSlotFromAnyFile(flashSave);
+            if (rsbsSlot >= 0) {
+                RsbsRegisterMMMetaOnce();
+                if (RsbsSave_HasSave(rsbsSlot)) {
+                    RsbsSave_Load(rsbsSlot);
+                }
+            }
+
             return 0;
         } catch (nlohmann::json::exception& je) {
             SPDLOG_ERROR("Failed to parse owl save json: {}", je.what());
@@ -520,6 +633,15 @@ extern "C" s32 SaveManager_SysFlashrom_ReadData(void* saveBuffer, u32 pageNum, u
             save.saveInfo.checksum = Sram_CalcChecksum(&save, sizeof(Save));
 
             memcpy(saveBuffer, &save, sizeof(Save));
+
+            int rsbsSlot = RsbsSlotFromAnyFile(flashSave);
+            if (rsbsSlot >= 0) {
+                RsbsRegisterMMMetaOnce();
+                if (RsbsSave_HasSave(rsbsSlot)) {
+                    RsbsSave_Load(rsbsSlot);
+                }
+            }
+
             return 0;
         } catch (nlohmann::json::exception& je) {
             SPDLOG_ERROR("Failed to parse new cycle save json: {}", je.what());
