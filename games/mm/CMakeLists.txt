@@ -351,11 +351,6 @@ else()
     target_link_libraries(${PROJECT_NAME} PRIVATE redship_common rsbs)
 endif()
 
-# Include combo headers for compatibility
-foreach(_t ${TWOSHIP_COMPILE_TARGETS})
-    target_include_directories(${_t} PRIVATE ${CMAKE_SOURCE_DIR}/combo/include)
-endforeach()
-
 set(ROOT_NAMESPACE 2s2h)
 
 ################################################################################
@@ -421,11 +416,6 @@ target_include_directories(${_t} PRIVATE assets
 	${CMAKE_CURRENT_SOURCE_DIR}/assets/
 	${dr_libs_SOURCE_DIR}
 	.
-)
-
-# Add combo include directory (combo library already linked above)
-target_include_directories(${_t} PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../combo/include
 )
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")

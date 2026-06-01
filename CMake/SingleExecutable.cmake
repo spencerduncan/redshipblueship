@@ -69,7 +69,6 @@ add_library(redship_common STATIC
 target_include_directories(redship_common PUBLIC
     ${CMAKE_SOURCE_DIR}/src/common
     ${CMAKE_SOURCE_DIR}/rsbs/include
-    ${CMAKE_SOURCE_DIR}/combo/include
     # GameInteractor headers for integration test hooks
     ${CMAKE_SOURCE_DIR}/games/oot/soh/Enhancements
     ${CMAKE_SOURCE_DIR}/games/oot/soh
@@ -112,7 +111,6 @@ add_executable(redship
 target_include_directories(redship PRIVATE
     ${CMAKE_SOURCE_DIR}/src/common
     ${CMAKE_SOURCE_DIR}/rsbs/include
-    ${CMAKE_SOURCE_DIR}/combo/include
 )
 
 # Find additional libraries needed by game code
