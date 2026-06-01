@@ -325,6 +325,18 @@ jobs:
         path: deps
 
   build-windows:
+    # Issue #177 — investigation results (2026-06-01, runs 26731031162 / 26731511201 / 26731832242):
+    #   * sccache hit rate: 99.82% (2848 hits / 2853 executed / 5 misses) — the cache works.
+    #   * CMake configure: 73-114s (vcpkg bootstrap + install, mostly binary-cache hits).
+    #   * CMake build: ~474s wall-clock with 2860 ninja steps → ~165ms per step.
+    #     With 99.8% cache hits, those 165ms are NOT compilation — they are sccache+cl.exe
+    #     process spawn overhead per cache lookup on a 4-vCPU windows-latest runner.
+    #   * vcpkg folder cache hits; x-gha vcpkg binary cache hits; lld-link engaged.
+    # Conclusion: every safe lever (sccache, vcpkg binary cache, vcpkg folder cache, lld-link,
+    # split steps for diagnostics) is already pulled. Further wins would require either
+    # CMAKE_UNITY_BUILD (high blast radius across game CMakeLists), moving off MSVC,
+    # or a larger runner. None fit a low-risk CI tuning change. The Linux/Windows gap is
+    # the fundamental Windows MSVC + ninja per-step process-spawn cost, not a config bug.
     needs: generate-rsbs-otr
     runs-on: windows-latest
     env:
@@ -390,6 +402,12 @@ jobs:
       run: |
         $env:PATH="$env:USERPROFILE/.cargo/bin;$env:PATH"
         cmake -S . -B bw -G Ninja -DCMAKE_MAKE_PROGRAM=ninja -DCMAKE_BUILD_TYPE:STRING=Release -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache -DBUILD_REMOTE_CONTROL=1 -DREDSHIP_BUILD_SHARED=ON -DUSE_LLD_LINKER=ON
+    # Zero sccache stats before the build so the post-build "show-stats" reflects
+    # ONLY this run's cache deltas (without it, hendrikmuhs/ccache-action reports
+    # lifetime stats including the previous run that warmed the cache, which can
+    # mislead diagnosis of issue #177-style questions about *this* run's hit rate).
+    - name: Zero sccache stats
+      run: sccache --zero-stats
     - name: CMake build (Windows)
       env:
         VCPKG_ROOT: ${{github.workspace}}/vcpkg
