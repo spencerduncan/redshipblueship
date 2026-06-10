@@ -258,6 +258,8 @@ bool Logic::HasItem(RandomizerGet itemName) {
             return CurrentUpgrade(UPG_SCALE) >= 1;
         case RG_GOLDEN_SCALE:
             return CurrentUpgrade(UPG_SCALE) >= 2;
+        case RG_CLIMB:
+            return CheckRandoInf(RAND_INF_CAN_CLIMB);
         case RG_CRAWL:
             return CheckRandoInf(RAND_INF_CAN_CRAWL);
         case RG_POCKET_EGG:
@@ -1765,6 +1767,9 @@ void Logic::ApplyItemEffect(Item& item, bool state) {
                 case RG_CLAIM_CHECK:
                     SetRandoInf(randoGet - RG_COJIRO + RAND_INF_ADULT_TRADES_HAS_COJIRO, state);
                     break;
+                case RG_CLIMB:
+                    SetRandoInf(RAND_INF_CAN_CLIMB, state);
+                    break;
                 case RG_CRAWL:
                     SetRandoInf(RAND_INF_CAN_CRAWL, state);
                     break;
@@ -2527,10 +2532,6 @@ bool Logic::IsReverseAccessPossible() {
              (ctx->GetOption(RSK_MIX_OVERWORLD_ENTRANCES) || ctx->GetOption(RSK_MIX_INTERIOR_ENTRANCES))));
 }
 
-bool Logic::SpiritSunOnFloorToStatue() {
-    return /*CanClimbHigh() &&*/ (HasExplosives() || (ctx->GetOption(RSK_SUNLIGHT_ARROWS) && CanUse(RG_LIGHT_ARROWS)));
-}
-
 bool Logic::SpiritExplosiveKeyLogic() {
     return SmallKeys(SCENE_SPIRIT_TEMPLE, HasExplosives() ? 1 : 2);
 }
@@ -2566,7 +2567,7 @@ bool Logic::MQSpiritStatueToSunBlock() {
 
 bool Logic::MQSpiritStatueSouthDoor() {
     return HasFireSource() || (ctx->GetTrickOption(RT_SPIRIT_MQ_FROZEN_EYE) && CanUse(RG_FAIRY_BOW) &&
-                               CanUse(RG_SONG_OF_TIME) /* && CanClimb()*/);
+                               CanUse(RG_SONG_OF_TIME) && (HasItem(RG_CLIMB) || CanUse(RG_HOOKSHOT)));
 }
 
 bool Logic::MQSpirit4KeyColossus() {
@@ -2602,7 +2603,7 @@ bool Logic::CouldMQSpirit4KeyWestHand() {
 // If we have the longshot, we can also guarantee access to the outer west hand as you can longshot from the east hand
 // to the west Implies CanKillEnemy(RE_IRON_KNUCKLE)
 bool Logic::OuterWestHandLogic() {
-    return HasExplosives() /* && CanClimbHigh() && str0*/ &&
+    return HasExplosives() && (HasItem(RG_CLIMB) || CanUse(RG_LONGSHOT)) /* && str0*/ &&
            SmallKeys(SCENE_SPIRIT_TEMPLE, HasItem(RG_LONGSHOT) ? 3 : 5);
 }
 
@@ -2616,8 +2617,10 @@ bool Logic::StatueRoomMQKeyLogic() {
     // the ability to hit switches and the ability to climb because only child can reach the initial child lock
     // without opening the Statue room to Broken Wall Room lock first
     // if adult can ever cross crawlspaces this becomes more complicated.
-    return SmallKeys(SCENE_SPIRIT_TEMPLE,
-                     IsChild && Get(LOGIC_REVERSE_SPIRIT_CHILD) && CanHitSwitch() /* && CanClimbHigh()*/ ? 6 : 7);
+    return SmallKeys(SCENE_SPIRIT_TEMPLE, IsChild && Get(LOGIC_REVERSE_SPIRIT_CHILD) && CanHitSwitch() &&
+                                                  (HasItem(RG_CLIMB) || CanUse(RG_LONGSHOT))
+                                              ? 6
+                                              : 7);
 }
 
 void Logic::Reset(bool resetSaveContext /*= true*/) {
@@ -2643,6 +2646,11 @@ void Logic::Reset(bool resetSaveContext /*= true*/) {
         // If we're not shuffling swim, we start with it
         if (ctx->GetOption(RSK_SHUFFLE_SWIM).Is(false)) {
             SetRandoInf(RAND_INF_CAN_SWIM, true);
+        }
+
+        // If we're not shuffling climb, we start with it
+        if (ctx->GetOption(RSK_SHUFFLE_CLIMB).Is(false)) {
+            SetRandoInf(RAND_INF_CAN_CLIMB, true);
         }
 
         // If we're not shuffling crawl, we start with it

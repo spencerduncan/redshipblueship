@@ -12,7 +12,6 @@
 #include "3drando/random.hpp"
 #include "soh/ResourceManagerHelpers.h"
 #include "soh/SohGui/SohGui.hpp"
-#include "3drando/custom_messages.hpp"
 #include <imgui.h>
 #include <imgui_internal.h>
 #include "../custom-message/CustomMessageTypes.h"
@@ -124,6 +123,7 @@ std::unordered_map<std::string, SceneID> spoilerFileDungeonToScene = {
 std::map<RandomizerGet, RandomizerInf> randomizerGetToRandInf = {
     { RG_FISHING_POLE, RAND_INF_FISHING_POLE_FOUND },
     { RG_BRONZE_SCALE, RAND_INF_CAN_SWIM },
+    { RG_CLIMB, RAND_INF_CAN_CLIMB },
     { RG_CRAWL, RAND_INF_CAN_CRAWL },
     { RG_SPEAK_DEKU, RAND_INF_CAN_SPEAK_DEKU },
     { RG_SPEAK_GERUDO, RAND_INF_CAN_SPEAK_GERUDO },

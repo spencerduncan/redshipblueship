@@ -785,6 +785,7 @@ void Settings::CreateOptions() {
     });
     OPT_BOOL(RSK_SHUFFLE_OCARINA_BUTTONS, "Shuffle Ocarina Buttons", CVAR_RANDOMIZER_SETTING("ShuffleOcarinaButtons"), mOptionDescriptions[RSK_SHUFFLE_OCARINA_BUTTONS]);
     OPT_BOOL(RSK_SHUFFLE_SWIM, "Shuffle Swim", CVAR_RANDOMIZER_SETTING("ShuffleSwim"), mOptionDescriptions[RSK_SHUFFLE_SWIM]);
+    OPT_BOOL(RSK_SHUFFLE_CLIMB, "Shuffle Climb", CVAR_RANDOMIZER_SETTING("ShuffleClimb"), mOptionDescriptions[RSK_SHUFFLE_CLIMB]);
     OPT_BOOL(RSK_SHUFFLE_CRAWL, "Shuffle Crawl", CVAR_RANDOMIZER_SETTING("ShuffleCrawl"), mOptionDescriptions[RSK_SHUFFLE_CRAWL]);
     OPT_BOOL(RSK_SHUFFLE_SPEAK, "Shuffle Jabber Nuts", CVAR_RANDOMIZER_SETTING("ShuffleSpeak"), mOptionDescriptions[RSK_SHUFFLE_SPEAK]);
     OPT_BOOL(RSK_SHUFFLE_WEIRD_EGG, "Shuffle Weird Egg", CVAR_RANDOMIZER_SETTING("ShuffleWeirdEgg"), mOptionDescriptions[RSK_SHUFFLE_WEIRD_EGG]);
@@ -1709,8 +1710,8 @@ void Settings::CreateOptions() {
         "room using a precisely-aimed use of the Slingshot, Bow, or Longshot. As well, if you climb to the top of the "
         "vines you can stand on the right edge of the platform and shoot around the glass. From this distance, even "
         "the Hookshot can reach the switch. This trick is only relevant if \"Shuffle Boss Entrances\" is enabled. MQ "
-        "Jabu: A Gold Skulltula Token can be collected with the Hookshot or Longshot using the same methods as hitting "
-        "the switch in Vanilla. This MQ trick is not currently relevant in logic.");
+        "Jabu: A Gold Skulltula Token can be collected with Longshot using the same methods as hitting the switch in "
+        "Vanilla.");
     OPT_TRICK(RT_JABU_NEAR_BOSS_EXPLOSIVES, RCQUEST_VANILLA, RA_JABU_JABUS_BELLY, { Tricks::Tag::INTERMEDIATE },
               "Jabu Near Boss Ceiling Switch with Explosives",
               "You can hit the switch that opens the door to the boss room using a precisely-aimed Bombchu. Also, "
@@ -2397,6 +2398,7 @@ void Settings::CreateOptions() {
                                                                                  &mOptions[RSK_SHUFFLE_DEKU_NUT_BAG],
                                                                                  &mOptions[RSK_SHUFFLE_OCARINA_BUTTONS],
                                                                                  &mOptions[RSK_SHUFFLE_SWIM],
+                                                                                 &mOptions[RSK_SHUFFLE_CLIMB],
                                                                                  &mOptions[RSK_SHUFFLE_CRAWL],
                                                                                  &mOptions[RSK_SHUFFLE_SPEAK],
                                                                                  &mOptions[RSK_SHUFFLE_BEAN_SOULS],
@@ -2617,6 +2619,7 @@ void Settings::CreateOptions() {
                                             &mOptions[RSK_SHUFFLE_OCARINA],
                                             &mOptions[RSK_SHUFFLE_OCARINA_BUTTONS],
                                             &mOptions[RSK_SHUFFLE_SWIM],
+                                            &mOptions[RSK_SHUFFLE_CLIMB],
                                             &mOptions[RSK_SHUFFLE_CRAWL],
                                             &mOptions[RSK_SHUFFLE_SPEAK],
                                             &mOptions[RSK_SHUFFLE_WEIRD_EGG],
