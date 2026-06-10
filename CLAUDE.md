@@ -25,7 +25,7 @@ ctest --test-dir build                # run all tests
 
 Named CTest targets (60s timeout): BootOoT, BootMM, SwitchOoTMM, SwitchMMOoT, Roundtrip, Context, AllTests
 
-Test source: `src/common/tests/`, `combo/tests/`
+Test source: `src/common/tests/`
 
 CI: GitHub Actions — builds, clang-format, static analysis, multi-distro testing
 
@@ -66,8 +66,7 @@ Naming:
 ```
 games/oot/          # OoT source (Ship of Harkinian)
 games/mm/           # MM source (2Ship2Harkinian)
-combo/              # Cross-game layer (shared graphics, game exports)
-src/common/         # Unified logic (lifecycle, context, entrance, menu, stubs)
+src/common/         # Unified logic (lifecycle, context, entrance, menu, stubs, shared graphics)
 rsbs/               # RedShipBlueShip entry point (main.cpp)
 libultraship/       # N64 compat layer (submodule)
 CMake/              # Build config (SingleExecutable.cmake, etc.)
