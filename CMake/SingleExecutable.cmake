@@ -26,8 +26,10 @@ set(REDSHIP_COMMON_SOURCES
     # games/oot/soh/GameExports_SingleExe.cpp and games/mm/2s2h/GameExports_SingleExe.cpp
     # Unified SaveContext storage for both games
     ${CMAKE_SOURCE_DIR}/src/common/unified_save.c
+    # Unified cross-game save file (.redsave) — Phase 2 T6 (#35)
+    ${CMAKE_SOURCE_DIR}/src/common/save.cpp
     # SharedGraphics for cross-game graphics context sharing
-    ${CMAKE_SOURCE_DIR}/combo/src/SharedGraphics.cpp
+    ${CMAKE_SOURCE_DIR}/src/common/SharedGraphics.cpp
     # Unified menu bar for single executable
     ${CMAKE_SOURCE_DIR}/src/common/ComboMenuBar.cpp
     # MM stubs and aliases for single-exe mode
@@ -51,6 +53,8 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/integration_test_hooks.h
     ${CMAKE_SOURCE_DIR}/src/common/ComboMenuBar.h
     ${CMAKE_SOURCE_DIR}/src/common/game_lifecycle.h
+    ${CMAKE_SOURCE_DIR}/src/common/SharedGraphics.h
+    ${CMAKE_SOURCE_DIR}/src/common/save.h
 )
 
 # ============================================================================
@@ -65,7 +69,6 @@ add_library(redship_common STATIC
 target_include_directories(redship_common PUBLIC
     ${CMAKE_SOURCE_DIR}/src/common
     ${CMAKE_SOURCE_DIR}/rsbs/include
-    ${CMAKE_SOURCE_DIR}/combo/include
     # GameInteractor headers for integration test hooks
     ${CMAKE_SOURCE_DIR}/games/oot/soh/Enhancements
     ${CMAKE_SOURCE_DIR}/games/oot/soh
@@ -108,7 +111,6 @@ add_executable(redship
 target_include_directories(redship PRIVATE
     ${CMAKE_SOURCE_DIR}/src/common
     ${CMAKE_SOURCE_DIR}/rsbs/include
-    ${CMAKE_SOURCE_DIR}/combo/include
 )
 
 # Find additional libraries needed by game code
@@ -191,13 +193,25 @@ if(BUILD_TESTING)
     add_test(NAME SwitchOoTMM COMMAND redship --test switch-oot-mm)
     add_test(NAME SwitchMMOoT COMMAND redship --test switch-mm-oot)
     add_test(NAME Roundtrip COMMAND redship --test roundtrip)
+    add_test(NAME RoundtripIntegrity COMMAND redship --test roundtrip-integrity)
+    add_test(NAME SharedRoundtrip COMMAND redship --test shared-roundtrip)
+    add_test(NAME ArchiveHotswapLogic COMMAND redship --test archive-hotswap-logic)
+    # Unified save (.redsave) headless tests — Phase 2 T6 (#35)
+    add_test(NAME SaveRoundtripTiers COMMAND redship --test save-roundtrip-tiers)
+    add_test(NAME SaveHeader COMMAND redship --test save-header)
+    add_test(NAME SaveHasDelete COMMAND redship --test save-has-delete)
+    add_test(NAME SaveVersionReject COMMAND redship --test save-version-reject)
+    add_test(NAME SaveSizeMismatch COMMAND redship --test save-size-mismatch)
+    add_test(NAME SaveCrcCorrupt COMMAND redship --test save-crc-corrupt)
     add_test(NAME Context COMMAND redship --test context)
     add_test(NAME AllTests COMMAND redship --test all)
 
     # Set reasonable timeout and label our tests
     set(REDSHIP_TEST_TIMEOUT 60 CACHE STRING "Test timeout in seconds")
     set_tests_properties(
-        BootOoT BootMM SwitchOoTMM SwitchMMOoT Roundtrip Context AllTests
+        BootOoT BootMM SwitchOoTMM SwitchMMOoT Roundtrip RoundtripIntegrity SharedRoundtrip ArchiveHotswapLogic
+        SaveRoundtripTiers SaveHeader SaveHasDelete SaveVersionReject SaveSizeMismatch SaveCrcCorrupt
+        Context AllTests
         PROPERTIES
         TIMEOUT ${REDSHIP_TEST_TIMEOUT}
         LABELS "redship"
@@ -211,9 +225,15 @@ if(BUILD_TESTING)
 
     add_test(NAME IntBootOoT COMMAND redship --integration-test int-boot-oot)
     add_test(NAME IntBootMM COMMAND redship --integration-test int-boot-mm)
+    add_test(NAME IntSwitchOoTHmsToMm
+             COMMAND redship --integration-test int-switch-oot-hms-to-mm)
+    add_test(NAME IntSwitchMmClockTownSouthToOoT
+             COMMAND redship --integration-test int-switch-mm-clocktown-south-to-oot)
+    add_test(NAME IntArchiveHotswapCycle
+             COMMAND redship --integration-test int-archive-hotswap-cycle)
 
     set_tests_properties(
-        IntBootOoT IntBootMM
+        IntBootOoT IntBootMM IntSwitchOoTHmsToMm IntSwitchMmClockTownSouthToOoT IntArchiveHotswapCycle
         PROPERTIES
         TIMEOUT ${REDSHIP_INTEGRATION_TEST_TIMEOUT}
         LABELS "integration"

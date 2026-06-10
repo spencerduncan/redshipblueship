@@ -1,15 +1,16 @@
 cmake_minimum_required(VERSION 3.14)
 
-# rsbs - RedShipBlueShip unified game engine
-# Contains code shared between OoT and MM
+# rsbs - N64 ABI compatibility shims (libultra/os, libultra/gu)
+# Contains libultra OS and graphics-utility functions that are identical
+# between OoT and MM and shared across both.
 #
-# This library will grow as identical code is migrated from both games.
-# The goal is ONE unified game engine, not two games that switch.
+# This is NOT the unified host-side game layer. Game lifecycle, cross-game
+# state, entrance switching, save unification, etc. live in src/common/.
+# See docs/adr/0001-rsbs-vs-src-common.md for the directory-role decision.
 
 add_library(rsbs STATIC
     # Core shared utilities
     src/placeholder.c
-    src/combo_context.c
 
     # libultra/os - Unified OS functions (WP-009)
     src/libultra/os/afterprenmi.c

@@ -406,7 +406,6 @@ bool Extractor::ManuallySearchForRom() {
     std::ifstream inFile;
 
     if (!GetRomPathFromBox()) {
-        ShowErrorBox("Ocarina of Time - No rom selected", "No Ocarina of Time ROM selected. Exiting");
         return false;
     }
 
@@ -486,11 +485,16 @@ bool Extractor::RunFileStandalone(std::string rom) {
     return true;
 }
 
+void Extractor::SetSearchPath(const std::string& path) {
+    mSearchPath = path;
+}
+
 bool Extractor::Run(std::string searchPath, RomSearchMode searchMode, std::string installPath) {
     std::vector<std::string> roms;
     std::ifstream inFile;
 
-    mSearchPath = searchPath;
+    SetSearchPath(searchPath);
+
     GetRoms(roms);
 
     // On Linux AppImage (and for users who drop a ROM next to the install), also
@@ -648,9 +652,11 @@ std::string Extractor::Mkdtemp() {
 }
 
 extern "C" int zapd_main(int argc, char** argv);
-static void MessageboxWorker();
 
-bool Extractor::CallZapd(std::string installPath, std::string exportdir) {
+bool Extractor::CallZapd(std::string installPath, std::string exportdir, std::atomic<size_t>* extractCount,
+                         std::atomic<size_t>* totalExtract) {
+    (void)extractCount;
+    (void)totalExtract;
     constexpr int argc = 22;
     char xmlPath[1024];
     char confPath[1024];
@@ -676,117 +682,98 @@ bool Extractor::CallZapd(std::string installPath, std::string exportdir) {
     // Work this out in the temporary folder
     std::string tempdir = Mkdtemp();
     std::string curdir = std::filesystem::current_path().string();
-#ifdef _WIN32
-    std::filesystem::copy(assetsPath, tempdir + "/assets",
-                          std::filesystem::copy_options::recursive | std::filesystem::copy_options::update_existing);
-#else
-    std::filesystem::create_symlink(assetsPath, tempdir + "/assets");
-#endif
 
-    std::filesystem::current_path(tempdir);
-
-    snprintf(xmlPath, 1024, "assets/xml/%s", version);
-    snprintf(confPath, 1024, "assets/Config_%s.xml", version);
-    snprintf(portVersion, 18, "%d.%d.%d", OoT_gBuildVersionMajor, OoT_gBuildVersionMinor, OoT_gBuildVersionPatch);
-
-    argv[0] = "ZAPD";
-    argv[1] = "ed";
-    argv[2] = "-i";
-    argv[3] = xmlPath;
-    argv[4] = "-b";
-    argv[5] = romPath.c_str();
-    argv[6] = "-fl";
-    argv[7] = "assets/filelists";
-    argv[8] = "-gsf";
-    argv[9] = "0";
-    argv[10] = "-rconf";
-    argv[11] = confPath;
-    argv[12] = "-se";
-    argv[13] = "OTR";
-    argv[14] = "--otrfile";
-    argv[15] = otrFile;
-    argv[16] = "--portVer";
-    argv[17] = portVersion;
-    argv[18] = "-o";
-    argv[19] = "placeholder";
-    argv[20] = "-osf";
-    argv[21] = "placeholder";
-
-    // Validate config XML exists before calling zapd_main
-    if (!std::filesystem::exists(confPath)) {
-        std::string errMsg = "Extractor config not found: " + std::string(confPath) +
-                             "\n\nThis may indicate an incomplete installation.";
-        fprintf(stderr, "Extractor config not found: %s. This may indicate an incomplete installation.\n", confPath);
-        ShowErrorBox("Extraction Failed", errMsg.c_str());
-        std::filesystem::current_path(curdir);
-        std::filesystem::remove_all(tempdir);
-        return false;
-    }
-
-#ifdef _WIN32
-    // Grab a handle to the command window.
-    HWND cmdWindow = GetConsoleWindow();
-
-    // Normally the command window is hidden. We want the window to be shown here so the user can see the progess of the
-    // extraction.
-    ShowWindow(cmdWindow, SW_SHOW);
-    SetWindowPos(cmdWindow, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
-#else
-    // Show extraction in background message until linux/mac can have visual progress
-    std::thread mbThread(MessageboxWorker);
-    mbThread.detach();
-#endif
-
+    // CallZapd is invoked from a detached worker thread by the ImGui extraction flow, so any
+    // uncaught exception would std::terminate the process. Wrap the whole body and guarantee
+    // cwd + tempdir cleanup on every exit path (including std::filesystem::copy failures).
+    bool success = false;
     try {
-        zapd_main(argc, (char**)argv.data());
+#ifdef _WIN32
+        std::filesystem::copy(
+            assetsPath, tempdir + "/assets",
+            std::filesystem::copy_options::recursive | std::filesystem::copy_options::update_existing);
+#else
+        std::filesystem::create_symlink(assetsPath, tempdir + "/assets");
+#endif
+
+        std::filesystem::current_path(tempdir);
+
+        snprintf(xmlPath, 1024, "assets/xml/%s", version);
+        snprintf(confPath, 1024, "assets/Config_%s.xml", version);
+        snprintf(portVersion, 18, "%d.%d.%d", OoT_gBuildVersionMajor, OoT_gBuildVersionMinor, OoT_gBuildVersionPatch);
+
+        argv[0] = "ZAPD";
+        argv[1] = "ed";
+        argv[2] = "-i";
+        argv[3] = xmlPath;
+        argv[4] = "-b";
+        argv[5] = romPath.c_str();
+        argv[6] = "-fl";
+        argv[7] = "assets/filelists";
+        argv[8] = "-gsf";
+        argv[9] = "0";
+        argv[10] = "-rconf";
+        argv[11] = confPath;
+        argv[12] = "-se";
+        argv[13] = "OTR";
+        argv[14] = "--otrfile";
+        argv[15] = otrFile;
+        argv[16] = "--portVer";
+        argv[17] = portVersion;
+        argv[18] = "-o";
+        argv[19] = "placeholder";
+        argv[20] = "-osf";
+        argv[21] = "placeholder";
+
+        // Validate config XML exists before calling zapd_main
+        if (!std::filesystem::exists(confPath)) {
+            std::string errMsg = "Extractor config not found: " + std::string(confPath) +
+                                 "\n\nThis may indicate an incomplete installation.";
+            fprintf(stderr, "Extractor config not found: %s. This may indicate an incomplete installation.\n",
+                    confPath);
+            ShowErrorBox("Extraction Failed", errMsg.c_str());
+        } else {
+            // NOTE: progress reporting via zapd_report is not yet wired up in this tree; the ZAPD
+            // submodule pinned here still exposes only zapd_main. The ImGui progress popup owned by
+            // RunExtract will show an indeterminate "Starting Up" state until ZAPD is uplifted.
+            try {
+                zapd_main(argc, (char**)argv.data());
+            } catch (const std::exception& e) {
+                fprintf(stderr, "Extraction failed: %s\n", e.what());
+                std::string errMsg = "ZAPD extraction failed with error: " + std::string(e.what());
+                ShowErrorBox("Extraction Failed", errMsg.c_str());
+                throw;
+            } catch (...) {
+                fprintf(stderr, "Extraction failed with unknown error\n");
+                ShowErrorBox("Extraction Failed", "ZAPD extraction failed with an unknown error.");
+                throw;
+            }
+
+            if (!std::filesystem::exists(otrFile)) {
+                std::string errMsg = "ZAPD extraction failed - output file was not created: " +
+                                     std::string(otrFile) +
+                                     "\n\nCheck that the ROM file is valid and the assets directory is complete.";
+                ShowErrorBox("Extraction Failed", errMsg.c_str());
+            } else {
+                std::filesystem::copy(otrFile, exportdir + "/" + otrFile,
+                                      std::filesystem::copy_options::overwrite_existing);
+                success = true;
+            }
+        }
     } catch (const std::exception& e) {
-        fprintf(stderr, "Extraction failed: %s\n", e.what());
-        std::string errMsg = "ZAPD extraction failed with error: " + std::string(e.what());
-        ShowErrorBox("Extraction Failed", errMsg.c_str());
-#ifdef _WIN32
-        ShowWindow(cmdWindow, SW_HIDE);
-#endif
-        std::filesystem::current_path(curdir);
-        std::filesystem::remove_all(tempdir);
-        return false;
+        fprintf(stderr, "Extraction failed during file setup/copy: %s\n", e.what());
     } catch (...) {
-        fprintf(stderr, "Extraction failed with unknown error\n");
-        ShowErrorBox("Extraction Failed", "ZAPD extraction failed with an unknown error.");
-#ifdef _WIN32
-        ShowWindow(cmdWindow, SW_HIDE);
-#endif
-        std::filesystem::current_path(curdir);
-        std::filesystem::remove_all(tempdir);
-        return false;
+        fprintf(stderr, "Extraction failed during file setup/copy with unknown error\n");
     }
 
-#ifdef _WIN32
-    // Hide the command window again.
-    ShowWindow(cmdWindow, SW_HIDE);
-#endif
-
-    // Verify the output file was created before attempting to copy
-    if (!std::filesystem::exists(otrFile)) {
-        std::string errMsg = "ZAPD extraction failed - output file was not created: " + std::string(otrFile) +
-                             "\n\nCheck that the ROM file is valid and the assets directory is complete.";
-        ShowErrorBox("Extraction Failed", errMsg.c_str());
+    // Cleanup on all paths, including exception unwind. Swallow errors so a failing cleanup
+    // does not propagate and terminate the worker thread.
+    try {
         std::filesystem::current_path(curdir);
+    } catch (...) {}
+    try {
         std::filesystem::remove_all(tempdir);
-        return false;
-    }
+    } catch (...) {}
 
-    std::filesystem::copy(otrFile, exportdir + "/" + otrFile, std::filesystem::copy_options::overwrite_existing);
-
-    // Go back to where this game was executed from
-    std::filesystem::current_path(curdir);
-    std::filesystem::remove_all(tempdir);
-
-    return true;
-}
-
-static void MessageboxWorker() {
-    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Extracting",
-                             "Extraction will now begin in the background.\n\nPlease be patient for the process to "
-                             "finish. Do not close the main program.",
-                             nullptr);
+    return success;
 }

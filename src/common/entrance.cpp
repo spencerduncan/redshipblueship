@@ -20,8 +20,11 @@ namespace {
 // Entrance link table
 std::vector<CrossGameEntranceLink> gEntranceLinks;
 
-// Startup entrance for cross-game switch (0 = not set)
+// Startup entrance for cross-game switch. Entrance 0x0000 is a real entrance
+// id (Kokiri Forest from Deku Tree), so we track presence with a separate flag
+// rather than overloading 0 as "unset".
 uint16_t sStartupEntrance = 0;
+bool sStartupEntrancePresent = false;
 
 // Game switch request flag (for F10 hotkey)
 bool sGameSwitchRequested = false;
@@ -39,6 +42,7 @@ void Entrance_Init(void) {
     gEntranceLinks.clear();
     gPendingSwitch = {};
     sStartupEntrance = 0;
+    sStartupEntrancePresent = false;
     sGameSwitchRequested = false;
 }
 
@@ -139,14 +143,20 @@ void Entrance_ClearPendingSwitch(void) {
 
 void Entrance_SetStartupEntrance(uint16_t entrance) {
     sStartupEntrance = entrance;
+    sStartupEntrancePresent = true;
 }
 
 uint16_t Entrance_GetStartupEntrance(void) {
     return sStartupEntrance;
 }
 
+bool Entrance_HasStartupEntrance(void) {
+    return sStartupEntrancePresent;
+}
+
 void Entrance_ClearStartupEntrance(void) {
     sStartupEntrance = 0;
+    sStartupEntrancePresent = false;
 }
 
 // ============================================================================
@@ -192,6 +202,10 @@ void Combo_SetStartupEntrance(uint16_t entrance) {
 
 uint16_t Combo_GetStartupEntrance(void) {
     return Entrance_GetStartupEntrance();
+}
+
+bool Combo_HasStartupEntrance(void) {
+    return Entrance_HasStartupEntrance();
 }
 
 void Combo_ClearStartupEntrance(void) {

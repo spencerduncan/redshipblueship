@@ -17,6 +17,30 @@ extern "C" {
 #include "tests/test_game_lifecycle.c"
 }
 
+// Roundtrip SaveContext byte-integrity test (issue #262). Included at FILE
+// SCOPE (compiled as C++), NOT inside the extern "C" block above: its body
+// calls the C++-linkage Entrance_Init/Entrance_RegisterDefaultLinks. Under
+// extern "C" those would bind to OoT's C-linkage randomizer Entrance_Init
+// instead of the combo entrance system.
+#include "tests/test_roundtrip_integrity.c"
+
+// Shared-state plumbing smoke test (issue #264) — included like the lifecycle
+// test (its own extern "C" block) to avoid static-library link ordering
+// issues. It only references C-linkage ComboContext_* symbols and gComboCtx.
+extern "C" {
+#include "tests/test_shared_state_roundtrip.c"
+}
+
+// Archive hot-swap regression test (issue #263). Included at FILE SCOPE (not
+// inside an extern "C" block): it is compiled as C++ and uses the C++-linkage
+// Entrance_* API for setup. Its cross-TU ArchiveHotswap_* helpers are wrapped
+// in their own extern "C" inside the file.
+#include "tests/test_archive_hotswap.c"
+
+// Unified save (.redsave) headless tests (issue #35, Phase 2 T6). Included at
+// FILE SCOPE (compiled as C++): they drive the C++-linkage rsbs::SaveManager.
+#include "tests/test_save_roundtrip.c"
+
 // ============================================================================
 // Internal state
 // ============================================================================
@@ -116,51 +140,93 @@ TestResult Test_SwitchMMOoT(void) {
 }
 
 TestResult Test_Roundtrip(void) {
-    printf("[TEST] roundtrip: Full round-trip with state verification\n");
+    printf("[TEST] roundtrip: Full round-trip with state verification (issue #170)\n");
 
     // Initialize systems
     Context_InitFrozenStates();
+    Context_ClearAllFrozenStates();
     Entrance_Init();
     Entrance_RegisterDefaultLinks();
 
-    // Simulate OoT -> MM -> OoT round trip
-    // Step 1: OoT triggers switch to MM
-    Entrance_CheckCrossGame(GAME_OOT, OOT_ENTR_HAPPY_MASK_SHOP);
-    if (!Entrance_IsCrossGameSwitch()) {
-        printf("[TEST] FAIL: Step 1 - OoT switch not triggered\n");
+    // ------------------------------------------------------------------
+    // Leg 1: OoT -> MM via Happy Mask Shop
+    // ------------------------------------------------------------------
+    // Use the production C API (Combo_*) — this is the same surface the
+    // game code actually calls from z_play.c. Exercising it here guards
+    // against the pre-#170 bug where Combo_CheckEntranceSwitch hardcoded
+    // "oot" as the source game on both legs.
+    Combo_CheckCrossGameEntrance("oot", OOT_ENTR_HAPPY_MASK_SHOP);
+    if (!Combo_IsCrossGameSwitch()) {
+        printf("[TEST] FAIL: Leg 1 - OoT->MM switch not triggered\n");
+        return TEST_FAIL;
+    }
+    if (strcmp(Combo_GetSwitchTargetGameId(), "mm") != 0) {
+        printf("[TEST] FAIL: Leg 1 - Target should be mm, got %s\n",
+               Combo_GetSwitchTargetGameId());
         return TEST_FAIL;
     }
 
-    // Simulate freezing OoT state
+    // Freeze a fingerprint for OoT so we can verify integrity after the trip.
     uint8_t fakeOoTSave[OOT_SAVE_CONTEXT_SIZE] = {0};
     fakeOoTSave[0] = 0xDE;
     fakeOoTSave[1] = 0xAD;
-    Context_FreezeState(GAME_OOT, OOT_ENTR_MARKET_FROM_MASK_SHOP,
-                        fakeOoTSave, sizeof(fakeOoTSave));
-
+    fakeOoTSave[OOT_SAVE_CONTEXT_SIZE - 1] = 0xEF;  // Tail marker
+    Combo_FreezeState("oot", Combo_GetSwitchReturnEntrance(),
+                      fakeOoTSave, sizeof(fakeOoTSave));
     Entrance_ClearPendingSwitch();
 
-    // Step 2: MM triggers switch back to OoT
-    Entrance_CheckCrossGame(GAME_MM, MM_ENTR_SOUTH_CLOCK_TOWN_0);
-    if (!Entrance_IsCrossGameSwitch()) {
-        printf("[TEST] FAIL: Step 2 - MM switch not triggered\n");
+    // ------------------------------------------------------------------
+    // Leg 2: MM -> OoT via South Clock Town
+    // ------------------------------------------------------------------
+    // This is the leg that pre-#170 silently no-op'd because the shared
+    // Combo_CheckEntranceSwitch implementation looked up "oot" links for
+    // MM's entrance id 0xD800 and always missed.
+    Combo_CheckCrossGameEntrance("mm", MM_ENTR_SOUTH_CLOCK_TOWN_0);
+    if (!Combo_IsCrossGameSwitch()) {
+        printf("[TEST] FAIL: Leg 2 - MM->OoT switch not triggered\n");
+        return TEST_FAIL;
+    }
+    if (strcmp(Combo_GetSwitchTargetGameId(), "oot") != 0) {
+        printf("[TEST] FAIL: Leg 2 - Target should be oot, got %s\n",
+               Combo_GetSwitchTargetGameId());
         return TEST_FAIL;
     }
 
-    // Step 3: Verify OoT state can be restored
+    // Also freeze MM state; both games' frozen states must coexist.
+    uint8_t fakeMMSave[MM_SAVE_CONTEXT_SIZE] = {0};
+    fakeMMSave[0] = 0xBE;
+    fakeMMSave[1] = 0xEF;
+    Combo_FreezeState("mm", Combo_GetSwitchReturnEntrance(),
+                      fakeMMSave, sizeof(fakeMMSave));
+
+    // ------------------------------------------------------------------
+    // Leg 3: Verify OoT state can be restored after the round-trip.
+    // ------------------------------------------------------------------
     uint8_t restoredSave[OOT_SAVE_CONTEXT_SIZE] = {0};
-    if (!Context_RestoreState(GAME_OOT, restoredSave, sizeof(restoredSave))) {
-        printf("[TEST] FAIL: Step 3 - OoT state restore failed\n");
+    if (!Combo_RestoreState("oot", restoredSave, sizeof(restoredSave))) {
+        printf("[TEST] FAIL: Leg 3 - OoT state restore failed\n");
+        return TEST_FAIL;
+    }
+    if (restoredSave[0] != 0xDE || restoredSave[1] != 0xAD ||
+        restoredSave[OOT_SAVE_CONTEXT_SIZE - 1] != 0xEF) {
+        printf("[TEST] FAIL: Leg 3 - Restored OoT data corrupted\n");
         return TEST_FAIL;
     }
 
-    if (restoredSave[0] != 0xDE || restoredSave[1] != 0xAD) {
-        printf("[TEST] FAIL: Step 3 - Restored data mismatch\n");
+    // And MM's frozen state is still intact.
+    uint8_t restoredMM[MM_SAVE_CONTEXT_SIZE] = {0};
+    if (!Combo_RestoreState("mm", restoredMM, sizeof(restoredMM))) {
+        printf("[TEST] FAIL: Leg 3 - MM state restore failed\n");
+        return TEST_FAIL;
+    }
+    if (restoredMM[0] != 0xBE || restoredMM[1] != 0xEF) {
+        printf("[TEST] FAIL: Leg 3 - Restored MM data corrupted\n");
         return TEST_FAIL;
     }
 
-    printf("[TEST] PASS: Round-trip with state preservation verified\n");
+    printf("[TEST] PASS: Full OoT<->MM round-trip preserves both SaveContexts\n");
     Entrance_ClearPendingSwitch();
+    Context_ClearAllFrozenStates();
     return TEST_PASS;
 }
 
@@ -232,6 +298,12 @@ TestResult Test_StartupEntrance(void) {
     return TEST_PASS;
 }
 
+TestResult Test_RoundtripIntegrity(void) {
+    printf("[TEST] roundtrip-integrity: OoT SaveContext byte-integrity across roundtrip (issue #262)\n");
+    int failures = TestRoundtripIntegrity_Run();
+    return (failures == 0) ? TEST_PASS : TEST_FAIL;
+}
+
 TestResult Test_Lifecycle(void) {
     printf("[TEST] lifecycle: Game lifecycle unit tests\n");
     int failures = TestLifecycle_RunAll();
@@ -280,6 +352,19 @@ TestResult Test_Context(void) {
         return TEST_FAIL;
     }
 
+    // ComboContext_Init stamps the magic + zero-inits the cross-game fields.
+    // (Ported from the removed combo/tests/context_test.cpp in T10 #265 so the
+    // one assertion not already covered by the live CTest suite isn't lost.)
+    ComboContext_Init();
+    if (strncmp(gComboCtx.magic, COMBO_CONTEXT_MAGIC, 8) != 0) {
+        printf("[TEST] FAIL: ComboContext magic not initialized\n");
+        return TEST_FAIL;
+    }
+    if (ComboContext_IsSwitchPending() || gComboCtx.targetGame != GAME_NONE) {
+        printf("[TEST] FAIL: ComboContext not in a clean post-init state\n");
+        return TEST_FAIL;
+    }
+
     printf("[TEST] PASS: Context management working correctly\n");
     return TEST_PASS;
 }
@@ -296,8 +381,20 @@ const TestDescriptor gTests[] = {
     {"midos-house", "Test Mido's House entrance (test mode)", Test_MidosHouse},
     {"startup-entrance", "Test startup entrance flow", Test_StartupEntrance},
     {"roundtrip", "Full round-trip with state verification", Test_Roundtrip},
+    {"roundtrip-integrity", "OoT SaveContext byte-identical across OoT->MM->OoT (issue #262)", Test_RoundtripIntegrity},
+    {"shared-roundtrip", "Shared flag/seed survive OoT->MM switch (issue #264)", Test_SharedStateRoundtrip},
     {"context", "Test context/state management", Test_Context},
     {"lifecycle", "Game lifecycle unit tests", Test_Lifecycle},
+    // Unified save (.redsave) headless coverage (issue #35, Phase 2 T6).
+    {"save-roundtrip-tiers", "Unified .redsave preserves ComboContext + both SaveContexts (#35)", Test_SaveRoundtripTiers},
+    {"save-header", "Unified .redsave header fields + CRC are well-formed (#35)", Test_SaveHeader},
+    {"save-has-delete", "Unified save HasSave/DeleteSave lifecycle (#35)", Test_SaveHasDelete},
+    {"save-version-reject", "Unified save Load rejects unknown version, no clobber (#35)", Test_SaveVersionReject},
+    {"save-size-mismatch", "Unified save Load rejects mismatched tier size, no clobber (#35)", Test_SaveSizeMismatch},
+    {"save-crc-corrupt", "Unified save Load rejects corrupt payload, no clobber (#35)", Test_SaveCrcCorrupt},
+    // Keep archive-hotswap-logic LAST: it re-inits the entrance table, so it
+    // must not run before any test that relies on the default links.
+    {"archive-hotswap-logic", "Headless multi-switch archive/state regression (#263)", Test_ArchiveHotswapLogic},
     {nullptr, nullptr, nullptr}  // Sentinel
 };
 
@@ -312,8 +409,15 @@ struct IntegrationTestDescriptor {
 const IntegrationTestDescriptor gIntegrationTests[] = {
     {"int-boot-oot", "Boot OoT and verify title screen (integration)", INT_TEST_BOOT_OOT, GAME_OOT},
     {"int-boot-mm", "Boot MM and verify title screen (integration)", INT_TEST_BOOT_MM, GAME_MM},
-    {"int-switch-oot-mm", "Boot OoT, switch to MM (integration)", INT_TEST_SWITCH_OOT_MM, GAME_OOT},
-    {"int-switch-mm-oot", "Boot MM, switch to OoT (integration)", INT_TEST_SWITCH_MM_OOT, GAME_MM},
+    {"int-switch-oot-hms-to-mm",
+     "Boot OoT, trigger Happy Mask Shop entrance (0x0530), verify spawn at MM Clock Tower Interior (0xC010)",
+     INT_TEST_SWITCH_OOT_HMS_TO_MM, GAME_OOT},
+    {"int-switch-mm-clocktown-south-to-oot",
+     "Boot MM, trigger South Clock Town south exit (0xD800), verify spawn at OoT Market from Mask Shop (0x01D1)",
+     INT_TEST_SWITCH_MM_CLOCKTOWN_SOUTH_TO_OOT, GAME_MM},
+    {"int-archive-hotswap-cycle",
+     "Boot OoT, hot-swap OoT<->MM >=3 times, verify healthy runtime (no missing assets, bounded RSS) (#263)",
+     INT_TEST_ARCHIVE_HOTSWAP_CYCLE, GAME_OOT},
     {nullptr, nullptr, INT_TEST_NONE, GAME_NONE}  // Sentinel
 };
 

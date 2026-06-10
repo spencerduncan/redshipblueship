@@ -4,8 +4,14 @@
  * This file provides the MM_Game_* functions expected by the redship
  * main.cpp for single-executable builds.
  *
- * In single-exe mode, the libultraship context is shared with OoT.
- * MM skips InitOTR() since OoT already initialized the shared context.
+ * In single-exe mode, the libultraship context is created and owned by the
+ * harness (rsbs/src/main.cpp) before either game's Init runs. MM skips its
+ * own InitOTR() — the shared context is set up by the harness, and OoT's
+ * OTRGlobals layer adds resource factories on top when OoT is the running
+ * game. MM contributes its own resource factories via
+ * RegisterMMResourceFactories() below. This is symmetric with OoT (which
+ * also reuses the harness-provided context) — neither game depends on the
+ * other having booted first (#271).
  */
 
 #ifdef RSBS_SINGLE_EXECUTABLE
@@ -21,6 +27,8 @@
 
 #include "game_lifecycle.h"
 #include "integration_test_hooks.h"
+#include "context.h"
+#include "entrance.h"
 #include <ship/resource/ResourceManager.h>
 #include <ship/resource/ResourceLoader.h>
 #include <ship/resource/archive/ArchiveManager.h>
@@ -60,9 +68,16 @@ extern "C" {
     void Check_ExpansionPak(void);
     void Regs_Init(void);
 
-    // Audio reset for cross-game switch (issue #157)
+    // Audio reset for cross-game switch (issue #157) and suspend (issue #270)
     extern s32 gAudioCtxInitalized;
     void AudioThread_InitMesgQueues(void);
+    void MM_Audio_PreNMI(void);
+
+    // MM's SaveContext (type defined via global.h -> z64save.h).
+    // Declared here so MM_Game_Resume() can restore it on return from OoT (#170).
+    // Mirrors the explicit extern on the OoT TU — keeps the symbol's visibility
+    // independent of whether global.h ever stops including z64save.h transitively.
+    extern SaveContext gSaveContext;
 
     // Globals from main.c
     extern s32 MM_gScreenWidth;
@@ -77,6 +92,16 @@ extern "C" {
     extern PadMgr MM_gPadMgr;
     extern IrqMgr MM_gIrqMgr;
 
+}
+
+// Archive hot-swap cycle helpers (#263). Defined in
+// src/common/tests/test_archive_hotswap.c (compiled into redship_common via
+// test_runner.cpp); resolved at final link. Record this MM arrival, query the
+// RSS bound, and read the target arrival count for the cycle-complete check.
+extern "C" {
+    int ArchiveHotswap_RecordArrival(void);
+    int ArchiveHotswap_RssExceeded(void);
+    int ArchiveHotswap_TargetArrivals(void);
 }
 
 // Track if MM has been initialized (for re-entry after game switch)
@@ -102,7 +127,6 @@ static void MM_RegisterIntegrationTestHooks(void) {
 
     IntegrationTestMode mode = IntegrationTest_GetMode();
 
-    // Only register hooks for MM boot test
     if (mode == INT_TEST_BOOT_MM) {
         fprintf(stderr, "[MM] Registering integration test hooks for boot detection\n");
         fflush(stderr);
@@ -138,6 +162,169 @@ static void MM_RegisterIntegrationTestHooks(void) {
         );
 
         fprintf(stderr, "[MM] Integration test hooks registered\n");
+        fflush(stderr);
+    } else if (mode == INT_TEST_SWITCH_OOT_HMS_TO_MM) {
+        // T1 (#260) leg 2: MM has been booted via the cross-game switch from
+        // OoT's HMS trigger. Reaching this hook means OoT's freeze + main
+        // loop's hand-off + MM_Game_Init all succeeded end-to-end. Signal pass
+        // once MM's graph thread is running steady frames.
+        fprintf(stderr, "[MM] Registering integration test hooks for HMS->MM switch completion (T1)\n");
+        fflush(stderr);
+
+        sConsoleLogoFrameCount = 0;
+        sGameStateMainFrameCount = 0;
+
+        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>(
+            []() {
+                sGameStateMainFrameCount++;
+                if (sGameStateMainFrameCount >= 10) {
+                    fprintf(stderr,
+                            "[MM-INT-TEST] MM stable after HMS->MM switch (frame %d)\n",
+                            sGameStateMainFrameCount);
+                    fflush(stderr);
+                    IntegrationTest_SignalBootComplete(GAME_MM, "MM stable after HMS->MM switch");
+                }
+            }
+        );
+
+        fprintf(stderr, "[MM] HMS->MM switch hooks registered\n");
+        fflush(stderr);
+    } else if (mode == INT_TEST_SWITCH_MM_CLOCKTOWN_SOUTH_TO_OOT) {
+        // T2 (#261): Boot MM, programmatically trigger the South Clock Town
+        // south exit, assert the cross-game switch resolves to OoT Market.
+        // Mirror of T1: MM is the trigger side here, OoT is the receiver.
+        // MM has no OnPresentFileSelect analog, so we wait N stable frames in
+        // OnGameStateMainStart and then fire the trigger once. Final pass is
+        // signaled from the OoT-side hook after OoT stabilizes post-switch.
+        fprintf(stderr, "[MM] Registering integration test hooks for SCT-south->OoT switch (T2)\n");
+        fflush(stderr);
+
+        sConsoleLogoFrameCount = 0;
+        sGameStateMainFrameCount = 0;
+
+        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>(
+            []() {
+                static bool sTriggered = false;
+                if (sTriggered) {
+                    return;
+                }
+                sGameStateMainFrameCount++;
+                if (sGameStateMainFrameCount < 10) {
+                    return;
+                }
+                sTriggered = true;
+
+                fprintf(stderr,
+                        "[MM-INT-TEST] MM stable; triggering SCT-south entrance 0x%04X\n",
+                        MM_ENTR_SOUTH_CLOCK_TOWN_0);
+                fflush(stderr);
+
+                // Same call MM's z_play.c makes when the player walks south
+                // out of South Clock Town — minus the freeze, which T3 covers.
+                Combo_CheckCrossGameEntrance("mm", MM_ENTR_SOUTH_CLOCK_TOWN_0);
+
+                if (!Combo_IsCrossGameSwitch()) {
+                    fprintf(stderr, "[MM-INT-TEST] FAIL: SCT-south entrance did not register a cross-game switch\n");
+                    fflush(stderr);
+                    IntegrationTest_RequestExit();
+                    return;
+                }
+
+                const char* target = Combo_GetSwitchTargetGameId();
+                uint16_t targetEntrance = Combo_GetSwitchTargetEntrance();
+
+                if (!target || strcmp(target, "oot") != 0) {
+                    fprintf(stderr, "[MM-INT-TEST] FAIL: target should be 'oot', got '%s'\n",
+                            target ? target : "(null)");
+                    fflush(stderr);
+                    IntegrationTest_RequestExit();
+                    return;
+                }
+
+                if (targetEntrance != OOT_ENTR_MARKET_FROM_MASK_SHOP) {
+                    fprintf(stderr,
+                            "[MM-INT-TEST] FAIL: target entrance should be 0x%04X (Market from Mask Shop), got 0x%04X\n",
+                            OOT_ENTR_MARKET_FROM_MASK_SHOP, targetEntrance);
+                    fflush(stderr);
+                    IntegrationTest_RequestExit();
+                    return;
+                }
+
+                fprintf(stderr,
+                        "[MM-INT-TEST] PASS leg 1: SCT-south routes to OoT 0x%04X; main loop will run the switch\n",
+                        targetEntrance);
+                fflush(stderr);
+                // Intentionally NOT signaling boot complete here. The main loop
+                // will see the pending cross-game switch on Combo_CheckHotSwap
+                // and hand off to OoT. The OoT-side hook signals the final pass.
+            }
+        );
+
+        fprintf(stderr, "[MM] SCT-south->OoT switch hooks registered\n");
+        fflush(stderr);
+    } else if (mode == INT_TEST_ARCHIVE_HOTSWAP_CYCLE) {
+        // T4 (#263): MM side of the OoT<->MM archive hot-swap cycle. OoT boots
+        // first, so MM is arrivals #2 and #4 (the last) of the
+        // OoT->MM->OoT->MM cycle (4 arrivals == 3 transitions). Because the
+        // target arrival count is even, the FINAL arrival lands on MM, so this
+        // is the side that signals the cycle-complete PASS.
+        //
+        // Registration runs from MM_Game_Init, which fires only on MM's FIRST
+        // entry — later MM arrivals come back through MM_Game_Resume (see
+        // GameRunner_SwitchTo: a suspended game is resumed, not re-init'd), so
+        // this hook is registered exactly once and the persistent frame counter
+        // is NOT reset per arrival. The hook therefore re-arms itself: it fires
+        // ~10 stable frames after each (re)entry, then resets the counter so the
+        // next arrival reached via resume is detected the same way.
+        fprintf(stderr, "[MM] Registering integration test hooks for archive-hotswap cycle (T4)\n");
+        fflush(stderr);
+
+        sConsoleLogoFrameCount = 0;
+        sGameStateMainFrameCount = 0;
+
+        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>(
+            []() {
+                // Fire once per arrival, ~10 stable frames after (re)entry, then
+                // re-arm for the next MM arrival (reached via MM_Game_Resume).
+                sGameStateMainFrameCount++;
+                if (sGameStateMainFrameCount < 10) {
+                    return;
+                }
+                sGameStateMainFrameCount = 0;
+
+                int n = ArchiveHotswap_RecordArrival();
+                fprintf(stderr, "[MM-INT-TEST] MM stable; archive-hotswap arrival #%d of %d\n",
+                        n, ArchiveHotswap_TargetArrivals());
+                fflush(stderr);
+
+                if (ArchiveHotswap_RssExceeded()) {
+                    // Steady-state RSS blew the bound — the #154 per-switch leak
+                    // regression. Fail fast: RequestExit does NOT set the pass
+                    // flag, so the run returns non-zero. Combo_RequestGameSwitch()
+                    // right after unblocks the main loop promptly (known fix).
+                    fprintf(stderr, "[MM-INT-TEST] FAIL: steady-state RSS bound exceeded after %d arrivals\n", n);
+                    fflush(stderr);
+                    IntegrationTest_RequestExit();
+                    Combo_RequestGameSwitch();
+                } else if (n >= ArchiveHotswap_TargetArrivals()) {
+                    // Target arrivals reached with a healthy runtime — PASS.
+                    // SignalBootComplete sets the pass flag and requests the
+                    // switch that unblocks the main loop.
+                    fprintf(stderr, "[MM-INT-TEST] archive-hotswap cycle complete after %d arrivals\n", n);
+                    fflush(stderr);
+                    IntegrationTest_SignalBootComplete(GAME_MM, "archive-hotswap cycle complete");
+                } else {
+                    // Keep the cycle going: re-trigger the MM->OoT switch via the
+                    // South Clock Town south exit — same call the T2 branch makes.
+                    fprintf(stderr, "[MM-INT-TEST] re-triggering SCT-south entrance 0x%04X to continue cycle\n",
+                            MM_ENTR_SOUTH_CLOCK_TOWN_0);
+                    fflush(stderr);
+                    Combo_CheckCrossGameEntrance("mm", MM_ENTR_SOUTH_CLOCK_TOWN_0);
+                }
+            }
+        );
+
+        fprintf(stderr, "[MM] archive-hotswap cycle hooks registered\n");
         fflush(stderr);
     }
 }
@@ -226,15 +413,20 @@ static void RegisterMMResourceFactories() {
 }
 
 /**
- * Verify the shared Ship::Context from OoT is ready for MM's graph thread.
+ * Verify the shared Ship::Context is ready for MM's graph thread (#271).
+ *
  * MM_Graph_ThreadEntry calls WindowIsRunning(), GfxDebuggerIsDebugging(),
  * WindowGetWidth/Height/AspectRatio() every frame — all route through
- * Ship::Context::GetInstance(). OoT initializes this singleton; MM reuses it.
+ * Ship::Context::GetInstance(). The harness (rsbs/src/main.cpp) creates
+ * the singleton before either game's Init runs, so this check is a
+ * defensive assertion that the harness did its job — *not* a dependency
+ * on OoT having booted first. OoT and MM are symmetric here: both reuse
+ * the harness-provided context.
  */
 static bool VerifySharedContext(void) {
     auto ctx = Ship::Context::GetInstance();
     if (!ctx) {
-        fprintf(stderr, "[MM] ERROR: Ship::Context is null — OoT must init first\n");
+        fprintf(stderr, "[MM] ERROR: Ship::Context is null — harness must init first\n");
         return false;
     }
     if (!ctx->GetWindow()) {
@@ -254,8 +446,11 @@ int MM_Game_Init(int argc, char** argv) {
     fprintf(stderr, "[MM] Game_Init called, argc=%d\n", argc);
     fflush(stderr);
 
-    // In single-exe mode, skip InitOTR() - OoT already initialized libultraship.
-    // Verify the shared context is ready for MM bridge functions (issue #158).
+    // In single-exe mode, skip InitOTR() — the harness (rsbs/src/main.cpp)
+    // creates Ship::Context before either game's Init runs. MM treats the
+    // harness-provided context as a precondition, the same as OoT does
+    // (#158, #271). This used to claim "OoT initialized libultraship"; that
+    // wording was stale — the harness owns initial Context creation.
     if (!VerifySharedContext()) {
         fprintf(stderr, "[MM] FATAL: Cannot start without Ship::Context\n");
         return -1;
@@ -351,16 +546,77 @@ void MM_Game_Run(void) {
     fflush(stderr);
 }
 
+/**
+ * Suspend MM for a game switch (issue #270).
+ * Stops audio to prevent interference with OoT, keeps libultraship context and
+ * MM heaps alive. Mirrors OoT_Game_Suspend so OoT <-> MM round-trips don't
+ * re-init either game.
+ */
 void MM_Game_Suspend(void) {
     fprintf(stderr, "[MM] Game_Suspend called\n");
     fflush(stderr);
-    // TODO: Stop MM audio playback
+
+    // Stop MM audio playback to prevent interference with OoT (issue #270).
+    // MM_Audio_PreNMI calls AudioThread_PreNMIInternal which halts sequence
+    // players and SFX. Same reasoning as OoT side: the SoH/2S2H port doesn't
+    // run a real OS audio thread, so audio is processed synchronously from
+    // the game loop, which has already returned from MM_Graph_ThreadEntry
+    // before suspend is called — no race.
+    fprintf(stderr, "[MM] Stopping audio via PreNMI path...\n");
+    fflush(stderr);
+    MM_Audio_PreNMI();
+
+    // Mark audio as uninitialized so message-queue re-init works on resume.
+    gAudioCtxInitalized = false;
+
+    fprintf(stderr, "[MM] Game_Suspend complete\n");
+    fflush(stderr);
 }
 
+/**
+ * Resume MM after being suspended for a game switch (issue #170, #270).
+ * - Restores frozen MM SaveContext so gameplay state survives the OoT
+ *   round-trip (OoT scribbles over the unified gSaveContext storage while
+ *   it is active — see src/common/unified_save.c).
+ * - Reinitializes audio message queues for clean state.
+ */
 void MM_Game_Resume(void) {
     fprintf(stderr, "[MM] Game_Resume called\n");
     fflush(stderr);
-    // TODO: Restore MM audio, reload MM-specific resources if needed
+
+    // Restore the frozen MM SaveContext captured before we left for OoT (#170).
+    // OoT may have scribbled over the unified gSaveContext storage while it
+    // was active (see src/common/unified_save.c), so we must re-hydrate MM's
+    // view on every resume. First boot of MM has no frozen state — in that
+    // case MM_InitFirstEntrySaveContext still handles bootstrap via #168.
+    if (Context_HasFrozenState(GAME_MM)) {
+        fprintf(stderr, "[MM] Restoring frozen SaveContext on resume\n");
+        fflush(stderr);
+        Context_RestoreState(GAME_MM, &gSaveContext, sizeof(gSaveContext));
+
+        // Prefer the startup entrance set for this switch; fall back to the
+        // return entrance recorded when we last froze MM. Use the explicit
+        // Has accessor because entrance 0x0000 is a valid id and treating it
+        // as "unset" would silently drop a legitimate restore.
+        bool hasStartup = Combo_HasStartupEntrance();
+        uint16_t targetEntrance = hasStartup
+            ? Combo_GetStartupEntrance()
+            : Context_GetFrozenReturnEntrance(GAME_MM);
+        gSaveContext.save.entrance = targetEntrance;
+        fprintf(stderr, "[MM] Resume entrance: 0x%04X (startup=%u)\n",
+                targetEntrance, hasStartup);
+    }
+
+    // Reinitialize audio message queues for clean state (issue #270).
+    // The audio context's queue pointers may be stale after suspend's
+    // PreNMI shutdown — mirrors the same call MM_Game_Init makes on first
+    // entry, and the same Audio_InitMesgQueues call OoT_Game_Resume makes.
+    fprintf(stderr, "[MM] Reinitializing audio message queues...\n");
+    fflush(stderr);
+    AudioThread_InitMesgQueues();
+
+    fprintf(stderr, "[MM] Game_Resume complete\n");
+    fflush(stderr);
 }
 
 void MM_Game_Shutdown(void) {

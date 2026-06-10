@@ -83,6 +83,9 @@ void Combo_SignalReadyToSwitch(void);
 void Combo_ClearPendingSwitch(void);
 void Combo_SetStartupEntrance(uint16_t entrance);
 uint16_t Combo_GetStartupEntrance(void);
+// Entrance 0x0000 is valid (Kokiri from Deku Tree), so presence is tracked
+// separately from the value — callers must check this before trusting the id.
+bool Combo_HasStartupEntrance(void);
 void Combo_ClearStartupEntrance(void);
 
 // Game switch request API
@@ -179,9 +182,15 @@ void Entrance_ClearPendingSwitch(void);
 void Entrance_SetStartupEntrance(uint16_t entrance);
 
 /**
- * Get the startup entrance (0 if not set)
+ * Get the startup entrance. Use Entrance_HasStartupEntrance() to check
+ * whether one is actually set — entrance 0x0000 is a valid id.
  */
 uint16_t Entrance_GetStartupEntrance(void);
+
+/**
+ * Whether a startup entrance has been set since the last clear.
+ */
+bool Entrance_HasStartupEntrance(void);
 
 /**
  * Clear the startup entrance (called after game reads it)

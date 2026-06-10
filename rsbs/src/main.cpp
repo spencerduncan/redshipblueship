@@ -256,9 +256,23 @@ int main(int argc, char** argv) {
     }
 
     // ========================================================================
-    // Create Ship::Context singleton early - before any game init (issue #184)
-    // This ensures the singleton exists before OTRGlobals can interfere.
-    // Games will detect the existing context and reuse it.
+    // Create Ship::Context singleton up front — before either game's Init
+    // runs (issue #184, #271).
+    //
+    // Both OoT (OTRGlobals constructor) and MM (BenPort InitOTR) detect an
+    // existing singleton and reuse it. Creating the placeholder here means
+    // neither game depends on the *other* having booted first — i.e. there
+    // is no "OoT must run before MM" implicit ordering. The user can launch
+    // either `redship --game oot` or `redship --game mm` cold, and the
+    // selected game's Init layers its own factories/heaps onto the shared
+    // context.
+    //
+    // The branding ("Ship of Harkinian", "soh", "shipofharkinian.json") is
+    // kept stable on purpose: it pins the config and savestate directory to
+    // one location across game switches. Re-keying these on the selected
+    // game would split a single user's saves into two app-data folders the
+    // first time they switched games. Asymmetric branding != asymmetric
+    // bootstrap; the bootstrap itself is now game-agnostic.
     // ========================================================================
     fprintf(stderr, "[RSBS] About to create Ship::Context singleton...\n");
     fflush(stderr);
@@ -293,16 +307,13 @@ int main(int argc, char** argv) {
     // Determine which game to run
     GameId selectedGame = GAME_NONE;
 
-    // Integration tests override the game selection
+    // Integration tests override the game selection. Each integration test
+    // boots its target game directly — no implicit OoT-first dance for MM
+    // tests (#271). The harness has already created Ship::Context above, so
+    // either game can be the first to initialize libultraship factories
+    // and resources on top of it.
     if (TestRunner_IsIntegrationTestMode()) {
-        GameId testGame = TestRunner_GetIntegrationTestGame();
-        if (testGame == GAME_MM) {
-            // MM requires OoT's Ship::Context — init OoT first, then switch to MM
-            selectedGame = GAME_OOT;
-            printf("[INT-TEST] MM test: booting OoT first for Ship::Context\n");
-        } else {
-            selectedGame = testGame;
-        }
+        selectedGame = TestRunner_GetIntegrationTestGame();
         printf("[INT-TEST] Using game from integration test: %s\n",
                Game_ToString(selectedGame));
     } else {
@@ -366,22 +377,12 @@ int main(int argc, char** argv) {
         free(gameArgv);
         return 1;
     }
+    // Keep context's view of the current game in sync with the runner so that
+    // cross-game entrance hooks dispatch against the right game (issue #170).
+    Context_SetCurrentGame(selectedGame);
 
-    // For MM integration tests, OoT is initialized first for Ship::Context,
-    // then we switch to MM (which registers its own hooks in MM_Game_Init)
-    if (TestRunner_IsIntegrationTestMode()) {
-        GameId testGame = TestRunner_GetIntegrationTestGame();
-        if (testGame == GAME_MM) {
-            printf("[INT-TEST] OoT context ready, switching to MM\n");
-            EnsureGameArchivesLoaded(GAME_MM);
-            int switchResult = GameRunner_SwitchTo(&runner, GAME_MM, gameArgc, gameArgv);
-            if (switchResult != 0) {
-                fprintf(stderr, "[INT-TEST] Error: Failed to switch to MM (code %d)\n", switchResult);
-                free(gameArgv);
-                return 1;
-            }
-        }
-    }
+    // Note: the previous MM-test detour (init OoT then SwitchTo MM) was
+    // removed with #271 — MM integration tests now boot MM directly above.
 
     while (keepRunning) {
         // Run the active game
@@ -438,6 +439,10 @@ int main(int argc, char** argv) {
             if (switchResult != 0) {
                 fprintf(stderr, "Error: Failed to switch to game (code %d)\n", switchResult);
                 keepRunning = false;
+            } else {
+                // Track the new active game so cross-game entrance hooks
+                // resolve to the correct side on the next round-trip (#170).
+                Context_SetCurrentGame(nextGame);
             }
         } else {
             // Normal exit

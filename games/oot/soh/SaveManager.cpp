@@ -18,6 +18,16 @@
 #include <libultraship/libultraship.h>
 #include "soh/SohGui/SohGui.hpp"
 
+// Unified cross-game save (.redsave) — Phase 2 T6 (#35) integration hooks.
+// save.h gives us RsbsSave_* + RsbsSave_RegisterGameMeta; we tie OoT's existing
+// OnSaveFile / OnLoadFile / OnExitGame hooks into it so a per-game save also
+// snapshots the cross-game shadow into the unified slot, and a per-game load
+// pulls the cross-game half back out when it exists. This file is the only
+// place in src/common's call chain where OoT's SaveContext layout is known,
+// so the metadata-offset descriptor is registered from here too.
+#include "save.h"
+#include <cstddef>  // offsetof
+
 #define NOGDI // avoid various windows defines that conflict with things in z64.h
 #include <spdlog/spdlog.h>
 
@@ -126,6 +136,77 @@ SaveManager::SaveManager() {
 
     GameInteractor::Instance->RegisterGameHook<GameInteractor::OnExitGame>(
         [this](uint32_t fileNum) { ThreadPoolWait(); });
+
+    // ------------------------------------------------------------------
+    // Unified cross-game .redsave hooks (Phase 2 T6, #35).
+    //
+    // OoT already drives OnSaveFile / OnLoadFile / OnExitGame from its
+    // normal SaveFile / LoadFile / Play_Init flows; we piggy-back on those
+    // rather than touching the core save/load logic. After OoT writes its
+    // own file we refresh the cross-game shadow from the live gSaveContext
+    // and write a unified slot so the other game's half stays attached;
+    // after a load we pull the cross-game half (ComboContext + MM shadow)
+    // back out so the next OoT->MM switch resumes the right MM state.
+    GameInteractor::Instance->RegisterGameHook<GameInteractor::OnSaveFile>([](int32_t fileNum, int32_t sectionID) {
+        // Each section write fires this hook once; only mirror the full
+        // SaveContext on the base section to avoid redundant unified writes
+        // (and to skip partial sections like randomizer that have no
+        // analogue in the .redsave layout).
+        if (sectionID != SECTION_ID_BASE) {
+            return;
+        }
+        if (fileNum < 0 || fileNum >= RSBS_SAVE_MAX_SLOTS) {
+            return;
+        }
+        Context_UpdateShadowCopy(GAME_OOT, &gSaveContext, sizeof(gSaveContext));
+        gComboCtx.sourceGame = GAME_OOT;
+        RsbsSave_Save(fileNum);
+    });
+
+    GameInteractor::Instance->RegisterGameHook<GameInteractor::OnLoadFile>([](int32_t fileNum) {
+        // Only pull the cross-game half if a .redsave already exists for
+        // this slot. A vanilla OoT save with no companion unified file is
+        // legal — we leave gComboCtx + MM shadow untouched in that case.
+        if (fileNum < 0 || fileNum >= RSBS_SAVE_MAX_SLOTS) {
+            return;
+        }
+        if (RsbsSave_HasSave(fileNum)) {
+            RsbsSave_Load(fileNum);
+        }
+    });
+
+    GameInteractor::Instance->RegisterGameHook<GameInteractor::OnExitGame>([](int32_t fileNum) {
+        // Snapshot on quit so unsaved cross-game flags (shared items, last
+        // game) survive across a process exit even if the user never went
+        // through the file-select panel.
+        if (fileNum < 0 || fileNum >= RSBS_SAVE_MAX_SLOTS) {
+            return;
+        }
+        Context_UpdateShadowCopy(GAME_OOT, &gSaveContext, sizeof(gSaveContext));
+        gComboCtx.sourceGame = GAME_OOT;
+        RsbsSave_Save(fileNum);
+    });
+
+    // Register OoT's metadata-offset descriptor so the unified file-select
+    // panel can render slot names / play-time / "started" without
+    // src/common ever including z64save.h. Offsets are byte positions
+    // within the OoT SaveContext blob as stored in the .redsave; we use
+    // offsetof on the real struct rather than hand-typed hex so a future
+    // SaveContext layout change can't silently desync the panel.
+    {
+        RsbsGameMetaDesc desc{};
+        desc.playerNameOffset = static_cast<uint32_t>(offsetof(SaveContext, playerName));
+        desc.playerNameLen = 8;
+        // OoT has no continuous play-time counter; totalDays is the closest
+        // game-progress proxy we can show without parsing rando state.
+        desc.playTimeOffset = static_cast<uint32_t>(offsetof(SaveContext, totalDays));
+        desc.validMarkerOffset = static_cast<uint32_t>(offsetof(SaveContext, newf));
+        desc.validMarkerLen = 6;
+        // OoT's "newf" sentinel — file is started iff these bytes match.
+        const char kOoTNewf[6] = { 'Z', 'E', 'L', 'D', 'A', 'Z' };
+        std::memcpy(desc.validMarker, kOoTNewf, sizeof(kOoTNewf));
+        RsbsSave_RegisterGameMeta(GAME_OOT, &desc);
+    }
 
     smThreadPool = std::make_shared<BS::thread_pool>(1);
 

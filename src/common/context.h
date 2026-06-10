@@ -85,7 +85,7 @@ const void* Context_GetMMSaveContext(void);
 void Context_UpdateShadowCopy(GameId game, const void* saveContext, size_t size);
 
 // ============================================================================
-// Combo context (from rsbs/src/combo_context.c)
+// Combo context
 // ============================================================================
 
 #define COMBO_CONTEXT_MAGIC "OoT+MM<3"

@@ -52,6 +52,11 @@ private:
 
     // Cross-game transition settings
     void DrawComboSettings();
+
+    // Unified .redsave file-select panel (Phase 2 T6, #35). Renders each
+    // unified slot with player name / last game / started state plus
+    // Load / Delete / Save-to-slot buttons. Backed by SaveManager::ReadMeta.
+    void DrawFileSelect();
 };
 
 } // namespace ComboGui
