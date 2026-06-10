@@ -1,255 +1,167 @@
-# Web Worker Prompts for RedShip Issues
+# Wave 2 worker loop goals (2026-06-09)
 
-## Issue #157 — MM Audio System Init for Cross-Game Switch
+Four independent lanes. Each section is a complete, self-contained loop goal for one code worker:
+run it as a `/loop` goal (self-paced) or as a plain dispatch prompt. Lanes 1–3 can run as cloud
+workers; Lane 4 must run on the maintainer's local machine (it prunes local worktrees).
 
-You are working on the `redshipblueship` project — a unified single executable that runs both Ocarina of Time (OoT) and Majora's Mask (MM) together. The repo is at `/home/sd/claude/redshipblueship`. You are on branch `claude/mm-init-debug`.
+Supersedes the Wave 1 prompts (issues #154–160, all closed — see git history of this file).
 
-**Problem:** When OoT triggers a cross-game switch to MM, MM crashes during audio init at `AudioSfx_Init → AudioThread_ScheduleProcessCmds → osSendMesg`. The crash is a SIGSEGV because `gAudioCtx.threadCmdProcQueueP` is NULL.
+## Common rules (all lanes)
 
-**Root cause:** `MM_AudioLoad_Init` is stubbed as a no-op in `src/common/mm_stubs.c` (line 77). The real implementation at `games/mm/src/audio/lib/load.c:1150` calls `AudioThread_InitMesgQueues()` at line 1189, which calls `AudioThread_InitMesgQueuesInternal()` in `games/mm/src/audio/lib/thread.c:261`, which sets `gAudioCtx.threadCmdProcQueueP = &gAudioCtx.threadCmdProcQueue` at line 267 and creates the message queue at line 271.
-
-The call chain that crashes:
-1. `MM_Game_Init` (in `games/mm/2s2h/GameExports_SingleExe.cpp:65`) calls `MM_AudioMgr_Init`
-2. `MM_AudioMgr_Init` (in `games/mm/src/code/audio_thread_manager.c:110`) calls `MM_Audio_Init()` then `MM_Audio_InitSound()`
-3. `MM_Audio_Init()` (in `games/mm/src/audio/code_8019AF00.c:6499`) calls `MM_AudioLoad_Init(NULL, 0)` — **STUBBED**
-4. `MM_Audio_InitSound()` calls `AudioSfx_Init(10)` which calls `AudioThread_ScheduleProcessCmds()` which uses `gAudioCtx.threadCmdProcQueueP` — **NULL → CRASH**
-
-**What to do:**
-
-The real `MM_AudioLoad_Init` in `games/mm/src/audio/lib/load.c:1150` does extensive work: zeroes `gAudioCtx`, initializes message queues, allocates audio heap pools, loads audio tables from resource archives via `ResourceMgr_ListFiles("audio/sequences*", ...)`, etc.
-
-The problem is that `MM_AudioLoad_Init` calls functions that depend on the resource manager being initialized with MM's archives (mm.o2r). In single-exe mode, OoT initialized Ship::Context with OoT archives (oot.o2r, soh.o2r). MM archives haven't been loaded yet.
-
-**Your task:** Remove the `MM_AudioLoad_Init` stub from `src/common/mm_stubs.c` and make the real implementation at `games/mm/src/audio/lib/load.c:1150` work in single-exe mode. This requires:
-
-1. **Remove the stub** for `MM_AudioLoad_Init` (and related stubs: `MM_AudioLoad_InitAsyncLoads`, `MM_AudioLoad_InitSampleDmaBuffers`, `MM_AudioLoad_InitScriptLoads`, `MM_AudioLoad_InitSlowLoads`) from `src/common/mm_stubs.c` lines 77-81.
-
-2. **Ensure MM's audio tables are available**: The real `MM_AudioLoad_Init` at line 1256 calls `ResourceMgr_ListFiles("audio/sequences*", ...)` which requires MM's resource archives to be loaded. Before audio init, you need to ensure MM's archive (mm.o2r) is loaded into the existing Ship::Context's ArchiveManager:
-   ```cpp
-   auto archiveMgr = Ship::Context::GetInstance()->GetResourceManager()->GetArchiveManager();
-   archiveMgr->AddArchive("mm.o2r");
-   ```
-   Add this to `MM_Game_Init` in `games/mm/2s2h/GameExports_SingleExe.cpp` before the `MM_AudioMgr_Init` call. The `AddArchive` API is at `libultraship/include/ship/resource/archive/ArchiveManager.h:23`.
-
-3. **Handle the audio heap**: `MM_AudioLoad_Init` uses `MM_gAudioHeap` (a global audio heap pointer). Make sure MM's heaps are allocated before audio init — this is already done (`MM_Heaps_Alloc()` is called at line 74).
-
-4. **Handle dependencies**: `MM_AudioLoad_Init` calls `MM_AudioHeap_AllocZeroed`, `MM_AudioHeap_ResetStep`, `AudioHeap_InitMainPool`, `MM_osCartRomInit` — these need real implementations. Check `src/common/mm_stubs.c` for any that are stubbed and remove stubs as needed. Also check `games/mm/src/audio/lib/heap.c` and `games/mm/src/audio/lib/load.c` for the real implementations.
-
-5. **Test**: After removing stubs and loading archives, rebuild with:
-   ```bash
-   cd /home/sd/claude/redshipblueship/build-cmake
-   cmake .. && cmake --build . --target redship -j$(nproc)
-   ```
-   Then run: `echo "1" | ./redship` (select OoT, load save, walk into Mido's House to trigger cross-game switch to MM).
-
-**Build system:** This is a CMake project. The single-exe target is `redship`. Build flag `RSBS_SINGLE_EXECUTABLE` is defined. MM symbols are prefixed with `MM_` by a namespace tool (e.g., `osCreateMesgQueue` → `MM_osCreateMesgQueue`). These aliases are in `src/common/mm_stubs.c` which redirect to the shared libultraship implementations.
-
-**Key files:**
-- `src/common/mm_stubs.c` — stubs to remove
-- `games/mm/src/audio/lib/load.c:1150` — real `MM_AudioLoad_Init`
-- `games/mm/src/audio/lib/thread.c:261` — `AudioThread_InitMesgQueuesInternal` (sets queue pointers)
-- `games/mm/src/audio/code_8019AF00.c:6499` — `MM_Audio_Init` call chain
-- `games/mm/src/code/audio_thread_manager.c:110` — `MM_AudioMgr_Init`
-- `games/mm/2s2h/GameExports_SingleExe.cpp` — `MM_Game_Init` where archive loading should go
-- `libultraship/include/ship/resource/archive/ArchiveManager.h` — `AddArchive` API
-
-Push your changes when done. Do NOT create a PR.
+- Repo: `spencerduncan/redshipblueship`. Default branch `main`. All merges are **squash merges**.
+- **You are explicitly authorized to open PRs, merge them once green, and close issues for your
+  lane.** This overrides the repo's usual "push branch only" convention — closure is the goal.
+  If your environment's GitHub credentials cannot merge, stop at "CI green + ready to merge" and
+  report that state instead.
+- CI is the authoritative gate: `clang-format`, `clang-tidy`, `generate-builds` (Linux + Windows),
+  and `integration-tests-linux` (runs `ctest --label-regex "^redship$"` — BootOoT/BootMM/Roundtrip
+  live there). Full wall clock ≈ 25–40 min; Windows is the slow job.
+- Local builds (if your env supports them): `git submodule update --init`, `cmake -B build -S .`,
+  `cmake --build build --parallel`. Needs 8 GB+ RAM. Prebuilt-deps image:
+  `ghcr.io/spencerduncan/redshipblueship-build:latest`. When in doubt, trust CI over local.
+- **Always `git fetch` before touching any branch** — stale local copies of work branches exist
+  and have caused confusion before.
+- Loop protocol: each iteration = (1) fetch + assess state against the closure criteria,
+  (2) take the smallest next step, (3) push, (4) wait for CI (`gh pr checks <n> --watch` or poll
+  ~5 min), (5) on red, diagnose and fix — max 3 attempts per distinct failure, then stop and
+  report, (6) on green, advance. Exit the loop only when every closure criterion is true.
+- Post a one-line progress comment on your lane's driving issue at each milestone so other lanes
+  and humans can see state. Report outcomes faithfully — failed checks get quoted, not summarized
+  away.
+- Never force-push over commits you didn't write without fetching and reading them first.
 
 ---
 
-## Issue #158 — MM Graphics/Window Bridge for Single-Exe
+## Lane 1 — merge PR #249 (scrolling texture interpolation)
 
-You are working on the `redshipblueship` project — a unified single executable running OoT + MM. Repo at `/home/sd/claude/redshipblueship`, branch `claude/mm-init-debug`.
+**Goal:** PR #249 is merged to main and issue #234 is closed.
 
-**Problem:** When OoT switches to MM via a cross-game entrance, MM needs to share OoT's existing SDL window and OpenGL context. OoT's `InitOTR()` creates Ship::Context which owns the Window (SDL2 + OpenGL). MM must NOT create a second window.
+**Closure criteria:**
+- [ ] PR #249 squash-merged with fresh (post-update) green CI
+- [ ] post-merge CI on `main` green
+- [ ] issue #234 closed with a comment linking the merge
 
-**Current state:** There's already infrastructure for shared graphics in gfx_sdl2. The crash log shows:
-```
-[GFX_SDL2] Checking for shared graphics from combo library...
-[GFX_SDL2] Weak symbol is NULL - combo not linked
-[GFX_SDL2] SharedGraphics result: has=false, windowID=0, ctx=0x0
-[GFX_SDL2] Created new window, storing for sharing: ID=1
-[GFX_SDL2] Combo_SetSharedGraphics weak symbol is NULL
-```
+**State as of 2026-06-09:** head `claude/texture-interp-fix-234`; GitHub reports
+CLEAN/MERGEABLE, but the green CI is from 2026-04-25 — stale. Main has since absorbed the
+unified save system (#284/#294), the `combo/` directory removal (#285), GCC 16 toolchain work
+(#295), and the 2S2H sync (#296). A semantic break is possible even with no textual conflict.
 
-This shows OoT creates a window (ID=1) and tries to store it for sharing via `Combo_SetSharedGraphics` but the weak symbol is NULL.
-
-**Your task:** Make MM's graphics subsystem reuse OoT's existing SDL window and OpenGL context instead of creating new ones.
-
-1. **Investigate the existing sharing mechanism** in `libultraship/src/ship/port/sdl2/gfx_sdl2.cpp` — search for `SharedGraphics`, `Combo_SetSharedGraphics`, `Combo_GetSharedGraphics`. Understand the weak symbol pattern.
-
-2. **Implement the combo bridge functions**: `Combo_SetSharedGraphics` and `Combo_GetSharedGraphics` need to be implemented (not weak/NULL). These should store/retrieve the SDL window ID and GL context pointer. Implement them in `src/common/` somewhere appropriate (e.g., a new `graphics_bridge.c` or in an existing common file).
-
-3. **Ensure MM's gfx init path checks for shared graphics**: When MM calls into gfx_sdl2 init, it should find the shared graphics from OoT and skip creating a new window.
-
-4. **Update CMake** if new files are created — add to `CMake/SingleExecutable.cmake` in the `REDSHIP_COMMON_SOURCES` list.
-
-**Key files to investigate:**
-- `libultraship/src/ship/port/sdl2/gfx_sdl2.cpp` — shared graphics check
-- `src/common/mm_stubs.c` — may have relevant stubs
-- `games/mm/2s2h/BenPort.cpp` — MM's `InitOTR()` which creates Ship::Context
-- `games/mm/2s2h/GameExports_SingleExe.cpp` — MM's init for single-exe mode (skips InitOTR)
-
-**Build:** `cd /home/sd/claude/redshipblueship/build-cmake && cmake .. && cmake --build . --target redship -j$(nproc)`
-
-Push your changes when done. Do NOT create a PR.
+**Steps:**
+1. `gh pr update-branch 249` (fall back to: fetch, rebase onto `origin/main`, force-push).
+2. Wait for all checks on the updated head.
+3. If red: diagnose. Likely candidates are header moves from the `combo/` removal
+   (`SharedGraphics` now lives in `src/common/`) and interpolation hooks touched by upstream
+   sync. Fix on the branch, push, re-wait.
+4. On green: squash-merge keeping `(#234)` in the title. Confirm main's post-merge run is green.
+5. Close #234 with a link to the merge commit.
 
 ---
 
-## Issue #159 — MM BenPort/Resource Manager Init for Single-Exe
+## Lane 2 — drive PR #247 to merge (article chain #255 → #256 → #257 → #258)
 
-You are working on `redshipblueship` — unified OoT+MM single executable. Repo at `/home/sd/claude/redshipblueship`, branch `claude/mm-init-debug`.
+**Goal:** PR #247 (Custom Messages → Hooks/ShipInit refactor) is merged; issues #228, #253,
+#254, #255, #256, #257, #258 are all closed.
 
-**Problem:** In standalone MM (2Ship2Harkinian), `InitOTR()` in `games/mm/2s2h/BenPort.cpp:728` creates Ship::Context, registers resource factories for MM-specific types (Animation, CollisionHeader, AudioSample, AudioSequence, AudioSoundFont, etc.), and sets up the GUI. In single-exe mode, `MM_Game_Init` in `GameExports_SingleExe.cpp` skips `InitOTR()` entirely because OoT already created Ship::Context.
+**Closure criteria:**
+- [ ] zero `TODO_EN_ARTICLE` / `TODO_DE_ARTICLE` / `TODO_FR_ARTICLE` anywhere on the branch
+- [ ] RG_CRAWL gimessage entries exist for EN/DE/FR in `Messages/ItemMessages.cpp`
+- [ ] PR #247 updated against current main, full CI green, squash-merged
+- [ ] #228, #253–#258 closed with evidence comments; a comment on #235 announces the gate is
+      clear for #289–#293
 
-But MM needs its resource factories registered so that MM-specific resources (stored in mm.o2r) can be deserialized. Without this, any MM code that loads resources via `ResourceMgr_LoadResource*` will fail for MM-specific types.
+**State as of 2026-06-09:** head `claude/custom-messages-hooks-228`, remote tip `842537df18`
+(force-pushed 2026-04-29) — **the rebase (step 1, #254) is already done.** The tip contains
+exactly 9 `TODO_EN_ARTICLE`, 9 `TODO_DE_ARTICLE`, 9 `TODO_FR_ARTICLE` slots in
+`games/oot/soh/Enhancements/randomizer/item_list.cpp` (the 9 rows PR #248 added: 8 masks +
+RG_CRAWL). Beware stale local copies of this branch (`7fed3ab4b9` predates the rebase) — start
+from origin's tip. Work the steps strictly in sequence, one commit + push per step.
 
-**Your task:** Create a lightweight `MM_InitResourceFactories()` function that registers MM's resource factories into the existing Ship::Context without creating a new context or window.
-
-1. **Study MM's InitOTR()** in `games/mm/2s2h/BenPort.cpp:728`. Identify which resource factory registrations are needed. Look for `ResourceManager::RegisterResourceFactory` calls. You need to replicate those registrations.
-
-2. **Study the resource types** in `games/mm/2s2h/resource/type/` — these are the MM-specific types that need factories. Also look at `games/mm/2s2h/resource/type/2shResourceType.h` for the type enum.
-
-3. **Create `MM_InitResourceFactories()`** — either in `GameExports_SingleExe.cpp` or a new helper file. This function should:
-   - Get the existing `Ship::Context::GetInstance()->GetResourceManager()`
-   - Register all MM-specific resource factories
-   - NOT create a new context, window, or audio player
-
-4. **Call it from `MM_Game_Init`** in `GameExports_SingleExe.cpp` before audio init (since audio init needs to load audio resources).
-
-5. **Also load MM's archive** (mm.o2r) into the ArchiveManager if not already done:
-   ```cpp
-   auto archiveMgr = Ship::Context::GetInstance()->GetResourceManager()->GetArchiveManager();
-   archiveMgr->AddArchive("mm.o2r");
-   ```
-   Note: This may overlap with Issue #157 (audio init). If #157 already adds archive loading, just ensure factories are registered before resources are loaded.
-
-**Key files:**
-- `games/mm/2s2h/BenPort.cpp:728` — MM's full `InitOTR()` (reference for what to extract)
-- `games/mm/2s2h/resource/type/` — MM resource types and factories
-- `games/mm/2s2h/GameExports_SingleExe.cpp` — where to call the new function
-- `libultraship/include/ship/resource/ResourceManager.h` — `RegisterResourceFactory` API
-
-**Build:** `cd /home/sd/claude/redshipblueship/build-cmake && cmake .. && cmake --build . --target redship -j$(nproc)`
-
-Push your changes when done. Do NOT create a PR.
-
----
-
-## Issue #160 — OoT Cleanup on Suspend (Audio, Threads)
-
-You are working on `redshipblueship` — unified OoT+MM single executable. Repo at `/home/sd/claude/redshipblueship`, branch `claude/mm-init-debug`.
-
-**Problem:** When OoT suspends (game switch to MM), `OoT_Game_Suspend()` in `games/oot/soh/GameExports_SingleExe.cpp:82` is currently a no-op. It preserves Ship::Context (correct), but it doesn't stop OoT's audio playback. This means:
-- OoT audio may continue playing over MM
-- OoT's audio thread may conflict with MM's audio thread
-- OoT timers and background threads may keep running
-
-**Your task:** Implement proper cleanup in `OoT_Game_Suspend()` to pause OoT subsystems without destroying them.
-
-1. **Stop OoT audio**: Find OoT's audio shutdown/pause mechanism. Look in:
-   - `games/oot/soh/OTRGlobals.cpp` — search for `DeinitOTR` to see what it cleans up
-   - `games/oot/src/code/audio/` — OoT audio system
-   - `libultraship/` — Ship::Context audio player API
-
-   The goal is to pause/mute audio, not destroy the audio system. Something like:
-   ```cpp
-   auto audio = Ship::Context::GetInstance()->GetAudio();
-   if (audio) audio->Stop(); // or Pause()
-   ```
-
-2. **Stop OoT scheduler/threads**: OoT may have background threads for scheduler, audio, etc. Check:
-   - `games/oot/src/code/graph.c` — game loop / scheduler
-   - The OoT `Main()` function — when it returns, the game loop stops but threads may still be running
-
-3. **Implement matching `OoT_Game_Resume()`**: When switching back to OoT, resume audio playback and any paused subsystems.
-
-4. **Do the same for MM**: `MM_Game_Suspend()` in `games/mm/2s2h/GameExports_SingleExe.cpp:136` is also a no-op. Implement MM audio pause there too.
-
-**Key files:**
-- `games/oot/soh/GameExports_SingleExe.cpp:82` — `OoT_Game_Suspend` (modify this)
-- `games/oot/soh/OTRGlobals.cpp` — search for `DeinitOTR` for cleanup patterns
-- `games/mm/2s2h/GameExports_SingleExe.cpp:136` — `MM_Game_Suspend` (modify this)
-- `libultraship/include/ship/audio/AudioPlayer.h` — audio API
-
-**Build:** `cd /home/sd/claude/redshipblueship/build-cmake && cmake .. && cmake --build . --target redship -j$(nproc)`
-
-Push your changes when done. Do NOT create a PR.
+**Steps (read each issue body first — it has the exact spec):**
+1. If #254 is still open, close it: the rebase landed in `842537df18` on 2026-04-29.
+2. **#255 (EN):** fill the 9 `TODO_EN_ARTICLE` slots — 8 mask rows get `"the "` (lowercase,
+   trailing space, matching the existing table convention); RG_CRAWL gets `""`. Touch no other
+   rows. Commit, push, close #255.
+3. **#256 (DE):** fill the 9 `TODO_DE_ARTICLE` slots in **accusative case** (`den/die/das` per
+   noun gender — verify against neighboring rows); RG_CRAWL gets `""`. Also add the German
+   RG_CRAWL gimessage in `Messages/ItemMessages.cpp` (the old `GIMESSAGE_NO_GERMAN` left DE
+   untranslated; the rebased branch uses `OnOpenText` hooks — add DE alongside EN/FR). Commit,
+   push, close #256.
+4. **#257 (FR):** fill the 9 `TODO_FR_ARTICLE` slots — masks get `"le "` (verify gender, `la `
+   where the noun requires); RG_CRAWL gets `""`. Commit, push, close #257.
+5. **#258 (verify, read-only):** confirm zero TODO placeholders repo-wide on the branch; confirm
+   EN/DE/FR RG_CRAWL entries; spot-check article plausibility; `gh pr update-branch 247`; wait
+   for full CI including `integration-tests-linux` (BootOoT + Roundtrip run there). Pay special
+   attention to `src/common/mm_stubs.c` — the PR touches it and main has changed it since April
+   (#294); a duplicate or already-removed stub is the most likely build break. If a check fails,
+   fix is allowed only for trivial integration breakage; anything substantive gets a follow-up
+   issue per the #258 spec. Post verification results on #253.
+6. On green: squash-merge PR #247. Close #228, #253, #258. Comment on #235: shuffle features
+   #289–#293 and the 9.2.x absorption are now unblocked (they must still land one at a time).
 
 ---
 
-## Issue #154 — Resource Archive Hot-Swapping
+## Lane 3 — MM tracker architecture sync (#297)
 
-You are working on `redshipblueship` — unified OoT+MM single executable. Repo at `/home/sd/claude/redshipblueship`, branch `claude/mm-init-debug`.
+**Goal:** issue #297 closed via a merged PR that brings MM's trackers up to the upstream
+baseline architecture.
 
-**Problem:** OoT initializes Ship::Context with OoT's archives (oot.o2r, soh.o2r). When switching to MM, MM's archive (mm.o2r) needs to be loaded. When switching back to OoT, MM's archive should ideally be unloaded (or at minimum, OoT's resources shouldn't collide with MM's).
+**Closure criteria:**
+- [ ] `ItemTracker.{cpp,h}` matches the upstream architecture from 2S2H PR #1460
+      (`TrackerItemType` / `TrackerGroup` / `DrawItemTrackerSlot` API)
+- [ ] `CheckTracker.cpp` uses the display-mode-CVAR architecture from 2S2H PR #1368
+- [ ] `Enhancements/Trackers/DisplayOverlay.{cpp,h}` still wires up correctly
+- [ ] MM boots and cross-game switching still works (CI integration tests green)
+- [ ] PR squash-merged; #297 closed with a note that the #238 PR-A revival (individual tracker
+      improvement ports, e.g. upstream #1492/#1633) is now unblocked
 
-Currently there's no archive hot-swap mechanism. OoT's archives are loaded at startup and never change.
+**Context:** files live under `games/mm/2s2h/Enhancements/Trackers/ItemTracker/` and
+`games/mm/2s2h/Rando/CheckTracker/`. Upstream is HarbourMasters/2ship2harkinian. This is a
+baseline-bumping sync (effort L), not a cherry-pick — our tracker code predates the upstream
+overhaul, which is why direct cherry-picks failed for the Wave 1 worker (its notes are on
+branch `claude/2s2h-sync-238`, commit `b89a340191`, and in issue #297). **Out of scope:** the
+improvement commits that piggyback on the new architecture — those are a later "#238 PR-A"
+follow-up.
 
-**Your task:** Implement per-game archive loading/unloading during game switches.
+**Single-exe gotchas:** MM symbols carry the `MM_` prefix in single-exe builds; check
+`src/common/mm_stubs.c` for tracker-adjacent stubs; menu integration must adapt to the RSBS
+unified menu rather than porting 2S2H's BenGui menu verbatim.
 
-1. **Study the ArchiveManager API** in `libultraship/include/ship/resource/archive/ArchiveManager.h`:
-   - `AddArchive(const std::string& archivePath)` — adds an archive
-   - Check if there's a `RemoveArchive` or `UnloadArchive` method. If not, you may need to add one.
-
-2. **Study the ResourceManager** in `libultraship/include/ship/resource/ResourceManager.h`:
-   - Resources are cached by hash. When switching games, the cache may contain stale resources from the previous game.
-   - Check if there's a cache clear/invalidate method.
-
-3. **Implement archive management in game lifecycle**:
-   - In `MM_Game_Init` (or a new helper): Load mm.o2r via `AddArchive`
-   - In `MM_Game_Suspend`: Optionally unload mm.o2r
-   - In `OoT_Game_Resume`: Ensure oot.o2r/soh.o2r are still loaded
-   - Consider: Do resources from both games conflict? They use different resource paths (MM uses `audio/sequences*`, OoT uses similar but different paths). If paths don't collide, maybe both can stay loaded.
-
-4. **Handle resource cache**: If there's a ResourceManager cache, ensure switching games doesn't serve stale resources. You may need to flush the cache on game switch.
-
-**Key files:**
-- `libultraship/include/ship/resource/archive/ArchiveManager.h` — archive management API
-- `libultraship/src/ship/resource/archive/ArchiveManager.cpp` — implementation (check for remove/unload)
-- `libultraship/include/ship/resource/ResourceManager.h` — resource caching
-- `games/oot/soh/GameExports_SingleExe.cpp` — OoT lifecycle hooks
-- `games/mm/2s2h/GameExports_SingleExe.cpp` — MM lifecycle hooks
-
-**Build:** `cd /home/sd/claude/redshipblueship/build-cmake && cmake .. && cmake --build . --target redship -j$(nproc)`
-
-Push your changes when done. Do NOT create a PR.
+**Steps:** work on branch `claude/mm-tracker-sync-297`. Port in reviewable commits
+(ItemTracker first, then CheckTracker, then DisplayOverlay validation), push early and often so
+progress survives session restarts. Open the PR once it compiles; iterate against CI; on green,
+squash-merge and close #297. This lane never touches `item_list.cpp`/`randomizer.cpp`, so it
+runs freely in parallel with Lane 2.
 
 ---
 
-## Issue #155 — GameInteractor Singleton Collision
+## Lane 4 — admin closeout (LOCAL machine only)
 
-You are working on `redshipblueship` — unified OoT+MM single executable. Repo at `/home/sd/claude/redshipblueship`, branch `claude/mm-init-debug`.
+**Goal:** the tracker reflects reality and the local checkout stops lying about in-flight work.
 
-**Problem:** Both OoT and MM have their own `GameInteractor` class with a static `Instance` pointer. In the single-exe build, both sets of GameInteractor code are linked. When MM initializes, its `GameInteractor::Instance` may collide with OoT's, causing hooks from one game to fire in the other, or crashes from accessing the wrong game's state.
+**Closure criteria:**
+- [ ] #254 closed (evidence: rebase landed in `842537df18`, 2026-04-29; 9 TODO slots per
+      language verified present 2026-06-09) — skip if Lane 2 already closed it
+- [ ] Phase 0 (milestone 1) and Phase 1 (milestone 2) closed:
+      `gh api -X PATCH repos/spencerduncan/redshipblueship/milestones/<n> -f state=closed`
+- [ ] `git worktree prune` run (clears the five stale `/tmp/rsbs-*` entries)
+- [ ] parked worktrees removed: anything with clean status, no commits ahead of `origin/main`,
+      HEAD at a stale base (most sit at `dd0e78d617` or `48a2d45b8e`)
+- [ ] confirmed-merged local branches deleted (audited 2026-06-09, content landed via squash):
+      `claude/shuffle-features-235`, `claude/config-updaters-d7e80a`, `claude/appimage-fix-232`,
+      `claude/reconcile-otrglobals-3ef93e`, `claude/enhancements-ui-237`,
+      `claude/entrance-tracker-239`, `claude/language-system-229`,
+      `claude/rom-extraction-ux-9be948e1`, `claude/docker-worker-hardening`,
+      `claude/optimize-windows-ci-43307fyg`, `claude/2s2h-sync-238`, `claude/sync-save-buffer-203`,
+      `claude/oot-state-restoration-170`, plus empty `fix/issue-233-segfault-quit`
+- [ ] a final report listing everything removed and everything deliberately skipped
 
-**Current state:** In single-exe mode, MM's GameInteractor functions are currently **stubbed** in `src/common/mm_stubs.c` (lines 108-141). This means MM's game loop calls like `GameInteractor_ExecuteOnGameStateUpdate` are no-ops. This works for now but means MM enhancements won't function.
-
-OoT's GameInteractor is at: `games/oot/soh/Enhancements/game-interactor/GameInteractor.h`
-MM's GameInteractor is at: `games/mm/2s2h/GameInteractor/GameInteractor.h`
-
-Both use `GameInteractor::Instance` as a static singleton.
-
-**Your task:** Design and implement a solution so both GameInteractors can coexist. Options:
-
-**Option A (Recommended — Namespace separation):** MM's symbols are already prefixed with `MM_` by the namespace tool, but the C++ class `GameInteractor` itself may not be namespaced. Check if the namespace tool handles C++ classes. If not, you may need to manually namespace MM's GameInteractor (e.g., `namespace MM { class GameInteractor { ... }; }`).
-
-**Option B (Active game gating):** Keep a single GameInteractor but gate hooks by active game. Add a `GameId activeGame` field and skip hook execution when the wrong game is active.
-
-**Option C (Keep stubs for now):** If the collision is benign with current stubs, document why and mark as deferred. The stubs in mm_stubs.c effectively disable MM's GameInteractor.
-
-**Investigation steps:**
-1. Check how the namespace tool handles C++ classes: `grep -r "class GameInteractor" games/mm/` — is the class itself renamed?
-2. Check for symbol collisions: are there duplicate `GameInteractor` symbols in the linked binary? Use `nm` on object files.
-3. If OoT's GameInteractor and MM's are already separate symbols (due to namespace tool), the stubs may be sufficient.
-
-**Key files:**
-- `games/oot/soh/Enhancements/game-interactor/GameInteractor.h` — OoT version
-- `games/mm/2s2h/GameInteractor/GameInteractor.h` — MM version
-- `games/mm/2s2h/GameInteractor/GameInteractor.cpp` — MM implementation (uses `GameInteractor::Instance` extensively)
-- `src/common/mm_stubs.c:108-141` — current stubs
-- `games/mm/2s2h/BenPort.cpp` — MM's InitOTR creates GameInteractor::Instance
-
-**Build:** `cd /home/sd/claude/redshipblueship/build-cmake && cmake .. && cmake --build . --target redship -j$(nproc)`
-
-Push your changes when done. Do NOT create a PR.
+**Safety rails:**
+- Verify before each removal: `git status` clean in that worktree AND (zero commits ahead of
+  `origin/main` OR the branch is in the audited list above).
+- **Never touch:** `main`, `claude/custom-messages-hooks-228` (live PR #247),
+  `claude/texture-interp-fix-234` (live PR #249), `claude/build-gcc16-ci` (primary checkout's
+  current branch), `claude/ecstatic-lalande-f82e36`, `claude/exciting-bartik-4d94e5`, or any
+  worktree with uncommitted changes.
+- **Do not delete remote branches.** List candidates (e.g. the stale
+  `claude/fix-randomizer-compilation-6LcCr`, Jan 2026) in the final report for the maintainer
+  to confirm.
