@@ -1,10 +1,9 @@
 # Worker loop goals — Wave 2 (updated 2026-06-10)
 
-Lanes 1–3 are complete (record below). Active lanes: 4 (local), 5 and 6 (cloud). Each active
+Lanes 1–4 are complete (record below). Active lanes: 5 and 6 (cloud). Each active
 section is a complete, self-contained loop goal for one code worker: run it as a `/loop` goal
 (self-paced) or as a plain dispatch prompt. Lanes 5 and 6 may run concurrently — their
-pre-flight checks enforce mutual exclusion on contended files. Lane 4 must run on the
-maintainer's local machine (it prunes local worktrees).
+pre-flight checks enforce mutual exclusion on contended files.
 
 Supersedes the Wave 1 prompts (issues #154–160, all closed — see git history of this file).
 
@@ -17,6 +16,10 @@ Supersedes the Wave 1 prompts (issues #154–160, all closed — see git history
 - **Lane 3** — PR #299 (MM tracker architecture sync) merged → main `a4eb32fdfa`; #297 closed
   (2026-06-10). The #238 PR-A revival (individual tracker improvement ports) is now unblocked
   and awaits a future lane.
+- **Lane 4** — admin closeout done locally (2026-06-10): Phase 0/1 milestones closed; worktrees
+  pruned ~130 → 20 (dirty/ahead/protected entries kept); all 16 audited merged branches
+  deleted; no remote branches deleted — stale-remote candidates (e.g.
+  `claude/fix-randomizer-compilation-6LcCr`) remain listed for maintainer sign-off.
 
 ## Common rules (all lanes)
 
@@ -41,42 +44,6 @@ Supersedes the Wave 1 prompts (issues #154–160, all closed — see git history
   and humans can see state. Report outcomes faithfully — failed checks get quoted, not summarized
   away.
 - Never force-push over commits you didn't write without fetching and reading them first.
-
----
-
-## Lane 4 — admin closeout (LOCAL machine only)
-
-**Goal:** the tracker reflects reality and the local checkout stops lying about in-flight work.
-
-**Closure criteria:**
-- [x] #254 closed — done 2026-06-10 by Lane 2
-- [ ] Phase 0 (milestone 1) and Phase 1 (milestone 2) closed:
-      `gh api -X PATCH repos/spencerduncan/redshipblueship/milestones/<n> -f state=closed`
-- [ ] `git worktree prune` run (clears the five stale `/tmp/rsbs-*` entries)
-- [ ] parked worktrees removed: anything with clean status, no commits ahead of `origin/main`,
-      HEAD at a stale base (most sit at `dd0e78d617` or `48a2d45b8e`)
-- [ ] confirmed-merged local branches deleted (audited 2026-06-09/10, content landed via squash):
-      `claude/shuffle-features-235`, `claude/config-updaters-d7e80a`, `claude/appimage-fix-232`,
-      `claude/reconcile-otrglobals-3ef93e`, `claude/enhancements-ui-237`,
-      `claude/entrance-tracker-239`, `claude/language-system-229`,
-      `claude/rom-extraction-ux-9be948e1`, `claude/docker-worker-hardening`,
-      `claude/optimize-windows-ci-43307fyg`, `claude/2s2h-sync-238`, `claude/sync-save-buffer-203`,
-      `claude/oot-state-restoration-170`, plus empty `fix/issue-233-segfault-quit`, plus the
-      now-merged PR heads `claude/custom-messages-hooks-228` (PR #247 → `5ecce8f5b6`; the local
-      copy at `7fed3ab4b9` was stale even before the merge) and `claude/texture-interp-fix-234`
-      (PR #249 → `7563640b6a`)
-- [ ] a final report listing everything removed and everything deliberately skipped
-
-**Safety rails:**
-- Verify before each removal: `git status` clean in that worktree AND (zero commits ahead of
-  `origin/main` OR the branch is in the audited list above).
-- **Never touch:** `main`, `claude/build-gcc16-ci` (primary checkout's current branch),
-  `claude/ecstatic-lalande-f82e36`, `claude/exciting-bartik-4d94e5`, `claude/wave2b-lanes-5-6`,
-  any branch with an OPEN PR (`gh pr list --state open` first), or any worktree with
-  uncommitted changes.
-- **Do not delete remote branches.** List candidates (e.g. the stale
-  `claude/fix-randomizer-compilation-6LcCr`, Jan 2026) in the final report for the maintainer
-  to confirm.
 
 ---
 
