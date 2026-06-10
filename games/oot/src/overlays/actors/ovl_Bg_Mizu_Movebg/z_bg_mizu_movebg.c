@@ -367,20 +367,20 @@ void BgMizuMovebg_Draw(Actor* thisx, PlayState* play2) {
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
 
     gSPSegment(POLY_OPA_DISP++, 0x08,
-               OoT_Gfx_TwoTexScrollEnvColor(play->state.gfxCtx, 0, frames * 1, 0, 32, 32, 1, 0, 0, 32, 32, 0, 0, 0,
-                                        this->scrollAlpha1));
+               OoT_Gfx_TwoTexScrollEnvColorEx(play->state.gfxCtx, 0, frames * 1, 0, 32, 32, 1, 0, 0, 32, 32, 0, 0, 0,
+                                          this->scrollAlpha1, 1, 0, 0, 0));
 
     gSPSegment(POLY_OPA_DISP++, 0x09,
-               OoT_Gfx_TwoTexScrollEnvColor(play->state.gfxCtx, 0, frames * 1, 0, 32, 32, 1, 0, 0, 32, 32, 0, 0, 0,
-                                        this->scrollAlpha2));
+               OoT_Gfx_TwoTexScrollEnvColorEx(play->state.gfxCtx, 0, frames * 1, 0, 32, 32, 1, 0, 0, 32, 32, 0, 0, 0,
+                                          this->scrollAlpha2, 1, 0, 0, 0));
 
     gSPSegment(POLY_OPA_DISP++, 0x0A,
-               OoT_Gfx_TwoTexScrollEnvColor(play->state.gfxCtx, 0, frames * 1, 0, 32, 32, 1, 0, 0, 32, 32, 0, 0, 0,
-                                        this->scrollAlpha3));
+               OoT_Gfx_TwoTexScrollEnvColorEx(play->state.gfxCtx, 0, frames * 1, 0, 32, 32, 1, 0, 0, 32, 32, 0, 0, 0,
+                                          this->scrollAlpha3, 1, 0, 0, 0));
 
     gSPSegment(POLY_OPA_DISP++, 0x0B,
-               OoT_Gfx_TwoTexScrollEnvColor(play->state.gfxCtx, 0, frames * 3, 0, 32, 32, 1, 0, 0, 32, 32, 0, 0, 0,
-                                        this->scrollAlpha4));
+               OoT_Gfx_TwoTexScrollEnvColorEx(play->state.gfxCtx, 0, frames * 3, 0, 32, 32, 1, 0, 0, 32, 32, 0, 0, 0,
+                                          this->scrollAlpha4, 3, 0, 0, 0));
 
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
 
