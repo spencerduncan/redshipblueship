@@ -306,12 +306,6 @@ static void DrawGeneralTab() {
     UIWidgets::CVarCheckbox("Container Style Matches Contents", "gRando.CSMC");
     UIWidgets::Tooltip("This will make the contents of a container match the container itself. This currently only "
                        "applies to chests and pots.");
-    UIWidgets::WindowButton("Check Tracker", "gWindows.CheckTracker", BenGui::mRandoCheckTrackerWindow,
-                            { .size = ImVec2((ImGui::GetContentRegionAvail().x - 48.0f), 40.0f) });
-    ImGui::SameLine();
-    if (UIWidgets::Button(ICON_FA_COG, { .size = ImVec2(40.0f, 40.0f) })) {
-        BenGui::mRandoCheckTrackerSettingsWindow->ToggleVisibility();
-    }
     ImGui::EndChild();
     ImGui::SameLine();
 }
@@ -1022,6 +1016,18 @@ void Rando::RegisterMenu() {
     mBenMenu->AddSidebarEntry("Rando", "Hints", 1);
     path.sidebarName = "Hints";
     mBenMenu->AddWidget(path, "Hints", WIDGET_CUSTOM).CustomFunction([](WidgetInfo& info) { DrawHintsTab(); });
+
+    mBenMenu->AddSidebarEntry("Rando", "Item Tracker", 1);
+    path.sidebarName = "Item Tracker";
+    mBenMenu->AddWidget(path, "Popout Settings", WIDGET_WINDOW_BUTTON)
+        .CVar("gWindows.ItemTrackerSettings")
+        .WindowName("Item Tracker Settings");
+
+    mBenMenu->AddSidebarEntry("Rando", "Check Tracker", 1);
+    path.sidebarName = "Check Tracker";
+    mBenMenu->AddWidget(path, "Popout Settings", WIDGET_WINDOW_BUTTON)
+        .CVar("gWindows.CheckTrackerSettings")
+        .WindowName("Check Tracker Settings");
 }
 
 static RegisterMenuInitFunc initFunc(Rando::RegisterMenu);
