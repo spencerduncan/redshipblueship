@@ -401,7 +401,8 @@ void BuildItemMessage(u16* textId, bool* loadFromMessageTable) {
         BuildTriforcePieceMessage(msg);
     } else if (player->getItemEntry.getItemId == RG_CRAWL) {
         msg = CustomMessage("You got the %rAbility to Crawl%w!&The power of kneecaps is yours!",
-                            "TODO_DE_CRAWL_GIMESSAGE", "Vous obtenez la %rCapacité à Ramper%w!", TEXTBOX_TYPE_BLUE);
+                            "Du erhältst die %rFähigkeit zu kriechen%w!&Die Macht der Kniescheiben gehört dir!",
+                            "Vous obtenez la %rCapacité à Ramper%w!", TEXTBOX_TYPE_BLUE);
     } else {
         BuildCustomItemMessage(player, msg);
     }
