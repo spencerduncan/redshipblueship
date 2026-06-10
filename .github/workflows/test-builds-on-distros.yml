@@ -7,9 +7,14 @@ concurrency:
 jobs:
   build:
     strategy:
+      # fedora:rawhide and archlinux:base/opensuse:tumbleweed are rolling — they pick up the
+      # newest GCC (GCC 16+ as of 2026-Q2). Issue #287 / upstream SOH #6601: ensures the
+      # redship single-exe target is actually exercised under GCC 16, which the fixed-version
+      # distros below (fedora:39, ubuntu:mantic, debian:bookworm) still cannot do.
+      fail-fast: false
       matrix:
-        image: ["archlinux:base", "opensuse/tumbleweed:latest", "ubuntu:mantic", "debian:bookworm", "fedora:39"]
-        cc: ["gcc", "clang"] 
+        image: ["archlinux:base", "opensuse/tumbleweed:latest", "ubuntu:mantic", "debian:bookworm", "fedora:39", "fedora:rawhide"]
+        cc: ["gcc", "clang"]
         include:
         - cxx: g++
           cc: gcc
@@ -27,12 +32,12 @@ jobs:
         pacman -Syu --noconfirm
         pacman -S --noconfirm ${{ matrix.cc }} git cmake ninja lsb-release sdl2 libpng libzip nlohmann-json tinyxml2 spdlog sdl2_net
     - name: Install dependencies (dnf)
-      if: ${{ matrix.image == 'fedora:39' }}
+      if: ${{ matrix.image == 'fedora:39' || matrix.image == 'fedora:rawhide' }}
       run: |
         echo fedora
-        echo dnf install ${{ matrix.cc }} ${{ (matrix.cxx == 'g++' && 'gcc-c++') || '' }} wget git cmake ninja-build lsb_release SDL2-devel libpng-devel libzip-devel libzip-tools tinyxml2-devel spdlog-devel
+        echo dnf install ${{ matrix.cc }} ${{ (matrix.cxx == 'g++' && 'gcc-c++') || '' }} wget git cmake ninja-build lsb_release SDL2-devel libpng-devel libzip-devel libzip-tools tinyxml2-devel spdlog-devel nlohmann-json-devel
         dnf -y upgrade
-        dnf -y install ${{ matrix.cc }} ${{ (matrix.cxx == 'g++' && 'gcc-c++') || '' }} wget git cmake ninja-build lsb_release SDL2-devel libpng-devel libzip-devel libzip-tools tinyxml2-devel spdlog-devel
+        dnf -y install ${{ matrix.cc }} ${{ (matrix.cxx == 'g++' && 'gcc-c++') || '' }} wget git cmake ninja-build lsb_release SDL2-devel libpng-devel libzip-devel libzip-tools tinyxml2-devel spdlog-devel nlohmann-json-devel
     - name: Install dependencies (apt)
       if: ${{ matrix.image == 'ubuntu:mantic' || matrix.image == 'debian:bookworm' }}
       run: |
@@ -62,6 +67,10 @@ jobs:
     - uses: actions/checkout@v4
       with:
         submodules: true
+    - name: Print compiler version
+      run: |
+        ${{ matrix.cc }} --version
+        ${{ matrix.cxx }} --version
     - name: Build SoH
       run: |
         export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"

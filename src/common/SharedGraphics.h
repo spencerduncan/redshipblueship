@@ -9,7 +9,7 @@
  * C API (not C++) is required for safe cross-DLL boundary calls on Windows.
  */
 
-#include "combo/Export.h"
+#include "Export.h"
 #include <stdint.h>
 #include <stdbool.h>
 

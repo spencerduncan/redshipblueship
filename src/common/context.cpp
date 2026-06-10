@@ -174,7 +174,7 @@ FrozenStateManager gFrozenStates;
 } // anonymous namespace
 
 // ============================================================================
-// ComboContext implementation (from rsbs/src/combo_context.c)
+// ComboContext implementation
 // ============================================================================
 
 #define COMBO_CONTEXT_VERSION 1

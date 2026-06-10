@@ -6,6 +6,8 @@
 #include <ship/window/Window.h>
 #include <libultraship/bridge/consolevariablebridge.h>
 
+#include "save.h"
+
 namespace ComboGui {
 
 // CVar namespace prefixes for the unified settings system
@@ -101,6 +103,13 @@ void ComboMenuBar::DrawRedShipMenu() {
             std::reinterpret_pointer_cast<Ship::ConsoleWindow>(
                 Ship::Context::GetInstance()->GetWindow()->GetGui()->GetGuiWindow("Console"))
                 ->Dispatch("reset");
+        }
+
+        ImGui::Separator();
+
+        if (ImGui::BeginMenu("Unified Save Slots")) {
+            DrawFileSelect();
+            ImGui::EndMenu();
         }
 
 #if !defined(__SWITCH__) && !defined(__WIIU__)
@@ -328,6 +337,78 @@ void ComboMenuBar::DrawComboSettings() {
         }
 
         ImGui::EndMenu();
+    }
+}
+
+void ComboMenuBar::DrawFileSelect() {
+    ImGui::TextUnformatted("Unified Save Slots (.redsave)");
+    ImGui::Separator();
+
+    // Per-slot row: name, last game, started badges, Load / Delete / Save-to.
+    // ReadMeta is cheap (header + a few byte pulls, no CRC) so calling it
+    // every frame while the menu is open is fine.
+    for (int slot = 0; slot < RSBS_SAVE_MAX_SLOTS; slot++) {
+        ImGui::PushID(slot);
+
+        const rsbs::SlotMeta meta = rsbs::SaveManager::Instance().ReadMeta(slot);
+
+        ImGui::Text("Slot %d", slot + 1);
+        ImGui::SameLine();
+
+        if (!meta.exists) {
+            ImGui::TextDisabled("[empty]");
+        } else if (!meta.valid) {
+            ImGui::TextDisabled("[invalid header]");
+        } else {
+            // Name: prefer OoT if started, else MM; show both if both are
+            // started so a slot with progress in each game is unambiguous.
+            std::string nameLine;
+            if (meta.ootStarted && meta.mmStarted) {
+                nameLine = std::string("OoT: ") + meta.ootName + "  MM: " + meta.mmName;
+            } else if (meta.ootStarted) {
+                nameLine = std::string("OoT: ") + meta.ootName;
+            } else if (meta.mmStarted) {
+                nameLine = std::string("MM: ") + meta.mmName;
+            } else {
+                nameLine = "(no per-game progress)";
+            }
+            ImGui::TextUnformatted(nameLine.c_str());
+
+            ImGui::SameLine();
+            const char* lastGameLabel = "?";
+            if (meta.lastGame == GAME_OOT) {
+                lastGameLabel = "OoT";
+            } else if (meta.lastGame == GAME_MM) {
+                lastGameLabel = "MM";
+            }
+            ImGui::TextDisabled("(last: %s)", lastGameLabel);
+
+            ImGui::Text("Started:");
+            ImGui::SameLine();
+            ImGui::TextUnformatted(meta.ootStarted ? "[OoT v]" : "[OoT _]");
+            ImGui::SameLine();
+            ImGui::TextUnformatted(meta.mmStarted ? "[MM v]" : "[MM _]");
+        }
+
+        // Action buttons. Load / Delete are only meaningful when the slot
+        // exists; Save-to-slot is always available so the user can promote
+        // the in-memory state into any slot (it'll create one if missing).
+        if (meta.exists) {
+            if (ImGui::Button("Load")) {
+                RsbsSave_Load(slot);
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Delete")) {
+                RsbsSave_DeleteSave(slot);
+            }
+            ImGui::SameLine();
+        }
+        if (ImGui::Button("Save to slot")) {
+            RsbsSave_Save(slot);
+        }
+
+        ImGui::Separator();
+        ImGui::PopID();
     }
 }
 

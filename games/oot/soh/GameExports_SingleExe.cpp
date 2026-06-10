@@ -39,9 +39,22 @@ extern "C" {
     extern SaveContext gSaveContext;
 }
 
+// Archive hot-swap cycle helpers (#263). Defined in
+// src/common/tests/test_archive_hotswap.c (compiled into redship_common via
+// test_runner.cpp); resolved at final link. Record this OoT arrival, query the
+// RSS bound, and read the target arrival count for the cycle-complete check.
+extern "C" {
+    int ArchiveHotswap_RecordArrival(void);
+    int ArchiveHotswap_RssExceeded(void);
+    int ArchiveHotswap_TargetArrivals(void);
+}
+
 // Game state
 static int sArgc = 0;
 static char** sArgv = nullptr;
+
+// Integration test hook frame counter (reset each time hooks are registered)
+static int sOoTGameStateMainFrameCount = 0;
 
 // ============================================================================
 // Integration Test Hooks
@@ -58,7 +71,6 @@ static void OoT_RegisterIntegrationTestHooks(void) {
 
     IntegrationTestMode mode = IntegrationTest_GetMode();
 
-    // Only register hooks for OoT boot test
     if (mode == INT_TEST_BOOT_OOT) {
         fprintf(stderr, "[OoT] Registering integration test hooks for boot detection\n");
         fflush(stderr);
@@ -82,6 +94,150 @@ static void OoT_RegisterIntegrationTestHooks(void) {
         );
 
         fprintf(stderr, "[OoT] Integration test hooks registered\n");
+        fflush(stderr);
+    } else if (mode == INT_TEST_SWITCH_OOT_HMS_TO_MM) {
+        // T1 (#260): Boot OoT, programmatically trigger the Happy Mask Shop
+        // entrance, assert the cross-game switch resolves to MM Clock Tower
+        // Interior. Leg 1 of the test passes when routing is verified here;
+        // final pass is signaled from the MM-side hook after MM stabilizes
+        // post-switch.
+        fprintf(stderr, "[OoT] Registering integration test hooks for HMS->MM switch (T1)\n");
+        fflush(stderr);
+
+        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnPresentFileSelect>(
+            []() {
+                fprintf(stderr, "[OoT-INT-TEST] File select reached; triggering HMS entrance 0x%04X\n",
+                        OOT_ENTR_HAPPY_MASK_SHOP);
+                fflush(stderr);
+
+                // Same call OoT's z_play.c makes when the player walks into the
+                // Happy Mask Shop door — minus the freeze, which T3 covers.
+                Combo_CheckCrossGameEntrance("oot", OOT_ENTR_HAPPY_MASK_SHOP);
+
+                if (!Combo_IsCrossGameSwitch()) {
+                    fprintf(stderr, "[OoT-INT-TEST] FAIL: HMS entrance did not register a cross-game switch\n");
+                    fflush(stderr);
+                    IntegrationTest_RequestExit();
+                    return;
+                }
+
+                const char* target = Combo_GetSwitchTargetGameId();
+                uint16_t targetEntrance = Combo_GetSwitchTargetEntrance();
+
+                if (!target || strcmp(target, "mm") != 0) {
+                    fprintf(stderr, "[OoT-INT-TEST] FAIL: target should be 'mm', got '%s'\n",
+                            target ? target : "(null)");
+                    fflush(stderr);
+                    IntegrationTest_RequestExit();
+                    return;
+                }
+
+                if (targetEntrance != MM_ENTR_CLOCK_TOWER_INTERIOR_1) {
+                    fprintf(stderr,
+                            "[OoT-INT-TEST] FAIL: target entrance should be 0x%04X (Clock Tower Interior), got 0x%04X\n",
+                            MM_ENTR_CLOCK_TOWER_INTERIOR_1, targetEntrance);
+                    fflush(stderr);
+                    IntegrationTest_RequestExit();
+                    return;
+                }
+
+                fprintf(stderr,
+                        "[OoT-INT-TEST] PASS leg 1: HMS routes to MM 0x%04X; main loop will run the switch\n",
+                        targetEntrance);
+                fflush(stderr);
+                // Intentionally NOT signaling boot complete here. The main loop
+                // will see the pending cross-game switch on Combo_CheckHotSwap
+                // and hand off to MM. The MM-side hook signals the final pass.
+            }
+        );
+
+        fprintf(stderr, "[OoT] HMS->MM switch hooks registered\n");
+        fflush(stderr);
+    } else if (mode == INT_TEST_SWITCH_MM_CLOCKTOWN_SOUTH_TO_OOT) {
+        // T2 (#261) leg 2: OoT has been booted via the cross-game switch from
+        // MM's SCT-south trigger. Reaching this hook means MM's freeze + main
+        // loop's hand-off + OoT_Game_Init all succeeded end-to-end. Signal pass
+        // once OoT's graph thread is running steady frames.
+        fprintf(stderr, "[OoT] Registering integration test hooks for SCT-south->OoT switch completion (T2)\n");
+        fflush(stderr);
+
+        sOoTGameStateMainFrameCount = 0;
+
+        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>(
+            []() {
+                sOoTGameStateMainFrameCount++;
+                if (sOoTGameStateMainFrameCount >= 10) {
+                    fprintf(stderr,
+                            "[OoT-INT-TEST] OoT stable after SCT-south->OoT switch (frame %d)\n",
+                            sOoTGameStateMainFrameCount);
+                    fflush(stderr);
+                    IntegrationTest_SignalBootComplete(GAME_OOT, "OoT stable after SCT-south->OoT switch");
+                }
+            }
+        );
+
+        fprintf(stderr, "[OoT] SCT-south->OoT switch hooks registered\n");
+        fflush(stderr);
+    } else if (mode == INT_TEST_ARCHIVE_HOTSWAP_CYCLE) {
+        // T4 (#263): drive >=3 OoT<->MM archive hot-swaps and assert a healthy
+        // runtime. OoT boots first, so OoT is arrivals #1 and #3 of the
+        // OoT->MM->OoT->MM cycle (4 arrivals == 3 transitions).
+        //
+        // Registration runs from OoT_Game_Init, which fires only on OoT's FIRST
+        // entry — later OoT arrivals come back through OoT_Game_Resume (see
+        // GameRunner_SwitchTo: a suspended game is resumed, not re-init'd), so
+        // this hook is registered exactly once and the persistent frame counter
+        // is NOT reset per arrival. The hook therefore re-arms itself: it fires
+        // ~10 stable frames after each (re)entry, then resets the counter so the
+        // next arrival reached via resume is detected the same way.
+        fprintf(stderr, "[OoT] Registering integration test hooks for archive-hotswap cycle (T4)\n");
+        fflush(stderr);
+
+        sOoTGameStateMainFrameCount = 0;
+
+        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>(
+            []() {
+                // Fire once per arrival, ~10 stable frames after (re)entry, then
+                // re-arm for the next OoT arrival (reached via OoT_Game_Resume).
+                sOoTGameStateMainFrameCount++;
+                if (sOoTGameStateMainFrameCount < 10) {
+                    return;
+                }
+                sOoTGameStateMainFrameCount = 0;
+
+                int n = ArchiveHotswap_RecordArrival();
+                fprintf(stderr, "[OoT-INT-TEST] OoT stable; archive-hotswap arrival #%d of %d\n",
+                        n, ArchiveHotswap_TargetArrivals());
+                fflush(stderr);
+
+                if (ArchiveHotswap_RssExceeded()) {
+                    // Steady-state RSS blew the bound — the #154 per-switch leak
+                    // regression. Fail fast: RequestExit does NOT set the pass
+                    // flag, so the run returns non-zero. Combo_RequestGameSwitch()
+                    // right after unblocks the main loop promptly (known fix).
+                    fprintf(stderr, "[OoT-INT-TEST] FAIL: steady-state RSS bound exceeded after %d arrivals\n", n);
+                    fflush(stderr);
+                    IntegrationTest_RequestExit();
+                    Combo_RequestGameSwitch();
+                } else if (n >= ArchiveHotswap_TargetArrivals()) {
+                    // Target arrivals reached with a healthy runtime — PASS.
+                    // SignalBootComplete sets the pass flag and requests the
+                    // switch that unblocks the main loop.
+                    fprintf(stderr, "[OoT-INT-TEST] archive-hotswap cycle complete after %d arrivals\n", n);
+                    fflush(stderr);
+                    IntegrationTest_SignalBootComplete(GAME_OOT, "archive-hotswap cycle complete");
+                } else {
+                    // Keep the cycle going: re-trigger the OoT->MM switch via the
+                    // Happy Mask Shop entrance — same call the T1 branch makes.
+                    fprintf(stderr, "[OoT-INT-TEST] re-triggering HMS entrance 0x%04X to continue cycle\n",
+                            OOT_ENTR_HAPPY_MASK_SHOP);
+                    fflush(stderr);
+                    Combo_CheckCrossGameEntrance("oot", OOT_ENTR_HAPPY_MASK_SHOP);
+                }
+            }
+        );
+
+        fprintf(stderr, "[OoT] archive-hotswap cycle hooks registered\n");
         fflush(stderr);
     }
 }
