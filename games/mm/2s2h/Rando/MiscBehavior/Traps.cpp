@@ -41,7 +41,7 @@ std::vector<TrapTypes> getEnabledTrapTypes() {
 
 int RollTrapType() {
     auto enabledTraps = getEnabledTrapTypes();
-    roll = enabledTraps[rand() % enabledTraps.size()];
+    roll = enabledTraps[Ship_Random(0, enabledTraps.size())];
     return roll;
 }
 
@@ -133,9 +133,9 @@ std::string GetTrapMessage() {
     RollTrapType();
     auto findIt = trapMessageList.find((TrapTypes)roll);
     if (findIt == trapMessageList.end()) {
-        return defaultTrapMessages[rand() % defaultTrapMessages.size()];
+        return defaultTrapMessages[Ship_Random(0, defaultTrapMessages.size())];
     } else {
-        return findIt->second[rand() % findIt->second.size()];
+        return findIt->second[Ship_Random(0, findIt->second.size())];
     }
 }
 

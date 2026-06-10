@@ -1321,7 +1321,7 @@ ImVec4 GetRandomValue() {
     std::random_device rd;
     std::mt19937 rng(rd());
 #else
-    size_t seed = std::hash<std::string>{}(std::to_string(rand()));
+    size_t seed = std::hash<std::string>{}(std::to_string(Ship_Random(0, INT32_MAX)));
     std::mt19937_64 rng(seed);
 #endif
     std::uniform_int_distribution<int> dist(0, 255 - 1);

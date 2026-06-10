@@ -1,5 +1,6 @@
 #include <libultraship/bridge/consolevariablebridge.h>
 #include "2s2h/GameInteractor/GameInteractor.h"
+#include "2s2h/ShipUtils.h"
 #include "2s2h/ShipInit.hpp"
 #include "2s2h/CustomItem/CustomItem.h"
 #include "2s2h/Enhancements/FrameInterpolation/FrameInterpolation.h"
@@ -75,7 +76,7 @@ static void ChuDrop_Draw(Actor* actor, PlayState* play) {
 void RegisterChuDrops() {
     COND_ID_HOOK(ShouldActorInit, ACTOR_EN_ITEM00, CVAR, [](Actor* actor, bool* should) {
         if (actor->params == ITEM00_BOMBS_0 || actor->params == ITEM00_BOMBS_A || actor->params == ITEM00_BOMBS_B) {
-            if (rand() % 100 < 50) {
+            if (Ship_Random(0, 100) < 50) {
                 *should = false;
                 EnItem00* newItem =
                     CustomItem::Spawn(actor->world.pos.x, actor->world.pos.y, actor->world.pos.z, 0,

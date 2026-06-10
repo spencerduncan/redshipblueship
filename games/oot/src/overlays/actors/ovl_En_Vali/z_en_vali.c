@@ -7,7 +7,6 @@
 #include "z_en_vali.h"
 #include "objects/object_vali/object_vali.h"
 #include "soh/Enhancements/game-interactor/GameInteractor_Hooks.h"
-#include <stdlib.h>
 #include "soh/ResourceManagerHelpers.h"
 
 #define FLAGS \
@@ -249,7 +248,7 @@ void EnVali_SetupDivideAndDie(EnVali* this, PlayState* play) {
         // Offset small jellyfish with Enemy Randomizer, otherwise it gets
         // stuck in a loop spawning more big jellyfish with seeded spawns.
         if (CVarGetInteger(CVAR_ENHANCEMENT("RandomizedEnemies"), 0)) {
-            this->actor.world.rot.y += rand() % 50;
+            this->actor.world.rot.y += (s16)(OoT_Rand_ZeroOne() * 50.0f);
         }
 
         OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_BILI, this->actor.world.pos.x, this->actor.world.pos.y,

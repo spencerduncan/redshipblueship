@@ -4,6 +4,7 @@
 #include "soh/Enhancements/randomizer/randomizerTypes.h"
 #include "soh/Enhancements/randomizer/settings.h"
 #include "soh/OTRGlobals.h"
+#include "soh/ShipUtils.h"
 #include "soh/SohGui/SohGui.hpp"
 
 extern "C" {
@@ -575,7 +576,12 @@ void SohMenu::AddMenuRandomizer() {
                         .Color(THEME_COLOR)
                         .Padding(ImVec2(10.f, 6.f))
                         .Tooltip("Creates a new random seed value to be used when generating a randomizer"))) {
-                SohUtils::CopyStringToCharArray(seedString, std::to_string(rand() & 0xFFFFFFFF), MAX_SEED_STRING_SIZE);
+                char newSeed[11];
+                for (size_t i = 0; i < 10; i++) {
+                    newSeed[i] = '0' + ShipUtils::Random(0, 10);
+                }
+                newSeed[10] = '\0';
+                SohUtils::CopyStringToCharArray(seedString, newSeed, MAX_SEED_STRING_SIZE);
             }
             ImGui::SameLine();
             if (UIWidgets::Button(ICON_FA_ERASER, UIWidgets::ButtonOptions()
