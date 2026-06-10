@@ -2516,6 +2516,17 @@ bool SoH_HandleConfigDrop(char* filePath) {
     return false;
 }
 
+// Kept vs upstream SOH #6636: our randomizer_entrance.c still calls this C bridge
+extern "C" void CheckTracker_RecalculateAvailableChecks() {
+    CheckTracker::RecalculateAvailableChecks();
+}
+
+// Kept vs upstream SOH #6636: MM's z_kankyo.c calls this OoT-provided symbol in
+// single-exe builds (scrolling-texture-interpolation port, #234)
+extern "C" uint32_t Ship_GetInterpolationFPS() {
+    return OTRGlobals::Instance->GetInterpolationFPS();
+}
+
 // Number of interpolated frames
 extern "C" uint32_t Ship_GetInterpolationFrameCount() {
     return ceil((float)OTRGlobals::Instance->GetInterpolationFPS() / 20.0f);
