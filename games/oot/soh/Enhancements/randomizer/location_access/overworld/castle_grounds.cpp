@@ -22,7 +22,7 @@ void RegionTable_Init_CastleGrounds() {
         EventAccess(LOGIC_BUG_ACCESS,   []{return true;}),
     }, {
         //Locations
-        LOCATION(RC_HC_MALON_EGG,                        true),
+        LOCATION(RC_HC_MALON_EGG,                        logic->HasItem(RG_SPEAK_HYLIAN)),
         LOCATION(RC_HC_GS_TREE,                          logic->CanKillEnemy(RE_GOLD_SKULLTULA, ED_CLOSE) && logic->CanBonkTrees()),
         LOCATION(RC_HC_MALON_GOSSIP_STONE_FAIRY,         logic->CallGossipFairy()),
         LOCATION(RC_HC_MALON_GOSSIP_STONE_FAIRY_BIG,     logic->CanUse(RG_SONG_OF_STORMS)),
@@ -45,7 +45,7 @@ void RegionTable_Init_CastleGrounds() {
     }, {
         //Exits
         Entrance(RR_CASTLE_GROUNDS,          []{return true;}),
-        Entrance(RR_HC_LEDGE,                []{return logic->CanUse(RG_WEIRD_EGG) || (ctx->GetTrickOption(RT_DAMAGE_BOOST_SIMPLE) && logic->HasExplosives() && logic->CanJumpslash());}),
+        Entrance(RR_HC_LEDGE,                []{return (logic->CanUse(RG_WEIRD_EGG) && logic->HasItem(RG_SPEAK_HYLIAN)) || (ctx->GetTrickOption(RT_DAMAGE_BOOST_SIMPLE) && logic->HasExplosives() && logic->CanJumpslash());}),
         Entrance(RR_HC_GREAT_FAIRY_FOUNTAIN, []{return logic->CanUse(RG_CRAWL) && logic->BlastOrSmash();}),
         Entrance(RR_HC_STORMS_GROTTO,        []{return logic->CanOpenStormsGrotto();}),
     });
@@ -58,8 +58,8 @@ void RegionTable_Init_CastleGrounds() {
 
     areaTable[RR_HC_GARDEN] = Region("HC Garden", SCENE_CASTLE_COURTYARD_ZELDA, {}, {
         //Locations
-        LOCATION(RC_HC_ZELDAS_LETTER, true),
-        LOCATION(RC_SONG_FROM_IMPA,   true),
+        LOCATION(RC_HC_ZELDAS_LETTER, logic->HasItem(RG_SPEAK_HYLIAN)),
+        LOCATION(RC_SONG_FROM_IMPA,   logic->HasItem(RG_SPEAK_HYLIAN)),
     }, {
         //Exits
         Entrance(RR_HC_LEDGE, []{return true;}), // if this ever gets shuffled leaving garden area should come out crawlspace

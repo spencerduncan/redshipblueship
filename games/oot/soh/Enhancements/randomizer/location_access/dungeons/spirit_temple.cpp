@@ -28,7 +28,7 @@ void RegionTable_Init_SpiritTemple() {
     }, {
         //Exits
         Entrance(RR_SPIRIT_TEMPLE_ENTRYWAY,        []{return true;}),
-        Entrance(RR_SPIRIT_TEMPLE_CHILD_SIDE_HUB,  []{return logic->CanUse(RG_CRAWL);}),
+        Entrance(RR_SPIRIT_TEMPLE_CHILD_SIDE_HUB,  []{return (logic->IsAdult || logic->HasItem(RG_SPEAK_GERUDO) || logic->Get(LOGIC_SPIRIT_NABOORU_KIDNAPPED)) && logic->CanUse(RG_CRAWL);}),
         Entrance(RR_SPIRIT_TEMPLE_ADULT_SIDE_HUB,  []{return logic->CanUse(RG_SILVER_GAUNTLETS);}),
     });
 
@@ -333,7 +333,10 @@ void RegionTable_Init_SpiritTemple() {
         Entrance(RR_SPIRIT_TEMPLE_OUTER_RIGHT_HAND, []{return true;}),
     });
 
-    areaTable[RR_SPIRIT_TEMPLE_OUTER_RIGHT_HAND] = Region("Spirit Temple Outer Right Hand", SCENE_SPIRIT_TEMPLE, {}, {
+    areaTable[RR_SPIRIT_TEMPLE_OUTER_RIGHT_HAND] = Region("Spirit Temple Outer Right Hand", SCENE_SPIRIT_TEMPLE, {
+        //Events
+        EventAccess(LOGIC_SPIRIT_NABOORU_KIDNAPPED, []{return SpiritShared(RR_SPIRIT_TEMPLE_OUTER_RIGHT_HAND, []{return true;});}),
+    }, {
         //Locations
         LOCATION(RC_SPIRIT_TEMPLE_SILVER_GAUNTLETS_CHEST, SpiritShared(RR_SPIRIT_TEMPLE_OUTER_RIGHT_HAND, []{return true;})),
     }, {
@@ -564,7 +567,7 @@ void RegionTable_Init_SpiritTemple() {
     }, {
         //Exits
         Entrance(RR_SPIRIT_TEMPLE_ENTRYWAY,           []{return true;}),
-        Entrance(RR_SPIRIT_TEMPLE_MQ_CHILD_SIDE_HUB,  []{return logic->CanUse(RG_CRAWL) /*&& logic->HasSoul(RG_NABOORU_SOUL)*/;}),
+        Entrance(RR_SPIRIT_TEMPLE_MQ_CHILD_SIDE_HUB,  []{return (logic->IsAdult || logic->HasItem(RG_SPEAK_GERUDO) || logic->Get(LOGIC_SPIRIT_NABOORU_KIDNAPPED)) && logic->CanUse(RG_CRAWL) /*&& logic->HasSoul(RG_NABOORU_SOUL)*/;}),
         Entrance(RR_SPIRIT_TEMPLE_MQ_BEHIND_GEYSER,   []{return ctx->GetTrickOption(RT_HOVER_BOOST_SIMPLE) && logic->CanUse(RG_HOVER_BOOTS) && (logic->CanUse(RG_MEGATON_HAMMER) || (logic->CanStandingShield() && (logic->CanUseSword() || logic->CanUse(RG_STICKS))));}),
         Entrance(RR_SPIRIT_TEMPLE_MQ_BIG_BLOCKS_HOLE, []{return logic->CanUse(RG_LONGSHOT) && logic->CanUse(RG_BOMBCHU_5);}),
     });
@@ -817,7 +820,10 @@ void RegionTable_Init_SpiritTemple() {
         Entrance(RR_SPIRIT_TEMPLE_MQ_OUTER_RIGHT_HAND, []{return true;}),
     });
 
-    areaTable[RR_SPIRIT_TEMPLE_MQ_OUTER_RIGHT_HAND] = Region("Spirit Temple MQ Outer Right Hand", SCENE_SPIRIT_TEMPLE, {}, {
+    areaTable[RR_SPIRIT_TEMPLE_MQ_OUTER_RIGHT_HAND] = Region("Spirit Temple MQ Outer Right Hand", SCENE_SPIRIT_TEMPLE, {
+        //Events
+        EventAccess(LOGIC_SPIRIT_NABOORU_KIDNAPPED, []{return SpiritShared(RR_SPIRIT_TEMPLE_OUTER_RIGHT_HAND, []{return true;});}),
+    }, {
         //Locations
         LOCATION(RC_SPIRIT_TEMPLE_SILVER_GAUNTLETS_CHEST, SpiritShared(RR_SPIRIT_TEMPLE_MQ_OUTER_RIGHT_HAND, []{return true;})),
     }, {
