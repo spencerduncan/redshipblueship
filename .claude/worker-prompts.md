@@ -9,10 +9,10 @@ Supersedes the Wave 1 prompts (issues #154–160, all closed — see git history
 ## Common rules (all lanes)
 
 - Repo: `spencerduncan/redshipblueship`. Default branch `main`. All merges are **squash merges**.
-- **You are explicitly authorized to open PRs, merge them once green, and close issues for your
-  lane.** This overrides the repo's usual "push branch only" convention — closure is the goal.
-  If your environment's GitHub credentials cannot merge, stop at "CI green + ready to merge" and
-  report that state instead.
+- **You are expected to open PRs, merge them once green, and close issues for your lane.**
+  Pushes, PRs, and merge-on-green are automated by default in this repo (see CLAUDE.md
+  conventions) — closure is the goal. If your environment's GitHub credentials cannot merge,
+  stop at "CI green + ready to merge" and report that state instead.
 - CI is the authoritative gate: `clang-format`, `clang-tidy`, `generate-builds` (Linux + Windows),
   and `integration-tests-linux` (runs `ctest --label-regex "^redship$"` — BootOoT/BootMM/Roundtrip
   live there). Full wall clock ≈ 25–40 min; Windows is the slow job.
