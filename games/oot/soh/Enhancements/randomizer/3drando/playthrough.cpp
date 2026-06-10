@@ -6,6 +6,8 @@
 #include "random.hpp"
 #include "spoiler_log.hpp"
 #include "soh/Enhancements/randomizer/randomizerTypes.h"
+#include "soh/Enhancements/randomizer/SeedContext.h"
+#include "soh/Enhancements/randomizer/settings.h"
 #include "variables.h"
 #include "soh/OTRGlobals.h"
 #include "soh/cvar_prefixes.h"
