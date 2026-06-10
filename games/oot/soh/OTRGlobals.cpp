@@ -456,6 +456,7 @@ void OTRGlobals::RunExtract(int argc, char* argv[]) {
     std::atomic<size_t> extractCount = 0, totalExtract = 0;
 
     std::string installPath = Ship::Context::GetAppBundlePath();
+    std::string dataPath = Ship::Context::GetAppDirectoryPath(appShortName);
     std::string file;
 
 #if defined(__SWITCH__)
@@ -670,6 +671,8 @@ void OTRGlobals::RunExtract(int argc, char* argv[]) {
                     case PS_LOCAL: {
                         extract = Extractor();
                         extract.SetSearchPath(installPath);
+                        extract.GetRoms(args);
+                        extract.SetSearchPath(dataPath);
                         extract.GetRoms(args);
                         if (!args.empty()) {
                             promptStep = PS_WAIT;
