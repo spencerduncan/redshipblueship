@@ -88,7 +88,7 @@ RandoItemId Rando::CurrentJunkItem() {
     }
 
     while (lastJunkItem == RI_UNKNOWN) {
-        RandoItemId randJunkItem = junkItems[rand() % junkItems.size()];
+        RandoItemId randJunkItem = junkItems[Ship_Random(0, junkItems.size())];
         if (Rando::IsItemObtainable(randJunkItem)) {
             lastJunkItem = randJunkItem;
         }

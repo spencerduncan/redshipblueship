@@ -1,4 +1,5 @@
 #include "AudioEditor.h"
+#include "2s2h/ShipUtils.h"
 
 #include <map>
 #include <set>
@@ -342,7 +343,7 @@ void Draw_SfxTab(const std::string& tabId, SeqType type) {
 
             if (validSequences.size()) {
                 auto it = validSequences.begin();
-                const auto& seqData = *std::next(it, rand() % validSequences.size());
+                const auto& seqData = *std::next(it, Ship_Random(0, validSequences.size()));
                 CVarSetInteger(cvarKey.c_str(), seqData->sequenceId);
                 if (locked) {
                     CVarClear(cvarLockKey.c_str());

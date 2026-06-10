@@ -1,4 +1,5 @@
 #include "2s2h/BenGui/UIWidgets.hpp"
+#include "2s2h/ShipUtils.h"
 #include "CosmeticEditor.h"
 #include "2s2h/ShipInit.hpp"
 
@@ -343,9 +344,9 @@ extern "C" Gfx* Gfx_DrawTexRectIA8_DropShadowOffsetOverride(Gfx* pkt, TexturePtr
 
 void CosmeticEditorRandomizeElement(CosmeticEditorElement element) {
     Color_RGBA8 colorSelected;
-    colorSelected.r = static_cast<uint8_t>((rand() % 256) * 255.0f);
-    colorSelected.g = static_cast<uint8_t>((rand() % 256) * 255.0f);
-    colorSelected.b = static_cast<uint8_t>((rand() % 256) * 255.0f);
+    colorSelected.r = static_cast<uint8_t>(Ship_Random(0, 256) * 255.0f);
+    colorSelected.g = static_cast<uint8_t>(Ship_Random(0, 256) * 255.0f);
+    colorSelected.b = static_cast<uint8_t>(Ship_Random(0, 256) * 255.0f);
     colorSelected.a = static_cast<uint8_t>(255);
 
     CVarSetColor(element.colorCvar, colorSelected);

@@ -1,4 +1,5 @@
 #include "ActorBehavior.h"
+#include "2s2h/ShipUtils.h"
 #include <libultraship/bridge/consolevariablebridge.h>
 #include "2s2h/CustomMessage/CustomMessage.h"
 #include "2s2h/Rando/MiscBehavior/Traps.h"
@@ -298,7 +299,7 @@ void Rando::ActorBehavior::InitEnGirlABehavior() {
         if (!Rando::IsItemObtainable(randoSaveCheck.randoItemId, randoCheckId) && randoSaveCheck.obtained) {
             entry.msg += "Out of Stock";
         } else {
-            entry.msg += flavorTexts[rand() % flavorTexts.size()];
+            entry.msg += flavorTexts[Ship_Random(0, flavorTexts.size())];
         }
         entry.msg += "\x1A\xBF";
 

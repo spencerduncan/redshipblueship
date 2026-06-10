@@ -2,6 +2,7 @@
 #include <libultraship/bridge.h>
 #include "game-interactor/GameInteractor.h"
 #include "soh/ResourceManagerHelpers.h"
+#include "soh/ShipUtils.h"
 #include "soh/Enhancements/boss-rush/BossRush.h"
 #include "soh/Enhancements/enhancementTypes.h"
 #include <soh/Enhancements/item-tables/ItemTableManager.h>
@@ -409,16 +410,16 @@ void RegisterRandomizedEnemySizes() {
         float randomNumber;
         float randomScale;
 
-        uint8_t bigActor = rand() % 2;
+        uint8_t bigActor = ShipUtils::Random(0, 2);
 
         // Big actor
         if (bigActor && !smallOnlyEnemy) {
-            randomNumber = rand() % 200;
+            randomNumber = ShipUtils::Random(0, 200);
             // Between 100% and 300% size.
             randomScale = 1.0f + (randomNumber / 100);
         } else {
             // Small actor
-            randomNumber = rand() % 90;
+            randomNumber = ShipUtils::Random(0, 90);
             // Between 10% and 100% size.
             randomScale = 0.1f + (randomNumber / 100);
         }
