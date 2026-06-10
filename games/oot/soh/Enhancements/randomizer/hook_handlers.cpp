@@ -14,7 +14,6 @@
 #include "soh/SaveManager.h"
 #include "soh/ShipInit.hpp"
 #include "soh/ObjectExtension/ObjectExtension.h"
-#include "item_category_adj.h"
 #include "soh/Enhancements/randomizer/randomizer.h"
 
 extern "C" {

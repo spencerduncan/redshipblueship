@@ -5,7 +5,6 @@
 #include "global.h"
 #include "soh/ResourceManagerHelpers.h"
 #include "soh/ObjectExtension/ObjectExtension.h"
-#include "item_category_adj.h"
 #include "soh/Enhancements/randomizer/randomizer.h"
 
 extern "C" {
