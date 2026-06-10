@@ -64,6 +64,7 @@ CrowdControl* CrowdControl::Instance;
 #include "2s2h/ShipUtils.h"
 #include "2s2h/ShipInit.hpp"
 #include "2s2h/PresetManager/PresetManager.h"
+#include "2s2h/config/ConfigUpdaters.h"
 
 // Resource Types/Factories
 #include <ship/resource/type/Blob.h>
@@ -832,6 +833,11 @@ extern "C" void InitOTR() {
     fprintf(stderr, "[MM InitOTR DEBUG] OTRGlobals created\n");
     fflush(stderr);
 
+    std::shared_ptr<Ship::Config> conf = OTRGlobals::Instance->context->GetConfig();
+    conf->RegisterVersionUpdater(std::make_shared<Ben::ConfigVersion1Updater>());
+    conf->RunVersionUpdates();
+    Ship::Context::GetInstance()->GetConsoleVariables()->Save();
+
     fprintf(stderr, "[MM InitOTR DEBUG] Creating GameInteractor...\n");
     fflush(stderr);
     GameInteractor::Instance = new GameInteractor();
@@ -889,7 +895,6 @@ extern "C" void InitOTR() {
     }
 #endif
 
-    std::shared_ptr<Ship::Config> conf = OTRGlobals::Instance->context->GetConfig();
     Ship::Context::GetInstance()->GetFileDropMgr()->RegisterDropHandler(BinarySaveConverter_HandleFileDropped);
     Ship::Context::GetInstance()->GetFileDropMgr()->RegisterDropHandler(SaveManager_HandleFileDropped);
 }

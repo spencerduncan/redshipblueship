@@ -1,4 +1,5 @@
 #include "BenMenu.h"
+#include "BenGui.hpp"
 #include "UIWidgets.hpp"
 #include "BenPort.h"
 #include "BenInputEditorWindow.h"
@@ -8,6 +9,7 @@
 #include "2s2h/PresetManager/PresetManager.h"
 #include "HudEditor.h"
 #include "Notification.h"
+#include "2s2h/Enhancements/Trackers/DisplayOverlay.h"
 #include <variant>
 #include <ship/utils/StringHelper.h>
 #include <spdlog/fmt/fmt.h>
@@ -603,8 +605,12 @@ void BenMenu::AddSettings() {
     path.column = SECTION_COLUMN_2;
     AddWidget(path, "In-Game Timer", WIDGET_SEPARATOR_TEXT);
     AddWidget(path, "Display", WIDGET_CVAR_COMBOBOX)
-        .CVar("gWindows.DisplayOverlay")
+        .CVar(CVAR_DISPLAY_OVERLAY_MODE)
         .WindowName("Display Overlay")
+        .Callback([](WidgetInfo& info) {
+            int mode = CVarGetInteger(CVAR_DISPLAY_OVERLAY_MODE, TIMER_DISPLAY_NONE);
+            SetDisplayOverlayVisibility(mode != TIMER_DISPLAY_NONE);
+        })
         .Options(
             ComboboxOptions()
                 .Tooltip(
