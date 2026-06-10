@@ -13,6 +13,7 @@
 #include "3drando/hints.hpp"
 #include "soh/util.h"
 #include "../kaleido.h"
+#include "soh/Enhancements/randomizer/randomizer.h"
 
 #include <fstream>
 #include <spdlog/spdlog.h>

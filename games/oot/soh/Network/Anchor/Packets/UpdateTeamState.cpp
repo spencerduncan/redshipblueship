@@ -6,6 +6,7 @@
 #include "soh/Enhancements/randomizer/dungeon.h"
 #include "soh/OTRGlobals.h"
 #include "soh/Notification/Notification.h"
+#include "soh/Enhancements/randomizer/randomizer.h"
 
 extern "C" {
 #include "variables.h"

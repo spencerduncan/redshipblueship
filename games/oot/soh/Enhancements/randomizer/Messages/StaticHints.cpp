@@ -6,6 +6,7 @@
  * are always given by a specific NPC and/or for a specific item.
  */
 #include <soh/OTRGlobals.h>
+#include "soh/Enhancements/randomizer/randomizer.h"
 
 extern "C" {
 extern PlayState* OoT_gPlayState;

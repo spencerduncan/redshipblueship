@@ -3,6 +3,7 @@
 #include "soh/Enhancements/randomizer/3drando/random.hpp"
 #include "soh/Notification/Notification.h"
 #include "soh/OTRGlobals.h"
+#include "soh/Enhancements/randomizer/SeedContext.h"
 
 extern "C" {
 #include "variables.h"
