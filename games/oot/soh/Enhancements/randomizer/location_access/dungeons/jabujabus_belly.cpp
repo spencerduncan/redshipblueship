@@ -24,7 +24,7 @@ void RegionTable_Init_JabuJabusBelly() {
 
     areaTable[RR_JABU_JABUS_BELLY_LIFT_ROOM] = Region("Jabu Jabus Belly Lift Room", SCENE_JABU_JABU, {}, {
         //Locations
-        LOCATION(RC_JABU_JABUS_BELLY_DEKU_SCRUB,                  logic->HasItem(RG_BRONZE_SCALE) && (logic->IsChild || logic->HasItem(RG_SILVER_SCALE) || ctx->GetTrickOption(RT_UNINTUITIVE_JUMPS) || logic->CanUse(RG_IRON_BOOTS)) && logic->CanStunDeku() && GetCheckPrice() <= GetWalletCapacity()),
+        LOCATION(RC_JABU_JABUS_BELLY_DEKU_SCRUB,                  logic->HasItem(RG_BRONZE_SCALE) && (logic->IsChild || logic->HasItem(RG_SILVER_SCALE) || ctx->GetTrickOption(RT_UNINTUITIVE_JUMPS) || logic->CanUse(RG_IRON_BOOTS)) && logic->CanStunDeku() && logic->HasItem(RG_SPEAK_DEKU) && GetCheckPrice() <= GetWalletCapacity()),
         LOCATION(RC_JABU_JABUS_BELLY_PLATFORM_ROOM_SMALL_CRATE_1, logic->CanBreakSmallCrates()),
         LOCATION(RC_JABU_JABUS_BELLY_PLATFORM_ROOM_SMALL_CRATE_2, logic->CanBreakSmallCrates()),
     }, {
@@ -77,7 +77,7 @@ void RegionTable_Init_JabuJabusBelly() {
 
     areaTable[RR_JABU_JABUS_BELLY_WATER_SWITCH_ROOM_NORTH] = Region("Jabu Jabus Belly Water Switch Room North", SCENE_JABU_JABU, {
         //Events
-        EventAccess(LOGIC_JABU_RUTO_IN_1F, []{return logic->IsAdult || logic->HasItem(RG_BRONZE_SCALE);}),
+        EventAccess(LOGIC_JABU_RUTO_IN_1F, []{return (logic->IsAdult || logic->HasItem(RG_BRONZE_SCALE)) && logic->HasItem(RG_SPEAK_ZORA);}),
     }, {
         //Locations
         LOCATION(RC_JABU_JABUS_BELLY_GS_WATER_SWITCH_ROOM, logic->HookshotOrBoomerang()),
@@ -338,7 +338,7 @@ void RegionTable_Init_JabuJabusBelly() {
         //Exits
         Entrance(RR_JABU_JABUS_BELLY_MQ_HOLES_ROOM,           []{return true /* logic->HasItem(RG_CLIMB) */;}),
         Entrance(RR_JABU_JABUS_BELLY_MQ_TO_BIGOCTO,           []{return logic->Get(LOGIC_JABU_WEST_TENTACLE);}),
-        Entrance(RR_JABU_JABUS_BELLY_MQ_WATER_SWITCH_ROOM,    []{return true;}),
+        Entrance(RR_JABU_JABUS_BELLY_MQ_WATER_SWITCH_ROOM,    []{return logic->HasItem(RG_SPEAK_ZORA);}),
         Entrance(RR_JABU_JABUS_BELLY_MQ_INVISIBLE_KEESE_ROOM, []{return logic->Get(LOGIC_JABU_NORTH_TENTACLE);}),
     });
 
@@ -473,8 +473,8 @@ void RegionTable_Init_JabuJabusBelly() {
     // Need Ruto here
     areaTable[RR_JABU_JABUS_BELLY_MQ_BIGOCTO] = Region("Jabu Jabus Belly MQ Big Octo", SCENE_JABU_JABU, {}, {}, {
         //Exits
-        Entrance(RR_JABU_JABUS_BELLY_MQ_TO_BIGOCTO,    []{return AnyAgeTime([]{return logic->CanKillEnemy(RE_BIG_OCTO);});}),
-        Entrance(RR_JABU_JABUS_BELLY_MQ_ABOVE_BIGOCTO, []{return AnyAgeTime([]{return logic->CanKillEnemy(RE_BIG_OCTO);});}),
+        Entrance(RR_JABU_JABUS_BELLY_MQ_TO_BIGOCTO,    []{return AnyAgeTime([]{return logic->HasItem(RG_SPEAK_ZORA) && logic->CanKillEnemy(RE_BIG_OCTO);});}),
+        Entrance(RR_JABU_JABUS_BELLY_MQ_ABOVE_BIGOCTO, []{return AnyAgeTime([]{return logic->HasItem(RG_SPEAK_ZORA) && logic->CanKillEnemy(RE_BIG_OCTO);});}),
     });
 
     areaTable[RR_JABU_JABUS_BELLY_MQ_ABOVE_BIGOCTO] = Region("Jabu Jabus Belly MQ Above Big Octo", SCENE_JABU_JABU, {}, {

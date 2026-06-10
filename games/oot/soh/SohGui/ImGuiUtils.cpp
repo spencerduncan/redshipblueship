@@ -149,6 +149,15 @@ std::map<uint32_t, ItemMapEntry> customItemsMapping = {
     { RG_GANON_SOUL, { RG_GANON_SOUL, "RG_GANON_SOUL", "RG_GANON_SOUL_Faded", gBossSoulTex } },
 };
 
+std::map<uint32_t, ItemMapEntry> jabbernutMapping = {
+    { RG_SPEAK_DEKU, { RG_SPEAK_DEKU, "RG_SPEAK_DEKU", "RG_SPEAK_DEKU_Faded", (char*)OoT_gItemIcons[ITEM_NUT] } },
+    { RG_SPEAK_GERUDO, { RG_SPEAK_GERUDO, "RG_SPEAK_GERUDO", "RG_SPEAK_GERUDO_Faded", (char*)OoT_gItemIcons[ITEM_NUT] } },
+    { RG_SPEAK_GORON, { RG_SPEAK_GORON, "RG_SPEAK_GORON", "RG_SPEAK_GORON_Faded", (char*)OoT_gItemIcons[ITEM_NUT] } },
+    { RG_SPEAK_HYLIAN, { RG_SPEAK_HYLIAN, "RG_SPEAK_HYLIAN", "RG_SPEAK_HYLIAN_Faded", (char*)OoT_gItemIcons[ITEM_NUT] } },
+    { RG_SPEAK_KOKIRI, { RG_SPEAK_KOKIRI, "RG_SPEAK_KOKIRI", "RG_SPEAK_KOKIRI_Faded", (char*)OoT_gItemIcons[ITEM_NUT] } },
+    { RG_SPEAK_ZORA, { RG_SPEAK_ZORA, "RG_SPEAK_ZORA", "RG_SPEAK_ZORA_Faded", (char*)OoT_gItemIcons[ITEM_NUT] } },
+};
+
 std::map<uint32_t, QuestMapEntry> questMapping = {
     QUEST_MAP_ENTRY(QUEST_MEDALLION_FOREST, dgQuestIconMedallionForestTex),
     QUEST_MAP_ENTRY(QUEST_MEDALLION_FIRE, dgQuestIconMedallionFireTex),
@@ -215,6 +224,13 @@ void RegisterImGuiItemIcons() {
     }
 
     for (const auto& entry : customItemsMapping) {
+        Ship::Context::GetInstance()->GetWindow()->GetGui()->LoadGuiTexture(entry.second.name, entry.second.texturePath,
+                                                                            ImVec4(1, 1, 1, 1));
+        Ship::Context::GetInstance()->GetWindow()->GetGui()->LoadGuiTexture(
+            entry.second.nameFaded, entry.second.texturePath, ImVec4(1, 1, 1, 0.3f));
+    }
+
+    for (const auto& entry : jabbernutMapping) {
         Ship::Context::GetInstance()->GetWindow()->GetGui()->LoadGuiTexture(entry.second.name, entry.second.texturePath,
                                                                             ImVec4(1, 1, 1, 1));
         Ship::Context::GetInstance()->GetWindow()->GetGui()->LoadGuiTexture(

@@ -44,18 +44,19 @@ void RegionTable_Init_DeathMountainTrail() {
         LOCATION(RC_DMT_GOSSIP_STONE_FAIRY,     logic->CallGossipFairy()),
         LOCATION(RC_DMT_GOSSIP_STONE_FAIRY_BIG, logic->CanUse(RG_SONG_OF_STORMS)),
         LOCATION(RC_DMT_GOSSIP_STONE,           true),
+        LOCATION(RC_BIGGORON_HINT,              logic->IsAdult && logic->HasItem(RG_SPEAK_GORON)),
     }, {
         //Exits
         Entrance(RR_DEATH_MOUNTAIN_TRAIL,     []{return true;}),
         Entrance(RR_DMC_UPPER_LOCAL,          []{return true;}),
-        Entrance(RR_DMT_OWL_FLIGHT,           []{return logic->IsChild;}, false),
+        Entrance(RR_DMT_OWL_FLIGHT,           []{return logic->IsChild && (logic->HasItem(RG_SPEAK_DEKU) || logic->HasItem(RG_SPEAK_GERUDO) || logic->HasItem(RG_SPEAK_GORON) || logic->HasItem(RG_SPEAK_HYLIAN) || logic->HasItem(RG_SPEAK_ZORA));}),
         Entrance(RR_DMT_COW_GROTTO,           []{return AnyAgeTime([]{return logic->BlastOrSmash();});}),
         Entrance(RR_DMT_GREAT_FAIRY_FOUNTAIN, []{return AnyAgeTime([]{return logic->BlastOrSmash();});}),
     });
 
     areaTable[RR_DMT_OWL_FLIGHT] = Region("DMT Owl Flight", SCENE_DEATH_MOUNTAIN_TRAIL, {}, {}, {
         //Exits
-        Entrance(RR_KAK_IMPAS_ROOFTOP, []{return true;}),
+        Entrance(RR_KAK_IMPAS_ROOFTOP, []{return true;}, false),
     });
 
     areaTable[RR_DMT_COW_GROTTO] = Region("DMT Cow Grotto", SCENE_GROTTOS, {}, {

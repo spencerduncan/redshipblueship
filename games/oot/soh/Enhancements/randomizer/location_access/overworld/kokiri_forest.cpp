@@ -8,7 +8,7 @@ void RegionTable_Init_KokiriForest() {
     areaTable[RR_KOKIRI_FOREST] = Region("Kokiri Forest", SCENE_KOKIRI_FOREST, {
         //Events
         EventAccess(LOGIC_FAIRY_ACCESS,                 []{return logic->CallGossipFairyExceptSuns() || (logic->IsChild && logic->CanUse(RG_MAGIC_BEAN) && logic->HasItem(RG_KOKIRI_FOREST_BEAN_SOUL) && logic->CanUse(RG_SONG_OF_STORMS));}),
-        EventAccess(LOGIC_SHOWED_MIDO_SWORD_AND_SHIELD, []{return logic->IsChild && logic->CanUse(RG_KOKIRI_SWORD) && logic->CanUse(RG_DEKU_SHIELD);}),
+        EventAccess(LOGIC_SHOWED_MIDO_SWORD_AND_SHIELD, []{return logic->IsChild && logic->HasItem(RG_SPEAK_KOKIRI) && logic->CanUse(RG_KOKIRI_SWORD) && logic->CanUse(RG_DEKU_SHIELD);}),
     }, {
         //Locations
         LOCATION(RC_KF_GS_KNOW_IT_ALL_HOUSE,    logic->IsChild && logic->CanKillEnemy(RE_GOLD_SKULLTULA, ED_CLOSE) && logic->CanGetNightTimeGS()),
@@ -103,7 +103,7 @@ void RegionTable_Init_KokiriForest() {
         EventAccess(LOGIC_STICK_ACCESS,                 []{return logic->CanGetDekuBabaSticks();}),
         EventAccess(LOGIC_NUT_ACCESS,                   []{return logic->CanGetDekuBabaNuts();}),
         EventAccess(LOGIC_FAIRY_ACCESS,                 []{return logic->CallGossipFairyExceptSuns();}),
-        EventAccess(LOGIC_SHOWED_MIDO_SWORD_AND_SHIELD, []{return logic->IsChild && logic->CanUse(RG_KOKIRI_SWORD) && logic->CanUse(RG_DEKU_SHIELD);}),
+        EventAccess(LOGIC_SHOWED_MIDO_SWORD_AND_SHIELD, []{return logic->IsChild && logic->HasItem(RG_SPEAK_KOKIRI) && logic->CanUse(RG_KOKIRI_SWORD) && logic->CanUse(RG_DEKU_SHIELD);}),
     }, {
         //Locations
         LOCATION(RC_KF_DEKU_TREE_LEFT_GOSSIP_STONE_FAIRY,      logic->CallGossipFairyExceptSuns()),
@@ -169,14 +169,14 @@ void RegionTable_Init_KokiriForest() {
 
     areaTable[RR_KF_KOKIRI_SHOP] = Region("KF Kokiri Shop", SCENE_KOKIRI_SHOP, {}, {
         //Locations
-        LOCATION(RC_KF_SHOP_ITEM_1, GetCheckPrice() <= GetWalletCapacity()),
-        LOCATION(RC_KF_SHOP_ITEM_2, GetCheckPrice() <= GetWalletCapacity()),
-        LOCATION(RC_KF_SHOP_ITEM_3, GetCheckPrice() <= GetWalletCapacity()),
-        LOCATION(RC_KF_SHOP_ITEM_4, GetCheckPrice() <= GetWalletCapacity()),
-        LOCATION(RC_KF_SHOP_ITEM_5, GetCheckPrice() <= GetWalletCapacity()),
-        LOCATION(RC_KF_SHOP_ITEM_6, GetCheckPrice() <= GetWalletCapacity()),
-        LOCATION(RC_KF_SHOP_ITEM_7, GetCheckPrice() <= GetWalletCapacity()),
-        LOCATION(RC_KF_SHOP_ITEM_8, GetCheckPrice() <= GetWalletCapacity()),
+        LOCATION(RC_KF_SHOP_ITEM_1, logic->HasItem(RG_SPEAK_KOKIRI) && GetCheckPrice() <= GetWalletCapacity()),
+        LOCATION(RC_KF_SHOP_ITEM_2, logic->HasItem(RG_SPEAK_KOKIRI) && GetCheckPrice() <= GetWalletCapacity()),
+        LOCATION(RC_KF_SHOP_ITEM_3, logic->HasItem(RG_SPEAK_KOKIRI) && GetCheckPrice() <= GetWalletCapacity()),
+        LOCATION(RC_KF_SHOP_ITEM_4, logic->HasItem(RG_SPEAK_KOKIRI) && GetCheckPrice() <= GetWalletCapacity()),
+        LOCATION(RC_KF_SHOP_ITEM_5, logic->HasItem(RG_SPEAK_KOKIRI) && GetCheckPrice() <= GetWalletCapacity()),
+        LOCATION(RC_KF_SHOP_ITEM_6, logic->HasItem(RG_SPEAK_KOKIRI) && GetCheckPrice() <= GetWalletCapacity()),
+        LOCATION(RC_KF_SHOP_ITEM_7, logic->HasItem(RG_SPEAK_KOKIRI) && GetCheckPrice() <= GetWalletCapacity()),
+        LOCATION(RC_KF_SHOP_ITEM_8, logic->HasItem(RG_SPEAK_KOKIRI) && GetCheckPrice() <= GetWalletCapacity()),
     }, {
         //Exits
         Entrance(RR_KOKIRI_FOREST, []{return true;}),
