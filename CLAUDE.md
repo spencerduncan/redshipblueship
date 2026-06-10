@@ -101,7 +101,8 @@ Prerequisites for isolated runs:
 
 - Work branches: `claude/<description>` prefix
 - Worker task descriptions: `.claude/worker-prompts.md`
-- Don't create PRs unless explicitly asked — push branch only
+- Pushes, PRs, and merges are automated: push your branch as you work, open a PR when the change is ready for CI, and squash-merge once CI is fully green — no need to ask
+- Never merge red or partial CI; if blocked or uncertain, push the branch and report instead
 - When modifying MM code in single-exe mode, check `src/common/mm_stubs.c` for related stubs
 - Upstream repos: [Ship of Harkinian](https://github.com/HarbourMasters/Shipwright), [2Ship2Harkinian](https://github.com/HarbourMasters/2ship2harkinian)
 - Issue tracking: `gh issue list -R spencerduncan/redshipblueship`
