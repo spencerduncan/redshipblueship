@@ -1,6 +1,5 @@
 #include "OTRGlobals.h"
 #include "OTRAudio.h"
-#include <iostream>
 #include <algorithm>
 #include <atomic>
 #include <filesystem>
@@ -14,7 +13,6 @@
 #include <fast/Fast3dWindow.h>
 #include <ship/Context.h>
 #include <ship/resource/File.h>
-#include <fast/resource/type/DisplayList.h>
 #include <ship/window/Window.h>
 #include <soh/GameVersions.h>
 #include <spdlog/sinks/rotating_file_sink.h>
@@ -82,7 +80,6 @@
 #include <functions.h>
 #include "Enhancements/item-tables/ItemTableManager.h"
 #include "Enhancements/Lang/Lang.h"
-#include "soh/SohGui/SohGui.hpp"
 #include "soh/SohGui/ImGuiUtils.h"
 #include "ActorDB.h"
 #include "SaveManager.h"
