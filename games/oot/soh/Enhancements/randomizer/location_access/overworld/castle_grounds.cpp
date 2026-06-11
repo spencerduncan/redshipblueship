@@ -19,7 +19,7 @@ void RegionTable_Init_CastleGrounds() {
     areaTable[RR_HC_GATE] = Region("Hyrule Castle Gate", SCENE_HYRULE_CASTLE, {
         //Events
         EventAccess(LOGIC_FAIRY_ACCESS, []{return logic->CallGossipFairy() || logic->CanUse(RG_STICKS);}),
-        EventAccess(LOGIC_BUG_ACCESS,   []{return true;}),
+        EventAccess(LOGIC_BUG_ACCESS,   []{return logic->HasItem(RG_POWER_BRACELET);}),
     }, {
         //Locations
         LOCATION(RC_HC_MALON_EGG,      logic->HasItem(RG_SPEAK_HYLIAN)),
@@ -90,7 +90,7 @@ void RegionTable_Init_CastleGrounds() {
         //Exits
         Entrance(RR_HC_GATE,          []{return true;}),
         Entrance(RR_HC_STORMS_GROTTO, []{return logic->CanOpenStormsGrotto();}),
-        Entrance(RR_HC_GARDEN,        []{return (logic->CanUse(RG_WEIRD_EGG)/* && logic->HasItem(RG_POWER_BRACELET)*/ && logic->HasItem(RG_SPEAK_HYLIAN)) || (ctx->GetTrickOption(RT_DAMAGE_BOOST_SIMPLE) && logic->TakeDamage() && logic->HasExplosives() && logic->CanJumpslash());}),
+        Entrance(RR_HC_GARDEN,        []{return (logic->CanUse(RG_WEIRD_EGG) && logic->HasItem(RG_POWER_BRACELET) && logic->HasItem(RG_SPEAK_HYLIAN)) || (ctx->GetTrickOption(RT_DAMAGE_BOOST_SIMPLE) && logic->TakeDamage() && logic->HasExplosives() && logic->CanJumpslash());}),
     });
 
     areaTable[RR_HC_DRAIN_LEDGE] = Region("Hyrule Castle Drain Ledge", SCENE_HYRULE_CASTLE, {}, {}, {
