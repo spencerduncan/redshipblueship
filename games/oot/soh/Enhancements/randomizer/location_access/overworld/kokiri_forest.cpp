@@ -12,7 +12,7 @@ void RegionTable_Init_KokiriForest() {
     }, {
         //Locations
         //Technically bad logic, because we can move Mido out of logic, but then we already have KSword...
-        LOCATION(RC_MIDO_HINT,                  !ctx->GetOption(RSK_FOREST).Is(RO_CLOSED_FOREST_OFF) && logic->IsChild && logic->CanUse(RG_SPEAK_KOKIRI)),
+        LOCATION(RC_MIDO_HINT,                  !ctx->GetOption(RSK_FOREST).Is(RO_CLOSED_FOREST_OFF) && logic->IsChild && logic->HasItem(RG_SPEAK_KOKIRI)),
         LOCATION(RC_KF_GS_KNOW_IT_ALL_HOUSE,    logic->IsChild && logic->CanKillEnemy(RE_GOLD_SKULLTULA, ED_CLOSE) && logic->CanGetNightTimeGS()),
         LOCATION(RC_KF_GS_BEAN_PATCH,           logic->CanSpawnSoilSkull(RG_KOKIRI_FOREST_BEAN_SOUL) && logic->CanKillEnemy(RE_GOLD_SKULLTULA, ED_CLOSE)),
         LOCATION(RC_KF_GS_HOUSE_OF_TWINS,       logic->IsAdult && logic->CanGetNightTimeGS() && 
@@ -137,7 +137,7 @@ void RegionTable_Init_KokiriForest() {
         LOCATION(RC_KF_MIDOS_TOP_RIGHT_CHEST,    logic->HasItem(RG_OPEN_CHEST)),
         LOCATION(RC_KF_MIDOS_BOTTOM_LEFT_CHEST,  logic->HasItem(RG_OPEN_CHEST)),
         LOCATION(RC_KF_MIDOS_BOTTOM_RIGHT_CHEST, logic->HasItem(RG_OPEN_CHEST)),
-        LOCATION(RC_MIDO_HINT,                         logic->Get(LOGIC_SHOWED_MIDO_SWORD_AND_SHIELD) && logic->IsChild && logic->CanUse(RG_SPEAK_KOKIRI)),
+        LOCATION(RC_MIDO_HINT,                         logic->Get(LOGIC_SHOWED_MIDO_SWORD_AND_SHIELD) && logic->IsChild && logic->HasItem(RG_SPEAK_KOKIRI)),
     }, {
         //Exits
         Entrance(RR_KOKIRI_FOREST, []{return true;}),
