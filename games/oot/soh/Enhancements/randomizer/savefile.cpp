@@ -321,6 +321,10 @@ extern "C" void Randomizer_InitSaveFile() {
         Flags_SetRandomizerInf(RAND_INF_CAN_CRAWL);
     }
 
+    if (Randomizer_GetSettingValue(RSK_SHUFFLE_GRAB) == RO_GENERIC_OFF) {
+        Flags_SetRandomizerInf(RAND_INF_CAN_GRAB);
+    }
+
     if (Randomizer_GetSettingValue(RSK_SHUFFLE_SPEAK) == RO_GENERIC_OFF) {
         OoT_Flags_SetEventChkInf(EVENTCHKINF_SPOKE_TO_NABOORU_IN_SPIRIT_TEMPLE);
         Flags_SetRandomizerInf(RAND_INF_CAN_SPEAK_DEKU);
