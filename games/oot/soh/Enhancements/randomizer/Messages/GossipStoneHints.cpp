@@ -16,7 +16,7 @@ extern PlayState* OoT_gPlayState;
 
 void BuildHintStoneMessage(uint16_t* textId, bool* loadFromMessageTable) {
     if ((RAND_GET_OPTION(RSK_GOSSIP_STONE_HINTS).Is(RO_GOSSIP_STONES_NEED_TRUTH) &&
-         OoT_Player_GetMask(OoT_gPlayState) == PLAYER_MASK_TRUTH) ||
+         OoT_Player_GetMask(OoT_gPlayState) != PLAYER_MASK_TRUTH) ||
         (RAND_GET_OPTION(RSK_GOSSIP_STONE_HINTS).Is(RO_GOSSIP_STONES_NEED_STONE) &&
          CHECK_QUEST_ITEM(QUEST_STONE_OF_AGONY) == 0)) {
         return;

@@ -14,6 +14,7 @@ void RegionTable_Init_Root() {
         EventAccess(LOGIC_TH_COULD_FREE_SLOPE_CARPENTER,       []{return ctx->GetOption(RSK_GERUDO_FORTRESS).Is(RO_GF_CARPENTERS_FREE) || ctx->GetOption(RSK_GERUDO_FORTRESS).Is(RO_GF_CARPENTERS_FAST);}),
         EventAccess(LOGIC_TH_RESCUED_ALL_CARPENTERS,           []{return ctx->GetOption(RSK_GERUDO_FORTRESS).Is(RO_GF_CARPENTERS_FREE);}),
         EventAccess(LOGIC_FREED_EPONA,                         []{return (bool)ctx->GetOption(RSK_SKIP_EPONA_RACE);}),
+        EventAccess(LOGIC_SHOWED_MIDO_SWORD_AND_SHIELD,        []{return ctx->GetOption(RSK_FOREST).Is(RO_CLOSED_FOREST_OFF);}),
     }, {
         //Locations
         LOCATION(RC_LINKS_POCKET,       true),
