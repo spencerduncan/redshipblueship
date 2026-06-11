@@ -178,14 +178,16 @@ jobs:
     #  - imagemagick: consumed at CMake configure time (find_package(ImageMagick))
     #    to produce build-cmake/sohIcon.png; without it configure silently skips
     #    the icon and linuxdeploy fails with "No such file: sohIcon.png".
-    #  - file: hard requirement of appimagetool ("file command is missing but
-    #    required").
+    #  - file, desktop-file-utils: hard requirements of appimagetool — its
+    #    dependency check die()s on missing `file` and `desktop-file-validate`
+    #    (verified against the binary's check strings; zsyncmake/appstreamcli/
+    #    gpg are warnings only and mksquashfs is bundled in the plugin).
     # Drop this step once the image (build-base.Dockerfile) has been
     # republished with these baked in.
     - name: Install packaging tools
       run: |
         apt-get update
-        apt-get install -y imagemagick file
+        apt-get install -y imagemagick file desktop-file-utils
     - name: Configure ccache
       uses: hendrikmuhs/ccache-action@v1.2
       with:
