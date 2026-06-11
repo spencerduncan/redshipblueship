@@ -247,6 +247,130 @@ void SaveManager::DeleteSave(int slot) {
     std::filesystem::remove(path + ".bak", ec);
 }
 
+void SaveManager::RegisterGameMeta(GameId game, const RsbsGameMetaDesc* desc) {
+    if (desc == nullptr) {
+        return;
+    }
+    if (game != GAME_OOT && game != GAME_MM) {
+        return;
+    }
+    const size_t idx = static_cast<size_t>(game);
+    mMetaDescs[idx] = *desc;
+    mMetaPresent[idx] = true;
+}
+
+namespace {
+
+// Pulls game-specific metadata fields out of a blob using the registered
+// descriptor. `blob` is the raw bytes of either the OoT or MM SaveContext as
+// laid down in the slot file; `blobSize` lets us bounds-check every offset
+// independently rather than trusting the caller. `outName` must point at a
+// 9-byte buffer (we always NUL-terminate); `outPlayTime`/`outStarted` are
+// written even on the unregistered path (zero / false) so callers don't have
+// to clear them themselves.
+void ExtractGameMeta(const RsbsGameMetaDesc& desc, const uint8_t* blob, size_t blobSize,
+                     char outName[9], uint32_t& outPlayTime, bool& outStarted) {
+    std::memset(outName, 0, 9);
+    outPlayTime = 0;
+    outStarted = false;
+
+    uint32_t nameLen = desc.playerNameLen;
+    if (nameLen > 8) {
+        nameLen = 8;
+    }
+    if (nameLen > 0 && static_cast<size_t>(desc.playerNameOffset) + nameLen <= blobSize) {
+        for (uint32_t i = 0; i < nameLen; i++) {
+            char c = static_cast<char>(blob[desc.playerNameOffset + i]);
+            // Treat 0x00, the N64 0xDF "space", and stray high-bit bytes as
+            // end-of-name so the panel doesn't render control gibberish from a
+            // newly-allocated slot.
+            if (c == '\0') {
+                break;
+            }
+            outName[i] = c;
+        }
+    }
+
+    if (static_cast<size_t>(desc.playTimeOffset) + sizeof(uint32_t) <= blobSize) {
+        uint32_t pt = 0;
+        std::memcpy(&pt, blob + desc.playTimeOffset, sizeof(pt));
+        outPlayTime = pt;
+    }
+
+    if (desc.validMarkerLen == 0) {
+        // No marker registered → assume any slot is "started" for this game.
+        outStarted = true;
+    } else if (desc.validMarkerLen <= sizeof(desc.validMarker) &&
+               static_cast<size_t>(desc.validMarkerOffset) + desc.validMarkerLen <= blobSize) {
+        outStarted = std::memcmp(blob + desc.validMarkerOffset, desc.validMarker,
+                                 desc.validMarkerLen) == 0;
+    }
+}
+
+}  // namespace
+
+SlotMeta SaveManager::ReadMeta(int slot) const {
+    SlotMeta meta{};
+    meta.slot = static_cast<uint8_t>(slot < 0 ? 0 : slot);
+    meta.lastGame = GAME_NONE;
+
+    if (!SlotInRange(slot)) {
+        return meta;
+    }
+
+    std::ifstream in(SlotPath(slot), std::ios::binary);
+    if (!in) {
+        return meta;
+    }
+    meta.exists = true;
+
+    RsbsSaveHeader header;
+    if (!DeserializeHeader(in, header)) {
+        return meta;  // exists=true, valid=false
+    }
+    meta.valid = true;
+    meta.slot = header.slot;
+
+    // Read Tier-1 (ComboContext) and just enough of Tier-2 / Tier-3 to pull
+    // the registered metadata bytes. We deliberately do NOT CRC the file here:
+    // ReadMeta is called for every slot every menu frame, and CRC over ~24KB
+    // each time would dominate the file-select draw. Load() still CRC-checks
+    // when the user actually picks a slot.
+    ComboContext combo;
+    in.read(reinterpret_cast<char*>(&combo), kComboSize);
+    if (!in || in.gcount() != static_cast<std::streamsize>(kComboSize)) {
+        meta.valid = false;
+        return meta;
+    }
+    if (std::memcmp(combo.magic, COMBO_CONTEXT_MAGIC, sizeof(combo.magic)) == 0) {
+        meta.lastGame = combo.sourceGame;
+    }
+
+    std::vector<uint8_t> ootBlob(kOoTSize);
+    in.read(reinterpret_cast<char*>(ootBlob.data()), kOoTSize);
+    if (!in || in.gcount() != static_cast<std::streamsize>(kOoTSize)) {
+        meta.valid = false;
+        return meta;
+    }
+    std::vector<uint8_t> mmBlob(kMMSize);
+    in.read(reinterpret_cast<char*>(mmBlob.data()), kMMSize);
+    if (!in || in.gcount() != static_cast<std::streamsize>(kMMSize)) {
+        meta.valid = false;
+        return meta;
+    }
+
+    if (mMetaPresent[GAME_OOT]) {
+        ExtractGameMeta(mMetaDescs[GAME_OOT], ootBlob.data(), ootBlob.size(),
+                        meta.ootName, meta.ootPlayTime, meta.ootStarted);
+    }
+    if (mMetaPresent[GAME_MM]) {
+        ExtractGameMeta(mMetaDescs[GAME_MM], mmBlob.data(), mmBlob.size(),
+                        meta.mmName, meta.mmPlayTime, meta.mmStarted);
+    }
+
+    return meta;
+}
+
 }  // namespace rsbs
 
 // ============================================================================
@@ -269,6 +393,10 @@ int RsbsSave_HasSave(int slot) {
 
 void RsbsSave_DeleteSave(int slot) {
     rsbs::SaveManager::Instance().DeleteSave(slot);
+}
+
+void RsbsSave_RegisterGameMeta(GameId game, const RsbsGameMetaDesc* desc) {
+    rsbs::SaveManager::Instance().RegisterGameMeta(game, desc);
 }
 
 }  // extern "C"
