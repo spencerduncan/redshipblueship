@@ -345,7 +345,10 @@ void RegionTable_Init_ShadowTemple() {
         Entrance(RR_SHADOW_TEMPLE_BOSS_DOOR,   []{return (ctx->GetTrickOption(RT_LENS_SHADOW) || logic->CanUse(RG_LENS_OF_TRUTH)) && logic->CanUse(RG_HOVER_BOOTS);}),
     });
 
-    areaTable[RR_SHADOW_TEMPLE_BOSS_DOOR] = Region("Shadow Temple Boss Door", SCENE_SHADOW_TEMPLE, {}, {}, {
+    areaTable[RR_SHADOW_TEMPLE_BOSS_DOOR] = Region("Shadow Temple Boss Door", SCENE_SHADOW_TEMPLE, {}, {
+        //Locations
+        LOCATION(RC_SHADOW_BOSS_KEY_HINT, true),
+    }, {
         //Exits
         Entrance(RR_SHADOW_TEMPLE_PRE_BOSS_ROOM, []{return (ctx->GetTrickOption(RT_LENS_SHADOW) || logic->CanUse(RG_LENS_OF_TRUTH)) && logic->CanUse(RG_HOVER_BOOTS);}),
         Entrance(RR_SHADOW_TEMPLE_BOSS_ENTRYWAY, []{return true;}),
@@ -689,6 +692,7 @@ void RegionTable_Init_ShadowTemple() {
 
     areaTable[RR_SHADOW_TEMPLE_MQ_BOSS_DOOR] = Region("Shadow Temple MQ Boss Door", SCENE_SHADOW_TEMPLE, {}, {
         //Locations
+        LOCATION(RC_SHADOW_BOSS_KEY_HINT,          true),
         //you can drop onto this and the respawn is reasonable
         LOCATION(RC_SHADOW_TEMPLE_MQ_GS_NEAR_BOSS,  (logic->CanKillEnemy(RE_GOLD_SKULLTULA, ED_BOMB_THROW) || logic->CanUse(RG_MEGATON_HAMMER)) && (ctx->GetTrickOption(RT_LENS_SHADOW_MQ) || logic->CanUse(RG_LENS_OF_TRUTH))),
     }, {

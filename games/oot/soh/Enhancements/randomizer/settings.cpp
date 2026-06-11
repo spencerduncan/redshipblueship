@@ -1,6 +1,7 @@
 #include "settings.h"
 #include "soh/Enhancements/randomizer/randomizerTypes.h"
 #include "trial.h"
+#include "3drando/random.hpp"
 #include "dungeon.h"
 
 #include "soh/OTRGlobals.h"

@@ -826,7 +826,10 @@ void RegionTable_Init_ForestTemple() {
 #pragma endregion
 
     // Boss Room
-    areaTable[RR_FOREST_TEMPLE_BOSS_ENTRYWAY] = Region("Forest Temple Boss Entryway", SCENE_FOREST_TEMPLE, {}, {}, {
+    areaTable[RR_FOREST_TEMPLE_BOSS_ENTRYWAY] = Region("Forest Temple Boss Entryway", SCENE_FOREST_TEMPLE, {}, {
+        // Locations
+        LOCATION(RC_FOREST_BOSS_KEY_HINT, true),
+    }, {
         // Exits
         Entrance(RR_FOREST_TEMPLE_BASEMENT,    []{return ctx->GetDungeon(FOREST_TEMPLE)->IsVanilla() && logic->Get(LOGIC_FOREST_OPEN_BOSS_HALLWAY);}),
         Entrance(RR_FOREST_TEMPLE_MQ_BASEMENT, []{return ctx->GetDungeon(FOREST_TEMPLE)->IsMQ() && logic->Get(LOGIC_FOREST_OPEN_BOSS_HALLWAY);}),

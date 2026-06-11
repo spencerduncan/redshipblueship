@@ -336,8 +336,8 @@ void BuildRupeeMessage(uint16_t* textId, bool* loadFromMessageTable) {
         "Vous obtenez [[color]][[amount]] [[rupee]]\x05\x00!", TEXTBOX_TYPE_BLACK, TEXTBOX_POS_BOTTOM);
     std::string color;
     std::string amount;
-    CustomMessage rupee = CustomMessage(RandomElement(englishRupeeNames), RandomElement(germanRupeeNames),
-                                        RandomElement(frenchRupeeNames));
+    CustomMessage rupee = CustomMessage(ShipUtils::RandomElement(englishRupeeNames), ShipUtils::RandomElement(germanRupeeNames),
+                                        ShipUtils::RandomElement(frenchRupeeNames));
     switch (*textId) {
         case TEXT_BLUE_RUPEE:
             color = "\x05\x03";

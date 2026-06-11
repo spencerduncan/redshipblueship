@@ -11,6 +11,8 @@ void RegionTable_Init_KokiriForest() {
         EventAccess(LOGIC_SHOWED_MIDO_SWORD_AND_SHIELD, []{return logic->IsChild && logic->HasItem(RG_SPEAK_KOKIRI) && logic->CanUse(RG_KOKIRI_SWORD) && logic->CanUse(RG_DEKU_SHIELD);}),
     }, {
         //Locations
+        //Technically bad logic, because we can move Mido out of logic, but then we already have KSword...
+        LOCATION(RC_MIDO_HINT,                  !ctx->GetOption(RSK_FOREST).Is(RO_CLOSED_FOREST_OFF) && logic->IsChild && logic->CanUse(RG_SPEAK_KOKIRI)),
         LOCATION(RC_KF_GS_KNOW_IT_ALL_HOUSE,    logic->IsChild && logic->CanKillEnemy(RE_GOLD_SKULLTULA, ED_CLOSE) && logic->CanGetNightTimeGS()),
         LOCATION(RC_KF_GS_BEAN_PATCH,           logic->CanSpawnSoilSkull(RG_KOKIRI_FOREST_BEAN_SOUL) && logic->CanKillEnemy(RE_GOLD_SKULLTULA, ED_CLOSE)),
         LOCATION(RC_KF_GS_HOUSE_OF_TWINS,       logic->IsAdult && logic->CanGetNightTimeGS() && 
@@ -76,7 +78,7 @@ void RegionTable_Init_KokiriForest() {
         Entrance(RR_KF_HOUSE_OF_TWINS,     []{return true;}),
         Entrance(RR_KF_KNOW_IT_ALL_HOUSE,  []{return true;}),
         Entrance(RR_KF_KOKIRI_SHOP,        []{return true;}),
-        Entrance(RR_KF_OUTSIDE_DEKU_TREE,  []{return (logic->IsAdult && (logic->CanPassEnemy(RE_BIG_SKULLTULA) || logic->Get(LOGIC_FOREST_TEMPLE_CLEAR))) || ctx->GetOption(RSK_FOREST).Is(RO_CLOSED_FOREST_OFF) || logic->Get(LOGIC_SHOWED_MIDO_SWORD_AND_SHIELD);}),
+        Entrance(RR_KF_OUTSIDE_DEKU_TREE,  []{return (logic->IsAdult && (logic->CanPassEnemy(RE_BIG_SKULLTULA) || logic->Get(LOGIC_FOREST_TEMPLE_CLEAR))) || logic->Get(LOGIC_SHOWED_MIDO_SWORD_AND_SHIELD);}),
         Entrance(RR_KF_OUTSIDE_LOST_WOODS, []{return logic->HasItem(RG_CLIMB) || logic->CanUse(RG_HOOKSHOT) || (logic->IsAdult && (CanPlantBean(RR_KOKIRI_FOREST, RG_KOKIRI_FOREST_BEAN_SOUL) || ctx->GetTrickOption(RT_UNINTUITIVE_JUMPS)));}),
         Entrance(RR_KF_RUPEE_ALCOVE,       []{return logic->IsAdult && CanPlantBean(RR_KOKIRI_FOREST, RG_KOKIRI_FOREST_BEAN_SOUL);}),
         Entrance(RR_LW_BRIDGE_FROM_FOREST, []{return logic->IsAdult || ctx->GetOption(RSK_FOREST).IsNot(RO_CLOSED_FOREST_ON) || logic->Get(LOGIC_DEKU_TREE_CLEAR);}),
@@ -135,6 +137,7 @@ void RegionTable_Init_KokiriForest() {
         LOCATION(RC_KF_MIDOS_TOP_RIGHT_CHEST,    logic->HasItem(RG_OPEN_CHEST)),
         LOCATION(RC_KF_MIDOS_BOTTOM_LEFT_CHEST,  logic->HasItem(RG_OPEN_CHEST)),
         LOCATION(RC_KF_MIDOS_BOTTOM_RIGHT_CHEST, logic->HasItem(RG_OPEN_CHEST)),
+        LOCATION(RC_MIDO_HINT,                         logic->Get(LOGIC_SHOWED_MIDO_SWORD_AND_SHIELD) && logic->IsChild && logic->CanUse(RG_SPEAK_KOKIRI)),
     }, {
         //Exits
         Entrance(RR_KOKIRI_FOREST, []{return true;}),

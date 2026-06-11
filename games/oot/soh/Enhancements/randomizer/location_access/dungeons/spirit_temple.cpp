@@ -533,7 +533,10 @@ void RegionTable_Init_SpiritTemple() {
         //WARNING these events are not glitchproofed and assume you need all keys to reach from the front
         EventAccess(LOGIC_REVERSE_SPIRIT_CHILD, []{return logic->IsChild;}),
         EventAccess(LOGIC_REVERSE_SPIRIT_ADULT, []{return logic->IsAdult;}),
-    }, {}, {
+    }, {
+        //Locations
+        LOCATION(RC_SPIRIT_BOSS_KEY_HINT, true),
+    }, {
         // Exits
         Entrance(RR_SPIRIT_TEMPLE_STATUE_ROOM,      []{return true;}),
         //CanBunnyJump with a jumpslash can reach either hand and with good timing the platform as child. the latter is definitely a trick, the former may not be
@@ -1113,7 +1116,10 @@ void RegionTable_Init_SpiritTemple() {
         //WARNING these events are not glitchproofed and assume you need all keys to reach from the front
         EventAccess(LOGIC_REVERSE_SPIRIT_CHILD, []{return logic->IsChild;}),
         EventAccess(LOGIC_REVERSE_SPIRIT_ADULT, []{return logic->IsAdult;}),
-    }, {}, {
+    }, {
+        //Locations
+        LOCATION(RC_SPIRIT_BOSS_KEY_HINT, true),
+    }, {
         // Exits
         Entrance(RR_SPIRIT_TEMPLE_MQ_STATUE_ROOM,      []{return true;}),
         //CanBunnyJump with a jumpslash can reach either hand and with good timing the platform as child. the latter is definitely a trick, the former may not be
