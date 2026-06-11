@@ -1,19 +1,15 @@
 name: integration-tests
+# Manual-only (workflow_dispatch). Every integration test below requires the
+# ROM-derived archives oot.o2r/mm.o2r, which cannot be distributed and can
+# therefore never exist on GitHub-hosted runners. When this ran on every PR,
+# all test steps were skipped while still spending ~25 min of compute per PR
+# (a duplicate generate-rsbs-otr job + a full from-scratch rebuild + the same
+# `ctest --label-regex "^redship$"` that generate-builds' build-linux already
+# runs). Re-enable pull_request/push triggers together with
+# `runs-on: [self-hosted, ...]` once a ROM-equipped runner exists
+# (see docs/BUILDING.md).
 on:
-  push:
-    branches:
-      - main
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - 'LICENSE*'
-      - '.gitignore'
-  pull_request:
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - 'LICENSE*'
-      - '.gitignore'
+  workflow_dispatch:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
