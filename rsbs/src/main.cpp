@@ -28,6 +28,7 @@
 #include "entrance.h"
 #include "test_runner.h"
 #include "integration_test_hooks.h"
+#include "archive_check.h"
 
 #include <ship/Context.h>
 #include <ship/resource/ResourceManager.h>
@@ -323,6 +324,19 @@ int main(int argc, char** argv) {
         }
     }
 
+    // ========================================================================
+    // Pre-flight archive check (#317): verify the selected game's ROM-derived
+    // archives exist before any init. OoT can self-heal on a cold boot — its
+    // in-app extractor (RunExtract) generates oot.o2r from a ROM — so only MM,
+    // which has no in-app extraction path yet, is gated here. Without this,
+    // a missing mm.o2r surfaces as a bare "Failed to initialize game" on the
+    // console, which a GUI-launched user never sees.
+    // ========================================================================
+    if (selectedGame == GAME_MM && !ArchiveCheck_GameAvailable(GAME_MM)) {
+        ArchiveCheck_ReportMissing(GAME_MM, /*showDialog=*/!TestRunner_IsIntegrationTestMode());
+        return 1;
+    }
+
     // Build filtered argv (remove our flags before passing to game)
     char** gameArgv = (char**)malloc(sizeof(char*) * (argc + 1));
     int gameArgc = 0;
@@ -418,6 +432,21 @@ int main(int argc, char** argv) {
 
         // Handle the switch
         if (nextGame != GAME_NONE) {
+            // Refuse the switch up front if the target game's ROM archives are
+            // missing (#317). GameRunner_SwitchTo suspends the current game
+            // before initializing the target, so a late init failure would
+            // take down the whole app. Checking here keeps the current game
+            // running: clear the pending switch, tell the user what's missing,
+            // and loop back into the active game's run loop.
+            if (!ArchiveCheck_GameAvailable(nextGame)) {
+                ArchiveCheck_ReportMissing(nextGame, /*showDialog=*/!TestRunner_IsIntegrationTestMode());
+                Combo_ClearGameSwitchRequest();
+                Entrance_ClearPendingSwitch();
+                printf("Switch to %s refused (missing game archive) — continuing %s.\n",
+                       Game_ToString(nextGame), Game_ToString(GameRunner_GetActive(&runner)));
+                continue;
+            }
+
             GameOps* nextOps = GameRunner_GetOps(&runner, nextGame);
             printf("\n=== Switching to %s ===\n",
                    nextOps ? nextOps->name : "Unknown");
