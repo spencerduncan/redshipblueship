@@ -40,8 +40,13 @@ cmake -B build -S .
 # Build
 cmake --build build --parallel
 
-# Extract assets (requires ROMs in roms/ directory)
-# TBD - asset extraction pipeline
+# Generate game archives from your ROMs:
+#   OoT: place ROM at OTRExporter/oot.z64, then:
+cmake --build build --target ExtractAssets
+#   MM: place ROM at OTRExporter/mm.z64, then:
+cmake --build build --target ExtractMMAssets
+# (or generate mm.o2r with standalone 2Ship2Harkinian —
+#  see docs/mm-archive-setup.md)
 ```
 
 ## Project Structure
