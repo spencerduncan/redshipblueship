@@ -27,11 +27,16 @@ jobs:
       with:
         fetch-depth: 1
         fetch-tags: true
+    - name: Compute soh.o2r cache key
+      id: otr-key
+      uses: ./.github/actions/otr-cache-key
+    # Exact-match only (no restore-keys): this caches a final artifact, not an
+    # incremental cache — a stale partial restore would be silently wrong.
     - name: Restore soh.o2r Cache
       id: rsbs-otr-cache
       uses: actions/cache@v4
       with:
-        key: rsbs-otr-v1-${{ hashFiles('games/**/*.c', 'games/**/*.h', 'games/**/*.xml', 'OTRExporter/**/*.cpp', 'OTRExporter/**/*.h', 'ZAPDTR/**/*.cpp', 'ZAPDTR/**/*.h') }}
+        key: ${{ steps.otr-key.outputs.key }}
         path: soh.o2r
     - name: Checkout submodules
       if: steps.rsbs-otr-cache.outputs.cache-hit != 'true'
@@ -71,7 +76,10 @@ jobs:
           tar -xzf SDL2-2.30.3.tar.gz -C deps
         fi
         cd deps/SDL2-2.30.3
-        ./configure --enable-hidapi-libusb
+        # Skip configure if already done (Makefile exists) — parity with build-linux
+        if [ ! -f "Makefile" ]; then
+          ./configure --enable-hidapi-libusb
+        fi
         make -j 10
         sudo make install
         sudo cp -av /usr/local/lib/libSDL* /lib/x86_64-linux-gnu/
@@ -87,7 +95,10 @@ jobs:
         cd deps/tinyxml2-10.0.0
         mkdir -p build
         cd build
-        cmake .. -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+        # Skip cmake configure if already done AND configured with PIC — parity with build-linux
+        if [ ! -f "CMakeCache.txt" ] || ! grep -q "CMAKE_POSITION_INDEPENDENT_CODE:BOOL=ON" CMakeCache.txt; then
+          cmake .. -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+        fi
         make
         sudo make install
     - name: Generate soh.o2r
