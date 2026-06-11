@@ -17,6 +17,11 @@
 #include <unistd.h>
 #endif
 
+#if defined(RSBS_SINGLE_EXECUTABLE) && !defined(_WIN32)
+#include <sys/wait.h>
+#include <unistd.h>
+#endif
+
 #ifdef _MSC_VER
 #define BSWAP32 _byteswap_ulong
 #define BSWAP16 _byteswap_ushort
@@ -48,6 +53,7 @@
 #include <filesystem>
 #include <unordered_map>
 #include <string>
+#include <vector>
 
 extern "C" uint32_t CRC32C(unsigned char* data, size_t dataSize);
 
@@ -651,7 +657,76 @@ std::string Extractor::Mkdtemp() {
     return tmppath;
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// Issue #325: in the single exe zapd_main cannot be called in-process. Both
+// ZAPDLib_OoT and ZAPDLib_MM define it (same sources, different GAME_*
+// defines), and the link resolves the reference to the no-op stub that used
+// to live in mm_stubs.c rather than either real library member. Instead,
+// spawn the bundled standalone ZAPD executable as a subprocess — the same
+// way CI's extract_assets.py drives it. The child inherits the process
+// working directory, which CallZapd has already set to the temp extraction
+// dir, so ZAPD's relative paths (assets/..., output o2r) resolve unchanged.
+//
+// Returns the child's exit code, or -1 if the process could not be spawned
+// or terminated abnormally. argv[0] is replaced with exePath.
+static int RunZapdSubprocess(const std::string& exePath, const char* const* argv, int argc) {
+#ifdef _WIN32
+    // CreateProcess takes a single command line; quote each argument. Naive
+    // quoting is sufficient here: the only variable arguments are filesystem
+    // paths (quotes are illegal in Windows paths, and these paths do not end
+    // in a backslash) and a x.y.z version string.
+    std::string cmdLine = "\"" + exePath + "\"";
+    for (int i = 1; i < argc; i++) {
+        cmdLine += " \"";
+        cmdLine += argv[i];
+        cmdLine += "\"";
+    }
+    std::vector<char> mutableCmd(cmdLine.begin(), cmdLine.end());
+    mutableCmd.push_back('\0');
+
+    STARTUPINFOA si = { 0 };
+    si.cb = sizeof(si);
+    PROCESS_INFORMATION pi = { 0 };
+    if (!CreateProcessA(exePath.c_str(), mutableCmd.data(), nullptr, nullptr, FALSE, 0, nullptr, nullptr, &si, &pi)) {
+        fprintf(stderr, "Failed to spawn ZAPD (%s): error %lu\n", exePath.c_str(), GetLastError());
+        return -1;
+    }
+    WaitForSingleObject(pi.hProcess, INFINITE);
+    DWORD exitCode = (DWORD)-1;
+    GetExitCodeProcess(pi.hProcess, &exitCode);
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+    return (int)exitCode;
+#else
+    pid_t pid = fork();
+    if (pid < 0) {
+        fprintf(stderr, "Failed to fork for ZAPD (%s)\n", exePath.c_str());
+        return -1;
+    }
+    if (pid == 0) {
+        // Child: only async-signal-safe calls between fork and exec.
+        std::vector<char*> childArgv;
+        childArgv.push_back(const_cast<char*>(exePath.c_str()));
+        for (int i = 1; i < argc; i++) {
+            childArgv.push_back(const_cast<char*>(argv[i]));
+        }
+        childArgv.push_back(nullptr);
+        execv(exePath.c_str(), childArgv.data());
+        _exit(127);
+    }
+    int status = 0;
+    if (waitpid(pid, &status, 0) < 0) {
+        return -1;
+    }
+    if (WIFEXITED(status)) {
+        return WEXITSTATUS(status);
+    }
+    return -1;
+#endif
+}
+#else
 extern "C" int zapd_main(int argc, char** argv);
+#endif
 
 bool Extractor::CallZapd(std::string installPath, std::string exportdir, std::atomic<size_t>* extractCount,
                          std::atomic<size_t>* totalExtract) {
@@ -725,7 +800,7 @@ bool Extractor::CallZapd(std::string installPath, std::string exportdir, std::at
         argv[20] = "-osf";
         argv[21] = "placeholder";
 
-        // Validate config XML exists before calling zapd_main
+        // Validate config XML exists before invoking ZAPD
         if (!std::filesystem::exists(confPath)) {
             std::string errMsg = "Extractor config not found: " + std::string(confPath) +
                                  "\n\nThis may indicate an incomplete installation.";
@@ -733,11 +808,36 @@ bool Extractor::CallZapd(std::string installPath, std::string exportdir, std::at
                     confPath);
             ShowErrorBox("Extraction Failed", errMsg.c_str());
         } else {
-            // NOTE: progress reporting via zapd_report is not yet wired up in this tree; the ZAPD
-            // submodule pinned here still exposes only zapd_main. The ImGui progress popup owned by
-            // RunExtract will show an indeterminate "Starting Up" state until ZAPD is uplifted.
+            // NOTE: progress reporting via zapd_report is not yet wired up in this tree; the ImGui
+            // progress popup owned by RunExtract will show an indeterminate "Starting Up" state
+            // until ZAPD is uplifted.
+            bool zapdRan = false;
+#ifdef RSBS_SINGLE_EXECUTABLE
+            std::string zapdPath = assetsPath + "/extractor/ZAPD_OoT";
+#ifdef _WIN32
+            zapdPath += ".exe";
+#endif
+            if (!std::filesystem::exists(zapdPath)) {
+                std::string errMsg = "ZAPD extractor executable not found: " + zapdPath +
+                                     "\n\nThis may indicate an incomplete installation.";
+                fprintf(stderr, "%s\n", errMsg.c_str());
+                ShowErrorBox("Extraction Failed", errMsg.c_str());
+            } else {
+                int zapdRet = RunZapdSubprocess(zapdPath, argv.data(), argc);
+                if (zapdRet != 0) {
+                    fprintf(stderr, "ZAPD exited with code %d\n", zapdRet);
+                    std::string errMsg = "ZAPD extraction failed (exit code " + std::to_string(zapdRet) +
+                                         ").\n\nCheck that the ROM file is valid and the assets directory "
+                                         "is complete.";
+                    ShowErrorBox("Extraction Failed", errMsg.c_str());
+                } else {
+                    zapdRan = true;
+                }
+            }
+#else
             try {
                 zapd_main(argc, (char**)argv.data());
+                zapdRan = true;
             } catch (const std::exception& e) {
                 fprintf(stderr, "Extraction failed: %s\n", e.what());
                 std::string errMsg = "ZAPD extraction failed with error: " + std::string(e.what());
@@ -748,16 +848,19 @@ bool Extractor::CallZapd(std::string installPath, std::string exportdir, std::at
                 ShowErrorBox("Extraction Failed", "ZAPD extraction failed with an unknown error.");
                 throw;
             }
+#endif
 
-            if (!std::filesystem::exists(otrFile)) {
-                std::string errMsg = "ZAPD extraction failed - output file was not created: " +
-                                     std::string(otrFile) +
-                                     "\n\nCheck that the ROM file is valid and the assets directory is complete.";
-                ShowErrorBox("Extraction Failed", errMsg.c_str());
-            } else {
-                std::filesystem::copy(otrFile, exportdir + "/" + otrFile,
-                                      std::filesystem::copy_options::overwrite_existing);
-                success = true;
+            if (zapdRan) {
+                if (!std::filesystem::exists(otrFile)) {
+                    std::string errMsg = "ZAPD extraction failed - output file was not created: " +
+                                         std::string(otrFile) +
+                                         "\n\nCheck that the ROM file is valid and the assets directory is complete.";
+                    ShowErrorBox("Extraction Failed", errMsg.c_str());
+                } else {
+                    std::filesystem::copy(otrFile, exportdir + "/" + otrFile,
+                                          std::filesystem::copy_options::overwrite_existing);
+                    success = true;
+                }
             }
         }
     } catch (const std::exception& e) {
