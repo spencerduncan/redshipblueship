@@ -45,6 +45,11 @@ RUN apt-get update && apt-get install -y \
     # Tools (not in apt-deps.txt)
     ccache \
     curl \
+    # Needed at CMake configure time to generate the appimage icon (sohIcon.png)
+    imagemagick \
+    # Needed by OTRExporter/extract_assets.py (don't rely on the transitive
+    # dependency via lsb-release)
+    python3 \
     # Install packages from apt-deps.txt
     && tr ' ' '\n' < /tmp/apt-deps.txt | xargs apt-get install -y \
     && rm -rf /var/lib/apt/lists/* /tmp/apt-deps.txt
