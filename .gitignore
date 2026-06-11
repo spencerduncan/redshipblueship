@@ -461,3 +461,6 @@ soh/properties.h
 *.o2r
 Randomizer/
 .venv/
+
+.claude/tmp/*
+
