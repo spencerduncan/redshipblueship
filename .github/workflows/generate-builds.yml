@@ -27,11 +27,16 @@ jobs:
       with:
         fetch-depth: 1
         fetch-tags: true
+    - name: Compute soh.o2r cache key
+      id: otr-key
+      uses: ./.github/actions/otr-cache-key
+    # Exact-match only (no restore-keys): this caches a final artifact, not an
+    # incremental cache — a stale partial restore would be silently wrong.
     - name: Restore soh.o2r Cache
       id: rsbs-otr-cache
       uses: actions/cache@v4
       with:
-        key: rsbs-otr-v1-${{ hashFiles('games/**/*.c', 'games/**/*.h', 'games/**/*.xml', 'OTRExporter/**/*.cpp', 'OTRExporter/**/*.h', 'ZAPDTR/**/*.cpp', 'ZAPDTR/**/*.h') }}
+        key: ${{ steps.otr-key.outputs.key }}
         path: soh.o2r
     - name: Checkout submodules
       if: steps.rsbs-otr-cache.outputs.cache-hit != 'true'
@@ -71,7 +76,10 @@ jobs:
           tar -xzf SDL2-2.30.3.tar.gz -C deps
         fi
         cd deps/SDL2-2.30.3
-        ./configure --enable-hidapi-libusb
+        # Skip configure if already done (Makefile exists) — parity with build-linux
+        if [ ! -f "Makefile" ]; then
+          ./configure --enable-hidapi-libusb
+        fi
         make -j 10
         sudo make install
         sudo cp -av /usr/local/lib/libSDL* /lib/x86_64-linux-gnu/
@@ -87,7 +95,10 @@ jobs:
         cd deps/tinyxml2-10.0.0
         mkdir -p build
         cd build
-        cmake .. -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+        # Skip cmake configure if already done AND configured with PIC — parity with build-linux
+        if [ ! -f "CMakeCache.txt" ] || ! grep -q "CMAKE_POSITION_INDEPENDENT_CODE:BOOL=ON" CMakeCache.txt; then
+          cmake .. -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+        fi
         make
         sudo make install
     - name: Generate soh.o2r
@@ -102,12 +113,8 @@ jobs:
         name: soh.o2r
         path: soh.o2r
         retention-days: 3
-    - name: Save Cache deps folder
-      if: ${{ github.ref_name == github.event.repository.default_branch }}
-      uses: actions/cache/save@v4
-      with:
-        key: ${{ runner.os }}-deps-v1-${{ hashFiles('.github/workflows/apt-deps.txt') }}
-        path: deps
+    # No "Save Cache deps folder" here: build-linux saves the identical key on
+    # main pushes; a second save of the same key only produces a warning.
 
   build-macos:
     # DISABLED: macOS build is currently broken - see GitHub issue for tracking
@@ -209,6 +216,10 @@ jobs:
       uses: hendrikmuhs/ccache-action@v1.2
       with:
         save: ${{ github.ref_name == github.event.repository.default_branch }}
+        # The action's default 500M cap is too small for the full OoT+MM build
+        # (~8180 objects): measured 2026-06-11 at 89.66% full with 15 cleanups
+        # and a 73.24% hit rate. The working set is ~1.0-1.2G compressed.
+        max-size: "1.5G"
         key: ${{ runner.os }}-ccache-${{ github.ref }}
         restore-keys: |
           ${{ runner.os }}-ccache-${{ github.ref }}
@@ -304,7 +315,9 @@ jobs:
         CC: gcc-11
         CXX: g++-11
     - name: Run tests
-      run: ctest --test-dir build-cmake --output-on-failure --label-regex "^redship$"
+      # --no-tests=error: if the "redship" test label ever regresses, fail loudly
+      # instead of ctest exiting 0 with "No tests were found".
+      run: ctest --test-dir build-cmake --output-on-failure --label-regex "^redship$" --no-tests=error
     - name: Package
       run: |
         (cd build-cmake && cpack -G External)
@@ -337,6 +350,10 @@ jobs:
     # CMAKE_UNITY_BUILD (high blast radius across game CMakeLists), moving off MSVC,
     # or a larger runner. None fit a low-risk CI tuning change. The Linux/Windows gap is
     # the fundamental Windows MSVC + ninja per-step process-spawn cost, not a config bug.
+    # Update 2026-06-11: the warm-cache conclusion above still holds; the later
+    # degradation to ~26 min builds (65.89% hit rate) was 10GB cache-quota LRU
+    # eviction caused by per-PR ~2.3GB sccache saves — fixed by the main-only
+    # save policy on the "Configure sccache" step below.
     needs: generate-rsbs-otr
     runs-on: windows-latest
     env:
@@ -353,7 +370,7 @@ jobs:
           core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
     - name: Install dependencies
       run: |
-        choco install ninja llvm -y
+        choco install ninja llvm -y --no-progress
         Remove-Item -Path "C:\ProgramData\Chocolatey\bin\ccache.exe" -Force -ErrorAction SilentlyContinue
     - name: Git Checkout
       uses: actions/checkout@v4
@@ -366,10 +383,15 @@ jobs:
       with:
         variant: sccache
         max-size: "5G"
-        # Save on every branch (default), not just main, so subsequent pushes to
-        # the same PR pick up the previous push's cache instead of cold-restoring
-        # from main. Issue #177 — Phase 2 iteration on Windows-only integration
-        # tests will rebuild many times per PR.
+        # Save on main only. The previous per-branch save policy (issue #177)
+        # wrote a fresh ~2.3GB cache on every PR push; at the current PR rate
+        # that blew the repo's 10GB Actions-cache quota and LRU-evicted main's
+        # linux-ccache/deps/vcpkg/soh.o2r caches (measured 2026-06-11: 65.89%
+        # sccache hit rate and ~26 min builds, vs 99.82% and ~8 min on
+        # 2026-06-01). Main merges several times a day, so the main-keyed
+        # cache restored via restore-keys is nearly fresh for every PR; a PR's
+        # repeated pushes only re-compile files the PR itself touched.
+        save: ${{ github.ref_name == github.event.repository.default_branch }}
         key: ${{ runner.os }}-sccache-${{ github.ref }}
         restore-keys: |
           ${{ runner.os }}-sccache-${{ github.ref }}
