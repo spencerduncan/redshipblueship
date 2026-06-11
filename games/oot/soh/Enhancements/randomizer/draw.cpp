@@ -3,6 +3,7 @@
 #include "soh/cvar_prefixes.h"
 #include "randomizerTypes.h"
 #include "soh_assets.h"
+#include "soh/ResourceManagerHelpers.h"
 #include "soh/Enhancements/cosmetics/cosmeticsTypes.h"
 #include "soh/Enhancements/randomizer/randomizer.h"
 
@@ -12,6 +13,7 @@ extern "C" {
 #include "functions.h"
 #include "variables.h"
 #include "dungeon.h"
+#include "objects/object_box/object_box.h"
 #include "objects/object_gi_key/object_gi_key.h"
 #include "objects/object_gi_bosskey/object_gi_bosskey.h"
 #include "objects/object_gi_bracelet/object_gi_bracelet.h"
@@ -1239,6 +1241,59 @@ extern "C" void Randomizer_DrawJabberNut(PlayState* play, GetItemEntry* getItemE
     }
     CLOSE_DISPS(play->state.gfxCtx);
 }
+
+static Gfx* boxLidDL;
+static Gfx* boxBodyDL;
+extern "C" void EnBox_PostLimbDrawOverride(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, void* thisx) {
+    Gfx** gfx = (Gfx**)thisx;
+    if (limbIndex == 1) {
+        gSPMatrix((*gfx)++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+        gSPDisplayList((*gfx)++, boxBodyDL);
+    } else if (limbIndex == 3) {
+        gSPMatrix((*gfx)++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+        gSPDisplayList((*gfx)++, boxLidDL);
+    }
+}
+
+extern "C" Gfx* EnBox_EmptyDList(GraphicsContext* gfxCtx);
+#define LIMB_COUNT_CHEST 5
+extern "C" void Randomizer_DrawOpenChest(PlayState* play, GetItemEntry* getItemEntry) {
+    static bool initialized = false;
+    static SkelAnime skelAnime;
+    static Vec3s jointTable[LIMB_COUNT_CHEST];
+    static Vec3s otherTable[LIMB_COUNT_CHEST];
+    static u32 lastUpdate = 0;
+
+    if (!initialized) {
+        initialized = true;
+        boxBodyDL = ResourceMgr_LoadGfxByName((const char*)gTreasureChestChestFrontDL);
+        boxLidDL = ResourceMgr_LoadGfxByName((const char*)gTreasureChestChestSideAndLidDL);
+        OoT_SkelAnime_Init(play, &skelAnime, (SkeletonHeader*)&gTreasureChestSkel,
+                       (AnimationHeader*)&gTreasureChestAnim_00024C, jointTable, otherTable, LIMB_COUNT_CHEST);
+
+        // no closing animation to loop, so play animation back & forth for smooth loop
+        OoT_Animation_PlayOnce(&skelAnime, (AnimationHeader*)&gTreasureChestAnim_00043C);
+    }
+
+    if (lastUpdate != play->state.frames) {
+        lastUpdate = play->state.frames;
+        if (OoT_SkelAnime_Update(&skelAnime)) {
+            OoT_Animation_Reverse(&skelAnime);
+        }
+    }
+
+    OPEN_DISPS(play->state.gfxCtx);
+    OoT_Matrix_Scale(0.01f, 0.01f, 0.01f, MTXMODE_APPLY);
+
+    gDPPipeSync(POLY_OPA_DISP++);
+    gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, 255);
+    gSPSegment(POLY_OPA_DISP++, 0x08, (uintptr_t)EnBox_EmptyDList(play->state.gfxCtx));
+    Gfx_SetupDL_25Opa(play->state.gfxCtx);
+    SkelAnime_DrawSkeletonOpa(play, &skelAnime, nullptr, (PostLimbDrawOpa)EnBox_PostLimbDrawOverride, &POLY_OPA_DISP);
+
+    CLOSE_DISPS(play->state.gfxCtx);
+}
+
 
 extern "C" void Randomizer_DrawFishingPoleGI(PlayState* play, GetItemEntry* getItemEntry) {
     Vec3f pos;
