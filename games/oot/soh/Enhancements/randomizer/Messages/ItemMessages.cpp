@@ -321,8 +321,9 @@ void BuildIceTrapMessage(CustomMessage& msg) {
             /*german*/ "This year for Christmas, all you get is #COAL#!",
             /*french*/ "Pour Noël, cette année, tu n'auras que du #CHARBON#! %rJoyeux Noël%w!", { QM_BLUE });
     } else {
-        msg = CustomMessage(RandomElement(englishIceTrapMessages), RandomElement(germanIceTrapMessages),
-                            RandomElement(frenchIceTrapMessages), { QM_BLUE, QM_BLUE, QM_BLUE });
+        msg = CustomMessage(ShipUtils::RandomElement(englishIceTrapMessages),
+                            ShipUtils::RandomElement(germanIceTrapMessages),
+                            ShipUtils::RandomElement(frenchIceTrapMessages), { QM_BLUE, QM_BLUE, QM_BLUE });
     }
 
     msg.AutoFormat();

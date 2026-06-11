@@ -3,6 +3,7 @@
 #include "soh/OTRGlobals.h"
 #include "soh/Enhancements/item-tables/ItemTableManager.h"
 #include "3drando/shops.hpp"
+#include "3drando/random.hpp"
 #include "dungeon.h"
 #include "logic.h"
 #include "entrance.h"

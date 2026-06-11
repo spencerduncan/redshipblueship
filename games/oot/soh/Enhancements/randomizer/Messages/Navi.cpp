@@ -114,7 +114,7 @@ CustomMessage NaviMessages[NUM_NAVI_MESSAGES] = {
 };
 
 void BuildNaviMessage(uint16_t* textId, bool* loadFromMessageTable) {
-    CustomMessage msg = NaviMessages[Random(0, NUM_NAVI_MESSAGES)];
+    CustomMessage msg = NaviMessages[ShipUtils::Random(0, NUM_NAVI_MESSAGES)];
     msg.AutoFormat();
     msg.LoadIntoFont();
     *loadFromMessageTable = false;

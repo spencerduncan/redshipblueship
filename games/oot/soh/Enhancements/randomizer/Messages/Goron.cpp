@@ -85,7 +85,7 @@ static CustomMessage FireTempleGoronMessages[NUM_GORON_MESSAGES] = {
 };
 
 void BuildGoronMessage(uint16_t* textId, bool* loadFromMessageTable) {
-    uint16_t choice = Random(0, NUM_GORON_MESSAGES);
+    uint16_t choice = ShipUtils::Random(0, NUM_GORON_MESSAGES);
     CustomMessage msg = FireTempleGoronMessages[choice];
     msg.Replace("[[days]]", std::to_string(gSaveContext.totalDays));
     msg.Replace("[[a_btn]]", std::to_string(gSaveContext.ship.stats.count[COUNT_BUTTON_PRESSES_A]));
