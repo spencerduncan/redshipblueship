@@ -47,6 +47,8 @@ RUN apt-get update && apt-get install -y \
     curl \
     # Needed at CMake configure time to generate the appimage icon (sohIcon.png)
     imagemagick \
+    # Hard requirement of appimagetool during cpack packaging
+    file \
     # Needed by OTRExporter/extract_assets.py (don't rely on the transitive
     # dependency via lsb-release)
     python3 \

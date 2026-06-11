@@ -173,16 +173,19 @@ jobs:
         fetch-tags: true
     - name: Configure git safe directory
       run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-    # ImageMagick is consumed at CMake configure time (CMakeLists.txt
-    # find_package(ImageMagick)) to produce build-cmake/sohIcon.png; without it
-    # configure silently skips the icon and linuxdeploy later fails the
-    # appimage with "No such file or directory: sohIcon.png". GitHub's hosted
-    # runners ship it; the container does not yet. Drop this step once the
-    # image (build-base.Dockerfile) has been republished with imagemagick.
+    # Tools the appimage packaging needs that GitHub's hosted runners ship but
+    # the container does not yet:
+    #  - imagemagick: consumed at CMake configure time (find_package(ImageMagick))
+    #    to produce build-cmake/sohIcon.png; without it configure silently skips
+    #    the icon and linuxdeploy fails with "No such file: sohIcon.png".
+    #  - file: hard requirement of appimagetool ("file command is missing but
+    #    required").
+    # Drop this step once the image (build-base.Dockerfile) has been
+    # republished with these baked in.
     - name: Install packaging tools
       run: |
         apt-get update
-        apt-get install -y imagemagick
+        apt-get install -y imagemagick file
     - name: Configure ccache
       uses: hendrikmuhs/ccache-action@v1.2
       with:
