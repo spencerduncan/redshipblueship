@@ -21,12 +21,22 @@ jobs:
 
   generate-rsbs-otr:
     runs-on: ubuntu-22.04
+    # Prebuilt CI image with cmake 3.26+, gcc-11, ccache, and SDL2/SDL2_net/
+    # tinyxml2/libzip already compiled in (.github/docker/build-base.Dockerfile),
+    # replacing the per-run apt install + deps-folder cache + from-source builds
+    # that used to live in this job. static-analysis.yml uses the same image.
+    container:
+      image: ghcr.io/spencerduncan/redshipblueship-build:latest
     steps:
     - name: Git Checkout
       uses: actions/checkout@v4
       with:
         fetch-depth: 1
         fetch-tags: true
+    # Required for the git commands run by the otr-cache-key action and the
+    # build: inside the container the workspace is owned by a different uid.
+    - name: Configure git safe directory
+      run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
     - name: Compute soh.o2r cache key
       id: otr-key
       uses: ./.github/actions/otr-cache-key
@@ -51,56 +61,6 @@ jobs:
           ${{ runner.os }}-otr-ccache-${{ github.ref }}
           ${{ runner.os }}-otr-ccache-refs/heads/main
           ${{ runner.os }}-otr-ccache
-    - name: Install dependencies
-      if: steps.rsbs-otr-cache.outputs.cache-hit != 'true'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y $(cat .github/workflows/apt-deps.txt) libzip-dev zipcmp zipmerge ziptool
-    - name: Restore Cached deps folder
-      if: steps.rsbs-otr-cache.outputs.cache-hit != 'true'
-      uses: actions/cache/restore@v4
-      with:
-        key: ${{ runner.os }}-deps-v1-${{ hashFiles('.github/workflows/apt-deps.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-deps-v1-
-        path: deps
-    - name: Create deps folder
-      if: steps.rsbs-otr-cache.outputs.cache-hit != 'true'
-      run: mkdir -p deps
-    - name: Install latest SDL
-      if: steps.rsbs-otr-cache.outputs.cache-hit != 'true'
-      run: |
-        export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
-        if [ ! -d "deps/SDL2-2.30.3" ]; then
-          wget https://github.com/libsdl-org/SDL/releases/download/release-2.30.3/SDL2-2.30.3.tar.gz
-          tar -xzf SDL2-2.30.3.tar.gz -C deps
-        fi
-        cd deps/SDL2-2.30.3
-        # Skip configure if already done (Makefile exists) — parity with build-linux
-        if [ ! -f "Makefile" ]; then
-          ./configure --enable-hidapi-libusb
-        fi
-        make -j 10
-        sudo make install
-        sudo cp -av /usr/local/lib/libSDL* /lib/x86_64-linux-gnu/
-    - name: Install latest tinyxml2
-      if: steps.rsbs-otr-cache.outputs.cache-hit != 'true'
-      run: |
-        sudo apt-get remove libtinyxml2-dev
-        export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
-        if [ ! -d "deps/tinyxml2-10.0.0" ]; then
-          wget https://github.com/leethomason/tinyxml2/archive/refs/tags/10.0.0.tar.gz
-          tar -xzf 10.0.0.tar.gz -C deps
-        fi
-        cd deps/tinyxml2-10.0.0
-        mkdir -p build
-        cd build
-        # Skip cmake configure if already done AND configured with PIC — parity with build-linux
-        if [ ! -f "CMakeCache.txt" ] || ! grep -q "CMAKE_POSITION_INDEPENDENT_CODE:BOOL=ON" CMakeCache.txt; then
-          cmake .. -DCMAKE_POSITION_INDEPENDENT_CODE=ON
-        fi
-        make
-        sudo make install
     - name: Generate soh.o2r
       if: steps.rsbs-otr-cache.outputs.cache-hit != 'true'
       run: |
@@ -113,8 +73,6 @@ jobs:
         name: soh.o2r
         path: soh.o2r
         retention-days: 3
-    # No "Save Cache deps folder" here: build-linux saves the identical key on
-    # main pushes; a second save of the same key only produces a warning.
 
   build-macos:
     # DISABLED: macOS build is currently broken - see GitHub issue for tracking
@@ -201,6 +159,11 @@ jobs:
   build-linux:
     needs: generate-rsbs-otr
     runs-on: ubuntu-22.04
+    # Prebuilt CI image (see generate-rsbs-otr above) — replaces the per-run
+    # apt install + deps-folder cache + SDL/SDL_net/tinyxml2/libzip source
+    # builds that used to live in this job.
+    container:
+      image: ghcr.io/spencerduncan/redshipblueship-build:latest
     steps:
     - name: Git Checkout
       uses: actions/checkout@v4
@@ -208,10 +171,8 @@ jobs:
         submodules: true
         fetch-depth: 1
         fetch-tags: true
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y $(cat .github/workflows/apt-deps.txt)
+    - name: Configure git safe directory
+      run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
     - name: Configure ccache
       uses: hendrikmuhs/ccache-action@v1.2
       with:
@@ -225,82 +186,6 @@ jobs:
           ${{ runner.os }}-ccache-${{ github.ref }}
           ${{ runner.os }}-ccache-refs/heads/main
           ${{ runner.os }}-ccache
-    - name: Restore Cached deps folder
-      id: restore-cache-deps
-      uses: actions/cache/restore@v4
-      with:
-        key: ${{ runner.os }}-deps-v1-${{ hashFiles('.github/workflows/apt-deps.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-deps-v1-
-        path: deps
-    - name: Create deps folder
-      run: mkdir -p deps
-    - name: Install latest SDL
-      run: |
-        export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
-        if [ ! -d "deps/SDL2-2.30.3" ]; then
-          wget https://github.com/libsdl-org/SDL/releases/download/release-2.30.3/SDL2-2.30.3.tar.gz
-          tar -xzf SDL2-2.30.3.tar.gz -C deps
-        fi
-        cd deps/SDL2-2.30.3
-        # Skip configure if already done (Makefile exists)
-        if [ ! -f "Makefile" ]; then
-          ./configure --enable-hidapi-libusb
-        fi
-        make -j 10
-        sudo make install
-        sudo cp -av /usr/local/lib/libSDL* /lib/x86_64-linux-gnu/
-    - name: Install latest SDL_net
-      run: |
-        export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
-        if [ ! -d "deps/SDL2_net-2.2.0" ]; then
-          wget https://www.libsdl.org/projects/SDL_net/release/SDL2_net-2.2.0.tar.gz
-          tar -xzf SDL2_net-2.2.0.tar.gz -C deps
-        fi
-        cd deps/SDL2_net-2.2.0
-        # Skip configure if already done
-        if [ ! -f "Makefile" ]; then
-          ./configure
-        fi
-        make -j 10
-        sudo make install
-        sudo cp -av /usr/local/lib/libSDL* /lib/x86_64-linux-gnu/
-    - name: Install latest tinyxml2
-      run: |
-        sudo apt-get remove libtinyxml2-dev
-        export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
-        if [ ! -d "deps/tinyxml2-10.0.0" ]; then
-          wget https://github.com/leethomason/tinyxml2/archive/refs/tags/10.0.0.tar.gz
-          tar -xzf 10.0.0.tar.gz -C deps
-        fi
-        cd deps/tinyxml2-10.0.0
-        mkdir -p build
-        cd build
-        # Skip cmake configure if already done AND configured with PIC
-        # (stale cache without PIC causes linking errors with shared libs)
-        if [ ! -f "CMakeCache.txt" ] || ! grep -q "CMAKE_POSITION_INDEPENDENT_CODE:BOOL=ON" CMakeCache.txt; then
-          cmake .. -DCMAKE_POSITION_INDEPENDENT_CODE=ON
-        fi
-        make
-        sudo make install
-    - name: Install libzip without crypto
-      run: |
-        export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
-        if [ ! -d "deps/libzip-1.10.1" ]; then
-          wget https://github.com/nih-at/libzip/releases/download/v1.10.1/libzip-1.10.1.tar.gz
-          tar -xzf libzip-1.10.1.tar.gz -C deps
-        fi
-        cd deps/libzip-1.10.1
-        mkdir -p build
-        cd build
-        # Skip cmake configure if already done AND configured with crypto disabled
-        # (stale cache with different options could cause build issues)
-        if [ ! -f "CMakeCache.txt" ] || ! grep -q "ENABLE_OPENSSL:BOOL=OFF" CMakeCache.txt; then
-          cmake .. -DENABLE_COMMONCRYPTO=OFF -DENABLE_GNUTLS=OFF -DENABLE_MBEDTLS=OFF -DENABLE_OPENSSL=OFF
-        fi
-        make
-        sudo make install
-        sudo cp -av /usr/local/lib/libzip* /lib/x86_64-linux-gnu/
     - name: Download soh.o2r
       uses: actions/download-artifact@v4
       with:
@@ -330,12 +215,6 @@ jobs:
         path: |
           rsbs.appimage
           readme.txt
-    - name: Save Cache deps folder
-      if: ${{ github.ref_name == github.event.repository.default_branch }}
-      uses: actions/cache/save@v4
-      with:
-        key: ${{ runner.os }}-deps-v1-${{ hashFiles('.github/workflows/apt-deps.txt') }}
-        path: deps
 
   build-windows:
     # Issue #177 — investigation results (2026-06-01, runs 26731031162 / 26731511201 / 26731832242):
