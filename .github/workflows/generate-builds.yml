@@ -3,6 +3,12 @@ on:
   push:
     branches:
       - main
+      # Creating a release/vX.Y.Z branch is an alternative release trigger for
+      # credentials that can create branches but not tags or workflow
+      # dispatches (e.g. the GitHub MCP integration used by remote agents).
+      # create-release derives the tag from the branch name and deletes the
+      # branch once the release exists.
+      - 'release/v*'
     # Path filters are not evaluated for tag pushes, so paths-ignore below
     # only applies to branch pushes.
     tags:
@@ -375,18 +381,24 @@ jobs:
     # Also runs on workflow_dispatch, where it creates the tag itself at the
     # dispatched commit (see the trigger comment at the top of this file).
     # macOS is intentionally absent — its CI build is disabled (see build-macos).
-    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/release/v') || github.event_name == 'workflow_dispatch'
     needs: [build-linux, build-windows]
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    env:
-      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
     steps:
     - name: Git Checkout
       uses: actions/checkout@v4
       with:
         fetch-depth: 1
+    # Tag name precedence: dispatch input, else the ref name with any
+    # release/ branch prefix stripped (a no-op for tag-push refs).
+    - name: Resolve release tag
+      env:
+        INPUT_TAG: ${{ inputs.release_tag }}
+      run: |
+        TAG="${INPUT_TAG:-${GITHUB_REF_NAME#release/}}"
+        echo "RELEASE_TAG=${TAG}" >> "$GITHUB_ENV"
     - name: Download Linux build
       uses: actions/download-artifact@v4
       with:
@@ -426,3 +438,10 @@ jobs:
             --notes-file release-notes.md \
             --prerelease
         fi
+    # The branch was only a trigger vehicle; the tag now records the release
+    # commit, so drop the branch to keep the ref namespace tidy.
+    - name: Delete release trigger branch
+      if: startsWith(github.ref, 'refs/heads/release/')
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: gh api -X DELETE "repos/${GITHUB_REPOSITORY}/git/${GITHUB_REF}"
