@@ -191,5 +191,8 @@ void* AudioEditor_GetOriginalSeq(int seqId) { (void)seqId; return NULL; }
 /* Global variables */
 int currentActorListIndex = 0;
 
-/* ZAPD main stub (not needed at runtime) */
-int zapd_main(int argc, char** argv) { (void)argc; (void)argv; return 0; }
+/* The zapd_main stub that used to live here is gone (issue #325): it shadowed
+ * the real ZAPDLib entry points in the link and silently broke in-app ROM
+ * extraction. Extraction now spawns the bundled standalone ZAPD executable
+ * (games/oot/soh/Extractor/Extract.cpp), so nothing references zapd_main in
+ * single-exe builds. */

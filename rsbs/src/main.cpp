@@ -26,6 +26,7 @@
 #include "game_lifecycle.h"
 #include "context.h"
 #include "entrance.h"
+#include "rsbs_version.h"
 #include "test_runner.h"
 #include "integration_test_hooks.h"
 #include "archive_check.h"
@@ -84,6 +85,10 @@ static void EnsureGameArchivesLoaded(GameId targetGame) {
 extern "C" {
     GameOps* OoT_GetGameOps(void);
     GameOps* MM_GetGameOps(void);
+    // Build-version strings baked into each game library
+    // (games/*/src/boot/build.c); declarations match each game's own header.
+    extern const char OoT_gBuildVersion[];
+    extern char MM_gBuildVersion[];
 }
 
 // ============================================================================
@@ -160,8 +165,25 @@ bool HasHelpFlag(int argc, char** argv) {
     return false;
 }
 
+bool HasVersionFlag(int argc, char** argv) {
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--version") == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void PrintVersion(void) {
+    // Base-port versions come from the linked game libraries so they can't
+    // drift from what the archive/save compatibility checks actually enforce.
+    printf("%s %s (%s)\n", RSBS_APP_NAME, RSBS_VERSION_STRING, RSBS_VERSION_CODENAME);
+    printf("Base ports: Ship of Harkinian %s (OoT), 2 Ship 2 Harkinian %s (MM)\n",
+           (const char*)OoT_gBuildVersion, (const char*)MM_gBuildVersion);
+}
+
 void PrintUsage(const char* progName) {
-    printf("RedShip - Unified OoT+MM Executable\n\n");
+    printf("%s %s - Unified OoT+MM Executable\n\n", RSBS_APP_NAME, RSBS_VERSION_STRING);
     printf("Usage: %s [OPTIONS]\n\n", progName);
     printf("Options:\n");
     printf("  --game oot            Run Ocarina of Time\n");
@@ -169,6 +191,7 @@ void PrintUsage(const char* progName) {
     printf("  --test <name>         Run unit tests\n");
     printf("  --integration-test <name>  Run integration tests (boots game)\n");
     printf("  --test-entrance       Use test entrance links (Mido's House)\n");
+    printf("  --version             Show version information\n");
     printf("  --help, -h            Show this help message\n\n");
     printf("Unit test commands (--test):\n");
     printf("  boot-oot        Infrastructure test for OoT boot\n");
@@ -185,7 +208,7 @@ void PrintUsage(const char* progName) {
 }
 
 GameId ShowGameMenu(void) {
-    printf("\n=== RedShip - Unified OoT+MM ===\n\n");
+    printf("\n=== %s %s ===\n\n", RSBS_APP_NAME, RSBS_VERSION_STRING);
     printf("Select a game to play:\n");
     printf("  1) Ocarina of Time\n");
     printf("  2) Majora's Mask\n\n");
@@ -220,6 +243,12 @@ GameId ShowGameMenu(void) {
 int main(int argc, char** argv) {
     // Install crash handler
     InstallCrashHandler();
+
+    // Check for version flag
+    if (HasVersionFlag(argc, argv)) {
+        PrintVersion();
+        return 0;
+    }
 
     // Check for help flag
     if (HasHelpFlag(argc, argv)) {
@@ -268,17 +297,20 @@ int main(int argc, char** argv) {
     // selected game's Init layers its own factories/heaps onto the shared
     // context.
     //
-    // The branding ("Ship of Harkinian", "soh", "shipofharkinian.json") is
-    // kept stable on purpose: it pins the config and savestate directory to
-    // one location across game switches. Re-keying these on the selected
-    // game would split a single user's saves into two app-data folders the
-    // first time they switched games. Asymmetric branding != asymmetric
-    // bootstrap; the bootstrap itself is now game-agnostic.
+    // The display name (first argument) is RSBS's own identity so the window
+    // title, crash dialog, and log name attribute tester reports to this
+    // build instead of upstream SoH (issue #319). The app short name ("soh")
+    // and config file ("shipofharkinian.json") are kept stable on purpose:
+    // they pin the config and savestate directory to one location across
+    // game switches. Re-keying these on the selected game would split a
+    // single user's saves into two app-data folders the first time they
+    // switched games. Asymmetric branding != asymmetric bootstrap; the
+    // bootstrap itself is now game-agnostic.
     // ========================================================================
     fprintf(stderr, "[RSBS] About to create Ship::Context singleton...\n");
     fflush(stderr);
     auto shipContext = Ship::Context::CreateUninitializedInstance(
-        "Ship of Harkinian", "soh", "shipofharkinian.json");
+        RSBS_WINDOW_TITLE, "soh", "shipofharkinian.json");
     fprintf(stderr, "[RSBS] CreateUninitializedInstance returned: %p\n", (void*)shipContext.get());
     fflush(stderr);
     if (!shipContext) {
