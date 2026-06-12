@@ -319,6 +319,12 @@ install(DIRECTORY "${CMAKE_SOURCE_DIR}/games/mm/assets/xml/" DESTINATION ./asset
 # Linux AppImage (see the usr/bin/assets/extractor rules above).
 install(TARGETS ZAPD_OoT RUNTIME DESTINATION ./assets/extractor COMPONENT ship)
 install(TARGETS ZAPD_MM RUNTIME DESTINATION ./assets/extractor COMPONENT ship)
+# soh.o2r (the port's custom assets — fonts, GUI, shaders) cannot be produced
+# by the shipped extractor, so the zip must bundle it. The upstream-parity
+# rule in games/oot/CMakeLists.txt only fires when NOT SINGLE_EXECUTABLE_BUILD,
+# and the rule above at line ~300 is Linux-only — without this line the
+# Windows package has no .o2r at all (issue #334).
+install(FILES "${CMAKE_BINARY_DIR}/soh/soh.o2r" DESTINATION . COMPONENT ship)
 endif()
 
 find_package(Python3 COMPONENTS Interpreter)
