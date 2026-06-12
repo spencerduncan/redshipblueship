@@ -341,15 +341,30 @@ OTRGlobals::OTRGlobals() {
     // Reuse it instead of creating a new one to maintain singleton integrity.
     // This fixes issue #184 where OTRGlobals and MM's BenPort both define
     // OTRGlobals::Instance, causing the weak_ptr singleton to break.
+    //
+    // Reuse has two flavors (#329): a context the other game already
+    // bootstrapped (ResourceManager present) is taken as-is — Initialize()
+    // adds OoT's archives/factories on top. The harness, however, only
+    // creates an uninitialized shell, so when OoT is the first game to boot
+    // it must run the full bootstrap below on the adopted context; returning
+    // early here left the ResourceManager null and Initialize() crashed.
     auto existing = Ship::Context::GetInstance();
-    if (existing) {
+    if (existing && existing->GetResourceManager() != nullptr) {
         context = existing;
         fprintf(stderr, "[OoT] Reusing existing Ship::Context singleton\n");
         return;
     }
-#endif
+    if (existing) {
+        context = existing;
+        fprintf(stderr, "[OoT] Bootstrapping harness-provided Ship::Context (#329)\n");
+    } else {
+        context =
+            Ship::Context::CreateUninitializedInstance("Ship of Harkinian", appShortName, "shipofharkinian.json");
+    }
+#else
     // Standalone mode: create our own context
     context = Ship::Context::CreateUninitializedInstance("Ship of Harkinian", appShortName, "shipofharkinian.json");
+#endif
 
     portArchivePath = Ship::Context::LocateFileAcrossAppDirs("soh.o2r");
     OTRVersion portArchiveVersion = DetectOTRVersion("soh.o2r", false);
@@ -434,12 +449,15 @@ typedef enum WindowsSteps {
 
 void OTRGlobals::RunExtract(int argc, char* argv[]) {
 #ifdef RSBS_SINGLE_EXECUTABLE
-    // In single-exe mode the shared Ship::Context is reused from the parent launcher, so
-    // sohFast3dWindow was never initialized here and the launcher is responsible for any
-    // ROM extraction. Skipping this whole flow avoids dereferencing a null window.
-    if (sohFast3dWindow == nullptr) {
-        return;
-    }
+    // In single-exe mode the launcher and docs own ROM extraction (#317, #325):
+    // the in-process zapd_main resolves to a no-op stub, so this ImGui flow can
+    // never produce an archive — it would just sit in its render loop waiting
+    // for input (it used to be skipped only by accident, because the pre-#329
+    // bootstrap bug left sohFast3dWindow null). Missing-archive UX is handled
+    // by the launcher's ArchiveCheck gate.
+    (void)argc;
+    (void)argv;
+    return;
 #endif
     bool extractDone = false;
     ExtractSteps extractStep = ES_PORT_ARCHIVE;

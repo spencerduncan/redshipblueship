@@ -24,6 +24,11 @@
 
 #include <ship/Context.h>
 #include <ship/window/Window.h>
+#include <fast/Fast3dWindow.h>
+#include <libultraship/controller/controldeck/ControlDeck.h>
+#include "BenPort.h" // BTN_CUSTOM_MODIFIER1/2 for the shared ControlDeck
+#include <memory>
+#include <vector>
 
 #include "game_lifecycle.h"
 #include "integration_test_hooks.h"
@@ -40,6 +45,27 @@
 #include "2s2h/resource/importer/TextMMFactory.h"
 #include "2s2h/resource/importer/TextureAnimationFactory.h"
 #include "2s2h/resource/importer/KeyFrameFactory.h"
+
+// Common factories registered by the MM-first bootstrap (#330) — same set
+// BenPort.cpp registers standalone; in OoT-first boots OoT registers these.
+#include <fast/resource/ResourceType.h>
+#include <fast/resource/factory/DisplayListFactory.h>
+#include <fast/resource/factory/MatrixFactory.h>
+#include <fast/resource/factory/TextureFactory.h>
+#include <fast/resource/factory/VertexFactory.h>
+#include <ship/resource/factory/BlobFactory.h>
+#include "2s2h/resource/importer/AnimationFactory.h"
+#include "2s2h/resource/importer/ArrayFactory.h"
+#include "2s2h/resource/importer/AudioSampleFactory.h"
+#include "2s2h/resource/importer/AudioSequenceFactory.h"
+#include "2s2h/resource/importer/AudioSoundFontFactory.h"
+#include "2s2h/resource/importer/BackgroundFactory.h"
+#include "2s2h/resource/importer/CollisionHeaderFactory.h"
+#include "2s2h/resource/importer/CutsceneFactory.h"
+#include "2s2h/resource/importer/PlayerAnimationFactory.h"
+#include "2s2h/resource/importer/SceneFactory.h"
+#include "2s2h/resource/importer/SkeletonFactory.h"
+#include "2s2h/resource/importer/SkeletonLimbFactory.h"
 
 // From main.c headers
 extern "C" {
@@ -413,15 +439,145 @@ static void RegisterMMResourceFactories() {
 }
 
 /**
+ * Bootstrap the harness-provided Ship::Context when MM is the first game
+ * to boot (#330). The harness (rsbs/src/main.cpp) creates only an
+ * *uninitialized* singleton — no window, no ResourceManager. Whichever game
+ * boots first must initialize the shared subsystems (#271's symmetric
+ * design; OoT's side lives in OTRGlobals::OTRGlobals(), #329). When the
+ * other game already bootstrapped the context (ResourceManager present),
+ * this is a no-op and MM only adds its archives/factories on top, as before.
+ *
+ * Mirrors the init order of BenPort.cpp's InitOTR(), which is excluded from
+ * single-exe builds: FileDropMgr, GfxDebugger, Configuration, ConsoleVars,
+ * Logging, ResourceManager, ControlDeck, CrashHandler, Console, Window,
+ * Audio. The ResourceManager is seeded with the same archive set
+ * LoadMMArchives() would add, so that pass is marked done.
+ */
+static bool BootstrapSharedContext(void) {
+    auto ctx = Ship::Context::GetInstance();
+    if (!ctx) {
+        fprintf(stderr, "[MM] ERROR: Ship::Context is null — harness must init first\n");
+        return false;
+    }
+    if (ctx->GetResourceManager() != nullptr) {
+        return true;
+    }
+
+    fprintf(stderr, "[MM] Bootstrapping harness-provided Ship::Context (#330)\n");
+    ctx->InitFileDropMgr();
+    ctx->InitGfxDebugger();
+    ctx->InitConfiguration();
+    ctx->InitConsoleVariables();
+    ctx->InitLogging();
+
+    std::vector<std::string> archiveFiles;
+    for (const char* name : { "mm.o2r", "mm.zip", "mm.otr" }) {
+        std::string path = Ship::Context::LocateFileAcrossAppDirs(name, "2s2h");
+        if (!path.empty() && std::filesystem::exists(path)) {
+            archiveFiles.push_back(path);
+            break; // only one mm archive, same as LoadMMArchives()
+        }
+    }
+    std::string shipPath = Ship::Context::GetPathRelativeToAppBundle("2ship.o2r");
+    if (!shipPath.empty() && std::filesystem::exists(shipPath)) {
+        archiveFiles.push_back(shipPath);
+    }
+    // 3 reserved threads (Game, Audio, Save), matching BenPort and OoT.
+    ctx->InitResourceManager(archiveFiles, {}, 3, true);
+    if (!archiveFiles.empty()) {
+        for (const auto& f : archiveFiles) {
+            fprintf(stderr, "[MM] Loaded archive: %s\n", f.c_str());
+        }
+        sMMArchivesLoaded = true; // LoadMMArchives() would re-add the same set
+    }
+
+    // When MM boots first there is no OoT layer to register the common
+    // resource factories (Texture, DisplayList, audio types, ...) — without
+    // them the loader cannot deserialize anything from mm.o2r/2ship.o2r
+    // (first casualty: MM_AudioLoad_Init null-derefs on a sequence). Register
+    // the same set BenPort.cpp registers standalone; the MM-specific ones
+    // (Path, TextMM, TextureAnimation, KeyFrame*) follow in
+    // RegisterMMResourceFactories(), and an OoT booted second overwrites
+    // shared entries with its own equivalents, as MM does today in reverse.
+    auto loader = ctx->GetResourceManager()->GetResourceLoader();
+    loader->RegisterResourceFactory(std::make_shared<Fast::ResourceFactoryBinaryTextureV0>(), RESOURCE_FORMAT_BINARY,
+                                    "Texture", static_cast<uint32_t>(Fast::ResourceType::Texture), 0);
+    loader->RegisterResourceFactory(std::make_shared<Fast::ResourceFactoryBinaryTextureV1>(), RESOURCE_FORMAT_BINARY,
+                                    "Texture", static_cast<uint32_t>(Fast::ResourceType::Texture), 1);
+    loader->RegisterResourceFactory(std::make_shared<Fast::ResourceFactoryBinaryVertexV0>(), RESOURCE_FORMAT_BINARY,
+                                    "Vertex", static_cast<uint32_t>(Fast::ResourceType::Vertex), 0);
+    loader->RegisterResourceFactory(std::make_shared<Fast::ResourceFactoryXMLVertexV0>(), RESOURCE_FORMAT_XML, "Vertex",
+                                    static_cast<uint32_t>(Fast::ResourceType::Vertex), 0);
+    loader->RegisterResourceFactory(std::make_shared<Fast::ResourceFactoryBinaryDisplayListV0>(),
+                                    RESOURCE_FORMAT_BINARY, "DisplayList",
+                                    static_cast<uint32_t>(Fast::ResourceType::DisplayList), 0);
+    loader->RegisterResourceFactory(std::make_shared<Fast::ResourceFactoryXMLDisplayListV0>(), RESOURCE_FORMAT_XML,
+                                    "DisplayList", static_cast<uint32_t>(Fast::ResourceType::DisplayList), 0);
+    loader->RegisterResourceFactory(std::make_shared<Fast::ResourceFactoryBinaryMatrixV0>(), RESOURCE_FORMAT_BINARY,
+                                    "Matrix", static_cast<uint32_t>(Fast::ResourceType::Matrix), 0);
+    loader->RegisterResourceFactory(std::make_shared<Ship::ResourceFactoryBinaryBlobV0>(), RESOURCE_FORMAT_BINARY,
+                                    "Blob", static_cast<uint32_t>(Ship::ResourceType::Blob), 0);
+    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryBinaryArrayV0>(), RESOURCE_FORMAT_BINARY,
+                                    "Array", static_cast<uint32_t>(SOH::ResourceType::SOH_Array), 0);
+    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryBinaryAnimationV0>(), RESOURCE_FORMAT_BINARY,
+                                    "Animation", static_cast<uint32_t>(SOH::ResourceType::SOH_Animation), 0);
+    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryBinaryPlayerAnimationV0>(),
+                                    RESOURCE_FORMAT_BINARY, "PlayerAnimation",
+                                    static_cast<uint32_t>(SOH::ResourceType::SOH_PlayerAnimation), 0);
+    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryBinarySceneV0>(), RESOURCE_FORMAT_BINARY,
+                                    "Room", static_cast<uint32_t>(SOH::ResourceType::SOH_Room), 0);
+    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryBinaryCollisionHeaderV0>(),
+                                    RESOURCE_FORMAT_BINARY, "CollisionHeader",
+                                    static_cast<uint32_t>(SOH::ResourceType::SOH_CollisionHeader), 0);
+    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryBinarySkeletonV0>(), RESOURCE_FORMAT_BINARY,
+                                    "Skeleton", static_cast<uint32_t>(SOH::ResourceType::SOH_Skeleton), 0);
+    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryBinarySkeletonLimbV0>(),
+                                    RESOURCE_FORMAT_BINARY, "SkeletonLimb",
+                                    static_cast<uint32_t>(SOH::ResourceType::SOH_SkeletonLimb), 0);
+    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryBinaryCutsceneV0>(), RESOURCE_FORMAT_BINARY,
+                                    "Cutscene", static_cast<uint32_t>(SOH::ResourceType::SOH_Cutscene), 0);
+    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryBinaryAudioSampleV2>(), RESOURCE_FORMAT_BINARY,
+                                    "AudioSample", static_cast<uint32_t>(SOH::ResourceType::SOH_AudioSample), 2);
+    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryXMLAudioSampleV0>(), RESOURCE_FORMAT_XML,
+                                    "Sample", static_cast<uint32_t>(SOH::ResourceType::SOH_AudioSample), 0);
+    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryBinaryAudioSoundFontV2>(),
+                                    RESOURCE_FORMAT_BINARY, "AudioSoundFont",
+                                    static_cast<uint32_t>(SOH::ResourceType::SOH_AudioSoundFont), 2);
+    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryXMLSoundFontV0>(), RESOURCE_FORMAT_XML,
+                                    "SoundFont", static_cast<uint32_t>(SOH::ResourceType::SOH_AudioSoundFont), 0);
+    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryBinaryAudioSequenceV2>(),
+                                    RESOURCE_FORMAT_BINARY, "AudioSequence",
+                                    static_cast<uint32_t>(SOH::ResourceType::SOH_AudioSequence), 2);
+    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryXMLAudioSequenceV0>(), RESOURCE_FORMAT_XML,
+                                    "Sequence", static_cast<uint32_t>(SOH::ResourceType::SOH_AudioSequence), 0);
+    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryBinaryBackgroundV0>(), RESOURCE_FORMAT_BINARY,
+                                    "Background", static_cast<uint32_t>(SOH::ResourceType::SOH_Background), 0);
+
+    auto controlDeck = std::make_shared<LUS::ControlDeck>(std::vector<CONTROLLERBUTTONS_T>({
+        BTN_CUSTOM_MODIFIER1,
+        BTN_CUSTOM_MODIFIER2,
+    }));
+    ctx->InitControlDeck(controlDeck);
+    ctx->InitCrashHandler();
+    ctx->InitConsole();
+
+    auto fast3dWindow = std::make_shared<Fast::Fast3dWindow>(std::vector<std::shared_ptr<Ship::GuiWindow>>({}));
+    ctx->InitWindow(fast3dWindow);
+    ctx->InitAudio({ .SampleRate = 32000, .SampleLength = 1024, .DesiredBuffered = 1680 });
+
+    return ctx->GetWindow() != nullptr;
+}
+
+/**
  * Verify the shared Ship::Context is ready for MM's graph thread (#271).
  *
  * MM_Graph_ThreadEntry calls WindowIsRunning(), GfxDebuggerIsDebugging(),
  * WindowGetWidth/Height/AspectRatio() every frame — all route through
- * Ship::Context::GetInstance(). The harness (rsbs/src/main.cpp) creates
- * the singleton before either game's Init runs, so this check is a
- * defensive assertion that the harness did its job — *not* a dependency
- * on OoT having booted first. OoT and MM are symmetric here: both reuse
- * the harness-provided context.
+ * Ship::Context::GetInstance(). The harness creates the singleton and the
+ * first game to boot bootstraps its subsystems (BootstrapSharedContext
+ * above / OTRGlobals on the OoT side, #329/#330), so this check is a
+ * defensive assertion that that happened — *not* a dependency on OoT
+ * having booted first.
  */
 static bool VerifySharedContext(void) {
     auto ctx = Ship::Context::GetInstance();
@@ -447,11 +603,12 @@ int MM_Game_Init(int argc, char** argv) {
     fflush(stderr);
 
     // In single-exe mode, skip InitOTR() — the harness (rsbs/src/main.cpp)
-    // creates Ship::Context before either game's Init runs. MM treats the
-    // harness-provided context as a precondition, the same as OoT does
-    // (#158, #271). This used to claim "OoT initialized libultraship"; that
-    // wording was stale — the harness owns initial Context creation.
-    if (!VerifySharedContext()) {
+    // creates the Ship::Context singleton before either game's Init runs,
+    // and the first game to boot initializes its subsystems (#329/#330).
+    // When MM boots first, BootstrapSharedContext() does that here; when
+    // OoT booted first, it is a no-op and MM just adds its own archives
+    // and factories on top (#158, #271).
+    if (!BootstrapSharedContext() || !VerifySharedContext()) {
         fprintf(stderr, "[MM] FATAL: Cannot start without Ship::Context\n");
         return -1;
     }
