@@ -314,6 +314,11 @@ install(DIRECTORY "${CMAKE_SOURCE_DIR}/games/oot/assets/extractor/" DESTINATION 
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/games/oot/assets/xml/" DESTINATION ./assets/xml COMPONENT ship)
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/games/mm/assets/extractor/" DESTINATION ./assets/ COMPONENT ship)
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/games/mm/assets/xml/" DESTINATION ./assets/xml COMPONENT ship)
+# In-app extraction spawns the standalone ZAPD executables as subprocesses
+# (issue #325), so they must ship in the zip like they already do in the
+# Linux AppImage (see the usr/bin/assets/extractor rules above).
+install(TARGETS ZAPD_OoT RUNTIME DESTINATION ./assets/extractor COMPONENT ship)
+install(TARGETS ZAPD_MM RUNTIME DESTINATION ./assets/extractor COMPONENT ship)
 endif()
 
 find_package(Python3 COMPONENTS Interpreter)
