@@ -680,6 +680,14 @@ int MM_Game_Init(int argc, char** argv) {
 
     sMMInitialized = true;
 
+    // MM's GameInteractor singleton is constructed in BenPort.cpp's InitOTR,
+    // which is excluded from single-exe builds — without it every
+    // RegisterGameHook call (integration hooks, gameplay hooks) null-derefs.
+    // OoT's InitOTR news up only OoT's own GameInteractor class (#330).
+    if (GameInteractor::Instance == nullptr) {
+        GameInteractor::Instance = new GameInteractor();
+    }
+
     // Register integration test hooks if in integration test mode
     MM_RegisterIntegrationTestHooks();
 

@@ -449,15 +449,21 @@ typedef enum WindowsSteps {
 
 void OTRGlobals::RunExtract(int argc, char* argv[]) {
 #ifdef RSBS_SINGLE_EXECUTABLE
-    // In single-exe mode the launcher and docs own ROM extraction (#317, #325):
-    // the in-process zapd_main resolves to a no-op stub, so this ImGui flow can
-    // never produce an archive — it would just sit in its render loop waiting
-    // for input (it used to be skipped only by accident, because the pre-#329
-    // bootstrap bug left sohFast3dWindow null). Missing-archive UX is handled
-    // by the launcher's ArchiveCheck gate.
-    (void)argc;
-    (void)argv;
-    return;
+    // First-run extraction stays reachable in single-exe (functional since
+    // #328 made CallZapd spawn the bundled ZAPD, #325), but when a current
+    // archive is already in place there is nothing to do — skip the
+    // interactive flow entirely. Its popups block this pre-game-loop thread
+    // until clicked, which a headless or integration-test run can never do
+    // (#329: this hung int-boot-oot for the full timeout). Before #329 the
+    // flow was skipped only by accident: the bootstrap bug left
+    // sohFast3dWindow null.
+    if (argc <= 1) {
+        OTRVersion vanillaVer = DetectOTRVersion("oot.o2r", false);
+        OTRVersion mqVer = DetectOTRVersion("oot-mq.o2r", true);
+        if (vanillaVer.major == OoT_gBuildVersionMajor || mqVer.major == OoT_gBuildVersionMajor) {
+            return;
+        }
+    }
 #endif
     bool extractDone = false;
     ExtractSteps extractStep = ES_PORT_ARCHIVE;
