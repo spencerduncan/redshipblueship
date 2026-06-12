@@ -18,6 +18,15 @@ on:
       - 'docs/**'
       - 'LICENSE*'
       - '.gitignore'
+  # Manual release path: creates the tag (via `gh release create --target`) at
+  # the dispatched commit and publishes the release from that run's builds.
+  # Exists because not every agent/CI credential is allowed to push v* tags.
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag to cut, e.g. v0.1.0-prealpha (must equal RSBS_VERSION_STRING)'
+        required: true
+        type: string
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -363,12 +372,16 @@ jobs:
     # Tag-triggered release publishing (issue #318): attaches the builds from
     # the jobs above to a GitHub Release so pre-alpha testers get a stable
     # download URL that outlives the short CI artifact retention window.
+    # Also runs on workflow_dispatch, where it creates the tag itself at the
+    # dispatched commit (see the trigger comment at the top of this file).
     # macOS is intentionally absent — its CI build is disabled (see build-macos).
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     needs: [build-linux, build-windows]
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
     steps:
     - name: Git Checkout
       uses: actions/checkout@v4
@@ -386,27 +399,30 @@ jobs:
         path: rsbs-windows
     - name: Prepare release assets
       run: |
-        mv rsbs-linux/rsbs.appimage "redshipblueship-${GITHUB_REF_NAME}-linux.AppImage"
+        mv rsbs-linux/rsbs.appimage "redshipblueship-${RELEASE_TAG}-linux.AppImage"
         # build-windows uploads the unzipped cpack output (artifacts are stored
         # extracted so PR testers get a browsable tree); re-zip it for release.
-        (cd rsbs-windows && zip -qr "../redshipblueship-${GITHUB_REF_NAME}-windows.zip" .)
+        (cd rsbs-windows && zip -qr "../redshipblueship-${RELEASE_TAG}-windows.zip" .)
     - name: Render release notes
-      run: sed "s/{{TAG}}/${GITHUB_REF_NAME}/g" .github/release-notes-template.md > release-notes.md
+      run: sed "s/{{TAG}}/${RELEASE_TAG}/g" .github/release-notes-template.md > release-notes.md
     - name: Create GitHub Release
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
         ASSETS=(
-          "redshipblueship-${GITHUB_REF_NAME}-linux.AppImage"
-          "redshipblueship-${GITHUB_REF_NAME}-windows.zip"
+          "redshipblueship-${RELEASE_TAG}-linux.AppImage"
+          "redshipblueship-${RELEASE_TAG}-windows.zip"
         )
         # Idempotent on re-runs: if the release already exists, refresh its assets.
-        if gh release view "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" > /dev/null 2>&1; then
-          gh release upload "${GITHUB_REF_NAME}" "${ASSETS[@]}" --repo "${GITHUB_REPOSITORY}" --clobber
+        if gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" > /dev/null 2>&1; then
+          gh release upload "${RELEASE_TAG}" "${ASSETS[@]}" --repo "${GITHUB_REPOSITORY}" --clobber
         else
-          gh release create "${GITHUB_REF_NAME}" "${ASSETS[@]}" \
+          # --target creates the tag at this run's commit when the tag doesn't
+          # exist yet (workflow_dispatch); it is ignored for existing tags.
+          gh release create "${RELEASE_TAG}" "${ASSETS[@]}" \
             --repo "${GITHUB_REPOSITORY}" \
-            --title "RedShipBlueShip ${GITHUB_REF_NAME} (pre-alpha)" \
+            --target "${GITHUB_SHA}" \
+            --title "RedShipBlueShip ${RELEASE_TAG} (pre-alpha)" \
             --notes-file release-notes.md \
             --prerelease
         fi
