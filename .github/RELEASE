@@ -1,0 +1,7 @@
+v0.1.0-prealpha
+
+Release trigger marker. Pushing a commit to a release/v* branch fires the
+generate-builds release path; creating the branch alone does not, because an
+empty diff is discarded by the push trigger's paths-ignore filter. This file
+exists only on release trigger branches — the workflow deletes the branch
+once the release is published, and the release tag keeps this commit alive.
