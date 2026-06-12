@@ -1683,6 +1683,15 @@ extern "C" uint64_t GetUnixTimestamp() {
 }
 
 extern "C" void Graph_StartFrame() {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // Both games' frame loops link this symbol (MM's own definition lives in
+    // BenPort.cpp, which single-exe builds exclude). When MM boots first,
+    // OoT's OTRGlobals::Instance doesn't exist yet — skip the OoT keyboard
+    // shortcuts instead of null-dereferencing (#330).
+    if (OTRGlobals::Instance == nullptr || OTRGlobals::Instance->context == nullptr) {
+        return;
+    }
+#endif
 #ifndef __WIIU__
     using Ship::KbScancode;
     int32_t dwScancode = OTRGlobals::Instance->context->GetWindow()->GetLastScancode();
