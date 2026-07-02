@@ -7,10 +7,24 @@
 #include "context.h"
 #include "entrance.h"
 #include "integration_test_hooks.h"
+#include "rsbs_version.h"
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
 #include <atomic>
+#include <filesystem>
+
+#include <ship/Context.h>
+#include <ship/resource/ResourceManager.h>
+
+// Shared-context bring-up entries for the boot regression tests (#329/#330).
+// Defined in games/oot/soh/OTRGlobals.cpp and
+// games/mm/2s2h/GameExports_SingleExe.cpp; resolved at final link like the
+// ArchiveHotswap_* helpers.
+extern "C" {
+int OoT_InitSharedContextSubsystems(void);
+int MM_RegisterResourceFactoriesHeadless(void);
+}
 
 // Lifecycle unit tests — included directly to avoid static library link ordering issues
 extern "C" {
@@ -57,29 +71,107 @@ const char* sIntegrationTestName = nullptr;
 // Test implementations
 // ============================================================================
 
+// Reproduce the harness's exact pre-boot state (rsbs/src/main.cpp): an
+// uninitialized Ship::Context singleton. SHIP_HOME is pointed at a sandbox
+// directory first so InitConfiguration/InitLogging write their files there
+// instead of the working tree (same pattern as the .redsave tests). If the
+// singleton already exists (e.g. --test all ran the other boot test first),
+// CreateUninitializedInstance returns it unchanged — which mirrors the
+// second game's arrival on a live context.
+static std::shared_ptr<Ship::Context> CreateHarnessStyleContext(void) {
+    const char* kBootTestHome = "rsbs_test_boot_home";
+    std::error_code ec;
+    std::filesystem::create_directories(kBootTestHome, ec);
+#ifdef _WIN32
+    _putenv_s("SHIP_HOME", kBootTestHome);
+#else
+    setenv("SHIP_HOME", kBootTestHome, 1);
+#endif
+    return Ship::Context::CreateUninitializedInstance(RSBS_WINDOW_TITLE, "soh", "shipofharkinian.json");
+}
+
 TestResult Test_BootOoT(void) {
-    printf("[TEST] boot-oot: Boot OoT to main menu\n");
+    printf("[TEST] boot-oot: shared-context bring-up leaves no null subsystems (#329)\n");
     sTargetGame = GAME_OOT;
     sBootComplete = false;
 
-    // In headless/test mode, we just verify the infrastructure is set up
-    // The actual boot test would require SDL which may not be available
-    printf("[TEST] OoT boot infrastructure ready\n");
-    printf("[TEST] Note: Full boot test requires SDL2 (available in CI)\n");
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
 
-    // For now, mark as pass to indicate infrastructure works
+    // Run the display-free prefix of the bring-up OoT's OTRGlobals
+    // constructor performs. #329's failure mode was exactly this being
+    // skipped on the harness context: OTRGlobals::Initialize() then crashed
+    // dereferencing the null ResourceManager. Window/audio init needs a
+    // display and stays in the archive-gated int-boot tests.
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: OoT_InitSharedContextSubsystems reported failure\n");
+        return TEST_FAIL;
+    }
+
+    if (ctx->GetConfig() == nullptr) {
+        printf("[TEST] FAIL: Config is null after bring-up\n");
+        return TEST_FAIL;
+    }
+    if (ctx->GetConsoleVariables() == nullptr) {
+        printf("[TEST] FAIL: ConsoleVariables is null after bring-up\n");
+        return TEST_FAIL;
+    }
+    if (ctx->GetControlDeck() == nullptr) {
+        printf("[TEST] FAIL: ControlDeck is null after bring-up\n");
+        return TEST_FAIL;
+    }
+    if (ctx->GetResourceManager() == nullptr) {
+        printf("[TEST] FAIL: ResourceManager is null after bring-up — the #329 crash predicate\n");
+        return TEST_FAIL;
+    }
+    if (ctx->GetResourceManager()->GetArchiveManager() == nullptr) {
+        printf("[TEST] FAIL: ArchiveManager is null after bring-up\n");
+        return TEST_FAIL;
+    }
+    if (ctx->GetConsole() == nullptr) {
+        printf("[TEST] FAIL: Console is null after bring-up\n");
+        return TEST_FAIL;
+    }
+
+    printf("[TEST] PASS: display-free shared subsystems all initialized\n");
     return TEST_PASS;
 }
 
 TestResult Test_BootMM(void) {
-    printf("[TEST] boot-mm: Boot MM to main menu\n");
+    printf("[TEST] boot-mm: MM-first bring-up prerequisites (#330)\n");
     sTargetGame = GAME_MM;
     sBootComplete = false;
 
-    // In headless/test mode, we just verify the infrastructure is set up
-    printf("[TEST] MM boot infrastructure ready\n");
-    printf("[TEST] Note: Full boot test requires SDL2 (available in CI)\n");
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
 
+    // MM-first boots reach the same display-free bring-up through
+    // MM_Game_Init -> InitOTRForMMFirstBoot -> OTRGlobals(). Drive it
+    // directly (window creation needs a display) and then assert the two
+    // things MM_Game_Init needs from it: a live ResourceManager for
+    // LoadMMArchives, and MM's resource factories registering against it.
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    if (ctx->GetResourceManager() == nullptr) {
+        printf("[TEST] FAIL: ResourceManager is null — LoadMMArchives precondition (#330)\n");
+        return TEST_FAIL;
+    }
+
+    if (MM_RegisterResourceFactoriesHeadless() != 0) {
+        printf("[TEST] FAIL: MM resource factory registration failed\n");
+        return TEST_FAIL;
+    }
+
+    printf("[TEST] PASS: MM-first bring-up prerequisites satisfied\n");
     return TEST_PASS;
 }
 
@@ -374,8 +466,8 @@ TestResult Test_Context(void) {
 // ============================================================================
 
 const TestDescriptor gTests[] = {
-    {"boot-oot", "Boot OoT to main menu (unit test)", Test_BootOoT},
-    {"boot-mm", "Boot MM to main menu (unit test)", Test_BootMM},
+    {"boot-oot", "Shared-context bring-up leaves no null subsystems (#329)", Test_BootOoT},
+    {"boot-mm", "MM-first bring-up prerequisites on the shared context (#330)", Test_BootMM},
     {"switch-oot-mm", "Test game switch OoT -> MM", Test_SwitchOoTMM},
     {"switch-mm-oot", "Test game switch MM -> OoT", Test_SwitchMMOoT},
     {"midos-house", "Test Mido's House entrance (test mode)", Test_MidosHouse},

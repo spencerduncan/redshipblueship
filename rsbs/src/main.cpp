@@ -41,7 +41,7 @@
 
 static void EnsureGameArchivesLoaded(GameId targetGame) {
     auto ctx = Ship::Context::GetInstance();
-    if (!ctx) return;
+    if (!ctx || !ctx->GetResourceManager()) return;
     auto archiveManager = ctx->GetResourceManager()->GetArchiveManager();
     if (!archiveManager) return;
 
@@ -289,13 +289,15 @@ int main(int argc, char** argv) {
     // Create Ship::Context singleton up front — before either game's Init
     // runs (issue #184, #271).
     //
-    // Both OoT (OTRGlobals constructor) and MM (BenPort InitOTR) detect an
-    // existing singleton and reuse it. Creating the placeholder here means
-    // neither game depends on the *other* having booted first — i.e. there
-    // is no "OoT must run before MM" implicit ordering. The user can launch
-    // either `redship --game oot` or `redship --game mm` cold, and the
-    // selected game's Init layers its own factories/heaps onto the shared
-    // context.
+    // The singleton is created UNINITIALIZED; the first game to boot runs
+    // the shared subsystem bring-up on it (issues #329/#330): OoT through
+    // OoT_Game_Init -> InitOTR (OTRGlobals adopts the singleton and
+    // initializes it), MM through MM_Game_Init -> InitOTRForMMFirstBoot.
+    // Creating the placeholder here means neither game depends on the
+    // *other* having booted first — i.e. there is no "OoT must run before
+    // MM" implicit ordering. The user can launch either `redship --game oot`
+    // or `redship --game mm` cold, and the selected game's Init layers its
+    // own factories/heaps onto the shared context.
     //
     // The display name (first argument) is RSBS's own identity so the window
     // title, crash dialog, and log name attribute tester reports to this
