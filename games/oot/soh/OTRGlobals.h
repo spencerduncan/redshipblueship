@@ -65,7 +65,10 @@ class OTRGlobals {
     ~OTRGlobals();
 
     void ScaleImGui();
-    void Initialize();
+    // tolerateInvalidGameArchives: log-and-skip instead of the invalid-hash
+    // dialog + exit(1) — used by MM-first boots so a stale oot.o2r cannot
+    // kill an MM session (#330); the switch gate keeps OoT unreachable then.
+    void Initialize(bool tolerateInvalidGameArchives = false);
     void RunExtract(int argc, char* argv[]);
     bool HasMasterQuest();
     bool HasOriginal();

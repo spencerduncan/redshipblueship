@@ -533,6 +533,14 @@ void OTRGlobals::RunExtract(int argc, char* argv[]) {
 #endif
 
     if (!std::filesystem::exists(installPath + "/assets")) {
+        // DetectOTRVersion marks a missing archive with INT16_MAX. When a
+        // compatible ROM archive already exists there is nothing to extract,
+        // so a missing bundled assets/ folder (typical for build trees, which
+        // only get one via the install step) must not kill the boot with the
+        // extractor popup below.
+        if ((vanillaVersion.major != INT16_MAX || mqVersion.major != INT16_MAX) && !shouldRegen) {
+            return;
+        }
         SohGui::RegisterPopup("Extractor assets not found",
                               "No O2R files found. Missing 'assets/' folder needed to generate OTR file.\nPlease "
                               "re-extract them from the download or.\n\nExiting...",
@@ -865,7 +873,7 @@ void OTRGlobals::RunExtract(int argc, char* argv[]) {
 #endif
 }
 
-void OTRGlobals::Initialize() {
+void OTRGlobals::Initialize(bool tolerateInvalidGameArchives) {
     std::string mqPath = Ship::Context::LocateFileAcrossAppDirs("oot-mq.o2r", appShortName);
     if (std::filesystem::exists(mqPath)) {
         context->GetResourceManager()->GetArchiveManager()->AddArchive(mqPath);
@@ -1010,6 +1018,14 @@ void OTRGlobals::Initialize() {
 
     for (uint32_t version : versions) {
         if (!ValidHashes.contains(version)) {
+            if (tolerateInvalidGameArchives) {
+                // MM-first boot: an unusable OoT archive must not kill the MM
+                // session. Leave hasMasterQuest/hasOriginal unset for it; the
+                // asset-init gate and the harness switch gate keep OoT
+                // unreachable until it is regenerated.
+                SPDLOG_ERROR("Ignoring OoT archive with invalid game version hash {} (MM-first boot)", version);
+                continue;
+            }
 #if defined(__SWITCH__)
             SPDLOG_ERROR("Invalid OTR File!");
 #elif defined(__WIIU__)
@@ -1070,6 +1086,17 @@ bool OTRGlobals::HasMasterQuest() {
 
 bool OTRGlobals::HasOriginal() {
     return hasOriginal;
+}
+
+/**
+ * Whether the shared bring-up found a usable OoT game archive and ran OoT's
+ * asset-dependent init (GUI, message tables, item icons). The harness uses
+ * this to refuse switching into OoT when the bring-up gated that init off —
+ * e.g. oot.o2r appeared on disk only after an MM-first boot (#330).
+ */
+extern "C" int OoT_GameAssetsInitialized(void) {
+    return OTRGlobals::Instance != nullptr &&
+           (OTRGlobals::Instance->HasMasterQuest() || OTRGlobals::Instance->HasOriginal());
 }
 
 uint32_t OTRGlobals::GetInterpolationFPS() {
@@ -1544,7 +1571,9 @@ static void InitOTRImpl(int argc, char* argv[], bool runExtract) {
         OTRGlobals::Instance->RunExtract(argc, argv);
     }
 
-    OTRGlobals::Instance->Initialize();
+    // MM-first boots (runExtract=false) tolerate a stale/invalid oot.o2r
+    // instead of exiting: the OoT side stays gated off, MM still boots.
+    OTRGlobals::Instance->Initialize(!runExtract);
     CustomMessageManager::Instance = new CustomMessageManager();
     ItemTableManager::Instance = new ItemTableManager();
     GameInteractor::Instance = new GameInteractor();

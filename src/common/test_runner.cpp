@@ -74,7 +74,9 @@ const char* sIntegrationTestName = nullptr;
 // Reproduce the harness's exact pre-boot state (rsbs/src/main.cpp): an
 // uninitialized Ship::Context singleton. SHIP_HOME is pointed at a sandbox
 // directory first so InitConfiguration/InitLogging write their files there
-// instead of the working tree (same pattern as the .redsave tests). If the
+// instead of the working tree (same pattern as the .redsave tests). Note:
+// libultraship only honors SHIP_HOME on Linux/macOS — on Windows the files
+// land in the working directory like any portable-mode run. If the
 // singleton already exists (e.g. --test all ran the other boot test first),
 // CreateUninitializedInstance returns it unchanged — which mirrors the
 // second game's arrival on a live context.
@@ -104,8 +106,12 @@ TestResult Test_BootOoT(void) {
     // Run the display-free prefix of the bring-up OoT's OTRGlobals
     // constructor performs. #329's failure mode was exactly this being
     // skipped on the harness context: OTRGlobals::Initialize() then crashed
-    // dereferencing the null ResourceManager. Window/audio init needs a
-    // display and stays in the archive-gated int-boot tests.
+    // dereferencing the null ResourceManager. Scope honesty: this drives the
+    // extracted helper, not the constructor itself — a regression INSIDE the
+    // constructor's branch logic (e.g. re-adding an early return before the
+    // helper call) is only caught by the archive-gated int-boot tests, which
+    // boot the real binary. Window/audio init needs a display and likewise
+    // stays in the int tier.
     if (OoT_InitSharedContextSubsystems() != 0) {
         printf("[TEST] FAIL: OoT_InitSharedContextSubsystems reported failure\n");
         return TEST_FAIL;
