@@ -1559,8 +1559,20 @@ static void InitOTRImpl(int argc, char* argv[], bool runExtract) {
     conf->RegisterVersionUpdater(std::make_shared<SOH::ConfigVersion6Updater>());
     conf->RunVersionUpdates();
 
-    SohGui::SetupGuiElements();
-    SohGui::SetupMenuElements();
+    // The SoH GUI windows load OoT game assets while they initialize
+    // (Plandomizer/ItemTracker icons, cosmetics Gfx patches), and LUS's
+    // Gui::LoadGuiTexture crashes dereferencing the null resource when no
+    // game archive is loaded. That state is only reachable on MM-first boots
+    // without oot.o2r (#330) — OoT-first boots run RunExtract, which
+    // guarantees an archive or exits. Skip the OoT GUI layer in that state;
+    // the harness refuses switches into OoT until oot.o2r exists.
+    bool hasGameArchive = OTRGlobals::Instance->HasMasterQuest() || OTRGlobals::Instance->HasOriginal();
+    if (hasGameArchive) {
+        SohGui::SetupGuiElements();
+        SohGui::SetupMenuElements();
+    } else {
+        fprintf(stderr, "[OoT] No OoT game archive loaded - skipping SoH GUI setup\n");
+    }
 
     if (RsbsFeatureEnabled("RSBS_DISABLE_RANDO")) {
         Rando::StaticData::InitHashMaps();
@@ -1595,7 +1607,12 @@ static void InitOTRImpl(int argc, char* argv[], bool runExtract) {
     }
 
     if (RsbsFeatureEnabled("RSBS_DISABLE_OTR_INIT")) {
-        OTRMessage_Init();
+        // Message tables live in the game archive; OTRMessage_Init derefs the
+        // loaded resources unchecked, so skip it in the no-game-archive state
+        // (MM-first boot without oot.o2r, #330) like the GUI layer above.
+        if (hasGameArchive) {
+            OTRMessage_Init();
+        }
         OTRAudio_Init();
         OTRExtScanner();
         VanillaItemTable_Init();
@@ -1615,7 +1632,9 @@ static void InitOTRImpl(int argc, char* argv[], bool runExtract) {
 
     Ship::Context::GetInstance()->GetFileDropMgr()->RegisterDropHandler(SoH_HandleConfigDrop);
 
-    RegisterImGuiItemIcons();
+    if (hasGameArchive) {
+        RegisterImGuiItemIcons();
+    }
 
     time_t now = time(NULL);
     tm* tm_now = localtime(&now);
