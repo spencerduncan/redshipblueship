@@ -4,14 +4,17 @@
  * This file provides the MM_Game_* functions expected by the redship
  * main.cpp for single-executable builds.
  *
- * In single-exe mode, the libultraship context is created and owned by the
- * harness (rsbs/src/main.cpp) before either game's Init runs. MM skips its
- * own InitOTR() — the shared context is set up by the harness, and OoT's
- * OTRGlobals layer adds resource factories on top when OoT is the running
- * game. MM contributes its own resource factories via
- * RegisterMMResourceFactories() below. This is symmetric with OoT (which
- * also reuses the harness-provided context) — neither game depends on the
- * other having booted first (#271).
+ * In single-exe mode, the libultraship context singleton is created by the
+ * harness (rsbs/src/main.cpp) before either game's Init runs — but created
+ * UNINITIALIZED. Whichever game boots first runs the shared bring-up
+ * (issues #329/#330): OoT via OoT_Game_Init -> InitOTR, MM via
+ * InitOTRForMMFirstBoot below. The bring-up lives in OoT's port layer
+ * (games/oot/soh/OTRGlobals.cpp) because that layer owns the process-wide
+ * runtime MM's frame loop depends on in single-exe builds (the shared
+ * Graph_* bridges, Ship_GetInterpolationFPS, the OTR audio thread). MM
+ * contributes its own resource factories via RegisterMMResourceFactories()
+ * below. Neither game depends on the *other* having booted first (#271) —
+ * the second game's bring-up call is a no-op.
  */
 
 #ifdef RSBS_SINGLE_EXECUTABLE
@@ -103,6 +106,12 @@ extern "C" {
     int ArchiveHotswap_RssExceeded(void);
     int ArchiveHotswap_TargetArrivals(void);
 }
+
+// Shared single-exe bring-up (issues #329/#330). Defined in OoT's port layer
+// (games/oot/soh/OTRGlobals.cpp); resolved at final link. Runs the same init
+// an OoT-first boot gets, minus the OoT ROM-extraction prompt. No-op if the
+// bring-up already happened.
+extern "C" void InitOTRForMMFirstBoot(int argc, char* argv[]);
 
 // Track if MM has been initialized (for re-entry after game switch)
 static bool sMMInitialized = false;
@@ -413,15 +422,32 @@ static void RegisterMMResourceFactories() {
 }
 
 /**
+ * Headless entry for the boot-mm regression test (#330,
+ * src/common/test_runner.cpp): registers MM's resource factories against the
+ * shared ResourceManager, which is exactly what MM_Game_Init needs from the
+ * shared bring-up before it can load archives. Returns 0 on success, -1 when
+ * the shared context has no ResourceManager (the #329/#330 failure mode).
+ */
+extern "C" int MM_RegisterResourceFactoriesHeadless(void) {
+    auto ctx = Ship::Context::GetInstance();
+    if (ctx == nullptr || ctx->GetResourceManager() == nullptr ||
+        ctx->GetResourceManager()->GetResourceLoader() == nullptr) {
+        return -1;
+    }
+    RegisterMMResourceFactories();
+    return 0;
+}
+
+/**
  * Verify the shared Ship::Context is ready for MM's graph thread (#271).
  *
  * MM_Graph_ThreadEntry calls WindowIsRunning(), GfxDebuggerIsDebugging(),
  * WindowGetWidth/Height/AspectRatio() every frame — all route through
- * Ship::Context::GetInstance(). The harness (rsbs/src/main.cpp) creates
- * the singleton before either game's Init runs, so this check is a
- * defensive assertion that the harness did its job — *not* a dependency
- * on OoT having booted first. OoT and MM are symmetric here: both reuse
- * the harness-provided context.
+ * Ship::Context::GetInstance(). MM_Game_Init runs the shared bring-up
+ * (InitOTRForMMFirstBoot, #330) before this check, so by the time it runs
+ * the window must exist whichever game booted first — this is a
+ * postcondition assertion on the bring-up, not a dependency on OoT having
+ * booted first.
  */
 static bool VerifySharedContext(void) {
     auto ctx = Ship::Context::GetInstance();
@@ -446,11 +472,20 @@ int MM_Game_Init(int argc, char** argv) {
     fprintf(stderr, "[MM] Game_Init called, argc=%d\n", argc);
     fflush(stderr);
 
-    // In single-exe mode, skip InitOTR() — the harness (rsbs/src/main.cpp)
-    // creates Ship::Context before either game's Init runs. MM treats the
-    // harness-provided context as a precondition, the same as OoT does
-    // (#158, #271). This used to claim "OoT initialized libultraship"; that
-    // wording was stale — the harness owns initial Context creation.
+    // The harness (rsbs/src/main.cpp) creates the Ship::Context singleton
+    // uninitialized. If MM is the first game to boot, run the shared
+    // bring-up here (#330); when OoT booted first this is a no-op. See the
+    // file header and InitOTRForMMFirstBoot's doc comment for why the
+    // bring-up is shared with OoT rather than MM-specific.
+    {
+        auto ctx = Ship::Context::GetInstance();
+        if (ctx == nullptr || ctx->GetWindow() == nullptr) {
+            fprintf(stderr, "[MM] Shared context uninitialized — running shared bring-up (#330)\n");
+            fflush(stderr);
+            InitOTRForMMFirstBoot(argc, argv);
+        }
+    }
+
     if (!VerifySharedContext()) {
         fprintf(stderr, "[MM] FATAL: Cannot start without Ship::Context\n");
         return -1;

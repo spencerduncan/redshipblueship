@@ -335,30 +335,32 @@ namespace SohGui {
 extern std::shared_ptr<SohGui::SohMenu> mSohMenu;
 }
 
-OTRGlobals::OTRGlobals() {
-#ifdef RSBS_SINGLE_EXECUTABLE
-    // In single-exe mode, Ship::Context may already exist from main.cpp.
-    // Reuse it instead of creating a new one to maintain singleton integrity.
-    // This fixes issue #184 where OTRGlobals and MM's BenPort both define
-    // OTRGlobals::Instance, causing the weak_ptr singleton to break.
-    auto existing = Ship::Context::GetInstance();
-    if (existing) {
-        context = existing;
-        fprintf(stderr, "[OoT] Reusing existing Ship::Context singleton\n");
-        return;
+/**
+ * Display-free prefix of the shared Ship::Context bring-up: configuration,
+ * console variables, control deck, resource manager, console — everything the
+ * OTRGlobals constructor runs before window creation.
+ *
+ * Split out (issue #329) so the headless boot regression tests
+ * (--test boot-oot / boot-mm, src/common/test_runner.cpp) can drive the same
+ * code the constructor runs and assert none of these subsystems is left null
+ * on the harness-created context. Every Ship::Context::Init* early-returns
+ * when its subsystem already exists, so calling this on an initialized
+ * context is a no-op.
+ *
+ * Returns 0 when every display-free subsystem is non-null afterwards.
+ */
+extern "C" int OoT_InitSharedContextSubsystems(void) {
+    auto ctx = Ship::Context::GetInstance();
+    if (ctx == nullptr) {
+        return -1;
     }
-#endif
-    // Standalone mode: create our own context
-    context = Ship::Context::CreateUninitializedInstance("Ship of Harkinian", appShortName, "shipofharkinian.json");
 
-    portArchivePath = Ship::Context::LocateFileAcrossAppDirs("soh.o2r");
-    OTRVersion portArchiveVersion = DetectOTRVersion("soh.o2r", false);
-    sohArchiveVersionMatch = portArchiveVersion.major == OoT_gBuildVersionMajor &&
-                             portArchiveVersion.minor == OoT_gBuildVersionMinor &&
-                             portArchiveVersion.patch == OoT_gBuildVersionPatch;
+    if (portArchivePath.empty()) {
+        portArchivePath = Ship::Context::LocateFileAcrossAppDirs("soh.o2r");
+    }
 
-    context->InitConfiguration();
-    context->InitConsoleVariables();
+    ctx->InitConfiguration();
+    ctx->InitConsoleVariables();
 
     auto controlDeck = std::make_shared<LUS::ControlDeck>(std::vector<CONTROLLERBUTTONS_T>({
         BTN_CUSTOM_MODIFIER1,
@@ -372,15 +374,60 @@ OTRGlobals::OTRGlobals() {
         BTN_CUSTOM_OCARINA_PITCH_UP,
         BTN_CUSTOM_OCARINA_PITCH_DOWN,
     }));
-    context->InitControlDeck(controlDeck);
-    context->InitResourceManager({ portArchivePath }, {}, 3, true);
-    context->InitConsole();
+    ctx->InitControlDeck(controlDeck);
+    ctx->InitResourceManager({ portArchivePath }, {}, 3, true);
+    ctx->InitConsole();
 
-    auto sohInputEditorWindow =
-        std::make_shared<SohInputEditorWindow>(CVAR_WINDOW("ControllerConfiguration"), "Configure Controller");
-    sohFast3dWindow =
-        std::make_shared<Fast::Fast3dWindow>(std::vector<std::shared_ptr<Ship::GuiWindow>>({ sohInputEditorWindow }));
-    context->InitWindow(sohFast3dWindow);
+    return (ctx->GetConfig() != nullptr && ctx->GetConsoleVariables() != nullptr &&
+            ctx->GetControlDeck() != nullptr && ctx->GetResourceManager() != nullptr && ctx->GetConsole() != nullptr)
+               ? 0
+               : -1;
+}
+
+OTRGlobals::OTRGlobals() {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // In single-exe mode the harness (rsbs/src/main.cpp) pre-creates the
+    // Ship::Context singleton so OTRGlobals and MM never fight over singleton
+    // identity (issue #184) — but it creates it UNINITIALIZED: no
+    // ResourceManager, no Window. Early-returning here left every subsystem
+    // null and Initialize() crashed on the first GetResourceManager() deref
+    // (issue #329). Adopt the singleton and fall through instead: every
+    // Ship::Context::Init* below is idempotent (early-returns when the
+    // subsystem exists), so this body is correct both for a cold boot on the
+    // bare harness context and for an already-initialized one.
+    auto existing = Ship::Context::GetInstance();
+    if (existing) {
+        context = existing;
+        fprintf(stderr, "[OoT] Reusing existing Ship::Context singleton\n");
+    } else {
+        context =
+            Ship::Context::CreateUninitializedInstance("Ship of Harkinian", appShortName, "shipofharkinian.json");
+    }
+#else
+    // Standalone mode: create our own context
+    context = Ship::Context::CreateUninitializedInstance("Ship of Harkinian", appShortName, "shipofharkinian.json");
+#endif
+
+    portArchivePath = Ship::Context::LocateFileAcrossAppDirs("soh.o2r");
+    OTRVersion portArchiveVersion = DetectOTRVersion("soh.o2r", false);
+    sohArchiveVersionMatch = portArchiveVersion.major == OoT_gBuildVersionMajor &&
+                             portArchiveVersion.minor == OoT_gBuildVersionMinor &&
+                             portArchiveVersion.patch == OoT_gBuildVersionPatch;
+
+    OoT_InitSharedContextSubsystems();
+
+    if (context->GetWindow() == nullptr) {
+        auto sohInputEditorWindow =
+            std::make_shared<SohInputEditorWindow>(CVAR_WINDOW("ControllerConfiguration"), "Configure Controller");
+        sohFast3dWindow = std::make_shared<Fast::Fast3dWindow>(
+            std::vector<std::shared_ptr<Ship::GuiWindow>>({ sohInputEditorWindow }));
+        context->InitWindow(sohFast3dWindow);
+    } else {
+        // Another initializer created the window first — adopt it instead of
+        // constructing a second Fast3dWindow that would never be Init'd but
+        // would defeat RunExtract's null-window guard.
+        sohFast3dWindow = std::dynamic_pointer_cast<Fast::Fast3dWindow>(context->GetWindow());
+    }
 
     SohGui::SetupMenu();
 
@@ -434,9 +481,11 @@ typedef enum WindowsSteps {
 
 void OTRGlobals::RunExtract(int argc, char* argv[]) {
 #ifdef RSBS_SINGLE_EXECUTABLE
-    // In single-exe mode the shared Ship::Context is reused from the parent launcher, so
-    // sohFast3dWindow was never initialized here and the launcher is responsible for any
-    // ROM extraction. Skipping this whole flow avoids dereferencing a null window.
+    // Safety net: the constructor initializes or adopts the window before this
+    // runs (#329), so sohFast3dWindow should never be null here — but driving
+    // the extraction UI without a window would crash, so bail rather than
+    // dereference. MM-first boots skip this flow entirely via
+    // InitOTRForMMFirstBoot.
     if (sohFast3dWindow == nullptr) {
         return;
     }
@@ -484,6 +533,14 @@ void OTRGlobals::RunExtract(int argc, char* argv[]) {
 #endif
 
     if (!std::filesystem::exists(installPath + "/assets")) {
+        // DetectOTRVersion marks a missing archive with INT16_MAX. When a
+        // compatible ROM archive already exists there is nothing to extract,
+        // so a missing bundled assets/ folder (typical for build trees, which
+        // only get one via the install step) must not kill the boot with the
+        // extractor popup below.
+        if ((vanillaVersion.major != INT16_MAX || mqVersion.major != INT16_MAX) && !shouldRegen) {
+            return;
+        }
         SohGui::RegisterPopup("Extractor assets not found",
                               "No O2R files found. Missing 'assets/' folder needed to generate OTR file.\nPlease "
                               "re-extract them from the download or.\n\nExiting...",
@@ -816,7 +873,7 @@ void OTRGlobals::RunExtract(int argc, char* argv[]) {
 #endif
 }
 
-void OTRGlobals::Initialize() {
+void OTRGlobals::Initialize(bool tolerateInvalidGameArchives) {
     std::string mqPath = Ship::Context::LocateFileAcrossAppDirs("oot-mq.o2r", appShortName);
     if (std::filesystem::exists(mqPath)) {
         context->GetResourceManager()->GetArchiveManager()->AddArchive(mqPath);
@@ -961,6 +1018,14 @@ void OTRGlobals::Initialize() {
 
     for (uint32_t version : versions) {
         if (!ValidHashes.contains(version)) {
+            if (tolerateInvalidGameArchives) {
+                // MM-first boot: an unusable OoT archive must not kill the MM
+                // session. Leave hasMasterQuest/hasOriginal unset for it; the
+                // asset-init gate and the harness switch gate keep OoT
+                // unreachable until it is regenerated.
+                SPDLOG_ERROR("Ignoring OoT archive with invalid game version hash {} (MM-first boot)", version);
+                continue;
+            }
 #if defined(__SWITCH__)
             SPDLOG_ERROR("Invalid OTR File!");
 #elif defined(__WIIU__)
@@ -1021,6 +1086,17 @@ bool OTRGlobals::HasMasterQuest() {
 
 bool OTRGlobals::HasOriginal() {
     return hasOriginal;
+}
+
+/**
+ * Whether the shared bring-up found a usable OoT game archive and ran OoT's
+ * asset-dependent init (GUI, message tables, item icons). The harness uses
+ * this to refuse switching into OoT when the bring-up gated that init off —
+ * e.g. oot.o2r appeared on disk only after an MM-first boot (#330).
+ */
+extern "C" int OoT_GameAssetsInitialized(void) {
+    return OTRGlobals::Instance != nullptr &&
+           (OTRGlobals::Instance->HasMasterQuest() || OTRGlobals::Instance->HasOriginal());
 }
 
 uint32_t OTRGlobals::GetInterpolationFPS() {
@@ -1489,11 +1565,15 @@ bool VerifyArchiveVersion(OTRVersion version) {
     return false;
 }
 
-extern "C" void InitOTR(int argc, char* argv[]) {
+static void InitOTRImpl(int argc, char* argv[], bool runExtract) {
     OTRGlobals::Instance = new OTRGlobals();
-    OTRGlobals::Instance->RunExtract(argc, argv);
+    if (runExtract) {
+        OTRGlobals::Instance->RunExtract(argc, argv);
+    }
 
-    OTRGlobals::Instance->Initialize();
+    // MM-first boots (runExtract=false) tolerate a stale/invalid oot.o2r
+    // instead of exiting: the OoT side stays gated off, MM still boots.
+    OTRGlobals::Instance->Initialize(!runExtract);
     CustomMessageManager::Instance = new CustomMessageManager();
     ItemTableManager::Instance = new ItemTableManager();
     GameInteractor::Instance = new GameInteractor();
@@ -1508,8 +1588,20 @@ extern "C" void InitOTR(int argc, char* argv[]) {
     conf->RegisterVersionUpdater(std::make_shared<SOH::ConfigVersion6Updater>());
     conf->RunVersionUpdates();
 
-    SohGui::SetupGuiElements();
-    SohGui::SetupMenuElements();
+    // The SoH GUI windows load OoT game assets while they initialize
+    // (Plandomizer/ItemTracker icons, cosmetics Gfx patches), and LUS's
+    // Gui::LoadGuiTexture crashes dereferencing the null resource when no
+    // game archive is loaded. That state is only reachable on MM-first boots
+    // without oot.o2r (#330) — OoT-first boots run RunExtract, which
+    // guarantees an archive or exits. Skip the OoT GUI layer in that state;
+    // the harness refuses switches into OoT until oot.o2r exists.
+    bool hasGameArchive = OTRGlobals::Instance->HasMasterQuest() || OTRGlobals::Instance->HasOriginal();
+    if (hasGameArchive) {
+        SohGui::SetupGuiElements();
+        SohGui::SetupMenuElements();
+    } else {
+        fprintf(stderr, "[OoT] No OoT game archive loaded - skipping SoH GUI setup\n");
+    }
 
     if (RsbsFeatureEnabled("RSBS_DISABLE_RANDO")) {
         Rando::StaticData::InitHashMaps();
@@ -1544,7 +1636,12 @@ extern "C" void InitOTR(int argc, char* argv[]) {
     }
 
     if (RsbsFeatureEnabled("RSBS_DISABLE_OTR_INIT")) {
-        OTRMessage_Init();
+        // Message tables live in the game archive; OTRMessage_Init derefs the
+        // loaded resources unchecked, so skip it in the no-game-archive state
+        // (MM-first boot without oot.o2r, #330) like the GUI layer above.
+        if (hasGameArchive) {
+            OTRMessage_Init();
+        }
         OTRAudio_Init();
         OTRExtScanner();
         VanillaItemTable_Init();
@@ -1564,7 +1661,9 @@ extern "C" void InitOTR(int argc, char* argv[]) {
 
     Ship::Context::GetInstance()->GetFileDropMgr()->RegisterDropHandler(SoH_HandleConfigDrop);
 
-    RegisterImGuiItemIcons();
+    if (hasGameArchive) {
+        RegisterImGuiItemIcons();
+    }
 
     time_t now = time(NULL);
     tm* tm_now = localtime(&now);
@@ -1591,6 +1690,41 @@ extern "C" void InitOTR(int argc, char* argv[]) {
         ShipInit::InitAll();
     }
 }
+
+extern "C" void InitOTR(int argc, char* argv[]) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    if (OTRGlobals::Instance != nullptr) {
+        // The shared bring-up already ran — MM booted first and routed
+        // through InitOTRForMMFirstBoot (#330). Bring-up happens exactly once
+        // per process, whichever game boots first.
+        fprintf(stderr, "[OoT] InitOTR: shared bring-up already done, skipping\n");
+        return;
+    }
+#endif
+    InitOTRImpl(argc, argv, true);
+}
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+/**
+ * Shared bring-up entry for MM-first boots (issues #329/#330).
+ *
+ * In single-exe builds the OoT port layer owns the process-wide runtime MM's
+ * frame loop depends on: the shared Graph_StartFrame/Graph_ProcessGfxCommands
+ * bridges and Ship_GetInterpolationFPS dereference OTRGlobals::Instance, and
+ * the OTR audio thread is started from InitOTR. So an MM-first boot runs the
+ * exact same bring-up an OoT-first boot gets — process state is identical
+ * regardless of boot order — except the OoT ROM-extraction prompt is skipped:
+ * a user booting straight into MM shouldn't be walked through OoT extraction,
+ * and the harness's archive gate (rsbs/src/main.cpp) refuses a later switch
+ * into OoT until oot.o2r exists.
+ */
+extern "C" void InitOTRForMMFirstBoot(int argc, char* argv[]) {
+    if (OTRGlobals::Instance != nullptr) {
+        return;
+    }
+    InitOTRImpl(argc, argv, false);
+}
+#endif
 
 extern "C" void SaveManager_ThreadPoolWait() {
     SaveManager::Instance->ThreadPoolWait();

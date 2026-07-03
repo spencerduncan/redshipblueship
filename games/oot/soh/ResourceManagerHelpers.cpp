@@ -325,6 +325,14 @@ std::unordered_map<std::string, std::unordered_map<std::string, GfxPatch>> origi
 // Attention! This is primarily for cosmetics & bug fixes. For things like mods and model replacement you should be
 // using OTRs instead (When that is available). Index can be found using the commented out section below.
 extern "C" void ResourceMgr_PatchGfxByName(const char* path, const char* patchName, int index, Gfx instruction) {
+    // Without a game archive there is nothing to patch, and loading the
+    // missing DL would stall on the resource thread pool. Reachable via
+    // CVar-driven cosmetic hooks on MM-first boots without oot.o2r (#330).
+    if (OTRGlobals::Instance == nullptr ||
+        (!OTRGlobals::Instance->HasMasterQuest() && !OTRGlobals::Instance->HasOriginal())) {
+        return;
+    }
+
     auto res = std::static_pointer_cast<Fast::DisplayList>(
         Ship::Context::GetInstance()->GetResourceManager()->LoadResource(path));
 

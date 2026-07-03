@@ -41,7 +41,7 @@
 
 static void EnsureGameArchivesLoaded(GameId targetGame) {
     auto ctx = Ship::Context::GetInstance();
-    if (!ctx) return;
+    if (!ctx || !ctx->GetResourceManager()) return;
     auto archiveManager = ctx->GetResourceManager()->GetArchiveManager();
     if (!archiveManager) return;
 
@@ -85,6 +85,9 @@ static void EnsureGameArchivesLoaded(GameId targetGame) {
 extern "C" {
     GameOps* OoT_GetGameOps(void);
     GameOps* MM_GetGameOps(void);
+    // Whether the shared bring-up found an OoT game archive and ran OoT's
+    // asset-dependent init (games/oot/soh/OTRGlobals.cpp, #330).
+    int OoT_GameAssetsInitialized(void);
     // Build-version strings baked into each game library
     // (games/*/src/boot/build.c); declarations match each game's own header.
     extern const char OoT_gBuildVersion[];
@@ -289,13 +292,15 @@ int main(int argc, char** argv) {
     // Create Ship::Context singleton up front — before either game's Init
     // runs (issue #184, #271).
     //
-    // Both OoT (OTRGlobals constructor) and MM (BenPort InitOTR) detect an
-    // existing singleton and reuse it. Creating the placeholder here means
-    // neither game depends on the *other* having booted first — i.e. there
-    // is no "OoT must run before MM" implicit ordering. The user can launch
-    // either `redship --game oot` or `redship --game mm` cold, and the
-    // selected game's Init layers its own factories/heaps onto the shared
-    // context.
+    // The singleton is created UNINITIALIZED; the first game to boot runs
+    // the shared subsystem bring-up on it (issues #329/#330): OoT through
+    // OoT_Game_Init -> InitOTR (OTRGlobals adopts the singleton and
+    // initializes it), MM through MM_Game_Init -> InitOTRForMMFirstBoot.
+    // Creating the placeholder here means neither game depends on the
+    // *other* having booted first — i.e. there is no "OoT must run before
+    // MM" implicit ordering. The user can launch either `redship --game oot`
+    // or `redship --game mm` cold, and the selected game's Init layers its
+    // own factories/heaps onto the shared context.
     //
     // The display name (first argument) is RSBS's own identity so the window
     // title, crash dialog, and log name attribute tester reports to this
@@ -476,6 +481,19 @@ int main(int argc, char** argv) {
                 Entrance_ClearPendingSwitch();
                 printf("Switch to %s refused (missing game archive) — continuing %s.\n",
                        Game_ToString(nextGame), Game_ToString(GameRunner_GetActive(&runner)));
+                continue;
+            }
+
+            // The shared bring-up skips OoT's asset-dependent init (GUI, message
+            // tables, item icons) when no OoT game archive was loaded at boot
+            // (#330). If oot.o2r appeared on disk afterwards, the archive check
+            // above passes but OoT would enter half-initialized — refuse and
+            // ask for a restart instead.
+            if (nextGame == GAME_OOT && !OoT_GameAssetsInitialized()) {
+                Combo_ClearGameSwitchRequest();
+                Entrance_ClearPendingSwitch();
+                printf("Switch to OoT refused: oot.o2r was not present at startup — "
+                       "restart RedShipBlueShip to play Ocarina of Time.\n");
                 continue;
             }
 
