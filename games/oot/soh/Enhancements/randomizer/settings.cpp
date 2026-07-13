@@ -149,6 +149,10 @@ void Settings::HandleStartingAgeUI() {
 }
 
 void Settings::CreateOptions() {
+    if (mOptionsCreated) {
+        return;
+    }
+    mOptionsCreated = true;
     CreateOptionDescriptions();
     // clang-format off
     OPT_U8(RSK_FOREST, "Closed Forest", {"On", "Deku Only", "Off"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("ClosedForest"), mOptionDescriptions[RSK_FOREST], WIDGET_CVAR_COMBOBOX, RO_CLOSED_FOREST_ON);
