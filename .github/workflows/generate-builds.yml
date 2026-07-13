@@ -202,11 +202,12 @@ jobs:
     #    (verified against the binary's check strings; zsyncmake/appstreamcli/
     #    gpg are warnings only and mksquashfs is bundled in the plugin).
     # Drop this step once the image (build-base.Dockerfile) has been
-    # republished with these baked in.
+    # republished with these baked in. xvfb + llvmpipe are for the RandoGen
+    # seed-generation test, which needs a display but no game archives.
     - name: Install packaging tools
       run: |
         apt-get update
-        apt-get install -y imagemagick file desktop-file-utils
+        apt-get install -y imagemagick file desktop-file-utils xvfb libgl1-mesa-dri
     - name: Configure ccache
       uses: hendrikmuhs/ccache-action@v1.2
       with:
@@ -241,6 +242,11 @@ jobs:
       # --no-tests=error: if the "redship" test label ever regresses, fail loudly
       # instead of ctest exiting 0 with "No tests were found".
       run: ctest --test-dir build-cmake --output-on-failure --label-regex "^redship$" --no-tests=error
+    - name: Run rando seed generation test
+      # Generates a real seed with default settings (issue #337). Needs a
+      # display for the Fast3dWindow bring-up (hence xvfb-run) but NO game
+      # archives, so unlike the int-* tier it can run on hosted runners.
+      run: xvfb-run -a ctest --test-dir build-cmake --output-on-failure --label-regex "^rando$" --no-tests=error
     - name: Package
       run: |
         (cd build-cmake && cpack -G External)
