@@ -39,6 +39,13 @@ extern "C" int Rando_HeadlessSeedTest(const char* seedStr) {
         Rando::StaticData::InitItemTable();
         Rando::StaticData::InitLocationTable();
     }
+    // Normally SohMenuRandomizer's menu setup creates the Settings options; in
+    // archive-less harness runs the GUI layer is skipped, which used to leave
+    // every Option blank (empty CVar name, default 0). SetAllToContext then fed
+    // all-zero settings into generation, so this test silently ran with every
+    // shuffle Off instead of the real stock defaults, and RSBS_DIAG_CVARS had
+    // no effect. Create the real options so the test exercises what users get.
+    Rando::Settings::GetInstance()->CreateOptions();
     // Optional non-default settings, e.g.
     // RSBS_DIAG_CVARS="gRandoSettings.ShuffleSongs=2,gRandoSettings.ShuffleSpeak=1"
     if (const char* cvars = std::getenv("RSBS_DIAG_CVARS")) {

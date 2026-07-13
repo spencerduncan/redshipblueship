@@ -233,6 +233,27 @@ if(BUILD_TESTING)
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1"
     )
 
+    # Song shuffle modes. Stock (RandoGen above) already covers mode 1 — "Song
+    # Locations" is the default — which is the mode that regressed when the
+    # linker dropped ShuffleSongs.cpp.o from the static soh_rando archive and
+    # left the fill with 12 songs and 0 song locations.
+    add_test(NAME RandoGenSongsDungeonRewards COMMAND redship --test rando-gen)
+    add_test(NAME RandoGenSongsAnywhere COMMAND redship --test rando-gen)
+    set_tests_properties(
+        RandoGenSongsDungeonRewards
+        PROPERTIES
+        TIMEOUT 180
+        LABELS "rando"
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1;RSBS_DIAG_CVARS=gRandoSettings.ShuffleSongs=2"
+    )
+    set_tests_properties(
+        RandoGenSongsAnywhere
+        PROPERTIES
+        TIMEOUT 180
+        LABELS "rando"
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1;RSBS_DIAG_CVARS=gRandoSettings.ShuffleSongs=3"
+    )
+
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)
     # These tests actually boot the games and verify boot completion

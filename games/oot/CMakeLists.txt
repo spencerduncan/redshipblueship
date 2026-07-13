@@ -263,8 +263,17 @@ if(SINGLE_EXECUTABLE_BUILD)
         target_link_libraries(${_t} PRIVATE redship_common rsbs libultraship ZAPDLib)
     endforeach()
 
-    # Export static targets for root CMakeLists to link into redship
-    set(SOH_STATIC_TARGETS soh_src soh_port soh_enh soh_rando PARENT_SCOPE)
+    # Export static targets for root CMakeLists to link into redship.
+    #
+    # soh_rando links with WHOLE_ARCHIVE: many randomizer translation units
+    # (ShuffleSongs.cpp, Messages/ItemMessages.cpp, Messages/StaticHints.cpp, ...)
+    # register themselves purely through RegisterShipInitFunc static initializers
+    # and export no symbol anything references. With plain archive semantics the
+    # linker drops those members, silently losing song locations, rando item
+    # messages, and static hints from the shipped binaries on every platform.
+    # Upstream SoH links all of these objects directly into its executable;
+    # WHOLE_ARCHIVE restores that behavior for the randomizer split.
+    set(SOH_STATIC_TARGETS soh_src soh_port soh_enh "$<LINK_LIBRARY:WHOLE_ARCHIVE,soh_rando>" PARENT_SCOPE)
 else()
     # Build as SHARED library for dynamic loading
     add_library(${PROJECT_NAME} SHARED ${ALL_FILES})

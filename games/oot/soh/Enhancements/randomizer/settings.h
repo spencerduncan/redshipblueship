@@ -33,6 +33,7 @@ class Settings {
     /**
      * @brief Creates the `Option` and `OptionGroup` objects. This happens after construction because certain
      * other events in the codebase need to happen before all of the `Option`s can be created.
+     * Idempotent: repeat calls are no-ops (mTricksByArea and friends would otherwise accumulate duplicates).
      */
     void CreateOptions();
 
@@ -150,5 +151,6 @@ class Settings {
     std::array<TrickOption, RT_MAX> mTrickOptions = {};
     std::vector<std::vector<Option*>> mExcludeLocationsOptionsAreas = {};
     std::unordered_map<std::string, RandomizerTrick> mTrickNameToEnum;
+    bool mOptionsCreated = false;
 };
 } // namespace Rando

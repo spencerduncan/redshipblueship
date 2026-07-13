@@ -1007,6 +1007,26 @@ void Rando::StaticData::InitLocationTable() {
     // Init locationNameToEnum
     locationNameToEnum["Invalid Location"] = RC_UNKNOWN_CHECK;
     locationNameToEnum["Link's Pocket"] = RC_LINKS_POCKET;
+
+    // The per-shuffle location entries live in self-registering translation units
+    // (ShuffleSongs.cpp etc.) that hook ShipInit via static initializers. In
+    // single-exe builds those TUs sit in the static soh_rando archive, and the
+    // linker drops any member nothing references — ShuffleSongs.cpp exports no
+    // other symbol, so both shipped platforms lost RCTYPE_SONG_LOCATION entirely
+    // and every song-shuffle seed died with "MORE ITEMS THAN LOCATIONS".
+    // Calling the registrars here gives each TU a strong reference so the linker
+    // must keep it, and guarantees the table is complete for every init path
+    // (including headless harnesses that never run ShipInit::InitAll).
+    RegisterSongLocations();
+    RegisterBeehiveLocations();
+    RegisterCowLocations();
+    RegisterFishLocations();
+    RegisterFairyLocations();
+    RegisterPotLocations();
+    RegisterFreestandingLocations();
+    RegisterGrassLocations();
+    RegisterCrateLocations();
+    RegisterTreeLocations();
 }
 
 void Rando::StaticData::InitHashMaps() {
