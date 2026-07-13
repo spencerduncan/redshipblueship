@@ -150,7 +150,7 @@ extern "C" int Rando_HeadlessSeedTest(const char* seedStr);
 extern "C" void InitOTRForMMFirstBoot(int argc, char* argv[]);
 
 TestResult Test_RandoGen(void) {
-    printf("[TEST] rando-gen: headless seed generation with default settings (diagnostic)\n");
+    printf("[TEST] rando-gen: seed generation succeeds with default settings (#337)\n");
 
     auto ctx = CreateHarnessStyleContext();
     if (!ctx) {
@@ -497,7 +497,7 @@ TestResult Test_Context(void) {
 // ============================================================================
 
 const TestDescriptor gTests[] = {
-    {"rando-gen", "Headless seed generation with default settings (diagnostic)", Test_RandoGen},
+    {"rando-gen", "Seed generation succeeds with default settings (#337)", Test_RandoGen},
     {"boot-oot", "Shared-context bring-up leaves no null subsystems (#329)", Test_BootOoT},
     {"boot-mm", "MM-first bring-up prerequisites on the shared context (#330)", Test_BootMM},
     {"switch-oot-mm", "Test game switch OoT -> MM", Test_SwitchOoTMM},
@@ -579,6 +579,14 @@ int TestRunner_Run(const char* testName) {
         int total = 0;
 
         for (int i = 0; gTests[i].name != nullptr; i++) {
+            // rando-gen needs a display (Fast3dWindow bring-up) and the
+            // RSBS_DISABLE_OTR_INIT environment; it runs as its own CTest
+            // ("rando" label, under xvfb-run) rather than in this
+            // display-free suite, where it would hang the 60s timeout.
+            if (strcmp(gTests[i].name, "rando-gen") == 0) {
+                printf("\n--- Skipping: %s (needs display; runs as the RandoGen CTest) ---\n", gTests[i].name);
+                continue;
+            }
             printf("\n--- Running: %s ---\n", gTests[i].name);
             TestResult result = gTests[i].runFunc();
             total++;

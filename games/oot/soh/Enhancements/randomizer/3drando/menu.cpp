@@ -12,6 +12,7 @@
 #include "soh/Enhancements/debugger/performanceTimer.h"
 #include "soh/ShipUtils.h"
 #include <spdlog/spdlog.h>
+#include <libultraship/bridge.h>
 #include "../../randomizer/randomizerTypes.h"
 #include "../static_data.h"
 #include "../SeedContext.h"
@@ -24,8 +25,8 @@ std::vector<std::string> presetEntries;
 Rando::Option* currentSetting;
 } // namespace
 
-// Local diagnostic bridge: drive seed generation with default settings from
-// the display-free test harness (no ImGui interaction). The real bring-up
+// Test bridge for the RandoGen regression test (issue #337): drive seed
+// generation without ImGui interaction. The real bring-up
 // (InitOTRForMMFirstBoot) normally created the rando context/settings/
 // randomizer already; fall back to manual init only if it didn't (mirrors
 // OTRGlobals.cpp init order — InitItemTable depends on the context's Logic).
@@ -37,6 +38,20 @@ extern "C" int Rando_HeadlessSeedTest(const char* seedStr) {
         Rando::Settings::GetInstance()->AssignContext(ctx);
         Rando::StaticData::InitItemTable();
         Rando::StaticData::InitLocationTable();
+    }
+    // Optional non-default settings, e.g.
+    // RSBS_DIAG_CVARS="gRandoSettings.ShuffleSongs=2,gRandoSettings.ShuffleSpeak=1"
+    if (const char* cvars = std::getenv("RSBS_DIAG_CVARS")) {
+        std::stringstream ss(cvars);
+        std::string pair;
+        while (std::getline(ss, pair, ',')) {
+            auto eq = pair.find('=');
+            if (eq == std::string::npos) {
+                continue;
+            }
+            CVarSetInteger(pair.substr(0, eq).c_str(), std::stoi(pair.substr(eq + 1)));
+            fprintf(stderr, "[rando-diag] cvar %s\n", pair.c_str());
+        }
     }
     Rando::Settings::GetInstance()->SetAllToContext();
     bool ok = GenerateRandomizer({}, {}, seedStr ? seedStr : "");

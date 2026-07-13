@@ -1280,9 +1280,7 @@ void Settings::CreateOptions() {
     OPT_BOOL(RSK_SKULLS_SUNS_SONG, "Night Skulltula's Expect Sun's Song", CVAR_RANDOMIZER_SETTING("GsExpectSunsSong"), mOptionDescriptions[RSK_SKULLS_SUNS_SONG]);
     OPT_U8(RSK_DAMAGE_MULTIPLIER, "Damage Multiplier", {"x1/2", "x1", "x2", "x4", "x8", "x16", "OHKO"}, OptionCategory::Setting, "", "", WIDGET_CVAR_SLIDER_INT, RO_DAMAGE_MULTIPLIER_DEFAULT);
     // Don't show any MQ options if both quests aren't available
-    // [rando-diag] null instance (headless harness) = original quest only
-    if (OTRGlobals::Instance == nullptr ||
-        !(OTRGlobals::Instance->HasMasterQuest() && OTRGlobals::Instance->HasOriginal())) {
+    if (!(OTRGlobals::Instance->HasMasterQuest() && OTRGlobals::Instance->HasOriginal())) {
         mOptions[RSK_MQ_DUNGEON_RANDOM].Disable("This option has been disabled because only one type of O2R has been loaded");
         mOptions[RSK_MQ_DUNGEON_COUNT].Disable("This option has been disabled because only one type of O2R has been loaded");
         mOptions[RSK_MQ_DUNGEON_SET].Disable("This option has been disabled because only one type of O2R has been loaded");
@@ -2947,18 +2945,14 @@ void Context::FinalizeSettings(const std::set<RandomizerCheck>& excludedLocation
     }
 
     // If we only have MQ, set all dungeons to MQ
-    // [rando-diag] null instance (headless harness) = original quest only
-    if (OTRGlobals::Instance != nullptr && OTRGlobals::Instance->HasMasterQuest() &&
-        !OTRGlobals::Instance->HasOriginal()) {
+    if (OTRGlobals::Instance->HasMasterQuest() && !OTRGlobals::Instance->HasOriginal()) {
         mOptions[RSK_MQ_DUNGEON_RANDOM].Set(RO_MQ_DUNGEONS_SET_NUMBER);
         mOptions[RSK_MQ_DUNGEON_COUNT].Set(12);
         mOptions[RSK_MQ_DUNGEON_SET].Set(RO_GENERIC_OFF);
     }
 
     // If we don't have MQ, set all dungeons to Vanilla
-    // [rando-diag] null instance (headless harness) = original quest only
-    if (OTRGlobals::Instance == nullptr ||
-        (OTRGlobals::Instance->HasOriginal() && !OTRGlobals::Instance->HasMasterQuest())) {
+    if (OTRGlobals::Instance->HasOriginal() && !OTRGlobals::Instance->HasMasterQuest()) {
         mOptions[RSK_MQ_DUNGEON_RANDOM].Set(RO_MQ_DUNGEONS_NONE);
     }
 

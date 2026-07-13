@@ -136,6 +136,12 @@ jobs:
     - name: Run unit tests
       run: ctest --test-dir build-cmake --output-on-failure --label-regex "^redship$"
 
+    # Seed generation needs the windowed bring-up (hence xvfb-run) but no game
+    # archives, so it runs unconditionally — unlike the archive-gated int-*
+    # tier below. Guards against #337-style silent rando regressions.
+    - name: Run rando seed generation test
+      run: xvfb-run -a ctest --test-dir build-cmake --output-on-failure --label-regex "^rando$" --no-tests=error
+
     - name: Check for game archives
       id: check-archives
       run: |

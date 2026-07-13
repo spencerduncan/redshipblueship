@@ -220,6 +220,20 @@ if(BUILD_TESTING)
     )
 
     # ========================================================================
+    # Rando seed-generation test (requires a display for the Fast3dWindow
+    # bring-up but NO game archives — CI runs it under xvfb-run; issue #337).
+    # Not in the "redship" label because that tier runs display-free.
+    # ========================================================================
+    add_test(NAME RandoGen COMMAND redship --test rando-gen)
+    set_tests_properties(
+        RandoGen
+        PROPERTIES
+        TIMEOUT 180
+        LABELS "rando"
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1"
+    )
+
+    # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)
     # These tests actually boot the games and verify boot completion
     # ========================================================================

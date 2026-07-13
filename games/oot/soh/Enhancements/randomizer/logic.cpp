@@ -2302,11 +2302,7 @@ void Logic::InitSaveContext() {
     mSaveContext->ship.pendingIceTrapCount = 0;
 
     // Init with normal quest unless only an MQ rom is provided
-    // [rando-diag] null-guard for the headless test harness, which has no
-    // OTRGlobals instance; a null instance means "assume original quest",
-    // matching an environment where oot.o2r is present.
-    mSaveContext->ship.quest.id =
-        (OTRGlobals::Instance == nullptr || OTRGlobals::Instance->HasOriginal()) ? QUEST_NORMAL : QUEST_MASTER;
+    mSaveContext->ship.quest.id = OTRGlobals::Instance->HasOriginal() ? QUEST_NORMAL : QUEST_MASTER;
 
     // RANDOTODO (ADD ITEMLOCATIONS TO GSAVECONTEXT)
 }
@@ -2381,6 +2377,14 @@ const std::vector<uint8_t>& GetDungeonSmallKeyDoors(SceneID sceneId) {
         return foundEntry->second;
     }
     dungeonSmallKeyDoors[key] = {};
+
+    // With no game archive loaded, ResourceManager::LoadResource below never
+    // resolves (the async load waits forever on a file that cannot exist).
+    // Bail to the empty list instead — reachable in archive-less states like
+    // the headless RandoGen test and MM-first boots without oot.o2r (#330).
+    if (!Ship::Context::GetInstance()->GetResourceManager()->GetArchiveManager()->IsLoaded()) {
+        return emptyVector;
+    }
 
     // Get the scene path
     SceneTableEntry* sceneTableEntry = &OoT_gSceneTable[sceneId];
@@ -2683,6 +2687,16 @@ void Logic::Reset(bool resetSaveContext /*= true*/) {
         // If we're not shuffling open chest, we start with it
         if (ctx->GetOption(RSK_SHUFFLE_OPEN_CHEST).Is(false)) {
             SetRandoInf(RAND_INF_CAN_OPEN_CHEST, true);
+        }
+
+        // If we're not shuffling speak, we start with all dialogue
+        if (ctx->GetOption(RSK_SHUFFLE_SPEAK).Is(false)) {
+            SetRandoInf(RAND_INF_CAN_SPEAK_DEKU, true);
+            SetRandoInf(RAND_INF_CAN_SPEAK_GERUDO, true);
+            SetRandoInf(RAND_INF_CAN_SPEAK_GORON, true);
+            SetRandoInf(RAND_INF_CAN_SPEAK_HYLIAN, true);
+            SetRandoInf(RAND_INF_CAN_SPEAK_KOKIRI, true);
+            SetRandoInf(RAND_INF_CAN_SPEAK_ZORA, true);
         }
 
         // If we're not shuffling child's wallet, we start with it
