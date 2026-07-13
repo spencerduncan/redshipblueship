@@ -836,20 +836,16 @@ static void AssumedFill(const std::vector<RandomizerGet>& items, const std::vect
                         bool setLocationsAsHintable = false) {
     auto ctx = Rando::Context::GetInstance();
     if (items.size() > allowedLocations.size()) {
-        SPDLOG_ERROR("ERROR: MORE ITEMS THAN LOCATIONS IN GIVEN LISTS");
-        SPDLOG_DEBUG("Items:\n");
-        // NOLINTNEXTLINE(clang-diagnostic-unused-variable)
+        // Log the offending lists at error level: this state is fatal to seed
+        // generation, and the old SPDLOG_DEBUG dumps compile out of Release
+        // builds — which left issue #337's reports undiagnosable from logs.
+        SPDLOG_ERROR("ERROR: MORE ITEMS THAN LOCATIONS IN GIVEN LISTS ({} items > {} locations)", items.size(),
+                     allowedLocations.size());
         for (const RandomizerGet item : items) {
-            SPDLOG_DEBUG("\t");
-            SPDLOG_DEBUG(Rando::StaticData::RetrieveItem(item).GetName().GetEnglish());
-            SPDLOG_DEBUG("\n");
+            SPDLOG_ERROR("overflow item: {}", Rando::StaticData::RetrieveItem(item).GetName().GetEnglish());
         }
-        SPDLOG_DEBUG("\nAllowed Locations:\n");
-        // NOLINTNEXTLINE(clang-diagnostic-unused-variable)
         for (const RandomizerCheck loc : allowedLocations) {
-            SPDLOG_DEBUG("\t");
-            SPDLOG_DEBUG(Rando::StaticData::GetLocation(loc)->GetName());
-            SPDLOG_DEBUG("\n");
+            SPDLOG_ERROR("overflow location: {}", Rando::StaticData::GetLocation(loc)->GetName());
         }
         placementFailure = true;
         return;
