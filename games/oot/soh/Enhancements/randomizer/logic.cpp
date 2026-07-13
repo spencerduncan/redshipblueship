@@ -2302,7 +2302,11 @@ void Logic::InitSaveContext() {
     mSaveContext->ship.pendingIceTrapCount = 0;
 
     // Init with normal quest unless only an MQ rom is provided
-    mSaveContext->ship.quest.id = OTRGlobals::Instance->HasOriginal() ? QUEST_NORMAL : QUEST_MASTER;
+    // [rando-diag] null-guard for the headless test harness, which has no
+    // OTRGlobals instance; a null instance means "assume original quest",
+    // matching an environment where oot.o2r is present.
+    mSaveContext->ship.quest.id =
+        (OTRGlobals::Instance == nullptr || OTRGlobals::Instance->HasOriginal()) ? QUEST_NORMAL : QUEST_MASTER;
 
     // RANDOTODO (ADD ITEMLOCATIONS TO GSAVECONTEXT)
 }

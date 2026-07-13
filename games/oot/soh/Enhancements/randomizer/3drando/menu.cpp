@@ -13,6 +13,9 @@
 #include "soh/ShipUtils.h"
 #include <spdlog/spdlog.h>
 #include "../../randomizer/randomizerTypes.h"
+#include "../static_data.h"
+#include "../SeedContext.h"
+#include "../settings.h"
 
 namespace {
 bool seedChanged;
@@ -20,6 +23,26 @@ uint16_t pastSeedLength;
 std::vector<std::string> presetEntries;
 Rando::Option* currentSetting;
 } // namespace
+
+// Local diagnostic bridge: drive seed generation with default settings from
+// the display-free test harness (no ImGui interaction). The real bring-up
+// (InitOTRForMMFirstBoot) normally created the rando context/settings/
+// randomizer already; fall back to manual init only if it didn't (mirrors
+// OTRGlobals.cpp init order — InitItemTable depends on the context's Logic).
+extern "C" int Rando_HeadlessSeedTest(const char* seedStr) {
+    auto ctx = Rando::Context::GetInstance();
+    if (!ctx) {
+        ctx = Rando::Context::CreateInstance();
+        ctx->InitStaticData();
+        Rando::Settings::GetInstance()->AssignContext(ctx);
+        Rando::StaticData::InitItemTable();
+        Rando::StaticData::InitLocationTable();
+    }
+    Rando::Settings::GetInstance()->SetAllToContext();
+    bool ok = GenerateRandomizer({}, {}, seedStr ? seedStr : "");
+    fprintf(stderr, "[rando-diag] GenerateRandomizer returned %s\n", ok ? "true" : "false");
+    return ok ? 0 : 1;
+}
 
 bool GenerateRandomizer(std::set<RandomizerCheck> excludedLocations, std::set<RandomizerTrick> enabledTricks,
                         std::string seedInput) {

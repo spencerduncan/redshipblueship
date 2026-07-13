@@ -837,6 +837,15 @@ static void AssumedFill(const std::vector<RandomizerGet>& items, const std::vect
     auto ctx = Rando::Context::GetInstance();
     if (items.size() > allowedLocations.size()) {
         SPDLOG_ERROR("ERROR: MORE ITEMS THAN LOCATIONS IN GIVEN LISTS");
+        fprintf(stderr, "[rando-diag] AssumedFill overflow: %zu items > %zu locations\n", items.size(),
+                allowedLocations.size());
+        for (const RandomizerGet item : items) {
+            fprintf(stderr, "[rando-diag] item: %s\n",
+                    Rando::StaticData::RetrieveItem(item).GetName().GetEnglish().c_str());
+        }
+        for (const RandomizerCheck loc : allowedLocations) {
+            fprintf(stderr, "[rando-diag] loc: %s\n", Rando::StaticData::GetLocation(loc)->GetName().c_str());
+        }
         SPDLOG_DEBUG("Items:\n");
         // NOLINTNEXTLINE(clang-diagnostic-unused-variable)
         for (const RandomizerGet item : items) {

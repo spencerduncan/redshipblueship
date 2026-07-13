@@ -146,6 +146,31 @@ TestResult Test_BootOoT(void) {
     return TEST_PASS;
 }
 
+extern "C" int Rando_HeadlessSeedTest(const char* seedStr);
+extern "C" void InitOTRForMMFirstBoot(int argc, char* argv[]);
+
+TestResult Test_RandoGen(void) {
+    printf("[TEST] rando-gen: headless seed generation with default settings (diagnostic)\n");
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    // Full OoT bring-up minus the extraction prompt (the MM-first path):
+    // tolerant of a missing oot.o2r, constructs OTRGlobals::Instance,
+    // gRandomizer and gRandoContext, which the fill logic dereferences all
+    // over. Needs a display (Fast3dWindow) — run under Xvfb.
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    int rc = Rando_HeadlessSeedTest("RSBSDIAG1");
+    printf("[TEST] %s: seed generation rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 TestResult Test_BootMM(void) {
     printf("[TEST] boot-mm: MM-first bring-up prerequisites (#330)\n");
     sTargetGame = GAME_MM;
@@ -472,6 +497,7 @@ TestResult Test_Context(void) {
 // ============================================================================
 
 const TestDescriptor gTests[] = {
+    {"rando-gen", "Headless seed generation with default settings (diagnostic)", Test_RandoGen},
     {"boot-oot", "Shared-context bring-up leaves no null subsystems (#329)", Test_BootOoT},
     {"boot-mm", "MM-first bring-up prerequisites on the shared context (#330)", Test_BootMM},
     {"switch-oot-mm", "Test game switch OoT -> MM", Test_SwitchOoTMM},
