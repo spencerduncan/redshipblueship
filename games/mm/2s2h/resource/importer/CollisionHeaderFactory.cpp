@@ -2,7 +2,7 @@
 #include "2s2h/resource/type/CollisionHeader.h"
 #include <tinyxml2.h>
 
-namespace SOH {
+namespace S2H {
 std::shared_ptr<Ship::IResource>
 ResourceFactoryBinaryCollisionHeaderV0::ReadResource(std::shared_ptr<Ship::File> file,
                                                      std::shared_ptr<Ship::ResourceInitData> initData) {
@@ -247,4 +247,4 @@ ResourceFactoryXMLCollisionHeaderV0::ReadResource(std::shared_ptr<Ship::File> fi
 
     return collisionHeader;
 }
-} // namespace SOH
+} // namespace S2H

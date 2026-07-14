@@ -3,7 +3,7 @@
 #include <cstdint>
 #include "SceneCommand.h"
 
-namespace SOH {
+namespace S2H {
 typedef struct {
     int8_t cameraMovement;
     int32_t worldMapArea;
@@ -18,4 +18,4 @@ class SetCameraSettings : public SceneCommand<CameraSettings> {
 
     CameraSettings settings;
 };
-}; // namespace SOH
+}; // namespace S2H

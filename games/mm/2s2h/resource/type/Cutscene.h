@@ -3,7 +3,7 @@
 #include <vector>
 #include <ship/resource/Resource.h>
 
-namespace SOH {
+namespace S2H {
 
 enum class CutsceneCommands {
     Cmd00 = 0x0000,
@@ -54,7 +54,7 @@ class Cutscene : public Ship::Resource<uint32_t> {
     uint32_t endFrame;
     std::vector<uint32_t> commands;
 };
-} // namespace SOH
+} // namespace S2H
 
 /////////////
 

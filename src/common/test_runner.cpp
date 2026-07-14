@@ -55,6 +55,11 @@ extern "C" {
 // FILE SCOPE (compiled as C++): they drive the C++-linkage rsbs::SaveManager.
 #include "tests/test_save_roundtrip.c"
 
+// MM scene-command parse regression (issue #344). Included at FILE SCOPE
+// (compiled as C++): it drives MM's S2H::ResourceFactoryBinarySceneV0 directly
+// over a synthetic scene buffer — no ROM archives or display needed.
+#include "tests/test_mm_scene_parse.c"
+
 // ============================================================================
 // Internal state
 // ============================================================================
@@ -516,6 +521,7 @@ const TestDescriptor gTests[] = {
     {"save-version-reject", "Unified save Load rejects unknown version, no clobber (#35)", Test_SaveVersionReject},
     {"save-size-mismatch", "Unified save Load rejects mismatched tier size, no clobber (#35)", Test_SaveSizeMismatch},
     {"save-crc-corrupt", "Unified save Load rejects corrupt payload, no clobber (#35)", Test_SaveCrcCorrupt},
+    {"mm-scene-parse", "MM scene commands parse via the S2H factory (#344)", Test_MMSceneParse},
     // Keep archive-hotswap-logic LAST: it re-inits the entrance table, so it
     // must not run before any test that relies on the default links.
     {"archive-hotswap-logic", "Headless multi-switch archive/state regression (#263)", Test_ArchiveHotswapLogic},

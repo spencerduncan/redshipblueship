@@ -3,7 +3,7 @@
 #include <cstdint>
 #include "SceneCommand.h"
 
-namespace SOH {
+namespace S2H {
 typedef struct {
     uint8_t skyboxDisabled;
     uint8_t sunMoonDisabled;
@@ -18,4 +18,4 @@ class SetSkyboxModifier : public SceneCommand<SkyboxModifier> {
 
     SkyboxModifier modifier;
 };
-}; // namespace SOH
+}; // namespace S2H

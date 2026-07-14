@@ -1,6 +1,6 @@
 #pragma once
 
-namespace SOH {
+namespace S2H {
 enum class ResourceType {
     SOH_Array = 0x4F415252,           // OARR
     SOH_Animation = 0x4F414E4D,       // OANM
@@ -25,4 +25,12 @@ enum class ResourceType {
     TSH_CKeyFrameAnim = 0x4F4B4641, // OKFA
     TSH_CKeyFrameSkel = 0x4F4B4653  // OKFS
 };
-} // namespace SOH
+} // namespace S2H
+
+// Compatibility alias for the OTRExporter submodule, whose GAME_MM exporters
+// still say SOH:: (upstream 2Ship naming). MM's resource layer itself was
+// renamed to S2H in redshipblueship (issue #344) so it can be compiled
+// alongside OoT's SOH classes in single-exe builds. Safe here because every
+// OTRExporter TU is strictly GAME_MM- or GAME_OOT-scoped — no translation
+// unit ever sees both this alias and OoT's real namespace SOH.
+namespace SOH = S2H;

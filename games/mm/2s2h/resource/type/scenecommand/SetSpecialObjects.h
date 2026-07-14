@@ -3,7 +3,7 @@
 #include <cstdint>
 #include "SceneCommand.h"
 
-namespace SOH {
+namespace S2H {
 typedef struct {
     int8_t elfMessage;
     int16_t globalObject;
@@ -18,4 +18,4 @@ class SetSpecialObjects : public SceneCommand<SpecialObjects> {
 
     SpecialObjects specialObjects;
 };
-}; // namespace SOH
+}; // namespace S2H

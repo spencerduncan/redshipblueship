@@ -4,7 +4,7 @@
 #include "SceneCommand.h"
 #include <libultraship/libultra/types.h>
 
-namespace SOH {
+namespace S2H {
 typedef struct {
     /* 0x0 */ s16 x;
     /* 0x2 */ s16 y;
@@ -27,4 +27,4 @@ class SetCsCamera : public SceneCommand<ActorCsCamInfoData> {
 
     std::vector<ActorCsCamInfoData> csCamera;
 };
-}; // namespace SOH
+}; // namespace S2H

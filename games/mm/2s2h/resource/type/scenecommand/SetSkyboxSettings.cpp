@@ -1,6 +1,6 @@
 #include "SetSkyboxSettings.h"
 
-namespace SOH {
+namespace S2H {
 SkyboxSettings* SetSkyboxSettings::GetPointer() {
     return &settings;
 }
@@ -8,4 +8,4 @@ SkyboxSettings* SetSkyboxSettings::GetPointer() {
 size_t SetSkyboxSettings::GetPointerSize() {
     return sizeof(SetSkyboxSettings);
 }
-} // namespace SOH
+} // namespace S2H

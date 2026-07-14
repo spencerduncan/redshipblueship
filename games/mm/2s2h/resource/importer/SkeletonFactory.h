@@ -4,7 +4,7 @@
 #include <ship/resource/ResourceFactoryBinary.h>
 #include <ship/resource/ResourceFactoryXML.h>
 
-namespace SOH {
+namespace S2H {
 class ResourceFactoryBinarySkeletonV0 : public Ship::ResourceFactoryBinary {
   public:
     std::shared_ptr<Ship::IResource> ReadResource(std::shared_ptr<Ship::File> file,
@@ -16,4 +16,4 @@ class ResourceFactoryXMLSkeletonV0 : public Ship::ResourceFactoryXML {
     std::shared_ptr<Ship::IResource> ReadResource(std::shared_ptr<Ship::File> file,
                                                   std::shared_ptr<Ship::ResourceInitData> initData) override;
 };
-} // namespace SOH
+} // namespace S2H

@@ -3,7 +3,7 @@
 #include <spdlog/spdlog.h>
 #include <ship/Context.h>
 
-namespace SOH {
+namespace S2H {
 std::shared_ptr<Ship::IResource> SetMeshFactory::ReadResource(std::shared_ptr<Ship::ResourceInitData> initData,
                                                               std::shared_ptr<Ship::BinaryReader> reader) {
     auto setMesh = std::make_shared<SetMesh>(initData);
@@ -173,4 +173,4 @@ std::shared_ptr<Ship::IResource> SetMeshFactory::ReadResource(std::shared_ptr<Sh
 
     return setMesh;
 }
-} // namespace SOH
+} // namespace S2H

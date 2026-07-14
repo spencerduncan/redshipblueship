@@ -4,7 +4,7 @@
 #include "z64math.h"
 #include "gbi.h"
 
-namespace SOH {
+namespace S2H {
 enum class LimbType {
     Invalid,
     Standard,
@@ -132,4 +132,4 @@ class SkeletonLimb : public Ship::Resource<SkeletonLimbData> {
     std::vector<std::vector<SkinVertex>> skinLimbModifVertexArrays;
     std::vector<std::vector<SkinTransformation>> skinLimbModifTransformationArrays;
 };
-} // namespace SOH
+} // namespace S2H

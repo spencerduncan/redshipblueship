@@ -1,6 +1,6 @@
 #include "Path.h"
 
-namespace SOH {
+namespace S2H {
 PathDataMM* PathMM::GetPointer() {
     return pathData.data();
 }
@@ -8,4 +8,4 @@ size_t PathMM::GetPointerSize() {
     return pathData.size() * sizeof(PathDataMM);
 }
 
-} // namespace SOH
+} // namespace S2H

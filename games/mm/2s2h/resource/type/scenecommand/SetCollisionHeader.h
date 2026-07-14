@@ -5,7 +5,7 @@
 #include "2s2h/resource/type/scenecommand/SceneCommand.h"
 #include "2s2h/resource/type/CollisionHeader.h"
 
-namespace SOH {
+namespace S2H {
 class SetCollisionHeader : public SceneCommand<CollisionHeaderData> {
   public:
     using SceneCommand::SceneCommand;
@@ -17,4 +17,4 @@ class SetCollisionHeader : public SceneCommand<CollisionHeaderData> {
 
     std::shared_ptr<CollisionHeader> collisionHeader;
 };
-}; // namespace SOH
+}; // namespace S2H

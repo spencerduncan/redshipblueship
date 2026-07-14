@@ -1,7 +1,7 @@
 #include "2s2h/resource/importer/scenecommand/SetSkyboxSettingsFactory.h"
 #include "2s2h/resource/type/scenecommand/SetSkyboxSettings.h"
 
-namespace SOH {
+namespace S2H {
 std::shared_ptr<Ship::IResource>
 SetSkyboxSettingsFactory::ReadResource(std::shared_ptr<Ship::ResourceInitData> initData,
                                        std::shared_ptr<Ship::BinaryReader> reader) {
@@ -16,4 +16,4 @@ SetSkyboxSettingsFactory::ReadResource(std::shared_ptr<Ship::ResourceInitData> i
 
     return setSkyboxSettings;
 }
-} // namespace SOH
+} // namespace S2H

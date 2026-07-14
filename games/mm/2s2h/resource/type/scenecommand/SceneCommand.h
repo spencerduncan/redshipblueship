@@ -4,7 +4,7 @@
 #include <memory>
 #include <ship/resource/Resource.h>
 
-namespace SOH {
+namespace S2H {
 
 enum class SceneCommandID : uint8_t {
     SetStartPositionList = 0x00,
@@ -63,4 +63,4 @@ template <class T> class SceneCommand : public ISceneCommand {
     }
 };
 
-}; // namespace SOH
+}; // namespace S2H

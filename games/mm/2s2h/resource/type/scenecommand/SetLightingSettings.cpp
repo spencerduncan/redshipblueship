@@ -1,6 +1,6 @@
 #include "SetLightingSettings.h"
 
-namespace SOH {
+namespace S2H {
 EnvLightSettings* SetLightingSettings::GetPointer() {
     return settings.data();
 }
@@ -8,4 +8,4 @@ EnvLightSettings* SetLightingSettings::GetPointer() {
 size_t SetLightingSettings::GetPointerSize() {
     return settings.size() * sizeof(EnvLightSettings);
 }
-} // namespace SOH
+} // namespace S2H

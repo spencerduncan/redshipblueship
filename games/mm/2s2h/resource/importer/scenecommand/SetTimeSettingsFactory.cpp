@@ -1,7 +1,7 @@
 #include "2s2h/resource/importer/scenecommand/SetTimeSettingsFactory.h"
 #include "2s2h/resource/type/scenecommand/SetTimeSettings.h"
 
-namespace SOH {
+namespace S2H {
 std::shared_ptr<Ship::IResource> SetTimeSettingsFactory::ReadResource(std::shared_ptr<Ship::ResourceInitData> initData,
                                                                       std::shared_ptr<Ship::BinaryReader> reader) {
     auto setTimeSettings = std::make_shared<SetTimeSettings>(initData);
@@ -15,4 +15,4 @@ std::shared_ptr<Ship::IResource> SetTimeSettingsFactory::ReadResource(std::share
     return setTimeSettings;
 }
 
-} // namespace SOH
+} // namespace S2H

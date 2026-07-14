@@ -6,7 +6,7 @@
 
 #include <spdlog/spdlog.h>
 
-namespace SOH {
+namespace S2H {
 std::shared_ptr<Ship::IResource>
 ResourceFactoryBinaryAnimationV0::ReadResource(std::shared_ptr<Ship::File> file,
                                                std::shared_ptr<Ship::ResourceInitData> initData) {
@@ -94,4 +94,4 @@ ResourceFactoryBinaryAnimationV0::ReadResource(std::shared_ptr<Ship::File> file,
     }
     return animation;
 }
-} // namespace SOH
+} // namespace S2H

@@ -1,7 +1,7 @@
 #include "2s2h/resource/importer/BackgroundFactory.h"
 #include "2s2h/resource/type/Background.h"
 
-namespace SOH {
+namespace S2H {
 std::shared_ptr<Ship::IResource>
 ResourceFactoryBinaryBackgroundV0::ReadResource(std::shared_ptr<Ship::File> file,
                                                 std::shared_ptr<Ship::ResourceInitData> initData) {
@@ -22,4 +22,4 @@ ResourceFactoryBinaryBackgroundV0::ReadResource(std::shared_ptr<Ship::File> file
 
     return background;
 }
-} // namespace SOH
+} // namespace S2H

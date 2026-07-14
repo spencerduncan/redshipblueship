@@ -1,7 +1,7 @@
 #include "2s2h/resource/importer/scenecommand/SetCsCameraFactory.h"
 #include "2s2h/resource/type/scenecommand/SetCsCamera.h"
 
-namespace SOH {
+namespace S2H {
 std::shared_ptr<Ship::IResource> SetCsCameraFactory::ReadResource(std::shared_ptr<Ship::ResourceInitData> initData,
                                                                   std::shared_ptr<Ship::BinaryReader> reader) {
     auto setCsCamera = std::make_shared<SetCsCamera>(initData);
@@ -31,4 +31,4 @@ std::shared_ptr<Ship::IResource> SetCsCameraFactory::ReadResource(std::shared_pt
 
     return setCsCamera;
 }
-} // namespace SOH
+} // namespace S2H

@@ -118,7 +118,7 @@ static OggType GetOggType(OggFileData* data) {
     return type;
 }
 
-static void Mp3DecoderWorker(std::shared_ptr<SOH::AudioSample> audioSample, std::shared_ptr<Ship::File> sampleFile) {
+static void Mp3DecoderWorker(std::shared_ptr<S2H::AudioSample> audioSample, std::shared_ptr<Ship::File> sampleFile) {
     drmp3 mp3;
     drwav_uint64 numFrames;
     drmp3_bool32 ret =
@@ -131,7 +131,7 @@ static void Mp3DecoderWorker(std::shared_ptr<SOH::AudioSample> audioSample, std:
     drmp3_read_pcm_frames_s16(&mp3, numFrames, (int16_t*)audioSample->sample.sampleAddr);
 }
 
-static void FlacDecoderWorker(std::shared_ptr<SOH::AudioSample> audioSample, std::shared_ptr<Ship::File> sampleFile) {
+static void FlacDecoderWorker(std::shared_ptr<S2H::AudioSample> audioSample, std::shared_ptr<Ship::File> sampleFile) {
     drflac* flac = drflac_open_memory(sampleFile->Buffer.get()->data(), sampleFile->Buffer.get()->size(), nullptr);
     drflac_uint64 numFrames = flac->totalPCMFrameCount;
     audioSample->sample.sampleAddr = new uint8_t[numFrames * flac->channels * 2];
@@ -139,7 +139,7 @@ static void FlacDecoderWorker(std::shared_ptr<SOH::AudioSample> audioSample, std
     drflac_close(flac);
 }
 
-static void OggDecoderWorker(std::shared_ptr<SOH::AudioSample> audioSample, std::shared_ptr<Ship::File> sampleFile,
+static void OggDecoderWorker(std::shared_ptr<S2H::AudioSample> audioSample, std::shared_ptr<Ship::File> sampleFile,
                              std::shared_ptr<Ship::ResourceInitData> initData) {
     OggVorbis_File vf;
     char dataBuff[4096];
@@ -190,7 +190,7 @@ static void OggDecoderWorker(std::shared_ptr<SOH::AudioSample> audioSample, std:
     }
 }
 
-namespace SOH {
+namespace S2H {
 std::shared_ptr<Ship::IResource>
 ResourceFactoryBinaryAudioSampleV2::ReadResource(std::shared_ptr<Ship::File> file,
                                                  std::shared_ptr<Ship::ResourceInitData> initData) {
@@ -359,4 +359,4 @@ uint8_t ResourceFactoryXMLAudioSampleV0::CodecStrToInt(const char* str, const ch
         throw std::runtime_error(buff);
     }
 }
-} // namespace SOH
+} // namespace S2H

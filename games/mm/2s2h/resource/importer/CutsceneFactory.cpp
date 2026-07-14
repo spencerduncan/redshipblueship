@@ -5,7 +5,7 @@ extern "C" {
 #include "z64cutscene.h"
 }
 
-namespace SOH {
+namespace S2H {
 
 static inline uint32_t read_CMD_BBBB(std::shared_ptr<Ship::BinaryReader> reader) {
     uint32_t v;
@@ -614,4 +614,4 @@ void Ship::CutsceneFactoryV0::ParseFileBinaryOoT(std::shared_ptr<BinaryReader> r
     }
 }
 #endif
-} // namespace SOH
+} // namespace S2H

@@ -1,7 +1,7 @@
 #include "2s2h/resource/importer/scenecommand/SetStartPositionListFactory.h"
 #include "2s2h/resource/type/scenecommand/SetStartPositionList.h"
 
-namespace SOH {
+namespace S2H {
 std::shared_ptr<Ship::IResource>
 SetStartPositionListFactory::ReadResource(std::shared_ptr<Ship::ResourceInitData> initData,
                                           std::shared_ptr<Ship::BinaryReader> reader) {
@@ -28,4 +28,4 @@ SetStartPositionListFactory::ReadResource(std::shared_ptr<Ship::ResourceInitData
 
     return setStartPositionList;
 }
-} // namespace SOH
+} // namespace S2H

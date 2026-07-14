@@ -2,7 +2,7 @@
 #include "2s2h/resource/type/SkeletonLimb.h"
 #include <tinyxml2.h>
 
-namespace SOH {
+namespace S2H {
 std::shared_ptr<Ship::IResource>
 ResourceFactoryBinarySkeletonLimbV0::ReadResource(std::shared_ptr<Ship::File> file,
                                                   std::shared_ptr<Ship::ResourceInitData> initData) {
@@ -252,4 +252,4 @@ ResourceFactoryXMLSkeletonLimbV0::ReadResource(std::shared_ptr<Ship::File> file,
 
     return skelLimb;
 }
-} // namespace SOH
+} // namespace S2H

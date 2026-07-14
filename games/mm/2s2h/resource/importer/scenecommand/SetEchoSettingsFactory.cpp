@@ -1,7 +1,7 @@
 #include "2s2h/resource/importer/scenecommand/SetEchoSettingsFactory.h"
 #include "2s2h/resource/type/scenecommand/SetEchoSettings.h"
 
-namespace SOH {
+namespace S2H {
 std::shared_ptr<Ship::IResource> SetEchoSettingsFactory::ReadResource(std::shared_ptr<Ship::ResourceInitData> initData,
                                                                       std::shared_ptr<Ship::BinaryReader> reader) {
     auto setEchoSettings = std::make_shared<SetEchoSettings>(initData);
@@ -12,4 +12,4 @@ std::shared_ptr<Ship::IResource> SetEchoSettingsFactory::ReadResource(std::share
 
     return setEchoSettings;
 }
-} // namespace SOH
+} // namespace S2H

@@ -8,8 +8,9 @@
 extern "C" MessageTableEntry* sMessageTableNES;
 extern "C" MessageTableEntry* sMessageTableCredits;
 
-MessageTableEntry* OTRMessage_LoadTable(const char* filePath, bool isNES) {
-    auto file = std::static_pointer_cast<SOH::TextMM>(
+// static: OoT's z_message_OTR.cpp has its own OTRMessage_LoadTable (single-exe, #344)
+static MessageTableEntry* OTRMessage_LoadTable(const char* filePath, bool isNES) {
+    auto file = std::static_pointer_cast<S2H::TextMM>(
         Ship::Context::GetInstance()->GetResourceManager()->LoadResource(filePath));
 
     if (file == nullptr)
@@ -50,11 +51,20 @@ MessageTableEntry* OTRMessage_LoadTable(const char* filePath, bool isNES) {
     return table;
 }
 
-extern "C" void OTRMessage_Init() {
+// MM_-prefixed: OoT's z_message_OTR.cpp owns the extern "C" OTRMessage_Init symbol (single-exe, #344).
+// Idempotent so MM_Game_Init can call it on every (re-)entry without leaking tables.
+extern "C" void MM_OTRMessage_Init() {
+    if (sMessageTableNES != NULL) {
+        return;
+    }
+
     sMessageTableNES = OTRMessage_LoadTable("text/message_data_static/message_data_static", true);
 
-    auto file2 = std::static_pointer_cast<SOH::TextMM>(Ship::Context::GetInstance()->GetResourceManager()->LoadResource(
+    auto file2 = std::static_pointer_cast<S2H::TextMM>(Ship::Context::GetInstance()->GetResourceManager()->LoadResource(
         "text/staff_message_data_static/staff_message_data_static"));
+    if (file2 == nullptr) {
+        return;
+    }
     sMessageTableCredits = (MessageTableEntry*)malloc(sizeof(MessageTableEntry) * file2->messages.size());
 
     for (size_t i = 0; i < file2->messages.size(); i++) {

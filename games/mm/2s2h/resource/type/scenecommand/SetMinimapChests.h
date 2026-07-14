@@ -2,7 +2,7 @@
 #include <ship/resource/Resource.h>
 #include "SceneCommand.h"
 
-namespace SOH {
+namespace S2H {
 typedef struct {
     int16_t unk_0;
     int16_t unk_2;
@@ -20,4 +20,4 @@ class SetMinimapChests : public SceneCommand<MinimapChestData> {
     std::vector<MinimapChestData> chests;
 };
 
-} // namespace SOH
+} // namespace S2H

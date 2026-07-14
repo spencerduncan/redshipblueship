@@ -1,7 +1,7 @@
 #pragma once
 #include <ship/resource/Resource.h>
 
-namespace SOH {
+namespace S2H {
 enum class TextureAnimationParamsType {
     /* 0 */ SingleScroll,
     /* 1 */ DualScroll,
@@ -102,4 +102,4 @@ class TextureAnimation : public Ship::Resource<AnimatedMaterial> {
     std::vector<AnimatedMaterial> anims;
     std::vector<std::string> textureCycleTextures;
 };
-} // namespace SOH
+} // namespace S2H

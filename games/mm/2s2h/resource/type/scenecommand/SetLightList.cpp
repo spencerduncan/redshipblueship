@@ -1,6 +1,6 @@
 #include "SetLightList.h"
 
-namespace SOH {
+namespace S2H {
 LightInfo* SetLightList::GetPointer() {
     return lightList.data();
 }
@@ -8,4 +8,4 @@ LightInfo* SetLightList::GetPointer() {
 size_t SetLightList::GetPointerSize() {
     return lightList.size() * sizeof(LightInfo);
 }
-} // namespace SOH
+} // namespace S2H

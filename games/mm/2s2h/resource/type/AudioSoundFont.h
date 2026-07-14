@@ -6,7 +6,7 @@
 #include "2s2h/resource/type/AudioSample.h"
 #include <libultraship/libultra/types.h>
 
-namespace SOH {
+namespace S2H {
 
 typedef struct {
     /* 0x0 */ s16 delay;
@@ -78,4 +78,4 @@ class AudioSoundFont : public Ship::Resource<SoundFont> {
 
     SoundFont soundFont;
 };
-}; // namespace SOH
+}; // namespace S2H

@@ -4,7 +4,7 @@
 #include <ship/Context.h>
 #include <ship/resource/ResourceManager.h>
 
-namespace SOH {
+namespace S2H {
 
 std::shared_ptr<Ship::IResource>
 SetAnimatedMaterialListFactory::ReadResource(std::shared_ptr<Ship::ResourceInitData> initData,
@@ -22,4 +22,4 @@ SetAnimatedMaterialListFactory::ReadResource(std::shared_ptr<Ship::ResourceInitD
 
     return setAnimatedMat;
 }
-} // namespace SOH
+} // namespace S2H

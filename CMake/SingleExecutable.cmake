@@ -80,6 +80,12 @@ target_include_directories(redship_common PUBLIC
     ${CMAKE_SOURCE_DIR}/games/mm/2s2h
 )
 
+# PRIVATE: test_runner.cpp's mm-scene-parse test (#344) includes MM's S2H
+# resource headers by their in-tree "2s2h/..." spelling.
+target_include_directories(redship_common PRIVATE
+    ${CMAKE_SOURCE_DIR}/games/mm
+)
+
 target_link_libraries(redship_common PUBLIC
     libultraship
 )
@@ -220,6 +226,8 @@ if(BUILD_TESTING)
     add_test(NAME SaveSizeMismatch COMMAND redship --test save-size-mismatch)
     add_test(NAME SaveCrcCorrupt COMMAND redship --test save-crc-corrupt)
     add_test(NAME Context COMMAND redship --test context)
+    # MM scene-command parse regression — display-free, no ROM archives (#344)
+    add_test(NAME MMSceneParse COMMAND redship --test mm-scene-parse)
     add_test(NAME AllTests COMMAND redship --test all)
 
     # Set reasonable timeout and label our tests
@@ -227,7 +235,7 @@ if(BUILD_TESTING)
     set_tests_properties(
         BootOoT BootMM SwitchOoTMM SwitchMMOoT Roundtrip RoundtripIntegrity SharedRoundtrip ArchiveHotswapLogic
         SaveRoundtripTiers SaveHeader SaveHasDelete SaveVersionReject SaveSizeMismatch SaveCrcCorrupt
-        Context AllTests
+        Context MMSceneParse AllTests
         PROPERTIES
         TIMEOUT ${REDSHIP_TEST_TIMEOUT}
         LABELS "redship"

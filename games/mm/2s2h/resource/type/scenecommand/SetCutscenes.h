@@ -6,7 +6,7 @@
 #include "2s2h/resource/type/scenecommand/SceneCommand.h"
 #include "2s2h/resource/type/Cutscene.h"
 
-namespace SOH {
+namespace S2H {
 class CutsceneScriptEntry {
   public:
     void* data;
@@ -25,4 +25,4 @@ class SetCutscenesMM : public SceneCommand<CutsceneScriptEntry> {
     std::vector<CutsceneScriptEntry> entries;
 };
 
-}; // namespace SOH
+}; // namespace S2H

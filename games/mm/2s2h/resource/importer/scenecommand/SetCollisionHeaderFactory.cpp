@@ -3,7 +3,7 @@
 #include <ship/Context.h>
 #include <ship/resource/ResourceManager.h>
 
-namespace SOH {
+namespace S2H {
 std::shared_ptr<Ship::IResource>
 SetCollisionHeaderFactory::ReadResource(std::shared_ptr<Ship::ResourceInitData> initData,
                                         std::shared_ptr<Ship::BinaryReader> reader) {
@@ -17,4 +17,4 @@ SetCollisionHeaderFactory::ReadResource(std::shared_ptr<Ship::ResourceInitData> 
 
     return setCollisionHeader;
 }
-} // namespace SOH
+} // namespace S2H

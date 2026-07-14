@@ -3,7 +3,7 @@
 #include <ship/Context.h>
 #include <ship/resource/ResourceManager.h>
 
-namespace SOH {
+namespace S2H {
 std::shared_ptr<Ship::IResource> SetCutsceneFactoryMM::ReadResource(std::shared_ptr<Ship::ResourceInitData> initData,
                                                                     std::shared_ptr<Ship::BinaryReader> reader) {
     auto setCutscenes = std::make_shared<SetCutscenesMM>(initData);
@@ -27,4 +27,4 @@ std::shared_ptr<Ship::IResource> SetCutsceneFactoryMM::ReadResource(std::shared_
 
     return setCutscenes;
 }
-} // namespace SOH
+} // namespace S2H

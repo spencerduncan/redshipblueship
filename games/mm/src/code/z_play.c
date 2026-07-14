@@ -1710,10 +1710,10 @@ void MM_Play_InitEnvironment(PlayState* this, s16 skyboxId) {
     MM_Environment_Init(this, &this->envCtx, 0);
 }
 
-void OTRPlay_InitScene(PlayState* play, s32 spawn);
+void MM_OTRPlay_InitScene(PlayState* play, s32 spawn);
 
 void MM_Play_InitScene(PlayState* this, s32 spawn) {
-    OTRPlay_InitScene(this, spawn);
+    MM_OTRPlay_InitScene(this, spawn);
 #if 0
     this->curSpawn = spawn;
     this->linkActorEntry = NULL;
@@ -1735,10 +1735,10 @@ void MM_Play_InitScene(PlayState* this, s32 spawn) {
 #endif
 }
 
-void OTRPlay_SpawnScene(PlayState* play, s32 sceneId, s32 spawn);
+void MM_OTRPlay_SpawnScene(PlayState* play, s32 sceneId, s32 spawn);
 
 void MM_Play_SpawnScene(PlayState* this, s32 sceneId, s32 spawn) {
-    OTRPlay_SpawnScene(this, sceneId, spawn);
+    MM_OTRPlay_SpawnScene(this, sceneId, spawn);
 #if 0
     s32 pad;
     SceneTableEntry* scene = &MM_gSceneTable[sceneId];

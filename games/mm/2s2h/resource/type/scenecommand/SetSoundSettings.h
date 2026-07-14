@@ -3,7 +3,7 @@
 #include <cstdint>
 #include "SceneCommand.h"
 
-namespace SOH {
+namespace S2H {
 typedef struct {
     uint8_t seqId;
     uint8_t natureAmbienceId;
@@ -19,4 +19,4 @@ class SetSoundSettings : public SceneCommand<SoundSettings> {
 
     SoundSettings settings;
 };
-}; // namespace SOH
+}; // namespace S2H

@@ -3,7 +3,7 @@
 #include "SceneCommand.h"
 #include "2s2h/resource/type/TextureAnimation.h"
 
-namespace SOH {
+namespace S2H {
 typedef struct {
     /* 0x0 */ int8_t segment;
     /* 0x2 */ int16_t type;
@@ -19,4 +19,4 @@ class SetAnimatedMaterialList : public SceneCommand<AnimatedMaterial> {
 
     AnimatedMaterial* mat;
 };
-}; // namespace SOH
+}; // namespace S2H

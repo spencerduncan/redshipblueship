@@ -3,7 +3,7 @@
 #include <ship/resource/Resource.h>
 #include <libultraship/libultra/types.h>
 
-namespace SOH {
+namespace S2H {
 enum class AnimationType {
     Normal = 0,
     Link = 1,
@@ -85,4 +85,4 @@ class Animation : public Ship::Resource<AnimationData> {
     std::vector<TransformData> transformDataArr;
     std::vector<int16_t> copyValuesArr;
 };
-}; // namespace SOH
+}; // namespace S2H

@@ -1,7 +1,7 @@
 #include "2s2h/resource/importer/PathFactory.h"
 #include "2s2h/resource/type/Path.h"
 
-namespace SOH {
+namespace S2H {
 std::shared_ptr<Ship::IResource>
 ResourceFactoryBinaryPathMMV0::ReadResource(std::shared_ptr<Ship::File> file,
                                             std::shared_ptr<Ship::ResourceInitData> initData) {
@@ -43,4 +43,4 @@ ResourceFactoryBinaryPathMMV0::ReadResource(std::shared_ptr<Ship::File> file,
 
     return path;
 }
-} // namespace SOH
+} // namespace S2H

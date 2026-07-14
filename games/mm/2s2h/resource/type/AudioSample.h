@@ -4,7 +4,7 @@
 #include <ship/resource/Resource.h>
 #include <libultraship/libultra/types.h>
 
-namespace SOH {
+namespace S2H {
 typedef struct {
     /* 0x00 */ u32 start;
     /* 0x04 */ u32 end;
@@ -57,4 +57,4 @@ class AudioSample : public Ship::Resource<Sample> {
     // Only applies to streamed audio
     float tuning = -1.0f;
 };
-}; // namespace SOH
+}; // namespace S2H

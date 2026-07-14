@@ -2,7 +2,7 @@
 #include "Skeleton.h"
 #include "2s2h/BenPort.h"
 
-namespace SOH {
+namespace S2H {
 SkeletonData* Skeleton::GetPointer() {
     return &skeletonData;
 }
@@ -77,4 +77,4 @@ void SkeletonPatcher::UpdateSkeletons() {
         }
     }
 }
-} // namespace SOH
+} // namespace S2H

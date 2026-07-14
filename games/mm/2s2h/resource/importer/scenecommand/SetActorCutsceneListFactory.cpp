@@ -1,7 +1,7 @@
 #include "2s2h/resource/importer/scenecommand/SetActorCutsceneListFactory.h"
 #include "2s2h/resource/type/scenecommand/SetActorCutsceneList.h"
 
-namespace SOH {
+namespace S2H {
 std::shared_ptr<Ship::IResource>
 SetActorCutsceneListFactory::ReadResource(std::shared_ptr<Ship::ResourceInitData> initData,
                                           std::shared_ptr<Ship::BinaryReader> reader) {
@@ -27,4 +27,4 @@ SetActorCutsceneListFactory::ReadResource(std::shared_ptr<Ship::ResourceInitData
     }
     return setActorCsList;
 }
-} // namespace SOH
+} // namespace S2H

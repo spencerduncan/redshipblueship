@@ -1,7 +1,7 @@
 #include "2s2h/resource/importer/scenecommand/SetMinimapChestsFactory.h"
 #include "2s2h/resource/type/scenecommand/SetMinimapChests.h"
 
-namespace SOH {
+namespace S2H {
 
 std::shared_ptr<Ship::IResource> SetMinimapChestsFactory::ReadResource(std::shared_ptr<Ship::ResourceInitData> initData,
                                                                        std::shared_ptr<Ship::BinaryReader> reader) {
@@ -25,4 +25,4 @@ std::shared_ptr<Ship::IResource> SetMinimapChestsFactory::ReadResource(std::shar
 
     return chests;
 }
-} // namespace SOH
+} // namespace S2H

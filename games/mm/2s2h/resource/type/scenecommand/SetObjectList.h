@@ -4,7 +4,7 @@
 #include <vector>
 #include "SceneCommand.h"
 
-namespace SOH {
+namespace S2H {
 class SetObjectList : public SceneCommand<int16_t> {
   public:
     using SceneCommand::SceneCommand;
@@ -15,4 +15,4 @@ class SetObjectList : public SceneCommand<int16_t> {
     uint32_t numObjects;
     std::vector<int16_t> objects;
 };
-}; // namespace SOH
+}; // namespace S2H

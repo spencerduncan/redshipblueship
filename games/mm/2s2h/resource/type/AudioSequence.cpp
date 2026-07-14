@@ -1,6 +1,6 @@
 #include "AudioSequence.h"
 
-namespace SOH {
+namespace S2H {
 
 Sequence* AudioSequence::GetPointer() {
     return &sequence;
@@ -15,4 +15,4 @@ AudioSequence::~AudioSequence() {
     sequence.seqData = nullptr;
 }
 
-} // namespace SOH
+} // namespace S2H

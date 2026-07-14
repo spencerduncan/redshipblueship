@@ -1,6 +1,6 @@
 #include "SetMesh.h"
 
-namespace SOH {
+namespace S2H {
 MeshHeader* SetMesh::GetPointer() {
     return &meshHeader;
 }
@@ -8,4 +8,4 @@ MeshHeader* SetMesh::GetPointer() {
 size_t SetMesh::GetPointerSize() {
     return sizeof(MeshHeader);
 }
-} // namespace SOH
+} // namespace S2H

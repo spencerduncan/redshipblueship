@@ -3,7 +3,7 @@
 #include <ship/resource/Resource.h>
 #include "SceneCommand.h"
 
-namespace SOH {
+namespace S2H {
 typedef struct CutsceneEntry {
     int16_t priority;
     int16_t length;
@@ -27,4 +27,4 @@ class SetActorCutsceneList : public SceneCommand<CutsceneEntry> {
     std::vector<CutsceneEntry> entries;
 };
 
-} // namespace SOH
+} // namespace S2H

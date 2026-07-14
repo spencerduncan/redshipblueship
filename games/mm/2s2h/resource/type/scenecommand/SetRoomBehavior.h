@@ -3,7 +3,7 @@
 #include <cstdint>
 #include "SceneCommand.h"
 
-namespace SOH {
+namespace S2H {
 typedef struct {
     int8_t gameplayFlags;
     int8_t currRoomUnk2;
@@ -23,4 +23,4 @@ class SetRoomBehaviorMM : public SceneCommand<RoomBehaviorMM> {
     RoomBehaviorMM roomBehavior;
 };
 
-}; // namespace SOH
+}; // namespace S2H

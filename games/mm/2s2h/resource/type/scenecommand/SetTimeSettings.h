@@ -3,7 +3,7 @@
 #include <cstdint>
 #include "SceneCommand.h"
 
-namespace SOH {
+namespace S2H {
 typedef struct {
     uint8_t hour;
     uint8_t minute;
@@ -19,4 +19,4 @@ class SetTimeSettings : public SceneCommand<TimeSettings> {
 
     TimeSettings settings;
 };
-}; // namespace SOH
+}; // namespace S2H

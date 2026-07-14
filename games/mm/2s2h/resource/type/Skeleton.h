@@ -5,7 +5,7 @@
 #include "SkeletonLimb.h"
 #include <z64animation.h>
 
-namespace SOH {
+namespace S2H {
 
 enum class SkeletonType {
     Normal,
@@ -90,4 +90,4 @@ class SkeletonPatcher {
     static std::vector<SkeletonPatchInfo> skeletons;
 };
 
-} // namespace SOH
+} // namespace S2H
