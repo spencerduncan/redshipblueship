@@ -19,6 +19,13 @@ class StaticData {
   private:
     static std::array<Item, RG_MAX> itemTable;
     static std::array<Location, RC_MAX> locationTable;
+    // Builds the base (non-shuffle) location table entries. Split out of
+    // InitLocationTable so that its stack frame is never live at the same
+    // time as the Register*Locations frames: MSVC declines to optimize
+    // functions this large (C4883) and gives every Location temporary its
+    // own stack slot, producing frames of several hundred KB. Nesting two
+    // of them overflows the 1 MB default Windows stack during boot.
+    static void InitMainLocationTable();
 
   public:
     static void InitItemTable();

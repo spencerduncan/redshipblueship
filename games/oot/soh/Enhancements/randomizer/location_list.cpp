@@ -144,7 +144,20 @@ std::vector<RandomizerCheck> Rando::StaticData::GetSongFairyLocations() {
     return fairyLocations;
 }
 
-void Rando::StaticData::InitLocationTable() {
+// Keep the giant table-builder frames out of each other's stacks: MSVC gives
+// up optimizing functions this large (C4883) and assigns each Location
+// temporary its own stack slot, so this function and the bigger
+// Register*Locations functions each carry a several-hundred-KB frame. They
+// must run sequentially, never nested, or the 1 MB default Windows stack
+// overflows (0xc00000fd) during boot. noinline stops the compiler from
+// merging them back into their single caller.
+#ifdef _MSC_VER
+#define RANDO_TABLE_NOINLINE __declspec(noinline)
+#else
+#define RANDO_TABLE_NOINLINE __attribute__((noinline))
+#endif
+
+RANDO_TABLE_NOINLINE void Rando::StaticData::InitMainLocationTable() {
     // clang-format off
     //                                                                                                Randomizer Check                                                 Quest            Type                                Area                                 Actor ID              Scene ID                            Params                        Flags Short Name                                     Hint Text Key                                                    Vanilla Item                                                        Spoiler Collection Check                                                                                                      Vanilla Progression  Price
     locationTable[RC_UNKNOWN_CHECK] =                                                  Location::Base(RC_UNKNOWN_CHECK,                                                RCQUEST_BOTH,    RCTYPE_STANDARD,                    RCAREA_INVALID,                      ACTOR_ID_MAX,         SCENE_ID_MAX,                       0x00,                               "Invalid Location", "Invalid Location",        RHT_NONE,                                                        RG_NONE);
@@ -1007,6 +1020,14 @@ void Rando::StaticData::InitLocationTable() {
     // Init locationNameToEnum
     locationNameToEnum["Invalid Location"] = RC_UNKNOWN_CHECK;
     locationNameToEnum["Link's Pocket"] = RC_LINKS_POCKET;
+}
+
+void Rando::StaticData::InitLocationTable() {
+    // Build the base table first, then the per-shuffle entries — as sibling
+    // calls, so only one giant table-builder frame is live at a time (see
+    // InitMainLocationTable in static_data.h; nesting them overflowed the
+    // 1 MB default Windows stack at boot).
+    InitMainLocationTable();
 
     // The per-shuffle location entries live in self-registering translation units
     // (ShuffleSongs.cpp etc.) that hook ShipInit via static initializers. In
