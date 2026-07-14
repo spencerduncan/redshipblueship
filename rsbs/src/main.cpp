@@ -88,6 +88,11 @@ extern "C" {
     // Whether the shared bring-up found an OoT game archive and ran OoT's
     // asset-dependent init (games/oot/soh/OTRGlobals.cpp, #330).
     int OoT_GameAssetsInitialized(void);
+    // In-app mm.o2r generation, offered at the start prompt when MM is
+    // selected without a game archive (#317). Defined in
+    // games/mm/2s2h/GameExports_SingleExe.cpp. Success is observed by
+    // re-checking archive availability, not via a return value.
+    void MM_Extract_OfferAndRun(void);
     // Build-version strings baked into each game library
     // (games/*/src/boot/build.c); declarations match each game's own header.
     extern const char OoT_gBuildVersion[];
@@ -363,15 +368,27 @@ int main(int argc, char** argv) {
 
     // ========================================================================
     // Pre-flight archive check (#317): verify the selected game's ROM-derived
-    // archives exist before any init. OoT can self-heal on a cold boot — its
-    // in-app extractor (RunExtract) generates oot.o2r from a ROM — so only MM,
-    // which has no in-app extraction path yet, is gated here. Without this,
-    // a missing mm.o2r surfaces as a bare "Failed to initialize game" on the
-    // console, which a GUI-launched user never sees.
+    // archives exist before any init. OoT can self-heal during its own init —
+    // its in-app extractor (RunExtract) generates oot.o2r from a ROM. MM's
+    // init has no equivalent, so the harness offers MM's extractor here
+    // instead: it runs before any window exists (parentless SDL dialogs plus
+    // a native file picker), generates mm.o2r from the user's ROM via the
+    // bundled ZAPD_MM, and lets the boot continue. Integration tests stay
+    // non-interactive: there a missing archive remains a hard failure.
+    // Without this gate, a missing mm.o2r surfaces as a bare "Failed to
+    // initialize game" on the console, which a GUI-launched user never sees.
     // ========================================================================
     if (selectedGame == GAME_MM && !ArchiveCheck_GameAvailable(GAME_MM)) {
-        ArchiveCheck_ReportMissing(GAME_MM, /*showDialog=*/!TestRunner_IsIntegrationTestMode());
-        return 1;
+        bool interactive = !TestRunner_IsIntegrationTestMode();
+        bool available = false;
+        if (interactive) {
+            MM_Extract_OfferAndRun();
+            available = ArchiveCheck_GameAvailable(GAME_MM);
+        }
+        if (!available) {
+            ArchiveCheck_ReportMissing(GAME_MM, /*showDialog=*/interactive);
+            return 1;
+        }
     }
 
     // Build filtered argv (remove our flags before passing to game)

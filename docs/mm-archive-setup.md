@@ -5,12 +5,26 @@ RedShipBlueShip needs a game archive for each game it runs:
 | Game | Archive | Generated from | First-run extraction in-app? |
 |------|---------|----------------|------------------------------|
 | Ocarina of Time | `oot.o2r` (or `oot-mq.o2r`) | Your OoT ROM | Yes — launch with `--game oot` and the built-in extractor walks you through it |
-| Majora's Mask | `mm.o2r` (also accepts `mm.zip` / `mm.otr`) | Your MM ROM | **Not yet** ([#317](https://github.com/spencerduncan/redshipblueship/issues/317)) — bring your own, see below |
+| Majora's Mask | `mm.o2r` (also accepts `mm.zip` / `mm.otr`) | Your MM ROM | Yes — select Majora's Mask at the start prompt (or launch with `--game mm`) and accept the generation offer ([#317](https://github.com/spencerduncan/redshipblueship/issues/317)) |
 
-Until in-app MM extraction lands, you must generate `mm.o2r` yourself and
-place it where RedShipBlueShip can find it. If it is missing, the app shows
-an explanatory message instead of starting MM (and refuses cross-game
-switches into MM rather than crashing).
+## In-app generation (recommended)
+
+Select Majora's Mask at the start prompt (or launch with `--game mm`). When
+no MM archive exists, RedShipBlueShip offers to generate one: it looks for
+`.z64`/`.n64`/`.v64` ROMs next to the executable (next to the `.AppImage`
+file on AppImage runs), lets you browse for one otherwise, validates it, and
+runs the bundled `ZAPD_MM` extractor. The resulting `mm.o2r` is written to
+the MM app data directory — the working directory for portable builds (see
+[Where RedShipBlueShip looks](#where-redshipblueship-looks)) — and the game
+then boots normally.
+
+This needs the packaged `assets/` folder next to the executable (present in
+release packages; a plain `cmake --build` tree does not have one — use
+Option B below there). If `mm.o2r` is missing and generation is declined or
+fails, the app shows an explanatory message instead of starting MM (and
+refuses cross-game switches into MM rather than crashing).
+
+You can also provide the archive yourself:
 
 ## Supported ROMs
 

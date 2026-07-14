@@ -18,6 +18,8 @@ message(STATUS "=== Single Executable Architecture Enabled ===")
 set(REDSHIP_COMMON_SOURCES
     ${CMAKE_SOURCE_DIR}/src/common/game.c
     ${CMAKE_SOURCE_DIR}/src/common/archive_check.cpp
+    # Bundled ZAPD subprocess driver shared by both games' in-app extraction (#325)
+    ${CMAKE_SOURCE_DIR}/src/common/zapd_subprocess.cpp
     ${CMAKE_SOURCE_DIR}/src/common/context.cpp
     ${CMAKE_SOURCE_DIR}/src/common/switch.cpp
     ${CMAKE_SOURCE_DIR}/src/common/entrance.cpp
@@ -49,6 +51,7 @@ endif()
 set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/game.h
     ${CMAKE_SOURCE_DIR}/src/common/archive_check.h
+    ${CMAKE_SOURCE_DIR}/src/common/zapd_subprocess.h
     ${CMAKE_SOURCE_DIR}/src/common/context.h
     ${CMAKE_SOURCE_DIR}/src/common/entrance.h
     ${CMAKE_SOURCE_DIR}/src/common/test_runner.h

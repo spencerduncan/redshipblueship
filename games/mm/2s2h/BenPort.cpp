@@ -607,7 +607,7 @@ void Check2ShipArchiveVersion(std::string archivePath) {
 
     if (!std::filesystem::exists(archivePath)) {
 #if not defined(__SWITCH__) && not defined(__WIIU__)
-        Extractor::ShowErrorBox("2ship.o2r file is missing", msg.c_str());
+        MMExtractor::ShowErrorBox("2ship.o2r file is missing", msg.c_str());
         exit(1);
 #elif defined(__SWITCH__)
         Ship::Switch::PrintErrorMessageToScreen(("\x1b[2;2HYou are missing the 2ship.o2r file." + msg).c_str());
@@ -621,7 +621,7 @@ void Check2ShipArchiveVersion(std::string archivePath) {
     if (archiveVer.major != MM_gBuildVersionMajor || archiveVer.minor != MM_gBuildVersionMinor ||
         archiveVer.patch != MM_gBuildVersionPatch) {
 #if not defined(__SWITCH__) && not defined(__WIIU__)
-        Extractor::ShowErrorBox("2ship.o2r file version does not match", msg.c_str());
+        MMExtractor::ShowErrorBox("2ship.o2r file version does not match", msg.c_str());
         exit(1);
 #elif defined(__SWITCH__)
         Ship::Switch::PrintErrorMessageToScreen(("\x1b[2;2HYou have an old 2ship.o2r file." + msg).c_str());
@@ -667,18 +667,18 @@ void DetectArchiveVersion(std::string fileName, bool isO2rType) {
                  "Would you like to regenerate it now?",
                  fileName.c_str(), version);
 
-        if (Extractor::ShowYesNoBox("Old O2R File Found", msgBuf) == IDYES) {
+        if (MMExtractor::ShowYesNoBox("Old O2R File Found", msgBuf) == IDYES) {
             std::string installPath = Ship::Context::GetAppBundlePath();
             if (!std::filesystem::exists(installPath + "/assets")) {
-                Extractor::ShowErrorBox(
+                MMExtractor::ShowErrorBox(
                     "Extractor assets not found",
                     "Unable to regenerate. Missing assets folder needed to generate O2R file.\n\nExiting...");
                 exit(1);
             }
 
-            Extractor extract;
+            MMExtractor extract;
             if (!extract.Run(Ship::Context::GetAppDirectoryPath(appShortName))) {
-                Extractor::ShowErrorBox("Error", "An error occurred, no O2R file was generated.\n\nExiting...");
+                MMExtractor::ShowErrorBox("Error", "An error occurred, no O2R file was generated.\n\nExiting...");
                 exit(1);
             }
 
@@ -687,7 +687,10 @@ void DetectArchiveVersion(std::string fileName, bool isO2rType) {
                 std::filesystem::remove(archivePath);
             }
 
-            extract.CallZapd(installPath, Ship::Context::GetAppDirectoryPath(appShortName));
+            if (!extract.CallZapd(installPath, Ship::Context::GetAppDirectoryPath(appShortName))) {
+                MMExtractor::ShowErrorBox("Error", "An error occurred, no O2R file was generated.\n\nExiting...");
+                exit(1);
+            }
 
             // Rename the new O2R with the previously used extension
             if (isO2rType) {
@@ -804,19 +807,22 @@ extern "C" void InitOTR() {
         if (!std::filesystem::exists(installPath + "/assets")) {
             fprintf(stderr, "[MM InitOTR DEBUG] No assets folder, showing error and exiting\n");
             fflush(stderr);
-            Extractor::ShowErrorBox(
+            MMExtractor::ShowErrorBox(
                 "Extractor assets not found",
                 "No game O2R file found. Missing assets folder needed to generate O2R file. Exiting...");
             exit(1);
         }
 
-        if (Extractor::ShowYesNoBox("No O2R File", "No O2R files found. Generate one now?") == IDYES) {
-            Extractor extract;
+        if (MMExtractor::ShowYesNoBox("No O2R File", "No O2R files found. Generate one now?") == IDYES) {
+            MMExtractor extract;
             if (!extract.Run(Ship::Context::GetAppDirectoryPath(appShortName))) {
-                Extractor::ShowErrorBox("Error", "An error occurred, no O2R file was generated. Exiting...");
+                MMExtractor::ShowErrorBox("Error", "An error occurred, no O2R file was generated. Exiting...");
                 exit(1);
             }
-            extract.CallZapd(installPath, Ship::Context::GetAppDirectoryPath(appShortName));
+            if (!extract.CallZapd(installPath, Ship::Context::GetAppDirectoryPath(appShortName))) {
+                MMExtractor::ShowErrorBox("Error", "An error occurred, no O2R file was generated. Exiting...");
+                exit(1);
+            }
         } else {
             fprintf(stderr, "[MM InitOTR DEBUG] User declined extraction, exiting\n");
             fflush(stderr);
@@ -2094,7 +2100,7 @@ extern "C" int Controller_ShouldRumble(size_t slot) {
 }
 
 extern "C" void Messagebox_ShowErrorBox(char* title, char* body) {
-    Extractor::ShowErrorBox(title, body);
+    MMExtractor::ShowErrorBox(title, body);
 }
 
 // Helper to redirect the user to the boot screen in place of known console crash scenarios, and emits a notification

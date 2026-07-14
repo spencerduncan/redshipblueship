@@ -3,10 +3,11 @@
  * @brief ROM-archive availability checks for the single executable (issue #317)
  *
  * The single exe can only run a game whose ROM-derived archive is present
- * (oot.o2r / oot-mq.o2r for OoT, mm.o2r / mm.zip / mm.otr for MM). OoT can
- * regenerate its archive through the bundled in-app extractor on a cold boot,
- * but MM has no in-app extraction path yet — its archive must be brought by
- * the user (see docs/mm-archive-setup.md).
+ * (oot.o2r / oot-mq.o2r for OoT, mm.o2r / mm.zip / mm.otr for MM). Either
+ * game can regenerate its archive through a bundled in-app extractor on a
+ * cold boot: OoT during its own init (RunExtract), MM through the start-
+ * prompt offer the harness drives via MM_Extract_OfferAndRun (see
+ * rsbs/src/main.cpp and docs/mm-archive-setup.md).
  *
  * These helpers let the harness (rsbs/src/main.cpp) verify availability
  * up front and show an instructive message instead of failing mid-init or

@@ -270,8 +270,12 @@ if(SINGLE_EXECUTABLE_BUILD)
     list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/type/SkeletonLimb\\.cpp$")
     list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/type/scenecommand/.*\\.cpp$")
 
-    # Extractor
-    list(FILTER ship__Extractor EXCLUDE REGEX "2s2h/Extractor/.*\\.cpp$")
+    # Extractor: Extract.cpp is compiled (in-app mm.o2r generation, #317) —
+    # its class is named MMExtractor so it can coexist with OoT's Extractor,
+    # and in single-exe mode its CallZapd spawns the bundled ZAPD_MM
+    # subprocess instead of the in-process zapd_main (#325). FastCrc32C.c
+    # stays excluded: it defines the unprefixed CRC32C symbol, which OoT's
+    # identical soh/Extractor/FastCrc32C.c already provides.
     list(FILTER ship__Extractor EXCLUDE REGEX "2s2h/Extractor/.*\\.c$")
 
     # OTR-specific scene/play files
