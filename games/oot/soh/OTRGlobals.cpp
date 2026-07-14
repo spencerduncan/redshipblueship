@@ -1117,6 +1117,16 @@ int AudioPlayer_Buffered(void);
 extern "C" int AudioPlayer_GetDesiredBuffered(void);
 std::unordered_map<std::string, ExtensionEntry> ExtensionCache;
 
+// OoT's gGameInfo is allocated by func_800636C0, which only runs inside OoT's
+// Main(). In single-exe builds the Graph_* / audio bridges below are shared
+// with MM (MM's BenPort.cpp copies are excluded from the build), so on an
+// MM-first boot they execute for MM frames while gGameInfo is still NULL and
+// R_UPDATE_RATE would dereference it (issue #330 follow-up). Fall back to the
+// vanilla update rate (3, the GameState default from game.c) until OoT boots.
+static s32 Ship_GetUpdateRate() {
+    return (gGameInfo != NULL && R_UPDATE_RATE > 0) ? R_UPDATE_RATE : 3;
+}
+
 void OTRAudio_Thread() {
     while (audio.running) {
         {
@@ -1136,14 +1146,18 @@ void OTRAudio_Thread() {
 #define SAMPLES_HIGH 560
 #define SAMPLES_LOW 528
 
-#define AUDIO_FRAMES_PER_UPDATE (R_UPDATE_RATE > 0 ? R_UPDATE_RATE : 1)
+#define AUDIO_FRAMES_PER_UPDATE (Ship_GetUpdateRate())
 #define NUM_AUDIO_CHANNELS 2
 
         int samples_left = AudioPlayer_Buffered();
         u32 num_audio_samples = samples_left < AudioPlayer_GetDesiredBuffered() ? SAMPLES_HIGH : SAMPLES_LOW;
 
         // 3 is the maximum authentic frame divisor.
-        s16 audio_buffer[SAMPLES_HIGH * NUM_AUDIO_CHANNELS * 3];
+        // Zero-initialized: with OoT's audio context not (yet) initialized —
+        // MM-first boot, or MM running after OoT_Game_Suspend's reset — the
+        // synth below writes nothing, and the buffer must play as silence
+        // rather than uninitialized stack memory.
+        s16 audio_buffer[SAMPLES_HIGH * NUM_AUDIO_CHANNELS * 3] = { 0 };
         for (int i = 0; i < AUDIO_FRAMES_PER_UPDATE; i++) {
             OoT_AudioMgr_CreateNextAudioBuffer(audio_buffer + i * (num_audio_samples * NUM_AUDIO_CHANNELS),
                                            num_audio_samples);
@@ -1954,14 +1968,14 @@ extern "C" void Graph_ProcessGfxCommands(Gfx* commands) {
     static int last_update_rate;
     static int time;
     int fps = target_fps;
-    int original_fps = 60 / R_UPDATE_RATE;
+    int original_fps = 60 / Ship_GetUpdateRate();
     auto wnd = std::dynamic_pointer_cast<Fast::Fast3dWindow>(Ship::Context::GetInstance()->GetWindow());
 
     if (target_fps == 20 || original_fps > target_fps) {
         fps = original_fps;
     }
 
-    if (last_fps != fps || last_update_rate != R_UPDATE_RATE) {
+    if (last_fps != fps || last_update_rate != Ship_GetUpdateRate()) {
         time = 0;
     }
 
@@ -1992,7 +2006,7 @@ extern "C" void Graph_ProcessGfxCommands(Gfx* commands) {
     RunCommands(commands, mtx_replacements);
 
     last_fps = fps;
-    last_update_rate = R_UPDATE_RATE;
+    last_update_rate = Ship_GetUpdateRate();
 
     {
         std::unique_lock<std::mutex> Lock(audio.mutex);

@@ -510,14 +510,31 @@ static int LoadMMArchives() {
         }
     }
 
-    // Load 2ship.o2r (MM's equivalent of soh.o2r)
-    std::string shipPath = Ship::Context::GetPathRelativeToAppBundle("2ship.o2r");
-    if (!shipPath.empty() && std::filesystem::exists(shipPath)) {
-        if (archiveMgr->AddArchive(shipPath)) {
-            fprintf(stderr, "[MM] Loaded archive: %s\n", shipPath.c_str());
-            RecordMMArchivePath(shipPath);
-            loaded++;
+    // Load 2ship.o2r (MM's port-asset archive — the equivalent of soh.o2r).
+    // Probes the same locations ArchiveCheck_PortArchiveAvailable checks
+    // (src/common/archive_check.cpp — keep the two in sync): next to the
+    // executable, then the working directory. A missing 2ship.o2r means an
+    // incomplete install, and MM's early boot dereferences null resources
+    // (boot-logo textures, fonts) without it, so fail hard instead of
+    // continuing into undefined behavior. The harness gates in
+    // rsbs/src/main.cpp normally catch this earlier with a user dialog;
+    // this is the backstop for direct callers.
+    bool shipLoaded = false;
+    for (const std::string& shipPath :
+         { Ship::Context::GetPathRelativeToAppBundle("2ship.o2r"), std::string("./2ship.o2r") }) {
+        if (!shipPath.empty() && std::filesystem::exists(shipPath)) {
+            if (archiveMgr->AddArchive(shipPath)) {
+                fprintf(stderr, "[MM] Loaded archive: %s\n", shipPath.c_str());
+                RecordMMArchivePath(shipPath);
+                loaded++;
+                shipLoaded = true;
+            }
+            break;
         }
+    }
+    if (!shipLoaded) {
+        fprintf(stderr, "[MM] ERROR: 2ship.o2r not found or unreadable — incomplete install, cannot start MM\n");
+        return -1;
     }
 
     fprintf(stderr, "[MM] Loaded %d MM archive(s) into shared context\n", loaded);

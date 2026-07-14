@@ -56,17 +56,19 @@ jobs:
     # build: inside the container the workspace is owned by a different uid.
     - name: Configure git safe directory
       run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-    - name: Compute soh.o2r cache key
+    - name: Compute port-archive cache key
       id: otr-key
       uses: ./.github/actions/otr-cache-key
-    # Exact-match only (no restore-keys): this caches a final artifact, not an
+    # Exact-match only (no restore-keys): this caches final artifacts, not an
     # incremental cache — a stale partial restore would be silently wrong.
-    - name: Restore soh.o2r Cache
+    - name: Restore port-archive Cache
       id: rsbs-otr-cache
       uses: actions/cache@v4
       with:
         key: ${{ steps.otr-key.outputs.key }}
-        path: soh.o2r
+        path: |
+          soh.o2r
+          2ship.o2r
     - name: Checkout submodules
       if: steps.rsbs-otr-cache.outputs.cache-hit != 'true'
       run: git submodule update --init --recursive
@@ -80,17 +82,23 @@ jobs:
           ${{ runner.os }}-otr-ccache-${{ github.ref }}
           ${{ runner.os }}-otr-ccache-refs/heads/main
           ${{ runner.os }}-otr-ccache
-    - name: Generate soh.o2r
+    - name: Generate soh.o2r and 2ship.o2r
       if: steps.rsbs-otr-cache.outputs.cache-hit != 'true'
       run: |
         export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
         cmake --no-warn-unused-cli -H. -Bbuild-cmake -GNinja -DCMAKE_BUILD_TYPE:STRING=Release -DREDSHIP_BUILD_SHARED=ON
-        cmake --build build-cmake --config Release --target GenerateSohOtr -j10
+        cmake --build build-cmake --config Release --target GenerateSohOtr Generate2ShipOtr -j10
     - name: Upload soh.o2r
       uses: actions/upload-artifact@v4
       with:
         name: soh.o2r
         path: soh.o2r
+        retention-days: 3
+    - name: Upload 2ship.o2r
+      uses: actions/upload-artifact@v4
+      with:
+        name: 2ship.o2r
+        path: 2ship.o2r
         retention-days: 3
 
   build-macos:
@@ -152,6 +160,11 @@ jobs:
       with:
         name: soh.o2r
         path: build-cmake/soh
+    - name: Download 2ship.o2r
+      uses: actions/download-artifact@v4
+      with:
+        name: 2ship.o2r
+        path: build-cmake/mm
     - name: Build SoH
       run: |
         export PATH="/usr/lib/ccache:/opt/homebrew/opt/ccache/libexec:/usr/local/opt/ccache/libexec:$PATH"
@@ -226,6 +239,11 @@ jobs:
       with:
         name: soh.o2r
         path: build-cmake/soh
+    - name: Download 2ship.o2r
+      uses: actions/download-artifact@v4
+      with:
+        name: 2ship.o2r
+        path: build-cmake/mm
     - name: Build SoH
       run: |
         export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
@@ -336,6 +354,11 @@ jobs:
       with:
         name: soh.o2r
         path: bw/soh
+    - name: Download 2ship.o2r
+      uses: actions/download-artifact@v4
+      with:
+        name: 2ship.o2r
+        path: bw/mm
     # Build is split into Configure / Build / Package so the GitHub Actions UI
     # surfaces per-stage timing. Issue #177 — previously a single ~24 min step,
     # making it impossible to tell whether time was going to vcpkg, compile, link

@@ -80,6 +80,19 @@ bool ArchiveExists(const char* filename, const char* appName) {
     return false;
 }
 
+// Port-asset archive locations. MUST stay in sync with LoadMMArchives
+// (games/mm/2s2h/GameExports_SingleExe.cpp): a location this check accepts
+// but the loader does not probe would pass the gate and still boot MM into
+// null-resource territory. Deliberately NOT the per-app data directory — a
+// standalone 2Ship2Harkinian install's 2ship.o2r there would be
+// version-mismatched with this build's MM.
+std::vector<std::string> PortArchiveSearchPaths(const char* filename) {
+    return {
+        Ship::Context::GetPathRelativeToAppBundle(filename),
+        "./" + std::string(filename),
+    };
+}
+
 } // namespace
 
 extern "C" bool ArchiveCheck_GameAvailable(GameId game) {
@@ -93,6 +106,47 @@ extern "C" bool ArchiveCheck_GameAvailable(GameId game) {
         }
     }
     return false;
+}
+
+extern "C" bool ArchiveCheck_PortArchiveAvailable(GameId game) {
+    if (game != GAME_MM) {
+        return true;
+    }
+    for (const auto& path : PortArchiveSearchPaths("2ship.o2r")) {
+        std::error_code ec;
+        if (!path.empty() && std::filesystem::exists(path, ec)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+extern "C" void ArchiveCheck_ReportMissingPortArchive(GameId game, bool showDialog) {
+    if (game != GAME_MM) {
+        return;
+    }
+
+    std::string msg =
+        "Majora's Mask cannot start: the port-asset archive \"2ship.o2r\" was not found.\n\n"
+        "RedShipBlueShip looked in:\n";
+    for (const auto& path : PortArchiveSearchPaths("2ship.o2r")) {
+        msg += "  " + path + "\n";
+    }
+    msg += "\n"
+           "Unlike mm.o2r, 2ship.o2r is not generated from your ROM — it ships\n"
+           "with RedShipBlueShip itself (fonts and port assets). Your download or\n"
+           "install is incomplete, or it came from a package that was missing the\n"
+           "file. Re-download the latest RedShipBlueShip package and make sure\n"
+           "2ship.o2r sits next to the redship executable.\n";
+
+    const char* title = "Majora's Mask port archive missing";
+
+    fprintf(stderr, "\n[RSBS] === %s ===\n%s\n", title, msg.c_str());
+    fflush(stderr);
+
+    if (showDialog) {
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, title, msg.c_str(), nullptr);
+    }
 }
 
 extern "C" void ArchiveCheck_ReportMissing(GameId game, bool showDialog) {

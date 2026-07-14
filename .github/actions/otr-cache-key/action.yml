@@ -1,18 +1,19 @@
-name: Compute soh.o2r cache key
+name: Compute port-archive (soh.o2r + 2ship.o2r) cache key
 description: >
-  Computes the cache key for the generated soh.o2r archive from the actual
-  inputs of the GenerateSohOtr (--norom) target: the games/oot/assets tree
+  Computes the cache key for the generated port-asset archives (soh.o2r and
+  2ship.o2r) from the actual inputs of the GenerateSohOtr / Generate2ShipOtr
+  (--norom) targets: the games/oot/assets and games/mm/assets trees
   (custom assets + xml), the OTRExporter/ZAPDTR/libultraship gitlink SHAs
   (tool sources and the LUS shaders copied into assets/custom — readable
   WITHOUT submodule init), copy-existing-otrs.cmake, and the project version
-  (passed as --port-ver and baked into the archive). Replaces the old
+  (passed as --port-ver and baked into the archives). Replaces the old
   hashFiles('games/**/*.c', ...) key, which (a) forced a ~25 min regen on
-  every decomp .c/.h change even though GenerateSohOtr never reads those
+  every decomp .c/.h change even though the generators never read those
   files, and (b) hashed empty submodule directories before `git submodule
   update --init` ran, so tool bumps never invalidated the cache.
 outputs:
   key:
-    description: soh.o2r cache key
+    description: port-archive cache key
     value: ${{ steps.compute.outputs.key }}
 runs:
   using: composite
@@ -22,11 +23,12 @@ runs:
       run: |
         HASH=$(git rev-parse \
           HEAD:games/oot/assets \
+          HEAD:games/mm/assets \
           HEAD:OTRExporter \
           HEAD:ZAPDTR \
           HEAD:libultraship \
           HEAD:copy-existing-otrs.cmake \
           | sha256sum | cut -c1-16)
         VER=$(sed -n 's/^project(Ship VERSION \([0-9][0-9.]*\).*/\1/p' CMakeLists.txt)
-        echo "key=rsbs-otr-v2-${VER}-${HASH}" >> "$GITHUB_OUTPUT"
-        echo "Computed soh.o2r cache key: rsbs-otr-v2-${VER}-${HASH}"
+        echo "key=rsbs-otr-v3-${VER}-${HASH}" >> "$GITHUB_OUTPUT"
+        echo "Computed port-archive cache key: rsbs-otr-v3-${VER}-${HASH}"

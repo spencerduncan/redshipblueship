@@ -298,6 +298,11 @@ if(NOT SINGLE_EXECUTABLE_BUILD)
     install(TARGETS 2ship LIBRARY DESTINATION . COMPONENT ship)
 endif()
 install(FILES "${CMAKE_BINARY_DIR}/soh/soh.o2r" DESTINATION . COMPONENT ship)
+# 2ship.o2r is MM's port-asset archive (fonts, port textures, overlays) —
+# like soh.o2r it cannot be generated from a ROM by the shipped extractor,
+# so the package must bundle it. The upstream-parity rule in
+# games/mm/CMakeLists.txt only fires when NOT SINGLE_EXECUTABLE_BUILD.
+install(FILES "${CMAKE_BINARY_DIR}/mm/2ship.o2r" DESTINATION . COMPONENT ship)
 # Install extractor assets to usr/bin/assets/ so they are relative to the executable.
 # linuxdeploy places the executable at usr/bin/, and GetAppBundlePath() returns that path.
 # The extraction code looks for assets at GetAppBundlePath() + "/assets".
@@ -325,6 +330,11 @@ install(TARGETS ZAPD_MM RUNTIME DESTINATION ./assets/extractor COMPONENT ship)
 # and the rule above at line ~300 is Linux-only — without this line the
 # Windows package has no .o2r at all (issue #334).
 install(FILES "${CMAKE_BINARY_DIR}/soh/soh.o2r" DESTINATION . COMPONENT ship)
+# Same for MM's port-asset archive: without this line the Windows package
+# ships no 2ship.o2r (the games/mm/CMakeLists.txt rule is gated on
+# NOT SINGLE_EXECUTABLE_BUILD and its component is never packaged), and MM
+# boots into null-resource crashes on a user machine.
+install(FILES "${CMAKE_BINARY_DIR}/mm/2ship.o2r" DESTINATION . COMPONENT ship)
 endif()
 
 find_package(Python3 COMPONENTS Interpreter)
@@ -376,6 +386,13 @@ add_custom_target(
     ExtractMMAssets
     COMMAND ${CMAKE_COMMAND} -E rm -f mm.o2r 2ship.o2r
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/OTRExporter/extract_assets.py -z "$<TARGET_FILE:ZAPD_MM>" --non-interactive --xml-root assets/xml --custom-otr-file 2ship.o2r "--custom-assets-path" ${CMAKE_CURRENT_SOURCE_DIR}/games/mm/assets/custom --port-ver "${CMAKE_PROJECT_VERSION}" "${CMAKE_CURRENT_SOURCE_DIR}/OTRExporter/mm.z64"
+    # Land 2ship.o2r where the install rules read it (${CMAKE_BINARY_DIR}/mm/)
+    # and at the source root, mirroring what copy-existing-otrs.cmake does for
+    # soh.o2r. Extraction writes into WORKING_DIRECTORY (games/mm), which
+    # nothing installs from.
+    COMMAND ${CMAKE_COMMAND} -E copy 2ship.o2r ${CMAKE_SOURCE_DIR}
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/mm
+    COMMAND ${CMAKE_COMMAND} -E copy 2ship.o2r ${CMAKE_BINARY_DIR}/mm/
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/games/mm
     COMMENT "Running MM asset extraction..."
     DEPENDS ZAPD_MM
@@ -394,9 +411,18 @@ add_custom_target(
     Generate2ShipOtr
     COMMAND ${CMAKE_COMMAND} -E rm -f 2ship.o2r
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/OTRExporter/extract_assets.py -z "$<TARGET_FILE:ZAPD_MM>" --norom --custom-otr-file 2ship.o2r "--custom-assets-path" ${CMAKE_CURRENT_SOURCE_DIR}/games/mm/assets/custom --port-ver "${CMAKE_PROJECT_VERSION}"
+    # Land 2ship.o2r where the install rules read it (${CMAKE_BINARY_DIR}/mm/)
+    # and at the source root (which CI uploads as the 2ship.o2r artifact),
+    # mirroring what copy-existing-otrs.cmake does for GenerateSohOtr.
+    COMMAND ${CMAKE_COMMAND} -E copy 2ship.o2r ${CMAKE_SOURCE_DIR}
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/mm
+    COMMAND ${CMAKE_COMMAND} -E copy 2ship.o2r ${CMAKE_BINARY_DIR}/mm/
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/games/mm
     COMMENT "Generating 2ship.o2r..."
     DEPENDS ZAPD_MM
+    # No BYPRODUCTS: ExtractMMAssets already declares ${CMAKE_SOURCE_DIR}/2ship.o2r,
+    # and Ninja rejects two rules generating the same file (GenerateSohOtr
+    # follows the same convention for soh.o2r).
 )
 
 if(CMAKE_SYSTEM_NAME MATCHES "Linux")
