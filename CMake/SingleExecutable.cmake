@@ -179,6 +179,17 @@ if(MSVC)
     set_target_properties(redship PROPERTIES
         MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>"
     )
+    # 8 MB stack reserve (upstream SoH's value), all configs. The randomizer
+    # table-builder functions (InitLocationTable, RegisterPotLocations, ...)
+    # are too large for MSVC to optimize (C4883), so every Location temporary
+    # gets its own stack slot and each function carries a several-hundred-KB
+    # frame. With the MSVC default 1 MB reserve the boot-time rando init
+    # overflows the stack (0xc00000fd). The game targets' own /STACK flags
+    # never reach this link: they sit on STATIC libraries, whose link options
+    # do not propagate to the final executable. Reserve is virtual address
+    # space, not committed memory, and applies to every thread created with
+    # a default stack size.
+    target_link_options(redship PRIVATE /STACK:8777216)
 endif()
 
 if(UNIX AND NOT APPLE)
