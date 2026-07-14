@@ -1,5 +1,5 @@
-#ifndef EXTRACT_H
-#define EXTRACT_H
+#ifndef MM_EXTRACT_H
+#define MM_EXTRACT_H
 
 #include <stdint.h>
 #include <string>
@@ -25,7 +25,10 @@ enum class RomSearchMode {
     MQ = 2,
 };
 
-class Extractor {
+// Named MMExtractor (not Extractor like upstream 2S2H) because single-exe
+// builds also compile OoT's identically-named Extractor class
+// (games/oot/soh/Extractor/Extract.h) and the two would collide at link time.
+class MMExtractor {
     std::unique_ptr<unsigned char[]> mRomData = std::make_unique<unsigned char[]>(MB64);
     std::string mCurrentRomPath;
     std::string mSearchPath;

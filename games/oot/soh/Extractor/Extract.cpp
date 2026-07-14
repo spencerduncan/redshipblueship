@@ -17,9 +17,8 @@
 #include <unistd.h>
 #endif
 
-#if defined(RSBS_SINGLE_EXECUTABLE) && !defined(_WIN32)
-#include <sys/wait.h>
-#include <unistd.h>
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "zapd_subprocess.h"
 #endif
 
 #ifdef _MSC_VER
@@ -147,7 +146,10 @@ int Extractor::ShowRomPickBox(uint32_t verCrc) const {
     std::unique_ptr<char[]> boxBuffer = std::make_unique<char[]>(mCurrentRomPath.size() + 100);
     SDL_MessageBoxData boxData = { 0 };
     SDL_MessageBoxButtonData buttons[3] = { { 0 } };
-    int ret;
+    // Default to "No" so a failed SDL_ShowMessageBox (e.g. headless systems,
+    // where boxes fail silently) reads as declining instead of leaving ret
+    // uninitialized.
+    int ret = 1;
 
     buttons[0].buttonid = 0;
     buttons[0].text = "Yes";
@@ -174,7 +176,8 @@ int Extractor::ShowRomPickBox(uint32_t verCrc) const {
 }
 
 int Extractor::ShowYesNoBox(const char* title, const char* box) {
-    int ret;
+    // Default to "No" on a failed SDL_ShowMessageBox — see ShowRomPickBox.
+    int ret = IDNO;
 #ifdef _WIN32
     ret = MessageBoxA(nullptr, box, title, MB_YESNO | MB_ICONQUESTION);
 #else
@@ -657,74 +660,7 @@ std::string Extractor::Mkdtemp() {
     return tmppath;
 }
 
-#ifdef RSBS_SINGLE_EXECUTABLE
-// Issue #325: in the single exe zapd_main cannot be called in-process. Both
-// ZAPDLib_OoT and ZAPDLib_MM define it (same sources, different GAME_*
-// defines), and the link resolves the reference to the no-op stub that used
-// to live in mm_stubs.c rather than either real library member. Instead,
-// spawn the bundled standalone ZAPD executable as a subprocess — the same
-// way CI's extract_assets.py drives it. The child inherits the process
-// working directory, which CallZapd has already set to the temp extraction
-// dir, so ZAPD's relative paths (assets/..., output o2r) resolve unchanged.
-//
-// Returns the child's exit code, or -1 if the process could not be spawned
-// or terminated abnormally. argv[0] is replaced with exePath.
-static int RunZapdSubprocess(const std::string& exePath, const char* const* argv, int argc) {
-#ifdef _WIN32
-    // CreateProcess takes a single command line; quote each argument. Naive
-    // quoting is sufficient here: the only variable arguments are filesystem
-    // paths (quotes are illegal in Windows paths, and these paths do not end
-    // in a backslash) and a x.y.z version string.
-    std::string cmdLine = "\"" + exePath + "\"";
-    for (int i = 1; i < argc; i++) {
-        cmdLine += " \"";
-        cmdLine += argv[i];
-        cmdLine += "\"";
-    }
-    std::vector<char> mutableCmd(cmdLine.begin(), cmdLine.end());
-    mutableCmd.push_back('\0');
-
-    STARTUPINFOA si = { 0 };
-    si.cb = sizeof(si);
-    PROCESS_INFORMATION pi = { 0 };
-    if (!CreateProcessA(exePath.c_str(), mutableCmd.data(), nullptr, nullptr, FALSE, 0, nullptr, nullptr, &si, &pi)) {
-        fprintf(stderr, "Failed to spawn ZAPD (%s): error %lu\n", exePath.c_str(), GetLastError());
-        return -1;
-    }
-    WaitForSingleObject(pi.hProcess, INFINITE);
-    DWORD exitCode = (DWORD)-1;
-    GetExitCodeProcess(pi.hProcess, &exitCode);
-    CloseHandle(pi.hProcess);
-    CloseHandle(pi.hThread);
-    return (int)exitCode;
-#else
-    pid_t pid = fork();
-    if (pid < 0) {
-        fprintf(stderr, "Failed to fork for ZAPD (%s)\n", exePath.c_str());
-        return -1;
-    }
-    if (pid == 0) {
-        // Child: only async-signal-safe calls between fork and exec.
-        std::vector<char*> childArgv;
-        childArgv.push_back(const_cast<char*>(exePath.c_str()));
-        for (int i = 1; i < argc; i++) {
-            childArgv.push_back(const_cast<char*>(argv[i]));
-        }
-        childArgv.push_back(nullptr);
-        execv(exePath.c_str(), childArgv.data());
-        _exit(127);
-    }
-    int status = 0;
-    if (waitpid(pid, &status, 0) < 0) {
-        return -1;
-    }
-    if (WIFEXITED(status)) {
-        return WEXITSTATUS(status);
-    }
-    return -1;
-#endif
-}
-#else
+#ifndef RSBS_SINGLE_EXECUTABLE
 extern "C" int zapd_main(int argc, char** argv);
 #endif
 
@@ -813,17 +749,18 @@ bool Extractor::CallZapd(std::string installPath, std::string exportdir, std::at
             // until ZAPD is uplifted.
             bool zapdRan = false;
 #ifdef RSBS_SINGLE_EXECUTABLE
-            std::string zapdPath = assetsPath + "/extractor/ZAPD_OoT";
-#ifdef _WIN32
-            zapdPath += ".exe";
-#endif
-            if (!std::filesystem::exists(zapdPath)) {
-                std::string errMsg = "ZAPD extractor executable not found: " + zapdPath +
-                                     "\n\nThis may indicate an incomplete installation.";
+            // Issue #325: in the single exe zapd_main cannot be called
+            // in-process — spawn the bundled standalone ZAPD_OoT instead
+            // (shared driver in src/common/zapd_subprocess.cpp, which also
+            // handles ZAPDTR's ZAPD_OoT.out output name on Linux/macOS).
+            std::string zapdPath = ZapdSubprocess_Locate(assetsPath, "ZAPD_OoT");
+            if (zapdPath.empty()) {
+                std::string errMsg = "ZAPD extractor executable not found under: " + assetsPath +
+                                     "/extractor\n\nThis may indicate an incomplete installation.";
                 fprintf(stderr, "%s\n", errMsg.c_str());
                 ShowErrorBox("Extraction Failed", errMsg.c_str());
             } else {
-                int zapdRet = RunZapdSubprocess(zapdPath, argv.data(), argc);
+                int zapdRet = ZapdSubprocess_Run(zapdPath, argv.data(), argc);
                 if (zapdRet != 0) {
                     fprintf(stderr, "ZAPD exited with code %d\n", zapdRet);
                     std::string errMsg = "ZAPD extraction failed (exit code " + std::to_string(zapdRet) +

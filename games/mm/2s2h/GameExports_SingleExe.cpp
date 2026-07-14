@@ -20,6 +20,7 @@
 #ifdef RSBS_SINGLE_EXECUTABLE
 
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <cassert>
 #include <filesystem>
@@ -43,6 +44,7 @@
 #include "2s2h/resource/importer/TextMMFactory.h"
 #include "2s2h/resource/importer/TextureAnimationFactory.h"
 #include "2s2h/resource/importer/KeyFrameFactory.h"
+#include "Extractor/Extract.h"
 
 // From main.c headers
 extern "C" {
@@ -112,6 +114,12 @@ extern "C" {
 // an OoT-first boot gets, minus the OoT ROM-extraction prompt. No-op if the
 // bring-up already happened.
 extern "C" void InitOTRForMMFirstBoot(int argc, char* argv[]);
+
+// LUS app-directory key for MM. Must match the appName in
+// src/common/archive_check.cpp's MM spec: the extraction flow exports
+// mm.o2r to this app directory, which is the first location the archive
+// availability checks probe.
+static const char kMmAppName[] = "2s2h";
 
 // Track if MM has been initialized (for re-entry after game switch)
 static bool sMMInitialized = false;
@@ -356,12 +364,11 @@ static int LoadMMArchives() {
     }
     auto archiveMgr = ctx->GetResourceManager()->GetArchiveManager();
 
-    const std::string mmAppName = "2s2h";
     int loaded = 0;
 
     // Try mm.o2r (primary), then .zip/.otr fallbacks
     for (const char* ext : {"mm.o2r", "mm.zip", "mm.otr"}) {
-        std::string path = Ship::Context::LocateFileAcrossAppDirs(ext, mmAppName);
+        std::string path = Ship::Context::LocateFileAcrossAppDirs(ext, kMmAppName);
         if (!path.empty() && std::filesystem::exists(path)) {
             if (archiveMgr->AddArchive(path)) {
                 fprintf(stderr, "[MM] Loaded archive: %s\n", path.c_str());
@@ -676,6 +683,89 @@ const char* MM_Game_GetId(void) {
 }
 
 } // extern "C"
+
+// ============================================================================
+// In-app mm.o2r generation for the start prompt (issue #317)
+// ============================================================================
+
+/**
+ * Offer to generate mm.o2r from the user's own Majora's Mask ROM.
+ *
+ * Called by the harness (rsbs/src/main.cpp) when Majora's Mask is selected at
+ * the start prompt but no MM game archive exists. Runs before any game init or
+ * window creation, so the UI is parentless SDL message boxes plus a native
+ * file dialog — the same pre-window flow standalone 2Ship drives from InitOTR
+ * (2s2h/BenPort.cpp). ROMs are searched for next to the executable (next to
+ * the .AppImage file on AppImage runs); the archive is exported to MM's app
+ * directory, the first location the archive checks probe
+ * (src/common/archive_check.cpp). The harness re-checks archive presence
+ * after this returns — success is "mm.o2r now exists", not a return value.
+ */
+extern "C" void MM_Extract_OfferAndRun(void) {
+#if defined(__SWITCH__) || defined(__WIIU__)
+    // No extractor on console platforms (games/mm/CMakeLists.txt globs the
+    // Extractor sources out there) — consoles bring their own archives.
+    return;
+#else
+    const std::string installPath = Ship::Context::GetAppBundlePath();
+    const std::string exportDir = Ship::Context::GetAppDirectoryPath(kMmAppName);
+
+    if (!std::filesystem::exists(installPath + "/assets")) {
+        MMExtractor::ShowErrorBox(
+            "Extractor assets not found",
+            "No Majora's Mask O2R file found, and the assets folder needed to generate one is missing.\n\n"
+            "In-app generation needs a packaged RedShipBlueShip install (an assets/ folder next to the executable).");
+        return;
+    }
+
+    if (MMExtractor::ShowYesNoBox("No Majora's Mask O2R file",
+                                  "No Majora's Mask game archive (mm.o2r) was found.\n\n"
+                                  "Generate one from your Majora's Mask ROM now?") != IDYES) {
+        return;
+    }
+
+    // ROMs are searched for next to the executable — except on AppImage runs,
+    // where the bundle path is a transient read-only mount: there the user's
+    // ROM sits next to the .AppImage file itself.
+    std::string romSearchDir = installPath;
+    const char* appImagePath = getenv("APPIMAGE");
+    if (appImagePath != nullptr && appImagePath[0] != '\0') {
+        std::filesystem::path appImageDir = std::filesystem::path(appImagePath).parent_path();
+        std::error_code aec;
+        if (!appImageDir.empty() && std::filesystem::is_directory(appImageDir, aec)) {
+            romSearchDir = appImageDir.string();
+        }
+    }
+
+    // GetAppDirectoryPath can name a directory that does not exist yet (e.g.
+    // ~/.local/share/2s2h on a first boot); CallZapd's final copy needs it.
+    std::error_code ec;
+    std::filesystem::create_directories(exportDir, ec);
+
+    // The extractor drives throwing std::filesystem overloads (file probes,
+    // reads); nothing above this frame catches, so keep exceptions from
+    // escaping the pre-window flow.
+    try {
+        MMExtractor extract;
+        if (!extract.Run(romSearchDir)) {
+            MMExtractor::ShowErrorBox("Error", "An error occurred, no O2R file was generated.");
+            return;
+        }
+        if (!extract.CallZapd(installPath, exportDir)) {
+            // CallZapd reports its own errors via message boxes.
+            return;
+        }
+    } catch (const std::exception& e) {
+        fprintf(stderr, "[MM] Extraction failed: %s\n", e.what());
+        fflush(stderr);
+        MMExtractor::ShowErrorBox("Extraction Failed", e.what());
+        return;
+    }
+
+    fprintf(stderr, "[MM] mm.o2r generated into %s\n", exportDir.c_str());
+    fflush(stderr);
+#endif
+}
 
 // ============================================================================
 // GameOps registration
