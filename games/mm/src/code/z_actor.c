@@ -5,6 +5,7 @@
 
 #include "z64actor.h"
 #include "z64door.h"
+#include <stdio.h> // [MM-DIAG] temporary: pinpoint the MM Actor_InitContext boot crash
 
 #include "prevent_bss_reordering.h"
 #include "fault.h"
@@ -2637,11 +2638,24 @@ void Actor_InitContext(PlayState* play, ActorContext* actorCtx, ActorEntry* acto
 
     actorCtx->absoluteSpace = NULL;
 
+    fprintf(stderr, "[MM-DIAG] Actor_InitContext: pre-SpawnEntry actorEntry=%p id=0x%04X\n", (void*)actorEntry,
+            actorEntry != NULL ? (actorEntry->id & 0xFFFF) : 0xFFFF);
+    fflush(stderr);
     MM_Actor_SpawnEntry(actorCtx, actorEntry, play);
+    fprintf(stderr, "[MM-DIAG] Actor_InitContext: post-SpawnEntry player=%p\n",
+            (void*)actorCtx->actorLists[ACTORCAT_PLAYER].first);
+    fflush(stderr);
     Attention_Init(&actorCtx->attention, actorCtx->actorLists[ACTORCAT_PLAYER].first, play);
+    fprintf(stderr, "[MM-DIAG] Actor_InitContext: post-Attention_Init\n");
+    fflush(stderr);
     Actor_InitHalfDaysBit(actorCtx);
     // MM_Fault_AddClient(&sActorFaultClient, (void*)Actor_PrintLists, actorCtx, NULL);
+    fprintf(stderr, "[MM-DIAG] Actor_InitContext: pre-SpawnHorse player=%p\n",
+            (void*)actorCtx->actorLists[ACTORCAT_PLAYER].first);
+    fflush(stderr);
     Player_SpawnHorse(play, (Player*)actorCtx->actorLists[ACTORCAT_PLAYER].first);
+    fprintf(stderr, "[MM-DIAG] Actor_InitContext: COMPLETE\n");
+    fflush(stderr);
 }
 
 /**
