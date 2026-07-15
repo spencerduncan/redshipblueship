@@ -490,6 +490,11 @@ s32 MM_OTRScene_ExecuteCommands(PlayState* play, S2H::Scene* scene) {
     S2H::SceneCommandID cmdId;
     shouldEndSceneCommands = false;
 
+    // [MM-DIAG] Trace scene-command execution to locate the Clock Tower boot crash.
+    fprintf(stderr, "[MM-DIAG] ExecuteCommands scene=%p sceneId=%d cmdCount=%zu\n", (void*)scene, play->sceneId,
+            (size_t)scene->commands.size());
+    fflush(stderr);
+
     for (int i = 0; i < scene->commands.size(); i++) {
         auto sceneCmd = scene->commands[i];
         cmdId = sceneCmd->cmdId;
@@ -507,15 +512,24 @@ s32 MM_OTRScene_ExecuteCommands(PlayState* play, S2H::Scene* scene) {
         }
 
         if (cmdId < S2H::SceneCommandID::SetCutscenesMM) {
+            fprintf(stderr, "[MM-DIAG]   cmd[%d] id=%d curSpawn=%d setupEntranceList=%p\n", i, (int)cmdId,
+                    play->curSpawn, (void*)play->setupEntranceList);
+            fflush(stderr);
             sSceneCmdHandlersOTR[(int)cmdId](play, sceneCmd.get());
         }
     }
+    fprintf(stderr, "[MM-DIAG] ExecuteCommands DONE\n");
+    fflush(stderr);
     return 0;
 }
 
 extern "C" s32 MM_OTRfunc_8009728C(PlayState* play, RoomContext* roomCtx, s32 roomNum) {
 
     u32 size;
+
+    fprintf(stderr, "[MM-DIAG] RoomLoad(8009728C) roomNum=%d roomList.count=%d romFiles=%p status=%d\n", roomNum,
+            play->roomList.count, (void*)play->roomList.romFiles, roomCtx->status);
+    fflush(stderr);
 
     if (roomCtx->status == 0) {
         roomCtx->prevRoom = roomCtx->curRoom;

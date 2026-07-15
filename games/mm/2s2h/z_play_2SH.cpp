@@ -34,11 +34,18 @@ extern "C" void MM_OTRPlay_InitScene(PlayState* play, s32 spawn) {
     Room_Init(play, &play->roomCtx);
     gSaveContext.worldMapArea = 0;
     MM_OTRScene_ExecuteCommands(play, (S2H::Scene*)play->sceneSegment);
+    fprintf(stderr, "[MM-DIAG] InitScene: ExecuteCommands returned, calling InitEnvironment skyboxId=%d\n",
+            play->skyboxId);
+    fflush(stderr);
     MM_Play_InitEnvironment(play, play->skyboxId);
+    fprintf(stderr, "[MM-DIAG] InitScene: InitEnvironment done\n");
+    fflush(stderr);
 }
 
 extern "C" void MM_OTRPlay_SpawnScene(PlayState* play, s32 sceneId, s32 spawn) {
     s32 pad;
+    fprintf(stderr, "[MM-DIAG] SpawnScene ENTER sceneId=%d spawn=%d\n", sceneId, spawn);
+    fflush(stderr);
     SceneTableEntry* scene = &MM_gSceneTable[sceneId];
 
     scene->unk_D = 0;
@@ -57,8 +64,14 @@ extern "C" void MM_OTRPlay_SpawnScene(PlayState* play, s32 sceneId, s32 spawn) {
     }
     scene->unk_D = 0;
     MM_gSegments[2] = (uintptr_t)play->sceneSegment;
+    fprintf(stderr, "[MM-DIAG] SpawnScene: scene loaded seg=%p, calling InitScene\n", (void*)play->sceneSegment);
+    fflush(stderr);
     MM_OTRPlay_InitScene(play, spawn);
+    fprintf(stderr, "[MM-DIAG] SpawnScene: InitScene done, calling Room_SetupFirstRoom\n");
+    fflush(stderr);
     Room_SetupFirstRoom(play, &play->roomCtx);
+    fprintf(stderr, "[MM-DIAG] SpawnScene: Room_SetupFirstRoom done, SpawnScene RETURN\n");
+    fflush(stderr);
 }
 
 extern "C" s32 MM_OTRfunc_800973FC(PlayState* play, RoomContext* roomCtx) {
@@ -69,9 +82,18 @@ extern "C" s32 MM_OTRfunc_800973FC(PlayState* play, RoomContext* roomCtx) {
             roomCtx->curRoom.segment = roomCtx->roomRequestAddr;
             MM_gSegments[3] = (uintptr_t)roomCtx->roomRequestAddr;
 
+            fprintf(stderr, "[MM-DIAG] RoomCmds(800973FC): room seg=%p, ExecuteCommands\n",
+                    (void*)roomCtx->curRoom.segment);
+            fflush(stderr);
             MM_OTRScene_ExecuteCommands(play, (S2H::Scene*)roomCtx->curRoom.segment);
+            fprintf(stderr, "[MM-DIAG] RoomCmds: player=%p, calling func_80123140\n", (void*)GET_PLAYER(play));
+            fflush(stderr);
             func_80123140(play, GET_PLAYER(play));
+            fprintf(stderr, "[MM-DIAG] RoomCmds: func_80123140 done, SpawnTransitionActors\n");
+            fflush(stderr);
             MM_Actor_SpawnTransitionActors(play, &play->actorCtx);
+            fprintf(stderr, "[MM-DIAG] RoomCmds: SpawnTransitionActors done\n");
+            fflush(stderr);
             if (((play->sceneId != SCENE_IKANA) || (roomCtx->curRoom.num != 1)) && (play->sceneId != SCENE_IKNINSIDE)) {
                 play->envCtx.lightSettingOverride = LIGHT_SETTING_OVERRIDE_NONE;
                 play->envCtx.lightBlendOverride = LIGHT_BLEND_OVERRIDE_NONE;
