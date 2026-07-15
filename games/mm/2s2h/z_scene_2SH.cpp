@@ -374,15 +374,25 @@ void Scene_CommandAltHeaderList(PlayState* play, S2H::ISceneCommand* cmd) {
     S2H::SetAlternateHeaders* headers = (S2H::SetAlternateHeaders*)cmd;
 
     if (gSaveContext.sceneLayer != 0) {
-        S2H::Scene* desiredHeader =
-            std::static_pointer_cast<S2H::Scene>(headers->headers[gSaveContext.sceneLayer - 1]).get();
+        size_t headerIndex = (size_t)gSaveContext.sceneLayer - 1;
 
-        if (desiredHeader != nullptr) {
-            MM_OTRScene_ExecuteCommands(play, desiredHeader);
-            // 2S2H [Port] The original source would grab the next command after the alternate header list
-            // and change the command id to SCENE_CMD_ID_END. We can't modify LUS resources, so we'll just
-            // set a flag to end the scene commands
-            shouldEndSceneCommands = true;
+        // Guard against a sceneLayer that exceeds this scene's alternate-header
+        // count. On N64 the vanilla header array is NULL-padded, so an out-of-range
+        // layer simply reads a NULL slot and falls through to the base header. Here
+        // headers->headers is sized to the real count, so an out-of-bounds index is
+        // undefined behavior (garbage shared_ptr -> access violation). Treat an
+        // out-of-range layer as "no alternate header," matching the NULL-slot path.
+        if (headerIndex < headers->headers.size()) {
+            S2H::Scene* desiredHeader =
+                std::static_pointer_cast<S2H::Scene>(headers->headers[headerIndex]).get();
+
+            if (desiredHeader != nullptr) {
+                MM_OTRScene_ExecuteCommands(play, desiredHeader);
+                // 2S2H [Port] The original source would grab the next command after the alternate header list
+                // and change the command id to SCENE_CMD_ID_END. We can't modify LUS resources, so we'll just
+                // set a flag to end the scene commands
+                shouldEndSceneCommands = true;
+            }
         }
     }
 }
