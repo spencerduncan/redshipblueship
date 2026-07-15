@@ -53,6 +53,7 @@ extern uint16_t Combo_CheckEntranceSwitch(uint16_t entranceIndex);
 extern bool Combo_IsCrossGameSwitch(void);
 extern uint16_t Combo_GetStartupEntrance(void);
 extern void Combo_ClearStartupEntrance(void);
+extern uint16_t Combo_GetStartupEntranceForGame(const char* gameId);
 
 s32 MM_gDbgCamEnabled = false;
 u8 D_801D0D54 = false;
@@ -2241,7 +2242,10 @@ void MM_Play_Init(GameState* thisx) {
 
     // Cross-game combo: Check if we're entering from another game
     {
-        uint16_t startupEntrance = Combo_GetStartupEntrance();
+        // Only consume an entrance tagged for MM. A value tagged for OoT that
+        // leaked into the shared startup global stays invisible here, so MM
+        // won't spawn from an OoT entrance id (symmetric with OoT's guard).
+        uint16_t startupEntrance = Combo_GetStartupEntranceForGame("mm");
         if (startupEntrance != 0) {
             gSaveContext.save.entrance = startupEntrance;
             // On a first MM entry this Play_Init is reached through MM's

@@ -860,9 +860,13 @@ void MM_Game_Resume(void) {
         // return entrance recorded when we last froze MM. Use the explicit
         // Has accessor because entrance 0x0000 is a valid id and treating it
         // as "unset" would silently drop a legitimate restore.
-        bool hasStartup = Combo_HasStartupEntrance();
+        // Query the MM-scoped accessor: an OoT-tagged value that leaked into
+        // the shared startup global stays invisible to MM, so we fall back to
+        // MM's frozen return entrance instead of spawning from an OoT id
+        // (symmetric with OoT_Game_Resume).
+        bool hasStartup = Combo_HasStartupEntranceForGame("mm");
         uint16_t targetEntrance = hasStartup
-            ? Combo_GetStartupEntrance()
+            ? Combo_GetStartupEntranceForGame("mm")
             : Context_GetFrozenReturnEntrance(GAME_MM);
         gSaveContext.save.entrance = targetEntrance;
         fprintf(stderr, "[MM] Resume entrance: 0x%04X (startup=%u)\n",
