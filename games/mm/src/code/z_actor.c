@@ -1285,6 +1285,21 @@ void MM_Actor_Init(Actor* actor, PlayState* play) {
     if (MM_Object_IsLoaded(&play->objectCtx, actor->objectSlot)) {
         MM_Actor_SetObjectDependency(play, actor);
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // (#344 pattern) MM's GameInteractor enhancement layer is excluded in
+        // single-exe builds, so these unprefixed GameInteractor_* calls bind to
+        // OoT's implementation and would run OoT's actor hooks against an MM
+        // actor (different Actor layout; actor ids alias). OoT's
+        // GameInteractor_ShouldActorInit casts the pointer to OoT's Actor and
+        // dispatches by id, which faults on the first MM spawn (the player).
+        // Init the actor directly, without the cross-game hooks.
+        fprintf(stderr, "[MM-DIAG] MM_Actor_Init: id=0x%04X pre-init (GI hooks skipped)\n", actor->id & 0xFFFF);
+        fflush(stderr);
+        actor->init(actor, play);
+        fprintf(stderr, "[MM-DIAG] MM_Actor_Init: id=0x%04X post-init\n", actor->id & 0xFFFF);
+        fflush(stderr);
+        actor->init = NULL;
+#else
         if (GameInteractor_ShouldActorInit(actor)) {
             actor->init(actor, play);
             actor->init = NULL;
@@ -1293,6 +1308,7 @@ void MM_Actor_Init(Actor* actor, PlayState* play) {
             actor->init = NULL;
             MM_Actor_Kill(actor);
         }
+#endif
     }
 }
 
@@ -2727,6 +2743,12 @@ Actor* Actor_UpdateActor(UpdateActor_Params* params) {
         if (MM_Object_IsLoaded(&play->objectCtx, actor->objectSlot)) {
             MM_Actor_SetObjectDependency(play, actor);
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+            // (#344 pattern) Skip the OoT-bound GameInteractor hooks in
+            // single-exe — see MM_Actor_Init above. Init the actor directly.
+            actor->init(actor, play);
+            actor->init = NULL;
+#else
             if (GameInteractor_ShouldActorInit(actor)) {
                 actor->init(actor, play);
                 actor->init = NULL;
@@ -2735,6 +2757,7 @@ Actor* Actor_UpdateActor(UpdateActor_Params* params) {
                 actor->init = NULL;
                 MM_Actor_Kill(actor);
             }
+#endif
         }
         nextActor = actor->next;
     } else if (actor->update == NULL) {
