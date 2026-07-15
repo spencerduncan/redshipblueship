@@ -160,7 +160,7 @@ extern "C" int MM_SceneExecute_RunHeadless(void) {
     play->setupActorList = reinterpret_cast<ActorEntry*>((uintptr_t)0xDEAD0002);
     play->roomList.romFiles = reinterpret_cast<RomFile*>((uintptr_t)0xDEAD0003);
     play->linkActorEntry = reinterpret_cast<ActorEntry*>((uintptr_t)0xDEAD0004);
-    play->numSetupActors = 0x7FFFFFFF;
+    play->numSetupActors = (s16)0x7EEE;  // numSetupActors is s16 — keep the poison in range
     play->roomList.count = 0x7F;
     play->actorCtx.halfDaysBit = 0x7F;
     play->roomCtx.curRoom.type = 0x7F;
@@ -201,6 +201,13 @@ extern "C" int MM_SceneExecute_RunHeadless(void) {
     }
 
     // (3) RoomList handler (0x04): count <- numRooms (0), romFiles <- rooms.data().
+    // Weaker than the Entrance/Actor checks: numRooms is 0 (a non-zero count
+    // would make the factory ReadString a room filename, whose wire encoding we
+    // keep out of this fixture, and would head toward the room-load path). With
+    // an empty rooms vector data() is typically null, so this mainly proves the
+    // handler RAN (poison 0xDEAD0003 cleared) and used GetPointer(); it does not
+    // discriminate a mis-sourced null. The pointer-bearing handlers below carry
+    // the strong pointer-identity checks.
     if (play->roomList.count != 0) {
         printf("[TEST] FAIL: roomList.count = %d, expected 0\n", (int)play->roomList.count);
         return 1;
