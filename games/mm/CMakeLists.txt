@@ -239,10 +239,19 @@ if(SINGLE_EXECUTABLE_BUILD)
     # Save Manager
     list(FILTER ship__ EXCLUDE REGEX "2s2h/SaveManager/.*\\.cpp$")
 
-    # Resource importers and types — exclude files that overlap with OoT,
-    # but KEEP MM-only resource types and factories (issue #159):
-    #   importer: PathFactory, TextMMFactory, TextureAnimationFactory, KeyFrameFactory
-    #   type:     Path, TextMM, TextureAnimation, KeyFrame
+    # Resource importers and types. MM's resource layer lives in namespace S2H
+    # (renamed from upstream's SOH for issue #344), so nothing here collides
+    # with OoT at link time anymore. What stays excluded is dead code in
+    # single-exe mode: formats that are byte-identical between the games and
+    # parsed by OoT's registered factories (Animation, Array, Audio*,
+    # Background, PlayerAnimation, Skeleton*, CollisionHeader).
+    # COMPILED for the MM scene loader (issue #344): SceneFactory,
+    # CutsceneFactory (MM's cutscene wire format is NOT compatible with
+    # OoT's — the 'Cutscene' loader slot is dispatched per archive, see
+    # GameExports_SingleExe.cpp), all scenecommand importers/types, Scene,
+    # and the CollisionHeader/Cutscene TYPE classes (cast targets of the
+    # scenecommand layer). Also kept per issue #159: PathFactory/
+    # TextMMFactory/TextureAnimationFactory/KeyFrameFactory and their types.
     list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/importer/AnimationFactory\\.cpp$")
     list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/importer/ArrayFactory\\.cpp$")
     list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/importer/AudioSampleFactory\\.cpp$")
@@ -250,25 +259,18 @@ if(SINGLE_EXECUTABLE_BUILD)
     list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/importer/AudioSoundFontFactory\\.cpp$")
     list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/importer/BackgroundFactory\\.cpp$")
     list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/importer/CollisionHeaderFactory\\.cpp$")
-    list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/importer/CutsceneFactory\\.cpp$")
     list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/importer/PlayerAnimationFactory\\.cpp$")
-    list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/importer/SceneFactory\\.cpp$")
     list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/importer/SkeletonFactory\\.cpp$")
     list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/importer/SkeletonLimbFactory\\.cpp$")
-    list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/importer/scenecommand/.*\\.cpp$")
     list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/type/Animation\\.cpp$")
     list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/type/Array\\.cpp$")
     list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/type/AudioSample\\.cpp$")
     list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/type/AudioSequence\\.cpp$")
     list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/type/AudioSoundFont\\.cpp$")
     list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/type/Background\\.cpp$")
-    list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/type/CollisionHeader\\.cpp$")
-    list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/type/Cutscene\\.cpp$")
     list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/type/PlayerAnimation\\.cpp$")
-    list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/type/Scene\\.cpp$")
     list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/type/Skeleton\\.cpp$")
     list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/type/SkeletonLimb\\.cpp$")
-    list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/type/scenecommand/.*\\.cpp$")
 
     # Extractor: Extract.cpp is compiled (in-app mm.o2r generation, #317) —
     # its class is named MMExtractor so it can coexist with OoT's Extractor,
@@ -278,10 +280,10 @@ if(SINGLE_EXECUTABLE_BUILD)
     # identical soh/Extractor/FastCrc32C.c already provides.
     list(FILTER ship__Extractor EXCLUDE REGEX "2s2h/Extractor/.*\\.c$")
 
-    # OTR-specific scene/play files
-    list(FILTER ship__ EXCLUDE REGEX "2s2h/z_message_OTR\\.cpp$")
-    list(FILTER ship__ EXCLUDE REGEX "2s2h/z_play_2SH\\.cpp$")
-    list(FILTER ship__ EXCLUDE REGEX "2s2h/z_scene_2SH\\.cpp$")
+    # OTR-specific scene/play/message glue (z_play_2SH.cpp, z_scene_2SH.cpp,
+    # z_message_OTR.cpp) is COMPILED as of issue #344 — MM's scene loader,
+    # room loader, and message tables. Their entry points carry MM_ prefixes
+    # (MM_OTRPlay_SpawnScene etc.) so they cannot alias OoT's OTR glue.
 
     # Ship init
     list(FILTER ship__ EXCLUDE REGEX "2s2h/ShipInit\\.cpp$")

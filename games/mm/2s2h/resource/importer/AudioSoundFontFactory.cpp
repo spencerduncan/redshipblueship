@@ -7,7 +7,7 @@
 #include <ship/resource/archive/Archive.h>
 #include <tinyxml2.h>
 
-namespace SOH {
+namespace S2H {
 std::shared_ptr<Ship::IResource>
 ResourceFactoryBinaryAudioSoundFontV2::ReadResource(std::shared_ptr<Ship::File> file,
                                                     std::shared_ptr<Ship::ResourceInitData> initData) {
@@ -309,7 +309,7 @@ void ResourceFactoryXMLSoundFontV0::ParseInstruments(AudioSoundFont* soundFont, 
             instrument->lowNotesSound.tuning = instrumentElement->FloatAttribute("Tuning");
             const char* sampleStr = instrumentElement->Attribute("SampleRef");
             if (sampleStr != nullptr && sampleStr[0] != 0) {
-                std::shared_ptr<SOH::AudioSample> res = static_pointer_cast<SOH::AudioSample>(
+                std::shared_ptr<S2H::AudioSample> res = static_pointer_cast<S2H::AudioSample>(
                     Ship::Context::GetInstance()->GetResourceManager()->LoadResourceProcess(sampleStr));
                 if (res->tuning != -1.0f) {
                     instrument->lowNotesSound.tuning = res->tuning;
@@ -323,7 +323,7 @@ void ResourceFactoryXMLSoundFontV0::ParseInstruments(AudioSoundFont* soundFont, 
             instrument->normalNotesSound.tuning = instrumentElement->FloatAttribute("Tuning");
             const char* sampleStr = instrumentElement->Attribute("SampleRef");
             if (sampleStr != nullptr && sampleStr[0] != 0) {
-                std::shared_ptr<SOH::AudioSample> res = static_pointer_cast<SOH::AudioSample>(
+                std::shared_ptr<S2H::AudioSample> res = static_pointer_cast<S2H::AudioSample>(
                     Ship::Context::GetInstance()->GetResourceManager()->LoadResourceProcess(sampleStr));
                 if (res->tuning != -1.0f) {
                     instrument->normalNotesSound.tuning = res->tuning;
@@ -337,7 +337,7 @@ void ResourceFactoryXMLSoundFontV0::ParseInstruments(AudioSoundFont* soundFont, 
             instrument->highNotesSound.tuning = instrumentElement->FloatAttribute("Tuning");
             const char* sampleStr = instrumentElement->Attribute("SampleRef");
             if (sampleStr != nullptr && sampleStr[0] != 0) {
-                std::shared_ptr<SOH::AudioSample> res = static_pointer_cast<SOH::AudioSample>(
+                std::shared_ptr<S2H::AudioSample> res = static_pointer_cast<S2H::AudioSample>(
                     Ship::Context::GetInstance()->GetResourceManager()->LoadResourceProcess(sampleStr));
                 if (res->tuning != -1.0f) {
                     instrument->highNotesSound.tuning = res->tuning;
@@ -377,7 +377,7 @@ void ResourceFactoryXMLSoundFontV0::ParseSfxTable(AudioSoundFont* soundFont, tin
 
         sound.tuning = element->FloatAttribute("Tuning");
         if (sampleStr[0] != 0) {
-            auto res = static_pointer_cast<SOH::AudioSample>(
+            auto res = static_pointer_cast<S2H::AudioSample>(
                 Ship::Context::GetInstance()->GetResourceManager()->LoadResourceProcess(sampleStr));
             if (res->tuning != -1.0f) {
                 sound.tuning = res->tuning;
@@ -396,7 +396,7 @@ void ResourceFactoryXMLSoundFontV0::ParseSfxTable(AudioSoundFont* soundFont, tin
     soundFont->soundFont.numSfx = soundFont->soundEffects.size();
 }
 
-std::vector<AdsrEnvelope> SOH::ResourceFactoryXMLSoundFontV0::ParseEnvelopes(AudioSoundFont* soundFont,
+std::vector<AdsrEnvelope> S2H::ResourceFactoryXMLSoundFontV0::ParseEnvelopes(AudioSoundFont* soundFont,
                                                                              tinyxml2::XMLElement* element,
                                                                              unsigned int* count) {
     std::vector<AdsrEnvelope> envelopes;
@@ -471,4 +471,4 @@ ResourceFactoryXMLSoundFontV0::ReadResource(std::shared_ptr<Ship::File> file,
     return audioSoundFont;
 }
 
-} // namespace SOH
+} // namespace S2H

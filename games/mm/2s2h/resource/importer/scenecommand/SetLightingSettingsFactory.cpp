@@ -1,7 +1,7 @@
 #include "2s2h/resource/importer/scenecommand/SetLightingSettingsFactory.h"
 #include "2s2h/resource/type/scenecommand/SetLightingSettings.h"
 
-namespace SOH {
+namespace S2H {
 std::shared_ptr<Ship::IResource>
 SetLightingSettingsFactory::ReadResource(std::shared_ptr<Ship::ResourceInitData> initData,
                                          std::shared_ptr<Ship::BinaryReader> reader) {
@@ -45,4 +45,4 @@ SetLightingSettingsFactory::ReadResource(std::shared_ptr<Ship::ResourceInitData>
 
     return setLightingSettings;
 }
-} // namespace SOH
+} // namespace S2H

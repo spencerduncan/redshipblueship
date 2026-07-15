@@ -2,7 +2,7 @@
 
 #include "SceneCommand.h"
 
-namespace SOH {
+namespace S2H {
 typedef struct {
 
 } Marker;
@@ -16,4 +16,4 @@ class EndMarker : public SceneCommand<Marker> {
 
     Marker endMarker;
 };
-}; // namespace SOH
+}; // namespace S2H

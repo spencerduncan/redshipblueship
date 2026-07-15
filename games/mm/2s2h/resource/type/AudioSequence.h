@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <ship/resource/Resource.h>
 
-namespace SOH {
+namespace S2H {
 
 typedef struct {
     char* seqData;
@@ -28,4 +28,4 @@ class AudioSequence : public Ship::Resource<Sequence> {
 
     Sequence sequence;
 };
-}; // namespace SOH
+}; // namespace S2H

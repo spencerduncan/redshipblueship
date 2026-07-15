@@ -3,7 +3,7 @@
 #include <ship/Context.h>
 #include <ship/resource/ResourceManager.h>
 
-namespace SOH {
+namespace S2H {
 std::shared_ptr<Ship::IResource> SetPathwaysMMFactory::ReadResource(std::shared_ptr<Ship::ResourceInitData> initData,
                                                                     std::shared_ptr<Ship::BinaryReader> reader) {
     auto setPathways = std::make_shared<SetPathwaysMM>(initData);
@@ -20,4 +20,4 @@ std::shared_ptr<Ship::IResource> SetPathwaysMMFactory::ReadResource(std::shared_
     }
     return setPathways;
 }
-} // namespace SOH
+} // namespace S2H

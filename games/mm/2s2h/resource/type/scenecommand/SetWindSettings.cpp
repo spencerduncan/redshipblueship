@@ -1,6 +1,6 @@
 #include "SetWindSettings.h"
 
-namespace SOH {
+namespace S2H {
 WindSettings* SetWindSettings::GetPointer() {
     return &settings;
 }
@@ -8,4 +8,4 @@ WindSettings* SetWindSettings::GetPointer() {
 size_t SetWindSettings::GetPointerSize() {
     return sizeof(WindSettings);
 }
-} // namespace SOH
+} // namespace S2H

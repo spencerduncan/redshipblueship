@@ -1,7 +1,7 @@
 #include "2s2h/resource/importer/scenecommand/SetWindSettingsFactory.h"
 #include "2s2h/resource/type/scenecommand/SetWindSettings.h"
 
-namespace SOH {
+namespace S2H {
 std::shared_ptr<Ship::IResource> SetWindSettingsFactory::ReadResource(std::shared_ptr<Ship::ResourceInitData> initData,
                                                                       std::shared_ptr<Ship::BinaryReader> reader) {
     auto setWind = std::make_shared<SetWindSettings>(initData);
@@ -16,4 +16,4 @@ std::shared_ptr<Ship::IResource> SetWindSettingsFactory::ReadResource(std::share
     return setWind;
 }
 
-} // namespace SOH
+} // namespace S2H

@@ -44,6 +44,11 @@
 #include "2s2h/resource/importer/TextMMFactory.h"
 #include "2s2h/resource/importer/TextureAnimationFactory.h"
 #include "2s2h/resource/importer/KeyFrameFactory.h"
+#include "2s2h/resource/importer/SceneFactory.h"
+#include "2s2h/resource/importer/CutsceneFactory.h"
+#include <ship/resource/ResourceFactory.h>
+#include <vector>
+#include <algorithm>
 #include "Extractor/Extract.h"
 
 // From main.c headers
@@ -115,6 +120,17 @@ extern "C" {
 // bring-up already happened.
 extern "C" void InitOTRForMMFirstBoot(int argc, char* argv[]);
 
+// OoT's binary "Room" (scene) and "Cutscene" factory creators, defined in
+// games/oot/soh/OTRGlobals.cpp — the dispatcher below needs OoT's parsers but
+// cannot include OoT's factory headers from an MM translation unit (#344).
+std::shared_ptr<Ship::ResourceFactory> OoT_CreateSceneFactory();
+std::shared_ptr<Ship::ResourceFactory> OoT_CreateCutsceneFactory();
+
+// MM's message-table loader (games/mm/2s2h/z_message_OTR.cpp) — populates
+// sMessageTableNES/sMessageTableCredits from mm.o2r. Without it, the first
+// scene title card after a scene load dereferences NULL message tables (#344).
+extern "C" void MM_OTRMessage_Init(void);
+
 // LUS app-directory key for MM. Must match the appName in
 // src/common/archive_check.cpp's MM spec: the extraction flow exports
 // mm.o2r to this app directory, which is the first location the archive
@@ -125,13 +141,98 @@ static const char kMmAppName[] = "2s2h";
 static bool sMMInitialized = false;
 static bool sMMArchivesLoaded = false;
 
-// Integration test hook frame counters (reset each time hooks are registered)
-static int sConsoleLogoFrameCount = 0;
+// On-disk paths of the archives LoadMMArchives() registered with the shared
+// ArchiveManager. The Room factory dispatcher uses this to decide whether a
+// scene/room file came from an MM archive and must be parsed with MM's scene
+// command set (#344). Never cleared: archives stay in the ArchiveManager for
+// the process lifetime even across MM_Game_Shutdown.
+static std::vector<std::string> sMMArchivePaths;
+
+static void RecordMMArchivePath(const std::string& path) {
+    if (std::find(sMMArchivePaths.begin(), sMMArchivePaths.end(), path) == sMMArchivePaths.end()) {
+        sMMArchivePaths.push_back(path);
+    }
+}
+
+static bool IsMMArchivePath(const std::string& path) {
+    return std::find(sMMArchivePaths.begin(), sMMArchivePaths.end(), path) != sMMArchivePaths.end();
+}
+
+// Integration test hook frame counter (reset each time hooks are registered)
 static int sGameStateMainFrameCount = 0;
+
+// (#344) Frames the per-test OnGameStateMainStart hook has run without the
+// scene-load predicate holding, and frames it has held. Reset per registration.
+static int sSceneLoadWaitFrames = 0;
+static int sSceneLoadStableFrames = 0;
+
+// (#344) In-band watchdog: fail the test with diagnostics if the scene never
+// finishes loading. Frame-rate dependent, so this is a best-effort early-out;
+// the CTest 120s timeout remains the hard backstop.
+static const int kSceneLoadWatchdogFrames = 1800;
 
 // ============================================================================
 // Integration Test Hooks
 // ============================================================================
+
+/**
+ * (#344) True once MM has COMPLETED a scene load: a Play state exists, the
+ * spawn-list scene command populated linkActorEntry (the pointer that stayed
+ * NULL when MM's scene loader was unported), the player actor spawned (the
+ * former crash site, MM_Actor_SpawnEntry), and the first room's commands ran.
+ */
+static bool MM_SceneLoadComplete(void) {
+    // Both games' frame loops fire the same shared OnGameStateMainStart hook
+    // storage, so MM-registered test hooks also run during OoT frames — and
+    // MM's suspended PlayState stays non-NULL across a switch away. Only
+    // count MM's own frames (#344).
+    if (Context_GetCurrentGame() != GAME_MM) {
+        return false;
+    }
+    PlayState* play = MM_gPlayState;
+    if (play == NULL) {
+        return false;
+    }
+    if (play->linkActorEntry == NULL) {
+        return false;
+    }
+    if (play->actorCtx.actorLists[ACTORCAT_PLAYER].first == NULL) {
+        return false;
+    }
+    if (play->roomCtx.curRoom.segment == NULL) {
+        return false;
+    }
+    return true;
+}
+
+/**
+ * (#344) Watchdog helper shared by the MM-side test hooks: logs why the scene
+ * load predicate is failing and requests a failing exit. Returns true once the
+ * watchdog has fired so callers can stop doing per-frame work.
+ */
+static bool MM_SceneLoadWatchdogExpired(const char* testName) {
+    // MM-registered hooks also fire during OoT frames (shared hook storage);
+    // only MM's own frames count against the watchdog budget.
+    if (Context_GetCurrentGame() != GAME_MM) {
+        return false;
+    }
+    sSceneLoadWaitFrames++;
+    if (sSceneLoadWaitFrames != kSceneLoadWatchdogFrames) {
+        return sSceneLoadWaitFrames > kSceneLoadWatchdogFrames;
+    }
+
+    PlayState* play = MM_gPlayState;
+    fprintf(stderr,
+            "[MM-INT-TEST] FAIL (%s): no completed scene load after %d frames "
+            "(gPlayState=%p linkActorEntry=%p player=%p roomSegment=%p)\n",
+            testName, sSceneLoadWaitFrames, (void*)play, play ? (void*)play->linkActorEntry : (void*)0,
+            play ? (void*)play->actorCtx.actorLists[ACTORCAT_PLAYER].first : (void*)0,
+            play ? (void*)play->roomCtx.curRoom.segment : (void*)0);
+    fflush(stderr);
+    IntegrationTest_RequestExit();
+    Combo_RequestGameSwitch();
+    return true;
+}
 
 /**
  * Register integration test hooks for MM.
@@ -149,31 +250,29 @@ static void MM_RegisterIntegrationTestHooks(void) {
         fflush(stderr);
 
         // Reset frame counters for fresh registration
-        sConsoleLogoFrameCount = 0;
-        sGameStateMainFrameCount = 0;
+        sSceneLoadWaitFrames = 0;
+        sSceneLoadStableFrames = 0;
 
-        // Register hook for console logo update (early boot detection)
-        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnConsoleLogoUpdate>(
-            []() {
-                sConsoleLogoFrameCount++;
-                // Wait a few frames to ensure stable boot
-                if (sConsoleLogoFrameCount >= 5) {
-                    fprintf(stderr, "[MM-INT-TEST] OnConsoleLogoUpdate hook fired (frame %d)!\n", sConsoleLogoFrameCount);
-                    fflush(stderr);
-                    IntegrationTest_SignalBootComplete(GAME_MM, "console logo update");
-                }
-            }
-        );
-
-        // Register hook for game state main start (alternative detection)
+        // (#344) PASS requires a COMPLETED scene load, not early-boot frames.
+        // The old criteria (console-logo frames / 10 OnGameStateMainStart
+        // firings) passed while MM was still on the console logo, ~5s before
+        // the title-demo Play state crashed in MM_Actor_SpawnEntry. (The
+        // OnConsoleLogoUpdate hook was dead anyway: MM's executor is excluded
+        // in single-exe builds and the call resolves to a no-op stub.)
         GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>(
             []() {
-                sGameStateMainFrameCount++;
-                // Wait a few frames to ensure stable boot
-                if (sGameStateMainFrameCount >= 10) {
-                    fprintf(stderr, "[MM-INT-TEST] OnGameStateMainStart hook fired (frame %d)!\n", sGameStateMainFrameCount);
+                if (!MM_SceneLoadComplete()) {
+                    sSceneLoadStableFrames = 0;
+                    MM_SceneLoadWatchdogExpired("int-boot-mm");
+                    return;
+                }
+                sSceneLoadStableFrames++;
+                if (sSceneLoadStableFrames == 10) {
+                    fprintf(stderr,
+                            "[MM-INT-TEST] scene load complete and stable (sceneId=0x%X entrance=0x%04X); PASS\n",
+                            MM_gPlayState->sceneId, gSaveContext.save.entrance);
                     fflush(stderr);
-                    IntegrationTest_SignalBootComplete(GAME_MM, "game state main start");
+                    IntegrationTest_SignalBootComplete(GAME_MM, "MM scene load complete");
                 }
             }
         );
@@ -188,18 +287,34 @@ static void MM_RegisterIntegrationTestHooks(void) {
         fprintf(stderr, "[MM] Registering integration test hooks for HMS->MM switch completion (T1)\n");
         fflush(stderr);
 
-        sConsoleLogoFrameCount = 0;
-        sGameStateMainFrameCount = 0;
+        sSceneLoadWaitFrames = 0;
+        sSceneLoadStableFrames = 0;
 
+        // (#344) PASS requires MM to complete the Clock Tower Interior scene
+        // load the entrance link asked for (0xC010), not just tick frames.
         GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>(
             []() {
-                sGameStateMainFrameCount++;
-                if (sGameStateMainFrameCount >= 10) {
+                if (!MM_SceneLoadComplete() || MM_gPlayState->sceneId != SCENE_INSIDETOWER) {
+                    static bool sWrongSceneLogged = false;
+                    sSceneLoadStableFrames = 0;
+                    if (!sWrongSceneLogged && MM_SceneLoadComplete()) {
+                        sWrongSceneLogged = true;
+                        fprintf(stderr,
+                                "[MM-INT-TEST] scene loaded but sceneId=0x%X != SCENE_INSIDETOWER; waiting\n",
+                                MM_gPlayState->sceneId);
+                        fflush(stderr);
+                    }
+                    MM_SceneLoadWatchdogExpired("int-switch-oot-hms-to-mm");
+                    return;
+                }
+                sSceneLoadStableFrames++;
+                if (sSceneLoadStableFrames == 10) {
                     fprintf(stderr,
-                            "[MM-INT-TEST] MM stable after HMS->MM switch (frame %d)\n",
-                            sGameStateMainFrameCount);
+                            "[MM-INT-TEST] Clock Tower Interior scene load complete after HMS->MM switch "
+                            "(entrance=0x%04X); PASS\n",
+                            gSaveContext.save.entrance);
                     fflush(stderr);
-                    IntegrationTest_SignalBootComplete(GAME_MM, "MM stable after HMS->MM switch");
+                    IntegrationTest_SignalBootComplete(GAME_MM, "MM scene load complete after HMS->MM switch");
                 }
             }
         );
@@ -210,14 +325,15 @@ static void MM_RegisterIntegrationTestHooks(void) {
         // T2 (#261): Boot MM, programmatically trigger the South Clock Town
         // south exit, assert the cross-game switch resolves to OoT Market.
         // Mirror of T1: MM is the trigger side here, OoT is the receiver.
-        // MM has no OnPresentFileSelect analog, so we wait N stable frames in
-        // OnGameStateMainStart and then fire the trigger once. Final pass is
-        // signaled from the OoT-side hook after OoT stabilizes post-switch.
+        // MM has no OnPresentFileSelect analog, so we wait for a completed
+        // scene load (#344) plus a few stable frames in OnGameStateMainStart
+        // and then fire the trigger once. Final pass is signaled from the
+        // OoT-side hook after OoT stabilizes post-switch.
         fprintf(stderr, "[MM] Registering integration test hooks for SCT-south->OoT switch (T2)\n");
         fflush(stderr);
 
-        sConsoleLogoFrameCount = 0;
-        sGameStateMainFrameCount = 0;
+        sSceneLoadWaitFrames = 0;
+        sSceneLoadStableFrames = 0;
 
         GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>(
             []() {
@@ -225,8 +341,13 @@ static void MM_RegisterIntegrationTestHooks(void) {
                 if (sTriggered) {
                     return;
                 }
-                sGameStateMainFrameCount++;
-                if (sGameStateMainFrameCount < 10) {
+                if (!MM_SceneLoadComplete()) {
+                    sSceneLoadStableFrames = 0;
+                    MM_SceneLoadWatchdogExpired("int-switch-mm-clocktown-south-to-oot");
+                    return;
+                }
+                sSceneLoadStableFrames++;
+                if (sSceneLoadStableFrames < 10) {
                     return;
                 }
                 sTriggered = true;
@@ -296,18 +417,28 @@ static void MM_RegisterIntegrationTestHooks(void) {
         fprintf(stderr, "[MM] Registering integration test hooks for archive-hotswap cycle (T4)\n");
         fflush(stderr);
 
-        sConsoleLogoFrameCount = 0;
         sGameStateMainFrameCount = 0;
+        sSceneLoadWaitFrames = 0;
+        sSceneLoadStableFrames = 0;
 
         GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>(
             []() {
                 // Fire once per arrival, ~10 stable frames after (re)entry, then
                 // re-arm for the next MM arrival (reached via MM_Game_Resume).
+                // (#344) Frames only count while a completed scene load is live,
+                // so every arrival of the cycle proves real MM gameplay state,
+                // not just early-boot frames.
+                if (!MM_SceneLoadComplete()) {
+                    sGameStateMainFrameCount = 0;
+                    MM_SceneLoadWatchdogExpired("int-archive-hotswap-cycle");
+                    return;
+                }
                 sGameStateMainFrameCount++;
                 if (sGameStateMainFrameCount < 10) {
                     return;
                 }
                 sGameStateMainFrameCount = 0;
+                sSceneLoadWaitFrames = 0;
 
                 int n = ArchiveHotswap_RecordArrival();
                 fprintf(stderr, "[MM-INT-TEST] MM stable; archive-hotswap arrival #%d of %d\n",
@@ -372,6 +503,7 @@ static int LoadMMArchives() {
         if (!path.empty() && std::filesystem::exists(path)) {
             if (archiveMgr->AddArchive(path)) {
                 fprintf(stderr, "[MM] Loaded archive: %s\n", path.c_str());
+                RecordMMArchivePath(path);
                 loaded++;
             }
             break;  // Only load one mm archive
@@ -383,6 +515,7 @@ static int LoadMMArchives() {
     if (!shipPath.empty() && std::filesystem::exists(shipPath)) {
         if (archiveMgr->AddArchive(shipPath)) {
             fprintf(stderr, "[MM] Loaded archive: %s\n", shipPath.c_str());
+            RecordMMArchivePath(shipPath);
             loaded++;
         }
     }
@@ -397,33 +530,98 @@ static int LoadMMArchives() {
 }
 
 /**
+ * Per-archive factory dispatcher for loader slots both games claim (#344).
+ *
+ * Both games stamp scenes/rooms as (BINARY, 'OROM', version 0) and cutscenes
+ * as (BINARY, 'OCUT', version 0) in the OTR header, so the shared
+ * ResourceLoader has exactly one slot for each — but the wire formats are
+ * game-specific (scene commands: MM's SetRoomBehavior is 6 bytes vs OoT's 5,
+ * MM-only opcodes 0x1A-0x1F, opcode 0x19 means camera-settings in OoT vs
+ * world-map-visited in MM; cutscenes: entirely different command systems).
+ * A dispatcher owns each slot and routes by source archive: files served
+ * from an archive that LoadMMArchives() registered are parsed with MM's
+ * S2H factory, everything else with OoT's. The archive lookup uses the
+ * same ArchiveManager map that served the file bytes, so recursive loads
+ * (e.g. alternate scene headers, per-scene cutscene files) dispatch
+ * consistently by construction. Known limitation: MM assets shipped in
+ * OTHER archives (user mod .o2rs) route to OoT's parser — MM mod support
+ * in single-exe builds is a follow-up.
+ */
+class RsbsMMArchiveFactoryDispatcher final : public Ship::ResourceFactoryBinary {
+  public:
+    RsbsMMArchiveFactoryDispatcher(std::shared_ptr<Ship::ResourceFactory> ootFactory,
+                                   std::shared_ptr<Ship::ResourceFactory> mmFactory)
+        : mOoTFactory(ootFactory), mMMFactory(mmFactory) {
+    }
+
+    std::shared_ptr<Ship::IResource> ReadResource(std::shared_ptr<Ship::File> file,
+                                                  std::shared_ptr<Ship::ResourceInitData> initData) override {
+        // Alt assets ("alt/<path>" from texture packs) replace a base asset;
+        // the game whose asset is being replaced determines the parser, so
+        // dispatch on the archive owning the canonical path.
+        std::string path = initData->Path;
+        if (path.rfind(Ship::IResource::gAltAssetPrefix, 0) == 0) {
+            path = path.substr(Ship::IResource::gAltAssetPrefix.size());
+        }
+        auto resourceMgr = Ship::Context::GetInstance()->GetResourceManager();
+        auto archiveMgr = resourceMgr != nullptr ? resourceMgr->GetArchiveManager() : nullptr;
+        auto archive = archiveMgr != nullptr ? archiveMgr->GetArchiveFromFile(path) : nullptr;
+        if (archive != nullptr && IsMMArchivePath(archive->GetPath())) {
+            return mMMFactory->ReadResource(file, initData);
+        }
+        return mOoTFactory->ReadResource(file, initData);
+    }
+
+  private:
+    std::shared_ptr<Ship::ResourceFactory> mOoTFactory;
+    std::shared_ptr<Ship::ResourceFactory> mMMFactory;
+};
+
+/**
  * Register MM-only resource factories into the shared ResourceLoader.
  * OoT already registered shared types (Animation, Skeleton, etc.).
  * MM needs its own factories for Path (overwrites OoT's — MM paths have
- * extra fields), TextMM, TextureAnimation, and KeyFrame types.
+ * extra fields), TextMM, TextureAnimation, and KeyFrame types, plus the
+ * archive-dispatching Room factory (#344).
  */
 static void RegisterMMResourceFactories() {
     auto loader = Ship::Context::GetInstance()->GetResourceManager()->GetResourceLoader();
 
     // Path — overwrites OoT's PathV0 because MM paths have additional fields
-    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryBinaryPathMMV0>(), RESOURCE_FORMAT_BINARY,
-                                    "Path", static_cast<uint32_t>(SOH::ResourceType::SOH_Path), 0,
+    loader->RegisterResourceFactory(std::make_shared<S2H::ResourceFactoryBinaryPathMMV0>(), RESOURCE_FORMAT_BINARY,
+                                    "Path", static_cast<uint32_t>(S2H::ResourceType::SOH_Path), 0,
                                     /*allowOverwrite=*/true);
 
+    // Room (scene) and Cutscene — replace OoT's registrations with per-archive
+    // dispatchers so MM assets parse with MM's wire formats (#344). Idempotent:
+    // re-running just installs equivalent dispatchers. Registration happens
+    // before any MM scene load (MM_Game_Init runs it ahead of the graph
+    // thread), so no load can race the overwrite.
+    loader->RegisterResourceFactory(
+        std::make_shared<RsbsMMArchiveFactoryDispatcher>(OoT_CreateSceneFactory(),
+                                                         std::make_shared<S2H::ResourceFactoryBinarySceneV0>()),
+        RESOURCE_FORMAT_BINARY, "Room", static_cast<uint32_t>(S2H::ResourceType::SOH_Room), 0,
+        /*allowOverwrite=*/true);
+    loader->RegisterResourceFactory(
+        std::make_shared<RsbsMMArchiveFactoryDispatcher>(OoT_CreateCutsceneFactory(),
+                                                         std::make_shared<S2H::ResourceFactoryBinaryCutsceneV0>()),
+        RESOURCE_FORMAT_BINARY, "Cutscene", static_cast<uint32_t>(S2H::ResourceType::SOH_Cutscene), 0,
+        /*allowOverwrite=*/true);
+
     // TextMM — MM-only text format
-    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryBinaryTextMMV0>(), RESOURCE_FORMAT_BINARY,
-                                    "TextMM", static_cast<uint32_t>(SOH::ResourceType::TSH_TextMM), 0);
+    loader->RegisterResourceFactory(std::make_shared<S2H::ResourceFactoryBinaryTextMMV0>(), RESOURCE_FORMAT_BINARY,
+                                    "TextMM", static_cast<uint32_t>(S2H::ResourceType::TSH_TextMM), 0);
 
     // TextureAnimation — MM-only
-    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryBinaryTextureAnimationV0>(),
+    loader->RegisterResourceFactory(std::make_shared<S2H::ResourceFactoryBinaryTextureAnimationV0>(),
                                     RESOURCE_FORMAT_BINARY, "TextureAnimation",
-                                    static_cast<uint32_t>(SOH::ResourceType::TSH_TexAnim), 0);
+                                    static_cast<uint32_t>(S2H::ResourceType::TSH_TexAnim), 0);
 
     // KeyFrame animation and skeleton — MM-only
-    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryBinaryKeyFrameAnim>(), RESOURCE_FORMAT_BINARY,
-                                    "KeyFrameAnim", static_cast<uint32_t>(SOH::ResourceType::TSH_CKeyFrameAnim), 0);
-    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryBinaryKeyFrameSkel>(), RESOURCE_FORMAT_BINARY,
-                                    "KeyFrameSkel", static_cast<uint32_t>(SOH::ResourceType::TSH_CKeyFrameSkel), 0);
+    loader->RegisterResourceFactory(std::make_shared<S2H::ResourceFactoryBinaryKeyFrameAnim>(), RESOURCE_FORMAT_BINARY,
+                                    "KeyFrameAnim", static_cast<uint32_t>(S2H::ResourceType::TSH_CKeyFrameAnim), 0);
+    loader->RegisterResourceFactory(std::make_shared<S2H::ResourceFactoryBinaryKeyFrameSkel>(), RESOURCE_FORMAT_BINARY,
+                                    "KeyFrameSkel", static_cast<uint32_t>(S2H::ResourceType::TSH_CKeyFrameSkel), 0);
 
     fprintf(stderr, "[MM] Registered MM resource factories\n");
 }
@@ -506,6 +704,11 @@ int MM_Game_Init(int argc, char** argv) {
 
     // Register MM-only resource factories (issue #159).
     RegisterMMResourceFactories();
+
+    // Populate MM's message tables from the archives (#344). Must run after
+    // LoadMMArchives + RegisterMMResourceFactories (needs the TextMM factory).
+    // Idempotent — re-entry after a game switch keeps the existing tables.
+    MM_OTRMessage_Init();
 
     fprintf(stderr, "[MM] Allocating heaps...\n");
     fflush(stderr);
@@ -680,6 +883,25 @@ const char* MM_Game_GetName(void) {
 
 const char* MM_Game_GetId(void) {
     return "mm";
+}
+
+/**
+ * Room-load hook executors for MM's scene loader (#344).
+ *
+ * z_scene_2SH.cpp (MM_OTRfunc_8009728C) and z_play_2SH.cpp
+ * (MM_OTRfunc_800973FC) call these; the real executors live in MM's
+ * GameInteractor.cpp, which is excluded in single-exe builds. OnRoomInit and
+ * AfterRoomSceneCommands are MM-only hook types (no OoT counterpart, so no
+ * signature clash in the merged hook storage), and ExecuteHooks only touches
+ * the per-hook-type inline-static maps — safe to run against the shared
+ * GameInteractor instance that OoT's port layer owns.
+ */
+void GameInteractor_ExecuteOnRoomInit(s16 sceneId, s8 roomNum) {
+    GameInteractor::Instance->ExecuteHooks<GameInteractor::OnRoomInit>(sceneId, roomNum);
+}
+
+void GameInteractor_ExecuteAfterRoomSceneCommands(s16 sceneId, s8 roomNum) {
+    GameInteractor::Instance->ExecuteHooks<GameInteractor::AfterRoomSceneCommands>(sceneId, roomNum);
 }
 
 } // extern "C"

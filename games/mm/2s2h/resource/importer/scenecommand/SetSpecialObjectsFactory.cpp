@@ -1,7 +1,7 @@
 #include "2s2h/resource/importer/scenecommand/SetSpecialObjectsFactory.h"
 #include "2s2h/resource/type/scenecommand/SetSpecialObjects.h"
 
-namespace SOH {
+namespace S2H {
 std::shared_ptr<Ship::IResource>
 SetSpecialObjectsFactory::ReadResource(std::shared_ptr<Ship::ResourceInitData> initData,
                                        std::shared_ptr<Ship::BinaryReader> reader) {
@@ -14,4 +14,4 @@ SetSpecialObjectsFactory::ReadResource(std::shared_ptr<Ship::ResourceInitData> i
 
     return setSpecialObjects;
 }
-} // namespace SOH
+} // namespace S2H

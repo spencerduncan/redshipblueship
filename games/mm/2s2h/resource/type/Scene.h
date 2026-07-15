@@ -4,7 +4,7 @@
 #include <ship/resource/Resource.h>
 #include "scenecommand/SceneCommand.h"
 
-namespace SOH {
+namespace S2H {
 
 class Scene : public Ship::Resource<void> {
   public:
@@ -18,4 +18,4 @@ class Scene : public Ship::Resource<void> {
 
     std::vector<std::shared_ptr<ISceneCommand>> commands;
 };
-}; // namespace SOH
+}; // namespace S2H

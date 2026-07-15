@@ -1,7 +1,7 @@
 #include "2s2h/resource/importer/scenecommand/SetMinimapListFactory.h"
 #include "2s2h/resource/type/scenecommand/SetMinimapList.h"
 
-namespace SOH {
+namespace S2H {
 std::shared_ptr<Ship::IResource> SetMinimapListFactory::ReadResource(std::shared_ptr<Ship::ResourceInitData> initData,
                                                                      std::shared_ptr<Ship::BinaryReader> reader) {
     auto mapList = std::make_shared<SetMinimapList>(initData);
@@ -26,4 +26,4 @@ std::shared_ptr<Ship::IResource> SetMinimapListFactory::ReadResource(std::shared
 
     return mapList;
 }
-} // namespace SOH
+} // namespace S2H

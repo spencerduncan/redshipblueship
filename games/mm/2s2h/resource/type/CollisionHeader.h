@@ -6,7 +6,7 @@
 #include <libultraship/libultra.h>
 #include "z64math.h"
 
-namespace SOH {
+namespace S2H {
 
 typedef struct {
     /* 0x00 */ u16 type;
@@ -95,4 +95,4 @@ class CollisionHeader : public Ship::Resource<CollisionHeaderData> {
 
     std::vector<WaterBox> waterBoxes;
 };
-}; // namespace SOH
+}; // namespace S2H

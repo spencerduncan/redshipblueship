@@ -2,7 +2,7 @@
 
 #include <ship/resource/Resource.h>
 
-namespace SOH {
+namespace S2H {
 class Background : public Ship::Resource<uint8_t> {
   public:
     using Resource::Resource;
@@ -15,4 +15,4 @@ class Background : public Ship::Resource<uint8_t> {
 
     std::vector<uint8_t> Data;
 };
-}; // namespace SOH
+}; // namespace S2H

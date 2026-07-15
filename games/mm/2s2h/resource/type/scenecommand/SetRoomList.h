@@ -6,7 +6,7 @@
 #include "SceneCommand.h"
 #include "RomFile.h"
 
-namespace SOH {
+namespace S2H {
 class SetRoomList : public SceneCommand<RomFile> {
   public:
     using SceneCommand::SceneCommand;
@@ -19,4 +19,4 @@ class SetRoomList : public SceneCommand<RomFile> {
     std::vector<std::string> fileNames;
     std::vector<RomFile> rooms;
 };
-}; // namespace SOH
+}; // namespace S2H

@@ -26,7 +26,7 @@ static void* MM_ResourceGetDataByName(const char* path) {
 }
 
 extern "C" char* ResourceMgr_LoadVtxArrayByName(const char* path) {
-    auto res = std::static_pointer_cast<SOH::Array>(MM_GetResourceByName(path));
+    auto res = std::static_pointer_cast<S2H::Array>(MM_GetResourceByName(path));
     if (res == nullptr) {
         return nullptr;
     }
@@ -34,7 +34,7 @@ extern "C" char* ResourceMgr_LoadVtxArrayByName(const char* path) {
 }
 
 extern "C" size_t ResourceMgr_GetVtxArraySizeByName(const char* path) {
-    auto res = std::static_pointer_cast<SOH::Array>(MM_GetResourceByName(path));
+    auto res = std::static_pointer_cast<S2H::Array>(MM_GetResourceByName(path));
     if (res == nullptr) {
         return 0;
     }
@@ -42,7 +42,7 @@ extern "C" size_t ResourceMgr_GetVtxArraySizeByName(const char* path) {
 }
 
 extern "C" u8* ResourceMgr_LoadArrayByNameAsU8(const char* path, u8* buffer) {
-    auto res = std::static_pointer_cast<SOH::Array>(MM_GetResourceByName(path));
+    auto res = std::static_pointer_cast<S2H::Array>(MM_GetResourceByName(path));
     if (res == nullptr) {
         return nullptr;
     }

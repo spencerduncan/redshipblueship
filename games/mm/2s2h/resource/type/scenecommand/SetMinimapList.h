@@ -3,7 +3,7 @@
 #include "SceneCommand.h"
 #include <libultraship/libultra/types.h>
 
-namespace SOH {
+namespace S2H {
 typedef struct {
     /* 0x00 */ u16 mapId;
     /* 0x02 */ s16 unk2;
@@ -27,4 +27,4 @@ class SetMinimapList : public SceneCommand<MinimapListData> {
     std::vector<MinimapEntryData> entries;
 };
 
-} // namespace SOH
+} // namespace S2H

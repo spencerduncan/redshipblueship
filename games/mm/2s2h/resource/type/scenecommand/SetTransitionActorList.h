@@ -5,7 +5,7 @@
 #include "SceneCommand.h"
 #include "z64math.h"
 
-namespace SOH {
+namespace S2H {
 typedef struct {
     struct {
         s8 room;           // Room to switch to
@@ -27,4 +27,4 @@ class SetTransitionActorList : public SceneCommand<TransitionActorEntry> {
     uint32_t numTransitionActors;
     std::vector<TransitionActorEntry> transitionActorList;
 };
-}; // namespace SOH
+}; // namespace S2H

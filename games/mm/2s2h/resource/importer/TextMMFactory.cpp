@@ -2,7 +2,7 @@
 #include "2s2h/resource/type/TextMM.h"
 #include <tinyxml2.h>
 
-namespace SOH {
+namespace S2H {
 std::shared_ptr<Ship::IResource>
 ResourceFactoryBinaryTextMMV0::ReadResource(std::shared_ptr<Ship::File> file,
                                             std::shared_ptr<Ship::ResourceInitData> initData) {
@@ -70,4 +70,4 @@ ResourceFactoryXMLTextMMV0::ReadResource(std::shared_ptr<Ship::File> file,
 
     return text;
 }
-} // namespace SOH
+} // namespace S2H

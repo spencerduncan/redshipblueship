@@ -1,7 +1,7 @@
 #include "2s2h/resource/importer/scenecommand/SetLightListFactory.h"
 #include "2s2h/resource/type/scenecommand/SetLightList.h"
 
-namespace SOH {
+namespace S2H {
 std::shared_ptr<Ship::IResource> SetLightListFactory::ReadResource(std::shared_ptr<Ship::ResourceInitData> initData,
                                                                    std::shared_ptr<Ship::BinaryReader> reader) {
     auto setLightList = std::make_shared<SetLightList>(initData);
@@ -31,4 +31,4 @@ std::shared_ptr<Ship::IResource> SetLightListFactory::ReadResource(std::shared_p
 
     return setLightList;
 }
-} // namespace SOH
+} // namespace S2H

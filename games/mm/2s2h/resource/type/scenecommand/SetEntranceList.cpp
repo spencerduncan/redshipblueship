@@ -1,6 +1,6 @@
 #include "SetEntranceList.h"
 
-namespace SOH {
+namespace S2H {
 EntranceEntry* SetEntranceList::GetPointer() {
     return entrances.data();
 }
@@ -8,4 +8,4 @@ EntranceEntry* SetEntranceList::GetPointer() {
 size_t SetEntranceList::GetPointerSize() {
     return entrances.size() * sizeof(EntranceEntry);
 }
-} // namespace SOH
+} // namespace S2H

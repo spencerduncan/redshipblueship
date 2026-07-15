@@ -6,7 +6,7 @@ namespace Fast {
 union F3DVtx;
 }
 
-namespace SOH {
+namespace S2H {
 typedef union ScalarData {
     uint8_t u8;
     int8_t s8;
@@ -85,4 +85,4 @@ class Array : public Ship::Resource<void> {
     std::vector<ScalarData> Scalars;
     std::vector<Fast::F3DVtx> Vertices;
 };
-} // namespace SOH
+} // namespace S2H

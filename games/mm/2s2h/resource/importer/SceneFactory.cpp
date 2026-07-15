@@ -34,7 +34,7 @@
 #include "2s2h/resource/importer/scenecommand/SetActorCutsceneListFactory.h"
 #include <spdlog/spdlog.h>
 
-namespace SOH {
+namespace S2H {
 ResourceFactoryBinarySceneV0::ResourceFactoryBinarySceneV0() {
     sceneCommandFactories[SceneCommandID::SetLightingSettings] = std::make_shared<SetLightingSettingsFactory>();
     sceneCommandFactories[SceneCommandID::SetWind] = std::make_shared<SetWindSettingsFactory>();
@@ -121,4 +121,4 @@ ResourceFactoryBinarySceneV0::ReadResource(std::shared_ptr<Ship::File> file,
 
     return scene;
 };
-} // namespace SOH
+} // namespace S2H

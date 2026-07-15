@@ -1,6 +1,6 @@
 #include "SetMinimapList.h"
 
-namespace SOH {
+namespace S2H {
 
 MinimapListData* SetMinimapList::GetPointer() {
     return &list;
@@ -10,4 +10,4 @@ size_t SetMinimapList::GetPointerSize() {
     return sizeof(list);
 }
 
-} // namespace SOH
+} // namespace S2H

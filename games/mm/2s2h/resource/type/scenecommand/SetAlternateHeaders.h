@@ -6,7 +6,7 @@
 #include "SceneCommand.h"
 #include "2s2h/resource/type/Scene.h"
 
-namespace SOH {
+namespace S2H {
 class SetAlternateHeaders : public SceneCommand<void> {
   public:
     using SceneCommand::SceneCommand;
@@ -17,4 +17,4 @@ class SetAlternateHeaders : public SceneCommand<void> {
     uint32_t numHeaders;
     std::vector<std::shared_ptr<Scene>> headers;
 };
-}; // namespace SOH
+}; // namespace S2H

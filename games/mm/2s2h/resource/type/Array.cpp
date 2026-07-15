@@ -1,7 +1,7 @@
 #include "Array.h"
 #include <fast/lus_gbi.h>
 
-namespace SOH {
+namespace S2H {
 Array::Array() : Resource(std::shared_ptr<Ship::ResourceInitData>()) {
 }
 
@@ -43,4 +43,4 @@ size_t Array::GetPointerSize() {
     }
     return ArrayCount * typeSize;
 }
-} // namespace SOH
+} // namespace S2H

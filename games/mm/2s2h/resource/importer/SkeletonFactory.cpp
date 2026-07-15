@@ -5,7 +5,7 @@
 #include <ship/Context.h>
 #include <ship/resource/ResourceManager.h>
 
-namespace SOH {
+namespace S2H {
 std::shared_ptr<Ship::IResource>
 ResourceFactoryBinarySkeletonV0::ReadResource(std::shared_ptr<Ship::File> file,
                                               std::shared_ptr<Ship::ResourceInitData> initData) {
@@ -131,4 +131,4 @@ ResourceFactoryXMLSkeletonV0::ReadResource(std::shared_ptr<Ship::File> file,
 
     return skel;
 }
-} // namespace SOH
+} // namespace S2H

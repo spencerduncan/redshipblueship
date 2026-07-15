@@ -1,6 +1,6 @@
 #include "SetSpecialObjects.h"
 
-namespace SOH {
+namespace S2H {
 SpecialObjects* SetSpecialObjects::GetPointer() {
     return &specialObjects;
 }
@@ -8,4 +8,4 @@ SpecialObjects* SetSpecialObjects::GetPointer() {
 size_t SetSpecialObjects::GetPointerSize() {
     return sizeof(SpecialObjects);
 }
-} // namespace SOH
+} // namespace S2H

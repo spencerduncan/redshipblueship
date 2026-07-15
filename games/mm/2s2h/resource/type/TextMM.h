@@ -5,7 +5,7 @@
 #include <ship/resource/Resource.h>
 #include <libultraship/libultra/types.h>
 
-namespace SOH {
+namespace S2H {
 // TODO: we've moved away from using classes for this stuff
 
 class MessageEntryMM {
@@ -34,4 +34,4 @@ class TextMM : public Ship::Resource<MessageEntryMM> {
 
     std::vector<MessageEntryMM> messages;
 };
-}; // namespace SOH
+}; // namespace S2H

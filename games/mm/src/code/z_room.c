@@ -558,7 +558,7 @@ size_t Room_SetupFirstRoom(PlayState* play, RoomContext* roomCtx) {
     return roomBufferSize;
 }
 
-s32 OTRfunc_8009728C(PlayState* play, RoomContext* roomCtx, s32 roomNum);
+s32 MM_OTRfunc_8009728C(PlayState* play, RoomContext* roomCtx, s32 roomNum);
 
 /**
  * Tries to create an asynchronous request to transfer room data into memory.
@@ -577,7 +577,7 @@ s32 OTRfunc_8009728C(PlayState* play, RoomContext* roomCtx, s32 roomNum);
  * @returns bool false if the request could not be created.
  */
 s32 Room_RequestNewRoom(PlayState* play, RoomContext* roomCtx, s32 index) {
-    return OTRfunc_8009728C(play, roomCtx, index);
+    return MM_OTRfunc_8009728C(play, roomCtx, index);
 #if 0
     if (roomCtx->status == 0) {
         size_t size;
@@ -603,8 +603,8 @@ s32 Room_RequestNewRoom(PlayState* play, RoomContext* roomCtx, s32 index) {
 #endif
 }
 
-void OTRPlay_InitScene(PlayState* play, s32 spawn);
-s32 OTRfunc_800973FC(PlayState* play, RoomContext* roomCtx);
+void MM_OTRPlay_InitScene(PlayState* play, s32 spawn);
+s32 MM_OTRfunc_800973FC(PlayState* play, RoomContext* roomCtx);
 
 /**
  * Completes room initialization for the room requested by a call to Room_RequestNewRoom.
@@ -613,7 +613,7 @@ s32 OTRfunc_800973FC(PlayState* play, RoomContext* roomCtx);
  * @returns bool false if a dma transfer is in progress.
  */
 s32 Room_ProcessRoomRequest(PlayState* play, RoomContext* roomCtx) {
-    return OTRfunc_800973FC(play, roomCtx);
+    return MM_OTRfunc_800973FC(play, roomCtx);
 #if 0
     if (roomCtx->status == 1) {
         if (MM_osRecvMesg(&roomCtx->loadQueue, NULL, OS_MESG_NOBLOCK) == 0) {

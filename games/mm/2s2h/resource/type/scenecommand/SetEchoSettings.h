@@ -4,7 +4,7 @@
 #include <ship/resource/Resource.h>
 #include "SceneCommand.h"
 
-namespace SOH {
+namespace S2H {
 typedef struct {
     int8_t echo;
 } EchoSettings;
@@ -18,4 +18,4 @@ class SetEchoSettings : public SceneCommand<EchoSettings> {
 
     EchoSettings settings;
 };
-}; // namespace SOH
+}; // namespace S2H

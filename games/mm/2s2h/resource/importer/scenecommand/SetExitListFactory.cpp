@@ -1,7 +1,7 @@
 #include "2s2h/resource/importer/scenecommand/SetExitListFactory.h"
 #include "2s2h/resource/type/scenecommand/SetExitList.h"
 
-namespace SOH {
+namespace S2H {
 std::shared_ptr<Ship::IResource> SetExitListFactory::ReadResource(std::shared_ptr<Ship::ResourceInitData> initData,
                                                                   std::shared_ptr<Ship::BinaryReader> reader) {
     auto setExitList = std::make_shared<SetExitList>(initData);
@@ -15,4 +15,4 @@ std::shared_ptr<Ship::IResource> SetExitListFactory::ReadResource(std::shared_pt
     }
     return setExitList;
 }
-} // namespace SOH
+} // namespace S2H

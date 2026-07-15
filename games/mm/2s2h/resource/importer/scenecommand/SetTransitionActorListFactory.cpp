@@ -1,7 +1,7 @@
 #include "2s2h/resource/importer/scenecommand/SetTransitionActorListFactory.h"
 #include "2s2h/resource/type/scenecommand/SetTransitionActorList.h"
 
-namespace SOH {
+namespace S2H {
 std::shared_ptr<Ship::IResource>
 SetTransitionActorListFactory::ReadResource(std::shared_ptr<Ship::ResourceInitData> initData,
                                             std::shared_ptr<Ship::BinaryReader> reader) {
@@ -30,4 +30,4 @@ SetTransitionActorListFactory::ReadResource(std::shared_ptr<Ship::ResourceInitDa
 
     return setTransitionActorList;
 }
-} // namespace SOH
+} // namespace S2H

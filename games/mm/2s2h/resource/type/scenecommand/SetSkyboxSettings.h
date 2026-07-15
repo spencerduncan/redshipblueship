@@ -3,7 +3,7 @@
 #include <cstdint>
 #include "SceneCommand.h"
 
-namespace SOH {
+namespace S2H {
 typedef struct {
     uint8_t unk;
     uint8_t skyboxId;
@@ -20,4 +20,4 @@ class SetSkyboxSettings : public SceneCommand<SkyboxSettings> {
 
     SkyboxSettings settings;
 };
-}; // namespace SOH
+}; // namespace S2H

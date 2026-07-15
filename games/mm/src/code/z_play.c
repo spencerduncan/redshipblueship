@@ -1710,10 +1710,10 @@ void MM_Play_InitEnvironment(PlayState* this, s16 skyboxId) {
     MM_Environment_Init(this, &this->envCtx, 0);
 }
 
-void OTRPlay_InitScene(PlayState* play, s32 spawn);
+void MM_OTRPlay_InitScene(PlayState* play, s32 spawn);
 
 void MM_Play_InitScene(PlayState* this, s32 spawn) {
-    OTRPlay_InitScene(this, spawn);
+    MM_OTRPlay_InitScene(this, spawn);
 #if 0
     this->curSpawn = spawn;
     this->linkActorEntry = NULL;
@@ -1735,10 +1735,10 @@ void MM_Play_InitScene(PlayState* this, s32 spawn) {
 #endif
 }
 
-void OTRPlay_SpawnScene(PlayState* play, s32 sceneId, s32 spawn);
+void MM_OTRPlay_SpawnScene(PlayState* play, s32 sceneId, s32 spawn);
 
 void MM_Play_SpawnScene(PlayState* this, s32 sceneId, s32 spawn) {
-    OTRPlay_SpawnScene(this, sceneId, spawn);
+    MM_OTRPlay_SpawnScene(this, sceneId, spawn);
 #if 0
     s32 pad;
     SceneTableEntry* scene = &MM_gSceneTable[sceneId];
@@ -2519,5 +2519,16 @@ void MM_Play_Init(GameState* thisx) {
 
     sJustClosedBomberNotebook = false;
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // (#344) Don't fire scene-init hooks here in single-exe builds. MM's own
+    // 2-arg executor is excluded, so this unprefixed call would bind to OoT's
+    // 1-arg GameInteractor_ExecuteOnSceneInit and run OoT enhancement hooks
+    // with an MM scene id against OoT's suspended play state. The shared
+    // OnSceneInit hook type also has different signatures in the two games'
+    // headers over merged storage, so an MM-side executor can't safely fire
+    // it either. Integration tests detect completed scene loads via play
+    // state predicates instead (games/mm/2s2h/GameExports_SingleExe.cpp).
+#else
     GameInteractor_ExecuteOnSceneInit(sceneIdAbsolute, spawnNum);
+#endif
 }

@@ -3,7 +3,7 @@
 #include <ship/resource/Resource.h>
 #include <libultraship/libultra/types.h>
 
-namespace SOH {
+namespace S2H {
 
 typedef struct Vec3s {
     s16 x;
@@ -90,4 +90,4 @@ class KeyFrameAnim : public Ship::Resource<KeyFrameAnimationData> {
     KeyFrameAnimationData animData;
 };
 
-} // namespace SOH
+} // namespace S2H

@@ -6,7 +6,7 @@
 #include <libultraship/libultra/types.h>
 #include "z64math.h"
 
-namespace SOH {
+namespace S2H {
 typedef struct {
     /* 0x0 */ u8 count; // Number of points in the path
     /* 0x1 */ u8 additionalPathIndex;
@@ -29,4 +29,4 @@ class PathMM : public Ship::Resource<PathDataMM> {
     std::vector<std::vector<Vec3s>> paths;
 };
 
-}; // namespace SOH
+}; // namespace S2H

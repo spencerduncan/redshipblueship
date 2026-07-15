@@ -5,7 +5,7 @@
 #include <ship/resource/ResourceFactoryXML.h>
 #include "resource/type/AudioSoundFont.h"
 
-namespace SOH {
+namespace S2H {
 class ResourceFactoryBinaryAudioSoundFontV2 : public Ship::ResourceFactoryBinary {
   public:
     std::shared_ptr<Ship::IResource> ReadResource(std::shared_ptr<Ship::File> file,
@@ -27,4 +27,4 @@ class ResourceFactoryXMLSoundFontV0 : public Ship::ResourceFactoryXML {
                                              unsigned int* count);
 };
 
-} // namespace SOH
+} // namespace S2H

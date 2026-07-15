@@ -1,6 +1,6 @@
 #include "AudioSoundFont.h"
 
-namespace SOH {
+namespace S2H {
 
 AudioSoundFont::~AudioSoundFont() {
     for (auto i : instrumentAddresses) {
@@ -25,4 +25,4 @@ SoundFont* AudioSoundFont::GetPointer() {
 size_t AudioSoundFont::GetPointerSize() {
     return sizeof(SoundFont);
 }
-} // namespace SOH
+} // namespace S2H

@@ -3,7 +3,7 @@
 #include <ship/Context.h>
 #include <ship/resource/ResourceManager.h>
 
-namespace SOH {
+namespace S2H {
 std::shared_ptr<Ship::IResource>
 ResourceFactoryBinaryKeyFrameSkel::ReadResource(std::shared_ptr<Ship::File> file,
                                                 std::shared_ptr<Ship::ResourceInitData> initData) {
@@ -111,4 +111,4 @@ ResourceFactoryBinaryKeyFrameAnim::ReadResource(std::shared_ptr<Ship::File> file
 
     return anim;
 }
-} // namespace SOH
+} // namespace S2H

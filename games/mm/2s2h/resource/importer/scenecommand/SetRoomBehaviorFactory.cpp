@@ -1,7 +1,7 @@
 #include "2s2h/resource/importer/scenecommand/SetRoomBehaviorFactory.h"
 #include "2s2h/resource/type/scenecommand/SetRoomBehavior.h"
 
-namespace SOH {
+namespace S2H {
 std::shared_ptr<Ship::IResource>
 SetRoomBehaviorMMFactory::ReadResource(std::shared_ptr<Ship::ResourceInitData> initData,
                                        std::shared_ptr<Ship::BinaryReader> reader) {
@@ -18,4 +18,4 @@ SetRoomBehaviorMMFactory::ReadResource(std::shared_ptr<Ship::ResourceInitData> i
 
     return setRoomBehavior;
 }
-} // namespace SOH
+} // namespace S2H

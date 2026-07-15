@@ -4,7 +4,7 @@
 #include <string>
 #include <ship/resource/Resource.h>
 
-namespace SOH {
+namespace S2H {
 
 class PlayerAnimation : public Ship::Resource<int16_t> {
   public:
@@ -18,4 +18,4 @@ class PlayerAnimation : public Ship::Resource<int16_t> {
 
     std::vector<int16_t> limbRotData;
 };
-} // namespace SOH
+} // namespace S2H

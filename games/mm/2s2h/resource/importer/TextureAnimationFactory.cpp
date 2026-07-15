@@ -3,7 +3,7 @@
 #include "gbi.h"
 #include <spdlog/spdlog.h>
 
-namespace SOH {
+namespace S2H {
 
 std::shared_ptr<Ship::IResource>
 ResourceFactoryBinaryTextureAnimationV0::ReadResource(std::shared_ptr<Ship::File> file,
@@ -145,4 +145,4 @@ ResourceFactoryBinaryTextureAnimationV0::ReadResource(std::shared_ptr<Ship::File
 
     return tAnim;
 }
-} // namespace SOH
+} // namespace S2H

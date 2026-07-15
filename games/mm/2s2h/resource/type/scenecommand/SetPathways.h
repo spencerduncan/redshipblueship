@@ -5,7 +5,7 @@
 #include "SceneCommand.h"
 #include "2s2h/resource/type/Path.h"
 
-namespace SOH {
+namespace S2H {
 class SetPathwaysMM : public SceneCommand<PathDataMM*> {
   public:
     using SceneCommand::SceneCommand;
@@ -17,4 +17,4 @@ class SetPathwaysMM : public SceneCommand<PathDataMM*> {
     std::vector<PathDataMM*> paths;
 };
 
-}; // namespace SOH
+}; // namespace S2H

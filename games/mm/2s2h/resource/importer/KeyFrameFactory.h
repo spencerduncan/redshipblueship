@@ -3,7 +3,7 @@
 #include <ship/resource/Resource.h>
 #include <ship/resource/ResourceFactoryBinary.h>
 
-namespace SOH {
+namespace S2H {
 class ResourceFactoryBinaryKeyFrameSkel : public Ship::ResourceFactoryBinary {
   public:
     std::shared_ptr<Ship::IResource> ReadResource(std::shared_ptr<Ship::File> file,
@@ -16,4 +16,4 @@ class ResourceFactoryBinaryKeyFrameAnim : public Ship::ResourceFactoryBinary {
                                                   std::shared_ptr<Ship::ResourceInitData> initData) override;
 };
 
-}; // namespace SOH
+}; // namespace S2H

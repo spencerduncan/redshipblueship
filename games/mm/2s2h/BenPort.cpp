@@ -307,56 +307,56 @@ OTRGlobals::OTRGlobals() {
                                     "Matrix", static_cast<uint32_t>(Fast::ResourceType::Matrix), 0);
     loader->RegisterResourceFactory(std::make_shared<Ship::ResourceFactoryBinaryBlobV0>(), RESOURCE_FORMAT_BINARY,
                                     "Blob", static_cast<uint32_t>(Ship::ResourceType::Blob), 0);
-    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryBinaryArrayV0>(), RESOURCE_FORMAT_BINARY,
-                                    "Array", static_cast<uint32_t>(SOH::ResourceType::SOH_Array), 0);
-    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryBinaryAnimationV0>(), RESOURCE_FORMAT_BINARY,
-                                    "Animation", static_cast<uint32_t>(SOH::ResourceType::SOH_Animation), 0);
-    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryBinaryPlayerAnimationV0>(),
+    loader->RegisterResourceFactory(std::make_shared<S2H::ResourceFactoryBinaryArrayV0>(), RESOURCE_FORMAT_BINARY,
+                                    "Array", static_cast<uint32_t>(S2H::ResourceType::SOH_Array), 0);
+    loader->RegisterResourceFactory(std::make_shared<S2H::ResourceFactoryBinaryAnimationV0>(), RESOURCE_FORMAT_BINARY,
+                                    "Animation", static_cast<uint32_t>(S2H::ResourceType::SOH_Animation), 0);
+    loader->RegisterResourceFactory(std::make_shared<S2H::ResourceFactoryBinaryPlayerAnimationV0>(),
                                     RESOURCE_FORMAT_BINARY, "PlayerAnimation",
-                                    static_cast<uint32_t>(SOH::ResourceType::SOH_PlayerAnimation), 0);
-    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryBinarySceneV0>(), RESOURCE_FORMAT_BINARY,
-                                    "Room", static_cast<uint32_t>(SOH::ResourceType::SOH_Room), 0);
-    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryBinaryCollisionHeaderV0>(),
+                                    static_cast<uint32_t>(S2H::ResourceType::SOH_PlayerAnimation), 0);
+    loader->RegisterResourceFactory(std::make_shared<S2H::ResourceFactoryBinarySceneV0>(), RESOURCE_FORMAT_BINARY,
+                                    "Room", static_cast<uint32_t>(S2H::ResourceType::SOH_Room), 0);
+    loader->RegisterResourceFactory(std::make_shared<S2H::ResourceFactoryBinaryCollisionHeaderV0>(),
                                     RESOURCE_FORMAT_BINARY, "CollisionHeader",
-                                    static_cast<uint32_t>(SOH::ResourceType::SOH_CollisionHeader), 0);
-    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryBinarySkeletonV0>(), RESOURCE_FORMAT_BINARY,
-                                    "Skeleton", static_cast<uint32_t>(SOH::ResourceType::SOH_Skeleton), 0);
-    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryBinarySkeletonLimbV0>(),
+                                    static_cast<uint32_t>(S2H::ResourceType::SOH_CollisionHeader), 0);
+    loader->RegisterResourceFactory(std::make_shared<S2H::ResourceFactoryBinarySkeletonV0>(), RESOURCE_FORMAT_BINARY,
+                                    "Skeleton", static_cast<uint32_t>(S2H::ResourceType::SOH_Skeleton), 0);
+    loader->RegisterResourceFactory(std::make_shared<S2H::ResourceFactoryBinarySkeletonLimbV0>(),
                                     RESOURCE_FORMAT_BINARY, "SkeletonLimb",
-                                    static_cast<uint32_t>(SOH::ResourceType::SOH_SkeletonLimb), 0);
-    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryBinaryPathMMV0>(), RESOURCE_FORMAT_BINARY,
-                                    "Path", static_cast<uint32_t>(SOH::ResourceType::SOH_Path), 0);
-    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryBinaryCutsceneV0>(), RESOURCE_FORMAT_BINARY,
-                                    "Cutscene", static_cast<uint32_t>(SOH::ResourceType::SOH_Cutscene), 0);
-    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryBinaryTextMMV0>(), RESOURCE_FORMAT_BINARY,
-                                    "TextMM", static_cast<uint32_t>(SOH::ResourceType::TSH_TextMM), 0);
+                                    static_cast<uint32_t>(S2H::ResourceType::SOH_SkeletonLimb), 0);
+    loader->RegisterResourceFactory(std::make_shared<S2H::ResourceFactoryBinaryPathMMV0>(), RESOURCE_FORMAT_BINARY,
+                                    "Path", static_cast<uint32_t>(S2H::ResourceType::SOH_Path), 0);
+    loader->RegisterResourceFactory(std::make_shared<S2H::ResourceFactoryBinaryCutsceneV0>(), RESOURCE_FORMAT_BINARY,
+                                    "Cutscene", static_cast<uint32_t>(S2H::ResourceType::SOH_Cutscene), 0);
+    loader->RegisterResourceFactory(std::make_shared<S2H::ResourceFactoryBinaryTextMMV0>(), RESOURCE_FORMAT_BINARY,
+                                    "TextMM", static_cast<uint32_t>(S2H::ResourceType::TSH_TextMM), 0);
 
-    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryBinaryAudioSampleV2>(), RESOURCE_FORMAT_BINARY,
-                                    "AudioSample", static_cast<uint32_t>(SOH::ResourceType::SOH_AudioSample), 2);
-    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryXMLAudioSampleV0>(), RESOURCE_FORMAT_XML,
-                                    "Sample", static_cast<uint32_t>(SOH::ResourceType::SOH_AudioSample), 0);
+    loader->RegisterResourceFactory(std::make_shared<S2H::ResourceFactoryBinaryAudioSampleV2>(), RESOURCE_FORMAT_BINARY,
+                                    "AudioSample", static_cast<uint32_t>(S2H::ResourceType::SOH_AudioSample), 2);
+    loader->RegisterResourceFactory(std::make_shared<S2H::ResourceFactoryXMLAudioSampleV0>(), RESOURCE_FORMAT_XML,
+                                    "Sample", static_cast<uint32_t>(S2H::ResourceType::SOH_AudioSample), 0);
 
-    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryBinaryAudioSoundFontV2>(),
+    loader->RegisterResourceFactory(std::make_shared<S2H::ResourceFactoryBinaryAudioSoundFontV2>(),
                                     RESOURCE_FORMAT_BINARY, "AudioSoundFont",
-                                    static_cast<uint32_t>(SOH::ResourceType::SOH_AudioSoundFont), 2);
-    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryXMLSoundFontV0>(), RESOURCE_FORMAT_XML,
-                                    "SoundFont", static_cast<uint32_t>(SOH::ResourceType::SOH_AudioSoundFont), 0);
+                                    static_cast<uint32_t>(S2H::ResourceType::SOH_AudioSoundFont), 2);
+    loader->RegisterResourceFactory(std::make_shared<S2H::ResourceFactoryXMLSoundFontV0>(), RESOURCE_FORMAT_XML,
+                                    "SoundFont", static_cast<uint32_t>(S2H::ResourceType::SOH_AudioSoundFont), 0);
 
-    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryBinaryAudioSequenceV2>(),
+    loader->RegisterResourceFactory(std::make_shared<S2H::ResourceFactoryBinaryAudioSequenceV2>(),
                                     RESOURCE_FORMAT_BINARY, "AudioSequence",
-                                    static_cast<uint32_t>(SOH::ResourceType::SOH_AudioSequence), 2);
-    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryXMLAudioSequenceV0>(), RESOURCE_FORMAT_XML,
-                                    "Sequence", static_cast<uint32_t>(SOH::ResourceType::SOH_AudioSequence), 0);
+                                    static_cast<uint32_t>(S2H::ResourceType::SOH_AudioSequence), 2);
+    loader->RegisterResourceFactory(std::make_shared<S2H::ResourceFactoryXMLAudioSequenceV0>(), RESOURCE_FORMAT_XML,
+                                    "Sequence", static_cast<uint32_t>(S2H::ResourceType::SOH_AudioSequence), 0);
 
-    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryBinaryBackgroundV0>(), RESOURCE_FORMAT_BINARY,
-                                    "Background", static_cast<uint32_t>(SOH::ResourceType::SOH_Background), 0);
-    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryBinaryTextureAnimationV0>(),
+    loader->RegisterResourceFactory(std::make_shared<S2H::ResourceFactoryBinaryBackgroundV0>(), RESOURCE_FORMAT_BINARY,
+                                    "Background", static_cast<uint32_t>(S2H::ResourceType::SOH_Background), 0);
+    loader->RegisterResourceFactory(std::make_shared<S2H::ResourceFactoryBinaryTextureAnimationV0>(),
                                     RESOURCE_FORMAT_BINARY, "TextureAnimation",
-                                    static_cast<uint32_t>(SOH::ResourceType::TSH_TexAnim), 0);
-    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryBinaryKeyFrameAnim>(), RESOURCE_FORMAT_BINARY,
-                                    "KeyFrameAnim", static_cast<uint32_t>(SOH::ResourceType::TSH_CKeyFrameAnim), 0);
-    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryBinaryKeyFrameSkel>(), RESOURCE_FORMAT_BINARY,
-                                    "KeyFrameSkel", static_cast<uint32_t>(SOH::ResourceType::TSH_CKeyFrameSkel), 0);
+                                    static_cast<uint32_t>(S2H::ResourceType::TSH_TexAnim), 0);
+    loader->RegisterResourceFactory(std::make_shared<S2H::ResourceFactoryBinaryKeyFrameAnim>(), RESOURCE_FORMAT_BINARY,
+                                    "KeyFrameAnim", static_cast<uint32_t>(S2H::ResourceType::TSH_CKeyFrameAnim), 0);
+    loader->RegisterResourceFactory(std::make_shared<S2H::ResourceFactoryBinaryKeyFrameSkel>(), RESOURCE_FORMAT_BINARY,
+                                    "KeyFrameSkel", static_cast<uint32_t>(S2H::ResourceType::TSH_CKeyFrameSkel), 0);
 
     // gSaveStateMgr = std::make_shared<SaveStateMgr>();
     // gRandomizer = std::make_shared<Randomizer>();
@@ -443,7 +443,7 @@ ImFont* OTRGlobals::CreateFontWithSize(float size, std::string fontPath) {
     return font;
 }
 
-extern "C" void OTRMessage_Init();
+extern "C" void MM_OTRMessage_Init();
 extern "C" void MM_AudioMgr_CreateNextAudioBuffer(s16* samples, u32 num_samples);
 extern "C" void AudioPlayer_Play(const uint8_t* buf, uint32_t len);
 extern "C" int AudioPlayer_Buffered(void);
@@ -873,7 +873,7 @@ extern "C" void InitOTR() {
     CustomMessage::RegisterHooks();
     Rando::StaticData::PopulateCheckNames();
 
-    OTRMessage_Init();
+    MM_OTRMessage_Init();
     OTRAudio_Init();
     OTRExtScanner();
     PlayerCustomFlipbooks_Patch();
@@ -1138,7 +1138,7 @@ extern "C" void Graph_ProcessGfxCommands(Gfx* commands) {
         Ship::Context::GetInstance()->GetResourceManager()->SetAltAssetsEnabled(curAltAssets);
         gfx_texture_cache_clear();
         // TODO: skeleton patch, hooks
-        // SOH::SkeletonPatcher::UpdateSkeletons();
+        // S2H::SkeletonPatcher::UpdateSkeletons();
         // GameInteractor::Instance->ExecuteHooks<GameInteractor::OnAssetAltChange>();
     }
 
@@ -1266,7 +1266,7 @@ extern "C" char* ResourceMgr_LoadFileFromDisk(const char* filePath) {
 
 extern "C" uint8_t ResourceMgr_ResourceIsBackground(char* texPath) {
     auto res = GetResourceByName(texPath);
-    return res->GetInitData()->Type == static_cast<uint32_t>(SOH::ResourceType::SOH_Background);
+    return res->GetInitData()->Type == static_cast<uint32_t>(S2H::ResourceType::SOH_Background);
 }
 
 extern "C" char* ResourceMgr_LoadJPEG(char* data, size_t dataSize) {
@@ -1315,8 +1315,8 @@ extern "C" char* ResourceMgr_LoadTexOrDListByName(const char* filePath) {
 
     if (res->GetInitData()->Type == static_cast<uint32_t>(Fast::ResourceType::DisplayList))
         return (char*)&((std::static_pointer_cast<Fast::DisplayList>(res))->Instructions[0]);
-    else if (res->GetInitData()->Type == static_cast<uint32_t>(SOH::ResourceType::SOH_Array))
-        return (char*)(std::static_pointer_cast<SOH::Array>(res))->Vertices.data();
+    else if (res->GetInitData()->Type == static_cast<uint32_t>(S2H::ResourceType::SOH_Array))
+        return (char*)(std::static_pointer_cast<S2H::Array>(res))->Vertices.data();
     else {
         return (char*)ResourceGetDataByName(filePath);
     }
@@ -1336,7 +1336,7 @@ extern "C" char* ResourceMgr_LoadIfDListByName(const char* filePath) {
 // }
 
 extern "C" char* ResourceMgr_LoadPlayerAnimByName(const char* animPath) {
-    auto anim = std::static_pointer_cast<SOH::PlayerAnimation>(GetResourceByName(animPath));
+    auto anim = std::static_pointer_cast<S2H::PlayerAnimation>(GetResourceByName(animPath));
 
     return (char*)&anim->limbRotData[0];
 }
@@ -1459,25 +1459,25 @@ extern "C" void ResourceMgr_ResetAllPatchesForDL(const char* path) {
 }
 
 extern "C" char* ResourceMgr_LoadVtxArrayByName(const char* path) {
-    auto res = std::static_pointer_cast<SOH::Array>(GetResourceByName(path));
+    auto res = std::static_pointer_cast<S2H::Array>(GetResourceByName(path));
 
     return (char*)res->Vertices.data();
 }
 
 extern "C" size_t ResourceMgr_GetVtxArraySizeByName(const char* path) {
-    auto res = std::static_pointer_cast<SOH::Array>(GetResourceByName(path));
+    auto res = std::static_pointer_cast<S2H::Array>(GetResourceByName(path));
 
     return res->Vertices.size();
 }
 
 extern "C" char* ResourceMgr_LoadArrayByName(const char* path) {
-    auto res = std::static_pointer_cast<SOH::Array>(GetResourceByName(path));
+    auto res = std::static_pointer_cast<S2H::Array>(GetResourceByName(path));
 
     return (char*)res->Scalars.data();
 }
 
 extern "C" size_t ResourceMgr_GetArraySizeByName(const char* path) {
-    auto res = std::static_pointer_cast<SOH::Array>(GetResourceByName(path));
+    auto res = std::static_pointer_cast<S2H::Array>(GetResourceByName(path));
 
     return res->Scalars.size();
 }
@@ -1485,7 +1485,7 @@ extern "C" size_t ResourceMgr_GetArraySizeByName(const char* path) {
 // Loads U8 data from an Array resource into an externally managed buffer, or mallocs a new buffer
 // if the passed in a nullptr. This malloced buffer must be freed by the caller.
 extern "C" u8* ResourceMgr_LoadArrayByNameAsU8(const char* path, u8* buffer) {
-    auto res = std::static_pointer_cast<SOH::Array>(GetResourceByName(path));
+    auto res = std::static_pointer_cast<S2H::Array>(GetResourceByName(path));
 
     if (buffer == nullptr) {
         buffer = (u8*)malloc(sizeof(u8) * res->Scalars.size());
@@ -1501,7 +1501,7 @@ extern "C" u8* ResourceMgr_LoadArrayByNameAsU8(const char* path, u8* buffer) {
 // Loads Vec3s data from an Array resource.
 // mallocs a new buffer that must be freed by the caller.
 extern "C" char* ResourceMgr_LoadArrayByNameAsVec3s(const char* path) {
-    auto res = std::static_pointer_cast<SOH::Array>(GetResourceByName(path));
+    auto res = std::static_pointer_cast<S2H::Array>(GetResourceByName(path));
 
     // if (res->CachedGameAsset != nullptr)
     //     return (char*)res->CachedGameAsset;
@@ -1677,12 +1677,12 @@ extern "C" SkeletonHeader* ResourceMgr_LoadSkeletonByName(const char* path, Skel
 
 extern "C" void ResourceMgr_UnregisterSkeleton(SkelAnime* skelAnime) {
     if (skelAnime != nullptr)
-        SOH::SkeletonPatcher::UnregisterSkeleton(skelAnime);
+        S2H::SkeletonPatcher::UnregisterSkeleton(skelAnime);
 }
 
 extern "C" void ResourceMgr_ClearSkeletons(SkelAnime* skelAnime) {
     if (skelAnime != nullptr)
-        SOH::SkeletonPatcher::ClearSkeletons();
+        S2H::SkeletonPatcher::ClearSkeletons();
 }
 
 extern "C" s32* ResourceMgr_LoadCSByName(const char* path) {

@@ -4,7 +4,7 @@
 #include <ship/resource/ResourceFactoryBinary.h>
 #include <ship/resource/ResourceFactoryXML.h>
 
-namespace SOH {
+namespace S2H {
 class ResourceFactoryBinaryTextMMV0 : public Ship::ResourceFactoryBinary {
   public:
     std::shared_ptr<Ship::IResource> ReadResource(std::shared_ptr<Ship::File> file,
@@ -27,4 +27,4 @@ class TextMMFactory : public Ship::ResourceFactoryBinary
     ReadResourceXML(std::shared_ptr<ResourceInitData> initData, tinyxml2::XMLElement *reader) override;
 };
 #endif
-}; // namespace SOH
+}; // namespace S2H

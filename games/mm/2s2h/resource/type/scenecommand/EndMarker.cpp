@@ -1,6 +1,6 @@
 #include "EndMarker.h"
 
-namespace SOH {
+namespace S2H {
 Marker* EndMarker::GetPointer() {
     return &endMarker;
 }
@@ -8,4 +8,4 @@ Marker* EndMarker::GetPointer() {
 size_t EndMarker::GetPointerSize() {
     return sizeof(Marker);
 }
-} // namespace SOH
+} // namespace S2H

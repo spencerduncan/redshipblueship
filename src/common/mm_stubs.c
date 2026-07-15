@@ -183,7 +183,9 @@ int PauseOwlWarp_IsOwlWarpEnabled(void) { return 0; }
 
 /* OTR stubs */
 float OTRConvertHUDXToScreenX(float x) { return x; }
-void OTRPlay_InitScene(void* play) { (void)play; }
+/* The OTRPlay_InitScene no-op stub that used to live here is gone (issue #344):
+ * MM's real scene-init glue is now compiled as MM_OTRPlay_InitScene in
+ * games/mm/2s2h/z_play_2SH.cpp. */
 
 /* AudioEditor stub */
 void* AudioEditor_GetOriginalSeq(int seqId) { (void)seqId; return NULL; }

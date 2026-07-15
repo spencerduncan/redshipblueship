@@ -2,7 +2,7 @@
 #include "2s2h/resource/type/Array.h"
 #include <fast/lus_gbi.h>
 
-namespace SOH {
+namespace S2H {
 std::shared_ptr<Ship::IResource>
 ResourceFactoryBinaryArrayV0::ReadResource(std::shared_ptr<Ship::File> file,
                                            std::shared_ptr<Ship::ResourceInitData> initData) {
@@ -84,4 +84,4 @@ ResourceFactoryBinaryArrayV0::ReadResource(std::shared_ptr<Ship::File> file,
 
     return array;
 }
-} // namespace SOH
+} // namespace S2H

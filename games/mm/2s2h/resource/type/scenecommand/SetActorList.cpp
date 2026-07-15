@@ -1,6 +1,6 @@
 #include "SetActorList.h"
 
-namespace SOH {
+namespace S2H {
 ActorEntry* SetActorList::GetPointer() {
     return actorList.data();
 }
@@ -8,4 +8,4 @@ ActorEntry* SetActorList::GetPointer() {
 size_t SetActorList::GetPointerSize() {
     return actorList.size() * sizeof(ActorEntry);
 }
-} // namespace SOH
+} // namespace S2H

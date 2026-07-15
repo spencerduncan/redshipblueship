@@ -1,6 +1,6 @@
 #include "SetCollisionHeader.h"
 
-namespace SOH {
+namespace S2H {
 CollisionHeaderData* SetCollisionHeader::GetPointer() {
     if (collisionHeader == nullptr) {
         return nullptr;
@@ -14,4 +14,4 @@ size_t SetCollisionHeader::GetPointerSize() {
     }
     return collisionHeader->GetPointerSize();
 }
-} // namespace SOH
+} // namespace S2H

@@ -9,7 +9,7 @@
 #include <type_traits>
 #include <tinyxml2.h>
 
-namespace SOH {
+namespace S2H {
 std::shared_ptr<Ship::IResource>
 ResourceFactoryBinaryAudioSequenceV2::ReadResource(std::shared_ptr<Ship::File> file,
                                                    std::shared_ptr<Ship::ResourceInitData> initData) {
@@ -391,4 +391,4 @@ ResourceFactoryXMLAudioSequenceV0::ReadResource(std::shared_ptr<Ship::File> file
 
     return sequence;
 }
-} // namespace SOH
+} // namespace S2H

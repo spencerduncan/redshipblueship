@@ -1,6 +1,6 @@
 #include "TextureAnimation.h"
 
-namespace SOH {
+namespace S2H {
 TextureAnimation::~TextureAnimation() {
     for (auto& a : anims) {
         switch ((TextureAnimationParamsType)a.type) {
@@ -34,4 +34,4 @@ AnimatedMaterial* TextureAnimation::GetPointer() {
 size_t TextureAnimation::GetPointerSize() {
     return anims.size() * sizeof(AnimatedMaterial);
 }
-} // namespace SOH
+} // namespace S2H

@@ -3,7 +3,7 @@
 #include <cstdint>
 #include "SceneCommand.h"
 
-namespace SOH {
+namespace S2H {
 typedef struct {
     int8_t windWest;
     int8_t windVertical;
@@ -20,4 +20,4 @@ class SetWindSettings : public SceneCommand<WindSettings> {
 
     WindSettings settings;
 };
-}; // namespace SOH
+}; // namespace S2H

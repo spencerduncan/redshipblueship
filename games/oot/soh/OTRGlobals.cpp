@@ -1724,6 +1724,27 @@ extern "C" void InitOTRForMMFirstBoot(int argc, char* argv[]) {
     }
     InitOTRImpl(argc, argv, false);
 }
+
+/**
+ * Creator for OoT's binary "Room" (scene) factory, used by the single-exe Room
+ * factory dispatcher (issue #344). MM's port layer registers a dispatcher for
+ * the shared (BINARY, 'OROM', 0) loader slot that routes MM-archive scenes to
+ * MM's parser and everything else here — it obtains OoT's parser through this
+ * creator because ResourceLoader::GetFactory is protected and the two games'
+ * factory headers cannot be included from one translation unit.
+ */
+std::shared_ptr<Ship::ResourceFactory> OoT_CreateSceneFactory() {
+    return std::make_shared<SOH::ResourceFactoryBinarySceneV0>();
+}
+
+/**
+ * Same as OoT_CreateSceneFactory, for the "Cutscene" ('OCUT') loader slot —
+ * the two games' cutscene command systems are wire-incompatible, so the MM
+ * port layer dispatches that slot per source archive too (issue #344).
+ */
+std::shared_ptr<Ship::ResourceFactory> OoT_CreateCutsceneFactory() {
+    return std::make_shared<SOH::ResourceFactoryBinaryCutsceneV0>();
+}
 #endif
 
 extern "C" void SaveManager_ThreadPoolWait() {

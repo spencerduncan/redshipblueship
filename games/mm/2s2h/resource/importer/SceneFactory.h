@@ -7,7 +7,7 @@
 #include <ship/resource/ResourceFactoryBinary.h>
 #include <unordered_map>
 
-namespace SOH {
+namespace S2H {
 class ResourceFactoryBinarySceneV0 : public Ship::ResourceFactoryBinary {
   public:
     ResourceFactoryBinarySceneV0();
@@ -27,4 +27,4 @@ class ResourceFactoryBinarySceneV0 : public Ship::ResourceFactoryBinary {
     std::shared_ptr<ISceneCommand> ParseSceneCommand(std::shared_ptr<Scene> scene,
                                                      std::shared_ptr<Ship::BinaryReader> reader, uint32_t index);
 };
-} // namespace SOH
+} // namespace S2H

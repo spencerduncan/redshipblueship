@@ -1,7 +1,7 @@
 #include "2s2h/resource/importer/scenecommand/SetSoundSettingsFactory.h"
 #include "2s2h/resource/type/scenecommand/SetSoundSettings.h"
 
-namespace SOH {
+namespace S2H {
 std::shared_ptr<Ship::IResource> SetSoundSettingsFactory::ReadResource(std::shared_ptr<Ship::ResourceInitData> initData,
                                                                        std::shared_ptr<Ship::BinaryReader> reader) {
     auto setSoundSettings = std::make_shared<SetSoundSettings>(initData);
@@ -14,4 +14,4 @@ std::shared_ptr<Ship::IResource> SetSoundSettingsFactory::ReadResource(std::shar
 
     return setSoundSettings;
 }
-} // namespace SOH
+} // namespace S2H

@@ -1,6 +1,6 @@
 #include "KeyFrame.h"
 
-namespace SOH {
+namespace S2H {
 
 KeyFrameSkel::~KeyFrameSkel() {
     delete[] skelData.limbsFlex;
@@ -29,4 +29,4 @@ size_t KeyFrameAnim::GetPointerSize() {
     return sizeof(animData);
 }
 
-} // namespace SOH
+} // namespace S2H

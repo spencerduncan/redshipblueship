@@ -1,6 +1,6 @@
 #include "SetCutscenes.h"
 
-namespace SOH {
+namespace S2H {
 CutsceneScriptEntry* SetCutscenesMM::GetPointer() {
     if (entries.size() == 0) {
         return nullptr;
@@ -15,4 +15,4 @@ size_t SetCutscenesMM::GetPointerSize() {
     return entries.size() * sizeof(CutsceneScriptEntry);
 }
 
-} // namespace SOH
+} // namespace S2H

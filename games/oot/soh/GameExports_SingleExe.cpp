@@ -201,6 +201,13 @@ static void OoT_RegisterIntegrationTestHooks(void) {
             []() {
                 // Fire once per arrival, ~10 stable frames after (re)entry, then
                 // re-arm for the next OoT arrival (reached via OoT_Game_Resume).
+                // (#344) Both games' frame loops fire this shared hook storage;
+                // only count OoT's own frames so MM frames can't record a
+                // bogus OoT arrival.
+                if (Context_GetCurrentGame() != GAME_OOT) {
+                    sOoTGameStateMainFrameCount = 0;
+                    return;
+                }
                 sOoTGameStateMainFrameCount++;
                 if (sOoTGameStateMainFrameCount < 10) {
                     return;
