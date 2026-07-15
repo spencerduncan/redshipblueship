@@ -59,10 +59,22 @@ extern "C" void MM_OTRMessage_Init() {
     }
 
     sMessageTableNES = OTRMessage_LoadTable("text/message_data_static/message_data_static", true);
+    if (sMessageTableNES == NULL) {
+        // Every MM textbox (including scene title cards fired right after a
+        // scene load, #344) dereferences this table — make the root cause
+        // visible instead of crashing later in MM_Message_FindMessage.
+        fprintf(stderr, "[MM] FATAL: failed to load message table "
+                        "'text/message_data_static/message_data_static' — mm.o2r is incomplete\n");
+        fflush(stderr);
+        return;
+    }
 
     auto file2 = std::static_pointer_cast<S2H::TextMM>(Ship::Context::GetInstance()->GetResourceManager()->LoadResource(
         "text/staff_message_data_static/staff_message_data_static"));
     if (file2 == nullptr) {
+        fprintf(stderr, "[MM] WARNING: failed to load credits message table "
+                        "'text/staff_message_data_static/staff_message_data_static'\n");
+        fflush(stderr);
         return;
     }
     sMessageTableCredits = (MessageTableEntry*)malloc(sizeof(MessageTableEntry) * file2->messages.size());

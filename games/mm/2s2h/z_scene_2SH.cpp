@@ -282,11 +282,24 @@ void MM_Scene_CommandTimeSettings(PlayState* play, S2H::ISceneCommand* cmd) {
     }
 
     // Increase time speed during first cycle
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // (#344) Don't consult GameInteractor_Should here in single-exe builds: it
+    // links to OoT's implementation and MM's GIVanillaBehavior ordinals alias
+    // OoT's (VB_FASTER_FIRST_CYCLE == 67 == OoT's VB_FIX_SAW_SOFTLOCK), so the
+    // call would run OoT vanilla-behavior hooks against MM state. MM's
+    // enhancement layer is excluded in single-exe mode, so nothing could
+    // legitimately hook this — use the un-hooked default directly.
+    if ((gSaveContext.save.saveInfo.inventory.items[SLOT_OCARINA] == ITEM_NONE) &&
+        (play->envCtx.sceneTimeSpeed != 0)) {
+        play->envCtx.sceneTimeSpeed = 5;
+    }
+#else
     if (GameInteractor_Should(VB_FASTER_FIRST_CYCLE,
                               (gSaveContext.save.saveInfo.inventory.items[SLOT_OCARINA] == ITEM_NONE) &&
                                   (play->envCtx.sceneTimeSpeed != 0))) {
         play->envCtx.sceneTimeSpeed = 5;
     }
+#endif
 
     if (gSaveContext.sunsSongState == SUNSSONG_INACTIVE) {
         R_TIME_SPEED = play->envCtx.sceneTimeSpeed;

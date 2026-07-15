@@ -2519,5 +2519,16 @@ void MM_Play_Init(GameState* thisx) {
 
     sJustClosedBomberNotebook = false;
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // (#344) Don't fire scene-init hooks here in single-exe builds. MM's own
+    // 2-arg executor is excluded, so this unprefixed call would bind to OoT's
+    // 1-arg GameInteractor_ExecuteOnSceneInit and run OoT enhancement hooks
+    // with an MM scene id against OoT's suspended play state. The shared
+    // OnSceneInit hook type also has different signatures in the two games'
+    // headers over merged storage, so an MM-side executor can't safely fire
+    // it either. Integration tests detect completed scene loads via play
+    // state predicates instead (games/mm/2s2h/GameExports_SingleExe.cpp).
+#else
     GameInteractor_ExecuteOnSceneInit(sceneIdAbsolute, spawnNum);
+#endif
 }

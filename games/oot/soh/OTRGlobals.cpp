@@ -1736,6 +1736,15 @@ extern "C" void InitOTRForMMFirstBoot(int argc, char* argv[]) {
 std::shared_ptr<Ship::ResourceFactory> OoT_CreateSceneFactory() {
     return std::make_shared<SOH::ResourceFactoryBinarySceneV0>();
 }
+
+/**
+ * Same as OoT_CreateSceneFactory, for the "Cutscene" ('OCUT') loader slot —
+ * the two games' cutscene command systems are wire-incompatible, so the MM
+ * port layer dispatches that slot per source archive too (issue #344).
+ */
+std::shared_ptr<Ship::ResourceFactory> OoT_CreateCutsceneFactory() {
+    return std::make_shared<SOH::ResourceFactoryBinaryCutsceneV0>();
+}
 #endif
 
 extern "C" void SaveManager_ThreadPoolWait() {

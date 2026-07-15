@@ -244,12 +244,14 @@ if(SINGLE_EXECUTABLE_BUILD)
     # with OoT at link time anymore. What stays excluded is dead code in
     # single-exe mode: formats that are byte-identical between the games and
     # parsed by OoT's registered factories (Animation, Array, Audio*,
-    # Background, PlayerAnimation, Skeleton*, CollisionHeader, Cutscene).
-    # COMPILED for the MM scene loader (issue #344): SceneFactory, all
-    # scenecommand importers/types, Scene, and the CollisionHeader/Cutscene
-    # TYPE classes (cast targets of the scenecommand layer). Also kept per
-    # issue #159: PathFactory/TextMMFactory/TextureAnimationFactory/
-    # KeyFrameFactory and their types.
+    # Background, PlayerAnimation, Skeleton*, CollisionHeader).
+    # COMPILED for the MM scene loader (issue #344): SceneFactory,
+    # CutsceneFactory (MM's cutscene wire format is NOT compatible with
+    # OoT's — the 'Cutscene' loader slot is dispatched per archive, see
+    # GameExports_SingleExe.cpp), all scenecommand importers/types, Scene,
+    # and the CollisionHeader/Cutscene TYPE classes (cast targets of the
+    # scenecommand layer). Also kept per issue #159: PathFactory/
+    # TextMMFactory/TextureAnimationFactory/KeyFrameFactory and their types.
     list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/importer/AnimationFactory\\.cpp$")
     list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/importer/ArrayFactory\\.cpp$")
     list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/importer/AudioSampleFactory\\.cpp$")
@@ -257,7 +259,6 @@ if(SINGLE_EXECUTABLE_BUILD)
     list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/importer/AudioSoundFontFactory\\.cpp$")
     list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/importer/BackgroundFactory\\.cpp$")
     list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/importer/CollisionHeaderFactory\\.cpp$")
-    list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/importer/CutsceneFactory\\.cpp$")
     list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/importer/PlayerAnimationFactory\\.cpp$")
     list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/importer/SkeletonFactory\\.cpp$")
     list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/importer/SkeletonLimbFactory\\.cpp$")

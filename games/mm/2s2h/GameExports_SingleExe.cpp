@@ -45,6 +45,7 @@
 #include "2s2h/resource/importer/TextureAnimationFactory.h"
 #include "2s2h/resource/importer/KeyFrameFactory.h"
 #include "2s2h/resource/importer/SceneFactory.h"
+#include "2s2h/resource/importer/CutsceneFactory.h"
 #include <ship/resource/ResourceFactory.h>
 #include <vector>
 #include <algorithm>
@@ -119,10 +120,11 @@ extern "C" {
 // bring-up already happened.
 extern "C" void InitOTRForMMFirstBoot(int argc, char* argv[]);
 
-// OoT's binary "Room" (scene) factory creator, defined in
-// games/oot/soh/OTRGlobals.cpp — the dispatcher below needs OoT's parser but
+// OoT's binary "Room" (scene) and "Cutscene" factory creators, defined in
+// games/oot/soh/OTRGlobals.cpp — the dispatcher below needs OoT's parsers but
 // cannot include OoT's factory headers from an MM translation unit (#344).
 std::shared_ptr<Ship::ResourceFactory> OoT_CreateSceneFactory();
+std::shared_ptr<Ship::ResourceFactory> OoT_CreateCutsceneFactory();
 
 // MM's message-table loader (games/mm/2s2h/z_message_OTR.cpp) — populates
 // sMessageTableNES/sMessageTableCredits from mm.o2r. Without it, the first
@@ -180,6 +182,13 @@ static const int kSceneLoadWatchdogFrames = 1800;
  * former crash site, MM_Actor_SpawnEntry), and the first room's commands ran.
  */
 static bool MM_SceneLoadComplete(void) {
+    // Both games' frame loops fire the same shared OnGameStateMainStart hook
+    // storage, so MM-registered test hooks also run during OoT frames — and
+    // MM's suspended PlayState stays non-NULL across a switch away. Only
+    // count MM's own frames (#344).
+    if (Context_GetCurrentGame() != GAME_MM) {
+        return false;
+    }
     PlayState* play = MM_gPlayState;
     if (play == NULL) {
         return false;
@@ -202,6 +211,11 @@ static bool MM_SceneLoadComplete(void) {
  * watchdog has fired so callers can stop doing per-frame work.
  */
 static bool MM_SceneLoadWatchdogExpired(const char* testName) {
+    // MM-registered hooks also fire during OoT frames (shared hook storage);
+    // only MM's own frames count against the watchdog budget.
+    if (Context_GetCurrentGame() != GAME_MM) {
+        return false;
+    }
     sSceneLoadWaitFrames++;
     if (sSceneLoadWaitFrames != kSceneLoadWatchdogFrames) {
         return sSceneLoadWaitFrames > kSceneLoadWatchdogFrames;
@@ -516,31 +530,42 @@ static int LoadMMArchives() {
 }
 
 /**
- * Binary "Room" (scene) factory dispatcher (#344).
+ * Per-archive factory dispatcher for loader slots both games claim (#344).
  *
- * Both games stamp scenes/rooms as (BINARY, 'OROM', version 0) in the OTR
- * header, so the shared ResourceLoader has exactly one slot for them — but
- * the two command sets are wire-incompatible (MM's SetRoomBehavior is 6 bytes
- * vs OoT's 5, MM cutscenes use opcode 0x1F, MM-only opcodes 0x1A-0x1E, and
- * opcode 0x19 means camera-settings in OoT vs world-map-visited in MM).
- * This dispatcher owns the slot and routes by source archive: files served
+ * Both games stamp scenes/rooms as (BINARY, 'OROM', version 0) and cutscenes
+ * as (BINARY, 'OCUT', version 0) in the OTR header, so the shared
+ * ResourceLoader has exactly one slot for each — but the wire formats are
+ * game-specific (scene commands: MM's SetRoomBehavior is 6 bytes vs OoT's 5,
+ * MM-only opcodes 0x1A-0x1F, opcode 0x19 means camera-settings in OoT vs
+ * world-map-visited in MM; cutscenes: entirely different command systems).
+ * A dispatcher owns each slot and routes by source archive: files served
  * from an archive that LoadMMArchives() registered are parsed with MM's
- * S2H scene factory, everything else with OoT's. The archive lookup uses the
+ * S2H factory, everything else with OoT's. The archive lookup uses the
  * same ArchiveManager map that served the file bytes, so recursive loads
- * (e.g. alternate scene headers) dispatch consistently by construction.
+ * (e.g. alternate scene headers, per-scene cutscene files) dispatch
+ * consistently by construction. Known limitation: MM assets shipped in
+ * OTHER archives (user mod .o2rs) route to OoT's parser — MM mod support
+ * in single-exe builds is a follow-up.
  */
-class RsbsRoomFactoryDispatcher final : public Ship::ResourceFactoryBinary {
+class RsbsMMArchiveFactoryDispatcher final : public Ship::ResourceFactoryBinary {
   public:
-    RsbsRoomFactoryDispatcher(std::shared_ptr<Ship::ResourceFactory> ootFactory,
-                              std::shared_ptr<Ship::ResourceFactory> mmFactory)
+    RsbsMMArchiveFactoryDispatcher(std::shared_ptr<Ship::ResourceFactory> ootFactory,
+                                   std::shared_ptr<Ship::ResourceFactory> mmFactory)
         : mOoTFactory(ootFactory), mMMFactory(mmFactory) {
     }
 
     std::shared_ptr<Ship::IResource> ReadResource(std::shared_ptr<Ship::File> file,
                                                   std::shared_ptr<Ship::ResourceInitData> initData) override {
+        // Alt assets ("alt/<path>" from texture packs) replace a base asset;
+        // the game whose asset is being replaced determines the parser, so
+        // dispatch on the archive owning the canonical path.
+        std::string path = initData->Path;
+        if (path.rfind(Ship::IResource::gAltAssetPrefix, 0) == 0) {
+            path = path.substr(Ship::IResource::gAltAssetPrefix.size());
+        }
         auto resourceMgr = Ship::Context::GetInstance()->GetResourceManager();
         auto archiveMgr = resourceMgr != nullptr ? resourceMgr->GetArchiveManager() : nullptr;
-        auto archive = archiveMgr != nullptr ? archiveMgr->GetArchiveFromFile(initData->Path) : nullptr;
+        auto archive = archiveMgr != nullptr ? archiveMgr->GetArchiveFromFile(path) : nullptr;
         if (archive != nullptr && IsMMArchivePath(archive->GetPath())) {
             return mMMFactory->ReadResource(file, initData);
         }
@@ -567,15 +592,20 @@ static void RegisterMMResourceFactories() {
                                     "Path", static_cast<uint32_t>(S2H::ResourceType::SOH_Path), 0,
                                     /*allowOverwrite=*/true);
 
-    // Room (scene) — replaces OoT's registration with the dispatcher above so
-    // MM scenes parse with MM's command set (#344). Idempotent: re-running
-    // just installs an equivalent dispatcher. Registration happens before any
-    // MM scene load (MM_Game_Init runs it ahead of the graph thread), so no
-    // load can race the overwrite.
+    // Room (scene) and Cutscene — replace OoT's registrations with per-archive
+    // dispatchers so MM assets parse with MM's wire formats (#344). Idempotent:
+    // re-running just installs equivalent dispatchers. Registration happens
+    // before any MM scene load (MM_Game_Init runs it ahead of the graph
+    // thread), so no load can race the overwrite.
     loader->RegisterResourceFactory(
-        std::make_shared<RsbsRoomFactoryDispatcher>(OoT_CreateSceneFactory(),
-                                                    std::make_shared<S2H::ResourceFactoryBinarySceneV0>()),
+        std::make_shared<RsbsMMArchiveFactoryDispatcher>(OoT_CreateSceneFactory(),
+                                                         std::make_shared<S2H::ResourceFactoryBinarySceneV0>()),
         RESOURCE_FORMAT_BINARY, "Room", static_cast<uint32_t>(S2H::ResourceType::SOH_Room), 0,
+        /*allowOverwrite=*/true);
+    loader->RegisterResourceFactory(
+        std::make_shared<RsbsMMArchiveFactoryDispatcher>(OoT_CreateCutsceneFactory(),
+                                                         std::make_shared<S2H::ResourceFactoryBinaryCutsceneV0>()),
+        RESOURCE_FORMAT_BINARY, "Cutscene", static_cast<uint32_t>(S2H::ResourceType::SOH_Cutscene), 0,
         /*allowOverwrite=*/true);
 
     // TextMM — MM-only text format

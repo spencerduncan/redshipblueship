@@ -2,6 +2,7 @@
 #include "2s2h/resource/type/scenecommand/SetCutscenes.h"
 #include <ship/Context.h>
 #include <ship/resource/ResourceManager.h>
+#include <spdlog/spdlog.h>
 
 namespace S2H {
 std::shared_ptr<Ship::IResource> SetCutsceneFactoryMM::ReadResource(std::shared_ptr<Ship::ResourceInitData> initData,
@@ -19,9 +20,13 @@ std::shared_ptr<Ship::IResource> SetCutsceneFactoryMM::ReadResource(std::shared_
         entry.exit = reader->ReadUInt16();
         entry.entrance = reader->ReadUByte();
         entry.flag = reader->ReadUByte();
-        entry.data = std::static_pointer_cast<Cutscene>(
-                         Ship::Context::GetInstance()->GetResourceManager()->LoadResourceProcess(path.c_str()))
-                         ->GetPointer();
+        auto cutscene = std::static_pointer_cast<Cutscene>(
+            Ship::Context::GetInstance()->GetResourceManager()->LoadResourceProcess(path.c_str()));
+        if (cutscene == nullptr) {
+            SPDLOG_ERROR("Failed to load cutscene {} referenced by scene command", path);
+            continue;
+        }
+        entry.data = cutscene->GetPointer();
         setCutscenes->entries.emplace_back(entry);
     }
 
