@@ -2244,8 +2244,17 @@ void MM_Play_Init(GameState* thisx) {
         uint16_t startupEntrance = Combo_GetStartupEntrance();
         if (startupEntrance != 0) {
             gSaveContext.save.entrance = startupEntrance;
+            // On a first MM entry this Play_Init is reached through MM's
+            // title-screen boot (TitleSetup_SetupTitleScreen), so the save
+            // still carries the title-demo cutscene state: cutsceneIndex
+            // 0xFFFA resolves sceneLayer 0xB below, which indexes past the
+            // end of the target entrance's layer table and loads a garbage
+            // scene. A cross-game arrival is a plain gameplay spawn — reset
+            // the cutscene/game-mode state so the entrance resolves layer 0.
+            gSaveContext.save.cutsceneIndex = 0;
+            gSaveContext.nextCutsceneIndex = 0xFFEF;
+            gSaveContext.gameMode = GAMEMODE_NORMAL;
             Combo_ClearStartupEntrance();
-            // Note: Using PRINTF macro if available, or just skip logging
         }
     }
 

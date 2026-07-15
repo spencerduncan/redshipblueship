@@ -391,6 +391,16 @@ int main(int argc, char** argv) {
         }
     }
 
+    // MM also needs its port-asset archive (2ship.o2r), which ships with the
+    // package and cannot be generated from a ROM. Without it MM's early boot
+    // dereferences null resources (fonts, boot-logo textures), so refuse up
+    // front with an "incomplete install" message instead of crashing later.
+    if (selectedGame == GAME_MM && !ArchiveCheck_PortArchiveAvailable(GAME_MM)) {
+        ArchiveCheck_ReportMissingPortArchive(GAME_MM,
+                                              /*showDialog=*/!TestRunner_IsIntegrationTestMode());
+        return 1;
+    }
+
     // Build filtered argv (remove our flags before passing to game)
     char** gameArgv = (char**)malloc(sizeof(char*) * (argc + 1));
     int gameArgc = 0;
@@ -497,6 +507,20 @@ int main(int argc, char** argv) {
                 Combo_ClearGameSwitchRequest();
                 Entrance_ClearPendingSwitch();
                 printf("Switch to %s refused (missing game archive) — continuing %s.\n",
+                       Game_ToString(nextGame), Game_ToString(GameRunner_GetActive(&runner)));
+                continue;
+            }
+
+            // Same up-front refusal for the target game's port-asset archive
+            // (2ship.o2r for MM): a switch into MM without it would fail in
+            // MM_Game_Init and take down the whole app, or worse, boot into
+            // null-resource crashes. Keep the current game running instead.
+            if (!ArchiveCheck_PortArchiveAvailable(nextGame)) {
+                ArchiveCheck_ReportMissingPortArchive(nextGame,
+                                                      /*showDialog=*/!TestRunner_IsIntegrationTestMode());
+                Combo_ClearGameSwitchRequest();
+                Entrance_ClearPendingSwitch();
+                printf("Switch to %s refused (missing port-asset archive) — continuing %s.\n",
                        Game_ToString(nextGame), Game_ToString(GameRunner_GetActive(&runner)));
                 continue;
             }
