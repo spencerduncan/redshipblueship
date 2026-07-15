@@ -546,9 +546,12 @@ int main(int argc, char** argv) {
             Combo_ClearGameSwitchRequest();
             Entrance_ClearPendingSwitch();
 
-            // Set startup entrance if this is an entrance-based switch
+            // Set startup entrance if this is an entrance-based switch. Tag it
+            // with the destination game so only that game can consume it — this
+            // prevents an MM entrance (e.g. 0xC010) from leaking into OoT's
+            // entranceIndex and reading gEntranceTable out of bounds (crash).
             if (isEntranceSwitch && targetEntrance != 0) {
-                Entrance_SetStartupEntrance(targetEntrance);
+                Entrance_SetStartupEntrance(targetEntrance, nextGame);
             }
 
             // Hot-swap resource archives before game init/resume

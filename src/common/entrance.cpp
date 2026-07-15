@@ -25,6 +25,11 @@ std::vector<CrossGameEntranceLink> gEntranceLinks;
 // rather than overloading 0 as "unset".
 uint16_t sStartupEntrance = 0;
 bool sStartupEntrancePresent = false;
+// Which game the startup entrance targets. GAME_NONE = wildcard (the legacy
+// 1-arg setter), so only the matching game consumes a tagged value. This is
+// what stops an MM entrance (e.g. 0xC010) from leaking into OoT's linear
+// gEntranceTable index and reading far out of bounds (crash 0xC0000005).
+GameId sStartupEntranceGame = GAME_NONE;
 
 // Game switch request flag (for F10 hotkey)
 bool sGameSwitchRequested = false;
@@ -43,6 +48,7 @@ void Entrance_Init(void) {
     gPendingSwitch = {};
     sStartupEntrance = 0;
     sStartupEntrancePresent = false;
+    sStartupEntranceGame = GAME_NONE;
     sGameSwitchRequested = false;
 }
 
@@ -142,8 +148,15 @@ void Entrance_ClearPendingSwitch(void) {
 }
 
 void Entrance_SetStartupEntrance(uint16_t entrance) {
+    // Legacy 1-arg form: tag as wildcard so existing (non-production) callers
+    // keep their current game-agnostic behavior.
+    Entrance_SetStartupEntrance(entrance, GAME_NONE);
+}
+
+void Entrance_SetStartupEntrance(uint16_t entrance, GameId targetGame) {
     sStartupEntrance = entrance;
     sStartupEntrancePresent = true;
+    sStartupEntranceGame = targetGame;
 }
 
 uint16_t Entrance_GetStartupEntrance(void) {
@@ -154,9 +167,19 @@ bool Entrance_HasStartupEntrance(void) {
     return sStartupEntrancePresent;
 }
 
+bool Entrance_HasStartupEntranceForGame(GameId game) {
+    return sStartupEntrancePresent &&
+           (sStartupEntranceGame == GAME_NONE || sStartupEntranceGame == game);
+}
+
+uint16_t Entrance_GetStartupEntranceForGame(GameId game) {
+    return Entrance_HasStartupEntranceForGame(game) ? sStartupEntrance : 0;
+}
+
 void Entrance_ClearStartupEntrance(void) {
     sStartupEntrance = 0;
     sStartupEntrancePresent = false;
+    sStartupEntranceGame = GAME_NONE;
 }
 
 // ============================================================================
@@ -210,6 +233,18 @@ bool Combo_HasStartupEntrance(void) {
 
 void Combo_ClearStartupEntrance(void) {
     Entrance_ClearStartupEntrance();
+}
+
+uint16_t Combo_GetStartupEntranceForGame(const char* gameId) {
+    GameId game = Game_FromString(gameId);
+    if (game == GAME_NONE) return 0;
+    return Entrance_GetStartupEntranceForGame(game);
+}
+
+bool Combo_HasStartupEntranceForGame(const char* gameId) {
+    GameId game = Game_FromString(gameId);
+    if (game == GAME_NONE) return false;
+    return Entrance_HasStartupEntranceForGame(game);
 }
 
 // ============================================================================

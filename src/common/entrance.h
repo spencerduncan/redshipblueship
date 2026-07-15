@@ -87,6 +87,12 @@ uint16_t Combo_GetStartupEntrance(void);
 // separately from the value — callers must check this before trusting the id.
 bool Combo_HasStartupEntrance(void);
 void Combo_ClearStartupEntrance(void);
+// Game-scoped variants: only return/report the startup entrance when it was
+// tagged for `gameId` (or tagged as wildcard via the 1-arg setter). This
+// prevents a cross-game entrance (e.g. MM 0xC010) from being consumed by the
+// wrong game and indexing that game's entrance table out of bounds.
+uint16_t Combo_GetStartupEntranceForGame(const char* gameId);
+bool Combo_HasStartupEntranceForGame(const char* gameId);
 
 // Game switch request API
 void Combo_RequestGameSwitch(void);
@@ -182,6 +188,12 @@ void Entrance_ClearPendingSwitch(void);
 void Entrance_SetStartupEntrance(uint16_t entrance);
 
 /**
+ * Set the startup entrance tagged with the game it targets, so only that game
+ * consumes it. The 1-arg overload above tags GAME_NONE (wildcard).
+ */
+void Entrance_SetStartupEntrance(uint16_t entrance, GameId targetGame);
+
+/**
  * Get the startup entrance. Use Entrance_HasStartupEntrance() to check
  * whether one is actually set — entrance 0x0000 is a valid id.
  */
@@ -191,6 +203,16 @@ uint16_t Entrance_GetStartupEntrance(void);
  * Whether a startup entrance has been set since the last clear.
  */
 bool Entrance_HasStartupEntrance(void);
+
+/**
+ * Whether a startup entrance is set and targets `game` (or is a wildcard).
+ */
+bool Entrance_HasStartupEntranceForGame(GameId game);
+
+/**
+ * The startup entrance if it targets `game` (or is a wildcard), else 0.
+ */
+uint16_t Entrance_GetStartupEntranceForGame(GameId game);
 
 /**
  * Clear the startup entrance (called after game reads it)

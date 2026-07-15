@@ -421,7 +421,59 @@ TestResult Test_StartupEntrance(void) {
         return TEST_FAIL;
     }
 
-    printf("[TEST] PASS: Startup entrance flow verified\n");
+    // ------------------------------------------------------------------
+    // Step 5: Game affinity — the exact condition behind the Market
+    // cutscene crash. An entrance tagged for one game must be invisible to
+    // the other, so a cross-game value (MM Clock Tower 0xC010) can never be
+    // applied to OoT's entranceIndex and index gEntranceTable out of bounds.
+    // ------------------------------------------------------------------
+    Entrance_SetStartupEntrance(MM_ENTR_CLOCK_TOWER_INTERIOR_1, GAME_MM);
+
+    // MM (the tagged game) sees it...
+    if (!Entrance_HasStartupEntranceForGame(GAME_MM) ||
+        Entrance_GetStartupEntranceForGame(GAME_MM) != MM_ENTR_CLOCK_TOWER_INTERIOR_1) {
+        printf("[TEST] FAIL: MM-tagged startup entrance not visible to MM\n");
+        return TEST_FAIL;
+    }
+    // ...but OoT must NOT — this is precisely what prevents the OOB crash.
+    if (Entrance_HasStartupEntranceForGame(GAME_OOT) ||
+        Entrance_GetStartupEntranceForGame(GAME_OOT) != 0) {
+        printf("[TEST] FAIL: MM-tagged startup entrance leaked to OoT (crash condition)\n");
+        return TEST_FAIL;
+    }
+    // The C API used by the game code must agree with the C++ API.
+    if (!Combo_HasStartupEntranceForGame("mm") || Combo_HasStartupEntranceForGame("oot") ||
+        Combo_GetStartupEntranceForGame("oot") != 0 ||
+        Combo_GetStartupEntranceForGame("mm") != MM_ENTR_CLOCK_TOWER_INTERIOR_1) {
+        printf("[TEST] FAIL: Combo_*ForGame C API disagrees with affinity\n");
+        return TEST_FAIL;
+    }
+
+    // Symmetric: an OoT-tagged entrance must be invisible to MM.
+    Entrance_SetStartupEntrance(OOT_ENTR_MARKET_FROM_MASK_SHOP, GAME_OOT);
+    if (!Entrance_HasStartupEntranceForGame(GAME_OOT) ||
+        Entrance_HasStartupEntranceForGame(GAME_MM)) {
+        printf("[TEST] FAIL: OoT-tagged startup entrance leaked to MM\n");
+        return TEST_FAIL;
+    }
+
+    // Back-compat: the legacy 1-arg setter tags wildcard, visible to both.
+    Entrance_SetStartupEntrance(OOT_ENTR_HAPPY_MASK_SHOP);
+    if (!Entrance_HasStartupEntranceForGame(GAME_OOT) ||
+        !Entrance_HasStartupEntranceForGame(GAME_MM)) {
+        printf("[TEST] FAIL: wildcard (1-arg) startup entrance not visible to both games\n");
+        return TEST_FAIL;
+    }
+
+    // Clearing resets the affinity tag too.
+    Combo_ClearStartupEntrance();
+    if (Entrance_HasStartupEntranceForGame(GAME_OOT) ||
+        Entrance_HasStartupEntranceForGame(GAME_MM)) {
+        printf("[TEST] FAIL: startup entrance affinity not cleared\n");
+        return TEST_FAIL;
+    }
+
+    printf("[TEST] PASS: Startup entrance flow + game affinity verified\n");
     Entrance_ClearPendingSwitch();
     return TEST_PASS;
 }
