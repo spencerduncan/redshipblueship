@@ -4,6 +4,7 @@
 #include "z64vismono.h"
 #include "z64visfbuf.h"
 #include <libultraship/bridge/consolevariablebridge.h>
+#include <stdio.h> // [MM-DIAG] temporary: pinpoint the MM Play_Init boot crash
 
 // Variables are put before most headers as a hacky way to bypass bss reordering
 s16 MM_sTransitionFillTimer;
@@ -1629,6 +1630,13 @@ void MM_Play_Main(GameState* thisx) {
     static Input* prevInput = NULL;
     PlayState* this = (PlayState*)thisx;
 
+    static int sDiagFirstMain = 1;
+    if (sDiagFirstMain) {
+        sDiagFirstMain = 0;
+        fprintf(stderr, "[MM-DIAG] Play_Main: FIRST FRAME reached\n");
+        fflush(stderr);
+    }
+
     prevInput = CONTROLLER1(&this->state);
     MM_DebugDisplay_Init();
 
@@ -2410,9 +2418,13 @@ void MM_Play_Init(GameState* thisx) {
         Entrance_GetSceneIdAbsolute(((void)0, gSaveContext.save.entrance) + ((void)0, gSaveContext.sceneLayer));
     s32 spawnNum = Entrance_GetSpawnNum(((void)0, gSaveContext.save.entrance) + ((void)0, gSaveContext.sceneLayer));
     MM_Play_SpawnScene(this, sceneIdAbsolute, spawnNum);
+    fprintf(stderr, "[MM-DIAG] Play_Init: post-SpawnScene (sceneId=%d spawn=%d)\n", sceneIdAbsolute, spawnNum);
+    fflush(stderr);
 
     MM_KaleidoScopeCall_Init(this);
     Interface_Init(this);
+    fprintf(stderr, "[MM-DIAG] Play_Init: post-Interface_Init\n");
+    fflush(stderr);
 
     if (gSaveContext.nextDayTime != NEXT_TIME_NONE) {
         if (gSaveContext.nextDayTime == NEXT_TIME_DAY) {
@@ -2495,10 +2507,16 @@ void MM_Play_Init(GameState* thisx) {
     //! @bug: Incorrect ALIGN16s
     MM_ZeldaArena_Init((void*)((zAlloc + 8) & ~0xF), (zAllocSize - ((zAlloc + 8) & ~0xF)) + zAlloc);
 
+    fprintf(stderr, "[MM-DIAG] Play_Init: pre-Actor_InitContext linkActorEntry=%p\n", (void*)this->linkActorEntry);
+    fflush(stderr);
     Actor_InitContext(this, &this->actorCtx, this->linkActorEntry);
+    fprintf(stderr, "[MM-DIAG] Play_Init: post-Actor_InitContext, entering room busyloop\n");
+    fflush(stderr);
 
     // Busyloop until the room loads
     while (!Room_ProcessRoomRequest(this, &this->roomCtx)) {}
+    fprintf(stderr, "[MM-DIAG] Play_Init: room loaded\n");
+    fflush(stderr);
 
     if ((CURRENT_DAY != 0) &&
         ((this->roomCtx.curRoom.type == ROOM_TYPE_DUNGEON) || (this->roomCtx.curRoom.type == ROOM_TYPE_BOSS))) {
@@ -2506,8 +2524,12 @@ void MM_Play_Init(GameState* thisx) {
     }
 
     player = GET_PLAYER(this);
+    fprintf(stderr, "[MM-DIAG] Play_Init: GET_PLAYER=%p\n", (void*)player);
+    fflush(stderr);
 
     Camera_InitFocalActorSettings(&this->mainCamera, &player->actor);
+    fprintf(stderr, "[MM-DIAG] Play_Init: post-Camera_InitFocalActorSettings\n");
+    fflush(stderr);
     MM_gDbgCamEnabled = false;
 
     if (PLAYER_GET_BG_CAM_INDEX(&player->actor) != 0xFF) {
@@ -2521,7 +2543,12 @@ void MM_Play_Init(GameState* thisx) {
     gSaveContext.ambienceId = this->sceneSequences.ambienceId;
     AnimTaskQueue_Update(this, &this->animTaskQueue);
     // BENTODO: crash in MM_Message_FindMessage
+    fprintf(stderr, "[MM-DIAG] Play_Init: pre-HandleEntranceTriggers loadedScene=%p titleTextId=%d\n",
+            (void*)this->loadedScene, this->loadedScene ? this->loadedScene->titleTextId : -1);
+    fflush(stderr);
     MM_Cutscene_HandleEntranceTriggers(this);
+    fprintf(stderr, "[MM-DIAG] Play_Init: post-HandleEntranceTriggers\n");
+    fflush(stderr);
     gSaveContext.respawnFlag = 0;
     sBombersNotebookOpen = false;
     BombersNotebook_Init(&sBombersNotebook);
@@ -2540,4 +2567,6 @@ void MM_Play_Init(GameState* thisx) {
 #else
     GameInteractor_ExecuteOnSceneInit(sceneIdAbsolute, spawnNum);
 #endif
+    fprintf(stderr, "[MM-DIAG] Play_Init: COMPLETE\n");
+    fflush(stderr);
 }
