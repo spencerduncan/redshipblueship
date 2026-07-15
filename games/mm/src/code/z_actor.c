@@ -1284,6 +1284,19 @@ void MM_Actor_Init(Actor* actor, PlayState* play) {
     if (MM_Object_IsLoaded(&play->objectCtx, actor->objectSlot)) {
         MM_Actor_SetObjectDependency(play, actor);
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // MM's GameInteractor enhancement layer is excluded from single-exe
+        // builds, so these unprefixed GameInteractor_* calls bind to OoT's
+        // implementation. OoT's GameInteractor_ShouldActorInit casts the
+        // argument to OoT's Actor and dispatches hooks by actor id — but the
+        // actor here is an MM actor (different struct layout, and ids alias
+        // between the games), so it faults on the first MM actor spawned (the
+        // player), which blocks every MM boot. Initialize the actor directly,
+        // skipping the cross-game hooks. Mirrors the #344 guard on
+        // GameInteractor_ExecuteOnSceneInit in z_play.c.
+        actor->init(actor, play);
+        actor->init = NULL;
+#else
         if (GameInteractor_ShouldActorInit(actor)) {
             actor->init(actor, play);
             actor->init = NULL;
@@ -1292,6 +1305,7 @@ void MM_Actor_Init(Actor* actor, PlayState* play) {
             actor->init = NULL;
             MM_Actor_Kill(actor);
         }
+#endif
     }
 }
 
@@ -2713,6 +2727,12 @@ Actor* Actor_UpdateActor(UpdateActor_Params* params) {
         if (MM_Object_IsLoaded(&play->objectCtx, actor->objectSlot)) {
             MM_Actor_SetObjectDependency(play, actor);
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+            // Skip the OoT-bound GameInteractor hooks in single-exe — see the
+            // detailed note in MM_Actor_Init above. Init the actor directly.
+            actor->init(actor, play);
+            actor->init = NULL;
+#else
             if (GameInteractor_ShouldActorInit(actor)) {
                 actor->init(actor, play);
                 actor->init = NULL;
@@ -2721,6 +2741,7 @@ Actor* Actor_UpdateActor(UpdateActor_Params* params) {
                 actor->init = NULL;
                 MM_Actor_Kill(actor);
             }
+#endif
         }
         nextActor = actor->next;
     } else if (actor->update == NULL) {
