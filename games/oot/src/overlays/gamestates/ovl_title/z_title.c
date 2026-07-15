@@ -17,6 +17,11 @@
 
 #include "time.h"
 
+// Cross-game combo support - a switch into OoT arrives with a pending startup
+// entrance set by the launcher (see rsbs/src/main.cpp). Defined in
+// src/common/entrance.cpp. Matches the extern in z_play.c.
+extern uint16_t Combo_GetStartupEntrance(void);
+
 // Note: In other rom versions this function also updates unk_1D4, coverAlpha, addAlpha, visibleDuration to calculate
 // the fade-in/fade-out + the duration of the n64 logo animation
 void Title_Calc(TitleContext* this) {
@@ -124,6 +129,21 @@ void Title_Draw(TitleContext* this) {
 
 void Title_Main(GameState* thisx) {
     TitleContext* this = (TitleContext*)thisx;
+
+    // Cross-game combo: when arriving from a game switch (a startup entrance is
+    // pending), skip the "powered by libultraship" boot logo entirely and hand
+    // straight off to the opening -> play boot. We just want the scene change,
+    // not the splash. Mirrors the transition Title normally makes when it
+    // finishes below. The startup entrance is consumed later in Play_Init, so
+    // we only test it here without clearing it.
+    if (Combo_GetStartupEntrance() != 0) {
+        gSaveContext.seqId = (u8)NA_BGM_DISABLED;
+        gSaveContext.natureAmbienceId = 0xFF;
+        gSaveContext.gameMode = GAMEMODE_TITLE_SCREEN;
+        this->state.running = false;
+        SET_NEXT_GAMESTATE(&this->state, Opening_Init, OpeningContext);
+        return;
+    }
 
     OPEN_DISPS(this->state.gfxCtx);
 

@@ -18,6 +18,11 @@
 #include <stdlib.h>
 #include <libultraship/bridge/consolevariablebridge.h>
 
+// Cross-game combo support - a switch into MM arrives with a pending startup
+// entrance set by the launcher (see rsbs/src/main.cpp). Defined in
+// src/common/entrance.cpp. Matches the extern in z_play.c.
+extern uint16_t Combo_GetStartupEntrance(void);
+
 #define dgShipLogoDL "__OTR__misc/nintendo_rogo_static/gShipLogoDL"
 static const ALIGN_ASSET(2) char gShipLogoDL[] = dgShipLogoDL;
 
@@ -198,6 +203,22 @@ void ConsoleLogo_Draw(GameState* thisx) {
 
 void ConsoleLogo_Main(GameState* thisx) {
     ConsoleLogoState* this = (ConsoleLogoState*)thisx;
+
+    // Cross-game combo: when arriving from a game switch (a startup entrance is
+    // pending), skip the "powered by libultraship" boot logo entirely and hand
+    // straight off to the title-setup -> play boot. We just want the scene
+    // change, not the splash. Mirrors the transition ConsoleLogo normally makes
+    // when it finishes below. The startup entrance is consumed later in
+    // Play_Init, so we only test it here without clearing it.
+    if (Combo_GetStartupEntrance() != 0) {
+        gSaveContext.seqId = NA_BGM_DISABLED;
+        gSaveContext.ambienceId = AMBIENCE_ID_DISABLED;
+        gSaveContext.gameMode = GAMEMODE_TITLE_SCREEN;
+
+        STOP_GAMESTATE(&this->state);
+        SET_NEXT_GAMESTATE(&this->state, MM_TitleSetup_Init, sizeof(TitleSetupState));
+        return;
+    }
 
     func_8012CF0C(this->state.gfxCtx, true, true, 0, 0, 0);
 
