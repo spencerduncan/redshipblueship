@@ -78,8 +78,8 @@ redshipblueship/
 
 1. Place `oot.z64` and `mm.z64` ROMs in the game directory
 2. Run asset extraction to generate `oot.otr` and `mm.otr`
-3. Launch `redshipblueship`
-4. Select game or load existing combo save
+3. Launch `redshipblueship` (boots into Ocarina of Time by default)
+4. Switch to Majora's Mask in-game, or launch with `--game mm`
 
 ## Default Controls
 

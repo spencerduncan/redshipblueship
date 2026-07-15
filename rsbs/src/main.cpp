@@ -12,7 +12,7 @@
  *   redship --game oot    # Run Ocarina of Time
  *   redship --game mm     # Run Majora's Mask
  *   redship --test <name> # Run integration tests
- *   redship               # Show game selector menu
+ *   redship               # Run Ocarina of Time (default)
  */
 
 #include <cstdio>
@@ -215,33 +215,6 @@ void PrintUsage(const char* progName) {
     printf("  F10              Switch between OoT and MM\n");
 }
 
-GameId ShowGameMenu(void) {
-    printf("\n=== %s %s ===\n\n", RSBS_APP_NAME, RSBS_VERSION_STRING);
-    printf("Select a game to play:\n");
-    printf("  1) Ocarina of Time\n");
-    printf("  2) Majora's Mask\n\n");
-    printf("Enter choice (1 or 2): ");
-    fflush(stdout);
-
-    char input[32];
-    if (fgets(input, sizeof(input), stdin) == nullptr) {
-        return GAME_OOT;  // Default
-    }
-
-    // Remove newline
-    input[strcspn(input, "\n")] = 0;
-
-    if (strcmp(input, "1") == 0 || strcmp(input, "oot") == 0) {
-        return GAME_OOT;
-    }
-    if (strcmp(input, "2") == 0 || strcmp(input, "mm") == 0) {
-        return GAME_MM;
-    }
-
-    printf("Invalid choice. Defaulting to OoT.\n");
-    return GAME_OOT;
-}
-
 } // anonymous namespace
 
 // ============================================================================
@@ -362,7 +335,11 @@ int main(int argc, char** argv) {
     } else {
         selectedGame = ParseGameArg(argc, argv);
         if (selectedGame == GAME_NONE) {
-            selectedGame = ShowGameMenu();
+            // No --game argument: boot straight into Ocarina of Time (landing
+            // on its title/file-select menu) instead of prompting the user to
+            // pick a game. MM is still reachable via `--game mm` or by
+            // switching in-game (Happy Mask Shop <-> Clock Tower, or F10).
+            selectedGame = GAME_OOT;
         }
     }
 
