@@ -40,6 +40,20 @@
 
 s32 MM_OTRScene_ExecuteCommands(PlayState* play, S2H::Scene* scene);
 
+// Extracted (#344) so the spawn-path pointer arithmetic that computes
+// linkActorEntry is unit-testable in isolation — WITHOUT the unsafe
+// object-spawn tail below (Object_SpawnPersistent / gActorOverlayTable), which
+// needs the object system and actor overlay table and cannot run headless.
+// games/mm/2s2h/mm_scene_execute_test.cpp drives this directly. Non-static /
+// C++-linkage; EntranceEntry/ActorEntry are the game types from global.h,
+// matching the unqualified use in the handlers below. No behavior change: the
+// returned expression is textually the same &spawnEntries[setupEntranceList[
+// curSpawn].spawn] the assignment used before, in the same translation unit
+// with identical operand types.
+ActorEntry* MM_Play_ResolveLinkActorEntry(EntranceEntry* setupEntranceList, s32 curSpawn, ActorEntry* spawnEntries) {
+    return &spawnEntries[setupEntranceList[curSpawn].spawn];
+}
+
 void MM_Scene_CommandSpawnList(PlayState* play, S2H::ISceneCommand* cmd) {
     S2H::SetStartPositionList* list = (S2H::SetStartPositionList*)cmd;
     ActorEntry* entries = (ActorEntry*)(list->GetRawPointer());
@@ -47,7 +61,7 @@ void MM_Scene_CommandSpawnList(PlayState* play, S2H::ISceneCommand* cmd) {
     s16 playerObjectId;
     void* objectPtr;
 
-    play->linkActorEntry = &entries[play->setupEntranceList[play->curSpawn].spawn];
+    play->linkActorEntry = MM_Play_ResolveLinkActorEntry(play->setupEntranceList, play->curSpawn, entries);
 
     if ((PLAYER_GET_START_MODE(play->linkActorEntry) == PLAYER_START_MODE_TELESCOPE) ||
         ((gSaveContext.respawnFlag == 2) && (gSaveContext.respawn[RESPAWN_MODE_RETURN].playerParams ==

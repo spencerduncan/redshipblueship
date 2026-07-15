@@ -24,6 +24,11 @@
 extern "C" {
 int OoT_InitSharedContextSubsystems(void);
 int MM_RegisterResourceFactoriesHeadless(void);
+// MM scene-command EXECUTE regression (#344). Body lives in an MM TU
+// (games/mm/2s2h/mm_scene_execute_test.cpp) so MM's global.h / PlayState never
+// enters this translation unit; called through this C entry point, mirroring
+// MM_RegisterResourceFactoriesHeadless. Returns 0 on pass, non-zero on fail.
+int MM_SceneExecute_RunHeadless(void);
 }
 
 // Lifecycle unit tests — included directly to avoid static library link ordering issues
@@ -59,6 +64,14 @@ extern "C" {
 // (compiled as C++): it drives MM's S2H::ResourceFactoryBinarySceneV0 directly
 // over a synthetic scene buffer — no ROM archives or display needed.
 #include "tests/test_mm_scene_parse.c"
+
+// MM scene-command EXECUTE regression (issue #344). Unlike the parse test, the
+// body runs the parsed commands against a PlayState, so it needs MM's global.h
+// — which lives in an MM TU (games/mm/2s2h/mm_scene_execute_test.cpp) to keep
+// MM's umbrella headers out of this TU. Thin wrapper over the C entry point.
+static TestResult Test_MMSceneExecute(void) {
+    return MM_SceneExecute_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
 
 // ============================================================================
 // Internal state
@@ -522,6 +535,7 @@ const TestDescriptor gTests[] = {
     {"save-size-mismatch", "Unified save Load rejects mismatched tier size, no clobber (#35)", Test_SaveSizeMismatch},
     {"save-crc-corrupt", "Unified save Load rejects corrupt payload, no clobber (#35)", Test_SaveCrcCorrupt},
     {"mm-scene-parse", "MM scene commands parse via the S2H factory (#344)", Test_MMSceneParse},
+    {"mm-scene-execute", "MM scene commands execute against a PlayState (#344)", Test_MMSceneExecute},
     // Keep archive-hotswap-logic LAST: it re-inits the entrance table, so it
     // must not run before any test that relies on the default links.
     {"archive-hotswap-logic", "Headless multi-switch archive/state regression (#263)", Test_ArchiveHotswapLogic},
