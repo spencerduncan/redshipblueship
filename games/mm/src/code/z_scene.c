@@ -113,7 +113,17 @@ s32 Object_GetSlot(ObjectContext* objectCtx, s16 objectId) {
         }
     }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // (#344) Don't consult GameInteractor_Should in single-exe builds: it links
+    // to OoT's implementation and MM's GIVanillaBehavior ordinals alias OoT's, so
+    // the hooked call would run OoT vanilla-behavior hooks against MM state. MM's
+    // enhancement layer is excluded here, so use the un-hooked default (object
+    // dependency enabled -> OBJECT_SLOT_NONE). Mirrors the VB_FASTER_FIRST_CYCLE
+    // guard in z_scene_2SH.cpp.
+    return OBJECT_SLOT_NONE;
+#else
     return GameInteractor_Should(VB_ENABLE_OBJECT_DEPENDENCY, true, objectId) ? OBJECT_SLOT_NONE : 0;
+#endif
 }
 
 s32 MM_Object_IsLoaded(ObjectContext* objectCtx, s32 slot) {

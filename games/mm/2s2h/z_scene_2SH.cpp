@@ -40,6 +40,20 @@
 
 s32 MM_OTRScene_ExecuteCommands(PlayState* play, S2H::Scene* scene);
 
+// Extracted (#344) so the spawn-path pointer arithmetic that computes
+// linkActorEntry is unit-testable in isolation — WITHOUT the unsafe
+// object-spawn tail below (Object_SpawnPersistent / gActorOverlayTable), which
+// needs the object system and actor overlay table and cannot run headless.
+// games/mm/2s2h/mm_scene_execute_test.cpp drives this directly. Non-static /
+// C++-linkage; EntranceEntry/ActorEntry are the game types from global.h,
+// matching the unqualified use in the handlers below. No behavior change: the
+// returned expression is textually the same &spawnEntries[setupEntranceList[
+// curSpawn].spawn] the assignment used before, in the same translation unit
+// with identical operand types.
+ActorEntry* MM_Play_ResolveLinkActorEntry(EntranceEntry* setupEntranceList, s32 curSpawn, ActorEntry* spawnEntries) {
+    return &spawnEntries[setupEntranceList[curSpawn].spawn];
+}
+
 void MM_Scene_CommandSpawnList(PlayState* play, S2H::ISceneCommand* cmd) {
     S2H::SetStartPositionList* list = (S2H::SetStartPositionList*)cmd;
     ActorEntry* entries = (ActorEntry*)(list->GetRawPointer());
@@ -47,7 +61,7 @@ void MM_Scene_CommandSpawnList(PlayState* play, S2H::ISceneCommand* cmd) {
     s16 playerObjectId;
     void* objectPtr;
 
-    play->linkActorEntry = &entries[play->setupEntranceList[play->curSpawn].spawn];
+    play->linkActorEntry = MM_Play_ResolveLinkActorEntry(play->setupEntranceList, play->curSpawn, entries);
 
     if ((PLAYER_GET_START_MODE(play->linkActorEntry) == PLAYER_START_MODE_TELESCOPE) ||
         ((gSaveContext.respawnFlag == 2) && (gSaveContext.respawn[RESPAWN_MODE_RETURN].playerParams ==
@@ -328,11 +342,18 @@ void MM_Scene_CommandSkyboxSettings(PlayState* play, S2H::ISceneCommand* cmd) {
     S2H::SetSkyboxSettings* settings = (S2H::SetSkyboxSettings*)cmd;
 
     play->skyboxId = settings->settings.skyboxId & 3;
-    // BENTODO z_scene.c reads from skyboxSettings.skyboxConfig not weather
-    // Settings uses names from OOT
+    // settings.weather carries the skyboxConfig value in MM's OTR wire format —
+    // the same byte the N64 skyboxSettings.skyboxConfig held, just renamed. Not a
+    // divergence from vanilla z_scene.c.
     play->envCtx.skyboxConfig = play->envCtx.changeSkyboxNextConfig = settings->settings.weather;
     play->envCtx.lightMode = settings->settings.indoors;
-    // Scene_LoadAreaTextures(play, settings->settings.)
+    // Single-exe limitation (#344): vanilla z_scene.c calls Scene_LoadAreaTextures
+    // here to bind segment 0x06 to the shared scene_texture_01..08 area textures.
+    // That path is export-dependent (the scene_texture resources must be wired
+    // through the OTR pipeline), so it is omitted; scenes using shared area
+    // textures leave segment 0x06 unbound — NULL-guarded in z_room.c, so missing/
+    // garbage textures, no crash. A faithful restore is a follow-up; do NOT
+    // substitute a raw ROM DMA (wrong mechanism for the port).
 }
 
 void MM_Scene_CommandSkyboxDisables(PlayState* play, S2H::ISceneCommand* cmd) {

@@ -226,8 +226,11 @@ if(BUILD_TESTING)
     add_test(NAME SaveSizeMismatch COMMAND redship --test save-size-mismatch)
     add_test(NAME SaveCrcCorrupt COMMAND redship --test save-crc-corrupt)
     add_test(NAME Context COMMAND redship --test context)
-    # MM scene-command parse regression — display-free, no ROM archives (#344)
+    # MM scene-command parse + execute regressions — display-free, no ROM
+    # archives (#344). Parse checks the wire format; execute runs the commands
+    # against a PlayState and asserts the spawn-path pointers/fields populate.
     add_test(NAME MMSceneParse COMMAND redship --test mm-scene-parse)
+    add_test(NAME MMSceneExecute COMMAND redship --test mm-scene-execute)
     add_test(NAME AllTests COMMAND redship --test all)
 
     # Set reasonable timeout and label our tests
@@ -235,7 +238,7 @@ if(BUILD_TESTING)
     set_tests_properties(
         BootOoT BootMM SwitchOoTMM SwitchMMOoT Roundtrip RoundtripIntegrity SharedRoundtrip ArchiveHotswapLogic
         SaveRoundtripTiers SaveHeader SaveHasDelete SaveVersionReject SaveSizeMismatch SaveCrcCorrupt
-        Context MMSceneParse AllTests
+        Context MMSceneParse MMSceneExecute AllTests
         PROPERTIES
         TIMEOUT ${REDSHIP_TEST_TIMEOUT}
         LABELS "redship"

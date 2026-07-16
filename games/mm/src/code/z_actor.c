@@ -3884,6 +3884,15 @@ void MM_Actor_SpawnTransitionActors(PlayState* play, ActorContext* actorCtx) {
 }
 
 Actor* MM_Actor_SpawnEntry(ActorContext* actorCtx, ActorEntry* actorEntry, PlayState* play) {
+    // (#344) Guard the historically-crashing spawn entry. A NULL actorEntry
+    // reaches here when a scene resource fails to load: MM_OTRPlay_SpawnScene
+    // early-returns, MM_OTRPlay_InitScene never runs, play->linkActorEntry stays
+    // NULL, and Play_Init drives Actor_InitContext with it. Fail controlled
+    // instead of wild-dereferencing rot.x three layers from the real failure
+    // (which MM_OTRPlay_SpawnScene already logs at scene-load time).
+    if (actorEntry == NULL) {
+        return NULL;
+    }
     s16 rotX = (actorEntry->rot.x >> 7) & 0x1FF;
     s16 rotY = (actorEntry->rot.y >> 7) & 0x1FF;
     s16 rotZ = (actorEntry->rot.z >> 7) & 0x1FF;
