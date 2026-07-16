@@ -342,11 +342,18 @@ void MM_Scene_CommandSkyboxSettings(PlayState* play, S2H::ISceneCommand* cmd) {
     S2H::SetSkyboxSettings* settings = (S2H::SetSkyboxSettings*)cmd;
 
     play->skyboxId = settings->settings.skyboxId & 3;
-    // BENTODO z_scene.c reads from skyboxSettings.skyboxConfig not weather
-    // Settings uses names from OOT
+    // settings.weather carries the skyboxConfig value in MM's OTR wire format —
+    // the same byte the N64 skyboxSettings.skyboxConfig held, just renamed. Not a
+    // divergence from vanilla z_scene.c.
     play->envCtx.skyboxConfig = play->envCtx.changeSkyboxNextConfig = settings->settings.weather;
     play->envCtx.lightMode = settings->settings.indoors;
-    // Scene_LoadAreaTextures(play, settings->settings.)
+    // Single-exe limitation (#344): vanilla z_scene.c calls Scene_LoadAreaTextures
+    // here to bind segment 0x06 to the shared scene_texture_01..08 area textures.
+    // That path is export-dependent (the scene_texture resources must be wired
+    // through the OTR pipeline), so it is omitted; scenes using shared area
+    // textures leave segment 0x06 unbound — NULL-guarded in z_room.c, so missing/
+    // garbage textures, no crash. A faithful restore is a follow-up; do NOT
+    // substitute a raw ROM DMA (wrong mechanism for the port).
 }
 
 void MM_Scene_CommandSkyboxDisables(PlayState* play, S2H::ISceneCommand* cmd) {

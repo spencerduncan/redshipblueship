@@ -2507,6 +2507,16 @@ void MM_Play_Init(GameState* thisx) {
 
     player = GET_PLAYER(this);
 
+    // (#344) If the player never spawned — scene resource failed to load, so
+    // MM_Actor_SpawnEntry returned without spawning — GET_PLAYER is NULL and the
+    // camera / BG-cam setup below would dereference it. state.main and
+    // state.destroy are already assigned above (this frame), so returning here is
+    // state-machine safe; the load failure was already logged by
+    // MM_OTRPlay_SpawnScene. This contains the crash rather than recovering play.
+    if (player == NULL) {
+        return;
+    }
+
     Camera_InitFocalActorSettings(&this->mainCamera, &player->actor);
     MM_gDbgCamEnabled = false;
 
