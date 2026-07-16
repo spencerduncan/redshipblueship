@@ -559,6 +559,14 @@ extern "C" s32 MM_OTRfunc_8009728C(PlayState* play, RoomContext* roomCtx, s32 ro
         //&roomCtx->loadQueue, NULL, __FILE__, __LINE__);
         printf("File Name %s\n", play->roomList.romFiles[roomNum].fileName);
         auto roomData = std::static_pointer_cast<S2H::Scene>(ResourceLoad(play->roomList.romFiles[roomNum].fileName));
+        if (roomData == nullptr) {
+            // Fail loudly, same policy as MM_OTRPlay_SpawnScene's scene guard:
+            // the NULL still flows into roomRequestAddr and is contained in
+            // MM_OTRfunc_800973FC before anything dereferences it.
+            fprintf(stderr, "[MM] FATAL: failed to load room resource '%s' (sceneId %d)\n",
+                    play->roomList.romFiles[roomNum].fileName, (int)play->sceneId);
+            fflush(stderr);
+        }
         roomCtx->status = 1;
         roomCtx->roomRequestAddr = roomData.get();
 

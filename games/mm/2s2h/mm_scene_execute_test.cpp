@@ -65,6 +65,11 @@ ActorEntry* MM_Play_ResolveLinkActorEntry(EntranceEntry* setupEntranceList, s32 
 // unit-testable here.
 extern "C" Actor* MM_Actor_SpawnEntry(ActorContext* actorCtx, ActorEntry* actorEntry, PlayState* play);
 
+// First-room processor from z_play_2SH.cpp — its NULL-room guard returns before
+// any executor/actor/environment access, so a zeroed PlayState exercises it
+// safely.
+extern "C" s32 MM_OTRfunc_800973FC(PlayState* play, RoomContext* roomCtx);
+
 namespace {
 
 void MMSceneExec_PushU32(std::vector<char>& buf, uint32_t value) {
@@ -275,6 +280,32 @@ extern "C" int MM_SceneExecute_RunHeadless(void) {
             return 1;
         }
         printf("[TEST] PASS: MM_Actor_SpawnEntry NULL guard locked\n");
+    }
+
+    // === First-room NULL guard (cross-switch crash containment) ===
+    // Locks MM_OTRfunc_800973FC's containment for a first-room load failure:
+    // with status==1 and a NULL roomRequestAddr it must return 1 (so
+    // MM_Play_Init's busyloop terminates) WITHOUT running the command executor
+    // on the NULL room — previously this called
+    // MM_OTRScene_ExecuteCommands(play, NULL) and null-derefed before the
+    // post-busyloop player guard could run. The early return also skips
+    // func_80123140, whose unguarded player->actor.id read is the other
+    // in-busyloop crash on a player-less PlayState.
+    {
+        auto rg_play = std::make_unique<PlayState>();
+        RoomContext* rg_roomCtx = &rg_play->roomCtx;
+        rg_roomCtx->status = 1;
+        rg_roomCtx->roomRequestAddr = nullptr;
+        s32 processed = MM_OTRfunc_800973FC(rg_play.get(), rg_roomCtx);
+        if (processed != 1) {
+            printf("[TEST] FAIL: NULL-room guard returned %d, expected 1 (busyloop would spin)\n", (int)processed);
+            return 1;
+        }
+        if (rg_roomCtx->status != 0) {
+            printf("[TEST] FAIL: NULL-room guard left status=%d, expected 0\n", (int)rg_roomCtx->status);
+            return 1;
+        }
+        printf("[TEST] PASS: first-room NULL guard contained\n");
     }
 
     // === ObjectList (0x0B) via WIRE-BYTE (regression lock) ===
