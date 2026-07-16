@@ -1,4 +1,4 @@
-# Worker loop goals — Wave 3 (updated 2026-07-16)
+# Worker loop goals — Wave 3 (updated 2026-07-16, rev 2: crash log decoded)
 
 Supersedes **Wave 2** (the 2026-06-10 Lanes 5–6 that used to fill this file — all
 complete, see git history). Wave 2 was: Lane 5 = SOH shuffle feature ports
@@ -6,6 +6,12 @@ complete, see git history). Wave 2 was: Lane 5 = SOH shuffle feature ports
 roadmap is **done** and predates the MM single-exe stabilization effort
 (#340→#353), which is the live work now. This file went stale for a month after
 those lanes closed — §"Replanning" below exists so that does not recur.
+
+**Rev 2 (2026-07-16):** the operator's actual crash log arrived and was decoded.
+The live crash is NOT on the MM side — it is the **OoT return leg** of a
+cross-game switch (§A). An unmerged fix already exists on
+`claude/cutscene-crash-redship-4aukbd`. Rev 1's ranked MM-side map was written
+before the log existed; it is preserved as the contingency map (§B).
 
 ## Completed (Wave 2)
 - **Lane 5** — shuffle features / epic #235: absorbed via PR #315; #235 closed.
@@ -25,205 +31,241 @@ those lanes closed — §"Replanning" below exists so that does not recur.
 - Always `git fetch` before touching a branch. Never force-push commits you didn't
   write without reading them first. Never push to `main`.
 - End commit messages + PR bodies with the trailers CLAUDE.md specifies.
+- File:line anchors below were verified against main `8b8d3f0a` (2026-07-16); if
+  main has moved, locate by symbol, not by line.
 
 ---
 
-## Active lane — MM single-exe cross-switch crash stabilization (crash-log-first, ULTRACODE)
+## Active lane — cross-game switch crash stabilization
 
-> Run as an ULTRACODE task. The operator will hand you the **actual crash log**
-> with this prompt. The log is the primary anchor — everything below is the map.
+### A. PRIMARY: land the entrance-leak fix (crash is decoded — this is the live fault)
 
-### 0. THE ONE FRAMING THAT MATTERS MOST
-**The crash log is the PRIMARY anchor. Diagnose FROM it. Do NOT assume any candidate.**
-PR #353 (`8b8d3f0`) already root-caused and CONTAINED one failure (the scene-load
-failure-propagation gap). The build **still** crashes on switch → the fault is
-elsewhere/downstream. If you assume "it's the propagation path again," you waste
-the session. Instead: (1) extract the log's signature — assert text, faulting
-symbol (mangled/demangled), faulting address (near-NULL READ vs WRITE? what
-offset?), stack frames, and **which transition** it dies on (first HMS→MM
-`MM_Game_Init` vs a later `MM_Game_Resume`); (2) note which breadcrumb log lines
-are present/absent (§2 triage split); (3) map onto §2 BEFORE touching code; (4)
-only then hypothesize and verify.
+**The 2026-07-16 crash log (build `d81a23d`, "Copper Bravo 9.1.1", Windows) is
+fully decoded. Do not re-derive it from scratch — verify it, then land the fix.**
 
-### 1. CURRENT MERGED STATE — what #353 landed (do NOT redo)
-- **`MM_Actor_SpawnEntry(NULL)` guard** — `games/mm/src/code/z_actor.c:3872-3874`.
-- **Post-busyloop NULL-player guard** — `games/mm/src/code/z_play.c:2516-2518`
-  (`MM_Play_Init` returns cleanly when `GET_PLAYER` is NULL; `state.main`/`destroy`
-  already set at 2450-2451).
-- **Scene-load failure is LOUD + contained** — `MM_OTRPlay_SpawnScene`
-  (`games/mm/2s2h/z_play_2SH.cpp:51-57`) logs `[MM] FATAL: failed to load scene
-  resource` and early-returns on NULL `sceneSegment`.
-- **`Object_GetSlot` mis-binding** to OoT's `GameInteractor_Should` —
-  `games/mm/src/code/z_scene.c:116-126` (`RSBS_SINGLE_EXECUTABLE` guard); plus
-  `VB_FASTER_FIRST_CYCLE` at `games/mm/2s2h/z_scene_2SH.cpp:299-316`.
-- **New ROM-free CTest `mm-scene-execute`** (label `redship`) —
-  `games/mm/2s2h/mm_scene_execute_test.cpp` via `extern "C" MM_SceneExecute_RunHeadless()`
-  in `src/common/test_runner.cpp`. Extracted `MM_Play_ResolveLinkActorEntry`
-  (`z_scene_2SH.cpp:53-60`).
+Decoded signature:
 
-**Systemic thesis (why these are a hidden CLASS):** (1) linker elision (#341) —
-no `2ship_*` archive is `WHOLE_ARCHIVE` (`games/mm/CMakeLists.txt:324`) unlike
-`soh_rando` (`games/oot/CMakeLists.txt:276`); self-registering TUs drop silently.
-(2) silent no-op stubs (`src/common/mm_stubs.c`). (3) port-gaps. All invisible
-because the only real-MM-gameplay tests (`int-boot-mm`) are ROM-gated and never
-run on hosted CI (`integration-tests.yml` is `workflow_dispatch`-only).
+- `Cutscene_HandleConditionalTriggers: entrance: 49168` (OoT `z_demo.c`) followed
+  ~26ms later by `Exception: 0xc0000005`. **49168 = 0xC010 =
+  `MM_ENTR_CLOCK_TOWER_INTERIOR_1`** (`src/common/entrance.h:37`) — an **MM**
+  entrance id sitting in **OoT's** `gSaveContext.entranceIndex`.
+- OoT's `entranceIndex` is a direct linear index into
+  `gEntranceTable[ENTR_MAX = 0x614]` (`games/oot/include/z64scene.h:330`,
+  `variables.h:123`; indexing sites e.g. `games/oot/src/code/z_play.c:500-514`).
+  0xC010 reads ~32× past the table → garbage → segfault inside
+  `OoT_Play_Init` → `Cutscene_HandleConditionalTriggers`.
+- Context markers prove it is the **return/resume leg of a switch**: "Replacing
+  resource factory" (archive hot-swap only happens in `EnsureGameArchivesLoaded`,
+  `rsbs/src/main.cpp:532`) and SDL controllers re-added immediately before the
+  crash. The same log's stdout stream shows the OoT→MM leg **succeeding** all the
+  way into `Z2_INSIDETOWER` first-room load ("File Name
+  scenes/nonmq/Z2_INSIDETOWER/...") — #353's MM-side guards held.
+- Crash-dump caveats (teach these to your future self): the traceback is
+  nearest-symbol resolution in a static exe — the repeated
+  `Combo_SetSharedGraphics` frames are symbolization artifacts, NOT real frames.
+  The dump's `Scene: SCENE_MARKET_DAY` + full Market actor list is the pre-switch
+  OoT PlayState. The `GFX Stack: games/mm/src/code/graph.c:269` ×3 is stale MM
+  `OPEN_DISPS` bookkeeping in the **shared** GraphicsContext (MM's
+  `Graph_ExecuteAndDraw`) — expected residue, not the fault (worth a cleanup
+  follow-up note, nothing more). Build `d81a23d` is not an ancestor of main —
+  treat the log's line numbers (`z_demo.c:1605`, `CrashHandler.cpp:72`) as
+  build-relative.
 
-### 2. RANKED CANDIDATE CRASH SURFACE (diagnostic map)
-Switch path: `MM_Play_Init` (`z_play.c:2230`) → `MM_Play_SpawnScene` (2412) → on
-success `MM_OTRPlay_InitScene` runs scene cmds (sets `linkActorEntry`,
-`setupEntranceList`, room list) → `Room_SetupFirstRoom` (`status=1`, loads first
-room) → `Actor_InitContext(...linkActorEntry)` (2498) spawns player → busyloop
-`while (!Room_ProcessRoomRequest(...)) {}` (2501) → `MM_OTRfunc_800973FC`
-(`z_play_2SH.cpp:64`) runs first-room cmds (72), then `func_80123140(play,
-GET_PLAYER(play))` (73), then `MM_Actor_SpawnTransitionActors` (74) → #353 guard
-(2516). `GET_PLAYER` = `(Player*)play->actorCtx.actorLists[ACTORCAT_PLAYER].first`
-(`z64play.h:140`) — NULL when no player actor spawned.
+**Root cause (established, and matches an existing unmerged fix):** the
+cross-game "startup entrance" is a **single game-agnostic global**
+(`src/common/entrance.cpp:26`). On an OoT→MM entrance switch, `main.cpp:527-528`
+writes the MM target (0xC010) into it. The resume hooks on BOTH sides read it
+**without clearing** (`games/oot/soh/GameExports_SingleExe.cpp:354-361`,
+`games/mm/2s2h/GameExports_SingleExe.cpp:863-865`), F10 switches never overwrite
+it (`main.cpp:469-471` sets no startup entrance), and no consumer checks which
+game the value was meant for. Any OoT resume/`Play_Init` that observes a stale
+MM value applies it to `gSaveContext.entranceIndex` → OOB. (MM is naturally
+OOB-resistant: its entrance ids are bit-packed scene/spawn, not a linear index.)
 
-Because #353 made total scene-load failure loud+contained, a remaining crash most
-likely means **the scene DID load and the fault moved downstream**. Ranked:
+**The fix already exists — unmerged:** branch
+`origin/claude/cutscene-crash-redship-4aukbd`, commit `7c6e7eec`
+("Fix OoT Market cutscene crash from cross-game entrance leaking into
+entranceIndex", 2026-07-15). It gives the startup entrance **game affinity**
+(tagged with the destination game; game-scoped accessors; 1-arg setter kept as a
+wildcard shim), adds an `ENTR_MAX` bounds guard in `OoT_Play_Init` as defense in
+depth, and extends `Test_StartupEntrance` to assert an MM-tagged 0xC010 is
+invisible to OoT (the exact crash condition). 8 files, +157/−18. It was never
+PR'd. Its base is `b1133b39` (4 commits behind main), but **`git merge-tree`
+confirms it merges cleanly onto `8b8d3f0a`** (verified 2026-07-16).
 
-- **#1 (TOP) — `func_80123140(play, GET_PLAYER(play))` at `z_play_2SH.cpp:73`, in
-  the busyloop, BEFORE the 2516 guard.** `func_80123140` (`z_player_lib.c:602`)
-  reads `player->actor.id` with no NULL check. Fires when scene+first-room load OK
-  but the player never entered the PLAYER list — `linkActorEntry` NULL (no
-  SPAWN_LIST) or `Actor_SpawnAsChildAndCutscene` returned NULL (player overlay
-  elided per #341, or player object not loaded). **Sig:** SIGSEGV near-NULL READ
-  small offset in `func_80123140`, via `MM_OTRfunc_800973FC` →
-  `Room_ProcessRoomRequest` (`z_room.c:616`) → `z_play.c:2501`. Fix parallels
-  #353: guard line 73 (skip `func_80123140` when `GET_PLAYER==NULL`) so control
-  falls to the 2516 guard.
+**Steps:**
+1. `git fetch origin`, read `7c6e7eec` in full (commit message = the diagnosis).
+   Branch `claude/<desc>` off fresh `origin/main`; cherry-pick `7c6e7eec`.
+2. Re-verify its assumptions against current main — #349 (boot straight into
+   OoT) and #350 (splash skip on switch) landed after its base and touched
+   adjacent switch-flow code. Confirm by symbol: the resume hooks, the
+   `main.cpp` switch block (`:440-545`), `OoT_Play_Init`'s startup consumption
+   (`games/oot/src/code/z_play.c:398`), MM's (`games/mm/src/code/z_play.c:2244`).
+3. Test wiring: `Test_StartupEntrance` (`src/common/test_runner.cpp:404`,
+   `gTests[]` row `:524`) currently reaches CI **only via `AllTests`** — there is
+   no dedicated `add_test` row. Add `add_test(NAME StartupEntrance COMMAND
+   redship --test startup-entrance)` in `CMake/SingleExecutable.cmake` (rows at
+   `:213-234`) AND add the name to the `set_tests_properties(... LABELS
+   "redship")` list (`:238-245`) — a test missing from that list is built but
+   never run by CI. Optionally extend the test to assert the F10-return
+   sequence: set slot for MM, simulate OoT resume, assert OoT falls back to the
+   frozen return entrance.
+4. Open the PR referencing this decoded log + `7c6e7eec` (credit the original
+   session's diagnosis); drive Linux+Windows CI (`generate-builds.yml`) to full
+   green; squash-merge.
+5. Ask the operator to re-test on a fresh build — the crashing build `d81a23d`
+   is of unknown lineage, so post-merge confirmation must be on a build cut from
+   main. If a crash still reproduces, capture the new log and go to §B.
+
+### B. CONTINGENCY: MM-side switch-crash map (rev-1 candidates — use only if a crash survives §A)
+
+The known log shows the OoT→MM leg completing scene+first-room load, so these
+are NOT the live fault. They remain plausible latent surfaces; diagnose FROM the
+new log, never by assumption.
+
+**Merged state — what #353/#344 already landed (do NOT redo):**
+- `MM_Actor_SpawnEntry(NULL)` guard — `games/mm/src/code/z_actor.c` (locate by
+  symbol).
+- Post-busyloop NULL-player guard — `games/mm/src/code/z_play.c:2509-2519`
+  (`MM_Play_Init` returns cleanly when `GET_PLAYER` is NULL).
+- Scene-load failure LOUD + contained — `MM_OTRPlay_SpawnScene`
+  (`games/mm/2s2h/z_play_2SH.cpp:51-57`): logs `[MM] FATAL: failed to load scene
+  resource`, early-returns on NULL `sceneSegment`.
+- `Object_GetSlot` mis-binding guard — `games/mm/src/code/z_scene.c` under
+  `RSBS_SINGLE_EXECUTABLE`; `VB_FASTER_FIRST_CYCLE` at
+  `games/mm/2s2h/z_scene_2SH.cpp`.
+- ROM-free CTests `mm-scene-parse` / `mm-scene-execute` (label `redship`) —
+  `games/mm/2s2h/mm_scene_execute_test.cpp`.
+
+**Ranked residual candidates** (switch path: `MM_Play_Init` → `MM_Play_SpawnScene`
+→ `MM_OTRPlay_InitScene` → `Room_SetupFirstRoom` → `Actor_InitContext` → busyloop
+`while (!Room_ProcessRoomRequest(...)) {}` → `MM_OTRfunc_800973FC`
+(`z_play_2SH.cpp:64`) → post-busyloop guard):
+- **#1 — `func_80123140(play, GET_PLAYER(play))` at `z_play_2SH.cpp:73`, inside
+  the busyloop, BEFORE the post-busyloop guard.** Reads `player->actor.id`
+  unguarded; fires when scene+room load OK but the player never spawned
+  (`linkActorEntry` NULL or spawn returned NULL — see #341 elision). **Sig:**
+  near-NULL READ in `func_80123140` via `Room_ProcessRoomRequest`. Fix parallels
+  #353: skip when `GET_PLAYER == NULL` so control falls to the existing guard.
 - **#2 — first-room load failure → `MM_OTRScene_ExecuteCommands(play, NULL)` at
-  `z_play_2SH.cpp:72`** (#353 guards the *scene*, NOT the *room*).
-  `MM_OTRfunc_8009728C` (`z_scene_2SH.cpp:561-563`) sets `roomRequestAddr =
-  ResourceLoad(fileName).get()` — NULL if room file missing/mis-parsed, unchecked
-  → `scene->commands.size()` (`:514`) derefs NULL. **Sig:** SIGSEGV in
-  `MM_OTRScene_ExecuteCommands` off a NULL `S2H::Scene*`; the `printf("File Name
-  %s\n", ...)` at `z_scene_2SH.cpp:560` is the **last log line before the crash**.
-- **#3 — missing/misordered SPAWN_LIST vs ENTRANCE_LIST → NULL `setupEntranceList`
-  deref.** `MM_Scene_CommandSpawnList` (`z_scene_2SH.cpp:64`) →
-  `MM_Play_ResolveLinkActorEntry(setupEntranceList, curSpawn, entries)`; NULL if
-  0x06 hasn't run. Also `Room_SetupFirstRoom:550`. Latent (vanilla emits 0x06
-  before 0x00). **Sig:** near-NULL READ in `MM_Scene_CommandSpawnList` via
-  `MM_OTRScene_ExecuteCommands:531` under `MM_OTRPlay_InitScene`.
-- **#4 — player-object overlay elision → NULL `gActorOverlayTable[0].profile->objectId`
-  WRITE at `z_scene_2SH.cpp:79`.** If `ovl_player_actor`'s profile isn't
-  linked (#341), `.profile` is NULL → write to near-NULL. Same root as #1(b) but
-  earlier. **Sig:** SIGSEGV WRITING a low address in `MM_Scene_CommandSpawnList`.
-- **#5 (LOWER) — audio/graph bring-up on switch (`GameExports_SingleExe.cpp`).**
-  First HMS→MM runs `MM_Game_Init` audio bring-up (779-784) + `MM_Game_Run`
-  asserts (800-803). `MM_osCartRomInit`→NULL (`mm_stubs.c:63`) is on this path.
-  **Sig:** trace in `AudioThread_*`/`MM_AudioMgr_Init`/`MM_Game_Run` asserts, or
-  dying on FIRST MM entry vs a resume. `[MM] ...` fprintf breadcrumbs
-  (`GameExports_SingleExe.cpp:694-806`) localize how far Init got.
+  `z_play_2SH.cpp:72`** (#353 guards the *scene*, not the *room*).
+  `roomRequestAddr = ResourceLoad(...).get()` NULL-unchecked
+  (`z_scene_2SH.cpp:561-563`). **Sig:** the `File Name %s` print
+  (`z_scene_2SH.cpp:560`) is the LAST line before the crash.
+- **#3 — missing/misordered SPAWN_LIST vs ENTRANCE_LIST → NULL
+  `setupEntranceList` deref** in `MM_Scene_CommandSpawnList` (`z_scene_2SH.cpp`).
+  Latent (vanilla emits 0x06 before 0x00).
+- **#4 — player-object overlay elision → NULL
+  `gActorOverlayTable[0].profile->objectId` WRITE** in
+  `MM_Scene_CommandSpawnList`. **Sig:** SIGSEGV WRITING a low address.
+- **#5 — audio/graph bring-up on switch** (`GameExports_SingleExe.cpp` init
+  asserts; `MM_osCartRomInit`→NULL in `mm_stubs.c`). **Sig:** dies on FIRST MM
+  entry, trace in `AudioThread_*`/`MM_Game_Run` asserts; `[MM] ...` breadcrumbs
+  localize how far Init got.
 
-**Fast triage split (with the log in hand):** `[MM] FATAL: failed to load scene
-resource` present then crash → scene path (should be contained; check for partial
-`Room_SetupFirstRoom` leaving `status==1`). No FATAL, `File Name %s` present,
-crash in `MM_OTRScene_ExecuteCommands` → **#2**. No FATAL, crash in
-`func_80123140` → **#1**. Crash WRITING low address in `MM_Scene_CommandSpawnList`
-→ **#4**. Crash in `AudioThread_*`/`MM_Game_Run` asserts → **#5**. Note:
-`MM_FaultDrawer_*` is stubbed no-op (`mm_stubs.c:66-76`) — a native MM fault
-prints nothing; expect a raw segfault, not an MM fault screen.
+**Fast triage split:** `[MM] FATAL` present → scene path (should be contained;
+check partial `Room_SetupFirstRoom` state). `File Name %s` is last line → #2.
+Crash in `func_80123140` → #1. WRITE to low address in spawn-list handler → #4.
+Audio/asserts on first entry → #5. `MM_FaultDrawer_*` is a stubbed no-op — a
+native MM fault prints nothing; expect a raw segfault, not an MM fault screen.
 
-### 3. ULTRACODE METHOD
-1. **Fan out to diagnose** — one sub-agent per subsystem the log could implicate
-   (scene-execute, room-load, player/overlay spawn, audio/graph bring-up, elision
-   #341). Feed each the exact faulting symbol/address/frame; each reports whether
-   the signature is *consistent* with its subsystem.
-2. **Adversarially verify — refute by default.** For each survivor, try to
-   DISPROVE it: does the faulting offset match the derefed field? does the frame
-   chain exist on that path? is the predicted breadcrumb present/absent? Confirm
-   only when the signature is inconsistent with every alternative.
-3. **Fix exactly the confirmed fault** — minimal contained guard/early-return in
-   #353's style. Don't refactor broadly; don't fix candidates the log doesn't force.
-4. **LOCK it with a ROM-free test** (§4) in the `redship` label.
-5. **Open a PR**, drive Linux+Windows CI to green.
+### Method (both parts; ULTRACODE for §B diagnosis)
+1. **Anchor on the log.** Extract signature: faulting symbol, address class
+   (near-NULL? READ vs WRITE?), which transition leg, which breadcrumbs
+   present/absent. Map onto the candidate surface BEFORE touching code.
+2. **Fan out to diagnose** (§B) — one sub-agent per implicated subsystem; each
+   reports whether the signature is *consistent* with its subsystem.
+3. **Adversarially verify — refute by default.** Confirm a candidate only when
+   the signature is inconsistent with every alternative.
+4. **Fix exactly the confirmed fault** — minimal contained guard in #353's
+   style; no broad refactors.
+5. **Lock it with a ROM-free test** in the `redship` label; PR; full green; merge.
 
-### 4. ROM-FREE VERIFICATION PLAYBOOK
-Every MM fix MUST be locked in the **`redship` CTest label** — the only tier
-hosted CI compiles+runs without ROMs. Template: `games/mm/2s2h/mm_scene_execute_test.cpp`
+### ROM-free verification playbook
+Every fix MUST be locked in the **`redship` CTest label** — the only tier hosted
+CI compiles+runs without ROMs. Template: `games/mm/2s2h/mm_scene_execute_test.cpp`
 (read it fully). Patterns:
-- **A. Field-writing scene handler → mm-scene-execute pattern**
-  (`mm_scene_execute_test.cpp:70-188`): little-endian wire buffer
-  `[u32 count][per cmd: u32 opcode + payload]` via `MMSceneExec_PushU32` (payload
-  widths must match `resource/importer/scenecommand/Set*Factory.cpp`) → wrap as
-  `Ship::File`+`BinaryReader`(LE)+`ResourceInitData`(`SOH_Room`,ver 0,
-  `RESOURCE_FORMAT_BINARY`) → `ResourceFactoryBinarySceneV0::ReadResource` →
-  POISON output fields on a value-init'd `make_unique<PlayState>()` with distinct
-  sentinels → `MM_OTRScene_ExecuteCommands` → assert. **Only exercise pure-write
-  handlers** — anything touching object system/allocator/overlays/`ResourceLoad`
-  null-derefs a zeroed PlayState (excluded: SetStartPositionList 0x00,
-  `Scene_CommandCutsceneList` at `:453`). Verify pure-write in `z_scene_2SH.cpp`
-  (executor at `:510`) before use.
-- **B. Guard/early-return fix → direct call** (`:262-278`): heap-zeroed structs,
-  call at the guard boundary (e.g. `MM_Actor_SpawnEntry(ctx, nullptr, play)` → NULL).
-- **C. Entangled crash math → extract a pure helper** (`:200-207`), call directly.
-- **MM-TU mechanics** (`mm_scene_execute_test.cpp:13-84`, `test_runner.cpp:24-74`):
-  `test_runner.cpp` can't include MM `global.h` → put MM-type tests in a
-  `games/mm/2s2h/*.cpp` under `#ifdef RSBS_SINGLE_EXECUTABLE`, expose
-  `extern "C" int X_RunHeadless(void)` (0=pass); auto-globbed into 2ship_port
-  (`games/mm/CMakeLists.txt:101`); the undefined ref force-pulls it. **Linkage:**
-  `.cpp` callees (e.g. `MM_OTRScene_ExecuteCommands`) = plain C++ decl; `.c`
-  callees (e.g. `MM_Actor_SpawnEntry`) = `extern "C"`. Wrong = link error.
+- **A. Field-writing scene handler → mm-scene-execute pattern**: little-endian
+  wire buffer `[u32 count][per cmd: u32 opcode + payload]` (payload widths must
+  match `resource/importer/scenecommand/Set*Factory.cpp`) → wrap as
+  `Ship::File`+`BinaryReader`(LE)+`ResourceInitData`(`SOH_Room`, ver 0,
+  `RESOURCE_FORMAT_BINARY`) → `ReadResource` → POISON output fields on a
+  value-init'd `PlayState` with sentinels → `MM_OTRScene_ExecuteCommands` →
+  assert. **Only pure-write handlers** — anything touching object
+  system/allocator/overlays/`ResourceLoad` null-derefs a zeroed PlayState.
+- **B. Guard/early-return fix → direct call**: heap-zeroed structs, call at the
+  guard boundary (e.g. `MM_Actor_SpawnEntry(ctx, nullptr, play)` → NULL).
+- **C. Entangled crash math → extract a pure helper**, call directly.
+- **Common-code fixes (§A) → plain test_runner tests**: `src/common` logic
+  (entrance table, context, save) is directly testable in
+  `src/common/test_runner.cpp` — no MM-TU gymnastics needed.
+- **MM-TU mechanics**: `test_runner.cpp` can't include MM `global.h` → put
+  MM-type tests in a `games/mm/2s2h/*.cpp` under `#ifdef RSBS_SINGLE_EXECUTABLE`,
+  expose `extern "C" int X_RunHeadless(void)` (0=pass); auto-globbed into
+  2ship_port; the undefined ref force-pulls it. `.cpp` callees = plain C++ decl;
+  `.c` callees = `extern "C"`. Wrong = link error.
 - **Three REQUIRED CTest wiring edits:** (1) `gTests[]` row in
-  `test_runner.cpp:517-543` (keep `archive-hotswap-logic` LAST); (2)
-  `add_test(...)` in `SingleExecutable.cmake:213-234`; (3) **add the name to the
-  `set_tests_properties(... LABELS "redship")` list** (`:238-245`) — load-bearing;
-  a test not in this list is built but NOT run by CI. `redship` is display-free
-  (no Xvfb); display-needing tests go in the `rando` label.
+  `test_runner.cpp` (keep `archive-hotswap-logic` LAST — it re-inits the
+  entrance table); (2) `add_test(...)` in `CMake/SingleExecutable.cmake:213-234`;
+  (3) **add the name to the `set_tests_properties(... LABELS "redship")` list**
+  (`:238-245`) — load-bearing; a test not in this list is built but NOT run by
+  CI. `redship` is display-free (no Xvfb); display-needing tests go in the
+  `rando` label.
 
-### 5. CI REALITY
-`generate-builds.yml` triggers on `pull_request`; `build-linux`/`build-windows`
-each build `redship` + run `ctest --label-regex "^redship$" --no-tests=error`
-(ROM-free, both OSes; a mistyped label FAILS loudly). Nothing runs the tests on
-push-without-PR. The `int-*` tier boots the real binary, needs ROMs, and
-`integration-tests.yml` is `workflow_dispatch`-only — never on a PR. The deferred
-deep `Play_Init` failure-*recovery* (make `MM_OTRPlay_SpawnScene`/`MM_Play_SpawnScene`
-return an s32 so `Play_Init` unwinds cleanly instead of leaving a player-less
-PlayState whose `state.main=MM_Play_Main` runs next frame — `z_play.c:2412,2450,2498`)
-can only be VALIDATED on a real-ROM boot → stays a documented open item.
+### CI reality
+`generate-builds.yml` triggers on `pull_request`; build-linux/build-windows each
+build `redship` + run `ctest --label-regex "^redship$" --no-tests=error`
+(`generate-builds.yml:262`; `rando` label under xvfb at `:267`). Nothing runs
+tests on push-without-PR. The `int-*` tier boots the real binary, needs ROMs,
+and `integration-tests.yml` is `workflow_dispatch`-only — never on a PR. The
+deferred deep `Play_Init` failure-*recovery* (make the spawn-scene path return
+s32 so `Play_Init` unwinds instead of leaving a player-less PlayState) can only
+be VALIDATED on a real-ROM boot → stays a documented open item.
 
-### 6. RECOMMENDED SEPARATE PR — the #341 elision-prevention track
+### Recommended separate PR — the #341 elision-prevention track
 Live class-level hazard regardless of the current crash cause; ROM-free.
-- OoT wraps only `soh_rando` (`games/oot/CMakeLists.txt:276`, rationale `:268-276`).
-  MM wraps NONE (`games/mm/CMakeLists.txt:324`). `--start-group` (root
-  `CMakeLists.txt:262`) does NOT defeat member elision; Windows `/FORCE:MULTIPLE`
-  (`:275`) silently drops duplicates. Exposure ~208 self-registering
-  `RegisterShipInitFunc` TUs (`ShipInit.hpp`, `InitAll` at `BenPort.cpp:866`),
-  concentrated in **2ship_enh** (182/196) + **2ship_rando** (21/137). Resource
-  factories are registered explicitly (`BenPort.cpp:293-331`) and actors are
+- OoT wraps only `soh_rando` in WHOLE_ARCHIVE (`games/oot/CMakeLists.txt:276`,
+  rationale `:268-275`). MM wraps NONE. `--start-group` does NOT defeat member
+  elision; Windows `/FORCE:MULTIPLE` silently drops duplicates. Exposure ~208
+  self-registering `RegisterShipInitFunc` TUs, concentrated in **2ship_enh** +
+  **2ship_rando**. Resource factories are registered explicitly and actors are
   table-driven → NOT at risk; scope to enh+rando.
-- **Option A:** wrap `2ship_enh`+`2ship_rando` in `$<LINK_LIBRARY:WHOLE_ARCHIVE,...>`
-  at `:324`. Watch for Linux duplicate-symbol vs `mm_stubs.c` (a hard link error
-  there is the GOOD outcome — surfaces in CI; the `GameInteractor_Execute*` stubs
-  at `mm_stubs.c:83-115` do NOT collide, MM's GI is excluded). Get **Linux** clean
-  first (Windows `/FORCE:MULTIPLE` can hide a collision Linux exposes).
+- **Option A:** wrap `2ship_enh`+`2ship_rando` in
+  `$<LINK_LIBRARY:WHOLE_ARCHIVE,...>`. A hard duplicate-symbol link error vs
+  `mm_stubs.c` is the GOOD outcome — surfaces in CI. Get **Linux** clean first
+  (Windows `/FORCE:MULTIPLE` can hide a collision Linux exposes).
 - **Option C:** `nm`-based post-link CI check — assert each MM archive's
   `_GLOBAL__sub_I_*` registrar symbols appear in linked `redship`. Detects the
   CLASS regardless of cause. Skip Option B (explicit registrar list — churn).
-- Keep SEPARATE from the crash-fix PR unless the log proves elision is the root cause.
+- Keep SEPARATE from the crash-fix PR unless a log proves elision is the root cause.
 
-### 7. STUB + DEFERRED INVENTORY (audit only what the trace implicates)
-`src/common/mm_stubs.c`: most stubs safe (libc/OS aliases `:23-59`; excluded
-enhancement/UI `:83-191`). Flag if the trace lands near boot/audio: `MM_osCartRomInit`
-→NULL (`:63`); the `GameInteractor_Execute*` no-op family (`:83-117`). Deferred
-headless-safe test locks you MAY add opportunistically (pure writes, pattern A):
-Mesh 0x0A (`z_scene_2SH.cpp:167`), PathList 0x0D (`:263`), CutsceneScriptList
-(`:386` — NOT `CutsceneList` at `:453`). Nice-to-have, not the mission.
+### Stub + deferred inventory (audit only what a trace implicates)
+`src/common/mm_stubs.c`: most stubs safe (libc/OS aliases; excluded
+enhancement/UI). Flag if a trace lands near boot/audio: `MM_osCartRomInit`→NULL;
+the `GameInteractor_Execute*` no-op family. Small cleanup candidates surfaced by
+the log decode: stale MM `OPEN_DISPS` records in the shared GraphicsContext
+survive a switch (cosmetic — pollutes crash dumps' "GFX Stack"); consider
+resetting gfx-stack bookkeeping on game switch. Deferred headless-safe test
+locks you MAY add opportunistically (pure writes, pattern A): Mesh 0x0A,
+PathList 0x0D, CutsceneScriptList. Nice-to-have, not the mission.
 
-### 8. DELIVERABLE (this lane)
-1. Crash-fix PR on `claude/<desc>`: minimal confirmed fix + ROM-free `redship`
-   test that reproduces-then-locks it, green on Linux+Windows, squash-merged.
-2. Written diagnosis: log signature, matched candidate (§2), how you refuted the
-   others, why the fix addresses it.
+### Deliverable (this lane)
+1. §A fix PR merged: `7c6e7eec` rebased onto main + dedicated
+   `StartupEntrance` CTest row, green on Linux+Windows, squash-merged, with the
+   diagnosis recorded in the PR body.
+2. Operator confirmation on a fresh main build that the reported crash is gone;
+   if anything still crashes, a new decoded log → §B loop.
 3. (Recommended, separate PR) the #341 Option A + Option C track.
-4. Any fault you can't lock ROM-free (e.g. deep `Play_Init` recovery) → documented
-   open item; do not fake CI coverage.
+4. Any fault you can't lock ROM-free (e.g. deep `Play_Init` recovery) →
+   documented open item; do not fake CI coverage.
 
 **Closure criteria:**
-- [ ] Crash-fix PR merged (squash, CI green) with the diagnosis recorded.
-- [ ] The switch-to-MM crash in the provided log no longer reproduces (as far as
-      ROM-free CI + code evidence can show; real-ROM confirmation is manual).
+- [ ] §A entrance-leak fix merged (squash, CI green) with test coverage and the
+      diagnosis recorded.
+- [ ] Crash no longer reproduces on a fresh build from main (operator-confirmed;
+      real-ROM confirmation is manual).
+- [ ] §B dispositioned: either not needed (no further crash) or the next log
+      decoded and fixed the same way.
 - [ ] #341 elision track scoped (merged, or a tracked follow-up issue).
 - [ ] This file replanned (see below).
 
@@ -237,15 +279,16 @@ lanes sat here for a month after they closed). Do not repeat that:
 1. **Before starting:** re-verify the "Completed (Wave 2)" claims against `main`
    (issues actually closed, PRs merged) and correct anything wrong. Confirm the
    Active-lane file:line anchors against current `main` — if it moved, locate by
-   symbol (`MM_Play_Init`, `MM_OTRfunc_800973FC`, `func_80123140`,
+   symbol (`Combo_CheckEntranceSwitch`, `Entrance_SetStartupEntrance`,
+   `OoT_Play_Init`, `MM_OTRfunc_800973FC`, `func_80123140`,
    `MM_OTRScene_ExecuteCommands`), not by line.
 2. **As you work:** tick the Active-lane closure criteria here with merge SHAs,
    same discipline the Wave-2 lanes used.
 3. **When the crash-stabilization lane closes: REPLAN.** Re-derive the roadmap
    toward pre-alpha readiness (**epic #321**). Likely next lanes: (a) the #341
-   elision-prevention PR (§6); (b) remaining MM single-exe stubs/port-gaps the
-   crash work surfaces; (c) the deferred deep `Play_Init` failure-recovery (needs
-   a real-ROM boot to validate); (d) #321 pre-alpha gates (BYO-archive UX,
+   elision-prevention PR; (b) remaining MM single-exe stubs/port-gaps the crash
+   work surfaces; (c) the deferred deep `Play_Init` failure-recovery (needs a
+   real-ROM boot to validate); (d) #321 pre-alpha gates (BYO-archive UX,
    known-issues doc, manual QA #310). **Rewrite THIS file as "Wave 4"** the way
    Wave 3 superseded Wave 2: move closed lanes to Completed, write fresh
    self-contained lane goals (closure criteria + steps + safety rails), date it,
