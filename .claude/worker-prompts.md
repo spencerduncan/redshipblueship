@@ -1,207 +1,296 @@
-# Worker loop goals — Wave 2 (updated 2026-06-10)
+# Worker loop goals — Wave 3 (updated 2026-07-16, rev 2: crash log decoded)
 
-Lanes 1–4 are complete (record below). Active lanes: 5 and 6 (cloud). Each active
-section is a complete, self-contained loop goal for one code worker: run it as a `/loop` goal
-(self-paced) or as a plain dispatch prompt. Lanes 5 and 6 may run concurrently — their
-pre-flight checks enforce mutual exclusion on contended files.
+Supersedes **Wave 2** (the 2026-06-10 Lanes 5–6 that used to fill this file — all
+complete, see git history). Wave 2 was: Lane 5 = SOH shuffle feature ports
+#289–#293 / epic #235; Lane 6 = Phase 2 closeout / epic #202 / #212. That entire
+roadmap is **done** and predates the MM single-exe stabilization effort
+(#340→#353), which is the live work now. This file went stale for a month after
+those lanes closed — §"Replanning" below exists so that does not recur.
 
-Supersedes the Wave 1 prompts (issues #154–160, all closed — see git history of this file).
+**Rev 2 (2026-07-16):** the operator's actual crash log arrived and was decoded.
+The live crash is NOT on the MM side — it is the **OoT return leg** of a
+cross-game switch (§A). An unmerged fix already exists on
+`claude/cutscene-crash-redship-4aukbd`. Rev 1's ranked MM-side map was written
+before the log existed; it is preserved as the contingency map (§B).
 
-## Completed lanes
-
-- **Lane 1** — PR #249 (scrolling texture interpolation) merged → main `7563640b6a`; #234
-  closed (2026-06-10).
-- **Lane 2** — PR #247 (Custom Messages → Hooks) merged → main `5ecce8f5b6`; #228, #253,
-  #254–#258 closed; gate-clear comment posted on #235 (2026-06-10).
-- **Lane 3** — PR #299 (MM tracker architecture sync) merged → main `a4eb32fdfa`; #297 closed
-  (2026-06-10). The #238 PR-A revival (individual tracker improvement ports) is now unblocked
-  and awaits a future lane.
-- **Lane 4** — admin closeout done locally (2026-06-10): Phase 0/1 milestones closed; worktrees
-  pruned ~130 → 20 (dirty/ahead/protected entries kept); all 16 audited merged branches
-  deleted; no remote branches deleted — stale-remote candidates (e.g.
-  `claude/fix-randomizer-compilation-6LcCr`) remain listed for maintainer sign-off.
+## Completed (Wave 2)
+- **Lane 5** — shuffle features / epic #235: absorbed via PR #315; #235 closed.
+- **Lane 6** — Phase 2 closeout / epic #202: #202, #211, #212, #231, #232, #233,
+  #286, #288 closed; milestone 3 dispositioned. #34 (settings namespace) remains
+  open by design, deferred to Phase 3.
+- **Waves 1 (issues #154–#160) and Lanes 1–4** — recorded in this file's git history.
 
 ## Common rules (all lanes)
-
-- Repo: `spencerduncan/redshipblueship`. Default branch `main`. All merges are **squash merges**.
-- **You are expected to open PRs, merge them once green, and close issues for your lane.**
-  Pushes, PRs, and merge-on-green are automated by default in this repo (see CLAUDE.md
-  conventions) — closure is the goal. If your environment's GitHub credentials cannot merge,
-  stop at "CI green + ready to merge" and report that state instead.
-- CI is the authoritative gate: `clang-format`, `clang-tidy`, `generate-builds` (Linux + Windows),
-  and `integration-tests-linux` (runs `ctest --label-regex "^redship$"` — BootOoT/BootMM/Roundtrip
-  live there). Full wall clock ≈ 25–40 min; Windows is the slow job.
-- Local builds (if your env supports them): `git submodule update --init`, `cmake -B build -S .`,
-  `cmake --build build --parallel`. Needs 8 GB+ RAM. Prebuilt-deps image:
-  `ghcr.io/spencerduncan/redshipblueship-build:latest`. When in doubt, trust CI over local.
-- **Always `git fetch` before touching any branch** — stale local copies of work branches exist
-  and have caused confusion before.
-- Loop protocol: each iteration = (1) fetch + assess state against the closure criteria,
-  (2) take the smallest next step, (3) push, (4) wait for CI (`gh pr checks <n> --watch` or poll
-  ~5 min), (5) on red, diagnose and fix — max 3 attempts per distinct failure, then stop and
-  report, (6) on green, advance. Exit the loop only when every closure criterion is true.
-- Post a one-line progress comment on your lane's driving issue at each milestone so other lanes
-  and humans can see state. Report outcomes faithfully — failed checks get quoted, not summarized
-  away.
-- Never force-push over commits you didn't write without fetching and reading them first.
+- Repo `spencerduncan/redshipblueship`, default branch `main`, all merges **squash**.
+- Read the root `CLAUDE.md` first. Work on a `claude/<description>` branch; push as
+  you work; open a PR when ready for CI; squash-merge once CI is **fully** green.
+  Never merge red or partial CI. If blocked/uncertain, push and report.
+- **This environment cannot compile (submodules uninitialized) or boot (no ROMs).
+  CI is your only compile/test verifier** — get changes onto a PR; do not trust
+  reasoning about link/runtime results.
+- Always `git fetch` before touching a branch. Never force-push commits you didn't
+  write without reading them first. Never push to `main`.
+- End commit messages + PR bodies with the trailers CLAUDE.md specifies.
+- File:line anchors below were verified against main `8b8d3f0a` (2026-07-16); if
+  main has moved, locate by symbol, not by line.
 
 ---
 
-## Lane 5 — shuffle feature ports + 9.2.x rando absorption (epic #235, serial)
+## Active lane — cross-game switch crash stabilization
 
-**Goal:** Land the five remaining SOH shuffle features (#289–#293) one at a time as individual
-PRs, absorb the SOH 9.2.x rando/hint batch, then close epic #235.
+### A. PRIMARY: land the entrance-leak fix (crash is decoded — this is the live fault)
+
+**The 2026-07-16 crash log (build `d81a23d`, "Copper Bravo 9.1.1", Windows) is
+fully decoded. Do not re-derive it from scratch — verify it, then land the fix.**
+
+Decoded signature:
+
+- `Cutscene_HandleConditionalTriggers: entrance: 49168` (OoT `z_demo.c`) followed
+  ~26ms later by `Exception: 0xc0000005`. **49168 = 0xC010 =
+  `MM_ENTR_CLOCK_TOWER_INTERIOR_1`** (`src/common/entrance.h:37`) — an **MM**
+  entrance id sitting in **OoT's** `gSaveContext.entranceIndex`.
+- OoT's `entranceIndex` is a direct linear index into
+  `gEntranceTable[ENTR_MAX = 0x614]` (`games/oot/include/z64scene.h:330`,
+  `variables.h:123`; indexing sites e.g. `games/oot/src/code/z_play.c:500-514`).
+  0xC010 reads ~32× past the table → garbage → segfault inside
+  `OoT_Play_Init` → `Cutscene_HandleConditionalTriggers`.
+- Context markers prove it is the **return/resume leg of a switch**: "Replacing
+  resource factory" (archive hot-swap only happens in `EnsureGameArchivesLoaded`,
+  `rsbs/src/main.cpp:532`) and SDL controllers re-added immediately before the
+  crash. The same log's stdout stream shows the OoT→MM leg **succeeding** all the
+  way into `Z2_INSIDETOWER` first-room load ("File Name
+  scenes/nonmq/Z2_INSIDETOWER/...") — #353's MM-side guards held.
+- Crash-dump caveats (teach these to your future self): the traceback is
+  nearest-symbol resolution in a static exe — the repeated
+  `Combo_SetSharedGraphics` frames are symbolization artifacts, NOT real frames.
+  The dump's `Scene: SCENE_MARKET_DAY` + full Market actor list is the pre-switch
+  OoT PlayState. The `GFX Stack: games/mm/src/code/graph.c:269` ×3 is stale MM
+  `OPEN_DISPS` bookkeeping in the **shared** GraphicsContext (MM's
+  `Graph_ExecuteAndDraw`) — expected residue, not the fault (worth a cleanup
+  follow-up note, nothing more). Build `d81a23d` is not an ancestor of main —
+  treat the log's line numbers (`z_demo.c:1605`, `CrashHandler.cpp:72`) as
+  build-relative.
+
+**Root cause (established, and matches an existing unmerged fix):** the
+cross-game "startup entrance" is a **single game-agnostic global**
+(`src/common/entrance.cpp:26`). On an OoT→MM entrance switch, `main.cpp:527-528`
+writes the MM target (0xC010) into it. The resume hooks on BOTH sides read it
+**without clearing** (`games/oot/soh/GameExports_SingleExe.cpp:354-361`,
+`games/mm/2s2h/GameExports_SingleExe.cpp:863-865`), F10 switches never overwrite
+it (`main.cpp:469-471` sets no startup entrance), and no consumer checks which
+game the value was meant for. Any OoT resume/`Play_Init` that observes a stale
+MM value applies it to `gSaveContext.entranceIndex` → OOB. (MM is naturally
+OOB-resistant: its entrance ids are bit-packed scene/spawn, not a linear index.)
+
+**The fix already exists — unmerged:** branch
+`origin/claude/cutscene-crash-redship-4aukbd`, commit `7c6e7eec`
+("Fix OoT Market cutscene crash from cross-game entrance leaking into
+entranceIndex", 2026-07-15). It gives the startup entrance **game affinity**
+(tagged with the destination game; game-scoped accessors; 1-arg setter kept as a
+wildcard shim), adds an `ENTR_MAX` bounds guard in `OoT_Play_Init` as defense in
+depth, and extends `Test_StartupEntrance` to assert an MM-tagged 0xC010 is
+invisible to OoT (the exact crash condition). 8 files, +157/−18. It was never
+PR'd. Its base is `b1133b39` (4 commits behind main), but **`git merge-tree`
+confirms it merges cleanly onto `8b8d3f0a`** (verified 2026-07-16).
+
+**Steps:**
+1. `git fetch origin`, read `7c6e7eec` in full (commit message = the diagnosis).
+   Branch `claude/<desc>` off fresh `origin/main`; cherry-pick `7c6e7eec`.
+2. Re-verify its assumptions against current main — #349 (boot straight into
+   OoT) and #350 (splash skip on switch) landed after its base and touched
+   adjacent switch-flow code. Confirm by symbol: the resume hooks, the
+   `main.cpp` switch block (`:440-545`), `OoT_Play_Init`'s startup consumption
+   (`games/oot/src/code/z_play.c:398`), MM's (`games/mm/src/code/z_play.c:2244`).
+3. Test wiring: `Test_StartupEntrance` (`src/common/test_runner.cpp:404`,
+   `gTests[]` row `:524`) currently reaches CI **only via `AllTests`** — there is
+   no dedicated `add_test` row. Add `add_test(NAME StartupEntrance COMMAND
+   redship --test startup-entrance)` in `CMake/SingleExecutable.cmake` (rows at
+   `:213-234`) AND add the name to the `set_tests_properties(... LABELS
+   "redship")` list (`:238-245`) — a test missing from that list is built but
+   never run by CI. Optionally extend the test to assert the F10-return
+   sequence: set slot for MM, simulate OoT resume, assert OoT falls back to the
+   frozen return entrance.
+4. Open the PR referencing this decoded log + `7c6e7eec` (credit the original
+   session's diagnosis); drive Linux+Windows CI (`generate-builds.yml`) to full
+   green; squash-merge.
+5. Ask the operator to re-test on a fresh build — the crashing build `d81a23d`
+   is of unknown lineage, so post-merge confirmation must be on a build cut from
+   main. If a crash still reproduces, capture the new log and go to §B.
+
+### B. CONTINGENCY: MM-side switch-crash map (rev-1 candidates — use only if a crash survives §A)
+
+The known log shows the OoT→MM leg completing scene+first-room load, so these
+are NOT the live fault. They remain plausible latent surfaces; diagnose FROM the
+new log, never by assumption.
+
+**Merged state — what #353/#344 already landed (do NOT redo):**
+- `MM_Actor_SpawnEntry(NULL)` guard — `games/mm/src/code/z_actor.c` (locate by
+  symbol).
+- Post-busyloop NULL-player guard — `games/mm/src/code/z_play.c:2509-2519`
+  (`MM_Play_Init` returns cleanly when `GET_PLAYER` is NULL).
+- Scene-load failure LOUD + contained — `MM_OTRPlay_SpawnScene`
+  (`games/mm/2s2h/z_play_2SH.cpp:51-57`): logs `[MM] FATAL: failed to load scene
+  resource`, early-returns on NULL `sceneSegment`.
+- `Object_GetSlot` mis-binding guard — `games/mm/src/code/z_scene.c` under
+  `RSBS_SINGLE_EXECUTABLE`; `VB_FASTER_FIRST_CYCLE` at
+  `games/mm/2s2h/z_scene_2SH.cpp`.
+- ROM-free CTests `mm-scene-parse` / `mm-scene-execute` (label `redship`) —
+  `games/mm/2s2h/mm_scene_execute_test.cpp`.
+
+**Ranked residual candidates** (switch path: `MM_Play_Init` → `MM_Play_SpawnScene`
+→ `MM_OTRPlay_InitScene` → `Room_SetupFirstRoom` → `Actor_InitContext` → busyloop
+`while (!Room_ProcessRoomRequest(...)) {}` → `MM_OTRfunc_800973FC`
+(`z_play_2SH.cpp:64`) → post-busyloop guard):
+- **#1 — `func_80123140(play, GET_PLAYER(play))` at `z_play_2SH.cpp:73`, inside
+  the busyloop, BEFORE the post-busyloop guard.** Reads `player->actor.id`
+  unguarded; fires when scene+room load OK but the player never spawned
+  (`linkActorEntry` NULL or spawn returned NULL — see #341 elision). **Sig:**
+  near-NULL READ in `func_80123140` via `Room_ProcessRoomRequest`. Fix parallels
+  #353: skip when `GET_PLAYER == NULL` so control falls to the existing guard.
+- **#2 — first-room load failure → `MM_OTRScene_ExecuteCommands(play, NULL)` at
+  `z_play_2SH.cpp:72`** (#353 guards the *scene*, not the *room*).
+  `roomRequestAddr = ResourceLoad(...).get()` NULL-unchecked
+  (`z_scene_2SH.cpp:561-563`). **Sig:** the `File Name %s` print
+  (`z_scene_2SH.cpp:560`) is the LAST line before the crash.
+- **#3 — missing/misordered SPAWN_LIST vs ENTRANCE_LIST → NULL
+  `setupEntranceList` deref** in `MM_Scene_CommandSpawnList` (`z_scene_2SH.cpp`).
+  Latent (vanilla emits 0x06 before 0x00).
+- **#4 — player-object overlay elision → NULL
+  `gActorOverlayTable[0].profile->objectId` WRITE** in
+  `MM_Scene_CommandSpawnList`. **Sig:** SIGSEGV WRITING a low address.
+- **#5 — audio/graph bring-up on switch** (`GameExports_SingleExe.cpp` init
+  asserts; `MM_osCartRomInit`→NULL in `mm_stubs.c`). **Sig:** dies on FIRST MM
+  entry, trace in `AudioThread_*`/`MM_Game_Run` asserts; `[MM] ...` breadcrumbs
+  localize how far Init got.
+
+**Fast triage split:** `[MM] FATAL` present → scene path (should be contained;
+check partial `Room_SetupFirstRoom` state). `File Name %s` is last line → #2.
+Crash in `func_80123140` → #1. WRITE to low address in spawn-list handler → #4.
+Audio/asserts on first entry → #5. `MM_FaultDrawer_*` is a stubbed no-op — a
+native MM fault prints nothing; expect a raw segfault, not an MM fault screen.
+
+### Method (both parts; ULTRACODE for §B diagnosis)
+1. **Anchor on the log.** Extract signature: faulting symbol, address class
+   (near-NULL? READ vs WRITE?), which transition leg, which breadcrumbs
+   present/absent. Map onto the candidate surface BEFORE touching code.
+2. **Fan out to diagnose** (§B) — one sub-agent per implicated subsystem; each
+   reports whether the signature is *consistent* with its subsystem.
+3. **Adversarially verify — refute by default.** Confirm a candidate only when
+   the signature is inconsistent with every alternative.
+4. **Fix exactly the confirmed fault** — minimal contained guard in #353's
+   style; no broad refactors.
+5. **Lock it with a ROM-free test** in the `redship` label; PR; full green; merge.
+
+### ROM-free verification playbook
+Every fix MUST be locked in the **`redship` CTest label** — the only tier hosted
+CI compiles+runs without ROMs. Template: `games/mm/2s2h/mm_scene_execute_test.cpp`
+(read it fully). Patterns:
+- **A. Field-writing scene handler → mm-scene-execute pattern**: little-endian
+  wire buffer `[u32 count][per cmd: u32 opcode + payload]` (payload widths must
+  match `resource/importer/scenecommand/Set*Factory.cpp`) → wrap as
+  `Ship::File`+`BinaryReader`(LE)+`ResourceInitData`(`SOH_Room`, ver 0,
+  `RESOURCE_FORMAT_BINARY`) → `ReadResource` → POISON output fields on a
+  value-init'd `PlayState` with sentinels → `MM_OTRScene_ExecuteCommands` →
+  assert. **Only pure-write handlers** — anything touching object
+  system/allocator/overlays/`ResourceLoad` null-derefs a zeroed PlayState.
+- **B. Guard/early-return fix → direct call**: heap-zeroed structs, call at the
+  guard boundary (e.g. `MM_Actor_SpawnEntry(ctx, nullptr, play)` → NULL).
+- **C. Entangled crash math → extract a pure helper**, call directly.
+- **Common-code fixes (§A) → plain test_runner tests**: `src/common` logic
+  (entrance table, context, save) is directly testable in
+  `src/common/test_runner.cpp` — no MM-TU gymnastics needed.
+- **MM-TU mechanics**: `test_runner.cpp` can't include MM `global.h` → put
+  MM-type tests in a `games/mm/2s2h/*.cpp` under `#ifdef RSBS_SINGLE_EXECUTABLE`,
+  expose `extern "C" int X_RunHeadless(void)` (0=pass); auto-globbed into
+  2ship_port; the undefined ref force-pulls it. `.cpp` callees = plain C++ decl;
+  `.c` callees = `extern "C"`. Wrong = link error.
+- **Three REQUIRED CTest wiring edits:** (1) `gTests[]` row in
+  `test_runner.cpp` (keep `archive-hotswap-logic` LAST — it re-inits the
+  entrance table); (2) `add_test(...)` in `CMake/SingleExecutable.cmake:213-234`;
+  (3) **add the name to the `set_tests_properties(... LABELS "redship")` list**
+  (`:238-245`) — load-bearing; a test not in this list is built but NOT run by
+  CI. `redship` is display-free (no Xvfb); display-needing tests go in the
+  `rando` label.
+
+### CI reality
+`generate-builds.yml` triggers on `pull_request`; build-linux/build-windows each
+build `redship` + run `ctest --label-regex "^redship$" --no-tests=error`
+(`generate-builds.yml:262`; `rando` label under xvfb at `:267`). Nothing runs
+tests on push-without-PR. The `int-*` tier boots the real binary, needs ROMs,
+and `integration-tests.yml` is `workflow_dispatch`-only — never on a PR. The
+deferred deep `Play_Init` failure-*recovery* (make the spawn-scene path return
+s32 so `Play_Init` unwinds instead of leaving a player-less PlayState) can only
+be VALIDATED on a real-ROM boot → stays a documented open item.
+
+### Recommended separate PR — the #341 elision-prevention track
+Live class-level hazard regardless of the current crash cause; ROM-free.
+- OoT wraps only `soh_rando` in WHOLE_ARCHIVE (`games/oot/CMakeLists.txt:276`,
+  rationale `:268-275`). MM wraps NONE. `--start-group` does NOT defeat member
+  elision; Windows `/FORCE:MULTIPLE` silently drops duplicates. Exposure ~208
+  self-registering `RegisterShipInitFunc` TUs, concentrated in **2ship_enh** +
+  **2ship_rando**. Resource factories are registered explicitly and actors are
+  table-driven → NOT at risk; scope to enh+rando.
+- **Option A:** wrap `2ship_enh`+`2ship_rando` in
+  `$<LINK_LIBRARY:WHOLE_ARCHIVE,...>`. A hard duplicate-symbol link error vs
+  `mm_stubs.c` is the GOOD outcome — surfaces in CI. Get **Linux** clean first
+  (Windows `/FORCE:MULTIPLE` can hide a collision Linux exposes).
+- **Option C:** `nm`-based post-link CI check — assert each MM archive's
+  `_GLOBAL__sub_I_*` registrar symbols appear in linked `redship`. Detects the
+  CLASS regardless of cause. Skip Option B (explicit registrar list — churn).
+- Keep SEPARATE from the crash-fix PR unless a log proves elision is the root cause.
+
+### Stub + deferred inventory (audit only what a trace implicates)
+`src/common/mm_stubs.c`: most stubs safe (libc/OS aliases; excluded
+enhancement/UI). Flag if a trace lands near boot/audio: `MM_osCartRomInit`→NULL;
+the `GameInteractor_Execute*` no-op family. Small cleanup candidates surfaced by
+the log decode: stale MM `OPEN_DISPS` records in the shared GraphicsContext
+survive a switch (cosmetic — pollutes crash dumps' "GFX Stack"); consider
+resetting gfx-stack bookkeeping on game switch. Deferred headless-safe test
+locks you MAY add opportunistically (pure writes, pattern A): Mesh 0x0A,
+PathList 0x0D, CutsceneScriptList. Nice-to-have, not the mission.
+
+### Deliverable (this lane)
+1. §A fix PR merged: `7c6e7eec` rebased onto main + dedicated
+   `StartupEntrance` CTest row, green on Linux+Windows, squash-merged, with the
+   diagnosis recorded in the PR body.
+2. Operator confirmation on a fresh main build that the reported crash is gone;
+   if anything still crashes, a new decoded log → §B loop.
+3. (Recommended, separate PR) the #341 Option A + Option C track.
+4. Any fault you can't lock ROM-free (e.g. deep `Play_Init` recovery) →
+   documented open item; do not fake CI coverage.
 
 **Closure criteria:**
-
-- [ ] #289 Shuffle Speak merged (own PR, squash, CI green) and issue closed with merge SHA
-- [ ] #290 Shuffle Climb merged and closed, same standard
-- [ ] #291 Shuffle Grab merged and closed, same standard
-- [ ] #292 Shuffle Open Chest merged and closed, same standard
-- [ ] #293 Pot CMC merged and closed, same standard
-- [ ] SOH 9.2.x rando/hint batch absorbed in 1–3 thematic PRs, all merged green (upstream SOH
-  PRs #6540, #6557, #6565, #6608, #6641, #6647, #6648, #6661 — all merged upstream)
-- [ ] Epic #235 closed with a summary comment listing every merge SHA and what each PR shipped
-
-**State as of 2026-06-10:** Gate is OPEN — PR #247 merged as `5ecce8f5b6`, PR #249 as
-`7563640b6a` (both merged 2026-06-10 UTC); gate-clear comment posted on #235 at
-2026-06-10T16:32:15Z. 6 of the original 11 features are already done (PR #248, merged as
-`aa2bbe4b05` / already in-tree — see #235 body); the remaining 5 are split into sub-issues
-#289–#293, all OPEN, none of their symbols in `randomizerTypes.h` on main. Zero open PRs as of
-2026-06-10 ~18:00Z (Lane 3's #299 merged), so the serialization gate is clear — start now.
-#235 is this lane's driving issue for milestone comments. Upstream SOH commits (verified):
-Speak `e2db315ff` (SOH PR #5538), Climb `596b714fa` (#5182), Grab `18b00e7bc` (#5719),
-Open Chest `04df48944` (#5946), Pot CMC `f52b653cf` (#6167).
-
-**Serialization pre-flight (run at the top of EVERY iteration, before starting a new feature
-or batch — these are hard gates, not suggestions):**
-
-1. `git fetch origin`. Work only from fresh `origin/main`.
-2. `gh pr list -R spencerduncan/redshipblueship --state open --json number,headRefName` — for
-   each open PR OTHER THAN your own single in-flight Lane 5 PR, list its files with
-   `gh api repos/spencerduncan/redshipblueship/pulls/<n>/files --paginate --jq '.[].filename'`
-   (never `gh pr view --json files` — it silently caps at 100 files, and on asset-heavy
-   shuffle PRs the alphabetically-first asset paths fill the window and hide the source files)
-   and grep for `Enhancements/randomizer/item_list.cpp`,
-   `Enhancements/randomizer/randomizer.cpp`, or
-   `Enhancements/randomizer/3drando/item_pool.cpp`. If any such PR touches any of these, do
-   not start a NEW feature — wait and re-check next iteration. Your own open Lane 5 PR is
-   exempt: keep iterating on it, fixing CI, and merging it regardless of this gate.
-3. Confirm you have at most ONE Lane 5 PR open. Never two features in flight.
-4. Confirm the previous feature's PR is merged AND its issue closed before branching the next.
-
-**Steps (read each sub-issue body first — it has the exact spec and upstream SHA):**
-
-1. Features in strict order: #289 → #290 → #291 → #292 → #293. For each: branch
-   `claude/shuffle-<feature>-<issue#>` off fresh `origin/main` (e.g. `claude/shuffle-speak-289`,
-   `claude/shuffle-climb-290`, `claude/shuffle-grab-291`, `claude/shuffle-openchest-292`,
-   `claude/shuffle-potcmc-293`).
-2. Port the upstream SOH commit (SHA above) from HarbourMasters/Shipwright. Path mapping:
-   upstream repo subdir `soh/` → `games/oot/`, i.e. `soh/soh/**` → `games/oot/soh/**`,
-   `soh/src/**` → `games/oot/src/**`, `soh/assets/**` → `games/oot/assets/**` (the asset bulk
-   of each diff lands under `games/oot/assets/custom/`), `soh/include/**` →
-   `games/oot/include/**`. Both `Enhancements/randomizer/item_list.cpp` and
-   `Enhancements/randomizer/3drando/item_pool.cpp` exist in RSBS and are touched by these
-   ports — map each upstream file to its identically named RSBS counterpart; never fold
-   `item_pool.cpp` hunks into `item_list.cpp`. Expected touch points:
-   `games/oot/soh/Enhancements/randomizer/` (item_list.cpp, 3drando/item_pool.cpp,
-   randomizerTypes.h, logic, location_access), `games/oot/soh/SohGui/` (menu options),
-   `games/oot/src/overlays/actors/ovl_player_actor/z_player.c`. Exception: Pot CMC
-   (`f52b653cf`) touches only ShufflePots.cpp + ~192 asset files, none of the conflict files.
-3. Each feature is L/XL with ~150–200 files, mostly assets flowing through the o2r pipeline.
-   The CI job `generate-rsbs-otr` (in both generate-builds and integration-tests workflows)
-   rebuilds the archive; its cache key hashes `games/**/*.c`, `games/**/*.h`, and
-   `games/**/*.xml` (plus OTRExporter/ZAPDTR sources), so source and asset changes alike
-   force a full regeneration — expect the first CI run on each PR to be slow, not hung.
-4. Per-feature acceptance (from #235 — verify via CI, no local build assumed): new shuffle
-   option appears in the randomizer menu; seeds generate cleanly with the option enabled
-   (alone AND combined with existing shuffles); logic validates with no unreachable items;
-   existing shuffles still work; in-world placement looks correct for new check types.
-5. Open the PR referencing the sub-issue and the upstream SHA. Re-run the pre-flight
-   contention check immediately before merging (parallel lanes can open PRs mid-run), then
-   squash-merge on green; if main moved since the PR last went green, update the branch and
-   wait for fresh green first. After merge, confirm main's post-merge CI is green, close the
-   sub-issue with the merge SHA, post a one-line milestone comment on #235. Only then return
-   to the pre-flight and start the next feature.
-6. After all five are closed: absorb the 9.2.x batch as 1–3 thematic PRs, same pre-flight and
-   same one-at-a-time rule; branch as `claude/92x-<topic>-235` (no sub-issues exist — all
-   evidence and milestone comments go on #235). Suggested grouping — hints: #6540 (refactor
-   hints), #6565 (Ganon's Tower & Mido hint logic), #6648 (gossip stone check fix);
-   checks/trackers: #6557 (bean merchant tracker), #6641 (merchant/scrub checks), #6661
-   (carpenter item logic); world/audio: #6608 (ending audio shuffle), #6647 (Ganon's castle
-   blue warp). Skip anything already present on main — check via
-   `git log origin/main --grep '<upstream PR#>'` plus `git grep` for a distinctive symbol
-   from each upstream diff, and note skips in the PR body.
-7. Close #235 with the summary comment (all merge SHAs, features + batch).
-
-**Safety rails:**
-
-- Never bundle two features in one PR — bundling was explicitly rejected as unreviewable in
-  the #235 re-scope (2026-06-09).
-- Never stack a feature branch on a previous feature branch; always branch from `origin/main`
-  after the prior merge.
-- If a port conflicts heavily or an upstream commit doesn't apply against the RSBS tree,
-  follow the Common-rules failure budget, then push the branch and report on #235 — do not
-  force a broken adaptation through.
-- Do not close #235 while any of #289–#293 or the 9.2.x batch is unfinished.
+- [ ] §A entrance-leak fix merged (squash, CI green) with test coverage and the
+      diagnosis recorded.
+- [ ] Crash no longer reproduces on a fresh build from main (operator-confirmed;
+      real-ROM confirmation is manual).
+- [ ] §B dispositioned: either not needed (no further crash) or the next log
+      decoded and fixed the same way.
+- [ ] #341 elision track scoped (merged, or a tracked follow-up issue).
+- [ ] This file replanned (see below).
 
 ---
 
-## Lane 6 — Phase 2 closeout (epic #202, milestone 3)
+## Replanning + keeping this file current (REQUIRED)
 
-**Goal:** Close every open Phase 2 issue except #34 — #233, #231, #232, #288, #211, #286, #212, in that order — then close epic #202 and the Phase 2 milestone. Driving issue for progress comments: #202. Lane branch prefix: `claude/lane6-issue<NNN>` — this prefix is the lane's identity for the pre-flight PR check.
+This file is the living worker roadmap; it already went stale once (the Wave-2
+lanes sat here for a month after they closed). Do not repeat that:
 
-**Closure criteria:**
-- [ ] #233 closed — `sohFast3dWindow = nullptr;` in `DeinitOTR()` merged (SOH `79d6f54be`)
-- [ ] #231 closed — `DetectOTRVersion("soh.o2r", false)` at OTRGlobals.cpp:345 merged (SOH `35039565d`)
-- [ ] #232 closed — RunExtract follow-ups dispositioned: #6215 re-check + `96c4fef05` (#6386) + `99c1f23d5` (#6412) + `adb1e46ba` (#6501). For any commit found already covered by #250/#241, a disposition note on #232 naming the pre-applied hunks satisfies that item
-- [ ] #288 closed — MM ConfigUpdaters (2S2H #1703) merged; close comment explicitly defers the gCore/gOoT/gMM namespace migration to #34
-- [ ] #211 closed — SOH #6656 + applicable #6636 subset merged; disposition table posted mirroring #226's format
-- [ ] #286 closed — every `rand()` call site in `games/` + `src/common` converted EXCEPT the Switch/WiiU seed fallback at `games/oot/soh/ShipUtils.cpp:122` (identical line exists on Shipwright develop — upstream parity; document as intentional in the close comment). Re-grep first; 32 convertible sites / 16 files as of 2026-06-10 (33/17 counting the exempt line)
-- [ ] #212 closed — verification comment maps every checklist item → CI run / commit / manual-QA note
-- [ ] #202 closed with note: #235 + #289–#293 continue under Phase 3
-- [ ] Milestone 3 closed via `gh api -X PATCH repos/spencerduncan/redshipblueship/milestones/3 -f state=closed` — only after #34 is out of it
-- [ ] #34 untouched: ZERO comments authored on #34, no commits, no state/label/milestone changes by this lane. The re-milestone request lives on #202; its `#34` mention leaves only a timeline cross-reference
-
-**State as of 2026-06-10 (main tip `a4eb32fdfa`, post-PR #299):**
-- Phase 2 milestone (number 3) open set is exactly {#202, #211, #212, #231, #232, #233, #286, #288, #34}. #235/#289–#293 already re-milestoned to Phase 3.
-- PR #250 (`566900772f`, SOH #5892 ImGui extraction flow) is the event that unblocked #231/#232/#233. PR #247 merged as `5ecce8f5b6`, #249 as `7563640b6a`, #299 as `a4eb32fdfa` (all 2026-06-10). #299 rewrote `games/mm/2s2h/ShipUtils.{cpp,h}` and touched UIWidgets.cpp/ConvertItem.cpp — all #286/#288 facts below re-verified post-merge.
-- #231 is NOT verify-and-close: the #5892 helpers exist on main (`portArchivePath` :289, `sohArchiveVersionMatch` :290, detection block :344–348) but line 345 still has the pre-fix `DetectOTRVersion(portArchivePath, false)`. The 2026-06-01 triage comment on #231 claiming verify-only is wrong about the fix itself.
-- #233 has nothing to salvage: no remote branch matches; local `fix/issue-233-segfault-quit` is an empty diff at stale base `3a32bfb439`. Start fresh.
-- `claude/appimage-fix-232` is already-merged content (PR #241 / `3775c368d2`, closed #183) — do not resume it.
-- #34 is design-blocked on the gCore/gOoT/gMM config-namespace decision (no `redship.json` exists; `rsbs/src/main.cpp:270–281` deliberately pins `shipofharkinian.json`; only TODO stubs in `src/common/ComboMenuBar.cpp:16–34,159–175`). EXCLUDED from this lane — flag, don't decide.
-
-**Pre-flight (every iteration, after the Common-rules fetch):**
-1. `gh pr list -R spencerduncan/redshipblueship --state open --json number,headRefName`
-   - A PR is this lane's iff `headRefName` starts with `claude/lane6-`. If one exists → drive it to merge first; never two lane PRs open at once. Never drive or merge a PR whose head doesn't match the prefix (other lanes use `claude/*` too — e.g. `claude/mm-tracker-sync-297` was open under the same convention).
-   - File-contention gate before opening ANY PR: list this PR's planned files, then for every other open PR run `gh pr diff <num> --name-only` and block on any non-empty intersection until that PR merges, then rebase. Do NOT use `--json files` for this — it truncates at 100 entries (PR #149: changedFiles=698, files returns 100) and lane-scale PRs here exceed that.
-   - Known contention surfaces: `games/oot/soh/OTRGlobals.cpp` (#233/#231/#232/#211 vs the shuffle lane #289–#293); ShufflePots.cpp (#211's #6636 subset vs open shuffle issue #293 "Pot CMC"); MM-lane files for #288/#286 — BenPort.cpp, UIWidgets.cpp, ConvertItem.cpp, `games/mm/2s2h/ShipUtils.{cpp,h}` (PR #299 contended on all of these before it merged 2026-06-10).
-2. `gh issue view <next> -R spencerduncan/redshipblueship --json state` — if the next step's issue is already CLOSED, confirm the specific fix CONTENT is on `origin/main` before advancing — content-level, not file-touch-level (OTRGlobals.cpp churns in most lane PRs): `git show origin/main:games/oot/soh/OTRGlobals.cpp | grep -n 'sohFast3dWindow = nullptr'` (#233), same with `grep -n 'DetectOTRVersion("soh.o2r"'` (#231), `git log origin/main -S'<distinctive token>'` per upstream commit for #232 (all four, individually). If a fix is on main but the issue is open, close it with that evidence (SHA + file:line) instead of opening a redundant PR.
-3. The #211 branch must be rebased onto fresh `origin/main` immediately before its PR is opened — it ends the OTRGlobals chain and is the likeliest conflict target.
-
-**Steps (one PR per issue, squash-merge-on-green; read each issue body first — it has the exact test criteria):**
-1. Post one comment on #202 (NOT on #34): recommend re-milestoning #34 to Phase 3 since it is blocked on the config-namespace design decision and milestone 3 cannot close around it. The `#34` mention cross-references its timeline without authoring on it. Check #202's existing comments first and skip if an equivalent request is already posted — the loop re-enters this step every iteration. Maintainer call. Do this first for lead time.
-2. **#233** — port SOH `79d6f54be`: add `sohFast3dWindow = nullptr;` immediately after `SohGui::Destroy();` (:1624) inside `DeinitOTR()` (`games/oot/soh/OTRGlobals.cpp:1606`; var declared :286). Issue criteria include MM quit paths and cross-game-switch-then-quit; Valgrind/window-close items are manual — this PR closes on CI green + code-port evidence, with manual residue rolled into step 8's #212 carve-out.
-3. **#231** — port SOH `35039565d`: OTRGlobals.cpp:345 `DetectOTRVersion(portArchivePath, false)` → `DetectOTRVersion("soh.o2r", false)`. Rationale: `DetectOTRVersion` (:1477) calls `LocateFileAcrossAppDirs(fileName, appShortName)` itself, so it needs a bare filename, not a resolved path. Verify the issue's 3 criteria (version match passes; mismatch → "soh.o2r is outdated"; missing path graceful).
-4. **#232** — in `RunExtract` (OTRGlobals.cpp:425): re-check ALL FOUR upstream commits' deltas against the post-#250 flow, not just #6215 — PR #241 already ported #6215's Extract.cpp ROM-search half, and #6501's `argv[i]` hunk is pre-applied on main. Port what remains in upstream order: `96c4fef05` (#6386, detect extraction task crash) → `99c1f23d5` (#6412, move `CheckAndCreateModFolder()` earlier) → `adb1e46ba` (#6501, extractor args handling). Fully-covered commits go in the #232 disposition note (closure criterion accepts this). AppImage-hardware criteria are manual — same CI-green + step-8 carve-out policy as #233.
-5. **#288** — port 2S2H #1703 (+79/−1): new `games/mm/2s2h/config/ConfigUpdaters.{cpp,h}` + register `Ben::ConfigVersion1Updater` in MM's `InitOTR` (`games/mm/2s2h/BenPort.cpp:728`) per upstream's BenPort.cpp hunk. In-repo pattern: `games/oot/soh/config/ConfigUpdaters.{cpp,h}` (landed via PR #243). MM tree has zero ConfigVersion files today. Single-exe: MM_ symbol prefixing; check `src/common/mm_stubs.c`; the shared Ship::Context means the updater runs against `shipofharkinian.json` (`rsbs/src/main.cpp:279–280` pins it). The issue body's "reconcile with #34's migration design" sentence is answered in the close comment by explicitly deferring the namespace migration to #34 — do not wait on #34.
-6. **#211 residue** — port SOH #6656 (stdint.h include hygiene, 48 headers; grep-verified absent from our OTRGlobals.h) + the applicable subset of SOH #6636 "Clean OTRGlobals 2" (72 files upstream). Governing rule: derive the present/absent split FRESH from #6636's full file listing (`gh pr diff 6636 -R HarbourMasters/Shipwright --name-only`) against our main — port hunks ONLY for files present. Known-present examples (not exhaustive): ShuffleGrass.cpp, SeedContext.cpp, RocsFeather.cpp, ShufflePots.cpp, ShuffleBeehives.cpp, ShuffleCows.cpp, ShuffleCrates.cpp, ShuffleFairies.cpp, ShuffleFreestanding.cpp, ShuffleTrees.cpp. Known-absent examples (not exhaustive): ShuffleSpeak.cpp, ShuffleIcicles.cpp, ShuffleWonderItems.cpp, particle_cmc.h, ShuffleBeggar.cpp, ShuffleRedIce.cpp, ShuffleRocks.cpp, ShuffleSigns.cpp. Hand ALL absent-file hunks to the #289–#293 lane via one comment on #235. Re-assess `b65c1c831` (SOH #6385 unused-includes) for what survives post-#247/#250 churn. Close #211 with a disposition table mirroring #226's.
-7. **#286** — strictly after #211 (upstream merge order #6636 → #6553; they overlap on AudioEditor.cpp and SohMenuRandomizer.cpp). Re-grep first (`git grep -n '\brand()' -- games/ src/common`); as of 2026-06-10 post-#299: 33 sites / 17 files, 32/16 convertible. Per-tree targets:
-   - OoT C++ sites (incl. Network/Sail/Sail.cpp ×10, Enhancements/mods.cpp ×3) → `ShipUtils::Random` (`games/oot/soh/ShipUtils.h:33`, impl ShipUtils.cpp:136 — helper exists, no new OoT helper work).
-   - OoT C sites — `z_en_bom.c:107`, `z_en_vali.c:252` — CANNOT call ShipUtils::Random (C++-only: `#ifdef __cplusplus` namespace, default args, no C linkage). Use `Rand_ZeroOne()` per upstream #6553's own z_en_bom.c hunk; z_en_vali.c is RSBS-divergent (not in #6553) — apply the same pattern.
-   - MM sites (BenGui/CosmeticEditor.cpp ×3 :346–348, BenGui/UIWidgets.cpp:1324, Audio/AudioEditor.cpp:345, ChuDrops.cpp:78, EnGirlA.cpp:301, ConvertItem.cpp:91, Traps.cpp :44/:136/:138) → MM's own `extern "C" s32 Ship_Random(s32, s32)` (`games/mm/2s2h/ShipUtils.h:51`, PCG impl ShipUtils.cpp:321) — NOT the OoT helper, which MM files cannot include.
-   - LEAVE `games/oot/soh/ShipUtils.cpp:122` unconverted — it is the `__SWITCH__`/`__WIIU__` seeding fallback inside the RNG helper itself (converting it is circular; identical line on Shipwright develop, untouched by #6553).
-   Upstream #6553's EnemyRandomizer.cpp / RandomizedEnemySizes.cpp hunks may not apply (no `rand()` there in our tree). Issue scope includes MM + `src/common` (extra vs upstream; currently zero `rand()` outside `games/`). Does not touch OTRGlobals.cpp.
-8. **#212** — post the final verification comment mapping every checklist item → evidence:
-   - CI tier: the redship-labeled BootOoT/BootMM/Roundtrip suite runs unconditionally (`ctest --label-regex "^redship$"` at `generate-builds.yml:307` and `integration-tests.yml:141`; tests registered with `LABELS "redship"` at `CMake/SingleExecutable.cmake:191–217`).
-   - The 2026-04-20 comment remains ACCURATE about the int-* tier: IntBootOoT/IntBootMM etc. (`SingleExecutable.cmake:226–239`, `LABELS "integration"`) stay archive-gated (`integration-tests.yml:143–160` archive check; `:163`/`:173` `if: has_oot/has_mm`) and skip in hosted CI where ROMs cannot exist. Do NOT call that comment stale — map int-*-covered rows (real-ROM "boots and plays") to manual QA, not to CI evidence.
-   - Add the freshly merged #231/#232/#233 commits. Carve genuinely-manual residue (save create/load, rando seed gen, valgrind, OoT↔MM runtime feel, AppImage hardware smoke, plus per-issue manual items deferred from steps 2–4) into a follow-up issue or explicit manual-QA note. Close #212.
-9. **#202 + milestone** — verify closure concretely: `gh issue view <n> --json state` for each of #211/#212/#231/#232/#233/#286/#288 must return CLOSED (#202 has no GitHub sub-issues; its body checklist's only still-open items are #235 + #289–#293 under Phase 3). Close the epic with the Phase 3 re-scope note (#235/#289–#293). Then milestone 3: if #34 still sits in it, do NOT close — post one follow-up on #202 re-raising the step-1 request (never on #34), then stop and report "all Phase 2 issues closed except #34; milestone blocked on #34 placement". Otherwise PATCH it closed (command in closure criteria).
-
-**Safety rails:**
-- **Never work #34.** No code, no state/label/milestone change, zero comments authored on #34. All #34 discussion happens on #202.
-- OTRGlobals.cpp PRs strictly serialized: #233 → #231 → #232 → #211. The lane is serial overall — one open PR at a time even for non-overlapping work (#288, #286).
-- Never close milestone 3 while any issue (including #34) is open in it — lane policy, not a platform constraint (GitHub permits closing milestones with open issues); never close #202 while #211/#212/#231/#232/#233/#286/#288 are open.
-- Do not resume `fix/issue-233-segfault-quit` (empty) or `claude/appimage-fix-232` (merged) — fetch first per Common rules, then branch fresh from `origin/main`.
-- Push rebased lane branches with `--force-with-lease` only; never force-push any branch this lane did not create; never push to main.
-- Line numbers above were verified against `a4eb32fdfa` (main tip 2026-06-10, post-#249/#299 — both touched cited files); if main has moved, locate by symbol (`DeinitOTR`, `RunExtract`, `DetectOTRVersion`, `Ship_Random`), not by line.
+1. **Before starting:** re-verify the "Completed (Wave 2)" claims against `main`
+   (issues actually closed, PRs merged) and correct anything wrong. Confirm the
+   Active-lane file:line anchors against current `main` — if it moved, locate by
+   symbol (`Combo_CheckEntranceSwitch`, `Entrance_SetStartupEntrance`,
+   `OoT_Play_Init`, `MM_OTRfunc_800973FC`, `func_80123140`,
+   `MM_OTRScene_ExecuteCommands`), not by line.
+2. **As you work:** tick the Active-lane closure criteria here with merge SHAs,
+   same discipline the Wave-2 lanes used.
+3. **When the crash-stabilization lane closes: REPLAN.** Re-derive the roadmap
+   toward pre-alpha readiness (**epic #321**). Likely next lanes: (a) the #341
+   elision-prevention PR; (b) remaining MM single-exe stubs/port-gaps the crash
+   work surfaces; (c) the deferred deep `Play_Init` failure-recovery (needs a
+   real-ROM boot to validate); (d) #321 pre-alpha gates (BYO-archive UX,
+   known-issues doc, manual QA #310). **Rewrite THIS file as "Wave 4"** the way
+   Wave 3 superseded Wave 2: move closed lanes to Completed, write fresh
+   self-contained lane goals (closure criteria + steps + safety rails), date it,
+   keep it accurate to `main` (not aspirational).
+4. Commit the `worker-prompts.md` update alongside (or right after) the lane's PR.
