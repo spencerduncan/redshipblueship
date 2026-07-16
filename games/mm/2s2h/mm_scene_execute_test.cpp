@@ -59,6 +59,12 @@
 s32 MM_OTRScene_ExecuteCommands(PlayState* play, S2H::Scene* scene);
 ActorEntry* MM_Play_ResolveLinkActorEntry(EntranceEntry* setupEntranceList, s32 curSpawn, ActorEntry* spawnEntries);
 
+// MM_Actor_SpawnEntry lives in z_actor.c (C linkage; not header-declared) — the
+// historically-crashing spawn site the #344 NULL guard protects. The guard
+// short-circuits before any actorCtx/overlay/object access, so it is directly
+// unit-testable here.
+extern "C" Actor* MM_Actor_SpawnEntry(ActorContext* actorCtx, ActorEntry* actorEntry, PlayState* play);
+
 namespace {
 
 void MMSceneExec_PushU32(std::vector<char>& buf, uint32_t value) {
@@ -253,7 +259,154 @@ extern "C" int MM_SceneExecute_RunHeadless(void) {
         return 1;
     }
 
-    printf("[TEST] PASS: MM scene commands executed; spawn-path pointers/fields populated\n");
+    // === MM_Actor_SpawnEntry NULL guard (#344 crash-site lock) ===
+    // Locks the fix for the deterministic player-spawn null: when a scene
+    // resource fails to load, Play_Init drives Actor_InitContext ->
+    // MM_Actor_SpawnEntry with a NULL linkActorEntry. The guard returns NULL
+    // instead of dereferencing actorEntry->rot.x. It short-circuits before any
+    // actorCtx/overlay/object access, so zeroed heap structs exercise it safely.
+    {
+        auto guard_play = std::make_unique<PlayState>();
+        auto guardActorCtx = std::make_unique<ActorContext>();
+        Actor* spawned = MM_Actor_SpawnEntry(guardActorCtx.get(), nullptr, guard_play.get());
+        if (spawned != nullptr) {
+            printf("[TEST] FAIL: MM_Actor_SpawnEntry(NULL) returned %p, expected NULL (#344 guard)\n",
+                   (void*)spawned);
+            return 1;
+        }
+        printf("[TEST] PASS: MM_Actor_SpawnEntry NULL guard locked\n");
+    }
+
+    // === ObjectList (0x0B) via WIRE-BYTE (regression lock) ===
+    // Factory: SetObjectListFactory.cpp:11-15 (ReadCommandId Int32, numObjects UInt32,
+    // then numObjects x ReadUInt16). Handler: z_scene_2SH.cpp:173-198. On a zeroed
+    // PlayState numPersistentEntries==numEntries==0, so the first loop (183-191) is
+    // skipped and Actor_KillAllWithMissingObject never runs -- CONFIRMED headless-safe.
+    {
+        auto ol_buffer = std::make_shared<std::vector<char>>();
+        MMSceneExec_PushU32(*ol_buffer, 1);      // commandCount = 1
+        MMSceneExec_PushU32(*ol_buffer, 0x0B);   // SCENE_CMD_ID_OBJECT_LIST (ReadCommandId: Int32)
+        MMSceneExec_PushU32(*ol_buffer, 2);      // numObjects (ReadUInt32)
+        ol_buffer->push_back((char)0x10);        // objects[0] = 0x0010 (ReadUInt16, LE)
+        ol_buffer->push_back((char)0x00);
+        ol_buffer->push_back((char)0x20);        // objects[1] = 0x0020 (ReadUInt16, LE)
+        ol_buffer->push_back((char)0x00);
+
+        auto ol_file = std::make_shared<Ship::File>();
+        ol_file->Buffer = ol_buffer;
+        auto ol_reader = std::make_shared<Ship::BinaryReader>(ol_buffer->data(), ol_buffer->size());
+        ol_reader->SetEndianness(Ship::Endianness::Little);
+        ol_file->Reader = ol_reader;
+        ol_file->IsLoaded = true;
+
+        auto ol_initData = std::make_shared<Ship::ResourceInitData>();
+        ol_initData->Path = "test/mm-scene-execute/objectlist";
+        ol_initData->Type = static_cast<uint32_t>(S2H::ResourceType::SOH_Room);
+        ol_initData->ResourceVersion = 0;
+        ol_initData->Format = RESOURCE_FORMAT_BINARY;
+        ol_initData->ByteOrder = Ship::Endianness::Little;
+
+        S2H::ResourceFactoryBinarySceneV0 ol_factory;
+        auto ol_resource = ol_factory.ReadResource(ol_file, ol_initData);
+        if (ol_resource == nullptr) {
+            printf("[TEST] FAIL: ObjectList scene factory returned null\n");
+            return 1;
+        }
+        auto ol_scene = std::static_pointer_cast<S2H::Scene>(ol_resource);
+        if (ol_scene->commands.size() != 1 || ol_scene->commands[0] == nullptr) {
+            printf("[TEST] FAIL: ObjectList command failed to parse\n");
+            return 1;
+        }
+
+        auto ol_play = std::make_unique<PlayState>();
+        // numEntries / numPersistentEntries MUST stay 0 (zero-init): they gate the
+        // first loop that would call Actor_KillAllWithMissingObject. Only poison the outputs.
+        ol_play->objectCtx.slots[0].id = (s16)0x7EEE; // poison
+        ol_play->objectCtx.slots[1].id = (s16)0x7EEE; // poison
+
+        MM_OTRScene_ExecuteCommands(ol_play.get(), ol_scene.get());
+
+        if (ol_play->objectCtx.numEntries != 2) {
+            printf("[TEST] FAIL: ObjectList numEntries = %d, expected 2\n", (int)ol_play->objectCtx.numEntries);
+            return 1;
+        }
+        if (ol_play->objectCtx.slots[0].id != (s16)-0x0010 || ol_play->objectCtx.slots[1].id != (s16)-0x0020) {
+            printf("[TEST] FAIL: ObjectList ids wrong: [0]=%d [1]=%d (expected -16,-32)\n",
+                   (int)ol_play->objectCtx.slots[0].id, (int)ol_play->objectCtx.slots[1].id);
+            return 1;
+        }
+        if (ol_play->objectCtx.numPersistentEntries != 0) {
+            printf("[TEST] FAIL: ObjectList numPersistentEntries = %d, expected 0\n",
+                   (int)ol_play->objectCtx.numPersistentEntries);
+            return 1;
+        }
+        printf("[TEST] PASS: ObjectList (0x0B) locked\n");
+    }
+
+    // === SkyboxSettings (0x11) via WIRE-BYTE (regression lock) ===
+    // Factory: SetSkyboxSettingsFactory.cpp:12-15 (ReadCommandId Int32, then 4x ReadInt8:
+    // unk, skyboxId, weather, indoors). Handler: z_scene_2SH.cpp:341-350. Keep unk==0 (the
+    // area-texture gate); Scene_LoadAreaTextures is commented out (349) so it is inert here.
+    {
+        auto sb_buffer = std::make_shared<std::vector<char>>();
+        MMSceneExec_PushU32(*sb_buffer, 1);    // commandCount = 1
+        MMSceneExec_PushU32(*sb_buffer, 0x11); // SCENE_CMD_ID_SKYBOX_SETTINGS (ReadCommandId: Int32)
+        sb_buffer->push_back((char)0x00);      // settings.unk (ReadInt8) - keep 0, headless-safe
+        sb_buffer->push_back((char)0x05);      // settings.skyboxId (ReadInt8)
+        sb_buffer->push_back((char)0x07);      // settings.weather  (ReadInt8)
+        sb_buffer->push_back((char)0x02);      // settings.indoors  (ReadInt8)
+
+        auto sb_file = std::make_shared<Ship::File>();
+        sb_file->Buffer = sb_buffer;
+        auto sb_reader = std::make_shared<Ship::BinaryReader>(sb_buffer->data(), sb_buffer->size());
+        sb_reader->SetEndianness(Ship::Endianness::Little);
+        sb_file->Reader = sb_reader;
+        sb_file->IsLoaded = true;
+
+        auto sb_initData = std::make_shared<Ship::ResourceInitData>();
+        sb_initData->Path = "test/mm-scene-execute/skybox";
+        sb_initData->Type = static_cast<uint32_t>(S2H::ResourceType::SOH_Room);
+        sb_initData->ResourceVersion = 0;
+        sb_initData->Format = RESOURCE_FORMAT_BINARY;
+        sb_initData->ByteOrder = Ship::Endianness::Little;
+
+        S2H::ResourceFactoryBinarySceneV0 sb_factory;
+        auto sb_resource = sb_factory.ReadResource(sb_file, sb_initData);
+        if (sb_resource == nullptr) {
+            printf("[TEST] FAIL: Skybox scene factory returned null\n");
+            return 1;
+        }
+        auto sb_scene = std::static_pointer_cast<S2H::Scene>(sb_resource);
+        if (sb_scene->commands.size() != 1 || sb_scene->commands[0] == nullptr) {
+            printf("[TEST] FAIL: Skybox command failed to parse\n");
+            return 1;
+        }
+
+        auto sb_play = std::make_unique<PlayState>();
+        sb_play->skyboxId = 0x7F;                      // poison
+        sb_play->envCtx.skyboxConfig = 0x7F;           // poison
+        sb_play->envCtx.changeSkyboxNextConfig = 0x7F; // poison
+        sb_play->envCtx.lightMode = 0x7F;              // poison
+
+        MM_OTRScene_ExecuteCommands(sb_play.get(), sb_scene.get());
+
+        if (sb_play->skyboxId != (0x05 & 3)) {
+            printf("[TEST] FAIL: skyboxId = %d, expected %d\n", (int)sb_play->skyboxId, (0x05 & 3));
+            return 1;
+        }
+        if (sb_play->envCtx.skyboxConfig != 0x07 || sb_play->envCtx.changeSkyboxNextConfig != 0x07) {
+            printf("[TEST] FAIL: skyboxConfig=%d next=%d, expected 7,7\n",
+                   (int)sb_play->envCtx.skyboxConfig, (int)sb_play->envCtx.changeSkyboxNextConfig);
+            return 1;
+        }
+        if (sb_play->envCtx.lightMode != 0x02) {
+            printf("[TEST] FAIL: lightMode = %d, expected 2\n", (int)sb_play->envCtx.lightMode);
+            return 1;
+        }
+        printf("[TEST] PASS: SkyboxSettings (0x11) locked\n");
+    }
+
+    printf("[TEST] PASS: mm-scene-execute — scene commands + ObjectList/Skybox locks + spawn-entry guard\n");
     return 0;
 }
 
