@@ -65,12 +65,34 @@ extern "C" s32 MM_OTRfunc_800973FC(PlayState* play, RoomContext* roomCtx) {
     if (roomCtx->status == 1) {
         // if (!MM_osRecvMesg(&roomCtx->loadQueue, nullptr, OS_MESG_NOBLOCK)) {
         if (1) {
+            if (roomCtx->roomRequestAddr == nullptr) {
+                // Room resource failed to load (FATAL logged at request time in
+                // MM_OTRfunc_8009728C). Running the command executor on a NULL
+                // room would null-deref before Play_Init's post-busyloop guard
+                // can run; contain it instead, same policy as the scene-load
+                // guard in MM_OTRPlay_SpawnScene.
+                fprintf(stderr,
+                        "[MM] FATAL: first-room segment is NULL (sceneId %d, room %d), skipping room commands\n",
+                        (int)play->sceneId, (int)roomCtx->curRoom.num);
+                fflush(stderr);
+                roomCtx->status = 0;
+                return 1;
+            }
             roomCtx->status = 0;
             roomCtx->curRoom.segment = roomCtx->roomRequestAddr;
             MM_gSegments[3] = (uintptr_t)roomCtx->roomRequestAddr;
 
             MM_OTRScene_ExecuteCommands(play, (S2H::Scene*)roomCtx->curRoom.segment);
-            func_80123140(play, GET_PLAYER(play));
+            Player* player = GET_PLAYER(play);
+            if (player != NULL) {
+                func_80123140(play, player);
+            } else {
+                // func_80123140 reads player->actor.id unguarded. A player-less
+                // PlayState here means the spawn path failed; skip it and let
+                // MM_Play_Init's NULL-player guard unwind after the busyloop.
+                fprintf(stderr, "[MM] WARNING: no player during first-room commands, skipping func_80123140\n");
+                fflush(stderr);
+            }
             MM_Actor_SpawnTransitionActors(play, &play->actorCtx);
             if (((play->sceneId != SCENE_IKANA) || (roomCtx->curRoom.num != 1)) && (play->sceneId != SCENE_IKNINSIDE)) {
                 play->envCtx.lightSettingOverride = LIGHT_SETTING_OVERRIDE_NONE;
