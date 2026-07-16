@@ -13,6 +13,19 @@ cross-game switch (§A). An unmerged fix already exists on
 `claude/cutscene-crash-redship-4aukbd`. Rev 1's ranked MM-side map was written
 before the log existed; it is preserved as the contingency map (§B).
 
+**Rev 3 (2026-07-16, later):** §A is DONE — the entrance-leak fix merged as
+PR #356 (`cff754fc`, with the dedicated `StartupEntrance` redship CTest). The
+operator then reported a switch crash still reproducing on the #356 PR
+artifact, consistent with §B: the original log's MM fragment ends at
+`File Name ...Z2_INSIDETOWER_room_00`, the exact line before first-room command
+execution. §B candidates #1 and #2 are now guarded — PR #357 (`1f5fa3a5`):
+FATAL log on room-resource load failure, NULL-room early-return in
+`MM_OTRfunc_800973FC`, NULL-player skip of `func_80123140`, locked ROM-free in
+`mm-scene-execute`. **Awaiting the operator's re-test on a build ≥ `1f5fa3a5`
+and, if anything still crashes, the fresh crash log** — the new FATAL/WARNING
+breadcrumbs will name the failing surface. §B candidates #3-#5 remain unguarded
+and live.
+
 ## Completed (Wave 2)
 - **Lane 5** — shuffle features / epic #235: absorbed via PR #315; #235 closed.
 - **Lane 6** — Phase 2 closeout / epic #202: #202, #211, #212, #231, #232, #233,
@@ -260,12 +273,13 @@ PathList 0x0D, CutsceneScriptList. Nice-to-have, not the mission.
    documented open item; do not fake CI coverage.
 
 **Closure criteria:**
-- [ ] §A entrance-leak fix merged (squash, CI green) with test coverage and the
-      diagnosis recorded.
+- [x] §A entrance-leak fix merged (squash, CI green) with test coverage and the
+      diagnosis recorded — PR #356, main `cff754fc` (2026-07-16).
 - [ ] Crash no longer reproduces on a fresh build from main (operator-confirmed;
-      real-ROM confirmation is manual).
-- [ ] §B dispositioned: either not needed (no further crash) or the next log
-      decoded and fixed the same way.
+      real-ROM confirmation is manual). Operator re-test must be on a build ≥
+      `1f5fa3a5` (both #356 and #357 included).
+- [ ] §B dispositioned: candidates #1/#2 guarded+locked via PR #357
+      (`1f5fa3a5`); #3-#5 remain live pending the operator's next log.
 - [ ] #341 elision track scoped (merged, or a tracked follow-up issue).
 - [ ] This file replanned (see below).
 
