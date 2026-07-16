@@ -214,6 +214,11 @@ if(BUILD_TESTING)
     add_test(NAME BootMM COMMAND redship --test boot-mm)
     add_test(NAME SwitchOoTMM COMMAND redship --test switch-oot-mm)
     add_test(NAME SwitchMMOoT COMMAND redship --test switch-mm-oot)
+    # Startup-entrance flow incl. game-affinity regression: an MM-tagged
+    # entrance (0xC010) must be invisible to OoT, whose entranceIndex is a
+    # linear gEntranceTable index — the OOB-read crash behind the Market
+    # cutscene 0xC0000005.
+    add_test(NAME StartupEntrance COMMAND redship --test startup-entrance)
     add_test(NAME Roundtrip COMMAND redship --test roundtrip)
     add_test(NAME RoundtripIntegrity COMMAND redship --test roundtrip-integrity)
     add_test(NAME SharedRoundtrip COMMAND redship --test shared-roundtrip)
@@ -236,7 +241,7 @@ if(BUILD_TESTING)
     # Set reasonable timeout and label our tests
     set(REDSHIP_TEST_TIMEOUT 60 CACHE STRING "Test timeout in seconds")
     set_tests_properties(
-        BootOoT BootMM SwitchOoTMM SwitchMMOoT Roundtrip RoundtripIntegrity SharedRoundtrip ArchiveHotswapLogic
+        BootOoT BootMM SwitchOoTMM SwitchMMOoT StartupEntrance Roundtrip RoundtripIntegrity SharedRoundtrip ArchiveHotswapLogic
         SaveRoundtripTiers SaveHeader SaveHasDelete SaveVersionReject SaveSizeMismatch SaveCrcCorrupt
         Context MMSceneParse MMSceneExecute AllTests
         PROPERTIES
