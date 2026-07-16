@@ -346,14 +346,20 @@ void OoT_Game_Resume(void) {
 
         // Prefer an explicit startup entrance (set by main.cpp for this
         // switch); fall back to the return entrance recorded at freeze time.
-        // Use Combo_HasStartupEntrance rather than (entrance != 0) — entrance
-        // 0x0000 is the real id for Kokiri Forest from Deku Tree, so a legit
-        // restore to 0 must not be silently dropped. The frozen return
-        // entrance is always trustworthy here because we already checked
-        // Context_HasFrozenState above.
-        bool hasStartup = Combo_HasStartupEntrance();
+        // Query the OoT-scoped accessor rather than the game-agnostic one: a
+        // value tagged for MM (e.g. 0xC010) that leaked into the shared startup
+        // global must NOT be applied to OoT's entranceIndex — it is a direct
+        // linear index into gEntranceTable and would read far out of bounds
+        // (crash) once Play_Init runs. When the leaked value is invisible to
+        // OoT, hasStartup is false and we fall back to the frozen OoT return
+        // entrance, which is the correct resume target and always in range.
+        // Use the Has check rather than (entrance != 0) — entrance 0x0000 is the
+        // real id for Kokiri Forest from Deku Tree, so a legit restore to 0 must
+        // not be silently dropped. The frozen return entrance is always
+        // trustworthy here because we already checked Context_HasFrozenState.
+        bool hasStartup = Combo_HasStartupEntranceForGame("oot");
         uint16_t targetEntrance = hasStartup
-            ? Combo_GetStartupEntrance()
+            ? Combo_GetStartupEntranceForGame("oot")
             : Context_GetFrozenReturnEntrance(GAME_OOT);
         gSaveContext.entranceIndex = targetEntrance;
         fprintf(stderr, "[OoT] Resume entrance: 0x%04X (startup=%u)\n",

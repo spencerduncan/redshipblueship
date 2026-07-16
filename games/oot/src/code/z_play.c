@@ -24,6 +24,7 @@
 // Cross-game combo support - check for startup entrance from game switch
 extern uint16_t Combo_GetStartupEntrance(void);
 extern void Combo_ClearStartupEntrance(void);
+extern uint16_t Combo_GetStartupEntranceForGame(const char* gameId);
 
 // Cross-game combo support - entrance switch checking
 extern uint16_t Combo_CheckEntranceSwitch(uint16_t entranceIndex);
@@ -393,13 +394,25 @@ void OoT_Play_Init(GameState* thisx) {
 
     enableBetaQuest();
 
-    // Cross-game combo: Check if we're entering from another game
+    // Cross-game combo: Check if we're entering from another game.
     {
-        uint16_t startupEntrance = Combo_GetStartupEntrance();
+        // Only consume an entrance tagged for OoT. A value tagged for MM (e.g.
+        // 0xC010 = Clock Tower Interior) that leaked into the shared startup
+        // global must never reach gSaveContext.entranceIndex — it is a direct
+        // linear index into gEntranceTable[ENTR_MAX], so an MM value reads far
+        // out of bounds and crashes (0xC0000005) in Cutscene_HandleConditionalTriggers.
+        uint16_t startupEntrance = Combo_GetStartupEntranceForGame("oot");
         if (startupEntrance != 0) {
-            gSaveContext.entranceIndex = startupEntrance;
-            Combo_ClearStartupEntrance();
-            osSyncPrintf("[OoT] Cross-game switch: loading entrance 0x%04X\n", startupEntrance);
+            if (startupEntrance >= ENTR_MAX) {
+                // Defense in depth: never index gEntranceTable out of range,
+                // even if a bogus value slips past the game-affinity check.
+                osSyncPrintf("[OoT] Ignoring out-of-range startup entrance 0x%04X\n", startupEntrance);
+                Combo_ClearStartupEntrance();
+            } else {
+                gSaveContext.entranceIndex = startupEntrance;
+                Combo_ClearStartupEntrance();
+                osSyncPrintf("[OoT] Cross-game switch: loading entrance 0x%04X\n", startupEntrance);
+            }
         }
     }
 
