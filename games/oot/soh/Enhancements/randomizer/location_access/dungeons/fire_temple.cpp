@@ -1054,7 +1054,7 @@ void RegionTable_Init_FireTemple() {
     // Boss Room
     areaTable[RR_FIRE_TEMPLE_BOSS_ENTRYWAY] = Region("Fire Temple Boss Entryway", SCENE_FIRE_TEMPLE, {}, {
         // Locations
-        LOCATION(RC_FOREST_BOSS_KEY_HINT, true),
+        LOCATION(RC_FIRE_BOSS_KEY_HINT, true),
     }, {
         // Exits
         Entrance(RR_FIRE_TEMPLE_NEAR_BOSS_ROOM,    []{return ctx->GetDungeon(FIRE_TEMPLE)->IsVanilla() && false;}),
