@@ -33,6 +33,9 @@ extern "C" {
 
     // Audio cleanup for suspend (issue #160)
     void OoT_Audio_PreNMI(void);
+    // Wait for the OTR audio std::thread to finish any in-flight buffer before
+    // the switch hot-swaps resource archives (OTRGlobals.cpp).
+    void OoT_Audio_DrainForSuspend(void);
     extern s32 gAudioContextInitalized;
     void Audio_InitMesgQueues(void);
 
@@ -311,10 +314,18 @@ void OoT_Game_Suspend(void) {
     // OoT_Audio_PreNMI triggers the audio reset path which stops all sequences
     // and puts the audio system into a quiescent state.
     //
-    // Note: No race with the audio thread here — in the SoH port, the audio
-    // thread is not a real OS thread (osCreateThread is commented out in
-    // audioMgr.c). Audio is processed synchronously from the game loop, which
-    // has already returned from Main() before suspend is called.
+    // FIRST drain the OTR audio thread. It IS a real std::thread
+    // (OTRGlobals.cpp OTRAudio_Init: audio.thread = std::thread(OTRAudio_Thread)),
+    // NOT the commented-out N64 audioMgr thread — an earlier note here wrongly
+    // claimed audio was synchronous. While it is mid-buffer it can load
+    // sequences/soundfonts through the shared ResourceManager, so the switch's
+    // archive hot-swap that follows suspend must not free a resource it is
+    // using (that use-after-free corrupts the process heap and later faults in
+    // RtlAllocateHeap). Wait for the in-flight buffer to finish before PreNMI.
+    fprintf(stderr, "[OoT] Draining audio thread before suspend...\n");
+    fflush(stderr);
+    OoT_Audio_DrainForSuspend();
+
     fprintf(stderr, "[OoT] Stopping audio via PreNMI path...\n");
     fflush(stderr);
     OoT_Audio_PreNMI();
