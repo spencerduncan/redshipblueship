@@ -1124,6 +1124,17 @@ void RegisterOnDialogMessageHook() {
 // MARK: - Main Registration
 
 void InitTTSBank() {
+    // The accessibility text banks live in the game archive. RSBS supports
+    // booting without oot.o2r (#330), and this runs unconditionally at
+    // ShipInit time now that soh_enh is force-linked (#341/#361) — loading
+    // from the empty archive set stalls/faults the boot. Skip like
+    // OTRMessage_Init and the GUI layer do; the OnSetGameLanguage hook
+    // re-runs this once a real archive state exists.
+    if (OTRGlobals::Instance == nullptr ||
+        (!OTRGlobals::Instance->HasMasterQuest() && !OTRGlobals::Instance->HasOriginal())) {
+        return;
+    }
+
     std::string languageSuffix = "_eng.json";
     switch (CVarGetInteger(CVAR_SETTING("Languages"), 0)) {
         case LANGUAGE_FRA:
@@ -1139,23 +1150,18 @@ void InitTTSBank() {
     initData->Type = static_cast<uint32_t>(Ship::ResourceType::Json);
     initData->ResourceVersion = 0;
 
-    sceneMap = std::static_pointer_cast<Ship::Json>(Ship::Context::GetInstance()->GetResourceManager()->LoadResource(
-                                                        "accessibility/texts/scenes" + languageSuffix, true, initData))
-                   ->Data;
+    auto loadBank = [&initData, &languageSuffix](const char* bank) -> nlohmann::json {
+        auto res = std::static_pointer_cast<Ship::Json>(
+            Ship::Context::GetInstance()->GetResourceManager()->LoadResource(
+                std::string("accessibility/texts/") + bank + languageSuffix, true, initData));
+        // Missing bank file: keep the null json rather than dereferencing.
+        return res == nullptr ? nlohmann::json(nullptr) : res->Data;
+    };
 
-    miscMap = std::static_pointer_cast<Ship::Json>(Ship::Context::GetInstance()->GetResourceManager()->LoadResource(
-                                                       "accessibility/texts/misc" + languageSuffix, true, initData))
-                  ->Data;
-
-    kaleidoMap =
-        std::static_pointer_cast<Ship::Json>(Ship::Context::GetInstance()->GetResourceManager()->LoadResource(
-                                                 "accessibility/texts/kaleidoscope" + languageSuffix, true, initData))
-            ->Data;
-
-    fileChooseMap =
-        std::static_pointer_cast<Ship::Json>(Ship::Context::GetInstance()->GetResourceManager()->LoadResource(
-                                                 "accessibility/texts/filechoose" + languageSuffix, true, initData))
-            ->Data;
+    sceneMap = loadBank("scenes");
+    miscMap = loadBank("misc");
+    kaleidoMap = loadBank("kaleidoscope");
+    fileChooseMap = loadBank("filechoose");
 }
 
 void RegisterOnSetGameLanguageHook() {
