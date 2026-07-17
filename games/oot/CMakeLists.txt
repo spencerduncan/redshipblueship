@@ -273,7 +273,16 @@ if(SINGLE_EXECUTABLE_BUILD)
     # messages, and static hints from the shipped binaries on every platform.
     # Upstream SoH links all of these objects directly into its executable;
     # WHOLE_ARCHIVE restores that behavior for the randomizer split.
-    set(SOH_STATIC_TARGETS soh_src soh_port soh_enh "$<LINK_LIBRARY:WHOLE_ARCHIVE,soh_rando>" PARENT_SCOPE)
+    #
+    # soh_enh gets the same treatment (#341): the registrar-elision CI check
+    # measured 171 of its 220 registrar symbols missing from the linked binary
+    # (tts, timesaver hook handlers, ToTMedallions, TreesDropSticks, ...) —
+    # i.e. most self-registering enhancements were silently absent. Unlike the
+    # MM archives (whose deps are unported — see games/mm/CMakeLists.txt),
+    # soh_enh's dependencies are already in the OoT link.
+    set(SOH_STATIC_TARGETS soh_src soh_port
+        "$<LINK_LIBRARY:WHOLE_ARCHIVE,soh_enh>"
+        "$<LINK_LIBRARY:WHOLE_ARCHIVE,soh_rando>" PARENT_SCOPE)
 else()
     # Build as SHARED library for dynamic loading
     add_library(${PROJECT_NAME} SHARED ${ALL_FILES})
