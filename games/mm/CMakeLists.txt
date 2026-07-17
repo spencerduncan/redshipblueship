@@ -320,7 +320,16 @@ if(SINGLE_EXECUTABLE_BUILD)
         target_link_libraries(${_t} PRIVATE redship_common rsbs libultraship ZAPDLib)
     endforeach()
 
-    # Export static targets for root CMakeLists to link into redship
+    # Export static targets for root CMakeLists to link into redship.
+    #
+    # 2ship_enh/2ship_rando deliberately do NOT get the WHOLE_ARCHIVE
+    # treatment soh_rando has (#341): force-linking them surfaces ~27
+    # unresolved dependencies (BenGui::BenMenu + tracker windows, the
+    # CustomMessage system, CustomItem, Ship_Random/Ship_Hash utils,
+    # UpdateGameTime, HudEditor, ...) — subsystems not yet ported into the
+    # single-exe link. Until those port, member elision is what keeps redship
+    # linking; the registrar drops it causes are surfaced (report-only) by
+    # .github/scripts/check-registrar-elision.sh in Linux CI.
     set(TWOSHIP_STATIC_TARGETS 2ship_src 2ship_port 2ship_enh 2ship_rando PARENT_SCOPE)
 else()
     # Build as SHARED library for dynamic loading

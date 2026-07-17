@@ -256,6 +256,11 @@ jobs:
         # mtime+size, so caches survive container image rebuilds (which reset
         # mtimes and otherwise force a full ~20 min recompile).
         CCACHE_COMPILERCHECK: content
+    - name: Check registrar elision (#341)
+      # Self-registering TUs (RegisterShipInitFunc static initializers) must
+      # survive the archive link — plain archive semantics silently drop them
+      # (the PR #340 song-shuffle failure class). nm-based, Linux-only.
+      run: bash .github/scripts/check-registrar-elision.sh build-cmake
     - name: Run tests
       # --no-tests=error: if the "redship" test label ever regresses, fail loudly
       # instead of ctest exiting 0 with "No tests were found".
