@@ -284,6 +284,8 @@ void MM_Scene_CommandObjectList(PlayState* play, SceneCmd* cmd) {
     s32 i;
     s32 j;
     s32 k;
+    s32 numObjects;
+    s32 maxObjects;
     ObjectEntry* firstObject;
     ObjectEntry* entry;
     ObjectEntry* invalidatedEntry;
@@ -295,6 +297,15 @@ void MM_Scene_CommandObjectList(PlayState* play, SceneCmd* cmd) {
     i = play->objectCtx.numPersistentEntries;
     entry = &play->objectCtx.slots[i];
     firstObject = &play->objectCtx.slots[0];
+
+    // Clamp the object count to the available slots so oversized scenes cannot overflow the slots array
+    numObjects = cmd->objectList.num;
+    maxObjects = ARRAY_COUNT(play->objectCtx.slots) - play->objectCtx.numPersistentEntries;
+    if (numObjects > maxObjects) {
+        osSyncPrintf("Scene object list has %d entries but only %d slots are available; ignoring the excess\n",
+                     numObjects, maxObjects);
+        numObjects = maxObjects;
+    }
 
     while (i < play->objectCtx.numEntries) {
         if (entry->id != *objectEntry) {
@@ -317,7 +328,7 @@ void MM_Scene_CommandObjectList(PlayState* play, SceneCmd* cmd) {
         entry++;
     }
 
-    while (k < cmd->objectList.num) {
+    while (k < numObjects) {
         nextPtr = func_8012F73C(&play->objectCtx, i, *objectEntry);
 
         if (i < ARRAY_COUNT(play->objectCtx.slots) - 1) {

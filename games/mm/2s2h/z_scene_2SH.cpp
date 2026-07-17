@@ -175,13 +175,24 @@ void MM_Scene_CommandObjectList(PlayState* play, S2H::ISceneCommand* cmd) {
     s32 i;
     s32 j;
     s32 k;
+    s32 numObjects;
+    s32 maxObjects;
 
     // #region 2S2H [Port] Cleaner version of decomps loops for nicer presentation
+
+    // Clamp the object count to the available slots so oversized scenes cannot overflow the slots array
+    numObjects = (s32)objList->objects.size();
+    maxObjects = ARRAY_COUNT(play->objectCtx.slots) - play->objectCtx.numPersistentEntries;
+    if (numObjects > maxObjects) {
+        osSyncPrintf("Scene object list has %d entries but only %d slots are available; ignoring the excess\n",
+                     numObjects, maxObjects);
+        numObjects = maxObjects;
+    }
 
     // Loop until a mismatch in the object lists
     // Then clear all object ids past that in the context object list and kill actors for those objects
     for (i = play->objectCtx.numPersistentEntries, k = 0; i < play->objectCtx.numEntries; i++, k++) {
-        if (k >= objList->objects.size() || play->objectCtx.slots[i].id != objList->objects[k]) {
+        if (k >= numObjects || play->objectCtx.slots[i].id != objList->objects[k]) {
             for (j = i; j < play->objectCtx.numEntries; j++) {
                 play->objectCtx.slots[j].id = 0;
             }
@@ -191,7 +202,7 @@ void MM_Scene_CommandObjectList(PlayState* play, S2H::ISceneCommand* cmd) {
     }
 
     // Continuing from the last index, add the remaining object ids from the command object list
-    for (; k < objList->objects.size(); i++, k++) {
+    for (; k < numObjects; i++, k++) {
         play->objectCtx.slots[i].id = -objList->objects[k];
     }
 

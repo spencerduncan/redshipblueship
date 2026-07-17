@@ -250,7 +250,7 @@ TestResult Test_SaveVersionReject(void) {
 }
 
 TestResult Test_SaveSizeMismatch(void) {
-    printf("[TEST] save-size-mismatch: Load refuses a mismatched tier size without clobbering state (#35)\n");
+    printf("[TEST] save-size-mismatch: Load refuses an oversized tier without clobbering state (#35)\n");
 
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
     mgr.SetSaveDirectory(kSaveTestDir);
@@ -258,7 +258,9 @@ TestResult Test_SaveSizeMismatch(void) {
     mgr.DeleteSave(0);
     SAVE_ASSERT(mgr.Save(0), "Save(0) failed");
 
-    // Claim a different OoT tier size than this build expects.
+    // Claim an OoT tier LARGER than this build's blob capacity. (A smaller
+    // stored size is legal — see Test_SaveLegacySize — but larger can never
+    // fit the shadow buffers and must be refused.)
     SAVE_ASSERT(SaveTestPatchU32(mgr.SlotPath(0), offsetof(rsbs::RsbsSaveHeader, ootSize),
                                  static_cast<uint32_t>(OOT_SAVE_CONTEXT_SIZE) + 4u),
                 "could not patch ootSize");
@@ -272,6 +274,90 @@ TestResult Test_SaveSizeMismatch(void) {
 
     mgr.DeleteSave(0);
     printf("[TEST] PASS: tier-size mismatch rejected, live state intact\n");
+    return TEST_PASS;
+}
+
+TestResult Test_SaveLegacySize(void) {
+    printf("[TEST] save-legacy-size: Load accepts a shorter (pre-capacity-fix) tier and zero-extends (#35)\n");
+
+    // Tier sizes written by builds from before the blob capacities covered the
+    // ports' full runtime SaveContexts (the N64 struct sizes). The header is
+    // self-describing, so such files must still load; the missing tail is the
+    // ship.* state those builds truncated away and is restored as zeros.
+    const uint32_t kLegacyOoTSize = 0x1428;
+    const uint32_t kLegacyMMSize = 0x48C8;
+
+    rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
+    mgr.SetSaveDirectory(kSaveTestDir);
+    const uint32_t tag = 0x4C454741u;  // "LEGA"
+    SaveTestSeed(tag);
+    mgr.DeleteSave(0);
+
+    // Hand-craft the legacy file: same v1 layout, shorter game tiers.
+    std::vector<uint8_t> payload;
+    payload.reserve(sizeof(ComboContext) + kLegacyOoTSize + kLegacyMMSize);
+    const uint8_t* comboBytes = reinterpret_cast<const uint8_t*>(&gComboCtx);
+    payload.insert(payload.end(), comboBytes, comboBytes + sizeof(ComboContext));
+    for (size_t i = 0; i < kLegacyOoTSize; i++) {
+        payload.push_back(SaveTestOoTByte(i));
+    }
+    for (size_t i = 0; i < kLegacyMMSize; i++) {
+        payload.push_back(SaveTestMMByte(i));
+    }
+
+    rsbs::RsbsSaveHeader h;
+    std::memset(&h, 0, sizeof(h));
+    std::memcpy(h.magic, RSBS_SAVE_MAGIC, sizeof(h.magic));
+    h.version = RSBS_SAVE_VERSION;
+    h.endian = RSBS_SAVE_ENDIAN_LE;
+    h.slot = 0;
+    h.headerSize = sizeof(rsbs::RsbsSaveHeader);
+    h.comboSize = static_cast<uint32_t>(sizeof(ComboContext));
+    h.ootSize = kLegacyOoTSize;
+    h.mmSize = kLegacyMMSize;
+    h.crc32 = rsbs::SaveManager::Crc32(payload.data(), payload.size());
+
+    std::filesystem::create_directories(kSaveTestDir);
+    {
+        std::ofstream out(mgr.SlotPath(0), std::ios::binary | std::ios::trunc);
+        SAVE_ASSERT(static_cast<bool>(out), "could not write legacy slot file");
+        out.write(reinterpret_cast<const char*>(&h), sizeof(h));
+        out.write(reinterpret_cast<const char*>(payload.data()), static_cast<std::streamsize>(payload.size()));
+        SAVE_ASSERT(static_cast<bool>(out), "short write of legacy slot file");
+    }
+
+    // Wipe live state with a recognizable non-zero fill so both "restored" and
+    // "zero-extended" outcomes are distinguishable from leftovers.
+    ComboContext_Init();
+    gComboCtx.saveSlot = 0x7FFFFFFF;
+    std::vector<uint8_t> junkOoT(OOT_SAVE_CONTEXT_SIZE, 0x5A);
+    std::vector<uint8_t> junkMM(MM_SAVE_CONTEXT_SIZE, 0x5A);
+    Context_UpdateShadowCopy(GAME_OOT, junkOoT.data(), junkOoT.size());
+    Context_UpdateShadowCopy(GAME_MM, junkMM.data(), junkMM.size());
+
+    SAVE_ASSERT(mgr.Load(0), "Load refused a valid legacy-size file");
+    SAVE_ASSERT(gComboCtx.saveSlot == static_cast<int32_t>(tag), "ComboContext not restored from legacy file");
+
+    const uint8_t* oot = static_cast<const uint8_t*>(Context_GetOoTSaveContext());
+    SAVE_ASSERT(oot != nullptr, "OoT shadow missing after legacy load");
+    for (size_t i = 0; i < kLegacyOoTSize; i++) {
+        SAVE_ASSERT(oot[i] == SaveTestOoTByte(i), "legacy OoT bytes not restored");
+    }
+    for (size_t i = kLegacyOoTSize; i < OOT_SAVE_CONTEXT_SIZE; i++) {
+        SAVE_ASSERT(oot[i] == 0, "OoT tail beyond legacy size not zero-extended");
+    }
+
+    const uint8_t* mm = static_cast<const uint8_t*>(Context_GetMMSaveContext());
+    SAVE_ASSERT(mm != nullptr, "MM shadow missing after legacy load");
+    for (size_t i = 0; i < kLegacyMMSize; i++) {
+        SAVE_ASSERT(mm[i] == SaveTestMMByte(i), "legacy MM bytes not restored");
+    }
+    for (size_t i = kLegacyMMSize; i < MM_SAVE_CONTEXT_SIZE; i++) {
+        SAVE_ASSERT(mm[i] == 0, "MM tail beyond legacy size not zero-extended");
+    }
+
+    mgr.DeleteSave(0);
+    printf("[TEST] PASS: legacy-size tiers load and zero-extend to the current capacities\n");
     return TEST_PASS;
 }
 
