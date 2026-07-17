@@ -1181,6 +1181,29 @@ void OTRAudio_Init() {
     }
 }
 
+// Wait for any in-flight audio buffer to finish before a cross-game switch
+// hot-swaps resource archives (#160/#170 switch path). OTRAudio_Thread is a
+// REAL std::thread; while audio.processing is set it runs
+// OoT_AudioMgr_CreateNextAudioBuffer, whose sequence/soundfont load path
+// allocates on the SHARED process heap / ResourceManager. If it is mid-load
+// when the switch replaces the ResourceManager factories, the freed resource
+// is a use-after-free -> heap-metadata corruption. Draining here (same
+// primitives as the per-frame wait in Graph_ProcessGfxCommands) closes that
+// race. Called from OoT_Game_Suspend BEFORE the archive hot-swap. Safe to call
+// from the switch/main thread: it only waits, and returns immediately when no
+// buffer is in flight (or when the audio thread was never started).
+extern "C" void OoT_Audio_DrainForSuspend(void) {
+    std::unique_lock<std::mutex> Lock(audio.mutex);
+    bool waited = audio.processing;
+    while (audio.processing) {
+        audio.cv_from_thread.wait(Lock);
+    }
+    if (waited) {
+        fprintf(stderr, "[OoT] Audio thread drained before suspend (buffer was in flight)\n");
+        fflush(stderr);
+    }
+}
+
 // C->C++ Bridge
 extern "C" char** sequenceMap;
 extern "C" size_t sequenceMapSize;
