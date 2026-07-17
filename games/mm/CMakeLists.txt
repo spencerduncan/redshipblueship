@@ -322,19 +322,15 @@ if(SINGLE_EXECUTABLE_BUILD)
 
     # Export static targets for root CMakeLists to link into redship.
     #
-    # 2ship_enh and 2ship_rando link with WHOLE_ARCHIVE: ~200 of their
-    # translation units register themselves purely through RegisterShipInitFunc
-    # static initializers and export no symbol anything references. With plain
-    # archive semantics the linker drops those members silently — the class of
-    # loss PR #340 fixed for soh_rando (see #341; games/oot/CMakeLists.txt has
-    # the same treatment). Upstream 2S2H links all of these objects directly
-    # into its executable; WHOLE_ARCHIVE restores that behavior for the split
-    # archives. 2ship_src/2ship_port stay plain: their members are reached via
-    # direct symbol references, and resource factories are registered
-    # explicitly in BenPort.cpp.
-    set(TWOSHIP_STATIC_TARGETS 2ship_src 2ship_port
-        "$<LINK_LIBRARY:WHOLE_ARCHIVE,2ship_enh>"
-        "$<LINK_LIBRARY:WHOLE_ARCHIVE,2ship_rando>" PARENT_SCOPE)
+    # 2ship_enh/2ship_rando deliberately do NOT get the WHOLE_ARCHIVE
+    # treatment soh_rando has (#341): force-linking them surfaces ~27
+    # unresolved dependencies (BenGui::BenMenu + tracker windows, the
+    # CustomMessage system, CustomItem, Ship_Random/Ship_Hash utils,
+    # UpdateGameTime, HudEditor, ...) — subsystems not yet ported into the
+    # single-exe link. Until those port, member elision is what keeps redship
+    # linking; the registrar drops it causes are surfaced (report-only) by
+    # .github/scripts/check-registrar-elision.sh in Linux CI.
+    set(TWOSHIP_STATIC_TARGETS 2ship_src 2ship_port 2ship_enh 2ship_rando PARENT_SCOPE)
 else()
     # Build as SHARED library for dynamic loading
     add_library(${PROJECT_NAME} SHARED ${ALL_FILES})

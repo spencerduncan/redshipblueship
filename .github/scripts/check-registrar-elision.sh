@@ -60,10 +60,15 @@ check_archive() {
 }
 
 check_archive "$BUILD_DIR/games/oot/libsoh_rando.a"  required
-check_archive "$BUILD_DIR/games/mm/lib2ship_enh.a"   required
-check_archive "$BUILD_DIR/games/mm/lib2ship_rando.a" required
 # Not yet WHOLE_ARCHIVE-wrapped — report drops without failing so the
-# remaining #341 exposure stays visible in every CI run.
+# remaining #341 exposure stays visible in every CI run. The MM archives
+# cannot be wrapped today: force-linking them surfaces ~27 unresolved
+# dependencies (BenGui::BenMenu, CustomMessage, CustomItem, Ship_* utils,
+# UpdateGameTime, HudEditor, ...) — single-exe port gaps that elision
+# currently masks. Promote an archive to `required` above when it gains
+# WHOLE_ARCHIVE in its CMakeLists.
+check_archive "$BUILD_DIR/games/mm/lib2ship_enh.a"   report-only
+check_archive "$BUILD_DIR/games/mm/lib2ship_rando.a" report-only
 check_archive "$BUILD_DIR/games/oot/libsoh_enh.a"    report-only
 
 if [ "$overall" -ne 0 ]; then
