@@ -266,6 +266,10 @@ jobs:
       # instead of ctest exiting 0 with "No tests were found".
       run: ctest --test-dir build-cmake --output-on-failure --label-regex "^redship$" --no-tests=error
     - name: Run rando seed generation test
+      env:
+        # Name each ShipInit func as it runs so a hang/crash inside one is
+        # attributable from the log alone (see ShipInit.hpp; added for #361).
+        RSBS_TRACE_SHIP_INIT: "1"
       # Generates a real seed with default settings (issue #337). Needs a
       # display for the Fast3dWindow bring-up (hence xvfb-run) but NO game
       # archives, so unlike the int-* tier it can run on hosted runners.

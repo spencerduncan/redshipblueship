@@ -1,5 +1,6 @@
 #include <libultraship/bridge/consolevariablebridge.h>
 #include "soh/Enhancements/game-interactor/GameInteractor_Hooks.h"
+#include "soh/OTRGlobals.h"
 #include "soh/ShipInit.hpp"
 #include "functions.h"
 #include "soh/Enhancements/enhancementTypes.h"
@@ -57,6 +58,15 @@ CollisionHeader* getGraveyardCollisionHeader() {
 }
 
 void ApplyGraveyardGeometryPatches() {
+    // The graveyard scene lives in the game archive. This runs at ShipInit
+    // time (and on CVar change) now that soh_enh is force-linked (#361), and
+    // LoadResource in RSBS's supported no-game-archive boots (#330) blocks
+    // forever — it hung the rando-gen CI tests at 180s. Same gate as
+    // OTRMessage_Init and InitTTSBank; re-runs apply once an archive exists.
+    if (OTRGlobals::Instance == nullptr ||
+        (!OTRGlobals::Instance->HasMasterQuest() && !OTRGlobals::Instance->HasOriginal())) {
+        return;
+    }
     static CollisionHeader* graveyardColHeader = getGraveyardCollisionHeader();
     for (auto& mappingPatch : graveyardGeometryPatches) {
         for (int i = mappingPatch.first.first; i <= mappingPatch.first.second; i++) {

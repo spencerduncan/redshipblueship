@@ -60,6 +60,7 @@ check_archive() {
 }
 
 check_archive "$BUILD_DIR/games/oot/libsoh_rando.a"  required
+check_archive "$BUILD_DIR/games/oot/libsoh_enh.a"    required
 # Not yet WHOLE_ARCHIVE-wrapped — report drops without failing so the
 # remaining #341 exposure stays visible in every CI run. The MM archives
 # cannot be wrapped today: force-linking them surfaces ~27 unresolved
@@ -69,7 +70,6 @@ check_archive "$BUILD_DIR/games/oot/libsoh_rando.a"  required
 # WHOLE_ARCHIVE in its CMakeLists.
 check_archive "$BUILD_DIR/games/mm/lib2ship_enh.a"   report-only
 check_archive "$BUILD_DIR/games/mm/lib2ship_rando.a" report-only
-check_archive "$BUILD_DIR/games/oot/libsoh_enh.a"    report-only
 
 if [ "$overall" -ne 0 ]; then
     echo "FAIL: registrar symbols were elided from a WHOLE_ARCHIVE-protected archive (#341)" >&2
