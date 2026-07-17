@@ -49,10 +49,12 @@ CollisionHeader* getGraveyardCollisionHeader() {
      * are shifted somewhat between versions, so to be safe we just create an extra slot that is not in any version.
      */
     static SurfaceType newSurfaceTypes[33];
-    memcpy(newSurfaceTypes, graveyardColHeader->surfaceTypeList, sizeof(SurfaceType) * surfaceTypesCount);
-    newSurfaceTypes[CUSTOM_SURFACE_TYPE].data[0] = 0x24000004;
-    newSurfaceTypes[CUSTOM_SURFACE_TYPE].data[1] = 0xFC8;
-    graveyardColHeader->surfaceTypeList = newSurfaceTypes;
+    if (graveyardColHeader->surfaceTypeList != newSurfaceTypes) {
+        memcpy(newSurfaceTypes, graveyardColHeader->surfaceTypeList, sizeof(SurfaceType) * surfaceTypesCount);
+        newSurfaceTypes[CUSTOM_SURFACE_TYPE].data[0] = 0x24000004;
+        newSurfaceTypes[CUSTOM_SURFACE_TYPE].data[1] = 0xFC8;
+        graveyardColHeader->surfaceTypeList = newSurfaceTypes;
+    }
 
     return graveyardColHeader;
 }
@@ -67,7 +69,13 @@ void ApplyGraveyardGeometryPatches() {
         (!OTRGlobals::Instance->HasMasterQuest() && !OTRGlobals::Instance->HasOriginal())) {
         return;
     }
-    static CollisionHeader* graveyardColHeader = getGraveyardCollisionHeader();
+    // Re-fetch the collision header on every run instead of caching it in a static. The graveyard scene
+    // lives in oot.o2r, which is hot-swapped on cross-game switches (OoT archives are unloaded when
+    // switching to MM and re-added on the way back, see EnsureGameArchivesLoaded in rsbs/src/main.cpp).
+    // A cached pointer into the old resource dangles after that swap, so writing through it on the next
+    // ShipInit/CVar-change re-run was a use-after-free. LoadResource is a cache hit while the resource
+    // is loaded, so re-fetching is cheap, and it also re-applies the patch to a freshly reloaded scene.
+    CollisionHeader* graveyardColHeader = getGraveyardCollisionHeader();
     for (auto& mappingPatch : graveyardGeometryPatches) {
         for (int i = mappingPatch.first.first; i <= mappingPatch.first.second; i++) {
             CollisionPoly* poly = &graveyardColHeader->polyList[i];
