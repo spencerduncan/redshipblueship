@@ -104,6 +104,16 @@ extern "C" {
 
 }
 
+// The cross-game shadow buffers and unified gSaveContext storage are sized at
+// MM_SAVE_CONTEXT_SIZE (src/common/game.h), which src/common code cannot
+// derive from sizeof(SaveContext) because it never includes MM's z64save.h.
+// This TU can, so it enforces the capacity here: if 2S2H's shipSaveInfo /
+// rando tables grow past the capacity, the build fails instead of
+// freeze/restore silently truncating MM save state on every cross-game switch.
+static_assert(sizeof(SaveContext) <= MM_SAVE_CONTEXT_SIZE,
+              "MM_SAVE_CONTEXT_SIZE (src/common/game.h) is smaller than 2S2H's runtime SaveContext; "
+              "raise the capacity or cross-game freeze/restore will truncate save state");
+
 // Archive hot-swap cycle helpers (#263). Defined in
 // src/common/tests/test_archive_hotswap.c (compiled into redship_common via
 // test_runner.cpp); resolved at final link. Record this MM arrival, query the

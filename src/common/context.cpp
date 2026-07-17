@@ -51,6 +51,15 @@ public:
         mInitialized = true;
     }
 
+    // The shadow buffers are sized at the *_SAVE_CONTEXT_SIZE capacities from
+    // game.h, which are asserted (in each game's GameExports_SingleExe.cpp) to
+    // be >= that game's real sizeof(SaveContext). Callers pass
+    // sizeof(gSaveContext) as seen by their own TU, so the min() below only
+    // ever trims a caller that claims MORE than the capacity — it must never
+    // trim real save data (that was the pre-fix truncation bug: the OoT
+    // capacity was the N64 0x1428, and every freeze dropped SoH's ship.*
+    // state). The tail beyond `size` is zeroed so the blob is deterministic
+    // for serialization/CRC regardless of what was frozen before.
     void FreezeState(GameId game, uint16_t returnEntrance,
                      const void* saveContextData, size_t size) {
         if (!mInitialized) Initialize();
@@ -67,6 +76,7 @@ public:
         }
 
         std::memcpy(state.saveContext.data(), saveContextData, size);
+        std::memset(state.saveContext.data() + size, 0, expectedSize - size);
         state.returnEntrance = returnEntrance;
         state.hasBeenFrozen = true;
     }
@@ -141,6 +151,10 @@ public:
             state.saveContext.resize(expectedSize, 0);
         }
 
+        // Unlike FreezeState, do NOT zero the tail: callers legitimately push
+        // partial updates (MM's SaveManager mirrors just the Save substruct at
+        // offset 0), relying on the rest of the shadow keeping the last full
+        // snapshot's bytes.
         std::memcpy(state.saveContext.data(), saveContextData, size);
     }
 

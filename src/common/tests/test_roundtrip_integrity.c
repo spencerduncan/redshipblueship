@@ -105,9 +105,11 @@ static int TestRoundtripIntegrity_Run(void) {
     Entrance_Init();
     Entrance_RegisterDefaultLinks();
 
-    /* Build a populated (non-zero, deterministic) OoT SaveContext and snapshot it. */
-    uint8_t ootSave[OOT_SAVE_CONTEXT_SIZE];
-    uint8_t snapshot[OOT_SAVE_CONTEXT_SIZE];
+    /* Build a populated (non-zero, deterministic) OoT SaveContext and snapshot
+     * it. Static: at the full runtime blob capacity (~136KB each) these three
+     * buffers would otherwise put ~400KB on one stack frame. */
+    static uint8_t ootSave[OOT_SAVE_CONTEXT_SIZE];
+    static uint8_t snapshot[OOT_SAVE_CONTEXT_SIZE];
     RoundtripIntegrity_FillDeterministic(ootSave, sizeof(ootSave));
     memcpy(snapshot, ootSave, sizeof(snapshot));
 
@@ -153,7 +155,7 @@ static int TestRoundtripIntegrity_Run(void) {
      * with the pre-switch snapshot (modulo the gComboCtx exclusion list,
      * which is not part of this buffer).
      * ---------------------------------------------------------------- */
-    uint8_t restored[OOT_SAVE_CONTEXT_SIZE];
+    static uint8_t restored[OOT_SAVE_CONTEXT_SIZE];
     memset(restored, 0x00, sizeof(restored));
     RT_ASSERT(Combo_RestoreState("oot", restored, sizeof(restored)) != 0);
 

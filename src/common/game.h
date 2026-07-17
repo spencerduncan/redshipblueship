@@ -26,11 +26,27 @@ typedef enum {
     GAME_MM = 2     // Majora's Mask
 } GameId;
 
-// SaveContext sizes from the game headers
-// OoT: z64save.h line 354: size = 0x1428
-// MM:  z64save.h line 527: size = 0x48C8
-#define OOT_SAVE_CONTEXT_SIZE 0x1428  // 5160 bytes
-#define MM_SAVE_CONTEXT_SIZE  0x48C8  // 18632 bytes
+// SaveContext blob capacities — the SINGLE source of truth for every buffer
+// that holds a full runtime SaveContext image (context.cpp shadow copies,
+// unified_save.c storage, the .redsave tiers, and the headless tests).
+//
+// These are CAPACITIES, not exact struct sizes. Each port's runtime
+// SaveContext is much larger than the original N64 struct the "// size ="
+// comments in z64save.h describe:
+//   OoT: N64 struct 0x1428, but SoH appends ShipSaveContextData (SohStats
+//        with sceneTimestamps[8191], ...) — sizeof(SaveContext) ~= 0x21C30.
+//   MM:  N64 struct 0x48C8, but 2S2H appends ShipSaveInfo (rando check
+//        tables, ...) and ShipSaveContext — sizeof(SaveContext) ~= 0xC000.
+// Those extension sections grow as the upstream ports evolve, so the exact
+// sizeof cannot be hardcoded here (this header must stay free of game
+// includes). Instead each capacity carries headroom, and a static_assert in a
+// TU that CAN see the real struct (games/oot/soh/GameExports_SingleExe.cpp,
+// games/mm/2s2h/GameExports_SingleExe.cpp) verifies
+// sizeof(SaveContext) <= *_SAVE_CONTEXT_SIZE so drift fails the build loudly
+// instead of silently truncating cross-game save state (issue: freeze/restore
+// used to clamp OoT to 0x1428, losing all SoH ship.* state per switch).
+#define OOT_SAVE_CONTEXT_SIZE 0x22000  // ~136KB capacity (SoH runtime struct ~0x21C30)
+#define MM_SAVE_CONTEXT_SIZE  0x10000  // 64KB capacity (2S2H runtime struct ~0xC000)
 
 /**
  * Convert game ID string to enum

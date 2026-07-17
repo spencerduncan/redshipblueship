@@ -43,6 +43,13 @@ Add a host-side `SaveManager` (in `src/common/save.{h,cpp}`) that writes one bin
 
 ### 3.1 Size-conflict resolution (DO THIS FIRST — blocks everything)
 
+> **RESOLVED.** `src/common/game.h` is now the single source of truth: `OOT_SAVE_CONTEXT_SIZE` (0x22000) and
+> `MM_SAVE_CONTEXT_SIZE` (0x10000) are blob *capacities* covering the ports' full runtime SaveContexts (SoH ~0x21C30,
+> 2S2H ~0xC000), `unified_save.c` includes `game.h` instead of redefining, and each game's `GameExports_SingleExe.cpp`
+> static-asserts `sizeof(SaveContext) <= *_SAVE_CONTEXT_SIZE`. The `.redsave` loader reads the header's stored tier
+> sizes and zero-extends shorter (pre-fix) blobs. The truncation bug predicted below was real: freeze/restore clamped
+> OoT to the N64 0x1428 and dropped all SoH `ship.*` state (and MM's 2S2H extension likewise) on every switch.
+
 `game.h` says OoT save is `0x1428`; `unified_save.c` allocates `0x22000`. SoH's *runtime* `gSaveContext` is the larger SoH struct (extra `ship.*`). The N64 `// size = 0x1428` comment refers to the original sub-struct, not SoH's full object.
 
 **Resolution:**

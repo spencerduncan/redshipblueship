@@ -218,9 +218,10 @@ TestResult Test_ArchiveHotswapLogic(void) {
     ArchiveHotswap_ResetCycle();
 
     /* Golden buffers -- what each game's SaveContext should always read back
-     * as. We deliberately use the full N64 sizes the freeze layer clamps to. */
-    uint8_t ootGolden[OOT_SAVE_CONTEXT_SIZE];
-    uint8_t mmGolden[MM_SAVE_CONTEXT_SIZE];
+     * as. We deliberately use the full blob capacities the freeze layer
+     * allocates (static: too large for the stack). */
+    static uint8_t ootGolden[OOT_SAVE_CONTEXT_SIZE];
+    static uint8_t mmGolden[MM_SAVE_CONTEXT_SIZE];
     HotswapFillPattern(ootGolden, sizeof(ootGolden), 0xA1);
     HotswapFillPattern(mmGolden, sizeof(mmGolden), 0x5C);
 
@@ -252,7 +253,7 @@ TestResult Test_ArchiveHotswapLogic(void) {
 
             /* Freeze OoT (source), restore MM (destination). */
             Combo_FreezeState("oot", Combo_GetSwitchReturnEntrance(), ootGolden, sizeof(ootGolden));
-            uint8_t mmScratch[MM_SAVE_CONTEXT_SIZE];
+            static uint8_t mmScratch[MM_SAVE_CONTEXT_SIZE];
             memset(mmScratch, 0, sizeof(mmScratch));
             HOTSWAP_ASSERT(Combo_RestoreState("mm", mmScratch, sizeof(mmScratch)), "MM restore failed mid-cycle");
             HOTSWAP_ASSERT(HotswapBufferMatches(mmScratch, sizeof(mmScratch), 0x5C),
@@ -265,7 +266,7 @@ TestResult Test_ArchiveHotswapLogic(void) {
 
             /* Freeze MM (source), restore OoT (destination). */
             Combo_FreezeState("mm", Combo_GetSwitchReturnEntrance(), mmGolden, sizeof(mmGolden));
-            uint8_t ootScratch[OOT_SAVE_CONTEXT_SIZE];
+            static uint8_t ootScratch[OOT_SAVE_CONTEXT_SIZE];
             memset(ootScratch, 0, sizeof(ootScratch));
             HOTSWAP_ASSERT(Combo_RestoreState("oot", ootScratch, sizeof(ootScratch)), "OoT restore failed mid-cycle");
             HOTSWAP_ASSERT(HotswapBufferMatches(ootScratch, sizeof(ootScratch), 0xA1),
@@ -286,8 +287,8 @@ TestResult Test_ArchiveHotswapLogic(void) {
     HOTSWAP_ASSERT(!ArchiveHotswap_RssExceeded(), "steady-state RSS delta exceeded bound across switches");
 
     /* Both golden states are still intact after the whole round-trip. */
-    uint8_t ootFinal[OOT_SAVE_CONTEXT_SIZE];
-    uint8_t mmFinal[MM_SAVE_CONTEXT_SIZE];
+    static uint8_t ootFinal[OOT_SAVE_CONTEXT_SIZE];
+    static uint8_t mmFinal[MM_SAVE_CONTEXT_SIZE];
     memset(ootFinal, 0, sizeof(ootFinal));
     memset(mmFinal, 0, sizeof(mmFinal));
     HOTSWAP_ASSERT(Combo_RestoreState("oot", ootFinal, sizeof(ootFinal)), "final OoT restore failed");

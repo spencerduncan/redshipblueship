@@ -23,10 +23,11 @@ namespace rsbs {
 
 namespace {
 
-// Tier sizes as this build understands them. A loaded file must match these
-// exactly (guarded in Load); the constants come from game.h, which is also what
-// the context-layer shadow buffers are sized at, so reading the shadows here is
-// always in-bounds.
+// Tier sizes as this build writes them. The game-tier constants are the blob
+// CAPACITIES from game.h — the same values the context-layer shadow buffers
+// are allocated at, so reading the shadows here is always in-bounds. On Load
+// the header's stored sizes drive the reads instead: older files with shorter
+// game tiers are accepted and zero-extended (see DeserializeHeader).
 constexpr uint32_t kComboSize = static_cast<uint32_t>(sizeof(ComboContext));
 constexpr uint32_t kOoTSize = static_cast<uint32_t>(OOT_SAVE_CONTEXT_SIZE);
 constexpr uint32_t kMMSize = static_cast<uint32_t>(MM_SAVE_CONTEXT_SIZE);
@@ -153,9 +154,18 @@ bool SaveManager::DeserializeHeader(std::istream& in, RsbsSaveHeader& outHeader)
     if (h.headerSize != sizeof(RsbsSaveHeader)) {
         return false;
     }
-    // Tier sizes must match this build exactly; a mismatch means the struct
-    // layout changed, so the blobs are not safe to memcpy back.
-    if (h.comboSize != kComboSize || h.ootSize != kOoTSize || h.mmSize != kMMSize) {
+    // Tier-1 must match exactly: ComboContext has no capacity headroom, and a
+    // different size means a different struct layout.
+    if (h.comboSize != kComboSize) {
+        return false;
+    }
+    // Game tiers are size-field-driven: a STORED size smaller than this
+    // build's blob capacity is a file from an older build (e.g. the OoT tier
+    // was the N64 0x1428 before the capacity covered SoH's full runtime
+    // struct) — its bytes are a prefix of the same layout, so Load accepts it
+    // and zero-extends. Larger than capacity means a newer/foreign layout that
+    // cannot fit the shadow buffers: refuse rather than truncate.
+    if (h.ootSize == 0 || h.ootSize > kOoTSize || h.mmSize == 0 || h.mmSize > kMMSize) {
         return false;
     }
 
@@ -180,31 +190,34 @@ bool SaveManager::Load(int slot) {
 
     // Read the whole payload into locals FIRST and validate everything before
     // committing — a bad file (short read, CRC mismatch, bad inner magic) must
-    // not clobber live state.
+    // not clobber live state. Reads are driven by the header's STORED tier
+    // sizes; the blobs are allocated at full capacity and zero-filled so a
+    // shorter tier from an older build is zero-extended.
     ComboContext combo;
-    std::vector<uint8_t> ootBlob(kOoTSize);
-    std::vector<uint8_t> mmBlob(kMMSize);
+    std::vector<uint8_t> ootBlob(kOoTSize, 0);
+    std::vector<uint8_t> mmBlob(kMMSize, 0);
 
     in.read(reinterpret_cast<char*>(&combo), kComboSize);
     if (!in || in.gcount() != static_cast<std::streamsize>(kComboSize)) {
         return false;
     }
-    in.read(reinterpret_cast<char*>(ootBlob.data()), kOoTSize);
-    if (!in || in.gcount() != static_cast<std::streamsize>(kOoTSize)) {
+    in.read(reinterpret_cast<char*>(ootBlob.data()), header.ootSize);
+    if (!in || in.gcount() != static_cast<std::streamsize>(header.ootSize)) {
         return false;
     }
-    in.read(reinterpret_cast<char*>(mmBlob.data()), kMMSize);
-    if (!in || in.gcount() != static_cast<std::streamsize>(kMMSize)) {
+    in.read(reinterpret_cast<char*>(mmBlob.data()), header.mmSize);
+    if (!in || in.gcount() != static_cast<std::streamsize>(header.mmSize)) {
         return false;
     }
 
-    // CRC over Tiers 1..3, in the same contiguous order they were written.
+    // CRC over Tiers 1..3 exactly as stored (not the zero-extended tails), in
+    // the same contiguous order they were written.
     std::vector<uint8_t> payload;
-    payload.reserve(kComboSize + kOoTSize + kMMSize);
+    payload.reserve(kComboSize + header.ootSize + header.mmSize);
     const uint8_t* comboBytes = reinterpret_cast<const uint8_t*>(&combo);
     payload.insert(payload.end(), comboBytes, comboBytes + kComboSize);
-    payload.insert(payload.end(), ootBlob.begin(), ootBlob.end());
-    payload.insert(payload.end(), mmBlob.begin(), mmBlob.end());
+    payload.insert(payload.end(), ootBlob.begin(), ootBlob.begin() + header.ootSize);
+    payload.insert(payload.end(), mmBlob.begin(), mmBlob.begin() + header.mmSize);
     if (Crc32(payload.data(), payload.size()) != header.crc32) {
         return false;
     }
@@ -331,9 +344,10 @@ SlotMeta SaveManager::ReadMeta(int slot) const {
     meta.valid = true;
     meta.slot = header.slot;
 
-    // Read Tier-1 (ComboContext) and just enough of Tier-2 / Tier-3 to pull
-    // the registered metadata bytes. We deliberately do NOT CRC the file here:
-    // ReadMeta is called for every slot every menu frame, and CRC over ~24KB
+    // Read Tier-1 (ComboContext) and the game tiers at their STORED sizes to
+    // pull the registered metadata bytes (offsets past a shorter legacy blob
+    // simply read as "absent"). We deliberately do NOT CRC the file here:
+    // ReadMeta is called for every slot every menu frame, and CRC over ~200KB
     // each time would dominate the file-select draw. Load() still CRC-checks
     // when the user actually picks a slot.
     ComboContext combo;
@@ -346,15 +360,15 @@ SlotMeta SaveManager::ReadMeta(int slot) const {
         meta.lastGame = combo.sourceGame;
     }
 
-    std::vector<uint8_t> ootBlob(kOoTSize);
-    in.read(reinterpret_cast<char*>(ootBlob.data()), kOoTSize);
-    if (!in || in.gcount() != static_cast<std::streamsize>(kOoTSize)) {
+    std::vector<uint8_t> ootBlob(header.ootSize);
+    in.read(reinterpret_cast<char*>(ootBlob.data()), header.ootSize);
+    if (!in || in.gcount() != static_cast<std::streamsize>(header.ootSize)) {
         meta.valid = false;
         return meta;
     }
-    std::vector<uint8_t> mmBlob(kMMSize);
-    in.read(reinterpret_cast<char*>(mmBlob.data()), kMMSize);
-    if (!in || in.gcount() != static_cast<std::streamsize>(kMMSize)) {
+    std::vector<uint8_t> mmBlob(header.mmSize);
+    in.read(reinterpret_cast<char*>(mmBlob.data()), header.mmSize);
+    if (!in || in.gcount() != static_cast<std::streamsize>(header.mmSize)) {
         meta.valid = false;
         return meta;
     }

@@ -3,8 +3,9 @@
  * @brief Unified SaveContext storage for single-executable builds
  *
  * Both OoT and MM define `SaveContext gSaveContext`, but with different
- * struct layouts (OoT: ~5KB, MM: ~18KB). In single-exe mode, we provide
- * a single storage area large enough for either game.
+ * struct layouts (SoH OoT: ~136KB, 2S2H MM: ~48KB — far larger than the N64
+ * structs; see game.h). In single-exe mode, we provide a single storage area
+ * large enough for either game.
  *
  * The games' code has `extern SaveContext gSaveContext` declarations that
  * resolve to this storage. Since C doesn't do type checking at link time,
@@ -19,17 +20,12 @@
 #include <stddef.h>
 #include <stdalign.h>
 
-/* SaveContext sizes:
- * OoT: 0x21C30 (~138KB) - includes SohStats with 8191 SceneTimestamps
- * MM:  0x48C8 (~18KB)
- *
- * Note: OoT's SaveContext grew significantly when Ship of Harkinian added
- * SohStats with extensive timing/tracking arrays. The original N64 size
- * was 0x1428 but modern SoH is much larger.
- */
-#define OOT_SAVE_CONTEXT_SIZE 0x22000  /* ~138KB with padding */
-#define MM_SAVE_CONTEXT_SIZE  0x48C8
-#define UNIFIED_SAVE_SIZE     OOT_SAVE_CONTEXT_SIZE  /* OoT is now larger */
+#include "game.h"
+
+/* Blob capacities come from game.h (single source of truth; see the comment
+ * there). OoT's runtime SaveContext (~0x21C30, SoH SohStats et al.) is the
+ * larger of the two, so it sizes the unified storage. */
+#define UNIFIED_SAVE_SIZE OOT_SAVE_CONTEXT_SIZE
 
 /**
  * Unified SaveContext storage.

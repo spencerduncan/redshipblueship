@@ -308,7 +308,10 @@ TestResult Test_Roundtrip(void) {
     }
 
     // Freeze a fingerprint for OoT so we can verify integrity after the trip.
-    uint8_t fakeOoTSave[OOT_SAVE_CONTEXT_SIZE] = {0};
+    // Static: at the full runtime blob capacity these buffers are too large to
+    // keep on the stack (OoT alone is ~136KB).
+    static uint8_t fakeOoTSave[OOT_SAVE_CONTEXT_SIZE];
+    memset(fakeOoTSave, 0, sizeof(fakeOoTSave));
     fakeOoTSave[0] = 0xDE;
     fakeOoTSave[1] = 0xAD;
     fakeOoTSave[OOT_SAVE_CONTEXT_SIZE - 1] = 0xEF;  // Tail marker
@@ -334,7 +337,8 @@ TestResult Test_Roundtrip(void) {
     }
 
     // Also freeze MM state; both games' frozen states must coexist.
-    uint8_t fakeMMSave[MM_SAVE_CONTEXT_SIZE] = {0};
+    static uint8_t fakeMMSave[MM_SAVE_CONTEXT_SIZE];
+    memset(fakeMMSave, 0, sizeof(fakeMMSave));
     fakeMMSave[0] = 0xBE;
     fakeMMSave[1] = 0xEF;
     Combo_FreezeState("mm", Combo_GetSwitchReturnEntrance(),
@@ -343,7 +347,8 @@ TestResult Test_Roundtrip(void) {
     // ------------------------------------------------------------------
     // Leg 3: Verify OoT state can be restored after the round-trip.
     // ------------------------------------------------------------------
-    uint8_t restoredSave[OOT_SAVE_CONTEXT_SIZE] = {0};
+    static uint8_t restoredSave[OOT_SAVE_CONTEXT_SIZE];
+    memset(restoredSave, 0, sizeof(restoredSave));
     if (!Combo_RestoreState("oot", restoredSave, sizeof(restoredSave))) {
         printf("[TEST] FAIL: Leg 3 - OoT state restore failed\n");
         return TEST_FAIL;
@@ -355,7 +360,8 @@ TestResult Test_Roundtrip(void) {
     }
 
     // And MM's frozen state is still intact.
-    uint8_t restoredMM[MM_SAVE_CONTEXT_SIZE] = {0};
+    static uint8_t restoredMM[MM_SAVE_CONTEXT_SIZE];
+    memset(restoredMM, 0, sizeof(restoredMM));
     if (!Combo_RestoreState("mm", restoredMM, sizeof(restoredMM))) {
         printf("[TEST] FAIL: Leg 3 - MM state restore failed\n");
         return TEST_FAIL;
@@ -516,8 +522,9 @@ TestResult Test_Context(void) {
         return TEST_FAIL;
     }
 
-    // Freeze a state
-    uint8_t testData[OOT_SAVE_CONTEXT_SIZE] = {0};
+    // Freeze a state (static: too large for the stack at the full blob capacity)
+    static uint8_t testData[OOT_SAVE_CONTEXT_SIZE];
+    memset(testData, 0, sizeof(testData));
     testData[100] = 0x42;
     Context_FreezeState(GAME_OOT, 0x1234, testData, sizeof(testData));
 
@@ -534,7 +541,8 @@ TestResult Test_Context(void) {
     }
 
     // Restore and verify
-    uint8_t restored[OOT_SAVE_CONTEXT_SIZE] = {0};
+    static uint8_t restored[OOT_SAVE_CONTEXT_SIZE];
+    memset(restored, 0, sizeof(restored));
     if (!Context_RestoreState(GAME_OOT, restored, sizeof(restored))) {
         printf("[TEST] FAIL: Restore failed\n");
         return TEST_FAIL;
@@ -584,7 +592,8 @@ const TestDescriptor gTests[] = {
     {"save-header", "Unified .redsave header fields + CRC are well-formed (#35)", Test_SaveHeader},
     {"save-has-delete", "Unified save HasSave/DeleteSave lifecycle (#35)", Test_SaveHasDelete},
     {"save-version-reject", "Unified save Load rejects unknown version, no clobber (#35)", Test_SaveVersionReject},
-    {"save-size-mismatch", "Unified save Load rejects mismatched tier size, no clobber (#35)", Test_SaveSizeMismatch},
+    {"save-size-mismatch", "Unified save Load rejects oversized tier, no clobber (#35)", Test_SaveSizeMismatch},
+    {"save-legacy-size", "Unified save Load zero-extends shorter legacy tiers (#35)", Test_SaveLegacySize},
     {"save-crc-corrupt", "Unified save Load rejects corrupt payload, no clobber (#35)", Test_SaveCrcCorrupt},
     {"mm-scene-parse", "MM scene commands parse via the S2H factory (#344)", Test_MMSceneParse},
     {"mm-scene-execute", "MM scene commands execute against a PlayState (#344)", Test_MMSceneExecute},

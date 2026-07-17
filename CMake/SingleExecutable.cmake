@@ -229,6 +229,7 @@ if(BUILD_TESTING)
     add_test(NAME SaveHasDelete COMMAND redship --test save-has-delete)
     add_test(NAME SaveVersionReject COMMAND redship --test save-version-reject)
     add_test(NAME SaveSizeMismatch COMMAND redship --test save-size-mismatch)
+    add_test(NAME SaveLegacySize COMMAND redship --test save-legacy-size)
     add_test(NAME SaveCrcCorrupt COMMAND redship --test save-crc-corrupt)
     add_test(NAME Context COMMAND redship --test context)
     # MM scene-command parse + execute regressions — display-free, no ROM
@@ -242,7 +243,7 @@ if(BUILD_TESTING)
     set(REDSHIP_TEST_TIMEOUT 60 CACHE STRING "Test timeout in seconds")
     set_tests_properties(
         BootOoT BootMM SwitchOoTMM SwitchMMOoT StartupEntrance Roundtrip RoundtripIntegrity SharedRoundtrip ArchiveHotswapLogic
-        SaveRoundtripTiers SaveHeader SaveHasDelete SaveVersionReject SaveSizeMismatch SaveCrcCorrupt
+        SaveRoundtripTiers SaveHeader SaveHasDelete SaveVersionReject SaveSizeMismatch SaveLegacySize SaveCrcCorrupt
         Context MMSceneParse MMSceneExecute AllTests
         PROPERTIES
         TIMEOUT ${REDSHIP_TEST_TIMEOUT}

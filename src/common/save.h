@@ -6,8 +6,8 @@
  * A `.redsave` file holds, in one slot, three tiers:
  *   Tier 0  RsbsSaveHeader   (fixed 32 bytes: magic, version, slot, sizes, crc)
  *   Tier 1  ComboContext     (cross-game flags / shared items / last game)
- *   Tier 2  OoT SaveContext  (OOT_SAVE_CONTEXT_SIZE bytes)
- *   Tier 3  MM  SaveContext  (MM_SAVE_CONTEXT_SIZE bytes)
+ *   Tier 2  OoT SaveContext  (header.ootSize bytes; OOT_SAVE_CONTEXT_SIZE when written by this build)
+ *   Tier 3  MM  SaveContext  (header.mmSize bytes; MM_SAVE_CONTEXT_SIZE when written by this build)
  *
  * This is the HEADLESS CORE: the format, the SaveManager, and round-trip /
  * validation unit tests. It serializes the cross-game shadow copies that the
@@ -21,10 +21,13 @@
  * - Little-endian, host-native. Both shipped targets are LE (x86-64 / arm64);
  *   the header records endian=1 and Load asserts it so a future big-endian port
  *   fails loudly instead of silently corrupting.
- * - A `.redsave` is tied to the SaveContext struct sizes of the build that
- *   wrote it: the header stores each tier's byte length and Load rejects a file
- *   whose tier sizes or version do not match the current build (fail-safe, no
- *   partial load) rather than memcpy-ing a mismatched blob.
+ * - The header stores each tier's byte length, so the file is self-describing:
+ *   Load reads the STORED sizes, not this build's constants. A game tier that
+ *   is shorter than the current blob capacity (a file written by an older
+ *   build, e.g. before the OoT tier grew from the N64 0x1428 to the full SoH
+ *   runtime size) is accepted and zero-extended to capacity; a tier LARGER
+ *   than this build's capacity, an unknown version, or a comboSize that does
+ *   not match sizeof(ComboContext) is rejected (fail-safe, no partial load).
  */
 
 #ifndef RSBS_COMMON_SAVE_H
@@ -68,7 +71,7 @@ namespace rsbs {
 /**
  * Per-slot summary, cheap to compute (one header read + a handful of byte
  * pulls). Built so the unified file-select panel can render a slot without
- * loading + committing the whole 24KB payload. `valid` is true iff the header
+ * loading + committing the whole ~200KB payload. `valid` is true iff the header
  * passes every check Load() does, EXCLUDING CRC — slot listing must stay fast,
  * and a bad CRC will still be caught when the user actually clicks Load.
  */
@@ -97,8 +100,8 @@ struct RsbsSaveHeader {
     uint8_t  slot;        // 0..RSBS_SAVE_MAX_SLOTS-1
     uint16_t headerSize;  // sizeof(RsbsSaveHeader) == 32 (forward-compat probe)
     uint32_t comboSize;   // Tier-1 bytes == sizeof(ComboContext)
-    uint32_t ootSize;     // Tier-2 bytes == OOT_SAVE_CONTEXT_SIZE at write time
-    uint32_t mmSize;      // Tier-3 bytes == MM_SAVE_CONTEXT_SIZE at write time
+    uint32_t ootSize;     // Tier-2 bytes as stored (== OOT_SAVE_CONTEXT_SIZE at write time)
+    uint32_t mmSize;      // Tier-3 bytes as stored (== MM_SAVE_CONTEXT_SIZE at write time)
     uint32_t crc32;       // CRC32 over Tiers 1..3 (the payload after the header)
 };
 #pragma pack(pop)
@@ -152,9 +155,11 @@ public:
 private:
     SaveManager() = default;
 
-    // Validates magic / version / endian / headerSize / tier sizes against the
-    // current build. Returns true and fills outHeader only on a fully valid
-    // header; never mutates live state.
+    // Validates magic / version / endian / headerSize, that comboSize matches
+    // this build's ComboContext, and that the stored game-tier sizes fit the
+    // current blob capacities (stored sizes may be SMALLER — older builds wrote
+    // shorter blobs — but never larger). Returns true and fills outHeader only
+    // on a fully valid header; never mutates live state.
     bool DeserializeHeader(std::istream& in, RsbsSaveHeader& outHeader) const;
 
     std::string mSaveDir = "Save";

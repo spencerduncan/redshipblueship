@@ -44,6 +44,16 @@ extern "C" {
     extern SaveContext gSaveContext;
 }
 
+// The cross-game shadow buffers and unified gSaveContext storage are sized at
+// OOT_SAVE_CONTEXT_SIZE (src/common/game.h), which src/common code cannot
+// derive from sizeof(SaveContext) because it never includes z64save.h. This TU
+// can, so it enforces the capacity here: if SoH's ship.* extension grows past
+// the capacity, the build fails instead of freeze/restore silently truncating
+// OoT save state on every cross-game switch.
+static_assert(sizeof(SaveContext) <= OOT_SAVE_CONTEXT_SIZE,
+              "OOT_SAVE_CONTEXT_SIZE (src/common/game.h) is smaller than SoH's runtime SaveContext; "
+              "raise the capacity or cross-game freeze/restore will truncate save state");
+
 // Archive hot-swap cycle helpers (#263). Defined in
 // src/common/tests/test_archive_hotswap.c (compiled into redship_common via
 // test_runner.cpp); resolved at final link. Record this OoT arrival, query the
@@ -516,9 +526,11 @@ extern "C" uint16_t Combo_CheckEntranceSwitch(uint16_t entranceIndex) {
                 gameId, entranceIndex);
 
         uint16_t returnEntrance = Combo_GetSwitchReturnEntrance();
-        // sizeof(gSaveContext) in this TU is OoT's SaveContext layout, but the
-        // underlying unified storage is identical regardless of caller and
-        // Context_FreezeState clamps to the per-game N64 size anyway.
+        // sizeof(gSaveContext) in this TU is OoT's SaveContext layout. When MM
+        // is the active game this over-reads relative to MM's smaller struct,
+        // but the underlying unified storage (unified_save.c) is
+        // OOT_SAVE_CONTEXT_SIZE for both games, so the read stays in bounds
+        // and Context_FreezeState clamps to the per-game blob capacity.
         Combo_FreezeState(gameId, returnEntrance, &gSaveContext, sizeof(gSaveContext));
         Combo_SignalReadyToSwitch();
     }
