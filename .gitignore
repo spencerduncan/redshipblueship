@@ -464,3 +464,4 @@ Randomizer/
 
 .claude/tmp/*
 
+/vcpkg/

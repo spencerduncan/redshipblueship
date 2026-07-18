@@ -517,10 +517,14 @@ bounds-guard and loudly skip foreign entries (`audio_load.c` /
 `load.c`), which also exposed the deeper correctness bug: foreign
 sequences whose ids land in-bounds silently SHADOW the native game's
 music in the map — in both boot orders — so the real fix is
-archive-scoped enumeration (landed 2026-07-18, see §8.1). With the
-guards in place the MM-first switch survives audio init but the process
-still exits silently later in OoT's `Main()` with no crash dump — next
-fault in the chain, undiagnosed.
+archive-scoped enumeration (landed 2026-07-18, see §8.1). The
+subsequent silent exit in OoT's `Main()` is RESOLVED as of §8.1's
+fixes: it matched the Path-factory C++-throw signature exactly (an
+unhandled 0xE06D7363 dies with no crash dump — "silent" to AV-focused
+tooling — and an MM-first boot means every OoT resource first-parses
+after MM's factory overwrite). With the Path dispatcher + resume-audio
+contract in place, `RSBS_AUTO_SWITCH_FRAME=400 --game mm` switches into
+a live OoT that stays up (verified 75s+ on the workstation).
 
 ## 8.1 Phase-3 local iteration (2026-07-18, session 3): audio bring-up and the resume contract
 
