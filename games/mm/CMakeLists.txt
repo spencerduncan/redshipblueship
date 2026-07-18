@@ -522,6 +522,11 @@ if(MSVC)
 		/wd4101 # unreferenced local variable. Things like stack pads.
 		/wd4133 #incompatible types. Usually caused by passing a c string into a function that takes a pointer.
 		/wd4244 #conversion from [a] to [b]. Used to warn when copying to smaller type without a cast.
+		/we4013 #RSBS: implicit function declaration -> hard error. This is the ABI-scramble class that
+		        #broke ALL MM 3D rendering (dead prototypes in PR/gu.h, f46730f6) and hid five more
+		        #implicit decls behind vendoring-era `#if 0` blocks in PR/os_*.h / gs2dex.h. A float or
+		        #pointer param through the unprototyped MSVC x64 convention is a silent runtime scramble;
+		        #make the whole class a build break. (docs/ci-gameplay-repro-postmortem.md §8 item 7)
         /sdl-;
         /permissive-;
         /MP;

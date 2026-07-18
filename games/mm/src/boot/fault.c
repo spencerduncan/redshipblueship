@@ -41,6 +41,7 @@
  */
 
 #include "fault_internal.h"
+#include "PR/os_libc.h" // MM_sprintf prototype (C4013 fix)
 #include "fault.h"
 #include "prevent_bss_reordering.h"
 #include "vt.h"

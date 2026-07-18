@@ -32,6 +32,7 @@
  */
 
 #include "global.h"
+#include "PR/os_libc.h" // MM_sprintf prototype (C4013 fix)
 #include "PR/controller.h"
 #include "PR/os_motor.h"
 

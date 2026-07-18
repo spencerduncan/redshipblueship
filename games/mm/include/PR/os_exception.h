@@ -1,6 +1,14 @@
 #ifndef PR_OS_EXCEPTION_H
 #define PR_OS_EXCEPTION_H
 #include <libultraship/libultra/exception.h>
+
+// RSBS: revived from the vendoring-era `#if 0` block below — the C4013
+// implicit-declaration class (see games/mm/include/PR/gu.h, f46730f6).
+// Callers compiled MM_osSetIntMask with an implicit int declaration; integer
+// ABI, so it happened to work, but nothing was checked. Definition:
+// games/mm/src/code/stubs.c. OSIntMask comes from the LUS exception.h above.
+OSIntMask MM_osSetIntMask(OSIntMask im);
+
 #if 0
 #include "ultratypes.h"
 

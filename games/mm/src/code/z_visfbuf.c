@@ -11,6 +11,7 @@
  */
 
 #include "global.h"
+#include "PR/gs2dex.h" // MM_guS2DInitBg prototype (C4013 fix)
 #include "z64visfbuf.h"
 #include "sys_cfb.h"
 #include <string.h>

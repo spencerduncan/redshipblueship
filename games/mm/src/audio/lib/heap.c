@@ -1,4 +1,6 @@
 #include "global.h"
+#include "PR/os_ai.h"        // MM_osAiSetFrequency prototype (C4013 fix)
+#include "PR/os_exception.h" // MM_osSetIntMask prototype (C4013 fix)
 #include "audio/effects.h"
 
 void* MM_AudioHeap_SearchRegularCaches(s32 tableType, s32 cache, s32 id);
