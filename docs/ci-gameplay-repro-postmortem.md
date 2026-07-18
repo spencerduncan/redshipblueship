@@ -444,7 +444,45 @@ seen. This is the harness doing exactly what §2 predicted it would:
    reset could fire a spurious cross-game switch. The portal is now the Clock
    Tower door in both directions: OoT HMS door (0x0530) → arrive SCT tower
    exit (0xD800); MM tower door (0xC010) → arrive outside HMS (0x01D1).
-   Trigger and arrival are disjoint by construction.
+   Trigger and arrival are disjoint by construction. (Confirmed live: the
+   attract demo's `0xD800` prints now pass through as inert arrivals.)
+6. **MM FrameInterpolation cross-bind** (found by the operator's first look at
+   MM 3D frames): both ports define an identically-named extern-C
+   `FrameInterpolation_*` family — and the C++ `FrameInterpolation_Interpolate`
+   mangles identically because both games name their matrix types Mtx/MtxF —
+   so under `/FORCE:MULTIPLE` SoH's implementation won the whole family and
+   MM recorded/replayed its matrices through OoT's interpolation engine.
+   Fixed by the `MM_` prefix shim `games/mm/include/mm_frame_interpolation_prefix.h`,
+   included from both `FrameInterpolation.h` and `include/gfx.h` (the
+   OPEN_DISPS/CLOSE_DISPS macros locally declare two of the functions, so the
+   shim must be visible to every macro-expanding TU, not just header
+   includers). Verified by a dumpbin public-symbol intersection of the
+   soh_*/2ship_* libs — the same audit that found the sibling
+   `AudioCollection` class ODR collision (filed separately).
+7. **The MM 3D render killer: prototypes dead inside `#if 0`**
+   (`games/mm/include/PR/gu.h`): a vendoring-era `#if 0` block swallowed every
+   `MM_gu*` declaration, so all MM matrix-builder calls (`MM_guPerspective`,
+   `MM_guLookAt`, `MM_guOrtho`, `MM_guRotate`, `MM_guPosition`) compiled as
+   implicit C declarations — float args promoted to double under the
+   unprototyped MSVC x64 convention while the definitions read the normal
+   float ABI. Every matrix MM built was register noise: all 3D rendered as
+   flashing fullscreen triangles (the flat colors being MM's own fog-colored
+   clear fills showing through), 2D texrects were pixel-perfect, OoT (live
+   prototypes) and upstream 2Ship (unprefixed names declared by LUS's gu.h)
+   were untouched. The hunt that found it is a reusable playbook: raw
+   display-list dumps on both games (`RSBS_DUMP_GFX=<frame>`, hooks now in
+   both graph.c files) proved emission-side health, an A/B perspNorm
+   fingerprint (`0xFFFF` vs OoT's `0x000A`) isolated the projection, paired
+   store/apply/emit probes proved healthy inputs turning to NaN inside the
+   callee, and capstone disassembly of the call site showed the
+   `cvtps2pd` + integer-register promotion pattern that convicts an
+   unprototyped call. Fix: the prototypes are live again (with `near`/`far`
+   parameter names avoided — windows headers define them away). The C4013
+   census after the fix shows 8 remaining implicit declarations in MM
+   (`MM_osSetIntMask`, `MM_osAiSetFrequency`, `MM_sprintf`, `MM_guS2DInitBg`,
+   `MM_osMotorInit`) — all integer/pointer ABIs that cannot scramble, filed
+   for cleanup. Recommended lock: promote C4013 to an error (`/we4013`) on
+   the MM targets so this class becomes a build break.
 
 Windows-specific operational notes for this tier (also see the repro commands
 in §7): force the OpenGL backend (`Window.Backend.Id=1` — DXGI deadlocks the
@@ -463,6 +501,11 @@ exit-teardown heap corruption above; the DXGI present deadlock; the Wasapi
 handoff deadlock; `int-switch-oot-hms-to-mm` needing a human START press
 (`OnPresentFileSelect` never fires unattended); MM intra-frame wedges being
 invisible to the frame-count watchdog (a wall-clock watchdog thread is the
-candidate fix); and unified-save `Load` not marking restored blobs as frozen
+candidate fix); unified-save `Load` not marking restored blobs as frozen
 (`Context_UpdateShadowCopy` never sets `hasBeenFrozen`), so a loaded `.redsave`
-MM blob is ignored by the resume/Play_Init restore path after an app restart.
+MM blob is ignored by the resume/Play_Init restore path after an app restart;
+the `AudioCollection` C++ class ODR collision between the two ports (audio
+path — being fixed in a separate session); and an MM-first-specific crash:
+switching into a NEVER-initialized OoT after an MM-first boot dies at
+`OoT_AudioLoad_Init+0x425` (OoT-first flows init OoT audio before MM ever
+runs, so the standard soak cannot see it — an MM-first switch test would).

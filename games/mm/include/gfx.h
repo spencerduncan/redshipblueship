@@ -7,6 +7,12 @@
 #include "alignment.h"
 #include "unk.h"
 #include "z64play.h"
+// Single-exe: OPEN_DISPS/CLOSE_DISPS below locally declare and call
+// FrameInterpolation_Record{Open,Close}Child in every expanding TU, so the
+// MM_ symbol-prefix shim must be visible here — not just in
+// FrameInterpolation.h — or those calls silently bind SoH's identically-named
+// implementation (MM's 3D world rendered as garbage; see the shim header).
+#include "mm_frame_interpolation_prefix.h"
 
 struct GameState;
 

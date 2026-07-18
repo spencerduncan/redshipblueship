@@ -1,6 +1,10 @@
 #pragma once
 
 #include "include/z64math.h"
+// Single-exe: renames the whole FrameInterpolation_* family to MM_-prefixed
+// symbols so MM's implementation links instead of SoH's identically-named one
+// (see the shim header for the full story).
+#include "include/mm_frame_interpolation_prefix.h"
 
 #ifdef __cplusplus
 

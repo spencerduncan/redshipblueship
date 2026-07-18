@@ -300,6 +300,33 @@ void OoT_Graph_Update(GraphicsContext* gfxCtx, GameState* gameState) {
     GameState_ReqPadData(gameState);
     OoT_GameState_Update(gameState);
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // RSBS_DUMP_GFX=<frame>: one-shot polyOpa hexdump, mirroring the MM-side
+    // hook in games/mm/src/code/graph.c — OoT is the known-good reference
+    // stream for A/B diffing display-list faults against the shared
+    // interpreter (2026-07-18 MM giant-triangle hunt).
+    {
+        static int sGfxDumpFrame = 0;
+        static int sGfxDumped = 0;
+        const char* dumpEnv = getenv("RSBS_DUMP_GFX");
+        sGfxDumpFrame++;
+        if (dumpEnv != NULL && !sGfxDumped && sGfxDumpFrame >= atoi(dumpEnv)) {
+            Gfx* start = gfxCtx->polyOpaBuffer;
+            Gfx* end = gfxCtx->polyOpa.p;
+            int count = (int)(end - start);
+            int i;
+            sGfxDumped = 1;
+            fprintf(stderr, "[GFX-DUMP-OOT] frame %d polyOpa: start=%p p=%p count=%d (showing up to 160)\n",
+                    sGfxDumpFrame, (void*)start, (void*)end, count);
+            for (i = 0; i < count && i < 160; i++) {
+                fprintf(stderr, "[GFX-DUMP-OOT] %3d: %016llX %016llX\n", i, (unsigned long long)start[i].words.w0,
+                        (unsigned long long)start[i].words.w1);
+            }
+            fflush(stderr);
+        }
+    }
+#endif
+
     OPEN_DISPS(gfxCtx);
 
     gDPNoOpString(WORK_DISP++, "WORK_DISP 終了", 0);

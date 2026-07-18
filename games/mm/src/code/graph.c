@@ -371,6 +371,35 @@ void MM_Graph_Update(GraphicsContext* gfxCtx, GameState* gameState) {
 #endif
 
     Graph_UpdateGame(gameState);
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // RSBS_DUMP_GFX=<frame>: one-shot raw hexdump of this frame's polyOpa
+    // command stream to stderr, for diagnosing display-list encoding faults
+    // (e.g. the 2026-07-18 "MM 3D renders as giant flat triangles" hunt) —
+    // the dump shows whether the stream is broken at EMISSION (bad opcodes /
+    // truncated pointers in the words MM wrote) or only at interpretation.
+    {
+        static int sGfxDumpFrame = 0;
+        static int sGfxDumped = 0;
+        const char* dumpEnv = getenv("RSBS_DUMP_GFX");
+        sGfxDumpFrame++;
+        if (dumpEnv != NULL && !sGfxDumped && sGfxDumpFrame >= atoi(dumpEnv)) {
+            Gfx* start = (Gfx*)gfxCtx->polyOpa.start;
+            Gfx* end = gfxCtx->polyOpa.p;
+            int count = (int)(end - start);
+            int i;
+            sGfxDumped = 1;
+            fprintf(stderr, "[GFX-DUMP] frame %d polyOpa: start=%p p=%p count=%d (showing up to 160)\n",
+                    sGfxDumpFrame, (void*)start, (void*)end, count);
+            for (i = 0; i < count && i < 160; i++) {
+                fprintf(stderr, "[GFX-DUMP] %3d: %016llX %016llX\n", i, (unsigned long long)start[i].words.w0,
+                        (unsigned long long)start[i].words.w1);
+            }
+            fflush(stderr);
+        }
+    }
+#endif
+
     Graph_ExecuteAndDraw(gfxCtx, gameState);
 
     // 2S2H [Debug] Decomp didn't contain the original code that would allow for this, so this is stolen from ship
