@@ -14,7 +14,6 @@
 #include <libultraship/bridge.h>
 #include <ship/Context.h>
 #include "z64save.h"
-#include "macros.h" // SET_NEXT_GAMESTATE for the gameplay round-trip driver
 
 #include "game_lifecycle.h"
 #include "integration_test_hooks.h"
@@ -22,6 +21,10 @@
 #include "entrance.h"
 #include "soh/Enhancements/game-interactor/GameInteractor.h"
 #include "soh/Enhancements/game-interactor/GameInteractor_Hooks.h"
+// SET_NEXT_GAMESTATE for the gameplay round-trip driver. Must come after
+// GameInteractor.h (-> z64.h): macros.h declares `extern GraphicsContext*`
+// and needs the type defined first.
+#include "macros.h"
 
 // External declarations from main.c and other C sources
 extern "C" {
