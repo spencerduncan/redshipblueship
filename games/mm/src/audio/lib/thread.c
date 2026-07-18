@@ -4,6 +4,8 @@
  * Top-level file that coordinates all audio code on the audio thread.
  */
 #include "global.h"
+#include <stdio.h>
+#include <stdlib.h>
 #include "audio/effects.h"
 #include "audio/load.h"
 
@@ -22,6 +24,22 @@ AudioTask* AudioThread_Update(void) {
 }
 
 void MM_AudioMgr_CreateNextAudioBuffer(s16* samples, u32 num_samples) {
+    // RSBS_AUDIO_PROBE=1 deep probe: discriminates "players never started"
+    // from "players enabled but synth silent" without a debugger.
+    {
+        static int sProbeEnabled = -1;
+        static u32 sProbeCalls = 0;
+        if (sProbeEnabled < 0) {
+            sProbeEnabled = getenv("RSBS_AUDIO_PROBE") != NULL;
+        }
+        if (sProbeEnabled && (++sProbeCalls % 180 == 0)) {
+            fprintf(stderr, "[MM-SYNTH] calls=%u reset=%d players=%d%d%d%d%d\n", sProbeCalls,
+                    (int)gAudioCtx.resetStatus, (int)gAudioCtx.seqPlayers[0].enabled,
+                    (int)gAudioCtx.seqPlayers[1].enabled, (int)gAudioCtx.seqPlayers[2].enabled,
+                    (int)gAudioCtx.seqPlayers[3].enabled, (int)gAudioCtx.seqPlayers[4].enabled);
+            fflush(stderr);
+        }
+    }
     // static size_t off = 0;
     // f32 sample_rate = 44100;
     // f32 note_freq = 440; // A4
@@ -81,7 +99,7 @@ void AudioThread_ProcessGlobalCmd(AudioCmd* cmd) {
             // 2S2H [Custom Audio] the second argument (seqId) was `cmd->arg1`changed to use the upper half of
             // `cmd->asInt so it can be 16 bit.
             MM_AudioLoad_SyncLoadSeqParts((cmd->asInt >> 16) & 0x7FF, cmd->arg2, cmd->asInt & 0xFFFF,
-                                       &gAudioCtx.externalLoadQueue);
+                                          &gAudioCtx.externalLoadQueue);
             break;
 
         case AUDIOCMD_OP_GLOBAL_INIT_SEQPLAYER:
@@ -269,7 +287,7 @@ void AudioThread_InitMesgQueuesInternal(void) {
 
     MM_osCreateMesgQueue(gAudioCtx.taskStartQueueP, gAudioCtx.taskStartMsgs, ARRAY_COUNT(gAudioCtx.taskStartMsgs));
     MM_osCreateMesgQueue(gAudioCtx.threadCmdProcQueueP, gAudioCtx.threadCmdProcMsgBuf,
-                      ARRAY_COUNT(gAudioCtx.threadCmdProcMsgBuf));
+                         ARRAY_COUNT(gAudioCtx.threadCmdProcMsgBuf));
     MM_osCreateMesgQueue(gAudioCtx.audioResetQueueP, gAudioCtx.audioResetMesgs, ARRAY_COUNT(gAudioCtx.audioResetMesgs));
 }
 
@@ -342,8 +360,8 @@ s32 AudioThread_ScheduleProcessCmds(void) {
     }
 
     ret = MM_osSendMesg(gAudioCtx.threadCmdProcQueueP,
-                     OS_MESG_PTR(((gAudioCtx.threadCmdReadPos & 0xFF) << 8) | (gAudioCtx.threadCmdWritePos & 0xFF)),
-                     OS_MESG_NOBLOCK);
+                        OS_MESG_PTR(((gAudioCtx.threadCmdReadPos & 0xFF) << 8) | (gAudioCtx.threadCmdWritePos & 0xFF)),
+                        OS_MESG_NOBLOCK);
     if (ret != -1) {
         gAudioCtx.threadCmdReadPos = gAudioCtx.threadCmdWritePos;
         ret = 0;
@@ -564,6 +582,16 @@ void AudioThread_PreNMIInternal(void) {
         AudioThread_ResetAudioHeap(0);
         gAudioCtx.resetStatus = 0;
     }
+}
+
+// RSBS: the port's inverse of AudioThread_PreNMIInternal (mirror of
+// OoT_Audio_ResumeFromPreNMI, games/oot/src/code/code_800E4FE0.c). While
+// resetTimer is nonzero MM_AudioLoad_SyncInitSeqPlayer (load.c) silently
+// drops every sequence start, and nothing in the port ever clears the timer
+// — so after MM's first suspend no BGM/SFX player could ever start again.
+// Called from MM_Game_Resume.
+void MM_Audio_ResumeFromPreNMI(void) {
+    gAudioCtx.resetTimer = 0;
 }
 
 // Unused

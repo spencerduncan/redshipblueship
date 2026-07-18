@@ -69,45 +69,78 @@ extern "C" {
 
 // External declarations from main.c
 extern "C" {
-    void MM_Heaps_Alloc(void);
-    void MM_Heaps_Free(void);
-    void MM_Graph_ThreadEntry(void* arg);
+void MM_Heaps_Alloc(void);
+void MM_Heaps_Free(void);
+void MM_Graph_ThreadEntry(void* arg);
 
-    // Additional init functions from main.c
-    void Nmi_Init(void);
-    void MM_Fault_Init(void);
-    void Check_RegionIsSupported(void);
-    void Check_ExpansionPak(void);
-    void Regs_Init(void);
+// Additional init functions from main.c
+void Nmi_Init(void);
+void MM_Fault_Init(void);
+void Check_RegionIsSupported(void);
+void Check_ExpansionPak(void);
+void Regs_Init(void);
 
-    // Retire the graph coroutine on suspend (games/mm/src/code/graph.c) —
-    // mirrors OoT: the frame loop must cold-start on re-entry after a switch.
-    void MM_Graph_ResetRunFrameContext(void);
-    // Audio reset for cross-game switch (issue #157) and suspend (issue #270)
-    extern s32 gAudioCtxInitalized;
-    void AudioThread_InitMesgQueues(void);
-    void MM_Audio_PreNMI(void);
+// Retire the graph coroutine on suspend (games/mm/src/code/graph.c) —
+// mirrors OoT: the frame loop must cold-start on re-entry after a switch.
+void MM_Graph_ResetRunFrameContext(void);
+// Audio reset for cross-game switch (issue #157) and suspend (issue #270)
+extern s32 gAudioCtxInitalized;
+void AudioThread_InitMesgQueues(void);
+void MM_Audio_PreNMI(void);
+// Restart the sound system on resume (code_8019AF00.c) — suspend's
+// PreNMI halts the sequence players and nothing else re-arms them
+// (MM_AudioMgr_Init only runs in MM_Game_Init).
+void MM_Audio_InitSound(void);
+// Clears the PreNMI resetTimer latch (audio/lib/thread.c) — while it is
+// nonzero every sequence start is silently dropped.
+void MM_Audio_ResumeFromPreNMI(void);
+// Drains the SHARED audio thread (games/oot/soh/OTRGlobals.cpp) — the
+// "OoT_" prefix is historical; in single-exe it is the one process-wide
+// audio pump both games' synths run on.
+void OoT_Audio_DrainForSuspend(void);
 
-    // MM's SaveContext (type defined via global.h -> z64save.h).
-    // Declared here so MM_Game_Resume() can restore it on return from OoT (#170).
-    // Mirrors the explicit extern on the OoT TU — keeps the symbol's visibility
-    // independent of whether global.h ever stops including z64save.h transitively.
-    extern SaveContext gSaveContext;
+// MM's SaveContext (type defined via global.h -> z64save.h).
+// Declared here so MM_Game_Resume() can restore it on return from OoT (#170).
+// Mirrors the explicit extern on the OoT TU — keeps the symbol's visibility
+// independent of whether global.h ever stops including z64save.h transitively.
+extern SaveContext gSaveContext;
 
-    // Globals from main.c
-    extern s32 MM_gScreenWidth;
-    extern s32 MM_gScreenHeight;
-    extern uintptr_t MM_gSystemHeap;
-    extern OSMesgQueue sSerialEventQueue;
-    extern OSMesg sSerialMsgBuf[1];
-    extern OSMesgQueue sIrqMgrMsgQueue;
-    extern OSMesg sIrqMgrMsgBuf[60];
-    extern SchedContext MM_gSchedContext;
-    extern AudioMgr sAudioMgr;
-    extern PadMgr MM_gPadMgr;
-    extern IrqMgr MM_gIrqMgr;
-
+// Globals from main.c
+extern s32 MM_gScreenWidth;
+extern s32 MM_gScreenHeight;
+extern uintptr_t MM_gSystemHeap;
+extern OSMesgQueue sSerialEventQueue;
+extern OSMesg sSerialMsgBuf[1];
+extern OSMesgQueue sIrqMgrMsgQueue;
+extern OSMesg sIrqMgrMsgBuf[60];
+extern SchedContext MM_gSchedContext;
+extern AudioMgr sAudioMgr;
+extern PadMgr MM_gPadMgr;
+extern IrqMgr MM_gIrqMgr;
 }
+
+// MM's pause/owl-warp entrance table (C++ linkage — matches ShipUtils.h's
+// declaration and the ?sOwlWarpEntrancesForMods@@3PAGA references in
+// kaleido/PauseOwlWarp). Upstream defines this in 2s2h/ShipUtils.cpp, which
+// is excluded from single-exe builds (its Ship_* helper family collides with
+// SoH's ShipUtils); the active-game audio dispatch newly links MM's kaleido +
+// PauseOwlWarp objects, which consume it. The values are vanilla data —
+// ShipUtils.cpp documents the table as "identical to sOwlWarpEntrances in
+// decomp" — so this copy cannot drift meaningfully, and MSVC mangles the
+// element type into the symbol, so a type mismatch vs the consumers is a
+// link error rather than silent corruption.
+u16 sOwlWarpEntrancesForMods[OWL_WARP_MAX - 1] = {
+    ENTRANCE(GREAT_BAY_COAST, 11),         // OWL_WARP_GREAT_BAY_COAST
+    ENTRANCE(ZORA_CAPE, 6),                // OWL_WARP_ZORA_CAPE
+    ENTRANCE(SNOWHEAD, 3),                 // OWL_WARP_SNOWHEAD
+    ENTRANCE(MOUNTAIN_VILLAGE_WINTER, 8),  // OWL_WARP_MOUNTAIN_VILLAGE
+    ENTRANCE(SOUTH_CLOCK_TOWN, 9),         // OWL_WARP_CLOCK_TOWN
+    ENTRANCE(MILK_ROAD, 4),                // OWL_WARP_MILK_ROAD
+    ENTRANCE(WOODFALL, 4),                 // OWL_WARP_WOODFALL
+    ENTRANCE(SOUTHERN_SWAMP_POISONED, 10), // OWL_WARP_SOUTHERN_SWAMP
+    ENTRANCE(IKANA_CANYON, 4),             // OWL_WARP_IKANA_CANYON
+    ENTRANCE(STONE_TOWER, 3),              // OWL_WARP_STONE_TOWER
+};
 
 // MM's AudioCollection singleton (S2H::AudioCollection under the single-exe
 // namespace split — see include/mm_audio_prefix.h). Upstream defines and
@@ -133,9 +166,9 @@ static_assert(sizeof(SaveContext) <= MM_SAVE_CONTEXT_SIZE,
 // test_runner.cpp); resolved at final link. Record this MM arrival, query the
 // RSS bound, and read the target arrival count for the cycle-complete check.
 extern "C" {
-    int ArchiveHotswap_RecordArrival(void);
-    int ArchiveHotswap_RssExceeded(void);
-    int ArchiveHotswap_TargetArrivals(void);
+int ArchiveHotswap_RecordArrival(void);
+int ArchiveHotswap_RssExceeded(void);
+int ArchiveHotswap_TargetArrivals(void);
 }
 
 // Shared single-exe bring-up (issues #329/#330). Defined in OoT's port layer
@@ -149,6 +182,7 @@ extern "C" void InitOTRForMMFirstBoot(int argc, char* argv[]);
 // cannot include OoT's factory headers from an MM translation unit (#344).
 std::shared_ptr<Ship::ResourceFactory> OoT_CreateSceneFactory();
 std::shared_ptr<Ship::ResourceFactory> OoT_CreateCutsceneFactory();
+std::shared_ptr<Ship::ResourceFactory> OoT_CreatePathFactory();
 
 // MM's message-table loader (games/mm/2s2h/z_message_OTR.cpp) — populates
 // sMessageTableNES/sMessageTableCredits from mm.o2r. Without it, the first
@@ -180,6 +214,13 @@ static void RecordMMArchivePath(const std::string& path) {
 
 static bool IsMMArchivePath(const std::string& path) {
     return std::find(sMMArchivePaths.begin(), sMMArchivePaths.end(), path) != sMMArchivePaths.end();
+}
+
+// C-visible wrapper over the registry above, for archive-origin filtering
+// outside this TU (ResourceMgr_ListFilesForGame in SoH's
+// ResourceManagerHelpers.cpp — the sequence/soundfont enumeration scoping).
+extern "C" bool Combo_ArchivePathIsMM(const char* path) {
+    return path != nullptr && IsMMArchivePath(path);
 }
 
 // Integration test hook frame counter (reset each time hooks are registered)
@@ -298,23 +339,20 @@ static void MM_RegisterIntegrationTestHooks(void) {
         // the title-demo Play state crashed in MM_Actor_SpawnEntry. (The
         // OnConsoleLogoUpdate hook was dead anyway: MM's executor is excluded
         // in single-exe builds and the call resolves to a no-op stub.)
-        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>(
-            []() {
-                if (!MM_SceneLoadComplete()) {
-                    sSceneLoadStableFrames = 0;
-                    MM_SceneLoadWatchdogExpired("int-boot-mm");
-                    return;
-                }
-                sSceneLoadStableFrames++;
-                if (sSceneLoadStableFrames == 10) {
-                    fprintf(stderr,
-                            "[MM-INT-TEST] scene load complete and stable (sceneId=0x%X entrance=0x%04X); PASS\n",
-                            MM_gPlayState->sceneId, gSaveContext.save.entrance);
-                    fflush(stderr);
-                    IntegrationTest_SignalBootComplete(GAME_MM, "MM scene load complete");
-                }
+        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>([]() {
+            if (!MM_SceneLoadComplete()) {
+                sSceneLoadStableFrames = 0;
+                MM_SceneLoadWatchdogExpired("int-boot-mm");
+                return;
             }
-        );
+            sSceneLoadStableFrames++;
+            if (sSceneLoadStableFrames == 10) {
+                fprintf(stderr, "[MM-INT-TEST] scene load complete and stable (sceneId=0x%X entrance=0x%04X); PASS\n",
+                        MM_gPlayState->sceneId, gSaveContext.save.entrance);
+                fflush(stderr);
+                IntegrationTest_SignalBootComplete(GAME_MM, "MM scene load complete");
+            }
+        });
 
         fprintf(stderr, "[MM] Integration test hooks registered\n");
         fflush(stderr);
@@ -332,32 +370,29 @@ static void MM_RegisterIntegrationTestHooks(void) {
         // (#344) PASS requires MM to complete the South Clock Town scene
         // load the entrance link asked for (0xD800, the tower-exit arrival),
         // not just tick frames.
-        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>(
-            []() {
-                if (!MM_SceneLoadComplete() || MM_gPlayState->sceneId != SCENE_CLOCKTOWER) {
-                    static bool sWrongSceneLogged = false;
-                    sSceneLoadStableFrames = 0;
-                    if (!sWrongSceneLogged && MM_SceneLoadComplete()) {
-                        sWrongSceneLogged = true;
-                        fprintf(stderr,
-                                "[MM-INT-TEST] scene loaded but sceneId=0x%X != SCENE_CLOCKTOWER; waiting\n",
-                                MM_gPlayState->sceneId);
-                        fflush(stderr);
-                    }
-                    MM_SceneLoadWatchdogExpired("int-switch-oot-hms-to-mm");
-                    return;
-                }
-                sSceneLoadStableFrames++;
-                if (sSceneLoadStableFrames == 10) {
-                    fprintf(stderr,
-                            "[MM-INT-TEST] South Clock Town scene load complete after HMS->MM switch "
-                            "(entrance=0x%04X); PASS\n",
-                            gSaveContext.save.entrance);
+        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>([]() {
+            if (!MM_SceneLoadComplete() || MM_gPlayState->sceneId != SCENE_CLOCKTOWER) {
+                static bool sWrongSceneLogged = false;
+                sSceneLoadStableFrames = 0;
+                if (!sWrongSceneLogged && MM_SceneLoadComplete()) {
+                    sWrongSceneLogged = true;
+                    fprintf(stderr, "[MM-INT-TEST] scene loaded but sceneId=0x%X != SCENE_CLOCKTOWER; waiting\n",
+                            MM_gPlayState->sceneId);
                     fflush(stderr);
-                    IntegrationTest_SignalBootComplete(GAME_MM, "MM scene load complete after HMS->MM switch");
                 }
+                MM_SceneLoadWatchdogExpired("int-switch-oot-hms-to-mm");
+                return;
             }
-        );
+            sSceneLoadStableFrames++;
+            if (sSceneLoadStableFrames == 10) {
+                fprintf(stderr,
+                        "[MM-INT-TEST] South Clock Town scene load complete after HMS->MM switch "
+                        "(entrance=0x%04X); PASS\n",
+                        gSaveContext.save.entrance);
+                fflush(stderr);
+                IntegrationTest_SignalBootComplete(GAME_MM, "MM scene load complete after HMS->MM switch");
+            }
+        });
 
         fprintf(stderr, "[MM] HMS->MM switch hooks registered\n");
         fflush(stderr);
@@ -376,70 +411,65 @@ static void MM_RegisterIntegrationTestHooks(void) {
         sSceneLoadWaitFrames = 0;
         sSceneLoadStableFrames = 0;
 
-        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>(
-            []() {
-                static bool sTriggered = false;
-                if (sTriggered) {
-                    return;
-                }
-                if (!MM_SceneLoadComplete()) {
-                    sSceneLoadStableFrames = 0;
-                    MM_SceneLoadWatchdogExpired("int-switch-mm-clocktown-south-to-oot");
-                    return;
-                }
-                sSceneLoadStableFrames++;
-                if (sSceneLoadStableFrames < 10) {
-                    return;
-                }
-                sTriggered = true;
-
-                fprintf(stderr,
-                        "[MM-INT-TEST] MM stable; triggering Clock Tower door entrance 0x%04X\n",
-                        MM_ENTR_CLOCK_TOWER_INTERIOR_1);
-                fflush(stderr);
-
-                // Same call MM's z_play.c makes when the player walks into
-                // the Clock Tower from SCT — minus the freeze, which T3 covers.
-                Combo_CheckCrossGameEntrance("mm", MM_ENTR_CLOCK_TOWER_INTERIOR_1);
-
-                if (!Combo_IsCrossGameSwitch()) {
-                    fprintf(stderr,
-                            "[MM-INT-TEST] FAIL: Clock Tower door entrance did not register a cross-game switch\n");
-                    fflush(stderr);
-                    IntegrationTest_RequestExit();
-                    return;
-                }
-
-                const char* target = Combo_GetSwitchTargetGameId();
-                uint16_t targetEntrance = Combo_GetSwitchTargetEntrance();
-
-                if (!target || strcmp(target, "oot") != 0) {
-                    fprintf(stderr, "[MM-INT-TEST] FAIL: target should be 'oot', got '%s'\n",
-                            target ? target : "(null)");
-                    fflush(stderr);
-                    IntegrationTest_RequestExit();
-                    return;
-                }
-
-                if (targetEntrance != OOT_ENTR_MARKET_FROM_MASK_SHOP) {
-                    fprintf(stderr,
-                            "[MM-INT-TEST] FAIL: target entrance should be 0x%04X (Market from Mask Shop), got 0x%04X\n",
-                            OOT_ENTR_MARKET_FROM_MASK_SHOP, targetEntrance);
-                    fflush(stderr);
-                    IntegrationTest_RequestExit();
-                    return;
-                }
-
-                fprintf(stderr,
-                        "[MM-INT-TEST] PASS leg 1: Clock Tower door routes to OoT 0x%04X; main loop will run the "
-                        "switch\n",
-                        targetEntrance);
-                fflush(stderr);
-                // Intentionally NOT signaling boot complete here. The main loop
-                // will see the pending cross-game switch on Combo_CheckHotSwap
-                // and hand off to OoT. The OoT-side hook signals the final pass.
+        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>([]() {
+            static bool sTriggered = false;
+            if (sTriggered) {
+                return;
             }
-        );
+            if (!MM_SceneLoadComplete()) {
+                sSceneLoadStableFrames = 0;
+                MM_SceneLoadWatchdogExpired("int-switch-mm-clocktown-south-to-oot");
+                return;
+            }
+            sSceneLoadStableFrames++;
+            if (sSceneLoadStableFrames < 10) {
+                return;
+            }
+            sTriggered = true;
+
+            fprintf(stderr, "[MM-INT-TEST] MM stable; triggering Clock Tower door entrance 0x%04X\n",
+                    MM_ENTR_CLOCK_TOWER_INTERIOR_1);
+            fflush(stderr);
+
+            // Same call MM's z_play.c makes when the player walks into
+            // the Clock Tower from SCT — minus the freeze, which T3 covers.
+            Combo_CheckCrossGameEntrance("mm", MM_ENTR_CLOCK_TOWER_INTERIOR_1);
+
+            if (!Combo_IsCrossGameSwitch()) {
+                fprintf(stderr, "[MM-INT-TEST] FAIL: Clock Tower door entrance did not register a cross-game switch\n");
+                fflush(stderr);
+                IntegrationTest_RequestExit();
+                return;
+            }
+
+            const char* target = Combo_GetSwitchTargetGameId();
+            uint16_t targetEntrance = Combo_GetSwitchTargetEntrance();
+
+            if (!target || strcmp(target, "oot") != 0) {
+                fprintf(stderr, "[MM-INT-TEST] FAIL: target should be 'oot', got '%s'\n", target ? target : "(null)");
+                fflush(stderr);
+                IntegrationTest_RequestExit();
+                return;
+            }
+
+            if (targetEntrance != OOT_ENTR_MARKET_FROM_MASK_SHOP) {
+                fprintf(stderr,
+                        "[MM-INT-TEST] FAIL: target entrance should be 0x%04X (Market from Mask Shop), got 0x%04X\n",
+                        OOT_ENTR_MARKET_FROM_MASK_SHOP, targetEntrance);
+                fflush(stderr);
+                IntegrationTest_RequestExit();
+                return;
+            }
+
+            fprintf(stderr,
+                    "[MM-INT-TEST] PASS leg 1: Clock Tower door routes to OoT 0x%04X; main loop will run the "
+                    "switch\n",
+                    targetEntrance);
+            fflush(stderr);
+            // Intentionally NOT signaling boot complete here. The main loop
+            // will see the pending cross-game switch on Combo_CheckHotSwap
+            // and hand off to OoT. The OoT-side hook signals the final pass.
+        });
 
         fprintf(stderr, "[MM] Clock Tower door->OoT switch hooks registered\n");
         fflush(stderr);
@@ -464,56 +494,54 @@ static void MM_RegisterIntegrationTestHooks(void) {
         sSceneLoadWaitFrames = 0;
         sSceneLoadStableFrames = 0;
 
-        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>(
-            []() {
-                // Fire once per arrival, ~10 stable frames after (re)entry, then
-                // re-arm for the next MM arrival (reached via MM_Game_Resume).
-                // (#344) Frames only count while a completed scene load is live,
-                // so every arrival of the cycle proves real MM gameplay state,
-                // not just early-boot frames.
-                if (!MM_SceneLoadComplete()) {
-                    sGameStateMainFrameCount = 0;
-                    MM_SceneLoadWatchdogExpired("int-archive-hotswap-cycle");
-                    return;
-                }
-                sGameStateMainFrameCount++;
-                if (sGameStateMainFrameCount < 10) {
-                    return;
-                }
+        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>([]() {
+            // Fire once per arrival, ~10 stable frames after (re)entry, then
+            // re-arm for the next MM arrival (reached via MM_Game_Resume).
+            // (#344) Frames only count while a completed scene load is live,
+            // so every arrival of the cycle proves real MM gameplay state,
+            // not just early-boot frames.
+            if (!MM_SceneLoadComplete()) {
                 sGameStateMainFrameCount = 0;
-                sSceneLoadWaitFrames = 0;
-
-                int n = ArchiveHotswap_RecordArrival();
-                fprintf(stderr, "[MM-INT-TEST] MM stable; archive-hotswap arrival #%d of %d\n",
-                        n, ArchiveHotswap_TargetArrivals());
-                fflush(stderr);
-
-                if (ArchiveHotswap_RssExceeded()) {
-                    // Steady-state RSS blew the bound — the #154 per-switch leak
-                    // regression. Fail fast: RequestExit does NOT set the pass
-                    // flag, so the run returns non-zero. Combo_RequestGameSwitch()
-                    // right after unblocks the main loop promptly (known fix).
-                    fprintf(stderr, "[MM-INT-TEST] FAIL: steady-state RSS bound exceeded after %d arrivals\n", n);
-                    fflush(stderr);
-                    IntegrationTest_RequestExit();
-                    Combo_RequestGameSwitch();
-                } else if (n >= ArchiveHotswap_TargetArrivals()) {
-                    // Target arrivals reached with a healthy runtime — PASS.
-                    // SignalBootComplete sets the pass flag and requests the
-                    // switch that unblocks the main loop.
-                    fprintf(stderr, "[MM-INT-TEST] archive-hotswap cycle complete after %d arrivals\n", n);
-                    fflush(stderr);
-                    IntegrationTest_SignalBootComplete(GAME_MM, "archive-hotswap cycle complete");
-                } else {
-                    // Keep the cycle going: re-trigger the MM->OoT switch via
-                    // the Clock Tower door — same call the T2 branch makes.
-                    fprintf(stderr, "[MM-INT-TEST] re-triggering Clock Tower door entrance 0x%04X to continue cycle\n",
-                            MM_ENTR_CLOCK_TOWER_INTERIOR_1);
-                    fflush(stderr);
-                    Combo_CheckCrossGameEntrance("mm", MM_ENTR_CLOCK_TOWER_INTERIOR_1);
-                }
+                MM_SceneLoadWatchdogExpired("int-archive-hotswap-cycle");
+                return;
             }
-        );
+            sGameStateMainFrameCount++;
+            if (sGameStateMainFrameCount < 10) {
+                return;
+            }
+            sGameStateMainFrameCount = 0;
+            sSceneLoadWaitFrames = 0;
+
+            int n = ArchiveHotswap_RecordArrival();
+            fprintf(stderr, "[MM-INT-TEST] MM stable; archive-hotswap arrival #%d of %d\n", n,
+                    ArchiveHotswap_TargetArrivals());
+            fflush(stderr);
+
+            if (ArchiveHotswap_RssExceeded()) {
+                // Steady-state RSS blew the bound — the #154 per-switch leak
+                // regression. Fail fast: RequestExit does NOT set the pass
+                // flag, so the run returns non-zero. Combo_RequestGameSwitch()
+                // right after unblocks the main loop promptly (known fix).
+                fprintf(stderr, "[MM-INT-TEST] FAIL: steady-state RSS bound exceeded after %d arrivals\n", n);
+                fflush(stderr);
+                IntegrationTest_RequestExit();
+                Combo_RequestGameSwitch();
+            } else if (n >= ArchiveHotswap_TargetArrivals()) {
+                // Target arrivals reached with a healthy runtime — PASS.
+                // SignalBootComplete sets the pass flag and requests the
+                // switch that unblocks the main loop.
+                fprintf(stderr, "[MM-INT-TEST] archive-hotswap cycle complete after %d arrivals\n", n);
+                fflush(stderr);
+                IntegrationTest_SignalBootComplete(GAME_MM, "archive-hotswap cycle complete");
+            } else {
+                // Keep the cycle going: re-trigger the MM->OoT switch via
+                // the Clock Tower door — same call the T2 branch makes.
+                fprintf(stderr, "[MM-INT-TEST] re-triggering Clock Tower door entrance 0x%04X to continue cycle\n",
+                        MM_ENTR_CLOCK_TOWER_INTERIOR_1);
+                fflush(stderr);
+                Combo_CheckCrossGameEntrance("mm", MM_ENTR_CLOCK_TOWER_INTERIOR_1);
+            }
+        });
 
         fprintf(stderr, "[MM] archive-hotswap cycle hooks registered\n");
         fflush(stderr);
@@ -646,10 +674,10 @@ extern "C" void MM_IntegrationGameplayFrameTick(void) {
     // door: the transition's Combo_CheckEntranceSwitch freezes the live
     // SaveContext, sentinel included.
     gSaveContext.save.saveInfo.playerData.rupees = (s16)(GP_MM_CONTINUITY_RUPEE_BASE + sGpMMArrivalCount);
-    fprintf(stderr, "[GP-TEST] firing Clock Tower door: entrance 0x%04X after %d live MM frames "
+    fprintf(stderr,
+            "[GP-TEST] firing Clock Tower door: entrance 0x%04X after %d live MM frames "
             "(continuity sentinel: %d rupees)\n",
-            MM_ENTR_CLOCK_TOWER_INTERIOR_1, sGpMMPlayFrames,
-            GP_MM_CONTINUITY_RUPEE_BASE + sGpMMArrivalCount);
+            MM_ENTR_CLOCK_TOWER_INTERIOR_1, sGpMMPlayFrames, GP_MM_CONTINUITY_RUPEE_BASE + sGpMMArrivalCount);
     fflush(stderr);
     play->nextEntrance = MM_ENTR_CLOCK_TOWER_INTERIOR_1;
     play->transitionTrigger = TRANS_TRIGGER_START;
@@ -679,7 +707,7 @@ static int LoadMMArchives() {
     int loaded = 0;
 
     // Try mm.o2r (primary), then .zip/.otr fallbacks
-    for (const char* ext : {"mm.o2r", "mm.zip", "mm.otr"}) {
+    for (const char* ext : { "mm.o2r", "mm.zip", "mm.otr" }) {
         std::string path = Ship::Context::LocateFileAcrossAppDirs(ext, kMmAppName);
         if (!path.empty() && std::filesystem::exists(path)) {
             if (archiveMgr->AddArchive(path)) {
@@ -687,7 +715,7 @@ static int LoadMMArchives() {
                 RecordMMArchivePath(path);
                 loaded++;
             }
-            break;  // Only load one mm archive
+            break; // Only load one mm archive
         }
     }
 
@@ -785,10 +813,19 @@ class RsbsMMArchiveFactoryDispatcher final : public Ship::ResourceFactoryBinary 
 static void RegisterMMResourceFactories() {
     auto loader = Ship::Context::GetInstance()->GetResourceManager()->GetResourceLoader();
 
-    // Path — overwrites OoT's PathV0 because MM paths have additional fields
-    loader->RegisterResourceFactory(std::make_shared<S2H::ResourceFactoryBinaryPathMMV0>(), RESOURCE_FORMAT_BINARY,
-                                    "Path", static_cast<uint32_t>(S2H::ResourceType::SOH_Path), 0,
-                                    /*allowOverwrite=*/true);
+    // Path — per-archive dispatcher like Room/Cutscene below: MM paths carry
+    // additional fields, so the two wire formats are incompatible. This was a
+    // flat overwrite until 2026-07-18, which made every OoT Path resource
+    // parse with MM's reader once MM had initialized — the reader ran off the
+    // end of the buffer and the std::out_of_range rethrown out of the
+    // resource future killed the process on the first OoT scene with patrol
+    // paths loaded after any MM visit (caught by the RSBS_GP_BOOT_AGE=adult
+    // gameplay round trip).
+    loader->RegisterResourceFactory(
+        std::make_shared<RsbsMMArchiveFactoryDispatcher>(OoT_CreatePathFactory(),
+                                                         std::make_shared<S2H::ResourceFactoryBinaryPathMMV0>()),
+        RESOURCE_FORMAT_BINARY, "Path", static_cast<uint32_t>(S2H::ResourceType::SOH_Path), 0,
+        /*allowOverwrite=*/true);
 
     // Room (scene) and Cutscene — replace OoT's registrations with per-archive
     // dispatchers so MM assets parse with MM's wire formats (#344). Idempotent:
@@ -1019,10 +1056,8 @@ void MM_Game_Run(void) {
     fprintf(stderr, "[MM] Game_Run called, entering MM_Graph_ThreadEntry()\n");
     fflush(stderr);
     // Assert context still valid before graph loop (issue #158)
-    assert(Ship::Context::GetInstance() != nullptr &&
-           "Ship::Context must be valid when MM graph thread starts");
-    assert(Ship::Context::GetInstance()->GetWindow() != nullptr &&
-           "Window must be valid when MM graph thread starts");
+    assert(Ship::Context::GetInstance() != nullptr && "Ship::Context must be valid when MM graph thread starts");
+    assert(Ship::Context::GetInstance()->GetWindow() != nullptr && "Window must be valid when MM graph thread starts");
 
     // Run the main game loop
     MM_Graph_ThreadEntry(nullptr);
@@ -1040,12 +1075,20 @@ void MM_Game_Suspend(void) {
     fprintf(stderr, "[MM] Game_Suspend called\n");
     fflush(stderr);
 
+    // Drain the SHARED audio thread before touching MM's audio state. In
+    // single-exe builds MM's synth runs on OoT's OTRAudio_Thread (the
+    // active-game dispatch in games/oot/soh/OTRGlobals.cpp) — a REAL
+    // std::thread that can be mid-buffer inside MM's sequence/soundfont lazy
+    // load path right now. The switch path continues into an archive
+    // hot-swap; ripping resources out from under an in-flight synth is the
+    // exact use-after-free OoT_Audio_DrainForSuspend was added to close on
+    // the OoT side. (An earlier comment here claimed the port processes audio
+    // synchronously on the game loop — the same stale claim the OoT side
+    // already corrected; it was never true of the shared thread.)
+    OoT_Audio_DrainForSuspend();
+
     // Stop MM audio playback to prevent interference with OoT (issue #270).
-    // MM_Audio_PreNMI calls AudioThread_PreNMIInternal which halts sequence
-    // players and SFX. Same reasoning as OoT side: the SoH/2S2H port doesn't
-    // run a real OS audio thread, so audio is processed synchronously from
-    // the game loop, which has already returned from MM_Graph_ThreadEntry
-    // before suspend is called — no race.
+    // MM_Audio_PreNMI halts the players via AudioThread_PreNMIInternal.
     fprintf(stderr, "[MM] Stopping audio via PreNMI path...\n");
     fflush(stderr);
     MM_Audio_PreNMI();
@@ -1137,12 +1180,10 @@ void MM_Game_Resume(void) {
         // MM's frozen return entrance instead of spawning from an OoT id
         // (symmetric with OoT_Game_Resume).
         bool hasStartup = Combo_HasStartupEntranceForGame("mm");
-        uint16_t targetEntrance = hasStartup
-            ? Combo_GetStartupEntranceForGame("mm")
-            : Context_GetFrozenReturnEntrance(GAME_MM);
+        uint16_t targetEntrance =
+            hasStartup ? Combo_GetStartupEntranceForGame("mm") : Context_GetFrozenReturnEntrance(GAME_MM);
         gSaveContext.save.entrance = targetEntrance;
-        fprintf(stderr, "[MM] Resume entrance: 0x%04X (startup=%u)\n",
-                targetEntrance, hasStartup);
+        fprintf(stderr, "[MM] Resume entrance: 0x%04X (startup=%u)\n", targetEntrance, hasStartup);
     }
 
     // Reinitialize audio message queues for clean state (issue #270).
@@ -1152,6 +1193,22 @@ void MM_Game_Resume(void) {
     fprintf(stderr, "[MM] Reinitializing audio message queues...\n");
     fflush(stderr);
     AudioThread_InitMesgQueues();
+
+    // Re-arm the shared audio thread's MM dispatch (OTRGlobals.cpp gates the
+    // MM synth on this flag). The audio heap and context genuinely remain
+    // initialized across suspend — MM_AudioLoad_Init runs once in
+    // MM_Game_Init and only MM_Game_Shutdown frees the heaps — suspend just
+    // cleared the flag to park the dispatch on silence while OoT runs.
+    gAudioCtxInitalized = true;
+    MM_Audio_ResumeFromPreNMI();
+
+    // Restart the sound system: suspend's PreNMI halted the sequence
+    // players, and the guarded MM_AudioMgr_Init bring-up never re-runs. The
+    // queued commands sit in the ring until the PreNMI-scheduled heap reset
+    // finishes on the shared audio thread, then apply — after which the
+    // arrival scene starts its BGM from scratch (the startup-entrance
+    // consumption resets the restored save's stale "already playing" ids).
+    MM_Audio_InitSound();
 
     fprintf(stderr, "[MM] Game_Resume complete\n");
     fflush(stderr);
@@ -1286,15 +1343,8 @@ extern "C" void MM_Extract_OfferAndRun(void) {
 // GameOps registration
 // ============================================================================
 
-static GameOps sMMOps = {
-    "mm",
-    "Majora's Mask",
-    MM_Game_Init,
-    MM_Game_Run,
-    MM_Game_Suspend,
-    MM_Game_Resume,
-    MM_Game_Shutdown
-};
+static GameOps sMMOps = { "mm",           "Majora's Mask", MM_Game_Init, MM_Game_Run, MM_Game_Suspend,
+                          MM_Game_Resume, MM_Game_Shutdown };
 
 extern "C" GameOps* MM_GetGameOps(void) {
     return &sMMOps;

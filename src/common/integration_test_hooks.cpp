@@ -97,11 +97,14 @@ void GameplayParseConfig(void) {
     sGameplayConfig.bootEntrance = GameplayEnvEntrance("RSBS_GP_BOOT_ENTRANCE", 0x01D1);
     sGameplayConfig.warpEntrance = GameplayEnvEntrance("RSBS_GP_WARP_ENTRANCE", 0x00B1);
     sGameplayConfig.exitEntrance = GameplayEnvEntrance("RSBS_GP_EXIT_ENTRANCE", 0x0033);
+    const char* bootAge = getenv("RSBS_GP_BOOT_AGE");
+    sGameplayConfig.bootAdult = bootAge != NULL && strcmp(bootAge, "adult") == 0;
     sGameplayPhase = GP_PHASE_BOOT;
     sGameplayCyclesDone = 0;
-    printf("[GP-TEST] config: frames/phase=%d cycles=%d boot=0x%04X warp=0x%04X exit=0x%04X\n",
+    printf("[GP-TEST] config: frames/phase=%d cycles=%d boot=0x%04X warp=0x%04X exit=0x%04X bootAge=%s\n",
            sGameplayConfig.framesPerPhase, sGameplayConfig.cycles, sGameplayConfig.bootEntrance,
-           sGameplayConfig.warpEntrance, sGameplayConfig.exitEntrance);
+           sGameplayConfig.warpEntrance, sGameplayConfig.exitEntrance,
+           sGameplayConfig.bootAdult ? "adult" : "child");
     fflush(stdout);
 }
 

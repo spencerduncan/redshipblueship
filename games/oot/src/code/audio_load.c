@@ -56,7 +56,7 @@ AudioTable* OoT_AudioLoad_GetLoadTable(s32 tableType);
 void OoT_AudioLoad_SyncDma(uintptr_t devAddr, u8* addr, size_t size, s32 medium);
 void OoT_AudioLoad_SyncDmaUnkMedium(uintptr_t devAddr, u8* addr, size_t size, s32 unkMediumParam);
 s32 OoT_AudioLoad_Dma(OSIoMesg* mesg, u32 priority, s32 direction, uintptr_t devAddr, uintptr_t ramAddr, size_t size,
-                  OSMesgQueue* reqQueue, s32 medium, const char* dmaFuncType);
+                      OSMesgQueue* reqQueue, s32 medium, const char* dmaFuncType);
 void* OoT_AudioLoad_AsyncLoadInner(s32 tableType, s32 id, s32 nChunks, s32 retData, OSMesgQueue* retQueue);
 AudioAsyncLoad* AudioLoad_StartAsyncLoadUnkMedium(s32 unkMediumParam, uintptr_t devAddr, uintptr_t ramAddr, size_t size,
                                                   s32 medium, s32 nChunks, OSMesgQueue* retQueue, s32 retMsg);
@@ -216,9 +216,9 @@ uintptr_t OoT_AudioLoad_DmaSampleData(uintptr_t devAddr, size_t size, s32 arg2, 
     dma->ttl = 3;
     dma->devAddr = dmaDevAddr;
     dma->sizeUnused = transfer;
-    OoT_AudioLoad_Dma(&gAudioContext.currAudioFrameDmaIoMesgBuf[gAudioContext.curAudioFrameDmaCount++], OS_MESG_PRI_NORMAL,
-                  OS_READ, dmaDevAddr, dma->ramAddr, transfer, &gAudioContext.currAudioFrameDmaQueue, medium,
-                  "SUPERDMA");
+    OoT_AudioLoad_Dma(&gAudioContext.currAudioFrameDmaIoMesgBuf[gAudioContext.curAudioFrameDmaCount++],
+                      OS_MESG_PRI_NORMAL, OS_READ, dmaDevAddr, dma->ramAddr, transfer,
+                      &gAudioContext.currAudioFrameDmaQueue, medium, "SUPERDMA");
     *dmaIndexRef = dmaIndex;
 
     return (devAddr - dmaDevAddr) + dma->ramAddr;
@@ -232,8 +232,8 @@ void OoT_AudioLoad_InitSampleDmaBuffers(s32 arg0) {
 
     gAudioContext.sampleDmaBufSize = gAudioContext.sampleDmaBufSize1;
     gAudioContext.sampleDmas =
-        OoT_AudioHeap_Alloc(&gAudioContext.notesAndBuffersPool,
-                        4 * gAudioContext.numNotes * sizeof(SampleDma) * gAudioContext.audioBufferParameters.specUnk4);
+        OoT_AudioHeap_Alloc(&gAudioContext.notesAndBuffersPool, 4 * gAudioContext.numNotes * sizeof(SampleDma) *
+                                                                    gAudioContext.audioBufferParameters.specUnk4);
     t2 = 3 * gAudioContext.numNotes * gAudioContext.audioBufferParameters.specUnk4;
     for (i = 0; i < t2; i++) {
         dma = &gAudioContext.sampleDmas[gAudioContext.sampleDmaCount];
@@ -428,14 +428,14 @@ s32 OoT_AudioLoad_SyncLoadSample(SoundFontSample* sample, s32 fontId) {
     if (sample->isRelocated == 1) {
         if (sample->medium != MEDIUM_RAM) {
             sampleAddr = OoT_AudioHeap_AllocSampleCache(sample->size, fontId, (void*)sample->sampleAddr, sample->medium,
-                                                    CACHE_PERSISTENT);
+                                                        CACHE_PERSISTENT);
             if (sampleAddr == NULL) {
                 return -1;
             }
 
             if (sample->medium == MEDIUM_UNK) {
                 OoT_AudioLoad_SyncDmaUnkMedium(sample->sampleAddr, sampleAddr, sample->size,
-                                           gAudioContext.sampleBankTable->unkMediumParam);
+                                               gAudioContext.sampleBankTable->unkMediumParam);
             } else {
                 OoT_AudioLoad_SyncDma(sample->sampleAddr, sampleAddr, sample->size, sample->medium);
             }
@@ -597,7 +597,8 @@ s32 OoT_AudioLoad_SyncInitSeqPlayerInternal(s32 playerIdx, s32 seqId, s32 arg2) 
 
     for (int i = 0; i < seqData2.numFonts; i++) {
         fontId = seqData2.fonts[i];
-        OoT_AudioLoad_SyncLoadFont(fontId); // NOTE: If this is commented out, then enemies will play child link sounds...
+        OoT_AudioLoad_SyncLoadFont(
+            fontId); // NOTE: If this is commented out, then enemies will play child link sounds...
         // numFonts--;
     }
 
@@ -622,8 +623,8 @@ s32 OoT_AudioLoad_SyncInitSeqPlayerInternal(s32 playerIdx, s32 seqId, s32 arg2) 
     // Fix for barinade boss fight starting music multiple times
     // this is not noticeable if the sequence is authentic, since the "Boss Battle"
     // sequence begins with some silence
-    if (OoT_gPlayState != NULL && OoT_gPlayState->sceneNum == SCENE_JABU_JABU_BOSS && playerIdx == SEQ_PLAYER_BGM_MAIN &&
-        seqId != NA_BGM_BOSS) {
+    if (OoT_gPlayState != NULL && OoT_gPlayState->sceneNum == SCENE_JABU_JABU_BOSS &&
+        playerIdx == SEQ_PLAYER_BGM_MAIN && seqId != NA_BGM_BOSS) {
 
         seqPlayer->delay = 10;
     }
@@ -977,7 +978,7 @@ void OoT_AudioLoad_SyncDmaUnkMedium(uintptr_t devAddr, u8* addr, size_t size, s3
 }
 
 s32 OoT_AudioLoad_Dma(OSIoMesg* mesg, u32 priority, s32 direction, uintptr_t devAddr, uintptr_t ramAddr, size_t size,
-                  OSMesgQueue* reqQueue, s32 medium, const char* dmaFuncType) {
+                      OSMesgQueue* reqQueue, s32 medium, const char* dmaFuncType) {
     if (gAudioContext.resetTimer > 0x10) {
         return -1;
     }
@@ -1339,7 +1340,17 @@ void OoT_AudioLoad_Init(void* heap, size_t heapSize) {
     // Only load the original sequences right now because custom songs may require data from sound fonts and samples
     int seqListSize = 0;
     int customSeqListSize = 0;
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // Archive-scoped: the shared ResourceManager holds BOTH games' archives,
+    // and sequence ids live in the resource payload — a foreign in-range id
+    // would silently shadow a native entry (both boot orders). The bounds
+    // guard below stays as defense in depth. "custom/music/*" intentionally
+    // stays unscoped: the mods folder is shared content and its ids are
+    // assigned dynamically, not read from the resource.
+    char** seqList = ResourceMgr_ListFilesForGame("oot", "audio/sequences*", &seqListSize);
+#else
     char** seqList = ResourceMgr_ListFiles("audio/sequences*", &seqListSize);
+#endif
     char** customSeqList = ResourceMgr_ListFiles("custom/music/*", &customSeqListSize);
     sequenceMapSize = (size_t)(seqListSize + customSeqListSize);
     sequenceMap = malloc((sequenceMapSize + 0xF) * sizeof(char*));
@@ -1377,7 +1388,14 @@ void OoT_AudioLoad_Init(void* heap, size_t heapSize) {
     // find its soundfont
     int fntListSize = 0;
     int customFntListSize = 0;
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // Archive-scoped for the same reason as the sequence glob above:
+    // sf->fntIndex is a raw s32 from the resource payload, and a foreign
+    // font's index silently shadows (or, out of range, overruns) fontMap.
+    char** fntList = ResourceMgr_ListFilesForGame("oot", "audio/fonts*", &fntListSize);
+#else
     char** fntList = ResourceMgr_ListFiles("audio/fonts*", &fntListSize);
+#endif
     char** customFntList = ResourceMgr_ListFiles("custom/fonts/*", &customFntListSize);
 
     gAudioContext.fontLoadStatus = calloc(customFntListSize + fntListSize, sizeof(u8));
@@ -1385,6 +1403,15 @@ void OoT_AudioLoad_Init(void* heap, size_t heapSize) {
     fontMapSize = customFntListSize + fntListSize;
     for (int i = 0; i < fntListSize; i++) {
         SoundFont* sf = ResourceMgr_LoadAudioSoundFontByName(fntList[i]);
+        // RSBS: fntIndex comes straight from resource data with no range
+        // contract — bound it before the write (foreign/garbage entries used
+        // to walk fontMap out of bounds; the scoped glob should keep them
+        // out, this is the backstop).
+        if (sf == NULL || sf->fntIndex < 0 || (size_t)sf->fntIndex >= fontMapSize) {
+            fprintf(stderr, "[OoT] AudioLoad: skipping foreign/garbage soundfont %s (fntIndex %d)\n", fntList[i],
+                    sf != NULL ? (int)sf->fntIndex : -1);
+            continue;
+        }
         fontMap[sf->fntIndex] = strdup(fntList[i]);
     }
 
@@ -1454,7 +1481,8 @@ void OoT_AudioLoad_Init(void* heap, size_t heapSize) {
         sDat->seqNumber = seqNum;
         printf("%d\n", seqNum);
         if ((size_t)sDat->seqNumber >= sequenceMapSize) {
-            fprintf(stderr, "[OoT] AudioLoad: custom sequence %s overflows sequenceMap (seqNumber %d >= %u); skipping\n",
+            fprintf(stderr,
+                    "[OoT] AudioLoad: custom sequence %s overflows sequenceMap (seqNumber %d >= %u); skipping\n",
                     customSeqList[j], seqNum, (unsigned)sequenceMapSize);
             seqNum++;
             continue;
@@ -1634,7 +1662,7 @@ void AudioLoad_DmaSlowCopy(AudioSlowLoad* slowLoad, size_t size) {
     OoT_Audio_InvalDCache(slowLoad->curRamAddr, size);
     osCreateMesgQueue(&slowLoad->msgqueue, &slowLoad->msg, 1);
     OoT_AudioLoad_Dma(&slowLoad->ioMesg, OS_MESG_PRI_NORMAL, 0, slowLoad->curDevAddr, slowLoad->curRamAddr, size,
-                  &slowLoad->msgqueue, slowLoad->medium, "SLOWCOPY");
+                      &slowLoad->msgqueue, slowLoad->medium, "SLOWCOPY");
 }
 
 void AudioLoad_DmaSlowCopyUnkMedium(uintptr_t devAddr, uintptr_t ramAddr, size_t size, s32 arg3) {
@@ -1881,8 +1909,8 @@ void AudioLoad_AsyncDma(AudioAsyncLoad* asyncLoad, size_t size) {
     size = ALIGN16(size);
     OoT_Audio_InvalDCache(asyncLoad->curRamAddr, size);
     osCreateMesgQueue(&asyncLoad->msgQueue, &asyncLoad->msg, 1);
-    OoT_AudioLoad_Dma(&asyncLoad->ioMesg, 0, 0, asyncLoad->curDevAddr, asyncLoad->curRamAddr, size, &asyncLoad->msgQueue,
-                  asyncLoad->medium, "BGCOPY");
+    OoT_AudioLoad_Dma(&asyncLoad->ioMesg, 0, 0, asyncLoad->curDevAddr, asyncLoad->curRamAddr, size,
+                      &asyncLoad->msgQueue, asyncLoad->medium, "BGCOPY");
 }
 
 void AudioLoad_AsyncDmaUnkMedium(uintptr_t devAddr, uintptr_t ramAddr, size_t size, s16 arg3) {
@@ -1928,26 +1956,26 @@ void AudioLoad_RelocateFontAndPreloadSamples(s32 fontId, SoundFontData* mem, Rel
             case false:
                 if (sample->medium == relocInfo->medium1) {
                     addr = OoT_AudioHeap_AllocSampleCache(sample->size, relocInfo->sampleBankId1, sample->sampleAddr,
-                                                      sample->medium, CACHE_PERSISTENT);
+                                                          sample->medium, CACHE_PERSISTENT);
                 } else if (sample->medium == relocInfo->medium2) {
                     addr = OoT_AudioHeap_AllocSampleCache(sample->size, relocInfo->sampleBankId2, sample->sampleAddr,
-                                                      sample->medium, CACHE_PERSISTENT);
+                                                          sample->medium, CACHE_PERSISTENT);
                 } else if (sample->medium == MEDIUM_DISK_DRIVE) {
                     addr = OoT_AudioHeap_AllocSampleCache(sample->size, 0xFE, sample->sampleAddr, sample->medium,
-                                                      CACHE_PERSISTENT);
+                                                          CACHE_PERSISTENT);
                 }
                 break;
 
             case true:
                 if (sample->medium == relocInfo->medium1) {
                     addr = OoT_AudioHeap_AllocSampleCache(sample->size, relocInfo->sampleBankId1, sample->sampleAddr,
-                                                      sample->medium, CACHE_TEMPORARY);
+                                                          sample->medium, CACHE_TEMPORARY);
                 } else if (sample->medium == relocInfo->medium2) {
                     addr = OoT_AudioHeap_AllocSampleCache(sample->size, relocInfo->sampleBankId2, sample->sampleAddr,
-                                                      sample->medium, CACHE_TEMPORARY);
+                                                          sample->medium, CACHE_TEMPORARY);
                 } else if (sample->medium == MEDIUM_DISK_DRIVE) {
                     addr = OoT_AudioHeap_AllocSampleCache(sample->size, 0xFE, sample->sampleAddr, sample->medium,
-                                                      CACHE_TEMPORARY);
+                                                          CACHE_TEMPORARY);
                 }
                 break;
         }
@@ -1959,7 +1987,7 @@ void AudioLoad_RelocateFontAndPreloadSamples(s32 fontId, SoundFontData* mem, Rel
             case false:
                 if (sample->medium == MEDIUM_UNK) {
                     OoT_AudioLoad_SyncDmaUnkMedium(sample->sampleAddr, addr, sample->size,
-                                               gAudioContext.sampleBankTable->unkMediumParam);
+                                                   gAudioContext.sampleBankTable->unkMediumParam);
                     sample->sampleAddr = addr;
                     sample->medium = MEDIUM_RAM;
                 } else {
@@ -2194,20 +2222,20 @@ void AudioLoad_PreloadSamplesForFont(s32 fontId, s32 async, RelocInfo* relocInfo
             case false:
                 if (sample->medium == relocInfo->medium1) {
                     addr = OoT_AudioHeap_AllocSampleCache(sample->size, relocInfo->sampleBankId1, sample->sampleAddr,
-                                                      sample->medium, CACHE_PERSISTENT);
+                                                          sample->medium, CACHE_PERSISTENT);
                 } else if (sample->medium == relocInfo->medium2) {
                     addr = OoT_AudioHeap_AllocSampleCache(sample->size, relocInfo->sampleBankId2, sample->sampleAddr,
-                                                      sample->medium, CACHE_PERSISTENT);
+                                                          sample->medium, CACHE_PERSISTENT);
                 }
                 break;
 
             case true:
                 if (sample->medium == relocInfo->medium1) {
                     addr = OoT_AudioHeap_AllocSampleCache(sample->size, relocInfo->sampleBankId1, sample->sampleAddr,
-                                                      sample->medium, CACHE_TEMPORARY);
+                                                          sample->medium, CACHE_TEMPORARY);
                 } else if (sample->medium == relocInfo->medium2) {
                     addr = OoT_AudioHeap_AllocSampleCache(sample->size, relocInfo->sampleBankId2, sample->sampleAddr,
-                                                      sample->medium, CACHE_TEMPORARY);
+                                                          sample->medium, CACHE_TEMPORARY);
                 }
                 break;
         }
@@ -2219,7 +2247,7 @@ void AudioLoad_PreloadSamplesForFont(s32 fontId, s32 async, RelocInfo* relocInfo
             case false:
                 if (sample->medium == MEDIUM_UNK) {
                     OoT_AudioLoad_SyncDmaUnkMedium(sample->sampleAddr, addr, sample->size,
-                                               gAudioContext.sampleBankTable->unkMediumParam);
+                                                   gAudioContext.sampleBankTable->unkMediumParam);
                     sample->sampleAddr = addr;
                     sample->medium = MEDIUM_RAM;
                 } else {

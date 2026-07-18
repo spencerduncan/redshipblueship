@@ -378,8 +378,8 @@ extern "C" int OoT_InitSharedContextSubsystems(void) {
     ctx->InitResourceManager({ portArchivePath }, {}, 3, true);
     ctx->InitConsole();
 
-    return (ctx->GetConfig() != nullptr && ctx->GetConsoleVariables() != nullptr &&
-            ctx->GetControlDeck() != nullptr && ctx->GetResourceManager() != nullptr && ctx->GetConsole() != nullptr)
+    return (ctx->GetConfig() != nullptr && ctx->GetConsoleVariables() != nullptr && ctx->GetControlDeck() != nullptr &&
+            ctx->GetResourceManager() != nullptr && ctx->GetConsole() != nullptr)
                ? 0
                : -1;
 }
@@ -400,8 +400,7 @@ OTRGlobals::OTRGlobals() {
         context = existing;
         fprintf(stderr, "[OoT] Reusing existing Ship::Context singleton\n");
     } else {
-        context =
-            Ship::Context::CreateUninitializedInstance("Ship of Harkinian", appShortName, "shipofharkinian.json");
+        context = Ship::Context::CreateUninitializedInstance("Ship of Harkinian", appShortName, "shipofharkinian.json");
     }
 #else
     // Standalone mode: create our own context
@@ -1117,6 +1116,20 @@ int AudioPlayer_Buffered(void);
 extern "C" int AudioPlayer_GetDesiredBuffered(void);
 std::unordered_map<std::string, ExtensionEntry> ExtensionCache;
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "context.h" // src/common — Context_GetCurrentGame / GAME_MM for the active-game audio dispatch
+extern "C" {
+// MM's synth consumer (games/mm/src/audio/lib/thread.c). Signature mirrors
+// OoT_AudioMgr_CreateNextAudioBuffer; upstream's only call site (BenPort.cpp)
+// is excluded from single-exe builds, so the shared audio thread below is its
+// one caller.
+void MM_AudioMgr_CreateNextAudioBuffer(s16* samples, u32 num_samples);
+// MM's audio heap/context live flag (games/mm/src/audio/lib/load.c) — true
+// between MM_AudioLoad_Init/MM_Game_Resume and MM_Game_Suspend/Shutdown.
+extern s32 gAudioCtxInitalized;
+}
+#endif
+
 // OoT's gGameInfo is allocated by func_800636C0, which only runs inside OoT's
 // Main(). In single-exe builds the Graph_* / audio bridges below are shared
 // with MM (MM's BenPort.cpp copies are excluded from the build), so on an
@@ -1124,6 +1137,16 @@ std::unordered_map<std::string, ExtensionEntry> ExtensionCache;
 // R_UPDATE_RATE would dereference it (issue #330 follow-up). Fall back to the
 // vanilla update rate (3, the GameState default from game.c) until OoT boots.
 static s32 Ship_GetUpdateRate() {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // While MM is active, gGameInfo is a suspended OoT session's struct (or
+    // NULL on an MM-first boot) — its R_UPDATE_RATE must not leak into MM's
+    // audio pacing. MM's port always runs the vanilla divisor 3 (game.c sets
+    // framerateDivisor 3; the 60fps enhancements are excluded from the
+    // single-exe link), so pin it.
+    if (Context_GetCurrentGame() == GAME_MM) {
+        return 3;
+    }
+#endif
     return (gGameInfo != NULL && R_UPDATE_RATE > 0) ? R_UPDATE_RATE : 3;
 }
 
@@ -1153,14 +1176,63 @@ void OTRAudio_Thread() {
         u32 num_audio_samples = samples_left < AudioPlayer_GetDesiredBuffered() ? SAMPLES_HIGH : SAMPLES_LOW;
 
         // 3 is the maximum authentic frame divisor.
-        // Zero-initialized: with OoT's audio context not (yet) initialized —
-        // MM-first boot, or MM running after OoT_Game_Suspend's reset — the
-        // synth below writes nothing, and the buffer must play as silence
-        // rather than uninitialized stack memory.
+        // Zero-initialized: with the active game's audio context not (yet)
+        // initialized — first boot, or frames during a switch after the
+        // suspending side cleared its init flag — the synth below writes
+        // nothing, and the buffer must play as silence rather than
+        // uninitialized stack memory.
         s16 audio_buffer[SAMPLES_HIGH * NUM_AUDIO_CHANNELS * 3] = { 0 };
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // MM has no audio pump of its own in single-exe builds: upstream
+        // 2S2H's entire consumer half (BenPort.cpp's audio thread ->
+        // MM_AudioMgr_CreateNextAudioBuffer) is excluded from the link, while
+        // MM's game frames still pump THIS thread through the shared
+        // Graph_ProcessGfxCommands bridge. Dispatch the synth on the active
+        // game so MM frames drain MM's audio command queue instead of
+        // synthesizing OoT-side silence. Gated on MM's audio-heap flag
+        // (set by MM_AudioLoad_Init / MM_Game_Resume, cleared by
+        // MM_Game_Suspend/Shutdown) so pre-init and mid-switch frames keep
+        // the zeroed buffer.
+        bool mmSynthActive = Context_GetCurrentGame() == GAME_MM && gAudioCtxInitalized;
+        for (int i = 0; i < AUDIO_FRAMES_PER_UPDATE; i++) {
+            if (mmSynthActive) {
+                MM_AudioMgr_CreateNextAudioBuffer(audio_buffer + i * (num_audio_samples * NUM_AUDIO_CHANNELS),
+                                                  num_audio_samples);
+            } else {
+                OoT_AudioMgr_CreateNextAudioBuffer(audio_buffer + i * (num_audio_samples * NUM_AUDIO_CHANNELS),
+                                                   num_audio_samples);
+            }
+        }
+#else
         for (int i = 0; i < AUDIO_FRAMES_PER_UPDATE; i++) {
             OoT_AudioMgr_CreateNextAudioBuffer(audio_buffer + i * (num_audio_samples * NUM_AUDIO_CHANNELS),
-                                           num_audio_samples);
+                                               num_audio_samples);
+        }
+#endif
+
+        // Env-gated diagnostics (RSBS_AUDIO_PROBE=1): once per ~60 buffers,
+        // report which game's synth ran and whether it produced any nonzero
+        // samples — the programmatic stand-in for "can you hear it".
+        static const bool sAudioProbe = getenv("RSBS_AUDIO_PROBE") != NULL;
+        if (sAudioProbe) {
+            static u32 sProbeBuffers = 0;
+            if (++sProbeBuffers % 60 == 0) {
+                size_t total = (size_t)num_audio_samples * NUM_AUDIO_CHANNELS * AUDIO_FRAMES_PER_UPDATE;
+                size_t nonzero = 0;
+                for (size_t s = 0; s < total; s++) {
+                    if (audio_buffer[s] != 0) {
+                        nonzero++;
+                    }
+                }
+#ifdef RSBS_SINGLE_EXECUTABLE
+                int probeGame = (int)Context_GetCurrentGame();
+#else
+                int probeGame = -1;
+#endif
+                fprintf(stderr, "[AUDIO-PROBE] buffers=%u game=%d nonzero=%zu/%zu\n", sProbeBuffers, probeGame, nonzero,
+                        total);
+                fflush(stderr);
+            }
         }
 
         AudioPlayer_Play((u8*)audio_buffer,
@@ -1781,6 +1853,18 @@ std::shared_ptr<Ship::ResourceFactory> OoT_CreateSceneFactory() {
  */
 std::shared_ptr<Ship::ResourceFactory> OoT_CreateCutsceneFactory() {
     return std::make_shared<SOH::ResourceFactoryBinaryCutsceneV0>();
+}
+
+/**
+ * Same again for the "Path" ('OPTH') loader slot. MM's Path wire format
+ * carries extra fields, so a flat overwrite (the pre-2026-07-18 arrangement)
+ * made every OoT Path resource parse with MM's reader once MM_Game_Init ran —
+ * MemoryStream read past the end of the buffer and the resulting
+ * std::out_of_range rethrown out of the resource future killed the process on
+ * the first OoT scene with patrol paths loaded after any MM visit.
+ */
+std::shared_ptr<Ship::ResourceFactory> OoT_CreatePathFactory() {
+    return std::make_shared<SOH::ResourceFactoryBinaryPathV0>();
 }
 #endif
 
@@ -2762,8 +2846,8 @@ void OoT_FreezeState(ComboContext* ctx) {
         }
     }
 
-    fprintf(stderr, "[OoT] State frozen, return entrance: 0x%04X, isRando: %d, seed: %u\n",
-            returnEntrance, ctx->sourceIsRando, ctx->sharedRandoSeed);
+    fprintf(stderr, "[OoT] State frozen, return entrance: 0x%04X, isRando: %d, seed: %u\n", returnEntrance,
+            ctx->sourceIsRando, ctx->sharedRandoSeed);
 }
 
 /**

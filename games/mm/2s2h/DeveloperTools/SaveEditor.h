@@ -7,7 +7,23 @@ extern "C" {
 #include "z64save.h"
 }
 
-typedef enum {
+#ifdef RSBS_SINGLE_EXECUTABLE
+// Both ports define FlagTable/FlagTableType/SaveEditorWindow (SoH:
+// soh/Enhancements/debugger/debugSaveEditor.h) with IDENTICAL mangled member
+// names but DIFFERENT layouts — SoH's FlagTable carries a std::map field
+// where MM's carries a std::vector<FlagEntry>. The implicit member functions
+// are COMDATs, so under first-wins archive resolution ONE game's
+// copy-constructor serves BOTH games' header-defined `flagTables` static
+// initializers; which game wins depends on archive-member pull order, and the
+// 2026-07-18 audio-dispatch link-set change flipped it — every process
+// crashed at static init (AV in std::_Tree::_Copy under
+// soh_enh:TimeSplits.cpp's initializer). Namespace-split MM's side into S2H
+// (the established rename namespace, same treatment as AudioCollection); the
+// using-declarations below keep unqualified consumers compiling unchanged.
+namespace S2H {
+#endif
+
+typedef enum FlagTableType {
     CURRENT_SCENE_FLAGS,
     WEEK_EVENT_REG,
     EVENT_INF,
@@ -17,7 +33,7 @@ typedef enum {
     CYCLE_SCENE_FLAGS,
 } FlagTableType;
 
-typedef enum {
+typedef enum SaveEditorFlagType {
     NONE,
     PERSISTENT,
     CYCLE_RESET,
@@ -949,3 +965,17 @@ class SaveEditorWindow : public Ship::GuiWindow {
     void DrawElement() override;
     void UpdateElement() override{};
 };
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+} // namespace S2H
+
+using S2H::FlagEntry;
+using S2H::FlagTable;
+using S2H::flagTables;
+using S2H::FlagTableType;
+using S2H::safeItemsForInventorySlot;
+using S2H::SaveEditorFlagType;
+using S2H::SaveEditorWindow;
+using enum S2H::FlagTableType;
+using enum S2H::SaveEditorFlagType;
+#endif

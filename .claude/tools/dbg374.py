@@ -3,7 +3,7 @@ exception event (0xC0000374 / any late exception), dump RIP + a raw stack scan
 with module!offset resolution (redship offsets resolvable via redship.map)."""
 import ctypes as C
 import ctypes.wintypes as W
-import sys, struct, re, bisect
+import sys, os, struct, re, bisect
 
 k32 = C.windll.kernel32
 psapi = C.windll.psapi
@@ -161,7 +161,29 @@ def main():
             first = ev.u.Exception.dwFirstChance
             if code in (0x80000003, 0x4000001F, 0x80000004):  # breakpoints/single-step
                 status = DBG_CONTINUE
-            elif code in (0xE06D7363, 0x406D1388, 0x6BA):  # C++ EH, thread-name, WER RPC
+            elif code == 0xE06D7363:  # C++ EH — normally silent (LUS throws in
+                # routine paths); DBG374_CPPEH=1 logs each throw with the exe
+                # frames scanned off the stack, map-resolved, so an unhandled
+                # C++ exception's THROW SITE is attributable without WinDbg.
+                if os.environ.get("DBG374_CPPEH"):
+                    mods = module_list(pi.hProcess)
+                    frames = []
+                    hThread = k32.OpenThread(0x1FFFFF, False, ev.dwThreadId)
+                    got = get_context(hThread)
+                    if got:
+                        _rip, _rsp, _rbp = got
+                        stk = read_mem(pi.hProcess, _rsp, 0x4000)
+                        for _off in range(0, len(stk) - 7, 8):
+                            _val = struct.unpack_from("<Q", stk, _off)[0]
+                            _loc = resolve(mods, _val)
+                            if _loc and _loc.startswith("redship"):
+                                frames.append(_loc)
+                                if len(frames) >= 24:
+                                    break
+                    print("CPPEH tid=%d firstChance=%d frames: %s" % (ev.dwThreadId, first, " | ".join(frames) or "(none)"))
+                    sys.stdout.flush()
+                status = DBG_EXCEPTION_NOT_HANDLED
+            elif code in (0x406D1388, 0x6BA):  # thread-name, WER RPC
                 status = DBG_EXCEPTION_NOT_HANDLED
             else:
                 print("EXCEPTION 0x%08X firstChance=%d at %s" % (code, first, hex(rec.ExceptionAddress or 0)))

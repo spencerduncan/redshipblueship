@@ -1,4 +1,5 @@
 #include "global.h"
+#include <stdio.h>
 #include "vt.h"
 
 #include <string.h>
@@ -25,6 +26,9 @@
 extern uint16_t Combo_GetStartupEntrance(void);
 extern void Combo_ClearStartupEntrance(void);
 extern uint16_t Combo_GetStartupEntranceForGame(const char* gameId);
+extern bool Combo_HasStartupEntranceForGame(const char* gameId);
+extern int Combo_HasFrozenState(const char* gameId);
+extern int Combo_RestoreState(const char* gameId, void* saveContext, size_t size);
 
 // Cross-game combo support - entrance switch checking
 extern uint16_t Combo_CheckEntranceSwitch(uint16_t entranceIndex);
@@ -75,8 +79,9 @@ void Play_SetViewpoint(PlayState* play, s16 viewpoint) {
     play->unk_1242B = viewpoint;
 
     if ((YREG(15) != 0x10) && (gSaveContext.cutsceneIndex < 0xFFF0)) {
-        Audio_PlaySoundGeneral((viewpoint == 1) ? NA_SE_SY_CAMERA_ZOOM_DOWN : NA_SE_SY_CAMERA_ZOOM_UP, &OoT_gSfxDefaultPos,
-                               4, &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
+        Audio_PlaySoundGeneral((viewpoint == 1) ? NA_SE_SY_CAMERA_ZOOM_DOWN : NA_SE_SY_CAMERA_ZOOM_UP,
+                               &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultFreqAndVolScale,
+                               &OoT_gSfxDefaultReverb);
     }
 
     Play_RequestViewpointBgCam(play);
@@ -205,7 +210,7 @@ void func_800BC88C(PlayState* play) {
 
 Gfx* OoT_Play_SetFog(PlayState* play, Gfx* gfx) {
     return OoT_Gfx_SetFog2(gfx, play->lightCtx.fogColor[0], play->lightCtx.fogColor[1], play->lightCtx.fogColor[2], 0,
-                       play->lightCtx.fogNear, 1000);
+                           play->lightCtx.fogNear, 1000);
 }
 
 void OoT_Play_Destroy(GameState* thisx) {
@@ -401,14 +406,32 @@ void OoT_Play_Init(GameState* thisx) {
         // global must never reach gSaveContext.entranceIndex — it is a direct
         // linear index into gEntranceTable[ENTR_MAX], so an MM value reads far
         // out of bounds and crashes (0xC0000005) in Cutscene_HandleConditionalTriggers.
-        uint16_t startupEntrance = Combo_GetStartupEntranceForGame("oot");
-        if (startupEntrance != 0) {
+        // Presence-gated like MM's consumption: entrance 0x0000 is a real id
+        // (Kokiri Forest from Deku Tree), and this is also the frozen-save
+        // continuity point, so value-gating would drop a legitimate restore.
+        if (Combo_HasStartupEntranceForGame("oot")) {
+            uint16_t startupEntrance = Combo_GetStartupEntranceForGame("oot");
             if (startupEntrance >= ENTR_MAX) {
                 // Defense in depth: never index gEntranceTable out of range,
                 // even if a bogus value slips past the game-affinity check.
                 osSyncPrintf("[OoT] Ignoring out-of-range startup entrance 0x%04X\n", startupEntrance);
                 Combo_ClearStartupEntrance();
             } else {
+                // Re-apply the frozen OoT save AFTER the boot chain's wipes.
+                // OoT_Game_Resume restores it at switch time, but the resume
+                // fast-forward passes through Opening_Init (z_opening.c),
+                // which re-authors the ADULT debug save over gSaveContext —
+                // the OoT twin of the MM cycle-2 wipe fixed in
+                // MM_Play_ConsumeStartupEntrance. This is the first point
+                // both after the last wipe and before the save is
+                // interpreted; without it, OoT continuity (age, rupees,
+                // inventory) silently reset on every return trip. A first
+                // OoT boot has no frozen state — the restore is a no-op.
+                if (Combo_HasFrozenState("oot")) {
+                    Combo_RestoreState("oot", &gSaveContext, sizeof(gSaveContext));
+                }
+                fprintf(stderr, "[OoT] consumption: restored, linkAge=%d\n", (int)gSaveContext.linkAge);
+                fflush(stderr);
                 gSaveContext.entranceIndex = startupEntrance;
                 // A cold boot with a pending startup entrance reaches this
                 // Play_Init through the title chain (z_title fast-forward ->
@@ -419,6 +442,70 @@ void OoT_Play_Init(GameState* thisx) {
                 // games/mm/src/code/z_play.c startup-entrance consumption).
                 gSaveContext.cutsceneIndex = 0;
                 gSaveContext.gameMode = GAMEMODE_NORMAL;
+                // The frozen blob can carry in-flight respawn/day-transition
+                // state that never used to reach gameplay (the Opening wipe
+                // zeroed it): a stale respawnFlag would replay the OLD
+                // session's respawn[] modes/coordinates into the arrival
+                // scene, and a pending nextDayTime (0xFFFF = none) would
+                // overwrite dayTime on the first frame. Arrivals are plain
+                // spawns — neutralize both (mirrors MM's consumption).
+                gSaveContext.respawnFlag = 0;
+                gSaveContext.nextDayTime = 0xFFFF;
+                // The frozen save also carries the suspended session's LIVE
+                // BGM id in seqId — but the suspend path PreNMI'd the audio
+                // heap, so nothing is actually playing. Left as-is, the
+                // arrival scene's BGM start is skipped ("already playing")
+                // and OoT stays silent for the rest of the session. Declare
+                // audio dead so the scene starts its music from scratch
+                // (same reset the debug-save boot path uses).
+                gSaveContext.seqId = (u8)NA_BGM_DISABLED;
+                gSaveContext.natureAmbienceId = 0xFF;
+                // Force child Link on every cross-game arrival (operator
+                // decision: the MM trip is child-canon, so the OoT return
+                // resumes as child regardless of the frozen age). The equip
+                // swap must run BEFORE flipping linkAge —
+                // Inventory_SwapAgeEquipment keys off the current age to pick
+                // which of childEquips/adultEquips to archive and which to
+                // load (the vanilla Master Sword pedestal convention, see
+                // OoT_Play_Destroy above). Flipping linkAge alone would leave
+                // adult-only items (Biggoron Sword on B) live for a
+                // child-skeleton spawn — the classic model-group crash class.
+                if (gSaveContext.linkAge != LINK_AGE_CHILD) {
+                    fprintf(stderr, "[OoT] Forcing child Link on cross-game arrival (frozen age=%d)\n",
+                            (int)gSaveContext.linkAge);
+                    fflush(stderr);
+                    Inventory_SwapAgeEquipment();
+                    gSaveContext.linkAge = LINK_AGE_CHILD;
+                    // Post-swap hardening: the swap loads the child bucket
+                    // only when childEquips looks populated; authored saves
+                    // (the debug save, imported .redsaves) can carry a zeroed
+                    // or ITEM_NONE bucket, leaving adult items or zero
+                    // nibbles in the live equips. Player_SetEquipmentData
+                    // derives currentSword/Tunic/Boots from these (value-1),
+                    // so a zero nibble underflows the model tables. Normalize
+                    // to the child baseline where needed.
+                    {
+                        u16 equip = gSaveContext.equips.equipment;
+                        u16 tunic = (equip >> (EQUIP_TYPE_TUNIC * 4)) & 0xF;
+                        u16 boots = (equip >> (EQUIP_TYPE_BOOTS * 4)) & 0xF;
+                        u16 sword = (equip >> (EQUIP_TYPE_SWORD * 4)) & 0xF;
+                        u8 bItem = gSaveContext.equips.buttonItems[0];
+                        s32 adultSwordOnB =
+                            bItem == ITEM_SWORD_MASTER || bItem == ITEM_SWORD_BGS || bItem == ITEM_SWORD_KNIFE;
+                        if (sword != EQUIP_VALUE_SWORD_KOKIRI || adultSwordOnB) {
+                            equip &= (u16) ~(0xF << (EQUIP_TYPE_SWORD * 4));
+                            equip |= EQUIP_VALUE_SWORD_KOKIRI << (EQUIP_TYPE_SWORD * 4);
+                            gSaveContext.equips.buttonItems[0] = ITEM_SWORD_KOKIRI;
+                        }
+                        if (tunic == 0) {
+                            equip |= EQUIP_VALUE_TUNIC_KOKIRI << (EQUIP_TYPE_TUNIC * 4);
+                        }
+                        if (boots == 0) {
+                            equip |= EQUIP_VALUE_BOOTS_KOKIRI << (EQUIP_TYPE_BOOTS * 4);
+                        }
+                        gSaveContext.equips.equipment = equip;
+                    }
+                }
                 Combo_ClearStartupEntrance();
                 osSyncPrintf("[OoT] Cross-game switch: loading entrance 0x%04X\n", startupEntrance);
             }
@@ -727,8 +814,8 @@ void OoT_Play_Init(GameState* thisx) {
 
     if (CVarGetInteger(CVAR_ENHANCEMENT("IvanCoopModeEnabled"), 0)) {
         OoT_Actor_Spawn(&play->actorCtx, play, gEnPartnerId, GET_PLAYER(play)->actor.world.pos.x,
-                    GET_PLAYER(play)->actor.world.pos.y + OoT_Player_GetHeight(GET_PLAYER(play)) + 5.0f,
-                    GET_PLAYER(play)->actor.world.pos.z, 0, 0, 0, 1, true);
+                        GET_PLAYER(play)->actor.world.pos.y + OoT_Player_GetHeight(GET_PLAYER(play)) + 5.0f,
+                        GET_PLAYER(play)->actor.world.pos.z, 0, 0, 0, 1, true);
     }
 }
 
@@ -866,7 +953,8 @@ void OoT_Play_Update(PlayState* play) {
                               ENTRANCE_INFO_CONTINUE_BGM_FLAG)) {
                             // "Sound initalized. 111"
                             osSyncPrintf("\n\n\nサウンドイニシャル来ました。111");
-                            if ((play->transitionType < TRANS_TYPE_MAX) && !OoT_Environment_IsForcedSequenceDisabled()) {
+                            if ((play->transitionType < TRANS_TYPE_MAX) &&
+                                !OoT_Environment_IsForcedSequenceDisabled()) {
                                 // "Sound initalized. 222"
                                 osSyncPrintf("\n\n\nサウンドイニシャル来ました。222");
                                 func_800F6964(0x14);
@@ -1390,7 +1478,7 @@ skip:
 
     PLAY_LOG(3816);
     OoT_Environment_Update(play, &play->envCtx, &play->lightCtx, &play->pauseCtx, &play->msgCtx, &play->gameOverCtx,
-                       play->state.gfxCtx);
+                           play->state.gfxCtx);
 }
 
 void Play_DrawOverlayElements(PlayState* play) {
@@ -1645,14 +1733,14 @@ void OoT_Play_Draw(PlayState* play) {
         if ((HREG(80) != 10) || (HREG(87) != 0)) {
             if (MREG(64) != 0) {
                 OoT_Environment_FillScreen(gfxCtx, MREG(65), MREG(66), MREG(67), MREG(68),
-                                       FILL_SCREEN_OPA | FILL_SCREEN_XLU);
+                                           FILL_SCREEN_OPA | FILL_SCREEN_XLU);
             }
 
             switch (play->envCtx.fillScreen) {
                 case 1:
                     OoT_Environment_FillScreen(gfxCtx, play->envCtx.screenFillColor[0], play->envCtx.screenFillColor[1],
-                                           play->envCtx.screenFillColor[2], play->envCtx.screenFillColor[3],
-                                           FILL_SCREEN_OPA | FILL_SCREEN_XLU);
+                                               play->envCtx.screenFillColor[2], play->envCtx.screenFillColor[3],
+                                               FILL_SCREEN_OPA | FILL_SCREEN_XLU);
                     break;
                 default:
                     break;
@@ -2164,7 +2252,7 @@ void Play_SaveSceneFlags(PlayState* play) {
 }
 
 void OoT_Play_SetRespawnData(PlayState* play, s32 respawnMode, s16 entranceIndex, s32 roomIndex, s32 playerParams,
-                         Vec3f* pos, s16 yaw) {
+                             Vec3f* pos, s16 yaw) {
     RespawnData* respawnData = &gSaveContext.respawn[respawnMode];
 
     respawnData->entranceIndex = entranceIndex;
@@ -2185,7 +2273,7 @@ void OoT_Play_SetupRespawnPoint(PlayState* play, s32 respawnMode, s32 playerPara
         roomIndex = play->roomCtx.curRoom.num;
         entranceIndex = gSaveContext.entranceIndex;
         OoT_Play_SetRespawnData(play, respawnMode, entranceIndex, roomIndex, playerParams, &player->actor.world.pos,
-                            player->actor.shape.rot.y);
+                                player->actor.shape.rot.y);
     }
 }
 
@@ -2266,7 +2354,7 @@ s32 func_800C0DB4(PlayState* play, Vec3f* pos) {
     waterSurfacePos = *pos;
 
     if (OoT_WaterBox_GetSurface1(play, &play->colCtx, waterSurfacePos.x, waterSurfacePos.z, &waterSurfacePos.y,
-                             &waterBox) == true &&
+                                 &waterBox) == true &&
         pos->y < waterSurfacePos.y &&
         OoT_BgCheck_EntityRaycastFloor3(&play->colCtx, &poly, &bgId, &waterSurfacePos) != BGCHECK_Y_MIN) {
         return true;

@@ -53,12 +53,12 @@ extern "C" u8* MM_gSystemHeap;
 
 namespace {
 
-#define RESUME_ASSERT(cond, msg)                                       \
-    do {                                                               \
-        if (!(cond)) {                                                 \
+#define RESUME_ASSERT(cond, msg)                                          \
+    do {                                                                  \
+        if (!(cond)) {                                                    \
             printf("[TEST] FAIL: %s (%s:%d)\n", msg, __FILE__, __LINE__); \
-            return 1;                                                  \
-        }                                                              \
+            return 1;                                                     \
+        }                                                                 \
     } while (0)
 
 } // namespace
@@ -160,6 +160,15 @@ extern "C" int MM_StartupRestore_RunHeadless(void) {
     RESUME_ASSERT(gSaveContext.save.entrance == kArrival, "first-entry startup entrance not applied");
     RESUME_ASSERT(gSaveContext.save.day == 0, "first-entry consumption must not invent save state");
     RESUME_ASSERT(!Combo_HasStartupEntrance(), "first-entry startup entrance not cleared");
+    // Cross-game arrivals are plain spawns: the Clock Town first-visit intro
+    // layer must be pre-suppressed on every consumed startup entrance. The
+    // SCT intro is ACTOR-triggered (ObjTokeiTobira on WEEKEVENTREG_59_04,
+    // Elf_Msg6 Tatl interrupt on WEEKEVENTREG_31_04) — cutsceneIndex=0 alone
+    // does not stop it.
+    RESUME_ASSERT(CHECK_WEEKEVENTREG(WEEKEVENTREG_59_04),
+                  "SCT tower-exit intro flag (WEEKEVENTREG_59_04) not pre-set on arrival");
+    RESUME_ASSERT(CHECK_WEEKEVENTREG(WEEKEVENTREG_31_04),
+                  "Tatl interrupt flag (WEEKEVENTREG_31_04) not pre-set on arrival");
 
     // Leave clean global state for later tests.
     Combo_ClearFrozenState("mm");

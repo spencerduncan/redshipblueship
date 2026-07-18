@@ -18,6 +18,8 @@
  * the graph thread to the audio thread.
  */
 #include "global.h"
+#include <stdio.h>
+#include <stdlib.h>
 #include "2s2h/Enhancements/Audio/AudioEditor.h"
 
 // Direct audio command (skips the queueing system)
@@ -138,8 +140,8 @@ void AudioSeq_ProcessSeqCmd(u32 cmd) {
 
                     if (MM_gActiveSeqs[seqPlayerIndex].prevSeqId != NA_BGM_DISABLED) {
                         if (*AudioThread_GetFontsForSequence(seqId, &outNumFonts, fontBuff) !=
-                            *AudioThread_GetFontsForSequence(MM_gActiveSeqs[seqPlayerIndex].prevSeqId & 0xFF, &outNumFonts,
-                                                             prevFontBuff)) {
+                            *AudioThread_GetFontsForSequence(MM_gActiveSeqs[seqPlayerIndex].prevSeqId & 0xFF,
+                                                             &outNumFonts, prevFontBuff)) {
                             // Discard Seq Fonts
                             AUDIOCMD_GLOBAL_DISCARD_SEQ_FONTS((s32)seqId);
                         }
@@ -286,7 +288,8 @@ void AudioSeq_ProcessSeqCmd(u32 cmd) {
             freqScaleTarget = (f32)val / 1000.0f;
             MM_gActiveSeqs[seqPlayerIndex].channelData[channelIndex].freqScaleTarget = freqScaleTarget;
             MM_gActiveSeqs[seqPlayerIndex].channelData[channelIndex].freqScaleStep =
-                (MM_gActiveSeqs[seqPlayerIndex].channelData[channelIndex].freqScaleCur - freqScaleTarget) / (f32)duration;
+                (MM_gActiveSeqs[seqPlayerIndex].channelData[channelIndex].freqScaleCur - freqScaleTarget) /
+                (f32)duration;
             MM_gActiveSeqs[seqPlayerIndex].channelData[channelIndex].freqScaleTimer = duration;
             MM_gActiveSeqs[seqPlayerIndex].freqScaleChannelFlags |= 1 << channelIndex;
             break;
@@ -369,7 +372,8 @@ void AudioSeq_ProcessSeqCmd(u32 cmd) {
             subOp = (cmd & 0xF00000) >> 20;
             if (subOp != SEQCMD_SUB_OP_SETUP_RESET_SETUP_CMDS) {
                 // Ensure the maximum number of setup commands is not exceeded
-                if (MM_gActiveSeqs[seqPlayerIndex].setupCmdNum < (ARRAY_COUNT(MM_gActiveSeqs[seqPlayerIndex].setupCmd) - 1)) {
+                if (MM_gActiveSeqs[seqPlayerIndex].setupCmdNum <
+                    (ARRAY_COUNT(MM_gActiveSeqs[seqPlayerIndex].setupCmd) - 1)) {
                     found = MM_gActiveSeqs[seqPlayerIndex].setupCmdNum++;
                     if (found < ARRAY_COUNT(MM_gActiveSeqs[seqPlayerIndex].setupCmd)) {
                         MM_gActiveSeqs[seqPlayerIndex].setupCmd[found] = cmd;
@@ -716,8 +720,9 @@ void AudioSeq_UpdateActiveSequences(void) {
                         MM_gActiveSeqs[seqPlayerIndex].freqScaleChannelFlags ^= (1 << channelIndex);
                     }
 
-                    AUDIOCMD_CHANNEL_SET_FREQ_SCALE(seqPlayerIndex, channelIndex,
-                                                    MM_gActiveSeqs[seqPlayerIndex].channelData[channelIndex].freqScaleCur);
+                    AUDIOCMD_CHANNEL_SET_FREQ_SCALE(
+                        seqPlayerIndex, channelIndex,
+                        MM_gActiveSeqs[seqPlayerIndex].channelData[channelIndex].freqScaleCur);
                 }
             }
         }
@@ -855,6 +860,20 @@ void AudioSeq_UpdateActiveSequences(void) {
 
 u8 AudioSeq_UpdateAudioHeapReset(void) {
     if (gAudioHeapResetState != AUDIO_HEAP_RESET_STATE_NONE) {
+        // RSBS_AUDIO_PROBE=1: reset-completion handshake watch (mirror of the
+        // OoT-side probe in code_800F9280.c func_800FAD34).
+        {
+            static int sProbeEnabled = -1;
+            static u32 sProbeCalls = 0;
+            if (sProbeEnabled < 0) {
+                sProbeEnabled = getenv("RSBS_AUDIO_PROBE") != NULL;
+            }
+            if (sProbeEnabled && (++sProbeCalls % 120 == 0)) {
+                fprintf(stderr, "[MM-RESET] state=%d specId=%d resetStatus=%d\n", (int)gAudioHeapResetState,
+                        (int)gAudioCtx.specId, (int)gAudioCtx.resetStatus);
+                fflush(stderr);
+            }
+        }
         if (gAudioHeapResetState == AUDIO_HEAP_RESET_STATE_RESETTING) {
             if (func_80193C5C() == 1) {
                 gAudioHeapResetState = AUDIO_HEAP_RESET_STATE_NONE;

@@ -80,6 +80,11 @@ uint32_t ResourceMgr_GetGamePlatform(int index);
 uint32_t ResourceMgr_GetGameRegion(int index);
 void ResourceMgr_LoadDirectory(const char* resName);
 char** ResourceMgr_ListFiles(const char* searchMask, int* resultSize);
+// Archive-scoped variant, single-exe only (defined in SoH's
+// ResourceManagerHelpers.cpp, the TU that wins the ResourceMgr_* link there;
+// call sites must be gated on RSBS_SINGLE_EXECUTABLE — standalone 2ship
+// builds do not link a definition). gameTag is "oot" or "mm".
+char** ResourceMgr_ListFilesForGame(const char* gameTag, const char* searchMask, int* resultSize);
 uint8_t ResourceMgr_FileExists(const char* resName);
 void ResourceMgr_LoadFile(const char* resName);
 char* ResourceMgr_LoadFileFromDisk(const char* filePath);

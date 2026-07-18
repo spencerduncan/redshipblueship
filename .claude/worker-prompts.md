@@ -1,4 +1,24 @@
-# Worker loop goals — Wave 3 (updated 2026-07-16, rev 2: crash log decoded)
+# Worker loop goals — Wave 3 (updated 2026-07-18, rev 5: audio + resume contract landed)
+
+**Rev 5 (2026-07-18, phase-3 local iteration):** MM audio works in single-exe
+for the first time, and the whole cross-game resume-audio/save contract is
+fixed — active-game synth dispatch on the shared audio thread, the PreNMI
+resetTimer latch (dropped every sequence start after any suspend, BOTH
+games), never-re-run audio bring-up, stale seqIds in frozen saves,
+archive-scoped sequence/font enumeration (the real fix behind 5cc341df's
+guards), the OoT-side Opening_Init save wipe (OoT continuity silently reset
+every return trip), forced-child-canon returns with an adult-boot harness
+variant (RSBS_GP_BOOT_AGE=adult), Clock Town intro suppression at the
+consumption point, and the Path-factory flat overwrite (killed the first
+path-bearing OoT scene loaded after any MM visit — masked by resource
+caching). Full account: docs/ci-gameplay-repro-postmortem.md §8.1. New
+tooling: RSBS_AUDIO_PROBE=1 (audio-liveness probes end to end),
+DBG374_CPPEH=1 (dbg374 logs C++ throws with map-resolved frames).
+Still open from the phase-3 list: the silent MM-first→OoT exit in OoT
+Main(), and the C4013 census/we4013 lock (prototypes exist for all 8; the
+census needs a clean-build re-run to confirm which caller TUs still miss
+them). Operator verdicts owed: MM music correctness, no Tatl intro, child
+Link on return.
 
 Supersedes **Wave 2** (the 2026-06-10 Lanes 5–6 that used to fill this file — all
 complete, see git history). Wave 2 was: Lane 5 = SOH shuffle feature ports

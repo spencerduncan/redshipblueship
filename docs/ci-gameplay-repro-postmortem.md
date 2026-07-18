@@ -517,6 +517,111 @@ bounds-guard and loudly skip foreign entries (`audio_load.c` /
 `load.c`), which also exposed the deeper correctness bug: foreign
 sequences whose ids land in-bounds silently SHADOW the native game's
 music in the map — in both boot orders — so the real fix is
-archive-scoped enumeration (open). With the guards in place the MM-first
-switch survives audio init but the process still exits silently later in
-OoT's `Main()` with no crash dump — next fault in the chain, undiagnosed.
+archive-scoped enumeration (landed 2026-07-18, see §8.1). With the
+guards in place the MM-first switch survives audio init but the process
+still exits silently later in OoT's `Main()` with no crash dump — next
+fault in the chain, undiagnosed.
+
+## 8.1 Phase-3 local iteration (2026-07-18, session 3): audio bring-up and the resume contract
+
+A third night on the workstation, working the operator's priority list
+(MM audio, Tatl intro, child-canon returns, archive scoping). Eight more
+production faults, each found by the previous fix's probe. The headline
+method lesson: **an env-gated probe that renders an invisible property
+visible (`RSBS_AUDIO_PROBE=1` — per-60-buffer nonzero-sample counts per
+game, plus synth/handshake state) converted "audio doesn't work" into
+five separately attributable faults in one session.**
+
+1. **MM total silence — the synth consumer was never linked.** The only
+   caller of `MM_AudioMgr_CreateNextAudioBuffer` (drains MM's audio
+   command ring, runs `MM_AudioSynth_Update`) is in BenPort.cpp, which
+   single-exe excludes. MM's producers ran every frame; the shared audio
+   thread (OTRGlobals.cpp) only ever called OoT's synth — intentional
+   zero-fill while OoT is quiesced. Fix: active-game dispatch on the
+   shared thread, gated on MM's `gAudioCtxInitalized`; MM suspend drains
+   the shared thread first (same UAF race OoT closed); update rate
+   pinned to 3 while MM is active.
+2. **The PreNMI resetTimer latch — audio died forever after any
+   suspend, both games.** `*_PreNMIInternal` sets `resetTimer = 1`; on
+   N64 the console then resets, but the port RESUMES and nothing clears
+   it — and `*AudioLoad_SyncInitSeqPlayer` silently drops EVERY sequence
+   start while it is nonzero. OoT's side has been broken this way since
+   switching existed (masked: no probe, and the operator's attention was
+   on MM). New `OoT_Audio_ResumeFromPreNMI`/`MM_Audio_ResumeFromPreNMI`
+   clear it on resume. Sibling gaps fixed in the same contract: the
+   audio bring-up never re-runs (`OoT_AudioMgr_Init` hides it behind a
+   static `hasInitialized`; MM's only runs in Game_Init) — both resumes
+   now call `*_Audio_InitSound`; and the frozen saves carry the
+   suspended session's LIVE seqId/ambience ids, so arrival scenes
+   skipped starting music — both consumption points now declare audio
+   dead (`NA_BGM_DISABLED`).
+3. **Archive-scoped enumeration** (the §8 item, landed): sequence and
+   font ids live in the resource payload, so foreign in-range entries
+   silently shadowed native music/fonts — OoT ids 0-109 all pass MM's
+   128 bound, both boot orders. `ResourceMgr_ListFilesForGame` filters
+   the shared glob by owning archive via the existing `sMMArchivePaths`
+   registry (`Combo_ArchivePathIsMM`); the fonts loops also gained the
+   bounds guard they never had (`sf->fntIndex` is a raw s32 from
+   resource data written into `fontMap[]` unchecked — a live OOB write).
+4. **The OoT return leg silently reset ALL OoT continuity** — the OoT
+   twin of §8 item 4: the resume fast-forward passes through
+   `Opening_Init` (z_opening.c), which re-authors the ADULT debug save
+   over the SaveContext `OoT_Game_Resume` had just restored. Observable:
+   the return leg loaded scene 34 (adult Market) instead of 32. The
+   restore now (also) runs at OoT's startup-entrance consumption in
+   `OoT_Play_Init` — first point after the last wipe, mirroring
+   `MM_Play_ConsumeStartupEntrance` — with plain-spawn neutralization
+   (respawnFlag, nextDayTime, audio ids) and presence-gating. Child Link
+   is forced there on every cross-game arrival (operator decision:
+   child-canon MM trip): `Inventory_SwapAgeEquipment` BEFORE flipping
+   linkAge, plus post-swap equip normalization for authored saves with
+   empty child buckets. The harness return-leg assert
+   (`linkAge==LINK_AGE_CHILD`) caught the wipe on its first run;
+   `RSBS_GP_BOOT_AGE=adult` boots the debug save as adult so the swap
+   branch runs end-to-end.
+5. **MM's Clock Town first-visit intro is ACTOR-triggered** —
+   `ObjTokeiTobira` fires its Tatl/camera cutscene on any layer-0
+   SCENE_CLOCKTOWER load while `WEEKEVENTREG_59_04` is clear, and
+   Elf_Msg6 force-interrupts (text 0x216) on `WEEKEVENTREG_31_04` — so
+   the consumption point's cutsceneIndex=0 reset could not stop it. It
+   now pre-sets the same flag set every upstream 2S2H intro-skip path
+   uses (59_04, 31_04, ENTERED_E/W/N, INSIDETOWER HMS switch). NOTE:
+   `MM_InitFirstEntrySaveContext` (BenPort.cpp), the obvious-looking fix
+   site, is DEAD CODE in single-exe (BenPort.cpp and its caller
+   switch.cpp are both excluded).
+6. **Path factory flat overwrite — a production landmine masked by
+   resource caching.** Unlike Room/Cutscene (per-archive dispatchers,
+   #344), MM's Path factory registration flat-overwrote the shared
+   SOH_Path loader slot; every OoT Path resource FIRST-loaded after
+   MM_Game_Init parsed with MM's wire format (extra fields) →
+   `MemoryStream` read past the buffer → `std::out_of_range` rethrown
+   out of the resource future → process death (exception 0xE06D7363, NOT
+   an AV — invisible to AV-focused tooling). The stock harness route
+   never hit it because its scenes' paths were cached before MM
+   initialized; the adult-boot variant first-loads child Market on the
+   return leg. Path now uses the same dispatcher (new
+   `OoT_CreatePathFactory`). Tooling: dbg374 gained `DBG374_CPPEH=1` —
+   logs every C++ throw with map-resolved exe stack frames.
+7. **Link-set changes arm dormant COMDAT collisions.** The audio
+   dispatch newly pulled MM's kaleido + PauseOwlWarp objects, which (a)
+   needed `sOwlWarpEntrancesForMods` (defined in excluded ShipUtils.cpp;
+   single-exe now defines the vanilla table in GameExports_SingleExe.cpp)
+   and (b) flipped which game's `FlagTable` copy-constructor COMDAT wins
+   — both ports define FlagTable with identical mangles but DIFFERENT
+   layouts (SoH: std::map member; MM: std::vector<FlagEntry>), so every
+   process crashed at static init (AV in `_Tree::_Copy` under
+   soh_enh:TimeSplits.cpp's initializer). MM's SaveEditor types now live
+   in namespace S2H (the AudioCollection treatment). Lesson for the
+   backlog: the remaining intersection entries (UIWidgets Options
+   structs, HookInfo, Notification::Options, WeirdAnimation) are
+   landmines armed by ANY link-set change; the
+   check-symbol-collisions.sh baseline should be burned down, not
+   tolerated. A map-file COMDAT-provider audit
+   (scratchpad comdat_provider_audit.py pattern) shows which archive
+   serves each family after a link change.
+
+Verified at session end: 24/24 redship tests; child and adult-boot
+round trips PASS; probed 3-cycle soak PASS with nonzero audio on every
+leg of every cycle on both games and rupee sentinels 101/102/103.
+Operator verdicts still owed: MM music correctness (right tracks, right
+instruments), no Tatl intro on arrival, child Link visible on return.

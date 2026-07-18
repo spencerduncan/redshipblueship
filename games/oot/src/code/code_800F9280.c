@@ -1,4 +1,6 @@
 #include <libultraship/libultra.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include "global.h"
 #include "soh/mixer.h"
 
@@ -494,7 +496,8 @@ void func_800FA3DC(void) {
             OoT_gActiveSeqs[playerIdx].volTimer--;
 
             if (OoT_gActiveSeqs[playerIdx].volTimer != 0) {
-                OoT_gActiveSeqs[playerIdx].volCur = OoT_gActiveSeqs[playerIdx].volCur - OoT_gActiveSeqs[playerIdx].volStep;
+                OoT_gActiveSeqs[playerIdx].volCur =
+                    OoT_gActiveSeqs[playerIdx].volCur - OoT_gActiveSeqs[playerIdx].volStep;
             } else {
                 OoT_gActiveSeqs[playerIdx].volCur = OoT_gActiveSeqs[playerIdx].volTarget;
             }
@@ -554,7 +557,8 @@ void func_800FA3DC(void) {
         if (OoT_gActiveSeqs[playerIdx].tempoTimer != 0) {
             OoT_gActiveSeqs[playerIdx].tempoTimer--;
             if (OoT_gActiveSeqs[playerIdx].tempoTimer != 0) {
-                OoT_gActiveSeqs[playerIdx].tempoCur = OoT_gActiveSeqs[playerIdx].tempoCur - OoT_gActiveSeqs[playerIdx].tempoStep;
+                OoT_gActiveSeqs[playerIdx].tempoCur =
+                    OoT_gActiveSeqs[playerIdx].tempoCur - OoT_gActiveSeqs[playerIdx].tempoStep;
             } else {
                 OoT_gActiveSeqs[playerIdx].tempoCur = OoT_gActiveSeqs[playerIdx].tempoTarget;
             }
@@ -567,9 +571,11 @@ void func_800FA3DC(void) {
                 if (OoT_gActiveSeqs[playerIdx].channelData[k].volTimer != 0) {
                     OoT_gActiveSeqs[playerIdx].channelData[k].volTimer--;
                     if (OoT_gActiveSeqs[playerIdx].channelData[k].volTimer != 0) {
-                        OoT_gActiveSeqs[playerIdx].channelData[k].volCur -= OoT_gActiveSeqs[playerIdx].channelData[k].volStep;
+                        OoT_gActiveSeqs[playerIdx].channelData[k].volCur -=
+                            OoT_gActiveSeqs[playerIdx].channelData[k].volStep;
                     } else {
-                        OoT_gActiveSeqs[playerIdx].channelData[k].volCur = OoT_gActiveSeqs[playerIdx].channelData[k].volTarget;
+                        OoT_gActiveSeqs[playerIdx].channelData[k].volCur =
+                            OoT_gActiveSeqs[playerIdx].channelData[k].volTarget;
                         OoT_gActiveSeqs[playerIdx].volChannelFlags ^= (1 << k);
                     }
                     // CHAN_UPD_VOL_SCALE (playerIdx = seq, k = chan)
@@ -682,6 +688,32 @@ void func_800FA3DC(void) {
 
 u8 func_800FAD34(void) {
     if (D_80133418 != 0) {
+        // RSBS_AUDIO_PROBE=1: the reset-completion handshake. While
+        // D_80133418 is nonzero the WHOLE game-side audio update
+        // (func_800F3054) is skipped, so a wedge here is total permanent
+        // audio death — log the poll result to catch it in the act.
+        {
+            static int sProbeEnabled = -1;
+            static u32 sProbeCalls = 0;
+            s32 poll;
+            if (sProbeEnabled < 0) {
+                sProbeEnabled = getenv("RSBS_AUDIO_PROBE") != NULL;
+            }
+            if (sProbeEnabled) {
+                poll = func_800E5EDC();
+                if (poll != 0 || (++sProbeCalls % 120 == 0)) {
+                    fprintf(stderr, "[OOT-RESET] state=%d poll=%d specToLoad=%d resetStatus=%d\n", (int)D_80133418,
+                            (int)poll, (int)gAudioContext.audioResetSpecIdToLoad, (int)gAudioContext.resetStatus);
+                    fflush(stderr);
+                }
+                if (poll == 1) {
+                    D_80133418 = 0;
+                    Audio_QueueCmdS8(0x46020000, OoT_gSfxChannelLayout);
+                    func_800F7170();
+                }
+                return D_80133418;
+            }
+        }
         if (D_80133418 == 1) {
             if (func_800E5EDC() == 1) {
                 D_80133418 = 0;

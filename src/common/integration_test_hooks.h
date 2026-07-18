@@ -62,6 +62,10 @@ typedef enum {
  *   RSBS_GP_BOOT_ENTRANCE (0x01D1) OoT entrance the debug save boots into
  *   RSBS_GP_WARP_ENTRANCE (0x00B1) post-return debug-warp target (map-select Market)
  *   RSBS_GP_EXIT_ENTRANCE (0x0033) final door transition target
+ *   RSBS_GP_BOOT_AGE      (child)  "adult" boots the debug save as adult Link,
+ *                                  exercising the forced-child-on-return swap
+ *                                  end-to-end (the return leg must still
+ *                                  arrive as child)
  * Entrance values accept hex (0x...) or decimal and must be < OoT's ENTR_MAX.
  */
 typedef struct {
@@ -70,6 +74,7 @@ typedef struct {
     uint16_t bootEntrance;
     uint16_t warpEntrance;
     uint16_t exitEntrance;
+    int bootAdult;
 } GameplayTestConfig;
 
 /**

@@ -28,29 +28,37 @@
 
 // External declarations from main.c and other C sources
 extern "C" {
-    void GameConsole_Init(void);
-    void InitOTR(int argc, char* argv[]);
-    void DeinitOTR(void);
-    void OoT_Heaps_Alloc(void);
-    void OoT_Heaps_Free(void);
-    void Main(void* arg);
-    void BootCommands_Init(void);
+void GameConsole_Init(void);
+void InitOTR(int argc, char* argv[]);
+void DeinitOTR(void);
+void OoT_Heaps_Alloc(void);
+void OoT_Heaps_Free(void);
+void Main(void* arg);
+void BootCommands_Init(void);
 
-    // Audio cleanup for suspend (issue #160)
-    void OoT_Audio_PreNMI(void);
-    // Retire the graph coroutine on suspend (games/oot/src/code/graph.c) —
-    // re-entry after a switch re-inits the system arena under any suspended
-    // gamestate, so the frame loop must cold-start instead of resuming.
-    void OoT_Graph_ResetRunFrameContext(void);
-    // Wait for the OTR audio std::thread to finish any in-flight buffer before
-    // the switch hot-swaps resource archives (OTRGlobals.cpp).
-    void OoT_Audio_DrainForSuspend(void);
-    extern s32 gAudioContextInitalized;
-    void Audio_InitMesgQueues(void);
+// Audio cleanup for suspend (issue #160)
+void OoT_Audio_PreNMI(void);
+// Retire the graph coroutine on suspend (games/oot/src/code/graph.c) —
+// re-entry after a switch re-inits the system arena under any suspended
+// gamestate, so the frame loop must cold-start instead of resuming.
+void OoT_Graph_ResetRunFrameContext(void);
+// Wait for the OTR audio std::thread to finish any in-flight buffer before
+// the switch hot-swaps resource archives (OTRGlobals.cpp).
+void OoT_Audio_DrainForSuspend(void);
+extern s32 gAudioContextInitalized;
+void Audio_InitMesgQueues(void);
+// Restart the sound system on resume (code_800EC960.c) — suspend's
+// PreNMI halts the sequence players, and OoT_AudioMgr_Init's bring-up
+// (OoT_Audio_Init + OoT_Audio_InitSound) is behind a static
+// hasInitialized guard that never re-runs (audioMgr.c).
+void OoT_Audio_InitSound(void);
+// Clears the PreNMI resetTimer latch (code_800E4FE0.c) — while it is
+// nonzero every sequence start is silently dropped.
+void OoT_Audio_ResumeFromPreNMI(void);
 
-    // OoT's SaveContext (type from z64save.h).
-    // Declared here so OoT_Game_Resume() can restore it on return from MM (#170).
-    extern SaveContext gSaveContext;
+// OoT's SaveContext (type from z64save.h).
+// Declared here so OoT_Game_Resume() can restore it on return from MM (#170).
+extern SaveContext gSaveContext;
 }
 
 // The cross-game shadow buffers and unified gSaveContext storage are sized at
@@ -68,9 +76,9 @@ static_assert(sizeof(SaveContext) <= OOT_SAVE_CONTEXT_SIZE,
 // test_runner.cpp); resolved at final link. Record this OoT arrival, query the
 // RSS bound, and read the target arrival count for the cycle-complete check.
 extern "C" {
-    int ArchiveHotswap_RecordArrival(void);
-    int ArchiveHotswap_RssExceeded(void);
-    int ArchiveHotswap_TargetArrivals(void);
+int ArchiveHotswap_RecordArrival(void);
+int ArchiveHotswap_RssExceeded(void);
+int ArchiveHotswap_TargetArrivals(void);
 }
 
 // Game state
@@ -88,10 +96,10 @@ static int sOoTGameStateMainFrameCount = 0;
 // OoT_Sram_InitDebugSave / OoT_Play_Init are decomp code (z_sram.c/z_play.c),
 // OoT_gGameState / OoT_gPlayState are set by game.c / z_play.c.
 extern "C" {
-    void OoT_Sram_InitDebugSave(void);
-    void OoT_Play_Init(GameState* thisx);
-    extern GameState* OoT_gGameState;
-    extern PlayState* OoT_gPlayState;
+void OoT_Sram_InitDebugSave(void);
+void OoT_Play_Init(GameState* thisx);
+extern GameState* OoT_gGameState;
+extern PlayState* OoT_gPlayState;
 }
 
 // Phase-local OoT driver state. sGpArrivalPhase records which phase's
@@ -119,8 +127,8 @@ static void GpFireOoTDoor(uint16_t entrance, const char* what) {
         IntegrationTest_GameplayFail("no PlayState when firing a door transition");
         return;
     }
-    fprintf(stderr, "[GP-TEST] firing %s: entrance 0x%04X (from scene %d, entrance 0x%04X)\n",
-            what, entrance, play->sceneNum, (uint16_t)gSaveContext.entranceIndex);
+    fprintf(stderr, "[GP-TEST] firing %s: entrance 0x%04X (from scene %d, entrance 0x%04X)\n", what, entrance,
+            play->sceneNum, (uint16_t)gSaveContext.entranceIndex);
     fflush(stderr);
     play->nextEntranceIndex = entrance;
     play->transitionTrigger = TRANS_TRIGGER_START;
@@ -141,8 +149,8 @@ static void GpInjectDebugSaveAndEnterPlay(GameState* gameState, const char* from
         IntegrationTest_GameplayFail("no GameState available for debug-save injection");
         return;
     }
-    fprintf(stderr, "[GP-TEST] injecting debug save at %s; entering Play at entrance 0x%04X\n",
-            from, cfg->bootEntrance);
+    fprintf(stderr, "[GP-TEST] injecting debug save at %s; entering Play at entrance 0x%04X\n", from,
+            cfg->bootEntrance);
     fflush(stderr);
 
     gSaveContext.gameMode = GAMEMODE_NORMAL;
@@ -155,7 +163,11 @@ static void GpInjectDebugSaveAndEnterPlay(GameState* gameState, const char* from
     gSaveContext.fileNum = 0xFF;
     gSaveContext.sceneSetupIndex = 0;
     gSaveContext.cutsceneIndex = 0;
-    gSaveContext.linkAge = LINK_AGE_CHILD; // child + noon => the populated Market Day of the crash logs
+    // child + noon => the populated Market Day of the crash logs. With
+    // RSBS_GP_BOOT_AGE=adult the save boots adult instead, so the run
+    // exercises the forced-child-on-return swap in OoT_Game_Resume (the
+    // return-leg assert requires child either way).
+    gSaveContext.linkAge = cfg->bootAdult ? LINK_AGE_ADULT : LINK_AGE_CHILD;
     gSaveContext.nightFlag = 0;
     gSaveContext.dayTime = 0x8000;
     gSaveContext.skyboxTime = 0x8000;
@@ -192,22 +204,18 @@ static void OoT_RegisterIntegrationTestHooks(void) {
         fflush(stderr);
 
         // Register hook for title screen init
-        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnZTitleInit>(
-            [](void* gameState) {
-                fprintf(stderr, "[OoT-INT-TEST] OnZTitleInit hook fired!\n");
-                fflush(stderr);
-                IntegrationTest_SignalBootComplete(GAME_OOT, "title screen init");
-            }
-        );
+        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnZTitleInit>([](void* gameState) {
+            fprintf(stderr, "[OoT-INT-TEST] OnZTitleInit hook fired!\n");
+            fflush(stderr);
+            IntegrationTest_SignalBootComplete(GAME_OOT, "title screen init");
+        });
 
         // Register hook for file select presentation
-        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnPresentFileSelect>(
-            []() {
-                fprintf(stderr, "[OoT-INT-TEST] OnPresentFileSelect hook fired!\n");
-                fflush(stderr);
-                IntegrationTest_SignalBootComplete(GAME_OOT, "file select presented");
-            }
-        );
+        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnPresentFileSelect>([]() {
+            fprintf(stderr, "[OoT-INT-TEST] OnPresentFileSelect hook fired!\n");
+            fflush(stderr);
+            IntegrationTest_SignalBootComplete(GAME_OOT, "file select presented");
+        });
 
         fprintf(stderr, "[OoT] Integration test hooks registered\n");
         fflush(stderr);
@@ -220,53 +228,49 @@ static void OoT_RegisterIntegrationTestHooks(void) {
         fprintf(stderr, "[OoT] Registering integration test hooks for HMS->MM switch (T1)\n");
         fflush(stderr);
 
-        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnPresentFileSelect>(
-            []() {
-                fprintf(stderr, "[OoT-INT-TEST] File select reached; triggering HMS entrance 0x%04X\n",
-                        OOT_ENTR_HAPPY_MASK_SHOP);
+        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnPresentFileSelect>([]() {
+            fprintf(stderr, "[OoT-INT-TEST] File select reached; triggering HMS entrance 0x%04X\n",
+                    OOT_ENTR_HAPPY_MASK_SHOP);
+            fflush(stderr);
+
+            // Same call OoT's z_play.c makes when the player walks into the
+            // Happy Mask Shop door — minus the freeze, which T3 covers.
+            Combo_CheckCrossGameEntrance("oot", OOT_ENTR_HAPPY_MASK_SHOP);
+
+            if (!Combo_IsCrossGameSwitch()) {
+                fprintf(stderr, "[OoT-INT-TEST] FAIL: HMS entrance did not register a cross-game switch\n");
                 fflush(stderr);
-
-                // Same call OoT's z_play.c makes when the player walks into the
-                // Happy Mask Shop door — minus the freeze, which T3 covers.
-                Combo_CheckCrossGameEntrance("oot", OOT_ENTR_HAPPY_MASK_SHOP);
-
-                if (!Combo_IsCrossGameSwitch()) {
-                    fprintf(stderr, "[OoT-INT-TEST] FAIL: HMS entrance did not register a cross-game switch\n");
-                    fflush(stderr);
-                    IntegrationTest_RequestExit();
-                    return;
-                }
-
-                const char* target = Combo_GetSwitchTargetGameId();
-                uint16_t targetEntrance = Combo_GetSwitchTargetEntrance();
-
-                if (!target || strcmp(target, "mm") != 0) {
-                    fprintf(stderr, "[OoT-INT-TEST] FAIL: target should be 'mm', got '%s'\n",
-                            target ? target : "(null)");
-                    fflush(stderr);
-                    IntegrationTest_RequestExit();
-                    return;
-                }
-
-                if (targetEntrance != MM_ENTR_SOUTH_CLOCK_TOWN_0) {
-                    fprintf(stderr,
-                            "[OoT-INT-TEST] FAIL: target entrance should be 0x%04X (South Clock Town tower exit), "
-                            "got 0x%04X\n",
-                            MM_ENTR_SOUTH_CLOCK_TOWN_0, targetEntrance);
-                    fflush(stderr);
-                    IntegrationTest_RequestExit();
-                    return;
-                }
-
-                fprintf(stderr,
-                        "[OoT-INT-TEST] PASS leg 1: HMS routes to MM 0x%04X; main loop will run the switch\n",
-                        targetEntrance);
-                fflush(stderr);
-                // Intentionally NOT signaling boot complete here. The main loop
-                // will see the pending cross-game switch on Combo_CheckHotSwap
-                // and hand off to MM. The MM-side hook signals the final pass.
+                IntegrationTest_RequestExit();
+                return;
             }
-        );
+
+            const char* target = Combo_GetSwitchTargetGameId();
+            uint16_t targetEntrance = Combo_GetSwitchTargetEntrance();
+
+            if (!target || strcmp(target, "mm") != 0) {
+                fprintf(stderr, "[OoT-INT-TEST] FAIL: target should be 'mm', got '%s'\n", target ? target : "(null)");
+                fflush(stderr);
+                IntegrationTest_RequestExit();
+                return;
+            }
+
+            if (targetEntrance != MM_ENTR_SOUTH_CLOCK_TOWN_0) {
+                fprintf(stderr,
+                        "[OoT-INT-TEST] FAIL: target entrance should be 0x%04X (South Clock Town tower exit), "
+                        "got 0x%04X\n",
+                        MM_ENTR_SOUTH_CLOCK_TOWN_0, targetEntrance);
+                fflush(stderr);
+                IntegrationTest_RequestExit();
+                return;
+            }
+
+            fprintf(stderr, "[OoT-INT-TEST] PASS leg 1: HMS routes to MM 0x%04X; main loop will run the switch\n",
+                    targetEntrance);
+            fflush(stderr);
+            // Intentionally NOT signaling boot complete here. The main loop
+            // will see the pending cross-game switch on Combo_CheckHotSwap
+            // and hand off to MM. The MM-side hook signals the final pass.
+        });
 
         fprintf(stderr, "[OoT] HMS->MM switch hooks registered\n");
         fflush(stderr);
@@ -280,18 +284,15 @@ static void OoT_RegisterIntegrationTestHooks(void) {
 
         sOoTGameStateMainFrameCount = 0;
 
-        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>(
-            []() {
-                sOoTGameStateMainFrameCount++;
-                if (sOoTGameStateMainFrameCount >= 10) {
-                    fprintf(stderr,
-                            "[OoT-INT-TEST] OoT stable after SCT-south->OoT switch (frame %d)\n",
-                            sOoTGameStateMainFrameCount);
-                    fflush(stderr);
-                    IntegrationTest_SignalBootComplete(GAME_OOT, "OoT stable after SCT-south->OoT switch");
-                }
+        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>([]() {
+            sOoTGameStateMainFrameCount++;
+            if (sOoTGameStateMainFrameCount >= 10) {
+                fprintf(stderr, "[OoT-INT-TEST] OoT stable after SCT-south->OoT switch (frame %d)\n",
+                        sOoTGameStateMainFrameCount);
+                fflush(stderr);
+                IntegrationTest_SignalBootComplete(GAME_OOT, "OoT stable after SCT-south->OoT switch");
             }
-        );
+        });
 
         fprintf(stderr, "[OoT] SCT-south->OoT switch hooks registered\n");
         fflush(stderr);
@@ -312,54 +313,52 @@ static void OoT_RegisterIntegrationTestHooks(void) {
 
         sOoTGameStateMainFrameCount = 0;
 
-        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>(
-            []() {
-                // Fire once per arrival, ~10 stable frames after (re)entry, then
-                // re-arm for the next OoT arrival (reached via OoT_Game_Resume).
-                // (#344) Both games' frame loops fire this shared hook storage;
-                // only count OoT's own frames so MM frames can't record a
-                // bogus OoT arrival.
-                if (Context_GetCurrentGame() != GAME_OOT) {
-                    sOoTGameStateMainFrameCount = 0;
-                    return;
-                }
-                sOoTGameStateMainFrameCount++;
-                if (sOoTGameStateMainFrameCount < 10) {
-                    return;
-                }
+        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>([]() {
+            // Fire once per arrival, ~10 stable frames after (re)entry, then
+            // re-arm for the next OoT arrival (reached via OoT_Game_Resume).
+            // (#344) Both games' frame loops fire this shared hook storage;
+            // only count OoT's own frames so MM frames can't record a
+            // bogus OoT arrival.
+            if (Context_GetCurrentGame() != GAME_OOT) {
                 sOoTGameStateMainFrameCount = 0;
-
-                int n = ArchiveHotswap_RecordArrival();
-                fprintf(stderr, "[OoT-INT-TEST] OoT stable; archive-hotswap arrival #%d of %d\n",
-                        n, ArchiveHotswap_TargetArrivals());
-                fflush(stderr);
-
-                if (ArchiveHotswap_RssExceeded()) {
-                    // Steady-state RSS blew the bound — the #154 per-switch leak
-                    // regression. Fail fast: RequestExit does NOT set the pass
-                    // flag, so the run returns non-zero. Combo_RequestGameSwitch()
-                    // right after unblocks the main loop promptly (known fix).
-                    fprintf(stderr, "[OoT-INT-TEST] FAIL: steady-state RSS bound exceeded after %d arrivals\n", n);
-                    fflush(stderr);
-                    IntegrationTest_RequestExit();
-                    Combo_RequestGameSwitch();
-                } else if (n >= ArchiveHotswap_TargetArrivals()) {
-                    // Target arrivals reached with a healthy runtime — PASS.
-                    // SignalBootComplete sets the pass flag and requests the
-                    // switch that unblocks the main loop.
-                    fprintf(stderr, "[OoT-INT-TEST] archive-hotswap cycle complete after %d arrivals\n", n);
-                    fflush(stderr);
-                    IntegrationTest_SignalBootComplete(GAME_OOT, "archive-hotswap cycle complete");
-                } else {
-                    // Keep the cycle going: re-trigger the OoT->MM switch via the
-                    // Happy Mask Shop entrance — same call the T1 branch makes.
-                    fprintf(stderr, "[OoT-INT-TEST] re-triggering HMS entrance 0x%04X to continue cycle\n",
-                            OOT_ENTR_HAPPY_MASK_SHOP);
-                    fflush(stderr);
-                    Combo_CheckCrossGameEntrance("oot", OOT_ENTR_HAPPY_MASK_SHOP);
-                }
+                return;
             }
-        );
+            sOoTGameStateMainFrameCount++;
+            if (sOoTGameStateMainFrameCount < 10) {
+                return;
+            }
+            sOoTGameStateMainFrameCount = 0;
+
+            int n = ArchiveHotswap_RecordArrival();
+            fprintf(stderr, "[OoT-INT-TEST] OoT stable; archive-hotswap arrival #%d of %d\n", n,
+                    ArchiveHotswap_TargetArrivals());
+            fflush(stderr);
+
+            if (ArchiveHotswap_RssExceeded()) {
+                // Steady-state RSS blew the bound — the #154 per-switch leak
+                // regression. Fail fast: RequestExit does NOT set the pass
+                // flag, so the run returns non-zero. Combo_RequestGameSwitch()
+                // right after unblocks the main loop promptly (known fix).
+                fprintf(stderr, "[OoT-INT-TEST] FAIL: steady-state RSS bound exceeded after %d arrivals\n", n);
+                fflush(stderr);
+                IntegrationTest_RequestExit();
+                Combo_RequestGameSwitch();
+            } else if (n >= ArchiveHotswap_TargetArrivals()) {
+                // Target arrivals reached with a healthy runtime — PASS.
+                // SignalBootComplete sets the pass flag and requests the
+                // switch that unblocks the main loop.
+                fprintf(stderr, "[OoT-INT-TEST] archive-hotswap cycle complete after %d arrivals\n", n);
+                fflush(stderr);
+                IntegrationTest_SignalBootComplete(GAME_OOT, "archive-hotswap cycle complete");
+            } else {
+                // Keep the cycle going: re-trigger the OoT->MM switch via the
+                // Happy Mask Shop entrance — same call the T1 branch makes.
+                fprintf(stderr, "[OoT-INT-TEST] re-triggering HMS entrance 0x%04X to continue cycle\n",
+                        OOT_ENTR_HAPPY_MASK_SHOP);
+                fflush(stderr);
+                Combo_CheckCrossGameEntrance("oot", OOT_ENTR_HAPPY_MASK_SHOP);
+            }
+        });
 
         fprintf(stderr, "[OoT] archive-hotswap cycle hooks registered\n");
         fflush(stderr);
@@ -389,22 +388,18 @@ static void OoT_RegisterIntegrationTestHooks(void) {
         // hook receives its gamestate (TitleContext, whose first member is
         // the GameState); the file-select hook has no argument, so it uses
         // the OoT_gGameState global (same pattern as debugconsole.cpp).
-        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnZTitleUpdate>(
-            [](void* gameState) {
-                if (IntegrationTest_GetGameplayPhase() != GP_PHASE_BOOT) {
-                    return;
-                }
-                GpInjectDebugSaveAndEnterPlay((GameState*)gameState, "title screen");
+        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnZTitleUpdate>([](void* gameState) {
+            if (IntegrationTest_GetGameplayPhase() != GP_PHASE_BOOT) {
+                return;
             }
-        );
-        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnPresentFileSelect>(
-            []() {
-                if (IntegrationTest_GetGameplayPhase() != GP_PHASE_BOOT) {
-                    return;
-                }
-                GpInjectDebugSaveAndEnterPlay(OoT_gGameState, "file select");
+            GpInjectDebugSaveAndEnterPlay((GameState*)gameState, "title screen");
+        });
+        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnPresentFileSelect>([]() {
+            if (IntegrationTest_GetGameplayPhase() != GP_PHASE_BOOT) {
+                return;
             }
-        );
+            GpInjectDebugSaveAndEnterPlay(OoT_gGameState, "file select");
+        });
 
         // Arrival tracking + entrance verification. Fires from the scene
         // build inside OoT_Play_Init — i.e. AFTER the startup-entrance
@@ -412,135 +407,153 @@ static void OoT_RegisterIntegrationTestHooks(void) {
         // The return-leg check is the #356 regression predicate: an MM
         // entrance id (0xC010) surviving into OoT would land here as a
         // mismatch (or crash first, which the CI wrapper reports with logs).
-        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnSceneInit>(
-            [](int16_t sceneNum) {
-                if (Context_GetCurrentGame() == GAME_MM) {
-                    return; // shared hook storage guard (#344)
-                }
-                sGpSceneInits++;
-                GameplayPhase phase = IntegrationTest_GetGameplayPhase();
-                const GameplayTestConfig* cfg = IntegrationTest_GetGameplayConfig();
-                uint16_t entrance = (uint16_t)gSaveContext.entranceIndex;
-                uint16_t expected;
-                const char* what;
-                switch (phase) {
-                    case GP_PHASE_OOT_PRE:    expected = cfg->bootEntrance; what = "boot"; break;
-                    case GP_PHASE_OOT_RETURN: expected = OOT_ENTR_MARKET_FROM_MASK_SHOP; what = "return leg"; break;
-                    case GP_PHASE_OOT_WARP:   expected = cfg->warpEntrance; what = "warp"; break;
-                    case GP_PHASE_OOT_EXIT:   expected = cfg->exitEntrance; what = "exit door"; break;
-                    default:
-                        return; // MM-owned or completed phase: not an arrival we track
-                }
-                fprintf(stderr, "[GP-TEST] OoT scene init #%d: scene %d, entrance 0x%04X (%s)\n",
-                        sGpSceneInits, sceneNum, entrance, what);
-                fflush(stderr);
-                if (entrance != expected) {
-                    char msg[160];
-                    snprintf(msg, sizeof(msg),
-                             "%s arrived at entrance 0x%04X, expected 0x%04X — entrance corruption?",
-                             what, entrance, expected);
-                    IntegrationTest_GameplayFail(msg);
-                    return;
-                }
-                sGpArrivalPhase = phase;
+        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnSceneInit>([](int16_t sceneNum) {
+            if (Context_GetCurrentGame() == GAME_MM) {
+                return; // shared hook storage guard (#344)
             }
-        );
+            sGpSceneInits++;
+            GameplayPhase phase = IntegrationTest_GetGameplayPhase();
+            const GameplayTestConfig* cfg = IntegrationTest_GetGameplayConfig();
+            uint16_t entrance = (uint16_t)gSaveContext.entranceIndex;
+            uint16_t expected;
+            const char* what;
+            switch (phase) {
+                case GP_PHASE_OOT_PRE:
+                    expected = cfg->bootEntrance;
+                    what = "boot";
+                    break;
+                case GP_PHASE_OOT_RETURN:
+                    expected = OOT_ENTR_MARKET_FROM_MASK_SHOP;
+                    what = "return leg";
+                    break;
+                case GP_PHASE_OOT_WARP:
+                    expected = cfg->warpEntrance;
+                    what = "warp";
+                    break;
+                case GP_PHASE_OOT_EXIT:
+                    expected = cfg->exitEntrance;
+                    what = "exit door";
+                    break;
+                default:
+                    return; // MM-owned or completed phase: not an arrival we track
+            }
+            fprintf(stderr, "[GP-TEST] OoT scene init #%d: scene %d, entrance 0x%04X (%s)\n", sGpSceneInits, sceneNum,
+                    entrance, what);
+            fflush(stderr);
+            if (entrance != expected) {
+                char msg[160];
+                snprintf(msg, sizeof(msg), "%s arrived at entrance 0x%04X, expected 0x%04X — entrance corruption?",
+                         what, entrance, expected);
+                IntegrationTest_GameplayFail(msg);
+                return;
+            }
+            // Hard-assert the forced-child-on-return contract (operator
+            // decision: the MM trip is child-canon; OoT_Game_Resume
+            // forces linkAge child after restoring the frozen save). A
+            // regression passes the entrance check above but lands here
+            // as LINK_AGE_ADULT.
+            if (phase == GP_PHASE_OOT_RETURN && gSaveContext.linkAge != LINK_AGE_CHILD) {
+                char ageMsg[128];
+                snprintf(ageMsg, sizeof(ageMsg),
+                         "return leg arrived as linkAge=%d, expected LINK_AGE_CHILD (%d) — "
+                         "force-child-on-return regressed",
+                         (int)gSaveContext.linkAge, (int)LINK_AGE_CHILD);
+                IntegrationTest_GameplayFail(ageMsg);
+                return;
+            }
+            sGpArrivalPhase = phase;
+        });
 
         // Per-frame gameplay driver: counts live-gameplay frames (player
         // actor updating in the arrived scene) and fires the next action
         // when the window completes.
-        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnPlayerUpdate>(
-            []() {
-                if (Context_GetCurrentGame() == GAME_MM) {
-                    return; // shared hook storage guard (#344)
-                }
-                if (OoT_gPlayState == NULL) {
-                    return;
-                }
-                GameplayPhase phase = IntegrationTest_GetGameplayPhase();
-                if (phase != sGpPlayerLastPhase) {
-                    sGpPlayerLastPhase = phase;
-                    sGpFramesInPhase = 0;
-                }
-                if (sGpArrivalPhase != phase) {
-                    return; // fade-out after firing a door, or not yet in the expected scene
-                }
-                const GameplayTestConfig* cfg = IntegrationTest_GetGameplayConfig();
-                sGpFramesInPhase++;
-                if (sGpFramesInPhase < cfg->framesPerPhase) {
-                    return;
-                }
-                switch (phase) {
-                    case GP_PHASE_OOT_PRE:
-                        GpFireOoTDoor(OOT_ENTR_HAPPY_MASK_SHOP, "Happy Mask Shop door");
-                        IntegrationTest_SetGameplayPhase(GP_PHASE_MM_STABILIZE);
-                        break;
-                    case GP_PHASE_OOT_RETURN:
-                        IntegrationTest_GameplayRecordCycle();
-                        if (IntegrationTest_GameplayCyclesDone() < cfg->cycles) {
-                            GpFireOoTDoor(OOT_ENTR_HAPPY_MASK_SHOP, "Happy Mask Shop door (next round trip)");
-                            IntegrationTest_SetGameplayPhase(GP_PHASE_MM_STABILIZE);
-                        } else {
-                            GpFireOoTDoor(cfg->warpEntrance, "post-return debug warp");
-                            IntegrationTest_SetGameplayPhase(GP_PHASE_OOT_WARP);
-                        }
-                        break;
-                    case GP_PHASE_OOT_WARP:
-                        GpFireOoTDoor(cfg->exitEntrance, "final door transition");
-                        IntegrationTest_SetGameplayPhase(GP_PHASE_OOT_EXIT);
-                        break;
-                    case GP_PHASE_OOT_EXIT:
-                        fprintf(stderr,
-                                "[GP-TEST] PASS: %d round trip(s), warp, and door transition survived "
-                                "%d live frames per phase\n",
-                                IntegrationTest_GameplayCyclesDone(), cfg->framesPerPhase);
-                        fflush(stderr);
-                        IntegrationTest_SetGameplayPhase(GP_PHASE_DONE);
-                        IntegrationTest_SignalBootComplete(GAME_OOT, "gameplay round-trip complete");
-                        break;
-                    default:
-                        break;
-                }
+        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnPlayerUpdate>([]() {
+            if (Context_GetCurrentGame() == GAME_MM) {
+                return; // shared hook storage guard (#344)
             }
-        );
+            if (OoT_gPlayState == NULL) {
+                return;
+            }
+            GameplayPhase phase = IntegrationTest_GetGameplayPhase();
+            if (phase != sGpPlayerLastPhase) {
+                sGpPlayerLastPhase = phase;
+                sGpFramesInPhase = 0;
+            }
+            if (sGpArrivalPhase != phase) {
+                return; // fade-out after firing a door, or not yet in the expected scene
+            }
+            const GameplayTestConfig* cfg = IntegrationTest_GetGameplayConfig();
+            sGpFramesInPhase++;
+            if (sGpFramesInPhase < cfg->framesPerPhase) {
+                return;
+            }
+            switch (phase) {
+                case GP_PHASE_OOT_PRE:
+                    GpFireOoTDoor(OOT_ENTR_HAPPY_MASK_SHOP, "Happy Mask Shop door");
+                    IntegrationTest_SetGameplayPhase(GP_PHASE_MM_STABILIZE);
+                    break;
+                case GP_PHASE_OOT_RETURN:
+                    IntegrationTest_GameplayRecordCycle();
+                    if (IntegrationTest_GameplayCyclesDone() < cfg->cycles) {
+                        GpFireOoTDoor(OOT_ENTR_HAPPY_MASK_SHOP, "Happy Mask Shop door (next round trip)");
+                        IntegrationTest_SetGameplayPhase(GP_PHASE_MM_STABILIZE);
+                    } else {
+                        GpFireOoTDoor(cfg->warpEntrance, "post-return debug warp");
+                        IntegrationTest_SetGameplayPhase(GP_PHASE_OOT_WARP);
+                    }
+                    break;
+                case GP_PHASE_OOT_WARP:
+                    GpFireOoTDoor(cfg->exitEntrance, "final door transition");
+                    IntegrationTest_SetGameplayPhase(GP_PHASE_OOT_EXIT);
+                    break;
+                case GP_PHASE_OOT_EXIT:
+                    fprintf(stderr,
+                            "[GP-TEST] PASS: %d round trip(s), warp, and door transition survived "
+                            "%d live frames per phase\n",
+                            IntegrationTest_GameplayCyclesDone(), cfg->framesPerPhase);
+                    fflush(stderr);
+                    IntegrationTest_SetGameplayPhase(GP_PHASE_DONE);
+                    IntegrationTest_SignalBootComplete(GAME_OOT, "gameplay round-trip complete");
+                    break;
+                default:
+                    break;
+            }
+        });
 
         // OoT-side watchdog: fail loudly (with state) instead of timing out
         // silently if an OoT-owned phase stops making progress.
-        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>(
-            []() {
-                if (Context_GetCurrentGame() == GAME_MM) {
-                    return;
-                }
-                GameplayPhase phase = IntegrationTest_GetGameplayPhase();
-                switch (phase) {
-                    case GP_PHASE_BOOT:
-                    case GP_PHASE_OOT_PRE:
-                    case GP_PHASE_OOT_RETURN:
-                    case GP_PHASE_OOT_WARP:
-                    case GP_PHASE_OOT_EXIT:
-                        break;
-                    default:
-                        sGpWatchdogFrames = 0;
-                        return;
-                }
-                if (phase != sGpWatchdogLastPhase) {
-                    sGpWatchdogLastPhase = phase;
-                    sGpWatchdogFrames = 0;
-                }
-                sGpWatchdogFrames++;
-                if (sGpWatchdogFrames == sGpWatchdogLimit) {
-                    PlayState* play = OoT_gPlayState;
-                    fprintf(stderr,
-                            "[GP-TEST] OoT watchdog: no progress after %d frames "
-                            "(play=%p scene=%d entrance=0x%04X arrivedPhase=%d sceneInits=%d gameplayFrames=%d)\n",
-                            sGpWatchdogFrames, (void*)play, play ? play->sceneNum : -1,
-                            (uint16_t)gSaveContext.entranceIndex, (int)sGpArrivalPhase, sGpSceneInits,
-                            sGpFramesInPhase);
-                    fflush(stderr);
-                    IntegrationTest_GameplayFail("OoT-side phase watchdog expired");
-                }
+        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>([]() {
+            if (Context_GetCurrentGame() == GAME_MM) {
+                return;
             }
-        );
+            GameplayPhase phase = IntegrationTest_GetGameplayPhase();
+            switch (phase) {
+                case GP_PHASE_BOOT:
+                case GP_PHASE_OOT_PRE:
+                case GP_PHASE_OOT_RETURN:
+                case GP_PHASE_OOT_WARP:
+                case GP_PHASE_OOT_EXIT:
+                    break;
+                default:
+                    sGpWatchdogFrames = 0;
+                    return;
+            }
+            if (phase != sGpWatchdogLastPhase) {
+                sGpWatchdogLastPhase = phase;
+                sGpWatchdogFrames = 0;
+            }
+            sGpWatchdogFrames++;
+            if (sGpWatchdogFrames == sGpWatchdogLimit) {
+                PlayState* play = OoT_gPlayState;
+                fprintf(stderr,
+                        "[GP-TEST] OoT watchdog: no progress after %d frames "
+                        "(play=%p scene=%d entrance=0x%04X arrivedPhase=%d sceneInits=%d gameplayFrames=%d)\n",
+                        sGpWatchdogFrames, (void*)play, play ? play->sceneNum : -1,
+                        (uint16_t)gSaveContext.entranceIndex, (int)sGpArrivalPhase, sGpSceneInits, sGpFramesInPhase);
+                fflush(stderr);
+                IntegrationTest_GameplayFail("OoT-side phase watchdog expired");
+            }
+        });
 
         fprintf(stderr, "[OoT] gameplay round-trip hooks registered\n");
         fflush(stderr);
@@ -673,12 +686,19 @@ void OoT_Game_Resume(void) {
         // not be silently dropped. The frozen return entrance is always
         // trustworthy here because we already checked Context_HasFrozenState.
         bool hasStartup = Combo_HasStartupEntranceForGame("oot");
-        uint16_t targetEntrance = hasStartup
-            ? Combo_GetStartupEntranceForGame("oot")
-            : Context_GetFrozenReturnEntrance(GAME_OOT);
+        uint16_t targetEntrance =
+            hasStartup ? Combo_GetStartupEntranceForGame("oot") : Context_GetFrozenReturnEntrance(GAME_OOT);
         gSaveContext.entranceIndex = targetEntrance;
-        fprintf(stderr, "[OoT] Resume entrance: 0x%04X (startup=%u)\n",
-                targetEntrance, hasStartup);
+        fprintf(stderr, "[OoT] Resume entrance: 0x%04X (startup=%u)\n", targetEntrance, hasStartup);
+
+        // NOTE: with the cold-boot contract this restore is defense in depth,
+        // not the continuity mechanism — the resume fast-forward passes
+        // through Opening_Init (z_opening.c), which re-authors the ADULT
+        // debug save over gSaveContext AFTER this runs. The restore that
+        // reaches gameplay (plus the force-child-on-return equip swap) lives
+        // at the startup-entrance consumption point in OoT_Play_Init
+        // (games/oot/src/code/z_play.c) — the first spot after the last wipe,
+        // exactly mirroring MM_Play_ConsumeStartupEntrance.
     }
 
     // Reinitialize audio message queues for clean state (issue #160).
@@ -686,6 +706,20 @@ void OoT_Game_Resume(void) {
     fprintf(stderr, "[OoT] Reinitializing audio message queues...\n");
     fflush(stderr);
     Audio_InitMesgQueues();
+
+    // Re-arm the shared audio thread's OoT synth and restart the sound
+    // system (mirrors MM_Game_Resume). The audio heap survives suspend;
+    // PreNMI only scheduled a reset and halted the players, and the
+    // OoT_AudioMgr_Init bring-up is behind a never-re-run static guard
+    // (audioMgr.c hasInitialized). Without this, every OoT return leg played
+    // pure silence: the reset completed on the shared thread, no player ever
+    // restarted, and the restored save's stale seqId told the scene its BGM
+    // was already live (that last part is reset at the startup-entrance
+    // consumption in z_play.c). InitSound's commands queue in the ring and
+    // apply once the reset finishes.
+    gAudioContextInitalized = true;
+    OoT_Audio_ResumeFromPreNMI();
+    OoT_Audio_InitSound();
 
     fprintf(stderr, "[OoT] Game_Resume complete\n");
     fflush(stderr);
@@ -718,15 +752,8 @@ const char* OoT_Game_GetId(void) {
 // GameOps registration
 // ============================================================================
 
-static GameOps sOoTOps = {
-    "oot",
-    "Ocarina of Time",
-    OoT_Game_Init,
-    OoT_Game_Run,
-    OoT_Game_Suspend,
-    OoT_Game_Resume,
-    OoT_Game_Shutdown
-};
+static GameOps sOoTOps = { "oot",           "Ocarina of Time", OoT_Game_Init, OoT_Game_Run, OoT_Game_Suspend,
+                           OoT_Game_Resume, OoT_Game_Shutdown };
 
 extern "C" GameOps* OoT_GetGameOps(void) {
     return &sOoTOps;
@@ -740,15 +767,14 @@ extern "C" GameOps* OoT_GetGameOps(void) {
 
 // Cross-game entrance API (from src/common/)
 extern "C" {
-    uint16_t Combo_CheckCrossGameEntrance(const char* gameId, uint16_t entrance);
-    bool Combo_IsCrossGameSwitch(void);
-    uint16_t Combo_GetSwitchReturnEntrance(void);
-    void Combo_FreezeState(const char* gameId, uint16_t returnEntrance,
-                           const void* saveCtx, size_t saveCtxSize);
-    void Combo_SignalReadyToSwitch(void);
-    void Combo_RequestGameSwitch(void);
-    bool Combo_IsGameSwitchRequested(void);
-    void Combo_ClearGameSwitchRequest(void);
+uint16_t Combo_CheckCrossGameEntrance(const char* gameId, uint16_t entrance);
+bool Combo_IsCrossGameSwitch(void);
+uint16_t Combo_GetSwitchReturnEntrance(void);
+void Combo_FreezeState(const char* gameId, uint16_t returnEntrance, const void* saveCtx, size_t saveCtxSize);
+void Combo_SignalReadyToSwitch(void);
+void Combo_RequestGameSwitch(void);
+bool Combo_IsGameSwitchRequested(void);
+void Combo_ClearGameSwitchRequest(void);
 }
 
 static bool sLastF10State = false;
@@ -816,8 +842,7 @@ extern "C" uint16_t Combo_CheckEntranceSwitch(uint16_t entranceIndex) {
     uint16_t result = Combo_CheckCrossGameEntrance(gameId, entranceIndex);
 
     if (Combo_IsCrossGameSwitch() && !wasAlreadyPending) {
-        fprintf(stderr, "[COMBO] Cross-game switch (%s)! entrance=0x%04X\n",
-                gameId, entranceIndex);
+        fprintf(stderr, "[COMBO] Cross-game switch (%s)! entrance=0x%04X\n", gameId, entranceIndex);
 
         uint16_t returnEntrance = Combo_GetSwitchReturnEntrance();
         // sizeof(gSaveContext) in this TU is OoT's SaveContext layout. When MM
@@ -833,4 +858,3 @@ extern "C" uint16_t Combo_CheckEntranceSwitch(uint16_t entranceIndex) {
 }
 
 #endif /* RSBS_SINGLE_EXECUTABLE */
-
