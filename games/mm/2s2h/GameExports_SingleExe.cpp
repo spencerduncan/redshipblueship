@@ -484,6 +484,103 @@ static void MM_RegisterIntegrationTestHooks(void) {
 
         fprintf(stderr, "[MM] archive-hotswap cycle hooks registered\n");
         fflush(stderr);
+    } else if (mode == INT_TEST_GAMEPLAY_ROUNDTRIP) {
+        // MM half of the gameplay round-trip repro (phase machine in
+        // integration_test_hooks.h; OoT half in
+        // games/oot/soh/GameExports_SingleExe.cpp). MM owns two phases:
+        // stabilize in Clock Tower Interior after the HMS switch, run the
+        // configured live-gameplay window, then leave through the REAL
+        // SCT-south transition machinery — z_play.c's TRANS_MODE_SETUP calls
+        // Combo_CheckEntranceSwitch(nextEntrance), which freezes MM's live
+        // SaveContext, exactly like a player walking out south.
+        fprintf(stderr, "[MM] Registering gameplay round-trip hooks\n");
+        fflush(stderr);
+
+        static GameplayPhase sGpMMLastPhase = GP_PHASE_DONE;
+        static int sGpMMStableFrames = 0;
+        static int sGpMMPlayFrames = 0;
+        static int sGpMMWatchdogFrames = 0;
+        sGpMMLastPhase = GP_PHASE_DONE;
+        sGpMMStableFrames = 0;
+        sGpMMPlayFrames = 0;
+        sGpMMWatchdogFrames = 0;
+
+        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>(
+            []() {
+                if (Context_GetCurrentGame() != GAME_MM) {
+                    return; // shared hook storage guard (#344)
+                }
+                GameplayPhase phase = IntegrationTest_GetGameplayPhase();
+                if (phase != GP_PHASE_MM_STABILIZE && phase != GP_PHASE_MM_PLAY) {
+                    sGpMMWatchdogFrames = 0;
+                    return;
+                }
+                if (phase != sGpMMLastPhase) {
+                    sGpMMLastPhase = phase;
+                    sGpMMStableFrames = 0;
+                    sGpMMPlayFrames = 0;
+                    sGpMMWatchdogFrames = 0;
+                }
+
+                const GameplayTestConfig* cfg = IntegrationTest_GetGameplayConfig();
+                sGpMMWatchdogFrames++;
+                if (sGpMMWatchdogFrames == cfg->framesPerPhase * 4 + 3600) {
+                    PlayState* play = MM_gPlayState;
+                    fprintf(stderr,
+                            "[GP-TEST] MM watchdog: no progress after %d frames "
+                            "(play=%p linkActorEntry=%p player=%p roomSegment=%p stable=%d gameplay=%d)\n",
+                            sGpMMWatchdogFrames, (void*)play, play ? (void*)play->linkActorEntry : (void*)0,
+                            play ? (void*)play->actorCtx.actorLists[ACTORCAT_PLAYER].first : (void*)0,
+                            play ? (void*)play->roomCtx.curRoom.segment : (void*)0, sGpMMStableFrames,
+                            sGpMMPlayFrames);
+                    fflush(stderr);
+                    IntegrationTest_GameplayFail("MM-side phase watchdog expired");
+                    return;
+                }
+
+                if (phase == GP_PHASE_MM_STABILIZE) {
+                    // (#344) A completed Clock Tower Interior scene load —
+                    // player spawned, first room's commands ran — plus a few
+                    // stable frames before the gameplay window starts.
+                    if (!MM_SceneLoadComplete() || MM_gPlayState->sceneId != SCENE_INSIDETOWER) {
+                        sGpMMStableFrames = 0;
+                        return;
+                    }
+                    sGpMMStableFrames++;
+                    if (sGpMMStableFrames == 10) {
+                        fprintf(stderr,
+                                "[GP-TEST] MM Clock Tower Interior stable (entrance=0x%04X); "
+                                "starting gameplay window\n",
+                                gSaveContext.save.entrance);
+                        fflush(stderr);
+                        IntegrationTest_SetGameplayPhase(GP_PHASE_MM_PLAY);
+                    }
+                    return;
+                }
+
+                // GP_PHASE_MM_PLAY: only count frames with live gameplay state.
+                if (!MM_SceneLoadComplete()) {
+                    return;
+                }
+                sGpMMPlayFrames++;
+                if (sGpMMPlayFrames < cfg->framesPerPhase) {
+                    return;
+                }
+                PlayState* play = MM_gPlayState;
+                fprintf(stderr,
+                        "[GP-TEST] firing SCT-south exit: entrance 0x%04X after %d live MM frames\n",
+                        MM_ENTR_SOUTH_CLOCK_TOWN_0, sGpMMPlayFrames);
+                fflush(stderr);
+                play->nextEntrance = MM_ENTR_SOUTH_CLOCK_TOWN_0;
+                play->transitionTrigger = TRANS_TRIGGER_START;
+                play->transitionType = TRANS_TYPE_FADE_BLACK;
+                gSaveContext.nextTransitionType = TRANS_TYPE_FADE_BLACK;
+                IntegrationTest_SetGameplayPhase(GP_PHASE_OOT_RETURN);
+            }
+        );
+
+        fprintf(stderr, "[MM] gameplay round-trip hooks registered\n");
+        fflush(stderr);
     }
 }
 

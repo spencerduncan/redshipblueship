@@ -312,6 +312,33 @@ if(BUILD_TESTING)
         TIMEOUT ${REDSHIP_INTEGRATION_TEST_TIMEOUT}
         LABELS "integration"
     )
+
+    # Gameplay round-trip crash repro (docs/ci-gameplay-repro-postmortem.md):
+    # the programmatic version of the operator's manual repro — debug save,
+    # live gameplay, production cross-game round trip (SaveContext
+    # freeze/restore + the OoT resume leg where the 2026-07 crash class
+    # detonated), post-return debug warp, and a door transition. Requires
+    # oot.o2r/mm.o2r (ROM-derived) + a GL-capable display (Xvfb+llvmpipe in
+    # CI). Scene/frame parameters come from RSBS_GP_* env vars, so a soak
+    # matrix can sweep scenes without new CTest rows. The soak variant runs
+    # three round trips before the warp.
+    add_test(NAME IntGameplayRoundtrip
+             COMMAND redship --integration-test int-gameplay-roundtrip)
+    set_tests_properties(
+        IntGameplayRoundtrip
+        PROPERTIES
+        TIMEOUT 300
+        LABELS "integration"
+    )
+    add_test(NAME IntGameplayRoundtripSoak
+             COMMAND redship --integration-test int-gameplay-roundtrip)
+    set_tests_properties(
+        IntGameplayRoundtripSoak
+        PROPERTIES
+        TIMEOUT 900
+        LABELS "integration-soak"
+        ENVIRONMENT "RSBS_GP_CYCLES=3"
+    )
 endif()
 
 # ============================================================================

@@ -113,6 +113,18 @@ static void SignalHandler(int signal) {
         case SIGILL:  fprintf(stderr, "[CRASH] SIGILL (Illegal instruction)\n"); break;
     }
     fflush(stderr);
+    // Integration-test diagnostics only (release behavior unchanged): dump
+    // the gameplay phase machine so a crash log is attributable to a repro
+    // step even when it fires before libultraship's CrashHandler takes over
+    // the signals, and exit 128+sig so CI can tell "crashed" from "test
+    // failed". (Best effort — like the fprintf above, not strictly
+    // async-signal-safe, but we are exiting anyway.)
+    if (TestRunner_IsIntegrationTestMode()) {
+        if (IntegrationTest_GetMode() == INT_TEST_GAMEPLAY_ROUNDTRIP) {
+            IntegrationTest_LogGameplayState("signal");
+        }
+        _Exit(128 + signal);
+    }
     _Exit(1);
 }
 

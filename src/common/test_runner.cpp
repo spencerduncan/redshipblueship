@@ -670,6 +670,10 @@ const IntegrationTestDescriptor gIntegrationTests[] = {
     {"int-archive-hotswap-cycle",
      "Boot OoT, hot-swap OoT<->MM >=3 times, verify healthy runtime (no missing assets, bounded RSS) (#263)",
      INT_TEST_ARCHIVE_HOTSWAP_CYCLE, GAME_OOT},
+    {"int-gameplay-roundtrip",
+     "Operator crash repro: debug save, live gameplay, production OoT<->MM round trip (freeze/restore + "
+     "resume leg), post-return debug warp, door transition. Env: RSBS_GP_FRAMES/CYCLES/BOOT|WARP|EXIT_ENTRANCE",
+     INT_TEST_GAMEPLAY_ROUNDTRIP, GAME_OOT},
     {nullptr, nullptr, INT_TEST_NONE, GAME_NONE}  // Sentinel
 };
 

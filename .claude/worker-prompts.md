@@ -235,6 +235,15 @@ deferred deep `Play_Init` failure-*recovery* (make the spawn-scene path return
 s32 so `Play_Init` unwinds instead of leaving a player-less PlayState) can only
 be VALIDATED on a real-ROM boot → stays a documented open item.
 
+**Gameplay crash repro (2026-07-18):** `docs/ci-gameplay-repro-postmortem.md`
+explains why this crash class shipped through green CI and documents
+`redship --integration-test int-gameplay-roundtrip` — the programmatic version
+of the operator's manual repro (debug save → live gameplay → production
+OoT↔MM round trip incl. the resume leg → debug warp → door transition),
+parameterized via `RSBS_GP_*` env vars, with crash-log artifact upload wired
+into `integration-tests.yml` and a documented agent loop for build→repro→
+observe→bisect on any ROM-equipped machine.
+
 ### Recommended separate PR — the #341 elision-prevention track
 Live class-level hazard regardless of the current crash cause; ROM-free.
 - OoT wraps only `soh_rando` in WHOLE_ARCHIVE (`games/oot/CMakeLists.txt:276`,

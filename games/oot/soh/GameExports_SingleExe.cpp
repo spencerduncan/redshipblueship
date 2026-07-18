@@ -14,12 +14,14 @@
 #include <libultraship/bridge.h>
 #include <ship/Context.h>
 #include "z64save.h"
+#include "macros.h" // SET_NEXT_GAMESTATE for the gameplay round-trip driver
 
 #include "game_lifecycle.h"
 #include "integration_test_hooks.h"
 #include "context.h"
 #include "entrance.h"
 #include "soh/Enhancements/game-interactor/GameInteractor.h"
+#include "soh/Enhancements/game-interactor/GameInteractor_Hooks.h"
 
 // External declarations from main.c and other C sources
 extern "C" {
@@ -70,6 +72,98 @@ static char** sArgv = nullptr;
 
 // Integration test hook frame counter (reset each time hooks are registered)
 static int sOoTGameStateMainFrameCount = 0;
+
+// ============================================================================
+// Gameplay round-trip repro (INT_TEST_GAMEPLAY_ROUNDTRIP) — OoT side
+// ============================================================================
+
+// Symbols the gameplay driver borrows from OoT proper. All C linkage:
+// OoT_Sram_InitDebugSave / OoT_Play_Init are decomp code (z_sram.c/z_play.c),
+// OoT_gGameState / OoT_gPlayState are set by game.c / z_play.c.
+extern "C" {
+    void OoT_Sram_InitDebugSave(void);
+    void OoT_Play_Init(GameState* thisx);
+    extern GameState* OoT_gGameState;
+    extern PlayState* OoT_gPlayState;
+}
+
+// Phase-local OoT driver state. sGpArrivalPhase records which phase's
+// expected scene has been confirmed by OnSceneInit; gameplay frames are only
+// counted while the arrival matches the live phase, so fade-out frames after
+// firing a door and pre-arrival frames never count.
+static GameplayPhase sGpArrivalPhase = GP_PHASE_DONE;
+static GameplayPhase sGpPlayerLastPhase = GP_PHASE_DONE;
+static GameplayPhase sGpWatchdogLastPhase = GP_PHASE_DONE;
+static int sGpFramesInPhase = 0;
+static int sGpSceneInits = 0;
+static int sGpWatchdogFrames = 0;
+static int sGpWatchdogLimit = 0;
+
+/**
+ * The production "walk through a door" trio (z_player.c exit handling /
+ * debugconsole `entrance` command): the play update loop consumes it on the
+ * next frame, runs the real transition state machine — including
+ * Combo_CheckEntranceSwitch on the cross-game path, which freezes the live
+ * SaveContext — and re-enters OoT_Play_Init for same-game targets.
+ */
+static void GpFireOoTDoor(uint16_t entrance, const char* what) {
+    PlayState* play = OoT_gPlayState;
+    if (play == NULL) {
+        IntegrationTest_GameplayFail("no PlayState when firing a door transition");
+        return;
+    }
+    fprintf(stderr, "[GP-TEST] firing %s: entrance 0x%04X (from scene %d, entrance 0x%04X)\n",
+            what, entrance, play->sceneNum, (uint16_t)gSaveContext.entranceIndex);
+    fflush(stderr);
+    play->nextEntranceIndex = entrance;
+    play->transitionTrigger = TRANS_TRIGGER_START;
+    play->transitionType = TRANS_TYPE_FADE_BLACK;
+    gSaveContext.nextTransitionType = TRANS_TYPE_FADE_BLACK;
+}
+
+/**
+ * Author a debug save in-place and enter Play directly at the configured
+ * boot entrance. Mirrors the operator's map-select flow — Select_LoadGame
+ * (z_select.c) and the boot branch of Enhancements/Warping.cpp Warp() — so
+ * the test runs on the same kind of full-inventory save + Play_Init entry the
+ * manual repro uses.
+ */
+static void GpInjectDebugSaveAndEnterPlay(GameState* gameState, const char* from) {
+    const GameplayTestConfig* cfg = IntegrationTest_GetGameplayConfig();
+    if (gameState == NULL) {
+        IntegrationTest_GameplayFail("no GameState available for debug-save injection");
+        return;
+    }
+    fprintf(stderr, "[GP-TEST] injecting debug save at %s; entering Play at entrance 0x%04X\n",
+            from, cfg->bootEntrance);
+    fflush(stderr);
+
+    gSaveContext.gameMode = GAMEMODE_NORMAL;
+    gSaveContext.fileNum = 0xFE; // temporary file so InitDebugSave respects the debug-save-file option
+    OoT_Sram_InitDebugSave();
+    gSaveContext.magicFillTarget = gSaveContext.magic;
+    gSaveContext.magic = 0;
+    gSaveContext.magicCapacity = 0;
+    gSaveContext.magicLevel = gSaveContext.magic;
+    gSaveContext.fileNum = 0xFF;
+    gSaveContext.sceneSetupIndex = 0;
+    gSaveContext.cutsceneIndex = 0;
+    gSaveContext.linkAge = LINK_AGE_CHILD; // child + noon => the populated Market Day of the crash logs
+    gSaveContext.nightFlag = 0;
+    gSaveContext.dayTime = 0x8000;
+    gSaveContext.skyboxTime = 0x8000;
+    gSaveContext.entranceIndex = cfg->bootEntrance;
+    gSaveContext.seqId = (u8)NA_BGM_DISABLED;
+    gSaveContext.natureAmbienceId = 0xFF;
+    gSaveContext.showTitleCard = true;
+    gSaveContext.respawnFlag = 0;
+    gSaveContext.respawn[RESPAWN_MODE_DOWN].entranceIndex = ENTR_LOAD_OPENING;
+
+    gameState->running = false;
+    SET_NEXT_GAMESTATE(gameState, OoT_Play_Init, PlayState);
+    GameInteractor_ExecuteOnLoadGame(gSaveContext.fileNum);
+    IntegrationTest_SetGameplayPhase(GP_PHASE_OOT_PRE);
+}
 
 // ============================================================================
 // Integration Test Hooks
@@ -260,6 +354,187 @@ static void OoT_RegisterIntegrationTestHooks(void) {
         );
 
         fprintf(stderr, "[OoT] archive-hotswap cycle hooks registered\n");
+        fflush(stderr);
+    } else if (mode == INT_TEST_GAMEPLAY_ROUNDTRIP) {
+        // Full operator-repro loop: debug save -> live gameplay -> Happy Mask
+        // Shop door (production Combo_CheckEntranceSwitch path, WITH the
+        // SaveContext freeze) -> MM Clock Tower -> SCT-south exit -> OoT
+        // RESUME leg (the crash surface of the 2026-07 logs) -> debug warp ->
+        // final door transition. The MM half lives in
+        // games/mm/2s2h/GameExports_SingleExe.cpp; the phase machine is shared
+        // via integration_test_hooks.h.
+        fprintf(stderr, "[OoT] Registering gameplay round-trip hooks\n");
+        fflush(stderr);
+
+        sGpArrivalPhase = GP_PHASE_DONE;
+        sGpPlayerLastPhase = GP_PHASE_DONE;
+        sGpWatchdogLastPhase = GP_PHASE_DONE;
+        sGpFramesInPhase = 0;
+        sGpSceneInits = 0;
+        sGpWatchdogFrames = 0;
+        // Generous bound: several fade/loads plus the configured gameplay
+        // window per phase; the CTest timeout stays the hard backstop.
+        sGpWatchdogLimit = IntegrationTest_GetGameplayConfig()->framesPerPhase * 4 + 3600;
+
+        // Boot injection — whichever of these fires first wins; both are
+        // no-ops once the phase machine has left GP_PHASE_BOOT. The title
+        // hook receives its gamestate (TitleContext, whose first member is
+        // the GameState); the file-select hook has no argument, so it uses
+        // the OoT_gGameState global (same pattern as debugconsole.cpp).
+        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnZTitleUpdate>(
+            [](void* gameState) {
+                if (IntegrationTest_GetGameplayPhase() != GP_PHASE_BOOT) {
+                    return;
+                }
+                GpInjectDebugSaveAndEnterPlay((GameState*)gameState, "title screen");
+            }
+        );
+        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnPresentFileSelect>(
+            []() {
+                if (IntegrationTest_GetGameplayPhase() != GP_PHASE_BOOT) {
+                    return;
+                }
+                GpInjectDebugSaveAndEnterPlay(OoT_gGameState, "file select");
+            }
+        );
+
+        // Arrival tracking + entrance verification. Fires from the scene
+        // build inside OoT_Play_Init — i.e. AFTER the startup-entrance
+        // consumption at the top of Play_Init, so entranceIndex is final.
+        // The return-leg check is the #356 regression predicate: an MM
+        // entrance id (0xC010) surviving into OoT would land here as a
+        // mismatch (or crash first, which the CI wrapper reports with logs).
+        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnSceneInit>(
+            [](int16_t sceneNum) {
+                if (Context_GetCurrentGame() == GAME_MM) {
+                    return; // shared hook storage guard (#344)
+                }
+                sGpSceneInits++;
+                GameplayPhase phase = IntegrationTest_GetGameplayPhase();
+                const GameplayTestConfig* cfg = IntegrationTest_GetGameplayConfig();
+                uint16_t entrance = (uint16_t)gSaveContext.entranceIndex;
+                uint16_t expected;
+                const char* what;
+                switch (phase) {
+                    case GP_PHASE_OOT_PRE:    expected = cfg->bootEntrance; what = "boot"; break;
+                    case GP_PHASE_OOT_RETURN: expected = OOT_ENTR_MARKET_FROM_MASK_SHOP; what = "return leg"; break;
+                    case GP_PHASE_OOT_WARP:   expected = cfg->warpEntrance; what = "warp"; break;
+                    case GP_PHASE_OOT_EXIT:   expected = cfg->exitEntrance; what = "exit door"; break;
+                    default:
+                        return; // MM-owned or completed phase: not an arrival we track
+                }
+                fprintf(stderr, "[GP-TEST] OoT scene init #%d: scene %d, entrance 0x%04X (%s)\n",
+                        sGpSceneInits, sceneNum, entrance, what);
+                fflush(stderr);
+                if (entrance != expected) {
+                    char msg[160];
+                    snprintf(msg, sizeof(msg),
+                             "%s arrived at entrance 0x%04X, expected 0x%04X — entrance corruption?",
+                             what, entrance, expected);
+                    IntegrationTest_GameplayFail(msg);
+                    return;
+                }
+                sGpArrivalPhase = phase;
+            }
+        );
+
+        // Per-frame gameplay driver: counts live-gameplay frames (player
+        // actor updating in the arrived scene) and fires the next action
+        // when the window completes.
+        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnPlayerUpdate>(
+            []() {
+                if (Context_GetCurrentGame() == GAME_MM) {
+                    return; // shared hook storage guard (#344)
+                }
+                if (OoT_gPlayState == NULL) {
+                    return;
+                }
+                GameplayPhase phase = IntegrationTest_GetGameplayPhase();
+                if (phase != sGpPlayerLastPhase) {
+                    sGpPlayerLastPhase = phase;
+                    sGpFramesInPhase = 0;
+                }
+                if (sGpArrivalPhase != phase) {
+                    return; // fade-out after firing a door, or not yet in the expected scene
+                }
+                const GameplayTestConfig* cfg = IntegrationTest_GetGameplayConfig();
+                sGpFramesInPhase++;
+                if (sGpFramesInPhase < cfg->framesPerPhase) {
+                    return;
+                }
+                switch (phase) {
+                    case GP_PHASE_OOT_PRE:
+                        GpFireOoTDoor(OOT_ENTR_HAPPY_MASK_SHOP, "Happy Mask Shop door");
+                        IntegrationTest_SetGameplayPhase(GP_PHASE_MM_STABILIZE);
+                        break;
+                    case GP_PHASE_OOT_RETURN:
+                        IntegrationTest_GameplayRecordCycle();
+                        if (IntegrationTest_GameplayCyclesDone() < cfg->cycles) {
+                            GpFireOoTDoor(OOT_ENTR_HAPPY_MASK_SHOP, "Happy Mask Shop door (next round trip)");
+                            IntegrationTest_SetGameplayPhase(GP_PHASE_MM_STABILIZE);
+                        } else {
+                            GpFireOoTDoor(cfg->warpEntrance, "post-return debug warp");
+                            IntegrationTest_SetGameplayPhase(GP_PHASE_OOT_WARP);
+                        }
+                        break;
+                    case GP_PHASE_OOT_WARP:
+                        GpFireOoTDoor(cfg->exitEntrance, "final door transition");
+                        IntegrationTest_SetGameplayPhase(GP_PHASE_OOT_EXIT);
+                        break;
+                    case GP_PHASE_OOT_EXIT:
+                        fprintf(stderr,
+                                "[GP-TEST] PASS: %d round trip(s), warp, and door transition survived "
+                                "%d live frames per phase\n",
+                                IntegrationTest_GameplayCyclesDone(), cfg->framesPerPhase);
+                        fflush(stderr);
+                        IntegrationTest_SetGameplayPhase(GP_PHASE_DONE);
+                        IntegrationTest_SignalBootComplete(GAME_OOT, "gameplay round-trip complete");
+                        break;
+                    default:
+                        break;
+                }
+            }
+        );
+
+        // OoT-side watchdog: fail loudly (with state) instead of timing out
+        // silently if an OoT-owned phase stops making progress.
+        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>(
+            []() {
+                if (Context_GetCurrentGame() == GAME_MM) {
+                    return;
+                }
+                GameplayPhase phase = IntegrationTest_GetGameplayPhase();
+                switch (phase) {
+                    case GP_PHASE_BOOT:
+                    case GP_PHASE_OOT_PRE:
+                    case GP_PHASE_OOT_RETURN:
+                    case GP_PHASE_OOT_WARP:
+                    case GP_PHASE_OOT_EXIT:
+                        break;
+                    default:
+                        sGpWatchdogFrames = 0;
+                        return;
+                }
+                if (phase != sGpWatchdogLastPhase) {
+                    sGpWatchdogLastPhase = phase;
+                    sGpWatchdogFrames = 0;
+                }
+                sGpWatchdogFrames++;
+                if (sGpWatchdogFrames == sGpWatchdogLimit) {
+                    PlayState* play = OoT_gPlayState;
+                    fprintf(stderr,
+                            "[GP-TEST] OoT watchdog: no progress after %d frames "
+                            "(play=%p scene=%d entrance=0x%04X arrivedPhase=%d sceneInits=%d gameplayFrames=%d)\n",
+                            sGpWatchdogFrames, (void*)play, play ? play->sceneNum : -1,
+                            (uint16_t)gSaveContext.entranceIndex, (int)sGpArrivalPhase, sGpSceneInits,
+                            sGpFramesInPhase);
+                    fflush(stderr);
+                    IntegrationTest_GameplayFail("OoT-side phase watchdog expired");
+                }
+            }
+        );
+
+        fprintf(stderr, "[OoT] gameplay round-trip hooks registered\n");
         fflush(stderr);
     }
 }
