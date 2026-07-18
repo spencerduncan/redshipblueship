@@ -1262,6 +1262,17 @@ void MM_AudioLoad_Init(void* heap, size_t heapSize) {
     memset(&gAudioCtx.seqLoadStatus[seqListSize], LOAD_STATUS_PERMANENT, customSeqListSize);
     for (size_t i = 0; i < seqListSize; i++) {
         SequenceData sDat = ResourceMgr_LoadSeqByName(seqList[i]);
+        // RSBS: mirror of the OoT-side guard (games/oot/src/code/audio_load.c)
+        // — the shared-ResourceManager glob returns BOTH games' sequences once
+        // both archives are loaded, and a foreign-format resource cast to this
+        // port's SequenceData carries a garbage seqNumber. Unguarded, the
+        // cache-policy byte write ran past MM_seqCachePolicyMap into adjacent
+        // globals. Real fix (filed): archive-scoped enumeration.
+        if (sDat.seqNumber >= gSequenceMapSize || sDat.seqNumber >= MAX_AUTHENTIC_SEQID) {
+            fprintf(stderr, "[MM] AudioLoad: skipping foreign/garbage sequence %s (seqNumber %d)\n", seqList[i],
+                    (int)sDat.seqNumber);
+            continue;
+        }
         gSequenceMap[sDat.seqNumber] = strdup(seqList[i]);
         MM_seqCachePolicyMap[sDat.seqNumber] = sDat.cachePolicy;
     }

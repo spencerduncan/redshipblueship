@@ -505,7 +505,18 @@ candidate fix); unified-save `Load` not marking restored blobs as frozen
 (`Context_UpdateShadowCopy` never sets `hasBeenFrozen`), so a loaded `.redsave`
 MM blob is ignored by the resume/Play_Init restore path after an app restart;
 the `AudioCollection` C++ class ODR collision between the two ports (audio
-path — being fixed in a separate session); and an MM-first-specific crash:
-switching into a NEVER-initialized OoT after an MM-first boot dies at
-`OoT_AudioLoad_Init+0x425` (OoT-first flows init OoT audio before MM ever
-runs, so the standard soak cannot see it — an MM-first switch test would).
+path — being fixed in a separate session); and the MM-first → OoT switch
+chain. That last one is now partially fixed and partially open: the first
+fault (reproduced unattended via the new `RSBS_AUTO_SWITCH_FRAME=<n>`
+hotkey-switch hook + dbg374) was `OoT_AudioLoad_Init` globbing
+`"audio/sequences*"` over the SHARED ResourceManager — with MM's archives
+already loaded, MM's sequence ids (110-127) overran
+`OoT_seqCachePolicyMap[MAX_AUTHENTIC_SEQID]`, corrupting the adjacent
+`sequenceMap` pointer (AV on the next write). Both games' loops now
+bounds-guard and loudly skip foreign entries (`audio_load.c` /
+`load.c`), which also exposed the deeper correctness bug: foreign
+sequences whose ids land in-bounds silently SHADOW the native game's
+music in the map — in both boot orders — so the real fix is
+archive-scoped enumeration (open). With the guards in place the MM-first
+switch survives audio init but the process still exits silently later in
+OoT's `Main()` with no crash dump — next fault in the chain, undiagnosed.

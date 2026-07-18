@@ -1348,6 +1348,22 @@ void OoT_AudioLoad_Init(void* heap, size_t heapSize) {
     memset(gAudioContext.seqLoadStatus, 5, sequenceMapSize);
     for (size_t i = 0; i < seqListSize; i++) {
         SequenceData sDat = ResourceMgr_LoadSeqByName(seqList[i]);
+        // RSBS: the "audio/sequences*" glob runs over the SHARED ResourceManager,
+        // so when MM's archives are already loaded (MM-first boot, or any boot
+        // once both games have run) this list contains MM sequence resources
+        // too. Casting a foreign-format resource to SoH's SequenceData yields a
+        // garbage seqNumber; unguarded, the cache-policy byte write below ran
+        // off the end of OoT_seqCachePolicyMap and corrupted the ADJACENT
+        // sequenceMap pointer (AV on the next iteration — the MM-first -> OoT
+        // switch crash, 2026-07-18). Skipping keeps init alive; entries whose
+        // garbage id happens to land in bounds can still shadow real ones, so
+        // the real fix (filed) is scoping the enumeration to this game's
+        // archive.
+        if (sDat.seqNumber >= sequenceMapSize || sDat.seqNumber >= MAX_AUTHENTIC_SEQID) {
+            fprintf(stderr, "[OoT] AudioLoad: skipping foreign/garbage sequence %s (seqNumber %d)\n", seqList[i],
+                    (int)sDat.seqNumber);
+            continue;
+        }
         sequenceMap[sDat.seqNumber] = strdup(seqList[i]);
         OoT_seqCachePolicyMap[sDat.seqNumber] = sDat.cachePolicy;
     }
@@ -1437,6 +1453,12 @@ void OoT_AudioLoad_Init(void* heap, size_t heapSize) {
 
         sDat->seqNumber = seqNum;
         printf("%d\n", seqNum);
+        if ((size_t)sDat->seqNumber >= sequenceMapSize) {
+            fprintf(stderr, "[OoT] AudioLoad: custom sequence %s overflows sequenceMap (seqNumber %d >= %u); skipping\n",
+                    customSeqList[j], seqNum, (unsigned)sequenceMapSize);
+            seqNum++;
+            continue;
+        }
         sequenceMap[sDat->seqNumber] = strdup(customSeqList[j]);
         seqNum++;
     }

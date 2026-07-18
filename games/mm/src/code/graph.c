@@ -373,6 +373,24 @@ void MM_Graph_Update(GraphicsContext* gfxCtx, GameState* gameState) {
     Graph_UpdateGame(gameState);
 
 #ifdef RSBS_SINGLE_EXECUTABLE
+    // RSBS_AUTO_SWITCH_FRAME=<frame>: fire the hotkey game-switch request
+    // programmatically after N MM frames — the unattended stand-in for a
+    // human pressing F10, so switch-path faults (e.g. the MM-first -> OoT
+    // first-init crash, 2026-07-18) reproduce under the crash debugger.
+    {
+        extern void Combo_RequestGameSwitch(void);
+        static int sAutoSwitchFrame = 0;
+        static int sAutoSwitched = 0;
+        const char* swEnv = getenv("RSBS_AUTO_SWITCH_FRAME");
+        sAutoSwitchFrame++;
+        if (swEnv != NULL && !sAutoSwitched && sAutoSwitchFrame >= atoi(swEnv)) {
+            sAutoSwitched = 1;
+            fprintf(stderr, "[RSBS] AUTO-SWITCH: requesting game switch at MM frame %d\n", sAutoSwitchFrame);
+            fflush(stderr);
+            Combo_RequestGameSwitch();
+        }
+    }
+
     // RSBS_DUMP_GFX=<frame>: one-shot raw hexdump of this frame's polyOpa
     // command stream to stderr, for diagnosing display-list encoding faults
     // (e.g. the 2026-07-18 "MM 3D renders as giant flat triangles" hunt) —
