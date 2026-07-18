@@ -29,6 +29,13 @@ int MM_RegisterResourceFactoriesHeadless(void);
 // enters this translation unit; called through this C entry point, mirroring
 // MM_RegisterResourceFactoriesHeadless. Returns 0 on pass, non-zero on fail.
 int MM_SceneExecute_RunHeadless(void);
+// VB-affinity regression: MM's GameInteractor_* calls resolve to OoT's
+// extern "C" wrappers in single-exe builds, and the two games' vanilla-
+// behavior ordinals alias each other. The wrappers gate on the active game;
+// these helpers (GameInteractor_Hooks.cpp) arm a veto hook to prove it.
+bool GameInteractor_Should(int32_t flag, uint32_t result, ...);
+void GameInteractor_TestArmVBVeto(int32_t flag);
+void GameInteractor_TestDisarmVBVeto(void);
 }
 
 // Lifecycle unit tests — included directly to avoid static library link ordering issues
@@ -497,6 +504,45 @@ TestResult Test_StartupEntrance(void) {
     return TEST_PASS;
 }
 
+TestResult Test_VBAffinity(void) {
+    printf("[TEST] vb-affinity: OoT VB hooks must not fire while MM is active\n");
+
+    // 206 is the aliased ordinal behind the Market -> Clock Tower crash: MM's
+    // VB_SETUP_TRANSITION and OoT's VB_PLAY_RAINBOW_BRIDGE_CS share it, so an
+    // OoT hook could veto MM's transition setup and leave transitionCtx.init
+    // NULL (called at games/mm/src/code/z_play.c TRANS_MODE_INSTANCE_INIT).
+    const int32_t kAliasedOrdinal = 206;
+
+    GameId prevGame = Context_GetCurrentGame();
+    GameInteractor_TestArmVBVeto(kAliasedOrdinal);
+
+    // With OoT active, dispatch must reach OoT's hook registry: veto applies.
+    Context_SetCurrentGame(GAME_OOT);
+    bool vetoed = GameInteractor_Should(kAliasedOrdinal, 1);
+
+    // With MM active, the affinity gate must return the vanilla default before
+    // any OoT hook runs.
+    Context_SetCurrentGame(GAME_MM);
+    bool mmTrueDefault = GameInteractor_Should(kAliasedOrdinal, 1);
+    bool mmFalseDefault = GameInteractor_Should(kAliasedOrdinal, 0);
+
+    GameInteractor_TestDisarmVBVeto();
+    Context_SetCurrentGame(prevGame);
+
+    if (vetoed != false) {
+        printf("[TEST] FAIL: OoT-active dispatch ignored the armed veto hook\n");
+        return TEST_FAIL;
+    }
+    if (mmTrueDefault != true || mmFalseDefault != false) {
+        printf("[TEST] FAIL: MM-active call did not get vanilla behavior (got %d/%d, want 1/0)\n",
+               (int)mmTrueDefault, (int)mmFalseDefault);
+        return TEST_FAIL;
+    }
+
+    printf("[TEST] PASS: MM-active VB calls stay vanilla; OoT-active hooks still fire\n");
+    return TEST_PASS;
+}
+
 TestResult Test_RoundtripIntegrity(void) {
     printf("[TEST] roundtrip-integrity: OoT SaveContext byte-integrity across roundtrip (issue #262)\n");
     int failures = TestRoundtripIntegrity_Run();
@@ -582,6 +628,7 @@ const TestDescriptor gTests[] = {
     {"switch-mm-oot", "Test game switch MM -> OoT", Test_SwitchMMOoT},
     {"midos-house", "Test Mido's House entrance (test mode)", Test_MidosHouse},
     {"startup-entrance", "Test startup entrance flow", Test_StartupEntrance},
+    {"vb-affinity", "OoT VB hooks stay quiet while MM is active", Test_VBAffinity},
     {"roundtrip", "Full round-trip with state verification", Test_Roundtrip},
     {"roundtrip-integrity", "OoT SaveContext byte-identical across OoT->MM->OoT (issue #262)", Test_RoundtripIntegrity},
     {"shared-roundtrip", "Shared flag/seed survive OoT->MM switch (issue #264)", Test_SharedStateRoundtrip},

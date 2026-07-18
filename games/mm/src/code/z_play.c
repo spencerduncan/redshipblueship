@@ -684,6 +684,18 @@ void Play_UpdateTransition(PlayState* this) {
             s32 transFadeDuration;
             u32 color;
 
+            // Breadcrumb guard: if Play_SetupTransition was skipped (e.g. a
+            // VB_SETUP_TRANSITION veto), every transitionCtx callback is still
+            // NULL and calling init would jump to address 0. Disable the
+            // transition instead of crashing; the scene itself has already
+            // loaded.
+            if (this->transitionCtx.init == NULL) {
+                osSyncPrintf("Play_UpdateTransition: transitionCtx.init is NULL (setup was skipped); "
+                             "disabling transition\n");
+                this->transitionMode = TRANS_MODE_OFF;
+                break;
+            }
+
             this->transitionCtx.init(&this->transitionCtx.instanceData);
 
             if (this->transitionCtx.transitionType & (TRANS_TYPE_WIPE3 | TRANS_TYPE_WIPE4)) {

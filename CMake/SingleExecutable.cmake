@@ -219,6 +219,12 @@ if(BUILD_TESTING)
     # linear gEntranceTable index — the OOB-read crash behind the Market
     # cutscene 0xC0000005.
     add_test(NAME StartupEntrance COMMAND redship --test startup-entrance)
+    # VB-affinity regression: MM's GameInteractor_* calls bind to OoT's
+    # extern "C" wrappers in single-exe builds, and the two games' vanilla-
+    # behavior ordinals alias (MM VB_SETUP_TRANSITION == OoT
+    # VB_PLAY_RAINBOW_BRIDGE_CS == 206). The wrappers must return vanilla
+    # behavior while MM is active — the Market -> Clock Tower NULL-call crash.
+    add_test(NAME VBAffinity COMMAND redship --test vb-affinity)
     add_test(NAME Roundtrip COMMAND redship --test roundtrip)
     add_test(NAME RoundtripIntegrity COMMAND redship --test roundtrip-integrity)
     add_test(NAME SharedRoundtrip COMMAND redship --test shared-roundtrip)
@@ -242,7 +248,7 @@ if(BUILD_TESTING)
     # Set reasonable timeout and label our tests
     set(REDSHIP_TEST_TIMEOUT 60 CACHE STRING "Test timeout in seconds")
     set_tests_properties(
-        BootOoT BootMM SwitchOoTMM SwitchMMOoT StartupEntrance Roundtrip RoundtripIntegrity SharedRoundtrip ArchiveHotswapLogic
+        BootOoT BootMM SwitchOoTMM SwitchMMOoT StartupEntrance VBAffinity Roundtrip RoundtripIntegrity SharedRoundtrip ArchiveHotswapLogic
         SaveRoundtripTiers SaveHeader SaveHasDelete SaveVersionReject SaveSizeMismatch SaveLegacySize SaveCrcCorrupt
         Context MMSceneParse MMSceneExecute AllTests
         PROPERTIES
