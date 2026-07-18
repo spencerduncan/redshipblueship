@@ -35,6 +35,17 @@ int MM_SceneExecute_RunHeadless(void);
 // at 0xA7 in MM_Interface_DrawItemButtons, first HUD-visible MM frame).
 // Returns 0 on pass, non-zero on fail.
 int CosmeticGfxStub_RunHeadless(void);
+// MM resume-path cold-boot contracts (games/mm/2s2h/mm_resume_state_test.cpp):
+// (a) mm-resume-arena — MM_ResumeColdBootPrep must make an exhausted system
+//     arena allocatable again (the cycle-2 re-entry crash class: the retired
+//     session leaks the whole arena and the next boot chain's first gamestate
+//     malloc returned NULL -> memset(NULL) AV).
+// (b) mm-startup-restore — MM_Play_ConsumeStartupEntrance must re-apply the
+//     frozen MM save after the boot chain's SaveContext wipes, then spawn at
+//     the startup entrance with cutscene/game-mode state reset.
+// Return 0 on pass, non-zero on fail.
+int MM_ResumeArena_RunHeadless(void);
+int MM_StartupRestore_RunHeadless(void);
 // VB-affinity regression: MM's GameInteractor_* calls resolve to OoT's
 // extern "C" wrappers in single-exe builds, and the two games' vanilla-
 // behavior ordinals alias each other. The wrappers gate on the active game;
@@ -90,6 +101,15 @@ static TestResult Test_MMSceneExecute(void) {
 // wrapper over the C entry point in games/mm/2s2h/CosmeticGfxSingleExe.cpp.
 static TestResult Test_CosmeticGfxStub(void) {
     return CosmeticGfxStub_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// MM resume-path cold-boot contracts (see the extern decls above). Thin
+// wrappers over the C entry points in games/mm/2s2h/mm_resume_state_test.cpp.
+static TestResult Test_MMResumeArena(void) {
+    return MM_ResumeArena_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+static TestResult Test_MMStartupRestore(void) {
+    return MM_StartupRestore_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // ============================================================================
@@ -263,7 +283,9 @@ TestResult Test_SwitchOoTMM(void) {
         return TEST_FAIL;
     }
 
-    if (Entrance_GetSwitchTargetEntrance() != MM_ENTR_CLOCK_TOWER_INTERIOR_1) {
+    // OoT->MM arrival is the South Clock Town tower-exit spawn (as if the
+    // player just walked out of the Clock Tower), NOT Clock Tower Interior.
+    if (Entrance_GetSwitchTargetEntrance() != MM_ENTR_SOUTH_CLOCK_TOWN_0) {
         printf("[TEST] FAIL: Target entrance incorrect\n");
         return TEST_FAIL;
     }
@@ -280,9 +302,10 @@ TestResult Test_SwitchMMOoT(void) {
     Entrance_Init();
     Entrance_RegisterDefaultLinks();
 
-    // Simulate MM exiting from Clock Tower to South Clock Town
-    // (which should trigger switch back to OoT)
-    uint16_t result = Entrance_CheckCrossGame(GAME_MM, MM_ENTR_SOUTH_CLOCK_TOWN_0);
+    // Simulate MM entering the Clock Tower from South Clock Town — the
+    // tower door is the MM->OoT trigger (the SCT tower-exit spawn 0xD800 is
+    // the ARRIVAL and must never trigger: MM's own cycle resets target it).
+    uint16_t result = Entrance_CheckCrossGame(GAME_MM, MM_ENTR_CLOCK_TOWER_INTERIOR_1);
 
     if (!Entrance_IsCrossGameSwitch()) {
         printf("[TEST] FAIL: Cross-game switch not triggered\n");
@@ -339,12 +362,12 @@ TestResult Test_Roundtrip(void) {
     Entrance_ClearPendingSwitch();
 
     // ------------------------------------------------------------------
-    // Leg 2: MM -> OoT via South Clock Town
+    // Leg 2: MM -> OoT via the Clock Tower door
     // ------------------------------------------------------------------
     // This is the leg that pre-#170 silently no-op'd because the shared
     // Combo_CheckEntranceSwitch implementation looked up "oot" links for
-    // MM's entrance id 0xD800 and always missed.
-    Combo_CheckCrossGameEntrance("mm", MM_ENTR_SOUTH_CLOCK_TOWN_0);
+    // MM's entrance id and always missed.
+    Combo_CheckCrossGameEntrance("mm", MM_ENTR_CLOCK_TOWER_INTERIOR_1);
     if (!Combo_IsCrossGameSwitch()) {
         printf("[TEST] FAIL: Leg 2 - MM->OoT switch not triggered\n");
         return TEST_FAIL;
@@ -416,12 +439,12 @@ TestResult Test_MidosHouse(void) {
         return TEST_FAIL;
     }
 
-    if (Entrance_GetSwitchTargetEntrance() != MM_ENTR_CLOCK_TOWER_INTERIOR_1) {
-        printf("[TEST] FAIL: Should target Clock Tower Interior\n");
+    if (Entrance_GetSwitchTargetEntrance() != MM_ENTR_SOUTH_CLOCK_TOWN_0) {
+        printf("[TEST] FAIL: Should target South Clock Town (tower-exit arrival)\n");
         return TEST_FAIL;
     }
 
-    printf("[TEST] PASS: Mido's House -> Clock Tower link works\n");
+    printf("[TEST] PASS: Mido's House -> MM portal link works\n");
     Entrance_ClearPendingSwitch();
     return TEST_PASS;
 }
@@ -444,11 +467,12 @@ TestResult Test_StartupEntrance(void) {
     uint16_t targetEntrance = Entrance_GetSwitchTargetEntrance();
     Entrance_SetStartupEntrance(targetEntrance);
 
-    // Step 3: Verify startup entrance is set
+    // Step 3: Verify startup entrance is set (the OoT->MM arrival, i.e. the
+    // South Clock Town tower-exit spawn)
     uint16_t startup = Combo_GetStartupEntrance();
-    if (startup != MM_ENTR_CLOCK_TOWER_INTERIOR_1) {
+    if (startup != MM_ENTR_SOUTH_CLOCK_TOWN_0) {
         printf("[TEST] FAIL: Startup entrance not set correctly (got 0x%04X, expected 0x%04X)\n",
-               startup, MM_ENTR_CLOCK_TOWER_INTERIOR_1);
+               startup, MM_ENTR_SOUTH_CLOCK_TOWN_0);
         return TEST_FAIL;
     }
 
@@ -657,6 +681,13 @@ const TestDescriptor gTests[] = {
     {"save-crc-corrupt", "Unified save Load rejects corrupt payload, no clobber (#35)", Test_SaveCrcCorrupt},
     {"mm-scene-parse", "MM scene commands parse via the S2H factory (#344)", Test_MMSceneParse},
     {"mm-scene-execute", "MM scene commands execute against a PlayState (#344)", Test_MMSceneExecute},
+    // The two MM resume-contract tests below mutate process-global state
+    // (mm-resume-arena re-inits the MM system arena + heaps; mm-startup-restore
+    // scribbles and re-zeroes the unified gSaveContext). Both clean up after
+    // themselves, but a future test that depends on live MM arena contents or
+    // a pre-populated gSaveContext must run BEFORE them.
+    {"mm-resume-arena", "MM resume re-arms an exhausted system arena for the cold boot chain", Test_MMResumeArena},
+    {"mm-startup-restore", "MM startup-entrance consumption restores the frozen save post-wipe", Test_MMStartupRestore},
     // Keep archive-hotswap-logic LAST: it re-inits the entrance table, so it
     // must not run before any test that relies on the default links.
     {"archive-hotswap-logic", "Headless multi-switch archive/state regression (#263)", Test_ArchiveHotswapLogic},
@@ -675,10 +706,10 @@ const IntegrationTestDescriptor gIntegrationTests[] = {
     {"int-boot-oot", "Boot OoT and verify title screen (integration)", INT_TEST_BOOT_OOT, GAME_OOT},
     {"int-boot-mm", "Boot MM and verify title screen (integration)", INT_TEST_BOOT_MM, GAME_MM},
     {"int-switch-oot-hms-to-mm",
-     "Boot OoT, trigger Happy Mask Shop entrance (0x0530), verify spawn at MM Clock Tower Interior (0xC010)",
+     "Boot OoT, trigger Happy Mask Shop entrance (0x0530), verify spawn at MM South Clock Town tower exit (0xD800)",
      INT_TEST_SWITCH_OOT_HMS_TO_MM, GAME_OOT},
     {"int-switch-mm-clocktown-south-to-oot",
-     "Boot MM, trigger South Clock Town south exit (0xD800), verify spawn at OoT Market from Mask Shop (0x01D1)",
+     "Boot MM, trigger the Clock Tower door (0xC010), verify spawn at OoT Market from Mask Shop (0x01D1)",
      INT_TEST_SWITCH_MM_CLOCKTOWN_SOUTH_TO_OOT, GAME_MM},
     {"int-archive-hotswap-cycle",
      "Boot OoT, hot-swap OoT<->MM >=3 times, verify healthy runtime (no missing assets, bounded RSS) (#263)",

@@ -260,7 +260,9 @@ TestResult Test_ArchiveHotswapLogic(void) {
                            "MM SaveContext corrupted across switch");
             current = GAME_MM;
         } else {
-            Combo_CheckCrossGameEntrance("mm", MM_ENTR_SOUTH_CLOCK_TOWN_0);
+            /* The Clock Tower door is the MM->OoT trigger (the SCT tower-exit
+             * spawn 0xD800 is the arrival and must never trigger). */
+            Combo_CheckCrossGameEntrance("mm", MM_ENTR_CLOCK_TOWER_INTERIOR_1);
             HOTSWAP_ASSERT(Combo_IsCrossGameSwitch(), "MM leg did not route cross-game");
             HOTSWAP_ASSERT(strcmp(Combo_GetSwitchTargetGameId(), "oot") == 0, "MM leg target should be oot");
 

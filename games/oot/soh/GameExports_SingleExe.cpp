@@ -213,10 +213,10 @@ static void OoT_RegisterIntegrationTestHooks(void) {
         fflush(stderr);
     } else if (mode == INT_TEST_SWITCH_OOT_HMS_TO_MM) {
         // T1 (#260): Boot OoT, programmatically trigger the Happy Mask Shop
-        // entrance, assert the cross-game switch resolves to MM Clock Tower
-        // Interior. Leg 1 of the test passes when routing is verified here;
-        // final pass is signaled from the MM-side hook after MM stabilizes
-        // post-switch.
+        // entrance, assert the cross-game switch resolves to MM South Clock
+        // Town (the tower-exit arrival). Leg 1 of the test passes when
+        // routing is verified here; final pass is signaled from the MM-side
+        // hook after MM stabilizes post-switch.
         fprintf(stderr, "[OoT] Registering integration test hooks for HMS->MM switch (T1)\n");
         fflush(stderr);
 
@@ -248,10 +248,11 @@ static void OoT_RegisterIntegrationTestHooks(void) {
                     return;
                 }
 
-                if (targetEntrance != MM_ENTR_CLOCK_TOWER_INTERIOR_1) {
+                if (targetEntrance != MM_ENTR_SOUTH_CLOCK_TOWN_0) {
                     fprintf(stderr,
-                            "[OoT-INT-TEST] FAIL: target entrance should be 0x%04X (Clock Tower Interior), got 0x%04X\n",
-                            MM_ENTR_CLOCK_TOWER_INTERIOR_1, targetEntrance);
+                            "[OoT-INT-TEST] FAIL: target entrance should be 0x%04X (South Clock Town tower exit), "
+                            "got 0x%04X\n",
+                            MM_ENTR_SOUTH_CLOCK_TOWN_0, targetEntrance);
                     fflush(stderr);
                     IntegrationTest_RequestExit();
                     return;

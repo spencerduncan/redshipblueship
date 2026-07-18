@@ -664,12 +664,24 @@ int main(int argc, char** argv) {
             Combo_ClearGameSwitchRequest();
             Entrance_ClearPendingSwitch();
 
-            // Set startup entrance if this is an entrance-based switch. Tag it
-            // with the destination game so only that game can consume it — this
-            // prevents an MM entrance (e.g. 0xC010) from leaking into OoT's
-            // entranceIndex and reading gEntranceTable out of bounds (crash).
+            // Set the startup entrance, tagged with the destination game so
+            // only that game can consume it — this prevents an MM entrance
+            // (e.g. 0xD800) from leaking into OoT's entranceIndex and reading
+            // gEntranceTable out of bounds (crash).
+            //
+            // Every re-entry cold-starts the target's gamestate chain, and on
+            // the MM side that chain wipes whatever Game_Resume restored — the
+            // only restore that reaches gameplay is the one Play_Init performs
+            // when it consumes a pending startup entrance. So a hotkey (F10)
+            // switch back into a game with frozen state must also set one,
+            // using the frozen return entrance; otherwise the target silently
+            // boots as a brand-new file at its title screen and the frozen
+            // save is never consumed. A first-time hotkey entry (no frozen
+            // state) keeps the plain title-screen boot.
             if (isEntranceSwitch && targetEntrance != 0) {
                 Entrance_SetStartupEntrance(targetEntrance, nextGame);
+            } else if (!isEntranceSwitch && Context_HasFrozenState(nextGame)) {
+                Entrance_SetStartupEntrance(Context_GetFrozenReturnEntrance(nextGame), nextGame);
             }
 
             // Hot-swap resource archives before game init/resume

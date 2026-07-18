@@ -54,6 +54,10 @@ extern bool Combo_IsCrossGameSwitch(void);
 extern uint16_t Combo_GetStartupEntrance(void);
 extern void Combo_ClearStartupEntrance(void);
 extern uint16_t Combo_GetStartupEntranceForGame(const char* gameId);
+extern bool Combo_HasStartupEntranceForGame(const char* gameId);
+// Frozen-state accessors - defined in src/common/context.cpp
+extern int Combo_HasFrozenState(const char* gameId);
+extern int Combo_RestoreState(const char* gameId, void* saveContext, size_t size);
 
 s32 MM_gDbgCamEnabled = false;
 u8 D_801D0D54 = false;
@@ -2240,6 +2244,61 @@ void Play_FillScreen(PlayState* this, s16 fillScreenOn, u8 red, u8 green, u8 blu
     R_PLAY_FILL_SCREEN_ALPHA = alpha;
 }
 
+/**
+ * Cross-game combo: consume a pending startup entrance on the way into Play.
+ *
+ * Only consumes an entrance tagged for MM. A value tagged for OoT that
+ * leaked into the shared startup global stays invisible here, so MM won't
+ * spawn from an OoT entrance id (symmetric with OoT's guard).
+ *
+ * Non-static and PlayState-free so the mm-startup-restore headless test
+ * (games/mm/2s2h/mm_resume_state_test.cpp, CTest label "redship") can lock
+ * the restore-then-spawn contract without booting a scene.
+ */
+void MM_Play_ConsumeStartupEntrance(void) {
+    // Presence-gated (not value-gated): entrance 0x0000 is a valid id, and
+    // since this function is also the frozen-save continuity point, value-
+    // gating would silently drop a legitimate restore along with the spawn
+    // (same rule MM_Game_Resume documents for its Has accessor).
+    if (!Combo_HasStartupEntranceForGame("mm")) {
+        return;
+    }
+    uint16_t startupEntrance = Combo_GetStartupEntranceForGame("mm");
+    // Re-apply the frozen MM save AFTER the boot chain's wipes. MM_Game_Resume
+    // restores it at switch time, but every re-entry cold-starts the gamestate
+    // chain (see MM_Graph_ResetRunFrameContext), and that chain scribbles over
+    // the restore: Setup_InitImpl -> MM_SaveContext_Init memsets gSaveContext,
+    // then TitleSetup's boot path rewrites it as a new file. This is the first
+    // point that is both after the last wipe and before the save is
+    // interpreted, so continuity for cycle-2+ round trips lives here. A first
+    // MM entry has no frozen state — the restore is a no-op and the entrance
+    // spawn proceeds on the bootstrap save.
+    if (Combo_HasFrozenState("mm")) {
+        Combo_RestoreState("mm", &gSaveContext, sizeof(gSaveContext));
+    }
+    gSaveContext.save.entrance = startupEntrance;
+    // On a first MM entry this Play_Init is reached through MM's
+    // title-screen boot (TitleSetup_SetupTitleScreen), so the save
+    // still carries the title-demo cutscene state: cutsceneIndex
+    // 0xFFFA resolves sceneLayer 0xB below, which indexes past the
+    // end of the target entrance's layer table and loads a garbage
+    // scene. A cross-game arrival is a plain gameplay spawn — reset
+    // the cutscene/game-mode state so the entrance resolves layer 0.
+    // (A restored frozen save can likewise carry a mid-cutscene index;
+    // the same reset applies — arrivals are plain spawns.)
+    gSaveContext.save.cutsceneIndex = 0;
+    gSaveContext.nextCutsceneIndex = 0xFFEF;
+    gSaveContext.gameMode = GAMEMODE_NORMAL;
+    // The frozen blob can carry in-flight respawn/day-transition state that
+    // never used to reach gameplay (the pre-restore boot chain zeroed it):
+    // respawnFlag would replay the OLD session's respawn[] modes/coordinates
+    // into the arrival scene, and a mid-decay nextDayTime would corrupt
+    // save.time/day. Arrivals are plain spawns — neutralize both.
+    gSaveContext.respawnFlag = 0;
+    gSaveContext.nextDayTime = NEXT_TIME_NONE;
+    Combo_ClearStartupEntrance();
+}
+
 void MM_Play_Init(GameState* thisx) {
     PlayState* this = (PlayState*)thisx;
     GraphicsContext* gfxCtx = this->state.gfxCtx;
@@ -2253,26 +2312,7 @@ void MM_Play_Init(GameState* thisx) {
     s32 pad2;
 
     // Cross-game combo: Check if we're entering from another game
-    {
-        // Only consume an entrance tagged for MM. A value tagged for OoT that
-        // leaked into the shared startup global stays invisible here, so MM
-        // won't spawn from an OoT entrance id (symmetric with OoT's guard).
-        uint16_t startupEntrance = Combo_GetStartupEntranceForGame("mm");
-        if (startupEntrance != 0) {
-            gSaveContext.save.entrance = startupEntrance;
-            // On a first MM entry this Play_Init is reached through MM's
-            // title-screen boot (TitleSetup_SetupTitleScreen), so the save
-            // still carries the title-demo cutscene state: cutsceneIndex
-            // 0xFFFA resolves sceneLayer 0xB below, which indexes past the
-            // end of the target entrance's layer table and loads a garbage
-            // scene. A cross-game arrival is a plain gameplay spawn — reset
-            // the cutscene/game-mode state so the entrance resolves layer 0.
-            gSaveContext.save.cutsceneIndex = 0;
-            gSaveContext.nextCutsceneIndex = 0xFFEF;
-            gSaveContext.gameMode = GAMEMODE_NORMAL;
-            Combo_ClearStartupEntrance();
-        }
-    }
+    MM_Play_ConsumeStartupEntrance();
 
     if ((gSaveContext.respawnFlag == -4) || (gSaveContext.respawnFlag == -0x63)) {
         if (CHECK_EVENTINF(EVENTINF_TRIGGER_DAYTELOP)) {

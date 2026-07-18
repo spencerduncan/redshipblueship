@@ -234,7 +234,8 @@ jobs:
         DISPLAY: :99
 
     # T1 (#260): needs both oot.o2r and mm.o2r — boots OoT, triggers the Happy
-    # Mask Shop entrance, expects spawn at MM Clock Tower Interior (0xC010).
+    # Mask Shop entrance, expects spawn at MM South Clock Town (0xD800, the
+    # tower-exit arrival).
     - name: Integration Test - Switch OoT (HMS) to MM
       if: steps.check-archives.outputs.has_oot == 'true' && steps.check-archives.outputs.has_mm == 'true'
       run: |
@@ -251,9 +252,10 @@ jobs:
       env:
         DISPLAY: :99
 
-    # T2 (#261): mirror of T1 — boots MM, triggers South Clock Town south exit,
+    # T2 (#261): mirror of T1 — boots MM, triggers the Clock Tower door (0xC010,
+    # the MM->OoT trigger; the test id's "clocktown-south" is historical),
     # expects spawn at OoT Market from Mask Shop (0x01D1).
-    - name: Integration Test - Switch MM (Clock Town South) to OoT
+    - name: Integration Test - Switch MM (Clock Tower door) to OoT
       if: steps.check-archives.outputs.has_oot == 'true' && steps.check-archives.outputs.has_mm == 'true'
       run: |
         timeout 120 ./build-cmake/redship --integration-test int-switch-mm-clocktown-south-to-oot || exit_code=$?

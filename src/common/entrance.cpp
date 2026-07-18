@@ -53,18 +53,27 @@ void Entrance_Init(void) {
 }
 
 void Entrance_RegisterDefaultLinks(void) {
-    // PRODUCTION: OoT Happy Mask Shop <-> MM Clock Tower Interior
+    // PRODUCTION: the mask-shop door and the Clock Tower door are the two
+    // faces of one portal (see entrance.h):
+    //   OoT enters Happy Mask Shop (0x0530)   -> MM spawns in South Clock
+    //     Town at the tower exit (0xD800), as if walking out of the tower.
+    //   MM enters the Clock Tower from SCT (0xC010) -> OoT spawns outside
+    //     the mask shop (0x01D1).
+    // Argument roles: entrance2 = OoT->MM arrival, return2 = MM->OoT trigger.
+    // The arrival (0xD800) is deliberately NOT a trigger — MM's own cycle
+    // resets target it (Song of Time, save-warp, title attract demo).
     Entrance_RegisterBidirectionalLink(
         GAME_OOT, OOT_ENTR_HAPPY_MASK_SHOP, OOT_ENTR_MARKET_FROM_MASK_SHOP,
-        GAME_MM, MM_ENTR_CLOCK_TOWER_INTERIOR_1, MM_ENTR_SOUTH_CLOCK_TOWN_0
+        GAME_MM, MM_ENTR_SOUTH_CLOCK_TOWN_0, MM_ENTR_CLOCK_TOWER_INTERIOR_1
     );
 }
 
 void Entrance_RegisterTestLinks(void) {
-    // TEST MODE: Mido's House <-> Clock Tower (closer to spawn for quick testing)
+    // TEST MODE: Mido's House <-> the same MM portal (closer to spawn for
+    // quick testing). Same arrival/trigger split as the production link.
     Entrance_RegisterBidirectionalLink(
         GAME_OOT, OOT_ENTR_MIDOS_HOUSE, OOT_ENTR_KOKIRI_FROM_MIDOS,
-        GAME_MM, MM_ENTR_CLOCK_TOWER_INTERIOR_1, MM_ENTR_SOUTH_CLOCK_TOWN_0
+        GAME_MM, MM_ENTR_SOUTH_CLOCK_TOWN_0, MM_ENTR_CLOCK_TOWER_INTERIOR_1
     );
 }
 

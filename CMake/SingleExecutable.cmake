@@ -249,6 +249,14 @@ if(BUILD_TESTING)
     # against a PlayState and asserts the spawn-path pointers/fields populate.
     add_test(NAME MMSceneParse COMMAND redship --test mm-scene-parse)
     add_test(NAME MMSceneExecute COMMAND redship --test mm-scene-execute)
+    # MM cross-game resume contracts (games/mm/2s2h/mm_resume_state_test.cpp):
+    # a resume must re-arm the (by-design leaked) system arena for the cold
+    # gamestate-chain boot, and Play_Init's startup-entrance consumption must
+    # restore the frozen save the boot chain wiped — the cycle-2 re-entry
+    # crash + save-continuity faults caught by the int-gameplay-roundtrip
+    # soak (docs/ci-gameplay-repro-postmortem.md).
+    add_test(NAME MMResumeArena COMMAND redship --test mm-resume-arena)
+    add_test(NAME MMStartupRestore COMMAND redship --test mm-startup-restore)
     add_test(NAME AllTests COMMAND redship --test all)
 
     # Set reasonable timeout and label our tests
@@ -256,7 +264,7 @@ if(BUILD_TESTING)
     set_tests_properties(
         BootOoT BootMM SwitchOoTMM SwitchMMOoT StartupEntrance VBAffinity CosmeticGfxStub Roundtrip RoundtripIntegrity SharedRoundtrip ArchiveHotswapLogic
         SaveRoundtripTiers SaveHeader SaveHasDelete SaveVersionReject SaveSizeMismatch SaveLegacySize SaveCrcCorrupt
-        Context MMSceneParse MMSceneExecute AllTests
+        Context MMSceneParse MMSceneExecute MMResumeArena MMStartupRestore AllTests
         PROPERTIES
         TIMEOUT ${REDSHIP_TEST_TIMEOUT}
         LABELS "redship"

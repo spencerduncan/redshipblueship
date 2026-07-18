@@ -6,6 +6,8 @@
 #include <libultraship/bridge/gfxdebuggerbridge.h>
 #include <libultraship/bridge/consolevariablebridge.h>
 #include <libultraship/bridge/windowbridge.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 // Variables are put before most headers as a hacky way to bypass bss reordering
@@ -420,6 +422,20 @@ void MM_RunFrame() {
 
         runFrameContext.gameState = MM_SystemArena_Malloc(size);
 
+        if (runFrameContext.gameState == NULL) {
+            // OoT parity (games/oot/src/code/graph.c "GAME CLASS MALLOC
+            // FAILED"): without this check an exhausted system arena fell
+            // through to memset(NULL, ...) — an opaque near-NULL AV.
+            // Historically hit on cross-game re-entry before MM_Game_Resume
+            // re-armed the arena (GameExports_SingleExe.cpp): the retired
+            // session's allocations leak by design, so a stale arena has no
+            // free block for even the first gamestate.
+            osSyncPrintf("確保失敗\n"); // "Failure to secure"
+            fprintf(stderr, "[MM] FATAL: GAME CLASS MALLOC FAILED (size=%u) — system arena exhausted\n",
+                    (unsigned int)size);
+            fflush(stderr);
+            abort();
+        }
         memset(runFrameContext.gameState, 0, size); // fix
         MM_GameState_Init(runFrameContext.gameState, runFrameContext.ovl->init, &runFrameContext.gfxCtx);
 

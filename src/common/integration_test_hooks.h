@@ -24,8 +24,10 @@ typedef enum {
     INT_TEST_NONE = 0,
     INT_TEST_BOOT_OOT,            // Boot OoT, exit on title/file select
     INT_TEST_BOOT_MM,             // Boot MM, exit on title/file select
-    INT_TEST_SWITCH_OOT_HMS_TO_MM,        // Boot OoT, trigger HMS entrance, verify MM Clock Tower Interior spawn
-    INT_TEST_SWITCH_MM_CLOCKTOWN_SOUTH_TO_OOT, // Boot MM, trigger South Clock Town south exit, verify OoT Market spawn
+    INT_TEST_SWITCH_OOT_HMS_TO_MM,        // Boot OoT, trigger HMS entrance, verify MM South Clock Town spawn
+    INT_TEST_SWITCH_MM_CLOCKTOWN_SOUTH_TO_OOT, // Boot MM, trigger the Clock Tower door, verify OoT Market spawn
+                                               // (name is historical — the trigger moved from the SCT south exit
+                                               // to the tower door when the arrival became SCT)
     INT_TEST_ARCHIVE_HOTSWAP_CYCLE,       // Boot OoT, hot-swap OoT<->MM >=3 times, verify healthy runtime (#263)
     INT_TEST_GAMEPLAY_ROUNDTRIP           // Full operator repro: debug save + live gameplay + production
                                           // cross-game round-trip + post-return warp + door transition
@@ -36,15 +38,16 @@ typedef enum {
  * between the OoT-side and MM-side hook drivers (each game's
  * GameExports_SingleExe.cpp): a phase is owned by exactly one game, which
  * advances it when its step completes. Mirrors the manual operator repro:
- * load debug save -> play -> door into Happy Mask Shop -> MM Clock Tower ->
- * play -> south exit -> OoT resume (the crash surface) -> play -> debug warp
- * -> play -> door transition -> play.
+ * load debug save -> play -> door into Happy Mask Shop -> MM South Clock
+ * Town (as if walking out of the Clock Tower) -> play -> Clock Tower door ->
+ * OoT resume (the crash surface) -> play -> debug warp -> play -> door
+ * transition -> play.
  */
 typedef enum {
     GP_PHASE_BOOT = 0,      // OoT: waiting to inject the debug save + enter Play
     GP_PHASE_OOT_PRE,       // OoT: live gameplay frames, then trigger the HMS door
-    GP_PHASE_MM_STABILIZE,  // MM: waiting for the Clock Tower Interior scene load
-    GP_PHASE_MM_PLAY,       // MM: live gameplay frames, then trigger the SCT-south exit
+    GP_PHASE_MM_STABILIZE,  // MM: waiting for the South Clock Town scene load (tower-exit arrival)
+    GP_PHASE_MM_PLAY,       // MM: live gameplay frames, then trigger the Clock Tower door
     GP_PHASE_OOT_RETURN,    // OoT: RESUME leg — restored save + return entrance + gameplay frames
     GP_PHASE_OOT_WARP,      // OoT: post-return debug warp arrival + gameplay frames
     GP_PHASE_OOT_EXIT,      // OoT: final door-transition arrival + gameplay frames

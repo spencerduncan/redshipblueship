@@ -191,16 +191,27 @@ Phases (each transition logged as `[GP-TEST] phase: X -> Y`):
    Happy Mask Shop door (0x0530) through the real transition machinery. This is
    the leg the old `int-switch-*` tests faked: here `Combo_CheckEntranceSwitch`
    runs from `z_play.c` and **freezes the live debug save**.
-3. **mm-stabilize** — MM boots/resumes into Clock Tower Interior; wait for
-   `MM_SceneLoadComplete()` + `SCENE_INSIDETOWER` + 10 stable frames.
-4. **mm-play** — `RSBS_GP_FRAMES` live MM frames, then fire the South Clock Town
-   south exit (0xD800) through MM's transition machinery (freezes MM's save).
+3. **mm-stabilize** — MM boots/resumes into South Clock Town (0xD800, the
+   tower-exit spawn — the portal arrival is "as if you just walked out of the
+   Clock Tower"); wait for `MM_SceneLoadComplete()` + `SCENE_CLOCKTOWER` + 10
+   stable frames. On arrivals after the first, hard-assert the save-continuity
+   sentinel the previous MM leg froze (a rupee count written before the exit) —
+   this fails loudly if the frozen MM save ever stops surviving the boot
+   chain's `SaveContext_Init`/`Sram_InitNewSave` wipes (the in-chain restore
+   lives in `MM_Play_ConsumeStartupEntrance`, z_play.c).
+4. **mm-play** — `RSBS_GP_FRAMES` live MM frames, then fire the Clock Tower
+   door (0xC010, the MM→OoT trigger) through MM's transition machinery
+   (freezes MM's save). The trigger/arrival split is deliberate: 0xD800 is
+   targeted by MM's own cycle resets (Song of Time, save-warp, title attract),
+   so it must never be a switch trigger.
 5. **oot-return** — **the crash surface.** OoT *resumes* (`OoT_Game_Resume`
    restores the frozen SaveContext and applies the startup/return entrance), and
    `OoT_Play_Init` runs on restored state. `OnSceneInit` hard-asserts the arrival
-   entrance is 0x01D1 — an MM id (0xC010) surviving into OoT (the #356 class)
+   entrance is 0x01D1 — an MM id surviving into OoT (the #356 class)
    fails here even when it happens not to crash. Then `RSBS_GP_FRAMES` live frames.
-   If `RSBS_GP_CYCLES` > 1, loop back to step 2.
+   If `RSBS_GP_CYCLES` > 1, loop back to step 2 — the multi-cycle path is what
+   exercises MM's *resume* leg (cold gamestate-chain boot against a re-armed
+   arena; see §8).
 6. **oot-warp** — debug-warp to `RSBS_GP_WARP_ENTRANCE` (default 0x00B1, the
    map-select Market row): a full scene transition on post-round-trip state.
 7. **oot-exit** — one more door transition to `RSBS_GP_EXIT_ENTRANCE` (default
@@ -382,3 +393,76 @@ When it trips, the artifact log + `[GP-TEST]` phase trail localize the leg, the
 worker-prompts triage table maps the signature to a subsystem, and the fix lands
 with a new ROM-free lock. The human's remaining role is confirming fixes feel
 right in real play — not discovering crashes.
+
+## 8. Validation of the thesis: the Windows local-iteration findings (2026-07-17/18)
+
+Two nights of running this harness on the operator's ROM-equipped Windows
+workstation — the first environment where the full gameplay tier ever executed —
+found and fixed **five production faults**, none of which any CI tier could have
+seen. This is the harness doing exactly what §2 predicted it would:
+
+1. **MM HUD stub-signature crash** (every single-exe build): mm_stubs.c void
+   stubs for the CosmeticEditor `Gfx_Draw*_DropShadowOverride` family fed MM's
+   HUD a garbage display-list write pointer — WRITE AV at 0xA7 in
+   `MM_Interface_DrawItemButtons` on the first HUD-visible MM frame. Fixed in
+   `games/mm/2s2h/CosmeticGfxSingleExe.cpp` (compiled against the real header),
+   locked by `cosmetic-gfx-stub`.
+2. **Graph-coroutine resume-into-poison** (the operator's return-leg crash
+   class): resuming a suspended game's frame loop walked into an arena OoT's
+   re-entered `Main()` had re-initialized (0xAB fill). Fixed by retiring the
+   coroutine at suspend (`OoT_Graph_ResetRunFrameContext` /
+   `MM_Graph_ResetRunFrameContext`) — the switchover contract is now **cold
+   gamestate-chain start + frozen SaveContext + game-tagged startup entrance**.
+3. **MM cycle-2 arena exhaustion** (found by the 3-cycle soak, cycle-2 MM
+   re-entry): the cold-start contract leaks the retired MM session's entire
+   system arena by design (the switch path cannot run `GameState_Destroy`, and
+   Play's `GameState_Realloc(&state, 0)` had absorbed the whole 32MB arena),
+   and `MM_SystemHeap_Init` ran only in `MM_Game_Init` — so the second cold
+   boot's first gamestate malloc returned NULL and died in an unchecked
+   `memset(NULL, ...)` ("WRITE at 0x20" = NULL + the vectorized memset's first
+   store offset; decoded with `.claude/tools/dbg374.py` + `redship.map`).
+   Fixed by re-arming the arena on every resume (`MM_ResumeColdBootPrep`:
+   `MM_SystemHeap_Init` + `Regs_Init` — mirrors OoT, whose `Main()` re-init is
+   why OoT never had this fault), plus an OoT-parity loud NULL check in MM's
+   graph loop ("GAME CLASS MALLOC FAILED" abort instead of a silent AV).
+   Locked by `mm-resume-arena`.
+4. **MM frozen-save wiped by its own boot chain** (cycle-2+ continuity loss):
+   the cold chain runs `Setup → MM_SaveContext_Init` (memset) and
+   `TitleSetup → MM_Sram_InitNewSave` AFTER `MM_Game_Resume`'s restore, so MM
+   continuity silently reset every round trip. Fixed by restoring the frozen
+   save at the startup-entrance consumption point in `MM_Play_Init`
+   (`MM_Play_ConsumeStartupEntrance`) — the first spot after the last wipe and
+   before the save is interpreted — with respawn/day-transition state
+   neutralized for the arrival spawn. Locked headless by `mm-startup-restore`
+   and end-to-end by the soak's rupee-sentinel continuity assert. The main
+   loop now also arms a startup entrance for hotkey (non-entrance) switches
+   into a frozen game, so that path shares the same restore instead of
+   silently booting a new file.
+5. **Portal redesign closing a latent trigger hazard**: the MM→OoT trigger was
+   `0xD800` (South Clock Town spawn 0) — the exact entrance MM's own Song of
+   Time reset, save-warp, and title attract demo target, so an in-game cycle
+   reset could fire a spurious cross-game switch. The portal is now the Clock
+   Tower door in both directions: OoT HMS door (0x0530) → arrive SCT tower
+   exit (0xD800); MM tower door (0xC010) → arrive outside HMS (0x01D1).
+   Trigger and arrival are disjoint by construction.
+
+Windows-specific operational notes for this tier (also see the repro commands
+in §7): force the OpenGL backend (`Window.Backend.Id=1` — DXGI deadlocks the
+second game's first present) and SDL audio (`Window.AudioBackend="sdl"` —
+Wasapi deadlocks the audio handoff); read exit codes via PowerShell
+`$LASTEXITCODE` (git-bash mangles NTSTATUS); test modes fast-exit (`_Exit`)
+because normal CRT teardown heap-corrupts (0xC0000374, tracked separately —
+minimal repro `redship --version`). Crash decoding without PDBs:
+`.claude/tools/dbg374.py` (launch + catch + registers + stack scan + arena
+forensics, symbols via `redship.map`) and `.claude/tools/stacks.py` (attach +
+all-thread stacks) — the map regenerates on every relink, and dbg374 resolves
+its globals from the map at crash time for exactly that reason.
+
+Open faults filed from these sessions (not part of the harness change): the
+exit-teardown heap corruption above; the DXGI present deadlock; the Wasapi
+handoff deadlock; `int-switch-oot-hms-to-mm` needing a human START press
+(`OnPresentFileSelect` never fires unattended); MM intra-frame wedges being
+invisible to the frame-count watchdog (a wall-clock watchdog thread is the
+candidate fix); and unified-save `Load` not marking restored blobs as frozen
+(`Context_UpdateShadowCopy` never sets `hasBeenFrozen`), so a loaded `.redsave`
+MM blob is ignored by the resume/Play_Init restore path after an app restart.

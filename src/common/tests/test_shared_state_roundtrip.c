@@ -53,8 +53,10 @@ TestResult Test_SharedStateRoundtrip(void) {
 
     /* Request the switch to MM, then clear it the way the switch coordinator
      * does (ComboContext_ClearSwitch). The key invariant under test: clearing
-     * the pending switch must NOT disturb sharedFlags / sharedRandoSeed. */
-    ComboContext_RequestSwitch(GAME_MM, 0xC010);
+     * the pending switch must NOT disturb sharedFlags / sharedRandoSeed.
+     * 0xD800 = the OoT->MM arrival (South Clock Town tower exit); the value
+     * is plumbing here, never applied as an entrance. */
+    ComboContext_RequestSwitch(GAME_MM, 0xD800);
     if (!ComboContext_IsSwitchPending()) {
         printf("[TEST] FAIL: switch to MM was not registered as pending\n");
         return TEST_FAIL;

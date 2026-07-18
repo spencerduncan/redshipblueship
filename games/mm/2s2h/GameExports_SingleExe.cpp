@@ -257,6 +257,14 @@ static GameplayPhase sGpMMLastPhase = GP_PHASE_DONE;
 static int sGpMMStableFrames = 0;
 static int sGpMMPlayFrames = 0;
 static int sGpMMWatchdogFrames = 0;
+// Completed MM arrivals this run. Drives the save-continuity tripwire: each
+// cycle writes a sentinel rupee count before leaving through the tower door
+// (frozen with the live save) and the NEXT arrival asserts it survived the
+// round trip — the boot chain wipes gSaveContext after resume's restore, so
+// this fails loudly if MM_Play_ConsumeStartupEntrance's in-chain restore
+// (z_play.c) ever regresses.
+static int sGpMMArrivalCount = 0;
+#define GP_MM_CONTINUITY_RUPEE_BASE 100
 
 static void MM_RegisterIntegrationTestHooks(void) {
     if (!IntegrationTest_IsActive()) {
@@ -310,17 +318,18 @@ static void MM_RegisterIntegrationTestHooks(void) {
         sSceneLoadWaitFrames = 0;
         sSceneLoadStableFrames = 0;
 
-        // (#344) PASS requires MM to complete the Clock Tower Interior scene
-        // load the entrance link asked for (0xC010), not just tick frames.
+        // (#344) PASS requires MM to complete the South Clock Town scene
+        // load the entrance link asked for (0xD800, the tower-exit arrival),
+        // not just tick frames.
         GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>(
             []() {
-                if (!MM_SceneLoadComplete() || MM_gPlayState->sceneId != SCENE_INSIDETOWER) {
+                if (!MM_SceneLoadComplete() || MM_gPlayState->sceneId != SCENE_CLOCKTOWER) {
                     static bool sWrongSceneLogged = false;
                     sSceneLoadStableFrames = 0;
                     if (!sWrongSceneLogged && MM_SceneLoadComplete()) {
                         sWrongSceneLogged = true;
                         fprintf(stderr,
-                                "[MM-INT-TEST] scene loaded but sceneId=0x%X != SCENE_INSIDETOWER; waiting\n",
+                                "[MM-INT-TEST] scene loaded but sceneId=0x%X != SCENE_CLOCKTOWER; waiting\n",
                                 MM_gPlayState->sceneId);
                         fflush(stderr);
                     }
@@ -330,7 +339,7 @@ static void MM_RegisterIntegrationTestHooks(void) {
                 sSceneLoadStableFrames++;
                 if (sSceneLoadStableFrames == 10) {
                     fprintf(stderr,
-                            "[MM-INT-TEST] Clock Tower Interior scene load complete after HMS->MM switch "
+                            "[MM-INT-TEST] South Clock Town scene load complete after HMS->MM switch "
                             "(entrance=0x%04X); PASS\n",
                             gSaveContext.save.entrance);
                     fflush(stderr);
@@ -342,14 +351,15 @@ static void MM_RegisterIntegrationTestHooks(void) {
         fprintf(stderr, "[MM] HMS->MM switch hooks registered\n");
         fflush(stderr);
     } else if (mode == INT_TEST_SWITCH_MM_CLOCKTOWN_SOUTH_TO_OOT) {
-        // T2 (#261): Boot MM, programmatically trigger the South Clock Town
-        // south exit, assert the cross-game switch resolves to OoT Market.
+        // T2 (#261): Boot MM, programmatically trigger the Clock Tower door
+        // (the MM->OoT trigger; the test id's "clocktown-south" is
+        // historical), assert the cross-game switch resolves to OoT Market.
         // Mirror of T1: MM is the trigger side here, OoT is the receiver.
         // MM has no OnPresentFileSelect analog, so we wait for a completed
         // scene load (#344) plus a few stable frames in OnGameStateMainStart
         // and then fire the trigger once. Final pass is signaled from the
         // OoT-side hook after OoT stabilizes post-switch.
-        fprintf(stderr, "[MM] Registering integration test hooks for SCT-south->OoT switch (T2)\n");
+        fprintf(stderr, "[MM] Registering integration test hooks for Clock Tower door->OoT switch (T2)\n");
         fflush(stderr);
 
         sSceneLoadWaitFrames = 0;
@@ -373,16 +383,17 @@ static void MM_RegisterIntegrationTestHooks(void) {
                 sTriggered = true;
 
                 fprintf(stderr,
-                        "[MM-INT-TEST] MM stable; triggering SCT-south entrance 0x%04X\n",
-                        MM_ENTR_SOUTH_CLOCK_TOWN_0);
+                        "[MM-INT-TEST] MM stable; triggering Clock Tower door entrance 0x%04X\n",
+                        MM_ENTR_CLOCK_TOWER_INTERIOR_1);
                 fflush(stderr);
 
-                // Same call MM's z_play.c makes when the player walks south
-                // out of South Clock Town — minus the freeze, which T3 covers.
-                Combo_CheckCrossGameEntrance("mm", MM_ENTR_SOUTH_CLOCK_TOWN_0);
+                // Same call MM's z_play.c makes when the player walks into
+                // the Clock Tower from SCT — minus the freeze, which T3 covers.
+                Combo_CheckCrossGameEntrance("mm", MM_ENTR_CLOCK_TOWER_INTERIOR_1);
 
                 if (!Combo_IsCrossGameSwitch()) {
-                    fprintf(stderr, "[MM-INT-TEST] FAIL: SCT-south entrance did not register a cross-game switch\n");
+                    fprintf(stderr,
+                            "[MM-INT-TEST] FAIL: Clock Tower door entrance did not register a cross-game switch\n");
                     fflush(stderr);
                     IntegrationTest_RequestExit();
                     return;
@@ -409,7 +420,8 @@ static void MM_RegisterIntegrationTestHooks(void) {
                 }
 
                 fprintf(stderr,
-                        "[MM-INT-TEST] PASS leg 1: SCT-south routes to OoT 0x%04X; main loop will run the switch\n",
+                        "[MM-INT-TEST] PASS leg 1: Clock Tower door routes to OoT 0x%04X; main loop will run the "
+                        "switch\n",
                         targetEntrance);
                 fflush(stderr);
                 // Intentionally NOT signaling boot complete here. The main loop
@@ -418,7 +430,7 @@ static void MM_RegisterIntegrationTestHooks(void) {
             }
         );
 
-        fprintf(stderr, "[MM] SCT-south->OoT switch hooks registered\n");
+        fprintf(stderr, "[MM] Clock Tower door->OoT switch hooks registered\n");
         fflush(stderr);
     } else if (mode == INT_TEST_ARCHIVE_HOTSWAP_CYCLE) {
         // T4 (#263): MM side of the OoT<->MM archive hot-swap cycle. OoT boots
@@ -482,12 +494,12 @@ static void MM_RegisterIntegrationTestHooks(void) {
                     fflush(stderr);
                     IntegrationTest_SignalBootComplete(GAME_MM, "archive-hotswap cycle complete");
                 } else {
-                    // Keep the cycle going: re-trigger the MM->OoT switch via the
-                    // South Clock Town south exit — same call the T2 branch makes.
-                    fprintf(stderr, "[MM-INT-TEST] re-triggering SCT-south entrance 0x%04X to continue cycle\n",
-                            MM_ENTR_SOUTH_CLOCK_TOWN_0);
+                    // Keep the cycle going: re-trigger the MM->OoT switch via
+                    // the Clock Tower door — same call the T2 branch makes.
+                    fprintf(stderr, "[MM-INT-TEST] re-triggering Clock Tower door entrance 0x%04X to continue cycle\n",
+                            MM_ENTR_CLOCK_TOWER_INTERIOR_1);
                     fflush(stderr);
-                    Combo_CheckCrossGameEntrance("mm", MM_ENTR_SOUTH_CLOCK_TOWN_0);
+                    Combo_CheckCrossGameEntrance("mm", MM_ENTR_CLOCK_TOWER_INTERIOR_1);
                 }
             }
         );
@@ -498,11 +510,12 @@ static void MM_RegisterIntegrationTestHooks(void) {
         // MM half of the gameplay round-trip repro (phase machine in
         // integration_test_hooks.h; OoT half in
         // games/oot/soh/GameExports_SingleExe.cpp). MM owns two phases:
-        // stabilize in Clock Tower Interior after the HMS switch, run the
-        // configured live-gameplay window, then leave through the REAL
-        // SCT-south transition machinery — z_play.c's TRANS_MODE_SETUP calls
+        // stabilize in South Clock Town (the tower-exit arrival) after the
+        // HMS switch, run the configured live-gameplay window, then leave
+        // through the REAL Clock Tower door transition machinery —
+        // z_play.c's TRANS_MODE_SETUP calls
         // Combo_CheckEntranceSwitch(nextEntrance), which freezes MM's live
-        // SaveContext, exactly like a player walking out south.
+        // SaveContext, exactly like a player walking into the tower.
         //
         // The MM driver deliberately does NOT use GameInteractor hooks: MM's
         // per-frame hook dispatch goes through the cross-bound OoT wrappers,
@@ -514,6 +527,7 @@ static void MM_RegisterIntegrationTestHooks(void) {
         sGpMMStableFrames = 0;
         sGpMMPlayFrames = 0;
         sGpMMWatchdogFrames = 0;
+        sGpMMArrivalCount = 0;
 
         fprintf(stderr, "[MM] gameplay round-trip driver armed (direct frame tick)\n");
         fflush(stderr);
@@ -567,17 +581,39 @@ extern "C" void MM_IntegrationGameplayFrameTick(void) {
     }
 
     if (phase == GP_PHASE_MM_STABILIZE) {
-        // (#344) A completed Clock Tower Interior scene load — player
-        // spawned, first room's commands ran — plus a few stable frames
+        // (#344) A completed South Clock Town scene load — player spawned at
+        // the tower-exit arrival (0xD800, as if walking out of the Clock
+        // Tower), first room's commands ran — plus a few stable frames
         // before the gameplay window starts.
-        if (!MM_SceneLoadComplete() || MM_gPlayState->sceneId != SCENE_INSIDETOWER) {
+        if (!MM_SceneLoadComplete() || MM_gPlayState->sceneId != SCENE_CLOCKTOWER) {
             sGpMMStableFrames = 0;
             return;
         }
         sGpMMStableFrames++;
         if (sGpMMStableFrames == 10) {
+            sGpMMArrivalCount++;
+            // Save-continuity tripwire (see sGpMMArrivalCount): arrivals
+            // after the first must carry the sentinel the previous MM leg
+            // froze — proof the in-chain restore beat the boot-chain wipe.
+            if (sGpMMArrivalCount > 1) {
+                s16 expected = (s16)(GP_MM_CONTINUITY_RUPEE_BASE + sGpMMArrivalCount - 1);
+                s16 actual = gSaveContext.save.saveInfo.playerData.rupees;
+                if (actual != expected) {
+                    fprintf(stderr,
+                            "[GP-TEST] FAIL: MM save continuity lost across round trip "
+                            "(arrival %d: rupees=%d, expected sentinel %d — frozen save "
+                            "not restored over the boot-chain wipe)\n",
+                            sGpMMArrivalCount, actual, expected);
+                    fflush(stderr);
+                    IntegrationTest_GameplayFail("MM frozen-save continuity lost");
+                    return;
+                }
+                fprintf(stderr, "[GP-TEST] MM save continuity verified (arrival %d: rupee sentinel %d)\n",
+                        sGpMMArrivalCount, actual);
+                fflush(stderr);
+            }
             fprintf(stderr,
-                    "[GP-TEST] MM Clock Tower Interior stable (entrance=0x%04X); "
+                    "[GP-TEST] MM South Clock Town stable (entrance=0x%04X); "
                     "starting gameplay window\n",
                     gSaveContext.save.entrance);
             fflush(stderr);
@@ -595,10 +631,16 @@ extern "C" void MM_IntegrationGameplayFrameTick(void) {
         return;
     }
     PlayState* play = MM_gPlayState;
-    fprintf(stderr, "[GP-TEST] firing SCT-south exit: entrance 0x%04X after %d live MM frames\n",
-            MM_ENTR_SOUTH_CLOCK_TOWN_0, sGpMMPlayFrames);
+    // Arm the continuity sentinel for the next arrival BEFORE firing the
+    // door: the transition's Combo_CheckEntranceSwitch freezes the live
+    // SaveContext, sentinel included.
+    gSaveContext.save.saveInfo.playerData.rupees = (s16)(GP_MM_CONTINUITY_RUPEE_BASE + sGpMMArrivalCount);
+    fprintf(stderr, "[GP-TEST] firing Clock Tower door: entrance 0x%04X after %d live MM frames "
+            "(continuity sentinel: %d rupees)\n",
+            MM_ENTR_CLOCK_TOWER_INTERIOR_1, sGpMMPlayFrames,
+            GP_MM_CONTINUITY_RUPEE_BASE + sGpMMArrivalCount);
     fflush(stderr);
-    play->nextEntrance = MM_ENTR_SOUTH_CLOCK_TOWN_0;
+    play->nextEntrance = MM_ENTR_CLOCK_TOWER_INTERIOR_1;
     play->transitionTrigger = TRANS_TRIGGER_START;
     play->transitionType = TRANS_TYPE_FADE_BLACK;
     gSaveContext.nextTransitionType = TRANS_TYPE_FADE_BLACK;
@@ -974,7 +1016,38 @@ void MM_Game_Suspend(void) {
 }
 
 /**
+ * Re-arm MM's per-session allocators for a cold gamestate-chain boot.
+ *
+ * Every MM re-entry cold-starts the full gamestate chain (see
+ * MM_Graph_ResetRunFrameContext, games/mm/src/code/graph.c): the previous
+ * session's system-arena contents are unreachable by design — the switch
+ * path retires the live Play gamestate without running the frame loop's
+ * destroy/free epilogue, and Play's GameState_Realloc(&state, 0) had taken
+ * the entire largest free block of the 32MB arena. MM_SystemHeap_Init lives
+ * only in MM_Game_Init, so without this re-arm the second entry's first
+ * gamestate malloc (graph.c MM_RunFrame) returns NULL and dies. OoT never
+ * had this fault because OoT_Game_Run re-enters Main(), which re-runs its
+ * own SystemHeap_Init on every entry — this mirrors that contract.
+ *
+ * Regs_Init must re-run with it: gRegEditor (games/mm/src/code/z_debug.c)
+ * was the old arena's first resident and is dereferenced unchecked
+ * throughout the boot chain; a fresh arena's first allocation would
+ * otherwise overwrite it.
+ *
+ * extern "C" and standalone so the mm-resume-arena headless test
+ * (mm_resume_state_test.cpp, CTest label "redship") can lock the contract:
+ * an exhausted arena must be allocatable again after this call.
+ */
+extern "C" void MM_ResumeColdBootPrep(void) {
+    MM_SystemHeap_Init((void*)MM_gSystemHeap, SYSTEM_HEAP_SIZE);
+    Regs_Init();
+}
+
+/**
  * Resume MM after being suspended for a game switch (issue #170, #270).
+ * - Re-arms the system arena for the cold gamestate-chain boot (see
+ *   MM_ResumeColdBootPrep — the retired session's allocations leak by
+ *   design and would otherwise exhaust the arena).
  * - Restores frozen MM SaveContext so gameplay state survives the OoT
  *   round-trip (OoT scribbles over the unified gSaveContext storage while
  *   it is active — see src/common/unified_save.c).
@@ -984,11 +1057,20 @@ void MM_Game_Resume(void) {
     fprintf(stderr, "[MM] Game_Resume called\n");
     fflush(stderr);
 
+    fprintf(stderr, "[MM] Re-arming system arena for cold boot...\n");
+    fflush(stderr);
+    MM_ResumeColdBootPrep();
+
     // Restore the frozen MM SaveContext captured before we left for OoT (#170).
-    // OoT may have scribbled over the unified gSaveContext storage while it
-    // was active (see src/common/unified_save.c), so we must re-hydrate MM's
-    // view on every resume. First boot of MM has no frozen state — in that
-    // case MM_InitFirstEntrySaveContext still handles bootstrap via #168.
+    // NOTE: with the cold-boot contract this restore is defense in depth, not
+    // the continuity mechanism — the boot chain wipes gSaveContext again
+    // (Setup -> MM_SaveContext_Init, TitleSetup -> MM_Sram_InitNewSave), and
+    // the restore that reaches gameplay is the one MM_Play_ConsumeStartupEntrance
+    // (z_play.c) performs at startup-entrance consumption. The main loop sets
+    // a startup entrance for every switch into a frozen game (entrance-based
+    // and hotkey alike — rsbs/src/main.cpp), so that path always runs when
+    // there is something to restore. First boot of MM has no frozen state —
+    // in that case MM_InitFirstEntrySaveContext still handles bootstrap (#168).
     if (Context_HasFrozenState(GAME_MM)) {
         fprintf(stderr, "[MM] Restoring frozen SaveContext on resume\n");
         fflush(stderr);

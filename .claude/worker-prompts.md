@@ -26,6 +26,35 @@ and, if anything still crashes, the fresh crash log** — the new FATAL/WARNING
 breadcrumbs will name the failing surface. §B candidates #3-#5 remain unguarded
 and live.
 
+**Rev 4 (2026-07-18): crash-decode CORRECTIONS + local-iteration results.**
+Read `docs/ci-gameplay-repro-postmortem.md` §8 for the full account; the load-
+bearing updates to THIS file's earlier analysis:
+
+- **§A's decode is partially obsolete.** The
+  `Cutscene_HandleConditionalTriggers: entrance: 49168` line in later operator
+  logs is **MM's own z_demo.c printing its own (valid) MM arrival entrance**,
+  NOT proof of the OoT-side leak — the #356 leak was real and is fixed, but do
+  not treat that log line alone as a #356 recurrence. The remaining
+  return-leg crash class was a **graph-coroutine use-after-free**: resuming a
+  suspended game's frame loop walked into the arena the re-entered `Main()`
+  had re-initialized (0xAB fill). Fixed (2cee2601 + follow-ups) by retiring
+  the coroutine at suspend (`*_Graph_ResetRunFrameContext`); the switchover
+  contract is now cold gamestate-chain start + frozen SaveContext +
+  game-tagged startup entrance, with MM's arena re-armed and its frozen save
+  restored in-chain at `MM_Play_ConsumeStartupEntrance` (locked by
+  `mm-resume-arena` / `mm-startup-restore`, soak-asserted by the rupee
+  continuity sentinel).
+- **Portal semantics changed** (operator-requested): OoT HMS door (0x0530) →
+  MM **South Clock Town tower-exit spawn 0xD800** (arrival); MM **Clock Tower
+  door 0xC010** (trigger) → OoT outside-HMS 0x01D1. Historical references
+  below to "the MM target (0xC010)" describe the pre-redesign link table;
+  0xD800 is deliberately NOT a trigger (MM's Song of Time reset, save-warp,
+  and title attract all target it).
+- The gameplay repro (`int-gameplay-roundtrip`, 3-cycle soak) PASSES on the
+  operator's Windows workstation as of this rev; it is the tripwire for this
+  whole crash class (demonstrated: disabling the arena re-arm dies loudly with
+  "GAME CLASS MALLOC FAILED" on cycle 2).
+
 ## Completed (Wave 2)
 - **Lane 5** — shuffle features / epic #235: absorbed via PR #315; #235 closed.
 - **Lane 6** — Phase 2 closeout / epic #202: #202, #211, #212, #231, #232, #233,
