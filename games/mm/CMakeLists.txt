@@ -210,6 +210,16 @@ if(SINGLE_EXECUTABLE_BUILD)
     # All enhancements - entire directory
     list(FILTER ship__ EXCLUDE REGEX "2s2h/Enhancements/.*\\.cpp$")
 
+    # MM's AudioEditor UI depends on BenGui/BenMenu (excluded below) and
+    # defined the same mangled + extern "C" symbols as SoH's
+    # soh/Enhancements/audio/AudioEditor.cpp, so it is dropped from 2ship_enh
+    # in single-exe builds. Its extern "C" entry points
+    # (MM_AudioEditor_Get{Replacement,Original}Seq after the
+    # include/mm_audio_prefix.h rename) are identity-stubbed in
+    # 2s2h/GameExports_SingleExe.cpp; AudioCollection.cpp stays compiled as
+    # MM's real (S2H-namespaced) collection.
+    list(FILTER ship__Enhancements EXCLUDE REGEX "2s2h/Enhancements/Audio/AudioEditor\\.cpp$")
+
     # GameInteractor (use OoT's)
     list(FILTER ship__ EXCLUDE REGEX "2s2h/GameInteractor/.*\\.cpp$")
 

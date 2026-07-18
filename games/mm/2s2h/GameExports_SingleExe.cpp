@@ -39,6 +39,8 @@
 #include "GameInteractor/GameInteractor.h"
 #include <ship/resource/File.h>
 
+#include "2s2h/Enhancements/Audio/AudioCollection.h"
+#include "2s2h/Enhancements/Audio/AudioEditor.h"
 #include "2s2h/resource/type/2shResourceType.h"
 #include "2s2h/resource/importer/PathFactory.h"
 #include "2s2h/resource/importer/TextMMFactory.h"
@@ -106,6 +108,15 @@ extern "C" {
     extern IrqMgr MM_gIrqMgr;
 
 }
+
+// MM's AudioCollection singleton (S2H::AudioCollection under the single-exe
+// namespace split — see include/mm_audio_prefix.h). Upstream defines and
+// initializes this in BenPort.cpp, which is excluded from single-exe builds;
+// before the split the unqualified reference silently resolved to SoH's
+// identically-mangled AudioCollection::Instance, so both games shared one
+// pointer slot and MM's custom-sequence bookkeeping ran against OoT's
+// collection. Constructed in MM_Game_Init below.
+AudioCollection* AudioCollection::Instance = nullptr;
 
 // The cross-game shadow buffers and unified gSaveContext storage are sized at
 // MM_SAVE_CONTEXT_SIZE (src/common/game.h), which src/common code cannot
@@ -860,6 +871,38 @@ static bool VerifySharedContext(void) {
 
 extern "C" {
 
+/**
+ * Audio-editor sequence queries, MM side. The real implementations live in
+ * 2s2h/Enhancements/Audio/AudioEditor.cpp, which is excluded from single-exe
+ * builds (its UI needs BenGui/BenMenu, not yet ported), so MM's audio core
+ * gets identity mappings here: no sequence replacement or randomization for
+ * MM until that UI ports. Identity, NOT 0 — the untyped mm_stubs.c stub this
+ * replaces returned 0 for every seqId, funneling every
+ * MM_AudioLoad_SetSeqLoadStatus write into slot 0. The header declarations
+ * (renamed to MM_AudioEditor_* by include/mm_audio_prefix.h) keep these
+ * signature-checked.
+ *
+ * NOTE for whoever ports the MM audio editor: both games' editors persist
+ * replacements under the same "gAudioEditor.*" CVar keys, so wiring this to
+ * S2H::AudioCollection::GetReplacementSequence for real also needs a per-game
+ * CVar prefix split.
+ */
+u16 AudioEditor_GetReplacementSeq(u16 seqId) {
+    return seqId;
+}
+
+u16 AudioEditor_GetOriginalSeq(u16 seqId) {
+    // NOT the identity: callers index the 128-entry MM_sSeqFlags[] with the
+    // result, and two call sites (code_8019AF00.c Audio_PlayBgm_StorePrevBgm
+    // and Audio_UpdateEnemyBgmVolume) reach here with NA_BGM_DISABLED
+    // (0xFFFF) while the main BGM player is stopped — identity would read
+    // ~64KB past the array. Clamping ids past GetMaxOriginalSeqId() (0x7F)
+    // to 0 reproduces upstream AudioCollection::GetOriginalSequence with no
+    // replacement CVars set: original ids map to themselves, everything
+    // else (custom ids, NA_BGM_DISABLED) resolves to 0.
+    return seqId <= 0x7F ? seqId : 0;
+}
+
 int MM_Game_Init(int argc, char** argv) {
     fprintf(stderr, "[MM] Game_Init called, argc=%d\n", argc);
     fflush(stderr);
@@ -891,6 +934,15 @@ int MM_Game_Init(int argc, char** argv) {
 
     // Register MM-only resource factories (issue #159).
     RegisterMMResourceFactories();
+
+    // Create MM's own AudioCollection (mirrors BenPort.cpp's InitOTR, which is
+    // excluded from single-exe builds). Must precede MM_AudioMgr_Init: the
+    // audio-load path registers custom sequences through
+    // MM_AudioCollection_{HasSequenceNum,AddToCollection}. Guarded for
+    // re-entry after a cross-game switch.
+    if (AudioCollection::Instance == nullptr) {
+        AudioCollection::Instance = new AudioCollection();
+    }
 
     // Populate MM's message tables from the archives (#344). Must run after
     // LoadMMArchives + RegisterMMResourceFactories (needs the TextMM factory).

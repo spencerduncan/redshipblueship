@@ -261,6 +261,13 @@ jobs:
       # survive the archive link — plain archive semantics silently drop them
       # (the PR #340 song-shuffle failure class). nm-based, Linux-only.
       run: bash .github/scripts/check-registrar-elision.sh build-cmake
+    - name: Check cross-game symbol collisions
+      # Symbols defined by BOTH soh_* and 2ship_* archives resolve first-wins
+      # in the single-exe link, silently running one game's code against the
+      # other's data (the #367 / FrameInterpolation / AudioCollection failure
+      # class). Fails on any intersection growth beyond the committed
+      # baseline. nm-based, Linux-only.
+      run: bash .github/scripts/check-symbol-collisions.sh build-cmake
     - name: Run tests
       # --no-tests=error: if the "redship" test label ever regresses, fail loudly
       # instead of ctest exiting 0 with "No tests were found".

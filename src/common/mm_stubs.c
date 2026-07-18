@@ -190,8 +190,12 @@ float OTRConvertHUDXToScreenX(float x) { return x; }
  * MM's real scene-init glue is now compiled as MM_OTRPlay_InitScene in
  * games/mm/2s2h/z_play_2SH.cpp. */
 
-/* AudioEditor stub */
-void* AudioEditor_GetOriginalSeq(int seqId) { (void)seqId; return NULL; }
+/* The AudioEditor_GetOriginalSeq stub that used to live here is gone: MM's
+ * audio-editor entry points are MM_-prefixed now (games/mm/include/
+ * mm_audio_prefix.h) and identity-stubbed with header-checked u16(u16)
+ * signatures in games/mm/2s2h/GameExports_SingleExe.cpp. The untyped stub
+ * here returned 0 for every seqId, funneling MM's seq-load-status writes
+ * into slot 0. */
 
 /* Global variables */
 int currentActorListIndex = 0;
