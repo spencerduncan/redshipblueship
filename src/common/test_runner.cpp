@@ -29,6 +29,12 @@ int MM_RegisterResourceFactoriesHeadless(void);
 // enters this translation unit; called through this C entry point, mirroring
 // MM_RegisterResourceFactoriesHeadless. Returns 0 on pass, non-zero on fail.
 int MM_SceneExecute_RunHeadless(void);
+// CosmeticEditor gfx-wrapper contract (games/mm/2s2h/CosmeticGfxSingleExe.cpp):
+// MM's HUD draw consumes these wrappers' Gfx* return as its display-list
+// write pointer; the old void stubs in mm_stubs.c fed it garbage (WRITE AV
+// at 0xA7 in MM_Interface_DrawItemButtons, first HUD-visible MM frame).
+// Returns 0 on pass, non-zero on fail.
+int CosmeticGfxStub_RunHeadless(void);
 // VB-affinity regression: MM's GameInteractor_* calls resolve to OoT's
 // extern "C" wrappers in single-exe builds, and the two games' vanilla-
 // behavior ordinals alias each other. The wrappers gate on the active game;
@@ -78,6 +84,12 @@ extern "C" {
 // MM's umbrella headers out of this TU. Thin wrapper over the C entry point.
 static TestResult Test_MMSceneExecute(void) {
     return MM_SceneExecute_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// CosmeticEditor gfx-wrapper contract (see the extern decl above). Thin
+// wrapper over the C entry point in games/mm/2s2h/CosmeticGfxSingleExe.cpp.
+static TestResult Test_CosmeticGfxStub(void) {
+    return CosmeticGfxStub_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // ============================================================================
@@ -629,6 +641,7 @@ const TestDescriptor gTests[] = {
     {"midos-house", "Test Mido's House entrance (test mode)", Test_MidosHouse},
     {"startup-entrance", "Test startup entrance flow", Test_StartupEntrance},
     {"vb-affinity", "OoT VB hooks stay quiet while MM is active", Test_VBAffinity},
+    {"cosmetic-gfx-stub", "MM HUD gfx wrappers write commands and advance the display list", Test_CosmeticGfxStub},
     {"roundtrip", "Full round-trip with state verification", Test_Roundtrip},
     {"roundtrip-integrity", "OoT SaveContext byte-identical across OoT->MM->OoT (issue #262)", Test_RoundtripIntegrity},
     {"shared-roundtrip", "Shared flag/seed survive OoT->MM switch (issue #264)", Test_SharedStateRoundtrip},

@@ -78,6 +78,9 @@ extern "C" {
     void Check_ExpansionPak(void);
     void Regs_Init(void);
 
+    // Retire the graph coroutine on suspend (games/mm/src/code/graph.c) —
+    // mirrors OoT: the frame loop must cold-start on re-entry after a switch.
+    void MM_Graph_ResetRunFrameContext(void);
     // Audio reset for cross-game switch (issue #157) and suspend (issue #270)
     extern s32 gAudioCtxInitalized;
     void AudioThread_InitMesgQueues(void);
@@ -248,6 +251,13 @@ static bool MM_SceneLoadWatchdogExpired(const char* testName) {
  * Register integration test hooks for MM.
  * Called after MM is initialized when integration test mode is active.
  */
+// Phase-local state for the gameplay round-trip's MM frame driver
+// (MM_IntegrationGameplayFrameTick below; reset when the mode is armed).
+static GameplayPhase sGpMMLastPhase = GP_PHASE_DONE;
+static int sGpMMStableFrames = 0;
+static int sGpMMPlayFrames = 0;
+static int sGpMMWatchdogFrames = 0;
+
 static void MM_RegisterIntegrationTestHooks(void) {
     if (!IntegrationTest_IsActive()) {
         return;
@@ -493,95 +503,106 @@ static void MM_RegisterIntegrationTestHooks(void) {
         // SCT-south transition machinery — z_play.c's TRANS_MODE_SETUP calls
         // Combo_CheckEntranceSwitch(nextEntrance), which freezes MM's live
         // SaveContext, exactly like a player walking out south.
-        fprintf(stderr, "[MM] Registering gameplay round-trip hooks\n");
-        fflush(stderr);
-
-        static GameplayPhase sGpMMLastPhase = GP_PHASE_DONE;
-        static int sGpMMStableFrames = 0;
-        static int sGpMMPlayFrames = 0;
-        static int sGpMMWatchdogFrames = 0;
+        //
+        // The MM driver deliberately does NOT use GameInteractor hooks: MM's
+        // per-frame hook dispatch goes through the cross-bound OoT wrappers,
+        // which #367 no-ops while MM is the active game (correctly — that
+        // gate is production behavior the repro must run WITH). Instead MM's
+        // graph loop calls MM_IntegrationGameplayFrameTick() directly
+        // (games/mm/src/code/graph.c), which is a no-op outside this mode.
         sGpMMLastPhase = GP_PHASE_DONE;
         sGpMMStableFrames = 0;
         sGpMMPlayFrames = 0;
         sGpMMWatchdogFrames = 0;
 
-        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>(
-            []() {
-                if (Context_GetCurrentGame() != GAME_MM) {
-                    return; // shared hook storage guard (#344)
-                }
-                GameplayPhase phase = IntegrationTest_GetGameplayPhase();
-                if (phase != GP_PHASE_MM_STABILIZE && phase != GP_PHASE_MM_PLAY) {
-                    sGpMMWatchdogFrames = 0;
-                    return;
-                }
-                if (phase != sGpMMLastPhase) {
-                    sGpMMLastPhase = phase;
-                    sGpMMStableFrames = 0;
-                    sGpMMPlayFrames = 0;
-                    sGpMMWatchdogFrames = 0;
-                }
-
-                const GameplayTestConfig* cfg = IntegrationTest_GetGameplayConfig();
-                sGpMMWatchdogFrames++;
-                if (sGpMMWatchdogFrames == cfg->framesPerPhase * 4 + 3600) {
-                    PlayState* play = MM_gPlayState;
-                    fprintf(stderr,
-                            "[GP-TEST] MM watchdog: no progress after %d frames "
-                            "(play=%p linkActorEntry=%p player=%p roomSegment=%p stable=%d gameplay=%d)\n",
-                            sGpMMWatchdogFrames, (void*)play, play ? (void*)play->linkActorEntry : (void*)0,
-                            play ? (void*)play->actorCtx.actorLists[ACTORCAT_PLAYER].first : (void*)0,
-                            play ? (void*)play->roomCtx.curRoom.segment : (void*)0, sGpMMStableFrames,
-                            sGpMMPlayFrames);
-                    fflush(stderr);
-                    IntegrationTest_GameplayFail("MM-side phase watchdog expired");
-                    return;
-                }
-
-                if (phase == GP_PHASE_MM_STABILIZE) {
-                    // (#344) A completed Clock Tower Interior scene load —
-                    // player spawned, first room's commands ran — plus a few
-                    // stable frames before the gameplay window starts.
-                    if (!MM_SceneLoadComplete() || MM_gPlayState->sceneId != SCENE_INSIDETOWER) {
-                        sGpMMStableFrames = 0;
-                        return;
-                    }
-                    sGpMMStableFrames++;
-                    if (sGpMMStableFrames == 10) {
-                        fprintf(stderr,
-                                "[GP-TEST] MM Clock Tower Interior stable (entrance=0x%04X); "
-                                "starting gameplay window\n",
-                                gSaveContext.save.entrance);
-                        fflush(stderr);
-                        IntegrationTest_SetGameplayPhase(GP_PHASE_MM_PLAY);
-                    }
-                    return;
-                }
-
-                // GP_PHASE_MM_PLAY: only count frames with live gameplay state.
-                if (!MM_SceneLoadComplete()) {
-                    return;
-                }
-                sGpMMPlayFrames++;
-                if (sGpMMPlayFrames < cfg->framesPerPhase) {
-                    return;
-                }
-                PlayState* play = MM_gPlayState;
-                fprintf(stderr,
-                        "[GP-TEST] firing SCT-south exit: entrance 0x%04X after %d live MM frames\n",
-                        MM_ENTR_SOUTH_CLOCK_TOWN_0, sGpMMPlayFrames);
-                fflush(stderr);
-                play->nextEntrance = MM_ENTR_SOUTH_CLOCK_TOWN_0;
-                play->transitionTrigger = TRANS_TRIGGER_START;
-                play->transitionType = TRANS_TYPE_FADE_BLACK;
-                gSaveContext.nextTransitionType = TRANS_TYPE_FADE_BLACK;
-                IntegrationTest_SetGameplayPhase(GP_PHASE_OOT_RETURN);
-            }
-        );
-
-        fprintf(stderr, "[MM] gameplay round-trip hooks registered\n");
+        fprintf(stderr, "[MM] gameplay round-trip driver armed (direct frame tick)\n");
         fflush(stderr);
     }
+}
+
+// ============================================================================
+// Gameplay round-trip repro (INT_TEST_GAMEPLAY_ROUNDTRIP) — MM frame driver
+// ============================================================================
+
+/**
+ * Per-frame MM driver for the gameplay round-trip. Called directly from MM's
+ * graph loop (games/mm/src/code/graph.c, single-exe only) once per frame —
+ * NOT via GameInteractor: MM's calls into the shared hook wrappers are
+ * suppressed while MM is active (#367), which is production behavior this
+ * repro must preserve, so the harness cannot ride those hooks on the MM side.
+ * No-op unless the gameplay round-trip mode is active.
+ */
+extern "C" void MM_IntegrationGameplayFrameTick(void) {
+    if (IntegrationTest_GetMode() != INT_TEST_GAMEPLAY_ROUNDTRIP) {
+        return;
+    }
+    if (Context_GetCurrentGame() != GAME_MM) {
+        return; // switch in flight; only count MM-owned frames
+    }
+    GameplayPhase phase = IntegrationTest_GetGameplayPhase();
+    if (phase != GP_PHASE_MM_STABILIZE && phase != GP_PHASE_MM_PLAY) {
+        sGpMMWatchdogFrames = 0;
+        return;
+    }
+    if (phase != sGpMMLastPhase) {
+        sGpMMLastPhase = phase;
+        sGpMMStableFrames = 0;
+        sGpMMPlayFrames = 0;
+        sGpMMWatchdogFrames = 0;
+    }
+
+    const GameplayTestConfig* cfg = IntegrationTest_GetGameplayConfig();
+    sGpMMWatchdogFrames++;
+    if (sGpMMWatchdogFrames == cfg->framesPerPhase * 4 + 3600) {
+        PlayState* play = MM_gPlayState;
+        fprintf(stderr,
+                "[GP-TEST] MM watchdog: no progress after %d frames "
+                "(play=%p linkActorEntry=%p player=%p roomSegment=%p stable=%d gameplay=%d)\n",
+                sGpMMWatchdogFrames, (void*)play, play ? (void*)play->linkActorEntry : (void*)0,
+                play ? (void*)play->actorCtx.actorLists[ACTORCAT_PLAYER].first : (void*)0,
+                play ? (void*)play->roomCtx.curRoom.segment : (void*)0, sGpMMStableFrames, sGpMMPlayFrames);
+        fflush(stderr);
+        IntegrationTest_GameplayFail("MM-side phase watchdog expired");
+        return;
+    }
+
+    if (phase == GP_PHASE_MM_STABILIZE) {
+        // (#344) A completed Clock Tower Interior scene load — player
+        // spawned, first room's commands ran — plus a few stable frames
+        // before the gameplay window starts.
+        if (!MM_SceneLoadComplete() || MM_gPlayState->sceneId != SCENE_INSIDETOWER) {
+            sGpMMStableFrames = 0;
+            return;
+        }
+        sGpMMStableFrames++;
+        if (sGpMMStableFrames == 10) {
+            fprintf(stderr,
+                    "[GP-TEST] MM Clock Tower Interior stable (entrance=0x%04X); "
+                    "starting gameplay window\n",
+                    gSaveContext.save.entrance);
+            fflush(stderr);
+            IntegrationTest_SetGameplayPhase(GP_PHASE_MM_PLAY);
+        }
+        return;
+    }
+
+    // GP_PHASE_MM_PLAY: only count frames with live gameplay state.
+    if (!MM_SceneLoadComplete()) {
+        return;
+    }
+    sGpMMPlayFrames++;
+    if (sGpMMPlayFrames < cfg->framesPerPhase) {
+        return;
+    }
+    PlayState* play = MM_gPlayState;
+    fprintf(stderr, "[GP-TEST] firing SCT-south exit: entrance 0x%04X after %d live MM frames\n",
+            MM_ENTR_SOUTH_CLOCK_TOWN_0, sGpMMPlayFrames);
+    fflush(stderr);
+    play->nextEntrance = MM_ENTR_SOUTH_CLOCK_TOWN_0;
+    play->transitionTrigger = TRANS_TRIGGER_START;
+    play->transitionType = TRANS_TYPE_FADE_BLACK;
+    gSaveContext.nextTransitionType = TRANS_TYPE_FADE_BLACK;
+    IntegrationTest_SetGameplayPhase(GP_PHASE_OOT_RETURN);
 }
 
 /**
@@ -937,6 +958,16 @@ void MM_Game_Suspend(void) {
 
     // Mark audio as uninitialized so message-queue re-init works on resume.
     gAudioCtxInitalized = false;
+
+    // Retire the graph coroutine (mirrors OoT_Game_Suspend): the cross-game
+    // entrance path stops the gamestate with init/destroy nulled, so resuming
+    // MM_RunFrame's state machine would walk into a dead gamestate. The next
+    // MM entry cold-starts the gamestate chain — the same (working) path as
+    // MM's first entry — with continuity from the frozen SaveContext + the
+    // MM-tagged startup entrance consumed in MM_Play_Init.
+    fprintf(stderr, "[MM] Retiring graph coroutine for switch...\n");
+    fflush(stderr);
+    MM_Graph_ResetRunFrameContext();
 
     fprintf(stderr, "[MM] Game_Suspend complete\n");
     fflush(stderr);

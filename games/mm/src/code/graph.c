@@ -356,6 +356,18 @@ void Graph_ExecuteAndDraw(GraphicsContext* gfxCtx, GameState* gameState) {
 void MM_Graph_Update(GraphicsContext* gfxCtx, GameState* gameState) {
     gameState->unk_A3 = 0;
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // Gameplay round-trip integration driver (GameExports_SingleExe.cpp).
+    // Called directly instead of via GameInteractor: MM's hook dispatch goes
+    // through the cross-bound OoT wrappers, which are (correctly) suppressed
+    // while MM is the active game (#367), so the test driver cannot ride
+    // them. No-op unless the int-gameplay-roundtrip mode is active.
+    {
+        extern void MM_IntegrationGameplayFrameTick(void);
+        MM_IntegrationGameplayFrameTick();
+    }
+#endif
+
     Graph_UpdateGame(gameState);
     Graph_ExecuteAndDraw(gfxCtx, gameState);
 
@@ -450,6 +462,26 @@ void MM_Graph_ThreadEntry(void* arg0) {
         }
         MM_RunFrame();
     }
+}
+
+/**
+ * Cross-game switch support: retire the suspended graph coroutine (mirrors
+ * OoT_Graph_ResetRunFrameContext, games/oot/src/code/graph.c — see the full
+ * rationale there). MM_RunFrame's state==1 contract ("resume the frame loop
+ * with runFrameContext.gameState") cannot survive a game switch: the
+ * cross-game entrance path stops the gamestate with init/destroy nulled, so
+ * resuming would either walk into freed memory or fall off the overlay chain.
+ * Cross-game continuity is carried by the frozen SaveContext + the MM-tagged
+ * startup entrance (consumed in MM_Play_Init), so the next MM entry
+ * cold-starts the gamestate chain exactly like the (working) first entry.
+ * Called from MM_Game_Suspend.
+ */
+void MM_Graph_ResetRunFrameContext(void) {
+    runFrameContext.state = 0;
+    runFrameContext.nextOvl = NULL;
+    runFrameContext.ovl = NULL;
+    runFrameContext.gameState = NULL;
+    MM_gPlayState = NULL;
 }
 
 // #region 2S2H [Debugging] Debugging methods for viewing file/line info in the renderer.

@@ -225,6 +225,12 @@ if(BUILD_TESTING)
     # VB_PLAY_RAINBOW_BRIDGE_CS == 206). The wrappers must return vanilla
     # behavior while MM is active — the Market -> Clock Tower NULL-call crash.
     add_test(NAME VBAffinity COMMAND redship --test vb-affinity)
+    # MM HUD gfx-wrapper contract: the CosmeticEditor Override wrappers must
+    # write commands and return the advanced display-list pointer. The old
+    # void stubs in mm_stubs.c fed MM_Interface_DrawItemButtons a garbage
+    # write pointer (WRITE AV at 0xA7, first HUD-visible MM frame — caught by
+    # int-gameplay-roundtrip on the OoT->MM leg).
+    add_test(NAME CosmeticGfxStub COMMAND redship --test cosmetic-gfx-stub)
     add_test(NAME Roundtrip COMMAND redship --test roundtrip)
     add_test(NAME RoundtripIntegrity COMMAND redship --test roundtrip-integrity)
     add_test(NAME SharedRoundtrip COMMAND redship --test shared-roundtrip)
@@ -248,7 +254,7 @@ if(BUILD_TESTING)
     # Set reasonable timeout and label our tests
     set(REDSHIP_TEST_TIMEOUT 60 CACHE STRING "Test timeout in seconds")
     set_tests_properties(
-        BootOoT BootMM SwitchOoTMM SwitchMMOoT StartupEntrance VBAffinity Roundtrip RoundtripIntegrity SharedRoundtrip ArchiveHotswapLogic
+        BootOoT BootMM SwitchOoTMM SwitchMMOoT StartupEntrance VBAffinity CosmeticGfxStub Roundtrip RoundtripIntegrity SharedRoundtrip ArchiveHotswapLogic
         SaveRoundtripTiers SaveHeader SaveHasDelete SaveVersionReject SaveSizeMismatch SaveLegacySize SaveCrcCorrupt
         Context MMSceneParse MMSceneExecute AllTests
         PROPERTIES

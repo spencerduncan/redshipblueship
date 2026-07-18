@@ -410,6 +410,15 @@ void OoT_Play_Init(GameState* thisx) {
                 Combo_ClearStartupEntrance();
             } else {
                 gSaveContext.entranceIndex = startupEntrance;
+                // A cold boot with a pending startup entrance reaches this
+                // Play_Init through the title chain (z_title fast-forward ->
+                // Opening), which stages the TITLE-DEMO cutscene state before
+                // handing off. A cross-game arrival is a plain gameplay
+                // spawn — clear the demo cutscene state or the arrival scene
+                // resolves a demo scene layer (mirrors MM's reset in
+                // games/mm/src/code/z_play.c startup-entrance consumption).
+                gSaveContext.cutsceneIndex = 0;
+                gSaveContext.gameMode = GAMEMODE_NORMAL;
                 Combo_ClearStartupEntrance();
                 osSyncPrintf("[OoT] Cross-game switch: loading entrance 0x%04X\n", startupEntrance);
             }

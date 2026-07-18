@@ -38,6 +38,10 @@ extern "C" {
 
     // Audio cleanup for suspend (issue #160)
     void OoT_Audio_PreNMI(void);
+    // Retire the graph coroutine on suspend (games/oot/src/code/graph.c) —
+    // re-entry after a switch re-inits the system arena under any suspended
+    // gamestate, so the frame loop must cold-start instead of resuming.
+    void OoT_Graph_ResetRunFrameContext(void);
     // Wait for the OTR audio std::thread to finish any in-flight buffer before
     // the switch hot-swaps resource archives (OTRGlobals.cpp).
     void OoT_Audio_DrainForSuspend(void);
@@ -620,6 +624,17 @@ void OoT_Game_Suspend(void) {
 
     // Mark audio as uninitialized so re-init works on resume
     gAudioContextInitalized = false;
+
+    // Retire the graph coroutine: re-entering OoT runs Main() again, which
+    // re-initializes the system arena (0xAB fill) underneath any suspended
+    // gamestate — resuming the frame loop would update a poisoned PlayState
+    // (the int-gameplay-roundtrip return-leg AV in GameState_SetFrameBuffer).
+    // The next OoT entry cold-starts the gamestate chain; continuity is the
+    // frozen SaveContext + the OoT-tagged startup entrance, which the title
+    // screen fast-forwards on and OoT_Play_Init consumes.
+    fprintf(stderr, "[OoT] Retiring graph coroutine for switch...\n");
+    fflush(stderr);
+    OoT_Graph_ResetRunFrameContext();
 
     fprintf(stderr, "[OoT] Game_Suspend complete\n");
     fflush(stderr);

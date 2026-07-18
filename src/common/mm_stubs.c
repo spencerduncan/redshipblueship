@@ -144,23 +144,15 @@ void HudEditor_ModifyRectSizeValues(int* w, int* h) { (void)w; (void)h; }
 void HudEditor_ModifyTextureStepValues(int* x, int* y) { (void)x; (void)y; }
 void HudEditor_ModifyKaleidoEquipAnimValues(float* x, float* y, float* scale) { (void)x; (void)y; (void)scale; }
 
-/* Graphics override stubs */
-void gDPSetPrimColorOverride(void* dl, int m, int l, int r, int g, int b, int a) { (void)dl; (void)m; (void)l; (void)r; (void)g; (void)b; (void)a; }
-void gDPSetEnvColorOverride(void* dl, int r, int g, int b, int a) { (void)dl; (void)r; (void)g; (void)b; (void)a; }
-void Gfx_DrawRect_DropShadowOverride(void* dl, int x, int y, int w, int h) { (void)dl; (void)x; (void)y; (void)w; (void)h; }
-void Gfx_DrawTexRectIA8_DropShadowOverride(void* dl) { (void)dl; }
-void Gfx_DrawTexRectIA8_DropShadowOffsetOverride(void* dl) { (void)dl; }
-void Gfx_DrawTexRectIA16_DropShadowOverride(void* dl) { (void)dl; }
-
-/* CosmeticEditor stub: returns the input color unchanged since the
- * editor UI is excluded in single-exe builds. Uses the shared Color_RGBA8
- * typedef from <libultraship/color.h> so the stub ABI matches the declaration
- * in games/mm/2s2h/BenGui/CosmeticEditor.h exactly. */
-Color_RGBA8 CosmeticEditor_GetChangedColor(uint8_t r, uint8_t g, uint8_t b, uint8_t a, uint8_t elementId) {
-    (void)elementId;
-    Color_RGBA8 c = { r, g, b, a };
-    return c;
-}
+/* Graphics override + CosmeticEditor wrappers: implemented for real in
+ * games/mm/2s2h/CosmeticGfxSingleExe.cpp, compiled against the declarations
+ * in 2s2h/BenGui/CosmeticEditor.h. Do NOT re-stub them here: the wrappers
+ * RETURN the advanced display-list pointer, and the void placeholder stubs
+ * that used to live in this file made MM's HUD draw consume garbage as its
+ * gfx write pointer (WRITE access violation at 0xA7 in
+ * MM_Interface_DrawItemButtons on the first HUD-visible MM frame — caught
+ * by int-gameplay-roundtrip, locked ROM-free by the cosmetic-gfx-stub
+ * test). */
 
 /* FrameInterpolation stubs */
 void FrameInterpolation_IgnoreActorMtx(void* actor) { (void)actor; }
