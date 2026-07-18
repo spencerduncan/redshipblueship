@@ -79,7 +79,17 @@ void MM_FaultDrawer_SetCharPad(int xPad, int yPad) { (void)xPad; (void)yPad; }
  * Enhancement layer stubs - these are excluded in single-exe mode
  * ========================================================================== */
 
-/* GameInteractor stubs */
+/* GameInteractor stubs.
+ *
+ * These cover MM's GameInteractor_* references that no linked TU defines. A
+ * second set of MM references (GameInteractor_Should, ExecuteOnFlagSet,
+ * ExecuteOnActorUpdate, ...) resolves to OoT's extern "C" wrappers in
+ * games/oot/soh/Enhancements/game-interactor/GameInteractor_Hooks.cpp instead
+ * — that is NOT a valid provider: MM's GIVanillaBehavior ordinals alias OoT's
+ * (MM VB_SETUP_TRANSITION == OoT VB_PLAY_RAINBOW_BRIDGE_CS == 206), so routing
+ * MM calls into OoT's hook registry runs OoT handlers against MM state. Those
+ * wrappers therefore gate on Context_GetCurrentGame() and return vanilla
+ * behavior while MM is active, making them equivalent to the stubs below. */
 void GameInteractor_ExecuteOnActorDraw(void* actor) { (void)actor; }
 void GameInteractor_ExecuteOnGameStateUpdate(void* state) { (void)state; }
 void GameInteractor_ExecuteOnGameStateMainFinish(void* state) { (void)state; }
@@ -90,10 +100,11 @@ void GameInteractor_ExecuteBeforeKaleidoDrawPage(void* state, int page) { (void)
 void GameInteractor_ExecuteAfterKaleidoDrawPage(void* state, int page) { (void)state; (void)page; }
 void GameInteractor_ExecuteOnSaveInit(int fileNum) { (void)fileNum; }
 void GameInteractor_ExecuteOnSaveLoad(int fileNum) { (void)fileNum; }
-/* GameInteractor_ExecuteOnOpenText is now defined for real in
- * games/oot/soh/Enhancements/game-interactor/GameInteractor_Hooks.cpp with
- * signature (uint16_t* textId, bool* loadFromMessageTable) as part of the
- * Custom Messages → Hooks/ShipInit refactor (#228). */
+/* GameInteractor_ExecuteOnOpenText resolves to OoT's wrapper in
+ * games/oot/soh/Enhancements/game-interactor/GameInteractor_Hooks.cpp
+ * (signature (uint16_t* textId, bool* loadFromMessageTable), #228). That
+ * wrapper no-ops while MM is the active game (see the header comment above),
+ * so MM text boxes never fire OoT text hooks. */
 void GameInteractor_ExecuteOnItemGive(int itemId) { (void)itemId; }
 int GameInteractor_ShouldItemGive(int itemId) { (void)itemId; return 1; }
 int GameInteractor_ShouldActorDraw(void* actor) { (void)actor; return 1; }
