@@ -165,21 +165,34 @@ const char* Ship_GetSceneName(int sceneId) { (void)sceneId; return "Unknown"; }
 void Ship_HandleConsoleCrashAsReset(void) {}
 void Ship_ExtendedCullingActorRestoreProjectedPos(void* actor) { (void)actor; }
 
-/* Motion blur stub */
-int MotionBlur_Override(void* dl) { (void)dl; return 0; }
+/* The MotionBlur_Override / SavingEnhancements_* / PauseOwlWarp_* stubs that
+ * used to live here are gone. Their real implementations
+ * (2s2h/Enhancements/Graphics/MotionBlur.cpp,
+ * Enhancements/Saving/SavingEnhancements.cpp,
+ * Enhancements/Songs/PauseOwlWarp.cpp) are compiled into 2ship_enh and ARE
+ * part of the single-exe link, so these were duplicate definitions.
+ *
+ * MSVC hid that: the Windows link uses /FORCE:MULTIPLE (CMakeLists.txt:274)
+ * by design, because the two ports legitimately share symbol names. GNU ld
+ * has no such flag here and is therefore the STRICTER gate — it rejected the
+ * duplicates outright ("multiple definition of `MotionBlur_Override'"), which
+ * is how this surfaced: build-windows passed and build-linux failed on the
+ * same commit. That asymmetry is a feature, not a nuisance; do not paper over
+ * it with --allow-multiple-definition.
+ *
+ * Deleting the stubs means the real enhancements now run instead of no-ops.
+ * That is the intended behavior and is default-inert: MotionBlur_Override
+ * returns early unless the MotionBlur.Mode CVar is set, matching what the
+ * stub did. The stub was also the wrong shape — `int(void*)` against a real
+ * `void(u8*, s32*)` (Graphics.h:11), the same signature-drift class tracked
+ * in #379; the sole caller (games/mm/src/code/z_play.c:107) was always
+ * written against the real two-out-param signature. */
 
 /* Resource manager functions are provided by BenPort.cpp */
 
 /* SaveManager stubs */
 int SaveManager_SysFlashrom_ReadData(void* dst, int page, int count) { (void)dst; (void)page; (void)count; return 0; }
 int SaveManager_SysFlashrom_WriteData(void* src, int page, int count) { (void)src; (void)page; (void)count; return 0; }
-
-/* SavingEnhancements stubs */
-int SavingEnhancements_GetSaveEntrance(void) { return 0; }
-void SavingEnhancements_AdvancePlaytime(void) {}
-
-/* PauseOwlWarp stub */
-int PauseOwlWarp_IsOwlWarpEnabled(void) { return 0; }
 
 /* Combo_CheckEntranceSwitch and Combo_CheckHotSwap are now in
  * GameExports_SingleExe.cpp (they need real cross-game logic) */
