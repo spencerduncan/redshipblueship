@@ -61,11 +61,17 @@ typedef enum {
  *   RSBS_GP_CYCLES        (1)      OoT->MM->OoT round trips before the warp
  *   RSBS_GP_BOOT_ENTRANCE (0x01D1) OoT entrance the debug save boots into
  *   RSBS_GP_WARP_ENTRANCE (0x00B1) post-return debug-warp target (map-select Market)
+ *   RSBS_GP_WARP_FRAMES   (=FRAMES) gameplay frames for the post-return warp
+ *                                  phase only — lets a Lon Lon interior soak
+ *                                  run long without stretching every phase
  *   RSBS_GP_EXIT_ENTRANCE (0x0033) final door transition target
  *   RSBS_GP_BOOT_AGE      (child)  "adult" boots the debug save as adult Link,
  *                                  exercising the forced-child-on-return swap
  *                                  end-to-end (the return leg must still
  *                                  arrive as child)
+ *   RSBS_GP_CAMERA_ASSERT (1)      0 disables the return/warp-phase
+ *                                  camera-follow assert (forced player march +
+ *                                  camera displacement check, bug 1b)
  * Entrance values accept hex (0x...) or decimal and must be < OoT's ENTR_MAX.
  */
 typedef struct {
@@ -75,6 +81,8 @@ typedef struct {
     uint16_t warpEntrance;
     uint16_t exitEntrance;
     int bootAdult;
+    int warpFrames;
+    int cameraAssert;
 } GameplayTestConfig;
 
 /**

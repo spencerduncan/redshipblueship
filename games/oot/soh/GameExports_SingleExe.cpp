@@ -9,6 +9,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <cmath>
 #include "OTRGlobals.h"
 #include "soh/CrashHandlerExt.h"
 #include <libultraship/bridge.h>
@@ -113,6 +114,25 @@ static int sGpFramesInPhase = 0;
 static int sGpSceneInits = 0;
 static int sGpWatchdogFrames = 0;
 static int sGpWatchdogLimit = 0;
+// Door-actor presence check (bug 1a): baseline door count captured in the
+// boot-phase scene, compared on the return leg when the scene matches. -1 =
+// no baseline captured.
+static int sGpDoorBaseline = -1;
+static int16_t sGpDoorBaselineScene = -1;
+// Camera-follow assert (bug 1b): snapshot of the active camera + player taken
+// once the arrival settles; the driver then force-marches the player and
+// fails if the camera's eye+at never move while the player does.
+static Vec3f sGpCamStartEye;
+static Vec3f sGpCamStartAt;
+static Vec3f sGpCamStartPlayer;
+static int sGpCamProbeArmed = 0;
+
+static float GpVecDist(const Vec3f* a, const Vec3f* b) {
+    float dx = a->x - b->x;
+    float dy = a->y - b->y;
+    float dz = a->z - b->z;
+    return sqrtf(dx * dx + dy * dy + dz * dz);
+}
 
 /**
  * The production "walk through a door" trio (z_player.c exit handling /
@@ -381,7 +401,11 @@ static void OoT_RegisterIntegrationTestHooks(void) {
         sGpWatchdogFrames = 0;
         // Generous bound: several fade/loads plus the configured gameplay
         // window per phase; the CTest timeout stays the hard backstop.
-        sGpWatchdogLimit = IntegrationTest_GetGameplayConfig()->framesPerPhase * 4 + 3600;
+        {
+            const GameplayTestConfig* wcfg = IntegrationTest_GetGameplayConfig();
+            int maxPhaseFrames = wcfg->framesPerPhase > wcfg->warpFrames ? wcfg->framesPerPhase : wcfg->warpFrames;
+            sGpWatchdogLimit = maxPhaseFrames * 4 + 3600;
+        }
 
         // Boot injection — whichever of these fires first wins; both are
         // no-ops once the phase machine has left GP_PHASE_BOOT. The title
@@ -461,6 +485,25 @@ static void OoT_RegisterIntegrationTestHooks(void) {
                 IntegrationTest_GameplayFail(ageMsg);
                 return;
             }
+            // Demo-state leakage asserts (the bug 1a/1b/1c common-cause
+            // class): every cross-game arrival and post-return load must be a
+            // plain gameplay spawn. A title/attract gameMode, a live cutscene
+            // index, a cutscene scene layer, or a queued nextCutsceneIndex
+            // here means frozen-blob or title-chain state escaped the
+            // consumption-point neutralization.
+            if (phase == GP_PHASE_OOT_RETURN || phase == GP_PHASE_OOT_WARP) {
+                if (gSaveContext.gameMode != GAMEMODE_NORMAL || gSaveContext.cutsceneIndex >= 0xFFF0 ||
+                    gSaveContext.sceneSetupIndex >= 4 || gSaveContext.nextCutsceneIndex != 0xFFEF) {
+                    char stateMsg[192];
+                    snprintf(stateMsg, sizeof(stateMsg),
+                             "%s arrived with demo state: gameMode=%d cutsceneIndex=0x%04X sceneSetupIndex=%d "
+                             "nextCutsceneIndex=0x%04X — title/cutscene state leaked into a gameplay spawn",
+                             what, (int)gSaveContext.gameMode, (uint16_t)gSaveContext.cutsceneIndex,
+                             (int)gSaveContext.sceneSetupIndex, (uint16_t)gSaveContext.nextCutsceneIndex);
+                    IntegrationTest_GameplayFail(stateMsg);
+                    return;
+                }
+            }
             sGpArrivalPhase = phase;
         });
 
@@ -478,14 +521,110 @@ static void OoT_RegisterIntegrationTestHooks(void) {
             if (phase != sGpPlayerLastPhase) {
                 sGpPlayerLastPhase = phase;
                 sGpFramesInPhase = 0;
+                sGpCamProbeArmed = 0;
             }
             if (sGpArrivalPhase != phase) {
                 return; // fade-out after firing a door, or not yet in the expected scene
             }
             const GameplayTestConfig* cfg = IntegrationTest_GetGameplayConfig();
+            PlayState* play = OoT_gPlayState;
             sGpFramesInPhase++;
-            if (sGpFramesInPhase < cfg->framesPerPhase) {
-                return;
+
+            // Door-actor presence (bug 1a): by frame 30 the arrival scene's
+            // transition actors have spawned. Baseline in the boot phase;
+            // compare on the return leg when the scene matches (default route:
+            // both are Market via 0x01D1). Fewer doors than first boot means
+            // the switch poisoned the cached transition-actor list.
+            if (sGpFramesInPhase == 30) {
+                int doorCount = play->actorCtx.actorLists[ACTORCAT_DOOR].length;
+                if (phase == GP_PHASE_OOT_PRE) {
+                    sGpDoorBaseline = doorCount;
+                    sGpDoorBaselineScene = play->sceneNum;
+                    fprintf(stderr, "[GP-TEST] door baseline: %d door actors in scene %d\n", doorCount,
+                            (int)play->sceneNum);
+                    fflush(stderr);
+                } else if (phase == GP_PHASE_OOT_RETURN && sGpDoorBaseline >= 0 &&
+                           play->sceneNum == sGpDoorBaselineScene) {
+                    fprintf(stderr, "[GP-TEST] door check: %d door actors in scene %d (baseline %d)\n", doorCount,
+                            (int)play->sceneNum, sGpDoorBaseline);
+                    fflush(stderr);
+                    if (doorCount < sGpDoorBaseline) {
+                        char doorMsg[160];
+                        snprintf(doorMsg, sizeof(doorMsg),
+                                 "return leg scene %d has %d door actors, first boot had %d — transition "
+                                 "actors lost across the switch (bug 1a)",
+                                 (int)play->sceneNum, doorCount, sGpDoorBaseline);
+                        IntegrationTest_GameplayFail(doorMsg);
+                        return;
+                    }
+                }
+            }
+
+            // Camera-follow assert (bug 1b), WARP phase only: frames 20..39
+            // arm a snapshot of the active camera + player once the frame is
+            // settled plain gameplay; the driver then force-marches the player
+            // (+4/frame — the harness has no input injection, so Link never
+            // moves on his own); frame 80 requires the camera to have tracked.
+            // WARP-only because a march in the return-leg Market crosses a
+            // scene-exit trigger and aborts the phase (found the hard way);
+            // the operator's camera bug lives in warp-class arrivals (Hyrule
+            // Field 0x00CD). If geometry walls the march in, playerDist stays
+            // small and the assert self-vacuouses (lost coverage, never a
+            // false positive). Disable with RSBS_GP_CAMERA_ASSERT=0.
+            if (cfg->cameraAssert && cfg->framesPerPhase >= 90 && phase == GP_PHASE_OOT_WARP) {
+                Actor* playerActor = play->actorCtx.actorLists[ACTORCAT_PLAYER].head;
+                Camera* cam = play->cameraPtrs[play->activeCamera];
+                if (playerActor != NULL && cam != NULL) {
+                    // Arm anywhere in frames 20..39 (transitions can settle a
+                    // few frames late); log the gate state if it never opens —
+                    // silent non-coverage is how vacuous asserts are born.
+                    if (!sGpCamProbeArmed && sGpFramesInPhase >= 20 && sGpFramesInPhase < 40 &&
+                        gSaveContext.gameMode == GAMEMODE_NORMAL && play->csCtx.state == CS_STATE_IDLE &&
+                        play->transitionMode == TRANS_MODE_OFF) {
+                        sGpCamStartEye = cam->eye;
+                        sGpCamStartAt = cam->at;
+                        sGpCamStartPlayer = playerActor->world.pos;
+                        sGpCamProbeArmed = 1;
+                    }
+                    if (!sGpCamProbeArmed && sGpFramesInPhase == 40) {
+                        fprintf(stderr,
+                                "[GP-TEST] WARNING: camera probe never armed (gameMode=%d csState=%d "
+                                "transitionMode=%d) — camera-follow assert skipped this phase\n",
+                                (int)gSaveContext.gameMode, (int)play->csCtx.state, (int)play->transitionMode);
+                        fflush(stderr);
+                    }
+                    if (sGpCamProbeArmed && sGpFramesInPhase < 80) {
+                        playerActor->world.pos.x += 4.0f;
+                    }
+                    if (sGpCamProbeArmed && sGpFramesInPhase == 80) {
+                        float playerDist = GpVecDist(&playerActor->world.pos, &sGpCamStartPlayer);
+                        float camDist = GpVecDist(&cam->eye, &sGpCamStartEye) + GpVecDist(&cam->at, &sGpCamStartAt);
+                        fprintf(stderr,
+                                "[GP-TEST] camera-follow: player moved %.1f, camera eye+at moved %.1f "
+                                "(status=%d setting=%d mode=%d)\n",
+                                playerDist, camDist, (int)cam->status, (int)cam->setting, (int)cam->mode);
+                        fflush(stderr);
+                        sGpCamProbeArmed = 0;
+                        if (playerDist > 80.0f && camDist < 5.0f) {
+                            char camMsg[192];
+                            snprintf(camMsg, sizeof(camMsg),
+                                     "camera did not follow: player moved %.1f but camera eye+at moved %.1f "
+                                     "(status=%d setting=%d mode=%d) — bug 1b",
+                                     playerDist, camDist, (int)cam->status, (int)cam->setting, (int)cam->mode);
+                            IntegrationTest_GameplayFail(camMsg);
+                            return;
+                        }
+                    }
+                }
+            }
+
+            // The warp phase gets its own (usually longer) budget so time-
+            // dependent faults inside the warp target can soak.
+            {
+                int phaseBudget = (phase == GP_PHASE_OOT_WARP) ? cfg->warpFrames : cfg->framesPerPhase;
+                if (sGpFramesInPhase < phaseBudget) {
+                    return;
+                }
             }
             switch (phase) {
                 case GP_PHASE_OOT_PRE:

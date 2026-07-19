@@ -99,12 +99,18 @@ void GameplayParseConfig(void) {
     sGameplayConfig.exitEntrance = GameplayEnvEntrance("RSBS_GP_EXIT_ENTRANCE", 0x0033);
     const char* bootAge = getenv("RSBS_GP_BOOT_AGE");
     sGameplayConfig.bootAdult = bootAge != NULL && strcmp(bootAge, "adult") == 0;
+    // Warp-phase-only frame budget: a time-related fault (bug 1c class) needs
+    // a long soak INSIDE the warp target, not longer windows everywhere.
+    sGameplayConfig.warpFrames = GameplayEnvInt("RSBS_GP_WARP_FRAMES", sGameplayConfig.framesPerPhase, 1);
+    sGameplayConfig.cameraAssert = GameplayEnvInt("RSBS_GP_CAMERA_ASSERT", 1, 0);
     sGameplayPhase = GP_PHASE_BOOT;
     sGameplayCyclesDone = 0;
-    printf("[GP-TEST] config: frames/phase=%d cycles=%d boot=0x%04X warp=0x%04X exit=0x%04X bootAge=%s\n",
+    printf("[GP-TEST] config: frames/phase=%d cycles=%d boot=0x%04X warp=0x%04X exit=0x%04X bootAge=%s "
+           "warpFrames=%d camAssert=%d\n",
            sGameplayConfig.framesPerPhase, sGameplayConfig.cycles, sGameplayConfig.bootEntrance,
            sGameplayConfig.warpEntrance, sGameplayConfig.exitEntrance,
-           sGameplayConfig.bootAdult ? "adult" : "child");
+           sGameplayConfig.bootAdult ? "adult" : "child", sGameplayConfig.warpFrames,
+           sGameplayConfig.cameraAssert);
     fflush(stdout);
 }
 

@@ -1212,16 +1212,37 @@ void OTRAudio_Thread() {
 
         // Env-gated diagnostics (RSBS_AUDIO_PROBE=1): once per ~60 buffers,
         // report which game's synth ran and whether it produced any nonzero
-        // samples — the programmatic stand-in for "can you hear it".
+        // samples — the programmatic stand-in for "can you hear it". peak/
+        // sat/maxrun quantify clipping: sustained runs of ±32767 are digital
+        // clipping (the MM mixer-DMEM-underflow signature), while a healthy
+        // mix shows peak below full scale and maxrun of at most a few samples.
         static const bool sAudioProbe = getenv("RSBS_AUDIO_PROBE") != NULL;
         if (sAudioProbe) {
             static u32 sProbeBuffers = 0;
             if (++sProbeBuffers % 60 == 0) {
                 size_t total = (size_t)num_audio_samples * NUM_AUDIO_CHANNELS * AUDIO_FRAMES_PER_UPDATE;
                 size_t nonzero = 0;
+                size_t sat = 0;
+                size_t run = 0;
+                size_t maxrun = 0;
+                int peak = 0;
                 for (size_t s = 0; s < total; s++) {
-                    if (audio_buffer[s] != 0) {
+                    int v = audio_buffer[s];
+                    if (v != 0) {
                         nonzero++;
+                    }
+                    int mag = v < 0 ? -v : v;
+                    if (mag > peak) {
+                        peak = mag;
+                    }
+                    if (mag >= 32767) {
+                        sat++;
+                        run++;
+                        if (run > maxrun) {
+                            maxrun = run;
+                        }
+                    } else {
+                        run = 0;
                     }
                 }
 #ifdef RSBS_SINGLE_EXECUTABLE
@@ -1229,8 +1250,8 @@ void OTRAudio_Thread() {
 #else
                 int probeGame = -1;
 #endif
-                fprintf(stderr, "[AUDIO-PROBE] buffers=%u game=%d nonzero=%zu/%zu\n", sProbeBuffers, probeGame, nonzero,
-                        total);
+                fprintf(stderr, "[AUDIO-PROBE] buffers=%u game=%d nonzero=%zu/%zu peak=%d sat=%zu maxrun=%zu\n",
+                        sProbeBuffers, probeGame, nonzero, total, peak, sat, maxrun);
                 fflush(stderr);
             }
         }
