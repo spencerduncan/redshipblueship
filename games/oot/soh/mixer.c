@@ -16,9 +16,17 @@
 #define ROUND_UP_8(v) (((v) + 7) & ~7)
 #define ROUND_DOWN_16(v) ((v) & ~0xf)
 
-#define DMEM_BUF_SIZE (0x1000 - 0x3C0 - 0x40)
-#define BUF_U8(a) (rspa.buf.as_u8 + ((a)-0x3C0))
-#define BUF_S16(a) (rspa.buf.as_s16 + ((a)-0x3C0) / sizeof(int16_t))
+// RSBS: base is 0x330 (not SoH's 0x3C0) because the single-exe build shares
+// this mixer with MM (2s2h/mixer.c is excluded from the link and the mixer
+// symbols are unprefixed). MM's synthesis addresses start at DMEM_TEMP 0x3B0;
+// against a 0x3C0 base those underflowed into rspa.filter[], so the per-note
+// lowpass FIR overwrote its own coefficients with clamped output — a
+// self-sustaining full-scale runaway on every filtered MM channel (the
+// operator's "MM clips, something too loud"). 0x330 is upstream 2Ship's own
+// base; both games' windows fit: OoT uses 0x3C0..0xFC0, MM 0x3B0..0xFB0.
+#define DMEM_BUF_SIZE (0x1000 - 0x330 - 0x40)
+#define BUF_U8(a) (rspa.buf.as_u8 + ((a)-0x330))
+#define BUF_S16(a) (rspa.buf.as_s16 + ((a)-0x330) / sizeof(int16_t))
 
 static struct {
     uint16_t in;
