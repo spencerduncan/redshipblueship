@@ -6960,6 +6960,28 @@ void OoT_Camera_Destroy(Camera* camera) {
     }
 }
 
+/**
+ * RSBS: re-arm the once-only camera-constant seeding in OoT_Camera_Init.
+ * Called from func_800636C0 (z_debug.c) right after it re-mints gGameInfo
+ * with a zeroed data[] — see the comment there for the full account. Without
+ * this, every OoT entry after the first ran the camera on zeroed OREG /
+ * R_CAM_DATA constants.
+ */
+void OoT_Camera_InvalidateRegs(void) {
+    sInitRegs = true;
+}
+
+/**
+ * RSBS: true when the camera constant registers hold their seeded values.
+ * OREG(5) is 14500 in sOREGInit and 0 in a freshly-minted gGameInfo, so this
+ * distinguishes "seeded" from "zeroed and never re-seeded" — the state every
+ * OoT re-entry used to land in. Used by the gameplay harness to lock the
+ * re-seeding contract on cross-game arrivals.
+ */
+bool OoT_Camera_RegsSeeded(void) {
+    return OREG(5) != 0;
+}
+
 void OoT_Camera_Init(Camera* camera, View* view, CollisionContext* colCtx, PlayState* play) {
     Camera* camP;
     s32 i;

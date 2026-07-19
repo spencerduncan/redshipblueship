@@ -101,6 +101,10 @@ void OoT_Sram_InitDebugSave(void);
 void OoT_Play_Init(GameState* thisx);
 extern GameState* OoT_gGameState;
 extern PlayState* OoT_gPlayState;
+// Camera constant registers live in gGameInfo, which Main() re-mints (zeroed)
+// on every OoT entry; the seeding is re-armed from func_800636C0. See
+// games/oot/src/code/z_camera.c.
+bool OoT_Camera_RegsSeeded(void);
 }
 
 // Phase-local OoT driver state. sGpArrivalPhase records which phase's
@@ -492,6 +496,18 @@ static void OoT_RegisterIntegrationTestHooks(void) {
             // here means frozen-blob or title-chain state escaped the
             // consumption-point neutralization.
             if (phase == GP_PHASE_OOT_RETURN || phase == GP_PHASE_OOT_WARP) {
+                // The camera constants must be seeded on every arrival. Main()
+                // re-mints gGameInfo (zeroing the REG backing store) on each
+                // OoT entry, while the seeding sat behind a once-per-process
+                // latch — so every return leg used to run the camera on
+                // all-zero constants: it translated with Link but never
+                // reoriented to follow him, and Player's stick-to-world yaw
+                // (derived from the camera) went with it.
+                if (!OoT_Camera_RegsSeeded()) {
+                    IntegrationTest_GameplayFail("camera constant registers are zeroed on arrival — the "
+                                                 "once-only OREG seeding lost its resume inverse");
+                    return;
+                }
                 if (gSaveContext.gameMode != GAMEMODE_NORMAL || gSaveContext.cutsceneIndex >= 0xFFF0 ||
                     gSaveContext.sceneSetupIndex >= 4 || gSaveContext.nextCutsceneIndex != 0xFFEF) {
                     char stateMsg[192];
@@ -598,19 +614,27 @@ static void OoT_RegisterIntegrationTestHooks(void) {
                     }
                     if (sGpCamProbeArmed && sGpFramesInPhase == 80) {
                         float playerDist = GpVecDist(&playerActor->world.pos, &sGpCamStartPlayer);
-                        float camDist = GpVecDist(&cam->eye, &sGpCamStartEye) + GpVecDist(&cam->at, &sGpCamStartAt);
+                        // eye and at MUST be judged separately. A camera
+                        // bolted in place that merely rotates to keep Link in
+                        // frame — the degenerate state Camera_Update falls
+                        // into when it skips the setting/mode engine — moves
+                        // `at` by roughly the player's displacement while
+                        // `eye` never moves at all. Summing the two hides
+                        // exactly the failure this assert exists to catch.
+                        float eyeDist = GpVecDist(&cam->eye, &sGpCamStartEye);
+                        float atDist = GpVecDist(&cam->at, &sGpCamStartAt);
                         fprintf(stderr,
-                                "[GP-TEST] camera-follow: player moved %.1f, camera eye+at moved %.1f "
+                                "[GP-TEST] camera-follow: player moved %.1f, camera eye moved %.1f, at moved %.1f "
                                 "(status=%d setting=%d mode=%d)\n",
-                                playerDist, camDist, (int)cam->status, (int)cam->setting, (int)cam->mode);
+                                playerDist, eyeDist, atDist, (int)cam->status, (int)cam->setting, (int)cam->mode);
                         fflush(stderr);
                         sGpCamProbeArmed = 0;
-                        if (playerDist > 80.0f && camDist < 5.0f) {
-                            char camMsg[192];
+                        if (playerDist > 80.0f && eyeDist < 5.0f) {
+                            char camMsg[224];
                             snprintf(camMsg, sizeof(camMsg),
-                                     "camera did not follow: player moved %.1f but camera eye+at moved %.1f "
-                                     "(status=%d setting=%d mode=%d) — bug 1b",
-                                     playerDist, camDist, (int)cam->status, (int)cam->setting, (int)cam->mode);
+                                     "camera did not follow: player moved %.1f but camera eye moved %.1f "
+                                     "(at moved %.1f, status=%d setting=%d mode=%d) — camera is anchored",
+                                     playerDist, eyeDist, atDist, (int)cam->status, (int)cam->setting, (int)cam->mode);
                             IntegrationTest_GameplayFail(camMsg);
                             return;
                         }

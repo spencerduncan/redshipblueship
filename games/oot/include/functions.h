@@ -766,6 +766,11 @@ s32 OoT_DynaPolyActor_IsPlayerAbove(DynaPolyActor* dynaActor);
 s32 OoT_DynaPolyActor_IsSwitchPressed(DynaPolyActor* dynaActor);
 s32 func_800435D8(PlayState* play, DynaPolyActor* dynaActor, s16 arg2, s16 arg3, s16 arg4);
 void OoT_Camera_Init(Camera* camera, View* view, CollisionContext* colCtx, PlayState* play);
+// RSBS: re-arms the once-only camera-constant seeding after gGameInfo is
+// re-minted (cross-game re-entry into OoT). See z_debug.c func_800636C0.
+void OoT_Camera_InvalidateRegs(void);
+// RSBS: whether the camera constant registers currently hold seeded values.
+bool OoT_Camera_RegsSeeded(void);
 void Camera_InitPlayerSettings(Camera* camera, Player* player);
 s16 OoT_Camera_ChangeStatus(Camera* camera, s16 status);
 Vec3s OoT_Camera_Update(Camera* camera);

@@ -70,6 +70,20 @@ void func_800636C0(void) {
     for (i = 0; i < ARRAY_COUNT(gGameInfo->data); i++) {
         gGameInfo->data[i] = 0;
     }
+
+    // RSBS: gGameInfo->data is the backing store for every REG group,
+    // including the camera constants (OREG / R_CAM_DATA). Main() re-runs this
+    // on EVERY entry into OoT — including the return leg of a cross-game
+    // switch — so those constants are freshly zeroed each time, but the only
+    // code that seeds them sits behind a once-per-PROCESS latch in
+    // Camera_Init (sInitRegs, z_camera.c). On the second and later OoT
+    // entries the camera therefore ran with all-zero update rates and lerp
+    // scales: it still translated with Link but never reoriented to follow
+    // him, and because Player derives its stick-to-world yaw from the camera,
+    // the controls felt wrong too (operator report, 2026-07-19). Re-arm the
+    // latch here, where the invalidation actually happens, so the invariant
+    // is "gGameInfo was just zeroed => the camera constants get re-seeded".
+    OoT_Camera_InvalidateRegs();
 }
 
 // Called when free movement is active.
