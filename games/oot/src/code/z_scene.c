@@ -327,8 +327,20 @@ void OoT_Scene_CommandPathList(PlayState* play, SceneCmd* cmd) {
 }
 
 void OoT_Scene_CommandTransitionActorList(PlayState* play, SceneCmd* cmd) {
+    s32 i;
+
     play->transiActorCtx.numActors = cmd->transiActorList.num;
     play->transiActorCtx.list = SEGMENTED_TO_VIRTUAL(cmd->transiActorList.segment);
+
+    // RSBS: restore spawnable (positive) ids on scene bind — see the OTR
+    // handler in soh/z_scene_otr.cpp for the full account. A cross-game
+    // switch skips Play_Destroy, leaving the previous session's in-place
+    // negations in the shared list; a fresh Play expects them spawnable.
+    for (i = 0; i < play->transiActorCtx.numActors; i++) {
+        if (play->transiActorCtx.list[i].id < 0) {
+            play->transiActorCtx.list[i].id = -play->transiActorCtx.list[i].id;
+        }
+    }
 }
 
 void TransitionActor_InitContext(GameState* state, TransitionActorContext* transiActorCtx) {

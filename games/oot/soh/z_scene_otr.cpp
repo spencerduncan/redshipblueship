@@ -208,6 +208,23 @@ bool OoT_Scene_CommandTransitionActorList(PlayState* play, SOH::ISceneCommand* c
     play->transiActorCtx.numActors = cmdActor->numTransitionActors;
     play->transiActorCtx.list = (TransitionActorEntry*)cmdActor->GetRawPointer();
 
+    // RSBS: normalize ids to positive when binding the list. Actor_
+    // SpawnTransitionActors negates each id IN PLACE as it spawns (the list is
+    // a raw pointer into the process-cached scene resource, not a per-play
+    // copy), and the only un-negate is in the door actors' Destroy callbacks.
+    // A cross-game switch abandons the live PlayState without running
+    // Play_Destroy, so the scene the player left kept all-negative ids for the
+    // process lifetime — the return leg then spawned ZERO doors in that scene
+    // (operator: "no door actors in Hyrule Market after swap-back"). A scene-
+    // level command runs once per fresh Play instance, where every transition
+    // actor is expected spawnable — this restores the N64 fresh-DMA invariant.
+    for (s32 i = 0; i < play->transiActorCtx.numActors; i++) {
+        TransitionActorEntry* entry = &play->transiActorCtx.list[i];
+        if (entry->id < 0) {
+            entry->id = -entry->id;
+        }
+    }
+
     return false;
 }
 
@@ -341,6 +358,19 @@ bool Scene_CommandAlternateHeaderList(PlayState* play, SOH::ISceneCommand* cmd) 
     // osSyncPrintf("\n[ZU]sceneset counter=[%X]", ((void)0, gSaveContext.sceneSetupIndex));
 
     if (gSaveContext.sceneSetupIndex != 0) {
+        // RSBS: bounds-check before indexing. headers is a std::vector sized
+        // by the scene's actual alternate-header count (interiors commonly
+        // have 3), while sceneSetupIndex can reach 4..19 whenever a cutscene
+        // index (0xFFF0..0xFFFC) survives to a scene load. The unguarded
+        // headers[idx] was UB: it copy-constructed a shared_ptr from garbage
+        // (a refcount write through a wild pointer) — delayed heap corruption
+        // that presented as an "eventual" crash. Fall back to the base header
+        // (setup 0) loudly instead.
+        if ((size_t)(gSaveContext.sceneSetupIndex - 1) >= cmdHeaders->headers.size()) {
+            fprintf(stderr, "[OoT] Scene setup %d out of range (%zu alternate headers) — using base header\n",
+                    (int)gSaveContext.sceneSetupIndex, cmdHeaders->headers.size());
+            return false;
+        }
         SOH::Scene* desiredHeader =
             std::static_pointer_cast<SOH::Scene>(cmdHeaders->headers[gSaveContext.sceneSetupIndex - 1]).get();
 

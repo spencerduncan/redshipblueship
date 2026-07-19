@@ -282,6 +282,21 @@ void Scene_CommandTransiActorList(PlayState* play, S2H::ISceneCommand* cmd) {
 
     play->transitionActors.count = list->numTransitionActors;
     play->transitionActors.list = (TransitionActorEntry*)list->GetRawPointer();
+
+    // RSBS: normalize ids to positive when binding the list — the MM twin of
+    // the OoT fix in games/oot/soh/z_scene_otr.cpp. MM_Actor_
+    // SpawnTransitionActors negates ids in place inside the process-cached
+    // scene resource and only door Destroy callbacks restore them; a
+    // cross-game switch abandons the PlayState without destroy, so the scene
+    // the player left (South Clock Town — including the Clock Tower portal
+    // door itself) would re-load with zero transition actors.
+    for (s32 i = 0; i < play->transitionActors.count; i++) {
+        TransitionActorEntry* entry = &play->transitionActors.list[i];
+        if (entry->id < 0) {
+            entry->id = -entry->id;
+        }
+    }
+
     MapDisp_InitTransitionActorData(play, play->transitionActors.count, play->transitionActors.list);
 }
 
