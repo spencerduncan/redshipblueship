@@ -29,6 +29,7 @@ games/mm/2s2h/Enhancements/Audio/AudioCollection.h
 games/mm/2s2h/Enhancements/Audio/AudioEditor.h
 games/mm/2s2h/Enhancements/FrameInterpolation/FrameInterpolation.h
 games/mm/2s2h/GameExports_SingleExe.cpp
+games/mm/2s2h/ShipInit.hpp
 games/mm/2s2h/mm_resume_state_test.cpp
 games/mm/2s2h/z_scene_2SH.cpp
 games/mm/src/audio/lib/dcache.c
