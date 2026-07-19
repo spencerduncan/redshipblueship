@@ -460,6 +460,37 @@ void OoT_Play_Init(GameState* thisx) {
                 // (same reset the debug-save boot path uses).
                 gSaveContext.seqId = (u8)NA_BGM_DISABLED;
                 gSaveContext.natureAmbienceId = 0xFF;
+                // The cutsceneIndex clear above can be undone a few lines
+                // below: Play_Init re-loads cutsceneIndex from
+                // nextCutsceneIndex whenever that isn't 0xFFEF, and the frozen
+                // blob's value was captured mid-door-fade. A surviving
+                // 0xFFF0..0xFFFC re-selects a cutscene scene layer on the next
+                // load — and alternate-header lists shorter than that index
+                // are straight UB in Scene_CommandAlternateHeaderList (a
+                // garbage shared_ptr copy, i.e. delayed heap corruption).
+                // Also drop any queued cutscene trigger.
+                gSaveContext.nextCutsceneIndex = 0xFFEF;
+                gSaveContext.cutsceneTrigger = 0;
+                // Per-session runtime state a fresh file-load always authors
+                // (FileChoose_LoadGame) but the return leg never does: a timer
+                // frozen mid-countdown resumes and fires a STALE
+                // respawn/transition on expiry; eventInf carries scratch bits
+                // (Epona/Ingo race, minigames) actors trust blindly; a frozen
+                // magicState machine can wedge the meter; forcedSeqId would
+                // restart the old session's BGM over the declared-dead audio
+                // state above.
+                gSaveContext.timerState = TIMER_STATE_OFF;
+                gSaveContext.subTimerState = SUBTIMER_STATE_OFF;
+                gSaveContext.eventInf[0] = 0;
+                gSaveContext.eventInf[1] = 0;
+                gSaveContext.eventInf[2] = 0;
+                gSaveContext.eventInf[3] = 0;
+                gSaveContext.minigameState = 0;
+                gSaveContext.dogParams = 0;
+                gSaveContext.nayrusLoveTimer = 0;
+                gSaveContext.healthAccumulator = 0;
+                gSaveContext.magicState = MAGIC_STATE_IDLE;
+                gSaveContext.forcedSeqId = NA_BGM_GENERAL_SFX;
                 // Force child Link on every cross-game arrival (operator
                 // decision: the MM trip is child-canon, so the OoT return
                 // resumes as child regardless of the frozen age). The equip
