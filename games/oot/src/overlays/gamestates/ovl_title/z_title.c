@@ -19,8 +19,10 @@
 
 // Cross-game combo support - a switch into OoT arrives with a pending startup
 // entrance set by the launcher (see rsbs/src/main.cpp). Defined in
-// src/common/entrance.cpp. Matches the extern in z_play.c.
-extern uint16_t Combo_GetStartupEntrance(void);
+// src/common/entrance.cpp. Matches the extern in z_play.c. Presence-gated and
+// game-scoped like the consumption point: entrance 0x0000 is a real id, and an
+// entrance tagged for the OTHER game must not fast-forward this one.
+extern bool Combo_HasStartupEntranceForGame(const char* gameId);
 
 // Note: In other rom versions this function also updates unk_1D4, coverAlpha, addAlpha, visibleDuration to calculate
 // the fade-in/fade-out + the duration of the n64 logo animation
@@ -135,8 +137,11 @@ void Title_Main(GameState* thisx) {
     // straight off to the opening -> play boot. We just want the scene change,
     // not the splash. Mirrors the transition Title normally makes when it
     // finishes below. The startup entrance is consumed later in Play_Init, so
-    // we only test it here without clearing it.
-    if (Combo_GetStartupEntrance() != 0) {
+    // we only test it here without clearing it. NOTE: this gate alone is
+    // bypassable — CustomLogoTitle (soh_enh) replaces state.main via
+    // OnZTitleInit, so the authoritative skip lives at the END of Title_Init
+    // below; this one is belt-and-braces for custom boot sequences.
+    if (Combo_HasStartupEntranceForGame("oot")) {
         gSaveContext.seqId = (u8)NA_BGM_DISABLED;
         gSaveContext.natureAmbienceId = 0xFF;
         gSaveContext.gameMode = GAMEMODE_TITLE_SCREEN;
@@ -190,4 +195,19 @@ void Title_Init(GameState* thisx) {
     this->visibleDuration = 0x3C;
 
     GameInteractor_ExecuteOnZTitleInit(this);
+
+    // Cross-game combo: the authoritative splash skip. It must run AFTER the
+    // OnZTitleInit hook dispatch — CustomLogoTitle (soh_enh, force-linked
+    // since 89a395a5) unconditionally replaces state.main there, which turned
+    // the Title_Main gate above into dead code and brought the splash back on
+    // every return leg. Setting running=false here means NO main (vanilla or
+    // custom) ever ticks; the gamestate framework still runs Title_Destroy
+    // (-> OoT_Sram_InitSram), matching the #350-era skip semantics exactly.
+    if (Combo_HasStartupEntranceForGame("oot")) {
+        gSaveContext.seqId = (u8)NA_BGM_DISABLED;
+        gSaveContext.natureAmbienceId = 0xFF;
+        gSaveContext.gameMode = GAMEMODE_TITLE_SCREEN;
+        this->state.running = false;
+        SET_NEXT_GAMESTATE(&this->state, Opening_Init, OpeningContext);
+    }
 }
