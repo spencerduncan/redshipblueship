@@ -584,7 +584,7 @@ void OoT_Graph_ThreadEntry(void* arg0) {
     while (WindowIsRunning()) {
         // Check for F10 hot-swap request
         if (Combo_CheckHotSwap()) {
-            break;  // Exit game loop to allow switch
+            break; // Exit game loop to allow switch
         }
         OoT_RunFrame();
     }

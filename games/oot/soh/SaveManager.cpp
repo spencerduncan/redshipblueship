@@ -27,7 +27,7 @@
 // place in src/common's call chain where OoT's SaveContext layout is known,
 // so the metadata-offset descriptor is registered from here too.
 #include "save.h"
-#include <cstddef>  // offsetof
+#include <cstddef> // offsetof
 
 #define NOGDI // avoid various windows defines that conflict with things in z64.h
 #include <spdlog/spdlog.h>
@@ -592,9 +592,9 @@ void SaveManager::StartupCheckAndInitMeta(int fileNum) {
 
 void SaveManager::QuarantineCorruptSave(int fileNum) {
     std::filesystem::path fileName = GetFileName(fileNum);
-    std::string newFileName = Ship::Context::GetPathRelativeToAppDirectory("Save") +
-                              ("/file" + std::to_string(fileNum + 1) + "-" + std::to_string(GetUnixTimestamp()) +
-                               ".bak");
+    std::string newFileName =
+        Ship::Context::GetPathRelativeToAppDirectory("Save") +
+        ("/file" + std::to_string(fileNum + 1) + "-" + std::to_string(GetUnixTimestamp()) + ".bak");
     try {
 #if defined(__SWITCH__) || defined(__WIIU__)
         copy_file(fileName.c_str(), newFileName.c_str());

@@ -91,7 +91,7 @@ GameStateOverlay* MM_Graph_GetNextGameState(GameState* gameState) {
     // Generates code to match gameStateInit to a gamestate entry and returns it if found
 #define DEFINE_GAMESTATE_INTERNAL(typeName, enumName) \
     if (gameStateInit == typeName##_Init) {           \
-        return &MM_gGameStateOverlayTable[enumName];     \
+        return &MM_gGameStateOverlayTable[enumName];  \
     }
 #define DEFINE_GAMESTATE(typeName, enumName, name) DEFINE_GAMESTATE_INTERNAL(typeName, enumName)
 
@@ -407,8 +407,8 @@ void MM_Graph_Update(GraphicsContext* gfxCtx, GameState* gameState) {
             int count = (int)(end - start);
             int i;
             sGfxDumped = 1;
-            fprintf(stderr, "[GFX-DUMP] frame %d polyOpa: start=%p p=%p count=%d (showing up to 160)\n",
-                    sGfxDumpFrame, (void*)start, (void*)end, count);
+            fprintf(stderr, "[GFX-DUMP] frame %d polyOpa: start=%p p=%p count=%d (showing up to 160)\n", sGfxDumpFrame,
+                    (void*)start, (void*)end, count);
             for (i = 0; i < count && i < 160; i++) {
                 fprintf(stderr, "[GFX-DUMP] %3d: %016llX %016llX\n", i, (unsigned long long)start[i].words.w0,
                         (unsigned long long)start[i].words.w1);
@@ -521,7 +521,7 @@ void MM_Graph_ThreadEntry(void* arg0) {
     while (WindowIsRunning()) {
         // Check for F10 hot-swap request
         if (Combo_CheckHotSwap()) {
-            break;  // Exit game loop to allow switch
+            break; // Exit game loop to allow switch
         }
         MM_RunFrame();
     }

@@ -329,8 +329,7 @@ void MM_Scene_CommandTimeSettings(PlayState* play, S2H::ISceneCommand* cmd) {
     // call would run OoT vanilla-behavior hooks against MM state. MM's
     // enhancement layer is excluded in single-exe mode, so nothing could
     // legitimately hook this — use the un-hooked default directly.
-    if ((gSaveContext.save.saveInfo.inventory.items[SLOT_OCARINA] == ITEM_NONE) &&
-        (play->envCtx.sceneTimeSpeed != 0)) {
+    if ((gSaveContext.save.saveInfo.inventory.items[SLOT_OCARINA] == ITEM_NONE) && (play->envCtx.sceneTimeSpeed != 0)) {
         play->envCtx.sceneTimeSpeed = 5;
     }
 #else
@@ -430,8 +429,7 @@ void Scene_CommandAltHeaderList(PlayState* play, S2H::ISceneCommand* cmd) {
         // undefined behavior (garbage shared_ptr -> access violation). Treat an
         // out-of-range layer as "no alternate header," matching the NULL-slot path.
         if (headerIndex < headers->headers.size()) {
-            S2H::Scene* desiredHeader =
-                std::static_pointer_cast<S2H::Scene>(headers->headers[headerIndex]).get();
+            S2H::Scene* desiredHeader = std::static_pointer_cast<S2H::Scene>(headers->headers[headerIndex]).get();
 
             if (desiredHeader != nullptr) {
                 MM_OTRScene_ExecuteCommands(play, desiredHeader);
@@ -500,28 +498,28 @@ void Scene_CommandMiniMapCompassInfo(PlayState* play, S2H::ISceneCommand* cmd) {
 }
 
 static void (*sSceneCmdHandlersOTR[SCENE_CMD_MAX])(PlayState*, S2H::ISceneCommand*) = {
-    MM_Scene_CommandSpawnList,            // SCENE_CMD_ID_SPAWN_LIST
-    MM_Scene_CommandActorList,            // SCENE_CMD_ID_ACTOR_LIST
+    MM_Scene_CommandSpawnList,         // SCENE_CMD_ID_SPAWN_LIST
+    MM_Scene_CommandActorList,         // SCENE_CMD_ID_ACTOR_LIST
     Scene_CommandActorCutsceneCamList, // SCENE_CMD_ID_ACTOR_CUTSCENE_CAM_LIST
-    MM_Scene_CommandCollisionHeader,      // SCENE_CMD_ID_COL_HEADER
-    MM_Scene_CommandRoomList,             // SCENE_CMD_ID_ROOM_LIST
-    MM_Scene_CommandWindSettings,         // SCENE_CMD_ID_WIND_SETTINGS
-    MM_Scene_CommandEntranceList,         // SCENE_CMD_ID_ENTRANCE_LIST
-    MM_Scene_CommandSpecialFiles,         // SCENE_CMD_ID_SPECIAL_FILES
-    MM_Scene_CommandRoomBehavior,         // SCENE_CMD_ID_ROOM_BEHAVIOR
+    MM_Scene_CommandCollisionHeader,   // SCENE_CMD_ID_COL_HEADER
+    MM_Scene_CommandRoomList,          // SCENE_CMD_ID_ROOM_LIST
+    MM_Scene_CommandWindSettings,      // SCENE_CMD_ID_WIND_SETTINGS
+    MM_Scene_CommandEntranceList,      // SCENE_CMD_ID_ENTRANCE_LIST
+    MM_Scene_CommandSpecialFiles,      // SCENE_CMD_ID_SPECIAL_FILES
+    MM_Scene_CommandRoomBehavior,      // SCENE_CMD_ID_ROOM_BEHAVIOR
     Scene_Command09,                   // SCENE_CMD_ID_UNK_09
     Scene_CommandMesh,                 // SCENE_CMD_ID_ROOM_SHAPE
-    MM_Scene_CommandObjectList,           // SCENE_CMD_ID_OBJECT_LIST
-    MM_Scene_CommandLightList,            // SCENE_CMD_ID_LIGHT_LIST
-    MM_Scene_CommandPathList,             // SCENE_CMD_ID_PATH_LIST
+    MM_Scene_CommandObjectList,        // SCENE_CMD_ID_OBJECT_LIST
+    MM_Scene_CommandLightList,         // SCENE_CMD_ID_LIGHT_LIST
+    MM_Scene_CommandPathList,          // SCENE_CMD_ID_PATH_LIST
     Scene_CommandTransiActorList,      // SCENE_CMD_ID_TRANSI_ACTOR_LIST
     Scene_CommandEnvLightSettings,     // SCENE_CMD_ID_ENV_LIGHT_SETTINGS
-    MM_Scene_CommandTimeSettings,         // SCENE_CMD_ID_TIME_SETTINGS
-    MM_Scene_CommandSkyboxSettings,       // SCENE_CMD_ID_SKYBOX_SETTINGS
-    MM_Scene_CommandSkyboxDisables,       // SCENE_CMD_ID_SKYBOX_DISABLES
-    MM_Scene_CommandExitList,             // SCENE_CMD_ID_EXIT_LIST
+    MM_Scene_CommandTimeSettings,      // SCENE_CMD_ID_TIME_SETTINGS
+    MM_Scene_CommandSkyboxSettings,    // SCENE_CMD_ID_SKYBOX_SETTINGS
+    MM_Scene_CommandSkyboxDisables,    // SCENE_CMD_ID_SKYBOX_DISABLES
+    MM_Scene_CommandExitList,          // SCENE_CMD_ID_EXIT_LIST
     NULL,                              // SCENE_CMD_ID_END
-    MM_Scene_CommandSoundSettings,        // SCENE_CMD_ID_SOUND_SETTINGS
+    MM_Scene_CommandSoundSettings,     // SCENE_CMD_ID_SOUND_SETTINGS
     Scene_CommandEchoSetting,          // SCENE_CMD_ID_ECHO_SETTINGS
     Scene_CommandCutsceneScriptList,   // SCENE_CMD_ID_CUTSCENE_SCRIPT_LIST
     Scene_CommandAltHeaderList,        // SCENE_CMD_ID_ALTERNATE_HEADER_LIST

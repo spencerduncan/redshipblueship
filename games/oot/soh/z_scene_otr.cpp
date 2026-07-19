@@ -436,30 +436,30 @@ bool Scene_CommandMiscSettings(PlayState* play, SOH::ISceneCommand* cmd) {
 bool (*sceneCommands[])(PlayState*, SOH::ISceneCommand*) = {
     OoT_Scene_CommandSpawnList,           // SCENE_CMD_ID_SPAWN_LIST
     OoT_Scene_CommandActorList,           // SCENE_CMD_ID_ACTOR_LIST
-    Scene_CommandUnused2,             // SCENE_CMD_ID_UNUSED_2
+    Scene_CommandUnused2,                 // SCENE_CMD_ID_UNUSED_2
     OoT_Scene_CommandCollisionHeader,     // SCENE_CMD_ID_COLLISION_HEADER
     OoT_Scene_CommandRoomList,            // SCENE_CMD_ID_ROOM_LIST
     OoT_Scene_CommandWindSettings,        // SCENE_CMD_ID_WIND_SETTINGS
     OoT_Scene_CommandEntranceList,        // SCENE_CMD_ID_ENTRANCE_LIST
     OoT_Scene_CommandSpecialFiles,        // SCENE_CMD_ID_SPECIAL_FILES
     OoT_Scene_CommandRoomBehavior,        // SCENE_CMD_ID_ROOM_BEHAVIOR
-    Scene_CommandUndefined9,          // SCENE_CMD_ID_UNDEFINED_9
-    Scene_CommandMeshHeader,          // SCENE_CMD_ID_MESH_HEADER
+    Scene_CommandUndefined9,              // SCENE_CMD_ID_UNDEFINED_9
+    Scene_CommandMeshHeader,              // SCENE_CMD_ID_MESH_HEADER
     OoT_Scene_CommandObjectList,          // SCENE_CMD_ID_OBJECT_LIST
     OoT_Scene_CommandLightList,           // SCENE_CMD_ID_LIGHT_LIST
     OoT_Scene_CommandPathList,            // SCENE_CMD_ID_PATH_LIST
     OoT_Scene_CommandTransitionActorList, // SCENE_CMD_ID_TRANSITION_ACTOR_LIST
-    Scene_CommandLightSettingsList,   // SCENE_CMD_ID_LIGHT_SETTINGS_LIST
+    Scene_CommandLightSettingsList,       // SCENE_CMD_ID_LIGHT_SETTINGS_LIST
     OoT_Scene_CommandTimeSettings,        // SCENE_CMD_ID_TIME_SETTINGS
     OoT_Scene_CommandSkyboxSettings,      // SCENE_CMD_ID_SKYBOX_SETTINGS
     OoT_Scene_CommandSkyboxDisables,      // SCENE_CMD_ID_SKYBOX_DISABLES
     OoT_Scene_CommandExitList,            // SCENE_CMD_ID_EXIT_LIST
-    NULL,                             // SCENE_CMD_ID_END
+    NULL,                                 // SCENE_CMD_ID_END
     OoT_Scene_CommandSoundSettings,       // SCENE_CMD_ID_SOUND_SETTINGS
-    Scene_CommandEchoSettings,        // SCENE_CMD_ID_ECHO_SETTINGS
-    Scene_CommandCutsceneData,        // SCENE_CMD_ID_CUTSCENE_DATA
-    Scene_CommandAlternateHeaderList, // SCENE_CMD_ID_ALTERNATE_HEADER_LIST
-    Scene_CommandMiscSettings,        // SCENE_CMD_ID_MISC_SETTINGS
+    Scene_CommandEchoSettings,            // SCENE_CMD_ID_ECHO_SETTINGS
+    Scene_CommandCutsceneData,            // SCENE_CMD_ID_CUTSCENE_DATA
+    Scene_CommandAlternateHeaderList,     // SCENE_CMD_ID_ALTERNATE_HEADER_LIST
+    Scene_CommandMiscSettings,            // SCENE_CMD_ID_MISC_SETTINGS
 };
 
 s32 OTRScene_ExecuteCommands(PlayState* play, SOH::Scene* scene) {

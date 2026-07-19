@@ -588,7 +588,7 @@ void PadMgr_UpdateConnections(void) {
                         sPadMgrInstance->ctrlrType[i] = PADMGR_CONT_UNK;
                         // "Recognized an unknown type of controller (%04x)"
                         MM_sprintf(msg, "知らない種類のコントローラ(%04x)を認識しました",
-                                sPadMgrInstance->padStatus[i].type);
+                                   sPadMgrInstance->padStatus[i].type);
                     }
                     // Missing break required for matching
             }
@@ -750,7 +750,7 @@ void MM_PadMgr_ThreadEntry() {
     s32 exit;
 
     MM_osCreateMesgQueue(&sPadMgrInstance->interruptQueue, sPadMgrInstance->interruptMsgBuf,
-                      ARRAY_COUNT(sPadMgrInstance->interruptMsgBuf));
+                         ARRAY_COUNT(sPadMgrInstance->interruptMsgBuf));
     MM_IrqMgr_AddClient(sPadMgrInstance->irqMgr, &sPadMgrInstance->irqClient, &sPadMgrInstance->interruptQueue);
 
     actionBits = 0;

@@ -159,8 +159,8 @@ int CosmeticGfxStub_RunHeadless(void) {
         // The void-stub failure mode: return value not a sane advancement of
         // the input write pointer.
         if (end <= buffer || end > buffer + (sizeof(buffer) / sizeof(buffer[0]))) {
-            printf("[TEST] FAIL: %s returned %p for buffer %p (not a sane display-list advance)\n", c.name,
-                   (void*)end, (void*)buffer);
+            printf("[TEST] FAIL: %s returned %p for buffer %p (not a sane display-list advance)\n", c.name, (void*)end,
+                   (void*)buffer);
             return 1;
         }
 
