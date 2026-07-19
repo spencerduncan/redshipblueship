@@ -629,3 +629,87 @@ round trips PASS; probed 3-cycle soak PASS with nonzero audio on every
 leg of every cycle on both games and rupee sentinels 101/102/103.
 Operator verdicts still owed: MM music correctness (right tracks, right
 instruments), no Tatl intro on arrival, child Link visible on return.
+
+## 8.2 Phase-4 local iteration (2026-07-18, session 4): the operator's return-leg verdicts
+
+The operator's phase-3 verdicts (MM sound works but CLIPS; no Tatl intro
+confirmed good; splash replays on OoT return; NEW return-leg bugs: no
+door actors in Market, camera stuck in Hyrule Field, eventual crash in
+Lon Lon interiors) drove a fourth session. Six more production faults,
+each root-caused by reading before patching (a 7-agent parallel code
+investigation), then verified red/green on the workstation:
+
+1. **A poisoned save file killed every boot** (found first because it
+   turned the whole ladder red on an unchanged-behavior rebuild): a
+   base-less `file1.sav` — sections carrying only sohStats+trackerData —
+   sat in `build-cmake/Save/`, and `SaveManager::StartupCheckAndInitMeta`
+   threw an uncaught nlohmann `type_error` on it at every startup
+   (0xE06D7363 again; decoded with dbg374 `DBG374_CPPEH=1` + map). The
+   minting mechanism: `SaveFileThreaded`'s non-BASE section path writes
+   the in-memory `saveBlock` — empty unless a full save/load ever ran —
+   so a sohStats/trackerData autosave on a session that never passed
+   through file creation mints (or clobbers a real file with!) a
+   base-less skeleton. Fixed both sides: the startup scan now
+   try/catches + quarantine-renames (mirroring LoadFile's existing
+   pattern, which upstream added everywhere except here), and the
+   section-save path refuses to write when no base data is loaded.
+2. **Missing Market doors (operator bug 1a)**: Actor_SpawnTransitionActors
+   negates transition-actor ids IN PLACE inside the process-cached OTR
+   scene resource; only door Destroy callbacks (via Play_Destroy) restore
+   them; the cross-game switch abandons the PlayState without destroy —
+   so the portal scene re-loaded doorless for the process lifetime. Fixed
+   by normalizing ids to positive at the SetTransitionActorList bind (all
+   three handlers: OoT OTR, OoT legacy, MM S2H — MM's South Clock Town,
+   including the Clock Tower portal door, had the same latent poisoning).
+   Locked by a door-count assert (boot baseline vs return leg) proven
+   non-vacuous by a counterfactual build: fix disabled → "0 door actors,
+   first boot had 6" FAIL, exactly the operator's symptom.
+3. **Splash replay (bug 3)**: #350's Title_Main gate is dead code —
+   CustomLogoTitle.cpp (soh_enh) unconditionally replaces state.main via
+   OnZTitleInit, armed when 89a395a5 whole-archived soh_enh (the fix
+   worked for exactly one day). The authoritative skip now runs at the
+   END of Title_Init after hook dispatch (running=false: no main ever
+   ticks, Title_Destroy still runs); all gates converted from the
+   value-gated untagged accessor to presence+game-scoped
+   (Combo_HasStartupEntranceForGame — entrance 0x0000 is a real id).
+4. **MM clipping (bug 2)**: single-exe links MM's synth against OoT's
+   mixer (2s2h/mixer.c excluded, mixer symbols unprefixed) — OoT DMEM
+   base 0x3C0 vs MM's DMEM_TEMP 0x3B0, so MM's per-note lowpass ran the
+   FIR on its own coefficient array (rspa.filter sits right below buf):
+   clamped full-scale output overwrote the Q15 taps, self-sustaining via
+   the saved filterState — ±32767 runaway on exactly the filtered
+   channels. Fixed by rebasing the shared mixer to 0x330 (upstream
+   2Ship's base; both games' windows fit). RSBS_AUDIO_PROBE now reports
+   peak/sat/maxrun per window: post-fix soak shows MM peaks 943..9023
+   with sat=0 maxrun=0 on every window.
+5. **Consumption-point neutralization extension** (the 1b/1c common-cause
+   class): the frozen-blob restore is a raw whole-struct copy and
+   Play_Init re-loads cutsceneIndex from the NOT-previously-neutralized
+   nextCutsceneIndex AFTER the consumption's cutsceneIndex=0 — a frozen
+   in-flight value re-selects a cutscene scene layer, which fed the
+   unguarded `headers[sceneSetupIndex-1]` vector index in OoT's
+   Scene_CommandAlternateHeaderList (garbage shared_ptr copy = delayed
+   heap corruption; MM had the guard from #344, OoT now matches). Also
+   neutralized: cutsceneTrigger, timerState/subTimerState (stale timers
+   fire old-session respawns — the prime remaining suspect for the Lon
+   Lon "eventual crash"), eventInf[0..3], minigameState, dogParams,
+   nayrusLoveTimer, healthAccumulator, magicState, forcedSeqId. Locked by
+   arrival asserts (gameMode NORMAL, cutsceneIndex<0xFFF0,
+   sceneSetupIndex<4, nextCutsceneIndex==0xFFEF) on every return/warp
+   arrival.
+6. **Harness growth**: RSBS_GP_WARP_FRAMES (warp-phase-only soak budget),
+   camera-follow assert in the warp phase (forced march +4/frame with a
+   never-armed WARNING — a march in Market walks Link over a scene-exit
+   trigger, which a red run demonstrated), door-presence assert, and the
+   clipping stats above. The Field warp (0x00CD) measures the camera
+   FOLLOWING post-fix (player 232 units, camera 456) — the operator's
+   stuck camera is either the now-fixed demo-state class or route-
+   specific; the assert stands guard. A 2400-frame Talon's-house soak
+   (warp 0x004F) survived — bug 1c does not reproduce post-batch.
+
+Verified at session end: full 5-tier ladder green on the committed tree
+(child, adult-boot, probed 3-cycle soak with rupee sentinels 101/102/103
+and zero saturated windows, Hyrule Field camera tier, Lon Lon interior
+soak); 24/24 redship ctests; C4013 census clean under /we4013. Operator
+verdicts owed: MM mix no longer clipping, splash gone on return, Market
+doors present, camera behavior on their route, Lon Lon stability.

@@ -1,4 +1,27 @@
-# Worker loop goals — Wave 3 (updated 2026-07-18, rev 5: audio + resume contract landed)
+# Worker loop goals — Wave 3 (updated 2026-07-18, rev 6: operator return-leg verdicts fixed)
+
+**Rev 6 (2026-07-18, phase-4 local iteration):** all four operator-reported
+return-leg bugs root-caused and fixed, red/green verified on the workstation —
+full account in docs/ci-gameplay-repro-postmortem.md §8.2. Headlines: MM
+clipping was the shared-mixer DMEM base (0x3C0 vs MM's 0x3B0 window —
+rebased to 0x330); missing Market doors were in-place transition-actor id
+negation persisting in the cached scene resource across the destroy-skipping
+switch (normalized at scene bind, all three handlers, counterfactual-proven);
+the splash replay was CustomLogoTitle dead-coding #350's Title_Main gate
+since 89a395a5 whole-archived soh_enh (authoritative skip hoisted into
+Title_Init after hook dispatch; all gates now presence+game-scoped); the
+Lon Lon crash class traces to frozen nextCutsceneIndex re-authoring cutscene
+scene layers into an unguarded alternate-header vector index (neutralization
+extended: cutscene queue/trigger, timers, eventInf, minigame/dog/magic
+scratch; OoT bounds guard added to match MM's). Plus: a base-less save file
+minted by section-only autosaves killed every boot via an uncaught nlohmann
+throw in StartupCheckAndInitMeta — save loading hardened both directions
+(quarantine on read, refuse base-less mint on write). Harness: door-presence
++ demo-state + camera-follow asserts, RSBS_GP_WARP_FRAMES soak knob,
+RSBS_AUDIO_PROBE peak/sat/maxrun. C4013 hygiene committed with /we4013 lock.
+Eight commits on claude/ci-cross-game-crash-repro-f6iu2s awaiting push
+(gh auth still absent on the workstation). Operator verdicts owed: clipping
+gone, splash gone, doors present, camera on their route, Lon Lon stability.
 
 **Rev 5 (2026-07-18, phase-3 local iteration):** MM audio works in single-exe
 for the first time, and the whole cross-game resume-audio/save contract is
