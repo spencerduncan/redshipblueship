@@ -185,7 +185,11 @@ int PauseOwlWarp_IsOwlWarpEnabled(void) { return 0; }
  * GameExports_SingleExe.cpp (they need real cross-game logic) */
 
 /* OTR stubs */
-float OTRConvertHUDXToScreenX(float x) { return x; }
+/* OTRConvertHUDXToScreenX used to be stubbed here as float(float) while the
+ * real signature (2s2h/BenPort.h, and every caller in z_parameter.c) is
+ * int32_t(int32_t) — a silent ABI mismatch that collapsed MM's A-button
+ * viewport and the three-day-clock scissors. It now has a header-checked
+ * implementation in games/mm/2s2h/BenPortHudSingleExe.cpp. */
 /* The OTRPlay_InitScene no-op stub that used to live here is gone (issue #344):
  * MM's real scene-init glue is now compiled as MM_OTRPlay_InitScene in
  * games/mm/2s2h/z_play_2SH.cpp. */
