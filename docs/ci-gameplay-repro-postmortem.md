@@ -713,3 +713,70 @@ and zero saturated windows, Hyrule Field camera tier, Lon Lon interior
 soak); 24/24 redship ctests; C4013 census clean under /we4013. Operator
 verdicts owed: MM mix no longer clipping, splash gone on return, Market
 doors present, camera behavior on their route, Lon Lon stability.
+
+## 8.3 Phase-5: the camera/input fault and the second stub-drift instance
+
+Operator retest of the §8.2 build: clipping GONE, splash GONE, Market doors
+PRESENT. Two symptoms remained — the Hyrule Field camera still did not
+follow Link (entered on foot from Castle Town), with a suspicion that
+controller input was also off, plus a new report that MM's HUD was missing
+its A button. Both were root-caused by reading and then proven red/green.
+
+1. **The camera and the "broken input" were ONE fault, and it is the
+   resume-contract class in its sharpest form: a once-per-PROCESS latch
+   de-synced from a per-ENTRY re-mint.** `Main()` re-runs on every OoT entry
+   and calls `func_800636C0` (z_debug.c), which re-mallocs `gGameInfo` and
+   zeroes `data[]` — the backing store for every REG group, including the
+   camera constants `OREG(0..52)` and `R_CAM_DATA`. The only code that seeds
+   them sits behind `sInitRegs` (z_camera.c), latched false on the FIRST
+   boot's `Camera_Init` and never restored; `Regs_InitData` re-seeds
+   YREG/ZREG/XREG per Play_Init but never OREG/PREG. From the second OoT
+   entry onward the camera ran on all-zero update rates and lerp scales: it
+   still TRANSLATED with Link but its orientation state machine was dead, so
+   it never reoriented to follow him — and because Player derives its
+   stick-to-world yaw from the camera (`Camera_GetInputDirYaw`), the controls
+   felt wrong too. Latent since switching existed; no recent commit caused
+   it. A full independent sweep of the input path (ControlDeck, both
+   padmgrs, hooks, per-game config) found NO input defect — recorded here so
+   nobody re-chases it. Fix: `func_800636C0` now calls
+   `OoT_Camera_InvalidateRegs()` after zeroing, so the invariant is "backing
+   store just zeroed => constants re-seeded". Both games' padmgr PreNMI
+   latches were checked as a sibling hazard and are genuinely unreachable
+   (the IrqMgr message loops are `#if 0` / commented out in the port), so no
+   speculative resume inverse was added there.
+2. **MM's missing A button: mm_stubs signature drift, second instance, and
+   the first that does NOT crash.** `OTRConvertHUDXToScreenX` was stubbed
+   `float(float)` while BenPort.h (included by z_parameter.c) and the real
+   BenPort.cpp body use `int32_t(int32_t)`; BenPort.cpp is excluded from
+   single-exe so the drifted stub was the only definition. MSVC x64 passes
+   the int in ECX and returns in EAX, but the float stub only touches XMM0 —
+   so callers consumed stale register contents. MM's A button is the ONLY
+   HUD element drawn through a perspective viewport
+   (`Interface_SetPerspectiveView`'s only callers are inside
+   `Interface_DrawAButton`), so its viewport collapsed and the button,
+   shadow and do-action label were clipped away while the rest of the HUD
+   (ortho / plain texrects) rendered fine; the three-day-clock
+   `gDPSetScissor` rects were silently wrong for the same reason. Fixed with
+   the header-checked-TU pattern proven for this class
+   (`games/mm/2s2h/BenPortHudSingleExe.cpp`, compiled against BenPort.h so
+   drift is now a compile error).
+
+**Assert-design lesson, worth more than either fix.** The §8.2 camera-follow
+assert summed |d(eye)| + |d(at)| into one scalar — and the degenerate state
+this bug produces (camera anchored, merely pivoting to keep Link in frame)
+PASSES that check, because `at` tracks the player while `eye` is frozen. The
+assert would never have caught the operator's bug on any route. Eye and at
+are now judged separately, and the real lock is geometry-independent:
+`OoT_Camera_RegsSeeded()` asserted on every return/warp arrival. Split-metric
+evidence from the green run: at the operator's own arrival spawn (0x01FD,
+setting 5) eye moves 228 units, while Castle Town warps (setting 26) show
+eye 0.0 / at 52.6 — vanilla-correct fixed cameras, and exactly the shape the
+summed metric would have laundered.
+
+Verified: counterfactual build with the re-seeding disabled fails on the
+return leg with "camera constant registers are zeroed on arrival"; with it
+restored, all six tiers pass (child, adult-boot, probed 3-cycle soak,
+Hyrule Field spawn 0 = 0x00CD, Hyrule Field ON-BRIDGE spawn 7 = 0x01FD which
+is the operator's actual arrival from Castle Town, and a 2400-frame Lon Lon
+interior soak). Operator verdicts owed: camera follows on their route, and
+MM's A button is back.

@@ -1,4 +1,24 @@
-# Worker loop goals — Wave 3 (updated 2026-07-18, rev 6: operator return-leg verdicts fixed)
+# Worker loop goals — Wave 3 (updated 2026-07-19, rev 7: camera/input + MM A button fixed)
+
+**Rev 7 (2026-07-19, phase-5 local iteration):** operator retest confirmed §8.2's
+fixes (clipping, splash, Market doors all GOOD). The two remaining symptoms are
+fixed and red/green proven — full account in docs/ci-gameplay-repro-postmortem.md
+§8.3. (a) The stuck camera AND the suspected input breakage were ONE fault: a
+once-per-process latch (sInitRegs) de-synced from a per-entry re-mint (Main() ->
+func_800636C0 re-mallocs gGameInfo and zeroes the REG backing store), so every
+OoT re-entry ran the camera on all-zero OREG/R_CAM_DATA constants — it
+translated with Link but never reoriented, and Player's stick-to-world yaw comes
+from the camera, so the controls felt wrong too. An independent sweep found NO
+input defect; do not re-chase it. (b) MM's missing A button was mm_stubs
+signature drift, second instance and the first that does not crash:
+OTRConvertHUDXToScreenX stubbed float(float) vs the real int32_t(int32_t), so
+the A button's perspective viewport (the only one in MM's HUD) collapsed.
+Method note worth keeping: the phase-4 camera assert summed eye+at displacement
+and would NEVER have caught (a) — a summed metric launders the anchored-camera
+state. Judge components separately; prefer a direct state assert
+(OoT_Camera_RegsSeeded) over a geometry heuristic. Eleven commits on
+claude/ci-cross-game-crash-repro-f6iu2s awaiting push (gh auth still absent).
+
 
 **Rev 6 (2026-07-18, phase-4 local iteration):** all four operator-reported
 return-leg bugs root-caused and fixed, red/green verified on the workstation —
