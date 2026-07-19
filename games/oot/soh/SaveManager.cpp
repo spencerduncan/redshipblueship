@@ -514,28 +514,33 @@ void SaveManager::Init() {
 
     // If the global save file exist, load it. Otherwise, create it.
     if (std::filesystem::exists(sGlobalPath)) {
-        std::ifstream input(sGlobalPath);
+        try {
+            std::ifstream input(sGlobalPath);
 
-        nlohmann::json globalBlock;
-        input >> globalBlock;
+            nlohmann::json globalBlock;
+            input >> globalBlock;
 
-        if (!globalBlock.contains("version")) {
-            SPDLOG_WARN("Global save does not contain a version. We are reconstructing it.");
-            CreateDefaultGlobal();
-            return;
-        }
-
-        switch (globalBlock["version"].get<int>()) {
-            case 1:
-                currentJsonContext = &globalBlock;
-                LoadData("audioSetting", gSaveContext.audioSetting);
-                LoadData("zTargetSetting", gSaveContext.zTargetSetting);
-                LoadData("language", gSaveContext.language);
-                break;
-            default:
-                SPDLOG_WARN("Global save has a unrecognized version. We are reconstructing it.");
+            if (!globalBlock.contains("version")) {
+                SPDLOG_WARN("Global save does not contain a version. We are reconstructing it.");
                 CreateDefaultGlobal();
-                break;
+                return;
+            }
+
+            switch (globalBlock["version"].get<int>()) {
+                case 1:
+                    currentJsonContext = &globalBlock;
+                    LoadData("audioSetting", gSaveContext.audioSetting);
+                    LoadData("zTargetSetting", gSaveContext.zTargetSetting);
+                    LoadData("language", gSaveContext.language);
+                    break;
+                default:
+                    SPDLOG_WARN("Global save has a unrecognized version. We are reconstructing it.");
+                    CreateDefaultGlobal();
+                    break;
+            }
+        } catch (const std::exception& e) {
+            SPDLOG_ERROR(std::string("Global save is unparseable (") + e.what() + "). We are reconstructing it.");
+            CreateDefaultGlobal();
         }
     } else {
         CreateDefaultGlobal();
@@ -560,9 +565,55 @@ void SaveManager::StartupCheckAndInitMeta(int fileNum) {
 
     bool deleteRando = false;
     nlohmann::json metaSaveBlock = nlohmann::json::object();
-    input >> metaSaveBlock;
-    input.close();
-    saveMtx.unlock();
+    try {
+        input >> metaSaveBlock;
+        input.close();
+        saveMtx.unlock();
+    } catch (const std::exception& e) {
+        // Torn write / not JSON at all: a save this broken must not kill the
+        // process at startup. Quarantine it and boot on.
+        input.close();
+        saveMtx.unlock();
+        SPDLOG_ERROR("Save at " + fileName.string() + " is unparseable (" + std::string(e.what()) + ")");
+        QuarantineCorruptSave(fileNum);
+        return;
+    }
+    try {
+        StartupCheckAndInitMetaImpl(fileNum, metaSaveBlock);
+    } catch (const std::exception& e) {
+        // Structurally-unexpected save (e.g. a sections-only file with no
+        // "base" block): before this guard the json type_error escaped and
+        // killed every boot for as long as the file existed.
+        SPDLOG_ERROR("Save at " + fileName.string() + " has malformed meta data (" + std::string(e.what()) + ")");
+        fileMetaInfo[fileNum].valid = false;
+        QuarantineCorruptSave(fileNum);
+    }
+}
+
+void SaveManager::QuarantineCorruptSave(int fileNum) {
+    std::filesystem::path fileName = GetFileName(fileNum);
+    std::string newFileName = Ship::Context::GetPathRelativeToAppDirectory("Save") +
+                              ("/file" + std::to_string(fileNum + 1) + "-" + std::to_string(GetUnixTimestamp()) +
+                               ".bak");
+    try {
+#if defined(__SWITCH__) || defined(__WIIU__)
+        copy_file(fileName.c_str(), newFileName.c_str());
+        std::filesystem::remove(fileName);
+#else
+        std::filesystem::rename(fileName, newFileName);
+#endif
+    } catch (const std::exception& e) {
+        SPDLOG_ERROR("Failed to quarantine corrupt save " + fileName.string() + " (" + std::string(e.what()) + ")");
+        return;
+    }
+    SohGui::RegisterPopup("Error loading save file", "A problem occurred loading the save in slot " +
+                                                         std::to_string(fileNum + 1) +
+                                                         ".\nSave file corruption is suspected.\n" +
+                                                         "The file has been renamed to prevent further issues.");
+}
+
+void SaveManager::StartupCheckAndInitMetaImpl(int fileNum, nlohmann::json& metaSaveBlock) {
+    std::filesystem::path fileName = GetFileName(fileNum);
     if (!metaSaveBlock.contains("version")) {
         SPDLOG_ERROR("Save at " + fileName.string() + " contains no version");
         assert(false);
@@ -1236,6 +1287,21 @@ void SaveManager::SaveFileThreaded(int fileNum, SaveContext* saveContext, int se
             sectionHandlerPair.second.func(saveContext, sectionID, true);
         }
     } else {
+        // RSBS: refuse to mint a save file with no "base" section. A
+        // section-only save (sohStats/trackerData autosaves) issued before any
+        // full save or LoadFile left the in-memory saveBlock empty and wrote a
+        // base-less file1.sav; StartupCheckAndInitMeta then threw on it at
+        // every subsequent boot (now also hardened). Reachable when gameplay
+        // runs on an injected/foreign save that never passed through file
+        // creation or LoadFile — and this also prevents clobbering a real
+        // on-disk save with a sections-only file in the same situation.
+        if (!saveBlock.contains("sections") || !saveBlock["sections"].contains("base")) {
+            SPDLOG_WARN("Skipping section-only save (section {}) for fileNum {}: no base data loaded", sectionID,
+                        fileNum);
+            delete saveContext;
+            saveMtx.unlock();
+            return;
+        }
         SaveFuncInfo svi = sectionSaveHandlers.find(sectionID)->second;
         auto& sectionName = svi.name;
         auto sectionVersion = svi.version;

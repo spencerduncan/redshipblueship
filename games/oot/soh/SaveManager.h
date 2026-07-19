@@ -166,6 +166,8 @@ class SaveManager {
 
     void InitMeta(int slotNum);
     void StartupCheckAndInitMeta(int slotNum);
+    void StartupCheckAndInitMetaImpl(int slotNum, nlohmann::json& metaSaveBlock);
+    void QuarantineCorruptSave(int slotNum);
     static void InitFileImpl(bool isDebug);
     static void InitFileNormal();
     static void InitFileDebug();
