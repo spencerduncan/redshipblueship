@@ -144,23 +144,15 @@ void HudEditor_ModifyRectSizeValues(int* w, int* h) { (void)w; (void)h; }
 void HudEditor_ModifyTextureStepValues(int* x, int* y) { (void)x; (void)y; }
 void HudEditor_ModifyKaleidoEquipAnimValues(float* x, float* y, float* scale) { (void)x; (void)y; (void)scale; }
 
-/* Graphics override stubs */
-void gDPSetPrimColorOverride(void* dl, int m, int l, int r, int g, int b, int a) { (void)dl; (void)m; (void)l; (void)r; (void)g; (void)b; (void)a; }
-void gDPSetEnvColorOverride(void* dl, int r, int g, int b, int a) { (void)dl; (void)r; (void)g; (void)b; (void)a; }
-void Gfx_DrawRect_DropShadowOverride(void* dl, int x, int y, int w, int h) { (void)dl; (void)x; (void)y; (void)w; (void)h; }
-void Gfx_DrawTexRectIA8_DropShadowOverride(void* dl) { (void)dl; }
-void Gfx_DrawTexRectIA8_DropShadowOffsetOverride(void* dl) { (void)dl; }
-void Gfx_DrawTexRectIA16_DropShadowOverride(void* dl) { (void)dl; }
-
-/* CosmeticEditor stub: returns the input color unchanged since the
- * editor UI is excluded in single-exe builds. Uses the shared Color_RGBA8
- * typedef from <libultraship/color.h> so the stub ABI matches the declaration
- * in games/mm/2s2h/BenGui/CosmeticEditor.h exactly. */
-Color_RGBA8 CosmeticEditor_GetChangedColor(uint8_t r, uint8_t g, uint8_t b, uint8_t a, uint8_t elementId) {
-    (void)elementId;
-    Color_RGBA8 c = { r, g, b, a };
-    return c;
-}
+/* Graphics override + CosmeticEditor wrappers: implemented for real in
+ * games/mm/2s2h/CosmeticGfxSingleExe.cpp, compiled against the declarations
+ * in 2s2h/BenGui/CosmeticEditor.h. Do NOT re-stub them here: the wrappers
+ * RETURN the advanced display-list pointer, and the void placeholder stubs
+ * that used to live in this file made MM's HUD draw consume garbage as its
+ * gfx write pointer (WRITE access violation at 0xA7 in
+ * MM_Interface_DrawItemButtons on the first HUD-visible MM frame — caught
+ * by int-gameplay-roundtrip, locked ROM-free by the cosmetic-gfx-stub
+ * test). */
 
 /* FrameInterpolation stubs */
 void FrameInterpolation_IgnoreActorMtx(void* actor) { (void)actor; }
@@ -173,8 +165,28 @@ const char* Ship_GetSceneName(int sceneId) { (void)sceneId; return "Unknown"; }
 void Ship_HandleConsoleCrashAsReset(void) {}
 void Ship_ExtendedCullingActorRestoreProjectedPos(void* actor) { (void)actor; }
 
-/* Motion blur stub */
-int MotionBlur_Override(void* dl) { (void)dl; return 0; }
+/* The MotionBlur_Override / SavingEnhancements_* / PauseOwlWarp_* stubs that
+ * used to live here are gone. Their real implementations
+ * (2s2h/Enhancements/Graphics/MotionBlur.cpp,
+ * Enhancements/Saving/SavingEnhancements.cpp,
+ * Enhancements/Songs/PauseOwlWarp.cpp) are compiled into 2ship_enh and ARE
+ * part of the single-exe link, so these were duplicate definitions.
+ *
+ * MSVC hid that: the Windows link uses /FORCE:MULTIPLE (CMakeLists.txt:274)
+ * by design, because the two ports legitimately share symbol names. GNU ld
+ * has no such flag here and is therefore the STRICTER gate — it rejected the
+ * duplicates outright ("multiple definition of `MotionBlur_Override'"), which
+ * is how this surfaced: build-windows passed and build-linux failed on the
+ * same commit. That asymmetry is a feature, not a nuisance; do not paper over
+ * it with --allow-multiple-definition.
+ *
+ * Deleting the stubs means the real enhancements now run instead of no-ops.
+ * That is the intended behavior and is default-inert: MotionBlur_Override
+ * returns early unless the MotionBlur.Mode CVar is set, matching what the
+ * stub did. The stub was also the wrong shape — `int(void*)` against a real
+ * `void(u8*, s32*)` (Graphics.h:11), the same signature-drift class tracked
+ * in #379; the sole caller (games/mm/src/code/z_play.c:107) was always
+ * written against the real two-out-param signature. */
 
 /* Resource manager functions are provided by BenPort.cpp */
 
@@ -182,24 +194,25 @@ int MotionBlur_Override(void* dl) { (void)dl; return 0; }
 int SaveManager_SysFlashrom_ReadData(void* dst, int page, int count) { (void)dst; (void)page; (void)count; return 0; }
 int SaveManager_SysFlashrom_WriteData(void* src, int page, int count) { (void)src; (void)page; (void)count; return 0; }
 
-/* SavingEnhancements stubs */
-int SavingEnhancements_GetSaveEntrance(void) { return 0; }
-void SavingEnhancements_AdvancePlaytime(void) {}
-
-/* PauseOwlWarp stub */
-int PauseOwlWarp_IsOwlWarpEnabled(void) { return 0; }
-
 /* Combo_CheckEntranceSwitch and Combo_CheckHotSwap are now in
  * GameExports_SingleExe.cpp (they need real cross-game logic) */
 
 /* OTR stubs */
-float OTRConvertHUDXToScreenX(float x) { return x; }
+/* OTRConvertHUDXToScreenX used to be stubbed here as float(float) while the
+ * real signature (2s2h/BenPort.h, and every caller in z_parameter.c) is
+ * int32_t(int32_t) — a silent ABI mismatch that collapsed MM's A-button
+ * viewport and the three-day-clock scissors. It now has a header-checked
+ * implementation in games/mm/2s2h/BenPortHudSingleExe.cpp. */
 /* The OTRPlay_InitScene no-op stub that used to live here is gone (issue #344):
  * MM's real scene-init glue is now compiled as MM_OTRPlay_InitScene in
  * games/mm/2s2h/z_play_2SH.cpp. */
 
-/* AudioEditor stub */
-void* AudioEditor_GetOriginalSeq(int seqId) { (void)seqId; return NULL; }
+/* The AudioEditor_GetOriginalSeq stub that used to live here is gone: MM's
+ * audio-editor entry points are MM_-prefixed now (games/mm/include/
+ * mm_audio_prefix.h) and identity-stubbed with header-checked u16(u16)
+ * signatures in games/mm/2s2h/GameExports_SingleExe.cpp. The untyped stub
+ * here returned 0 for every seqId, funneling MM's seq-load-status writes
+ * into slot 0. */
 
 /* Global variables */
 int currentActorListIndex = 0;

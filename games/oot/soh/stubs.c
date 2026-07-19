@@ -105,11 +105,8 @@ void OoT_osStopThread(OSThread* thread) {
 void OoT_osDestroyThread(OSThread* thread) {
 }
 
-void osWritebackDCache(void* vaddr, s32 nbytes) {
-}
-
-void osInvalICache(void* vaddr, s32 nbytes) {
-}
+/* osWritebackDCache / osInvalICache removed — see the note by osInvalDCache
+ * below. libultraship provides identical no-ops for the whole family. */
 
 s32 OoT_osContStartQuery(OSMesgQueue* mq) {
 }
@@ -188,11 +185,25 @@ s32 OoT_osAiSetFrequency(u32 freq) {
     return 32006;
 }
 
-void osInvalDCache(void* vaddr, s32 nbytes) {
-}
-
-void osWritebackDCacheAll(void) {
-}
+/* RSBS: the osWritebackDCache / osInvalICache / osInvalDCache /
+ * osWritebackDCacheAll family is deliberately NOT defined here. libultraship
+ * already defines all four as empty no-ops
+ * (libultraship/src/libultraship/libultra/os_cache.cpp), byte-for-byte
+ * equivalent to what this file used to declare, so these were duplicate
+ * definitions of a symbol two archives both export.
+ *
+ * They were latent until phase 2: archive members are pulled in lazily, so
+ * the collision only became a link error once the new single-exe TUs dragged
+ * both soh_port's stubs.c.o and libultraship's os_cache.cpp.o into the same
+ * link. MSVC never complained because the Windows link is /FORCE:MULTIPLE by
+ * design; GNU ld rejected it, so build-windows passed while build-linux
+ * failed on the same commit.
+ *
+ * Note the rest of this file prefixes its port shims OoT_ precisely to avoid
+ * this class of collision (OoT_osDestroyThread, OoT_osContStartQuery, ...).
+ * These four were the ones that got missed. Both games' unprefixed callers —
+ * including MM's games/mm/src/audio/lib/dcache.c:7,14 — now resolve to
+ * libultraship's no-ops, which is the intended platform-layer behavior. */
 
 void Audio_SetBGM(u32 bgmId) {
 }

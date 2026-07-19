@@ -1,4 +1,67 @@
-# Worker loop goals — Wave 3 (updated 2026-07-16, rev 2: crash log decoded)
+# Worker loop goals — Wave 3 (updated 2026-07-19, rev 7: camera/input + MM A button fixed)
+
+**Rev 7 (2026-07-19, phase-5 local iteration):** operator retest confirmed §8.2's
+fixes (clipping, splash, Market doors all GOOD). The two remaining symptoms are
+fixed and red/green proven — full account in docs/ci-gameplay-repro-postmortem.md
+§8.3. (a) The stuck camera AND the suspected input breakage were ONE fault: a
+once-per-process latch (sInitRegs) de-synced from a per-entry re-mint (Main() ->
+func_800636C0 re-mallocs gGameInfo and zeroes the REG backing store), so every
+OoT re-entry ran the camera on all-zero OREG/R_CAM_DATA constants — it
+translated with Link but never reoriented, and Player's stick-to-world yaw comes
+from the camera, so the controls felt wrong too. An independent sweep found NO
+input defect; do not re-chase it. (b) MM's missing A button was mm_stubs
+signature drift, second instance and the first that does not crash:
+OTRConvertHUDXToScreenX stubbed float(float) vs the real int32_t(int32_t), so
+the A button's perspective viewport (the only one in MM's HUD) collapsed.
+Method note worth keeping: the phase-4 camera assert summed eye+at displacement
+and would NEVER have caught (a) — a summed metric launders the anchored-camera
+state. Judge components separately; prefer a direct state assert
+(OoT_Camera_RegsSeeded) over a geometry heuristic. Eleven commits on
+claude/ci-cross-game-crash-repro-f6iu2s awaiting push (gh auth still absent).
+
+
+**Rev 6 (2026-07-18, phase-4 local iteration):** all four operator-reported
+return-leg bugs root-caused and fixed, red/green verified on the workstation —
+full account in docs/ci-gameplay-repro-postmortem.md §8.2. Headlines: MM
+clipping was the shared-mixer DMEM base (0x3C0 vs MM's 0x3B0 window —
+rebased to 0x330); missing Market doors were in-place transition-actor id
+negation persisting in the cached scene resource across the destroy-skipping
+switch (normalized at scene bind, all three handlers, counterfactual-proven);
+the splash replay was CustomLogoTitle dead-coding #350's Title_Main gate
+since 89a395a5 whole-archived soh_enh (authoritative skip hoisted into
+Title_Init after hook dispatch; all gates now presence+game-scoped); the
+Lon Lon crash class traces to frozen nextCutsceneIndex re-authoring cutscene
+scene layers into an unguarded alternate-header vector index (neutralization
+extended: cutscene queue/trigger, timers, eventInf, minigame/dog/magic
+scratch; OoT bounds guard added to match MM's). Plus: a base-less save file
+minted by section-only autosaves killed every boot via an uncaught nlohmann
+throw in StartupCheckAndInitMeta — save loading hardened both directions
+(quarantine on read, refuse base-less mint on write). Harness: door-presence
++ demo-state + camera-follow asserts, RSBS_GP_WARP_FRAMES soak knob,
+RSBS_AUDIO_PROBE peak/sat/maxrun. C4013 hygiene committed with /we4013 lock.
+Eight commits on claude/ci-cross-game-crash-repro-f6iu2s awaiting push
+(gh auth still absent on the workstation). Operator verdicts owed: clipping
+gone, splash gone, doors present, camera on their route, Lon Lon stability.
+
+**Rev 5 (2026-07-18, phase-3 local iteration):** MM audio works in single-exe
+for the first time, and the whole cross-game resume-audio/save contract is
+fixed — active-game synth dispatch on the shared audio thread, the PreNMI
+resetTimer latch (dropped every sequence start after any suspend, BOTH
+games), never-re-run audio bring-up, stale seqIds in frozen saves,
+archive-scoped sequence/font enumeration (the real fix behind 5cc341df's
+guards), the OoT-side Opening_Init save wipe (OoT continuity silently reset
+every return trip), forced-child-canon returns with an adult-boot harness
+variant (RSBS_GP_BOOT_AGE=adult), Clock Town intro suppression at the
+consumption point, and the Path-factory flat overwrite (killed the first
+path-bearing OoT scene loaded after any MM visit — masked by resource
+caching). Full account: docs/ci-gameplay-repro-postmortem.md §8.1. New
+tooling: RSBS_AUDIO_PROBE=1 (audio-liveness probes end to end),
+DBG374_CPPEH=1 (dbg374 logs C++ throws with map-resolved frames).
+Still open from the phase-3 list: the silent MM-first→OoT exit in OoT
+Main(), and the C4013 census/we4013 lock (prototypes exist for all 8; the
+census needs a clean-build re-run to confirm which caller TUs still miss
+them). Operator verdicts owed: MM music correctness, no Tatl intro, child
+Link on return.
 
 Supersedes **Wave 2** (the 2026-06-10 Lanes 5–6 that used to fill this file — all
 complete, see git history). Wave 2 was: Lane 5 = SOH shuffle feature ports
@@ -25,6 +88,35 @@ FATAL log on room-resource load failure, NULL-room early-return in
 and, if anything still crashes, the fresh crash log** — the new FATAL/WARNING
 breadcrumbs will name the failing surface. §B candidates #3-#5 remain unguarded
 and live.
+
+**Rev 4 (2026-07-18): crash-decode CORRECTIONS + local-iteration results.**
+Read `docs/ci-gameplay-repro-postmortem.md` §8 for the full account; the load-
+bearing updates to THIS file's earlier analysis:
+
+- **§A's decode is partially obsolete.** The
+  `Cutscene_HandleConditionalTriggers: entrance: 49168` line in later operator
+  logs is **MM's own z_demo.c printing its own (valid) MM arrival entrance**,
+  NOT proof of the OoT-side leak — the #356 leak was real and is fixed, but do
+  not treat that log line alone as a #356 recurrence. The remaining
+  return-leg crash class was a **graph-coroutine use-after-free**: resuming a
+  suspended game's frame loop walked into the arena the re-entered `Main()`
+  had re-initialized (0xAB fill). Fixed (2cee2601 + follow-ups) by retiring
+  the coroutine at suspend (`*_Graph_ResetRunFrameContext`); the switchover
+  contract is now cold gamestate-chain start + frozen SaveContext +
+  game-tagged startup entrance, with MM's arena re-armed and its frozen save
+  restored in-chain at `MM_Play_ConsumeStartupEntrance` (locked by
+  `mm-resume-arena` / `mm-startup-restore`, soak-asserted by the rupee
+  continuity sentinel).
+- **Portal semantics changed** (operator-requested): OoT HMS door (0x0530) →
+  MM **South Clock Town tower-exit spawn 0xD800** (arrival); MM **Clock Tower
+  door 0xC010** (trigger) → OoT outside-HMS 0x01D1. Historical references
+  below to "the MM target (0xC010)" describe the pre-redesign link table;
+  0xD800 is deliberately NOT a trigger (MM's Song of Time reset, save-warp,
+  and title attract all target it).
+- The gameplay repro (`int-gameplay-roundtrip`, 3-cycle soak) PASSES on the
+  operator's Windows workstation as of this rev; it is the tripwire for this
+  whole crash class (demonstrated: disabling the arena re-arm dies loudly with
+  "GAME CLASS MALLOC FAILED" on cycle 2).
 
 ## Completed (Wave 2)
 - **Lane 5** — shuffle features / epic #235: absorbed via PR #315; #235 closed.
@@ -234,6 +326,15 @@ and `integration-tests.yml` is `workflow_dispatch`-only — never on a PR. The
 deferred deep `Play_Init` failure-*recovery* (make the spawn-scene path return
 s32 so `Play_Init` unwinds instead of leaving a player-less PlayState) can only
 be VALIDATED on a real-ROM boot → stays a documented open item.
+
+**Gameplay crash repro (2026-07-18):** `docs/ci-gameplay-repro-postmortem.md`
+explains why this crash class shipped through green CI and documents
+`redship --integration-test int-gameplay-roundtrip` — the programmatic version
+of the operator's manual repro (debug save → live gameplay → production
+OoT↔MM round trip incl. the resume leg → debug warp → door transition),
+parameterized via `RSBS_GP_*` env vars, with crash-log artifact upload wired
+into `integration-tests.yml` and a documented agent loop for build→repro→
+observe→bisect on any ROM-equipped machine.
 
 ### Recommended separate PR — the #341 elision-prevention track
 Live class-level hazard regardless of the current crash cause; ROM-free.

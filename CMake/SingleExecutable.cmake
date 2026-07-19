@@ -225,6 +225,12 @@ if(BUILD_TESTING)
     # VB_PLAY_RAINBOW_BRIDGE_CS == 206). The wrappers must return vanilla
     # behavior while MM is active — the Market -> Clock Tower NULL-call crash.
     add_test(NAME VBAffinity COMMAND redship --test vb-affinity)
+    # MM HUD gfx-wrapper contract: the CosmeticEditor Override wrappers must
+    # write commands and return the advanced display-list pointer. The old
+    # void stubs in mm_stubs.c fed MM_Interface_DrawItemButtons a garbage
+    # write pointer (WRITE AV at 0xA7, first HUD-visible MM frame — caught by
+    # int-gameplay-roundtrip on the OoT->MM leg).
+    add_test(NAME CosmeticGfxStub COMMAND redship --test cosmetic-gfx-stub)
     add_test(NAME Roundtrip COMMAND redship --test roundtrip)
     add_test(NAME RoundtripIntegrity COMMAND redship --test roundtrip-integrity)
     add_test(NAME SharedRoundtrip COMMAND redship --test shared-roundtrip)
@@ -243,14 +249,22 @@ if(BUILD_TESTING)
     # against a PlayState and asserts the spawn-path pointers/fields populate.
     add_test(NAME MMSceneParse COMMAND redship --test mm-scene-parse)
     add_test(NAME MMSceneExecute COMMAND redship --test mm-scene-execute)
+    # MM cross-game resume contracts (games/mm/2s2h/mm_resume_state_test.cpp):
+    # a resume must re-arm the (by-design leaked) system arena for the cold
+    # gamestate-chain boot, and Play_Init's startup-entrance consumption must
+    # restore the frozen save the boot chain wiped — the cycle-2 re-entry
+    # crash + save-continuity faults caught by the int-gameplay-roundtrip
+    # soak (docs/ci-gameplay-repro-postmortem.md).
+    add_test(NAME MMResumeArena COMMAND redship --test mm-resume-arena)
+    add_test(NAME MMStartupRestore COMMAND redship --test mm-startup-restore)
     add_test(NAME AllTests COMMAND redship --test all)
 
     # Set reasonable timeout and label our tests
     set(REDSHIP_TEST_TIMEOUT 60 CACHE STRING "Test timeout in seconds")
     set_tests_properties(
-        BootOoT BootMM SwitchOoTMM SwitchMMOoT StartupEntrance VBAffinity Roundtrip RoundtripIntegrity SharedRoundtrip ArchiveHotswapLogic
+        BootOoT BootMM SwitchOoTMM SwitchMMOoT StartupEntrance VBAffinity CosmeticGfxStub Roundtrip RoundtripIntegrity SharedRoundtrip ArchiveHotswapLogic
         SaveRoundtripTiers SaveHeader SaveHasDelete SaveVersionReject SaveSizeMismatch SaveLegacySize SaveCrcCorrupt
-        Context MMSceneParse MMSceneExecute AllTests
+        Context MMSceneParse MMSceneExecute MMResumeArena MMStartupRestore AllTests
         PROPERTIES
         TIMEOUT ${REDSHIP_TEST_TIMEOUT}
         LABELS "redship"
@@ -311,6 +325,33 @@ if(BUILD_TESTING)
         PROPERTIES
         TIMEOUT ${REDSHIP_INTEGRATION_TEST_TIMEOUT}
         LABELS "integration"
+    )
+
+    # Gameplay round-trip crash repro (docs/ci-gameplay-repro-postmortem.md):
+    # the programmatic version of the operator's manual repro — debug save,
+    # live gameplay, production cross-game round trip (SaveContext
+    # freeze/restore + the OoT resume leg where the 2026-07 crash class
+    # detonated), post-return debug warp, and a door transition. Requires
+    # oot.o2r/mm.o2r (ROM-derived) + a GL-capable display (Xvfb+llvmpipe in
+    # CI). Scene/frame parameters come from RSBS_GP_* env vars, so a soak
+    # matrix can sweep scenes without new CTest rows. The soak variant runs
+    # three round trips before the warp.
+    add_test(NAME IntGameplayRoundtrip
+             COMMAND redship --integration-test int-gameplay-roundtrip)
+    set_tests_properties(
+        IntGameplayRoundtrip
+        PROPERTIES
+        TIMEOUT 300
+        LABELS "integration"
+    )
+    add_test(NAME IntGameplayRoundtripSoak
+             COMMAND redship --integration-test int-gameplay-roundtrip)
+    set_tests_properties(
+        IntGameplayRoundtripSoak
+        PROPERTIES
+        TIMEOUT 900
+        LABELS "integration-soak"
+        ENVIRONMENT "RSBS_GP_CYCLES=3"
     )
 endif()
 

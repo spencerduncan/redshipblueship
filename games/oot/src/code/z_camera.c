@@ -320,7 +320,7 @@ s32 func_80043F94(Camera* camera, Vec3f* from, CamColChk* to) {
         playerFloorNormF.y = COLPOLY_GET_NORMAL(playerFloorPoly->normal.y);
         playerFloorNormF.z = COLPOLY_GET_NORMAL(playerFloorPoly->normal.z);
         if (OoT_Math3D_LineSegVsPlane(playerFloorNormF.x, playerFloorNormF.y, playerFloorNormF.z, playerFloorPoly->dist,
-                                  from, &toPos, &toNewPos, 1)) {
+                                      from, &toPos, &toNewPos, 1)) {
             // line is from->to is touching the poly the player is on.
             to->norm = playerFloorNormF;
             to->poly = playerFloorPoly;
@@ -493,7 +493,8 @@ Vec3s* Camera_GetCamBgDataUnderPlayer(Camera* camera, u16* dataCnt) {
 
     OoT_Actor_GetWorldPosShapeRot(&playerPosShape, &camera->player->actor);
     playerPosShape.pos.y += OoT_Player_GetHeight(camera->player);
-    if (OoT_BgCheck_EntityRaycastFloor3(&camera->play->colCtx, &floorPoly, &bgId, &playerPosShape.pos) == BGCHECK_Y_MIN) {
+    if (OoT_BgCheck_EntityRaycastFloor3(&camera->play->colCtx, &floorPoly, &bgId, &playerPosShape.pos) ==
+        BGCHECK_Y_MIN) {
         // no floor
         return NULL;
     }
@@ -515,8 +516,8 @@ s32 Camera_GetWaterBoxDataIdx(Camera* camera, f32* waterY) {
     OoT_Actor_GetWorldPosShapeRot(&playerPosShape, &camera->player->actor);
     *waterY = playerPosShape.pos.y;
 
-    if (!OoT_WaterBox_GetSurface1(camera->play, &camera->play->colCtx, playerPosShape.pos.x, playerPosShape.pos.z, waterY,
-                              &waterBox)) {
+    if (!OoT_WaterBox_GetSurface1(camera->play, &camera->play->colCtx, playerPosShape.pos.x, playerPosShape.pos.z,
+                                  waterY, &waterBox)) {
         // player's position is not in a water box.
         *waterY = BGCHECK_Y_MIN;
         return -1;
@@ -2226,7 +2227,8 @@ s32 OoT_Camera_Parallel1(Camera* camera) {
     }
 
     if (!(para1->interfaceFlags & 0x80) && !sp6A) {
-        OoT_Camera_CalcAtForParallel(camera, &atToEyeNextDir, para1->yOffset, &anim->yTarget, para1->interfaceFlags & 1);
+        OoT_Camera_CalcAtForParallel(camera, &atToEyeNextDir, para1->yOffset, &anim->yTarget,
+                                     para1->interfaceFlags & 1);
     } else {
         func_800458D4(camera, &atToEyeNextDir, para1->unk_18, &anim->yTarget, para1->interfaceFlags & 1);
     }
@@ -2414,8 +2416,8 @@ s32 OoT_Camera_Jump1(Camera* camera) {
         eyeDiffSph.pitch =
             Camera_LERPCeilS(anim->swing.unk_14, eyeNextAtOffset.pitch, 1.0f / camera->yawUpdateRateInv, 0xA);
     } else {
-        eyeDiffSph.yaw =
-            OoT_Camera_CalcDefaultYaw(camera, eyeNextAtOffset.yaw, camera->playerPosRot.rot.y, jump1->maxYawUpdate, 0.0f);
+        eyeDiffSph.yaw = OoT_Camera_CalcDefaultYaw(camera, eyeNextAtOffset.yaw, camera->playerPosRot.rot.y,
+                                                   jump1->maxYawUpdate, 0.0f);
     }
 
     // Clamp the eye->at distance to jump1->distMin < eyeDiffSph.r < jump1->distMax
@@ -2800,7 +2802,8 @@ s32 OoT_Camera_Jump3(Camera* camera) {
         eyeDiffSph.pitch =
             Camera_LERPCeilS(anim->swing.unk_14, eyeNextAtOffset.pitch, 1.0f / camera->yawUpdateRateInv, 0xA);
     } else {
-        eyeDiffSph.yaw = OoT_Camera_CalcDefaultYaw(camera, eyeNextAtOffset.yaw, playerPosRot->rot.y, jump3->unk_14, 0.0f);
+        eyeDiffSph.yaw =
+            OoT_Camera_CalcDefaultYaw(camera, eyeNextAtOffset.yaw, playerPosRot->rot.y, jump3->unk_14, 0.0f);
         eyeDiffSph.pitch = OoT_Camera_CalcDefaultPitch(camera, eyeNextAtOffset.pitch, jump3->pitchTarget, 0);
     }
 
@@ -3566,8 +3569,8 @@ s32 OoT_Camera_KeepOn3(Camera* camera) {
         Camera_Vec3fVecSphGeoAdd(&lineChkPointB, &anim->atTarget, &atToEyeAdj);
         if (!(keep3->flags & 0x80)) {
             while (i < angleCnt) {
-                if (!OoT_CollisionCheck_LineOCCheck(camera->play, &camera->play->colChkCtx, &anim->atTarget, &lineChkPointB,
-                                                colChkActors, 2) &&
+                if (!OoT_CollisionCheck_LineOCCheck(camera->play, &camera->play->colChkCtx, &anim->atTarget,
+                                                    &lineChkPointB, colChkActors, 2) &&
                     !Camera_BGCheck(camera, &anim->atTarget, &lineChkPointB)) {
                     break;
                 }
@@ -3849,8 +3852,8 @@ s32 OoT_Camera_KeepOn4(Camera* camera) {
             if (!(keep4->unk_1C & 1)) {
                 angleCnt = ARRAY_COUNT(D_8011D3B0);
                 for (i = 0; i < angleCnt; i++) {
-                    if (!OoT_CollisionCheck_LineOCCheck(camera->play, &camera->play->colChkCtx, &D_8015BD50, &D_8015BD70,
-                                                    spCC, sp9C) &&
+                    if (!OoT_CollisionCheck_LineOCCheck(camera->play, &camera->play->colChkCtx, &D_8015BD50,
+                                                        &D_8015BD70, spCC, sp9C) &&
                         !Camera_BGCheck(camera, &D_8015BD50, &D_8015BD70)) {
                         break;
                     }
@@ -6960,6 +6963,28 @@ void OoT_Camera_Destroy(Camera* camera) {
     }
 }
 
+/**
+ * RSBS: re-arm the once-only camera-constant seeding in OoT_Camera_Init.
+ * Called from func_800636C0 (z_debug.c) right after it re-mints gGameInfo
+ * with a zeroed data[] — see the comment there for the full account. Without
+ * this, every OoT entry after the first ran the camera on zeroed OREG /
+ * R_CAM_DATA constants.
+ */
+void OoT_Camera_InvalidateRegs(void) {
+    sInitRegs = true;
+}
+
+/**
+ * RSBS: true when the camera constant registers hold their seeded values.
+ * OREG(5) is 14500 in sOREGInit and 0 in a freshly-minted gGameInfo, so this
+ * distinguishes "seeded" from "zeroed and never re-seeded" — the state every
+ * OoT re-entry used to land in. Used by the gameplay harness to lock the
+ * re-seeding contract on cross-game arrivals.
+ */
+bool OoT_Camera_RegsSeeded(void) {
+    return OREG(5) != 0;
+}
+
 void OoT_Camera_Init(Camera* camera, View* view, CollisionContext* colCtx, PlayState* play) {
     Camera* camP;
     s32 i;
@@ -7469,11 +7494,12 @@ void Camera_UpdateDistortion(Camera* camera) {
         depthPhase += DEGF_TO_BINANG(depthPhaseStep);
         screenPlanePhase += DEGF_TO_BINANG(screenPlanePhaseStep);
 
-        OoT_View_SetDistortionOrientation(&camera->play->view, OoT_Math_CosS(depthPhase) * 0.0f, OoT_Math_SinS(depthPhase) * 0.0f,
-                                      OoT_Math_SinS(screenPlanePhase) * 0.0f);
-        OoT_View_SetDistortionScale(&camera->play->view, OoT_Math_SinS(screenPlanePhase) * (xScale * scaleFactor) + 1.0f,
-                                OoT_Math_CosS(screenPlanePhase) * (yScale * scaleFactor) + 1.0f,
-                                OoT_Math_CosS(depthPhase) * (zScale * scaleFactor) + 1.0f);
+        OoT_View_SetDistortionOrientation(&camera->play->view, OoT_Math_CosS(depthPhase) * 0.0f,
+                                          OoT_Math_SinS(depthPhase) * 0.0f, OoT_Math_SinS(screenPlanePhase) * 0.0f);
+        OoT_View_SetDistortionScale(&camera->play->view,
+                                    OoT_Math_SinS(screenPlanePhase) * (xScale * scaleFactor) + 1.0f,
+                                    OoT_Math_CosS(screenPlanePhase) * (yScale * scaleFactor) + 1.0f,
+                                    OoT_Math_CosS(depthPhase) * (zScale * scaleFactor) + 1.0f);
         OoT_View_SetDistortionSpeed(&camera->play->view, speed * speedFactor);
 
         camera->unk_14C |= 0x40;
@@ -7519,7 +7545,8 @@ Vec3s OoT_Camera_Update(Camera* camera) {
         OoT_Actor_GetWorldPosShapeRot(&curPlayerPosRot, &camera->player->actor);
         camera->xzSpeed = playerXZSpeed = OoT_OLib_Vec3fDistXZ(&curPlayerPosRot.pos, &camera->playerPosRot.pos);
 
-        camera->speedRatio = OoT_OLib_ClampMaxDist(playerXZSpeed / (func_8002DCE4(camera->player) * PCT(OREG(8))), 1.0f);
+        camera->speedRatio =
+            OoT_OLib_ClampMaxDist(playerXZSpeed / (func_8002DCE4(camera->player) * PCT(OREG(8))), 1.0f);
         camera->playerPosDelta.x = curPlayerPosRot.pos.x - camera->playerPosRot.pos.x;
         camera->playerPosDelta.y = curPlayerPosRot.pos.y - camera->playerPosRot.pos.y;
         camera->playerPosDelta.z = curPlayerPosRot.pos.z - camera->playerPosRot.pos.z;
@@ -7527,7 +7554,7 @@ Vec3s OoT_Camera_Update(Camera* camera) {
         spAC.y += OoT_Player_GetHeight(camera->player);
 
         playerGroundY = OoT_BgCheck_EntityRaycastFloor5(camera->play, &camera->play->colCtx, &playerFloorPoly, &bgId,
-                                                    &camera->player->actor, &spAC);
+                                                        &camera->player->actor, &spAC);
         if (playerGroundY != BGCHECK_Y_MIN) {
             // player is above ground.
             sOOBTimer = 0;
@@ -8181,7 +8208,7 @@ s16 func_8005AD1C(Camera* camera, s16 arg1) {
 }
 
 s32 OoT_Camera_ChangeDoorCam(Camera* camera, Actor* doorActor, s16 camDataIdx, f32 arg3, s16 timer1, s16 timer2,
-                         s16 timer3) {
+                             s16 timer3) {
     DoorParams* doorParams = (DoorParams*)camera->paramData;
 
     if ((camera->setting == CAM_SET_CS_ATTENTION) || (camera->setting == CAM_SET_DOORC)) {
@@ -8257,7 +8284,7 @@ Vec3f* Camera_GetSkyboxOffset(Vec3f* dst, Camera* camera) {
 }
 
 void OoT_Camera_SetCameraData(Camera* camera, s16 setDataFlags, void* data0, void* data1, s16 data2, s16 data3,
-                          UNK_TYPE arg6) {
+                              UNK_TYPE arg6) {
     if (setDataFlags & 0x1) {
         camera->data0 = data0;
     }

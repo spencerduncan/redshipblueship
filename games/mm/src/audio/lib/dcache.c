@@ -1,4 +1,5 @@
 #include "global.h"
+#include "PR/os_exception.h" // MM_osSetIntMask prototype (C4013 fix)
 
 void MM_Audio_InvalDCache(void* buf, size_t size) {
     OSIntMask prevMask = MM_osSetIntMask(1);

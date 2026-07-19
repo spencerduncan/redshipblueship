@@ -5,11 +5,30 @@ name: integration-tests
 # all test steps were skipped while still spending ~25 min of compute per PR
 # (a duplicate generate-rsbs-otr job + a full from-scratch rebuild + the same
 # `ctest --label-regex "^redship$"` that generate-builds' build-linux already
-# runs). Re-enable pull_request/push triggers together with
-# `runs-on: [self-hosted, ...]` once a ROM-equipped runner exists
-# (see docs/BUILDING.md).
+# runs). Re-enable pull_request/push triggers together with a ROM-equipped
+# runner (see below and docs/BUILDING.md).
+#
+# ROM-equipped runner: set the repo variable RSBS_ROM_RUNNER to a JSON runs-on
+# value (e.g. ["self-hosted","linux","rsbs-rom"]) to point this job at a
+# runner that has oot.o2r/mm.o2r staged in the workspace (or generatable from
+# local ROMs). Until then the int-* steps skip on hosted runners; the unit +
+# rando tiers still run. The gameplay crash-repro loop for a continuous agent
+# is documented in docs/ci-gameplay-repro-postmortem.md.
 on:
   workflow_dispatch:
+    inputs:
+      gp_frames:
+        description: 'gameplay-roundtrip: live-gameplay frames per phase'
+        required: false
+        default: '120'
+      gp_cycles:
+        description: 'gameplay-roundtrip: OoT<->MM round trips before the post-return warp'
+        required: false
+        default: '1'
+      gp_warp_entrances:
+        description: 'gameplay-roundtrip: comma-separated OoT entrance ids to sweep as post-return warp targets (hex ok, < 0x614)'
+        required: false
+        default: '0x00B1'
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -17,7 +36,7 @@ concurrency:
 jobs:
   integration-tests-linux:
     needs: generate-rsbs-otr
-    runs-on: ubuntu-22.04
+    runs-on: ${{ (vars.RSBS_ROM_RUNNER && fromJSON(vars.RSBS_ROM_RUNNER)) || 'ubuntu-22.04' }}
     steps:
     - name: Git Checkout
       uses: actions/checkout@v4
@@ -215,7 +234,8 @@ jobs:
         DISPLAY: :99
 
     # T1 (#260): needs both oot.o2r and mm.o2r — boots OoT, triggers the Happy
-    # Mask Shop entrance, expects spawn at MM Clock Tower Interior (0xC010).
+    # Mask Shop entrance, expects spawn at MM South Clock Town (0xD800, the
+    # tower-exit arrival).
     - name: Integration Test - Switch OoT (HMS) to MM
       if: steps.check-archives.outputs.has_oot == 'true' && steps.check-archives.outputs.has_mm == 'true'
       run: |
@@ -232,9 +252,10 @@ jobs:
       env:
         DISPLAY: :99
 
-    # T2 (#261): mirror of T1 — boots MM, triggers South Clock Town south exit,
+    # T2 (#261): mirror of T1 — boots MM, triggers the Clock Tower door (0xC010,
+    # the MM->OoT trigger; the test id's "clocktown-south" is historical),
     # expects spawn at OoT Market from Mask Shop (0x01D1).
-    - name: Integration Test - Switch MM (Clock Town South) to OoT
+    - name: Integration Test - Switch MM (Clock Tower door) to OoT
       if: steps.check-archives.outputs.has_oot == 'true' && steps.check-archives.outputs.has_mm == 'true'
       run: |
         timeout 120 ./build-cmake/redship --integration-test int-switch-mm-clocktown-south-to-oot || exit_code=$?
@@ -267,6 +288,78 @@ jobs:
         fi
       env:
         DISPLAY: :99
+
+    # Gameplay round-trip crash repro (docs/ci-gameplay-repro-postmortem.md):
+    # the programmatic version of the operator's manual repro — debug save,
+    # live gameplay, production OoT<->MM round trip (SaveContext freeze +
+    # the OoT resume leg where the 2026-07 crash class detonated), a
+    # post-return debug warp, and a door transition. Sweeps the warp target
+    # over gp_warp_entrances so a soak dispatch can cover many scenes.
+    # A crash surfaces as: libultraship CrashHandler dump appended to
+    # ./logs/*.log (uploaded below on failure) + non-zero exit here.
+    - name: Integration Test - Gameplay Roundtrip (crash repro)
+      if: steps.check-archives.outputs.has_oot == 'true' && steps.check-archives.outputs.has_mm == 'true'
+      run: |
+        IFS=',' read -ra WARPS <<< "${GP_WARP_ENTRANCES}"
+        for warp in "${WARPS[@]}"; do
+          warp="$(echo "$warp" | tr -d '[:space:]')"
+          [ -n "$warp" ] || continue
+          exit_code=0
+          echo "::group::gameplay-roundtrip warp=$warp frames=${GP_FRAMES} cycles=${GP_CYCLES}"
+          timeout 300 env \
+            RSBS_GP_FRAMES="${GP_FRAMES}" \
+            RSBS_GP_CYCLES="${GP_CYCLES}" \
+            RSBS_GP_WARP_ENTRANCE="$warp" \
+            ./build-cmake/redship --integration-test int-gameplay-roundtrip || exit_code=$?
+          echo "::endgroup::"
+          if [ "$exit_code" -eq 0 ]; then
+            echo "gameplay-roundtrip PASSED (warp=$warp)"
+          elif [ "$exit_code" -eq 124 ]; then
+            echo "gameplay-roundtrip TIMEOUT (warp=$warp) — watchdog did not fire; see logs artifact"
+            exit 1
+          elif [ "$exit_code" -ge 128 ]; then
+            echo "gameplay-roundtrip CRASHED with signal $((exit_code - 128)) (warp=$warp) — see logs artifact"
+            exit "$exit_code"
+          else
+            echo "gameplay-roundtrip FAILED with exit code $exit_code (warp=$warp) — see logs artifact"
+            exit "$exit_code"
+          fi
+        done
+      env:
+        DISPLAY: :99
+        GP_FRAMES: ${{ inputs.gp_frames || '120' }}
+        GP_CYCLES: ${{ inputs.gp_cycles || '1' }}
+        GP_WARP_ENTRANCES: ${{ inputs.gp_warp_entrances || '0x00B1' }}
+
+    # Crash-signal plumbing: libultraship's CrashHandler writes its dump
+    # (registers, backtrace, scene/actor state from the game callbacks) as a
+    # CRITICAL record into the rotating log at ./logs/<AppName>.log — there is
+    # no separate crash file. Surface it inline and upload it so a failed or
+    # crashed run is diagnosable without a rerun. (A crash during window/GL
+    # bring-up bypasses this: the rsbs early handler only prints to stderr,
+    # which the step log already captures.)
+    - name: Show runtime logs on failure
+      if: failure()
+      run: |
+        if [ -d logs ]; then
+          ls -la logs/
+          for f in logs/*.log; do
+            [ -f "$f" ] || continue
+            echo "--- tail -n 300 '$f' ---"
+            tail -n 300 "$f"
+          done
+        else
+          echo "(no ./logs directory — crash predated logger init, or no test ran)"
+        fi
+
+    - name: Upload crash/runtime logs
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: integration-crash-logs
+        path: logs/
+        if-no-files-found: ignore
+        retention-days: 14
 
   # Reuse the OTR generation from main build workflow
   generate-rsbs-otr:

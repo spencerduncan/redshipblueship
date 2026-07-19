@@ -1,4 +1,6 @@
 #include "global.h"
+#include <stdio.h>
+#include <stdlib.h>
 
 #define SAMPLES_TO_OVERPRODUCE 0x10
 #define EXTRA_BUFFERED_AI_SAMPLES_TARGET 0x80
@@ -40,6 +42,23 @@ extern u64 rspAspMainDataEnd[];
 
 void OoT_AudioMgr_CreateNextAudioBuffer(s16* samples, u32 num_samples) {
     OSMesg sp4C;
+
+    // RSBS_AUDIO_PROBE=1 deep probe: discriminates "players never started"
+    // from "players enabled but synth silent" without a debugger.
+    {
+        static int sProbeEnabled = -1;
+        static u32 sProbeCalls = 0;
+        if (sProbeEnabled < 0) {
+            sProbeEnabled = getenv("RSBS_AUDIO_PROBE") != NULL;
+        }
+        if (sProbeEnabled && (++sProbeCalls % 180 == 0)) {
+            fprintf(stderr, "[OOT-SYNTH] calls=%u reset=%d players=%d%d%d%d\n", sProbeCalls,
+                    (int)gAudioContext.resetStatus, (int)gAudioContext.seqPlayers[0].enabled,
+                    (int)gAudioContext.seqPlayers[1].enabled, (int)gAudioContext.seqPlayers[2].enabled,
+                    (int)gAudioContext.seqPlayers[3].enabled);
+            fflush(stderr);
+        }
+    }
 
     gAudioContext.totalTaskCnt++;
 
@@ -585,6 +604,18 @@ void Audio_PreNMIInternal(void) {
         func_800E5F88(0);
         gAudioContext.resetStatus = 0;
     }
+}
+
+// RSBS: the port's inverse of Audio_PreNMIInternal. On N64 a PreNMI preceded
+// a console reset, so resetTimer never needed clearing; the port's cross-game
+// suspend PreNMIs and then RESUMES, and while resetTimer is nonzero
+// OoT_AudioLoad_SyncInitSeqPlayer (audio_load.c) silently drops every
+// sequence start — total, permanent audio death after the first suspend
+// (nothing in the port ever advances or clears the timer; the vanilla code
+// that did lives in the dead func_800E5000 task path). Called from
+// OoT_Game_Resume.
+void OoT_Audio_ResumeFromPreNMI(void) {
+    gAudioContext.resetTimer = 0;
 }
 
 s8 func_800E6070(s32 playerIdx, s32 channelIdx, s32 scriptIdx) {

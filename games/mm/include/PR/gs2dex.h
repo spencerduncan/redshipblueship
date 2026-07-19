@@ -4,6 +4,13 @@
 #include "ultratypes.h"
 #include <libultraship/libultra/gs2dex.h>
 
+// RSBS: revived from the `#if 0` block below, which spans this ENTIRE file's
+// body (lines 7..386 — the gu.h C4013 class): the MM_guS2DInitBg extern at
+// the bottom of this header was dead text, so callers compiled it as an
+// implicit int declaration. Definition: games/mm/src/libultra/gu/us2dex.c.
+// uObjBg comes from the LUS gs2dex.h above.
+extern void MM_guS2DInitBg(uObjBg* bg);
+
 #if 0
 #ifdef _LANGUAGE_C_PLUS_PLUS
 extern "C" {

@@ -30,6 +30,10 @@ FaultClient sGraphUcodeFaultClient;
 void OoT_Skybox_Setup(PlayState* play, SkyboxContext* skyboxCtx, s16 skyboxId);
 void OoT_PadMgr_ThreadEntry(PadMgr* padMgr);
 
+// Set by z_play.c; nulled by the cross-game graph reset below so a retired
+// PlayState can never be observed through the global after a switch.
+extern PlayState* OoT_gPlayState;
+
 // clang-format off
 UCodeInfo D_8012D230[3] = {
     //{ UCODE_F3DZEX, D_80155F50 },
@@ -296,6 +300,33 @@ void OoT_Graph_Update(GraphicsContext* gfxCtx, GameState* gameState) {
     GameState_ReqPadData(gameState);
     OoT_GameState_Update(gameState);
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // RSBS_DUMP_GFX=<frame>: one-shot polyOpa hexdump, mirroring the MM-side
+    // hook in games/mm/src/code/graph.c — OoT is the known-good reference
+    // stream for A/B diffing display-list faults against the shared
+    // interpreter (2026-07-18 MM giant-triangle hunt).
+    {
+        static int sGfxDumpFrame = 0;
+        static int sGfxDumped = 0;
+        const char* dumpEnv = getenv("RSBS_DUMP_GFX");
+        sGfxDumpFrame++;
+        if (dumpEnv != NULL && !sGfxDumped && sGfxDumpFrame >= atoi(dumpEnv)) {
+            Gfx* start = gfxCtx->polyOpaBuffer;
+            Gfx* end = gfxCtx->polyOpa.p;
+            int count = (int)(end - start);
+            int i;
+            sGfxDumped = 1;
+            fprintf(stderr, "[GFX-DUMP-OOT] frame %d polyOpa: start=%p p=%p count=%d (showing up to 160)\n",
+                    sGfxDumpFrame, (void*)start, (void*)end, count);
+            for (i = 0; i < count && i < 160; i++) {
+                fprintf(stderr, "[GFX-DUMP-OOT] %3d: %016llX %016llX\n", i, (unsigned long long)start[i].words.w0,
+                        (unsigned long long)start[i].words.w1);
+            }
+            fflush(stderr);
+        }
+    }
+#endif
+
     OPEN_DISPS(gfxCtx);
 
     gDPNoOpString(WORK_DISP++, "WORK_DISP 終了", 0);
@@ -432,10 +463,43 @@ extern AudioMgr gAudioMgr;
 
 extern void ProcessSaveStateRequests(void);
 
+// Once-only skybox pre-setup flag (see the comment at its use in OoT_RunFrame).
+// File-scope so a cross-game graph reset can re-arm it: the pre-loaded skybox
+// data lives in the system arena, which is re-initialized (0xAB-filled) when
+// Main() runs again on re-entry after a game switch.
+static bool sHasSetupSkybox = false;
+
+/**
+ * Cross-game switch support: retire the suspended graph coroutine.
+ *
+ * OoT_RunFrame() is a stackless coroutine — state==1 means "resume the frame
+ * loop with the gamestate OoT_gGameState points at". That contract cannot
+ * survive a game switch: re-entering OoT runs Main() again, which re-inits
+ * the system arena (__osMalloc fills every block with BLOCK_UNINIT_MAGIC
+ * 0xAB), poisoning the suspended gamestate in place. Resuming the coroutine
+ * then updates a freed PlayState and crashes dereferencing 0xABAB... (the
+ * int-gameplay-roundtrip return-leg AV in GameState_SetFrameBuffer).
+ *
+ * Called from OoT_Game_Suspend: reset the state machine so the next entry
+ * cold-starts the gamestate chain. Cross-game continuity is carried entirely
+ * by the frozen SaveContext + the game-tagged startup entrance (consumed in
+ * OoT_Play_Init), and the title screen fast-forwards straight to Play when a
+ * startup entrance is pending (z_title.c) — the retired gamestate holds
+ * nothing worth keeping. Its memory is intentionally not freed here: the
+ * arena it lives in is wholesale re-initialized on re-entry.
+ */
+void OoT_Graph_ResetRunFrameContext(void) {
+    runFrameContext.state = 0;
+    runFrameContext.nextOvl = NULL;
+    runFrameContext.ovl = NULL;
+    OoT_gGameState = NULL;
+    OoT_gPlayState = NULL;
+    sHasSetupSkybox = false;
+}
+
 static void OoT_RunFrame() {
     u32 size;
     char faultMsg[0x50];
-    static bool hasSetupSkybox = false;
 
     switch (runFrameContext.state) {
         case 0:
@@ -468,10 +532,10 @@ static void OoT_RunFrame() {
 
         // Setup the normal skybox once before entering any game states to avoid the 0xabababab crash.
         // The crash is due to certain skyboxes not loading all the data they need from OoT_Skybox_Setup.
-        if (!hasSetupSkybox) {
+        if (!sHasSetupSkybox) {
             PlayState* play = (PlayState*)OoT_gGameState;
             OoT_Skybox_Setup(play, &play->skyboxCtx, SKYBOX_NORMAL_SKY);
-            hasSetupSkybox = true;
+            sHasSetupSkybox = true;
         }
 
         uint64_t freq = GetFrequency();
@@ -520,7 +584,7 @@ void OoT_Graph_ThreadEntry(void* arg0) {
     while (WindowIsRunning()) {
         // Check for F10 hot-swap request
         if (Combo_CheckHotSwap()) {
-            break;  // Exit game loop to allow switch
+            break; // Exit game loop to allow switch
         }
         OoT_RunFrame();
     }

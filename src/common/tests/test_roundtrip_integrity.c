@@ -143,9 +143,10 @@ static int TestRoundtripIntegrity_Run(void) {
     memset(ootSave, 0x5A, sizeof(ootSave));
 
     /* ----------------------------------------------------------------
-     * Leg 2: MM -> OoT via South Clock Town.
+     * Leg 2: MM -> OoT via the Clock Tower door (the MM->OoT trigger;
+     * the SCT tower-exit spawn is the OoT->MM arrival, never a trigger).
      * ---------------------------------------------------------------- */
-    Combo_CheckCrossGameEntrance("mm", MM_ENTR_SOUTH_CLOCK_TOWN_0);
+    Combo_CheckCrossGameEntrance("mm", MM_ENTR_CLOCK_TOWER_INTERIOR_1);
     RT_ASSERT(Combo_IsCrossGameSwitch());
     RT_ASSERT(strcmp(Combo_GetSwitchTargetGameId(), "oot") == 0);
     Entrance_ClearPendingSwitch();

@@ -34,16 +34,45 @@ if (-not (Test-Path $clangFormatFilePath) -or ($currentVersion -ne $requiredVers
     Remove-Item $llvmInstallerPath -Force
 }
 
+# Format the RSBS-enforced subset. Mirrors run-clang-format.sh, which reads
+# the same list — .github/clang-format-paths.txt is the single source of truth
+# for both scripts so they cannot drift. See that file's header for why the
+# gate is an incremental allowlist rather than a directory sweep.
 $basePath = (Resolve-Path .).Path
-$files = Get-ChildItem -Path $basePath\soh -Recurse -File `
-    | Where-Object { ($_.Extension -eq '.c' -or $_.Extension -eq '.cpp' -or `
-                      (($_.Extension -eq '.h' -or $_.Extension -eq '.hpp') -and `
-                       (-not ($_.FullName -like "*\soh\src\*" -or $_.FullName -like "*\soh\include\*")))) -and `
-                     (-not ($_.FullName -like "*\soh\assets\*" -or $_.FullName -like "*\soh\build\*")) }
+$pathsFile = "$basePath\.github\clang-format-paths.txt"
 
-for ($i = 0; $i -lt $files.Length; $i++) {
-    $file = $files[$i]
-    $relativePath = $file.FullName.Substring($basePath.Length + 1)
-    Write-Host "Formatting [$($i+1)/$($files.Length)] $relativePath"
-    .\clang-format.exe -i $file.FullName
+if (-not (Test-Path $pathsFile -PathType Leaf)) {
+    Write-Host "error: $pathsFile is missing - the format gate has no path list and would be a no-op"
+    exit 1
+}
+
+$files = Get-Content $pathsFile `
+    | Where-Object { $_ -notmatch '^\s*#' -and $_ -notmatch '^\s*$' } `
+    | ForEach-Object { Join-Path $basePath ($_ -replace '/', '\') }
+
+# Guard against this gate silently becoming a no-op again (it targeted a
+# nonexistent soh\ directory for the whole life of the repo): an empty list is
+# an error, and so is any entry that no longer exists on disk. A renamed or
+# deleted file must fail loudly rather than silently shrink coverage.
+if ($files.Length -eq 0) {
+    Write-Host "error: $pathsFile lists no paths - the format gate would be a no-op"
+    exit 1
+}
+
+$missing = $files | Where-Object { -not (Test-Path $_ -PathType Leaf) }
+if ($missing) {
+    foreach ($m in $missing) {
+        Write-Host "error: $pathsFile lists '$m', which does not exist (renamed or deleted?)"
+    }
+    Write-Host "error: fix the stale entries above, or the format gate silently loses coverage"
+    exit 1
+}
+
+# Format in batches: one clang-format process per file is very slow on Windows
+$batchSize = 40
+for ($i = 0; $i -lt $files.Length; $i += $batchSize) {
+    $batch = $files[$i..([Math]::Min($i + $batchSize, $files.Length) - 1)]
+    $last = $batch[-1].Substring($basePath.Length + 1)
+    Write-Host "Formatting [$([Math]::Min($i + $batchSize, $files.Length))/$($files.Length)] ... $last"
+    .\clang-format.exe -i $batch
 }

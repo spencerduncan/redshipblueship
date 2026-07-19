@@ -1,0 +1,63 @@
+# Paths enforced by run-clang-format.sh / run-clang-format.ps1.
+#
+# INCREMENTAL ALLOWLIST. The format gate used to target a nonexistent `soh/`
+# directory and so formatted nothing — it passed vacuously for the whole life
+# of the repo (fixed in c2834780). Turning it on for all of games/oot +
+# games/mm at once would reformat ~1050 vendored decomp files (~11.6k lines),
+# which is both unreviewable and permanent conflict surface against the
+# upstream SoH / 2Ship trees we track.
+#
+# So the gate is enforced on an explicit list that grows incrementally.
+# Seeded with the files touched by the phase-2 cross-game work. Expanding it
+# to the rest of the tree is tracked as a separate issue — add paths here as
+# directories are cleaned up, one reviewable batch at a time.
+#
+# Deliberately NOT listed: vendored decomp files whose only RSBS change is a
+# one-line #include, where whole-file reformatting costs far more in upstream
+# conflicts than it buys (e.g. games/mm/src/code/z_bgcheck.c would take 174
+# reformatted lines to justify a single #include).
+#
+# One path per line. Blank lines and #-comments ignored. Every listed path
+# must exist — a stale entry is a hard error, so this list cannot silently
+# rot into another vacuous gate.
+
+games/mm/2s2h/BenPort.h
+games/mm/2s2h/BenPortHudSingleExe.cpp
+games/mm/2s2h/CosmeticGfxSingleExe.cpp
+games/mm/2s2h/DeveloperTools/SaveEditor.h
+games/mm/2s2h/Enhancements/Audio/AudioCollection.h
+games/mm/2s2h/Enhancements/Audio/AudioEditor.h
+games/mm/2s2h/Enhancements/FrameInterpolation/FrameInterpolation.h
+games/mm/2s2h/GameExports_SingleExe.cpp
+games/mm/2s2h/ShipInit.hpp
+games/mm/2s2h/mm_resume_state_test.cpp
+games/mm/2s2h/z_scene_2SH.cpp
+games/mm/src/audio/lib/dcache.c
+games/mm/src/audio/lib/load.c
+games/mm/src/audio/lib/thread.c
+games/mm/src/audio/sequence.c
+games/mm/src/boot/fault.c
+games/mm/src/boot/yaz0.c
+games/mm/src/code/graph.c
+games/mm/src/code/padmgr.c
+games/mm/src/code/z_play.c
+games/mm/src/code/z_visfbuf.c
+games/mm/src/overlays/gamestates/ovl_title/z_title.c
+games/oot/soh/Enhancements/cosmetics/CustomLogoTitle.cpp
+games/oot/soh/GameExports_SingleExe.cpp
+games/oot/soh/OTRGlobals.cpp
+games/oot/soh/ResourceManagerHelpers.cpp
+games/oot/soh/ResourceManagerHelpers.h
+games/oot/soh/SaveManager.cpp
+games/oot/soh/SaveManager.h
+games/oot/soh/mixer.c
+games/oot/soh/z_scene_otr.cpp
+games/oot/src/code/audio_load.c
+games/oot/src/code/code_800E4FE0.c
+games/oot/src/code/code_800F9280.c
+games/oot/src/code/graph.c
+games/oot/src/code/z_camera.c
+games/oot/src/code/z_debug.c
+games/oot/src/code/z_play.c
+games/oot/src/code/z_scene.c
+games/oot/src/overlays/gamestates/ovl_title/z_title.c

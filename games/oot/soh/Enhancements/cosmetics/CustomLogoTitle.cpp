@@ -101,7 +101,7 @@ extern "C" void CustomLogoTitle_Draw(TitleContext* titleContext, uint8_t logoToD
 
         gSPSegment(POLY_OPA_DISP++, 0x08,
                    (uintptr_t)OoT_Gfx_TwoTexScrollEx(titleContext->state.gfxCtx, 0, 0, (0 - 1) % 128, 32, 32, 1, 0,
-                                                 (1 * -2) % 128, 32, 32, 0, 0, 0, 0));
+                                                     (1 * -2) % 128, 32, 32, 0, 0, 0, 0));
 
         OoT_Matrix_Translate(0.0f, -10.0f, 0.0f, MTXMODE_APPLY);
         OoT_Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
@@ -122,9 +122,26 @@ extern "C" void CustomLogoTitle_Draw(TitleContext* titleContext, uint8_t logoToD
 #define CVAR_BOOTSEQUENCE_DEFAULT BOOTSEQUENCE_DEFAULT
 #define CVAR_BOOTSEQUENCE_VALUE CVarGetInteger(CVAR_BOOTSEQUENCE_NAME, CVAR_BOOTSEQUENCE_DEFAULT)
 
+// Cross-game combo (src/common/entrance.cpp): a return leg from a game switch
+// must skip the boot logos. The authoritative skip is at the end of
+// Title_Init (z_title.c) so no hook can bypass it; this gate is the same
+// belt-and-braces Title_Main carries, since this function REPLACES Title_Main
+// via OnZTitleInit and would otherwise reintroduce the splash on its own.
+extern "C" bool Combo_HasStartupEntranceForGame(const char* gameId);
+
 extern "C" void CustomLogoTitle_Main(TitleContext* titleContext) {
     static uint8_t logosSeen = 0;
     uint8_t logoToDraw;
+
+    if (Combo_HasStartupEntranceForGame("oot")) {
+        gSaveContext.seqId = (u8)NA_BGM_DISABLED;
+        gSaveContext.natureAmbienceId = 0xFF;
+        gSaveContext.gameMode = GAMEMODE_TITLE_SCREEN;
+        titleContext->state.running = false;
+        logosSeen = 0;
+        SET_NEXT_GAMESTATE(&titleContext->state, Opening_Init, OpeningContext);
+        return;
+    }
 
     if (CVAR_BOOTSEQUENCE_VALUE == BOOTSEQUENCE_DEFAULT) {
         if (logosSeen == 0) {

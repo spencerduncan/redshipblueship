@@ -1,4 +1,5 @@
 #include "global.h"
+#include "PR/os_libc.h" // MM_sprintf prototype (C4013 fix)
 #include "fault.h"
 #include "fixed_point.h"
 #include "vt.h"

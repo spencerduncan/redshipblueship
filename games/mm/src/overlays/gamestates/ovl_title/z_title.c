@@ -21,7 +21,7 @@
 // Cross-game combo support - a switch into MM arrives with a pending startup
 // entrance set by the launcher (see rsbs/src/main.cpp). Defined in
 // src/common/entrance.cpp. Matches the extern in z_play.c.
-extern uint16_t Combo_GetStartupEntrance(void);
+extern bool Combo_HasStartupEntranceForGame(const char* gameId);
 
 #define dgShipLogoDL "__OTR__misc/nintendo_rogo_static/gShipLogoDL"
 static const ALIGN_ASSET(2) char gShipLogoDL[] = dgShipLogoDL;
@@ -209,8 +209,10 @@ void ConsoleLogo_Main(GameState* thisx) {
     // straight off to the title-setup -> play boot. We just want the scene
     // change, not the splash. Mirrors the transition ConsoleLogo normally makes
     // when it finishes below. The startup entrance is consumed later in
-    // Play_Init, so we only test it here without clearing it.
-    if (Combo_GetStartupEntrance() != 0) {
+    // Play_Init, so we only test it here without clearing it. Presence-gated
+    // and game-scoped like MM_Play_ConsumeStartupEntrance: entrance 0x0000 is
+    // a real id, and an OoT-tagged entrance must not fast-forward MM.
+    if (Combo_HasStartupEntranceForGame("mm")) {
         gSaveContext.seqId = NA_BGM_DISABLED;
         gSaveContext.ambienceId = AMBIENCE_ID_DISABLED;
         gSaveContext.gameMode = GAMEMODE_TITLE_SCREEN;

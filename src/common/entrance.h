@@ -34,8 +34,19 @@
 // MM entrances (using ENTRANCE macro: ((scene & 0x7F) << 9) | ((spawn & 0x1F) << 4))
 // CLOCK_TOWER_INTERIOR scene = 0x60
 // SOUTH_CLOCK_TOWN scene = 0x6C
-#define MM_ENTR_CLOCK_TOWER_INTERIOR_1     0xC010  // ENTRANCE(CLOCK_TOWER_INTERIOR, 1)
-#define MM_ENTR_SOUTH_CLOCK_TOWN_0         0xD800  // ENTRANCE(SOUTH_CLOCK_TOWN, 0)
+//
+// The portal is the Clock Tower door itself, mirroring OoT's mask-shop door:
+// - MM->OoT trigger: walking INTO the tower from South Clock Town sets
+//   ENTRANCE(CLOCK_TOWER_INTERIOR, 1) = 0xC010.
+// - OoT->MM arrival: spawn in South Clock Town as if you just walked OUT of
+//   the tower — ENTRANCE(SOUTH_CLOCK_TOWN, 0) = 0xD800, the same spawn the
+//   Song of Time reset / save-warp / cycle start use.
+// The trigger and arrival MUST stay distinct ids: 0xD800 is targeted by MM's
+// own cycle resets (Song of Time, save-warp, the title attract demo), so it
+// can never be a switch trigger — when it was, every in-game reset to South
+// Clock Town spuriously fired a cross-game switch.
+#define MM_ENTR_CLOCK_TOWER_INTERIOR_1     0xC010  // ENTRANCE(CLOCK_TOWER_INTERIOR, 1) — MM->OoT trigger
+#define MM_ENTR_SOUTH_CLOCK_TOWN_0         0xD800  // ENTRANCE(SOUTH_CLOCK_TOWN, 0) — OoT->MM arrival
 
 // ============================================================================
 // Cross-game entrance link
@@ -114,13 +125,15 @@ void Entrance_Init(void);
 
 /**
  * Register the default OoTMM combomizer links:
- * - OoT Happy Mask Shop <-> MM Clock Tower Interior
+ * - OoT Happy Mask Shop door <-> MM Clock Tower door
+ *   (arrival in MM is the South Clock Town tower-exit spawn; see the portal
+ *   note above the MM entrance constants)
  */
 void Entrance_RegisterDefaultLinks(void);
 
 /**
  * Register test links (for easier testing):
- * - OoT Mido's House <-> MM Clock Tower Interior
+ * - OoT Mido's House <-> the same MM portal (SCT arrival / tower-door trigger)
  */
 void Entrance_RegisterTestLinks(void);
 

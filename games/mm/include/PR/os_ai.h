@@ -3,6 +3,10 @@
 
 #include <libultraship/libultra/os.h>
 
+// RSBS: revived from the `#if 0` block below (the gu.h C4013 class).
+// Definition: games/mm/src/code/stubs.c (returns the port's fixed 32006 Hz).
+s32 MM_osAiSetFrequency(u32 frequency);
+
 #if 0
 
 #include "ultratypes.h"

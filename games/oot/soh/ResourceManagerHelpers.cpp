@@ -160,6 +160,51 @@ extern "C" char** ResourceMgr_ListFiles(const char* searchMask, int* resultSize)
     return result;
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// Defined in games/mm/2s2h/GameExports_SingleExe.cpp: membership test against
+// the archive paths LoadMMArchives() registered (mm.o2r / 2ship.o2r) — the
+// same registry the Room/Cutscene factory dispatcher keys on.
+extern "C" bool Combo_ArchivePathIsMM(const char* path);
+#endif
+
+// Archive-scoped ResourceMgr_ListFiles. In single-exe builds both games'
+// archives live in the ONE shared ArchiveManager, so the unscoped glob
+// returns the other game's resources too. That is not just noise: audio
+// sequences and soundfonts carry their index in the resource PAYLOAD
+// (AudioSequenceFactory/AudioSoundFontFactory ReadResource — byte-identical
+// wire format across the two ports), so a foreign entry whose id lands in
+// bounds silently SHADOWS the native entry in the calling game's map. Filter
+// each path by its owning archive instead. Standalone builds only ever load
+// one game's archives, so the filter is compiled out.
+extern "C" char** ResourceMgr_ListFilesForGame(const char* gameTag, const char* searchMask, int* resultSize) {
+    auto archiveManager = Ship::Context::GetInstance()->GetResourceManager()->GetArchiveManager();
+    auto lst = archiveManager->ListFiles(searchMask);
+
+    std::vector<std::string> filtered;
+    filtered.reserve(lst->size());
+    for (const auto& path : *lst) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+        auto archive = archiveManager->GetArchiveFromFile(path);
+        bool ownedByMM = archive != nullptr && Combo_ArchivePathIsMM(archive->GetPath().c_str());
+        bool wantMM = strcmp(gameTag, "mm") == 0;
+        if (ownedByMM != wantMM) {
+            continue;
+        }
+#endif
+        filtered.push_back(path);
+    }
+
+    char** result = (char**)malloc(filtered.size() * sizeof(char*));
+    for (size_t i = 0; i < filtered.size(); i++) {
+        char* str = (char*)malloc(filtered[i].size() + 1);
+        memcpy(str, filtered[i].data(), filtered[i].size());
+        str[filtered[i].size()] = '\0';
+        result[i] = str;
+    }
+    *resultSize = (int)filtered.size();
+    return result;
+}
+
 extern "C" uint8_t ResourceMgr_FileExists(const char* filePath) {
     std::string path = filePath;
     if (path.substr(0, 7) == "__OTR__") {

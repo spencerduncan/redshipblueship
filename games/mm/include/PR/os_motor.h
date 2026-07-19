@@ -3,6 +3,11 @@
 
 #include <libultraship/libultra/motor.h>
 
+// RSBS: revived from the `#if 0` block below (the gu.h C4013 class).
+// Definition: games/mm/src/libultra/io/motor.c. OSMesgQueue/OSPfs come from
+// the LUS motor.h above.
+s32 MM_osMotorInit(OSMesgQueue* mq, OSPfs* pfs, s32 channel);
+
 #if 0
 
 #include "ultratypes.h"

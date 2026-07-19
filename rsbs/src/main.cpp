@@ -113,6 +113,18 @@ static void SignalHandler(int signal) {
         case SIGILL:  fprintf(stderr, "[CRASH] SIGILL (Illegal instruction)\n"); break;
     }
     fflush(stderr);
+    // Integration-test diagnostics only (release behavior unchanged): dump
+    // the gameplay phase machine so a crash log is attributable to a repro
+    // step even when it fires before libultraship's CrashHandler takes over
+    // the signals, and exit 128+sig so CI can tell "crashed" from "test
+    // failed". (Best effort — like the fprintf above, not strictly
+    // async-signal-safe, but we are exiting anyway.)
+    if (TestRunner_IsIntegrationTestMode()) {
+        if (IntegrationTest_GetMode() == INT_TEST_GAMEPLAY_ROUNDTRIP) {
+            IntegrationTest_LogGameplayState("signal");
+        }
+        _Exit(128 + signal);
+    }
     _Exit(1);
 }
 
@@ -124,6 +136,8 @@ static void InstallCrashHandler(void) {
 }
 #else
 #include <windows.h>
+#include <io.h>
+#include <ship/debug/CrashHandler.h>
 
 static LONG WINAPI CrashHandler(EXCEPTION_POINTERS* exceptionInfo) {
     fprintf(stderr, "\n[CRASH] Windows exception: 0x%08X\n",
@@ -135,7 +149,117 @@ static LONG WINAPI CrashHandler(EXCEPTION_POINTERS* exceptionInfo) {
 static void InstallCrashHandler(void) {
     SetUnhandledExceptionFilter(CrashHandler);
 }
+
+// Map the fatal Windows exception codes to the POSIX signal numbers the
+// integration tier documents (docs/ci-gameplay-repro-postmortem.md §7:
+// exit >= 128 means "crashed", signal = code - 128), so CI and the agent
+// loop read Windows crashes the same way they read Linux ones.
+static int MapExceptionToSignal(DWORD code) {
+    switch (code) {
+        case EXCEPTION_ACCESS_VIOLATION:
+        case EXCEPTION_IN_PAGE_ERROR:
+        case EXCEPTION_STACK_OVERFLOW:
+            return 11; // SIGSEGV
+        case EXCEPTION_ILLEGAL_INSTRUCTION:
+        case EXCEPTION_PRIV_INSTRUCTION:
+            return 4; // SIGILL
+        case EXCEPTION_INT_DIVIDE_BY_ZERO:
+        case EXCEPTION_INT_OVERFLOW:
+        case EXCEPTION_FLT_DIVIDE_BY_ZERO:
+        case EXCEPTION_FLT_INVALID_OPERATION:
+        case EXCEPTION_FLT_OVERFLOW:
+        case EXCEPTION_FLT_UNDERFLOW:
+        case EXCEPTION_FLT_INEXACT_RESULT:
+        case EXCEPTION_FLT_DENORMAL_OPERAND:
+        case EXCEPTION_FLT_STACK_CHECK:
+            return 8; // SIGFPE
+        default:
+            return 6; // SIGABRT-equivalent bucket
+    }
+}
+
+/**
+ * Integration-mode unhandled-exception filter (Windows).
+ *
+ * libultraship's CrashHandler constructor takes over the process filter
+ * during shared bring-up, and its seh_filter ends in a MODAL MessageBoxA —
+ * on an unattended runner a crashed test hangs until the CTest timeout,
+ * and the register/backtrace dump is lost if nobody clicks. In integration
+ * mode we take the filter back after game init and do what the POSIX side
+ * documents:
+ *   1. raw _write of the exception code to stderr (stdio can be unusable
+ *      in a crash context — this breadcrumb must always escape),
+ *   2. best-effort gameplay phase dump,
+ *   3. libultraship's own PrintStack (identical registers + traceback dump
+ *      into the rotating log, including the flush) minus the MessageBox,
+ *   4. TerminateProcess(128 + signal).
+ * Release (non-test) behavior is unchanged: this filter is only installed
+ * when TestRunner_IsIntegrationTestMode().
+ */
+static LONG WINAPI IntegrationCrashFilter(EXCEPTION_POINTERS* exceptionInfo) {
+    DWORD code = exceptionInfo->ExceptionRecord->ExceptionCode;
+    char buf[256];
+    int n = snprintf(buf, sizeof(buf), "\n[CRASH] Windows exception: 0x%08lX (integration mode)\n",
+                     (unsigned long)code);
+    if (n > 0) {
+        _write(2, buf, (unsigned int)n);
+    }
+
+    // ASLR-independent fault location: exe-relative offset survives across
+    // runs and resolves to a function via the linker map (redship.map), even
+    // without PDBs. For access violations also say read-vs-write and the
+    // faulting address — a small faulting address is a near-NULL field deref
+    // and its value is the field offset.
+    {
+        uintptr_t rip = (uintptr_t)exceptionInfo->ExceptionRecord->ExceptionAddress;
+        uintptr_t base = (uintptr_t)GetModuleHandleA(NULL);
+        n = snprintf(buf, sizeof(buf), "[CRASH] addr=%p exe_base=%p exe_offset=0x%zX\n", (void*)rip, (void*)base,
+                     (size_t)(rip >= base ? rip - base : rip));
+        if (n > 0) {
+            _write(2, buf, (unsigned int)n);
+        }
+        if (code == EXCEPTION_ACCESS_VIOLATION && exceptionInfo->ExceptionRecord->NumberParameters >= 2) {
+            const ULONG_PTR* info = exceptionInfo->ExceptionRecord->ExceptionInformation;
+            n = snprintf(buf, sizeof(buf), "[CRASH] access violation: %s at 0x%zX\n",
+                         info[0] == 1 ? "WRITE" : (info[0] == 8 ? "EXEC" : "READ"), (size_t)info[1]);
+            if (n > 0) {
+                _write(2, buf, (unsigned int)n);
+            }
+        }
+    }
+
+    if (IntegrationTest_GetMode() == INT_TEST_GAMEPLAY_ROUNDTRIP) {
+        IntegrationTest_LogGameplayState("signal");
+    }
+
+    // Same dump path libultraship's own filter uses (registers + traceback
+    // appended as a CRITICAL record to the log, then flushed) — just without
+    // the modal MessageBox that would hang an unattended run.
+    auto ctx = Ship::Context::GetInstance();
+    if (ctx != nullptr && ctx->GetCrashHandler() != nullptr) {
+        ctx->GetCrashHandler()->PrintStack(exceptionInfo->ContextRecord);
+    }
+
+    TerminateProcess(GetCurrentProcess(), (UINT)(128 + MapExceptionToSignal(code)));
+    return EXCEPTION_EXECUTE_HANDLER; // unreachable
+}
 #endif
+
+/**
+ * Re-take the crash handling after game init. libultraship's CrashHandler
+ * constructor (shared Ship::Context bring-up) replaces whatever filter main()
+ * installed at startup; in integration mode we need the unattended-safe
+ * filter above to be the active one. No-op outside integration mode and on
+ * POSIX (there libultraship's sigaction handlers already write the dump and
+ * exit non-zero without human interaction, which is all the tier needs).
+ */
+static void ReinstallCrashHandlerForIntegration(void) {
+#ifdef _WIN32
+    if (TestRunner_IsIntegrationTestMode()) {
+        SetUnhandledExceptionFilter(IntegrationCrashFilter);
+    }
+#endif
+}
 
 // ============================================================================
 // Command line parsing
@@ -240,7 +364,18 @@ int main(int argc, char** argv) {
     // Check for unit test mode (--test)
     const char* testArg = TestRunner_ParseArgs(argc, argv);
     if (testArg != nullptr) {
-        return TestRunner_Run(testArg);
+        // Fast-exit with the verdict: the chimera process heap-corrupts during
+        // normal CRT teardown (0xC0000374 in the onexit static-destructor
+        // chain — reproducible with just `redship --version` on Windows),
+        // which would clobber the test's exit code AFTER the result was
+        // decided. _Exit skips teardown so the verdict survives. This does
+        // NOT hide the corruption: release runs still exit normally, and the
+        // fault is tracked separately (teardown heap corruption, fault A in
+        // docs/ci-gameplay-repro-postmortem.md follow-ups).
+        int testResult = TestRunner_Run(testArg);
+        fflush(stdout);
+        fflush(stderr);
+        _Exit(testResult);
     }
 
     // Check for integration test mode (--integration-test)
@@ -436,6 +571,12 @@ int main(int argc, char** argv) {
     // cross-game entrance hooks dispatch against the right game (issue #170).
     Context_SetCurrentGame(selectedGame);
 
+    // Game init created the shared Ship::Context, whose CrashHandler stole
+    // the process exception filter (and on Windows ends crashes in a modal
+    // MessageBox). In integration mode, take it back so a crashed test dumps
+    // and exits instead of hanging an unattended runner.
+    ReinstallCrashHandlerForIntegration();
+
     // Note: the previous MM-test detour (init OoT then SwitchTo MM) was
     // removed with #271 — MM integration tests now boot MM directly above.
 
@@ -523,12 +664,24 @@ int main(int argc, char** argv) {
             Combo_ClearGameSwitchRequest();
             Entrance_ClearPendingSwitch();
 
-            // Set startup entrance if this is an entrance-based switch. Tag it
-            // with the destination game so only that game can consume it — this
-            // prevents an MM entrance (e.g. 0xC010) from leaking into OoT's
-            // entranceIndex and reading gEntranceTable out of bounds (crash).
+            // Set the startup entrance, tagged with the destination game so
+            // only that game can consume it — this prevents an MM entrance
+            // (e.g. 0xD800) from leaking into OoT's entranceIndex and reading
+            // gEntranceTable out of bounds (crash).
+            //
+            // Every re-entry cold-starts the target's gamestate chain, and on
+            // the MM side that chain wipes whatever Game_Resume restored — the
+            // only restore that reaches gameplay is the one Play_Init performs
+            // when it consumes a pending startup entrance. So a hotkey (F10)
+            // switch back into a game with frozen state must also set one,
+            // using the frozen return entrance; otherwise the target silently
+            // boots as a brand-new file at its title screen and the frozen
+            // save is never consumed. A first-time hotkey entry (no frozen
+            // state) keeps the plain title-screen boot.
             if (isEntranceSwitch && targetEntrance != 0) {
                 Entrance_SetStartupEntrance(targetEntrance, nextGame);
+            } else if (!isEntranceSwitch && Context_HasFrozenState(nextGame)) {
+                Entrance_SetStartupEntrance(Context_GetFrozenReturnEntrance(nextGame), nextGame);
             }
 
             // Hot-swap resource archives before game init/resume
@@ -555,9 +708,16 @@ int main(int argc, char** argv) {
 
     free(gameArgv);
 
-    // Return integration test result if in integration test mode
+    // Return integration test result if in integration test mode.
+    // Fast-exit for the same reason as the --test path above: normal CRT
+    // teardown heap-corrupts (0xC0000374) and would overwrite the verdict
+    // this run just produced. Games were shut down cleanly above; only the
+    // static-destructor chain is skipped.
     if (TestRunner_IsIntegrationTestMode()) {
-        return TestRunner_GetIntegrationTestResult();
+        int integrationResult = TestRunner_GetIntegrationTestResult();
+        fflush(stdout);
+        fflush(stderr);
+        _Exit(integrationResult);
     }
 
     printf("Game exited normally.\n");

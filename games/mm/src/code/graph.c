@@ -6,6 +6,8 @@
 #include <libultraship/bridge/gfxdebuggerbridge.h>
 #include <libultraship/bridge/consolevariablebridge.h>
 #include <libultraship/bridge/windowbridge.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 // Variables are put before most headers as a hacky way to bypass bss reordering
@@ -89,7 +91,7 @@ GameStateOverlay* MM_Graph_GetNextGameState(GameState* gameState) {
     // Generates code to match gameStateInit to a gamestate entry and returns it if found
 #define DEFINE_GAMESTATE_INTERNAL(typeName, enumName) \
     if (gameStateInit == typeName##_Init) {           \
-        return &MM_gGameStateOverlayTable[enumName];     \
+        return &MM_gGameStateOverlayTable[enumName];  \
     }
 #define DEFINE_GAMESTATE(typeName, enumName, name) DEFINE_GAMESTATE_INTERNAL(typeName, enumName)
 
@@ -356,7 +358,66 @@ void Graph_ExecuteAndDraw(GraphicsContext* gfxCtx, GameState* gameState) {
 void MM_Graph_Update(GraphicsContext* gfxCtx, GameState* gameState) {
     gameState->unk_A3 = 0;
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // Gameplay round-trip integration driver (GameExports_SingleExe.cpp).
+    // Called directly instead of via GameInteractor: MM's hook dispatch goes
+    // through the cross-bound OoT wrappers, which are (correctly) suppressed
+    // while MM is the active game (#367), so the test driver cannot ride
+    // them. No-op unless the int-gameplay-roundtrip mode is active.
+    {
+        extern void MM_IntegrationGameplayFrameTick(void);
+        MM_IntegrationGameplayFrameTick();
+    }
+#endif
+
     Graph_UpdateGame(gameState);
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // RSBS_AUTO_SWITCH_FRAME=<frame>: fire the hotkey game-switch request
+    // programmatically after N MM frames — the unattended stand-in for a
+    // human pressing F10, so switch-path faults (e.g. the MM-first -> OoT
+    // first-init crash, 2026-07-18) reproduce under the crash debugger.
+    {
+        extern void Combo_RequestGameSwitch(void);
+        static int sAutoSwitchFrame = 0;
+        static int sAutoSwitched = 0;
+        const char* swEnv = getenv("RSBS_AUTO_SWITCH_FRAME");
+        sAutoSwitchFrame++;
+        if (swEnv != NULL && !sAutoSwitched && sAutoSwitchFrame >= atoi(swEnv)) {
+            sAutoSwitched = 1;
+            fprintf(stderr, "[RSBS] AUTO-SWITCH: requesting game switch at MM frame %d\n", sAutoSwitchFrame);
+            fflush(stderr);
+            Combo_RequestGameSwitch();
+        }
+    }
+
+    // RSBS_DUMP_GFX=<frame>: one-shot raw hexdump of this frame's polyOpa
+    // command stream to stderr, for diagnosing display-list encoding faults
+    // (e.g. the 2026-07-18 "MM 3D renders as giant flat triangles" hunt) —
+    // the dump shows whether the stream is broken at EMISSION (bad opcodes /
+    // truncated pointers in the words MM wrote) or only at interpretation.
+    {
+        static int sGfxDumpFrame = 0;
+        static int sGfxDumped = 0;
+        const char* dumpEnv = getenv("RSBS_DUMP_GFX");
+        sGfxDumpFrame++;
+        if (dumpEnv != NULL && !sGfxDumped && sGfxDumpFrame >= atoi(dumpEnv)) {
+            Gfx* start = (Gfx*)gfxCtx->polyOpa.start;
+            Gfx* end = gfxCtx->polyOpa.p;
+            int count = (int)(end - start);
+            int i;
+            sGfxDumped = 1;
+            fprintf(stderr, "[GFX-DUMP] frame %d polyOpa: start=%p p=%p count=%d (showing up to 160)\n", sGfxDumpFrame,
+                    (void*)start, (void*)end, count);
+            for (i = 0; i < count && i < 160; i++) {
+                fprintf(stderr, "[GFX-DUMP] %3d: %016llX %016llX\n", i, (unsigned long long)start[i].words.w0,
+                        (unsigned long long)start[i].words.w1);
+            }
+            fflush(stderr);
+        }
+    }
+#endif
+
     Graph_ExecuteAndDraw(gfxCtx, gameState);
 
     // 2S2H [Debug] Decomp didn't contain the original code that would allow for this, so this is stolen from ship
@@ -408,6 +469,20 @@ void MM_RunFrame() {
 
         runFrameContext.gameState = MM_SystemArena_Malloc(size);
 
+        if (runFrameContext.gameState == NULL) {
+            // OoT parity (games/oot/src/code/graph.c "GAME CLASS MALLOC
+            // FAILED"): without this check an exhausted system arena fell
+            // through to memset(NULL, ...) — an opaque near-NULL AV.
+            // Historically hit on cross-game re-entry before MM_Game_Resume
+            // re-armed the arena (GameExports_SingleExe.cpp): the retired
+            // session's allocations leak by design, so a stale arena has no
+            // free block for even the first gamestate.
+            osSyncPrintf("確保失敗\n"); // "Failure to secure"
+            fprintf(stderr, "[MM] FATAL: GAME CLASS MALLOC FAILED (size=%u) — system arena exhausted\n",
+                    (unsigned int)size);
+            fflush(stderr);
+            abort();
+        }
         memset(runFrameContext.gameState, 0, size); // fix
         MM_GameState_Init(runFrameContext.gameState, runFrameContext.ovl->init, &runFrameContext.gfxCtx);
 
@@ -446,10 +521,30 @@ void MM_Graph_ThreadEntry(void* arg0) {
     while (WindowIsRunning()) {
         // Check for F10 hot-swap request
         if (Combo_CheckHotSwap()) {
-            break;  // Exit game loop to allow switch
+            break; // Exit game loop to allow switch
         }
         MM_RunFrame();
     }
+}
+
+/**
+ * Cross-game switch support: retire the suspended graph coroutine (mirrors
+ * OoT_Graph_ResetRunFrameContext, games/oot/src/code/graph.c — see the full
+ * rationale there). MM_RunFrame's state==1 contract ("resume the frame loop
+ * with runFrameContext.gameState") cannot survive a game switch: the
+ * cross-game entrance path stops the gamestate with init/destroy nulled, so
+ * resuming would either walk into freed memory or fall off the overlay chain.
+ * Cross-game continuity is carried by the frozen SaveContext + the MM-tagged
+ * startup entrance (consumed in MM_Play_Init), so the next MM entry
+ * cold-starts the gamestate chain exactly like the (working) first entry.
+ * Called from MM_Game_Suspend.
+ */
+void MM_Graph_ResetRunFrameContext(void) {
+    runFrameContext.state = 0;
+    runFrameContext.nextOvl = NULL;
+    runFrameContext.ovl = NULL;
+    runFrameContext.gameState = NULL;
+    MM_gPlayState = NULL;
 }
 
 // #region 2S2H [Debugging] Debugging methods for viewing file/line info in the renderer.

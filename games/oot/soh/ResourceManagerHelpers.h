@@ -31,6 +31,10 @@ bool ResourceMgr_IsPalLoaded();
 void ResourceMgr_LoadDirectory(const char* resName);
 void ResourceMgr_UnloadResource(const char* resName);
 char** ResourceMgr_ListFiles(const char* searchMask, int* resultSize);
+// Archive-scoped variant for single-exe builds: returns only entries owned by
+// the given game's archives ("oot" or "mm"). In standalone builds the filter
+// is a no-op (only one game's archives are ever loaded).
+char** ResourceMgr_ListFilesForGame(const char* gameTag, const char* searchMask, int* resultSize);
 uint8_t ResourceMgr_FileExists(const char* resName);
 uint8_t ResourceMgr_FileAltExists(const char* resName);
 void ResourceMgr_UnloadOriginalWhenAltExists(const char* resName);

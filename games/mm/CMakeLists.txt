@@ -210,6 +210,16 @@ if(SINGLE_EXECUTABLE_BUILD)
     # All enhancements - entire directory
     list(FILTER ship__ EXCLUDE REGEX "2s2h/Enhancements/.*\\.cpp$")
 
+    # MM's AudioEditor UI depends on BenGui/BenMenu (excluded below) and
+    # defined the same mangled + extern "C" symbols as SoH's
+    # soh/Enhancements/audio/AudioEditor.cpp, so it is dropped from 2ship_enh
+    # in single-exe builds. Its extern "C" entry points
+    # (MM_AudioEditor_Get{Replacement,Original}Seq after the
+    # include/mm_audio_prefix.h rename) are identity-stubbed in
+    # 2s2h/GameExports_SingleExe.cpp; AudioCollection.cpp stays compiled as
+    # MM's real (S2H-namespaced) collection.
+    list(FILTER ship__Enhancements EXCLUDE REGEX "2s2h/Enhancements/Audio/AudioEditor\\.cpp$")
+
     # GameInteractor (use OoT's)
     list(FILTER ship__ EXCLUDE REGEX "2s2h/GameInteractor/.*\\.cpp$")
 
@@ -512,6 +522,11 @@ if(MSVC)
 		/wd4101 # unreferenced local variable. Things like stack pads.
 		/wd4133 #incompatible types. Usually caused by passing a c string into a function that takes a pointer.
 		/wd4244 #conversion from [a] to [b]. Used to warn when copying to smaller type without a cast.
+		/we4013 #RSBS: implicit function declaration -> hard error. This is the ABI-scramble class that
+		        #broke ALL MM 3D rendering (dead prototypes in PR/gu.h, f46730f6) and hid five more
+		        #implicit decls behind vendoring-era `#if 0` blocks in PR/os_*.h / gs2dex.h. A float or
+		        #pointer param through the unprototyped MSVC x64 convention is a silent runtime scramble;
+		        #make the whole class a build break. (docs/ci-gameplay-repro-postmortem.md §8 item 7)
         /sdl-;
         /permissive-;
         /MP;
