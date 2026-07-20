@@ -556,7 +556,7 @@ void DrawEntranceList() {
             for (int i = sceneRange.startIndex; i <= sceneRange.endIndex; i++) {
                 ImGui::TableNextColumn();
                 ImGui::PushID(sceneObjectList[i].splitId);
-                SplitsPushImageButtonStyle();
+                MM_SplitsPushImageButtonStyle();
 
                 if (ImGui::ImageButton(
                         std::to_string(sceneObjectList[i].splitId).c_str(),
@@ -582,7 +582,7 @@ void DrawItemList(const char* tableName, IndexRangeObject range, uint32_t tableS
     if (ImGui::BeginTable(tableName, tableSize)) {
         for (int i = range.startIndex; i <= range.endIndex; i++) {
             ImGui::TableNextColumn();
-            SplitsPushImageButtonStyle();
+            MM_SplitsPushImageButtonStyle();
             if (ImGui::ImageButton(std::to_string(splitObjectList[i].splitId).c_str(),
                                    Ship::Context::GetInstance()->GetWindow()->GetGui()->GetTextureByName(
                                        GetItemImageById(splitObjectList[i].splitId)),
@@ -642,7 +642,7 @@ void TimesplitsSettingsWindow::DrawElement() {
                 for (size_t i = 0; i < splitList.size(); i++) {
                     ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ((ImGui::GetContentRegionAvail().x - 50.0f) * 0.5f));
                     ImGui::PushID(i);
-                    SplitsPushImageButtonStyle();
+                    MM_SplitsPushImageButtonStyle();
                     if (ImGui::ImageButton(
                             std::to_string(i).c_str(),
                             Ship::Context::GetInstance()->GetWindow()->GetGui()->GetTextureByName(

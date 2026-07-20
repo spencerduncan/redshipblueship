@@ -239,7 +239,7 @@ static void CycleToNextArrow(PlayState* play, Player* player) {
     Audio_PlaySfx(NA_SE_PL_CHANGE_ARMS);
 }
 
-void ArrowCycleMain() {
+void MM_ArrowCycleMain() {
     if (sJustCycledFrames > 0) {
         sJustCycledFrames--;
     }
@@ -281,7 +281,7 @@ void ArrowCycleMain() {
 }
 
 // Registration and Hooks
-void RegisterArrowCycle() {
+void MM_RegisterArrowCycle() {
     COND_VB_SHOULD(VB_SHIELD_FROM_BUTTON_HOLD, CVAR, {
         if (CanCycleArrows()) {
             Player* player = GET_PLAYER(MM_gPlayState);
@@ -306,7 +306,7 @@ void RegisterArrowCycle() {
         }
     });
 
-    COND_ID_HOOK(OnActorUpdate, ACTOR_PLAYER, CVAR, [](Actor* actor) { ArrowCycleMain(); });
+    COND_ID_HOOK(OnActorUpdate, ACTOR_PLAYER, CVAR, [](Actor* actor) { MM_ArrowCycleMain(); });
 }
 
-static RegisterShipInitFunc initFunc(RegisterArrowCycle, { CVAR_NAME });
+static RegisterShipInitFunc initFunc(MM_RegisterArrowCycle, { CVAR_NAME });

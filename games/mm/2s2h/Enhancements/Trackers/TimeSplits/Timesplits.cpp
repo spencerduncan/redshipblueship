@@ -142,7 +142,7 @@ void TableCellCenteredText(ImVec4 color, const char* text) {
     ImGui::TextColored(color, text);
 }
 
-void SplitsPushImageButtonStyle() {
+void MM_SplitsPushImageButtonStyle() {
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 1.0f, 1.0f, 0.0f));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 1.0f, 1.0f, 0.2f));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(1.0f, 1.0f, 1.0f, 0.1f));
@@ -190,7 +190,7 @@ void DrawSplitsList(bool isMain) {
                     ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(47, 79, 90, 255));
                 }
 
-                SplitsPushImageButtonStyle();
+                MM_SplitsPushImageButtonStyle();
                 if (ImGui::ImageButton(
                         std::to_string(i).c_str(),
                         Ship::Context::GetInstance()->GetWindow()->GetGui()->GetTextureByName(

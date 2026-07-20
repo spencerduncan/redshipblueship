@@ -97,7 +97,7 @@ void HandlePopUpContext(uint32_t popupId) {
 
         uint32_t slotIndex = 0;
         for (auto& list : itemList) {
-            SplitsPushImageButtonStyle();
+            MM_SplitsPushImageButtonStyle();
             if (ImGui::ImageButton(
                     std::to_string(list).c_str(),
                     Ship::Context::GetInstance()->GetWindow()->GetGui()->GetTextureByName(GetItemImageById(list)),

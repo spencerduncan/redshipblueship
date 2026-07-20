@@ -13,7 +13,7 @@ extern "C" {
 static u16 inputBufferTimer = 0;
 static u16 pauseInputs = 0;
 
-void RegisterPauseBufferInputs() {
+void MM_RegisterPauseBufferInputs() {
     COND_VB_SHOULD(VB_KALEIDO_UNPAUSE_CLOSE, CVAR, {
         Input* input = CONTROLLER1(&MM_gPlayState->state);
 
@@ -51,4 +51,4 @@ void RegisterPauseBufferInputs() {
     });
 }
 
-static RegisterShipInitFunc initFunc(RegisterPauseBufferInputs, { CVAR_NAME });
+static RegisterShipInitFunc initFunc(MM_RegisterPauseBufferInputs, { CVAR_NAME });

@@ -73,7 +73,7 @@ extern TimesplitObject GetSplitObjectById(uint32_t itemId);
 extern ImVec2 GetItemImageSizeById(uint32_t itemId);
 extern void TableCellCenteredText(ImVec4 color, const char* text);
 extern const char* GetItemImageById(uint32_t itemId);
-extern void SplitsPushImageButtonStyle();
+extern void MM_SplitsPushImageButtonStyle();
 extern void SplitsPopImageButtonStyle();
 extern void HandlePopUpContext(uint32_t popupId);
 extern void HandleDragAndDrop(size_t i);

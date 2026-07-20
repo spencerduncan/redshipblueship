@@ -33,7 +33,7 @@ void RegisterDpadPageSwitchPrevention() {
     });
 }
 
-void RegisterItemUnequip() {
+void MM_RegisterItemUnequip() {
     COND_VB_SHOULD(VB_KALEIDO_EQUIP_ITEM_TO_BUTTON, CVAR, {
         u16 cursorSlot = va_arg(args, int);
         u16 cursorItem = va_arg(args, int);
@@ -137,5 +137,5 @@ void RegisterItemUnequip() {
     });
 }
 
-static RegisterShipInitFunc initFunc(RegisterItemUnequip, { CVAR_NAME });
+static RegisterShipInitFunc initFunc(MM_RegisterItemUnequip, { CVAR_NAME });
 static RegisterShipInitFunc initDpadPageSwitch(RegisterDpadPageSwitchPrevention, { CVAR_DPAD_NAME });
