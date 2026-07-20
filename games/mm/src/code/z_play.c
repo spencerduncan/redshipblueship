@@ -62,6 +62,12 @@ extern bool Combo_HasStartupEntranceForGame(const char* gameId);
 // silent-rollback bug, and leaving those in scope invites it back.
 extern int Combo_ConsumeFrozenState(const char* gameId, void* saveContext, size_t size);
 
+// Cross-game shared-item consumer (ADR 0002 / Lane A1). Awards every un-redeemed
+// MM-origin item in gComboCtx.sharedItemsTagged and marks it redeemed. Defined
+// in games/mm/2s2h/GameExports_SingleExe.cpp so this TU stays free of the ADR
+// SharedItem/GameId types.
+extern void MM_ConsumeSharedItems(void);
+
 s32 MM_gDbgCamEnabled = false;
 u8 D_801D0D54 = false;
 
@@ -2365,6 +2371,13 @@ void MM_Play_ConsumeStartupEntrance(void) {
     SET_WEEKEVENTREG(WEEKEVENTREG_ENTERED_WEST_CLOCK_TOWN);
     SET_WEEKEVENTREG(WEEKEVENTREG_ENTERED_NORTH_CLOCK_TOWN);
     gSaveContext.save.saveInfo.permanentSceneFlags[SCENE_INSIDETOWER].switch0 |= (1 << 0);
+    // Consumer (ADR 0002 / Lane A1), the MM twin of OoT's consume: the frozen
+    // save is restored and the arrival's runtime state neutralized above, so
+    // award any cross-game items tagged for MM and retire them
+    // (RSBS_SHARED_ITEM_REDEEMED). Presence-gated by this function's early
+    // return, so it runs once per MM arrival and never on a plain boot/.redsave
+    // load — un-redeemed items then wait for the next switch into MM.
+    MM_ConsumeSharedItems();
     Combo_ClearStartupEntrance();
 }
 
