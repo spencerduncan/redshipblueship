@@ -557,24 +557,30 @@ void SaveManager::Init() {
 }
 
 void SaveManager::StartupCheckAndInitMeta(int fileNum) {
-    saveMtx.lock();
     SPDLOG_INFO("Init Meta - fileNum: {}", fileNum);
     std::filesystem::path fileName = GetFileName(fileNum);
 
-    std::ifstream input(fileName);
-
-    bool deleteRando = false;
     nlohmann::json metaSaveBlock = nlohmann::json::object();
-    try {
-        input >> metaSaveBlock;
-        input.close();
-        saveMtx.unlock();
-    } catch (const std::exception& e) {
+    std::string parseError;
+    {
+        // Hold saveMtx with RAII, never a bare lock/unlock pair. saveMtx is a
+        // plain std::mutex (see SaveManager.h) shared with SaveFileThreaded and
+        // LoadFile: a single unlock skipped on an exception path poisons it
+        // permanently, and every later save/load then deadlocks with no
+        // diagnostic at all. That includes the cross-game .redsave write, which
+        // runs inside this same mutex via the OnSaveFile hook.
+        std::lock_guard<std::mutex> lock(saveMtx);
+        std::ifstream input(fileName);
+        try {
+            input >> metaSaveBlock;
+        } catch (const std::exception& e) { parseError = e.what(); }
+    }
+    if (!parseError.empty()) {
         // Torn write / not JSON at all: a save this broken must not kill the
-        // process at startup. Quarantine it and boot on.
-        input.close();
-        saveMtx.unlock();
-        SPDLOG_ERROR("Save at " + fileName.string() + " is unparseable (" + std::string(e.what()) + ")");
+        // process at startup. Quarantine it and boot on. Quarantining happens
+        // outside the lock because it only touches the filesystem and the popup
+        // queue, and must not extend the critical section.
+        SPDLOG_ERROR("Save at " + fileName.string() + " is unparseable (" + parseError + ")");
         QuarantineCorruptSave(fileNum);
         return;
     }
@@ -631,11 +637,34 @@ void SaveManager::StartupCheckAndInitMetaImpl(int fileNum, nlohmann::json& metaS
                     "If this was a randomizer file, the file will not work, and should be deleted.");
             metaSaveBlock["sections"].erase(metaSaveBlock["sections"].find("randomizer"));
             metaSaveBlock["fileType"] = FILE_TYPE_SAVE_VANILLA;
-            saveMtx.lock();
-            std::ofstream output(GetFileName(fileNum));
-            output << metaSaveBlock.dump(1);
+            // Serialize BEFORE opening anything on disk, and never open the
+            // live save with the default truncating mode. dump() throws
+            // type_error.316 on invalid UTF-8 in any string; the old code had
+            // already truncated the real save to 0 bytes by the time it threw,
+            // and the caller's handler then handed that empty husk to
+            // QuarantineCorruptSave, which renamed it to .bak. The user's save
+            // was gone. Dump first, write a temp, rename over the target --
+            // the same crash-safe pattern SaveFileThreaded uses.
+            std::string serialized = metaSaveBlock.dump(1);
+            std::lock_guard<std::mutex> lock(saveMtx);
+            std::filesystem::path tempFile = GetFileTempName(fileNum);
+            if (std::filesystem::exists(tempFile)) {
+                std::filesystem::remove(tempFile);
+            }
+            std::ofstream output(tempFile);
+            output << serialized;
             output.close();
-            saveMtx.unlock();
+#if defined(__SWITCH__) || defined(__WIIU__)
+            if (std::filesystem::exists(fileName)) {
+                std::filesystem::remove(fileName);
+            }
+            copy_file(tempFile.c_str(), fileName.c_str());
+            if (std::filesystem::exists(tempFile)) {
+                std::filesystem::remove(tempFile);
+            }
+#else
+            std::filesystem::rename(tempFile, fileName);
+#endif
         }
         s16 major = metaSaveBlock["sections"]["sohStats"]["data"]["buildVersionMajor"];
         s16 minor = metaSaveBlock["sections"]["sohStats"]["data"]["buildVersionMinor"];
@@ -1261,7 +1290,15 @@ int copy_file(const char* src, const char* dst) {
 // Threaded SaveFile takes copy of gSaveContext for local unmodified storage
 
 void SaveManager::SaveFileThreaded(int fileNum, SaveContext* saveContext, int sectionID) {
-    saveMtx.lock();
+    // RAII, not lock()/unlock(): every statement below can throw (json
+    // serialization, std::filesystem::rename, and the OnSaveFile handlers), and
+    // an escaped exception used to leave saveMtx held forever.
+    //
+    // NOTE: saveMtx is non-recursive and the OnSaveFile hooks fire while it is
+    // still held (RsbsSave_Save runs inside this critical section, which is how
+    // cross-game .redsave state gets written). Any future OnSaveFile handler
+    // that calls back into SaveManager will self-deadlock on this mutex.
+    std::lock_guard<std::mutex> lock(saveMtx);
     SPDLOG_INFO("Save File - fileNum: {}", fileNum);
     // Needed for first time save, hasn't changed in forever anyway
     saveBlock["version"] = 1;
@@ -1299,7 +1336,6 @@ void SaveManager::SaveFileThreaded(int fileNum, SaveContext* saveContext, int se
             SPDLOG_WARN("Skipping section-only save (section {}) for fileNum {}: no base data loaded", sectionID,
                         fileNum);
             delete saveContext;
-            saveMtx.unlock();
             return;
         }
         SaveFuncInfo svi = sectionSaveHandlers.find(sectionID)->second;
@@ -1352,7 +1388,6 @@ void SaveManager::SaveFileThreaded(int fileNum, SaveContext* saveContext, int se
     InitMeta(fileNum);
     GameInteractor::Instance->ExecuteHooks<GameInteractor::OnSaveFile>(fileNum, sectionID);
     SPDLOG_INFO("Save File Finish - fileNum: {}", fileNum);
-    saveMtx.unlock();
 }
 
 // SaveSection creates a copy of gSaveContext to prevent mid-save data modification, and passes its reference to
@@ -1395,7 +1430,10 @@ void SaveManager::SaveGlobal() {
 }
 
 void SaveManager::LoadFile(int fileNum) {
-    saveMtx.lock();
+    // RAII: the catch below re-throws nothing, but std::filesystem::rename and
+    // the OnLoadFile handlers inside it can throw, and losing this unlock
+    // deadlocks every subsequent save and load.
+    std::lock_guard<std::mutex> lock(saveMtx);
     SPDLOG_INFO("Load File - fileNum: {}", fileNum);
     std::filesystem::path fileName = GetFileName(fileNum);
     assert(std::filesystem::exists(fileName));
@@ -1471,7 +1509,6 @@ void SaveManager::LoadFile(int fileNum) {
                                                              ".\nSave file corruption is suspected.\n" +
                                                              "The file has been renamed to prevent further issues.");
     }
-    saveMtx.unlock();
 }
 
 void SaveManager::ThreadPoolWait() {
