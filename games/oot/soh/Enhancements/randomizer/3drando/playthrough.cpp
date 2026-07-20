@@ -14,6 +14,7 @@
 #include "soh/cvar_prefixes.h"
 #include "../option.h"
 #include "soh/Enhancements/debugger/performanceTimer.h"
+#include "context.h" // src/common — gComboCtx, Lane B unified-seed carrier (ADR 0002)
 
 namespace Playthrough {
 
@@ -60,6 +61,15 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
         }
     }
 
+    // Lane B (ADR 0002 §3): fingerprint the finalized settings profile BEFORE the
+    // DontGenerateSpoiler build-version mixing below, so the digest identifies the
+    // settings alone — seed-independent and build-independent. This is the second
+    // half of the unified-seed contract: sharedRandoSeed alone does NOT determine
+    // the fill, because the RNG is re-seeded with Hash(seed + settingsStr) just
+    // below, so the same numeric seed reproduces a world only under the same
+    // settings (see gComboCtx.sharedRandoSettingsHash).
+    const uint32_t rsbsSettingsHash = SohUtils::Hash(settingsStr);
+
     if (CVarGetInteger(CVAR_RANDOMIZER_SETTING("DontGenerateSpoiler"), 0)) {
         settingsStr += (char*)OoT_gBuildVersion;
     }
@@ -91,6 +101,21 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
 
     ctx->playthroughLocations.clear();
     ctx->playthroughBeatable = false;
+
+    // Lane B unified-seed producer (ADR 0002 §3): publish this OoT world's
+    // identity into the process-global ComboContext at GENERATION time — NOT at
+    // freeze time (the legacy OoT_FreezeState / BenPort freeze-time producers are
+    // dead code and must not be imitated). Both the live GUI path
+    // (RandoMain::GenerateRando -> GenerateRandomizer -> here) and the headless
+    // harness (Rando_HeadlessSeedTest -> GenerateRandomizer -> here) funnel
+    // through this one point, and we only reach it on a fully successful fill +
+    // spoiler write. `seed` == ctx->GetSeed() (the caller passes exactly that).
+    // MM (Lane C) consumes these when it becomes reachable, to reproduce the
+    // paired world (sharedRandoSeed) and verify the pinned settings profile
+    // matches (sharedRandoSettingsHash).
+    gComboCtx.sourceIsRando = true;
+    gComboCtx.sharedRandoSeed = seed;
+    gComboCtx.sharedRandoSettingsHash = rsbsSettingsHash;
 
     return 1;
 }

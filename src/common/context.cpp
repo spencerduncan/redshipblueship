@@ -210,6 +210,7 @@ void ComboContext_Init(void) {
     gComboCtx.saveSlot = -1;  // RETIRED IN PLACE (ADR 0002) — the -1 stamp is shipped behavior, kept as-is
     gComboCtx.sourceIsRando = false;
     gComboCtx.sharedRandoSeed = 0;
+    gComboCtx.sharedRandoSettingsHash = 0;  // Lane B (ADR 0002 §3): 0 == no profile recorded
     // sharedItemsTagged and the remaining reserved[] headroom are covered by
     // the memset above: all-zero IS the initialized state (every slot unset,
     // originGame == GAME_NONE). That equivalence is load-bearing — it is what

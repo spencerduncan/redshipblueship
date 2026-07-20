@@ -17,6 +17,8 @@
 #include "../static_data.h"
 #include "../SeedContext.h"
 #include "../settings.h"
+#include "../item_location.h"
+#include "context.h" // src/common — gComboCtx, Lane B unified-seed carrier (ADR 0002)
 
 namespace {
 bool seedChanged;
@@ -64,6 +66,95 @@ extern "C" int Rando_HeadlessSeedTest(const char* seedStr) {
     bool ok = GenerateRandomizer({}, {}, seedStr ? seedStr : "");
     fprintf(stderr, "[rando-diag] GenerateRandomizer returned %s\n", ok ? "true" : "false");
     return ok ? 0 : 1;
+}
+
+// Determinism harness bridge (Lane B, Phase 3.0): run ONE seed generation and
+// emit a canonical, side-effect-free digest of (a) the unified-seed producer's
+// output in gComboCtx and (b) the full item placement, so an external wrapper
+// can prove two same-seed runs produce byte-identical worlds. Returns 0 only if
+// generation succeeded AND the live producer stamped gComboCtx; non-zero (with a
+// stderr marker) otherwise. `outPath` NULL/empty => write the digest to stdout.
+//
+// Placements are captured IN-MEMORY here rather than diffed from the spoiler
+// JSON on disk: a same-seed rerun overwrites Randomizer/<hash>.json, so a naive
+// file diff would compare a file against itself (a verified pitfall). Iterating
+// RandomizerCheck in fixed enum order [0, RC_MAX) also makes the digest
+// independent of any hash-map iteration order and of the timestamp/version
+// fields the spoiler JSON carries.
+//
+// Determinism scope: the harness drives the synchronous 3-arg GenerateRandomizer
+// with EMPTY excludedLocations/enabledTricks (see Rando_HeadlessSeedTest), so
+// this locks reproducibility for the pinned settings profile with no per-check
+// exclusions or extra tricks. Exclusion/trick-driven fills are out of scope for
+// this lock.
+extern "C" int Rando_HeadlessSeedDeterminismDigest(const char* seedStr, const char* outPath) {
+    int rc = Rando_HeadlessSeedTest(seedStr);
+    if (rc != 0) {
+        fprintf(stderr, "[rando-determinism] generation failed rc=%d\n", rc);
+        return rc;
+    }
+
+    // The live unified-seed producer (Playthrough_Init) must have stamped the
+    // ComboContext during generation. This ties the determinism lock directly to
+    // Lane B's producer: if it ever stops firing, sourceIsRando/sharedRandoSeed
+    // read 0 and this fails, instead of silently passing on an unwritten world.
+    if (!gComboCtx.sourceIsRando) {
+        fprintf(stderr, "[rando-determinism] gComboCtx.sourceIsRando not set by generation\n");
+        return 2;
+    }
+    if (gComboCtx.sharedRandoSeed == 0) {
+        fprintf(stderr, "[rando-determinism] gComboCtx.sharedRandoSeed still 0 after generation\n");
+        return 3;
+    }
+
+    auto ctx = Rando::Context::GetInstance();
+    if (!ctx) {
+        fprintf(stderr, "[rando-determinism] no Rando::Context after generation\n");
+        return 4;
+    }
+
+    // Canonical placement blob: "<rc>:<placedItem>;" for every location, in
+    // ascending RandomizerCheck order, folded through the project's FNV-1a so the
+    // digest file stays small and stable.
+    std::string blob;
+    blob.reserve(static_cast<size_t>(RC_MAX) * 8);
+    size_t placedCount = 0;
+    for (int i = 0; i < RC_MAX; i++) {
+        RandomizerGet item = ctx->GetItemLocation(static_cast<RandomizerCheck>(i))->GetPlacedRandomizerGet();
+        if (item != RG_NONE) {
+            placedCount++;
+        }
+        blob += std::to_string(i);
+        blob += ':';
+        blob += std::to_string(static_cast<int>(item));
+        blob += ';';
+    }
+    const uint32_t placementHash = SohUtils::Hash(blob);
+
+    FILE* out = stdout;
+    bool closeOut = false;
+    if (outPath && outPath[0] != '\0') {
+        out = fopen(outPath, "w");
+        if (out == nullptr) {
+            fprintf(stderr, "[rando-determinism] cannot open digest output '%s'\n", outPath);
+            return 5;
+        }
+        closeOut = true;
+    }
+    fprintf(out,
+            "seed=%08X\n"
+            "settingsHash=%08X\n"
+            "sourceIsRando=%d\n"
+            "placementHash=%08X\n"
+            "placedCount=%zu\n",
+            gComboCtx.sharedRandoSeed, gComboCtx.sharedRandoSettingsHash, gComboCtx.sourceIsRando ? 1 : 0,
+            placementHash, placedCount);
+    if (closeOut) {
+        fclose(out);
+    }
+    fprintf(stderr, "[rando-determinism] digest: seed=%08X settingsHash=%08X placementHash=%08X placed=%zu\n",
+            gComboCtx.sharedRandoSeed, gComboCtx.sharedRandoSettingsHash, placementHash, placedCount);
+    return 0;
 }
 
 bool GenerateRandomizer(std::set<RandomizerCheck> excludedLocations, std::set<RandomizerTrick> enabledTricks,
