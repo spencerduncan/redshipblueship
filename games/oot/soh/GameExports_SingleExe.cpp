@@ -145,10 +145,29 @@ static float GpVecDist(const Vec3f* a, const Vec3f* b) {
  * Combo_CheckEntranceSwitch on the cross-game path, which freezes the live
  * SaveContext — and re-enters OoT_Play_Init for same-game targets.
  */
+// #380: the env-side pre-filter in src/common/integration_test_hooks.cpp keeps a
+// literal copy of this bound (kOoTEntranceMax) because src/common cannot include
+// OoT headers. Lock the two at compile time so that literal cannot silently drift
+// out of sync with the real gEntranceTable size.
+static_assert(ENTR_MAX == 0x0614, "ENTR_MAX moved; sync kOoTEntranceMax in integration_test_hooks.cpp");
+
 static void GpFireOoTDoor(uint16_t entrance, const char* what) {
     PlayState* play = OoT_gPlayState;
     if (play == NULL) {
         IntegrationTest_GameplayFail("no PlayState when firing a door transition");
+        return;
+    }
+    // #380: nextEntranceIndex is consumed as a raw linear index into
+    // gEntranceTable[ENTR_MAX] (games/oot/include/variables.h) with no bound
+    // check downstream. This is the consumption-time re-check the env filter's
+    // comment promises: an out-of-range id (e.g. RSBS_GP_WARP_ENTRANCE against a
+    // shrunken table) fails the test loudly instead of reading gEntranceTable out
+    // of bounds — the OOB-read crash class Test_StartupEntrance guards.
+    if (entrance >= ENTR_MAX) {
+        fprintf(stderr, "[GP-TEST] refusing %s: entrance 0x%04X is out of range (ENTR_MAX 0x%04X)\n", what, entrance,
+                (unsigned)ENTR_MAX);
+        fflush(stderr);
+        IntegrationTest_GameplayFail("door-transition entrance index >= ENTR_MAX");
         return;
     }
     fprintf(stderr, "[GP-TEST] firing %s: entrance 0x%04X (from scene %d, entrance 0x%04X)\n", what, entrance,
