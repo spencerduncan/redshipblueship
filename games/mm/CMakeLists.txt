@@ -769,6 +769,28 @@ endif()
 
 endforeach() # TWOSHIP_COMPILE_TARGETS
 
+# Falling off the end of a non-void function is a hard error in
+# games/mm/src/boot/fault.c and games/mm/src/code/stubs.c (#403), mirroring
+# the games/oot/CMakeLists.txt / soh/stubs.c precedent (#385/#401). Scoped to
+# these two files on purpose: MM passes explicit -Wno-return-type on
+# Darwin/Switch/CafeOS and -Wno-error on Linux, and SUPPRESS_WARNINGS'
+# WARNING_OVERRIDE is never applied to MM's vendored decomp tree generally —
+# a target-wide escalation would fight that and break the build.
+#
+# Must run after the TWOSHIP_COMPILE_TARGETS loop above (and use APPEND, not
+# a plain PROPERTIES assignment): that loop's force-include block
+# (set_source_files_properties(${_src} PROPERTIES COMPILE_OPTIONS
+# "${_force_include_c}")) sets COMPILE_OPTIONS on every .c source, including
+# these two, and a plain assignment here — before or after, in either
+# direction — would just replace whichever ran second. set_property(...
+# APPEND ...) is the only form that keeps both the force-includes and the
+# escalation flag on the same two files.
+if(MSVC)
+    set_property(SOURCE src/boot/fault.c src/code/stubs.c APPEND PROPERTY COMPILE_OPTIONS "/we4716;/we4715")
+else()
+    set_property(SOURCE src/boot/fault.c src/code/stubs.c APPEND PROPERTY COMPILE_OPTIONS "-Werror=return-type")
+endif()
+
 ################################################################################
 # Pre build events (only for SHARED library builds)
 ################################################################################
