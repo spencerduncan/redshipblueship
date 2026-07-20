@@ -700,8 +700,21 @@ void Rando::DrawItem(RandoItemId randoItemId, Actor* actor) {
     }
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// ROM-free harness guard (#392): with no mm.o2r registered,
+// ResourceMgr_LoadGfxByName null-derefs on a missing asset. The real boot
+// path loads MM archives before the ShipInit registrars run. Defined in
+// GameExports_SingleExe.cpp.
+extern "C" bool MM_Rando_AssetsReady(void);
+#endif
+
 static RegisterShipInitFunc initializeGICopyDLs(
     []() {
+#ifdef RSBS_SINGLE_EXECUTABLE
+        if (!MM_Rando_AssetsReady()) {
+            return;
+        }
+#endif
         // Small keys
         Gfx* baseDL = ResourceMgr_LoadGfxByName(gGiSmallKeyDL);
         memcpy(gGiSmallKeyCopyDL, baseDL, sizeof(gGiSmallKeyCopyDL));

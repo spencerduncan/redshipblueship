@@ -1288,6 +1288,18 @@ extern "C" void MM_Rando_Init(void) {
     Rando::Init();
 }
 
+/**
+ * True once LoadMMArchives() registered mm.o2r with the shared
+ * ResourceManager. ShipInit registrar lambdas that copy display lists out of
+ * MM assets (Rando/DrawItem.cpp, Rando/ActorBehavior/EnBox.cpp) gate on this:
+ * in the ROM-free unit harness no archives exist and
+ * ResourceMgr_LoadGfxByName null-derefs on a missing resource. In the real
+ * boot path LoadMMArchives always precedes MM_Rando_Init.
+ */
+extern "C" bool MM_Rando_AssetsReady(void) {
+    return sMMArchivesLoaded;
+}
+
 void MM_Game_Run(void) {
     fprintf(stderr, "[MM] Game_Run called, entering MM_Graph_ThreadEntry()\n");
     fflush(stderr);

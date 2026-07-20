@@ -93,8 +93,9 @@ extern "C" int MM_Rando_HeadlessGenTest(void) {
     }
     fprintf(stderr, "[MM-RANDO-GEN] shuffled checks: %d\n", shuffled);
     if (shuffled < 50) {
-        fprintf(stderr, "[MM-RANDO-GEN] FAIL(4): implausibly few shuffled checks (%d) — fill did not run over the "
-                        "real pools\n",
+        fprintf(stderr,
+                "[MM-RANDO-GEN] FAIL(4): implausibly few shuffled checks (%d) — fill did not run over the "
+                "real pools\n",
                 shuffled);
         return 4;
     }

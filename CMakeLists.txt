@@ -249,14 +249,6 @@ if(SINGLE_EXECUTABLE_BUILD)
     add_subdirectory(games/oot)
     add_subdirectory(games/mm)
 
-    # DIAGNOSTIC (Lane C0, #392): force-link 2ship_rando to enumerate the real
-    # unresolved-external surface from a production link. This commit is
-    # EXPECTED to fail the link on build-linux — the error list is the
-    # measurement. The permanent WHOLE_ARCHIVE wiring lands in
-    # games/mm/CMakeLists.txt (beside the soh_rando precedent) once the
-    # in-flight owner PR of that file merges; this TRANSFORM is then removed.
-    list(TRANSFORM TWOSHIP_STATIC_TARGETS REPLACE "^2ship_rando$" "$<LINK_LIBRARY:WHOLE_ARCHIVE,2ship_rando>")
-
     # Link game STATIC libraries into redship (must be done after games are added)
     # Each game is split into 2 STATIC libs to stay under MSVC limits:
     # - LNK1170: OBJECT libs expand all .obj paths (>131K chars)
