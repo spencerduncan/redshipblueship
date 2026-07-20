@@ -325,7 +325,7 @@ if(BUILD_TESTING)
     #
     # It carries the "redship" label on purpose, so it runs in the tier it
     # polices — CI's `ctest -L "^redship$"` picks it up with no workflow change.
-    # That makes this tier 31 rows: the 30 pre-existing tests, unchanged, plus
+    # That makes this tier every redship_add_test row above, unchanged, plus
     # this guard.
     redship_add_test(NAME TestRegistrationComplete
         COMMAND ${CMAKE_COMMAND}
