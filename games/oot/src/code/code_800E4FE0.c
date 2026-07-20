@@ -43,6 +43,20 @@ extern u64 rspAspMainDataEnd[];
 void OoT_AudioMgr_CreateNextAudioBuffer(s16* samples, u32 num_samples) {
     OSMesg sp4C;
 
+    // #365: the shared OTRAudio_Thread dispatches THIS producer whenever MM's
+    // synth is not active (OTRGlobals.cpp) — which includes every MM frame before
+    // MM's audio heap comes up, and the mid-switch window after OoT_Game_Suspend
+    // runs OoT_Audio_PreNMI and clears gAudioContextInitalized. The thread already
+    // zero-fills the buffer and expects an uninitialized synth to "write nothing",
+    // but this producer never honored that: it bumped totalTaskCnt and drove the
+    // DMA/load/synth path against a torn-down OoT audio context. #362's drain
+    // closes the suspend-time use-after-free; this closes the every-MM-frame
+    // unguarded-consumer half. Return early so the caller's zeroed buffer plays as
+    // the intended silence.
+    if (!gAudioContextInitalized) {
+        return;
+    }
+
     // RSBS_AUDIO_PROBE=1 deep probe: discriminates "players never started"
     // from "players enabled but synth silent" without a debugger.
     {
@@ -88,6 +102,15 @@ void OoT_AudioMgr_CreateNextAudioBuffer(s16* samples, u32 num_samples) {
     s32 writtenCmds;
     OoT_AudioSynth_Update(gAudioContext.curAbiCmdBuf, &writtenCmds, samples, num_samples);
     gAudioContext.audioRandom = (gAudioContext.audioRandom + gAudioContext.totalTaskCnt) * osGetCount();
+}
+
+// Test-only observer for the OoTAudioInitGuard lock (#365). Reports the
+// producer's task counter so the lock can assert the guarded producer is a true
+// no-op — totalTaskCnt++ is the producer's first act, so the counter not
+// advancing proves the early return fired — without pulling AudioContext's
+// layout into the C++ test translation unit.
+u32 OoT_AudioMgr_DebugTaskCnt(void) {
+    return gAudioContext.totalTaskCnt;
 }
 
 AudioTask* func_800E5000(void) {

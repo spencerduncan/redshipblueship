@@ -303,6 +303,14 @@ if(BUILD_TESTING)
     # bound-arithmetic bugs, so the capacity computation was factored into pure
     # helpers this test calls directly — display-free, ROM-free.
     redship_add_test(NAME SeqMapBounds COMMAND redship --test seq-map-bounds)
+    # OoT audio producer init-guard (#365). The shared OTRAudio_Thread runs
+    # OoT_AudioMgr_CreateNextAudioBuffer whenever MM's synth is inactive — every
+    # MM frame before MM audio boots, and the mid-switch window where OoT is
+    # suspended with gAudioContextInitalized == false. Without the guard that
+    # drove the DMA/load/synth path against a torn-down context; the guard makes
+    # it the no-op the thread's silence contract already assumes. Locks the
+    # no-op via the producer's task counter (see test_oot_audio_init_guard.c).
+    redship_add_test(NAME OoTAudioInitGuard COMMAND redship --test oot-audio-init-guard)
     # Active-thread-queue contract (#385). soh/stubs.c's empty-bodied
     # __osGetActiveQueue returned the return register, and both games' fault
     # handlers walk that as a thread list — so the crash handler was itself

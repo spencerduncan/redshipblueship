@@ -115,6 +115,13 @@ extern "C" {
 // symbols it needs itself. No subsystem, no archives.
 #include "tests/test_active_queue.c"
 
+// OoT audio producer init-guard (#365). The shared OTRAudio_Thread dispatches
+// OoT_AudioMgr_CreateNextAudioBuffer whenever MM's synth is inactive, including
+// while OoT is suspended with gAudioContextInitalized == false — the producer
+// must no-op there rather than drive the synth against a torn-down context.
+// FILE SCOPE; declares its C-linkage symbols itself. No audio heap, no archives.
+#include "tests/test_oot_audio_init_guard.c"
+
 // MM scene-command EXECUTE regression (issue #344). Unlike the parse test, the
 // body runs the parsed commands against a PlayState, so it needs MM's global.h
 // — which lives in an MM TU (games/mm/2s2h/mm_scene_execute_test.cpp) to keep
@@ -875,6 +882,7 @@ const TestDescriptor gTests[] = {
     {"mm-scene-parse", "MM scene commands parse via the S2H factory (#344)", Test_MMSceneParse},
     {"seq-map-bounds", "Sequence-map capacity covers the id range + custom slack (#371, #378)", Test_SeqMapBounds},
     {"active-queue", "__osGetActiveQueue returns a walkable list, not a return register (#385)", Test_ActiveQueue},
+    {"oot-audio-init-guard", "OoT synth no-ops while gAudioContextInitalized == false (#365)", Test_OoTAudioInitGuard},
     {"mm-scene-execute", "MM scene commands execute against a PlayState (#344)", Test_MMSceneExecute},
     {"mm-culling-binding", "MM's Ship_ExtendedCulling* bind MM's Actor, not OoT's (#382)", Test_MMCullingBinding},
     // The two MM resume-contract tests below mutate process-global state
