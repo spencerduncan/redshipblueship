@@ -85,6 +85,48 @@ s32 gAudioContextInitalized = false;
 
 char** sequenceMap;
 size_t sequenceMapSize;
+
+// RSBS (#371/#378): headroom for custom songs whose assigned seqNum is NOT
+// consecutive. AudioLoad_Init walks `while (AudioCollection_HasSequenceNum(n))
+// n++` to find a free slot, and AudioCollection holds more than sequences
+// (instruments at 130-135, sfx in the 2000s/6000s/...), so N custom files can
+// consume more than N ids. This slack was previously an unexplained `+ 0xF`
+// baked into the sequenceMap malloc only — the published sequenceMapSize did
+// not include it, which is exactly how #378's guard came to reject ids the
+// array could actually hold.
+#define SEQUENCE_MAP_SLACK 0xF
+
+/**
+ * RSBS (#371/#378): slot count the sequence map must be allocated with.
+ *
+ * Factored out of AudioLoad_Init as a pure function so the arithmetic is
+ * verifiable ROM-free (CTest `SeqMapBounds`) — everything else in this
+ * function needs a booted audio heap and real archives.
+ *
+ * Two corrections over the old `seqListSize + customSeqListSize`:
+ *
+ *  1. Authentic sequence ids are a SPARSE id space, not a count. Sizing by the
+ *     number of files in the archive makes the `id >= size` guard reject a
+ *     legal id whenever the id space has a hole (MM's is missing 0x7A, so its
+ *     file count is 127 while its highest valid id is 127 — the top sequence
+ *     was being dropped). Always reserve the full authentic id range.
+ *  2. Custom ids are not consecutive — see SEQUENCE_MAP_SLACK above.
+ *
+ * Callers assign the result to sequenceMapSize, so the published size IS the
+ * allocation. Every consumer (audio_heap.c:56, OTRGlobals.cpp:1318, and the
+ * bounds guards below) reads it as "how many slots exist", which is what it
+ * now means.
+ */
+size_t OoT_AudioLoad_SequenceMapCapacity(size_t authenticFileCount, size_t customCount) {
+    size_t authentic = (size_t)MAX_AUTHENTIC_SEQID;
+
+    if (authenticFileCount > authentic) {
+        authentic = authenticFileCount;
+    }
+
+    return authentic + customCount + SEQUENCE_MAP_SLACK;
+}
+
 // A map of authentic sequence IDs to their cache policies, for use with sequence swapping.
 u8 OoT_seqCachePolicyMap[MAX_AUTHENTIC_SEQID];
 size_t fontMapSize;
@@ -1352,10 +1394,20 @@ void OoT_AudioLoad_Init(void* heap, size_t heapSize) {
     char** seqList = ResourceMgr_ListFiles("audio/sequences*", &seqListSize);
 #endif
     char** customSeqList = ResourceMgr_ListFiles("custom/music/*", &customSeqListSize);
-    sequenceMapSize = (size_t)(seqListSize + customSeqListSize);
-    sequenceMap = malloc((sequenceMapSize + 0xF) * sizeof(char*));
+    sequenceMapSize = OoT_AudioLoad_SequenceMapCapacity((size_t)seqListSize, (size_t)customSeqListSize);
+    // RSBS #371: calloc, not malloc. The bounds guards below `continue` past
+    // rejected entries, so every skipped index — and every slot in the slack —
+    // stays untouched. Under malloc those hold indeterminate heap bytes, and
+    // no consumer null-checks (audio_load.c:593/:748/:1702, audio_seqplayer.c
+    // :1071/:1186 all hand the slot straight to ResourceMgr_LoadSeqByName).
+    // The adjacent fontMap/fontLoadStatus allocations below already calloc;
+    // these were the inconsistent ones.
+    sequenceMap = calloc(sequenceMapSize, sizeof(char*));
 
-    gAudioContext.seqLoadStatus = malloc(sequenceMapSize);
+    gAudioContext.seqLoadStatus = calloc(sequenceMapSize, sizeof(u8));
+    // The memset is the real initializer here (LOAD_STATUS_PERMANENT), so this
+    // array was never actually exposed to the uninitialized-hole bug; calloc
+    // keeps the pair uniform and covers the array if the memset ever narrows.
     memset(gAudioContext.seqLoadStatus, 5, sequenceMapSize);
     for (size_t i = 0; i < seqListSize; i++) {
         SequenceData sDat = ResourceMgr_LoadSeqByName(seqList[i]);
@@ -1476,17 +1528,31 @@ void OoT_AudioLoad_Init(void* heap, size_t heapSize) {
             seqNum++;
         }
 
+        // RSBS #378: bound BEFORE registering, against the real allocation.
+        //
+        // This guard used to run after AudioCollection_AddToCollection and
+        // after `sDat->seqNumber = seqNum`, so a song we then dropped from
+        // sequenceMap stayed in the collection — live and selectable in the
+        // Audio Editor, where picking it drives AudioEditor_GetReplacementSeq
+        // into an empty sequenceMap slot with no null check. Registering a
+        // song and then refusing to give it a map slot is never a coherent
+        // state; skip it entirely instead.
+        //
+        // The bound is sequenceMapSize, which is now the allocated slot count
+        // (see OoT_AudioLoad_SequenceMapCapacity) rather than the file count.
+        // The old comparison against a file count was wrong in the other
+        // direction: the HasSequenceNum skip above can legitimately push
+        // seqNum past the number of custom files, which is what the slack is
+        // for, so it rejected songs the array had room for.
+        if ((size_t)seqNum >= sequenceMapSize) {
+            fprintf(stderr, "[OoT] AudioLoad: custom sequence %s overflows sequenceMap (seqNum %d >= %u); skipping\n",
+                    customSeqList[j], seqNum, (unsigned)sequenceMapSize);
+            continue;
+        }
+
         AudioCollection_AddToCollection(customSeqList[j], seqNum);
 
         sDat->seqNumber = seqNum;
-        printf("%d\n", seqNum);
-        if ((size_t)sDat->seqNumber >= sequenceMapSize) {
-            fprintf(stderr,
-                    "[OoT] AudioLoad: custom sequence %s overflows sequenceMap (seqNumber %d >= %u); skipping\n",
-                    customSeqList[j], seqNum, (unsigned)sequenceMapSize);
-            seqNum++;
-            continue;
-        }
         sequenceMap[sDat->seqNumber] = strdup(customSeqList[j]);
         seqNum++;
     }

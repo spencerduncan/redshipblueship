@@ -249,6 +249,11 @@ if(BUILD_TESTING)
     # against a PlayState and asserts the spawn-path pointers/fields populate.
     add_test(NAME MMSceneParse COMMAND redship --test mm-scene-parse)
     add_test(NAME MMSceneExecute COMMAND redship --test mm-scene-execute)
+    # Sequence-map capacity bounds (#371, #378). The rest of AudioLoad_Init
+    # needs a booted audio heap and real archives, but both bugs were
+    # bound-arithmetic bugs, so the capacity computation was factored into pure
+    # helpers this test calls directly — display-free, ROM-free.
+    add_test(NAME SeqMapBounds COMMAND redship --test seq-map-bounds)
     # MM cross-game resume contracts (games/mm/2s2h/mm_resume_state_test.cpp):
     # a resume must re-arm the (by-design leaked) system arena for the cold
     # gamestate-chain boot, and Play_Init's startup-entrance consumption must
@@ -264,7 +269,7 @@ if(BUILD_TESTING)
     set_tests_properties(
         BootOoT BootMM SwitchOoTMM SwitchMMOoT StartupEntrance VBAffinity CosmeticGfxStub Roundtrip RoundtripIntegrity SharedRoundtrip ArchiveHotswapLogic
         SaveRoundtripTiers SaveHeader SaveHasDelete SaveVersionReject SaveSizeMismatch SaveLegacySize SaveCrcCorrupt
-        Context MMSceneParse MMSceneExecute MMResumeArena MMStartupRestore AllTests
+        Context MMSceneParse MMSceneExecute SeqMapBounds MMResumeArena MMStartupRestore AllTests
         PROPERTIES
         TIMEOUT ${REDSHIP_TEST_TIMEOUT}
         LABELS "redship"

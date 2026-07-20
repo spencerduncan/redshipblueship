@@ -117,6 +117,37 @@ s32 gAudioCtxInitalized = false;
 
 char** gSequenceMap;
 size_t gSequenceMapSize;
+
+// RSBS (#371/#378): headroom for custom songs whose assigned seqNum is NOT
+// consecutive — AudioLoad_Init walks `while (AudioCollection_HasSequenceNum(n))
+// n++` for a free slot and AudioCollection holds more than sequences, so N
+// custom files can consume more than N ids. OoT's map carried this slack as an
+// unexplained `+ 0xF`; MM's had NONE, which made the unguarded custom-song
+// write below an out-of-bounds heap store rather than merely a lost song.
+#define SEQUENCE_MAP_SLACK 0xF
+
+/**
+ * RSBS (#371/#378): slot count the sequence map must be allocated with.
+ * Mirror of OoT_AudioLoad_SequenceMapCapacity (games/oot/src/code/audio_load.c)
+ * — separate symbol, per the project's MM_-prefix ODR rule. Pure, so the
+ * arithmetic is verifiable ROM-free (CTest `SeqMapBounds`).
+ *
+ * Sizing by the authentic FILE COUNT was actively wrong for MM: ids run
+ * 0x00-0x7F but 0x7A is absent (games/mm/include/sequence.h), so the count is
+ * 127 while the highest legal id is 0x7F == 127. The `id >= gSequenceMapSize`
+ * guard therefore rejected NA_BGM_END_CREDITS_SECOND_HALF outright whenever no
+ * custom songs were installed. Reserve the full authentic id range instead.
+ */
+size_t MM_AudioLoad_SequenceMapCapacity(size_t authenticFileCount, size_t customCount) {
+    size_t authentic = (size_t)MAX_AUTHENTIC_SEQID;
+
+    if (authenticFileCount > authentic) {
+        authentic = authenticFileCount;
+    }
+
+    return authentic + customCount + SEQUENCE_MAP_SLACK;
+}
+
 u8 MM_seqCachePolicyMap[MAX_AUTHENTIC_SEQID];
 char** gFontMap;
 size_t gFontMapSize;
@@ -1266,8 +1297,15 @@ void MM_AudioLoad_Init(void* heap, size_t heapSize) {
     char** seqList = ResourceMgr_ListFiles("audio/sequences*", &seqListSize);
 #endif
     char** customSeqList = ResourceMgr_ListFiles("custom/music/*", &customSeqListSize);
-    gSequenceMapSize = (size_t)(seqListSize + customSeqListSize);
-    gSequenceMap = malloc(gSequenceMapSize * sizeof(char*));
+    gSequenceMapSize = MM_AudioLoad_SequenceMapCapacity((size_t)seqListSize, (size_t)customSeqListSize);
+    // RSBS #371: calloc, not malloc. The bounds guard below `continue`s past
+    // rejected entries, leaving those indices — and the slack — untouched.
+    // Under malloc they hold indeterminate heap bytes, and no consumer
+    // null-checks (load.c:631/:791/:1601, seqplayer.c:1302/:1436 hand the slot
+    // straight to ResourceMgr_LoadSeqByName); BenPort.cpp's OTRAudio_Exit also
+    // free()s every slot. The adjacent gFontMap/fontLoadStatus allocations
+    // below already calloc; this was the inconsistent one.
+    gSequenceMap = calloc(gSequenceMapSize, sizeof(char*));
     gAudioCtx.seqLoadStatus = calloc(gSequenceMapSize, sizeof(u8));
 
     memset(&gAudioCtx.seqLoadStatus[seqListSize], LOAD_STATUS_PERMANENT, customSeqListSize);
@@ -1371,6 +1409,23 @@ void MM_AudioLoad_Init(void* heap, size_t heapSize) {
 
         while (AudioCollection_HasSequenceNum(seqNum)) {
             seqNum++;
+        }
+
+        // RSBS #378: bound BEFORE registering, against the real allocation.
+        //
+        // MM had NO guard here at all — `gSequenceMap[seqNum] = strdup(...)`
+        // ran unconditionally against an array sized to the file count, while
+        // the HasSequenceNum skip above walks seqNum past AudioCollection's
+        // non-sequence entries. With custom songs installed that is an
+        // out-of-bounds heap WRITE, not just a lost song. (OoT's equivalent
+        // guard existed but ran after registration; both are fixed the same
+        // way.) Checking before AudioCollection_AddToCollection also keeps a
+        // dropped song out of the Audio Editor, which resolves a selection
+        // through gSequenceMap[seqNum] with no null check.
+        if ((size_t)seqNum >= gSequenceMapSize) {
+            fprintf(stderr, "[MM] AudioLoad: custom sequence %s overflows gSequenceMap (seqNum %d >= %u); skipping\n",
+                    customSeqList[j], seqNum, (unsigned)gSequenceMapSize);
+            continue;
         }
 
         AudioCollection_AddToCollection(customSeqList[j], seqNum);
