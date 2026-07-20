@@ -250,6 +250,13 @@ TestResult Test_BootOoT(void) {
 }
 
 extern "C" int Rando_HeadlessSeedTest(const char* seedStr);
+// Lane B unified-seed determinism bridge (body in
+// games/oot/soh/Enhancements/randomizer/3drando/menu.cpp). Runs ONE seed
+// generation, asserts the live producer stamped gComboCtx, and writes a
+// canonical placement+seed digest to `outPath` (NULL => stdout). Returns 0 on
+// success. Kept behind a C entry point so the OoT randomizer headers never enter
+// this delicate multi-include TU, mirroring MM_SceneExecute_RunHeadless.
+extern "C" int Rando_HeadlessSeedDeterminismDigest(const char* seedStr, const char* outPath);
 extern "C" void InitOTRForMMFirstBoot(int argc, char* argv[]);
 
 TestResult Test_RandoGen(void) {
@@ -271,6 +278,38 @@ TestResult Test_RandoGen(void) {
 
     int rc = Rando_HeadlessSeedTest("RSBSDIAG1");
     printf("[TEST] %s: seed generation rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// Lane B unified-seed lock. Single run: bring up OoT, generate one pinned seed,
+// and (inside the bridge) assert the LIVE producer stamped
+// gComboCtx.sourceIsRando/sharedRandoSeed at generation time, then emit a
+// canonical digest of the seed fields + full placement. The two-process
+// same-seed determinism comparison is driven by the SeedDeterminism CTest row
+// (CMake/CheckSeedDeterminism.cmake), which runs this dispatch twice with
+// distinct RSBS_SEED_DIGEST_OUT paths and diffs them — two processes, because
+// re-entering the generator in one process is unverified. Needs a display
+// (Fast3dWindow) like rando-gen, so it is skipped by `--test all`.
+TestResult Test_RandoDeterminism(void) {
+    printf("[TEST] rando-determinism: unified-seed producer fires + placement digest emitted (Lane B)\n");
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    // Pinned SEED for the unified-seed contract. The pinned SETTINGS profile is
+    // supplied via the CTest ENVIRONMENT (RSBS_DIAG_CVARS), so the determinism
+    // wrapper's two runs share it (see CMake/CheckSeedDeterminism.cmake).
+    const char* seed = "RSBSUNIFIED1";
+    const char* digestOut = std::getenv("RSBS_SEED_DIGEST_OUT");  // NULL => digest to stdout
+    int rc = Rando_HeadlessSeedDeterminismDigest(seed, digestOut);
+    printf("[TEST] %s: determinism digest rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
@@ -839,6 +878,11 @@ TestResult Test_Context(void) {
 
 const TestDescriptor gTests[] = {
     {"rando-gen", "Seed generation succeeds with default settings (#337)", Test_RandoGen},
+    // Lane B unified seed: producer stamps gComboCtx at generation time; the
+    // two-process same-seed determinism diff runs via the SeedDeterminism row.
+    // Needs a display like rando-gen, so `--test all` skips it (below).
+    {"rando-determinism", "Unified-seed producer fires + same-seed fill is reproducible (Lane B)",
+     Test_RandoDeterminism},
     {"boot-oot", "Shared-context bring-up leaves no null subsystems (#329)", Test_BootOoT},
     {"boot-mm", "MM-first bring-up prerequisites on the shared context (#330)", Test_BootMM},
     {"switch-oot-mm", "Test game switch OoT -> MM", Test_SwitchOoTMM},
@@ -951,12 +995,12 @@ int TestRunner_Run(const char* testName) {
         int total = 0;
 
         for (int i = 0; gTests[i].name != nullptr; i++) {
-            // rando-gen needs a display (Fast3dWindow bring-up) and the
-            // RSBS_DISABLE_OTR_INIT environment; it runs as its own CTest
-            // ("rando" label, under xvfb-run) rather than in this
-            // display-free suite, where it would hang the 60s timeout.
-            if (strcmp(gTests[i].name, "rando-gen") == 0) {
-                printf("\n--- Skipping: %s (needs display; runs as the RandoGen CTest) ---\n", gTests[i].name);
+            // rando-gen / rando-determinism need a display (Fast3dWindow
+            // bring-up) and the RSBS_DISABLE_OTR_INIT environment; they run as
+            // their own CTests ("rando" label, under xvfb-run) rather than in
+            // this display-free suite, where they would hang the 60s timeout.
+            if (strcmp(gTests[i].name, "rando-gen") == 0 || strcmp(gTests[i].name, "rando-determinism") == 0) {
+                printf("\n--- Skipping: %s (needs display; runs as a rando-label CTest) ---\n", gTests[i].name);
                 continue;
             }
             printf("\n--- Running: %s ---\n", gTests[i].name);

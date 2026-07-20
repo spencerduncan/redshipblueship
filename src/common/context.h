@@ -212,14 +212,33 @@ typedef struct {
     // exactly what a zero-extended legacy record must read as.
     SharedItem sharedItemsTagged[RSBS_SHARED_ITEM_CAP];
 
+    // Lane B settings digest (ADR 0002 §3: "If B needs a settings digest beyond
+    // the u32 seed, carve it from reserved under the growth contract"). This is
+    // the FNV-1a hash of OoT's finalized rando settings string — the second half
+    // of the "one seed + one pinned settings profile" reproducibility contract:
+    // sharedRandoSeed alone does NOT determine the fill, because Playthrough_Init
+    // re-seeds the RNG with Hash(seed + settings-string) before placing items, so
+    // the same numeric seed reproduces a world only under the same settings. MM
+    // (Lane C) reads this to VERIFY both games were generated under the agreed
+    // pinned profile before pairing; a mismatch means the worlds do not pair.
+    // Seed-independent (a fixed profile hashes the same across seeds) and build-
+    // independent (computed before the DontGenerateSpoiler build-version mixing).
+    // Zero == unset: a non-rando or zero-extended legacy record reads 0, which
+    // MM treats as "no profile recorded" — the growth contract's required
+    // meaning of zero for every carved field. Carved from the FRONT of the old
+    // reserved[384] (its offset is exactly where reserved used to begin), so
+    // every field above keeps its shipped offset and the record size is
+    // unchanged.
+    uint32_t sharedRandoSettingsHash;
+
     // Headroom. Carve new fields from the FRONT of this array (as
-    // sharedItemsTagged was) so the struct stays inside
-    // RSBS_COMBO_CONTEXT_RECORD_SIZE; the on-disk record size does not change
-    // either way, so old saves keep loading. Zeroed by ComboContext_Init, which
-    // is what makes a zero-extended legacy record indistinguishable from a
+    // sharedItemsTagged and sharedRandoSettingsHash were) so the struct stays
+    // inside RSBS_COMBO_CONTEXT_RECORD_SIZE; the on-disk record size does not
+    // change either way, so old saves keep loading. Zeroed by ComboContext_Init,
+    // which is what makes a zero-extended legacy record indistinguishable from a
     // freshly-initialized one — every field carved from here must keep "zero
     // means unset".
-    uint8_t reserved[384];
+    uint8_t reserved[380];
 } ComboContext;
 
 /**
@@ -249,10 +268,18 @@ RSBS_CTX_STATIC_ASSERT(sizeof(ComboContext) <= RSBS_COMBO_CONTEXT_RECORD_SIZE,
 RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, sharedItemsTagged) == RSBS_COMBO_CONTEXT_PRECARVE_SIZE,
                        "sharedItemsTagged must sit exactly at the pre-carve reserved[] offset; "
                        "moving it orphans every shipped .redsave");
-RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, reserved) ==
+// sharedRandoSettingsHash is the first field carved from the front of the old
+// reserved[]; it must sit immediately after the tagged-item array with no gap,
+// so it occupies bytes that shipped .redsaves stored as zero (unset).
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, sharedRandoSettingsHash) ==
                            RSBS_COMBO_CONTEXT_PRECARVE_SIZE + RSBS_SHARED_ITEM_CAP * sizeof(SharedItem),
-                       "the tagged-item array and the remaining headroom must stay contiguous "
-                       "(no padding, no fields slipped between them)");
+                       "sharedRandoSettingsHash must be carved from the FRONT of the old reserved[] "
+                       "(contiguous with the tagged-item array); moving it changes .redsave format");
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, reserved) ==
+                           RSBS_COMBO_CONTEXT_PRECARVE_SIZE + RSBS_SHARED_ITEM_CAP * sizeof(SharedItem) +
+                               sizeof(uint32_t),
+                       "the tagged-item array, the settings digest, and the remaining headroom must "
+                       "stay contiguous (no padding, no fields slipped between them)");
 
 #ifdef __cplusplus
 // The raw-assignment-fails proof (ADR 0002). In C this is a constraint

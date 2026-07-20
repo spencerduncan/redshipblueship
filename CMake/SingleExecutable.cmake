@@ -371,6 +371,40 @@ if(BUILD_TESTING)
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1;RSBS_DIAG_CVARS=gRandoSettings.ShuffleSongs=3")
 
     # ========================================================================
+    # Lane B — unified seed -> paired world (Phase 3.0)
+    #
+    # The pinned settings profile is the second half of the "one seed -> paired
+    # world" contract: Playthrough_Init re-seeds the RNG with Hash(seed +
+    # settings-string), so a seed reproduces a fill only under identical settings.
+    # RSBS_DIAG_CVARS is that pinning vehicle; both rows below pin the same
+    # profile (stock rando defaults + ShuffleSongs=2, the "RSBS unified pinned
+    # profile v1").
+    # ========================================================================
+    #
+    # Single-run lock: generation succeeds AND the LIVE producer stamps
+    # gComboCtx.sourceIsRando/sharedRandoSeed at generation time (the dispatch
+    # fails if it does not). Also the --test row the completeness guard requires
+    # for the rando-determinism dispatch entry.
+    redship_add_test(NAME RandoDeterminism COMMAND redship --test rando-determinism
+        LABEL rando
+        TIMEOUT 180
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1;RSBS_DIAG_CVARS=gRandoSettings.ShuffleSongs=2")
+    # Determinism diff: run the same seed twice in TWO processes and assert the
+    # worlds are byte-identical (see CMake/CheckSeedDeterminism.cmake — two
+    # processes because generator re-entry is unverified; distinct digest paths
+    # because the same-seed spoiler log overwrites itself). A meta row (its
+    # COMMAND drives no --test entry). Larger timeout than the single-run rows: it
+    # spins up the windowed bring-up twice under llvmpipe.
+    redship_add_test(NAME SeedDeterminism
+        COMMAND ${CMAKE_COMMAND}
+                -DREDSHIP_EXE=$<TARGET_FILE:redship>
+                -DWORK_DIR=${CMAKE_BINARY_DIR}
+                -P ${CMAKE_CURRENT_LIST_DIR}/CheckSeedDeterminism.cmake
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1;RSBS_DIAG_CVARS=gRandoSettings.ShuffleSongs=2")
+
+    # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)
     # These tests actually boot the games and verify boot completion
     # ========================================================================
