@@ -2314,6 +2314,38 @@ void MM_Play_ConsumeStartupEntrance(void) {
     // values every fresh-boot path uses, z_common_data.c).
     gSaveContext.seqId = NA_BGM_DISABLED;
     gSaveContext.ambienceId = AMBIENCE_ID_DISABLED;
+    // Neutralize live gameplay state carried in the frozen blob (#373). This is
+    // the MM half of the OoT twin at games/oot/src/code/z_play.c
+    // ("Per-session runtime state a fresh file-load always authors ... but the
+    // return leg never does") — the two consumption points had drifted, and
+    // MM's was missing all of it. The boot chain's MM_SaveContext_Init used to
+    // zero these before gameplay; moving the restore to this consumption point
+    // (after that memset) means a stale value now reaches the arrival scene.
+    //
+    // The concrete regression #373 filed: a minigame timer frozen mid-count
+    // (Deku Playground / Bombers hide-and-seek: timerStates[i] ==
+    // TIMER_STATE_COUNTING with a partial timerCurTimes) is re-applied into a
+    // fresh South Clock Town spawn where the minigame actor does not exist;
+    // Interface_UpdateTimers keeps counting and fires the minigame
+    // expiry/respawn handling in the wrong scene. Cross-game arrivals are plain
+    // spawns — clear the timers and the rest of the OoT-parity list.
+    memset(gSaveContext.timerStates, TIMER_STATE_OFF, sizeof(gSaveContext.timerStates));
+    gSaveContext.powderKegTimer = 0; // "big_bom_timer" — MM-specific live countdown
+    gSaveContext.jinxTimer = 0;
+    // eventInf is runtime scratch (offset 0x100C, OUTSIDE the persisted Save):
+    // minigame/race bits actors trust blindly, exactly as OoT's eventInf[0..3].
+    // Safe here — respawnFlag was already zeroed above, so the eventInf-gated
+    // DAYTELOP branch in MM_Play_Init below cannot fire regardless.
+    memset(gSaveContext.eventInf, 0, sizeof(gSaveContext.eventInf));
+    gSaveContext.minigameStatus = 0;
+    gSaveContext.dogParams = 0;                 // OoT leftover, "dog_flag"
+    gSaveContext.nayrusLoveTimer = 0;           // OoT remnant, "shield_magic_timer"
+    gSaveContext.healthAccumulator = 0;         // "life_mode"
+    gSaveContext.magicState = MAGIC_STATE_IDLE; // a frozen magic machine wedges the meter
+    // forcedSeqId would restart the old session's BGM over the declared-dead
+    // audio state above; NA_BGM_GENERAL_SFX is the no-forced-sequence value
+    // every fresh-boot path uses (z_common_data.c).
+    gSaveContext.forcedSeqId = NA_BGM_GENERAL_SFX;
     // Suppress Clock Town's first-visit intro layer: cutsceneIndex=0 above
     // does NOT cover it, because the South Clock Town intro is ACTOR-triggered
     // — ObjTokeiTobira (the tower-door prop) starts its Tatl/camera cutscene
