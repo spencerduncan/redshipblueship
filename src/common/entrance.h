@@ -128,22 +128,51 @@ void Entrance_Init(void);
  * - OoT Happy Mask Shop door <-> MM Clock Tower door
  *   (arrival in MM is the South Clock Town tower-exit spawn; see the portal
  *   note above the MM entrance constants)
+ *
+ * @return false if a link already claims one of the source doors.
  */
-void Entrance_RegisterDefaultLinks(void);
+bool Entrance_RegisterDefaultLinks(void);
 
 /**
  * Register test links (for easier testing):
  * - OoT Mido's House <-> the same MM portal (SCT arrival / tower-door trigger)
+ *
+ * MUTUALLY EXCLUSIVE with Entrance_RegisterDefaultLinks: both claim the same
+ * MM-side trigger (0xC010), so registering both is rejected (#374). Prefer
+ * Entrance_RegisterPortalLinks, which picks exactly one.
+ *
+ * @return false if a link already claims one of the source doors.
  */
-void Entrance_RegisterTestLinks(void);
+bool Entrance_RegisterTestLinks(void);
 
 /**
- * Register a bidirectional link between game entrances
+ * Register the one cross-game portal, choosing its OoT-side face.
+ *
+ * @param useTestPortal true  -> Mido's House  (the --test-entrance face)
+ *                      false -> Happy Mask Shop (production)
+ * @return false if registration was rejected (a link already claims a door).
  */
-void Entrance_RegisterBidirectionalLink(
+bool Entrance_RegisterPortalLinks(bool useTestPortal);
+
+/**
+ * Register a bidirectional link between game entrances.
+ *
+ * Rejects the registration (loudly, on stderr) and returns false if either
+ * leg's source (game, entrance) is already claimed by a registered link, or
+ * if the two legs of this call collide with each other. Rejection is atomic:
+ * on false, NOTHING was added — never a one-way half-link.
+ *
+ * @return true if both legs were registered.
+ */
+bool Entrance_RegisterBidirectionalLink(
     GameId game1, uint16_t entrance1, uint16_t return1,
     GameId game2, uint16_t entrance2, uint16_t return2
 );
+
+/**
+ * Whether some registered link already resolves from (game, entrance).
+ */
+bool Entrance_HasLinkFor(GameId game, uint16_t entrance);
 
 /**
  * Clear all registered entrance links

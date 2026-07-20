@@ -219,6 +219,14 @@ if(BUILD_TESTING)
     # linear gEntranceTable index — the OOB-read crash behind the Market
     # cutscene 0xC0000005.
     add_test(NAME StartupEntrance COMMAND redship --test startup-entrance)
+    # Entrance-link dedup regression (#374): the default (mask shop) and test
+    # (Mido's House) links both return through MM 0xC010, and both were
+    # registered unconditionally. Entrance_CheckCrossGame resolves first-match,
+    # so the default silently shadowed the test link — enter MM from Mido's
+    # House, walk back into the Clock Tower, exit in Hyrule Market instead of
+    # Kokiri Forest. Locks that a duplicate (sourceGame, sourceEntrance) is
+    # rejected atomically and that each portal face routes to its own return.
+    add_test(NAME EntranceDedup COMMAND redship --test entrance-dedup)
     # VB-affinity regression: MM's GameInteractor_* calls bind to OoT's
     # extern "C" wrappers in single-exe builds, and the two games' vanilla-
     # behavior ordinals alias (MM VB_SETUP_TRANSITION == OoT
@@ -262,7 +270,7 @@ if(BUILD_TESTING)
     # Set reasonable timeout and label our tests
     set(REDSHIP_TEST_TIMEOUT 60 CACHE STRING "Test timeout in seconds")
     set_tests_properties(
-        BootOoT BootMM SwitchOoTMM SwitchMMOoT StartupEntrance VBAffinity CosmeticGfxStub Roundtrip RoundtripIntegrity SharedRoundtrip ArchiveHotswapLogic
+        BootOoT BootMM SwitchOoTMM SwitchMMOoT StartupEntrance EntranceDedup VBAffinity CosmeticGfxStub Roundtrip RoundtripIntegrity SharedRoundtrip ArchiveHotswapLogic
         SaveRoundtripTiers SaveHeader SaveHasDelete SaveVersionReject SaveSizeMismatch SaveLegacySize SaveCrcCorrupt
         Context MMSceneParse MMSceneExecute MMResumeArena MMStartupRestore AllTests
         PROPERTIES

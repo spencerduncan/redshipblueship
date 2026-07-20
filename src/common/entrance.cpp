@@ -7,6 +7,7 @@
  */
 
 #include "entrance.h"
+#include <cstdio>
 #include <cstring>
 #include <vector>
 #include <algorithm>
@@ -52,7 +53,7 @@ void Entrance_Init(void) {
     sGameSwitchRequested = false;
 }
 
-void Entrance_RegisterDefaultLinks(void) {
+bool Entrance_RegisterDefaultLinks(void) {
     // PRODUCTION: the mask-shop door and the Clock Tower door are the two
     // faces of one portal (see entrance.h):
     //   OoT enters Happy Mask Shop (0x0530)   -> MM spawns in South Clock
@@ -62,25 +63,101 @@ void Entrance_RegisterDefaultLinks(void) {
     // Argument roles: entrance2 = OoT->MM arrival, return2 = MM->OoT trigger.
     // The arrival (0xD800) is deliberately NOT a trigger — MM's own cycle
     // resets target it (Song of Time, save-warp, title attract demo).
-    Entrance_RegisterBidirectionalLink(
+    return Entrance_RegisterBidirectionalLink(
         GAME_OOT, OOT_ENTR_HAPPY_MASK_SHOP, OOT_ENTR_MARKET_FROM_MASK_SHOP,
         GAME_MM, MM_ENTR_SOUTH_CLOCK_TOWN_0, MM_ENTR_CLOCK_TOWER_INTERIOR_1
     );
 }
 
-void Entrance_RegisterTestLinks(void) {
+bool Entrance_RegisterTestLinks(void) {
     // TEST MODE: Mido's House <-> the same MM portal (closer to spawn for
     // quick testing). Same arrival/trigger split as the production link.
-    Entrance_RegisterBidirectionalLink(
+    //
+    // NOTE: this reuses the SAME MM-side trigger (0xC010) as the production
+    // link, so the two are mutually exclusive — see
+    // Entrance_RegisterPortalLinks. Registering both is now rejected rather
+    // than silently shadowed (#374).
+    return Entrance_RegisterBidirectionalLink(
         GAME_OOT, OOT_ENTR_MIDOS_HOUSE, OOT_ENTR_KOKIRI_FROM_MIDOS,
         GAME_MM, MM_ENTR_SOUTH_CLOCK_TOWN_0, MM_ENTR_CLOCK_TOWER_INTERIOR_1
     );
 }
 
-void Entrance_RegisterBidirectionalLink(
+bool Entrance_RegisterPortalLinks(bool useTestPortal) {
+    // There is exactly ONE cross-game portal, and its MM face is the Clock
+    // Tower door (0xC010). Its OoT face is selectable: the Happy Mask Shop
+    // door in production, or Mido's House when --test-entrance is passed
+    // (closer to the OoT spawn, so a switch can be exercised in seconds).
+    //
+    // These are alternatives, never additions. Both OoT doors want to own the
+    // single MM-side return leg, and only one link can — which is exactly the
+    // bug in #374, where main.cpp registered both unconditionally and the
+    // default won the first-match lookup, so entering MM from Mido's House
+    // spat you out in Hyrule Market instead of Kokiri Forest.
+    //
+    // Giving the test link its own MM entrance is not an option: every other
+    // MM id is a real door somewhere else in Termina, so a "distinct" test
+    // trigger would either hijack an unrelated MM transition or index out of
+    // MM's entrance table. Selecting one OoT face is the only honest model.
+    return useTestPortal ? Entrance_RegisterTestLinks() : Entrance_RegisterDefaultLinks();
+}
+
+bool Entrance_HasLinkFor(GameId game, uint16_t entrance) {
+    return std::any_of(gEntranceLinks.begin(), gEntranceLinks.end(),
+        [game, entrance](const CrossGameEntranceLink& link) {
+            return link.sourceGame == game && link.sourceEntrance == entrance;
+        });
+}
+
+bool Entrance_RegisterBidirectionalLink(
     GameId game1, uint16_t entrance1, uint16_t return1,
     GameId game2, uint16_t entrance2, uint16_t return2
 ) {
+    // Entrance_CheckCrossGame resolves by FIRST match on
+    // (sourceGame, sourceEntrance), so a second link on an already-claimed key
+    // is not an override — it is dead weight that silently changes nothing,
+    // while the caller believes it registered a route. #374 is precisely that:
+    // the default and test links both claimed MM 0xC010, the default won, and
+    // the test link's return leg mis-routed with no diagnostic anywhere.
+    //
+    // Reject the whole call ATOMICALLY. Validating both legs before pushing
+    // either matters: a half-registered link (forward accepted, reverse
+    // rejected) is a one-way portal — you switch games and can never come
+    // back, which is strictly worse than the collision it replaced.
+    struct {
+        GameId game;
+        uint16_t entrance;
+        const char* leg;
+    } const legs[] = {
+        { game1, entrance1, "forward" },
+        { game2, return2, "reverse" },
+    };
+
+    for (const auto& leg : legs) {
+        if (Entrance_HasLinkFor(leg.game, leg.entrance)) {
+            fprintf(stderr,
+                "[ENTRANCE] REJECTED duplicate registration: the %s leg's source "
+                "(%s entrance 0x%04X) is already claimed by an existing link. "
+                "Nothing was registered. Two links cannot share a source door — "
+                "the lookup resolves first-match, so the later one would be dead "
+                "(issue #374).\n",
+                leg.leg, Game_ToString(leg.game), leg.entrance);
+            return false;
+        }
+    }
+
+    // Also reject a self-collision inside this single call: if the forward
+    // source and the reverse source are the same key, the reverse leg would be
+    // born dead. Neither loop iteration above can see it, since nothing has
+    // been pushed yet.
+    if (game1 == game2 && entrance1 == return2) {
+        fprintf(stderr,
+            "[ENTRANCE] REJECTED self-colliding link: forward and reverse legs "
+            "share source (%s entrance 0x%04X). Nothing was registered.\n",
+            Game_ToString(game1), entrance1);
+        return false;
+    }
+
     // Forward link: game1:entrance1 -> game2:entrance2
     CrossGameEntranceLink forward = {
         .sourceGame = game1,
@@ -100,6 +177,8 @@ void Entrance_RegisterBidirectionalLink(
         .returnEntrance = entrance2
     };
     gEntranceLinks.push_back(reverse);
+
+    return true;
 }
 
 void Entrance_ClearLinks(void) {
