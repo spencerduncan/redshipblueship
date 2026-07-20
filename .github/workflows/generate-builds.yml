@@ -76,7 +76,11 @@ jobs:
       if: steps.rsbs-otr-cache.outputs.cache-hit != 'true'
       uses: hendrikmuhs/ccache-action@v1.2
       with:
-        save: ${{ github.ref_name == github.event.repository.default_branch }}
+        # Save on every branch (same rationale as build-linux's ccache step).
+        # This step only runs when the port-archive cache missed, and it uses
+        # the action's default 500M cap, so its quota footprint is small and
+        # infrequent.
+        save: true
         key: ${{ runner.os }}-otr-ccache-${{ github.ref }}
         restore-keys: |
           ${{ runner.os }}-otr-ccache-${{ github.ref }}
@@ -224,7 +228,22 @@ jobs:
     - name: Configure ccache
       uses: hendrikmuhs/ccache-action@v1.2
       with:
-        save: ${{ github.ref_name == github.event.repository.default_branch }}
+        # Save on every branch, not just main. Compilation is 31.42 of this
+        # job's 32.7 minutes, so a cache miss is essentially the whole job.
+        # Under the old main-only policy a PR restored main's cache but never
+        # wrote one back, so every push to a long-lived claude/** branch
+        # re-compiled that branch's own touched files from scratch — the same
+        # misses, forever. With save on, push N+1 restores push N's cache
+        # (the key below is ref-scoped and the action appends a timestamp, so
+        # restore-keys prefix-matches the newest entry for this ref).
+        #
+        # This cannot poison main's cache: GitHub scopes a cache to the ref
+        # that wrote it. A PR run writes to refs/pull/<n>/merge, which only
+        # that PR can read; main still restores only main-written entries.
+        # The real cost is quota — see the sccache step below, which stays
+        # main-only because its per-run save is ~2.3GB. This one is capped at
+        # 1.5G and PR-scoped caches are released when the PR closes.
+        save: true
         # The action's default 500M cap is too small for the full OoT+MM build
         # (~8180 objects): measured 2026-06-11 at 89.66% full with 15 cleanups
         # and a 73.24% hit rate. The working set is ~1.0-1.2G compressed.
@@ -348,6 +367,13 @@ jobs:
         # 2026-06-01). Main merges several times a day, so the main-keyed
         # cache restored via restore-keys is nearly fresh for every PR; a PR's
         # repeated pushes only re-compile files the PR itself touched.
+        #
+        # Deliberately NOT changed when build-linux's ccache moved to
+        # save-on-every-branch: this step is the one with direct measured
+        # evidence of blowing the quota, its per-run save is ~2.3GB (vs 1.5G
+        # capped on Linux), and Windows already runs at a 99.8% hit rate off
+        # main's cache, so there is little left for a branch-scoped cache to
+        # win. Revisit only with fresh hit-rate numbers.
         save: ${{ github.ref_name == github.event.repository.default_branch }}
         key: ${{ runner.os }}-sccache-${{ github.ref }}
         restore-keys: |

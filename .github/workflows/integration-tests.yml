@@ -162,7 +162,11 @@ jobs:
         CXX: g++-11
 
     - name: Run unit tests
-      run: ctest --test-dir build-cmake --output-on-failure --label-regex "^redship$"
+      # --no-tests=error: without it, a regression that drops the "redship" label
+      # (renamed target, dropped add_test, CMake option flip) makes ctest print
+      # "No tests were found" and exit 0 — a green run that tested nothing. Both
+      # sibling invocations already carry it; this one was the odd one out (#376).
+      run: ctest --test-dir build-cmake --output-on-failure --label-regex "^redship$" --no-tests=error
 
     # Seed generation needs the windowed bring-up (hence xvfb-run) but no game
     # archives, so it runs unconditionally — unlike the archive-gated int-*
