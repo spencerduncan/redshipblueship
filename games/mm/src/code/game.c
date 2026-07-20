@@ -13,6 +13,9 @@
 #include "debug.h"
 
 #include "2s2h/GameInteractor/GameInteractor.h"
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "mm_game_hooks.h" // MM-owned hook dispatch (#395), games/mm/include
+#endif
 
 #pragma increment_block_number "n64-us:128"
 
@@ -154,6 +157,14 @@ void MM_GameState_Update(GameState* gameState) {
     MM_GameState_SetFrameBuffer(gameState->gfxCtx);
 
     GameInteractor_ExecuteOnGameStateMainStart();
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #395: the call above cross-binds to OoT's extern "C" wrapper, which
+    // (correctly) no-ops while MM is the active game — the #367 VB-ordinal
+    // gate. MM-side per-frame hooks therefore live in an MM-owned registry
+    // dispatched here, on MM's own frames, matching the spot where upstream
+    // 2S2H executed OnGameStateMainStart.
+    MM_GameHooks_ExecuteOnGameStateMainStart();
+#endif
 
     gameState->main(gameState);
 

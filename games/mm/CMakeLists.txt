@@ -690,6 +690,19 @@ if(SINGLE_EXECUTABLE_BUILD)
         "${_fi}${CMAKE_CURRENT_SOURCE_DIR}/include/macros.h"
         "${_fi}${CMAKE_CURRENT_SOURCE_DIR}/include/z64.h"
     )
+    # #395 compile-time lock: poison GameInteractor's Register* member names in
+    # MM C++ TUs so hook registration cannot bind MM's 104-byte layout to the
+    # shared 4-byte OoT-owned instance again (MM code uses the extern "C" shim
+    # in include/mm_game_hooks.h instead). Appended AFTER GameInteractor.h so
+    # the class definition itself parses with the real names; only later USES
+    # in a TU fail. 2ship_enh / 2ship_rando are exempt for now: their TUs
+    # still carry upstream RegisterGameHook calls (compiled but link-elided,
+    # see the WHOLE_ARCHIVE note above). Lane C must migrate those calls onto
+    # the shim and extend this guard when it un-elides them (#392).
+    set(_force_include_cxx_guarded
+        ${_force_include_cxx}
+        "${_fi}${CMAKE_CURRENT_SOURCE_DIR}/include/mm_gi_hook_guard.h"
+    )
     set(_force_include_c
         "${_fi}${CMAKE_CURRENT_SOURCE_DIR}/include/ultra64.h"
         "${_fi}${CMAKE_CURRENT_SOURCE_DIR}/include/global.h"
@@ -712,11 +725,16 @@ if(SINGLE_EXECUTABLE_BUILD)
     # generator builds broke. Per-source properties hand both generators the
     # command lines Ninja was already producing.
     get_target_property(_target_sources ${_t} SOURCES)
+    if(_t STREQUAL "2ship_enh" OR _t STREQUAL "2ship_rando")
+        set(_force_include_cxx_for_target "${_force_include_cxx}")
+    else()
+        set(_force_include_cxx_for_target "${_force_include_cxx_guarded}")
+    endif()
     foreach(_src IN LISTS _target_sources)
         if(_src MATCHES "\\.c$")
             set_source_files_properties(${_src} PROPERTIES COMPILE_OPTIONS "${_force_include_c}")
         elseif(_src MATCHES "\\.(cpp|cxx|cc)$")
-            set_source_files_properties(${_src} PROPERTIES COMPILE_OPTIONS "${_force_include_cxx}")
+            set_source_files_properties(${_src} PROPERTIES COMPILE_OPTIONS "${_force_include_cxx_for_target}")
         endif()
     endforeach()
 else()

@@ -315,8 +315,8 @@ if(BUILD_TESTING)
     # definition survived the link, so there was no ODR error to catch it.
     redship_add_test(NAME MMCullingBinding COMMAND redship --test mm-culling-binding)
     # MM GameInteractor shim (#395): MM-side hook registration must go through
-    # the MM-owned extern "C" shim; registering through MM's 104-byte view of
-    # the shared class writes ~92 bytes past OoT's 4-byte allocation.
+    # the MM-owned extern "C" shim; registering through MM's larger view of
+    # the shared class writes ~60-92 bytes past OoT's 4-byte allocation.
     redship_add_test(NAME MMGIShim COMMAND redship --test mm-gi-shim)
     redship_add_test(NAME MMResumeArena COMMAND redship --test mm-resume-arena)
     redship_add_test(NAME MMStartupRestore COMMAND redship --test mm-startup-restore)

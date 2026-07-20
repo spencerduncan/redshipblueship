@@ -19,6 +19,7 @@
 
 #ifdef RSBS_SINGLE_EXECUTABLE
 
+#include <cstddef> // offsetof for the #395 layout facts; ptrdiff_t
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -37,6 +38,7 @@
 #include <ship/resource/ResourceLoader.h>
 #include <ship/resource/archive/ArchiveManager.h>
 #include "GameInteractor/GameInteractor.h"
+#include "mm_game_hooks.h" // MM-owned hook/event shim (#395) — implemented below
 #include <ship/resource/File.h>
 #include <libultraship/bridge/consolevariablebridge.h>
 
@@ -224,6 +226,99 @@ extern "C" bool Combo_ArchivePathIsMM(const char* path) {
     return path != nullptr && IsMMArchivePath(path);
 }
 
+// ============================================================================
+// MM-owned GameInteractor shim (#395) — API in games/mm/include/mm_game_hooks.h
+// ============================================================================
+// MM must never register hooks through the shared C++ GameInteractor: the one
+// allocation is OoT's (sizeof 4, nextHookId at offset 0) while this TU
+// compiles the class at sizeof 104 / nextHookId offset 96 (MSVC; 72 / 64 on
+// Linux GCC), so a registration compiled from MM's body writes ~60-92 bytes
+// past the end of the block. (The PR #415 diagnostic showed Linux happened to
+// fold these calls to OoT's body — a link-order accident, not a contract.)
+// Hooks registered here are dispatched from MM's own frame loop
+// (games/mm/src/code/game.c -> MM_GameHooks_ExecuteOnGameStateMainStart), so
+// they run on MM frames only — the semantics MM's upstream executor had. The
+// cross-bound OoT wrapper path stayed gated off while MM is active (#367),
+// which is also why these hooks never enter OoT's registry: no MM handler can
+// alias an OoT hook type or VB ordinal from here.
+
+namespace {
+
+struct MMGameHookEntry {
+    uint32_t id;
+    void (*fn)(void);
+};
+
+std::vector<MMGameHookEntry> sMMHooksOnGameStateMainStart;
+std::vector<uint32_t> sMMHooksPendingUnregister;
+uint32_t sMMNextGameHookId = 1;
+
+// MM-owned storage for the GIEvent queue MM code used to reach as
+// GameInteractor::Instance->events / ->currentEvent — MM-only data members at
+// offsets entirely past the shared 4-byte allocation, i.e. the same #395 OOB on
+// the data path. Lane C's Rando/enh migration reads and writes these instead
+// (contract in mm_game_hooks.h and on #392).
+std::vector<GIEvent> sMMEventQueue;
+GIEvent sMMCurrentEvent = GIEventNone{};
+
+} // namespace
+
+extern "C" uint32_t MM_GameHooks_RegisterOnGameStateMainStart(void (*fn)(void)) {
+    if (fn == nullptr) {
+        return 0;
+    }
+    uint32_t id = sMMNextGameHookId++;
+    sMMHooksOnGameStateMainStart.push_back({ id, fn });
+    return id;
+}
+
+extern "C" void MM_GameHooks_UnregisterOnGameStateMainStart(uint32_t hookId) {
+    if (hookId == 0) {
+        return;
+    }
+    // Deferred like the C++ registry's UnregisterGameHook: a hook may
+    // unregister itself (or a peer) while the dispatch walk is in progress.
+    sMMHooksPendingUnregister.push_back(hookId);
+}
+
+extern "C" void MM_GameHooks_ExecuteOnGameStateMainStart(void) {
+    for (uint32_t deadId : sMMHooksPendingUnregister) {
+        for (size_t i = 0; i < sMMHooksOnGameStateMainStart.size(); i++) {
+            if (sMMHooksOnGameStateMainStart[i].id == deadId) {
+                sMMHooksOnGameStateMainStart.erase(sMMHooksOnGameStateMainStart.begin() +
+                                                   static_cast<std::ptrdiff_t>(i));
+                break;
+            }
+        }
+    }
+    sMMHooksPendingUnregister.clear();
+
+    // Snapshot the count: a hook may register another hook mid-walk (the
+    // vector may reallocate — hence indices, not iterators); new hooks first
+    // run on the next dispatch, matching the registration contract.
+    const size_t count = sMMHooksOnGameStateMainStart.size();
+    for (size_t i = 0; i < count; i++) {
+        sMMHooksOnGameStateMainStart[i].fn();
+    }
+}
+
+extern "C" uint32_t MM_GameHooks_CountOnGameStateMainStart(void) {
+    return static_cast<uint32_t>(sMMHooksOnGameStateMainStart.size());
+}
+
+extern "C" void MM_GameHooks_ResetForTest(void) {
+    sMMHooksOnGameStateMainStart.clear();
+    sMMHooksPendingUnregister.clear();
+}
+
+std::vector<GIEvent>& MM_GameEvents_Queue() {
+    return sMMEventQueue;
+}
+
+GIEvent& MM_GameEvents_Current() {
+    return sMMCurrentEvent;
+}
+
 // Integration test hook frame counter (reset each time hooks are registered)
 static int sGameStateMainFrameCount = 0;
 
@@ -248,10 +343,11 @@ static const int kSceneLoadWatchdogFrames = 1800;
  * former crash site, MM_Actor_SpawnEntry), and the first room's commands ran.
  */
 static bool MM_SceneLoadComplete(void) {
-    // Both games' frame loops fire the same shared OnGameStateMainStart hook
-    // storage, so MM-registered test hooks also run during OoT frames — and
-    // MM's suspended PlayState stays non-NULL across a switch away. Only
-    // count MM's own frames (#344).
+    // MM's test hooks are dispatched from MM's own frame loop via the
+    // MM-owned shim (#395), so this gate is belt-and-braces today — but the
+    // unit-test harness also drives the dispatch headlessly, and MM's
+    // suspended PlayState stays non-NULL across a switch away. Only count
+    // MM's own frames (#344).
     if (Context_GetCurrentGame() != GAME_MM) {
         return false;
     }
@@ -277,8 +373,8 @@ static bool MM_SceneLoadComplete(void) {
  * watchdog has fired so callers can stop doing per-frame work.
  */
 static bool MM_SceneLoadWatchdogExpired(const char* testName) {
-    // MM-registered hooks also fire during OoT frames (shared hook storage);
-    // only MM's own frames count against the watchdog budget.
+    // Only MM's own frames count against the watchdog budget (the unit-test
+    // harness dispatches the shim headlessly with no game active).
     if (Context_GetCurrentGame() != GAME_MM) {
         return false;
     }
@@ -340,7 +436,7 @@ static void MM_RegisterIntegrationTestHooks(void) {
         // the title-demo Play state crashed in MM_Actor_SpawnEntry. (The
         // OnConsoleLogoUpdate hook was dead anyway: MM's executor is excluded
         // in single-exe builds and the call resolves to a no-op stub.)
-        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>([]() {
+        MM_GameHooks_RegisterOnGameStateMainStart([]() {
             if (!MM_SceneLoadComplete()) {
                 sSceneLoadStableFrames = 0;
                 MM_SceneLoadWatchdogExpired("int-boot-mm");
@@ -371,7 +467,7 @@ static void MM_RegisterIntegrationTestHooks(void) {
         // (#344) PASS requires MM to complete the South Clock Town scene
         // load the entrance link asked for (0xD800, the tower-exit arrival),
         // not just tick frames.
-        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>([]() {
+        MM_GameHooks_RegisterOnGameStateMainStart([]() {
             if (!MM_SceneLoadComplete() || MM_gPlayState->sceneId != SCENE_CLOCKTOWER) {
                 static bool sWrongSceneLogged = false;
                 sSceneLoadStableFrames = 0;
@@ -412,7 +508,7 @@ static void MM_RegisterIntegrationTestHooks(void) {
         sSceneLoadWaitFrames = 0;
         sSceneLoadStableFrames = 0;
 
-        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>([]() {
+        MM_GameHooks_RegisterOnGameStateMainStart([]() {
             static bool sTriggered = false;
             if (sTriggered) {
                 return;
@@ -495,7 +591,7 @@ static void MM_RegisterIntegrationTestHooks(void) {
         sSceneLoadWaitFrames = 0;
         sSceneLoadStableFrames = 0;
 
-        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>([]() {
+        MM_GameHooks_RegisterOnGameStateMainStart([]() {
             // Fire once per arrival, ~10 stable frames after (re)entry, then
             // re-arm for the next MM arrival (reached via MM_Game_Resume).
             // (#344) Frames only count while a completed scene load is live,
@@ -557,12 +653,14 @@ static void MM_RegisterIntegrationTestHooks(void) {
         // Combo_CheckEntranceSwitch(nextEntrance), which freezes MM's live
         // SaveContext, exactly like a player walking into the tower.
         //
-        // The MM driver deliberately does NOT use GameInteractor hooks: MM's
-        // per-frame hook dispatch goes through the cross-bound OoT wrappers,
-        // which #367 no-ops while MM is the active game (correctly — that
-        // gate is production behavior the repro must run WITH). Instead MM's
-        // graph loop calls MM_IntegrationGameplayFrameTick() directly
-        // (games/mm/src/code/graph.c), which is a no-op outside this mode.
+        // The MM driver predates the MM-owned hook shim (#395) and drives
+        // frames directly: MM's graph loop calls
+        // MM_IntegrationGameplayFrameTick() (games/mm/src/code/graph.c),
+        // which is a no-op outside this mode. (Historically it could not use
+        // GameInteractor hooks at all — MM's dispatch went through the
+        // cross-bound OoT wrappers, which #367 no-ops while MM is active.)
+        // Kept as-is: the direct tick is proven by the soak tier and needs
+        // none of the shim's registration machinery.
         sGpMMLastPhase = GP_PHASE_DONE;
         sGpMMStableFrames = 0;
         sGpMMPlayFrames = 0;
@@ -574,39 +672,24 @@ static void MM_RegisterIntegrationTestHooks(void) {
     }
 }
 
-// ============================================================================
-// TEMPORARY #395 diagnostics — REMOVE with the shim migration commit.
-// ============================================================================
-// Mirror of the OoT_GI_ProbeRegisterOnMainStart* helpers in
-// games/oot/soh/Enhancements/game-interactor/GameInteractor_Hooks.cpp, but
-// compiled in THIS translation unit — the same TU, headers and flags as the
-// four live RegisterGameHook call sites above. The mm-gi-shim diagnostic test
-// runs both variants against oversized zeroed buffers and reports which byte
-// offsets each one writes:
-//  - Direct measures what the four call sites above actually execute
-//    (inlining included) — expected to write MM's nextHookId offset (96),
-//    i.e. the #395 out-of-bounds write, since inlined bodies bypass the
-//    linker's COMDAT fold entirely.
-//  - OutOfLine measures the linker-selected COMDAT copy as seen from MM.
-extern "C" uint32_t MM_GI_DiagRegisterOnMainStartDirect(void* storage, void (*fn)(void)) {
-    return static_cast<GameInteractor*>(storage)->RegisterGameHook<GameInteractor::OnGameStateMainStart>(fn);
+// C entry point for the mm-gi-shim test (games/mm/2s2h/mm_gi_shim_test.cpp):
+// runs the REAL per-mode arming path against whatever mode
+// IntegrationTest_SetMode selected, so the four-mode registration surface is
+// locked ROM-free (the operator-batch check on #392 covers live arming).
+extern "C" void MM_GIShim_TestArmIntegrationHooks(void) {
+    MM_RegisterIntegrationTestHooks();
 }
 
-extern "C" uint32_t MM_GI_DiagRegisterOnMainStartOutOfLine(void* storage, void (*fn)(void)) {
-    auto reg = &GameInteractor::RegisterGameHook<GameInteractor::OnGameStateMainStart>;
-    GameInteractor* gi = static_cast<GameInteractor*>(storage);
-#ifdef __cpp_lib_source_location
-    return (gi->*reg)(fn, std::source_location::current());
-#else
-    return (gi->*reg)(fn);
-#endif
-}
-
-extern "C" size_t MM_GI_DiagInstanceSize(void) {
+// MM's view of the GameInteractor layout, reported from this TU's production
+// headers/flags for the mm-gi-shim layout lock. The Register* members
+// themselves are compile-time poisoned in this target
+// (games/mm/include/mm_gi_hook_guard.h), so layout facts are all this TU can
+// export — which is the point.
+extern "C" size_t MM_GI_InstanceSize(void) {
     return sizeof(GameInteractor);
 }
 
-extern "C" size_t MM_GI_DiagNextHookIdOffset(void) {
+extern "C" size_t MM_GI_NextHookIdOffset(void) {
     return offsetof(GameInteractor, nextHookId);
 }
 
@@ -975,6 +1058,103 @@ u16 AudioEditor_GetOriginalSeq(u16 seqId) {
     // replacement CVars set: original ids map to themselves, everything
     // else (custom ids, NA_BGM_DISABLED) resolves to 0.
     return seqId <= 0x7F ? seqId : 0;
+}
+
+/**
+ * Real single-exe definition for #372. MM's implementation TU
+ * (2s2h/GameInteractor/GameInteractor.cpp) is excluded ("use OoT's") and OoT
+ * defines no GameInteractor_InvertControl, so the old src/common/mm_stubs.c
+ * stub was the sole definition — and it returned the ENUM ORDINAL as the
+ * multiplier. Every caller multiplies a stick axis by the result:
+ * Lib_GetControlStickData ran x *= 2 (GI_INVERT_MOVEMENT_X == 2) on every
+ * movement frame, skewing every analog angle toward the X axis, and
+ * Actor_SetControlStickData's s8 path wrapped past half deflection.
+ *
+ * Body lifted from upstream 2s2h/GameInteractor/GameInteractor.cpp
+ * (GameInteractor_InvertControl; unchanged except explicit default: branches
+ * to keep -Wswitch quiet) — CVar-driven, so the shipped 2S2H defaults
+ * apply (camera right-stick Y and first-person aim/right-stick Y default to
+ * inverted) and Mirrored World keeps working if its toggle ever ports.
+ * Declared extern "C" in MM's GameInteractor.h, which this TU includes:
+ * signature drift here is a compile error, retiring this symbol from the
+ * mm_stubs.c drift class.
+ */
+int GameInteractor_InvertControl(GIInvertType type) {
+    int result = 1;
+
+    switch (type) {
+        case GI_INVERT_CAMERA_RIGHT_STICK_X:
+            if (CVarGetInteger("gEnhancements.Camera.RightStick.InvertXAxis", 0)) {
+                result *= -1;
+            }
+            break;
+        case GI_INVERT_CAMERA_RIGHT_STICK_Y:
+            if (CVarGetInteger("gEnhancements.Camera.RightStick.InvertYAxis", 1)) {
+                result *= -1;
+            }
+            break;
+        case GI_INVERT_FIRST_PERSON_AIM_X:
+            if (CVarGetInteger("gEnhancements.Camera.FirstPerson.InvertX", 0)) {
+                result *= -1;
+            }
+            break;
+        case GI_INVERT_FIRST_PERSON_AIM_Y:
+            if (CVarGetInteger("gEnhancements.Camera.FirstPerson.InvertY", 1)) {
+                result *= -1;
+            }
+            break;
+        case GI_INVERT_FIRST_PERSON_GYRO_X:
+            if (CVarGetInteger("gEnhancements.Camera.FirstPerson.GyroInvertX", 0)) {
+                result *= -1;
+            }
+            break;
+        case GI_INVERT_FIRST_PERSON_GYRO_Y:
+            if (CVarGetInteger("gEnhancements.Camera.FirstPerson.GyroInvertY", 0)) {
+                result *= -1;
+            }
+            break;
+        case GI_INVERT_FIRST_PERSON_RIGHT_STICK_X:
+            if (CVarGetInteger("gEnhancements.Camera.FirstPerson.RightStickInvertX", 0)) {
+                result *= -1;
+            }
+            break;
+        case GI_INVERT_FIRST_PERSON_RIGHT_STICK_Y:
+            if (CVarGetInteger("gEnhancements.Camera.FirstPerson.RightStickInvertY", 1)) {
+                result *= -1;
+            }
+            break;
+        case GI_INVERT_SHIELD_Y:
+            if (CVarGetInteger("gEnhancements.Equipment.InvertShieldY", 0)) {
+                result *= -1;
+            }
+            break;
+        default:
+            break;
+    }
+
+    // Invert all X axis inputs if the Mirrored World mode is enabled
+    if (CVarGetInteger("gModes.MirroredWorld.State", 0)) {
+        switch (type) {
+            case GI_INVERT_CAMERA_RIGHT_STICK_X:
+            case GI_INVERT_MOVEMENT_X:
+            case GI_INVERT_SHIELD_X:
+            case GI_INVERT_SHOP_X:
+            case GI_INVERT_HORSE_X:
+            case GI_INVERT_ZORA_SWIM_X:
+            case GI_INVERT_DEBUG_DPAD_X:
+            case GI_INVERT_TELESCOPE_X:
+            case GI_INVERT_FIRST_PERSON_AIM_X:
+            case GI_INVERT_FIRST_PERSON_GYRO_X:
+            case GI_INVERT_FIRST_PERSON_RIGHT_STICK_X:
+            case GI_INVERT_FIRST_PERSON_MOVING_X:
+                result *= -1;
+                break;
+            default:
+                break;
+        }
+    }
+
+    return result;
 }
 
 int MM_Game_Init(int argc, char** argv) {

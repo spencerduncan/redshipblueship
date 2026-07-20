@@ -54,8 +54,9 @@ int MM_StartupRestore_RunHeadless(void);
 int MM_CullingBinding_RunHeadless(void);
 // MM GameInteractor shim lock (games/mm/2s2h/mm_gi_shim_test.cpp, #395): MM's
 // hook registrations must never touch the shared 4-byte OoT-owned
-// GameInteractor instance through MM's 104-byte view of the class (a ~92-byte
-// out-of-bounds write). Returns 0 on pass, non-zero on fail.
+// GameInteractor instance through MM's larger view of the class (a ~60-92
+// byte out-of-bounds write, layout is platform-dependent). Returns 0 on
+// pass, non-zero on fail.
 int MM_GIShim_RunHeadless(void);
 // VB-affinity regression: MM's GameInteractor_* calls resolve to OoT's
 // extern "C" wrappers in single-exe builds, and the two games' vanilla-

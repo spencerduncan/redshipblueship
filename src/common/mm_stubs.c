@@ -124,7 +124,10 @@ void GameInteractor_ExecuteBeforeMoonCrashSaveReset(void) {}
 void GameInteractor_ExecuteBeforeInterfaceClockDraw(void) {}
 void GameInteractor_ExecuteAfterInterfaceClockDraw(void) {}
 int GameInteractor_Dpad(void* input, int dpad) { (void)input; return dpad; }
-int GameInteractor_InvertControl(int control) { return control; }
+/* GameInteractor_InvertControl moved to a real, header-checked definition in
+ * games/mm/2s2h/GameExports_SingleExe.cpp (#372): every caller uses the
+ * result as a ±1 multiplier, and the untyped stub here returned the ENUM
+ * ORDINAL — stick_x *= 2 on every Lib_GetControlStickData movement frame. */
 int GameInteractor_RightStickOcarina(void* input) { (void)input; return 0; }
 
 /* HudEditor stubs */
