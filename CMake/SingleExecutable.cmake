@@ -298,6 +298,12 @@ if(BUILD_TESTING)
     # bound-arithmetic bugs, so the capacity computation was factored into pure
     # helpers this test calls directly — display-free, ROM-free.
     redship_add_test(NAME SeqMapBounds COMMAND redship --test seq-map-bounds)
+    # Active-thread-queue contract (#385). soh/stubs.c's empty-bodied
+    # __osGetActiveQueue returned the return register, and both games' fault
+    # handlers walk that as a thread list — so the crash handler was itself
+    # liable to crash. Locks non-NULL, bounded termination at the priority == -1
+    # sentinel, and call-to-call stability.
+    redship_add_test(NAME ActiveQueue COMMAND redship --test active-queue)
     # MM cross-game resume contracts (games/mm/2s2h/mm_resume_state_test.cpp):
     # a resume must re-arm the (by-design leaked) system arena for the cold
     # gamestate-chain boot, and Play_Init's startup-entrance consumption must

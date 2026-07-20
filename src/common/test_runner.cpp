@@ -104,6 +104,12 @@ extern "C" {
 // MAX_AUTHENTIC_SEQID). Pure arithmetic — no audio subsystem, no archives.
 #include "tests/test_seq_map_bounds.c"
 
+// Active-thread-queue contract (issue #385). soh/stubs.c's empty-bodied
+// __osGetActiveQueue fed a return register to the crash handler's thread walk
+// (fault.c:537). Included at FILE SCOPE like the rest; declares the C-linkage
+// symbols it needs itself. No subsystem, no archives.
+#include "tests/test_active_queue.c"
+
 // MM scene-command EXECUTE regression (issue #344). Unlike the parse test, the
 // body runs the parsed commands against a PlayState, so it needs MM's global.h
 // — which lives in an MM TU (games/mm/2s2h/mm_scene_execute_test.cpp) to keep
@@ -855,6 +861,7 @@ const TestDescriptor gTests[] = {
     {"save-combo-oversize", "Load rejects an oversized Tier-1 record, no clobber", Test_SaveComboOversize},
     {"mm-scene-parse", "MM scene commands parse via the S2H factory (#344)", Test_MMSceneParse},
     {"seq-map-bounds", "Sequence-map capacity covers the id range + custom slack (#371, #378)", Test_SeqMapBounds},
+    {"active-queue", "__osGetActiveQueue returns a walkable list, not a return register (#385)", Test_ActiveQueue},
     {"mm-scene-execute", "MM scene commands execute against a PlayState (#344)", Test_MMSceneExecute},
     // The two MM resume-contract tests below mutate process-global state
     // (mm-resume-arena re-inits the MM system arena + heaps; mm-startup-restore

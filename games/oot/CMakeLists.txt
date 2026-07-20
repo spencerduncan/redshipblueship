@@ -134,6 +134,27 @@ list(FILTER soh__Enhancements EXCLUDE REGEX "soh/Enhancements/randomizer/.*")
 # Remove Enhancements from soh__ (will be soh_port lib)
 list(FILTER soh__ EXCLUDE REGEX "soh/Enhancements/.*")
 
+# Falling off the end of a non-void function is a hard error in soh/stubs.c
+# (#385). That file is the port's shim layer: ~90 stubbed libultra entry points,
+# where the failure mode of a missing return is silent — the caller reads the
+# return register. It shipped 24 such bodies. One of them, __osGetActiveQueue,
+# handed a garbage pointer to the crash handler's thread walk
+# (games/oot/src/code/fault.c:537), so the fault handler was itself liable to
+# fault; another, _Printf, was returning the register as sprintf's character
+# count. MSVC does not error on this by default (C4716/C4715 are warnings in C)
+# and SUPPRESS_WARNINGS is ON, which is why it survived to phase 3.
+#
+# Scoped to this one file on purpose: the vendored decomp tree under src/ has
+# its own instances of this pattern and is compiled with ${WARNING_OVERRIDE}
+# (/w or -w), so a target-wide escalation would break the build and would fight
+# upstream. Same shape as the /we4013 precedent that retired the
+# implicit-declaration class in games/mm/CMakeLists.txt.
+if(MSVC)
+    set_source_files_properties(soh/stubs.c PROPERTIES COMPILE_OPTIONS "/we4716;/we4715")
+else()
+    set_source_files_properties(soh/stubs.c PROPERTIES COMPILE_OPTIONS "-Werror=return-type")
+endif()
+
 # Add specific files that don't match the pattern
 list(APPEND soh__Enhancements ${CMAKE_CURRENT_SOURCE_DIR}/soh/Enhancements/savestates_extern.inc)
 list(APPEND soh__Enhancements ${CMAKE_CURRENT_SOURCE_DIR}/soh/Enhancements/speechsynthesizer/DarwinSpeechSynthesizer.mm)
