@@ -19,6 +19,11 @@ add_library(rsbs STATIC
     src/libultra/os/getthreadpri.c
     src/libultra/os/destroythread.c
     src/libultra/os/dequeuethread.c
+    # Storage for __osActiveQueue / __osRunningThread (#385). Both games'
+    # defining TUs are excluded from the single-exe build, so without this the
+    # objects above are unlinkable and soh/stubs.c's empty-bodied
+    # __osGetActiveQueue won the symbol instead.
+    src/libultra/os/threadqueue.c
 
     # libultra/os - message queue functions (reference implementations)
     # Note: Runtime implementations provided by libultraship
