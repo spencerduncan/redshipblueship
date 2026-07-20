@@ -176,6 +176,11 @@ jobs:
 
     - name: Check for game archives
       id: check-archives
+      env:
+        # Empty on hosted runners; a JSON runs-on value when the operator has
+        # pointed this job at a ROM-equipped runner. Its presence is the signal
+        # that archives are *expected* to exist here.
+        ROM_RUNNER: ${{ vars.RSBS_ROM_RUNNER }}
       run: |
         # Integration tests require game ROM-derived archives (oot.o2r, mm.o2r)
         # These cannot be distributed — they must be generated from original ROMs
@@ -189,6 +194,18 @@ jobs:
         done
         echo "has_oot=$has_oot" >> $GITHUB_OUTPUT
         echo "has_mm=$has_mm" >> $GITHUB_OUTPUT
+        # When RSBS_ROM_RUNNER is configured the operator has deliberately routed
+        # this job to a ROM-equipped runner *expecting* the integration and
+        # crash-repro tier to run. A missing archive there means the staging path
+        # moved or OTR generation failed — and because every int-* step is
+        # if:-gated on these outputs, the whole tier would skip while the run
+        # still reports green. That is the exact false-confidence #376 item 3
+        # describes ("a fully-skipped run looks green"). Fail loudly instead: a
+        # gate that is configured but cannot fail is not a gate.
+        if [ -n "$ROM_RUNNER" ] && { [ "$has_oot" = "false" ] || [ "$has_mm" = "false" ]; }; then
+          echo "::error::RSBS_ROM_RUNNER is set but game archives are missing (oot=$has_oot mm=$has_mm). The integration/crash-repro tier would skip silently on a runner configured to run it. Ensure oot.o2r and mm.o2r are staged in build-cmake, build-cmake/soh (oot) / build-cmake/2s2h (mm), or the repo root."
+          exit 1
+        fi
         if [ "$has_oot" = "false" ] && [ "$has_mm" = "false" ]; then
           echo "::notice::Game archives not found — integration tests will be skipped (requires original ROMs)"
         fi
@@ -334,6 +351,23 @@ jobs:
         GP_FRAMES: ${{ inputs.gp_frames || '120' }}
         GP_CYCLES: ${{ inputs.gp_cycles || '1' }}
         GP_WARP_ENTRANCES: ${{ inputs.gp_warp_entrances || '0x00B1' }}
+
+    # Multi-cycle soak of the same round trip (RSBS_GP_CYCLES=3, supplied by the
+    # IntGameplayRoundtripSoak CTest row's ENVIRONMENT). The single-cycle step
+    # above cannot reach the cycle-2/cycle-3 re-entry crash class that the MM
+    # resume-arena and startup-restore contracts exist to guard — the comment in
+    # CMake/SingleExecutable.cmake already names "the int-gameplay-roundtrip
+    # soak" as what catches it. That soak had a CTest row (label
+    # `integration-soak`) but was referenced by no job, so it never actually
+    # ran (#376 item 1). Drive it through ctest here so the label is a live,
+    # enforced gate; --no-tests=error fails loudly if the row/label ever
+    # regresses, mirroring the redship and rando tiers. The row carries its own
+    # TIMEOUT 900, so ctest — not an outer `timeout` — bounds a wedge.
+    - name: Integration Test - Gameplay Roundtrip Soak (3 cycles)
+      if: steps.check-archives.outputs.has_oot == 'true' && steps.check-archives.outputs.has_mm == 'true'
+      run: ctest --test-dir build-cmake --output-on-failure --label-regex "^integration-soak$" --no-tests=error
+      env:
+        DISPLAY: :99
 
     # Crash-signal plumbing: libultraship's CrashHandler writes its dump
     # (registers, backtrace, scene/actor state from the game callbacks) as a
