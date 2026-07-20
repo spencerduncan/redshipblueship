@@ -271,6 +271,15 @@ uintptr_t MM_Fault_ConvertAddress(uintptr_t addr) {
 
     return 0;
 #endif
+    /* #403: the walk above is disabled along with the rest of the fault-client
+     * machinery it depends on (sFaultInstance and MM_Fault_AddAddrConvClient
+     * are themselves #if 0'd, so no address-converter client can ever be
+     * registered). This function's only two call sites, MM_Fault_DrawStackTrace
+     * and MM_Fault_LogStackTrace below, are themselves #if 0'd too, so this is
+     * unreachable either way today. 0 is the documented "could not convert"
+     * answer, and it is exactly what the disabled walk above would produce for
+     * an empty client list if it were ever revived — not a placeholder. */
+    return 0;
 }
 
 void MM_Fault_Sleep(u32 msec) {
@@ -333,6 +342,15 @@ u32 MM_Fault_WaitForInputImpl(void) {
         }
     }
 #endif
+    /* #403: disabled along with the input-polling machinery it needs
+     * (sFaultInstance, MM_Fault_UpdatePadImpl). Its only potential caller,
+     * MM_Fault_WaitForInput just below, has its own call to this commented
+     * out (`// MM_Fault_WaitForInputImpl();`), so this function has zero live
+     * callers today. 0 (false) is what the disabled body itself returns on
+     * its ordinary exit (auto-scroll countdown elapsing, or A / DPad-Right) —
+     * chosen so falling off the end is explicit rather than a garbage
+     * register, not because this value is otherwise load-bearing. */
+    return 0;
 }
 
 void MM_Fault_WaitForInput(void) {
@@ -552,8 +570,32 @@ void osSyncPrintfThreadContext(OSThread* thread) {
  * Iterates through the active thread queue for a user thread with either
  * the CPU break or Fault flag set.
  */
+/* #403: this body used to be entirely inside #if 0 (both returns included),
+ * so the function fell off the end unconditionally and handed its caller a
+ * return register instead of a thread pointer — see the do/while in
+ * MM_Fault_ThreadEntry below. Reviving it is possible now, and only now:
+ * __osGetActiveQueue() used to be an empty non-void stub with the same defect
+ * (games/oot/soh/stubs.c, before #401), returning garbage. #401 gave it a
+ * real, unprefixed (shared-across-both-games) implementation
+ * (rsbs/src/libultra/os/getactivequeue.c) backed by __osActiveQueue storage
+ * (rsbs/src/libultra/os/threadqueue.c). That storage is an empty list whose
+ * head IS the OS_PRIORITY_THREADTAIL tail sentinel — exactly the contract
+ * this loop already assumed — so the walk below terminates on its first
+ * iteration and returns NULL: an honest answer, since this port never creates
+ * a real libultra thread for anything to be "faulted" in.
+ *
+ * OS_PRIORITY_THREADTAIL and the __osGetActiveQueue() declaration are
+ * normally supplied by PR/os_thread.h, but that header's meaningful content —
+ * including this exact declaration (os_thread.h:86) and this exact macro
+ * (os_thread.h:73) — is itself wrapped in an #if 0 that predates this fix and
+ * is out of scope to unwrap here, so both are restated locally. */
+extern OSThread* __osGetActiveQueue(void);
+
+#ifndef OS_PRIORITY_THREADTAIL
+#define OS_PRIORITY_THREADTAIL (-1)
+#endif
+
 OSThread* MM_Fault_FindFaultedThread(void) {
-#if 0
     OSThread* iter = __osGetActiveQueue();
 
     while (iter->priority != OS_PRIORITY_THREADTAIL) {
@@ -565,7 +607,6 @@ OSThread* MM_Fault_FindFaultedThread(void) {
     }
 
     return NULL;
-#endif
 }
 void MM_Fault_Wait5Seconds(void) {
 #if 0
@@ -1015,6 +1056,12 @@ void MM_Fault_UpdatePad(void) {
 //#define FAULT_MSG_FAULT ((OSMesg)2)
 //#define FAULT_MSG_UNK ((OSMesg)3)
 
+/* #403: retry cap for the do/while fixed below (see the comment at its new
+ * "break"). Generous relative to a 1-second-ish poll loop, finite on purpose —
+ * the whole point of this fix is that "keep spinning" is not an acceptable
+ * answer for a crash handler. */
+#define MM_FAULT_FIND_THREAD_MAX_RETRIES 60
+
 void MM_Fault_ThreadEntry(void* arg) {
 #if 0
     OSMesg msg;
@@ -1026,6 +1073,8 @@ void MM_Fault_ThreadEntry(void* arg) {
     MM_osSetEventMesg(OS_EVENT_FAULT, &sFaultInstance->queue, FAULT_MSG_FAULT);
 
     while (true) {
+        s32 findRetries = 0;
+
         do {
             // Wait for a thread to hit a fault
             MM_osRecvMesg(&sFaultInstance->queue, &msg, OS_MESG_BLOCK);
@@ -1054,6 +1103,24 @@ void MM_Fault_ThreadEntry(void* arg) {
             if (faultedThread == NULL) {
                 faultedThread = MM_Fault_FindFaultedThread();
                 osSyncPrintf("FindFaultedThread()=%08x\n", faultedThread);
+
+                /* #403: bounded retry. A fault/CPU-break message was received,
+                 * so something really did fault — but __osGetCurrFaultedThread()
+                 * and MM_Fault_FindFaultedThread() can only ever answer "no
+                 * thread" in this port (see their definitions): no real
+                 * libultra thread is ever created here, so a persistently-NULL
+                 * result is not a transient race to keep waiting out, it is
+                 * the permanent answer. Before this fix this do/while had no
+                 * exit at all, so the crash handler itself spun forever —
+                 * turning a crash into a hang, which is worse than reporting
+                 * nothing. Give up loudly once retries are exhausted instead;
+                 * whoever wires up a real MM_Fault_Init / ThreadEntry later
+                 * inherits this already fixed. */
+                if ((faultedThread == NULL) && (++findRetries >= MM_FAULT_FIND_THREAD_MAX_RETRIES)) {
+                    MM_Fault_AddHungupAndCrashImpl("MM_Fault_ThreadEntry",
+                                                   "MM_Fault_FindFaultedThread() found none after max retries");
+                    break;
+                }
             }
         } while (faultedThread == NULL);
 
