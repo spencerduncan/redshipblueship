@@ -521,9 +521,12 @@ void* MM_osViGetNextFramebuffer() {
     return NULL;
 }
 OSYieldResult MM_osSpTaskYielded(OSTask* task) {
-    /* TEMPORARY: reintroduce a missing return to prove the #392 escalation
-     * hunk (games/mm/CMakeLists.txt -Werror=return-type / /we4716;/we4715
-     * on this file) actually fails the build. Reverted before merge. */
+    /* Twin: OoT's OoT_osSpTaskYielded. 0, i.e. NOT OS_TASK_YIELDED (1 << 0,
+     * PR/sptask.h). MM_osSpTaskYield above is a no-op, so no task ever
+     * yields; returning the OS_TASK_YIELDED bit (which garbage would set half
+     * the time) would make the graphics thread re-submit a task that was
+     * never interrupted. */
+    return 0;
 }
 void MM_osViBlack(u8 active) {
 }
