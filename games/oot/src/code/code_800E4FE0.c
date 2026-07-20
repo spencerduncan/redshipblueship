@@ -90,6 +90,15 @@ void OoT_AudioMgr_CreateNextAudioBuffer(s16* samples, u32 num_samples) {
     gAudioContext.audioRandom = (gAudioContext.audioRandom + gAudioContext.totalTaskCnt) * osGetCount();
 }
 
+// Test-only observer for the OoTAudioInitGuard lock (#365). Reports the
+// producer's task counter so the lock can assert the guarded producer is a true
+// no-op — totalTaskCnt++ is the producer's first act, so the counter not
+// advancing proves the early return fired — without pulling AudioContext's
+// layout into the C++ test translation unit.
+u32 OoT_AudioMgr_DebugTaskCnt(void) {
+    return gAudioContext.totalTaskCnt;
+}
+
 AudioTask* func_800E5000(void) {
     return NULL;
 
