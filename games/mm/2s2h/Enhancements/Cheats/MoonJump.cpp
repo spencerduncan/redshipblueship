@@ -9,7 +9,7 @@ extern "C" {
 #define CVAR_NAME "gCheats.MoonJumpOnL"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
-void MM_RegisterMoonJump() {
+void RegisterMoonJump() {
     COND_ID_HOOK(OnActorUpdate, ACTOR_PLAYER, CVAR, [](Actor* actor) {
         Player* player = GET_PLAYER(MM_gPlayState);
 
@@ -19,4 +19,4 @@ void MM_RegisterMoonJump() {
     });
 }
 
-static RegisterShipInitFunc initFunc(MM_RegisterMoonJump, { CVAR_NAME });
+static RegisterShipInitFunc initFunc(RegisterMoonJump, { CVAR_NAME });
