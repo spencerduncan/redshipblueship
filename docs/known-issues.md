@@ -1,7 +1,7 @@
 # Known issues
 
 **Applies to:** `v0.1.0-prealpha` and the `main` branch behind it.
-**Last updated:** 2026-07-19.
+**Last updated:** 2026-07-20.
 
 RedShipBlueShip is **pre-alpha**. It boots Ocarina of Time and Majora's Mask from
 one executable and can round-trip between them, and that is roughly where the
@@ -25,9 +25,14 @@ entrance-based switch between them.
 
 Specifically:
 
-- The `sharedItems` / `sharedFlags` fields in the cross-game context are declared
-  but have **no producers and no consumers** outside tests. Nothing is written to
-  them and nothing reads them.
+- The cross-game item storage exists but **nothing populates it during play**.
+  ADR 0002 (Phase 3 Lane A0) gave the cross-game context an origin-tagged item
+  array (`sharedItemsTagged`) and retired the never-wired `sharedItems` and
+  `saveSlot` fields in place; `sharedFlags` is kept with its bit semantics
+  still unassigned, and `sourceIsRando`/`sharedRandoSeed` are designated Lane
+  B's seed carrier. The producers and consumers — writing on suspend, reading
+  after a switch — are Lane A1, still open: outside tests, nothing is written
+  to any of these fields yet.
 - MM's randomizer code (`games/mm/2s2h/Rando/`) is compiled but **discarded by the
   linker** — no symbol in the shipping binary references it, so it is not in the
   executable at all.

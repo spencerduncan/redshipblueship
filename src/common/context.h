@@ -20,7 +20,21 @@
 #include "game.h"
 
 #ifdef __cplusplus
+// For the SharedItem raw-assignment static_asserts below. Included BEFORE the
+// extern "C" block on purpose: wrapping a std header in C linkage is ill-formed.
+#include <type_traits>
+#endif
+
+#ifdef __cplusplus
 extern "C" {
+#endif
+
+// Dual-language static_assert: context.h is compiled as both C and C++ (that
+// is also why the shared types below are plain structs — see SharedItem).
+#ifdef __cplusplus
+#define RSBS_CTX_STATIC_ASSERT(cond, msg) static_assert(cond, msg)
+#else
+#define RSBS_CTX_STATIC_ASSERT(cond, msg) _Static_assert(cond, msg)
 #endif
 
 /**
@@ -111,6 +125,58 @@ void Context_UpdateShadowCopy(GameId game, const void* saveContext, size_t size)
  */
 #define RSBS_COMBO_CONTEXT_RECORD_SIZE 1024u
 
+// ============================================================================
+// Origin-tagged shared items (ADR 0002)
+// ============================================================================
+
+/**
+ * Capacity of ComboContext.sharedItemsTagged. Sized generously ONCE (ADR 0002):
+ * 64 entries x 4 bytes take 256 of the original 640 headroom bytes. Growing it
+ * later would be legal under the growth contract (carve more of `reserved`)
+ * but is format churn we choose to avoid by not starting small.
+ */
+#define RSBS_SHARED_ITEM_CAP 64u
+
+/**
+ * SharedItem.flags bit: the ORIGIN game has redeemed (actually awarded) this
+ * entry. Lane C's give path records a foreign pickup with flags == 0; the
+ * origin game's consumer sets this bit when it hands the item to the player,
+ * so a round trip can never award the same entry twice. All other bits are
+ * reserved and must keep the "0 == unset" property when assigned, because a
+ * zero-extended legacy record reads every flag as 0.
+ */
+#define RSBS_SHARED_ITEM_REDEEMED 0x01u
+
+/**
+ * One cross-game item, tagged with the game whose id-space `id` belongs to.
+ *
+ * Why a struct and not a packed integer (ADR 0002): OoT's RandomizerGet (RG_*)
+ * and MM's RandoItemId (RI_*) are unrelated enumerations that must never alias
+ * by raw integer. A game tag bit-packed into a uint16_t would make an untagged
+ * read *almost* work — exactly how the #356 entrance-id leak behaved. As a
+ * plain struct, assigning a raw integer into a SharedItem is ill-formed in
+ * BOTH C and C++ (neither language converts arithmetic types to struct types),
+ * so an untagged id cannot cross this boundary by accident. The static_asserts
+ * below lock the layout — these bytes are .redsave format — and, on the C++
+ * side, prove the raw-assignment rejection.
+ *
+ * Zero means unset for every member (growth contract): a slot is occupied iff
+ * originGame != GAME_NONE. There is deliberately NO separate count field — a
+ * count would be a second source of truth that a zero-extended legacy record
+ * could contradict.
+ */
+typedef struct {
+    uint8_t originGame;  // GameId that owns the id-space; GAME_NONE (0) = empty slot
+    uint8_t flags;       // RSBS_SHARED_ITEM_* bits; 0 = default (present, not redeemed)
+    uint16_t id;         // RG_* if originGame==GAME_OOT, RI_* if GAME_MM; 0 when empty
+} SharedItem;
+
+RSBS_CTX_STATIC_ASSERT(sizeof(SharedItem) == 4,
+                       "SharedItem is serialized raw inside the .redsave Tier-1 record; its layout is format");
+RSBS_CTX_STATIC_ASSERT(offsetof(SharedItem, originGame) == 0 && offsetof(SharedItem, flags) == 1 &&
+                           offsetof(SharedItem, id) == 2,
+                       "SharedItem member offsets are .redsave format and must not move");
+
 typedef struct {
     char magic[8];        // "OoT+MM<3"
     uint32_t version;
@@ -119,39 +185,88 @@ typedef struct {
     uint16_t targetEntrance;
     GameId sourceGame;
     uint16_t sourceEntrance;
+    // KEPT (ADR 0002): origin-neutral event bits, so the shape has no id-space
+    // aliasing hazard. Still unwired; which bit means what is assigned by Lane
+    // A1 and later — until something writes a bit, every word stays zero.
     uint32_t sharedFlags[64];
-    // NOT WIRED: no non-test reader/writer exists yet. Lane A widens this into
-    // an origin-tagged form — OoT's RG_* ids and MM's item ids are unrelated
-    // enumerations that must never alias by raw integer.
+    // RETIRED IN PLACE (ADR 0002): never wired — zero non-test producers or
+    // consumers ever shipped, and the un-tagged uint16_t shape is exactly the
+    // raw-integer aliasing hazard the ADR exists to prevent. The bytes stay at
+    // this shipped offset because a legacy .redsave loads as a byte PREFIX of
+    // this layout. Do not wire; use sharedItemsTagged below instead.
     uint16_t sharedItems[32];
-    // NOT WIRED: dead plumbing. Set to -1 by ComboContext_Init and serialized,
-    // but nothing outside the tests reads it — do not assume the active slot
-    // index is available here until something actually assigns it.
+    // RETIRED IN PLACE (ADR 0002): dead plumbing. ComboContext_Init still sets
+    // -1 and it still serializes, but nothing ever assigned the active slot
+    // index. Kept at its shipped offset; do not wire.
     int32_t saveSlot;
 
-    // Cross-game rando state propagation
+    // Cross-game rando state propagation — Lane B's carrier (ADR 0002): set in
+    // the LIVE path at OoT generation time, read by MM's consumption path when
+    // Lane C makes it reachable.
     bool sourceIsRando;        // Source game is in randomizer mode
     uint32_t sharedRandoSeed;  // Shared seed for synchronization
 
-    // Headroom. Shrink this when appending a field so the struct stays inside
+    // Origin-tagged cross-game items (ADR 0002), carved from the FRONT of the
+    // original reserved[640] headroom so every field above keeps its shipped
+    // offset. All-zero = every slot unset (originGame == GAME_NONE), which is
+    // exactly what a zero-extended legacy record must read as.
+    SharedItem sharedItemsTagged[RSBS_SHARED_ITEM_CAP];
+
+    // Headroom. Carve new fields from the FRONT of this array (as
+    // sharedItemsTagged was) so the struct stays inside
     // RSBS_COMBO_CONTEXT_RECORD_SIZE; the on-disk record size does not change
     // either way, so old saves keep loading. Zeroed by ComboContext_Init, which
     // is what makes a zero-extended legacy record indistinguishable from a
-    // freshly-initialized one.
-    uint8_t reserved[640];
+    // freshly-initialized one — every field carved from here must keep "zero
+    // means unset".
+    uint8_t reserved[384];
 } ComboContext;
+
+/**
+ * The Tier-1 byte length PRE-CARVE builds (Phase 2 headroom fix #399 through
+ * the ADR 0002 carve) populated meaningfully: every field up to, but not
+ * including, the then-reserved[640] headroom. Test_SaveComboLegacyRecord
+ * crafts its "legacy" record at exactly this length.
+ *
+ * This is a pinned NUMBER, deliberately not offsetof(ComboContext, reserved):
+ * carving fields out of `reserved` moves that offsetof forward, which would
+ * silently redefine "legacy" to include the new fields and leave the true
+ * shipped pre-carve prefix untested. The static_asserts below tie the number
+ * to the live layout so neither can drift without a build break.
+ */
+#define RSBS_COMBO_CONTEXT_PRECARVE_SIZE 364u
 
 // Deliberately `<=`, not `==`: the on-disk record is padded to a fixed size, so
 // the struct only has to FIT the budget. An exact-match assert would turn a
 // harmless ABI padding difference into a build break for no benefit.
+RSBS_CTX_STATIC_ASSERT(sizeof(ComboContext) <= RSBS_COMBO_CONTEXT_RECORD_SIZE,
+                       "ComboContext outgrew its .redsave Tier-1 record budget; raise "
+                       "RSBS_COMBO_CONTEXT_RECORD_SIZE and RSBS_SAVE_VERSION together");
+// The carve must begin exactly where the pre-carve reserved[] began. If this
+// fires, either a field was INSERTED before sharedItemsTagged (which breaks
+// the byte-prefix property every shipped .redsave relies on) or the compiler
+// laid the struct out differently than every build that ever wrote a save.
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, sharedItemsTagged) == RSBS_COMBO_CONTEXT_PRECARVE_SIZE,
+                       "sharedItemsTagged must sit exactly at the pre-carve reserved[] offset; "
+                       "moving it orphans every shipped .redsave");
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, reserved) ==
+                           RSBS_COMBO_CONTEXT_PRECARVE_SIZE + RSBS_SHARED_ITEM_CAP * sizeof(SharedItem),
+                       "the tagged-item array and the remaining headroom must stay contiguous "
+                       "(no padding, no fields slipped between them)");
+
 #ifdef __cplusplus
-static_assert(sizeof(ComboContext) <= RSBS_COMBO_CONTEXT_RECORD_SIZE,
-              "ComboContext outgrew its .redsave Tier-1 record budget; raise "
-              "RSBS_COMBO_CONTEXT_RECORD_SIZE and RSBS_SAVE_VERSION together");
-#else
-_Static_assert(sizeof(ComboContext) <= RSBS_COMBO_CONTEXT_RECORD_SIZE,
-               "ComboContext outgrew its .redsave Tier-1 record budget; raise "
-               "RSBS_COMBO_CONTEXT_RECORD_SIZE and RSBS_SAVE_VERSION together");
+// The raw-assignment-fails proof (ADR 0002). In C this is a constraint
+// violation by construction — C has no arithmetic-to-struct conversions at all
+// — so only the C++ view needs an explicit probe (C++ could later grow a
+// converting constructor or assignment operator; these asserts forbid that).
+static_assert(!std::is_convertible<int, SharedItem>::value,
+              "a raw integer must never implicitly become a SharedItem — tag the origin game");
+static_assert(!std::is_assignable<SharedItem&, int>::value && !std::is_assignable<SharedItem&, unsigned>::value,
+              "a raw integer must never be assignable into a SharedItem — tag the origin game");
+static_assert(!std::is_assignable<SharedItem&, GameId>::value,
+              "a bare GameId is not a SharedItem either; populate the struct members explicitly");
+static_assert(std::is_trivially_copyable<ComboContext>::value,
+              "gComboCtx is serialized with memcpy; ComboContext must stay trivially copyable");
 #endif
 
 extern ComboContext gComboCtx;
@@ -181,16 +296,11 @@ void Context_RequestSwitch(GameId target, uint16_t entrance);
  */
 bool Context_HasPendingSwitch(void);
 
-/**
- * Process the pending game switch (called by main loop)
- * This coordinates freezing current game state and launching target game
- */
-void Context_ProcessSwitch(void);
-
-/**
- * Check if a switch is currently being processed
- */
-bool Context_IsSwitchInProgress(void);
+// Context_ProcessSwitch() / Context_IsSwitchInProgress() used to be declared
+// here. Their implementations were removed from switch.cpp (zero callers, and
+// they depended on TUs excluded from the single-exe link); the dangling
+// declarations were removed with ADR 0002. The live switch policy is
+// Switch_PrepareHotSwap / Combo_ConsumeFrozenState in switch.cpp.
 
 /**
  * Set the current game (used during initialization)
