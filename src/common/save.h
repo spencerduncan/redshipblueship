@@ -22,12 +22,17 @@
  *   the header records endian=1 and Load asserts it so a future big-endian port
  *   fails loudly instead of silently corrupting.
  * - The header stores each tier's byte length, so the file is self-describing:
- *   Load reads the STORED sizes, not this build's constants. A game tier that
- *   is shorter than the current blob capacity (a file written by an older
- *   build, e.g. before the OoT tier grew from the N64 0x1428 to the full SoH
- *   runtime size) is accepted and zero-extended to capacity; a tier LARGER
- *   than this build's capacity, an unknown version, or a comboSize that does
- *   not match sizeof(ComboContext) is rejected (fail-safe, no partial load).
+ *   Load reads the STORED sizes, not this build's constants. This applies to
+ *   ALL THREE tiers, Tier-1 included. A tier that is shorter than this build's
+ *   size is a file from an older build — its bytes are a prefix of the same
+ *   layout, so it is accepted and zero-extended. A tier LARGER than this
+ *   build's capacity, or a version outside [RSBS_SAVE_VERSION_MIN,
+ *   RSBS_SAVE_VERSION], is rejected (fail-safe, no partial load) AND logged.
+ * - Tier-1 is written at a FIXED RSBS_COMBO_CONTEXT_RECORD_SIZE (struct plus
+ *   zero padding), so appending fields to ComboContext — which Lane A's
+ *   origin-tagged sharedItems requires — does not change the serialized size
+ *   at all and does not orphan existing saves. See context.h for the growth
+ *   contract that keeps the prefix property true.
  */
 
 #ifndef RSBS_COMMON_SAVE_H
@@ -40,7 +45,13 @@
 
 // On-disk constants (visible to both C and C++).
 #define RSBS_SAVE_MAGIC      "REDSHIP1"  // 8 bytes, NOT NUL-terminated on disk
-#define RSBS_SAVE_VERSION    1u          // bump on any layout change
+#define RSBS_SAVE_VERSION    2u          // version THIS build writes
+// Oldest version this build can still read. v1 files predate the fixed-size
+// Tier-1 record: their comboSize is the raw sizeof(ComboContext) of the build
+// that wrote them, which is a prefix of the current layout and therefore
+// zero-extends cleanly. Widen this window rather than bumping VERSION alone —
+// bumping alone is what silently orphans every existing .redsave.
+#define RSBS_SAVE_VERSION_MIN 1u
 #define RSBS_SAVE_ENDIAN_LE  1
 #define RSBS_SAVE_MAX_SLOTS  3           // matches each game's MaxFiles
 
@@ -99,7 +110,7 @@ struct RsbsSaveHeader {
     uint8_t  endian;      // RSBS_SAVE_ENDIAN_LE (1)
     uint8_t  slot;        // 0..RSBS_SAVE_MAX_SLOTS-1
     uint16_t headerSize;  // sizeof(RsbsSaveHeader) == 32 (forward-compat probe)
-    uint32_t comboSize;   // Tier-1 bytes == sizeof(ComboContext)
+    uint32_t comboSize;   // Tier-1 bytes as stored (RSBS_COMBO_CONTEXT_RECORD_SIZE at write time)
     uint32_t ootSize;     // Tier-2 bytes as stored (== OOT_SAVE_CONTEXT_SIZE at write time)
     uint32_t mmSize;      // Tier-3 bytes as stored (== MM_SAVE_CONTEXT_SIZE at write time)
     uint32_t crc32;       // CRC32 over Tiers 1..3 (the payload after the header)
@@ -155,12 +166,18 @@ public:
 private:
     SaveManager() = default;
 
-    // Validates magic / version / endian / headerSize, that comboSize matches
-    // this build's ComboContext, and that the stored game-tier sizes fit the
-    // current blob capacities (stored sizes may be SMALLER — older builds wrote
-    // shorter blobs — but never larger). Returns true and fills outHeader only
-    // on a fully valid header; never mutates live state.
-    bool DeserializeHeader(std::istream& in, RsbsSaveHeader& outHeader) const;
+    // Validates magic / version / endian / headerSize and that all three
+    // stored tier sizes fit this build's capacities. Stored sizes may be
+    // SMALLER (older builds wrote shorter tiers; Load zero-extends) but never
+    // larger. Returns true and fills outHeader only on a fully valid header;
+    // never mutates live state.
+    //
+    // `verbose` gates the rejection logging. Load() passes true — a user-
+    // initiated load that silently does nothing is the failure mode this whole
+    // path exists to prevent. HasSave/ReadMeta pass false: ReadMeta runs for
+    // every slot on every file-select frame, so logging there would be a
+    // per-frame spam loop, not a diagnostic.
+    bool DeserializeHeader(std::istream& in, RsbsSaveHeader& outHeader, bool verbose) const;
 
     std::string mSaveDir = "Save";
 

@@ -23,17 +23,35 @@ namespace rsbs {
 
 namespace {
 
-// Tier sizes as this build writes them. The game-tier constants are the blob
-// CAPACITIES from game.h — the same values the context-layer shadow buffers
-// are allocated at, so reading the shadows here is always in-bounds. On Load
-// the header's stored sizes drive the reads instead: older files with shorter
-// game tiers are accepted and zero-extended (see DeserializeHeader).
-constexpr uint32_t kComboSize = static_cast<uint32_t>(sizeof(ComboContext));
+// Tier sizes as this build writes them. All three are CAPACITIES, not exact
+// struct sizes: the game-tier constants come from game.h (the same values the
+// context-layer shadow buffers are allocated at, so reading the shadows here is
+// always in-bounds), and the Tier-1 constant is the fixed record size from
+// context.h, which is >= sizeof(ComboContext) by static_assert. On Load the
+// header's stored sizes drive the reads instead: older files with shorter tiers
+// are accepted and zero-extended (see DeserializeHeader).
+constexpr uint32_t kComboSize = RSBS_COMBO_CONTEXT_RECORD_SIZE;
 constexpr uint32_t kOoTSize = static_cast<uint32_t>(OOT_SAVE_CONTEXT_SIZE);
 constexpr uint32_t kMMSize = static_cast<uint32_t>(MM_SAVE_CONTEXT_SIZE);
 
+static_assert(sizeof(ComboContext) <= kComboSize,
+              "ComboContext must fit the fixed Tier-1 record");
+
 bool SlotInRange(int slot) {
     return slot >= 0 && slot < RSBS_SAVE_MAX_SLOTS;
+}
+
+// A rejected Load used to return false and tell the user NOTHING — the save
+// simply did not come back. Every refusal now names itself on stderr so a
+// format break is diagnosable from a log instead of a bug report that reads
+// "my save vanished".
+void SaveLogReject(bool verbose, const char* reason, unsigned long long got,
+                   unsigned long long expected) {
+    if (!verbose) {
+        return;
+    }
+    std::fprintf(stderr, "[RsbsSave] refusing slot file: %s (got %llu, expected %llu)\n",
+                 reason, got, expected);
 }
 
 }  // namespace
@@ -85,8 +103,13 @@ bool SaveManager::Save(int slot) {
     // write, in write order: ComboContext, OoT blob, MM blob.
     std::vector<uint8_t> payload;
     payload.reserve(kComboSize + kOoTSize + kMMSize);
+    // Tier-1 goes out at the FIXED record size: the live struct, then zeros to
+    // the budget. The padding is what gives ComboContext room to grow later
+    // without the serialized size — and therefore every existing save file's
+    // validity — moving.
     const uint8_t* comboBytes = reinterpret_cast<const uint8_t*>(&gComboCtx);
-    payload.insert(payload.end(), comboBytes, comboBytes + kComboSize);
+    payload.insert(payload.end(), comboBytes, comboBytes + sizeof(ComboContext));
+    payload.insert(payload.end(), kComboSize - sizeof(ComboContext), uint8_t{0});
     payload.insert(payload.end(), static_cast<const uint8_t*>(ootShadow),
                    static_cast<const uint8_t*>(ootShadow) + kOoTSize);
     payload.insert(payload.end(), static_cast<const uint8_t*>(mmShadow),
@@ -135,37 +158,54 @@ bool SaveManager::Save(int slot) {
     return true;
 }
 
-bool SaveManager::DeserializeHeader(std::istream& in, RsbsSaveHeader& outHeader) const {
+bool SaveManager::DeserializeHeader(std::istream& in, RsbsSaveHeader& outHeader,
+                                    bool verbose) const {
     RsbsSaveHeader h;
     in.read(reinterpret_cast<char*>(&h), sizeof(h));
     if (!in || in.gcount() != static_cast<std::streamsize>(sizeof(h))) {
+        SaveLogReject(verbose, "short header read", static_cast<unsigned long long>(in.gcount()),
+                      sizeof(h));
         return false;
     }
 
     if (std::memcmp(h.magic, RSBS_SAVE_MAGIC, sizeof(h.magic)) != 0) {
+        SaveLogReject(verbose, "bad magic (not a .redsave)", 0, 0);
         return false;
     }
-    if (h.version != RSBS_SAVE_VERSION) {
-        return false;  // older/newer layout — refuse rather than guess
+    // A version WINDOW, not an equality test. Bumping RSBS_SAVE_VERSION against
+    // an equality test is precisely how a format change orphans every existing
+    // save; older versions inside the window are prefix-compatible and load.
+    if (h.version < RSBS_SAVE_VERSION_MIN || h.version > RSBS_SAVE_VERSION) {
+        SaveLogReject(verbose, "unsupported format version", h.version, RSBS_SAVE_VERSION);
+        return false;
     }
     if (h.endian != RSBS_SAVE_ENDIAN_LE) {
+        SaveLogReject(verbose, "wrong byte order", h.endian, RSBS_SAVE_ENDIAN_LE);
         return false;
     }
     if (h.headerSize != sizeof(RsbsSaveHeader)) {
+        SaveLogReject(verbose, "unexpected header size", h.headerSize, sizeof(RsbsSaveHeader));
         return false;
     }
-    // Tier-1 must match exactly: ComboContext has no capacity headroom, and a
-    // different size means a different struct layout.
-    if (h.comboSize != kComboSize) {
+    // ALL THREE tiers are size-field-driven. A STORED size smaller than this
+    // build's capacity is a file from an older build — for the game tiers, one
+    // written before the capacities covered the ports' full runtime structs
+    // (OoT was the N64 0x1428); for Tier-1, one written before ComboContext got
+    // a fixed record size, or by any build whose ComboContext simply had fewer
+    // trailing fields. Either way the stored bytes are a PREFIX of the current
+    // layout, so Load accepts them and zero-extends. Larger than capacity means
+    // a newer/foreign layout that cannot fit our buffers: refuse rather than
+    // truncate, because truncating Tier-1 would silently drop cross-game state.
+    if (h.comboSize == 0 || h.comboSize > kComboSize) {
+        SaveLogReject(verbose, "Tier-1 (ComboContext) size out of range", h.comboSize, kComboSize);
         return false;
     }
-    // Game tiers are size-field-driven: a STORED size smaller than this
-    // build's blob capacity is a file from an older build (e.g. the OoT tier
-    // was the N64 0x1428 before the capacity covered SoH's full runtime
-    // struct) — its bytes are a prefix of the same layout, so Load accepts it
-    // and zero-extends. Larger than capacity means a newer/foreign layout that
-    // cannot fit the shadow buffers: refuse rather than truncate.
-    if (h.ootSize == 0 || h.ootSize > kOoTSize || h.mmSize == 0 || h.mmSize > kMMSize) {
+    if (h.ootSize == 0 || h.ootSize > kOoTSize) {
+        SaveLogReject(verbose, "Tier-2 (OoT) size out of range", h.ootSize, kOoTSize);
+        return false;
+    }
+    if (h.mmSize == 0 || h.mmSize > kMMSize) {
+        SaveLogReject(verbose, "Tier-3 (MM) size out of range", h.mmSize, kMMSize);
         return false;
     }
 
@@ -180,11 +220,12 @@ bool SaveManager::Load(int slot) {
 
     std::ifstream in(SlotPath(slot), std::ios::binary);
     if (!in) {
+        std::fprintf(stderr, "[RsbsSave] cannot open slot %d for load\n", slot);
         return false;
     }
 
     RsbsSaveHeader header;
-    if (!DeserializeHeader(in, header)) {
+    if (!DeserializeHeader(in, header, /*verbose=*/true)) {
         return false;
     }
 
@@ -193,38 +234,50 @@ bool SaveManager::Load(int slot) {
     // not clobber live state. Reads are driven by the header's STORED tier
     // sizes; the blobs are allocated at full capacity and zero-filled so a
     // shorter tier from an older build is zero-extended.
-    ComboContext combo;
+    //
+    // Tier-1 gets the same treatment via a full-record staging buffer: the
+    // struct is copied out of the FRONT of it, so fields appended since the file
+    // was written read as zero — exactly the value ComboContext_Init gives them
+    // — instead of whatever was on the stack.
+    std::vector<uint8_t> comboRecord(kComboSize, 0);
     std::vector<uint8_t> ootBlob(kOoTSize, 0);
     std::vector<uint8_t> mmBlob(kMMSize, 0);
 
-    in.read(reinterpret_cast<char*>(&combo), kComboSize);
-    if (!in || in.gcount() != static_cast<std::streamsize>(kComboSize)) {
+    in.read(reinterpret_cast<char*>(comboRecord.data()), header.comboSize);
+    if (!in || in.gcount() != static_cast<std::streamsize>(header.comboSize)) {
+        std::fprintf(stderr, "[RsbsSave] slot %d truncated in Tier-1\n", slot);
         return false;
     }
     in.read(reinterpret_cast<char*>(ootBlob.data()), header.ootSize);
     if (!in || in.gcount() != static_cast<std::streamsize>(header.ootSize)) {
+        std::fprintf(stderr, "[RsbsSave] slot %d truncated in Tier-2 (OoT)\n", slot);
         return false;
     }
     in.read(reinterpret_cast<char*>(mmBlob.data()), header.mmSize);
     if (!in || in.gcount() != static_cast<std::streamsize>(header.mmSize)) {
+        std::fprintf(stderr, "[RsbsSave] slot %d truncated in Tier-3 (MM)\n", slot);
         return false;
     }
+
+    ComboContext combo;
+    std::memcpy(&combo, comboRecord.data(), sizeof(ComboContext));
 
     // CRC over Tiers 1..3 exactly as stored (not the zero-extended tails), in
     // the same contiguous order they were written.
     std::vector<uint8_t> payload;
-    payload.reserve(kComboSize + header.ootSize + header.mmSize);
-    const uint8_t* comboBytes = reinterpret_cast<const uint8_t*>(&combo);
-    payload.insert(payload.end(), comboBytes, comboBytes + kComboSize);
+    payload.reserve(header.comboSize + header.ootSize + header.mmSize);
+    payload.insert(payload.end(), comboRecord.begin(), comboRecord.begin() + header.comboSize);
     payload.insert(payload.end(), ootBlob.begin(), ootBlob.begin() + header.ootSize);
     payload.insert(payload.end(), mmBlob.begin(), mmBlob.begin() + header.mmSize);
     if (Crc32(payload.data(), payload.size()) != header.crc32) {
+        std::fprintf(stderr, "[RsbsSave] slot %d failed CRC — file is corrupt, load refused\n", slot);
         return false;
     }
 
     // Inner ComboContext magic guards against a structurally-valid file whose
     // Tier-1 contents are not actually a ComboContext.
     if (std::memcmp(combo.magic, COMBO_CONTEXT_MAGIC, sizeof(combo.magic)) != 0) {
+        std::fprintf(stderr, "[RsbsSave] slot %d Tier-1 is not a ComboContext, load refused\n", slot);
         return false;
     }
 
@@ -246,7 +299,7 @@ bool SaveManager::HasSave(int slot) const {
         return false;
     }
     RsbsSaveHeader header;
-    return DeserializeHeader(in, header);
+    return DeserializeHeader(in, header, /*verbose=*/false);
 }
 
 void SaveManager::DeleteSave(int slot) {
@@ -338,7 +391,7 @@ SlotMeta SaveManager::ReadMeta(int slot) const {
     meta.exists = true;
 
     RsbsSaveHeader header;
-    if (!DeserializeHeader(in, header)) {
+    if (!DeserializeHeader(in, header, /*verbose=*/false)) {
         return meta;  // exists=true, valid=false
     }
     meta.valid = true;
@@ -350,12 +403,17 @@ SlotMeta SaveManager::ReadMeta(int slot) const {
     // ReadMeta is called for every slot every menu frame, and CRC over ~200KB
     // each time would dominate the file-select draw. Load() still CRC-checks
     // when the user actually picks a slot.
-    ComboContext combo;
-    in.read(reinterpret_cast<char*>(&combo), kComboSize);
-    if (!in || in.gcount() != static_cast<std::streamsize>(kComboSize)) {
+    // Same zero-filled staging + prefix-copy as Load: a legacy short Tier-1
+    // must still yield a readable sourceGame, or the file-select panel would
+    // label every pre-headroom slot as belonging to no game.
+    std::vector<uint8_t> comboRecord(kComboSize, 0);
+    in.read(reinterpret_cast<char*>(comboRecord.data()), header.comboSize);
+    if (!in || in.gcount() != static_cast<std::streamsize>(header.comboSize)) {
         meta.valid = false;
         return meta;
     }
+    ComboContext combo;
+    std::memcpy(&combo, comboRecord.data(), sizeof(ComboContext));
     if (std::memcmp(combo.magic, COMBO_CONTEXT_MAGIC, sizeof(combo.magic)) == 0) {
         meta.lastGame = combo.sourceGame;
     }
