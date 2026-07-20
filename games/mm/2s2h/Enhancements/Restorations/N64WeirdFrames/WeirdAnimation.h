@@ -13,6 +13,14 @@ enum class IndexDirection {
     FORWARD,
 };
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// OoT's soh/Enhancements/Restorations/N64WeirdFrames/WeirdAnimation.{h,cpp} defines
+// an identically-named, identically-shaped class WeirdAnimation (same collision
+// story as AudioEditor.h / AudioCollection.h: same-named methods mangle
+// identically), so MM's copy moves into S2H.
+namespace S2H {
+#endif
+
 class WeirdAnimation {
   public:
     WeirdAnimation(std::string targetAnimation, s32 limbCount, IndexDirection direction,
@@ -41,3 +49,8 @@ class WeirdAnimation {
 
     void Build();
 };
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+} // namespace S2H
+using S2H::WeirdAnimation;
+#endif

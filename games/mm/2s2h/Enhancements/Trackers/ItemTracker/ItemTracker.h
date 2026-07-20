@@ -32,6 +32,14 @@ extern std::vector<TrackerGroup> itemTrackerGroups;
 extern bool DrawItemTrackerSlot(TrackerItemType itemType, u32 itemId, float scale, bool clickable);
 extern std::string GetItemTrackerItemName(TrackerItemType itemType, u32 itemId);
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// OoT's soh/Enhancements/randomizer/randomizer_item_tracker.h defines an
+// identically-named class ItemTrackerWindow (same collision story as
+// AudioEditor.h: Draw/InitElement/DrawElement/vtable mangle identically), so
+// MM's copy moves into S2H.
+namespace S2H {
+#endif
+
 class ItemTrackerWindow : public Ship::GuiWindow {
   public:
     using GuiWindow::GuiWindow;
@@ -42,3 +50,8 @@ class ItemTrackerWindow : public Ship::GuiWindow {
     void DrawElement() override;
     void UpdateElement() override{};
 };
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+} // namespace S2H
+using S2H::ItemTrackerWindow;
+#endif

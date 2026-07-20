@@ -60,9 +60,9 @@ typedef struct {
     uint32_t endIndex;
 } IndexRangeObject;
 
-extern std::vector<TimesplitObject> splitList;
+extern std::vector<TimesplitObject> MM_splitList;
 extern std::vector<TimesplitObject> comparisonList;
-extern std::vector<TimesplitObject> splitObjectList;
+extern std::vector<TimesplitObject> MM_splitObjectList;
 extern std::vector<TimesplitObject> sceneObjectList;
 extern std::vector<std::string> savedLists;
 extern std::map<uint32_t, std::vector<uint32_t>> itemSubMenuList;
@@ -74,7 +74,7 @@ extern ImVec2 GetItemImageSizeById(uint32_t itemId);
 extern void TableCellCenteredText(ImVec4 color, const char* text);
 extern const char* GetItemImageById(uint32_t itemId);
 extern void MM_SplitsPushImageButtonStyle();
-extern void SplitsPopImageButtonStyle();
+extern void MM_SplitsPopImageButtonStyle();
 extern void HandlePopUpContext(uint32_t popupId);
 extern void HandleDragAndDrop(size_t i);
 extern void UpdateSplitBests();

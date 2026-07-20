@@ -49,8 +49,8 @@ TimesplitObject json_to_TimesplitObject(const nlohmann::json& jsonSplit) {
 }
 
 uint32_t GetCurrentActiveSplit(std::vector<TimesplitObject> list) {
-    for (size_t i = 0; i < splitList.size(); i++) {
-        if (splitList[i].splitStatus == SPLIT_ACTIVE) {
+    for (size_t i = 0; i < MM_splitList.size(); i++) {
+        if (MM_splitList[i].splitStatus == SPLIT_ACTIVE) {
             return (uint32_t)i;
         }
     }
@@ -71,7 +71,7 @@ TimesplitObject GetSplitObjectBySceneId(uint32_t sceneId) {
 
 TimesplitObject GetSplitObjectById(uint32_t itemId) {
     TimesplitObject splitObject;
-    for (auto& list : splitObjectList) {
+    for (auto& list : MM_splitObjectList) {
         if (list.splitId == itemId) {
             splitObject = list;
         }
@@ -108,7 +108,7 @@ void HandlePopUpContext(uint32_t popupId) {
                 shouldPopUpOpen = false;
             }
             UIWidgets::Tooltip(GetSplitObjectById(list).splitName.c_str());
-            SplitsPopImageButtonStyle();
+            MM_SplitsPopImageButtonStyle();
 
             if (slotIndex == 4) {
                 slotIndex = -1;
@@ -124,14 +124,14 @@ void HandlePopUpContext(uint32_t popupId) {
 void HandleDragAndDrop(size_t i) {
     if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None)) {
         ImGui::SetDragDropPayload("SPLIT_DRAG", &i, sizeof(size_t));
-        ImGui::ImageButton(std::to_string(splitList[i].splitId).c_str(),
+        ImGui::ImageButton(std::to_string(MM_splitList[i].splitId).c_str(),
                            Ship::Context::GetInstance()->GetWindow()->GetGui()->GetTextureByName(
-                               splitList[i].splitType == SPLIT_TYPE_NORMAL ? GetItemImageById(splitList[i].splitId)
+                               MM_splitList[i].splitType == SPLIT_TYPE_NORMAL ? GetItemImageById(MM_splitList[i].splitId)
                                                                            : gPauseUnusedCursorTex),
-                           splitList[i].splitType == SPLIT_TYPE_NORMAL ? GetItemImageSizeById(splitList[i].splitId)
+                           MM_splitList[i].splitType == SPLIT_TYPE_NORMAL ? GetItemImageSizeById(MM_splitList[i].splitId)
                                                                        : ImVec2(32.0f, 32.0f),
                            ImVec2(0, 0), ImVec2(1, 1), ImVec4(0, 0, 0, 0),
-                           splitList[i].splitType == SPLIT_TYPE_NORMAL ? Ship_GetItemColorTint(splitList[i].splitId)
+                           MM_splitList[i].splitType == SPLIT_TYPE_NORMAL ? Ship_GetItemColorTint(MM_splitList[i].splitId)
                                                                        : ImVec4(1, 1, 1, 1));
         ImGui::EndDragDropSource();
     }
@@ -139,15 +139,15 @@ void HandleDragAndDrop(size_t i) {
     if (ImGui::BeginDragDropTarget()) {
         if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SPLIT_DRAG")) {
             size_t srcIndex = *(const size_t*)payload->Data;
-            if (srcIndex != i && srcIndex < splitList.size()) {
-                auto item = splitList[srcIndex];
-                splitList.erase(splitList.begin() + srcIndex);
+            if (srcIndex != i && srcIndex < MM_splitList.size()) {
+                auto item = MM_splitList[srcIndex];
+                MM_splitList.erase(MM_splitList.begin() + srcIndex);
 
                 if (srcIndex < i) {
                     i--;
                 }
 
-                splitList.insert(splitList.begin() + i, item);
+                MM_splitList.insert(MM_splitList.begin() + i, item);
             }
         }
         ImGui::EndDragDropTarget();
@@ -155,52 +155,52 @@ void HandleDragAndDrop(size_t i) {
 }
 
 void CheckSplitsCompleted(uint32_t index) {
-    if (index == splitList.size() - 1) {
+    if (index == MM_splitList.size() - 1) {
         gSaveContext.save.shipSaveInfo.fileCompletedAt = GetUnixTimestamp();
     } else {
-        splitList[index + 1].splitStatus = SPLIT_ACTIVE;
+        MM_splitList[index + 1].splitStatus = SPLIT_ACTIVE;
     }
 }
 
 void AddSplitEntryBySceneId(uint32_t sceneId) {
     TimesplitObject splitObject = GetSplitObjectBySceneId(sceneId);
 
-    if (splitList.size() == 0) {
+    if (MM_splitList.size() == 0) {
         splitObject.splitStatus = SPLIT_ACTIVE;
     }
-    splitList.push_back(splitObject);
+    MM_splitList.push_back(splitObject);
 }
 
 void AddSplitEntryById(uint32_t itemId) {
     TimesplitObject splitObject = GetSplitObjectById(itemId);
 
-    if (splitList.size() == 0) {
+    if (MM_splitList.size() == 0) {
         splitObject.splitStatus = SPLIT_ACTIVE;
     }
-    splitList.push_back(splitObject);
+    MM_splitList.push_back(splitObject);
 }
 
 void RemoveSplitEntry(uint32_t splitId, uint32_t index) {
-    uint32_t activeIndex = GetCurrentActiveSplit(splitList);
+    uint32_t activeIndex = GetCurrentActiveSplit(MM_splitList);
 
     if (activeIndex != -1) {
-        if (splitList[activeIndex].splitId == splitId) {
+        if (MM_splitList[activeIndex].splitId == splitId) {
             CheckSplitsCompleted(activeIndex);
         }
     }
 
-    splitList.erase(splitList.begin() + index);
+    MM_splitList.erase(MM_splitList.begin() + index);
 }
 
 void SkipSplitEntry(uint32_t index) {
-    if (splitList[index].splitStatus == SPLIT_ACTIVE) {
+    if (MM_splitList[index].splitStatus == SPLIT_ACTIVE) {
         CheckSplitsCompleted(index);
     }
-    splitList[index].splitStatus = SPLIT_SKIPPED;
+    MM_splitList[index].splitStatus = SPLIT_SKIPPED;
 }
 
 void UpdateSplitBests() {
-    for (auto& splits : splitList) {
+    for (auto& splits : MM_splitList) {
         if (splits.splitCurrentTime < splits.splitPreviousBest || splits.splitPreviousBest == 0) {
             splits.splitPreviousBest = splits.splitCurrentTime;
         }
@@ -208,47 +208,47 @@ void UpdateSplitBests() {
 }
 
 void UpdateSplitStatusBySceneId(uint32_t sceneId) {
-    uint32_t activeIndex = GetCurrentActiveSplit(splitList);
+    uint32_t activeIndex = GetCurrentActiveSplit(MM_splitList);
 
     if (activeIndex == -1) {
         return;
     }
 
-    if (splitList[activeIndex].splitType == SPLIT_TYPE_SCENE && splitList[activeIndex].splitId == sceneId) {
-        splitList[activeIndex].splitCurrentTime =
+    if (MM_splitList[activeIndex].splitType == SPLIT_TYPE_SCENE && MM_splitList[activeIndex].splitId == sceneId) {
+        MM_splitList[activeIndex].splitCurrentTime =
             ((GetUnixTimestamp() - gSaveContext.save.shipSaveInfo.fileCreatedAt) / 100);
-        splitList[activeIndex].splitStatus = SPLIT_COMPLETE;
+        MM_splitList[activeIndex].splitStatus = SPLIT_COMPLETE;
 
-        if (activeIndex == splitList.size() - 1) {
+        if (activeIndex == MM_splitList.size() - 1) {
             CheckSplitsCompleted(activeIndex);
         } else {
-            splitList[activeIndex + 1].splitStatus = SPLIT_ACTIVE;
+            MM_splitList[activeIndex + 1].splitStatus = SPLIT_ACTIVE;
         }
     }
 }
 
 void UpdateSplitStatusById(uint32_t itemId) {
-    uint32_t activeIndex = GetCurrentActiveSplit(splitList);
+    uint32_t activeIndex = GetCurrentActiveSplit(MM_splitList);
 
     if (activeIndex == -1) {
         return;
     }
 
-    if (splitList[activeIndex].splitId == itemId) {
-        splitList[activeIndex].splitCurrentTime =
+    if (MM_splitList[activeIndex].splitId == itemId) {
+        MM_splitList[activeIndex].splitCurrentTime =
             ((GetUnixTimestamp() - gSaveContext.save.shipSaveInfo.fileCreatedAt) / 100);
-        splitList[activeIndex].splitStatus = SPLIT_COMPLETE;
+        MM_splitList[activeIndex].splitStatus = SPLIT_COMPLETE;
 
-        if (activeIndex == splitList.size() - 1) {
+        if (activeIndex == MM_splitList.size() - 1) {
             CheckSplitsCompleted(activeIndex);
         } else {
-            splitList[activeIndex + 1].splitStatus = SPLIT_ACTIVE;
+            MM_splitList[activeIndex + 1].splitStatus = SPLIT_ACTIVE;
         }
     }
 }
 
 void GetSplitByActorId(int16_t actorId, uint32_t specialType = 0) {
-    uint32_t activeIndex = GetCurrentActiveSplit(splitList);
+    uint32_t activeIndex = GetCurrentActiveSplit(MM_splitList);
 
     switch (actorId) {
         case ACTOR_BOSS_01:
@@ -324,7 +324,7 @@ void SplitSaveFileAction(uint32_t action, std::string listName) {
     }
 
     if (action == SPLIT_SAVE) {
-        for (auto& data : splitList) {
+        for (auto& data : MM_splitList) {
             listArray.push_back(TimesplitObject_to_json(data));
         }
         saveFile[listName] = listArray;
@@ -339,12 +339,12 @@ void SplitSaveFileAction(uint32_t action, std::string listName) {
     if (action == SPLIT_LOAD) {
         if (saveFile.contains(listName)) {
             listArray = saveFile[listName];
-            splitList.clear();
+            MM_splitList.clear();
 
             for (auto& data : listArray) {
-                splitList.push_back(json_to_TimesplitObject(data));
+                MM_splitList.push_back(json_to_TimesplitObject(data));
             }
-            splitList[0].splitStatus = SPLIT_ACTIVE;
+            MM_splitList[0].splitStatus = SPLIT_ACTIVE;
         }
     }
 
