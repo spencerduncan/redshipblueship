@@ -5,8 +5,8 @@
 #define CVAR_NAME "gCheats.UnrestrictedItems"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
-void RegisterUnrestrictedItems() {
+void MM_RegisterUnrestrictedItems() {
     COND_VB_SHOULD(VB_ITEM_BE_RESTRICTED, CVAR, { *should = false; });
 }
 
-static RegisterShipInitFunc initFunc(RegisterUnrestrictedItems, { CVAR_NAME });
+static RegisterShipInitFunc initFunc(MM_RegisterUnrestrictedItems, { CVAR_NAME });

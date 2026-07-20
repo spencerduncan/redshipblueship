@@ -41,7 +41,7 @@ static std::vector<WeirdAnimation> weirdAnimations{
       } },
 };
 
-void RegisterN64WeirdFrames() {
+void MM_RegisterN64WeirdFrames() {
     COND_VB_SHOULD(VB_LOAD_PLAYER_ANIMATION_FRAME, CVAR, {
         const auto entry = va_arg(args, AnimTask*);
         if (entry == nullptr) {
@@ -93,4 +93,4 @@ void RegisterN64WeirdFrames() {
     });
 }
 
-static RegisterShipInitFunc initFunc(RegisterN64WeirdFrames, { CVAR_NAME });
+static RegisterShipInitFunc initFunc(MM_RegisterN64WeirdFrames, { CVAR_NAME });

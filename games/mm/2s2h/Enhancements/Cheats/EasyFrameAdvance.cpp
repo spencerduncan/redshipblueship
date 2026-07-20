@@ -12,7 +12,7 @@ extern "C" {
 
 static int frameAdvanceTimer = 0;
 
-void RegisterEasyFrameAdvance() {
+void MM_RegisterEasyFrameAdvance() {
     COND_HOOK(OnGameStateMainStart, CVAR, []() {
         if (MM_gPlayState == NULL) {
             return;
@@ -34,4 +34,4 @@ void RegisterEasyFrameAdvance() {
     });
 }
 
-static RegisterShipInitFunc initFunc(RegisterEasyFrameAdvance, { CVAR_NAME });
+static RegisterShipInitFunc initFunc(MM_RegisterEasyFrameAdvance, { CVAR_NAME });

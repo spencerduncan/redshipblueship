@@ -131,7 +131,7 @@ std::vector<TimesplitObject> sceneObjectList = {
     { SCENE_LAST_BS, "Majora's Lair" },
 };
 
-std::vector<TimesplitObject> splitObjectList = {
+std::vector<TimesplitObject> MM_splitObjectList = {
     // clang-format off
     { ITEM_HEART_PIECE, "Piece of Heart" },
 
@@ -323,11 +323,11 @@ IndexRangeObject GetSceneIndexRange(uint32_t start, uint32_t end) {
 IndexRangeObject GetIndexRange(uint32_t start, uint32_t end) {
     IndexRangeObject setRange = { 0, 0 };
 
-    for (size_t i = 0; i < splitObjectList.size(); i++) {
-        if (splitObjectList[i].splitId == start) {
+    for (size_t i = 0; i < MM_splitObjectList.size(); i++) {
+        if (MM_splitObjectList[i].splitId == start) {
             setRange.startIndex = static_cast<int>(i);
         }
-        if (splitObjectList[i].splitId == end) {
+        if (MM_splitObjectList[i].splitId == end) {
             setRange.endIndex = static_cast<int>(i);
         }
     }
@@ -512,14 +512,14 @@ void DrawActionButtons() {
         if (UIWidgets::Button("New Attempt", {
                                                  .color = UIWidgets::Colors(CVarGetInteger("gSettings.Menu.Theme", 5)),
                                              })) {
-            if (splitList.size() == 0) {
+            if (MM_splitList.size() == 0) {
                 return;
             }
 
-            for (auto& splits : splitList) {
+            for (auto& splits : MM_splitList) {
                 splits.splitStatus = SPLIT_INACTIVE;
             }
-            splitList[0].splitStatus = SPLIT_ACTIVE;
+            MM_splitList[0].splitStatus = SPLIT_ACTIVE;
         }
 
         ImGui::TableNextColumn();
@@ -556,7 +556,7 @@ void DrawEntranceList() {
             for (int i = sceneRange.startIndex; i <= sceneRange.endIndex; i++) {
                 ImGui::TableNextColumn();
                 ImGui::PushID(sceneObjectList[i].splitId);
-                SplitsPushImageButtonStyle();
+                MM_SplitsPushImageButtonStyle();
 
                 if (ImGui::ImageButton(
                         std::to_string(sceneObjectList[i].splitId).c_str(),
@@ -568,7 +568,7 @@ void DrawEntranceList() {
                 TableCellCenteredText(UIWidgets::ColorValues.at(UIWidgets::Colors::White),
                                       sceneObjectList[i].splitName.c_str());
 
-                SplitsPopImageButtonStyle();
+                MM_SplitsPopImageButtonStyle();
                 ImGui::PopID();
             }
 
@@ -582,28 +582,28 @@ void DrawItemList(const char* tableName, IndexRangeObject range, uint32_t tableS
     if (ImGui::BeginTable(tableName, tableSize)) {
         for (int i = range.startIndex; i <= range.endIndex; i++) {
             ImGui::TableNextColumn();
-            SplitsPushImageButtonStyle();
-            if (ImGui::ImageButton(std::to_string(splitObjectList[i].splitId).c_str(),
+            MM_SplitsPushImageButtonStyle();
+            if (ImGui::ImageButton(std::to_string(MM_splitObjectList[i].splitId).c_str(),
                                    Ship::Context::GetInstance()->GetWindow()->GetGui()->GetTextureByName(
-                                       GetItemImageById(splitObjectList[i].splitId)),
-                                   GetItemImageSizeById(splitObjectList[i].splitId) * 1.5f, ImVec2(0, 0), ImVec2(1, 1),
-                                   ImVec4(0, 0, 0, 0), Ship_GetItemColorTint(splitObjectList[i].splitId))) {
-                if (itemSubMenuList.contains(splitObjectList[i].splitId)) {
+                                       GetItemImageById(MM_splitObjectList[i].splitId)),
+                                   GetItemImageSizeById(MM_splitObjectList[i].splitId) * 1.5f, ImVec2(0, 0), ImVec2(1, 1),
+                                   ImVec4(0, 0, 0, 0), Ship_GetItemColorTint(MM_splitObjectList[i].splitId))) {
+                if (itemSubMenuList.contains(MM_splitObjectList[i].splitId)) {
                     shouldPopUpOpen = true;
-                    popupItem = splitObjectList[i].splitId;
+                    popupItem = MM_splitObjectList[i].splitId;
                     ImGui::OpenPopup("ItemSubMenu");
                 } else {
-                    AddSplitEntryById(splitObjectList[i].splitId);
+                    AddSplitEntryById(MM_splitObjectList[i].splitId);
                 }
             }
-            UIWidgets::Tooltip(splitObjectList[i].splitName.c_str());
+            UIWidgets::Tooltip(MM_splitObjectList[i].splitName.c_str());
             if (listName == "Bosses") {
                 ImGui::SameLine();
                 TableCellCenteredText(UIWidgets::ColorValues.at(UIWidgets::Colors::White),
-                                      splitObjectList[i].splitName.c_str());
+                                      MM_splitObjectList[i].splitName.c_str());
             }
 
-            SplitsPopImageButtonStyle();
+            MM_SplitsPopImageButtonStyle();
         }
         HandlePopUpContext(popupItem);
         ImGui::EndTable();
@@ -639,28 +639,28 @@ void TimesplitsSettingsWindow::DrawElement() {
                                              });
                 ImGui::EndDisabled();
                 ImGui::BeginChild("Preview List");
-                for (size_t i = 0; i < splitList.size(); i++) {
+                for (size_t i = 0; i < MM_splitList.size(); i++) {
                     ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ((ImGui::GetContentRegionAvail().x - 50.0f) * 0.5f));
                     ImGui::PushID(i);
-                    SplitsPushImageButtonStyle();
+                    MM_SplitsPushImageButtonStyle();
                     if (ImGui::ImageButton(
                             std::to_string(i).c_str(),
                             Ship::Context::GetInstance()->GetWindow()->GetGui()->GetTextureByName(
-                                splitList[i].splitType == SPLIT_TYPE_NORMAL ? GetItemImageById(splitList[i].splitId)
+                                MM_splitList[i].splitType == SPLIT_TYPE_NORMAL ? GetItemImageById(MM_splitList[i].splitId)
                                                                             : gPauseUnusedCursorTex),
-                            splitList[i].splitType == SPLIT_TYPE_NORMAL ? GetItemImageSizeById(splitList[i].splitId)
+                            MM_splitList[i].splitType == SPLIT_TYPE_NORMAL ? GetItemImageSizeById(MM_splitList[i].splitId)
                                                                         : ImVec2(32.0f, 32.0f),
                             ImVec2(0, 0), ImVec2(1, 1), ImVec4(0, 0, 0, 0),
-                            splitList[i].splitType == SPLIT_TYPE_NORMAL ? Ship_GetItemColorTint(splitList[i].splitId)
+                            MM_splitList[i].splitType == SPLIT_TYPE_NORMAL ? Ship_GetItemColorTint(MM_splitList[i].splitId)
                                                                         : ImVec4(1, 1, 1, 1))) {
                         shouldRemoveEntry = true;
-                        entryId = splitList[i].splitId;
+                        entryId = MM_splitList[i].splitId;
                         entryIndex = i;
                     };
-                    UIWidgets::Tooltip(splitList[i].splitName.c_str());
+                    UIWidgets::Tooltip(MM_splitList[i].splitName.c_str());
 
                     HandleDragAndDrop(i);
-                    SplitsPopImageButtonStyle();
+                    MM_SplitsPopImageButtonStyle();
                     ImGui::PopID();
                 }
                 ImGui::EndChild();

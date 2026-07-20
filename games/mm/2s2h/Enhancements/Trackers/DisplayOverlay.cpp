@@ -15,7 +15,7 @@ uint64_t GetUnixTimestamp();
 #include "2s2h/Enhancements/Enhancements.h"
 
 float windowScale = 1.0f;
-ImVec4 windowBG = ImVec4(0, 0, 0, 0.5f);
+ImVec4 MM_windowBG = ImVec4(0, 0, 0, 0.5f);
 static constexpr ImVec4 tintColor = {};
 
 void DrawInGameTimer(uint32_t timer, ImVec4 color = ImVec4(1, 1, 1, 1)) {

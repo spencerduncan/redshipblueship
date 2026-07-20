@@ -25,7 +25,7 @@ uint64_t GetUnixTimestamp();
 #define COLOR_LIGHTGREEN ImVec4(0.42f, 0.86f, 0.38f, 1.0f)
 #define COLOR_LIGHTRED ImVec4(0.87f, 0.40f, 0.40f, 1.0f)
 
-std::vector<TimesplitObject> splitList;
+std::vector<TimesplitObject> MM_splitList;
 std::vector<TimesplitObject> comparisonList;
 ImGuiTableFlags tableColumnFlags = ImGuiTableColumnFlags_None;
 ImVec4 splitOpacity = { 0, 0, 0, 0.5f };
@@ -142,13 +142,13 @@ void TableCellCenteredText(ImVec4 color, const char* text) {
     ImGui::TextColored(color, text);
 }
 
-void SplitsPushImageButtonStyle() {
+void MM_SplitsPushImageButtonStyle() {
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 1.0f, 1.0f, 0.0f));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 1.0f, 1.0f, 0.2f));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(1.0f, 1.0f, 1.0f, 0.1f));
 }
 
-void SplitsPopImageButtonStyle() {
+void MM_SplitsPopImageButtonStyle() {
     ImGui::PopStyleColor(3);
 }
 
@@ -180,62 +180,62 @@ void DrawSplitsList(bool isMain) {
                 ImGui::TableHeadersRow();
             }
 
-            for (size_t i = 0; i < splitList.size(); i++) {
+            for (size_t i = 0; i < MM_splitList.size(); i++) {
                 ImGui::PushID(i);
 
                 // Item Image Column
                 ImGui::TableNextColumn();
 
-                if (CVarGetInteger("gSettings.TimeSplits.Highlight", 0) && splitList[i].splitStatus == SPLIT_ACTIVE) {
+                if (CVarGetInteger("gSettings.TimeSplits.Highlight", 0) && MM_splitList[i].splitStatus == SPLIT_ACTIVE) {
                     ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(47, 79, 90, 255));
                 }
 
-                SplitsPushImageButtonStyle();
+                MM_SplitsPushImageButtonStyle();
                 if (ImGui::ImageButton(
                         std::to_string(i).c_str(),
                         Ship::Context::GetInstance()->GetWindow()->GetGui()->GetTextureByName(
-                            splitList[i].splitType == SPLIT_TYPE_NORMAL ? GetItemImageById(splitList[i].splitId)
+                            MM_splitList[i].splitType == SPLIT_TYPE_NORMAL ? GetItemImageById(MM_splitList[i].splitId)
                                                                         : gPauseUnusedCursorTex),
-                        splitList[i].splitType == SPLIT_TYPE_NORMAL ? GetItemImageSizeById(splitList[i].splitId)
+                        MM_splitList[i].splitType == SPLIT_TYPE_NORMAL ? GetItemImageSizeById(MM_splitList[i].splitId)
                                                                     : ImVec2(32.0f, 32.0f),
                         ImVec2(0, 0), ImVec2(1, 1), ImVec4(0, 0, 0, 0),
-                        splitList[i].splitType == SPLIT_TYPE_NORMAL ? Ship_GetItemColorTint(splitList[i].splitId)
+                        MM_splitList[i].splitType == SPLIT_TYPE_NORMAL ? Ship_GetItemColorTint(MM_splitList[i].splitId)
                                                                     : ImVec4(1, 1, 1, 1))) {
                     SkipSplitEntry(i);
                 };
-                SplitsPopImageButtonStyle();
+                MM_SplitsPopImageButtonStyle();
 
                 // Item Name Column
                 ImGui::TableNextColumn();
-                TableCellCenteredText(COLOR_WHITE, splitList[i].splitName.c_str());
+                TableCellCenteredText(COLOR_WHITE, MM_splitList[i].splitName.c_str());
 
                 // Current Time Column
                 ImGui::TableNextColumn();
                 TableCellCenteredText(
-                    GetCurrentTimeTextDisplay(splitList[i]).colorDisplay,
+                    GetCurrentTimeTextDisplay(MM_splitList[i]).colorDisplay,
                     !MM_gPlayState ? BLANK_SPLIT
-                                : Ship_FormatTimeDisplay(GetCurrentTimeTextDisplay(splitList[i]).timeDisplay).c_str());
+                                : Ship_FormatTimeDisplay(GetCurrentTimeTextDisplay(MM_splitList[i]).timeDisplay).c_str());
 
                 // +/- Column
                 ImGui::TableNextColumn();
                 TableCellCenteredText(
-                    GetTimeDiffTextDisplay(splitList[i]).colorDisplay,
+                    GetTimeDiffTextDisplay(MM_splitList[i]).colorDisplay,
                     !MM_gPlayState ? BLANK_SPLIT
-                                : Ship_FormatTimeDisplay(GetTimeDiffTextDisplay(splitList[i]).timeDisplay).c_str());
+                                : Ship_FormatTimeDisplay(GetTimeDiffTextDisplay(MM_splitList[i]).timeDisplay).c_str());
                 if (CVarGetInteger("gSettings.TimeSplits.Compare", 0) && comparisonList.size() != 0) {
                     !MM_gPlayState ? ImGui::TextColored(COLOR_WHITE, BLANK_SPLIT)
                     : i < comparisonList.size()
                         ? ImGui::TextColored(
-                              GetComparisonTimeTextDisplay(splitList[i], comparisonList[i]).colorDisplay,
+                              GetComparisonTimeTextDisplay(MM_splitList[i], comparisonList[i]).colorDisplay,
                               Ship_FormatTimeDisplay(
-                                  GetComparisonTimeTextDisplay(splitList[i], comparisonList[i]).timeDisplay)
+                                  GetComparisonTimeTextDisplay(MM_splitList[i], comparisonList[i]).timeDisplay)
                                   .c_str())
                         : ImGui::TextColored(COLOR_GREY, "No Data");
                 }
 
                 // Previous Best Column
                 ImGui::TableNextColumn();
-                TableCellCenteredText(COLOR_WHITE, Ship_FormatTimeDisplay(splitList[i].splitPreviousBest).c_str());
+                TableCellCenteredText(COLOR_WHITE, Ship_FormatTimeDisplay(MM_splitList[i].splitPreviousBest).c_str());
                 if (CVarGetInteger("gSettings.TimeSplits.Compare", 0) && comparisonList.size() != 0) {
                     ImGui::TextColored(COLOR_GREY,
                                        i < comparisonList.size()
@@ -245,7 +245,7 @@ void DrawSplitsList(bool isMain) {
 
                 ImGui::PopID();
 
-                if (CVarGetInteger("gSettings.TimeSplits.Follow", 0) && splitList[i].splitStatus == SPLIT_ACTIVE) {
+                if (CVarGetInteger("gSettings.TimeSplits.Follow", 0) && MM_splitList[i].splitStatus == SPLIT_ACTIVE) {
                     ImGui::SetScrollHereY();
                 }
             }

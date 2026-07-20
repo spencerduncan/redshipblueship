@@ -1,0 +1,5 @@
+# Tolerated soh_*/2ship_* defined-symbol collisions (see
+# .github/scripts/check-symbol-collisions.sh). Every entry here is a
+# latent cross-game aliasing bug or deliberate glue — shrink this
+# list, never grow it without a comment in the PR explaining why the
+# collision is safe.

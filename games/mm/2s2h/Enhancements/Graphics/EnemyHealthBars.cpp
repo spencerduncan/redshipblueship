@@ -38,7 +38,7 @@ u8 GetActorMaxHealth(Actor* actor) {
     return maxHealth != nullptr ? maxHealth->maximumHealth : ActorMaximumHealth{}.maximumHealth;
 }
 
-void SetActorMaximumHealth(const Actor* actor, u8 maximumHealth) {
+void MM_SetActorMaximumHealth(const Actor* actor, u8 maximumHealth) {
     ObjectExtension::GetInstance().Set<ActorMaximumHealth>(actor, ActorMaximumHealth{ maximumHealth });
 }
 
@@ -196,7 +196,7 @@ static RegisterShipInitFunc initFunc(
             if (actor->id == ACTOR_BOSS_07 && actor->params >= MAJORA_TYPE_REMAINS) {
                 maxHealth = 5;
             }
-            SetActorMaximumHealth(actor, maxHealth);
+            MM_SetActorMaximumHealth(actor, maxHealth);
         });
 
         COND_HOOK(OnInterfaceDrawStart, CVAR, []() {

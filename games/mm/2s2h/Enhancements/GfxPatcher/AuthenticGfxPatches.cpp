@@ -73,7 +73,7 @@ static DListPatchInfo arrowTipDListPatchInfos[] = {
     { gameplay_keep_DL_014370, 5 },
 };
 
-void PatchArrowTipTexture() {
+void MM_PatchArrowTipTexture() {
     // Custom texture for Arrow tips that accounts for overflow texture reading
     Gfx arrowTipTextureWithOverflowFixGfx =
         gsDPSetTextureImage(G_IM_FMT_RGBA, G_IM_SIZ_16b_LOAD_BLOCK, 1, gameplay_keep_Tex_00CA30_Overflow);
@@ -230,7 +230,7 @@ void PatchIronKnuckleFireTexture() {
 }
 
 void GfxPatcher_ApplyOverflowTexturePatches() {
-    PatchArrowTipTexture();
+    MM_PatchArrowTipTexture();
     PatchFreezardBodyTexture();
     PatchIronKnuckleFireTexture();
 }
