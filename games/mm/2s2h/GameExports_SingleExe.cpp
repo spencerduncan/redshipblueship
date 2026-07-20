@@ -575,6 +575,42 @@ static void MM_RegisterIntegrationTestHooks(void) {
 }
 
 // ============================================================================
+// TEMPORARY #395 diagnostics — REMOVE with the shim migration commit.
+// ============================================================================
+// Mirror of the OoT_GI_ProbeRegisterOnMainStart* helpers in
+// games/oot/soh/Enhancements/game-interactor/GameInteractor_Hooks.cpp, but
+// compiled in THIS translation unit — the same TU, headers and flags as the
+// four live RegisterGameHook call sites above. The mm-gi-shim diagnostic test
+// runs both variants against oversized zeroed buffers and reports which byte
+// offsets each one writes:
+//  - Direct measures what the four call sites above actually execute
+//    (inlining included) — expected to write MM's nextHookId offset (96),
+//    i.e. the #395 out-of-bounds write, since inlined bodies bypass the
+//    linker's COMDAT fold entirely.
+//  - OutOfLine measures the linker-selected COMDAT copy as seen from MM.
+extern "C" uint32_t MM_GI_DiagRegisterOnMainStartDirect(void* storage, void (*fn)(void)) {
+    return static_cast<GameInteractor*>(storage)->RegisterGameHook<GameInteractor::OnGameStateMainStart>(fn);
+}
+
+extern "C" uint32_t MM_GI_DiagRegisterOnMainStartOutOfLine(void* storage, void (*fn)(void)) {
+    auto reg = &GameInteractor::RegisterGameHook<GameInteractor::OnGameStateMainStart>;
+    GameInteractor* gi = static_cast<GameInteractor*>(storage);
+#ifdef __cpp_lib_source_location
+    return (gi->*reg)(fn, std::source_location::current());
+#else
+    return (gi->*reg)(fn);
+#endif
+}
+
+extern "C" size_t MM_GI_DiagInstanceSize(void) {
+    return sizeof(GameInteractor);
+}
+
+extern "C" size_t MM_GI_DiagNextHookIdOffset(void) {
+    return offsetof(GameInteractor, nextHookId);
+}
+
+// ============================================================================
 // Gameplay round-trip repro (INT_TEST_GAMEPLAY_ROUNDTRIP) — MM frame driver
 // ============================================================================
 

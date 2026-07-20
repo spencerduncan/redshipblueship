@@ -1,6 +1,8 @@
 #include "GameInteractor_Hooks.h"
 
 #ifdef RSBS_SINGLE_EXECUTABLE
+#include <cstddef> // offsetof/size_t for the #395 layout probes below
+#include <cstdint>
 #include "context.h" // src/common/context.h via redship_common's public include dir
 // In the single executable MM's own GameInteractor layer is not compiled, so
 // MM code links against these unprefixed extern "C" wrappers, and MM's
@@ -520,5 +522,62 @@ extern "C" void GameInteractor_TestArmVBVeto(int32_t flag) {
     sTestVBVetoHookId = GameInteractor::Instance->RegisterGameHookForID<GameInteractor::OnVanillaBehavior>(
         static_cast<GIVanillaBehavior>(flag),
         [](GIVanillaBehavior _, bool* should, va_list _originalArgs) { *should = false; });
+}
+
+// MARK: - #395 GameInteractor layout probes (redship --test mm-gi-shim)
+//
+// OoT's class here has sizeof 4 with nextHookId at offset 0; MM's same-named
+// class compiles at sizeof 104 with nextHookId at offset 96, and the linker
+// keeps ONE copy of every RegisterGameHook<...> COMDAT instantiation. These
+// helpers let the mm-gi-shim test measure, from a real OoT translation unit,
+// which layout the surviving registration code actually writes — by running a
+// registration against a caller-supplied oversized zeroed buffer and letting
+// the test inspect which bytes changed. Two variants:
+//
+//  - Direct: a normal inlinable call, measuring what OoT's real registration
+//    call sites (this TU and the rest of soh) execute.
+//  - OutOfLine: through a member-function pointer, which cannot be inlined
+//    and therefore measures the linker-selected COMDAT symbol itself — the
+//    copy any non-inlined call site in EITHER game binds.
+//
+// The write goes to nextHookId only; the hook map/hookData are inline-static
+// (per-process, instance-independent), which is why a fake instance works.
+// Unregister + Pump exist so probes can clean the shared static map back up.
+
+extern "C" size_t OoT_GI_InstanceSize(void) {
+    return sizeof(GameInteractor);
+}
+
+extern "C" size_t OoT_GI_NextHookIdOffset(void) {
+    return offsetof(GameInteractor, nextHookId);
+}
+
+extern "C" uint32_t OoT_GI_ProbeRegisterOnMainStartDirect(void* storage, void (*fn)(void)) {
+    return static_cast<GameInteractor*>(storage)->RegisterGameHook<GameInteractor::OnGameStateMainStart>(fn);
+}
+
+extern "C" uint32_t OoT_GI_ProbeRegisterOnMainStartOutOfLine(void* storage, void (*fn)(void)) {
+    auto reg = &GameInteractor::RegisterGameHook<GameInteractor::OnGameStateMainStart>;
+    GameInteractor* gi = static_cast<GameInteractor*>(storage);
+#ifdef __cpp_lib_source_location
+    return (gi->*reg)(fn, std::source_location::current());
+#else
+    return (gi->*reg)(fn);
+#endif
+}
+
+extern "C" void OoT_GI_ProbeUnregisterOnMainStart(uint32_t hookId) {
+    // Unregister only queues into an inline-static vector; no instance state
+    // is touched, so no fake storage is needed here.
+    GameInteractor gi;
+    gi.UnregisterGameHook<GameInteractor::OnGameStateMainStart>(hookId);
+}
+
+extern "C" void OoT_GI_ProbePumpOnMainStart(void) {
+    // Flushes queued unregistrations, then runs whatever remains registered.
+    // Callers unregister their probe hooks first, so after the flush this
+    // executes nothing in the unit-test harness.
+    GameInteractor gi;
+    gi.ExecuteHooks<GameInteractor::OnGameStateMainStart>();
 }
 #endif
