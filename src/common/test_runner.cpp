@@ -90,6 +90,13 @@ extern "C" {
 // over a synthetic scene buffer — no ROM archives or display needed.
 #include "tests/test_mm_scene_parse.c"
 
+// Sequence-map capacity bounds (#371, #378). Included at FILE SCOPE: it calls
+// the two C-linkage capacity helpers in games/oot/src/code/audio_load.c and
+// games/mm/src/audio/lib/load.c, which it declares itself in an extern "C"
+// block (including either game's z64audio.h here would collide on
+// MAX_AUTHENTIC_SEQID). Pure arithmetic — no audio subsystem, no archives.
+#include "tests/test_seq_map_bounds.c"
+
 // MM scene-command EXECUTE regression (issue #344). Unlike the parse test, the
 // body runs the parsed commands against a PlayState, so it needs MM's global.h
 // — which lives in an MM TU (games/mm/2s2h/mm_scene_execute_test.cpp) to keep
@@ -825,6 +832,7 @@ const TestDescriptor gTests[] = {
     {"save-legacy-size", "Unified save Load zero-extends shorter legacy tiers (#35)", Test_SaveLegacySize},
     {"save-crc-corrupt", "Unified save Load rejects corrupt payload, no clobber (#35)", Test_SaveCrcCorrupt},
     {"mm-scene-parse", "MM scene commands parse via the S2H factory (#344)", Test_MMSceneParse},
+    {"seq-map-bounds", "Sequence-map capacity covers the id range + custom slack (#371, #378)", Test_SeqMapBounds},
     {"mm-scene-execute", "MM scene commands execute against a PlayState (#344)", Test_MMSceneExecute},
     // The two MM resume-contract tests below mutate process-global state
     // (mm-resume-arena re-inits the MM system arena + heaps; mm-startup-restore
