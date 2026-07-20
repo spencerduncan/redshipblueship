@@ -266,6 +266,12 @@ if(BUILD_TESTING)
     add_test(NAME SaveComboRecordFixed COMMAND redship --test save-combo-record-fixed)
     add_test(NAME SaveComboOversize COMMAND redship --test save-combo-oversize)
     add_test(NAME Context COMMAND redship --test context)
+    # F10 hot-swap freeze/consume contract (#364): the hotkey path must freeze
+    # the DEPARTING game (or refuse the switch), and a consumed frozen state
+    # must be retired so it can never be re-applied. Before the fix, one
+    # entrance switch left a blob that every later F10 return silently rolled
+    # the player back to.
+    add_test(NAME HotSwapFreeze COMMAND redship --test hotswap-freeze)
     # MM scene-command parse + execute regressions — display-free, no ROM
     # archives (#344). Parse checks the wire format; execute runs the commands
     # against a PlayState and asserts the spawn-path pointers/fields populate.
@@ -292,7 +298,7 @@ if(BUILD_TESTING)
         BootOoT BootMM SwitchOoTMM SwitchMMOoT StartupEntrance EntranceDedup VBAffinity CosmeticGfxStub Roundtrip RoundtripIntegrity SharedRoundtrip ArchiveHotswapLogic
         SaveRoundtripTiers SaveHeader SaveHasDelete SaveVersionReject SaveSizeMismatch SaveLegacySize SaveCrcCorrupt
         SaveComboLegacyRecord SaveComboRecordFixed SaveComboOversize
-        Context MMSceneParse MMSceneExecute SeqMapBounds MMResumeArena MMStartupRestore AllTests
+        Context HotSwapFreeze MMSceneParse MMSceneExecute SeqMapBounds MMResumeArena MMStartupRestore AllTests
         PROPERTIES
         TIMEOUT ${REDSHIP_TEST_TIMEOUT}
         LABELS "redship"

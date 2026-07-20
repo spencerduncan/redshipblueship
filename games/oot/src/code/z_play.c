@@ -27,8 +27,12 @@ extern uint16_t Combo_GetStartupEntrance(void);
 extern void Combo_ClearStartupEntrance(void);
 extern uint16_t Combo_GetStartupEntranceForGame(const char* gameId);
 extern bool Combo_HasStartupEntranceForGame(const char* gameId);
-extern int Combo_HasFrozenState(const char* gameId);
-extern int Combo_RestoreState(const char* gameId, void* saveContext, size_t size);
+// Frozen-state consumption (src/common/switch.cpp): applies the frozen save
+// and retires it in the same step, so a blob can never be consumed twice.
+// Deliberately NOT the bare Combo_HasFrozenState/Combo_RestoreState pair that
+// used to be declared here — a restore without the retire is exactly the #364
+// silent-rollback bug, and leaving those in scope invites it back.
+extern int Combo_ConsumeFrozenState(const char* gameId, void* saveContext, size_t size);
 
 // Cross-game combo support - entrance switch checking
 extern uint16_t Combo_CheckEntranceSwitch(uint16_t entranceIndex);
@@ -427,9 +431,15 @@ void OoT_Play_Init(GameState* thisx) {
                 // interpreted; without it, OoT continuity (age, rupees,
                 // inventory) silently reset on every return trip. A first
                 // OoT boot has no frozen state — the restore is a no-op.
-                if (Combo_HasFrozenState("oot")) {
-                    Combo_RestoreState("oot", &gSaveContext, sizeof(gSaveContext));
-                }
+                // Consume (restore + retire) rather than merely restore. A blob
+                // that survives its own consumption is indistinguishable, on the
+                // NEXT return leg, from one that was just frozen — so any entry
+                // into OoT that did not freeze first would silently re-apply
+                // this same snapshot and roll the player back (#364). Retiring
+                // it here makes "frozen state exists" mean "OoT was left and has
+                // not been returned to", which is the only condition the restore
+                // is valid for. A first OoT boot has no frozen state — no-op.
+                Combo_ConsumeFrozenState("oot", &gSaveContext, sizeof(gSaveContext));
                 fprintf(stderr, "[OoT] consumption: restored, linkAge=%d\n", (int)gSaveContext.linkAge);
                 fflush(stderr);
                 gSaveContext.entranceIndex = startupEntrance;

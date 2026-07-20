@@ -75,6 +75,13 @@ extern "C" {
 #include "tests/test_shared_state_roundtrip.c"
 }
 
+// Hot-swap (F10) freeze/consume contract (issue #364). Included inside its own
+// extern "C" block: it only touches C-linkage Context_/Combo_/Switch_ symbols,
+// so it has no reason to be compiled as C++ and bind anything by mangled name.
+extern "C" {
+#include "tests/test_hotswap_freeze.c"
+}
+
 // Archive hot-swap regression test (issue #263). Included at FILE SCOPE (not
 // inside an extern "C" block): it is compiled as C++ and uses the C++-linkage
 // Entrance_* API for setup. Its cross-TU ArchiveHotswap_* helpers are wrapped
@@ -736,6 +743,12 @@ TestResult Test_RoundtripIntegrity(void) {
     return (failures == 0) ? TEST_PASS : TEST_FAIL;
 }
 
+TestResult Test_HotSwapFreeze(void) {
+    printf("[TEST] hotswap-freeze: F10 freeze + single-use frozen state (issue #364)\n");
+    int failures = TestHotSwapFreeze_Run();
+    return (failures == 0) ? TEST_PASS : TEST_FAIL;
+}
+
 TestResult Test_Lifecycle(void) {
     printf("[TEST] lifecycle: Game lifecycle unit tests\n");
     int failures = TestLifecycle_RunAll();
@@ -822,6 +835,10 @@ const TestDescriptor gTests[] = {
     {"roundtrip-integrity", "OoT SaveContext byte-identical across OoT->MM->OoT (issue #262)", Test_RoundtripIntegrity},
     {"shared-roundtrip", "Shared flag/seed survive OoT->MM switch (issue #264)", Test_SharedStateRoundtrip},
     {"context", "Test context/state management", Test_Context},
+    // Clears all frozen states on entry and exit, so it must not run between a
+    // test that freezes and one that expects that freeze to still be there.
+    {"hotswap-freeze", "F10 hot swap freezes the departing game; frozen state is single-use (#364)",
+     Test_HotSwapFreeze},
     {"lifecycle", "Game lifecycle unit tests", Test_Lifecycle},
     // Unified save (.redsave) headless coverage (issue #35, Phase 2 T6).
     {"save-roundtrip-tiers", "Unified .redsave preserves ComboContext + both SaveContexts (#35)", Test_SaveRoundtripTiers},
