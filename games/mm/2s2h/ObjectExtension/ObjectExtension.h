@@ -1,5 +1,18 @@
 #pragma once
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// Single-exe symbol split (Lane C0, #392): OoT ships an identically-named
+// `class ObjectExtension` (games/oot/soh/ObjectExtension/ObjectExtension.h,
+// in the always-linked soh split), so MM's out-of-line members
+// (GetInstance/RegisterId/Free) would cross-bind to OoT's bodies — MM actors
+// registered into OoT's extension store, the #395/#382 hazard class. MM's
+// class moves into namespace S2H (the ShipInit.hpp precedent: only MM is
+// renamed, unqualified MM callers compile unchanged via the using-decl), and
+// the extern "C" surface gets the MM_ prefix through this header, which every
+// caller (z_actor.c included) reaches it by.
+#define ObjectExtension_Free MM_ObjectExtension_Free
+#endif
+
 #ifdef __cplusplus
 
 #include <any>
@@ -7,6 +20,10 @@
 #include <limits>
 #include <stdint.h>
 #include <unordered_map>
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+namespace S2H {
+#endif
 
 /*
  * This class can attach additional data to pointers. It can only attach a single instance of each type of data.
@@ -106,6 +123,13 @@ class ObjectExtension {
 
 // Static template globals
 template <typename T> ObjectExtension::Id ObjectExtension::Register<T>::Id = ObjectExtension::InvalidId;
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+} // namespace S2H
+
+// Let unqualified upstream MM callers resolve to the S2H version unchanged.
+using S2H::ObjectExtension;
+#endif
 
 extern "C" {
 #endif // __cplusplus

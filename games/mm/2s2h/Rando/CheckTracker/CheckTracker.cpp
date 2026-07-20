@@ -643,7 +643,7 @@ void Init() {
             accessLogicFuncs[randoCheckId] = accessLogicFunc.second;
         }
     }
-    GameInteractor::Instance->RegisterGameHook<GameInteractor::OnSceneInit>([](s8 sceneId, s8 spawnNum) {
+    S2H::GameHooks::Register<GameInteractor::OnSceneInit>([](s8 sceneId, s8 spawnNum) {
         if (CVAR_SCROLL_TO_SCENE) {
             sScrollToTargetScene = Play_GetOriginalSceneId(sceneId);
             sScrollToTargetEntrance = gSaveContext.save.entrance;

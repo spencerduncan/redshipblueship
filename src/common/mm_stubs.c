@@ -164,7 +164,11 @@ void FrameInterpolation_InterpolateWiderAngles(int wider) { (void)wider; }
 /* Ship enhancement stubs */
 /* Ship_GetInterpolationFPS is now defined for real in games/oot/soh/OTRGlobals.cpp
  * (extern "C") as part of the scrolling-texture-interpolation port (#234). */
-const char* Ship_GetSceneName(int sceneId) { (void)sceneId; return "Unknown"; }
+/* The Ship_GetSceneName stub that used to live here is gone (Lane C0, #392):
+ * 2s2h/ShipUtils.cpp is compiled in single-exe builds now and carries the
+ * real scene-name table — the stub's "Unknown" would otherwise shadow it in
+ * every spoiler/tracker string, and the two strong definitions cannot
+ * coexist on Linux. */
 void Ship_HandleConsoleCrashAsReset(void) {}
 
 /* The Ship_ExtendedCullingActorRestoreProjectedPos stub that used to live here
@@ -230,8 +234,12 @@ int SaveManager_SysFlashrom_WriteData(void* src, int page, int count) { (void)sr
  * here returned 0 for every seqId, funneling MM's seq-load-status writes
  * into slot 0. */
 
-/* Global variables */
-int currentActorListIndex = 0;
+/* The currentActorListIndex stub that used to live here is gone (Lane C0,
+ * #392): MM's ObjectExtension/ActorListIndex TUs are compiled now (the
+ * randomizer's ActorBehavior layer needs the real extension store), renamed
+ * to the MM_ / namespace-S2H surface via their own headers. The stub here
+ * was an `int` backing MM's `extern s16` declaration — a live
+ * signature-drift fault class on top of shadowing the real definition. */
 
 /* The zapd_main stub that used to live here is gone (issue #325): it shadowed
  * the real ZAPDLib entry points in the link and silently broke in-app ROM

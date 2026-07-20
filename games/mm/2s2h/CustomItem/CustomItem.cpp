@@ -268,8 +268,15 @@ void CustomItem00_Destroy(Actor* actor, PlayState* play) {
 }
 
 void CustomItem::RegisterHooks() {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // MM-owned S2H::GameHooks registry (#395/#392) — dispatched once Lane C
+    // wires the MM ShouldActorInit execute point.
+    S2H::GameHooks::RegisterForID<GameInteractor::ShouldActorInit>(
+        ACTOR_EN_ITEM00, [](Actor* actor, bool* should) {
+#else
     GameInteractor::Instance->RegisterGameHookForID<GameInteractor::ShouldActorInit>(
         ACTOR_EN_ITEM00, [](Actor* actor, bool* should) {
+#endif
             if (actor->params != ITEM00_NOTHING) {
                 return;
             }

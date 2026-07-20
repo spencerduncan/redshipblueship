@@ -12,7 +12,9 @@ extern s16 MM_sWindowContentColors[3];
 extern FileSelectState* gFileSelectState;
 }
 
-u8 isRando[FILE_NUM_MAX_WITH_OWL_SAVE];
+// static: TU-local (single-exe force-links this TU; keep generic names out of
+// the global symbol space).
+static u8 isRando[FILE_NUM_MAX_WITH_OWL_SAVE];
 
 // 5 rectangles per save file:
 // Rand Left Aligned
@@ -20,7 +22,7 @@ u8 isRando[FILE_NUM_MAX_WITH_OWL_SAVE];
 // Rand Center Aligned
 // Rand Center Aligned (shadow offset)
 // Owl
-Vtx sRandVtxData[20 * FILE_NUM_MAX];
+static Vtx sRandVtxData[20 * FILE_NUM_MAX];
 
 constexpr s16 RAND_ICON_HEIGHT = 16;
 constexpr s16 RAND_ICON_WIDTH = 32;
@@ -216,7 +218,7 @@ void Rando::MiscBehavior::InitFileSelect() {
 
     CreateRandSaveTypeVtxData();
 
-    GameInteractor::Instance->RegisterGameHook<GameInteractor::OnFileSelectSaveLoad>(
+    S2H::GameHooks::Register<GameInteractor::OnFileSelectSaveLoad>(
         [](s16 fileNum, bool isOwlSave, SaveContext* saveContext) {
             isRando[fileNum + (isOwlSave ? FILE_NUM_OWL_SAVE_OFFSET : 0)] =
                 saveContext->save.shipSaveInfo.saveType == SAVETYPE_RANDO;

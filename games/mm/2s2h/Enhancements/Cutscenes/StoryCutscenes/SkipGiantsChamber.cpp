@@ -50,7 +50,7 @@ void HandleGiantsCutsceneSkip() {
      * transition.
      */
     transition.transitionType = MM_gPlayState->sceneId;
-    GameInteractor::Instance->events.emplace_back(transition);
+    MM_GameEvents_Queue().emplace_back(transition);
 }
 
 // Only reached if the cutscene is skipped
@@ -100,7 +100,7 @@ void handleGiantsCheck(SceneId sceneId) {
         if (IS_RANDO) {
             RANDO_SAVE_CHECKS[RC_GIANTS_CHAMBER_OATH_TO_ORDER].eligible = true;
         } else {
-            GameInteractor::Instance->events.emplace_back(GIEventGiveItem{
+            MM_GameEvents_Queue().emplace_back(GIEventGiveItem{
                 .showGetItemCutscene = !CVarGetInteger("gEnhancements.Cutscenes.SkipGetItemCutscenes", 0),
                 .giveItem =
                     [](Actor* actor, PlayState* play) {
@@ -137,13 +137,13 @@ void RegisterSkipGiantsChamber() {
              * about to go to. We quietly use the queued transition to modify the transition in progress. The queued
              * transition must then be erased from the event queue, otherwise it will repeat once.
              */
-            auto it = std::find_if(GameInteractor::Instance->events.begin(), GameInteractor::Instance->events.end(),
+            auto it = std::find_if(MM_GameEvents_Queue().begin(), MM_GameEvents_Queue().end(),
                                    [](const GIEvent& v) { return std::holds_alternative<GIEventTransition>(v); });
-            if (it != GameInteractor::Instance->events.end()) {
+            if (it != MM_GameEvents_Queue().end()) {
                 GIEventTransition transition = std::get<GIEventTransition>(*it);
                 gSaveContext.save.entrance = transition.entrance;
                 gSaveContext.save.cutsceneIndex = transition.cutsceneIndex;
-                GameInteractor::Instance->events.erase(it);
+                MM_GameEvents_Queue().erase(it);
                 handleGiantsCheck((SceneId)transition.transitionType);
             }
         } else if (gSaveContext.save.entrance == ENTRANCE(WOODFALL, 0) && gSaveContext.save.cutsceneIndex == 0xFFF0) {

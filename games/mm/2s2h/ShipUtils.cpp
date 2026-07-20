@@ -221,6 +221,13 @@ extern "C" f32 Ship_GetExtendedAspectRatioMultiplier() {
     return MAX(currentRatio / fourByThree, 1.0f);
 }
 
+// Single-exe: the three extended-culling bodies live in
+// GameExports_SingleExe.cpp as the MM_-prefixed family (#382/#402 — the
+// mm-culling-binding CTest locks that binding). Compiling second copies here
+// would duplicate those strong symbols, so they are skipped; everything else
+// in this TU is the MM-unique surface Lane C0 un-elided the randomizer onto
+// (#392).
+#ifndef RSBS_SINGLE_EXECUTABLE
 // Enables Extended Culling options on specific actors by applying an inverse ratio of the draw distance slider
 // to the projected Z value of the actor. This tricks distance checks without having to replace hardcoded values.
 // Requires that Ship_ExtendedCullingActorRestoreProjectedPos is called within the same function scope.
@@ -247,6 +254,7 @@ extern "C" void Ship_ExtendedCullingActorRestoreProjectedPos(PlayState* play, Ac
     f32 invW = 0.0f;
     Actor_GetProjectedPos(play, &actor->world.pos, &actor->projectedPos, &invW);
 }
+#endif // !RSBS_SINGLE_EXECUTABLE
 
 extern "C" bool Ship_IsCStringEmpty(const char* str) {
     return str == NULL || str[0] == '\0';
@@ -307,7 +315,9 @@ extern "C" void Ship_Random_Seed(u64 seed) {
     state = seed;
 }
 
-uint32_t next32() {
+// static: TU-local PCG step helper — as an external-linkage global the name
+// contended with OoT's identically generic helpers (single-exe link).
+static uint32_t next32() {
     if (!seeded) {
         uint64_t seed = static_cast<uint64_t>(std::random_device{}());
         Ship_Random_Seed(seed);

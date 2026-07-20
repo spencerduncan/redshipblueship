@@ -47,6 +47,32 @@
 #define Ship_ExtendedCullingActorAdjustProjectedX MM_Ship_ExtendedCullingActorAdjustProjectedX
 #define Ship_ExtendedCullingActorRestoreProjectedPos MM_Ship_ExtendedCullingActorRestoreProjectedPos
 
+/*
+ * Lane C0 (#392): 2s2h/ShipUtils.cpp is COMPILED in single-exe builds now —
+ * un-eliding 2ship_rando made its MM-unique surface (Ship_Random/_Seed,
+ * Ship_Hash, Ship_GetSceneName, Ship_GetItemColorTint, the NES font helpers,
+ * ...) a hard link dependency of the randomizer. The names below are the
+ * subset that ALSO exists on the OoT side, where exactly one definition would
+ * survive the link and cross-bind (the silent-corruption class this header
+ * documents above), so MM's copies get the MM_ prefix. Same rename-at-the-
+ * header mechanism: every MM TU reaches these through 2s2h/ShipUtils.h.
+ *
+ * Ship_IsCStringEmpty / Ship_CreateQuadVertexGroup are semantically identical
+ * twins of OoT's (renamed to satisfy the #375 strong-collision gate, not
+ * because the cross-bind was harmful); Ship_GetExtendedAspectRatioMultiplier
+ * reads the shared window so either copy is correct; LoadGuiTextures /
+ * digitList / GetActor* collide with OoT declarations (soh/ShipUtils.h,
+ * TimeDisplay.cpp, debugger/actorViewer.cpp) with identical manglings.
+ */
+#define Ship_GetExtendedAspectRatioMultiplier MM_Ship_GetExtendedAspectRatioMultiplier
+#define Ship_IsCStringEmpty MM_Ship_IsCStringEmpty
+#define Ship_CreateQuadVertexGroup MM_Ship_CreateQuadVertexGroup
+#define LoadGuiTextures MM_LoadGuiTextures
+#define digitList MM_digitList
+#define GetActorDescription MM_GetActorDescription
+#define GetActorDebugName MM_GetActorDebugName
+#define GetActorCategoryName MM_GetActorCategoryName
+
 #endif // RSBS_SINGLE_EXECUTABLE
 
 #endif // MM_SHIP_UTILS_PREFIX_H

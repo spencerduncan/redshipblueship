@@ -9,7 +9,7 @@ extern "C" {
 // Entry point for the module, run once on game boot
 void Rando::MiscBehavior::Init() {
     Rando::MiscBehavior::InitFileSelect();
-    GameInteractor::Instance->RegisterGameHook<GameInteractor::OnSaveInit>(Rando::MiscBehavior::OnFileCreate);
+    S2H::GameHooks::Register<GameInteractor::OnSaveInit>(Rando::MiscBehavior::OnFileCreate);
 }
 
 void Rando::MiscBehavior::OnFileLoad() {

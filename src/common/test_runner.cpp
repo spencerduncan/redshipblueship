@@ -332,6 +332,33 @@ TestResult Test_RandoDeterminism(void) {
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// Lane C0 reachability lock (#392): MM's 2ship_rando is un-elided and
+// actually generates — ShipInit registrars populated the Logic/Regions
+// graph, OnFileCreate runs GeneratePools + a logic apply headlessly, and the
+// spoiler JSON lands on disk tagged 2S2H_RANDO_SPOILER. Bridge body in
+// games/mm/2s2h/mm_rando_gen_test.cpp (extern "C" so MM headers never enter
+// this multi-include TU). Needs a display like rando-gen (the shared bring-up
+// constructs the Fast3dWindow), so `--test all` skips it.
+extern "C" int MM_Rando_HeadlessGenTest(void);
+
+TestResult Test_MMRandoGen(void) {
+    printf("[TEST] mm-rando-gen: MM seed generation runs headlessly and writes a tagged spoiler (Lane C0)\n");
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    int rc = MM_Rando_HeadlessGenTest();
+    printf("[TEST] %s: MM rando generation rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 TestResult Test_BootMM(void) {
     printf("[TEST] boot-mm: MM-first bring-up prerequisites (#330)\n");
     sTargetGame = GAME_MM;
@@ -902,6 +929,9 @@ const TestDescriptor gTests[] = {
     // Needs a display like rando-gen, so `--test all` skips it (below).
     {"rando-determinism", "Unified-seed producer fires + same-seed fill is reproducible (Lane B)",
      Test_RandoDeterminism},
+    // Lane C0: MM's randomizer is reachable and generates headlessly. Needs a
+    // display like rando-gen, so `--test all` skips it (below).
+    {"mm-rando-gen", "MM rando generation runs headlessly + writes tagged spoiler (Lane C0)", Test_MMRandoGen},
     {"boot-oot", "Shared-context bring-up leaves no null subsystems (#329)", Test_BootOoT},
     {"boot-mm", "MM-first bring-up prerequisites on the shared context (#330)", Test_BootMM},
     {"switch-oot-mm", "Test game switch OoT -> MM", Test_SwitchOoTMM},
@@ -1023,7 +1053,8 @@ int TestRunner_Run(const char* testName) {
             // bring-up) and the RSBS_DISABLE_OTR_INIT environment; they run as
             // their own CTests ("rando" label, under xvfb-run) rather than in
             // this display-free suite, where they would hang the 60s timeout.
-            if (strcmp(gTests[i].name, "rando-gen") == 0 || strcmp(gTests[i].name, "rando-determinism") == 0) {
+            if (strcmp(gTests[i].name, "rando-gen") == 0 || strcmp(gTests[i].name, "rando-determinism") == 0 ||
+                strcmp(gTests[i].name, "mm-rando-gen") == 0) {
                 printf("\n--- Skipping: %s (needs display; runs as a rando-label CTest) ---\n", gTests[i].name);
                 continue;
             }

@@ -116,7 +116,7 @@ void Rando::GiveItem(RandoItemId randoItemId) {
                     Rando::GiveItem(RI_SOUL_BOSS_MAJORA);
                 }
                 GameInteractor_ExecuteOnGameCompletion();
-                GameInteractor::Instance->events.emplace_back(
+                MM_GameEvents_Queue().emplace_back(
                     GIEventTransition{ .entrance = ENTRANCE(TERMINA_FIELD, 0),
                                        .cutsceneIndex = 0xFFF7,
                                        .transitionTrigger = TRANS_TRIGGER_START,
