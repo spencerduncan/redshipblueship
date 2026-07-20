@@ -52,6 +52,12 @@ int MM_StartupRestore_RunHeadless(void);
 // Actor::projectedPos 8 bytes earlier than MM's Actor puts it, and the restore
 // was a one-parameter no-op stub. Returns 0 on pass, non-zero on fail.
 int MM_CullingBinding_RunHeadless(void);
+// MM GameInteractor shim lock (games/mm/2s2h/mm_gi_shim_test.cpp, #395): MM's
+// hook registrations must never touch the shared 4-byte OoT-owned
+// GameInteractor instance through MM's larger view of the class (a ~60-92
+// byte out-of-bounds write, layout is platform-dependent). Returns 0 on
+// pass, non-zero on fail.
+int MM_GIShim_RunHeadless(void);
 // VB-affinity regression: MM's GameInteractor_* calls resolve to OoT's
 // extern "C" wrappers in single-exe builds, and the two games' vanilla-
 // behavior ordinals alias each other. The wrappers gate on the active game;
@@ -149,6 +155,12 @@ static TestResult Test_MMStartupRestore(void) {
 // the C entry point in games/mm/2s2h/mm_culling_test.cpp.
 static TestResult Test_MMCullingBinding(void) {
     return MM_CullingBinding_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// MM GameInteractor shim lock (see the extern decl above). Thin wrapper over
+// the C entry point in games/mm/2s2h/mm_gi_shim_test.cpp.
+static TestResult Test_MMGIShim(void) {
+    return MM_GIShim_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // ============================================================================
@@ -887,6 +899,8 @@ const TestDescriptor gTests[] = {
     {"oot-audio-init-guard", "OoT synth no-ops while gAudioContextInitalized == false (#365)", Test_OoTAudioInitGuard},
     {"mm-scene-execute", "MM scene commands execute against a PlayState (#344)", Test_MMSceneExecute},
     {"mm-culling-binding", "MM's Ship_ExtendedCulling* bind MM's Actor, not OoT's (#382)", Test_MMCullingBinding},
+    {"mm-gi-shim", "MM hook registration goes through the MM-owned shim, not the shared 4-byte instance (#395)",
+     Test_MMGIShim},
     // The two MM resume-contract tests below mutate process-global state
     // (mm-resume-arena re-inits the MM system arena + heaps; mm-startup-restore
     // scribbles and re-zeroes the unified gSaveContext). Both clean up after
