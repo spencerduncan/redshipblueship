@@ -101,11 +101,29 @@ void* osRomBase;
 
 __osHwInt __osHwIntTable[1];
 
+/* NOTE (#403): every stub below with a return type returns an explicit value.
+ * Falling off the end of a non-void function is UB — in practice the caller
+ * reads whatever happened to be in the return register — and this file had 22
+ * such bodies (the same defect class #385/#401 retired from
+ * games/oot/soh/stubs.c). Mirrored against #401's table where an OoT twin
+ * exists (games/oot/soh/stubs.c); derived from the libultra contract, and
+ * noted as such, where none does. Most of these have zero live callers in the
+ * single-exe build — their real N64 implementations live under
+ * games/mm/src/libultra/**, which is unconditionally excluded
+ * (games/mm/CMakeLists.txt), and the callers that would reach them are
+ * excluded right along with them — but a defined value is supplied anyway so
+ * the contract is honest if that ever changes, matching #401's precedent of
+ * never picking "whatever is cheapest to write". */
+
 OSIntMask MM_osSetIntMask(OSIntMask a) {
     return 0;
 }
 
 s32 MM_osProbeRumblePak(OSMesgQueue* ctrlrqueue, OSPfs* pfs, u32 channel) {
+    /* Twin: OoT's osProbeRumblePak (games/oot/soh/stubs.c). Rumble is driven by
+     * libultraship/SDL, not a probed Rumble Pak; PFS_ERR_NOPACK — not 0 — so
+     * the N64 probe path stays out of it. */
+    return PFS_ERR_NOPACK;
 }
 
 s32 MM_osSetRumble(OSPfs* pfs, u32 vibrate) {
@@ -121,6 +139,10 @@ u32 MM___osSetFpcCsr(u32 a0) {
 }
 
 OSIntMask MM___osDisableInt(void) {
+    /* Twin: OoT's __osDisableInt. There are no RCP interrupts to mask; 0 is
+     * the "previous mask" the paired no-op MM___osRestoreInt below is handed
+     * back. */
+    return 0;
 }
 
 void MM___osRestoreInt(OSIntMask a0) {
@@ -135,6 +157,9 @@ void MM_Audio_osWritebackDCache(void* mem, s32 size) {
 }
 
 OSPiHandle* MM_osDriveRomInit() {
+    /* Twin: OoT's OoT_osDriveRomInit. There is no cart PI handle in the port;
+     * NULL is the libultra "no device" return. */
+    return NULL;
 }
 
 void MM_osSetUpMempakWrite(s32 channel, OSPifRam* buf) {
@@ -231,24 +256,44 @@ void MM_gSPInvalidateTexCache(Gfx* pkt, uintptr_t texAddr) {
 void __osDispatchThread(void) {
 }
 
+/* No OoT twin for the six COP0-register accessors below (OoT's soh/stubs.c
+ * never needed them). Derived from the libultra contract: each reads a MIPS
+ * COP0 register that does not exist on this platform, so 0 ("no cause set" /
+ * "no compare value programmed" / "no config bits" / "no status bits") is the
+ * honest absent-hardware answer. All six are dead in the single-exe build
+ * today regardless — their one real caller, games/mm/src/libultra/os/initialize.c
+ * (MM___osInitialize_common), is unconditionally excluded
+ * (games/mm/CMakeLists.txt filters src/libultra/os/*), so this file's own
+ * empty no-op MM___osInitialize_common (below) runs instead and never calls
+ * them. Notably, __osGetCause's real caller guards `if (__osGetCause() &
+ * CAUSE_IP5) { while (true) {} }` — an infinite loop if a garbage return had
+ * that bit set — but that guard is excluded dead code too, so today's stray
+ * garbage return was never live enough to hang anything. */
 u32 __osGetCause(void) {
+    return 0;
 }
 void __osSetCause(u32 p) {
 }
 u32 __osGetCompare(void) {
+    return 0;
 }
 void __osSetCompare(u32 value) {
 }
 u32 __osGetConfig(void) {
+    return 0;
 }
 void __osSetConfig(u32 p) {
 }
 u32 __osGetSR(void) {
+    return 0;
 }
 void __osSetSR(u32 value) {
 }
 
 u32 __osGetWatchLo(void) {
+    /* Paired with the no-op __osSetWatchLo just below; 0 == no watchpoint
+     * address programmed. */
+    return 0;
 }
 void __osSetWatchLo(u32 value) {
 }
@@ -258,10 +303,28 @@ void __osEnqueueAndYield(OSThread** param_1) {
 void __osEnqueueThread(OSThread** param_1, OSThread* param_2) {
 }
 OSThread* __osPopThread(OSThread** param_1) {
+    /* No OoT twin; derived. Dequeues and returns the head of a libultra thread
+     * queue. No OSThread is ever created in this port (MM_osCreateThread and
+     * OoT's osCreateThread are both no-ops), so every queue this could be
+     * called on is empty — NULL ("nothing to pop") is the honest answer, the
+     * same reasoning rsbs/src/libultra/os/threadqueue.c uses for
+     * __osRunningThread. Dead today regardless: this file's only in-tree
+     * caller (games/mm/src/libultra/os/startthread.c) is excluded
+     * (games/mm/CMakeLists.txt filters src/libultra/os/*), and rsbs's own
+     * message-queue reference implementations that call it
+     * (src/libultra/os/{jam,recv,send}mesg.c) are commented out of
+     * rsbs/CMakeLists.txt in favor of libultraship's runtime queues. */
+    return NULL;
 }
 void osMapTLBRdb(void) {
 }
 u32 __osProbeTLB(void* param_1) {
+    /* No OoT twin; derived. Probes the TLB for a mapping of the given address.
+     * There is no MMU/TLB in this port; 0 ("no matching entry") is the
+     * contract-correct absent-hardware answer. Dead today regardless: its one
+     * caller, games/mm/src/libultra/os/virtualtophysical.c, is excluded
+     * (games/mm/CMakeLists.txt filters src/libultra/os/*). */
+    return 0;
 }
 s32 MM_osAiSetFrequency(u32 frequency) {
     // this is based off the math from the original method
@@ -302,10 +365,23 @@ s32 MM_osAiSetFrequency(u32 frequency) {
     return 32006;
 }
 s32 MM_osContStartQuery(OSMesgQueue* mq) {
+    /* Twin: OoT's OoT_osContStartQuery. 0 == query issued. LIVE: the real
+     * implementation (games/mm/src/libultra/io/contquery.c) is excluded
+     * (games/mm/CMakeLists.txt filters src/libultra/io/*), so this stub is
+     * what games/mm/src/boot/O2/padsetup.c:13 actually calls —
+     * `if (MM_osContStartQuery(mq) != 0) { return 1; }` aborts controller
+     * setup on non-zero, exactly the padsetup.c hazard #401 documented for
+     * OoT's twin. */
+    return 0;
 }
 void MM_osCreateThread(OSThread* thread, OSId id, void* entry, void* arg, void* sp, OSPri p) {
 }
 OSPri MM_osGetThreadPri(OSThread* t) {
+    /* Twin: OoT's OoT_osGetThreadPri. OS_PRIORITY_IDLE, not the tail priority
+     * (-1): callers (games/mm/src/boot/yaz0.c, .../io/pimgr.c, .../io/vimgr.c)
+     * save-and-restore this around a priority bump, never compare it against
+     * the thread-list terminator. */
+    return OS_PRIORITY_IDLE;
 }
 void MM_osContGetQuery(OSContStatus* data) {
 }
@@ -328,6 +404,13 @@ void MM___osCleanupThread(void) {
 void MM_osDestroyThread(OSThread* thread) {
 }
 s32 MM_osContSetCh(u8 ch) {
+    /* Twin: OoT's OoT_osContSetCh. 0 == channel count accepted, per libultra.
+     * LIVE: the real implementation (games/mm/src/libultra/io/contsetch.c) is
+     * excluded (games/mm/CMakeLists.txt filters src/libultra/io/*), so this
+     * stub is what games/mm/src/code/padmgr.c:813 actually calls (return
+     * value currently discarded there, but the contract is honest either
+     * way). */
+    return 0;
 }
 void MM_osViSetYScale(f32 scale) {
 }
@@ -336,8 +419,23 @@ void MM_osViSetXScale(f32 value) {
 void MM_osSpTaskYield(void) {
 }
 void* MM_osViGetCurrentFramebuffer(void) {
+    /* No OoT twin; derived. This port's real
+     * implementation (games/mm/src/libultra/io/vigetcurrframebuf.c) reads
+     * __osViCurr->buffer, excluded along with the rest of src/libultra/io/*.
+     * games/mm/src/code/sched.c's two live callers only ever compare this
+     * against MM_osViGetNextFramebuffer() and a task's target buffer pointer
+     * — never dereference it — so NULL ("no framebuffer pointer tracked") is
+     * safe: at worst the comparisons resolve differently than on real
+     * hardware, never a crash. */
+    return NULL;
 }
 OSPiHandle* osFlashInit(void) {
+    /* No OoT twin (OoT has no flash cart to emulate). Same "no device"
+     * contract as MM_osDriveRomInit above: NULL. Its one live caller,
+     * games/mm/src/code/sys_flashrom.c's SysFlashrom_InitFlash, discards the
+     * return value outright — flash "presence" is instead faked entirely by
+     * osFlashReadId below, which SysFlashrom_CheckFlashType reads. */
+    return NULL;
 }
 void osFlashReadId(u32* t, u32* v) {
     // We're faking these so the flashrom system will continue to work
@@ -345,12 +443,37 @@ void osFlashReadId(u32* t, u32* v) {
     *v = 0x00C20000; // FLASH_VERSION_MX_PROTO_A
 }
 s32 osFlashSectorErase(u32 page) {
+    /* No OoT twin. FLASH_STATUS_ERASE_OK (0, PR/os_flash.h) — the real
+     * implementation's success code, not just "0 as a habit". Its only
+     * caller, SysFlashrom_EraseSector, is itself only reachable from
+     * SysFlashrom_AttemptWrite / SysFlashrom_WriteData (non-async), which
+     * games/mm/2s2h/SaveManager/SaveManager.cpp's save path never calls —
+     * saves go through SaveManager_SysFlashrom_WriteData instead (see the
+     * "2S2H [Port] Redirect" region in sys_flashrom.c). Dead today, but a
+     * real success code keeps SysFlashrom_AttemptWrite's retry-then-give-up
+     * logic honest if that ever changes. */
+    return FLASH_STATUS_ERASE_OK;
 }
 s32 osFlashWriteBuffer(OSIoMesg* mb, s32 priority, void* dramAddr, OSMesgQueue* mq) {
+    /* No OoT twin. The real implementation returns MM_osEPiStartDma()'s result
+     * verbatim (DMA accepted); 0 mirrors that success convention. Same
+     * redirected-around, currently-unreachable path as osFlashSectorErase
+     * above. */
+    return 0;
 }
 s32 osFlashWriteArray(u32 pageNum) {
+    /* No OoT twin. FLASH_STATUS_WRITE_OK (0, PR/os_flash.h) — the real
+     * implementation's success code. Same unreachable path as
+     * osFlashSectorErase above. */
+    return FLASH_STATUS_WRITE_OK;
 }
 s32 osFlashReadArray(OSIoMesg* mb, s32 priority, u32 pageNum, void* dramAddr, u32 pageCount, OSMesgQueue* mq) {
+    /* No OoT twin. Same DMA-accepted convention as osFlashWriteBuffer above.
+     * Its caller, SysFlashrom_ReadData, redirects to
+     * SaveManager_SysFlashrom_ReadData before ever reaching this call (see the
+     * "2S2H [Port] Redirect" region in sys_flashrom.c), so this is
+     * unreachable today. */
+    return 0;
 }
 void osFlashChange(u32 flashNum) {
 }
@@ -359,6 +482,11 @@ void osFlashAllEraseThrough(void) {
 void osFlashSectorEraseThrough(u32 pageNum) {
 }
 s32 osFlashCheckEraseEnd(void) {
+    /* No OoT twin. FLASH_STATUS_ERASE_OK (0, PR/os_flash.h): "not busy, erase
+     * completed cleanly" — never FLASH_STATUS_ERASE_BUSY (2), since nothing
+     * here ever starts an asynchronous erase to be busy on. Zero live callers
+     * found in-tree; kept contract-correct in case a future caller polls it. */
+    return FLASH_STATUS_ERASE_OK;
 }
 void MM_osSetThreadPri(OSThread* thread, OSPri p) {
 }
@@ -386,8 +514,19 @@ void MM_guS2DInitBg(uObjBg* bg) {
     }
 }
 void* MM_osViGetNextFramebuffer() {
+    /* No OoT twin; derived. Same reasoning as MM_osViGetCurrentFramebuffer
+     * above: the real implementation (games/mm/src/libultra/io/vigetnextframebuf.c)
+     * is excluded, and its live consumer (games/mm/src/code/sched.c) only
+     * pointer-compares the result, never dereferences it. NULL is safe. */
+    return NULL;
 }
 OSYieldResult MM_osSpTaskYielded(OSTask* task) {
+    /* Twin: OoT's OoT_osSpTaskYielded. 0, i.e. NOT OS_TASK_YIELDED (1 << 0,
+     * PR/sptask.h). MM_osSpTaskYield above is a no-op, so no task ever
+     * yields; returning the OS_TASK_YIELDED bit (which garbage would set half
+     * the time) would make the graphics thread re-submit a task that was
+     * never interrupted. */
+    return 0;
 }
 void MM_osViBlack(u8 active) {
 }
