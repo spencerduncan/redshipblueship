@@ -3,6 +3,11 @@
 
 #include "PR/ultratypes.h"
 
+// Renames the Ship_ExtendedCullingActor* family to MM_ in single-exe builds.
+// Must precede the declarations below AND be reached by every MM caller —
+// see the header for why binding OoT's bodies silently corrupts MM Actors.
+#include "include/mm_ship_utils_prefix.h"
+
 #include "macros.h" // For CLOCK_TIME and DAY_LENGTH
 
 // Time utilities for 2s2h enhancements

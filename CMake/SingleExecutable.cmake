@@ -310,6 +310,10 @@ if(BUILD_TESTING)
     # restore the frozen save the boot chain wiped — the cycle-2 re-entry
     # crash + save-continuity faults caught by the int-gameplay-roundtrip
     # soak (docs/ci-gameplay-repro-postmortem.md).
+    # MM must bind its OWN Ship_ExtendedCulling* bodies (#382) — OoT's index
+    # Actor::projectedPos 8 bytes earlier than MM's Actor puts it, and only one
+    # definition survived the link, so there was no ODR error to catch it.
+    redship_add_test(NAME MMCullingBinding COMMAND redship --test mm-culling-binding)
     redship_add_test(NAME MMResumeArena COMMAND redship --test mm-resume-arena)
     redship_add_test(NAME MMStartupRestore COMMAND redship --test mm-startup-restore)
     redship_add_test(NAME AllTests COMMAND redship --test all)

@@ -47,6 +47,11 @@ int CosmeticGfxStub_RunHeadless(void);
 // Return 0 on pass, non-zero on fail.
 int MM_ResumeArena_RunHeadless(void);
 int MM_StartupRestore_RunHeadless(void);
+// MM extended-culling binding (games/mm/2s2h/mm_culling_test.cpp, #382): MM's
+// Ship_ExtendedCullingActor* calls used to bind OoT's bodies, which index
+// Actor::projectedPos 8 bytes earlier than MM's Actor puts it, and the restore
+// was a one-parameter no-op stub. Returns 0 on pass, non-zero on fail.
+int MM_CullingBinding_RunHeadless(void);
 // VB-affinity regression: MM's GameInteractor_* calls resolve to OoT's
 // extern "C" wrappers in single-exe builds, and the two games' vanilla-
 // behavior ordinals alias each other. The wrappers gate on the active game;
@@ -131,6 +136,12 @@ static TestResult Test_MMResumeArena(void) {
 }
 static TestResult Test_MMStartupRestore(void) {
     return MM_StartupRestore_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// MM extended-culling binding (see the extern decl above). Thin wrapper over
+// the C entry point in games/mm/2s2h/mm_culling_test.cpp.
+static TestResult Test_MMCullingBinding(void) {
+    return MM_CullingBinding_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // ============================================================================
@@ -863,6 +874,7 @@ const TestDescriptor gTests[] = {
     {"seq-map-bounds", "Sequence-map capacity covers the id range + custom slack (#371, #378)", Test_SeqMapBounds},
     {"active-queue", "__osGetActiveQueue returns a walkable list, not a return register (#385)", Test_ActiveQueue},
     {"mm-scene-execute", "MM scene commands execute against a PlayState (#344)", Test_MMSceneExecute},
+    {"mm-culling-binding", "MM's Ship_ExtendedCulling* bind MM's Actor, not OoT's (#382)", Test_MMCullingBinding},
     // The two MM resume-contract tests below mutate process-global state
     // (mm-resume-arena re-inits the MM system arena + heaps; mm-startup-restore
     // scribbles and re-zeroes the unified gSaveContext). Both clean up after

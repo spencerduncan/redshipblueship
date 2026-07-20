@@ -163,7 +163,20 @@ void FrameInterpolation_InterpolateWiderAngles(int wider) { (void)wider; }
  * (extern "C") as part of the scrolling-texture-interpolation port (#234). */
 const char* Ship_GetSceneName(int sceneId) { (void)sceneId; return "Unknown"; }
 void Ship_HandleConsoleCrashAsReset(void) {}
-void Ship_ExtendedCullingActorRestoreProjectedPos(void* actor) { (void)actor; }
+
+/* The Ship_ExtendedCullingActorRestoreProjectedPos stub that used to live here
+ * is gone (#382). It was declared `void (void*)` while every call site passes
+ * (PlayState*, Actor*) — the same stub-signature-drift class as
+ * OTRConvertHUDXToScreenX, the cosmetic gfx overrides and the
+ * MotionBlur/SavingEnhancements family. Worse, OoT's real body was commented
+ * out, so this no-op was the ONLY definition in the link and the
+ * projected-position restore did nothing for BOTH games.
+ *
+ * MM now has MM_Ship_ExtendedCullingActorRestoreProjectedPos
+ * (2s2h/GameExports_SingleExe.cpp, reached via include/mm_ship_utils_prefix.h)
+ * and OoT has a real Ship_ExtendedCullingActorRestoreProjectedPos
+ * (soh/ShipUtils.cpp) built on its own projection helper. Locked by the
+ * mm-culling-binding test. */
 
 /* The MotionBlur_Override / SavingEnhancements_* / PauseOwlWarp_* stubs that
  * used to live here are gone. Their real implementations
