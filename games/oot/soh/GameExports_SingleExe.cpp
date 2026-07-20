@@ -19,6 +19,7 @@
 #include "game_lifecycle.h"
 #include "integration_test_hooks.h"
 #include "context.h"
+#include "shared_items.h"
 #include "entrance.h"
 #include "soh/Enhancements/game-interactor/GameInteractor.h"
 #include "soh/Enhancements/game-interactor/GameInteractor_Hooks.h"
@@ -779,6 +780,17 @@ void OoT_Game_Suspend(void) {
     fprintf(stderr, "[OoT] Game_Suspend called\n");
     fflush(stderr);
 
+    // Producer (ADR 0002 / Lane A1): commit any staged cross-game items into
+    // gComboCtx.sharedItemsTagged before we hand control to MM. This lives at
+    // Game_Suspend — not Combo_CheckEntranceSwitch — on purpose: the F10
+    // hot-swap path (Combo_FreezeActiveGameForHotSwap) bypasses the entrance
+    // hook entirely, and GameRunner_SwitchTo calls suspend() on both switch
+    // paths, so this is the one point that never drops a hotkey switch's
+    // writes. The array itself is process-global and crosses the switch by
+    // being shared; committing here just moves staged pickups into the durable
+    // (serialized) store before the arriving game's consumer reads it.
+    Combo_CommitStagedSharedItems();
+
     // Stop OoT audio playback to prevent interference with MM (issue #160).
     // OoT_Audio_PreNMI triggers the audio reset path which stops all sequences
     // and puts the audio system into a quiescent state.
@@ -965,6 +977,43 @@ int Switch_PrepareHotSwap(GameId departing, const void* saveContext, size_t size
  */
 extern "C" int Combo_FreezeActiveGameForHotSwap(GameId departing) {
     return Switch_PrepareHotSwap(departing, &gSaveContext, sizeof(gSaveContext));
+}
+
+/**
+ * Award a single OoT-origin shared item (ADR 0002 / Lane A1 consumer callback).
+ *
+ * Invoked once per un-redeemed entry tagged GAME_OOT when the player arrives in
+ * OoT (see OoT_ConsumeSharedItems). `item->id` is an OoT RandomizerGet (RG_*).
+ *
+ * Lane A1 scope: this is the plumbing seam. Awarding an RG_* into the live game
+ * requires the randomizer save context and the foreign-item presentation Lane C
+ * owns, so here it only logs; Combo_RedeemSharedItemsForGame still marks the
+ * entry RSBS_SHARED_ITEM_REDEEMED so the crossing is single-use once wired.
+ *
+ * Lane C: replace the log with the real give — Randomizer_Item_Give
+ * ((RandomizerGet)item->id) (games/oot/soh/.../randomizer.cpp) — for the chosen
+ * foreign-item class. Do NOT clear the entry; the REDEEMED bit is the guard.
+ */
+static void OoT_AwardSharedItem(const SharedItem* item, void* ctx) {
+    (void)ctx;
+    fprintf(stderr, "[OoT] shared-item redeem (Lane A1 plumbing): RG id=%u — Lane C wires Randomizer_Item_Give\n",
+            (unsigned)item->id);
+}
+
+/**
+ * Consumer hook (ADR 0002 / Lane A1). Award every un-redeemed OoT-origin shared
+ * item and mark it redeemed. Called from OoT_Play_Init's presence-gated
+ * startup-entrance consumption (games/oot/src/code/z_play.c) — i.e. only on a
+ * cross-game arrival into OoT, once per arrival. A plain boot / .redsave load
+ * never reaches it, so un-redeemed items wait for the next switch into OoT
+ * ("applies on next switch only"; see shared_items.h).
+ *
+ * Exposed as a plain C entry point so z_play.c does not have to pull in the
+ * ADR SharedItem / GameId types (it isolates every src/common call behind bare
+ * externs).
+ */
+extern "C" void OoT_ConsumeSharedItems(void) {
+    Combo_RedeemSharedItemsForGame(GAME_OOT, OoT_AwardSharedItem, nullptr);
 }
 
 static bool sLastF10State = false;

@@ -34,6 +34,12 @@ extern bool Combo_HasStartupEntranceForGame(const char* gameId);
 // silent-rollback bug, and leaving those in scope invites it back.
 extern int Combo_ConsumeFrozenState(const char* gameId, void* saveContext, size_t size);
 
+// Cross-game shared-item consumer (ADR 0002 / Lane A1). Awards every un-redeemed
+// OoT-origin item in gComboCtx.sharedItemsTagged and marks it redeemed. Exposed
+// as a plain C entry point from games/oot/soh/GameExports_SingleExe.cpp so this
+// TU stays free of the ADR SharedItem/GameId types.
+extern void OoT_ConsumeSharedItems(void);
+
 // Cross-game combo support - entrance switch checking
 extern uint16_t Combo_CheckEntranceSwitch(uint16_t entranceIndex);
 extern bool Combo_IsCrossGameSwitch(void);
@@ -547,6 +553,16 @@ void OoT_Play_Init(GameState* thisx) {
                         gSaveContext.equips.equipment = equip;
                     }
                 }
+                // Consumer (ADR 0002 / Lane A1): now that the frozen save is
+                // restored and the arrival's runtime state is neutralized,
+                // award any cross-game items tagged for OoT and retire them
+                // (RSBS_SHARED_ITEM_REDEEMED). Presence-gated by the enclosing
+                // startup-entrance branch, so it runs once per OoT arrival and
+                // never on a plain boot/.redsave load — un-redeemed items then
+                // wait for the next switch into OoT (shared_items.h). Placed
+                // after the inventory-touching age/equip fixups above so a
+                // redeemed item lands in a settled gSaveContext.
+                OoT_ConsumeSharedItems();
                 Combo_ClearStartupEntrance();
                 osSyncPrintf("[OoT] Cross-game switch: loading entrance 0x%04X\n", startupEntrance);
             }
