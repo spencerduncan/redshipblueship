@@ -180,6 +180,9 @@ if(MSVC)
 else()
     set_source_files_properties(src/boot/fault.c src/code/stubs.c PROPERTIES COMPILE_OPTIONS "-Werror=return-type")
 endif()
+# RSBS DEBUG (temporary, removed before merge): confirm the property actually landed.
+get_source_file_property(_rsbs_debug_opts src/code/stubs.c COMPILE_OPTIONS)
+message(STATUS "RSBS DEBUG stubs.c COMPILE_OPTIONS = ${_rsbs_debug_opts}")
 
 source_group("src" REGULAR_EXPRESSION "src/*")
 source_group("src\\boot" REGULAR_EXPRESSION "src/boot/*")
