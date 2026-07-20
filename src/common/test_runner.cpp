@@ -858,6 +858,8 @@ const TestDescriptor gTests[] = {
     {"roundtrip", "Full round-trip with state verification", Test_Roundtrip},
     {"roundtrip-integrity", "OoT SaveContext byte-identical across OoT->MM->OoT (issue #262)", Test_RoundtripIntegrity},
     {"shared-roundtrip", "Shared flag/seed survive OoT->MM switch (issue #264)", Test_SharedStateRoundtrip},
+    {"shared-item-roundtrip", "Origin-tagged item survives suspend->switch->resume x2, both dirs (ADR 0002)",
+     Test_SharedItemRoundtrip},
     {"context", "Test context/state management", Test_Context},
     // Clears all frozen states on entry and exit, so it must not run between a
     // test that freezes and one that expects that freeze to still be there.

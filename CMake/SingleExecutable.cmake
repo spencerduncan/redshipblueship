@@ -25,6 +25,9 @@ set(REDSHIP_COMMON_SOURCES
     ${CMAKE_SOURCE_DIR}/src/common/zapd_subprocess.cpp
     ${CMAKE_SOURCE_DIR}/src/common/context.cpp
     ${CMAKE_SOURCE_DIR}/src/common/switch.cpp
+    # Cross-game shared-item producers/consumers over gComboCtx.sharedItemsTagged
+    # (ADR 0002, Lane A1) — read/written by both games' suspend + consumption hooks
+    ${CMAKE_SOURCE_DIR}/src/common/shared_items.c
     ${CMAKE_SOURCE_DIR}/src/common/entrance.cpp
     ${CMAKE_SOURCE_DIR}/src/common/test_runner.cpp
     ${CMAKE_SOURCE_DIR}/src/common/integration_test_hooks.cpp
@@ -57,6 +60,7 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/headless_crash.h
     ${CMAKE_SOURCE_DIR}/src/common/zapd_subprocess.h
     ${CMAKE_SOURCE_DIR}/src/common/context.h
+    ${CMAKE_SOURCE_DIR}/src/common/shared_items.h
     ${CMAKE_SOURCE_DIR}/src/common/entrance.h
     ${CMAKE_SOURCE_DIR}/src/common/test_runner.h
     ${CMAKE_SOURCE_DIR}/src/common/integration_test_hooks.h
@@ -262,6 +266,11 @@ if(BUILD_TESTING)
     redship_add_test(NAME Roundtrip COMMAND redship --test roundtrip)
     redship_add_test(NAME RoundtripIntegrity COMMAND redship --test roundtrip-integrity)
     redship_add_test(NAME SharedRoundtrip COMMAND redship --test shared-roundtrip)
+    # Origin-tagged cross-game items (ADR 0002 / Lane A1): a recorded item must
+    # survive the full suspend->switch->resume->switch->resume round trip through
+    # the real producer/consumer + freeze/consume hooks, be visible in both
+    # directions, and be awarded exactly once per crossing (covers the F10 path).
+    redship_add_test(NAME SharedItemRoundtrip COMMAND redship --test shared-item-roundtrip)
     redship_add_test(NAME ArchiveHotswapLogic COMMAND redship --test archive-hotswap-logic)
     # Unified save (.redsave) headless tests — Phase 2 T6 (#35)
     redship_add_test(NAME SaveRoundtripTiers COMMAND redship --test save-roundtrip-tiers)

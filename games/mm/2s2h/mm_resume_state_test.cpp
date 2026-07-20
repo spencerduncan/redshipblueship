@@ -148,6 +148,18 @@ extern "C" int MM_StartupRestore_RunHeadless(void) {
     RESUME_ASSERT(gSaveContext.save.entrance == kArrival, "startup entrance not applied to save.entrance");
     RESUME_ASSERT(gSaveContext.save.cutsceneIndex == 0, "cutsceneIndex not reset for arrival spawn");
     RESUME_ASSERT(gSaveContext.gameMode == GAMEMODE_NORMAL, "gameMode not reset for arrival spawn");
+    // ...live gameplay state carried by the frozen blob is neutralized (#373).
+    // The 0x5A fill above put every timerStates[] byte at a non-OFF value (the
+    // regression: a minigame timer frozen mid-count resumes in the arrival
+    // scene where its actor does not exist). The OoT consumption twin cleared
+    // these; MM's had drifted and did not.
+    for (int i = 0; i < TIMER_ID_MAX; i++) {
+        RESUME_ASSERT(gSaveContext.timerStates[i] == TIMER_STATE_OFF,
+                      "frozen live timer not neutralized on MM arrival (#373)");
+    }
+    RESUME_ASSERT(gSaveContext.magicState == MAGIC_STATE_IDLE, "frozen magicState not reset on MM arrival (#373)");
+    RESUME_ASSERT(gSaveContext.forcedSeqId == NA_BGM_GENERAL_SFX, "frozen forcedSeqId not reset on MM arrival (#373)");
+    RESUME_ASSERT(gSaveContext.powderKegTimer == 0, "frozen powder-keg timer not cleared on MM arrival (#373)");
     // ...and the slot is consumed.
     RESUME_ASSERT(!Combo_HasStartupEntrance(), "startup entrance not cleared after consumption");
 
