@@ -38,6 +38,7 @@
 #include <ship/resource/archive/ArchiveManager.h>
 #include "GameInteractor/GameInteractor.h"
 #include <ship/resource/File.h>
+#include <libultraship/bridge/consolevariablebridge.h>
 
 #include "2s2h/Enhancements/Audio/AudioCollection.h"
 #include "2s2h/Enhancements/Audio/AudioEditor.h"
@@ -1337,6 +1338,68 @@ extern "C" void MM_Extract_OfferAndRun(void) {
     fprintf(stderr, "[MM] mm.o2r generated into %s\n", exportDir.c_str());
     fflush(stderr);
 #endif
+}
+
+// ============================================================================
+// Extended-culling helpers (MM_-prefixed) — issue #382
+// ============================================================================
+//
+// MM's copies of these live in games/mm/2s2h/ShipUtils.cpp, which is EXCLUDED
+// from the single-exe build (games/mm/CMakeLists.txt) because the rest of that
+// file collides wholesale with OoT's soh/ShipUtils.cpp. That left OoT's
+// definitions as the only ones in the link, and MM's actor overlays — which
+// call these unprefixed — executed OoT's bodies against MM's Actor.
+//
+// The two layouts are not the same: projectedPos sits at 0x0E4 in OoT's Actor
+// and 0x0EC in MM's. OoT's AdjustProjectedZ therefore wrote MM's
+// projectedPos.x (so MM's extended draw distance scaled the wrong axis and
+// never worked), and OoT's AdjustProjectedX wrote MM's shape.feetPos[1].y (so
+// MM's widescreen-culling option corrupted a foot position the shadow/limb
+// code reads). No link error, because only one definition existed — the exact
+// blind spot /FORCE:MULTIPLE and single-definition binding share.
+//
+// These are defined here rather than by un-excluding 2s2h/ShipUtils.cpp: that
+// file also defines Ship_GetSceneName / Ship_IsCStringEmpty /
+// Ship_CreateQuadVertexGroup / Ship_GetCharFontWidthNES and pulls in Rando +
+// ImGui, every one of which is a genuine duplicate of OoT's. Un-excluding it
+// would trade this silent fault for a Linux multiple-definition link failure.
+// The MM_ prefix + the include/mm_ship_utils_prefix.h rename is the surgical
+// fix, and matches the repo's established remedy.
+//
+// Locked ROM-free by mm-culling-binding (games/mm/2s2h/mm_culling_test.cpp).
+
+extern "C" float OTRGetAspectRatio();
+
+extern "C" void MM_Ship_ExtendedCullingActorAdjustProjectedZ(Actor* actor) {
+    s32 multiplier = CVarGetInteger("gEnhancements.Graphics.IncreaseActorDrawDistance", 1);
+    if (multiplier > 1) {
+        actor->projectedPos.z /= multiplier;
+    }
+}
+
+extern "C" void MM_Ship_ExtendedCullingActorAdjustProjectedX(Actor* actor) {
+    if (CVarGetInteger("gEnhancements.Graphics.ActorCullingAccountsForWidescreen", 0)) {
+        // Same clamp-to-1 as Ship_GetExtendedAspectRatioMultiplier, computed
+        // inline. That helper is itself a duplicated symbol across the two
+        // ports; it happens to be Actor-free and therefore harmless to share,
+        // but depending on it here would reintroduce a cross-game binding for
+        // no benefit.
+        constexpr float kFourByThree = 4.0f / 3.0f;
+        float ratioAdjusted = OTRGetAspectRatio() / kFourByThree;
+        if (ratioAdjusted < 1.0f) {
+            ratioAdjusted = 1.0f;
+        }
+        actor->projectedPos.x /= ratioAdjusted;
+    }
+}
+
+// Restores projectedPos after the Adjust* hacks. Previously the ONLY
+// definition in the link was a one-parameter no-op stub in
+// src/common/mm_stubs.c, so this restore silently did nothing for both games
+// while every call site passed two arguments.
+extern "C" void MM_Ship_ExtendedCullingActorRestoreProjectedPos(PlayState* play, Actor* actor) {
+    f32 invW = 0.0f;
+    Actor_GetProjectedPos(play, &actor->world.pos, &actor->projectedPos, &invW);
 }
 
 // ============================================================================

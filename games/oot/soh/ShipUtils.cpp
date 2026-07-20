@@ -1,5 +1,6 @@
 #include "ShipUtils.h"
 #include <libultraship/libultraship.h>
+#include <cstddef>
 #include <random>
 #include "soh_assets.h"
 
@@ -43,11 +44,36 @@ extern "C" void Ship_ExtendedCullingActorAdjustProjectedX(Actor* actor) {
     }
 }
 
-// Restores the projectedPos values on the actor after modifications from the Extended Culling hacks
-// extern "C" void Ship_ExtendedCullingActorRestoreProjectedPos(PlayState* play, Actor* actor) {
-//    f32 invW = 0.0f;
-//    Actor_GetProjectedPos(play, &actor->world.pos, &actor->projectedPos, &invW);
-//}
+// Restores the projectedPos values on the actor after modifications from the Extended Culling hacks.
+//
+// This body was commented out because it was copied verbatim from 2Ship and
+// calls Actor_GetProjectedPos, which MM has (games/mm/src/code/z_actor.c) and
+// OoT does not — OoT computes the same thing inline in z_actor.c:3065. The
+// dead declaration plus a one-parameter no-op stub in src/common/mm_stubs.c
+// meant the only definition in the whole link was that stub, and the restore
+// silently did nothing for BOTH games with an arity mismatch on top (#382).
+//
+// Reimplemented here against OoT's own projection helper so that the declared
+// symbol has a real definition. No OoT code calls it today (verified by grep:
+// the only Ship_ExtendedCullingActor* call sites in the tree are MM actor
+// overlays), so this is not a behavior change for OoT — it closes a latent
+// trap where a future OoT caller would have gotten a silent no-op instead of
+// either working code or a link error.
+extern "C" void Ship_ExtendedCullingActorRestoreProjectedPos(PlayState* play, Actor* actor) {
+    f32 invW = 0.0f;
+    OoT_SkinMatrix_Vec3fMtxFMultXYZW(&play->viewProjectionMtxF, &actor->world.pos, &actor->projectedPos, &invW);
+    invW = (invW < 1.0f) ? 1.0f : (1.0f / invW);
+    (void)invW;
+}
+
+// Reports OoT's own Actor::projectedPos offset, compiled with OoT's headers
+// and production flags. Consumed by the mm-culling-binding lock
+// (games/mm/2s2h/mm_culling_test.cpp), which compares it against MM's to prove
+// — rather than assume — that the two ports' Actor layouts disagree and so
+// cannot share one culling implementation. See #382.
+extern "C" size_t OoT_ActorProjectedPosOffset() {
+    return offsetof(Actor, projectedPos);
+}
 
 extern "C" bool Ship_IsCStringEmpty(const char* str) {
     return str == NULL || str[0] == '\0';
