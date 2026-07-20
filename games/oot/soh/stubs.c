@@ -357,11 +357,10 @@ s32 OoT_osStopTimer(OSTimer* timer) {
 }
 
 OSYieldResult OoT_osSpTaskYielded(OSTask* task) {
-    /* 0, i.e. NOT OS_TASK_YIELDED. OoT_osSpTaskYield above is a no-op, so no
-     * task ever yields; returning the OS_TASK_YIELDED bit (which garbage would
-     * set half the time) makes the graphics thread re-submit a task that was
-     * never interrupted. */
-    return 0;
+    /* TEMPORARY: deliberately emptied body (dropped `return 0;`) to prove the
+     * #401 -Werror=return-type / /we4716 /we4715 escalation on soh/stubs.c
+     * actually fails the build. Will be reverted immediately after the red
+     * run is observed. See #392 / #401 / #421. */
 }
 
 void OoT_osViExtendVStart(u32 arg0) {
