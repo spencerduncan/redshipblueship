@@ -8,6 +8,7 @@
  */
 
 #include "archive_check.h"
+#include "headless_crash.h"
 
 #include <cstdio>
 #include <filesystem>
@@ -144,7 +145,7 @@ extern "C" void ArchiveCheck_ReportMissingPortArchive(GameId game, bool showDial
     fprintf(stderr, "\n[RSBS] === %s ===\n%s\n", title, msg.c_str());
     fflush(stderr);
 
-    if (showDialog) {
+    if (showDialog && !HeadlessCrash_IsHeadless()) {
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, title, msg.c_str(), nullptr);
     }
 }
@@ -175,9 +176,12 @@ extern "C" void ArchiveCheck_ReportMissing(GameId game, bool showDialog) {
     fprintf(stderr, "\n[RSBS] === %s ===\n%s\n", title.c_str(), msg.c_str());
     fflush(stderr);
 
-    if (showDialog) {
-        // Works before SDL_Init/window creation; on headless systems it fails
-        // silently and the stderr text above is the fallback.
+    if (showDialog && !HeadlessCrash_IsHeadless()) {
+        // Works before SDL_Init/window creation. On a headless session it does
+        // NOT reliably fail silently — with a display server reachable but
+        // unattended it blocks waiting for a click — so the headless gate,
+        // not the SDL fallback, is what keeps CI from hanging here (#388).
+        // The stderr text above is the output that always survives.
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, title.c_str(), msg.c_str(), nullptr);
     }
 }
