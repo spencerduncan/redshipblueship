@@ -30,6 +30,7 @@
 #include "test_runner.h"
 #include "integration_test_hooks.h"
 #include "archive_check.h"
+#include "headless_crash.h"
 
 #include <ship/Context.h>
 #include <ship/resource/ResourceManager.h>
@@ -100,7 +101,12 @@ extern "C" {
 }
 
 // ============================================================================
-// Signal handler for crash diagnostics
+// Startup crash handler for crash diagnostics
+//
+// Covers the window before the Ship::Context singleton exists, which is the
+// only stretch src/common/headless_crash.cpp cannot reach (it needs a context
+// to claim libultraship's handler from). Once HeadlessCrash_ClaimAndInstall
+// runs below, these are superseded.
 // ============================================================================
 
 #ifndef _WIN32
@@ -136,8 +142,6 @@ static void InstallCrashHandler(void) {
 }
 #else
 #include <windows.h>
-#include <io.h>
-#include <ship/debug/CrashHandler.h>
 
 static LONG WINAPI CrashHandler(EXCEPTION_POINTERS* exceptionInfo) {
     fprintf(stderr, "\n[CRASH] Windows exception: 0x%08X\n",
@@ -150,116 +154,7 @@ static void InstallCrashHandler(void) {
     SetUnhandledExceptionFilter(CrashHandler);
 }
 
-// Map the fatal Windows exception codes to the POSIX signal numbers the
-// integration tier documents (docs/ci-gameplay-repro-postmortem.md §7:
-// exit >= 128 means "crashed", signal = code - 128), so CI and the agent
-// loop read Windows crashes the same way they read Linux ones.
-static int MapExceptionToSignal(DWORD code) {
-    switch (code) {
-        case EXCEPTION_ACCESS_VIOLATION:
-        case EXCEPTION_IN_PAGE_ERROR:
-        case EXCEPTION_STACK_OVERFLOW:
-            return 11; // SIGSEGV
-        case EXCEPTION_ILLEGAL_INSTRUCTION:
-        case EXCEPTION_PRIV_INSTRUCTION:
-            return 4; // SIGILL
-        case EXCEPTION_INT_DIVIDE_BY_ZERO:
-        case EXCEPTION_INT_OVERFLOW:
-        case EXCEPTION_FLT_DIVIDE_BY_ZERO:
-        case EXCEPTION_FLT_INVALID_OPERATION:
-        case EXCEPTION_FLT_OVERFLOW:
-        case EXCEPTION_FLT_UNDERFLOW:
-        case EXCEPTION_FLT_INEXACT_RESULT:
-        case EXCEPTION_FLT_DENORMAL_OPERAND:
-        case EXCEPTION_FLT_STACK_CHECK:
-            return 8; // SIGFPE
-        default:
-            return 6; // SIGABRT-equivalent bucket
-    }
-}
-
-/**
- * Integration-mode unhandled-exception filter (Windows).
- *
- * libultraship's CrashHandler constructor takes over the process filter
- * during shared bring-up, and its seh_filter ends in a MODAL MessageBoxA —
- * on an unattended runner a crashed test hangs until the CTest timeout,
- * and the register/backtrace dump is lost if nobody clicks. In integration
- * mode we take the filter back after game init and do what the POSIX side
- * documents:
- *   1. raw _write of the exception code to stderr (stdio can be unusable
- *      in a crash context — this breadcrumb must always escape),
- *   2. best-effort gameplay phase dump,
- *   3. libultraship's own PrintStack (identical registers + traceback dump
- *      into the rotating log, including the flush) minus the MessageBox,
- *   4. TerminateProcess(128 + signal).
- * Release (non-test) behavior is unchanged: this filter is only installed
- * when TestRunner_IsIntegrationTestMode().
- */
-static LONG WINAPI IntegrationCrashFilter(EXCEPTION_POINTERS* exceptionInfo) {
-    DWORD code = exceptionInfo->ExceptionRecord->ExceptionCode;
-    char buf[256];
-    int n = snprintf(buf, sizeof(buf), "\n[CRASH] Windows exception: 0x%08lX (integration mode)\n",
-                     (unsigned long)code);
-    if (n > 0) {
-        _write(2, buf, (unsigned int)n);
-    }
-
-    // ASLR-independent fault location: exe-relative offset survives across
-    // runs and resolves to a function via the linker map (redship.map), even
-    // without PDBs. For access violations also say read-vs-write and the
-    // faulting address — a small faulting address is a near-NULL field deref
-    // and its value is the field offset.
-    {
-        uintptr_t rip = (uintptr_t)exceptionInfo->ExceptionRecord->ExceptionAddress;
-        uintptr_t base = (uintptr_t)GetModuleHandleA(NULL);
-        n = snprintf(buf, sizeof(buf), "[CRASH] addr=%p exe_base=%p exe_offset=0x%zX\n", (void*)rip, (void*)base,
-                     (size_t)(rip >= base ? rip - base : rip));
-        if (n > 0) {
-            _write(2, buf, (unsigned int)n);
-        }
-        if (code == EXCEPTION_ACCESS_VIOLATION && exceptionInfo->ExceptionRecord->NumberParameters >= 2) {
-            const ULONG_PTR* info = exceptionInfo->ExceptionRecord->ExceptionInformation;
-            n = snprintf(buf, sizeof(buf), "[CRASH] access violation: %s at 0x%zX\n",
-                         info[0] == 1 ? "WRITE" : (info[0] == 8 ? "EXEC" : "READ"), (size_t)info[1]);
-            if (n > 0) {
-                _write(2, buf, (unsigned int)n);
-            }
-        }
-    }
-
-    if (IntegrationTest_GetMode() == INT_TEST_GAMEPLAY_ROUNDTRIP) {
-        IntegrationTest_LogGameplayState("signal");
-    }
-
-    // Same dump path libultraship's own filter uses (registers + traceback
-    // appended as a CRITICAL record to the log, then flushed) — just without
-    // the modal MessageBox that would hang an unattended run.
-    auto ctx = Ship::Context::GetInstance();
-    if (ctx != nullptr && ctx->GetCrashHandler() != nullptr) {
-        ctx->GetCrashHandler()->PrintStack(exceptionInfo->ContextRecord);
-    }
-
-    TerminateProcess(GetCurrentProcess(), (UINT)(128 + MapExceptionToSignal(code)));
-    return EXCEPTION_EXECUTE_HANDLER; // unreachable
-}
 #endif
-
-/**
- * Re-take the crash handling after game init. libultraship's CrashHandler
- * constructor (shared Ship::Context bring-up) replaces whatever filter main()
- * installed at startup; in integration mode we need the unattended-safe
- * filter above to be the active one. No-op outside integration mode and on
- * POSIX (there libultraship's sigaction handlers already write the dump and
- * exit non-zero without human interaction, which is all the tier needs).
- */
-static void ReinstallCrashHandlerForIntegration(void) {
-#ifdef _WIN32
-    if (TestRunner_IsIntegrationTestMode()) {
-        SetUnhandledExceptionFilter(IntegrationCrashFilter);
-    }
-#endif
-}
 
 // ============================================================================
 // Command line parsing
@@ -438,6 +333,19 @@ int main(int argc, char** argv) {
     fprintf(stderr, "[RSBS] Ship::Context singleton created successfully at %p\n", (void*)shipContext.get());
     fflush(stderr);
 
+    // Claim crash handling BEFORE any game init runs (#388).
+    //
+    // Ship::CrashHandler ends every fatal fault in a modal dialog
+    // (SDL_ShowSimpleMessageBox on Linux, MessageBoxA on Windows). With nobody
+    // to click OK the process never returns from it, so on a runner a crash
+    // presents as a CTest timeout with no exit code, no signal and no
+    // traceback — which is how three "rando-gen hangs" hid a boot SIGSEGV and
+    // cost a Linux bisect. This must happen here rather than after game init:
+    // the #388 fault fired *inside* init (InitOTRForMMFirstBoot ->
+    // ShipInit::InitAll), so a post-init reinstall would have missed it.
+    // Interactive sessions are untouched and still get the dialog.
+    HeadlessCrash_ClaimAndInstall();
+
     // ========================================================================
     // Set up GameRunner with composable lifecycle
     // ========================================================================
@@ -571,11 +479,13 @@ int main(int argc, char** argv) {
     // cross-game entrance hooks dispatch against the right game (issue #170).
     Context_SetCurrentGame(selectedGame);
 
-    // Game init created the shared Ship::Context, whose CrashHandler stole
-    // the process exception filter (and on Windows ends crashes in a modal
-    // MessageBox). In integration mode, take it back so a crashed test dumps
-    // and exits instead of hanging an unattended runner.
-    ReinstallCrashHandlerForIntegration();
+    // Belt and braces: re-assert the unattended-safe handlers after game init.
+    // The claim above already makes Ship::Context::InitCrashHandler a no-op
+    // for both games, so nothing should have taken the handlers back — but
+    // this costs nothing and the failure mode it guards against (a silent
+    // re-registration turning every crash into a timeout again) is expensive
+    // and hard to spot.
+    HeadlessCrash_ClaimAndInstall();
 
     // Note: the previous MM-test detour (init OoT then SwitchTo MM) was
     // removed with #271 — MM integration tests now boot MM directly above.

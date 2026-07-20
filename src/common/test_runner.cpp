@@ -7,6 +7,7 @@
 #include "context.h"
 #include "entrance.h"
 #include "integration_test_hooks.h"
+#include "headless_crash.h"
 #include "rsbs_version.h"
 #include <cstdio>
 #include <cstring>
@@ -146,7 +147,21 @@ static std::shared_ptr<Ship::Context> CreateHarnessStyleContext(void) {
 #else
     setenv("SHIP_HOME", kBootTestHome, 1);
 #endif
-    return Ship::Context::CreateUninitializedInstance(RSBS_WINDOW_TITLE, "soh", "shipofharkinian.json");
+    auto ctx = Ship::Context::CreateUninitializedInstance(RSBS_WINDOW_TITLE, "soh", "shipofharkinian.json");
+
+    // Take crash handling before any bring-up runs (#388). A unit test is
+    // unattended by definition even though it runs under a live DISPLAY
+    // (rando-gen needs Xvfb), so say so explicitly rather than letting the
+    // DISPLAY heuristic conclude "desktop session". Without this, a fault
+    // inside the bring-up below ends in libultraship's modal
+    // SDL_ShowSimpleMessageBox and the test burns its full CTest timeout
+    // instead of reporting a crash.
+    HeadlessCrash_ForceHeadless();
+    if (ctx) {
+        HeadlessCrash_ClaimAndInstall();
+    }
+
+    return ctx;
 }
 
 TestResult Test_BootOoT(void) {
