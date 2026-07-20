@@ -11,9 +11,10 @@
  * allocation. MM code registers per-frame hooks through the MM-owned
  * extern "C" shim instead: games/mm/include/mm_game_hooks.h.
  *
- * The Execute*/Unregister*/GetHookData members only touch the inline-static
- * per-hook-type maps (no instance state), so they stay usable — e.g. the
- * GameInteractor_ExecuteOnRoomInit wrappers in GameExports_SingleExe.cpp.
+ * The Execute*, Unregister*, and GetHookData members only touch the
+ * inline-static per-hook-type maps (no instance state), so they stay usable
+ * — e.g. the GameInteractor_ExecuteOnRoomInit wrappers in
+ * GameExports_SingleExe.cpp.
  *
  * Mechanism: force-included AFTER GameInteractor.h (games/mm/CMakeLists.txt,
  * the _force_include_cxx_guarded list), so the class definition itself parses
