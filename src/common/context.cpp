@@ -207,9 +207,14 @@ void ComboContext_Init(void) {
     gComboCtx.targetEntrance = 0;
     gComboCtx.sourceGame = GAME_NONE;
     gComboCtx.sourceEntrance = 0;
-    gComboCtx.saveSlot = -1;  // NOT WIRED — see context.h; nothing reads this yet
+    gComboCtx.saveSlot = -1;  // RETIRED IN PLACE (ADR 0002) — the -1 stamp is shipped behavior, kept as-is
     gComboCtx.sourceIsRando = false;
     gComboCtx.sharedRandoSeed = 0;
+    // sharedItemsTagged and the remaining reserved[] headroom are covered by
+    // the memset above: all-zero IS the initialized state (every slot unset,
+    // originGame == GAME_NONE). That equivalence is load-bearing — it is what
+    // makes a zero-extended legacy .redsave record indistinguishable from a
+    // fresh init (ADR 0002 growth contract).
 }
 
 void ComboContext_RequestSwitch(GameId target, uint16_t entrance) {
@@ -256,11 +261,13 @@ GameId Context_GetCurrentGame(void) {
     return gCurrentGame;
 }
 
-// Note: Context_ProcessSwitch() and Context_IsSwitchInProgress() are implemented
-// in switch.cpp. That translation unit is only linked when the legacy
-// OoT_/MM_FreezeState/ResumeFromContext symbols are also available, i.e. in
-// non-single-exe builds. Single-exe callers should not reference those
-// functions.
+// Note: the legacy Context_ProcessSwitch() / Context_IsSwitchInProgress() API
+// is gone entirely. switch.cpp removed the implementations (zero callers, and
+// they referenced OoT_/MM_FreezeState symbols from TUs excluded from the
+// single-exe link), and ADR 0002 removed the dangling declarations from
+// context.h. switch.cpp itself IS part of the single-exe build — it holds the
+// live hot-swap freeze/consume policy (Switch_PrepareHotSwap /
+// Combo_ConsumeFrozenState).
 
 // ============================================================================
 // C API implementation

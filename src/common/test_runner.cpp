@@ -870,6 +870,8 @@ const TestDescriptor gTests[] = {
     {"save-combo-legacy-record", "Pre-headroom Tier-1 still loads and zero-extends", Test_SaveComboLegacyRecord},
     {"save-combo-record-fixed", "Tier-1 written at a fixed padded size; headroom round-trips", Test_SaveComboRecordFixed},
     {"save-combo-oversize", "Load rejects an oversized Tier-1 record, no clobber", Test_SaveComboOversize},
+    {"save-tagged-items", "Origin-tagged shared items round-trip; empty slots stay unset (ADR 0002)",
+     Test_SaveTaggedItems},
     {"mm-scene-parse", "MM scene commands parse via the S2H factory (#344)", Test_MMSceneParse},
     {"seq-map-bounds", "Sequence-map capacity covers the id range + custom slack (#371, #378)", Test_SeqMapBounds},
     {"active-queue", "__osGetActiveQueue returns a walkable list, not a return register (#385)", Test_ActiveQueue},

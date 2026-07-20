@@ -452,19 +452,24 @@ TestResult Test_SaveComboLegacyRecord(void) {
     }
     mgr.DeleteSave(0);
 
-    // The old ComboContext is exactly today's struct minus the reserved tail,
-    // so offsetof gives us the legacy record length with no hand-arithmetic and
-    // no duplicated struct definition to drift out of sync.
-    const uint32_t kLegacyComboSize = static_cast<uint32_t>(offsetof(ComboContext, reserved));
+    // The legacy record length is the PINNED pre-carve prefix, not
+    // offsetof(ComboContext, reserved): the ADR 0002 carve moved that offsetof
+    // forward past sharedItemsTagged, so deriving "legacy" from it would
+    // silently include the carved fields and stop exercising the true shipped
+    // pre-carve prefix. context.h static_asserts tie the constant to
+    // offsetof(ComboContext, sharedItemsTagged), so it cannot drift.
+    const uint32_t kLegacyComboSize = RSBS_COMBO_CONTEXT_PRECARVE_SIZE;
     SAVE_ASSERT(kLegacyComboSize < RSBS_COMBO_CONTEXT_RECORD_SIZE,
                 "legacy Tier-1 must be shorter than the record budget");
     SAVE_ASSERT(SaveTestWriteCraftedSlot(mgr.SlotPath(0), RSBS_SAVE_VERSION_MIN, kLegacyComboSize),
                 "could not write legacy-record slot file");
 
-    // Scribble the reserved tail so "zero-extended" is provably the loader's
-    // doing and not a leftover zero.
+    // Scribble everything past the legacy prefix — the carved tagged-item
+    // array AND the remaining reserved tail — so "zero-extended" is provably
+    // the loader's doing and not a leftover zero.
     ComboContext_Init();
     gComboCtx.saveSlot = 0x7FFFFFFF;
+    std::memset(gComboCtx.sharedItemsTagged, 0x5A, sizeof(gComboCtx.sharedItemsTagged));
     std::memset(gComboCtx.reserved, 0x5A, sizeof(gComboCtx.reserved));
 
     SAVE_ASSERT(mgr.Load(0), "Load refused a pre-headroom .redsave — the migration path is broken");
@@ -477,6 +482,14 @@ TestResult Test_SaveComboLegacyRecord(void) {
     for (size_t i = 0; i < 32; i++) {
         SAVE_ASSERT(gComboCtx.sharedItems[i] == static_cast<uint16_t>(0x2000u + i),
                     "legacy sharedItems not restored");
+    }
+    // The fields carved from the pre-carve headroom must read as UNSET, which
+    // for SharedItem means all-zero members — the growth contract's "zero
+    // means unset" made concrete.
+    for (size_t i = 0; i < RSBS_SHARED_ITEM_CAP; i++) {
+        SAVE_ASSERT(gComboCtx.sharedItemsTagged[i].originGame == GAME_NONE &&
+                        gComboCtx.sharedItemsTagged[i].flags == 0 && gComboCtx.sharedItemsTagged[i].id == 0,
+                    "tagged items from a pre-carve record must load as unset slots");
     }
     for (size_t i = 0; i < sizeof(gComboCtx.reserved); i++) {
         SAVE_ASSERT(gComboCtx.reserved[i] == 0, "Tier-1 tail beyond the legacy record not zero-extended");
@@ -554,5 +567,58 @@ TestResult Test_SaveComboOversize(void) {
 
     mgr.DeleteSave(0);
     printf("[TEST] PASS: oversized Tier-1 rejected, live state intact\n");
+    return TEST_PASS;
+}
+
+TestResult Test_SaveTaggedItems(void) {
+    printf("[TEST] save-tagged-items: origin-tagged shared items round-trip byte-exact (ADR 0002)\n");
+
+    rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
+    mgr.SetSaveDirectory(kSaveTestDir);
+
+    SaveTestSeed(0x7A66EDu);
+
+    // A representative spread: first slot, adjacent slot, and the LAST slot,
+    // covering both origin games and a set flags bit. Values are arbitrary
+    // in-range ids — the test asserts transport, not item semantics.
+    gComboCtx.sharedItemsTagged[0].originGame = GAME_OOT;
+    gComboCtx.sharedItemsTagged[0].flags = 0;
+    gComboCtx.sharedItemsTagged[0].id = 0x00A7;
+    gComboCtx.sharedItemsTagged[1].originGame = GAME_MM;
+    gComboCtx.sharedItemsTagged[1].flags = RSBS_SHARED_ITEM_REDEEMED;
+    gComboCtx.sharedItemsTagged[1].id = 0x0042;
+    gComboCtx.sharedItemsTagged[RSBS_SHARED_ITEM_CAP - 1].originGame = GAME_OOT;
+    gComboCtx.sharedItemsTagged[RSBS_SHARED_ITEM_CAP - 1].flags = 0;
+    gComboCtx.sharedItemsTagged[RSBS_SHARED_ITEM_CAP - 1].id = 0x0123;
+
+    SharedItem expected[RSBS_SHARED_ITEM_CAP];
+    std::memcpy(expected, gComboCtx.sharedItemsTagged, sizeof(expected));
+
+    mgr.DeleteSave(0);
+    SAVE_ASSERT(mgr.Save(0), "Save(0) failed");
+
+    // Wipe live state, then scribble the tagged array so a restored zero is
+    // provably the loader's doing.
+    ComboContext_Init();
+    std::memset(gComboCtx.sharedItemsTagged, 0x5A, sizeof(gComboCtx.sharedItemsTagged));
+
+    SAVE_ASSERT(mgr.Load(0), "Load(0) failed");
+
+    SAVE_ASSERT(std::memcmp(expected, gComboCtx.sharedItemsTagged, sizeof(expected)) == 0,
+                "tagged shared items not byte-identical after a .redsave round-trip");
+    // Spot-check through the TYPED view too, so a memcmp-passing-but-misread
+    // layout (e.g. an endianness or padding surprise) still fails loudly.
+    SAVE_ASSERT(gComboCtx.sharedItemsTagged[0].originGame == GAME_OOT, "slot 0 origin tag lost");
+    SAVE_ASSERT(gComboCtx.sharedItemsTagged[0].id == 0x00A7, "slot 0 id lost");
+    SAVE_ASSERT(gComboCtx.sharedItemsTagged[1].originGame == GAME_MM, "slot 1 origin tag lost");
+    SAVE_ASSERT(gComboCtx.sharedItemsTagged[1].flags == RSBS_SHARED_ITEM_REDEEMED, "slot 1 redeemed bit lost");
+    SAVE_ASSERT(gComboCtx.sharedItemsTagged[RSBS_SHARED_ITEM_CAP - 1].id == 0x0123, "last slot id lost");
+    // Untouched slots must come back as unset, not as scribble.
+    SAVE_ASSERT(gComboCtx.sharedItemsTagged[2].originGame == GAME_NONE && gComboCtx.sharedItemsTagged[2].flags == 0 &&
+                    gComboCtx.sharedItemsTagged[2].id == 0,
+                "an unpopulated slot must round-trip as unset");
+
+    mgr.DeleteSave(0);
+    printf("[TEST] PASS: tagged shared items survive Save/Load; empty slots stay unset\n");
     return TEST_PASS;
 }

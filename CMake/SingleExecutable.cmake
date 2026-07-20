@@ -281,6 +281,11 @@ if(BUILD_TESTING)
     redship_add_test(NAME SaveComboLegacyRecord COMMAND redship --test save-combo-legacy-record)
     redship_add_test(NAME SaveComboRecordFixed COMMAND redship --test save-combo-record-fixed)
     redship_add_test(NAME SaveComboOversize COMMAND redship --test save-combo-oversize)
+    # Origin-tagged shared items (ADR 0002): the array carved out of reserved[]
+    # must round-trip byte-exact, and SaveComboLegacyRecord's crafted "legacy"
+    # length is pinned to the pre-carve prefix (RSBS_COMBO_CONTEXT_PRECARVE_SIZE)
+    # so the carve cannot silently widen what that test calls legacy.
+    redship_add_test(NAME SaveTaggedItems COMMAND redship --test save-tagged-items)
     redship_add_test(NAME Context COMMAND redship --test context)
     # F10 hot-swap freeze/consume contract (#364): the hotkey path must freeze
     # the DEPARTING game (or refuse the switch), and a consumed frozen state
