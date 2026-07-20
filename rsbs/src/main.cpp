@@ -288,12 +288,16 @@ int main(int argc, char** argv) {
     ComboContext_Init();
     Entrance_Init();
 
-    // Register entrance links
-    Entrance_RegisterDefaultLinks();
-    // Also register test links (Mido's House) for easy testing
-    Entrance_RegisterTestLinks();
-    if (HasTestEntranceFlag(argc, argv)) {
-        printf("Test entrance links also registered (Mido's House <-> Clock Tower)\n");
+    // Register the one cross-game portal. The mask-shop door and Mido's House
+    // are two OoT-side faces of the SAME portal (both return through MM
+    // 0xC010), so they are mutually exclusive — registering both left the test
+    // link's return leg dead and exited Mido's House into Hyrule Market
+    // (#374). --test-entrance now selects the face instead of stacking on.
+    const bool useTestPortal = HasTestEntranceFlag(argc, argv);
+    Entrance_RegisterPortalLinks(useTestPortal);
+    if (useTestPortal) {
+        printf("Test entrance link registered (Mido's House <-> Clock Tower); "
+               "the default mask-shop link is NOT registered\n");
     }
 
     // ========================================================================

@@ -434,6 +434,135 @@ TestResult Test_Roundtrip(void) {
     return TEST_PASS;
 }
 
+// Regression lock for #374: two links must never share a source door.
+//
+// The default (mask shop) and test (Mido's House) links both return through MM
+// 0xC010. Both used to be registered unconditionally, and because
+// Entrance_CheckCrossGame resolves by first match, the default silently won:
+// entering MM from Mido's House and walking back into the Clock Tower dumped
+// you in Hyrule Market (0x01D1) instead of Kokiri Forest (0x0443). Nothing
+// reported the shadowing.
+//
+// ROM-free: pure table logic, no archives, no display.
+TestResult Test_EntranceDedup(void) {
+    printf("[TEST] entrance-dedup: duplicate links rejected; each portal face routes home\n");
+
+    // --- Leg 1: the production portal registers, and routes both ways. ------
+    Entrance_Init();
+    if (!Entrance_RegisterPortalLinks(false)) {
+        printf("[TEST] FAIL: default portal registration was rejected on an empty table\n");
+        return TEST_FAIL;
+    }
+    if (Entrance_GetLinkCount() != 2) {
+        printf("[TEST] FAIL: expected 2 links after default registration, got %zu\n",
+               Entrance_GetLinkCount());
+        return TEST_FAIL;
+    }
+
+    Entrance_CheckCrossGame(GAME_MM, MM_ENTR_CLOCK_TOWER_INTERIOR_1);
+    if (!Entrance_IsCrossGameSwitch() ||
+        Entrance_GetSwitchTargetGame() != GAME_OOT ||
+        Entrance_GetSwitchTargetEntrance() != OOT_ENTR_MARKET_FROM_MASK_SHOP) {
+        printf("[TEST] FAIL: default return leg should land at Market 0x%04X, got 0x%04X\n",
+               OOT_ENTR_MARKET_FROM_MASK_SHOP, Entrance_GetSwitchTargetEntrance());
+        return TEST_FAIL;
+    }
+    Entrance_ClearPendingSwitch();
+
+    // --- Leg 2: stacking the test link on top must be REJECTED, atomically. -
+    // This is the exact call pair main.cpp used to make unconditionally.
+    if (Entrance_RegisterTestLinks()) {
+        printf("[TEST] FAIL: test links were accepted despite MM 0x%04X already being claimed\n",
+               MM_ENTR_CLOCK_TOWER_INTERIOR_1);
+        return TEST_FAIL;
+    }
+    // Atomicity: a rejected call must not leave its forward leg behind. A
+    // half-registered link is a one-way portal — worse than the collision.
+    if (Entrance_GetLinkCount() != 2) {
+        printf("[TEST] FAIL: rejected registration mutated the table (%zu links, expected 2)\n",
+               Entrance_GetLinkCount());
+        return TEST_FAIL;
+    }
+    if (Entrance_HasLinkFor(GAME_OOT, OOT_ENTR_MIDOS_HOUSE)) {
+        printf("[TEST] FAIL: rejected registration left a dangling forward leg for Mido's House\n");
+        return TEST_FAIL;
+    }
+
+    // --- Leg 3: the test portal, registered alone, returns to Kokiri. -------
+    // Under the old first-match shadowing this produced 0x01D1 (the #374 bug).
+    Entrance_Init();
+    if (!Entrance_RegisterPortalLinks(true)) {
+        printf("[TEST] FAIL: test portal registration was rejected on an empty table\n");
+        return TEST_FAIL;
+    }
+    if (Entrance_HasLinkFor(GAME_OOT, OOT_ENTR_HAPPY_MASK_SHOP)) {
+        printf("[TEST] FAIL: test portal must not also register the mask-shop face\n");
+        return TEST_FAIL;
+    }
+
+    Entrance_CheckCrossGame(GAME_OOT, OOT_ENTR_MIDOS_HOUSE);
+    if (!Entrance_IsCrossGameSwitch() ||
+        Entrance_GetSwitchTargetEntrance() != MM_ENTR_SOUTH_CLOCK_TOWN_0 ||
+        Entrance_GetSwitchReturnEntrance() != OOT_ENTR_KOKIRI_FROM_MIDOS) {
+        printf("[TEST] FAIL: Mido's outbound leg wrong (target 0x%04X, return 0x%04X)\n",
+               Entrance_GetSwitchTargetEntrance(), Entrance_GetSwitchReturnEntrance());
+        return TEST_FAIL;
+    }
+    Entrance_ClearPendingSwitch();
+
+    Entrance_CheckCrossGame(GAME_MM, MM_ENTR_CLOCK_TOWER_INTERIOR_1);
+    if (!Entrance_IsCrossGameSwitch() ||
+        Entrance_GetSwitchTargetGame() != GAME_OOT ||
+        Entrance_GetSwitchTargetEntrance() != OOT_ENTR_KOKIRI_FROM_MIDOS) {
+        printf("[TEST] FAIL: test return leg should land at Kokiri 0x%04X, got 0x%04X "
+               "(0x%04X means the default link shadowed it — #374)\n",
+               OOT_ENTR_KOKIRI_FROM_MIDOS, Entrance_GetSwitchTargetEntrance(),
+               OOT_ENTR_MARKET_FROM_MASK_SHOP);
+        return TEST_FAIL;
+    }
+    Entrance_ClearPendingSwitch();
+
+    // --- Leg 4: rejection is keyed per-leg, not per-call. -------------------
+    // A link whose OoT face is fresh but whose MM face is taken must still be
+    // rejected — the MM trigger is the scarce resource.
+    if (Entrance_RegisterBidirectionalLink(
+            GAME_OOT, OOT_ENTR_HAPPY_MASK_SHOP, OOT_ENTR_MARKET_FROM_MASK_SHOP,
+            GAME_MM, MM_ENTR_SOUTH_CLOCK_TOWN_0, MM_ENTR_CLOCK_TOWER_INTERIOR_1)) {
+        printf("[TEST] FAIL: accepted a link reusing the claimed MM trigger 0x%04X\n",
+               MM_ENTR_CLOCK_TOWER_INTERIOR_1);
+        return TEST_FAIL;
+    }
+
+    // A link colliding with itself (forward source == reverse source) is dead
+    // on arrival and must be rejected too.
+    if (Entrance_RegisterBidirectionalLink(
+            GAME_OOT, 0x0EDD, 0x0EDE,
+            GAME_OOT, 0x0EDF, 0x0EDD)) {
+        printf("[TEST] FAIL: accepted a self-colliding link\n");
+        return TEST_FAIL;
+    }
+
+    // A genuinely distinct pair still registers — the guard rejects duplicates,
+    // not everything.
+    const size_t before = Entrance_GetLinkCount();
+    if (!Entrance_RegisterBidirectionalLink(
+            GAME_OOT, 0x0EE0, 0x0EE1,
+            GAME_MM, 0x0EE2, 0x0EE3)) {
+        printf("[TEST] FAIL: rejected a link with no source collision\n");
+        return TEST_FAIL;
+    }
+    if (Entrance_GetLinkCount() != before + 2) {
+        printf("[TEST] FAIL: accepted registration did not add both legs\n");
+        return TEST_FAIL;
+    }
+
+    // Restore the default table for tests that run after this one.
+    Entrance_Init();
+    Entrance_RegisterDefaultLinks();
+    printf("[TEST] PASS: duplicate source doors rejected atomically; each face routes home\n");
+    return TEST_PASS;
+}
+
 TestResult Test_MidosHouse(void) {
     printf("[TEST] midos-house: Test Mido's House entrance (test mode)\n");
 
@@ -678,6 +807,7 @@ const TestDescriptor gTests[] = {
     {"switch-oot-mm", "Test game switch OoT -> MM", Test_SwitchOoTMM},
     {"switch-mm-oot", "Test game switch MM -> OoT", Test_SwitchMMOoT},
     {"midos-house", "Test Mido's House entrance (test mode)", Test_MidosHouse},
+    {"entrance-dedup", "Duplicate entrance links rejected; each portal face routes home (#374)", Test_EntranceDedup},
     {"startup-entrance", "Test startup entrance flow", Test_StartupEntrance},
     {"vb-affinity", "OoT VB hooks stay quiet while MM is active", Test_VBAffinity},
     {"cosmetic-gfx-stub", "MM HUD gfx wrappers write commands and advance the display list", Test_CosmeticGfxStub},
