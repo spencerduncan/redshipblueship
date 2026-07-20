@@ -686,42 +686,48 @@ void func_800FA3DC(void) {
     }
 }
 
+// RSBS_AUDIO_PROBE=1: observe the audio reset-completion handshake without
+// altering it. While D_80133418 is nonzero the WHOLE game-side audio update
+// (func_800F3054) is skipped, so a wedge in this handshake is total, permanent
+// audio death — the probe exists to catch it in the act.
+//
+// An earlier version polled func_800E5EDC() itself and returned ahead of the
+// real branches in func_800FAD34, which made it an active participant, not an
+// observer (#377): it collapsed the D_80133418 == 2 case — a BLOCKING spin that
+// callers rely on to complete the reset before func_800FAD34 returns — into a
+// single non-blocking poll, and func_800E5EDC() is destructive: a poll that
+// returns -1 has already consumed and discarded a queue message the spin needs,
+// so the probe could itself cause the very permanent wedge it was meant to
+// diagnose. This wrapper instead logs and returns the underlying poll UNCHANGED,
+// so both the D_80133418 == 1 poll-once path and the == 2 spin-to-completion
+// path consume func_800E5EDC() exactly as they do with the probe off. The only
+// difference the probe makes is the log line.
+static s32 OoT_AudioResetProbePoll(void) {
+    static int sProbeEnabled = -1;
+    static u32 sProbeCalls = 0;
+    s32 poll = func_800E5EDC();
+
+    if (sProbeEnabled < 0) {
+        sProbeEnabled = getenv("RSBS_AUDIO_PROBE") != NULL;
+    }
+    if (sProbeEnabled && (poll != 0 || (++sProbeCalls % 120 == 0))) {
+        fprintf(stderr, "[OOT-RESET] state=%d poll=%d specToLoad=%d resetStatus=%d\n", (int)D_80133418, (int)poll,
+                (int)gAudioContext.audioResetSpecIdToLoad, (int)gAudioContext.resetStatus);
+        fflush(stderr);
+    }
+    return poll;
+}
+
 u8 func_800FAD34(void) {
     if (D_80133418 != 0) {
-        // RSBS_AUDIO_PROBE=1: the reset-completion handshake. While
-        // D_80133418 is nonzero the WHOLE game-side audio update
-        // (func_800F3054) is skipped, so a wedge here is total permanent
-        // audio death — log the poll result to catch it in the act.
-        {
-            static int sProbeEnabled = -1;
-            static u32 sProbeCalls = 0;
-            s32 poll;
-            if (sProbeEnabled < 0) {
-                sProbeEnabled = getenv("RSBS_AUDIO_PROBE") != NULL;
-            }
-            if (sProbeEnabled) {
-                poll = func_800E5EDC();
-                if (poll != 0 || (++sProbeCalls % 120 == 0)) {
-                    fprintf(stderr, "[OOT-RESET] state=%d poll=%d specToLoad=%d resetStatus=%d\n", (int)D_80133418,
-                            (int)poll, (int)gAudioContext.audioResetSpecIdToLoad, (int)gAudioContext.resetStatus);
-                    fflush(stderr);
-                }
-                if (poll == 1) {
-                    D_80133418 = 0;
-                    Audio_QueueCmdS8(0x46020000, OoT_gSfxChannelLayout);
-                    func_800F7170();
-                }
-                return D_80133418;
-            }
-        }
         if (D_80133418 == 1) {
-            if (func_800E5EDC() == 1) {
+            if (OoT_AudioResetProbePoll() == 1) {
                 D_80133418 = 0;
                 Audio_QueueCmdS8(0x46020000, OoT_gSfxChannelLayout);
                 func_800F7170();
             }
         } else if (D_80133418 == 2) {
-            while (func_800E5EDC() != 1) {}
+            while (OoT_AudioResetProbePoll() != 1) {}
             D_80133418 = 0;
             Audio_QueueCmdS8(0x46020000, OoT_gSfxChannelLayout);
             func_800F7170();
