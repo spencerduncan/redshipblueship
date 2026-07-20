@@ -90,6 +90,27 @@ void Context_UpdateShadowCopy(GameId game, const void* saveContext, size_t size)
 
 #define COMBO_CONTEXT_MAGIC "OoT+MM<3"
 
+/**
+ * FIXED on-disk size of the .redsave Tier-1 (ComboContext) record.
+ *
+ * The serialized record is decoupled from sizeof(ComboContext) on purpose.
+ * save.cpp always writes exactly this many bytes — the live struct followed by
+ * zero padding — and Load reads the size the header stored, zero-extending a
+ * shorter record. That is the same size-field-driven scheme the OoT/MM tiers
+ * already use, and it is what lets ComboContext GROW without invalidating every
+ * existing .redsave.
+ *
+ * The growth contract, which Lane A (origin-tagged sharedItems) depends on:
+ *   - New fields are APPENDED (or carved out of `reserved`), never inserted
+ *     between existing members. Every already-shipped field must keep its
+ *     offset, because a short legacy record is loaded as a byte PREFIX of the
+ *     current layout.
+ *   - sizeof(ComboContext) must stay within this budget. Exceeding it is a
+ *     compile-time error (static_assert below), not a silent format break: the
+ *     fix is to raise both this constant and RSBS_SAVE_VERSION together.
+ */
+#define RSBS_COMBO_CONTEXT_RECORD_SIZE 1024u
+
 typedef struct {
     char magic[8];        // "OoT+MM<3"
     uint32_t version;
@@ -99,13 +120,39 @@ typedef struct {
     GameId sourceGame;
     uint16_t sourceEntrance;
     uint32_t sharedFlags[64];
+    // NOT WIRED: no non-test reader/writer exists yet. Lane A widens this into
+    // an origin-tagged form — OoT's RG_* ids and MM's item ids are unrelated
+    // enumerations that must never alias by raw integer.
     uint16_t sharedItems[32];
+    // NOT WIRED: dead plumbing. Set to -1 by ComboContext_Init and serialized,
+    // but nothing outside the tests reads it — do not assume the active slot
+    // index is available here until something actually assigns it.
     int32_t saveSlot;
 
     // Cross-game rando state propagation
     bool sourceIsRando;        // Source game is in randomizer mode
     uint32_t sharedRandoSeed;  // Shared seed for synchronization
+
+    // Headroom. Shrink this when appending a field so the struct stays inside
+    // RSBS_COMBO_CONTEXT_RECORD_SIZE; the on-disk record size does not change
+    // either way, so old saves keep loading. Zeroed by ComboContext_Init, which
+    // is what makes a zero-extended legacy record indistinguishable from a
+    // freshly-initialized one.
+    uint8_t reserved[640];
 } ComboContext;
+
+// Deliberately `<=`, not `==`: the on-disk record is padded to a fixed size, so
+// the struct only has to FIT the budget. An exact-match assert would turn a
+// harmless ABI padding difference into a build break for no benefit.
+#ifdef __cplusplus
+static_assert(sizeof(ComboContext) <= RSBS_COMBO_CONTEXT_RECORD_SIZE,
+              "ComboContext outgrew its .redsave Tier-1 record budget; raise "
+              "RSBS_COMBO_CONTEXT_RECORD_SIZE and RSBS_SAVE_VERSION together");
+#else
+_Static_assert(sizeof(ComboContext) <= RSBS_COMBO_CONTEXT_RECORD_SIZE,
+               "ComboContext outgrew its .redsave Tier-1 record budget; raise "
+               "RSBS_COMBO_CONTEXT_RECORD_SIZE and RSBS_SAVE_VERSION together");
+#endif
 
 extern ComboContext gComboCtx;
 extern GameId gCurrentGame;

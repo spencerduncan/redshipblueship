@@ -207,7 +207,7 @@ void ComboContext_Init(void) {
     gComboCtx.targetEntrance = 0;
     gComboCtx.sourceGame = GAME_NONE;
     gComboCtx.sourceEntrance = 0;
-    gComboCtx.saveSlot = -1;
+    gComboCtx.saveSlot = -1;  // NOT WIRED — see context.h; nothing reads this yet
     gComboCtx.sourceIsRando = false;
     gComboCtx.sharedRandoSeed = 0;
 }

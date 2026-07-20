@@ -831,6 +831,11 @@ const TestDescriptor gTests[] = {
     {"save-size-mismatch", "Unified save Load rejects oversized tier, no clobber (#35)", Test_SaveSizeMismatch},
     {"save-legacy-size", "Unified save Load zero-extends shorter legacy tiers (#35)", Test_SaveLegacySize},
     {"save-crc-corrupt", "Unified save Load rejects corrupt payload, no clobber (#35)", Test_SaveCrcCorrupt},
+    // Tier-1 format-headroom locks: the migration path Lane A's widened
+    // sharedItems rides on. Without these, "ComboContext can grow" is a claim.
+    {"save-combo-legacy-record", "Pre-headroom Tier-1 still loads and zero-extends", Test_SaveComboLegacyRecord},
+    {"save-combo-record-fixed", "Tier-1 written at a fixed padded size; headroom round-trips", Test_SaveComboRecordFixed},
+    {"save-combo-oversize", "Load rejects an oversized Tier-1 record, no clobber", Test_SaveComboOversize},
     {"mm-scene-parse", "MM scene commands parse via the S2H factory (#344)", Test_MMSceneParse},
     {"seq-map-bounds", "Sequence-map capacity covers the id range + custom slack (#371, #378)", Test_SeqMapBounds},
     {"mm-scene-execute", "MM scene commands execute against a PlayState (#344)", Test_MMSceneExecute},

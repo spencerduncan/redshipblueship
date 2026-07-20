@@ -255,6 +255,16 @@ if(BUILD_TESTING)
     add_test(NAME SaveSizeMismatch COMMAND redship --test save-size-mismatch)
     add_test(NAME SaveLegacySize COMMAND redship --test save-legacy-size)
     add_test(NAME SaveCrcCorrupt COMMAND redship --test save-crc-corrupt)
+    # Tier-1 (ComboContext) format headroom — Phase 3 Wave 1. The loader used to
+    # demand comboSize == sizeof(ComboContext) exactly, so the moment Lane A
+    # widens sharedItems to carry an origin-game tag, every existing .redsave
+    # would stop loading with no message to the user. These lock the migration:
+    # a pre-headroom Tier-1 still loads and zero-extends, the record size is
+    # fixed and padded so growth does not move it, and an oversized record is
+    # refused rather than truncated.
+    add_test(NAME SaveComboLegacyRecord COMMAND redship --test save-combo-legacy-record)
+    add_test(NAME SaveComboRecordFixed COMMAND redship --test save-combo-record-fixed)
+    add_test(NAME SaveComboOversize COMMAND redship --test save-combo-oversize)
     add_test(NAME Context COMMAND redship --test context)
     # MM scene-command parse + execute regressions — display-free, no ROM
     # archives (#344). Parse checks the wire format; execute runs the commands
@@ -281,6 +291,7 @@ if(BUILD_TESTING)
     set_tests_properties(
         BootOoT BootMM SwitchOoTMM SwitchMMOoT StartupEntrance EntranceDedup VBAffinity CosmeticGfxStub Roundtrip RoundtripIntegrity SharedRoundtrip ArchiveHotswapLogic
         SaveRoundtripTiers SaveHeader SaveHasDelete SaveVersionReject SaveSizeMismatch SaveLegacySize SaveCrcCorrupt
+        SaveComboLegacyRecord SaveComboRecordFixed SaveComboOversize
         Context MMSceneParse MMSceneExecute SeqMapBounds MMResumeArena MMStartupRestore AllTests
         PROPERTIES
         TIMEOUT ${REDSHIP_TEST_TIMEOUT}

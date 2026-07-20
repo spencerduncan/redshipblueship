@@ -185,7 +185,9 @@ TestResult Test_SaveHeader(void) {
     SAVE_ASSERT(h.endian == RSBS_SAVE_ENDIAN_LE, "bad endian");
     SAVE_ASSERT(h.slot == 0, "bad slot");
     SAVE_ASSERT(h.headerSize == sizeof(rsbs::RsbsSaveHeader), "bad headerSize");
-    SAVE_ASSERT(h.comboSize == sizeof(ComboContext), "bad comboSize");
+    // The FIXED record size, deliberately not sizeof(ComboContext): the record
+    // is padded so appending a field cannot move it.
+    SAVE_ASSERT(h.comboSize == RSBS_COMBO_CONTEXT_RECORD_SIZE, "bad comboSize");
     SAVE_ASSERT(h.ootSize == OOT_SAVE_CONTEXT_SIZE, "bad ootSize");
     SAVE_ASSERT(h.mmSize == MM_SAVE_CONTEXT_SIZE, "bad mmSize");
 
@@ -381,5 +383,176 @@ TestResult Test_SaveCrcCorrupt(void) {
 
     mgr.DeleteSave(0);
     printf("[TEST] PASS: corrupt payload rejected, live state intact\n");
+    return TEST_PASS;
+}
+
+// ============================================================================
+// Tier-1 (ComboContext) format-headroom locks — Phase 3 Wave 1.
+//
+// Lane A widens gComboCtx.sharedItems to carry an origin-game tag, which
+// changes sizeof(ComboContext). Before this lane, DeserializeHeader demanded
+// `h.comboSize == sizeof(ComboContext)` exactly, so that change would have made
+// every already-written .redsave stop loading — silently, because Load's only
+// failure signal was a `false` nobody surfaced. These three tests are the
+// migration path: without them the headroom is an untested claim.
+// ============================================================================
+
+namespace {
+
+// Writes a hand-crafted slot file with an arbitrary version and Tier-1 record
+// length, taking the Tier-1 bytes from the front of the CURRENT gComboCtx.
+// Truncating gComboCtx at `comboSize` is byte-for-byte what an older build
+// wrote, as long as fields are only ever appended — which is the growth
+// contract documented in context.h.
+bool SaveTestWriteCraftedSlot(const std::string& path, uint32_t version, uint32_t comboSize) {
+    std::vector<uint8_t> payload;
+    const uint8_t* comboBytes = reinterpret_cast<const uint8_t*>(&gComboCtx);
+    payload.insert(payload.end(), comboBytes, comboBytes + comboSize);
+    for (size_t i = 0; i < OOT_SAVE_CONTEXT_SIZE; i++) {
+        payload.push_back(SaveTestOoTByte(i));
+    }
+    for (size_t i = 0; i < MM_SAVE_CONTEXT_SIZE; i++) {
+        payload.push_back(SaveTestMMByte(i));
+    }
+
+    rsbs::RsbsSaveHeader h;
+    std::memset(&h, 0, sizeof(h));
+    std::memcpy(h.magic, RSBS_SAVE_MAGIC, sizeof(h.magic));
+    h.version = version;
+    h.endian = RSBS_SAVE_ENDIAN_LE;
+    h.slot = 0;
+    h.headerSize = sizeof(rsbs::RsbsSaveHeader);
+    h.comboSize = comboSize;
+    h.ootSize = static_cast<uint32_t>(OOT_SAVE_CONTEXT_SIZE);
+    h.mmSize = static_cast<uint32_t>(MM_SAVE_CONTEXT_SIZE);
+    h.crc32 = rsbs::SaveManager::Crc32(payload.data(), payload.size());
+
+    std::filesystem::create_directories(kSaveTestDir);
+    std::ofstream out(path, std::ios::binary | std::ios::trunc);
+    if (!out) {
+        return false;
+    }
+    out.write(reinterpret_cast<const char*>(&h), sizeof(h));
+    out.write(reinterpret_cast<const char*>(payload.data()), static_cast<std::streamsize>(payload.size()));
+    return static_cast<bool>(out);
+}
+
+}  // namespace
+
+TestResult Test_SaveComboLegacyRecord(void) {
+    printf("[TEST] save-combo-legacy-record: a pre-headroom .redsave still loads and zero-extends\n");
+
+    rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
+    mgr.SetSaveDirectory(kSaveTestDir);
+
+    const uint32_t tag = 0x0DDBA11u;
+    SaveTestSeed(tag);
+    for (size_t i = 0; i < 32; i++) {
+        gComboCtx.sharedItems[i] = static_cast<uint16_t>(0x2000u + i);
+    }
+    mgr.DeleteSave(0);
+
+    // The old ComboContext is exactly today's struct minus the reserved tail,
+    // so offsetof gives us the legacy record length with no hand-arithmetic and
+    // no duplicated struct definition to drift out of sync.
+    const uint32_t kLegacyComboSize = static_cast<uint32_t>(offsetof(ComboContext, reserved));
+    SAVE_ASSERT(kLegacyComboSize < RSBS_COMBO_CONTEXT_RECORD_SIZE,
+                "legacy Tier-1 must be shorter than the record budget");
+    SAVE_ASSERT(SaveTestWriteCraftedSlot(mgr.SlotPath(0), RSBS_SAVE_VERSION_MIN, kLegacyComboSize),
+                "could not write legacy-record slot file");
+
+    // Scribble the reserved tail so "zero-extended" is provably the loader's
+    // doing and not a leftover zero.
+    ComboContext_Init();
+    gComboCtx.saveSlot = 0x7FFFFFFF;
+    std::memset(gComboCtx.reserved, 0x5A, sizeof(gComboCtx.reserved));
+
+    SAVE_ASSERT(mgr.Load(0), "Load refused a pre-headroom .redsave — the migration path is broken");
+
+    SAVE_ASSERT(gComboCtx.saveSlot == static_cast<int32_t>(tag), "legacy saveSlot not restored");
+    SAVE_ASSERT(gComboCtx.sharedFlags[5] == tag, "legacy sharedFlags not restored");
+    SAVE_ASSERT(gComboCtx.sharedRandoSeed == (tag ^ 0xA5A5A5A5u), "legacy sharedRandoSeed not restored");
+    SAVE_ASSERT(gComboCtx.sourceIsRando, "legacy sourceIsRando not restored");
+    SAVE_ASSERT(gComboCtx.sourceGame == GAME_OOT, "legacy sourceGame not restored");
+    for (size_t i = 0; i < 32; i++) {
+        SAVE_ASSERT(gComboCtx.sharedItems[i] == static_cast<uint16_t>(0x2000u + i),
+                    "legacy sharedItems not restored");
+    }
+    for (size_t i = 0; i < sizeof(gComboCtx.reserved); i++) {
+        SAVE_ASSERT(gComboCtx.reserved[i] == 0, "Tier-1 tail beyond the legacy record not zero-extended");
+    }
+    SAVE_ASSERT(SaveTestOoTShadowMatchesPattern(), "OoT blob not restored from legacy-record file");
+    SAVE_ASSERT(SaveTestMMShadowMatchesPattern(), "MM blob not restored from legacy-record file");
+
+    mgr.DeleteSave(0);
+    printf("[TEST] PASS: pre-headroom Tier-1 loads, added fields read as zero\n");
+    return TEST_PASS;
+}
+
+TestResult Test_SaveComboRecordFixed(void) {
+    printf("[TEST] save-combo-record-fixed: Tier-1 is written at a fixed padded size and carries the tail\n");
+
+    rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
+    mgr.SetSaveDirectory(kSaveTestDir);
+    SaveTestSeed(0xFEEDFACEu);
+
+    // Stand in for a field Lane A will carve out of `reserved`: if these bytes
+    // survive a Save/Load, so will the real field.
+    for (size_t i = 0; i < sizeof(gComboCtx.reserved); i++) {
+        gComboCtx.reserved[i] = static_cast<uint8_t>(0x30u + i * 7u);
+    }
+
+    mgr.DeleteSave(0);
+    SAVE_ASSERT(mgr.Save(0), "Save(0) failed");
+
+    // The written Tier-1 length must be the budget, NOT sizeof(ComboContext) —
+    // that decoupling is what keeps the on-disk size stable when the struct
+    // grows. Total file length proves the padding is actually on disk.
+    const uintmax_t expected = sizeof(rsbs::RsbsSaveHeader) + RSBS_COMBO_CONTEXT_RECORD_SIZE +
+                               OOT_SAVE_CONTEXT_SIZE + MM_SAVE_CONTEXT_SIZE;
+    SAVE_ASSERT(std::filesystem::file_size(mgr.SlotPath(0)) == expected,
+                "slot file length does not match a fixed-size padded Tier-1");
+    SAVE_ASSERT(sizeof(ComboContext) <= RSBS_COMBO_CONTEXT_RECORD_SIZE,
+                "ComboContext no longer fits its record budget");
+
+    ComboContext_Init();
+    gComboCtx.saveSlot = 0x7FFFFFFF;
+
+    SAVE_ASSERT(mgr.Load(0), "Load(0) failed");
+    for (size_t i = 0; i < sizeof(gComboCtx.reserved); i++) {
+        SAVE_ASSERT(gComboCtx.reserved[i] == static_cast<uint8_t>(0x30u + i * 7u),
+                    "reserved headroom not round-tripped — a future field would be lost");
+    }
+
+    mgr.DeleteSave(0);
+    printf("[TEST] PASS: Tier-1 record size is fixed and its headroom round-trips\n");
+    return TEST_PASS;
+}
+
+TestResult Test_SaveComboOversize(void) {
+    printf("[TEST] save-combo-oversize: Load refuses a Tier-1 larger than this build can hold\n");
+
+    rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
+    mgr.SetSaveDirectory(kSaveTestDir);
+    SaveTestSeed(0x13571357u);
+    mgr.DeleteSave(0);
+    SAVE_ASSERT(mgr.Save(0), "Save(0) failed");
+
+    // A Tier-1 record from a future, wider format. Accepting it would mean
+    // silently truncating cross-game state; the only safe answer is to refuse
+    // (loudly — Load logs the reason).
+    SAVE_ASSERT(SaveTestPatchU32(mgr.SlotPath(0), offsetof(rsbs::RsbsSaveHeader, comboSize),
+                                 RSBS_COMBO_CONTEXT_RECORD_SIZE + 4u),
+                "could not patch comboSize");
+
+    SaveTestSeed(0x2468ACE0u);
+    gComboCtx.saveSlot = 0x0BADF00D;
+
+    SAVE_ASSERT(!mgr.Load(0), "Load accepted an oversized Tier-1 record");
+    SAVE_ASSERT(gComboCtx.saveSlot == 0x0BADF00D, "rejected Load clobbered ComboContext");
+    SAVE_ASSERT(SaveTestOoTShadowMatchesPattern(), "rejected Load clobbered OoT shadow");
+
+    mgr.DeleteSave(0);
+    printf("[TEST] PASS: oversized Tier-1 rejected, live state intact\n");
     return TEST_PASS;
 }
