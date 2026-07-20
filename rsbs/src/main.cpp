@@ -89,6 +89,12 @@ extern "C" {
     // Whether the shared bring-up found an OoT game archive and ran OoT's
     // asset-dependent init (games/oot/soh/OTRGlobals.cpp, #330).
     int OoT_GameAssetsInitialized(void);
+    // Freezes the departing game's SaveContext for an F10 hot swap and records
+    // a return entrance for it (#364). Defined in
+    // games/oot/soh/GameExports_SingleExe.cpp because only a game TU can
+    // address gSaveContext; the policy itself is in src/common/switch.cpp.
+    // Returns 0 when the freeze could not be performed — refuse the switch.
+    int Combo_FreezeActiveGameForHotSwap(GameId departing);
     // In-app mm.o2r generation, offered at the start prompt when MM is
     // selected without a game archive (#317). Defined in
     // games/mm/2s2h/GameExports_SingleExe.cpp. Success is observed by
@@ -570,6 +576,34 @@ int main(int argc, char** argv) {
                 continue;
             }
 
+            // F10 hot swap: freeze the DEPARTING game before we leave (#364).
+            //
+            // The entrance path freezes inside Combo_CheckEntranceSwitch, so by
+            // the time we get here the departing game's blob is fresh. The F10
+            // path had no such hook and froze nothing — yet the startup-entrance
+            // branch below still consults Context_HasFrozenState(nextGame). Once
+            // any entrance switch had populated a blob, every subsequent F10
+            // return re-applied that stale snapshot: the player was rolled back
+            // to whatever they had at the FIRST departure, with no error, no
+            // title screen, and no visible symptom. Freezing here is what makes
+            // the blob the launcher restores actually belong to this trip.
+            //
+            // If the freeze cannot be performed we refuse the switch outright
+            // and keep the current game running, exactly like the archive checks
+            // above. Switching anyway would hand the player a silent rollback,
+            // which is strictly worse than a hotkey that appears not to work.
+            if (!isEntranceSwitch) {
+                GameId departingGame = GameRunner_GetActive(&runner);
+                if (!Combo_FreezeActiveGameForHotSwap(departingGame)) {
+                    Combo_ClearGameSwitchRequest();
+                    Entrance_ClearPendingSwitch();
+                    printf("Hot swap to %s refused: could not freeze %s state — continuing %s.\n",
+                           Game_ToString(nextGame), Game_ToString(departingGame),
+                           Game_ToString(GameRunner_GetActive(&runner)));
+                    continue;
+                }
+            }
+
             GameOps* nextOps = GameRunner_GetOps(&runner, nextGame);
             printf("\n=== Switching to %s ===\n",
                    nextOps ? nextOps->name : "Unknown");
@@ -592,6 +626,14 @@ int main(int argc, char** argv) {
             // boots as a brand-new file at its title screen and the frozen
             // save is never consumed. A first-time hotkey entry (no frozen
             // state) keeps the plain title-screen boot.
+            //
+            // The blob this branch restores is now guaranteed to be current:
+            // the hot-swap freeze above runs on every F10 departure, and the
+            // target's Play_Init retires the blob as it consumes it
+            // (Combo_ConsumeFrozenState). So a frozen state existing here means
+            // "the player left this game and has not returned since", which is
+            // exactly the condition the restore is for — not "this game was
+            // left at some point in the past" (#364).
             if (isEntranceSwitch && targetEntrance != 0) {
                 Entrance_SetStartupEntrance(targetEntrance, nextGame);
             } else if (!isEntranceSwitch && Context_HasFrozenState(nextGame)) {

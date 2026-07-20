@@ -938,6 +938,33 @@ void Combo_SignalReadyToSwitch(void);
 void Combo_RequestGameSwitch(void);
 bool Combo_IsGameSwitchRequested(void);
 void Combo_ClearGameSwitchRequest(void);
+// Hot-swap freeze policy (src/common/switch.cpp). The launcher drives the F10
+// freeze, but only this side can supply the SaveContext, so the glue below
+// bridges the two.
+int Switch_PrepareHotSwap(GameId departing, const void* saveContext, size_t size);
+}
+
+/**
+ * Freeze the departing game for an F10 hot swap (#364).
+ *
+ * The launcher (rsbs/src/main.cpp) decides that a hot swap is happening, but
+ * `gSaveContext` is only addressable from a game translation unit — hence this
+ * one-line bridge. It is the F10 twin of the freeze `Combo_CheckEntranceSwitch`
+ * performs below for the entrance path; without it, F10 departures produced no
+ * blob at all while the launcher still restored whatever blob an *earlier*
+ * entrance switch had left behind.
+ *
+ * As in `Combo_CheckEntranceSwitch`, `sizeof(gSaveContext)` here is OoT's
+ * layout even when MM is the departing game. That over-reads relative to MM's
+ * smaller struct but stays in bounds: the underlying unified storage
+ * (src/common/unified_save.c) is OOT_SAVE_CONTEXT_SIZE for both games, and
+ * Context_FreezeState clamps to the per-game blob capacity.
+ *
+ * @return 1 if a fresh blob was recorded, 0 if the launcher must refuse the
+ *         switch instead of proceeding into a stale restore.
+ */
+extern "C" int Combo_FreezeActiveGameForHotSwap(GameId departing) {
+    return Switch_PrepareHotSwap(departing, &gSaveContext, sizeof(gSaveContext));
 }
 
 static bool sLastF10State = false;
