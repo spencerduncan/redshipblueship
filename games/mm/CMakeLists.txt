@@ -166,6 +166,21 @@ list(FILTER src__ EXCLUDE REGEX "src/libultra/*")
 #list(REMOVE_ITEM src__ "src/libultra/gu/sqrtf.c")
 #list(REMOVE_ITEM src__ "src/libultra/gu/us2dex.c")
 
+# Falling off the end of a non-void function is a hard error in
+# games/mm/src/boot/fault.c and games/mm/src/code/stubs.c (#403), mirroring
+# the games/oot/CMakeLists.txt / soh/stubs.c precedent (#385/#401). Scoped to
+# these two files on purpose: MM passes explicit -Wno-return-type on
+# Darwin/Switch/CafeOS and -Wno-error on Linux, and SUPPRESS_WARNINGS'
+# WARNING_OVERRIDE is never applied to MM's vendored decomp tree generally —
+# a target-wide escalation would fight that and break the build. Source-level
+# COMPILE_OPTIONS is emitted after target-level flags, so this wins over
+# those suppressions for these two files specifically.
+if(MSVC)
+    set_source_files_properties(src/boot/fault.c src/code/stubs.c PROPERTIES COMPILE_OPTIONS "/we4716;/we4715")
+else()
+    set_source_files_properties(src/boot/fault.c src/code/stubs.c PROPERTIES COMPILE_OPTIONS "-Werror=return-type")
+endif()
+
 source_group("src" REGULAR_EXPRESSION "src/*")
 source_group("src\\boot" REGULAR_EXPRESSION "src/boot/*")
 source_group("src\\buffers" REGULAR_EXPRESSION "src/buffers/*")
