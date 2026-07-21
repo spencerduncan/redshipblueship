@@ -155,10 +155,39 @@ extern "C" int Rando_HeadlessHintValidityTest(const char* seedStr) {
         }
 
         // (3) Whatever the path, the text a player reads must name a real item.
-        for (const std::string& message : hint->GetAllMessageStrings(MF_CLEAN)) {
+        const std::vector<std::string> liveMessages = hint->GetAllMessageStrings(MF_CLEAN);
+        for (const std::string& message : liveMessages) {
             if (message.find(sentinel) != std::string::npos) {
                 fprintf(stderr, "[rando-hints] FAIL %s: message resolves to the no-item sentinel: \"%s\"\n",
                         hintName.c_str(), message.c_str());
+                failures++;
+            }
+        }
+
+        // (4) Serialize/deserialize round trip. The spoiler proved that
+        // generation-time text is correct, so the operator-visible break has to
+        // be downstream of generation: a hint is written out as names and read
+        // back through the name tables. toJSON()/Hint(key, json) are that
+        // declared pair (the same schema the spoiler and the plando loader
+        // use), so re-rendering a reloaded hint must reproduce the live text
+        // exactly -- and in particular must not decay to the sentinel.
+        oJson roundTripped = hint->toJSON();
+        Rando::Hint reloaded(hintKey, roundTripped);
+        const std::vector<std::string> reloadedMessages = reloaded.GetAllMessageStrings(MF_CLEAN);
+        if (reloadedMessages.size() != liveMessages.size()) {
+            fprintf(stderr, "[rando-hints] FAIL %s: round trip changed message count %zu -> %zu\n", hintName.c_str(),
+                    liveMessages.size(), reloadedMessages.size());
+            failures++;
+        } else {
+            for (size_t m = 0; m < reloadedMessages.size(); m++) {
+                if (reloadedMessages[m] == liveMessages[m]) {
+                    continue;
+                }
+                const bool decayed = reloadedMessages[m].find(sentinel) != std::string::npos;
+                fprintf(stderr, "[rando-hints] FAIL %s: round trip changed message%s\n  live:     \"%s\"\n"
+                                "  reloaded: \"%s\"\n",
+                        hintName.c_str(), decayed ? " and it decayed to the no-item sentinel" : "",
+                        liveMessages[m].c_str(), reloadedMessages[m].c_str());
                 failures++;
             }
         }
