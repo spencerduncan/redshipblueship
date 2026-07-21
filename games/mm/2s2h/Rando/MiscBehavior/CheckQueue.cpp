@@ -47,7 +47,8 @@ void Rando::MiscBehavior::CheckQueue() {
             // generic "foreign treasure" (textbox + gold-rupee model — the
             // receiving game has no assets for the item, per the MVP's
             // generic-presentation contract). The MM save table still holds
-            // RI_JUNK at this check; the placement table overrides it here.
+            // its junk-class MM item at this check; the placement table
+            // overrides it here.
             if (Rando::Foreign::IsForeignCheck(randoCheckId)) {
                 MM_GameEvents_Queue().emplace_back(GIEventGiveItem{
                     .showGetItemCutscene = true,

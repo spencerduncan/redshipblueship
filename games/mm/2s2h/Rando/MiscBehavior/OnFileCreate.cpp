@@ -73,7 +73,17 @@ void Rando::MiscBehavior::OnFileCreate(s16 fileNum) {
 
         try {
             // SpoilerFileIndex == 0 means we're generating a new one
+#ifdef RSBS_SINGLE_EXECUTABLE
+            // A paired world is always GENERATED: its identity comes from the
+            // shared master seed, never from a previously saved spoiler.
+            // Without this, a stale gRando.SpoilerFileIndex (RefreshOptions
+            // repoints it at the last written spoiler after every successful
+            // generation) would silently LOAD the old world instead of
+            // deriving the paired one — caught by MMRandoGen's paired phase.
+            if (CVarGetInteger("gRando.SpoilerFileIndex", 0) == 0 || rsbsPaired) {
+#else
             if (CVarGetInteger("gRando.SpoilerFileIndex", 0) == 0) {
+#endif
                 bool hadInputSeed = true;
                 std::string inputSeed = Ship_RemoveSpecialCharacters(CVarGetString("gRando.InputSeed", ""));
                 if (inputSeed.empty()) {
@@ -227,8 +237,8 @@ void Rando::MiscBehavior::OnFileCreate(s16 fileNum) {
                 if (rsbsPaired) {
                     // Lane C1 (#392): swap deterministically-chosen junk
                     // placements for the pinned OoT foreign items, recorded in
-                    // gComboCtx.foreignPlacements (the MM table keeps RI_JUNK
-                    // — ADR 0002). Runs before the spoiler write so the
+                    // gComboCtx.foreignPlacements (the MM table keeps its
+                    // junk-class MM item — ADR 0002). Runs before the spoiler write so the
                     // spoiler's foreign section describes this world.
                     Rando::Foreign::PlaceForeignItems();
                 }

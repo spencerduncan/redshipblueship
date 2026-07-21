@@ -192,7 +192,7 @@ RSBS_CTX_STATIC_ASSERT(offsetof(SharedItem, originGame) == 0 && offsetof(SharedI
  * Why this lives in gComboCtx and not in MM's own rando save table (ADR 0002):
  * MM's RandoSaveCheckInfo.randoItemId is an MM RandoItemId — a raw RG_* stored
  * there would alias MM's id-space, the #356 bug class. The MM save table keeps
- * a legal MM item (RI_JUNK) at the hosting check; THIS table, keyed by the MM
+ * a legal junk-class MM item at the hosting check; THIS table, keyed by the MM
  * RandoCheckId, is what says "that check actually yields a foreign item", with
  * the item carried as an origin-tagged SharedItem at every boundary.
  *

@@ -181,6 +181,11 @@ extern "C" int MM_Rando_HeadlessGenTest(void) {
     // not gate this reachability lock.
     CVarSetInteger(Rando::StaticData::Options[RO_LOGIC].cvar, RO_LOGIC_GLITCHLESS);
     CVarSetString("gRando.InputSeed", "RSBSMMGL1");
+    // Re-pin the GENERATE branch: the successful generation above ran
+    // RefreshOptions, which repoints gRando.SpoilerFileIndex at the spoiler
+    // just written — without this the probe silently LOADS that spoiler and
+    // reports GENERATED regardless of the glitchless fill's state.
+    CVarSetInteger("gRando.SpoilerFileIndex", 0);
     memset(&gSaveContext, 0, sizeof(gSaveContext));
     MM_Sram_InitNewSave();
     GameInteractor_ExecuteOnSaveInit(0);
@@ -240,8 +245,8 @@ extern "C" int MM_Rando_HeadlessGenTest(void) {
                 gComboCtx.sharedRandoSeed);
         return 11;
     }
-    // ADR 0002: hosting checks keep a legal MM item (RI_JUNK) in the MM save
-    // table; every recorded placement carries the OoT origin tag.
+    // ADR 0002: hosting checks keep a legal MM item (junk-class) in the MM
+    // save table; every recorded placement carries the OoT origin tag.
     for (int i = 0; i < (int)RSBS_FOREIGN_PLACEMENT_CAP; i++) {
         const ComboForeignPlacement& p = gComboCtx.foreignPlacements[i];
         if (p.item.originGame == GAME_NONE) {
@@ -252,9 +257,12 @@ extern "C" int MM_Rando_HeadlessGenTest(void) {
             return 12;
         }
         const RandoCheckId hostCheck = (RandoCheckId)p.mmCheckId;
-        if (!RANDO_SAVE_CHECKS[hostCheck].shuffled || RANDO_SAVE_CHECKS[hostCheck].randoItemId != RI_JUNK) {
-            fprintf(stderr, "[MM-RANDO-GEN] FAIL(12): hosting check %u does not hold RI_JUNK in the MM table\n",
-                    (unsigned)p.mmCheckId);
+        const RandoItemId heldItem = RANDO_SAVE_CHECKS[hostCheck].randoItemId;
+        if (!RANDO_SAVE_CHECKS[hostCheck].shuffled ||
+            Rando::StaticData::Items[heldItem].randoItemType != RITYPE_JUNK) {
+            fprintf(stderr,
+                    "[MM-RANDO-GEN] FAIL(12): hosting check %u does not hold a junk-class MM item (holds %d)\n",
+                    (unsigned)p.mmCheckId, (int)heldItem);
             return 12;
         }
     }

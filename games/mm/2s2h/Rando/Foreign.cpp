@@ -4,13 +4,13 @@
  *
  * Placement model (the C0 handoff's design, ADR 0002 at every boundary):
  * after MM's own fill has populated RANDO_SAVE_CHECKS, deterministically pick
- * N junk-holding shuffled checks and mark them as hosting the pinned OoT
- * progression items. The MM save table KEEPS RI_JUNK at those checks — a raw
- * RG_* never enters an MM table — while gComboCtx.foreignPlacements records
- * "check X hosts SharedItem{GAME_OOT, id}". If the placement table is ever
- * absent (a pre-C1 .redsave zero-extends to an empty table), the hosting
- * checks degrade to the junk they physically hold: nothing crashes, nothing
- * aliases.
+ * N shuffled checks holding junk-CLASS items and mark them as hosting the
+ * pinned OoT progression items. The MM save table KEEPS its junk-class MM
+ * item at those checks — a raw RG_* never enters an MM table — while
+ * gComboCtx.foreignPlacements records "check X hosts SharedItem{GAME_OOT,
+ * id}". If the placement table is ever absent (a pre-C1 .redsave
+ * zero-extends to an empty table), the hosting checks degrade to the junk
+ * they physically hold: nothing crashes, nothing aliases.
  *
  * Determinism: selection uses a LOCAL xorshift32 stream seeded from the
  * paired-world identity (master seed + settings digest + MM final seed), so
@@ -105,14 +105,28 @@ int PlaceForeignItems() {
         return 0;
     }
 
-    // Candidates: shuffled checks the fill left holding junk, in ascending
-    // RandoCheckId order (std::map).
+    // Candidates: shuffled checks the fill left holding a JUNK-CLASS item
+    // (RITYPE_JUNK — ammo, rupees, and the RI_JUNK filler sentinel alike), in
+    // ascending RandoCheckId order (std::map). The literal RI_JUNK sentinel
+    // alone is NOT the criterion: the pool balancer only injects it when the
+    // check pool outnumbers the item pool, so most fills carry few or none
+    // (a measured CI fill had 2), while junk-class items are plentiful.
+    // Shop-type checks are excluded: their give/price flow and spoiler shape
+    // differ, and the MVP's generic presentation targets the ordinary
+    // eligible->CheckQueue path.
     std::vector<RandoCheckId> candidates;
     for (auto& [randoCheckId, randoStaticCheck] : Rando::StaticData::Checks) {
         if (randoStaticCheck.randoCheckId == RC_UNKNOWN) {
             continue;
         }
-        if (RANDO_SAVE_CHECKS[randoCheckId].shuffled && RANDO_SAVE_CHECKS[randoCheckId].randoItemId == RI_JUNK) {
+        if (randoStaticCheck.randoCheckType == RCTYPE_SHOP || randoStaticCheck.randoCheckType == RCTYPE_TINGLE_SHOP) {
+            continue;
+        }
+        if (!RANDO_SAVE_CHECKS[randoCheckId].shuffled) {
+            continue;
+        }
+        const RandoItemId heldItem = RANDO_SAVE_CHECKS[randoCheckId].randoItemId;
+        if (Rando::StaticData::Items[heldItem].randoItemType == RITYPE_JUNK) {
             candidates.push_back(randoCheckId);
         }
     }
