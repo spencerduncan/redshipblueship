@@ -110,11 +110,22 @@ file(GLOB_RECURSE ship__Rando RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "2s2h/Rando/*
 # 2ship_rando_ui stays compiled (bit-rot protection) but links with plain
 # archive semantics: nothing references its symbols in single-exe builds
 # (Rando::Init's CheckTracker calls are compiled out there), so it is elided
-# exactly like the rest of MM's menu until that surface is ported (#383's
-# UIWidgets remainder; Lane B's surface note on #392).
+# exactly like the rest of MM's menu until that surface is ported (Lane B's
+# surface note on #392).
+#
+# BenGui/UIWidgets.cpp rides along here (#383): MM's UIWidgets lives in
+# namespace S2H in single-exe builds so its option structs stop sharing
+# mangled names with OoT's differently-laid-out UIWidgets, and this TU is the
+# matching S2H implementation. Plain archive semantics keep it elided until
+# an MM menu TU actually references it; before this, a pulled-in MM menu TU
+# silently bound OoT's UIWidgets implementations against MM's 32-byte
+# WidgetOptions layout (the FlagTable incident class) — now that same mistake
+# is a loud unresolved-external link error at worst, and resolves correctly
+# once this TU is pulled.
 set(ship__Rando_ui
     "2s2h/Rando/Menu.cpp"
     "2s2h/Rando/CheckTracker/CheckTracker.cpp"
+    "2s2h/BenGui/UIWidgets.cpp"
 )
 list(FILTER ship__Rando EXCLUDE REGEX "2s2h/Rando/Menu\\.cpp$")
 list(FILTER ship__Rando EXCLUDE REGEX "2s2h/Rando/CheckTracker/CheckTracker\\.cpp$")
@@ -216,7 +227,10 @@ if(SINGLE_EXECUTABLE_BUILD)
     # Main port glue (OTRGlobals equivalent)
     list(FILTER ship__ EXCLUDE REGEX "2s2h/BenPort\\.cpp$")
 
-    # All GUI components
+    # All GUI components. Exception: BenGui/UIWidgets.cpp is compiled into
+    # 2ship_rando_ui (see the ship__Rando_ui block above) as the S2H-namespaced
+    # implementation behind MM's UIWidgets headers (#383) — the filter here
+    # only shapes 2ship_port, so no duplication results.
     list(FILTER ship__ EXCLUDE REGEX "2s2h/BenGui/.*\\.cpp$")
 
     # All developer tools

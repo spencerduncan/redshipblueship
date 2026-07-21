@@ -17,6 +17,38 @@
 #include <libultraship/bridge/consolevariablebridge.h>
 #include <ship/window/Window.h>
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// Single-exe symbol split for MM's UIWidgets surface (#383, final item).
+//
+// OoT (games/oot/soh/SohGui/UIWidgets.hpp) opens an identically-named bare
+// `namespace UIWidgets` whose option structs share every mangled name with
+// the ones below but have DIFFERENT layouts: MM's WidgetOptions carries an
+// extra `Colors color` member (32 bytes vs OoT's 24), which also shifts every
+// derived options struct (Button/WindowButton/Checkbox/Combobox/IntSlider/
+// FloatSlider/RadioButtons/Input) and every inline setter that writes through
+// them (e.g. ButtonOptions::Color writes offset 40 in OoT's layout, offsets
+// 24+48 in MM's — same COMDAT name, divergent bodies). MM's implementations
+// in BenGui/UIWidgets.cpp used to be excluded from the single-exe link, so
+// any MM TU entering the link that called UIWidgets::Button/Checkbox/... got
+// OoT's implementation reading MM's differently-laid-out options object —
+// silently under /FORCE:MULTIPLE on Windows, and invisible to the #375
+// collision gate (which skips weak/COMDAT symbols). This is the FlagTable
+// incident class: latent while MM's menu TUs stay link-elided, armed by any
+// link-set change that pulls one in.
+//
+// Fix, per the ShipInit.hpp recipe: nest MM's namespace inside S2H so the two
+// ports' types stop sharing mangled names at all, with a namespace alias so
+// existing MM callers (`UIWidgets::...`, `using namespace UIWidgets;`)
+// compile unchanged. A deliberate side effect of the alias: reopening a bare
+// `namespace UIWidgets` in any MM TU that includes this header is a compile
+// error in single-exe builds, so the split cannot silently regress.
+// BenGui/UIWidgets.cpp carries the matching wrap and is compiled into
+// 2ship_rando_ui (plain archive — elided until referenced), so MM menu TUs
+// that port later resolve against MM's layout-correct implementations; an
+// un-ported reference now fails the link loudly instead of cross-binding.
+namespace S2H {
+#endif
+
 namespace UIWidgets {
 
 using SectionFunc = void (*)();
@@ -1164,5 +1196,19 @@ ImVec4 GetRandomValue();
 
 Color_RGBA8 RGBA8FromVec(ImVec4 vec);
 ImVec4 VecFromRGBA8(Color_RGBA8 color);
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+} // namespace S2H
+
+// Let existing MM callers resolve to the S2H versions unchanged. The three
+// free helpers above are wrapped too: OoT's SohGui/UIWidgets.cpp defines
+// identically-named strong globals, and MM's definitions now compile (in
+// BenGui/UIWidgets.cpp), so leaving them at global scope would be a strong
+// duplicate-symbol collision.
+namespace UIWidgets = S2H::UIWidgets;
+using S2H::GetRandomValue;
+using S2H::RGBA8FromVec;
+using S2H::VecFromRGBA8;
+#endif
 
 #endif /* UIWidgets_hpp */

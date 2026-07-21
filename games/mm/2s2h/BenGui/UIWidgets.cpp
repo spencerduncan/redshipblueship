@@ -7,6 +7,13 @@
 #include "2s2h/ShipUtils.h"
 #include <spdlog/fmt/fmt.h>
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// Single-exe: MM's UIWidgets lives inside namespace S2H so its symbols cannot
+// alias OoT's identically-named, differently-laid-out UIWidgets surface. See
+// the header comment in UIWidgets.hpp (#383).
+namespace S2H {
+#endif
+
 namespace UIWidgets {
 
 // Automatically adds newlines to break up text longer than a specified number of characters
@@ -1342,3 +1349,7 @@ ImVec4 VecFromRGBA8(Color_RGBA8 color) {
     ImVec4 vec = { color.r / 255.0f, color.g / 255.0f, color.b / 255.0f, color.a / 255.0f };
     return vec;
 }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+} // namespace S2H
+#endif
