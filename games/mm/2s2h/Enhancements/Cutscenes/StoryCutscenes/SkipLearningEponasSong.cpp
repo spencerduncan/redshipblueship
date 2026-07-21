@@ -32,7 +32,7 @@ void RegisterSkipLearningEponasSong() {
         }
 
         if (GameInteractor_Should(VB_GIVE_ITEM_FROM_ROMANI, true, enMa4)) {
-            GameInteractor::Instance->events.emplace_back(GIEventGiveItem{
+            MM_GameEvents_Queue().emplace_back(GIEventGiveItem{
                 .showGetItemCutscene = true,
                 .giveItem =
                     [](Actor* actor, PlayState* play) {

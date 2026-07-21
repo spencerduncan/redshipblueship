@@ -21,7 +21,7 @@ void RegisterSkipLearningSongOfStorms() {
             if (IS_RANDO) {
                 RANDO_SAVE_CHECKS[RC_BENEATH_THE_GRAVEYARD_SONG_OF_STORMS].eligible = true;
             } else {
-                GameInteractor::Instance->events.emplace_back(GIEventGiveItem{
+                MM_GameEvents_Queue().emplace_back(GIEventGiveItem{
                     .showGetItemCutscene = !CVarGetInteger("gEnhancements.Cutscenes.SkipGetItemCutscenes", 0),
                     .giveItem =
                         [](Actor* actor, PlayState* play) {

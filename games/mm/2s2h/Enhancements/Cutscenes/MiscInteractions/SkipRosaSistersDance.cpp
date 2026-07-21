@@ -26,7 +26,7 @@ void RegisterSkipRosaSistersDance() {
                 // Queue the item check, as MM_Actor_OfferGetItem won't work normally
                 // WEEKEVENTREG_RECEIVED_ROSA_SISTERS_HEART_PIECE is set once the player obtains this Heart Piece.
                 if (!CHECK_WEEKEVENTREG(WEEKEVENTREG_RECEIVED_ROSA_SISTERS_HEART_PIECE) && !IS_RANDO) {
-                    GameInteractor::Instance->events.emplace_back(GIEventGiveItem{
+                    MM_GameEvents_Queue().emplace_back(GIEventGiveItem{
                         .showGetItemCutscene = true,
                         .param = GID_HEART_PIECE,
                         .giveItem = [](Actor* actor, PlayState* play) {

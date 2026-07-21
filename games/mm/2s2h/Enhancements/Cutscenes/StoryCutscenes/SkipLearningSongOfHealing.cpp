@@ -64,20 +64,20 @@ void RegisterSkipLearningSongOfHealing() {
         // Wait till the conversation ends, then end the interaction (for some reason without this step you get soft
         // locked)
         static int hookId = 0;
-        GameInteractor::Instance->UnregisterGameHookForPtr<GameInteractor::OnActorUpdate>(hookId);
-        hookId = GameInteractor::Instance->RegisterGameHookForPtr<GameInteractor::OnActorUpdate>(
+        S2H::GameHooks::UnregisterForPtr<GameInteractor::OnActorUpdate>(hookId);
+        hookId = S2H::GameHooks::RegisterForPtr<GameInteractor::OnActorUpdate>(
             (uintptr_t)enOsn, [](Actor* actor) {
                 EnOsn* enOsn = (EnOsn*)actor;
                 if (enOsn->actionFunc == EnOsn_Idle) {
                     MM_Player_SetCsActionWithHaltedActors(MM_gPlayState, &enOsn->actor, PLAYER_CSACTION_END);
 
-                    GameInteractor::Instance->UnregisterGameHookForPtr<GameInteractor::OnActorUpdate>(hookId);
+                    S2H::GameHooks::UnregisterForPtr<GameInteractor::OnActorUpdate>(hookId);
                 }
             });
 
         if (GameInteractor_Should(VB_GIVE_ITEM_FROM_OSN, true, enOsn)) {
             // Queue up the item gives
-            GameInteractor::Instance->events.emplace_back(
+            MM_GameEvents_Queue().emplace_back(
                 GIEventGiveItem{ .showGetItemCutscene = true,
                                  .giveItem =
                                      [](Actor* actor, PlayState* play) {
@@ -95,7 +95,7 @@ void RegisterSkipLearningSongOfHealing() {
                                          MM_Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
                                          Rando::DrawItem(RI_SONG_HEALING);
                                      } });
-            GameInteractor::Instance->events.emplace_back(GIEventGiveItem{
+            MM_GameEvents_Queue().emplace_back(GIEventGiveItem{
                 .showGetItemCutscene = true,
                 .param = GID_MASK_DEKU,
                 .giveItem =

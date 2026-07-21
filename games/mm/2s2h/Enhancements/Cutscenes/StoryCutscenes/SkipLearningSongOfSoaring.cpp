@@ -35,7 +35,7 @@ void RegisterSkipLearningSongOfSoaring() {
             }
         } else {
             if (!CHECK_QUEST_ITEM(QUEST_SONG_SOARING)) {
-                GameInteractor::Instance->events.emplace_back(GIEventGiveItem{
+                MM_GameEvents_Queue().emplace_back(GIEventGiveItem{
                     .showGetItemCutscene = !CVarGetInteger("gEnhancements.Cutscenes.SkipGetItemCutscenes", 0),
                     .giveItem =
                         [](Actor* actor, PlayState* play) {

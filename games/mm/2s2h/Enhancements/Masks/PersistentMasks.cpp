@@ -22,8 +22,8 @@ void UpdatePersistentMasksState() {
     static Vtx* persistentMasksVtx;
     static HOOK_ID beforePageDrawHook = 0;
     static HOOK_ID onPlayerPostLimbDrawHook = 0;
-    GameInteractor::Instance->UnregisterGameHook<GameInteractor::BeforeKaleidoDrawPage>(beforePageDrawHook);
-    GameInteractor::Instance->UnregisterGameHookForID<GameInteractor::OnPlayerPostLimbDraw>(onPlayerPostLimbDrawHook);
+    S2H::GameHooks::Unregister<GameInteractor::BeforeKaleidoDrawPage>(beforePageDrawHook);
+    S2H::GameHooks::UnregisterForID<GameInteractor::OnPlayerPostLimbDraw>(onPlayerPostLimbDrawHook);
 
     if (!CVAR) {
         CVarClear(STATE_CVAR_NAME);
@@ -48,7 +48,7 @@ void UpdatePersistentMasksState() {
     }
 
     // This hook draws the mask on the players head when it's active and they aren't in first person
-    onPlayerPostLimbDrawHook = GameInteractor::Instance->RegisterGameHookForID<GameInteractor::OnPlayerPostLimbDraw>(
+    onPlayerPostLimbDrawHook = S2H::GameHooks::RegisterForID<GameInteractor::OnPlayerPostLimbDraw>(
         PLAYER_LIMB_HEAD, [](Player* player, s32 limbIndex) {
             if (!STATE_CVAR) {
                 return;
@@ -80,7 +80,7 @@ void UpdatePersistentMasksState() {
         });
 
     // This hook sets up the quad and draws the "active" blue border around the mask in the pause menu
-    beforePageDrawHook = GameInteractor::Instance->RegisterGameHookForID<GameInteractor::BeforeKaleidoDrawPage>(
+    beforePageDrawHook = S2H::GameHooks::RegisterForID<GameInteractor::BeforeKaleidoDrawPage>(
         PAUSE_MASK, [](PauseContext* _, u16 __) {
             GraphicsContext* gfxCtx = MM_gPlayState->state.gfxCtx;
             PauseContext* pauseCtx = &MM_gPlayState->pauseCtx;

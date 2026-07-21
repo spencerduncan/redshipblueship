@@ -31,7 +31,7 @@ static void GrantBankFirstReward() {
         u32 walletLevel = CUR_UPG_VALUE(UPG_WALLET);
         s16 itemDrawId = (walletLevel == 0) ? (s16)GID_WALLET_ADULT : (s16)GID_WALLET_GIANT;
 
-        GameInteractor::Instance->events.emplace_back(GIEventGiveItem{
+        MM_GameEvents_Queue().emplace_back(GIEventGiveItem{
             .showGetItemCutscene = true, .param = itemDrawId, .giveItem = [](Actor* actor, PlayState* play) {
                 u32 walletLevel = CUR_UPG_VALUE(UPG_WALLET);
                 ItemId wallet = (walletLevel == 0) ? ITEM_WALLET_ADULT : ITEM_WALLET_GIANT;
@@ -56,7 +56,7 @@ static void GrantBankInterestReward() {
     if (IS_RANDO) {
         RANDO_SAVE_CHECKS[RC_CLOCK_TOWN_WEST_BANK_INTEREST].eligible = true;
     } else {
-        GameInteractor::Instance->events.emplace_back(GIEventGiveItem{
+        MM_GameEvents_Queue().emplace_back(GIEventGiveItem{
             .showGetItemCutscene = true, .param = GID_RUPEE_BLUE, .giveItem = [](Actor* actor, PlayState* play) {
                 if (CUSTOM_ITEM_FLAGS & CustomItem::GIVE_ITEM_CUTSCENE) {
                     CustomMessage::SetActiveCustomMessage("You got a Blue Rupee!", { .textboxType = 2 });
@@ -75,7 +75,7 @@ static void GrantBankFinalReward() {
     if (IS_RANDO) {
         RANDO_SAVE_CHECKS[RC_CLOCK_TOWN_WEST_BANK_PIECE_OF_HEART].eligible = true;
     } else {
-        GameInteractor::Instance->events.emplace_back(GIEventGiveItem{
+        MM_GameEvents_Queue().emplace_back(GIEventGiveItem{
             .showGetItemCutscene = true, .param = GID_HEART_PIECE, .giveItem = [](Actor* actor, PlayState* play) {
                 if (CUSTOM_ITEM_FLAGS & CustomItem::GIVE_ITEM_CUTSCENE) {
                     CustomMessage::SetActiveCustomMessage("You got a Piece of Heart!", { .textboxType = 2 });

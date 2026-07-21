@@ -37,7 +37,7 @@ void RegisterGalleryTwofer() {
         }
 
         if (!IS_RANDO && queueHeartPiece) {
-            GameInteractor::Instance->events.emplace_back(GIEventGiveItem{
+            MM_GameEvents_Queue().emplace_back(GIEventGiveItem{
                 .showGetItemCutscene = true,
                 .param = GID_HEART_PIECE,
                 .giveItem =

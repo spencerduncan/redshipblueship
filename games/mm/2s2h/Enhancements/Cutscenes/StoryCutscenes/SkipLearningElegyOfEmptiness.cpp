@@ -14,7 +14,7 @@ void RegisterSkipLearningElegyOfEmptiness() {
         s16* csId = va_arg(args, s16*);
         if (MM_gPlayState->sceneId == SCENE_IKNINSIDE && *csId == 10) { // Defeated Igos, learn Elegy of Emptiness
             if (GameInteractor_Should(VB_GIVE_ITEM_FROM_KNIGHT, true)) {
-                GameInteractor::Instance->events.emplace_back(GIEventGiveItem{
+                MM_GameEvents_Queue().emplace_back(GIEventGiveItem{
                     .showGetItemCutscene = !CVarGetInteger("gEnhancements.Cutscenes.SkipGetItemCutscenes", 0),
                     .giveItem =
                         [](Actor* actor, PlayState* play) {

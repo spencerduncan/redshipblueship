@@ -23,7 +23,7 @@ void RegisterSkipStoppingMoon() {
                                                                          CHECK_QUEST_ITEM(QUEST_REMAINS_GYORG) &&
                                                                          CHECK_QUEST_ITEM(QUEST_REMAINS_TWINMOLD))) {
                     *should = false;
-                    GameInteractor::Instance->events.emplace_back(GIEventTransition{
+                    MM_GameEvents_Queue().emplace_back(GIEventTransition{
                         .entrance = ENTRANCE(THE_MOON, 0),
                         .cutsceneIndex = 0,
                         .transitionTrigger = TRANS_TRIGGER_START,

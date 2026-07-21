@@ -17,7 +17,7 @@ void RegisterSkipHealingMikau() {
         if (MM_gPlayState->sceneId == SCENE_30GYOSON) { // Great Bay Coast
             if (*csId == 13) {                       // Played Song of Healing for Mikau
                 // Transition to Link bowing at Mikau's grave
-                GameInteractor::Instance->events.emplace_back(GIEventTransition{
+                MM_GameEvents_Queue().emplace_back(GIEventTransition{
                     .entrance = ENTRANCE(GREAT_BAY_COAST, 10),
                     .cutsceneIndex = 0,
                     .transitionTrigger = TRANS_TRIGGER_START,
@@ -29,7 +29,7 @@ void RegisterSkipHealingMikau() {
                  */
                 gSaveContext.nextTransitionType = TRANS_TYPE_FADE_BLACK;
                 if (GameInteractor_Should(VB_GIVE_ITEM_FROM_DMCHAR05, true, ITEM_MASK_ZORA)) {
-                    GameInteractor::Instance->events.emplace_back(GIEventGiveItem{
+                    MM_GameEvents_Queue().emplace_back(GIEventGiveItem{
                         .showGetItemCutscene = !CVarGetInteger("gEnhancements.Cutscenes.SkipGetItemCutscenes", 0),
                         .param = GID_MASK_ZORA,
                         .giveItem =

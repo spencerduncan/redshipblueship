@@ -27,7 +27,7 @@ void RegisterSkipLearningSonataOfAwakening() {
                 *should = false;
             } else if (*csId == 12) {
                 if (GameInteractor_Should(VB_GIVE_ITEM_FROM_MNK, true)) {
-                    GameInteractor::Instance->events.emplace_back(GIEventGiveItem{
+                    MM_GameEvents_Queue().emplace_back(GIEventGiveItem{
                         .showGetItemCutscene = !CVarGetInteger("gEnhancements.Cutscenes.SkipGetItemCutscenes", 0),
                         .giveItem =
                             [](Actor* actor, PlayState* play) {
