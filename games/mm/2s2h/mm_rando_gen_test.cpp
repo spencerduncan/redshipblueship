@@ -491,6 +491,70 @@ extern "C" int MM_Rando_HeadlessGenTest(void) {
     fprintf(stderr, "[MM-RANDO-GEN] OnSaveLoad dispatch armed rando hooks (OnFlagSet: %zu -> %zu)\n", flagHooksBefore,
             flagHooksAfter);
 
+    // ======================================================================
+    // VB-dispatch phase (#392 VB follow-up) — the double-give lock, both
+    // directions. GameInteractor_Should at MM call sites now resolves (macro
+    // rebind, MM's GameInteractor.h) to MM_GameHooks_ExecuteVBShould, which
+    // consults only the S2H::GameHooks registries. A rando-armed give VB
+    // returning FALSE is exactly "the vanilla item is NOT also given" at the
+    // call site (e.g. z_en_item00.c: `if (GameInteractor_Should(VB_..., true,
+    // ...)) { give vanilla item }`); the crossing itself flows through the
+    // CheckQueue give path instead. Probes use hooks whose bodies touch no
+    // play state, so they are headless-safe:
+    //  - VB_GIVE_ITEM_FROM_GREAT_FAIRY: COND_VB_SHOULD ForID leg
+    //    (EnElfgrp.cpp, unconditional *should = false under IS_RANDO);
+    //  - VB_GIVE_NEW_WAVE_BOSSA_NOVA: non-ID leg (ActorBehavior.cpp's
+    //    MiscVanillaBehaviorHandler switch, *should = false);
+    //  - VB_SETUP_TRANSITION: registered by nothing in the linked set — the
+    //    caller's verdict must pass through untouched in BOTH polarities
+    //    (this is also the ordinal-aliasing poster child: OoT's
+    //    VB_PLAY_RAINBOW_BRIDGE_CS hooks must never answer it).
+    // ======================================================================
+    const size_t vbHooks = S2H::GameHooks::CountForTest<GameInteractor::ShouldVanillaBehavior>();
+    const size_t actorInitHooks = S2H::GameHooks::CountForTest<GameInteractor::ShouldActorInit>();
+    if (vbHooks == 0 || actorInitHooks == 0) {
+        fprintf(stderr, "[MM-RANDO-GEN] FAIL(23): OnSaveLoad armed no Should hooks (VB %zu, ShouldActorInit %zu)\n",
+                vbHooks, actorInitHooks);
+        return 23;
+    }
+    if (GameInteractor_Should(VB_GIVE_ITEM_FROM_GREAT_FAIRY, true)) {
+        fprintf(stderr, "[MM-RANDO-GEN] FAIL(24): rando-armed ForID give VB not suppressed — the vanilla item "
+                        "would ALSO be given (double-give)\n");
+        return 24;
+    }
+    if (GameInteractor_Should(VB_GIVE_NEW_WAVE_BOSSA_NOVA, true)) {
+        fprintf(stderr, "[MM-RANDO-GEN] FAIL(24): rando-armed non-ID give VB not suppressed — the vanilla item "
+                        "would ALSO be given (double-give)\n");
+        return 24;
+    }
+    if (!GameInteractor_Should(VB_SETUP_TRANSITION, true) || GameInteractor_Should(VB_SETUP_TRANSITION, false)) {
+        fprintf(stderr, "[MM-RANDO-GEN] FAIL(25): un-overridden VB did not pass the caller's verdict through\n");
+        return 25;
+    }
+    fprintf(stderr, "[MM-RANDO-GEN] VB dispatch (rando save): give VBs suppressed (ForID + non-ID), "
+                    "pass-through intact (%zu VB hooks)\n", vbHooks);
+
+    // Vanilla direction: a non-rando file re-run through the REAL OnSaveLoad
+    // chain must disarm the overrides (the COND_* macros re-evaluate IS_RANDO
+    // and unregister), and the same give VBs must return the vanilla verdict
+    // again — VB dispatch must not disturb non-rando files.
+    memset(&gSaveContext, 0, sizeof(gSaveContext));
+    MM_Sram_InitNewSave();
+    if (gSaveContext.save.shipSaveInfo.saveType == SAVETYPE_RANDO) {
+        fprintf(stderr, "[MM-RANDO-GEN] FAIL(26): plain Sram_InitNewSave produced a rando save — vanilla-direction "
+                        "premise broken\n");
+        return 26;
+    }
+    GameInteractor_ExecuteOnSaveLoad(0);
+    if (!GameInteractor_Should(VB_GIVE_ITEM_FROM_GREAT_FAIRY, true) ||
+        GameInteractor_Should(VB_GIVE_ITEM_FROM_GREAT_FAIRY, false) ||
+        !GameInteractor_Should(VB_GIVE_NEW_WAVE_BOSSA_NOVA, true)) {
+        fprintf(stderr, "[MM-RANDO-GEN] FAIL(27): vanilla file's give VBs did not return the vanilla verdict — "
+                        "rando overrides leaked into a non-rando file\n");
+        return 27;
+    }
+    fprintf(stderr, "[MM-RANDO-GEN] VB dispatch (vanilla save): overrides disarmed, vanilla behavior unchanged\n");
+
     // Leave the shared context clean (this process may run more dispatches).
     ComboContext_Init();
 

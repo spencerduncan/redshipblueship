@@ -1636,6 +1636,62 @@ extern "C" void MM_GameHooks_ExecuteOnSceneFlagSet(s16 sceneId, FlagType flagTyp
 }
 
 /**
+ * MM-owned "Should" dispatch (#392 VB follow-up). MM call sites reach these
+ * through the single-exe macro rebind at the bottom of MM's GameInteractor.h
+ * (GameInteractor_Should -> MM_GameHooks_ExecuteVBShould, etc.), so MM VB ids
+ * and actor ids resolve against the MM-owned S2H::GameHooks registries only —
+ * never OoT's ordinal-aliased tables. Bodies are line-faithful ports of the
+ * excluded upstream executors (2s2h/GameInteractor/GameInteractor.cpp), minus
+ * the ForPtr/ForFilter legs: the S2H registry deliberately has no Ptr/Filter
+ * surface and the linked MM set registers none (the only Should filter user,
+ * DeveloperTools.cpp, stays link-elided — re-audit if it ever un-elides).
+ * Locked by MMRandoGen's VB-dispatch phase (mm_rando_gen_test.cpp).
+ */
+extern "C" bool MM_GameHooks_ExecuteVBShould(GIVanillaBehavior flag, uint32_t result, ...) {
+    va_list args;
+    va_start(args, result);
+
+    // Default argument promotion: the caller's verdict arrives as a uint32_t
+    // (va_start on a bool is UB); downcast for the hook handlers, exactly as
+    // upstream GameInteractor_Should does.
+    bool boolResult = static_cast<bool>(result);
+
+    S2H::GameHooks::Execute<GameInteractor::ShouldVanillaBehavior>(flag, &boolResult, args);
+    S2H::GameHooks::ExecuteForID<GameInteractor::ShouldVanillaBehavior>(flag, flag, &boolResult, args);
+
+    va_end(args);
+    return boolResult;
+}
+
+extern "C" bool MM_GameHooks_ExecuteShouldActorInit(Actor* actor) {
+    bool result = true;
+    S2H::GameHooks::Execute<GameInteractor::ShouldActorInit>(actor, &result);
+    S2H::GameHooks::ExecuteForID<GameInteractor::ShouldActorInit>(actor->id, actor, &result);
+    return result;
+}
+
+extern "C" bool MM_GameHooks_ExecuteShouldActorUpdate(Actor* actor) {
+    bool result = true;
+    S2H::GameHooks::Execute<GameInteractor::ShouldActorUpdate>(actor, &result);
+    S2H::GameHooks::ExecuteForID<GameInteractor::ShouldActorUpdate>(actor->id, actor, &result);
+    return result;
+}
+
+extern "C" bool MM_GameHooks_ExecuteShouldActorDraw(Actor* actor) {
+    bool result = true;
+    S2H::GameHooks::Execute<GameInteractor::ShouldActorDraw>(actor, &result);
+    S2H::GameHooks::ExecuteForID<GameInteractor::ShouldActorDraw>(actor->id, actor, &result);
+    return result;
+}
+
+extern "C" bool MM_GameHooks_ExecuteShouldItemGive(u8 item) {
+    bool result = true;
+    S2H::GameHooks::Execute<GameInteractor::ShouldItemGive>(item, &result);
+    S2H::GameHooks::ExecuteForID<GameInteractor::ShouldItemGive>(item, item, &result);
+    return result;
+}
+
+/**
  * Award a single MM-origin shared item (ADR 0002 / Lane A1 consumer callback),
  * the MM twin of OoT_AwardSharedItem. `item->id` is an MM RandoItemId (RI_*).
  *
