@@ -580,6 +580,43 @@ int GameInteractor_InvertControl(GIInvertType type);
 uint32_t GameInteractor_Dpad(GIDpadType type, uint32_t buttonCombo);
 uint32_t GameInteractor_RightStickOcarina(Input* input);
 
+#if defined(RSBS_SINGLE_EXECUTABLE)
+//
+// Single-exe MM-owned "Should" dispatch (#392 VB follow-up; #395/#367 class).
+//
+// The five upstream names below would otherwise resolve to OoT's extern "C"
+// wrappers (GameInteractor_Should/ShouldActorInit/ShouldActorUpdate in
+// games/oot/soh/Enhancements/game-interactor/GameInteractor_Hooks.cpp) or to
+// src/common/mm_stubs.c stubs (ShouldActorDraw/ShouldItemGive). Routing MM
+// calls into OoT's registry is forbidden — MM's GIVanillaBehavior ordinals
+// ALIAS OoT's (MM VB_SETUP_TRANSITION == OoT VB_PLAY_RAINBOW_BRIDGE_CS ==
+// 206) — so those wrappers gate on the active game and return the vanilla
+// verdict while MM runs. Net effect: no MM rando/enhancement override could
+// ever fire, and a rando-handled check ALSO gave its vanilla contents (the
+// C1 double-give).
+//
+// Rebind every MM call site — textually unchanged, upstream diffs still
+// apply — to MM-owned dispatchers (games/mm/2s2h/GameExports_SingleExe.cpp)
+// that consult ONLY the MM-owned S2H::GameHooks registries the macro
+// redirection below populates. Only MM TUs see this header, so MM VB ids
+// never reach OoT's GameInteractor_Should or its hook tables: ordinal safety
+// by construction, the same technique as the registration-macro redirection.
+// Placed after the upstream declarations above (which stay, un-renamed and
+// unused by MM code) and before the close of the extern "C" block so C and
+// C++ TUs both rebind.
+//
+bool MM_GameHooks_ExecuteVBShould(GIVanillaBehavior flag, uint32_t result, ...);
+bool MM_GameHooks_ExecuteShouldActorInit(Actor* actor);
+bool MM_GameHooks_ExecuteShouldActorUpdate(Actor* actor);
+bool MM_GameHooks_ExecuteShouldActorDraw(Actor* actor);
+bool MM_GameHooks_ExecuteShouldItemGive(u8 item);
+#define GameInteractor_Should MM_GameHooks_ExecuteVBShould
+#define GameInteractor_ShouldActorInit MM_GameHooks_ExecuteShouldActorInit
+#define GameInteractor_ShouldActorUpdate MM_GameHooks_ExecuteShouldActorUpdate
+#define GameInteractor_ShouldActorDraw MM_GameHooks_ExecuteShouldActorDraw
+#define GameInteractor_ShouldItemGive MM_GameHooks_ExecuteShouldItemGive
+#endif // RSBS_SINGLE_EXECUTABLE
+
 #ifdef __cplusplus
 }
 

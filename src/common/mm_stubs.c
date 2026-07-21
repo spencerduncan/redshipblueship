@@ -82,14 +82,23 @@ void MM_FaultDrawer_SetCharPad(int xPad, int yPad) { (void)xPad; (void)yPad; }
 /* GameInteractor stubs.
  *
  * These cover MM's GameInteractor_* references that no linked TU defines. A
- * second set of MM references (GameInteractor_Should, ExecuteOnFlagSet,
- * ExecuteOnActorUpdate, ...) resolves to OoT's extern "C" wrappers in
+ * second set of MM references (ExecuteOnFlagSet, ExecuteOnActorUpdate, ...)
+ * resolves to OoT's extern "C" wrappers in
  * games/oot/soh/Enhancements/game-interactor/GameInteractor_Hooks.cpp instead
  * — that is NOT a valid provider: MM's GIVanillaBehavior ordinals alias OoT's
  * (MM VB_SETUP_TRANSITION == OoT VB_PLAY_RAINBOW_BRIDGE_CS == 206), so routing
  * MM calls into OoT's hook registry runs OoT handlers against MM state. Those
  * wrappers therefore gate on Context_GetCurrentGame() and return vanilla
- * behavior while MM is active, making them equivalent to the stubs below. */
+ * behavior while MM is active, making them equivalent to the stubs below.
+ *
+ * The "Should" family (GameInteractor_Should, ShouldActorInit,
+ * ShouldActorUpdate, ShouldActorDraw, ShouldItemGive) is no longer in either
+ * bucket (#392 VB follow-up): the single-exe macro rebind at the bottom of
+ * MM's GameInteractor.h renames every MM call site to the MM-owned
+ * MM_GameHooks_Execute* dispatchers in games/mm/2s2h/GameExports_SingleExe.cpp,
+ * which consult only the S2H::GameHooks registries — rando/enhancement VB
+ * overrides fire on MM frames without MM ids ever reaching OoT's tables.
+ * Re-adding Should stubs here would silently sever that dispatch. */
 void GameInteractor_ExecuteOnActorDraw(void* actor) { (void)actor; }
 void GameInteractor_ExecuteOnGameStateUpdate(void* state) { (void)state; }
 void GameInteractor_ExecuteOnGameStateMainFinish(void* state) { (void)state; }
@@ -110,8 +119,12 @@ void GameInteractor_ExecuteAfterKaleidoDrawPage(void* state, int page) { (void)s
  * wrapper no-ops while MM is the active game (see the header comment above),
  * so MM text boxes never fire OoT text hooks. */
 void GameInteractor_ExecuteOnItemGive(int itemId) { (void)itemId; }
-int GameInteractor_ShouldItemGive(int itemId) { (void)itemId; return 1; }
-int GameInteractor_ShouldActorDraw(void* actor) { (void)actor; return 1; }
+/* GameInteractor_ShouldItemGive / GameInteractor_ShouldActorDraw stubs
+ * retired (#392 VB follow-up): MM call sites now rebind to the header-checked
+ * MM_GameHooks_ExecuteShouldItemGive / MM_GameHooks_ExecuteShouldActorDraw in
+ * games/mm/2s2h/GameExports_SingleExe.cpp (see the Should-family note above).
+ * The stubs here carried the signature-drift hazard class of #372/#424
+ * (int(int) / int(void*) against the real bool(u8) / bool(Actor*)). */
 void GameInteractor_ExecuteOnCameraChangeModeFlags(void* camera) { (void)camera; }
 void GameInteractor_ExecuteOnCameraChangeSettingsFlags(void* camera) { (void)camera; }
 void GameInteractor_ExecuteAfterCameraUpdate(void* camera) { (void)camera; }
