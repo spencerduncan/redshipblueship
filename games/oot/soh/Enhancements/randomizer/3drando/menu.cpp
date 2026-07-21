@@ -206,6 +206,135 @@ extern "C" int Rando_HeadlessHintValidityTest(const char* seedStr) {
     return failures == 0 ? 0 : 1;
 }
 
+// Implemented in SaveManager.cpp (which owns the private SaveRandomizer /
+// LoadRandomizer and the section json cursor). Drives the REAL randomizer
+// section through save -> Rando::Context reset -> reload, in memory, exactly as
+// loading a saved file does.
+extern "C" void Rando_TestRoundTripRandomizerSection(int* outResetCleared, int* outPlacementRestored);
+
+// Hint-RELOAD lock (#441). PR #445 proved generation-time text is correct and
+// added a hint-validity lock, but that lock (and its toJSON()/Hint(json) round
+// trip) re-renders every hint against the SAME live, fully-filled context, so it
+// cannot see the operator-visible break: an ITEM hint resolves its item at
+// RUNTIME from ctx->GetItemLocation(loc)->GetPlacedItem(), and that placement
+// table is thrown away and rebuilt from the save on every load (a fresh new
+// game and a reload BOTH go FileChoose_LoadGame -> Save_LoadFile, which resets
+// the Rando::Context and rehydrates it via LoadRandomizer). A gossip stone read
+// "catching Big Poes leads to No Item" while the spoiler named a real item.
+// Gossip item hints carry NO hintKeys, so the location phrasing comes straight
+// from StaticData::GetLocation(loc)->GetHint() -- it survived, which proves the
+// hint's location was intact and only the location->placement resolution had
+// decayed to RG_NONE ("No Item" is itemTable[RG_NONE]).
+//
+// This drives the actual save -> context-reset -> reload cycle and asserts that
+// every enabled item hint still renders the SAME text it did live and never the
+// no-item sentinel. It is the reload-path complement to #445's generation-time
+// lock.
+extern "C" int Rando_HeadlessHintReloadTest(const char* seedStr) {
+    int rc = Rando_HeadlessSeedTest(seedStr);
+    if (rc != 0) {
+        fprintf(stderr, "[hint-reload] generation failed rc=%d\n", rc);
+        return rc;
+    }
+
+    auto ctx = Rando::Context::GetInstance();
+    if (!ctx) {
+        fprintf(stderr, "[hint-reload] no Rando::Context after generation\n");
+        return 4;
+    }
+
+    const std::string sentinel = Rando::StaticData::RetrieveItem(RG_NONE).GetName().GetEnglish();
+    if (sentinel.empty()) {
+        fprintf(stderr, "[hint-reload] itemTable[RG_NONE] has no name; item table not initialised\n");
+        return 5;
+    }
+
+    // Snapshot every enabled item hint's live rendered text BEFORE the reload.
+    struct HintSnapshot {
+        RandomizerHint key;
+        std::string name;
+        std::vector<std::string> messages;
+    };
+    std::vector<HintSnapshot> snapshots;
+    for (int h = RH_NONE + 1; h < RH_MAX; h++) {
+        const auto hintKey = static_cast<RandomizerHint>(h);
+        Rando::Hint* hint = ctx->GetHint(hintKey);
+        if (hint == nullptr || !hint->IsEnabled()) {
+            continue;
+        }
+        const HintType hintType = hint->GetHintType();
+        if (hintType != HINT_TYPE_ITEM && hintType != HINT_TYPE_ITEM_AREA) {
+            continue; // only item hints name an item that can decay to the sentinel
+        }
+        HintSnapshot snap;
+        snap.key = hintKey;
+        snap.name = Rando::StaticData::hintNames[hintKey].GetForCurrentLanguage(MF_CLEAN);
+        snap.messages = hint->GetAllMessageStrings(MF_CLEAN);
+        snapshots.push_back(std::move(snap));
+    }
+    fprintf(stderr, "[hint-reload] snapshotted %zu enabled item hints\n", snapshots.size());
+
+    // Do the real save -> reset -> reload. This rebuilds the Rando::Context.
+    int resetCleared = 0;
+    int placementRestored = 0;
+    Rando_TestRoundTripRandomizerSection(&resetCleared, &placementRestored);
+    fprintf(stderr, "[hint-reload] after reload: resetCleared=%d placementRestored=%d\n", resetCleared,
+            placementRestored);
+    if (resetCleared == 0) {
+        // The context reset did not empty the placement table, so the reload was
+        // never actually exercised; a pass here would be meaningless.
+        fprintf(stderr, "[hint-reload] the context reset did not clear placements; test cannot exercise the reload\n");
+        return 7;
+    }
+
+    // Re-render each hint against the REBUILT context and compare.
+    auto reloaded = Rando::Context::GetInstance();
+    if (!reloaded) {
+        fprintf(stderr, "[hint-reload] no Rando::Context after reload\n");
+        return 4;
+    }
+    size_t failures = 0;
+    for (const HintSnapshot& snap : snapshots) {
+        Rando::Hint* hint = reloaded->GetHint(snap.key);
+        const std::vector<std::string> after =
+            hint != nullptr ? hint->GetAllMessageStrings(MF_CLEAN) : std::vector<std::string>{};
+
+        for (const std::string& message : after) {
+            if (message.find(sentinel) != std::string::npos) {
+                fprintf(stderr, "[hint-reload] FAIL %s: after reload the hint resolves to the no-item sentinel: \"%s\"\n",
+                        snap.name.c_str(), message.c_str());
+                failures++;
+            }
+        }
+
+        if (after.size() != snap.messages.size()) {
+            fprintf(stderr, "[hint-reload] FAIL %s: reload changed message count %zu -> %zu\n", snap.name.c_str(),
+                    snap.messages.size(), after.size());
+            failures++;
+            continue;
+        }
+        for (size_t m = 0; m < after.size(); m++) {
+            if (after[m] == snap.messages[m]) {
+                continue;
+            }
+            const bool decayed = after[m].find(sentinel) != std::string::npos;
+            fprintf(stderr,
+                    "[hint-reload] FAIL %s: reload changed message%s\n  live:     \"%s\"\n  reloaded: \"%s\"\n",
+                    snap.name.c_str(), decayed ? " and it decayed to the no-item sentinel" : "",
+                    snap.messages[m].c_str(), after[m].c_str());
+            failures++;
+        }
+    }
+
+    if (snapshots.empty()) {
+        fprintf(stderr, "[hint-reload] no enabled item hints were generated; the lock would vacuously pass\n");
+        return 6;
+    }
+
+    fprintf(stderr, "[hint-reload] checked %zu item hints across a reload, %zu failures\n", snapshots.size(), failures);
+    return failures == 0 ? 0 : 1;
+}
+
 // Determinism harness bridge (Lane B, Phase 3.0): run ONE seed generation and
 // emit a canonical, side-effect-free digest of (a) the unified-seed producer's
 // output in gComboCtx and (b) the full item placement, so an external wrapper

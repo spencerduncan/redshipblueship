@@ -510,6 +510,18 @@ if(BUILD_TESTING)
         TIMEOUT 180
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
+    # Hint reload (#441), the RUNTIME complement to RandoHintValidity. That lock
+    # re-renders hints against the same live, fully-filled context, so it cannot
+    # see the operator-visible break: an item hint resolves its item at runtime
+    # from the placement table, and a fresh game AND a reload both rebuild that
+    # table from the save (FileChoose_LoadGame -> Save_LoadFile -> LoadRandomizer).
+    # This drives the real save -> Rando::Context reset -> reload cycle and locks
+    # that item hints still name their real item afterward. Same tier.
+    redship_add_test(NAME RandoHintReload COMMAND redship --test rando-hint-reload
+        LABEL rando
+        TIMEOUT 180
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+
     # Song shuffle modes. Stock (RandoGen above) already covers mode 1 — "Song
     # Locations" is the default — which is the mode that regressed when the
     # linker dropped ShuffleSongs.cpp.o from the static soh_rando archive and

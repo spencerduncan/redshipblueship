@@ -2993,6 +2993,79 @@ void SaveManager::ConvertFromUnversioned() {
 #undef SLOT_OFFSET
 }
 
+// Test hook (#441). Runtime-resolution lock companion. See header for the bug.
+void SaveManager::TestRoundTripRandomizerSection(bool* outResetCleared, bool* outPlacementRestored) {
+    auto ctxBefore = Rando::Context::GetInstance();
+
+    // Sample a location that actually holds an item, so we can prove the reset
+    // really emptied the placement table and the reload really refilled it. A
+    // vacuous test (reset that never cleared) would otherwise pass silently.
+    bool haveSample = false;
+    size_t sample = 0;
+    RandomizerGet sampleBefore = RG_NONE;
+    for (size_t i = 1; i < RC_MAX; i++) {
+        RandomizerGet rg = ctxBefore->GetItemLocation(i)->GetPlacedRandomizerGet();
+        if (rg != RG_NONE) {
+            haveSample = true;
+            sample = i;
+            sampleBefore = rg;
+            break;
+        }
+    }
+
+    // Serialize the live randomizer section exactly as a real save does.
+    gSaveContext.ship.quest.id = QUEST_RANDOMIZER;
+    nlohmann::json section = nlohmann::json::object();
+    nlohmann::json* prev = currentJsonContext;
+    currentJsonContext = &section;
+    SaveRandomizer(&gSaveContext, 0, true);
+    currentJsonContext = prev;
+
+    // Reset the context exactly as Save_LoadFile does before a load: a real
+    // load never keeps the generation-time context, it rebuilds from the save.
+    OTRGlobals::Instance->gRandoContext->GetLogic()->SetContext(nullptr);
+    Rando::Settings::GetInstance()->ClearContext();
+    OTRGlobals::Instance->gRandoContext.reset();
+    OTRGlobals::Instance->gRandoContext = Rando::Context::CreateInstance();
+    OTRGlobals::Instance->gRandoContext->GetLogic()->SetSaveContext(&gSaveContext);
+    Rando::Settings::GetInstance()->AssignContext(OTRGlobals::Instance->gRandoContext);
+    OTRGlobals::Instance->gRandoContext->AddExcludedOptions();
+
+    RandomizerGet sampleAfterReset =
+        haveSample ? Rando::Context::GetInstance()->GetItemLocation(sample)->GetPlacedRandomizerGet() : RG_NONE;
+
+    // Reload the section exactly as LoadFile -> LoadRandomizer does.
+    prev = currentJsonContext;
+    currentJsonContext = &section;
+    LoadRandomizer();
+    currentJsonContext = prev;
+
+    RandomizerGet sampleAfterLoad =
+        haveSample ? Rando::Context::GetInstance()->GetItemLocation(sample)->GetPlacedRandomizerGet() : RG_NONE;
+
+    fprintf(stderr, "[hint-reload] sample check %zu: placedItem before=%d afterReset=%d afterLoad=%d\n", sample,
+            (int)sampleBefore, (int)sampleAfterReset, (int)sampleAfterLoad);
+
+    if (outResetCleared != nullptr) {
+        *outResetCleared = !haveSample || sampleAfterReset == RG_NONE;
+    }
+    if (outPlacementRestored != nullptr) {
+        *outPlacementRestored = !haveSample || sampleAfterLoad == sampleBefore;
+    }
+}
+
+extern "C" void Rando_TestRoundTripRandomizerSection(int* outResetCleared, int* outPlacementRestored) {
+    bool resetCleared = false;
+    bool placementRestored = false;
+    SaveManager::Instance->TestRoundTripRandomizerSection(&resetCleared, &placementRestored);
+    if (outResetCleared != nullptr) {
+        *outResetCleared = resetCleared ? 1 : 0;
+    }
+    if (outPlacementRestored != nullptr) {
+        *outPlacementRestored = placementRestored ? 1 : 0;
+    }
+}
+
 // C to C++ bridge
 
 extern "C" void Save_Init(void) {
