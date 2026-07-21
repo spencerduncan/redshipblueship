@@ -169,9 +169,20 @@ void CustomMessage::LoadCustomMessageIntoFont(CustomMessage::Entry entry) {
 }
 
 void CustomMessage::RegisterHooks() {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // Registered into the MM-owned S2H::GameHooks registry (#395/#392 —
+    // never the shared C++ GameInteractor). Dispatched once Lane C wires the
+    // MM OnOpenText execute point.
+    S2H::GameHooks::RegisterForID<GameInteractor::OnOpenText>(
+        CUSTOM_MESSAGE_ID, [](u16* textId, bool* loadFromMessageTable) {
+            *loadFromMessageTable = false;
+            CustomMessage::LoadCustomMessageIntoFont(activeCustomMessage);
+        });
+#else
     GameInteractor::Instance->RegisterGameHookForID<GameInteractor::OnOpenText>(
         CUSTOM_MESSAGE_ID, [](u16* textId, bool* loadFromMessageTable) {
             *loadFromMessageTable = false;
             CustomMessage::LoadCustomMessageIntoFont(activeCustomMessage);
         });
+#endif
 }

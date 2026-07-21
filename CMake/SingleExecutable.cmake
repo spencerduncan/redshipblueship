@@ -391,6 +391,16 @@ if(BUILD_TESTING)
         TIMEOUT 180
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1;RSBS_DIAG_CVARS=gRandoSettings.ShuffleSongs=3")
 
+    # Lane C0 (#392): MM's 2ship_rando is un-elided and actually generates —
+    # region graph populated via ShipInit registrars, OnFileCreate runs
+    # GeneratePools + the glitchless logic apply headlessly, spoiler JSON
+    # written with the 2S2H_RANDO_SPOILER tag. Same harness shape as the OoT
+    # rando-gen rows (display via xvfb, no game archives).
+    redship_add_test(NAME MMRandoGen COMMAND redship --test mm-rando-gen
+        LABEL rando
+        TIMEOUT 180
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+
     # ========================================================================
     # Lane B — unified seed -> paired world (Phase 3.0)
     #

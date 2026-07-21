@@ -98,6 +98,145 @@ void MM_GameHooks_ResetForTest(void);
 
 std::vector<GIEvent>& MM_GameEvents_Queue();
 GIEvent& MM_GameEvents_Current();
+
+/*
+ * S2H::GameHooks — the generic MM-owned hook registry behind the Lane C
+ * migration (#392, contract in PR #415).
+ *
+ * MM's upstream registry lives in `GameInteractor::RegisteredGameHooks<H>` /
+ * `HooksToUnregister<H>` inline statics. Those mangle under the shared
+ * `class GameInteractor` scope, so an MM instantiation COMDAT-contends with
+ * OoT's identically-named instantiations — with incompatible H::fn signatures
+ * for 14 of the 16 shared hook names (#395/#367 class) — and the registering
+ * members read/write `this->nextHookId` on the 4-byte shared allocation (the
+ * #395 OOB). This registry reproduces the upstream semantics MM's Rando code
+ * expects (shared id counter, deferred unregistration flushed at dispatch)
+ * under the S2H namespace: only MM TUs instantiate it, so every fold partner
+ * agrees on MM's types, and no instance member of the shared class is ever
+ * touched. Hook TYPES (e.g. GameInteractor::OnSaveLoad) are used purely as
+ * compile-time tags; MM hook ids never enter OoT's registry, so VB/type
+ * aliasing is excluded by construction.
+ *
+ * The single-exe COND_HOOK / COND_ID_HOOK / COND_VB_SHOULD /
+ * REGISTER_VB_SHOULD macro redirection at the bottom of MM's
+ * GameInteractor.h routes every macro registration site here textually
+ * unchanged; direct `Instance->RegisterGameHook*` sites migrate by hand
+ * (mm_gi_hook_guard.h poisons them per target as they do).
+ *
+ * Dispatch: nothing pumps these registries implicitly. Each hook type is
+ * dispatched exactly where MM's own code path executes it (upstream 2S2H
+ * semantics) — e.g. OnGameStateMainStart via the extern "C" triple above from
+ * MM_GameState_Update. Hook types without a wired MM dispatch point yet are
+ * REGISTERED but dormant; wiring their Execute calls is per-type, deliberate
+ * Lane C work, never a side effect of registration.
+ *
+ * Deviation from upstream, on purpose: iteration uses std::map (stable id
+ * order) rather than unordered_map, so dispatch order is deterministic —
+ * this phase's locks diff generated worlds byte-for-byte.
+ */
+#include <cstdint>
+#include <map>
+
+namespace S2H {
+namespace GameHooks {
+
+template <typename H> struct Registry {
+    inline static std::map<uint32_t, typename H::fn> functions;
+    inline static std::map<int32_t, std::map<uint32_t, typename H::fn>> functionsForID;
+    inline static std::vector<uint32_t> pendingUnregister;
+    inline static std::vector<uint32_t> pendingUnregisterForID;
+};
+
+// Shared across all hook types, mirroring upstream's instance-wide
+// nextHookId. Inline-function local static => exactly one instance
+// program-wide among MM TUs; OoT never includes this header.
+inline uint32_t& NextHookId() {
+    static uint32_t next = 1;
+    return next;
+}
+
+template <typename H> inline uint32_t Register(typename H::fn h) {
+    if (!h) {
+        return 0;
+    }
+    uint32_t id = NextHookId()++;
+    Registry<H>::functions[id] = h;
+    return id;
+}
+
+template <typename H> inline uint32_t RegisterForID(int32_t forId, typename H::fn h) {
+    if (!h) {
+        return 0;
+    }
+    uint32_t id = NextHookId()++;
+    Registry<H>::functionsForID[forId][id] = h;
+    return id;
+}
+
+// Deferred, like upstream: safe to call from inside a running hook; applied
+// at the start of the next Execute/ExecuteForID of this hook type. Id 0
+// (never issued) is ignored.
+template <typename H> inline void Unregister(uint32_t hookId) {
+    if (hookId != 0) {
+        Registry<H>::pendingUnregister.push_back(hookId);
+    }
+}
+
+template <typename H> inline void UnregisterForID(uint32_t hookId) {
+    if (hookId != 0) {
+        Registry<H>::pendingUnregisterForID.push_back(hookId);
+    }
+}
+
+template <typename H> inline void FlushPendingUnregistrations() {
+    for (uint32_t id : Registry<H>::pendingUnregister) {
+        Registry<H>::functions.erase(id);
+    }
+    Registry<H>::pendingUnregister.clear();
+    for (uint32_t id : Registry<H>::pendingUnregisterForID) {
+        for (auto& [_, bucket] : Registry<H>::functionsForID) {
+            bucket.erase(id);
+        }
+    }
+    Registry<H>::pendingUnregisterForID.clear();
+}
+
+template <typename H, typename... Args> inline void Execute(Args&&... args) {
+    FlushPendingUnregistrations<H>();
+    for (auto& [_, fn] : Registry<H>::functions) {
+        fn(std::forward<Args>(args)...);
+    }
+}
+
+template <typename H, typename... Args> inline void ExecuteForID(int32_t forId, Args&&... args) {
+    FlushPendingUnregistrations<H>();
+    auto it = Registry<H>::functionsForID.find(forId);
+    if (it == Registry<H>::functionsForID.end()) {
+        return;
+    }
+    for (auto& [_, fn] : it->second) {
+        fn(std::forward<Args>(args)...);
+    }
+}
+
+// Test/introspection helpers (unit harness only).
+template <typename H> inline size_t CountForTest() {
+    size_t n = Registry<H>::functions.size();
+    for (auto& [_, bucket] : Registry<H>::functionsForID) {
+        n += bucket.size();
+    }
+    return n;
+}
+
+template <typename H> inline void ResetForTest() {
+    Registry<H>::functions.clear();
+    Registry<H>::functionsForID.clear();
+    Registry<H>::pendingUnregister.clear();
+    Registry<H>::pendingUnregisterForID.clear();
+}
+
+} // namespace GameHooks
+} // namespace S2H
 #endif
 
 #endif /* RSBS_SINGLE_EXECUTABLE */

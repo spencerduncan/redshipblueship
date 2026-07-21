@@ -6,8 +6,18 @@
 #include <libultraship/libultra/types.h>
 
 std::vector<std::string> Rando::Spoiler::spoilerOptions;
-const std::filesystem::path randomizerFolderPath(Ship::Context::GetPathRelativeToAppDirectory("randomizer",
-                                                                                              appShortName));
+
+// Lazy on purpose (#392 Lane C0): as a namespace-scope global this path's
+// dynamic initializer called Ship::Context::GetPathRelativeToAppDirectory()
+// BEFORE main() once 2ship_rando stopped being link-elided — before OoT
+// creates the shared Ship::Context — killing the exe at boot. A
+// function-local static defers the call to first use, which is always after
+// context bring-up (MM_Rando_Init or the spoiler read/write paths).
+static const std::filesystem::path& GetRandomizerFolderPath() {
+    static const std::filesystem::path randomizerFolderPath(
+        Ship::Context::GetPathRelativeToAppDirectory("randomizer", appShortName));
+    return randomizerFolderPath;
+}
 
 // This function refreshes the list of spoiler files in the randomizer folder, this list is used in the Randomizer UI,
 // and also includes an option to generate a new seed at the top of the list.
@@ -18,12 +28,12 @@ void Rando::Spoiler::RefreshOptions() {
     s32 spoilerFileIndex = -1;
 
     // ensure the randomizer folder exists
-    if (!std::filesystem::exists(randomizerFolderPath)) {
-        std::filesystem::create_directory(randomizerFolderPath);
+    if (!std::filesystem::exists(GetRandomizerFolderPath())) {
+        std::filesystem::create_directory(GetRandomizerFolderPath());
     }
 
     // Add all files in the randomizer folder to the list of spoiler options
-    for (const auto& entry : std::filesystem::directory_iterator(randomizerFolderPath)) {
+    for (const auto& entry : std::filesystem::directory_iterator(GetRandomizerFolderPath())) {
         if (entry.is_regular_file()) {
             std::string fileName = entry.path().filename().string();
             Rando::Spoiler::spoilerOptions.push_back(fileName);

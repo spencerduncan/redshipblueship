@@ -146,28 +146,28 @@ void Rando::MiscBehavior::OfferTrapItem() {
 
     switch (roll) {
         case TRAP_FREEZE:
-            GameInteractor::Instance->events.emplace_back(
+            MM_GameEvents_Queue().emplace_back(
                 GIEventTrap{ .action = []() { func_80833B18(MM_gPlayState, GET_PLAYER(MM_gPlayState), 3, 0, 0, 0, 0); } });
             break;
         case TRAP_BLAST:
-            GameInteractor::Instance->events.emplace_back(GIEventTrap{ .action = []() {
+            MM_GameEvents_Queue().emplace_back(GIEventTrap{ .action = []() {
                 MM_Actor_Spawn(&MM_gPlayState->actorCtx, MM_gPlayState, ACTOR_EN_BOM, GET_PLAYER(MM_gPlayState)->actor.world.pos.x,
                             GET_PLAYER(MM_gPlayState)->actor.world.pos.y, GET_PLAYER(MM_gPlayState)->actor.world.pos.z, 1, 0,
                             0, 0);
             } });
             break;
         case TRAP_SHOCK:
-            GameInteractor::Instance->events.emplace_back(
+            MM_GameEvents_Queue().emplace_back(
                 GIEventTrap{ .action = []() { func_80833B18(MM_gPlayState, GET_PLAYER(MM_gPlayState), 4, 0, 0, 0, 0); } });
             break;
         case TRAP_JINX:
-            GameInteractor::Instance->events.emplace_back(GIEventTrap{ .action = []() {
+            MM_GameEvents_Queue().emplace_back(GIEventTrap{ .action = []() {
                 Actor_PlaySfx(&GET_PLAYER(MM_gPlayState)->actor, NA_SE_EN_BUBLE_BITE);
                 gSaveContext.jinxTimer = 1200;
             } });
             break;
         case TRAP_WALLET:
-            GameInteractor::Instance->events.emplace_back(GIEventTrap{ .action = []() {
+            MM_GameEvents_Queue().emplace_back(GIEventTrap{ .action = []() {
                 int16_t currentRupees = gSaveContext.save.saveInfo.playerData.rupees;
                 if (currentRupees != 0) {
                     Vec3f positional = GET_PLAYER(MM_gPlayState)->actor.world.pos;
@@ -200,14 +200,14 @@ void Rando::MiscBehavior::OfferTrapItem() {
             } });
             break;
         case TRAP_ENEMY:
-            GameInteractor::Instance->events.emplace_back(GIEventTrap{ .action = []() {
+            MM_GameEvents_Queue().emplace_back(GIEventTrap{ .action = []() {
                 MM_Actor_Spawn(&MM_gPlayState->actorCtx, MM_gPlayState, ACTOR_EN_RR, GET_PLAYER(MM_gPlayState)->actor.world.pos.x,
                             GET_PLAYER(MM_gPlayState)->actor.world.pos.y, GET_PLAYER(MM_gPlayState)->actor.world.pos.z, 0, 0,
                             0, 1);
             } });
             break;
         case TRAP_TIME:
-            GameInteractor::Instance->events.emplace_back(GIEventTrap{ .action = []() {
+            MM_GameEvents_Queue().emplace_back(GIEventTrap{ .action = []() {
                 u16 previous_time = gSaveContext.save.time;
                 u16 new_time = gSaveContext.save.time + timeSkipInterval;
                 if (previous_time < MORNING_TIME && new_time >= MORNING_TIME) {

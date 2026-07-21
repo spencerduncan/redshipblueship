@@ -37,7 +37,7 @@ void Rando::MiscBehavior::CheckQueue() {
         if (randoSaveCheck.eligible) {
             queued = true;
 
-            GameInteractor::Instance->events.emplace_back(GIEventGiveItem{
+            MM_GameEvents_Queue().emplace_back(GIEventGiveItem{
                 .showGetItemCutscene =
                     Rando::StaticData::ShouldShowGetItemCutscene(ConvertItem(randoSaveCheck.randoItemId, randoCheckId)),
                 .param = (int16_t)randoCheckId,
@@ -124,6 +124,6 @@ void Rando::MiscBehavior::CheckQueue() {
 
 void Rando::MiscBehavior::CheckQueueReset() {
     queued = false;
-    GameInteractor::Instance->currentEvent = GIEventNone{};
-    GameInteractor::Instance->events.clear();
+    MM_GameEvents_Current() = GIEventNone{};
+    MM_GameEvents_Queue().clear();
 }

@@ -15,6 +15,19 @@ extern "C" {
 
 #include <string>
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// Single-exe symbol split (Lane C0, #392): OoT ships a GLOBAL-SCOPE
+// `class CustomMessage` (soh/Enhancements/custom-message/
+// CustomMessageManager.h) whose static member LoadVanillaMessageTableEntry
+// (uint16_t) mangles IDENTICALLY to this namespace's free function under the
+// Itanium ABI (return types don't participate), with a different return
+// type — a silent cross-bind on Linux and a divergent resolution on MSVC.
+// MM's namespace therefore nests under S2H, with a namespace alias so
+// unqualified upstream MM callers (`CustomMessage::StartTextbox(...)`)
+// compile unchanged. Only MM is renamed, per repo convention.
+namespace S2H {
+#endif
+
 namespace CustomMessage {
 struct Entry {
     uint8_t textboxType = 0;
@@ -40,6 +53,12 @@ void EnsureMessageEnd(std::string* msg);
 Entry LoadVanillaMessageTableEntry(u16 textId);
 void LoadCustomMessageIntoFont(Entry entry);
 } // namespace CustomMessage
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+} // namespace S2H
+
+namespace CustomMessage = S2H::CustomMessage;
+#endif
 
 #endif // __cplusplus
 #endif // CUSTOM_MESSAGE_H

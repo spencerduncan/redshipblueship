@@ -103,6 +103,21 @@ file(GLOB_RECURSE ship__ RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "2s2h/*.c" "2s2h/*
 file(GLOB_RECURSE ship__Enhancements RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "2s2h/Enhancements/*.c" "2s2h/Enhancements/*.cpp" "2s2h/Enhancements/*.h" "2s2h/Enhancements/*.hpp")
 # Collect Rando separately (will be 2ship_rando lib) - it's 2.1MB source and helps avoid 4GB limit
 file(GLOB_RECURSE ship__Rando RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "2s2h/Rando/*.c" "2s2h/Rando/*.cpp" "2s2h/Rando/*.h" "2s2h/Rando/*.hpp")
+# Lane C0 (#392): split the BenGui-coupled UI TUs out of 2ship_rando so the
+# core randomizer can be WHOLE_ARCHIVE'd without dragging MM's menu surface
+# (BenGui::mBenMenu / BenMenu::Add* / the check-tracker windows — the four
+# BenGui symbols in PR #422's measured link gap) into the single-exe link.
+# 2ship_rando_ui stays compiled (bit-rot protection) but links with plain
+# archive semantics: nothing references its symbols in single-exe builds
+# (Rando::Init's CheckTracker calls are compiled out there), so it is elided
+# exactly like the rest of MM's menu until that surface is ported (#383's
+# UIWidgets remainder; Lane B's surface note on #392).
+set(ship__Rando_ui
+    "2s2h/Rando/Menu.cpp"
+    "2s2h/Rando/CheckTracker/CheckTracker.cpp"
+)
+list(FILTER ship__Rando EXCLUDE REGEX "2s2h/Rando/Menu\\.cpp$")
+list(FILTER ship__Rando EXCLUDE REGEX "2s2h/Rando/CheckTracker/CheckTracker\\.cpp$")
 # Remove Enhancements and Rando from ship__ (will be 2ship_port lib)
 list(FILTER ship__ EXCLUDE REGEX "2s2h/Enhancements/.*")
 list(FILTER ship__ EXCLUDE REGEX "2s2h/Rando/.*")
@@ -223,11 +238,19 @@ if(SINGLE_EXECUTABLE_BUILD)
     # GameInteractor (use OoT's)
     list(FILTER ship__ EXCLUDE REGEX "2s2h/GameInteractor/.*\\.cpp$")
 
-    # Object extension
-    list(FILTER ship__ EXCLUDE REGEX "2s2h/ObjectExtension/.*\\.cpp$")
+    # ObjectExtension is COMPILED as of Lane C0 (#392): the randomizer's
+    # ActorBehavior layer needs the real extension store, and binding OoT's
+    # identically-named class cross-registered MM actors into OoT's instance.
+    # MM's class lives in namespace S2H with an MM_-prefixed extern "C"
+    # surface (see ObjectExtension.h / ActorListIndex.h).
 
-    # Ship utils and CrashHandlerExt (depends on ShipUtils GetActorDescription)
-    list(FILTER ship__ EXCLUDE REGEX "2s2h/ShipUtils\\.cpp$")
+    # CrashHandlerExt stays excluded. ShipUtils.cpp is COMPILED as of Lane C0
+    # (#392): the un-elided randomizer hard-depends on its MM-unique surface
+    # (Ship_Random/_Seed, Ship_Hash, Ship_GetSceneName, item tints, NES font
+    # helpers). The OoT-colliding subset is renamed MM_ via
+    # include/mm_ship_utils_prefix.h, and the extended-culling bodies remain
+    # owned by GameExports_SingleExe.cpp (mm-culling-binding lock) — guarded
+    # out of ShipUtils.cpp for single-exe.
     list(FILTER ship__ EXCLUDE REGEX "2s2h/CrashHandlerExt\\.cpp$")
 
     # Framebuffer effects
@@ -239,9 +262,12 @@ if(SINGLE_EXECUTABLE_BUILD)
     # Audio mixer
     list(FILTER ship__ EXCLUDE REGEX "2s2h/mixer\\.c$")
 
-    # Custom message
-    list(FILTER ship__ EXCLUDE REGEX "2s2h/CustomMessage/.*\\.cpp$")
-    list(FILTER ship__ EXCLUDE REGEX "2s2h/CustomItem/.*\\.cpp$")
+    # CustomMessage / CustomItem are COMPILED as of Lane C0 (#392): the
+    # un-elided randomizer's give/hint paths hard-depend on both (they were
+    # 9 of the 21 unresolved externals in PR #422's measured link gap). MM's
+    # CustomMessage namespace nests under S2H in single-exe builds — its
+    # LoadVanillaMessageTableEntry otherwise mangles identically to OoT's
+    # global-scope class CustomMessage static (see CustomMessage.h).
 
     # Rando
     list(FILTER ship__ EXCLUDE REGEX "2s2h/Rando/.*\\.cpp$")
@@ -320,7 +346,8 @@ if(SINGLE_EXECUTABLE_BUILD)
     )
     add_library(2ship_enh STATIC ${ship__Enhancements})
     add_library(2ship_rando STATIC ${ship__Rando})
-    set(TWOSHIP_COMPILE_TARGETS 2ship_src 2ship_port 2ship_enh 2ship_rando)
+    add_library(2ship_rando_ui STATIC ${ship__Rando_ui})
+    set(TWOSHIP_COMPILE_TARGETS 2ship_src 2ship_port 2ship_enh 2ship_rando 2ship_rando_ui)
     foreach(_t ${TWOSHIP_COMPILE_TARGETS})
         target_compile_definitions(${_t} PRIVATE RSBS_SINGLE_EXECUTABLE)
     endforeach()
@@ -332,15 +359,22 @@ if(SINGLE_EXECUTABLE_BUILD)
 
     # Export static targets for root CMakeLists to link into redship.
     #
-    # 2ship_enh/2ship_rando deliberately do NOT get the WHOLE_ARCHIVE
-    # treatment soh_rando has (#341): force-linking them surfaces ~27
-    # unresolved dependencies (BenGui::BenMenu + tracker windows, the
-    # CustomMessage system, CustomItem, Ship_Random/Ship_Hash utils,
-    # UpdateGameTime, HudEditor, ...) — subsystems not yet ported into the
-    # single-exe link. Until those port, member elision is what keeps redship
-    # linking; the registrar drops it causes are surfaced (report-only) by
-    # .github/scripts/check-registrar-elision.sh in Linux CI.
-    set(TWOSHIP_STATIC_TARGETS 2ship_src 2ship_port 2ship_enh 2ship_rando PARENT_SCOPE)
+    # 2ship_rando links with WHOLE_ARCHIVE as of Lane C0 (#392), mirroring
+    # soh_rando (#341): its Logic/Regions graph registers purely through
+    # RegisterShipInitFunc static initializers and exports nothing anything
+    # references, so plain archive semantics silently dropped the whole
+    # randomizer. The dependency gap that used to forbid this (the "~27
+    # unresolved" note; measured precisely as 21 in PR #422's diagnostic
+    # link) was closed by compiling in CustomMessage/CustomItem/
+    # ObjectExtension/ShipUtils (renamed per the S2H/MM_ conventions),
+    # porting UpdateGameTime, and splitting the BenGui-coupled UI TUs into
+    # 2ship_rando_ui, which — like 2ship_enh — deliberately keeps plain
+    # archive semantics until MM's menu surface ports. Elision in those two
+    # is surfaced (report-only) by .github/scripts/check-registrar-elision.sh,
+    # which also now REQUIRES 2ship_rando's registrars to survive the link.
+    set(TWOSHIP_STATIC_TARGETS 2ship_src 2ship_port 2ship_enh
+        "$<LINK_LIBRARY:WHOLE_ARCHIVE,2ship_rando>"
+        2ship_rando_ui PARENT_SCOPE)
 else()
     # Build as SHARED library for dynamic loading
     add_library(${PROJECT_NAME} SHARED ${ALL_FILES})
@@ -692,13 +726,17 @@ if(SINGLE_EXECUTABLE_BUILD)
     )
     # #395 compile-time lock: poison GameInteractor's Register* member names in
     # MM C++ TUs so hook registration cannot bind MM's 104-byte layout to the
-    # shared 4-byte OoT-owned instance again (MM code uses the extern "C" shim
-    # in include/mm_game_hooks.h instead). Appended AFTER GameInteractor.h so
-    # the class definition itself parses with the real names; only later USES
-    # in a TU fail. 2ship_enh / 2ship_rando are exempt for now: their TUs
-    # still carry upstream RegisterGameHook calls (compiled but link-elided,
-    # see the WHOLE_ARCHIVE note above). Lane C must migrate those calls onto
-    # the shim and extend this guard when it un-elides them (#392).
+    # shared 4-byte OoT-owned instance again (MM code uses the S2H::GameHooks
+    # registry / extern "C" shim in include/mm_game_hooks.h instead). Appended
+    # AFTER GameInteractor.h so the class definition itself parses with the
+    # real names; only later USES in a TU fail. As of Lane C0 (#392) the guard
+    # covers 2ship_rando and 2ship_rando_ui too: their COND_* macro sites
+    # route through the single-exe macro redirection at the bottom of MM's
+    # GameInteractor.h and their direct Register* sites are migrated. Only
+    # 2ship_enh remains exempt — its ~21 direct Register* sites live in TUs
+    # that stay link-elided (the two force-linked members, FrameInterpolation
+    # and SkipGiantsChamber, carry no direct registrations after the macro
+    # redirect); flip it here when those TUs port (#392).
     set(_force_include_cxx_guarded
         ${_force_include_cxx}
         "${_fi}${CMAKE_CURRENT_SOURCE_DIR}/include/mm_gi_hook_guard.h"
@@ -725,7 +763,7 @@ if(SINGLE_EXECUTABLE_BUILD)
     # generator builds broke. Per-source properties hand both generators the
     # command lines Ninja was already producing.
     get_target_property(_target_sources ${_t} SOURCES)
-    if(_t STREQUAL "2ship_enh" OR _t STREQUAL "2ship_rando")
+    if(_t STREQUAL "2ship_enh")
         set(_force_include_cxx_for_target "${_force_include_cxx}")
     else()
         set(_force_include_cxx_for_target "${_force_include_cxx_guarded}")

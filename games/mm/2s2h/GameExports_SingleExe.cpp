@@ -45,6 +45,8 @@
 
 #include "2s2h/Enhancements/Audio/AudioCollection.h"
 #include "2s2h/Enhancements/Audio/AudioEditor.h"
+#include "2s2h/Rando/Rando.h"
+#include "2s2h/ShipInit.hpp"
 #include "2s2h/resource/type/2shResourceType.h"
 #include "2s2h/resource/importer/PathFactory.h"
 #include "2s2h/resource/importer/TextMMFactory.h"
@@ -123,28 +125,11 @@ extern PadMgr MM_gPadMgr;
 extern IrqMgr MM_gIrqMgr;
 }
 
-// MM's pause/owl-warp entrance table (C++ linkage — matches ShipUtils.h's
-// declaration and the ?sOwlWarpEntrancesForMods@@3PAGA references in
-// kaleido/PauseOwlWarp). Upstream defines this in 2s2h/ShipUtils.cpp, which
-// is excluded from single-exe builds (its Ship_* helper family collides with
-// SoH's ShipUtils); the active-game audio dispatch newly links MM's kaleido +
-// PauseOwlWarp objects, which consume it. The values are vanilla data —
-// ShipUtils.cpp documents the table as "identical to sOwlWarpEntrances in
-// decomp" — so this copy cannot drift meaningfully, and MSVC mangles the
-// element type into the symbol, so a type mismatch vs the consumers is a
-// link error rather than silent corruption.
-u16 sOwlWarpEntrancesForMods[OWL_WARP_MAX - 1] = {
-    ENTRANCE(GREAT_BAY_COAST, 11),         // OWL_WARP_GREAT_BAY_COAST
-    ENTRANCE(ZORA_CAPE, 6),                // OWL_WARP_ZORA_CAPE
-    ENTRANCE(SNOWHEAD, 3),                 // OWL_WARP_SNOWHEAD
-    ENTRANCE(MOUNTAIN_VILLAGE_WINTER, 8),  // OWL_WARP_MOUNTAIN_VILLAGE
-    ENTRANCE(SOUTH_CLOCK_TOWN, 9),         // OWL_WARP_CLOCK_TOWN
-    ENTRANCE(MILK_ROAD, 4),                // OWL_WARP_MILK_ROAD
-    ENTRANCE(WOODFALL, 4),                 // OWL_WARP_WOODFALL
-    ENTRANCE(SOUTHERN_SWAMP_POISONED, 10), // OWL_WARP_SOUTHERN_SWAMP
-    ENTRANCE(IKANA_CANYON, 4),             // OWL_WARP_IKANA_CANYON
-    ENTRANCE(STONE_TOWER, 3),              // OWL_WARP_STONE_TOWER
-};
+// The sOwlWarpEntrancesForMods copy that used to live here is gone (Lane C0,
+// #392): 2s2h/ShipUtils.cpp is compiled in single-exe builds now (the
+// un-elided randomizer needs its MM-unique Ship_* surface), so its real
+// definition of the table serves the kaleido/PauseOwlWarp consumers and a
+// second copy here would be a duplicate strong symbol.
 
 // MM's AudioCollection singleton (S2H::AudioCollection under the single-exe
 // namespace split — see include/mm_audio_prefix.h). Upstream defines and
@@ -1231,6 +1216,8 @@ uint32_t GameInteractor_RightStickOcarina(Input* input) {
     return result;
 }
 
+extern "C" void MM_Rando_Init(void); // defined below MM_Game_Init
+
 int MM_Game_Init(int argc, char** argv) {
     fprintf(stderr, "[MM] Game_Init called, argc=%d\n", argc);
     fflush(stderr);
@@ -1335,12 +1322,56 @@ int MM_Game_Init(int argc, char** argv) {
 
     sMMInitialized = true;
 
+    // Bring up MM's randomizer (Lane C0, #392). Upstream 2S2H does this from
+    // BenPort.cpp's InitOTR (excluded TU): run every MM ShipInit registrar —
+    // which is what populates the 2ship_rando Logic/Regions graph and the
+    // rando-affected enhancement hooks — then Rando::Init(). All hook
+    // registrations land in the MM-owned S2H::GameHooks registry
+    // (include/mm_game_hooks.h), never the shared C++ GameInteractor (#395);
+    // per-type dispatch is wired deliberately where MM's own code paths
+    // execute each hook. Runs after MM_OTRMessage_Init/audio bring-up so the
+    // spoiler/CVar/file paths Rando::Init touches are live.
+    MM_Rando_Init();
+
     // Register integration test hooks if in integration test mode
     MM_RegisterIntegrationTestHooks();
 
     fprintf(stderr, "[MM] Game_Init complete\n");
     fflush(stderr);
     return 0;
+}
+
+/**
+ * One-shot MM randomizer bring-up (Lane C0, #392) — extern "C" so the
+ * headless test harness (src/common/test_runner.cpp) can drive it without
+ * including MM C++ headers. Once-only guarded: MM_Game_Init re-runs on
+ * MM re-entry paths, but ShipInit registrars and Rando::Init's hook
+ * registrations must not double-register (the single-exe resume contract —
+ * see MM_Game_Resume).
+ */
+extern "C" void MM_Rando_Init(void) {
+    static bool sRandoInitDone = false;
+    if (sRandoInitDone) {
+        return;
+    }
+    sRandoInitDone = true;
+
+    fprintf(stderr, "[MM] MM_Rando_Init: running ShipInit registrars + Rando::Init\n");
+    fflush(stderr);
+    S2H::ShipInit::InitAll();
+    Rando::Init();
+}
+
+/**
+ * True once LoadMMArchives() registered mm.o2r with the shared
+ * ResourceManager. ShipInit registrar lambdas that copy display lists out of
+ * MM assets (Rando/DrawItem.cpp, Rando/ActorBehavior/EnBox.cpp) gate on this:
+ * in the ROM-free unit harness no archives exist and
+ * ResourceMgr_LoadGfxByName null-derefs on a missing resource. In the real
+ * boot path LoadMMArchives always precedes MM_Rando_Init.
+ */
+extern "C" bool MM_Rando_AssetsReady(void) {
+    return sMMArchivesLoaded;
 }
 
 void MM_Game_Run(void) {

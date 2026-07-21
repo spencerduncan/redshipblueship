@@ -61,18 +61,41 @@ check_archive() {
 
 check_archive "$BUILD_DIR/games/oot/libsoh_rando.a"  required
 check_archive "$BUILD_DIR/games/oot/libsoh_enh.a"    required
-# Not yet WHOLE_ARCHIVE-wrapped — report drops without failing so the
-# remaining #341 exposure stays visible in every CI run. The MM archives
-# cannot be wrapped today: force-linking them surfaces ~27 unresolved
-# dependencies (BenGui::BenMenu, CustomMessage, CustomItem, Ship_* utils,
-# UpdateGameTime, HudEditor, ...) — single-exe port gaps that elision
-# currently masks. Promote an archive to `required` above when it gains
-# WHOLE_ARCHIVE in its CMakeLists.
-check_archive "$BUILD_DIR/games/mm/lib2ship_enh.a"   report-only
-check_archive "$BUILD_DIR/games/mm/lib2ship_rando.a" report-only
+# 2ship_rando is WHOLE_ARCHIVE-wrapped since Lane C0 (#392): its registrar
+# TUs (the Logic/Regions graph) must all survive the link. The measured
+# dependency gap that used to block this (PR #422's diagnostic link: the
+# CustomMessage/CustomItem/ShipUtils families, UpdateGameTime, and four
+# BenGui symbols) was closed by compiling the first four in and splitting the
+# BenGui-dependent UI TUs (Rando/Menu.cpp, Rando/CheckTracker/*) into
+# 2ship_rando_ui, which stays deliberately elided with the rest of MM's menu
+# surface — report-only below keeps that exposure visible.
+check_archive "$BUILD_DIR/games/mm/lib2ship_rando.a" required
+check_archive "$BUILD_DIR/games/mm/lib2ship_enh.a"      report-only
+check_archive "$BUILD_DIR/games/mm/lib2ship_rando_ui.a" report-only
+
+# Lane C0 reachability probes (#392): beyond registrar symbols, assert MM's
+# randomizer generation surface is actually IN the binary — the historical
+# failure was 2ship_rando compiling green while the linker discarded every
+# object. nm is the primary ground truth (per the header note, strings can
+# false-negative on folded std::string constructions); the spoiler tag is a
+# plain string literal, checked with strings as the belt-and-braces probe the
+# Lane C0 brief calls for.
+#
+# NOT `grep -q`: this script runs under pipefail, and -q exits at the first
+# match while nm/strings are still writing — the producer dies with SIGPIPE
+# (141), pipefail reports the pipeline failed, and a FOUND symbol reads as
+# missing. Plain grep with discarded stdout consumes the stream to EOF.
+if ! nm --demangle "$BIN" 2>/dev/null | grep "Rando::Spoiler::GenerateFromSaveContext" > /dev/null; then
+    echo "FAIL: Rando::Spoiler::GenerateFromSaveContext missing from redship — 2ship_rando was elided (#392)" >&2
+    overall=1
+fi
+if ! strings "$BIN" 2>/dev/null | grep "2S2H_RANDO_SPOILER" > /dev/null; then
+    echo "FAIL: 2S2H_RANDO_SPOILER tag missing from redship — MM spoiler writer not linked (#392)" >&2
+    overall=1
+fi
 
 if [ "$overall" -ne 0 ]; then
     echo "FAIL: registrar symbols were elided from a WHOLE_ARCHIVE-protected archive (#341)" >&2
     exit 1
 fi
-echo "OK: no registrar elision in protected archives"
+echo "OK: no registrar elision in protected archives; 2ship_rando generation surface present"
