@@ -58,6 +58,14 @@ int MM_CullingBinding_RunHeadless(void);
 // byte out-of-bounds write, layout is platform-dependent). Returns 0 on
 // pass, non-zero on fail.
 int MM_GIShim_RunHeadless(void);
+// MM Notification::Emit cross-bind lock (games/mm/2s2h/mm_notification_binding_test.cpp,
+// #427 item 1): MM's 2s2h/BenGui/Notification.cpp is excluded from single-exe
+// builds, so MM's Rando pickup toast binds OoT's Notification::Emit against
+// MM's own view of Notification::Options. Safe only while the two ports' Options
+// stay field-identical; this compares their layout fingerprints and fails on
+// drift (no link error can catch it — one Emit definition survives). Returns 0
+// on pass, non-zero on fail.
+int MM_NotificationBinding_RunHeadless(void);
 // VB-affinity regression: MM's GameInteractor_* calls resolve to OoT's
 // extern "C" wrappers in single-exe builds, and the two games' vanilla-
 // behavior ordinals alias each other. The wrappers gate on the active game;
@@ -167,6 +175,13 @@ static TestResult Test_MMCullingBinding(void) {
 // the C entry point in games/mm/2s2h/mm_gi_shim_test.cpp.
 static TestResult Test_MMGIShim(void) {
     return MM_GIShim_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// MM Notification::Emit cross-bind lock (see the extern decl above). Thin
+// wrapper over the C entry point in
+// games/mm/2s2h/mm_notification_binding_test.cpp.
+static TestResult Test_MMNotificationBinding(void) {
+    return MM_NotificationBinding_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // ============================================================================
@@ -1002,6 +1017,8 @@ const TestDescriptor gTests[] = {
     {"mm-culling-binding", "MM's Ship_ExtendedCulling* bind MM's Actor, not OoT's (#382)", Test_MMCullingBinding},
     {"mm-gi-shim", "MM hook registration goes through the MM-owned shim, not the shared 4-byte instance (#395)",
      Test_MMGIShim},
+    {"mm-notification-binding", "MM Notification::Emit binds OoT's only while Options stays layout-identical (#427)",
+     Test_MMNotificationBinding},
     // The two MM resume-contract tests below mutate process-global state
     // (mm-resume-arena re-inits the MM system arena + heaps; mm-startup-restore
     // scribbles and re-zeroes the unified gSaveContext). Both clean up after

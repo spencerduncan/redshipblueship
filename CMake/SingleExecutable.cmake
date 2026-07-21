@@ -350,6 +350,12 @@ if(BUILD_TESTING)
     # the MM-owned extern "C" shim; registering through MM's larger view of
     # the shared class writes ~60-92 bytes past OoT's 4-byte allocation.
     redship_add_test(NAME MMGIShim COMMAND redship --test mm-gi-shim)
+    # MM Notification::Emit cross-bind (#427 item 1): MM's BenGui/Notification.cpp
+    # is excluded, so MM's Rando pickup toast binds OoT's Notification::Emit —
+    # safe only while both ports' Notification::Options stay layout-identical.
+    # This compares their layout fingerprints and fails on drift (one Emit
+    # definition survives, so no link error can catch a divergence).
+    redship_add_test(NAME MMNotificationBinding COMMAND redship --test mm-notification-binding)
     redship_add_test(NAME MMResumeArena COMMAND redship --test mm-resume-arena)
     redship_add_test(NAME MMStartupRestore COMMAND redship --test mm-startup-restore)
     redship_add_test(NAME AllTests COMMAND redship --test all)
