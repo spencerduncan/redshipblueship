@@ -321,6 +321,12 @@ extern "C" int Rando_HeadlessSeedDeterminismDigest(const char* seedStr, const ch
 // + every foreign placement to the same digest file, so the SeedDeterminism
 // two-process diff covers the whole paired world.
 extern "C" int MM_Rando_HeadlessForeignDigest(const char* outPath);
+// Hint-validity lock (#441, body in menu.cpp): generates one seed, then asserts
+// every enabled hint names a REAL item — no hint may resolve to the no-item
+// sentinel, hinted locations must hold items, and each hinted location's name
+// must round-trip through locationNameToEnum (the transform the save file puts
+// hints through). Returns 0 only if every enabled hint passes all three.
+extern "C" int Rando_HeadlessHintValidityTest(const char* seedStr);
 extern "C" void InitOTRForMMFirstBoot(int argc, char* argv[]);
 
 TestResult Test_RandoGen(void) {
@@ -342,6 +348,30 @@ TestResult Test_RandoGen(void) {
 
     int rc = Rando_HeadlessSeedTest("RSBSDIAG1");
     printf("[TEST] %s: seed generation rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// Hint-validity lock (#441). Gossip stones were reading "They say that catching
+// Big Poes leads to No Item" while the spoiler for that same seed named a real
+// item, so the fill was complete and only the hint-side resolution was wrong.
+// This drives one generation and proves no hint resolves to the no-item
+// sentinel. Needs a display (Fast3dWindow) like rando-gen, so `--test all`
+// skips it.
+TestResult Test_RandoHintValidity(void) {
+    printf("[TEST] rando-hint-validity: every generated hint names a real item (#441)\n");
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    int rc = Rando_HeadlessHintValidityTest("RSBSHINT1");
+    printf("[TEST] %s: hint validity rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
@@ -1007,6 +1037,9 @@ TestResult Test_Context(void) {
 
 const TestDescriptor gTests[] = {
     {"rando-gen", "Seed generation succeeds with default settings (#337)", Test_RandoGen},
+    // #441: no generated hint may resolve to the no-item sentinel. Needs a
+    // display like rando-gen, so `--test all` skips it (below).
+    {"rando-hint-validity", "Every generated hint names a real item (#441)", Test_RandoHintValidity},
     // Lane B unified seed: producer stamps gComboCtx at generation time; the
     // two-process same-seed determinism diff runs via the SeedDeterminism row.
     // Needs a display like rando-gen, so `--test all` skips it (below).
@@ -1152,6 +1185,7 @@ int TestRunner_Run(const char* testName) {
             // their own CTests ("rando" label, under xvfb-run) rather than in
             // this display-free suite, where they would hang the 60s timeout.
             if (strcmp(gTests[i].name, "rando-gen") == 0 || strcmp(gTests[i].name, "rando-determinism") == 0 ||
+                strcmp(gTests[i].name, "rando-hint-validity") == 0 ||
                 strcmp(gTests[i].name, "mm-rando-gen") == 0 ||
                 strcmp(gTests[i].name, "mm-pair-switch-entry") == 0) {
                 printf("\n--- Skipping: %s (needs display; runs as a rando-label CTest) ---\n", gTests[i].name);

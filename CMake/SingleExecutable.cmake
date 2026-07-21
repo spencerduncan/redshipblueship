@@ -414,6 +414,15 @@ if(BUILD_TESTING)
         TIMEOUT 180
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
+    # Hint validity (#441): a gossip stone read "catching Big Poes leads to No
+    # Item" while that seed's spoiler named a real item, so the fill was fine
+    # and only hint-side resolution was broken. Locks that no generated hint
+    # resolves to the no-item sentinel. Same display-but-no-archives tier.
+    redship_add_test(NAME RandoHintValidity COMMAND redship --test rando-hint-validity
+        LABEL rando
+        TIMEOUT 180
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+
     # Song shuffle modes. Stock (RandoGen above) already covers mode 1 — "Song
     # Locations" is the default — which is the mode that regressed when the
     # linker dropped ShuffleSongs.cpp.o from the static soh_rando archive and
