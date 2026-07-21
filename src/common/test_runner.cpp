@@ -146,6 +146,21 @@ extern "C" {
 // via shared_items.h.
 #include "tests/test_grant_sources.c"
 
+// Netplay grant-relay loopback locks (ADR 0007, #460). Guarded: with
+// RSBS_NETPLAY=OFF (the default) the relay sources are not in the build at all,
+// so the code under test does not exist. The `#include "tests/..."` text is
+// still present for redship_check_test_sources(), which globs the directory and
+// greps this file — the guard hides the code from the compiler, not the file
+// from the completeness check.
+//
+// Inside its own extern "C" block: every symbol it drives (Relay_*,
+// RelayProto_*, Combo_*) is C-linkage.
+#ifdef RSBS_NETPLAY
+extern "C" {
+#include "tests/test_netplay_relay.c"
+}
+#endif
+
 // MM scene-command parse regression (issue #344). Included at FILE SCOPE
 // (compiled as C++): it drives MM's S2H::ResourceFactoryBinarySceneV0 directly
 // over a synthetic scene buffer — no ROM archives or display needed.
@@ -1132,6 +1147,21 @@ const TestDescriptor gTests[] = {
     {"grant-persistence", "Cursors + overflow ride the .redsave; legacy loads unset; reset retires atomically "
      "(ADR 0005)",
      Test_GrantPersistence},
+#ifdef RSBS_NETPLAY
+    // Netplay 1b (ADR 0007, #460): the grant relay, over a loopback ledger with
+    // multi-server's semantics. Registered only when the relay is built.
+    {"relay-wire-format", "Relay wire format matches golden vectors; foreign payloads skip (ADR 0007)",
+     Test_RelayWireFormat},
+    {"relay-loopback", "Loopback peers: retransmit delivers once, two peers' same item delivers twice, "
+     "self-echo filtered (ADR 0007)",
+     Test_RelayLoopback},
+    {"relay-catchup", "Late joiner catches up from ledger base 0; grants survive a cross-game switch (ADR 0007)",
+     Test_RelayCatchup},
+    {"relay-backpressure", "A full array backpressures the relay without losing the grant (ADR 0007)",
+     Test_RelayBackpressure},
+    {"relay-suspend-latch", "Suspend stops applying but not polling; resume drains in order (ADR 0007)",
+     Test_RelaySuspendLatch},
+#endif
     {"context", "Test context/state management", Test_Context},
     // Clears all frozen states on entry and exit, so it must not run between a
     // test that freezes and one that expects that freeze to still be there.
