@@ -22,6 +22,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <cstdint>
 #include <fstream>
 #include <string>
 
@@ -49,6 +50,15 @@ extern "C" {
 void MM_Sram_InitNewSave(void);
 void MM_Rando_Init(void);
 extern SaveContext gSaveContext;
+
+// Switch-entry lock (#439): the real consumption point plus the switch
+// path's own state plumbing, driven exactly as rsbs/src/main.cpp and
+// MM_Play_Init drive them.
+void MM_Play_ConsumeStartupEntrance(void);
+void Combo_FreezeState(const char* gameId, uint16_t returnEntrance, const void* saveContext, size_t size);
+void Combo_ClearFrozenState(const char* gameId);
+void Combo_SetStartupEntrance(uint16_t entrance);
+void Combo_ClearStartupEntrance(void);
 }
 
 extern "C" int MM_Rando_HeadlessGenTest(void) {
@@ -148,8 +158,10 @@ extern "C" int MM_Rando_HeadlessGenTest(void) {
         return 4;
     }
 
-    std::string spoilerPath =
-        Ship::Context::GetPathRelativeToAppDirectory(std::string("randomizer/") + usedSeed + ".json", appShortName);
+    // Through the module's own directory accessor (#439): the test must look
+    // where the write path actually writes, not re-derive a second path that
+    // can silently drift from it.
+    std::string spoilerPath = Rando::Spoiler::SpoilerDirectory() + "/" + usedSeed + ".json";
     std::ifstream spoilerFile(spoilerPath);
     if (!spoilerFile.is_open()) {
         fprintf(stderr, "[MM-RANDO-GEN] FAIL(5): spoiler file missing at %s\n", spoilerPath.c_str());
@@ -294,8 +306,8 @@ extern "C" int MM_Rando_HeadlessGenTest(void) {
     // The spoiler landed under the DERIVED paired name and describes every
     // crossing: "foreign" as {checkName: {originGame, item}}, and the human-
     // readable checks list reads as the foreign item, not junk.
-    std::string pairedSpoilerPath = Ship::Context::GetPathRelativeToAppDirectory(
-        std::string("randomizer/") + "RSBSPAIR" + std::to_string(gComboCtx.sharedRandoSeed) + ".json", appShortName);
+    std::string pairedSpoilerPath =
+        Rando::Spoiler::SpoilerDirectory() + "/RSBSPAIR" + std::to_string(gComboCtx.sharedRandoSeed) + ".json";
     std::ifstream pairedFile(pairedSpoilerPath);
     if (!pairedFile.is_open()) {
         fprintf(stderr, "[MM-RANDO-GEN] FAIL(13): paired spoiler missing at %s (seed derivation broken?)\n",
@@ -673,6 +685,292 @@ extern "C" int MM_Rando_HeadlessForeignDigest(const char* outPath) {
     }
     fprintf(stderr, "[MM-FOREIGN-DIGEST] mmFinalSeed=%08X mmPlacementHash=%08X foreign=%d\n",
             gSaveContext.save.shipSaveInfo.rando.finalSeed, mmPlacementHash, Combo_CountForeignPlacements());
+    return 0;
+}
+
+// ============================================================================
+// Switch-entry pairing lock (#439)
+// ============================================================================
+/**
+ * The harness gap #439 was filed for. MMRandoGen's paired phase drives the
+ * OnSaveInit chain DIRECTLY, so it proved generation works while the only
+ * flow a player actually takes — walking into the Happy Mask Shop — never
+ * reached that chain at all. Everything below drives the SWITCH-ENTRY path:
+ * the cold gamestate-chain boot the switch performs, then the real
+ * MM_Play_ConsumeStartupEntrance consumption point, with no direct call to
+ * the generation entry point anywhere in the success path.
+ *
+ * Three phases, matching the entry-path matrix in #439:
+ *
+ *  1. fresh switch-entry + live paired OoT world -> the paired MM world
+ *     activates (rando save, foreign placements, spoiler with a foreign
+ *     section) AND the IS_RANDO behavior hooks end up armed. The boot chain
+ *     dispatches OnSaveLoad against its vanilla bootstrap file, which
+ *     DISARMS them; if nothing re-dispatches afterwards, MM plays vanilla
+ *     even with a perfectly generated world. Locked here in both halves.
+ *
+ *  2. return leg (frozen paired save) -> restored, NOT regenerated
+ *     (finalSeed and a save sentinel both survive), hooks armed again.
+ *
+ *  3. return leg with an EXISTING VANILLA MM save -> left strictly alone.
+ *     This is the "never silently modify the player's file" contract: a
+ *     paired OoT world does not entitle anything to rewrite a save that
+ *     already exists.
+ *
+ * Returns 0 on success, a distinct nonzero step code otherwise.
+ */
+extern "C" int MM_Rando_HeadlessPairSwitchEntry(void) {
+    const uint16_t kArrival = 0xD800; // ENTRANCE(SOUTH_CLOCK_TOWN, 0) — the OoT->MM arrival
+
+    auto ctx = Ship::Context::GetInstance();
+    if (ctx == nullptr || ctx->GetConsoleVariables() == nullptr) {
+        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(1): Ship::Context not live\n");
+        return 1;
+    }
+
+    MM_Rando_Init();
+    if (Rando::Logic::Regions.empty()) {
+        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(2): Logic/Regions graph empty\n");
+        return 2;
+    }
+
+    if (gRegEditor == NULL) {
+        static RegEditor sPairRegEditor = {};
+        gRegEditor = &sPairRegEditor;
+    }
+
+    // gRando.Enabled stays OFF on purpose: MM's rando menu is link-elided in
+    // the single exe, so the paired OoT generation is the ONLY opt-in. If
+    // activation ever starts depending on this CVar, this row fails.
+    CVarSetInteger("gRando.Enabled", 0);
+    CVarSetInteger("gRando.GenerateSpoiler", 1);
+    CVarSetString("gRando.InputSeed", "USERSEEDPOISON"); // the paired branch must ignore this
+    CVarSetInteger(Rando::StaticData::Options[RO_LOGIC].cvar, RO_LOGIC_NEARLY_NO_LOGIC);
+    // A stale SpoilerFileIndex must not divert the paired branch into LOADING
+    // an old world — pin the hostile value the real session can carry.
+    CVarSetInteger("gRando.SpoilerFileIndex", 3);
+
+    const ComboForeignItemDef* pool = NULL;
+    const int poolCount = Combo_GetForeignItemPool(&pool);
+    if (poolCount <= 0 || pool == NULL) {
+        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(3): pinned foreign pool is empty\n");
+        return 3;
+    }
+
+    // ----------------------------------------------------------------------
+    // Phase 1 — fresh switch-entry into a live paired OoT world.
+    // ----------------------------------------------------------------------
+    // A fixed master-seed list, for the same reason MMRandoGen keeps one: the
+    // MM fill can genuinely dead-end on an unlucky seed, and the claim under
+    // test is that the switch-entry path REACHES generation, not that any
+    // particular seed fills. Deterministic either way (fixed list, fixed fill).
+    static const uint32_t kMasterSeeds[] = { 2108649350u, 1234567u, 77777777u, 424242u, 999983u };
+    uint32_t usedMasterSeed = 0;
+
+    for (uint32_t masterSeed : kMasterSeeds) {
+        // Lane B's carrier, stamped as a live OoT generation stamps it.
+        Combo_ClearForeignPlacements();
+        Combo_ClearFrozenState("mm");
+        Combo_ClearStartupEntrance();
+        gComboCtx.sourceIsRando = 1;
+        gComboCtx.sharedRandoSeed = masterSeed;
+        gComboCtx.sharedRandoSettingsHash = 0x5DAD32CEu;
+
+        // The cold gamestate-chain boot a switch performs: ConsoleLogo skips
+        // to TitleSetup, TitleSetup authors a VANILLA bootstrap file with
+        // MM_Sram_InitNewSave and dispatches OnSaveLoad against it. File
+        // select is never touched, so OnSaveInit is never dispatched here —
+        // that absence is the whole bug.
+        memset(&gSaveContext, 0, sizeof(gSaveContext));
+        MM_Sram_InitNewSave();
+        GameInteractor_ExecuteOnSaveLoad(gSaveContext.fileNum);
+
+        const size_t hooksAfterBootChain = S2H::GameHooks::CountForTest<GameInteractor::OnFlagSet>();
+
+        // The switch path's pending arrival, then the real consumption point.
+        Combo_SetStartupEntrance(kArrival);
+        MM_Play_ConsumeStartupEntrance();
+
+        if (gSaveContext.save.shipSaveInfo.saveType == SAVETYPE_RANDO) {
+            const size_t hooksAfterConsume = S2H::GameHooks::CountForTest<GameInteractor::OnFlagSet>();
+            if (hooksAfterConsume == 0 || hooksAfterConsume <= hooksAfterBootChain) {
+                fprintf(stderr,
+                        "[MM-PAIR-SWITCH] FAIL(5): paired world generated but the IS_RANDO hooks were left "
+                        "DISARMED by the boot chain's OnSaveLoad (OnFlagSet %zu -> %zu) — MM would play with "
+                        "vanilla behavior in a rando world\n",
+                        hooksAfterBootChain, hooksAfterConsume);
+                return 5;
+            }
+            fprintf(stderr, "[MM-PAIR-SWITCH] hooks re-armed at consumption (OnFlagSet %zu -> %zu)\n",
+                    hooksAfterBootChain, hooksAfterConsume);
+            usedMasterSeed = masterSeed;
+            break;
+        }
+
+        // Discriminator: did the switch-entry path fail to REACH generation,
+        // or did this seed's fill dead-end? Re-run the same gComboCtx through
+        // the DIRECT chain MMRandoGen uses. If the direct chain pairs and the
+        // switch-entry path did not, the dispatch site is gone — the exact
+        // #439 regression, and a distinct, unambiguous failure.
+        memset(&gSaveContext, 0, sizeof(gSaveContext));
+        MM_Sram_InitNewSave();
+        Combo_ClearForeignPlacements();
+        GameInteractor_ExecuteOnSaveInit(gSaveContext.fileNum);
+        if (gSaveContext.save.shipSaveInfo.saveType == SAVETYPE_RANDO) {
+            fprintf(stderr,
+                    "[MM-PAIR-SWITCH] FAIL(4): the direct OnSaveInit chain pairs under master seed %u but "
+                    "SWITCH-ENTRY did not — MM_Play_ConsumeStartupEntrance no longer reaches generation (#439)\n",
+                    masterSeed);
+            return 4;
+        }
+        fprintf(stderr, "[MM-PAIR-SWITCH] master seed %u dead-ended on both paths (fill); trying next\n", masterSeed);
+    }
+
+    if (usedMasterSeed == 0) {
+        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(6): every pinned master seed dead-ended the MM fill — pin a "
+                        "different seed (generation machinery itself is covered by MMRandoGen)\n");
+        return 6;
+    }
+    fprintf(stderr, "[MM-PAIR-SWITCH] switch-entry paired under master seed %u\n", usedMasterSeed);
+
+    if (Combo_CountForeignPlacements() != poolCount) {
+        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(7): expected %d foreign placements after switch-entry pairing, found "
+                        "%d\n",
+                poolCount, Combo_CountForeignPlacements());
+        return 7;
+    }
+    if (gSaveContext.save.entrance != kArrival) {
+        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(8): arrival entrance 0x%04X lost to generation's start state "
+                        "(save.entrance=0x%04X)\n",
+                kArrival, gSaveContext.save.entrance);
+        return 8;
+    }
+
+    // The spoiler must exist AND be findable through the module's own
+    // directory accessor (#439 second bug: the write path resolved against a
+    // second app directory that portable installs never create, so even a
+    // working pairing produced no file the operator could find).
+    const std::string pairedSpoiler =
+        Rando::Spoiler::SpoilerDirectory() + "/RSBSPAIR" + std::to_string(usedMasterSeed) + ".json";
+    {
+        std::ifstream sf(pairedSpoiler);
+        if (!sf.is_open()) {
+            fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(9): no MM spoiler at %s after switch-entry pairing\n",
+                    pairedSpoiler.c_str());
+            return 9;
+        }
+        nlohmann::json j;
+        try {
+            sf >> j;
+        } catch (const std::exception& e) {
+            fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(9): paired spoiler unparseable: %s\n", e.what());
+            return 9;
+        }
+        if (!j.contains("foreign") || !j["foreign"].is_object() || (int)j["foreign"].size() != poolCount) {
+            fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(10): spoiler 'foreign' section missing or wrong size\n");
+            return 10;
+        }
+    }
+    fprintf(stderr, "[MM-PAIR-SWITCH] spoiler verified at %s\n", pairedSpoiler.c_str());
+
+    // ----------------------------------------------------------------------
+    // Phase 2 — return leg: an existing PAIRED save is restored, not remade.
+    // ----------------------------------------------------------------------
+    const u32 pairedFinalSeed = gSaveContext.save.shipSaveInfo.rando.finalSeed;
+    ComboForeignPlacement pairedPlacements[RSBS_FOREIGN_PLACEMENT_CAP];
+    memcpy(pairedPlacements, gComboCtx.foreignPlacements, sizeof(pairedPlacements));
+
+    // Progress the player made before leaving for OoT.
+    gSaveContext.save.saveInfo.playerData.rupees = 142;
+    gSaveContext.save.day = 3;
+    Combo_FreezeState("mm", kArrival, &gSaveContext, sizeof(gSaveContext));
+
+    memset(&gSaveContext, 0, sizeof(gSaveContext));
+    MM_Sram_InitNewSave();
+    GameInteractor_ExecuteOnSaveLoad(gSaveContext.fileNum);
+    const size_t returnHooksAfterBootChain = S2H::GameHooks::CountForTest<GameInteractor::OnFlagSet>();
+    Combo_SetStartupEntrance(kArrival);
+    MM_Play_ConsumeStartupEntrance();
+
+    if (gSaveContext.save.shipSaveInfo.saveType != SAVETYPE_RANDO) {
+        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(11): return leg lost the paired save type\n");
+        return 11;
+    }
+    if (gSaveContext.save.shipSaveInfo.rando.finalSeed != pairedFinalSeed) {
+        fprintf(stderr,
+                "[MM-PAIR-SWITCH] FAIL(12): return leg REGENERATED the world (finalSeed %08X -> %08X) — an "
+                "existing MM save must never be re-paired\n",
+                pairedFinalSeed, gSaveContext.save.shipSaveInfo.rando.finalSeed);
+        return 12;
+    }
+    if (gSaveContext.save.saveInfo.playerData.rupees != 142 || gSaveContext.save.day != 3) {
+        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(13): return leg did not preserve the player's progress "
+                        "(rupees=%d day=%d)\n",
+                gSaveContext.save.saveInfo.playerData.rupees, gSaveContext.save.day);
+        return 13;
+    }
+    if (memcmp(pairedPlacements, gComboCtx.foreignPlacements, sizeof(pairedPlacements)) != 0) {
+        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(14): return leg disturbed the foreign placement table\n");
+        return 14;
+    }
+    {
+        const size_t after = S2H::GameHooks::CountForTest<GameInteractor::OnFlagSet>();
+        if (after == 0 || after <= returnHooksAfterBootChain) {
+            fprintf(stderr,
+                    "[MM-PAIR-SWITCH] FAIL(15): return leg left the IS_RANDO hooks disarmed (OnFlagSet %zu -> "
+                    "%zu) — a restored rando save would play with vanilla behavior\n",
+                    returnHooksAfterBootChain, after);
+            return 15;
+        }
+    }
+    fprintf(stderr, "[MM-PAIR-SWITCH] return leg: restored, not regenerated, hooks re-armed\n");
+
+    // ----------------------------------------------------------------------
+    // Phase 3 — an EXISTING VANILLA MM save is never silently converted.
+    // ----------------------------------------------------------------------
+    // gComboCtx still carries the live paired keying, so pairing is "possible"
+    // here in every sense except the one that matters: this file already
+    // exists and belongs to the player.
+    Combo_ClearFrozenState("mm");
+    Combo_ClearStartupEntrance();
+    memset(&gSaveContext, 0, sizeof(gSaveContext));
+    MM_Sram_InitNewSave();
+    gSaveContext.save.saveInfo.playerData.rupees = 77;
+    gSaveContext.save.day = 2;
+    Combo_FreezeState("mm", kArrival, &gSaveContext, sizeof(gSaveContext));
+
+    ComboForeignPlacement beforeVanilla[RSBS_FOREIGN_PLACEMENT_CAP];
+    memcpy(beforeVanilla, gComboCtx.foreignPlacements, sizeof(beforeVanilla));
+
+    memset(&gSaveContext, 0, sizeof(gSaveContext));
+    MM_Sram_InitNewSave();
+    GameInteractor_ExecuteOnSaveLoad(gSaveContext.fileNum);
+    Combo_SetStartupEntrance(kArrival);
+    MM_Play_ConsumeStartupEntrance();
+
+    if (gSaveContext.save.shipSaveInfo.saveType != SAVETYPE_VANILLA) {
+        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(16): an existing VANILLA MM save was silently converted to rando "
+                        "on arrival — existing files must be skipped with a logged reason\n");
+        return 16;
+    }
+    if (gSaveContext.save.saveInfo.playerData.rupees != 77 || gSaveContext.save.day != 2) {
+        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(17): existing vanilla save was modified (rupees=%d day=%d)\n",
+                gSaveContext.save.saveInfo.playerData.rupees, gSaveContext.save.day);
+        return 17;
+    }
+    if (memcmp(beforeVanilla, gComboCtx.foreignPlacements, sizeof(beforeVanilla)) != 0) {
+        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(18): skipping a vanilla save still disturbed the placement table\n");
+        return 18;
+    }
+    fprintf(stderr, "[MM-PAIR-SWITCH] existing vanilla save left untouched (skip path)\n");
+
+    // Leave clean global state for later dispatches in the same process.
+    Combo_ClearFrozenState("mm");
+    Combo_ClearStartupEntrance();
+    Combo_ClearForeignPlacements();
+    memset(&gSaveContext, 0, sizeof(gSaveContext));
+
+    fprintf(stderr, "[MM-PAIR-SWITCH] PASS: pairing activates on the switch-entry path, existing saves untouched\n");
     return 0;
 }
 

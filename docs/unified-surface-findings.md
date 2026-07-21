@@ -18,6 +18,26 @@ thing the docs implied:
    **dormant until an `Execute` call is deliberately placed** at MM's upstream dispatch
    point. Registration ≠ dispatch is the single most load-bearing fact in this document.
 
+   > **#439 is the worked example, and it has a second edge nothing above predicted.**
+   > `OnSaveInit` *was* dispatched — from `MM_Sram_InitSave`, MM's file-select
+   > new-file flow — and MMRandoGen proved that chain green for months. But a
+   > cross-game switch never touches file select: it cold-starts the gamestate
+   > chain, and `TitleSetup_SetupTitleScreen` authors the save with
+   > `MM_Sram_InitNewSave()` + `OnSaveLoad`. So the paired MM world never
+   > generated in real play. The generalization: **a dispatch point placed on
+   > one entry path is not coverage of the feature** — enumerate every path that
+   > reaches the state the hook keys off, and put the `Execute` at the
+   > *convergence* point (for MM arrivals that is
+   > `MM_Play_ConsumeStartupEntrance`, the one place after every boot-chain wipe
+   > and before the save is interpreted).
+   >
+   > The same issue produced the mirror-image bug for `COND_HOOK` types: the
+   > boot chain's `OnSaveLoad` dispatch **disarms** every `IS_RANDO` hook
+   > (it runs against a vanilla bootstrap file), so a hook can be correctly
+   > registered, correctly dispatched, and still be *unregistered* by an
+   > earlier dispatch on the same path. Any `COND_*` condition read off save
+   > state needs a re-dispatch once the final save is known.
+
 The ODR/linker prep is **already paid for** (#415 shim + poison guard, #422 rando
 reachability, #434 S2H UIWidgets). What remains is surface work, and it decomposes far
 better than expected: **trackers are nearly free; the settings menu is the expensive

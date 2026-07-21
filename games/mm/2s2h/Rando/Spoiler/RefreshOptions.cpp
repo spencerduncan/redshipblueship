@@ -1,6 +1,7 @@
 #include "Spoiler.h"
 #include <libultraship/bridge/consolevariablebridge.h>
 #include <filesystem>
+#include <cstdio>
 #include "BenPort.h"
 
 #include <libultraship/libultra/types.h>
@@ -13,9 +14,12 @@ std::vector<std::string> Rando::Spoiler::spoilerOptions;
 // creates the shared Ship::Context — killing the exe at boot. A
 // function-local static defers the call to first use, which is always after
 // context bring-up (MM_Rando_Init or the spoiler read/write paths).
+//
+// The path itself now comes from Rando::Spoiler::SpoilerDirectory() (#439) so
+// this listing and the read/write paths can never disagree about where MM
+// spoilers live — they did, and the write path landed nowhere findable.
 static const std::filesystem::path& GetRandomizerFolderPath() {
-    static const std::filesystem::path randomizerFolderPath(
-        Ship::Context::GetPathRelativeToAppDirectory("randomizer", appShortName));
+    static const std::filesystem::path randomizerFolderPath(Rando::Spoiler::SpoilerDirectory());
     return randomizerFolderPath;
 }
 
@@ -27,9 +31,20 @@ void Rando::Spoiler::RefreshOptions() {
     Rando::Spoiler::spoilerOptions.push_back("Generate New Seed");
     s32 spoilerFileIndex = -1;
 
-    // ensure the randomizer folder exists
+    // ensure the randomizer folder exists (SpoilerDirectory already creates it
+    // recursively; this covers a folder deleted after first use)
     if (!std::filesystem::exists(GetRandomizerFolderPath())) {
-        std::filesystem::create_directory(GetRandomizerFolderPath());
+        std::error_code ec;
+        std::filesystem::create_directories(GetRandomizerFolderPath(), ec);
+        if (ec) {
+            // "Generate New Seed" is already in the list; leave it as the only
+            // option rather than letting directory_iterator throw.
+            fprintf(stderr, "[MM] spoiler: cannot create spoiler directory '%s' (%s)\n",
+                    GetRandomizerFolderPath().string().c_str(), ec.message().c_str());
+            CVarSetInteger("gRando.SpoilerFileIndex", 0);
+            CVarSetString("gRando.SpoilerFile", "");
+            return;
+        }
     }
 
     // Add all files in the randomizer folder to the list of spoiler options

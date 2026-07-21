@@ -415,6 +415,33 @@ TestResult Test_MMRandoGen(void) {
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// Switch-entry activation lock (#439). MMRandoGen drives the OnSaveInit chain
+// directly; this row drives the path a player actually takes — the cold
+// gamestate-chain boot a cross-game switch performs, then the real
+// MM_Play_ConsumeStartupEntrance consumption point — and additionally locks
+// that an EXISTING MM save (vanilla or paired) is never regenerated. Bridge
+// body in games/mm/2s2h/mm_rando_gen_test.cpp. Needs a display, same as
+// mm-rando-gen, so `--test all` skips it.
+extern "C" int MM_Rando_HeadlessPairSwitchEntry(void);
+
+TestResult Test_MMPairSwitchEntry(void) {
+    printf("[TEST] mm-pair-switch-entry: paired MM world activates through the switch-entry path (#439)\n");
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    int rc = MM_Rando_HeadlessPairSwitchEntry();
+    printf("[TEST] %s: switch-entry pairing rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 TestResult Test_BootMM(void) {
     printf("[TEST] boot-mm: MM-first bring-up prerequisites (#330)\n");
     sTargetGame = GAME_MM;
@@ -988,6 +1015,11 @@ const TestDescriptor gTests[] = {
     // Lane C0: MM's randomizer is reachable and generates headlessly. Needs a
     // display like rando-gen, so `--test all` skips it (below).
     {"mm-rando-gen", "MM rando generation runs headlessly + writes tagged spoiler (Lane C0)", Test_MMRandoGen},
+    // #439: the paired world must activate on the SWITCH-ENTRY path (the only
+    // flow a player actually takes), not just the direct OnSaveInit chain.
+    // Same display requirement as mm-rando-gen, so `--test all` skips it.
+    {"mm-pair-switch-entry", "Paired MM world activates via switch-entry; existing saves untouched (#439)",
+     Test_MMPairSwitchEntry},
     {"boot-oot", "Shared-context bring-up leaves no null subsystems (#329)", Test_BootOoT},
     {"boot-mm", "MM-first bring-up prerequisites on the shared context (#330)", Test_BootMM},
     {"switch-oot-mm", "Test game switch OoT -> MM", Test_SwitchOoTMM},
@@ -1120,7 +1152,8 @@ int TestRunner_Run(const char* testName) {
             // their own CTests ("rando" label, under xvfb-run) rather than in
             // this display-free suite, where they would hang the 60s timeout.
             if (strcmp(gTests[i].name, "rando-gen") == 0 || strcmp(gTests[i].name, "rando-determinism") == 0 ||
-                strcmp(gTests[i].name, "mm-rando-gen") == 0) {
+                strcmp(gTests[i].name, "mm-rando-gen") == 0 ||
+                strcmp(gTests[i].name, "mm-pair-switch-entry") == 0) {
                 printf("\n--- Skipping: %s (needs display; runs as a rando-label CTest) ---\n", gTests[i].name);
                 continue;
             }

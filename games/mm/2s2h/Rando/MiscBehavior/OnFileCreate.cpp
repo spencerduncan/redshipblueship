@@ -247,16 +247,31 @@ void Rando::MiscBehavior::OnFileCreate(s16 fileNum) {
 #endif
 
                 if (CVarGetInteger("gRando.GenerateSpoiler", 1)) {
-                    nlohmann::json spoiler = Rando::Spoiler::GenerateFromSaveContext();
-                    spoiler["inputSeed"] = inputSeed;
+                    // The spoiler is a REPORT of the world, not part of it: the
+                    // fill above already succeeded and the save already holds a
+                    // complete, playable world. Before #439 a filesystem
+                    // failure here (missing directory, read-only install)
+                    // propagated to the outer catch, which reverts the save to
+                    // vanilla — turning "could not write a log file" into
+                    // "your paired world silently did not happen". Contain it:
+                    // log loudly, keep the world.
+                    try {
+                        nlohmann::json spoiler = Rando::Spoiler::GenerateFromSaveContext();
+                        spoiler["inputSeed"] = inputSeed;
 
-                    std::string fileName = inputSeed + ".json";
-                    Rando::Spoiler::SaveToFile(fileName, spoiler);
+                        std::string fileName = inputSeed + ".json";
+                        Rando::Spoiler::SaveToFile(fileName, spoiler);
 
-                    if (hadInputSeed) {
-                        CVarSetString("gRando.SpoilerFile", fileName.c_str());
+                        if (hadInputSeed) {
+                            CVarSetString("gRando.SpoilerFile", fileName.c_str());
+                        }
+                        Rando::Spoiler::RefreshOptions();
+                    } catch (const std::exception& e) {
+                        SPDLOG_ERROR("Spoiler write failed (world is still valid): {}", e.what());
+                        fprintf(stderr, "[MM] spoiler: NOT written — %s (the generated world is unaffected)\n",
+                                e.what());
+                        fflush(stderr);
                     }
-                    Rando::Spoiler::RefreshOptions();
                 }
 
                 Audio_PlaySfx(NA_SE_SY_ATTENTION_SOUND);
