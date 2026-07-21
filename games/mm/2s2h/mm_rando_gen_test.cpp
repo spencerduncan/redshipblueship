@@ -110,6 +110,28 @@ extern "C" int MM_Rando_HeadlessGenTest(void) {
         fprintf(stderr, "[MM-RANDO-GEN] seed %s dead-ended (fill threw); trying next\n", seed);
     }
     if (usedSeed == NULL) {
+        // Diagnostic block for the persistent RC_DEKU_KINGS_CHAMBER_MONKEY
+        // dead-end: evaluate the exact condition atoms outside the fill.
+        // Post-throw, the fill restored gSaveContext to its pre-fill state
+        // (Sram new-save + granted starting items).
+        fprintf(stderr, "[MM-RANDO-GEN][diag] HAS_ITEM(OCARINA)=%d HAS_ITEM(MASK_DEKU)=%d\n",
+                INV_CONTENT(ITEM_OCARINA_OF_TIME) == ITEM_OCARINA_OF_TIME,
+                INV_CONTENT(ITEM_MASK_DEKU) == ITEM_MASK_DEKU);
+        Rando::GiveItem(RI_MASK_DEKU);
+        fprintf(stderr, "[MM-RANDO-GEN][diag] after GiveItem(RI_MASK_DEKU): HAS_ITEM(MASK_DEKU)=%d (slot=%u val=%u)\n",
+                INV_CONTENT(ITEM_MASK_DEKU) == ITEM_MASK_DEKU, (unsigned)MM_gItemSlots[ITEM_MASK_DEKU],
+                (unsigned)INV_CONTENT(ITEM_MASK_DEKU));
+        auto holdingCellIt = Rando::Logic::Regions.find(RR_DEKU_KINGS_CHAMBER_HOLDING_CELL);
+        if (holdingCellIt != Rando::Logic::Regions.end()) {
+            for (auto& [checkId, checkLogic] : holdingCellIt->second.checks) {
+                if (checkId == RC_DEKU_KINGS_CHAMBER_MONKEY) {
+                    fprintf(stderr, "[MM-RANDO-GEN][diag] monkey check condition evaluates: %d\n",
+                            (int)checkLogic.first());
+                }
+            }
+        } else {
+            fprintf(stderr, "[MM-RANDO-GEN][diag] RR_DEKU_KINGS_CHAMBER_HOLDING_CELL region MISSING from graph\n");
+        }
         fprintf(stderr, "[MM-RANDO-GEN] FAIL(3): every seed attempt dead-ended — generation machinery broken\n");
         return 3;
     }
