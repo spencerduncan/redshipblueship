@@ -50,6 +50,7 @@
 #include "2s2h/Rando/CheckTracker/CheckTracker.h"
 #include "2s2h/Enhancements/Trackers/ItemTracker/ItemTracker.h"
 #include "2s2h/Enhancements/Trackers/ItemTracker/ItemTrackerSettings.h"
+#include "2s2h/DeveloperTools/SaveEditor.h"
 #include "2s2h/ShipUtils.h"
 
 #include "context.h" // src/common — Context_GetCurrentGame / GameId
@@ -69,6 +70,71 @@ std::shared_ptr<Rando::CheckTracker::SettingsWindow> mRandoCheckTrackerSettingsW
 std::shared_ptr<ItemTrackerWindow> mItemTrackerWindow;
 std::shared_ptr<ItemTrackerSettingsWindow> mItemTrackerSettingsWindow;
 } // namespace BenGui
+
+/**
+ * Single-exe home for SaveEditor.cpp's safe-item table (the
+ * SaveEditorTimeSingleExe.cpp pattern). Upstream defines
+ * safeItemsForInventorySlot and populates it from
+ * SaveEditorWindow::InitElement — both in the excluded DeveloperTools TU —
+ * and the item tracker reads slot [0] as the vanilla-icon fallback for empty
+ * inventory slots. Declaration comes from DeveloperTools/SaveEditor.h (the
+ * S2H-wrapped header the tracker TUs reach through UIWidgets.hpp), so the
+ * definition below is compiler-checked against the extern the trackers bind.
+ * If upstream 2S2H changes initSafeItemsForInventorySlot, re-sync this copy
+ * (provenance: SaveEditor.cpp, upstream shape as of this port).
+ */
+namespace S2H {
+std::vector<ItemId> safeItemsForInventorySlot[SLOT_MASK_FIERCE_DEITY + 1] = {};
+} // namespace S2H
+
+namespace {
+
+// Verbatim port of SaveEditor.cpp's initSafeItemsForInventorySlot, plus an
+// idempotence guard (upstream relies on GuiElement::Init's once-only; here
+// RegisterWindows is the single caller, but a re-run must not duplicate).
+void InitSafeItemsForInventorySlot() {
+    static bool sInitialized = false;
+    if (sInitialized) {
+        return;
+    }
+    sInitialized = true;
+
+    for (int i = 0; i < sizeof(MM_gItemSlots); i++) {
+        InventorySlot slot = static_cast<InventorySlot>(MM_gItemSlots[i]);
+        switch (slot) {
+            case SLOT_BOTTLE_1:
+                if (i != ITEM_LONGSHOT) { // No longshot in bottles
+                    safeItemsForInventorySlot[SLOT_BOTTLE_1].push_back(static_cast<ItemId>(i));
+                    safeItemsForInventorySlot[SLOT_BOTTLE_2].push_back(static_cast<ItemId>(i));
+                    safeItemsForInventorySlot[SLOT_BOTTLE_3].push_back(static_cast<ItemId>(i));
+                    safeItemsForInventorySlot[SLOT_BOTTLE_4].push_back(static_cast<ItemId>(i));
+                    safeItemsForInventorySlot[SLOT_BOTTLE_5].push_back(static_cast<ItemId>(i));
+                    safeItemsForInventorySlot[SLOT_BOTTLE_6].push_back(static_cast<ItemId>(i));
+                }
+                break;
+            case SLOT_BOW:
+                if (i == ITEM_BOW) { // No elemental bows here
+                    safeItemsForInventorySlot[slot].push_back(static_cast<ItemId>(i));
+                }
+                break;
+            case SLOT_TRADE_KEY_MAMA:
+                if (i != ITEM_SLINGSHOT) { // No slingshot in trade items
+                    safeItemsForInventorySlot[slot].push_back(static_cast<ItemId>(i));
+                }
+                break;
+            case SLOT_TRADE_DEED:
+                if (i != ITEM_OCARINA_FAIRY) { // No fairy ocarina in trade items
+                    safeItemsForInventorySlot[slot].push_back(static_cast<ItemId>(i));
+                }
+                break;
+            default:
+                safeItemsForInventorySlot[slot].push_back(static_cast<ItemId>(i));
+                break;
+        }
+    }
+}
+
+} // namespace
 
 namespace {
 
@@ -114,6 +180,11 @@ void RegisterWindows(std::shared_ptr<Ship::Gui> gui) {
     if (gui->GetGuiWindow(kCheckTrackerWindowName) != nullptr) {
         return;
     }
+
+    // The item tracker's vanilla-icon fallback indexes [0] of each slot's
+    // safe-item list; populate it before any window can draw (upstream did
+    // this from the excluded SaveEditorWindow::InitElement).
+    InitSafeItemsForInventorySlot();
 
     // CVar names and sizes mirror BenGui.cpp::SetupGuiElements; only the
     // registration names carry the "MM " prefix (SoH owns the unprefixed
