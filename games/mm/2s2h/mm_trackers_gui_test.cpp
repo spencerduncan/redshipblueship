@@ -203,7 +203,7 @@ extern "C" int MM_TrackersGui_RunHeadless(void) {
     // Cleanup: don't leak forced-visible tracker CVars into later tests or a
     // saved cvar file.
     for (const char* cvar : kMMWindowVisibilityCVars) {
-        CVarClearVariable(cvar);
+        CVarClear(cvar);
     }
 
     printf("[TEST] PASS: mm-trackers-gui — four MM tracker windows register under de-collided names beside "
