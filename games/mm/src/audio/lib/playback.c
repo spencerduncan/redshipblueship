@@ -110,7 +110,11 @@ void AudioPlayback_InitSampleState(Note* note, NoteSampleState* sampleState, Not
     velocity = 0.0f > velocity ? 0.0f : velocity;
     velocity = 1.0f < velocity ? 1.0f : velocity;
 
-    float master_vol = CVarGetFloat("gSettings.Audio.MasterVolume", 1.0f);
+    // RSBS: one master volume for both games (ADR 0003 §5.1). OoT stores this
+    // key as integer percent, so read it the way OoT's audio_playback.c does —
+    // CVarGetFloat on an Integer-typed CVar returns the default and the slider
+    // would silently never apply. Canonical spelling: src/common/cvar_shared_keys.h
+    float master_vol = (float)CVarGetInteger("gSettings.Volume.Master", 40) / 100.0f;
     sampleState->targetVolLeft = (s32)((velocity * volLeft) * (0x1000 - 0.001f)) * master_vol;
     sampleState->targetVolRight = (s32)((velocity * volRight) * (0x1000 - 0.001f)) * master_vol;
 

@@ -123,11 +123,17 @@ void MM_AudioMgr_Init(AudioMgr* audioMgr, void* stack, OSPri pri, OSId id, Sched
     MM_Audio_InitSound();
     MM_osSendMesg(&audioMgr->lockQueue, OS_MESG_PTR(NULL), OS_MESG_BLOCK);
 
-    AudioSeq_SetPortVolumeScale(SEQ_PLAYER_BGM_MAIN, CVarGetFloat("gSettings.Audio.MainMusicVolume", 1.0f));
-    AudioSeq_SetPortVolumeScale(SEQ_PLAYER_BGM_SUB, CVarGetFloat("gSettings.Audio.SubMusicVolume", 1.0f));
-    AudioSeq_SetPortVolumeScale(SEQ_PLAYER_SFX, CVarGetFloat("gSettings.Audio.SoundEffectsVolume", 1.0f));
-    AudioSeq_SetPortVolumeScale(SEQ_PLAYER_FANFARE, CVarGetFloat("gSettings.Audio.FanfareVolume", 1.0f));
-    AudioSeq_SetPortVolumeScale(SEQ_PLAYER_AMBIENCE, CVarGetFloat("gSettings.Audio.AmbienceVolume", 1.0f));
+    // RSBS: the volume sliders are one setting across both games (ADR 0003
+    // §5.1), spelled OoT-style and stored as integer percent. Reading these
+    // with CVarGetFloat would return the default forever, because libultraship
+    // returns the default on a CVar type mismatch. Canonical spellings live in
+    // src/common/cvar_shared_keys.h. Ambience has no OoT twin but keeps the
+    // family spelling so OoT can adopt it if it ever gains the channel.
+    AudioSeq_SetPortVolumeScale(SEQ_PLAYER_BGM_MAIN, (float)CVarGetInteger("gSettings.Volume.MainMusic", 100) / 100.0f);
+    AudioSeq_SetPortVolumeScale(SEQ_PLAYER_BGM_SUB, (float)CVarGetInteger("gSettings.Volume.SubMusic", 100) / 100.0f);
+    AudioSeq_SetPortVolumeScale(SEQ_PLAYER_SFX, (float)CVarGetInteger("gSettings.Volume.SFX", 100) / 100.0f);
+    AudioSeq_SetPortVolumeScale(SEQ_PLAYER_FANFARE, (float)CVarGetInteger("gSettings.Volume.Fanfare", 100) / 100.0f);
+    AudioSeq_SetPortVolumeScale(SEQ_PLAYER_AMBIENCE, (float)CVarGetInteger("gSettings.Volume.Ambience", 100) / 100.0f);
 
     // MM_osCreateThread(&audioMgr->thread, id, MM_AudioMgr_ThreadEntry, audioMgr, stack, pri);
     // MM_osStartThread(&audioMgr->thread);

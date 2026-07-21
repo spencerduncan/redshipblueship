@@ -488,7 +488,7 @@ void OTRAudio_Thread() {
         s16 audio_buffer[SAMPLES_HIGH * NUM_AUDIO_CHANNELS * 3];
         for (int i = 0; i < AUDIO_FRAMES_PER_UPDATE; i++) {
             MM_AudioMgr_CreateNextAudioBuffer(audio_buffer + i * (num_audio_samples * NUM_AUDIO_CHANNELS),
-                                           num_audio_samples);
+                                              num_audio_samples);
         }
 
         AudioPlayer_Play((u8*)audio_buffer,
@@ -1839,21 +1839,25 @@ Color_RGB8 GetColorForControllerLED() {
         LEDColorSource source =
             static_cast<LEDColorSource>(CVarGetInteger("gLedColorSource", LED_SOURCE_TUNIC_ORIGINAL));
         bool criticalOverride = CVarGetInteger("gLedCriticalOverride", 1);
+        // RSBS: MM was stranded on OoT's PRE-MIGRATION spelling (Link_XTunic),
+        // which OoT retired in its own v3 config table — so the user's OoT
+        // tunic colours never reached MM. Converged onto OoT's live spelling
+        // per ADR 0003 §5.1; canonical keys in src/common/cvar_shared_keys.h.
         if (MM_gPlayState && (source == LED_SOURCE_TUNIC_ORIGINAL || source == LED_SOURCE_TUNIC_COSMETICS)) {
             switch (CUR_EQUIP_VALUE(EQUIP_TUNIC) - 1) {
                 case PLAYER_TUNIC_KOKIRI:
                     color = source == LED_SOURCE_TUNIC_COSMETICS
-                                ? CVarGetColor24("gCosmetics.Link_KokiriTunic.Value", kokiriColor)
+                                ? CVarGetColor24("gCosmetics.Link.KokiriTunic.Value", kokiriColor)
                                 : kokiriColor;
                     break;
                 case PLAYER_TUNIC_GORON:
                     color = source == LED_SOURCE_TUNIC_COSMETICS
-                                ? CVarGetColor24("gCosmetics.Link_GoronTunic.Value", goronColor)
+                                ? CVarGetColor24("gCosmetics.Link.GoronTunic.Value", goronColor)
                                 : goronColor;
                     break;
                 case PLAYER_TUNIC_ZORA:
                     color = source == LED_SOURCE_TUNIC_COSMETICS
-                                ? CVarGetColor24("gCosmetics.Link_ZoraTunic.Value", zoraColor)
+                                ? CVarGetColor24("gCosmetics.Link.ZoraTunic.Value", zoraColor)
                                 : zoraColor;
                     break;
             }
@@ -2175,8 +2179,8 @@ static void MM_InitFirstEntrySaveContext(ComboContext* ctx) {
         gSaveContext.save.isFirstCycle = true;
 
         // Set required flags for rando start (Tatl acquired, etc.)
-        SET_WEEKEVENTREG(WEEKEVENTREG_59_04);  // Tatl flag 1
-        SET_WEEKEVENTREG(WEEKEVENTREG_31_04);  // Tatl flag 2
+        SET_WEEKEVENTREG(WEEKEVENTREG_59_04); // Tatl flag 1
+        SET_WEEKEVENTREG(WEEKEVENTREG_31_04); // Tatl flag 2
 
         // Happy Mask Salesman cutscene flag
         gSaveContext.save.saveInfo.permanentSceneFlags[SCENE_INSIDETOWER].switch0 |= (1 << 0);
@@ -2222,8 +2226,7 @@ void MM_FreezeState(ComboContext* ctx) {
         ctx->sharedRandoSeed = gSaveContext.save.shipSaveInfo.rando.finalSeed;
     }
 
-    fprintf(stderr, "[MM] State frozen, return entrance: 0x%04X, isRando: %d\n",
-            returnEntrance, ctx->sourceIsRando);
+    fprintf(stderr, "[MM] State frozen, return entrance: 0x%04X, isRando: %d\n", returnEntrance, ctx->sourceIsRando);
 }
 
 /**

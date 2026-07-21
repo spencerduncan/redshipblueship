@@ -74,6 +74,10 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/game_lifecycle.h
     ${CMAKE_SOURCE_DIR}/src/common/SharedGraphics.h
     ${CMAKE_SOURCE_DIR}/src/common/save.h
+    # The cross-game CVar classification manifest (ADR 0003 + the
+    # enhancement-classification inventory), consumed by OoT's version-7
+    # config updater, the 2Ship importer, and the classification lock.
+    ${CMAKE_SOURCE_DIR}/src/common/cvar_shared_keys.h
 )
 
 # ============================================================================
@@ -106,6 +110,13 @@ target_link_libraries(redship_common PUBLIC
 
 # Define COMBO_BUILDING_DLL so SharedGraphics exports symbols with __declspec(dllexport)
 target_compile_definitions(redship_common PRIVATE COMBO_BUILDING_DLL)
+
+# The CVar classification lock (--test cvar-classification, #34) scans games/
+# for retired and must-stay-distinct key literals, so it needs to find the
+# source tree at runtime. The test degrades to a loud WARNING (not a silent
+# pass) when the path is absent, which is what happens if the binary is run
+# from a relocated artifact rather than its build tree.
+target_compile_definitions(redship_common PRIVATE RSBS_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 
 set_target_properties(redship_common PROPERTIES
     CXX_STANDARD 20
@@ -276,6 +287,13 @@ if(BUILD_TESTING)
     # write pointer (WRITE AV at 0xA7, first HUD-visible MM frame — caught by
     # int-gameplay-roundtrip on the OoT->MM leg).
     redship_add_test(NAME CosmeticGfxStub COMMAND redship --test cosmetic-gfx-stub)
+    # Cross-game CVar classification lock (#34). Keeps ADR 0003 and
+    # docs/enhancement-classification.md from decaying into prose: fails when a
+    # converged key diverges again, OR when a key the inventory marks per-game
+    # gets merged because the names looked equivalent. The second direction is
+    # the dangerous one — merging OoT's 1-5x text-speed slider with MM's
+    # boolean yields a control that persists a value and does nothing.
+    redship_add_test(NAME CVarClassification COMMAND redship --test cvar-classification)
     redship_add_test(NAME Roundtrip COMMAND redship --test roundtrip)
     redship_add_test(NAME RoundtripIntegrity COMMAND redship --test roundtrip-integrity)
     redship_add_test(NAME SharedRoundtrip COMMAND redship --test shared-roundtrip)

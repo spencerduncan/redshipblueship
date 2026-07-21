@@ -135,6 +135,13 @@ extern "C" {
 // MAX_AUTHENTIC_SEQID). Pure arithmetic — no audio subsystem, no archives.
 #include "tests/test_seq_map_bounds.c"
 
+// Cross-game CVar classification lock (#34, ADR 0003 §6.5 + the
+// enhancement-classification inventory). Manifest self-consistency, the
+// migrator's pure decision rules, and a source scan over games/ that catches
+// drift in BOTH directions — a converged key diverging again, and a per-game
+// key being merged because the names looked equivalent.
+#include "tests/test_cvar_classification.c"
+
 // Active-thread-queue contract (issue #385). soh/stubs.c's empty-bodied
 // __osGetActiveQueue fed a return register to the crash handler's thread walk
 // (fault.c:537). Included at FILE SCOPE like the rest; declares the C-linkage
@@ -1061,6 +1068,8 @@ const TestDescriptor gTests[] = {
      Test_SaveTaggedItems},
     {"mm-scene-parse", "MM scene commands parse via the S2H factory (#344)", Test_MMSceneParse},
     {"seq-map-bounds", "Sequence-map capacity covers the id range + custom slack (#371, #378)", Test_SeqMapBounds},
+    {"cvar-classification", "Cross-game CVar classification matches ADR 0003 + the inventory (#34)",
+     Test_CVarClassification},
     {"active-queue", "__osGetActiveQueue returns a walkable list, not a return register (#385)", Test_ActiveQueue},
     {"oot-audio-init-guard", "OoT synth no-ops while gAudioContextInitalized == false (#365)", Test_OoTAudioInitGuard},
     {"gp-watchdog", "Gameplay round-trip watchdog is wall-clock budgeted, can fire before the timeout (#376)",
