@@ -270,6 +270,11 @@ void RegisterSavingEnhancements() {
     S2H::GameHooks::Register<GameInteractor::BeforeMoonCrashSaveReset>([]() { DeleteOwlSave(); });
 
     S2H::GameHooks::Register<GameInteractor::OnSaveLoad>(loadRespawnData);
+
+    // TEMPORARY #442 red-then-green guard proof: a raw registration site
+    // reintroduced into this now-guarded file must fail to compile. Reverted
+    // before merge; see the PR for the CI run this produced.
+    GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameCompletion>([]() {});
 }
 
 void RegisterAutosave() {
