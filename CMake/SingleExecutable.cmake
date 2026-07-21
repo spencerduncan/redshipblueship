@@ -228,6 +228,13 @@ if(BUILD_TESTING)
     # TIMEOUT inherits REDSHIP_TEST_TIMEOUT.
     set(REDSHIP_TEST_TIMEOUT 60 CACHE STRING "Test timeout in seconds")
     set(REDSHIP_INTEGRATION_TEST_TIMEOUT 120 CACHE STRING "Integration test timeout in seconds")
+    # The gameplay round-trip repro and its multi-cycle soak run far longer than
+    # a boot check, so they keep their own knobs rather than the shared
+    # integration value — but they are STILL cache variables, not literals baked
+    # into the rows (#376 item 5): raising REDSHIP_INTEGRATION_TEST_TIMEOUT to
+    # debug a slow runner used to leave the two longest tests untouched.
+    set(REDSHIP_GAMEPLAY_TEST_TIMEOUT 300 CACHE STRING "Gameplay round-trip integration test timeout in seconds")
+    set(REDSHIP_GAMEPLAY_SOAK_TIMEOUT 900 CACHE STRING "Gameplay round-trip soak (multi-cycle) test timeout in seconds")
 
     # A test source that is never #included compiles into nothing and can never
     # run. The glob notices the file; this asserts it is actually wired in.
@@ -330,6 +337,12 @@ if(BUILD_TESTING)
     # it the no-op the thread's silence contract already assumes. Locks the
     # no-op via the producer's task counter (see test_oot_audio_init_guard.c).
     redship_add_test(NAME OoTAudioInitGuard COMMAND redship --test oot-audio-init-guard)
+    # Gameplay round-trip phase watchdog (#376 item 4). The round-trip repro it
+    # guards is ROM-gated, but the watchdog decision is pure — this row proves,
+    # ROM-free, that the budget is wall-clock and stays under the CTest TIMEOUT
+    # so its diagnostic dump can fire before the hard wall-clock kill (the old
+    # frame budget of 4080 frames could not).
+    redship_add_test(NAME GpWatchdog COMMAND redship --test gp-watchdog)
     # Active-thread-queue contract (#385). soh/stubs.c's empty-bodied
     # __osGetActiveQueue returned the return register, and both games' fault
     # handlers walk that as a thread list — so the crash handler was itself
@@ -486,17 +499,19 @@ if(BUILD_TESTING)
     # matrix can sweep scenes without new CTest rows. The soak variant runs
     # three round trips before the warp.
     #
-    # These two carry their own timeouts rather than the shared integration
+    # These two carry their own timeout knobs rather than the shared integration
     # value: the repro is far longer than a boot check, and the soak runs it
-    # three times over.
+    # three times over. Both are cache variables (see above), so a slow runner
+    # can be debugged by raising REDSHIP_GAMEPLAY_TEST_TIMEOUT /
+    # REDSHIP_GAMEPLAY_SOAK_TIMEOUT instead of editing these rows (#376 item 5).
     redship_add_test(NAME IntGameplayRoundtrip
         COMMAND redship --integration-test int-gameplay-roundtrip
         LABEL integration
-        TIMEOUT 300)
+        TIMEOUT ${REDSHIP_GAMEPLAY_TEST_TIMEOUT})
     redship_add_test(NAME IntGameplayRoundtripSoak
         COMMAND redship --integration-test int-gameplay-roundtrip
         LABEL integration-soak
-        TIMEOUT 900
+        TIMEOUT ${REDSHIP_GAMEPLAY_SOAK_TIMEOUT}
         ENVIRONMENT "RSBS_GP_CYCLES=3")
 
     # Must come after every redship_add_test()/redship_test_exempt() above —

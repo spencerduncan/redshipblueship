@@ -90,7 +90,7 @@ jobs:
       if: steps.rsbs-otr-cache.outputs.cache-hit != 'true'
       run: |
         export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
-        cmake --no-warn-unused-cli -H. -Bbuild-cmake -GNinja -DCMAKE_BUILD_TYPE:STRING=Release -DREDSHIP_BUILD_SHARED=ON
+        cmake --no-warn-unused-cli -H. -Bbuild-cmake -GNinja -DCMAKE_BUILD_TYPE:STRING=Release
         cmake --build build-cmake --config Release --target GenerateSohOtr Generate2ShipOtr -j10
     - name: Upload soh.o2r
       uses: actions/upload-artifact@v4
@@ -172,7 +172,7 @@ jobs:
     - name: Build SoH
       run: |
         export PATH="/usr/lib/ccache:/opt/homebrew/opt/ccache/libexec:/usr/local/opt/ccache/libexec:$PATH"
-        cmake --no-warn-unused-cli -H. -Bbuild-cmake -GNinja -DCMAKE_BUILD_TYPE:STRING=Release -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" -DBUILD_REMOTE_CONTROL=1 -DREDSHIP_BUILD_SHARED=ON
+        cmake --no-warn-unused-cli -H. -Bbuild-cmake -GNinja -DCMAKE_BUILD_TYPE:STRING=Release -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" -DBUILD_REMOTE_CONTROL=1
         cmake --build build-cmake --config Release --parallel 10
         (cd build-cmake && cpack)
 
@@ -266,7 +266,7 @@ jobs:
     - name: Build SoH
       run: |
         export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
-        cmake --no-warn-unused-cli -H. -Bbuild-cmake -GNinja -DCMAKE_BUILD_TYPE:STRING=Release -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DBUILD_REMOTE_CONTROL=1 -DREDSHIP_BUILD_SHARED=ON
+        cmake --no-warn-unused-cli -H. -Bbuild-cmake -GNinja -DCMAKE_BUILD_TYPE:STRING=Release -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DBUILD_REMOTE_CONTROL=1
         cmake --build build-cmake --config Release -j10
       env:
         CC: gcc-11
@@ -433,7 +433,7 @@ jobs:
         VCPKG_ROOT: ${{github.workspace}}/vcpkg
       run: |
         $env:PATH="$env:USERPROFILE/.cargo/bin;$env:PATH"
-        cmake -S . -B bw -G Ninja -DCMAKE_MAKE_PROGRAM=ninja -DCMAKE_BUILD_TYPE:STRING=Release -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache -DBUILD_REMOTE_CONTROL=1 -DREDSHIP_BUILD_SHARED=ON -DUSE_LLD_LINKER=ON
+        cmake -S . -B bw -G Ninja -DCMAKE_MAKE_PROGRAM=ninja -DCMAKE_BUILD_TYPE:STRING=Release -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache -DBUILD_REMOTE_CONTROL=1 -DUSE_LLD_LINKER=ON
     # Zero sccache stats before the build so the post-build "show-stats" reflects
     # ONLY this run's cache deltas (without it, hendrikmuhs/ccache-action reports
     # lifetime stats including the previous run that warmed the cache, which can

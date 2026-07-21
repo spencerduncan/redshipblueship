@@ -326,7 +326,7 @@ can iterate fix→build→repro→observe with no gameplay skill involved.
 
 ```bash
 git submodule update --init
-cmake -B build-cmake -S . -GNinja -DCMAKE_BUILD_TYPE:STRING=Release -DREDSHIP_BUILD_SHARED=ON
+cmake -B build-cmake -S . -GNinja -DCMAKE_BUILD_TYPE:STRING=Release
 cmake --build build-cmake --config Release --parallel
 # One-time asset staging (needs OTRExporter/oot.z64 and OTRExporter/mm.z64):
 cmake --build build-cmake --target ExtractAssets ExtractMMAssets
