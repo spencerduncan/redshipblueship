@@ -80,11 +80,16 @@ check_archive "$BUILD_DIR/games/mm/lib2ship_rando_ui.a" report-only
 # false-negative on folded std::string constructions); the spoiler tag is a
 # plain string literal, checked with strings as the belt-and-braces probe the
 # Lane C0 brief calls for.
-if ! nm --demangle "$BIN" 2>/dev/null | grep -q "Rando::Spoiler::GenerateFromSaveContext"; then
+#
+# NOT `grep -q`: this script runs under pipefail, and -q exits at the first
+# match while nm/strings are still writing — the producer dies with SIGPIPE
+# (141), pipefail reports the pipeline failed, and a FOUND symbol reads as
+# missing. Plain grep with discarded stdout consumes the stream to EOF.
+if ! nm --demangle "$BIN" 2>/dev/null | grep "Rando::Spoiler::GenerateFromSaveContext" > /dev/null; then
     echo "FAIL: Rando::Spoiler::GenerateFromSaveContext missing from redship — 2ship_rando was elided (#392)" >&2
     overall=1
 fi
-if ! strings "$BIN" 2>/dev/null | grep -q "2S2H_RANDO_SPOILER"; then
+if ! strings "$BIN" 2>/dev/null | grep "2S2H_RANDO_SPOILER" > /dev/null; then
     echo "FAIL: 2S2H_RANDO_SPOILER tag missing from redship — MM spoiler writer not linked (#392)" >&2
     overall=1
 fi
