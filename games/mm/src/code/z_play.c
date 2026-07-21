@@ -68,6 +68,14 @@ extern int Combo_ConsumeFrozenState(const char* gameId, void* saveContext, size_
 // SharedItem/GameId types.
 extern void MM_ConsumeSharedItems(void);
 
+// Paired-world activation on the switch-entry path (#439). Defined in
+// games/mm/2s2h/GameExports_SingleExe.cpp so this TU stays free of the Rando
+// C++ surface. Dispatches OnSaveInit (the generation entry point) when a live
+// paired OoT rando world exists AND this MM entry is creating the bootstrap
+// save rather than restoring the player's own. See its doc comment for why
+// the file-select-only dispatch left the natural flow unpaired.
+extern void MM_Rando_PairOnCrossGameArrival(int hadFrozenState);
+
 s32 MM_gDbgCamEnabled = false;
 u8 D_801D0D54 = false;
 
@@ -2291,7 +2299,16 @@ void MM_Play_ConsumeStartupEntrance(void) {
     // player back (#364). Retiring it here makes "frozen state exists" mean
     // "MM was left and has not been returned to", which is the only condition
     // the restore is valid for. A first MM entry has no frozen state — no-op.
-    Combo_ConsumeFrozenState("mm", &gSaveContext, sizeof(gSaveContext));
+    int hadFrozenState = Combo_ConsumeFrozenState("mm", &gSaveContext, sizeof(gSaveContext));
+    // Paired-world activation (#439). Runs HERE — after the restore, before
+    // the arrival spawn is armed below — for two reasons. (a) It needs to know
+    // whether the save under it is the player's restored session (never
+    // regenerate) or the boot chain's throwaway bootstrap file (the MM half of
+    // the paired world). (b) Generation authors its own start state
+    // (SOUTH_CLOCK_TOWN, cutsceneIndex 0, Tatl flags); running it before the
+    // arrival block means the cross-game arrival state always wins, exactly as
+    // it does over a restored frozen save.
+    MM_Rando_PairOnCrossGameArrival(hadFrozenState);
     gSaveContext.save.entrance = startupEntrance;
     // On a first MM entry this Play_Init is reached through MM's
     // title-screen boot (TitleSetup_SetupTitleScreen), so the save
@@ -2379,6 +2396,24 @@ void MM_Play_ConsumeStartupEntrance(void) {
     // load — un-redeemed items then wait for the next switch into MM.
     MM_ConsumeSharedItems();
     Combo_ClearStartupEntrance();
+
+    // Re-arm the save-shape-dependent hooks against the save that actually
+    // reaches gameplay (#439, second half of the same dispatch gap).
+    //
+    // Rando's behavior hooks are COND_HOOKs re-evaluated on every OnSaveLoad
+    // (Rando.cpp OnSaveLoadHandler -> Rando::MiscBehavior::OnFileLoad et al.,
+    // plus ShipInit::Init("IS_RANDO")); the condition is IS_RANDO, read off
+    // gSaveContext.save.shipSaveInfo.saveType. The cold gamestate-chain boot
+    // dispatches OnSaveLoad from TitleSetup_SetupTitleScreen (z_opening.c) —
+    // against MM_Sram_InitNewSave's VANILLA bootstrap file, which is not the
+    // save that reaches Play. So on EVERY cross-game arrival, including a
+    // return leg restoring a perfectly good rando save, every IS_RANDO hook
+    // was unregistered and MM played with vanilla behavior. Re-dispatching
+    // here — the first point where the final save is known — arms them
+    // correctly in both directions (a restored vanilla save still disarms).
+    // Idempotent by construction: COND_HOOK unregisters before re-registering,
+    // and upstream drives this same handler on every file load.
+    GameInteractor_ExecuteOnSaveLoad(gSaveContext.fileNum);
 }
 
 void MM_Play_Init(GameState* thisx) {

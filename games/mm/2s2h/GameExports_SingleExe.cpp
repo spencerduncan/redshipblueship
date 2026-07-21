@@ -34,6 +34,9 @@
 #include "integration_test_hooks.h"
 #include "context.h"
 #include "shared_items.h"
+// Paired-world keying + placement-table accessors (#439 switch-entry
+// activation logs the placement count at the pairing decision point).
+#include "foreign_items.h"
 #include "entrance.h"
 #include <ship/resource/ResourceManager.h>
 #include <ship/resource/ResourceLoader.h>
@@ -1716,6 +1719,88 @@ static void MM_AwardSharedItem(const SharedItem* item, void* ctx) {
  */
 void MM_ConsumeSharedItems(void) {
     Combo_RedeemSharedItemsForGame(GAME_MM, MM_AwardSharedItem, nullptr);
+}
+
+/**
+ * Paired-world activation on the SWITCH-ENTRY path (#439).
+ *
+ * The bug this closes is a dispatch-site gap, not a registration gap.
+ * Rando::MiscBehavior::OnFileCreate is registered against OnSaveInit at boot
+ * (Rando::MiscBehavior::Init), but OnSaveInit is only ever DISPATCHED from
+ * MM_Sram_InitSave (z_sram_NES.c) — MM's file-select "create a new file"
+ * flow. The natural player flow into the paired world never touches file
+ * select: entering the Happy Mask Shop hands off to GameRunner_SwitchTo,
+ * whose cold gamestate-chain boot runs ConsoleLogo -> TitleSetup ->
+ * MM_Play_Init. TitleSetup authors the save with MM_Sram_InitNewSave() (a
+ * plain VANILLA new file) and dispatches OnSaveLoad, never OnSaveInit. So
+ * OnFileCreate never ran, no MM fill happened, gComboCtx.foreignPlacements
+ * stayed empty and no MM spoiler was ever written — exactly the operator
+ * forensics on #439, where Lane B's producer had correctly stamped
+ * sourceIsRando/sharedRandoSeed in every slot.
+ *
+ * Called from MM_Play_ConsumeStartupEntrance (games/mm/src/code/z_play.c) —
+ * the one point that is after every boot-chain wipe and before the save is
+ * interpreted, and the same point the frozen-state restore uses.
+ *
+ * @param hadFrozenState nonzero when Combo_ConsumeFrozenState just restored a
+ *        real MM session over the boot-chain save. That save belongs to the
+ *        player, so it is NEVER regenerated — the whole point of the
+ *        "existing MM saves are never silently modified" contract.
+ *
+ * Every decision point logs to stderr with a greppable `[MM] pairing:`
+ * prefix: the operator flew blind through this seam for an entire playtest.
+ */
+void MM_Rando_PairOnCrossGameArrival(int hadFrozenState) {
+    const bool pairing = Combo_ForeignPairingActive();
+    const bool alreadyRando = (gSaveContext.save.shipSaveInfo.saveType == SAVETYPE_RANDO);
+
+    if (!pairing) {
+        fprintf(stderr,
+                "[MM] pairing: skipped-because-no-paired-oot-world "
+                "(sourceIsRando=%d settingsHash=%08X masterSeed=%u)\n",
+                gComboCtx.sourceIsRando ? 1 : 0, gComboCtx.sharedRandoSettingsHash, gComboCtx.sharedRandoSeed);
+        return;
+    }
+
+    if (hadFrozenState) {
+        // A restored MM session — vanilla or rando — is the player's own save.
+        // Re-running generation over it would wipe their progress (OnFileCreate
+        // memsets shipSaveInfo.rando and re-authors the starting state), so the
+        // paired world simply does not apply to a file that already exists.
+        fprintf(stderr,
+                "[MM] pairing: skipped-because-existing-mm-save "
+                "(frozen MM session restored, saveType=%s) — an existing file is never regenerated\n",
+                alreadyRando ? "rando" : "vanilla");
+        return;
+    }
+
+    if (alreadyRando) {
+        // Defensive: the bootstrap save the boot chain authored should always
+        // be vanilla. If some other path already paired it, do not do it twice.
+        fprintf(stderr, "[MM] pairing: skipped-because-already-paired (mmFinalSeed=%08X foreignPlacements=%d)\n",
+                gSaveContext.save.shipSaveInfo.rando.finalSeed, Combo_CountForeignPlacements());
+        return;
+    }
+
+    fprintf(stderr, "[MM] pairing: armed on switch-entry (masterSeed=%u settingsHash=%08X) — dispatching OnSaveInit\n",
+            gComboCtx.sharedRandoSeed, gComboCtx.sharedRandoSettingsHash);
+    fflush(stderr);
+
+    // The REAL dispatch — the same bridge MM_Sram_InitSave calls on the
+    // file-select path, so both entry paths converge on one generation code
+    // path (S2H::GameHooks Execute<OnSaveInit> -> Rando::MiscBehavior::OnFileCreate).
+    GameInteractor_ExecuteOnSaveInit(gSaveContext.fileNum);
+
+    if (gSaveContext.save.shipSaveInfo.saveType == SAVETYPE_RANDO) {
+        fprintf(stderr, "[MM] pairing: paired world ACTIVE (mmFinalSeed=%08X foreignPlacements=%d)\n",
+                gSaveContext.save.shipSaveInfo.rando.finalSeed, Combo_CountForeignPlacements());
+    } else {
+        // OnFileCreate's catch reverts to a vanilla save on any generation
+        // failure. That is the correct fallback, but it must never be silent.
+        fprintf(stderr, "[MM] pairing: FAILED — generation reverted the save to vanilla; MM plays vanilla this "
+                        "session (see the preceding SPDLOG_ERROR for the cause)\n");
+    }
+    fflush(stderr);
 }
 
 } // extern "C"

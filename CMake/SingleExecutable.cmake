@@ -437,6 +437,21 @@ if(BUILD_TESTING)
         TIMEOUT 180
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
+    # #439: the paired MM world must activate on the flow a player actually
+    # takes. MMRandoGen above drives the OnSaveInit chain DIRECTLY, which is
+    # why CI stayed green through an entire playtest in which MM never paired:
+    # entering MM through the Happy Mask Shop performs a cold gamestate-chain
+    # boot (ConsoleLogo -> TitleSetup -> Play_Init) that authors a vanilla
+    # bootstrap save and never dispatches OnSaveInit at all. This row drives
+    # that boot + the real MM_Play_ConsumeStartupEntrance consumption point,
+    # and additionally locks that an existing MM save (vanilla or already
+    # paired) is never regenerated. MMRandoGen stays as direct-chain
+    # regression cover. Same display requirement, hence the same label/env.
+    redship_add_test(NAME MMPairSwitchEntry COMMAND redship --test mm-pair-switch-entry
+        LABEL rando
+        TIMEOUT 180
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+
     # ========================================================================
     # Lane B — unified seed -> paired world (Phase 3.0)
     #

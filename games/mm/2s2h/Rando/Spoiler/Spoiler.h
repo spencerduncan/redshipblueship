@@ -10,6 +10,26 @@ namespace Rando {
 namespace Spoiler {
 
 extern std::vector<std::string> spoilerOptions;
+
+/**
+ * The one directory MM spoilers are read from and written to (#439).
+ *
+ * Single source of truth for every spoiler path in this module — before this
+ * existed, four call sites each re-derived it and the write path assumed a
+ * directory nothing guaranteed to exist.
+ *
+ * In single-exe builds it resolves against the SHARED Ship::Context's app
+ * directory (OoT creates that context, so passing MM's own "2ship" short name
+ * pointed at a second app directory the combo never otherwise uses — the
+ * operator's portable install had no 2ship directory at all). The folder name
+ * is deliberately distinct from OoT's "Randomizer" because on Windows those
+ * two names collide case-insensitively and MM's directory_iterator would list
+ * OoT's spoilers as MM spoiler options.
+ *
+ * The directory is created (recursively) if missing; the return value is
+ * always a usable directory or the call throws.
+ */
+std::string SpoilerDirectory();
 void RefreshOptions();
 nlohmann::json GenerateFromSaveContext();
 void SaveToFile(const std::string& fileName, nlohmann::json spoiler);
