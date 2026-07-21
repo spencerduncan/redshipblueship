@@ -747,13 +747,44 @@ if(SINGLE_EXECUTABLE_BUILD)
     # covers 2ship_rando and 2ship_rando_ui too: their COND_* macro sites
     # route through the single-exe macro redirection at the bottom of MM's
     # GameInteractor.h and their direct Register* sites are migrated. Only
-    # 2ship_enh remains exempt — its ~21 direct Register* sites live in TUs
-    # that stay link-elided (the two force-linked members, FrameInterpolation
-    # and SkipGiantsChamber, carry no direct registrations after the macro
-    # redirect); flip it here when those TUs port (#392).
+    # 2ship_enh remains exempt as a *target* — its ~20 remaining direct
+    # Register* sites (#427's census) live in TUs that stay link-elided; flip
+    # the whole target here when the full ~56-site migration (#427 item 2)
+    # lands.
     set(_force_include_cxx_guarded
         ${_force_include_cxx}
         "${_fi}${CMAKE_CURRENT_SOURCE_DIR}/include/mm_gi_hook_guard.h"
+    )
+    # #442: 2ship_enh is a plain (non-WHOLE_ARCHIVE) static archive, so most of
+    # its ~195 TUs never enter the link — but a handful genuinely do (their
+    # symbols are referenced from compiled MM .c sources), and the guard
+    # exemption above was blind to which TUs those are. Per
+    # docs/unified-surface-findings.md's link census, the confirmed-linked set
+    # is FrameInterpolation.cpp, MotionBlur.cpp, PauseOwlWarp.cpp,
+    # SavingEnhancements.cpp, SkipGiantsChamber.cpp, AudioCollection.cpp — one
+    # of which (SavingEnhancements.cpp) is exactly how #442's raw
+    # RegisterGameHook sites reached the shared 4-byte GameInteractor
+    # instance despite the target-wide exemption "protecting" 2ship_enh.
+    # Force-including the guard on just these six sources (rather than
+    # flipping the whole target, which would still fail on ~20 real raw sites
+    # in TUs that stay elided) closes exactly the hole #442 exploited without
+    # taking on the full #427 migration. Extend this list if the link census
+    # changes (docs/unified-surface-findings.md) or another 2ship_enh TU
+    # starts exporting a symbol a compiled MM .c source references.
+    # Matched by basename suffix (see the loop below), not exact path equality:
+    # the SOURCES target property's path form (relative vs.
+    # CMAKE_CURRENT_SOURCE_DIR-absolute, / vs \) isn't contractually
+    # guaranteed across CMake versions / generators. Every filename here is
+    # unique across the whole MM tree, so a plain basename match (no directory
+    # component, so no path-separator escaping to get wrong) is unambiguous
+    # and robust either way.
+    set(_mm_gi_hook_guard_linked_enh_sources
+        "FrameInterpolation.cpp"
+        "MotionBlur.cpp"
+        "PauseOwlWarp.cpp"
+        "SavingEnhancements.cpp"
+        "SkipGiantsChamber.cpp"
+        "AudioCollection.cpp"
     )
     set(_force_include_c
         "${_fi}${CMAKE_CURRENT_SOURCE_DIR}/include/ultra64.h"
@@ -786,7 +817,16 @@ if(SINGLE_EXECUTABLE_BUILD)
         if(_src MATCHES "\\.c$")
             set_source_files_properties(${_src} PROPERTIES COMPILE_OPTIONS "${_force_include_c}")
         elseif(_src MATCHES "\\.(cpp|cxx|cc)$")
-            set_source_files_properties(${_src} PROPERTIES COMPILE_OPTIONS "${_force_include_cxx_for_target}")
+            # #442: within 2ship_enh, the handful of sources confirmed to
+            # actually enter the link (see _mm_gi_hook_guard_linked_enh_sources
+            # above) get the same poison guard as every other MM C++ TU,
+            # regardless of the target-wide exemption.
+            get_filename_component(_mm_gi_hook_guard_src_name "${_src}" NAME)
+            if(_t STREQUAL "2ship_enh" AND _mm_gi_hook_guard_src_name IN_LIST _mm_gi_hook_guard_linked_enh_sources)
+                set_source_files_properties(${_src} PROPERTIES COMPILE_OPTIONS "${_force_include_cxx_guarded}")
+            else()
+                set_source_files_properties(${_src} PROPERTIES COMPILE_OPTIONS "${_force_include_cxx_for_target}")
+            endif()
         endif()
     endforeach()
 else()

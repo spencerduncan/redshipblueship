@@ -196,14 +196,18 @@ void loadRespawnData(s16 fileNum) {
  * where multiple cutscenes play in succession.
  */
 static void UnregisterEntranceCutsceneSkip() {
+    // #442: routed through the MM-owned S2H::GameHooks registry rather than the
+    // raw GameInteractor::Instance-> surface. In single-exe builds the one
+    // GameInteractor allocation is OoT's 4-byte object; MM's Register* member
+    // templates read/write this->nextHookId at MM's (much larger) offset, an
+    // out-of-bounds write. See games/mm/include/mm_game_hooks.h.
     if (skipEntranceCutsceneHookId) {
-        GameInteractor::Instance->UnregisterGameHookForID<GameInteractor::ShouldVanillaBehavior>(
-            skipEntranceCutsceneHookId);
+        S2H::GameHooks::UnregisterForID<GameInteractor::ShouldVanillaBehavior>(skipEntranceCutsceneHookId);
         skipEntranceCutsceneHookId = 0;
     }
 
     if (gameplayStartHookId) {
-        GameInteractor::Instance->UnregisterGameHook<GameInteractor::OnPassPlayerInputs>(gameplayStartHookId);
+        S2H::GameHooks::Unregister<GameInteractor::OnPassPlayerInputs>(gameplayStartHookId);
         gameplayStartHookId = 0;
     }
 }
@@ -221,12 +225,11 @@ void skipEntranceCutsceneOnLoad(s16 fileNum) {
 
     // Register hook to detect when gameplay starts (all cutscenes done)
     // OnPassPlayerInputs only fires during normal gameplay, not during cutscenes
-    gameplayStartHookId =
-        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnPassPlayerInputs>([](Input* input) {
-            // Gameplay has started; any entrance cutscenes are done
-            // Now unregister both hooks so normal cutscenes can play
-            UnregisterEntranceCutsceneSkip();
-        });
+    gameplayStartHookId = S2H::GameHooks::Register<GameInteractor::OnPassPlayerInputs>([](Input* input) {
+        // Gameplay has started; any entrance cutscenes are done
+        // Now unregister both hooks so normal cutscenes can play
+        UnregisterEntranceCutsceneSkip();
+    });
 }
 
 void RegisterSavingEnhancements() {
@@ -257,46 +260,47 @@ void RegisterSavingEnhancements() {
         }
     });
 
-    GameInteractor::Instance->RegisterGameHook<GameInteractor::BeforeEndOfCycleSave>([]() {
+    // #442: S2H::GameHooks, not the raw GameInteractor::Instance-> surface (see
+    // UnregisterEntranceCutsceneSkip above for why).
+    S2H::GameHooks::Register<GameInteractor::BeforeEndOfCycleSave>([]() {
         SavingEnhancements_AdvancePlaytime();
         DeleteOwlSave();
     });
 
-    GameInteractor::Instance->RegisterGameHook<GameInteractor::BeforeMoonCrashSaveReset>([]() { DeleteOwlSave(); });
+    S2H::GameHooks::Register<GameInteractor::BeforeMoonCrashSaveReset>([]() { DeleteOwlSave(); });
 
-    GameInteractor::Instance->RegisterGameHook<GameInteractor::OnSaveLoad>(loadRespawnData);
+    S2H::GameHooks::Register<GameInteractor::OnSaveLoad>(loadRespawnData);
 }
 
 void RegisterAutosave() {
+    // #442: S2H::GameHooks, not the raw GameInteractor::Instance-> surface (see
+    // UnregisterEntranceCutsceneSkip above for why).
     if (autosaveGameStateUpdateHookId) {
-        GameInteractor::Instance->UnregisterGameHook<GameInteractor::OnGameStateUpdate>(autosaveGameStateUpdateHookId);
+        S2H::GameHooks::Unregister<GameInteractor::OnGameStateUpdate>(autosaveGameStateUpdateHookId);
         autosaveGameStateUpdateHookId = 0;
     }
 
     if (autosaveGameStateDrawFinishHookId) {
-        GameInteractor::Instance->UnregisterGameHook<GameInteractor::OnGameStateDrawFinish>(
-            autosaveGameStateDrawFinishHookId);
+        S2H::GameHooks::Unregister<GameInteractor::OnGameStateDrawFinish>(autosaveGameStateDrawFinishHookId);
         autosaveGameStateDrawFinishHookId = 0;
     }
 
     if (CVarGetInteger("gEnhancements.Saving.Autosave", 0)) {
-        autosaveGameStateUpdateHookId =
-            GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateUpdate>([]() {
-                if (MM_gPlayState == nullptr) {
-                    return;
-                }
+        autosaveGameStateUpdateHookId = S2H::GameHooks::Register<GameInteractor::OnGameStateUpdate>([]() {
+            if (MM_gPlayState == nullptr) {
+                return;
+            }
 
-                HandleAutoSave();
-            });
+            HandleAutoSave();
+        });
 
-        autosaveGameStateDrawFinishHookId =
-            GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateDrawFinish>([]() {
-                if (MM_gPlayState == nullptr) {
-                    return;
-                }
+        autosaveGameStateDrawFinishHookId = S2H::GameHooks::Register<GameInteractor::OnGameStateDrawFinish>([]() {
+            if (MM_gPlayState == nullptr) {
+                return;
+            }
 
-                DrawAutosaveIcon();
-            });
+            DrawAutosaveIcon();
+        });
     }
 }
 
