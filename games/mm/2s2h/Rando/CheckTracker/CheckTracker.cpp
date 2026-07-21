@@ -464,7 +464,13 @@ void CheckTrackerWindow::Draw() {
 
     ImGui::SetNextWindowSize(ImVec2(485.0f, 500.0f), ImGuiCond_FirstUseEver);
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // OoT's check tracker owns the "Check Tracker" ImGui id on the shared Gui
+    // (#392): sharing it would merge the two trackers' ImGui windows/ini state.
+    ImGui::Begin("Check Tracker (MM)", nullptr, ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoFocusOnAppearing);
+#else
     ImGui::Begin("Check Tracker", nullptr, ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoFocusOnAppearing);
+#endif
 
     trackerBG.w = ImGui::IsWindowDocked() ? 1.0f : CVAR_TRACKER_OPACITY;
     ImGui::SetWindowFontScale(trackerScale);

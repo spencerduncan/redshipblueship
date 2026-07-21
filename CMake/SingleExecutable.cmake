@@ -394,6 +394,13 @@ if(BUILD_TESTING)
     # VisFbuf draw. This locks MM's call to its own MM_-dimension body (only one
     # definition survived, so no link error could catch the cross-bind).
     redship_add_test(NAME MMFbEffectsBinding COMMAND redship --test mm-fb-effects-binding)
+    # MM tracker registration surface (#392): the four MM tracker windows must
+    # register on the shared Gui under "MM "-prefixed names (SoH owns the
+    # unprefixed ones; Gui::AddGuiWindow rejects duplicates) and their
+    # Draw/Update path must be inert unless MM is the active game — unified
+    # gSaveContext storage means an ungated MM tracker reads OoT bytes through
+    # MM's SaveContext layout.
+    redship_add_test(NAME MMTrackersGui COMMAND redship --test mm-trackers-gui)
     redship_add_test(NAME MMResumeArena COMMAND redship --test mm-resume-arena)
     redship_add_test(NAME MMStartupRestore COMMAND redship --test mm-startup-restore)
     redship_add_test(NAME AllTests COMMAND redship --test all)

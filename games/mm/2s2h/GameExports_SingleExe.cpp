@@ -1355,6 +1355,9 @@ int MM_Game_Init(int argc, char** argv) {
 // The GIEvent pump registrar (Lane C1) — defined in
 // games/mm/2s2h/GameInteractorEventsSingleExe.cpp.
 extern "C" void MM_GameEvents_RegisterPump(void);
+// MM tracker windows on the shared Gui (#392) — defined in
+// games/mm/2s2h/TrackersGuiSingleExe.cpp.
+extern "C" void MM_TrackersGui_Init(void);
 
 extern "C" void MM_Rando_Init(void) {
     static bool sRandoInitDone = false;
@@ -1375,6 +1378,12 @@ extern "C" void MM_Rando_Init(void) {
     // rando queue produces GIEvents, so the rando bring-up is its natural
     // (once-only, same guard) home.
     MM_GameEvents_RegisterPump();
+
+    // MM tracker windows (#392): register on the shared Gui, gated to draw
+    // only while MM is the active game. Upstream did this from BenGui.cpp's
+    // SetupGuiElements (excluded); the bypass surface lives in
+    // 2s2h/TrackersGuiSingleExe.cpp. No-op when the harness has no window.
+    MM_TrackersGui_Init();
 }
 
 /**
@@ -1628,6 +1637,24 @@ extern "C" void GameInteractor_ExecuteOnSaveLoad(s16 fileNum) {
 extern "C" void MM_GameHooks_ExecuteOnActorUpdate(Actor* actor) {
     S2H::GameHooks::Execute<GameInteractor::OnActorUpdate>(actor);
     S2H::GameHooks::ExecuteForID<GameInteractor::OnActorUpdate>(actor->id, actor);
+}
+
+/**
+ * OnSceneInit dispatch (#392 tracker follow-up). Called from MM's Play_Init
+ * (games/mm/src/code/z_play.c) at the exact point upstream 2S2H called its
+ * excluded 2-arg GameInteractor_ExecuteOnSceneInit — which the single exe
+ * could not call: the unprefixed name binds OoT's 1-arg executor, and firing
+ * the shared registry would hit the #367 type-aliasing class. The MM-owned
+ * S2H::GameHooks registry has neither problem. Runs every parked OnSceneInit
+ * registration in the linked MM set: the check tracker's scroll-to-scene
+ * hook (Rando/CheckTracker), Rando::MiscBehavior::OnSceneInit, and the
+ * open-dungeons COND_ID_HOOKs (all IS_RANDO-conditioned). The ForFilter leg
+ * is deliberately absent: the S2H registry has no filter surface and the
+ * linked MM set registers none (same deviation as the Should executors).
+ */
+extern "C" void MM_GameHooks_ExecuteOnSceneInit(s16 sceneId, s8 spawnNum) {
+    S2H::GameHooks::Execute<GameInteractor::OnSceneInit>(sceneId, spawnNum);
+    S2H::GameHooks::ExecuteForID<GameInteractor::OnSceneInit>(sceneId, sceneId, spawnNum);
 }
 
 extern "C" void MM_GameHooks_ExecuteOnFlagSet(FlagType flagType, u32 flag) {

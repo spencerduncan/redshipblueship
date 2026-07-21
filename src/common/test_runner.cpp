@@ -72,6 +72,15 @@ int MM_NotificationBinding_RunHeadless(void);
 // to HiRes 576 while the Bombers' Notebook is open. Returns 0 on pass, non-zero
 // on fail.
 int MM_FbEffectsBinding_RunHeadless(void);
+// MM tracker registration surface (games/mm/2s2h/mm_trackers_gui_test.cpp,
+// #392): the four MM tracker windows must register on a Gui under
+// "MM "-prefixed names (SoH owns the unprefixed ones and Gui::AddGuiWindow
+// rejects duplicates), and their Draw/Update path must be inert unless MM is
+// the active game (unified gSaveContext storage — an ungated MM tracker
+// would read OoT bytes through MM's layout). Needs the display-free shared
+// bring-up first (ConsoleVariables/Config/Console). Returns 0 on pass,
+// non-zero on fail.
+int MM_TrackersGui_RunHeadless(void);
 // VB-affinity regression: MM's GameInteractor_* calls resolve to OoT's
 // extern "C" wrappers in single-exe builds, and the two games' vanilla-
 // behavior ordinals alias each other. The wrappers gate on the active game;
@@ -929,6 +938,27 @@ TestResult Test_VBAffinity(void) {
     return TEST_PASS;
 }
 
+// MM tracker registration surface (#392). The bridge (see the extern decl at
+// the top) constructs a standalone Ship::Gui, so it needs the same
+// display-free shared bring-up as boot-oot: GuiWindow ctors read
+// ConsoleVariables, ItemTrackerSettings::InitElement reads Config, and the
+// Gui ctor's default ConsoleWindow registers Console commands.
+TestResult Test_MMTrackersGui(void) {
+    printf("[TEST] mm-trackers-gui: MM tracker windows register de-collided + gate on the active game (#392)\n");
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_TrackersGui_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 TestResult Test_RoundtripIntegrity(void) {
     printf("[TEST] roundtrip-integrity: OoT SaveContext byte-integrity across roundtrip (issue #262)\n");
     int failures = TestRoundtripIntegrity_Run();
@@ -1082,6 +1112,8 @@ const TestDescriptor gTests[] = {
      Test_MMNotificationBinding},
     {"mm-fb-effects-binding", "MM's scaled framebuffer draw binds its own body against MM's dimensions (#386)",
      Test_MMFbEffectsBinding},
+    {"mm-trackers-gui", "MM tracker windows register de-collided on the shared Gui + gate on the active game (#392)",
+     Test_MMTrackersGui},
     // The two MM resume-contract tests below mutate process-global state
     // (mm-resume-arena re-inits the MM system arena + heaps; mm-startup-restore
     // scribbles and re-zeroes the unified gSaveContext). Both clean up after

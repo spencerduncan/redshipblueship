@@ -408,7 +408,13 @@ void ItemTrackerWindow::Draw() {
     bool singleWindowOpen = false;
     if (!shouldWindowSplit) {
         ImGui::PushStyleColor(ImGuiCol_WindowBg, windowBg);
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // OoT's item tracker owns the "Item Tracker" ImGui id on the shared
+        // Gui (#392): sharing it would merge the two trackers' ImGui windows.
+        singleWindowOpen = ImGui::Begin("Item Tracker (MM)", nullptr, windowFlags);
+#else
         singleWindowOpen = ImGui::Begin("Item Tracker", nullptr, windowFlags);
+#endif
     }
 
     uint32_t index = 0;
