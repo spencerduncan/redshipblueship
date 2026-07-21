@@ -1739,7 +1739,7 @@ static void InitOTRImpl(int argc, char* argv[], bool runExtract) {
     // through the same convergence table version 7 uses. Must run AFTER the
     // version updates so the imported keys land in their converged spelling
     // and cannot be re-migrated. No-op when there is nothing to import.
-    SOH::ImportTwoShipConfig(conf);
+    SOH::ImportTwoShipConfig(conf.get());
 
     // The SoH GUI windows load OoT game assets while they initialize
     // (Plandomizer/ItemTracker icons, cosmetics Gfx patches), and LUS's
