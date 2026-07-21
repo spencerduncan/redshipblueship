@@ -275,6 +275,21 @@ jobs:
         # mtime+size, so caches survive container image rebuilds (which reset
         # mtimes and otherwise force a full ~20 min recompile).
         CCACHE_COMPILERCHECK: content
+    - name: Self-test registrar elision gate
+      # Regression guard on the step below: synthesizes tiny archive/object
+      # files with gcc/ar/ld -r (no real soh/2ship content involved) and
+      # asserts the occurrence-count attribution logic still (a) passes a
+      # plain no-collision present case, (b) FAILS when a required archive's
+      # own registrar member is dropped from the link, (c) reports a
+      # basename-colliding report-only archive PRESENT when its own member is
+      # genuinely also linked, and (d) reports it MISSING when only the
+      # required archive's same-named member survived — the measurement
+      # artifact fixed by this gate (docs/unified-surface-findings.md §4:
+      # _GLOBAL__sub_I_<file> is keyed on basename only, so 11 MM enhancement
+      # TUs with identically-named OoT twins were invisible to elision).
+      # Mirrors the check-exporter-symbol-collisions.sh --self-test added in
+      # #430 for the same "guard the guard" reason.
+      run: bash .github/scripts/check-registrar-elision.sh --self-test
     - name: Check registrar elision (#341)
       # Self-registering TUs (RegisterShipInitFunc static initializers) must
       # survive the archive link — plain archive semantics silently drop them
