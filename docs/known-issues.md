@@ -90,25 +90,26 @@ early in Phase 3.
 
 ## Crashes and hangs
 
-### Every normal exit heap-corrupts on Windows (Fault A) — no dedicated issue yet
+### ~~Every normal exit heap-corrupts on Windows (Fault A)~~ — RESOLVED ([#396](https://github.com/spencerduncan/redshipblueship/issues/396))
 
-Windows builds die with `STATUS_HEAP_CORRUPTION` (`0xC0000374`, detected inside
-`ntdll`) during **normal process exit**. The minimal repro is `redship --version`,
-so the trigger surface is just static initialization plus CRT teardown — it is not
-gameplay-dependent and it is not something you can avoid by playing carefully.
+**Fixed and operator-confirmed 2026-07-21.** `redship --version` now exits cleanly
+with status `0`; the heap corruption on normal exit is gone.
 
-What you see: the process exits with a crash status instead of cleanly. Buffered
-stdout is lost, so a run that printed diagnostics can appear silent. Because the
-corruption is only *detected* at teardown, an in-game crash and a clean quit can
-look identical from the outside.
+Historical detail, for anyone reading old crash reports: Windows builds used to die
+with `STATUS_HEAP_CORRUPTION` (`0xC0000374`, detected inside `ntdll`) during **normal
+process exit**, the minimal repro being `redship --version`. The root cause was not
+the `/FORCE:MULTIPLE` CRT duplication originally suspected: `OTRExporter/Main.cpp` and
+`VersionInfo.cpp` were compiled into **both** the `OTRExporter_OoT` and `OTRExporter_MM`
+static libs, so seven-plus global objects were constructed twice and destroyed twice —
+the second destructor walking freed heap. The fix (PR
+[#413](https://github.com/spencerduncan/redshipblueship/pull/413), submodule pointer
+bump) namespaces the exporter globals per variant. A permanent strong-DATA-symbol CI
+gate over the two exporter archives (PR
+[#430](https://github.com/spencerduncan/redshipblueship/pull/430)) prevents the class
+from recurring.
 
-Your save data is written before teardown, so this is a nuisance rather than a
-data-loss bug — but it makes every other crash report harder to interpret, and
-`0xC0000374` on exit should not be read as evidence about whatever you were doing
-at the time.
-
-Current suspect is duplicate CRT/static state merged by the `/FORCE:MULTIPLE`
-linker flag. Diagnosis notes live in the workstation postmortems.
+If you ever see `0xC0000374` on exit again, it is a **new** regression, not this one —
+start from the exporter-archive symbol gate.
 
 ### Crashes in CI/headless mode present as a 180-second hang — [#388](https://github.com/spencerduncan/redshipblueship/issues/388)
 
