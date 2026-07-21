@@ -275,14 +275,38 @@ typedef struct {
     // the accessors; raw entries must always carry the origin tag (ADR 0002).
     ComboForeignPlacement foreignPlacements[RSBS_FOREIGN_PLACEMENT_CAP];
 
+    // Netplay transport cursor (increment 1b, #460 / ADR 0006). Archipelago's
+    // ReceivedItems stream carries a server-authoritative monotonic index; the
+    // client, not the server, is responsible for remembering how far into that
+    // stream it has APPLIED items. These two fields are that memory, persisted
+    // so a save/reload does not re-deliver the whole stream (the spike's §3
+    // "Archipelago wrinkle"). Both are written ONLY by netplay-enabled builds
+    // (RSBS_NETPLAY=ON); a default build carries them as opaque zero bytes and
+    // round-trips them untouched, which is why the carve is unconditional —
+    // the .redsave format must not depend on a build flag.
+    //
+    // Zero means unset for both (growth contract): appliedCount 0 == "nothing
+    // applied yet" (AP indices start at 0, so this is a COUNT, not a last-seen
+    // index), fingerprint 0 == "not bound to any room" (the hash function maps
+    // an actual 0 result to 1). A zero-extended legacy record therefore reads
+    // as "never netplayed", which is correct.
+    //
+    // #440 dependency (do not fix here): these fields are session state in the
+    // same class as sharedItemsTagged — when #440's reset-invalidation contract
+    // lands, they belong in its wipe set, or a stale cursor can suppress a new
+    // room's item stream.
+    uint32_t netplayApAppliedCount;    // items applied through the grant sink
+    uint32_t netplayApRoomFingerprint; // FNV-1a of (seed_name, slot); 0 = unbound
+
     // Headroom. Carve new fields from the FRONT of this array (as
-    // sharedItemsTagged, sharedRandoSettingsHash, and foreignPlacements were)
-    // so the struct stays inside RSBS_COMBO_CONTEXT_RECORD_SIZE; the on-disk
-    // record size does not change either way, so old saves keep loading.
-    // Zeroed by ComboContext_Init, which is what makes a zero-extended legacy
-    // record indistinguishable from a freshly-initialized one — every field
-    // carved from here must keep "zero means unset".
-    uint8_t reserved[332];
+    // sharedItemsTagged, sharedRandoSettingsHash, foreignPlacements, and the
+    // netplay cursor were) so the struct stays inside
+    // RSBS_COMBO_CONTEXT_RECORD_SIZE; the on-disk record size does not change
+    // either way, so old saves keep loading. Zeroed by ComboContext_Init,
+    // which is what makes a zero-extended legacy record indistinguishable
+    // from a freshly-initialized one — every field carved from here must keep
+    // "zero means unset".
+    uint8_t reserved[324];
 } ComboContext;
 
 /**
@@ -327,13 +351,26 @@ RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, foreignPlacements) ==
                                sizeof(uint32_t),
                        "foreignPlacements must be carved from the FRONT of the old reserved[] "
                        "(contiguous with the settings digest); moving it changes .redsave format");
-RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, reserved) ==
+// The netplay cursor pair is the next carve from the front of the old
+// reserved[]: it must sit immediately after the foreign-placement table with
+// no gap, occupying bytes every shipped .redsave stored as zero (unset).
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, netplayApAppliedCount) ==
                            RSBS_COMBO_CONTEXT_PRECARVE_SIZE + RSBS_SHARED_ITEM_CAP * sizeof(SharedItem) +
                                sizeof(uint32_t) +
                                RSBS_FOREIGN_PLACEMENT_CAP * sizeof(ComboForeignPlacement),
-                       "the tagged-item array, the settings digest, the foreign-placement table, and "
-                       "the remaining headroom must stay contiguous (no padding, no fields slipped "
-                       "between them)");
+                       "netplayApAppliedCount must be carved from the FRONT of the old reserved[] "
+                       "(contiguous with the foreign-placement table); moving it changes .redsave format");
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, netplayApRoomFingerprint) ==
+                           offsetof(ComboContext, netplayApAppliedCount) + sizeof(uint32_t),
+                       "netplayApRoomFingerprint must sit immediately after netplayApAppliedCount; "
+                       "moving it changes .redsave format");
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, reserved) ==
+                           RSBS_COMBO_CONTEXT_PRECARVE_SIZE + RSBS_SHARED_ITEM_CAP * sizeof(SharedItem) +
+                               sizeof(uint32_t) +
+                               RSBS_FOREIGN_PLACEMENT_CAP * sizeof(ComboForeignPlacement) + 2 * sizeof(uint32_t),
+                       "the tagged-item array, the settings digest, the foreign-placement table, the "
+                       "netplay cursor pair, and the remaining headroom must stay contiguous (no "
+                       "padding, no fields slipped between them)");
 
 #ifdef __cplusplus
 // The raw-assignment-fails proof (ADR 0002). In C this is a constraint

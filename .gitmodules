@@ -7,3 +7,31 @@
 [submodule "OTRExporter"]
 	path = OTRExporter
 	url = https://github.com/spencerduncan/OTRExporter
+# ---------------------------------------------------------------------------
+# Netplay transport dependencies (RSBS_NETPLAY=ON builds only; the default
+# build never compiles them). All four are header-only. Pins mirror the
+# combination proven against SoH's toolchain by the Archipelago-SoH native
+# client (aMannus/Shipwright#76 -> HarbourMasters/Archipelago-SoH):
+#   apclientpp  65638b74  (MIT)
+#   wswrap      47438193  (MIT)
+#   websocketpp 0.8.2     (BSD-3-Clause)
+#   asio        1.30.2    (Boost Software License 1.0)
+# shallow = true: CI checks out every submodule on every job; these only need
+# the pinned tree, not history.
+# ---------------------------------------------------------------------------
+[submodule "subprojects/apclientpp"]
+	path = subprojects/apclientpp
+	url = https://github.com/black-sliver/apclientpp.git
+	shallow = true
+[submodule "subprojects/wswrap"]
+	path = subprojects/wswrap
+	url = https://github.com/black-sliver/wswrap.git
+	shallow = true
+[submodule "subprojects/websocketpp"]
+	path = subprojects/websocketpp
+	url = https://github.com/zaphoyd/websocketpp.git
+	shallow = true
+[submodule "subprojects/asio"]
+	path = subprojects/asio
+	url = https://github.com/chriskohlhoff/asio.git
+	shallow = true
