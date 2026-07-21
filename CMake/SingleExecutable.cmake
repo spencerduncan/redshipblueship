@@ -493,6 +493,22 @@ if(BUILD_TESTING)
         TIMEOUT 180
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
+    # #439 follow-up: MMPairSwitchEntry locks the cross-game arrival convergence;
+    # this row locks the OTHER paths into MM gameplay the arrival fix does not
+    # touch. The IS_RANDO COND_HOOKs (Rando.h: saveType == SAVETYPE_RANDO, re-
+    # evaluated on every OnSaveLoad) must match the save at every convergence:
+    # the file-select LOAD must RE-ARM after the boot chain's disarming
+    # OnSaveLoad (the disarm-then-rearm ordering #439 got wrong on the arrival
+    # path, and the ordering the owl-save reload relies on), and an in-session
+    # reload (Song of Time / cycle reset / DayTelop) must leave a live rando
+    # session's armed hooks untouched. Reads arm state through
+    # S2H::GameHooks::CountForTest<OnFlagSet>. Same display requirement, hence
+    # the same label/env.
+    redship_add_test(NAME MMReloadArmState COMMAND redship --test mm-reload-arm-state
+        LABEL rando
+        TIMEOUT 180
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+
     # ========================================================================
     # Lane B — unified seed -> paired world (Phase 3.0)
     #

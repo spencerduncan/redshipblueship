@@ -974,4 +974,189 @@ extern "C" int MM_Rando_HeadlessPairSwitchEntry(void) {
     return 0;
 }
 
+// ============================================================================
+// Non-arrival entry-path arm-state lock (#439 follow-up)
+// ============================================================================
+/**
+ * MMPairSwitchEntry above locks the CROSS-GAME arrival convergence
+ * (MM_Play_ConsumeStartupEntrance re-dispatching OnSaveLoad). This row locks
+ * the OTHER convergence points into MM gameplay the #439 follow-up audit
+ * enumerated — the ones the arrival fix deliberately does NOT touch — against
+ * the same failure the arrival path had: a save reaching a live PlayState with
+ * the IS_RANDO COND_HOOKs in the wrong arm state.
+ *
+ * IS_RANDO (Rando.h) is `gSaveContext.save.shipSaveInfo.saveType ==
+ * SAVETYPE_RANDO`, re-evaluated on every GameInteractor_ExecuteOnSaveLoad
+ * (Rando.cpp OnSaveLoadHandler -> MiscBehavior::OnFileLoad et al.). Arm state
+ * is read through S2H::GameHooks::CountForTest<OnFlagSet> — the same probe
+ * MMPairSwitchEntry uses; the OnFlagSet COND_HOOK (MiscBehavior.cpp) registers
+ * iff IS_RANDO at the last dispatch.
+ *
+ * Two production convergence points, each modeled through its real dispatch:
+ *
+ *  1. The MM file-select LOAD path (FileSelect_LoadGame,
+ *     z_file_choose_NES.c): MM_Sram_OpenSave memcpy's the save from flash,
+ *     THEN OnSaveLoad fires (z_file_choose_NES.c:2250). The cold boot chain
+ *     (TitleSetup_SetupTitleScreen, z_opening.c:32) authored a VANILLA
+ *     bootstrap and its OnSaveLoad DISARMED the hooks first, so this dispatch
+ *     must RE-ARM against the loaded rando save. That disarm-then-rearm
+ *     ordering is exactly what #439 got wrong on the arrival path, and it is
+ *     the convergence the owl-save reload leans on (owl-save-and-quit ->
+ *     TitleSetup disarm -> title -> file-select LOAD re-arm; z_message.c
+ *     MSGMODE_OWL_SAVE + z_play.c:806 -> MM_TitleSetup_Init). A LOADED rando
+ *     save is modeled the way MM_Sram_OpenSave produces one — a plain new-file
+ *     image with saveType stamped SAVETYPE_RANDO — because the LOAD path loads
+ *     bytes, it does NOT re-run generation (that is the CREATE path, and
+ *     MMRandoGen covers it).
+ *
+ *  2. The in-session reload paths (Song of Time / cycle reset, DayTelop):
+ *     these re-enter MM_Play_Init WITHOUT a startup entrance, so
+ *     MM_Play_ConsumeStartupEntrance early-returns (z_play.c:2282) and NOTHING
+ *     re-dispatches OnSaveLoad. That is correct precisely because these paths
+ *     do NOT run the boot chain's disarming dispatch — a live rando session's
+ *     armed hooks must simply survive. Locked here so a future change that
+ *     either routes a cycle reset through the boot chain, or drops a stray
+ *     disarming dispatch into the consumption early-return, fails loudly
+ *     instead of shipping a paired world that silently plays vanilla after the
+ *     first Song of Time.
+ *
+ * Returns 0 on success, a distinct nonzero step code otherwise.
+ */
+extern "C" int MM_Rando_HeadlessReloadArmState(void) {
+    auto ctx = Ship::Context::GetInstance();
+    if (ctx == nullptr || ctx->GetConsoleVariables() == nullptr) {
+        fprintf(stderr, "[MM-RELOAD-ARM] FAIL(1): Ship::Context not live\n");
+        return 1;
+    }
+
+    MM_Rando_Init();
+    if (Rando::Logic::Regions.empty()) {
+        fprintf(stderr, "[MM-RELOAD-ARM] FAIL(2): Logic/Regions graph empty — rando surface elided or InitAll not "
+                        "run\n");
+        return 2;
+    }
+    if (gRegEditor == NULL) {
+        static RegEditor sReloadRegEditor = {};
+        gRegEditor = &sReloadRegEditor;
+    }
+
+    // Clean cross-game state: no pairing, no pending arrival, no frozen save.
+    // This row is purely about the save-shape -> hook arm-state relationship;
+    // the paired-world producer is MMPairSwitchEntry's job.
+    ComboContext_Init();
+    Combo_ClearForeignPlacements();
+    Combo_ClearFrozenState("mm");
+    Combo_ClearStartupEntrance();
+
+    // ----------------------------------------------------------------------
+    // Phase 1 — the boot chain authors a VANILLA bootstrap and DISARMS.
+    // Exactly TitleSetup_SetupTitleScreen (z_opening.c): a plain new file,
+    // then OnSaveLoad against it. The IS_RANDO COND_HOOKs unregister here.
+    // ----------------------------------------------------------------------
+    memset(&gSaveContext, 0, sizeof(gSaveContext));
+    MM_Sram_InitNewSave();
+    if (gSaveContext.save.shipSaveInfo.saveType == SAVETYPE_RANDO) {
+        fprintf(stderr, "[MM-RELOAD-ARM] FAIL(3): a plain new file came up rando — vanilla-bootstrap premise "
+                        "broken\n");
+        return 3;
+    }
+    GameInteractor_ExecuteOnSaveLoad(gSaveContext.fileNum);
+    const size_t disarmed = S2H::GameHooks::CountForTest<GameInteractor::OnFlagSet>();
+
+    // ----------------------------------------------------------------------
+    // Phase 2 — the file-select LOAD of a RANDO save RE-ARMS after the disarm.
+    // FileSelect_LoadGame: MM_Sram_OpenSave populates gSaveContext from flash
+    // (modeled here as a new-file image stamped SAVETYPE_RANDO, the way a
+    // loaded rando save reads), THEN GameInteractor_ExecuteOnSaveLoad
+    // (z_file_choose_NES.c:2250) — the "fires AFTER the save is populated, not
+    // before" contract this audit had to confirm.
+    // ----------------------------------------------------------------------
+    memset(&gSaveContext, 0, sizeof(gSaveContext));
+    MM_Sram_InitNewSave();
+    gSaveContext.save.shipSaveInfo.saveType = SAVETYPE_RANDO; // what OpenSave loads for a rando file
+    GameInteractor_ExecuteOnSaveLoad(gSaveContext.fileNum);
+    const size_t armed = S2H::GameHooks::CountForTest<GameInteractor::OnFlagSet>();
+    if (armed == 0 || armed <= disarmed) {
+        fprintf(stderr,
+                "[MM-RELOAD-ARM] FAIL(4): the file-select LOAD dispatch did not re-arm the IS_RANDO hooks after "
+                "the boot chain's disarm (OnFlagSet %zu -> %zu) — a loaded rando save would play with vanilla "
+                "behavior\n",
+                disarmed, armed);
+        return 4;
+    }
+    fprintf(stderr, "[MM-RELOAD-ARM] file-select LOAD re-armed after the boot-chain disarm (OnFlagSet %zu -> %zu)\n",
+            disarmed, armed);
+
+    // ----------------------------------------------------------------------
+    // Phase 3 — an in-session reload (Song of Time / cycle reset / DayTelop)
+    // PRESERVES the armed state. Those reloads reach MM_Play_Init with no
+    // startup entrance, so MM_Play_ConsumeStartupEntrance early-returns and
+    // must not disturb the hooks. Drive that exact consumption with the rando
+    // save live and the pending arrival cleared.
+    // ----------------------------------------------------------------------
+    Combo_ClearStartupEntrance(); // in-session reloads carry no pending arrival
+    MM_Play_ConsumeStartupEntrance();
+    const size_t afterReload = S2H::GameHooks::CountForTest<GameInteractor::OnFlagSet>();
+    if (afterReload != armed) {
+        fprintf(stderr,
+                "[MM-RELOAD-ARM] FAIL(5): an in-session reload disturbed the IS_RANDO hooks (OnFlagSet %zu -> %zu) "
+                "— a cycle reset must never silently re-arm/disarm a paired world\n",
+                armed, afterReload);
+        return 5;
+    }
+    if (gSaveContext.save.shipSaveInfo.saveType != SAVETYPE_RANDO) {
+        fprintf(stderr, "[MM-RELOAD-ARM] FAIL(6): the in-session reload no-op mutated the live save type\n");
+        return 6;
+    }
+    fprintf(stderr, "[MM-RELOAD-ARM] in-session reload preserved the armed hooks (OnFlagSet %zu)\n", afterReload);
+
+    // ----------------------------------------------------------------------
+    // Phase 4 — vanilla direction: a file-select LOAD of a VANILLA save
+    // DISARMS the rando overrides, so the hooks track the loaded save and can
+    // never leak into a non-rando file loaded after a rando one.
+    //
+    // Probed through a VB verdict, NOT the OnFlagSet count: COND_HOOK's
+    // Unregister is DEFERRED (mm_game_hooks.h — the id is queued and only erased
+    // by FlushPendingUnregistrations at the next Execute of that hook type), so
+    // CountForTest lags a disarm and still shows the not-yet-flushed hook even
+    // though it can no longer fire. GameInteractor_Should dispatches
+    // Execute<ShouldVanillaBehavior>, which applies that flush, so the verdict
+    // reflects the disarm immediately. The give override is
+    // COND_VB_SHOULD(VB_GIVE_ITEM_FROM_GREAT_FAIRY, IS_RANDO, { *should=false }),
+    // re-evaluated on the same OnSaveLoad chain (ShipInit::Init("IS_RANDO")) and
+    // headless-safe — its body touches no play state. MMRandoGen uses the same
+    // probe for its vanilla direction.
+    // ----------------------------------------------------------------------
+    // Armed baseline (the rando save is still live from Phases 2-3): the
+    // IS_RANDO give override suppresses the vanilla great-fairy give.
+    if (GameInteractor_Should(VB_GIVE_ITEM_FROM_GREAT_FAIRY, true)) {
+        fprintf(stderr, "[MM-RELOAD-ARM] FAIL(7): the armed rando save did not suppress the give VB — the "
+                        "arm-state probe premise is broken\n");
+        return 7;
+    }
+    memset(&gSaveContext, 0, sizeof(gSaveContext));
+    MM_Sram_InitNewSave();
+    GameInteractor_ExecuteOnSaveLoad(gSaveContext.fileNum);
+    // The override must be gone: the caller's verdict passes through in BOTH
+    // polarities (true stays true, false stays false).
+    if (!GameInteractor_Should(VB_GIVE_ITEM_FROM_GREAT_FAIRY, true) ||
+        GameInteractor_Should(VB_GIVE_ITEM_FROM_GREAT_FAIRY, false)) {
+        fprintf(stderr, "[MM-RELOAD-ARM] FAIL(8): a vanilla-save LOAD left the rando give override armed — rando "
+                        "overrides leaked into a non-rando file\n");
+        return 8;
+    }
+    fprintf(stderr, "[MM-RELOAD-ARM] vanilla-direction LOAD disarmed the rando overrides (give VB passes through)\n");
+
+    // Leave clean global state for later dispatches in the same process.
+    ComboContext_Init();
+    Combo_ClearForeignPlacements();
+    Combo_ClearFrozenState("mm");
+    Combo_ClearStartupEntrance();
+    memset(&gSaveContext, 0, sizeof(gSaveContext));
+
+    fprintf(stderr, "[MM-RELOAD-ARM] PASS: file-select LOAD re-arms after a boot-chain disarm; in-session reload "
+                    "preserves; vanilla LOAD disarms\n");
+    return 0;
+}
+
 #endif // RSBS_SINGLE_EXECUTABLE

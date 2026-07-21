@@ -494,6 +494,35 @@ TestResult Test_MMPairSwitchEntry(void) {
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// Non-arrival entry-path arm-state lock (#439 follow-up). MMPairSwitchEntry
+// covers the cross-game arrival convergence; this row covers the OTHER paths
+// into MM gameplay that the arrival fix does not touch — the file-select LOAD
+// re-arm after the boot chain's disarm (the ordering the owl-save reload
+// relies on) and the in-session reload (Song of Time / cycle reset / DayTelop)
+// that must leave a live rando session's armed hooks alone. Reads arm state
+// through S2H::GameHooks::CountForTest<OnFlagSet>. Bridge body in
+// games/mm/2s2h/mm_rando_gen_test.cpp. Needs a display, same as mm-rando-gen,
+// so `--test all` skips it.
+extern "C" int MM_Rando_HeadlessReloadArmState(void);
+
+TestResult Test_MMReloadArmState(void) {
+    printf("[TEST] mm-reload-arm-state: IS_RANDO hooks match the save on the non-arrival entry paths (#439)\n");
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    int rc = MM_Rando_HeadlessReloadArmState();
+    printf("[TEST] %s: reload arm-state rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 TestResult Test_BootMM(void) {
     printf("[TEST] boot-mm: MM-first bring-up prerequisites (#330)\n");
     sTargetGame = GAME_MM;
@@ -1096,6 +1125,12 @@ const TestDescriptor gTests[] = {
     // Same display requirement as mm-rando-gen, so `--test all` skips it.
     {"mm-pair-switch-entry", "Paired MM world activates via switch-entry; existing saves untouched (#439)",
      Test_MMPairSwitchEntry},
+    // #439 follow-up: the OTHER entry paths into MM gameplay (file-select LOAD,
+    // Song of Time / cycle reset, DayTelop) must also reach a live PlayState
+    // with the IS_RANDO hooks matching the save. Same display requirement as
+    // mm-rando-gen, so `--test all` skips it.
+    {"mm-reload-arm-state", "IS_RANDO hooks match the save on MM's non-arrival entry paths (#439)",
+     Test_MMReloadArmState},
     {"boot-oot", "Shared-context bring-up leaves no null subsystems (#329)", Test_BootOoT},
     {"boot-mm", "MM-first bring-up prerequisites on the shared context (#330)", Test_BootMM},
     {"switch-oot-mm", "Test game switch OoT -> MM", Test_SwitchOoTMM},
@@ -1241,7 +1276,8 @@ int TestRunner_Run(const char* testName) {
             if (strcmp(gTests[i].name, "rando-gen") == 0 || strcmp(gTests[i].name, "rando-determinism") == 0 ||
                 strcmp(gTests[i].name, "rando-hint-validity") == 0 ||
                 strcmp(gTests[i].name, "mm-rando-gen") == 0 ||
-                strcmp(gTests[i].name, "mm-pair-switch-entry") == 0) {
+                strcmp(gTests[i].name, "mm-pair-switch-entry") == 0 ||
+                strcmp(gTests[i].name, "mm-reload-arm-state") == 0) {
                 printf("\n--- Skipping: %s (needs display; runs as a rando-label CTest) ---\n", gTests[i].name);
                 continue;
             }
