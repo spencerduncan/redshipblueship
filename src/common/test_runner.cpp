@@ -107,6 +107,12 @@ extern "C" {
 #include "tests/test_hotswap_freeze.c"
 }
 
+// Cross-game session invalidation on soft reset / new game (issue #440).
+// Included at FILE SCOPE (compiled as C++): it drives the C++-linkage
+// rsbs::SaveManager to prove a legitimate existing-slot load still restores,
+// and the C++-linkage Entrance_* API to stage the arrival negative control.
+#include "tests/test_session_invalidation.c"
+
 // Archive hot-swap regression test (issue #263). Included at FILE SCOPE (not
 // inside an extern "C" block): it is compiled as C++ and uses the C++-linkage
 // Entrance_* API for setup. Its cross-TU ArchiveHotswap_* helpers are wrapped
@@ -1043,6 +1049,13 @@ const TestDescriptor gTests[] = {
     // test that freezes and one that expects that freeze to still be there.
     {"hotswap-freeze", "F10 hot swap freezes the departing game; frozen state is single-use (#364)",
      Test_HotSwapFreeze},
+    // #440: the inverse #400 never got. Retiring a blob ON CONSUME stops it
+    // being consumed twice; it does nothing about a dead session's blob still
+    // being there for the NEXT session's first consume. Like hotswap-freeze
+    // this clears all frozen states on entry and exit, so it must not run
+    // between a test that freezes and one expecting that freeze to persist.
+    {"session-invalidation", "Soft reset / new game retire cross-game session state; loads still restore (#440)",
+     Test_SessionInvalidation},
     {"lifecycle", "Game lifecycle unit tests", Test_Lifecycle},
     // Unified save (.redsave) headless coverage (issue #35, Phase 2 T6).
     {"save-roundtrip-tiers", "Unified .redsave preserves ComboContext + both SaveContexts (#35)", Test_SaveRoundtripTiers},

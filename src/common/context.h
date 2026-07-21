@@ -380,6 +380,169 @@ void Context_RequestSwitch(GameId target, uint16_t entrance);
  */
 bool Context_HasPendingSwitch(void);
 
+// ============================================================================
+// Session invalidation (#440)
+// ============================================================================
+//
+// THE TRANSITION MATRIX. What survives, and what the next first-MM-entry does.
+//
+// "Pairs?" is MM_Rando_PairOnCrossGameArrival's decision
+// (games/mm/2s2h/GameExports_SingleExe.cpp, #447/d075aeaf). It reads exactly
+// two things, both of them src/common state: Combo_ForeignPairingActive() and
+// whether Combo_ConsumeFrozenState returned a blob. That is why a stale blob
+// is not merely cosmetic post-#447 — it answers "this MM save already exists"
+// for a save that does not, and the new seed DECLINES TO PAIR. Fixing the
+// invalidation restores pairing with no change to that guard.
+//
+//   transition          | frozen blobs | shadows  | crossings | seed stamp | pairs?
+//   --------------------+--------------+----------+-----------+------------+--------
+//   cold boot           | none (init)  | zeroed   | none      | none       | n/a until a seed exists
+//   reset -> same slot  | DROPPED      | reloaded | reloaded  | reloaded   | yes, from that slot's .redsave
+//   reset -> diff slot  | DROPPED      | reloaded | reloaded  | reloaded   | yes, from that slot's .redsave
+//   reset -> new file   | DROPPED      | zeroed   | DROPPED   | kept iff   | YES for a rando file (the
+//                       |              |          |           | rando file | operator's case); declines
+//                       |              |          |           |            | with no-paired-oot-world for
+//                       |              |          |           |            | a vanilla file, correctly
+//   cross-game arrival  | PRESERVED    | preserved| preserved | preserved  | declines (existing save) —
+//                       |              |          |           |            | correct: it IS the player's
+//                       |              |          |           |            | own restored MM session
+//
+// Note the last row: an arrival walks the SAME OoT title chain a soft reset
+// does, so Context_InvalidateSessionOnReturnToTitle self-suppresses on a
+// pending startup entrance. Without that guard this fix would eat the blob
+// every return leg is on its way to consume — a strictly worse bug.
+//
+// "reset -> same slot" and "reset -> diff slot" are deliberately identical:
+// the .redsave is per-OoT-slot but these globals are process singletons, so
+// the only safe rule is clear-then-reload for BOTH. Treating "same slot" as a
+// fast path that skips the clear is precisely how a slot with no companion
+// .redsave would keep inheriting the previous session.
+
+/**
+ * What Context_InvalidateSessionState does with the Lane B seed stamp
+ * (sourceIsRando / sharedRandoSeed / sharedRandoSettingsHash).
+ *
+ * The stamp is the one part of gComboCtx that is NOT authored by the session
+ * being torn down: Playthrough_Init writes it at GENERATION time, which for a
+ * new file happens BEFORE the file is created (generate a seed in the menu,
+ * then name the file). So the new-file call site must keep a stamp that
+ * generation just authored, while a return-to-title must drop one that nothing
+ * stands behind. Making that an explicit argument rather than a hidden policy
+ * means every call site has to state which situation it is in.
+ */
+typedef enum {
+    /**
+     * Drop the stamp. Correct wherever no generation stands behind it: a soft
+     * reset to title, and a NON-rando new file. A surviving stamp is not inert
+     * — Combo_ForeignPairingActive() is literally
+     * `sourceIsRando && sharedRandoSettingsHash != 0`, so a dead session's
+     * stamp makes MM believe a paired world exists for a seed that is gone.
+     */
+    RSBS_SEED_STAMP_DROP = 0,
+    /**
+     * Keep the stamp. Correct ONLY where generation has already authored it
+     * for the file now being created (OoT_Sram_InitSave on a randomizer file).
+     */
+    RSBS_SEED_STAMP_KEEP = 1,
+} ComboSeedStampPolicy;
+
+/**
+ * Retire every trace of the cross-game session that just ended (#440).
+ *
+ * This is the missing INVERSE of the freeze machinery. Cross-game session state
+ * is process-global — the frozen blobs, both shadow copies, and every session
+ * field of gComboCtx — and before this existed nothing invalidated any of it on
+ * a soft reset or a new game. PR #400 made Combo_ConsumeFrozenState retire the
+ * blob it hands over, which stops a blob being consumed TWICE, but a dead
+ * session's blob was still sitting there for the FIRST consume of the next
+ * session. That is the operator's #440 repro exactly: play a seed on slot 3,
+ * soft reset, start a NEW seed on slot 1, walk into the Happy Mask Shop, and
+ * MM comes up on the previous seed's clock with its stray fairies collected.
+ *
+ * Clears, in order:
+ *   - both frozen blobs AND both shadow copies. In FrozenStateManager these are
+ *     the SAME storage: Context_UpdateShadowCopy writes the bytes without
+ *     setting hasBeenFrozen, and Context_ClearFrozenState memsets the buffer as
+ *     well as clearing the flag. So one ClearAll covers both halves of the
+ *     issue's "frozen blobs both directions, both shadows".
+ *   - the RAM-only shared-item staging outbox (shared_items.c), which holds
+ *     pickups staged but not yet committed when the session died.
+ *   - every session field of gComboCtx: the switch request, source game and
+ *     entrance, sharedFlags, the retired-in-place sharedItems/saveSlot, and —
+ *     the two the netplay spike (#460) cares about — sharedItemsTagged and
+ *     foreignPlacements. A stale sharedItemsTagged is how another player's
+ *     grants from a dead room would reach a fresh seed.
+ *
+ * The seed stamp is governed by @p seedPolicy; see ComboSeedStampPolicy.
+ *
+ * Deliberately does NOT touch gCurrentGame (which game is running right now is
+ * still true) and does NOT arm a frozen blob from anything. Arming is the
+ * exclusive job of a real freeze, which keeps the "a plain .redsave load
+ * applies on the next switch only" semantics from #419/#420 intact.
+ */
+void Context_InvalidateSessionState(ComboSeedStampPolicy seedPolicy);
+
+// ---- Call-site-shaped entry points ---------------------------------------
+// The three transitions that end a session, each named for the thing that
+// happens rather than for the policy it selects. Game-side call sites are plain
+// C in games/oot/src/**, which do NOT have src/common on their include path and
+// so declare these locally as `extern` (the same convention z_play.c uses for
+// Combo_*). That is why none of them take ComboSeedStampPolicy: an enum
+// re-declared by hand in another TU is an ABI hazard for no benefit. Keeping
+// the policy here also means the "is this really a session end?" judgement is
+// written once, in a TU the headless tests link.
+
+/**
+ * Return to the title screen (soft reset, or a cold boot's first pass).
+ *
+ * SUPPRESSED when a cross-game startup entrance is pending, and that guard is
+ * the whole subtlety of this hook. A cross-game arrival ALSO passes through
+ * OoT's title chain — TitleSetup -> Title (which fast-forwards on
+ * Combo_HasStartupEntranceForGame) -> Opening -> Play_Init, which is where
+ * Combo_ConsumeFrozenState finally applies the blob. Invalidating
+ * unconditionally here would destroy the very blob the arrival is on its way to
+ * consume, turning every return leg into a lost session. rsbs/src/main.cpp sets
+ * the startup entrance BEFORE GameRunner_SwitchTo, so it is reliably visible by
+ * the time the target's title chain runs — for entrance switches and for F10
+ * hot-swap returns alike.
+ *
+ * Uses RSBS_SEED_STAMP_DROP: at the title no file is active, so nothing stands
+ * behind a stamp. A seed generated afterwards re-stamps via Playthrough_Init;
+ * an existing slot re-stamps from its .redsave on load.
+ *
+ * @return 1 if the session was invalidated, 0 if suppressed for an arrival.
+ */
+int Context_InvalidateSessionOnReturnToTitle(void);
+
+/**
+ * A new OoT file is being created (OoT_Sram_InitSave).
+ *
+ * @param isRandoFile non-zero iff the file being created is a randomizer file
+ *        whose seed has already been generated. That is the ONLY case where the
+ *        seed stamp is kept: generation ran moments ago, in the menu, and
+ *        authored the stamp FOR this file. A vanilla new file passes 0 and the
+ *        stamp goes with the rest of the dead session — otherwise
+ *        Combo_ForeignPairingActive() would still report a paired world.
+ */
+void Context_InvalidateSessionOnNewGame(int isRandoFile);
+
+/**
+ * An existing slot is being loaded, BEFORE its .redsave is read back.
+ *
+ * The clear half of the issue's clear-and-reload semantics, and it matters most
+ * in the case that looks like it needs it least: the .redsave is per-OoT-slot
+ * (redship_slot{0,1,2}.redsave) while these globals are process singletons, so
+ * loading a slot that has NO companion .redsave used to leave the previous
+ * session's gComboCtx and shadows in place and silently adopt them as if they
+ * belonged to the slot. Clearing first makes "no .redsave" mean "no cross-game
+ * state", which is the truth.
+ *
+ * Does NOT arm a frozen blob — the caller's RsbsSave_Load repopulates gComboCtx
+ * and both shadows, and arming stays the exclusive job of a real freeze so the
+ * #419/#420 "applies on next switch only" plain-load semantics survive.
+ */
+void Context_InvalidateSessionOnSlotLoad(void);
+
 // Context_ProcessSwitch() / Context_IsSwitchInProgress() used to be declared
 // here. Their implementations were removed from switch.cpp (zero callers, and
 // they depended on TUs excluded from the single-exe link); the dangling

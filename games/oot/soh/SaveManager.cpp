@@ -165,12 +165,27 @@ SaveManager::SaveManager() {
     });
 
     GameInteractor::Instance->RegisterGameHook<GameInteractor::OnLoadFile>([](int32_t fileNum) {
-        // Only pull the cross-game half if a .redsave already exists for
-        // this slot. A vanilla OoT save with no companion unified file is
-        // legal — we leave gComboCtx + MM shadow untouched in that case.
+        // Clear-and-reload (#440). The .redsave is per-OoT-slot
+        // (redship_slot{0,1,2}.redsave) but gComboCtx and both shadows are
+        // process singletons, so loading a slot has to REPLACE the resident
+        // cross-game state, never merge with it.
+        //
+        // This hook used to be load-if-present with no clear, which quietly
+        // made "this slot has no .redsave" mean "keep whatever the previous
+        // session left resident" — the previous seed's crossings, foreign
+        // placements and frozen blobs got adopted by an unrelated slot. That
+        // is the same leak as the operator's #440 repro arriving by the load
+        // path instead of the new-game path.
+        //
+        // Clearing unconditionally and reloading only if a file exists gives
+        // both halves the right meaning: a slot WITH a .redsave gets exactly
+        // its own state, and a slot WITHOUT one gets none. A vanilla OoT save
+        // with no companion unified file stays perfectly legal — it just no
+        // longer inherits a stranger's session.
         if (fileNum < 0 || fileNum >= RSBS_SAVE_MAX_SLOTS) {
             return;
         }
+        Context_InvalidateSessionOnSlotLoad();
         if (RsbsSave_HasSave(fileNum)) {
             RsbsSave_Load(fileNum);
         }
