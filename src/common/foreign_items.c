@@ -13,9 +13,34 @@
 
 #include "foreign_items.h"
 #include <stdio.h>
+#include <string.h>
 
 bool Combo_ForeignPairingActive(void) {
     return gComboCtx.sourceIsRando && gComboCtx.sharedRandoSettingsHash != 0;
+}
+
+bool Combo_GetForeignItemByName(const char* name, SharedItem* outItem) {
+    // Reverse of the OoT-side Combo_GetForeignItemName: walk the same pinned
+    // pool and hand back the origin-tagged SharedItem. Reused (not re-derived)
+    // so the spoiler-LOAD reconstruction shares one source of truth with
+    // generation, and so a raw RG_* is never fabricated MM-side (ADR 0002).
+    if (name == NULL) {
+        return false;
+    }
+    const ComboForeignItemDef* pool = NULL;
+    const int poolCount = Combo_GetForeignItemPool(&pool);
+    if (poolCount <= 0 || pool == NULL) {
+        return false;
+    }
+    for (int i = 0; i < poolCount; i++) {
+        if (pool[i].name != NULL && strcmp(pool[i].name, name) == 0) {
+            if (outItem != NULL) {
+                *outItem = pool[i].item;
+            }
+            return true;
+        }
+    }
+    return false;
 }
 
 int Combo_SetForeignPlacement(uint16_t mmCheckId, SharedItem item) {

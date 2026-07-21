@@ -33,6 +33,7 @@
 #include "2s2h/GameInteractor/GameInteractor.h" // S2H::GameHooks counters (single-exe tail)
 #include "2s2h/Rando/Rando.h"
 #include "2s2h/Rando/Foreign.h"
+#include "2s2h/Rando/Spoiler/Spoiler.h"
 #include "2s2h/Rando/Logic/Logic.h"
 #include "2s2h/Rando/MiscBehavior/MiscBehavior.h"
 #include "2s2h/Rando/StaticData/StaticData.h"
@@ -328,6 +329,152 @@ extern "C" int MM_Rando_HeadlessGenTest(void) {
     }
     fprintf(stderr, "[MM-RANDO-GEN] paired world: %d foreign placements, spoiler foreign section verified\n",
             placedCount);
+
+    // ======================================================================
+    // Spoiler-LOAD reconstruction lock (Lane C1 follow-up, #392). The paired
+    // world just generated wrote gComboCtx.foreignPlacements AND a spoiler with
+    // a "foreign" section. Prove the spoiler-LOAD path
+    // (Rando::Spoiler::ReconstructForeignPlacements, the counterpart of
+    // generation's PlaceForeignItems, reached through ApplyToSaveContext)
+    // rebuilds those placements exactly — the gap the C1 landing on #392 noted,
+    // where a loaded paired world degraded its foreign checks to junk — while
+    // never disturbing redeemed cross-game state.
+    // ======================================================================
+    ComboForeignPlacement generated[RSBS_FOREIGN_PLACEMENT_CAP];
+    memcpy(generated, gComboCtx.foreignPlacements, sizeof(generated));
+
+    // Re-read the just-written spoiler through the REAL LoadFromFile validator.
+    nlohmann::json loadedSpoiler;
+    try {
+        loadedSpoiler =
+            Rando::Spoiler::LoadFromFile(std::string("RSBSPAIR") + std::to_string(gComboCtx.sharedRandoSeed) + ".json");
+    } catch (const std::exception& e) {
+        fprintf(stderr, "[MM-RANDO-GEN] FAIL(16): loading the paired spoiler threw: %s\n", e.what());
+        return 16;
+    }
+
+    // Preserve-guard: with the live table still populated, reconstruction must
+    // REFUSE (return -1) and leave it byte-identical — a spoiler load must never
+    // clobber a live paired session's placements.
+    if (Rando::Spoiler::ReconstructForeignPlacements(loadedSpoiler) != -1 ||
+        memcmp(generated, gComboCtx.foreignPlacements, sizeof(generated)) != 0) {
+        fprintf(stderr, "[MM-RANDO-GEN] FAIL(16): reconstruction overwrote a live placement table instead of "
+                        "preserving it\n");
+        return 16;
+    }
+
+    // Plant a REDEEMED cross-game entry so the lock proves reconstruction never
+    // touches sharedItemsTagged (redemption survives a spoiler load).
+    SharedItem redeemed = {};
+    redeemed.originGame = (uint8_t)GAME_OOT;
+    redeemed.flags = RSBS_SHARED_ITEM_REDEEMED;
+    redeemed.id = pool[0].item.id;
+    gComboCtx.sharedItemsTagged[0] = redeemed;
+
+    // Clear the table (the state a new-file spoiler load starts from, after
+    // OnFileCreate's pre-apply clear) and reconstruct from the loaded spoiler.
+    Combo_ClearForeignPlacements();
+    const int reconstructed = Rando::Spoiler::ReconstructForeignPlacements(loadedSpoiler);
+    if (reconstructed != poolCount) {
+        fprintf(stderr, "[MM-RANDO-GEN] FAIL(17): reconstructed %d placements, expected %d\n", reconstructed,
+                poolCount);
+        return 17;
+    }
+
+    // Reconstructed table must match the generated one EXACTLY (host check ->
+    // origin-tagged item), order-independently (a JSON object has no slot order).
+    for (int i = 0; i < (int)RSBS_FOREIGN_PLACEMENT_CAP; i++) {
+        if (generated[i].item.originGame == GAME_NONE) {
+            continue;
+        }
+        const SharedItem* got = Combo_GetForeignPlacementForCheck(generated[i].mmCheckId);
+        if (got == NULL || got->originGame != generated[i].item.originGame || got->id != generated[i].item.id ||
+            got->flags != generated[i].item.flags) {
+            fprintf(stderr, "[MM-RANDO-GEN] FAIL(18): host check %u did not reconstruct to its generated item\n",
+                    (unsigned)generated[i].mmCheckId);
+            return 18;
+        }
+        // ADR 0002 host invariant on the load path: the MM save table keeps a
+        // legal junk-class MM item at the host check (never RI_UNKNOWN / a raw
+        // RG_*), so the check degrades to junk if the placement is ever absent.
+        const RandoItemId heldAfterLoad = RANDO_SAVE_CHECKS[(RandoCheckId)generated[i].mmCheckId].randoItemId;
+        if (Rando::StaticData::Items[heldAfterLoad].randoItemType != RITYPE_JUNK) {
+            fprintf(stderr, "[MM-RANDO-GEN] FAIL(18): reconstructed host check %u holds a non-junk MM item (%d)\n",
+                    (unsigned)generated[i].mmCheckId, (int)heldAfterLoad);
+            return 18;
+        }
+    }
+    if (Combo_CountForeignPlacements() != poolCount) {
+        fprintf(stderr, "[MM-RANDO-GEN] FAIL(18): reconstructed count %d != generated %d\n",
+                Combo_CountForeignPlacements(), poolCount);
+        return 18;
+    }
+
+    // Redemption survived untouched.
+    if (memcmp(&gComboCtx.sharedItemsTagged[0], &redeemed, sizeof(SharedItem)) != 0) {
+        fprintf(stderr, "[MM-RANDO-GEN] FAIL(19): reconstruction mutated redeemed shared-item state\n");
+        return 19;
+    }
+
+    // Malformed foreign section: refuse (throw) and leave the table untouched —
+    // validate-then-commit is atomic, no partial population.
+    {
+        Combo_ClearForeignPlacements();
+        nlohmann::json malformed = loadedSpoiler;
+        for (auto& [checkName, entry] : malformed["foreign"].items()) {
+            entry["item"] = "Definitely Not A Pinned Pool Item";
+            break;
+        }
+        bool threw = false;
+        try {
+            Rando::Spoiler::ReconstructForeignPlacements(malformed);
+        } catch (const std::exception&) { threw = true; }
+        if (!threw || Combo_CountForeignPlacements() != 0) {
+            fprintf(stderr,
+                    "[MM-RANDO-GEN] FAIL(20): malformed foreign section not rejected atomically (threw=%d, "
+                    "placements=%d)\n",
+                    threw ? 1 : 0, Combo_CountForeignPlacements());
+            return 20;
+        }
+    }
+
+    // Absent foreign section: not an error; yields an empty table cleanly.
+    {
+        Combo_ClearForeignPlacements();
+        nlohmann::json noForeign = loadedSpoiler;
+        noForeign.erase("foreign");
+        if (Rando::Spoiler::ReconstructForeignPlacements(noForeign) != 0 || Combo_CountForeignPlacements() != 0) {
+            fprintf(stderr, "[MM-RANDO-GEN] FAIL(21): absent foreign section did not yield an empty table cleanly\n");
+            return 21;
+        }
+    }
+
+    // Wiring: the REAL apply path (ApplyToSaveContext, the spoiler-LOAD entry
+    // point OnFileCreate's load branch invokes) must itself drive reconstruction
+    // — not just the focused helper above. Clear, apply the whole spoiler, and
+    // confirm the placements came back.
+    Combo_ClearForeignPlacements();
+    try {
+        Rando::Spoiler::ApplyToSaveContext(loadedSpoiler);
+    } catch (const std::exception& e) {
+        fprintf(stderr, "[MM-RANDO-GEN] FAIL(22): ApplyToSaveContext threw on the paired spoiler: %s\n", e.what());
+        return 22;
+    }
+    if (Combo_CountForeignPlacements() != poolCount) {
+        fprintf(stderr,
+                "[MM-RANDO-GEN] FAIL(22): ApplyToSaveContext did not reconstruct foreign placements (found %d)\n",
+                Combo_CountForeignPlacements());
+        return 22;
+    }
+
+    // Restore the paired world's live placements for the OnSaveLoad phase below,
+    // and clear the planted redeemed entry.
+    Combo_ClearForeignPlacements();
+    memcpy(gComboCtx.foreignPlacements, generated, sizeof(generated));
+    memset(&gComboCtx.sharedItemsTagged[0], 0, sizeof(SharedItem));
+
+    fprintf(stderr, "[MM-RANDO-GEN] spoiler-LOAD reconstruction verified: preserve-live, rebuild-exact, "
+                    "redemption-safe, malformed-refused, absent-ok, apply-wired\n");
 
     // OnSaveLoad chain lock (Lane C1): dispatching the real save-load bridge
     // with the rando save live must arm the rando behaviors — the

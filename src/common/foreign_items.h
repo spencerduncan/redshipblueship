@@ -64,6 +64,19 @@ int Combo_GetForeignItemPool(const ComboForeignItemDef** outPool);
  */
 const char* Combo_GetForeignItemName(SharedItem item);
 
+/**
+ * The inverse of Combo_GetForeignItemName: resolve a pinned-pool display name
+ * back to its origin-tagged SharedItem. Used by the spoiler-LOAD path
+ * (Rando::Spoiler::ReconstructForeignPlacements) to rebuild
+ * gComboCtx.foreignPlacements from the spoiler's "foreign" section without an
+ * OoT header in scope — the SharedItem is copied straight out of the pinned
+ * pool, so a raw RG_* is never reconstructed on the MM side (ADR 0002).
+ * @param name    the display name to look up (NULL is rejected)
+ * @param outItem receives the tagged SharedItem on a match (may be NULL)
+ * @return true if a pool entry has this name, false otherwise.
+ */
+bool Combo_GetForeignItemByName(const char* name, SharedItem* outItem);
+
 // ============================================================================
 // Placement table accessors (gComboCtx.foreignPlacements)
 // ============================================================================
