@@ -138,3 +138,57 @@ void Emit(Options notification) {
 }
 
 } // namespace Notification
+
+// ---------------------------------------------------------------------------
+// Cross-game layout probe for the deliberate MM->OoT Notification::Emit bind
+// (#427 item 1). MM's 2s2h/BenGui/Notification.cpp is excluded from single-exe
+// builds, so MM's Rando pickup toast (2s2h/Rando/MiscBehavior/CheckQueue.cpp)
+// binds THIS Emit against MM's own view of Notification::Options. The bind is
+// safe only while the two views stay field-identical; the mm-notification-
+// binding CTest compares this fingerprint against MM's and fails on drift.
+//
+// Reported with pointer arithmetic on a real instance rather than offsetof so
+// it is well-defined without regard to standard-layout status, and no
+// platform-specific byte offsets are hardcoded. The field-type static_asserts
+// below turn a same-view retype (the half a cross-game offset compare cannot
+// see if BOTH games retype in lockstep) into an OoT build break.
+#include "notification_layout_probe.h"
+#include <cstddef>
+#include <type_traits>
+
+static_assert(std::is_same_v<decltype(Notification::Options::id), uint32_t>,
+              "Notification::Options::id retyped — the MM Emit bind assumes this layout (#427)");
+static_assert(std::is_same_v<decltype(Notification::Options::itemIcon), const char*>,
+              "Notification::Options::itemIcon retyped — the MM Emit bind assumes this layout (#427)");
+static_assert(std::is_same_v<decltype(Notification::Options::prefix), std::string>,
+              "Notification::Options::prefix retyped — the MM Emit bind assumes this layout (#427)");
+static_assert(std::is_same_v<decltype(Notification::Options::prefixColor), ImVec4>,
+              "Notification::Options::prefixColor retyped — the MM Emit bind assumes this layout (#427)");
+static_assert(std::is_same_v<decltype(Notification::Options::message), std::string>,
+              "Notification::Options::message retyped — the MM Emit bind assumes this layout (#427)");
+static_assert(std::is_same_v<decltype(Notification::Options::messageColor), ImVec4>,
+              "Notification::Options::messageColor retyped — the MM Emit bind assumes this layout (#427)");
+static_assert(std::is_same_v<decltype(Notification::Options::suffix), std::string>,
+              "Notification::Options::suffix retyped — the MM Emit bind assumes this layout (#427)");
+static_assert(std::is_same_v<decltype(Notification::Options::suffixColor), ImVec4>,
+              "Notification::Options::suffixColor retyped — the MM Emit bind assumes this layout (#427)");
+static_assert(std::is_same_v<decltype(Notification::Options::remainingTime), float>,
+              "Notification::Options::remainingTime retyped — the MM Emit bind assumes this layout (#427)");
+static_assert(std::is_same_v<decltype(Notification::Options::mute), bool>,
+              "Notification::Options::mute retyped — the MM Emit bind assumes this layout (#427)");
+
+extern "C" void OoT_NotificationOptionsLayout(NotificationOptionsLayout* out) {
+    Notification::Options o;
+    const char* base = reinterpret_cast<const char*>(&o);
+    out->structSize = static_cast<uint32_t>(sizeof(Notification::Options));
+    out->offId = static_cast<uint32_t>(reinterpret_cast<const char*>(&o.id) - base);
+    out->offItemIcon = static_cast<uint32_t>(reinterpret_cast<const char*>(&o.itemIcon) - base);
+    out->offPrefix = static_cast<uint32_t>(reinterpret_cast<const char*>(&o.prefix) - base);
+    out->offPrefixColor = static_cast<uint32_t>(reinterpret_cast<const char*>(&o.prefixColor) - base);
+    out->offMessage = static_cast<uint32_t>(reinterpret_cast<const char*>(&o.message) - base);
+    out->offMessageColor = static_cast<uint32_t>(reinterpret_cast<const char*>(&o.messageColor) - base);
+    out->offSuffix = static_cast<uint32_t>(reinterpret_cast<const char*>(&o.suffix) - base);
+    out->offSuffixColor = static_cast<uint32_t>(reinterpret_cast<const char*>(&o.suffixColor) - base);
+    out->offRemainingTime = static_cast<uint32_t>(reinterpret_cast<const char*>(&o.remainingTime) - base);
+    out->offMute = static_cast<uint32_t>(reinterpret_cast<const char*>(&o.mute) - base);
+}
