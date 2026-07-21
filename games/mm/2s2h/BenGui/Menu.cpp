@@ -16,6 +16,16 @@ extern "C" {
 #include "functions.h"
 extern PlayState* MM_gPlayState;
 }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// Single-exe: MM's Ship::Menu implementation and its file-scope state
+// (windowTypeSizes, extraSearchWidgets, the BenGui::mModalWindow extern) live
+// inside namespace S2H so their symbols cannot alias OoT's identically-named,
+// differently-laid-out menu surface in SohGui/Menu.cpp. See the header
+// comment in Menu.h (#446).
+namespace S2H {
+#endif
+
 std::vector<ImVec2> windowTypeSizes = { {} };
 
 extern std::unordered_map<s16, const char*> warpPointSceneList;
@@ -879,3 +889,7 @@ void Menu::DrawElement() {
     ImGui::End();
 }
 } // namespace Ship
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+} // namespace S2H
+#endif
