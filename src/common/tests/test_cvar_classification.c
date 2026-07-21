@@ -106,9 +106,27 @@ std::vector<std::string> CvarClassSlurpTree(const std::filesystem::path& root, b
     return contents;
 }
 
-/// Does any scanned file contain this quoted key literal?
+/// Does any scanned file contain this quoted key literal? Substring form: the
+/// needle is the OPENING quote plus the key, so a prefix (e.g. a retired family
+/// namespace) matches every key under it.
 bool CvarClassTreeContainsLiteral(const std::vector<std::string>& tree, const char* key) {
     const std::string needle = std::string("\"") + key;
+    for (const std::string& text : tree) {
+        if (text.find(needle) != std::string::npos) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/// Does any scanned file contain this key as a WHOLE quoted literal ("key")?
+/// Exact form, used where a retired key is a PREFIX of a surviving one — e.g.
+/// gEnhancements.Saving.Autosave retires while gEnhancements.Saving.AutosaveInterval
+/// stays (MM-only). The substring form above would false-match the survivor and
+/// report the retired key as still present. MM spells every CVar as a full
+/// literal, so the closing quote is always there to anchor against.
+bool CvarClassTreeContainsExactKey(const std::vector<std::string>& tree, const char* key) {
+    const std::string needle = std::string("\"") + key + "\"";
     for (const std::string& text : tree) {
         if (text.find(needle) != std::string::npos) {
             return true;
@@ -169,20 +187,29 @@ TestResult Test_CVarClassification(void) {
         }
     }
 
-    // Every retired spelling must fall under a retired PREFIX, so the
-    // prefix-level source scan below actually covers the whole convergence set
-    // rather than a subset someone forgot to extend.
-    for (std::size_t i = 0; i < RSBS::kConvergedKeyCount; i++) {
-        bool covered = false;
-        for (std::size_t p = 0; p < RSBS::kRetiredKeyPrefixCount; p++) {
-            const char* prefix = RSBS::kRetiredKeyPrefixes[p];
+    // Every retired FAMILY prefix must cover at least one converged legacy key.
+    // A prefix that matches nothing is stale: it would scan the tree for a family
+    // that no longer converges and quietly protect nothing.
+    //
+    // Note the direction. This does NOT require every legacy key to sit under a
+    // prefix. The two #461 prefixes (gSettings.Audio., gCosmetics.Link_) are
+    // ABANDONED NAMESPACES — every MM key in them retired — so a prefix scan is
+    // the right tool to catch a NEW sibling appearing there. The #462 §5.3 rows
+    // instead retire an individual leaf out of a namespace that STAYS LIVE
+    // (gEnhancements.Graphics. still hosts MM-only keys, gEnhancements.Saving.
+    // still hosts AutosaveInterval, gCheats. still hosts the shared cheats), so
+    // they have no family prefix. They are covered directly by the exact per-key
+    // scan (3a) below, which names each retired spelling in full.
+    for (std::size_t p = 0; p < RSBS::kRetiredKeyPrefixCount; p++) {
+        const char* prefix = RSBS::kRetiredKeyPrefixes[p];
+        bool covers = false;
+        for (std::size_t i = 0; i < RSBS::kConvergedKeyCount; i++) {
             if (strncmp(RSBS::kConvergedKeys[i].legacy, prefix, strlen(prefix)) == 0) {
-                covered = true;
+                covers = true;
                 break;
             }
         }
-        CVARCLASS_CHECK(covered, "a retired key is not covered by any retired prefix — the source scan would miss "
-                                 "new siblings in its family");
+        CVARCLASS_CHECK(covers, "a retired family prefix covers no converged legacy key — it is stale");
     }
 
     // ------------------------------------------------------------------
@@ -241,7 +268,7 @@ TestResult Test_CVarClassification(void) {
         // setting silently diverging again.
         for (std::size_t i = 0; i < RSBS::kConvergedKeyCount; i++) {
             const RSBS::ConvergedKey& key = RSBS::kConvergedKeys[i];
-            if (CvarClassTreeContainsLiteral(mmTree, key.legacy)) {
+            if (CvarClassTreeContainsExactKey(mmTree, key.legacy)) {
                 printf("[TEST] FAIL: MM still reads the retired key \"%s\".\n"
                        "[TEST]       It converged onto \"%s\"; reintroducing the old spelling means the setting\n"
                        "[TEST]       silently stops crossing the game boundary. Use the canonical key\n"
@@ -312,17 +339,26 @@ TestResult Test_CVarClassification(void) {
         // the manifest that would otherwise make every check above pass while
         // pointing at a key nothing uses. Skips Volume.Ambience, which is an
         // adoption rather than a rename — OoT has no ambience channel.
+        //
+        // OoT reaches gSettings.*, gEnhancements.* and gCheats.* through the
+        // CVAR_SETTING / CVAR_ENHANCEMENT / CVAR_CHEAT macros, so the full
+        // "gPrefix.Leaf" literal never appears in OoT source — only "Leaf" does.
+        // Strip those prefixes and probe the leaf. gCosmetics.* has no prefix
+        // macro on the OoT side (it is a raw literal), so it stays a full-literal
+        // probe by falling through with nothing stripped.
+        static const char* const kMacroBackedPrefixes[] = { "gSettings.", "gEnhancements.", "gCheats." };
         for (std::size_t i = 0; i < RSBS::kConvergedKeyCount; i++) {
             const char* canonical = RSBS::kConvergedKeys[i].canonical;
             if (strcmp(canonical, RSBS_CVAR_VOLUME_AMBIENCE) == 0) {
                 continue;
             }
-            // OoT reaches gSettings.* through the CVAR_SETTING macro, so match
-            // the leaf rather than the full literal for that family.
-            const char* settingPrefix = "gSettings.";
-            const char* probe = strncmp(canonical, settingPrefix, strlen(settingPrefix)) == 0
-                                    ? canonical + strlen(settingPrefix)
-                                    : canonical;
+            const char* probe = canonical;
+            for (const char* prefix : kMacroBackedPrefixes) {
+                if (strncmp(canonical, prefix, strlen(prefix)) == 0) {
+                    probe = canonical + strlen(prefix);
+                    break;
+                }
+            }
             if (!CvarClassTreeContainsLiteral(ootTree, probe)) {
                 printf("[TEST] FAIL: OoT does not appear to read the canonical key \"%s\" (probed \"%s\").\n"
                        "[TEST]       MM was converged onto a key OoT does not use — check the manifest for a\n"

@@ -395,7 +395,7 @@ uint32_t GameInteractor_Dpad(GIDpadType type, uint32_t buttonCombo) {
             }
             break;
         case GI_DPAD_EQUIP:
-            if (CVarGetInteger("gEnhancements.Dpad.DpadEquips", 0)) {
+            if (CVarGetInteger("gEnhancements.DpadEquips", 0)) {
                 result = buttonCombo;
             }
             break;

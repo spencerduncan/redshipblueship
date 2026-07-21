@@ -113,8 +113,8 @@ bool Camera_FreeLook(Camera* camera) {
         pitch = minPitch;
     }
 
-    f32 distTarget = CVarGetInteger("gEnhancements.Camera.FreeLook.MaxCameraDistance", roData->unk_04);
-    f32 transitionSpeed = CVarGetInteger("gEnhancements.Camera.FreeLook.TransitionSpeed", 25);
+    f32 distTarget = CVarGetInteger("gSettings.FreeLook.MaxCameraDistance", roData->unk_04);
+    f32 transitionSpeed = CVarGetInteger("gSettings.FreeLook.TransitionSpeed", 25);
     // Smooth step camera away to max camera distance. Camera collision is calculated later
     camera->dist = Camera_ScaledStepToCeilF(distTarget, camera->dist,
                                             transitionSpeed / (ABS(distTarget - camera->dist) + transitionSpeed), 0.0f);
@@ -163,7 +163,7 @@ bool Camera_CanFreeLook(Camera* camera) {
 }
 
 void RegisterCameraFreeLook() {
-    COND_VB_SHOULD(VB_USE_CUSTOM_CAMERA, CVarGetInteger("gEnhancements.Camera.FreeLook.Enable", 0), {
+    COND_VB_SHOULD(VB_USE_CUSTOM_CAMERA, CVarGetInteger("gSettings.FreeLook.Enabled", 0), {
         Camera* camera = va_arg(args, Camera*);
         switch (MM_sCameraSettings[camera->setting].cameraModes[camera->mode].funcId) {
             case CAM_FUNC_NORMAL0:
@@ -185,8 +185,8 @@ void RegisterCameraFreeLook() {
         }
     });
 
-    COND_HOOK(OnCameraChangeModeFlags, CVarGetInteger("gEnhancements.Camera.FreeLook.Enable", 0),
+    COND_HOOK(OnCameraChangeModeFlags, CVarGetInteger("gSettings.FreeLook.Enabled", 0),
               [](Camera* camera) { UpdateFreeLookState(camera); });
 }
 
-static RegisterShipInitFunc initFunc(RegisterCameraFreeLook, { "gEnhancements.Camera.FreeLook.Enable" });
+static RegisterShipInitFunc initFunc(RegisterCameraFreeLook, { "gSettings.FreeLook.Enabled" });

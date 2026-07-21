@@ -9,7 +9,7 @@ extern "C" {
 #include "objects/gameplay_keep/gameplay_keep.h"
 }
 
-#define CVAR_NAME "gEnhancements.Graphics.BowReticle"
+#define CVAR_NAME "gEnhancements.BowReticle"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 void DrawBowReticle(PlayState* play, Player* player, f32 bowDistance) {

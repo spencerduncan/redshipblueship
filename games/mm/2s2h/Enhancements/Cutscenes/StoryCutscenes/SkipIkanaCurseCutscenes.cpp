@@ -14,7 +14,7 @@ void func_80B6DE80(BgHakaCurtain* bgHakaCurtain);
 void EnPoComposer_SetupPlayCurse(EnPoComposer* enPoComposer);
 }
 
-#define CVAR_NAME "gEnhancements.Cutscenes.SkipStoryCutscenes"
+#define CVAR_NAME "gEnhancements.TimeSavers.SkipCutscene.Story"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 void skipHealingPamelasFather() {

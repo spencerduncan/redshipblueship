@@ -19,7 +19,7 @@ void DmStk_ClockTower_Idle(DmStk* dmstk, PlayState* play);
 void DmStk_ChangeAnim(DmStk* dmstk, PlayState* play, SkelAnime* skelAnime, AnimationInfo* animInfo, u16 animIndex);
 }
 
-#define CVAR_NAME "gEnhancements.Cutscenes.SkipStoryCutscenes"
+#define CVAR_NAME "gEnhancements.TimeSavers.SkipCutscene.Story"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 AnimationInfo moonLoop = { (AnimationHeader*)&gSkullKidCallDownMoonLoopAnim, 1.0f, 0.0f, -1.0f, ANIMMODE_LOOP, 0.0f };

@@ -1731,14 +1731,16 @@ static void InitOTRImpl(int argc, char* argv[], bool runExtract) {
     conf->RegisterVersionUpdater(std::make_shared<SOH::ConfigVersion5Updater>());
     conf->RegisterVersionUpdater(std::make_shared<SOH::ConfigVersion6Updater>());
     // RSBS: cross-game key convergence — MM moves onto OoT's spelling for
-    // settings both games mean identically (ADR 0003 §5.1).
+    // settings both games mean identically (ADR 0003 §5.1). Version 7 is the
+    // audio + tunic tier (#34); version 8 is the inventory §5.3 remainder (#462).
     conf->RegisterVersionUpdater(std::make_shared<SOH::ConfigVersion7Updater>());
+    conf->RegisterVersionUpdater(std::make_shared<SOH::ConfigVersion8Updater>());
     conf->RunVersionUpdates();
 
     // RSBS: one-shot import of an existing 2Ship2Harkinian config, mapped
-    // through the same convergence table version 7 uses. Must run AFTER the
-    // version updates so the imported keys land in their converged spelling
-    // and cannot be re-migrated. No-op when there is nothing to import.
+    // through the same convergence table the version updaters use. Must run
+    // AFTER the version updates so the imported keys land in their converged
+    // spelling and cannot be re-migrated. No-op when there is nothing to import.
     SOH::ImportTwoShipConfig(conf.get());
 
     // The SoH GUI windows load OoT game assets while they initialize

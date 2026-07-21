@@ -16,7 +16,7 @@ extern "C" {
 #include "variables.h"
 }
 
-#define CVAR_NAME "gEnhancements.Graphics.EnemyHealthBars"
+#define CVAR_NAME "gEnhancements.EnemyHealthBar"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 typedef enum {

@@ -6,7 +6,7 @@ extern "C" {
 #include "overlays/actors/ovl_Obj_Syokudai/z_obj_syokudai.h"
 }
 
-#define CVAR_NAME "gEnhancements.Cutscenes.SkipOnePointCutscenes"
+#define CVAR_NAME "gEnhancements.TimeSavers.SkipCutscene.OnePoint"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 void RegisterSkipOnePointCutscenes() {

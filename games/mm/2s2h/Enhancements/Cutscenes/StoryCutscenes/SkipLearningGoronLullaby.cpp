@@ -15,7 +15,7 @@ void func_80B5227C(EnGk* enGkActor, PlayState* play);
 void EnGo_Sleep(EnGo* enGoActor, PlayState* play);
 }
 
-#define CVAR_NAME "gEnhancements.Cutscenes.SkipStoryCutscenes"
+#define CVAR_NAME "gEnhancements.TimeSavers.SkipCutscene.Story"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 static bool isGoronSleepQueued = false;

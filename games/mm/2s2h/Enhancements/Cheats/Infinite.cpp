@@ -29,10 +29,10 @@ static RegisterShipInitFunc magicInitFunc(
 
 static RegisterShipInitFunc rupeesInitFunc(
     []() {
-        COND_HOOK(OnGameStateUpdate, CVarGetInteger("gCheats.InfiniteRupees", 0),
+        COND_HOOK(OnGameStateUpdate, CVarGetInteger("gCheats.InfiniteMoney", 0),
                   []() { gSaveContext.save.saveInfo.playerData.rupees = CUR_CAPACITY(UPG_WALLET); });
     },
-    { "gCheats.InfiniteRupees" });
+    { "gCheats.InfiniteMoney" });
 
 static RegisterShipInitFunc consumeablesInitFunc(
     []() {

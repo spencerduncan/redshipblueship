@@ -2,7 +2,7 @@
 #include "2s2h/GameInteractor/GameInteractor.h"
 #include "2s2h/ShipInit.hpp"
 
-#define CVAR_NAME "gEnhancements.Graphics.DisableBlackBars"
+#define CVAR_NAME "gEnhancements.DisableBlackBars"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 void RegisterDisableBlackBars() {

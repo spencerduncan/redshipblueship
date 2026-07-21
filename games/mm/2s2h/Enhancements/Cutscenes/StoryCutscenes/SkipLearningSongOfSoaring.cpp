@@ -11,7 +11,7 @@ extern "C" {
 #include "overlays/actors/ovl_En_Time_Tag/z_en_time_tag.h"
 }
 
-#define CVAR_NAME "gEnhancements.Cutscenes.SkipStoryCutscenes"
+#define CVAR_NAME "gEnhancements.TimeSavers.SkipCutscene.Story"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 #define ENGRAVING_TEXT_ID 0xC02
 

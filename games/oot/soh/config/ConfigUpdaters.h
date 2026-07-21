@@ -54,6 +54,23 @@ class ConfigVersion7Updater final : public Ship::ConfigVersionUpdater {
 };
 
 /**
+ * RSBS version 8 — the inventory §5.3 convergence remainder (#462).
+ *
+ * 23 more MM keys move onto OoT's spelling (groups A-D of the enhancement
+ * classification: category-prefix strips, wording drift, the cutscene-skip
+ * family, and free-look). All are PURE renames — each was verified to agree on
+ * type, units, range and default on both sides before landing here, so unlike
+ * version 7's audio family none needs a value transform. Same conflict rule
+ * (OoT's value wins) via version8Migrations' RenameIfAbsent rows; zero-loss and
+ * non-oscillating for the same reasons as version 7.
+ */
+class ConfigVersion8Updater final : public Ship::ConfigVersionUpdater {
+  public:
+    ConfigVersion8Updater();
+    void Update(Ship::Config* conf);
+};
+
+/**
  * @brief The ADR 0003 §6.3 conflict rule, as a pure predicate.
  *
  * A config can legitimately hold BOTH spellings of a converged setting: the

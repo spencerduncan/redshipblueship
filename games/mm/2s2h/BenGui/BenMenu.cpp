@@ -336,7 +336,7 @@ void BenMenu::AddSettings() {
         .Options(CheckboxOptions().Tooltip(
             "Search input box gets autofocus when visible. Does not affect using other widgets."));
     AddWidget(path, "Alt Assets Tab hotkey", WIDGET_CVAR_CHECKBOX)
-        .CVar("gEnhancements.Mods.AlternateAssetsHotkey")
+        .CVar("gSettings.Mods.AlternateAssetsHotkey")
         .Options(
             CheckboxOptions().Tooltip("Allows pressing the Tab key to toggle alternate assets.").DefaultValue(true));
     AddWidget(path, "Open App Files Folder", WIDGET_BUTTON)
@@ -792,7 +792,7 @@ void BenMenu::AddEnhancements() {
     path.column = SECTION_COLUMN_2;
     AddWidget(path, "Cameras", WIDGET_SEPARATOR_TEXT);
     AddWidget(path, "Free Look", WIDGET_CVAR_CHECKBOX)
-        .CVar("gEnhancements.Camera.FreeLook.Enable")
+        .CVar("gSettings.FreeLook.Enabled")
         .PreFunc([](WidgetInfo& info) {
             if (mBenMenu->disabledMap.at(DISABLE_FOR_DEBUG_CAM_ON).active)
                 info.activeDisables.push_back(DISABLE_FOR_DEBUG_CAM_ON);
@@ -801,12 +801,12 @@ void BenMenu::AddEnhancements() {
             "Enables free look camera control.\nNote: You must remap C buttons off of the right "
             "stick in the controller config menu, and map the camera stick to the right stick."));
     AddWidget(path, "Camera Distance: %d", WIDGET_CVAR_SLIDER_INT)
-        .CVar("gEnhancements.Camera.FreeLook.MaxCameraDistance")
+        .CVar("gSettings.FreeLook.MaxCameraDistance")
         .PreFunc([](WidgetInfo& info) { info.isHidden = mBenMenu->disabledMap.at(DISABLE_FOR_FREE_LOOK_OFF).active; })
         .Options(
             IntSliderOptions().Tooltip("Maximum Camera Distance for Free Look.").Min(100).Max(900).DefaultValue(185));
     AddWidget(path, "Camera Transition Speed: %d", WIDGET_CVAR_SLIDER_INT)
-        .CVar("gEnhancements.Camera.FreeLook.TransitionSpeed")
+        .CVar("gSettings.FreeLook.TransitionSpeed")
         .PreFunc([](WidgetInfo& info) { info.isHidden = mBenMenu->disabledMap.at(DISABLE_FOR_FREE_LOOK_OFF).active; })
         .Options(IntSliderOptions().Tooltip("Can someone help me?").Min(1).Max(900).DefaultValue(25));
     AddWidget(path, "Max Camera Height Angle: %.0f\xC2\xB0", WIDGET_CVAR_SLIDER_FLOAT)
@@ -907,7 +907,7 @@ void BenMenu::AddEnhancements() {
         .CVar("gCheats.InfiniteMagic")
         .Options(CheckboxOptions().Tooltip("Always have full Magic."));
     AddWidget(path, "Infinite Rupees", WIDGET_CVAR_CHECKBOX)
-        .CVar("gCheats.InfiniteRupees")
+        .CVar("gCheats.InfiniteMoney")
         .Options(CheckboxOptions().Tooltip("Always have a full Wallet."));
     AddWidget(path, "Infinite Consumables", WIDGET_CVAR_CHECKBOX)
         .CVar("gCheats.InfiniteConsumables")
@@ -931,7 +931,7 @@ void BenMenu::AddEnhancements() {
         .CVar("gCheats.UnrestrictedItems")
         .Options(CheckboxOptions().Tooltip("Allows all Forms to use all Items."));
     AddWidget(path, "Hookshot Anywhere", WIDGET_CVAR_CHECKBOX)
-        .CVar("gCheats.HookshotAnywhere")
+        .CVar("gCheats.HookshotEverything")
         .Options(CheckboxOptions().Tooltip("Allows most surfaces to be hookshot-able."));
     AddWidget(path, "Moon Jump on L", WIDGET_CVAR_CHECKBOX)
         .CVar("gCheats.MoonJumpOnL")
@@ -940,7 +940,7 @@ void BenMenu::AddEnhancements() {
         .CVar("gCheats.ElegyAnywhere")
         .Options(CheckboxOptions().Tooltip("Allows Elegy of Emptiness outside of Ikana."));
     AddWidget(path, "Climb Anywhere", WIDGET_CVAR_CHECKBOX)
-        .CVar("gCheats.ClimbAnywhere")
+        .CVar("gCheats.ClimbEverything")
         .Options(CheckboxOptions().Tooltip("Allows climbing on most walls regardless of vines."));
     AddWidget(path, "Stop Time in Dungeons", WIDGET_CVAR_COMBOBOX)
         .CVar("gCheats.TempleTimeStop")
@@ -966,7 +966,7 @@ void BenMenu::AddEnhancements() {
         .Options(CheckboxOptions().Tooltip("Allows Deku Link to hop indefinitely in water without drowning. This also "
                                            "prevents the velocity loss while in the air."));
     AddWidget(path, "Instant Putaway", WIDGET_CVAR_CHECKBOX)
-        .CVar("gEnhancements.Player.InstantPutaway")
+        .CVar("gEnhancements.InstantPutaway")
         .Options(CheckboxOptions().Tooltip("Allows Link to instantly puts away held item without waiting."));
     AddWidget(path, "Fierce Deity Putaway", WIDGET_CVAR_CHECKBOX)
         .CVar("gEnhancements.Player.FierceDeityPutaway")
@@ -991,10 +991,10 @@ void BenMenu::AddEnhancements() {
         .CVar("gEnhancements.Player.ManualJump")
         .Options(CheckboxOptions().Tooltip("Z + A to Jump and B while midair to Jump Attack."));
     AddWidget(path, "Dpad Equips", WIDGET_CVAR_CHECKBOX)
-        .CVar("gEnhancements.Dpad.DpadEquips")
+        .CVar("gEnhancements.DpadEquips")
         .Options(CheckboxOptions().Tooltip("Allows you to equip items to your D-pad."));
     AddWidget(path, "Unequip Items", WIDGET_CVAR_CHECKBOX)
-        .CVar("gEnhancements.Equipment.ItemUnequip")
+        .CVar("gEnhancements.ItemUnequip")
         .Options(CheckboxOptions().Tooltip("In the pause menu, press the same C-button or D-pad button an item is "
                                            "equipped to in order to unequip it."));
     AddWidget(path, "Fast Magic Arrow Equip Animation", WIDGET_CVAR_CHECKBOX)
@@ -1082,7 +1082,7 @@ void BenMenu::AddEnhancements() {
         .CVar("gEnhancements.A11y.NoScreenFlashForEnemyKill")
         .Options(CheckboxOptions().Tooltip("Disables the white screen flash on enemy kill."));
     AddWidget(path, "Bow Reticle", WIDGET_CVAR_CHECKBOX)
-        .CVar("gEnhancements.Graphics.BowReticle")
+        .CVar("gEnhancements.BowReticle")
         .Options(CheckboxOptions().Tooltip("Gives the bow a reticle when you draw an arrow."));
     AddWidget(path, "Mark Shooting Gallery Octoroks", WIDGET_CVAR_CHECKBOX)
         .CVar("gEnhancements.Minigames.MarkShootingGalleryOctoroks")
@@ -1106,10 +1106,10 @@ void BenMenu::AddEnhancements() {
             "into the game, you will be placed either at the entrance of the dungeon you saved in, or "
             "in South Clock Town, unless Remember Save Location is enabled."));
     AddWidget(path, "Remember Save Location", WIDGET_CVAR_CHECKBOX)
-        .CVar("gEnhancements.Saving.RememberSaveLocation")
+        .CVar("gEnhancements.RememberSaveLocation")
         .Options(CheckboxOptions().Tooltip("When loading a save, places Link at the last entrance he went through."));
     AddWidget(path, "Autosave", WIDGET_CVAR_CHECKBOX)
-        .CVar("gEnhancements.Saving.Autosave")
+        .CVar("gEnhancements.Autosave")
         .Callback([](WidgetInfo& info) { RegisterAutosave(); })
         .Options(CheckboxOptions().Tooltip(
             "Automatically create a persistent Owl Save on the chosen interval.\n\nWhen loading "
@@ -1225,13 +1225,13 @@ void BenMenu::AddEnhancements() {
         .Options(CheckboxOptions().Tooltip("Hide the game version and build details and display the authentic "
                                            "model and texture on the boot logo start screen."));
     AddWidget(path, "Disable Black Bar Letterboxes", WIDGET_CVAR_CHECKBOX)
-        .CVar("gEnhancements.Graphics.DisableBlackBars")
+        .CVar("gEnhancements.DisableBlackBars")
         .Options(CheckboxOptions().Tooltip(
             "Disables Black Bar Letterboxes during cutscenes and Z-targeting.\nNote: There may be "
             "minor visual glitches that were covered up by the black bars.\nPlease disable this "
             "setting before reporting a bug."));
     AddWidget(path, "Enemy Health Bars", WIDGET_CVAR_CHECKBOX)
-        .CVar("gEnhancements.Graphics.EnemyHealthBars")
+        .CVar("gEnhancements.EnemyHealthBar")
         .Options(CheckboxOptions().Tooltip("Renders a health bar for enemies and bosses when Z-targeted."));
     AddWidget(path, "Fix Scene Geometry Seams", WIDGET_CVAR_CHECKBOX)
         .CVar("gEnhancements.Graphics.FixSceneGeometrySeams")
@@ -1346,21 +1346,21 @@ void BenMenu::AddEnhancements() {
     // Cutscene Skips
     AddWidget(path, "Cutscenes", WIDGET_SEPARATOR_TEXT);
     AddWidget(path, "Hide Title Cards", WIDGET_CVAR_CHECKBOX)
-        .CVar("gEnhancements.Cutscenes.HideTitleCards")
+        .CVar("gEnhancements.TimeSavers.DisableTitleCard")
         .Options(CheckboxOptions().Tooltip("Hides Title Cards when entering areas."));
     AddWidget(path, "Skip One Point Cutscenes", WIDGET_CVAR_CHECKBOX)
-        .CVar("gEnhancements.Cutscenes.SkipOnePointCutscenes")
+        .CVar("gEnhancements.TimeSavers.SkipCutscene.OnePoint")
         .Options(CheckboxOptions().Tooltip(
             "Skips freezing Link to focus on various events like chest spawning, door unlocking, switch pressed, etc"));
     AddWidget(path, "Skip Entrance Cutscenes", WIDGET_CVAR_CHECKBOX)
-        .CVar("gEnhancements.Cutscenes.SkipEntranceCutscenes")
+        .CVar("gEnhancements.TimeSavers.SkipCutscene.Entrances")
         .Options(CheckboxOptions().Tooltip("Skip cutscenes that occur when first entering a new area."));
     AddWidget(path, "Skip to File Select", WIDGET_CVAR_CHECKBOX)
         .CVar("gEnhancements.Cutscenes.SkipToFileSelect")
         .Options(CheckboxOptions().Tooltip(
             "Skip the opening title sequence and go straight to the file select menu after boot."));
     AddWidget(path, "Skip Intro Sequence", WIDGET_CVAR_CHECKBOX)
-        .CVar("gEnhancements.Cutscenes.SkipIntroSequence")
+        .CVar("gEnhancements.TimeSavers.SkipCutscene.Intro")
         .Options(CheckboxOptions().Tooltip(
             "When starting a game you will be taken straight to South Clock Town as Deku Link."));
     AddWidget(path, "Skip First Cycle", WIDGET_CVAR_CHECKBOX)
@@ -1374,7 +1374,7 @@ void BenMenu::AddEnhancements() {
             "When starting a game you will be taken straight to South Clock Town as Human Link "
             "with Deku Mask, Ocarina, Song of Time, and Song of Healing."));
     AddWidget(path, "Skip Story Cutscenes", WIDGET_CVAR_CHECKBOX)
-        .CVar("gEnhancements.Cutscenes.SkipStoryCutscenes")
+        .CVar("gEnhancements.TimeSavers.SkipCutscene.Story")
         .Options(CheckboxOptions().Tooltip("This skips many of the cutscenes associated with the main story."));
     AddWidget(path, "Skip Misc Interactions", WIDGET_CVAR_CHECKBOX)
         .CVar("gEnhancements.Cutscenes.SkipMiscInteractions")
@@ -1421,7 +1421,7 @@ void BenMenu::AddEnhancements() {
         .CVar("gEnhancements.Timesavers.DampeDiggingSkip")
         .Options(CheckboxOptions().Tooltip("Only requires digging up one flame to spawn the big poe."));
     AddWidget(path, "Fast Chests", WIDGET_CVAR_CHECKBOX)
-        .CVar("gEnhancements.Timesavers.FastChests")
+        .CVar("gEnhancements.FastChests")
         .Options(CheckboxOptions().Tooltip("Uses the quick kick animation for all chests in vanilla gameplay."));
     AddWidget(path, "Faster Scene Transitions", WIDGET_CVAR_CHECKBOX)
         .CVar("gEnhancements.Timesavers.FasterSceneTransitions")
@@ -1536,7 +1536,7 @@ void BenMenu::AddEnhancements() {
                      .Max(6)
                      .DefaultValue(0));
     AddWidget(path, "Pause Buffer Input Window", WIDGET_CVAR_SLIDER_INT)
-        .CVar("gEnhancements.Restorations.PauseBufferWindow")
+        .CVar("gEnhancements.PauseBufferWindow")
         .Options(IntSliderOptions()
                      .Tooltip("Amount of time in frames you have to buffer an input while unpausing the game. Original "
                               "hardware is around 20.")
@@ -1549,7 +1549,7 @@ void BenMenu::AddEnhancements() {
     AddSidebarEntry("Enhancements", "Difficulty Options", 3);
     AddWidget(path, "Combat", WIDGET_SEPARATOR_TEXT);
     AddWidget(path, "Hyper Enemies", WIDGET_CVAR_CHECKBOX)
-        .CVar("gEnhancements.DifficultyOptions.HyperEnemies")
+        .CVar("gEnhancements.HyperEnemies")
         .Options(CheckboxOptions().Tooltip("Double the rate at which enemies are updated, making them more difficult"));
     AddWidget(path, "Damage Multiplier", WIDGET_CVAR_COMBOBOX)
         .CVar("gEnhancements.DifficultyOptions.DamageMultiplier")
@@ -1976,7 +1976,7 @@ void BenMenu::InitElement() {
         { DISABLE_FOR_CAMERAS_OFF,
           { [](disabledInfo& info) -> bool {
                return !CVarGetInteger("gEnhancements.Camera.DebugCam.Enable", 0) &&
-                      !CVarGetInteger("gEnhancements.Camera.FreeLook.Enable", 0);
+                      !CVarGetInteger("gSettings.FreeLook.Enabled", 0);
            },
             "Both Debug Camera and Free Look are Disabled" } },
         { DISABLE_FOR_DEBUG_CAM_ON,
@@ -1986,10 +1986,10 @@ void BenMenu::InitElement() {
           { [](disabledInfo& info) -> bool { return !CVarGetInteger("gEnhancements.Camera.DebugCam.Enable", 0); },
             "Debug Camera is Disabled" } },
         { DISABLE_FOR_FREE_LOOK_ON,
-          { [](disabledInfo& info) -> bool { return CVarGetInteger("gEnhancements.Camera.FreeLook.Enable", 0); },
+          { [](disabledInfo& info) -> bool { return CVarGetInteger("gSettings.FreeLook.Enabled", 0); },
             "Free Look is Enabled" } },
         { DISABLE_FOR_FREE_LOOK_OFF,
-          { [](disabledInfo& info) -> bool { return !CVarGetInteger("gEnhancements.Camera.FreeLook.Enable", 0); },
+          { [](disabledInfo& info) -> bool { return !CVarGetInteger("gSettings.FreeLook.Enabled", 0); },
             "Free Look is Disabled" } },
         { DISABLE_FOR_GYRO_OFF,
           { [](disabledInfo& info) -> bool {
@@ -2007,7 +2007,7 @@ void BenMenu::InitElement() {
            },
             "Right Stick Aiming is Disabled" } },
         { DISABLE_FOR_AUTO_SAVE_OFF,
-          { [](disabledInfo& info) -> bool { return !CVarGetInteger("gEnhancements.Saving.Autosave", 0); },
+          { [](disabledInfo& info) -> bool { return !CVarGetInteger("gEnhancements.Autosave", 0); },
             "AutoSave is Disabled" } },
         { DISABLE_FOR_NULL_PLAY_STATE,
           { [](disabledInfo& info) -> bool { return MM_gPlayState == NULL; }, "Not in game" } },
@@ -2058,7 +2058,9 @@ void BenMenu::InitElement() {
            },
             "Frame Advance is Disabled" } },
         { DISABLE_FOR_INTRO_SKIP_OFF,
-          { [](disabledInfo& info) -> bool { return !CVarGetInteger("gEnhancements.Cutscenes.SkipIntroSequence", 0); },
+          { [](disabledInfo& info) -> bool {
+               return !CVarGetInteger("gEnhancements.TimeSavers.SkipCutscene.Intro", 0);
+           },
             "Intro Skip Not Selected" } },
         { DISABLE_FOR_ADVANCED_RESOLUTION_ON,
           { [](disabledInfo& info) -> bool { return CVarGetInteger(CVAR_PREFIX_ADVANCED_RESOLUTION ".Enabled", 0); },

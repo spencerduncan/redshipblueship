@@ -22,6 +22,8 @@ ConfigVersion6Updater::ConfigVersion6Updater() : ConfigVersionUpdater(6) {
 }
 ConfigVersion7Updater::ConfigVersion7Updater() : ConfigVersionUpdater(7) {
 }
+ConfigVersion8Updater::ConfigVersion8Updater() : ConfigVersionUpdater(8) {
+}
 
 void ConfigVersion1Updater::Update(Ship::Config* conf) {
     if (conf->GetInt("Window.Width", 640) == 640) {
@@ -214,6 +216,32 @@ void ConfigVersion7Updater::Update(Ship::Config* conf) {
             CVarSetInteger(key.canonical, VolumePercentFromFloatScale(CVarGetFloat(key.legacy, 1.0f)));
         }
         CVarClear(key.legacy);
+    }
+}
+
+// ============================================================================
+// Version 8 — the inventory §5.3 convergence remainder (#462)
+// ============================================================================
+
+/**
+ * 23 pure MM -> OoT renames (ADR 0004 inventory §5.3 groups A-D). Every row was
+ * verified to share type, units, range and default across both games before
+ * landing, so — unlike version 7's audio family — none needs a value transform;
+ * RenameIfAbsent copies the stored value across verbatim. Same conflict rule as
+ * version 7: OoT's value wins, the legacy spelling is cleared either way, so the
+ * migration is a no-op on re-run and cannot oscillate.
+ */
+void ConfigVersion8Updater::Update(Ship::Config* conf) {
+    for (Migration migration : version8Migrations) {
+        if (migration.action == MigrationAction::RenameIfAbsent) {
+            if (ShouldAdoptLegacyValue(CVarPresent(migration.from.c_str()),
+                                       CVarPresent(migration.to.value().c_str()))) {
+                CVarCopy(migration.from.c_str(), migration.to.value().c_str());
+            }
+        } else if (migration.action == MigrationAction::Rename) {
+            CVarCopy(migration.from.c_str(), migration.to.value().c_str());
+        }
+        CVarClear(migration.from.c_str());
     }
 }
 } // namespace SOH

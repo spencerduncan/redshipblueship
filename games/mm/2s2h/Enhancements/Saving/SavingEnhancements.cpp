@@ -8,7 +8,7 @@ extern "C" {
 #include <functions.h>
 }
 
-#define CVAR_REMEMBER_SAVE_LOCATION_NAME "gEnhancements.Saving.RememberSaveLocation"
+#define CVAR_REMEMBER_SAVE_LOCATION_NAME "gEnhancements.RememberSaveLocation"
 #define CVAR_REMEMBER_SAVE_LOCATION CVarGetInteger(CVAR_REMEMBER_SAVE_LOCATION_NAME, 0)
 
 static uint32_t autosaveInterval = 0;
@@ -285,7 +285,7 @@ void RegisterAutosave() {
         autosaveGameStateDrawFinishHookId = 0;
     }
 
-    if (CVarGetInteger("gEnhancements.Saving.Autosave", 0)) {
+    if (CVarGetInteger("gEnhancements.Autosave", 0)) {
         autosaveGameStateUpdateHookId = S2H::GameHooks::Register<GameInteractor::OnGameStateUpdate>([]() {
             if (MM_gPlayState == nullptr) {
                 return;

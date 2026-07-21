@@ -1589,4 +1589,65 @@ std::vector<Migration> version7Migrations = {
     { MigrationAction::RenameIfAbsent, "gCosmetics.Link_GoronTunic.Value", "gCosmetics.Link.GoronTunic.Value" },
     { MigrationAction::RenameIfAbsent, "gCosmetics.Link_ZoraTunic.Value", "gCosmetics.Link.ZoraTunic.Value" },
 };
+
+/**
+ * RSBS version 8 — the inventory §5.3 convergence remainder (#462).
+ *
+ * MM moves onto OoT's spelling for 23 more settings both games mean identically:
+ * inventory group A (identical leaf, MM adds a category prefix), group B
+ * (wording drift), group C (the cutscene-skip family), group D (free-look).
+ * Direction MM -> OoT per ADR 0003 decision (3).
+ *
+ * ALL of these are pure renames. Unlike version 7's audio family, every row here
+ * was verified to agree on TYPE, UNITS, RANGE and DEFAULT on both sides before it
+ * was treated as mechanical (see src/common/cvar_shared_keys.h), so RenameIfAbsent
+ * copies the stored value unchanged — no value transform is needed and none is
+ * safe to omit. The three §5.3 rows that FAILED that check (ClimbSpeed's
+ * additive-vs-multiplier units, and the two parked cheat pairs) are held out in
+ * RSBS::kMustStayDistinct and are not in this table.
+ *
+ * Same conflict rule as version 7 (ADR 0003 §6.3): OoT's value wins, and the
+ * legacy MM spelling is cleared either way so the migration cannot oscillate.
+ * This table mirrors the non-scaledPercent §5.3 rows of RSBS::kConvergedKeys;
+ * the 2Ship importer maps through that same manifest.
+ */
+std::vector<Migration> version8Migrations = {
+    // Group A — identical leaf, MM adds a category prefix.
+    { MigrationAction::RenameIfAbsent, "gEnhancements.Timesavers.FastChests", "gEnhancements.FastChests" },
+    { MigrationAction::RenameIfAbsent, "gEnhancements.Graphics.BowReticle", "gEnhancements.BowReticle" },
+    { MigrationAction::RenameIfAbsent, "gEnhancements.Graphics.DisableBlackBars", "gEnhancements.DisableBlackBars" },
+    { MigrationAction::RenameIfAbsent, "gEnhancements.Player.InstantPutaway", "gEnhancements.InstantPutaway" },
+    { MigrationAction::RenameIfAbsent, "gEnhancements.Equipment.ItemUnequip", "gEnhancements.ItemUnequip" },
+    { MigrationAction::RenameIfAbsent, "gEnhancements.Saving.Autosave", "gEnhancements.Autosave" },
+    { MigrationAction::RenameIfAbsent, "gEnhancements.Saving.RememberSaveLocation",
+      "gEnhancements.RememberSaveLocation" },
+    { MigrationAction::RenameIfAbsent, "gEnhancements.Dpad.DpadEquips", "gEnhancements.DpadEquips" },
+    { MigrationAction::RenameIfAbsent, "gEnhancements.Restorations.PauseBufferWindow",
+      "gEnhancements.PauseBufferWindow" },
+    { MigrationAction::RenameIfAbsent, "gEnhancements.DifficultyOptions.HyperEnemies", "gEnhancements.HyperEnemies" },
+    { MigrationAction::RenameIfAbsent, "gEnhancements.Mods.AlternateAssetsHotkey",
+      "gSettings.Mods.AlternateAssetsHotkey" },
+    // Group B — wording drift, same meaning.
+    { MigrationAction::RenameIfAbsent, "gCheats.ClimbAnywhere", "gCheats.ClimbEverything" },
+    { MigrationAction::RenameIfAbsent, "gCheats.HookshotAnywhere", "gCheats.HookshotEverything" },
+    { MigrationAction::RenameIfAbsent, "gCheats.InfiniteRupees", "gCheats.InfiniteMoney" },
+    { MigrationAction::RenameIfAbsent, "gEnhancements.Graphics.EnemyHealthBars", "gEnhancements.EnemyHealthBar" },
+    { MigrationAction::RenameIfAbsent, "gEnhancements.Cutscenes.HideTitleCards",
+      "gEnhancements.TimeSavers.DisableTitleCard" },
+    // Group C — cutscene-skip family.
+    { MigrationAction::RenameIfAbsent, "gEnhancements.Cutscenes.SkipEntranceCutscenes",
+      "gEnhancements.TimeSavers.SkipCutscene.Entrances" },
+    { MigrationAction::RenameIfAbsent, "gEnhancements.Cutscenes.SkipIntroSequence",
+      "gEnhancements.TimeSavers.SkipCutscene.Intro" },
+    { MigrationAction::RenameIfAbsent, "gEnhancements.Cutscenes.SkipOnePointCutscenes",
+      "gEnhancements.TimeSavers.SkipCutscene.OnePoint" },
+    { MigrationAction::RenameIfAbsent, "gEnhancements.Cutscenes.SkipStoryCutscenes",
+      "gEnhancements.TimeSavers.SkipCutscene.Story" },
+    // Group D — free-look.
+    { MigrationAction::RenameIfAbsent, "gEnhancements.Camera.FreeLook.Enable", "gSettings.FreeLook.Enabled" },
+    { MigrationAction::RenameIfAbsent, "gEnhancements.Camera.FreeLook.MaxCameraDistance",
+      "gSettings.FreeLook.MaxCameraDistance" },
+    { MigrationAction::RenameIfAbsent, "gEnhancements.Camera.FreeLook.TransitionSpeed",
+      "gSettings.FreeLook.TransitionSpeed" },
+};
 } // namespace SOH
