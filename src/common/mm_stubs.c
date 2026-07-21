@@ -100,9 +100,17 @@ void MM_FaultDrawer_SetCharPad(int xPad, int yPad) { (void)xPad; (void)yPad; }
  * overrides fire on MM frames without MM ids ever reaching OoT's tables.
  * Re-adding Should stubs here would silently sever that dispatch. */
 void GameInteractor_ExecuteOnActorDraw(void* actor) { (void)actor; }
-void GameInteractor_ExecuteOnGameStateUpdate(void* state) { (void)state; }
+/* GameInteractor_ExecuteOnGameStateUpdate / ExecuteOnGameStateDrawFinish moved
+ * to real, header-checked dispatch in games/mm/2s2h/GameExports_SingleExe.cpp
+ * (#442): MM's own frame loop (games/mm/src/code/game.c MM_GameState_Update)
+ * already calls both at the right points every frame — the "pump" upstream
+ * 2S2H used — so once SavingEnhancements.cpp's raw registrations for these
+ * two hook types moved onto S2H::GameHooks, leaving these as no-ops would
+ * have kept autosave (OnGameStateUpdate: HandleAutoSave) and its owl-save
+ * icon (OnGameStateDrawFinish: DrawAutosaveIcon) permanently dead even though
+ * registration itself no longer corrupts memory. Re-stubbing them here would
+ * silently sever that dispatch again. */
 void GameInteractor_ExecuteOnGameStateMainFinish(void* state) { (void)state; }
-void GameInteractor_ExecuteOnGameStateDrawFinish(void* state) { (void)state; }
 void GameInteractor_ExecuteOnPlayDrawWorldEnd(void* play) { (void)play; }
 void GameInteractor_ExecuteOnInterfaceDrawStart(void* play) { (void)play; }
 void GameInteractor_ExecuteBeforeKaleidoDrawPage(void* state, int page) { (void)state; (void)page; }
@@ -128,16 +136,34 @@ void GameInteractor_ExecuteOnItemGive(int itemId) { (void)itemId; }
 void GameInteractor_ExecuteOnCameraChangeModeFlags(void* camera) { (void)camera; }
 void GameInteractor_ExecuteOnCameraChangeSettingsFlags(void* camera) { (void)camera; }
 void GameInteractor_ExecuteAfterCameraUpdate(void* camera) { (void)camera; }
-void GameInteractor_ExecuteOnPassPlayerInputs(void* input) { (void)input; }
+/* GameInteractor_ExecuteOnPassPlayerInputs moved to real, header-checked
+ * dispatch in games/mm/2s2h/GameExports_SingleExe.cpp (#442): MM's real
+ * z_player.c call site already pumps this every gameplay frame; the stub was
+ * keeping SavingEnhancements.cpp's post-migration OnPassPlayerInputs
+ * registration (cutscene-skip-on-load's gameplay-started detector) a
+ * permanent no-op. Re-stubbing here would silently sever it again. */
 void GameInteractor_ExecuteOnPlayerPostLimbDraw(void* player, int limbIndex) { (void)player; (void)limbIndex; }
 void GameInteractor_ExecuteOnBossDefeated(int bossId) { (void)bossId; }
 void GameInteractor_ExecuteOnBottleContentsUpdate(int slotId) { (void)slotId; }
 void GameInteractor_ExecuteOnConsoleLogoUpdate(void) {}
 void GameInteractor_ExecuteOnFileSelectSaveLoad(void* state, int fileNum) { (void)state; (void)fileNum; }
 void GameInteractor_ExecuteOnGameCompletion(void) {}
+/* GameInteractor_ExecuteBeforeEndOfCycleSave / ExecuteAfterEndOfCycleSave stay
+ * stubbed on purpose (#442 leaves this pair to #438, which already tracks it
+ * alongside the rest of the registered-but-dormant hook table): they are a
+ * matched before/after pair around Rando::MiscBehavior's cycle-save
+ * fix-ups, and BeforeEndOfCycleSave now also has a real S2H::GameHooks
+ * registrant from SavingEnhancements.cpp (RegisterSavingEnhancements). Wiring
+ * only the Before half here would run its memcpy backup every cycle save
+ * while AfterEndOfCycleSave's restore logic stays dead — harmless (the copy
+ * goes unread) but a half-fix; #438 wires both together. */
 void GameInteractor_ExecuteBeforeEndOfCycleSave(void) {}
 void GameInteractor_ExecuteAfterEndOfCycleSave(void) {}
-void GameInteractor_ExecuteBeforeMoonCrashSaveReset(void) {}
+/* GameInteractor_ExecuteBeforeMoonCrashSaveReset moved to real, header-checked
+ * dispatch in games/mm/2s2h/GameExports_SingleExe.cpp (#442): MM's real
+ * z_sram_NES.c call site already pumps this at the moon-crash reset point;
+ * the stub was keeping SavingEnhancements.cpp's post-migration registration
+ * (owl-save deletion on moon crash) a permanent no-op. */
 void GameInteractor_ExecuteBeforeInterfaceClockDraw(void) {}
 void GameInteractor_ExecuteAfterInterfaceClockDraw(void) {}
 /* GameInteractor_InvertControl, GameInteractor_Dpad, and

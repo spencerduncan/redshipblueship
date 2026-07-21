@@ -1625,6 +1625,39 @@ extern "C" void GameInteractor_ExecuteOnSaveLoad(s16 fileNum) {
     S2H::GameHooks::Execute<GameInteractor::OnSaveLoad>(fileNum);
 }
 
+/**
+ * OnGameStateUpdate / OnGameStateDrawFinish / OnPassPlayerInputs /
+ * BeforeMoonCrashSaveReset replace former mm_stubs.c no-ops (#442 follow-up:
+ * SavingEnhancements.cpp's raw registrations for these four hook types moved
+ * onto S2H::GameHooks alongside the OOB-write fix, which would otherwise have
+ * left autosave, its draw-icon, the entrance-cutscene-skip gameplay-started
+ * detector, and owl-save-on-moon-crash-reset silently registered but never
+ * dispatched). MM's own code already calls these at the right places —
+ * games/mm/src/code/game.c MM_GameState_Update (every frame, mirroring the
+ * OnGameStateMainStart pump from #415), games/mm/src/overlays/actors/
+ * ovl_player_actor/z_player.c (every gameplay-input frame), and
+ * games/mm/src/code/z_sram_NES.c (the moon-crash reset point) — so this is
+ * the same "pump already exists, only the body was a no-op" pattern as
+ * OnSaveInit/OnSaveLoad above. No ForFilter leg for OnPassPlayerInputs: the
+ * S2H registry has no Ptr/Filter surface and the linked MM set registers
+ * none (same omission #435 made for the Should family).
+ */
+extern "C" void GameInteractor_ExecuteOnGameStateUpdate() {
+    S2H::GameHooks::Execute<GameInteractor::OnGameStateUpdate>();
+}
+
+extern "C" void GameInteractor_ExecuteOnGameStateDrawFinish() {
+    S2H::GameHooks::Execute<GameInteractor::OnGameStateDrawFinish>();
+}
+
+extern "C" void GameInteractor_ExecuteOnPassPlayerInputs(Input* input) {
+    S2H::GameHooks::Execute<GameInteractor::OnPassPlayerInputs>(input);
+}
+
+extern "C" void GameInteractor_ExecuteBeforeMoonCrashSaveReset() {
+    S2H::GameHooks::Execute<GameInteractor::BeforeMoonCrashSaveReset>();
+}
+
 extern "C" void MM_GameHooks_ExecuteOnActorUpdate(Actor* actor) {
     S2H::GameHooks::Execute<GameInteractor::OnActorUpdate>(actor);
     S2H::GameHooks::ExecuteForID<GameInteractor::OnActorUpdate>(actor->id, actor);

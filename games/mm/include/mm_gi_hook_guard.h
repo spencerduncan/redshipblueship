@@ -20,10 +20,20 @@
  * the _force_include_cxx_guarded list), so the class definition itself parses
  * with the real member names; any LATER use of a poisoned name in the TU
  * fails to compile with an identifier that points here. Applied to
- * 2ship_port/2ship_src; 2ship_enh and 2ship_rando are exempt until Lane C
- * migrates their (currently link-elided) upstream RegisterGameHook calls onto
- * the shim — extend the guarded list in games/mm/CMakeLists.txt when that
- * happens (#392).
+ * 2ship_port/2ship_src/2ship_rando/2ship_rando_ui unconditionally. 2ship_enh
+ * is exempt as a *target* — most of its ~195 TUs stay link-elided (plain
+ * archive semantics; nothing pulls them in) and carry raw RegisterGameHook
+ * sites the full #427-item-2 migration hasn't reached yet — but
+ * games/mm/CMakeLists.txt now force-includes this guard on the specific
+ * 2ship_enh sources confirmed to actually enter the link
+ * (docs/unified-surface-findings.md's census: FrameInterpolation.cpp,
+ * MotionBlur.cpp, PauseOwlWarp.cpp, SavingEnhancements.cpp,
+ * SkipGiantsChamber.cpp, AudioCollection.cpp — see
+ * _mm_gi_hook_guard_linked_enh_sources there), since a raw registration in
+ * any of those genuinely reaches the shared instance today (#442: this is
+ * exactly how SavingEnhancements.cpp's raw sites got past the target-wide
+ * exemption). Extend that per-source list — or flip the whole target — as
+ * more 2ship_enh TUs stop being link-elided (#392).
  *
  * Escape hatch for deliberate probes: `#undef` the macro in the probing TU
  * (precedent: the rename #undefs in games/mm/2s2h/mm_culling_test.cpp).
