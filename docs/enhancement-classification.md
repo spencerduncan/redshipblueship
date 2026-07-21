@@ -3,10 +3,21 @@
 > Companion data for [ADR 0004 — Menu information architecture](adr/0004-menu-information-architecture.md).
 > Verified by grep against `origin/main` on 2026-07-21. Symbols-first; line numbers drift.
 >
-> **This table is the input to two ADRs.** ADR 0004 consumes the classification to lay out
-> the menu; the settings-namespace ADR consumes §5 (the convergence list) to generate its
-> rename set. A misclassification here becomes a wrong rename downstream, so every row is
+> **This table is the input to two ADRs.** [ADR 0004](adr/0004-menu-information-architecture.md)
+> consumes the classification to lay out the menu;
+> [ADR 0003](adr/0003-settings-namespace.md) consumes §5 (the convergence list) to generate
+> its rename set. A misclassification here becomes a wrong rename downstream, so every row is
 > backed by reading the implementation on both sides, not by name-matching alone.
+>
+> **On the two independent measurements.** ADR 0003 measured the collision set in parallel
+> with this document and reports **30** keys where this reports **35 exact + 2 by-design**.
+> The gap is method, and both are defensible: ADR 0003 excludes
+> `games/oot/soh/config/ConfigMigrators.h` because its `from` fields are legacy spellings OoT
+> has already migrated away from, while this document includes it. Including it is what
+> surfaced the tunic desync (§3.3 BUG 1) — the key only looks shared *because* it appears in
+> the migrator — and ADR 0003 independently arrived at the same fix by a different route
+> (its §5.1 Tier-1 rename list). The two documents agree on every substantive row except
+> `DebugSaveFileMode`; see ADR 0004 §2d for that disagreement.
 
 ## 0. Governing principle
 
@@ -29,6 +40,9 @@ These came from the maintainer and are recorded in ADR 0004; they are not reopen
 3. **Convergence direction is MM → OoT keys**, where a shared-intent setting has different
    keys on each side. "Where we should" is a scope limit: only (S) rows converge. (O) rows
    keep their own keys; (P) rows get *disambiguated*, never merged.
+
+These are the same three premises recorded in ADR 0003 §"Settled inputs"; the two documents
+were drafted in parallel from them.
 
 ## 1. Classification scheme
 
@@ -170,9 +184,13 @@ The *enum ordering happens to align*, but the **defaults disagree**: unset, OoT 
 game's debug-save behaviour away from its own default. Low blast radius (debug-only, gated
 behind `DebugEnabled`) but it is a genuine accidental divergence on a shared key.
 
-**Classification: (P)** — converge the *key* is fine, but the defaults must be reconciled to
-one value first, which is a behaviour decision, not a rename. Do not let the namespace ADR
-merge this row blind.
+**Classification: (P)** — the key already matches so nothing renames, but the defaults must be
+reconciled, which is a behaviour decision.
+
+> ⚠️ **ADR 0003 §4.1 classifies this (S)** — "value spaces align… only the unwritten fallback
+> differs. Acceptable, worth knowing." This document takes the more conservative (P) line. The
+> disagreement is narrow and safe (no rename either way); #454 decides it. Recorded rather than
+> reconciled so neither document silently overrides the other.
 
 ## 4. (P) — per-game parallel: same idea, incompatible realisation
 

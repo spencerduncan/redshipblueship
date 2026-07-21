@@ -3,8 +3,9 @@
 - Status: **Proposed** (2026-07-21)
 - For: #392 (Phase 3.0 tracker), #34 (settings migration)
 - Depends on:
-  - the settings-namespace ADR (expected 0003) — owns CVar key naming and the
-    rename/migration rule; this ADR consumes its decisions rather than restating them
+  - **[ADR 0003](0003-settings-namespace.md)** (settings namespace) — owns CVar key naming and
+    the rename/migration rule; this ADR consumes its decisions rather than restating them.
+    **This ADR resolves ADR 0003 §4.2** — see §2d below
   - **#446** — the `Ship::Menu` / `WidgetInfo` ODR split; gates any MM menu-code port
   - **#438** — missing MM hook dispatch placements; gates real MM functionality
   - `docs/unified-surface-findings.md` — the investigation this plan acts on
@@ -52,7 +53,7 @@ beep toggles, and two Infinite Health checkboxes for what they experience as one
 Recorded here so downstream work does not relitigate them.
 
 **2a. Shared-intent mechanism is ONE shared CVar** read by both games. No UI fan-out layer to
-two per-game keys. The settings-namespace ADR owns key naming; this ADR assumes a single key.
+two per-game keys. ADR 0003 §2.2 owns key naming; this ADR assumes a single key.
 
 > **Accepted trade — no per-game override.** Under one shared CVar, "Infinite Health in MM but
 > not OoT" is **not expressible**. This is a deliberate consequence of the governing principle,
@@ -67,7 +68,38 @@ and is not part of the divergence bug list.
 **2c. Convergence direction is MM → OoT keys**, where a shared-intent setting currently has
 different keys on each side. "Where we should" is a scope limit: only (S) rows converge; (O)
 rows keep their own keys; (P) rows are disambiguated, never merged. The classification table
-§5.3 supplies the 26-row rename list; the namespace ADR owns the rename and migration rule.
+§5.3 supplies the 26-row rename list; ADR 0003 §5 owns the rename and migration rule.
+
+### 2d. Relationship to ADR 0003, including where the two differ
+
+ADR 0003 and this ADR were drafted in parallel from the same three maintainer decisions and
+measured the collision set independently. They agree on the principle, the mechanism, the
+direction, and — importantly — **both independently found the same two divergence bugs**
+(the tunic desync and the `DebugSaveFileMode` defaults). Where they differ, this section is
+the record; neither document silently overrides the other.
+
+**This ADR resolves ADR 0003 §4.2.** That section classifies four keys —
+`gSettings.Menu.ActiveHeader` and the three `…SidebarSection` keys — as class (P) bugs,
+because a section index or header name written by one menu is meaningless to the other. It
+explicitly defers disposition to the menu end-state decision, and states: *"if MM's entries
+are added into `SohMenu` instead, they become genuine class (S) automatically because there
+is then only one menu."*
+
+**This ADR makes that choice: one shell, MM entries added into `SohMenu`.** ADR 0003's four
+(P) keys therefore become class (S), and its warning — *"do not let MM's menu un-elide before
+resolving it"* — is discharged, provided MM's menu is never revived as a second shell. That
+proviso is now load-bearing for both documents, which is the second reason §3 tier 1 flags the
+sidebar-name caveat.
+
+**One live disagreement, deliberately preserved.** On `gDeveloperTools.DebugSaveFileMode`,
+ADR 0003 §4.1 classifies (S) — value spaces align, only the unwritten fallback differs,
+"acceptable, worth knowing". This document classifies it **(P)** and files it as
+[#454](https://github.com/spencerduncan/redshipblueship/issues/454). The disagreement is real
+and narrow: 0003 is right that once the key is written the games agree, and this ADR is
+taking the more conservative line that two different defaults on one shared key is a
+behaviour decision someone should make rather than inherit. **The rename pass is safe under
+either reading** — the key name already matches, so nothing renames. Whoever closes #454
+should update whichever document ends up wrong.
 
 ### 3. The four tiers
 
@@ -212,7 +244,7 @@ Ordered by what unblocks what. Nothing in this ADR is implementable before its g
 
 | # | Gate | Blocks | Status |
 |---|---|---|---|
-| 1 | **Settings-namespace ADR** (expected 0003) | All key naming; the 26-row rename list | A decision, not code |
+| 1 | **[ADR 0003](0003-settings-namespace.md)** — settings namespace | All key naming; the 26-row rename list | Proposed; scheduled as #34 |
 | 2 | **#446** — `Ship::Menu` / `WidgetInfo` ODR split | *Any* MM menu-code port | Agent landing now |
 | 3 | **#438** — MM hook dispatch placements (~22) | Real MM functionality behind any MM entry | Open |
 | 4 | `2ship_enh` migration (~56 raw sites) + WHOLE_ARCHIVE + guard flip | MM enhancements linking at all | Part of #427 |
@@ -243,7 +275,8 @@ Genuinely open, and deliberately left to the maintainer:
    not merge these until it is made.
 3. **(P) row P5 — `gDeveloperTools.DebugSaveFileMode` defaults.** The games share the key but
    disagree on the default (OoT 1 "Vanilla", MM 0 "Empty"). Reconciling requires picking one
-   behaviour; it is not a rename.
+   behaviour; it is not a rename. **ADR 0003 §4.1 reaches the opposite conclusion** and calls
+   this acceptable — see §2d and #454. Deciding it settles which document is right.
 4. **Group B rename confirmations.** Two rows need a semantic check before renaming:
    `InfiniteAmmo`/`InfiniteConsumables` (MM's scope may be wider) and
    `NoRestrictItems`/`UnrestrictedItems` (OoT drops age gating, MM drops form gating).
