@@ -171,7 +171,11 @@ extern "C" int Rando_HeadlessHintValidityTest(const char* seedStr) {
         // declared pair (the same schema the spoiler and the plando loader
         // use), so re-rendering a reloaded hint must reproduce the live text
         // exactly -- and in particular must not decay to the sentinel.
-        oJson roundTripped = hint->toJSON();
+        // Dump and reparse rather than handing the ordered_json straight to the
+        // constructor: it makes the nlohmann::json overload unambiguous, and it
+        // is the more faithful simulation anyway, since a real save round trip
+        // goes through serialized text.
+        const nlohmann::json roundTripped = nlohmann::json::parse(hint->toJSON().dump());
         Rando::Hint reloaded(hintKey, roundTripped);
         const std::vector<std::string> reloadedMessages = reloaded.GetAllMessageStrings(MF_CLEAN);
         if (reloadedMessages.size() != liveMessages.size()) {
