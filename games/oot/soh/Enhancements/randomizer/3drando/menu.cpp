@@ -68,6 +68,144 @@ extern "C" int Rando_HeadlessSeedTest(const char* seedStr) {
     return ok ? 0 : 1;
 }
 
+// Hint-validity harness bridge (#441): run ONE seed generation, then prove that
+// every generated hint names a REAL item — no hint may resolve to the no-item
+// sentinel (itemTable[RG_NONE], "No Item"). The operator-visible bug was a
+// gossip stone reading "They say that catching Big Poes leads to No Item" while
+// the spoiler for that same seed correctly said "Nayru's Love", i.e. the fill
+// was complete and generation-time text was right, but a later resolution of
+// location -> placed item yielded RG_NONE.
+//
+// Three passes, deliberately layered so a failure says WHICH link broke:
+//   (1) placement  — every location an item-hint points at holds a real item;
+//   (2) name<->enum round trip — RC -> Location::GetName() -> locationNameToEnum
+//       must return the SAME RC. This is exactly the lossy transform the save
+//       file round-trips hints through (SaveManager writes hinted locations as
+//       names and Hint(json) reads them back through locationNameToEnum with
+//       operator[], which silently yields 0 on a miss), so a collision or a
+//       missing entry shows up here instead of as "No Item" in someone's game;
+//   (3) rendered text — no hint's final message may contain the sentinel, which
+//       catches any resolution path the first two passes don't model.
+extern "C" int Rando_HeadlessHintValidityTest(const char* seedStr) {
+    int rc = Rando_HeadlessSeedTest(seedStr);
+    if (rc != 0) {
+        fprintf(stderr, "[rando-hints] generation failed rc=%d\n", rc);
+        return rc;
+    }
+
+    auto ctx = Rando::Context::GetInstance();
+    if (!ctx) {
+        fprintf(stderr, "[rando-hints] no Rando::Context after generation\n");
+        return 4;
+    }
+
+    // The sentinel is read from the table rather than hardcoded, so renaming
+    // RG_NONE's text cannot silently defeat this lock.
+    const std::string sentinel = Rando::StaticData::RetrieveItem(RG_NONE).GetName().GetEnglish();
+    if (sentinel.empty()) {
+        fprintf(stderr, "[rando-hints] itemTable[RG_NONE] has no name; item table not initialised\n");
+        return 5;
+    }
+
+    size_t hintsChecked = 0;
+    size_t failures = 0;
+
+    for (int h = RH_NONE + 1; h < RH_MAX; h++) {
+        const auto hintKey = static_cast<RandomizerHint>(h);
+        Rando::Hint* hint = ctx->GetHint(hintKey);
+        if (hint == nullptr || !hint->IsEnabled()) {
+            continue;
+        }
+        hintsChecked++;
+
+        const std::string hintName =
+            Rando::StaticData::hintNames[hintKey].GetForCurrentLanguage(MF_CLEAN);
+        const HintType hintType = hint->GetHintType();
+        const bool namesAnItem = (hintType == HINT_TYPE_ITEM || hintType == HINT_TYPE_ITEM_AREA);
+
+        for (const RandomizerCheck hintedCheck : hint->GetHintedLocations()) {
+            // (1) An item hint that points at an empty location is the
+            // under-placement half of this bug class.
+            if (namesAnItem && ctx->GetItemLocation(hintedCheck)->GetPlacedRandomizerGet() == RG_NONE) {
+                fprintf(stderr, "[rando-hints] FAIL %s: hinted check %d holds no item\n", hintName.c_str(),
+                        (int)hintedCheck);
+                failures++;
+            }
+
+            // (2) The save-file transform must be lossless for this check.
+            const Rando::Location* loc = Rando::StaticData::GetLocation(hintedCheck);
+            if (loc == nullptr) {
+                fprintf(stderr, "[rando-hints] FAIL %s: hinted check %d has no location entry\n", hintName.c_str(),
+                        (int)hintedCheck);
+                failures++;
+                continue;
+            }
+            const std::string& locName = loc->GetName();
+            const auto it = Rando::StaticData::locationNameToEnum.find(locName);
+            if (it == Rando::StaticData::locationNameToEnum.end()) {
+                fprintf(stderr, "[rando-hints] FAIL %s: location name '%s' (check %d) is absent from "
+                                "locationNameToEnum; it would load back as check 0\n",
+                        hintName.c_str(), locName.c_str(), (int)hintedCheck);
+                failures++;
+            } else if (it->second != hintedCheck) {
+                fprintf(stderr, "[rando-hints] FAIL %s: location name '%s' round-trips to check %d, not %d\n",
+                        hintName.c_str(), locName.c_str(), (int)it->second, (int)hintedCheck);
+                failures++;
+            }
+        }
+
+        // (3) Whatever the path, the text a player reads must name a real item.
+        const std::vector<std::string> liveMessages = hint->GetAllMessageStrings(MF_CLEAN);
+        for (const std::string& message : liveMessages) {
+            if (message.find(sentinel) != std::string::npos) {
+                fprintf(stderr, "[rando-hints] FAIL %s: message resolves to the no-item sentinel: \"%s\"\n",
+                        hintName.c_str(), message.c_str());
+                failures++;
+            }
+        }
+
+        // (4) Serialize/deserialize round trip. The spoiler proved that
+        // generation-time text is correct, so the operator-visible break has to
+        // be downstream of generation: a hint is written out as names and read
+        // back through the name tables. toJSON()/Hint(key, json) are that
+        // declared pair (the same schema the spoiler and the plando loader
+        // use), so re-rendering a reloaded hint must reproduce the live text
+        // exactly -- and in particular must not decay to the sentinel.
+        // Dump and reparse rather than handing the ordered_json straight to the
+        // constructor: it makes the nlohmann::json overload unambiguous, and it
+        // is the more faithful simulation anyway, since a real save round trip
+        // goes through serialized text.
+        const nlohmann::json roundTripped = nlohmann::json::parse(hint->toJSON().dump());
+        Rando::Hint reloaded(hintKey, roundTripped);
+        const std::vector<std::string> reloadedMessages = reloaded.GetAllMessageStrings(MF_CLEAN);
+        if (reloadedMessages.size() != liveMessages.size()) {
+            fprintf(stderr, "[rando-hints] FAIL %s: round trip changed message count %zu -> %zu\n", hintName.c_str(),
+                    liveMessages.size(), reloadedMessages.size());
+            failures++;
+        } else {
+            for (size_t m = 0; m < reloadedMessages.size(); m++) {
+                if (reloadedMessages[m] == liveMessages[m]) {
+                    continue;
+                }
+                const bool decayed = reloadedMessages[m].find(sentinel) != std::string::npos;
+                fprintf(stderr, "[rando-hints] FAIL %s: round trip changed message%s\n  live:     \"%s\"\n"
+                                "  reloaded: \"%s\"\n",
+                        hintName.c_str(), decayed ? " and it decayed to the no-item sentinel" : "",
+                        liveMessages[m].c_str(), reloadedMessages[m].c_str());
+                failures++;
+            }
+        }
+    }
+
+    if (hintsChecked == 0) {
+        fprintf(stderr, "[rando-hints] no enabled hints were generated; the lock would vacuously pass\n");
+        return 6;
+    }
+
+    fprintf(stderr, "[rando-hints] checked %zu enabled hints, %zu failures\n", hintsChecked, failures);
+    return failures == 0 ? 0 : 1;
+}
+
 // Determinism harness bridge (Lane B, Phase 3.0): run ONE seed generation and
 // emit a canonical, side-effect-free digest of (a) the unified-seed producer's
 // output in gComboCtx and (b) the full item placement, so an external wrapper
