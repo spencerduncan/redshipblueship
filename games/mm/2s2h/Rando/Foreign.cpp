@@ -31,10 +31,12 @@
 #include "Rando/Rando.h"
 #include "2s2h/ShipUtils.h"
 
-// src/common — placement table + pinned pool surface. Included OUTSIDE any
-// extern "C" block: it pulls context.h, whose <type_traits> include must not
-// be wrapped in C linkage (see context.h's header comment).
+// src/common — placement table + pinned pool surface, and the A1 producer
+// (Combo_RecordSharedItem). Included OUTSIDE any extern "C" block: they pull
+// context.h, whose <type_traits> include must not be wrapped in C linkage
+// (see context.h's header comment).
 #include "foreign_items.h"
+#include "shared_items.h"
 
 #include <cstddef>
 #include <cstdio>
