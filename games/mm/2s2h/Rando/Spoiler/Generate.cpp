@@ -1,5 +1,8 @@
 #include "Spoiler.h"
 #include "Rando/Rando.h"
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "Rando/Foreign.h" // Lane C1 (#392): foreign-check lookup for the spoiler
+#endif
 
 namespace Rando {
 
@@ -29,6 +32,18 @@ nlohmann::json GenerateFromSaveContext() {
             continue;
         }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // Lane C1 (#392): a check hosting a foreign item reads as that item,
+        // not as the RI_JUNK physically stored in the MM table — the human-
+        // readable checks list must describe what the check actually yields.
+        // The machine-readable record of the crossing is the "foreign"
+        // section below.
+        if (const char* foreignName = Rando::Foreign::ForeignNameForCheck(randoCheckId)) {
+            spoiler["checks"][randoStaticCheck.name] = std::string(foreignName) + " (Ocarina of Time)";
+            continue;
+        }
+#endif
+
         if (randoStaticCheck.randoCheckType == RCTYPE_SHOP || randoStaticCheck.randoCheckType == RCTYPE_TINGLE_SHOP) {
             spoiler["checks"][randoStaticCheck.name] = nlohmann::json::object();
             spoiler["checks"][randoStaticCheck.name]["randoItemId"] =
@@ -39,6 +54,26 @@ nlohmann::json GenerateFromSaveContext() {
                 Rando::StaticData::Items[RANDO_SAVE_CHECKS[randoCheckId].randoItemId].spoilerName;
         }
     }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // Lane C1 (#392): every cross-game placement, described — check name,
+    // item name, origin game — the MVP contract's "a spoiler log describes
+    // it". Only present (possibly empty) when this world was generated as the
+    // MM half of a paired world.
+    if (Rando::Foreign::PairingActive()) {
+        spoiler["foreign"] = nlohmann::json::object();
+        for (auto& [randoCheckId, randoStaticCheck] : Rando::StaticData::Checks) {
+            if (randoStaticCheck.randoCheckId == RC_UNKNOWN || !Rando::Foreign::IsForeignCheck(randoCheckId)) {
+                continue;
+            }
+            const char* foreignName = Rando::Foreign::ForeignNameForCheck(randoCheckId);
+            spoiler["foreign"][randoStaticCheck.name] = {
+                { "originGame", "OOT" },
+                { "item", foreignName != nullptr ? foreignName : "(unknown foreign item)" },
+            };
+        }
+    }
+#endif
 
     return spoiler;
 }

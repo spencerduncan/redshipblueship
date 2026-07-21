@@ -148,6 +148,14 @@ void Context_UpdateShadowCopy(GameId game, const void* saveContext, size_t size)
 #define RSBS_SHARED_ITEM_REDEEMED 0x01u
 
 /**
+ * Capacity of ComboContext.foreignPlacements (Lane C1, #392). The MVP pins ~4
+ * OoT progression items into MM checks; 8 slots leave headroom without
+ * spending reserved[] bytes we would rather keep (growing later is legal under
+ * the growth contract).
+ */
+#define RSBS_FOREIGN_PLACEMENT_CAP 8u
+
+/**
  * One cross-game item, tagged with the game whose id-space `id` belongs to.
  *
  * Why a struct and not a packed integer (ADR 0002): OoT's RandomizerGet (RG_*)
@@ -176,6 +184,33 @@ RSBS_CTX_STATIC_ASSERT(sizeof(SharedItem) == 4,
 RSBS_CTX_STATIC_ASSERT(offsetof(SharedItem, originGame) == 0 && offsetof(SharedItem, flags) == 1 &&
                            offsetof(SharedItem, id) == 2,
                        "SharedItem member offsets are .redsave format and must not move");
+
+/**
+ * One cross-game item PLACEMENT: an MM check that hosts an item from another
+ * game's id-space (Lane C1, #392; MVP direction is OoT items in MM checks).
+ *
+ * Why this lives in gComboCtx and not in MM's own rando save table (ADR 0002):
+ * MM's RandoSaveCheckInfo.randoItemId is an MM RandoItemId — a raw RG_* stored
+ * there would alias MM's id-space, the #356 bug class. The MM save table keeps
+ * a legal MM item (RI_JUNK) at the hosting check; THIS table, keyed by the MM
+ * RandoCheckId, is what says "that check actually yields a foreign item", with
+ * the item carried as an origin-tagged SharedItem at every boundary.
+ *
+ * Zero means unset for every member (growth contract): a slot is occupied iff
+ * item.originGame != GAME_NONE (mmCheckId 0 == MM's RC_UNKNOWN, which never
+ * hosts anything). A zero-extended legacy record therefore reads as "no
+ * foreign placements", which is correct: pre-C1 worlds have none.
+ */
+typedef struct {
+    uint16_t mmCheckId; // MM RandoCheckId hosting the foreign item; RC_UNKNOWN (0) when empty
+    SharedItem item;    // the foreign item, origin-tagged; originGame == GAME_NONE marks an empty slot
+} ComboForeignPlacement;
+
+RSBS_CTX_STATIC_ASSERT(sizeof(ComboForeignPlacement) == 6,
+                       "ComboForeignPlacement is serialized raw inside the .redsave Tier-1 record; its layout is "
+                       "format");
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboForeignPlacement, mmCheckId) == 0 && offsetof(ComboForeignPlacement, item) == 2,
+                       "ComboForeignPlacement member offsets are .redsave format and must not move");
 
 typedef struct {
     char magic[8];        // "OoT+MM<3"
@@ -231,14 +266,23 @@ typedef struct {
     // unchanged.
     uint32_t sharedRandoSettingsHash;
 
+    // Lane C1 (#392): cross-game item placements for the paired world, written
+    // by MM's OnFileCreate placement pass when a paired rando world generates,
+    // read by MM's give path (which check yields a foreign item) and by both
+    // spoiler surfaces. Carved from the FRONT of the old reserved[380] under
+    // the growth contract: all-zero = no foreign placements, which is exactly
+    // what a zero-extended pre-C1 record must read as. See foreign_items.h for
+    // the accessors; raw entries must always carry the origin tag (ADR 0002).
+    ComboForeignPlacement foreignPlacements[RSBS_FOREIGN_PLACEMENT_CAP];
+
     // Headroom. Carve new fields from the FRONT of this array (as
-    // sharedItemsTagged and sharedRandoSettingsHash were) so the struct stays
-    // inside RSBS_COMBO_CONTEXT_RECORD_SIZE; the on-disk record size does not
-    // change either way, so old saves keep loading. Zeroed by ComboContext_Init,
-    // which is what makes a zero-extended legacy record indistinguishable from a
-    // freshly-initialized one — every field carved from here must keep "zero
-    // means unset".
-    uint8_t reserved[380];
+    // sharedItemsTagged, sharedRandoSettingsHash, and foreignPlacements were)
+    // so the struct stays inside RSBS_COMBO_CONTEXT_RECORD_SIZE; the on-disk
+    // record size does not change either way, so old saves keep loading.
+    // Zeroed by ComboContext_Init, which is what makes a zero-extended legacy
+    // record indistinguishable from a freshly-initialized one — every field
+    // carved from here must keep "zero means unset".
+    uint8_t reserved[332];
 } ComboContext;
 
 /**
@@ -275,11 +319,21 @@ RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, sharedRandoSettingsHash) ==
                            RSBS_COMBO_CONTEXT_PRECARVE_SIZE + RSBS_SHARED_ITEM_CAP * sizeof(SharedItem),
                        "sharedRandoSettingsHash must be carved from the FRONT of the old reserved[] "
                        "(contiguous with the tagged-item array); moving it changes .redsave format");
-RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, reserved) ==
+// foreignPlacements is the next carve from the front of the old reserved[]:
+// it must sit immediately after the settings digest with no gap, occupying
+// bytes every shipped .redsave stored as zero (unset).
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, foreignPlacements) ==
                            RSBS_COMBO_CONTEXT_PRECARVE_SIZE + RSBS_SHARED_ITEM_CAP * sizeof(SharedItem) +
                                sizeof(uint32_t),
-                       "the tagged-item array, the settings digest, and the remaining headroom must "
-                       "stay contiguous (no padding, no fields slipped between them)");
+                       "foreignPlacements must be carved from the FRONT of the old reserved[] "
+                       "(contiguous with the settings digest); moving it changes .redsave format");
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, reserved) ==
+                           RSBS_COMBO_CONTEXT_PRECARVE_SIZE + RSBS_SHARED_ITEM_CAP * sizeof(SharedItem) +
+                               sizeof(uint32_t) +
+                               RSBS_FOREIGN_PLACEMENT_CAP * sizeof(ComboForeignPlacement),
+                       "the tagged-item array, the settings digest, the foreign-placement table, and "
+                       "the remaining headroom must stay contiguous (no padding, no fields slipped "
+                       "between them)");
 
 #ifdef __cplusplus
 // The raw-assignment-fails proof (ADR 0002). In C this is a constraint
@@ -292,6 +346,9 @@ static_assert(!std::is_assignable<SharedItem&, int>::value && !std::is_assignabl
               "a raw integer must never be assignable into a SharedItem — tag the origin game");
 static_assert(!std::is_assignable<SharedItem&, GameId>::value,
               "a bare GameId is not a SharedItem either; populate the struct members explicitly");
+static_assert(!std::is_convertible<int, ComboForeignPlacement>::value &&
+                  !std::is_assignable<ComboForeignPlacement&, int>::value,
+              "a raw integer must never become a foreign placement — the item member carries the origin tag");
 static_assert(std::is_trivially_copyable<ComboContext>::value,
               "gComboCtx is serialized with memcpy; ComboContext must stay trivially copyable");
 #endif

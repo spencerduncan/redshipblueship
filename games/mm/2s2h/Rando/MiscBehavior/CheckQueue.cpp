@@ -7,6 +7,9 @@
 #include "2s2h/Rando/StaticData/StaticData.h"
 #include "2s2h/ShipUtils.h"
 #include "Traps.h"
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "2s2h/Rando/Foreign.h" // Lane C1 (#392): foreign-check lookup + shared-structure recording
+#endif
 
 extern "C" {
 #include "variables.h"
@@ -36,6 +39,59 @@ void Rando::MiscBehavior::CheckQueue() {
 
         if (randoSaveCheck.eligible) {
             queued = true;
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+            // Lane C1 (#392): a check hosting a FOREIGN item (an OoT item in
+            // this MM world — gComboCtx.foreignPlacements) hands the item to
+            // the shared structure instead of MM's give path, presented as a
+            // generic "foreign treasure" (textbox + gold-rupee model — the
+            // receiving game has no assets for the item, per the MVP's
+            // generic-presentation contract). The MM save table still holds
+            // RI_JUNK at this check; the placement table overrides it here.
+            if (Rando::Foreign::IsForeignCheck(randoCheckId)) {
+                MM_GameEvents_Queue().emplace_back(GIEventGiveItem{
+                    .showGetItemCutscene = true,
+                    .param = (int16_t)randoCheckId,
+                    .giveItem =
+                        [](Actor* actor, PlayState* play) {
+                            auto& randoSaveCheck = RANDO_SAVE_CHECKS[CUSTOM_ITEM_PARAM];
+                            const RandoCheckId checkId = (RandoCheckId)CUSTOM_ITEM_PARAM;
+                            const char* foreignName = Rando::Foreign::ForeignNameForCheck(checkId);
+
+                            // Record into gComboCtx.sharedItemsTagged (origin-
+                            // tagged, durable immediately, de-duped). OoT's
+                            // consumer awards it on the next arrival there.
+                            Rando::Foreign::RecordForeignPickup(checkId);
+
+                            CustomMessage::Entry entry = {
+                                .textboxType = 2,
+                                .icon = Rando::StaticData::GetIconForZMessage(RI_RUPEE_HUGE),
+                                .msg = std::string("You found the ") +
+                                       (foreignName != nullptr ? foreignName : "Foreign Treasure") +
+                                       "!\nIt belongs to Ocarina of Time -\nit will be awarded there!",
+                            };
+                            if (CUSTOM_ITEM_FLAGS & CustomItem::GIVE_ITEM_CUTSCENE) {
+                                CustomMessage::SetActiveCustomMessage(entry.msg, entry);
+                            } else {
+                                CustomMessage::StartTextbox(entry.msg + "\x1C\x02\x10", entry);
+                            }
+
+                            randoSaveCheck.cycleObtained = true;
+                            randoSaveCheck.obtained = true;
+                            randoSaveCheck.eligible = false;
+                            queued = false;
+                            // Post-give, CUSTOM_ITEM_PARAM carries an RI for
+                            // the draw path (matching the normal branch).
+                            CUSTOM_ITEM_PARAM = RI_RUPEE_HUGE;
+                        },
+                    .drawItem =
+                        [](Actor* actor, PlayState* play) {
+                            MM_Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
+                            Rando::DrawItem(RI_RUPEE_HUGE);
+                        } });
+                return;
+            }
+#endif
 
             MM_GameEvents_Queue().emplace_back(GIEventGiveItem{
                 .showGetItemCutscene =

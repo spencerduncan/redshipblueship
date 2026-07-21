@@ -20,6 +20,7 @@
 #include "integration_test_hooks.h"
 #include "context.h"
 #include "shared_items.h"
+#include "foreign_items.h" // OoT_ForeignItem_Give (Lane C1 redemption)
 #include "entrance.h"
 #include "soh/Enhancements/game-interactor/GameInteractor.h"
 #include "soh/Enhancements/game-interactor/GameInteractor_Hooks.h"
@@ -999,24 +1000,28 @@ extern "C" int Combo_FreezeActiveGameForHotSwap(GameId departing) {
 }
 
 /**
- * Award a single OoT-origin shared item (ADR 0002 / Lane A1 consumer callback).
+ * Award a single OoT-origin shared item (ADR 0002 / Lane A1 consumer callback,
+ * real give wired by Lane C1 #392).
  *
  * Invoked once per un-redeemed entry tagged GAME_OOT when the player arrives in
  * OoT (see OoT_ConsumeSharedItems). `item->id` is an OoT RandomizerGet (RG_*).
  *
- * Lane A1 scope: this is the plumbing seam. Awarding an RG_* into the live game
- * requires the randomizer save context and the foreign-item presentation Lane C
- * owns, so here it only logs; Combo_RedeemSharedItemsForGame still marks the
- * entry RSBS_SHARED_ITEM_REDEEMED so the crossing is single-use once wired.
- *
- * Lane C: replace the log with the real give — Randomizer_Item_Give
- * ((RandomizerGet)item->id) (games/oot/soh/.../randomizer.cpp) — for the chosen
- * foreign-item class. Do NOT clear the entry; the REDEEMED bit is the guard.
+ * The give itself lives in OoT_ForeignItem_Give
+ * (soh/Enhancements/randomizer/ForeignItemsSingleExe.cpp): GetGIEntry
+ * resolution (progressives resolve against the live save) + the
+ * StartingItemGive-style dispatch into OoT_Item_Give / Randomizer_Item_Give.
+ * Combo_RedeemSharedItemsForGame marks the entry RSBS_SHARED_ITEM_REDEEMED
+ * after this returns, so the crossing stays single-use; the entry is never
+ * cleared (the durable record of the crossing). A give that reports failure is
+ * logged but still consumes the redemption — by the time this callback can
+ * run, OoT is at its presence-gated arrival point and the guarded
+ * prerequisites are live, so that path is defensive, not expected.
  */
 static void OoT_AwardSharedItem(const SharedItem* item, void* ctx) {
     (void)ctx;
-    fprintf(stderr, "[OoT] shared-item redeem (Lane A1 plumbing): RG id=%u — Lane C wires Randomizer_Item_Give\n",
-            (unsigned)item->id);
+    int given = OoT_ForeignItem_Give(item->id);
+    fprintf(stderr, "[OoT] shared-item redeem: RG id=%u %s (Lane C1 foreign give)\n", (unsigned)item->id,
+            given ? "awarded" : "NOT awarded — give path unavailable");
 }
 
 /**

@@ -103,6 +103,12 @@ extern "C" {
 // FILE SCOPE (compiled as C++): they drive the C++-linkage rsbs::SaveManager.
 #include "tests/test_save_roundtrip.c"
 
+// Lane C1 foreign-item pipeline locks (#392, ADR 0002): give-path tagging,
+// round-trip survival with a real pool entry, and the foreignPlacements carve
+// serialization. FILE SCOPE (compiled as C++) for rsbs::SaveManager; the
+// pipeline symbols it drives are C-linkage and declared in the file.
+#include "tests/test_foreign_items.c"
+
 // MM scene-command parse regression (issue #344). Included at FILE SCOPE
 // (compiled as C++): it drives MM's S2H::ResourceFactoryBinarySceneV0 directly
 // over a synthetic scene buffer — no ROM archives or display needed.
@@ -276,6 +282,12 @@ extern "C" int Rando_HeadlessSeedTest(const char* seedStr);
 // success. Kept behind a C entry point so the OoT randomizer headers never enter
 // this delicate multi-include TU, mirroring MM_SceneExecute_RunHeadless.
 extern "C" int Rando_HeadlessSeedDeterminismDigest(const char* seedStr, const char* outPath);
+// Lane C1 foreign-placement determinism (body in games/mm/2s2h/
+// mm_rando_gen_test.cpp): generates the PAIRED MM world keyed off the
+// gComboCtx the OoT digest run just stamped and APPENDS the MM world identity
+// + every foreign placement to the same digest file, so the SeedDeterminism
+// two-process diff covers the whole paired world.
+extern "C" int MM_Rando_HeadlessForeignDigest(const char* outPath);
 extern "C" void InitOTRForMMFirstBoot(int argc, char* argv[]);
 
 TestResult Test_RandoGen(void) {
@@ -329,7 +341,18 @@ TestResult Test_RandoDeterminism(void) {
     const char* digestOut = std::getenv("RSBS_SEED_DIGEST_OUT");  // NULL => digest to stdout
     int rc = Rando_HeadlessSeedDeterminismDigest(seed, digestOut);
     printf("[TEST] %s: determinism digest rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
-    return rc == 0 ? TEST_PASS : TEST_FAIL;
+    if (rc != 0) {
+        return TEST_FAIL;
+    }
+
+    // Lane C1: the MM half of the paired world, keyed off the gComboCtx the
+    // live OoT producer stamped during the generation above — the real
+    // end-to-end pairing path. Appends to the same digest, so the
+    // SeedDeterminism diff locks OoT fill + MM fill + foreign placements
+    // together.
+    int mmRc = MM_Rando_HeadlessForeignDigest(digestOut);
+    printf("[TEST] %s: foreign-placement digest rc=%d\n", mmRc == 0 ? "PASS" : "FAIL", mmRc);
+    return mmRc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // Lane C0 reachability lock (#392): MM's 2ship_rando is un-elided and
@@ -946,6 +969,10 @@ const TestDescriptor gTests[] = {
     {"shared-roundtrip", "Shared flag/seed survive OoT->MM switch (issue #264)", Test_SharedStateRoundtrip},
     {"shared-item-roundtrip", "Origin-tagged item survives suspend->switch->resume x2, both dirs (ADR 0002)",
      Test_SharedItemRoundtrip},
+    // Lane C1: the foreign-item give path tags the shared structure, the
+    // crossing awards exactly once, and the placement carve serializes.
+    {"foreign-item-give", "Foreign give path tags shared structure; awards once; placements serialize (Lane C1)",
+     Test_ForeignItemGive},
     {"context", "Test context/state management", Test_Context},
     // Clears all frozen states on entry and exit, so it must not run between a
     // test that freezes and one that expects that freeze to still be there.

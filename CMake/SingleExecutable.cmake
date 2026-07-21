@@ -28,6 +28,11 @@ set(REDSHIP_COMMON_SOURCES
     # Cross-game shared-item producers/consumers over gComboCtx.sharedItemsTagged
     # (ADR 0002, Lane A1) — read/written by both games' suspend + consumption hooks
     ${CMAKE_SOURCE_DIR}/src/common/shared_items.c
+    # Foreign-item placement table over gComboCtx.foreignPlacements (Lane C1,
+    # #392) — written by MM's paired-world generation, read by MM's give path
+    # and both spoiler surfaces; the pinned pool itself is OoT-side
+    # (soh/Enhancements/randomizer/ForeignItemsSingleExe.cpp)
+    ${CMAKE_SOURCE_DIR}/src/common/foreign_items.c
     ${CMAKE_SOURCE_DIR}/src/common/entrance.cpp
     ${CMAKE_SOURCE_DIR}/src/common/test_runner.cpp
     ${CMAKE_SOURCE_DIR}/src/common/integration_test_hooks.cpp
@@ -61,6 +66,7 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/zapd_subprocess.h
     ${CMAKE_SOURCE_DIR}/src/common/context.h
     ${CMAKE_SOURCE_DIR}/src/common/shared_items.h
+    ${CMAKE_SOURCE_DIR}/src/common/foreign_items.h
     ${CMAKE_SOURCE_DIR}/src/common/entrance.h
     ${CMAKE_SOURCE_DIR}/src/common/test_runner.h
     ${CMAKE_SOURCE_DIR}/src/common/integration_test_hooks.h
@@ -271,6 +277,10 @@ if(BUILD_TESTING)
     # the real producer/consumer + freeze/consume hooks, be visible in both
     # directions, and be awarded exactly once per crossing (covers the F10 path).
     redship_add_test(NAME SharedItemRoundtrip COMMAND redship --test shared-item-roundtrip)
+    # Lane C1 (#392): foreign-item give path lands correctly tagged in the
+    # shared structure, the crossing awards exactly once on the OoT side, and
+    # gComboCtx.foreignPlacements round-trips through the .redsave record.
+    redship_add_test(NAME ForeignItemGive COMMAND redship --test foreign-item-give)
     redship_add_test(NAME ArchiveHotswapLogic COMMAND redship --test archive-hotswap-logic)
     # Unified save (.redsave) headless tests — Phase 2 T6 (#35)
     redship_add_test(NAME SaveRoundtripTiers COMMAND redship --test save-roundtrip-tiers)

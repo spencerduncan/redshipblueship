@@ -29,6 +29,9 @@ games/mm/2s2h/Enhancements/Audio/AudioCollection.h
 games/mm/2s2h/Enhancements/Audio/AudioEditor.h
 games/mm/2s2h/Enhancements/FrameInterpolation/FrameInterpolation.h
 games/mm/2s2h/GameExports_SingleExe.cpp
+games/mm/2s2h/GameInteractorEventsSingleExe.cpp
+games/mm/2s2h/Rando/Foreign.cpp
+games/mm/2s2h/Rando/Foreign.h
 games/mm/2s2h/ShipInit.hpp
 games/mm/2s2h/mm_culling_test.cpp
 games/mm/2s2h/mm_gi_shim_test.cpp
@@ -46,6 +49,7 @@ games/mm/src/code/z_play.c
 games/mm/src/code/z_visfbuf.c
 games/mm/src/overlays/gamestates/ovl_title/z_title.c
 games/oot/soh/Enhancements/cosmetics/CustomLogoTitle.cpp
+games/oot/soh/Enhancements/randomizer/ForeignItemsSingleExe.cpp
 games/oot/soh/GameExports_SingleExe.cpp
 games/oot/soh/OTRGlobals.cpp
 games/oot/soh/ResourceManagerHelpers.cpp

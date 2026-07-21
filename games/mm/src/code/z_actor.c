@@ -32,6 +32,21 @@
 #include "2s2h/ObjectExtension/ActorListIndex.h"
 #include <libultraship/bridge/consolevariablebridge.h>
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// Lane C1 (#392): MM-side hook dispatch. The unqualified
+// GameInteractor_Execute* calls in this file bind OoT's extern "C" wrappers,
+// which (correctly, #367) no-op while MM is the active game — and OoT's
+// wrapper signatures truncate MM's u32 flags to int16_t, so forwarding
+// through them is the exact typed-surface aliasing the shim architecture
+// exists to prevent. These MM_ twins, defined in
+// games/mm/2s2h/GameExports_SingleExe.cpp, dispatch the MM-owned
+// S2H::GameHooks registries with MM's own types; each call below sits beside
+// the upstream call at the exact point upstream 2S2H dispatched that hook.
+void MM_GameHooks_ExecuteOnFlagSet(FlagType flagType, u32 flag);
+void MM_GameHooks_ExecuteOnSceneFlagSet(s16 sceneId, FlagType flagType, u32 flag);
+void MM_GameHooks_ExecuteOnActorUpdate(Actor* actor);
+#endif
+
 // bss
 // FaultClient sActorFaultClient; // 2 funcs
 
@@ -812,6 +827,9 @@ void MM_Flags_SetSwitch(PlayState* play, s32 flag) {
         play->actorCtx.sceneFlags.switches[(flag & ~0x1F) >> 5] |= 1 << (flag & 0x1F);
         if (previouslyOff) {
             GameInteractor_ExecuteOnSceneFlagSet(play->sceneId, FLAG_CYCL_SCENE_SWITCH, flag);
+#ifdef RSBS_SINGLE_EXECUTABLE
+            MM_GameHooks_ExecuteOnSceneFlagSet(play->sceneId, FLAG_CYCL_SCENE_SWITCH, flag);
+#endif
         }
     }
 }
@@ -844,6 +862,9 @@ void MM_Flags_SetTreasure(PlayState* play, s32 flag) {
     play->actorCtx.sceneFlags.chest |= (1 << flag);
     if (previouslyOff) {
         GameInteractor_ExecuteOnSceneFlagSet(play->sceneId, FLAG_CYCL_SCENE_CHEST, flag);
+#ifdef RSBS_SINGLE_EXECUTABLE
+        MM_GameHooks_ExecuteOnSceneFlagSet(play->sceneId, FLAG_CYCL_SCENE_CHEST, flag);
+#endif
     }
 }
 
@@ -876,6 +897,9 @@ void MM_Flags_SetClear(PlayState* play, s32 roomNumber) {
     play->actorCtx.sceneFlags.clearedRoom |= (1 << roomNumber);
     if (previouslyOff) {
         GameInteractor_ExecuteOnSceneFlagSet(play->sceneId, FLAG_CYCL_SCENE_CLEARED_ROOM, roomNumber);
+#ifdef RSBS_SINGLE_EXECUTABLE
+        MM_GameHooks_ExecuteOnSceneFlagSet(play->sceneId, FLAG_CYCL_SCENE_CLEARED_ROOM, roomNumber);
+#endif
     }
 }
 
@@ -930,6 +954,9 @@ void MM_Flags_SetCollectible(PlayState* play, s32 flag) {
         play->actorCtx.sceneFlags.collectible[(flag & ~0x1F) >> 5] |= 1 << (flag & 0x1F);
         if (previouslyOff) {
             GameInteractor_ExecuteOnSceneFlagSet(play->sceneId, FLAG_CYCL_SCENE_COLLECTIBLE, flag);
+#ifdef RSBS_SINGLE_EXECUTABLE
+            MM_GameHooks_ExecuteOnSceneFlagSet(play->sceneId, FLAG_CYCL_SCENE_COLLECTIBLE, flag);
+#endif
         }
     }
 }
@@ -941,6 +968,9 @@ void Flags_SetWeekEventReg(s32 flag) {
     WEEKEVENTREG((flag) >> 8) = GET_WEEKEVENTREG((flag) >> 8) | ((flag)&0xFF);
     if (previouslyOff) {
         GameInteractor_ExecuteOnFlagSet(FLAG_WEEK_EVENT_REG, flag);
+#ifdef RSBS_SINGLE_EXECUTABLE
+        MM_GameHooks_ExecuteOnFlagSet(FLAG_WEEK_EVENT_REG, flag);
+#endif
     }
 }
 
@@ -958,6 +988,9 @@ void Flags_SetWeekEventRegHorseRace(u8 state) {
     WEEKEVENTREG(92) = WEEKEVENTREG(92) | (u8)((WEEKEVENTREG(92) & ~WEEKEVENTREG_HORSE_RACE_STATE_MASK) | (state));
     if (previousState != state) {
         GameInteractor_ExecuteOnFlagSet(FLAG_WEEK_EVENT_REG_HORSE_RACE, state);
+#ifdef RSBS_SINGLE_EXECUTABLE
+        MM_GameHooks_ExecuteOnFlagSet(FLAG_WEEK_EVENT_REG_HORSE_RACE, state);
+#endif
     }
 }
 
@@ -966,6 +999,9 @@ void MM_Flags_SetEventInf(s32 flag) {
     gSaveContext.eventInf[(flag) >> 4] |= (1 << ((flag)&0xF));
     if (previouslyOff) {
         GameInteractor_ExecuteOnFlagSet(FLAG_EVENT_INF, flag);
+#ifdef RSBS_SINGLE_EXECUTABLE
+        MM_GameHooks_ExecuteOnFlagSet(FLAG_EVENT_INF, flag);
+#endif
     }
 }
 
@@ -988,6 +1024,9 @@ void Flags_SetRandoInf(s32 flag) {
     gSaveContext.save.shipSaveInfo.rando.randoInf[flag >> 4] |= (1 << (flag & 0xF));
     if (previouslyOff) {
         GameInteractor_ExecuteOnFlagSet(FLAG_RANDO_INF, flag);
+#ifdef RSBS_SINGLE_EXECUTABLE
+        MM_GameHooks_ExecuteOnFlagSet(FLAG_RANDO_INF, flag);
+#endif
     }
 }
 
@@ -2790,6 +2829,12 @@ Actor* Actor_UpdateActor(UpdateActor_Params* params) {
                 if (GameInteractor_ShouldActorUpdate(actor)) {
                     actor->update(actor, play);
                     GameInteractor_ExecuteOnActorUpdate(actor);
+#ifdef RSBS_SINGLE_EXECUTABLE
+                    // Lane C1 (#392): MM's own OnActorUpdate dispatch — the
+                    // CheckQueue scan and the GIEvent pump both hang off the
+                    // player's id here (see the declaration-block comment).
+                    MM_GameHooks_ExecuteOnActorUpdate(actor);
+#endif
                 }
                 DynaPoly_UnsetAllInteractFlags(play, &play->colCtx.dyna, actor);
             }

@@ -1349,6 +1349,10 @@ int MM_Game_Init(int argc, char** argv) {
  * registrations must not double-register (the single-exe resume contract —
  * see MM_Game_Resume).
  */
+// The GIEvent pump registrar (Lane C1) — defined in
+// games/mm/2s2h/GameInteractorEventsSingleExe.cpp.
+extern "C" void MM_GameEvents_RegisterPump(void);
+
 extern "C" void MM_Rando_Init(void) {
     static bool sRandoInitDone = false;
     if (sRandoInitDone) {
@@ -1360,6 +1364,14 @@ extern "C" void MM_Rando_Init(void) {
     fflush(stderr);
     S2H::ShipInit::InitAll();
     Rando::Init();
+
+    // Lane C1 (#392): register the GIEvent pump (the port of upstream's
+    // ProcessEvents player-update hook, games/mm/2s2h/
+    // GameInteractorEventsSingleExe.cpp). Upstream registered it from
+    // GameInteractor::RegisterOwnHooks at boot; in the single exe only the
+    // rando queue produces GIEvents, so the rando bring-up is its natural
+    // (once-only, same guard) home.
+    MM_GameEvents_RegisterPump();
 }
 
 /**
@@ -1582,6 +1594,45 @@ void GameInteractor_ExecuteOnRoomInit(s16 sceneId, s8 roomNum) {
 
 void GameInteractor_ExecuteAfterRoomSceneCommands(s16 sceneId, s8 roomNum) {
     GameInteractor::Instance->ExecuteHooks<GameInteractor::AfterRoomSceneCommands>(sceneId, roomNum);
+}
+
+/**
+ * MM-side hook DISPATCH (Lane C1, #392) — the Execute half of the #415 shim
+ * contract. C0 parked MM's Rando/enh registrations in the MM-owned
+ * S2H::GameHooks registries; these bridges run them at the points upstream
+ * 2S2H dispatched each hook type. All of them go through S2H::GameHooks, NEVER
+ * the shared GameInteractor instance: unlike OnRoomInit above, these hook
+ * NAMES exist in both games, so touching the shared registry would be the
+ * #367/#395 aliasing class. The mm-gi-shim CTest plus MMRandoGen lock the
+ * chain (Sram_InitSave -> OnSaveInit -> OnFileCreate generation).
+ *
+ * OnSaveInit / OnSaveLoad replace the former mm_stubs.c no-ops: MM's C code
+ * already calls them at the right places (z_sram_NES.c MM_Sram_InitSave;
+ * z_file_choose_NES.c / z_opening.c / z_select.c save loads). OnActorUpdate
+ * and the flag hooks are called from RSBS-guarded additions in
+ * games/mm/src/code/z_actor.c, right beside the unqualified
+ * GameInteractor_Execute* calls that cross-bind to OoT's (correctly no-op
+ * while MM is active) wrappers.
+ */
+extern "C" void GameInteractor_ExecuteOnSaveInit(s16 fileNum) {
+    S2H::GameHooks::Execute<GameInteractor::OnSaveInit>(fileNum);
+}
+
+extern "C" void GameInteractor_ExecuteOnSaveLoad(s16 fileNum) {
+    S2H::GameHooks::Execute<GameInteractor::OnSaveLoad>(fileNum);
+}
+
+extern "C" void MM_GameHooks_ExecuteOnActorUpdate(Actor* actor) {
+    S2H::GameHooks::Execute<GameInteractor::OnActorUpdate>(actor);
+    S2H::GameHooks::ExecuteForID<GameInteractor::OnActorUpdate>(actor->id, actor);
+}
+
+extern "C" void MM_GameHooks_ExecuteOnFlagSet(FlagType flagType, u32 flag) {
+    S2H::GameHooks::Execute<GameInteractor::OnFlagSet>(flagType, flag);
+}
+
+extern "C" void MM_GameHooks_ExecuteOnSceneFlagSet(s16 sceneId, FlagType flagType, u32 flag) {
+    S2H::GameHooks::Execute<GameInteractor::OnSceneFlagSet>(sceneId, flagType, flag);
 }
 
 /**
