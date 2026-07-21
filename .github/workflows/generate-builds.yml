@@ -350,6 +350,107 @@ jobs:
           rsbs.appimage
           readme.txt
 
+  # ==========================================================================
+  # Netplay grant relay (ADR 0007, #460)
+  #
+  # A SEPARATE job rather than a flag on build-linux, deliberately: build-linux
+  # packages and uploads the released appimage, so enabling the relay there
+  # would SHIP a feature that is supposed to be off by default. Default-off has
+  # to mean shipped-off, which means the relay never enters a release artifact.
+  #
+  # This job does two things build-linux cannot:
+  #   1. builds with RSBS_NETPLAY=ON and runs the Relay* locks, which do not
+  #      exist in a default configure;
+  #   2. asserts the DEFAULT configure pulls in no netplay translation unit —
+  #      the verifiable form of "the default build is unaffected".
+  # It uploads nothing.
+  # ==========================================================================
+  netplay-relay:
+    needs: generate-rsbs-otr
+    runs-on: ubuntu-22.04
+    container:
+      image: ghcr.io/spencerduncan/redshipblueship-build:latest
+    steps:
+    - name: Git Checkout
+      uses: actions/checkout@v4
+      with:
+        submodules: true
+        fetch-depth: 1
+        fetch-tags: true
+    - name: Configure git safe directory
+      run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+    - name: Install packaging tools
+      run: |
+        apt-get update
+        apt-get install -y imagemagick file desktop-file-utils
+    - name: Configure ccache
+      uses: hendrikmuhs/ccache-action@v1.2
+      with:
+        save: true
+        max-size: "1.5G"
+        key: ${{ runner.os }}-ccache-netplay-${{ github.ref }}
+        restore-keys: |
+          ${{ runner.os }}-ccache-netplay-${{ github.ref }}
+          ${{ runner.os }}-ccache-${{ github.ref }}
+          ${{ runner.os }}-ccache-refs/heads/main
+          ${{ runner.os }}-ccache
+    - name: Download soh.o2r
+      uses: actions/download-artifact@v4
+      with:
+        name: soh.o2r
+        path: build-cmake/soh
+    - name: Download 2ship.o2r
+      uses: actions/download-artifact@v4
+      with:
+        name: 2ship.o2r
+        path: build-cmake/mm
+    - name: Assert the DEFAULT build pulls in no netplay TU
+      # Configure-only (seconds, no compile) in the default configuration and
+      # grep the generated build system. With RSBS_NETPLAY=OFF the netplay
+      # sources are never appended to REDSHIP_COMMON_SOURCES, so no rule
+      # referencing them can exist. This is the negative control for the
+      # positive one below; without it "default OFF" is a claim about CMake
+      # that nothing checks.
+      run: |
+        cmake --no-warn-unused-cli -H. -Bbuild-default -GNinja -DCMAKE_BUILD_TYPE:STRING=Release >/dev/null
+        if grep -rq "netplay/relay_" build-default/build.ninja; then
+          echo "FAIL: default configure references a netplay source; RSBS_NETPLAY=OFF must mean absent."
+          grep -rn "netplay/relay_" build-default/build.ninja | head
+          exit 1
+        fi
+        echo "OK: default configure pulls in no netplay translation unit."
+      env:
+        CC: gcc-11
+        CXX: g++-11
+    - name: Build with RSBS_NETPLAY=ON
+      run: |
+        export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
+        cmake --no-warn-unused-cli -H. -Bbuild-cmake -GNinja -DCMAKE_BUILD_TYPE:STRING=Release -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DBUILD_REMOTE_CONTROL=1 -DRSBS_NETPLAY=1
+        cmake --build build-cmake --config Release -j10
+      env:
+        CC: gcc-11
+        CXX: g++-11
+        CCACHE_COMPILERCHECK: content
+    - name: Assert the relay actually linked
+      # Positive control. If the flag silently stopped adding the sources, the
+      # Relay* rows below would vanish and ctest's --no-tests=error would be
+      # the only thing standing between us and a vacuous green.
+      run: |
+        if ! nm -C build-cmake/redship | grep -q "Relay_Tick"; then
+          echo "FAIL: RSBS_NETPLAY=ON but Relay_Tick is not in the binary."
+          exit 1
+        fi
+        echo "OK: relay symbols linked."
+    - name: Run netplay relay locks
+      # ROM-free and display-free: the loopback ledger is in-process. See the
+      # header of src/common/tests/test_netplay_relay.c for what these prove
+      # and — equally load-bearing — what they do not.
+      run: ctest --test-dir build-cmake --output-on-failure --tests-regex "^Relay" --no-tests=error
+    - name: Run the full ROM-free tier with the relay built
+      # The relay must not perturb anything else. Same label the default
+      # build-linux job runs, so a regression here is attributable to the flag.
+      run: ctest --test-dir build-cmake --output-on-failure --label-regex "^redship$" --no-tests=error
+
   build-windows:
     # Issue #177 — investigation results (2026-06-01, runs 26731031162 / 26731511201 / 26731832242):
     #   * sccache hit rate: 99.82% (2848 hits / 2853 executed / 5 misses) — the cache works.
