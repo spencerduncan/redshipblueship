@@ -19,21 +19,25 @@
  * Mechanism: force-included AFTER GameInteractor.h (games/mm/CMakeLists.txt,
  * the _force_include_cxx_guarded list), so the class definition itself parses
  * with the real member names; any LATER use of a poisoned name in the TU
- * fails to compile with an identifier that points here. Applied to
- * 2ship_port/2ship_src/2ship_rando/2ship_rando_ui unconditionally. 2ship_enh
- * is exempt as a *target* — most of its ~195 TUs stay link-elided (plain
- * archive semantics; nothing pulls them in) and carry raw RegisterGameHook
- * sites the full #427-item-2 migration hasn't reached yet — but
- * games/mm/CMakeLists.txt now force-includes this guard on the specific
- * 2ship_enh sources confirmed to actually enter the link
- * (docs/unified-surface-findings.md's census: FrameInterpolation.cpp,
- * MotionBlur.cpp, PauseOwlWarp.cpp, SavingEnhancements.cpp,
- * SkipGiantsChamber.cpp, AudioCollection.cpp — see
- * _mm_gi_hook_guard_linked_enh_sources there), since a raw registration in
- * any of those genuinely reaches the shared instance today (#442: this is
- * exactly how SavingEnhancements.cpp's raw sites got past the target-wide
- * exemption). Extend that per-source list — or flip the whole target — as
- * more 2ship_enh TUs stop being link-elided (#392).
+ * fails to compile with an identifier that points here. Applied to every MM
+ * C++ target with no exemptions: 2ship_src/2ship_port (#415),
+ * 2ship_rando/2ship_rando_ui (Lane C0, #392), and 2ship_enh (#427 item 2,
+ * which retired the last one). #442's interim carve-out — guarding only the
+ * six 2ship_enh sources the link census confirmed were non-elided
+ * (_mm_gi_hook_guard_linked_enh_sources in games/mm/CMakeLists.txt, added
+ * after SavingEnhancements.cpp's raw sites reached the shared instance
+ * through the target-wide exemption) — is gone with it: whole-target
+ * coverage subsumes the list, so there is no longer a census to keep in sync
+ * and no way for a newly un-elided 2ship_enh TU to arrive carrying raw
+ * registrations.
+ *
+ * The only upstream raw-registration file left untouched is
+ * 2s2h/Enhancements/Audio/AudioEditor.cpp, which is not compiled at all in
+ * single-exe builds (dropped from ship__Enhancements in
+ * games/mm/CMakeLists.txt because it depends on the excluded BenGui/BenMenu
+ * surface). If it is ever restored to the build, its
+ * OnRandoSeedGeneration registration must migrate first — the guard will say
+ * so at compile time.
  *
  * Escape hatch for deliberate probes: `#undef` the macro in the probing TU
  * (precedent: the rename #undefs in games/mm/2s2h/mm_culling_test.cpp).

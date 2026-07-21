@@ -1670,6 +1670,11 @@ extern "C" void GameInteractor_ExecuteBeforeMoonCrashSaveReset() {
 extern "C" void MM_GameHooks_ExecuteOnActorUpdate(Actor* actor) {
     S2H::GameHooks::Execute<GameInteractor::OnActorUpdate>(actor);
     S2H::GameHooks::ExecuteForID<GameInteractor::OnActorUpdate>(actor->id, actor);
+    // ForPtr leg (upstream GameInteractor_ExecuteOnActorUpdate has all four
+    // legs): registrants bind to one live actor by address — 2ship_enh's
+    // SkipLearningSongOfHealing is the first shim user (#427 item 2). The
+    // ForFilter leg stays unported: no compiled MM TU registers one.
+    S2H::GameHooks::ExecuteForPtr<GameInteractor::OnActorUpdate>((uintptr_t)actor, actor);
 }
 
 /**
@@ -1705,9 +1710,10 @@ extern "C" void MM_GameHooks_ExecuteOnSceneFlagSet(s16 sceneId, FlagType flagTyp
  * and actor ids resolve against the MM-owned S2H::GameHooks registries only —
  * never OoT's ordinal-aliased tables. Bodies are line-faithful ports of the
  * excluded upstream executors (2s2h/GameInteractor/GameInteractor.cpp), minus
- * the ForPtr/ForFilter legs: the S2H registry deliberately has no Ptr/Filter
- * surface and the linked MM set registers none (the only Should filter user,
- * DeveloperTools.cpp, stays link-elided — re-audit if it ever un-elides).
+ * the ForPtr/ForFilter legs: no compiled MM TU registers a Should hook by Ptr
+ * (the registry's ForPtr surface exists for OnActorUpdate, #427 item 2) and
+ * the registry deliberately has no Filter surface — the only Should filter
+ * user, DeveloperTools.cpp, stays link-elided; re-audit if it ever un-elides.
  * Locked by MMRandoGen's VB-dispatch phase (mm_rando_gen_test.cpp).
  */
 extern "C" bool MM_GameHooks_ExecuteVBShould(GIVanillaBehavior flag, uint32_t result, ...) {

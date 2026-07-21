@@ -22,7 +22,7 @@ void RegisterSkipLearningSongOfTime() {
         *should = false;
         // This typically gets set in the cutscene
         gSaveContext.save.playerForm = PLAYER_FORM_DEKU;
-        GameInteractor::Instance->events.emplace_back(GIEventGiveItem{
+        MM_GameEvents_Queue().emplace_back(GIEventGiveItem{
             .showGetItemCutscene = true,
             .param = GID_MASK_DEKU,
             .giveItem =

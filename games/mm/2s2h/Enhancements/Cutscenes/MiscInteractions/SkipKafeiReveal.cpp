@@ -32,7 +32,7 @@ void RegisterSkipKafeiReveal() {
         Message_BombersNotebookQueueEvent(MM_gPlayState, BOMBERS_NOTEBOOK_EVENT_RECEIVED_PENDANT_OF_MEMORIES);
 
         if (GameInteractor_Should(VB_GIVE_PENDANT_OF_MEMORIES_FROM_KAFEI, true)) {
-            GameInteractor::Instance->events.emplace_back(
+            MM_GameEvents_Queue().emplace_back(
                 GIEventGiveItem{ .showGetItemCutscene = true,
                                  .param = GID_PENDANT_OF_MEMORIES,
                                  .giveItem = [](Actor* actor, PlayState* play) {

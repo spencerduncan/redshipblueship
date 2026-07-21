@@ -35,13 +35,13 @@ void RegisterHealingMikauAudioFix() {
             // The main BGM sequence is playing (no BGM plays at night)
             if (AudioSeq_GetActiveSeqId(SEQ_PLAYER_BGM_MAIN) != NA_BGM_DISABLED) {
                 playGreatBayCoastBgmHookId =
-                    GameInteractor::Instance->RegisterGameHookForID<GameInteractor::OnActorUpdate>(
+                    S2H::GameHooks::RegisterForID<GameInteractor::OnActorUpdate>(
                         ACTOR_EN_ZOG, [](Actor* actor) {
                             // If BGM is killed, replay it and kill this update hook
                             if (AudioSeq_GetActiveSeqId(SEQ_PLAYER_BGM_MAIN) == NA_BGM_DISABLED) {
                                 SEQCMD_PLAY_SEQUENCE(SEQ_PLAYER_BGM_MAIN, 0, NA_BGM_GREAT_BAY_REGION);
                                 if (playGreatBayCoastBgmHookId) {
-                                    GameInteractor::Instance->UnregisterGameHookForID<GameInteractor::OnActorUpdate>(
+                                    S2H::GameHooks::UnregisterForID<GameInteractor::OnActorUpdate>(
                                         playGreatBayCoastBgmHookId);
                                     playGreatBayCoastBgmHookId = 0;
                                 }

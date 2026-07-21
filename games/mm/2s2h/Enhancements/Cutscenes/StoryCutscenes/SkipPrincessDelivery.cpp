@@ -20,7 +20,7 @@ void RegisterSkipPrincessDelivery() {
             SET_WEEKEVENTREG(WEEKEVENTREG_23_20);
 
             // Set up transition to Deku Palace throne room
-            GameInteractor::Instance->events.emplace_back(
+            MM_GameEvents_Queue().emplace_back(
                 GIEventTransition{ .entrance = ENTRANCE(DEKU_KINGS_CHAMBER, 3),
                                    .cutsceneIndex = 0,
                                    .transitionTrigger = TRANS_TRIGGER_START,

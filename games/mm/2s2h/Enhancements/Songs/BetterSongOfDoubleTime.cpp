@@ -95,7 +95,7 @@ void UpdateStickDirectionPromptAnim() {
 
 void OnPlayerUpdate(Actor* actor) {
     if (!sActivelyChangingTime) {
-        GameInteractor::Instance->UnregisterGameHookForID<GameInteractor::OnActorUpdate>(onPlayerUpdateHookId);
+        S2H::GameHooks::UnregisterForID<GameInteractor::OnActorUpdate>(onPlayerUpdateHookId);
         onPlayerUpdateHookId = 0;
         return;
     }
@@ -137,7 +137,7 @@ void OnPlayerUpdate(Actor* actor) {
         // Use a hook for when the song of double time cutscene is finished to reload the scene via a respawn
         // This is to ensure that no actors or scripts are processed with the new time on the fly,
         // and everything is reloaded in a fresh state
-        onEnTest6KillHookId = GameInteractor::Instance->RegisterGameHookForID<GameInteractor::OnActorKill>(
+        onEnTest6KillHookId = S2H::GameHooks::RegisterForID<GameInteractor::OnActorKill>(
             ACTOR_EN_TEST6, [](Actor* actor) {
                 Player* player = GET_PLAYER(MM_gPlayState);
 
@@ -154,16 +154,16 @@ void OnPlayerUpdate(Actor* actor) {
                 // Stop BGM so that new day sequences can play
                 gSaveContext.seqId = NA_BGM_DISABLED;
 
-                GameInteractor::Instance->UnregisterGameHookForID<GameInteractor::OnActorKill>(onEnTest6KillHookId);
+                S2H::GameHooks::UnregisterForID<GameInteractor::OnActorKill>(onEnTest6KillHookId);
                 onEnTest6KillHookId = 0;
             });
 
         // Use a hook to apply the new day and time before respawning
-        onPlayDestroyHookId = GameInteractor::Instance->RegisterGameHook<GameInteractor::OnPlayDestroy>([]() {
+        onPlayDestroyHookId = S2H::GameHooks::Register<GameInteractor::OnPlayDestroy>([]() {
             gSaveContext.save.day = sSelectedDay;
             gSaveContext.save.time = sSelectedTime;
 
-            GameInteractor::Instance->UnregisterGameHook<GameInteractor::OnPlayDestroy>(onPlayDestroyHookId);
+            S2H::GameHooks::Unregister<GameInteractor::OnPlayDestroy>(onPlayDestroyHookId);
             onPlayDestroyHookId = 0;
         });
 
@@ -341,8 +341,8 @@ void RegisterBetterSongOfDoubleTime() {
         sSelectedTime = CLOCK_TIME(0, 0);
         sSelectedDay = 0;
 
-        GameInteractor::Instance->UnregisterGameHookForID<GameInteractor::OnActorKill>(onEnTest6KillHookId);
-        GameInteractor::Instance->UnregisterGameHook<GameInteractor::OnPlayDestroy>(onPlayDestroyHookId);
+        S2H::GameHooks::UnregisterForID<GameInteractor::OnActorKill>(onEnTest6KillHookId);
+        S2H::GameHooks::Unregister<GameInteractor::OnPlayDestroy>(onPlayDestroyHookId);
 
         onEnTest6KillHookId = 0;
         onPlayDestroyHookId = 0;
@@ -395,7 +395,7 @@ void RegisterBetterSongOfDoubleTime() {
         sSelectedTime = CURRENT_TIME;
         sSelectedDay = gSaveContext.save.day;
 
-        onPlayerUpdateHookId = GameInteractor::Instance->RegisterGameHookForID<GameInteractor::OnActorUpdate>(
+        onPlayerUpdateHookId = S2H::GameHooks::RegisterForID<GameInteractor::OnActorUpdate>(
             ACTOR_PLAYER, OnPlayerUpdate);
     });
 

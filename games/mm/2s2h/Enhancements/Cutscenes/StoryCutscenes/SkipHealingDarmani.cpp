@@ -21,7 +21,7 @@ void RegisterSkipHealingDarmani() {
         // Played Song of Healing for Darmani in Goron Graveyard
         if (MM_gPlayState->sceneId == SCENE_GORON_HAKA && *csId == 9) {
             if (GameInteractor_Should(VB_GIVE_ITEM_FROM_DMCHAR05, true, ITEM_MASK_GORON)) {
-                GameInteractor::Instance->events.emplace_back(GIEventGiveItem{
+                MM_GameEvents_Queue().emplace_back(GIEventGiveItem{
                     .showGetItemCutscene = !CVarGetInteger("gEnhancements.Cutscenes.SkipGetItemCutscenes", 0),
                     .param = GID_MASK_GORON,
                     .giveItem =

@@ -754,49 +754,32 @@ if(SINGLE_EXECUTABLE_BUILD)
     # shared 4-byte OoT-owned instance again (MM code uses the S2H::GameHooks
     # registry / extern "C" shim in include/mm_game_hooks.h instead). Appended
     # AFTER GameInteractor.h so the class definition itself parses with the
-    # real names; only later USES in a TU fail. As of Lane C0 (#392) the guard
-    # covers 2ship_rando and 2ship_rando_ui too: their COND_* macro sites
-    # route through the single-exe macro redirection at the bottom of MM's
-    # GameInteractor.h and their direct Register* sites are migrated. Only
-    # 2ship_enh remains exempt as a *target* — its ~20 remaining direct
-    # Register* sites (#427's census) live in TUs that stay link-elided; flip
-    # the whole target here when the full ~56-site migration (#427 item 2)
-    # lands.
+    # real names; only later USES in a TU fail. Coverage history: 2ship_src/
+    # 2ship_port from #415; 2ship_rando/2ship_rando_ui from Lane C0 (#392) —
+    # COND_* macro sites route through the single-exe macro redirection at the
+    # bottom of MM's GameInteractor.h, direct Register* sites migrated by hand;
+    # 2ship_enh from #427 item 2, which retired the last exemption. Measured
+    # against the tree at that point, 2ship_enh carried 15 direct Register*
+    # sites across 8 files and 10 matching Unregister* sites, plus 34 live
+    # `Instance->events` enqueues across 22 files (and no `currentEvent`
+    # reads); all of them now go through S2H::GameHooks / MM_GameEvents_Queue.
+    # The one file still holding upstream raw registrations,
+    # 2s2h/Enhancements/Audio/AudioEditor.cpp, is filtered out of
+    # ship__Enhancements above and so is never compiled in single-exe builds.
+    #
+    # Every MM C++ target is now guarded: a raw Instance registration anywhere
+    # in MM code is a compile error, not a latent out-of-bounds write.
     set(_force_include_cxx_guarded
         ${_force_include_cxx}
         "${_fi}${CMAKE_CURRENT_SOURCE_DIR}/include/mm_gi_hook_guard.h"
     )
-    # #442: 2ship_enh is a plain (non-WHOLE_ARCHIVE) static archive, so most of
-    # its ~195 TUs never enter the link — but a handful genuinely do (their
-    # symbols are referenced from compiled MM .c sources), and the guard
-    # exemption above was blind to which TUs those are. Per
-    # docs/unified-surface-findings.md's link census, the confirmed-linked set
-    # is FrameInterpolation.cpp, MotionBlur.cpp, PauseOwlWarp.cpp,
-    # SavingEnhancements.cpp, SkipGiantsChamber.cpp, AudioCollection.cpp — one
-    # of which (SavingEnhancements.cpp) is exactly how #442's raw
-    # RegisterGameHook sites reached the shared 4-byte GameInteractor
-    # instance despite the target-wide exemption "protecting" 2ship_enh.
-    # Force-including the guard on just these six sources (rather than
-    # flipping the whole target, which would still fail on ~20 real raw sites
-    # in TUs that stay elided) closes exactly the hole #442 exploited without
-    # taking on the full #427 migration. Extend this list if the link census
-    # changes (docs/unified-surface-findings.md) or another 2ship_enh TU
-    # starts exporting a symbol a compiled MM .c source references.
-    # Matched by basename suffix (see the loop below), not exact path equality:
-    # the SOURCES target property's path form (relative vs.
-    # CMAKE_CURRENT_SOURCE_DIR-absolute, / vs \) isn't contractually
-    # guaranteed across CMake versions / generators. Every filename here is
-    # unique across the whole MM tree, so a plain basename match (no directory
-    # component, so no path-separator escaping to get wrong) is unambiguous
-    # and robust either way.
-    set(_mm_gi_hook_guard_linked_enh_sources
-        "FrameInterpolation.cpp"
-        "MotionBlur.cpp"
-        "PauseOwlWarp.cpp"
-        "SavingEnhancements.cpp"
-        "SkipGiantsChamber.cpp"
-        "AudioCollection.cpp"
-    )
+    # #442's interim per-source carve-out (_mm_gi_hook_guard_linked_enh_sources:
+    # guard only the six 2ship_enh TUs the link census showed were non-elided,
+    # since flipping the whole target would then have failed on the raw sites in
+    # elided TUs) is retired here with #427 item 2. Whole-target coverage
+    # strictly subsumes it, and dropping the list removes a census that had to
+    # be kept in sync by hand — a newly un-elided 2ship_enh TU can no longer
+    # arrive carrying raw registrations that the list happened not to name.
     set(_force_include_c
         "${_fi}${CMAKE_CURRENT_SOURCE_DIR}/include/ultra64.h"
         "${_fi}${CMAKE_CURRENT_SOURCE_DIR}/include/global.h"
@@ -819,25 +802,13 @@ if(SINGLE_EXECUTABLE_BUILD)
     # generator builds broke. Per-source properties hand both generators the
     # command lines Ninja was already producing.
     get_target_property(_target_sources ${_t} SOURCES)
-    if(_t STREQUAL "2ship_enh")
-        set(_force_include_cxx_for_target "${_force_include_cxx}")
-    else()
-        set(_force_include_cxx_for_target "${_force_include_cxx_guarded}")
-    endif()
+    # No per-target and no per-source exemptions (#427 item 2): the
+    # mm_gi_hook_guard.h poison applies to every MM C++ TU in every MM target.
     foreach(_src IN LISTS _target_sources)
         if(_src MATCHES "\\.c$")
             set_source_files_properties(${_src} PROPERTIES COMPILE_OPTIONS "${_force_include_c}")
         elseif(_src MATCHES "\\.(cpp|cxx|cc)$")
-            # #442: within 2ship_enh, the handful of sources confirmed to
-            # actually enter the link (see _mm_gi_hook_guard_linked_enh_sources
-            # above) get the same poison guard as every other MM C++ TU,
-            # regardless of the target-wide exemption.
-            get_filename_component(_mm_gi_hook_guard_src_name "${_src}" NAME)
-            if(_t STREQUAL "2ship_enh" AND _mm_gi_hook_guard_src_name IN_LIST _mm_gi_hook_guard_linked_enh_sources)
-                set_source_files_properties(${_src} PROPERTIES COMPILE_OPTIONS "${_force_include_cxx_guarded}")
-            else()
-                set_source_files_properties(${_src} PROPERTIES COMPILE_OPTIONS "${_force_include_cxx_for_target}")
-            endif()
+            set_source_files_properties(${_src} PROPERTIES COMPILE_OPTIONS "${_force_include_cxx_guarded}")
         endif()
     endforeach()
 else()
