@@ -8,6 +8,25 @@ namespace SOH {
 enum class MigrationAction {
     Rename,
     Remove,
+    /**
+     * RSBS (ADR 0003 §6.3). Like Rename, but the destination wins a conflict.
+     *
+     * Plain Rename is CVarCopy-then-CVarClear, and CVarCopy overwrites
+     * unconditionally. That is correct when `from` is a spelling this port
+     * itself retired, because only one of the two keys can ever have held a
+     * user's value. It is WRONG for the cross-game convergence in
+     * version7Migrations: a config can legitimately hold both
+     * gSettings.Volume.Master (written by OoT's live menu) and
+     * gSettings.Audio.MasterVolume (hand-edited, or imported from a 2Ship
+     * preset), and a plain Rename would let the MM-spelled value clobber the
+     * OoT one.
+     *
+     * RenameIfAbsent adopts `from` only when `to` does not already exist. The
+     * OoT-spelled value is the one the user could actually have set through a
+     * live menu, so it is the one they last saw take effect. `from` is cleared
+     * either way — the legacy spelling retires regardless of who won.
+     */
+    RenameIfAbsent,
 };
 
 struct Migration {
@@ -1538,5 +1557,36 @@ std::vector<Migration> version6Migrations = {
     { MigrationAction::Remove, "gSettings.WalkModifier.SwimMapping1" },
     { MigrationAction::Remove, "gSettings.WalkModifier.SwimMapping2" },
     { MigrationAction::Remove, "gSettings.WalkModifier.Mod2Btn" },
+};
+
+/**
+ * RSBS version 7 — cross-game key convergence (ADR 0003 §5.1 / §6.2).
+ *
+ * MM moves onto OoT's spelling for settings both games mean identically. Only
+ * the character-colour rows live here: they are pure renames, so the
+ * declarative table expresses them completely.
+ *
+ * The SIX audio-volume rows are deliberately NOT in this table. They are not
+ * renames — OoT stores volume as integer percent (0-100) while MM stored float
+ * (0..1), and libultraship returns the DEFAULT on a CVar type mismatch, so a
+ * CVarCopy across one of them produces a key the reader silently ignores.
+ * Those rows need a value transform and are applied imperatively in
+ * ConfigVersion7Updater::Update, exactly as ConfigVersion3Updater already does
+ * for OoT's own float-to-percent volume migration.
+ *
+ * Both halves are driven by ONE manifest — RSBS::kConvergedKeys in
+ * src/common/cvar_shared_keys.h, which the 2Ship importer also consumes so the
+ * updater and the importer cannot drift. `--test cvar-classification` asserts
+ * this table still agrees with the manifest.
+ *
+ * These three are issue #453: MM reads OoT's PRE-MIGRATION underscore spelling,
+ * which OoT's own version-3 table renames away (see line ~482 above). MM was
+ * never updated, so after any OoT migration MM's tunic colours read a key
+ * nothing writes and fall back to hardcoded defaults permanently.
+ */
+std::vector<Migration> version7Migrations = {
+    { MigrationAction::RenameIfAbsent, "gCosmetics.Link_KokiriTunic.Value", "gCosmetics.Link.KokiriTunic.Value" },
+    { MigrationAction::RenameIfAbsent, "gCosmetics.Link_GoronTunic.Value", "gCosmetics.Link.GoronTunic.Value" },
+    { MigrationAction::RenameIfAbsent, "gCosmetics.Link_ZoraTunic.Value", "gCosmetics.Link.ZoraTunic.Value" },
 };
 } // namespace SOH

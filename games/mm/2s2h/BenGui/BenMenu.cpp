@@ -395,63 +395,88 @@ void BenMenu::AddSettings() {
     path.sidebarName = "Audio";
     path.column = SECTION_COLUMN_1;
     AddSidebarEntry("Settings", "Audio", 3);
-    AddWidget(path, "Master Volume: %.0f%%", WIDGET_CVAR_SLIDER_FLOAT)
-        .CVar("gSettings.Audio.MasterVolume")
-        .Options(FloatSliderOptions()
+    // RSBS: these six sliders drive the SAME CVars OoT's Settings > Audio menu
+    // drives (ADR 0003 §5.1) — one setting, one key, both games. That means
+    // adopting OoT's representation as well as its spelling: integer percent
+    // 0-100 on an int slider, not float 0..1, because libultraship returns the
+    // default on a CVar type mismatch and a float reader against OoT's integer
+    // key would never see the user's value. Canonical spellings and defaults
+    // live in src/common/cvar_shared_keys.h.
+    AddWidget(path, "Master Volume: %d%%", WIDGET_CVAR_SLIDER_INT)
+        .CVar("gSettings.Volume.Master")
+        .Options(IntSliderOptions()
                      .Tooltip("Adjust the overall sound volume.")
                      .ShowAdjustmentButtons(false)
                      .Format("")
-                     .IsPercentage());
-    AddWidget(path, "Main Music Volume: %.0f%%", WIDGET_CVAR_SLIDER_FLOAT)
-        .CVar("gSettings.Audio.MainMusicVolume")
+                     .Min(0)
+                     .Max(100)
+                     .DefaultValue(40));
+    AddWidget(path, "Main Music Volume: %d%%", WIDGET_CVAR_SLIDER_INT)
+        .CVar("gSettings.Volume.MainMusic")
         .Callback([](WidgetInfo& info) {
-            AudioSeq_SetPortVolumeScale(SEQ_PLAYER_BGM_MAIN, CVarGetFloat("gSettings.Audio.MainMusicVolume", 1.0f));
+            AudioSeq_SetPortVolumeScale(SEQ_PLAYER_BGM_MAIN,
+                                        (float)CVarGetInteger("gSettings.Volume.MainMusic", 100) / 100.0f);
         })
-        .Options(FloatSliderOptions()
+        .Options(IntSliderOptions()
                      .Tooltip("Adjust the background music volume.")
                      .ShowAdjustmentButtons(false)
                      .Format("")
-                     .IsPercentage());
-    AddWidget(path, "Sub Music Volume: %.0f%%", WIDGET_CVAR_SLIDER_FLOAT)
-        .CVar("gSettings.Audio.SubMusicVolume")
+                     .Min(0)
+                     .Max(100)
+                     .DefaultValue(100));
+    AddWidget(path, "Sub Music Volume: %d%%", WIDGET_CVAR_SLIDER_INT)
+        .CVar("gSettings.Volume.SubMusic")
         .Callback([](WidgetInfo& info) {
-            AudioSeq_SetPortVolumeScale(SEQ_PLAYER_BGM_SUB, CVarGetFloat("gSettings.Audio.SubMusicVolume", 1.0f));
+            AudioSeq_SetPortVolumeScale(SEQ_PLAYER_BGM_SUB,
+                                        (float)CVarGetInteger("gSettings.Volume.SubMusic", 100) / 100.0f);
         })
-        .Options(FloatSliderOptions()
+        .Options(IntSliderOptions()
                      .Tooltip("Adjust the sub music volume.")
                      .ShowAdjustmentButtons(false)
                      .Format("")
-                     .IsPercentage());
-    AddWidget(path, "Sound Effects Volume: %.0f%%", WIDGET_CVAR_SLIDER_FLOAT)
-        .CVar("gSettings.Audio.SoundEffectsVolume")
+                     .Min(0)
+                     .Max(100)
+                     .DefaultValue(100));
+    AddWidget(path, "Sound Effects Volume: %d%%", WIDGET_CVAR_SLIDER_INT)
+        .CVar("gSettings.Volume.SFX")
         .Callback([](WidgetInfo& info) {
-            AudioSeq_SetPortVolumeScale(SEQ_PLAYER_SFX, CVarGetFloat("gSettings.Audio.SoundEffectsVolume", 1.0f));
+            AudioSeq_SetPortVolumeScale(SEQ_PLAYER_SFX, (float)CVarGetInteger("gSettings.Volume.SFX", 100) / 100.0f);
         })
-        .Options(FloatSliderOptions()
+        .Options(IntSliderOptions()
                      .Tooltip("Adjust the sound effects volume.")
                      .ShowAdjustmentButtons(false)
                      .Format("")
-                     .IsPercentage());
-    AddWidget(path, "Fanfare Volume: %.0f%%", WIDGET_CVAR_SLIDER_FLOAT)
-        .CVar("gSettings.Audio.FanfareVolume")
+                     .Min(0)
+                     .Max(100)
+                     .DefaultValue(100));
+    AddWidget(path, "Fanfare Volume: %d%%", WIDGET_CVAR_SLIDER_INT)
+        .CVar("gSettings.Volume.Fanfare")
         .Callback([](WidgetInfo& info) {
-            AudioSeq_SetPortVolumeScale(SEQ_PLAYER_FANFARE, CVarGetFloat("gSettings.Audio.FanfareVolume", 1.0f));
+            AudioSeq_SetPortVolumeScale(SEQ_PLAYER_FANFARE,
+                                        (float)CVarGetInteger("gSettings.Volume.Fanfare", 100) / 100.0f);
         })
-        .Options(FloatSliderOptions()
+        .Options(IntSliderOptions()
                      .Tooltip("Adjust the fanfare volume.")
                      .ShowAdjustmentButtons(false)
                      .Format("")
-                     .IsPercentage());
-    AddWidget(path, "Ambience Volume: %.0f%%", WIDGET_CVAR_SLIDER_FLOAT)
-        .CVar("gSettings.Audio.AmbienceVolume")
+                     .Min(0)
+                     .Max(100)
+                     .DefaultValue(100));
+    // No OoT twin — OoT has no ambience channel — but spelled into the same
+    // family so OoT can adopt the key if it ever gains one.
+    AddWidget(path, "Ambience Volume: %d%%", WIDGET_CVAR_SLIDER_INT)
+        .CVar("gSettings.Volume.Ambience")
         .Callback([](WidgetInfo& info) {
-            AudioSeq_SetPortVolumeScale(SEQ_PLAYER_AMBIENCE, CVarGetFloat("gSettings.Audio.AmbienceVolume", 1.0f));
+            AudioSeq_SetPortVolumeScale(SEQ_PLAYER_AMBIENCE,
+                                        (float)CVarGetInteger("gSettings.Volume.Ambience", 100) / 100.0f);
         })
-        .Options(FloatSliderOptions()
+        .Options(IntSliderOptions()
                      .Tooltip("Adjust the ambient sound volume.")
                      .ShowAdjustmentButtons(false)
                      .Format("")
-                     .IsPercentage());
+                     .Min(0)
+                     .Max(100)
+                     .DefaultValue(100));
     AddWidget(path, "Audio API", WIDGET_AUDIO_BACKEND);
 
     // Graphics Settings
@@ -2028,7 +2053,9 @@ void BenMenu::InitElement() {
         { DISABLE_FOR_MOTION_BLUR_OFF,
           { [](disabledInfo& info) -> bool { return !R_MOTION_BLUR_ENABLED; }, "Motion Blur is disabled" } },
         { DISABLE_FOR_FRAME_ADVANCE_OFF,
-          { [](disabledInfo& info) -> bool { return !(MM_gPlayState != nullptr && MM_gPlayState->frameAdvCtx.enabled); },
+          { [](disabledInfo& info) -> bool {
+               return !(MM_gPlayState != nullptr && MM_gPlayState->frameAdvCtx.enabled);
+           },
             "Frame Advance is Disabled" } },
         { DISABLE_FOR_INTRO_SKIP_OFF,
           { [](disabledInfo& info) -> bool { return !CVarGetInteger("gEnhancements.Cutscenes.SkipIntroSequence", 0); },

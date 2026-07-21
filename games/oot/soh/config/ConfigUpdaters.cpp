@@ -2,6 +2,11 @@
 #include "ConfigMigrators.h"
 #include "soh/Enhancements/audio/AudioCollection.h"
 
+// src/common — the cross-game CVar classification manifest (ADR 0003 / the
+// enhancement-classification inventory). Version 7's convergence rows and the
+// 2Ship importer both read kConvergedKeys from here.
+#include "cvar_shared_keys.h"
+
 namespace SOH {
 ConfigVersion1Updater::ConfigVersion1Updater() : ConfigVersionUpdater(1) {
 }
@@ -14,6 +19,8 @@ ConfigVersion4Updater::ConfigVersion4Updater() : ConfigVersionUpdater(4) {
 ConfigVersion5Updater::ConfigVersion5Updater() : ConfigVersionUpdater(5) {
 }
 ConfigVersion6Updater::ConfigVersion6Updater() : ConfigVersionUpdater(6) {
+}
+ConfigVersion7Updater::ConfigVersion7Updater() : ConfigVersionUpdater(7) {
 }
 
 void ConfigVersion1Updater::Update(Ship::Config* conf) {
@@ -140,6 +147,73 @@ void ConfigVersion6Updater::Update(Ship::Config* conf) {
             CVarCopy(migration.from.c_str(), migration.to.value().c_str());
         }
         CVarClear(migration.from.c_str());
+    }
+}
+
+// ============================================================================
+// Version 7 — cross-game key convergence (ADR 0003 §5.1, §6.2-6.3)
+// ============================================================================
+
+/**
+ * Is this CVar set at all?
+ *
+ * NOT `CVarExists` — libultraship declares that in consolevariablebridge.h and
+ * never defines it anywhere, so calling it is a link error rather than a
+ * presence check. `CVarGet` is the real accessor and is what the bridge's own
+ * Register* paths use to test presence.
+ */
+static bool CVarPresent(const char* name) {
+    return CVarGet(name) != nullptr;
+}
+
+bool ShouldAdoptLegacyValue(bool legacyPresent, bool canonicalPresent) {
+    // Nothing to adopt, or OoT's value already stands. Either way the legacy
+    // key is cleared by the caller — the retired spelling goes away regardless
+    // of who won, so this migration is not re-runnable and cannot oscillate.
+    return legacyPresent && !canonicalPresent;
+}
+
+int32_t VolumePercentFromFloatScale(float scale) {
+    if (!(scale > 0.0f)) { // also catches NaN, which compares false everywhere
+        return 0;
+    }
+    if (scale > 1.0f) {
+        return 100;
+    }
+    return (int32_t)(scale * 100.0f);
+}
+
+void ConfigVersion7Updater::Update(Ship::Config* conf) {
+    // Character colours: pure renames, so the declarative table covers them.
+    for (Migration migration : version7Migrations) {
+        if (migration.action == MigrationAction::RenameIfAbsent) {
+            if (ShouldAdoptLegacyValue(CVarPresent(migration.from.c_str()),
+                                       CVarPresent(migration.to.value().c_str()))) {
+                CVarCopy(migration.from.c_str(), migration.to.value().c_str());
+            }
+        } else if (migration.action == MigrationAction::Rename) {
+            CVarCopy(migration.from.c_str(), migration.to.value().c_str());
+        }
+        CVarClear(migration.from.c_str());
+    }
+
+    // Audio volume: a rename AND a representation change. MM stored a float
+    // scale; OoT stores integer percent, and every reader of the canonical key
+    // calls CVarGetInteger. Copying the Float-typed CVar across would leave a
+    // value that libultraship's type check rejects, so the slider would read
+    // its default forever — the same silent-no-op this whole convergence
+    // exists to remove. Same conflict rule as above: OoT's value wins.
+    //
+    // Driven by the shared manifest rather than a local list, so the importer
+    // and this updater cannot disagree about what maps to what.
+    for (const RSBS::ConvergedKey& key : RSBS::kConvergedKeys) {
+        if (!key.scaledPercent) {
+            continue; // handled by version7Migrations above
+        }
+        if (ShouldAdoptLegacyValue(CVarPresent(key.legacy), CVarPresent(key.canonical))) {
+            CVarSetInteger(key.canonical, VolumePercentFromFloatScale(CVarGetFloat(key.legacy, 1.0f)));
+        }
+        CVarClear(key.legacy);
     }
 }
 } // namespace SOH

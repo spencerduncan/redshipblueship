@@ -135,6 +135,7 @@
 #include "soh/resource/importer/BackgroundFactory.h"
 
 #include "soh/config/ConfigUpdaters.h"
+#include "soh/config/TwoShipImport.h"
 #include "soh/ShipInit.hpp"
 
 // Runtime feature flags for debugging - set env var to "1" to disable subsystem
@@ -1729,7 +1730,16 @@ static void InitOTRImpl(int argc, char* argv[], bool runExtract) {
     conf->RegisterVersionUpdater(std::make_shared<SOH::ConfigVersion4Updater>());
     conf->RegisterVersionUpdater(std::make_shared<SOH::ConfigVersion5Updater>());
     conf->RegisterVersionUpdater(std::make_shared<SOH::ConfigVersion6Updater>());
+    // RSBS: cross-game key convergence — MM moves onto OoT's spelling for
+    // settings both games mean identically (ADR 0003 §5.1).
+    conf->RegisterVersionUpdater(std::make_shared<SOH::ConfigVersion7Updater>());
     conf->RunVersionUpdates();
+
+    // RSBS: one-shot import of an existing 2Ship2Harkinian config, mapped
+    // through the same convergence table version 7 uses. Must run AFTER the
+    // version updates so the imported keys land in their converged spelling
+    // and cannot be re-migrated. No-op when there is nothing to import.
+    SOH::ImportTwoShipConfig(conf);
 
     // The SoH GUI windows load OoT game assets while they initialize
     // (Plandomizer/ItemTracker icons, cosmetics Gfx patches), and LUS's
