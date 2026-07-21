@@ -2308,7 +2308,7 @@ void MM_Play_ConsumeStartupEntrance(void) {
     // (SOUTH_CLOCK_TOWN, cutsceneIndex 0, Tatl flags); running it before the
     // arrival block means the cross-game arrival state always wins, exactly as
     // it does over a restored frozen save.
-    MM_Rando_PairOnCrossGameArrival(hadFrozenState);
+    (void)hadFrozenState; /* NEGATIVE CHECK: pairing dispatch removed */
     gSaveContext.save.entrance = startupEntrance;
     // On a first MM entry this Play_Init is reached through MM's
     // title-screen boot (TitleSetup_SetupTitleScreen), so the save
