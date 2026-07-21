@@ -356,6 +356,13 @@ if(BUILD_TESTING)
     # This compares their layout fingerprints and fails on drift (one Emit
     # definition survives, so no link error can catch a divergence).
     redship_add_test(NAME MMNotificationBinding COMMAND redship --test mm-notification-binding)
+    # MM scaled framebuffer draw (#386): MM's framebuffer_effects.c is excluded,
+    # so MM's FB_DrawFromFramebufferScaled bound OoT's surviving body, which
+    # reads OoT_gScreenWidth/Height. MM's dimensions diverge (HiRes 576 with the
+    # Bombers' Notebook open vs OoT's 320), so the shared body mis-scales MM's
+    # VisFbuf draw. This locks MM's call to its own MM_-dimension body (only one
+    # definition survived, so no link error could catch the cross-bind).
+    redship_add_test(NAME MMFbEffectsBinding COMMAND redship --test mm-fb-effects-binding)
     redship_add_test(NAME MMResumeArena COMMAND redship --test mm-resume-arena)
     redship_add_test(NAME MMStartupRestore COMMAND redship --test mm-startup-restore)
     redship_add_test(NAME AllTests COMMAND redship --test all)

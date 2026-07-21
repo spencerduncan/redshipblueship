@@ -3,6 +3,11 @@
 
 #include "ultra64.h"
 
+// Single-exe: rename FB_DrawFromFramebufferScaled -> MM_FB_DrawFromFramebufferScaled
+// so MM binds its OWN body (reading MM_gScreenWidth/Height) instead of OoT's
+// surviving one (reading OoT_gScreenWidth/Height). See the header for #386.
+#include "mm_framebuffer_effects_prefix.h"
+
 extern s32 gPauseFrameBuffer;
 extern s32 gBlurFrameBuffer;
 extern s32 gReusableFrameBuffer;

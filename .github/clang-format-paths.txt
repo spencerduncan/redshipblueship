@@ -34,6 +34,8 @@ games/mm/2s2h/Rando/Foreign.cpp
 games/mm/2s2h/Rando/Foreign.h
 games/mm/2s2h/ShipInit.hpp
 games/mm/2s2h/mm_culling_test.cpp
+games/mm/2s2h/mm_fb_effects_test.cpp
+games/mm/2s2h/mm_framebuffer_effects.c
 games/mm/2s2h/mm_gi_shim_test.cpp
 games/mm/2s2h/mm_notification_binding_test.cpp
 games/mm/2s2h/mm_resume_state_test.cpp
