@@ -309,16 +309,6 @@ jobs:
       # never executes them (extraction spawns single-variant ZAPD_OoT/
       # ZAPD_MM subprocesses instead, issue #325).
       run: bash .github/scripts/check-exporter-symbol-collisions.sh build-cmake
-    - name: "TEMPORARY (#411 fail-path proof): DO NOT MERGE — revert before landing"
-      # One-off, submodule-free demonstration that the gate above actually
-      # stops a real collision: builds a synthetic archive pair that shares
-      # one strong DATA global (via --emit-collision-pair) and runs it
-      # through the identical, shipped check_pair logic (--check-archives).
-      # Expected to fail this step on purpose. Reverted in the next commit
-      # once the run id is captured — see #411.
-      run: |
-        bash .github/scripts/check-exporter-symbol-collisions.sh --emit-collision-pair /tmp/otrexp-failproof
-        bash .github/scripts/check-exporter-symbol-collisions.sh --check-archives /tmp/otrexp-failproof/libSelftestCollisionA.a /tmp/otrexp-failproof/libSelftestCollisionB.a
     - name: Run tests
       # --no-tests=error: if the "redship" test label ever regresses, fail loudly
       # instead of ctest exiting 0 with "No tests were found".
