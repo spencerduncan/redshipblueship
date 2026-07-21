@@ -33,6 +33,7 @@
 #include "game_lifecycle.h"
 #include "integration_test_hooks.h"
 #include "context.h"
+#include "shared_items.h"
 #include "entrance.h"
 #include <ship/resource/ResourceManager.h>
 #include <ship/resource/ResourceLoader.h>
@@ -1323,6 +1324,14 @@ void MM_Game_Suspend(void) {
     fprintf(stderr, "[MM] Game_Suspend called\n");
     fflush(stderr);
 
+    // Producer (ADR 0002 / Lane A1) — mirrors OoT_Game_Suspend. Commit any
+    // staged cross-game items into gComboCtx.sharedItemsTagged before handing
+    // control to OoT. This lives at Game_Suspend, not Combo_CheckEntranceSwitch:
+    // the F10 hot-swap path bypasses the entrance hook, and GameRunner_SwitchTo
+    // calls suspend() on both switch paths, so this is the one point that never
+    // drops a hotkey switch's writes.
+    Combo_CommitStagedSharedItems();
+
     // Drain the SHARED audio thread before touching MM's audio state. In
     // single-exe builds MM's synth runs on OoT's OTRAudio_Thread (the
     // active-game dispatch in games/oot/soh/OTRGlobals.cpp) — a REAL
@@ -1500,6 +1509,33 @@ void GameInteractor_ExecuteOnRoomInit(s16 sceneId, s8 roomNum) {
 
 void GameInteractor_ExecuteAfterRoomSceneCommands(s16 sceneId, s8 roomNum) {
     GameInteractor::Instance->ExecuteHooks<GameInteractor::AfterRoomSceneCommands>(sceneId, roomNum);
+}
+
+/**
+ * Award a single MM-origin shared item (ADR 0002 / Lane A1 consumer callback),
+ * the MM twin of OoT_AwardSharedItem. `item->id` is an MM RandoItemId (RI_*).
+ *
+ * Lane A1 scope: plumbing seam only — it logs; Combo_RedeemSharedItemsForGame
+ * still marks the entry RSBS_SHARED_ITEM_REDEEMED so the crossing is single-use
+ * once wired. Lane C replaces the log with MM's real give (Rando::GiveItem /
+ * MM_Item_Give) for the chosen foreign-item class; do NOT clear the entry.
+ */
+static void MM_AwardSharedItem(const SharedItem* item, void* ctx) {
+    (void)ctx;
+    fprintf(stderr, "[MM] shared-item redeem (Lane A1 plumbing): RI id=%u — Lane C wires the MM give\n",
+            (unsigned)item->id);
+}
+
+/**
+ * Consumer hook (ADR 0002 / Lane A1), the MM twin of OoT_ConsumeSharedItems.
+ * Award every un-redeemed MM-origin shared item and mark it redeemed. Called
+ * from MM_Play_ConsumeStartupEntrance (games/mm/src/code/z_play.c), which is
+ * presence-gated and runs once per cross-game arrival into MM. A plain boot /
+ * .redsave load never reaches it, so un-redeemed items wait for the next switch
+ * into MM ("applies on next switch only"; see shared_items.h).
+ */
+void MM_ConsumeSharedItems(void) {
+    Combo_RedeemSharedItemsForGame(GAME_MM, MM_AwardSharedItem, nullptr);
 }
 
 } // extern "C"
