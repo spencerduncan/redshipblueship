@@ -288,6 +288,13 @@ if(BUILD_TESTING)
     # shared structure, the crossing awards exactly once on the OoT side, and
     # gComboCtx.foreignPlacements round-trips through the .redsave record.
     redship_add_test(NAME ForeignItemGive COMMAND redship --test foreign-item-give)
+    # Netplay 1a (ADR 0005, #460): sourced-grant model locks — cursor
+    # idempotency, switch-free received-order redemption, loud overflow with
+    # redeemed-slot reclamation, and .redsave durability + reset atomicity.
+    redship_add_test(NAME GrantIdempotency COMMAND redship --test grant-idempotency)
+    redship_add_test(NAME GrantRedeemNoSwitch COMMAND redship --test grant-redeem-no-switch)
+    redship_add_test(NAME GrantOverflow COMMAND redship --test grant-overflow)
+    redship_add_test(NAME GrantPersistence COMMAND redship --test grant-persistence)
     redship_add_test(NAME ArchiveHotswapLogic COMMAND redship --test archive-hotswap-logic)
     # Unified save (.redsave) headless tests — Phase 2 T6 (#35)
     redship_add_test(NAME SaveRoundtripTiers COMMAND redship --test save-roundtrip-tiers)
