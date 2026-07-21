@@ -1,5 +1,13 @@
 # Phase 3 lane prompts — ultracode worker briefs
 
+> **STATUS: EXECUTED (2026-07-20/21). Historical record — do not run these briefs again.**
+> Every brief below was executed and merged: G1 #415, G2 #408, F1 #413, F2 #414+#421,
+> H #409/#412/#416/#417, A0 #410, A1 #419+#420, B #418, C0 #422, C1 #428. Issues
+> #372/#373/#375/#377/#380/#384/#395/#403 closed; #383 re-scoped to UIWidgets (deferred).
+> Current state and remaining work live on #392: the consolidated operator-sitting
+> runbook, and follow-ups #411/#426/#427. Line anchors below describe the pre-execution
+> tree and are stale by construction.
+
 > Written 2026-07-20 against `main` (77cf5508) + PR #404, after the #389–#400 merge
 > weekend; every anchor was re-verified on this date and the whole doc then passed an
 > adversarial verification sweep. **Do not trust line numbers in
