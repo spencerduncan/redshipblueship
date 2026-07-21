@@ -1112,22 +1112,40 @@ extern "C" int MM_Rando_HeadlessReloadArmState(void) {
 
     // ----------------------------------------------------------------------
     // Phase 4 — vanilla direction: a file-select LOAD of a VANILLA save
-    // DISARMS again. The hooks track the loaded save, not stale registry
-    // state, so rando overrides can never leak into a non-rando file loaded
-    // after a rando one.
+    // DISARMS the rando overrides, so the hooks track the loaded save and can
+    // never leak into a non-rando file loaded after a rando one.
+    //
+    // Probed through a VB verdict, NOT the OnFlagSet count: COND_HOOK's
+    // Unregister is DEFERRED (mm_game_hooks.h — the id is queued and only erased
+    // by FlushPendingUnregistrations at the next Execute of that hook type), so
+    // CountForTest lags a disarm and still shows the not-yet-flushed hook even
+    // though it can no longer fire. GameInteractor_Should dispatches
+    // Execute<ShouldVanillaBehavior>, which applies that flush, so the verdict
+    // reflects the disarm immediately. The give override is
+    // COND_VB_SHOULD(VB_GIVE_ITEM_FROM_GREAT_FAIRY, IS_RANDO, { *should=false }),
+    // re-evaluated on the same OnSaveLoad chain (ShipInit::Init("IS_RANDO")) and
+    // headless-safe — its body touches no play state. MMRandoGen uses the same
+    // probe for its vanilla direction.
     // ----------------------------------------------------------------------
+    // Armed baseline (the rando save is still live from Phases 2-3): the
+    // IS_RANDO give override suppresses the vanilla great-fairy give.
+    if (GameInteractor_Should(VB_GIVE_ITEM_FROM_GREAT_FAIRY, true)) {
+        fprintf(stderr, "[MM-RELOAD-ARM] FAIL(7): the armed rando save did not suppress the give VB — the "
+                        "arm-state probe premise is broken\n");
+        return 7;
+    }
     memset(&gSaveContext, 0, sizeof(gSaveContext));
     MM_Sram_InitNewSave();
     GameInteractor_ExecuteOnSaveLoad(gSaveContext.fileNum);
-    const size_t reDisarmed = S2H::GameHooks::CountForTest<GameInteractor::OnFlagSet>();
-    if (reDisarmed >= armed) {
-        fprintf(stderr,
-                "[MM-RELOAD-ARM] FAIL(7): loading a vanilla save left the IS_RANDO hooks armed (OnFlagSet %zu; "
-                "rando-armed was %zu) — rando overrides leaked into a non-rando file\n",
-                reDisarmed, armed);
-        return 7;
+    // The override must be gone: the caller's verdict passes through in BOTH
+    // polarities (true stays true, false stays false).
+    if (!GameInteractor_Should(VB_GIVE_ITEM_FROM_GREAT_FAIRY, true) ||
+        GameInteractor_Should(VB_GIVE_ITEM_FROM_GREAT_FAIRY, false)) {
+        fprintf(stderr, "[MM-RELOAD-ARM] FAIL(8): a vanilla-save LOAD left the rando give override armed — rando "
+                        "overrides leaked into a non-rando file\n");
+        return 8;
     }
-    fprintf(stderr, "[MM-RELOAD-ARM] vanilla-direction LOAD disarmed the hooks (OnFlagSet %zu)\n", reDisarmed);
+    fprintf(stderr, "[MM-RELOAD-ARM] vanilla-direction LOAD disarmed the rando overrides (give VB passes through)\n");
 
     // Leave clean global state for later dispatches in the same process.
     ComboContext_Init();
