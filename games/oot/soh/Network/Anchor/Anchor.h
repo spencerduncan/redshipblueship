@@ -3,6 +3,7 @@
 #ifdef __cplusplus
 
 #include "soh/Network/Network.h"
+#include "rsbs_version.h" // src/common/rsbs_version.h via redship_common's public include dir
 #include <libultraship/libultraship.h>
 #include <queue>
 #include <mutex>
@@ -110,7 +111,30 @@ class Anchor : public Network {
 
   public:
     uint32_t ownClientId;
-    inline static const std::string clientVersion = (char*)OoT_gBuildVersion;
+
+    /**
+     * Anchor's compatibility interlock. This MUST stay RedShipBlueShip-distinct —
+     * it is the only thing keeping a combo client out of stock Ship of Harkinian rooms.
+     *
+     * OnIncomingJson() drops every packet from a peer whose clientVersion differs from
+     * ours (all types except ALL_CLIENT_STATE / UPDATE_CLIENT_STATE, which carry the
+     * version itself), and SendPacket_UpdateClientState() advertises this string so peers
+     * apply the same filter to us. Version equality is therefore a hard, bidirectional
+     * state-exchange gate, not a cosmetic label.
+     *
+     * This used to be OoT_gBuildVersion, which is generated from the upstream-derived
+     * project(Ship VERSION 9.1.1) — byte-identical to a stock SoH 9.1.1 build ("Copper
+     * Bravo (9.1.1)"). A combo client would have passed the interlock against public
+     * stock rooms and exchanged flags, checks and item grants despite divergent combo
+     * semantics (gComboCtx, SharedItem redemption, cross-game entrances). Sourcing the
+     * string from RSBS_* (src/common/rsbs_version.h, issue #319) makes that mismatch
+     * explicit and self-maintaining across releases.
+     *
+     * Do not "fix" this back to a shared/upstream build string, and do not widen the
+     * comparison to a prefix or major-version match, without a deliberate decision that
+     * cross-fork rooms are safe. See docs/netplay-increment-1-spike.md.
+     */
+    inline static const std::string clientVersion = RSBS_APP_NAME " " RSBS_VERSION_STRING;
 
     // Packet types //
     inline static const std::string ALL_CLIENT_STATE = "ALL_CLIENT_STATE";
