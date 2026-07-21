@@ -38,6 +38,45 @@ thing the docs implied:
    > earlier dispatch on the same path. Any `COND_*` condition read off save
    > state needs a re-dispatch once the final save is known.
 
+   ### Why only the cross-game arrival was broken: file select is the universal funnel
+
+   The full audit of this class (#467, against `d075aeaf`) enumerated every MM entry
+   path that reaches gameplay and asked *what save is live at each `OnSaveLoad`
+   dispatch*. The result is a single structural invariant, and it is the reason #439
+   was a one-path bug rather than a dozen:
+
+   > **Every vanilla-MM route from the disarming `TitleSetup` dispatch to actual
+   > gameplay passes through `FileSelect_LoadGame`**
+   > (`z_file_choose_NES.c:2250`), which dispatches `OnSaveLoad` against the real
+   > save. Cold boot, F10 with no frozen state, owl-save-and-quit, and the
+   > `entrance == -1` bail all land on the title/attract chain and must go through
+   > file select to reach play. **The cross-game arrival is the only path that goes
+   > `TitleSetup -> MM_Play_Init` directly**, bypassing that funnel — which is
+   > exactly why it was the only one left disarmed, and why #447's re-arm belongs at
+   > `MM_Play_ConsumeStartupEntrance` rather than anywhere more general.
+
+   Corollaries worth keeping in mind before changing this area:
+
+   - **Any new path that boots straight into `MM_Play_Init` without passing file
+     select reopens #439's class**, and needs its own re-dispatch at the point the
+     final save is known. That is the tripwire to check on boot-flow changes.
+   - The paths that never dispatch at all — three-day cycle reset (`Sram_SaveEndOfCycle`
+     -> `DayTelop_Init` -> `MM_Play_Init`), death/respawn, and ordinary scene
+     transitions — are **benign**, because they never *wipe* the save either. Hooks
+     armed by file select or by the arrival re-dispatch stay armed across them. Absence
+     of a dispatch is only a bug where the save's *shape* can change.
+   - `MM_Sram_InitSave` (`z_sram_NES.c:1918`) dispatches `OnSaveInit` but **never
+     `OnSaveLoad`**, so a freshly created rando file is briefly `SAVETYPE_RANDO` with
+     every hook disarmed. Today it is masked — name entry returns to the file list, so
+     file select always follows. **Do not "fix" this by dropping an `OnSaveLoad`
+     dispatch into `MM_Sram_InitSave`**: the checksum is computed at `:1942` and the
+     save is memcpy'd to the flash buffer at `:1946`, so any handler that mutates
+     `shipSaveInfo` in between (e.g. `SavingEnhancements`' unconditional
+     `fileCreatedAt` / `lastTimeLog` stamp) writes a buffer whose checksum disagrees
+     with its bytes, and `loadRespawnData` would run against a half-built file. If this
+     ever goes live, the fix belongs at the convergence point the new path introduces,
+     not here.
+
 The ODR/linker prep is **already paid for** (#415 shim + poison guard, #422 rando
 reachability, #434 S2H UIWidgets). What remains is surface work, and it decomposes far
 better than expected: **trackers are nearly free; the settings menu is the expensive
