@@ -88,8 +88,21 @@ source; it is a bug surfaced early.
 
 `RSBS_GRANT_SOURCE_CAP` is 8: an AP server is *one* source regardless of room
 size, P2P co-op is one per peer. Exhaustion is explicit
-(`RSBS_GRANT_NO_SOURCE_SLOT`), never silent. Growing the table later is a
-legal reserved[] carve.
+(`RSBS_GRANT_NO_SOURCE_SLOT`), never silent.
+
+More cursor capacity later is reachable, but **not by bumping
+`RSBS_GRANT_SOURCE_CAP`**. `sharedItemOverflowCount` sits immediately after
+`grantCursors` at offset 736 — a shipped offset the moment this lands — so
+widening the array in place shifts it (and every field carved after it) and
+silently reinterprets every existing `.redsave`. That is a format break, not a
+carve. The legal move is to carve a *second*, separate cursor block from the
+front of the remaining `reserved[]` and have the lookup consult both; each
+appended block keeps zero == unset and leaves prior offsets fixed. The
+static-assert chain pins `sharedItemOverflowCount` relative to
+`RSBS_GRANT_SOURCE_CAP`, so it will follow a bump rather than break the
+build — the assert proves contiguity, it cannot prove the bytes did not move.
+This is the one place the growth contract is easy to violate while appearing
+to honor it.
 
 ### 2. The two producer classes never share an idempotency domain
 

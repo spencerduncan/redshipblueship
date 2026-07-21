@@ -171,8 +171,16 @@ void Context_UpdateShadowCopy(GameId game, const void* saveContext, size_t size)
  * distinct GRANT SOURCES can hold a delivery cursor at once. A source is one
  * remote authority feeding Combo_SubmitSourcedGrant — an Archipelago server
  * counts as ONE source regardless of room size, and a P2P co-op session uses
- * one source per peer, so 8 is generous for every planned topology. Growing
- * later is legal under the growth contract (carve more of reserved[]).
+ * one source per peer, so 8 is generous for every planned topology.
+ *
+ * DO NOT BUMP THIS CONSTANT to get more capacity. sharedItemOverflowCount is
+ * carved immediately after grantCursors, so widening the array in place moves
+ * that field (and anything carved after it) off the offset every shipped
+ * .redsave stored it at — a format break that the static asserts below CANNOT
+ * catch, because they pin the offset relative to RSBS_GRANT_SOURCE_CAP and so
+ * simply follow the bump. To add capacity, carve a SECOND cursor block from
+ * the front of reserved[] and consult both in the lookup: append-only, prior
+ * offsets fixed, zero still unset. See ADR 0005 §1.
  */
 #define RSBS_GRANT_SOURCE_CAP 8u
 
