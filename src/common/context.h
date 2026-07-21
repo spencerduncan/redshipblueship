@@ -148,12 +148,41 @@ void Context_UpdateShadowCopy(GameId game, const void* saveContext, size_t size)
 #define RSBS_SHARED_ITEM_REDEEMED 0x01u
 
 /**
+ * SharedItem.flags bit: this entry was recorded by an identified SOURCE
+ * through Combo_SubmitSourcedGrant (ADR 0005), not by an in-process producer.
+ * The bit keeps the two producer classes' idempotency domains disjoint:
+ * Combo_RecordSharedItem's content de-dup skips sourced entries, so a local
+ * pickup can never be silently merged into (and lost against) a peer's gift
+ * of the same item. Zero == unset holds: every legacy entry was recorded
+ * in-process, which is exactly what a zero bit means.
+ */
+#define RSBS_SHARED_ITEM_SOURCED 0x02u
+
+/**
  * Capacity of ComboContext.foreignPlacements (Lane C1, #392). The MVP pins ~4
  * OoT progression items into MM checks; 8 slots leave headroom without
  * spending reserved[] bytes we would rather keep (growing later is legal under
  * the growth contract).
  */
 #define RSBS_FOREIGN_PLACEMENT_CAP 8u
+
+/**
+ * Capacity of ComboContext.grantCursors (ADR 0005, netplay 1a #460): how many
+ * distinct GRANT SOURCES can hold a delivery cursor at once. A source is one
+ * remote authority feeding Combo_SubmitSourcedGrant — an Archipelago server
+ * counts as ONE source regardless of room size, and a P2P co-op session uses
+ * one source per peer, so 8 is generous for every planned topology.
+ *
+ * DO NOT BUMP THIS CONSTANT to get more capacity. sharedItemOverflowCount is
+ * carved immediately after grantCursors, so widening the array in place moves
+ * that field (and anything carved after it) off the offset every shipped
+ * .redsave stored it at — a format break that the static asserts below CANNOT
+ * catch, because they pin the offset relative to RSBS_GRANT_SOURCE_CAP and so
+ * simply follow the bump. To add capacity, carve a SECOND cursor block from
+ * the front of reserved[] and consult both in the lookup: append-only, prior
+ * offsets fixed, zero still unset. See ADR 0005 §1.
+ */
+#define RSBS_GRANT_SOURCE_CAP 8u
 
 /**
  * One cross-game item, tagged with the game whose id-space `id` belongs to.
@@ -211,6 +240,36 @@ RSBS_CTX_STATIC_ASSERT(sizeof(ComboForeignPlacement) == 6,
                        "format");
 RSBS_CTX_STATIC_ASSERT(offsetof(ComboForeignPlacement, mmCheckId) == 0 && offsetof(ComboForeignPlacement, item) == 2,
                        "ComboForeignPlacement member offsets are .redsave format and must not move");
+
+/**
+ * One grant source's delivery cursor (ADR 0005, netplay 1a #460).
+ *
+ * A SOURCE is a producer of item grants with its own identity and its own
+ * monotonic sequence numbering — an in-process cross-game hand-off is NOT a
+ * source (it keeps using Combo_RecordSharedItem's content de-dup); a network
+ * peer or an Archipelago server is. `lastSeq` is the highest sequence number
+ * this save has ACCEPTED from the source: a retransmitted grant (seq <=
+ * lastSeq) is decidably a duplicate, a fresh grant (seq == lastSeq + 1) is
+ * decidably new — even when both carry the same (originGame, id). Persisting
+ * the cursor in the .redsave is what keeps that decision correct across a
+ * save/load: a reload can never re-open a duplicate-delivery window.
+ *
+ * Zero means unset for every member (growth contract): a slot is occupied iff
+ * sourceKey != 0, and an occupied slot always has lastSeq >= 1 (a cursor is
+ * only created by accepting seq 1). A zero-extended legacy record therefore
+ * reads as "no sources have ever delivered", which is correct.
+ */
+typedef struct {
+    uint32_t sourceKey; // transport-assigned nonzero source identity; 0 = empty slot
+    uint32_t lastSeq;   // highest accepted sequence number from this source; 0 = none
+} ComboGrantSourceCursor;
+
+RSBS_CTX_STATIC_ASSERT(sizeof(ComboGrantSourceCursor) == 8,
+                       "ComboGrantSourceCursor is serialized raw inside the .redsave Tier-1 record; its layout is "
+                       "format");
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboGrantSourceCursor, sourceKey) == 0 &&
+                           offsetof(ComboGrantSourceCursor, lastSeq) == 4,
+                       "ComboGrantSourceCursor member offsets are .redsave format and must not move");
 
 typedef struct {
     char magic[8];        // "OoT+MM<3"
@@ -275,14 +334,34 @@ typedef struct {
     // the accessors; raw entries must always carry the origin tag (ADR 0002).
     ComboForeignPlacement foreignPlacements[RSBS_FOREIGN_PLACEMENT_CAP];
 
+    // Netplay 1a (ADR 0005, #460): per-source grant-delivery cursors, written
+    // by Combo_SubmitSourcedGrant when it accepts a grant, read to decide
+    // retransmit-vs-new. Carved from the FRONT of the old reserved[332] under
+    // the growth contract: all-zero = no sources have ever delivered, which is
+    // exactly what a zero-extended pre-netplay record must read as. Lives in
+    // the SAME Tier-1 record as sharedItemsTagged on purpose: the array and
+    // the cursors must be saved, loaded, and invalidated (#440) atomically —
+    // a cursor without its items refuses re-delivery of lost grants, items
+    // without their cursor re-accept duplicates.
+    ComboGrantSourceCursor grantCursors[RSBS_GRANT_SOURCE_CAP];
+
+    // Netplay 1a (ADR 0005, #460): durable count of shared-item records
+    // REFUSED for capacity (array full even after reclaiming redeemed slots).
+    // The anti-silent-loss signal: for the in-process producer a refusal is a
+    // genuinely lost item; for a sourced grant it marks backpressure (the
+    // grant stays owed by the source because its cursor did not advance).
+    // Zero == unset (no refusal has ever happened), per the growth contract.
+    uint32_t sharedItemOverflowCount;
+
     // Headroom. Carve new fields from the FRONT of this array (as
-    // sharedItemsTagged, sharedRandoSettingsHash, and foreignPlacements were)
-    // so the struct stays inside RSBS_COMBO_CONTEXT_RECORD_SIZE; the on-disk
-    // record size does not change either way, so old saves keep loading.
-    // Zeroed by ComboContext_Init, which is what makes a zero-extended legacy
-    // record indistinguishable from a freshly-initialized one — every field
-    // carved from here must keep "zero means unset".
-    uint8_t reserved[332];
+    // sharedItemsTagged, sharedRandoSettingsHash, foreignPlacements, and the
+    // grant cursors were) so the struct stays inside
+    // RSBS_COMBO_CONTEXT_RECORD_SIZE; the on-disk record size does not change
+    // either way, so old saves keep loading. Zeroed by ComboContext_Init,
+    // which is what makes a zero-extended legacy record indistinguishable from
+    // a freshly-initialized one — every field carved from here must keep
+    // "zero means unset".
+    uint8_t reserved[264];
 } ComboContext;
 
 /**
@@ -327,13 +406,25 @@ RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, foreignPlacements) ==
                                sizeof(uint32_t),
                        "foreignPlacements must be carved from the FRONT of the old reserved[] "
                        "(contiguous with the settings digest); moving it changes .redsave format");
-RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, reserved) ==
+// grantCursors is the next carve from the front of the old reserved[]: it must
+// sit immediately after the foreign-placement table with no gap, occupying
+// bytes every shipped .redsave stored as zero (unset).
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, grantCursors) ==
                            RSBS_COMBO_CONTEXT_PRECARVE_SIZE + RSBS_SHARED_ITEM_CAP * sizeof(SharedItem) +
                                sizeof(uint32_t) +
                                RSBS_FOREIGN_PLACEMENT_CAP * sizeof(ComboForeignPlacement),
-                       "the tagged-item array, the settings digest, the foreign-placement table, and "
-                       "the remaining headroom must stay contiguous (no padding, no fields slipped "
-                       "between them)");
+                       "grantCursors must be carved from the FRONT of the old reserved[] (contiguous "
+                       "with the foreign-placement table); moving it changes .redsave format");
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, sharedItemOverflowCount) ==
+                           offsetof(ComboContext, grantCursors) +
+                               RSBS_GRANT_SOURCE_CAP * sizeof(ComboGrantSourceCursor),
+                       "sharedItemOverflowCount must sit immediately after the grant cursors; moving "
+                       "it changes .redsave format");
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, reserved) ==
+                           offsetof(ComboContext, sharedItemOverflowCount) + sizeof(uint32_t),
+                       "the tagged-item array, the settings digest, the foreign-placement table, the "
+                       "grant cursors, the overflow count, and the remaining headroom must stay "
+                       "contiguous (no padding, no fields slipped between them)");
 
 #ifdef __cplusplus
 // The raw-assignment-fails proof (ADR 0002). In C this is a constraint
