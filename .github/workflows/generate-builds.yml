@@ -287,6 +287,28 @@ jobs:
       # class). Fails on any intersection growth beyond the committed
       # baseline. nm-based, Linux-only.
       run: bash .github/scripts/check-symbol-collisions.sh build-cmake
+    - name: Self-test exporter symbol-collision gate (#411)
+      # Regression guard on the step below: synthesizes tiny archive pairs
+      # with gcc/ar (no OTRExporter submodule involved) and asserts the
+      # strong-DATA-symbol detection logic still flags a shared global,
+      # still passes a pair with none, and still refuses to pass vacuously
+      # on a DATA-symbol-free archive. Protects the gate itself from silent
+      # breakage going unnoticed as "nothing to report".
+      run: bash .github/scripts/check-exporter-symbol-collisions.sh --self-test
+    - name: Check OTRExporter_OoT/OTRExporter_MM data-symbol collisions (#411)
+      # OTRExporter_OoT and OTRExporter_MM compile identical sources and are
+      # both deliberately linked into redship for in-app ROM extraction
+      # (CMake/SingleExecutable.cmake:141-153). Windows /FORCE:MULTIPLE folds
+      # any symbol defined by both into one storage slot but runs BOTH
+      # variants' dynamic initializers and atexit destructors against it —
+      # the Fault A double-construction/double-destruction class (#396,
+      # fixed for the original 11 globals in #413). No baseline: after #413
+      # the strong-DATA-symbol intersection is empty and any regrowth fails
+      # the build. The ~20 duplicated strong FUNCTION symbols are out of
+      # scope by design (see #411) — they fold harmlessly because redship
+      # never executes them (extraction spawns single-variant ZAPD_OoT/
+      # ZAPD_MM subprocesses instead, issue #325).
+      run: bash .github/scripts/check-exporter-symbol-collisions.sh build-cmake
     - name: Run tests
       # --no-tests=error: if the "redship" test label ever regresses, fail loudly
       # instead of ctest exiting 0 with "No tests were found".
