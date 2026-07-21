@@ -330,6 +330,20 @@ TestResult Test_GrantPersistence(void) {
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
     mgr.SetSaveDirectory(kGrantSaveDir);
 
+    // Save-harness precondition, NOT a grant-model dependency: SaveManager::Save
+    // serializes Tiers 2/3 from the context-layer shadow buffers and refuses
+    // outright (save.cpp: "refuse rather than write a half-empty file") if either
+    // is absent. Context_InitFrozenStates allocates both at capacity; it is
+    // idempotent, and ClearAll only zeroes them, so once initialized they stay
+    // present. GrantTestReset deliberately does not do this — the other three
+    // grant tests must prove the model needs no switch machinery — so this test
+    // states the precondition itself instead of inheriting it from whichever
+    // save test happened to run earlier in the same process. Without it,
+    // `redship --test grant-persistence` standalone fails at Save while the
+    // pooled `--test all` run passes, which is exactly how this presented.
+    Context_InitFrozenStates();
+    GS_ASSERT(Context_GetOoTSaveContext() != NULL && Context_GetMMSaveContext() != NULL);
+
     // ------------------------------------------------------------------
     // (a) Round-trip: sourced entries, cursors, and the overflow count all
     //     survive Save/Load byte-exact — and the duplicate window STAYS
