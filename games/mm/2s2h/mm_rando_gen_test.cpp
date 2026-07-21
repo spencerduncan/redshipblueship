@@ -233,7 +233,11 @@ extern "C" int MM_Rando_HeadlessGenTest(void) {
 
     const int placedCount = Combo_CountForeignPlacements();
     if (placedCount != poolCount) {
-        fprintf(stderr, "[MM-RANDO-GEN] FAIL(11): expected %d foreign placements, found %d\n", poolCount, placedCount);
+        fprintf(stderr,
+                "[MM-RANDO-GEN] FAIL(11): expected %d foreign placements, found %d (test-side pairing key: "
+                "sourceIsRando=%d settingsHash=%08X seed=%08X)\n",
+                poolCount, placedCount, gComboCtx.sourceIsRando ? 1 : 0, gComboCtx.sharedRandoSettingsHash,
+                gComboCtx.sharedRandoSeed);
         return 11;
     }
     // ADR 0002: hosting checks keep a legal MM item (RI_JUNK) in the MM save
@@ -370,6 +374,19 @@ extern "C" int MM_Rando_HeadlessForeignDigest(const char* outPath) {
         fprintf(stderr, "[MM-FOREIGN-DIGEST] FAIL(3): paired MM fill dead-ended under the pinned seed — pin a "
                         "different determinism seed\n");
         return 3;
+    }
+
+    // The digest must describe an ACTUAL cross-game world: a paired
+    // generation that placed nothing would produce a stable-but-empty digest,
+    // turning lock (c) vacuous. Fail loudly instead.
+    {
+        const ComboForeignItemDef* digestPool = NULL;
+        const int digestPoolCount = Combo_GetForeignItemPool(&digestPool);
+        if (Combo_CountForeignPlacements() != digestPoolCount) {
+            fprintf(stderr, "[MM-FOREIGN-DIGEST] FAIL(5): expected %d foreign placements, found %d\n", digestPoolCount,
+                    Combo_CountForeignPlacements());
+            return 5;
+        }
     }
 
     // Canonical MM placement blob in fixed check order (std::map), folded

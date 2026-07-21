@@ -6,6 +6,7 @@
 #include <libultraship/bridge/consolevariablebridge.h>
 #include "ClockShuffle.h"
 #include <spdlog/spdlog.h>
+#include <cstdio>
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "Rando/Foreign.h" // Lane C1 (#392): paired-world seed derivation + foreign placement
 #include "foreign_items.h" // src/common — Combo_ClearForeignPlacements
@@ -29,6 +30,12 @@ void Rando::MiscBehavior::OnFileCreate(s16 fileNum) {
     // exe (2ship_rando_ui), so there is no in-game surface that could set the
     // CVar; the paired OoT generation IS the user's opt-in.
     const bool rsbsPaired = Rando::Foreign::PairingActive();
+    // Unconditional diagnostic: the paired-vs-solo decision and its inputs are
+    // the first thing to check when a paired world fails to pair (greppable in
+    // CI logs and operator sessions alike).
+    fprintf(stderr, "[MM] OnFileCreate: paired=%d (sourceIsRando=%d settingsHash=%08X masterSeed=%08X)\n",
+            rsbsPaired ? 1 : 0, gComboCtx.sourceIsRando ? 1 : 0, gComboCtx.sharedRandoSettingsHash,
+            gComboCtx.sharedRandoSeed);
     if (CVarGetInteger("gRando.Enabled", 0) || rsbsPaired) {
 #else
     if (CVarGetInteger("gRando.Enabled", 0)) {

@@ -117,6 +117,9 @@ int PlaceForeignItems() {
         }
     }
 
+    fprintf(stderr, "[MM] foreign placement: %d pool items over %zu junk-holding candidate checks\n", poolCount,
+            candidates.size());
+
     sSelectState =
         Ship_Hash(std::to_string(gComboCtx.sharedRandoSeed) + ":" + std::to_string(gComboCtx.sharedRandoSettingsHash) +
                   ":" + std::to_string(gSaveContext.save.shipSaveInfo.rando.finalSeed) + ":foreign-v1");
