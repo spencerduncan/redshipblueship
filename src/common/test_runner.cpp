@@ -66,6 +66,12 @@ int MM_GIShim_RunHeadless(void);
 // drift (no link error can catch it — one Emit definition survives). Returns 0
 // on pass, non-zero on fail.
 int MM_NotificationBinding_RunHeadless(void);
+// MM scaled framebuffer-draw binding (games/mm/2s2h/mm_fb_effects_test.cpp,
+// #386): MM's FB_DrawFromFramebufferScaled used to bind OoT's surviving body,
+// which reads OoT_gScreenWidth/Height — the wrong dimensions for MM, which go
+// to HiRes 576 while the Bombers' Notebook is open. Returns 0 on pass, non-zero
+// on fail.
+int MM_FbEffectsBinding_RunHeadless(void);
 // VB-affinity regression: MM's GameInteractor_* calls resolve to OoT's
 // extern "C" wrappers in single-exe builds, and the two games' vanilla-
 // behavior ordinals alias each other. The wrappers gate on the active game;
@@ -182,6 +188,12 @@ static TestResult Test_MMGIShim(void) {
 // games/mm/2s2h/mm_notification_binding_test.cpp.
 static TestResult Test_MMNotificationBinding(void) {
     return MM_NotificationBinding_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// MM scaled framebuffer-draw binding lock (see the extern decl above). Thin
+// wrapper over the C entry point in games/mm/2s2h/mm_fb_effects_test.cpp.
+static TestResult Test_MMFbEffectsBinding(void) {
+    return MM_FbEffectsBinding_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // ============================================================================
@@ -1019,6 +1031,8 @@ const TestDescriptor gTests[] = {
      Test_MMGIShim},
     {"mm-notification-binding", "MM Notification::Emit binds OoT's only while Options stays layout-identical (#427)",
      Test_MMNotificationBinding},
+    {"mm-fb-effects-binding", "MM's scaled framebuffer draw binds its own body against MM's dimensions (#386)",
+     Test_MMFbEffectsBinding},
     // The two MM resume-contract tests below mutate process-global state
     // (mm-resume-arena re-inits the MM system arena + heaps; mm-startup-restore
     // scribbles and re-zeroes the unified gSaveContext). Both clean up after
