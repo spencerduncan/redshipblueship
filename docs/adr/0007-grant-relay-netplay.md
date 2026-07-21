@@ -145,19 +145,33 @@ that remains true even if upstream disappears.
 
 The payload is ours; the server never reads it. One grant, fixed 16 bytes:
 
-```c
-typedef struct PACKED {   // RSBS relay grant payload v1 (16 bytes)
-    uint8_t  magic[4];    // 'R','S','B','S'
-    uint8_t  version;     // 1
-    uint8_t  senderSlot;  // 1..255, the sender's slot in this room
-    uint8_t  targetSlot;  // 1..255, the intended recipient
-    uint8_t  originGame;  // GameId: the id-space owner (ADR 0002)
-    uint16_t itemId;      // RG_* or RI_*, per originGame
-    uint16_t senderSeq;   // sender's own dense 1-based counter
-    uint32_t settingsHash;// advisory only — see §5.3
-    uint16_t reserved;    // zero == unset (ADR 0002 growth contract)
-} RsbsGrantPayload;
-```
+| off | size | field | |
+|---|---|---|---|
+| 0 | 4 | `magic` | `'R','S','B','S'` |
+| 4 | 1 | `version` | 1 |
+| 5 | 1 | `senderSlot` | 1..255, the sender's slot in this room |
+| 6 | 1 | `targetSlot` | 1..255, the intended recipient |
+| 7 | 1 | `originGame` | GameId: the id-space owner (ADR 0002) |
+| 8 | 2 | `itemId` | LE. `RG_*` or `RI_*`, per `originGame` |
+| 10 | 2 | `senderSeq` | LE. Sender's own dense 1-based counter |
+| 12 | 4 | `settingsHash` | LE. Advisory only — see §5.3 |
+| | **16** | | total |
+
+All multi-byte integers are little-endian, and the codec reads and writes them
+a byte at a time rather than casting a packed struct, so a big-endian host
+emits identical bytes with no packing pragma. The layout is pinned by golden
+byte vectors in `test_netplay_relay.c` and restated in `relay_protocol.h`.
+
+> **Corrected 2026-07-21.** This table originally carried a trailing
+> `uint16_t reserved`, which made the struct 18 bytes while the surrounding
+> prose claimed 16 — the arithmetic was simply wrong. The field is dropped
+> rather than the count raised: growth room does not need to be pre-carved
+> here the way it does in `ComboContext` (ADR 0002's contract governs a
+> *serialized save record*, where an unknown trailing field must read as
+> zero). This is a wire payload under a 128-byte server cap, so a v2 just
+> bumps `version` and encodes more bytes — and because the decoder already
+> rejects unknown versions by returning false, an old client degrades to
+> "skipped a grant it could not read" rather than misparsing one.
 
 Well under the server's 128-byte cap, leaving headroom for a v2 without
 renegotiating anything.
