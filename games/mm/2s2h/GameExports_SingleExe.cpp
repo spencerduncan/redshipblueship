@@ -1158,6 +1158,79 @@ int GameInteractor_InvertControl(GIInvertType type) {
     return result;
 }
 
+/**
+ * Real single-exe definitions for the last two GameInteractor input shims
+ * that lived in src/common/mm_stubs.c — same drift class and same
+ * treatment as GameInteractor_InvertControl above (#372 / PR #415): MM's
+ * implementation TU (2s2h/GameInteractor/GameInteractor.cpp) is excluded
+ * from the link ("use OoT's") and OoT defines neither symbol, so the
+ * untyped stubs were the sole definitions.
+ *
+ * The old stub `int GameInteractor_Dpad(void* input, int dpad)` returned
+ * the button combo unconditionally, force-enabling both CVar-gated D-pad
+ * enhancements: BTN_DPAD_EQUIP (include/z64save.h) expanded to BTN_DPAD as
+ * if gEnhancements.Dpad.DpadEquips were on, and the ocarina paths in
+ * src/audio/code_8019AF00.c treated the D-pad as ocarina buttons as if
+ * gEnhancements.Playback.DpadOcarina were on.
+ *
+ * Bodies lifted verbatim from upstream 2s2h/GameInteractor/
+ * GameInteractor.cpp so the shipped 2S2H defaults apply (both
+ * enhancements off until their CVars are set). Declared extern "C" in
+ * MM's GameInteractor.h, which this TU includes: signature drift here is
+ * a compile error.
+ */
+uint32_t GameInteractor_Dpad(GIDpadType type, uint32_t buttonCombo) {
+    uint32_t result = 0;
+
+    switch (type) {
+        case GI_DPAD_OCARINA:
+            if (CVarGetInteger("gEnhancements.Playback.DpadOcarina", 0)) {
+                result = buttonCombo;
+            }
+            break;
+        case GI_DPAD_EQUIP:
+            if (CVarGetInteger("gEnhancements.Dpad.DpadEquips", 0)) {
+                result = buttonCombo;
+            }
+            break;
+    }
+
+    return result;
+}
+
+/**
+ * The old stub `int GameInteractor_RightStickOcarina(void* input)` returned
+ * 0, which matched the enhancement's default-off CVar
+ * (gEnhancements.Playback.RightStickOcarina) — but it kept the enhancement
+ * dead even when enabled, and its untyped signature (void* vs Input*) sat
+ * in the same drift class. Body lifted verbatim from upstream.
+ */
+uint32_t GameInteractor_RightStickOcarina(Input* input) {
+    uint32_t result = 0;
+
+    if (!CVarGetInteger("gEnhancements.Playback.RightStickOcarina", 0)) {
+        return result;
+    }
+
+    s8 rstick_x = input->cur.right_stick_x;
+    s8 rstick_y = input->cur.right_stick_y;
+    const s8 sensitivity = 64;
+
+    if (rstick_x > sensitivity) {
+        result |= BTN_CRIGHT;
+    } else if (rstick_x < -sensitivity) {
+        result |= BTN_CLEFT;
+    }
+
+    if (rstick_y > sensitivity) {
+        result |= BTN_CUP;
+    } else if (rstick_y < -sensitivity) {
+        result |= BTN_CDOWN;
+    }
+
+    return result;
+}
+
 int MM_Game_Init(int argc, char** argv) {
     fprintf(stderr, "[MM] Game_Init called, argc=%d\n", argc);
     fflush(stderr);
