@@ -72,6 +72,13 @@ typedef enum {
  *   RSBS_GP_CAMERA_ASSERT (1)      0 disables the return/warp-phase
  *                                  camera-follow assert (forced player march +
  *                                  camera displacement check, bug 1b)
+ *   RSBS_GP_WATCHDOG_SECS (60)     wall-clock seconds a single OoT-owned phase
+ *                                  may run WITHOUT advancing before the watchdog
+ *                                  dumps state and fails the run. Must stay well
+ *                                  under the CTest TIMEOUT so the diagnostic
+ *                                  beats the hard wall-clock kill (#376 item 4).
+ *                                  Raise it in lockstep if you raise
+ *                                  RSBS_GP_WARP_FRAMES for a long in-scene soak.
  * Entrance values accept hex (0x...) or decimal and must be < OoT's ENTR_MAX.
  */
 typedef struct {
@@ -83,6 +90,7 @@ typedef struct {
     int bootAdult;
     int warpFrames;
     int cameraAssert;
+    int watchdogSecs;
 } GameplayTestConfig;
 
 /**
@@ -162,6 +170,41 @@ void IntegrationTest_GameplayFail(const char* reason);
  * path so a wedged or crashed run is attributable from the log alone).
  */
 void IntegrationTest_LogGameplayState(const char* tag);
+
+// ----------------------------------------------------------------------------
+// Phase watchdog (#376 item 4)
+//
+// The OoT-side round-trip watchdog fails loudly, WITH state, when an OoT-owned
+// phase stops making progress — instead of letting the phase wedge until the
+// CTest/`timeout` wall clock kills the process (exit 124) and the diagnostic
+// dump the watchdog exists to produce is never emitted.
+//
+// It used to budget in FRAMES (maxPhaseFrames * 4 + 3600 == 4080 at defaults),
+// which under Xvfb + llvmpipe is 300-800 s of wall clock — longer than the
+// 300 s timeout, so it could never fire first. The budget is now WALL-CLOCK
+// seconds, per phase, defaulting well under the timeout. These pure helpers
+// carry the parse + fire decision so the fix is regression-locked ROM-free
+// (test `gp-watchdog`).
+// ----------------------------------------------------------------------------
+
+/**
+ * Resolve a watchdog budget (seconds) from a raw RSBS_GP_WATCHDOG_SECS string.
+ * Pure: NULL/empty/invalid/below-minimum all fall back to the default (60).
+ */
+int IntegrationTest_GameplayWatchdogParse(const char* raw);
+
+/**
+ * The effective per-phase watchdog budget in seconds, reading
+ * RSBS_GP_WATCHDOG_SECS from the environment (default 60).
+ */
+int IntegrationTest_GameplayWatchdogBudgetSecs(void);
+
+/**
+ * Pure predicate the OoT watchdog evaluates each phase-owned tick: has a phase
+ * that has run `elapsedSecs` of wall clock without advancing exhausted its
+ * budget? A non-positive budget disables the watchdog (never expires).
+ */
+bool IntegrationTest_GameplayWatchdogExpired(double elapsedSecs, int budgetSecs);
 
 #ifdef __cplusplus
 }

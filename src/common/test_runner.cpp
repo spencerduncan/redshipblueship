@@ -148,6 +148,12 @@ extern "C" {
 // FILE SCOPE; declares its C-linkage symbols itself. No audio heap, no archives.
 #include "tests/test_oot_audio_init_guard.c"
 
+// Gameplay round-trip phase watchdog (#376 item 4). FILE SCOPE: it exercises
+// the pure watchdog helpers declared in integration_test_hooks.h (already
+// included above), proving the budget is wall-clock and can fire before the
+// CTest timeout. No display, no ROM archives, no game loop.
+#include "tests/test_gp_watchdog.c"
+
 // MM scene-command EXECUTE regression (issue #344). Unlike the parse test, the
 // body runs the parsed commands against a PlayState, so it needs MM's global.h
 // — which lives in an MM TU (games/mm/2s2h/mm_scene_execute_test.cpp) to keep
@@ -1025,6 +1031,8 @@ const TestDescriptor gTests[] = {
     {"seq-map-bounds", "Sequence-map capacity covers the id range + custom slack (#371, #378)", Test_SeqMapBounds},
     {"active-queue", "__osGetActiveQueue returns a walkable list, not a return register (#385)", Test_ActiveQueue},
     {"oot-audio-init-guard", "OoT synth no-ops while gAudioContextInitalized == false (#365)", Test_OoTAudioInitGuard},
+    {"gp-watchdog", "Gameplay round-trip watchdog is wall-clock budgeted, can fire before the timeout (#376)",
+     Test_GpWatchdog},
     {"mm-scene-execute", "MM scene commands execute against a PlayState (#344)", Test_MMSceneExecute},
     {"mm-culling-binding", "MM's Ship_ExtendedCulling* bind MM's Actor, not OoT's (#382)", Test_MMCullingBinding},
     {"mm-gi-shim", "MM hook registration goes through the MM-owned shim, not the shared 4-byte instance (#395)",

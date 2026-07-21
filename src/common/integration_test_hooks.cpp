@@ -59,6 +59,13 @@ const char* GameplayPhaseName(GameplayPhase phase) {
 // the real ENTR_MAX at consumption time.
 constexpr unsigned long kOoTEntranceMax = 0x0614;
 
+// Per-phase watchdog budget default, in wall-clock seconds (#376 item 4). 60 s
+// is far under the 300 s IntGameplayRoundtrip TIMEOUT and the 900 s soak, and
+// no default-config phase runs anywhere near that long, so it fires only on a
+// genuine wedge and always before the hard kill. Restated by the gp-watchdog
+// test as the contract.
+constexpr int kGpWatchdogDefaultSecs = 60;
+
 int GameplayEnvInt(const char* name, int defaultValue, int minValue) {
     const char* raw = std::getenv(name);
     if (raw == nullptr || raw[0] == '\0') {
@@ -103,14 +110,15 @@ void GameplayParseConfig(void) {
     // a long soak INSIDE the warp target, not longer windows everywhere.
     sGameplayConfig.warpFrames = GameplayEnvInt("RSBS_GP_WARP_FRAMES", sGameplayConfig.framesPerPhase, 1);
     sGameplayConfig.cameraAssert = GameplayEnvInt("RSBS_GP_CAMERA_ASSERT", 1, 0);
+    sGameplayConfig.watchdogSecs = IntegrationTest_GameplayWatchdogBudgetSecs();
     sGameplayPhase = GP_PHASE_BOOT;
     sGameplayCyclesDone = 0;
     printf("[GP-TEST] config: frames/phase=%d cycles=%d boot=0x%04X warp=0x%04X exit=0x%04X bootAge=%s "
-           "warpFrames=%d camAssert=%d\n",
+           "warpFrames=%d camAssert=%d watchdogSecs=%d\n",
            sGameplayConfig.framesPerPhase, sGameplayConfig.cycles, sGameplayConfig.bootEntrance,
            sGameplayConfig.warpEntrance, sGameplayConfig.exitEntrance,
            sGameplayConfig.bootAdult ? "adult" : "child", sGameplayConfig.warpFrames,
-           sGameplayConfig.cameraAssert);
+           sGameplayConfig.cameraAssert, sGameplayConfig.watchdogSecs);
     fflush(stdout);
 }
 
@@ -204,6 +212,34 @@ void IntegrationTest_SetGameplayPhase(GameplayPhase phase) {
 
 const GameplayTestConfig* IntegrationTest_GetGameplayConfig(void) {
     return &sGameplayConfig;
+}
+
+int IntegrationTest_GameplayWatchdogParse(const char* raw) {
+    if (raw == nullptr || raw[0] == '\0') {
+        return kGpWatchdogDefaultSecs;
+    }
+    char* end = nullptr;
+    long value = strtol(raw, &end, 0);
+    // Below 1 s is meaningless (the phase machine ticks per game frame), so
+    // reject it the same as garbage rather than arming a watchdog that fires
+    // on the first tick of every phase.
+    if (end == raw || *end != '\0' || value < 1) {
+        fprintf(stderr, "[GP-TEST] WARNING: ignoring invalid RSBS_GP_WATCHDOG_SECS='%s' (using %d)\n", raw,
+                kGpWatchdogDefaultSecs);
+        return kGpWatchdogDefaultSecs;
+    }
+    return (int)value;
+}
+
+int IntegrationTest_GameplayWatchdogBudgetSecs(void) {
+    return IntegrationTest_GameplayWatchdogParse(std::getenv("RSBS_GP_WATCHDOG_SECS"));
+}
+
+bool IntegrationTest_GameplayWatchdogExpired(double elapsedSecs, int budgetSecs) {
+    if (budgetSecs <= 0) {
+        return false;
+    }
+    return elapsedSecs >= (double)budgetSecs;
 }
 
 int IntegrationTest_GameplayCyclesDone(void) {
