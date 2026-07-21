@@ -5,6 +5,15 @@
 #include "z64visfbuf.h"
 #include <libultraship/bridge/consolevariablebridge.h>
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// (#392) MM-side OnSceneInit dispatch, defined in
+// games/mm/2s2h/GameExports_SingleExe.cpp. The unprefixed
+// GameInteractor_ExecuteOnSceneInit would bind OoT's 1-arg executor in the
+// single exe; this MM_ twin dispatches the MM-owned S2H::GameHooks registry
+// with MM's own signature (same pattern as z_actor.c's MM_GameHooks_* calls).
+void MM_GameHooks_ExecuteOnSceneInit(s16 sceneId, s8 spawnNum);
+#endif
+
 // Variables are put before most headers as a hacky way to bypass bss reordering
 s16 MM_sTransitionFillTimer;
 Input D_801F6C18;
@@ -2712,14 +2721,15 @@ void MM_Play_Init(GameState* thisx) {
     sJustClosedBomberNotebook = false;
 
 #ifdef RSBS_SINGLE_EXECUTABLE
-    // (#344) Don't fire scene-init hooks here in single-exe builds. MM's own
-    // 2-arg executor is excluded, so this unprefixed call would bind to OoT's
-    // 1-arg GameInteractor_ExecuteOnSceneInit and run OoT enhancement hooks
-    // with an MM scene id against OoT's suspended play state. The shared
-    // OnSceneInit hook type also has different signatures in the two games'
-    // headers over merged storage, so an MM-side executor can't safely fire
-    // it either. Integration tests detect completed scene loads via play
-    // state predicates instead (games/mm/2s2h/GameExports_SingleExe.cpp).
+    // (#392, supersedes the #344 skip) Fire MM's scene-init hooks through the
+    // MM-owned S2H::GameHooks registry. The unprefixed call below would bind
+    // OoT's 1-arg executor and run OoT enhancement hooks against MM state —
+    // and the shared registry's OnSceneInit signatures diverge between the
+    // games — but the MM_ twin touches only MM-registered hooks with MM's own
+    // types, so neither hazard applies. Registration without this dispatch
+    // left every parked OnSceneInit hook (check tracker scroll, rando
+    // MiscBehavior/open-dungeons) silently dormant.
+    MM_GameHooks_ExecuteOnSceneInit(sceneIdAbsolute, spawnNum);
 #else
     GameInteractor_ExecuteOnSceneInit(sceneIdAbsolute, spawnNum);
 #endif

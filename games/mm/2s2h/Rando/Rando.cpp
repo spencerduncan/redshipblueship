@@ -13,10 +13,7 @@
 void OnSaveLoadHandler(s16 fileNum) {
     Rando::MiscBehavior::OnFileLoad();
     Rando::ActorBehavior::OnFileLoad();
-#ifndef RSBS_SINGLE_EXECUTABLE
-    // Single-exe: check-tracker UI stays link-elided (see Rando::Init below).
     Rando::CheckTracker::OnFileLoad();
-#endif
     Rando::ClockShuffle::OnFileLoad();
 
     // Re-initalizes enhancements that are effected by the save being rando or not
@@ -28,14 +25,12 @@ void Rando::Init() {
     Rando::Spoiler::RefreshOptions();
     Rando::MiscBehavior::Init();
     Rando::ActorBehavior::Init();
-#ifndef RSBS_SINGLE_EXECUTABLE
-    // Single-exe: the MM check-tracker window is BenGui UI, which stays
-    // link-elided with the rest of MM's menu (2ship_rando_ui — see
-    // games/mm/CMakeLists.txt and the Lane B surface note on #392). Calling
-    // into it here would drag the whole UIWidgets/BenMenu surface into the
-    // link.
+    // Single-exe: these calls are what pull CheckTracker.obj (and its S2H
+    // UIWidgets) out of the plain 2ship_rando_ui archive; the window globals
+    // it references live in 2s2h/TrackersGuiSingleExe.cpp, which registers
+    // the tracker windows on the shared Gui without touching BenMenu.
+    // Rando/Menu.cpp stays elided (#392).
     Rando::CheckTracker::Init();
-#endif
     // Null-guarded for the headless unit harness (mm-rando-gen), which
     // brings up Ship::Context without a file-drop manager.
     auto fileDropMgr = Ship::Context::GetInstance()->GetFileDropMgr();
