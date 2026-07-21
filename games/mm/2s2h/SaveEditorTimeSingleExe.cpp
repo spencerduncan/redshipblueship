@@ -29,6 +29,8 @@ extern "C" {
 #include "overlays/actors/ovl_Obj_Tokei_Step/z_obj_tokei_step.h"
 
 void ObjTokeiStep_DoNothing(ObjTokeiStep* objTokeiStep, PlayState* play);
+void ObjTokeiStep_SetupOpen(ObjTokeiStep* objTokeiStep);
+void ObjTokeiStep_DrawOpen(Actor* actor, PlayState* play);
 void EnTest4_GetBellTimeOnDay3(EnTest4* thisx);
 void EnTest4_GetBellTimeAndShrinkScreenBeforeDay3(EnTest4* thisx, PlayState* play);
 }

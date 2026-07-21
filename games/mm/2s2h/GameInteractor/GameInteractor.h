@@ -584,25 +584,25 @@ uint32_t GameInteractor_RightStickOcarina(Input* input);
 }
 
 #if defined(RSBS_SINGLE_EXECUTABLE)
-/*
- * Single-exe hook-macro redirection (#395 / #392 Lane C).
- *
- * The upstream macro definitions above expand to
- * `GameInteractor::Instance->RegisterGameHook*<...>` — in the single exe the
- * one GameInteractor allocation is OoT's 4-byte object, so an MM-compiled
- * registration writes past its end, and the C++ registry statics the members
- * touch COMDAT-contend with OoT's incompatible instantiations
- * (mm_game_hooks.h has the full story). Rather than editing the ~650
- * COND_*/REGISTER_VB_SHOULD sites across 2s2h/Rando and 2s2h/Enhancements,
- * the macros themselves are redefined here — after the upstream definitions,
- * inside this force-included header, so every MM C++ TU sees the redirected
- * expansion — to route through the MM-owned S2H::GameHooks registry.
- * Call sites compile textually unchanged; upstream diffs to the macro USES
- * still apply cleanly.
- *
- * Direct (non-macro) `Instance->RegisterGameHook*` sites are migrated by
- * hand and locked per target by include/mm_gi_hook_guard.h.
- */
+//
+// Single-exe hook-macro redirection (#395 / #392 Lane C).
+//
+// The upstream macro definitions above expand to
+// GameInteractor::Instance->RegisterGameHook<...> — in the single exe the
+// one GameInteractor allocation is OoT's 4-byte object, so an MM-compiled
+// registration writes past its end, and the C++ registry statics the members
+// touch COMDAT-contend with OoT's incompatible instantiations
+// (mm_game_hooks.h has the full story). Rather than editing the ~650
+// COND_HOOK / COND_ID_HOOK / COND_VB_SHOULD / REGISTER_VB_SHOULD sites
+// across 2s2h/Rando and 2s2h/Enhancements, the macros themselves are
+// redefined here — after the upstream definitions, inside this
+// force-included header, so every MM C++ TU sees the redirected expansion —
+// to route through the MM-owned S2H::GameHooks registry. Call sites compile
+// textually unchanged; upstream diffs to the macro USES still apply cleanly.
+//
+// Direct (non-macro) Instance->RegisterGameHook sites are migrated by hand
+// and locked per target by include/mm_gi_hook_guard.h.
+//
 #include "mm_game_hooks.h" // S2H::GameHooks registry + MM_GameEvents_* (C++ view)
 
 #undef REGISTER_VB_SHOULD
