@@ -439,9 +439,15 @@ void SaveManager::SaveRandomizer(SaveContext* saveContext, int sectionID, bool f
                     SaveManager::Instance->SaveData("", hintTextsChosen[i]);
                 });
 
-                std::vector<uint8_t> areaTextsChosen = hint->GetAreaTextsChosen();
-                SaveManager::Instance->SaveArray("areaTextsChosen", areaTextsChosen.size(), [&](size_t i) {
-                    SaveManager::Instance->SaveData("", areaTextsChosen[i]);
+                // Key must be "areaNamesChosen": that is what Hint(key, json)
+                // reads (and what Hint::toJSON writes). Saving it under
+                // "areaTextsChosen" meant the loader never found it, so a
+                // hint's chosen area-name variant was silently dropped on every
+                // save/load. Old saves simply have no readable entry here, the
+                // same as before, so this is compatible in both directions.
+                std::vector<uint8_t> areaNamesChosen = hint->GetAreaTextsChosen();
+                SaveManager::Instance->SaveArray("areaNamesChosen", areaNamesChosen.size(), [&](size_t i) {
+                    SaveManager::Instance->SaveData("", areaNamesChosen[i]);
                 });
 
                 std::vector<RandomizerArea> areas = hint->GetHintedAreas();
