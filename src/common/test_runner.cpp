@@ -138,6 +138,14 @@ extern "C" {
 // pipeline symbols it drives are C-linkage and declared in the file.
 #include "tests/test_foreign_items.c"
 
+// Sourced-grant model locks (ADR 0005, netplay 1a #460): per-source cursor
+// idempotency, switch-free received-order redemption, loud overflow with
+// redeemed-slot reclamation, and .redsave durability including the
+// pre-netplay migration path and the #440-composing reset atomicity. FILE
+// SCOPE (compiled as C++) for rsbs::SaveManager; the grant API is C-linkage
+// via shared_items.h.
+#include "tests/test_grant_sources.c"
+
 // MM scene-command parse regression (issue #344). Included at FILE SCOPE
 // (compiled as C++): it drives MM's S2H::ResourceFactoryBinarySceneV0 directly
 // over a synthetic scene buffer — no ROM archives or display needed.
@@ -1114,6 +1122,16 @@ const TestDescriptor gTests[] = {
     // crossing awards exactly once, and the placement carve serializes.
     {"foreign-item-give", "Foreign give path tags shared structure; awards once; placements serialize (Lane C1)",
      Test_ForeignItemGive},
+    // Netplay 1a (ADR 0005, #460): the sourced-grant model, transport-free.
+    {"grant-idempotency", "Retransmit delivers once; a second gift of the same item delivers twice (ADR 0005)",
+     Test_GrantIdempotency},
+    {"grant-redeem-no-switch", "Grants redeem in received order at a safe point, no switch machinery (ADR 0005)",
+     Test_GrantRedeemNoSwitch},
+    {"grant-overflow", "Full array refuses loudly, backpressures sources, reclaims redeemed slots (ADR 0005)",
+     Test_GrantOverflow},
+    {"grant-persistence", "Cursors + overflow ride the .redsave; legacy loads unset; reset retires atomically "
+     "(ADR 0005)",
+     Test_GrantPersistence},
     {"context", "Test context/state management", Test_Context},
     // Clears all frozen states on entry and exit, so it must not run between a
     // test that freezes and one that expects that freeze to still be there.

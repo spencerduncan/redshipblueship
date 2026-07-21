@@ -218,11 +218,16 @@ void ComboContext_Init(void) {
     gComboCtx.sourceIsRando = false;
     gComboCtx.sharedRandoSeed = 0;
     gComboCtx.sharedRandoSettingsHash = 0;  // Lane B (ADR 0002 §3): 0 == no profile recorded
-    // sharedItemsTagged and the remaining reserved[] headroom are covered by
-    // the memset above: all-zero IS the initialized state (every slot unset,
-    // originGame == GAME_NONE). That equivalence is load-bearing — it is what
-    // makes a zero-extended legacy .redsave record indistinguishable from a
-    // fresh init (ADR 0002 growth contract).
+    // sharedItemsTagged, foreignPlacements, grantCursors,
+    // sharedItemOverflowCount, and the remaining reserved[] headroom are
+    // covered by the memset above: all-zero IS the initialized state (every
+    // slot unset, originGame == GAME_NONE, no source has ever delivered).
+    // That equivalence is load-bearing — it is what makes a zero-extended
+    // legacy .redsave record indistinguishable from a fresh init (ADR 0002
+    // growth contract). It is ALSO the invalidation atomicity the sourced-
+    // grant model requires (ADR 0005 / #440): one memset retires items and
+    // their delivery cursors together, so a dead session can neither replay
+    // its grants nor block a fresh session's deliveries.
 }
 
 void ComboContext_RequestSwitch(GameId target, uint16_t entrance) {
