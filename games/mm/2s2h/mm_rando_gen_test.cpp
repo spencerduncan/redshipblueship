@@ -36,6 +36,7 @@
 
 extern "C" {
 #include "z64save.h"
+#include "regs.h"
 void MM_Sram_InitNewSave(void);
 void MM_Rando_Init(void);
 extern SaveContext gSaveContext;
@@ -70,6 +71,18 @@ extern "C" int MM_Rando_HeadlessGenTest(void) {
     CVarSetInteger("gRando.SpoilerFileIndex", 0);
     CVarSetString("gRando.InputSeed", "RSBSMM1");
     CVarSetInteger("gRando.GenerateSpoiler", 1);
+
+    // Boot-time dependency the harness must stand in for: the give paths the
+    // fill exercises write REG slots (e.g. Inventory_SetWorldMapCloudVisibility
+    // ends with R_MINIMAP_DISABLED = false), and gRegEditor is only allocated
+    // by Regs_Init() out of MM's system arena during the real MM_Game_Init.
+    // Supply static storage instead of dragging the whole heap bring-up into
+    // the unit harness. (First CI run of this test faulted at offset 0xb52
+    // off a null gRegEditor, exactly here.)
+    if (gRegEditor == NULL) {
+        static RegEditor sHarnessRegEditor = {};
+        gRegEditor = &sHarnessRegEditor;
+    }
 
     // The real flow runs OnFileCreate on a fresh Sram new-save (file select →
     // Sram_InitSave → OnSaveInit hook). Reproduce that pre-state.
