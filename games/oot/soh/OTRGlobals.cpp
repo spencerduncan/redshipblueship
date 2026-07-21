@@ -2,6 +2,7 @@
 #include "OTRAudio.h"
 #include <algorithm>
 #include <atomic>
+#include <type_traits>
 #include <filesystem>
 #include <fstream>
 #include <vector>
@@ -1097,6 +1098,18 @@ extern "C" int OoT_GameAssetsInitialized(void) {
     return OTRGlobals::Instance != nullptr &&
            (OTRGlobals::Instance->HasMasterQuest() || OTRGlobals::Instance->HasOriginal());
 }
+
+// #427 item 5: MM's FrameInterpolation.cpp calls
+// OTRGlobals::Instance->GetInterpolationFPS() and binds THIS definition in
+// single-exe builds (MM's BenPort.cpp copy is excluded). That same-name-class
+// bind is safe only while GetInterpolationFPS stays non-virtual — a direct
+// symbol call with no vtable slot for MM's larger view of OTRGlobals to
+// mis-compute. Virtualizing OTRGlobals would arm the corruption path from MM's
+// call site; lock the invariant from OoT's view here (MM's twin assert lives in
+// games/mm/2s2h/Enhancements/FrameInterpolation/FrameInterpolation.cpp).
+static_assert(!std::is_polymorphic_v<OTRGlobals>,
+              "OTRGlobals became polymorphic — MM's OTRGlobals::Instance->GetInterpolationFPS() bind now "
+              "vtable-dispatches against this object at MM's computed slot (#427/#395)");
 
 uint32_t OTRGlobals::GetInterpolationFPS() {
     if (CVarGetInteger(CVAR_SETTING("MatchRefreshRate"), 0)) {

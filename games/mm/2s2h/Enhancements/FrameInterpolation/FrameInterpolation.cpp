@@ -10,6 +10,25 @@
 #include <sys_matrix.h>
 #include <z64skin_matrix.h>
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include <type_traits>
+// #427 item 5: the FrameInterpolation_StartRecord call below reads
+// OTRGlobals::Instance->GetInterpolationFPS(). In single-exe builds MM's
+// BenPort.cpp (which defines MM's OTRGlobals::Instance and GetInterpolationFPS)
+// is excluded, so both the static Instance pointer and the method resolve to
+// OoT's — another same-name-class bind on the #395 radar. It is safe today by
+// construction: GetInterpolationFPS is NON-VIRTUAL (a direct symbol call, no
+// vtable index that MM's larger view of OTRGlobals could compute differently)
+// and this-independent (it reads only CVars + the shared Ship::Context window,
+// never OTRGlobals members). Virtualizing OTRGlobals would make this MM call
+// site emit a vtable dispatch at MM's computed slot against OoT's object — the
+// exact corruption path — so lock the load-bearing invariant from MM's view
+// here; soh/OTRGlobals.cpp carries the twin assert from OoT's view.
+static_assert(!std::is_polymorphic_v<OTRGlobals>,
+              "OTRGlobals became polymorphic — MM's OTRGlobals::Instance->GetInterpolationFPS() bind now "
+              "vtable-dispatches against OoT's object at MM's computed slot (#427/#395)");
+#endif
+
 /*
 Frame interpolation.
 
