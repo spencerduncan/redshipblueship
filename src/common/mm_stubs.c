@@ -98,8 +98,12 @@ void GameInteractor_ExecuteOnPlayDrawWorldEnd(void* play) { (void)play; }
 void GameInteractor_ExecuteOnInterfaceDrawStart(void* play) { (void)play; }
 void GameInteractor_ExecuteBeforeKaleidoDrawPage(void* state, int page) { (void)state; (void)page; }
 void GameInteractor_ExecuteAfterKaleidoDrawPage(void* state, int page) { (void)state; (void)page; }
-void GameInteractor_ExecuteOnSaveInit(int fileNum) { (void)fileNum; }
-void GameInteractor_ExecuteOnSaveLoad(int fileNum) { (void)fileNum; }
+/* GameInteractor_ExecuteOnSaveInit / GameInteractor_ExecuteOnSaveLoad moved to
+ * real, header-checked dispatch in games/mm/2s2h/GameExports_SingleExe.cpp
+ * (Lane C1, #392): they now Execute the MM-owned S2H::GameHooks registries
+ * (OnSaveInit -> Rando::MiscBehavior::OnFileCreate at MM_Sram_InitSave,
+ * OnSaveLoad -> Rando's OnSaveLoadHandler at the file-select/opening loads).
+ * Re-stubbing them here would silently sever MM rando generation. */
 /* GameInteractor_ExecuteOnOpenText resolves to OoT's wrapper in
  * games/oot/soh/Enhancements/game-interactor/GameInteractor_Hooks.cpp
  * (signature (uint16_t* textId, bool* loadFromMessageTable), #228). That
