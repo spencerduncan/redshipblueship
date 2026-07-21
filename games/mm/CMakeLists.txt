@@ -122,10 +122,20 @@ file(GLOB_RECURSE ship__Rando RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "2s2h/Rando/*
 # WidgetOptions layout (the FlagTable incident class) — now that same mistake
 # is a loud unresolved-external link error at worst, and resolves correctly
 # once this TU is pulled.
+#
+# BenGui/Menu.cpp is the same story for Ship::Menu itself (#446): MM's
+# Ship::Menu and MenuTypes family live in namespace S2H in single-exe builds
+# (OoT's Ship::Menu has a divergent layout — std::map vs unordered_map
+# backends map, std::function vs raw-pointer WidgetInfo callbacks — under
+# identical include guards), and this TU is the matching S2H implementation.
+# Same plain-archive semantics: elided today, resolves layout-correct once a
+# ported MM menu TU references it, loud unresolved external if one is pulled
+# without it.
 set(ship__Rando_ui
     "2s2h/Rando/Menu.cpp"
     "2s2h/Rando/CheckTracker/CheckTracker.cpp"
     "2s2h/BenGui/UIWidgets.cpp"
+    "2s2h/BenGui/Menu.cpp"
 )
 list(FILTER ship__Rando EXCLUDE REGEX "2s2h/Rando/Menu\\.cpp$")
 list(FILTER ship__Rando EXCLUDE REGEX "2s2h/Rando/CheckTracker/CheckTracker\\.cpp$")
@@ -227,10 +237,11 @@ if(SINGLE_EXECUTABLE_BUILD)
     # Main port glue (OTRGlobals equivalent)
     list(FILTER ship__ EXCLUDE REGEX "2s2h/BenPort\\.cpp$")
 
-    # All GUI components. Exception: BenGui/UIWidgets.cpp is compiled into
-    # 2ship_rando_ui (see the ship__Rando_ui block above) as the S2H-namespaced
-    # implementation behind MM's UIWidgets headers (#383) — the filter here
-    # only shapes 2ship_port, so no duplication results.
+    # All GUI components. Exceptions: BenGui/UIWidgets.cpp (#383) and
+    # BenGui/Menu.cpp (#446) are compiled into 2ship_rando_ui (see the
+    # ship__Rando_ui block above) as the S2H-namespaced implementations behind
+    # MM's UIWidgets/Menu headers — the filter here only shapes 2ship_port, so
+    # no duplication results.
     list(FILTER ship__ EXCLUDE REGEX "2s2h/BenGui/.*\\.cpp$")
 
     # All developer tools

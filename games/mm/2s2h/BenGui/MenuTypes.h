@@ -1,7 +1,33 @@
-#ifndef MENUTYPES_H
-#define MENUTYPES_H
+#ifndef S2H_MENUTYPES_H
+#define S2H_MENUTYPES_H
+// Guard renamed from MENUTYPES_H: OoT's soh/SohGui/MenuTypes.h uses that exact
+// guard, so a TU including both headers would silently drop whichever came
+// second (#446).
 
 #include "UIWidgets.hpp"
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// Single-exe symbol split for MM's menu type family (#446).
+//
+// OoT (games/oot/soh/SohGui/MenuTypes.h) defines identically-named
+// global-scope types with DIVERGENT layouts: OoT's WidgetFunc/DisableInfoFunc
+// are std::function (~32 bytes) where MM's are raw function pointers, OoT's
+// WidgetInfo carries an extra `raceDisable` field, OptionsVariant has 9 vs 6
+// alternatives, and the DisableOption/WidgetType enumerators sit at different
+// values. MenuInit's inline registries COMDAT-fold across the two games into
+// ONE shared registry, so an MM RegisterMenuInitFunc entering the link would
+// inject MM menu-builder code into the registry OoT's SohMenu executes. This
+// is the #383/FlagTable incident class: latent while MM's menu TUs stay
+// link-elided, armed by any link-set change that pulls one in.
+//
+// Fix, per the ShipInit.hpp / UIWidgets.hpp (#434) recipe: move MM's types
+// into namespace S2H so they stop sharing mangled names with OoT's, with
+// using-declarations below so unqualified MM callers compile unchanged. A
+// deliberate side effect: re-declaring any of these names at global scope in
+// an MM TU that includes this header is a compile error in single-exe builds,
+// so the split cannot silently regress.
+namespace S2H {
+#endif
 
 typedef enum {
     DISABLE_FOR_CAMERAS_OFF,
@@ -329,4 +355,108 @@ struct RegisterMenuUpdateFunc {
     }
 };
 
-#endif // MENUTYPES_H
+#ifdef RSBS_SINGLE_EXECUTABLE
+} // namespace S2H
+
+// Let unqualified upstream MM callers resolve to the S2H versions unchanged.
+// The unscoped enums are typedef'd anonymous enums, so their enumerators are
+// re-exposed one by one (`using enum` on a typedef-name of an unnamed enum is
+// not portable across our CI compilers).
+using S2H::DebugLogOption;
+using S2H::DisableOption;
+using S2H::MotionBlurOption;
+using S2H::SectionColumns;
+using S2H::WidgetType;
+
+// DisableOption enumerators
+using S2H::DISABLE_FOR_ADVANCED_RESOLUTION_OFF;
+using S2H::DISABLE_FOR_ADVANCED_RESOLUTION_ON;
+using S2H::DISABLE_FOR_AUTO_SAVE_OFF;
+using S2H::DISABLE_FOR_CAMERAS_OFF;
+using S2H::DISABLE_FOR_DEBUG_CAM_OFF;
+using S2H::DISABLE_FOR_DEBUG_CAM_ON;
+using S2H::DISABLE_FOR_DEBUG_MODE_OFF;
+using S2H::DISABLE_FOR_DIRECTX;
+using S2H::DISABLE_FOR_FRAME_ADVANCE_OFF;
+using S2H::DISABLE_FOR_FREE_LOOK_OFF;
+using S2H::DISABLE_FOR_FREE_LOOK_ON;
+using S2H::DISABLE_FOR_GYRO_OFF;
+using S2H::DISABLE_FOR_GYRO_ON;
+using S2H::DISABLE_FOR_INTRO_SKIP_OFF;
+using S2H::DISABLE_FOR_KOUME_INVINCIBLE;
+using S2H::DISABLE_FOR_LINKS_VOICE_PITCH_MULTIPLIER_OFF;
+using S2H::DISABLE_FOR_LOW_RES_MODE_ON;
+using S2H::DISABLE_FOR_MATCH_REFRESH_RATE_ON;
+using S2H::DISABLE_FOR_MOTION_BLUR_MODE;
+using S2H::DISABLE_FOR_MOTION_BLUR_OFF;
+using S2H::DISABLE_FOR_NO_MULTI_VIEWPORT;
+using S2H::DISABLE_FOR_NO_VSYNC;
+using S2H::DISABLE_FOR_NO_WINDOWED_FULLSCREEN;
+using S2H::DISABLE_FOR_NOT_DIRECTX;
+using S2H::DISABLE_FOR_NULL_PLAY_STATE;
+using S2H::DISABLE_FOR_RIGHT_STICK_OFF;
+using S2H::DISABLE_FOR_VERTICAL_RES_TOGGLE_ON;
+using S2H::DISABLE_FOR_VERTICAL_RESOLUTION_OFF;
+
+// WidgetType enumerators
+using S2H::WIDGET_AUDIO_BACKEND;
+using S2H::WIDGET_BUTTON;
+using S2H::WIDGET_CHECKBOX;
+using S2H::WIDGET_COLOR_24;
+using S2H::WIDGET_COLOR_32;
+using S2H::WIDGET_COMBOBOX;
+using S2H::WIDGET_CUSTOM;
+using S2H::WIDGET_CVAR_CHECKBOX;
+using S2H::WIDGET_CVAR_COMBOBOX;
+using S2H::WIDGET_CVAR_SLIDER_FLOAT;
+using S2H::WIDGET_CVAR_SLIDER_INT;
+using S2H::WIDGET_SEARCH;
+using S2H::WIDGET_SEPARATOR;
+using S2H::WIDGET_SEPARATOR_TEXT;
+using S2H::WIDGET_SLIDER_FLOAT;
+using S2H::WIDGET_SLIDER_INT;
+using S2H::WIDGET_TEXT;
+using S2H::WIDGET_VIDEO_BACKEND;
+using S2H::WIDGET_WINDOW_BUTTON;
+
+// SectionColumns enumerators
+using S2H::SECTION_COLUMN_1;
+using S2H::SECTION_COLUMN_2;
+using S2H::SECTION_COLUMN_3;
+
+// MotionBlurOption enumerators
+using S2H::MOTION_BLUR_ALWAYS_OFF;
+using S2H::MOTION_BLUR_ALWAYS_ON;
+using S2H::MOTION_BLUR_DYNAMIC;
+
+// DebugLogOption enumerators
+using S2H::DEBUG_LOG_CRITICAL;
+using S2H::DEBUG_LOG_DEBUG;
+using S2H::DEBUG_LOG_ERROR;
+using S2H::DEBUG_LOG_INFO;
+using S2H::DEBUG_LOG_OFF;
+using S2H::DEBUG_LOG_TRACE;
+using S2H::DEBUG_LOG_WARN;
+
+using S2H::CVarVariant;
+using S2H::DisableInfoFunc;
+using S2H::DisableVec;
+using S2H::OptionsVariant;
+using S2H::VoidFunc;
+using S2H::WidgetFunc;
+
+using S2H::disabledInfo;
+using S2H::MainMenuEntry;
+using S2H::MenuInit;
+using S2H::RegisterMenuInitFunc;
+using S2H::RegisterMenuUpdateFunc;
+using S2H::SearchWidget;
+using S2H::SidebarEntry;
+using S2H::WidgetInfo;
+using S2H::WidgetPath;
+
+using S2H::audioBackendsMap;
+using S2H::windowBackendsMap;
+#endif
+
+#endif // S2H_MENUTYPES_H
