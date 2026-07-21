@@ -17,6 +17,13 @@ option(SUPPRESS_WARNINGS "Suppress warnings in LUS and src (decomp)" ON)
 option(SINGLE_EXECUTABLE_BUILD "Build single redship executable (replaces dynamic library loading)" ON)
 option(USE_LLD_LINKER "Use LLVM's lld-link instead of MSVC linker (faster linking)" OFF)
 
+# Netplay grant relay (ADR 0007, #460). Default OFF, and OFF means ABSENT: no
+# netplay source is added to any target, so the default build links no new
+# symbols — the property the `netplay-default-off` CI job asserts against main.
+# There is no auto-connect and no outbound connection in any default path even
+# when this is ON; an operator must supply a room id and connect explicitly.
+option(RSBS_NETPLAY "Build the netplay grant relay client (experimental, ADR 0007)" OFF)
+
 # Always enable position-independent code - required for shared library builds
 # This repo is specifically for the unified combo project (shared libraries only)
 # For standalone executables, use upstream SoH/2Ship repos instead

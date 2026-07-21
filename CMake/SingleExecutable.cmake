@@ -59,6 +59,27 @@ if(WIN32)
     )
 endif()
 
+# ============================================================================
+# Netplay grant relay (ADR 0007, #460) — OFF by default, and OFF means ABSENT
+#
+# These sources are appended ONLY when RSBS_NETPLAY is ON. The default build
+# therefore gains no translation unit and links no new symbol, which is the
+# strongest verifiable form of "byte-unaffected" (byte-identical binaries are
+# not reproducible across toolchain nondeterminism; "no new linked symbols" is
+# checkable, and the netplay-default-off CI job checks it).
+#
+# No submodule and no transport library: the wire format is length-prefixed
+# binary over plain TCP, so a small socket shim beats putting a dependency in
+# every CI checkout for code that is inert by default (ADR 0006 §7).
+# ============================================================================
+if(RSBS_NETPLAY)
+    message(STATUS "Netplay grant relay: ENABLED (experimental, ADR 0007)")
+    list(APPEND REDSHIP_COMMON_SOURCES
+        ${CMAKE_SOURCE_DIR}/src/common/netplay/relay_protocol.c
+        ${CMAKE_SOURCE_DIR}/src/common/netplay/relay_client.c
+    )
+endif()
+
 set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/game.h
     ${CMAKE_SOURCE_DIR}/src/common/archive_check.h
@@ -117,6 +138,14 @@ target_compile_definitions(redship_common PRIVATE COMBO_BUILDING_DLL)
 # pass) when the path is absent, which is what happens if the binary is run
 # from a relocated artifact rather than its build tree.
 target_compile_definitions(redship_common PRIVATE RSBS_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+
+# Netplay relay (ADR 0007). PUBLIC so test_runner.cpp's guarded #include of
+# tests/test_netplay_relay.c compiles in the same configuration the relay
+# sources do — a PRIVATE define here would silently drop the tests while the
+# relay itself built, which is the worst of both.
+if(RSBS_NETPLAY)
+    target_compile_definitions(redship_common PUBLIC RSBS_NETPLAY)
+endif()
 
 set_target_properties(redship_common PROPERTIES
     CXX_STANDARD 20
@@ -320,6 +349,25 @@ if(BUILD_TESTING)
     redship_add_test(NAME GrantRedeemNoSwitch COMMAND redship --test grant-redeem-no-switch)
     redship_add_test(NAME GrantOverflow COMMAND redship --test grant-overflow)
     redship_add_test(NAME GrantPersistence COMMAND redship --test grant-persistence)
+
+    # Netplay grant relay (ADR 0007, #460). Registered only when the relay is
+    # built, because with RSBS_NETPLAY=OFF the code under test does not exist —
+    # a row here would fail rather than skip. The netplay-default-off CI job
+    # builds with the flag ON and runs these; every other job stays default.
+    #
+    # What these lock, and the honest limit, is stated at the top of
+    # src/common/tests/test_netplay_relay.c: they drive the real codec and the
+    # real state machine over a mock ledger with multi-server's semantics, so
+    # they prove our SEMANTICS but not our admissibility to the real wire.
+    # Unlike the Archipelago case (ADR 0006 §2b) there is no external
+    # gatekeeper, so a framing mismatch is a defect we can fix, not a wall.
+    if(RSBS_NETPLAY)
+        redship_add_test(NAME RelayWireFormat COMMAND redship --test relay-wire-format)
+        redship_add_test(NAME RelayLoopback COMMAND redship --test relay-loopback)
+        redship_add_test(NAME RelayCatchup COMMAND redship --test relay-catchup)
+        redship_add_test(NAME RelayBackpressure COMMAND redship --test relay-backpressure)
+        redship_add_test(NAME RelaySuspendLatch COMMAND redship --test relay-suspend-latch)
+    endif()
     redship_add_test(NAME ArchiveHotswapLogic COMMAND redship --test archive-hotswap-logic)
     # Unified save (.redsave) headless tests — Phase 2 T6 (#35)
     redship_add_test(NAME SaveRoundtripTiers COMMAND redship --test save-roundtrip-tiers)
