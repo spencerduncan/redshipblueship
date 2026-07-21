@@ -188,7 +188,7 @@ void Interface_DrawEnemyHealthBar(Attention* attention, PlayState* play) {
 static RegisterShipInitFunc initFunc(
     []() {
         // Register actor extension health data and actor init hook once
-        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnActorInit>([](Actor* actor) {
+        S2H::GameHooks::Register<GameInteractor::OnActorInit>([](Actor* actor) {
             u8 maxHealth = actor->colChkInfo.health;
 
             // The remains in the Majora fight get their health set after init for the first time fighting,

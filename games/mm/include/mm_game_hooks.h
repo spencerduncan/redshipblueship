@@ -36,9 +36,10 @@
  *  - Every `GameInteractor::Instance->events` / `->currentEvent` access must
  *    migrate to MM_GameEvents_Queue() / MM_GameEvents_Current() below.
  *  - A compile-time guard (games/mm/include/mm_gi_hook_guard.h, force-included
- *    after MM's GameInteractor.h) poisons the Register* member names in
- *    2ship_port/2ship_src C++ TUs; extend it to 2ship_enh/2ship_rando as
- *    their TUs migrate.
+ *    after MM's GameInteractor.h) poisons the Register* member names in every
+ *    MM C++ target (2ship_src/2ship_port/2ship_enh/2ship_rando/
+ *    2ship_rando_ui) — the 2ship_rando targets migrated in Lane C0 and
+ *    2ship_enh in #427 item 2, so no exemptions remain.
  */
 #ifndef MM_GAME_HOOKS_H
 #define MM_GAME_HOOKS_H
@@ -143,8 +144,10 @@ namespace GameHooks {
 template <typename H> struct Registry {
     inline static std::map<uint32_t, typename H::fn> functions;
     inline static std::map<int32_t, std::map<uint32_t, typename H::fn>> functionsForID;
+    inline static std::map<uintptr_t, std::map<uint32_t, typename H::fn>> functionsForPtr;
     inline static std::vector<uint32_t> pendingUnregister;
     inline static std::vector<uint32_t> pendingUnregisterForID;
+    inline static std::vector<uint32_t> pendingUnregisterForPtr;
 };
 
 // Shared across all hook types, mirroring upstream's instance-wide
@@ -173,6 +176,20 @@ template <typename H> inline uint32_t RegisterForID(int32_t forId, typename H::f
     return id;
 }
 
+// Ptr-keyed leg (upstream RegisterGameHookForPtr): hooks bound to one live
+// object (actor instance), keyed by its address. Added for 2ship_enh's
+// OnActorUpdate-for-actor registrant (#427 item 2); the Filter leg is still
+// deliberately absent — no compiled MM TU registers one (re-audit if
+// DeveloperTools.cpp un-elides).
+template <typename H> inline uint32_t RegisterForPtr(uintptr_t ptr, typename H::fn h) {
+    if (!h) {
+        return 0;
+    }
+    uint32_t id = NextHookId()++;
+    Registry<H>::functionsForPtr[ptr][id] = h;
+    return id;
+}
+
 // Deferred, like upstream: safe to call from inside a running hook; applied
 // at the start of the next Execute/ExecuteForID of this hook type. Id 0
 // (never issued) is ignored.
@@ -188,6 +205,12 @@ template <typename H> inline void UnregisterForID(uint32_t hookId) {
     }
 }
 
+template <typename H> inline void UnregisterForPtr(uint32_t hookId) {
+    if (hookId != 0) {
+        Registry<H>::pendingUnregisterForPtr.push_back(hookId);
+    }
+}
+
 template <typename H> inline void FlushPendingUnregistrations() {
     for (uint32_t id : Registry<H>::pendingUnregister) {
         Registry<H>::functions.erase(id);
@@ -199,6 +222,12 @@ template <typename H> inline void FlushPendingUnregistrations() {
         }
     }
     Registry<H>::pendingUnregisterForID.clear();
+    for (uint32_t id : Registry<H>::pendingUnregisterForPtr) {
+        for (auto& [_, bucket] : Registry<H>::functionsForPtr) {
+            bucket.erase(id);
+        }
+    }
+    Registry<H>::pendingUnregisterForPtr.clear();
 }
 
 template <typename H, typename... Args> inline void Execute(Args&&... args) {
@@ -219,10 +248,24 @@ template <typename H, typename... Args> inline void ExecuteForID(int32_t forId, 
     }
 }
 
+template <typename H, typename... Args> inline void ExecuteForPtr(uintptr_t ptr, Args&&... args) {
+    FlushPendingUnregistrations<H>();
+    auto it = Registry<H>::functionsForPtr.find(ptr);
+    if (it == Registry<H>::functionsForPtr.end()) {
+        return;
+    }
+    for (auto& [_, fn] : it->second) {
+        fn(std::forward<Args>(args)...);
+    }
+}
+
 // Test/introspection helpers (unit harness only).
 template <typename H> inline size_t CountForTest() {
     size_t n = Registry<H>::functions.size();
     for (auto& [_, bucket] : Registry<H>::functionsForID) {
+        n += bucket.size();
+    }
+    for (auto& [_, bucket] : Registry<H>::functionsForPtr) {
         n += bucket.size();
     }
     return n;
@@ -231,8 +274,10 @@ template <typename H> inline size_t CountForTest() {
 template <typename H> inline void ResetForTest() {
     Registry<H>::functions.clear();
     Registry<H>::functionsForID.clear();
+    Registry<H>::functionsForPtr.clear();
     Registry<H>::pendingUnregister.clear();
     Registry<H>::pendingUnregisterForID.clear();
+    Registry<H>::pendingUnregisterForPtr.clear();
 }
 
 } // namespace GameHooks

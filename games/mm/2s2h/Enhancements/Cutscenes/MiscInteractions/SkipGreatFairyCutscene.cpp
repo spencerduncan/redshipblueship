@@ -42,7 +42,7 @@ void RegisterSkipGreatFairyCutscene() {
                 switch (elfgrp->type) {
                     case ENELFGRP_TYPE_POWER:
                         if (!CHECK_WEEKEVENTREG(WEEKEVENTREG_RECEIVED_GREAT_SPIN_ATTACK)) {
-                            GameInteractor::Instance->events.emplace_back(GIEventGiveItem{
+                            MM_GameEvents_Queue().emplace_back(GIEventGiveItem{
                                 .showGetItemCutscene = true,
                                 .param = GID_SWORD_KOKIRI,
                                 .giveItem = [](Actor* actor, PlayState* play) {
@@ -59,7 +59,7 @@ void RegisterSkipGreatFairyCutscene() {
                         break;
                     case ENELFGRP_TYPE_WISDOM:
                         if (!gSaveContext.save.saveInfo.playerData.isDoubleMagicAcquired) {
-                            GameInteractor::Instance->events.emplace_back(GIEventGiveItem{
+                            MM_GameEvents_Queue().emplace_back(GIEventGiveItem{
                                 .showGetItemCutscene = true,
                                 .param = GID_MAGIC_JAR_BIG,
                                 .giveItem = [](Actor* actor, PlayState* play) {
@@ -78,7 +78,7 @@ void RegisterSkipGreatFairyCutscene() {
                         break;
                     case ENELFGRP_TYPE_COURAGE:
                         if (!gSaveContext.save.saveInfo.playerData.doubleDefense) {
-                            GameInteractor::Instance->events.emplace_back(GIEventGiveItem{
+                            MM_GameEvents_Queue().emplace_back(GIEventGiveItem{
                                 .showGetItemCutscene = true,
                                 .param = GID_HEART_CONTAINER,
                                 .giveItem = [](Actor* actor, PlayState* play) {
@@ -96,7 +96,7 @@ void RegisterSkipGreatFairyCutscene() {
                         break;
                     case ENELFGRP_TYPE_KINDNESS:
                         if (INV_CONTENT(ITEM_SWORD_GREAT_FAIRY) != ITEM_SWORD_GREAT_FAIRY) {
-                            GameInteractor::Instance->events.emplace_back(GIEventGiveItem{
+                            MM_GameEvents_Queue().emplace_back(GIEventGiveItem{
                                 .showGetItemCutscene = true,
                                 .param = GID_SWORD_GREAT_FAIRY,
                                 .giveItem = [](Actor* actor, PlayState* play) {
@@ -113,7 +113,7 @@ void RegisterSkipGreatFairyCutscene() {
                         break;
                     default: // ENELFGRP_TYPE_MAGIC
                         if (!gSaveContext.save.saveInfo.playerData.isMagicAcquired) {
-                            GameInteractor::Instance->events.emplace_back(GIEventGiveItem{
+                            MM_GameEvents_Queue().emplace_back(GIEventGiveItem{
                                 .showGetItemCutscene = true,
                                 .param = GID_MAGIC_JAR_SMALL,
                                 .giveItem = [](Actor* actor, PlayState* play) {
@@ -129,7 +129,7 @@ void RegisterSkipGreatFairyCutscene() {
                                 } });
                         } else if (INV_CONTENT(ITEM_MASK_DEKU) == ITEM_MASK_DEKU &&
                                    INV_CONTENT(ITEM_MASK_GREAT_FAIRY) != ITEM_MASK_GREAT_FAIRY) {
-                            GameInteractor::Instance->events.emplace_back(GIEventGiveItem{
+                            MM_GameEvents_Queue().emplace_back(GIEventGiveItem{
                                 .showGetItemCutscene = true,
                                 .param = GID_MASK_GREAT_FAIRY,
                                 .giveItem = [](Actor* actor, PlayState* play) {

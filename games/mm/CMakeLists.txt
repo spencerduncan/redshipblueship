@@ -743,14 +743,15 @@ if(SINGLE_EXECUTABLE_BUILD)
     # shared 4-byte OoT-owned instance again (MM code uses the S2H::GameHooks
     # registry / extern "C" shim in include/mm_game_hooks.h instead). Appended
     # AFTER GameInteractor.h so the class definition itself parses with the
-    # real names; only later USES in a TU fail. As of Lane C0 (#392) the guard
-    # covers 2ship_rando and 2ship_rando_ui too: their COND_* macro sites
-    # route through the single-exe macro redirection at the bottom of MM's
-    # GameInteractor.h and their direct Register* sites are migrated. Only
-    # 2ship_enh remains exempt — its ~21 direct Register* sites live in TUs
-    # that stay link-elided (the two force-linked members, FrameInterpolation
-    # and SkipGiantsChamber, carry no direct registrations after the macro
-    # redirect); flip it here when those TUs port (#392).
+    # real names; only later USES in a TU fail. Coverage history: 2ship_src/
+    # 2ship_port from #415, 2ship_rando/2ship_rando_ui from Lane C0 (#392) —
+    # COND_* macro sites route through the single-exe macro redirection at the
+    # bottom of MM's GameInteractor.h, direct Register* sites are migrated by
+    # hand — and 2ship_enh since #427 item 2 retired the last exemption (its
+    # 20 direct Register* sites and 36 events enqueues now use S2H::GameHooks
+    # / MM_GameEvents_Queue; AudioEditor.cpp keeps upstream calls but is not
+    # compiled in single-exe builds). Every MM C++ target is guarded: a raw
+    # Instance registration anywhere in MM code is a compile error.
     set(_force_include_cxx_guarded
         ${_force_include_cxx}
         "${_fi}${CMAKE_CURRENT_SOURCE_DIR}/include/mm_gi_hook_guard.h"
@@ -777,11 +778,10 @@ if(SINGLE_EXECUTABLE_BUILD)
     # generator builds broke. Per-source properties hand both generators the
     # command lines Ninja was already producing.
     get_target_property(_target_sources ${_t} SOURCES)
-    if(_t STREQUAL "2ship_enh")
-        set(_force_include_cxx_for_target "${_force_include_cxx}")
-    else()
-        set(_force_include_cxx_for_target "${_force_include_cxx_guarded}")
-    endif()
+    # No per-target exemptions: the mm_gi_hook_guard.h poison applies to every
+    # MM C++ TU (the 2ship_enh carve-out was retired with its migration, #427
+    # item 2).
+    set(_force_include_cxx_for_target "${_force_include_cxx_guarded}")
     foreach(_src IN LISTS _target_sources)
         if(_src MATCHES "\\.c$")
             set_source_files_properties(${_src} PROPERTIES COMPILE_OPTIONS "${_force_include_c}")

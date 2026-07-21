@@ -88,7 +88,7 @@ void RegisterPlayAsKafei() {
 
     UpdatePlayAsKafei();
 
-    GameInteractor::Instance->RegisterGameHook<GameInteractor::OnPlayDestroy>([]() { UpdatePlayAsKafei(); });
+    S2H::GameHooks::Register<GameInteractor::OnPlayDestroy>([]() { UpdatePlayAsKafei(); });
 }
 
 // We only want this running at boot, we don't want this running when the cvar is changed, only on scene destroy

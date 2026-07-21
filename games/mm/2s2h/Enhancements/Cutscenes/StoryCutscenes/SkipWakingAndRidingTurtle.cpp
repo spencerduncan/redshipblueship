@@ -39,7 +39,7 @@ void RegisterSkipWakingAndRidingTurtle() {
             // 13 is turtle leaving zora cape first time, 15 is subsequent times
             if (*csId == 13 || *csId == 15) {
                 *should = false;
-                GameInteractor::Instance->events.emplace_back(GIEventTransition{
+                MM_GameEvents_Queue().emplace_back(GIEventTransition{
                     .entrance = ENTRANCE(GREAT_BAY_TEMPLE, 0),
                     .cutsceneIndex = 0,
                     .transitionTrigger = TRANS_TRIGGER_START,

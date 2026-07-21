@@ -23,7 +23,7 @@ void skipHealingPamelasFather() {
      * where Pamela and her father embrace and Tatl yells at Link for killing the moment, but this
      * is easier than replicating all actor states in the skip.
      */
-    GameInteractor::Instance->events.emplace_back(GIEventTransition{
+    MM_GameEvents_Queue().emplace_back(GIEventTransition{
         .entrance = ENTRANCE(MUSIC_BOX_HOUSE, 0),
         .cutsceneIndex = 0,
         .transitionTrigger = TRANS_TRIGGER_START,
@@ -70,7 +70,7 @@ void RegisterSkipIkanaCurseCutscenes() {
                 SET_WEEKEVENTREG(WEEKEVENTREG_61_02);
                 SET_WEEKEVENTREG(WEEKEVENTREG_61_04);
                 // Kick out the player
-                GameInteractor::Instance->events.emplace_back(GIEventTransition{
+                MM_GameEvents_Queue().emplace_back(GIEventTransition{
                     .entrance = ENTRANCE(IKANA_CANYON, 2),
                     .cutsceneIndex = 0,
                     .transitionTrigger = TRANS_TRIGGER_START,
@@ -80,7 +80,7 @@ void RegisterSkipIkanaCurseCutscenes() {
             } else if (*csId == 11) { // Heal Pamela's father for the first time
                 skipHealingPamelasFather();
                 if (GameInteractor_Should(VB_GIVE_ITEM_FROM_DMCHAR05, true, ITEM_MASK_GIBDO)) {
-                    GameInteractor::Instance->events.emplace_back(GIEventGiveItem{
+                    MM_GameEvents_Queue().emplace_back(GIEventGiveItem{
                         .showGetItemCutscene = !CVarGetInteger("gEnhancements.Cutscenes.SkipGetItemCutscenes", 0),
                         .param = GID_MASK_GIBDO,
                         .giveItem =
@@ -120,7 +120,7 @@ void RegisterSkipIkanaCurseCutscenes() {
         s16* csId = va_arg(args, s16*);
         if (MM_gPlayState->sceneId == SCENE_IKANA && *csId == 20) { // Played Song of Storms for Sharp
             // Reload the scene so that all actor states are appropriate
-            GameInteractor::Instance->events.emplace_back(GIEventTransition{
+            MM_GameEvents_Queue().emplace_back(GIEventTransition{
                 .entrance = ENTRANCE(IKANA_CANYON, 14),
                 .cutsceneIndex = 0,
                 .transitionTrigger = TRANS_TRIGGER_START,

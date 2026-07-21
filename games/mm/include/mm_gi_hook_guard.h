@@ -19,11 +19,12 @@
  * Mechanism: force-included AFTER GameInteractor.h (games/mm/CMakeLists.txt,
  * the _force_include_cxx_guarded list), so the class definition itself parses
  * with the real member names; any LATER use of a poisoned name in the TU
- * fails to compile with an identifier that points here. Applied to
- * 2ship_port/2ship_src; 2ship_enh and 2ship_rando are exempt until Lane C
- * migrates their (currently link-elided) upstream RegisterGameHook calls onto
- * the shim — extend the guarded list in games/mm/CMakeLists.txt when that
- * happens (#392).
+ * fails to compile with an identifier that points here. Applied to every MM
+ * C++ target — 2ship_src/2ship_port (#415), 2ship_rando/2ship_rando_ui (Lane
+ * C0, #392), and 2ship_enh (#427 item 2, the last exemption retired). The
+ * only upstream raw-registration file left untouched is
+ * 2s2h/Enhancements/Audio/AudioEditor.cpp, which is not compiled in
+ * single-exe builds (dropped from 2ship_enh in games/mm/CMakeLists.txt).
  *
  * Escape hatch for deliberate probes: `#undef` the macro in the probing TU
  * (precedent: the rename #undefs in games/mm/2s2h/mm_culling_test.cpp).

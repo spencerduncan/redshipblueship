@@ -14,7 +14,7 @@ extern "C" {
 // This file houses various examples of using the systems we have built to modify the game in various ways
 void RegisterDemoBehavior() {
     // Demonstrates some capabilities of CustomItem
-    GameInteractor::Instance->RegisterGameHookForID<GameInteractor::ShouldActorInit>(
+    S2H::GameHooks::RegisterForID<GameInteractor::ShouldActorInit>(
         ACTOR_EN_ITEM00, [](Actor* actor, bool* should) {
             // South Clock Town PoH
             if (actor->params != 2566) {
@@ -31,7 +31,7 @@ void RegisterDemoBehavior() {
 
                     // You can put whatever you want here. For instance you can use the GI queue to queue up a different
                     // kind of item give:
-                    GameInteractor::Instance->events.push_back(GIEventGiveItem{
+                    MM_GameEvents_Queue().push_back(GIEventGiveItem{
                         .showGetItemCutscene = true,
                         .param = GID_RUPEE_GREEN,
                         .giveItem =
@@ -74,7 +74,7 @@ void RegisterDemoBehavior() {
         });
 
     // Example doing a give item while a player is in the middle of an action (backflip)
-    GameInteractor::Instance->RegisterGameHookForID<GameInteractor::OnActorUpdate>(ACTOR_PLAYER, [](Actor* actor) {
+    S2H::GameHooks::RegisterForID<GameInteractor::OnActorUpdate>(ACTOR_PLAYER, [](Actor* actor) {
         Player* player = (Player*)actor;
         static int backflipTimer = 0;
 
@@ -97,7 +97,7 @@ void RegisterDemoBehavior() {
         }
     });
 
-    GameInteractor::Instance->RegisterGameHookForID<GameInteractor::OnActorKill>(ACTOR_OBJ_TSUBO, [](Actor* actor) {
+    S2H::GameHooks::RegisterForID<GameInteractor::OnActorKill>(ACTOR_OBJ_TSUBO, [](Actor* actor) {
         if (actor->room == MM_gPlayState->roomCtx.curRoom.num) {
             // Open a custom message
             CustomMessage::StartTextbox("STOP BREAKING MY POTS!", {
@@ -106,14 +106,14 @@ void RegisterDemoBehavior() {
                                                                   });
 
             // Pot Hydra
-            // GameInteractor::Instance->events.push_back(GIEventSpawnActor{
+            // MM_GameEvents_Queue().push_back(GIEventSpawnActor{
             //     .actorId = ACTOR_OBJ_TSUBO,
             //     .posX = 50.0f,
             //     .posY = 0,
             //     .posZ = -40.0f, // Behind the player
             //     .relativeCoords = true,
             // });
-            // GameInteractor::Instance->events.push_back(GIEventSpawnActor{
+            // MM_GameEvents_Queue().push_back(GIEventSpawnActor{
             //     .actorId = ACTOR_OBJ_TSUBO,
             //     .posX = -50.0f,
             //     .posY = 0,
@@ -124,7 +124,7 @@ void RegisterDemoBehavior() {
     });
 
     // Full message replacement (Sign in South Clock Town)
-    GameInteractor::Instance->RegisterGameHookForID<GameInteractor::OnOpenText>(
+    S2H::GameHooks::RegisterForID<GameInteractor::OnOpenText>(
         0x1C18, [](u16* textId, bool* loadFromMessageTable) {
             CustomMessage::Entry entry = {
                 .icon = 0x10,
@@ -138,7 +138,7 @@ void RegisterDemoBehavior() {
         });
 
     // Partial message replacement (Title Card for South Clock Town)
-    GameInteractor::Instance->RegisterGameHookForID<GameInteractor::OnOpenText>(
+    S2H::GameHooks::RegisterForID<GameInteractor::OnOpenText>(
         0x104, [](u16* textId, bool* loadFromMessageTable) {
             auto entry = CustomMessage::LoadVanillaMessageTableEntry(*textId);
 
