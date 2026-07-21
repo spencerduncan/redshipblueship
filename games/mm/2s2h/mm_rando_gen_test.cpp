@@ -75,13 +75,9 @@ extern "C" int MM_Rando_HeadlessGenTest(void) {
     // Pinned generation profile: new seed, fixed input strings, spoiler on,
     // RO_LOGIC = Nearly No Logic. Deliberate (Lane C0 scope): the MVP ships
     // free-form placement with the spoiler log carrying what logic would
-    // otherwise carry (Lane D is deferred), and the vendored upstream
-    // glitchless fill deterministically dead-ends on
-    // RC_DEKU_KINGS_CHAMBER_MONKEY under default options + default starting
-    // items (every seed; the check's own condition and the give path both
-    // verify correct in isolation — see the follow-up issue). The
-    // non-gating glitchless probe below keeps that state visible in every
-    // run.
+    // otherwise carry (Lane D is deferred). Glitchless generation works too
+    // — the #426 Deku Palace edge fix, locked by the GATING glitchless phase
+    // below — but the MVP default stays pinned here.
     CVarSetInteger("gRando.Enabled", 1);
     CVarSetInteger("gRando.SpoilerFileIndex", 0);
     CVarSetInteger("gRando.GenerateSpoiler", 1);
@@ -174,23 +170,50 @@ extern "C" int MM_Rando_HeadlessGenTest(void) {
         return 8;
     }
 
-    // Non-gating glitchless probe: the vendored upstream glitchless fill
-    // currently dead-ends on RC_DEKU_KINGS_CHAMBER_MONKEY with default
-    // options (see the follow-up issue filed from Lane C0). Run one attempt
-    // and REPORT so every CI log tracks whether that state changes — it does
-    // not gate this reachability lock.
+    // Gating glitchless lock (#426): upstream 2S2H PR #1622's Deku Palace
+    // region split dropped the bean-side -> upper-middle return edge, leaving
+    // the {upper middle, cell side, cell ledge} ring with no incoming edge
+    // from outside itself — so RC_DEKU_KINGS_CHAMBER_MONKEY (holding cell,
+    // entered from the cell ledge) could never enter logic and EVERY
+    // glitchless fill dead-ended with exactly that check left. Upstream PR
+    // #1661 restored the edge; the port lives in Rando/Logic/Regions/
+    // South.cpp. This phase locks it: glitchless must GENERATE. The fixed
+    // seed list mirrors the main phase (the junk-swap forward fill can
+    // genuinely dead-end on an unlucky seed); it fails only if every attempt
+    // dead-ends.
     CVarSetInteger(Rando::StaticData::Options[RO_LOGIC].cvar, RO_LOGIC_GLITCHLESS);
-    CVarSetString("gRando.InputSeed", "RSBSMMGL1");
-    // Re-pin the GENERATE branch: the successful generation above ran
-    // RefreshOptions, which repoints gRando.SpoilerFileIndex at the spoiler
-    // just written — without this the probe silently LOADS that spoiler and
-    // reports GENERATED regardless of the glitchless fill's state.
-    CVarSetInteger("gRando.SpoilerFileIndex", 0);
-    memset(&gSaveContext, 0, sizeof(gSaveContext));
-    MM_Sram_InitNewSave();
-    GameInteractor_ExecuteOnSaveInit(0);
-    fprintf(stderr, "[MM-RANDO-GEN][info] glitchless probe: %s\n",
-            gSaveContext.save.shipSaveInfo.saveType == SAVETYPE_RANDO ? "GENERATED" : "dead-ended (known)");
+    static const char* kGlitchlessSeeds[] = { "RSBSMMGL1", "RSBSMMGL2", "RSBSMMGL3", "RSBSMMGL4", "RSBSMMGL5" };
+    const char* glitchlessSeed = NULL;
+    for (const char* seed : kGlitchlessSeeds) {
+        // Re-pin the GENERATE branch every attempt: the last successful
+        // generation ran RefreshOptions, which repoints
+        // gRando.SpoilerFileIndex at the spoiler it wrote — without this the
+        // attempt silently LOADS that spoiler and "passes" regardless of the
+        // glitchless fill's state.
+        CVarSetInteger("gRando.SpoilerFileIndex", 0);
+        CVarSetString("gRando.InputSeed", seed);
+        memset(&gSaveContext, 0, sizeof(gSaveContext));
+        MM_Sram_InitNewSave();
+        GameInteractor_ExecuteOnSaveInit(0);
+        if (gSaveContext.save.shipSaveInfo.saveType == SAVETYPE_RANDO) {
+            glitchlessSeed = seed;
+            break;
+        }
+        fprintf(stderr, "[MM-RANDO-GEN] glitchless seed %s dead-ended (fill threw); trying next\n", seed);
+    }
+    if (glitchlessSeed == NULL) {
+        fprintf(stderr, "[MM-RANDO-GEN] FAIL(16): every glitchless seed dead-ended — glitchless reachability "
+                        "regressed (#426)\n");
+        return 16;
+    }
+    // The historical dead-end left RC_DEKU_KINGS_CHAMBER_MONKEY as the one
+    // unplaceable check; assert it specifically received a placement so any
+    // recurrence names itself in the log.
+    if (!RANDO_SAVE_CHECKS[RC_DEKU_KINGS_CHAMBER_MONKEY].shuffled) {
+        fprintf(stderr, "[MM-RANDO-GEN] FAIL(17): glitchless world did not place RC_DEKU_KINGS_CHAMBER_MONKEY\n");
+        return 17;
+    }
+    fprintf(stderr, "[MM-RANDO-GEN] glitchless generated with seed %s\n", glitchlessSeed);
     CVarClear(Rando::StaticData::Options[RO_LOGIC].cvar);
     CVarSetInteger(Rando::StaticData::Options[RO_LOGIC].cvar, RO_LOGIC_NEARLY_NO_LOGIC);
 

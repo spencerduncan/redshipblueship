@@ -121,12 +121,14 @@ void Rando::MiscBehavior::OnFileCreate(s16 fileNum) {
 
 #ifdef RSBS_SINGLE_EXECUTABLE
                 if (rsbsPaired) {
-                    // Pinned MM profile for the paired world (#392/#426): the
-                    // vendored glitchless fill deterministically dead-ends, so
-                    // the MVP pairs under Nearly No Logic — the spoiler log
-                    // carries what logic would otherwise carry (Lane D).
-                    // Pinned BEFORE the settings mix below so the profile is
-                    // part of the world identity.
+                    // Pinned MM profile for the paired world (#392): the MVP
+                    // pairs under Nearly No Logic — free-form placement, with
+                    // the spoiler log carrying what logic would otherwise
+                    // carry (Lane D). Glitchless generation itself works (the
+                    // #426 Deku Palace edge fix, locked by MMRandoGen's
+                    // gating glitchless phase); this pin is an MVP-scope
+                    // choice, not a workaround. Pinned BEFORE the settings
+                    // mix below so the profile is part of the world identity.
                     if (RANDO_SAVE_OPTIONS[RO_LOGIC] != RO_LOGIC_NEARLY_NO_LOGIC &&
                         RANDO_SAVE_OPTIONS[RO_LOGIC] != RO_LOGIC_NO_LOGIC &&
                         RANDO_SAVE_OPTIONS[RO_LOGIC] != RO_LOGIC_VANILLA) {
