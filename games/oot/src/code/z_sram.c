@@ -16,6 +16,11 @@ void Save_LoadFile(void);
 
 void BossRush_InitSave(void);
 
+// Cross-game session invalidation (#440). Declared locally: games/oot/src/**.c
+// does not have src/common on its include path (same convention z_play.c uses
+// for the Combo_* entry points). See src/common/context.h for the contract.
+extern void Context_InvalidateSessionOnNewGame(int isRandoFile);
+
 /**
  *  Initialize new save.
  *  This save has an empty inventory with 3 hearts and single magic.
@@ -261,7 +266,31 @@ void OoT_Sram_InitSave(FileChooseContext* fileChooseCtx) {
 
     u8 currentQuest = fileChooseCtx->questType[fileChooseCtx->buttonIndex];
 
-    if (currentQuest == QUEST_RANDOMIZER && (Randomizer_IsSeedGenerated() || Randomizer_IsSpoilerLoaded())) {
+    u8 isRandoFile =
+        (currentQuest == QUEST_RANDOMIZER && (Randomizer_IsSeedGenerated() || Randomizer_IsSpoilerLoaded()));
+
+    // Retire the previous cross-game session before this file exists (#440).
+    // Creating a file is the strongest possible statement that the old session
+    // is over, and nothing used to act on it: the operator started a NEW seed
+    // on slot 1 after a soft reset and MM came up on the PREVIOUS seed's clock
+    // with its stray fairies already collected, because the dead session's
+    // frozen MM blob was still sitting there for the first consume.
+    //
+    // Ordered BEFORE Randomizer_InitSaveFile() and Save_SaveFile() below so
+    // that (a) nothing this new file authors is wiped by the clear, and (b) the
+    // Save_SaveFile() -> OnSaveFile -> RsbsSave_Save at the end of this
+    // function writes a .redsave for the new slot that already reflects the
+    // cleared state, instead of persisting the dead session's crossings into
+    // the new file's very first save.
+    //
+    // isRandoFile is exactly the condition the branch below uses, so the seed
+    // stamp is kept precisely when generation has already authored it for this
+    // file and dropped for a vanilla file (where a surviving stamp would leave
+    // Combo_ForeignPairingActive() reporting a paired world that does not
+    // exist).
+    Context_InvalidateSessionOnNewGame(isRandoFile);
+
+    if (isRandoFile) {
         gSaveContext.ship.quest.id = QUEST_RANDOMIZER;
 
         Randomizer_InitSaveFile();

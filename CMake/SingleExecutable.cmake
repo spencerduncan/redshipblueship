@@ -306,6 +306,13 @@ if(BUILD_TESTING)
     # shared structure, the crossing awards exactly once on the OoT side, and
     # gComboCtx.foreignPlacements round-trips through the .redsave record.
     redship_add_test(NAME ForeignItemGive COMMAND redship --test foreign-item-give)
+    # Cross-game session invalidation (#440). A soft reset or a new game must
+    # retire the previous session's frozen blobs, shadows and gComboCtx
+    # crossings — while a cross-game arrival and a legitimate existing-slot
+    # load must still restore. Also the single-player half of the netplay
+    # blocker (#460): a stale sharedItemsTagged carries another player's grants
+    # from a dead room into a fresh seed.
+    redship_add_test(NAME SessionInvalidation COMMAND redship --test session-invalidation)
     redship_add_test(NAME ArchiveHotswapLogic COMMAND redship --test archive-hotswap-logic)
     # Unified save (.redsave) headless tests — Phase 2 T6 (#35)
     redship_add_test(NAME SaveRoundtripTiers COMMAND redship --test save-roundtrip-tiers)

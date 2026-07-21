@@ -7,6 +7,13 @@
  */
 
 #include "context.h"
+// Context_InvalidateSessionState also has to drain the RAM-only shared-item
+// staging outbox, which lives in shared_items.c. Included here (a .cpp) rather
+// than from context.h so the header keeps its no-dependency shape.
+#include "shared_items.h"
+// Combo_HasStartupEntrance() — the discriminator that keeps the return-to-title
+// hook from eating a cross-game arrival's blob.
+#include "entrance.h"
 #include <cstdio>
 #include <cstring>
 #include <vector>
@@ -251,6 +258,80 @@ void Context_RequestSwitch(GameId target, uint16_t entrance) {
 
 bool Context_HasPendingSwitch(void) {
     return ComboContext_IsSwitchPending();
+}
+
+// ----------------------------------------------------------------------------
+// Session invalidation (#440). See context.h for the contract and the operator
+// repro this exists to close.
+// ----------------------------------------------------------------------------
+
+void Context_InvalidateSessionState(ComboSeedStampPolicy seedPolicy) {
+    // Snapshot the Lane B stamp BEFORE the re-init below wipes it. This is the
+    // only part of gComboCtx that can legitimately outlive the session, and
+    // only in the KEEP case — see ComboSeedStampPolicy.
+    const bool savedSourceIsRando = gComboCtx.sourceIsRando;
+    const uint32_t savedSeed = gComboCtx.sharedRandoSeed;
+    const uint32_t savedSettingsHash = gComboCtx.sharedRandoSettingsHash;
+
+    // Frozen blobs and shadow copies in one call — they are the same storage
+    // (FrozenStateManager::ClearFrozenState memsets the buffer AND clears
+    // hasBeenFrozen). This is the half that fixes the operator's symptom: the
+    // dead session's MM blob no longer survives to be consumed by the next
+    // session's first Happy Mask Shop entry.
+    Context_ClearAllFrozenStates();
+
+    // Pickups staged but never committed when the session died. Committed ones
+    // live in sharedItemsTagged and go with the ComboContext_Init below; this
+    // outbox is RAM-only and would otherwise drain into the NEXT session's
+    // array at its first suspend.
+    Combo_ClearSharedItemOutbox();
+
+    // Every remaining field of gComboCtx is session state, so the initializer
+    // IS the invalidator — there is no per-field clear to drift out of sync
+    // with the struct. Fields carved from reserved[] in the future are covered
+    // automatically, which is the growth contract's "zero means unset" rule
+    // doing exactly what it was written for. Re-stamps magic/version too.
+    ComboContext_Init();
+
+    if (seedPolicy == RSBS_SEED_STAMP_KEEP) {
+        gComboCtx.sourceIsRando = savedSourceIsRando;
+        gComboCtx.sharedRandoSeed = savedSeed;
+        gComboCtx.sharedRandoSettingsHash = savedSettingsHash;
+    }
+
+    fprintf(stderr, "[Context] Session state invalidated (seed stamp %s: rando=%d seed=%u settings=%08X)\n",
+            (seedPolicy == RSBS_SEED_STAMP_KEEP) ? "kept" : "dropped", (int)gComboCtx.sourceIsRando,
+            (unsigned)gComboCtx.sharedRandoSeed, (unsigned)gComboCtx.sharedRandoSettingsHash);
+}
+
+int Context_InvalidateSessionOnReturnToTitle(void) {
+    // The arrival guard. See the header: a cross-game arrival walks the SAME
+    // title chain, so without this the hook would eat the blob that arrival is
+    // about to consume. Untagged (not ...ForGame) on purpose — any pending
+    // cross-game entrance, for either game, means a switch is in flight and
+    // this pass through the title is boot chain, not a player-visible reset.
+    if (Combo_HasStartupEntrance()) {
+        fprintf(stderr, "[Context] Return-to-title invalidation skipped: cross-game arrival in flight\n");
+        return 0;
+    }
+    fprintf(stderr, "[Context] Return to title: retiring cross-game session state\n");
+    Context_InvalidateSessionState(RSBS_SEED_STAMP_DROP);
+    return 1;
+}
+
+void Context_InvalidateSessionOnNewGame(int isRandoFile) {
+    fprintf(stderr, "[Context] New file (rando=%d): retiring cross-game session state\n", isRandoFile);
+    // A rando file's stamp was authored by generation minutes ago and belongs
+    // to the file being created, not to the session being discarded.
+    Context_InvalidateSessionState(isRandoFile ? RSBS_SEED_STAMP_KEEP : RSBS_SEED_STAMP_DROP);
+}
+
+void Context_InvalidateSessionOnSlotLoad(void) {
+    fprintf(stderr, "[Context] Slot load: clearing before reload\n");
+    // Always DROP: whatever this slot legitimately owns arrives from its own
+    // .redsave immediately after. A slot with no .redsave must read as "no
+    // cross-game state", not as "whatever the last session happened to leave".
+    Context_InvalidateSessionState(RSBS_SEED_STAMP_DROP);
 }
 
 void Context_SetCurrentGame(GameId game) {
