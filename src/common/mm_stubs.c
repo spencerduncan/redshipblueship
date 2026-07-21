@@ -123,12 +123,15 @@ void GameInteractor_ExecuteAfterEndOfCycleSave(void) {}
 void GameInteractor_ExecuteBeforeMoonCrashSaveReset(void) {}
 void GameInteractor_ExecuteBeforeInterfaceClockDraw(void) {}
 void GameInteractor_ExecuteAfterInterfaceClockDraw(void) {}
-int GameInteractor_Dpad(void* input, int dpad) { (void)input; return dpad; }
-/* GameInteractor_InvertControl moved to a real, header-checked definition in
- * games/mm/2s2h/GameExports_SingleExe.cpp (#372): every caller uses the
- * result as a ±1 multiplier, and the untyped stub here returned the ENUM
- * ORDINAL — stick_x *= 2 on every Lib_GetControlStickData movement frame. */
-int GameInteractor_RightStickOcarina(void* input) { (void)input; return 0; }
+/* GameInteractor_InvertControl, GameInteractor_Dpad, and
+ * GameInteractor_RightStickOcarina moved to real, header-checked definitions
+ * in games/mm/2s2h/GameExports_SingleExe.cpp (#372): the untyped stubs here
+ * drifted from MM's GameInteractor.h. InvertControl returned the ENUM
+ * ORDINAL as a ±1 multiplier (stick_x *= 2 on every Lib_GetControlStickData
+ * movement frame); Dpad returned the button combo unconditionally, forcing
+ * the CVar-gated D-pad-equip and D-pad-ocarina enhancements permanently ON;
+ * RightStickOcarina happened to return the right default but was one field
+ * away from the same fate. */
 
 /* HudEditor stubs */
 void* hudEditorElements = NULL;
