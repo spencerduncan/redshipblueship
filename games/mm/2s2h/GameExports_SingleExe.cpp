@@ -1829,6 +1829,37 @@ void MM_Rando_PairOnCrossGameArrival(int hadFrozenState) {
     }
 
     if (hadFrozenState) {
+        // Self-heal a save that is INTERNALLY INCONSISTENT before accepting it.
+        //
+        // A legitimately vanilla MM file always has rando.finalSeed == 0:
+        // Sram_ResetSave memsets shipSaveInfo wholesale and MM_Sram_InitNewSave
+        // then stamps SAVETYPE_VANILLA, so nothing in MM's own code can author
+        // "a complete rando world sitting under a vanilla type byte". Seeing it
+        // is positive evidence that a RANDO file lost its type byte to a bulk
+        // Save overwrite (the moon-crash reload in z_sram_NES.c
+        // Sram_ResetSaveFromMoonCrash is the operator-confirmed instance, fixed
+        // at its source; this is the belt-and-braces catch for that whole class).
+        //
+        // Without this, the loss is PERMANENT and silent: once a vanilla-stamped
+        // save is frozen on the next switch-out, every later return leg restores
+        // it, re-reports "existing save", and MM plays vanilla forever with the
+        // player's entire placement table still sitting intact underneath.
+        if (!alreadyRando && gSaveContext.save.shipSaveInfo.rando.finalSeed != 0) {
+            gSaveContext.save.shipSaveInfo.saveType = SAVETYPE_RANDO;
+            fprintf(stderr,
+                    "[MM] pairing: REPAIRED — restored save carried a complete rando world "
+                    "(finalSeed=%08X) under saveType=vanilla; re-stamping SAVETYPE_RANDO\n",
+                    gSaveContext.save.shipSaveInfo.rando.finalSeed);
+            fflush(stderr);
+            // Fall through to the skip below: the world is the player's own and
+            // must NOT be regenerated. z_play.c's GameInteractor_ExecuteOnSaveLoad
+            // at the end of MM_Play_ConsumeStartupEntrance then arms the IS_RANDO
+            // COND_HOOKs against the repaired save.
+            fprintf(stderr, "[MM] pairing: skipped-because-existing-mm-save "
+                            "(frozen MM session restored, saveType=rando) — an existing file is never regenerated\n");
+            return;
+        }
+
         // A restored MM session — vanilla or rando — is the player's own save.
         // Re-running generation over it would wipe their progress (OnFileCreate
         // memsets shipSaveInfo.rando and re-authors the starting state), so the

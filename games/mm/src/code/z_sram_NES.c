@@ -1257,10 +1257,44 @@ void MM_Sram_InitDebugSave(void) {
     Sram_GenerateRandomSaveFields();
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// Moon-crash reset must not destroy a cross-game paired world (#392 class).
+//
+// The reload below re-reads the file from flash and memcpy's sizeof(Save) over
+// gSaveContext.save. ShipSaveInfo -- which carries saveType AND the whole rando
+// block (finalSeed, options, the RC_MAX placement table) -- is a MEMBER of Save
+// (z64save.h), so that memcpy overwrites the randomizer identity wholesale.
+//
+// A cross-game paired MM world is authored IN MEMORY at the arrival
+// (MM_Rando_PairOnCrossGameArrival -> OnFileCreate) and is not represented in MM
+// flash until the player saves. So on a moon crash the reload pulls a vanilla
+// on-disk save, saveType reverts to SAVETYPE_VANILLA, every IS_RANDO COND_HOOK
+// unregisters, and MM silently plays vanilla for the rest of the session -- and
+// the next switch-out freezes THAT save into the blob, so the vanilla world then
+// survives every later return leg. Operator-confirmed: an AFK moon crash was the
+// trigger behind "the paired MM world plays vanilla".
+//
+// A moon crash resets the CYCLE, not the world's identity. Preserve the rando
+// half across the reload, exactly as cutsceneIndex is preserved just below --
+// but only when the reload actually lost it (flash held no rando save). If the
+// file on disk IS a rando save, upstream semantics win and this is a no-op.
+//
+// File-static rather than a stack local: ShipSaveInfo embeds randoSaveChecks
+// [RC_MAX] and is multiple KB. The save path is single-threaded.
+static ShipSaveInfo sMoonCrashShipSaveInfo;
+#endif
+
 void Sram_ResetSaveFromMoonCrash(SramContext* sramCtx) {
     GameInteractor_ExecuteBeforeMoonCrashSaveReset();
     s32 i;
     s32 cutsceneIndex = gSaveContext.save.cutsceneIndex;
+#ifdef RSBS_SINGLE_EXECUTABLE
+    s32 wasRando = (gSaveContext.save.shipSaveInfo.saveType == SAVETYPE_RANDO);
+
+    if (wasRando) {
+        sMoonCrashShipSaveInfo = gSaveContext.save.shipSaveInfo;
+    }
+#endif
 
     memset(sramCtx->saveBuf, 0, SAVE_BUFFER_SIZE);
 
@@ -1280,6 +1314,20 @@ void Sram_ResetSaveFromMoonCrash(SramContext* sramCtx) {
         memcpy(&gSaveContext, sramCtx->saveBuf, sizeof(Save));
     }
     gSaveContext.save.cutsceneIndex = cutsceneIndex;
+#ifdef RSBS_SINGLE_EXECUTABLE
+    if (wasRando && gSaveContext.save.shipSaveInfo.saveType != SAVETYPE_RANDO) {
+        gSaveContext.save.shipSaveInfo = sMoonCrashShipSaveInfo;
+        // Re-arm the save-shape-dependent hooks against the save that actually
+        // reaches gameplay -- the same contract MM_Play_ConsumeStartupEntrance
+        // honours at the cross-game arrival (games/mm/src/code/z_play.c). The
+        // rando behavior hooks are COND_HOOKs re-evaluated on OnSaveLoad against
+        // IS_RANDO; restoring saveType without re-dispatching would leave them
+        // unregistered from the reload above, i.e. still-vanilla behavior on a
+        // save that now correctly claims to be rando. Idempotent by
+        // construction: COND_HOOK unregisters before re-registering.
+        GameInteractor_ExecuteOnSaveLoad(gSaveContext.fileNum);
+    }
+#endif
 
     for (i = 0; i < ARRAY_COUNT(gSaveContext.eventInf); i++) {
         gSaveContext.eventInf[i] = 0;
