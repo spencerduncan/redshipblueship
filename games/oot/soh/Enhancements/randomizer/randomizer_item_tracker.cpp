@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cstdio>
 #include <map>
 #include <string>
 #include <vector>
@@ -1775,9 +1776,91 @@ void UpdateVectors() {
     shouldUpdateVectors = false;
 }
 
+// Cross-game OoT arrival: do NOT blank the player's typed tracker notes when a
+// switch INTO OoT is restoring the live session (#482, same class/shape as
+// #441's ClearItemLocations guard). ItemTrackerInitFile is a SaveManager
+// initFunc, so the arrival title-demo chain runs it: a switch into OoT cold-boots
+// the title screen, Opening_SetupTitleScreen -> OoT_Sram_InitDebugSave ->
+// Save_InitFile(true) dispatches every initFunc. The frozen OoT save is restored
+// afterwards at Play_ConsumeStartupEntrance WITHOUT going through Save_LoadFile,
+// so nothing re-runs ItemTrackerLoadFile to rehydrate the notes. itemTrackerNotes
+// lives OUTSIDE gSaveContext (a module static), so blanking it here strands the
+// player's notes for the rest of the OoT session -- and the very next save
+// persists the empty buffer over their real notes via ItemTrackerSaveFile. A
+// genuine boot or return-to-title (no arrival in flight) still clears, and the
+// file load that follows rehydrates the notes as before.
+extern "C" bool Combo_HasStartupEntranceForGame(const char* gameId);
+
 void ItemTrackerInitFile(bool isDebug) {
+    if (Combo_HasStartupEntranceForGame("oot")) {
+        return;
+    }
     itemTrackerNotes.clear();
     itemTrackerNotes.push_back(0);
+}
+
+// ---- Arrival-rehydration lock (#482), item-tracker half. -------------------
+// Drives the REAL ItemTrackerInitFile (the init function the arrival title-demo
+// Save_InitFile(true) dispatches) with the OoT arrival flag set -- the notes MUST
+// survive -- and without it -- the clear MUST still fire, so the pass is not
+// vacuous. Self-contained and pure (no OTR/display/SaveManager needed), because
+// the CI rando tier has no game archive and therefore never registers the tracker
+// initFuncs (SohGui::SetupGuiElements is gated on hasGameArchive). Returns the
+// failure count.
+extern "C" {
+void Combo_SetStartupEntrance(uint16_t entrance);
+void Combo_ClearStartupEntrance(void);
+}
+
+static bool ItemTrackerNotesEqual(const char* text) {
+    const char* data = itemTrackerNotes.Data;
+    if (data == nullptr) {
+        return text[0] == '\0';
+    }
+    for (size_t i = 0;; ++i) {
+        if (data[i] != text[i]) {
+            return false;
+        }
+        if (data[i] == '\0') {
+            return true;
+        }
+    }
+}
+
+extern "C" int RandoTest_ItemTrackerArrivalLock(void) {
+    int failures = 0;
+    const char* kNotes = "rsbs-crossgame-notes";
+
+    itemTrackerNotes.clear();
+    for (const char* p = kNotes; *p != '\0'; ++p) {
+        itemTrackerNotes.push_back(*p);
+    }
+    itemTrackerNotes.push_back('\0');
+
+    // Arrival case: the init function must NOT blank the notes.
+    Combo_SetStartupEntrance(0x0100); // any pending entrance -> "a switch into OoT is in flight"
+    if (!Combo_HasStartupEntranceForGame("oot")) {
+        fprintf(stderr, "[tracker-crossgame] item: could not arm the OoT arrival flag; test setup is broken\n");
+        Combo_ClearStartupEntrance();
+        return 9;
+    }
+    ItemTrackerInitFile(true);
+    if (!ItemTrackerNotesEqual(kNotes)) {
+        fprintf(stderr, "[tracker-crossgame] item: FAIL - itemTrackerNotes blanked by the arrival init\n");
+        failures++;
+    }
+
+    // Control: without the arrival flag the clear MUST fire (non-vacuous).
+    Combo_ClearStartupEntrance();
+    ItemTrackerInitFile(true);
+    if (!ItemTrackerNotesEqual("")) {
+        fprintf(stderr, "[tracker-crossgame] item: FAIL - init did NOT clear itemTrackerNotes off the arrival path "
+                        "(lock is vacuous)\n");
+        failures++;
+    }
+
+    fprintf(stderr, "[tracker-crossgame] item: %d failures\n", failures);
+    return failures;
 }
 
 void ItemTrackerSaveFile(SaveContext* saveContext, int sectionID, bool fullSave) {

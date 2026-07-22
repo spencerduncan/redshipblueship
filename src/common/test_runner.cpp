@@ -388,6 +388,15 @@ extern "C" int Rando_HeadlessHintReloadTest(const char* seedStr);
 // Drives the real Save_Init with and without the arrival flag.
 extern "C" int Rando_HeadlessHintCrossGameTest(const char* seedStr);
 extern "C" void InitOTRForMMFirstBoot(int argc, char* argv[]);
+// Arrival-rehydration lock (#482), bodies in the two OoT tracker TUs
+// (randomizer_item_tracker.cpp / randomizer_check_tracker.cpp). Each drives the
+// REAL SaveManager initFunc that the arrival title-demo Save_InitFile(true)
+// dispatches (ItemTrackerInitFile / InitTrackerData), with the OoT arrival flag
+// set (the out-of-save tracker global must survive) and without it (the clear
+// must still fire, so the pass is not vacuous). Both are pure -- no OTR/display
+// -- so they run in the display-free suite. Each returns a failure count.
+extern "C" int RandoTest_ItemTrackerArrivalLock(void);
+extern "C" int RandoTest_CheckTrackerArrivalLock(void);
 
 TestResult Test_RandoGen(void) {
     printf("[TEST] rando-gen: seed generation succeeds with default settings (#337)\n");
@@ -484,6 +493,26 @@ TestResult Test_RandoHintCrossGame(void) {
     int rc = Rando_HeadlessHintCrossGameTest("RSBSHINT1");
     printf("[TEST] %s: hint cross-game rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
     return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// Arrival-rehydration lock (#482). Two more instances of the #441 class on the
+// OoT side: the check tracker's `areasSpoiled` and the item tracker's typed
+// `itemTrackerNotes` are blanked by SaveManager initFuncs that the arrival
+// title-demo Save_InitFile(true) dispatches, but the frozen save is restored at
+// Play_ConsumeStartupEntrance without re-running Save_LoadFile, so nothing
+// rehydrates them -- they live OUTSIDE gSaveContext. Both are guarded with
+// Combo_HasStartupEntranceForGame("oot"). This lock drives the real init
+// functions with the arrival flag set (state must survive) and without it (the
+// clear must still fire, proving the pass is non-vacuous). Pure (no display, no
+// OTR, no game archive), so unlike the rando-hint locks it runs in the
+// display-free suite and is NOT skipped by `--test all`.
+TestResult Test_TrackerArrivalRehydration(void) {
+    printf("[TEST] tracker-arrival-rehydration: check/item tracker state survives a cross-game OoT arrival (#482)\n");
+    int failures = 0;
+    failures += RandoTest_CheckTrackerArrivalLock();
+    failures += RandoTest_ItemTrackerArrivalLock();
+    printf("[TEST] %s: tracker arrival rehydration failures=%d\n", failures == 0 ? "PASS" : "FAIL", failures);
+    return failures == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // Lane B unified-seed lock. Single run: bring up OoT, generate one pinned seed,
@@ -1209,6 +1238,12 @@ const TestDescriptor gTests[] = {
     // whose title-chain Save_Init used to wipe the placement table. Needs a
     // display like rando-gen, so `--test all` skips it (below).
     {"rando-hint-crossgame", "Item hints survive a cross-game OoT arrival (#441)", Test_RandoHintCrossGame},
+    // #482: two more instances of the #441 class -- the check tracker's
+    // areasSpoiled and the item tracker's typed notes are blanked by arrival
+    // init-funcs and never rehydrated. Pure (no display), so it runs in the
+    // display-free suite (NOT skipped by `--test all`).
+    {"tracker-arrival-rehydration", "Check/item tracker state survives a cross-game OoT arrival (#482)",
+     Test_TrackerArrivalRehydration},
     // Lane B unified seed: producer stamps gComboCtx at generation time; the
     // two-process same-seed determinism diff runs via the SeedDeterminism row.
     // Needs a display like rando-gen, so `--test all` skips it (below).

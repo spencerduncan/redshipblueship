@@ -18,6 +18,7 @@
 #include "soh/ObjectExtension/ObjectExtension.h"
 #include "overlays/actors/ovl_En_GirlA/z_en_girla.h"
 
+#include <cstdio>
 #include <string>
 #include <sstream>
 #include <vector>
@@ -37,6 +38,10 @@ extern "C" {
 extern PlayState* OoT_gPlayState;
 }
 extern "C" GetItemEntry ItemTable_RetrieveEntry(s16 modIndex, s16 getItemID);
+// Cross-game arrival guard (#482, #441 shape). Defined in src/common/entrance.cpp.
+extern "C" bool Combo_HasStartupEntranceForGame(const char* gameId);
+extern "C" void Combo_SetStartupEntrance(uint16_t entrance);
+extern "C" void Combo_ClearStartupEntrance(void);
 
 extern std::vector<ItemTrackerItem> dungeonRewardStones;
 extern std::vector<ItemTrackerItem> dungeonRewardMedallions;
@@ -893,7 +898,63 @@ void CheckTrackerDialogMessage() {
 
 void InitTrackerData(bool isDebug) {
     TrySetAreas();
-    areasSpoiled = 0;
+    // Cross-game OoT arrival: do NOT reset the revealed-area state when a switch
+    // INTO OoT is restoring the live session (#482, same class/shape as #441).
+    // InitTrackerData is a SaveManager initFunc, so the arrival title-demo chain
+    // runs it (Opening_SetupTitleScreen -> OoT_Sram_InitDebugSave ->
+    // Save_InitFile(true) dispatches every initFunc). The frozen OoT save is
+    // restored afterwards at Play_ConsumeStartupEntrance WITHOUT going through
+    // Save_LoadFile, so nothing re-runs this tracker's LoadFile to rehydrate
+    // areasSpoiled. areasSpoiled lives OUTSIDE gSaveContext (a module global), so
+    // blanking it resets the check tracker's revealed areas on every OoT return
+    // leg -- and the next save persists 0 over the real value (SaveTrackerData).
+    // A genuine boot or return-to-title still clears, and the file load that
+    // follows rebuilds it.
+    if (!Combo_HasStartupEntranceForGame("oot")) {
+        areasSpoiled = 0;
+    }
+}
+
+// ---- Arrival-rehydration lock (#482), check-tracker half. -------------------
+// Drives the REAL InitTrackerData (the init function the arrival title-demo
+// Save_InitFile(true) dispatches) with the OoT arrival flag set -- areasSpoiled
+// MUST survive -- and without it -- the reset MUST still fire, so the pass is not
+// vacuous. Self-contained and pure (no OTR/display/SaveManager), because the CI
+// rando tier has no game archive and therefore never registers the tracker
+// initFuncs (SohGui::SetupGuiElements is gated on hasGameArchive). Returns the
+// failure count.
+extern "C" int RandoTest_CheckTrackerArrivalLock(void) {
+    int failures = 0;
+    const uint32_t kAreasSentinel = 0x00002A5Fu; // any nonzero revealed-area bitmask
+
+    areasSpoiled = kAreasSentinel;
+
+    // Arrival case: the init function must NOT reset areasSpoiled.
+    Combo_SetStartupEntrance(0x0100); // any pending entrance -> "a switch into OoT is in flight"
+    if (!Combo_HasStartupEntranceForGame("oot")) {
+        fprintf(stderr, "[tracker-crossgame] check: could not arm the OoT arrival flag; test setup is broken\n");
+        Combo_ClearStartupEntrance();
+        return 9;
+    }
+    InitTrackerData(true);
+    if (areasSpoiled != kAreasSentinel) {
+        fprintf(stderr, "[tracker-crossgame] check: FAIL - areasSpoiled reset by the arrival init (0x%X != 0x%X)\n",
+                areasSpoiled, kAreasSentinel);
+        failures++;
+    }
+
+    // Control: without the arrival flag the reset MUST fire (non-vacuous).
+    Combo_ClearStartupEntrance();
+    InitTrackerData(true);
+    if (areasSpoiled != 0) {
+        fprintf(stderr, "[tracker-crossgame] check: FAIL - init did NOT reset areasSpoiled off the arrival path "
+                        "(lock is vacuous, 0x%X)\n",
+                areasSpoiled);
+        failures++;
+    }
+
+    fprintf(stderr, "[tracker-crossgame] check: %d failures\n", failures);
+    return failures;
 }
 
 void SaveTrackerData(SaveContext* saveContext, int sectionID, bool fullSave) {

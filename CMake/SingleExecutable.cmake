@@ -296,6 +296,16 @@ if(BUILD_TESTING)
     # linear gEntranceTable index — the OOB-read crash behind the Market
     # cutscene 0xC0000005.
     redship_add_test(NAME StartupEntrance COMMAND redship --test startup-entrance)
+    # Arrival-rehydration lock (#482): two more instances of the #441 class. A
+    # switch INTO OoT cold-boots the title chain, whose Save_InitFile(true)
+    # dispatches SaveManager initFuncs that blank the check tracker's areasSpoiled
+    # and the item tracker's typed notes -- both OUTSIDE gSaveContext. The frozen
+    # save is restored at Play_ConsumeStartupEntrance without re-running
+    # Save_LoadFile, so nothing rehydrates them; the next save then persists the
+    # blanked values. Guarded with Combo_HasStartupEntranceForGame("oot"). Drives
+    # the real init functions with and without the arrival flag (survive vs. still
+    # clear). Pure -- no display -- so it runs in this redship tier.
+    redship_add_test(NAME TrackerArrivalRehydration COMMAND redship --test tracker-arrival-rehydration)
     # Entrance-link dedup regression (#374): the default (mask shop) and test
     # (Mido's House) links both return through MM 0xC010, and both were
     # registered unconditionally. Entrance_CheckCrossGame resolves first-match,
