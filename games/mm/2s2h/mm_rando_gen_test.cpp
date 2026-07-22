@@ -1159,4 +1159,191 @@ extern "C" int MM_Rando_HeadlessReloadArmState(void) {
     return 0;
 }
 
+// ============================================================================
+// Moon-crash arm-state lock — the operator-confirmed P0.
+//
+// A moon crash (the three-day clock expiring, e.g. while AFK) runs
+// Sram_ResetSaveFromMoonCrash (games/mm/src/code/z_sram_NES.c), which re-reads
+// the file from flash and memcpy's sizeof(Save) over gSaveContext.save.
+// ShipSaveInfo -- carrying saveType AND the whole rando block (finalSeed,
+// options, the RC_MAX placement table) -- is a MEMBER of Save, so that memcpy
+// overwrites the randomizer identity wholesale.
+//
+// A cross-game paired MM world is authored IN MEMORY at the arrival and is not
+// in MM flash until the player saves, so the reload pulls a vanilla on-disk
+// save: saveType reverts to SAVETYPE_VANILLA, every IS_RANDO COND_HOOK
+// unregisters, and MM plays vanilla for the rest of the session -- then the next
+// switch-out freezes THAT save, so the vanilla world survives every later return
+// leg. That is the "paired MM world plays vanilla" report.
+//
+// This row drives the REAL Sram_ResetSaveFromMoonCrash against a live paired
+// world. Arm state is probed through a VB verdict rather than a hook COUNT:
+// COND_HOOK's Unregister is DEFERRED (mm_game_hooks.h), so CountForTest lags a
+// disarm and would let this pass vacuously -- the same weakness that let the
+// original bug ship green.
+// ============================================================================
+extern "C" int MM_Rando_HeadlessMoonCrashArmState(void) {
+    auto ctx = Ship::Context::GetInstance();
+    if (ctx == nullptr || ctx->GetConsoleVariables() == nullptr) {
+        fprintf(stderr, "[MM-MOONCRASH] FAIL(1): Ship::Context not live\n");
+        return 1;
+    }
+
+    MM_Rando_Init();
+    if (Rando::Logic::Regions.empty()) {
+        fprintf(stderr, "[MM-MOONCRASH] FAIL(2): Logic/Regions graph empty — rando surface elided\n");
+        return 2;
+    }
+    if (gRegEditor == NULL) {
+        static RegEditor sMoonCrashRegEditor = {};
+        gRegEditor = &sMoonCrashRegEditor;
+    }
+
+    ComboContext_Init();
+    Combo_ClearForeignPlacements();
+    Combo_ClearFrozenState("mm");
+    Combo_ClearStartupEntrance();
+
+    // ----------------------------------------------------------------------
+    // Phase 1 — a live paired rando world, armed.
+    // fileNum 0 (not the cross-game session's 0xFF) keeps the flash page-table
+    // indexing inside gFlashSaveStartPages; this row is about saveType
+    // preservation, not the fileNum indexing question.
+    // ----------------------------------------------------------------------
+    memset(&gSaveContext, 0, sizeof(gSaveContext));
+    MM_Sram_InitNewSave();
+    gSaveContext.fileNum = 0;
+    gSaveContext.save.shipSaveInfo.saveType = SAVETYPE_RANDO;
+    gSaveContext.save.shipSaveInfo.rando.finalSeed = 0xC0FFEE01;
+    RANDO_SAVE_CHECKS[RC_CLOCK_TOWN_SOUTH_PLATFORM_PIECE_OF_HEART].shuffled = true;
+    GameInteractor_ExecuteOnSaveLoad(gSaveContext.fileNum);
+
+    if (GameInteractor_Should(VB_GIVE_ITEM_FROM_GREAT_FAIRY, true)) {
+        fprintf(stderr, "[MM-MOONCRASH] FAIL(3): the paired world did not arm the IS_RANDO give override — "
+                        "premise broken before the moon crash\n");
+        return 3;
+    }
+
+    // ----------------------------------------------------------------------
+    // Phase 2 — the REAL moon-crash reset. Flash holds no rando save for this
+    // in-memory paired world (nothing was ever written), which is exactly the
+    // production condition: the reload yields a zeroed/vanilla Save.
+    // ----------------------------------------------------------------------
+    static u8 sMoonCrashSaveBuf[SAVE_BUFFER_SIZE];
+    SramContext moonCrashSram = {};
+    moonCrashSram.saveBuf = sMoonCrashSaveBuf;
+
+    Sram_ResetSaveFromMoonCrash(&moonCrashSram);
+
+    // ----------------------------------------------------------------------
+    // Phase 3 — the world identity must survive, and the hooks must still be
+    // armed against it. A moon crash resets the CYCLE, never the rando identity.
+    // ----------------------------------------------------------------------
+    if (gSaveContext.save.shipSaveInfo.saveType != SAVETYPE_RANDO) {
+        fprintf(stderr, "[MM-MOONCRASH] FAIL(4): the moon-crash save reload reverted saveType to vanilla — every "
+                        "IS_RANDO hook disarms and MM plays vanilla for the rest of the session\n");
+        return 4;
+    }
+    if (gSaveContext.save.shipSaveInfo.rando.finalSeed != 0xC0FFEE01) {
+        fprintf(stderr,
+                "[MM-MOONCRASH] FAIL(5): the moon-crash reload lost the paired world identity "
+                "(finalSeed %08X, expected C0FFEE01)\n",
+                gSaveContext.save.shipSaveInfo.rando.finalSeed);
+        return 5;
+    }
+    if (!RANDO_SAVE_CHECKS[RC_CLOCK_TOWN_SOUTH_PLATFORM_PIECE_OF_HEART].shuffled) {
+        fprintf(stderr, "[MM-MOONCRASH] FAIL(6): the moon-crash reload wiped the placement table — the world would "
+                        "be armed but empty\n");
+        return 6;
+    }
+    if (GameInteractor_Should(VB_GIVE_ITEM_FROM_GREAT_FAIRY, true)) {
+        fprintf(stderr, "[MM-MOONCRASH] FAIL(7): saveType survived but the IS_RANDO hooks were left unregistered by "
+                        "the reload — MM would still play vanilla on a save that claims to be rando\n");
+        return 7;
+    }
+
+    // ----------------------------------------------------------------------
+    // Phase 4 — SELF-HEAL an already-corrupted save, through the REAL arrival.
+    //
+    // Saves damaged by this bug before the fix landed are still on disk: a
+    // complete rando world (finalSeed + placement table intact) sitting under
+    // saveType=VANILLA. MM's own code can never author that combination --
+    // Sram_ResetSave memsets shipSaveInfo wholesale and MM_Sram_InitNewSave then
+    // stamps SAVETYPE_VANILLA, so a vanilla file always has finalSeed == 0.
+    // Seeing it is positive evidence that a rando file lost its type byte, and
+    // MM_Rando_PairOnCrossGameArrival re-stamps SAVETYPE_RANDO rather than
+    // accepting a permanently-vanilla world.
+    //
+    // Driven through MM_Play_ConsumeStartupEntrance -- the real consumption
+    // point -- not by calling the pairing directly, so this covers the actual
+    // arrival path a player takes.
+    // ----------------------------------------------------------------------
+    const uint16_t kArrival = 0xD800; // ENTRANCE(SOUTH_CLOCK_TOWN, 0) — the OoT->MM arrival
+
+    ComboContext_Init();
+    Combo_ClearForeignPlacements();
+    Combo_ClearFrozenState("mm");
+    Combo_ClearStartupEntrance();
+
+    memset(&gSaveContext, 0, sizeof(gSaveContext));
+    MM_Sram_InitNewSave();
+    gSaveContext.fileNum = 0;
+
+    // DISARM first, against the vanilla bootstrap -- exactly what the arrival's
+    // cold gamestate-chain boot does before the consume. Without this the
+    // hooks would still be armed from Phase 1 and the re-arm assertion below
+    // would pass whether or not the repair actually re-dispatched anything,
+    // i.e. vacuously. (That is precisely the weakness this row exists to
+    // avoid: MMPairSwitchEntry's arming assertion is a bare count delta.)
+    GameInteractor_ExecuteOnSaveLoad(gSaveContext.fileNum);
+    if (!GameInteractor_Should(VB_GIVE_ITEM_FROM_GREAT_FAIRY, true)) {
+        fprintf(stderr, "[MM-MOONCRASH] FAIL(8): the vanilla bootstrap did not disarm the IS_RANDO give override — "
+                        "the Phase 4 re-arm assertion would be vacuous\n");
+        return 8;
+    }
+
+    // The corrupted shape: live rando world, vanilla type byte.
+    gSaveContext.save.shipSaveInfo.saveType = SAVETYPE_VANILLA;
+    gSaveContext.save.shipSaveInfo.rando.finalSeed = 0xC0FFEE02;
+    RANDO_SAVE_CHECKS[RC_CLOCK_TOWN_SOUTH_PLATFORM_PIECE_OF_HEART].shuffled = true;
+
+    // A paired OoT world exists (Lane B stamp), and this is a return leg: a
+    // frozen MM session restored by the consume below.
+    gComboCtx.sourceIsRando = 1;
+    gComboCtx.sharedRandoSeed = 4170548651u;
+    gComboCtx.sharedRandoSettingsHash = 0x5DAD32CEu;
+    Combo_FreezeState("mm", kArrival, &gSaveContext, sizeof(gSaveContext));
+    Combo_SetStartupEntrance(kArrival);
+
+    MM_Play_ConsumeStartupEntrance();
+
+    if (gSaveContext.save.shipSaveInfo.saveType != SAVETYPE_RANDO) {
+        fprintf(stderr, "[MM-MOONCRASH] FAIL(9): a restored save carrying a complete rando world under "
+                        "saveType=vanilla was accepted as vanilla — the world is unrecoverable and MM plays "
+                        "vanilla forever\n");
+        return 9;
+    }
+    if (gSaveContext.save.shipSaveInfo.rando.finalSeed != 0xC0FFEE02) {
+        fprintf(stderr, "[MM-MOONCRASH] FAIL(10): the repair regenerated or clobbered the player's world "
+                        "(finalSeed changed) — an existing file must never be regenerated\n");
+        return 10;
+    }
+    if (GameInteractor_Should(VB_GIVE_ITEM_FROM_GREAT_FAIRY, true)) {
+        fprintf(stderr, "[MM-MOONCRASH] FAIL(11): the repaired save did not leave the IS_RANDO hooks armed\n");
+        return 11;
+    }
+    fprintf(stderr, "[MM-MOONCRASH] self-heal repaired a vanilla-stamped rando world through the real arrival\n");
+
+    // Leave clean global state for later dispatches in the same process.
+    ComboContext_Init();
+    Combo_ClearForeignPlacements();
+    Combo_ClearFrozenState("mm");
+    Combo_ClearStartupEntrance();
+    memset(&gSaveContext, 0, sizeof(gSaveContext));
+
+    fprintf(stderr, "[MM-MOONCRASH] PASS: a moon crash preserves the paired world identity, leaves the IS_RANDO "
+                    "hooks armed, and an already-corrupted save self-heals on arrival\n");
+    return 0;
+}
+
 #endif // RSBS_SINGLE_EXECUTABLE

@@ -641,6 +641,34 @@ TestResult Test_MMReloadArmState(void) {
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// Moon-crash arm-state lock (the operator-confirmed P0). A moon crash reloads
+// the file from flash over gSaveContext.save; ShipSaveInfo (saveType + the whole
+// rando block) is a MEMBER of Save, so an in-memory paired world loses its
+// randomizer identity and MM silently plays vanilla from then on -- permanently,
+// because the next switch-out freezes the vanilla save. Drives the REAL
+// Sram_ResetSaveFromMoonCrash and probes arm state through a VB verdict (not a
+// hook count, which lags a deferred unregister). Bridge body in
+// games/mm/2s2h/mm_rando_gen_test.cpp. Needs a display, same as mm-rando-gen.
+extern "C" int MM_Rando_HeadlessMoonCrashArmState(void);
+
+TestResult Test_MMMoonCrashArmState(void) {
+    printf("[TEST] mm-moon-crash-arm-state: a moon crash preserves the paired world and its IS_RANDO hooks\n");
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    int rc = MM_Rando_HeadlessMoonCrashArmState();
+    printf("[TEST] %s: moon-crash arm-state rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 TestResult Test_BootMM(void) {
     printf("[TEST] boot-mm: MM-first bring-up prerequisites (#330)\n");
     sTargetGame = GAME_MM;
@@ -1263,6 +1291,10 @@ const TestDescriptor gTests[] = {
     // mm-rando-gen, so `--test all` skips it.
     {"mm-reload-arm-state", "IS_RANDO hooks match the save on MM's non-arrival entry paths (#439)",
      Test_MMReloadArmState},
+    // The operator-confirmed P0: a moon crash must not strip a paired world's
+    // randomizer identity. Same display requirement, so `--test all` skips it.
+    {"mm-moon-crash-arm-state", "A moon crash preserves the paired MM world and its IS_RANDO hooks",
+     Test_MMMoonCrashArmState},
     {"boot-oot", "Shared-context bring-up leaves no null subsystems (#329)", Test_BootOoT},
     {"boot-mm", "MM-first bring-up prerequisites on the shared context (#330)", Test_BootMM},
     {"switch-oot-mm", "Test game switch OoT -> MM", Test_SwitchOoTMM},
@@ -1436,7 +1468,8 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "rando-hint-crossgame") == 0 ||
                 strcmp(gTests[i].name, "mm-rando-gen") == 0 ||
                 strcmp(gTests[i].name, "mm-pair-switch-entry") == 0 ||
-                strcmp(gTests[i].name, "mm-reload-arm-state") == 0) {
+                strcmp(gTests[i].name, "mm-reload-arm-state") == 0 ||
+                strcmp(gTests[i].name, "mm-moon-crash-arm-state") == 0) {
                 printf("\n--- Skipping: %s (needs display; runs as a rando-label CTest) ---\n", gTests[i].name);
                 continue;
             }

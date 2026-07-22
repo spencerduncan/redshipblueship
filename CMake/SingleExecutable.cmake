@@ -598,6 +598,21 @@ if(BUILD_TESTING)
         TIMEOUT 180
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
+    # The operator-confirmed P0. A moon crash (three-day clock expiring, e.g.
+    # while AFK) runs Sram_ResetSaveFromMoonCrash, which re-reads the file from
+    # flash and memcpy's sizeof(Save) over gSaveContext.save. ShipSaveInfo --
+    # saveType AND the whole rando block -- is a MEMBER of Save, and a cross-game
+    # paired world lives only in memory until the player saves, so the reload
+    # stripped the randomizer identity: every IS_RANDO COND_HOOK unregistered and
+    # MM played vanilla, permanently, because the next switch-out froze that save.
+    # Probes arm state through a VB verdict, not a hook count (COND_HOOK's
+    # Unregister is deferred, so a count lags a disarm and would pass vacuously).
+    # Same display requirement, hence the same label/env.
+    redship_add_test(NAME MMMoonCrashArmState COMMAND redship --test mm-moon-crash-arm-state
+        LABEL rando
+        TIMEOUT 180
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+
     # ========================================================================
     # Lane B — unified seed -> paired world (Phase 3.0)
     #
