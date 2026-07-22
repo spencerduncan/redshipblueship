@@ -522,6 +522,18 @@ if(BUILD_TESTING)
         TIMEOUT 180
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
+    # Cross-game arrival lock (#441) — THE root-cause lock. A switch into OoT
+    # cold-boots the title chain, whose Title_Destroy -> OoT_Sram_InitSram ->
+    # Save_Init wiped the Rando::Context placement table while the frozen save was
+    # restored without re-running LoadRandomizer, so every item hint stranded on
+    # "No Item" though its location phrasing survived (ClearItemLocations never
+    # touches hintTable). Drives the real Save_Init with and without the arrival
+    # flag. Same display-but-no-archives tier.
+    redship_add_test(NAME RandoHintCrossGame COMMAND redship --test rando-hint-crossgame
+        LABEL rando
+        TIMEOUT 180
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+
     # Song shuffle modes. Stock (RandoGen above) already covers mode 1 — "Song
     # Locations" is the default — which is the mode that regressed when the
     # linker dropped ShuffleSongs.cpp.o from the static soh_rando archive and

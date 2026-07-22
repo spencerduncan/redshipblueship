@@ -341,6 +341,151 @@ extern "C" int Rando_HeadlessHintReloadTest(const char* seedStr) {
     return failures == 0 ? 0 : 1;
 }
 
+// Implemented in SaveManager.cpp / src/common/entrance.cpp. Save_Init() is the
+// SRAM boot init the gamestate framework dispatches from Title_Destroy on every
+// pass through the title chain -- including the cold-boot chain a switch INTO
+// OoT walks. The Combo_* startup-entrance calls stand in for "a cross-game OoT
+// arrival is in flight".
+extern "C" void Save_Init(void);
+extern "C" void Combo_SetStartupEntrance(uint16_t entrance);
+extern "C" void Combo_ClearStartupEntrance(void);
+extern "C" bool Combo_HasStartupEntranceForGame(const char* gameId);
+
+// Cross-game arrival lock (#441). THE actual operator-visible defect: gossip
+// stones read "catching Big Poes leads to No Item" after switching OoT->MM->OoT.
+// The reload lock above proves a file LOAD rehydrates correctly; this proves the
+// OTHER entry into OoT does not. A switch into OoT cold-boots the gamestate chain
+// through the title screen, and Title_Destroy runs OoT_Sram_InitSram -> Save_Init
+// -> SaveManager::Init, whose tail wiped the Rando::Context placement table
+// (ClearItemLocations). The frozen OoT save is restored afterwards at
+// Play_ConsumeStartupEntrance WITHOUT going through Save_LoadFile, so nothing
+// re-runs LoadRandomizer to rehydrate it -- the #447 class. ClearItemLocations
+// only empties itemLocationTable, never hintTable, which is exactly why the hint
+// kept its location phrasing ("catching Big Poes") while the item resolved to
+// itemTable[RG_NONE] ("No Item").
+//
+// The fix guards that clear with Combo_HasStartupEntranceForGame("oot"). This
+// test drives the real Save_Init both WITH the arrival flag set (placements must
+// survive; item hints must still name their real item) and WITHOUT it (the clear
+// must still fire, proving the guard is the only thing that saved the world and
+// the assertion above is not vacuous).
+extern "C" int Rando_HeadlessHintCrossGameTest(const char* seedStr) {
+    int rc = Rando_HeadlessSeedTest(seedStr);
+    if (rc != 0) {
+        fprintf(stderr, "[hint-crossgame] generation failed rc=%d\n", rc);
+        return rc;
+    }
+    auto ctx = Rando::Context::GetInstance();
+    if (!ctx) {
+        fprintf(stderr, "[hint-crossgame] no Rando::Context after generation\n");
+        return 4;
+    }
+
+    const std::string sentinel = Rando::StaticData::RetrieveItem(RG_NONE).GetName().GetEnglish();
+    if (sentinel.empty()) {
+        fprintf(stderr, "[hint-crossgame] itemTable[RG_NONE] has no name; item table not initialised\n");
+        return 5;
+    }
+
+    // A sample location that holds a real item, to prove the placement table is
+    // (a) preserved on arrival and (b) genuinely cleared without the guard.
+    bool haveSample = false;
+    size_t sample = 0;
+    for (int i = 1; i < RC_MAX; i++) {
+        if (ctx->GetItemLocation(i)->GetPlacedRandomizerGet() != RG_NONE) {
+            haveSample = true;
+            sample = (size_t)i;
+            break;
+        }
+    }
+    if (!haveSample) {
+        fprintf(stderr, "[hint-crossgame] no placed items after generation; cannot exercise the lock\n");
+        return 8;
+    }
+
+    // Snapshot every enabled item hint's live text before the arrival.
+    struct HintSnapshot {
+        RandomizerHint key;
+        std::string name;
+        std::vector<std::string> messages;
+    };
+    std::vector<HintSnapshot> snapshots;
+    for (int h = RH_NONE + 1; h < RH_MAX; h++) {
+        const auto hintKey = static_cast<RandomizerHint>(h);
+        Rando::Hint* hint = ctx->GetHint(hintKey);
+        if (hint == nullptr || !hint->IsEnabled()) {
+            continue;
+        }
+        const HintType hintType = hint->GetHintType();
+        if (hintType != HINT_TYPE_ITEM && hintType != HINT_TYPE_ITEM_AREA) {
+            continue;
+        }
+        HintSnapshot snap;
+        snap.key = hintKey;
+        snap.name = Rando::StaticData::hintNames[hintKey].GetForCurrentLanguage(MF_CLEAN);
+        snap.messages = hint->GetAllMessageStrings(MF_CLEAN);
+        snapshots.push_back(std::move(snap));
+    }
+    if (snapshots.empty()) {
+        fprintf(stderr, "[hint-crossgame] no enabled item hints were generated; the lock would vacuously pass\n");
+        return 6;
+    }
+    fprintf(stderr, "[hint-crossgame] snapshotted %zu enabled item hints; sample check %zu\n", snapshots.size(), sample);
+
+    // ---- Arrival case: Save_Init must NOT wipe placements. ----
+    Combo_SetStartupEntrance(0x0100); // any pending entrance -> "a switch into OoT is in flight"
+    if (!Combo_HasStartupEntranceForGame("oot")) {
+        fprintf(stderr, "[hint-crossgame] could not arm the OoT arrival flag; test setup is broken\n");
+        Combo_ClearStartupEntrance();
+        return 9;
+    }
+    Save_Init();
+    const bool survivedArrival =
+        Rando::Context::GetInstance()->GetItemLocation(sample)->GetPlacedRandomizerGet() != RG_NONE;
+
+    size_t failures = 0;
+    auto afterArrival = Rando::Context::GetInstance();
+    for (const HintSnapshot& snap : snapshots) {
+        Rando::Hint* hint = afterArrival->GetHint(snap.key);
+        const std::vector<std::string> after =
+            hint != nullptr ? hint->GetAllMessageStrings(MF_CLEAN) : std::vector<std::string>{};
+        for (const std::string& message : after) {
+            if (message.find(sentinel) != std::string::npos) {
+                fprintf(stderr,
+                        "[hint-crossgame] FAIL %s: after a cross-game OoT arrival the hint resolves to the no-item "
+                        "sentinel: \"%s\"\n",
+                        snap.name.c_str(), message.c_str());
+                failures++;
+            }
+        }
+        if (after != snap.messages) {
+            fprintf(stderr, "[hint-crossgame] FAIL %s: the arrival changed the hint text\n", snap.name.c_str());
+            failures++;
+        }
+    }
+    if (!survivedArrival) {
+        fprintf(stderr, "[hint-crossgame] FAIL: sample check %zu was wiped to RG_NONE by the arrival Save_Init\n",
+                sample);
+        failures++;
+    }
+
+    // ---- Control: without the arrival flag, the clear MUST still fire, so the
+    // pass above cannot be a no-op that never reached ClearItemLocations. ----
+    Combo_ClearStartupEntrance();
+    Save_Init();
+    const bool clearedWhenNotArriving =
+        Rando::Context::GetInstance()->GetItemLocation(sample)->GetPlacedRandomizerGet() == RG_NONE;
+    if (!clearedWhenNotArriving) {
+        fprintf(stderr, "[hint-crossgame] FAIL: Save_Init did NOT clear placements off the arrival path -- the lock is "
+                        "vacuous (ClearItemLocations was never reached)\n");
+        failures++;
+    }
+
+    fprintf(stderr, "[hint-crossgame] checked %zu item hints across a cross-game arrival, %zu failures\n",
+            snapshots.size(), failures);
+    return failures == 0 ? 0 : 1;
+}
+
 // Determinism harness bridge (Lane B, Phase 3.0): run ONE seed generation and
 // emit a canonical, side-effect-free digest of (a) the unified-seed producer's
 // output in gComboCtx and (b) the full item placement, so an external wrapper

@@ -514,6 +514,12 @@ void SaveManager::SaveRandomizer(SaveContext* saveContext, int sectionID, bool f
 
 // Init() here is an extension of InitSram, and thus not truly an initializer for SaveManager itself. don't put any
 // class initialization stuff here
+// Cross-game arrival signal (src/common/entrance.h). True while a switch INTO
+// OoT is in flight, i.e. the boot chain is restoring the live OoT session rather
+// than performing a player-visible reset. Declared here (as z_title.c does)
+// to avoid pulling the src/common header into this OoT TU.
+extern "C" bool Combo_HasStartupEntranceForGame(const char* gameId);
+
 void SaveManager::Init() {
     // Wait on saves that snuck through the Wait in OnExitGame
     ThreadPoolWait();
@@ -574,7 +580,27 @@ void SaveManager::Init() {
         }
     }
     saveBlock = nlohmann::json::object();
-    OTRGlobals::Instance->gRandoContext->ClearItemLocations();
+
+    // #441: do NOT wipe the randomizer placement table when a cross-game arrival
+    // is restoring the live OoT session. This Init() runs from OoT_Sram_InitSram,
+    // which the gamestate framework dispatches via Title_Destroy on EVERY entry
+    // through the title chain -- including the cold-boot chain a switch INTO OoT
+    // walks (see z_title.c: the arrival sets running=false but Title_Destroy
+    // still fires). On that path the frozen OoT save is restored later at
+    // Play_ConsumeStartupEntrance WITHOUT going through Save_LoadFile, so nothing
+    // re-runs LoadRandomizer to rehydrate the Rando::Context. The context is an
+    // in-memory singleton that survives the switch (OoT is suspended, not shut
+    // down), so its placements are still valid here -- clearing them stranded
+    // every item hint on RG_NONE ("No Item"). ClearItemLocations only touches the
+    // itemLocationTable, not hintTable, which is why the hint's location phrasing
+    // survived while the item name decayed. On a genuine boot or a real
+    // return-to-title (no arrival in flight) the clear still runs, and the file
+    // load that follows rehydrates the table as before.
+    if (!Combo_HasStartupEntranceForGame("oot")) {
+        OTRGlobals::Instance->gRandoContext->ClearItemLocations();
+    } else {
+        SPDLOG_INFO("[#441] Skipping ClearItemLocations: cross-game OoT arrival is restoring the live rando session");
+    }
 }
 
 void SaveManager::StartupCheckAndInitMeta(int fileNum) {
