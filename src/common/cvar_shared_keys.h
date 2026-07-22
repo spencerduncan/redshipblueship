@@ -131,18 +131,26 @@ struct ConvergedKey {
 };
 
 /**
- * The convergence set landed by this work. The single table the version-7
- * config updater and the 2Ship importer both consume, so the two cannot drift.
+ * The convergence set. The single table the config version updaters and the
+ * 2Ship importer all consume, so they cannot drift.
  *
- * SCOPE NOTE — this is not the whole convergence backlog. ADR 0003 §5.1 scoped
- * "tier 1" to these 9 keys; ADR 0004's inventory §5.3 independently found 26
- * more convergence rows. The two sets are very nearly DISJOINT, not nested:
- * the inventory classified MM's `gEnhancements.*`/`gCheats.*` categories and
- * the 35-key collision set, while the audio-volume family below is in neither
- * (MM and OoT spell it differently, so it is not a collision, and it is not an
- * enhancement). They intersect only on the three tunic keys. The inventory's
- * 26 rows are tracked separately and are NOT attempted here — four of them are
- * parked on unanswered taxonomy questions (see kMustStayDistinct).
+ * SCOPE — this table now carries BOTH waves of convergence:
+ *
+ *   - Tier 1 (#34 / PR #461): the 6 audio-volume keys and the 3 tunic-colour
+ *     keys. The volume rows carry scaledPercent=true because OoT stores integer
+ *     percent while MM stored a float scale; those need a value transform, not
+ *     just a rename (see the representation note above). Migrated by
+ *     ConfigVersion7Updater.
+ *   - The inventory §5.3 remainder (#462): 23 of its 26 rows. All pure renames —
+ *     each was re-verified against origin/main to agree on TYPE, UNITS, RANGE
+ *     and DEFAULT on both sides before it was treated as mechanical, because a
+ *     key-only swap across a representation gap is a silent no-op, not a fix
+ *     (the trap the volume rows hit). Migrated by ConfigVersion8Updater.
+ *
+ * The 3 unlanded §5.3 rows did NOT pass that verification and are held out:
+ * ClimbSpeed (OoT additive "+N" 0-12 vs MM multiplier 1-5×, incompatible units
+ * and neutral value) plus the two parked cheat pairs (scope/gate undecided) —
+ * all three now sit in kMustStayDistinct so a future plain rename fails CI.
  */
 inline constexpr ConvergedKey kConvergedKeys[] = {
     { RSBS_CVAR_LEGACY_VOLUME_MASTER, RSBS_CVAR_VOLUME_MASTER, true },
@@ -154,6 +162,57 @@ inline constexpr ConvergedKey kConvergedKeys[] = {
     { RSBS_CVAR_LEGACY_COLOR_KOKIRI_TUNIC, RSBS_CVAR_COLOR_KOKIRI_TUNIC, false },
     { RSBS_CVAR_LEGACY_COLOR_GORON_TUNIC, RSBS_CVAR_COLOR_GORON_TUNIC, false },
     { RSBS_CVAR_LEGACY_COLOR_ZORA_TUNIC, RSBS_CVAR_COLOR_ZORA_TUNIC, false },
+
+    // ---- Inventory §5.3 remainder (#462), ConfigVersion8Updater. ----
+    // All pure renames (scaledPercent=false): representation re-verified matching
+    // on both sides. MM's read sites and OoT's already agree on int/bool type and
+    // default, so version8Migrations copies the stored value unchanged.
+
+    // Group A — identical leaf, MM adds a category prefix. (ClimbSpeed is the
+    // 12th Group A row and is deliberately absent: it is in kMustStayDistinct
+    // because OoT reads it as an additive "+0..12" offset and MM as a "1..5x"
+    // multiplier — same name, incompatible units.)
+    { "gEnhancements.Timesavers.FastChests", "gEnhancements.FastChests", false },
+    { "gEnhancements.Graphics.BowReticle", "gEnhancements.BowReticle", false },
+    { "gEnhancements.Graphics.DisableBlackBars", "gEnhancements.DisableBlackBars", false },
+    { "gEnhancements.Player.InstantPutaway", "gEnhancements.InstantPutaway", false },
+    { "gEnhancements.Equipment.ItemUnequip", "gEnhancements.ItemUnequip", false },
+    // The Autosave ENABLE flag converges; the MM-only interval slider
+    // (gEnhancements.Saving.AutosaveInterval) does NOT ride along — it is in
+    // kMustStayDistinct because OoT hardcodes its interval with no CVar.
+    { "gEnhancements.Saving.Autosave", "gEnhancements.Autosave", false },
+    { "gEnhancements.Saving.RememberSaveLocation", "gEnhancements.RememberSaveLocation", false },
+    { "gEnhancements.Dpad.DpadEquips", "gEnhancements.DpadEquips", false },
+    { "gEnhancements.Restorations.PauseBufferWindow", "gEnhancements.PauseBufferWindow", false },
+    { "gEnhancements.DifficultyOptions.HyperEnemies", "gEnhancements.HyperEnemies", false },
+    // Top-level namespace change too: MM gEnhancements.Mods -> OoT gSettings.Mods.
+    { "gEnhancements.Mods.AlternateAssetsHotkey", "gSettings.Mods.AlternateAssetsHotkey", false },
+
+    // Group B — wording drift, same meaning. The two parked cheat pairs
+    // (InfiniteConsumables/InfiniteAmmo, UnrestrictedItems/NoRestrictItems) are
+    // NOT here — their scope/gate is undecided, so they stay in kMustStayDistinct.
+    { "gCheats.ClimbAnywhere", "gCheats.ClimbEverything", false },
+    { "gCheats.HookshotAnywhere", "gCheats.HookshotEverything", false },
+    { "gCheats.InfiniteRupees", "gCheats.InfiniteMoney", false },
+    { "gEnhancements.Graphics.EnemyHealthBars", "gEnhancements.EnemyHealthBar", false },
+    { "gEnhancements.Cutscenes.HideTitleCards", "gEnhancements.TimeSavers.DisableTitleCard", false },
+
+    // Group C — cutscene-skip family. OoT groups under TimeSavers.SkipCutscene.*,
+    // MM under Cutscenes.Skip*Cutscenes. Both bool. (OoT defaults these to
+    // IS_RANDO and MM to 0; that per-reader default difference is inherent to a
+    // shared key and pre-dates convergence — it is not a type mismatch.)
+    { "gEnhancements.Cutscenes.SkipEntranceCutscenes", "gEnhancements.TimeSavers.SkipCutscene.Entrances", false },
+    { "gEnhancements.Cutscenes.SkipIntroSequence", "gEnhancements.TimeSavers.SkipCutscene.Intro", false },
+    { "gEnhancements.Cutscenes.SkipOnePointCutscenes", "gEnhancements.TimeSavers.SkipCutscene.OnePoint", false },
+    { "gEnhancements.Cutscenes.SkipStoryCutscenes", "gEnhancements.TimeSavers.SkipCutscene.Story", false },
+
+    // Group D — free-look. OoT files it under gSettings.FreeLook, MM under
+    // gEnhancements.Camera.FreeLook. Enable is bool; MaxCameraDistance and
+    // TransitionSpeed are int sliders read with CVarGetInteger on BOTH sides
+    // (TransitionSpeed default 25 on both), so no representation gap.
+    { "gEnhancements.Camera.FreeLook.Enable", "gSettings.FreeLook.Enabled", false },
+    { "gEnhancements.Camera.FreeLook.MaxCameraDistance", "gSettings.FreeLook.MaxCameraDistance", false },
+    { "gEnhancements.Camera.FreeLook.TransitionSpeed", "gSettings.FreeLook.TransitionSpeed", false },
 };
 
 /**
@@ -209,6 +268,14 @@ inline constexpr DistinctPair kMustStayDistinct[] = {
       "gSettings.Controls.InvertShieldAimingYAxis",
       "Different namespace AND different axis coverage: OoT has X+Y, MM has Y only. Merging loses OoT's "
       "X axis." },
+    { "Climb speed (inventory §5.3 group A, reclassified P by #462)", "gEnhancements.Player.ClimbSpeed",
+      "gEnhancements.ClimbSpeed",
+      "Listed in §5.3 group A as 'both numeric', but representation verification found INCOMPATIBLE UNITS: "
+      "OoT reads it as an ADDITIVE offset (slider '+%d', 0-12, default 0; playSpeed += phi_f2 * value) while "
+      "MM reads it as a MULTIPLIER (slider 1-5, default 1; *speed *= value, gated value>1). The neutral value "
+      "(0 vs 1) and the range (0-12 vs 1-5) both disagree, so a shared slider cannot mean both. Same failure "
+      "shape as P1 text speed. Converge only after a maintainer decides which unit wins and MM's read/menu are "
+      "converted to it — a plain key swap is a regression, not a fix." },
     { "Autosave interval (inventory §5.3 group A caveat)", "gEnhancements.Saving.AutosaveInterval",
       "(none — OoT hardcodes THREE_MINUTES_IN_UNIX)",
       "The Autosave ENABLE flag is genuinely shared-intent, but OoT's interval is hardcoded with no CVar. "
@@ -337,12 +404,11 @@ inline constexpr std::size_t kDisputedClassificationKeyCount =
     sizeof(kDisputedClassificationKeys) / sizeof(kDisputedClassificationKeys[0]);
 inline constexpr std::size_t kMenuIndexKeyCount = sizeof(kMenuIndexKeys) / sizeof(kMenuIndexKeys[0]);
 
-// ADR 0003 §5.1 summarises tier 1 as "8 renames across 9 literal sites"; its
-// own sub-counts say 6 audio + 3 colour. Both describe this 9-entry table: 8 of
-// the 9 land on a key OoT already reads, and the 9th (Volume.Ambience) is an
-// adoption rather than a rename because OoT has no ambience channel to collide
-// with. Nine keys either way.
-static_assert(kConvergedKeyCount == 9, "tier 1 converges 9 keys (8 onto an existing OoT key + Ambience)");
+// Tier 1 (#34) landed 9 keys — 6 audio + 3 tunic. #462 adds 23 of the inventory
+// §5.3 remainder's 26 rows (the 3 held out are ClimbSpeed and the two parked
+// cheat pairs, all in kMustStayDistinct). 9 + 23 = 32. Pinning the count makes a
+// silently dropped or double-added row a compile error.
+static_assert(kConvergedKeyCount == 32, "tier 1 (9) + inventory §5.3 remainder (23 of 26; 3 held out) = 32");
 
 // ADR 0003 Appendix B measured 26 class-(S) collisions. This table carries 25:
 // DebugSaveFileMode was pulled out into kDisputedClassificationKeys because the

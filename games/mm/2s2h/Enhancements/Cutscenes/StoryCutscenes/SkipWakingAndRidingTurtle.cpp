@@ -10,7 +10,7 @@ extern "C" {
 void DmChar08_Init(Actor* thisx, PlayState* play2);
 }
 
-#define CVAR_NAME "gEnhancements.Cutscenes.SkipStoryCutscenes"
+#define CVAR_NAME "gEnhancements.TimeSavers.SkipCutscene.Story"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 void RegisterSkipWakingAndRidingTurtle() {

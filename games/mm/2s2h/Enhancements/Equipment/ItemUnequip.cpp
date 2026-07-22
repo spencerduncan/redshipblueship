@@ -11,9 +11,9 @@ extern "C" {
 #include "overlays/kaleido_scope/ovl_kaleido_scope/z_kaleido_scope.h"
 }
 
-#define CVAR_DPAD_NAME "gEnhancements.Dpad.DpadEquips"
+#define CVAR_DPAD_NAME "gEnhancements.DpadEquips"
 #define CVAR_DPAD CVarGetInteger(CVAR_DPAD_NAME, 0)
-#define CVAR_NAME "gEnhancements.Equipment.ItemUnequip"
+#define CVAR_NAME "gEnhancements.ItemUnequip"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 void RegisterDpadPageSwitchPrevention() {

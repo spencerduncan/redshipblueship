@@ -7,7 +7,7 @@ extern "C" {
 #include "overlays/kaleido_scope/ovl_kaleido_scope/z_kaleido_scope.h"
 }
 
-#define CVAR_NAME "gEnhancements.Restorations.PauseBufferWindow"
+#define CVAR_NAME "gEnhancements.PauseBufferWindow"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 static u16 inputBufferTimer = 0;

@@ -20,7 +20,7 @@ void MM_PlayerCall_Draw(Actor* thisx, PlayState* play);
 void Player_StopHorizontalMovement(Player* player);
 }
 
-#define CVAR_NAME "gEnhancements.Cutscenes.SkipStoryCutscenes"
+#define CVAR_NAME "gEnhancements.TimeSavers.SkipCutscene.Story"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 #define OSN_STATE_END_CONVERSATION (1 << 5)

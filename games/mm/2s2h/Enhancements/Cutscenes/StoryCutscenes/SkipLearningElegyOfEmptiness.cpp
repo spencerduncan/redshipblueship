@@ -5,7 +5,7 @@
 #include "2s2h/Rando/Rando.h"
 #include "2s2h/ShipInit.hpp"
 
-#define CVAR_NAME "gEnhancements.Cutscenes.SkipStoryCutscenes"
+#define CVAR_NAME "gEnhancements.TimeSavers.SkipCutscene.Story"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 // Forced on in rando for now

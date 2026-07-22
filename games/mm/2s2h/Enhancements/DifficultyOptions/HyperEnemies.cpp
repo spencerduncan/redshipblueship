@@ -7,7 +7,7 @@ extern "C" {
 #include "functions.h"
 }
 
-#define CVAR_NAME "gEnhancements.DifficultyOptions.HyperEnemies"
+#define CVAR_NAME "gEnhancements.HyperEnemies"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 void RegisterHyperEnemies() {

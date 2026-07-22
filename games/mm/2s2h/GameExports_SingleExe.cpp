@@ -1157,7 +1157,7 @@ int GameInteractor_InvertControl(GIInvertType type) {
  * The old stub `int GameInteractor_Dpad(void* input, int dpad)` returned
  * the button combo unconditionally, force-enabling both CVar-gated D-pad
  * enhancements: BTN_DPAD_EQUIP (include/z64save.h) expanded to BTN_DPAD as
- * if gEnhancements.Dpad.DpadEquips were on, and the ocarina paths in
+ * if gEnhancements.DpadEquips were on, and the ocarina paths in
  * src/audio/code_8019AF00.c treated the D-pad as ocarina buttons as if
  * gEnhancements.Playback.DpadOcarina were on.
  *
@@ -1177,7 +1177,7 @@ uint32_t GameInteractor_Dpad(GIDpadType type, uint32_t buttonCombo) {
             }
             break;
         case GI_DPAD_EQUIP:
-            if (CVarGetInteger("gEnhancements.Dpad.DpadEquips", 0)) {
+            if (CVarGetInteger("gEnhancements.DpadEquips", 0)) {
                 result = buttonCombo;
             }
             break;

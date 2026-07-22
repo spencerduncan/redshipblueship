@@ -3857,7 +3857,7 @@ void MM_Player_ProcessItemButtons(Player* this, PlayState* play) {
             // #region 2S2H [Dpad] - Changed from EquipSlot to s32 to allow for higher ranges
             s32 btn = func_8082FD0C(this, maskItemAction);
 
-            if (CVarGetInteger("gEnhancements.Dpad.DpadEquips", 0)) {
+            if (CVarGetInteger("gEnhancements.DpadEquips", 0)) {
                 if (btn <= EQUIP_SLOT_NONE) {
                     DpadEquipSlot dpadBtn = func_Dpad_8082FD0C(this, maskItemAction);
 
@@ -3899,7 +3899,7 @@ void MM_Player_ProcessItemButtons(Player* this, PlayState* play) {
         !(((Player_GetHeldBButtonSword(this) == PLAYER_B_SWORD_NONE) || (gSaveContext.jinxTimer == 0)) &&
           (MM_Player_ItemIsInUse(this, (IREG(1) != 0) ? ITEM_FISHING_ROD : Inventory_GetBtnBItem(play)) ||
            // #region 2S2H [Dpad]
-           (CVarGetInteger("gEnhancements.Dpad.DpadEquips", 0) &&
+           (CVarGetInteger("gEnhancements.DpadEquips", 0) &&
             (MM_Player_ItemIsInUse(this, DPAD_BTN_ITEM(EQUIP_SLOT_D_RIGHT)) ||
              MM_Player_ItemIsInUse(this, DPAD_BTN_ITEM(EQUIP_SLOT_D_LEFT)) ||
              MM_Player_ItemIsInUse(this, DPAD_BTN_ITEM(EQUIP_SLOT_D_DOWN)) ||
@@ -3923,7 +3923,7 @@ void MM_Player_ProcessItemButtons(Player* this, PlayState* play) {
         item = MM_Player_GetItemOnButton(play, this, i);
 
         // #region 2S2H [Dpad]
-        if (CVarGetInteger("gEnhancements.Dpad.DpadEquips", 0)) {
+        if (CVarGetInteger("gEnhancements.DpadEquips", 0)) {
             if (i >= EQUIP_SLOT_A) {
                 DpadEquipSlot j = func_Dpad_8082FDC4();
                 ItemId dpadItem = Player_Dpad_GetItemOnButton(play, this, j);
@@ -3947,7 +3947,7 @@ void MM_Player_ProcessItemButtons(Player* this, PlayState* play) {
                 sPlayerHeldItemButtonIsHeldDown = true;
             }
             // #region 2S2H [Dpad]
-            else if (CVarGetInteger("gEnhancements.Dpad.DpadEquips", 0)) {
+            else if (CVarGetInteger("gEnhancements.DpadEquips", 0)) {
                 for (i = 0; i < ARRAY_COUNT(sDpadItemButtons); i++) {
                     if (CHECK_BTN_ALL(sPlayerControlInput->cur.button, sDpadItemButtons[i])) {
                         break;
@@ -4614,7 +4614,7 @@ void func_80831944(PlayState* play, Player* this) {
         func_808318C0(play);
     }
     // #region 2S2H [Dpad]
-    else if (CVarGetInteger("gEnhancements.Dpad.DpadEquips", 0)) {
+    else if (CVarGetInteger("gEnhancements.DpadEquips", 0)) {
         if (Player_Dpad_GetItemOnButton(play, this, func_Dpad_8082FDC4()) == ITEM_LENS_OF_TRUTH) {
             func_808318C0(play);
         }
@@ -18279,7 +18279,7 @@ void Player_Action_68(Player* this, PlayState* play) {
                     }
                 }
                 // #region 2S2H [Dpad]
-                else if (CVarGetInteger("gEnhancements.Dpad.DpadEquips", 0)) {
+                else if (CVarGetInteger("gEnhancements.DpadEquips", 0)) {
                     if (Player_Dpad_GetItemOnButton(play, this, HELD_ITEM_TO_DPAD(this->heldItemButton)) ==
                         ITEM_BOTTLE) {
                         Actor* interactRangeActor = this->interactRangeActor;
@@ -18688,7 +18688,7 @@ void Player_Action_80(Player* this, PlayState* play) {
                     play->actorCtx.flags |= ACTORCTX_FLAG_PICTO_BOX_ON;
                 }
                 // #region 2S2H [Dpad]
-                else if (CVarGetInteger("gEnhancements.Dpad.DpadEquips", 0)) {
+                else if (CVarGetInteger("gEnhancements.DpadEquips", 0)) {
                     if ((play->sceneId == SCENE_20SICHITAI) &&
                         (Player_Dpad_GetItemOnButton(play, this, func_Dpad_8082FDC4()) == ITEM_PICTOGRAPH_BOX)) {
                         play->actorCtx.flags |= ACTORCTX_FLAG_PICTO_BOX_ON;

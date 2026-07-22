@@ -7,7 +7,7 @@ extern "C" {
 void Flags_SetWeekEventReg(s32 flag);
 }
 
-#define INTRO_CVAR_NAME "gEnhancements.Cutscenes.SkipIntroSequence"
+#define INTRO_CVAR_NAME "gEnhancements.TimeSavers.SkipCutscene.Intro"
 #define INTRO_CVAR CVarGetInteger(INTRO_CVAR_NAME, 0)
 #define FIRST_CYCLE_CVAR_NAME "gEnhancements.Cutscenes.SkipFirstCycle"
 #define FIRST_CYCLE_CVAR CVarGetInteger(FIRST_CYCLE_CVAR_NAME, 0)

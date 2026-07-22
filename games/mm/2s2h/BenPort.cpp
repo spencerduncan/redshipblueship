@@ -1046,7 +1046,7 @@ extern "C" void Graph_StartFrame() {
 #endif
         case KbScancode::LUS_KB_TAB: {
             // Toggle HD Assets
-            if (CVarGetInteger("gEnhancements.Mods.AlternateAssetsHotkey", 1)) {
+            if (CVarGetInteger("gSettings.Mods.AlternateAssetsHotkey", 1)) {
                 CVarSetInteger("gEnhancements.Mods.AlternateAssets",
                                !CVarGetInteger("gEnhancements.Mods.AlternateAssets", 0));
             }

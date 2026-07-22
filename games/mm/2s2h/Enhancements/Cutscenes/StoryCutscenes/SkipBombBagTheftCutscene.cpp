@@ -7,7 +7,7 @@ extern "C" {
 void EnSuttari_TriggerTransition(PlayState* play, u16 entrance);
 }
 
-#define CVAR_NAME "gEnhancements.Cutscenes.SkipStoryCutscenes"
+#define CVAR_NAME "gEnhancements.TimeSavers.SkipCutscene.Story"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 void RegisterSkipBombBagTheftCutscene() {
