@@ -274,6 +274,12 @@ extern "C" int Rando_HeadlessHintReloadTest(const char* seedStr) {
     }
     fprintf(stderr, "[hint-reload] snapshotted %zu enabled item hints\n", snapshots.size());
 
+    // Drop this local strong reference before the reset. Context::mContext is a
+    // weak_ptr, so the reset inside the round trip only builds a fresh context if
+    // every shared_ptr owner is released first; holding `ctx` here would pin the
+    // old, still-populated context and make the reload a no-op (a false pass).
+    ctx = nullptr;
+
     // Do the real save -> reset -> reload. This rebuilds the Rando::Context.
     int resetCleared = 0;
     int placementRestored = 0;

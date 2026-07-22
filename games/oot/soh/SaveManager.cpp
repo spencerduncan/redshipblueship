@@ -3012,6 +3012,13 @@ void SaveManager::TestRoundTripRandomizerSection(bool* outResetCleared, bool* ou
             break;
         }
     }
+    // Release this local strong reference BEFORE the reset below. The reset only
+    // produces a fresh context if gRandoContext.reset() drops the last owner so
+    // Context::mContext (a weak_ptr) expires; a lingering shared_ptr here would
+    // keep the old context alive, CreateInstance() would hand it straight back,
+    // and the "reload" would silently reuse the still-populated table. gRando
+    // Context still owns it, so SaveRandomizer below still sees the live world.
+    ctxBefore = nullptr;
 
     // Serialize the live randomizer section exactly as a real save does.
     gSaveContext.ship.quest.id = QUEST_RANDOMIZER;
