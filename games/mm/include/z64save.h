@@ -1846,6 +1846,14 @@ void Sram_IncrementDay(void);
 u16 Sram_CalcChecksum(void* data, size_t count);
 void MM_Sram_InitNewSave(void);
 void MM_Sram_InitDebugSave(void);
+// 2S2H [Port] Returns true only when `fileNum` is a real, in-bounds file slot
+// (0..FILE_NUM_MAX-1). fileNum is the 0xFF "no real slot" sentinel whenever no
+// file-select slot backs the session -- the title/debug/mapselect boot and, in
+// the RedShipBlueShip combo, every cross-game MM arrival. The flash save/load
+// paths index the fixed-size gFlashSave*Pages / gFlashOwlSave*Pages tables by
+// fileNum, so 0xFF (or anything past FILE_NUM_MAX) would subscript them far out
+// of bounds. Gate every such path on this.
+s32 Sram_FileNumHasFlashSlot(s32 fileNum);
 void Sram_ResetSaveFromMoonCrash(SramContext* sramCtx);
 void MM_Sram_OpenSave(struct FileSelectState* fileSelect, SramContext* sramCtx);
 void func_8014546C(SramContext* sramCtx);

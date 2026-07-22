@@ -72,6 +72,14 @@ int MM_NotificationBinding_RunHeadless(void);
 // to HiRes 576 while the Bombers' Notebook is open. Returns 0 on pass, non-zero
 // on fail.
 int MM_FbEffectsBinding_RunHeadless(void);
+// MM flash page-table OOB lock (games/mm/2s2h/mm_flash_filenum_test.cpp): a
+// cross-game MM session runs with gSaveContext.fileNum == 0xFF, the "no real
+// slot" sentinel. The flash paths index the fixed-size gFlashSave*Pages /
+// gFlashOwlSave*Pages tables by fileNum * FLASH_SAVE_MAIN_MULTIPLIER, so 0xFF
+// runs hundreds of entries past their end -- a wild flash page number the
+// moon-crash reset then copies over the live save (the Fierce-Deity /
+// all-Ocarina corruption). Returns 0 on pass, non-zero on fail.
+int MM_FlashFileNumOob_RunHeadless(void);
 // MM tracker registration surface (games/mm/2s2h/mm_trackers_gui_test.cpp,
 // #392): the four MM tracker windows must register on a Gui under
 // "MM "-prefixed names (SoH owns the unprefixed ones and Gui::AddGuiWindow
@@ -245,6 +253,12 @@ static TestResult Test_MMNotificationBinding(void) {
 // wrapper over the C entry point in games/mm/2s2h/mm_fb_effects_test.cpp.
 static TestResult Test_MMFbEffectsBinding(void) {
     return MM_FbEffectsBinding_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// MM flash page-table OOB lock (see the extern decl above). Thin wrapper over
+// the C entry point in games/mm/2s2h/mm_flash_filenum_test.cpp.
+static TestResult Test_MMFlashFileNumOob(void) {
+    return MM_FlashFileNumOob_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // ============================================================================
@@ -1382,6 +1396,12 @@ const TestDescriptor gTests[] = {
      Test_MMNotificationBinding},
     {"mm-fb-effects-binding", "MM's scaled framebuffer draw binds its own body against MM's dimensions (#386)",
      Test_MMFbEffectsBinding},
+    // Flash page-table OOB from the 0xFF fileNum sentinel: the moon-crash reset
+    // (and the owl-delete write it fires) index the fixed-size flash tables far
+    // out of bounds in a cross-game MM session, then copy the garbage over the
+    // live save. Pure (no display), so it runs in the display-free suite.
+    {"mm-flash-filenum-oob", "Flash page indices stay in bounds for fileNum 0xFF; moon-crash reset keeps the save",
+     Test_MMFlashFileNumOob},
     {"mm-trackers-gui", "MM tracker windows register de-collided on the shared Gui + gate on the active game (#392)",
      Test_MMTrackersGui},
     // The two MM resume-contract tests below mutate process-global state
