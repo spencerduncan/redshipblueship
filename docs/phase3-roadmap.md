@@ -246,10 +246,14 @@ intuitive ordering. Plans written without them are wrong in ways that compile.
    bump instead of catching it. The comment at `src/common/context.h:161-167`
    still promises this is cheap. Defusing the comment is the urgent part; the
    capacity increase belongs with whatever grows the pool.
-4. **#451 does not gate the menu theme** (#497). Three of its four contended
-   keys have no compiled reader in any target (`BenGui/BenMenu.cpp` is a member
-   of no CMake target) and the fourth lives in a different archive than the
-   `2ship_enh` WHOLE_ARCHIVE flip touches. MM's option *table*
+4. **#451 does not gate the menu theme** (#497). Its four contended keys have no
+   compiled **MM-side** reader: MM's readers are `BenGui/BenMenu.cpp` (a TU in
+   no CMake target) and `BenGui/Menu.cpp` (in the elided `2ship_rando_ui`),
+   neither of which the `2ship_enh` WHOLE_ARCHIVE flip touches. OoT's SohMenu
+   *does* read all four from the live link (`SohMenuSettings.cpp:127`,
+   `SohMenuEnhancements.cpp:148`, `SohMenuDevTools.cpp:35`, `Menu.cpp:568`) —
+   that is the shared half of the hazard, not its arming condition, which is a
+   *second*, MM-side shell indexing the same key. MM's option *table*
    (`Rando::StaticData::Options`) is already in the link via WHOLE_ARCHIVE'd
    `2ship_rando`, so a SohMenu-hosted MM pane can be built today. **The settings
    theme is unblocked now.**
