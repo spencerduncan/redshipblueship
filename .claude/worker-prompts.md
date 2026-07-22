@@ -1,7 +1,31 @@
-# Worker loop goals — Wave 4 (updated 2026-07-19)
+# Worker loop goals — Phase 3.1 lanes (updated 2026-07-22)
 
-**Current phase: Phase 3.0 — Basic Combo Randomizer.** Phase 2 closed with PR #368
-(merged as c8c47fa6): the first full OoT↔MM gameplay round trip.
+**Current phase: Phase 3.1 — Two-Way Combo Randomizer (#492).** Phase 3.0 closed
+its contract (milestone 17/17): four hand-pinned OoT items crossing into MM
+checks, one direction, surviving a round trip, described by a spoiler log.
+
+## Lanes — one prompt per lane in `.claude/lanes/`
+
+Read `.claude/lanes/SHARED.md` first; it carries the append-only shared-file
+protocol and the three-edit CTest registration rule that hard-fails the build if
+you do fewer.
+
+| Lane | Issues | Owns, roughly |
+|---|---|---|
+| 1 | #490 → #498 ADR → #493 | `context.h`, `foreign_items.*`, OoT rando pool + spoiler |
+| 2 | #488 | `Rando/Foreign.cpp`, `Spoiler/Apply.cpp` (for #488 only) |
+| 3 | #487 → #491 | `z_sram_NES.c`, `mm_stubs.c`, `mm_rando_gen_test.cpp` |
+| 4 | #497 → #499 | `SohGui/*`, ADR 0003/0004, `cvar_shared_keys.h`, `OnFileCreate.cpp` |
+| 5 | #489 → #496 | `TrackersGuiSingleExe.*`, trackers, `combo_spoiler_view.*` |
+| 6 | #502 → #494 | `CheckQueue.cpp`, `DrawItem.cpp`, both `*_AwardSharedItem` |
+
+Lane 1 is the only lane that changes `.redsave` format and owns the
+`reserved[264]` byte budget across all five claimants — Lane 4 must hand it a
+digest size before carving, not after.
+
+Ordering that is load-bearing: **Lane 3 lands first** (#487 is P0 and Lane 5's
+verification depends on it). Lane 1 rebases onto Lane 2 **before #493 step 7**,
+not before step 3 — gating the longest pole on the smallest lane idles the phase.
 
 This file deliberately holds almost no state. Its failure mode is going stale — an
 earlier revision claimed "Wave 3" and "eleven commits awaiting push" for a day
@@ -12,15 +36,19 @@ that gets updated as work lands.
 
 | What | Where |
 |---|---|
-| Phase 3 tracker (lanes, waves, current state) | **#392** |
+| Phase 3.1 tracker (waves, corrections, current state) | **#492** |
+| Per-lane worker prompts | `.claude/lanes/lane<N>.md` |
+| Phase 3.1 waves and the four sequencing corrections | `docs/phase3-roadmap.md` §5 |
+| Phase 3.2 (cross-game logic, Lane D promoted) | #500 |
+| Phase 3.0 tracker (closed contract, prior art) | #392 |
 | Phase 3 execution plan and wave assignments | `docs/phase3-execution-prompt.md` |
-| Phase 3 roadmap (MVP definition, lanes A–D) | `docs/phase3-roadmap.md` |
 | Phase 2 follow-ups still open | #381 |
 | Pre-alpha v0.1.0 readiness gates | #321 |
 | Player-visible known issues | `docs/known-issues.md` |
 | Prior local-iteration postmortems | `docs/ci-gameplay-repro-postmortem.md` |
 
-Read #392 first. It is the live one; the docs are the reasoning behind it.
+Read #492 and your lane prompt first. They are the live ones; the docs are the
+reasoning behind them, and #392 is the closed phase they build on.
 
 ## Standing conventions
 
