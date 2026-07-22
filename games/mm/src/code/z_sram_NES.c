@@ -420,6 +420,17 @@ u8 sBitFlags8[] = {
     (1 << 0), (1 << 1), (1 << 2), (1 << 3), (1 << 4), (1 << 5), (1 << 6), (1 << 7),
 };
 
+// 2S2H [Port] Bounds guard for the flash page tables above. A real file slot is
+// 0..FILE_NUM_MAX-1; every other value -- most importantly the 0xFF "no real
+// slot" sentinel a cross-game / title / debug session leaves in
+// gSaveContext.fileNum -- must be rejected, because the flash paths index
+// gFlashSave*Pages[fileNum * FLASH_SAVE_MAIN_MULTIPLIER (+ FLASH_SAVE_BACKUP_OFFSET)]
+// and gFlashOwlSave*Pages[fileNum * FLASH_SAVE_MAIN_MULTIPLIER], which for 0xFF
+// runs hundreds of entries past the end of those fixed-size arrays.
+s32 Sram_FileNumHasFlashSlot(s32 fileNum) {
+    return (fileNum >= 0) && (fileNum < FILE_NUM_MAX);
+}
+
 u16 D_801F6AF0;
 u8 D_801F6AF2;
 
@@ -1264,20 +1275,27 @@ void Sram_ResetSaveFromMoonCrash(SramContext* sramCtx) {
 
     memset(sramCtx->saveBuf, 0, SAVE_BUFFER_SIZE);
 
-    if (SysFlashrom_ReadData(sramCtx->saveBuf, gFlashSaveStartPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER],
-                             gFlashSaveNumPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER]) != 0) {
-        SysFlashrom_ReadData(
-            sramCtx->saveBuf,
-            gFlashSaveStartPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER + FLASH_SAVE_BACKUP_OFFSET],
-            gFlashSaveNumPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER + FLASH_SAVE_BACKUP_OFFSET]);
-    }
-    memcpy(&gSaveContext.save, sramCtx->saveBuf, sizeof(Save));
-    if (CHECK_NEWF(gSaveContext.save.saveInfo.playerData.newf)) {
-        SysFlashrom_ReadData(
-            sramCtx->saveBuf,
-            gFlashSaveStartPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER + FLASH_SAVE_BACKUP_OFFSET],
-            gFlashSaveNumPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER + FLASH_SAVE_BACKUP_OFFSET]);
-        memcpy(&gSaveContext, sramCtx->saveBuf, sizeof(Save));
+    // 2S2H [Port] In a cross-game session (and the debug/mapselect boot) fileNum is the
+    // 0xFF "no real slot" sentinel, so there is no flash file to reload. Guarding here
+    // keeps us from indexing gFlashSaveStartPages/gFlashSaveNumPages far out of bounds AND
+    // from clobbering the live save with the still-zeroed buffer below.
+    if (Sram_FileNumHasFlashSlot(gSaveContext.fileNum)) {
+        if (SysFlashrom_ReadData(sramCtx->saveBuf,
+                                 gFlashSaveStartPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER],
+                                 gFlashSaveNumPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER]) != 0) {
+            SysFlashrom_ReadData(
+                sramCtx->saveBuf,
+                gFlashSaveStartPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER + FLASH_SAVE_BACKUP_OFFSET],
+                gFlashSaveNumPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER + FLASH_SAVE_BACKUP_OFFSET]);
+        }
+        memcpy(&gSaveContext.save, sramCtx->saveBuf, sizeof(Save));
+        if (CHECK_NEWF(gSaveContext.save.saveInfo.playerData.newf)) {
+            SysFlashrom_ReadData(
+                sramCtx->saveBuf,
+                gFlashSaveStartPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER + FLASH_SAVE_BACKUP_OFFSET],
+                gFlashSaveNumPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER + FLASH_SAVE_BACKUP_OFFSET]);
+            memcpy(&gSaveContext, sramCtx->saveBuf, sizeof(Save));
+        }
     }
     gSaveContext.save.cutsceneIndex = cutsceneIndex;
 
@@ -1333,6 +1351,10 @@ void MM_Sram_OpenSave(FileSelectState* fileSelect, SramContext* sramCtx) {
         memset(sramCtx->saveBuf, 0, SAVE_BUFFER_SIZE);
 
         if (gSaveContext.fileNum == 0xFF) {
+            // 2S2H [Port] The sentinel path reads file 1's new-cycle save; keep phi_t1 in
+            // step with that index so the gFlashSaveSizes[phi_t1] memcpy below is in bounds
+            // (it was otherwise left uninitialized and indexed the size table at random).
+            phi_t1 = FLASH_SAVE_FILE_1_NEW_CYCLE_SAVE;
             SysFlashrom_ReadData(sramCtx->saveBuf, gFlashSaveStartPages[FLASH_SAVE_FILE_1_NEW_CYCLE_SAVE],
                                  gFlashSaveNumPages[FLASH_SAVE_FILE_1_NEW_CYCLE_SAVE]);
         } else if (fileSelect->isOwlSave[gSaveContext.fileNum + FILE_NUM_OWL_SAVE_OFFSET]) {
@@ -2027,8 +2049,13 @@ void Sram_SaveSpecialEnterClockTown(PlayState* play) {
     // 2S2H [Enhancement] Store playtime before saving
     SavingEnhancements_AdvancePlaytime();
     func_80145698(sramCtx);
-    SysFlashrom_WriteDataSync(sramCtx->saveBuf, gFlashSaveStartPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER],
-                              gFlashSpecialSaveNumPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER]);
+    // 2S2H [Port] Skip the flash write for the 0xFF "no real slot" sentinel (cross-game /
+    // title / debug session); indexing gFlashSaveStartPages[fileNum * ...] would be OOB.
+    if (Sram_FileNumHasFlashSlot(gSaveContext.fileNum)) {
+        SysFlashrom_WriteDataSync(sramCtx->saveBuf,
+                                  gFlashSaveStartPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER],
+                                  gFlashSpecialSaveNumPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER]);
+    }
 }
 
 /**
@@ -2049,9 +2076,13 @@ void Sram_SaveSpecialNewDay(PlayState* play) {
     gSaveContext.save.day = day;
     gSaveContext.save.time = time;
     gSaveContext.save.cutsceneIndex = cutsceneIndex;
-    SysFlashrom_WriteDataSync(play->sramCtx.saveBuf,
-                              gFlashSaveStartPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER],
-                              gFlashSaveNumPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER]);
+    // 2S2H [Port] Skip the flash write for the 0xFF "no real slot" sentinel (cross-game /
+    // title / debug session); indexing gFlashSaveStartPages[fileNum * ...] would be OOB.
+    if (Sram_FileNumHasFlashSlot(gSaveContext.fileNum)) {
+        SysFlashrom_WriteDataSync(play->sramCtx.saveBuf,
+                                  gFlashSaveStartPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER],
+                                  gFlashSaveNumPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER]);
+    }
 }
 
 void Sram_SetFlashPagesDefault(SramContext* sramCtx, u32 curPage, u32 numPages) {
@@ -2135,6 +2166,14 @@ void Sram_UpdateWriteToFlashOwlSave(SramContext* sramCtx) {
 
 void func_80147314(SramContext* sramCtx, s32 fileNum) {
     s32 pad;
+
+    // 2S2H [Port] Reached with fileNum == 0xFF via DeleteOwlSave() (the
+    // BeforeMoonCrashSaveReset hook) and MM_Sram_OpenSave's save-continue path in a
+    // cross-game session. Bail before touching gFlashOwlSave*Pages[fileNum * ...], which
+    // for the 0xFF sentinel indexes hundreds of entries past those six-entry tables.
+    if (!Sram_FileNumHasFlashSlot(fileNum)) {
+        return;
+    }
 
     gSaveContext.save.isOwlSave = false;
 

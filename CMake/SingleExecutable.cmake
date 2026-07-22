@@ -466,6 +466,15 @@ if(BUILD_TESTING)
     # VisFbuf draw. This locks MM's call to its own MM_-dimension body (only one
     # definition survived, so no link error could catch the cross-bind).
     redship_add_test(NAME MMFbEffectsBinding COMMAND redship --test mm-fb-effects-binding)
+    # MM flash page-table OOB from the 0xFF fileNum sentinel
+    # (games/mm/2s2h/mm_flash_filenum_test.cpp). A cross-game MM session runs
+    # with gSaveContext.fileNum == 0xFF (no real file slot); the moon-crash reset
+    # and the owl-delete write it fires index gFlashSave*Pages /
+    # gFlashOwlSave*Pages by fileNum * FLASH_SAVE_MAIN_MULTIPLIER, so 0xFF runs
+    # hundreds of entries past the tables' end, and the reset copies the garbage
+    # over the live save (spawn-as-Fierce-Deity / all-Ocarina corruption).
+    # Display-free and ROM-free, so it runs in this redship tier.
+    redship_add_test(NAME MMFlashFileNumOob COMMAND redship --test mm-flash-filenum-oob)
     # MM tracker registration surface (#392): the four MM tracker windows must
     # register on the shared Gui under "MM "-prefixed names (SoH owns the
     # unprefixed ones; Gui::AddGuiWindow rejects duplicates) and their
