@@ -204,14 +204,85 @@ invalidate A/B/C.
 A → B in parallel with A's back half → C. D is out of scope.
 Gate C on Lane A being merged and locked; C without A is unverifiable.
 
-## 5. LATER — Phase 3.1+
+## 5. NEXT — Phase 3.1 "Two-Way Combo Randomizer"
+
+Phase 3.0 met its contract and its milestone reads 17/17 closed. What it shipped
+is **four hand-pinned OoT items** (`kForeignPoolV1`,
+`games/oot/soh/Enhancements/randomizer/ForeignItemsSingleExe.cpp:58-63`) placed
+into MM checks, one direction, named correctly over a shared `RI_RUPEE_HUGE`
+icon and model, hosts drawn at random from junk-holding shuffled checks with
+shops excluded, no cross-game logic, no MM options surfaced, and every
+`RO_SHUFFLE_*` / `RO_HINTS_*` off in the paired profile.
+
+Tracker: **#492**. Contract:
+
+> **Items cross in both directions, chosen by rule rather than by a hand-written
+> array, presented with their own identity, and configurable from one menu.**
+
+Logic stays out — Lane D is promoted to its own 3.2 tracker (#500). 3.1 keeps
+the 3.0 bargain: free-form placement plus a spoiler log.
+
+### Four corrections to the sequencing this section used to imply
+
+Each was adversarially verified against the tree, and each refuted the
+intuitive ordering. Plans written without them are wrong in ways that compile.
+
+1. **The reverse direction is not a mirror of Lane C** (#493). Only the
+   origin-tagged `SharedItem` carrier is direction-neutral. The placement table
+   is hard-keyed `uint16_t mmCheckId` with static_asserted `.redsave` offsets;
+   OoT generates *first* and stamps the pairing key only at the end of
+   `Playthrough_Init`, after `Fill()` and after `SpoilerLog_Write()`; and OoT's
+   actor collection path drops the `RandomizerCheck` before the give, so the
+   foreign identity must ride inside the `GetItemEntry`. **XL, not L.**
+2. **The combo tracker is not a substrate** under presentation, placement rules
+   or hints. #458 is a read-only, staleness-labelled reader of the *inactive*
+   game's frozen shadow and structurally cannot serve a live write-time
+   placement pass. Those three run in the active game and already share
+   `src/common/foreign_items.h`. Sequence #458 in parallel, not first.
+3. **`RSBS_FOREIGN_PLACEMENT_CAP` is a trap, not a deadline** (#490). Raising it
+   in place is *already* a silent `.redsave` format break at head, because
+   `grantCursors` and `sharedItemOverflowCount` are carved after it and the
+   offset static_asserts are expressed in terms of the cap, so they follow a
+   bump instead of catching it. The comment at `src/common/context.h:161-167`
+   still promises this is cheap. Defusing the comment is the urgent part; the
+   capacity increase belongs with whatever grows the pool.
+4. **#451 does not gate the menu theme** (#497). Three of its four contended
+   keys have no compiled reader in any target (`BenGui/BenMenu.cpp` is a member
+   of no CMake target) and the fourth lives in a different archive than the
+   `2ship_enh` WHOLE_ARCHIVE flip touches. MM's option *table*
+   (`Rando::StaticData::Options`) is already in the link via WHOLE_ARCHIVE'd
+   `2ship_rando`, so a SohMenu-hosted MM pane can be built today. **The settings
+   theme is unblocked now.**
+
+### Waves
+
+- **Wave 0 — hardening**: #487 (owl-save readback zeroes the live MM
+  SaveContext — a still-live P0-class defect with the same symptom as the
+  moon-crash leg closed in PR #485), #488 (host predicate), #489 (MM trackers
+  show no data), #490 (cap comment), #491 (vacuous arrival lock). Wave 0 blocks
+  **operator playtest acceptance** of live-play-facing work; it does **not**
+  block the ROM-free `gComboCtx` / `src/common` increments, which never read
+  `saveType` and start immediately.
+- **Wave 1 — two directions**: #493. Separable cheaper increment: wiring
+  `MM_AwardSharedItem` (still the Lane-A1 logging stub) to a real give needs
+  none of the OoT-side work.
+- **Wave 2 — identity and breadth**, parallel with Wave 1: #494 (presentation),
+  #495 (rule-defined pool), #496 (in-game spoiler view), #458 (combo tracker).
+  Presentation and pool-scaling are **independent** — foreign pickups already
+  name each item individually, so presentation is O(1) in pool size.
+- **Wave 3 — configuration**, parallel throughout: #497 (menu IA + ADR 0004),
+  #498 (combo-level settings), #499 (MM shuffles and hints on).
+
+## 5a. LATER — beyond 3.1
 
 Directional, not committed:
 
-- **Cross-game logic + beatability check** (Lane D promoted)
-- **Cross-game item placement, both directions, full item pool**
+- **Cross-game logic + beatability check** — Lane D, promoted to #500
 - **Cross-game entrance shuffle** — `entrance.h` was designed for it; the
-  1:1 link table generalizes to any-entrance→any-entrance
+  1:1 link table generalizes to any-entrance→any-entrance. Needs 3.2's logic to
+  be more than a spoiler-log mode
+- **Netplay 1b / multiworld player slots** — ADR 0007 specifies the shape;
+  #460 is 1a
 - **`sharedFlags` semantics** — which world events are genuinely shared
   (this needs a design decision, not just plumbing)
 - **#34 settings migration** — deferred here by design since Phase 2
