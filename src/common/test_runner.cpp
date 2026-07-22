@@ -372,6 +372,21 @@ extern "C" int MM_Rando_HeadlessForeignDigest(const char* outPath);
 // must round-trip through locationNameToEnum (the transform the save file puts
 // hints through). Returns 0 only if every enabled hint passes all three.
 extern "C" int Rando_HeadlessHintValidityTest(const char* seedStr);
+// Hint-RELOAD lock (#441, body in menu.cpp): generates one seed, then drives the
+// REAL randomizer section through save -> Rando::Context reset -> reload (exactly
+// as loading a saved file does) and asserts every enabled item hint still renders
+// the same text and never the no-item sentinel. This is the runtime complement to
+// the generation-time RandoHintValidity lock: #445's checks re-render hints
+// against the live, fully-filled context, so they cannot see a placement table
+// that fails to rehydrate on load.
+extern "C" int Rando_HeadlessHintReloadTest(const char* seedStr);
+// Cross-game arrival lock (#441, body in menu.cpp): THE operator-visible defect.
+// A switch into OoT cold-boots the title chain, whose Title_Destroy ->
+// OoT_Sram_InitSram -> Save_Init wiped the Rando::Context placement table while
+// the frozen save is restored without re-running LoadRandomizer, so every item
+// hint stranded on RG_NONE ("No Item") though its location phrasing survived.
+// Drives the real Save_Init with and without the arrival flag.
+extern "C" int Rando_HeadlessHintCrossGameTest(const char* seedStr);
 extern "C" void InitOTRForMMFirstBoot(int argc, char* argv[]);
 
 TestResult Test_RandoGen(void) {
@@ -417,6 +432,57 @@ TestResult Test_RandoHintValidity(void) {
 
     int rc = Rando_HeadlessHintValidityTest("RSBSHINT1");
     printf("[TEST] %s: hint validity rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// Hint-RELOAD lock (#441). The operator saw gossip stones read "catching Big
+// Poes leads to No Item" while the spoiler named a real item. The hint's
+// location survives a load (it is stored by name), but the item name is resolved
+// at RUNTIME from the placement table, which is thrown away and rebuilt from the
+// save on every load. This drives the real save -> context-reset -> reload cycle
+// and proves item hints still name their real item afterward. Needs a display
+// (Fast3dWindow) like rando-gen, so `--test all` skips it.
+TestResult Test_RandoHintReload(void) {
+    printf("[TEST] rando-hint-reload: item hints survive a save/reload cycle (#441)\n");
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    int rc = Rando_HeadlessHintReloadTest("RSBSHINT1");
+    printf("[TEST] %s: hint reload rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// Cross-game arrival lock (#441). THE operator-visible defect: gossip stones read
+// "catching Big Poes leads to No Item" after an OoT->MM->OoT switch. The switch
+// into OoT cold-boots the title chain, whose Title_Destroy -> OoT_Sram_InitSram
+// -> Save_Init wiped the Rando::Context placement table (ClearItemLocations),
+// and the frozen save is restored afterwards without going through Save_LoadFile,
+// so nothing re-ran LoadRandomizer to rehydrate it. Drives the real Save_Init
+// with the arrival flag set (placements must survive) and without it (the clear
+// must still fire). Needs a display like rando-gen, so `--test all` skips it.
+TestResult Test_RandoHintCrossGame(void) {
+    printf("[TEST] rando-hint-crossgame: item hints survive a cross-game OoT arrival (#441)\n");
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    int rc = Rando_HeadlessHintCrossGameTest("RSBSHINT1");
+    printf("[TEST] %s: hint cross-game rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
@@ -1135,6 +1201,14 @@ const TestDescriptor gTests[] = {
     // #441: no generated hint may resolve to the no-item sentinel. Needs a
     // display like rando-gen, so `--test all` skips it (below).
     {"rando-hint-validity", "Every generated hint names a real item (#441)", Test_RandoHintValidity},
+    // #441 runtime complement: item hints must still name their real item after a
+    // save/reload cycle rebuilds the placement table. Needs a display like
+    // rando-gen, so `--test all` skips it (below).
+    {"rando-hint-reload", "Item hints survive a save/reload cycle (#441)", Test_RandoHintReload},
+    // #441 root-cause lock: item hints must survive a cross-game OoT arrival,
+    // whose title-chain Save_Init used to wipe the placement table. Needs a
+    // display like rando-gen, so `--test all` skips it (below).
+    {"rando-hint-crossgame", "Item hints survive a cross-game OoT arrival (#441)", Test_RandoHintCrossGame},
     // Lane B unified seed: producer stamps gComboCtx at generation time; the
     // two-process same-seed determinism diff runs via the SeedDeterminism row.
     // Needs a display like rando-gen, so `--test all` skips it (below).
@@ -1323,6 +1397,8 @@ int TestRunner_Run(const char* testName) {
             // this display-free suite, where they would hang the 60s timeout.
             if (strcmp(gTests[i].name, "rando-gen") == 0 || strcmp(gTests[i].name, "rando-determinism") == 0 ||
                 strcmp(gTests[i].name, "rando-hint-validity") == 0 ||
+                strcmp(gTests[i].name, "rando-hint-reload") == 0 ||
+                strcmp(gTests[i].name, "rando-hint-crossgame") == 0 ||
                 strcmp(gTests[i].name, "mm-rando-gen") == 0 ||
                 strcmp(gTests[i].name, "mm-pair-switch-entry") == 0 ||
                 strcmp(gTests[i].name, "mm-reload-arm-state") == 0) {

@@ -514,6 +514,12 @@ void SaveManager::SaveRandomizer(SaveContext* saveContext, int sectionID, bool f
 
 // Init() here is an extension of InitSram, and thus not truly an initializer for SaveManager itself. don't put any
 // class initialization stuff here
+// Cross-game arrival signal (src/common/entrance.h). True while a switch INTO
+// OoT is in flight, i.e. the boot chain is restoring the live OoT session rather
+// than performing a player-visible reset. Declared here (as z_title.c does)
+// to avoid pulling the src/common header into this OoT TU.
+extern "C" bool Combo_HasStartupEntranceForGame(const char* gameId);
+
 void SaveManager::Init() {
     // Wait on saves that snuck through the Wait in OnExitGame
     ThreadPoolWait();
@@ -574,7 +580,27 @@ void SaveManager::Init() {
         }
     }
     saveBlock = nlohmann::json::object();
-    OTRGlobals::Instance->gRandoContext->ClearItemLocations();
+
+    // #441: do NOT wipe the randomizer placement table when a cross-game arrival
+    // is restoring the live OoT session. This Init() runs from OoT_Sram_InitSram,
+    // which the gamestate framework dispatches via Title_Destroy on EVERY entry
+    // through the title chain -- including the cold-boot chain a switch INTO OoT
+    // walks (see z_title.c: the arrival sets running=false but Title_Destroy
+    // still fires). On that path the frozen OoT save is restored later at
+    // Play_ConsumeStartupEntrance WITHOUT going through Save_LoadFile, so nothing
+    // re-runs LoadRandomizer to rehydrate the Rando::Context. The context is an
+    // in-memory singleton that survives the switch (OoT is suspended, not shut
+    // down), so its placements are still valid here -- clearing them stranded
+    // every item hint on RG_NONE ("No Item"). ClearItemLocations only touches the
+    // itemLocationTable, not hintTable, which is why the hint's location phrasing
+    // survived while the item name decayed. On a genuine boot or a real
+    // return-to-title (no arrival in flight) the clear still runs, and the file
+    // load that follows rehydrates the table as before.
+    if (!Combo_HasStartupEntranceForGame("oot")) {
+        OTRGlobals::Instance->gRandoContext->ClearItemLocations();
+    } else {
+        SPDLOG_INFO("[#441] Skipping ClearItemLocations: cross-game OoT arrival is restoring the live rando session");
+    }
 }
 
 void SaveManager::StartupCheckAndInitMeta(int fileNum) {
@@ -2991,6 +3017,86 @@ void SaveManager::ConvertFromUnversioned() {
 
 #undef SLOT_SIZE
 #undef SLOT_OFFSET
+}
+
+// Test hook (#441). Runtime-resolution lock companion. See header for the bug.
+void SaveManager::TestRoundTripRandomizerSection(bool* outResetCleared, bool* outPlacementRestored) {
+    auto ctxBefore = Rando::Context::GetInstance();
+
+    // Sample a location that actually holds an item, so we can prove the reset
+    // really emptied the placement table and the reload really refilled it. A
+    // vacuous test (reset that never cleared) would otherwise pass silently.
+    bool haveSample = false;
+    size_t sample = 0;
+    RandomizerGet sampleBefore = RG_NONE;
+    for (size_t i = 1; i < RC_MAX; i++) {
+        RandomizerGet rg = ctxBefore->GetItemLocation(i)->GetPlacedRandomizerGet();
+        if (rg != RG_NONE) {
+            haveSample = true;
+            sample = i;
+            sampleBefore = rg;
+            break;
+        }
+    }
+    // Release this local strong reference BEFORE the reset below. The reset only
+    // produces a fresh context if gRandoContext.reset() drops the last owner so
+    // Context::mContext (a weak_ptr) expires; a lingering shared_ptr here would
+    // keep the old context alive, CreateInstance() would hand it straight back,
+    // and the "reload" would silently reuse the still-populated table. gRando
+    // Context still owns it, so SaveRandomizer below still sees the live world.
+    ctxBefore = nullptr;
+
+    // Serialize the live randomizer section exactly as a real save does.
+    gSaveContext.ship.quest.id = QUEST_RANDOMIZER;
+    nlohmann::json section = nlohmann::json::object();
+    nlohmann::json* prev = currentJsonContext;
+    currentJsonContext = &section;
+    SaveRandomizer(&gSaveContext, 0, true);
+    currentJsonContext = prev;
+
+    // Reset the context exactly as Save_LoadFile does before a load: a real
+    // load never keeps the generation-time context, it rebuilds from the save.
+    OTRGlobals::Instance->gRandoContext->GetLogic()->SetContext(nullptr);
+    Rando::Settings::GetInstance()->ClearContext();
+    OTRGlobals::Instance->gRandoContext.reset();
+    OTRGlobals::Instance->gRandoContext = Rando::Context::CreateInstance();
+    OTRGlobals::Instance->gRandoContext->GetLogic()->SetSaveContext(&gSaveContext);
+    Rando::Settings::GetInstance()->AssignContext(OTRGlobals::Instance->gRandoContext);
+    OTRGlobals::Instance->gRandoContext->AddExcludedOptions();
+
+    RandomizerGet sampleAfterReset =
+        haveSample ? Rando::Context::GetInstance()->GetItemLocation(sample)->GetPlacedRandomizerGet() : RG_NONE;
+
+    // Reload the section exactly as LoadFile -> LoadRandomizer does.
+    prev = currentJsonContext;
+    currentJsonContext = &section;
+    LoadRandomizer();
+    currentJsonContext = prev;
+
+    RandomizerGet sampleAfterLoad =
+        haveSample ? Rando::Context::GetInstance()->GetItemLocation(sample)->GetPlacedRandomizerGet() : RG_NONE;
+
+    fprintf(stderr, "[hint-reload] sample check %zu: placedItem before=%d afterReset=%d afterLoad=%d\n", sample,
+            (int)sampleBefore, (int)sampleAfterReset, (int)sampleAfterLoad);
+
+    if (outResetCleared != nullptr) {
+        *outResetCleared = !haveSample || sampleAfterReset == RG_NONE;
+    }
+    if (outPlacementRestored != nullptr) {
+        *outPlacementRestored = !haveSample || sampleAfterLoad == sampleBefore;
+    }
+}
+
+extern "C" void Rando_TestRoundTripRandomizerSection(int* outResetCleared, int* outPlacementRestored) {
+    bool resetCleared = false;
+    bool placementRestored = false;
+    SaveManager::Instance->TestRoundTripRandomizerSection(&resetCleared, &placementRestored);
+    if (outResetCleared != nullptr) {
+        *outResetCleared = resetCleared ? 1 : 0;
+    }
+    if (outPlacementRestored != nullptr) {
+        *outPlacementRestored = placementRestored ? 1 : 0;
+    }
 }
 
 // C to C++ bridge

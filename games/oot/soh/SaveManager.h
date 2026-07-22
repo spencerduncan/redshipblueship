@@ -109,6 +109,18 @@ class SaveManager {
     void DeleteZeldaFile(int fileNum);
     bool IsRandoFile();
 
+    // Test hook (#441): drive the REAL randomizer section through a
+    // save -> context-reset -> reload cycle, in memory, exactly as loading a
+    // saved file does (Save_LoadFile resets the Rando::Context, then
+    // LoadFile -> LoadRandomizer rehydrates it). Gossip stones were reading
+    // "catching Big Poes leads to No Item" while that seed's spoiler named a
+    // real item; the hint's location survives the reload but the item name is
+    // resolved at RUNTIME from the placement table, which is rebuilt on every
+    // load. outResetCleared reports whether the reset actually emptied the
+    // sampled placement (guards against a vacuous test); outPlacementRestored
+    // reports whether the reload put it back.
+    void TestRoundTripRandomizerSection(bool* outResetCleared, bool* outPlacementRestored);
+
     // Use a name of "" to save to an array. You must be in a SaveArray callback.
     template <typename T> void SaveData(const std::string& name, const T& data) {
         if (name == "") {
