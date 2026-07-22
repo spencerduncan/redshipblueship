@@ -1279,7 +1279,7 @@ void Sram_ResetSaveFromMoonCrash(SramContext* sramCtx) {
     // 0xFF "no real slot" sentinel, so there is no flash file to reload. Guarding here
     // keeps us from indexing gFlashSaveStartPages/gFlashSaveNumPages far out of bounds AND
     // from clobbering the live save with the still-zeroed buffer below.
-    if (Sram_FileNumHasFlashSlot(gSaveContext.fileNum)) {
+    if (1 /* COUNTERFACTUAL: force reload to prove mm-flash-filenum-oob lock goes RED */) {
         if (SysFlashrom_ReadData(sramCtx->saveBuf,
                                  gFlashSaveStartPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER],
                                  gFlashSaveNumPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER]) != 0) {
