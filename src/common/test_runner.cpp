@@ -683,6 +683,35 @@ TestResult Test_MMMoonCrashArmState(void) {
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// Owl-save arm-state lock (#487). The same class as the moon crash, on the save
+// a player performs every cycle: Sram_UpdateWriteToFlashOwlSave re-reads the
+// file it just wrote and memcpy's it over gSaveContext, and MM's flash read is a
+// no-op stub in single-exe, so the paired world's ShipSaveInfo (saveType + the
+// whole rando block) is committed away as zeros. Also covers the file-copy leg
+// (func_80147414). Probes arm state through a VB verdict; a hook count is blind
+// here in both directions, since nothing re-dispatches OnSaveLoad after the
+// readback. Bridge body in games/mm/2s2h/mm_rando_gen_test.cpp. Needs a display,
+// same as mm-rando-gen.
+extern "C" int MM_Rando_HeadlessOwlSaveArmState(void);
+
+TestResult Test_MMOwlSaveArmState(void) {
+    printf("[TEST] mm-owl-save-arm-state: an owl save preserves the paired world and its IS_RANDO hooks\n");
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    int rc = MM_Rando_HeadlessOwlSaveArmState();
+    printf("[TEST] %s: owl-save arm-state rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 TestResult Test_BootMM(void) {
     printf("[TEST] boot-mm: MM-first bring-up prerequisites (#330)\n");
     sTargetGame = GAME_MM;
@@ -1309,6 +1338,11 @@ const TestDescriptor gTests[] = {
     // randomizer identity. Same display requirement, so `--test all` skips it.
     {"mm-moon-crash-arm-state", "A moon crash preserves the paired MM world and its IS_RANDO hooks",
      Test_MMMoonCrashArmState},
+    // #487: the owl save (and the file copy) do the same readback-then-commit
+    // over gSaveContext that the moon crash did. Same display requirement, so
+    // `--test all` skips it.
+    {"mm-owl-save-arm-state", "An owl save preserves the paired MM world and its IS_RANDO hooks (#487)",
+     Test_MMOwlSaveArmState},
     {"boot-oot", "Shared-context bring-up leaves no null subsystems (#329)", Test_BootOoT},
     {"boot-mm", "MM-first bring-up prerequisites on the shared context (#330)", Test_BootMM},
     {"switch-oot-mm", "Test game switch OoT -> MM", Test_SwitchOoTMM},
@@ -1489,7 +1523,8 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "mm-rando-gen") == 0 ||
                 strcmp(gTests[i].name, "mm-pair-switch-entry") == 0 ||
                 strcmp(gTests[i].name, "mm-reload-arm-state") == 0 ||
-                strcmp(gTests[i].name, "mm-moon-crash-arm-state") == 0) {
+                strcmp(gTests[i].name, "mm-moon-crash-arm-state") == 0 ||
+                strcmp(gTests[i].name, "mm-owl-save-arm-state") == 0) {
                 printf("\n--- Skipping: %s (needs display; runs as a rando-label CTest) ---\n", gTests[i].name);
                 continue;
             }
