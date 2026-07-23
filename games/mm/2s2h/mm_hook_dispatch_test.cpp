@@ -34,13 +34,23 @@
  * rebind block or the GameExports_SingleExe.cpp bridges fails
  * FAIL(1)/FAIL(3)/FAIL(4)/FAIL(5).
  *
- * WHAT THIS DOES NOT COVER. The z_actor.c half -- two stale
- * `#ifdef RSBS_SINGLE_EXECUTABLE` blocks that skipped the ShouldActorInit call
- * site entirely -- is a call-site edit in ROM-dependent code. This row proves
- * the dispatcher works when called; it cannot prove z_actor.c calls it. BootMM
- * is what exercises that leg: with the guards removed, every MM actor spawn now
- * runs the dispatcher and a hook returning false kills the actor, so a boot
- * regression there surfaces as a BootMM failure rather than silently.
+ * WHAT THIS DOES NOT COVER -- READ BEFORE TRUSTING THE SUITE ON IT. The
+ * z_actor.c half (two stale `#ifdef RSBS_SINGLE_EXECUTABLE` blocks that skipped
+ * the ShouldActorInit call site outright) is a call-site edit in ROM-dependent
+ * code. This row proves the dispatcher works when called; nothing here proves
+ * z_actor.c calls it.
+ *
+ * No ROM-free row covers that leg. BootMM is the obvious candidate and does NOT
+ * qualify: `boot-mm` asserts MM-first bring-up prerequisites (#330) -- archive
+ * load, resource-factory registration -- and returns without spawning an actor
+ * or running a play frame, so it cannot observe actor init at all.
+ *
+ * That matters more than usual here, because removing the guards is a real
+ * behavior change on every MM actor spawn: a ShouldActorInit registrant
+ * returning false now kills the actor, which was impossible while the guards
+ * stood. That is the upstream semantic rando needs, and it is unverified by
+ * automation -- it belongs to the gameplay tier (int-*), which needs the
+ * self-hosted ROM runner. Operator playtest is the check.
  */
 
 #include "global.h"
