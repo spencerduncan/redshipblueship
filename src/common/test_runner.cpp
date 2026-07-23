@@ -93,6 +93,16 @@ int MM_TrackersGui_RunHeadless(void);
 // spoiler window's ctor reads ConsoleVariables off the Ship::Context
 // singleton, so its body needs the display-free shared bring-up below.
 int Combo_SpoilerWindow_RunHeadless(void);
+// src/common/tests/test_combo_mm_options_window.c — the MM options pane's
+// window lock; same bridge shape and the same reason (GuiWindow ctor reads
+// ConsoleVariables off the Ship::Context singleton).
+int Combo_MMOptionsWindow_RunHeadless(void);
+// games/mm/2s2h/mm_rando_options_test.cpp (#497 step 4, #499): the option TABLE
+// and the paired PROFILE. Both bodies live in an MM TU because they drive
+// Rando::StaticData::Options and Rando::Foreign::ResolvePairedProfile, which
+// need MM's headers — this file must never acquire them. Return 0 on pass.
+int MM_RandoOptions_RunHeadless(void);
+int MM_PairedProfile_RunHeadless(void);
 // VB-affinity regression: MM's GameInteractor_* calls resolve to OoT's
 // extern "C" wrappers in single-exe builds, and the two games' vanilla-
 // behavior ordinals alias each other. The wrappers gate on the active game;
@@ -163,6 +173,12 @@ extern "C" {
 // out of ImGui under GAME_OOT/GAME_MM/GAME_NONE alike. FILE SCOPE — it drives
 // the C++-linkage ComboGui::RegisterComboSpoilerWindow.
 #include "tests/test_combo_spoiler_window.c"
+
+// The MM randomizer options pane's window (#497 step 4, ADR 0004 + 0008): same
+// registration/idempotence/de-collision shape, plus a tripwire that a pane which
+// deliberately READS the active game still never reads that game's save. FILE
+// SCOPE — it drives the C++-linkage ComboGui::RegisterComboMmOptionsWindow.
+#include "tests/test_combo_mm_options_window.c"
 
 // Sourced-grant model locks (ADR 0005, netplay 1a #460): per-source cursor
 // idempotency, switch-free received-order redemption, loud overflow with
@@ -1250,6 +1266,56 @@ TestResult Test_ComboSpoilerWindow(void) {
     return Combo_SpoilerWindow_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// MM randomizer options pane (#497 step 4, ADR 0004 + 0008). Same bring-up as
+// the two Gui bridges above and for the same reason.
+TestResult Test_ComboMMOptionsWindow(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return Combo_MMOptionsWindow_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// MM option TABLE lock (#497 step 4, #499 step 5). No Gui, but it reads and
+// writes the option CVars through the real ConsoleVariables store, so it needs
+// the same display-free bring-up.
+TestResult Test_MMRandoOptions(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_RandoOptions_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// Paired MM PROFILE lock (#499 steps 2-4). Drives the real resolver over a
+// zeroed MM SaveContext — no fill, no region graph, no window — which is the
+// whole point of extracting it out of OnFileCreate.
+TestResult Test_MMPairedProfile(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_PairedProfile_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 TestResult Test_RoundtripIntegrity(void) {
     printf("[TEST] roundtrip-integrity: OoT SaveContext byte-integrity across roundtrip (issue #262)\n");
     int failures = TestRoundtripIntegrity_Run();
@@ -1418,6 +1484,16 @@ const TestDescriptor gTests[] = {
      Test_ComboSpoilerView},
     {"combo-spoiler-window", "Common-owned spoiler window registers de-collided; inert under every active game (#496)",
      Test_ComboSpoilerWindow},
+    // MM randomizer options surface (#497 step 4, #499). Three locks, split by
+    // what they can see: the table needs MM's headers, the profile needs MM's
+    // SaveContext, the window needs a Gui.
+    {"mm-rando-options", "Every MM rando option has a row, a label, a bound cvar, and honest gating (#497)",
+     Test_MMRandoOptions},
+    {"mm-paired-profile", "The paired MM profile honours explicit choices and publishes a moving digest (#499)",
+     Test_MMPairedProfile},
+    {"combo-mm-options-window",
+     "Common-owned MM options pane registers de-collided; inert under every active game (#497)",
+     Test_ComboMMOptionsWindow},
     // Netplay 1a (ADR 0005, #460): the sourced-grant model, transport-free.
     {"grant-idempotency", "Retransmit delivers once; a second gift of the same item delivers twice (ADR 0005)",
      Test_GrantIdempotency},
