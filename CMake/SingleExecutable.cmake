@@ -354,6 +354,12 @@ if(BUILD_TESTING)
     # gComboCtx.foreignPlacements round-trips through the .redsave record.
     redship_add_test(NAME ForeignItemGive COMMAND redship --test foreign-item-give)
     redship_add_test(NAME ForeignItemGiveReverse COMMAND redship --test foreign-item-give-reverse)
+    # #488: a foreign item may only be hosted by a check class the GAME arms.
+    # CheckQueue's foreign branch is nested inside `if (eligible)`, so an
+    # unarmed host strands a pinned OoT progression item and makes the paired
+    # world unwinnable with no error. Drives the real selection predicate over
+    # MM's real check table; also prints the eligible-host supply count.
+    redship_add_test(NAME ForeignHostEligibility COMMAND redship --test foreign-host-eligibility)
     redship_add_test(NAME ComboSpoilerView COMMAND redship --test combo-spoiler-view)
     redship_add_test(NAME ComboSpoilerWindow COMMAND redship --test combo-spoiler-window)
     # Cross-game session invalidation (#440). A soft reset or a new game must

@@ -48,6 +48,18 @@ extern "C" {
 int MM_Rando_Foreign_RecordPickup(uint16_t randoCheckId);
 int Switch_PrepareHotSwap(GameId departing, const void* saveContext, size_t size);
 int Combo_ConsumeFrozenState(const char* gameId, void* saveContext, size_t size);
+
+// #488 host-eligibility lock. The first is the REAL selection predicate
+// PlaceForeignItems' candidate loop calls — driving it here is what makes this
+// lock a test of selection rather than of a paraphrase. The rest are the
+// inspection/stamping accessors that let a src/common test build a synthetic
+// save over MM's real check table (Rando/Foreign.cpp's bridge block).
+int MM_Rando_Foreign_IsEligibleHost(uint16_t randoCheckId);
+int MM_Rando_Foreign_TestCheckIdMax(void);
+int MM_Rando_Foreign_TestCheckClass(uint16_t randoCheckId, int* outIsChestType, int* outHasChestFlag);
+void MM_Rando_Foreign_TestStampCheck(uint16_t randoCheckId, int shuffled, int skipped, uint16_t itemId);
+void MM_Rando_Foreign_TestStampAllChecks(int shuffled, int skipped, uint16_t itemId);
+void MM_Rando_Foreign_TestItemSentinels(uint16_t* outJunk, uint16_t* outNone, uint16_t* outUnknown);
 }
 
 #define FI_ASSERT(cond)                                                                                                \
@@ -545,5 +557,165 @@ TestResult Test_ForeignItemGiveReverse(void) {
     ComboContext_Init();
 
     printf("[TEST] PASS: reverse carve is a separate key space, serializes byte-exact, zero-extends, redeems once\n");
+    return TEST_PASS;
+}
+
+// ============================================================================
+// #488: foreign-HOST eligibility.
+//
+// The give path only reaches a foreign placement from inside
+// `if (randoSaveCheck.eligible)` (MM's MiscBehavior/CheckQueue.cpp:39-53), so a
+// host whose `.eligible` bit is never armed strands its pinned OoT progression
+// item permanently â€” invisible, unwinnable, and indistinguishable in-game from
+// an item that was never placed. The old host predicate said nothing about
+// arming: it required only the fill-time `.shuffled` bit plus "holds a
+// junk-class item", and excluded only shops.
+//
+// This drives MM_Rando_Foreign_IsEligibleHost â€” the SAME function
+// PlaceForeignItems' candidate loop calls, which is the whole reason the
+// predicate was extracted â€” over MM's REAL Rando::StaticData::Checks table with
+// a synthetic all-shuffled save. It is not a reimplementation of the rule; if
+// the rule changes, this moves with it.
+//
+// The negatives that were GREEN-on-a-bug before #488 are the `.skipped` leg,
+// the two sentinel legs (RI_UNKNOWN/RI_NONE are both declared RITYPE_JUNK, so
+// a type-only test accepted them), and the whole-table class sweep (the old
+// predicate accepted every non-shop check type). The `.shuffled` and
+// RC_UNKNOWN legs are NOT new — the old inline predicate tested both — and are
+// kept as positive/negative controls rather than as regression evidence.
+// ============================================================================
+TestResult Test_ForeignHostEligibility(void) {
+    printf("[TEST] foreign-host-eligibility: only game-armed check classes can host a foreign item (#488)\n");
+
+    const int checkIdMax = MM_Rando_Foreign_TestCheckIdMax();
+    FI_ASSERT(checkIdMax > 1);
+
+    uint16_t riJunk = 0xFFFF;
+    uint16_t riNone = 0xFFFF;
+    uint16_t riUnknown = 0xFFFF;
+    MM_Rando_Foreign_TestItemSentinels(&riJunk, &riNone, &riUnknown);
+    // RI_UNKNOWN is enumerator 0 â€” a zero-initialised slot. That it is a
+    // DISTINCT value from the legal junk filler is the premise of the sentinel
+    // rejection below; assert it rather than assume it.
+    FI_ASSERT(riUnknown == 0);
+    FI_ASSERT(riJunk != riUnknown && riJunk != riNone);
+
+    // The synthetic save: every check shuffled, not skipped, holding the legal
+    // junk filler. Under the OLD predicate this made nearly every row in the
+    // table a legal host; under the new one only the armed classes survive.
+    MM_Rando_Foreign_TestStampAllChecks(/*shuffled=*/1, /*skipped=*/0, riJunk);
+
+    // ------------------------------------------------------------------
+    // Whole-table sweep. Two facts at once: what the predicate accepts, and
+    // the static-table invariant Tier A is defined in terms of.
+    // ------------------------------------------------------------------
+    int acceptedCount = 0;
+    int chestRowCount = 0;
+    int chestRowsMissingFlag = 0;
+    int firstChestId = 0;
+    int firstNonChestAcceptedId = 0;
+    int firstRejectedNonChestId = 0;
+    for (int id = 1; id < checkIdMax; id++) {
+        int isChestType = 0;
+        int hasChestFlag = 0;
+        if (MM_Rando_Foreign_TestCheckClass((uint16_t)id, &isChestType, &hasChestFlag) == 0) {
+            continue; // not a real row (RC_UNKNOWN sentinel / gap)
+        }
+        if (isChestType) {
+            chestRowCount++;
+            if (!hasChestFlag) {
+                chestRowsMissingFlag++;
+            }
+            if (firstChestId == 0) {
+                firstChestId = id;
+            }
+        } else if (firstRejectedNonChestId == 0) {
+            firstRejectedNonChestId = id;
+        }
+
+        if (MM_Rando_Foreign_IsEligibleHost((uint16_t)id)) {
+            acceptedCount++;
+            if (!isChestType && firstNonChestAcceptedId == 0) {
+                firstNonChestAcceptedId = id;
+            }
+        }
+    }
+
+    // This number sizes the foreign pool â€” it is the input #495 (the
+    // rule-defined pool) needs, so print it whether or not anything fails.
+    printf("[TEST] foreign-host-eligibility: %d eligible hosts over %d chest rows (table has %d check ids)\n",
+           acceptedCount, chestRowCount, checkIdMax - 1);
+
+    // Tier A ships alone: nothing outside RCTYPE_CHEST may be accepted.
+    FI_ASSERT(firstNonChestAcceptedId == 0);
+    // ...and the sweep must have actually exercised a non-chest row, or the
+    // assertion above passed for want of anything to reject.
+    FI_ASSERT(firstRejectedNonChestId != 0);
+    FI_ASSERT(MM_Rando_Foreign_IsEligibleHost((uint16_t)firstRejectedNonChestId) == 0);
+
+    // Static-table invariant: every chest row carries FLAG_CYCL_SCENE_CHEST.
+    // A FLAG_NONE chest row added later would have no vanilla setter and would
+    // strand â€” and nothing else in the tree would notice.
+    FI_ASSERT(chestRowCount > 0);
+    FI_ASSERT(chestRowsMissingFlag == 0);
+    // Because the predicate's other conditions are all satisfied by the
+    // synthetic save, acceptance must be exactly the chest rows. An inequality
+    // here means the class rule and the table have drifted apart.
+    FI_ASSERT(acceptedCount == chestRowCount);
+
+    // Supply: the tightened predicate must still be able to host the whole
+    // pinned pool. Falling under this is the "stop and report" condition, not
+    // a cue to widen the predicate until the number is comfortable.
+    const ComboForeignItemDef* pool = NULL;
+    const int poolCount = Combo_GetForeignItemPool(&pool);
+    FI_ASSERT(poolCount > 0);
+    FI_ASSERT(acceptedCount >= poolCount);
+
+    // ------------------------------------------------------------------
+    // Per-condition negatives, on a real chest row. The positive control is
+    // re-asserted between each one, so a negative can never pass because the
+    // host became ineligible for an unrelated reason.
+    // ------------------------------------------------------------------
+    FI_ASSERT(firstChestId != 0);
+    const uint16_t chest = (uint16_t)firstChestId;
+    FI_ASSERT(MM_Rando_Foreign_IsEligibleHost(chest) == 1);
+
+    // RC_UNKNOWN is never a host, and neither is an out-of-range id.
+    FI_ASSERT(MM_Rando_Foreign_IsEligibleHost(0) == 0);
+    FI_ASSERT(MM_Rando_Foreign_IsEligibleHost((uint16_t)checkIdMax) == 0);
+
+    // Defect A: a user-EXCLUDED check is marked `shuffled = true;
+    // randoItemId = RI_JUNK; skipped = true` by GeneratePools and kept out of
+    // checkPool â€” so under the old predicate it was a top-priority host for a
+    // pinned progression item.
+    MM_Rando_Foreign_TestStampCheck(chest, /*shuffled=*/1, /*skipped=*/1, riJunk);
+    FI_ASSERT(MM_Rando_Foreign_IsEligibleHost(chest) == 0);
+    MM_Rando_Foreign_TestStampCheck(chest, 1, 0, riJunk);
+    FI_ASSERT(MM_Rando_Foreign_IsEligibleHost(chest) == 1);
+
+    // Defect B: RI_UNKNOWN (a zero-initialised or unresolvable slot) and
+    // RI_NONE ("literally nothing") are both declared RITYPE_JUNK, so a
+    // type-only test accepts an item that is not an item.
+    MM_Rando_Foreign_TestStampCheck(chest, 1, 0, riUnknown);
+    FI_ASSERT(MM_Rando_Foreign_IsEligibleHost(chest) == 0);
+    MM_Rando_Foreign_TestStampCheck(chest, 1, 0, riNone);
+    FI_ASSERT(MM_Rando_Foreign_IsEligibleHost(chest) == 0);
+    MM_Rando_Foreign_TestStampCheck(chest, 1, 0, riJunk);
+    FI_ASSERT(MM_Rando_Foreign_IsEligibleHost(chest) == 1);
+
+    // Carried over unchanged from the old predicate: a check outside the fill
+    // is not a host. (The non-junk-item rejection is covered by the sentinel
+    // legs above and by the whole-table sweep, which stamps only junk.)
+    MM_Rando_Foreign_TestStampCheck(chest, /*shuffled=*/0, 0, riJunk);
+    FI_ASSERT(MM_Rando_Foreign_IsEligibleHost(chest) == 0);
+    MM_Rando_Foreign_TestStampCheck(chest, 1, 0, riJunk);
+    FI_ASSERT(MM_Rando_Foreign_IsEligibleHost(chest) == 1);
+
+    // Leave MM's check table as a fresh save would: nothing shuffled, nothing
+    // held. `--test all` runs every row in one process.
+    MM_Rando_Foreign_TestStampAllChecks(/*shuffled=*/0, /*skipped=*/0, riUnknown);
+    FI_ASSERT(MM_Rando_Foreign_IsEligibleHost(chest) == 0);
+
+    printf("[TEST] PASS: only chest-class hosts with a live, non-skipped, legal-junk slot can host a foreign item\n");
     return TEST_PASS;
 }

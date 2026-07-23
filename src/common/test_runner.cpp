@@ -1402,6 +1402,12 @@ const TestDescriptor gTests[] = {
     {"foreign-item-give-reverse",
      "Reverse (MM->OoT) placement carve: separate key space, serializes, redeems once (#493)",
      Test_ForeignItemGiveReverse},
+    // #488: host selection must reject any check class the game does not arm —
+    // the give path is gated on `.eligible`, so an unarmed host strands a
+    // pinned OoT progression item and no error is ever raised.
+    {"foreign-host-eligibility",
+     "Foreign hosts limited to game-armed check classes; skipped/sentinel slots rejected (#488)",
+     Test_ForeignHostEligibility},
     {"combo-spoiler-view", "In-game spoiler view model: named crossings, collected state, unpaired != empty (#496)",
      Test_ComboSpoilerView},
     {"combo-spoiler-window", "Common-owned spoiler window registers de-collided; inert under every active game (#496)",
