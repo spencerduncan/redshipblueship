@@ -109,6 +109,15 @@ void Rando::MiscBehavior::OnFileCreate(s16 fileNum) {
 
                 // Persist options to the save
                 gSaveContext.save.shipSaveInfo.rando.finalSeed = finalSeed;
+#ifdef RSBS_SINGLE_EXECUTABLE
+                // The profile — the option copy, the skulltula correction, the
+                // paired logic default and the profile digest — is resolved by
+                // ONE callable (#499 step 2). It used to be three inline blocks
+                // here, so the only way to observe it was to run a whole fill;
+                // the display-free MMPairedProfile lock drives this function
+                // directly. See Rando/Foreign.h for the ordering contract.
+                Rando::Foreign::ResolvePairedProfile(rsbsPaired);
+#else
                 for (auto& [randoOptionId, randoStaticOption] : Rando::StaticData::Options) {
                     RANDO_SAVE_OPTIONS[randoOptionId] =
                         (uint32_t)CVarGetInteger(randoStaticOption.cvar, randoStaticOption.defaultValue);
@@ -118,23 +127,10 @@ void Rando::MiscBehavior::OnFileCreate(s16 fileNum) {
                 if (!RANDO_SAVE_OPTIONS[RO_SHUFFLE_GOLD_SKULLTULAS]) {
                     RANDO_SAVE_OPTIONS[RO_MINIMUM_SKULLTULA_TOKENS] = SPIDER_HOUSE_TOKENS_REQUIRED;
                 }
+#endif
 
 #ifdef RSBS_SINGLE_EXECUTABLE
                 if (rsbsPaired) {
-                    // Pinned MM profile for the paired world (#392): the MVP
-                    // pairs under Nearly No Logic — free-form placement, with
-                    // the spoiler log carrying what logic would otherwise
-                    // carry (Lane D). Glitchless generation itself works (the
-                    // #426 Deku Palace edge fix, locked by MMRandoGen's
-                    // gating glitchless phase); this pin is an MVP-scope
-                    // choice, not a workaround. Pinned BEFORE the settings
-                    // mix below so the profile is part of the world identity.
-                    if (RANDO_SAVE_OPTIONS[RO_LOGIC] != RO_LOGIC_NEARLY_NO_LOGIC &&
-                        RANDO_SAVE_OPTIONS[RO_LOGIC] != RO_LOGIC_NO_LOGIC &&
-                        RANDO_SAVE_OPTIONS[RO_LOGIC] != RO_LOGIC_VANILLA) {
-                        SPDLOG_INFO("Paired-world generation: pinning MM logic to Nearly No Logic (#426)");
-                        RANDO_SAVE_OPTIONS[RO_LOGIC] = RO_LOGIC_NEARLY_NO_LOGIC;
-                    }
                     // Re-seed with Hash(master seed + MM's finalized options),
                     // mirroring OoT's Hash(seed + settingsStr) double-reseed
                     // (Lane B contract): the same master seed reproduces this

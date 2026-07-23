@@ -25,7 +25,8 @@
 #include "game.h"
 #include "game_lifecycle.h"
 #include "context.h"
-#include "ComboSpoilerWindow.h" // Combo_SpoilerWindow_Init (#496, ADR 0008)
+#include "ComboSpoilerWindow.h"   // Combo_SpoilerWindow_Init (#496, ADR 0008)
+#include "ComboMmOptionsWindow.h" // Combo_MMOptionsWindow_Init (#497/#499, ADR 0004+0008)
 #include "entrance.h"
 #include "rsbs_version.h"
 #include "test_runner.h"
@@ -497,6 +498,14 @@ int main(int argc, char** argv) {
     // (ADR 0008). Whichever game started has created the Ship::Context and
     // its Gui by now; the call is a safe no-op if it has not.
     Combo_SpoilerWindow_Init();
+
+    // MM randomizer options pane (#497 step 4, #499). Same seam, same reason —
+    // but the timing argument is stronger here than for the spoiler: the paired
+    // MM profile is snapshotted at MM's cross-game arrival and an existing MM
+    // save is never regenerated, so a chooser hung off MM's boot would only
+    // exist after the point at which it could still change anything. It has to
+    // be reachable while OoT is the running game.
+    Combo_MMOptionsWindow_Init();
 
     // Belt and braces: re-assert the unattended-safe handlers after game init.
     // The claim above already makes Ship::Context::InitCrashHandler a no-op

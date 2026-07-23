@@ -135,6 +135,54 @@ bool CvarClassTreeContainsExactKey(const std::vector<std::string>& tree, const c
     return false;
 }
 
+/// One scanned file, with the repo-relative path kept. The slurp above throws
+/// paths away because every question it asks is "does the tree contain X"; the
+/// menu-index reader allowlist asks "WHICH file contains X", so it needs them.
+struct CvarClassSourceFile {
+    std::string relPath; // forward slashes, relative to `root`
+    std::string text;
+};
+
+std::vector<CvarClassSourceFile> CvarClassSlurpTreeWithPaths(const std::filesystem::path& root, bool& ok) {
+    std::vector<CvarClassSourceFile> files;
+    std::error_code ec;
+
+    if (!std::filesystem::exists(root, ec) || ec) {
+        ok = false;
+        return files;
+    }
+    ok = true;
+
+    for (std::filesystem::recursive_directory_iterator it(root, std::filesystem::directory_options::skip_permission_denied, ec),
+         end;
+         it != end; it.increment(ec)) {
+        if (ec) {
+            ec.clear();
+            continue;
+        }
+        if (!it->is_regular_file(ec) || ec) {
+            ec.clear();
+            continue;
+        }
+        if (!CvarClassIsSourceFile(it->path())) {
+            continue;
+        }
+        std::ifstream file(it->path(), std::ios::binary);
+        if (!file.is_open()) {
+            continue;
+        }
+        CvarClassSourceFile entry;
+        entry.relPath = std::filesystem::relative(it->path(), root, ec).generic_string();
+        if (ec) {
+            ec.clear();
+            entry.relPath = it->path().generic_string();
+        }
+        entry.text.assign((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+        files.push_back(std::move(entry));
+    }
+    return files;
+}
+
 } // namespace
 #endif // RSBS_SOURCE_DIR
 
@@ -318,6 +366,87 @@ TestResult Test_CVarClassification(void) {
                    "[TEST]       question; converging this family needs an explicit decision first.\n",
                    RSBS::kParkedCasingPrefixMM);
             return TEST_FAIL;
+        }
+
+        // (3d-2) #451's REAL arming condition, mechanized (#497 step 2).
+        //
+        // ADR 0004 discharges #451 by deciding there is only one menu shell —
+        // but that discharge is a prose proviso ("provided MM's menu is never
+        // revived as a second shell") with nothing enforcing it, and #446's
+        // closure removed the technical deterrent that used to make reviving
+        // BenMenu obviously dangerous.
+        //
+        // Note carefully what is asserted, because the obvious wording is RED
+        // at head and would be "fixed" by weakening it. #497's lock text asks
+        // that EVERY reader of a menu-index key be on a not-linked allowlist —
+        // but OoT's live SohMenu reads all four by design, so that assertion
+        // fails on correct code. The hazard is TWO SHELLS indexing one key, and
+        // the second shell can only be MM's. So the invariant is scoped to
+        // MM-side readers: inside games/mm, only the two known-elided BenGui
+        // TUs may name these keys. A new MM reader entering the tree is exactly
+        // the arming condition, and it fails here rather than in a player's
+        // navigation state.
+        {
+            bool mmPathsOk = false;
+            const std::vector<CvarClassSourceFile> mmFiles =
+                CvarClassSlurpTreeWithPaths(sourceRoot / "games" / "mm", mmPathsOk);
+            CVARCLASS_CHECK(mmPathsOk && !mmFiles.empty(),
+                            "could not re-scan games/mm with paths for the menu-index reader allowlist");
+
+            // The two TUs measured to be in NO CMake target: BenMenu.cpp is
+            // excluded wholesale by games/mm/CMakeLists.txt's BenGui filter,
+            // and BenGui/Menu.cpp survives only inside the elided
+            // 2ship_rando_ui archive.
+            static const char* const kAllowedMMMenuIndexReaders[] = {
+                "2s2h/BenGui/BenMenu.cpp",
+                "2s2h/BenGui/Menu.cpp",
+            };
+
+            for (std::size_t k = 0; k < RSBS::kMenuIndexKeyCount; k++) {
+                const std::string needle = std::string("\"") + RSBS::kMenuIndexKeys[k];
+                for (const CvarClassSourceFile& f : mmFiles) {
+                    if (f.text.find(needle) == std::string::npos) {
+                        continue;
+                    }
+                    bool allowed = false;
+                    for (const char* ok : kAllowedMMMenuIndexReaders) {
+                        if (f.relPath == ok) {
+                            allowed = true;
+                            break;
+                        }
+                    }
+                    if (!allowed) {
+                        printf("[TEST] FAIL: games/mm/%s reads the menu-index key \"%s\".\n"
+                               "[TEST]       That key indexes a MENU. ADR 0004 discharges #451 by deciding there is\n"
+                               "[TEST]       exactly one shell (OoT's SohMenu, extended); a second, MM-side shell\n"
+                               "[TEST]       indexing the same key is #451's arming condition, and one game's\n"
+                               "[TEST]       persisted section then selects an unrelated entry in the other.\n"
+                               "[TEST]       If this file genuinely is not in the link, add it to\n"
+                               "[TEST]       kAllowedMMMenuIndexReaders here WITH the CMake evidence. If it IS in\n"
+                               "[TEST]       the link, #451 is now armed — say so on #451 rather than widening\n"
+                               "[TEST]       this allowlist.\n",
+                               f.relPath.c_str(), RSBS::kMenuIndexKeys[k]);
+                        return TEST_FAIL;
+                    }
+                }
+            }
+
+            // Non-vacuity: the allowlist must actually be exercised. If MM ever
+            // stops reading these keys entirely, the loop above passes without
+            // examining anything and the lock silently retires.
+            bool sawAnyReader = false;
+            for (std::size_t k = 0; k < RSBS::kMenuIndexKeyCount && !sawAnyReader; k++) {
+                const std::string needle = std::string("\"") + RSBS::kMenuIndexKeys[k];
+                for (const CvarClassSourceFile& f : mmFiles) {
+                    if (f.text.find(needle) != std::string::npos) {
+                        sawAnyReader = true;
+                        break;
+                    }
+                }
+            }
+            CVARCLASS_CHECK(sawAnyReader, "no MM file reads any menu-index key — the allowlist check just passed "
+                                          "vacuously; if MM's menu TUs were deleted, retire this block and #451 "
+                                          "with them rather than leaving a check that examines nothing");
         }
 
         // (3e) The deliberate cheat sharing survives. Both documents warn

@@ -1,7 +1,10 @@
 # ADR 0004: Menu information architecture — one shell, four tiers, capability-gated MM entries
 
-- Status: **Proposed** (2026-07-21)
-- For: #392 (Phase 3.0 tracker), #34 (settings migration)
+- Status: **Accepted** (2026-07-23, #497 step 1)
+- For: #392 (Phase 3.0 tracker), #34 (settings migration), #497, #499
+- Amended on acceptance: §4.1 (scope and host of the MM randomizer pane — see
+  §4.1a), §2d (the #454 disagreement, now ruled), and "What this ADR does not
+  decide" (all five calls resolved).
 - Depends on:
   - **[ADR 0003](0003-settings-namespace.md)** (settings namespace) — owns CVar key naming and
     the rename/migration rule; this ADR consumes its decisions rather than restating them.
@@ -91,15 +94,36 @@ resolving it"* — is discharged, provided MM's menu is never revived as a secon
 proviso is now load-bearing for both documents, which is the second reason §3 tier 1 flags the
 sidebar-name caveat.
 
-**One live disagreement, deliberately preserved.** On `gDeveloperTools.DebugSaveFileMode`,
-ADR 0003 §4.1 classifies (S) — value spaces align, only the unwritten fallback differs,
-"acceptable, worth knowing". This document classifies it **(P)** and files it as
-[#454](https://github.com/spencerduncan/redshipblueship/issues/454). The disagreement is real
-and narrow: 0003 is right that once the key is written the games agree, and this ADR is
-taking the more conservative line that two different defaults on one shared key is a
-behaviour decision someone should make rather than inherit. **The rename pass is safe under
-either reading** — the key name already matches, so nothing renames. Whoever closes #454
-should update whichever document ends up wrong.
+**~~One live disagreement, deliberately preserved.~~ RULED (P) on acceptance, 2026-07-23.** On
+`gDeveloperTools.DebugSaveFileMode`, ADR 0003 §4.1 classified (S) — value spaces align, only the
+unwritten fallback differs, "acceptable, worth knowing" — and this document classified it **(P)**,
+filed as [#454](https://github.com/spencerduncan/redshipblueship/issues/454).
+
+**#454 never decided it.** It was auto-closed by the squash-merge of PR #456, a docs-only change
+whose own text says #454 is the thing that will settle the question. The close is an artifact.
+
+**This ADR's (P) reading is upheld, on evidence neither document had.** The argument ADR 0003 §4.1
+rests on — "once written the shared value governs both; only the *unwritten* fallback differs" — is
+false on its own terms, because MM does not merely read the key with a different default. It
+*writes* one:
+
+```c
+// games/mm/2s2h/DeveloperTools/DeveloperTools.cpp, RegisterDebugMode()
+if (!CVAR_DEBUG_MODE) {
+    CVarSetInteger(CVAR_SAVE_FILE_MODE_NAME, DEBUG_SAVE_INFO_NONE);
+```
+
+MM's registrar unconditionally writes `0` into the shared cell whenever debug mode is off, which is
+the default state — so the key is never left unwritten once MM's devtools link, and OoT's `1` is
+destroyed on every launch. **ADR 0003 §4.1's row is therefore wrong and is corrected there.**
+
+Dormant but armed: `games/mm/CMakeLists.txt` excludes `2s2h/DeveloperTools/` from the single-exe
+build, so the clobber does not run today. It arms on the same un-elision work §5's gate 4
+schedules. The rename pass remains safe under either reading — the key name already matches — so
+this is a behaviour fix (retire MM's write, align MM's read default to OoT's `1`) owed by whichever
+lane un-elides `DeveloperTools`, not a namespace change. `kDisputedClassificationKeys` keeps the key
+until that fix lands, because the manifest must not claim (S) while the source still contains the
+write that makes it (P).
 
 ### 3. The four tiers
 
@@ -163,9 +187,9 @@ controls are what a player sees by default and the per-game ones read as excepti
 |---|---|---|
 | **Settings** | General, Audio, Graphics, Controls, Input Viewer, Notifications, Mod Menu | Tier 1. **Relabel to state these apply to both games.** No per-game split — there is nothing to split. |
 | **Enhancements** | Quality of Life, Skips & Speed-ups, Graphics, Items, Fixes, Difficulty, Minigames, Extra Modes | Shared-intent entries first in each sidebar; then `— Ocarina of Time —` and `— Majora's Mask —` separators for tier-3 entries |
-| **Cheats** | (promoted out of Enhancements) | Shared-intent block first (the 5 matched + 5 converged cheats), then per-game |
+| **Cheats** | ~~(promoted out of Enhancements)~~ **stays an Enhancements sidebar** | Superseded on acceptance — see resolved call 1. Shared-intent block first (the 5 matched + 5 converged cheats), then per-game |
 | **Cosmetics** | Cosmetics Editor, Audio Editor, HUD Editor | Mostly (O) per game; MM's 3 tunic keys converge — see classification §3.3 BUG 1 |
-| **Randomizer** | OoT, MM, **Paired** | See §4.1 |
+| **Randomizer** | OoT, MM, **Paired** | See §4.1 and **§4.1a** — MM's half is a common-owned window, not a SohMenu sidebar, for the timing reason given there |
 | **Trackers** | Item, Check, Entrance, Combo | Per findings §3, MM trackers are nearly free — blocked on registration surface + selective un-elision, not hook migration |
 | **Combo** | Pairing status, Save slots, Entrance links, Hot-swap | Tier 4. Absorbs `ComboMenuBar`'s working `.redsave` file-select panel |
 | **Dev Tools** | (existing) | Shared where already shared; MM's viewers gated per §5 |
@@ -187,6 +211,44 @@ paired world is opted into by generating on the OoT side; MM's half derives from
 `sharedRandoSeed` + `sharedRandoSettingsHash`. The cheapest honest increment is a **read-only
 "Paired" summary + MM logic-mode picker** inside the existing OoT rando pane — no MM menu port
 required.
+
+#### 4.1a Superseded on acceptance: the FULL option set, in a common-owned window
+
+**Decided 2026-07-23 (#497's open scope question, maintainer call). §4.1's minimum above is
+recorded as the 3.0 position and is superseded for 3.1.** Two changes:
+
+**(i) Scope: the full option set, not a logic-mode picker.** All 47 `RandoOptionId`s are exposed.
+The minimum was the right 3.0 increment when the alternative was porting BenMenu; it is the wrong
+3.1 one, because #499 established that *nothing in the shipped link ever writes a
+`gRando.Options.*` CVar* — so a logic-mode picker would leave 46 options still unreachable and
+still silently defaulted, which is the same defect with one fewer instance.
+
+**(ii) Host: a common-owned `Ship::Gui` window (ADR 0008), not a pane inside `SohMenu`.** This is
+the one place this ADR's "one shell, extend SohMenu" rule does not apply, and the reason is
+timing rather than taste. The paired MM profile is snapshotted when MM's cross-game arrival
+dispatches `OnSaveInit`, and an existing MM save is never regenerated (#499). The chooser must
+therefore be reachable **while OoT is the running game, before the switch** — which is exactly
+the property ADR 0008 rule 1 buys by owning a window in `src/common` rather than hanging it off
+either game's boot.
+
+The "one shell" rule is unweakened by this. ADR 0008 already distinguishes *registering* a
+game-neutral window from *opening* it, and explicitly leaves a `SohMenu` `WIDGET_WINDOW_BUTTON`
+row as a fine way to do the opening. What §3's rule forbids is a **second menu shell**; a
+common-owned window is not one, and in particular it reads no `gSettings.Menu.*` key, so #451's
+arming condition is untouched (mechanized as the MM-side reader allowlist in
+`src/common/tests/test_cvar_classification.c`).
+
+**Consequence accepted: §4.2's shared-intent marker does not apply to this pane.** All 47 options
+are tier-3 (O) MM-only keys; none is in `kSharedIntentKeys`, so there is no "applies to both
+games" claim to mark. §6's three presentation states DO apply and are implemented: live,
+editable-but-not-active ("Majora's Mask — suspended"), and disabled-by-capability with a reason.
+
+**Consequence accepted: the options are a CHOICE, and the defaults do not change.** No raised
+profile ships. Every `RO_SHUFFLE_*` and `RO_HINTS_*` row keeps its `RO_GENERIC_OFF` default, so
+generation dead-end rates are unchanged for anyone who does not touch the pane — which is the
+honest answer to #499's "measure dead-end rates before shipping a raised profile", rather than
+measuring a profile nobody chose. The one previously-hardcoded value, the paired `RO_LOGIC` pin
+to Nearly No Logic (#426), becomes a default that an explicit choice overrides.
 
 #### 4.2 Shared-intent entries must be visibly marked (required, not cosmetic)
 
@@ -263,25 +325,51 @@ capability gating (§5) makes an un-dispatched MM entry a legitimate disabled ro
 land ahead of the functionality it will eventually expose. That is the main practical benefit
 of adopting the gating rule up front rather than retrofitting it.
 
-## What this ADR does not decide
+## What this ADR left open — all five resolved on acceptance (2026-07-23, #497 step 1)
 
-Genuinely open, and deliberately left to the maintainer:
+Each was measured against the tree rather than argued from the documents. The original wording is
+kept so the decision trail stays legible.
 
-1. **Cheats section placement.** §4 promotes Cheats to a top-level section (it is currently an
-   Enhancements sidebar in both games). Cosmetic; flag if unwanted.
-2. **(P) row P2 — ISG.** OoT files `gCheats.EasyISG` as a **cheat**; MM files
-   `gEnhancements.Restorations.TatlISG` as a **restoration**. Same underlying behaviour, opposite
-   framing. Which section wins is a taxonomy call, not a technical one, and the rename pass must
-   not merge these until it is made.
-3. **(P) row P5 — `gDeveloperTools.DebugSaveFileMode` defaults.** The games share the key but
-   disagree on the default (OoT 1 "Vanilla", MM 0 "Empty"). Reconciling requires picking one
-   behaviour; it is not a rename. **ADR 0003 §4.1 reaches the opposite conclusion** and calls
-   this acceptable — see §2d and #454. Deciding it settles which document is right.
-4. **Group B rename confirmations.** Two rows need a semantic check before renaming:
-   `InfiniteAmmo`/`InfiniteConsumables` (MM's scope may be wider) and
-   `NoRestrictItems`/`UnrestrictedItems` (OoT drops age gating, MM drops form gating).
-5. **`TimeSavers` vs `Timesavers` casing.** OoT capitalises the `S`, MM does not. One spelling
-   must win; the namespace ADR should state which.
+1. **Cheats section placement.** *Was:* §4 promotes Cheats to a top-level section (currently an
+   Enhancements sidebar in both games); cosmetic, flag if unwanted.
+   **RESOLVED: do NOT promote. Cheats stays an Enhancements sidebar.** Both upstreams already
+   agree on that placement (`SohMenuEnhancements.cpp` `AddSidebarEntry("Enhancements", "Cheats", 3)`;
+   `BenMenu.cpp` the same), and sidebar selection persists **by display-name string** into
+   `gSettings.Menu.EnhancementsSidebarSection`. Promotion is purely cosmetic yet strands every
+   config holding `EnhancementsSidebarSection == "Cheats"` and mints a fifth menu-index key while
+   #451 is still open on the four that exist. §4's table row is superseded by this.
+2. **(P) row P2 — ISG.** *Was:* OoT files `gCheats.EasyISG` as a cheat, MM files
+   `gEnhancements.Restorations.TatlISG` as a restoration; which section wins is a taxonomy call.
+   **RESOLVED: keep both keys distinct; file ISG under Cheats, and surface MM's as its own row
+   labelled "Tatl ISG (restoration)".** The behaviour matches but the *gate* does not — OoT's is an
+   unconditional passive grant, MM's restores a behaviour the N64 game had. One merged control
+   would silently switch a restoration on for players who asked for neither. Stays in
+   `kMustStayDistinct`.
+3. **(P) row P5 — `gDeveloperTools.DebugSaveFileMode` defaults.**
+   **RESOLVED (P), against ADR 0003 §4.1 — see §2d for the evidence.** Not on the default
+   divergence: on MM's `DeveloperTools.cpp` write into the shared cell, which falsifies 0003's
+   "only the unwritten fallback differs" outright. The fix is a behaviour change owed by whichever
+   lane un-elides `2s2h/DeveloperTools/`; until then the key stays in
+   `kDisputedClassificationKeys`.
+4. **Group B rename confirmations.** *Was:* `InfiniteAmmo`/`InfiniteConsumables` and
+   `NoRestrictItems`/`UnrestrictedItems` need a semantic check before renaming.
+   **RESOLVED: neither converges. Both stay in `kMustStayDistinct`, and the recorded reasons are
+   sharpened** — the parked entries were directionally right and understated the divergence.
+   - *Ammo/Consumables:* OoT's refill is unconditional; MM's gates every item on `INV_CONTENT`, has
+     no slingshot row, uses `CUR_CAPACITY(UPG_BOMB_BAG)` where OoT hardcodes 50, and additionally
+     covers **Magic Beans and Powder Kegs** — consumables that are not ammo. MM's scope is genuinely
+     wider, confirming the suspicion this row was filed on.
+   - *NoRestrictItems/UnrestrictedItems:* OoT zeroes the interface restrictions bitfield every
+     frame **with a hardcoded Sun's Song carve-out**; MM is a single `VB_ITEM_BE_RESTRICTED` veto
+     with none. Different mechanism, different scope, and the carve-out is the concrete thing a
+     merge would lose.
+5. **`TimeSavers` vs `Timesavers` casing.**
+   **RESOLVED: `TimeSavers` (capital S) is canonical.** Counted in the tree: 148:1 in `games/oot`,
+   and five MM keys have already converged onto it. MM's lowercase set is 8 keys, the cheaper side
+   to move. ADR 0003 §5 now states this. Mechanically it is a `ConfigVersion9Updater` group plus a
+   `kRetiredKeyPrefixes` entry — and the same commit must delete `kParkedCasingPrefixMM` and its
+   assertion, which *requires* the lowercase prefix to still exist and goes red as the last key
+   moves. Not done here: it is a rename pass in files this lane does not own.
 
 > Two questions that *were* open when this work started are now settled and recorded in §2:
 > shared-intent uses one shared CVar (not a fan-out), and cheats are shared-intent. They are

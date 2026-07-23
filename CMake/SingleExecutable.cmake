@@ -39,6 +39,12 @@ set(REDSHIP_COMMON_SOURCES
     ${CMAKE_SOURCE_DIR}/src/common/combo_spoiler_view.c
     # The window that renders it — the first common-owned Gui element (ADR 0008)
     ${CMAKE_SOURCE_DIR}/src/common/ComboSpoilerWindow.cpp
+    # MM randomizer options: the registry + value accessors over the descriptor
+    # table MM publishes (#497 step 4, #499), and the pane that draws it. The
+    # pane is common-owned because it must be reachable while OoT is running —
+    # the paired MM profile snapshots at MM's arrival and is never regenerated
+    ${CMAKE_SOURCE_DIR}/src/common/combo_mm_options_view.c
+    ${CMAKE_SOURCE_DIR}/src/common/ComboMmOptionsWindow.cpp
     ${CMAKE_SOURCE_DIR}/src/common/entrance.cpp
     ${CMAKE_SOURCE_DIR}/src/common/test_runner.cpp
     ${CMAKE_SOURCE_DIR}/src/common/integration_test_hooks.cpp
@@ -96,6 +102,8 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/foreign_items.h
     ${CMAKE_SOURCE_DIR}/src/common/combo_spoiler_view.h
     ${CMAKE_SOURCE_DIR}/src/common/ComboSpoilerWindow.h
+    ${CMAKE_SOURCE_DIR}/src/common/combo_mm_options_view.h
+    ${CMAKE_SOURCE_DIR}/src/common/ComboMmOptionsWindow.h
     ${CMAKE_SOURCE_DIR}/src/common/entrance.h
     ${CMAKE_SOURCE_DIR}/src/common/test_runner.h
     ${CMAKE_SOURCE_DIR}/src/common/integration_test_hooks.h
@@ -368,6 +376,13 @@ if(BUILD_TESTING)
     redship_add_test(NAME ForeignAwardMM COMMAND redship --test foreign-award-mm)
     redship_add_test(NAME ComboSpoilerView COMMAND redship --test combo-spoiler-view)
     redship_add_test(NAME ComboSpoilerWindow COMMAND redship --test combo-spoiler-window)
+    # MM randomizer options (#497 step 4, #499). Display-free: the option table
+    # is a static global in the WHOLE_ARCHIVE'd 2ship_rando, the profile resolver
+    # runs over a zeroed MM SaveContext with no fill, and the pane's window lock
+    # never reaches ImGui.
+    redship_add_test(NAME MMRandoOptions COMMAND redship --test mm-rando-options)
+    redship_add_test(NAME MMPairedProfile COMMAND redship --test mm-paired-profile)
+    redship_add_test(NAME ComboMMOptionsWindow COMMAND redship --test combo-mm-options-window)
     # Cross-game session invalidation (#440). A soft reset or a new game must
     # retire the previous session's frozen blobs, shadows and gComboCtx
     # crossings — while a cross-game arrival and a legitimate existing-slot

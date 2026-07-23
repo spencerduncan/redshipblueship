@@ -1,8 +1,11 @@
 # ADR 0003: One shared CVar store, classified deliberately — settings are unified by default
 
-- Status: **Proposed** (2026-07-21)
+- Status: **Accepted** (2026-07-23, #497 step 1)
 - For: #34 (settings migration), gating #35; the settings decision in
   `docs/unified-surface-findings.md` §6.1
+- Corrected on acceptance: §4.1's `gDeveloperTools.DebugSaveFileMode` row was
+  **wrong** and is struck below; §5 gains the `TimeSavers` casing decision
+  ADR 0004 asked this document to make.
 - Measured against `origin/main` on 2026-07-21 by exhaustive grep of both
   trees (method and its one correction in Appendix A — the numbers below are
   reproducible, not quoted)
@@ -337,7 +340,7 @@ No action. Documented as deliberate; see the §2.3 guard.
 |---|---|
 | `gCheats.{InfiniteHealth, InfiniteMagic, MoonJumpOnL, NoClip, EasyFrameAdvance}` | Identical meaning in both games. Maintainer decision. |
 | `gDeveloperTools.{DebugEnabled, FrameAdvanceTick, LogLevel}` | Host/debug state. `FrameAdvanceTick` is a transient both games set and clear; only one game is active at a time, so no interleaving. |
-| `gDeveloperTools.DebugSaveFileMode` | Value spaces align: `0`/`1`/`2` = none-or-off / vanilla-debug / maxed-or-100% in both (`SohMenuDevTools.cpp:53` vs `DeveloperTools.h:7`). **Footnote:** defaults differ — OoT `1`, MM `DEBUG_SAVE_INFO_NONE` (`0`). Once written the shared value governs both; only the unwritten fallback differs. Acceptable, worth knowing. |
+| ~~`gDeveloperTools.DebugSaveFileMode`~~ | **STRUCK 2026-07-23 — this row was wrong; the key is class (P).** It said: *"Value spaces align… only the unwritten fallback differs. Acceptable, worth knowing."* The value spaces do align, but the key is never left unwritten: `games/mm/2s2h/DeveloperTools/DeveloperTools.cpp`'s `RegisterDebugMode()` does `CVarSetInteger(CVAR_SAVE_FILE_MODE_NAME, DEBUG_SAVE_INFO_NONE)` whenever debug mode is off — the default state — so MM's registrar destroys OoT's `1` on every launch. ADR 0004 §2d holds the record; the key sits in `kDisputedClassificationKeys` until MM's write is retired and its read default aligned. Dormant today only because `2s2h/DeveloperTools/` is excluded from the single-exe link. **Class (S) count is 25 here, not 26.** |
 | `gEnhancements.Graphics.{IncreaseActorDrawDistance, ActorCullingAccountsForWidescreen}` | Same multiplier semantics, same default (`1`), same widescreen-culling boolean. |
 | `gAudioEditor.{EnemyBGMDisable, LowHpAlarm, SeqNameNotification, SeqNameNotificationDuration}` | Same audio-editor behaviours. |
 | `gSettings.{CursorVisibility, DisableChanges}` | Host UI state. |
@@ -377,6 +380,30 @@ Everything in §1.5. No renames.
 
 For each: MM's current key → OoT's key, with the justification for calling it
 shared-intent. **MM moves in every case** (§2.4).
+
+### 5.0 Canonical family spelling: `TimeSavers`, capital S (decided 2026-07-23)
+
+ADR 0004's open call 5 asked this document to state which casing wins. It is
+`gEnhancements.TimeSavers.` — OoT's, capital `S`.
+
+Measured rather than preferred: capital-S holds 148:1 in `games/oot`, five MM
+keys have **already** converged onto it via #462
+(`SkipCutscene.{Story,Intro,OnePoint,Entrances}`, `DisableTitleCard`), and the
+single lowercase hit anywhere in `games/oot` is a migration row retiring one of
+MM's spellings. MM's remaining lowercase family is 8 keys — `AutoBankDeposit`,
+`DampeDiggingSkip`, `FasterSceneTransitions`, `GalleryTwofer`, `MarineLabHP`,
+`PowderKegCertification`, `SkipBalladOfWindfish`, `SwampBoatSpeed` — plus the
+`games/mm/2s2h/Enhancements/Timesavers/` directory. That is the cheaper side to
+move, and the two spellings do not collide in a case-sensitive store, so nothing
+is broken while the move is pending.
+
+**Mechanics, when the rename pass runs (not in this ADR's PR):** add the 8 keys
+to `kConvergedKeys` under a `ConfigVersion9Updater` group, add
+`"gEnhancements.Timesavers."` to `kRetiredKeyPrefixes`, and **in the same commit**
+delete `kParkedCasingPrefixMM` and its assertion in
+`src/common/tests/test_cvar_classification.c`. That assertion requires MM to
+still contain the lowercase prefix and goes red the moment the last key moves —
+by design, so the parked hazard cannot be quietly half-resolved.
 
 ### 5.1 Tier 1 — recommended now: 9 sites, 8 renames
 
