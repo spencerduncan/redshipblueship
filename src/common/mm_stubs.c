@@ -99,7 +99,16 @@ void MM_FaultDrawer_SetCharPad(int xPad, int yPad) { (void)xPad; (void)yPad; }
  * which consult only the S2H::GameHooks registries — rando/enhancement VB
  * overrides fire on MM frames without MM ids ever reaching OoT's tables.
  * Re-adding Should stubs here would silently sever that dispatch. */
-void GameInteractor_ExecuteOnActorDraw(void* actor) { (void)actor; }
+/* GameInteractor_ExecuteOnActorDraw / ExecuteOnActorInit / ExecuteOnOpenText
+ * moved to real, header-checked dispatch in
+ * games/mm/2s2h/GameExports_SingleExe.cpp (#438), reached through the
+ * single-exe macro rebind at the bottom of MM's GameInteractor.h. This stub
+ * was the reason the draw pair looked wired while doing nothing: 21 TUs
+ * register ShouldActorInit and 24 register OnOpenText through the COND_*
+ * macros, all of which park in S2H::GameHooks, and none of which this no-op
+ * ever consulted. Re-stubbing any of the three here would silently sever that
+ * dispatch again — chest models and every rando text override go back to
+ * vanilla with no diagnostic. */
 /* GameInteractor_ExecuteOnGameStateUpdate / ExecuteOnGameStateDrawFinish moved
  * to real, header-checked dispatch in games/mm/2s2h/GameExports_SingleExe.cpp
  * (#442): MM's own frame loop (games/mm/src/code/game.c MM_GameState_Update)
@@ -121,11 +130,13 @@ void GameInteractor_ExecuteAfterKaleidoDrawPage(void* state, int page) { (void)s
  * (OnSaveInit -> Rando::MiscBehavior::OnFileCreate at MM_Sram_InitSave,
  * OnSaveLoad -> Rando's OnSaveLoadHandler at the file-select/opening loads).
  * Re-stubbing them here would silently sever MM rando generation. */
-/* GameInteractor_ExecuteOnOpenText resolves to OoT's wrapper in
+/* GameInteractor_ExecuteOnOpenText USED to resolve, from MM call sites, to
+ * OoT's wrapper in
  * games/oot/soh/Enhancements/game-interactor/GameInteractor_Hooks.cpp
- * (signature (uint16_t* textId, bool* loadFromMessageTable), #228). That
- * wrapper no-ops while MM is the active game (see the header comment above),
- * so MM text boxes never fire OoT text hooks. */
+ * (signature (uint16_t* textId, bool* loadFromMessageTable), #228) — which
+ * no-ops while MM is the active game, so MM text boxes fired no hooks at all.
+ * OoT's own z_message_PAL.c still reaches that wrapper; MM's z_message.c is
+ * rebound to MM_GameHooks_ExecuteOnOpenText (#438), see the block above. */
 void GameInteractor_ExecuteOnItemGive(int itemId) { (void)itemId; }
 /* GameInteractor_ShouldItemGive / GameInteractor_ShouldActorDraw stubs
  * retired (#392 VB follow-up): MM call sites now rebind to the header-checked

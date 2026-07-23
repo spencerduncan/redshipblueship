@@ -615,6 +615,31 @@ bool MM_GameHooks_ExecuteShouldItemGive(u8 item);
 #define GameInteractor_ShouldActorUpdate MM_GameHooks_ExecuteShouldActorUpdate
 #define GameInteractor_ShouldActorDraw MM_GameHooks_ExecuteShouldActorDraw
 #define GameInteractor_ShouldItemGive MM_GameHooks_ExecuteShouldItemGive
+
+//
+// Single-exe MM-owned "Execute" dispatch (#438).
+//
+// Same hazard, same remedy, one lane later. These three types carry live
+// COND_HOOK/COND_ID_HOOK registrants across the linked MM set — 21 TUs on
+// ShouldActorInit's sibling OnActorInit, 24 on OnOpenText — and the single-exe
+// COND_* macros park every one of them in S2H::GameHooks. Their dispatch,
+// however, still went out through the upstream extern "C" names, which resolve
+// to OoT's GameInteractor_Execute* (OnActorDraw) or to a src/common/mm_stubs.c
+// no-op (OnOpenText). Neither consults the MM registry, so the registrants were
+// REGISTERED AND NEVER RUN: chests kept their vanilla model because EnBox's
+// ShouldActorInit rewrite never fired, and every rando text override was inert.
+// The give path was unaffected, which is why items randomized while nothing
+// about their presentation did — the symptom that surfaced this.
+//
+// Rebinding here rather than editing the ~30 call sites keeps MM's C files
+// textually upstream, exactly as the Should block above does.
+//
+void MM_GameHooks_ExecuteOnActorInit(Actor* actor);
+void MM_GameHooks_ExecuteOnActorDraw(Actor* actor);
+void MM_GameHooks_ExecuteOnOpenText(u16* textId, bool* loadFromMessageTable);
+#define GameInteractor_ExecuteOnActorInit MM_GameHooks_ExecuteOnActorInit
+#define GameInteractor_ExecuteOnActorDraw MM_GameHooks_ExecuteOnActorDraw
+#define GameInteractor_ExecuteOnOpenText MM_GameHooks_ExecuteOnOpenText
 #endif // RSBS_SINGLE_EXECUTABLE
 
 #ifdef __cplusplus
