@@ -497,8 +497,78 @@ TestResult Test_SaveComboLegacyRecord(void) {
     SAVE_ASSERT(SaveTestOoTShadowMatchesPattern(), "OoT blob not restored from legacy-record file");
     SAVE_ASSERT(SaveTestMMShadowMatchesPattern(), "MM blob not restored from legacy-record file");
 
+    // ------------------------------------------------------------------
+    // v2 case: FIXED BYTE OFFSETS, not offsetof-against-offsetof (#490)
+    // ------------------------------------------------------------------
+    // The prefix case above proves appended fields zero-extend. It says
+    // nothing about the fields already shipped BEHIND foreignPlacements, and
+    // that is where the live hazard is: RSBS_FOREIGN_PLACEMENT_CAP is carved
+    // ahead of grantCursors and sharedItemOverflowCount, so widening the array
+    // in place slides both off the offsets every shipped .redsave stored them
+    // at. Nothing at runtime notices — the inner COMBO_CONTEXT_MAGIC sits at
+    // offset 0 and survives any tail shift, and the CRC passes because the
+    // bytes are unchanged; only their interpretation moved.
+    //
+    // So: place the bytes by LITERAL INTEGER offset into the record image,
+    // load it through the real SaveManager::Load, and read the result out of
+    // the named struct members. The expected offsets are integers matching
+    // bytes physically placed in a crafted file — never offsetof compared
+    // against offsetof, which would move in lockstep with the mistake.
+    //
+    // RED against any in-place cap bump (8 -> 12 is enough): the crafted
+    // cursor is then read out of the middle of the widened placement array,
+    // this test fails, and the build plus every other test stays green. That
+    // is the exact failure mode nothing else catches.
+    static const size_t kGrantCursorsOffset = 672u;          // grantCursors[0].sourceKey
+    static const size_t kGrantCursorsLastSeqOffset = 676u;   // grantCursors[0].lastSeq
+    static const size_t kOverflowCountOffset = 736u;         // sharedItemOverflowCount
+    static const uint32_t kCraftedSourceKey = 0xC0FFEE01u;
+    static const uint32_t kCraftedLastSeq = 0x00000205u;
+    static const uint32_t kCraftedOverflow = 0x00BADBEDu;
+
+    SaveTestSeed(tag);  // re-inits gComboCtx and restamps the magic/version
+    {
+        // Write through a byte pointer at the literal offsets. Deliberately
+        // NOT gComboCtx.grantCursors[0].sourceKey = ...: assigning through the
+        // member would place the bytes wherever the current layout happens to
+        // put them, which is precisely the thing under test.
+        uint8_t* image = reinterpret_cast<uint8_t*>(&gComboCtx);
+        std::memcpy(image + kGrantCursorsOffset, &kCraftedSourceKey, sizeof(kCraftedSourceKey));
+        std::memcpy(image + kGrantCursorsLastSeqOffset, &kCraftedLastSeq, sizeof(kCraftedLastSeq));
+        std::memcpy(image + kOverflowCountOffset, &kCraftedOverflow, sizeof(kCraftedOverflow));
+    }
+
     mgr.DeleteSave(0);
-    printf("[TEST] PASS: pre-headroom Tier-1 loads, added fields read as zero\n");
+    SAVE_ASSERT(SaveTestWriteCraftedSlot(mgr.SlotPath(0), RSBS_SAVE_VERSION, (uint32_t)sizeof(ComboContext)),
+                "could not write v2 fixed-offset slot file");
+
+    // Scribble the whole carve region so a pass cannot come from leftovers.
+    ComboContext_Init();
+    std::memset(gComboCtx.grantCursors, 0x5A, sizeof(gComboCtx.grantCursors));
+    gComboCtx.sharedItemOverflowCount = 0x5A5A5A5Au;
+    std::memset(gComboCtx.foreignPlacements, 0x5A, sizeof(gComboCtx.foreignPlacements));
+
+    SAVE_ASSERT(mgr.Load(0), "Load refused a full-length v2 Tier-1 record");
+
+    SAVE_ASSERT(gComboCtx.grantCursors[0].sourceKey == kCraftedSourceKey,
+                "byte 672 did not land in grantCursors[0].sourceKey — a field ahead of the ADR 0005 "
+                "carve grew in place and orphaned every shipped save's cursors");
+    SAVE_ASSERT(gComboCtx.grantCursors[0].lastSeq == kCraftedLastSeq,
+                "byte 676 did not land in grantCursors[0].lastSeq — see above");
+    SAVE_ASSERT(gComboCtx.sharedItemOverflowCount == kCraftedOverflow,
+                "byte 736 did not land in sharedItemOverflowCount — a field ahead of it grew in place");
+
+    // Companion runtime assertions on the layout itself. These are the cheap
+    // half; the crafted-bytes assertions above are the half that cannot be
+    // satisfied by a self-consistent wrong layout.
+    SAVE_ASSERT(offsetof(ComboContext, grantCursors) == kGrantCursorsOffset,
+                "grantCursors moved off .redsave byte offset 672");
+    SAVE_ASSERT(offsetof(ComboContext, sharedItemOverflowCount) == kOverflowCountOffset,
+                "sharedItemOverflowCount moved off .redsave byte offset 736");
+
+    mgr.DeleteSave(0);
+    printf("[TEST] PASS: pre-headroom Tier-1 loads, added fields read as zero, "
+           "and bytes 672/676/736 still land in the ADR 0005 carve\n");
     return TEST_PASS;
 }
 

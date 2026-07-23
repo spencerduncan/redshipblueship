@@ -94,6 +94,19 @@ int GrantTestOccupiedTotal(void) {
 // gComboCtx. That is byte-for-byte what a pre-carve build wrote, per the
 // growth contract. Mirrors test_save_roundtrip.c's SaveTestWriteCraftedSlot
 // but is kept local so this file does not reach into another test's internals.
+//
+// Why the offsetof is a legitimate boundary here and not a tautology (#490):
+// it is correct ONLY because every legal carve lands AFTER
+// sharedItemOverflowCount, from the front of reserved[]. Such a carve leaves
+// offsetof(grantCursors) at 672, so this truncation keeps meaning "the
+// pre-netplay prefix". An in-place widen of a field BEFORE grantCursors — a
+// bump of RSBS_FOREIGN_PLACEMENT_CAP being the realistic one — would instead
+// drag this boundary forward with it, silently redefining "legacy" to include
+// bytes no pre-netplay build ever wrote, and this test would keep passing
+// while the format broke. That is why context.h pins 672 and 736 as literals
+// and why bumping the cap is a build error rather than a comment violation.
+// Test_SaveComboLegacyRecord's v2 fixed-offset case is the runtime half of the
+// same lock: it drives literal bytes at 672/676/736 through the real Load.
 bool GrantTestWriteLegacySlot(const std::string& path) {
     const uint32_t comboSize = (uint32_t)offsetof(ComboContext, grantCursors);
     std::vector<uint8_t> payload;
