@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <vector>
 #include "foreign_items.h" // src/common — placement table + pinned-pool reverse lookup (Lane C1, #392)
+#include "Rando/Foreign.h" // Rando::Foreign::IsEligibleHost — the host rule the LOAD path must reapply (#488)
 #endif
 
 extern "C" {
@@ -117,25 +118,93 @@ int ReconstructForeignPlacements(const nlohmann::json& spoiler) {
     // no-duplicate / bounded invariants are enforced by one code path.
     Combo_ClearForeignPlacements();
     int placed = 0;
+    int rejected = 0;
     for (const Pending& p : pending) {
+        RandoSaveCheck& hostSaveCheck = RANDO_SAVE_CHECKS[(RandoCheckId)p.checkId];
+
+        // ADR 0002 host invariant, restored on load: the MM save table must
+        // keep a LEGAL junk-class MM item at a foreign host check (never a
+        // raw RG_*). The spoiler's human-readable "checks" map stored this
+        // check as "<item> (Ocarina of Time)", which GetItemIdFromName
+        // cannot resolve, so ApplyToSaveContext just left RI_UNKNOWN there;
+        // the underlying junk item is not recoverable from the spoiler, so
+        // normalize to the canonical junk sentinel. Inert while the
+        // placement stands (the give path reads foreignPlacements, not this
+        // item), but it keeps the table legal and makes the check degrade to
+        // junk — not RI_UNKNOWN — if the placement is ever absent.
+        //
+        // Applied BEFORE the eligibility gate below, not after, because the
+        // gate reads exactly these two fields: un-normalized, every host would
+        // be rejected for holding RI_UNKNOWN, which says nothing about the
+        // host's give path.
+        const bool priorShuffled = hostSaveCheck.shuffled;
+        hostSaveCheck.randoItemId = RI_JUNK;
+        hostSaveCheck.shuffled = true;
+
+        // #488, step 6: the LOAD path must apply the same host-eligibility rule
+        // generation does. Combo_SetForeignPlacement enforces tagged-only /
+        // no-duplicate / bounded and nothing about MM check semantics — it is a
+        // deliberately game-agnostic layer — so without this gate a spoiler
+        // written by a pre-#488 build reconstructs placements onto hosts whose
+        // `.eligible` bit is never armed, and the crossing strands exactly as
+        // it would have before the tightening. Reject loudly rather than
+        // throw: the surrounding ApplyToSaveContext load is otherwise sound,
+        // and aborting it would take a playable MM world down with the
+        // unreachable crossings. Runs here rather than after the loop because
+        // ApplyToSaveContext has already populated RANDO_SAVE_CHECKS by the
+        // time ReconstructForeignPlacements is called.
+        //
+        // What this gate can and cannot see on the load path, stated precisely
+        // so nobody later mistakes it for the full generate-path rule:
+        //
+        //  - The item-class half asserts nothing here. It is satisfied by the
+        //    RI_JUNK this loop just wrote, and that is inherent — the spoiler
+        //    does not preserve the host's underlying MM item, so the
+        //    pre-normalization value is RI_UNKNOWN for every legitimate host.
+        //  - The `.skipped` half also asserts nothing here. ApplyToSaveContext
+        //    writes only randoItemId/shuffled/price, and the only writers of
+        //    `.skipped` anywhere are Logic/GeneratePools.cpp (generate path)
+        //    and CheckTracker.cpp (a user toggle on a live save), so on a load
+        //    it is uniformly false.
+        //  - The half that DOES bite is the check-class allowlist — which is
+        //    the one that matters, because it is the half that decides whether
+        //    the host can ever be armed.
+        if (!Rando::Foreign::IsEligibleHost((RandoCheckId)p.checkId)) {
+            // Restore `shuffled` only. randoItemId deliberately KEEPS the
+            // RI_JUNK written above: this branch is precisely the
+            // "placement is absent" case the normalization comment describes,
+            // and putting the unresolvable RI_UNKNOWN back would leave a
+            // shuffled check holding a non-item — which arms `.eligible` all
+            // the same (OnFlagSet gates on `.shuffled` alone) and then walks
+            // the give path with a sentinel. Degrading to junk is the whole
+            // point of the normalization; the reject path needs it most.
+            hostSaveCheck.shuffled = priorShuffled;
+            rejected++;
+            const auto staticIt = Rando::StaticData::Checks.find((RandoCheckId)p.checkId);
+            fprintf(stderr,
+                    "[MM] spoiler-load: REJECTING foreign placement on MM check %s — not an eligible host under the "
+                    "current rule (pre-#488 spoiler?); this crossing is NOT reachable in-game\n",
+                    staticIt != Rando::StaticData::Checks.end() ? staticIt->second.name : "<unknown>");
+            continue;
+        }
+
         if (Combo_SetForeignPlacement(p.checkId, p.item) >= 0) {
             placed++;
-            // ADR 0002 host invariant, restored on load: the MM save table must
-            // keep a LEGAL junk-class MM item at a foreign host check (never a
-            // raw RG_*). The spoiler's human-readable "checks" map stored this
-            // check as "<item> (Ocarina of Time)", which GetItemIdFromName
-            // cannot resolve, so ApplyToSaveContext just left RI_UNKNOWN there;
-            // the underlying junk item is not recoverable from the spoiler, so
-            // normalize to the canonical junk sentinel. Inert while the
-            // placement stands (the give path reads foreignPlacements, not this
-            // item), but it keeps the table legal and makes the check degrade to
-            // junk — not RI_UNKNOWN — if the placement is ever absent.
-            RANDO_SAVE_CHECKS[(RandoCheckId)p.checkId].randoItemId = RI_JUNK;
-            RANDO_SAVE_CHECKS[(RandoCheckId)p.checkId].shuffled = true;
+        } else {
+            // Same reasoning as the reject branch: an insert refusal is also
+            // an absent placement, so the host keeps RI_JUNK rather than
+            // reverting to the unresolvable RI_UNKNOWN.
+            hostSaveCheck.shuffled = priorShuffled;
         }
     }
     fprintf(stderr, "[MM] spoiler-load: reconstructed %d foreign placement(s) from the spoiler's foreign section\n",
             placed);
+    if (rejected > 0) {
+        fprintf(stderr,
+                "[MM] spoiler-load: %d foreign placement(s) rejected as ineligible hosts — this world was generated "
+                "by a build predating the #488 host rule and cannot deliver those items; regenerate it\n",
+                rejected);
+    }
     return placed;
 }
 #endif
