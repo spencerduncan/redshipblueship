@@ -1397,6 +1397,11 @@ const TestDescriptor gTests[] = {
     // crossing awards exactly once, and the placement carve serializes.
     {"foreign-item-give", "Foreign give path tags shared structure; awards once; placements serialize (Lane C1)",
      Test_ForeignItemGive},
+    // #493: the reverse direction's OoT-keyed placement carve is a separate key
+    // space from the MM-keyed one, serializes byte-exact, and zero-extends.
+    {"foreign-item-give-reverse",
+     "Reverse (MM->OoT) placement carve: separate key space, serializes, redeems once (#493)",
+     Test_ForeignItemGiveReverse},
     {"combo-spoiler-view", "In-game spoiler view model: named crossings, collected state, unpaired != empty (#496)",
      Test_ComboSpoilerView},
     {"combo-spoiler-window", "Common-owned spoiler window registers de-collided; inert under every active game (#496)",

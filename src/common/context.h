@@ -159,10 +159,33 @@ void Context_UpdateShadowCopy(GameId game, const void* saveContext, size_t size)
 #define RSBS_SHARED_ITEM_SOURCED 0x02u
 
 /**
- * Capacity of ComboContext.foreignPlacements (Lane C1, #392). The MVP pins ~4
- * OoT progression items into MM checks; 8 slots leave headroom without
- * spending reserved[] bytes we would rather keep (growing later is legal under
- * the growth contract).
+ * Capacity of ComboContext.foreignPlacements (Lane C1, #392): how many MM
+ * checks can host a foreign item at once. The MVP pins ~4 OoT progression
+ * items into MM checks, so 8 is generous for the shipped pool.
+ *
+ * DO NOT BUMP THIS CONSTANT to get more capacity. grantCursors (ADR 0005) and
+ * sharedItemOverflowCount are carved immediately after foreignPlacements, so
+ * widening the array in place moves both of them (and anything carved after)
+ * off the offset every shipped .redsave stored them at. That break has no
+ * runtime signal whatsoever: Load's only content check is the inner
+ * COMBO_CONTEXT_MAGIC at offset 0, which survives any tail shift, and the CRC
+ * passes because the bytes are unchanged - only their interpretation moved.
+ * Per ADR 0005 section 1 a shifted cursor means either re-accepting duplicate
+ * grants or permanently refusing legitimate ones.
+ *
+ * The offset asserts below are written as LITERAL byte offsets (672, 736)
+ * precisely so that a bump breaks the build. An earlier revision expressed
+ * them in terms of this constant, which made them follow the bump instead of
+ * catching it - a widen from 8 to 40 compiled completely clean and silently
+ * orphaned every shipped save's grant cursors.
+ *
+ * To add capacity, carve a SECOND placement block from the front of reserved[]
+ * (ComboForeignPlacement foreignPlacementsExt[N], declared immediately before
+ * reserved[]) and span BOTH blocks in every accessor in foreign_items.c - the
+ * duplicate scan and the first-free scan must each cover the whole logical
+ * array in one pass, or a cross-block duplicate escapes. Append-only, prior
+ * offsets fixed, zero still unset. Same prescription as RSBS_GRANT_SOURCE_CAP
+ * below; see ADR 0005 section 1 for the identical hazard on the cursor array.
  */
 #define RSBS_FOREIGN_PLACEMENT_CAP 8u
 
@@ -353,15 +376,44 @@ typedef struct {
     // Zero == unset (no refusal has ever happened), per the growth contract.
     uint32_t sharedItemOverflowCount;
 
+    // Phase 3.1 (#493): the REVERSE direction's placement table — OoT checks
+    // hosting MM items. Carved from the FRONT of the old reserved[264] under
+    // the growth contract (ADR 0009 claim 1): all-zero = no reverse
+    // placements, which is exactly what a zero-extended pre-3.1 record must
+    // read as.
+    //
+    // READ THE KEY CAREFULLY. This reuses ComboForeignPlacement, whose member
+    // is *named* mmCheckId, but in THIS table that u16 holds an OoT
+    // RandomizerCheck (RC_MAX fits a u16). The struct is reused rather than
+    // reshaped because its size and member offsets are static_asserted
+    // .redsave format and cannot gain a hostGame byte in place; giving the
+    // reverse direction its own 8-byte tagged struct would force the record
+    // size and RSBS_SAVE_VERSION up plus a migration hook that does not exist
+    // (save.cpp's Tier-1 parse is one flat memcpy). See ADR 0009 decision 3.
+    //
+    // The two tables are SEPARATE KEY SPACES, not one array split in two: an
+    // OoT RC and an MM RC are unrelated enumerations that collide freely as
+    // raw u16s, which is precisely why a single table with no host
+    // discriminator would false-positive across directions. Never look one up
+    // with the other's accessor. The direction IS the accessor.
+    ComboForeignPlacement foreignPlacementsOoT[RSBS_FOREIGN_PLACEMENT_CAP];
+
     // Headroom. Carve new fields from the FRONT of this array (as
-    // sharedItemsTagged, sharedRandoSettingsHash, foreignPlacements, and the
-    // grant cursors were) so the struct stays inside
+    // sharedItemsTagged, sharedRandoSettingsHash, foreignPlacements, the
+    // grant cursors, and the reverse placement table were) so the struct
+    // stays inside
     // RSBS_COMBO_CONTEXT_RECORD_SIZE; the on-disk record size does not change
     // either way, so old saves keep loading. Zeroed by ComboContext_Init,
     // which is what makes a zero-extended legacy record indistinguishable from
     // a freshly-initialized one — every field carved from here must keep
     // "zero means unset".
-    uint8_t reserved[264];
+    //
+    // 264 - 48 (foreignPlacementsOoT). ADR 0009 publishes the remaining
+    // allocation across the other claimants and sets a 64-byte floor:
+    // Test_SaveComboRecordFixed's scribble loop iterates sizeof(reserved), so
+    // at zero it degenerates to zero iterations and passes vacuously, retiring
+    // the only test that proves headroom round-trips at all.
+    uint8_t reserved[216];
 } ComboContext;
 
 /**
@@ -406,25 +458,57 @@ RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, foreignPlacements) ==
                                sizeof(uint32_t),
                        "foreignPlacements must be carved from the FRONT of the old reserved[] "
                        "(contiguous with the settings digest); moving it changes .redsave format");
-// grantCursors is the next carve from the front of the old reserved[]: it must
-// sit immediately after the foreign-placement table with no gap, occupying
-// bytes every shipped .redsave stored as zero (unset).
-RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, grantCursors) ==
-                           RSBS_COMBO_CONTEXT_PRECARVE_SIZE + RSBS_SHARED_ITEM_CAP * sizeof(SharedItem) +
-                               sizeof(uint32_t) +
-                               RSBS_FOREIGN_PLACEMENT_CAP * sizeof(ComboForeignPlacement),
-                       "grantCursors must be carved from the FRONT of the old reserved[] (contiguous "
-                       "with the foreign-placement table); moving it changes .redsave format");
+// grantCursors and sharedItemOverflowCount are pinned to LITERAL byte offsets,
+// deliberately not to expressions in RSBS_FOREIGN_PLACEMENT_CAP. Both fields
+// are carved AFTER foreignPlacements, so an in-place widen of that array moves
+// them; an assert phrased in terms of the cap moves with the bump and never
+// fires, which is exactly the silent .redsave break #490 describes. Written as
+// integers, the same bump is a build error. ADR 0005 names 672 explicitly.
+//
+// If either literal ever has to change, the field genuinely moved and every
+// shipped .redsave is being reinterpreted: that is a format generation, not an
+// assert edit. Raise RSBS_SAVE_VERSION and write the migration first.
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, grantCursors) == 672u,
+                       "grantCursors lives at .redsave byte offset 672 in every shipped save; if this "
+                       "fires, a field before it grew in place - carve from reserved[] instead");
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, sharedItemOverflowCount) == 736u,
+                       "sharedItemOverflowCount lives at .redsave byte offset 736 in every shipped "
+                       "save; if this fires, a field before it grew in place - carve from reserved[] "
+                       "instead");
+// Kept alongside the literals: this one states the CONTIGUITY intent (no gap,
+// no field slipped between the placement table and the cursors) that a bare
+// integer does not express. The literals catch an in-place widen; this catches
+// a field inserted between them.
 RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, sharedItemOverflowCount) ==
                            offsetof(ComboContext, grantCursors) +
                                RSBS_GRANT_SOURCE_CAP * sizeof(ComboGrantSourceCursor),
                        "sharedItemOverflowCount must sit immediately after the grant cursors; moving "
                        "it changes .redsave format");
-RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, reserved) ==
+// The reverse placement table is the next carve from the front of reserved[]:
+// it must sit immediately after the overflow count with no gap, occupying
+// bytes every shipped .redsave stored as zero (unset). Pinned to the literal
+// 740 for the same reason 672 and 736 are — anything carved after it (ADR
+// 0009's claims 2 through 4) inherits its position, so a field growing in
+// place ahead of it must break the build rather than slide them.
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, foreignPlacementsOoT) == 740u,
+                       "foreignPlacementsOoT lives at .redsave byte offset 740; if this fires, a "
+                       "field before it grew in place - carve from reserved[] instead");
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, foreignPlacementsOoT) ==
                            offsetof(ComboContext, sharedItemOverflowCount) + sizeof(uint32_t),
-                       "the tagged-item array, the settings digest, the foreign-placement table, the "
-                       "grant cursors, the overflow count, and the remaining headroom must stay "
+                       "foreignPlacementsOoT must be carved from the FRONT of reserved[] (contiguous "
+                       "with the overflow count); moving it changes .redsave format");
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, reserved) ==
+                           offsetof(ComboContext, foreignPlacementsOoT) +
+                               RSBS_FOREIGN_PLACEMENT_CAP * sizeof(ComboForeignPlacement),
+                       "the tagged-item array, the settings digest, both foreign-placement tables, "
+                       "the grant cursors, the overflow count, and the remaining headroom must stay "
                        "contiguous (no padding, no fields slipped between them)");
+// ADR 0009's floor. reserved[] is what Test_SaveComboRecordFixed scribbles to
+// prove Tier-1 headroom round-trips; at zero that loop runs zero times and the
+// test passes vacuously, so the carve budget stops here rather than there.
+RSBS_CTX_STATIC_ASSERT(sizeof(((ComboContext*)0)->reserved) >= 64u,
+                       "reserved[] must keep at least 64 bytes: Test_SaveComboRecordFixed's headroom "
+                       "round-trip degenerates to a vacuous pass when it empties (ADR 0009)");
 
 #ifdef __cplusplus
 // The raw-assignment-fails proof (ADR 0002). In C this is a constraint

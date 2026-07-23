@@ -353,6 +353,7 @@ if(BUILD_TESTING)
     # shared structure, the crossing awards exactly once on the OoT side, and
     # gComboCtx.foreignPlacements round-trips through the .redsave record.
     redship_add_test(NAME ForeignItemGive COMMAND redship --test foreign-item-give)
+    redship_add_test(NAME ForeignItemGiveReverse COMMAND redship --test foreign-item-give-reverse)
     redship_add_test(NAME ComboSpoilerView COMMAND redship --test combo-spoiler-view)
     redship_add_test(NAME ComboSpoilerWindow COMMAND redship --test combo-spoiler-window)
     # Cross-game session invalidation (#440). A soft reset or a new game must

@@ -37,6 +37,10 @@
 
 #include <cstdio>
 #include <cstring>
+#include <filesystem>
+#include <fstream>
+#include <string>
+#include <vector>
 
 // The C-linkage pipeline pieces this test drives (declared locally like
 // test_shared_state_roundtrip.c does for the switch policy).
@@ -74,6 +78,41 @@ void ForeignTestAward(const SharedItem* item, void* ctx) {
     c->lastId = item->id;
     c->lastOrigin = item->originGame;
 }
+
+// Write a slot file whose Tier-1 record is truncated to `comboSize`, taking the
+// bytes from the front of the CURRENT gComboCtx. That is byte-for-byte what an
+// older build wrote, as long as fields are only ever appended — the growth
+// contract. Local rather than shared with test_save_roundtrip.c's equivalent so
+// this file does not reach into another test's internals; the OoT/MM tiers are
+// zero-filled because nothing here reads them.
+bool ForeignTestWriteShortRecord(const std::string& path, uint32_t comboSize) {
+    std::vector<uint8_t> payload;
+    const uint8_t* comboBytes = reinterpret_cast<const uint8_t*>(&gComboCtx);
+    payload.insert(payload.end(), comboBytes, comboBytes + comboSize);
+    payload.insert(payload.end(), OOT_SAVE_CONTEXT_SIZE, 0u);
+    payload.insert(payload.end(), MM_SAVE_CONTEXT_SIZE, 0u);
+
+    rsbs::RsbsSaveHeader h;
+    memset(&h, 0, sizeof(h));
+    memcpy(h.magic, RSBS_SAVE_MAGIC, sizeof(h.magic));
+    h.version = RSBS_SAVE_VERSION_MIN;
+    h.endian = RSBS_SAVE_ENDIAN_LE;
+    h.slot = 0;
+    h.headerSize = sizeof(rsbs::RsbsSaveHeader);
+    h.comboSize = comboSize;
+    h.ootSize = (uint32_t)OOT_SAVE_CONTEXT_SIZE;
+    h.mmSize = (uint32_t)MM_SAVE_CONTEXT_SIZE;
+    h.crc32 = rsbs::SaveManager::Crc32(payload.data(), payload.size());
+
+    std::filesystem::create_directories(kForeignSaveDir);
+    std::ofstream out(path, std::ios::binary | std::ios::trunc);
+    if (!out) {
+        return false;
+    }
+    out.write(reinterpret_cast<const char*>(&h), sizeof(h));
+    out.write(reinterpret_cast<const char*>(payload.data()), (std::streamsize)payload.size());
+    return (bool)out;
+}
 } // namespace
 
 TestResult Test_ForeignItemGive(void) {
@@ -93,6 +132,112 @@ TestResult Test_ForeignItemGive(void) {
         FI_ASSERT(pool[i].item.flags == 0);
         FI_ASSERT(pool[i].name != NULL && pool[i].name[0] != '\0');
         FI_ASSERT(Combo_GetForeignItemName(pool[i].item) == pool[i].name);
+    }
+    // (originGame, name) uniqueness WITHIN a pool. Two entries sharing a name
+    // in one id-space would make that origin's inverse ambiguous, which no
+    // amount of origin-dispatch can repair.
+    for (int i = 0; i < poolCount; i++) {
+        for (int j = i + 1; j < poolCount; j++) {
+            FI_ASSERT(strcmp(pool[i].name, pool[j].name) != 0);
+            FI_ASSERT(pool[i].item.id != pool[j].item.id);
+        }
+    }
+    // Round-trip through the origin-keyed inverse, and confirm the OoT pool is
+    // NOT reachable by asking for MM's id-space.
+    for (int i = 0; i < poolCount; i++) {
+        SharedItem back;
+        FI_ASSERT(Combo_GetForeignItemByNameFor((uint8_t)GAME_OOT, pool[i].name, &back));
+        FI_ASSERT(back.originGame == pool[i].item.originGame && back.id == pool[i].item.id);
+        FI_ASSERT(!Combo_GetForeignItemByNameFor((uint8_t)GAME_MM, pool[i].name, NULL));
+        FI_ASSERT(!Combo_GetForeignItemByNameFor((uint8_t)GAME_NONE, pool[i].name, NULL));
+    }
+
+    // ------------------------------------------------------------------
+    // ADR 0009 decision 3: (origin, name) is the key; bare name is NOT.
+    // ------------------------------------------------------------------
+    // The reason the lookups take an origin at all. "Bomb Bag" is a real
+    // display name in BOTH id-spaces — OoT's RG_BOMB_BAG row and MM's
+    // RI_BOMB_BAG_20 row — so a name-only inverse resolves it to whichever
+    // pool it happens to scan first and writes a WRONG ORIGIN TAG into the
+    // placement table. That is the #356 aliasing class arriving through the
+    // spoiler-LOAD path, which rebuilds state from untrusted text on disk.
+    //
+    // #493's issue text asks for a "no cross-pool name collision" assertion.
+    // That assertion is NOT satisfiable and is deliberately not written here:
+    // it would go red the moment a real MM pool exists, and the natural fix —
+    // renaming an item away from its real name — would degrade the spoiler to
+    // work around a lookup bug. We assert the collision is HANDLED instead.
+    //
+    // A synthetic MM pool stands in until the real one lands (Lane 6 creates
+    // 2s2h/Rando/ForeignItemsSingleExe.cpp; Lane 1 fills kForeignPoolMMV1 into
+    // it). When it does, switch this block to the real pool and drop the
+    // registry restore below.
+    {
+        static const ComboForeignItemDef kSyntheticMMPool[] = {
+            { { (uint8_t)GAME_MM, 0, 0x0037 }, "Bomb Bag" },   // deliberately collides with the OoT pool
+            { { (uint8_t)GAME_MM, 0, 0x0041 }, "Hero's Bow" },
+        };
+        FI_ASSERT(Combo_GetForeignItemPoolFor((uint8_t)GAME_MM, NULL) == 0); // nothing registered yet
+        Combo_RegisterForeignItemPool((uint8_t)GAME_MM, kSyntheticMMPool, 2);
+
+        const ComboForeignItemDef* mmPool = NULL;
+        FI_ASSERT(Combo_GetForeignItemPoolFor((uint8_t)GAME_MM, &mmPool) == 2 && mmPool == kSyntheticMMPool);
+
+        // The colliding bare name resolves to a DIFFERENT item under each
+        // origin — never to the same one, and never to nothing.
+        SharedItem fromOoT, fromMM;
+        FI_ASSERT(Combo_GetForeignItemByNameFor((uint8_t)GAME_OOT, "Bomb Bag", &fromOoT));
+        FI_ASSERT(Combo_GetForeignItemByNameFor((uint8_t)GAME_MM, "Bomb Bag", &fromMM));
+        FI_ASSERT(fromOoT.originGame == (uint8_t)GAME_OOT);
+        FI_ASSERT(fromMM.originGame == (uint8_t)GAME_MM);
+        FI_ASSERT(fromMM.id == 0x0037);
+        // Pin the OoT side to the REAL pool row rather than asserting the two
+        // results merely differ. Comparing (id, origin) pairs would be
+        // tautological here — the two origins are already asserted distinct
+        // just above — and would still pass if the OoT lookup returned the
+        // wrong OoT item.
+        int ootBombBagIdx = -1;
+        for (int k = 0; k < poolCount; k++) {
+            if (strcmp(pool[k].name, "Bomb Bag") == 0) {
+                ootBombBagIdx = k;
+            }
+        }
+        FI_ASSERT(ootBombBagIdx >= 0); // the collision this block exists for must actually be present
+        FI_ASSERT(fromOoT.id == pool[ootBombBagIdx].item.id);
+        FI_ASSERT(fromOoT.id != fromMM.id); // the two id-spaces really did yield different items
+
+        // The legacy bare-name entry point keeps its exact previous meaning:
+        // the OoT pool. Call sites that predate the origin dimension must not
+        // have silently changed behavior when the MM pool appeared.
+        SharedItem legacy;
+        FI_ASSERT(Combo_GetForeignItemByName("Bomb Bag", &legacy));
+        FI_ASSERT(legacy.originGame == (uint8_t)GAME_OOT && legacy.id == fromOoT.id);
+
+        // Forward direction dispatches on the item's own tag: two items with
+        // the SAME id in different id-spaces must not resolve to one name.
+        SharedItem mmBow;
+        mmBow.originGame = (uint8_t)GAME_MM;
+        mmBow.flags = 0;
+        mmBow.id = 0x0041;
+        FI_ASSERT(Combo_GetForeignItemName(mmBow) != NULL);
+        FI_ASSERT(strcmp(Combo_GetForeignItemName(mmBow), "Hero's Bow") == 0);
+        SharedItem ootSameId = mmBow;
+        ootSameId.originGame = (uint8_t)GAME_OOT;
+        // Same raw id, OoT id-space: must not borrow MM's name. (It may be a
+        // real OoT pool entry with its OWN name, or nothing; either is correct,
+        // borrowing MM's is not.)
+        const char* ootName = Combo_GetForeignItemName(ootSameId);
+        FI_ASSERT(ootName == NULL || strcmp(ootName, "Hero's Bow") != 0);
+
+        // An untagged item resolves to no pool and therefore to no name.
+        SharedItem untaggedName;
+        untaggedName.originGame = (uint8_t)GAME_NONE;
+        untaggedName.flags = 0;
+        untaggedName.id = 0x0037;
+        FI_ASSERT(Combo_GetForeignItemName(untaggedName) == NULL);
+
+        Combo_RegisterForeignItemPool((uint8_t)GAME_MM, NULL, 0); // restore process-global state
+        FI_ASSERT(Combo_GetForeignItemPoolFor((uint8_t)GAME_MM, NULL) == 0);
     }
 
     // ------------------------------------------------------------------
@@ -205,5 +350,200 @@ TestResult Test_ForeignItemGive(void) {
     ComboContext_Init();
 
     printf("[TEST] PASS: foreign give path tags + de-dups; crossing awards once; placements serialize\n");
+    return TEST_PASS;
+}
+
+TestResult Test_ForeignItemGiveReverse(void) {
+    printf("[TEST] foreign-item-give-reverse: OoT-hosted placement carve is a separate key space, serializes, "
+           "and redeems once (#493)\n");
+
+    // The reverse twin of Test_ForeignItemGive. What it locks is the half of
+    // #493 that is NOT a mirror: a SECOND placement table, keyed by an OoT
+    // RandomizerCheck, sharing a struct whose member is named mmCheckId and
+    // sharing a .redsave record with the forward table.
+    //
+    // Scope note, stated because a reader will look for it: the production
+    // give-path bridge (OoT_Rando_Foreign_RecordPickup -> the same core
+    // Randomizer_Item_Give's foreign branch calls) and MM's real award are
+    // #493 steps 5-8 and Lane 6's MM_AwardSharedItem, neither of which exists
+    // yet. This row therefore drives the real ACCESSORS, the real
+    // SaveManager::Load, and the real Combo_RedeemSharedItemsForGame walk; it
+    // does not yet enter the OoT give path. It must gain that leg when the
+    // interception lands, or it locks the carve without locking the give.
+
+    ComboContext_Init();
+    Context_InitFrozenStates();
+    Context_ClearAllFrozenStates();
+    Combo_ClearSharedItemOutbox();
+
+    // An MM item, in MM's id-space. Deliberately NOT drawn from the OoT pool:
+    // the whole point of the reverse direction is that the hosted item belongs
+    // to the other game.
+    SharedItem mmItem;
+    mmItem.originGame = (uint8_t)GAME_MM;
+    mmItem.flags = 0;
+    mmItem.id = 0x0037;
+
+    // ------------------------------------------------------------------
+    // The reverse accessors: same rejections, same de-dup.
+    // ------------------------------------------------------------------
+    SharedItem untagged;
+    untagged.originGame = (uint8_t)GAME_NONE;
+    untagged.flags = 0;
+    untagged.id = 7;
+    FI_ASSERT(Combo_SetForeignPlacementOoT(kForeignTestCheckA, untagged) < 0); // untagged rejected
+    FI_ASSERT(Combo_SetForeignPlacementOoT(0, mmItem) < 0);                    // RC_UNKNOWN rejected
+    FI_ASSERT(Combo_CountForeignPlacementsOoT() == 0);
+
+    FI_ASSERT(Combo_SetForeignPlacementOoT(kForeignTestCheckA, mmItem) >= 0);
+    FI_ASSERT(Combo_SetForeignPlacementOoT(kForeignTestCheckA, mmItem) < 0); // duplicate check rejected
+    FI_ASSERT(Combo_CountForeignPlacementsOoT() == 1);
+
+    const SharedItem* hostedOoT = Combo_GetForeignPlacementForOoTCheck(kForeignTestCheckA);
+    FI_ASSERT(hostedOoT != NULL);
+    FI_ASSERT(hostedOoT->originGame == (uint8_t)GAME_MM && hostedOoT->id == mmItem.id);
+
+    // ------------------------------------------------------------------
+    // THE hazard: two tables, one raw-u16 key space each, and they collide.
+    // ------------------------------------------------------------------
+    // kForeignTestCheckA is a valid check id in BOTH games' enumerations —
+    // that is not a contrived value, it is the normal case, because an OoT
+    // RandomizerCheck and an MM RandoCheckId are unrelated enumerations that
+    // overlap freely as integers. A single shared table with no host
+    // discriminator, or an accessor that consulted both, would answer this
+    // lookup with the wrong game's item. RED against exactly that mistake.
+    FI_ASSERT(Combo_GetForeignPlacementForCheck(kForeignTestCheckA) == NULL);
+    FI_ASSERT(Combo_CountForeignPlacements() == 0);
+
+    // And symmetrically, once the forward table holds the same key.
+    const ComboForeignItemDef* pool = NULL;
+    const int poolCount = Combo_GetForeignItemPool(&pool);
+    FI_ASSERT(poolCount >= 1 && pool != NULL);
+    FI_ASSERT(Combo_SetForeignPlacement(kForeignTestCheckA, pool[0].item) >= 0);
+    FI_ASSERT(Combo_CountForeignPlacements() == 1);
+    FI_ASSERT(Combo_CountForeignPlacementsOoT() == 1);
+
+    const SharedItem* fwd = Combo_GetForeignPlacementForCheck(kForeignTestCheckA);
+    const SharedItem* rev = Combo_GetForeignPlacementForOoTCheck(kForeignTestCheckA);
+    FI_ASSERT(fwd != NULL && rev != NULL);
+    FI_ASSERT(fwd->originGame == (uint8_t)GAME_OOT); // OoT item, hosted in an MM check
+    FI_ASSERT(rev->originGame == (uint8_t)GAME_MM);  // MM item, hosted in an OoT check
+    FI_ASSERT(fwd != rev);
+
+    // Clearing one direction must not retire the other: they are generated
+    // independently, and only session invalidation retires both.
+    Combo_ClearForeignPlacements();
+    FI_ASSERT(Combo_CountForeignPlacements() == 0);
+    FI_ASSERT(Combo_CountForeignPlacementsOoT() == 1);
+    FI_ASSERT(Combo_GetForeignPlacementForOoTCheck(kForeignTestCheckA) != NULL);
+
+    FI_ASSERT(Combo_SetForeignPlacement(kForeignTestCheckB, pool[0].item) >= 0);
+    Combo_ClearForeignPlacementsOoT();
+    FI_ASSERT(Combo_CountForeignPlacementsOoT() == 0);
+    FI_ASSERT(Combo_CountForeignPlacements() == 1);
+    Combo_ClearForeignPlacements();
+
+    // ------------------------------------------------------------------
+    // Carve serialization: the OoT-keyed block round-trips byte-exact.
+    // ------------------------------------------------------------------
+    FI_ASSERT(Combo_SetForeignPlacementOoT(kForeignTestCheckA, mmItem) >= 0);
+    SharedItem mmItemB;
+    mmItemB.originGame = (uint8_t)GAME_MM;
+    mmItemB.flags = 0;
+    mmItemB.id = 0x0041;
+    FI_ASSERT(Combo_SetForeignPlacementOoT(kForeignTestCheckB, mmItemB) >= 0);
+
+    gComboCtx.sourceIsRando = true;
+    gComboCtx.sharedRandoSeed = 0xC0FFEE02u;
+    gComboCtx.sharedRandoSettingsHash = 0x5EED5A5Bu;
+
+    ComboForeignPlacement expectedOoT[RSBS_FOREIGN_PLACEMENT_CAP];
+    memcpy(expectedOoT, gComboCtx.foreignPlacementsOoT, sizeof(expectedOoT));
+
+    rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
+    mgr.SetSaveDirectory(kForeignSaveDir);
+    mgr.DeleteSave(0);
+    FI_ASSERT(mgr.Save(0));
+
+    ComboContext_Init();
+    memset(gComboCtx.foreignPlacementsOoT, 0x5A, sizeof(gComboCtx.foreignPlacementsOoT));
+    FI_ASSERT(mgr.Load(0));
+    FI_ASSERT(memcmp(expectedOoT, gComboCtx.foreignPlacementsOoT, sizeof(expectedOoT)) == 0);
+    // Typed spot-checks, so a memcmp-passing-but-misread layout fails loudly.
+    FI_ASSERT(gComboCtx.foreignPlacementsOoT[0].mmCheckId == kForeignTestCheckA);
+    FI_ASSERT(gComboCtx.foreignPlacementsOoT[0].item.originGame == (uint8_t)GAME_MM);
+    FI_ASSERT(gComboCtx.foreignPlacementsOoT[0].item.id == mmItem.id);
+    FI_ASSERT(gComboCtx.foreignPlacementsOoT[1].mmCheckId == kForeignTestCheckB);
+    FI_ASSERT(gComboCtx.foreignPlacementsOoT[1].item.id == mmItemB.id);
+    // Unset slots read unset (growth contract: zero means absent).
+    const int lastSlot = (int)RSBS_FOREIGN_PLACEMENT_CAP - 1;
+    FI_ASSERT(gComboCtx.foreignPlacementsOoT[lastSlot].mmCheckId == 0 &&
+              gComboCtx.foreignPlacementsOoT[lastSlot].item.originGame == (uint8_t)GAME_NONE &&
+              gComboCtx.foreignPlacementsOoT[lastSlot].item.flags == 0 &&
+              gComboCtx.foreignPlacementsOoT[lastSlot].item.id == 0);
+    // The forward table did not acquire the reverse table's rows in transit.
+    FI_ASSERT(Combo_CountForeignPlacements() == 0);
+    mgr.DeleteSave(0);
+
+    // ------------------------------------------------------------------
+    // A pre-3.1 record reads the new block as all-unset.
+    // ------------------------------------------------------------------
+    // The growth contract's zero-extension, applied to this carve specifically:
+    // a .redsave written before foreignPlacementsOoT existed is shorter than
+    // the current struct, and Load stages it into a zero-filled buffer. Every
+    // slot must therefore read absent rather than as whatever the live struct
+    // held. Scribbled first so a pass cannot come from leftover zeros.
+    ComboContext_Init();
+    gComboCtx.saveSlot = 0x0BADF00D;
+    FI_ASSERT(ForeignTestWriteShortRecord(mgr.SlotPath(0), RSBS_COMBO_CONTEXT_PRECARVE_SIZE));
+
+    ComboContext_Init();
+    memset(gComboCtx.foreignPlacementsOoT, 0x5A, sizeof(gComboCtx.foreignPlacementsOoT));
+    FI_ASSERT(mgr.Load(0));
+    FI_ASSERT(gComboCtx.saveSlot == 0x0BADF00D); // the legacy prefix really did load
+    for (int i = 0; i < (int)RSBS_FOREIGN_PLACEMENT_CAP; i++) {
+        FI_ASSERT(gComboCtx.foreignPlacementsOoT[i].mmCheckId == 0);
+        FI_ASSERT(gComboCtx.foreignPlacementsOoT[i].item.originGame == (uint8_t)GAME_NONE);
+        FI_ASSERT(gComboCtx.foreignPlacementsOoT[i].item.flags == 0);
+        FI_ASSERT(gComboCtx.foreignPlacementsOoT[i].item.id == 0);
+    }
+    FI_ASSERT(Combo_CountForeignPlacementsOoT() == 0);
+    mgr.DeleteSave(0);
+
+    // ------------------------------------------------------------------
+    // The redeem walk: an MM-origin crossing awards exactly once, to MM.
+    // ------------------------------------------------------------------
+    // The real Combo_RedeemSharedItemsForGame, with a test award callback
+    // standing in for MM_AwardSharedItem (which is still a Lane-C placeholder
+    // fprintf, so asserting through it would assert nothing). What this locks
+    // is that an MM-tagged crossing is delivered to MM and not to OoT, and
+    // that redemption is single-use.
+    ComboContext_Init();
+    Combo_ClearSharedItemOutbox();
+    FI_ASSERT(Combo_RecordSharedItem(GAME_MM, mmItem.id) >= 0);
+
+    ForeignAwardCtx award;
+    memset(&award, 0, sizeof(award));
+    // Wrong game first: an MM-origin entry must not be awarded to OoT.
+    FI_ASSERT(Combo_RedeemSharedItemsForGame(GAME_OOT, ForeignTestAward, &award) == 0);
+    FI_ASSERT(award.awardCount == 0);
+
+    FI_ASSERT(Combo_RedeemSharedItemsForGame(GAME_MM, ForeignTestAward, &award) == 1);
+    FI_ASSERT(award.awardCount == 1);
+    FI_ASSERT(award.lastOrigin == (uint8_t)GAME_MM);
+    FI_ASSERT(award.lastId == mmItem.id);
+    FI_ASSERT(Combo_CountSharedItems(GAME_MM, /*includeRedeemed=*/false) == 0);
+    FI_ASSERT(Combo_CountSharedItems(GAME_MM, /*includeRedeemed=*/true) == 1);
+
+    memset(&award, 0, sizeof(award));
+    FI_ASSERT(Combo_RedeemSharedItemsForGame(GAME_MM, ForeignTestAward, &award) == 0);
+    FI_ASSERT(award.awardCount == 0);
+
+    // Leave global state clean for any subsequent test.
+    Context_ClearAllFrozenStates();
+    Combo_ClearSharedItemOutbox();
+    ComboContext_Init();
+
+    printf("[TEST] PASS: reverse carve is a separate key space, serializes byte-exact, zero-extends, redeems once\n");
     return TEST_PASS;
 }
