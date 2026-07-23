@@ -298,12 +298,54 @@ extern "C" int MM_Rando_HeadlessGenTest(void) {
             return 12;
         }
         const RandoCheckId hostCheck = (RandoCheckId)p.mmCheckId;
-        const RandoItemId heldItem = RANDO_SAVE_CHECKS[hostCheck].randoItemId;
-        if (!RANDO_SAVE_CHECKS[hostCheck].shuffled ||
-            Rando::StaticData::Items[heldItem].randoItemType != RITYPE_JUNK) {
+
+        // #488, part 1 — the INDEPENDENT restatement, and the load-bearing one.
+        //
+        // A post-condition that calls IsEligibleHost cannot fail for a wrong
+        // host rule: PlaceForeignItems selected these very checks by calling
+        // IsEligibleHost, and nothing between selection and here mutates either
+        // of its inputs (Rando::StaticData::Checks is static; the only
+        // RANDO_SAVE_CHECKS writes in between are `.eligible` on two starting-
+        // item rows, a field the predicate never reads). Loosen the predicate
+        // and both sides move together. The condition this replaced —
+        // "shuffled && holds a junk-class item" — had the same defect; it was
+        // simply a textual copy of the selector rather than a call to it.
+        //
+        // So state the property #488 is actually about, read straight from the
+        // static table with no reference to the predicate: the host belongs to
+        // a check class whose `.eligible` bit is armed by game code. Tier A is
+        // RCTYPE_CHEST carrying FLAG_CYCL_SCENE_CHEST (z_en_box.c ->
+        // Flags_SetTreasure -> OnFlagSet). If someone widens IsEligibleHost
+        // without widening the audit, THIS is the assertion that catches it, on
+        // an actual paired fill rather than the synthetic table the ROM-free
+        // ForeignHostEligibility lock uses.
+        const auto staticIt = Rando::StaticData::Checks.find(hostCheck);
+        if (staticIt == Rando::StaticData::Checks.end() ||
+            staticIt->second.randoCheckType != RCTYPE_CHEST ||
+            staticIt->second.flagType != FLAG_CYCL_SCENE_CHEST) {
             fprintf(stderr,
-                    "[MM-RANDO-GEN] FAIL(12): hosting check %u does not hold a junk-class MM item (holds %d)\n",
-                    (unsigned)p.mmCheckId, (int)heldItem);
+                    "[MM-RANDO-GEN] FAIL(12): hosting check %u is not a Tier A (chest/FLAG_CYCL_SCENE_CHEST) host — "
+                    "its .eligible bit is not game-armed, so this placement would strand\n",
+                    (unsigned)p.mmCheckId);
+            return 12;
+        }
+
+        // #488, part 2 — the cheap consistency tie-back. Tautological w.r.t.
+        // the selector as argued above, and kept anyway for the one thing it
+        // does catch: a placement whose mmCheckId did not survive the u16
+        // round-trip through the placement table would fail the predicate here
+        // even though part 1's static lookup might land on some other real row.
+        // (Calls the C++ predicate directly rather than the
+        // MM_Rando_Foreign_IsEligibleHost bridge: this is an MM C++ TU that
+        // already includes Foreign.h, and the bridge is a one-line forwarder to
+        // exactly this function. The bridge exists for src/common, which cannot
+        // see the namespace.)
+        if (!Rando::Foreign::IsEligibleHost(hostCheck)) {
+            fprintf(stderr,
+                    "[MM-RANDO-GEN] FAIL(12): hosting check %u is a chest row but fails the host predicate (held item "
+                    "%d, skipped=%d) — placement/table inconsistency\n",
+                    (unsigned)p.mmCheckId, (int)RANDO_SAVE_CHECKS[hostCheck].randoItemId,
+                    RANDO_SAVE_CHECKS[hostCheck].skipped ? 1 : 0);
             return 12;
         }
     }
@@ -466,6 +508,71 @@ extern "C" int MM_Rando_HeadlessGenTest(void) {
         }
     }
 
+    // #488, step 6: a spoiler written by a PRE-tightening build can name a host
+    // the current rule rejects — the old predicate accepted every non-shop
+    // check type, and ~94% of its candidate pool was non-chest. Reconstruction
+    // must drop that placement rather than rebuild a crossing the give path can
+    // never deliver, and must leave the host holding the legal junk sentinel
+    // (not the unresolvable RI_UNKNOWN that ApplyToSaveContext leaves at a
+    // foreign host, which would arm `.eligible` and then give nothing).
+    //
+    // Without this leg the reject branch ships untested: the ROM-free
+    // ForeignHostEligibility lock drives the predicate, not the load path.
+    {
+        Combo_ClearForeignPlacements();
+
+        // First non-chest row in the table, chosen at runtime so this does not
+        // pin a check name that a future table edit could remove.
+        const Rando::StaticData::RandoStaticCheck* ineligible = nullptr;
+        for (auto& [randoCheckId, randoStaticCheck] : Rando::StaticData::Checks) {
+            if (randoStaticCheck.randoCheckId != RC_UNKNOWN && randoStaticCheck.randoCheckType != RCTYPE_CHEST &&
+                randoStaticCheck.randoCheckType != RCTYPE_SHOP &&
+                randoStaticCheck.randoCheckType != RCTYPE_TINGLE_SHOP) {
+                ineligible = &randoStaticCheck;
+                break;
+            }
+        }
+        if (ineligible == nullptr) {
+            fprintf(stderr, "[MM-RANDO-GEN] FAIL(22): no non-chest check row to build the stale-host case from\n");
+            return 22;
+        }
+
+        nlohmann::json staleHost = loadedSpoiler;
+        nlohmann::json foreignEntry;
+        for (auto& [checkName, entry] : staleHost["foreign"].items()) {
+            foreignEntry = entry;
+            break;
+        }
+        staleHost["foreign"] = nlohmann::json::object();
+        staleHost["foreign"][ineligible->name] = foreignEntry;
+
+        // The state ApplyToSaveContext leaves at a foreign host: shuffled, with
+        // the "<item> (Ocarina of Time)" name unresolvable to a RandoItemId.
+        RANDO_SAVE_CHECKS[ineligible->randoCheckId].randoItemId = RI_UNKNOWN;
+        RANDO_SAVE_CHECKS[ineligible->randoCheckId].shuffled = true;
+        RANDO_SAVE_CHECKS[ineligible->randoCheckId].skipped = false;
+
+        const int staleReconstructed = Rando::Spoiler::ReconstructForeignPlacements(staleHost);
+        if (staleReconstructed != 0 || Combo_CountForeignPlacements() != 0 ||
+            Combo_GetForeignPlacementForCheck((uint16_t)ineligible->randoCheckId) != NULL) {
+            fprintf(stderr,
+                    "[MM-RANDO-GEN] FAIL(22): stale spoiler host %s (type %d) was reconstructed anyway (returned %d, "
+                    "table holds %d)\n",
+                    ineligible->name, (int)ineligible->randoCheckType, staleReconstructed,
+                    Combo_CountForeignPlacements());
+            return 22;
+        }
+        const RandoItemId heldAfterReject = RANDO_SAVE_CHECKS[ineligible->randoCheckId].randoItemId;
+        if (Rando::StaticData::Items[heldAfterReject].randoItemType != RITYPE_JUNK ||
+            heldAfterReject == RI_UNKNOWN || heldAfterReject == RI_NONE) {
+            fprintf(stderr,
+                    "[MM-RANDO-GEN] FAIL(22): rejected host %s left holding %d — must degrade to a legal junk item, "
+                    "not a sentinel that arms .eligible and gives nothing\n",
+                    ineligible->name, (int)heldAfterReject);
+            return 22;
+        }
+    }
+
     // Wiring: the REAL apply path (ApplyToSaveContext, the spoiler-LOAD entry
     // point OnFileCreate's load branch invokes) must itself drive reconstruction
     // — not just the focused helper above. Clear, apply the whole spoiler, and
@@ -491,7 +598,7 @@ extern "C" int MM_Rando_HeadlessGenTest(void) {
     memset(&gComboCtx.sharedItemsTagged[0], 0, sizeof(SharedItem));
 
     fprintf(stderr, "[MM-RANDO-GEN] spoiler-LOAD reconstruction verified: preserve-live, rebuild-exact, "
-                    "redemption-safe, malformed-refused, absent-ok, apply-wired\n");
+                    "redemption-safe, malformed-refused, absent-ok, stale-host-rejected, apply-wired\n");
 
     // OnSaveLoad chain lock (Lane C1): dispatching the real save-load bridge
     // with the rando save live must arm the rando behaviors — the
