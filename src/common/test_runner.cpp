@@ -149,6 +149,7 @@ extern "C" {
 // serialization. FILE SCOPE (compiled as C++) for rsbs::SaveManager; the
 // pipeline symbols it drives are C-linkage and declared in the file.
 #include "tests/test_foreign_items.c"
+#include "tests/test_foreign_award.c"
 
 // Lane C1 in-game spoiler VIEW model (#496): the read-only projection of
 // gComboCtx.foreignPlacements the combo spoiler window renders — named
@@ -1408,6 +1409,11 @@ const TestDescriptor gTests[] = {
     {"foreign-host-eligibility",
      "Foreign hosts limited to game-armed check classes; skipped/sentinel slots rejected (#488)",
      Test_ForeignHostEligibility},
+    // #502: MM's half of the crossing. The reverse row above deliberately stops
+    // at a test award callback because MM_AwardSharedItem was a placeholder
+    // fprintf; this one drives the real one and the real give behind it.
+    {"foreign-award-mm", "MM's real award reaches the real give: once per crossing, deferred safely (#502)",
+     Test_ForeignAwardMM},
     {"combo-spoiler-view", "In-game spoiler view model: named crossings, collected state, unpaired != empty (#496)",
      Test_ComboSpoilerView},
     {"combo-spoiler-window", "Common-owned spoiler window registers de-collided; inert under every active game (#496)",

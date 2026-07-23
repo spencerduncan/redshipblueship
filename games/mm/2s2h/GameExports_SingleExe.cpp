@@ -1760,19 +1760,36 @@ extern "C" bool MM_GameHooks_ExecuteShouldItemGive(u8 item) {
     return result;
 }
 
+// MM's foreign-item give (2s2h/Rando/ForeignItemsSingleExe.cpp). Declared here
+// rather than in src/common/foreign_items.h — which is where its OoT twin is
+// declared — because that header is Lane 1's and the MM pool surface lands in
+// it with the reverse-direction pool, not with this give. Fold this in then.
+extern "C" int MM_ForeignItem_Give(uint16_t riId);
+
 /**
  * Award a single MM-origin shared item (ADR 0002 / Lane A1 consumer callback),
  * the MM twin of OoT_AwardSharedItem. `item->id` is an MM RandoItemId (RI_*).
  *
- * Lane A1 scope: plumbing seam only — it logs; Combo_RedeemSharedItemsForGame
- * still marks the entry RSBS_SHARED_ITEM_REDEEMED so the crossing is single-use
- * once wired. Lane C replaces the log with MM's real give (Rando::GiveItem /
- * MM_Item_Give) for the chosen foreign-item class; do NOT clear the entry.
+ * The give itself lives in MM_ForeignItem_Give
+ * (2s2h/Rando/ForeignItemsSingleExe.cpp), which dispatches into Rando::GiveItem
+ * when a PlayState is live and otherwise QUEUES for the next gameplay frame.
+ * The queue is not incidental: this callback runs from
+ * MM_Play_ConsumeStartupEntrance (z_play.c:2406), which is BEFORE
+ * `MM_gPlayState = this` (z_play.c:2468), and MM's give path is not NULL-play
+ * tolerant the way OoT's starting-item give is. See that file's header for the
+ * full argument, including why the deferral window cannot lose an item.
+ *
+ * Combo_RedeemSharedItemsForGame marks the entry RSBS_SHARED_ITEM_REDEEMED
+ * after this returns, so the crossing stays single-use; the entry is never
+ * cleared (the durable record of the crossing). A give that reports failure is
+ * logged but still consumes the redemption — an unresolvable id is a data bug,
+ * not something to retry on every future arrival.
  */
 static void MM_AwardSharedItem(const SharedItem* item, void* ctx) {
     (void)ctx;
-    fprintf(stderr, "[MM] shared-item redeem (Lane A1 plumbing): RI id=%u — Lane C wires the MM give\n",
-            (unsigned)item->id);
+    int given = MM_ForeignItem_Give(item->id);
+    fprintf(stderr, "[MM] shared-item redeem: RI id=%u %s (Lane 6 foreign give)\n", (unsigned)item->id,
+            given ? "awarded or queued for the next gameplay frame" : "NOT awarded — no such MM item");
 }
 
 /**
