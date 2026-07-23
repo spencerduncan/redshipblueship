@@ -354,18 +354,45 @@ inline constexpr const char* kDeliberateSharedCheatKeys[] = {
 };
 
 /**
- * Keys the two governing documents classify DIFFERENTLY. Recorded, not
- * reconciled, so neither document silently overrides the other — and asserted
- * on by nothing, because asserting either reading would prejudge the issue.
+ * Keys the two governing documents classified DIFFERENTLY. Kept as a table, and
+ * asserted on only to the extent both readings agree: a key here is never swept
+ * into the convergence set.
  *
- * `gDeveloperTools.DebugSaveFileMode`: ADR 0003 §4.1 calls it (S) — "value
- * spaces align, only the unwritten fallback differs, acceptable". The
- * inventory §3.3 BUG 2 takes the more conservative (P) line: the DEFAULTS
- * disagree (OoT 1 = "vanilla debug save", MM 0 = "empty save"), so the first
- * game to write the key silently changes the other's debug-save behaviour away
- * from its own default. No rename either way, so the disagreement is narrow
- * and safe. **Issue #454 decides it.** Do not converge, split, or re-default
- * this key as a side effect of other work.
+ * `gDeveloperTools.DebugSaveFileMode`. ADR 0003 §4.1 called it (S) — "value
+ * spaces align, only the unwritten fallback differs, acceptable". The inventory
+ * §3.3 BUG 2 and ADR 0004 §2d took the (P) line on the strength of the
+ * defaults disagreeing (OoT 1 = "vanilla debug save", MM 0 = "empty save").
+ *
+ * RULED (P), 2026-07-23 (#497 step 1, Lane 4) — and NOT on the defaults.
+ * #454 was auto-closed by the merge of the docs-only PR #456, which itself says
+ * #454 is the thing that will settle the question; nothing decided it. Lane 4
+ * measured the tree instead and found the argument ADR 0003 §4.1 rests on is
+ * false on its own terms:
+ *
+ *   games/mm/2s2h/DeveloperTools/DeveloperTools.cpp, in RegisterDebugMode():
+ *       if (!CVAR_DEBUG_MODE) {
+ *           CVarSetInteger(CVAR_SAVE_FILE_MODE_NAME, DEBUG_SAVE_INFO_NONE);
+ *
+ * MM does not merely READ the shared key with a different default — it WRITES 0
+ * into it at ShipInit whenever debug mode is off, which is the default state.
+ * "Once written the shared value governs both; only the unwritten fallback
+ * differs" is therefore not a benign observation: MM's registrar is the writer,
+ * so the key is never left unwritten and OoT's default is destroyed on every
+ * launch.
+ *
+ * DORMANT BUT ARMED. games/mm/CMakeLists.txt excludes 2s2h/DeveloperTools/
+ * wholesale from the single-exe build, so the clobber does not run today. It
+ * arms on the same un-elision work ADR 0004 §5 schedules — which is precisely
+ * why it is recorded rather than left to be discovered then.
+ *
+ * The key stays HERE rather than moving into kSharedIntentKeys, because the
+ * table should not claim (S) while games/mm still contains the write that makes
+ * it (P). Retiring MM's clobber and aligning its read default is a BEHAVIOUR
+ * change in a different lane's file; when it lands, move this key into
+ * kSharedIntentKeys (count 25 -> 26) in the same commit as the fix, so the diff
+ * is verifiable against the fixed source.
+ *
+ * Do not converge, split, or re-default this key as a side effect of other work.
  */
 inline constexpr const char* kDisputedClassificationKeys[] = {
     "gDeveloperTools.DebugSaveFileMode",
@@ -415,8 +442,15 @@ static_assert(kConvergedKeyCount == 32, "tier 1 (9) + inventory §5.3 remainder 
 // inventory reclassified it (P) and #454 has not settled it. Pinning the count
 // makes a silent drop a compile error rather than a quietly weaker lock.
 static_assert(kSharedIntentKeyCount == 25,
-              "ADR 0003 Appendix B's 26 class-(S) keys, less DebugSaveFileMode (disputed, #454)");
+              "ADR 0003 Appendix B's 26 class-(S) keys, less DebugSaveFileMode — ruled (P) by #497 step 1 on "
+              "MM's DeveloperTools.cpp write, not on the default divergence");
 static_assert(kMenuIndexKeyCount == 4, "four menu-index keys — #451");
+// The disputed table had no pinned count, so a silent drop would have retired
+// the one thing both readings agree on (never converge this key) with no
+// compile error. Pinned like every other table here.
+static_assert(kDisputedClassificationKeyCount == 1,
+              "one disputed key — gDeveloperTools.DebugSaveFileMode, ruled (P) and held here until MM's "
+              "clobber is retired (#497 step 1)");
 
 } // namespace RSBS
 
