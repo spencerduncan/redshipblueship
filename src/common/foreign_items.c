@@ -119,69 +119,137 @@ bool Combo_GetForeignItemByName(const char* name, SharedItem* outItem) {
     return Combo_GetForeignItemByNameFor((uint8_t)GAME_OOT, name, outItem);
 }
 
-int Combo_SetForeignPlacement(uint16_t mmCheckId, SharedItem item) {
-    if (mmCheckId == 0 || item.originGame == (uint8_t)GAME_NONE) {
-        return -1; // RC_UNKNOWN never hosts; an untagged item must not enter the table
+// ============================================================================
+// Placement tables — one per DIRECTION (#493, ADR 0009 decision 3)
+// ============================================================================
+//
+// There are two tables and they are separate key spaces, not one array split
+// in two:
+//
+//   gComboCtx.foreignPlacements     keyed by MM   RandoCheckId -> OoT item
+//   gComboCtx.foreignPlacementsOoT  keyed by OoT  RandomizerCheck -> MM item
+//
+// An OoT RC and an MM RC are unrelated enumerations that collide freely as raw
+// u16s, which is exactly why one table with no host discriminator would
+// false-positive across directions. ComboForeignPlacement cannot gain a host
+// byte in place (its size and member offsets are static_asserted .redsave
+// format), so the DIRECTION IS THE ACCESSOR: the table you pass is the host
+// discriminator, and no lookup ever consults the other one.
+//
+// The bodies below are shared between directions on purpose. #493 names the
+// duplication of five accessors as the accepted cost of the parallel carve;
+// taking the table as a parameter pays it once instead of five times, so a fix
+// to the duplicate scan cannot land in one direction and miss the other.
+
+// A direction, for the log lines only. Behavior must never branch on this.
+static const char* ForeignHostName(const ComboForeignPlacement* table) {
+    return (table == gComboCtx.foreignPlacementsOoT) ? "OoT" : "MM";
+}
+
+static int ForeignPlaceInto(ComboForeignPlacement* table, uint16_t hostCheckId, SharedItem item) {
+    if (hostCheckId == 0 || item.originGame == (uint8_t)GAME_NONE) {
+        return -1; // check id 0 is each game's RC_UNKNOWN and never hosts; an untagged item must not enter
     }
 
+    // ONE pass finds both the duplicate and the first free slot. Splitting it
+    // into two passes is how a cross-block duplicate escapes when a second
+    // block is carved later (see the RSBS_FOREIGN_PLACEMENT_CAP note in
+    // context.h) — keep them fused.
     int firstFree = -1;
     for (int i = 0; i < (int)RSBS_FOREIGN_PLACEMENT_CAP; i++) {
-        ComboForeignPlacement* slot = &gComboCtx.foreignPlacements[i];
+        ComboForeignPlacement* slot = &table[i];
         if (slot->item.originGame == (uint8_t)GAME_NONE) {
             if (firstFree < 0) {
                 firstFree = i;
             }
             continue;
         }
-        if (slot->mmCheckId == mmCheckId) {
-            fprintf(stderr, "[ForeignItem] placement rejected: MM check %u already hosts origin=%u id=%u\n",
-                    (unsigned)mmCheckId, (unsigned)slot->item.originGame, (unsigned)slot->item.id);
+        if (slot->mmCheckId == hostCheckId) {
+            fprintf(stderr, "[ForeignItem] placement rejected: %s check %u already hosts origin=%u id=%u\n",
+                    ForeignHostName(table), (unsigned)hostCheckId, (unsigned)slot->item.originGame,
+                    (unsigned)slot->item.id);
             return -1; // one check hosts at most one foreign item
         }
     }
 
     if (firstFree < 0) {
-        fprintf(stderr, "[ForeignItem] placement dropped: table full (%u slots), check=%u id=%u\n",
-                RSBS_FOREIGN_PLACEMENT_CAP, (unsigned)mmCheckId, (unsigned)item.id);
+        fprintf(stderr, "[ForeignItem] placement dropped: %s table full (%u slots), check=%u id=%u\n",
+                ForeignHostName(table), RSBS_FOREIGN_PLACEMENT_CAP, (unsigned)hostCheckId, (unsigned)item.id);
         return -1;
     }
 
-    ComboForeignPlacement* dst = &gComboCtx.foreignPlacements[firstFree];
-    dst->mmCheckId = mmCheckId;
+    ComboForeignPlacement* dst = &table[firstFree];
+    dst->mmCheckId = hostCheckId;
     dst->item = item;
-    fprintf(stderr, "[ForeignItem] placed origin=%u id=%u at MM check %u (slot %d)\n", (unsigned)item.originGame,
-            (unsigned)item.id, (unsigned)mmCheckId, firstFree);
+    fprintf(stderr, "[ForeignItem] placed origin=%u id=%u at %s check %u (slot %d)\n", (unsigned)item.originGame,
+            (unsigned)item.id, ForeignHostName(table), (unsigned)hostCheckId, firstFree);
     return firstFree;
 }
 
-const SharedItem* Combo_GetForeignPlacementForCheck(uint16_t mmCheckId) {
-    if (mmCheckId == 0) {
+static const SharedItem* ForeignLookupIn(const ComboForeignPlacement* table, uint16_t hostCheckId) {
+    if (hostCheckId == 0) {
         return NULL;
     }
     for (int i = 0; i < (int)RSBS_FOREIGN_PLACEMENT_CAP; i++) {
-        const ComboForeignPlacement* slot = &gComboCtx.foreignPlacements[i];
-        if (slot->item.originGame != (uint8_t)GAME_NONE && slot->mmCheckId == mmCheckId) {
+        const ComboForeignPlacement* slot = &table[i];
+        if (slot->item.originGame != (uint8_t)GAME_NONE && slot->mmCheckId == hostCheckId) {
             return &slot->item;
         }
     }
     return NULL;
 }
 
-int Combo_CountForeignPlacements(void) {
+static int ForeignCountIn(const ComboForeignPlacement* table) {
     int count = 0;
     for (int i = 0; i < (int)RSBS_FOREIGN_PLACEMENT_CAP; i++) {
-        if (gComboCtx.foreignPlacements[i].item.originGame != (uint8_t)GAME_NONE) {
+        if (table[i].item.originGame != (uint8_t)GAME_NONE) {
             count++;
         }
     }
     return count;
 }
 
-void Combo_ClearForeignPlacements(void) {
+static void ForeignClear(ComboForeignPlacement* table) {
     for (int i = 0; i < (int)RSBS_FOREIGN_PLACEMENT_CAP; i++) {
-        gComboCtx.foreignPlacements[i].mmCheckId = 0;
-        gComboCtx.foreignPlacements[i].item.originGame = (uint8_t)GAME_NONE;
-        gComboCtx.foreignPlacements[i].item.flags = 0;
-        gComboCtx.foreignPlacements[i].item.id = 0;
+        table[i].mmCheckId = 0;
+        table[i].item.originGame = (uint8_t)GAME_NONE;
+        table[i].item.flags = 0;
+        table[i].item.id = 0;
     }
+}
+
+// ---- Forward direction: MM checks host OoT items -----------------------------
+
+int Combo_SetForeignPlacement(uint16_t mmCheckId, SharedItem item) {
+    return ForeignPlaceInto(gComboCtx.foreignPlacements, mmCheckId, item);
+}
+
+const SharedItem* Combo_GetForeignPlacementForCheck(uint16_t mmCheckId) {
+    return ForeignLookupIn(gComboCtx.foreignPlacements, mmCheckId);
+}
+
+int Combo_CountForeignPlacements(void) {
+    return ForeignCountIn(gComboCtx.foreignPlacements);
+}
+
+void Combo_ClearForeignPlacements(void) {
+    ForeignClear(gComboCtx.foreignPlacements);
+}
+
+// ---- Reverse direction: OoT checks host MM items -----------------------------
+
+int Combo_SetForeignPlacementOoT(uint16_t ootCheckId, SharedItem item) {
+    return ForeignPlaceInto(gComboCtx.foreignPlacementsOoT, ootCheckId, item);
+}
+
+const SharedItem* Combo_GetForeignPlacementForOoTCheck(uint16_t ootCheckId) {
+    return ForeignLookupIn(gComboCtx.foreignPlacementsOoT, ootCheckId);
+}
+
+int Combo_CountForeignPlacementsOoT(void) {
+    return ForeignCountIn(gComboCtx.foreignPlacementsOoT);
+}
+
+void Combo_ClearForeignPlacementsOoT(void) {
+    ForeignClear(gComboCtx.foreignPlacementsOoT);
 }

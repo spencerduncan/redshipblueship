@@ -173,10 +173,49 @@ const SharedItem* Combo_GetForeignPlacementForCheck(uint16_t mmCheckId);
 int Combo_CountForeignPlacements(void);
 
 /**
- * Wipe the placement table. Called by MM's placement pass before re-placing
- * (a re-generated MM world must not inherit a previous world's placements).
+ * Wipe the MM-hosted placement table. Called by MM's placement pass before
+ * re-placing (a re-generated MM world must not inherit a previous world's
+ * placements). Does NOT touch the OoT-hosted table — the two directions are
+ * generated independently, and session-wide retirement is handled by
+ * Context_InvalidateSessionState / ComboContext_Init, which memset the whole
+ * struct and therefore cover both (ADR 0009).
  */
 void Combo_ClearForeignPlacements(void);
+
+// ============================================================================
+// Reverse-direction placement table (gComboCtx.foreignPlacementsOoT, #493)
+// ============================================================================
+//
+// The mirror of the four accessors above, keyed by an OoT RandomizerCheck
+// hosting an MM item. A SEPARATE KEY SPACE, not a second half of the same
+// array: an OoT RC and an MM RC are unrelated enumerations that collide freely
+// as raw u16s, so nothing may look one table up with the other's accessor. The
+// direction is the accessor; that is what stands in for the host-discriminator
+// byte ComboForeignPlacement cannot grow (ADR 0009 decision 3).
+
+/**
+ * Record "OoT check `ootCheckId` hosts `item`" (item.originGame == GAME_MM for
+ * the reverse direction). Same rejections as the forward accessor: an unset
+ * item tag, a check id of 0 (RC_UNKNOWN), a full table, or a duplicate check id.
+ * @return the slot index used (>= 0), or -1.
+ */
+int Combo_SetForeignPlacementOoT(uint16_t ootCheckId, SharedItem item);
+
+/**
+ * The foreign item hosted by OoT check `ootCheckId`, or NULL if that check
+ * hosts none. The returned pointer aliases gComboCtx (read-only use).
+ */
+const SharedItem* Combo_GetForeignPlacementForOoTCheck(uint16_t ootCheckId);
+
+/** Number of occupied OoT-hosted placement slots. */
+int Combo_CountForeignPlacementsOoT(void);
+
+/**
+ * Wipe the OoT-hosted placement table. Called by OoT's placement pass before
+ * re-placing. Does NOT touch the MM-hosted table — see the note on
+ * Combo_ClearForeignPlacements.
+ */
+void Combo_ClearForeignPlacementsOoT(void);
 
 /**
  * OoT-side redemption give (defined in ForeignItemsSingleExe.cpp): resolve the
