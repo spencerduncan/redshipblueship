@@ -27,6 +27,27 @@ bool PairingActive();
  *  world (and one spoiler file). */
 std::string PairedInputSeedString();
 
+/** Resolve MM's randomizer option profile into RANDO_SAVE_OPTIONS and, for a
+ *  paired world, publish its digest into gComboCtx.mmProfileDigest
+ *  (#499 steps 2-4; ADR 0009 claim 3).
+ *
+ *  This is the ONE place the profile is decided. It was three inline blocks in
+ *  MiscBehavior/OnFileCreate.cpp, reachable only by running a whole fill, which
+ *  is why the profile could not be locked without a display: extracting it is
+ *  what lets the display-free MMPairedProfile CTest drive the REAL resolution
+ *  rather than a copy of it.
+ *
+ *  @param paired  true on the cross-game path (Foreign::PairingActive()). Only
+ *                 a paired world gets the logic pin and the digest; a solo MM
+ *                 rando file resolves its options and nothing else, exactly as
+ *                 before.
+ *  @return the profile digest (0 when `paired` is false).
+ *
+ *  ORDERING CONTRACT, unchanged and load-bearing: call this BEFORE
+ *  MixPairedFinalSeed(), which hashes the finalized options. Resolving after
+ *  the mix would derive the world from a profile it does not describe. */
+uint32_t ResolvePairedProfile(bool paired);
+
 /** The paired final seed: Ship_Hash(master seed + MM's persisted options),
  *  mirroring OoT's own Hash(seed + settingsStr) double-reseed (Lane B
  *  contract). Call AFTER the options are persisted into RANDO_SAVE_OPTIONS. */

@@ -398,6 +398,31 @@ typedef struct {
     // with the other's accessor. The direction IS the accessor.
     ComboForeignPlacement foreignPlacementsOoT[RSBS_FOREIGN_PLACEMENT_CAP];
 
+    // Phase 3.1 Lane 4 (#497 step 7 / #499 step 4): the digest of the MM
+    // randomizer option profile the paired world was generated under. ADR 0009
+    // claim 3, size CONFIRMED at 4 bytes — a u32 by analogy with
+    // sharedRandoSettingsHash, not a record of the options themselves (ADR 0009
+    // decision 1: CVars author, a digest identifies).
+    //
+    // WHY IT HAS TO EXIST AT ALL. sharedRandoSettingsHash fingerprints *OoT's*
+    // settings string only (playthrough.cpp). Once the MM profile is a player
+    // CHOICE rather than the StaticData defaults falling through, two peers can
+    // agree on sharedRandoSeed AND sharedRandoSettingsHash and still generate
+    // different MM halves — with nothing able to detect it. This field is the
+    // missing term: the paired world's identity now covers both halves.
+    //
+    // Computed by Rando::Foreign::ResolvePairedProfile() from the SAME string
+    // MixPairedFinalSeed() hashes, so "changing an MM option changes the derived
+    // MM world" and "changing an MM option changes the recorded identity" cannot
+    // drift apart — they are one input.
+    //
+    // Zero == unset (no paired profile has been resolved), the growth contract's
+    // required meaning: a non-rando or zero-extended legacy record reads 0.
+    // Carved from the FRONT of the old reserved[216] under that contract, so
+    // every field above keeps its shipped offset and the record size is
+    // unchanged.
+    uint32_t mmProfileDigest;
+
     // Headroom. Carve new fields from the FRONT of this array (as
     // sharedItemsTagged, sharedRandoSettingsHash, foreignPlacements, the
     // grant cursors, and the reverse placement table were) so the struct
@@ -408,12 +433,12 @@ typedef struct {
     // a freshly-initialized one — every field carved from here must keep
     // "zero means unset".
     //
-    // 264 - 48 (foreignPlacementsOoT). ADR 0009 publishes the remaining
+    // 264 - 48 (foreignPlacementsOoT) - 4 (mmProfileDigest). ADR 0009 publishes the remaining
     // allocation across the other claimants and sets a 64-byte floor:
     // Test_SaveComboRecordFixed's scribble loop iterates sizeof(reserved), so
     // at zero it degenerates to zero iterations and passes vacuously, retiring
     // the only test that proves headroom round-trips at all.
-    uint8_t reserved[216];
+    uint8_t reserved[212];
 } ComboContext;
 
 /**
@@ -497,12 +522,24 @@ RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, foreignPlacementsOoT) ==
                            offsetof(ComboContext, sharedItemOverflowCount) + sizeof(uint32_t),
                        "foreignPlacementsOoT must be carved from the FRONT of reserved[] (contiguous "
                        "with the overflow count); moving it changes .redsave format");
-RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, reserved) ==
+// The MM option-profile digest is the next carve (ADR 0009 claim 3, 4 bytes).
+// Pinned to the literal 788 for the same reason 672, 736 and 740 are: anything
+// carved after it inherits its position, so a field growing in place ahead of
+// it must break the build rather than slide it.
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, mmProfileDigest) == 788u,
+                       "mmProfileDigest lives at .redsave byte offset 788; if this fires, a field "
+                       "before it grew in place - carve from reserved[] instead");
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, mmProfileDigest) ==
                            offsetof(ComboContext, foreignPlacementsOoT) +
                                RSBS_FOREIGN_PLACEMENT_CAP * sizeof(ComboForeignPlacement),
+                       "mmProfileDigest must be carved from the FRONT of reserved[] (contiguous with "
+                       "the reverse placement table); moving it changes .redsave format");
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, reserved) ==
+                           offsetof(ComboContext, mmProfileDigest) + sizeof(uint32_t),
                        "the tagged-item array, the settings digest, both foreign-placement tables, "
-                       "the grant cursors, the overflow count, and the remaining headroom must stay "
-                       "contiguous (no padding, no fields slipped between them)");
+                       "the grant cursors, the overflow count, the MM profile digest, and the "
+                       "remaining headroom must stay contiguous (no padding, no fields slipped "
+                       "between them)");
 // ADR 0009's floor. reserved[] is what Test_SaveComboRecordFixed scribbles to
 // prove Tier-1 headroom round-trips; at zero that loop runs zero times and the
 // test passes vacuously, so the carve budget stops here rather than there.

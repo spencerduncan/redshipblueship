@@ -189,12 +189,21 @@ Publishing the allocation once beats four sequential re-versions:
 |---|---|---|---|
 | 1 | `foreignPlacementsOoT[8]` (#493 step 2, Lane 1) | 48 B | **carved by this arc** |
 | 2 | `comboSettingsHash` (#498 decision 1, Lane 1) | 4 B | reserved |
-| 3 | MM option-profile digest (#497 step 7 / #499 step 4, Lane 4) | 4 B | **reserved, size not yet confirmed by Lane 4** |
+| 3 | MM option-profile digest (#497 step 7 / #499 step 4, Lane 4) | 4 B | **carved by Lane 4; size CONFIRMED at 4 B** |
 | 4 | Netplay grant fields (#460, ADR 0005/0007) | 64 B | reserved |
 | 5 | Unallocated floor | 164 B | must not drop below 64 |
 
-Total reserved-against: 120 B of 284. After claim 1 lands, `reserved[]` is 216
-bytes and 236 B of capacity remain.
+Total reserved-against: 120 B of 284. After claims 1 and 3 land, `reserved[]` is
+212 bytes and 232 B of capacity remain.
+
+**Claim 3, settled (Lane 4, 2026-07-23).** The digest is a single `uint32_t
+mmProfileDigest` at `.redsave` byte offset 788, computed by
+`Rando::Foreign::ResolvePairedProfile()` over the same option string
+`MixPairedFinalSeed()` already hashes. 4 B was the placeholder and 4 B is the
+answer, so the table above is confirmed rather than amended. A wider *record* of
+the profile was rejected for decision 1's reason: the settings are authored in
+CVars, and storing them would be a second settings store that has to be
+re-versioned every time an option is added.
 
 Two constraints on anyone spending from this:
 
@@ -229,4 +238,5 @@ leave nothing for claims 2-4.
 - `.redsave` format is unchanged in version terms. Two `.redsave` files written
   by builds either side of the `foreignPlacementsOoT` carve interoperate: the
   older one reads the new block as all-unset, which is correct.
-- Lane 4 owes a digest size against claim 3 before it carves.
+- ~~Lane 4 owes a digest size against claim 3 before it carves.~~ Paid: 4 B,
+  carved as `ComboContext.mmProfileDigest` at offset 788 (see the budget table).

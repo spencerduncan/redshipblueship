@@ -30,6 +30,10 @@
 #include "Foreign.h"
 #include "Rando/Rando.h"
 #include "2s2h/ShipUtils.h"
+// ResolvePairedProfile reads the option CVars (and asks CVarExists whether the
+// player ever set one) and logs which branch of the logic pin it took.
+#include <libultraship/bridge/consolevariablebridge.h>
+#include <spdlog/spdlog.h>
 
 // src/common — placement table + pinned pool surface, and the A1 producer
 // (Combo_RecordSharedItem). Included OUTSIDE any extern "C" block: they pull
@@ -37,6 +41,9 @@
 // (see context.h's header comment).
 #include "foreign_items.h"
 #include "shared_items.h"
+// Combo_CVarIsExplicitInt — "did the player choose this, or is it just the
+// default", which is what the paired logic pin now turns on.
+#include "combo_mm_options_view.h"
 
 #include <cstddef>
 #include <cstdio>
@@ -45,6 +52,10 @@
 
 extern "C" {
 #include "variables.h"
+// SPIDER_HOUSE_TOKENS_REQUIRED — the vanilla token requirement the profile
+// falls back to when skulltulas are unshuffled (same include OnFileCreate.cpp
+// carries for the same constant).
+#include "overlays/actors/ovl_En_Sth/z_en_sth.h"
 }
 
 namespace Rando {
@@ -71,6 +82,72 @@ static std::string MMOptionsString() {
         s += ';';
     }
     return s;
+}
+
+uint32_t ResolvePairedProfile(bool paired) {
+    // (1) The generic copy: every registered option's CVar, with the
+    // StaticData row's default as the fallback. Unchanged from the loop this
+    // was extracted from — it is what makes the pane's CVars the profile.
+    for (auto& [randoOptionId, randoStaticOption] : Rando::StaticData::Options) {
+        RANDO_SAVE_OPTIONS[randoOptionId] =
+            (uint32_t)CVarGetInteger(randoStaticOption.cvar, randoStaticOption.defaultValue);
+    }
+
+    // (2) Derived correction: with skulltulas unshuffled the token requirement
+    // is the vanilla one, whatever the slider says. Runs for solo and paired
+    // files alike, as it always has.
+    if (!RANDO_SAVE_OPTIONS[RO_SHUFFLE_GOLD_SKULLTULAS]) {
+        RANDO_SAVE_OPTIONS[RO_MINIMUM_SKULLTULA_TOKENS] = SPIDER_HOUSE_TOKENS_REQUIRED;
+    }
+
+    if (!paired) {
+        // A solo MM rando file has no cross-game identity to publish, and must
+        // not stamp one: gComboCtx.mmProfileDigest is read as "the paired
+        // world was generated under this profile", and writing it here would
+        // make an unpaired file claim a pairing it does not have.
+        return 0;
+    }
+
+    // (3) The logic pin (#426 rationale), now a DEFAULT rather than a law
+    // (#499 step 3). The pin exists because the MVP pairs under Nearly No
+    // Logic — free-form placement, with the spoiler carrying what logic would
+    // otherwise carry. That is the right default and the wrong law: once the
+    // options pane can express a choice, overriding an explicit one would make
+    // the control a lie in exactly ADR 0004 section 5's sense (it flips a CVar
+    // and changes nothing).
+    //
+    // EXISTENCE, not "is the value already extreme". The old condition could
+    // not tell "the player chose Glitchless" from "nobody has ever touched
+    // this key and the StaticData default is Glitchless", so it pinned both.
+    // Existence is the only signal that distinguishes them. (Combo_ prefixed
+    // rather than libultraship's CVarExists, which is declared but undefined in
+    // the pinned submodule — see combo_mm_options_view.h.)
+    if (!Combo_CVarIsExplicitInt(Rando::StaticData::Options[RO_LOGIC].cvar)) {
+        SPDLOG_INFO("Paired-world generation: no explicit MM logic choice; defaulting to Nearly No Logic (#426)");
+        RANDO_SAVE_OPTIONS[RO_LOGIC] = RO_LOGIC_NEARLY_NO_LOGIC;
+    } else {
+        SPDLOG_INFO("Paired-world generation: honouring explicit MM logic choice ({})",
+                    (unsigned)RANDO_SAVE_OPTIONS[RO_LOGIC]);
+    }
+
+    // (4) Publish the profile's identity. Seed-INDEPENDENT on purpose: this
+    // answers "were both halves generated under the same MM rules", which is a
+    // question about the rules alone. MixPairedFinalSeed() folds the master
+    // seed into the same option string for the different question of "which
+    // world does this seed derive"; sharing MMOptionsString() between them is
+    // what stops the two from drifting apart.
+    uint32_t digest = Ship_Hash(MMOptionsString());
+    if (digest == 0) {
+        // Zero is the growth contract's "unset" for every field carved from
+        // reserved[] (context.h), so a real profile that happened to hash to 0
+        // would read as "no profile recorded" — a mismatch that silently
+        // cannot be detected. Displace it to a fixed non-zero constant; the
+        // collision this introduces is with one other profile out of 2^32,
+        // against a certainty of a false negative.
+        digest = 0x4D4D5044u; // 'MMPD'
+    }
+    gComboCtx.mmProfileDigest = digest;
+    return digest;
 }
 
 uint32_t MixPairedFinalSeed() {

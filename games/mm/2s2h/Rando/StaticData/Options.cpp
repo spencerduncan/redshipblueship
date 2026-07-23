@@ -20,6 +20,20 @@ std::map<RandoOptionId, RandoStaticOption> Options = {
     RO(RO_ACCESS_DUNGEONS,             RO_ACCESS_DUNGEONS_FORM_AND_SONG),
     RO(RO_ACCESS_MAJORA_MASKS_COUNT,   0),
     RO(RO_ACCESS_MAJORA_REMAINS_COUNT, 0),
+    // 47 ids, 46 rows: RO_ACCESS_MAJORA_REMAINS was declared (Types.h) and never
+    // given a row, so the snapshot loop skipped its RANDO_SAVE_OPTIONS slot, the
+    // spoiler never recorded it, and every iteration over the id space was
+    // partial. #499 step 5 required settling that BEFORE a table-driven surface
+    // existed, and the two candidates were "add the row" and "delete the
+    // enumerator". Deleting it renumbers the 44 enumerators after it, and
+    // RANDO_SAVE_OPTIONS is indexed BY that number in every already-written MM
+    // rando save — a silent value shift across a save format, to tidy dead
+    // surface. Adding the row costs one always-zero slot and makes the id space
+    // total. NOTE the option has no consumer anywhere in MM; the combo options
+    // pane therefore draws it disabled-with-reason rather than as a working
+    // control (ADR 0004 §5), which is exactly the honest presentation of a row
+    // that exists for table completeness.
+    RO(RO_ACCESS_MAJORA_REMAINS,       RO_GENERIC_OFF),
     RO(RO_ACCESS_MOON_MASKS_COUNT,     0),
     RO(RO_ACCESS_MOON_REMAINS_COUNT,   4),
     RO(RO_ACCESS_TRIALS,               RO_ACCESS_TRIALS_20_MASKS),
