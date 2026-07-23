@@ -94,6 +94,99 @@ TestResult Test_ForeignItemGive(void) {
         FI_ASSERT(pool[i].name != NULL && pool[i].name[0] != '\0');
         FI_ASSERT(Combo_GetForeignItemName(pool[i].item) == pool[i].name);
     }
+    // (originGame, name) uniqueness WITHIN a pool. Two entries sharing a name
+    // in one id-space would make that origin's inverse ambiguous, which no
+    // amount of origin-dispatch can repair.
+    for (int i = 0; i < poolCount; i++) {
+        for (int j = i + 1; j < poolCount; j++) {
+            FI_ASSERT(strcmp(pool[i].name, pool[j].name) != 0);
+            FI_ASSERT(pool[i].item.id != pool[j].item.id);
+        }
+    }
+    // Round-trip through the origin-keyed inverse, and confirm the OoT pool is
+    // NOT reachable by asking for MM's id-space.
+    for (int i = 0; i < poolCount; i++) {
+        SharedItem back;
+        FI_ASSERT(Combo_GetForeignItemByNameFor((uint8_t)GAME_OOT, pool[i].name, &back));
+        FI_ASSERT(back.originGame == pool[i].item.originGame && back.id == pool[i].item.id);
+        FI_ASSERT(!Combo_GetForeignItemByNameFor((uint8_t)GAME_MM, pool[i].name, NULL));
+        FI_ASSERT(!Combo_GetForeignItemByNameFor((uint8_t)GAME_NONE, pool[i].name, NULL));
+    }
+
+    // ------------------------------------------------------------------
+    // ADR 0009 decision 3: (origin, name) is the key; bare name is NOT.
+    // ------------------------------------------------------------------
+    // The reason the lookups take an origin at all. "Bomb Bag" is a real
+    // display name in BOTH id-spaces — OoT's RG_BOMB_BAG row and MM's
+    // RI_BOMB_BAG_20 row — so a name-only inverse resolves it to whichever
+    // pool it happens to scan first and writes a WRONG ORIGIN TAG into the
+    // placement table. That is the #356 aliasing class arriving through the
+    // spoiler-LOAD path, which rebuilds state from untrusted text on disk.
+    //
+    // #493's issue text asks for a "no cross-pool name collision" assertion.
+    // That assertion is NOT satisfiable and is deliberately not written here:
+    // it would go red the moment a real MM pool exists, and the natural fix —
+    // renaming an item away from its real name — would degrade the spoiler to
+    // work around a lookup bug. We assert the collision is HANDLED instead.
+    //
+    // A synthetic MM pool stands in until the real one lands (Lane 6 creates
+    // 2s2h/Rando/ForeignItemsSingleExe.cpp; Lane 1 fills kForeignPoolMMV1 into
+    // it). When it does, switch this block to the real pool and drop the
+    // registry restore below.
+    {
+        static const ComboForeignItemDef kSyntheticMMPool[] = {
+            { { (uint8_t)GAME_MM, 0, 0x0037 }, "Bomb Bag" },   // deliberately collides with the OoT pool
+            { { (uint8_t)GAME_MM, 0, 0x0041 }, "Hero's Bow" },
+        };
+        FI_ASSERT(Combo_GetForeignItemPoolFor((uint8_t)GAME_MM, NULL) == 0); // nothing registered yet
+        Combo_RegisterForeignItemPool((uint8_t)GAME_MM, kSyntheticMMPool, 2);
+
+        const ComboForeignItemDef* mmPool = NULL;
+        FI_ASSERT(Combo_GetForeignItemPoolFor((uint8_t)GAME_MM, &mmPool) == 2 && mmPool == kSyntheticMMPool);
+
+        // The colliding bare name resolves to a DIFFERENT item under each
+        // origin — never to the same one, and never to nothing.
+        SharedItem fromOoT, fromMM;
+        FI_ASSERT(Combo_GetForeignItemByNameFor((uint8_t)GAME_OOT, "Bomb Bag", &fromOoT));
+        FI_ASSERT(Combo_GetForeignItemByNameFor((uint8_t)GAME_MM, "Bomb Bag", &fromMM));
+        FI_ASSERT(fromOoT.originGame == (uint8_t)GAME_OOT);
+        FI_ASSERT(fromMM.originGame == (uint8_t)GAME_MM);
+        FI_ASSERT(fromMM.id == 0x0037);
+        FI_ASSERT(fromOoT.id != fromMM.id || fromOoT.originGame != fromMM.originGame);
+
+        // The legacy bare-name entry point keeps its exact previous meaning:
+        // the OoT pool. Call sites that predate the origin dimension must not
+        // have silently changed behavior when the MM pool appeared.
+        SharedItem legacy;
+        FI_ASSERT(Combo_GetForeignItemByName("Bomb Bag", &legacy));
+        FI_ASSERT(legacy.originGame == (uint8_t)GAME_OOT && legacy.id == fromOoT.id);
+
+        // Forward direction dispatches on the item's own tag: two items with
+        // the SAME id in different id-spaces must not resolve to one name.
+        SharedItem mmBow;
+        mmBow.originGame = (uint8_t)GAME_MM;
+        mmBow.flags = 0;
+        mmBow.id = 0x0041;
+        FI_ASSERT(Combo_GetForeignItemName(mmBow) != NULL);
+        FI_ASSERT(strcmp(Combo_GetForeignItemName(mmBow), "Hero's Bow") == 0);
+        SharedItem ootSameId = mmBow;
+        ootSameId.originGame = (uint8_t)GAME_OOT;
+        // Same raw id, OoT id-space: must not borrow MM's name. (It may be a
+        // real OoT pool entry with its OWN name, or nothing; either is correct,
+        // borrowing MM's is not.)
+        const char* ootName = Combo_GetForeignItemName(ootSameId);
+        FI_ASSERT(ootName == NULL || strcmp(ootName, "Hero's Bow") != 0);
+
+        // An untagged item resolves to no pool and therefore to no name.
+        SharedItem untaggedName;
+        untaggedName.originGame = (uint8_t)GAME_NONE;
+        untaggedName.flags = 0;
+        untaggedName.id = 0x0037;
+        FI_ASSERT(Combo_GetForeignItemName(untaggedName) == NULL);
+
+        Combo_RegisterForeignItemPool((uint8_t)GAME_MM, NULL, 0); // restore process-global state
+        FI_ASSERT(Combo_GetForeignItemPoolFor((uint8_t)GAME_MM, NULL) == 0);
+    }
 
     // ------------------------------------------------------------------
     // Clean slate + the pairing gate (Lane B's carrier contract).

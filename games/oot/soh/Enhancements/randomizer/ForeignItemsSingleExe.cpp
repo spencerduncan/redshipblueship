@@ -66,21 +66,24 @@ static constexpr int kForeignPoolCount = sizeof(kForeignPoolV1) / sizeof(kForeig
 static_assert(kForeignPoolCount <= (int)RSBS_FOREIGN_PLACEMENT_CAP,
               "the pinned foreign pool must fit the gComboCtx placement carve");
 
-extern "C" int Combo_GetForeignItemPool(const ComboForeignItemDef** outPool) {
-    if (outPool != nullptr) {
-        *outPool = kForeignPoolV1;
+// Publish the table into src/common's origin-indexed registry (ADR 0009
+// decision 3) rather than defining the lookups here. The pool DEFINITION still
+// lives in this TU — that is the ADR 0002 invariant, and the RG_* enumerators
+// above are why — but the lookups now have to serve two pools, and src/common
+// cannot call into either game. Registration inverts that: each pool TU hands
+// its static table down, and neither game has to be linkable from the other.
+//
+// File-scope initializer, so it runs before main() and before any gameplay or
+// test code can ask for the pool. This TU lives in soh_rando, which links
+// WHOLE_ARCHIVE, so the initializer is never dropped as unreferenced.
+namespace {
+struct ForeignPoolV1Registrar {
+    ForeignPoolV1Registrar() {
+        Combo_RegisterForeignItemPool((uint8_t)GAME_OOT, kForeignPoolV1, kForeignPoolCount);
     }
-    return kForeignPoolCount;
-}
-
-extern "C" const char* Combo_GetForeignItemName(SharedItem item) {
-    for (const ComboForeignItemDef& def : kForeignPoolV1) {
-        if (def.item.originGame == item.originGame && def.item.id == item.id) {
-            return def.name;
-        }
-    }
-    return nullptr;
-}
+};
+const ForeignPoolV1Registrar gForeignPoolV1Registrar;
+} // namespace
 
 // ============================================================================
 // Redemption give (called by OoT_AwardSharedItem, the A1 consumer callback)
