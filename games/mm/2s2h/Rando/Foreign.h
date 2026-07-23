@@ -32,6 +32,19 @@ std::string PairedInputSeedString();
  *  contract). Call AFTER the options are persisted into RANDO_SAVE_OPTIONS. */
 uint32_t MixPairedFinalSeed();
 
+/** True if this MM check is a SAFE host for a foreign (cross-game) item —
+ *  i.e. the check is in the fill, holds a legal junk-class MM item, and belongs
+ *  to a check class whose `.eligible` bit is armed by GAME code rather than by
+ *  a rando hook that might not exist. #488: the previous inline predicate was a
+ *  blocklist over a check table that carries no give-path information at all,
+ *  so a host with no runtime give-path stranded its pinned OoT item forever —
+ *  invisible, unwinnable, indistinguishable from a missing item.
+ *
+ *  Extracted (rather than left inline) so the CI lock can drive the REAL
+ *  selection predicate through MM_Rando_Foreign_IsEligibleHost instead of
+ *  re-deriving it; see the bridge block at the bottom of Foreign.cpp. */
+bool IsEligibleHost(RandoCheckId randoCheckId);
+
 /** Swap deterministically-chosen junk placements for the pinned foreign pool
  *  and record them in gComboCtx.foreignPlacements. Call after the fill/logic
  *  apply populated RANDO_SAVE_CHECKS. Returns the number placed. */

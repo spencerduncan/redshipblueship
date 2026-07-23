@@ -92,6 +92,115 @@ static uint32_t SelectNext() {
     return sSelectState;
 }
 
+// ---------------------------------------------------------------------------
+// Host eligibility (#488).
+//
+// The predicate this replaced was a BLOCKLIST — "shuffled, holds a junk-class
+// item, and is not a shop" — evaluated over a check table (RandoStaticCheck:
+// {id, name, type, scene, flagType, flag, item}) that carries no give-path
+// information whatsoever. That shape is the structural defect: CheckQueue's
+// foreign branch is a fork nested INSIDE `if (randoSaveCheck.eligible)`
+// (MiscBehavior/CheckQueue.cpp:39-53), so any host whose `.eligible` bit is
+// never armed strands a pinned OoT progression item forever. Nothing logs,
+// nothing errors, and the paired world is unwinnable by construction.
+//
+// So it is an ALLOWLIST now: a check class is a legal host only once someone
+// has traced its arming chain. Ship Tier A only.
+//
+// TIER A — RCTYPE_CHEST carrying FLAG_CYCL_SCENE_CHEST. The arming chain,
+// traced end to end: z_en_box.c:488-495 (MM_EnBox_WaitOpen) calls
+// MM_Flags_SetTreasure, which at z_actor.c:860-869 fires
+// GameInteractor_ExecuteOnSceneFlagSet(sceneId, FLAG_CYCL_SCENE_CHEST, flag),
+// which MiscBehavior/OnFlagSet.cpp:19-33 turns into `.eligible = true` for the
+// resolved check. All 128 chest rows carry FLAG_CYCL_SCENE_CHEST today; the
+// flagType is re-checked per row rather than assumed, because 60
+// RCTYPE_SKULL_TOKEN rows share that flag space and a future FLAG_NONE chest
+// row must not silently inherit Tier A's guarantee.
+//
+// One honest caveat, since the point of this predicate is not to overclaim:
+// 31 of the 128 chest rows hold a stray fairy in vanilla, and z_en_box.c:488
+// routes GI_STRAY_FAIRY down a branch that never calls Flags_SetTreasure.
+// Those chests arm because the rando EnBox ShouldActorInit hook
+// (ActorBehavior/EnBox.cpp:176-197) first rewrites the contained item to
+// GI_RECOVERY_HEART, putting them back on the flag-setting branch. That hook
+// bails on `!RANDO_SAVE_CHECKS[id].shuffled` — the SAME bit this predicate
+// requires below — so it always runs for a check we would host on. The
+// guarantee is therefore "armed for every check this predicate accepts", not
+// "armed with zero rando code involved"; the distinction matters only if the
+// EnBox hook's registration condition ever diverges from `.shuffled`.
+//
+// TIER B — every non-shop check with `flagType != FLAG_NONE` minus the false
+// friend FLAG_RANDO_INF (rando-inf flags are written by rando code, not by
+// vanilla actors — z_actor.c:1026). Compiled out. It is NOT audited: the
+// FLAG_WEEK_EVENT_REG-backed NPC/MINIGAME rows have not been checked for a
+// rando VB hook that replaces the NPC's give AND suppresses the vanilla flag
+// write, which is exactly the failure this whole predicate exists to prevent.
+// Do not define RSBS_FOREIGN_HOST_TIER_B until that audit lands (#488).
+static bool IsAllowedHostClass(const Rando::StaticData::RandoStaticCheck& randoStaticCheck) {
+    // Kept explicit even though the allowlist below already excludes them: the
+    // shop give/price flow and spoiler shape differ from the ordinary
+    // eligible->CheckQueue path the generic foreign presentation targets, so
+    // this exclusion must survive any future widening of the tiers.
+    if (randoStaticCheck.randoCheckType == RCTYPE_SHOP || randoStaticCheck.randoCheckType == RCTYPE_TINGLE_SHOP) {
+        return false;
+    }
+
+    // Tier A.
+    if (randoStaticCheck.randoCheckType == RCTYPE_CHEST && randoStaticCheck.flagType == FLAG_CYCL_SCENE_CHEST) {
+        return true;
+    }
+
+#ifdef RSBS_FOREIGN_HOST_TIER_B
+    if (randoStaticCheck.flagType != FLAG_NONE && randoStaticCheck.flagType != FLAG_RANDO_INF) {
+        return true;
+    }
+#endif
+
+    return false;
+}
+
+bool IsEligibleHost(RandoCheckId randoCheckId) {
+    if (randoCheckId <= RC_UNKNOWN || randoCheckId >= RC_MAX) {
+        return false;
+    }
+
+    const auto staticIt = Rando::StaticData::Checks.find(randoCheckId);
+    if (staticIt == Rando::StaticData::Checks.end() || staticIt->second.randoCheckId == RC_UNKNOWN) {
+        return false;
+    }
+    if (!IsAllowedHostClass(staticIt->second)) {
+        return false;
+    }
+
+    const RandoSaveCheck& randoSaveCheck = RANDO_SAVE_CHECKS[randoCheckId];
+
+    // `.shuffled` alone was the old predicate's only save-side test, and it is
+    // not sufficient in either direction. A USER-EXCLUDED check is marked
+    // `shuffled = true; randoItemId = RI_JUNK; skipped = true` by
+    // Logic/GeneratePools.cpp and is deliberately kept OUT of checkPool — so
+    // under the old predicate an excluded check was a top-priority host for a
+    // pinned progression item. `.skipped` is the bit that says so.
+    if (!randoSaveCheck.shuffled || randoSaveCheck.skipped) {
+        return false;
+    }
+
+    // RI_UNKNOWN (enumerator 0, i.e. a zero-initialised or unresolvable slot)
+    // and RI_NONE ("literally nothing") are both declared RITYPE_JUNK, so a
+    // type-only test accepts an item that is not an item. Rejecting them keeps
+    // ADR 0002's host invariant honest: a foreign host must physically hold a
+    // LEGAL junk-class MM item, because that is what the check degrades to if
+    // the placement table is ever absent.
+    const RandoItemId heldItem = randoSaveCheck.randoItemId;
+    if (heldItem == RI_UNKNOWN || heldItem == RI_NONE) {
+        return false;
+    }
+    const auto itemIt = Rando::StaticData::Items.find(heldItem);
+    if (itemIt == Rando::StaticData::Items.end()) {
+        return false;
+    }
+    return itemIt->second.randoItemType == RITYPE_JUNK;
+}
+
 int PlaceForeignItems() {
     Combo_ClearForeignPlacements();
 
@@ -105,33 +214,28 @@ int PlaceForeignItems() {
         return 0;
     }
 
-    // Candidates: shuffled checks the fill left holding a JUNK-CLASS item
-    // (RITYPE_JUNK — ammo, rupees, and the RI_JUNK filler sentinel alike), in
-    // ascending RandoCheckId order (std::map). The literal RI_JUNK sentinel
-    // alone is NOT the criterion: the pool balancer only injects it when the
-    // check pool outnumbers the item pool, so most fills carry few or none
-    // (a measured CI fill had 2), while junk-class items are plentiful.
-    // Shop-type checks are excluded: their give/price flow and spoiler shape
-    // differ, and the MVP's generic presentation targets the ordinary
-    // eligible->CheckQueue path.
+    // Candidates: checks IsEligibleHost accepts, in ascending RandoCheckId
+    // order (std::map), so selection stays deterministic. The predicate is a
+    // named function rather than an inline condition precisely so the CI lock
+    // can drive it directly — see IsEligibleHost above for what it enforces and
+    // why the previous inline blocklist was unsound.
+    //
+    // The junk-class requirement inside it is the one part carried over
+    // unchanged: the literal RI_JUNK sentinel alone is NOT the criterion,
+    // because the pool balancer only injects it when the check pool outnumbers
+    // the item pool (a measured CI fill had 2), while junk-class items are
+    // plentiful.
     std::vector<RandoCheckId> candidates;
     for (auto& [randoCheckId, randoStaticCheck] : Rando::StaticData::Checks) {
-        if (randoStaticCheck.randoCheckId == RC_UNKNOWN) {
-            continue;
-        }
-        if (randoStaticCheck.randoCheckType == RCTYPE_SHOP || randoStaticCheck.randoCheckType == RCTYPE_TINGLE_SHOP) {
-            continue;
-        }
-        if (!RANDO_SAVE_CHECKS[randoCheckId].shuffled) {
-            continue;
-        }
-        const RandoItemId heldItem = RANDO_SAVE_CHECKS[randoCheckId].randoItemId;
-        if (Rando::StaticData::Items[heldItem].randoItemType == RITYPE_JUNK) {
+        if (IsEligibleHost(randoCheckId)) {
             candidates.push_back(randoCheckId);
         }
     }
 
-    fprintf(stderr, "[MM] foreign placement: %d pool items over %zu junk-holding candidate checks\n", poolCount,
+    // Printed every generation on purpose: Tier A drops the candidate set from
+    // ~2000 to a few dozen, so host supply is now a number worth watching in
+    // CI logs and playtest output BEFORE it becomes a shortfall.
+    fprintf(stderr, "[MM] foreign placement: %d pool items over %zu eligible host checks\n", poolCount,
             candidates.size());
 
     sSelectState =
@@ -155,7 +259,7 @@ int PlaceForeignItems() {
     }
 
     if (placed < poolCount) {
-        fprintf(stderr, "[MM] foreign placement: only %d of %d pool items placed (junk candidates exhausted)\n", placed,
+        fprintf(stderr, "[MM] foreign placement: only %d of %d pool items placed (eligible hosts exhausted)\n", placed,
                 poolCount);
     }
     return placed;
@@ -203,6 +307,82 @@ bool RecordForeignPickup(RandoCheckId randoCheckId) {
 // ============================================================================
 extern "C" int MM_Rando_Foreign_RecordPickup(uint16_t randoCheckId) {
     return Rando::Foreign::RecordForeignPickup((RandoCheckId)randoCheckId) ? 1 : 0;
+}
+
+// #488's host-eligibility lock. This is the bridge that makes the lock
+// non-vacuous: it calls the SAME function PlaceForeignItems' candidate loop
+// calls, so a test that drives it is testing selection, not a paraphrase of
+// selection. Without the extraction above, the only observable for "was this a
+// safe host?" would be a whole generated world.
+extern "C" int MM_Rando_Foreign_IsEligibleHost(uint16_t randoCheckId) {
+    return Rando::Foreign::IsEligibleHost((RandoCheckId)randoCheckId) ? 1 : 0;
+}
+
+// ---------------------------------------------------------------------------
+// Test-support surface for the same lock (src/common/tests/test_foreign_items.c).
+//
+// The predicate reads two things the ROM-free tier cannot reach from
+// src/common: Rando::StaticData::Checks (MM C++ static data) and
+// RANDO_SAVE_CHECKS (a field deep inside MM's gSaveContext). These accessors
+// exist so the test can build a synthetic save over the REAL check table
+// rather than a mock one. They are inspection/stamping only — none of them is
+// reachable from gameplay, and none duplicates predicate logic.
+// ---------------------------------------------------------------------------
+
+/** RC_MAX — the exclusive upper bound for a RandoCheckId walk. */
+extern "C" int MM_Rando_Foreign_TestCheckIdMax(void) {
+    return (int)RC_MAX;
+}
+
+/** Static classification of one check row. Returns 1 if the id names a real
+ *  row, 0 otherwise. Reports the two facts Tier A is defined in terms of, so
+ *  the test can assert the table invariant (every chest row carries
+ *  FLAG_CYCL_SCENE_CHEST) without importing MM's enums into src/common. */
+extern "C" int MM_Rando_Foreign_TestCheckClass(uint16_t randoCheckId, int* outIsChestType, int* outHasChestFlag) {
+    const auto it = Rando::StaticData::Checks.find((RandoCheckId)randoCheckId);
+    if (it == Rando::StaticData::Checks.end() || it->second.randoCheckId == RC_UNKNOWN) {
+        return 0;
+    }
+    if (outIsChestType != nullptr) {
+        *outIsChestType = (it->second.randoCheckType == RCTYPE_CHEST) ? 1 : 0;
+    }
+    if (outHasChestFlag != nullptr) {
+        *outHasChestFlag = (it->second.flagType == FLAG_CYCL_SCENE_CHEST) ? 1 : 0;
+    }
+    return 1;
+}
+
+/** Stamp one row's save-side state (the three fields the predicate reads). */
+extern "C" void MM_Rando_Foreign_TestStampCheck(uint16_t randoCheckId, int shuffled, int skipped, uint16_t itemId) {
+    if (randoCheckId == 0 || randoCheckId >= (uint16_t)RC_MAX) {
+        return;
+    }
+    RandoSaveCheck& randoSaveCheck = RANDO_SAVE_CHECKS[(RandoCheckId)randoCheckId];
+    randoSaveCheck.shuffled = (shuffled != 0);
+    randoSaveCheck.skipped = (skipped != 0);
+    randoSaveCheck.randoItemId = (RandoItemId)itemId;
+}
+
+/** Stamp every row — the "synthetic all-shuffled save" the whole-table sweep
+ *  runs over, and the reset the test leaves behind. */
+extern "C" void MM_Rando_Foreign_TestStampAllChecks(int shuffled, int skipped, uint16_t itemId) {
+    for (int i = 1; i < (int)RC_MAX; i++) {
+        MM_Rando_Foreign_TestStampCheck((uint16_t)i, shuffled, skipped, itemId);
+    }
+}
+
+/** The three RandoItemId values the predicate treats specially: the legal junk
+ *  filler, and the two sentinels that are RITYPE_JUNK but are not items. */
+extern "C" void MM_Rando_Foreign_TestItemSentinels(uint16_t* outJunk, uint16_t* outNone, uint16_t* outUnknown) {
+    if (outJunk != nullptr) {
+        *outJunk = (uint16_t)RI_JUNK;
+    }
+    if (outNone != nullptr) {
+        *outNone = (uint16_t)RI_NONE;
+    }
+    if (outUnknown != nullptr) {
+        *outUnknown = (uint16_t)RI_UNKNOWN;
+    }
 }
 
 #endif // RSBS_SINGLE_EXECUTABLE
