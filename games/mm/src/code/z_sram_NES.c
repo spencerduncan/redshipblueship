@@ -420,6 +420,17 @@ u8 sBitFlags8[] = {
     (1 << 0), (1 << 1), (1 << 2), (1 << 3), (1 << 4), (1 << 5), (1 << 6), (1 << 7),
 };
 
+// 2S2H [Port] Bounds guard for the flash page tables above. A real file slot is
+// 0..FILE_NUM_MAX-1; every other value -- most importantly the 0xFF "no real
+// slot" sentinel a cross-game / title / debug session leaves in
+// gSaveContext.fileNum -- must be rejected, because the flash paths index
+// gFlashSave*Pages[fileNum * FLASH_SAVE_MAIN_MULTIPLIER (+ FLASH_SAVE_BACKUP_OFFSET)]
+// and gFlashOwlSave*Pages[fileNum * FLASH_SAVE_MAIN_MULTIPLIER], which for 0xFF
+// runs hundreds of entries past the end of those fixed-size arrays.
+s32 Sram_FileNumHasFlashSlot(s32 fileNum) {
+    return (fileNum >= 0) && (fileNum < FILE_NUM_MAX);
+}
+
 u16 D_801F6AF0;
 u8 D_801F6AF2;
 
@@ -1258,6 +1269,83 @@ void MM_Sram_InitDebugSave(void) {
 }
 
 #ifdef RSBS_SINGLE_EXECUTABLE
+// ---------------------------------------------------------------------------
+// Flash-readback rando-identity guard (#485 / #487).
+//
+// Every "read the file back from flash, then memcpy it over gSaveContext" site
+// in this file destroys the live randomizer identity, because ShipSaveInfo --
+// saveType AND the whole rando block (finalSeed, options, the RC_MAX placement
+// table) -- is a MEMBER of Save (z64save.h), so a memcpy of sizeof(Save) or
+// offsetof(SaveContext, fileNum) overwrites it wholesale.
+//
+// A cross-game paired MM world is authored IN MEMORY at the arrival
+// (MM_Rando_PairOnCrossGameArrival -> OnFileCreate) and is not represented in
+// MM flash until the player saves. And in single-exe MM's flash read is a stub
+// (games/mm/2s2h/mm_save_manager_stubs.c) that never fills the buffer at all.
+// So a readback yields a vanilla/zeroed Save either way: saveType reverts to
+// SAVETYPE_VANILLA, every IS_RANDO COND_HOOK unregisters at the next
+// OnSaveLoad, and MM silently plays vanilla for the rest of the session -- then
+// the next switch-out freezes THAT save into the blob, so the vanilla world
+// survives every later return leg. Operator-confirmed for the moon-crash leg
+// (#485); #487 is the same class on the owl-save and file-copy legs.
+//
+// The guard preserves the rando half across ANY such readback, exactly as
+// cutsceneIndex is preserved across the moon-crash reload -- but only when the
+// reload actually lost it. If the data that came back IS a rando save, upstream
+// semantics win and this is a no-op. It is likewise a no-op whenever the live
+// save was not rando to begin with, which is every vanilla session and every
+// file-select enumeration reached from the vanilla boot bootstrap.
+//
+// File-static rather than a stack local: ShipSaveInfo embeds
+// randoSaveChecks[RC_MAX] and is multiple KB. The save path is single-threaded.
+//
+// The depth counter is not decoration: Sram_CopySave both wraps its own
+// readback and calls func_80147414, which wraps another. A flat latch would let
+// the inner End() clear the flag and turn the outer restore into a silent
+// no-op.
+static ShipSaveInfo sRandoPreserveInfo;
+static s32 sRandoPreserveWasRando;
+static s32 sRandoPreserveDepth;
+
+// Latch the live rando identity before a flash readback commits over it.
+static void Sram_BeginRandoPreserve(void) {
+    if (sRandoPreserveDepth++ != 0) {
+        return; // nested; the outer latch owns the restore
+    }
+    sRandoPreserveWasRando = (gSaveContext.save.shipSaveInfo.saveType == SAVETYPE_RANDO);
+    if (sRandoPreserveWasRando) {
+        sRandoPreserveInfo = gSaveContext.save.shipSaveInfo;
+    }
+}
+
+// Restore it if -- and only if -- the readback lost it.
+static void Sram_EndRandoPreserve(void) {
+    if (--sRandoPreserveDepth != 0) {
+        return;
+    }
+    if (sRandoPreserveWasRando && gSaveContext.save.shipSaveInfo.saveType != SAVETYPE_RANDO) {
+        gSaveContext.save.shipSaveInfo = sRandoPreserveInfo;
+        // Re-arm the save-shape-dependent hooks against the save that actually
+        // reaches gameplay -- the same contract MM_Play_ConsumeStartupEntrance
+        // honours at the cross-game arrival (games/mm/src/code/z_play.c). The
+        // rando behavior hooks are COND_HOOKs re-evaluated on OnSaveLoad against
+        // IS_RANDO; restoring saveType without re-dispatching would leave them
+        // in whatever state the readback's vanilla shape produced, i.e.
+        // still-vanilla behavior on a save that now correctly claims to be
+        // rando. Idempotent by construction: COND_HOOK unregisters before
+        // re-registering.
+        GameInteractor_ExecuteOnSaveLoad(gSaveContext.fileNum);
+    }
+    sRandoPreserveWasRando = 0;
+}
+#define RSBS_RANDO_PRESERVE_BEGIN() Sram_BeginRandoPreserve()
+#define RSBS_RANDO_PRESERVE_END() Sram_EndRandoPreserve()
+#else
+#define RSBS_RANDO_PRESERVE_BEGIN() ((void)0)
+#define RSBS_RANDO_PRESERVE_END() ((void)0)
+#endif
+
+#ifdef RSBS_SINGLE_EXECUTABLE
 // Moon-crash reset must not destroy a cross-game paired world (#392 class).
 //
 // The reload below re-reads the file from flash and memcpy's sizeof(Save) over
@@ -1279,55 +1367,46 @@ void MM_Sram_InitDebugSave(void) {
 // but only when the reload actually lost it (flash held no rando save). If the
 // file on disk IS a rando save, upstream semantics win and this is a no-op.
 //
-// File-static rather than a stack local: ShipSaveInfo embeds randoSaveChecks
-// [RC_MAX] and is multiple KB. The save path is single-threaded.
-static ShipSaveInfo sMoonCrashShipSaveInfo;
+// The preserve/restore itself is now the shared Sram_Begin/EndRandoPreserve
+// pair above (#487 found the same readback-then-commit shape on five other
+// paths); this comment stays because this site is where the class was first
+// diagnosed and operator-confirmed.
 #endif
 
 void Sram_ResetSaveFromMoonCrash(SramContext* sramCtx) {
     GameInteractor_ExecuteBeforeMoonCrashSaveReset();
     s32 i;
     s32 cutsceneIndex = gSaveContext.save.cutsceneIndex;
-#ifdef RSBS_SINGLE_EXECUTABLE
-    s32 wasRando = (gSaveContext.save.shipSaveInfo.saveType == SAVETYPE_RANDO);
 
-    if (wasRando) {
-        sMoonCrashShipSaveInfo = gSaveContext.save.shipSaveInfo;
-    }
-#endif
+    RSBS_RANDO_PRESERVE_BEGIN();
 
     memset(sramCtx->saveBuf, 0, SAVE_BUFFER_SIZE);
 
-    if (SysFlashrom_ReadData(sramCtx->saveBuf, gFlashSaveStartPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER],
-                             gFlashSaveNumPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER]) != 0) {
-        SysFlashrom_ReadData(
-            sramCtx->saveBuf,
-            gFlashSaveStartPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER + FLASH_SAVE_BACKUP_OFFSET],
-            gFlashSaveNumPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER + FLASH_SAVE_BACKUP_OFFSET]);
-    }
-    memcpy(&gSaveContext.save, sramCtx->saveBuf, sizeof(Save));
-    if (CHECK_NEWF(gSaveContext.save.saveInfo.playerData.newf)) {
-        SysFlashrom_ReadData(
-            sramCtx->saveBuf,
-            gFlashSaveStartPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER + FLASH_SAVE_BACKUP_OFFSET],
-            gFlashSaveNumPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER + FLASH_SAVE_BACKUP_OFFSET]);
-        memcpy(&gSaveContext, sramCtx->saveBuf, sizeof(Save));
+    // 2S2H [Port] In a cross-game session (and the debug/mapselect boot) fileNum is the
+    // 0xFF "no real slot" sentinel, so there is no flash file to reload. Guarding here
+    // keeps us from indexing gFlashSaveStartPages/gFlashSaveNumPages far out of bounds AND
+    // from clobbering the live save with the still-zeroed buffer below.
+    if (Sram_FileNumHasFlashSlot(gSaveContext.fileNum)) {
+        if (SysFlashrom_ReadData(sramCtx->saveBuf,
+                                 gFlashSaveStartPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER],
+                                 gFlashSaveNumPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER]) != 0) {
+            SysFlashrom_ReadData(
+                sramCtx->saveBuf,
+                gFlashSaveStartPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER + FLASH_SAVE_BACKUP_OFFSET],
+                gFlashSaveNumPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER + FLASH_SAVE_BACKUP_OFFSET]);
+        }
+        memcpy(&gSaveContext.save, sramCtx->saveBuf, sizeof(Save));
+        if (CHECK_NEWF(gSaveContext.save.saveInfo.playerData.newf)) {
+            SysFlashrom_ReadData(
+                sramCtx->saveBuf,
+                gFlashSaveStartPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER + FLASH_SAVE_BACKUP_OFFSET],
+                gFlashSaveNumPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER + FLASH_SAVE_BACKUP_OFFSET]);
+            memcpy(&gSaveContext, sramCtx->saveBuf, sizeof(Save));
+        }
     }
     gSaveContext.save.cutsceneIndex = cutsceneIndex;
-#ifdef RSBS_SINGLE_EXECUTABLE
-    if (wasRando && gSaveContext.save.shipSaveInfo.saveType != SAVETYPE_RANDO) {
-        gSaveContext.save.shipSaveInfo = sMoonCrashShipSaveInfo;
-        // Re-arm the save-shape-dependent hooks against the save that actually
-        // reaches gameplay -- the same contract MM_Play_ConsumeStartupEntrance
-        // honours at the cross-game arrival (games/mm/src/code/z_play.c). The
-        // rando behavior hooks are COND_HOOKs re-evaluated on OnSaveLoad against
-        // IS_RANDO; restoring saveType without re-dispatching would leave them
-        // unregistered from the reload above, i.e. still-vanilla behavior on a
-        // save that now correctly claims to be rando. Idempotent by
-        // construction: COND_HOOK unregisters before re-registering.
-        GameInteractor_ExecuteOnSaveLoad(gSaveContext.fileNum);
-    }
-#endif
+
+    RSBS_RANDO_PRESERVE_END();
 
     for (i = 0; i < ARRAY_COUNT(gSaveContext.eventInf); i++) {
         gSaveContext.eventInf[i] = 0;
@@ -1377,10 +1456,24 @@ void MM_Sram_OpenSave(FileSelectState* fileSelect, SramContext* sramCtx) {
     s32 pad1;
     s32 fileNum;
 
+    // One BEGIN/END around the whole load rather than one per memcpy: this
+    // block commits up to twice (main file, then the backup on a bad newf) and
+    // only the final gSaveContext state matters, so a single END means at most
+    // one OnSaveLoad re-dispatch. Inert in the flow a player actually takes --
+    // the boot chain authors a VANILLA bootstrap before file select, so there
+    // is no rando identity live to lose here. It is here so that a LOAD can
+    // never be the thing that strips a live paired world, and because the
+    // single-exe read stub returns an untouched buffer for every slot.
+    RSBS_RANDO_PRESERVE_BEGIN();
+
     if (gSaveContext.flashSaveAvailable) {
         memset(sramCtx->saveBuf, 0, SAVE_BUFFER_SIZE);
 
         if (gSaveContext.fileNum == 0xFF) {
+            // 2S2H [Port] The sentinel path reads file 1's new-cycle save; keep phi_t1 in
+            // step with that index so the gFlashSaveSizes[phi_t1] memcpy below is in bounds
+            // (it was otherwise left uninitialized and indexed the size table at random).
+            phi_t1 = FLASH_SAVE_FILE_1_NEW_CYCLE_SAVE;
             SysFlashrom_ReadData(sramCtx->saveBuf, gFlashSaveStartPages[FLASH_SAVE_FILE_1_NEW_CYCLE_SAVE],
                                  gFlashSaveNumPages[FLASH_SAVE_FILE_1_NEW_CYCLE_SAVE]);
         } else if (fileSelect->isOwlSave[gSaveContext.fileNum + FILE_NUM_OWL_SAVE_OFFSET]) {
@@ -1409,6 +1502,8 @@ void MM_Sram_OpenSave(FileSelectState* fileSelect, SramContext* sramCtx) {
             memcpy(&gSaveContext, sramCtx->saveBuf, gFlashSaveSizes[phi_t1]);
         }
     }
+
+    RSBS_RANDO_PRESERVE_END();
 
     gSaveContext.save.saveInfo.playerData.magicLevel = 0;
 
@@ -1553,6 +1648,14 @@ void func_801457CC(GameState* gameState, SramContext* sramCtx) {
     u16 sp6E;
     u16 newCheckSum;
     u16 maskCount;
+
+    // The file-select enumeration below reads EVERY slot through the live
+    // gSaveContext -- it is the scratch buffer for the whole scan, and the two
+    // fields it bothers to save and restore are time and flashSaveAvailable
+    // (D_801F6AF0/D_801F6AF2, below). One BEGIN/END spans the whole loop rather
+    // than each of its dozen commits: only the final state matters and a single
+    // END means at most one OnSaveLoad re-dispatch, never one per slot.
+    RSBS_RANDO_PRESERVE_BEGIN();
 
     if (gSaveContext.flashSaveAvailable) {
         D_801F6AF0 = CURRENT_TIME;
@@ -1846,6 +1949,10 @@ void func_801457CC(GameState* gameState, SramContext* sramCtx) {
         gSaveContext.flashSaveAvailable = D_801F6AF2;
     }
 
+    // After the D_801F6AF0/D_801F6AF2 restores, so the re-dispatch (if any) sees
+    // the same gSaveContext the caller will.
+    RSBS_RANDO_PRESERVE_END();
+
     gSaveContext.options.language = LANGUAGE_ENG;
 }
 
@@ -1870,6 +1977,13 @@ void Sram_CopySave(FileSelectState* fileSelect2, SramContext* sramCtx) {
     FileSelectState* fileSelect = fileSelect2;
     u16 i;
     s16 maskCount;
+
+    // Copying a file uses the live gSaveContext as scratch for the SOURCE
+    // file's bytes -- twice: once inside func_80147414 for the owl half, once
+    // at the readback below. This BEGIN must be taken before the func_80147414
+    // call so the OUTER latch owns the restore; the depth counter in
+    // Sram_Begin/EndRandoPreserve is what makes that nesting safe.
+    RSBS_RANDO_PRESERVE_BEGIN();
 
     if (gSaveContext.flashSaveAvailable) {
         if (fileSelect->isOwlSave[fileSelect->selectedFileIndex + FILE_NUM_OWL_SAVE_OFFSET]) {
@@ -1961,6 +2075,8 @@ void Sram_CopySave(FileSelectState* fileSelect2, SramContext* sramCtx) {
 
     gSaveContext.save.time = D_801F6AF0;
     gSaveContext.flashSaveAvailable = D_801F6AF2;
+
+    RSBS_RANDO_PRESERVE_END();
 }
 
 void MM_Sram_InitSave(FileSelectState* fileSelect2, SramContext* sramCtx) {
@@ -1993,6 +2109,26 @@ void MM_Sram_InitSave(FileSelectState* fileSelect2, SramContext* sramCtx) {
 
         memcpy(sramCtx->saveBuf, &gSaveContext.save, sizeof(Save));
         memcpy(&sramCtx->saveBuf[SAVE_BUFFER_SIZE_HALF], &gSaveContext.save, sizeof(Save));
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // #487 step 6 / #467 recommendation 1: creating a file dispatched
+        // OnSaveInit and nothing else. OnSaveInit is the GENERATION hook -- it
+        // is what stamps SAVETYPE_RANDO (2s2h/Rando/MiscBehavior/
+        // OnFileCreate.cpp) -- but the IS_RANDO COND_HOOKs are re-evaluated
+        // ONLY by OnSaveLoad (2s2h/Rando/Rando.cpp OnSaveLoadHandler). So a
+        // freshly created rando file entered gameplay with whatever arm state
+        // the boot chain left behind, which for the title chain
+        // (TitleSetup_SetupTitleScreen -> a vanilla bootstrap) is DISARMED:
+        // a brand-new rando world that plays vanilla.
+        //
+        // Position: AFTER the two flash-buffer memcpys, not between the
+        // checksum and them. OnSaveInit must keep running before the memcpys or
+        // the generated world would never reach the buffer that gets written --
+        // the file on disk would be vanilla. Dispatching the load hook after
+        // the bytes are final means the hooks arm against exactly what was
+        // stored. Idempotent: COND_HOOK unregisters before re-registering.
+        GameInteractor_ExecuteOnSaveLoad(fileSelect->buttonIndex);
+#endif
 
         for (i = 0; i < ARRAY_COUNT(gSaveContext.save.saveInfo.playerData.newf); i++) {
             fileSelect->newf[fileSelect->buttonIndex][i] = gSaveContext.save.saveInfo.playerData.newf[i];
@@ -2075,8 +2211,13 @@ void Sram_SaveSpecialEnterClockTown(PlayState* play) {
     // 2S2H [Enhancement] Store playtime before saving
     SavingEnhancements_AdvancePlaytime();
     func_80145698(sramCtx);
-    SysFlashrom_WriteDataSync(sramCtx->saveBuf, gFlashSaveStartPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER],
-                              gFlashSpecialSaveNumPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER]);
+    // 2S2H [Port] Skip the flash write for the 0xFF "no real slot" sentinel (cross-game /
+    // title / debug session); indexing gFlashSaveStartPages[fileNum * ...] would be OOB.
+    if (Sram_FileNumHasFlashSlot(gSaveContext.fileNum)) {
+        SysFlashrom_WriteDataSync(sramCtx->saveBuf,
+                                  gFlashSaveStartPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER],
+                                  gFlashSpecialSaveNumPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER]);
+    }
 }
 
 /**
@@ -2097,9 +2238,13 @@ void Sram_SaveSpecialNewDay(PlayState* play) {
     gSaveContext.save.day = day;
     gSaveContext.save.time = time;
     gSaveContext.save.cutsceneIndex = cutsceneIndex;
-    SysFlashrom_WriteDataSync(play->sramCtx.saveBuf,
-                              gFlashSaveStartPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER],
-                              gFlashSaveNumPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER]);
+    // 2S2H [Port] Skip the flash write for the 0xFF "no real slot" sentinel (cross-game /
+    // title / debug session); indexing gFlashSaveStartPages[fileNum * ...] would be OOB.
+    if (Sram_FileNumHasFlashSlot(gSaveContext.fileNum)) {
+        SysFlashrom_WriteDataSync(play->sramCtx.saveBuf,
+                                  gFlashSaveStartPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER],
+                                  gFlashSaveNumPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER]);
+    }
 }
 
 void Sram_SetFlashPagesDefault(SramContext* sramCtx, u32 curPage, u32 numPages) {
@@ -2172,17 +2317,33 @@ void Sram_UpdateWriteToFlashOwlSave(SramContext* sramCtx) {
         // 2S2H [Port] Some tricks require a save delay so we can't just force it to MM_zero
         // Finished status is hardcoded to 2 seconds instead of when the task finishes
         sramCtx->status = 0;
+        // #487, the P0 leg: this readback-then-commit runs at the END of a
+        // normal owl save, in live gameplay, over the save the player is
+        // playing. The read return is discarded and the memcpy covers
+        // offsetof(SaveContext, fileNum) -- all of struct Save, ShipSaveInfo
+        // included -- so with the single-exe read stub it commits zeros and the
+        // paired world's randomizer identity is gone from that moment on.
+        RSBS_RANDO_PRESERVE_BEGIN();
         memset(sramCtx->saveBuf, 0, SAVE_BUFFER_SIZE);
         gSaveContext.save.isOwlSave = false;
         gSaveContext.save.saveInfo.checksum = 0;
         // flash read to buffer then copy to save context
         SysFlashrom_ReadData(sramCtx->saveBuf, sramCtx->curPage, sramCtx->numPages);
         memcpy(&gSaveContext, sramCtx->saveBuf, offsetof(SaveContext, fileNum));
+        RSBS_RANDO_PRESERVE_END();
     }
 }
 
 void func_80147314(SramContext* sramCtx, s32 fileNum) {
     s32 pad;
+
+    // 2S2H [Port] Reached with fileNum == 0xFF via DeleteOwlSave() (the
+    // BeforeMoonCrashSaveReset hook) and MM_Sram_OpenSave's save-continue path in a
+    // cross-game session. Bail before touching gFlashOwlSave*Pages[fileNum * ...], which
+    // for the 0xFF sentinel indexes hundreds of entries past those six-entry tables.
+    if (!Sram_FileNumHasFlashSlot(fileNum)) {
+        return;
+    }
 
     gSaveContext.save.isOwlSave = false;
 
@@ -2218,6 +2379,17 @@ void func_80147314(SramContext* sramCtx, s32 fileNum) {
 void func_80147414(SramContext* sramCtx, s32 fileNum, s32 arg2) {
     s32 pad;
 
+    // 2S2H [Port] Same 0xFF sentinel guard as func_80147314 above: this indexes
+    // gFlashOwlSave*Pages[fileNum * FLASH_SAVE_MAIN_MULTIPLIER] with no bound of
+    // its own, and a cross-game MM session runs with fileNum == 0xFF.
+    if (!Sram_FileNumHasFlashSlot(fileNum)) {
+        return;
+    }
+
+    // The second #487 leg: reads the SOURCE file over the live gSaveContext.
+    // Nested inside Sram_CopySave's own BEGIN/END -- see the depth counter.
+    RSBS_RANDO_PRESERVE_BEGIN();
+
     // Clear save buffer
     memset(sramCtx->saveBuf, 0, SAVE_BUFFER_SIZE);
 
@@ -2232,6 +2404,8 @@ void func_80147414(SramContext* sramCtx, s32 fileNum, s32 arg2) {
 
     // Copy buffer to save context
     memcpy(&gSaveContext, sramCtx->saveBuf, offsetof(SaveContext, fileNum));
+
+    RSBS_RANDO_PRESERVE_END();
 
     Sram_SyncWriteToFlash(sramCtx, gFlashOwlSaveStartPages[arg2 * FLASH_SAVE_MAIN_MULTIPLIER],
                           gFlashOwlSaveNumPages[arg2 * FLASH_SAVE_MAIN_MULTIPLIER]);

@@ -59,6 +59,11 @@ void Combo_FreezeState(const char* gameId, uint16_t returnEntrance, const void* 
 void Combo_ClearFrozenState(const char* gameId);
 void Combo_SetStartupEntrance(uint16_t entrance);
 void Combo_ClearStartupEntrance(void);
+
+// Owl-save / file-copy readback locks (#487). Sram_UpdateWriteToFlashOwlSave
+// and the owl page tables come from z64save.h above; func_80147414 is
+// file-scope in z_sram_NES.c with no header declaration of its own.
+void func_80147414(SramContext* sramCtx, s32 fileNum, s32 arg2);
 }
 
 extern "C" int MM_Rando_HeadlessGenTest(void) {
@@ -785,24 +790,39 @@ extern "C" int MM_Rando_HeadlessPairSwitchEntry(void) {
         MM_Sram_InitNewSave();
         GameInteractor_ExecuteOnSaveLoad(gSaveContext.fileNum);
 
-        const size_t hooksAfterBootChain = S2H::GameHooks::CountForTest<GameInteractor::OnFlagSet>();
+        // Arm state through a VB VERDICT, not a hook count (#491). COND_HOOK's
+        // Unregister is DEFERRED (mm_game_hooks.h: the id is queued and erased
+        // only by FlushPendingUnregistrations at the next Execute of that hook
+        // type), so CountForTest lags a disarm — as a disarm signal a count is
+        // simply wrong, and as an arm signal a "> baseline" comparison against
+        // a stale non-zero baseline is satisfiable without the hooks being
+        // live. GameInteractor_Should dispatches Execute<ShouldVanillaBehavior>,
+        // which applies the flush first, so the verdict is current. Same probe
+        // MMReloadArmState's Phase 4 and MMMoonCrashArmState use.
+        //
+        // The boot chain above dispatched OnSaveLoad against a VANILLA
+        // bootstrap, so the IS_RANDO give override must be DOWN here.
+        // Asserting that is what makes the re-arm assertion after the consume
+        // non-vacuous — previously the "arm" leg could pass on state left
+        // armed by an earlier row in the same process.
+        if (!GameInteractor_Should(VB_GIVE_ITEM_FROM_GREAT_FAIRY, true)) {
+            fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(19): the boot chain did not disarm the IS_RANDO give override — "
+                            "the re-arm assertion below would be vacuous\n");
+            return 19;
+        }
 
         // The switch path's pending arrival, then the real consumption point.
         Combo_SetStartupEntrance(kArrival);
         MM_Play_ConsumeStartupEntrance();
 
         if (gSaveContext.save.shipSaveInfo.saveType == SAVETYPE_RANDO) {
-            const size_t hooksAfterConsume = S2H::GameHooks::CountForTest<GameInteractor::OnFlagSet>();
-            if (hooksAfterConsume == 0 || hooksAfterConsume <= hooksAfterBootChain) {
-                fprintf(stderr,
-                        "[MM-PAIR-SWITCH] FAIL(5): paired world generated but the IS_RANDO hooks were left "
-                        "DISARMED by the boot chain's OnSaveLoad (OnFlagSet %zu -> %zu) — MM would play with "
-                        "vanilla behavior in a rando world\n",
-                        hooksAfterBootChain, hooksAfterConsume);
+            if (GameInteractor_Should(VB_GIVE_ITEM_FROM_GREAT_FAIRY, true)) {
+                fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(5): paired world generated but the IS_RANDO hooks were left "
+                                "DISARMED by the boot chain's OnSaveLoad — MM would play with vanilla behavior in a "
+                                "rando world\n");
                 return 5;
             }
-            fprintf(stderr, "[MM-PAIR-SWITCH] hooks re-armed at consumption (OnFlagSet %zu -> %zu)\n",
-                    hooksAfterBootChain, hooksAfterConsume);
+            fprintf(stderr, "[MM-PAIR-SWITCH] hooks re-armed at consumption (give VB suppressed)\n");
             usedMasterSeed = masterSeed;
             break;
         }
@@ -888,7 +908,14 @@ extern "C" int MM_Rando_HeadlessPairSwitchEntry(void) {
     memset(&gSaveContext, 0, sizeof(gSaveContext));
     MM_Sram_InitNewSave();
     GameInteractor_ExecuteOnSaveLoad(gSaveContext.fileNum);
-    const size_t returnHooksAfterBootChain = S2H::GameHooks::CountForTest<GameInteractor::OnFlagSet>();
+    // Same VB-verdict disarm assertion as the arrival leg (#491): the return
+    // leg's own boot chain must have taken the hooks DOWN, or the re-arm
+    // assertion below proves nothing.
+    if (!GameInteractor_Should(VB_GIVE_ITEM_FROM_GREAT_FAIRY, true)) {
+        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(20): the return leg's boot chain did not disarm the IS_RANDO give "
+                        "override — the re-arm assertion below would be vacuous\n");
+        return 20;
+    }
     Combo_SetStartupEntrance(kArrival);
     MM_Play_ConsumeStartupEntrance();
 
@@ -913,15 +940,10 @@ extern "C" int MM_Rando_HeadlessPairSwitchEntry(void) {
         fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(14): return leg disturbed the foreign placement table\n");
         return 14;
     }
-    {
-        const size_t after = S2H::GameHooks::CountForTest<GameInteractor::OnFlagSet>();
-        if (after == 0 || after <= returnHooksAfterBootChain) {
-            fprintf(stderr,
-                    "[MM-PAIR-SWITCH] FAIL(15): return leg left the IS_RANDO hooks disarmed (OnFlagSet %zu -> "
-                    "%zu) — a restored rando save would play with vanilla behavior\n",
-                    returnHooksAfterBootChain, after);
-            return 15;
-        }
+    if (GameInteractor_Should(VB_GIVE_ITEM_FROM_GREAT_FAIRY, true)) {
+        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(15): return leg left the IS_RANDO hooks disarmed — a restored rando "
+                        "save would play with vanilla behavior\n");
+        return 15;
     }
     fprintf(stderr, "[MM-PAIR-SWITCH] return leg: restored, not regenerated, hooks re-armed\n");
 
@@ -961,6 +983,17 @@ extern "C" int MM_Rando_HeadlessPairSwitchEntry(void) {
     if (memcmp(beforeVanilla, gComboCtx.foreignPlacements, sizeof(beforeVanilla)) != 0) {
         fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(18): skipping a vanilla save still disturbed the placement table\n");
         return 18;
+    }
+    // The skip path must also leave the OVERRIDES down, in both polarities: a
+    // save that stayed vanilla while the rando give override remained armed
+    // from the paired legs above would play a rando behavior set on a vanilla
+    // file. Both-polarity form because a one-sided check passes on a hook that
+    // answers unconditionally.
+    if (!GameInteractor_Should(VB_GIVE_ITEM_FROM_GREAT_FAIRY, true) ||
+        GameInteractor_Should(VB_GIVE_ITEM_FROM_GREAT_FAIRY, false)) {
+        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(21): the skipped vanilla save left the rando give override armed — "
+                        "rando behavior leaked onto a non-rando file\n");
+        return 21;
     }
     fprintf(stderr, "[MM-PAIR-SWITCH] existing vanilla save left untouched (skip path)\n");
 
@@ -1343,6 +1376,199 @@ extern "C" int MM_Rando_HeadlessMoonCrashArmState(void) {
 
     fprintf(stderr, "[MM-MOONCRASH] PASS: a moon crash preserves the paired world identity, leaves the IS_RANDO "
                     "hooks armed, and an already-corrupted save self-heals on arrival\n");
+    return 0;
+}
+
+// ============================================================================
+// Owl-save / file-copy readback lock (#487) — the second live leg of the class
+// #485 caught at the moon crash.
+//
+// Sram_UpdateWriteToFlashOwlSave (games/mm/src/code/z_sram_NES.c) finishes a
+// normal owl save by re-reading the file it just wrote and memcpy'ing that
+// buffer over gSaveContext for offsetof(SaveContext, fileNum) — all of struct
+// Save, ShipSaveInfo included. In single-exe MM's flash read is a stub that
+// fills nothing (games/mm/2s2h/mm_save_manager_stubs.c), so the commit is a
+// commit of ZEROS: saveType -> SAVETYPE_VANILLA, finalSeed -> 0, the RC_MAX
+// placement table -> empty. Unlike the moon crash this happens on the ordinary
+// save-and-quit a player performs every cycle. func_80147414 (the owl half of
+// Sram_CopySave) has the identical shape.
+//
+// Arm state is probed through a VB verdict, never a hook COUNT: COND_HOOK's
+// Unregister is DEFERRED (mm_game_hooks.h), so CountForTest lags a disarm. And
+// this particular corruption is invisible to a count in BOTH directions —
+// nothing re-dispatches OnSaveLoad after the readback, so the hooks stay
+// registered and keep firing against an emptied table. A count probe here would
+// not merely be weak, it would be blind.
+//
+// Non-vacuity is structural: each leg DISARMS against a vanilla bootstrap and
+// asserts the disarm took before re-arming, so a "just force rando on" fix
+// fails; and the assertions cover finalSeed and a placement-table entry, so a
+// fix that preserves only the type byte fails too.
+// ============================================================================
+extern "C" int MM_Rando_HeadlessOwlSaveArmState(void) {
+    auto ctx = Ship::Context::GetInstance();
+    if (ctx == nullptr || ctx->GetConsoleVariables() == nullptr) {
+        fprintf(stderr, "[MM-OWL-SAVE] FAIL(1): Ship::Context not live\n");
+        return 1;
+    }
+
+    MM_Rando_Init();
+    if (Rando::Logic::Regions.empty()) {
+        fprintf(stderr, "[MM-OWL-SAVE] FAIL(2): Logic/Regions graph empty — rando surface elided\n");
+        return 2;
+    }
+    if (gRegEditor == NULL) {
+        static RegEditor sOwlSaveRegEditor = {};
+        gRegEditor = &sOwlSaveRegEditor;
+    }
+
+    ComboContext_Init();
+    Combo_ClearForeignPlacements();
+    Combo_ClearFrozenState("mm");
+    Combo_ClearStartupEntrance();
+
+    static u8 sOwlSaveBuf[SAVE_BUFFER_SIZE];
+    SramContext owlSram = {};
+    owlSram.saveBuf = sOwlSaveBuf;
+
+    // ----------------------------------------------------------------------
+    // Phase 0 — DISARM against a vanilla bootstrap, and assert the disarm took.
+    // Without this every "armed" assertion below would pass on state left over
+    // from an earlier row in the same process, i.e. vacuously.
+    // fileNum 0 (not the cross-game 0xFF sentinel) keeps the owl page-table
+    // indexing in bounds; this row is about saveType preservation, not the
+    // fileNum indexing question that mm-flash-filenum-oob owns.
+    // ----------------------------------------------------------------------
+    memset(&gSaveContext, 0, sizeof(gSaveContext));
+    MM_Sram_InitNewSave();
+    gSaveContext.fileNum = 0;
+    GameInteractor_ExecuteOnSaveLoad(gSaveContext.fileNum);
+    if (!GameInteractor_Should(VB_GIVE_ITEM_FROM_GREAT_FAIRY, true)) {
+        fprintf(stderr, "[MM-OWL-SAVE] FAIL(3): the vanilla bootstrap did not disarm the IS_RANDO give override — "
+                        "every arm assertion in this row would be vacuous\n");
+        return 3;
+    }
+
+    // ----------------------------------------------------------------------
+    // Phase 1 — a live paired rando world, armed. Modeled the way a paired
+    // world reads in memory: saveType stamped, a world identity, a shuffled
+    // placement entry.
+    // ----------------------------------------------------------------------
+    gSaveContext.save.shipSaveInfo.saveType = SAVETYPE_RANDO;
+    gSaveContext.save.shipSaveInfo.rando.finalSeed = 0xC0FFEE03;
+    RANDO_SAVE_CHECKS[RC_CLOCK_TOWN_SOUTH_PLATFORM_PIECE_OF_HEART].shuffled = true;
+    GameInteractor_ExecuteOnSaveLoad(gSaveContext.fileNum);
+    if (GameInteractor_Should(VB_GIVE_ITEM_FROM_GREAT_FAIRY, true)) {
+        fprintf(stderr, "[MM-OWL-SAVE] FAIL(4): the paired world did not arm the IS_RANDO give override — premise "
+                        "broken before the owl save\n");
+        return 4;
+    }
+
+    // ----------------------------------------------------------------------
+    // Phase 2 — the REAL owl-save completion. status is neither 7 nor 8 and
+    // startWriteOsTime is 0, so the elapsed-time branch (the one carrying the
+    // readback) is the branch taken. Asserting status afterwards is mandatory:
+    // if the call fell into one of the write-progress branches instead, this
+    // row would silently test nothing.
+    // ----------------------------------------------------------------------
+    owlSram.status = 6;
+    owlSram.curPage = gFlashOwlSaveStartPages[0];
+    owlSram.numPages = gFlashOwlSaveNumPages[0];
+    owlSram.startWriteOsTime = 0;
+    gSaveContext.save.isOwlSave = true;
+
+    Sram_UpdateWriteToFlashOwlSave(&owlSram);
+
+    if (owlSram.status != 0) {
+        fprintf(stderr,
+                "[MM-OWL-SAVE] FAIL(5): the readback branch never ran (status %d) — the assertions below would be "
+                "vacuous\n",
+                owlSram.status);
+        return 5;
+    }
+
+    // ----------------------------------------------------------------------
+    // Phase 3 — the world identity must survive the readback, and the hooks
+    // must still be armed against it.
+    // ----------------------------------------------------------------------
+    if (gSaveContext.save.shipSaveInfo.saveType != SAVETYPE_RANDO) {
+        fprintf(stderr, "[MM-OWL-SAVE] FAIL(6): the owl-save readback reverted saveType to vanilla — every IS_RANDO "
+                        "hook disarms at the next load and MM plays vanilla for the rest of the session\n");
+        return 6;
+    }
+    if (gSaveContext.save.shipSaveInfo.rando.finalSeed != 0xC0FFEE03) {
+        fprintf(stderr,
+                "[MM-OWL-SAVE] FAIL(7): the owl-save readback lost the paired world identity (finalSeed %08X, "
+                "expected C0FFEE03)\n",
+                gSaveContext.save.shipSaveInfo.rando.finalSeed);
+        return 7;
+    }
+    if (!RANDO_SAVE_CHECKS[RC_CLOCK_TOWN_SOUTH_PLATFORM_PIECE_OF_HEART].shuffled) {
+        fprintf(stderr, "[MM-OWL-SAVE] FAIL(8): the owl-save readback wiped the placement table — the world would be "
+                        "armed but empty\n");
+        return 8;
+    }
+    if (GameInteractor_Should(VB_GIVE_ITEM_FROM_GREAT_FAIRY, true)) {
+        fprintf(stderr, "[MM-OWL-SAVE] FAIL(9): saveType survived the owl save but the IS_RANDO hooks were left "
+                        "unregistered — MM would still play vanilla on a save that claims to be rando\n");
+        return 9;
+    }
+    fprintf(stderr, "[MM-OWL-SAVE] owl-save completion preserved the paired world and its armed hooks\n");
+
+    // ----------------------------------------------------------------------
+    // Phase 4 — the same class on the file-copy path (func_80147414, the owl
+    // half of Sram_CopySave), which reads the SOURCE file over the live
+    // gSaveContext. Disarm and re-arm again rather than inheriting Phase 3's
+    // armed state, so this leg is non-vacuous on its own.
+    // ----------------------------------------------------------------------
+    // The memset also clears the placement table: RANDO_SAVE_CHECKS is
+    // gSaveContext.save.shipSaveInfo.rando.randoSaveChecks (Rando.h).
+    memset(&gSaveContext, 0, sizeof(gSaveContext));
+    MM_Sram_InitNewSave();
+    gSaveContext.fileNum = 0;
+    GameInteractor_ExecuteOnSaveLoad(gSaveContext.fileNum);
+    if (!GameInteractor_Should(VB_GIVE_ITEM_FROM_GREAT_FAIRY, true)) {
+        fprintf(stderr, "[MM-OWL-SAVE] FAIL(10): the vanilla bootstrap did not disarm before the copy leg — the "
+                        "assertions below would be vacuous\n");
+        return 10;
+    }
+
+    gSaveContext.save.shipSaveInfo.saveType = SAVETYPE_RANDO;
+    gSaveContext.save.shipSaveInfo.rando.finalSeed = 0xC0FFEE04;
+    RANDO_SAVE_CHECKS[RC_CLOCK_TOWN_SOUTH_PLATFORM_PIECE_OF_HEART].shuffled = true;
+    GameInteractor_ExecuteOnSaveLoad(gSaveContext.fileNum);
+    if (GameInteractor_Should(VB_GIVE_ITEM_FROM_GREAT_FAIRY, true)) {
+        fprintf(stderr, "[MM-OWL-SAVE] FAIL(11): the copy leg's paired world did not arm — premise broken\n");
+        return 11;
+    }
+
+    memset(sOwlSaveBuf, 0, SAVE_BUFFER_SIZE);
+    func_80147414(&owlSram, 0, 1);
+
+    if (gSaveContext.save.shipSaveInfo.saveType != SAVETYPE_RANDO ||
+        gSaveContext.save.shipSaveInfo.rando.finalSeed != 0xC0FFEE04 ||
+        !RANDO_SAVE_CHECKS[RC_CLOCK_TOWN_SOUTH_PLATFORM_PIECE_OF_HEART].shuffled) {
+        fprintf(stderr, "[MM-OWL-SAVE] FAIL(12): copying an owl file stripped the LIVE world's randomizer identity "
+                        "(saveType/finalSeed/placement table)\n");
+        return 12;
+    }
+    if (GameInteractor_Should(VB_GIVE_ITEM_FROM_GREAT_FAIRY, true)) {
+        fprintf(stderr, "[MM-OWL-SAVE] FAIL(13): the copy path left the IS_RANDO hooks unregistered\n");
+        return 13;
+    }
+    fprintf(stderr, "[MM-OWL-SAVE] file-copy readback left the live paired world intact and armed\n");
+
+    // Leave clean global state for later dispatches in the same process. The
+    // gSaveContext memset also clears the placement table and the save type,
+    // both of which live inside it.
+    ComboContext_Init();
+    Combo_ClearForeignPlacements();
+    Combo_ClearFrozenState("mm");
+    Combo_ClearStartupEntrance();
+    memset(&gSaveContext, 0, sizeof(gSaveContext));
+
+    fprintf(stderr, "[MM-OWL-SAVE] PASS: an owl save and a file copy both preserve the paired world identity and "
+                    "leave the IS_RANDO hooks armed\n");
     return 0;
 }
 

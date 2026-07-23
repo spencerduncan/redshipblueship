@@ -466,6 +466,15 @@ if(BUILD_TESTING)
     # VisFbuf draw. This locks MM's call to its own MM_-dimension body (only one
     # definition survived, so no link error could catch the cross-bind).
     redship_add_test(NAME MMFbEffectsBinding COMMAND redship --test mm-fb-effects-binding)
+    # MM flash page-table OOB from the 0xFF fileNum sentinel
+    # (games/mm/2s2h/mm_flash_filenum_test.cpp). A cross-game MM session runs
+    # with gSaveContext.fileNum == 0xFF (no real file slot); the moon-crash reset
+    # and the owl-delete write it fires index gFlashSave*Pages /
+    # gFlashOwlSave*Pages by fileNum * FLASH_SAVE_MAIN_MULTIPLIER, so 0xFF runs
+    # hundreds of entries past the tables' end, and the reset copies the garbage
+    # over the live save (spawn-as-Fierce-Deity / all-Ocarina corruption).
+    # Display-free and ROM-free, so it runs in this redship tier.
+    redship_add_test(NAME MMFlashFileNumOob COMMAND redship --test mm-flash-filenum-oob)
     # MM tracker registration surface (#392): the four MM tracker windows must
     # register on the shared Gui under "MM "-prefixed names (SoH owns the
     # unprefixed ones; Gui::AddGuiWindow rejects duplicates) and their
@@ -590,9 +599,8 @@ if(BUILD_TESTING)
     # OnSaveLoad (the disarm-then-rearm ordering #439 got wrong on the arrival
     # path, and the ordering the owl-save reload relies on), and an in-session
     # reload (Song of Time / cycle reset / DayTelop) must leave a live rando
-    # session's armed hooks untouched. Reads arm state through
-    # S2H::GameHooks::CountForTest<OnFlagSet>. Same display requirement, hence
-    # the same label/env.
+    # session's armed hooks untouched. Same display requirement, hence the same
+    # label/env.
     redship_add_test(NAME MMReloadArmState COMMAND redship --test mm-reload-arm-state
         LABEL rando
         TIMEOUT 180
@@ -609,6 +617,29 @@ if(BUILD_TESTING)
     # Unregister is deferred, so a count lags a disarm and would pass vacuously).
     # Same display requirement, hence the same label/env.
     redship_add_test(NAME MMMoonCrashArmState COMMAND redship --test mm-moon-crash-arm-state
+        LABEL rando
+        TIMEOUT 180
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+
+    # #487, the same class on the save a player performs every cycle. An owl
+    # save ends in Sram_UpdateWriteToFlashOwlSave re-reading the file it just
+    # wrote and memcpy'ing it over gSaveContext for offsetof(SaveContext,
+    # fileNum) -- all of struct Save, ShipSaveInfo included. MM's flash read is
+    # a no-op stub in single-exe (games/mm/2s2h/mm_save_manager_stubs.c), so
+    # that commit writes ZEROS over the paired world's randomizer identity, in
+    # live gameplay. Also covers the file-copy leg (func_80147414).
+    #
+    # Tier: `rando`, not `redship`, and the choice was made on evidence rather
+    # than by copying the neighbours (#491 step 1). The display requirement
+    # comes from the DISPATCHER, not from the save code: every bridge in
+    # mm_rando_gen_test.cpp runs InitOTRForMMFirstBoot, whose OTRGlobals ctor
+    # constructs a Fast3dWindow when no window exists (games/oot/soh/
+    # OTRGlobals.cpp). The probe additionally needs MM_Rando_Init and a
+    # populated Rando::Logic::Regions. A display-free row IS possible for the
+    # flash code alone -- MMFlashFileNumOob drives Sram_ResetSaveFromMoonCrash
+    # with no window -- but it cannot carry the VB arm-state probe, which is
+    # this row's entire point.
+    redship_add_test(NAME MMOwlSaveArmState COMMAND redship --test mm-owl-save-arm-state
         LABEL rando
         TIMEOUT 180
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")

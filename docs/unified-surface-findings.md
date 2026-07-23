@@ -257,3 +257,58 @@ Cheapest-first, each independently valuable:
 5. **`2ship_enh` migration + dispatch placement + guard flip** — the gateway to
    enhancements *and* the MM netplay client.
 6. **Netplay increment 1** on the `SharedItem` machinery.
+
+---
+
+## 7. MM's flash save path in single-exe (Lane 3 / #487, #491)
+
+> Investigated 2026-07-22 against `claude/lane3-owl-save-readback`, with a **local
+> build of the real binary** rather than static evidence alone.
+
+### The link check, run against the binary rather than inferred
+
+`games/mm/CMakeLists.txt` filters `2s2h/SaveManager/*.cpp` out of the single-exe
+link, and it is the only reference to that directory in any CMake file. The
+built `redship` binary confirms it: the real `SaveManager.cpp` contributes no
+object to the link, and MM's two flash entry points resolve to stubs. So MM's
+flash **read** returns whatever was in the caller's buffer already, and MM's
+flash **write** goes nowhere.
+
+### The bug class this creates
+
+Every "read the file back from flash, then `memcpy` it over `gSaveContext`" site
+commits an *untouched* buffer — in practice the zeros from the preceding
+`memset`. `ShipSaveInfo` (`saveType` **and** the whole rando block: `finalSeed`,
+options, the `RC_MAX` placement table) is a member of `struct Save`, so each such
+commit erases the paired world's randomizer identity. #485 caught the moon-crash
+instance. The complete inventory in `games/mm/src/code/z_sram_NES.c`:
+
+| Function | Reachable how | Status |
+|---|---|---|
+| `Sram_ResetSaveFromMoonCrash` | moon crash, live gameplay | fixed #485, now on the shared helper |
+| `Sram_UpdateWriteToFlashOwlSave` | **every owl save, live gameplay** | fixed here (#487) |
+| `func_80147414` (owl half of `Sram_CopySave`) | file-copy menu | fixed here |
+| `Sram_CopySave` | file-copy menu | fixed here |
+| `MM_Sram_OpenSave` | file-select LOAD | guarded here (inert in practice — the boot chain authors a vanilla bootstrap first) |
+| `func_801457CC` | file-select enumeration; uses the live `gSaveContext` as scratch for all seven slots | guarded here (same, inert in practice) |
+| `Sram_EraseSave` | erase menu | **not** guarded — it commits a `memset` buffer by design, and erasing a file is meant to clear it |
+| `func_80147314` | owl write | no read at all; not a member of this class |
+
+The guard is one shared pair (`Sram_Begin/EndRandoPreserve`) with a depth
+counter, because `Sram_CopySave` → `func_80147414` nests.
+
+### Two things deliberately left for the maintainer
+
+1. **Should `redship` have a real MM save path at all?** (#487 step 5.) With the
+   write stub also a no-op, MM's flash storage in single-exe persists nothing;
+   MM state survives a session only through the cross-game freeze/restore blobs.
+   Everything above assumes that stays true and makes the no-op *honest* (the
+   read stub now returns `-1` rather than claiming success). Wiring MM to a real
+   `.redsave`-backed store is a scoping decision, not a bug fix.
+2. **`MM_Sram_InitSave` computes its checksum before `OnSaveInit` runs.** The
+   hook is what stamps `SAVETYPE_RANDO` and the generated world, so the bytes
+   written to flash carry a checksum taken over the *pre-generation* image. On a
+   later enumeration that mismatch takes the backup path and can present the file
+   as empty. Harmless while the write is a no-op, which is why it is recorded
+   here rather than fixed inside a P0 correctness change: moving the checksum
+   changes on-disk bytes for standalone MM too, and belongs with (1).

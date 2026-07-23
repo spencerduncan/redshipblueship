@@ -72,6 +72,14 @@ int MM_NotificationBinding_RunHeadless(void);
 // to HiRes 576 while the Bombers' Notebook is open. Returns 0 on pass, non-zero
 // on fail.
 int MM_FbEffectsBinding_RunHeadless(void);
+// MM flash page-table OOB lock (games/mm/2s2h/mm_flash_filenum_test.cpp): a
+// cross-game MM session runs with gSaveContext.fileNum == 0xFF, the "no real
+// slot" sentinel. The flash paths index the fixed-size gFlashSave*Pages /
+// gFlashOwlSave*Pages tables by fileNum * FLASH_SAVE_MAIN_MULTIPLIER, so 0xFF
+// runs hundreds of entries past their end -- a wild flash page number the
+// moon-crash reset then copies over the live save (the Fierce-Deity /
+// all-Ocarina corruption). Returns 0 on pass, non-zero on fail.
+int MM_FlashFileNumOob_RunHeadless(void);
 // MM tracker registration surface (games/mm/2s2h/mm_trackers_gui_test.cpp,
 // #392): the four MM tracker windows must register on a Gui under
 // "MM "-prefixed names (SoH owns the unprefixed ones and Gui::AddGuiWindow
@@ -245,6 +253,12 @@ static TestResult Test_MMNotificationBinding(void) {
 // wrapper over the C entry point in games/mm/2s2h/mm_fb_effects_test.cpp.
 static TestResult Test_MMFbEffectsBinding(void) {
     return MM_FbEffectsBinding_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// MM flash page-table OOB lock (see the extern decl above). Thin wrapper over
+// the C entry point in games/mm/2s2h/mm_flash_filenum_test.cpp.
+static TestResult Test_MMFlashFileNumOob(void) {
+    return MM_FlashFileNumOob_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // ============================================================================
@@ -666,6 +680,35 @@ TestResult Test_MMMoonCrashArmState(void) {
 
     int rc = MM_Rando_HeadlessMoonCrashArmState();
     printf("[TEST] %s: moon-crash arm-state rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// Owl-save arm-state lock (#487). The same class as the moon crash, on the save
+// a player performs every cycle: Sram_UpdateWriteToFlashOwlSave re-reads the
+// file it just wrote and memcpy's it over gSaveContext, and MM's flash read is a
+// no-op stub in single-exe, so the paired world's ShipSaveInfo (saveType + the
+// whole rando block) is committed away as zeros. Also covers the file-copy leg
+// (func_80147414). Probes arm state through a VB verdict; a hook count is blind
+// here in both directions, since nothing re-dispatches OnSaveLoad after the
+// readback. Bridge body in games/mm/2s2h/mm_rando_gen_test.cpp. Needs a display,
+// same as mm-rando-gen.
+extern "C" int MM_Rando_HeadlessOwlSaveArmState(void);
+
+TestResult Test_MMOwlSaveArmState(void) {
+    printf("[TEST] mm-owl-save-arm-state: an owl save preserves the paired world and its IS_RANDO hooks\n");
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    int rc = MM_Rando_HeadlessOwlSaveArmState();
+    printf("[TEST] %s: owl-save arm-state rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
@@ -1295,6 +1338,11 @@ const TestDescriptor gTests[] = {
     // randomizer identity. Same display requirement, so `--test all` skips it.
     {"mm-moon-crash-arm-state", "A moon crash preserves the paired MM world and its IS_RANDO hooks",
      Test_MMMoonCrashArmState},
+    // #487: the owl save (and the file copy) do the same readback-then-commit
+    // over gSaveContext that the moon crash did. Same display requirement, so
+    // `--test all` skips it.
+    {"mm-owl-save-arm-state", "An owl save preserves the paired MM world and its IS_RANDO hooks (#487)",
+     Test_MMOwlSaveArmState},
     {"boot-oot", "Shared-context bring-up leaves no null subsystems (#329)", Test_BootOoT},
     {"boot-mm", "MM-first bring-up prerequisites on the shared context (#330)", Test_BootMM},
     {"switch-oot-mm", "Test game switch OoT -> MM", Test_SwitchOoTMM},
@@ -1382,6 +1430,12 @@ const TestDescriptor gTests[] = {
      Test_MMNotificationBinding},
     {"mm-fb-effects-binding", "MM's scaled framebuffer draw binds its own body against MM's dimensions (#386)",
      Test_MMFbEffectsBinding},
+    // Flash page-table OOB from the 0xFF fileNum sentinel: the moon-crash reset
+    // (and the owl-delete write it fires) index the fixed-size flash tables far
+    // out of bounds in a cross-game MM session, then copy the garbage over the
+    // live save. Pure (no display), so it runs in the display-free suite.
+    {"mm-flash-filenum-oob", "Flash page indices stay in bounds for fileNum 0xFF; moon-crash reset keeps the save",
+     Test_MMFlashFileNumOob},
     {"mm-trackers-gui", "MM tracker windows register de-collided on the shared Gui + gate on the active game (#392)",
      Test_MMTrackersGui},
     // The two MM resume-contract tests below mutate process-global state
@@ -1469,7 +1523,8 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "mm-rando-gen") == 0 ||
                 strcmp(gTests[i].name, "mm-pair-switch-entry") == 0 ||
                 strcmp(gTests[i].name, "mm-reload-arm-state") == 0 ||
-                strcmp(gTests[i].name, "mm-moon-crash-arm-state") == 0) {
+                strcmp(gTests[i].name, "mm-moon-crash-arm-state") == 0 ||
+                strcmp(gTests[i].name, "mm-owl-save-arm-state") == 0) {
                 printf("\n--- Skipping: %s (needs display; runs as a rando-label CTest) ---\n", gTests[i].name);
                 continue;
             }

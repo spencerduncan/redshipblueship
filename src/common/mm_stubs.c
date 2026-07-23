@@ -256,9 +256,17 @@ void Ship_HandleConsoleCrashAsReset(void) {}
 
 /* Resource manager functions are provided by BenPort.cpp */
 
-/* SaveManager stubs */
-int SaveManager_SysFlashrom_ReadData(void* dst, int page, int count) { (void)dst; (void)page; (void)count; return 0; }
-int SaveManager_SysFlashrom_WriteData(void* src, int page, int count) { (void)src; (void)page; (void)count; return 0; }
+/* The SaveManager_SysFlashrom_Read/WriteData stubs that used to live here are
+ * gone (#487). They were the same untyped-stub class as MotionBlur_Override
+ * above: `int(void*, int, int)` against real prototypes of
+ * `s32(void*, u32, u32)` and `void(u8*, u32, u32)`
+ * (games/mm/2s2h/SaveManager/SaveManager.h), and the read stub returned 0 --
+ * "success" -- while writing nothing into the caller's buffer, so MM committed
+ * zeroed buffers over gSaveContext. Header-checked implementations now live in
+ * games/mm/2s2h/mm_save_manager_stubs.c, which is compiled into the MM target
+ * and can therefore both see SaveManager.h's C branch and be guarded on
+ * RSBS_SINGLE_EXECUTABLE (redship_common, which builds this file, is not
+ * compiled with that define). */
 
 /* Combo_CheckEntranceSwitch and Combo_CheckHotSwap are now in
  * GameExports_SingleExe.cpp (they need real cross-game logic) */

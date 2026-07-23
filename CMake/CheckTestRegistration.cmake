@@ -1,5 +1,12 @@
 # CMake/CheckTestRegistration.cmake
 #
+# NOTE: `cmake -P` script mode starts with NO policies set, so the if(IN_LIST)
+# operators below are parse errors ("Unknown arguments specified") unless
+# CMP0057 is requested explicitly. That is version-dependent enough to have hit
+# only a local CMake 4.4 run while CI stayed green, which is exactly the kind of
+# environment-shaped skew that makes a guard look broken when it is not.
+cmake_policy(SET CMP0057 NEW)
+#
 # Registration-completeness guard. Run as a CTest row in the tier it polices:
 #   cmake -DREDSHIP_EXE=<redship> -DMANIFEST=<manifest> -P CheckTestRegistration.cmake
 #
