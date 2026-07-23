@@ -25,6 +25,7 @@
 #include "entrance.h"
 #include "soh/Enhancements/game-interactor/GameInteractor.h"
 #include "soh/Enhancements/game-interactor/GameInteractor_Hooks.h"
+#include "soh/Notification/Notification.h" // Lane 6 (#494): the foreign-arrival toast
 // SET_NEXT_GAMESTATE for the gameplay round-trip driver. Must come after
 // GameInteractor.h (-> z64.h): macros.h declares `extern GraphicsContext*`
 // and needs the type defined first.
@@ -1037,6 +1038,36 @@ static void OoT_AwardSharedItem(const SharedItem* item, void* ctx) {
     int given = OoT_ForeignItem_Give(item->id);
     fprintf(stderr, "[OoT] shared-item redeem: RG id=%u %s (Lane C1 foreign give)\n", (unsigned)item->id,
             given ? "awarded" : "NOT awarded — give path unavailable");
+
+    // #494: tell the player. Until this, a cross-game item arrived in OoT with
+    // NO in-game signal at all — the item simply appeared in the inventory, an
+    // arbitrary number of scenes after the MM check that granted it. The MM
+    // side has said "it will be awarded there!" since Lane C1; this is the
+    // other half of that sentence.
+    //
+    // A toast rather than a textbox on purpose: the redeem runs inside
+    // Play_Init (z_play.c:565), before the first frame, where there is no
+    // message context to drive and nothing to dismiss it with. The notification
+    // overlay is the one surface that works from here, and it is also the
+    // surface the arrival ALREADY renders over — MM's rando pickups cross-bind
+    // to this exact Emit (#427 item 1).
+    //
+    // No .itemIcon: resolving one needs a per-item icon-name accessor that
+    // src/common does not have yet (the Combo_GetForeignItemIconName tier of
+    // #494, which lands with Lane 1's pool surface). Emitting text-only is an
+    // existing idiom, not a degradation — the MOD_RANDOMIZER branch in
+    // hook_handlers.cpp omits the icon too — and it is the honest option: a
+    // wrong icon is worse than no icon for an item whose whole point is that it
+    // came from the other game.
+    //
+    // Name comes from the pinned pool via the origin-tagged SharedItem, so this
+    // never fabricates an id-space crossing. It returns NULL when the item's
+    // origin pool is not linked into this build, hence the fallback.
+    const char* foreignName = Combo_GetForeignItemName(*item);
+    Notification::Emit({
+        .prefix = "Received from Termina:",
+        .message = foreignName != nullptr ? foreignName : "a foreign item",
+    });
 }
 
 /**

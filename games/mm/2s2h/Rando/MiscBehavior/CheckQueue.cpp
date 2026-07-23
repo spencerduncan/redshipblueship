@@ -9,6 +9,8 @@
 #include "Traps.h"
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "2s2h/Rando/Foreign.h" // Lane C1 (#392): foreign-check lookup + shared-structure recording
+// Lane 6 (#502): drain of the deferred cross-game give (ForeignItemsSingleExe.cpp).
+extern "C" int MM_ForeignItem_FlushPending(void);
 #endif
 
 extern "C" {
@@ -30,6 +32,20 @@ static bool queued = false;
 // fine for both the giving/drawing, as we can call ConvertItem() inside the Give/Draw lambda, but the message we
 // pass to the queue is static and would need to be updated if we allowed multiple items to be queued at once.
 void Rando::MiscBehavior::CheckQueue() {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // Lane 6 (#502): the gameplay-gated frame tick MM's foreign-item give
+    // defers onto. MM's redemption point (MM_Play_ConsumeStartupEntrance)
+    // runs before `MM_gPlayState = this`, so the award callback queues rather
+    // than dereferencing a null play; this is where the queue drains. See
+    // 2s2h/Rando/ForeignItemsSingleExe.cpp for the full argument.
+    //
+    // ABOVE the `queued` early-out on purpose: a pending cross-game give must
+    // not be held behind an unrelated in-world check that happens to be
+    // mid-cutscene. The flush is a cheap counter read when nothing is pending,
+    // which is every frame but the handful after an arrival.
+    MM_ForeignItem_FlushPending();
+#endif
+
     if (queued) {
         return;
     }
@@ -88,7 +104,17 @@ void Rando::MiscBehavior::CheckQueue() {
                     .drawItem =
                         [](Actor* actor, PlayState* play) {
                             MM_Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
-                            Rando::DrawItem(RI_RUPEE_HUGE);
+                            // #494 slice 6: the same cross-game marker the
+                            // world draws for a foreign host, so the item does
+                            // not change identity between "seen in the chest"
+                            // and "held over Link's head". Unconditional rather
+                            // than via a check-keyed dispatch: this lambda only
+                            // ever runs for a foreign check, and
+                            // CUSTOM_ITEM_PARAM has already been rewritten from
+                            // the RC to an RI by the give above, so there is no
+                            // check id left here to ask about.
+                            Rando::DrawItem(RI_RUPEE_HUGE, actor);
+                            Rando::DrawForeignCheckAura(actor);
                         } });
                 return;
             }

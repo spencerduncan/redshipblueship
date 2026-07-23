@@ -4,6 +4,10 @@
 #include "2s2h/Rando/StaticData/StaticData.h"
 #include "2s2h/ShipInit.hpp"
 #include "assets/2s2h_assets.h"
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "2s2h/Rando/Rando.h"    // Rando::DrawForeignCheckAura
+#include "2s2h/Rando/Foreign.h"  // Lane 6 (#494 slice 6): IsForeignCheck
+#endif
 
 extern "C" {
 #include "variables.h"
@@ -54,6 +58,29 @@ void EnBox_RandoPostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s*
     EnBox* enBox = (EnBox*)actor;
     RandoItemId randoItemId = Rando::ConvertItem(RANDO_SAVE_CHECKS[ENBOX_RC].randoItemId, (RandoCheckId)ENBOX_RC);
     RandoItemType randoItemType = Rando::StaticData::Items[randoItemId].randoItemType;
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // Lane 6 (#494 slice 6). A chest hosting a cross-game item still holds its
+    // junk-class MM filler in RANDO_SAVE_CHECKS — the placement table overrides
+    // that only inside CheckQueue's give, i.e. AFTER the player has already
+    // opened it (ADR 0002: a raw RG_* must never enter an MM table). So without
+    // this the chest renders plain, and a pinned OoT progression item is
+    // indistinguishable in the world from a green rupee.
+    //
+    // Chests are also the ONLY class that can host one: Rando::Foreign's Tier A
+    // restricts eligible hosts to RCTYPE_CHEST (#488), which is why this is the
+    // one geometry that needs the override rather than a sweep over every draw
+    // path. If Tier A widens, the new classes need the same treatment —
+    // Rando::DrawItemForCheck is the generic form for those.
+    //
+    // RITYPE_MAJOR rather than a bespoke texture set: the ornate corner/lock
+    // already means "worth opening", which a pinned progression item is, and
+    // inventing a foreign-specific chest texture is the per-item asset tier
+    // #494 puts out of scope. The particle aura below is what makes it
+    // unambiguous — no other chest in the game sparkles.
+    if (Rando::Foreign::IsForeignCheck((RandoCheckId)ENBOX_RC)) {
+        randoItemType = RITYPE_MAJOR;
+    }
+#endif
     if (enBox->unk_1EC != 0 && actor->home.rot.z == 0) {
         actor->home.rot.z = randoItemType + 1;
     }
@@ -127,6 +154,15 @@ void EnBox_RandoPostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s*
 void EnBox_RandoDraw(Actor* actor, PlayState* play) {
     s32 pad;
     EnBox* enBox = (EnBox*)actor;
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // The other half of the foreign-chest marker (see EnBox_RandoPostLimbDraw).
+    // Emitted here, once per frame, rather than in the post-limb callback,
+    // which runs per limb and would spawn the effect several times a frame.
+    if (Rando::Foreign::IsForeignCheck((RandoCheckId)ENBOX_RC)) {
+        Rando::DrawForeignCheckAura(actor);
+    }
+#endif
 
     OPEN_DISPS(play->state.gfxCtx);
 

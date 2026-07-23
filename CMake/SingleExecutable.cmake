@@ -360,6 +360,12 @@ if(BUILD_TESTING)
     # world unwinnable with no error. Drives the real selection predicate over
     # MM's real check table; also prints the eligible-host supply count.
     redship_add_test(NAME ForeignHostEligibility COMMAND redship --test foreign-host-eligibility)
+    # #502: MM's award callback was still the Lane A1 logging stub, so the whole
+    # consumer walk landed on a no-op. Drives the REAL MM_ConsumeSharedItems ->
+    # MM_AwardSharedItem -> MM_ForeignItem_Give chain and asserts one award per
+    # crossing, order preservation, origin filtering, and that a NULL PlayState
+    # defers the give instead of dereferencing it.
+    redship_add_test(NAME ForeignAwardMM COMMAND redship --test foreign-award-mm)
     redship_add_test(NAME ComboSpoilerView COMMAND redship --test combo-spoiler-view)
     redship_add_test(NAME ComboSpoilerWindow COMMAND redship --test combo-spoiler-window)
     # Cross-game session invalidation (#440). A soft reset or a new game must
