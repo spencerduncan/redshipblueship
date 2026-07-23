@@ -14,6 +14,14 @@ namespace Rando {
 
 void Init();
 void DrawItem(RandoItemId randoItemId, Actor* actor = nullptr);
+#ifdef RSBS_SINGLE_EXECUTABLE
+// Lane 6 (#494 slice 6): the particle aura that marks a check as holding a
+// cross-game item, so a player can SEE that before collecting it. An aura
+// rather than a replacement model because the host class already conveys item
+// class through its own geometry (a chest's ornate corner/lock set) and should
+// keep doing so. Defined in DrawItem.cpp; no-op without an actor.
+void DrawForeignCheckAura(Actor* actor);
+#endif
 void GiveItem(RandoItemId randoItemId);
 void RemoveItem(RandoItemId randoItemId);
 RandoItemId CurrentJunkItem();

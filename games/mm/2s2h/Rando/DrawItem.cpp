@@ -3,6 +3,9 @@
 #include "2s2h/ShipInit.hpp"
 #include "2s2h/Rando/DrawFuncs.h"
 #include "2s2h_assets.h"
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "2s2h/Rando/Foreign.h" // Lane 6 (#494 slice 6): IsForeignCheck, for the cross-game marker
+#endif
 
 extern "C" {
 #include "variables.h"
@@ -701,6 +704,49 @@ void Rando::DrawItem(RandoItemId randoItemId, Actor* actor) {
 }
 
 #ifdef RSBS_SINGLE_EXECUTABLE
+
+// ============================================================================
+// Cross-game marker (Lane 6, #494 slice 6)
+// ============================================================================
+//
+// THE BUG THIS CLOSES IS A CORRECTNESS BUG, NOT POLISH. Before this, no draw
+// path consulted Rando::Foreign::IsForeignCheck, so a check hosting a foreign
+// item sat in the MM world DISGUISED AS THE JUNK ITEM THE FILL LEFT THERE (the
+// placement table overrides the save's item only inside CheckQueue's give, and
+// only after the player has already committed to collecting it). A cross-game
+// progression item was therefore indistinguishable in the world from a green
+// rupee. That is true identically at 4 pool items and at 32.
+//
+// WHY AN AURA AND NOT THE ORIGIN GAME'S MODEL. Both o2r archives ARE
+// co-mounted — one flat ArchiveManager, additive, never unmounted
+// (rsbs/src/main.cpp EnsureGameArchivesLoaded; MM's LoadMMArchives adds to
+// OoT's manager) — so cross-game asset resolution is NOT ruled out and this
+// lane's "stop and report" condition does not fire. But the origin game's
+// archive only mounts once that game has been entered in this process, and a
+// real per-item 3D model is the one presentation tier that scales per pool
+// entry, which #494 puts explicitly out of scope. So the marker is generic:
+// one signal that means "this belongs to the other game", identical for every
+// foreign item.
+//
+// It is additive rather than a replacement model because the host geometry is
+// already carrying information. A chest states its item CLASS through its
+// corner/lock texture set, and a foreign host is upgraded to the ornate/major
+// set there (EnBox.cpp) — swapping the whole model would throw that away. The
+// aura is what makes it unambiguous rather than merely "a good chest": the
+// kirakira effect is otherwise reserved for a handful of model-less items, so
+// nothing else in the world sparkles at rest.
+//
+// The operator verifies the appearance; CI locks the RESOLUTION SURFACE (every
+// pool entry resolves to a non-null display descriptor), not the pixels.
+void Rando::DrawForeignCheckAura(Actor* actor) {
+    // Actor-gated: DrawSparkles spawns at the actor's world position and
+    // returns immediately without one (a cutscene / get-item draw passes no
+    // actor, and there the textbox already names the item and its origin).
+    if (actor != NULL) {
+        DrawSparkles(RI_NONE, actor);
+    }
+}
+
 // ROM-free harness guard (#392): with no mm.o2r registered,
 // ResourceMgr_LoadGfxByName null-derefs on a missing asset. The real boot
 // path loads MM archives before the ShipInit registrars run. Defined in

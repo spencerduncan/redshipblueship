@@ -104,7 +104,17 @@ void Rando::MiscBehavior::CheckQueue() {
                     .drawItem =
                         [](Actor* actor, PlayState* play) {
                             MM_Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
-                            Rando::DrawItem(RI_RUPEE_HUGE);
+                            // #494 slice 6: the same cross-game marker the
+                            // world draws for a foreign host, so the item does
+                            // not change identity between "seen in the chest"
+                            // and "held over Link's head". Unconditional rather
+                            // than via a check-keyed dispatch: this lambda only
+                            // ever runs for a foreign check, and
+                            // CUSTOM_ITEM_PARAM has already been rewritten from
+                            // the RC to an RI by the give above, so there is no
+                            // check id left here to ask about.
+                            Rando::DrawItem(RI_RUPEE_HUGE, actor);
+                            Rando::DrawForeignCheckAura(actor);
                         } });
                 return;
             }
