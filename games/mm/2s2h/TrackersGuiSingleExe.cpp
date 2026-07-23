@@ -47,9 +47,16 @@
 #include <ship/window/Window.h>
 #include <ship/window/gui/Gui.h>
 
+#include <cstring>
+#include <string>
+#include <utility> // std::forward, for the MMActiveGated ctor pass-through
+
+#include <libultraship/bridge/consolevariablebridge.h>
+
 #include "2s2h/Rando/CheckTracker/CheckTracker.h"
 #include "2s2h/Enhancements/Trackers/ItemTracker/ItemTracker.h"
 #include "2s2h/Enhancements/Trackers/ItemTracker/ItemTrackerSettings.h"
+#include "2s2h/Rando/StaticData/StaticData.h" // Rando::StaticData::PopulateCheckNames
 #include "2s2h/DeveloperTools/SaveEditor.h"
 #include "2s2h/ShipUtils.h"
 
@@ -139,21 +146,58 @@ void InitSafeItemsForInventorySlot() {
 namespace {
 
 /**
+ * Drive `window`'s visibility to whatever its visibility CVar currently says
+ * (#489 cause 1). See the SyncVisibilityFromCVars doc comment in the header
+ * for why this is safe without a real Ship::Window: the assignment always
+ * moves visibility TO the stored CVar value, so GuiWindow::SetVisibility's
+ * `shouldSave` is always false and the Context::GetWindow()->GetGui() deref at
+ * GuiWindow.cpp:61 is never reached.
+ */
+void SyncVisibilityFromCVar(Ship::GuiWindow& window, const char* cvar) {
+    if (cvar == nullptr || cvar[0] == '\0') {
+        return;
+    }
+    const bool wanted = CVarGetInteger(cvar, 0) != 0;
+    if (window.IsVisible() == wanted) {
+        return;
+    }
+    if (wanted) {
+        window.Show();
+    } else {
+        window.Hide();
+    }
+}
+
+/**
  * Active-game gate. Draw() covers the per-frame ImGui path (both the base
  * GuiWindow::Draw used by the settings windows and the full Draw overrides in
  * CheckTracker.cpp / ItemTracker.cpp); UpdateElement() covers Gui's
  * unconditional per-frame Update(). The bases' bodies run only while MM is
  * the active game. The mm-trackers-gui lock calls Draw() with OoT active and
  * no ImGui context, so an ungated path aborts the test process.
+ *
+ * The gate is also where the per-frame CVar->visibility re-sync lives (#489
+ * cause 1). libultraship never re-reads a window's visibility CVar after the
+ * ctor, and the single exe has no BenMenu to call Show(), so without this the
+ * settings windows — which reach ImGui through the base GuiWindow::Draw and
+ * its `if (!IsVisible()) return;` — would be permanently stuck at whatever
+ * the config held on MM's first boot. Deliberately INSIDE the active-game
+ * gate: syncing while OoT is active would be wasted work every frame, and the
+ * ROM-free lock drives Draw() with OoT active specifically to prove nothing
+ * below the gate runs then.
  */
 template <typename BaseWindow> class MMActiveGated final : public BaseWindow {
   public:
-    using BaseWindow::BaseWindow;
+    template <typename... Args>
+    explicit MMActiveGated(const std::string& consoleVariable, Args&&... args)
+        : BaseWindow(consoleVariable, std::forward<Args>(args)...), mVisibilityCVar(consoleVariable) {
+    }
 
     void Draw() override {
         if (!MM_TrackersGui_ShouldDraw()) {
             return;
         }
+        SyncVisibilityFromCVar(*this, mVisibilityCVar.c_str());
         BaseWindow::Draw();
     }
 
@@ -164,7 +208,44 @@ template <typename BaseWindow> class MMActiveGated final : public BaseWindow {
         }
         BaseWindow::UpdateElement();
     }
+
+  private:
+    // GuiWindow keeps mVisibilityConsoleVariable private, so the wrapper holds
+    // its own copy of the same string it passed to the base ctor.
+    std::string mVisibilityCVar;
 };
+
+// The four registered windows, in kAllTrackerWindowNames order, held as the
+// plain GuiWindow base so one table covers all four MMActiveGated
+// instantiations. MM_TrackersGui_ShouldShow and SyncVisibilityFromCVars
+// resolve by name through this table rather than through the Gui registry, so
+// they work on whichever Gui RegisterWindows was last handed (the ROM-free
+// harness uses a standalone one, not the shared Ship::Context Gui).
+struct TrackerWindowSlot {
+    const char* name;
+    const char* cvar;
+    std::shared_ptr<Ship::GuiWindow> window;
+};
+
+TrackerWindowSlot gTrackerSlots[] = {
+    { S2H::TrackersGui::kCheckTrackerWindowName, S2H::TrackersGui::kCheckTrackerVisibilityCVar, nullptr },
+    { S2H::TrackersGui::kCheckTrackerSettingsWindowName, S2H::TrackersGui::kCheckTrackerSettingsVisibilityCVar,
+      nullptr },
+    { S2H::TrackersGui::kItemTrackerWindowName, S2H::TrackersGui::kItemTrackerVisibilityCVar, nullptr },
+    { S2H::TrackersGui::kItemTrackerSettingsWindowName, S2H::TrackersGui::kItemTrackerSettingsVisibilityCVar, nullptr },
+};
+
+TrackerWindowSlot* FindTrackerSlot(const char* windowName) {
+    if (windowName == nullptr) {
+        return nullptr;
+    }
+    for (TrackerWindowSlot& slot : gTrackerSlots) {
+        if (strcmp(slot.name, windowName) == 0) {
+            return &slot;
+        }
+    }
+    return nullptr;
+}
 
 } // namespace
 
@@ -175,6 +256,23 @@ void RegisterWindows(std::shared_ptr<Ship::Gui> gui) {
     if (gui == nullptr) {
         return;
     }
+
+    // #489 cause 2: Rando::StaticData::CheckNames is RC_MAX empty strings in
+    // every single-exe binary — PopulateCheckNames' only caller upstream is
+    // BenPort.cpp:874, and games/mm/CMakeLists.txt:238 excludes that TU. The
+    // check tracker labels and filters every row through this array
+    // (CheckTracker.cpp:334, :408), so without this call it renders scene
+    // headers over blank rows. Re-homing an excluded-TU initializer here is
+    // the #457 precedent InitSafeItemsForInventorySlot already set.
+    //
+    // Ahead of the idempotence return on purpose: population is what the
+    // trackers need, and a caller that re-registers must not be able to reach
+    // a state where the windows exist but the names do not. PopulateCheckNames
+    // is a pure overwrite over StaticData::Checks, so re-running is free.
+    // Display-only — GetCheckIdFromName compares RandoStaticCheck.name, so
+    // spoiler read/write does not depend on this.
+    Rando::StaticData::PopulateCheckNames();
+
     // Idempotence: MM_Rando_Init is once-only guarded, but the headless
     // harness may drive registration directly more than once.
     if (gui->GetGuiWindow(kCheckTrackerWindowName) != nullptr) {
@@ -192,20 +290,38 @@ void RegisterWindows(std::shared_ptr<Ship::Gui> gui) {
     // "gWindows.CheckTracker" itself, so the ctor CVar must stay in sync
     // with the vendored macro (CVAR_NAME_SHOW_CHECK_TRACKER).
     BenGui::mRandoCheckTrackerWindow = std::make_shared<MMActiveGated<Rando::CheckTracker::CheckTrackerWindow>>(
-        "gWindows.CheckTracker", kCheckTrackerWindowName, ImVec2(375, 460));
+        kCheckTrackerVisibilityCVar, kCheckTrackerWindowName, ImVec2(375, 460));
     gui->AddGuiWindow(BenGui::mRandoCheckTrackerWindow);
 
     BenGui::mRandoCheckTrackerSettingsWindow = std::make_shared<MMActiveGated<Rando::CheckTracker::SettingsWindow>>(
-        "gWindows.CheckTrackerSettings", kCheckTrackerSettingsWindowName);
+        kCheckTrackerSettingsVisibilityCVar, kCheckTrackerSettingsWindowName);
     gui->AddGuiWindow(BenGui::mRandoCheckTrackerSettingsWindow);
 
     BenGui::mItemTrackerWindow =
-        std::make_shared<MMActiveGated<ItemTrackerWindow>>("gWindows.ItemTracker", kItemTrackerWindowName);
+        std::make_shared<MMActiveGated<ItemTrackerWindow>>(kItemTrackerVisibilityCVar, kItemTrackerWindowName);
     gui->AddGuiWindow(BenGui::mItemTrackerWindow);
 
     BenGui::mItemTrackerSettingsWindow = std::make_shared<MMActiveGated<ItemTrackerSettingsWindow>>(
-        "gWindows.ItemTrackerSettings", kItemTrackerSettingsWindowName, ImVec2(800, 400));
+        kItemTrackerSettingsVisibilityCVar, kItemTrackerSettingsWindowName, ImVec2(800, 400));
     gui->AddGuiWindow(BenGui::mItemTrackerSettingsWindow);
+
+    gTrackerSlots[0].window = BenGui::mRandoCheckTrackerWindow;
+    gTrackerSlots[1].window = BenGui::mRandoCheckTrackerSettingsWindow;
+    gTrackerSlots[2].window = BenGui::mItemTrackerWindow;
+    gTrackerSlots[3].window = BenGui::mItemTrackerSettingsWindow;
+
+    // The windows were just constructed, so each one latched its CVar a moment
+    // ago and this is a no-op today. It is here so registration and the
+    // openability contract cannot drift apart if construction ever moves.
+    SyncVisibilityFromCVars();
+}
+
+void SyncVisibilityFromCVars(void) {
+    for (TrackerWindowSlot& slot : gTrackerSlots) {
+        if (slot.window != nullptr) {
+            SyncVisibilityFromCVar(*slot.window, slot.cvar);
+        }
+    }
 }
 
 } // namespace TrackersGui
@@ -213,6 +329,14 @@ void RegisterWindows(std::shared_ptr<Ship::Gui> gui) {
 
 extern "C" bool MM_TrackersGui_ShouldDraw(void) {
     return Context_GetCurrentGame() == GAME_MM;
+}
+
+extern "C" bool MM_TrackersGui_ShouldShow(const char* windowName) {
+    const TrackerWindowSlot* slot = FindTrackerSlot(windowName);
+    if (slot == nullptr || slot->window == nullptr) {
+        return false;
+    }
+    return slot->window->IsVisible();
 }
 
 extern "C" void MM_TrackersGui_Init(void) {
@@ -227,6 +351,14 @@ extern "C" void MM_TrackersGui_Init(void) {
     }
 
     S2H::TrackersGui::RegisterWindows(gui);
+
+    // #489 cause 1: honour the PERSISTED visibility CVars. Registration is
+    // once-only per process (MM_Rando_Init's sRandoInitDone), and libultraship
+    // never re-reads a window's visibility CVar after its ctor, so a config
+    // that already says "gWindows.ItemTracker=1" from a previous session must
+    // be applied here or the window silently stays shut. Runtime toggling is
+    // handled per-frame by the MMActiveGated Draw wrapper.
+    S2H::TrackersGui::SyncVisibilityFromCVars();
 
     // Tracker icons (check-type icons, item/quest icons). Upstream loads
     // these from BenPort.cpp's InitOTR; gated on the archive because the

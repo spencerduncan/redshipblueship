@@ -33,6 +33,12 @@ set(REDSHIP_COMMON_SOURCES
     # and both spoiler surfaces; the pinned pool itself is OoT-side
     # (soh/Enhancements/randomizer/ForeignItemsSingleExe.cpp)
     ${CMAKE_SOURCE_DIR}/src/common/foreign_items.c
+    # Read-only view model over those placements (#496) — the in-game answer to
+    # "which MM check hosts which OoT item, and has it been collected", so the
+    # spoiler stops being a JSON path the operator has to be told
+    ${CMAKE_SOURCE_DIR}/src/common/combo_spoiler_view.c
+    # The window that renders it — the first common-owned Gui element (ADR 0008)
+    ${CMAKE_SOURCE_DIR}/src/common/ComboSpoilerWindow.cpp
     ${CMAKE_SOURCE_DIR}/src/common/entrance.cpp
     ${CMAKE_SOURCE_DIR}/src/common/test_runner.cpp
     ${CMAKE_SOURCE_DIR}/src/common/integration_test_hooks.cpp
@@ -88,6 +94,8 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/context.h
     ${CMAKE_SOURCE_DIR}/src/common/shared_items.h
     ${CMAKE_SOURCE_DIR}/src/common/foreign_items.h
+    ${CMAKE_SOURCE_DIR}/src/common/combo_spoiler_view.h
+    ${CMAKE_SOURCE_DIR}/src/common/ComboSpoilerWindow.h
     ${CMAKE_SOURCE_DIR}/src/common/entrance.h
     ${CMAKE_SOURCE_DIR}/src/common/test_runner.h
     ${CMAKE_SOURCE_DIR}/src/common/integration_test_hooks.h
@@ -345,6 +353,8 @@ if(BUILD_TESTING)
     # shared structure, the crossing awards exactly once on the OoT side, and
     # gComboCtx.foreignPlacements round-trips through the .redsave record.
     redship_add_test(NAME ForeignItemGive COMMAND redship --test foreign-item-give)
+    redship_add_test(NAME ComboSpoilerView COMMAND redship --test combo-spoiler-view)
+    redship_add_test(NAME ComboSpoilerWindow COMMAND redship --test combo-spoiler-window)
     # Cross-game session invalidation (#440). A soft reset or a new game must
     # retire the previous session's frozen blobs, shadows and gComboCtx
     # crossings — while a cross-game arrival and a legitimate existing-slot

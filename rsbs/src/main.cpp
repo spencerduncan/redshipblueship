@@ -25,6 +25,7 @@
 #include "game.h"
 #include "game_lifecycle.h"
 #include "context.h"
+#include "ComboSpoilerWindow.h" // Combo_SpoilerWindow_Init (#496, ADR 0008)
 #include "entrance.h"
 #include "rsbs_version.h"
 #include "test_runner.h"
@@ -488,6 +489,14 @@ int main(int argc, char** argv) {
     // Keep context's view of the current game in sync with the runner so that
     // cross-game entrance hooks dispatch against the right game (issue #170).
     Context_SetCurrentGame(selectedGame);
+
+    // Cross-game spoiler panel (#496). Registered HERE, from the combo entry
+    // point, rather than from either game's boot: it reads only gComboCtx, so
+    // hanging it off MM's boot would hide it from the OoT-only session that
+    // most needs it, and off OoT's boot would hide it from MM-only sessions
+    // (ADR 0008). Whichever game started has created the Ship::Context and
+    // its Gui by now; the call is a safe no-op if it has not.
+    Combo_SpoilerWindow_Init();
 
     // Belt and braces: re-assert the unattended-safe handlers after game init.
     // The claim above already makes Ship::Context::InitCrashHandler a no-op

@@ -89,6 +89,10 @@ int MM_FlashFileNumOob_RunHeadless(void);
 // bring-up first (ConsoleVariables/Config/Console). Returns 0 on pass,
 // non-zero on fail.
 int MM_TrackersGui_RunHeadless(void);
+// src/common/tests/test_combo_spoiler_window.c — same bridge shape: the
+// spoiler window's ctor reads ConsoleVariables off the Ship::Context
+// singleton, so its body needs the display-free shared bring-up below.
+int Combo_SpoilerWindow_RunHeadless(void);
 // VB-affinity regression: MM's GameInteractor_* calls resolve to OoT's
 // extern "C" wrappers in single-exe builds, and the two games' vanilla-
 // behavior ordinals alias each other. The wrappers gate on the active game;
@@ -145,6 +149,19 @@ extern "C" {
 // serialization. FILE SCOPE (compiled as C++) for rsbs::SaveManager; the
 // pipeline symbols it drives are C-linkage and declared in the file.
 #include "tests/test_foreign_items.c"
+
+// Lane C1 in-game spoiler VIEW model (#496): the read-only projection of
+// gComboCtx.foreignPlacements the combo spoiler window renders — named
+// crossings in slot order, their collected state, and "not paired" reported
+// distinctly from "no crossings". FILE SCOPE (compiled as C++) for
+// rsbs::SaveManager, like test_foreign_items.c above.
+#include "tests/test_combo_spoiler_view.c"
+
+// The window that renders that model (#496 steps 3-4, ADR 0008): registration,
+// idempotence, name de-collision, and a hard tripwire that its draw path stays
+// out of ImGui under GAME_OOT/GAME_MM/GAME_NONE alike. FILE SCOPE — it drives
+// the C++-linkage ComboGui::RegisterComboSpoilerWindow.
+#include "tests/test_combo_spoiler_window.c"
 
 // Sourced-grant model locks (ADR 0005, netplay 1a #460): per-source cursor
 // idempotency, switch-free received-order redemption, loud overflow with
@@ -1213,6 +1230,25 @@ TestResult Test_MMTrackersGui(void) {
     return MM_TrackersGui_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// Cross-game spoiler window (#496, ADR 0008). Same bring-up as the MM tracker
+// bridge above and for the same reason: the test constructs real
+// Ship::GuiWindow objects on a standalone Ship::Gui, and the GuiWindow ctor
+// reads its visibility CVar off the Ship::Context singleton's
+// ConsoleVariables. Without this the ctor dereferences a null singleton.
+TestResult Test_ComboSpoilerWindow(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return Combo_SpoilerWindow_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 TestResult Test_RoundtripIntegrity(void) {
     printf("[TEST] roundtrip-integrity: OoT SaveContext byte-integrity across roundtrip (issue #262)\n");
     int failures = TestRoundtripIntegrity_Run();
@@ -1361,6 +1397,10 @@ const TestDescriptor gTests[] = {
     // crossing awards exactly once, and the placement carve serializes.
     {"foreign-item-give", "Foreign give path tags shared structure; awards once; placements serialize (Lane C1)",
      Test_ForeignItemGive},
+    {"combo-spoiler-view", "In-game spoiler view model: named crossings, collected state, unpaired != empty (#496)",
+     Test_ComboSpoilerView},
+    {"combo-spoiler-window", "Common-owned spoiler window registers de-collided; inert under every active game (#496)",
+     Test_ComboSpoilerWindow},
     // Netplay 1a (ADR 0005, #460): the sourced-grant model, transport-free.
     {"grant-idempotency", "Retransmit delivers once; a second gift of the same item delivers twice (ADR 0005)",
      Test_GrantIdempotency},
