@@ -191,7 +191,20 @@ TestResult Test_ForeignItemGive(void) {
         FI_ASSERT(fromOoT.originGame == (uint8_t)GAME_OOT);
         FI_ASSERT(fromMM.originGame == (uint8_t)GAME_MM);
         FI_ASSERT(fromMM.id == 0x0037);
-        FI_ASSERT(fromOoT.id != fromMM.id || fromOoT.originGame != fromMM.originGame);
+        // Pin the OoT side to the REAL pool row rather than asserting the two
+        // results merely differ. Comparing (id, origin) pairs would be
+        // tautological here — the two origins are already asserted distinct
+        // just above — and would still pass if the OoT lookup returned the
+        // wrong OoT item.
+        int ootBombBagIdx = -1;
+        for (int k = 0; k < poolCount; k++) {
+            if (strcmp(pool[k].name, "Bomb Bag") == 0) {
+                ootBombBagIdx = k;
+            }
+        }
+        FI_ASSERT(ootBombBagIdx >= 0); // the collision this block exists for must actually be present
+        FI_ASSERT(fromOoT.id == pool[ootBombBagIdx].item.id);
+        FI_ASSERT(fromOoT.id != fromMM.id); // the two id-spaces really did yield different items
 
         // The legacy bare-name entry point keeps its exact previous meaning:
         // the OoT pool. Call sites that predate the origin dimension must not
