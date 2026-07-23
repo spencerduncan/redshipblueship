@@ -49,6 +49,18 @@ inline constexpr const char* kAllTrackerWindowNames[] = {
     kItemTrackerSettingsWindowName,
 };
 
+// Visibility CVars, kept as MM's upstream "gWindows.*" names (OoT's windows
+// use "gOpenWindows.*", so there is no store collision to rename around).
+// These are the SAME strings the ctor calls in RegisterWindows pass; naming
+// them here is what keeps the ctor CVar, the CVar->visibility sync, and
+// ItemTracker.cpp's live Draw-time read from drifting apart. CheckTracker.cpp
+// spells its own copy as CVAR_NAME_SHOW_CHECK_TRACKER (CheckTracker.cpp:54);
+// that one is vendored and stays where it is.
+inline constexpr const char* kCheckTrackerVisibilityCVar = "gWindows.CheckTracker";
+inline constexpr const char* kCheckTrackerSettingsVisibilityCVar = "gWindows.CheckTrackerSettings";
+inline constexpr const char* kItemTrackerVisibilityCVar = "gWindows.ItemTracker";
+inline constexpr const char* kItemTrackerSettingsVisibilityCVar = "gWindows.ItemTrackerSettings";
+
 /**
  * Instantiate the MM tracker windows (populating the BenGui::m*Window
  * globals) and register them on `gui`. Idempotent: if the check-tracker
@@ -57,6 +69,26 @@ inline constexpr const char* kAllTrackerWindowNames[] = {
  * which would drop SoH's windows off the shared Gui too.
  */
 void RegisterWindows(std::shared_ptr<Ship::Gui> gui);
+
+/**
+ * Reconcile each registered MM tracker window's visibility with the live value
+ * of its "gWindows.*" CVar (#489 cause 1).
+ *
+ * Ship::GuiWindow reads its visibility CVar exactly once, in the constructor
+ * (libultraship GuiWindow.cpp:13-15), and SyncVisibilityConsoleVariable only
+ * ever writes visibility -> CVar, never the reverse. Upstream 2S2H reopened
+ * windows through BenMenu's WIDGET_WINDOW_BUTTON rows, and BenMenu is
+ * link-elided here — so without this call three of the four MM tracker windows
+ * can never be opened after MM's first boot, whatever the CVar says.
+ *
+ * Safe with no real Ship::Window: it only ever drives a window's visibility TO
+ * the value its own CVar already holds, and GuiWindow::SetVisibility assigns
+ * mIsVisible BEFORE computing `shouldSave = storedCVar != IsVisible()`. That
+ * comparison is therefore always false here, so the
+ * Context::GetWindow()->GetGui() deref at GuiWindow.cpp:61 — a null deref in
+ * the ROM-free harness — is never reached.
+ */
+void SyncVisibilityFromCVars(void);
 
 } // namespace TrackersGui
 } // namespace S2H
@@ -70,6 +102,17 @@ extern "C" {
  * ROM-free lock can flip it without a Gui.
  */
 bool MM_TrackersGui_ShouldDraw(void);
+
+/**
+ * Per-window visibility predicate (#489 cause 1): true iff the MM tracker
+ * window registered under `windowName` exists AND currently considers itself
+ * visible. An unknown name is false.
+ *
+ * This reports the window's OWN latched visibility, deliberately not a CVar
+ * read — that is what makes it a real check on SyncVisibilityFromCVars rather
+ * than a tautology over the CVar store. Pure: no ImGui, no save, no gSaveContext.
+ */
+bool MM_TrackersGui_ShouldShow(const char* windowName);
 
 /**
  * Production entry point, called from MM_Rando_Init (once-only by its guard):

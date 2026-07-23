@@ -146,6 +146,19 @@ extern "C" {
 // pipeline symbols it drives are C-linkage and declared in the file.
 #include "tests/test_foreign_items.c"
 
+// Lane C1 in-game spoiler VIEW model (#496): the read-only projection of
+// gComboCtx.foreignPlacements the combo spoiler window renders — named
+// crossings in slot order, their collected state, and "not paired" reported
+// distinctly from "no crossings". FILE SCOPE (compiled as C++) for
+// rsbs::SaveManager, like test_foreign_items.c above.
+#include "tests/test_combo_spoiler_view.c"
+
+// The window that renders that model (#496 steps 3-4, ADR 0008): registration,
+// idempotence, name de-collision, and a hard tripwire that its draw path stays
+// out of ImGui under GAME_OOT/GAME_MM/GAME_NONE alike. FILE SCOPE — it drives
+// the C++-linkage ComboGui::RegisterComboSpoilerWindow.
+#include "tests/test_combo_spoiler_window.c"
+
 // Sourced-grant model locks (ADR 0005, netplay 1a #460): per-source cursor
 // idempotency, switch-free received-order redemption, loud overflow with
 // redeemed-slot reclamation, and .redsave durability including the
@@ -1361,6 +1374,10 @@ const TestDescriptor gTests[] = {
     // crossing awards exactly once, and the placement carve serializes.
     {"foreign-item-give", "Foreign give path tags shared structure; awards once; placements serialize (Lane C1)",
      Test_ForeignItemGive},
+    {"combo-spoiler-view", "In-game spoiler view model: named crossings, collected state, unpaired != empty (#496)",
+     Test_ComboSpoilerView},
+    {"combo-spoiler-window", "Common-owned spoiler window registers de-collided; inert under every active game (#496)",
+     Test_ComboSpoilerWindow},
     // Netplay 1a (ADR 0005, #460): the sourced-grant model, transport-free.
     {"grant-idempotency", "Retransmit delivers once; a second gift of the same item delivers twice (ADR 0005)",
      Test_GrantIdempotency},

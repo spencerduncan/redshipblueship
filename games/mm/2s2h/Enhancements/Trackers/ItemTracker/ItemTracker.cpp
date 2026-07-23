@@ -9,6 +9,13 @@
 #include "2s2h/ShipUtils.h"
 #include <spdlog/fmt/fmt.h>
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// S2H::TrackersGui::kItemTrackerVisibilityCVar — the same string the ctor call
+// in RegisterWindows passes, so the live Draw-time read below cannot drift
+// away from the CVar the window was registered under.
+#include "2s2h/TrackersGuiSingleExe.h"
+#endif
+
 extern "C" {
 #include "z64save.h"
 #include "variables.h"
@@ -381,9 +388,31 @@ void DrawItemTrackerGroup(TrackerGroup& trackerGroup) {
 }
 
 void ItemTrackerWindow::Draw() {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // Read the visibility CVar LIVE, mirroring MM's own check tracker
+    // (2s2h/Rando/CheckTracker/CheckTracker.cpp:454-457), instead of trusting
+    // the ctor-latched IsVisible().
+    //
+    // Ship::GuiWindow reads its visibility CVar exactly once, in the ctor
+    // (libultraship GuiWindow.cpp:13-15), and only ever writes the reverse
+    // direction afterwards. Upstream 2S2H reopens this window through BenMenu,
+    // which is link-elided in the single exe (games/mm/CMakeLists.txt:245), so
+    // a console `set gWindows.ItemTracker 1` after MM has booted could never
+    // make the window appear (#489 cause 1). MMActiveGated::Draw
+    // (2s2h/TrackersGuiSingleExe.cpp) re-syncs IsVisible() from the same CVar
+    // before delegating here, so the two agree; this read is what keeps the
+    // window honest if that wrapper is ever bypassed.
+    //
+    // RSBS_SINGLE_EXECUTABLE-guarded on purpose: this is a vendored 2S2H TU
+    // and an unguarded divergence is an upstream-sync landmine.
+    if (!CVarGetInteger(S2H::TrackersGui::kItemTrackerVisibilityCVar, 0)) {
+        return;
+    }
+#else
     if (!IsVisible()) {
         return;
     }
+#endif
 
     if (!MM_gPlayState) {
         return;

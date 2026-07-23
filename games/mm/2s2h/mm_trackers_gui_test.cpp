@@ -45,6 +45,8 @@
 #include "2s2h/Rando/CheckTracker/CheckTracker.h"
 #include "2s2h/Enhancements/Trackers/ItemTracker/ItemTracker.h"
 #include "2s2h/Enhancements/Trackers/ItemTracker/ItemTrackerSettings.h"
+#include "2s2h/Rando/StaticData/StaticData.h" // CheckNames / Checks
+#include "2s2h/ShipUtils.h"                   // convertEnumToReadableName
 #include "context.h"
 
 namespace BenGui {
@@ -200,6 +202,91 @@ extern "C" int MM_TrackersGui_RunHeadless(void) {
     Context_SetCurrentGame(prevGame);
     TGT_ASSERT(mmActiveDraws, "MM_TrackersGui_ShouldDraw() false while MM is the active game");
 
+    // ---- 4. VISIBILITY: the ctor's CVar latch must not be the last word ----
+    // #489 cause 1. Ship::GuiWindow reads its visibility CVar exactly once, in
+    // the constructor (libultraship GuiWindow.cpp:13-15), and
+    // SyncVisibilityConsoleVariable only ever writes mIsVisible -> CVar, never
+    // the reverse. In the single exe nothing calls Show() on these windows —
+    // BenMenu, upstream's only route to it, is link-elided — so without a
+    // CVar -> visibility sync three of the four MM tracker windows can never be
+    // opened at all after MM's first boot.
+    //
+    // This drives the REAL production path: S2H::TrackersGui::RegisterWindows
+    // constructing the real window types through the real Ship::GuiWindow ctor
+    // on a fresh Gui, with the visibility CVars CLEARED — the inverse of leg 1
+    // above, which forces them on before construction.
+    for (const char* cvar : kMMWindowVisibilityCVars) {
+        CVarClear(cvar);
+    }
+    auto visGui = std::make_shared<Ship::Gui>();
+    S2H::TrackersGui::RegisterWindows(visGui);
+
+    for (const char* name : S2H::TrackersGui::kAllTrackerWindowNames) {
+        TGT_ASSERT(!MM_TrackersGui_ShouldShow(name), "window reports drawable with its visibility CVar cleared");
+    }
+    TGT_ASSERT(!MM_TrackersGui_ShouldShow("MM Nonexistent Window"), "unknown window name reported drawable");
+    TGT_ASSERT(!MM_TrackersGui_ShouldShow(nullptr), "null window name reported drawable");
+
+    // The latch is REAL: setting the CVar after construction changes nothing on
+    // its own. Asserting this first is what keeps the leg below from going
+    // vacuous — if libultraship ever starts re-syncing per frame, this fails
+    // loudly rather than silently making the sync untested.
+    CVarSetInteger(S2H::TrackersGui::kItemTrackerVisibilityCVar, 1);
+    TGT_ASSERT(!MM_TrackersGui_ShouldShow(S2H::TrackersGui::kItemTrackerWindowName),
+               "ctor visibility latch is gone — this leg no longer pins #489 cause 1");
+
+    // ...and the production sync is what makes the window openable. RED before
+    // SyncVisibilityFromCVars existed: IsVisible() stayed false forever.
+    S2H::TrackersGui::SyncVisibilityFromCVars();
+    TGT_ASSERT(MM_TrackersGui_ShouldShow(S2H::TrackersGui::kItemTrackerWindowName),
+               "item tracker still not drawable after the CVar->visibility sync (#489 cause 1)");
+    // Only the window whose CVar was set: the sync must not open all four.
+    TGT_ASSERT(!MM_TrackersGui_ShouldShow(S2H::TrackersGui::kCheckTrackerSettingsWindowName),
+               "sync opened a window whose visibility CVar was still cleared");
+    TGT_ASSERT(!MM_TrackersGui_ShouldShow(S2H::TrackersGui::kItemTrackerSettingsWindowName),
+               "sync opened a window whose visibility CVar was still cleared");
+
+    // Reversible: the settings windows are otherwise unreachable by any route,
+    // so closing has to work through the same seam as opening.
+    CVarSetInteger(S2H::TrackersGui::kItemTrackerSettingsVisibilityCVar, 1);
+    CVarClear(S2H::TrackersGui::kItemTrackerVisibilityCVar);
+    S2H::TrackersGui::SyncVisibilityFromCVars();
+    TGT_ASSERT(MM_TrackersGui_ShouldShow(S2H::TrackersGui::kItemTrackerSettingsWindowName),
+               "item tracker settings window did not open from its CVar");
+    TGT_ASSERT(!MM_TrackersGui_ShouldShow(S2H::TrackersGui::kItemTrackerWindowName),
+               "clearing the CVar did not close the item tracker");
+
+    // Surviving all of the above is itself an assertion: Show()/Hide() route
+    // through GuiWindow::SetVisibility -> SyncVisibilityConsoleVariable, which
+    // dereferences Context::GetWindow()->GetGui() when the stored CVar and the
+    // new visibility disagree. This harness has NO window, so a sync that ever
+    // drove visibility AWAY from the CVar's own value would null-deref here.
+
+    // ---- 5. CheckNames is populated in single-exe builds ------------------
+    // #489 cause 2. Rando::StaticData::CheckNames is RC_MAX empty strings
+    // (Checks.cpp:11) and PopulateCheckNames' only upstream caller is
+    // BenPort.cpp:874, which games/mm/CMakeLists.txt:238 excludes — so every
+    // check-tracker row rendered a blank label. RegisterWindows now calls it.
+    // This drives the REAL PopulateCheckNames over the REAL StaticData::Checks
+    // map; RED before that call site existed.
+    {
+        const RandoCheckId kProbe = RC_CLOCK_TOWER_ROOF_OCARINA;
+        const auto& probeCheck = Rando::StaticData::Checks.at(kProbe);
+        TGT_ASSERT(!Rando::StaticData::CheckNames[kProbe].empty(),
+                   "CheckNames entry is still empty — PopulateCheckNames never ran (#489 cause 2)");
+        TGT_ASSERT(Rando::StaticData::CheckNames[kProbe] == convertEnumToReadableName(probeCheck.name),
+                   "CheckNames entry is not its convertEnumToReadableName form");
+        // Not just one entry: the whole map was walked.
+        size_t namedCount = 0;
+        for (const auto& [checkId, staticCheck] : Rando::StaticData::Checks) {
+            if (!Rando::StaticData::CheckNames[checkId].empty()) {
+                namedCount++;
+            }
+        }
+        TGT_ASSERT(namedCount >= Rando::StaticData::Checks.size() - 1,
+                   "PopulateCheckNames left named checks behind (only RC_UNKNOWN may be empty)");
+    }
+
     // Cleanup: don't leak forced-visible tracker CVars into later tests or a
     // saved cvar file.
     for (const char* cvar : kMMWindowVisibilityCVars) {
@@ -207,7 +294,8 @@ extern "C" int MM_TrackersGui_RunHeadless(void) {
     }
 
     printf("[TEST] PASS: mm-trackers-gui — four MM tracker windows register under de-collided names beside "
-           "SoH's, and their draw path is inert unless MM is the active game\n");
+           "SoH's, their draw path is inert unless MM is the active game, their visibility tracks the live "
+           "CVar, and CheckNames is populated\n");
     return 0;
 }
 
