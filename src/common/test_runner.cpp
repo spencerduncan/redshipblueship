@@ -80,6 +80,13 @@ int MM_FbEffectsBinding_RunHeadless(void);
 // moon-crash reset then copies over the live save (the Fierce-Deity /
 // all-Ocarina corruption). Returns 0 on pass, non-zero on fail.
 int MM_FlashFileNumOob_RunHeadless(void);
+// MM single-exe hook dispatch (games/mm/2s2h/mm_hook_dispatch_test.cpp, #511 /
+// #438): the COND_* macros park registrations in the MM-owned S2H::GameHooks
+// registry, but ShouldActorInit / OnActorInit / OnActorDraw / OnOpenText
+// dispatched through upstream names that reach OoT's gated wrappers or
+// mm_stubs.c no-ops -- so 21 TUs' chest-model rewrites and 24 TUs' rando text
+// overrides were registered and never run. Returns 0 on pass, non-zero on fail.
+int MM_HookDispatch_RunHeadless(void);
 // MM tracker registration surface (games/mm/2s2h/mm_trackers_gui_test.cpp,
 // #392): the four MM tracker windows must register on a Gui under
 // "MM "-prefixed names (SoH owns the unprefixed ones and Gui::AddGuiWindow
@@ -293,6 +300,12 @@ static TestResult Test_MMFbEffectsBinding(void) {
 // the C entry point in games/mm/2s2h/mm_flash_filenum_test.cpp.
 static TestResult Test_MMFlashFileNumOob(void) {
     return MM_FlashFileNumOob_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// MM hook-dispatch lock (see the extern decl above). Thin wrapper over the C
+// entry point in games/mm/2s2h/mm_hook_dispatch_test.cpp.
+static TestResult Test_MMHookDispatch(void) {
+    return MM_HookDispatch_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // ============================================================================
@@ -1569,6 +1582,12 @@ const TestDescriptor gTests[] = {
     // live save. Pure (no display), so it runs in the display-free suite.
     {"mm-flash-filenum-oob", "Flash page indices stay in bounds for fileNum 0xFF; moon-crash reset keeps the save",
      Test_MMFlashFileNumOob},
+    // Hook dispatch reaches the MM-owned registry the COND_* macros register
+    // into. Registers through the production macros and drives each dispatcher
+    // through the name MM's call sites spell, so both a deleted bridge and a
+    // dropped rebind #define fail here. Pure (no display, no ROM).
+    {"mm-hook-dispatch", "ShouldActorInit/OnActorInit/OnActorDraw/OnOpenText dispatch reaches S2H::GameHooks (#511)",
+     Test_MMHookDispatch},
     {"mm-trackers-gui", "MM tracker windows register de-collided on the shared Gui + gate on the active game (#392)",
      Test_MMTrackersGui},
     // The two MM resume-contract tests below mutate process-global state

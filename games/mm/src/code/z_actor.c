@@ -45,6 +45,11 @@
 void MM_GameHooks_ExecuteOnFlagSet(FlagType flagType, u32 flag);
 void MM_GameHooks_ExecuteOnSceneFlagSet(s16 sceneId, FlagType flagType, u32 flag);
 void MM_GameHooks_ExecuteOnActorUpdate(Actor* actor);
+// OnActorInit and OnActorDraw are NOT declared here: unlike the three above,
+// they keep their upstream spelling at the call site and are redirected by the
+// macro rebind in 2s2h/GameInteractor/GameInteractor.h (#438), which this file
+// already includes. Declaring them here too would be harmless but misleading —
+// the rebind, not a hand-written twin call, is what routes them.
 #endif
 
 // bss
@@ -1323,19 +1328,16 @@ void MM_Actor_Init(Actor* actor, PlayState* play) {
     if (MM_Object_IsLoaded(&play->objectCtx, actor->objectSlot)) {
         MM_Actor_SetObjectDependency(play, actor);
 
-#ifdef RSBS_SINGLE_EXECUTABLE
-        // MM's GameInteractor enhancement layer is excluded from single-exe
-        // builds, so these unprefixed GameInteractor_* calls bind to OoT's
-        // implementation. OoT's GameInteractor_ShouldActorInit casts the
-        // argument to OoT's Actor and dispatches hooks by actor id — but the
-        // actor here is an MM actor (different struct layout, and ids alias
-        // between the games), so it faults on the first MM actor spawned (the
-        // player), which blocks every MM boot. Initialize the actor directly,
-        // skipping the cross-game hooks. Mirrors the #344 guard on
-        // GameInteractor_ExecuteOnSceneInit in z_play.c.
-        actor->init(actor, play);
-        actor->init = NULL;
-#else
+        // Both names below are rebound to MM-owned dispatchers by the
+        // single-exe block in 2s2h/GameInteractor/GameInteractor.h, so they
+        // consult only MM's S2H::GameHooks registry. The guard that used to
+        // skip this block in single-exe builds was correct when written —
+        // unprefixed GameInteractor_ShouldActorInit bound to OoT's, which
+        // casts to OoT's Actor and faulted on the first MM actor — but it
+        // outlived its cause: #392 rebound ShouldActorInit and #438 rebound
+        // ExecuteOnActorInit. While it stood it kept 21 TUs' worth of
+        // ShouldActorInit registrants dead, EnBox's chest-content rewrite
+        // among them.
         if (GameInteractor_ShouldActorInit(actor)) {
             actor->init(actor, play);
             actor->init = NULL;
@@ -1344,7 +1346,6 @@ void MM_Actor_Init(Actor* actor, PlayState* play) {
             actor->init = NULL;
             MM_Actor_Kill(actor);
         }
-#endif
     }
 }
 
@@ -2766,12 +2767,8 @@ Actor* Actor_UpdateActor(UpdateActor_Params* params) {
         if (MM_Object_IsLoaded(&play->objectCtx, actor->objectSlot)) {
             MM_Actor_SetObjectDependency(play, actor);
 
-#ifdef RSBS_SINGLE_EXECUTABLE
-            // Skip the OoT-bound GameInteractor hooks in single-exe — see the
-            // detailed note in MM_Actor_Init above. Init the actor directly.
-            actor->init(actor, play);
-            actor->init = NULL;
-#else
+            // Rebound to MM-owned dispatchers in single-exe — see the note in
+            // MM_Actor_Init above.
             if (GameInteractor_ShouldActorInit(actor)) {
                 actor->init(actor, play);
                 actor->init = NULL;
@@ -2780,7 +2777,6 @@ Actor* Actor_UpdateActor(UpdateActor_Params* params) {
                 actor->init = NULL;
                 MM_Actor_Kill(actor);
             }
-#endif
         }
         nextActor = actor->next;
     } else if (actor->update == NULL) {

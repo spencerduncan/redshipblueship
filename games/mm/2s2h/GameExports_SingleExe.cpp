@@ -1695,6 +1695,45 @@ extern "C" void MM_GameHooks_ExecuteOnSceneInit(s16 sceneId, s8 spawnNum) {
     S2H::GameHooks::ExecuteForID<GameInteractor::OnSceneInit>(sceneId, sceneId, spawnNum);
 }
 
+/**
+ * OnActorInit / OnActorDraw / OnOpenText dispatch (#438).
+ *
+ * Reached through the macro rebind at the bottom of MM's GameInteractor.h, so
+ * MM's call sites in z_actor.c / z_message.c stay textually upstream. Each
+ * mirrors the leg set of its GameInteractor.cpp twin, minus ForFilter: the S2H
+ * registry has no filter surface and no compiled MM TU registers one (the same
+ * deviation the Should executors and OnSceneInit already document).
+ *
+ * The ForPtr legs are carried on the actor pair because upstream has them and
+ * the ptr-keyed registry exists; no MM TU binds one today, so they cost an
+ * empty map lookup and stop the next ptr-keyed registrant from being silently
+ * dead the way these three were.
+ */
+extern "C" void MM_GameHooks_ExecuteOnActorInit(Actor* actor) {
+    S2H::GameHooks::Execute<GameInteractor::OnActorInit>(actor);
+    S2H::GameHooks::ExecuteForID<GameInteractor::OnActorInit>(actor->id, actor);
+    S2H::GameHooks::ExecuteForPtr<GameInteractor::OnActorInit>((uintptr_t)actor, actor);
+}
+
+extern "C" void MM_GameHooks_ExecuteOnActorDraw(Actor* actor) {
+    S2H::GameHooks::Execute<GameInteractor::OnActorDraw>(actor);
+    S2H::GameHooks::ExecuteForID<GameInteractor::OnActorDraw>(actor->id, actor);
+    S2H::GameHooks::ExecuteForPtr<GameInteractor::OnActorDraw>((uintptr_t)actor, actor);
+}
+
+/**
+ * The id leg reads *textId AFTER the unkeyed leg has run, deliberately: an
+ * unkeyed registrant may rewrite the text id, and upstream's
+ * GameInteractor_ExecuteOnOpenText resolves its ExecuteHooksForID key from the
+ * same post-mutation read. Hoisting it into a local before the first Execute
+ * would be the more obvious spelling and would silently change which
+ * registrants match.
+ */
+extern "C" void MM_GameHooks_ExecuteOnOpenText(u16* textId, bool* loadFromMessageTable) {
+    S2H::GameHooks::Execute<GameInteractor::OnOpenText>(textId, loadFromMessageTable);
+    S2H::GameHooks::ExecuteForID<GameInteractor::OnOpenText>(*textId, textId, loadFromMessageTable);
+}
+
 extern "C" void MM_GameHooks_ExecuteOnFlagSet(FlagType flagType, u32 flag) {
     S2H::GameHooks::Execute<GameInteractor::OnFlagSet>(flagType, flag);
 }

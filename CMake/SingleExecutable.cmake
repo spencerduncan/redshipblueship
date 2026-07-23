@@ -513,6 +513,16 @@ if(BUILD_TESTING)
     # over the live save (spawn-as-Fierce-Deity / all-Ocarina corruption).
     # Display-free and ROM-free, so it runs in this redship tier.
     redship_add_test(NAME MMFlashFileNumOob COMMAND redship --test mm-flash-filenum-oob)
+    # MM single-exe hook dispatch (#511, #438): the COND_HOOK/COND_ID_HOOK
+    # macros park registrations in the MM-owned S2H::GameHooks registry, but
+    # ShouldActorInit / OnActorInit / OnActorDraw / OnOpenText dispatched
+    # through the upstream GameInteractor_Execute* names, which reach OoT's
+    # active-game-gated wrappers or src/common/mm_stubs.c no-ops. 21 TUs'
+    # ShouldActorInit registrants (EnBox's chest-content rewrite among them) and
+    # 24 TUs' OnOpenText registrants were registered and never run -- MM items
+    # randomized while their models and dialog stayed vanilla. Display-free and
+    # ROM-free, so it runs in this redship tier.
+    redship_add_test(NAME MMHookDispatch COMMAND redship --test mm-hook-dispatch)
     # MM tracker registration surface (#392): the four MM tracker windows must
     # register on the shared Gui under "MM "-prefixed names (SoH owns the
     # unprefixed ones; Gui::AddGuiWindow rejects duplicates) and their
