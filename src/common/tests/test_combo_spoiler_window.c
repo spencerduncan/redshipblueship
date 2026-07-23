@@ -31,6 +31,13 @@
  *
  * Linkage note: #included into test_runner.cpp at FILE SCOPE (compiled as
  * C++) — it drives the C++-linkage ComboGui::RegisterComboSpoilerWindow.
+ *
+ * Entry point is a RunHeadless bridge, not a TestResult body, matching
+ * games/mm/2s2h/mm_trackers_gui_test.cpp: constructing a Ship::GuiWindow reads
+ * ConsoleVariables off the Ship::Context singleton, so this needs the same
+ * display-free shared bring-up MMTrackersGui does. That bring-up lives in
+ * test_runner.cpp (CreateHarnessStyleContext is static there); keeping it out
+ * of this file is what lets the file stay a pure exercise of the window.
  */
 
 #include "../ComboSpoilerWindow.h"
@@ -77,7 +84,7 @@ const char* const kSpoilerNeighbourNames[] = {
 
 } // namespace
 
-TestResult Test_ComboSpoilerWindow(void) {
+extern "C" int Combo_SpoilerWindow_RunHeadless(void) {
     printf("[TEST] combo-spoiler-window: the common-owned spoiler window registers de-collided and is inert under "
            "every active game (#496, ADR 0008)\n");
 

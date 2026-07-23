@@ -89,6 +89,10 @@ int MM_FlashFileNumOob_RunHeadless(void);
 // bring-up first (ConsoleVariables/Config/Console). Returns 0 on pass,
 // non-zero on fail.
 int MM_TrackersGui_RunHeadless(void);
+// src/common/tests/test_combo_spoiler_window.c — same bridge shape: the
+// spoiler window's ctor reads ConsoleVariables off the Ship::Context
+// singleton, so its body needs the display-free shared bring-up below.
+int Combo_SpoilerWindow_RunHeadless(void);
 // VB-affinity regression: MM's GameInteractor_* calls resolve to OoT's
 // extern "C" wrappers in single-exe builds, and the two games' vanilla-
 // behavior ordinals alias each other. The wrappers gate on the active game;
@@ -1224,6 +1228,25 @@ TestResult Test_MMTrackersGui(void) {
     }
 
     return MM_TrackersGui_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// Cross-game spoiler window (#496, ADR 0008). Same bring-up as the MM tracker
+// bridge above and for the same reason: the test constructs real
+// Ship::GuiWindow objects on a standalone Ship::Gui, and the GuiWindow ctor
+// reads its visibility CVar off the Ship::Context singleton's
+// ConsoleVariables. Without this the ctor dereferences a null singleton.
+TestResult Test_ComboSpoilerWindow(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return Combo_SpoilerWindow_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 TestResult Test_RoundtripIntegrity(void) {
