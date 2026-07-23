@@ -242,7 +242,34 @@ void Rando::MiscBehavior::OnFileCreate(s16 fileNum) {
                     // gComboCtx.foreignPlacements (the MM table keeps its
                     // junk-class MM item — ADR 0002). Runs before the spoiler write so the
                     // spoiler's foreign section describes this world.
-                    Rando::Foreign::PlaceForeignItems();
+                    //
+                    // #488: a SHORT placement is a fatal generation failure,
+                    // not a warning. Every pool item is pinned OoT progression;
+                    // one that never got a host is not "missing loot", it is a
+                    // world the player cannot finish, and before this throw the
+                    // return value was simply discarded. Tier A host
+                    // eligibility cut the candidate set from ~2000 to a few
+                    // dozen, so exhaustion is now plausible rather than
+                    // theoretical. Throwing lands in the outer catch, which
+                    // reverts the file to vanilla exactly as any fill dead-end
+                    // does — the "no retries, revert" contract stated in
+                    // Foreign.cpp's header. A retry here would make the world
+                    // identity depend on runtime state the settings digest
+                    // cannot see.
+                    const ComboForeignItemDef* pool = nullptr;
+                    const int poolCount = Combo_GetForeignItemPool(&pool);
+                    const int placed = Rando::Foreign::PlaceForeignItems();
+                    if (placed < poolCount) {
+                        // Two distinct causes land here — the eligible-host
+                        // candidate set ran dry, or Combo_SetForeignPlacement
+                        // refused an insert (cap/duplicate). PlaceForeignItems
+                        // logs which to stderr immediately above; this message
+                        // names both rather than asserting one.
+                        throw std::runtime_error("Paired world could not host every foreign item: placed " +
+                                                 std::to_string(placed) + " of " + std::to_string(poolCount) +
+                                                 " (eligible hosts exhausted, or the placement table refused an "
+                                                 "insert — see the [MM] foreign placement log above)");
+                    }
                 }
 #endif
 
