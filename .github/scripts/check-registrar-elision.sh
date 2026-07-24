@@ -341,14 +341,14 @@ main() {
     # dropped the hard call and re-elided a required MM feature.
     #
     # Same plain-grep-not-`-q` discipline as the probes above (pipefail + SIGPIPE).
-    # RegisterSavingEnhancements / RegisterAutosave are deliberately ABSENT: they
-    # are #516 Phase 2 (their moon-crash / cycle-save hooks are a behavior change
-    # the arm-state test must be taught to survive first), and RegisterAutosave's
-    # symbol additionally ODR-folds with OoT's soh_enh Autosave.cpp twin, so a
-    # presence probe could not attribute it to MM anyway.
+    # RegisterAutosave is deliberately ABSENT: its symbol ODR-folds with OoT's
+    # soh_enh Autosave.cpp twin (a static void RegisterAutosave()), so a presence
+    # probe cannot attribute a hit to MM's copy. RegisterSavingEnhancements has no
+    # such twin and is gated here (#516 Phase 2).
     local required_mm_registrars=(
         "CustomItem::RegisterHooks"                 # cross-game + rando item delivery (critical)
         "S2H::CustomMessage::RegisterHooks"         # custom rando/hint message text 0x4B (critical)
+        "RegisterSavingEnhancements"                # owl-save persistence, cycle-save playtime (#516 Phase 2)
         "GfxPatcher_ApplyNecessaryAuthenticPatches" # authentic gfx patches incl. latent matrix-stack UB
     )
     local sym

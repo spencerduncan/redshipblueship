@@ -53,6 +53,7 @@
 // than file-local extern prototypes.
 #include "2s2h/CustomItem/CustomItem.h"
 #include "2s2h/CustomMessage/CustomMessage.h"
+#include "2s2h/Enhancements/Saving/SavingEnhancements.h"
 #include "2s2h/Enhancements/GfxPatcher/AuthenticGfxPatches.h"
 #include "2s2h/Rando/Rando.h"
 #include "2s2h/ShipInit.hpp"
@@ -1411,16 +1412,24 @@ extern "C" void MM_Rando_Init(void) {
     CustomMessage::RegisterHooks(); // OnOpenText[0x4B]: loads staged rando/hint
                                     // text; without it every custom message
                                     // renders vanilla entry 0x4B. #516 critical.
-    // RegisterSavingEnhancements() / RegisterAutosave() are DELIBERATELY not
-    // here: both put registrants on the moon-crash and cycle-save reset paths
-    // (BeforeMoonCrashSaveReset -> DeleteOwlSave, BeforeEndOfCycleSave), and
-    // DeleteOwlSave dereferences MM_gPlayState. That is fine in production
-    // (z_demo.c:379 resets from &play->sramCtx with a live play state) but
-    // crashes the headless MMMoonCrashArmState arm-state test, which drives the
-    // reset with no play state. Reviving them is a real behavior change on those
-    // paths that needs the arm-state test taught to stand up a play state —
-    // #516 Phase 2, its own change. This PR ships the two criticals, which
-    // touch neither path.
+    // #516 Phase 2 — save mechanics. RegisterSavingEnhancements gives owl-save
+    // persistence, cycle-save playtime banking, grotto respawn restore and
+    // moon-crash owl cleanup; RegisterAutosave gives MM its periodic owl autosave
+    // and its on-screen icon.
+    //
+    // These were held back from Phase 1 because their DeleteOwlSave leg (on
+    // BeforeMoonCrashSaveReset / BeforeEndOfCycleSave) dereferences MM_gPlayState,
+    // which crashed the headless MMMoonCrashArmState test — the only test that
+    // drives a real reset path. That test now stands up a play state (as
+    // production always has: z_demo.c:379 resets from a live &play->sramCtx), so
+    // the leg runs faithfully rather than being avoided.
+    //
+    // The Autosave frame legs are headless-safe as-is and need no scaffolding:
+    // HandleAutoSave's interval guard and DrawAutosaveIcon's iconTimer==0 guard
+    // both return before touching MM_gPlayState, and OnGameStateUpdate/DrawFinish
+    // dispatch only from MM's real frame loop (game.c), never a headless test.
+    RegisterSavingEnhancements();
+    RegisterAutosave();
 
     // GfxPatcher is a one-shot resource patcher, not a hook registrar, so it is
     // called (not registered) and gated on assets: its ResourceMgr_Load*ByName

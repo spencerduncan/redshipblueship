@@ -30,7 +30,7 @@
 #include <libultraship/bridge/consolevariablebridge.h>
 #include <nlohmann/json.hpp>
 
-#include "2s2h/BenPort.h" // appShortName
+#include "2s2h/BenPort.h"                       // appShortName
 #include "2s2h/GameInteractor/GameInteractor.h" // S2H::GameHooks counters (single-exe tail)
 #include "2s2h/Rando/Rando.h"
 #include "2s2h/Rando/Foreign.h"
@@ -320,8 +320,7 @@ extern "C" int MM_Rando_HeadlessGenTest(void) {
         // an actual paired fill rather than the synthetic table the ROM-free
         // ForeignHostEligibility lock uses.
         const auto staticIt = Rando::StaticData::Checks.find(hostCheck);
-        if (staticIt == Rando::StaticData::Checks.end() ||
-            staticIt->second.randoCheckType != RCTYPE_CHEST ||
+        if (staticIt == Rando::StaticData::Checks.end() || staticIt->second.randoCheckType != RCTYPE_CHEST ||
             staticIt->second.flagType != FLAG_CYCL_SCENE_CHEST) {
             fprintf(stderr,
                     "[MM-RANDO-GEN] FAIL(12): hosting check %u is not a Tier A (chest/FLAG_CYCL_SCENE_CHEST) host — "
@@ -563,8 +562,8 @@ extern "C" int MM_Rando_HeadlessGenTest(void) {
             return 22;
         }
         const RandoItemId heldAfterReject = RANDO_SAVE_CHECKS[ineligible->randoCheckId].randoItemId;
-        if (Rando::StaticData::Items[heldAfterReject].randoItemType != RITYPE_JUNK ||
-            heldAfterReject == RI_UNKNOWN || heldAfterReject == RI_NONE) {
+        if (Rando::StaticData::Items[heldAfterReject].randoItemType != RITYPE_JUNK || heldAfterReject == RI_UNKNOWN ||
+            heldAfterReject == RI_NONE) {
             fprintf(stderr,
                     "[MM-RANDO-GEN] FAIL(22): rejected host %s left holding %d — must degrade to a legal junk item, "
                     "not a sentinel that arms .eligible and gives nothing\n",
@@ -655,8 +654,10 @@ extern "C" int MM_Rando_HeadlessGenTest(void) {
         fprintf(stderr, "[MM-RANDO-GEN] FAIL(25): un-overridden VB did not pass the caller's verdict through\n");
         return 25;
     }
-    fprintf(stderr, "[MM-RANDO-GEN] VB dispatch (rando save): give VBs suppressed (ForID + non-ID), "
-                    "pass-through intact (%zu VB hooks)\n", vbHooks);
+    fprintf(stderr,
+            "[MM-RANDO-GEN] VB dispatch (rando save): give VBs suppressed (ForID + non-ID), "
+            "pass-through intact (%zu VB hooks)\n",
+            vbHooks);
 
     // Vanilla direction: a non-rando file re-run through the REAL OnSaveLoad
     // chain must disarm the overrides (the COND_* macros re-evaluate IS_RANDO
@@ -961,14 +962,16 @@ extern "C" int MM_Rando_HeadlessPairSwitchEntry(void) {
     fprintf(stderr, "[MM-PAIR-SWITCH] switch-entry paired under master seed %u\n", usedMasterSeed);
 
     if (Combo_CountForeignPlacements() != poolCount) {
-        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(7): expected %d foreign placements after switch-entry pairing, found "
-                        "%d\n",
+        fprintf(stderr,
+                "[MM-PAIR-SWITCH] FAIL(7): expected %d foreign placements after switch-entry pairing, found "
+                "%d\n",
                 poolCount, Combo_CountForeignPlacements());
         return 7;
     }
     if (gSaveContext.save.entrance != kArrival) {
-        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(8): arrival entrance 0x%04X lost to generation's start state "
-                        "(save.entrance=0x%04X)\n",
+        fprintf(stderr,
+                "[MM-PAIR-SWITCH] FAIL(8): arrival entrance 0x%04X lost to generation's start state "
+                "(save.entrance=0x%04X)\n",
                 kArrival, gSaveContext.save.entrance);
         return 8;
     }
@@ -1038,8 +1041,9 @@ extern "C" int MM_Rando_HeadlessPairSwitchEntry(void) {
         return 12;
     }
     if (gSaveContext.save.saveInfo.playerData.rupees != 142 || gSaveContext.save.day != 3) {
-        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(13): return leg did not preserve the player's progress "
-                        "(rupees=%d day=%d)\n",
+        fprintf(stderr,
+                "[MM-PAIR-SWITCH] FAIL(13): return leg did not preserve the player's progress "
+                "(rupees=%d day=%d)\n",
                 gSaveContext.save.saveInfo.playerData.rupees, gSaveContext.save.day);
         return 13;
     }
@@ -1368,12 +1372,26 @@ extern "C" int MM_Rando_HeadlessMoonCrashArmState(void) {
     // Phase 2 — the REAL moon-crash reset. Flash holds no rando save for this
     // in-memory paired world (nothing was ever written), which is exactly the
     // production condition: the reload yields a zeroed/vanilla Save.
+    //
+    // Production (z_demo.c:379) resets from &play->sramCtx with a live play
+    // state, and #516 Phase 2 revived RegisterSavingEnhancements, whose
+    // BeforeMoonCrashSaveReset leg (DeleteOwlSave) dereferences MM_gPlayState.
+    // So stand up a play state and reset from ITS sramCtx, faithfully — rather
+    // than the free-standing SramContext this used before the leg existed. Only
+    // sramCtx is touched on this path; a zeroed PlayState with a real save buffer
+    // is sufficient and its 0x19258 bytes sit in BSS.
     // ----------------------------------------------------------------------
     static u8 sMoonCrashSaveBuf[SAVE_BUFFER_SIZE];
-    SramContext moonCrashSram = {};
-    moonCrashSram.saveBuf = sMoonCrashSaveBuf;
+    static PlayState sMoonCrashPlayState;
+    memset(&sMoonCrashPlayState, 0, sizeof(sMoonCrashPlayState));
+    sMoonCrashPlayState.sramCtx.saveBuf = sMoonCrashSaveBuf;
 
-    Sram_ResetSaveFromMoonCrash(&moonCrashSram);
+    PlayState* savedPlayState = MM_gPlayState;
+    MM_gPlayState = &sMoonCrashPlayState;
+
+    Sram_ResetSaveFromMoonCrash(&MM_gPlayState->sramCtx);
+
+    MM_gPlayState = savedPlayState;
 
     // ----------------------------------------------------------------------
     // Phase 3 — the world identity must survive, and the hooks must still be
