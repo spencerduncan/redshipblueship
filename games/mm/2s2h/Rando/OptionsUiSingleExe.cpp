@@ -71,13 +71,30 @@
  * GameExports_SingleExe.cpp, called from z_play.c), so RO_ACCESS_DUNGEONS is
  * fully live. Re-measure before trusting either document.
  *
- * ONE HAZARD THAT IS NOT PER-ROW. `BeforeEndOfCycleSave` / `AfterEndOfCycleSave`
- * are registered unconditionally under IS_RANDO and are dormant, and their body
- * (Rando/MiscBehavior/OnCycleSave.cpp) is what carries dungeon items, keys,
- * stray fairies and trade slots across a cycle reset and clears the per-cycle
- * check flags. With it dead, a cycle reset degrades rando state for EVERY
- * option. That belongs in a pane-wide banner rather than 47 identical reason
- * strings; the window draws it as one.
+ * AND THE TABLE IS NOW STALE IN THAT SAME DIRECTION, left that way on purpose
+ * rather than guessed at. It was measured before #512 wired OnActorInit /
+ * OnActorDraw / OnOpenText, so `kReasonActorInitDrop` names a blocker that no
+ * longer exists — RO_SHUFFLE_CRATE_DROPS, RO_SHUFFLE_BARREL_DROPS and
+ * RO_SHUFFLE_GRASS_DROPS are still DORMANT against a hook that dispatches, and
+ * grass's other blocker (OnActorKill, the only writer of non-actor grass check
+ * ids) was cleared by #515. Promoting a row ENABLES it, which ADR 0004 calls
+ * the high-stakes direction, so those three want a deliberate re-measure of
+ * every leg rather than a flip riding on someone else's fix. Being stale
+ * towards DORMANT costs a disabled option; being wrong towards LIVE costs an
+ * unwinnable seed.
+ *
+ * THE HAZARD THAT WAS NOT PER-ROW, AND IS NOW GONE (#514). This table used to
+ * be read alongside a pane-wide banner: `BeforeEndOfCycleSave` /
+ * `AfterEndOfCycleSave` are registered unconditionally under IS_RANDO, were
+ * dormant, and their body (Rando/MiscBehavior/OnCycleSave.cpp) is what carries
+ * dungeon items, keys, stray fairies and trade slots across a cycle reset and
+ * clears the per-cycle check flags. With it dead a cycle reset degraded rando
+ * state for EVERY option, which is why it was one banner rather than 47
+ * identical reason strings. #514 gave both halves MM dispatch
+ * (MM_GameHooks_ExecuteBefore/AfterEndOfCycleSave), so the banner is retired
+ * and RO_SHUFFLE_GOLD_SKULLTULAS — whose PARTIAL reason named this gap and
+ * nothing else — is LIVE. Same standing instruction as the paragraph above:
+ * re-measure against the tree, do not trust this history.
  */
 #ifdef RSBS_SINGLE_EXECUTABLE
 
@@ -228,10 +245,12 @@ const OptionUi kOptionUi[] = {
     { RO_SHUFFLE_BOSS_REMAINS, COMBO_MM_GROUP_SHUFFLE, COMBO_MM_WIDGET_CHECKBOX,
       "Shuffle Boss Remains", "Shuffles the four Boss Remains into the item pool.",
       0, 0, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
+    // LIVE as of #514: the only leg this row was ever missing was the cycle-save
+    // restore (AfterEndOfCycleSave copies skullTokenCount back under exactly
+    // this option), and that now dispatches.
     { RO_SHUFFLE_GOLD_SKULLTULAS, COMBO_MM_GROUP_SHUFFLE, COMBO_MM_WIDGET_CHECKBOX,
       "Shuffle Gold Skulltula Tokens", "Adds the Spider House tokens to the check pool.",
-      0, 0, nullptr, 0,
-      COMBO_MM_LIVENESS_PARTIAL, "Token count is lost on a cycle reset: EndOfCycleSave dispatch missing (#438)" },
+      0, 0, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
     { RO_MINIMUM_SKULLTULA_TOKENS, COMBO_MM_GROUP_SHUFFLE, COMBO_MM_WIDGET_SLIDER,
       "Minimum Gold Skulltula Tokens",
       "Tokens needed for the Spider House reward. Forced to the vanilla value when tokens are not shuffled.",
@@ -283,10 +302,16 @@ const OptionUi kOptionUi[] = {
     { RO_SHUFFLE_ENEMY_SOULS, COMBO_MM_GROUP_ITEMS, COMBO_MM_WIDGET_CHECKBOX,
       "Enemy Souls", "Enemy Souls enter the item pool; an enemy is immune until its soul is found.",
       0, 0, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
+    // LIVE as of #515. The one leg this row was missing was the kill-drop path:
+    // EnemyDrops.cpp's unkeyed OnActorKill registrant, which covers the 18
+    // DROP_TYPE_KILL enemies, and which now dispatches
+    // (MM_GameHooks_ExecuteOnActorKill). Its other three legs were already live
+    // — VB_ENEMY_DROP_COLLECTIBLE for DROP_TYPE_NORMAL, and OnFlagSet /
+    // OnSceneFlagSet for the two cutscene deaths (Captain Keeta, Igos) — and the
+    // payout itself is a CustomItem::Spawn, not a hook, so nothing else gates it.
     { RO_SHUFFLE_ENEMY_DROPS, COMBO_MM_GROUP_ITEMS, COMBO_MM_WIDGET_CHECKBOX,
       "Enemy Drops", "Shuffles the first drop from a non-boss enemy.",
-      0, 0, nullptr, 0,
-      COMBO_MM_LIVENESS_PARTIAL, "Partly live: the kill-drop leg needs MM OnActorKill dispatch (#438)" },
+      0, 0, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
     { RO_SHUFFLE_OCARINA_BUTTONS, COMBO_MM_GROUP_ITEMS, COMBO_MM_WIDGET_CHECKBOX,
       "Shuffle Ocarina Buttons", "Ocarina buttons become items; a song is unplayable until its notes are found.",
       0, 0, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },

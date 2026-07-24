@@ -28,9 +28,13 @@ namespace {
  * Draw the pane-wide warnings.
  *
  * These are pane-wide because their causes are: they are properties of the
- * paired-generation pipeline and of MM's dormant cycle-save hooks, not of any
- * one option. Repeating them 47 times as per-row reason strings would bury the
- * per-row reasons that ARE specific.
+ * paired-generation pipeline, not of any one option. Repeating them 47 times as
+ * per-row reason strings would bury the per-row reasons that ARE specific.
+ *
+ * A third standing warning used to live here — the dormant cycle-save hooks —
+ * and was retired by #514, which gave Before/AfterEndOfCycleSave real dispatch.
+ * It is not replaced by a "now fixed" notice: the pane states current hazards,
+ * and a resolved one is simply absent.
  */
 void DrawStandingWarnings() {
     const ImVec4 warn(0.98f, 0.76f, 0.24f, 1.0f);
@@ -53,15 +57,6 @@ void DrawStandingWarnings() {
     ImGui::TextWrapped("Paired generation is attempt-free by design. If your settings make the fill dead-end, the MM "
                        "file becomes an ordinary vanilla file rather than reporting an error. Glitchless logic is the "
                        "setting most likely to do this.");
-    ImGui::Spacing();
-
-    // (3) The cycle-save hazard, which is rando-wide rather than per-option:
-    // Before/AfterEndOfCycleSave are registered unconditionally under IS_RANDO
-    // and dormant, and their body is what carries dungeon items, keys, stray
-    // fairies and trade slots across a cycle reset.
-    ImGui::TextColored(warn, "Cycle resets are not yet rando-aware.");
-    ImGui::TextWrapped("MM's end-of-cycle save hooks have no dispatch point in this build (#438), so playing the Song "
-                       "of Time can lose randomizer progress regardless of the options below.");
     ImGui::Separator();
 }
 

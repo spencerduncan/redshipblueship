@@ -159,17 +159,25 @@ void GameInteractor_ExecuteOnBottleContentsUpdate(int slotId) { (void)slotId; }
 void GameInteractor_ExecuteOnConsoleLogoUpdate(void) {}
 void GameInteractor_ExecuteOnFileSelectSaveLoad(void* state, int fileNum) { (void)state; (void)fileNum; }
 void GameInteractor_ExecuteOnGameCompletion(void) {}
-/* GameInteractor_ExecuteBeforeEndOfCycleSave / ExecuteAfterEndOfCycleSave stay
- * stubbed on purpose (#442 leaves this pair to #438, which already tracks it
- * alongside the rest of the registered-but-dormant hook table): they are a
- * matched before/after pair around Rando::MiscBehavior's cycle-save
- * fix-ups, and BeforeEndOfCycleSave now also has a real S2H::GameHooks
- * registrant from SavingEnhancements.cpp (RegisterSavingEnhancements). Wiring
- * only the Before half here would run its memcpy backup every cycle save
- * while AfterEndOfCycleSave's restore logic stays dead — harmless (the copy
- * goes unread) but a half-fix; #438 wires both together. */
-void GameInteractor_ExecuteBeforeEndOfCycleSave(void) {}
-void GameInteractor_ExecuteAfterEndOfCycleSave(void) {}
+/* GameInteractor_ExecuteBeforeEndOfCycleSave / ExecuteAfterEndOfCycleSave moved
+ * to real, header-checked dispatch in
+ * games/mm/2s2h/GameExports_SingleExe.cpp (#514), reached through the
+ * single-exe macro rebind at the bottom of MM's GameInteractor.h. #442 left
+ * this pair stubbed deliberately, to be wired as a pair rather than half-wired;
+ * #514 wires both, so that deferral is spent and the "stay stubbed on purpose"
+ * note it carried is gone with it.
+ *
+ * These two were the most expensive no-ops in this file. Both call sites in
+ * games/mm/src/code/z_sram_NES.c (Sram_SaveEndOfCycle, entered by Song of Time
+ * and "Dawn of the New Day") are live and unguarded, so the vanilla three-day
+ * wipe ran with no snapshot taken and no restore performed:
+ * Rando::MiscBehavior::AfterEndOfCycleSave — dungeon/boss keys, stray fairies,
+ * skulltula tokens, frog flags, the three trade slots, and the per-check
+ * cycleObtained reset — was registered and unreachable, and because the checks
+ * stay flagged obtained none of what the wipe took was re-collectable.
+ * Re-stubbing either name here silently restores that: routine play quietly
+ * eats randomizer progress with no diagnostic, and the loss only surfaces
+ * cycles later when a check refuses to re-offer an item the player had. */
 /* GameInteractor_ExecuteBeforeMoonCrashSaveReset moved to real, header-checked
  * dispatch in games/mm/2s2h/GameExports_SingleExe.cpp (#442): MM's real
  * z_sram_NES.c call site already pumps this at the moon-crash reset point;

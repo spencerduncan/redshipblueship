@@ -640,6 +640,56 @@ void MM_GameHooks_ExecuteOnOpenText(u16* textId, bool* loadFromMessageTable);
 #define GameInteractor_ExecuteOnActorInit MM_GameHooks_ExecuteOnActorInit
 #define GameInteractor_ExecuteOnActorDraw MM_GameHooks_ExecuteOnActorDraw
 #define GameInteractor_ExecuteOnOpenText MM_GameHooks_ExecuteOnOpenText
+
+// The end-of-cycle pair (#514). Same rebind, but note what is different about
+// it: these two names are MM-ONLY — OoT has no end-of-cycle concept — so the
+// upstream names did not cross-bind to an active-game-gated OoT wrapper, they
+// resolved to a pair of src/common/mm_stubs.c no-ops that were left stubbed on
+// purpose until both halves could land at once. The damage was therefore not a
+// missing cosmetic override but the vanilla three-day wipe running unattended:
+// Sram_SaveEndOfCycle (games/mm/src/code/z_sram_NES.c, reached by Song of Time
+// and "Dawn of the New Day") stripped dungeon keys, boss keys, stray fairies,
+// skulltula tokens, frog flags and the trade slots while
+// Rando::MiscBehavior::AfterEndOfCycleSave — the code that puts them back and
+// clears cycleObtained — sat registered and unreachable. Checks stay flagged
+// obtained, so none of it comes back.
+//
+// Rebinding BOTH is load-bearing, not tidiness: the rando half of Before is a
+// pure snapshot into saveContextCopy and After is its only reader, so a
+// one-sided rebind buys a memcpy per cycle save and no restored progress. See
+// the bridge comment in GameExports_SingleExe.cpp for what else the Before
+// half wakes up and for the one registrant set that stays link-elided.
+void MM_GameHooks_ExecuteBeforeEndOfCycleSave(void);
+void MM_GameHooks_ExecuteAfterEndOfCycleSave(void);
+#define GameInteractor_ExecuteBeforeEndOfCycleSave MM_GameHooks_ExecuteBeforeEndOfCycleSave
+#define GameInteractor_ExecuteAfterEndOfCycleSave MM_GameHooks_ExecuteAfterEndOfCycleSave
+
+// The actor-lifecycle pair (#515). Third rebind block, and the one that was
+// hardest to SEE was missing: the end-of-cycle names above at least resolved to
+// a stub somebody had written down in src/common/mm_stubs.c, and the #438 block
+// was found by chasing a visible symptom. These two have no stub at all. MM's
+// z_actor.c call sites (MM_Actor_Kill, MM_Actor_Delete) simply bound OoT's
+// identically-spelled GameInteractor_ExecuteOnActorKill / ...OnActorDestroy,
+// which open with GI_SINGLE_EXE_GATE() and return immediately for the entire MM
+// session. Registered, linked, silently never run.
+//
+// The cost was the largest in the class. EnemyDrops.cpp's OnActorKill
+// registrant is the only thing that pays out the 18 DROP_TYPE_KILL enemies, and
+// ObjGrass.cpp's ACTOR_OBJ_GRASS_UNIT registrant is the only writer of
+// RandoCheckIds onto non-actor grass — roughly 230 checks that look and behave
+// exactly vanilla while holding items no seed could ever collect.
+//
+// BOTH NAMES, IN ONE CHANGE. OnActorDestroy carries ObjGrass.cpp's frees for the
+// element-keyed ObjectExtension entries the OnActorKill registrant creates, and
+// z_actor.c's own actor-keyed ObjectExtension_Free cannot reach those (their key
+// is an address inside the actor, not the actor). Rebinding Kill on its own
+// would trade an inert bug for a per-scene leak of stale check-id keys over
+// recycled arena addresses — see the bridge comment in GameExports_SingleExe.cpp
+// for the full failure mode.
+void MM_GameHooks_ExecuteOnActorKill(Actor* actor);
+void MM_GameHooks_ExecuteOnActorDestroy(Actor* actor);
+#define GameInteractor_ExecuteOnActorKill MM_GameHooks_ExecuteOnActorKill
+#define GameInteractor_ExecuteOnActorDestroy MM_GameHooks_ExecuteOnActorDestroy
 #endif // RSBS_SINGLE_EXECUTABLE
 
 #ifdef __cplusplus

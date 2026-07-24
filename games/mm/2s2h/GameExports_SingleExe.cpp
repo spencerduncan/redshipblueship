@@ -1734,12 +1734,123 @@ extern "C" void MM_GameHooks_ExecuteOnOpenText(u16* textId, bool* loadFromMessag
     S2H::GameHooks::ExecuteForID<GameInteractor::OnOpenText>(*textId, textId, loadFromMessageTable);
 }
 
+/**
+ * OnActorKill / OnActorDestroy dispatch (#515) — the actor-lifecycle pair the
+ * block above left behind.
+ *
+ * WHY THESE TWO OUTLIVED THE #511 AUDIT: neither name has an entry in
+ * src/common/mm_stubs.c. The other members of this class announced themselves
+ * as a no-op somebody had written down; these bound OoT's definitions in
+ * soh/Enhancements/game-interactor/GameInteractor_Hooks.cpp purely because the
+ * spelling matches, and OoT's first statement there is GI_SINGLE_EXE_GATE() —
+ * an unconditional return for the whole MM session. Silent bind, no stub to
+ * grep, no diagnostic. Both MM call sites (z_actor.c, MM_Actor_Kill and
+ * MM_Actor_Delete) were live and unguarded the entire time.
+ *
+ * WHAT THAT COST, and why this one can make a seed unwinnable: EnemyDrops.cpp
+ * registers the only code that pays out the 18 DROP_TYPE_KILL enemies, and
+ * ObjGrass.cpp's ACTOR_OBJ_GRASS_UNIT registrant is the SOLE writer of
+ * RandoCheckIds onto non-actor grass elements — every RC_*_GRASS_* check, 216
+ * in Termina Field alone and every other grass location from Romani Ranch to
+ * the cow grottos. Grass carrying a check looks and behaves exactly vanilla, so
+ * there is no on-screen tell: a seed that placed a required item behind one
+ * could not be finished, and nothing told the player why.
+ *
+ * ExecuteForID IS LOAD-BEARING, not defensive like the ForPtr legs. ObjGrass
+ * registers through COND_ID_HOOK(OnActorKill, ACTOR_OBJ_GRASS_UNIT, ...), so an
+ * Execute-only bridge compiles, links, fixes the enemy drops, reads correctly,
+ * and leaves every grass check exactly as dead as it was.
+ *
+ * THE PAIR LANDS TOGETHER, and the reason runs the opposite way to the usual
+ * before/after pairing argument: OnActorDestroy is harmless TODAY ONLY BECAUSE
+ * OnActorKill is dead. The grass registrant keys its ObjectExtension entries on
+ * element addresses INTERIOR to the ObjGrass actor allocation
+ * (&grassGroup->elements[j]), and ObjectExtension's key is the exact pointer —
+ * z_actor.c's own ObjectExtension_Free(actor) in MM_Actor_Delete erases only
+ * entries whose key is the actor base address, so it does not reach them.
+ * ObjGrass.cpp's ACTOR_OBJ_GRASS OnActorDestroy registrant is their only
+ * reaper. Wiring Kill alone would start creating hundreds of entries per scene
+ * with nothing to free them, keyed on arena addresses MM_ZeldaArena_Free then
+ * recycles — a later actor landing on a stale key reads a cross-scene
+ * RandoCheckId back out of GetObjectRandoCheckId. That is a worse bug than the
+ * one being fixed, which is why half of this change must never ship alone.
+ *
+ * Leg sets mirror the GameInteractor.cpp twins (:166-178) minus ForFilter, the
+ * standing deviation: the S2H registry has no filter surface. The ForPtr legs
+ * ride along for the same reason the #512 actor pair carries them — upstream
+ * has them and the ptr-keyed registry exists, while the one ptr registrant in
+ * the tree (ActorViewer.cpp, OnActorDestroy) sits in link-elided
+ * DeveloperTools. They cost an empty map lookup and stop the next ptr-keyed
+ * registrant from being silently dead the way these two were.
+ */
+extern "C" void MM_GameHooks_ExecuteOnActorKill(Actor* actor) {
+    S2H::GameHooks::Execute<GameInteractor::OnActorKill>(actor);
+    S2H::GameHooks::ExecuteForID<GameInteractor::OnActorKill>(actor->id, actor);
+    S2H::GameHooks::ExecuteForPtr<GameInteractor::OnActorKill>((uintptr_t)actor, actor);
+}
+
+extern "C" void MM_GameHooks_ExecuteOnActorDestroy(Actor* actor) {
+    S2H::GameHooks::Execute<GameInteractor::OnActorDestroy>(actor);
+    S2H::GameHooks::ExecuteForID<GameInteractor::OnActorDestroy>(actor->id, actor);
+    S2H::GameHooks::ExecuteForPtr<GameInteractor::OnActorDestroy>((uintptr_t)actor, actor);
+}
+
 extern "C" void MM_GameHooks_ExecuteOnFlagSet(FlagType flagType, u32 flag) {
     S2H::GameHooks::Execute<GameInteractor::OnFlagSet>(flagType, flag);
 }
 
 extern "C" void MM_GameHooks_ExecuteOnSceneFlagSet(s16 sceneId, FlagType flagType, u32 flag) {
     S2H::GameHooks::Execute<GameInteractor::OnSceneFlagSet>(sceneId, flagType, flag);
+}
+
+/**
+ * Before/AfterEndOfCycleSave dispatch (#514, the #438 table's worst entry).
+ *
+ * These two bracket Sram_SaveEndOfCycle (games/mm/src/code/z_sram_NES.c) — the
+ * vanilla three-day wipe that Song of Time and "Dawn of the New Day" run. Both
+ * call sites are live and unguarded; only the bodies were mm_stubs.c no-ops,
+ * so the wipe ran with no snapshot taken and no restore performed and
+ * Rando::MiscBehavior's cycle fix-ups (2s2h/Rando/MiscBehavior/OnCycleSave.cpp
+ * — dungeon keys, boss keys, stray fairies, skulltula tokens, frog flags, the
+ * three trade slots, and the per-check cycleObtained reset) never ran. The
+ * checks stay flagged obtained, so nothing the wipe took was re-collectable:
+ * silent, unrecoverable loss on a routine action, which is what makes this the
+ * P0 of the class rather than another dormant hook.
+ *
+ * The pair is dispatched TOGETHER and must stay that way. The restore work all
+ * hangs off After; Before's rando registrant is nothing but the memcpy into
+ * OnCycleSave.cpp's saveContextCopy that After reads. Wiring one half is not
+ * half a fix, it is a snapshot nobody consumes — the reasoning the retired
+ * mm_stubs.c comment recorded, honoured here by landing both.
+ *
+ * WHAT ELSE GOES LIVE WITH THE BEFORE HALF, since it is not only a snapshot:
+ * SavingEnhancements.cpp registers BeforeEndOfCycleSave unconditionally
+ * (SavingEnhancements_AdvancePlaytime + DeleteOwlSave), so a cycle save now
+ * banks playtime and clears the owl save. That is upstream 2S2H behaviour
+ * restored, and DeleteOwlSave already ran live on the moon-crash leg (#442) —
+ * it deletes a flash slot and clears isOwlSave rather than reading flash back
+ * over gSaveContext, so it is not the #487 flash-readback class.
+ *
+ * WHAT DOES NOT COME BACK: 2s2h/Enhancements/Cycle/EndOfCycle.cpp's six
+ * registrants (its own saveInfoCopy plus the DoNotReset{Rupees,Consumables,
+ * BottleContent,RazorSword,TimeSpeed} restores) are still absent from the
+ * binary — that TU is link-elided from the plain-archive 2ship_enh, verified
+ * against build-cmake/redship.map, which lists no EndOfCycle.cpp.obj. Nothing
+ * here changes that; those CVars stay inert until the TU links. The rando half
+ * is unaffected because 2ship_rando links WHOLE_ARCHIVE.
+ *
+ * Unkeyed leg only, matching the GameInteractor.cpp twins: both hook types are
+ * DEFINE_HOOK(..., ()) 0-arg, upstream's executors call plain ExecuteHooks<>,
+ * and no compiled MM TU registers either type by id or ptr. The ForFilter leg
+ * is absent for the usual reason — the S2H registry has no filter surface (see
+ * the OnSceneInit and Should blocks).
+ */
+extern "C" void MM_GameHooks_ExecuteBeforeEndOfCycleSave(void) {
+    S2H::GameHooks::Execute<GameInteractor::BeforeEndOfCycleSave>();
+}
+
+extern "C" void MM_GameHooks_ExecuteAfterEndOfCycleSave(void) {
+    S2H::GameHooks::Execute<GameInteractor::AfterEndOfCycleSave>();
 }
 
 /**
