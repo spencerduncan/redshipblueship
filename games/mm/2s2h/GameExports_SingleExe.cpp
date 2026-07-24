@@ -1923,6 +1923,21 @@ extern "C" void MM_GameHooks_ExecuteAfterEndOfCycleSave(void) {
 }
 
 /**
+ * OnGameCompletion dispatch (#438). The last revived-registrar gap: #520
+ * un-elided RegisterSavingEnhancements, whose COND_HOOK(OnGameCompletion)
+ * (SavingEnhancements.cpp) stamps shipSaveInfo.fileCompletedAt and freezes
+ * post-credits playtime — but the call sites (z_boss_07.c Majora's Wrath death,
+ * Rando/GiveItem.cpp final Triforce) reached the mm_stubs.c no-op, so the stamp
+ * never happened. 0-arg (DEFINE_HOOK(OnGameCompletion, ())), single Execute<>
+ * leg — no MM TU registers it by id/ptr/filter — matching the excluded
+ * GameInteractor.cpp twin. The hook body touches only gSaveContext + playtime,
+ * no MM_gPlayState, so it is headless-safe.
+ */
+extern "C" void MM_GameHooks_ExecuteOnGameCompletion(void) {
+    S2H::GameHooks::Execute<GameInteractor::OnGameCompletion>();
+}
+
+/**
  * MM-owned "Should" dispatch (#392 VB follow-up). MM call sites reach these
  * through the single-exe macro rebind at the bottom of MM's GameInteractor.h
  * (GameInteractor_Should -> MM_GameHooks_ExecuteVBShould, etc.), so MM VB ids
