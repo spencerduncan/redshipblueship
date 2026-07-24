@@ -789,6 +789,46 @@ void SohMenu::AddMenuRandomizer() {
         .WindowName("Check Tracker Settings")
         .HideInSearch(true)
         .Options(WindowButtonOptions().Tooltip("Enables the separate Check Tracker Settings Window."));
+
+    // Cross-Game (RedShipBlueShip #509). Interim host for the two common-owned
+    // combo windows (ADR 0008). Both were registered on the shared Gui at
+    // startup (rsbs/src/main.cpp Combo_MMOptionsWindow_Init / Combo_SpoilerWindow_Init)
+    // but nothing wrote their visibility CVars, so the only way to open them was
+    // the console (set gCombo.Windows.MMOptions 1). These rows are the writer.
+    //
+    // WINDOW_BUTTON reads .CVar only for the open/close label and calls the
+    // window's own ToggleVisibility (UIWidgets.cpp:198), so .CVar MUST equal the
+    // window's ctor visibility CVar and .WindowName its registered name. String
+    // literals match the tracker rows above (they hardcode the same way); the
+    // authoritative constants are ComboGui::kComboMMOptions*/kComboSpoiler* in
+    // src/common/ComboMmOptionsWindow.h / ComboSpoilerWindow.h.
+    //
+    // This is the interim, NOT #497 step 3 (the SohMenu capability-gating
+    // manifest). Both windows read only gComboCtx/CVars, never either game's
+    // gSaveContext (ADR 0008 rule 5), so they are safe under every GameId and the
+    // rows are ungated.
+    path.sidebarName = "Cross-Game";
+    AddSidebarEntry("Randomizer", path.sidebarName, 1);
+
+    AddWidget(path, "Cross-Game", WIDGET_SEPARATOR_TEXT);
+    // Seed configuration — always reachable, like the trackers.
+    AddWidget(path, "Toggle MM Randomizer Options", WIDGET_WINDOW_BUTTON)
+        .CVar("gCombo.Windows.MMOptions")
+        .RaceDisable(false)
+        .WindowName("Majora's Mask Randomizer Options")
+        .HideInSearch(true)
+        .Options(WindowButtonOptions()
+                     .Tooltip("Toggles the Majora's Mask randomizer options pane (the paired MM world's settings).")
+                     .EmbedWindow(false));
+    // Spoiler — reveals paired-seed placements, so race-disabled like a spoiler tool.
+    AddWidget(path, "Toggle Cross-Game Spoiler", WIDGET_WINDOW_BUTTON)
+        .CVar("gCombo.Windows.Spoiler")
+        .RaceDisable(true)
+        .WindowName("Cross-Game Spoiler")
+        .HideInSearch(true)
+        .Options(WindowButtonOptions()
+                     .Tooltip("Toggles the cross-game spoiler (which MM check hosts which OoT item, and vice versa).")
+                     .EmbedWindow(false));
 }
 
 } // namespace SohGui
