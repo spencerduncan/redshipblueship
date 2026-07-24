@@ -48,6 +48,12 @@
 
 #include "2s2h/Enhancements/Audio/AudioCollection.h"
 #include "2s2h/Enhancements/Audio/AudioEditor.h"
+// #516: registrars orphaned by the excluded BenPort InitOTR sequence, re-homed
+// into MM_Rando_Init below. Headers here so the calls are type-checked rather
+// than file-local extern prototypes.
+#include "2s2h/CustomItem/CustomItem.h"
+#include "2s2h/CustomMessage/CustomMessage.h"
+#include "2s2h/Enhancements/GfxPatcher/AuthenticGfxPatches.h"
 #include "2s2h/Rando/Rando.h"
 #include "2s2h/ShipInit.hpp"
 #include "2s2h/resource/type/2shResourceType.h"
@@ -1359,6 +1365,10 @@ extern "C" void MM_GameEvents_RegisterPump(void);
 // games/mm/2s2h/TrackersGuiSingleExe.cpp.
 extern "C" void MM_TrackersGui_Init(void);
 
+// Defined below in this TU; forward-declared so the #516 GfxPatcher gate can
+// reference it from MM_Rando_Init above the definition.
+extern "C" bool MM_Rando_AssetsReady(void);
+
 extern "C" void MM_Rando_Init(void) {
     static bool sRandoInitDone = false;
     if (sRandoInitDone) {
@@ -1370,6 +1380,56 @@ extern "C" void MM_Rando_Init(void) {
     fflush(stderr);
     S2H::ShipInit::InitAll();
     Rando::Init();
+
+    // #516: registrars orphaned by the excluded BenPort InitOTR sequence.
+    //
+    // BenPort.cpp (MM's OTRGlobals equivalent) is excluded from the single exe —
+    // it drags in a second window/Gui/config bring-up and the OoT-aliasing
+    // hazard class the shim exists to avoid — so every Init*/Register* it was
+    // the sole caller of got link-elided. This is not a "recompile BenPort"
+    // fix: only the individually single-exe-safe registrars are re-homed, here,
+    // by explicit call. An explicit call (rather than a per-TU
+    // RegisterShipInitFunc) is deliberate: 2ship_enh is a plain STATIC archive,
+    // so a registrar's own static initializer would be stripped with its
+    // unreferenced TU — the exact mechanism that elided these. A hard call from
+    // this always-linked TU forces /OPT:REF to keep the symbol AND pulls the TU
+    // into the link, and it is the reference the #516 CI probe asserts on.
+    //
+    // This block MUST run exactly once: CustomItem/CustomMessage register through
+    // raw RegisterForID (no unregister-first) and RegisterSavingEnhancements
+    // through plain Register<>, none of which de-dup. The sRandoInitDone guard
+    // above provides that — MM_Game_Resume does not re-enter here.
+    //
+    // Both hook registrars only became LIVE with #512/#514/#515, which wired the
+    // MM ShouldActorInit and OnOpenText execute points their bodies were written
+    // against; before that, reviving them here would have registered into a
+    // registry nothing dispatched.
+    CustomItem::RegisterHooks();    // ShouldActorInit[EN_ITEM00]: the swap that
+                                    // makes CustomItem::Spawn's placeholder a
+                                    // real item — cross-game arrivals + every
+                                    // rando reward. #516 critical.
+    CustomMessage::RegisterHooks(); // OnOpenText[0x4B]: loads staged rando/hint
+                                    // text; without it every custom message
+                                    // renders vanilla entry 0x4B. #516 critical.
+    // RegisterSavingEnhancements() / RegisterAutosave() are DELIBERATELY not
+    // here: both put registrants on the moon-crash and cycle-save reset paths
+    // (BeforeMoonCrashSaveReset -> DeleteOwlSave, BeforeEndOfCycleSave), and
+    // DeleteOwlSave dereferences MM_gPlayState. That is fine in production
+    // (z_demo.c:379 resets from &play->sramCtx with a live play state) but
+    // crashes the headless MMMoonCrashArmState arm-state test, which drives the
+    // reset with no play state. Reviving them is a real behavior change on those
+    // paths that needs the arm-state test taught to stand up a play state —
+    // #516 Phase 2, its own change. This PR ships the two criticals, which
+    // touch neither path.
+
+    // GfxPatcher is a one-shot resource patcher, not a hook registrar, so it is
+    // called (not registered) and gated on assets: its ResourceMgr_Load*ByName
+    // helpers null-deref with no mm.o2r, and mm_rando_gen_test.cpp drives this
+    // function ROM-free. Fixes OOB textures, mini-game symbols, and a latent
+    // matrix-stack UB the smithy chimney-fire DL hits (per its own comment).
+    if (MM_Rando_AssetsReady()) {
+        GfxPatcher_ApplyNecessaryAuthenticPatches();
+    }
 
     // Lane C1 (#392): register the GIEvent pump (the port of upstream's
     // ProcessEvents player-update hook, games/mm/2s2h/
