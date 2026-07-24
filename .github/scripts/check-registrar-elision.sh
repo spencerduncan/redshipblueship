@@ -332,6 +332,33 @@ main() {
         overall=1
     fi
 
+    # #516: registrars re-homed out of the excluded BenPort InitOTR sequence.
+    # These live in the report-only 2ship_enh / 2ship_port archives, where MOST
+    # members must legitimately stay dead (BenGui, DebugConsole, ...), so the
+    # archive-level gate above cannot express "this one specific member must be
+    # live." A per-symbol allowlist can. Each was 0-hit before the MM_Rando_Init
+    # revival (GameExports_SingleExe.cpp); absence now means a future refactor
+    # dropped the hard call and re-elided a required MM feature.
+    #
+    # Same plain-grep-not-`-q` discipline as the probes above (pipefail + SIGPIPE).
+    # RegisterSavingEnhancements / RegisterAutosave are deliberately ABSENT: they
+    # are #516 Phase 2 (their moon-crash / cycle-save hooks are a behavior change
+    # the arm-state test must be taught to survive first), and RegisterAutosave's
+    # symbol additionally ODR-folds with OoT's soh_enh Autosave.cpp twin, so a
+    # presence probe could not attribute it to MM anyway.
+    local required_mm_registrars=(
+        "CustomItem::RegisterHooks"                 # cross-game + rando item delivery (critical)
+        "S2H::CustomMessage::RegisterHooks"         # custom rando/hint message text 0x4B (critical)
+        "GfxPatcher_ApplyNecessaryAuthenticPatches" # authentic gfx patches incl. latent matrix-stack UB
+    )
+    local sym
+    for sym in "${required_mm_registrars[@]}"; do
+        if ! nm --demangle "$bin" 2>/dev/null | grep "$sym" > /dev/null; then
+            echo "FAIL: required MM registrar '$sym' elided from redship (#516 regression)" >&2
+            overall=1
+        fi
+    done
+
     if [ "$overall" -ne 0 ]; then
         echo "FAIL: registrar symbols were elided from a WHOLE_ARCHIVE-protected archive (#341)" >&2
         exit 1
