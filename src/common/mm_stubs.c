@@ -158,7 +158,13 @@ void GameInteractor_ExecuteOnBossDefeated(int bossId) { (void)bossId; }
 void GameInteractor_ExecuteOnBottleContentsUpdate(int slotId) { (void)slotId; }
 void GameInteractor_ExecuteOnConsoleLogoUpdate(void) {}
 void GameInteractor_ExecuteOnFileSelectSaveLoad(void* state, int fileNum) { (void)state; (void)fileNum; }
-void GameInteractor_ExecuteOnGameCompletion(void) {}
+/* GameInteractor_ExecuteOnGameCompletion moved to real, header-checked dispatch
+ * in games/mm/2s2h/GameExports_SingleExe.cpp (#438), reached through the
+ * single-exe macro rebind at the bottom of MM's GameInteractor.h. Its registrant
+ * (RegisterSavingEnhancements' fileCompletedAt stamp) went live with #520, so a
+ * no-op here would silently drop the game-completion stamp again. Re-stubbing it
+ * would sever that dispatch. (MM-only symbol — OoT defines no twin, so deleting
+ * the stub cannot orphan an OoT caller.) */
 /* GameInteractor_ExecuteBeforeEndOfCycleSave / ExecuteAfterEndOfCycleSave moved
  * to real, header-checked dispatch in
  * games/mm/2s2h/GameExports_SingleExe.cpp (#514), reached through the

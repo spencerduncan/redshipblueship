@@ -120,6 +120,7 @@ int sAfterEndOfCycleSaveRuns = 0;
 int sOnActorKillRuns = 0;
 int sOnActorKillForIdRuns = 0;
 int sOnActorDestroyForIdRuns = 0;
+int sOnGameCompletionRuns = 0;
 
 // Distinct sentinel ids, so no check can be satisfied by another's registrant.
 constexpr s16 kActorIdInit = 0x0BAD;
@@ -139,6 +140,7 @@ void ResetAll() {
     S2H::GameHooks::ResetForTest<GameInteractor::AfterEndOfCycleSave>();
     S2H::GameHooks::ResetForTest<GameInteractor::OnActorKill>();
     S2H::GameHooks::ResetForTest<GameInteractor::OnActorDestroy>();
+    S2H::GameHooks::ResetForTest<GameInteractor::OnGameCompletion>();
 }
 
 } // namespace
@@ -363,6 +365,26 @@ extern "C" int MM_HookDispatch_RunHeadless(void) {
                     "OnActorDestroy registrant never ran -- element-keyed check ids are never freed");
         HOOK_ASSERT(sOnActorKillRuns == 2, 7, "the Destroy dispatcher also ran Kill registrants");
         HOOK_ASSERT(sOnActorKillForIdRuns == 1, 7, "the Destroy dispatcher also ran id-keyed Kill registrants");
+    }
+
+    // ---------------------------------------------------------------- 8
+    // OnGameCompletion (#438): RegisterSavingEnhancements' fileCompletedAt stamp
+    // went live with #520, but the call sites (z_boss_07.c, Rando/GiveItem.cpp)
+    // bound the mm_stubs.c no-op. 0-arg, single unkeyed leg. Unlike the others
+    // this symbol is MM-only and its stub was DELETED with the fix, so dropping
+    // the rebind or the dispatcher is a LINK error, not a silent pass — this
+    // runtime check additionally proves the dispatcher reaches the registry.
+    {
+        sOnGameCompletionRuns = 0;
+        S2H::GameHooks::Register<GameInteractor::OnGameCompletion>([]() { sOnGameCompletionRuns++; });
+
+        HOOK_ASSERT(sOnGameCompletionRuns == 0, 8, "OnGameCompletion ran at registration time");
+
+        // Spelled exactly as z_boss_07.c / Rando/GiveItem.cpp spell it.
+        GameInteractor_ExecuteOnGameCompletion();
+
+        HOOK_ASSERT(sOnGameCompletionRuns == 1, 8,
+                    "OnGameCompletion registrant never ran -- the game-completion stamp is dropped");
     }
 
     // NOTE ON WHAT COVERS THE REBIND. An earlier draft of this row compared

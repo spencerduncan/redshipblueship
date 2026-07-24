@@ -690,6 +690,11 @@ void MM_GameHooks_ExecuteOnActorKill(Actor* actor);
 void MM_GameHooks_ExecuteOnActorDestroy(Actor* actor);
 #define GameInteractor_ExecuteOnActorKill MM_GameHooks_ExecuteOnActorKill
 #define GameInteractor_ExecuteOnActorDestroy MM_GameHooks_ExecuteOnActorDestroy
+
+// OnGameCompletion (#438). Its registrant (RegisterSavingEnhancements' fileCompletedAt
+// stamp) went live with #520; the call sites bound the mm_stubs.c no-op until this.
+void MM_GameHooks_ExecuteOnGameCompletion(void);
+#define GameInteractor_ExecuteOnGameCompletion MM_GameHooks_ExecuteOnGameCompletion
 #endif // RSBS_SINGLE_EXECUTABLE
 
 #ifdef __cplusplus
