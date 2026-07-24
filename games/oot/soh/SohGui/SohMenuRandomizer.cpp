@@ -829,6 +829,52 @@ void SohMenu::AddMenuRandomizer() {
         .Options(WindowButtonOptions()
                      .Tooltip("Toggles the cross-game spoiler (which MM check hosts which OoT item, and vice versa).")
                      .EmbedWindow(false));
+
+    // MM's four tracker windows had the same unreachability bug as the two
+    // windows above. #489 made them openable and correctly named (they register
+    // under "MM "-prefixed names, since SoH owns the unprefixed ones), but
+    // nothing in the live menu ever wrote their visibility CVars:
+    //   - MM's own menu, BenGui.cpp SetupGuiElements, is excluded from single-exe
+    //     (0 hits in redship.map) — that was their intended writer.
+    //   - The OoT tracker rows above cannot serve: CVAR_WINDOW expands to
+    //     "gOpenWindows.*" (CVAR_PREFIX_WINDOW, CMake/soh-cvars.cmake:8) while
+    //     MM's trackers read "gWindows.*". Different CVars entirely, by design —
+    //     the distinct namespaces are what avoid a store collision.
+    //   - ItemTrackerSettings.cpp does link and has its own Enable/Disable
+    //     button, but it is drawn INSIDE the settings window, which has no
+    //     writer either. Chicken-and-egg.
+    // So the only way to open them was the console. These rows are the writer.
+    //
+    // Names and CVars are the constants in games/mm/2s2h/TrackersGuiSingleExe.h
+    // (kCheckTracker*/kItemTracker*), spelled as literals to match the rows
+    // above. The windows are MMActiveGated, so they draw only while MM is the
+    // running game — the buttons are always usable, the window simply stays
+    // blank under OoT, which is the upstream behavior.
+    AddWidget(path, "Majora's Mask Trackers", WIDGET_SEPARATOR_TEXT);
+    AddWidget(path, "Toggle MM Item Tracker", WIDGET_WINDOW_BUTTON)
+        .CVar("gWindows.ItemTracker")
+        .RaceDisable(false)
+        .WindowName("MM Item Tracker")
+        .HideInSearch(true)
+        .Options(WindowButtonOptions().Tooltip("Toggles the Majora's Mask item tracker.").EmbedWindow(false));
+    AddWidget(path, "Popout MM Item Tracker Settings", WIDGET_WINDOW_BUTTON)
+        .CVar("gWindows.ItemTrackerSettings")
+        .RaceDisable(false)
+        .WindowName("MM Item Tracker Settings")
+        .HideInSearch(true)
+        .Options(WindowButtonOptions().Tooltip("Enables the Majora's Mask Item Tracker Settings window."));
+    AddWidget(path, "Toggle MM Check Tracker", WIDGET_WINDOW_BUTTON)
+        .CVar("gWindows.CheckTracker")
+        .RaceDisable(false)
+        .WindowName("MM Check Tracker")
+        .HideInSearch(true)
+        .Options(WindowButtonOptions().Tooltip("Toggles the Majora's Mask check tracker.").EmbedWindow(false));
+    AddWidget(path, "Popout MM Check Tracker Settings", WIDGET_WINDOW_BUTTON)
+        .CVar("gWindows.CheckTrackerSettings")
+        .RaceDisable(false)
+        .WindowName("MM Check Tracker Settings")
+        .HideInSearch(true)
+        .Options(WindowButtonOptions().Tooltip("Enables the Majora's Mask Check Tracker Settings window."));
 }
 
 } // namespace SohGui
