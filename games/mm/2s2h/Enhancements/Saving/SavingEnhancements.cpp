@@ -107,7 +107,18 @@ extern "C" bool SavingEnhancements_CanSave() {
 extern "C" void SavingEnhancements_AdvancePlaytime() {
     if (gSaveContext.save.shipSaveInfo.fileCompletedAt == 0) {
         uint64_t timestamp = GetUnixTimestamp();
-        gSaveContext.save.shipSaveInfo.filePlaytime += timestamp - gSaveContext.shipSaveContext.lastTimeLog;
+        // lastTimeLog == 0 means "no prior observation this session": either the
+        // OnSaveLoad seeder in RegisterSavingEnhancements has not run (in the
+        // single exe it was elided entirely — #516 Phase 2 revives it), or a
+        // new-file / continue path zeroed it (z_sram_NES.c). filePlaytime is a
+        // PERSISTED field (z64save.h ShipSaveInfo) while lastTimeLog is not
+        // (ShipSaveContext), so accruing `timestamp - 0` here writes a whole
+        // Unix epoch (~1.7e9 s, ~56 years) to disk. Treat the zero as the seed
+        // and accrue from the next tick instead — correct whether or not the
+        // seeder ran, and it survives the z_sram_NES.c re-zeroing (#513).
+        if (gSaveContext.shipSaveContext.lastTimeLog != 0) {
+            gSaveContext.save.shipSaveInfo.filePlaytime += timestamp - gSaveContext.shipSaveContext.lastTimeLog;
+        }
         gSaveContext.shipSaveContext.lastTimeLog = timestamp;
     }
 }
@@ -218,7 +229,8 @@ void skipEntranceCutsceneOnLoad(s16 fileNum) {
     // Register hook to skip entrance cutscenes - may skip multiple if they chain
     skipEntranceCutsceneHookId = REGISTER_VB_SHOULD(VB_START_CUTSCENE, {
         // Only skip normal cutscenes
-        if (gSaveContext.gameMode == GAMEMODE_NORMAL && MM_gPlayState != nullptr && MM_gPlayState->sceneId != SCENE_SPOT00) {
+        if (gSaveContext.gameMode == GAMEMODE_NORMAL && MM_gPlayState != nullptr &&
+            MM_gPlayState->sceneId != SCENE_SPOT00) {
             *should = false;
         }
     });

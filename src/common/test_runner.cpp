@@ -87,6 +87,11 @@ int MM_FlashFileNumOob_RunHeadless(void);
 // mm_stubs.c no-ops -- so 21 TUs' chest-model rewrites and 24 TUs' rando text
 // overrides were registered and never run. Returns 0 on pass, non-zero on fail.
 int MM_HookDispatch_RunHeadless(void);
+// MM playtime seed (games/mm/2s2h/mm_playtime_seed_test.cpp, #513): with
+// lastTimeLog unseeded (0), SavingEnhancements_AdvancePlaytime accrued now-0 --
+// a full Unix epoch -- into the persisted filePlaytime. The fix treats the zero
+// as the seed. Returns 0 on pass, non-zero on fail.
+int MM_PlaytimeSeed_RunHeadless(void);
 // MM tracker registration surface (games/mm/2s2h/mm_trackers_gui_test.cpp,
 // #392): the four MM tracker windows must register on a Gui under
 // "MM "-prefixed names (SoH owns the unprefixed ones and Gui::AddGuiWindow
@@ -306,6 +311,12 @@ static TestResult Test_MMFlashFileNumOob(void) {
 // entry point in games/mm/2s2h/mm_hook_dispatch_test.cpp.
 static TestResult Test_MMHookDispatch(void) {
     return MM_HookDispatch_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// MM playtime-seed lock (see the extern decl above). Thin wrapper over the C
+// entry point in games/mm/2s2h/mm_playtime_seed_test.cpp.
+static TestResult Test_MMPlaytimeSeed(void) {
+    return MM_PlaytimeSeed_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // ============================================================================
@@ -1588,6 +1599,11 @@ const TestDescriptor gTests[] = {
     // dropped rebind #define fail here. Pure (no display, no ROM).
     {"mm-hook-dispatch", "ShouldActorInit/OnActorInit/OnActorDraw/OnOpenText dispatch reaches S2H::GameHooks (#511)",
      Test_MMHookDispatch},
+    // filePlaytime epoch injection: AdvancePlaytime accrued now-lastTimeLog with
+    // lastTimeLog unseeded (0), writing a full Unix epoch into the persisted
+    // playtime. Pure (no display), so it runs in the display-free suite.
+    {"mm-playtime-seed", "AdvancePlaytime seeds an unset lastTimeLog instead of injecting an epoch (#513)",
+     Test_MMPlaytimeSeed},
     {"mm-trackers-gui", "MM tracker windows register de-collided on the shared Gui + gate on the active game (#392)",
      Test_MMTrackersGui},
     // The two MM resume-contract tests below mutate process-global state

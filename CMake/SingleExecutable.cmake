@@ -523,6 +523,13 @@ if(BUILD_TESTING)
     # randomized while their models and dialog stayed vanilla. Display-free and
     # ROM-free, so it runs in this redship tier.
     redship_add_test(NAME MMHookDispatch COMMAND redship --test mm-hook-dispatch)
+    # filePlaytime epoch injection (#513): SavingEnhancements_AdvancePlaytime is
+    # called from plain C (z_sram_NES.c, z_kaleido_scope_NES.c) regardless of
+    # hook wiring, and accrued now - lastTimeLog with lastTimeLog unseeded (0) --
+    # the OnSaveLoad seeder was elided (#516) and the value is re-zeroed on
+    # new-file paths -- writing a ~56-year Unix epoch into the PERSISTED
+    # filePlaytime. Display-free and ROM-free, so it runs in this redship tier.
+    redship_add_test(NAME MMPlaytimeSeed COMMAND redship --test mm-playtime-seed)
     # MM tracker registration surface (#392): the four MM tracker windows must
     # register on the shared Gui under "MM "-prefixed names (SoH owns the
     # unprefixed ones; Gui::AddGuiWindow rejects duplicates) and their
