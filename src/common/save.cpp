@@ -54,6 +54,18 @@ void SaveLogReject(bool verbose, const char* reason, unsigned long long got,
                  reason, got, expected);
 }
 
+// Save() used to fail SILENTLY at five separate points, and every production
+// caller discards the bool it returns (games/oot/soh/SaveManager.cpp's OnSaveFile
+// and OnExitGame hooks both ignore it). A save that does not happen is therefore
+// indistinguishable from one that does, right up until the player reloads and
+// finds a stale or empty slot — which is exactly the shape of the "saving is a
+// little broken" report this exists to make diagnosable. Load already names every
+// refusal; the write path now does too.
+bool SaveLogFail(int slot, const char* reason) {
+    std::fprintf(stderr, "[RsbsSave] slot %d NOT saved: %s\n", slot, reason);
+    return false;
+}
+
 }  // namespace
 
 SaveManager& SaveManager::Instance() {
@@ -87,7 +99,7 @@ uint32_t SaveManager::Crc32(const uint8_t* data, size_t len) {
 
 bool SaveManager::Save(int slot) {
     if (!SlotInRange(slot)) {
-        return false;
+        return SaveLogFail(slot, "slot index out of range");
     }
 
     // Serialization source = the context-layer shadow copies. Both must be
@@ -96,7 +108,7 @@ bool SaveManager::Save(int slot) {
     const void* ootShadow = Context_GetOoTSaveContext();
     const void* mmShadow = Context_GetMMSaveContext();
     if (ootShadow == nullptr || mmShadow == nullptr) {
-        return false;
+        return SaveLogFail(slot, "context shadows are absent (Context_InitFrozenStates has not run)");
     }
 
     // Assemble Tiers 1..3 contiguously so the CRC covers exactly the bytes we
@@ -137,6 +149,8 @@ bool SaveManager::Save(int slot) {
     {
         std::ofstream out(tmpPath, std::ios::binary | std::ios::trunc);
         if (!out) {
+            std::fprintf(stderr, "[RsbsSave] slot %d NOT saved: cannot open '%s' for writing\n",
+                         slot, tmpPath.c_str());
             return false;
         }
         out.write(reinterpret_cast<const char*>(&header), sizeof(header));
@@ -146,12 +160,14 @@ bool SaveManager::Save(int slot) {
         if (!out) {
             out.close();
             std::filesystem::remove(tmpPath, ec);
-            return false;
+            return SaveLogFail(slot, "write failed (disk full or permissions?); temp file discarded");
         }
     }
 
     std::filesystem::rename(tmpPath, finalPath, ec);
     if (ec) {
+        std::fprintf(stderr, "[RsbsSave] slot %d NOT saved: rename '%s' -> '%s' failed (%s)\n",
+                     slot, tmpPath.c_str(), finalPath.c_str(), ec.message().c_str());
         std::filesystem::remove(tmpPath, ec);
         return false;
     }
