@@ -28,6 +28,7 @@
 #include "ComboSpoilerWindow.h"   // Combo_SpoilerWindow_Init (#496, ADR 0008)
 #include "ComboMmOptionsWindow.h" // Combo_MMOptionsWindow_Init (#497/#499, ADR 0004+0008)
 #include "entrance.h"
+#include "save.h" // rsbs::SaveManager — unified .redsave save-directory wiring
 #include "rsbs_version.h"
 #include "test_runner.h"
 #include "integration_test_hooks.h"
@@ -344,6 +345,27 @@ int main(int argc, char** argv) {
     }
     fprintf(stderr, "[RSBS] Ship::Context singleton created successfully at %p\n", (void*)shipContext.get());
     fflush(stderr);
+
+    // Point the unified .redsave at the SAME directory the games write their own
+    // per-game saves to. save.h documents this as the injection point where "the
+    // game-integration follow-up injects the real per-app save directory" — that
+    // follow-up never landed, so until now mSaveDir stayed at its bare relative
+    // default "Save", resolved against the process WORKING DIRECTORY.
+    //
+    // Both games use Ship::Context::GetPathRelativeToAppDirectory("Save") (see
+    // games/oot/soh/SaveManager.cpp GetFileName), so the two halves of a slot —
+    // file{N+1}.sav and redship_slot{N}.redsave — only landed together when the
+    // CWD happened to equal the app directory. Launch from a shortcut, a
+    // debugger, or a packaged bundle and they silently fork: the .redsave for a
+    // slot is written to, or looked for in, a different folder than the OoT save
+    // it annotates, and the load is skipped with only a stderr line no
+    // GUI-launched player ever sees.
+    //
+    // The "Save" default is deliberately left in place for the headless --test
+    // path, which never creates a Ship::Context and relies on a CWD-relative
+    // directory it can write to.
+    rsbs::SaveManager::Instance().SetSaveDirectory(
+        Ship::Context::GetPathRelativeToAppDirectory("Save"));
 
     // Claim crash handling BEFORE any game init runs (#388).
     //
