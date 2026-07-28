@@ -309,12 +309,35 @@ bool SaveManager::Load(int slot) {
         return false;
     }
 
-    // All checks passed — commit. gComboCtx and both shadows are updated; the
-    // active game's live SaveContext is re-hydrated from its shadow by the
-    // existing freeze/restore path on the next cross-game switch.
+    // All checks passed — commit. gComboCtx and both shadows are updated.
     std::memcpy(&gComboCtx, &combo, sizeof(ComboContext));
     Context_UpdateShadowCopy(GAME_OOT, ootBlob.data(), kOoTSize);
     Context_UpdateShadowCopy(GAME_MM, mmBlob.data(), kMMSize);
+
+    // ARM the MM half so it is actually reachable.
+    //
+    // UpdateShadowCopy writes bytes without setting hasBeenFrozen, and every
+    // consumer that can move a blob into a live gSaveContext gates on that flag
+    // — so before this, a faithfully loaded MM save sat in memory byte-exact
+    // and structurally unreachable, then got overwritten by the bootstrap file
+    // the next crossing produced. That is the read-side half of "MM will be
+    // reset after game restart".
+    //
+    // MM ONLY, deliberately. OoT's own file{N+1}.sav is the authority for OoT
+    // state and is applied by Sram_OpenSave on the normal load path; arming
+    // Tier-2 as well would race a second, staler copy of OoT's world against
+    // it. MM has no such per-game file in single-exe — the unified slot is its
+    // only persistence — so Tier-3 is the one that needs delivering.
+    //
+    // Arming is refused for an all-zero tier (see Context_ArmShadowAsFrozen),
+    // which is exactly a slot saved before the player ever entered MM: that
+    // must keep cold-booting MM's own bootstrap rather than restoring a zeroed
+    // SaveContext over it. Entrance 0 is a placeholder, not a spawn decision —
+    // where a resumed MM session actually lands is MM's own owl / new-cycle
+    // policy.
+    const int armed = Context_ArmShadowAsFrozen(GAME_MM, 0);
+    std::fprintf(stderr, "[RsbsSave] slot %d loaded; MM half %s\n", slot,
+                 armed ? "armed for restore" : "empty (MM will cold-boot)");
     return true;
 }
 

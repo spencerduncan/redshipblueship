@@ -366,11 +366,47 @@ TestResult Test_SessionInvalidation(void) {
             SESSION_ASSERT(mmShadow[0] == kSessionAByte);
             SESSION_ASSERT(mmShadow[MM_SAVE_CONTEXT_SIZE - 1] == kSessionAByte);
         }
-        // A plain load must NOT arm a frozen blob. Restores stay the exclusive
-        // job of a real freeze, which is what keeps the #419/#420 "applies on
-        // the next switch only" plain-load semantics intact.
-        SESSION_ASSERT(Context_HasFrozenState(GAME_MM) == 0);
+        // A load ARMS the MM half so it is actually reachable (#35 follow-up).
+        //
+        // RENEGOTIATED, deliberately. This assertion used to require the
+        // OPPOSITE — Context_HasFrozenState(GAME_MM) == 0 — citing #419/#420's
+        // "a plain .redsave load applies on the next switch only". That
+        // contract was never implementable as written: the next cross-game
+        // switch freezes the DEPARTING game (Combo_CheckEntranceSwitch resolves
+        // its gameId from Context_GetCurrentGame), so it never armed the
+        // ARRIVING side, and the loaded MM half was applied on the next switch
+        // or on any other occasion. The old assertion was the operator's "MM
+        // will be reset after game restart" written down as required behavior.
+        SESSION_ASSERT(Context_HasFrozenState(GAME_MM) == 1);
+        // OoT stays unarmed on purpose: OoT's own file{N+1}.sav is the
+        // authority for OoT state and Sram_OpenSave applies it on the normal
+        // load path. Arming Tier-2 too would race a second, staler copy of
+        // OoT's world against it.
         SESSION_ASSERT(Context_HasFrozenState(GAME_OOT) == 0);
+
+        // ...and the complement, which is what stops the arming from being a
+        // blanket "always arm": a slot whose MM half is all zeros must NOT arm.
+        // That is precisely a slot saved before the player ever entered MM, and
+        // arming it would restore a zeroed SaveContext over the bootstrap file
+        // MM's title chain authors — strictly worse than the cold boot it
+        // replaces. Without this case the empty-tier branch is untested and a
+        // regression to unconditional arming would pass.
+        {
+            Context_InvalidateSessionOnSlotLoad();
+            SeedSessionA(0x1111u, 0x2222u);
+            std::vector<uint8_t> mmEmpty(MM_SAVE_CONTEXT_SIZE, 0);
+            Context_UpdateShadowCopy(GAME_MM, mmEmpty.data(), mmEmpty.size());
+            SESSION_ASSERT(mgr.Save(0));
+
+            Context_InvalidateSessionOnSlotLoad();
+            SESSION_ASSERT(mgr.Load(0));
+            SESSION_ASSERT(Context_HasFrozenState(GAME_MM) == 0);
+
+            // Restore slot 1 as the resident session so the cases below see the
+            // state they expect.
+            Context_InvalidateSessionOnSlotLoad();
+            SESSION_ASSERT(mgr.Load(1));
+        }
 
         // ---- 8. A slot with NO .redsave inherits nothing ------------------
         // The .redsave is per-OoT-slot but these globals are process
