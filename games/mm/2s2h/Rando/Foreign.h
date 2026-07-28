@@ -77,6 +77,16 @@ bool IsForeignCheck(RandoCheckId randoCheckId);
 /** Display name for the foreign item hosted by this check, or nullptr. */
 const char* ForeignNameForCheck(RandoCheckId randoCheckId);
 
+/** The article MM's pickup textbox prepends to that name ("the ", "a ", "an ",
+ *  or "" — it carries its own trailing space). Empty string if the check hosts
+ *  nothing, so callers can concatenate unconditionally.
+ *
+ *  #510: a cross-game item is presented as an ORDINARY MM pickup, and MM builds
+ *  every native pickup sentence as article + name. The article has to come from
+ *  the pooled descriptor because MM cannot look up OoT's item table — that is
+ *  the ADR 0002 boundary this whole surface exists to hold. */
+const char* ForeignArticleForCheck(RandoCheckId randoCheckId);
+
 /** Give-path core: record the check's foreign item into the shared structure
  *  (durable immediately; de-duped by the A1 producer). Returns true if a
  *  foreign item was recorded. The CheckQueue lambda calls this and layers the

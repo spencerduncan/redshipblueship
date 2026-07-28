@@ -38,11 +38,17 @@
 # report-only numbers for 2ship_enh/2ship_rando_ui trustworthy.
 #
 # One residual edge case, noted rather than solved: if two archives that are
-# BOTH required happen to share a basename (currently just Miscellaneous.cpp,
+# BOTH required happen to share a basename (Miscellaneous.cpp and — since #510
+# gave MM's copy a file-scope pool registrar — ForeignItemsSingleExe.cpp, both
 # soh_rando/2ship_rando) and exactly one physical copy is ever dropped, the
 # fixed-order attribution may credit the wrong one of the two — but the
 # overall gate still fails either way, since the shortfall has to land on
 # one of them. It cannot silently vanish the way the old bug did.
+#
+# For ForeignItemsSingleExe.cpp specifically there is a second, sharper net that
+# does not depend on symbol attribution at all: the ForeignPoolMM ctest row asks
+# the running binary whether MM's pool actually registered. A dropped initializer
+# is a red test, not a subtle count.
 #
 # Usage: check-registrar-elision.sh [build-dir]   (default: build-cmake)
 #

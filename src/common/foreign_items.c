@@ -93,6 +93,20 @@ const char* Combo_GetForeignItemName(SharedItem item) {
     return NULL;
 }
 
+const char* Combo_GetForeignItemArticle(SharedItem item) {
+    // Same origin-keyed walk as the name lookup — deliberately a separate entry
+    // point rather than a second out-param, so the spoiler surfaces (which want
+    // the bare name) are not forced to think about articles at all.
+    const ComboForeignItemDef* pool = NULL;
+    const int poolCount = Combo_GetForeignItemPoolFor(item.originGame, &pool);
+    for (int i = 0; i < poolCount; i++) {
+        if (pool[i].item.originGame == item.originGame && pool[i].item.id == item.id) {
+            return pool[i].article;
+        }
+    }
+    return NULL;
+}
+
 bool Combo_GetForeignItemByNameFor(uint8_t originGame, const char* name, SharedItem* outItem) {
     // The spoiler-LOAD inverse. Reused (not re-derived) so reconstruction shares
     // one source of truth with generation, and so a raw RG_*/RI_* is never

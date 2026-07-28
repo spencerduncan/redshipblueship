@@ -1054,19 +1054,22 @@ static void OoT_AwardSharedItem(const SharedItem* item, void* ctx) {
     //
     // No .itemIcon: resolving one needs a per-item icon-name accessor that
     // src/common does not have yet (the Combo_GetForeignItemIconName tier of
-    // #494, which lands with Lane 1's pool surface). Emitting text-only is an
-    // existing idiom, not a degradation — the MOD_RANDOMIZER branch in
-    // hook_handlers.cpp omits the icon too — and it is the honest option: a
-    // wrong icon is worse than no icon for an item whose whole point is that it
-    // came from the other game.
+    // #494). Emitting text-only is an existing idiom, not a degradation — the
+    // MOD_RANDOMIZER branch in hook_handlers.cpp omits the icon too.
     //
-    // Name comes from the pinned pool via the origin-tagged SharedItem, so this
-    // never fabricates an id-space crossing. It returns NULL when the item's
-    // origin pool is not linked into this build, hence the fallback.
+    // WORDING (#510): "You got the Fairy Bow", not "Received from Termina: …".
+    // The arrival IS the moment the player receives it in OoT, so the native
+    // sentence is the correct one; naming the other game was the cross-game
+    // tell the operator asked to remove. Name and article both come from the
+    // pinned pool via the origin-tagged SharedItem, so this never fabricates an
+    // id-space crossing; both return NULL when that origin's pool is not linked
+    // into this build, hence the fallbacks.
     const char* foreignName = Combo_GetForeignItemName(*item);
+    const char* foreignArticle = Combo_GetForeignItemArticle(*item);
     Notification::Emit({
-        .prefix = "Received from Termina:",
-        .message = foreignName != nullptr ? foreignName : "a foreign item",
+        .prefix = "You got",
+        .message = std::string(foreignArticle != nullptr ? foreignArticle : "") +
+                   (foreignName != nullptr ? foreignName : "a foreign item"),
     });
 }
 

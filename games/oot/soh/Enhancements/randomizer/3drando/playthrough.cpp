@@ -15,6 +15,9 @@
 #include "../option.h"
 #include "soh/Enhancements/debugger/performanceTimer.h"
 #include "context.h" // src/common — gComboCtx, Lane B unified-seed carrier (ADR 0002)
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "foreign_items.h" // src/common — OoT_PlaceForeignItems (#510)
+#endif
 
 namespace Playthrough {
 
@@ -116,6 +119,27 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
     gComboCtx.sourceIsRando = true;
     gComboCtx.sharedRandoSeed = seed;
     gComboCtx.sharedRandoSettingsHash = rsbsSettingsHash;
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #510, the reverse foreign pool: hand a few MM items to OoT checks now that
+    // this world's paired identity is stamped just above (the placement stream is
+    // derived from it, so the order is load-bearing — not stylistic).
+    //
+    // The #ifdef is required, not defensive: OoT_PlaceForeignItems exists only in
+    // the single-exe build, while Playthrough_Init is ordinary OoT code that also
+    // compiles for a standalone SoH.
+    //
+    // Propagated through the return code rather than an exception. Nothing in
+    // this chain catches — Rando_HeadlessSeedTest is extern "C" — so a throw here
+    // would std::terminate the headless CI rows and the live generate alike.
+    // A PARTIAL placement is not a failure and returns >= 0; only "the pairing is
+    // on but could not be honoured at all" is negative (see foreign_items.h).
+    const int foreignPlaced = OoT_PlaceForeignItems();
+    if (foreignPlaced < 0) {
+        SPDLOG_ERROR("Cross-game foreign placement failed ({}); aborting generation", foreignPlaced);
+        return foreignPlaced;
+    }
+#endif
 
     return 1;
 }

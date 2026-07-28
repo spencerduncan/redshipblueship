@@ -16,6 +16,14 @@
 #include "soh/ObjectExtension/ObjectExtension.h"
 #include "soh/Enhancements/randomizer/randomizer.h"
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// src/common. OUTSIDE the extern "C" block below: these headers manage their own
+// linkage and pull in context.h, whose <type_traits> include must not be wrapped
+// in C linkage (see context.h's header comment).
+#include "foreign_items.h" // Combo_GetForeignPlacementForOoTCheck, Combo_GetForeignItemName (#510)
+#include "shared_items.h"  // Combo_RecordSharedItem (#510)
+#endif
+
 extern "C" {
 #include "macros.h"
 #include "functions.h"
@@ -360,6 +368,65 @@ void RandomizerOnPlayerUpdateForRCQueueHandler() {
 
     RandomizerCheck rc = randomizerQueuedChecks.front();
     auto loc = Rando::Context::GetInstance()->GetItemLocation(rc);
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #510 — the reverse direction's PRODUCER. This OoT check hosts an MM item
+    // (gComboCtx.foreignPlacementsOoT, written by OoT_PlaceForeignItems at
+    // generation). Hand it to the shared structure instead of OoT's give path;
+    // MM's already-wired consumer (MM_AwardSharedItem -> MM_ForeignItem_Give)
+    // awards it on the next arrival in Termina. The OoT item table still holds a
+    // junk item at this check — the placement table overrides it here, exactly as
+    // MM's CheckQueue foreign branch overrides its own table.
+    //
+    // Deliberately BEFORE the local getItemEntry resolution and the collectible
+    // drop: a foreign host must not also give its local item.
+    const SharedItem* foreignItem = Combo_GetForeignPlacementForOoTCheck((uint16_t)rc);
+    if (foreignItem != nullptr && !loc->HasObtained()) {
+        // Durable immediately (Combo_RecordSharedItem writes the serialized
+        // array, so an OoT save+quit before the next switch cannot lose the
+        // pickup), and de-duped by content so a re-fired queue cannot double it.
+        Combo_RecordSharedItem(GAME_MM, foreignItem->id);
+
+        // Presented as an ORDINARY OoT pickup (#510): "You found the Bunny
+        // Hood" — no mention of Termina, no "will be awarded there", no
+        // stand-in model. The item is not given locally (it belongs to MM's
+        // id-space), so nothing is dropped or held overhead; the toast is the
+        // whole presentation.
+        //
+        // A toast rather than a blue textbox is a SCOPE choice, not a technical
+        // one: OoT's item-get pipeline couples "show this item" to "grant this
+        // item", and there is no display-without-grant path, so routing a
+        // foreign item through it would also give it to OoT. Notification::Emit
+        // is the surface the OoT ARRIVAL half already uses for this exact item
+        // class (#494/#507, OoT_AwardSharedItem), it takes an arbitrary string,
+        // and it cannot interfere with the item-get queue. A fully native
+        // textbox is a follow-up that needs that display-only path first.
+        const char* foreignName = Combo_GetForeignItemName(*foreignItem);
+        const char* foreignArticle = Combo_GetForeignItemArticle(*foreignItem);
+        Notification::Emit({
+            .prefix = "You found",
+            .message = std::string(foreignArticle != nullptr ? foreignArticle : "") +
+                       (foreignName != nullptr ? foreignName : "a foreign item"),
+        });
+
+        // RCSHOW_COLLECTED is what HasObtained() reads (status == RCSHOW_COLLECTED
+        // || RCSHOW_SAVED), so this alone marks it obtained — there is no separate
+        // setter. Persisting the tracker section matters for correctness, not just
+        // display: an un-persisted collect would re-fire the check after a
+        // save/load and, once the first crossing had been REDEEMED, content
+        // de-dup would no longer suppress the second record.
+        loc->SetCheckStatus(RCSHOW_COLLECTED);
+        CheckTracker::SpoilAreaFromCheck(rc);
+        CheckTracker::RecalculateAllAreaTotals();
+        CheckTracker::RecalculateAvailableChecks();
+        SaveManager::Instance->SaveSection(gSaveContext.fileNum, SECTION_ID_TRACKER_DATA, true);
+
+        SPDLOG_INFO("Foreign (MM) item recorded from RC {}", static_cast<uint32_t>(rc));
+        randomizerQueuedChecks.pop();
+        return;
+    }
+#endif
+
     RandomizerGet vanillaRandomizerGet = Rando::StaticData::GetLocation(rc)->GetVanillaItem();
     GetItemID vanillaItem = (GetItemID)Rando::StaticData::RetrieveItem(vanillaRandomizerGet).GetItemID();
     GetItemEntry getItemEntry =

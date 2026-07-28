@@ -6,10 +6,10 @@
  * the ONE MM translation unit where the cross-game item class may name real
  * RI_* enumerators, because everything leaves it as an origin-tagged SharedItem
  * (or a display string) and a raw RI_* therefore never crosses a game boundary
- * (ADR 0002, the #356 bug class). Lane 1 extends this same TU with
- * kForeignPoolMMV1 — the reverse-direction SOURCE pool — plus its
- * Combo_RegisterForeignItemPool file-scope registrar; this file deliberately
- * stops at the give so that boundary stays obvious.
+ * (ADR 0002, the #356 bug class). It holds BOTH halves of MM's side of the
+ * cross-game item class: the redemption give (below) and — since #510 —
+ * kForeignPoolMMV1, the reverse-direction SOURCE pool that OoT's placement pass
+ * draws from, with its Combo_RegisterForeignItemPool file-scope registrar.
  *
  * Lives in 2s2h/Rando/, glob-collected into `2ship_rando`, which links
  * WHOLE_ARCHIVE — so this TU survives the link with no CMake edit.
@@ -98,6 +98,275 @@ extern "C" {
 // own linkage and pulls in <stdbool.h>/<stdint.h> (matching Foreign.cpp).
 #include "foreign_items.h"
 #include "shared_items.h" // RSBS_SHARED_ITEM_CAP (via context.h)
+
+// ============================================================================
+// kForeignPoolMMV1 — the reverse-direction SOURCE pool (#510)
+// ============================================================================
+//
+// The MM items OoT's placement pass (OoT_PlaceForeignItems) may host in an OoT
+// check. The OoT twin of this table is kForeignPoolV1 in
+// soh/Enhancements/randomizer/ForeignItemsSingleExe.cpp; both are defined in
+// the one TU where their own enum is in scope and leave only as origin-tagged
+// SharedItems (ADR 0002).
+//
+// SCOPE: this is deliberately a BROAD pool, not a pinned handful.
+// RSBS_FOREIGN_PLACEMENT_CAP (8) caps PLACEMENTS PER SEED, not candidates — the
+// placement pass draws a random subset — so a wide pool buys seed-to-seed
+// variety at zero runtime cost. There is intentionally no
+// static_assert(count <= CAP) here; the OoT pool has one only because it
+// predates the reverse direction and happens to be smaller than the cap.
+//
+// ---------------------------------------------------------------------------
+// THE MEMBERSHIP RULE (and why each exclusion is a rule, not a taste)
+// ---------------------------------------------------------------------------
+// An MM item is a v1 candidate iff ALL of:
+//
+//  (1) It is a real item — not a sentinel. RI_UNKNOWN (enumerator 0, i.e. a
+//      zero-initialised slot), RI_NONE ("literally nothing") and RI_JUNK are
+//      excluded; MM_ForeignItem_Give's IsGiveableItemId refuses the first two
+//      outright (the #488 sentinel trap).
+//
+//  (2) Its randoItemType is not RITYPE_JUNK. The junk class is what a foreign
+//      HOST check degrades to when the placement table is absent — the OoT host
+//      physically holds an OoT junk item — so crossing MM junk would be a
+//      strictly worse duplicate of what is already there, and would burn one of
+//      at most 8 slots on a green rupee. Excluded with it: RI_GOLD_DUST_REFILL,
+//      which is typed RITYPE_LESSER but is semantically a bottle refill.
+//
+//  (3) Its give in Rando::GiveItem is UNCONDITIONALLY effectful — it changes MM
+//      save state whatever options the paired MM world was generated under.
+//      This is the load-bearing one, and it is what excludes the enemy/boss
+//      SOULS, the OCARINA BUTTONS, RI_ABILITY_SWIM, and the RI_TIME_* /
+//      RI_TIME_PROGRESSIVE clock items: each of those gives is a bare
+//      rando-inf/week-event flag whose only meaning comes from a specific MM
+//      shuffle setting, and OoT's placement pass runs at OoT generation time —
+//      possibly before the paired MM world exists at all — so it CANNOT read
+//      MM's option profile to find out. A settings-gated entry would be a
+//      crossing the player is promised in OoT ("it will be awarded there!") and
+//      then silently never receives in Termina, which is worse than no crossing.
+//      (Souls are also ~55 rows; admitting them would make a uniform draw of 8
+//      mostly souls and crowd out everything else. That is the secondary reason,
+//      not the reason.)
+//
+//  (4) Its give fires no GLOBAL WORLD EVENT. This excludes RI_TRIFORCE_PIECE and
+//      RI_TRIFORCE_PIECE_PREVIOUS: Rando::GiveItem increments
+//      foundTriforcePieces and, on reaching RO_TRIFORCE_PIECES_REQUIRED,
+//      recursively gives RI_SOUL_BOSS_MAJORA, fires
+//      GameInteractor_ExecuteOnGameCompletion() and QUEUES A FORCED SCENE
+//      TRANSITION (GiveItem.cpp:109-125). Detonating game completion from the
+//      foreign-redemption flush — the first gameplay frame after an arrival — is
+//      exactly what a cross-game seam must not do. The piece count is also a
+//      per-world goal quantity that extra crossings would silently inflate.
+//
+//  (5) It is a reward, not a punishment: RI_TRAP is excluded. The OoT-side
+//      pickup text promises an award in Termina; delivering MM's trap machinery
+//      instead would make that text a lie.
+//
+// Everything else is IN — every mask, every song, every bottle, both shields,
+// the sword and magic and wallet and quiver and bomb-bag upgrades, the
+// progressives (which resolve against the LIVE MM save, so they are the single
+// best-behaved cross-game gift, and the OoT pool sets the precedent with
+// RG_PROGRESSIVE_HOOKSHOT / RG_PROGRESSIVE_STRENGTH), the boss remains, the
+// deeds and letters and other sidequest items, the owl statues, the Tingle maps,
+// and the dungeon keys/maps/compasses/stray fairies.
+//
+// One property makes that breadth safe rather than reckless: a crossing is
+// ADDITIVE. The MM world's own fill is untouched — nothing is removed from it to
+// pay for a foreign placement (the OoT host keeps its own junk item too) — so no
+// crossing can make MM unwinnable. Extra keys, extra fairies and extra remains
+// can only ever trivialize, never block.
+//
+// NULL-play safety is NOT a membership criterion, deliberately. MM's give is
+// deferred to the first frame with a live MM_gPlayState (see the file header),
+// which is item-agnostic and O(1) in pool size — the #502 design note says in as
+// many words that an allowlist audited against today's pool would expire the
+// moment somebody added a row. This pool is that row, 134 times over, and it
+// relies on the deferral instead of re-auditing it.
+//
+// Display names are MM's own (Rando::StaticData::Items) verbatim. They are a
+// PERSISTENCE KEY, not decoration: Combo_GetForeignItemByNameFor is the
+// spoiler-LOAD inverse, so renaming an entry breaks spoiler round-trips for
+// already-generated worlds. "Bomb Bag" is deliberately identical to the OoT
+// pool's row of the same name — that collision is real, is the reason the
+// lookups are keyed on (originGame, name), and is asserted in
+// test_foreign_items.c rather than dodged.
+static const ComboForeignItemDef kForeignPoolMMV1[] = {
+    // --- Progressive upgrades: resolve against the live MM save at give time.
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_PROGRESSIVE_SWORD }, "Progressive Sword", "a " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_PROGRESSIVE_BOW }, "Progressive Bow", "a " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_PROGRESSIVE_BOMB_BAG }, "Progressive Bomb Bag", "a " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_PROGRESSIVE_MAGIC }, "Progressive Magic", "" },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_PROGRESSIVE_WALLET }, "Progressive Wallet", "a " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_PROGRESSIVE_LULLABY }, "Progressive Goron Lullaby", "" },
+
+    // --- Core equipment, abilities and capacity upgrades.
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_BOW }, "Bow", "a " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_HOOKSHOT }, "Hookshot", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_LENS }, "Lens of Truth", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_ARROW_FIRE }, "Fire Arrows", "" },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_ARROW_ICE }, "Ice Arrows", "" },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_ARROW_LIGHT }, "Light Arrows", "" },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_BOMB_BAG_20 }, "Bomb Bag", "a " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_BOMB_BAG_30 }, "Big Bomb Bag", "a " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_BOMB_BAG_40 }, "Biggest Bomb Bag", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_QUIVER_40 }, "Large Quiver", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_QUIVER_50 }, "Largest Quiver", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_WALLET_ADULT }, "Adult's Wallet", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_WALLET_GIANT }, "Giant's Wallet", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_POWDER_KEG }, "Powder Keg", "a " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_PICTOGRAPH_BOX }, "Pictograph Box", "a " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MAGIC_BEAN }, "Magic Bean", "a " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_BOMBERS_NOTEBOOK }, "Bomber's Notebook", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SHIELD_HERO }, "Hero's Shield", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SHIELD_MIRROR }, "Mirror Shield", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SWORD_KOKIRI }, "Kokiri Sword", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SWORD_RAZOR }, "Razor Sword", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SWORD_GILDED }, "Gilded Sword", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_GREAT_FAIRY_SWORD }, "Great Fairy's Sword", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_GREAT_SPIN_ATTACK }, "Great Spin Attack", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SINGLE_MAGIC }, "Power of Magic", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_DOUBLE_MAGIC }, "Magic Upgrade", "a " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_DOUBLE_DEFENSE }, "Double Defense", "" },
+
+    // --- Bottles (the bottle itself, not its refills).
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_BOTTLE_EMPTY }, "Empty Bottle", "an " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_BOTTLE_MILK }, "Bottle of Milk", "a " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_BOTTLE_RED_POTION }, "Bottle with Red Potion", "a " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_BOTTLE_GOLD_DUST }, "Bottle With Gold Dust", "a " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_BOTTLE_CHATEAU_ROMANI }, "Bottle of Chateau Romani", "a " },
+
+    // --- Masks. All 24, transformation masks included.
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_DEKU }, "Deku Mask", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_GORON }, "Goron Mask", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_ZORA }, "Zora Mask", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_FIERCE_DEITY }, "Fierce Deity Mask", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_ALL_NIGHT }, "All-Night Mask", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_BLAST }, "Blast Mask", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_BREMEN }, "Bremen Mask", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_BUNNY }, "Bunny Hood", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_CAPTAIN }, "Captain's Hat", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_CIRCUS_LEADER }, "Circus Leader's Mask", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_COUPLE }, "Couples Mask", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_DON_GERO }, "Don Gero Mask", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_GARO }, "Garo's Mask", "" },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_GIANT }, "Giant's Mask", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_GIBDO }, "Gibdo Mask", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_GREAT_FAIRY }, "Great Fairy Mask", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_KAFEIS_MASK }, "Kafei's Mask", "" },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_KAMARO }, "Kamaro's Mask", "" },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_KEATON }, "Keaton Mask", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_POSTMAN }, "Postman's Hat", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_ROMANI }, "Romani's Mask", "" },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_SCENTS }, "Mask of Scents", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_STONE }, "Stone Mask", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_TRUTH }, "Mask of Truth", "the " },
+
+    // --- Songs.
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SONG_SONATA }, "Sonata of Awakening", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SONG_LULLABY }, "Goron Lullaby", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SONG_LULLABY_INTRO }, "Goron Lullaby Intro", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SONG_NOVA }, "New Wave Bossa Nova", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SONG_ELEGY }, "Elegy of Emptiness", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SONG_OATH }, "Oath to Order", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SONG_SOARING }, "Song of Soaring", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SONG_HEALING }, "Song of Healing", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SONG_EPONA }, "Epona's Song", "" },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SONG_SUN }, "Sun's Song", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SONG_TIME }, "Song of Time", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SONG_STORMS }, "Song of Storms", "the " },
+
+    // --- Quest and sidequest items.
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_OCARINA }, "Ocarina of Time", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MOONS_TEAR }, "Moon's Tear", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_DEED_LAND }, "Land Title Deed", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_DEED_SWAMP }, "Swamp Title Deed", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_DEED_MOUNTAIN }, "Mountain Title Deed", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_DEED_OCEAN }, "Ocean Title Deed", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_ROOM_KEY }, "Room Key", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_LETTER_TO_KAFEI }, "Letter to Kafei", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_LETTER_TO_MAMA }, "Letter to Mama", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_PENDANT_OF_MEMORIES }, "Pendant of Memories", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MUSHROOM }, "Magic Mushroom", "a " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_FROG_BLUE }, "Blue Frog", "a " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_FROG_CYAN }, "Cyan Frog", "a " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_FROG_PINK }, "Pink Frog", "a " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_FROG_WHITE }, "White Frog", "a " },
+
+    // --- Boss remains.
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_REMAINS_ODOLWA }, "Odolwa's Remains", "" },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_REMAINS_GOHT }, "Goht's Remains", "" },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_REMAINS_GYORG }, "Gyorg's Remains", "" },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_REMAINS_TWINMOLD }, "Twinmold's Remains", "" },
+
+    // --- Health.
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_HEART_CONTAINER }, "Heart Container", "a " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_HEART_PIECE }, "Heart Piece", "a " },
+
+    // --- Skulltula tokens.
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_GS_TOKEN_SWAMP }, "Swamp Gold Skulltula Token", "a " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_GS_TOKEN_OCEAN }, "Ocean Gold Skulltula Token", "an " },
+
+    // --- Owl statues (Sram_ActivateOwl: always a real warp unlock).
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_OWL_CLOCK_TOWN_SOUTH }, "Clock Town Owl Statue", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_OWL_MILK_ROAD }, "Milk Road Owl Statue", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_OWL_SOUTHERN_SWAMP }, "Southern Swamp Owl Statue", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_OWL_WOODFALL }, "Woodfall Owl Statue", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_OWL_MOUNTAIN_VILLAGE }, "Mountain Village Owl Statue", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_OWL_SNOWHEAD }, "Snowhead Owl Statue", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_OWL_GREAT_BAY_COAST }, "Great Bay Coast Owl Statue", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_OWL_ZORA_CAPE }, "Zora Cape Owl Statue", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_OWL_IKANA_CANYON }, "Ikana Canyon Owl Statue", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_OWL_STONE_TOWER }, "Stone Tower Owl Statue", "the " },
+
+    // --- Tingle maps.
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_TINGLE_MAP_CLOCK_TOWN }, "Tingle's Clock Town Map", "" },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_TINGLE_MAP_WOODFALL }, "Tingle's Woodfall Map", "" },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_TINGLE_MAP_SNOWHEAD }, "Tingle's Snowhead Map", "" },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_TINGLE_MAP_ROMANI_RANCH }, "Tingle's Romani Ranch Map", "" },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_TINGLE_MAP_GREAT_BAY }, "Tingle's Great Bay Map", "" },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_TINGLE_MAP_STONE_TOWER }, "Tingle's Stone Tower Map", "" },
+
+    // --- Dungeon items. Additive, so an extra key can only ever trivialize.
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_WOODFALL_BOSS_KEY }, "Woodfall Boss Key", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_WOODFALL_SMALL_KEY }, "Woodfall Small Key", "a " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_WOODFALL_MAP }, "Woodfall Map", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_WOODFALL_COMPASS }, "Woodfall Compass", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SNOWHEAD_BOSS_KEY }, "Snowhead Boss Key", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SNOWHEAD_SMALL_KEY }, "Snowhead Small Key", "a " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SNOWHEAD_MAP }, "Snowhead Map", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SNOWHEAD_COMPASS }, "Snowhead Compass", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_GREAT_BAY_BOSS_KEY }, "Great Bay Boss Key", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_GREAT_BAY_SMALL_KEY }, "Great Bay Small Key", "a " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_GREAT_BAY_MAP }, "Great Bay Map", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_GREAT_BAY_COMPASS }, "Great Bay Compass", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_STONE_TOWER_BOSS_KEY }, "Stone Tower Boss Key", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_STONE_TOWER_SMALL_KEY }, "Stone Tower Small Key", "a " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_STONE_TOWER_MAP }, "Stone Tower Map", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_STONE_TOWER_COMPASS }, "Stone Tower Compass", "the " },
+
+    // --- Stray fairies.
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_CLOCK_TOWN_STRAY_FAIRY }, "Clock Town Stray Fairy", "a " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_WOODFALL_STRAY_FAIRY }, "Woodfall Stray Fairy", "a " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SNOWHEAD_STRAY_FAIRY }, "Snowhead Stray Fairy", "a " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_GREAT_BAY_STRAY_FAIRY }, "Great Bay Stray Fairy", "a " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_STONE_TOWER_STRAY_FAIRY }, "Stone Tower Stray Fairy", "a " },
+};
+
+static constexpr int kForeignPoolMMCount = sizeof(kForeignPoolMMV1) / sizeof(kForeignPoolMMV1[0]);
+
+// Publish into src/common's origin-indexed registry (ADR 0009 decision 3), the
+// same way the OoT pool does. File-scope initializer, so it runs before main()
+// and before any gameplay or test code can ask for the pool; this TU lives in
+// 2ship_rando, which links WHOLE_ARCHIVE, so it is never dropped as unreferenced
+// (the Mode-B elision class — see .github/scripts/check-registrar-elision.sh).
+namespace {
+struct ForeignPoolMMV1Registrar {
+    ForeignPoolMMV1Registrar() {
+        Combo_RegisterForeignItemPool((uint8_t)GAME_MM, kForeignPoolMMV1, kForeignPoolMMCount);
+    }
+};
+const ForeignPoolMMV1Registrar gForeignPoolMMV1Registrar;
+} // namespace
 
 namespace {
 
@@ -242,6 +511,23 @@ extern "C" int MM_ForeignItem_TestItemIdMax(void) {
  *  moves. */
 extern "C" int MM_ForeignItem_TestIsGiveableId(uint16_t riId) {
     return IsGiveableItemId(riId) ? 1 : 0;
+}
+
+/** Is `riId` declared RITYPE_JUNK in MM's item table? (#510)
+ *
+ *  The observable for kForeignPoolMMV1's membership rule (2) — "no junk-class
+ *  item may be a cross-game SOURCE, because junk is what a foreign HOST degrades
+ *  to". Reported from MM's real table rather than re-derived in the test, so a
+ *  row whose type changes upstream moves the lock with it instead of leaving it
+ *  asserting a stale copy.
+ *
+ *  @return 1 if junk-class, 0 if a real non-junk item, -1 if the id names no row. */
+extern "C" int MM_ForeignItem_TestIsJunkClassId(uint16_t riId) {
+    const auto it = Rando::StaticData::Items.find((RandoItemId)riId);
+    if (it == Rando::StaticData::Items.end()) {
+        return -1;
+    }
+    return (it->second.randoItemType == RITYPE_JUNK) ? 1 : 0;
 }
 
 #endif // RSBS_SINGLE_EXECUTABLE

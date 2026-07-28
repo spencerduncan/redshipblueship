@@ -23,10 +23,21 @@
  *
  * Lives in soh/Enhancements/randomizer/ (soh_rando) which links WHOLE_ARCHIVE,
  * so these definitions always survive the link.
+ *
+ * #510 added the REVERSE direction's producer half at the bottom of this file:
+ * OoT_Foreign_IsEligibleHost (which OoT check may host an MM item) and
+ * OoT_PlaceForeignItems (the generation-time placement pass Playthrough_Init
+ * calls). Those are the twin of MM's Rando::Foreign, and they consume MM's
+ * kForeignPoolMMV1 through the same origin-indexed registry — so this file still
+ * never sees an RI_*, only origin-tagged SharedItems.
  */
 #ifdef RSBS_SINGLE_EXECUTABLE
 
+#include <algorithm>
+#include <cstddef>
 #include <cstdio>
+#include <string>
+#include <vector>
 
 #include "soh/OTRGlobals.h"
 #include "soh/Enhancements/randomizer/randomizerTypes.h"
@@ -55,11 +66,13 @@ void GiveLinkRupees(int numOfRupees);
 // ADR's static_asserts reject raw-integer conversion; explicit members carry
 // the tag). Values must fit the struct's uint8_t/uint16_t members — a
 // constant-expression enumerator that fits is not a narrowing conversion.
+// The article column matches OoT's own item table (Item::GetArticle), so MM's
+// pickup textbox reads exactly like an MM one: "You found the Fairy Bow!".
 static const ComboForeignItemDef kForeignPoolV1[] = {
-    { { (uint8_t)GAME_OOT, 0, (uint16_t)RG_PROGRESSIVE_HOOKSHOT }, "Progressive Hookshot" },
-    { { (uint8_t)GAME_OOT, 0, (uint16_t)RG_FAIRY_BOW }, "Fairy Bow" },
-    { { (uint8_t)GAME_OOT, 0, (uint16_t)RG_BOMB_BAG }, "Bomb Bag" },
-    { { (uint8_t)GAME_OOT, 0, (uint16_t)RG_PROGRESSIVE_STRENGTH }, "Progressive Strength Upgrade" },
+    { { (uint8_t)GAME_OOT, 0, (uint16_t)RG_PROGRESSIVE_HOOKSHOT }, "Progressive Hookshot", "a " },
+    { { (uint8_t)GAME_OOT, 0, (uint16_t)RG_FAIRY_BOW }, "Fairy Bow", "the " },
+    { { (uint8_t)GAME_OOT, 0, (uint16_t)RG_BOMB_BAG }, "Bomb Bag", "a " },
+    { { (uint8_t)GAME_OOT, 0, (uint16_t)RG_PROGRESSIVE_STRENGTH }, "Progressive Strength Upgrade", "a " },
 };
 
 static constexpr int kForeignPoolCount = sizeof(kForeignPoolV1) / sizeof(kForeignPoolV1[0]);
@@ -124,6 +137,219 @@ extern "C" int OoT_ForeignItem_Give(uint16_t rgId) {
 
     fprintf(stderr, "[OoT] foreign give: unhandled modIndex %d for RG id=%u\n", (int)entry.modIndex, (unsigned)rgId);
     return 0;
+}
+
+// ============================================================================
+// REVERSE DIRECTION (#510): host eligibility + the OoT placement pass
+// ============================================================================
+//
+// The mirror of Rando::Foreign::IsEligibleHost / PlaceForeignItems on the MM
+// side (games/mm/2s2h/Rando/Foreign.cpp), for the other direction: MM items
+// (kForeignPoolMMV1) hosted in OoT checks, recorded in
+// gComboCtx.foreignPlacementsOoT and delivered in Termina by MM_AwardSharedItem.
+//
+// THE ASYMMETRY THAT MATTERS: **OoT has no RCTYPE_CHEST.** MM classifies a chest
+// with a dedicated check type, so its predicate keys on
+// `randoCheckType == RCTYPE_CHEST`. OoT's chests are RCTYPE_STANDARD and are
+// identified by the ACTOR they are built from — Location::Chest stores
+// ACTOR_EN_BOX (location_list.cpp passes it for every chest row) — so the
+// equivalent test here is on GetActorID(), not on the check type. Keying this
+// on a nonexistent RCTYPE_CHEST would silently accept nothing.
+//
+// TWO OBJECTS, TWO ACCESSORS. The static class of a check and the item the fill
+// actually placed there live in different tables and are reached differently:
+//   - Rando::StaticData::GetLocation(rc)          -> Rando::Location*    (static)
+//   - Rando::Context::GetInstance()->GetItemLocation(rc) -> Rando::ItemLocation* (fill)
+// Reading both off one pointer does not compile; they are separate types.
+//
+// WHY JUNK-CLASS. Same invariant MM's predicate enforces: a foreign host must
+// physically hold a legal junk item of its OWN game, because that is what the
+// check degrades to if the placement table is ever absent (a pre-#493 .redsave
+// zero-extends to an empty table). Nothing crashes, nothing aliases — the player
+// just gets the blue rupee that was really in the chest.
+static bool OoT_Foreign_IsEligibleHostImpl(RandomizerCheck rc) {
+    if (rc <= RC_UNKNOWN_CHECK || rc >= RC_MAX) {
+        return false;
+    }
+
+    Rando::Location* loc = Rando::StaticData::GetLocation(rc);
+    // A gap in the table is default-constructed and keeps RC_UNKNOWN_CHECK, so
+    // an id that does not name a real row fails this identity test.
+    if (loc == nullptr || loc->GetRandomizerCheck() != rc) {
+        return false;
+    }
+
+    // Tier A, and the only tier: an actual treasure chest.
+    if (loc->GetActorID() != ACTOR_EN_BOX) {
+        return false;
+    }
+
+    // Commerce is excluded EXPLICITLY even though no shop/scrub/merchant row is
+    // ACTOR_EN_BOX today. Their give-and-price flow and their spoiler shape both
+    // differ from the ordinary collect path this presentation targets, so the
+    // exclusion must survive any future widening of the actor test (the same
+    // reasoning MM's IsAllowedHostClass states for RCTYPE_SHOP).
+    const RandomizerCheckType checkType = loc->GetRCType();
+    if (checkType == RCTYPE_SHOP || checkType == RCTYPE_SCRUB || checkType == RCTYPE_MERCHANT ||
+        checkType == RCTYPE_CHEST_GAME) {
+        return false;
+    }
+    if (loc->IsShop()) {
+        return false;
+    }
+
+    // The fill-side half. RG_NONE is "the fill placed nothing here" (an
+    // unshuffled or unreached location) — the OoT analogue of MM's `.shuffled`
+    // test, and the reason a ROM-free run with no fill accepts nothing.
+    auto ctx = Rando::Context::GetInstance();
+    if (ctx == nullptr) {
+        return false;
+    }
+    Rando::ItemLocation* itemLoc = ctx->GetItemLocation(rc);
+    if (itemLoc == nullptr) {
+        return false;
+    }
+    const RandomizerGet placedItem = itemLoc->GetPlacedRandomizerGet();
+    if (placedItem == RG_NONE) {
+        return false;
+    }
+
+    return Rando::StaticData::RetrieveItem(placedItem).GetCategory() == ITEM_CATEGORY_JUNK;
+}
+
+// Local, self-contained PRNG for placement selection — deliberately NOT drawn
+// from Random_Init's stream. The fill consumes that stream, so taking numbers
+// out of it here would shift every subsequent draw and change the OoT world
+// itself as a side effect of the cross-game feature being on. Same reasoning,
+// same xorshift32, as Rando::Foreign's sSelectState.
+static uint32_t sOoTSelectState;
+
+static uint32_t OoT_Foreign_SelectNext() {
+    uint32_t x = sOoTSelectState;
+    x ^= x << 13;
+    x ^= x >> 17;
+    x ^= x << 5;
+    sOoTSelectState = (x != 0) ? x : 0xB5297A4Du;
+    return sOoTSelectState;
+}
+
+/**
+ * Place MM items into eligible OoT checks. Called once from Playthrough_Init,
+ * AFTER the gComboCtx pairing stamp (the identity this derives from must be live).
+ *
+ * @return the number of placements made (>= 0), or NEGATIVE if the pairing is
+ *         active but the pass could not honour it at all — see the note below.
+ *
+ * ERROR SIGNALLING — RETURN CODE, NEVER AN EXCEPTION. OoT's generation chain has
+ * no try/catch anywhere: Rando_HeadlessSeedTest (extern "C") -> GenerateRandomizer
+ * -> Playthrough_Init. A throw would cross that extern "C" boundary uncaught and
+ * std::terminate the process, killing the headless SeedDeterminism/MMRandoGen CI
+ * rows and the live GUI generate alike. GenerateRandomizer already speaks return
+ * codes (`if (ret < 0) return false`), so shortfall rides that convention.
+ *
+ * A PARTIAL placement is NOT a shortfall and must not fail generation: the pool
+ * is ~134 entries against a cap of 8, so placing fewer than the pool is the
+ * normal, intended outcome. Only two states are errors, and both mean the
+ * cross-game half of a PAIRED world would be silently absent:
+ *   -1  the MM pool is not registered at all (the Mode-B elision class — if
+ *       2ship_rando's pool TU is ever dropped from the link this turns a silent
+ *       feature loss into a loud generation failure)
+ *   -2  no eligible host exists in the finished fill. OoT has ~100 chest rows and
+ *       junk is plentiful, so zero is not a reachable fill outcome; it means the
+ *       predicate and the table have drifted apart.
+ */
+extern "C" int OoT_PlaceForeignItems(void) {
+    // A re-generated world must not inherit the previous one's placements.
+    Combo_ClearForeignPlacementsOoT();
+
+    if (!Combo_ForeignPairingActive()) {
+        return 0; // solo OoT rando: nothing to pair with, and that is normal
+    }
+
+    const ComboForeignItemDef* pool = nullptr;
+    const int poolCount = Combo_GetForeignItemPoolFor((uint8_t)GAME_MM, &pool);
+    if (poolCount <= 0 || pool == nullptr) {
+        fprintf(stderr, "[OoT] foreign placement: pairing is active but MM's source pool is empty — "
+                        "2ship_rando's pool TU was elided (#510)\n");
+        return -1;
+    }
+
+    auto ctx = Rando::Context::GetInstance();
+    if (ctx == nullptr) {
+        fprintf(stderr, "[OoT] foreign placement: no Rando::Context\n");
+        return -1;
+    }
+
+    // Candidates in ascending RandomizerCheck order. Walking the enum range
+    // rather than ctx->allLocations keeps the order fixed by construction — it
+    // cannot be perturbed by pool-bookkeeping changes — which is what the
+    // SeedDeterminism digest needs. Same shape as the digest's own walk.
+    std::vector<RandomizerCheck> candidates;
+    for (int i = 1; i < RC_MAX; i++) {
+        const RandomizerCheck rc = (RandomizerCheck)i;
+        if (OoT_Foreign_IsEligibleHostImpl(rc)) {
+            candidates.push_back(rc);
+        }
+    }
+
+    fprintf(stderr, "[OoT] foreign placement: %d MM pool items over %zu eligible host checks\n", poolCount,
+            candidates.size());
+
+    if (candidates.empty()) {
+        fprintf(stderr, "[OoT] foreign placement: no eligible OoT host check in this fill (#510)\n");
+        return -2;
+    }
+
+    // Deterministic from the paired-world identity alone: same seed + same
+    // settings profile => same placements. gComboCtx.sharedRandoSettingsHash is
+    // live by now (Playthrough_Init stamps it immediately before calling us), and
+    // the ":foreign-oot-v1" suffix keeps this stream disjoint from MM's
+    // ":foreign-v1" one so the two directions can never shadow each other.
+    sOoTSelectState = SohUtils::Hash(std::to_string(ctx->GetSeed()) + ":" +
+                                     std::to_string(gComboCtx.sharedRandoSettingsHash) + ":foreign-oot-v1");
+    if (sOoTSelectState == 0) {
+        sOoTSelectState = 0xB5297A4Du;
+    }
+
+    // BOTH sides are drawn without replacement. Drawing the ITEM matters as much
+    // as drawing the host: the pool is far larger than the cap, so walking it in
+    // order (as the forward pass does, where pool <= cap made that equivalent)
+    // would place the same first 8 entries in every seed and make the other ~126
+    // dead weight.
+    std::vector<int> poolIndices;
+    poolIndices.reserve((size_t)poolCount);
+    for (int i = 0; i < poolCount; i++) {
+        poolIndices.push_back(i);
+    }
+
+    const int wanted = std::min({ poolCount, (int)RSBS_FOREIGN_PLACEMENT_CAP, (int)candidates.size() });
+
+    int placed = 0;
+    for (int i = 0; i < wanted; i++) {
+        const size_t poolPick = (size_t)(OoT_Foreign_SelectNext() % (uint32_t)poolIndices.size());
+        const int poolEntry = poolIndices[poolPick];
+        poolIndices.erase(poolIndices.begin() + (std::ptrdiff_t)poolPick);
+
+        const size_t hostPick = (size_t)(OoT_Foreign_SelectNext() % (uint32_t)candidates.size());
+        const RandomizerCheck hostCheck = candidates[hostPick];
+        candidates.erase(candidates.begin() + (std::ptrdiff_t)hostPick);
+
+        if (Combo_SetForeignPlacementOoT((uint16_t)hostCheck, pool[poolEntry].item) >= 0) {
+            placed++;
+            fprintf(stderr, "[OoT] foreign placement: '%s' hosted at OoT check %s\n", pool[poolEntry].name,
+                    Rando::StaticData::GetLocation(hostCheck)->GetName().c_str());
+        }
+    }
+
+    return placed;
+}
+
+// ROM-free test bridge (redship tier; src/common/tests/test_foreign_items.c).
+// The SAME predicate the candidate loop above calls — exposed rather than
+// paraphrased in the test for the reason MM_Rando_Foreign_IsEligibleHost is: a
+// lock that restates the rule stops testing it the moment the rule moves.
+extern "C" int OoT_Foreign_IsEligibleHost(uint16_t rc) {
+    return OoT_Foreign_IsEligibleHostImpl((RandomizerCheck)rc) ? 1 : 0;
 }
 
 #endif // RSBS_SINGLE_EXECUTABLE

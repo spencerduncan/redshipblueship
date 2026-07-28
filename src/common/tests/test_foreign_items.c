@@ -60,6 +60,21 @@ int MM_Rando_Foreign_TestCheckClass(uint16_t randoCheckId, int* outIsChestType, 
 void MM_Rando_Foreign_TestStampCheck(uint16_t randoCheckId, int shuffled, int skipped, uint16_t itemId);
 void MM_Rando_Foreign_TestStampAllChecks(int shuffled, int skipped, uint16_t itemId);
 void MM_Rando_Foreign_TestItemSentinels(uint16_t* outJunk, uint16_t* outNone, uint16_t* outUnknown);
+
+// #510 reverse-pool bridges (games/mm/2s2h/Rando/ForeignItemsSingleExe.cpp).
+// The first is the REAL id predicate MM_ForeignItem_Give gates on; the second
+// reports an item's class straight out of MM's own table. Both are read from MM
+// rather than re-derived here, so a pool row whose classification changes
+// upstream moves this lock with it instead of leaving it asserting a stale copy.
+int MM_ForeignItem_TestIsGiveableId(uint16_t riId);
+int MM_ForeignItem_TestIsJunkClassId(uint16_t riId);
+
+// #510 OoT-side host predicate (games/oot/soh/Enhancements/randomizer/
+// ForeignItemsSingleExe.cpp) — the SAME function OoT_PlaceForeignItems' candidate
+// loop calls. Its fill-side half reads GetPlacedRandomizerGet(), so it accepts
+// nothing until a real generation has run: see Test_ForeignPlacementOoT, which
+// lives in the display-requiring `rando` tier for exactly that reason.
+int OoT_Foreign_IsEligibleHost(uint16_t rc);
 }
 
 #define FI_ASSERT(cond)                                                                                                \
@@ -144,6 +159,13 @@ TestResult Test_ForeignItemGive(void) {
         FI_ASSERT(pool[i].item.flags == 0);
         FI_ASSERT(pool[i].name != NULL && pool[i].name[0] != '\0');
         FI_ASSERT(Combo_GetForeignItemName(pool[i].item) == pool[i].name);
+        // #510: MM's pickup textbox reads "You found " + article + name, and MM
+        // cannot look up OoT's item table for the article — so it rides here.
+        FI_ASSERT(pool[i].article != NULL);
+        FI_ASSERT(Combo_GetForeignItemArticle(pool[i].item) == pool[i].article);
+        if (pool[i].article[0] != '\0') {
+            FI_ASSERT(pool[i].article[strlen(pool[i].article) - 1] == ' ');
+        }
     }
     // (originGame, name) uniqueness WITHIN a pool. Two entries sharing a name
     // in one id-space would make that origin's inverse ambiguous, which no
@@ -160,7 +182,17 @@ TestResult Test_ForeignItemGive(void) {
         SharedItem back;
         FI_ASSERT(Combo_GetForeignItemByNameFor((uint8_t)GAME_OOT, pool[i].name, &back));
         FI_ASSERT(back.originGame == pool[i].item.originGame && back.id == pool[i].item.id);
-        FI_ASSERT(!Combo_GetForeignItemByNameFor((uint8_t)GAME_MM, pool[i].name, NULL));
+        // NOT "the name must not exist in MM's pool": since #510 a real MM pool
+        // is registered and "Bomb Bag" is a genuine row in BOTH id-spaces, so
+        // that assertion would be false-by-design. The invariant that actually
+        // matters is that the two id-spaces never bleed: if the name resolves
+        // under GAME_MM at all, it comes back MM-tagged and is a DIFFERENT item
+        // from the OoT row of the same name.
+        SharedItem mmSide;
+        if (Combo_GetForeignItemByNameFor((uint8_t)GAME_MM, pool[i].name, &mmSide)) {
+            FI_ASSERT(mmSide.originGame == (uint8_t)GAME_MM);
+            FI_ASSERT(mmSide.originGame != back.originGame);
+        }
         FI_ASSERT(!Combo_GetForeignItemByNameFor((uint8_t)GAME_NONE, pool[i].name, NULL));
     }
 
@@ -180,20 +212,33 @@ TestResult Test_ForeignItemGive(void) {
     // renaming an item away from its real name — would degrade the spoiler to
     // work around a lookup bug. We assert the collision is HANDLED instead.
     //
-    // A synthetic MM pool stands in until the real one lands (Lane 6 creates
-    // 2s2h/Rando/ForeignItemsSingleExe.cpp; Lane 1 fills kForeignPoolMMV1 into
-    // it). When it does, switch this block to the real pool and drop the
-    // registry restore below.
+    // Driven against the REAL MM pool since #510 (kForeignPoolMMV1). The
+    // synthetic stand-in that used to live here — and its
+    // Combo_RegisterForeignItemPool / un-register pair — is GONE, deliberately:
+    // registering over the real pool clobbers process-global state, and the
+    // un-register left GAME_MM with NO pool for every later row in
+    // `--test all`. The collision is real now, so it is tested for real.
     {
-        static const ComboForeignItemDef kSyntheticMMPool[] = {
-            { { (uint8_t)GAME_MM, 0, 0x0037 }, "Bomb Bag" },   // deliberately collides with the OoT pool
-            { { (uint8_t)GAME_MM, 0, 0x0041 }, "Hero's Bow" },
-        };
-        FI_ASSERT(Combo_GetForeignItemPoolFor((uint8_t)GAME_MM, NULL) == 0); // nothing registered yet
-        Combo_RegisterForeignItemPool((uint8_t)GAME_MM, kSyntheticMMPool, 2);
-
         const ComboForeignItemDef* mmPool = NULL;
-        FI_ASSERT(Combo_GetForeignItemPoolFor((uint8_t)GAME_MM, &mmPool) == 2 && mmPool == kSyntheticMMPool);
+        const int mmPoolCount = Combo_GetForeignItemPoolFor((uint8_t)GAME_MM, &mmPool);
+        FI_ASSERT(mmPoolCount >= 1 && mmPool != NULL); // MM's file-scope registrar ran
+
+        // The collision this whole surface exists for must ACTUALLY be present in
+        // the two real pools, or everything below passes for want of a conflict.
+        int ootBombBagIdx = -1;
+        for (int k = 0; k < poolCount; k++) {
+            if (strcmp(pool[k].name, "Bomb Bag") == 0) {
+                ootBombBagIdx = k;
+            }
+        }
+        int mmBombBagIdx = -1;
+        for (int k = 0; k < mmPoolCount; k++) {
+            if (strcmp(mmPool[k].name, "Bomb Bag") == 0) {
+                mmBombBagIdx = k;
+            }
+        }
+        FI_ASSERT(ootBombBagIdx >= 0); // OoT's RG_BOMB_BAG row
+        FI_ASSERT(mmBombBagIdx >= 0);  // MM's RI_BOMB_BAG_20 row
 
         // The colliding bare name resolves to a DIFFERENT item under each
         // origin — never to the same one, and never to nothing.
@@ -202,21 +247,12 @@ TestResult Test_ForeignItemGive(void) {
         FI_ASSERT(Combo_GetForeignItemByNameFor((uint8_t)GAME_MM, "Bomb Bag", &fromMM));
         FI_ASSERT(fromOoT.originGame == (uint8_t)GAME_OOT);
         FI_ASSERT(fromMM.originGame == (uint8_t)GAME_MM);
-        FI_ASSERT(fromMM.id == 0x0037);
-        // Pin the OoT side to the REAL pool row rather than asserting the two
+        // Pin BOTH sides to their real pool rows rather than asserting the two
         // results merely differ. Comparing (id, origin) pairs would be
-        // tautological here — the two origins are already asserted distinct
-        // just above — and would still pass if the OoT lookup returned the
-        // wrong OoT item.
-        int ootBombBagIdx = -1;
-        for (int k = 0; k < poolCount; k++) {
-            if (strcmp(pool[k].name, "Bomb Bag") == 0) {
-                ootBombBagIdx = k;
-            }
-        }
-        FI_ASSERT(ootBombBagIdx >= 0); // the collision this block exists for must actually be present
+        // tautological — the origins are already asserted distinct just above —
+        // and would still pass if a lookup returned the wrong row of its own pool.
         FI_ASSERT(fromOoT.id == pool[ootBombBagIdx].item.id);
-        FI_ASSERT(fromOoT.id != fromMM.id); // the two id-spaces really did yield different items
+        FI_ASSERT(fromMM.id == mmPool[mmBombBagIdx].item.id);
 
         // The legacy bare-name entry point keeps its exact previous meaning:
         // the OoT pool. Call sites that predate the origin dimension must not
@@ -225,31 +261,25 @@ TestResult Test_ForeignItemGive(void) {
         FI_ASSERT(Combo_GetForeignItemByName("Bomb Bag", &legacy));
         FI_ASSERT(legacy.originGame == (uint8_t)GAME_OOT && legacy.id == fromOoT.id);
 
-        // Forward direction dispatches on the item's own tag: two items with
-        // the SAME id in different id-spaces must not resolve to one name.
-        SharedItem mmBow;
-        mmBow.originGame = (uint8_t)GAME_MM;
-        mmBow.flags = 0;
-        mmBow.id = 0x0041;
-        FI_ASSERT(Combo_GetForeignItemName(mmBow) != NULL);
-        FI_ASSERT(strcmp(Combo_GetForeignItemName(mmBow), "Hero's Bow") == 0);
-        SharedItem ootSameId = mmBow;
+        // Forward direction dispatches on the item's own tag: two items with the
+        // SAME raw id in different id-spaces must not resolve to one name.
+        const ComboForeignItemDef& mmProbe = mmPool[0];
+        FI_ASSERT(Combo_GetForeignItemName(mmProbe.item) != NULL);
+        FI_ASSERT(strcmp(Combo_GetForeignItemName(mmProbe.item), mmProbe.name) == 0);
+        SharedItem ootSameId = mmProbe.item;
         ootSameId.originGame = (uint8_t)GAME_OOT;
         // Same raw id, OoT id-space: must not borrow MM's name. (It may be a
         // real OoT pool entry with its OWN name, or nothing; either is correct,
         // borrowing MM's is not.)
         const char* ootName = Combo_GetForeignItemName(ootSameId);
-        FI_ASSERT(ootName == NULL || strcmp(ootName, "Hero's Bow") != 0);
+        FI_ASSERT(ootName == NULL || strcmp(ootName, mmProbe.name) != 0);
 
         // An untagged item resolves to no pool and therefore to no name.
         SharedItem untaggedName;
         untaggedName.originGame = (uint8_t)GAME_NONE;
         untaggedName.flags = 0;
-        untaggedName.id = 0x0037;
+        untaggedName.id = mmProbe.item.id;
         FI_ASSERT(Combo_GetForeignItemName(untaggedName) == NULL);
-
-        Combo_RegisterForeignItemPool((uint8_t)GAME_MM, NULL, 0); // restore process-global state
-        FI_ASSERT(Combo_GetForeignItemPoolFor((uint8_t)GAME_MM, NULL) == 0);
     }
 
     // ------------------------------------------------------------------
@@ -717,5 +747,92 @@ TestResult Test_ForeignHostEligibility(void) {
     FI_ASSERT(MM_Rando_Foreign_IsEligibleHost(chest) == 0);
 
     printf("[TEST] PASS: only chest-class hosts with a live, non-skipped, legal-junk slot can host a foreign item\n");
+    return TEST_PASS;
+}
+
+// ============================================================================
+// #510: the reverse direction's SOURCE pool (kForeignPoolMMV1).
+//
+// The MM twin of the pool-sanity block inside Test_ForeignItemGive, plus the
+// two membership rules that pool is authored under. Display-free: the table is a
+// static in the WHOLE_ARCHIVE'd 2ship_rando and its registrar runs before main(),
+// so this needs no fill, no save and no window.
+//
+// This row is also the runtime proof that MM's registrar SURVIVED THE LINK. The
+// dead-registrar class (#516) is silent at compile and link time — a dropped
+// file-scope initializer just leaves the pool empty — and an empty pool would
+// make OoT_PlaceForeignItems return -1 and fail every paired generation.
+// ============================================================================
+TestResult Test_ForeignPoolMM(void) {
+    printf("[TEST] foreign-pool-mm: MM's cross-game source pool is registered, well-formed and non-junk (#510)\n");
+
+    const ComboForeignItemDef* pool = NULL;
+    const int poolCount = Combo_GetForeignItemPoolFor((uint8_t)GAME_MM, &pool);
+    printf("[TEST] foreign-pool-mm: %d MM source items registered (placement cap is %d per seed)\n", poolCount,
+           (int)RSBS_FOREIGN_PLACEMENT_CAP);
+    FI_ASSERT(pool != NULL);
+    // Deliberately NOT `poolCount <= RSBS_FOREIGN_PLACEMENT_CAP` (the shape the
+    // OoT pool's static_assert uses). The cap bounds PLACEMENTS PER SEED, not
+    // candidates; this pool is intentionally far larger so the per-seed draw
+    // varies. A pool clamped to the cap would be the bug, not the guarantee.
+    FI_ASSERT(poolCount >= 1);
+
+    for (int i = 0; i < poolCount; i++) {
+        FI_ASSERT(pool[i].item.originGame == (uint8_t)GAME_MM);
+        FI_ASSERT(pool[i].item.id != 0); // RI_UNKNOWN is enumerator 0
+        FI_ASSERT(pool[i].item.flags == 0);
+        FI_ASSERT(pool[i].name != NULL && pool[i].name[0] != '\0');
+        FI_ASSERT(Combo_GetForeignItemName(pool[i].item) == pool[i].name);
+
+        // #510 presentation: OoT builds the pickup line as article + name, and
+        // it cannot read MM's item table to get the article — so every row must
+        // carry one. NULL would print "You found Bomb Bag"; the empty string is
+        // legal and correct for the several MM items that take no article
+        // ("Garo's Mask", "Epona's Song").
+        FI_ASSERT(pool[i].article != NULL);
+        FI_ASSERT(Combo_GetForeignItemArticle(pool[i].item) == pool[i].article);
+        // A non-empty article carries its own trailing space, so callers
+        // concatenate with no separator logic. Catches "the" for "the ".
+        if (pool[i].article[0] != '\0') {
+            FI_ASSERT(pool[i].article[strlen(pool[i].article) - 1] == ' ');
+        }
+
+        // Membership rule (1): every entry must be an id MM's own give ACCEPTS.
+        // Driven through the real predicate MM_ForeignItem_Give gates on, not a
+        // copy of it — an entry it refuses is an item the player is promised in
+        // OoT ("it will be awarded there!") and then never receives in Termina.
+        FI_ASSERT(MM_ForeignItem_TestIsGiveableId(pool[i].item.id) == 1);
+
+        // Membership rule (2): no junk-class item may be a cross-game SOURCE.
+        // Junk is what a foreign HOST degrades to, so crossing it would spend one
+        // of at most RSBS_FOREIGN_PLACEMENT_CAP slots on a strictly worse
+        // duplicate of what the host already physically holds. -1 would mean the
+        // id names no row in MM's table at all.
+        FI_ASSERT(MM_ForeignItem_TestIsJunkClassId(pool[i].item.id) == 0);
+    }
+
+    // (originGame, name) uniqueness WITHIN the pool, and id uniqueness with it. A
+    // duplicate name makes this origin's spoiler-load inverse ambiguous, which no
+    // amount of origin dispatch can repair — it is the same defect the (origin,
+    // name) key exists to prevent, arriving from inside one pool instead of
+    // between two.
+    for (int i = 0; i < poolCount; i++) {
+        for (int j = i + 1; j < poolCount; j++) {
+            FI_ASSERT(strcmp(pool[i].name, pool[j].name) != 0);
+            FI_ASSERT(pool[i].item.id != pool[j].item.id);
+        }
+    }
+
+    // Round-trip through the origin-keyed inverse — the spoiler-LOAD path, which
+    // rebuilds a placement table from untrusted text on disk and must never have
+    // to fabricate an RI_*.
+    for (int i = 0; i < poolCount; i++) {
+        SharedItem back;
+        FI_ASSERT(Combo_GetForeignItemByNameFor((uint8_t)GAME_MM, pool[i].name, &back));
+        FI_ASSERT(back.originGame == (uint8_t)GAME_MM && back.id == pool[i].item.id);
+        FI_ASSERT(!Combo_GetForeignItemByNameFor((uint8_t)GAME_NONE, pool[i].name, NULL));
+    }
+
+    printf("[TEST] PASS: MM source pool registered, well-formed, giveable, non-junk, name-invertible\n");
     return TEST_PASS;
 }
