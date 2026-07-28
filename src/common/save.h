@@ -153,6 +153,31 @@ public:
     void RegisterGameMeta(GameId game, const RsbsGameMetaDesc* desc);
 
     /**
+     * The unified slot the CURRENT SESSION is attached to, or -1 for none.
+     *
+     * Why this has to exist at all: a .redsave write needs a slot index, and
+     * the only code that ever knew one was OoT's save hooks, which get it
+     * handed to them as `fileNum`. MM cannot ask the same question. A
+     * cross-game MM session (entered through the Happy Mask Shop) runs with
+     * gSaveContext.fileNum pinned to the 0xFF sentinel for its ENTIRE life —
+     * ConsoleLogo_Init sets it on every MM boot, and the only writers of a real
+     * 0..2 slot live in MM's own file select, which a portal arrival never
+     * enters. So MM has no slot of its own to save into, and before this there
+     * was nowhere for it to look one up.
+     *
+     * Session state, deliberately NOT serialized: which slot is open is a fact
+     * about the running process, not about the save file. It is set by
+     * whichever game last established a slot identity (OoT's load / save
+     * hooks) and read by any game that needs to persist without one of its own.
+     *
+     * Out-of-range values are normalized to -1 so a caller that passes MM's
+     * 0xFF sentinel by mistake gets "no slot" rather than a silent write to
+     * a nonexistent slot.
+     */
+    void SetActiveSlot(int slot);
+    int GetActiveSlot() const;
+
+    /**
      * Directory the .redsave files live in. Defaults to "Save" relative to the
      * working directory so the headless --test path (which never creates a
      * Ship::Context) can round-trip to a writable location. The game-integration
@@ -181,6 +206,9 @@ private:
 
     std::string mSaveDir = "Save";
 
+    // -1 == no slot established this session. See SetActiveSlot.
+    int mActiveSlot = -1;
+
     // Game-side metadata descriptors, indexed by GameId (GAME_OOT / GAME_MM).
     // mMetaPresent[i] guards mMetaDescs[i]; an unset descriptor causes
     // ReadMeta to fill that game's fields with zeros / `started=false`.
@@ -201,6 +229,14 @@ int  RsbsSave_Save(int slot);
 int  RsbsSave_Load(int slot);
 int  RsbsSave_HasSave(int slot);
 void RsbsSave_DeleteSave(int slot);
+
+/**
+ * Session-scoped "which slot is open" (see SaveManager::SetActiveSlot).
+ * RsbsSave_GetActiveSlot returns -1 when no slot has been established, which
+ * every caller must treat as "do not write" rather than as slot 0.
+ */
+void RsbsSave_SetActiveSlot(int slot);
+int  RsbsSave_GetActiveSlot(void);
 
 /**
  * Register a game's metadata-offset descriptor with the SaveManager. Called

@@ -80,6 +80,7 @@ int MM_FbEffectsBinding_RunHeadless(void);
 // moon-crash reset then copies over the live save (the Fierce-Deity /
 // all-Ocarina corruption). Returns 0 on pass, non-zero on fail.
 int MM_FlashFileNumOob_RunHeadless(void);
+int MM_UnifiedSaveCapture_RunHeadless(void);
 // MM single-exe hook dispatch (games/mm/2s2h/mm_hook_dispatch_test.cpp, #511 /
 // #438): the COND_* macros park registrations in the MM-owned S2H::GameHooks
 // registry, but ShouldActorInit / OnActorInit / OnActorDraw / OnOpenText
@@ -305,6 +306,10 @@ static TestResult Test_MMFbEffectsBinding(void) {
 // the C entry point in games/mm/2s2h/mm_flash_filenum_test.cpp.
 static TestResult Test_MMFlashFileNumOob(void) {
     return MM_FlashFileNumOob_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+static TestResult Test_MMUnifiedSaveCapture(void) {
+    return MM_UnifiedSaveCapture_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // MM hook-dispatch lock (see the extern decl above). Thin wrapper over the C
@@ -1771,6 +1776,15 @@ const TestDescriptor gTests[] = {
     // live save. Pure (no display), so it runs in the display-free suite.
     {"mm-flash-filenum-oob", "Flash page indices stay in bounds for fileNum 0xFF; moon-crash reset keeps the save",
      Test_MMFlashFileNumOob},
+    // MM's redship-native unified-save capture (#35 follow-up). MM has no
+    // persistence in single-exe (2s2h/SaveManager/*.cpp is link-excluded and
+    // the flash stubs are a -1 read plus an empty write), so every .redsave's
+    // Tier-3 was zeros and sourceGame could never say GAME_MM. Locks slot
+    // normalization, the no-slot no-op, the file round trip, and — the subtle
+    // one — that the capture is FULL-WIDTH rather than a sizeof(Save) prefix.
+    // Pure (no display, no ROM).
+    {"mm-unified-save-capture", "MM captures its live SaveContext into the unified slot, full-width and round-tripping",
+     Test_MMUnifiedSaveCapture},
     // Hook dispatch reaches the MM-owned registry the COND_* macros register
     // into. Registers through the production macros and drives each dispatcher
     // through the name MM's call sites spell, so both a deleted bridge and a

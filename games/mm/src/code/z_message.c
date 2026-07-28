@@ -19,6 +19,12 @@
 #include "2s2h_assets.h"
 #include <libultraship/bridge/consolevariablebridge.h>
 
+// RSBS single-exe: MM's redship-native unified-save capture, defined in
+// games/mm/2s2h/GameExports_SingleExe.cpp. Declared locally rather than via a
+// header because src/common is not on this decomp TU's include path — the same
+// convention z_play.c uses for the Combo_* entry points.
+extern int MM_Combo_CaptureSaveToUnifiedSlot(void);
+
 const char* gBombersNotebookPhotos[] = {
     gBombersNotebookPhotoAnjuTex,
     gBombersNotebookPhotoKafeiTex,
@@ -6227,6 +6233,25 @@ void MM_Message_Update(PlayState* play) {
             gSaveContext.save.isOwlSave = true;
             Play_SaveCycleSceneFlags(play);
             func_8014546C(&play->sramCtx);
+
+            // RSBS (#35 follow-up): commit the owl save to the unified
+            // .redsave, OUTSIDE the fileNum gate below on purpose.
+            //
+            // A cross-game MM session (entered via the Happy Mask Shop) runs
+            // with fileNum pinned to the 0xFF sentinel for its entire life, so
+            // the vanilla branch below never runs — yet the state machine
+            // still advances to MSGMODE_OWL_SAVE_1/_2 and plays the whole
+            // save-and-quit sequence. The player therefore saw a complete,
+            // indistinguishable owl save that attempted zero bytes of
+            // persistence, with no diagnostic. This call is what makes the owl
+            // save real in that session. It must come AFTER
+            // Play_SaveCycleSceneFlags/func_8014546C so the checksummed cycle
+            // flags are already in gSaveContext.
+            //
+            // Deliberately NOT fixed by handing cross-game MM a fake real
+            // fileNum: that would re-arm every slot-addressed flash path the
+            // 0xFF guards were added to close (#487/#515).
+            MM_Combo_CaptureSaveToUnifiedSlot();
 
             if (gSaveContext.fileNum != 0xFF) {
                 Sram_SetFlashPagesOwlSave(&play->sramCtx,

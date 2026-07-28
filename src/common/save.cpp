@@ -77,6 +77,18 @@ void SaveManager::SetSaveDirectory(const std::string& dir) {
     mSaveDir = dir.empty() ? std::string(".") : dir;
 }
 
+void SaveManager::SetActiveSlot(int slot) {
+    // Normalize anything out of range to "none". The value most likely to
+    // arrive here by mistake is MM's 0xFF fileNum sentinel, and silently
+    // clamping that to a real slot would write one game's session over an
+    // unrelated slot; -1 makes every consumer's "do not write" branch fire.
+    mActiveSlot = SlotInRange(slot) ? slot : -1;
+}
+
+int SaveManager::GetActiveSlot() const {
+    return mActiveSlot;
+}
+
 std::string SaveManager::SlotPath(int slot) const {
     return (std::filesystem::path(mSaveDir) /
             ("redship_slot" + std::to_string(slot) + ".redsave"))
@@ -481,6 +493,14 @@ int RsbsSave_HasSave(int slot) {
 
 void RsbsSave_DeleteSave(int slot) {
     rsbs::SaveManager::Instance().DeleteSave(slot);
+}
+
+void RsbsSave_SetActiveSlot(int slot) {
+    rsbs::SaveManager::Instance().SetActiveSlot(slot);
+}
+
+int RsbsSave_GetActiveSlot(void) {
+    return rsbs::SaveManager::Instance().GetActiveSlot();
 }
 
 void RsbsSave_RegisterGameMeta(GameId game, const RsbsGameMetaDesc* desc) {
