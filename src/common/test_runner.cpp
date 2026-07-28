@@ -630,6 +630,174 @@ TestResult Test_RandoDeterminism(void) {
     return mmRc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// ============================================================================
+// #510: the REVERSE foreign pool, end to end through a real OoT generation.
+//
+// WHY THIS ROW IS IN THE `rando` TIER AND NOT THE DISPLAY-FREE ONE. OoT's host
+// predicate reads GetPlacedRandomizerGet() — a FILL RESULT. In a ROM-free run
+// with no fill every location is RG_NONE, so the predicate accepts nothing and a
+// naive "only chests are accepted" assertion passes with an accepted count of
+// ZERO: green, and testing nothing. That is the same vacuity trap #491 recorded
+// for MM's deferred COND_HOOK unregister. The defence is structural — run a real
+// generation first — plus an explicit assertion that the accepted count is
+// NON-ZERO, and printing it so a supply regression is visible in CI logs before
+// it becomes a shortfall.
+//
+// Bridges: OoT_Foreign_IsEligibleHost is the real predicate the placement pass
+// uses; MM_ConsumeSharedItems -> MM_AwardSharedItem -> MM_ForeignItem_Give is
+// MM's real, already-merged (#507) award chain.
+// ============================================================================
+extern "C" {
+int OoT_Foreign_IsEligibleHost(uint16_t rc);
+void MM_ConsumeSharedItems(void);
+int MM_ForeignItem_TestPendingCount(void);
+uint16_t MM_ForeignItem_TestPendingAt(int index);
+void MM_ForeignItem_TestResetPending(void);
+}
+
+TestResult Test_ForeignPlacementOoT(void) {
+    printf("[TEST] foreign-placement-oot: a real OoT generation hosts MM items, deterministically, and MM's award "
+           "chain accepts them (#510)\n");
+
+    auto shipCtx = CreateHarnessStyleContext();
+    if (!shipCtx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    // A REAL fill. Everything below depends on this having run — without it the
+    // predicate is vacuous and the placement table is empty.
+    const char* kSeed = "RSBSFOREIGN1";
+    int rc = Rando_HeadlessSeedTest(kSeed);
+    if (rc != 0) {
+        printf("[TEST] FAIL: seed generation rc=%d\n", rc);
+        return TEST_FAIL;
+    }
+
+    // The producer's gate: generation stamps the pairing identity, so by now the
+    // reverse placement pass has run inside Playthrough_Init.
+    if (!Combo_ForeignPairingActive()) {
+        printf("[TEST] FAIL: generation did not stamp the pairing identity\n");
+        return TEST_FAIL;
+    }
+
+    // ------------------------------------------------------------------
+    // Host supply: NON-ZERO, and printed.
+    // ------------------------------------------------------------------
+    int eligibleHosts = 0;
+    for (int id = 1; id < 4200; id++) { // RC_MAX is ~4134; the predicate rejects out-of-range itself
+        if (OoT_Foreign_IsEligibleHost((uint16_t)id)) {
+            eligibleHosts++;
+        }
+    }
+    printf("[TEST] foreign-placement-oot: %d eligible OoT host checks after a real fill\n", eligibleHosts);
+    if (eligibleHosts <= 0) {
+        printf("[TEST] FAIL: no eligible OoT host check — the predicate accepts nothing (vacuity)\n");
+        return TEST_FAIL;
+    }
+
+    // ------------------------------------------------------------------
+    // Placements: made, MM-tagged, named, and hosted on eligible checks.
+    // ------------------------------------------------------------------
+    const int placedCount = Combo_CountForeignPlacementsOoT();
+    printf("[TEST] foreign-placement-oot: %d MM items hosted in OoT checks (cap %d)\n", placedCount,
+           (int)RSBS_FOREIGN_PLACEMENT_CAP);
+    if (placedCount <= 0) {
+        printf("[TEST] FAIL: generation placed no MM items despite an active pairing\n");
+        return TEST_FAIL;
+    }
+    if (placedCount > (int)RSBS_FOREIGN_PLACEMENT_CAP) {
+        printf("[TEST] FAIL: placement count %d exceeds the carve\n", placedCount);
+        return TEST_FAIL;
+    }
+
+    for (int slot = 0; slot < (int)RSBS_FOREIGN_PLACEMENT_CAP; slot++) {
+        const ComboForeignPlacement& p = gComboCtx.foreignPlacementsOoT[slot];
+        if (p.item.originGame == (uint8_t)GAME_NONE) {
+            continue; // unset slot
+        }
+        if (p.item.originGame != (uint8_t)GAME_MM) {
+            printf("[TEST] FAIL: OoT-hosted placement in slot %d is not MM-tagged (%u)\n", slot,
+                   (unsigned)p.item.originGame);
+            return TEST_FAIL;
+        }
+        // Resolvable through the pool: the spoiler and both presentation surfaces
+        // read the name through exactly this call.
+        if (Combo_GetForeignItemName(p.item) == nullptr) {
+            printf("[TEST] FAIL: hosted MM item id=%u resolves to no pool entry\n", (unsigned)p.item.id);
+            return TEST_FAIL;
+        }
+        // The host must still satisfy the predicate that selected it — it keeps
+        // its own junk item, which is the degrade invariant (#488): with the
+        // placement table absent the check just yields the junk it really holds.
+        if (!OoT_Foreign_IsEligibleHost(p.mmCheckId)) {
+            printf("[TEST] FAIL: OoT check %u hosts an MM item but is not an eligible host\n",
+                   (unsigned)p.mmCheckId);
+            return TEST_FAIL;
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // MM's REAL award chain accepts a really-placed item, exactly once.
+    // ------------------------------------------------------------------
+    // The in-game pickup seam (hook_handlers.cpp) needs a live PlayState and is
+    // gameplay-tier, so this drives the half CI can honestly reach: record the
+    // crossing the way the seam does, then run MM's real consumer. With no
+    // PlayState the give DEFERS into MM's pending queue (#502) rather than
+    // dereferencing — so the queue is the observable that the id survived the
+    // whole path in MM's id-space.
+    const SharedItem firstPlaced = gComboCtx.foreignPlacementsOoT[0].item;
+    Combo_ClearSharedItemOutbox();
+    MM_ForeignItem_TestResetPending();
+    if (Combo_RecordSharedItem(GAME_MM, firstPlaced.id) < 0) {
+        printf("[TEST] FAIL: could not record the crossing\n");
+        return TEST_FAIL;
+    }
+    MM_ConsumeSharedItems();
+    if (MM_ForeignItem_TestPendingCount() != 1 || MM_ForeignItem_TestPendingAt(0) != firstPlaced.id) {
+        printf("[TEST] FAIL: MM's award chain did not accept the placed item (pending=%d)\n",
+               MM_ForeignItem_TestPendingCount());
+        return TEST_FAIL;
+    }
+    // Single-use: a second arrival awards nothing more.
+    MM_ForeignItem_TestResetPending();
+    MM_ConsumeSharedItems();
+    if (MM_ForeignItem_TestPendingCount() != 0) {
+        printf("[TEST] FAIL: crossing awarded twice\n");
+        return TEST_FAIL;
+    }
+    MM_ForeignItem_TestResetPending();
+
+    // ------------------------------------------------------------------
+    // DETERMINISM: the same seed reproduces the same placements exactly.
+    // ------------------------------------------------------------------
+    // The selection stream is a LOCAL xorshift32 seeded from the paired identity,
+    // deliberately not drawn from the fill's RNG. If it ever started borrowing
+    // Random_Init's stream — or iterating an unordered container — this is what
+    // goes red, and it is the same property the SeedDeterminism digest folds.
+    ComboForeignPlacement firstRun[RSBS_FOREIGN_PLACEMENT_CAP];
+    memcpy(firstRun, gComboCtx.foreignPlacementsOoT, sizeof(firstRun));
+
+    rc = Rando_HeadlessSeedTest(kSeed);
+    if (rc != 0) {
+        printf("[TEST] FAIL: second seed generation rc=%d\n", rc);
+        return TEST_FAIL;
+    }
+    if (memcmp(firstRun, gComboCtx.foreignPlacementsOoT, sizeof(firstRun)) != 0) {
+        printf("[TEST] FAIL: same seed produced different foreign placements (nondeterministic)\n");
+        return TEST_FAIL;
+    }
+
+    Combo_ClearSharedItemOutbox();
+    printf("[TEST] PASS: %d MM items hosted over %d eligible OoT checks, deterministic, MM awards each once\n",
+           placedCount, eligibleHosts);
+    return TEST_PASS;
+}
+
 // Lane C0 reachability lock (#392): MM's 2ship_rando is un-elided and
 // actually generates — ShipInit registrars populated the Logic/Regions
 // graph, OnFileCreate runs GeneratePools + a logic apply headlessly, and the
@@ -1450,6 +1618,11 @@ const TestDescriptor gTests[] = {
     // Lane C0: MM's randomizer is reachable and generates headlessly. Needs a
     // display like rando-gen, so `--test all` skips it (below).
     {"mm-rando-gen", "MM rando generation runs headlessly + writes tagged spoiler (Lane C0)", Test_MMRandoGen},
+    // #510: the reverse pool end to end over a REAL fill. In this tier, not the
+    // display-free one, because OoT's host predicate reads a fill result — with
+    // no fill it accepts nothing and the lock would pass vacuously.
+    {"foreign-placement-oot", "Real OoT fill hosts MM items deterministically; MM's award chain accepts them (#510)",
+     Test_ForeignPlacementOoT},
     // #439: the paired world must activate on the SWITCH-ENTRY path (the only
     // flow a player actually takes), not just the direct OnSaveInit chain.
     // Same display requirement as mm-rando-gen, so `--test all` skips it.
@@ -1504,6 +1677,11 @@ const TestDescriptor gTests[] = {
     // fprintf; this one drives the real one and the real give behind it.
     {"foreign-award-mm", "MM's real award reaches the real give: once per crossing, deferred safely (#502)",
      Test_ForeignAwardMM},
+    // #510: the reverse direction's SOURCE pool. Display-free — the table is a
+    // static in the WHOLE_ARCHIVE'd 2ship_rando and its registrar runs before
+    // main() — so this also proves that registrar survived the link.
+    {"foreign-pool-mm", "MM's cross-game source pool: registered, well-formed, giveable, non-junk (#510)",
+     Test_ForeignPoolMM},
     {"combo-spoiler-view", "In-game spoiler view model: named crossings, collected state, unpaired != empty (#496)",
      Test_ComboSpoilerView},
     {"combo-spoiler-window", "Common-owned spoiler window registers de-collided; inert under every active game (#496)",
@@ -1692,7 +1870,8 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "mm-pair-switch-entry") == 0 ||
                 strcmp(gTests[i].name, "mm-reload-arm-state") == 0 ||
                 strcmp(gTests[i].name, "mm-moon-crash-arm-state") == 0 ||
-                strcmp(gTests[i].name, "mm-owl-save-arm-state") == 0) {
+                strcmp(gTests[i].name, "mm-owl-save-arm-state") == 0 ||
+                strcmp(gTests[i].name, "foreign-placement-oot") == 0) {
                 printf("\n--- Skipping: %s (needs display; runs as a rando-label CTest) ---\n", gTests[i].name);
                 continue;
             }

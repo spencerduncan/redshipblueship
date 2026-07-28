@@ -361,6 +361,15 @@ const char* ForeignNameForCheck(RandoCheckId randoCheckId) {
     return Combo_GetForeignItemName(*item);
 }
 
+const char* ForeignArticleForCheck(RandoCheckId randoCheckId) {
+    const SharedItem* item = PlacementFor(randoCheckId);
+    if (item == nullptr) {
+        return "";
+    }
+    const char* article = Combo_GetForeignItemArticle(*item);
+    return article != nullptr ? article : "";
+}
+
 bool RecordForeignPickup(RandoCheckId randoCheckId) {
     const SharedItem* item = PlacementFor(randoCheckId);
     if (item == nullptr) {

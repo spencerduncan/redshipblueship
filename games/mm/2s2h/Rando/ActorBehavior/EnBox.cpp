@@ -75,8 +75,12 @@ void EnBox_RandoPostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s*
     // RITYPE_MAJOR rather than a bespoke texture set: the ornate corner/lock
     // already means "worth opening", which a pinned progression item is, and
     // inventing a foreign-specific chest texture is the per-item asset tier
-    // #494 puts out of scope. The particle aura below is what makes it
-    // unambiguous — no other chest in the game sparkles.
+    // #494 puts out of scope.
+    //
+    // #510 removed the particle aura that used to accompany this. The aura was
+    // a deliberate "this one is from the other game" tell, and the cross-game
+    // item class is now presented as ordinary treasure — a foreign chest is an
+    // ornate chest, exactly like any other chest holding something good.
     if (Rando::Foreign::IsForeignCheck((RandoCheckId)ENBOX_RC)) {
         randoItemType = RITYPE_MAJOR;
     }
@@ -154,15 +158,6 @@ void EnBox_RandoPostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s*
 void EnBox_RandoDraw(Actor* actor, PlayState* play) {
     s32 pad;
     EnBox* enBox = (EnBox*)actor;
-
-#ifdef RSBS_SINGLE_EXECUTABLE
-    // The other half of the foreign-chest marker (see EnBox_RandoPostLimbDraw).
-    // Emitted here, once per frame, rather than in the post-limb callback,
-    // which runs per limb and would spawn the effect several times a frame.
-    if (Rando::Foreign::IsForeignCheck((RandoCheckId)ENBOX_RC)) {
-        Rando::DrawForeignCheckAura(actor);
-    }
-#endif
 
     OPEN_DISPS(play->state.gfxCtx);
 

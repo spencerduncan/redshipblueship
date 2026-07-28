@@ -45,9 +45,24 @@ extern "C" {
  * spoiler stays meaningful without OoT's enum in scope).
  */
 typedef struct {
-    SharedItem item;  // originGame == GAME_OOT, flags == 0, id == the RG_* value
-    const char* name; // e.g. "Progressive Hookshot"
+    SharedItem item;     // originGame == GAME_OOT, flags == 0, id == the RG_* value
+    const char* name;    // e.g. "Progressive Hookshot"
+    const char* article; // "the ", "a ", "an " or "" — see below
 } ComboForeignItemDef;
+
+// WHY THE ARTICLE IS PART OF THE DESCRIPTOR (#510). A cross-game item is
+// presented as an ORDINARY pickup of whichever game the player found it in —
+// "You found the Bomb Bag!", never "it belongs to the other game". Both games
+// build that sentence by prepending a per-item article (MM:
+// Rando::StaticData::Items[].article; OoT: Item::GetArticle()), but the HOST
+// game cannot look up the FOREIGN game's item table — that is the whole ADR 0002
+// boundary. So the article has to travel with the pooled descriptor, exactly as
+// the display name already does. Without it the presentation has to hardcode
+// "the ", which is wrong for a third of the pool ("a Bottle of Milk", "an Empty
+// Bottle") and instantly reads as machine-generated.
+//
+// Includes its own trailing space when non-empty, so callers concatenate
+// article + name with no separator logic.
 
 // ============================================================================
 // The pinned pools, indexed by ORIGIN game (ADR 0009 decision 3)
@@ -116,6 +131,17 @@ int Combo_GetForeignItemPool(const ComboForeignItemDef** outPool);
  * purpose: a redeemed entry keeps its name.
  */
 const char* Combo_GetForeignItemName(SharedItem item);
+
+/**
+ * The article that belongs in front of Combo_GetForeignItemName's result, or
+ * NULL if (originGame, id) is not in that origin's pinned pool. Carries its own
+ * trailing space when non-empty, so `article + name` needs no separator.
+ *
+ * Split from the name rather than baked into it because the two are consumed
+ * separately: a spoiler line wants the bare name, a pickup textbox wants the
+ * full "the Bomb Bag" phrase. See the note on ComboForeignItemDef.article.
+ */
+const char* Combo_GetForeignItemArticle(SharedItem item);
 
 /**
  * The inverse of Combo_GetForeignItemName, keyed on (originGame, name). Used by
@@ -227,6 +253,52 @@ void Combo_ClearForeignPlacementsOoT(void);
  *         the redemption bit is set by the caller's consumer either way).
  */
 int OoT_ForeignItem_Give(uint16_t rgId);
+
+// ============================================================================
+// Reverse-direction PRODUCER: OoT's generation-time placement pass (#510)
+// ============================================================================
+//
+// Both are defined in games/oot/soh/Enhancements/randomizer/
+// ForeignItemsSingleExe.cpp and exist ONLY under RSBS_SINGLE_EXECUTABLE — the
+// whole cross-game item class is single-exe-only. Playthrough_Init is an
+// ordinary (non-single-exe) function, so its call site MUST be wrapped in
+// `#ifdef RSBS_SINGLE_EXECUTABLE` or a plain OoT build fails to link.
+
+/**
+ * Place MM-origin items (kForeignPoolMMV1) into eligible OoT checks, recording
+ * them in gComboCtx.foreignPlacementsOoT. Called once per generation from
+ * Playthrough_Init, AFTER the gComboCtx pairing stamp — the placement is derived
+ * from that identity, so it must be live first.
+ *
+ * Selection is deterministic (a local xorshift32 seeded from seed + settings
+ * digest, never from the fill's own RNG stream) and draws BOTH the pool entry
+ * and the host without replacement, because the MM pool is far larger than
+ * RSBS_FOREIGN_PLACEMENT_CAP.
+ *
+ * @return the number of placements made (>= 0; 0 when no pairing is active,
+ *         which is the normal solo-rando case), or NEGATIVE when the pairing IS
+ *         active but could not be honoured at all: -1 no MM pool registered,
+ *         -2 no eligible host in the finished fill. Callers propagate the
+ *         negative through Playthrough_Init's existing return-code convention.
+ *         It never throws — the generation chain crosses an extern "C" boundary
+ *         with no try/catch, where an exception is a std::terminate.
+ */
+int OoT_PlaceForeignItems(void);
+
+/**
+ * May OoT check `rc` host a foreign item? The real selection predicate
+ * OoT_PlaceForeignItems' candidate loop uses, exposed for the CI lock so the
+ * test drives selection rather than a paraphrase of it.
+ *
+ * True only for a genuine treasure chest (Location::GetActorID() == ACTOR_EN_BOX
+ * — OoT has no RCTYPE_CHEST; chests are RCTYPE_STANDARD) that is not commerce
+ * and whose FILL placed a junk-category item there. The junk requirement is the
+ * degrade invariant: if the placement table is ever absent, the check quietly
+ * yields the ordinary item it really holds.
+ *
+ * @return 1 if eligible, 0 otherwise.
+ */
+int OoT_Foreign_IsEligibleHost(uint16_t rc);
 
 #ifdef __cplusplus
 }

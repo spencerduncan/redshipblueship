@@ -374,6 +374,13 @@ if(BUILD_TESTING)
     # crossing, order preservation, origin filtering, and that a NULL PlayState
     # defers the give instead of dereferencing it.
     redship_add_test(NAME ForeignAwardMM COMMAND redship --test foreign-award-mm)
+    # #510: the reverse direction's SOURCE pool (kForeignPoolMMV1). Display-free
+    # — the table is a static in the WHOLE_ARCHIVE'd 2ship_rando and its
+    # registrar runs before main() — so this row doubles as the runtime proof
+    # that the registrar survived the link. A dropped file-scope initializer is
+    # silent at compile and link time and would leave OoT unable to place
+    # anything (#516's dead-registrar class).
+    redship_add_test(NAME ForeignPoolMM COMMAND redship --test foreign-pool-mm)
     redship_add_test(NAME ComboSpoilerView COMMAND redship --test combo-spoiler-view)
     redship_add_test(NAME ComboSpoilerWindow COMMAND redship --test combo-spoiler-window)
     # MM randomizer options (#497 step 4, #499). Display-free: the option table
@@ -620,6 +627,18 @@ if(BUILD_TESTING)
         LABEL rando
         TIMEOUT 180
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1;RSBS_DIAG_CVARS=gRandoSettings.ShuffleSongs=3")
+
+    # #510: the reverse foreign pool over a REAL OoT fill. In the `rando` tier
+    # rather than the display-free one for a correctness reason, not a
+    # convenience one: OoT's host predicate reads GetPlacedRandomizerGet(), a
+    # FILL RESULT, so with no fill every location is RG_NONE, the predicate
+    # accepts nothing, and a "only chests are hosts" assertion passes with a
+    # count of zero. The row asserts a NON-ZERO eligible-host count and prints
+    # it, so host supply is visible before it becomes a shortfall.
+    redship_add_test(NAME ForeignPlacementOoT COMMAND redship --test foreign-placement-oot
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
     # Lane C0 (#392): MM's 2ship_rando is un-elided and actually generates —
     # region graph populated via ShipInit registrars, OnFileCreate runs

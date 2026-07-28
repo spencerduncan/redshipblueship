@@ -549,6 +549,30 @@ extern "C" int Rando_HeadlessSeedDeterminismDigest(const char* seedStr, const ch
     }
     const uint32_t placementHash = SohUtils::Hash(blob);
 
+    // #510: fold the REVERSE foreign placements (MM items hosted in OoT checks,
+    // written by OoT_PlaceForeignItems during the generation above) into the same
+    // digest. Without this the two-process diff would happily agree on a world
+    // whose cross-game half was drawn differently each run — the placement pass
+    // seeds a local xorshift32 from the paired identity precisely so it cannot,
+    // and this is what holds it to that. Canonical, fixed-slot order, and stable
+    // when the carve is empty (an unpaired world digests as all-zero slots rather
+    // than as absent, so a pairing that stops firing shows up as a mismatch).
+    std::string foreignBlob;
+    size_t foreignCount = 0;
+    for (int i = 0; i < (int)RSBS_FOREIGN_PLACEMENT_CAP; i++) {
+        const ComboForeignPlacement& fp = gComboCtx.foreignPlacementsOoT[i];
+        if (fp.item.originGame != (uint8_t)GAME_NONE) {
+            foreignCount++;
+        }
+        foreignBlob += std::to_string(fp.mmCheckId);
+        foreignBlob += ':';
+        foreignBlob += std::to_string((int)fp.item.originGame);
+        foreignBlob += ':';
+        foreignBlob += std::to_string(fp.item.id);
+        foreignBlob += ';';
+    }
+    const uint32_t foreignHash = SohUtils::Hash(foreignBlob);
+
     FILE* out = stdout;
     bool closeOut = false;
     if (outPath && outPath[0] != '\0') {
@@ -564,14 +588,19 @@ extern "C" int Rando_HeadlessSeedDeterminismDigest(const char* seedStr, const ch
             "settingsHash=%08X\n"
             "sourceIsRando=%d\n"
             "placementHash=%08X\n"
-            "placedCount=%zu\n",
+            "placedCount=%zu\n"
+            "foreignOoTHash=%08X\n"
+            "foreignOoTCount=%zu\n",
             gComboCtx.sharedRandoSeed, gComboCtx.sharedRandoSettingsHash, gComboCtx.sourceIsRando ? 1 : 0,
-            placementHash, placedCount);
+            placementHash, placedCount, foreignHash, foreignCount);
     if (closeOut) {
         fclose(out);
     }
-    fprintf(stderr, "[rando-determinism] digest: seed=%08X settingsHash=%08X placementHash=%08X placed=%zu\n",
-            gComboCtx.sharedRandoSeed, gComboCtx.sharedRandoSettingsHash, placementHash, placedCount);
+    fprintf(stderr,
+            "[rando-determinism] digest: seed=%08X settingsHash=%08X placementHash=%08X placed=%zu "
+            "foreignOoTHash=%08X foreignOoT=%zu\n",
+            gComboCtx.sharedRandoSeed, gComboCtx.sharedRandoSettingsHash, placementHash, placedCount, foreignHash,
+            foreignCount);
     return 0;
 }
 
