@@ -47,6 +47,7 @@ games/mm/2s2h/mm_notification_binding_test.cpp
 games/mm/2s2h/mm_resume_state_test.cpp
 games/mm/2s2h/mm_save_manager_stubs.c
 games/mm/2s2h/mm_trackers_gui_test.cpp
+games/mm/2s2h/mm_unified_save_test.cpp
 games/mm/2s2h/z_scene_2SH.cpp
 games/mm/src/audio/lib/dcache.c
 games/mm/src/audio/lib/load.c

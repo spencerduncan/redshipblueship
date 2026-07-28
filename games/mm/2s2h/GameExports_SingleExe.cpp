@@ -33,6 +33,7 @@
 #include "game_lifecycle.h"
 #include "integration_test_hooks.h"
 #include "context.h"
+#include "save.h" // RsbsSave_* — MM's redship-native unified-save capture
 #include "shared_items.h"
 // Paired-world keying + placement-table accessors (#439 switch-entry
 // activation logs the placement count at the pairing decision point).
@@ -1559,6 +1560,57 @@ void MM_Game_Suspend(void) {
 extern "C" void MM_ResumeColdBootPrep(void) {
     MM_SystemHeap_Init((void*)MM_gSystemHeap, SYSTEM_HEAP_SIZE);
     Regs_Init();
+}
+
+/**
+ * Commit MM's LIVE SaveContext into the unified .redsave slot (#35 follow-up).
+ *
+ * WHY THIS EXISTS. In single-exe builds MM has no persistence whatsoever:
+ * games/mm/CMakeLists.txt filters out 2s2h/SaveManager/*.cpp, and the linked
+ * replacement (games/mm/2s2h/mm_save_manager_stubs.c) returns -1 from
+ * SaveManager_SysFlashrom_ReadData and has an EMPTY SaveManager_SysFlashrom_-
+ * WriteData body. Every MM save route — new-cycle, owl, pause save-and-quit,
+ * autosave — funnels through those two symbols, so MM writes nothing at all.
+ * Before this, the ONLY thing that ever put real MM bytes into the cross-game
+ * shadow was the departure freeze in Combo_CheckEntranceSwitch, i.e. MM state
+ * was captured at exactly one instant: walking back through the portal. A
+ * session ended any other way (owl save, quit, closing the window) recorded
+ * nothing, which is why a .redsave's Tier-3 reads as 65536 zero bytes.
+ *
+ * This is the redship-native capture path: it does not go anywhere near MM's
+ * flash funnel, which is dead-ended twice over (the no-op stub, and the
+ * gSaveContext.fileNum != 0xFF gates that a cross-game session can never
+ * satisfy). It also cannot route through OoT's GameInteractor hooks, because
+ * GI_SINGLE_EXE_GATE returns early from every OoT executor for the entire MM
+ * session.
+ *
+ * FULL WIDTH, deliberately. The shadow write passes MM's real
+ * sizeof(SaveContext) — this TU is one of the few that can see it — and NOT
+ * the sizeof(Save) prefix the excluded SaveManager.cpp used. Context_Update-
+ * ShadowCopy does not zero the tail, so a prefix write would leave everything
+ * past Save (eventInf, cycleSceneFlags, the timer arrays, the runtime respawn
+ * table, ShipSaveContext) at whatever a DIFFERENT point in time left there.
+ *
+ * @return 1 on a committed write, 0 when there was nothing to write to.
+ */
+extern "C" int MM_Combo_CaptureSaveToUnifiedSlot(void) {
+    const int slot = RsbsSave_GetActiveSlot();
+    if (slot < 0) {
+        // No slot established this session. Honest no-op rather than a guess:
+        // defaulting to slot 0 here would let an MM session started from an
+        // unsaved new file overwrite an unrelated slot.
+        fprintf(stderr, "[MM] unified save skipped: no active slot for this session\n");
+        fflush(stderr);
+        return 0;
+    }
+
+    Context_UpdateShadowCopy(GAME_MM, &gSaveContext, sizeof(gSaveContext));
+    gComboCtx.sourceGame = GAME_MM;
+
+    const int ok = RsbsSave_Save(slot);
+    fprintf(stderr, "[MM] unified save to slot %d: %s\n", slot, ok ? "ok" : "FAILED");
+    fflush(stderr);
+    return ok;
 }
 
 /**

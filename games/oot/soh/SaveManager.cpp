@@ -159,6 +159,9 @@ SaveManager::SaveManager() {
         if (fileNum < 0 || fileNum >= RSBS_SAVE_MAX_SLOTS) {
             return;
         }
+        // Publish the slot so a later MM-side save can address it; MM has no
+        // slot of its own (its fileNum is the 0xFF sentinel cross-game).
+        RsbsSave_SetActiveSlot(fileNum);
         Context_UpdateShadowCopy(GAME_OOT, &gSaveContext, sizeof(gSaveContext));
         gComboCtx.sourceGame = GAME_OOT;
         RsbsSave_Save(fileNum);
@@ -185,6 +188,12 @@ SaveManager::SaveManager() {
         if (fileNum < 0 || fileNum >= RSBS_SAVE_MAX_SLOTS) {
             return;
         }
+        // Establish the session's slot BEFORE the clear-and-reload below, so
+        // it survives regardless of whether this slot has a companion
+        // .redsave. A slot the player opened is the session's slot even when
+        // no cross-game state exists for it yet — that is exactly the case
+        // where MM is entered for the first time and needs somewhere to save.
+        RsbsSave_SetActiveSlot(fileNum);
         Context_InvalidateSessionOnSlotLoad();
         if (RsbsSave_HasSave(fileNum)) {
             RsbsSave_Load(fileNum);

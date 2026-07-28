@@ -520,6 +520,18 @@ if(BUILD_TESTING)
     # over the live save (spawn-as-Fierce-Deity / all-Ocarina corruption).
     # Display-free and ROM-free, so it runs in this redship tier.
     redship_add_test(NAME MMFlashFileNumOob COMMAND redship --test mm-flash-filenum-oob)
+    # MM's redship-native unified-save capture (#35 follow-up,
+    # games/mm/2s2h/mm_unified_save_test.cpp). MM persists nothing in
+    # single-exe: 2s2h/SaveManager/*.cpp is filtered out of the link and the
+    # replacement flash stubs are a -1 read plus an EMPTY write, so the only
+    # thing that ever deposited MM bytes into the cross-game shadow was the
+    # departure freeze on a portal crossing. An operator .redsave confirmed it:
+    # Tier-2 had 16647 non-zero bytes, Tier-3 was 65536 zeros. Locks slot
+    # normalization (0xFF must mean "no slot", never clamp), the no-slot no-op,
+    # the round trip through a real file, sourceGame == GAME_MM, and that the
+    # capture is FULL-WIDTH rather than the sizeof(Save) prefix the excluded
+    # file used. Display-free and ROM-free, so it runs in this redship tier.
+    redship_add_test(NAME MMUnifiedSaveCapture COMMAND redship --test mm-unified-save-capture)
     # MM single-exe hook dispatch (#511, #438): the COND_HOOK/COND_ID_HOOK
     # macros park registrations in the MM-owned S2H::GameHooks registry, but
     # ShouldActorInit / OnActorInit / OnActorDraw / OnOpenText dispatched

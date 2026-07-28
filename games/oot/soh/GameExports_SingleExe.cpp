@@ -20,6 +20,7 @@
 #include "game_lifecycle.h"
 #include "integration_test_hooks.h"
 #include "context.h"
+#include "save.h" // RsbsSave_SetActiveSlot — publish the slot MM will save into
 #include "shared_items.h"
 #include "foreign_items.h" // OoT_ForeignItem_Give (Lane C1 redemption)
 #include "entrance.h"
@@ -1155,6 +1156,25 @@ extern "C" uint16_t Combo_CheckEntranceSwitch(uint16_t entranceIndex) {
 
     if (Combo_IsCrossGameSwitch() && !wasAlreadyPending) {
         fprintf(stderr, "[COMBO] Cross-game switch (%s)! entrance=0x%04X\n", gameId, entranceIndex);
+
+        // Publish the unified slot while OoT still knows it. This is the last
+        // moment it is knowable: MM boots with gSaveContext.fileNum pinned to
+        // the 0xFF sentinel (ConsoleLogo_Init) for the whole cross-game
+        // session, and the only writers of a real 0..2 slot live in MM's own
+        // file select, which a portal arrival never enters. Without this, an
+        // MM-side save has no slot to address.
+        //
+        // Guarded two ways. Only when OoT is the DEPARTING game: sizeof and
+        // field offsets in this TU are OoT's SaveContext layout, so reading
+        // fileNum while MM is active would pull an unrelated MM field. And
+        // only for an in-range value, so OoT's own 0xFF title-screen sentinel
+        // does not clear a slot that a real load already established.
+        if (currentGame != GAME_MM) {
+            const int ootFileNum = static_cast<int>(gSaveContext.fileNum);
+            if (ootFileNum >= 0 && ootFileNum < RSBS_SAVE_MAX_SLOTS) {
+                RsbsSave_SetActiveSlot(ootFileNum);
+            }
+        }
 
         uint16_t returnEntrance = Combo_GetSwitchReturnEntrance();
         // sizeof(gSaveContext) in this TU is OoT's SaveContext layout. When MM
