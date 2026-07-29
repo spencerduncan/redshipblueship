@@ -413,23 +413,52 @@ bool IsGiveableItemId(uint16_t riId) {
 }
 
 /**
- * What the arrival toast shows for `riId`, read from MM's OWN item table.
+ * The WHOLE arrival toast for `riId`, read from MM's OWN item table.
  *
- * Split out from the emit so the ROM-free tier can assert what the player is
- * shown without a Gui (MM_ForeignItem_TestArrivalText/Icon at the bottom of
- * this file). Both fields come from the same two accessors MM's native rando
- * pickup toast calls (Rando/MiscBehavior/CheckQueue.cpp) — this is an MM item
- * being received in MM, so nothing here is cross-game and nothing needs an
- * archive that is not mounted.
+ * Returns the complete Notification::Options rather than the item name alone,
+ * so that the ROM-free tier's assertion covers every field the player can read
+ * (MM_ForeignItem_TestArrivalText at the bottom of this file renders it the way
+ * the overlay does). A bridge that exposed only the name would let a re-added
+ * cross-game tell — an origin badge in `.prefix`, "from Ocarina of Time"
+ * appended to the verb — pass the lock untouched, which is exactly the
+ * regression #510 exists to prevent.
+ *
+ * Icon and name come from the same two accessors MM's native rando pickup toast
+ * calls (Rando/MiscBehavior/CheckQueue.cpp) — this is an MM item being received
+ * in MM, so nothing here is cross-game and nothing needs an archive that is not
+ * mounted. `.itemIcon` may be nullptr; Emit then renders text-only.
+ *
+ * Field arrangement matches that native toast exactly (verb in `.message`, item
+ * in `.suffix`, no `.prefix`), because Options colours each field differently
+ * and a bespoke arrangement would itself be a "this one is special" tell.
  */
-struct ArrivalToast {
-    const char* icon; // may be nullptr; Emit then renders text-only
-    std::string text; // MM's article + name, e.g. "the Bunny Hood"
-};
+Notification::Options BuildArrivalToast(RandoItemId randoItemId) {
+    return Notification::Options{
+        .itemIcon = Rando::StaticData::GetIconTexturePath(randoItemId),
+        .message = "You got",
+        .suffix = Rando::StaticData::GetItemName(randoItemId), // MM's article + name, e.g. "the Bunny Hood"
+    };
+}
 
-ArrivalToast BuildArrivalToast(RandoItemId randoItemId) {
-    return ArrivalToast{ Rando::StaticData::GetIconTexturePath(randoItemId),
-                         Rando::StaticData::GetItemName(randoItemId) };
+/**
+ * The toast as one line of text, joined the way Notification::Window::Draw lays
+ * it out: every non-empty field on the same line, one gap between neighbours
+ * (soh/Notification/Notification.cpp's ImGui::SameLine). The ROM-free lock's
+ * observable — see MM_ForeignItem_TestArrivalText.
+ */
+std::string RenderToastLine(const Notification::Options& toast) {
+    std::string line;
+    const std::string* const fields[] = { &toast.prefix, &toast.message, &toast.suffix };
+    for (const std::string* field : fields) {
+        if (field->empty()) {
+            continue;
+        }
+        if (!line.empty()) {
+            line += ' ';
+        }
+        line += *field;
+    }
+    return line;
 }
 
 /** The actual give. Precondition: MM_gPlayState != NULL and the id is real. */
@@ -444,10 +473,8 @@ void GiveNow(uint16_t riId) {
     // direction (OoT_AwardSharedItem), here on MM's side.
     //
     // PRESENTED AS AN ORDINARY MM PICKUP: MM's own toast, MM's own icon, MM's
-    // own "article + name" sentence, and no mention of where the item came from.
-    // Byte-for-byte the field arrangement of MM's native rando pickup toast, so
-    // it renders in the same colours — a bespoke layout would itself be the
-    // cross-game tell #510 removed everywhere else.
+    // own "article + name" sentence, and no mention of where the item came from
+    // (BuildArrivalToast, above).
     //
     // A toast rather than the get-item cutscene: this fires on a gameplay frame
     // the player did not initiate, where seizing the camera and the message
@@ -461,12 +488,7 @@ void GiveNow(uint16_t riId) {
     // (src/common/tests/test_foreign_award.c calls the real MM_ConsumeSharedItems
     // with no PlayState and no Gui), so a Notification::Emit there would put an
     // ImGui/audio call on a display-free CI path.
-    const ArrivalToast toast = BuildArrivalToast(randoItemId);
-    Notification::Emit({
-        .itemIcon = toast.icon,
-        .message = "You got",
-        .suffix = toast.text,
-    });
+    Notification::Emit(BuildArrivalToast(randoItemId));
 }
 
 } // namespace
@@ -606,15 +628,19 @@ extern "C" int MM_ForeignItem_TestIsJunkClassId(uint16_t riId) {
 }
 
 /**
- * The arrival toast's item text for `riId`, NUL-terminated into `out` (#494).
+ * The WHOLE arrival toast for `riId` as one line, NUL-terminated into `out`
+ * (#494) — every field the player can read, joined the way the overlay draws
+ * them.
  *
  * The SAME BuildArrivalToast the give emits, not a paraphrase of it — a lock
  * that rebuilt the string itself would keep passing after the toast changed.
  * What CI can honestly assert is the resolution surface: that MM's own item
- * table names every entry of MM's own pool, and names it with exactly the
- * article + name the pooled descriptor carries and nothing else. Extra prose —
- * "it came from Ocarina of Time", an origin badge — breaks that equality, which
- * is the no-tell contract (#510) stated as an assertion.
+ * table names every entry of MM's own pool, and that the toast is that name
+ * behind the native verb and NOTHING ELSE. Extra prose anywhere in the toast —
+ * "it came from Ocarina of Time" appended to the verb, an origin badge in the
+ * unused `.prefix` — breaks the equality, which is the no-tell contract (#510)
+ * stated as an assertion. Reporting only the item name would have left both of
+ * those regressions invisible to CI.
  *
  * @return the length written, or -1 if the id names no real MM item or `out` is
  *         too small (never a truncated string).
@@ -623,12 +649,12 @@ extern "C" int MM_ForeignItem_TestArrivalText(uint16_t riId, char* out, int cap)
     if (out == nullptr || cap <= 0 || !IsGiveableItemId(riId)) {
         return -1;
     }
-    const std::string text = BuildArrivalToast((RandoItemId)riId).text;
-    if ((int)text.size() >= cap) {
+    const std::string line = RenderToastLine(BuildArrivalToast((RandoItemId)riId));
+    if ((int)line.size() >= cap) {
         return -1;
     }
-    memcpy(out, text.c_str(), text.size() + 1);
-    return (int)text.size();
+    memcpy(out, line.c_str(), line.size() + 1);
+    return (int)line.size();
 }
 
 /** The arrival toast's icon path for `riId`, or nullptr — which is a text-only
@@ -637,7 +663,7 @@ extern "C" const char* MM_ForeignItem_TestArrivalIcon(uint16_t riId) {
     if (!IsGiveableItemId(riId)) {
         return nullptr;
     }
-    return BuildArrivalToast((RandoItemId)riId).icon;
+    return BuildArrivalToast((RandoItemId)riId).itemIcon;
 }
 
 #endif // RSBS_SINGLE_EXECUTABLE

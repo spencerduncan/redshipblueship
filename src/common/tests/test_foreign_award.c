@@ -265,18 +265,24 @@ TestResult Test_ForeignAwardMM(void) {
     // pickup toast, and this is the honest lock on it — the pixels are the
     // operator's to verify, the RESOLUTION is CI's.
     //
-    // The assertion is an EQUALITY against the pooled descriptor, not a
-    // non-empty check, and that is what makes it falsifiable in both
-    // directions:
-    //   - a tell added back to the toast ("… from Ocarina of Time", an origin
-    //     badge) breaks the equality, because the descriptor carries the item's
-    //     name and nothing else;
+    // The assertion is an EQUALITY against the WHOLE toast — every field the
+    // overlay draws, joined the way it draws them — and not a non-empty check
+    // on the item name. That is what makes it falsifiable in both directions:
+    //   - any tell added back anywhere in the toast breaks the equality: "…
+    //     from Ocarina of Time" appended to the verb, an origin badge parked in
+    //     the unused `.prefix`, a changed verb. An item-name-only observable
+    //     would have missed all three, which is the whole point of asserting
+    //     the rendered line instead;
     //   - MM's item table drifting away from kForeignPoolMMV1's generated
     //     article/name columns also breaks it, and those columns are a
     //     persistence key (the spoiler-load inverse), so that drift matters
     //     beyond display.
     // Two independent tables have to agree; neither is derived from the other
     // at runtime.
+    //
+    // The expected line is "You got " + article + name because
+    // ComboForeignItemDef.article carries its own trailing space (foreign_items.h)
+    // while the verb is a separate Options field the overlay spaces itself.
     {
         const ComboForeignItemDef* mmPool = NULL;
         const int mmCount = Combo_GetForeignItemPoolFor((uint8_t)GAME_MM, &mmPool);
@@ -287,9 +293,9 @@ TestResult Test_ForeignAwardMM(void) {
             const int len = MM_ForeignItem_TestArrivalText(mmPool[i].item.id, shown, (int)sizeof(shown));
             FA_ASSERT(len > 0);
             FA_ASSERT(mmPool[i].article != NULL);
-            snprintf(expected, sizeof(expected), "%s%s", mmPool[i].article, mmPool[i].name);
+            snprintf(expected, sizeof(expected), "You got %s%s", mmPool[i].article, mmPool[i].name);
             if (strcmp(shown, expected) != 0) {
-                printf("[TEST] FAIL: arrival toast for pool entry %d shows '%s', pool says '%s'\n", i, shown, expected);
+                printf("[TEST] FAIL: arrival toast for pool entry %d shows '%s', expected '%s'\n", i, shown, expected);
                 return TEST_FAIL;
             }
             // The icon is allowed to be absent — Emit renders a text-only toast
