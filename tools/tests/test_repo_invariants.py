@@ -1,0 +1,140 @@
+#!/usr/bin/env python3
+"""Repo invariants from issue #379 that no other CI job can see.
+
+Each assertion here locks a cleanup whose regression is silent everywhere else:
+the C/C++ jobs cannot fail on a re-added *unreferenced* stub, and nothing else
+in CI reads the CMake templates or the Windows-only debug helpers. These are
+source-text/AST assertions on purpose -- the artifacts being guarded either
+never reach the link (dead stubs) or are not code at all (templates, CMake).
+
+The helpers under .claude/tools/ are parsed, never imported: they bind
+ctypes.windll at module scope and would raise on the Linux runner.
+"""
+
+import ast
+import re
+from pathlib import Path
+
+import pytest
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+CLAUDE_TOOLS = [
+    REPO_ROOT / ".claude" / "tools" / "dbg374.py",
+    REPO_ROOT / ".claude" / "tools" / "stacks.py",
+]
+
+PROPERTIES_TEMPLATES = [
+    (REPO_ROOT / "games" / "oot" / "properties.h.in", REPO_ROOT / "games" / "oot" / "properties.h"),
+    (
+        REPO_ROOT / "games" / "mm" / "windows" / "properties.h.in",
+        REPO_ROOT / "games" / "mm" / "windows" / "properties.h",
+    ),
+]
+
+MM_STUBS = REPO_ROOT / "src" / "common" / "mm_stubs.c"
+MM_CMAKELISTS = REPO_ROOT / "games" / "mm" / "CMakeLists.txt"
+
+
+def _parse(path):
+    return ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+
+
+def _is_dunder_main_test(node):
+    """True for the `__name__ == "__main__"` comparison itself."""
+    return (
+        isinstance(node, ast.Compare)
+        and isinstance(node.left, ast.Name)
+        and node.left.id == "__name__"
+        and len(node.ops) == 1
+        and isinstance(node.ops[0], ast.Eq)
+        and isinstance(node.comparators[0], ast.Constant)
+        and node.comparators[0].value == "__main__"
+    )
+
+
+def _function(tree, name):
+    for node in tree.body:
+        if isinstance(node, ast.FunctionDef) and node.name == name:
+            return node
+    return None
+
+
+@pytest.mark.parametrize("path", CLAUDE_TOOLS, ids=lambda p: p.name)
+def test_claude_tool_does_not_run_main_at_import(path):
+    """Importing (or linting) the helper must not launch a debugger session."""
+    tree = _parse(path)
+    bare_calls = [
+        node.value.func.id
+        for node in tree.body
+        if isinstance(node, ast.Expr) and isinstance(node.value, ast.Call) and isinstance(node.value.func, ast.Name)
+    ]
+    assert "main" not in bare_calls, f"{path.name} calls main() at import scope"
+
+    guards = [node for node in tree.body if isinstance(node, ast.If) and _is_dunder_main_test(node.test)]
+    assert guards, f"{path.name} has no `if __name__ == \"__main__\":` guard"
+    guarded = {n.id for guard in guards for n in ast.walk(guard) if isinstance(n, ast.Name)}
+    assert "main" in guarded, f"{path.name}'s __main__ guard never calls main()"
+
+
+@pytest.mark.parametrize("path", CLAUDE_TOOLS, ids=lambda p: p.name)
+def test_claude_tool_checks_argv_length(path):
+    """`sys.argv[1]` must be reached only after a length check, not IndexError."""
+    main = _function(_parse(path), "main")
+    assert main is not None, f"{path.name} has no main()"
+    checks_len = any(
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "len"
+        and node.args
+        and isinstance(node.args[0], ast.Attribute)
+        and node.args[0].attr == "argv"
+        for node in ast.walk(main)
+    )
+    assert checks_len, f"{path.name}'s main() indexes sys.argv without a len(sys.argv) check"
+
+
+@pytest.mark.parametrize("path", CLAUDE_TOOLS, ids=lambda p: p.name)
+def test_claude_tool_documents_windows_only(path):
+    """These bind ctypes.windll at module scope; the docstring must say so."""
+    doc = ast.get_docstring(_parse(path))
+    assert doc is not None, f"{path.name} has no module docstring"
+    assert "Windows-only" in doc, f"{path.name}'s docstring does not flag it as Windows-only"
+
+
+@pytest.mark.parametrize(
+    "template,generated", PROPERTIES_TEMPLATES, ids=lambda p: str(p).replace("\\", "/").rsplit("games/", 1)[-1]
+)
+def test_properties_template_carries_pragma_once(template, generated):
+    """configure_file writes the template over the tracked header in the source
+    tree, so a template without `#pragma once` silently reverts upstream #178
+    on every configure and leaves the working tree dirty."""
+    template_head = template.read_text(encoding="utf-8").splitlines()[:2]
+    generated_head = generated.read_text(encoding="utf-8").splitlines()[:2]
+    assert template_head[0] == "#pragma once", f"{template} is missing #pragma once"
+    assert template_head == generated_head, (
+        f"{template} and {generated} disagree on their leading lines; the next "
+        f"CMake configure would rewrite {generated.name}"
+    )
+
+
+def test_mm_stubs_defines_no_unprefixed_frame_interpolation():
+    """mm_stubs.c compiles without RSBS_SINGLE_EXECUTABLE, so nothing rebinds
+    FrameInterpolation_* to MM_FrameInterpolation_* here. MM's call sites are
+    all rebound and SoH declares neither of the two names, so any definition in
+    this file is a dead stub free to drift out of shape (#379)."""
+    text = MM_STUBS.read_text(encoding="utf-8")
+    stripped = re.sub(r"/\*.*?\*/", "", text, flags=re.DOTALL)
+    offenders = re.findall(r"^\s*\w[\w\s*]*\bFrameInterpolation_\w+\s*\(", stripped, flags=re.MULTILINE)
+    assert not offenders, f"mm_stubs.c defines unprefixed FrameInterpolation stubs: {offenders}"
+
+
+def test_mm_2s2h_glob_is_configure_depends():
+    """Without CONFIGURE_DEPENDS an existing build dir never re-globs, so a pull
+    that adds a 2s2h/ TU links the stale file list and fails with an
+    unresolved-symbol error that names the symbol rather than the missing TU."""
+    for line in MM_CMAKELISTS.read_text(encoding="utf-8").splitlines():
+        if line.startswith("file(GLOB_RECURSE ship__ "):
+            assert "CONFIGURE_DEPENDS" in line, "the 2s2h/ source glob lost CONFIGURE_DEPENDS"
+            return
+    pytest.fail("could not find the `file(GLOB_RECURSE ship__ ...)` call in games/mm/CMakeLists.txt")

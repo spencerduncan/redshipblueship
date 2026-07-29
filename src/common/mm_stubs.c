@@ -228,9 +228,17 @@ void HudEditor_ModifyKaleidoEquipAnimValues(float* x, float* y, float* scale) { 
  * by int-gameplay-roundtrip, locked ROM-free by the cosmetic-gfx-stub
  * test). */
 
-/* FrameInterpolation stubs */
-void FrameInterpolation_IgnoreActorMtx(void* actor) { (void)actor; }
-void FrameInterpolation_InterpolateWiderAngles(int wider) { (void)wider; }
+/* The unprefixed FrameInterpolation_IgnoreActorMtx / _InterpolateWiderAngles
+ * stubs that used to live here are gone (#379). Every MM call site is rebound
+ * to MM_FrameInterpolation_* by games/mm/include/mm_frame_interpolation_prefix.h
+ * (force-reached through gfx.h and FrameInterpolation.h), and SoH declares
+ * neither name (games/oot/soh/frame_interpolation.h) — so nothing in the link
+ * referenced them. They were also the wrong shape: `void(void*)` and
+ * `void(int)` against real no-argument functions
+ * (2s2h/Enhancements/FrameInterpolation/FrameInterpolation.cpp:513,521), the
+ * same stub-signature-drift class as MotionBlur_Override below. Do NOT
+ * re-add them: an unprefixed reference appearing again is a missing-prefix bug
+ * that must fail the link, not bind to a no-op. */
 
 /* Ship enhancement stubs */
 /* Ship_GetInterpolationFPS is now defined for real in games/oot/soh/OTRGlobals.cpp
