@@ -234,16 +234,24 @@ that does nothing is a plausible bug, and worth reporting.
 
 ## CI and quality gates (for contributors)
 
-Two gates currently **cannot fail**, which is worse than having no gate because
-they read as coverage:
+The two gates that once **could not fail** — the more dangerous state, because
+they read as coverage — are now armed:
+[#375](https://github.com/spencerduncan/redshipblueship/issues/375)
+(`check-symbol-collisions.sh` had no committed baseline, so it exited 0 in
+bootstrap mode on every run) and
+[#376](https://github.com/spencerduncan/redshipblueship/issues/376) (orphaned
+CTest labels no workflow ran, missing `--no-tests=error`, an unfailable
+`check-archives`, a frame-budgeted watchdog that always lost to the wall-clock
+timeout). Both are closed.
 
-- [#375](https://github.com/spencerduncan/redshipblueship/issues/375) —
-  `check-symbol-collisions.sh` has no committed baseline, so it exits 0 in bootstrap
-  mode on every run.
-- [#376](https://github.com/spencerduncan/redshipblueship/issues/376) — orphaned
-  CTest labels no workflow runs, missing `--no-tests=error`, an unfailable
-  `check-archives`, and a frame-budgeted watchdog that always loses to the wall-clock
-  timeout.
+The residual gap is **latency, not coverage**: duplicate-symbol bugs are only
+observable on Linux (Windows links with `/FORCE:MULTIPLE`), and the Linux
+verdict lives in build-linux at ~32 minutes, on PR or main-push only
+([#387](https://github.com/spencerduncan/redshipblueship/issues/387)).
+`.github/workflows/link-check.yml` narrows it for agent branches: on any push
+to `claude/**` it compiles, links, and runs the same three nm gates with no
+asset extraction, packaging or ctest tier, and uploads a regenerated
+collision baseline so it can be refreshed from a machine that has no `nm`.
 
 Also: clang-format is enforced against an incremental allowlist
 (`.github/clang-format-paths.txt`), not the full tree
