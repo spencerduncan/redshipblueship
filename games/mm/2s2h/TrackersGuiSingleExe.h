@@ -115,10 +115,16 @@ bool MM_TrackersGui_ShouldDraw(void);
 bool MM_TrackersGui_ShouldShow(const char* windowName);
 
 /**
- * Production entry point, called from MM_Rando_Init (once-only by its guard):
- * registers the tracker windows on the shared Ship::Context Gui and loads
- * MM's tracker icon textures when mm.o2r is available. Safe no-op when the
- * context has no window/Gui (ROM-free unit harness).
+ * Production entry point: registers the tracker windows on the shared
+ * Ship::Context Gui and loads MM's tracker icon textures when mm.o2r is
+ * available. Safe no-op when the context has no window/Gui (ROM-free unit
+ * harness).
+ *
+ * TWO callers, and it must stay re-entrant for both. rsbs/src/main.cpp calls
+ * it at startup so an OoT-first session can reach the windows before MM has
+ * booted (#535); MM_Rando_Init calls it on MM's boot, which is where the icons
+ * load once mm.o2r is mounted. Registration is idempotent per Gui and the icon
+ * load is once-only per process.
  */
 void MM_TrackersGui_Init(void);
 

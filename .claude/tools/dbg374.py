@@ -1,6 +1,11 @@
 """Minimal Win32 debugger: run redship.exe --version, catch the heap-corruption
 exception event (0xC0000374 / any late exception), dump RIP + a raw stack scan
-with module!offset resolution (redship offsets resolvable via redship.map)."""
+with module!offset resolution (redship offsets resolvable via redship.map).
+
+Usage: dbg374.py <exe> [args...]
+
+Windows-only: binds ctypes.windll at module scope, so importing this file on
+Linux/macOS raises. Invoke it as a script, never import it."""
 import ctypes as C
 import ctypes.wintypes as W
 import sys, os, struct, re, bisect
@@ -142,13 +147,16 @@ def load_map_rvas(exe_path):
     return rvas
 
 def main():
+    if len(sys.argv) < 2:
+        print(__doc__)
+        return 2
     exe = sys.argv[1]
     args = '"%s" ' % exe + " ".join(sys.argv[2:])
     si = STARTUPINFO(); si.cb = C.sizeof(si)
     pi = PROCESS_INFORMATION()
     if not k32.CreateProcessW(exe, args, None, None, False, DEBUG_ONLY_THIS_PROCESS,
                               None, None, C.byref(si), C.byref(pi)):
-        print("CreateProcess failed", k32.GetLastError()); return
+        print("CreateProcess failed", k32.GetLastError()); return 1
     print("PID", pi.dwProcessId)
     ev = DEBUG_EVENT()
     while True:
@@ -279,8 +287,11 @@ def main():
             print("process exited")
             break
         k32.ContinueDebugEvent(ev.dwProcessId, ev.dwThreadId, status)
+    return 0
 
-main()
+
+if __name__ == "__main__":
+    sys.exit(main())
 
 # Forensics: on AV, dumps registers, MM runFrameContext tail (gameState/
 # nextOvl/ovl/state), MM_gSystemArena + its head node, MM_gSystemHeap, and the

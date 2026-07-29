@@ -60,6 +60,22 @@
  * dead -- and it asserts Destroy in the same block, because Destroy is what
  * frees the entries Kill creates.
  *
+ * Checks 9-11 (#438 pause-menu/file-select batch) close out the hooks with a
+ * live 2ship_rando registrant and dead dispatch. OnKaleidoUpdate (9) is the
+ * check-7 shape with a twist: OoT's identically-spelled definition is 0-ARG
+ * against MM's 1-arg call, and C linkage encodes no arity, so the wrong bind
+ * was silent -- a dropped rebind still links and FAIL(9)s here. The
+ * KaleidoDrawPage pair (10) is asserted in one block like check 6, because
+ * z_kaleido_scope_NES.c brackets every page draw with both halves; both its
+ * dispatchers need an id-keyed leg (KaleidoItemPage keys After on PAUSE_ITEM,
+ * PersistentMasks keys Before on PAUSE_MASK), so an Execute-only bridge is
+ * the plausible half-fix and each ForID leg is asserted separately.
+ * OnFileSelectSaveLoad (11) additionally asserts argument fidelity, because
+ * its retired stub was the worst signature drift in mm_stubs.c ((void*, int)
+ * against (s16, bool, SaveContext*)) and the registrant indexes isRando[] off
+ * fileNum/isOwlSave -- a bridge that dispatches but marshals wrong would
+ * corrupt that array while passing a run-count-only check.
+ *
  * WHAT THIS DOES NOT COVER -- READ BEFORE TRUSTING THE SUITE ON IT. The
  * z_actor.c half (two stale `#ifdef RSBS_SINGLE_EXECUTABLE` blocks that skipped
  * the ShouldActorInit call site outright) is a call-site edit in ROM-dependent
@@ -121,6 +137,15 @@ int sOnActorKillRuns = 0;
 int sOnActorKillForIdRuns = 0;
 int sOnActorDestroyForIdRuns = 0;
 int sOnGameCompletionRuns = 0;
+int sOnKaleidoUpdateRuns = 0;
+int sBeforeKaleidoDrawRuns = 0;
+int sBeforeKaleidoDrawForIdRuns = 0;
+int sAfterKaleidoDrawRuns = 0;
+int sAfterKaleidoDrawForIdRuns = 0;
+int sOnFileSelectSaveLoadRuns = 0;
+s16 sFileSelectLastFileNum = -1;
+bool sFileSelectLastOwl = false;
+SaveContext* sFileSelectLastCtx = nullptr;
 
 // Distinct sentinel ids, so no check can be satisfied by another's registrant.
 constexpr s16 kActorIdInit = 0x0BAD;
@@ -128,6 +153,13 @@ constexpr s16 kActorIdDraw = 0x0BAE;
 constexpr s16 kActorIdKill = 0x0BAF;
 constexpr s16 kActorIdDestroy = 0x0BB0;
 constexpr u16 kTextIdPlain = 0x0C0D;
+constexpr u16 kPauseIndexKaleido = 0x0BB1;
+constexpr s16 kFileSelectFileNum = 2;
+
+// Pointer target for check 11 only; the probe never reads through it, it just
+// proves the dispatcher forwards the pointer untouched. Static because MM's
+// port-side SaveContext is ~64KB -- too big to put on the test's stack.
+SaveContext sFileSelectProbeSave;
 
 // ResetForTest is per-hook-type (templated on H), so the types this row touches
 // are cleared explicitly rather than through one global reset.
@@ -141,6 +173,15 @@ void ResetAll() {
     S2H::GameHooks::ResetForTest<GameInteractor::OnActorKill>();
     S2H::GameHooks::ResetForTest<GameInteractor::OnActorDestroy>();
     S2H::GameHooks::ResetForTest<GameInteractor::OnGameCompletion>();
+    // The pause-menu/file-select batch (checks 9-11). Resetting these before
+    // dispatch is also the headless-safety guarantee: KaleidoItemPage's
+    // production registrants dereference MM_gPlayState, which is null in this
+    // ROM-free row, so only this row's own probes may be in the registries
+    // when the dispatchers below run.
+    S2H::GameHooks::ResetForTest<GameInteractor::OnKaleidoUpdate>();
+    S2H::GameHooks::ResetForTest<GameInteractor::BeforeKaleidoDrawPage>();
+    S2H::GameHooks::ResetForTest<GameInteractor::AfterKaleidoDrawPage>();
+    S2H::GameHooks::ResetForTest<GameInteractor::OnFileSelectSaveLoad>();
 }
 
 } // namespace
@@ -387,6 +428,155 @@ extern "C" int MM_HookDispatch_RunHeadless(void) {
                     "OnGameCompletion registrant never ran -- the game-completion stamp is dropped");
     }
 
+    // ---------------------------------------------------------------- 9
+    // OnKaleidoUpdate (#438): the trade-slot cycling input handler
+    // (KaleidoItemPage.cpp, COND_HOOK -> unkeyed). Dead the check-7 way -- OoT
+    // defines the same extern "C" name -- but with an arity twist: OoT's
+    // definition is 0-ARG against MM's 1-arg call site
+    // (z_kaleido_scope_NES.c KaleidoScope_Update), and C linkage encodes no
+    // arity, so the wrong bind linked without a diagnostic. Dropping the
+    // rebind re-creates exactly that, which is why this runtime check is
+    // load-bearing and not a link error.
+    {
+        sOnKaleidoUpdateRuns = 0;
+        S2H::GameHooks::Register<GameInteractor::OnKaleidoUpdate>([](PauseContext* pauseCtx) {
+            (void)pauseCtx;
+            sOnKaleidoUpdateRuns++;
+        });
+
+        HOOK_ASSERT(sOnKaleidoUpdateRuns == 0, 9, "OnKaleidoUpdate ran at registration time");
+
+        PauseContext pauseCtx;
+        memset(&pauseCtx, 0, sizeof(pauseCtx));
+
+        // Spelled exactly as z_kaleido_scope_NES.c's KaleidoScope_Update
+        // spells it.
+        GameInteractor_ExecuteOnKaleidoUpdate(&pauseCtx);
+
+        HOOK_ASSERT(sOnKaleidoUpdateRuns == 1, 9,
+                    "OnKaleidoUpdate registrant never ran -- trade-slot cycling input is dead in the pause menu");
+    }
+
+    // ---------------------------------------------------------------- 10
+    // Before/AfterKaleidoDrawPage (#438): the draw pair bracketing every
+    // kaleido page draw. One block like check 6, because the call sites come
+    // in pairs and a half-wired bracket is the plausible regression. Both
+    // dispatchers need an id-keyed leg -- KaleidoItemPage keys After on
+    // PAUSE_ITEM (the cycling arrows/previews), PersistentMasks keys Before
+    // on PAUSE_MASK (the active-border quad) -- so each ForID leg is asserted
+    // separately from the unkeyed one: an Execute-only bridge would revive
+    // plain COND_HOOK registrants and leave both production draws dead.
+    {
+        sBeforeKaleidoDrawRuns = 0;
+        sBeforeKaleidoDrawForIdRuns = 0;
+        sAfterKaleidoDrawRuns = 0;
+        sAfterKaleidoDrawForIdRuns = 0;
+
+        // The PersistentMasks.cpp shape (RegisterForID on a page index).
+        S2H::GameHooks::RegisterForID<GameInteractor::BeforeKaleidoDrawPage>(
+            kPauseIndexKaleido, [](PauseContext* pauseCtx, u16 pauseIndex) {
+                (void)pauseCtx;
+                (void)pauseIndex;
+                sBeforeKaleidoDrawForIdRuns++;
+            });
+        // Both legs of BOTH halves are probed, not just the leg each production
+        // registrant happens to use today: the bridges are four independent
+        // Execute/ExecuteForID lines, so dropping any one of them is a
+        // single-line regression that the other three cannot catch.
+        S2H::GameHooks::Register<GameInteractor::BeforeKaleidoDrawPage>([](PauseContext* pauseCtx, u16 pauseIndex) {
+            (void)pauseCtx;
+            (void)pauseIndex;
+            sBeforeKaleidoDrawRuns++;
+        });
+        // A plain COND_HOOK would use the unkeyed leg.
+        S2H::GameHooks::Register<GameInteractor::AfterKaleidoDrawPage>([](PauseContext* pauseCtx, u16 pauseIndex) {
+            (void)pauseCtx;
+            (void)pauseIndex;
+            sAfterKaleidoDrawRuns++;
+        });
+        // The KaleidoItemPage.cpp shape (COND_ID_HOOK on PAUSE_ITEM).
+        S2H::GameHooks::RegisterForID<GameInteractor::AfterKaleidoDrawPage>(kPauseIndexKaleido,
+                                                                            [](PauseContext* pauseCtx, u16 pauseIndex) {
+                                                                                (void)pauseCtx;
+                                                                                (void)pauseIndex;
+                                                                                sAfterKaleidoDrawForIdRuns++;
+                                                                            });
+
+        HOOK_ASSERT(sBeforeKaleidoDrawForIdRuns == 0, 10, "BeforeKaleidoDrawPage (id-keyed) ran at registration time");
+        HOOK_ASSERT(sBeforeKaleidoDrawRuns == 0, 10, "BeforeKaleidoDrawPage ran at registration time");
+        HOOK_ASSERT(sAfterKaleidoDrawRuns == 0, 10, "AfterKaleidoDrawPage ran at registration time");
+        HOOK_ASSERT(sAfterKaleidoDrawForIdRuns == 0, 10, "AfterKaleidoDrawPage (id-keyed) ran at registration time");
+
+        PauseContext pauseCtx;
+        memset(&pauseCtx, 0, sizeof(pauseCtx));
+
+        // Spelled exactly as z_kaleido_scope_NES.c spells them.
+        GameInteractor_ExecuteBeforeKaleidoDrawPage(&pauseCtx, kPauseIndexKaleido);
+        HOOK_ASSERT(sBeforeKaleidoDrawForIdRuns == 1, 10,
+                    "BeforeKaleidoDrawPage id-keyed registrant never ran -- the pre-draw bracket is dead");
+        HOOK_ASSERT(sBeforeKaleidoDrawRuns == 1, 10,
+                    "BeforeKaleidoDrawPage unkeyed registrant never ran -- the pre-draw bracket is dead");
+        HOOK_ASSERT(sAfterKaleidoDrawRuns == 0, 10, "the Before dispatcher also ran After registrants");
+        HOOK_ASSERT(sAfterKaleidoDrawForIdRuns == 0, 10, "the Before dispatcher also ran id-keyed After registrants");
+
+        // Another page index must NOT reach the id-keyed leg -- the
+        // discrimination both production registrants depend on.
+        GameInteractor_ExecuteBeforeKaleidoDrawPage(&pauseCtx, kPauseIndexKaleido + 1);
+        HOOK_ASSERT(sBeforeKaleidoDrawForIdRuns == 1, 10,
+                    "BeforeKaleidoDrawPage id-keyed leg fired for the wrong page index");
+        HOOK_ASSERT(sBeforeKaleidoDrawRuns == 2, 10, "BeforeKaleidoDrawPage unkeyed leg skipped another page index");
+
+        GameInteractor_ExecuteAfterKaleidoDrawPage(&pauseCtx, kPauseIndexKaleido);
+        HOOK_ASSERT(sAfterKaleidoDrawRuns == 1, 10,
+                    "AfterKaleidoDrawPage unkeyed registrant never ran -- the post-draw bracket is dead");
+        HOOK_ASSERT(sAfterKaleidoDrawForIdRuns == 1, 10,
+                    "AfterKaleidoDrawPage id-keyed registrant never ran -- trade-slot cycling draws no affordance");
+        HOOK_ASSERT(sBeforeKaleidoDrawForIdRuns == 1, 10, "the After dispatcher also re-ran Before registrants");
+        HOOK_ASSERT(sBeforeKaleidoDrawRuns == 2, 10, "the After dispatcher also re-ran unkeyed Before registrants");
+
+        GameInteractor_ExecuteAfterKaleidoDrawPage(&pauseCtx, kPauseIndexKaleido + 1);
+        HOOK_ASSERT(sAfterKaleidoDrawRuns == 2, 10, "AfterKaleidoDrawPage unkeyed leg skipped another page index");
+        HOOK_ASSERT(sAfterKaleidoDrawForIdRuns == 1, 10,
+                    "AfterKaleidoDrawPage id-keyed leg fired for the wrong page index");
+    }
+
+    // ---------------------------------------------------------------- 11
+    // OnFileSelectSaveLoad (#438): the isRando[] writer behind the rando
+    // file-select presentation (FileSelect.cpp, plain Register -> unkeyed).
+    // Argument FIDELITY is asserted, not just the run count: the retired
+    // mm_stubs.c stub was (void*, int) against the real
+    // (s16, bool, SaveContext*), and the production registrant indexes
+    // isRando[] off fileNum/isOwlSave and reads saveType through the pointer,
+    // so a bridge that dispatches but marshals wrong corrupts that array
+    // while a count-only check stays green.
+    {
+        sOnFileSelectSaveLoadRuns = 0;
+        sFileSelectLastFileNum = -1;
+        sFileSelectLastOwl = false;
+        sFileSelectLastCtx = nullptr;
+        S2H::GameHooks::Register<GameInteractor::OnFileSelectSaveLoad>(
+            [](s16 fileNum, bool isOwlSave, SaveContext* saveContext) {
+                sOnFileSelectSaveLoadRuns++;
+                sFileSelectLastFileNum = fileNum;
+                sFileSelectLastOwl = isOwlSave;
+                sFileSelectLastCtx = saveContext;
+            });
+
+        HOOK_ASSERT(sOnFileSelectSaveLoadRuns == 0, 11, "OnFileSelectSaveLoad ran at registration time");
+
+        // Spelled exactly as z_sram_NES.c's five file-select flows spell it.
+        GameInteractor_ExecuteOnFileSelectSaveLoad(kFileSelectFileNum, true, &sFileSelectProbeSave);
+
+        HOOK_ASSERT(sOnFileSelectSaveLoadRuns == 1, 11,
+                    "OnFileSelectSaveLoad registrant never ran -- rando files render as vanilla on file select");
+        HOOK_ASSERT(sFileSelectLastFileNum == kFileSelectFileNum, 11,
+                    "OnFileSelectSaveLoad fileNum arrived corrupted -- isRando[] would index the wrong slot");
+        HOOK_ASSERT(sFileSelectLastOwl == true, 11,
+                    "OnFileSelectSaveLoad isOwlSave arrived corrupted -- owl rows would alias file rows");
+        HOOK_ASSERT(sFileSelectLastCtx == &sFileSelectProbeSave, 11,
+                    "OnFileSelectSaveLoad saveContext pointer arrived corrupted");
+    }
+
     // NOTE ON WHAT COVERS THE REBIND. An earlier draft of this row compared
     // &GameInteractor_ExecuteOnOpenText against &MM_GameHooks_ExecuteOnOpenText
     // to prove the #define was in place. That check is tautological: the rebind
@@ -397,7 +587,7 @@ extern "C" int MM_HookDispatch_RunHeadless(void) {
     // each drives the dispatcher through the UPSTREAM spelling and asserts a
     // hook registered on the MM-owned registry ran. Drop the #define and those
     // calls bind OoT's active-game-gated wrapper instead, which links fine,
-    // does nothing, and fails FAIL(1)/FAIL(3)/FAIL(4)/FAIL(5)/FAIL(7).
+    // does nothing, and fails FAIL(1)/FAIL(3)/FAIL(4)/FAIL(5)/FAIL(7)/FAIL(9).
 
     ResetAll();
 

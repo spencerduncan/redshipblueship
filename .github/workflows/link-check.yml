@@ -1,0 +1,231 @@
+name: link-check
+# Fast Linux link + symbol-census gate (#387).
+#
+# The duplicate-symbol class is structurally invisible to the development
+# loop. Local iteration happens on Windows, whose link carries
+# /FORCE:MULTIPLE by design (CMakeLists.txt:281) because the two ports
+# legitimately share symbol names — MSVC accepts the duplicates and silently
+# picks one. GNU ld has no such flag here and rejects them, which makes Linux
+# the ONLY place the class is observable. Until this file existed that signal
+# lived exclusively inside generate-builds' build-linux job: ~32 minutes, and
+# only on pull_request or a push to main. #368's collisions had existed for
+# months before three new TUs happened to drag the second definition into the
+# link.
+#
+# This job is that same signal minus everything that is not the link:
+#   * no generate-rsbs-otr dependency — the ROM-derived .o2r archives are
+#     consumed by cpack and the ROM-gated tests, never by compile or link;
+#   * `--target redship` rather than the default all target, so no asset
+#     extraction, no appimage packaging;
+#   * no ctest tier.
+# What remains is compile -> link -> the three nm gates, off a ccache warmed
+# by main's build-linux run. The link step itself is the primary check: a
+# duplicate strong symbol is a hard ld error there. The nm gates below catch
+# the silent variants — collisions that resolve first-wins without ever
+# producing a link error.
+#
+# TRIGGER: push to claude/** (agent work branches) and manual dispatch.
+# Deliberately NOT pull_request: build-linux already runs all three gates on
+# every PR, and duplicating a full compile there would double the compute for
+# a verdict the PR already receives. The gap #387 names is the push case — an
+# agent branch gets no Linux signal at all until a PR exists.
+#
+# This workflow is additive. It changes no existing job, and it is not one of
+# the "basic" ruleset's required status checks (build-linux remains the
+# authoritative gate); it is an early-warning signal, not a merge gate.
+
+on:
+  push:
+    branches:
+      - 'claude/**'
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE*'
+      - '.gitignore'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  link-check:
+    runs-on: ubuntu-22.04
+    # Same prebuilt CI image as build-linux (.github/docker/build-base.Dockerfile).
+    # It already carries cmake 3.26+, gcc-11, ninja, ccache, binutils and the
+    # SDL2/SDL2_net/tinyxml2/libzip builds, so this job installs nothing: the
+    # packaging tools build-linux adds (imagemagick, file, desktop-file-utils)
+    # are baked in, and xvfb/mesa are only needed by the ctest tiers this job
+    # does not run.
+    container:
+      image: ghcr.io/spencerduncan/redshipblueship-build:latest
+    steps:
+    - name: Git Checkout
+      uses: actions/checkout@v4
+      with:
+        submodules: true
+        fetch-depth: 1
+
+    # Required inside the container: the workspace is owned by a different uid
+    # than the one the build runs as.
+    - name: Configure git safe directory
+      run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+    - name: Restore ccache
+      uses: hendrikmuhs/ccache-action@v1.2
+      with:
+        # RESTORE ONLY. This job writes no cache on purpose: its whole value
+        # is speed off a cache someone else already paid for, and the repo has
+        # measured history of the 10GB Actions-cache quota LRU-evicting main's
+        # entries when extra ~GB-scale saves were added per branch (issue
+        # #177, see the sccache comment in generate-builds.yml). Restoring
+        # build-linux's main-keyed cache costs nothing and covers everything
+        # the branch did not touch; the branch's own delta recompiles each
+        # push, which is a bounded, constant cost.
+        save: false
+        # Must match build-linux's cap: the action writes this into the local
+        # ccache config, and a smaller value would make ccache prune the
+        # restored cache before the build could use it.
+        max-size: "1.5G"
+        key: ${{ runner.os }}-ccache-${{ github.ref }}
+        restore-keys: |
+          ${{ runner.os }}-ccache-${{ github.ref }}
+          ${{ runner.os }}-ccache-refs/heads/main
+          ${{ runner.os }}-ccache
+
+    # Configure and build are separate steps so the Actions UI attributes time
+    # to the right stage (same rationale as build-windows' split, issue #177).
+    # The flags below must stay BYTE-IDENTICAL to build-linux's: ccache keys on
+    # the preprocessed input plus the command line, so any divergence here
+    # turns every restored entry into a miss and this job stops being fast.
+    - name: CMake configure
+      run: cmake --no-warn-unused-cli -H. -Bbuild-cmake -GNinja -DCMAKE_BUILD_TYPE:STRING=Release -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DBUILD_REMOTE_CONTROL=1
+      env:
+        CC: gcc-11
+        CXX: g++-11
+
+    - name: Compile and link redship
+      id: link
+      # THE check. Duplicate strong symbols between the soh_* and 2ship_*
+      # archives are a hard "multiple definition" error from GNU ld here.
+      # --target redship prunes the asset-extraction and packaging targets
+      # from the graph; ZAPDLib_OoT/MM and OTRExporter_OoT/MM still build,
+      # because redship links them (CMake/SingleExecutable.cmake).
+      run: |
+        export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
+        cmake --build build-cmake --config Release --target redship -j10
+      env:
+        CC: gcc-11
+        CXX: g++-11
+        # Key the cache on the compiler's content hash rather than mtime+size,
+        # so entries survive container image rebuilds. Same reason and same
+        # value as build-linux — a divergence would cost every hit.
+        CCACHE_COMPILERCHECK: content
+
+    - name: ccache statistics
+      if: ${{ !cancelled() }}
+      # The honest measure of whether this job is fast for the reason claimed.
+      # A collapsed hit rate means the restore key or the flag parity above
+      # drifted, not that the build got slower.
+      run: ccache -s
+
+    - name: Self-test the cross-game collision gate
+      run: bash .github/scripts/check-symbol-collisions.sh --self-test
+
+    - name: Check cross-game symbol collisions (#375)
+      # Symbols defined by BOTH soh_* and 2ship_* archives resolve first-wins
+      # in the single-exe link, silently running one game's code against the
+      # other's data (the #367 / FrameInterpolation / AudioCollection failure
+      # class). Fails on any intersection growth beyond the committed baseline.
+      run: bash .github/scripts/check-symbol-collisions.sh build-cmake
+
+    - name: Self-test registrar elision gate
+      run: bash .github/scripts/check-registrar-elision.sh --self-test
+
+    - name: Check registrar elision (#341)
+      # Self-registering TUs (RegisterShipInitFunc static initializers) must
+      # survive the archive link — plain archive semantics silently drop them.
+      run: bash .github/scripts/check-registrar-elision.sh build-cmake
+
+    - name: Self-test exporter symbol-collision gate (#411)
+      run: bash .github/scripts/check-exporter-symbol-collisions.sh --self-test
+
+    - name: Check OTRExporter_OoT/OTRExporter_MM data-symbol collisions (#411)
+      # Both exporter variants are deliberately linked into redship, so a
+      # strong DATA symbol defined by both is double-constructed and
+      # double-destroyed under /FORCE:MULTIPLE (the Fault A class, #396).
+      run: bash .github/scripts/check-exporter-symbol-collisions.sh build-cmake
+
+    # Runs whether or not the gates above passed — a failing run is exactly
+    # when the regenerated baseline is most wanted. Gated on the LINK instead,
+    # because without archives the census scripts have nothing to read and
+    # would report a collection error that means nothing.
+    - name: Emit symbol census
+      id: census
+      if: ${{ !cancelled() && steps.link.outcome == 'success' }}
+      run: |
+        mkdir -p symbol-census
+        # Regenerate into the artifact directory rather than over the checkout,
+        # so the diff below compares against the committed file.
+        bash .github/scripts/check-symbol-collisions.sh build-cmake \
+          --baseline symbol-census/symbol-collision-baseline.txt --write-baseline
+        grep -v '^[[:space:]]*#' symbol-census/symbol-collision-baseline.txt \
+          | grep -v '^[[:space:]]*$' \
+          | c++filt > symbol-census/symbol-collision-demangled.txt || true
+        diff -u .github/symbol-collision-baseline.txt \
+                symbol-census/symbol-collision-baseline.txt \
+                > symbol-census/baseline.diff || true
+
+        {
+          echo "## Cross-game symbol census"
+          echo
+          count=$(grep -cv '^[[:space:]]*#' symbol-census/symbol-collision-baseline.txt || true)
+          echo "- soh_*/2ship_* strong-symbol intersection: **${count:-0}** symbol(s)"
+          if [ -s symbol-census/baseline.diff ]; then
+            echo "- **Differs from the committed baseline.**"
+            echo
+            echo '```diff'
+            # Bounded: the step summary has a size limit, and a first-ever
+            # census on a drifted tree can be hundreds of symbols. The full
+            # diff is in the symbol-census artifact either way.
+            head -n 200 symbol-census/baseline.diff
+            if [ "$(wc -l < symbol-census/baseline.diff)" -gt 200 ]; then
+              echo "... truncated; full diff in the symbol-census artifact."
+            fi
+            echo '```'
+          else
+            echo "- Matches \`.github/symbol-collision-baseline.txt\` exactly."
+          fi
+          echo
+          echo "To adopt the regenerated baseline (one command, from any machine):"
+          echo
+          echo '```'
+          echo "gh run download ${GITHUB_RUN_ID} -R ${GITHUB_REPOSITORY} -n symbol-collision-baseline -D .github"
+          echo '```'
+          echo
+          echo "Read \`symbol-census/symbol-collision-demangled.txt\` from the companion"
+          echo "artifact first — every entry is a latent cross-game aliasing bug or"
+          echo "deliberate glue. The baseline is a burn-down list, not a suppression file."
+        } >> "$GITHUB_STEP_SUMMARY"
+
+    # Uploaded as its OWN artifact containing exactly one file, so adopting it
+    # is a single command that lands the file at its committed path:
+    #   gh run download <run-id> -n symbol-collision-baseline -D .github
+    - name: Upload regenerated baseline
+      if: ${{ !cancelled() && steps.census.outcome == 'success' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: symbol-collision-baseline
+        path: symbol-census/symbol-collision-baseline.txt
+        if-no-files-found: error
+        retention-days: 14
+
+    - name: Upload symbol census
+      if: ${{ !cancelled() && steps.census.outcome == 'success' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: symbol-census
+        path: symbol-census/
+        if-no-files-found: error
+        retention-days: 14

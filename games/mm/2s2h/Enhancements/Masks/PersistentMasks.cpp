@@ -22,7 +22,13 @@ void UpdatePersistentMasksState() {
     static Vtx* persistentMasksVtx;
     static HOOK_ID beforePageDrawHook = 0;
     static HOOK_ID onPlayerPostLimbDrawHook = 0;
-    S2H::GameHooks::Unregister<GameInteractor::BeforeKaleidoDrawPage>(beforePageDrawHook);
+    // ForID leg, matching the RegisterForID below. Upstream 2S2H pairs this
+    // registration with the plain UnregisterGameHook leg, which addresses a
+    // different map — the pending id never matches its bucket, so re-running
+    // this function stacks a stale registration per call and the active-border
+    // quad draws once per stack entry. Preserved while BeforeKaleidoDrawPage
+    // was dormant (see mm_game_hooks.h); fixed with its dispatch wiring (#438).
+    S2H::GameHooks::UnregisterForID<GameInteractor::BeforeKaleidoDrawPage>(beforePageDrawHook);
     S2H::GameHooks::UnregisterForID<GameInteractor::OnPlayerPostLimbDraw>(onPlayerPostLimbDrawHook);
 
     if (!CVAR) {

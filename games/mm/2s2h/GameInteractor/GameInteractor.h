@@ -695,6 +695,34 @@ void MM_GameHooks_ExecuteOnActorDestroy(Actor* actor);
 // stamp) went live with #520; the call sites bound the mm_stubs.c no-op until this.
 void MM_GameHooks_ExecuteOnGameCompletion(void);
 #define GameInteractor_ExecuteOnGameCompletion MM_GameHooks_ExecuteOnGameCompletion
+
+// The pause-menu / file-select batch (#438) — the last hook types that combine
+// a LIVE registrant (2ship_rando links with WHOLE_ARCHIVE, so
+// Rando::MiscBehavior's registrations are in the binary) with dead dispatch.
+//
+// OnKaleidoUpdate is the subtle one: OoT DEFINES the same extern "C" name as a
+// 0-ARG wrapper (GameInteractor_Hooks.cpp) for its own z_kaleido_scope_call.c,
+// so MM's 1-arg call in z_kaleido_scope_NES.c linked without complaint — C
+// linkage encodes no arity — and bound a gated no-op for the whole MM session.
+// That is KaleidoItemPage.cpp's trade-slot cycling input handler: without it,
+// left/right on SLOT_TRADE_DEED/KEY_MAMA/COUPLE does nothing and shuffled
+// alternate trade items are unreachable from the pause menu.
+//
+// The Before/AfterKaleidoDrawPage pair and OnFileSelectSaveLoad are MM-only
+// names whose mm_stubs.c no-ops are deleted with this rebind, so a dropped
+// rebind or bridge is a LINK error, not a silent pass. Both stubs also carried
+// the #372/#424 signature-drift hazard ((void*, int) against
+// (PauseContext*, u16) and (s16, bool, SaveContext*)). The draw pair is
+// rebound TOGETHER on purpose — z_kaleido_scope_NES.c brackets every page
+// draw with the pair, and mm_game_hooks.h records the pairing rule.
+void MM_GameHooks_ExecuteOnKaleidoUpdate(PauseContext* pauseCtx);
+void MM_GameHooks_ExecuteBeforeKaleidoDrawPage(PauseContext* pauseCtx, u16 pauseIndex);
+void MM_GameHooks_ExecuteAfterKaleidoDrawPage(PauseContext* pauseCtx, u16 pauseIndex);
+void MM_GameHooks_ExecuteOnFileSelectSaveLoad(s16 fileNum, bool isOwlSave, SaveContext* saveContext);
+#define GameInteractor_ExecuteOnKaleidoUpdate MM_GameHooks_ExecuteOnKaleidoUpdate
+#define GameInteractor_ExecuteBeforeKaleidoDrawPage MM_GameHooks_ExecuteBeforeKaleidoDrawPage
+#define GameInteractor_ExecuteAfterKaleidoDrawPage MM_GameHooks_ExecuteAfterKaleidoDrawPage
+#define GameInteractor_ExecuteOnFileSelectSaveLoad MM_GameHooks_ExecuteOnFileSelectSaveLoad
 #endif // RSBS_SINGLE_EXECUTABLE
 
 #ifdef __cplusplus
