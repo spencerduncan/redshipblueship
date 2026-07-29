@@ -115,6 +115,17 @@ extern "C" int Combo_TrackerView_RunHeadless(void) {
     CTV_ASSERT(desc->checkName != NULL);   // names resolve MM-side
     CTV_ASSERT(desc->saveTypeRando != 0);  // SAVETYPE_RANDO is nonzero (vanilla is 0)
 
+    // Snapshot whatever is resident before authoring over it. Under
+    // `--test all` an earlier row (the roundtrip/switch tests) may have left a
+    // real frozen MM image in the shadow, and handing the next row a zeroed
+    // one instead of what it inherited would make this lock a hidden input to
+    // tests it has nothing to do with.
+    std::vector<uint8_t> shadowBackup((size_t)MM_SAVE_CONTEXT_SIZE, 0);
+    const uint8_t* residentShadow = (const uint8_t*)Context_GetMMSaveContext();
+    if (residentShadow != NULL) {
+        memcpy(shadowBackup.data(), residentShadow, shadowBackup.size());
+    }
+
     // All-zero shadow first: must read as "no data", never as a vanilla save.
     std::vector<uint8_t> blob((size_t)MM_SAVE_CONTEXT_SIZE, 0);
     Context_UpdateShadowCopy(GAME_MM, blob.data(), blob.size());
@@ -270,10 +281,9 @@ extern "C" int Combo_TrackerView_RunHeadless(void) {
     CTV_ASSERT(Combo_TrackerForeignCount((uint8_t)GAME_OOT) == 0);
 
     // ---- Leave global state clean -----------------------------------------
-    // Adapters stay registered (the production state); the authored shadow is
-    // re-zeroed so later tests inherit the cold-boot shape.
-    std::vector<uint8_t> zeros((size_t)MM_SAVE_CONTEXT_SIZE, 0);
-    Context_UpdateShadowCopy(GAME_MM, zeros.data(), zeros.size());
+    // Adapters stay registered (the production state); the shadow goes back to
+    // exactly the bytes this row inherited.
+    Context_UpdateShadowCopy(GAME_MM, shadowBackup.data(), shadowBackup.size());
     Context_SetCurrentGame(prevGame);
 
     printf("[TEST] PASS: adapters recover authored MM shadow + OoT heap worlds, label staleness honestly, and "

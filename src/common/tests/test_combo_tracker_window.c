@@ -18,14 +18,23 @@
  *    under GAME_OOT, GAME_MM and GAME_NONE alike. This harness has NO ImGui
  *    context, so any Draw() that reaches ImGui::Begin aborts the process.
  *    Draw()/Update() run under all three GameIds with the visibility CVar
- *    CLEARED (proving the live-CVar early-out holds), in both paired and
- *    unpaired worlds, AND with both adapters deliberately UN-registered —
- *    the window must never turn "unavailable" into a null deref.
+ *    CLEARED (proving the live-CVar early-out holds).
  *
  * 3. VISIBILITY IS THE ONLY THING GATING DRAW. With the CVar SET, Draw()
  *    must reach ImGui — which would abort here — so that case is
  *    deliberately NOT driven; clearing the CVar being sufficient is what is
  *    asserted.
+ *
+ *    That early-out is also what would make the state/game loop VACUOUS if it
+ *    stopped at Draw(): a shut window never touches the model, so the loop
+ *    alone proves nothing about the four world states it sets up. So each
+ *    iteration additionally drives the exact model reads DrawElement performs
+ *    (TrackerDriveModelReads below) — identity, both panels' summary and check
+ *    walk, both directions' crossings — across paired/unpaired x adapters
+ *    present/absent. The paired-with-absent-adapters corner is the one no
+ *    other lock reaches: a crossing row must still resolve, with a NULL host
+ *    check name and a non-NULL item name, when the host game's adapter is not
+ *    registered at all.
  *
  * Deliberately absent: any assertion about appearance — operator
  * verification, no headless stand-in exists.
@@ -81,6 +90,52 @@ const char* const kTrackerNeighbourNames[] = {
 };
 constexpr int kTrackerNeighbourCount = 3;
 
+/**
+ * The model reads ComboTrackerWindow::DrawElement performs, with the ImGui
+ * calls this harness cannot make removed. See point 3 in the header: without
+ * this, the loop below only re-proves the visibility early-out.
+ *
+ * Returns false on a contract violation rather than crashing on one — the
+ * crash-shaped failures (a missing adapter dereferenced, a row walked past its
+ * table) are caught by the process, these are the quiet ones.
+ */
+bool TrackerDriveModelReads(void) {
+    ComboTrackerIdentity identity;
+    Combo_TrackerIdentity(&identity);
+
+    const uint8_t games[2] = { (uint8_t)GAME_OOT, (uint8_t)GAME_MM };
+    for (int g = 0; g < 2; g++) {
+        ComboTrackerGameSummary summary;
+        Combo_TrackerGameSummary(games[g], &summary);
+        if (Combo_TrackerFreshnessLabel(games[g], summary.freshness) == NULL) {
+            return false; // never NULL: it feeds a printf-family format
+        }
+        if (summary.freshness != COMBO_TRACKER_FRESH_UNAVAILABLE) {
+            const int count = Combo_TrackerCheckCount(games[g]);
+            for (int i = 0; i < count; i++) {
+                ComboTrackerCheckRow row;
+                if (!Combo_TrackerCheckAt(games[g], i, &row)) {
+                    break; // the renderer's own stop condition
+                }
+            }
+        } else if (Combo_TrackerCheckCount(games[g]) != 0) {
+            return false; // "no data" must not hand the renderer rows to walk
+        }
+
+        const int crossings = Combo_TrackerForeignCount(games[g]);
+        for (int i = 0; i < crossings; i++) {
+            ComboTrackerForeignRow foreignRow;
+            if (!Combo_TrackerForeignRowAt(games[g], i, &foreignRow)) {
+                return false; // the count and the walk must agree
+            }
+            if (foreignRow.itemName == NULL) {
+                return false; // contractually never NULL (placeholder otherwise)
+            }
+        }
+    }
+    return true;
+}
+
 } // namespace
 
 extern "C" int Combo_TrackerWindow_RunHeadless(void) {
@@ -123,18 +178,22 @@ extern "C" int Combo_TrackerWindow_RunHeadless(void) {
     const GameId prevGame = Context_GetCurrentGame();
     const GameId allGames[] = { GAME_OOT, GAME_MM, GAME_NONE };
 
-    // Three model states: unpaired with adapters REGISTERED, unpaired with
-    // both adapters UN-registered (the window must not deref a missing
-    // adapter), and a populated paired world. Inert in all of them, under
-    // every active game.
-    for (int state = 0; state < 3; state++) {
+    // Four model states: paired x adapters-present, both ways. State 3
+    // (paired with both adapters UN-registered) is the corner no other lock
+    // reaches — a crossing row whose HOST GAME cannot resolve a check name.
+    for (int state = 0; state < 4; state++) {
+        const bool paired = state >= 2;
+        const bool adapters = (state % 2) == 0;
+
         ComboContext_Init();
-        if (state == 1) {
-            Combo_Tracker_RegisterMM(NULL);
-            Combo_Tracker_RegisterOoT(NULL);
-        } else if (state == 2) {
+        if (adapters) {
             MM_TrackerAdapter_Register();
             OoT_TrackerAdapter_Register();
+        } else {
+            Combo_Tracker_RegisterMM(NULL);
+            Combo_Tracker_RegisterOoT(NULL);
+        }
+        if (paired) {
             gComboCtx.sourceIsRando = true;
             gComboCtx.sharedRandoSeed = 0xC0FFEE97u;
             gComboCtx.sharedRandoSettingsHash = 0x5EED0497u;
@@ -143,6 +202,8 @@ extern "C" int Combo_TrackerWindow_RunHeadless(void) {
             CTW_ASSERT(poolCount >= 1);
             CTW_ASSERT(Combo_SetForeignPlacement(0x0401, pool[0].item) >= 0);
             CTW_ASSERT(Combo_TrackerForeignCount((uint8_t)GAME_MM) == 1);
+        } else {
+            CTW_ASSERT(Combo_TrackerForeignCount((uint8_t)GAME_MM) == 0);
         }
 
         for (GameId game : allGames) {
@@ -151,6 +212,9 @@ extern "C" int Combo_TrackerWindow_RunHeadless(void) {
             // ImGui::Begin with no ImGui context and aborts the process.
             window->Draw();
             window->Update();
+            // ...and the shut window never touched the model, so drive the
+            // reads its open draw path would make (header point 3).
+            CTW_ASSERT(TrackerDriveModelReads());
         }
     }
 

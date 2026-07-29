@@ -35,6 +35,9 @@
 #include "soh/Enhancements/randomizer/randomizerTypes.h"
 #include "soh/Enhancements/randomizer/SeedContext.h"
 #include "soh/Enhancements/randomizer/static_data.h"
+// SeedContext.h only FORWARD-declares Rando::Logic, and the test seam below has
+// to call Logic::SetContext to cut the Context<->Logic ownership cycle.
+#include "soh/Enhancements/randomizer/logic.h"
 #include "soh/Enhancements/game-interactor/GameInteractor.h"
 
 // src/common. Included outside any extern "C" block: the header manages its
@@ -188,8 +191,19 @@ extern "C" int OoT_TrackerAdapter_TestAuthorWorld(uint32_t seed, uint16_t outIds
     return 3;
 }
 
-/** Drop the authored world. GetInstance() returns NULL again afterwards. */
+/**
+ * Drop the authored world. GetInstance() returns NULL again afterwards — but
+ * only because the back-edge is cut first: Context::CreateInstance hands the
+ * context to its own Logic by SHARED pointer (SeedContext.cpp:93 ->
+ * Logic::SetContext, whose member is a std::shared_ptr<Context>, logic.h:171),
+ * and Context owns that Logic, so the pair keeps itself alive. Dropping our
+ * reference alone leaves mContext un-expired forever and the never-booted path
+ * becomes unreachable for the rest of the process.
+ */
 extern "C" void OoT_TrackerAdapter_TestReleaseWorld(void) {
+    if (sTrackerTestWorld != nullptr) {
+        sTrackerTestWorld->GetLogic()->SetContext(nullptr);
+    }
     sTrackerTestWorld.reset();
 }
 
