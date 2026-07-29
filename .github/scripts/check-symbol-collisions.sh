@@ -46,8 +46,13 @@
 #            global absent from the baseline, (c) passes that same collision
 #            once it is baselined, (d) regenerates a baseline containing
 #            exactly the intersection under --write-baseline and accepts it
-#            on the next run, and (e) refuses to pass vacuously when no
-#            archives match. Exit 0: all five hold. Exit 1: the detection
+#            on the next run, (e) refuses to pass vacuously when no archives
+#            match, and (f) refuses to pass vacuously when the archives exist
+#            but yield zero strong external symbols. (e) and (f) are separate
+#            because they trip DIFFERENT guards: with only (e), deleting the
+#            zero-symbols guard would let a broken nm disarm the gate in
+#            silence, which is the exact failure that guard exists for.
+#            Exit 0: all six hold. Exit 1: the detection
 #            logic itself is broken. Exit 2: no usable toolchain found.
 #            Mirrors the --self-test in check-registrar-elision.sh and
 #            check-exporter-symbol-collisions.sh for the same "guard the
@@ -150,6 +155,33 @@ selftest_build_archive() {
     rm -rf "$tmp"
 }
 
+# selftest_build_symbolless_archive <out-archive>
+# An archive that EXISTS but contributes no strong external symbol — what a
+# broken nm or an archive-format change looks like from collect_defined's
+# side. Only file-local storage, so --defined-only --extern-only yields
+# nothing. Mirrors build_selftest_funconly_archive in
+# check-exporter-symbol-collisions.sh.
+selftest_build_symbolless_archive() {
+    local out_archive="$1"
+    local tmp
+    tmp="$(mktemp -d)"
+    echo "static int rsbs_selftest_file_local = 1;" > "$tmp/src.c"
+    if ! "$CC_BIN" -c -o "$tmp/src.o" "$tmp/src.c" 2> "$tmp/cc.err"; then
+        echo "error: self-test symbol-less TU failed to compile with $CC_BIN:" >&2
+        sed 's/^/  /' < "$tmp/cc.err" >&2
+        rm -rf "$tmp"
+        return 2
+    fi
+    mkdir -p "$(dirname "$out_archive")"
+    rm -f "$out_archive"
+    if ! ar rcs "$out_archive" "$tmp/src.o"; then
+        echo "error: self-test failed to archive $out_archive" >&2
+        rm -rf "$tmp"
+        return 2
+    fi
+    rm -rf "$tmp"
+}
+
 # selftest_make_build_dir <dir> <include-shared:0|1>
 # A tree shaped like the real build layout, so the child invocation below
 # resolves it through the same games/oot/libsoh_*.a and games/mm/lib2ship_*.a
@@ -238,10 +270,22 @@ run_self_test() {
     rc=$?
     selftest_expect "vacuous-collection guard (no archives present)" 2 "$dir/log.empty" "$rc" || overall=1
 
+    # (f) Archives present but defining zero strong external symbols -> also a
+    # collection error. This trips the SECOND guard, which (e) never reaches:
+    # (e) exits on "none of the archives exist" before symbol collection runs.
+    # Deleting the zero-symbols guard is a silent disarm — a broken nm would
+    # yield an empty intersection that matches an empty baseline and reports
+    # OK — and this scenario is the only thing that turns red for it.
+    selftest_build_symbolless_archive "$dir/symbolless/games/oot/libsoh_selftest.a" || { rm -rf "$dir"; return 2; }
+    selftest_build_symbolless_archive "$dir/symbolless/games/mm/lib2ship_selftest.a" || { rm -rf "$dir"; return 2; }
+    bash "$0" "$dir/symbolless" --baseline "$dir/empty-baseline.txt" > "$dir/log.symbolless" 2>&1
+    rc=$?
+    selftest_expect "vacuous-collection guard (archives with no strong external symbols)" 2 "$dir/log.symbolless" "$rc" || overall=1
+
     rm -rf "$dir"
 
     if [ "$overall" -eq 0 ]; then
-        echo "self-test: OK (all 5 scenarios behaved as expected)"
+        echo "self-test: OK (all 6 scenarios behaved as expected)"
     fi
     return "$overall"
 }
