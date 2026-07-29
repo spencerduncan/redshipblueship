@@ -169,31 +169,35 @@ extern "C" {
 //      pickup text promises an award in Termina; delivering MM's trap machinery
 //      instead would make that text a lie.
 //
-//  (6) It is NOT a shared cross-game resource (#525). Rupees, hearts and magic
-//      are one quantity spanning both games now — one wallet, one health bar,
-//      one magic meter, capacity AND current value
+//  (6) It is NOT a shared cross-game resource (#525). Rupees, hearts, magic and
+//      ammo are one quantity spanning both games now — one wallet, one health
+//      bar, one magic meter, one quiver, capacity AND current value
 //      (src/common/shared_resources.h) — so there is nothing left for a
-//      wallet, heart or magic item to CROSS. Shipping one anyway would hand
-//      the player a second copy of a capacity they already have, or worse, a
-//      rupee award that the next harvest reconciles straight back out. Six rows
-//      left with the sharing that replaced them: RI_PROGRESSIVE_WALLET,
+//      wallet, heart, magic or ammo item to CROSS. Shipping one anyway would
+//      hand the player a second copy of a capacity they already have, or worse,
+//      a rupee award that the next harvest reconciles straight back out. Six
+//      rows left with the sharing that replaced them: RI_PROGRESSIVE_WALLET,
 //      RI_WALLET_ADULT, RI_WALLET_GIANT, RI_DOUBLE_DEFENSE, RI_HEART_CONTAINER
 //      and RI_HEART_PIECE. Three more left when shared magic landed (#525's
 //      optional tier): RI_PROGRESSIVE_MAGIC, RI_SINGLE_MAGIC and
-//      RI_DOUBLE_MAGIC.
+//      RI_DOUBLE_MAGIC. Eight more left with shared ammo: RI_BOMB_BAG_20,
+//      RI_BOMB_BAG_30, RI_BOMB_BAG_40, RI_QUIVER_40, RI_QUIVER_50,
+//      RI_PROGRESSIVE_BOMB_BAG, RI_BOW and RI_PROGRESSIVE_BOW.
+//
+//      THE BOW ROWS LEAVE FOR A REASON WORTH SPELLING OUT, because "a bow is
+//      not ammo" is the obvious objection. MM does not separate the two: its
+//      own give for the bow sets UPG_QUIVER to 1 (z_parameter.c), so in MM
+//      owning the bow IS quiver tier 1 — and that tier is now the shared
+//      resource. A bow crossing would therefore mutate the shared quantity,
+//      which is precisely what this criterion excludes. The same logic retires
+//      OoT's RG_FAIRY_BOW from its own pool.
 //
 //      Note RI_DOUBLE_DEFENSE was NOT in the "Health" block — it sat under core
 //      equipment, so a block delete misses it. The block-shaped grouping below
 //      is presentational; criterion 6 is not.
 //
-//      This criterion grows with the shared-resource set. The ammo upgrades
-//      are the queued remainder of that class, and when they land the
-//      quiver/bomb-bag rows leave by this same rule — see the collision trap
-//      in #525's optional tier before deleting the bomb bags, since "Bomb Bag"
-//      is the only name shared with OoT's pool and a test depends on it.
-//
 // Everything else is IN — every mask, every song, every bottle, both shields,
-// the sword and quiver and bomb-bag upgrades, the
+// the sword upgrades, the
 // progressives (which resolve against the LIVE MM save, so they are the single
 // best-behaved cross-game gift, and the OoT pool sets the precedent with
 // RG_PROGRESSIVE_HOOKSHOT / RG_PROGRESSIVE_STRENGTH), the boss remains, the
@@ -210,35 +214,30 @@ extern "C" {
 // deferred to the first frame with a live MM_gPlayState (see the file header),
 // which is item-agnostic and O(1) in pool size — the #502 design note says in as
 // many words that an allowlist audited against today's pool would expire the
-// moment somebody added a row. This pool is that row, 125 times over, and it
+// moment somebody added a row. This pool is that row, 117 times over, and it
 // relies on the deferral instead of re-auditing it.
 //
 // Display names are MM's own (Rando::StaticData::Items) verbatim. They are a
 // PERSISTENCE KEY, not decoration: Combo_GetForeignItemByNameFor is the
 // spoiler-LOAD inverse, so renaming an entry breaks spoiler round-trips for
-// already-generated worlds. "Bomb Bag" is deliberately identical to the OoT
-// pool's row of the same name — that collision is real, is the reason the
+// already-generated worlds. "Lens of Truth" is deliberately identical to the
+// OoT pool's row of the same name — that collision is real, is the reason the
 // lookups are keyed on (originGame, name), and is asserted in
-// test_foreign_items.c rather than dodged.
+// test_foreign_items.c rather than dodged. It inherited that job from "Bomb
+// Bag", which was the colliding pair until shared ammo retired both halves;
+// OoT's pool gained its Lens row in the same commit that deleted them, because
+// the collision test goes red the instant one side exists without the other.
 static const ComboForeignItemDef kForeignPoolMMV1[] = {
     // --- Progressive upgrades: resolve against the live MM save at give time.
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_PROGRESSIVE_SWORD }, "Progressive Sword", "a " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_PROGRESSIVE_BOW }, "Progressive Bow", "a " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_PROGRESSIVE_BOMB_BAG }, "Progressive Bomb Bag", "a " },
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_PROGRESSIVE_LULLABY }, "Progressive Goron Lullaby", "" },
 
     // --- Core equipment, abilities and capacity upgrades.
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_BOW }, "Bow", "a " },
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_HOOKSHOT }, "Hookshot", "the " },
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_LENS }, "Lens of Truth", "the " },
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_ARROW_FIRE }, "Fire Arrows", "" },
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_ARROW_ICE }, "Ice Arrows", "" },
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_ARROW_LIGHT }, "Light Arrows", "" },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_BOMB_BAG_20 }, "Bomb Bag", "a " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_BOMB_BAG_30 }, "Big Bomb Bag", "a " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_BOMB_BAG_40 }, "Biggest Bomb Bag", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_QUIVER_40 }, "Large Quiver", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_QUIVER_50 }, "Largest Quiver", "the " },
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_POWDER_KEG }, "Powder Keg", "a " },
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_PICTOGRAPH_BOX }, "Pictograph Box", "a " },
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MAGIC_BEAN }, "Magic Bean", "a " },

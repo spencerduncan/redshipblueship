@@ -2159,6 +2159,8 @@ extern "C" void MM_Inventory_ChangeUpgrade(s16 upgrade, u32 value);
 extern "C" u32 MM_gUpgradeMasks[8];
 extern "C" u8 MM_gUpgradeShifts[8];
 extern "C" u16 MM_gUpgradeCapacities[][4];
+// Backs the SLOT/AMMO/INV_CONTENT macros (z64save.h) the ammo shim uses.
+extern "C" u8 MM_gItemSlots[77];
 
 // Heart pieces occupy the TOP NIBBLE of questItems in both games
 // (MM's QUEST_HEART_PIECE_COUNT is 0x1C; OoT writes 1 << (QUEST_HEART_PIECE+4)).
@@ -2169,6 +2171,53 @@ extern "C" u16 MM_gUpgradeCapacities[][4];
 // has 4 entries). Bounds the pool value so a tier authored by a future build
 // cannot index off the end of MM's capacity table.
 #define MM_MAX_WALLET_TIER 3u
+
+// Highest tier index in every ammo row of MM_gUpgradeCapacities, the twin of
+// OOT_MAX_AMMO_TIER. The rows themselves are identical across the two games —
+// quiver {0,30,40,50}, bomb bag {0,20,30,40}, sticks {0,10,20,30}, nuts
+// {0,20,30,40} — which is what lets a tier cross as one number with no
+// conversion, unlike the wallet.
+#define MM_MAX_AMMO_TIER 3u
+
+// See OoTSharedAmmo — same table, MM's ids. MM spells the stick and nut
+// upgrades UPG_DEKU_STICKS / UPG_DEKU_NUTS where OoT says UPG_STICKS /
+// UPG_NUTS, and its items ITEM_DEKU_STICK / ITEM_DEKU_NUT; the enum INDICES
+// agree, so the shared tier value means the same thing on both sides.
+typedef struct {
+    uint8_t tierKind;  // RSBS_SHARED_RES_*_TIER, or RSBS_SHARED_RES_NONE for the tier-less bombchu row
+    uint8_t countKind; // RSBS_SHARED_RES_*_COUNT
+    s16 upgrade;       // UPG_* row index, ignored when tierKind is NONE
+    uint8_t item;      // ITEM_* whose slot holds the count, and which a nonzero tier grants
+} MMSharedAmmo;
+
+static const MMSharedAmmo kMMSharedAmmo[] = {
+    { RSBS_SHARED_RES_QUIVER_TIER, RSBS_SHARED_RES_ARROW_COUNT, UPG_QUIVER, ITEM_BOW },
+    { RSBS_SHARED_RES_BOMB_BAG_TIER, RSBS_SHARED_RES_BOMB_COUNT, UPG_BOMB_BAG, ITEM_BOMB },
+    { RSBS_SHARED_RES_STICK_TIER, RSBS_SHARED_RES_STICK_COUNT, UPG_DEKU_STICKS, ITEM_DEKU_STICK },
+    { RSBS_SHARED_RES_NUT_TIER, RSBS_SHARED_RES_NUT_COUNT, UPG_DEKU_NUTS, ITEM_DEKU_NUT },
+    { RSBS_SHARED_RES_NONE, RSBS_SHARED_RES_BOMBCHU_COUNT, 0, ITEM_BOMBCHU },
+};
+
+static uint16_t MM_ReadAmmo(uint8_t item) {
+    const s8 held = AMMO(item);
+    return held < 0 ? 0u : (uint16_t)held;
+}
+
+// MM's bombchus have no upgrade row of their own — the bomb bag's capacity is
+// their ceiling, where OoT fixes it at 50. The pool holds the true count and
+// each side shows what it can hold, exactly as the 500-vs-999 wallet does.
+static uint16_t MM_AmmoCapacity(const MMSharedAmmo* row) {
+    if (row->tierKind == RSBS_SHARED_RES_NONE) {
+        return (uint16_t)CUR_CAPACITY(UPG_BOMB_BAG);
+    }
+    return (uint16_t)CUR_CAPACITY(row->upgrade);
+}
+
+static void MM_EnsureInventoryItem(uint8_t item) {
+    if (INV_CONTENT(item) == ITEM_NONE) {
+        INV_CONTENT(item) = item;
+    }
+}
 
 static uint16_t MM_ReadHealthQuarters(void) {
     const uint16_t pieces =
@@ -2274,6 +2323,16 @@ extern "C" void MM_HarvestSharedResources(void) {
                                 gSaveContext.save.saveInfo.playerData.doubleDefense ? 1u : 0u);
     Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_MAGIC_LEVEL, MM_ReadMagicLevel());
     Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_MAGIC_CURRENT, MM_ReadSettledMagic());
+
+    // Ammo, the twin of the OoT loop — no settle step, because ammo changes are
+    // immediate AMMO() writes in both games rather than accumulator drains.
+    for (int i = 0; i < ARRAY_COUNT(kMMSharedAmmo); i++) {
+        const MMSharedAmmo* row = &kMMSharedAmmo[i];
+        if (row->tierKind != RSBS_SHARED_RES_NONE) {
+            Combo_HarvestSharedResource(GAME_MM, row->tierKind, (uint16_t)CUR_UPG_VALUE(row->upgrade));
+        }
+        Combo_HarvestSharedResource(GAME_MM, row->countKind, MM_ReadAmmo(row->item));
+    }
 }
 
 /**
@@ -2395,6 +2454,34 @@ extern "C" void MM_ApplySharedResources(void) {
         gSaveContext.magicToAdd = 0;
         gSaveContext.magicToConsume = 0;
     }
+
+    // --- Ammo: tier before the count it bounds, per row. Deliberately does NOT
+    // copy MM's own rando bomb-bag give, which refills bombs AND bombchus to
+    // capacity — that is a give's semantics, and running it on every arrival
+    // would hand the player a free restock per switch. The apply authors an
+    // absolute count from the pool instead, which is what the watermark
+    // reconciles against.
+    for (int i = 0; i < ARRAY_COUNT(kMMSharedAmmo); i++) {
+        const MMSharedAmmo* row = &kMMSharedAmmo[i];
+
+        if (row->tierKind != RSBS_SHARED_RES_NONE) {
+            uint16_t tier = (uint16_t)CUR_UPG_VALUE(row->upgrade);
+            if (Combo_ApplySharedResource(GAME_MM, row->tierKind, MM_MAX_AMMO_TIER, &tier)) {
+                MM_Inventory_ChangeUpgrade(row->upgrade, (u32)tier);
+                if (tier >= 1u) {
+                    MM_EnsureInventoryItem(row->item);
+                }
+            }
+        }
+
+        uint16_t count = MM_ReadAmmo(row->item);
+        if (Combo_ApplySharedResource(GAME_MM, row->countKind, MM_AmmoCapacity(row), &count)) {
+            if (count > 0u) {
+                MM_EnsureInventoryItem(row->item);
+            }
+            AMMO(row->item) = (s8)count;
+        }
+    }
 }
 
 // ============================================================================
@@ -2434,8 +2521,24 @@ extern "C" void MM_ApplySharedResources(void) {
 // health at 0x30, and under one-health-bar semantics that is a Song of Time
 // healing the single shared bar — which is what "as if OoT and MM were one
 // game" means. It reads as a heal, not a bug.
+//
+// SHARED MAGIC deliberately has no equivalent hook either, and that is a fact
+// about MM rather than a policy call: Sram_SaveEndOfCycle never touches magic,
+// magicLevel or either acquired flag. A bracket there would be dead code
+// guarding a wipe that does not happen.
+//
+// SHARED AMMO, by contrast, needs one — the wipe zeroes AMMO() for every slot
+// in MM_gAmmoItems (arrows, bombs, bombchus, sticks, nuts, and MM-local beans
+// and powder keg) except the pictograph box. The five SHARED counts are
+// bracketed below for the same reason rupees are; the MM-local ones are left to
+// be wiped exactly as vanilla does, because restoring those would silently
+// reimplement 2S2H's DoNotResetConsumables enhancement for items that are not
+// part of the shared model and whose loss the player opted into by playing MM.
+// The capacity TIERS need no bracket: the wipe never touches inventory.upgrades,
+// and a monotonic resource could not decay through it anyway.
 
 static s16 sPreCycleRupees = 0;
+static s8 sPreCycleAmmo[ARRAY_COUNT(kMMSharedAmmo)];
 
 extern "C" void MM_RegisterSharedResourceCycleHooks(void) {
     S2H::GameHooks::Register<GameInteractor::BeforeEndOfCycleSave>([]() {
@@ -2453,6 +2556,15 @@ extern "C" void MM_RegisterSharedResourceCycleHooks(void) {
             settled = walletCap;
         }
         sPreCycleRupees = (s16)settled;
+
+        // Snapshot the shared ammo counts by SLOT, through the same AMMO()
+        // macro the wipe itself uses. Deliberately not by raw item id: the
+        // vanilla-reference restore in EndOfCycle.cpp indexes inventory arrays
+        // with item enumerators directly, which is correct only because a
+        // handful of MM's ids happen to equal their slot numbers.
+        for (int i = 0; i < ARRAY_COUNT(kMMSharedAmmo); i++) {
+            sPreCycleAmmo[i] = AMMO(kMMSharedAmmo[i].item);
+        }
     });
 
     S2H::GameHooks::Register<GameInteractor::AfterEndOfCycleSave>([]() {
@@ -2461,6 +2573,18 @@ extern "C" void MM_RegisterSharedResourceCycleHooks(void) {
         // The "you lost your rupees" notice would be a lie now, and it is the
         // same flag 2S2H's DoNotResetRupees clears for the same reason.
         CLEAR_EVENTINF(EVENTINF_THREEDAYRESET_LOST_RUPEES);
+
+        for (int i = 0; i < ARRAY_COUNT(kMMSharedAmmo); i++) {
+            AMMO(kMMSharedAmmo[i].item) = sPreCycleAmmo[i];
+        }
+        // Same reasoning as the rupee notice: four of the five shared counts
+        // have a "you lost it" flag that the cycle stamps before wiping, and
+        // leaving them set makes the game report a loss that no longer
+        // happened. Bombchus have no such flag in vanilla.
+        CLEAR_EVENTINF(EVENTINF_THREEDAYRESET_LOST_ARROW_AMMO);
+        CLEAR_EVENTINF(EVENTINF_THREEDAYRESET_LOST_BOMB_AMMO);
+        CLEAR_EVENTINF(EVENTINF_THREEDAYRESET_LOST_NUT_AMMO);
+        CLEAR_EVENTINF(EVENTINF_THREEDAYRESET_LOST_STICK_AMMO);
     });
 }
 

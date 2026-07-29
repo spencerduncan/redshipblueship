@@ -183,7 +183,7 @@ TestResult Test_ForeignItemGive(void) {
         FI_ASSERT(Combo_GetForeignItemByNameFor((uint8_t)GAME_OOT, pool[i].name, &back));
         FI_ASSERT(back.originGame == pool[i].item.originGame && back.id == pool[i].item.id);
         // NOT "the name must not exist in MM's pool": since #510 a real MM pool
-        // is registered and "Bomb Bag" is a genuine row in BOTH id-spaces, so
+        // is registered and "Lens of Truth" is a genuine row in BOTH id-spaces, so
         // that assertion would be false-by-design. The invariant that actually
         // matters is that the two id-spaces never bleed: if the name resolves
         // under GAME_MM at all, it comes back MM-tagged and is a DIFFERENT item
@@ -199,9 +199,9 @@ TestResult Test_ForeignItemGive(void) {
     // ------------------------------------------------------------------
     // ADR 0009 decision 3: (origin, name) is the key; bare name is NOT.
     // ------------------------------------------------------------------
-    // The reason the lookups take an origin at all. "Bomb Bag" is a real
-    // display name in BOTH id-spaces — OoT's RG_BOMB_BAG row and MM's
-    // RI_BOMB_BAG_20 row — so a name-only inverse resolves it to whichever
+    // The reason the lookups take an origin at all. "Lens of Truth" is a real
+    // display name in BOTH id-spaces — OoT's RG_LENS_OF_TRUTH row and MM's
+    // RI_LENS row — so a name-only inverse resolves it to whichever
     // pool it happens to scan first and writes a WRONG ORIGIN TAG into the
     // placement table. That is the #356 aliasing class arriving through the
     // spoiler-LOAD path, which rebuilds state from untrusted text on disk.
@@ -225,40 +225,48 @@ TestResult Test_ForeignItemGive(void) {
 
         // The collision this whole surface exists for must ACTUALLY be present in
         // the two real pools, or everything below passes for want of a conflict.
-        int ootBombBagIdx = -1;
+        //
+        // The colliding pair is "Lens of Truth" (OoT's RG_LENS_OF_TRUTH row
+        // against MM's RI_LENS row). It was "Bomb Bag" until shared ammo (#525)
+        // made the bomb-bag capacity one cross-game quantity and criterion 6
+        // retired BOTH halves of that pair at once — which is exactly why the
+        // OoT Lens row and these assertions landed in the same commit as the
+        // deletions. Renaming a row to dodge a collision is never the fix: the
+        // display name is the spoiler-load persistence key.
+        int ootCollisionIdx = -1;
         for (int k = 0; k < poolCount; k++) {
-            if (strcmp(pool[k].name, "Bomb Bag") == 0) {
-                ootBombBagIdx = k;
+            if (strcmp(pool[k].name, "Lens of Truth") == 0) {
+                ootCollisionIdx = k;
             }
         }
-        int mmBombBagIdx = -1;
+        int mmCollisionIdx = -1;
         for (int k = 0; k < mmPoolCount; k++) {
-            if (strcmp(mmPool[k].name, "Bomb Bag") == 0) {
-                mmBombBagIdx = k;
+            if (strcmp(mmPool[k].name, "Lens of Truth") == 0) {
+                mmCollisionIdx = k;
             }
         }
-        FI_ASSERT(ootBombBagIdx >= 0); // OoT's RG_BOMB_BAG row
-        FI_ASSERT(mmBombBagIdx >= 0);  // MM's RI_BOMB_BAG_20 row
+        FI_ASSERT(ootCollisionIdx >= 0); // OoT's RG_LENS_OF_TRUTH row
+        FI_ASSERT(mmCollisionIdx >= 0);  // MM's RI_LENS row
 
         // The colliding bare name resolves to a DIFFERENT item under each
         // origin — never to the same one, and never to nothing.
         SharedItem fromOoT, fromMM;
-        FI_ASSERT(Combo_GetForeignItemByNameFor((uint8_t)GAME_OOT, "Bomb Bag", &fromOoT));
-        FI_ASSERT(Combo_GetForeignItemByNameFor((uint8_t)GAME_MM, "Bomb Bag", &fromMM));
+        FI_ASSERT(Combo_GetForeignItemByNameFor((uint8_t)GAME_OOT, "Lens of Truth", &fromOoT));
+        FI_ASSERT(Combo_GetForeignItemByNameFor((uint8_t)GAME_MM, "Lens of Truth", &fromMM));
         FI_ASSERT(fromOoT.originGame == (uint8_t)GAME_OOT);
         FI_ASSERT(fromMM.originGame == (uint8_t)GAME_MM);
         // Pin BOTH sides to their real pool rows rather than asserting the two
         // results merely differ. Comparing (id, origin) pairs would be
         // tautological — the origins are already asserted distinct just above —
         // and would still pass if a lookup returned the wrong row of its own pool.
-        FI_ASSERT(fromOoT.id == pool[ootBombBagIdx].item.id);
-        FI_ASSERT(fromMM.id == mmPool[mmBombBagIdx].item.id);
+        FI_ASSERT(fromOoT.id == pool[ootCollisionIdx].item.id);
+        FI_ASSERT(fromMM.id == mmPool[mmCollisionIdx].item.id);
 
         // The legacy bare-name entry point keeps its exact previous meaning:
         // the OoT pool. Call sites that predate the origin dimension must not
         // have silently changed behavior when the MM pool appeared.
         SharedItem legacy;
-        FI_ASSERT(Combo_GetForeignItemByName("Bomb Bag", &legacy));
+        FI_ASSERT(Combo_GetForeignItemByName("Lens of Truth", &legacy));
         FI_ASSERT(legacy.originGame == (uint8_t)GAME_OOT && legacy.id == fromOoT.id);
 
         // Forward direction dispatches on the item's own tag: two items with the
@@ -786,7 +794,7 @@ TestResult Test_ForeignPoolMM(void) {
 
         // #510 presentation: OoT builds the pickup line as article + name, and
         // it cannot read MM's item table to get the article — so every row must
-        // carry one. NULL would print "You found Bomb Bag"; the empty string is
+        // carry one. NULL would print "You found Powder Keg"; the empty string is
         // legal and correct for the several MM items that take no article
         // ("Garo's Mask", "Epona's Song").
         FI_ASSERT(pool[i].article != NULL);
@@ -863,6 +871,14 @@ TestResult Test_ForeignPoolMM(void) {
         // names, spelled from the pool's own rows — a typo here passes
         // vacuously, because the assertion is a not-equal sweep.
         "Progressive Magic",  "Power of Magic",  "Magic Upgrade",
+        // Shared ammo: the capacity tiers are one cross-game quantity now, so
+        // every bag and quiver row left. The BOW rows are here for a reason
+        // that is easy to miss — MM's own bow give sets UPG_QUIVER to 1, so in
+        // MM owning the bow IS quiver tier 1, which makes a bow crossing a
+        // mutation of the shared resource rather than a new item.
+        "Bomb Bag",           "Big Bomb Bag",    "Biggest Bomb Bag",
+        "Large Quiver",       "Largest Quiver",  "Progressive Bomb Bag",
+        "Bow",                "Progressive Bow",
     };
     for (size_t k = 0; k < sizeof(kSharedResourceNames) / sizeof(kSharedResourceNames[0]); k++) {
         for (int i = 0; i < poolCount; i++) {
@@ -873,11 +889,49 @@ TestResult Test_ForeignPoolMM(void) {
         FI_ASSERT(!Combo_GetForeignItemByNameFor((uint8_t)GAME_MM, kSharedResourceNames[k], NULL));
     }
 
-    // The shrink is real, not a rename: those nine rows left and nothing took
-    // their place. Bounded rather than exact for the reason above — a future
-    // shared resource (ammo) removes more, and unrelated work may add.
+    // THE SAME SWEEP AGAINST OoT's POOL. Criterion 6 had no OoT twin until
+    // shared ammo, and that was a real hole rather than an omission worth
+    // leaving: OoT's own pool shipped "Fairy Bow" and "Bomb Bag" rows, and both
+    // became shared resources here, so nothing was watching the side that
+    // actually had to lose entries. Reusing the MM name list is meaningful
+    // wherever the two games spell a row identically — "Bomb Bag" collided
+    // across the pools for exactly that reason — and inert elsewhere, so the
+    // OoT-specific spellings are named separately below.
+    const ComboForeignItemDef* ootPool = NULL;
+    const int ootPoolCount = Combo_GetForeignItemPoolFor((uint8_t)GAME_OOT, &ootPool);
+    FI_ASSERT(ootPoolCount >= 1 && ootPool != NULL);
+    static const char* const kOoTSharedResourceNames[] = {
+        // Retired from kForeignPoolV1 by criterion 6 when shared ammo landed.
+        // Byte-exact as that table spelled them, which is what makes the sweep
+        // non-vacuous: these two strings were really there.
+        "Fairy Bow",
+        "Bomb Bag",
+    };
+    for (size_t k = 0; k < sizeof(kSharedResourceNames) / sizeof(kSharedResourceNames[0]); k++) {
+        for (int i = 0; i < ootPoolCount; i++) {
+            FI_ASSERT(strcmp(ootPool[i].name, kSharedResourceNames[k]) != 0);
+        }
+    }
+    for (size_t k = 0; k < sizeof(kOoTSharedResourceNames) / sizeof(kOoTSharedResourceNames[0]); k++) {
+        for (int i = 0; i < ootPoolCount; i++) {
+            FI_ASSERT(strcmp(ootPool[i].name, kOoTSharedResourceNames[k]) != 0);
+        }
+        FI_ASSERT(!Combo_GetForeignItemByNameFor((uint8_t)GAME_OOT, kOoTSharedResourceNames[k], NULL));
+    }
+
+    // The shrink is real, not a rename: seventeen rows have left across the
+    // three tiers and nothing took their place. Bounded rather than exact for
+    // the reason above — a future shared resource removes more, and unrelated
+    // work may add.
     printf("[TEST] foreign-pool-mm: %d entries after the #525 shared-resource shrink\n", poolCount);
     FI_ASSERT(poolCount <= 128);
+
+    // OoT's pool must stay clear of test_combo_spoiler_view.c's floor of 3,
+    // which it sat exactly on before shared ammo added the Lens, Boomerang and
+    // Megaton Hammer rows. Asserted here rather than left implicit because the
+    // ammo tier is what took two rows OUT of a four-row pool.
+    printf("[TEST] foreign-pool-oot: %d entries\n", ootPoolCount);
+    FI_ASSERT(ootPoolCount >= 3);
 
     printf("[TEST] PASS: MM source pool registered, well-formed, giveable, non-junk, name-invertible, "
            "no shared resources\n");

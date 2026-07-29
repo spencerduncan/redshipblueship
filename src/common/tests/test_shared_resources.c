@@ -338,6 +338,78 @@ TestResult Test_SharedResources(void) {
     SR_ASSERT(magic == 0x30);
 
     // ------------------------------------------------------------------
+    // Ammo (#525's optional tier): four capacity TIERS that only grow and five
+    // COUNTS the player spends. Same two disciplines one more time, but this is
+    // the set that overflows the first slot block, so it is also what proves
+    // the second block is reachable at all.
+    // ------------------------------------------------------------------
+    SR_FreshWorld();
+
+    // A tier is monotonic, with the discipline pinned the only way that
+    // distinguishes it: a LOWER harvest AFTER an apply. Misclassified as
+    // consumable this decays to 1; monotonic holds 3.
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_QUIVER_TIER, 3);
+    uint16_t quiver = 0;
+    SR_ASSERT(Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_QUIVER_TIER, 3, &quiver));
+    SR_ASSERT(quiver == 3);
+    Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_QUIVER_TIER, 1);
+    SR_ASSERT(SR_Pool(RSBS_SHARED_RES_QUIVER_TIER) == 3);
+
+    // A count is consumable, and the two games' ceilings differ for bombchus
+    // exactly the way the wallets differ for rupees: OoT holds 50, MM holds
+    // whatever the bomb bag allows (40 at tier 3). The pool keeps the true
+    // total, MM shows what fits, and the overflow comes home intact.
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_BOMBCHU_COUNT, 50);
+    uint16_t chus = 0;
+    SR_ASSERT(Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_BOMBCHU_COUNT, 40, &chus));
+    SR_ASSERT(chus == 40);
+    SR_ASSERT(SR_Pool(RSBS_SHARED_RES_BOMBCHU_COUNT) == 50);
+    Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_BOMBCHU_COUNT, 40); // spent none
+    SR_ASSERT(SR_Pool(RSBS_SHARED_RES_BOMBCHU_COUNT) == 50);
+    SR_ASSERT(Combo_ApplySharedResource(GAME_OOT, RSBS_SHARED_RES_BOMBCHU_COUNT, 50, &chus));
+    SR_ASSERT(chus == 50);
+
+    // Arrows fired in Termina are gone from the one shared count OoT reads.
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_ARROW_COUNT, 30);
+    uint16_t arrows = 0;
+    SR_ASSERT(Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_ARROW_COUNT, 30, &arrows));
+    SR_ASSERT(arrows == 30);
+    Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_ARROW_COUNT, 12);
+    SR_ASSERT(Combo_ApplySharedResource(GAME_OOT, RSBS_SHARED_RES_ARROW_COUNT, 30, &arrows));
+    SR_ASSERT(arrows == 12);
+
+    // ------------------------------------------------------------------
+    // THE SECOND BLOCK IS REACHABLE. Sixteen kinds do not fit the first
+    // block's eight slots, so this is the assertion that fails outright if
+    // sharedResourcesExt is never scanned — which is the whole hazard the
+    // two-block carve introduces: a scan that stops at the first block's end
+    // reports "full" with twelve free slots behind it and silently drops every
+    // resource past the eighth.
+    // ------------------------------------------------------------------
+    SR_FreshWorld();
+    static const uint8_t kAllKinds[] = {
+        RSBS_SHARED_RES_RUPEES,          RSBS_SHARED_RES_WALLET_TIER,   RSBS_SHARED_RES_HEALTH_QUARTERS,
+        RSBS_SHARED_RES_HEALTH_CURRENT,  RSBS_SHARED_RES_DOUBLE_DEFENSE, RSBS_SHARED_RES_MAGIC_LEVEL,
+        RSBS_SHARED_RES_MAGIC_CURRENT,   RSBS_SHARED_RES_QUIVER_TIER,   RSBS_SHARED_RES_BOMB_BAG_TIER,
+        RSBS_SHARED_RES_STICK_TIER,      RSBS_SHARED_RES_NUT_TIER,      RSBS_SHARED_RES_ARROW_COUNT,
+        RSBS_SHARED_RES_BOMB_COUNT,      RSBS_SHARED_RES_BOMBCHU_COUNT, RSBS_SHARED_RES_STICK_COUNT,
+        RSBS_SHARED_RES_NUT_COUNT,
+    };
+    const int kAllKindCount = (int)(sizeof(kAllKinds) / sizeof(kAllKinds[0]));
+    SR_ASSERT(kAllKindCount > (int)RSBS_SHARED_RESOURCE_CAP); // or this proves nothing
+    for (int k = 0; k < kAllKindCount; k++) {
+        // Distinct nonzero values, so a slot collision shows up as a wrong
+        // number rather than as two kinds agreeing by luck.
+        Combo_HarvestSharedResource(GAME_OOT, kAllKinds[k], (uint16_t)(k + 1));
+    }
+    SR_ASSERT(Combo_CountSharedResources() == kAllKindCount);
+    for (int k = 0; k < kAllKindCount; k++) {
+        SR_ASSERT(SR_Pool(kAllKinds[k]) == (uint16_t)(k + 1));
+    }
+    // Still room left, across both blocks, for the next member of the class.
+    SR_ASSERT(Combo_CountSharedResources() < (int)RSBS_SHARED_RESOURCE_TOTAL_CAP);
+
+    // ------------------------------------------------------------------
     // Garbage in: a bogus game or kind must change nothing.
     // ------------------------------------------------------------------
     SR_FreshWorld();
@@ -351,8 +423,10 @@ TestResult Test_SharedResources(void) {
     SR_ASSERT(sink == 42);
 
     // ------------------------------------------------------------------
-    // All seven shared resources (v1 + magic) coexist: the slot array holds
-    // the whole set at once, with no kind overwriting another's slot.
+    // The v1-plus-magic set still coexists inside the FIRST block alone. Kept
+    // as its own case beside the all-sixteen sweep above: this one pins that
+    // those seven kinds have not drifted into the second block, which is the
+    // shape every already-shipped .redsave stores them in.
     // ------------------------------------------------------------------
     SR_FreshWorld();
     Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_RUPEES, 250);
@@ -370,11 +444,10 @@ TestResult Test_SharedResources(void) {
     SR_ASSERT(SR_Pool(RSBS_SHARED_RES_DOUBLE_DEFENSE) == 1);
     SR_ASSERT(SR_Pool(RSBS_SHARED_RES_MAGIC_LEVEL) == 1);
     SR_ASSERT(SR_Pool(RSBS_SHARED_RES_MAGIC_CURRENT) == 0x30);
-    // The set fits with exactly one slot to spare. The ammo upgrades — the
-    // queued remainder of the class — do NOT fit there; they arrive with the
-    // second reserved[] block carve (see RSBS_SHARED_RESOURCE_CAP's comment in
-    // context.h), not by squeezing into this array.
-    SR_ASSERT(Combo_CountSharedResources() < (int)RSBS_SHARED_RESOURCE_CAP);
+    // Seven of the first block's eight, so none of them needed the second block
+    // to exist. Anything that pushed one of these past the boundary would move
+    // it to a different .redsave offset than every shipped save wrote it to.
+    SR_ASSERT(Combo_CountSharedResources() <= (int)RSBS_SHARED_RESOURCE_CAP);
 
     // Session invalidation retires the pool AND the watermarks together — a
     // watermark surviving into a fresh world would measure a delta against a
@@ -384,6 +457,7 @@ TestResult Test_SharedResources(void) {
     Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_RUPEES, 700);
     SR_ASSERT(SR_Pool(RSBS_SHARED_RES_RUPEES) == 700);
 
-    printf("[TEST] PASS: watermark survives the 500/999 round trip, disciplines split, load cannot double-count\n");
+    printf("[TEST] PASS: watermark survives the 500/999 round trip, disciplines split, load cannot "
+           "double-count, both slot blocks reachable\n");
     return TEST_PASS;
 }
