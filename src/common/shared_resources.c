@@ -55,10 +55,12 @@ static bool IsMonotonicKind(uint8_t kind) {
         case RSBS_SHARED_RES_WALLET_TIER:
         case RSBS_SHARED_RES_HEALTH_QUARTERS:
         case RSBS_SHARED_RES_DOUBLE_DEFENSE:
+        case RSBS_SHARED_RES_MAGIC_LEVEL:
             return true;
         default:
-            // RSBS_SHARED_RES_RUPEES, RSBS_SHARED_RES_HEALTH_CURRENT: the
-            // player spends these, so they are delta-harvested.
+            // RSBS_SHARED_RES_RUPEES, RSBS_SHARED_RES_HEALTH_CURRENT,
+            // RSBS_SHARED_RES_MAGIC_CURRENT: the player spends these, so they
+            // are delta-harvested.
             return false;
     }
 }

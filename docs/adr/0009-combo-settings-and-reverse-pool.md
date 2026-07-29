@@ -191,19 +191,25 @@ Publishing the allocation once beats five sequential re-versions:
 | 2 | `comboSettingsHash` (#498 decision 1, Lane 1) | 4 B | reserved |
 | 3 | MM option-profile digest (#497 step 7 / #499 step 4, Lane 4) | 4 B | **carved by Lane 4; size CONFIRMED at 4 B** |
 | 4 | Netplay grant fields (#460, ADR 0005/0007) | 64 B | reserved |
-| 5 | `sharedResources[8]` (#525, shared rupees + hearts) | 32 B | **carved by #525** |
+| 5 | `sharedResources[8]` (#525, shared rupees + hearts + magic) | 32 B | **carved by #525** |
 | 6 | Unallocated floor | 132 B | must not drop below 64 |
 
 Total reserved-against: 152 B of 284. After claims 1, 3 and 5 land, `reserved[]`
 is 180 bytes and 200 B of capacity remain.
 
-**Claim 5, settled (#525, 2026-07-29).** Shared cross-game resources are eight
-kind-tagged 4-byte slots — `ComboSharedResource sharedResources[8]` at `.redsave`
-byte offset **792**, immediately after `mmProfileDigest`. v1 occupies five of the
-eight (rupees, wallet tier, health quarters, current health, double defense);
-shared magic and the ammo upgrades are the queued members of the same class and
-fit in the remaining three without another carve, which is why the claim is sized
-at the array rather than at today's five resources.
+**Claim 5, settled (#525, 2026-07-29; amended for the optional tier).** Shared
+cross-game resources are eight kind-tagged 4-byte slots —
+`ComboSharedResource sharedResources[8]` at `.redsave` byte offset **792**,
+immediately after `mmProfileDigest`. Seven of the eight are occupied: five by
+v1 (rupees, wallet tier, health quarters, current health, double defense) and
+two by shared magic (meter level + current magic, kinds 6 and 7), which is why
+the claim is sized at the array rather than at any moment's resource count. The
+ammo upgrades — the queued remainder of the class — need ~10 more kinds and do
+NOT fit in the one remaining slot: per this ADR's own prescription they arrive
+as a SECOND block carved from the front of `reserved[]`, spanned together with
+this one by every accessor in `shared_resources.c`, never by bumping
+`RSBS_SHARED_RESOURCE_CAP` in place (the widen would move every field carved
+after the array off its shipped offset).
 
 The tag is load-bearing, not bookkeeping. This ADR's growth contract is "zero
 means unset", and **0 rupees is a legal player state** — so a bare `uint16_t

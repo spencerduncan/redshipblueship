@@ -292,6 +292,52 @@ TestResult Test_SharedResources(void) {
     SR_ASSERT(health == 0x20);
 
     // ------------------------------------------------------------------
+    // Magic (#525's optional tier): the meter level is a MONOTONIC capacity
+    // and current magic a CONSUMABLE — the wallet/rupee split, one resource
+    // over. Units are shared verbatim (0x30 per bar in both games), so the
+    // games' caps differ only by LEVEL: a single-magic game can display at
+    // most 0x30 of a double-magic pool.
+    // ------------------------------------------------------------------
+    SR_FreshWorld();
+    // OoT earned double magic; MM holds single. The level never downgrades.
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_MAGIC_LEVEL, 2);
+    Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_MAGIC_LEVEL, 1);
+    SR_ASSERT(SR_Pool(RSBS_SHARED_RES_MAGIC_LEVEL) == 2);
+    uint16_t magicLevel = 1;
+    SR_ASSERT(Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_MAGIC_LEVEL, 2, &magicLevel));
+    SR_ASSERT(magicLevel == 2);
+    // Discipline pin: a LOWER harvest AFTER an apply is the one sequence the
+    // two disciplines answer differently — misclassified as consumable this
+    // computes delta -1 against the apply's watermark and decays the pool to
+    // 1; monotonic max-merge holds 2. (The harvests above pass either way:
+    // before any apply, the consumable first-harvest seed makes them look
+    // monotonic. Verified by mutation — dropping MAGIC_LEVEL from
+    // IsMonotonicKind fails exactly here and nowhere else.)
+    Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_MAGIC_LEVEL, 1);
+    SR_ASSERT(SR_Pool(RSBS_SHARED_RES_MAGIC_LEVEL) == 2);
+
+    // A full double meter (0x60) visits a game that displays a single bar
+    // (cap 0x30): the pool keeps the true amount, the arriving game shows what
+    // fits, and nothing is lost on the way home — the 500/999 wallet
+    // invariant, in magic units.
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_MAGIC_CURRENT, 0x60);
+    uint16_t magic = 0;
+    SR_ASSERT(Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_MAGIC_CURRENT, 0x30, &magic));
+    SR_ASSERT(magic == 0x30);
+    SR_ASSERT(SR_Pool(RSBS_SHARED_RES_MAGIC_CURRENT) == 0x60);
+    Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_MAGIC_CURRENT, 0x30); // spent nothing in Termina
+    SR_ASSERT(SR_Pool(RSBS_SHARED_RES_MAGIC_CURRENT) == 0x60);
+    SR_ASSERT(Combo_ApplySharedResource(GAME_OOT, RSBS_SHARED_RES_MAGIC_CURRENT, 0x60, &magic));
+    SR_ASSERT(magic == 0x60);
+
+    // Spending decays the shared meter: a 0x20 spell cast in Hyrule is gone
+    // from the one meter MM reads too.
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_MAGIC_CURRENT, 0x40);
+    SR_ASSERT(SR_Pool(RSBS_SHARED_RES_MAGIC_CURRENT) == 0x40);
+    SR_ASSERT(Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_MAGIC_CURRENT, 0x30, &magic));
+    SR_ASSERT(magic == 0x30);
+
+    // ------------------------------------------------------------------
     // Garbage in: a bogus game or kind must change nothing.
     // ------------------------------------------------------------------
     SR_FreshWorld();
@@ -305,8 +351,8 @@ TestResult Test_SharedResources(void) {
     SR_ASSERT(sink == 42);
 
     // ------------------------------------------------------------------
-    // All five v1 resources coexist: the slot array holds the whole set at
-    // once, with no kind overwriting another's slot.
+    // All seven shared resources (v1 + magic) coexist: the slot array holds
+    // the whole set at once, with no kind overwriting another's slot.
     // ------------------------------------------------------------------
     SR_FreshWorld();
     Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_RUPEES, 250);
@@ -314,14 +360,20 @@ TestResult Test_SharedResources(void) {
     Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_HEALTH_QUARTERS, 0x60);
     Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_HEALTH_CURRENT, 0x40);
     Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_DOUBLE_DEFENSE, 1);
-    SR_ASSERT(Combo_CountSharedResources() == 5);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_MAGIC_LEVEL, 1);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_MAGIC_CURRENT, 0x30);
+    SR_ASSERT(Combo_CountSharedResources() == 7);
     SR_ASSERT(SR_Pool(RSBS_SHARED_RES_RUPEES) == 250);
     SR_ASSERT(SR_Pool(RSBS_SHARED_RES_WALLET_TIER) == 2);
     SR_ASSERT(SR_Pool(RSBS_SHARED_RES_HEALTH_QUARTERS) == 0x60);
     SR_ASSERT(SR_Pool(RSBS_SHARED_RES_HEALTH_CURRENT) == 0x40);
     SR_ASSERT(SR_Pool(RSBS_SHARED_RES_DOUBLE_DEFENSE) == 1);
-    // The set fits with headroom left for the queued members of the class
-    // (shared magic, the ammo upgrades) without another .redsave carve.
+    SR_ASSERT(SR_Pool(RSBS_SHARED_RES_MAGIC_LEVEL) == 1);
+    SR_ASSERT(SR_Pool(RSBS_SHARED_RES_MAGIC_CURRENT) == 0x30);
+    // The set fits with exactly one slot to spare. The ammo upgrades — the
+    // queued remainder of the class — do NOT fit there; they arrive with the
+    // second reserved[] block carve (see RSBS_SHARED_RESOURCE_CAP's comment in
+    // context.h), not by squeezing into this array.
     SR_ASSERT(Combo_CountSharedResources() < (int)RSBS_SHARED_RESOURCE_CAP);
 
     // Session invalidation retires the pool AND the watermarks together — a

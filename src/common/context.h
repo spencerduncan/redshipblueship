@@ -238,9 +238,12 @@ int Context_ArmShadowAsFrozen(GameId game, uint16_t returnEntrance);
  * RESOURCES can be tracked at once. A shared resource is not an item that
  * crosses once — it is ONE QUANTITY spanning both games, capacity and current
  * value together ("current health is tracked as if OoT and MM were one game
- * with a single health bar"). v1 occupies five of the eight slots (rupees,
- * wallet tier, health quarters, current health, double defense); magic and the
- * ammo upgrades are the queued members of the same class.
+ * with a single health bar"). Seven of the eight slots are occupied — five by
+ * v1 (rupees, wallet tier, health quarters, current health, double defense)
+ * and two by shared magic (level + current, #525's optional tier) — leaving
+ * ONE free. The ammo upgrades are the queued remainder of the class and need
+ * ~10 slots, so they arrive with the second block prescribed below, not by
+ * squeezing into this one.
  *
  * DO NOT BUMP THIS CONSTANT to get more capacity, for the reason
  * RSBS_GRANT_SOURCE_CAP spells out: the array is carved from the front of
@@ -361,6 +364,8 @@ enum {
     RSBS_SHARED_RES_HEALTH_QUARTERS = 3,  // MONOTONIC: capacity + pieces*4, the canonical heart quantity
     RSBS_SHARED_RES_HEALTH_CURRENT = 4,   // CONSUMABLE: the single shared health bar, in 0x10-per-heart units
     RSBS_SHARED_RES_DOUBLE_DEFENSE = 5,   // MONOTONIC: 0/1 flag; each game sets its OWN differently-named field pair
+    RSBS_SHARED_RES_MAGIC_LEVEL = 6,      // MONOTONIC: meter level 0/1/2 from the two acquired FLAGS, never magicLevel
+    RSBS_SHARED_RES_MAGIC_CURRENT = 7,    // CONSUMABLE: the single shared magic meter, 0x30 per bar in both games
 };
 
 /**

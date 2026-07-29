@@ -2182,6 +2182,67 @@ static uint16_t MM_ReadHealthQuarters(void) {
     return Combo_MakeHealthQuarters(rawCapacity < 0 ? 0u : (uint16_t)rawCapacity, pieces);
 }
 
+// Magic meter level (0 none / 1 single / 2 double) from the two acquired
+// FLAGS — never from playerData.magicLevel, which Sram_OpenSave zeroes on
+// every file load as the meter-regrow trigger. See the OoT twin.
+static uint16_t MM_ReadMagicLevel(void) {
+    if (!gSaveContext.save.saveInfo.playerData.isMagicAcquired) {
+        return 0u;
+    }
+    return gSaveContext.save.saveInfo.playerData.isDoubleMagicAcquired ? 2u : 1u;
+}
+
+// Current magic with pending CREDITS settled in, the twin of
+// OoT_ReadSettledMagic. MM parks the true amount in magicFillTarget during the
+// meter regrow (MM_Interface_Update zeroes playerData.magic there — the same
+// window MM_Sram_OpenSave opens on every load) and carries magic-jar credit in
+// the magicToAdd accumulator that Magic_UpdateAddRequest drains a few units
+// per frame. Pending debits (the CONSUME_* family, including MM's
+// lens/Goron/Zora/Giant's Mask slow drains) are deliberately not settled, for
+// the reason the OoT twin gives. Nothing is written back here; the APPLY side
+// zeroes magicToAdd after authoring an authoritative amount, which is what
+// keeps a frozen accumulator from draining on top of an applied value and
+// being counted twice.
+static uint16_t MM_ReadSettledMagic(void) {
+    const uint16_t level = MM_ReadMagicLevel();
+    if (level == 0u) {
+        // A fresh MM save parks MAGIC_NORMAL_METER in playerData.magic before
+        // any meter exists (the Sram default-data table). Without a meter that
+        // is not magic, and it must not enter the pool as phantom credit.
+        return 0u;
+    }
+    const s8 rawMagic = gSaveContext.save.saveInfo.playerData.magic;
+    int32_t settled = rawMagic < 0 ? 0 : (int32_t)rawMagic;
+    switch (gSaveContext.magicState) {
+        case MAGIC_STATE_STEP_CAPACITY:
+        case MAGIC_STATE_FILL:
+            if ((int32_t)gSaveContext.magicFillTarget > settled) {
+                settled = (int32_t)gSaveContext.magicFillTarget;
+            }
+            break;
+        default:
+            break;
+    }
+    if (gSaveContext.magicToAdd > 0) {
+        settled += (int32_t)gSaveContext.magicToAdd;
+    }
+    // MM's parked PRE-regrow idiom, the twin of the OoT helper's last fold:
+    // the kaleido game-over continue parks the amount in magicFillTarget with
+    // magic == 0 and magicLevel == 0, machine IDLE, and the regrow that would
+    // move it back is transition-gated — an F10 harvest inside that fade would
+    // otherwise read 0 and debit the pool by the pre-death meter. Gated on
+    // magic == 0 as well as magicLevel == 0 because MM's plain file load
+    // (unlike OoT's) does NOT author magicFillTarget — it leaves the loaded
+    // amount in playerData.magic — so a stale RAM fillTarget must not outvote
+    // a genuine nonzero balance.
+    if (gSaveContext.save.saveInfo.playerData.magicLevel == 0 && rawMagic == 0 &&
+        (int32_t)gSaveContext.magicFillTarget > settled) {
+        settled = (int32_t)gSaveContext.magicFillTarget;
+    }
+    const int32_t cap = (int32_t)level * MAGIC_NORMAL_METER;
+    return (uint16_t)(settled > cap ? cap : settled);
+}
+
 /**
  * HARVEST (#525), the twin of OoT_HarvestSharedResources.
  *
@@ -2211,6 +2272,8 @@ extern "C" void MM_HarvestSharedResources(void) {
         gSaveContext.save.saveInfo.playerData.health < 0 ? 0u : (uint16_t)gSaveContext.save.saveInfo.playerData.health);
     Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_DOUBLE_DEFENSE,
                                 gSaveContext.save.saveInfo.playerData.doubleDefense ? 1u : 0u);
+    Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_MAGIC_LEVEL, MM_ReadMagicLevel());
+    Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_MAGIC_CURRENT, MM_ReadSettledMagic());
 }
 
 /**
@@ -2278,6 +2341,59 @@ extern "C" void MM_ApplySharedResources(void) {
         // arrival lands in a death handler no arrival path has been tested
         // through.
         gSaveContext.save.saveInfo.playerData.health = (s16)(health < 0x10u ? 0x10u : health);
+    }
+
+    // --- Magic level (monotonic 0/1/2), then current magic clamped against it.
+    // The settled-current snapshot is taken BEFORE the level apply moves the
+    // acquired flags. This ordering is load-bearing on MM's side: a fresh MM
+    // save parks MAGIC_NORMAL_METER in playerData.magic with NO meter acquired
+    // (the Sram default-data table), and the settled read discards that
+    // residue only while the level is still 0. Reading it after the flag flip
+    // would promote the residue into a full phantom meter whenever the pool
+    // carries a level but no current slot (e.g. OoT earned the meter and spent
+    // it to exactly zero before crossing).
+    uint16_t magic = MM_ReadSettledMagic();
+    uint16_t magicLevel = MM_ReadMagicLevel();
+    const bool magicLevelShared = Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_MAGIC_LEVEL, 2u, &magicLevel);
+    if (magicLevelShared) {
+        if (magicLevel >= 1u) {
+            gSaveContext.save.saveInfo.playerData.isMagicAcquired = 1;
+        }
+        if (magicLevel >= 2u) {
+            gSaveContext.save.saveInfo.playerData.isDoubleMagicAcquired = 1;
+        }
+    }
+
+    // --- Current magic (consumable): one meter across both games. The cap is
+    // DERIVED from the level just applied, never read from live magicCapacity,
+    // which the boot chain leaves at 0 until the growth machine runs.
+    const uint16_t magicCap = (uint16_t)(magicLevel * MAGIC_NORMAL_METER);
+    const bool magicShared = Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_MAGIC_CURRENT, magicCap, &magic);
+
+    if ((magicLevelShared || magicShared) && magicLevel != 0u) {
+        // Re-author through MM's own file-load shape (MM_Sram_OpenSave): the
+        // amount stays in playerData.magic and only magicLevel is zeroed;
+        // MM_Interface_Update's regrow block then parks it in magicFillTarget
+        // ITSELF (magicFillTarget = playerData.magic; magic = 0) on its way
+        // into STEP_CAPACITY -> FILL. This is the one place MM's regrow
+        // differs from OoT's, and it is load-bearing: OoT's regrow leaves an
+        // externally-authored magicFillTarget alone, so OoT's apply parks the
+        // amount THERE — doing that here instead gets the target overwritten
+        // with the zeroed magic field and the meter refills to empty (caught
+        // by the int-gameplay-roundtrip probe, not by any ROM-free tier).
+        gSaveContext.magicState = MAGIC_STATE_IDLE;
+        gSaveContext.magicFlag = 0;
+        gSaveContext.magicCapacity = 0;
+        gSaveContext.save.saveInfo.playerData.magicLevel = 0;
+        gSaveContext.save.saveInfo.playerData.magic = (s8)(magic > magicCap ? magicCap : magic);
+        // The harvest that filled the pool already counted any pending
+        // magic-jar credit, so a frozen request draining on top of the amount
+        // just authored would be counted twice at the next harvest. Same rule
+        // as rupeeAccumulator, one accumulator further along; the stale consume
+        // request dies with it.
+        gSaveContext.isMagicRequested = 0;
+        gSaveContext.magicToAdd = 0;
+        gSaveContext.magicToConsume = 0;
     }
 }
 
