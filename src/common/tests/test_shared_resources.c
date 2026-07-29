@@ -445,9 +445,16 @@ TestResult Test_SharedResources(void) {
     SR_ASSERT(SR_Pool(RSBS_SHARED_RES_MAGIC_LEVEL) == 1);
     SR_ASSERT(SR_Pool(RSBS_SHARED_RES_MAGIC_CURRENT) == 0x30);
     // Seven of the first block's eight, so none of them needed the second block
-    // to exist. Anything that pushed one of these past the boundary would move
-    // it to a different .redsave offset than every shipped save wrote it to.
-    SR_ASSERT(Combo_CountSharedResources() <= (int)RSBS_SHARED_RESOURCE_CAP);
+    // to exist. Asserted as PLACEMENT, not as a count: Combo_CountSharedResources
+    // spans both blocks and would answer 7 wherever those seven sat, so a count
+    // here would be satisfied by the very drift it is meant to catch (and is
+    // already implied by the == 7 above). What actually matters is the .redsave
+    // offset — anything that pushed one of these into the ext block would move
+    // it from byte 792.. to byte 824.., where every build predating that carve
+    // reads it as reserved[] and zero-extends it away.
+    for (int i = 0; i < (int)RSBS_SHARED_RESOURCE_EXT_CAP; i++) {
+        SR_ASSERT(gComboCtx.sharedResourcesExt[i].kind == RSBS_SHARED_RES_NONE);
+    }
 
     // Session invalidation retires the pool AND the watermarks together — a
     // watermark surviving into a fresh world would measure a delta against a
