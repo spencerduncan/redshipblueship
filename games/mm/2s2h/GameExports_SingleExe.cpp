@@ -2607,4 +2607,67 @@ extern "C" GameOps* MM_GetGameOps(void) {
     return &sMMOps;
 }
 
+// ============================================================================
+// Pause-menu / file-select hook dispatch (#438)
+// ============================================================================
+//
+// The last hook types that combined a LIVE registrant (2ship_rando links with
+// WHOLE_ARCHIVE, so Rando::MiscBehavior's registrations are in the binary)
+// with dead dispatch. Same class and remedy as the #512/#514/#515 blocks
+// above: the rebind block at the bottom of MM's GameInteractor.h routes each
+// upstream-spelled call site here, and these bridges consult ONLY the MM-owned
+// S2H::GameHooks registries. Locked by mm_hook_dispatch_test.cpp checks 9-11.
+//
+//  - OnKaleidoUpdate (z_kaleido_scope_NES.c KaleidoScope_Update): bound OoT's
+//    0-arg gated wrapper — C linkage hid the arity mismatch. KaleidoItemPage's
+//    registrant is the trade-slot item-cycling input handler; while it was
+//    dead, left/right on SLOT_TRADE_DEED/KEY_MAMA/COUPLE did nothing, so
+//    alternate shuffled trade items in those slots were unreachable from the
+//    pause menu.
+//  - Before/AfterKaleidoDrawPage (z_kaleido_scope_NES.c brackets every page
+//    draw with the pair): bound the mm_stubs.c no-ops. After carries
+//    KaleidoItemPage's COND_ID_HOOK(PAUSE_ITEM) cycling arrows and adjacent-
+//    item previews for those same slots — dead, and combined with the LIVE
+//    VB_KALEIDO_DISPLAY_ITEM_TEXT suppression that made the slots strictly
+//    worse than vanilla (static icon, no name, no arrows). Before's only
+//    registrant (PersistentMasks.cpp, 2ship_enh) stays link-elided today; it
+//    is wired here as a pair with After per the pairing rule mm_game_hooks.h
+//    records, and its plain-Unregister-vs-RegisterForID leg mismatch was
+//    fixed in the same change so un-elision cannot accumulate stale entries.
+//    Both ForID legs mirror the excluded GameInteractor.cpp twin (keyed on
+//    pauseIndex); upstream has no ForPtr/ForFilter legs for these.
+//  - OnFileSelectSaveLoad (five z_sram_NES.c file-select flows): bound a
+//    mm_stubs.c no-op whose (void*, int) signature had drifted from the real
+//    (s16, bool, SaveContext*) — the #372/#424 hazard class, retired with the
+//    stub. FileSelect.cpp's registrant is the sole isRando[] writer, so a
+//    randomizer file on MM's file-select list rendered exactly like a vanilla
+//    one.
+//
+// HEADLESS SAFETY (the #516 SIGSEGV class): KaleidoItemPage's OnKaleidoUpdate
+// and AfterKaleidoDrawPage registrants dereference MM_gPlayState with no null
+// check. Every call site newly reached here runs inside an active pause/file-
+// select flow — KaleidoScope_Update and the page draws only execute under a
+// live PlayState, and the z_sram_NES.c flows only under the file-select game
+// state — and no ROM-free CTest row drives any of them. The MMHookDispatch row
+// resets these registries before dispatching its own probes, so it cannot run
+// the production registrants against a null play state.
+
+extern "C" void MM_GameHooks_ExecuteOnKaleidoUpdate(PauseContext* pauseCtx) {
+    S2H::GameHooks::Execute<GameInteractor::OnKaleidoUpdate>(pauseCtx);
+}
+
+extern "C" void MM_GameHooks_ExecuteBeforeKaleidoDrawPage(PauseContext* pauseCtx, u16 pauseIndex) {
+    S2H::GameHooks::Execute<GameInteractor::BeforeKaleidoDrawPage>(pauseCtx, pauseIndex);
+    S2H::GameHooks::ExecuteForID<GameInteractor::BeforeKaleidoDrawPage>(pauseIndex, pauseCtx, pauseIndex);
+}
+
+extern "C" void MM_GameHooks_ExecuteAfterKaleidoDrawPage(PauseContext* pauseCtx, u16 pauseIndex) {
+    S2H::GameHooks::Execute<GameInteractor::AfterKaleidoDrawPage>(pauseCtx, pauseIndex);
+    S2H::GameHooks::ExecuteForID<GameInteractor::AfterKaleidoDrawPage>(pauseIndex, pauseCtx, pauseIndex);
+}
+
+extern "C" void MM_GameHooks_ExecuteOnFileSelectSaveLoad(s16 fileNum, bool isOwlSave, SaveContext* saveContext) {
+    S2H::GameHooks::Execute<GameInteractor::OnFileSelectSaveLoad>(fileNum, isOwlSave, saveContext);
+}
+
 #endif /* RSBS_SINGLE_EXECUTABLE */
