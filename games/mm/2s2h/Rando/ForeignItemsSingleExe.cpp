@@ -488,7 +488,7 @@ void GiveNow(uint16_t riId) {
     // (src/common/tests/test_foreign_award.c calls the real MM_ConsumeSharedItems
     // with no PlayState and no Gui), so a Notification::Emit there would put an
     // ImGui/audio call on a display-free CI path.
-    Notification::Emit(BuildArrivalToast(randoItemId));
+    Notification::MM_Notify_Emit(BuildArrivalToast(randoItemId));
 }
 
 } // namespace
