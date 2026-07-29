@@ -18,7 +18,7 @@
  * OOB-safe: since #470 MM's hook types are tag-scoped under
  * GameInteractor::MM_HookTypes (see the DEFINE_HOOK block in
  * 2s2h/GameInteractor/GameInteractor.h), so the per-hook-type statics an MM
- * Execute*/GetHookData instantiation touches mangle MM-distinct and cannot
+ * Execute* or GetHookData instantiation touches mangle MM-distinct and cannot
  * COMDAT-fold with OoT's divergent-payload instantiations of the same hook
  * NAME.
  *
