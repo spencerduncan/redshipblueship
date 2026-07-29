@@ -234,6 +234,24 @@ int Context_ArmShadowAsFrozen(GameId game, uint16_t returnEntrance);
 #define RSBS_GRANT_SOURCE_CAP 8u
 
 /**
+ * Capacity of ComboContext.sharedResources (#525): how many distinct SHARED
+ * RESOURCES can be tracked at once. A shared resource is not an item that
+ * crosses once — it is ONE QUANTITY spanning both games, capacity and current
+ * value together ("current health is tracked as if OoT and MM were one game
+ * with a single health bar"). v1 occupies five of the eight slots (rupees,
+ * wallet tier, health quarters, current health, double defense); magic and the
+ * ammo upgrades are the queued members of the same class.
+ *
+ * DO NOT BUMP THIS CONSTANT to get more capacity, for the reason
+ * RSBS_GRANT_SOURCE_CAP spells out: the array is carved from the front of
+ * reserved[] and anything carved after it inherits its position, so a widen in
+ * place moves those fields off the offset every shipped .redsave stored them
+ * at. Carve a second block from the front of reserved[] and span both in every
+ * accessor instead. See ADR 0005 §1 for the identical hazard.
+ */
+#define RSBS_SHARED_RESOURCE_CAP 8u
+
+/**
  * One cross-game item, tagged with the game whose id-space `id` belongs to.
  *
  * Why a struct and not a packed integer (ADR 0002): OoT's RandomizerGet (RG_*)
@@ -319,6 +337,71 @@ RSBS_CTX_STATIC_ASSERT(sizeof(ComboGrantSourceCursor) == 8,
 RSBS_CTX_STATIC_ASSERT(offsetof(ComboGrantSourceCursor, sourceKey) == 0 &&
                            offsetof(ComboGrantSourceCursor, lastSeq) == 4,
                        "ComboGrantSourceCursor member offsets are .redsave format and must not move");
+
+/**
+ * Which shared resource a ComboSharedResource slot holds (#525). Zero is the
+ * EMPTY marker, never a real resource — occupancy rides this tag exactly as
+ * SharedItem's occupancy rides originGame != GAME_NONE.
+ *
+ * WHY THE TAG EXISTS AT ALL, rather than a bare `uint16_t sharedRupees` field.
+ * The growth contract for everything carved from reserved[] is "zero means
+ * unset" (see the reserved[] comment below), and 0 rupees is a perfectly legal
+ * player state. A bare scalar therefore cannot distinguish "this save predates
+ * shared resources" from "this player is broke" — and getting that wrong
+ * resurrects a stale balance on a legacy record, or discards a real zero. With
+ * the kind tag, a zero-extended legacy record reads as eight EMPTY slots, which
+ * is unambiguous and correct.
+ *
+ * These values are .redsave format. Append only; never renumber.
+ */
+enum {
+    RSBS_SHARED_RES_NONE = 0,             // empty slot (the growth contract's "unset")
+    RSBS_SHARED_RES_RUPEES = 1,           // CONSUMABLE: the single shared rupee pool
+    RSBS_SHARED_RES_WALLET_TIER = 2,      // MONOTONIC: wallet upgrade level (both games clamp against their own)
+    RSBS_SHARED_RES_HEALTH_QUARTERS = 3,  // MONOTONIC: capacity + pieces*4, the canonical heart quantity
+    RSBS_SHARED_RES_HEALTH_CURRENT = 4,   // CONSUMABLE: the single shared health bar, in 0x10-per-heart units
+    RSBS_SHARED_RES_DOUBLE_DEFENSE = 5,   // MONOTONIC: 0/1 flag; each game sets its OWN differently-named field pair
+};
+
+/**
+ * Merge discipline for a shared-resource slot. Set on the slot at first write
+ * and stable thereafter, so a reader can tell the two disciplines apart without
+ * a switch on `kind` — the byte is descriptive, `kind` is authoritative.
+ */
+#define RSBS_SHARED_RES_F_MONOTONIC 0x01u // max-merge both ways; decay is impossible by construction
+
+/**
+ * One shared cross-game resource (#525): a single quantity that spans both
+ * games, harvested from the departing game at suspend and applied to the
+ * arriving game at its startup entrance.
+ *
+ * TWO MERGE DISCIPLINES, and picking the wrong one is a correctness bug:
+ *
+ *   - MONOTONIC (wallet tier, health quarters, double defense) — a capacity
+ *     that only ever grows. Harvest is `shared = max(shared, live)`, apply is
+ *     `live = max(live, shared)`. Idempotent; decay impossible.
+ *   - CONSUMABLE (rupee count, current health) — a quantity the player spends.
+ *     Harvest takes a DELTA against a RAM-only watermark recorded at apply
+ *     time, never a raw copy. That watermark is mandatory, not an optimization:
+ *     MM's tier-3 wallet holds 500 and OoT's holds 999, so a naive
+ *     `shared = live` copy clamps an 800-rupee arrival to 500 and harvests 500
+ *     back, silently costing the player 300 rupees on EVERY round trip.
+ *
+ * Zero means unset for every member (growth contract): a slot is occupied iff
+ * kind != RSBS_SHARED_RES_NONE. There is deliberately no count field — a count
+ * would be a second source of truth a zero-extended legacy record contradicts.
+ */
+typedef struct {
+    uint8_t kind;   // RSBS_SHARED_RES_*; RSBS_SHARED_RES_NONE (0) = empty slot
+    uint8_t flags;  // RSBS_SHARED_RES_F_* bits; 0 = consumable (delta-harvested)
+    uint16_t value; // the shared quantity, in that resource's own units; 0 when empty
+} ComboSharedResource;
+
+RSBS_CTX_STATIC_ASSERT(sizeof(ComboSharedResource) == 4,
+                       "ComboSharedResource is serialized raw inside the .redsave Tier-1 record; its layout is format");
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboSharedResource, kind) == 0 && offsetof(ComboSharedResource, flags) == 1 &&
+                           offsetof(ComboSharedResource, value) == 2,
+                       "ComboSharedResource member offsets are .redsave format and must not move");
 
 typedef struct {
     char magic[8];        // "OoT+MM<3"
@@ -449,6 +532,23 @@ typedef struct {
     // unchanged.
     uint32_t mmProfileDigest;
 
+    // #525: the shared cross-game RESOURCES — one quantity spanning both games,
+    // capacity and current value together, as opposed to sharedItemsTagged's
+    // one-way single-use crossings. Carved from the FRONT of the old
+    // reserved[212] under the growth contract: all-zero = every slot EMPTY,
+    // which is exactly what a zero-extended pre-#525 record must read as.
+    //
+    // The kind tag is what makes that work, and it is the whole reason this is
+    // an array of tagged slots rather than a handful of bare scalars: 0 rupees
+    // is a legal player state, so a bare `uint16_t sharedRupees` could not tell
+    // a legacy record from a broke player. See ComboSharedResource.
+    //
+    // Occupancy and merge discipline are the struct's business; shared_resources.c
+    // owns every read and write. Nothing here is a per-game mirror — there is
+    // ONE value, and each game's harvest/apply shim reconciles its own live
+    // gSaveContext against it at the switch boundary.
+    ComboSharedResource sharedResources[RSBS_SHARED_RESOURCE_CAP];
+
     // Headroom. Carve new fields from the FRONT of this array (as
     // sharedItemsTagged, sharedRandoSettingsHash, foreignPlacements, the
     // grant cursors, and the reverse placement table were) so the struct
@@ -459,12 +559,13 @@ typedef struct {
     // a freshly-initialized one — every field carved from here must keep
     // "zero means unset".
     //
-    // 264 - 48 (foreignPlacementsOoT) - 4 (mmProfileDigest). ADR 0009 publishes the remaining
+    // 264 - 48 (foreignPlacementsOoT) - 4 (mmProfileDigest) - 32 (sharedResources).
+    // ADR 0009 publishes the remaining
     // allocation across the other claimants and sets a 64-byte floor:
     // Test_SaveComboRecordFixed's scribble loop iterates sizeof(reserved), so
     // at zero it degenerates to zero iterations and passes vacuously, retiring
     // the only test that proves headroom round-trips at all.
-    uint8_t reserved[212];
+    uint8_t reserved[180];
 } ComboContext;
 
 /**
@@ -560,12 +661,24 @@ RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, mmProfileDigest) ==
                                RSBS_FOREIGN_PLACEMENT_CAP * sizeof(ComboForeignPlacement),
                        "mmProfileDigest must be carved from the FRONT of reserved[] (contiguous with "
                        "the reverse placement table); moving it changes .redsave format");
-RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, reserved) ==
+// The shared-resource slots are the next carve (#525, 32 bytes). Pinned to the
+// literal 792 for the same reason 672, 736, 740 and 788 are: anything carved
+// after it inherits its position, so a field growing in place ahead of it must
+// break the build rather than slide it.
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, sharedResources) == 792u,
+                       "sharedResources lives at .redsave byte offset 792; if this fires, a field "
+                       "before it grew in place - carve from reserved[] instead");
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, sharedResources) ==
                            offsetof(ComboContext, mmProfileDigest) + sizeof(uint32_t),
+                       "sharedResources must be carved from the FRONT of reserved[] (contiguous with "
+                       "the MM profile digest); moving it changes .redsave format");
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, reserved) ==
+                           offsetof(ComboContext, sharedResources) +
+                               RSBS_SHARED_RESOURCE_CAP * sizeof(ComboSharedResource),
                        "the tagged-item array, the settings digest, both foreign-placement tables, "
-                       "the grant cursors, the overflow count, the MM profile digest, and the "
-                       "remaining headroom must stay contiguous (no padding, no fields slipped "
-                       "between them)");
+                       "the grant cursors, the overflow count, the MM profile digest, the shared "
+                       "resource slots, and the remaining headroom must stay contiguous (no padding, "
+                       "no fields slipped between them)");
 // ADR 0009's floor. reserved[] is what Test_SaveComboRecordFixed scribbles to
 // prove Tier-1 headroom round-trips; at zero that loop runs zero times and the
 // test passes vacuously, so the carve budget stops here rather than there.
@@ -587,6 +700,10 @@ static_assert(!std::is_assignable<SharedItem&, GameId>::value,
 static_assert(!std::is_convertible<int, ComboForeignPlacement>::value &&
                   !std::is_assignable<ComboForeignPlacement&, int>::value,
               "a raw integer must never become a foreign placement — the item member carries the origin tag");
+static_assert(!std::is_convertible<int, ComboSharedResource>::value &&
+                  !std::is_assignable<ComboSharedResource&, int>::value,
+              "a raw integer must never become a shared resource — the kind tag is what separates "
+              "an unset slot from a legitimate zero");
 static_assert(std::is_trivially_copyable<ComboContext>::value,
               "gComboCtx is serialized with memcpy; ComboContext must stay trivially copyable");
 #endif

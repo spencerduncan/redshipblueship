@@ -11,6 +11,7 @@
 // staging outbox, which lives in shared_items.c. Included here (a .cpp) rather
 // than from context.h so the header keeps its no-dependency shape.
 #include "shared_items.h"
+#include "shared_resources.h"
 // Combo_HasStartupEntrance() — the discriminator that keeps the return-to-title
 // hook from eating a cross-game arrival's blob.
 #include "entrance.h"
@@ -333,6 +334,12 @@ void Context_InvalidateSessionState(ComboSeedStampPolicy seedPolicy) {
     // outbox is RAM-only and would otherwise drain into the NEXT session's
     // array at its first suspend.
     Combo_ClearSharedItemOutbox();
+
+    // Same reasoning for the shared-resource watermarks (#525): RAM-only, they
+    // describe how much of the dead session's pool was materialized in its live
+    // save. Carrying one into a fresh session would make the next harvest
+    // measure a delta against a balance that no longer exists.
+    Combo_ResetSharedResourceWatermarks();
 
     // Every remaining field of gComboCtx is session state, so the initializer
     // IS the invalidator — there is no per-field clear to drift out of sync

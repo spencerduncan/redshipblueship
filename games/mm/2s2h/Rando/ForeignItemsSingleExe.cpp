@@ -162,8 +162,29 @@ extern "C" {
 //      pickup text promises an award in Termina; delivering MM's trap machinery
 //      instead would make that text a lie.
 //
+//  (6) It is NOT a shared cross-game resource (#525). Rupees and hearts are one
+//      quantity spanning both games now — one wallet, one health bar, capacity
+//      AND current value (src/common/shared_resources.h) — so there is nothing
+//      left for a wallet or heart item to CROSS. Shipping one anyway would hand
+//      the player a second copy of a capacity they already have, or worse, a
+//      rupee award that the next harvest reconciles straight back out. Six rows
+//      left with the sharing that replaced them: RI_PROGRESSIVE_WALLET,
+//      RI_WALLET_ADULT, RI_WALLET_GIANT, RI_DOUBLE_DEFENSE, RI_HEART_CONTAINER
+//      and RI_HEART_PIECE.
+//
+//      Note RI_DOUBLE_DEFENSE was NOT in the "Health" block — it sat under core
+//      equipment, so a block delete misses it. The block-shaped grouping below
+//      is presentational; criterion 6 is not.
+//
+//      This criterion grows with the shared-resource set. Shared magic and the
+//      ammo upgrades are the queued members of that class, and when they land,
+//      RI_PROGRESSIVE_MAGIC / RI_SINGLE_MAGIC / RI_DOUBLE_MAGIC and the
+//      quiver/bomb-bag rows leave by this same rule — see the collision trap in
+//      #525's optional tier before deleting the bomb bags, since "Bomb Bag" is
+//      the only name shared with OoT's pool and a test depends on it.
+//
 // Everything else is IN — every mask, every song, every bottle, both shields,
-// the sword and magic and wallet and quiver and bomb-bag upgrades, the
+// the sword and magic and quiver and bomb-bag upgrades, the
 // progressives (which resolve against the LIVE MM save, so they are the single
 // best-behaved cross-game gift, and the OoT pool sets the precedent with
 // RG_PROGRESSIVE_HOOKSHOT / RG_PROGRESSIVE_STRENGTH), the boss remains, the
@@ -180,7 +201,7 @@ extern "C" {
 // deferred to the first frame with a live MM_gPlayState (see the file header),
 // which is item-agnostic and O(1) in pool size — the #502 design note says in as
 // many words that an allowlist audited against today's pool would expire the
-// moment somebody added a row. This pool is that row, 134 times over, and it
+// moment somebody added a row. This pool is that row, 128 times over, and it
 // relies on the deferral instead of re-auditing it.
 //
 // Display names are MM's own (Rando::StaticData::Items) verbatim. They are a
@@ -196,7 +217,6 @@ static const ComboForeignItemDef kForeignPoolMMV1[] = {
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_PROGRESSIVE_BOW }, "Progressive Bow", "a " },
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_PROGRESSIVE_BOMB_BAG }, "Progressive Bomb Bag", "a " },
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_PROGRESSIVE_MAGIC }, "Progressive Magic", "" },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_PROGRESSIVE_WALLET }, "Progressive Wallet", "a " },
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_PROGRESSIVE_LULLABY }, "Progressive Goron Lullaby", "" },
 
     // --- Core equipment, abilities and capacity upgrades.
@@ -211,8 +231,6 @@ static const ComboForeignItemDef kForeignPoolMMV1[] = {
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_BOMB_BAG_40 }, "Biggest Bomb Bag", "the " },
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_QUIVER_40 }, "Large Quiver", "the " },
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_QUIVER_50 }, "Largest Quiver", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_WALLET_ADULT }, "Adult's Wallet", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_WALLET_GIANT }, "Giant's Wallet", "the " },
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_POWDER_KEG }, "Powder Keg", "a " },
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_PICTOGRAPH_BOX }, "Pictograph Box", "a " },
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MAGIC_BEAN }, "Magic Bean", "a " },
@@ -226,7 +244,6 @@ static const ComboForeignItemDef kForeignPoolMMV1[] = {
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_GREAT_SPIN_ATTACK }, "Great Spin Attack", "the " },
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SINGLE_MAGIC }, "Power of Magic", "the " },
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_DOUBLE_MAGIC }, "Magic Upgrade", "a " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_DOUBLE_DEFENSE }, "Double Defense", "" },
 
     // --- Bottles (the bottle itself, not its refills).
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_BOTTLE_EMPTY }, "Empty Bottle", "an " },
@@ -298,9 +315,8 @@ static const ComboForeignItemDef kForeignPoolMMV1[] = {
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_REMAINS_GYORG }, "Gyorg's Remains", "" },
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_REMAINS_TWINMOLD }, "Twinmold's Remains", "" },
 
-    // --- Health.
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_HEART_CONTAINER }, "Heart Container", "a " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_HEART_PIECE }, "Heart Piece", "a " },
+    // --- Health: EMPTY since #525. Heart containers, heart pieces and double
+    // defense are a SHARED RESOURCE now (criterion 6 below), not a crossing.
 
     // --- Skulltula tokens.
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_GS_TOKEN_SWAMP }, "Swamp Gold Skulltula Token", "a " },

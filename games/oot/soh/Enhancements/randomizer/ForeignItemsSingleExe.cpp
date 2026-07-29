@@ -248,7 +248,7 @@ static uint32_t OoT_Foreign_SelectNext() {
  * codes (`if (ret < 0) return false`), so shortfall rides that convention.
  *
  * A PARTIAL placement is NOT a shortfall and must not fail generation: the pool
- * is ~134 entries against a cap of 8, so placing fewer than the pool is the
+ * is ~128 entries against a cap of 8, so placing fewer than the pool is the
  * normal, intended outcome. Only two states are errors, and both mean the
  * cross-game half of a PAIRED world would be silently absent:
  *   -1  the MM pool is not registered at all (the Mode-B elision class — if

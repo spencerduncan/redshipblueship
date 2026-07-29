@@ -10,6 +10,7 @@
 
 #include "context.h"
 #include "game.h"
+#include "shared_resources.h"
 
 #include <cstdio>
 #include <cstring>
@@ -311,6 +312,15 @@ bool SaveManager::Load(int slot) {
 
     // All checks passed — commit. gComboCtx and both shadows are updated.
     std::memcpy(&gComboCtx, &combo, sizeof(ComboContext));
+
+    // The shared-resource watermarks (#525) are RAM-only and describe the
+    // PREVIOUS session's live save; the pool we just loaded belongs to a
+    // different one. Dropping them is what arms the first-harvest seed: an
+    // occupied slot now seeds at the loaded game's live balance (delta zero)
+    // instead of contributing money this pool already counted, which is the
+    // difference between "rupees load correctly" and "rupees double on the
+    // first switch after a load". See shared_resources.h.
+    Combo_ResetSharedResourceWatermarks();
     Context_UpdateShadowCopy(GAME_OOT, ootBlob.data(), kOoTSize);
     Context_UpdateShadowCopy(GAME_MM, mmBlob.data(), kMMSize);
 

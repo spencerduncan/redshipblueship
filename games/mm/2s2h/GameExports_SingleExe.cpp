@@ -35,6 +35,7 @@
 #include "context.h"
 #include "save.h" // RsbsSave_* — MM's redship-native unified-save capture
 #include "shared_items.h"
+#include "shared_resources.h" // Shared cross-game rupees/hearts (#525)
 // Paired-world keying + placement-table accessors (#439 switch-entry
 // activation logs the placement count at the pairing decision point).
 #include "foreign_items.h"
@@ -1367,6 +1368,10 @@ extern "C" void MM_GameEvents_RegisterPump(void);
 // games/mm/2s2h/TrackersGuiSingleExe.cpp.
 extern "C" void MM_TrackersGui_Init(void);
 
+// Cycle-safe shared rupees (#525) — defined further down THIS TU, beside the
+// rest of the MM shared-resource half.
+extern "C" void MM_RegisterSharedResourceCycleHooks(void);
+
 // Defined below in this TU; forward-declared so the #516 GfxPatcher gate can
 // reference it from MM_Rando_Init above the definition.
 extern "C" bool MM_Rando_AssetsReady(void);
@@ -1454,6 +1459,18 @@ extern "C" void MM_Rando_Init(void) {
     // SetupGuiElements (excluded); the bypass surface lives in
     // 2s2h/TrackersGuiSingleExe.cpp. No-op when the harness has no window.
     MM_TrackersGui_Init();
+
+    // Shared cross-game resources (#525): keep the SHARED rupee pool alive
+    // across MM's three-day cycle. Registered from HERE, not from
+    // 2s2h/Enhancements/Cycle/EndOfCycle.cpp where the analogous
+    // DoNotResetRupees restore lives, because that TU is link-elided from the
+    // plain-archive 2ship_enh — its six registrants are absent from the binary
+    // (verified against redship.map; see the Before/AfterEndOfCycleSave
+    // dispatch comment below). Registering there would be the #516/#513
+    // elided-provider class exactly: code that reads correctly and never runs.
+    // This TU is always linked, and the sRandoInitDone guard above is what
+    // makes the registration once-only, as the block header requires.
+    MM_RegisterSharedResourceCycleHooks();
 }
 
 /**
@@ -1481,6 +1498,11 @@ void MM_Game_Run(void) {
     fflush(stderr);
 }
 
+// Shared cross-game resources (#525) — defined further down this TU beside the
+// apply half; forward-declared so Game_Suspend and the unified-save capture can
+// harvest before they hand MM's state over.
+extern "C" void MM_HarvestSharedResources(void);
+
 /**
  * Suspend MM for a game switch (issue #270).
  * Stops audio to prevent interference with OoT, keeps libultraship context and
@@ -1498,6 +1520,11 @@ void MM_Game_Suspend(void) {
     // calls suspend() on both switch paths, so this is the one point that never
     // drops a hotkey switch's writes.
     Combo_CommitStagedSharedItems();
+
+    // Shared cross-game resources (#525) — mirrors OoT_Game_Suspend. Fold MM's
+    // live rupees, wallet tier, hearts, current health and double defense into
+    // the shared pool while gSaveContext still belongs to MM.
+    MM_HarvestSharedResources();
 
     // Drain the SHARED audio thread before touching MM's audio state. In
     // single-exe builds MM's synth runs on OoT's OTRAudio_Thread (the
@@ -1603,6 +1630,12 @@ extern "C" int MM_Combo_CaptureSaveToUnifiedSlot(void) {
         fflush(stderr);
         return 0;
     }
+
+    // Shared cross-game resources (#525) BEFORE the shadow capture, so the pool
+    // and the MM blob stored beside it agree. Without it, money earned since the
+    // last switch lives in the MM save but not in the pool, and the post-load
+    // first-harvest seed reads that balance as already counted and drops it.
+    MM_HarvestSharedResources();
 
     Context_UpdateShadowCopy(GAME_MM, &gSaveContext, sizeof(gSaveContext));
     gComboCtx.sourceGame = GAME_MM;
@@ -2088,6 +2121,219 @@ static void MM_AwardSharedItem(const SharedItem* item, void* ctx) {
  */
 void MM_ConsumeSharedItems(void) {
     Combo_RedeemSharedItemsForGame(GAME_MM, MM_AwardSharedItem, nullptr);
+}
+
+// ============================================================================
+// Shared cross-game RESOURCES — MM side (#525)
+//
+// The OoT twin of this block is games/oot/soh/GameExports_SingleExe.cpp; the
+// merge rules both call into live in src/common/shared_resources.c, which has
+// no game headers. This half owns MM's field names and unit conversions.
+//
+// THE ASYMMETRY THAT MAKES THE WATERMARK NECESSARY LIVES HERE: MM's
+// gUpgradeCapacities row for UPG_WALLET is {99, 200, 500, 500} while OoT's is
+// {99, 200, 500, 999}. At tier 3 MM can hold 500 and OoT 999, so a shared pool
+// above 500 simply does not fit in MM's wallet. The pool keeps the true total;
+// apply materializes only what fits and records THAT as the watermark, so the
+// overflow rides out the MM visit instead of being harvested away.
+// ============================================================================
+
+// MM's own upgrade setter and the three tables CUR_UPG_VALUE / CUR_CAPACITY
+// expand to (games/mm/src/code/z_inventory.c, declared in variables.h).
+// Declared here rather than by including variables.h, for the same
+// narrow-header-surface reason as the OoT twin; the declarations match
+// variables.h exactly.
+extern "C" void MM_Inventory_ChangeUpgrade(s16 upgrade, u32 value);
+extern "C" u32 MM_gUpgradeMasks[8];
+extern "C" u8 MM_gUpgradeShifts[8];
+extern "C" u16 MM_gUpgradeCapacities[][4];
+
+// Heart pieces occupy the TOP NIBBLE of questItems in both games
+// (MM's QUEST_HEART_PIECE_COUNT is 0x1C; OoT writes 1 << (QUEST_HEART_PIECE+4)).
+#define MM_HEART_PIECE_SHIFT 28u
+#define MM_HEART_PIECE_MASK 0xF0000000u
+
+// Highest wallet tier this build defines (MM_gUpgradeCapacities UPG_WALLET row
+// has 4 entries). Bounds the pool value so a tier authored by a future build
+// cannot index off the end of MM's capacity table.
+#define MM_MAX_WALLET_TIER 3u
+
+static uint16_t MM_ReadHealthQuarters(void) {
+    const uint16_t pieces =
+        (uint16_t)((gSaveContext.save.saveInfo.inventory.questItems & MM_HEART_PIECE_MASK) >> MM_HEART_PIECE_SHIFT);
+    const s16 rawCapacity = gSaveContext.save.saveInfo.playerData.healthCapacity;
+    // MM converts 4 pieces into a container immediately inside Item_GiveImpl,
+    // where OoT defers to textbox close — so MM never produces the pieces==4
+    // state OoT can sit in. The canonical quantity (capacity + 4 per piece)
+    // dissolves that divergence rather than guarding it; the arithmetic has one
+    // definition, in src/common.
+    return Combo_MakeHealthQuarters(rawCapacity < 0 ? 0u : (uint16_t)rawCapacity, pieces);
+}
+
+/**
+ * HARVEST (#525), the twin of OoT_HarvestSharedResources.
+ *
+ * Called from MM_Game_Suspend and immediately before MM's `.redsave` writes.
+ * Idempotent in both merge disciplines.
+ */
+extern "C" void MM_HarvestSharedResources(void) {
+    // Settle rupeeAccumulator into the count first — MM drains it one per frame
+    // exactly as OoT does, so a pending accumulator would be harvested as
+    // nothing now and then credited again later.
+    const int32_t walletCap = (int32_t)CUR_CAPACITY(UPG_WALLET);
+    int32_t liveRupees = (int32_t)gSaveContext.save.saveInfo.playerData.rupees + (int32_t)gSaveContext.rupeeAccumulator;
+    if (liveRupees < 0) {
+        liveRupees = 0;
+    }
+    if (liveRupees > walletCap) {
+        liveRupees = walletCap;
+    }
+    gSaveContext.save.saveInfo.playerData.rupees = (s16)liveRupees;
+    gSaveContext.rupeeAccumulator = 0;
+
+    Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_RUPEES, (uint16_t)liveRupees);
+    Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_WALLET_TIER, (uint16_t)CUR_UPG_VALUE(UPG_WALLET));
+    Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_HEALTH_QUARTERS, MM_ReadHealthQuarters());
+    Combo_HarvestSharedResource(
+        GAME_MM, RSBS_SHARED_RES_HEALTH_CURRENT,
+        gSaveContext.save.saveInfo.playerData.health < 0 ? 0u : (uint16_t)gSaveContext.save.saveInfo.playerData.health);
+    Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_DOUBLE_DEFENSE,
+                                gSaveContext.save.saveInfo.playerData.doubleDefense ? 1u : 0u);
+}
+
+/**
+ * APPLY (#525), the twin of OoT_ApplySharedResources.
+ *
+ * Called from MM_Play_ConsumeStartupEntrance beside MM_ConsumeSharedItems, once
+ * per cross-game arrival into MM. Capacities are applied before the quantities
+ * they bound.
+ *
+ * Touches gSaveContext only — no MM_gPlayState — so it is safe at this point in
+ * the arrival, which runs BEFORE `MM_gPlayState = this` (z_play.c). That is the
+ * same constraint that forces MM's shared-ITEM give to defer to the first
+ * gameplay frame; a direct save-field write has no such dependency.
+ */
+extern "C" void MM_ApplySharedResources(void) {
+    // --- Wallet tier (monotonic). Raises MM's clamp before rupees land.
+    uint16_t walletTier = (uint16_t)CUR_UPG_VALUE(UPG_WALLET);
+    if (Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_WALLET_TIER, MM_MAX_WALLET_TIER, &walletTier)) {
+        MM_Inventory_ChangeUpgrade(UPG_WALLET, (u32)walletTier);
+    }
+
+    // --- Health capacity + pieces from the one canonical quantity, clamped at
+    // 20 hearts: neither game's give path clamps capacity, and a total summed
+    // across both games' pieces and containers passes 20 easily.
+    uint16_t quarters = MM_ReadHealthQuarters();
+    if (Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_HEALTH_QUARTERS,
+                                  (uint16_t)RSBS_SHARED_RES_MAX_HEALTH_QUARTERS, &quarters)) {
+        uint16_t capacity = 0;
+        uint16_t pieces = 0;
+        Combo_SplitHealthQuarters(quarters, &capacity, &pieces);
+        gSaveContext.save.saveInfo.playerData.healthCapacity = (s16)capacity;
+        gSaveContext.save.saveInfo.inventory.questItems =
+            (gSaveContext.save.saveInfo.inventory.questItems & ~MM_HEART_PIECE_MASK) |
+            ((uint32_t)pieces << MM_HEART_PIECE_SHIFT);
+    }
+
+    // --- Double defense (monotonic 0/1). MM spells the flag `doubleDefense`
+    // where OoT spells it `isDoubleDefenseAcquired`, and each game keeps its own
+    // inventory.defenseHearts counter that its life meter reads — so this
+    // shares the FACT and lets each side set its own pair. A byte copy across
+    // the two layouts would be wrong in both directions.
+    uint16_t doubleDefense = gSaveContext.save.saveInfo.playerData.doubleDefense ? 1u : 0u;
+    if (Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_DOUBLE_DEFENSE, 1u, &doubleDefense) && doubleDefense != 0) {
+        gSaveContext.save.saveInfo.playerData.doubleDefense = 1;
+        if (gSaveContext.save.saveInfo.inventory.defenseHearts < 20) {
+            gSaveContext.save.saveInfo.inventory.defenseHearts = 20;
+        }
+    }
+
+    // --- Rupees (consumable), clamped to the wallet capacity just applied.
+    uint16_t rupees =
+        gSaveContext.save.saveInfo.playerData.rupees < 0 ? 0u : (uint16_t)gSaveContext.save.saveInfo.playerData.rupees;
+    if (Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_RUPEES, (uint16_t)CUR_CAPACITY(UPG_WALLET), &rupees)) {
+        gSaveContext.save.saveInfo.playerData.rupees = (s16)rupees;
+    }
+    gSaveContext.rupeeAccumulator = 0;
+
+    // --- Current health (consumable): one bar across both games.
+    uint16_t health =
+        gSaveContext.save.saveInfo.playerData.health < 0 ? 0u : (uint16_t)gSaveContext.save.saveInfo.playerData.health;
+    if (Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_HEALTH_CURRENT,
+                                  (uint16_t)gSaveContext.save.saveInfo.playerData.healthCapacity, &health)) {
+        // Floored at one heart for the same reason as OoT's side: a departing
+        // game cannot normally hand over a dead bar, and spawning dead on an
+        // arrival lands in a death handler no arrival path has been tested
+        // through.
+        gSaveContext.save.saveInfo.playerData.health = (s16)(health < 0x10u ? 0x10u : health);
+    }
+}
+
+// ============================================================================
+// Cycle-safe shared rupees (#525)
+// ============================================================================
+//
+// MM's three-day cycle zeroes the wallet: Sram_SaveEndOfCycle
+// (games/mm/src/code/z_sram_NES.c) sets playerData.rupees = 0 and
+// rupeeAccumulator = 0, and both Song of Time and "Dawn of the New Day" run it.
+// With ONE shared pool spanning both games, leaving that unhandled means the
+// next delta harvest computes `0 - watermark` and the wipe drains the OoT
+// rupees too.
+//
+// OPERATOR CALL: the shared pool is CYCLE-SAFE. A Song of Time no longer costs
+// the player money that crossed over from OoT. This is a deliberate departure
+// from vanilla MM, taken because the alternative — strict one-game semantics —
+// lets an MM mechanic silently delete an OoT-side grind the player was not
+// thinking about when they played the song. Rupees SPENT in MM are still gone;
+// only the wipe is suppressed.
+//
+// This is the same seam 2S2H's own DoNotResetRupees enhancement uses, and the
+// restore is deliberately unconditional rather than CVar-gated: the shared pool
+// is not an optional enhancement, it is the resource model this build ships.
+//
+// The pair brackets the wipe — Before snapshots, After restores — and both are
+// genuinely dispatched in single-exe as of #514
+// (MM_GameHooks_ExecuteBefore/AfterEndOfCycleSave below, called from
+// z_sram_NES.c, locked by games/mm/2s2h/mm_hook_dispatch_test.cpp). That was
+// checked before this was written, not assumed: registering against a hook
+// nothing dispatches is a documented recurring failure here (#512/#517).
+//
+// No watermark bookkeeping is needed. Nothing harvests during a cycle save, and
+// the restore puts the count back where the watermark already expects it, so
+// the round trip is invisible to the delta arithmetic.
+//
+// CURRENT HEALTH deliberately has no equivalent hook. The cycle reset floors
+// health at 0x30, and under one-health-bar semantics that is a Song of Time
+// healing the single shared bar — which is what "as if OoT and MM were one
+// game" means. It reads as a heal, not a bug.
+
+static s16 sPreCycleRupees = 0;
+
+extern "C" void MM_RegisterSharedResourceCycleHooks(void) {
+    S2H::GameHooks::Register<GameInteractor::BeforeEndOfCycleSave>([]() {
+        // Snapshot the SETTLED balance: a pending accumulator is money the
+        // player has earned but not yet seen counted, and the wipe below drops
+        // it too. Clamped to the wallet so the restore cannot exceed what MM
+        // can hold.
+        const int32_t walletCap = (int32_t)CUR_CAPACITY(UPG_WALLET);
+        int32_t settled =
+            (int32_t)gSaveContext.save.saveInfo.playerData.rupees + (int32_t)gSaveContext.rupeeAccumulator;
+        if (settled < 0) {
+            settled = 0;
+        }
+        if (settled > walletCap) {
+            settled = walletCap;
+        }
+        sPreCycleRupees = (s16)settled;
+    });
+
+    S2H::GameHooks::Register<GameInteractor::AfterEndOfCycleSave>([]() {
+        gSaveContext.save.saveInfo.playerData.rupees = sPreCycleRupees;
+        gSaveContext.rupeeAccumulator = 0;
+        // The "you lost your rupees" notice would be a lie now, and it is the
+        // same flag 2S2H's DoNotResetRupees clears for the same reason.
+        CLEAR_EVENTINF(EVENTINF_THREEDAYRESET_LOST_RUPEES);
+    });
 }
 
 /**

@@ -77,6 +77,12 @@ extern int Combo_ConsumeFrozenState(const char* gameId, void* saveContext, size_
 // SharedItem/GameId types.
 extern void MM_ConsumeSharedItems(void);
 
+// Cross-game shared-RESOURCE apply (#525). Reconciles MM's live rupees, wallet
+// tier, hearts, current health and double defense against the single shared
+// pool in gComboCtx. Declared rather than included so this TU stays free of the
+// src/common resource types.
+extern void MM_ApplySharedResources(void);
+
 // Paired-world activation on the switch-entry path (#439). Defined in
 // games/mm/2s2h/GameExports_SingleExe.cpp so this TU stays free of the Rando
 // C++ surface. Dispatches OnSaveInit (the generation entry point) when a live
@@ -2403,6 +2409,13 @@ void MM_Play_ConsumeStartupEntrance(void) {
     // (RSBS_SHARED_ITEM_REDEEMED). Presence-gated by this function's early
     // return, so it runs once per MM arrival and never on a plain boot/.redsave
     // load — un-redeemed items then wait for the next switch into MM.
+    //
+    // Shared cross-game RESOURCES (#525) go FIRST, before the item consumer,
+    // for the same reason as OoT's side: apply authors an absolute rupee count
+    // and heart capacity from the pool, so a shared item given before it would
+    // be overwritten. Applied first, a give layers on top and the next harvest
+    // picks it up as a delta.
+    MM_ApplySharedResources();
     MM_ConsumeSharedItems();
     Combo_ClearStartupEntrance();
 

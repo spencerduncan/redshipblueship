@@ -38,6 +38,11 @@
 #include <mutex>
 
 extern "C" SaveContext gSaveContext;
+// Shared cross-game resources (#525), defined in soh/GameExports_SingleExe.cpp.
+// Declared here rather than included so this TU keeps its narrow src/common
+// surface; it is called immediately before each .redsave write below so the
+// pool never lags the OoT blob stored beside it.
+extern "C" void OoT_HarvestSharedResources(void);
 using namespace std::string_literals;
 
 void SaveManager::WriteSaveFile(const std::filesystem::path& savePath, const uintptr_t addr, void* dramAddr,
@@ -162,6 +167,12 @@ SaveManager::SaveManager() {
         // Publish the slot so a later MM-side save can address it; MM has no
         // slot of its own (its fileNum is the 0xFF sentinel cross-game).
         RsbsSave_SetActiveSlot(fileNum);
+        // Shared cross-game resources (#525) BEFORE the shadow capture, so the
+        // pool and the OoT blob stored beside it agree. Without this, money
+        // earned since the last switch is in the OoT save but not in the pool,
+        // and the post-load first-harvest seed reads the balance as already
+        // counted and drops it.
+        OoT_HarvestSharedResources();
         Context_UpdateShadowCopy(GAME_OOT, &gSaveContext, sizeof(gSaveContext));
         gComboCtx.sourceGame = GAME_OOT;
         RsbsSave_Save(fileNum);
@@ -207,6 +218,12 @@ SaveManager::SaveManager() {
         if (fileNum < 0 || fileNum >= RSBS_SAVE_MAX_SLOTS) {
             return;
         }
+        // Shared cross-game resources (#525) BEFORE the shadow capture, so the
+        // pool and the OoT blob stored beside it agree. Without this, money
+        // earned since the last switch is in the OoT save but not in the pool,
+        // and the post-load first-harvest seed reads the balance as already
+        // counted and drops it.
+        OoT_HarvestSharedResources();
         Context_UpdateShadowCopy(GAME_OOT, &gSaveContext, sizeof(gSaveContext));
         gComboCtx.sourceGame = GAME_OOT;
         RsbsSave_Save(fileNum);
