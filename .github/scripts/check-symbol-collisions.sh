@@ -22,6 +22,12 @@
 # dangerous divergent instantiations are keyed by strong-named types this
 # script does catch.
 #
+# Also out of scope by construction: the excluded-side declaration class
+# (#468) — a type declared in both trees where one side's implementation TU
+# never enters the link, so the intersection here stays empty. That class is
+# covered by check-odr-declaration-collisions.py, which compares declarations
+# across the source trees instead of linked symbols.
+#
 # nm-based, Linux-only (mirrors check-registrar-elision.sh; the Windows-side
 # equivalent audit uses dumpbin over the same lib split).
 #
