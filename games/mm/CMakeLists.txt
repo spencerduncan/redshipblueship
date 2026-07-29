@@ -98,7 +98,13 @@ list(REMOVE_ITEM Header_Files__include ${CMAKE_CURRENT_SOURCE_DIR}/include/ultra
 source_group("include" FILES ${Header_Files__include})
 # }}}
 
-file(GLOB_RECURSE ship__ RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "2s2h/*.c" "2s2h/*.cpp" "2s2h/*.h" "2s2h/*.hpp")
+# CONFIGURE_DEPENDS (#379): without it an existing build directory never
+# re-globs, so pulling a branch that adds a 2s2h/ TU (the ROM-free *_test.cpp
+# locks all land here) links the stale file list and fails with an
+# unresolved-symbol error that names the symbol, not the missing TU. This glob
+# is recursive over all of 2s2h/, so a change anywhere under it forces the
+# reconfigure that also refreshes the Enhancements/Rando globs below.
+file(GLOB_RECURSE ship__ RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DEPENDS "2s2h/*.c" "2s2h/*.cpp" "2s2h/*.h" "2s2h/*.hpp")
 # Collect Enhancements separately (will be 2ship_enh lib)
 file(GLOB_RECURSE ship__Enhancements RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "2s2h/Enhancements/*.c" "2s2h/Enhancements/*.cpp" "2s2h/Enhancements/*.h" "2s2h/Enhancements/*.hpp")
 # Collect Rando separately (will be 2ship_rando lib) - it's 2.1MB source and helps avoid 4GB limit
