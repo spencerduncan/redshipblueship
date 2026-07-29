@@ -13,27 +13,29 @@
  *   "Current health is tracked as if OoT and MM were one game with a single
  *    health bar."
  *
- * v1 shares rupees and hearts. That is what justifies the matching pool shrink
- * in `kForeignPoolMMV1` (#525): with one wallet and one health bar spanning
- * both games, MM's wallet/heart/double-defense rows are no longer separate
- * items to cross — they ARE the shared resource, so shipping them as foreign
- * placements too would hand the player a second copy of a quantity they
- * already have. Shared magic and the ammo upgrades are the queued members of
- * the same class.
+ * v1 shares rupees and hearts; the #525 optional tier added magic — meter
+ * level and current magic, "current magic is tracked as if OoT and MM were one
+ * game with a single magic meter". That is what justifies the matching pool
+ * shrink in `kForeignPoolMMV1` (#525): with one wallet, one health bar and one
+ * magic meter spanning both games, MM's wallet/heart/double-defense/magic rows
+ * are no longer separate items to cross — they ARE the shared resource, so
+ * shipping them as foreign placements too would hand the player a second copy
+ * of a quantity they already have. The ammo upgrades are the queued remainder
+ * of the same class.
  *
  * ---------------------------------------------------------------------------
  * THE TWO MERGE DISCIPLINES
  * ---------------------------------------------------------------------------
  * Picking the wrong one is a correctness bug, not a style choice.
  *
- *   MONOTONIC — wallet tier, health quarters, double defense. A capacity that
- *   only ever grows. Harvest is `shared = max(shared, live)`, apply is
- *   `live = max(live, shared)`. Idempotent in both directions; decay is
- *   impossible by construction, so no bookkeeping is needed.
+ *   MONOTONIC — wallet tier, health quarters, double defense, magic level. A
+ *   capacity that only ever grows. Harvest is `shared = max(shared, live)`,
+ *   apply is `live = max(live, shared)`. Idempotent in both directions; decay
+ *   is impossible by construction, so no bookkeeping is needed.
  *
- *   CONSUMABLE — rupee count, current health. A quantity the player spends.
- *   Harvest takes a DELTA against a watermark recorded at apply time, never a
- *   raw copy.
+ *   CONSUMABLE — rupee count, current health, current magic. A quantity the
+ *   player spends. Harvest takes a DELTA against a watermark recorded at apply
+ *   time, never a raw copy.
  *
  * THE WATERMARK IS MANDATORY. MM's tier-3 wallet holds 500 and OoT's holds 999
  * (`gUpgradeCapacities`, both games). Under a naive `shared = live` harvest,
@@ -105,7 +107,7 @@ extern "C" {
  * table, which is indexed by KIND (stable) rather than by slot (slots are found
  * by scan and a future compaction could move them).
  */
-#define RSBS_SHARED_RES_KIND_COUNT 6u
+#define RSBS_SHARED_RES_KIND_COUNT 8u
 
 /**
  * Canonical heart quantity ceiling, in health units (0x10 per heart, 4 per

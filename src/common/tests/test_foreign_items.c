@@ -858,6 +858,11 @@ TestResult Test_ForeignPoolMM(void) {
     static const char* const kSharedResourceNames[] = {
         "Progressive Wallet", "Adult's Wallet",  "Giant's Wallet",
         "Double Defense",     "Heart Container", "Heart Piece",
+        // Shared magic (#525's optional tier): one meter across both games, so
+        // the three MM magic rows left by the same criterion. Exact display
+        // names, spelled from the pool's own rows — a typo here passes
+        // vacuously, because the assertion is a not-equal sweep.
+        "Progressive Magic",  "Power of Magic",  "Magic Upgrade",
     };
     for (size_t k = 0; k < sizeof(kSharedResourceNames) / sizeof(kSharedResourceNames[0]); k++) {
         for (int i = 0; i < poolCount; i++) {
@@ -868,9 +873,9 @@ TestResult Test_ForeignPoolMM(void) {
         FI_ASSERT(!Combo_GetForeignItemByNameFor((uint8_t)GAME_MM, kSharedResourceNames[k], NULL));
     }
 
-    // The shrink is real, not a rename: those six rows left and nothing took
+    // The shrink is real, not a rename: those nine rows left and nothing took
     // their place. Bounded rather than exact for the reason above — a future
-    // shared resource (magic, ammo) removes more, and unrelated work may add.
+    // shared resource (ammo) removes more, and unrelated work may add.
     printf("[TEST] foreign-pool-mm: %d entries after the #525 shared-resource shrink\n", poolCount);
     FI_ASSERT(poolCount <= 128);
 
