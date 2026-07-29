@@ -182,8 +182,8 @@ determinism digest.
 
 `reserved[]` begins at offset 740 and there are 20 further bytes of record slack
 (`sizeof(ComboContext)` 1004 vs. `RSBS_COMBO_CONTEXT_RECORD_SIZE` 1024), so
-Tier-1 growth capacity is **284 bytes**. Five work items are queued against it.
-Publishing the allocation once beats four sequential re-versions:
+Tier-1 growth capacity is **284 bytes**. Six work items are queued against it.
+Publishing the allocation once beats five sequential re-versions:
 
 | # | Claimant | Size | Status |
 |---|---|---|---|
@@ -191,10 +191,26 @@ Publishing the allocation once beats four sequential re-versions:
 | 2 | `comboSettingsHash` (#498 decision 1, Lane 1) | 4 B | reserved |
 | 3 | MM option-profile digest (#497 step 7 / #499 step 4, Lane 4) | 4 B | **carved by Lane 4; size CONFIRMED at 4 B** |
 | 4 | Netplay grant fields (#460, ADR 0005/0007) | 64 B | reserved |
-| 5 | Unallocated floor | 164 B | must not drop below 64 |
+| 5 | `sharedResources[8]` (#525, shared rupees + hearts) | 32 B | **carved by #525** |
+| 6 | Unallocated floor | 132 B | must not drop below 64 |
 
-Total reserved-against: 120 B of 284. After claims 1 and 3 land, `reserved[]` is
-212 bytes and 232 B of capacity remain.
+Total reserved-against: 152 B of 284. After claims 1, 3 and 5 land, `reserved[]`
+is 180 bytes and 200 B of capacity remain.
+
+**Claim 5, settled (#525, 2026-07-29).** Shared cross-game resources are eight
+kind-tagged 4-byte slots — `ComboSharedResource sharedResources[8]` at `.redsave`
+byte offset **792**, immediately after `mmProfileDigest`. v1 occupies five of the
+eight (rupees, wallet tier, health quarters, current health, double defense);
+shared magic and the ammo upgrades are the queued members of the same class and
+fit in the remaining three without another carve, which is why the claim is sized
+at the array rather than at today's five resources.
+
+The tag is load-bearing, not bookkeeping. This ADR's growth contract is "zero
+means unset", and **0 rupees is a legal player state** — so a bare `uint16_t
+sharedRupees` cannot distinguish a pre-#525 record from a broke player, and would
+either resurrect a stale balance or discard a real zero. Occupancy therefore
+rides `kind != RSBS_SHARED_RES_NONE`, exactly as `SharedItem`'s rides
+`originGame != GAME_NONE`. Do not "simplify" the slots back into scalars.
 
 **Claim 3, settled (Lane 4, 2026-07-23).** The digest is a single `uint32_t
 mmProfileDigest` at `.redsave` byte offset 788, computed by

@@ -201,6 +201,14 @@ extern "C" {
 // via shared_items.h.
 #include "tests/test_grant_sources.c"
 
+// Shared cross-game RESOURCE locks (#525): the delta-harvest watermark that
+// survives the 500-vs-999 wallet mismatch, the monotonic/consumable split, the
+// first-harvest seed that stops a .redsave load from doubling the player's
+// money, and the canonical heart quantity with its 20-heart clamp. FILE SCOPE
+// (compiled as C++) like the file above; every symbol it drives is C-linkage
+// via shared_resources.h.
+#include "tests/test_shared_resources.c"
+
 // Netplay grant-relay loopback locks (ADR 0007, #460). Guarded: with
 // RSBS_NETPLAY=OFF (the default) the relay sources are not in the build at all,
 // so the code under test does not exist. The `#include "tests/..."` text is
@@ -1687,6 +1695,10 @@ const TestDescriptor gTests[] = {
     // main() — so this also proves that registrar survived the link.
     {"foreign-pool-mm", "MM's cross-game source pool: registered, well-formed, giveable, non-junk (#510)",
      Test_ForeignPoolMM},
+    // #525: shared cross-game resources. Display-free, ROM-free and save-free —
+    // everything under test is gComboCtx plus a RAM watermark table.
+    {"shared-resources", "One quantity across both games: watermark, disciplines, seed, heart clamp (#525)",
+     Test_SharedResources},
     {"combo-spoiler-view", "In-game spoiler view model: named crossings, collected state, unpaired != empty (#496)",
      Test_ComboSpoilerView},
     {"combo-spoiler-window", "Common-owned spoiler window registers de-collided; inert under every active game (#496)",

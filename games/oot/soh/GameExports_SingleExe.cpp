@@ -22,7 +22,8 @@
 #include "context.h"
 #include "save.h" // RsbsSave_SetActiveSlot — publish the slot MM will save into
 #include "shared_items.h"
-#include "foreign_items.h" // OoT_ForeignItem_Give (Lane C1 redemption)
+#include "shared_resources.h" // Shared cross-game rupees/hearts (#525)
+#include "foreign_items.h"    // OoT_ForeignItem_Give (Lane C1 redemption)
 #include "entrance.h"
 #include "soh/Enhancements/game-interactor/GameInteractor.h"
 #include "soh/Enhancements/game-interactor/GameInteractor_Hooks.h"
@@ -809,6 +810,10 @@ void OoT_Game_Run(void) {
     fflush(stderr);
 }
 
+// Shared cross-game resources (#525) — defined further down this TU, beside the
+// apply half; forward-declared so Game_Suspend can harvest.
+extern "C" void OoT_HarvestSharedResources(void);
+
 /**
  * Suspend OoT for a game switch (issue #160).
  * Stops audio to prevent interference with MM, keeps libultraship context alive.
@@ -827,6 +832,13 @@ void OoT_Game_Suspend(void) {
     // being shared; committing here just moves staged pickups into the durable
     // (serialized) store before the arriving game's consumer reads it.
     Combo_CommitStagedSharedItems();
+
+    // Shared cross-game resources (#525): fold OoT's live rupees, wallet tier,
+    // hearts, current health and double defense into the shared pool while
+    // gSaveContext still belongs to OoT. Same reason this sits at Game_Suspend
+    // rather than Combo_CheckEntranceSwitch — the F10 path bypasses the
+    // entrance hook, and both switch paths call suspend().
+    OoT_HarvestSharedResources();
 
     // Stop OoT audio playback to prevent interference with MM (issue #160).
     // OoT_Audio_PreNMI triggers the audio reset path which stops all sequences
@@ -1088,6 +1100,158 @@ static void OoT_AwardSharedItem(const SharedItem* item, void* ctx) {
  */
 extern "C" void OoT_ConsumeSharedItems(void) {
     Combo_RedeemSharedItemsForGame(GAME_OOT, OoT_AwardSharedItem, nullptr);
+}
+
+// ============================================================================
+// Shared cross-game RESOURCES — OoT side (#525)
+//
+// The merge rules live in src/common/shared_resources.c, which has no game
+// headers. This is the half that does: it reads and writes OoT's own
+// gSaveContext fields and converts them into the units the pool is defined in.
+// MM's twin is games/mm/2s2h/GameExports_SingleExe.cpp.
+// ============================================================================
+
+// OoT's own upgrade setter and the three tables CUR_UPG_VALUE / CUR_CAPACITY
+// expand to (games/oot/src/code/z_inventory.c, declared in variables.h).
+// Declared here rather than by including variables.h: this TU deliberately keeps
+// a narrow game-header surface — it already hand-declares gSaveContext for the
+// same reason — and pulling in the full variable set to reach three arrays would
+// widen it for no benefit. The declarations match variables.h exactly, so a
+// layout change breaks the link rather than reading garbage.
+extern "C" void OoT_Inventory_ChangeUpgrade(s16 upgrade, s16 value);
+extern "C" u32 OoT_gUpgradeMasks[8];
+extern "C" u8 OoT_gUpgradeShifts[8];
+extern "C" u16 OoT_gUpgradeCapacities[8][4];
+
+// Heart pieces live in the TOP NIBBLE of questItems in BOTH games (OoT writes
+// `1 << (QUEST_HEART_PIECE + 4)`, MM's QUEST_HEART_PIECE_COUNT is 0x1C), which
+// is what makes one canonical quantity possible at all.
+#define OOT_HEART_PIECE_SHIFT 28u
+#define OOT_HEART_PIECE_MASK 0xF0000000u
+
+// The highest wallet tier this build defines (OoT_gUpgradeCapacities row
+// UPG_WALLET is {99, 200, 500, 999}). Passed as the apply CAP so a pool value
+// authored by a future build with more tiers cannot index off the end of OoT's
+// capacity table.
+#define OOT_MAX_WALLET_TIER 3u
+
+static uint16_t OoT_ReadHealthQuarters(void) {
+    const uint16_t pieces =
+        (uint16_t)((gSaveContext.inventory.questItems & OOT_HEART_PIECE_MASK) >> OOT_HEART_PIECE_SHIFT);
+    const uint16_t capacity = gSaveContext.healthCapacity < 0 ? 0u : (uint16_t)gSaveContext.healthCapacity;
+    // The canonical quantity and its inverse both live in src/common so there
+    // is exactly one copy of the arithmetic; see Combo_MakeHealthQuarters for
+    // why hearts are one number rather than two shared fields.
+    return Combo_MakeHealthQuarters(capacity, pieces);
+}
+
+/**
+ * HARVEST (#525). Fold OoT's live resource values into the shared pool.
+ *
+ * Called from OoT_Game_Suspend — the one point on BOTH the entrance and the F10
+ * hot-swap path while gSaveContext still belongs to OoT — and immediately
+ * before every `.redsave` write, so a file written mid-session carries a pool
+ * that agrees with the OoT save stored beside it. Idempotent: a second call
+ * with unchanged values is a no-op in both merge disciplines.
+ */
+extern "C" void OoT_HarvestSharedResources(void) {
+    // SETTLE THE ACCUMULATOR FIRST. Both games write rupeeAccumulator, not the
+    // count, and drain it one per frame. A pending accumulator would otherwise
+    // ride the frozen blob and drain into OoT later — after an apply has
+    // already written an authoritative count — crediting the player twice. Fold
+    // it in and zero it so what we harvest is what OoT actually has.
+    const int32_t walletCap = (int32_t)CUR_CAPACITY(UPG_WALLET);
+    int32_t liveRupees = (int32_t)gSaveContext.rupees + (int32_t)gSaveContext.rupeeAccumulator;
+    if (liveRupees < 0) {
+        liveRupees = 0;
+    }
+    if (liveRupees > walletCap) {
+        liveRupees = walletCap;
+    }
+    gSaveContext.rupees = (s16)liveRupees;
+    gSaveContext.rupeeAccumulator = 0;
+
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_RUPEES, (uint16_t)liveRupees);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_WALLET_TIER, (uint16_t)CUR_UPG_VALUE(UPG_WALLET));
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_HEALTH_QUARTERS, OoT_ReadHealthQuarters());
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_HEALTH_CURRENT,
+                                gSaveContext.health < 0 ? 0u : (uint16_t)gSaveContext.health);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_DOUBLE_DEFENSE,
+                                gSaveContext.isDoubleDefenseAcquired ? 1u : 0u);
+}
+
+/**
+ * APPLY (#525). Write the shared pool into OoT's live gSaveContext.
+ *
+ * Called from OoT_Play_Init's presence-gated startup-entrance branch beside
+ * OoT_ConsumeSharedItems — the first point after the boot chain's last
+ * gSaveContext wipe, and once per arrival into OoT. NOT Game_Resume: both
+ * restores are re-authored afterwards by Opening_Init.
+ *
+ * ORDER MATTERS. Wallet tier and health capacity are applied BEFORE the
+ * quantities they bound, because each quantity is clamped to the ceiling the
+ * arriving game can actually display — and that ceiling is what the two lines
+ * above may have just raised.
+ */
+extern "C" void OoT_ApplySharedResources(void) {
+    // --- Wallet tier (monotonic). Raises OoT's clamp before rupees land.
+    uint16_t walletTier = (uint16_t)CUR_UPG_VALUE(UPG_WALLET);
+    if (Combo_ApplySharedResource(GAME_OOT, RSBS_SHARED_RES_WALLET_TIER, OOT_MAX_WALLET_TIER, &walletTier)) {
+        OoT_Inventory_ChangeUpgrade(UPG_WALLET, (s16)walletTier);
+    }
+
+    // --- Health capacity + pieces, from the ONE canonical quantity.
+    uint16_t quarters = OoT_ReadHealthQuarters();
+    if (Combo_ApplySharedResource(GAME_OOT, RSBS_SHARED_RES_HEALTH_QUARTERS,
+                                  (uint16_t)RSBS_SHARED_RES_MAX_HEALTH_QUARTERS, &quarters)) {
+        // Split back: whole hearts to capacity, the remainder to the piece
+        // nibble. The 320 clamp inside the split is load-bearing — NEITHER
+        // game's give path clamps capacity, and a total accumulated across two
+        // pools of pieces and containers exceeds 20 hearts easily. The life
+        // meter past 20 is untested in both ports.
+        uint16_t capacity = 0;
+        uint16_t pieces = 0;
+        Combo_SplitHealthQuarters(quarters, &capacity, &pieces);
+        gSaveContext.healthCapacity = (s16)capacity;
+        gSaveContext.inventory.questItems =
+            (gSaveContext.inventory.questItems & ~OOT_HEART_PIECE_MASK) | ((uint32_t)pieces << OOT_HEART_PIECE_SHIFT);
+    }
+
+    // --- Double defense (monotonic 0/1). Deliberately NOT a byte copy: the
+    // flag is spelled isDoubleDefenseAcquired here and doubleDefense in MM, and
+    // each game carries its own separate inventory.defenseHearts counter that
+    // the life meter reads. Share the FACT, let each game set its own pair.
+    uint16_t doubleDefense = gSaveContext.isDoubleDefenseAcquired ? 1u : 0u;
+    if (Combo_ApplySharedResource(GAME_OOT, RSBS_SHARED_RES_DOUBLE_DEFENSE, 1u, &doubleDefense) && doubleDefense != 0) {
+        gSaveContext.isDoubleDefenseAcquired = 1;
+        if (gSaveContext.inventory.defenseHearts < 20) {
+            gSaveContext.inventory.defenseHearts = 20;
+        }
+    }
+
+    // --- Rupees (consumable), clamped to the wallet capacity just applied.
+    uint16_t rupees = gSaveContext.rupees < 0 ? 0u : (uint16_t)gSaveContext.rupees;
+    if (Combo_ApplySharedResource(GAME_OOT, RSBS_SHARED_RES_RUPEES, (uint16_t)CUR_CAPACITY(UPG_WALLET), &rupees)) {
+        gSaveContext.rupees = (s16)rupees;
+    }
+    // Whatever the restored blob had pending would drain on top of the count we
+    // just authored. Zero it: the harvest that produced this pool already
+    // folded OoT's accumulator in.
+    gSaveContext.rupeeAccumulator = 0;
+
+    // --- Current health (consumable). One bar across both games, per OoTMM:
+    // "current health is tracked as if OoT and MM were one game with a single
+    // health bar". Clamped to the capacity applied above.
+    uint16_t health = gSaveContext.health < 0 ? 0u : (uint16_t)gSaveContext.health;
+    if (Combo_ApplySharedResource(GAME_OOT, RSBS_SHARED_RES_HEALTH_CURRENT, (uint16_t)gSaveContext.healthCapacity,
+                                  &health)) {
+        // Floor at one heart. A departing game cannot normally hand over a dead
+        // bar (death resets health before any suspend can see it), so this only
+        // fires on a corrupt or hand-edited pool — and spawning dead on a
+        // cross-game arrival lands in a death handler no arrival path has ever
+        // been tested through.
+        gSaveContext.health = (s16)(health < 0x10u ? 0x10u : health);
+    }
 }
 
 static bool sLastF10State = false;

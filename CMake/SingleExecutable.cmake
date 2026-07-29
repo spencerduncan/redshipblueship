@@ -28,6 +28,12 @@ set(REDSHIP_COMMON_SOURCES
     # Cross-game shared-item producers/consumers over gComboCtx.sharedItemsTagged
     # (ADR 0002, Lane A1) — read/written by both games' suspend + consumption hooks
     ${CMAKE_SOURCE_DIR}/src/common/shared_items.c
+    # Shared cross-game RESOURCES over gComboCtx.sharedResources (#525) — one
+    # quantity spanning both games (rupees, wallet tier, hearts, current health,
+    # double defense), harvested at each game's suspend and applied at its
+    # startup entrance. Distinct from shared_items.c: that carries one-way
+    # single-use crossings, this carries a continuously shared value.
+    ${CMAKE_SOURCE_DIR}/src/common/shared_resources.c
     # Foreign-item placement table over gComboCtx.foreignPlacements (Lane C1,
     # #392) — written by MM's paired-world generation, read by MM's give path
     # and both spoiler surfaces; the pinned pool itself is OoT-side
@@ -381,6 +387,14 @@ if(BUILD_TESTING)
     # silent at compile and link time and would leave OoT unable to place
     # anything (#516's dead-registrar class).
     redship_add_test(NAME ForeignPoolMM COMMAND redship --test foreign-pool-mm)
+    # Shared cross-game resources (#525): rupees and hearts are ONE quantity
+    # spanning both games. Locks the delta-harvest watermark that survives MM's
+    # 500-rupee tier-3 wallet against OoT's 999 (a naive copy costs the player
+    # 300 rupees per round trip), the monotonic/consumable split, the
+    # first-harvest seed that stops a .redsave load from doubling the balance,
+    # and the canonical heart quantity with its 20-heart clamp. Display-free,
+    # ROM-free and save-free, so it runs in this redship tier.
+    redship_add_test(NAME SharedResources COMMAND redship --test shared-resources)
     redship_add_test(NAME ComboSpoilerView COMMAND redship --test combo-spoiler-view)
     redship_add_test(NAME ComboSpoilerWindow COMMAND redship --test combo-spoiler-window)
     # MM randomizer options (#497 step 4, #499). Display-free: the option table

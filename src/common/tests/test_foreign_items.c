@@ -833,6 +833,48 @@ TestResult Test_ForeignPoolMM(void) {
         FI_ASSERT(!Combo_GetForeignItemByNameFor((uint8_t)GAME_NONE, pool[i].name, NULL));
     }
 
-    printf("[TEST] PASS: MM source pool registered, well-formed, giveable, non-junk, name-invertible\n");
+    // Membership rule (6), #525: no SHARED CROSS-GAME RESOURCE may be a
+    // crossing. Rupees and hearts are one quantity spanning both games now —
+    // one wallet, one health bar (src/common/shared_resources.h) — so a wallet
+    // or heart item has nothing left to carry across. Shipping one anyway would
+    // hand the player a second copy of a capacity they already have, or a rupee
+    // award the next harvest reconciles straight back out.
+    //
+    // Asserted as an EXCLUSION rather than an exact pool count on purpose: the
+    // count is not the invariant and would go stale the moment an unrelated row
+    // is added, whereas "these are not eligible to cross" is exactly what
+    // criterion 6 says.
+    //
+    // Keyed on the DISPLAY NAME, not the RI_* id, because this TU is src/common
+    // and has no MM headers in scope by design — the same reason the giveable /
+    // junk-class checks above go through MM-side bridge predicates. The name is
+    // not a weaker key here: it is the pool's own persistence key (the
+    // spoiler-LOAD inverse is keyed on (originGame, name)), so a row that
+    // answers to one of these names IS the row that must be gone.
+    //
+    // "Double Defense" is in this list because it lived under core equipment,
+    // NOT the health block — a block-shaped delete misses it, and it is the row
+    // a reviewer is most likely to miss too.
+    static const char* const kSharedResourceNames[] = {
+        "Progressive Wallet", "Adult's Wallet",  "Giant's Wallet",
+        "Double Defense",     "Heart Container", "Heart Piece",
+    };
+    for (size_t k = 0; k < sizeof(kSharedResourceNames) / sizeof(kSharedResourceNames[0]); k++) {
+        for (int i = 0; i < poolCount; i++) {
+            FI_ASSERT(strcmp(pool[i].name, kSharedResourceNames[k]) != 0);
+        }
+        // ...and the name-keyed inverse agrees, so a spoiler naming one of these
+        // cannot resurrect a crossing the shared-resource model replaced.
+        FI_ASSERT(!Combo_GetForeignItemByNameFor((uint8_t)GAME_MM, kSharedResourceNames[k], NULL));
+    }
+
+    // The shrink is real, not a rename: those six rows left and nothing took
+    // their place. Bounded rather than exact for the reason above — a future
+    // shared resource (magic, ammo) removes more, and unrelated work may add.
+    printf("[TEST] foreign-pool-mm: %d entries after the #525 shared-resource shrink\n", poolCount);
+    FI_ASSERT(poolCount <= 128);
+
+    printf("[TEST] PASS: MM source pool registered, well-formed, giveable, non-junk, name-invertible, "
+           "no shared resources\n");
     return TEST_PASS;
 }

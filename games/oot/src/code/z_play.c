@@ -40,6 +40,12 @@ extern int Combo_ConsumeFrozenState(const char* gameId, void* saveContext, size_
 // TU stays free of the ADR SharedItem/GameId types.
 extern void OoT_ConsumeSharedItems(void);
 
+// Cross-game shared-RESOURCE apply (#525). Reconciles OoT's live rupees, wallet
+// tier, hearts, current health and double defense against the single shared
+// pool in gComboCtx. Same reason it is declared rather than included: this TU
+// stays free of the src/common resource types.
+extern void OoT_ApplySharedResources(void);
+
 // Cross-game combo support - entrance switch checking
 extern uint16_t Combo_CheckEntranceSwitch(uint16_t entranceIndex);
 extern bool Combo_IsCrossGameSwitch(void);
@@ -562,6 +568,15 @@ void OoT_Play_Init(GameState* thisx) {
                 // wait for the next switch into OoT (shared_items.h). Placed
                 // after the inventory-touching age/equip fixups above so a
                 // redeemed item lands in a settled gSaveContext.
+                //
+                // Shared cross-game RESOURCES (#525) go FIRST, before the item
+                // consumer. Both can touch the same fields, and the order is
+                // load-bearing: apply authors an absolute rupee count and heart
+                // capacity from the pool, so a shared item given BEFORE it
+                // would be silently overwritten. Applied first, an item's give
+                // layers on top and is picked up as a delta by the next
+                // harvest.
+                OoT_ApplySharedResources();
                 OoT_ConsumeSharedItems();
                 Combo_ClearStartupEntrance();
                 osSyncPrintf("[OoT] Cross-game switch: loading entrance 0x%04X\n", startupEntrance);
