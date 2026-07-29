@@ -29,7 +29,7 @@ void NotifySequenceName(int32_t playerIdx, int32_t seqId) {
         }
         const char* sequenceName = AudioCollection::Instance->GetSequenceName(seqId);
         if (sequenceName != NULL) {
-            Notification::Emit({
+            Notification::MM_Notify_Emit({
                 .message = ICON_FA_MUSIC " " + std::string(sequenceName),
                 .remainingTime = static_cast<float>(CVarGetInteger("gAudioEditor.SeqNameNotificationDuration", 10)),
                 .mute = true,

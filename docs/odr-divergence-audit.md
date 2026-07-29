@@ -193,18 +193,31 @@ reachable everywhere even where no `#include` appears.
 
 ## Locking a deliberate cross-bind
 
-Some cross-binds are intentional and desirable — MM's `Notification::Emit`
-resolving to OoT's definition gives one shared toast overlay. These are safe
-only by field-identical coincidence, and **no link error will ever catch a
+Some cross-binds are intentional and desirable — MM's notification toasts
+rendering on OoT's overlay gives one shared surface over both games. The
+*behavior* being wanted does not make the *binding* safe: it holds only by
+field-identical coincidence, and **no link error will ever catch a
 divergence**, because exactly one definition survives.
 
-Lock them with a ROM-free layout test in an MM translation unit, so MM's view
-is compiled with MM's own headers and flags. Working examples:
+**Prefer retiring the coincidence over locking it.** Where the shared surface
+can be reached through a declared plain-C interface, neither port's C++ layout
+stays load-bearing for the other and the whole class of drift disappears. Worked
+example: `src/common/notification_bridge.h` (#427 item 1) — MM packs its
+`Notification::Options` into a plain-C `ComboNotification`
+(`games/mm/2s2h/mm_notification_bridge.cpp`) and OoT unpacks it into its own
+Options by field name (`games/oot/soh/Notification/Notification.cpp`). MM's
+single-exe header stops declaring `Emit` at all, so re-arming the coincidence is
+a compile error, and both sides compile one shared
+`COMBO_NOTIFICATION_ASSERT_OPTIONS_CONTRACT` field/type list.
 
-- `games/mm/2s2h/mm_notification_binding_test.cpp` — layouts must be **equal**
+Where the bind cannot be retired, lock it with a ROM-free layout test in an MM
+translation unit, so MM's view is compiled with MM's own headers and flags.
+Working examples:
+
 - `games/mm/2s2h/mm_gi_shim_test.cpp` — layouts must **differ**
 - `games/mm/2s2h/mm_culling_test.cpp`
+- `games/mm/2s2h/mm_notification_binding_test.cpp` — now an end-to-end lock on
+  the bridge above rather than a layout comparison
 
-Each pins field types at compile time in both views *and* compares
-sizeof/offsetof fingerprints at runtime. Register new tests through
-`redship_add_test()`.
+Each pins field types at compile time in both views *and* asserts the runtime
+ground truth. Register new tests through `redship_add_test()`.

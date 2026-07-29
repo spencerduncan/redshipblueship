@@ -512,11 +512,13 @@ if(BUILD_TESTING)
     # the MM-owned extern "C" shim; registering through MM's larger view of
     # the shared class writes ~60-92 bytes past OoT's 4-byte allocation.
     redship_add_test(NAME MMGIShim COMMAND redship --test mm-gi-shim)
-    # MM Notification::Emit cross-bind (#427 item 1): MM's BenGui/Notification.cpp
-    # is excluded, so MM's Rando pickup toast binds OoT's Notification::Emit —
-    # safe only while both ports' Notification::Options stay layout-identical.
-    # This compares their layout fingerprints and fails on drift (one Emit
-    # definition survives, so no link error can catch a divergence).
+    # MM notification bridge (#427 item 1): MM's BenGui/Notification.cpp is
+    # excluded, so MM's toasts render on OoT's overlay. They used to bind OoT's
+    # identically-mangled Notification::Emit with MM's own Options — safe only
+    # while both ports' structs stayed layout-identical, and unlockable at link
+    # time (one Emit definition survives, so no link error can catch a
+    # divergence). This drives the explicit ComboNotification bridge that
+    # replaced that coincidence and checks the toast that lands in OoT's store.
     redship_add_test(NAME MMNotificationBinding COMMAND redship --test mm-notification-binding)
     # MM scaled framebuffer draw (#386): MM's framebuffer_effects.c is excluded,
     # so MM's FB_DrawFromFramebufferScaled bound OoT's surviving body, which

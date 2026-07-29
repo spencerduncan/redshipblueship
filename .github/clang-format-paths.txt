@@ -44,6 +44,7 @@ games/mm/2s2h/mm_playtime_seed_test.cpp
 games/mm/2s2h/mm_framebuffer_effects.c
 games/mm/2s2h/mm_gi_shim_test.cpp
 games/mm/2s2h/mm_notification_binding_test.cpp
+games/mm/2s2h/mm_notification_bridge.cpp
 games/mm/2s2h/mm_resume_state_test.cpp
 games/mm/2s2h/mm_save_manager_stubs.c
 games/mm/2s2h/mm_trackers_gui_test.cpp

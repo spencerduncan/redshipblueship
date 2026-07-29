@@ -140,55 +140,72 @@ void Emit(Options notification) {
 } // namespace Notification
 
 // ---------------------------------------------------------------------------
-// Cross-game layout probe for the deliberate MM->OoT Notification::Emit bind
-// (#427 item 1). MM's 2s2h/BenGui/Notification.cpp is excluded from single-exe
-// builds, so MM's Rando pickup toast (2s2h/Rando/MiscBehavior/CheckQueue.cpp)
-// binds THIS Emit against MM's own view of Notification::Options. The bind is
-// safe only while the two views stay field-identical; the mm-notification-
-// binding CTest compares this fingerprint against MM's and fails on drift.
+// OoT's half of the cross-game notification bridge (#427 item 1).
 //
-// Reported with pointer arithmetic on a real instance rather than offsetof so
-// it is well-defined without regard to standard-layout status, and no
-// platform-specific byte offsets are hardcoded. The field-type static_asserts
-// below turn a same-view retype (the half a cross-game offset compare cannot
-// see if BOTH games retype in lockstep) into an OoT build break.
-#include "notification_layout_probe.h"
-#include <cstddef>
-#include <type_traits>
+// MM's 2s2h/BenGui/Notification.cpp is excluded from single-exe builds, so MM
+// has no Emit of its own and its toasts have to reach this one. They used to do
+// that by ABI coincidence — `Notification::Emit(Notification::Options)` mangles
+// identically in both ports, so MM's call bound THIS body and handed it MM's
+// own view of Options. Nothing but the two structs happening to stay
+// field-identical kept that safe, and no link error can ever catch a
+// divergence (exactly one Emit definition survives).
+//
+// The bridge replaces the coincidence with a declared interface: MM packs its
+// Options into the plain-C ComboNotification (src/common/notification_bridge.h)
+// and calls here; this side unpacks into ITS OWN Options by field name. Neither
+// port's layout is load-bearing for the other anymore, and a rename/removal/
+// retype of a mapped field is a compile error in whichever port drifted — see
+// the shared contract asserts below, which MM's side compiles too.
+#include "notification_bridge.h"
 
-static_assert(std::is_same_v<decltype(Notification::Options::id), uint32_t>,
-              "Notification::Options::id retyped — the MM Emit bind assumes this layout (#427)");
-static_assert(std::is_same_v<decltype(Notification::Options::itemIcon), const char*>,
-              "Notification::Options::itemIcon retyped — the MM Emit bind assumes this layout (#427)");
-static_assert(std::is_same_v<decltype(Notification::Options::prefix), std::string>,
-              "Notification::Options::prefix retyped — the MM Emit bind assumes this layout (#427)");
-static_assert(std::is_same_v<decltype(Notification::Options::prefixColor), ImVec4>,
-              "Notification::Options::prefixColor retyped — the MM Emit bind assumes this layout (#427)");
-static_assert(std::is_same_v<decltype(Notification::Options::message), std::string>,
-              "Notification::Options::message retyped — the MM Emit bind assumes this layout (#427)");
-static_assert(std::is_same_v<decltype(Notification::Options::messageColor), ImVec4>,
-              "Notification::Options::messageColor retyped — the MM Emit bind assumes this layout (#427)");
-static_assert(std::is_same_v<decltype(Notification::Options::suffix), std::string>,
-              "Notification::Options::suffix retyped — the MM Emit bind assumes this layout (#427)");
-static_assert(std::is_same_v<decltype(Notification::Options::suffixColor), ImVec4>,
-              "Notification::Options::suffixColor retyped — the MM Emit bind assumes this layout (#427)");
-static_assert(std::is_same_v<decltype(Notification::Options::remainingTime), float>,
-              "Notification::Options::remainingTime retyped — the MM Emit bind assumes this layout (#427)");
-static_assert(std::is_same_v<decltype(Notification::Options::mute), bool>,
-              "Notification::Options::mute retyped — the MM Emit bind assumes this layout (#427)");
+COMBO_NOTIFICATION_ASSERT_OPTIONS_CONTRACT(Notification::Options);
 
-extern "C" void OoT_NotificationOptionsLayout(NotificationOptionsLayout* out) {
-    Notification::Options o;
-    const char* base = reinterpret_cast<const char*>(&o);
-    out->structSize = static_cast<uint32_t>(sizeof(Notification::Options));
-    out->offId = static_cast<uint32_t>(reinterpret_cast<const char*>(&o.id) - base);
-    out->offItemIcon = static_cast<uint32_t>(reinterpret_cast<const char*>(&o.itemIcon) - base);
-    out->offPrefix = static_cast<uint32_t>(reinterpret_cast<const char*>(&o.prefix) - base);
-    out->offPrefixColor = static_cast<uint32_t>(reinterpret_cast<const char*>(&o.prefixColor) - base);
-    out->offMessage = static_cast<uint32_t>(reinterpret_cast<const char*>(&o.message) - base);
-    out->offMessageColor = static_cast<uint32_t>(reinterpret_cast<const char*>(&o.messageColor) - base);
-    out->offSuffix = static_cast<uint32_t>(reinterpret_cast<const char*>(&o.suffix) - base);
-    out->offSuffixColor = static_cast<uint32_t>(reinterpret_cast<const char*>(&o.suffixColor) - base);
-    out->offRemainingTime = static_cast<uint32_t>(reinterpret_cast<const char*>(&o.remainingTime) - base);
-    out->offMute = static_cast<uint32_t>(reinterpret_cast<const char*>(&o.mute) - base);
+extern "C" void OoT_Notification_Emit(const ComboNotification* notification) {
+    if (notification == nullptr) {
+        return;
+    }
+
+    Notification::Options options;
+    options.itemIcon = notification->itemIcon;
+    options.prefix = notification->prefix != nullptr ? notification->prefix : "";
+    options.prefixColor = ImVec4(notification->prefixColor[0], notification->prefixColor[1],
+                                 notification->prefixColor[2], notification->prefixColor[3]);
+    options.message = notification->message != nullptr ? notification->message : "";
+    options.messageColor = ImVec4(notification->messageColor[0], notification->messageColor[1],
+                                  notification->messageColor[2], notification->messageColor[3]);
+    options.suffix = notification->suffix != nullptr ? notification->suffix : "";
+    options.suffixColor = ImVec4(notification->suffixColor[0], notification->suffixColor[1],
+                                 notification->suffixColor[2], notification->suffixColor[3]);
+    options.remainingTime = notification->remainingTime;
+    options.mute = notification->mute != 0;
+
+    // id is assigned by Emit, which is why the wire form carries none.
+    Notification::Emit(options);
+}
+
+extern "C" int OoT_Notification_PeekLastForTest(ComboNotification* out) {
+    if (out == nullptr || Notification::notifications.empty()) {
+        return 0;
+    }
+
+    const Notification::Options& last = Notification::notifications.back();
+    out->itemIcon = last.itemIcon;
+    out->prefix = last.prefix.c_str();
+    out->prefixColor[0] = last.prefixColor.x;
+    out->prefixColor[1] = last.prefixColor.y;
+    out->prefixColor[2] = last.prefixColor.z;
+    out->prefixColor[3] = last.prefixColor.w;
+    out->message = last.message.c_str();
+    out->messageColor[0] = last.messageColor.x;
+    out->messageColor[1] = last.messageColor.y;
+    out->messageColor[2] = last.messageColor.z;
+    out->messageColor[3] = last.messageColor.w;
+    out->suffix = last.suffix.c_str();
+    out->suffixColor[0] = last.suffixColor.x;
+    out->suffixColor[1] = last.suffixColor.y;
+    out->suffixColor[2] = last.suffixColor.z;
+    out->suffixColor[3] = last.suffixColor.w;
+    out->remainingTime = last.remainingTime;
+    out->mute = last.mute ? 1 : 0;
+    return 1;
 }
