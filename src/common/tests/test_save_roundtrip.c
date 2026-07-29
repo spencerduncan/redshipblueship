@@ -525,6 +525,16 @@ TestResult Test_SaveComboLegacyRecord(void) {
     static const uint32_t kCraftedSourceKey = 0xC0FFEE01u;
     static const uint32_t kCraftedLastSeq = 0x00000205u;
     static const uint32_t kCraftedOverflow = 0x00BADBEDu;
+    // The SECOND shared-resource block (#525 optional tier). It is the newest
+    // carve and therefore the one most exposed to the hazard this case exists
+    // for: it sits directly behind sharedResources[8], so an in-place widen of
+    // THAT array — the one thing RSBS_SHARED_RESOURCE_CAP's comment forbids —
+    // slides this block off 824 while every other test stays green. Crafted as
+    // a whole 4-byte slot so the kind/flags/value member offsets are pinned too.
+    static const size_t kSharedResourcesExtOffset = 824u; // sharedResourcesExt[0]
+    static const uint8_t kCraftedExtKind = RSBS_SHARED_RES_QUIVER_TIER;
+    static const uint8_t kCraftedExtFlags = RSBS_SHARED_RES_F_MONOTONIC;
+    static const uint16_t kCraftedExtValue = 0x0003u;
 
     SaveTestSeed(tag);  // re-inits gComboCtx and restamps the magic/version
     {
@@ -536,6 +546,9 @@ TestResult Test_SaveComboLegacyRecord(void) {
         std::memcpy(image + kGrantCursorsOffset, &kCraftedSourceKey, sizeof(kCraftedSourceKey));
         std::memcpy(image + kGrantCursorsLastSeqOffset, &kCraftedLastSeq, sizeof(kCraftedLastSeq));
         std::memcpy(image + kOverflowCountOffset, &kCraftedOverflow, sizeof(kCraftedOverflow));
+        std::memcpy(image + kSharedResourcesExtOffset + 0, &kCraftedExtKind, sizeof(kCraftedExtKind));
+        std::memcpy(image + kSharedResourcesExtOffset + 1, &kCraftedExtFlags, sizeof(kCraftedExtFlags));
+        std::memcpy(image + kSharedResourcesExtOffset + 2, &kCraftedExtValue, sizeof(kCraftedExtValue));
     }
 
     mgr.DeleteSave(0);
@@ -547,6 +560,8 @@ TestResult Test_SaveComboLegacyRecord(void) {
     std::memset(gComboCtx.grantCursors, 0x5A, sizeof(gComboCtx.grantCursors));
     gComboCtx.sharedItemOverflowCount = 0x5A5A5A5Au;
     std::memset(gComboCtx.foreignPlacements, 0x5A, sizeof(gComboCtx.foreignPlacements));
+    std::memset(gComboCtx.sharedResources, 0x5A, sizeof(gComboCtx.sharedResources));
+    std::memset(gComboCtx.sharedResourcesExt, 0x5A, sizeof(gComboCtx.sharedResourcesExt));
 
     SAVE_ASSERT(mgr.Load(0), "Load refused a full-length v2 Tier-1 record");
 
@@ -566,9 +581,18 @@ TestResult Test_SaveComboLegacyRecord(void) {
     SAVE_ASSERT(offsetof(ComboContext, sharedItemOverflowCount) == kOverflowCountOffset,
                 "sharedItemOverflowCount moved off .redsave byte offset 736");
 
+    SAVE_ASSERT(gComboCtx.sharedResourcesExt[0].kind == kCraftedExtKind &&
+                    gComboCtx.sharedResourcesExt[0].flags == kCraftedExtFlags &&
+                    gComboCtx.sharedResourcesExt[0].value == kCraftedExtValue,
+                "byte 824 did not land in sharedResourcesExt[0] — the first shared-resource block grew "
+                "in place (which RSBS_SHARED_RESOURCE_CAP forbids) and orphaned every shipped save's "
+                "shared ammo");
+    SAVE_ASSERT(offsetof(ComboContext, sharedResourcesExt) == kSharedResourcesExtOffset,
+                "sharedResourcesExt moved off .redsave byte offset 824");
+
     mgr.DeleteSave(0);
     printf("[TEST] PASS: pre-headroom Tier-1 loads, added fields read as zero, "
-           "and bytes 672/676/736 still land in the ADR 0005 carve\n");
+           "and bytes 672/676/736/824 still land in their carves\n");
     return TEST_PASS;
 }
 

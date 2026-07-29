@@ -28,6 +28,10 @@
 #include "soh/Enhancements/game-interactor/GameInteractor.h"
 #include "soh/Enhancements/game-interactor/GameInteractor_Hooks.h"
 #include "soh/Notification/Notification.h" // Lane 6 (#494): the foreign-arrival toast
+// Rando::Context's definition, for GetBombchuCapacity() in the ammo shim.
+// OTRGlobals.h only forward-declares Rando::Context, which is enough to hold
+// the shared_ptr but not to call through it.
+#include "soh/Enhancements/randomizer/SeedContext.h"
 // SET_NEXT_GAMESTATE for the gameplay round-trip driver. Must come after
 // GameInteractor.h (-> z64.h): macros.h declares `extern GraphicsContext*`
 // and needs the type defined first.
@@ -1130,6 +1134,16 @@ extern "C" void OoT_Inventory_ChangeUpgrade(s16 upgrade, s16 value);
 extern "C" u32 OoT_gUpgradeMasks[8];
 extern "C" u8 OoT_gUpgradeShifts[8];
 extern "C" u16 OoT_gUpgradeCapacities[8][4];
+// Backs the SLOT/AMMO/INV_CONTENT macros (macros.h) the ammo shim uses.
+extern "C" u8 OoT_gItemSlots[56];
+
+// Declared locally because OTRGlobals.h only declares this inside its
+// `#ifndef __cplusplus` block — the C half of the header — so it is invisible
+// to every C++ TU. Redeclaring it here is the established pattern rather than a
+// workaround: draw.cpp, CosmeticsEditor.cpp, NoMasterSword.cpp and several
+// other C++ callers each do exactly this. The definition (OTRGlobals.cpp) is
+// extern "C", which is the linkage this must match.
+extern "C" u8 Randomizer_GetSettingValue(RandomizerSettingKey randoSettingKey);
 
 // Heart pieces live in the TOP NIBBLE of questItems in BOTH games (OoT writes
 // `1 << (QUEST_HEART_PIECE + 4)`, MM's QUEST_HEART_PIECE_COUNT is 0x1C), which
@@ -1142,6 +1156,138 @@ extern "C" u16 OoT_gUpgradeCapacities[8][4];
 // authored by a future build with more tiers cannot index off the end of OoT's
 // capacity table.
 #define OOT_MAX_WALLET_TIER 3u
+
+// Highest tier index in every ammo row of OoT_gUpgradeCapacities (each row has
+// 4 entries). Passed as the apply CAP for the same reason OOT_MAX_WALLET_TIER
+// is: a pool value authored by a future build with more tiers must not index
+// off the end of the capacity table.
+#define OOT_MAX_AMMO_TIER 3u
+
+// OoT's VANILLA bombchu ceiling. Unlike arrows and bombs, bombchus have no
+// upgrade row in either game — OoT fixes the cap at 50 while MM derives it from
+// the bomb bag — so the two ends of this shared count clamp against different
+// numbers, which is exactly the asymmetry the watermark discipline absorbs.
+//
+// Only half the story under rando: see OoT_BombchuCapacity.
+#define OOT_BOMBCHU_CAPACITY 50u
+
+// One shared ammo pair: the capacity tier, the count it bounds, and the
+// inventory item a tier of 1 or more implies. Table-driven because the five
+// rows differ only in these four values, and a copy-pasted block per row is
+// how one of them silently ends up reading another's slot.
+typedef struct {
+    uint8_t tierKind;  // RSBS_SHARED_RES_*_TIER, or RSBS_SHARED_RES_NONE when the count has no tier (bombchus)
+    uint8_t countKind; // RSBS_SHARED_RES_*_COUNT
+    s16 upgrade;       // UPG_* row index, ignored when tierKind is NONE
+    uint8_t item;      // ITEM_* whose slot holds the count, and which a nonzero tier grants
+} OoTSharedAmmo;
+
+static const OoTSharedAmmo kOoTSharedAmmo[] = {
+    { RSBS_SHARED_RES_QUIVER_TIER, RSBS_SHARED_RES_ARROW_COUNT, UPG_QUIVER, ITEM_BOW },
+    { RSBS_SHARED_RES_BOMB_BAG_TIER, RSBS_SHARED_RES_BOMB_COUNT, UPG_BOMB_BAG, ITEM_BOMB },
+    { RSBS_SHARED_RES_STICK_TIER, RSBS_SHARED_RES_STICK_COUNT, UPG_STICKS, ITEM_STICK },
+    { RSBS_SHARED_RES_NUT_TIER, RSBS_SHARED_RES_NUT_COUNT, UPG_NUTS, ITEM_NUT },
+    { RSBS_SHARED_RES_NONE, RSBS_SHARED_RES_BOMBCHU_COUNT, 0, ITEM_BOMBCHU },
+};
+
+static uint16_t OoT_ReadAmmo(uint8_t item) {
+    const s8 held = AMMO(item);
+    return held < 0 ? 0u : (uint16_t)held;
+}
+
+/**
+ * OoT's LIVE bombchu ceiling, which is 50 only outside the randomizer.
+ *
+ * With RSK_BOMBCHU_BAG set to progressive, SoH replaces the ceiling entirely:
+ * Bombchus.cpp registers a VB_CHECK_BOMBCHU_CAPACITY override that CLAMPS
+ * AMMO(ITEM_BOMBCHU) down to gRandoContext->GetBombchuCapacity() (0/20/30/50 by
+ * bag level) on the next capacity check. Applying the shared pool against a
+ * hardcoded 50 therefore does not just overfill — it stages a silent theft:
+ * the clamp fires on the very next bombchu thrown, the count drops to the real
+ * capacity, and the following harvest reads that as the player having SPENT the
+ * difference and debits the shared pool by it. With bag level 0 the pool is
+ * zeroed outright, so bombchus the player earned in Termina disappear from both
+ * games at once.
+ *
+ * Mirrors the capacity expression in Bombchus.cpp rather than paraphrasing it,
+ * including its restriction to the progressive option (the single-bag and
+ * vanilla options leave the 50 in place and register no clamp).
+ */
+static uint16_t OoT_BombchuCapacity(void) {
+    if (IS_RANDO && OTRGlobals::Instance != nullptr && OTRGlobals::Instance->gRandoContext != nullptr &&
+        Randomizer_GetSettingValue(RSK_BOMBCHU_BAG) == RO_BOMBCHU_BAG_PROGRESSIVE) {
+        return (uint16_t)OTRGlobals::Instance->gRandoContext->GetBombchuCapacity();
+    }
+    return (uint16_t)OOT_BOMBCHU_CAPACITY;
+}
+
+// The count's ceiling in OoT right now: the live capacity for a row that has an
+// upgrade, the live bombchu capacity for the one that does not.
+static uint16_t OoT_AmmoCapacity(const OoTSharedAmmo* row) {
+    if (row->tierKind == RSBS_SHARED_RES_NONE) {
+        return OoT_BombchuCapacity();
+    }
+    return (uint16_t)CUR_CAPACITY(row->upgrade);
+}
+
+// Put `item` in its own inventory slot if the slot is empty.
+//
+// This is the half of a tier grant OoT does NOT do for itself. Its tier-2 and
+// tier-3 gives (Bigger Quiver, Bigger Bomb Bag) only widen the capacity, on the
+// assumption that whatever granted tier 1 already put the bow or the bombs in
+// the inventory. A cross-game apply breaks that assumption — the pool can hand
+// OoT a quiver tier it never earned locally — so without this the player gets
+// capacity and ammo with no usable C-item. MM's own gives set INV_CONTENT
+// unconditionally, which is the behavior being matched.
+static void OoT_EnsureInventoryItem(uint8_t item) {
+    if (INV_CONTENT(item) == ITEM_NONE) {
+        INV_CONTENT(item) = item;
+    }
+}
+
+/**
+ * Would GRANTING this row's item be handing the player a shuffled CHECK the
+ * seed placed elsewhere? Then the pool may not hand it over.
+ *
+ * OoT_Item_Give opens with exactly this refusal for sticks and nuts
+ * (z_parameter.c:1876-1885, "in case something got missed"): with
+ * RSK_SHUFFLE_DEKU_STICK_BAG or RSK_SHUFFLE_DEKU_NUT_BAG on, neither is
+ * obtainable until its bag check is found. That gate matters HERE and not for
+ * the wallet or the quiver because MM's side is not neutral: a fresh MM save is
+ * BORN at stick and nut tier 1 (the Sram default table), so plain monotonic
+ * sharing would push tier 1 into OoT on the very first crossing of every seed.
+ *
+ * Bombchus are the same hazard wearing different clothes. When the seed shuffles
+ * them (RSK_BOMBCHU_BAG is not NONE) the player is meant to hold none until the
+ * check is found, and Bombchus.cpp keys shop eligibility on
+ * INV_CONTENT(ITEM_BOMBCHU) — so materializing the item here would open the
+ * bombchu shops too.
+ *
+ * ONLY THE GRANT IS SUPPRESSED, not the whole row. The count apply still runs,
+ * clamped to this game's real (often zero) capacity, and that is deliberate:
+ * the apply is what transfers WATERMARK OWNERSHIP to OoT. Skipping it leaves
+ * the watermark owned by MM, and then the first OoT harvest after the player
+ * legitimately finds the bag takes the "no watermark for this game" seed path,
+ * records the live count as already-counted, and silently discards the stock
+ * the bag just granted. Applying a zero costs nothing (the player has none) and
+ * keeps the pool's arithmetic honest across the moment the gate opens.
+ */
+static bool OoT_SharedAmmoGrantBlocked(const OoTSharedAmmo* row) {
+    if (!IS_RANDO || OTRGlobals::Instance == nullptr || OTRGlobals::Instance->gRandoContext == nullptr) {
+        return false;
+    }
+    if (row->item == ITEM_STICK) {
+        return Randomizer_GetSettingValue(RSK_SHUFFLE_DEKU_STICK_BAG) != 0 && CUR_UPG_VALUE(UPG_STICKS) == 0;
+    }
+    if (row->item == ITEM_NUT) {
+        return Randomizer_GetSettingValue(RSK_SHUFFLE_DEKU_NUT_BAG) != 0 && CUR_UPG_VALUE(UPG_NUTS) == 0;
+    }
+    if (row->item == ITEM_BOMBCHU) {
+        return Randomizer_GetSettingValue(RSK_BOMBCHU_BAG) != RO_BOMBCHU_BAG_NONE &&
+               INV_CONTENT(ITEM_BOMBCHU) == ITEM_NONE;
+    }
+    return false;
+}
 
 static uint16_t OoT_ReadHealthQuarters(void) {
     const uint16_t pieces =
@@ -1258,6 +1404,18 @@ extern "C" void OoT_HarvestSharedResources(void) {
                                 gSaveContext.isDoubleDefenseAcquired ? 1u : 0u);
     Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_MAGIC_LEVEL, OoT_ReadMagicLevel());
     Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_MAGIC_CURRENT, OoT_ReadSettledMagic());
+
+    // Ammo. No settle step: unlike rupees and magic, neither game defers an
+    // ammo change through an accumulator — every give and every shot is an
+    // immediate AMMO() write with an inline clamp, so the live count is always
+    // already settled.
+    for (int i = 0; i < ARRAY_COUNT(kOoTSharedAmmo); i++) {
+        const OoTSharedAmmo* row = &kOoTSharedAmmo[i];
+        if (row->tierKind != RSBS_SHARED_RES_NONE) {
+            Combo_HarvestSharedResource(GAME_OOT, row->tierKind, (uint16_t)CUR_UPG_VALUE(row->upgrade));
+        }
+        Combo_HarvestSharedResource(GAME_OOT, row->countKind, OoT_ReadAmmo(row->item));
+    }
 }
 
 /**
@@ -1376,6 +1534,39 @@ extern "C" void OoT_ApplySharedResources(void) {
         gSaveContext.magicCapacity = 0;
         gSaveContext.magicState = MAGIC_STATE_IDLE;
         gSaveContext.prevMagicState = MAGIC_STATE_IDLE;
+    }
+
+    // --- Ammo: every tier BEFORE the count it bounds, in one pass per row, for
+    // the same reason wallet precedes rupees. A count applied against a
+    // capacity of zero clamps to zero and the watermark records that zero as
+    // materialized, quietly dropping the rest of the pool.
+    for (int i = 0; i < ARRAY_COUNT(kOoTSharedAmmo); i++) {
+        const OoTSharedAmmo* row = &kOoTSharedAmmo[i];
+        const bool grantBlocked = OoT_SharedAmmoGrantBlocked(row);
+
+        if (!grantBlocked && row->tierKind != RSBS_SHARED_RES_NONE) {
+            uint16_t tier = (uint16_t)CUR_UPG_VALUE(row->upgrade);
+            if (Combo_ApplySharedResource(GAME_OOT, row->tierKind, OOT_MAX_AMMO_TIER, &tier)) {
+                OoT_Inventory_ChangeUpgrade(row->upgrade, (s16)tier);
+                if (tier >= 1u) {
+                    OoT_EnsureInventoryItem(row->item);
+                }
+            }
+        }
+
+        // Runs even when the grant is blocked — see OoT_SharedAmmoGrantBlocked
+        // for why suppressing the apply entirely loses the player's stock the
+        // moment the gate opens. The cap does the suppressing: with no bag it
+        // is zero, so nothing materializes.
+        uint16_t count = OoT_ReadAmmo(row->item);
+        if (Combo_ApplySharedResource(GAME_OOT, row->countKind, OoT_AmmoCapacity(row), &count)) {
+            // Bombchus have no tier to carry the item across, so a nonzero
+            // shared count is what implies the item here.
+            if (!grantBlocked && count > 0u) {
+                OoT_EnsureInventoryItem(row->item);
+            }
+            AMMO(row->item) = (s8)count;
+        }
     }
 }
 
