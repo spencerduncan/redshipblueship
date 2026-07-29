@@ -9,6 +9,7 @@
 #include "save.h"
 
 #include "context.h"
+#include "entrance.h" // MM_ENTR_SOUTH_CLOCK_TOWN_0 — the armed blob's return entrance
 #include "game.h"
 
 #include <cstdio>
@@ -332,10 +333,20 @@ bool SaveManager::Load(int slot) {
     // Arming is refused for an all-zero tier (see Context_ArmShadowAsFrozen),
     // which is exactly a slot saved before the player ever entered MM: that
     // must keep cold-booting MM's own bootstrap rather than restoring a zeroed
-    // SaveContext over it. Entrance 0 is a placeholder, not a spawn decision —
-    // where a resumed MM session actually lands is MM's own owl / new-cycle
+    // SaveContext over it.
+    //
+    // The return entrance is NOT a free placeholder. An earlier revision passed
+    // 0 and called it inert; that was wrong the moment arming made this blob
+    // reachable. rsbs/src/main.cpp's hot-swap path sets the arriving game's
+    // startup entrance from Context_GetFrozenReturnEntrance, entrance presence
+    // is tracked by a separate flag so 0 is a real consumable value, and
+    // ENTR_SCENE_MAYORS_RESIDENCE is 0 — so F10 into a freshly loaded MM half
+    // spawned Link inside the Mayor's Residence. Use the same safe arrival
+    // entrance the real hot-swap freeze records (Switch_GetHotSwapReturnEntrance),
+    // so the two armers agree. A slot-resume that wants MM's own owl /
+    // new-cycle spawn policy overrides this later; this is the floor, not the
     // policy.
-    const int armed = Context_ArmShadowAsFrozen(GAME_MM, 0);
+    const int armed = Context_ArmShadowAsFrozen(GAME_MM, MM_ENTR_SOUTH_CLOCK_TOWN_0);
     std::fprintf(stderr, "[RsbsSave] slot %d loaded; MM half %s\n", slot,
                  armed ? "armed for restore" : "empty (MM will cold-boot)");
     return true;

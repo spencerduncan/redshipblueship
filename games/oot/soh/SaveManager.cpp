@@ -188,13 +188,18 @@ SaveManager::SaveManager() {
         if (fileNum < 0 || fileNum >= RSBS_SAVE_MAX_SLOTS) {
             return;
         }
-        // Establish the session's slot BEFORE the clear-and-reload below, so
-        // it survives regardless of whether this slot has a companion
-        // .redsave. A slot the player opened is the session's slot even when
-        // no cross-game state exists for it yet — that is exactly the case
-        // where MM is entered for the first time and needs somewhere to save.
-        RsbsSave_SetActiveSlot(fileNum);
+        // Order matters: the clear runs FIRST, then the new slot is
+        // established. Session invalidation now also drops the active slot
+        // (it is session state that used to outlive its session), so
+        // publishing before the clear would wipe what we just set.
+        //
+        // Establishing it here — rather than only when a companion .redsave
+        // exists — is deliberate: a slot the player opened is the session's
+        // slot even when no cross-game state exists for it yet, which is
+        // exactly the case where MM is entered for the first time and needs
+        // somewhere to save.
         Context_InvalidateSessionOnSlotLoad();
+        RsbsSave_SetActiveSlot(fileNum);
         if (RsbsSave_HasSave(fileNum)) {
             RsbsSave_Load(fileNum);
         }
