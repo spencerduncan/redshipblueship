@@ -122,8 +122,21 @@ void MM_FaultDrawer_SetCharPad(int xPad, int yPad) { (void)xPad; (void)yPad; }
 void GameInteractor_ExecuteOnGameStateMainFinish(void* state) { (void)state; }
 void GameInteractor_ExecuteOnPlayDrawWorldEnd(void* play) { (void)play; }
 void GameInteractor_ExecuteOnInterfaceDrawStart(void* play) { (void)play; }
-void GameInteractor_ExecuteBeforeKaleidoDrawPage(void* state, int page) { (void)state; (void)page; }
-void GameInteractor_ExecuteAfterKaleidoDrawPage(void* state, int page) { (void)state; (void)page; }
+/* GameInteractor_ExecuteBeforeKaleidoDrawPage / ExecuteAfterKaleidoDrawPage
+ * moved to real, header-checked dispatch in
+ * games/mm/2s2h/GameExports_SingleExe.cpp (#438), reached through the
+ * single-exe macro rebind at the bottom of MM's GameInteractor.h — wired as a
+ * PAIR on purpose, matching how z_kaleido_scope_NES.c brackets every page
+ * draw (the same both-or-neither reasoning the EndOfCycleSave pair below
+ * records). The After half had a live registrant the whole time:
+ * KaleidoItemPage.cpp's COND_ID_HOOK(PAUSE_ITEM) draws the trade-slot cycling
+ * arrows and adjacent-item previews, which these no-ops kept invisible while
+ * the LIVE VB_KALEIDO_DISPLAY_ITEM_TEXT override still suppressed the vanilla
+ * item text — strictly worse than vanilla. Both stubs also carried the
+ * #372/#424 signature-drift hazard ((void*, int) against the real
+ * (PauseContext*, u16)), retired with them. Re-stubbing either here would
+ * silently sever the dispatch again. (MM-only symbols — OoT defines no
+ * twins.) */
 /* GameInteractor_ExecuteOnSaveInit / GameInteractor_ExecuteOnSaveLoad moved to
  * real, header-checked dispatch in games/mm/2s2h/GameExports_SingleExe.cpp
  * (Lane C1, #392): they now Execute the MM-owned S2H::GameHooks registries
@@ -157,7 +170,15 @@ void GameInteractor_ExecuteOnPlayerPostLimbDraw(void* player, int limbIndex) { (
 void GameInteractor_ExecuteOnBossDefeated(int bossId) { (void)bossId; }
 void GameInteractor_ExecuteOnBottleContentsUpdate(int slotId) { (void)slotId; }
 void GameInteractor_ExecuteOnConsoleLogoUpdate(void) {}
-void GameInteractor_ExecuteOnFileSelectSaveLoad(void* state, int fileNum) { (void)state; (void)fileNum; }
+/* GameInteractor_ExecuteOnFileSelectSaveLoad moved to real, header-checked
+ * dispatch in games/mm/2s2h/GameExports_SingleExe.cpp (#438), reached through
+ * the single-exe macro rebind at the bottom of MM's GameInteractor.h. The stub
+ * was both dead dispatch — FileSelect.cpp's registrant is the sole isRando[]
+ * writer, so a randomizer file on MM's file-select list rendered exactly like
+ * a vanilla one — and the worst signature drift in this file: (void*, int)
+ * against the real (s16, bool, SaveContext*), so even a future caller-side
+ * fix would have marshalled garbage. Re-stubbing it here would silently sever
+ * the dispatch again. (MM-only symbol — OoT defines no twin.) */
 /* GameInteractor_ExecuteOnGameCompletion moved to real, header-checked dispatch
  * in games/mm/2s2h/GameExports_SingleExe.cpp (#438), reached through the
  * single-exe macro rebind at the bottom of MM's GameInteractor.h. Its registrant
