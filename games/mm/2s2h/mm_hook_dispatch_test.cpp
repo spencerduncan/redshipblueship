@@ -138,6 +138,7 @@ int sOnActorKillForIdRuns = 0;
 int sOnActorDestroyForIdRuns = 0;
 int sOnGameCompletionRuns = 0;
 int sOnKaleidoUpdateRuns = 0;
+int sBeforeKaleidoDrawRuns = 0;
 int sBeforeKaleidoDrawForIdRuns = 0;
 int sAfterKaleidoDrawRuns = 0;
 int sAfterKaleidoDrawForIdRuns = 0;
@@ -466,6 +467,7 @@ extern "C" int MM_HookDispatch_RunHeadless(void) {
     // separately from the unkeyed one: an Execute-only bridge would revive
     // plain COND_HOOK registrants and leave both production draws dead.
     {
+        sBeforeKaleidoDrawRuns = 0;
         sBeforeKaleidoDrawForIdRuns = 0;
         sAfterKaleidoDrawRuns = 0;
         sAfterKaleidoDrawForIdRuns = 0;
@@ -477,6 +479,15 @@ extern "C" int MM_HookDispatch_RunHeadless(void) {
                 (void)pauseIndex;
                 sBeforeKaleidoDrawForIdRuns++;
             });
+        // Both legs of BOTH halves are probed, not just the leg each production
+        // registrant happens to use today: the bridges are four independent
+        // Execute/ExecuteForID lines, so dropping any one of them is a
+        // single-line regression that the other three cannot catch.
+        S2H::GameHooks::Register<GameInteractor::BeforeKaleidoDrawPage>([](PauseContext* pauseCtx, u16 pauseIndex) {
+            (void)pauseCtx;
+            (void)pauseIndex;
+            sBeforeKaleidoDrawRuns++;
+        });
         // A plain COND_HOOK would use the unkeyed leg.
         S2H::GameHooks::Register<GameInteractor::AfterKaleidoDrawPage>([](PauseContext* pauseCtx, u16 pauseIndex) {
             (void)pauseCtx;
@@ -491,7 +502,8 @@ extern "C" int MM_HookDispatch_RunHeadless(void) {
                                                                                 sAfterKaleidoDrawForIdRuns++;
                                                                             });
 
-        HOOK_ASSERT(sBeforeKaleidoDrawForIdRuns == 0, 10, "BeforeKaleidoDrawPage ran at registration time");
+        HOOK_ASSERT(sBeforeKaleidoDrawForIdRuns == 0, 10, "BeforeKaleidoDrawPage (id-keyed) ran at registration time");
+        HOOK_ASSERT(sBeforeKaleidoDrawRuns == 0, 10, "BeforeKaleidoDrawPage ran at registration time");
         HOOK_ASSERT(sAfterKaleidoDrawRuns == 0, 10, "AfterKaleidoDrawPage ran at registration time");
         HOOK_ASSERT(sAfterKaleidoDrawForIdRuns == 0, 10, "AfterKaleidoDrawPage (id-keyed) ran at registration time");
 
@@ -502,6 +514,8 @@ extern "C" int MM_HookDispatch_RunHeadless(void) {
         GameInteractor_ExecuteBeforeKaleidoDrawPage(&pauseCtx, kPauseIndexKaleido);
         HOOK_ASSERT(sBeforeKaleidoDrawForIdRuns == 1, 10,
                     "BeforeKaleidoDrawPage id-keyed registrant never ran -- the pre-draw bracket is dead");
+        HOOK_ASSERT(sBeforeKaleidoDrawRuns == 1, 10,
+                    "BeforeKaleidoDrawPage unkeyed registrant never ran -- the pre-draw bracket is dead");
         HOOK_ASSERT(sAfterKaleidoDrawRuns == 0, 10, "the Before dispatcher also ran After registrants");
         HOOK_ASSERT(sAfterKaleidoDrawForIdRuns == 0, 10, "the Before dispatcher also ran id-keyed After registrants");
 
@@ -510,6 +524,7 @@ extern "C" int MM_HookDispatch_RunHeadless(void) {
         GameInteractor_ExecuteBeforeKaleidoDrawPage(&pauseCtx, kPauseIndexKaleido + 1);
         HOOK_ASSERT(sBeforeKaleidoDrawForIdRuns == 1, 10,
                     "BeforeKaleidoDrawPage id-keyed leg fired for the wrong page index");
+        HOOK_ASSERT(sBeforeKaleidoDrawRuns == 2, 10, "BeforeKaleidoDrawPage unkeyed leg skipped another page index");
 
         GameInteractor_ExecuteAfterKaleidoDrawPage(&pauseCtx, kPauseIndexKaleido);
         HOOK_ASSERT(sAfterKaleidoDrawRuns == 1, 10,
@@ -517,6 +532,7 @@ extern "C" int MM_HookDispatch_RunHeadless(void) {
         HOOK_ASSERT(sAfterKaleidoDrawForIdRuns == 1, 10,
                     "AfterKaleidoDrawPage id-keyed registrant never ran -- trade-slot cycling draws no affordance");
         HOOK_ASSERT(sBeforeKaleidoDrawForIdRuns == 1, 10, "the After dispatcher also re-ran Before registrants");
+        HOOK_ASSERT(sBeforeKaleidoDrawRuns == 2, 10, "the After dispatcher also re-ran unkeyed Before registrants");
 
         GameInteractor_ExecuteAfterKaleidoDrawPage(&pauseCtx, kPauseIndexKaleido + 1);
         HOOK_ASSERT(sAfterKaleidoDrawRuns == 2, 10, "AfterKaleidoDrawPage unkeyed leg skipped another page index");
