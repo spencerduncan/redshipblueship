@@ -165,6 +165,49 @@ public:
         std::memcpy(state.saveContext.data(), saveContextData, size);
     }
 
+    // Arm the shadow bytes that are ALREADY resident as a frozen blob, without
+    // recopying them. This is the missing inverse of the freeze machinery: a
+    // .redsave Load commits through UpdateShadowCopy, which deliberately does
+    // not set hasBeenFrozen, and every consumer that can move a blob into a
+    // live gSaveContext gates on that flag (RestoreState above,
+    // Combo_ConsumeFrozenState, MM_Game_Resume). Before this there was no way
+    // to arm an existing shadow at all, so a faithfully loaded save sat in
+    // memory byte-exact and structurally unreachable.
+    //
+    // REFUSES an all-zero blob, and that refusal is load-bearing rather than
+    // defensive: a slot saved before the player ever entered MM has an all-zero
+    // Tier-3, and arming that would restore a zeroed SaveContext over the
+    // bootstrap file MM's title chain authors — strictly worse than the cold
+    // boot it would replace. "No bytes" and "bytes that happen to be zero" are
+    // indistinguishable here by construction, so zero means absent.
+    //
+    // Does NOT invent a returnEntrance beyond what the caller supplies; where a
+    // resumed game actually spawns is that game's own spawn policy, not a
+    // property of the blob's arming.
+    bool ArmShadowAsFrozen(GameId game, uint16_t returnEntrance) {
+        if (!mInitialized) Initialize();
+
+        FrozenGameState& state = GetState(game);
+        if (state.saveContext.empty()) {
+            return false;
+        }
+
+        bool anyNonZero = false;
+        for (uint8_t b : state.saveContext) {
+            if (b != 0) {
+                anyNonZero = true;
+                break;
+            }
+        }
+        if (!anyNonZero) {
+            return false;
+        }
+
+        state.returnEntrance = returnEntrance;
+        state.hasBeenFrozen = true;
+        return true;
+    }
+
 private:
     FrozenGameState& GetState(GameId game) {
         if (game == GAME_OOT) {
@@ -399,6 +442,13 @@ const void* Context_GetMMSaveContext(void) {
 
 void Context_UpdateShadowCopy(GameId game, const void* saveContext, size_t size) {
     gFrozenStates.UpdateShadowCopy(game, saveContext, size);
+}
+
+int Context_ArmShadowAsFrozen(GameId game, uint16_t returnEntrance) {
+    if (game != GAME_OOT && game != GAME_MM) {
+        return 0;
+    }
+    return gFrozenStates.ArmShadowAsFrozen(game, returnEntrance) ? 1 : 0;
 }
 
 // ============================================================================

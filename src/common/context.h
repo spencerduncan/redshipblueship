@@ -98,6 +98,32 @@ const void* Context_GetMMSaveContext(void);
  */
 void Context_UpdateShadowCopy(GameId game, const void* saveContext, size_t size);
 
+/**
+ * Arm the ALREADY-RESIDENT shadow bytes for @p game as a frozen blob, so the
+ * restore path will hand them to that game's live SaveContext.
+ *
+ * This is the missing inverse of the freeze machinery. Shadow copy and frozen
+ * blob are the same storage; the only thing separating them is hasBeenFrozen,
+ * which FreezeState alone used to set. A .redsave Load commits through
+ * Context_UpdateShadowCopy, which does not set it, and EVERY consumer that can
+ * move a blob into a live gSaveContext gates on it (Context_RestoreState,
+ * Combo_ConsumeFrozenState, MM_Game_Resume). So a faithfully loaded save sat in
+ * memory byte-exact and structurally unreachable, which is the read-side half
+ * of the operator's "MM will be reset after game restart".
+ *
+ * REFUSES an all-zero blob, returning 0. That refusal is load-bearing: a slot
+ * saved before the player ever entered MM has an all-zero Tier-3, and arming it
+ * would restore a zeroed SaveContext over the bootstrap file MM's title chain
+ * authors — strictly worse than the cold boot it replaces. "No bytes" and
+ * "bytes that are all zero" are indistinguishable here, so zero means absent.
+ *
+ * @param returnEntrance recorded verbatim; this call does not invent one. Where
+ *        a resumed game actually spawns is that game's own spawn policy (MM's
+ *        owl / new-cycle rules), not a property of arming.
+ * @return 1 if the blob was armed, 0 if it was empty or the game is invalid.
+ */
+int Context_ArmShadowAsFrozen(GameId game, uint16_t returnEntrance);
+
 // ============================================================================
 // Combo context
 // ============================================================================
@@ -688,9 +714,18 @@ typedef enum {
  * The seed stamp is governed by @p seedPolicy; see ComboSeedStampPolicy.
  *
  * Deliberately does NOT touch gCurrentGame (which game is running right now is
- * still true) and does NOT arm a frozen blob from anything. Arming is the
- * exclusive job of a real freeze, which keeps the "a plain .redsave load
- * applies on the next switch only" semantics from #419/#420 intact.
+ * still true) and does NOT arm a frozen blob from anything.
+ *
+ * NOTE (corrected): this used to claim arming was "the exclusive job of a real
+ * freeze, which keeps the 'a plain .redsave load applies on the next switch
+ * only' semantics from #419/#420 intact". That contract was never implementable
+ * as written — the next cross-game switch freezes the DEPARTING game
+ * (Combo_CheckEntranceSwitch resolves its gameId from Context_GetCurrentGame),
+ * so it never arms the ARRIVING side, and a loaded blob was therefore not
+ * applied on the next switch or on any other occasion. Arming a loaded slot is
+ * now an explicit, separate step: Context_ArmShadowAsFrozen. What this function
+ * still guarantees is narrower and true: invalidation itself never arms
+ * anything.
  */
 void Context_InvalidateSessionState(ComboSeedStampPolicy seedPolicy);
 
@@ -749,9 +784,11 @@ void Context_InvalidateSessionOnNewGame(int isRandoFile);
  * belonged to the slot. Clearing first makes "no .redsave" mean "no cross-game
  * state", which is the truth.
  *
- * Does NOT arm a frozen blob — the caller's RsbsSave_Load repopulates gComboCtx
- * and both shadows, and arming stays the exclusive job of a real freeze so the
- * #419/#420 "applies on next switch only" plain-load semantics survive.
+ * Does NOT arm a frozen blob itself — this is the CLEAR half. The caller's
+ * RsbsSave_Load repopulates gComboCtx and both shadows and performs its own
+ * explicit arming step (Context_ArmShadowAsFrozen) for a tier that actually
+ * carries data. Ordering matters and is already correct at the call site: the
+ * clear runs BEFORE the load, so it never wipes the bytes just read.
  */
 void Context_InvalidateSessionOnSlotLoad(void);
 
