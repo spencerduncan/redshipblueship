@@ -103,6 +103,11 @@ extern "C" {
     // games/mm/2s2h/GameExports_SingleExe.cpp. Success is observed by
     // re-checking archive availability, not via a return value.
     void MM_Extract_OfferAndRun(void);
+    // Registers MM's four tracker windows on the shared Gui (#392 bypass
+    // surface, games/mm/2s2h/TrackersGuiSingleExe.cpp). Declared here rather
+    // than included: TrackersGuiSingleExe.h lives under games/mm/2s2h, which is
+    // not on this target's include path.
+    void MM_TrackersGui_Init(void);
     // Build-version strings baked into each game library
     // (games/*/src/boot/build.c); declarations match each game's own header.
     extern const char OoT_gBuildVersion[];
@@ -528,6 +533,23 @@ int main(int argc, char** argv) {
     // exist after the point at which it could still change anything. It has to
     // be reachable while OoT is the running game.
     Combo_MMOptionsWindow_Init();
+
+    // MM's four tracker windows (#535). Same seam, same reason: registration
+    // used to hang off MM_Rando_Init, so the windows existed only once MM had
+    // booted in this process and the Randomizer > Cross-Game rows that name
+    // them resolved to nothing for the whole of a default OoT-first session.
+    //
+    // Safe before MM boots. MM_TrackersGui_Init needs a Ship::Context with a
+    // window and a Gui (it no-ops otherwise) and nothing else of MM's: it
+    // populates two static tables (Rando::StaticData::CheckNames,
+    // safeItemsForInventorySlot) and constructs four windows whose InitElements
+    // are empty but for the item-tracker settings pane, which reads only Config
+    // and CVars. The tracker ICON load inside is gated on MM_Rando_AssetsReady()
+    // and so is skipped here; MM_Rando_Init still calls this function once
+    // mm.o2r is mounted, where registration is an idempotent no-op and the
+    // icons load. Every registered window is MMActiveGated, so it draws nothing
+    // while OoT is the running game.
+    MM_TrackersGui_Init();
 
     // Belt and braces: re-assert the unattended-safe handlers after game init.
     // The claim above already makes Ship::Context::InitCrashHandler a no-op

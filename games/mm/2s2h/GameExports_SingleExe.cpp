@@ -1458,6 +1458,11 @@ extern "C" void MM_Rando_Init(void) {
     // only while MM is the active game. Upstream did this from BenGui.cpp's
     // SetupGuiElements (excluded); the bypass surface lives in
     // 2s2h/TrackersGuiSingleExe.cpp. No-op when the harness has no window.
+    //
+    // No longer the first caller (#535): rsbs/src/main.cpp registers them at
+    // startup so an OoT-first session can reach the menu rows that name them.
+    // Registration here is then idempotent, and what this call still does is
+    // load the tracker icons, which needs the mm.o2r this path has mounted.
     MM_TrackersGui_Init();
 
     // Shared cross-game resources (#525): keep the SHARED rupee pool alive
