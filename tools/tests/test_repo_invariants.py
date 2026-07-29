@@ -108,14 +108,31 @@ def test_claude_tool_documents_windows_only(path):
 def test_properties_template_carries_pragma_once(template, generated):
     """configure_file writes the template over the tracked header in the source
     tree, so a template without `#pragma once` silently reverts upstream #178
-    on every configure and leaves the working tree dirty."""
-    template_head = template.read_text(encoding="utf-8").splitlines()[:2]
-    generated_head = generated.read_text(encoding="utf-8").splitlines()[:2]
-    assert template_head[0] == "#pragma once", f"{template} is missing #pragma once"
-    assert template_head == generated_head, (
-        f"{template} and {generated} disagree on their leading lines; the next "
-        f"CMake configure would rewrite {generated.name}"
+    on every configure and leaves the working tree dirty.
+
+    The whole file is checked, not just the pragma: the invariant is that the
+    committed header is exactly what `configure_file(... @ONLY)` would emit, so
+    a configure is a no-op on a clean tree. Each `@VAR@` is compared as a
+    wildcard because its expansion is a build-time value this test cannot
+    resolve -- which means literal text deleted from directly beside a `@VAR@`
+    is absorbed by that wildcard and slips through. Added, removed and
+    reordered lines, and literal drift anywhere else, all fail here."""
+    template_lines = template.read_text(encoding="utf-8").splitlines()
+    generated_lines = generated.read_text(encoding="utf-8").splitlines()
+    assert template_lines and template_lines[0] == "#pragma once", f"{template} is missing #pragma once"
+    assert len(template_lines) == len(generated_lines), (
+        f"{template} has {len(template_lines)} lines but {generated.name} has "
+        f"{len(generated_lines)}; the next CMake configure would rewrite it"
     )
+    for lineno, (raw, emitted) in enumerate(zip(template_lines, generated_lines), start=1):
+        pattern = "".join(
+            ".*" if part.startswith("@") and part.endswith("@") else re.escape(part)
+            for part in re.split(r"(@[A-Za-z0-9_]+@)", raw)
+        )
+        assert re.fullmatch(pattern, emitted), (
+            f"{template}:{lineno} does not produce {generated.name}:{lineno}; a "
+            f"CMake configure would dirty the working tree\n  template:  {raw}\n  generated: {emitted}"
+        )
 
 
 def test_mm_stubs_defines_no_unprefixed_frame_interpolation():
