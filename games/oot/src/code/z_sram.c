@@ -283,6 +283,18 @@ void OoT_Sram_InitSave(FileChooseContext* fileChooseCtx) {
     // cleared state, instead of persisting the dead session's crossings into
     // the new file's very first save.
     //
+    // INVARIANT (#534): ordering alone cannot protect what GENERATION already
+    // authored, because generation ran minutes ago in the menu — before this
+    // function. Two gComboCtx artifacts exist by now precisely because
+    // isRandoFile is true: the seed stamp and the reverse placement table
+    // (foreignPlacementsOoT, the MM items #524 hosts in this seed's OoT
+    // checks), written back-to-back by Playthrough_Init. Both must survive
+    // this clear — nothing re-places the reverse table afterwards, so a wipe
+    // here silences every reverse delivery, and the (b) write below then
+    // persists the loss into the slot's first .redsave. The KEEP policy
+    // inside the call preserves exactly those two; everything the dead
+    // session authored still goes.
+    //
     // isRandoFile is exactly the condition the branch below uses, so the seed
     // stamp is kept precisely when generation has already authored it for this
     // file and dropped for a vanilla file (where a surviving stamp would leave

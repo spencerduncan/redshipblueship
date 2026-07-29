@@ -1,5 +1,8 @@
 """Attach to a running process, dump every thread's RIP + raw-stack scan with
-module resolution, then detach leaving it running. Usage: stacks.py <pid>"""
+module resolution, then detach leaving it running. Usage: stacks.py <pid>
+
+Windows-only: binds ctypes.windll at module scope, so importing this file on
+Linux/macOS raises. Invoke it as a script, never import it."""
 import ctypes as C
 import ctypes.wintypes as W
 import sys, struct
@@ -58,10 +61,13 @@ def read_mem(hProc, addr, size):
     return out
 
 def main():
+    if len(sys.argv) < 2:
+        print(__doc__)
+        return 2
     pid = int(sys.argv[1])
     hProc = k32.OpenProcess(0x1F0FFF, False, pid)
     if not hProc:
-        print("OpenProcess failed", k32.GetLastError()); return
+        print("OpenProcess failed", k32.GetLastError()); return 1
     mods = module_list(hProc)
     exebase = next((b for b, s, n in mods if n.lower().endswith("redship.exe")), 0)
     print("modules=%d exe_base=0x%X" % (len(mods), exebase))
@@ -107,5 +113,8 @@ def main():
         k32.ResumeThread(hT)
         k32.CloseHandle(hT)
     k32.CloseHandle(hProc)
+    return 0
 
-main()
+
+if __name__ == "__main__":
+    sys.exit(main())

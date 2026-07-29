@@ -774,29 +774,38 @@ bool Context_HasPendingSwitch(void);
 // .redsave would keep inheriting the previous session.
 
 /**
- * What Context_InvalidateSessionState does with the Lane B seed stamp
- * (sourceIsRando / sharedRandoSeed / sharedRandoSettingsHash).
+ * What Context_InvalidateSessionState does with the GENERATION-AUTHORED state:
+ * the Lane B seed stamp (sourceIsRando / sharedRandoSeed /
+ * sharedRandoSettingsHash) and, since #534, the reverse placement table
+ * (foreignPlacementsOoT) that generation derives from that stamp.
  *
- * The stamp is the one part of gComboCtx that is NOT authored by the session
- * being torn down: Playthrough_Init writes it at GENERATION time, which for a
- * new file happens BEFORE the file is created (generate a seed in the menu,
- * then name the file). So the new-file call site must keep a stamp that
- * generation just authored, while a return-to-title must drop one that nothing
- * stands behind. Making that an explicit argument rather than a hidden policy
- * means every call site has to state which situation it is in.
+ * These are the one part of gComboCtx that is NOT authored by the session
+ * being torn down: Playthrough_Init writes the stamp at GENERATION time and
+ * immediately derives the reverse placements from it (OoT_PlaceForeignItems),
+ * which for a new file happens BEFORE the file is created (generate a seed in
+ * the menu, then name the file). So the new-file call site must keep what
+ * generation just authored, while a return-to-title must drop a stamp that
+ * nothing stands behind. Making that an explicit argument rather than a
+ * hidden policy means every call site has to state which situation it is in.
  */
 typedef enum {
     /**
-     * Drop the stamp. Correct wherever no generation stands behind it: a soft
-     * reset to title, and a NON-rando new file. A surviving stamp is not inert
-     * — Combo_ForeignPairingActive() is literally
+     * Drop the stamp (and the reverse placement table with it). Correct
+     * wherever no generation stands behind it: a soft reset to title, and a
+     * NON-rando new file. A surviving stamp is not inert —
+     * Combo_ForeignPairingActive() is literally
      * `sourceIsRando && sharedRandoSettingsHash != 0`, so a dead session's
      * stamp makes MM believe a paired world exists for a seed that is gone.
      */
     RSBS_SEED_STAMP_DROP = 0,
     /**
-     * Keep the stamp. Correct ONLY where generation has already authored it
-     * for the file now being created (OoT_Sram_InitSave on a randomizer file).
+     * Keep the stamp AND the reverse placement table (#534) — they were
+     * authored together and are only coherent together. Correct ONLY where
+     * generation has already authored them for the file now being created
+     * (OoT_Sram_InitSave on a randomizer file). The FORWARD table
+     * (foreignPlacements) is dropped even here: MM re-authors it at its own
+     * OnFileCreate on the next arrival, so at file-creation time it can only
+     * hold a dead session's rows.
      */
     RSBS_SEED_STAMP_KEEP = 1,
 } ComboSeedStampPolicy;
@@ -828,7 +837,9 @@ typedef enum {
  *     foreignPlacements. A stale sharedItemsTagged is how another player's
  *     grants from a dead room would reach a fresh seed.
  *
- * The seed stamp is governed by @p seedPolicy; see ComboSeedStampPolicy.
+ * The seed stamp and the generation-authored reverse placement table
+ * (foreignPlacementsOoT, #534) are governed by @p seedPolicy; see
+ * ComboSeedStampPolicy.
  *
  * Deliberately does NOT touch gCurrentGame (which game is running right now is
  * still true) and does NOT arm a frozen blob from anything.
@@ -883,10 +894,11 @@ int Context_InvalidateSessionOnReturnToTitle(void);
  *
  * @param isRandoFile non-zero iff the file being created is a randomizer file
  *        whose seed has already been generated. That is the ONLY case where the
- *        seed stamp is kept: generation ran moments ago, in the menu, and
- *        authored the stamp FOR this file. A vanilla new file passes 0 and the
- *        stamp goes with the rest of the dead session — otherwise
- *        Combo_ForeignPairingActive() would still report a paired world.
+ *        seed stamp and the reverse placement table are kept: generation ran
+ *        moments ago, in the menu, and authored both FOR this file (#534). A
+ *        vanilla new file passes 0 and the stamp goes with the rest of the dead
+ *        session — otherwise Combo_ForeignPairingActive() would still report a
+ *        paired world.
  */
 void Context_InvalidateSessionOnNewGame(int isRandoFile);
 

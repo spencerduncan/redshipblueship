@@ -1458,6 +1458,11 @@ extern "C" void MM_Rando_Init(void) {
     // only while MM is the active game. Upstream did this from BenGui.cpp's
     // SetupGuiElements (excluded); the bypass surface lives in
     // 2s2h/TrackersGuiSingleExe.cpp. No-op when the harness has no window.
+    //
+    // No longer the first caller (#535): rsbs/src/main.cpp registers them at
+    // startup so an OoT-first session can reach the menu rows that name them.
+    // Registration here is then idempotent, and what this call still does is
+    // load the tracker icons, which needs the mm.o2r this path has mounted.
     MM_TrackersGui_Init();
 
     // Shared cross-game resources (#525): keep the SHARED rupee pool alive
@@ -2103,6 +2108,13 @@ extern "C" int MM_ForeignItem_Give(uint16_t riId);
  * cleared (the durable record of the crossing). A give that reports failure is
  * logged but still consumes the redemption — an unresolvable id is a data bug,
  * not something to retry on every future arrival.
+ *
+ * NO PLAYER-FACING PRESENTATION HERE, deliberately (#494). The arrival toast
+ * lives next to the give itself (2s2h/Rando/ForeignItemsSingleExe.cpp), which is
+ * the only point gameplay-gated by construction — this callback runs before
+ * `MM_gPlayState = this`, and the ROM-free rows drive it headlessly with no Gui
+ * (src/common/tests/test_foreign_award.c). A Notification::Emit added back here
+ * would fire before the item exists and on a display-free CI path.
  */
 static void MM_AwardSharedItem(const SharedItem* item, void* ctx) {
     (void)ctx;

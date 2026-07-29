@@ -401,12 +401,18 @@ void RandomizerOnPlayerUpdateForRCQueueHandler() {
         // class (#494/#507, OoT_AwardSharedItem), it takes an arbitrary string,
         // and it cannot interfere with the item-get queue. A fully native
         // textbox is a follow-up that needs that display-only path first.
+        //
+        // FIELD ARRANGEMENT (#494): verb in `.message`, item name in `.suffix`,
+        // matching the native rando pickup toasts further down this file.
+        // Options colours each field differently, so the earlier `.prefix` +
+        // `.message` form rendered this pickup in blue-then-grey where every
+        // ordinary one is grey-then-red.
         const char* foreignName = Combo_GetForeignItemName(*foreignItem);
         const char* foreignArticle = Combo_GetForeignItemArticle(*foreignItem);
         Notification::Emit({
-            .prefix = "You found",
-            .message = std::string(foreignArticle != nullptr ? foreignArticle : "") +
-                       (foreignName != nullptr ? foreignName : "a foreign item"),
+            .message = "You found ",
+            .suffix = std::string(foreignArticle != nullptr ? foreignArticle : "") +
+                      (foreignName != nullptr ? foreignName : "a foreign item"),
         });
 
         // RCSHOW_COLLECTED is what HasObtained() reads (status == RCSHOW_COLLECTED
