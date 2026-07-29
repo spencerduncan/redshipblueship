@@ -23,12 +23,21 @@
  * (games/mm/include/mm_game_hooks.h), dispatched from MM's own frame loop,
  * and this test pins the folded copy to OoT's layout.
  *
- * Three locks, in order of strength:
+ * Four locks, in order of strength:
  *
  * 1. LAYOUT PREMISE (machine-verified, not assumed). The two ports' sizeof /
  *    offsetof(nextHookId) are compared at runtime, each reported from its own
  *    TU with its own production headers and flags. If they ever agree, the
  *    fault class evaporates and this test should be revisited.
+ *
+ * 1b. REGISTRY IDENTITY (#470). Both trees export the address of their
+ *    RegisteredGameHooks<OnSceneInit> / HooksToUnregister<OnSceneInit>
+ *    statics for a hook NAME the two hook tables share with divergent
+ *    std::function payloads; the addresses must differ. MM's side stays a
+ *    distinct symbol because its hook types are tag-scoped under
+ *    GameInteractor::MM_HookTypes — revert that and the two registries
+ *    COMDAT-fold into one object, which this catches at runtime (and
+ *    .github/scripts/check-symbol-collisions.sh catches at the archives).
  *
  * 2. FOLD/CALL-SITE BEHAVIOR (the lock linker ICF cannot defeat). OoT-side
  *    registration is run against an oversized zeroed buffer twice — once as a
@@ -80,6 +89,16 @@ void OoT_GI_ProbePumpOnMainStart(void);
 size_t MM_GI_InstanceSize(void);
 size_t MM_GI_NextHookIdOffset(void);
 void MM_GIShim_TestArmIntegrationHooks(void);
+// #470 registry-identity probes: each side's address of its
+// RegisteredGameHooks<OnSceneInit>/HooksToUnregister<OnSceneInit> statics,
+// exported from a real TU of that tree. OnSceneInit is a hook NAME both
+// ports define with divergent std::function payloads (each probe TU
+// static_asserts its own side's shape, so the divergence premise is pinned
+// at compile time). Distinct addresses == distinct symbols == no COMDAT fold.
+void* OoT_GI_OnSceneInitRegistryAddr(void);
+void* OoT_GI_OnSceneInitUnregQueueAddr(void);
+void* MM_GI_OnSceneInitRegistryAddr(void);
+void* MM_GI_OnSceneInitUnregQueueAddr(void);
 }
 
 namespace {
@@ -138,6 +157,26 @@ extern "C" int MM_GIShim_RunHeadless(void) {
                "MM and OoT GameInteractor layouts agree — the premise of #395 no longer holds, revisit this lock");
     GIS_ASSERT(mmOff + sizeof(uint32_t) > ootSize,
                "MM's nextHookId lies inside OoT's allocation — probe confinement below would be vacuous, revisit");
+
+    // ---- 1b. Registry identity (#470): same hook NAME, two symbols -------
+    // MM's probe TU deliberately instantiates the registry for OnSceneInit —
+    // a hook name BOTH tables define, with divergent payloads. Without the
+    // MM_HookTypes tag scope (MM GameInteractor.h) the two trees' statics
+    // mangle identically under Itanium and the linker keeps ONE object;
+    // these getters are opaque cross-TU calls, and the maps are writable
+    // data, so equal addresses can only mean that fold happened. Teeth are
+    // on the Linux/macOS legs: MSVC manglings embed the divergent payload
+    // type, so Windows never folds THIS pair and passes either way — do not
+    // "verify" a revert of the tag scope on Windows alone.
+    printf("[TEST] OnSceneInit registries — OoT functions=%p unregQueue=%p, MM functions=%p unregQueue=%p\n",
+           OoT_GI_OnSceneInitRegistryAddr(), OoT_GI_OnSceneInitUnregQueueAddr(), MM_GI_OnSceneInitRegistryAddr(),
+           MM_GI_OnSceneInitUnregQueueAddr());
+    GIS_ASSERT(OoT_GI_OnSceneInitRegistryAddr() != MM_GI_OnSceneInitRegistryAddr(),
+               "OoT and MM RegisteredGameHooks<OnSceneInit> folded into one object — the #470 MM_HookTypes tag "
+               "scope is gone, divergent std::function payloads now share one map");
+    GIS_ASSERT(OoT_GI_OnSceneInitUnregQueueAddr() != MM_GI_OnSceneInitUnregQueueAddr(),
+               "OoT and MM HooksToUnregister<OnSceneInit> folded into one queue — the #470 MM_HookTypes tag "
+               "scope is gone, cross-game unregister ids would leak between registries");
 
     // ---- 2. Registration writes stay inside OoT's allocation -------------
     // Direct = what OoT's real call sites execute (inlining included).
@@ -238,8 +277,9 @@ extern "C" int MM_GIShim_RunHeadless(void) {
     MM_GameHooks_ResetForTest();
     Context_SetCurrentGame(prevGame);
 
-    printf("[TEST] PASS: mm-gi-shim — MM hook registration stays off the shared 4-byte instance, all four "
-           "hook-driven integration modes arm through the MM-owned shim\n");
+    printf("[TEST] PASS: mm-gi-shim — MM hook registration stays off the shared 4-byte instance, the two ports' "
+           "same-named hook registries are distinct symbols, all four hook-driven integration modes arm through "
+           "the MM-owned shim\n");
     return 0;
 }
 

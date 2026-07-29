@@ -14,7 +14,13 @@
  * The Execute*, Unregister*, and GetHookData members only touch the
  * inline-static per-hook-type maps (no instance state), so they stay usable
  * — e.g. the GameInteractor_ExecuteOnRoomInit wrappers in
- * GameExports_SingleExe.cpp.
+ * GameExports_SingleExe.cpp. That permission is fold-safe as well as
+ * OOB-safe: since #470 MM's hook types are tag-scoped under
+ * GameInteractor::MM_HookTypes (see the DEFINE_HOOK block in
+ * 2s2h/GameInteractor/GameInteractor.h), so the per-hook-type statics an MM
+ * Execute*/GetHookData instantiation touches mangle MM-distinct and cannot
+ * COMDAT-fold with OoT's divergent-payload instantiations of the same hook
+ * NAME.
  *
  * Mechanism: force-included AFTER GameInteractor.h (games/mm/CMakeLists.txt,
  * the _force_include_cxx_guarded list), so the class definition itself parses

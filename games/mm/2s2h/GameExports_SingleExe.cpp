@@ -19,7 +19,8 @@
 
 #ifdef RSBS_SINGLE_EXECUTABLE
 
-#include <cstddef> // offsetof for the #395 layout facts; ptrdiff_t
+#include <cstddef>     // offsetof for the #395 layout facts; ptrdiff_t
+#include <type_traits> // std::is_same_v for the #470 payload-divergence premise
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -689,6 +690,29 @@ extern "C" size_t MM_GI_InstanceSize(void) {
 
 extern "C" size_t MM_GI_NextHookIdOffset(void) {
     return offsetof(GameInteractor, nextHookId);
+}
+
+// #470 registry-identity probes — MM's view of the OnSceneInit hook registry.
+// Naming RegisteredGameHooks<OnSceneInit> here instantiates, from a linked MM
+// TU, exactly the symbol #470's arming scenario would create: OnSceneInit is
+// a hook NAME both ports' tables define, with divergent payloads (OoT
+// std::function<void(int16_t)>, MM the two-arg form the static_assert pins).
+// The MM_HookTypes tag scope (2s2h/GameInteractor/GameInteractor.h) keeps
+// this instantiation's mangled name disjoint from OoT's, so it is safe to
+// emit — and it is emitted ON PURPOSE: the mm-gi-shim lock asserts these
+// addresses differ from the OoT twins' (GameInteractor_Hooks.cpp), and the
+// check-symbol-collisions.sh #470 probe needs a same-named-hook registry in
+// the 2ship archives so a tag revert folds a real symbol instead of passing
+// vacuously.
+static_assert(std::is_same_v<GameInteractor::OnSceneInit::fn, std::function<void(s8, s8)>>,
+              "MM's OnSceneInit payload changed shape — revisit the #470 registry-identity lock");
+
+extern "C" void* MM_GI_OnSceneInitRegistryAddr(void) {
+    return &GameInteractor::RegisteredGameHooks<GameInteractor::OnSceneInit>::functions;
+}
+
+extern "C" void* MM_GI_OnSceneInitUnregQueueAddr(void) {
+    return &GameInteractor::HooksToUnregister<GameInteractor::OnSceneInit>::hooks;
 }
 
 // ============================================================================

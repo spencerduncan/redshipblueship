@@ -469,6 +469,42 @@ class GameInteractor {
         }
     };
 
+#if defined(RSBS_SINGLE_EXECUTABLE)
+    //
+    // Single-exe hook-type tag scope (#470).
+    //
+    // Both ports define this same-named global class, and every hook-keyed
+    // template member above — RegisteredGameHooks<H> / HooksToUnregister<H>
+    // and the Register*/Unregister*/Execute*/GetHookData<H> bodies — mangles
+    // on the enclosing class name plus the hook-TYPE name. H::fn (the
+    // std::function payload, divergent for 14 of the 16 hook names the two
+    // ports' tables share) never enters an Itanium variable mangling, so on
+    // the Linux/macOS links an MM instantiation of any same-named hook's
+    // registry COMDAT-folds with OoT's into ONE object invoked through two
+    // incompatible payload views — GNU ld dedups vague linkage silently.
+    // MSVC does embed the variable's type, so Windows only folds the
+    // identical-payload names (OnGameStateMainStart, OnPlayDestroy,
+    // OnOpenText, OnSeqPlayerInit) — no garbage arguments there, but still
+    // one registry silently shared across both games. Nesting MM's hook
+    // types under MM_HookTypes puts an MM-distinct tag into every such
+    // mangled name (including S2H::GameHooks::Registry<H> keys), so no
+    // hook-keyed MM symbol can share a name with OoT's tree on either
+    // mangling: folding becomes impossible by construction instead of merely
+    // unexercised.
+    //
+    // The upstream DEFINE_HOOK block below stays textually unchanged; the
+    // alias re-expansion after it keeps every `GameInteractor::<Hook>`
+    // spelling (COND_* macros, S2H::GameHooks call sites, the executors in
+    // GameExports_SingleExe.cpp) compiling as-is.
+    //
+    // Locks: the mm-gi-shim ctest row asserts OoT's and MM's
+    // RegisteredGameHooks<OnSceneInit> are distinct objects at runtime, and
+    // .github/scripts/check-symbol-collisions.sh fails the build if any
+    // GameInteractor registry symbol is emitted by both trees.
+    //
+    struct MM_HookTypes {
+#endif // RSBS_SINGLE_EXECUTABLE
+
 #define DEFINE_HOOK(name, args)                  \
     struct name {                                \
         typedef std::function<void args> fn;     \
@@ -478,6 +514,14 @@ class GameInteractor {
 #include "GameInteractor_HookTable.h"
 
 #undef DEFINE_HOOK
+
+#if defined(RSBS_SINGLE_EXECUTABLE)
+    };
+
+#define DEFINE_HOOK(name, args) using name = MM_HookTypes::name;
+#include "GameInteractor_HookTable.h"
+#undef DEFINE_HOOK
+#endif // RSBS_SINGLE_EXECUTABLE
 };
 
 extern "C" {

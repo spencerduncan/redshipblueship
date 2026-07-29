@@ -139,3 +139,57 @@ if [ -s "$TMP_DIR/new" ]; then
 fi
 
 echo "OK: soh_*/2ship_* symbol intersection matches baseline ($COUNT symbol(s), all tolerated)"
+
+# --------------------------------------------------------------------------
+# #470: GameInteractor hook-registry statics. These are WEAK/unique symbols
+# and so exempt from the strong-symbol gate above — but they are the one
+# vague-linkage family where cross-tree folding is NOT legitimate: both ports
+# define global-namespace GameInteractor::RegisteredGameHooks<H> /
+# HooksToUnregister<H>, mangled on the enclosing class + hook-type NAME only,
+# while H::fn (the std::function payload, divergent for 14 of the 16 shared
+# hook names) never enters the symbol. A fold merges two incompatible
+# registries into one object. MM's hook types are tag-scoped under
+# GameInteractor::MM_HookTypes (games/mm/2s2h/GameInteractor/GameInteractor.h)
+# precisely so no such symbol can be emitted by both trees; this probe fails
+# the build if one ever is. Anti-vacuity: GameExports_SingleExe.cpp
+# instantiates MM's OnSceneInit registry on purpose (a hook name OoT also
+# defines), so a tag revert produces a real intersection here instead of an
+# empty-set pass.
+collect_gi_registry() {
+    local out="$1"
+    shift
+    : > "$out.raw"
+    local lib
+    for lib in "$@"; do
+        [ -f "$lib" ] || continue
+        # Keep ALL defined external symbols (weak W/V and GNU-unique u
+        # included — inline statics land there); match the two registry
+        # templates by their Itanium-mangled scope prefix.
+        nm --defined-only --extern-only "$lib" 2>/dev/null |
+            awk 'NF == 3 { print $3 }' |
+            grep -E '^_ZN14GameInteractor(19RegisteredGameHooks|17HooksToUnregister)I' >> "$out.raw" || true
+    done
+    sort -u "$out.raw" > "$out"
+    if [ ! -s "$out" ]; then
+        echo "error: zero GameInteractor hook-registry symbols in: $* — the #470 probe instantiations" >&2
+        echo "(OoT: GameInteractor_Hooks.cpp, MM: GameExports_SingleExe.cpp) or the mangling scheme moved?" >&2
+        echo "Refusing to pass vacuously; fix the collection here rather than losing the guard." >&2
+        exit 2
+    fi
+}
+
+collect_gi_registry "$TMP_DIR/soh_gireg"   "$BUILD_DIR"/games/oot/libsoh_*.a
+collect_gi_registry "$TMP_DIR/2ship_gireg" "$BUILD_DIR"/games/mm/lib2ship_*.a
+
+comm -12 "$TMP_DIR/soh_gireg" "$TMP_DIR/2ship_gireg" > "$TMP_DIR/gireg_folded"
+
+if [ -s "$TMP_DIR/gireg_folded" ]; then
+    echo "FAIL: GameInteractor hook-registry symbol(s) emitted by BOTH soh_* and 2ship_* archives:" >&2
+    demangle < "$TMP_DIR/gireg_folded" | sed 's/^/  /' >&2
+    echo "The linker will keep ONE of each — merging two hook registries whose std::function" >&2
+    echo "payloads have different call signatures (#470). MM hook types must stay tag-scoped" >&2
+    echo "under GameInteractor::MM_HookTypes (games/mm/2s2h/GameInteractor/GameInteractor.h)." >&2
+    exit 1
+fi
+
+echo "OK: GameInteractor hook-registry symbols are disjoint across the two trees (#470)"
