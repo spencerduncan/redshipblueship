@@ -105,12 +105,20 @@ GIEvent& MM_GameEvents_Current();
  * migration (#392, contract in PR #415).
  *
  * MM's upstream registry lives in `GameInteractor::RegisteredGameHooks<H>` /
- * `HooksToUnregister<H>` inline statics. Those mangle under the shared
- * `class GameInteractor` scope, so an MM instantiation COMDAT-contends with
- * OoT's identically-named instantiations — with incompatible H::fn signatures
- * for 14 of the 16 shared hook names (#395/#367 class) — and the registering
- * members read/write `this->nextHookId` on the 4-byte shared allocation (the
- * #395 OOB). This registry reproduces the upstream semantics MM's Rando code
+ * `HooksToUnregister<H>` inline statics, and the registering members
+ * read/write `this->nextHookId` on the 4-byte shared allocation — the #395
+ * OOB, which is the standing reason MM must not use them and which
+ * include/mm_gi_hook_guard.h enforces per target.
+ *
+ * Those statics ALSO used to COMDAT-contend with OoT's identically-named
+ * instantiations, whose H::fn payloads differ for 14 of the 16 shared hook
+ * names (#395/#367 class). That half is closed since #470: MM's hook types
+ * are tag-scoped under `GameInteractor::MM_HookTypes` (2s2h/GameInteractor/
+ * GameInteractor.h), so no MM hook-keyed symbol can share a mangled name
+ * with OoT's tree. Do not re-derive the folding argument from this file —
+ * the #395 OOB alone is what keeps registration off the upstream members.
+ *
+ * This registry reproduces the upstream semantics MM's Rando code
  * expects (shared id counter, deferred unregistration flushed at dispatch)
  * under the S2H namespace: only MM TUs instantiate it, so every fold partner
  * agrees on MM's types, and no instance member of the shared class is ever

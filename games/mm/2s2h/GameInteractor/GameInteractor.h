@@ -751,9 +751,11 @@ void MM_GameHooks_ExecuteOnGameCompletion(void);
 // The upstream macro definitions above expand to
 // GameInteractor::Instance->RegisterGameHook<...> — in the single exe the
 // one GameInteractor allocation is OoT's 4-byte object, so an MM-compiled
-// registration writes past its end, and the C++ registry statics the members
-// touch COMDAT-contend with OoT's incompatible instantiations
-// (mm_game_hooks.h has the full story). Rather than editing the ~650
+// registration writes past its end (mm_game_hooks.h has the full story). The
+// registry statics those members touch no longer COMDAT-contend with OoT's
+// incompatible instantiations — the MM_HookTypes tag scope above closed that
+// half in #470 — but the #395 out-of-bounds write is untouched by it, so the
+// redirection below stands on its own. Rather than editing the ~650
 // COND_HOOK / COND_ID_HOOK / COND_VB_SHOULD / REGISTER_VB_SHOULD sites
 // across 2s2h/Rando and 2s2h/Enhancements, the macros themselves are
 // redefined here — after the upstream definitions, inside this
