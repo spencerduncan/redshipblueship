@@ -459,7 +459,12 @@ soh/properties.h
 /clang-format
 /clang-format.exe
 *.o2r
-Randomizer/
+# Runtime spoiler/seed output written to the app directory (repo root in dev
+# runs). Must stay root-anchored: an unanchored Randomizer/ also matches the
+# games/oot/soh/Enhancements/randomizer/ source tree on case-insensitive
+# filesystems (core.ignoreCase=true on Windows), silently ignoring new files.
+/Randomizer/
+/randomizer-mm/
 .venv/
 
 .claude/tmp/*
