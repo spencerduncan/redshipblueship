@@ -1205,6 +1205,14 @@ static void OoT_EnsureInventoryItem(uint8_t item) {
     }
 }
 
+// Declared locally because OTRGlobals.h only declares this inside its
+// `#ifndef __cplusplus` block — the C half of the header — so it is invisible
+// to every C++ TU. Redeclaring it here is the established pattern rather than a
+// workaround: draw.cpp, CosmeticsEditor.cpp, NoMasterSword.cpp and several
+// other C++ callers each do exactly this. The definition (OTRGlobals.cpp) is
+// extern "C", which is the linkage this must match.
+extern "C" u8 Randomizer_GetSettingValue(RandomizerSettingKey randoSettingKey);
+
 /**
  * Is this row's bag a shuffled CHECK in the live OoT seed that the player has
  * not found yet? Then the shared pool must not hand it over.
