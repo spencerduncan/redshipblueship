@@ -200,6 +200,22 @@ SaveManager::SaveManager() {
         }
     });
 
+    GameInteractor::Instance->RegisterGameHook<GameInteractor::OnDeleteFile>([](int32_t fileNum) {
+        // Keep the unified slot in lock-step with OoT's own file. Erasing
+        // file{N+1}.sav and starting a new game in slot N must NOT inherit the
+        // erased file's cross-game half.
+        //
+        // This was inert while nothing consumed the .redsave's recorded game —
+        // a stale slot file just sat there. It stops being inert the moment a
+        // load routes on that record: the new file would carry the old one's
+        // MM world and its sourceGame, and a fresh OoT save would be resumed
+        // into a stranger's MM session.
+        if (fileNum < 0 || fileNum >= RSBS_SAVE_MAX_SLOTS) {
+            return;
+        }
+        RsbsSave_DeleteSave(fileNum);
+    });
+
     GameInteractor::Instance->RegisterGameHook<GameInteractor::OnExitGame>([](int32_t fileNum) {
         // Snapshot on quit so unsaved cross-game flags (shared items, last
         // game) survive across a process exit even if the user never went
