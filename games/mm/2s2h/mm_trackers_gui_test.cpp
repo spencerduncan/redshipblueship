@@ -30,6 +30,14 @@
  * 3. HEADLESS SAFETY of the production entry point: MM_TrackersGui_Init()
  *    must no-op cleanly when the shared context has no window (the exact
  *    state MM_Rando_Init sees in ROM-free harnesses).
+ *
+ * 4. BOOT INDEPENDENCE (#535, leg 6 below). rsbs/src/main.cpp registers them at
+ *    startup so the Randomizer > Cross-Game rows that name them resolve in a
+ *    default OoT-first session; that is only sound while RegisterWindows needs
+ *    nothing of MM's boot. Registration with OoT active and mm.o2r unmounted
+ *    must still land all four names and leave the windows inert. Pins the
+ *    premise, not the call site — MM_TrackersGui_Init needs a Ship::Window,
+ *    which this harness deliberately does not have.
  */
 
 #ifdef RSBS_SINGLE_EXECUTABLE
@@ -48,6 +56,10 @@
 #include "2s2h/Rando/StaticData/StaticData.h" // CheckNames / Checks
 #include "2s2h/ShipUtils.h"                   // convertEnumToReadableName
 #include "context.h"
+
+// games/mm/2s2h/GameExports_SingleExe.cpp — true once LoadMMArchives mounted
+// mm.o2r. Read here only to keep the archive-free half of leg 6 honest.
+extern "C" bool MM_Rando_AssetsReady(void);
 
 namespace BenGui {
 // Defined in 2s2h/TrackersGuiSingleExe.cpp; populated by RegisterWindows.
@@ -287,6 +299,61 @@ extern "C" int MM_TrackersGui_RunHeadless(void) {
                    "PopulateCheckNames left named checks behind (only RC_UNKNOWN may be empty)");
     }
 
+    // ---- 6. Registration does not depend on MM having booted -------------
+    // #535. The Randomizer > Cross-Game rows resolve these windows by name on
+    // every frame they are drawn, and rsbs/src/main.cpp registers them at
+    // startup — before MM_Rando_Init has run, while OoT is the active game and
+    // with MM's archives unmounted. That call site is only legitimate as long
+    // as RegisterWindows stays independent of MM boot state, which is what this
+    // leg pins: fresh Gui, OoT active, no mm.o2r, all four names must still
+    // resolve, and the windows must still be inert.
+    //
+    // Scope honesty: this pins the PREMISE, not the call site. The call site is
+    // unreachable ROM-free — MM_TrackersGui_Init needs a Ship::Window, and the
+    // assertion at the top of this test is that the harness has none.
+    {
+        TGT_ASSERT(!MM_Rando_AssetsReady(),
+                   "harness unexpectedly has mm.o2r — the archive-free half of this leg would be vacuous");
+
+        // Forced ON before construction, as in leg 1: an ungated Draw() must
+        // not be able to early-out on !IsVisible() before reaching ImGui.
+        for (const char* cvar : kMMWindowVisibilityCVars) {
+            CVarSetInteger(cvar, 1);
+        }
+
+        auto preBootGui = std::make_shared<Ship::Gui>();
+        for (const char* name : S2H::TrackersGui::kAllTrackerWindowNames) {
+            TGT_ASSERT(preBootGui->GetGuiWindow(name) == nullptr, "fresh Gui already carries an MM tracker window");
+        }
+
+        // Every early return below this point restores the active game first —
+        // this leg is not the last one to read it.
+        const GameId prevPreBootGame = Context_GetCurrentGame();
+        Context_SetCurrentGame(GAME_OOT);
+
+        S2H::TrackersGui::RegisterWindows(preBootGui);
+
+        for (const char* name : S2H::TrackersGui::kAllTrackerWindowNames) {
+            if (preBootGui->GetGuiWindow(name) == nullptr) {
+                printf("[TEST] FAIL: %s unresolvable with OoT active and MM unbooted — the menu row that names "
+                       "it would draw nothing (#535) (%s:%d)\n",
+                       name, __FILE__, __LINE__);
+                Context_SetCurrentGame(prevPreBootGame);
+                return 1;
+            }
+        }
+
+        // Same hard tripwire as leg 2, on the windows the startup path would
+        // have produced: no ImGui context, visibility forced on, OoT active.
+        for (const char* name : S2H::TrackersGui::kAllTrackerWindowNames) {
+            auto window = preBootGui->GetGuiWindow(name);
+            window->Draw();
+            window->Update();
+        }
+
+        Context_SetCurrentGame(prevPreBootGame);
+    }
+
     // Cleanup: don't leak forced-visible tracker CVars into later tests or a
     // saved cvar file.
     for (const char* cvar : kMMWindowVisibilityCVars) {
@@ -294,8 +361,8 @@ extern "C" int MM_TrackersGui_RunHeadless(void) {
     }
 
     printf("[TEST] PASS: mm-trackers-gui — four MM tracker windows register under de-collided names beside "
-           "SoH's, their draw path is inert unless MM is the active game, their visibility tracks the live "
-           "CVar, and CheckNames is populated\n");
+           "SoH's without MM having booted, their draw path is inert unless MM is the active game, their "
+           "visibility tracks the live CVar, and CheckNames is populated\n");
     return 0;
 }
 
