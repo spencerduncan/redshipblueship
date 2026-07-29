@@ -15,6 +15,13 @@
 // Combo_HasStartupEntrance() — the discriminator that keeps the return-to-title
 // hook from eating a cross-game arrival's blob.
 #include "entrance.h"
+
+// The unified save's session-scoped active slot. Declared rather than pulled in
+// via save.h so the context layer keeps no compile-time dependency on the save
+// layer — save.h already depends on context.h, and the reverse include would
+// make that circular. Same convention game-side TUs use to reach Combo_*.
+extern "C" void RsbsSave_SetActiveSlot(int slot);
+
 #include <cstdio>
 #include <cstring>
 #include <vector>
@@ -353,6 +360,21 @@ void Context_InvalidateSessionState(ComboSeedStampPolicy seedPolicy) {
         gComboCtx.sharedRandoSeed = savedSeed;
         gComboCtx.sharedRandoSettingsHash = savedSettingsHash;
     }
+
+    // The unified save's ACTIVE SLOT is session state too, and it lived outside
+    // this function's reach: SaveManager owns it, three sites set it, and
+    // nothing ever cleared it. "Which .redsave am I part of" therefore outlived
+    // the session it described — load slot 0, quit to title, F10 into a fresh
+    // bootstrap MM session, owl-save, and the capture wrote MM's throwaway
+    // state straight over redship_slot0.redsave, destroying that slot's MM
+    // progress and its rando pairing identity.
+    //
+    // Declared here rather than by including save.h: this keeps the context
+    // layer free of a compile-time dependency on the save layer (save.h already
+    // depends on context.h), matching how game-side TUs reach Combo_*.
+    // Re-establishing a slot is the job of whatever opens one next — OoT's
+    // OnLoadFile / OnSaveFile hooks, or the departure publish.
+    RsbsSave_SetActiveSlot(-1);
 
     fprintf(stderr, "[Context] Session state invalidated (seed stamp %s: rando=%d seed=%u settings=%08X)\n",
             (seedPolicy == RSBS_SEED_STAMP_KEEP) ? "kept" : "dropped", (int)gComboCtx.sourceIsRando,

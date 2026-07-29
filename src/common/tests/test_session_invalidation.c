@@ -187,6 +187,17 @@ bool SessionIsClear(bool expectSeedStamp) {
     if (expectSeedStamp != gComboCtx.sourceIsRando) {
         return false;
     }
+    // The unified save's active slot is session state and must not outlive the
+    // session. It used to: SaveManager owned it, three sites set it, and no
+    // invalidation path cleared it — so "which .redsave am I part of" survived
+    // a quit to title, and an F10 into a fresh bootstrap MM session would
+    // owl-save straight over the previously-loaded slot, destroying that slot's
+    // MM progress and its rando pairing identity. Checked here rather than at
+    // one call site so EVERY invalidation entry point is covered by the
+    // assertions that already exist.
+    if (RsbsSave_GetActiveSlot() != -1) {
+        return false;
+    }
     return true;
 }
 
@@ -378,6 +389,13 @@ TestResult Test_SessionInvalidation(void) {
         // or on any other occasion. The old assertion was the operator's "MM
         // will be reset after game restart" written down as required behavior.
         SESSION_ASSERT(Context_HasFrozenState(GAME_MM) == 1);
+        // The armed blob must carry a SAFE return entrance, not 0. The F10
+        // hot-swap path sets the arriving game's startup entrance from
+        // Context_GetFrozenReturnEntrance, and entrance presence is a separate
+        // flag, so 0 is a real consumable id — and ENTR_SCENE_MAYORS_RESIDENCE
+        // is 0, which put Link inside the Mayor's Residence. Must match what
+        // the real hot-swap freeze records.
+        SESSION_ASSERT(Context_GetFrozenReturnEntrance(GAME_MM) == MM_ENTR_SOUTH_CLOCK_TOWN_0);
         // OoT stays unarmed on purpose: OoT's own file{N+1}.sav is the
         // authority for OoT state and Sram_OpenSave applies it on the normal
         // load path. Arming Tier-2 too would race a second, staler copy of
