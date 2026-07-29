@@ -77,6 +77,16 @@ extern int Combo_ConsumeFrozenState(const char* gameId, void* saveContext, size_
 // SharedItem/GameId types.
 extern void MM_ConsumeSharedItems(void);
 
+// Cross-game owl/pause save-and-quit exit policy (#532). Returns non-zero when
+// this is a cross-game session and a switch back to OoT has been requested, in
+// which case MM must NOT enter its own TitleSetup chain — that chain calls
+// MM_Sram_InitNewSave and would author a vanilla bootstrap over the session the
+// save just persisted. Defined in games/mm/2s2h/GameExports_SingleExe.cpp so
+// this TU stays free of the src/common context/entrance surface, and so the
+// Combo_HasFrozenState/Combo_RestoreState pair stays out of scope here (see the
+// #364 note above).
+extern int MM_Combo_OwlSaveExitToOoT(void);
+
 // Cross-game shared-RESOURCE apply (#525). Reconciles MM's live rupees, wallet
 // tier, hearts, current health and double defense against the single shared
 // pool in gComboCtx. Declared rather than included so this TU stays free of the
@@ -819,8 +829,22 @@ void Play_UpdateTransition(PlayState* this) {
                     }
 
                     if (gSaveContext.gameMode == GAMEMODE_OWL_SAVE) {
-                        STOP_GAMESTATE(&this->state);
-                        SET_NEXT_GAMESTATE(&this->state, MM_TitleSetup_Init, sizeof(TitleSetupState));
+                        // RSBS (#532): in a cross-game session this must NOT go
+                        // to MM's own TitleSetup. That chain runs
+                        // MM_Sram_InitNewSave and authors a vanilla bootstrap
+                        // over the live session, which the next hop back to OoT
+                        // then freezes and OoT's next save writes into Tier-3 --
+                        // destroying the MM half the owl save persisted seconds
+                        // earlier. Requesting a switch instead breaks MM's graph
+                        // loop and hands control to the launcher, so the
+                        // bootstrap is never authored.
+                        //
+                        // Returns 0 for a standalone MM session (no OoT session
+                        // to return to), which keeps vanilla 2ship behavior.
+                        if (!MM_Combo_OwlSaveExitToOoT()) {
+                            STOP_GAMESTATE(&this->state);
+                            SET_NEXT_GAMESTATE(&this->state, MM_TitleSetup_Init, sizeof(TitleSetupState));
+                        }
                     } else if (gSaveContext.gameMode != GAMEMODE_FILE_SELECT) {
                         STOP_GAMESTATE(&this->state);
                         SET_NEXT_GAMESTATE(&this->state, MM_Play_Init, sizeof(PlayState));

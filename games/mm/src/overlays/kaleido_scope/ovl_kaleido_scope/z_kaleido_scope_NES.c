@@ -22,6 +22,11 @@
 // is not on this decomp TU's include path — the convention z_play.c and
 // z_message.c already use for the Combo_* entry points.
 extern int MM_Combo_CaptureSaveToUnifiedSlot(void);
+
+// Cross-game save-and-quit exit policy (#532). Non-zero means a switch back to
+// OoT has been requested and MM must NOT enter its own TitleSetup chain, which
+// would author a vanilla bootstrap over the session the save just persisted.
+extern int MM_Combo_OwlSaveExitToOoT(void);
 #include "archives/item_name_static/item_name_static.h"
 #include "archives/map_name_static/map_name_static.h"
 #include "2s2h/Enhancements/FrameInterpolation/FrameInterpolation.h"
@@ -3738,8 +3743,18 @@ void MM_KaleidoScope_Update(PlayState* play) {
                             R_PAUSE_BG_PRERENDER_STATE = PAUSE_BG_PRERENDER_UNK4;
                             Object_LoadAll(&play->objectCtx);
                             BgCheck_InitCollisionHeaders(&play->colCtx, play);
-                            STOP_GAMESTATE(&play->state);
-                            SET_NEXT_GAMESTATE(&play->state, MM_TitleSetup_Init, sizeof(TitleSetupState));
+                            // RSBS (#532): the save-and-quit exit must not enter
+                            // MM's TitleSetup in a cross-game session -- that
+                            // chain runs MM_Sram_InitNewSave and authors a
+                            // vanilla bootstrap over the session this save just
+                            // persisted, which the next hop to OoT launders into
+                            // Tier-3. Requesting a switch hands control to the
+                            // launcher instead. Returns 0 for a standalone MM
+                            // session, keeping vanilla behavior.
+                            if (!MM_Combo_OwlSaveExitToOoT()) {
+                                STOP_GAMESTATE(&play->state);
+                                SET_NEXT_GAMESTATE(&play->state, MM_TitleSetup_Init, sizeof(TitleSetupState));
+                            }
                             Audio_MuteAllSeqExceptSystemAndOcarina(20);
                             gSaveContext.seqId = NA_BGM_DISABLED;
                             gSaveContext.ambienceId = AMBIENCE_ID_DISABLED;
