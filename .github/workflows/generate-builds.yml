@@ -192,6 +192,33 @@ jobs:
         key: ${{ runner.os }}-14-macports-v1-${{ hashFiles('.github/workflows/macports-deps.txt') }}
         path: /opt/local/
 
+  odr-declaration-gate:
+    # Source-level twin of the nm-based gates in build-linux below. The #375
+    # symbol-collision gate intersects symbols DEFINED by the compiled
+    # archives, so it is structurally blind to the excluded-side ODR class
+    # (#468): a type declared in both game trees with identical mangled names
+    # and divergent layouts, where one side's implementation TU is excluded
+    # from the single-exe link — the excluded side defines no symbols, the
+    # intersection stays empty, and CI reports OK. This gate compares
+    # DECLARATIONS across games/oot/soh and games/mm/2s2h instead (duplicated
+    # include guards + same-named types in overlapping namespaces) against
+    # .github/odr-declaration-baseline.txt, whose entries were classified in
+    # the #468 audit (the GameInteractor hook family is tracked as latent in
+    # #470). Build-free, so it runs as its own fast job instead of inside the
+    # Linux build.
+    runs-on: ubuntu-latest
+    steps:
+    - name: Git Checkout
+      uses: actions/checkout@v4
+    - name: Self-test ODR declaration gate
+      # Regression guard on the step below, mirroring the --self-test steps
+      # for the nm gates: plants a divergent duplicate in fixture trees and
+      # asserts the scan flags it, passes the namespace-S2H fix shape, and
+      # refuses to pass on vacuous input.
+      run: python3 .github/scripts/check-odr-declaration-collisions.py --self-test
+    - name: Check cross-tree ODR declaration collisions (#468)
+      run: python3 .github/scripts/check-odr-declaration-collisions.py
+
   build-linux:
     needs: generate-rsbs-otr
     runs-on: ubuntu-22.04
