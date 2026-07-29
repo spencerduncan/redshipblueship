@@ -518,7 +518,10 @@ if(BUILD_TESTING)
     # while both ports' structs stayed layout-identical, and unlockable at link
     # time (one Emit definition survives, so no link error can catch a
     # divergence). This drives the explicit ComboNotification bridge that
-    # replaced that coincidence and checks the toast that lands in OoT's store.
+    # replaced that coincidence and checks the toast that lands in OoT's store,
+    # and still compares the two ports' Options layouts: both trees declare the
+    # type, so their implicit ctor/dtor COMDAT-fold whether or not the struct
+    # itself crosses.
     redship_add_test(NAME MMNotificationBinding COMMAND redship --test mm-notification-binding)
     # MM scaled framebuffer draw (#386): MM's framebuffer_effects.c is excluded,
     # so MM's FB_DrawFromFramebufferScaled bound OoT's surviving body, which

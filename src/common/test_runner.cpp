@@ -64,8 +64,11 @@ int MM_GIShim_RunHeadless(void);
 // coincidence — MM's Notification::Emit call bound OoT's identically-mangled
 // body and handed it MM's own view of Options, with no link error possible when
 // the two structs drift (one Emit definition survives). This drives the
-// explicit bridge that replaced it from MM's side and reads the toast back out
-// of OoT's store field by field. Returns 0 on pass, non-zero on fail.
+// explicit bridge that replaced it from MM's side, reads the toast back out of
+// OoT's store field by field, and still compares the two ports' Options
+// layouts — both trees declare the type, so their implicit ctor/dtor
+// COMDAT-fold even now that the struct no longer crosses. Returns 0 on pass,
+// non-zero on fail.
 int MM_NotificationBinding_RunHeadless(void);
 // MM scaled framebuffer-draw binding (games/mm/2s2h/mm_fb_effects_test.cpp,
 // #386): MM's FB_DrawFromFramebufferScaled used to bind OoT's surviving body,
@@ -1778,7 +1781,8 @@ const TestDescriptor gTests[] = {
     {"mm-culling-binding", "MM's Ship_ExtendedCulling* bind MM's Actor, not OoT's (#382)", Test_MMCullingBinding},
     {"mm-gi-shim", "MM hook registration goes through the MM-owned shim, not the shared 4-byte instance (#395)",
      Test_MMGIShim},
-    {"mm-notification-binding", "MM's toasts reach OoT's overlay through the explicit MM_Notify_Emit bridge (#427)",
+    {"mm-notification-binding",
+     "MM's toasts reach OoT's overlay through the MM_Notify_Emit bridge, Options stays layout-identical (#427)",
      Test_MMNotificationBinding},
     {"mm-fb-effects-binding", "MM's scaled framebuffer draw binds its own body against MM's dimensions (#386)",
      Test_MMFbEffectsBinding},

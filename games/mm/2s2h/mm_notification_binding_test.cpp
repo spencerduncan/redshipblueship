@@ -25,7 +25,8 @@
  * headers and flags — the exact path a real MM toast takes. It is exposed
  * through the C entry point MM_NotificationBinding_RunHeadless().
  *
- * Two locks, in order of strength:
+ * Three locks, listed by strength; (2) runs first at runtime for the reason
+ * given at its call site:
  *
  * 1. END-TO-END PAYLOAD (runtime, the real lock). Two MM-built
  *    Notification::Options go through MM_Notify_Emit; each is then read back
@@ -42,7 +43,21 @@
  *    Audio_PlaySoundGeneral, so the row needs no window, no CVar store and no
  *    audio context.
  *
- * 2. FIELD TYPES (compile-time, both views). MM's Options is checked against
+ * 2. CROSS-GAME LAYOUT EQUALITY (runtime). The bridge stopped MM's Options from
+ *    being PASSED to a body compiled against OoT's view; it did not stop the
+ *    two ports from declaring the same `Notification::Options` type name (entry
+ *    `TYPE Options` of .github/odr-declaration-baseline.txt). The struct is
+ *    non-trivial, so the implicitly-defined `Options::Options()` and
+ *    `Options::~Options()` that MM's TUs emit are COMDAT duplicates of OoT's
+ *    and the linker folds them to one. MM builds and destroys Options in MM
+ *    TUs, so the two layouts must still be EQUAL or the surviving copy walks
+ *    the wrong offsets — and COMDAT folding is precisely the mechanism that
+ *    makes that legal, so no link error can report it. The two fingerprints
+ *    (sizeof + every member offset, each reported from its own port's TU) are
+ *    compared field by field, measured with pointer arithmetic on a real
+ *    instance so no platform-specific byte offset is hardcoded.
+ *
+ * 3. FIELD TYPES (compile-time, both views). MM's Options is checked against
  *    the shared COMBO_NOTIFICATION_ASSERT_OPTIONS_CONTRACT list — the same one
  *    soh/Notification/Notification.cpp compiles against OoT's Options and
  *    games/mm/2s2h/mm_notification_bridge.cpp against MM's. A retype in either
@@ -54,14 +69,75 @@
 
 #include "2s2h/BenGui/Notification.h"
 #include "notification_bridge.h"
+#include "notification_layout_probe.h"
 
+#include <cstdint>
 #include <cstdio>
+#include <new>
 #include <string>
 #include <type_traits>
 
 COMBO_NOTIFICATION_ASSERT_OPTIONS_CONTRACT(Notification::Options);
 
+extern "C" void MM_NotificationOptionsLayout(NotificationOptionsLayout* out) {
+    // Slack buffer + placement new, never destroyed. If the two views have
+    // already diverged then the implicit constructor the linker folded may be
+    // the OTHER port's and may write past this port's sizeof; a plain local
+    // fail-fasts on the stack cookie before the fingerprint can be reported
+    // (measured on MSVC), which costs exactly the diagnostic this row exists to
+    // produce. The 4x is slack, not a bound, and skipping the destructor keeps
+    // an over-reading folded dtor out of the picture too.
+    alignas(alignof(Notification::Options)) static unsigned char storage[sizeof(Notification::Options) * 4] = {};
+    const Notification::Options* o = new (storage) Notification::Options();
+
+    const char* base = reinterpret_cast<const char*>(o);
+    out->structSize = static_cast<uint32_t>(sizeof(Notification::Options));
+    out->offId = static_cast<uint32_t>(reinterpret_cast<const char*>(&o->id) - base);
+    out->offItemIcon = static_cast<uint32_t>(reinterpret_cast<const char*>(&o->itemIcon) - base);
+    out->offPrefix = static_cast<uint32_t>(reinterpret_cast<const char*>(&o->prefix) - base);
+    out->offPrefixColor = static_cast<uint32_t>(reinterpret_cast<const char*>(&o->prefixColor) - base);
+    out->offMessage = static_cast<uint32_t>(reinterpret_cast<const char*>(&o->message) - base);
+    out->offMessageColor = static_cast<uint32_t>(reinterpret_cast<const char*>(&o->messageColor) - base);
+    out->offSuffix = static_cast<uint32_t>(reinterpret_cast<const char*>(&o->suffix) - base);
+    out->offSuffixColor = static_cast<uint32_t>(reinterpret_cast<const char*>(&o->suffixColor) - base);
+    out->offRemainingTime = static_cast<uint32_t>(reinterpret_cast<const char*>(&o->remainingTime) - base);
+    out->offMute = static_cast<uint32_t>(reinterpret_cast<const char*>(&o->mute) - base);
+}
+
 namespace {
+
+#define NOTIF_FIELD_CHECK(field)                                                                                 \
+    do {                                                                                                         \
+        if (mm.field != oot.field) {                                                                             \
+            printf("[TEST] FAIL: Notification::Options." #field " differs - MM %u, OoT %u; the folded implicit " \
+                   "ctor/dtor now walks the wrong offsets (#427)\n",                                             \
+                   (unsigned)mm.field, (unsigned)oot.field);                                                     \
+            ok = false;                                                                                          \
+        }                                                                                                        \
+    } while (0)
+
+bool LayoutsAgree(void) {
+    NotificationOptionsLayout mm;
+    NotificationOptionsLayout oot;
+    MM_NotificationOptionsLayout(&mm);
+    OoT_NotificationOptionsLayout(&oot);
+
+    printf("[TEST] Notification::Options sizeof - MM %u, OoT %u\n", (unsigned)mm.structSize, (unsigned)oot.structSize);
+
+    bool ok = true;
+    NOTIF_FIELD_CHECK(structSize);
+    NOTIF_FIELD_CHECK(offId);
+    NOTIF_FIELD_CHECK(offItemIcon);
+    NOTIF_FIELD_CHECK(offPrefix);
+    NOTIF_FIELD_CHECK(offPrefixColor);
+    NOTIF_FIELD_CHECK(offMessage);
+    NOTIF_FIELD_CHECK(offMessageColor);
+    NOTIF_FIELD_CHECK(offSuffix);
+    NOTIF_FIELD_CHECK(offSuffixColor);
+    NOTIF_FIELD_CHECK(offRemainingTime);
+    NOTIF_FIELD_CHECK(offMute);
+    return ok;
+}
 
 // Every literal below is exactly representable in float, so the comparison is
 // an exact equality on the bits the bridge copied, not a tolerance check.
@@ -123,6 +199,15 @@ bool EmitAndVerify(const Notification::Options& sent) {
 } // namespace
 
 extern "C" int MM_NotificationBinding_RunHeadless(void) {
+    // Layout first, deliberately. A divergence here means the folded implicit
+    // ctor/dtor is already writing past one port's objects, so the payload
+    // round trip below can crash (measured: a one-sided field append fail-fasts
+    // on MSVC) instead of reporting. Checking layouts before any Options leaves
+    // this function is the difference between a named field and a bare SIGSEGV.
+    if (!LayoutsAgree()) {
+        return 1;
+    }
+
     // Static storage: the overlay keeps itemIcon as a pointer and dereferences
     // it at draw time, which is the contract MM's real caller
     // (Rando::StaticData::GetIconTexturePath) satisfies with static texture
@@ -161,7 +246,7 @@ extern "C" int MM_NotificationBinding_RunHeadless(void) {
     }
 
     printf("[TEST] PASS: mm-notification-binding - MM's toasts reach OoT's overlay through the MM_Notify_Emit bridge "
-           "with every field intact\n");
+           "with every field intact, and both ports' Notification::Options stay layout-identical\n");
     return 0;
 }
 

@@ -156,9 +156,41 @@ void Emit(Options notification) {
 // port's layout is load-bearing for the other anymore, and a rename/removal/
 // retype of a mapped field is a compile error in whichever port drifted — see
 // the shared contract asserts below, which MM's side compiles too.
+//
+// The bridge does NOT retire the layout requirement, only the reason for it:
+// both trees still declare `Notification::Options`, so the implicit
+// constructor/destructor MM's TUs emit for their own view COMDAT-fold with
+// these, and the linker keeps one. OoT_NotificationOptionsLayout below reports
+// this port's view for the runtime equality half of the lock (see
+// src/common/notification_layout_probe.h).
 #include "notification_bridge.h"
+#include "notification_layout_probe.h"
+#include <new>
 
 COMBO_NOTIFICATION_ASSERT_OPTIONS_CONTRACT(Notification::Options);
+
+extern "C" void OoT_NotificationOptionsLayout(NotificationOptionsLayout* out) {
+    // Slack buffer + placement new, never destroyed — see the twin in
+    // games/mm/2s2h/mm_notification_binding_test.cpp: once the two views have
+    // diverged, the folded implicit constructor may be the other port's and may
+    // write past this port's sizeof, and a plain local would fail-fast before
+    // the fingerprint could be reported.
+    alignas(alignof(Notification::Options)) static unsigned char storage[sizeof(Notification::Options) * 4] = {};
+    const Notification::Options* o = new (storage) Notification::Options();
+
+    const char* base = reinterpret_cast<const char*>(o);
+    out->structSize = static_cast<uint32_t>(sizeof(Notification::Options));
+    out->offId = static_cast<uint32_t>(reinterpret_cast<const char*>(&o->id) - base);
+    out->offItemIcon = static_cast<uint32_t>(reinterpret_cast<const char*>(&o->itemIcon) - base);
+    out->offPrefix = static_cast<uint32_t>(reinterpret_cast<const char*>(&o->prefix) - base);
+    out->offPrefixColor = static_cast<uint32_t>(reinterpret_cast<const char*>(&o->prefixColor) - base);
+    out->offMessage = static_cast<uint32_t>(reinterpret_cast<const char*>(&o->message) - base);
+    out->offMessageColor = static_cast<uint32_t>(reinterpret_cast<const char*>(&o->messageColor) - base);
+    out->offSuffix = static_cast<uint32_t>(reinterpret_cast<const char*>(&o->suffix) - base);
+    out->offSuffixColor = static_cast<uint32_t>(reinterpret_cast<const char*>(&o->suffixColor) - base);
+    out->offRemainingTime = static_cast<uint32_t>(reinterpret_cast<const char*>(&o->remainingTime) - base);
+    out->offMute = static_cast<uint32_t>(reinterpret_cast<const char*>(&o->mute) - base);
+}
 
 extern "C" void OoT_Notification_Emit(const ComboNotification* notification) {
     if (notification == nullptr) {

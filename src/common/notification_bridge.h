@@ -21,15 +21,25 @@
  * calls OoT_Notification_Emit, which unpacks it into OoT's own Options by NAME
  * and calls OoT's Emit. Consequences:
  *
- *  - Neither port's Options layout is load-bearing for the other. A field
- *    appended on one side is inert on the other rather than corrupting.
- *  - Drift that DOES matter — a renamed, removed, or retyped field the bridge
- *    maps — is a compile error in the drifting port's own TU, because both
- *    sides read/write their Options by field name and both compile the same
+ *  - No Options is ever passed to a body compiled against the other port's
+ *    view, so the argument-passing corruption above is gone.
+ *  - Drift that the bridge maps — a renamed, removed, or retyped field — is a
+ *    compile error in the drifting port's own TU, because both sides read/write
+ *    their Options by field name and both compile the same
  *    COMBO_NOTIFICATION_ASSERT_OPTIONS_CONTRACT list below.
  *  - MM's single-exe view of 2s2h/BenGui/Notification.h no longer declares
  *    `Emit` at all, so a new MM call site that tries to re-arm the coincidence
  *    is a compile error naming the bridge.
+ *
+ * WHAT THE BRIDGE DOES NOT RETIRE: the two ports still declare the same
+ * `Notification::Options` type name (entry `TYPE Options` of
+ * .github/odr-declaration-baseline.txt), and the struct is non-trivial, so the
+ * implicitly-defined `Options::Options()` / `Options::~Options()` each port's
+ * TUs emit are COMDAT duplicates that the linker folds to one. MM constructs
+ * and destroys Options in MM TUs, so the two layouts must still be EQUAL or the
+ * surviving copy runs against the other port's objects. That half is locked at
+ * runtime by src/common/notification_layout_probe.h — see its header comment;
+ * retiring it needs the type names to stop colliding, not this bridge.
  *
  * Ownership: the implementation lives on the OoT side
  * (games/oot/soh/Notification/Notification.cpp), the only place the surviving
@@ -98,8 +108,11 @@ int OoT_Notification_PeekLastForTest(ComboNotification* out);
  * duplicated per-port assert sets they replace could.
  *
  * Naming a field here also makes its rename or removal a compile error in the
- * port that dropped it. A field APPENDED to one port's Options is deliberately
- * not an error: under the bridge it simply never reaches the wire.
+ * port that dropped it. A field APPENDED to one port's Options is not visible
+ * here — it simply never reaches the wire — which is why the layout-equality
+ * half of the lock (src/common/notification_layout_probe.h) is still required:
+ * an append is what folds a wrong-sized implicit constructor/destructor onto
+ * the other port's objects.
  *
  * Expands to a run of namespace-scope static_asserts; invoke with a trailing
  * semicolon. Requires ImVec4 in scope (both ports have it via their

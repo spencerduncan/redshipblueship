@@ -13,10 +13,15 @@
  * This TU is the declared replacement. It is the ONLY place in MM that touches
  * the cross-game notification path, and what it hands across is plain-C
  * ComboNotification data (src/common/notification_bridge.h) — no C++ type
- * crosses the boundary, so neither port's Options layout is load-bearing for
- * the other. MM's single-exe view of 2s2h/BenGui/Notification.h no longer
- * declares `Emit`, so a future MM call site cannot silently re-arm the
+ * crosses the boundary, so no Options ever reaches a body compiled against the
+ * other port's view. MM's single-exe view of 2s2h/BenGui/Notification.h no
+ * longer declares `Emit`, so a future MM call site cannot silently re-arm the
  * coincidence; it fails to compile and names this bridge.
+ *
+ * The two layouts must still be EQUAL for a second reason the bridge does not
+ * touch: both trees declare the same `Notification::Options` type name, so the
+ * implicit constructor/destructor this TU emits COMDAT-fold with OoT's. That
+ * half is locked at runtime by src/common/notification_layout_probe.h.
  *
  * Drift that still matters is a compile error here: every field is read by
  * name, and the shared COMBO_NOTIFICATION_ASSERT_OPTIONS_CONTRACT list — the
