@@ -51,6 +51,10 @@
  *      worse bug than the leak.
  *   8. Loading a slot with NO .redsave yields no cross-game state rather than
  *      inheriting the previous session's.
+ *  7b. (runs last, so case 8 still sees an unwritten slot) The table case 5
+ *      kept must reach the slot's FIRST .redsave — file creation is followed
+ *      immediately by Save_SaveFile, so a wipe at creation is what gets
+ *      stored, not just what is in RAM.
  *
  * Included at FILE SCOPE (compiled as C++, NOT inside an extern "C" block) so
  * it can drive the C++-linkage rsbs::SaveManager for cases 7 and 8, the same
@@ -371,13 +375,13 @@ TestResult Test_SessionInvalidation(void) {
     SESSION_ASSERT(Combo_CountForeignPlacementsOoT() == 1);
     {
         const SharedItem* kept = Combo_GetForeignPlacementForOoTCheck(kGenReverseCheck);
-        SESSION_ASSERT(kept != NULL);
+        SESSION_ASSERT(kept != nullptr);
         SESSION_ASSERT(kept->originGame == (uint8_t)GAME_MM);
         SESSION_ASSERT(kept->id == kGenReverseItemId);
     }
     // ...and it is GENERATION's table that survived, not the dead session's
     // leaking through the keep-set.
-    SESSION_ASSERT(Combo_GetForeignPlacementForOoTCheck(kSessionAReverseCheck) == NULL);
+    SESSION_ASSERT(Combo_GetForeignPlacementForOoTCheck(kSessionAReverseCheck) == nullptr);
     // The dead session's crossings must not reach the new seed. This is the
     // assertion the netplay agents' grant model composes with (#460): a stale
     // sharedItemsTagged is another player's grants from a dead room.
@@ -506,13 +510,39 @@ TestResult Test_SessionInvalidation(void) {
         SESSION_ASSERT(gComboCtx.sharedRandoSeed == 0);
         SESSION_ASSERT(!Combo_ForeignPairingActive());
 
+        // ---- 7b. #534 END TO END: the KEPT table reaches the slot's FIRST
+        // .redsave. Case 7 round-trips a table that was already durable before
+        // the invalidation; only this case round-trips the one the KEEP policy
+        // handed forward. That is the seam the bug actually lived on: file
+        // creation is immediately followed by Save_SaveFile (z_sram.c), so a
+        // wipe there is not a RAM-only loss — the zeroed table is what the new
+        // slot stores, and every later load re-reads the zeros. Runs after
+        // case 8 so slot 2 is still unwritten where that case needs it.
+        SeedSessionA(0x3333u, 0x4444u);
+        StampGeneratedSeed(0x99999999u, 0x5555u);
+        Context_InvalidateSessionOnNewGame(/*isRandoFile=*/1);
+        SESSION_ASSERT(Combo_CountForeignPlacementsOoT() == 1);
+        SESSION_ASSERT(mgr.Save(2));
+        // Clear first, so what the assertions below read came out of the file
+        // rather than surviving in RAM.
+        Context_InvalidateSessionOnSlotLoad();
+        SESSION_ASSERT(Combo_CountForeignPlacementsOoT() == 0);
+        SESSION_ASSERT(mgr.Load(2));
+        SESSION_ASSERT(Combo_CountForeignPlacementsOoT() == 1);
+        {
+            const SharedItem* stored = Combo_GetForeignPlacementForOoTCheck(kGenReverseCheck);
+            SESSION_ASSERT(stored != nullptr);
+            SESSION_ASSERT(stored->originGame == (uint8_t)GAME_MM);
+            SESSION_ASSERT(stored->id == kGenReverseItemId);
+        }
+
         std::filesystem::remove_all(kSessionTestDir, ec);
     }
 
     printf("[TEST] PASS: a dead session's frozen blobs, shadows and gComboCtx crossings do not "
            "survive a soft reset or a new game; the generation-authored seed stamp and reverse "
-           "placement table survive rando file creation (#534); arrivals and existing-slot loads "
-           "still restore\n");
+           "placement table survive rando file creation and reach the new slot's first .redsave "
+           "(#534); arrivals and existing-slot loads still restore\n");
 
     // Leave global state clean for any subsequent test.
     Context_ClearAllFrozenStates();
