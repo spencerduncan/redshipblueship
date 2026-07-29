@@ -84,10 +84,17 @@
 #ifdef RSBS_SINGLE_EXECUTABLE
 
 #include <cstdio>
+#include <cstring>
+#include <string>
 
 #include "Rando/Rando.h"
 #include "Rando/Types.h"
 #include "Rando/StaticData/StaticData.h"
+// The arrival toast (#494). MM's own BenGui/Notification.cpp is excluded from
+// single-exe builds, so this Emit binds OoT's definition — the same deliberate
+// cross-bind MM's native rando pickup toast already uses, locked field-for-field
+// by mm_notification_binding_test.cpp (#427 item 1).
+#include "2s2h/BenGui/Notification.h"
 
 extern "C" {
 #include "variables.h" // MM_gPlayState
@@ -405,9 +412,61 @@ bool IsGiveableItemId(uint16_t riId) {
     return riId != (uint16_t)RI_UNKNOWN && riId != (uint16_t)RI_NONE && riId < (uint16_t)RI_MAX;
 }
 
+/**
+ * What the arrival toast shows for `riId`, read from MM's OWN item table.
+ *
+ * Split out from the emit so the ROM-free tier can assert what the player is
+ * shown without a Gui (MM_ForeignItem_TestArrivalText/Icon at the bottom of
+ * this file). Both fields come from the same two accessors MM's native rando
+ * pickup toast calls (Rando/MiscBehavior/CheckQueue.cpp) — this is an MM item
+ * being received in MM, so nothing here is cross-game and nothing needs an
+ * archive that is not mounted.
+ */
+struct ArrivalToast {
+    const char* icon; // may be nullptr; Emit then renders text-only
+    std::string text; // MM's article + name, e.g. "the Bunny Hood"
+};
+
+ArrivalToast BuildArrivalToast(RandoItemId randoItemId) {
+    return ArrivalToast{ Rando::StaticData::GetIconTexturePath(randoItemId),
+                         Rando::StaticData::GetItemName(randoItemId) };
+}
+
 /** The actual give. Precondition: MM_gPlayState != NULL and the id is real. */
 void GiveNow(uint16_t riId) {
-    Rando::GiveItem((RandoItemId)riId);
+    const RandoItemId randoItemId = (RandoItemId)riId;
+    Rando::GiveItem(randoItemId);
+
+    // #494: the arrival is the player's ONLY signal that this item landed.
+    // Until now it was silent — the item appeared in the inventory an arbitrary
+    // number of scenes after the OoT check that granted it, with no in-game
+    // feedback at all. That is the same gap the OoT arrival closed for the other
+    // direction (OoT_AwardSharedItem), here on MM's side.
+    //
+    // PRESENTED AS AN ORDINARY MM PICKUP: MM's own toast, MM's own icon, MM's
+    // own "article + name" sentence, and no mention of where the item came from.
+    // Byte-for-byte the field arrangement of MM's native rando pickup toast, so
+    // it renders in the same colours — a bespoke layout would itself be the
+    // cross-game tell #510 removed everywhere else.
+    //
+    // A toast rather than the get-item cutscene: this fires on a gameplay frame
+    // the player did not initiate, where seizing the camera and the message
+    // context would be a hijack. The toast is exactly what MM already falls back
+    // to for its own pickups when the cutscene is skipped.
+    //
+    // EMITTED HERE AND NOT IN MM_AwardSharedItem (GameExports_SingleExe.cpp)
+    // because this is the one point that is gameplay-gated by construction: both
+    // callers reach it only with a live MM_gPlayState. The award callback runs at
+    // the presence-gated arrival point, which the ROM-free rows drive headlessly
+    // (src/common/tests/test_foreign_award.c calls the real MM_ConsumeSharedItems
+    // with no PlayState and no Gui), so a Notification::Emit there would put an
+    // ImGui/audio call on a display-free CI path.
+    const ArrivalToast toast = BuildArrivalToast(randoItemId);
+    Notification::Emit({
+        .itemIcon = toast.icon,
+        .message = "You got",
+        .suffix = toast.text,
+    });
 }
 
 } // namespace
@@ -544,6 +603,41 @@ extern "C" int MM_ForeignItem_TestIsJunkClassId(uint16_t riId) {
         return -1;
     }
     return (it->second.randoItemType == RITYPE_JUNK) ? 1 : 0;
+}
+
+/**
+ * The arrival toast's item text for `riId`, NUL-terminated into `out` (#494).
+ *
+ * The SAME BuildArrivalToast the give emits, not a paraphrase of it — a lock
+ * that rebuilt the string itself would keep passing after the toast changed.
+ * What CI can honestly assert is the resolution surface: that MM's own item
+ * table names every entry of MM's own pool, and names it with exactly the
+ * article + name the pooled descriptor carries and nothing else. Extra prose —
+ * "it came from Ocarina of Time", an origin badge — breaks that equality, which
+ * is the no-tell contract (#510) stated as an assertion.
+ *
+ * @return the length written, or -1 if the id names no real MM item or `out` is
+ *         too small (never a truncated string).
+ */
+extern "C" int MM_ForeignItem_TestArrivalText(uint16_t riId, char* out, int cap) {
+    if (out == nullptr || cap <= 0 || !IsGiveableItemId(riId)) {
+        return -1;
+    }
+    const std::string text = BuildArrivalToast((RandoItemId)riId).text;
+    if ((int)text.size() >= cap) {
+        return -1;
+    }
+    memcpy(out, text.c_str(), text.size() + 1);
+    return (int)text.size();
+}
+
+/** The arrival toast's icon path for `riId`, or nullptr — which is a text-only
+ *  toast, not a defect (Notification::Emit skips a null icon). */
+extern "C" const char* MM_ForeignItem_TestArrivalIcon(uint16_t riId) {
+    if (!IsGiveableItemId(riId)) {
+        return nullptr;
+    }
+    return BuildArrivalToast((RandoItemId)riId).icon;
 }
 
 #endif // RSBS_SINGLE_EXECUTABLE

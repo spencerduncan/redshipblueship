@@ -60,6 +60,11 @@ void MM_ForeignItem_TestResetPending(void);
 int MM_ForeignItem_TestItemIdMax(void);
 int MM_ForeignItem_TestIsGiveableId(uint16_t riId);
 
+// The arrival toast's payload, as the give builds it (#494). Same
+// BuildArrivalToast the Notification::Emit in GiveNow is handed.
+int MM_ForeignItem_TestArrivalText(uint16_t riId, char* out, int cap);
+const char* MM_ForeignItem_TestArrivalIcon(uint16_t riId);
+
 // The RandoItemId sentinels, from the #488 bridge block in Rando/Foreign.cpp.
 void MM_Rando_Foreign_TestItemSentinels(uint16_t* outJunk, uint16_t* outNone, uint16_t* outUnknown);
 }
@@ -229,11 +234,11 @@ TestResult Test_ForeignAwardMM(void) {
     //
     // Deliberately RED-able: this walks EVERY registered origin's pool, so an
     // entry added later without a name fails here rather than at whichever
-    // surface the player happens to reach first. It does NOT assert anything
-    // about the icon — that tier needs a per-item icon-name accessor that
-    // src/common does not have yet (see the report note on Lane 1), and
-    // asserting the current hardcoded RI_RUPEE_HUGE stand-in would lock in the
-    // placeholder rather than the contract.
+    // surface the player happens to reach first. It still asserts nothing about
+    // the icon: a foreign item is drawn model-less and toasted without an icon
+    // in the game that is NOT its own (#510), because reaching the other game's
+    // icon needs a cross-archive accessor src/common does not have. The one
+    // place an icon IS native — MM receiving an MM item — is locked in (8).
     for (uint8_t origin = 0; origin < (uint8_t)RSBS_FOREIGN_POOL_ORIGIN_COUNT; origin++) {
         const ComboForeignItemDef* originPool = NULL;
         const int n = Combo_GetForeignItemPoolFor(origin, &originPool);
@@ -251,12 +256,61 @@ TestResult Test_ForeignAwardMM(void) {
         }
     }
 
+    // ------------------------------------------------------------------
+    // (8) The MM ARRIVAL toast names the item, natively (#494).
+    // ------------------------------------------------------------------
+    // Until #494 the MM arrival was SILENT: MM_AwardSharedItem logged to stderr
+    // and the item simply appeared in the inventory, an arbitrary number of
+    // scenes after the OoT check that granted it. The give now emits MM's own
+    // pickup toast, and this is the honest lock on it — the pixels are the
+    // operator's to verify, the RESOLUTION is CI's.
+    //
+    // The assertion is an EQUALITY against the pooled descriptor, not a
+    // non-empty check, and that is what makes it falsifiable in both
+    // directions:
+    //   - a tell added back to the toast ("… from Ocarina of Time", an origin
+    //     badge) breaks the equality, because the descriptor carries the item's
+    //     name and nothing else;
+    //   - MM's item table drifting away from kForeignPoolMMV1's generated
+    //     article/name columns also breaks it, and those columns are a
+    //     persistence key (the spoiler-load inverse), so that drift matters
+    //     beyond display.
+    // Two independent tables have to agree; neither is derived from the other
+    // at runtime.
+    {
+        const ComboForeignItemDef* mmPool = NULL;
+        const int mmCount = Combo_GetForeignItemPoolFor((uint8_t)GAME_MM, &mmPool);
+        char shown[128];
+        char expected[128];
+        FA_ASSERT(mmCount > 0 && mmPool != NULL);
+        for (int i = 0; i < mmCount; i++) {
+            const int len = MM_ForeignItem_TestArrivalText(mmPool[i].item.id, shown, (int)sizeof(shown));
+            FA_ASSERT(len > 0);
+            FA_ASSERT(mmPool[i].article != NULL);
+            snprintf(expected, sizeof(expected), "%s%s", mmPool[i].article, mmPool[i].name);
+            if (strcmp(shown, expected) != 0) {
+                printf("[TEST] FAIL: arrival toast for pool entry %d shows '%s', pool says '%s'\n", i, shown, expected);
+                return TEST_FAIL;
+            }
+            // The icon is allowed to be absent — Emit renders a text-only toast
+            // for a null icon, which is a degradation, not a defect. What must
+            // not happen is an empty-but-present path, which would draw a blank
+            // 24x24 hole where the item icon belongs.
+            const char* icon = MM_ForeignItem_TestArrivalIcon(mmPool[i].item.id);
+            FA_ASSERT(icon == NULL || icon[0] != '\0');
+        }
+        // A sentinel id resolves to nothing rather than to a fabricated string:
+        // the toast is only ever built for an id the give accepted.
+        FA_ASSERT(MM_ForeignItem_TestArrivalText(riNone, shown, (int)sizeof(shown)) == -1);
+        FA_ASSERT(MM_ForeignItem_TestArrivalIcon(riUnknown) == NULL);
+    }
+
     // Leave global state clean for any subsequent row.
     MM_ForeignItem_TestResetPending();
     Combo_ClearSharedItemOutbox();
     ComboContext_Init();
 
     printf("[TEST] PASS: MM's real award reaches the real give once per crossing, defers safely, "
-           "preserves order, and filters by origin\n");
+           "preserves order, filters by origin, and names every arrival natively\n");
     return TEST_PASS;
 }

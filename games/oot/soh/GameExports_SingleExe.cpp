@@ -1077,12 +1077,20 @@ static void OoT_AwardSharedItem(const SharedItem* item, void* ctx) {
     // pinned pool via the origin-tagged SharedItem, so this never fabricates an
     // id-space crossing; both return NULL when that origin's pool is not linked
     // into this build, hence the fallbacks.
+    //
+    // FIELD ARRANGEMENT (#494): verb in `.message`, item name in `.suffix` —
+    // the arrangement every OTHER OoT rando pickup toast uses
+    // (Enhancements/randomizer/hook_handlers.cpp). Options colours each field
+    // differently, so the earlier `.prefix` + `.message` form rendered a foreign
+    // arrival in blue-then-grey where an ordinary pickup is grey-then-red. That
+    // difference is visible at a glance and reads as "this one is special",
+    // which is the class of tell #510 removed from the model and the text.
     const char* foreignName = Combo_GetForeignItemName(*item);
     const char* foreignArticle = Combo_GetForeignItemArticle(*item);
     Notification::Emit({
-        .prefix = "You got",
-        .message = std::string(foreignArticle != nullptr ? foreignArticle : "") +
-                   (foreignName != nullptr ? foreignName : "a foreign item"),
+        .message = "You got ",
+        .suffix = std::string(foreignArticle != nullptr ? foreignArticle : "") +
+                  (foreignName != nullptr ? foreignName : "a foreign item"),
     });
 }
 
