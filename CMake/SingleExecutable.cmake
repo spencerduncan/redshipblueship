@@ -628,6 +628,61 @@ if(BUILD_TESTING)
         TIMEOUT 180
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
+    # #560 ("Why CI never saw it"): every OTHER row in this tier sets
+    # RSBS_DISABLE_OTR_INIT=1, which skips the whole OTRMessage_Init /
+    # OTRAudio_Init / OTRExtScanner / VanillaItemTable_Init / DebugConsole_Init
+    # block (games/oot/soh/OTRGlobals.cpp:1811-1823). The flag started life as a
+    # bisect knob for init crashes (#199, e2a181c1) and reached this tier as
+    # diagnostic scaffolding in the row above (#339, 8dc2786d) — it was then
+    # copied verbatim onto 13 more rows. No row ever justified it independently —
+    # but it turned out to be load-bearing for a reason nobody had written down,
+    # found by adding this row and watching it hang for 300s on Linux CI:
+    #
+    #   CI staged soh.o2r where only the install rules look
+    #   (${CMAKE_BINARY_DIR}/soh), while ctest rows run with cwd =
+    #   ${CMAKE_BINARY_DIR} and resolve archives via LocateFileAcrossAppDirs,
+    #   which probes the app-config dir, then the binary's own directory, then
+    #   "./" — all three being ${CMAKE_BINARY_DIR} for a ctest row, and none of
+    #   them ${CMAKE_BINARY_DIR}/soh. So every row in this tier was booting
+    #   with ZERO archives mounted. With none loaded, libultraship PAUSES the
+    #   ResourceManager thread pool forever (ResourceManager.cpp:58-61, "Nothing
+    #   ever unpauses the thread pool"), and OTRAudio_Init's synchronous
+    #   ResourceMgr_LoadDirectory("audio") then deadlocks on .get().
+    #
+    # The archives are now staged where the rows look, in both places they can
+    # come from: the build itself (copy-existing-otrs.cmake and the Generate*Otr
+    # targets also copy into ${CMAKE_BINARY_DIR}, which is what makes a plain
+    # local `ctest --test-dir <dir>` work), and a staging step in each workflow
+    # (CI downloads the archives as artifacts and never runs those targets in the
+    # test job). So the tier runs with soh.o2r mounted and the pool live —
+    # locally and on CI alike. With that fixed nothing in the block
+    # needs the flag: soh.o2r carries no `audio/` entries so the precache is a
+    # no-op and the audio thread parks on audio.cv_to_thread (no frame loop
+    # signals it); OTRExtScanner / VanillaItemTable_Init / DebugConsole_Init are
+    # pure in-process work; and OTRMessage_Init self-skips on its inner
+    # hasGameArchive gate, which is false wherever oot.o2r is absent. The row
+    # additionally asserts a mounted archive BEFORE bring-up, so a staging
+    # regression fails in a second instead of hanging, and pairs OTRAudio_Init
+    # with OTRAudio_Exit (defensively — `--test` mode ends at _Exit and never runs
+    # static destructors today).
+    #
+    # This is the ONE row whose bring-up matches a player's, and the only one
+    # whose fill runs on a worker thread (the 1-arg GenerateRandomizer overload
+    # that z_file_choose.c:824 reaches, not the synchronous 3-arg one). It
+    # asserts the un-masking before it generates, so re-adding the flag here
+    # fails the row instead of quietly turning it into a RandoGen clone.
+    #
+    # It does NOT reproduce #560's crash and is not meant to: both sides of that
+    # race read oot.o2r-only entries and one of them is the render thread, so a
+    # ROM-free display-only tier structurally cannot host it. See #560.
+    #
+    # Deliberately NOT folded into RandoGen: that row's masked configuration is
+    # the one 13 siblings share, so it stays as-is and this row is the diff.
+    redship_add_test(NAME RandoGenFullInit COMMAND redship --test rando-gen-full-init
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy")
+
     # Hint validity (#441): a gossip stone read "catching Big Poes leads to No
     # Item" while that seed's spoiler named a real item, so the fill was fine
     # and only hint-side resolution was broken. Locks that no generated hint

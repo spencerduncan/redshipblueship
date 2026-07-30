@@ -40,6 +40,12 @@
 #include "randomizerTypes.h"
 #include "soh/Notification/Notification.h"
 #include "soh/ObjectExtension/ObjectExtension.h"
+// Rando_HeadlessFullInitSeedTest (#560) asserts DebugConsole_Init registered its
+// commands; Context.h only forward-declares Ship::Console, so HasCommand needs
+// the complete type. <chrono>/<thread> are for that bridge's bounded worker wait.
+#include <ship/debug/Console.h>
+#include <chrono>
+#include <thread>
 
 static ObjectExtension::Register<CheckIdentity> RegisterIdentity;
 
@@ -3547,6 +3553,173 @@ void JoinRandoGenerationThread() {
         generated = 0;
         randoThread.join();
     }
+}
+
+// OTRGlobals.h puts most of its C entry points inside `#ifndef __cplusplus`, so a
+// C++ TU has to redeclare the ones it wants. Both of these are defined in
+// games/oot/soh/OTRGlobals.cpp.
+extern "C" int OoT_OtrInitRan(void);
+extern "C" void OTRAudio_Exit(void);
+
+// Body of Rando_HeadlessFullInitSeedTest; see the wrapper below for what the row
+// is for. Split out only so the wrapper owns the audio-thread teardown on every
+// exit path, including the early failures.
+static int RunFullInitSeedTest(const char* seedStr) {
+    // ---- (1) anti-vacuity: the RSBS_DISABLE_OTR_INIT block must have run ----
+    if (!OoT_OtrInitRan()) {
+        fprintf(stderr, "[rando-full-init] InitOTRImpl skipped its OTR-init block — RSBS_DISABLE_OTR_INIT is set "
+                        "for this row, so it would only re-run what RandoGen already covers\n");
+        return 10;
+    }
+    // Block-entered is necessary but not sufficient: assert what three of the
+    // inits actually produced, so moving one out of the block is caught too.
+    if (ExtensionCache.empty()) {
+        fprintf(stderr, "[rando-full-init] ExtensionCache is empty — OTRExtScanner produced nothing\n");
+        return 11;
+    }
+    if (ItemTableManager::Instance == nullptr) {
+        fprintf(stderr, "[rando-full-init] ItemTableManager::Instance is null\n");
+        return 12;
+    }
+    // RetrieveItemEntry swallows a missing table and returns GET_ITEM_NONE, so
+    // an un-populated table reads as a real-looking answer rather than an error
+    // — check the returned itemId, not just that the call succeeded.
+    const GetItemEntry vanillaBombs = ItemTableManager::Instance->RetrieveItemEntry(MOD_NONE, GI_BOMBS_5);
+    if (vanillaBombs.itemId != ITEM_BOMBS_5) {
+        fprintf(stderr,
+                "[rando-full-init] vanilla item table not populated (GI_BOMBS_5 -> itemId %d, expected %d) — "
+                "VanillaItemTable_Init never ran\n",
+                (int)vanillaBombs.itemId, (int)ITEM_BOMBS_5);
+        return 13;
+    }
+    auto console = Ship::Context::GetInstance()->GetConsole();
+    if (console == nullptr || !console->HasCommand("gen_rando")) {
+        fprintf(stderr, "[rando-full-init] console command `gen_rando` is not registered — DebugConsole_Init "
+                        "never ran\n");
+        return 14;
+    }
+    fprintf(stderr,
+            "[rando-full-init] full OTR bring-up verified: %zu ExtensionCache entries, vanilla item table "
+            "populated, debug console registered\n",
+            ExtensionCache.size());
+
+    // ---- (2) settings, as the headless bridge does ----
+    // The ROM-free bring-up skips SohGui::SetupMenuElements (gated on
+    // hasGameArchive), so nothing has created the Settings Options yet and
+    // SetAllToContext inside the worker would feed all-zero settings into the
+    // fill. Create them here for the same reason Rando_HeadlessSeedTest does.
+    auto randoCtx = Rando::Context::GetInstance();
+    if (randoCtx == nullptr) {
+        fprintf(stderr, "[rando-full-init] no Rando::Context after bring-up\n");
+        return 15;
+    }
+    Rando::Settings::GetInstance()->CreateOptions();
+    randoCtx->SetSeedGenerated(false);
+
+    // ---- (3) generate on a worker thread, the way the file select does ----
+    if (!GenerateRandomizer(seedStr ? seedStr : "")) {
+        fprintf(stderr, "[rando-full-init] GenerateRandomizer refused to start a worker\n");
+        return 20;
+    }
+
+    // GenerateRandomizerImgui sets `generated` as its last act; poll it the way
+    // the file-select gamestate does.
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(150);
+    while (!generated && std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    }
+    const bool completed = generated != 0;
+
+    // Say WHY before the join, not after. The join below is mandatory — a
+    // joinable std::thread left alive would std::terminate in randoThread's
+    // destructor at static-destruction time and turn any failure here into an
+    // abort with no diagnostic — but it is also UNBOUNDED, so on a genuinely
+    // hung fill it never returns and anything printed after it is never
+    // printed. So the deadline buys a DIAGNOSED hang, not a bounded one: the
+    // row still dies on its CTest timeout, but the log names the fill instead
+    // of showing nothing at all.
+    if (!completed) {
+        fprintf(stderr, "[rando-full-init] generation worker did not finish within 150s; joining it anyway — if "
+                        "this is the last line before the CTest timeout, the fill itself is hung\n");
+        fflush(stderr);
+    }
+    if (randoThread.joinable()) {
+        randoThread.join();
+    }
+    // Cleared only AFTER the join: while the worker is alive it can still store
+    // 1 here, and a store racing ours would leave a stale 1 behind — which is
+    // exactly what makes a later GenerateRandomizer() join an already-joined
+    // thread.
+    generated = 0;
+    if (!completed) {
+        return 21;
+    }
+    if (!randoCtx->IsSeedGenerated()) {
+        fprintf(stderr, "[rando-full-init] worker finished but the seed is not marked generated\n");
+        return 22;
+    }
+
+    fprintf(stderr, "[rando-full-init] seed generated on a worker thread with the full OTR bring-up live\n");
+    return 0;
+}
+
+/**
+ * Part of #560 — the "Why CI never saw it" coverage hole. Driven by the
+ * RandoGenFullInit CTest row (CMake/SingleExecutable.cmake).
+ *
+ * Every OTHER rando-label row sets RSBS_DISABLE_OTR_INIT=1, which skips the
+ * whole OTRMessage_Init / OTRAudio_Init / OTRExtScanner / VanillaItemTable_Init /
+ * DebugConsole_Init block at OTRGlobals.cpp:1811-1823, and then generates via
+ * the SYNCHRONOUS 3-arg GenerateRandomizer on the test's own thread
+ * (Rando_HeadlessSeedTest, 3drando/menu.cpp:35-69). That is a bring-up AND a
+ * call shape no player ever runs. This entry point differs in exactly two ways:
+ *
+ *   1. It PROVES the un-masking happened before generating anything, so
+ *      re-adding the env flag to the row fails it instead of silently turning it
+ *      into a RandoGen duplicate — precisely the vacuity #560 is about.
+ *      (OTRMessage_Init is deliberately NOT asserted: it carries its own inner
+ *      `hasGameArchive` gate at OTRGlobals.cpp:1815, and hasGameArchive is false
+ *      in every ROM-free environment because hasMasterQuest/hasOriginal are only
+ *      set from GetGameVersions(), OTRGlobals.cpp:1018-1063.)
+ *   2. It generates through GenerateRandomizer(seed) — the 1-arg overload that
+ *      spawns randoThread — i.e. the path a player's file select takes
+ *      (z_file_choose.c:824 -> Randomizer_GenerateRandomizer, OTRGlobals.cpp:
+ *      2730 -> here), so the fill runs on a WORKER thread with the main thread
+ *      live rather than inline.
+ *
+ * Scope honesty: this does NOT reproduce #560's crash and is not trying to. That
+ * race needs oot.o2r-only entries on both sides (scenes/nonmq/HIDAN_scene/... on
+ * the fill side, textures/nes_font_static/... on the render side) plus a running
+ * frame loop; a ROM-free row has neither, and a probabilistic concurrent-read
+ * stress loop would be a flaky row, not a lock. What this closes is the part of
+ * the hole that IS closable ROM-free: the masked bring-up, and
+ * generation-on-a-worker-thread.
+ *
+ * Returns 0 on success, non-zero with a distinct code per failure mode.
+ */
+extern "C" int Rando_HeadlessFullInitSeedTest(const char* seedStr) {
+    const bool otrInitRan = OoT_OtrInitRan() != 0;
+    const int rc = RunFullInitSeedTest(seedStr);
+
+    // This row is the first test to run OTRAudio_Init, which starts a REAL
+    // std::thread against a file-static `audio` (soh/OTRAudio.h) whose ~thread()
+    // would std::terminate on a still-joinable thread. The app pairs the init
+    // with OTRAudio_Exit inside DeinitOTR; do the same here rather than leaving
+    // the thread live at exit.
+    //
+    // Measured, so the comment does not overclaim: today this is DEFENSIVE, not
+    // load-bearing. `--test` mode ends at _Exit (rsbs/src/main.cpp:288, chosen
+    // deliberately so a teardown fault cannot clobber a decided verdict), which
+    // skips static destruction entirely — verified by temporarily suppressing
+    // this call, which still exited 0. Keeping the pairing means the row does not
+    // regress into an abort the day that _Exit becomes a normal return.
+    //
+    // Gated on the block having run because OTRAudio_Exit joins unconditionally,
+    // and joining a never-started thread throws.
+    if (otrInitRan) {
+        OTRAudio_Exit();
+    }
+    return rc;
 }
 
 class ExtendedVanillaTableInvalidItemIdException : public std::exception {

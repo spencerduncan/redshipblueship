@@ -455,6 +455,14 @@ TestResult Test_BootOoT(void) {
 }
 
 extern "C" int Rando_HeadlessSeedTest(const char* seedStr);
+// Full-bring-up generation lock (#560 "Why CI never saw it"; body in
+// games/oot/soh/Enhancements/randomizer/randomizer.cpp). Driven by the ONE rando
+// row that does not set RSBS_DISABLE_OTR_INIT=1: it first proves the normally
+// masked init block actually ran (populated ExtensionCache + vanilla item table +
+// registered debug console — the anti-vacuity guard), then generates through the
+// THREADED entry a player's file select takes rather than the synchronous
+// overload every other row uses.
+extern "C" int Rando_HeadlessFullInitSeedTest(const char* seedStr);
 // Lane B unified-seed determinism bridge (body in
 // games/oot/soh/Enhancements/randomizer/3drando/menu.cpp). Runs ONE seed
 // generation, asserts the live producer stamped gComboCtx, and writes a
@@ -519,6 +527,63 @@ TestResult Test_RandoGen(void) {
 
     int rc = Rando_HeadlessSeedTest("RSBSDIAG1");
     printf("[TEST] %s: seed generation rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #560 coverage hole. rando-gen above, and all 13 of its siblings, run under
+// RSBS_DISABLE_OTR_INIT=1, so CI's only seed-generation coverage runs a bring-up
+// with OTRAudio_Init / OTRExtScanner / VanillaItemTable_Init / DebugConsole_Init
+// all skipped (OTRGlobals.cpp:1811-1823), and drives the synchronous 3-arg
+// GenerateRandomizer inline. This entry is the same generation with none of that
+// masked and with the fill on a worker thread, which is what a player gets. It
+// asserts the un-masking BEFORE generating so the row cannot pass vacuously if
+// the env flag is ever re-added to it. Needs a display (Fast3dWindow) like
+// rando-gen, so `--test all` skips it.
+TestResult Test_RandoGenFullInit(void) {
+    printf("[TEST] rando-gen-full-init: seed generation with the full OTR bring-up live, on a worker thread "
+           "(#560)\n");
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    // Hard precondition, checked before bring-up because the failure mode is a
+    // 300-second HANG rather than a crash. With no archive loaded libultraship
+    // pauses the ResourceManager thread pool permanently (libultraship
+    // ResourceManager.cpp:58-61, "Nothing ever unpauses the thread pool"), and
+    // OTRAudio_Init inside the un-masked block does a synchronous
+    // ResourceMgr_LoadDirectory("audio") whose .get() then never returns. That is
+    // the real, previously-undocumented reason this tier carries
+    // RSBS_DISABLE_OTR_INIT=1 — and it is why CI's rando rows had been running
+    // with zero archives mounted for as long as the tier has existed (they were
+    // staged where only the install rules look; #560 fixes that in BOTH places
+    // the archive can come from — copy-existing-otrs.cmake / the Generate*Otr
+    // targets for a locally built archive, and a staging step in each workflow
+    // for the CI case where it arrives as a downloaded artifact instead).
+    // Resolve exactly the way the bring-up will (OTRGlobals.cpp:
+    // LocateFileAcrossAppDirs("soh.o2r")) and fail in a second with a readable
+    // reason instead of burning the row's timeout. Deliberately a FAIL and not a
+    // CTest SKIP: a staging regression must be loud, since the symptom it
+    // otherwise produces is a silently masked subsystem.
+    const std::string sohArchive = Ship::Context::LocateFileAcrossAppDirs("soh.o2r");
+    if (!std::filesystem::exists(sohArchive)) {
+        printf("[TEST] FAIL: no soh.o2r resolvable (tried '%s'). This row needs a mounted archive: with none, "
+               "libultraship pauses the resource thread pool and OTRAudio_Init's synchronous load never "
+               "returns. Build the port archives once ('cmake --build <dir> --target GenerateSohOtr "
+               "Generate2ShipOtr'), which now also lands them in the build root where the ctest rows look "
+               "(#560).\n",
+               sohArchive.c_str());
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    int rc = Rando_HeadlessFullInitSeedTest("RSBSFULL1");
+    printf("[TEST] %s: full-init seed generation rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
@@ -1657,6 +1722,11 @@ TestResult Test_Context(void) {
 
 const TestDescriptor gTests[] = {
     {"rando-gen", "Seed generation succeeds with default settings (#337)", Test_RandoGen},
+    // #560: the same generation with the RSBS_DISABLE_OTR_INIT mask OFF and the
+    // fill on a worker thread — the bring-up and call shape a player actually
+    // gets. Needs a display like rando-gen, so `--test all` skips it (below).
+    {"rando-gen-full-init", "Seed generation with the full OTR bring-up live, on a worker thread (#560)",
+     Test_RandoGenFullInit},
     // #441: no generated hint may resolve to the no-item sentinel. Needs a
     // display like rando-gen, so `--test all` skips it (below).
     {"rando-hint-validity", "Every generated hint names a real item (#441)", Test_RandoHintValidity},
@@ -1948,7 +2018,8 @@ int TestRunner_Run(const char* testName) {
             // bring-up) and the RSBS_DISABLE_OTR_INIT environment; they run as
             // their own CTests ("rando" label, under xvfb-run) rather than in
             // this display-free suite, where they would hang the 60s timeout.
-            if (strcmp(gTests[i].name, "rando-gen") == 0 || strcmp(gTests[i].name, "rando-determinism") == 0 ||
+            if (strcmp(gTests[i].name, "rando-gen") == 0 || strcmp(gTests[i].name, "rando-gen-full-init") == 0 ||
+                strcmp(gTests[i].name, "rando-determinism") == 0 ||
                 strcmp(gTests[i].name, "rando-hint-validity") == 0 ||
                 strcmp(gTests[i].name, "rando-hint-reload") == 0 ||
                 strcmp(gTests[i].name, "rando-hint-crossgame") == 0 ||

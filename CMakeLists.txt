@@ -396,10 +396,14 @@ add_custom_target(
     # Land 2ship.o2r where the install rules read it (${CMAKE_BINARY_DIR}/mm/)
     # and at the source root, mirroring what copy-existing-otrs.cmake does for
     # soh.o2r. Extraction writes into WORKING_DIRECTORY (games/mm), which
-    # nothing installs from.
+    # nothing installs from. The third copy is the build root, which is where
+    # the CTest rows can actually see it (#560 — LocateFileAcrossAppDirs probes
+    # the app-config dir, then the exe's own dir, then "./"; all three are
+    # ${CMAKE_BINARY_DIR} for a ctest row, never ${CMAKE_BINARY_DIR}/mm).
     COMMAND ${CMAKE_COMMAND} -E copy 2ship.o2r ${CMAKE_SOURCE_DIR}
     COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/mm
     COMMAND ${CMAKE_COMMAND} -E copy 2ship.o2r ${CMAKE_BINARY_DIR}/mm/
+    COMMAND ${CMAKE_COMMAND} -E copy 2ship.o2r ${CMAKE_BINARY_DIR}/
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/games/mm
     COMMENT "Running MM asset extraction..."
     DEPENDS ZAPD_MM
@@ -420,10 +424,13 @@ add_custom_target(
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/OTRExporter/extract_assets.py -z "$<TARGET_FILE:ZAPD_MM>" --norom --custom-otr-file 2ship.o2r "--custom-assets-path" ${CMAKE_CURRENT_SOURCE_DIR}/games/mm/assets/custom --port-ver "${CMAKE_PROJECT_VERSION}"
     # Land 2ship.o2r where the install rules read it (${CMAKE_BINARY_DIR}/mm/)
     # and at the source root (which CI uploads as the 2ship.o2r artifact),
-    # mirroring what copy-existing-otrs.cmake does for GenerateSohOtr.
+    # mirroring what copy-existing-otrs.cmake does for GenerateSohOtr. The third
+    # copy is the build root — the only place a CTest row can see it (#560; the
+    # rows run with cwd = ${CMAKE_BINARY_DIR} and the binary lives there too).
     COMMAND ${CMAKE_COMMAND} -E copy 2ship.o2r ${CMAKE_SOURCE_DIR}
     COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/mm
     COMMAND ${CMAKE_COMMAND} -E copy 2ship.o2r ${CMAKE_BINARY_DIR}/mm/
+    COMMAND ${CMAKE_COMMAND} -E copy 2ship.o2r ${CMAKE_BINARY_DIR}/
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/games/mm
     COMMENT "Generating 2ship.o2r..."
     DEPENDS ZAPD_MM
