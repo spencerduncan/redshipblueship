@@ -7,6 +7,7 @@
 #include "soh/resource/type/Scene.h"
 #include "soh/resource/type/scenecommand/SceneCommand.h"
 #include "soh/resource/type/scenecommand/SetCollisionHeader.h"
+#include "spdlog/spdlog.h"
 
 #define CVAR_GRAVE_HOLE_NAME CVAR_ENHANCEMENT("GraveHoles")
 #define GRAVE_HOLES_DEFAULT 0
@@ -32,15 +33,32 @@ CollisionHeader* getGraveyardCollisionHeader() {
      */
     SOH::Scene* scene =
         (SOH::Scene*)Ship::Context::GetInstance()->GetResourceManager()->LoadResource(GRAVEYARD_SCENE_FILEPATH).get();
+    // Any of these can be null after a failed archive read (#560): the scene itself,
+    // an individual command ParseSceneCommand could not build, and the collision
+    // header sub-load SetCollisionHeaderFactory stores without checking. Bail out
+    // instead of patching through a null — the patch re-runs on the next ShipInit or
+    // CVar change, so skipping one attempt is recoverable.
+    if (scene == nullptr) {
+        SPDLOG_ERROR("GraveHoleJumps: failed to load the graveyard scene; skipping the geometry patch");
+        return nullptr;
+    }
     SOH::SetCollisionHeader* sceneCmd = nullptr;
     for (size_t i = 0; i < scene->commands.size(); i++) {
         auto cmd = scene->commands[i];
-        if (cmd->cmdId == SOH::SceneCommandID::SetCollisionHeader) {
+        if (cmd != nullptr && cmd->cmdId == SOH::SceneCommandID::SetCollisionHeader) {
             sceneCmd = static_cast<SOH::SetCollisionHeader*>(cmd.get());
             break;
         }
     }
+    if (sceneCmd == nullptr || sceneCmd->collisionHeader == nullptr) {
+        SPDLOG_ERROR("GraveHoleJumps: graveyard scene has no usable collision header; skipping the geometry patch");
+        return nullptr;
+    }
     CollisionHeader* graveyardColHeader = (CollisionHeader*)sceneCmd->GetRawPointer();
+    if (graveyardColHeader == nullptr) {
+        SPDLOG_ERROR("GraveHoleJumps: graveyard collision header has no data; skipping the geometry patch");
+        return nullptr;
+    }
     uint32_t surfaceTypesCount = sceneCmd->collisionHeader->surfaceTypesCount;
 
     /*
@@ -76,6 +94,9 @@ void ApplyGraveyardGeometryPatches() {
     // ShipInit/CVar-change re-run was a use-after-free. LoadResource is a cache hit while the resource
     // is loaded, so re-fetching is cheap, and it also re-applies the patch to a freshly reloaded scene.
     CollisionHeader* graveyardColHeader = getGraveyardCollisionHeader();
+    if (graveyardColHeader == nullptr) {
+        return;
+    }
     for (auto& mappingPatch : graveyardGeometryPatches) {
         for (int i = mappingPatch.first.first; i <= mappingPatch.first.second; i++) {
             CollisionPoly* poly = &graveyardColHeader->polyList[i];

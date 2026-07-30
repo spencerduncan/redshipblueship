@@ -3497,7 +3497,21 @@ void GenerateRandomizerImgui(std::string seed = "") {
         }
     }
 
-    RandoMain::GenerateRando(excludedLocations, enabledTricks, seed);
+    // #560: this runs on its own thread with nothing above it that catches. An
+    // exception escaping GenerateRando therefore std::terminate'd the process, and
+    // because RandoGenerating was already persisted as 1 by the
+    // SaveConsoleVariablesNextFrame above, the menu and the file-select screen were
+    // left believing a generation was still in flight. A failed attempt has to clear
+    // the flag and hand the thread back joinable, exactly like a successful one.
+    try {
+        RandoMain::GenerateRando(excludedLocations, enabledTricks, seed);
+    } catch (const std::exception& e) {
+        SPDLOG_ERROR("Seed generation threw: {}", e.what());
+        ctx->SetSeedGenerated(false);
+    } catch (...) {
+        SPDLOG_ERROR("Seed generation threw an unknown exception");
+        ctx->SetSeedGenerated(false);
+    }
 
     CVarSetInteger(CVAR_GENERAL("RandoGenerating"), 0);
     Ship::Context::GetInstance()->GetWindow()->GetGui()->SaveConsoleVariablesNextFrame();
