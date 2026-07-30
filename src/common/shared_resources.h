@@ -96,6 +96,10 @@
  *     before every `.redsave` write. Game_Suspend is the only point on BOTH the
  *     entrance and the F10 hot-swap path while the live `gSaveContext` still
  *     belongs to the departing game.
+ *   - Every harvest shim opens with `Combo_SaveIsLiveFile()` and returns early
+ *     when it is false. See that function for why the gate is mandatory rather
+ *     than defensive: without it, F10 on the title screen harvests the ATTRACT
+ *     DEMO's save.
  *   - Apply at each game's presence-gated startup-entrance point in `z_play.c`,
  *     beside the shared-item consumer — the first point after the boot chain's
  *     last `gSaveContext` wipe. NOT `Game_Resume`: both restores are
@@ -161,6 +165,93 @@ uint16_t Combo_MakeHealthQuarters(uint16_t capacity, uint16_t pieces);
  * drift. Either out-pointer may be NULL.
  */
 void Combo_SplitHealthQuarters(uint16_t quarters, uint16_t* outCapacity, uint16_t* outPieces);
+
+/**
+ * `gSaveContext.gameMode` values. BOTH ports spell this field and these
+ * enumerators identically (games/oot/include/z64save.h, games/mm/include/-
+ * z64save.h) and agree on 0..3; MM alone adds 4. Restated here as macros
+ * because this TU deliberately includes no game headers — each shim
+ * static_asserts its own enum against these, so a renumber upstream is a build
+ * error rather than a silently inverted gate.
+ */
+#define RSBS_GAMEMODE_NORMAL 0
+#define RSBS_GAMEMODE_TITLE_SCREEN 1
+#define RSBS_GAMEMODE_FILE_SELECT 2
+#define RSBS_GAMEMODE_END_CREDITS 3
+#define RSBS_GAMEMODE_OWL_SAVE 4 // MM only
+
+/**
+ * Is the live `gSaveContext` a REAL LOADED FILE being played — as opposed to the
+ * synthetic save a menu leaves resident?
+ *
+ * THIS GATE IS MANDATORY, AND IT IS NOT DEFENSIVE. While OoT sits on the title
+ * screen, `gSaveContext` holds the ATTRACT DEMO's save: `Opening_SetupTitle-
+ * Screen` (z_opening.c) calls `OoT_Sram_InitDebugSave`, and `SaveManager::-
+ * InitFileDebug` authors 14 hearts, single magic, 150 rupees and
+ * `inventory.upgrades == 0x125249` — which decodes to TIER 1 of all eight
+ * upgrade slots (quiver, bomb bag, wallet, sticks, nuts and the rest), against a
+ * new file's zeroes. `Combo_CheckHotSwap` is polled from graph.c EVERY FRAME
+ * with no gameplay gate, so F10 on the title screen runs a full harvest against
+ * that save. Every MONOTONIC kind it touches then sits in the pool permanently —
+ * max-merge cannot decay by construction — and since A CAPACITY TIER CARRIES ITS
+ * ITEM WITH IT (see above), the next arrival in either game materializes a bow, a
+ * bomb bag and an upgraded wallet the player never earned. OoT's file-select
+ * screen and MM's own title screen (`TitleSetup_SetupTitleScreen` ->
+ * `MM_Sram_InitNewSave`) are the same class.
+ *
+ * WHY `gameMode` IS THE WHOLE TEST. It is the one field both games set to
+ * GAMEMODE_NORMAL at the cross-game arrival itself — in z_play.c, inside the
+ * same block that calls each game's apply — and to TITLE_SCREEN / FILE_SELECT on
+ * every menu path. So no frame can observe a menu's save under a NORMAL mode.
+ * It is also exactly what SoH's own `GameInteractor::IsSaveLoaded` leans on, for
+ * this precise reason ("prevents debug saves from reporting true on title
+ * screen"). MM additionally accepts GAMEMODE_OWL_SAVE — a real file mid-save,
+ * reached from gameplay, and the mode one of MM's two `.redsave` capture points
+ * fires in. END_CREDITS is excluded in both: the save is real but the session is
+ * terminal, so there is nothing downstream for a harvest to serve.
+ *
+ * WHY `fileNum` IS DELIBERATELY NOT PART OF THIS. Two independent reasons, and
+ * the second is the surprising one:
+ *
+ *   1. 0xFF IS OVERLOADED. It is OoT's title/map-select "no file" marker AND
+ *      this project's mandatory cross-game sentinel, which MM's `fileNum` is
+ *      PINNED to for the entire life of a legitimate cross-game session (see
+ *      `Sram_FileNumHasFlashSlot` and the 0xFF gates in z_sram_NES.c). On the MM
+ *      side it therefore carries no information at all, and rejecting it would
+ *      suppress the whole feature in the direction it was written for.
+ *
+ *   2. AN OOT-ONLY fileNum RULE IS ACTIVELY WORSE THAN NONE. Gating OoT's
+ *      harvest on a real slot while MM's harvest (which cannot be so gated) and
+ *      BOTH applies stay live makes the flow one-way — and apply is not
+ *      symmetric with harvest: for a CONSUMABLE it ASSIGNS
+ *      (`*liveValue = applied`), so it can lower a live value. A slot-less OoT
+ *      session would stop contributing while still receiving, and MM's harvest
+ *      would walk OoT's 14-heart debug save down to MM's 3-heart bootstrap. That
+ *      is a new corruption introduced by the guard, in the exact session
+ *      `IntGameplayRoundtrip` runs in. Keeping the predicate symmetric across
+ *      the two games is what keeps harvest and apply paired.
+ *
+ * KNOWN RESIDUAL, accepted deliberately: OoT's map-select debug save (fileNum
+ * 0xFF) and Boss Rush (0xFE) do reach gameplay under GAMEMODE_NORMAL carrying
+ * synthetic inventories nobody earned, and this predicate admits both. They are
+ * admitted SYMMETRICALLY — both games harvest and both apply, which is the
+ * pre-existing
+ * behavior and cannot corrupt either live save — and neither can persist a pool
+ * on its own, because OoT's `.redsave` hooks reject any fileNum outside 0..2 and
+ * MM's capture needs an active slot only those hooks establish. Closing them
+ * needs the APPLY gated on the same predicate, which is a separate change.
+ *
+ * A suppressed harvest must be a clean no-op on BOTH stores: an early return
+ * taken BEFORE any `Combo_HarvestSharedResource` call, so neither the pool nor
+ * the RAM watermark table is touched. That is what keeps the first-harvest seed
+ * above intact — a skipped harvest leaves "has this game been applied to in this
+ * process" exactly as it was, so the next real harvest applies the
+ * empty/occupied rule to an unchanged world.
+ *
+ * @param game     the game whose gSaveContext this is
+ * @param gameMode `gSaveContext.gameMode` (RSBS_GAMEMODE_*)
+ */
+bool Combo_SaveIsLiveFile(GameId game, int32_t gameMode);
 
 /**
  * HARVEST. Fold `liveValue` — the departing game's live value for `kind` — into

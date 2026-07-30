@@ -157,6 +157,34 @@ void Combo_SplitHealthQuarters(uint16_t quarters, uint16_t* outCapacity, uint16_
     }
 }
 
+// ============================================================================
+// "IS THIS A REAL LOADED FILE" — the harvest gate. See the header for why this
+// is mandatory: the title screen's gSaveContext is the ATTRACT DEMO's debug
+// save, and F10 is polled ungated every frame.
+//
+// Kept here, in the game-header-free TU, so the POLICY is one testable function
+// rather than two hand-written conditions that can drift apart in two shims.
+// ============================================================================
+
+bool Combo_SaveIsLiveFile(GameId game, int32_t gameMode) {
+    if (!IsRealGame(game)) {
+        return false;
+    }
+
+    // Gameplay only, and SYMMETRICALLY for both games — see the header for why
+    // an OoT-only fileNum refinement would be worse than none. Every menu path
+    // in both games (title, attract demo, file select) leaves a synthetic save
+    // resident under a non-NORMAL mode, and both games set NORMAL at the
+    // cross-game arrival itself, in the same block that calls their apply.
+    //
+    // MM's OWL_SAVE is the one accepted mode that is not gameplay: it is a real
+    // file mid-save, entered from gameplay, and one of MM's two `.redsave`
+    // capture points fires inside it. END_CREDITS is excluded in both — the save
+    // is real but the session is terminal, so no later arrival can consume what
+    // a harvest there would contribute.
+    return gameMode == RSBS_GAMEMODE_NORMAL || (game == GAME_MM && gameMode == RSBS_GAMEMODE_OWL_SAVE);
+}
+
 void Combo_HarvestSharedResource(GameId game, uint8_t kind, uint16_t liveValue) {
     if (!IsRealGame(game) || !IsRealKind(kind)) {
         return;
