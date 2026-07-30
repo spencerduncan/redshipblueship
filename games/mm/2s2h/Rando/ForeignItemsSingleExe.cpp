@@ -183,7 +183,11 @@ extern "C" {
 //      optional tier): RI_PROGRESSIVE_MAGIC, RI_SINGLE_MAGIC and
 //      RI_DOUBLE_MAGIC. Eight more left with shared ammo: RI_BOMB_BAG_20,
 //      RI_BOMB_BAG_30, RI_BOMB_BAG_40, RI_QUIVER_40, RI_QUIVER_50,
-//      RI_PROGRESSIVE_BOMB_BAG, RI_BOW and RI_PROGRESSIVE_BOW.
+//      RI_PROGRESSIVE_BOMB_BAG, RI_BOW and RI_PROGRESSIVE_BOW. And one more
+//      with the shared hookshot: RI_HOOKSHOT. Both games keep the hookshot in a
+//      single inventory byte, which makes it a monotonic TIER (0 none, 1
+//      hookshot, 2 longshot) rather than an item to hand over once — see
+//      RSBS_SHARED_RES_HOOKSHOT_TIER.
 //
 //      THE BOW ROWS LEAVE FOR A REASON WORTH SPELLING OUT, because "a bow is
 //      not ammo" is the obvious objection. MM does not separate the two: its
@@ -201,7 +205,7 @@ extern "C" {
 // the sword upgrades, the
 // progressives (which resolve against the LIVE MM save, so they are the single
 // best-behaved cross-game gift, and the OoT pool sets the precedent with
-// RG_PROGRESSIVE_HOOKSHOT / RG_PROGRESSIVE_STRENGTH), the boss remains, the
+// RG_PROGRESSIVE_STRENGTH), the boss remains, the
 // deeds and letters and other sidequest items, the owl statues, the Tingle maps,
 // and the dungeon keys/maps/compasses/stray fairies.
 //
@@ -215,7 +219,7 @@ extern "C" {
 // deferred to the first frame with a live MM_gPlayState (see the file header),
 // which is item-agnostic and O(1) in pool size — the #502 design note says in as
 // many words that an allowlist audited against today's pool would expire the
-// moment somebody added a row. This pool is that row, 117 times over, and it
+// moment somebody added a row. This pool is that row, 116 times over, and it
 // relies on the deferral instead of re-auditing it.
 //
 // Display names are MM's own (Rando::StaticData::Items) verbatim. They are a
@@ -234,7 +238,6 @@ static const ComboForeignItemDef kForeignPoolMMV1[] = {
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_PROGRESSIVE_LULLABY }, "Progressive Goron Lullaby", "" },
 
     // --- Core equipment, abilities and capacity upgrades.
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_HOOKSHOT }, "Hookshot", "the " },
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_LENS }, "Lens of Truth", "the " },
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_ARROW_FIRE }, "Fire Arrows", "" },
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_ARROW_ICE }, "Ice Arrows", "" },

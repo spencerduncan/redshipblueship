@@ -60,6 +60,7 @@ static bool IsMonotonicKind(uint8_t kind) {
         case RSBS_SHARED_RES_BOMB_BAG_TIER:
         case RSBS_SHARED_RES_STICK_TIER:
         case RSBS_SHARED_RES_NUT_TIER:
+        case RSBS_SHARED_RES_HOOKSHOT_TIER:
             return true;
         default:
             // The spent quantities — rupees, current health, current magic, and
