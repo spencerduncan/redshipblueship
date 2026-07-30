@@ -90,10 +90,11 @@
 #include "Rando/Rando.h"
 #include "Rando/Types.h"
 #include "Rando/StaticData/StaticData.h"
-// The arrival toast (#494). MM's own BenGui/Notification.cpp is excluded from
-// single-exe builds, so this Emit binds OoT's definition — the same deliberate
-// cross-bind MM's native rando pickup toast already uses, locked field-for-field
-// by mm_notification_binding_test.cpp (#427 item 1).
+// The arrival toast (#494), sent through MM_Notify_Emit — the explicit #427
+// item-1 bridge to OoT's shared overlay. MM's own BenGui/Notification.cpp is
+// excluded from single-exe builds and Notification::Emit is deliberately NOT
+// declared there; the layouts both sides compile against are locked by
+// src/common/notification_layout_probe.h and mm_notification_binding_test.cpp.
 #include "2s2h/BenGui/Notification.h"
 
 extern "C" {
@@ -486,7 +487,7 @@ void GiveNow(uint16_t riId) {
     // (src/common/tests/test_foreign_award.c calls the real MM_ConsumeSharedItems
     // with no PlayState and no Gui), so a Notification::Emit there would put an
     // ImGui/audio call on a display-free CI path.
-    Notification::Emit(BuildArrivalToast(randoItemId));
+    Notification::MM_Notify_Emit(BuildArrivalToast(randoItemId));
 }
 
 } // namespace

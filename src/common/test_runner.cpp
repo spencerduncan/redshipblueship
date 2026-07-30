@@ -58,13 +58,17 @@ int MM_CullingBinding_RunHeadless(void);
 // byte out-of-bounds write, layout is platform-dependent). Returns 0 on
 // pass, non-zero on fail.
 int MM_GIShim_RunHeadless(void);
-// MM Notification::Emit cross-bind lock (games/mm/2s2h/mm_notification_binding_test.cpp,
+// MM notification bridge lock (games/mm/2s2h/mm_notification_binding_test.cpp,
 // #427 item 1): MM's 2s2h/BenGui/Notification.cpp is excluded from single-exe
-// builds, so MM's Rando pickup toast binds OoT's Notification::Emit against
-// MM's own view of Notification::Options. Safe only while the two ports' Options
-// stay field-identical; this compares their layout fingerprints and fails on
-// drift (no link error can catch it — one Emit definition survives). Returns 0
-// on pass, non-zero on fail.
+// builds, so MM's toasts render on OoT's overlay. They used to get there by ABI
+// coincidence — MM's Notification::Emit call bound OoT's identically-mangled
+// body and handed it MM's own view of Options, with no link error possible when
+// the two structs drift (one Emit definition survives). This drives the
+// explicit bridge that replaced it from MM's side, reads the toast back out of
+// OoT's store field by field, and still compares the two ports' Options
+// layouts — both trees declare the type, so their implicit ctor/dtor
+// COMDAT-fold even now that the struct no longer crosses. Returns 0 on pass,
+// non-zero on fail.
 int MM_NotificationBinding_RunHeadless(void);
 // MM scaled framebuffer-draw binding (games/mm/2s2h/mm_fb_effects_test.cpp,
 // #386): MM's FB_DrawFromFramebufferScaled used to bind OoT's surviving body,
@@ -311,9 +315,8 @@ static TestResult Test_MMGIShim(void) {
     return MM_GIShim_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
-// MM Notification::Emit cross-bind lock (see the extern decl above). Thin
-// wrapper over the C entry point in
-// games/mm/2s2h/mm_notification_binding_test.cpp.
+// MM notification bridge lock (see the extern decl above). Thin wrapper over
+// the C entry point in games/mm/2s2h/mm_notification_binding_test.cpp.
 static TestResult Test_MMNotificationBinding(void) {
     return MM_NotificationBinding_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
@@ -1834,7 +1837,8 @@ const TestDescriptor gTests[] = {
     {"mm-culling-binding", "MM's Ship_ExtendedCulling* bind MM's Actor, not OoT's (#382)", Test_MMCullingBinding},
     {"mm-gi-shim", "MM hook registration goes through the MM-owned shim, not the shared 4-byte instance (#395)",
      Test_MMGIShim},
-    {"mm-notification-binding", "MM Notification::Emit binds OoT's only while Options stays layout-identical (#427)",
+    {"mm-notification-binding",
+     "MM's toasts reach OoT's overlay through the MM_Notify_Emit bridge, Options stays layout-identical (#427)",
      Test_MMNotificationBinding},
     {"mm-fb-effects-binding", "MM's scaled framebuffer draw binds its own body against MM's dimensions (#386)",
      Test_MMFbEffectsBinding},
