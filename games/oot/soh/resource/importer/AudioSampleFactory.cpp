@@ -289,8 +289,20 @@ ResourceFactoryXMLAudioSampleV0::ReadResource(std::shared_ptr<Ship::File> file,
     audioSample->sample.size = size;
 
     const char* path = child->Attribute("Path");
+    // Attribute() yields nullptr for a missing attribute, and LoadFile takes a
+    // std::string — constructing one from nullptr is undefined, so check first.
+    if (path == nullptr) {
+        SPDLOG_ERROR("AudioSample {}: sample element has no Path attribute", initData->Path);
+        return nullptr;
+    }
 
     auto sampleFile = Ship::Context::GetInstance()->GetResourceManager()->GetArchiveManager()->LoadFile(path);
+    // LoadFile returns null when the entry is absent or the archive read fails
+    // (#560); every branch below reads through Buffer.
+    if (sampleFile == nullptr || sampleFile->Buffer == nullptr) {
+        SPDLOG_ERROR("AudioSample {}: failed to load sample data \"{}\"", initData->Path, path);
+        return nullptr;
+    }
     audioSample->sample.fileSize = sampleFile->Buffer.get()->size();
     if (customFormatStr != nullptr) {
         // Compressed files can take a really long time to decode (~250ms per).

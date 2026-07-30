@@ -2402,6 +2402,14 @@ const std::vector<uint8_t>& GetDungeonSmallKeyDoors(SceneID sceneId) {
     // Find the SetTransitionActorList command
     std::shared_ptr<SOH::SetTransitionActorList> transitionActorListCommand = nullptr;
     for (auto& command : scene->commands) {
+        // ParseSceneCommand pushes a null entry for any command it could not build
+        // (unknown id, or a factory that failed a sub-load — #560) and logs it there.
+        // The engine's own walk in OTRScene_ExecuteCommands skips nulls; this one
+        // must too, or a partially loaded scene turns a logged load failure into an
+        // access violation in the middle of fill.
+        if (command == nullptr) {
+            continue;
+        }
         if (command->cmdId == SOH::SceneCommandID::SetTransitionActorList) {
             transitionActorListCommand = std::dynamic_pointer_cast<SOH::SetTransitionActorList>(command);
             break;

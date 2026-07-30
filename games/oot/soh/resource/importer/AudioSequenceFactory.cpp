@@ -343,6 +343,16 @@ ResourceFactoryXMLAudioSequenceV0::ReadResource(std::shared_ptr<Ship::File> file
     std::shared_ptr<Ship::File> seqFile;
     if (path != nullptr) {
         seqFile = Ship::Context::GetInstance()->GetResourceManager()->GetArchiveManager()->LoadFile(path);
+        // LoadFile returns null when the entry is absent or the archive read fails
+        // (#560); both users of seqFile below read straight through Buffer.
+        if (seqFile == nullptr || seqFile->Buffer == nullptr) {
+            SPDLOG_ERROR("AudioSequence {}: failed to load sequence data \"{}\"", initData->Path, path);
+            return nullptr;
+        }
+    } else if (!streamed) {
+        // A non-streamed sequence has nowhere to get its data from without a Path.
+        SPDLOG_ERROR("AudioSequence {}: non-streamed sequence has no Path attribute", initData->Path);
+        return nullptr;
     }
 
     if (!streamed) {

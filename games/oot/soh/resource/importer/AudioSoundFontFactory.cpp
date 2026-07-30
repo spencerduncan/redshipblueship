@@ -6,6 +6,7 @@
 #include <ship/Context.h>
 #include <ship/resource/archive/Archive.h>
 #include <ship/resource/ResourceManager.h>
+#include "spdlog/spdlog.h"
 
 namespace SOH {
 std::shared_ptr<Ship::IResource>
@@ -309,10 +310,19 @@ void ResourceFactoryXMLSoundFontV0::ParseInstruments(AudioSoundFont* soundFont, 
             if (sampleStr != nullptr && sampleStr[0] != 0) {
                 std::shared_ptr<SOH::AudioSample> res = static_pointer_cast<SOH::AudioSample>(
                     Ship::Context::GetInstance()->GetResourceManager()->LoadResourceProcess(sampleStr));
-                if (res->tuning != -1.0f) {
-                    instrument->lowNotesSound.tuning = res->tuning;
+                // The sample assignment below already tolerates a failed sub-load
+                // (#560); the tuning read above it did not. Keep both inside the
+                // same check.
+                if (res == nullptr) {
+                    SPDLOG_ERROR("SoundFont: failed to load LowNotesSound sample \"{}\"; leaving the sound unbound",
+                                 sampleStr);
+                    instrument->lowNotesSound.sample = nullptr;
+                } else {
+                    if (res->tuning != -1.0f) {
+                        instrument->lowNotesSound.tuning = res->tuning;
+                    }
+                    instrument->lowNotesSound.sample = static_cast<Sample*>(res->GetRawPointer());
                 }
-                instrument->lowNotesSound.sample = static_cast<Sample*>(res ? res->GetRawPointer() : nullptr);
             }
             instrumentElement = instrumentElement->NextSiblingElement();
         }
@@ -323,10 +333,16 @@ void ResourceFactoryXMLSoundFontV0::ParseInstruments(AudioSoundFont* soundFont, 
             if (sampleStr != nullptr && sampleStr[0] != 0) {
                 std::shared_ptr<SOH::AudioSample> res = static_pointer_cast<SOH::AudioSample>(
                     Ship::Context::GetInstance()->GetResourceManager()->LoadResourceProcess(sampleStr));
-                if (res->tuning != -1.0f) {
-                    instrument->normalNotesSound.tuning = res->tuning;
+                if (res == nullptr) {
+                    SPDLOG_ERROR("SoundFont: failed to load NormalNotesSound sample \"{}\"; leaving the sound unbound",
+                                 sampleStr);
+                    instrument->normalNotesSound.sample = nullptr;
+                } else {
+                    if (res->tuning != -1.0f) {
+                        instrument->normalNotesSound.tuning = res->tuning;
+                    }
+                    instrument->normalNotesSound.sample = static_cast<Sample*>(res->GetRawPointer());
                 }
-                instrument->normalNotesSound.sample = static_cast<Sample*>(res ? res->GetRawPointer() : nullptr);
             }
             instrumentElement = instrumentElement->NextSiblingElement();
         }
@@ -337,10 +353,16 @@ void ResourceFactoryXMLSoundFontV0::ParseInstruments(AudioSoundFont* soundFont, 
             if (sampleStr != nullptr && sampleStr[0] != 0) {
                 std::shared_ptr<SOH::AudioSample> res = static_pointer_cast<SOH::AudioSample>(
                     Ship::Context::GetInstance()->GetResourceManager()->LoadResourceProcess(sampleStr));
-                if (res->tuning != -1.0f) {
-                    instrument->highNotesSound.tuning = res->tuning;
+                if (res == nullptr) {
+                    SPDLOG_ERROR("SoundFont: failed to load HighNotesSound sample \"{}\"; leaving the sound unbound",
+                                 sampleStr);
+                    instrument->highNotesSound.sample = nullptr;
+                } else {
+                    if (res->tuning != -1.0f) {
+                        instrument->highNotesSound.tuning = res->tuning;
+                    }
+                    instrument->highNotesSound.sample = static_cast<Sample*>(res->GetRawPointer());
                 }
-                instrument->highNotesSound.sample = static_cast<Sample*>(res ? res->GetRawPointer() : nullptr);
             }
             instrumentElement = instrumentElement->NextSiblingElement();
         }
@@ -377,10 +399,16 @@ void ResourceFactoryXMLSoundFontV0::ParseSfxTable(AudioSoundFont* soundFont, tin
         if (sampleStr[0] != 0) {
             auto res = static_pointer_cast<SOH::AudioSample>(
                 Ship::Context::GetInstance()->GetResourceManager()->LoadResourceProcess(sampleStr));
-            if (res->tuning != -1.0f) {
-                sound.tuning = res->tuning;
+            if (res == nullptr) {
+                SPDLOG_ERROR("SoundFont: failed to load sfx sample \"{}\"; leaving the sound effect unbound",
+                             sampleStr);
+                sound.sample = nullptr;
+            } else {
+                if (res->tuning != -1.0f) {
+                    sound.tuning = res->tuning;
+                }
+                sound.sample = static_cast<Sample*>(res->GetRawPointer());
             }
-            sound.sample = static_cast<Sample*>(res ? res->GetRawPointer() : nullptr);
         }
     skip:
         element = element->NextSiblingElement();
@@ -432,6 +460,13 @@ ResourceFactoryXMLSoundFontV0::ReadResource(std::shared_ptr<Ship::File> file,
         origName += patch;
         audioSoundFont = dynamic_pointer_cast<AudioSoundFont>(
             Ship::Context::GetInstance()->GetResourceManager()->LoadResourceProcess(origName));
+        // Every field write below goes through this pointer. If the base font this
+        // patch extends failed to load (#560), fail the patch too rather than
+        // dereferencing null.
+        if (audioSoundFont == nullptr) {
+            SPDLOG_ERROR("SoundFont {}: failed to load the base font \"{}\" it patches", initData->Path, origName);
+            return nullptr;
+        }
     } else {
         audioSoundFont = std::make_shared<AudioSoundFont>(initData);
         memset(&audioSoundFont->soundFont, 0, sizeof(audioSoundFont->soundFont));

@@ -1278,7 +1278,15 @@ int Fill() {
                         RandomizerCheck rc =
                             Rando::StaticData::GetShopLocations()[i * LOCATIONS_PER_SHOP + itemindex - 1];
                         Rando::ItemLocation* itemLoc = ctx->GetItemLocation(rc);
-                        uint16_t shopsanityPrice = GetRandomPrice(Rando::StaticData::GetLocation(rc), shopsanityPrices);
+                        Rando::Location* loc = Rando::StaticData::GetLocation(rc);
+                        // GetRandomPrice reads loc->GetName()/GetRCType(), so a null
+                        // here is a deref inside the price roll, mid-generation.
+                        if (itemLoc == nullptr || loc == nullptr) {
+                            SPDLOG_ERROR("Shopsanity: no location entry for check {}; leaving its price vanilla",
+                                         static_cast<int>(rc));
+                            continue;
+                        }
+                        uint16_t shopsanityPrice = GetRandomPrice(loc, shopsanityPrices);
                         itemLoc->SetCustomPrice(shopsanityPrice);
                     }
                 }
@@ -1301,42 +1309,48 @@ int Fill() {
 
         // Add prices to scrubs
         auto scrubLoc = Rando::StaticData::GetScrubLocations();
-        if (ctx->GetOption(RSK_SHUFFLE_SCRUBS).Is(RO_SCRUBS_ALL)) {
-            for (size_t i = 0; i < scrubLoc.size(); i++) {
-                ctx->GetItemLocation(scrubLoc[i])
-                    ->SetCustomPrice(GetRandomPrice(Rando::StaticData::GetLocation(scrubLoc[i]), scrubPrices));
+        const bool randomScrubPrices = ctx->GetOption(RSK_SHUFFLE_SCRUBS).Is(RO_SCRUBS_ALL);
+        for (size_t i = 0; i < scrubLoc.size(); i++) {
+            Rando::ItemLocation* itemLoc = ctx->GetItemLocation(scrubLoc[i]);
+            Rando::Location* loc = Rando::StaticData::GetLocation(scrubLoc[i]);
+            if (itemLoc == nullptr || loc == nullptr) {
+                SPDLOG_ERROR("Scrub prices: no location entry for check {}; skipping it",
+                             static_cast<int>(scrubLoc[i]));
+                continue;
             }
-        } else {
-            for (size_t i = 0; i < scrubLoc.size(); i++) {
-                ctx->GetItemLocation(scrubLoc[i])
-                    ->SetCustomPrice(Rando::StaticData::GetLocation(scrubLoc[i])->GetVanillaPrice());
-            }
+            // GetVanillaPrice is int16_t and GetRandomPrice is uint16_t; make the
+            // narrowing to SetCustomPrice's uint16_t explicit rather than implicit.
+            itemLoc->SetCustomPrice(
+                static_cast<uint16_t>(randomScrubPrices ? GetRandomPrice(loc, scrubPrices) : loc->GetVanillaPrice()));
         }
 
         // set merchant prices
-        if (ctx->GetOption(RSK_SHUFFLE_MERCHANTS).Is(RO_SHUFFLE_MERCHANTS_BEANS_ONLY) ||
-            ctx->GetOption(RSK_SHUFFLE_MERCHANTS).Is(RO_SHUFFLE_MERCHANTS_ALL)) {
-            ctx->GetItemLocation(RC_ZR_MAGIC_BEAN_SALESMAN)
-                ->SetCustomPrice(
-                    GetRandomPrice(Rando::StaticData::GetLocation(RC_ZR_MAGIC_BEAN_SALESMAN), merchantPrices));
+        const bool randomBeanPrice = ctx->GetOption(RSK_SHUFFLE_MERCHANTS).Is(RO_SHUFFLE_MERCHANTS_BEANS_ONLY) ||
+                                     ctx->GetOption(RSK_SHUFFLE_MERCHANTS).Is(RO_SHUFFLE_MERCHANTS_ALL);
+        Rando::ItemLocation* beanItemLoc = ctx->GetItemLocation(RC_ZR_MAGIC_BEAN_SALESMAN);
+        Rando::Location* beanLoc = Rando::StaticData::GetLocation(RC_ZR_MAGIC_BEAN_SALESMAN);
+        if (beanItemLoc == nullptr || beanLoc == nullptr) {
+            SPDLOG_ERROR("Merchant prices: no location entry for the magic bean salesman; skipping its price");
         } else {
-            ctx->GetItemLocation(RC_ZR_MAGIC_BEAN_SALESMAN)
-                ->SetCustomPrice(Rando::StaticData::GetLocation(RC_ZR_MAGIC_BEAN_SALESMAN)->GetVanillaPrice());
+            beanItemLoc->SetCustomPrice(static_cast<uint16_t>(randomBeanPrice ? GetRandomPrice(beanLoc, merchantPrices)
+                                                                              : beanLoc->GetVanillaPrice()));
         }
 
         auto merchantLoc = Rando::StaticData::GetMerchantLocations();
 
-        if (ctx->GetOption(RSK_SHUFFLE_MERCHANTS).Is(RO_SHUFFLE_MERCHANTS_ALL_BUT_BEANS) ||
-            ctx->GetOption(RSK_SHUFFLE_MERCHANTS).Is(RO_SHUFFLE_MERCHANTS_ALL)) {
-            for (size_t i = 0; i < merchantLoc.size(); i++) {
-                ctx->GetItemLocation(merchantLoc[i])
-                    ->SetCustomPrice(GetRandomPrice(Rando::StaticData::GetLocation(merchantLoc[i]), merchantPrices));
+        const bool randomMerchantPrices =
+            ctx->GetOption(RSK_SHUFFLE_MERCHANTS).Is(RO_SHUFFLE_MERCHANTS_ALL_BUT_BEANS) ||
+            ctx->GetOption(RSK_SHUFFLE_MERCHANTS).Is(RO_SHUFFLE_MERCHANTS_ALL);
+        for (size_t i = 0; i < merchantLoc.size(); i++) {
+            Rando::ItemLocation* itemLoc = ctx->GetItemLocation(merchantLoc[i]);
+            Rando::Location* loc = Rando::StaticData::GetLocation(merchantLoc[i]);
+            if (itemLoc == nullptr || loc == nullptr) {
+                SPDLOG_ERROR("Merchant prices: no location entry for check {}; skipping it",
+                             static_cast<int>(merchantLoc[i]));
+                continue;
             }
-        } else {
-            for (size_t i = 0; i < merchantLoc.size(); i++) {
-                ctx->GetItemLocation(merchantLoc[i])
-                    ->SetCustomPrice(Rando::StaticData::GetLocation(merchantLoc[i])->GetVanillaPrice());
-            }
+            itemLoc->SetCustomPrice(static_cast<uint16_t>(randomMerchantPrices ? GetRandomPrice(loc, merchantPrices)
+                                                                               : loc->GetVanillaPrice()));
         }
         StopPerformanceTimer(PT_SHOPSANITY);
 

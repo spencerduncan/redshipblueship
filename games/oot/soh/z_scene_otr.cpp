@@ -196,6 +196,17 @@ bool OoT_Scene_CommandLightList(PlayState* play, SOH::ISceneCommand* cmd) {
 bool OoT_Scene_CommandPathList(PlayState* play, SOH::ISceneCommand* cmd) {
     // SOH::SetPathways* cmdPath = static_pointer_cast<SOH::SetPathways>(cmd);
     SOH::SetPathways* cmdPath = (SOH::SetPathways*)cmd;
+    // GetPointer() is paths.data(), so indexing [0] on an empty list dereferences
+    // whatever data() returns for an empty vector (nullptr in practice). Reachable
+    // two ways: an authored scene whose SetPathways command lists no pathway, and
+    // #560, where SetPathwaysFactory drops a pathway whose sub-load failed. A scene
+    // with no usable pathway is vanilla-equivalent to one with no SetPathways
+    // command at all, i.e. a null setupPathList.
+    if (cmdPath->paths.empty()) {
+        SPDLOG_ERROR("Scene command SetPathways has no usable pathway list; leaving setupPathList null");
+        play->setupPathList = NULL;
+        return false;
+    }
     play->setupPathList = (Path*)(cmdPath->GetPointer()[0]);
 
     return false;
@@ -402,7 +413,14 @@ bool Scene_CommandCutsceneData(PlayState* play, SOH::ISceneCommand* cmd) {
     // SOH::SetCutscenes* cmdCS = std::static_pointer_cast<SOH::SetCutscenes>(cmd);
     SOH::SetCutscenes* cmdCS = (SOH::SetCutscenes*)cmd;
 
-    play->csCtx.segment = cmdCS->cutscene->commands.data();
+    // Reach the data through GetPointer rather than cutscene->commands directly:
+    // SetCutscenesFactory stores the cutscene sub-load without checking it, and
+    // SetCutscenes::GetPointer is the accessor that already handles a null one
+    // (#560). Going straight through ->cutscene skipped that check.
+    play->csCtx.segment = cmdCS->GetPointer();
+    if (play->csCtx.segment == NULL) {
+        SPDLOG_ERROR("Scene command SetCutscenes has no usable cutscene data; leaving csCtx.segment null");
+    }
 
     // osSyncPrintf("\ngame_play->demo_play.data=[%x]", play->csCtx.segment);
     return false;

@@ -1060,6 +1060,14 @@ void Rando::StaticData::InitHashMaps() {
 }
 
 Location* Rando::StaticData::GetLocation(RandomizerCheck locKey) {
+    // NOTE: this cannot currently return null — callers all over the tree
+    // (menu.cpp, hook_handlers.cpp, TrackerAdapterSingleExe.cpp, fill.cpp)
+    // null-check the result, and those checks are defensive rather than live. The
+    // real hazard for an out-of-range key is a pointer past the end of the array,
+    // not null. Bounding it here would make every one of those guards meaningful,
+    // but it would also turn today's out-of-range reads into hard null derefs in
+    // the many callers that do NOT check, so it needs its own change with its own
+    // audit of the unguarded callers.
     return &(locationTable[locKey]);
 }
 

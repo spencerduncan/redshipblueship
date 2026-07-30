@@ -88,6 +88,14 @@ ResourceFactoryBinaryAnimationV0::ReadResource(std::shared_ptr<Ship::File> file,
         const auto animData = std::static_pointer_cast<Animation>(
             Ship::Context::GetInstance()->GetResourceManager()->LoadResourceProcess(path.c_str()));
 
+        // #560: a failed sub-load returns null. Fail the whole animation rather than
+        // dereferencing it or handing the animation player an uninitialized segment.
+        // Mirrors the same site in OoT's AnimationFactory.
+        if (animData == nullptr) {
+            SPDLOG_ERROR("Animation {}: failed to load link animation segment \"{}\"", initData->Path, path);
+            return nullptr;
+        }
+
         animation->animationData.linkAnimationHeader.segment = animData->GetPointer();
     } else if (animType == AnimationType::Legacy) {
         SPDLOG_DEBUG("BEYTAH ANIMATION?!");
