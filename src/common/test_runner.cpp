@@ -114,6 +114,12 @@ int Combo_SpoilerWindow_RunHeadless(void);
 // window lock; same bridge shape and the same reason (GuiWindow ctor reads
 // ConsoleVariables off the Ship::Context singleton).
 int Combo_MMOptionsWindow_RunHeadless(void);
+// src/common/tests/test_combo_tracker_view.c — the combo tracker's per-game
+// adapters (#458). Needs the shared bring-up because the OoT authoring seam
+// constructs a real Rando::Context. test_combo_tracker_window.c is the
+// window's lock — same bridge shape as the spoiler window above.
+int Combo_TrackerView_RunHeadless(void);
+int Combo_TrackerWindow_RunHeadless(void);
 // games/mm/2s2h/mm_rando_options_test.cpp (#497 step 4, #499): the option TABLE
 // and the paired PROFILE. Both bodies live in an MM TU because they drive
 // Rando::StaticData::Options and Rando::Foreign::ResolvePairedProfile, which
@@ -196,6 +202,14 @@ extern "C" {
 // deliberately READS the active game still never reads that game's save. FILE
 // SCOPE — it drives the C++-linkage ComboGui::RegisterComboMmOptionsWindow.
 #include "tests/test_combo_mm_options_window.c"
+
+// Combo tracker (#458): the per-game adapters over an authored MM shadow blob
+// + an authored OoT heap context, and the window's ADR 0008 inertness
+// tripwire. FILE SCOPE (compiled as C++) — the view lock uses std::vector for
+// the authored blob and the window lock drives the C++-linkage
+// ComboGui::RegisterComboTrackerWindow.
+#include "tests/test_combo_tracker_view.c"
+#include "tests/test_combo_tracker_window.c"
 
 // Sourced-grant model locks (ADR 0005, netplay 1a #460): per-source cursor
 // idempotency, switch-free received-order redemption, loud overflow with
@@ -1490,6 +1504,40 @@ TestResult Test_ComboMMOptionsWindow(void) {
     return Combo_MMOptionsWindow_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// Combo tracker adapters (#458). No Gui, but the OoT-side authoring seam
+// constructs a real Rando::Context, so it gets the same display-free bring-up
+// as the Gui bridges (cheap insurance against ctor-time singleton reads).
+TestResult Test_ComboTrackerView(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return Combo_TrackerView_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// Combo tracker window (#458, ADR 0008). Same bring-up as the Gui bridges
+// above and for the same reason (GuiWindow ctors read ConsoleVariables off
+// the Ship::Context singleton).
+TestResult Test_ComboTrackerWindow(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return Combo_TrackerWindow_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // MM option TABLE lock (#497 step 4, #499 step 5). No Gui, but it reads and
 // writes the option CVars through the real ConsoleVariables store, so it needs
 // the same display-free bring-up.
@@ -1706,6 +1754,14 @@ const TestDescriptor gTests[] = {
      Test_ComboSpoilerView},
     {"combo-spoiler-window", "Common-owned spoiler window registers de-collided; inert under every active game (#496)",
      Test_ComboSpoilerWindow},
+    // Combo tracker (#458): both games' progress through per-game adapters —
+    // MM's frozen shadow at registered offsets, OoT's suspended heap through a
+    // registered vtable — staleness-labelled, plus the window's inertness.
+    {"combo-tracker-view", "Tracker adapters recover authored MM shadow + OoT heap worlds, staleness-labelled (#458)",
+     Test_ComboTrackerView},
+    {"combo-tracker-window",
+     "Combo tracker window registers de-collided; inert under every active game and absent adapters (#458)",
+     Test_ComboTrackerWindow},
     // MM randomizer options surface (#497 step 4, #499). Three locks, split by
     // what they can see: the table needs MM's headers, the profile needs MM's
     // SaveContext, the window needs a Gui.

@@ -2159,6 +2159,8 @@ extern "C" void MM_Inventory_ChangeUpgrade(s16 upgrade, u32 value);
 extern "C" u32 MM_gUpgradeMasks[8];
 extern "C" u8 MM_gUpgradeShifts[8];
 extern "C" u16 MM_gUpgradeCapacities[][4];
+// Backs the SLOT/AMMO/INV_CONTENT macros (z64save.h) the ammo shim uses.
+extern "C" u8 MM_gItemSlots[77];
 
 // Heart pieces occupy the TOP NIBBLE of questItems in both games
 // (MM's QUEST_HEART_PIECE_COUNT is 0x1C; OoT writes 1 << (QUEST_HEART_PIECE+4)).
@@ -2170,6 +2172,53 @@ extern "C" u16 MM_gUpgradeCapacities[][4];
 // cannot index off the end of MM's capacity table.
 #define MM_MAX_WALLET_TIER 3u
 
+// Highest tier index in every ammo row of MM_gUpgradeCapacities, the twin of
+// OOT_MAX_AMMO_TIER. The rows themselves are identical across the two games —
+// quiver {0,30,40,50}, bomb bag {0,20,30,40}, sticks {0,10,20,30}, nuts
+// {0,20,30,40} — which is what lets a tier cross as one number with no
+// conversion, unlike the wallet.
+#define MM_MAX_AMMO_TIER 3u
+
+// See OoTSharedAmmo — same table, MM's ids. MM spells the stick and nut
+// upgrades UPG_DEKU_STICKS / UPG_DEKU_NUTS where OoT says UPG_STICKS /
+// UPG_NUTS, and its items ITEM_DEKU_STICK / ITEM_DEKU_NUT; the enum INDICES
+// agree, so the shared tier value means the same thing on both sides.
+typedef struct {
+    uint8_t tierKind;  // RSBS_SHARED_RES_*_TIER, or RSBS_SHARED_RES_NONE for the tier-less bombchu row
+    uint8_t countKind; // RSBS_SHARED_RES_*_COUNT
+    s16 upgrade;       // UPG_* row index, ignored when tierKind is NONE
+    uint8_t item;      // ITEM_* whose slot holds the count, and which a nonzero tier grants
+} MMSharedAmmo;
+
+static const MMSharedAmmo kMMSharedAmmo[] = {
+    { RSBS_SHARED_RES_QUIVER_TIER, RSBS_SHARED_RES_ARROW_COUNT, UPG_QUIVER, ITEM_BOW },
+    { RSBS_SHARED_RES_BOMB_BAG_TIER, RSBS_SHARED_RES_BOMB_COUNT, UPG_BOMB_BAG, ITEM_BOMB },
+    { RSBS_SHARED_RES_STICK_TIER, RSBS_SHARED_RES_STICK_COUNT, UPG_DEKU_STICKS, ITEM_DEKU_STICK },
+    { RSBS_SHARED_RES_NUT_TIER, RSBS_SHARED_RES_NUT_COUNT, UPG_DEKU_NUTS, ITEM_DEKU_NUT },
+    { RSBS_SHARED_RES_NONE, RSBS_SHARED_RES_BOMBCHU_COUNT, 0, ITEM_BOMBCHU },
+};
+
+static uint16_t MM_ReadAmmo(uint8_t item) {
+    const s8 held = AMMO(item);
+    return held < 0 ? 0u : (uint16_t)held;
+}
+
+// MM's bombchus have no upgrade row of their own — the bomb bag's capacity is
+// their ceiling, where OoT fixes it at 50. The pool holds the true count and
+// each side shows what it can hold, exactly as the 500-vs-999 wallet does.
+static uint16_t MM_AmmoCapacity(const MMSharedAmmo* row) {
+    if (row->tierKind == RSBS_SHARED_RES_NONE) {
+        return (uint16_t)CUR_CAPACITY(UPG_BOMB_BAG);
+    }
+    return (uint16_t)CUR_CAPACITY(row->upgrade);
+}
+
+static void MM_EnsureInventoryItem(uint8_t item) {
+    if (INV_CONTENT(item) == ITEM_NONE) {
+        INV_CONTENT(item) = item;
+    }
+}
+
 static uint16_t MM_ReadHealthQuarters(void) {
     const uint16_t pieces =
         (uint16_t)((gSaveContext.save.saveInfo.inventory.questItems & MM_HEART_PIECE_MASK) >> MM_HEART_PIECE_SHIFT);
@@ -2180,6 +2229,67 @@ static uint16_t MM_ReadHealthQuarters(void) {
     // dissolves that divergence rather than guarding it; the arithmetic has one
     // definition, in src/common.
     return Combo_MakeHealthQuarters(rawCapacity < 0 ? 0u : (uint16_t)rawCapacity, pieces);
+}
+
+// Magic meter level (0 none / 1 single / 2 double) from the two acquired
+// FLAGS — never from playerData.magicLevel, which Sram_OpenSave zeroes on
+// every file load as the meter-regrow trigger. See the OoT twin.
+static uint16_t MM_ReadMagicLevel(void) {
+    if (!gSaveContext.save.saveInfo.playerData.isMagicAcquired) {
+        return 0u;
+    }
+    return gSaveContext.save.saveInfo.playerData.isDoubleMagicAcquired ? 2u : 1u;
+}
+
+// Current magic with pending CREDITS settled in, the twin of
+// OoT_ReadSettledMagic. MM parks the true amount in magicFillTarget during the
+// meter regrow (MM_Interface_Update zeroes playerData.magic there — the same
+// window MM_Sram_OpenSave opens on every load) and carries magic-jar credit in
+// the magicToAdd accumulator that Magic_UpdateAddRequest drains a few units
+// per frame. Pending debits (the CONSUME_* family, including MM's
+// lens/Goron/Zora/Giant's Mask slow drains) are deliberately not settled, for
+// the reason the OoT twin gives. Nothing is written back here; the APPLY side
+// zeroes magicToAdd after authoring an authoritative amount, which is what
+// keeps a frozen accumulator from draining on top of an applied value and
+// being counted twice.
+static uint16_t MM_ReadSettledMagic(void) {
+    const uint16_t level = MM_ReadMagicLevel();
+    if (level == 0u) {
+        // A fresh MM save parks MAGIC_NORMAL_METER in playerData.magic before
+        // any meter exists (the Sram default-data table). Without a meter that
+        // is not magic, and it must not enter the pool as phantom credit.
+        return 0u;
+    }
+    const s8 rawMagic = gSaveContext.save.saveInfo.playerData.magic;
+    int32_t settled = rawMagic < 0 ? 0 : (int32_t)rawMagic;
+    switch (gSaveContext.magicState) {
+        case MAGIC_STATE_STEP_CAPACITY:
+        case MAGIC_STATE_FILL:
+            if ((int32_t)gSaveContext.magicFillTarget > settled) {
+                settled = (int32_t)gSaveContext.magicFillTarget;
+            }
+            break;
+        default:
+            break;
+    }
+    if (gSaveContext.magicToAdd > 0) {
+        settled += (int32_t)gSaveContext.magicToAdd;
+    }
+    // MM's parked PRE-regrow idiom, the twin of the OoT helper's last fold:
+    // the kaleido game-over continue parks the amount in magicFillTarget with
+    // magic == 0 and magicLevel == 0, machine IDLE, and the regrow that would
+    // move it back is transition-gated — an F10 harvest inside that fade would
+    // otherwise read 0 and debit the pool by the pre-death meter. Gated on
+    // magic == 0 as well as magicLevel == 0 because MM's plain file load
+    // (unlike OoT's) does NOT author magicFillTarget — it leaves the loaded
+    // amount in playerData.magic — so a stale RAM fillTarget must not outvote
+    // a genuine nonzero balance.
+    if (gSaveContext.save.saveInfo.playerData.magicLevel == 0 && rawMagic == 0 &&
+        (int32_t)gSaveContext.magicFillTarget > settled) {
+        settled = (int32_t)gSaveContext.magicFillTarget;
+    }
+    const int32_t cap = (int32_t)level * MAGIC_NORMAL_METER;
+    return (uint16_t)(settled > cap ? cap : settled);
 }
 
 /**
@@ -2211,6 +2321,18 @@ extern "C" void MM_HarvestSharedResources(void) {
         gSaveContext.save.saveInfo.playerData.health < 0 ? 0u : (uint16_t)gSaveContext.save.saveInfo.playerData.health);
     Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_DOUBLE_DEFENSE,
                                 gSaveContext.save.saveInfo.playerData.doubleDefense ? 1u : 0u);
+    Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_MAGIC_LEVEL, MM_ReadMagicLevel());
+    Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_MAGIC_CURRENT, MM_ReadSettledMagic());
+
+    // Ammo, the twin of the OoT loop — no settle step, because ammo changes are
+    // immediate AMMO() writes in both games rather than accumulator drains.
+    for (int i = 0; i < ARRAY_COUNT(kMMSharedAmmo); i++) {
+        const MMSharedAmmo* row = &kMMSharedAmmo[i];
+        if (row->tierKind != RSBS_SHARED_RES_NONE) {
+            Combo_HarvestSharedResource(GAME_MM, row->tierKind, (uint16_t)CUR_UPG_VALUE(row->upgrade));
+        }
+        Combo_HarvestSharedResource(GAME_MM, row->countKind, MM_ReadAmmo(row->item));
+    }
 }
 
 /**
@@ -2279,6 +2401,87 @@ extern "C" void MM_ApplySharedResources(void) {
         // through.
         gSaveContext.save.saveInfo.playerData.health = (s16)(health < 0x10u ? 0x10u : health);
     }
+
+    // --- Magic level (monotonic 0/1/2), then current magic clamped against it.
+    // The settled-current snapshot is taken BEFORE the level apply moves the
+    // acquired flags. This ordering is load-bearing on MM's side: a fresh MM
+    // save parks MAGIC_NORMAL_METER in playerData.magic with NO meter acquired
+    // (the Sram default-data table), and the settled read discards that
+    // residue only while the level is still 0. Reading it after the flag flip
+    // would promote the residue into a full phantom meter whenever the pool
+    // carries a level but no current slot (e.g. OoT earned the meter and spent
+    // it to exactly zero before crossing).
+    uint16_t magic = MM_ReadSettledMagic();
+    uint16_t magicLevel = MM_ReadMagicLevel();
+    const bool magicLevelShared = Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_MAGIC_LEVEL, 2u, &magicLevel);
+    if (magicLevelShared) {
+        if (magicLevel >= 1u) {
+            gSaveContext.save.saveInfo.playerData.isMagicAcquired = 1;
+        }
+        if (magicLevel >= 2u) {
+            gSaveContext.save.saveInfo.playerData.isDoubleMagicAcquired = 1;
+        }
+    }
+
+    // --- Current magic (consumable): one meter across both games. The cap is
+    // DERIVED from the level just applied, never read from live magicCapacity,
+    // which the boot chain leaves at 0 until the growth machine runs.
+    const uint16_t magicCap = (uint16_t)(magicLevel * MAGIC_NORMAL_METER);
+    const bool magicShared = Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_MAGIC_CURRENT, magicCap, &magic);
+
+    if ((magicLevelShared || magicShared) && magicLevel != 0u) {
+        // Re-author through MM's own file-load shape (MM_Sram_OpenSave): the
+        // amount stays in playerData.magic and only magicLevel is zeroed;
+        // MM_Interface_Update's regrow block then parks it in magicFillTarget
+        // ITSELF (magicFillTarget = playerData.magic; magic = 0) on its way
+        // into STEP_CAPACITY -> FILL. This is the one place MM's regrow
+        // differs from OoT's, and it is load-bearing: OoT's regrow leaves an
+        // externally-authored magicFillTarget alone, so OoT's apply parks the
+        // amount THERE — doing that here instead gets the target overwritten
+        // with the zeroed magic field and the meter refills to empty (caught
+        // by the int-gameplay-roundtrip probe, not by any ROM-free tier).
+        gSaveContext.magicState = MAGIC_STATE_IDLE;
+        gSaveContext.magicFlag = 0;
+        gSaveContext.magicCapacity = 0;
+        gSaveContext.save.saveInfo.playerData.magicLevel = 0;
+        gSaveContext.save.saveInfo.playerData.magic = (s8)(magic > magicCap ? magicCap : magic);
+        // The harvest that filled the pool already counted any pending
+        // magic-jar credit, so a frozen request draining on top of the amount
+        // just authored would be counted twice at the next harvest. Same rule
+        // as rupeeAccumulator, one accumulator further along; the stale consume
+        // request dies with it.
+        gSaveContext.isMagicRequested = 0;
+        gSaveContext.magicToAdd = 0;
+        gSaveContext.magicToConsume = 0;
+    }
+
+    // --- Ammo: tier before the count it bounds, per row. Deliberately does NOT
+    // copy MM's own rando bomb-bag give, which refills bombs AND bombchus to
+    // capacity — that is a give's semantics, and running it on every arrival
+    // would hand the player a free restock per switch. The apply authors an
+    // absolute count from the pool instead, which is what the watermark
+    // reconciles against.
+    for (int i = 0; i < ARRAY_COUNT(kMMSharedAmmo); i++) {
+        const MMSharedAmmo* row = &kMMSharedAmmo[i];
+
+        if (row->tierKind != RSBS_SHARED_RES_NONE) {
+            uint16_t tier = (uint16_t)CUR_UPG_VALUE(row->upgrade);
+            if (Combo_ApplySharedResource(GAME_MM, row->tierKind, MM_MAX_AMMO_TIER, &tier)) {
+                MM_Inventory_ChangeUpgrade(row->upgrade, (u32)tier);
+                if (tier >= 1u) {
+                    MM_EnsureInventoryItem(row->item);
+                }
+            }
+        }
+
+        uint16_t count = MM_ReadAmmo(row->item);
+        if (Combo_ApplySharedResource(GAME_MM, row->countKind, MM_AmmoCapacity(row), &count)) {
+            if (count > 0u) {
+                MM_EnsureInventoryItem(row->item);
+            }
+            AMMO(row->item) = (s8)count;
+        }
+    }
 }
 
 // ============================================================================
@@ -2318,8 +2521,24 @@ extern "C" void MM_ApplySharedResources(void) {
 // health at 0x30, and under one-health-bar semantics that is a Song of Time
 // healing the single shared bar — which is what "as if OoT and MM were one
 // game" means. It reads as a heal, not a bug.
+//
+// SHARED MAGIC deliberately has no equivalent hook either, and that is a fact
+// about MM rather than a policy call: Sram_SaveEndOfCycle never touches magic,
+// magicLevel or either acquired flag. A bracket there would be dead code
+// guarding a wipe that does not happen.
+//
+// SHARED AMMO, by contrast, needs one — the wipe zeroes AMMO() for every slot
+// in MM_gAmmoItems (arrows, bombs, bombchus, sticks, nuts, and MM-local beans
+// and powder keg) except the pictograph box. The five SHARED counts are
+// bracketed below for the same reason rupees are; the MM-local ones are left to
+// be wiped exactly as vanilla does, because restoring those would silently
+// reimplement 2S2H's DoNotResetConsumables enhancement for items that are not
+// part of the shared model and whose loss the player opted into by playing MM.
+// The capacity TIERS need no bracket: the wipe never touches inventory.upgrades,
+// and a monotonic resource could not decay through it anyway.
 
 static s16 sPreCycleRupees = 0;
+static s8 sPreCycleAmmo[ARRAY_COUNT(kMMSharedAmmo)];
 
 extern "C" void MM_RegisterSharedResourceCycleHooks(void) {
     S2H::GameHooks::Register<GameInteractor::BeforeEndOfCycleSave>([]() {
@@ -2337,6 +2556,15 @@ extern "C" void MM_RegisterSharedResourceCycleHooks(void) {
             settled = walletCap;
         }
         sPreCycleRupees = (s16)settled;
+
+        // Snapshot the shared ammo counts by SLOT, through the same AMMO()
+        // macro the wipe itself uses. Deliberately not by raw item id: the
+        // vanilla-reference restore in EndOfCycle.cpp indexes inventory arrays
+        // with item enumerators directly, which is correct only because a
+        // handful of MM's ids happen to equal their slot numbers.
+        for (int i = 0; i < ARRAY_COUNT(kMMSharedAmmo); i++) {
+            sPreCycleAmmo[i] = AMMO(kMMSharedAmmo[i].item);
+        }
     });
 
     S2H::GameHooks::Register<GameInteractor::AfterEndOfCycleSave>([]() {
@@ -2345,6 +2573,18 @@ extern "C" void MM_RegisterSharedResourceCycleHooks(void) {
         // The "you lost your rupees" notice would be a lie now, and it is the
         // same flag 2S2H's DoNotResetRupees clears for the same reason.
         CLEAR_EVENTINF(EVENTINF_THREEDAYRESET_LOST_RUPEES);
+
+        for (int i = 0; i < ARRAY_COUNT(kMMSharedAmmo); i++) {
+            AMMO(kMMSharedAmmo[i].item) = sPreCycleAmmo[i];
+        }
+        // Same reasoning as the rupee notice: four of the five shared counts
+        // have a "you lost it" flag that the cycle stamps before wiping, and
+        // leaving them set makes the game report a loss that no longer
+        // happened. Bombchus have no such flag in vanilla.
+        CLEAR_EVENTINF(EVENTINF_THREEDAYRESET_LOST_ARROW_AMMO);
+        CLEAR_EVENTINF(EVENTINF_THREEDAYRESET_LOST_BOMB_AMMO);
+        CLEAR_EVENTINF(EVENTINF_THREEDAYRESET_LOST_NUT_AMMO);
+        CLEAR_EVENTINF(EVENTINF_THREEDAYRESET_LOST_STICK_AMMO);
     });
 }
 
@@ -2617,6 +2857,69 @@ static GameOps sMMOps = { "mm",           "Majora's Mask", MM_Game_Init, MM_Game
 
 extern "C" GameOps* MM_GetGameOps(void) {
     return &sMMOps;
+}
+
+// ============================================================================
+// Pause-menu / file-select hook dispatch (#438)
+// ============================================================================
+//
+// The last hook types that combined a LIVE registrant (2ship_rando links with
+// WHOLE_ARCHIVE, so Rando::MiscBehavior's registrations are in the binary)
+// with dead dispatch. Same class and remedy as the #512/#514/#515 blocks
+// above: the rebind block at the bottom of MM's GameInteractor.h routes each
+// upstream-spelled call site here, and these bridges consult ONLY the MM-owned
+// S2H::GameHooks registries. Locked by mm_hook_dispatch_test.cpp checks 9-11.
+//
+//  - OnKaleidoUpdate (z_kaleido_scope_NES.c KaleidoScope_Update): bound OoT's
+//    0-arg gated wrapper — C linkage hid the arity mismatch. KaleidoItemPage's
+//    registrant is the trade-slot item-cycling input handler; while it was
+//    dead, left/right on SLOT_TRADE_DEED/KEY_MAMA/COUPLE did nothing, so
+//    alternate shuffled trade items in those slots were unreachable from the
+//    pause menu.
+//  - Before/AfterKaleidoDrawPage (z_kaleido_scope_NES.c brackets every page
+//    draw with the pair): bound the mm_stubs.c no-ops. After carries
+//    KaleidoItemPage's COND_ID_HOOK(PAUSE_ITEM) cycling arrows and adjacent-
+//    item previews for those same slots — dead, and combined with the LIVE
+//    VB_KALEIDO_DISPLAY_ITEM_TEXT suppression that made the slots strictly
+//    worse than vanilla (static icon, no name, no arrows). Before's only
+//    registrant (PersistentMasks.cpp, 2ship_enh) stays link-elided today; it
+//    is wired here as a pair with After per the pairing rule mm_game_hooks.h
+//    records, and its plain-Unregister-vs-RegisterForID leg mismatch was
+//    fixed in the same change so un-elision cannot accumulate stale entries.
+//    Both ForID legs mirror the excluded GameInteractor.cpp twin (keyed on
+//    pauseIndex); upstream has no ForPtr/ForFilter legs for these.
+//  - OnFileSelectSaveLoad (five z_sram_NES.c file-select flows): bound a
+//    mm_stubs.c no-op whose (void*, int) signature had drifted from the real
+//    (s16, bool, SaveContext*) — the #372/#424 hazard class, retired with the
+//    stub. FileSelect.cpp's registrant is the sole isRando[] writer, so a
+//    randomizer file on MM's file-select list rendered exactly like a vanilla
+//    one.
+//
+// HEADLESS SAFETY (the #516 SIGSEGV class): KaleidoItemPage's OnKaleidoUpdate
+// and AfterKaleidoDrawPage registrants dereference MM_gPlayState with no null
+// check. Every call site newly reached here runs inside an active pause/file-
+// select flow — KaleidoScope_Update and the page draws only execute under a
+// live PlayState, and the z_sram_NES.c flows only under the file-select game
+// state — and no ROM-free CTest row drives any of them. The MMHookDispatch row
+// resets these registries before dispatching its own probes, so it cannot run
+// the production registrants against a null play state.
+
+extern "C" void MM_GameHooks_ExecuteOnKaleidoUpdate(PauseContext* pauseCtx) {
+    S2H::GameHooks::Execute<GameInteractor::OnKaleidoUpdate>(pauseCtx);
+}
+
+extern "C" void MM_GameHooks_ExecuteBeforeKaleidoDrawPage(PauseContext* pauseCtx, u16 pauseIndex) {
+    S2H::GameHooks::Execute<GameInteractor::BeforeKaleidoDrawPage>(pauseCtx, pauseIndex);
+    S2H::GameHooks::ExecuteForID<GameInteractor::BeforeKaleidoDrawPage>(pauseIndex, pauseCtx, pauseIndex);
+}
+
+extern "C" void MM_GameHooks_ExecuteAfterKaleidoDrawPage(PauseContext* pauseCtx, u16 pauseIndex) {
+    S2H::GameHooks::Execute<GameInteractor::AfterKaleidoDrawPage>(pauseCtx, pauseIndex);
+    S2H::GameHooks::ExecuteForID<GameInteractor::AfterKaleidoDrawPage>(pauseIndex, pauseCtx, pauseIndex);
+}
+
+extern "C" void MM_GameHooks_ExecuteOnFileSelectSaveLoad(s16 fileNum, bool isOwlSave, SaveContext* saveContext) {
+    S2H::GameHooks::Execute<GameInteractor::OnFileSelectSaveLoad>(fileNum, isOwlSave, saveContext);
 }
 
 #endif /* RSBS_SINGLE_EXECUTABLE */

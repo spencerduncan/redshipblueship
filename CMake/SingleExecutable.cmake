@@ -45,6 +45,12 @@ set(REDSHIP_COMMON_SOURCES
     ${CMAKE_SOURCE_DIR}/src/common/combo_spoiler_view.c
     # The window that renders it — the first common-owned Gui element (ADR 0008)
     ${CMAKE_SOURCE_DIR}/src/common/ComboSpoilerWindow.cpp
+    # Combo tracker (#458): both games' check progress through per-game
+    # adapters — MM's frozen shadow via a registered offset descriptor, OoT's
+    # suspended heap via a registered accessor vtable — staleness-labelled,
+    # plus the window that renders it
+    ${CMAKE_SOURCE_DIR}/src/common/combo_tracker_view.c
+    ${CMAKE_SOURCE_DIR}/src/common/ComboTrackerWindow.cpp
     # MM randomizer options: the registry + value accessors over the descriptor
     # table MM publishes (#497 step 4, #499), and the pane that draws it. The
     # pane is common-owned because it must be reachable while OoT is running —
@@ -108,6 +114,8 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/foreign_items.h
     ${CMAKE_SOURCE_DIR}/src/common/combo_spoiler_view.h
     ${CMAKE_SOURCE_DIR}/src/common/ComboSpoilerWindow.h
+    ${CMAKE_SOURCE_DIR}/src/common/combo_tracker_view.h
+    ${CMAKE_SOURCE_DIR}/src/common/ComboTrackerWindow.h
     ${CMAKE_SOURCE_DIR}/src/common/combo_mm_options_view.h
     ${CMAKE_SOURCE_DIR}/src/common/ComboMmOptionsWindow.h
     ${CMAKE_SOURCE_DIR}/src/common/entrance.h
@@ -397,6 +405,13 @@ if(BUILD_TESTING)
     redship_add_test(NAME SharedResources COMMAND redship --test shared-resources)
     redship_add_test(NAME ComboSpoilerView COMMAND redship --test combo-spoiler-view)
     redship_add_test(NAME ComboSpoilerWindow COMMAND redship --test combo-spoiler-window)
+    # Combo tracker (#458). Display-free: the MM adapter is driven over an
+    # AUTHORED shadow blob at the offsets the real MM TU registered, and the
+    # OoT adapter over an authored heap Rando::Context — no fill, no archives.
+    # The window row is the ADR 0008 inertness tripwire (no ImGui context, so
+    # an ungated draw path aborts the process).
+    redship_add_test(NAME ComboTrackerView COMMAND redship --test combo-tracker-view)
+    redship_add_test(NAME ComboTrackerWindow COMMAND redship --test combo-tracker-window)
     # MM randomizer options (#497 step 4, #499). Display-free: the option table
     # is a static global in the WHOLE_ARCHIVE'd 2ship_rando, the profile resolver
     # runs over a zeroed MM SaveContext with no fill, and the pane's window lock

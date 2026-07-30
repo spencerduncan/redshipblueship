@@ -13,27 +13,40 @@
  *   "Current health is tracked as if OoT and MM were one game with a single
  *    health bar."
  *
- * v1 shares rupees and hearts. That is what justifies the matching pool shrink
- * in `kForeignPoolMMV1` (#525): with one wallet and one health bar spanning
- * both games, MM's wallet/heart/double-defense rows are no longer separate
- * items to cross — they ARE the shared resource, so shipping them as foreign
- * placements too would hand the player a second copy of a quantity they
- * already have. Shared magic and the ammo upgrades are the queued members of
- * the same class.
+ * v1 shares rupees and hearts; the #525 optional tier added magic — meter
+ * level and current magic, "current magic is tracked as if OoT and MM were one
+ * game with a single magic meter" — and then ammo: the quiver, bomb-bag, stick
+ * and nut capacity TIERS plus the arrow, bomb, bombchu, stick and nut COUNTS.
+ * That is what justifies the matching pool shrink in `kForeignPoolMMV1`
+ * (#525): with one wallet, one health bar, one magic meter and one quiver
+ * spanning both games, MM's wallet/heart/double-defense/magic/ammo rows are no
+ * longer separate items to cross — they ARE the shared resource, so shipping
+ * them as foreign placements too would hand the player a second copy of a
+ * quantity they already have.
+ *
+ * A CAPACITY TIER CARRIES THE ITEM WITH IT, copying OoTMM ("a Shared Bow
+ * grants the ability to use the Hero's Bow in MM and the Fairy Bow in OoT").
+ * Each game's apply authors its own inventory slot when a tier rises from
+ * zero, because the two games disagree about who does that: MM's own tier
+ * gives set INV_CONTENT (it treats quiver tier 1 AS owning the bow), while
+ * OoT's tier-2/3 gives assume tier 1 already granted the item. That is also
+ * why the bow rows left both pools — a bow crossing would mutate the shared
+ * quiver tier, which criterion 6 forbids.
  *
  * ---------------------------------------------------------------------------
  * THE TWO MERGE DISCIPLINES
  * ---------------------------------------------------------------------------
  * Picking the wrong one is a correctness bug, not a style choice.
  *
- *   MONOTONIC — wallet tier, health quarters, double defense. A capacity that
- *   only ever grows. Harvest is `shared = max(shared, live)`, apply is
- *   `live = max(live, shared)`. Idempotent in both directions; decay is
- *   impossible by construction, so no bookkeeping is needed.
+ *   MONOTONIC — wallet tier, health quarters, double defense, magic level, and
+ *   the four ammo capacity tiers. A capacity that only ever grows. Harvest is
+ *   `shared = max(shared, live)`, apply is `live = max(live, shared)`.
+ *   Idempotent in both directions; decay is impossible by construction, so no
+ *   bookkeeping is needed.
  *
- *   CONSUMABLE — rupee count, current health. A quantity the player spends.
- *   Harvest takes a DELTA against a watermark recorded at apply time, never a
- *   raw copy.
+ *   CONSUMABLE — rupee count, current health, current magic, and the five ammo
+ *   counts. A quantity the player spends. Harvest takes a DELTA against a
+ *   watermark recorded at apply time, never a raw copy.
  *
  * THE WATERMARK IS MANDATORY. MM's tier-3 wallet holds 500 and OoT's holds 999
  * (`gUpgradeCapacities`, both games). Under a naive `shared = live` harvest,
@@ -105,7 +118,7 @@ extern "C" {
  * table, which is indexed by KIND (stable) rather than by slot (slots are found
  * by scan and a future compaction could move them).
  */
-#define RSBS_SHARED_RES_KIND_COUNT 6u
+#define RSBS_SHARED_RES_KIND_COUNT 17u
 
 /**
  * Canonical heart quantity ceiling, in health units (0x10 per heart, 4 per
@@ -164,10 +177,10 @@ void Combo_SplitHealthQuarters(uint16_t quarters, uint16_t* outCapacity, uint16_
  * is a no-op (monotonic re-maxes to the same number; consumable computes a zero
  * delta because the first call advanced the watermark).
  *
- * No-op if `game` is not a real game or `kind` is not a real resource. If the
- * slot array is full of other resources the harvest is dropped — the array is
- * sized with headroom for the whole class, so this cannot happen with today's
- * five resources.
+ * No-op if `game` is not a real game or `kind` is not a real resource. If both
+ * slot blocks are full of other resources the harvest is dropped — they are
+ * sized with headroom for the whole class (twenty slots against today's
+ * sixteen kinds), so this cannot happen without a new resource being added.
  */
 void Combo_HarvestSharedResource(GameId game, uint8_t kind, uint16_t liveValue);
 

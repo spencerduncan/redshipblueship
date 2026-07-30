@@ -27,6 +27,7 @@
 #include "context.h"
 #include "ComboSpoilerWindow.h"   // Combo_SpoilerWindow_Init (#496, ADR 0008)
 #include "ComboMmOptionsWindow.h" // Combo_MMOptionsWindow_Init (#497/#499, ADR 0004+0008)
+#include "ComboTrackerWindow.h"   // Combo_TrackerWindow_Init (#458, ADR 0008)
 #include "entrance.h"
 #include "save.h" // rsbs::SaveManager — unified .redsave save-directory wiring
 #include "rsbs_version.h"
@@ -550,6 +551,13 @@ int main(int argc, char** argv) {
     // icons load. Every registered window is MMActiveGated, so it draws nothing
     // while OoT is the running game.
     MM_TrackersGui_Init();
+
+    // Combo tracker (#458). Same seam, and the seam is load-bearing here in
+    // BOTH directions: the window's whole purpose is showing the INACTIVE
+    // game's progress, so hanging it off either game's boot would hide it
+    // from exactly the sessions that need it. Also registers both games'
+    // tracker adapters (MM's shadow-offset descriptor, OoT's heap accessors).
+    Combo_TrackerWindow_Init();
 
     // Belt and braces: re-assert the unattended-safe handlers after game init.
     // The claim above already makes Ship::Context::InitCrashHandler a no-op

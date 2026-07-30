@@ -829,6 +829,19 @@ void SohMenu::AddMenuRandomizer() {
         .Options(WindowButtonOptions()
                      .Tooltip("Toggles the cross-game spoiler (which MM check hosts which OoT item, and vice versa).")
                      .EmbedWindow(false));
+    // Combo tracker (#458) — both games' progress at once, the inactive game's
+    // included ("as of last freeze/save"). Race-disabled like the spoiler: its
+    // cross-game section names items sitting on uncollected checks.
+    // Constants: ComboGui::kComboTracker* in src/common/ComboTrackerWindow.h.
+    AddWidget(path, "Toggle Combo Tracker", WIDGET_WINDOW_BUTTON)
+        .CVar("gCombo.Windows.Tracker")
+        .RaceDisable(true)
+        .WindowName("Combo Tracker")
+        .HideInSearch(true)
+        .Options(WindowButtonOptions()
+                     .Tooltip("Toggles the combo tracker (both games' check progress at once, including the game "
+                              "that is not running).")
+                     .EmbedWindow(false));
 
     // MM's four tracker windows had the same unreachability bug as the two
     // windows above. #489 made them openable and correctly named (they register
