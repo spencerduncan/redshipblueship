@@ -53,12 +53,14 @@
 #            once it is baselined, (d) regenerates a baseline containing
 #            exactly the intersection under --write-baseline and accepts it
 #            on the next run, (e) refuses to pass vacuously when no archives
-#            match, and (f) refuses to pass vacuously when the archives exist
-#            but yield zero strong external symbols. (e) and (f) are separate
+#            match, (f) refuses to pass vacuously when the archives exist
+#            but yield zero strong external symbols, and (g) FAILS when both
+#            sides emit the SAME GameInteractor hook-registry symbol (the
+#            #470 fold guard). (e) and (f) are separate
 #            because they trip DIFFERENT guards: with only (e), deleting the
 #            zero-symbols guard would let a broken nm disarm the gate in
 #            silence, which is the exact failure that guard exists for.
-#            Exit 0: all six hold. Exit 1: the detection
+#            Exit 0: all seven hold. Exit 1: the detection
 #            logic itself is broken. Exit 2: no usable toolchain found.
 #            Mirrors the --self-test in check-registrar-elision.sh and
 #            check-exporter-symbol-collisions.sh for the same "guard the
@@ -122,15 +124,22 @@ SELFTEST_SHARED_SYMBOL="rsbs_selftest_shared_strong"
 
 CC_BIN="$(command -v "${CC:-}" 2>/dev/null || command -v cc 2>/dev/null || command -v gcc 2>/dev/null || command -v gcc-11 2>/dev/null || true)"
 
-# selftest_build_archive <out-archive> <unique-symbol> <include-shared:0|1>
+# selftest_build_archive <out-archive> <unique-symbol> <include-shared:0|1> <gi-hook-name>
 # One TU carrying: the shared strong global (optional), a per-side unique
-# strong global, a WEAK global, and a global whose assembler name is a
-# _GLOBAL__sub_I_ static-init aggregator. The last two carry the SAME name on
+# strong global, a WEAK global, a global whose assembler name is a
+# _GLOBAL__sub_I_ static-init aggregator, and a WEAK global whose assembler
+# name is a GameInteractor::RegisteredGameHooks<GameInteractor::<gi-hook-name>>
+# mangling. The weak/_GLOBAL__sub_I_ pair carry the SAME name on
 # both sides deliberately — they are exactly what collect_defined's type and
 # name filters exist to drop, so the clean scenario passing with them present
-# is what makes those filters falsifiable rather than assumed.
+# is what makes those filters falsifiable rather than assumed. The registry
+# symbol satisfies collect_gi_registry's anti-vacuity guard (which exit-2s on
+# archives with no hook-registry symbols at all); callers pass a DIFFERENT
+# hook name per side so the fold check's disjointness assertion stays
+# non-vacuous, or the SAME name to synthesize a #470 fold.
 selftest_build_archive() {
-    local out_archive="$1" unique_symbol="$2" include_shared="$3"
+    local out_archive="$1" unique_symbol="$2" include_shared="$3" gi_hook="$4"
+    local gi_mangled="_ZN14GameInteractor19RegisteredGameHooksINS_${#gi_hook}${gi_hook}EEE"
     local tmp
     tmp="$(mktemp -d)"
     {
@@ -140,6 +149,7 @@ selftest_build_archive() {
         echo "int ${unique_symbol} = 2;"
         echo "int rsbs_selftest_weak __attribute__((weak)) = 3;"
         echo "int rsbs_selftest_ctor_alias __asm__(\"_GLOBAL__sub_I_rsbs_selftest\") = 4;"
+        echo "int rsbs_selftest_gireg __asm__(\"${gi_mangled}\") __attribute__((weak)) = 5;"
     } > "$tmp/src.c"
     # Named failure rather than a missing archive: without this, a toolchain
     # problem reaches the scenarios below as "gate returned 2 where 0 was
@@ -194,8 +204,8 @@ selftest_build_symbolless_archive() {
 # globs the production path uses.
 selftest_make_build_dir() {
     local dir="$1" include_shared="$2"
-    selftest_build_archive "$dir/games/oot/libsoh_selftest.a" rsbs_selftest_oot_only "$include_shared" || return 2
-    selftest_build_archive "$dir/games/mm/lib2ship_selftest.a" rsbs_selftest_mm_only "$include_shared" || return 2
+    selftest_build_archive "$dir/games/oot/libsoh_selftest.a" rsbs_selftest_oot_only "$include_shared" RsbsSelftestOotHook || return 2
+    selftest_build_archive "$dir/games/mm/lib2ship_selftest.a" rsbs_selftest_mm_only "$include_shared" RsbsSelftestMmHook || return 2
 }
 
 # selftest_expect <label> <expected-rc> <log-file> <actual-rc>
@@ -288,10 +298,34 @@ run_self_test() {
     rc=$?
     selftest_expect "vacuous-collection guard (archives with no strong external symbols)" 2 "$dir/log.symbolless" "$rc" || overall=1
 
+    # (g) Both sides emit the SAME GameInteractor hook-registry symbol -> the
+    # #470 fold guard FAILS. Registry symbols are weak, so the strong-symbol
+    # gate passes first and the failure is attributable to the fold check
+    # alone. The clean/collide fixtures give each side a DIFFERENT hook-type
+    # name, so without this scenario the fold check only ever sees disjoint
+    # sets and deleting its comm/exit-1 branch would pass unnoticed.
+    selftest_build_archive "$dir/gifold/games/oot/libsoh_selftest.a" rsbs_selftest_oot_only 0 RsbsSelftestFoldHook || { rm -rf "$dir"; return 2; }
+    selftest_build_archive "$dir/gifold/games/mm/lib2ship_selftest.a" rsbs_selftest_mm_only 0 RsbsSelftestFoldHook || { rm -rf "$dir"; return 2; }
+    bash "$0" "$dir/gifold" --baseline "$dir/empty-baseline.txt" > "$dir/log.gifold" 2>&1
+    rc=$?
+    if selftest_expect "GameInteractor registry fold scenario (#470 guard)" 1 "$dir/log.gifold" "$rc"; then
+        # rc=1 alone could also come from the strong-symbol gate; require the
+        # fold guard's own message so the failure is attributed correctly.
+        if grep -qF "GameInteractor hook-registry symbol(s) emitted by BOTH" "$dir/log.gifold"; then
+            echo "self-test: fold failure came from the #470 guard, not the strong-symbol gate"
+        else
+            echo "self-test FAIL: fold scenario returned rc=1 but not via the #470 guard. Child output:" >&2
+            sed 's/^/  /' < "$dir/log.gifold" >&2
+            overall=1
+        fi
+    else
+        overall=1
+    fi
+
     rm -rf "$dir"
 
     if [ "$overall" -eq 0 ]; then
-        echo "self-test: OK (all 6 scenarios behaved as expected)"
+        echo "self-test: OK (all 7 scenarios behaved as expected)"
     fi
     return "$overall"
 }
