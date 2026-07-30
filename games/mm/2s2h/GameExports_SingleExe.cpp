@@ -2327,13 +2327,71 @@ static uint16_t MM_ReadSettledMagic(void) {
     return (uint16_t)(settled > cap ? cap : settled);
 }
 
+// The harvest gate's game-mode contract (see Combo_SaveIsLiveFile), asserted
+// against MM's own enumerators for the same reason the OoT shim asserts its: a
+// renumber upstream would silently invert the gate. MM is the side that adds
+// GAMEMODE_OWL_SAVE, so this is the only TU that can pin it.
+static_assert(GAMEMODE_NORMAL == RSBS_GAMEMODE_NORMAL, "MM GAMEMODE_NORMAL must match RSBS_GAMEMODE_NORMAL");
+static_assert(GAMEMODE_TITLE_SCREEN == RSBS_GAMEMODE_TITLE_SCREEN,
+              "MM GAMEMODE_TITLE_SCREEN must match RSBS_GAMEMODE_TITLE_SCREEN");
+static_assert(GAMEMODE_FILE_SELECT == RSBS_GAMEMODE_FILE_SELECT,
+              "MM GAMEMODE_FILE_SELECT must match RSBS_GAMEMODE_FILE_SELECT");
+static_assert(GAMEMODE_END_CREDITS == RSBS_GAMEMODE_END_CREDITS,
+              "MM GAMEMODE_END_CREDITS must match RSBS_GAMEMODE_END_CREDITS");
+static_assert(GAMEMODE_OWL_SAVE == RSBS_GAMEMODE_OWL_SAVE, "MM GAMEMODE_OWL_SAVE must match RSBS_GAMEMODE_OWL_SAVE");
+
+/**
+ * Is MM's live gSaveContext a real loaded file being played (#525 follow-up)?
+ *
+ * The twin of OoT_SaveIsLiveFile. fileNum is not consulted on either side, and
+ * on THIS side it could not be: a legitimate cross-game MM session runs pinned
+ * to the 0xFF "no real slot" sentinel for its entire life. gameMode carries the
+ * whole test — TitleSetup_SetupTitleScreen (z_opening.c) leaves
+ * GAMEMODE_TITLE_SCREEN over MM_Sram_InitNewSave's bootstrap file, the
+ * file-select actor (z_en_mag.c) sets GAMEMODE_FILE_SELECT, and the cross-game
+ * arrival sets GAMEMODE_NORMAL in the same z_play.c block that calls
+ * MM_ApplySharedResources, so no frame can observe the bootstrap save under a
+ * NORMAL mode.
+ *
+ * NOTE, because it surprises: unlike OoT, MM runs real GAMEPLAY FRAMES under
+ * GAMEMODE_TITLE_SCREEN — its opening cutscene plays that way, and a harness
+ * force-boot straight into a scene never leaves it. So this gate genuinely fires
+ * in MM (visible as the skip line in IntSwitchMmClockTownSouthToOoT, which
+ * force-boots MM and fires the Clock Tower door without ever passing through
+ * file select). Every such frame has the bootstrap save resident, so suppressing
+ * is correct; a legitimate standalone session is unaffected because MM's real
+ * file-load path sets GAMEMODE_NORMAL (z_file_choose_NES.c FileSelect_LoadGame).
+ */
+static bool MM_SaveIsLiveFile(void) {
+    return Combo_SaveIsLiveFile(GAME_MM, (int32_t)gSaveContext.gameMode);
+}
+
 /**
  * HARVEST (#525), the twin of OoT_HarvestSharedResources.
  *
  * Called from MM_Game_Suspend and immediately before MM's `.redsave` writes.
  * Idempotent in both merge disciplines.
+ *
+ * GATED on a real loaded file, for the reason spelled out in
+ * Combo_SaveIsLiveFile. MM's own title screen is the milder half of the class
+ * — its bootstrap save is 3 hearts and no gear, so it cannot inflate a MONOTONIC
+ * kind the way OoT's debug save does — but its CONSUMABLE kinds are the same
+ * hazard in the other direction: harvesting a 3-heart bootstrap against a
+ * watermark left by a real session's apply computes a large negative delta and
+ * DEBITS the shared health bar. The gate closes both directions at once.
  */
 extern "C" void MM_HarvestSharedResources(void) {
+    if (!MM_SaveIsLiveFile()) {
+        // Early return before the accumulator settle and before the first
+        // Combo_HarvestSharedResource call — neither the pool nor the RAM
+        // watermark table is touched, so the next real harvest still meets the
+        // world its first-harvest seed rule was written for.
+        fprintf(stderr, "[MM] shared-resource harvest skipped: not a live file (gameMode=%d fileNum=%d)\n",
+                (int)gSaveContext.gameMode, (int)gSaveContext.fileNum);
+        fflush(stderr);
+        return;
+    }
+
     // Settle rupeeAccumulator into the count first — MM drains it one per frame
     // exactly as OoT does, so a pending accumulator would be harvested as
     // nothing now and then credited again later.
