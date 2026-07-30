@@ -1456,6 +1456,29 @@ static uint16_t OoT_ReadSettledMagic(void) {
     return (uint16_t)(settled > cap ? cap : settled);
 }
 
+// The harvest gate's game-mode contract (see Combo_SaveIsLiveFile). Asserted
+// rather than assumed: these are OoT's own enumerators, and a renumber upstream
+// would silently invert the gate — accepting the title screen and rejecting
+// gameplay, which is precisely the bug the gate exists to close.
+static_assert(GAMEMODE_NORMAL == RSBS_GAMEMODE_NORMAL, "OoT GAMEMODE_NORMAL must match RSBS_GAMEMODE_NORMAL");
+static_assert(GAMEMODE_TITLE_SCREEN == RSBS_GAMEMODE_TITLE_SCREEN,
+              "OoT GAMEMODE_TITLE_SCREEN must match RSBS_GAMEMODE_TITLE_SCREEN");
+static_assert(GAMEMODE_FILE_SELECT == RSBS_GAMEMODE_FILE_SELECT,
+              "OoT GAMEMODE_FILE_SELECT must match RSBS_GAMEMODE_FILE_SELECT");
+static_assert(GAMEMODE_END_CREDITS == RSBS_GAMEMODE_END_CREDITS,
+              "OoT GAMEMODE_END_CREDITS must match RSBS_GAMEMODE_END_CREDITS");
+
+/**
+ * Is OoT's live gSaveContext a real loaded file being played (#525 follow-up)?
+ *
+ * Thin adapter over the shared policy so the two games cannot drift; all of the
+ * reasoning — including why fileNum is deliberately NOT consulted, even though
+ * OoT's title save is the 0xFF sentinel — lives in Combo_SaveIsLiveFile.
+ */
+static bool OoT_SaveIsLiveFile(void) {
+    return Combo_SaveIsLiveFile(GAME_OOT, (int32_t)gSaveContext.gameMode);
+}
+
 /**
  * HARVEST (#525). Fold OoT's live resource values into the shared pool.
  *
@@ -1464,8 +1487,27 @@ static uint16_t OoT_ReadSettledMagic(void) {
  * before every `.redsave` write, so a file written mid-session carries a pool
  * that agrees with the OoT save stored beside it. Idempotent: a second call
  * with unchanged values is a no-op in both merge disciplines.
+ *
+ * GATED on a real loaded file. Without the gate, F10 on the title screen
+ * harvests the ATTRACT DEMO's debug save — 14 hearts, single magic, and tier 1
+ * of every ammo and wallet upgrade against a new file's zeroes — and because
+ * those kinds are MONOTONIC they can never leave the pool again. See
+ * Combo_SaveIsLiveFile.
  */
 extern "C" void OoT_HarvestSharedResources(void) {
+    if (!OoT_SaveIsLiveFile()) {
+        // Early return BEFORE the accumulator settle and before the first
+        // Combo_HarvestSharedResource call, so this touches neither the pool nor
+        // the RAM watermark table: the next real harvest must find the
+        // empty/occupied world its first-harvest seed rule expects. Skipping the
+        // settle is right too — a menu's save has no balance worth settling, and
+        // not writing gSaveContext leaves that save exactly as the menu left it.
+        fprintf(stderr, "[OoT] shared-resource harvest skipped: not a live file (gameMode=%d fileNum=%d)\n",
+                (int)gSaveContext.gameMode, (int)gSaveContext.fileNum);
+        fflush(stderr);
+        return;
+    }
+
     // SETTLE THE ACCUMULATOR FIRST. Both games write rupeeAccumulator, not the
     // count, and drain it one per frame. A pending accumulator would otherwise
     // ride the frozen blob and drain into OoT later — after an apply has
