@@ -3,7 +3,8 @@
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include <cstddef> // offsetof/size_t for the #395 layout probes below
 #include <cstdint>
-#include "context.h" // src/common/context.h via redship_common's public include dir
+#include <type_traits> // std::is_same_v for the #470 payload-divergence premise
+#include "context.h"   // src/common/context.h via redship_common's public include dir
 // In the single executable MM's own GameInteractor layer is not compiled, so
 // MM code links against these unprefixed extern "C" wrappers, and MM's
 // GIVanillaBehavior ordinals alias OoT's (e.g. MM VB_SETUP_TRANSITION == OoT
@@ -579,5 +580,27 @@ extern "C" void OoT_GI_ProbePumpOnMainStart(void) {
     // executes nothing in the unit-test harness.
     GameInteractor gi;
     gi.ExecuteHooks<GameInteractor::OnGameStateMainStart>();
+}
+
+// MARK: - #470 registry-identity probes (redship --test mm-gi-shim)
+//
+// OoT's view of the OnSceneInit hook registry, from a real OoT TU. The
+// mm-gi-shim lock compares these against the MM-side twins exported from
+// games/mm/2s2h/GameExports_SingleExe.cpp: the addresses must DIFFER, or the
+// linker has folded both ports' same-named registries into one object whose
+// std::function payloads disagree (MM's OnSceneInit::fn is the two-arg
+// (s8, s8) form — the static_assert below pins this side's one-arg premise,
+// its MM twin pins the divergence, so the fault class is proven live rather
+// than assumed). MM's side stays un-foldable because its hook types are
+// tag-scoped under GameInteractor::MM_HookTypes (#470).
+static_assert(std::is_same_v<GameInteractor::OnSceneInit::fn, std::function<void(int16_t)>>,
+              "OoT's OnSceneInit payload changed shape — revisit the #470 registry-identity lock");
+
+extern "C" void* OoT_GI_OnSceneInitRegistryAddr(void) {
+    return &GameInteractor::RegisteredGameHooks<GameInteractor::OnSceneInit>::functions;
+}
+
+extern "C" void* OoT_GI_OnSceneInitUnregQueueAddr(void) {
+    return &GameInteractor::HooksToUnregister<GameInteractor::OnSceneInit>::hooks;
 }
 #endif
