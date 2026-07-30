@@ -395,6 +395,11 @@ TestResult Test_SharedResources(void) {
 
     // MM harvesting its clamped 1 must NOT demote the pool — the whole 2-vs-1
     // asymmetry rests on max-merge, and a raw copy here would cost the longshot.
+    //
+    // Note this line alone does NOT pin the discipline: MM harvests back exactly
+    // what the apply above materialized, so a consumable misclassification would
+    // compute a zero delta and leave the pool at 2 as well. It is a round-trip
+    // assertion, and the discipline pin is the separate sequence below.
     Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_HOOKSHOT_TIER, 1);
     SR_ASSERT(SR_Pool(RSBS_SHARED_RES_HOOKSHOT_TIER) == 2);
 
@@ -402,6 +407,15 @@ TestResult Test_SharedResources(void) {
     uint16_t ootHookshot = 0;
     SR_ASSERT(Combo_ApplySharedResource(GAME_OOT, RSBS_SHARED_RES_HOOKSHOT_TIER, 2, &ootHookshot));
     SR_ASSERT(ootHookshot == 2);
+
+    // THE DISCIPLINE PIN: a lower harvest after an apply that materialized the
+    // FULL value — the one sequence the two disciplines answer differently.
+    // The apply just above recorded a watermark of 2 for OoT, so a consumable
+    // misclassification computes delta 1 - 2 = -1 and decays the pool to 1;
+    // monotonic max-merges back to 2. Synthetic on purpose (a player cannot
+    // lose a hookshot) — what it pins is IsMonotonicKind, not a game state.
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_HOOKSHOT_TIER, 1);
+    SR_ASSERT(SR_Pool(RSBS_SHARED_RES_HOOKSHOT_TIER) == 2);
 
     // And the other direction: MM finding the hookshot first arms OoT's.
     SR_FreshWorld();
