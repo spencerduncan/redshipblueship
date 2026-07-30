@@ -549,6 +549,28 @@ TestResult Test_RandoGenFullInit(void) {
         return TEST_FAIL;
     }
 
+    // Hard precondition, checked before bring-up because the failure mode is a
+    // 300-second HANG rather than a crash. With no archive loaded libultraship
+    // pauses the ResourceManager thread pool permanently (libultraship
+    // ResourceManager.cpp:58-61, "Nothing ever unpauses the thread pool"), and
+    // OTRAudio_Init inside the un-masked block does a synchronous
+    // ResourceMgr_LoadDirectory("audio") whose .get() then never returns. That is
+    // the real, previously-undocumented reason this tier carries
+    // RSBS_DISABLE_OTR_INIT=1 — and it is why CI's rando rows had been running
+    // with zero archives mounted for as long as the tier has existed (they were
+    // staged where only the install rules look; see the staging step added to
+    // both workflows for #560). Resolve exactly the way the
+    // bring-up will (OTRGlobals.cpp: LocateFileAcrossAppDirs("soh.o2r")) and fail
+    // in a second with a readable reason instead of burning the row's timeout.
+    const std::string sohArchive = Ship::Context::LocateFileAcrossAppDirs("soh.o2r");
+    if (!std::filesystem::exists(sohArchive)) {
+        printf("[TEST] FAIL: no soh.o2r resolvable (tried '%s'). This row needs a mounted archive: with none, "
+               "libultraship pauses the resource thread pool and OTRAudio_Init's synchronous load never "
+               "returns. Stage soh.o2r next to the ctest working directory (#560).\n",
+               sohArchive.c_str());
+        return TEST_FAIL;
+    }
+
     static char arg0[] = "redship";
     static char* fakeArgv[] = { arg0, nullptr };
     InitOTRForMMFirstBoot(1, fakeArgv);

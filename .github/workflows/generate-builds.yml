@@ -290,6 +290,29 @@ jobs:
       with:
         name: 2ship.o2r
         path: build-cmake/mm
+    # Stage the port archives where the ctest tiers actually look (#560).
+    # The downloads above land them where the INSTALL rules read them
+    # (${CMAKE_BINARY_DIR}/soh, .../mm). Test rows resolve archives through
+    # Ship::Context::LocateFileAcrossAppDirs, whose last resort is "./<name>"
+    # relative to the row's cwd — and `ctest --test-dir build-cmake` runs rows
+    # with cwd = build-cmake. So every row in the redship and rando tiers has
+    # been booting with ZERO archives mounted. The rando log says so out loud:
+    #   "The archive at path .../build-cmake/./soh.o2r does not exist"
+    #
+    # Not cosmetic. libultraship PAUSES the ResourceManager thread pool forever
+    # when no archive is loaded (ResourceManager.cpp:58-61, "Nothing ever
+    # unpauses the thread pool"), so any synchronous resource load in that state
+    # deadlocks on .get(). That is the real, undocumented reason the rando rows
+    # need RSBS_DISABLE_OTR_INIT=1: OTRAudio_Init performs exactly such a load.
+    #
+    # A copy, not a move, so Package still finds its originals. netplay-relay is
+    # deliberately left archive-less: it re-runs the redship tier, so it keeps an
+    # archive-less control over the same rows.
+    - name: Stage port archives for the ctest tiers (#560)
+      run: |
+        cp build-cmake/soh/soh.o2r build-cmake/soh.o2r
+        cp build-cmake/mm/2ship.o2r build-cmake/2ship.o2r
+        ls -l build-cmake/soh.o2r build-cmake/2ship.o2r
     - name: Build SoH
       run: |
         export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"

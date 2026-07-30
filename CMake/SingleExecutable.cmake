@@ -634,15 +634,30 @@ if(BUILD_TESTING)
     # block (games/oot/soh/OTRGlobals.cpp:1811-1823). The flag started life as a
     # bisect knob for init crashes (#199, e2a181c1) and reached this tier as
     # diagnostic scaffolding in the row above (#339, 8dc2786d) — it was then
-    # copied verbatim onto 13 more rows. No row ever justified it independently,
-    # and nothing in the block needs it here. soh.o2r is the only archive CI
-    # mounts and it carries no `audio/` entries, so OTRAudio_Init's precache is a
-    # no-op and its thread parks on audio.cv_to_thread (no frame loop signals it);
-    # OTRExtScanner / VanillaItemTable_Init / DebugConsole_Init are pure
-    # in-process work; and OTRMessage_Init self-skips on its inner hasGameArchive
-    # gate, which is false wherever oot.o2r is absent. The bridge additionally
-    # pairs OTRAudio_Init with OTRAudio_Exit — defensively, since `--test` mode
-    # ends at _Exit and never runs static destructors today.
+    # copied verbatim onto 13 more rows. No row ever justified it independently —
+    # but it turned out to be load-bearing for a reason nobody had written down,
+    # found by adding this row and watching it hang for 300s on Linux CI:
+    #
+    #   CI staged soh.o2r where only the install rules look
+    #   (${CMAKE_BINARY_DIR}/soh), while ctest rows run with cwd =
+    #   ${CMAKE_BINARY_DIR} and resolve archives via LocateFileAcrossAppDirs,
+    #   whose last resort is "./<name>". So every row in this tier was booting
+    #   with ZERO archives mounted. With none loaded, libultraship PAUSES the
+    #   ResourceManager thread pool forever (ResourceManager.cpp:58-61, "Nothing
+    #   ever unpauses the thread pool"), and OTRAudio_Init's synchronous
+    #   ResourceMgr_LoadDirectory("audio") then deadlocks on .get().
+    #
+    # Both workflows now stage the archives where the rows look, so the tier runs
+    # with soh.o2r mounted and the pool live. With that fixed nothing in the block
+    # needs the flag: soh.o2r carries no `audio/` entries so the precache is a
+    # no-op and the audio thread parks on audio.cv_to_thread (no frame loop
+    # signals it); OTRExtScanner / VanillaItemTable_Init / DebugConsole_Init are
+    # pure in-process work; and OTRMessage_Init self-skips on its inner
+    # hasGameArchive gate, which is false wherever oot.o2r is absent. The row
+    # additionally asserts a mounted archive BEFORE bring-up, so a staging
+    # regression fails in a second instead of hanging, and pairs OTRAudio_Init
+    # with OTRAudio_Exit (defensively — `--test` mode ends at _Exit and never runs
+    # static destructors today).
     #
     # This is the ONE row whose bring-up matches a player's, and the only one
     # whose fill runs on a worker thread (the 1-arg GenerateRandomizer overload
