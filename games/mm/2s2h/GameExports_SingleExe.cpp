@@ -2219,6 +2219,17 @@ static void MM_EnsureInventoryItem(uint8_t item) {
     }
 }
 
+// MM's hookshot ceiling. MM has no longshot: there is no RI_LONGSHOT at all,
+// and MM's ITEM_LONGSHOT id is an OoT leftover its give path repurposes into a
+// Red Potion. So MM tops out at tier 1, and the pool's tier 2 materializes here
+// as an ordinary hookshot — which is why only the abstract TIER crosses and
+// never an item id.
+#define MM_MAX_HOOKSHOT_TIER 1u
+
+static uint16_t MM_ReadHookshotTier(void) {
+    return INV_CONTENT(ITEM_HOOKSHOT) == ITEM_HOOKSHOT ? 1u : 0u;
+}
+
 static uint16_t MM_ReadHealthQuarters(void) {
     const uint16_t pieces =
         (uint16_t)((gSaveContext.save.saveInfo.inventory.questItems & MM_HEART_PIECE_MASK) >> MM_HEART_PIECE_SHIFT);
@@ -2333,6 +2344,11 @@ extern "C" void MM_HarvestSharedResources(void) {
         }
         Combo_HarvestSharedResource(GAME_MM, row->countKind, MM_ReadAmmo(row->item));
     }
+
+    // Harvesting MM's 1 can never demote a longshot the pool already holds:
+    // monotonic merges take the max, which is the whole reason a 2-vs-1 ceiling
+    // needs no special case here.
+    Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_HOOKSHOT_TIER, MM_ReadHookshotTier());
 }
 
 /**
@@ -2481,6 +2497,16 @@ extern "C" void MM_ApplySharedResources(void) {
             }
             AMMO(row->item) = (s8)count;
         }
+    }
+
+    // --- Hookshot (monotonic). Clamped to MM's ceiling of 1, so an OoT
+    // longshot arrives as a plain hookshot; the pool keeps the 2 and OoT gets
+    // its longshot back. No C-button fixup is needed on this side, unlike
+    // OoT's: MM's id never changes, so an equipped hookshot stays correct.
+    uint16_t hookshotTier = MM_ReadHookshotTier();
+    if (Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_HOOKSHOT_TIER, MM_MAX_HOOKSHOT_TIER, &hookshotTier) &&
+        hookshotTier >= 1u) {
+        MM_EnsureInventoryItem(ITEM_HOOKSHOT);
     }
 }
 

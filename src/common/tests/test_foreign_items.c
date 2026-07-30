@@ -879,6 +879,9 @@ TestResult Test_ForeignPoolMM(void) {
         "Bomb Bag",           "Big Bomb Bag",    "Biggest Bomb Bag",
         "Large Quiver",       "Largest Quiver",  "Progressive Bomb Bag",
         "Bow",                "Progressive Bow",
+        // Shared hookshot: one inventory byte in each game, so it crosses as a
+        // monotonic tier (0/1/2) rather than as an item handed over once.
+        "Hookshot",
     };
     for (size_t k = 0; k < sizeof(kSharedResourceNames) / sizeof(kSharedResourceNames[0]); k++) {
         for (int i = 0; i < poolCount; i++) {
@@ -903,9 +906,11 @@ TestResult Test_ForeignPoolMM(void) {
     static const char* const kOoTSharedResourceNames[] = {
         // Retired from kForeignPoolV1 by criterion 6 when shared ammo landed.
         // Byte-exact as that table spelled them, which is what makes the sweep
-        // non-vacuous: these two strings were really there.
+        // non-vacuous: these strings were really there.
         "Fairy Bow",
         "Bomb Bag",
+        // ...and this one when the hookshot became a shared tier.
+        "Progressive Hookshot",
     };
     for (size_t k = 0; k < sizeof(kSharedResourceNames) / sizeof(kSharedResourceNames[0]); k++) {
         for (int i = 0; i < ootPoolCount; i++) {
@@ -919,7 +924,7 @@ TestResult Test_ForeignPoolMM(void) {
         FI_ASSERT(!Combo_GetForeignItemByNameFor((uint8_t)GAME_OOT, kOoTSharedResourceNames[k], NULL));
     }
 
-    // The shrink is real, not a rename: seventeen rows have left across the
+    // The shrink is real, not a rename: eighteen rows have left across the
     // three tiers and nothing took their place. Bounded rather than exact for
     // the reason above — a future shared resource removes more, and unrelated
     // work may add.

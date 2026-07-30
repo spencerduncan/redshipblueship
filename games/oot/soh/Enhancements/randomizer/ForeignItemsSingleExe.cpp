@@ -72,9 +72,12 @@ void GiveLinkRupees(int numOfRupees);
 // in this table and left with shared ammo: the quiver and bomb-bag capacity
 // tiers are now ONE quantity spanning both games (src/common/shared_resources.h),
 // and in MM owning the bow IS quiver tier 1, so either row would have crossed
-// as a mutation of the shared resource rather than as a new item. Nothing in
-// this pool may be a shared cross-game resource — no wallet, heart, magic or
-// ammo row.
+// as a mutation of the shared resource rather than as a new item.
+// "Progressive Hookshot" left the same way when the hookshot became
+// RSBS_SHARED_RES_HOOKSHOT_TIER — a progressive whose every step now moves a
+// shared quantity is the clearest case criterion 6 has. Nothing in this pool
+// may be a shared cross-game resource: no wallet, heart, magic, ammo or
+// hookshot row.
 //
 // "Lens of Truth" IS THE CROSS-POOL COLLISION, deliberately. Display names are
 // the spoiler-load persistence key, and the lookups are keyed on
@@ -86,13 +89,12 @@ void GiveLinkRupees(int numOfRupees);
 // strings must stay byte-identical.
 //
 // Boomerang and Megaton Hammer widen a pool that was down to three rows against
-// MM's 117, which made the forward direction ship nearly the same items every
+// MM's 116, which made the forward direction ship nearly the same items every
 // seed (a follow-up #525 lists in as many words). Both are plain MOD_NONE
 // inventory items whose give falls through OoT_Item_Give's generic tail — save
 // writes only, no PlayState deref — which is what makes them safe on the
 // NULL-play redemption path the pool is given through.
 static const ComboForeignItemDef kForeignPoolV1[] = {
-    { { (uint8_t)GAME_OOT, 0, (uint16_t)RG_PROGRESSIVE_HOOKSHOT }, "Progressive Hookshot", "a " },
     { { (uint8_t)GAME_OOT, 0, (uint16_t)RG_PROGRESSIVE_STRENGTH }, "Progressive Strength Upgrade", "a " },
     { { (uint8_t)GAME_OOT, 0, (uint16_t)RG_LENS_OF_TRUTH }, "Lens of Truth", "the " },
     { { (uint8_t)GAME_OOT, 0, (uint16_t)RG_BOOMERANG }, "Boomerang", "the " },

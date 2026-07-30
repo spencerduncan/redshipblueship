@@ -15,14 +15,28 @@
  *
  * v1 shares rupees and hearts; the #525 optional tier added magic — meter
  * level and current magic, "current magic is tracked as if OoT and MM were one
- * game with a single magic meter" — and then ammo: the quiver, bomb-bag, stick
- * and nut capacity TIERS plus the arrow, bomb, bombchu, stick and nut COUNTS.
+ * game with a single magic meter" — then ammo: the quiver, bomb-bag, stick
+ * and nut capacity TIERS plus the arrow, bomb, bombchu, stick and nut COUNTS —
+ * and finally the hookshot.
  * That is what justifies the matching pool shrink in `kForeignPoolMMV1`
- * (#525): with one wallet, one health bar, one magic meter and one quiver
- * spanning both games, MM's wallet/heart/double-defense/magic/ammo rows are no
- * longer separate items to cross — they ARE the shared resource, so shipping
- * them as foreign placements too would hand the player a second copy of a
- * quantity they already have.
+ * (#525): with one wallet, one health bar, one magic meter, one quiver and one
+ * hookshot spanning both games, MM's wallet/heart/double-defense/magic/ammo/
+ * hookshot rows are no longer separate items to cross — they ARE the shared
+ * resource, so shipping them as foreign placements too would hand the player a
+ * second copy of a quantity they already have.
+ *
+ * THE HOOKSHOT IS WHY "RESOURCE" IS ABOUT REPRESENTATION, NOT VOCABULARY.
+ * OoTMM calls it an item ("combines the Hookshots into two progressive items
+ * for both games") and #525 filed it as one, but both games store it in a
+ * single inventory byte, which is a monotonic tier: 0 none, 1 hookshot, 2
+ * longshot. Modelled that way it needs no new machinery and cannot loop.
+ * Modelled as a shared ITEM it would need a give-time producer in each game,
+ * and each redemption calls the far game's give — an unbounded ping-pong that
+ * `shared_items.h`'s content de-dup does NOT stop, because de-dup deliberately
+ * skips entries that are already redeemed and redemption is the step closing
+ * the cycle. (MM's OnItemGive is also a no-op stub, so that half would have
+ * been dead on arrival — the #512/#517 class.) Harvest-at-suspend /
+ * apply-at-arrival has no edge back to the producer at all.
  *
  * A CAPACITY TIER CARRIES THE ITEM WITH IT, copying OoTMM ("a Shared Bow
  * grants the ability to use the Hero's Bow in MM and the Fairy Bow in OoT").
@@ -38,8 +52,9 @@
  * ---------------------------------------------------------------------------
  * Picking the wrong one is a correctness bug, not a style choice.
  *
- *   MONOTONIC — wallet tier, health quarters, double defense, magic level, and
- *   the four ammo capacity tiers. A capacity that only ever grows. Harvest is
+ *   MONOTONIC — wallet tier, health quarters, double defense, magic level, the
+ *   four ammo capacity tiers, and the hookshot tier. A capacity that only ever
+ *   grows. Harvest is
  *   `shared = max(shared, live)`, apply is `live = max(live, shared)`.
  *   Idempotent in both directions; decay is impossible by construction, so no
  *   bookkeeping is needed.
@@ -118,7 +133,7 @@ extern "C" {
  * table, which is indexed by KIND (stable) rather than by slot (slots are found
  * by scan and a future compaction could move them).
  */
-#define RSBS_SHARED_RES_KIND_COUNT 17u
+#define RSBS_SHARED_RES_KIND_COUNT 18u
 
 /**
  * Canonical heart quantity ceiling, in health units (0x10 per heart, 4 per
@@ -180,7 +195,7 @@ void Combo_SplitHealthQuarters(uint16_t quarters, uint16_t* outCapacity, uint16_
  * No-op if `game` is not a real game or `kind` is not a real resource. If both
  * slot blocks are full of other resources the harvest is dropped — they are
  * sized with headroom for the whole class (twenty slots against today's
- * sixteen kinds), so this cannot happen without a new resource being added.
+ * seventeen kinds), so this cannot happen without three more being added.
  */
 void Combo_HarvestSharedResource(GameId game, uint8_t kind, uint16_t liveValue);
 

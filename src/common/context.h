@@ -240,7 +240,7 @@ int Context_ArmShadowAsFrozen(GameId game, uint16_t returnEntrance);
  * value together ("current health is tracked as if OoT and MM were one game
  * with a single health bar"). All eight slots of THIS block are spoken for by
  * v1 plus magic; the ammo tier's nine kinds live in the second block below.
- * Together the two blocks hold twenty slots, sixteen of them occupied.
+ * Together the two blocks hold twenty slots, seventeen of them occupied.
  *
  * DO NOT BUMP THIS CONSTANT to get more capacity, for the reason
  * RSBS_GRANT_SOURCE_CAP spells out: the array is carved from the front of
@@ -264,10 +264,12 @@ int Context_ArmShadowAsFrozen(GameId game, uint16_t returnEntrance);
  * twelve free slots behind it.
  *
  * Sized for the whole class in ONE carve, deliberately. Today's set occupies
- * sixteen of the twenty slots (seven from v1 plus magic, nine from ammo), and a
- * carve is permanent: a third block would cost another literal offset, another
- * span in every accessor, and another ADR amendment. The four spare slots are
- * what keeps the next resource from needing any of that.
+ * seventeen of the twenty slots (seven from v1 plus magic, nine from ammo, one
+ * for the hookshot), and a carve is permanent: a third block would cost another
+ * literal offset, another span in every accessor, and another ADR amendment.
+ * The three spare slots are what keeps the next resource from needing any of
+ * that — the hookshot took one of them and needed no format change at all,
+ * which is the headroom doing its job.
  *
  * Bounded from above by ADR 0009's 64-byte reserved[] floor, not by taste:
  * twelve slots is 48 bytes, leaving reserved[132], which still clears the floor
@@ -404,6 +406,13 @@ enum {
     RSBS_SHARED_RES_BOMBCHU_COUNT = 14,   // CONSUMABLE: bombchus held; the CAP is per-game (see the shims), not a kind
     RSBS_SHARED_RES_STICK_COUNT = 15,     // CONSUMABLE: deku sticks held, clamped to the stick capacity
     RSBS_SHARED_RES_NUT_COUNT = 16,       // CONSUMABLE: deku nuts held, clamped to the nut capacity
+    // Hookshot (#525 optional tier). An ITEM in OoTMM's wording ("combines the
+    // Hookshots into two progressive items for both games") but a monotonic
+    // TIER in both saves: each game stores it as one inventory byte, so the
+    // shared quantity is 0 none / 1 hookshot / 2 longshot. OoT's ceiling is 2
+    // and MM's is 1 — MM has no longshot at all — which max-merge handles
+    // natively: an MM visit can never demote the pool's longshot.
+    RSBS_SHARED_RES_HOOKSHOT_TIER = 17,   // MONOTONIC: 0/1/2; each game clamps to its OWN ceiling
 };
 
 /**

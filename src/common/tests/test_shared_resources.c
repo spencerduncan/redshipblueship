@@ -379,7 +379,39 @@ TestResult Test_SharedResources(void) {
     SR_ASSERT(arrows == 12);
 
     // ------------------------------------------------------------------
-    // THE SECOND BLOCK IS REACHABLE. Sixteen kinds do not fit the first
+    // The hookshot: a monotonic tier whose two ceilings DIFFER (OoT reaches 2
+    // for the longshot, MM only 1 — it has no longshot). This is the first
+    // shared tier where they diverge, and the property that matters is that a
+    // Termina round trip cannot cost the player their longshot.
+    // ------------------------------------------------------------------
+    SR_FreshWorld();
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_HOOKSHOT_TIER, 2); // longshot in Hyrule
+
+    // MM shows what it can hold, which is a plain hookshot.
+    uint16_t mmHookshot = 0;
+    SR_ASSERT(Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_HOOKSHOT_TIER, 1, &mmHookshot));
+    SR_ASSERT(mmHookshot == 1);
+    SR_ASSERT(SR_Pool(RSBS_SHARED_RES_HOOKSHOT_TIER) == 2);
+
+    // MM harvesting its clamped 1 must NOT demote the pool — the whole 2-vs-1
+    // asymmetry rests on max-merge, and a raw copy here would cost the longshot.
+    Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_HOOKSHOT_TIER, 1);
+    SR_ASSERT(SR_Pool(RSBS_SHARED_RES_HOOKSHOT_TIER) == 2);
+
+    // Home again with the longshot intact.
+    uint16_t ootHookshot = 0;
+    SR_ASSERT(Combo_ApplySharedResource(GAME_OOT, RSBS_SHARED_RES_HOOKSHOT_TIER, 2, &ootHookshot));
+    SR_ASSERT(ootHookshot == 2);
+
+    // And the other direction: MM finding the hookshot first arms OoT's.
+    SR_FreshWorld();
+    Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_HOOKSHOT_TIER, 1);
+    uint16_t ootFromMM = 0;
+    SR_ASSERT(Combo_ApplySharedResource(GAME_OOT, RSBS_SHARED_RES_HOOKSHOT_TIER, 2, &ootFromMM));
+    SR_ASSERT(ootFromMM == 1); // a hookshot, not a free longshot
+
+    // ------------------------------------------------------------------
+    // THE SECOND BLOCK IS REACHABLE. Seventeen kinds do not fit the first
     // block's eight slots, so this is the assertion that fails outright if
     // sharedResourcesExt is never scanned — which is the whole hazard the
     // two-block carve introduces: a scan that stops at the first block's end
@@ -393,7 +425,7 @@ TestResult Test_SharedResources(void) {
         RSBS_SHARED_RES_MAGIC_CURRENT,   RSBS_SHARED_RES_QUIVER_TIER,   RSBS_SHARED_RES_BOMB_BAG_TIER,
         RSBS_SHARED_RES_STICK_TIER,      RSBS_SHARED_RES_NUT_TIER,      RSBS_SHARED_RES_ARROW_COUNT,
         RSBS_SHARED_RES_BOMB_COUNT,      RSBS_SHARED_RES_BOMBCHU_COUNT, RSBS_SHARED_RES_STICK_COUNT,
-        RSBS_SHARED_RES_NUT_COUNT,
+        RSBS_SHARED_RES_NUT_COUNT,       RSBS_SHARED_RES_HOOKSHOT_TIER,
     };
     const int kAllKindCount = (int)(sizeof(kAllKinds) / sizeof(kAllKinds[0]));
     SR_ASSERT(kAllKindCount > (int)RSBS_SHARED_RESOURCE_CAP); // or this proves nothing
@@ -424,7 +456,7 @@ TestResult Test_SharedResources(void) {
 
     // ------------------------------------------------------------------
     // The v1-plus-magic set still coexists inside the FIRST block alone. Kept
-    // as its own case beside the all-sixteen sweep above: this one pins that
+    // as its own case beside the all-kinds sweep above: this one pins that
     // those seven kinds have not drifted into the second block, which is the
     // shape every already-shipped .redsave stores them in.
     // ------------------------------------------------------------------

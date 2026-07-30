@@ -221,11 +221,12 @@ addresses them through a single `SlotAt(logical)` resolver, and every scan — t
 duplicate lookup, the first-free claim, the occupancy count — spans both in one
 pass. That is not tidiness: a scan stopping at the first block's boundary would
 either split one kind across two slots or report the array full with twelve free
-slots behind it, silently dropping every resource past the eighth. Sixteen of
-the twenty are occupied (seven from v1 plus magic, nine from ammo); the block
-was sized for the whole class in one carve, because a third block would cost
-another literal offset, another span in every accessor, and another amendment
-here.
+slots behind it, silently dropping every resource past the eighth. Seventeen of
+the twenty are occupied (seven from v1 plus magic, nine from ammo, one for the
+shared hookshot); the block was sized for the whole class in one carve, because
+a third block would cost another literal offset, another span in every
+accessor, and another amendment here. The hookshot proved that out immediately:
+it landed in a spare slot with no format change at all.
 
 Twelve is the ceiling the floor below permits rather than a preference: 48 B
 leaves `reserved[132]`, which still clears the 64-byte floor once the

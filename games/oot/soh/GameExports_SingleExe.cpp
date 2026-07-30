@@ -1245,6 +1245,62 @@ static void OoT_EnsureInventoryItem(uint8_t item) {
     }
 }
 
+// OoT's hookshot ceiling: 0 none, 1 hookshot, 2 longshot.
+#define OOT_MAX_HOOKSHOT_TIER 2u
+
+// The hookshot as a tier. Both games keep it in ONE inventory byte, so the
+// "progressive item" is really a small monotonic number — which is why this is
+// a shared RESOURCE and not a shared item. Nothing crosses but the number: MM's
+// ITEM_LONGSHOT is a different id that its give path repurposes into a Red
+// Potion, so passing a raw item id over the boundary would hand MM a potion.
+static uint16_t OoT_ReadHookshotTier(void) {
+    const u8 held = INV_CONTENT(ITEM_HOOKSHOT);
+    if (held == ITEM_LONGSHOT) {
+        return 2u;
+    }
+    if (held == ITEM_HOOKSHOT) {
+        return 1u;
+    }
+    return 0u;
+}
+
+/**
+ * Author OoT's hookshot byte for `tier`, including the part a bare INV_CONTENT
+ * write would miss.
+ *
+ * OoT's own longshot give does more than swap the inventory byte: it rewrites
+ * every C-button (and both age-specific equip sets) that currently holds the
+ * hookshot, because the button stores the ITEM id rather than the slot
+ * (z_parameter.c's ITEM_LONGSHOT branch). Skip that and a player who had the
+ * hookshot equipped keeps firing the SHORT one after the pool hands them a
+ * longshot — the upgrade silently does nothing until they re-equip it.
+ *
+ * The icon reload that vanilla pairs with those writes is deliberately NOT
+ * copied: it needs a live PlayState and this runs from Play_Init before there
+ * is one. The arrival's own interface init loads the C-button icons after this
+ * point, so the texture follows the id without it.
+ */
+static void OoT_WriteHookshotTier(uint16_t tier) {
+    if (tier == 0u) {
+        return; // monotonic: never take one away
+    }
+    const u8 item = (tier >= 2u) ? (u8)ITEM_LONGSHOT : (u8)ITEM_HOOKSHOT;
+    INV_CONTENT(ITEM_HOOKSHOT) = item;
+
+    u8* const buttonSets[] = {
+        gSaveContext.equips.buttonItems,
+        gSaveContext.adultEquips.buttonItems,
+        gSaveContext.childEquips.buttonItems,
+    };
+    for (size_t set = 0; set < ARRAY_COUNT(buttonSets); set++) {
+        for (size_t i = 0; i < ARRAY_COUNT(gSaveContext.equips.buttonItems); i++) {
+            if (buttonSets[set][i] == ITEM_HOOKSHOT || buttonSets[set][i] == ITEM_LONGSHOT) {
+                buttonSets[set][i] = item;
+            }
+        }
+    }
+}
+
 /**
  * Would GRANTING this row's item be handing the player a shuffled CHECK the
  * seed placed elsewhere? Then the pool may not hand it over.
@@ -1416,6 +1472,8 @@ extern "C" void OoT_HarvestSharedResources(void) {
         }
         Combo_HarvestSharedResource(GAME_OOT, row->countKind, OoT_ReadAmmo(row->item));
     }
+
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_HOOKSHOT_TIER, OoT_ReadHookshotTier());
 }
 
 /**
@@ -1567,6 +1625,15 @@ extern "C" void OoT_ApplySharedResources(void) {
             }
             AMMO(row->item) = (s8)count;
         }
+    }
+
+    // --- Hookshot (monotonic 0/1/2). Clamped to OoT's own ceiling of 2, which
+    // is the higher of the two: MM has no longshot, so a longshot earned here
+    // survives a Termina round trip untouched (max-merge cannot demote it) and
+    // materializes there as a plain hookshot.
+    uint16_t hookshotTier = OoT_ReadHookshotTier();
+    if (Combo_ApplySharedResource(GAME_OOT, RSBS_SHARED_RES_HOOKSHOT_TIER, OOT_MAX_HOOKSHOT_TIER, &hookshotTier)) {
+        OoT_WriteHookshotTier(hookshotTier);
     }
 }
 
