@@ -238,12 +238,9 @@ int Context_ArmShadowAsFrozen(GameId game, uint16_t returnEntrance);
  * RESOURCES can be tracked at once. A shared resource is not an item that
  * crosses once — it is ONE QUANTITY spanning both games, capacity and current
  * value together ("current health is tracked as if OoT and MM were one game
- * with a single health bar"). Seven of the eight slots are occupied — five by
- * v1 (rupees, wallet tier, health quarters, current health, double defense)
- * and two by shared magic (level + current, #525's optional tier) — leaving
- * ONE free. The ammo upgrades are the queued remainder of the class and need
- * ~10 slots, so they arrive with the second block prescribed below, not by
- * squeezing into this one.
+ * with a single health bar"). All eight slots of THIS block are spoken for by
+ * v1 plus magic; the ammo tier's nine kinds live in the second block below.
+ * Together the two blocks hold twenty slots, sixteen of them occupied.
  *
  * DO NOT BUMP THIS CONSTANT to get more capacity, for the reason
  * RSBS_GRANT_SOURCE_CAP spells out: the array is carved from the front of
@@ -253,6 +250,34 @@ int Context_ArmShadowAsFrozen(GameId game, uint16_t returnEntrance);
  * accessor instead. See ADR 0005 §1 for the identical hazard.
  */
 #define RSBS_SHARED_RESOURCE_CAP 8u
+
+/**
+ * Capacity of ComboContext.sharedResourcesExt (#525 optional tier): the SECOND
+ * shared-resource block, carved exactly as the comment above prescribes rather
+ * than by widening the first one in place.
+ *
+ * The two blocks are ONE LOGICAL ARRAY. shared_resources.c addresses them by a
+ * logical index — 0..RSBS_SHARED_RESOURCE_CAP-1 in the first block, the rest in
+ * this one — and every scan (duplicate lookup, first-free, count) must cover
+ * both in a single pass. A scan that stops at the first block's end silently
+ * splits a kind across blocks or drops a harvest on a "full" array that has
+ * twelve free slots behind it.
+ *
+ * Sized for the whole class in ONE carve, deliberately. Today's set occupies
+ * sixteen of the twenty slots (seven from v1 plus magic, nine from ammo), and a
+ * carve is permanent: a third block would cost another literal offset, another
+ * span in every accessor, and another ADR amendment. The four spare slots are
+ * what keeps the next resource from needing any of that.
+ *
+ * Bounded from above by ADR 0009's 64-byte reserved[] floor, not by taste:
+ * twelve slots is 48 bytes, leaving reserved[132], which still clears the floor
+ * after the ADR's outstanding claims 2 and 4 (4 + 64) land. Sixteen slots would
+ * not.
+ */
+#define RSBS_SHARED_RESOURCE_EXT_CAP 12u
+
+/** Logical slot count across BOTH shared-resource blocks. */
+#define RSBS_SHARED_RESOURCE_TOTAL_CAP (RSBS_SHARED_RESOURCE_CAP + RSBS_SHARED_RESOURCE_EXT_CAP)
 
 /**
  * One cross-game item, tagged with the game whose id-space `id` belongs to.
@@ -366,6 +391,19 @@ enum {
     RSBS_SHARED_RES_DOUBLE_DEFENSE = 5,   // MONOTONIC: 0/1 flag; each game sets its OWN differently-named field pair
     RSBS_SHARED_RES_MAGIC_LEVEL = 6,      // MONOTONIC: meter level 0/1/2 from the two acquired FLAGS, never magicLevel
     RSBS_SHARED_RES_MAGIC_CURRENT = 7,    // CONSUMABLE: the single shared magic meter, 0x30 per bar in both games
+    // Ammo (#525 optional tier). Both games pack the capacity tiers into
+    // inventory.upgrades with the SAME bit layout and the SAME capacity rows,
+    // so a tier is one number needing no conversion. The counts live in each
+    // game's own inventory.ammo[] and are spent, so they delta-harvest.
+    RSBS_SHARED_RES_QUIVER_TIER = 8,      // MONOTONIC: 0..3 ({0,30,40,50} arrows in both games)
+    RSBS_SHARED_RES_BOMB_BAG_TIER = 9,    // MONOTONIC: 0..3 ({0,20,30,40} bombs in both games)
+    RSBS_SHARED_RES_STICK_TIER = 10,      // MONOTONIC: 0..3 ({0,10,20,30} sticks in both games)
+    RSBS_SHARED_RES_NUT_TIER = 11,        // MONOTONIC: 0..3 ({0,20,30,40} nuts in both games)
+    RSBS_SHARED_RES_ARROW_COUNT = 12,     // CONSUMABLE: arrows held, clamped to the quiver capacity applied first
+    RSBS_SHARED_RES_BOMB_COUNT = 13,      // CONSUMABLE: bombs held, clamped to the bomb-bag capacity
+    RSBS_SHARED_RES_BOMBCHU_COUNT = 14,   // CONSUMABLE: bombchus held; the CAP is per-game (see the shims), not a kind
+    RSBS_SHARED_RES_STICK_COUNT = 15,     // CONSUMABLE: deku sticks held, clamped to the stick capacity
+    RSBS_SHARED_RES_NUT_COUNT = 16,       // CONSUMABLE: deku nuts held, clamped to the nut capacity
 };
 
 /**
@@ -554,6 +592,19 @@ typedef struct {
     // gSaveContext against it at the switch boundary.
     ComboSharedResource sharedResources[RSBS_SHARED_RESOURCE_CAP];
 
+    // #525 optional tier: the SECOND shared-resource block, carved from the
+    // front of the old reserved[180] under the growth contract — all-zero =
+    // every slot EMPTY, exactly what a zero-extended record written before the
+    // ammo tier must read as. This is the prescription in
+    // RSBS_SHARED_RESOURCE_CAP's own comment, followed literally: the first
+    // block was NOT widened, because anything carved after it (this array, and
+    // whatever follows) would have slid off the offset every shipped .redsave
+    // stored it at.
+    //
+    // Logically these twenty slots are ONE array; shared_resources.c spans both
+    // blocks in every scan. Physically they must stay two, forever.
+    ComboSharedResource sharedResourcesExt[RSBS_SHARED_RESOURCE_EXT_CAP];
+
     // Headroom. Carve new fields from the FRONT of this array (as
     // sharedItemsTagged, sharedRandoSettingsHash, foreignPlacements, the
     // grant cursors, and the reverse placement table were) so the struct
@@ -564,13 +615,14 @@ typedef struct {
     // a freshly-initialized one — every field carved from here must keep
     // "zero means unset".
     //
-    // 264 - 48 (foreignPlacementsOoT) - 4 (mmProfileDigest) - 32 (sharedResources).
+    // 264 - 48 (foreignPlacementsOoT) - 4 (mmProfileDigest) - 32 (sharedResources)
+    // - 48 (sharedResourcesExt).
     // ADR 0009 publishes the remaining
     // allocation across the other claimants and sets a 64-byte floor:
     // Test_SaveComboRecordFixed's scribble loop iterates sizeof(reserved), so
     // at zero it degenerates to zero iterations and passes vacuously, retiring
     // the only test that proves headroom round-trips at all.
-    uint8_t reserved[180];
+    uint8_t reserved[132];
 } ComboContext;
 
 /**
@@ -677,12 +729,27 @@ RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, sharedResources) ==
                            offsetof(ComboContext, mmProfileDigest) + sizeof(uint32_t),
                        "sharedResources must be carved from the FRONT of reserved[] (contiguous with "
                        "the MM profile digest); moving it changes .redsave format");
-RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, reserved) ==
+// The second shared-resource block is the next carve (#525 optional tier, 48
+// bytes). Pinned to the literal 824 for the same reason 672, 736, 740, 788 and
+// 792 are: anything carved after it inherits its position, so a field growing
+// in place ahead of it must break the build rather than slide it. In
+// particular, an in-place widen of the FIRST block would move this one — which
+// is exactly the break RSBS_SHARED_RESOURCE_CAP's comment forbids, and this is
+// the assert that catches it.
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, sharedResourcesExt) == 824u,
+                       "sharedResourcesExt lives at .redsave byte offset 824; if this fires, a field "
+                       "before it grew in place - carve from reserved[] instead");
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, sharedResourcesExt) ==
                            offsetof(ComboContext, sharedResources) +
                                RSBS_SHARED_RESOURCE_CAP * sizeof(ComboSharedResource),
+                       "sharedResourcesExt must be carved from the FRONT of reserved[] (contiguous "
+                       "with the first shared-resource block); moving it changes .redsave format");
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, reserved) ==
+                           offsetof(ComboContext, sharedResourcesExt) +
+                               RSBS_SHARED_RESOURCE_EXT_CAP * sizeof(ComboSharedResource),
                        "the tagged-item array, the settings digest, both foreign-placement tables, "
-                       "the grant cursors, the overflow count, the MM profile digest, the shared "
-                       "resource slots, and the remaining headroom must stay contiguous (no padding, "
+                       "the grant cursors, the overflow count, the MM profile digest, BOTH shared "
+                       "resource blocks, and the remaining headroom must stay contiguous (no padding, "
                        "no fields slipped between them)");
 // ADR 0009's floor. reserved[] is what Test_SaveComboRecordFixed scribbles to
 // prove Tier-1 headroom round-trips; at zero that loop runs zero times and the

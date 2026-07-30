@@ -111,7 +111,7 @@ bool Combo_GetForeignItemByNameFor(uint8_t originGame, const char* name, SharedI
     // The spoiler-LOAD inverse. Reused (not re-derived) so reconstruction shares
     // one source of truth with generation, and so a raw RG_*/RI_* is never
     // fabricated on the far side (ADR 0002). Scoped to ONE origin's pool: the
-    // display names are not unique across pools ("Bomb Bag" is in both), so a
+    // display names are not unique across pools ("Lens of Truth" is in both), so a
     // merged scan would resolve to a wrong origin tag rather than to nothing.
     if (name == NULL) {
         return false;

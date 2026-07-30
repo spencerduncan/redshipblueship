@@ -68,11 +68,35 @@ void GiveLinkRupees(int numOfRupees);
 // constant-expression enumerator that fits is not a narrowing conversion.
 // The article column matches OoT's own item table (Item::GetArticle), so MM's
 // pickup textbox reads exactly like an MM one: "You found the Fairy Bow!".
+// CRITERION 6 APPLIES HERE TOO (#525). "Fairy Bow" and "Bomb Bag" used to sit
+// in this table and left with shared ammo: the quiver and bomb-bag capacity
+// tiers are now ONE quantity spanning both games (src/common/shared_resources.h),
+// and in MM owning the bow IS quiver tier 1, so either row would have crossed
+// as a mutation of the shared resource rather than as a new item. Nothing in
+// this pool may be a shared cross-game resource — no wallet, heart, magic or
+// ammo row.
+//
+// "Lens of Truth" IS THE CROSS-POOL COLLISION, deliberately. Display names are
+// the spoiler-load persistence key, and the lookups are keyed on
+// (originGame, name) precisely because a bare name can appear in both pools;
+// "Bomb Bag" was that pair until shared ammo retired both halves, so this row
+// was added in the same commit that deleted them and inherits the job. The
+// collision is asserted on purpose in test_foreign_items.c — it must not be
+// "fixed" by renaming either side. MM's twin is the RI_LENS row, and the two
+// strings must stay byte-identical.
+//
+// Boomerang and Megaton Hammer widen a pool that was down to three rows against
+// MM's 117, which made the forward direction ship nearly the same items every
+// seed (a follow-up #525 lists in as many words). Both are plain MOD_NONE
+// inventory items whose give falls through OoT_Item_Give's generic tail — save
+// writes only, no PlayState deref — which is what makes them safe on the
+// NULL-play redemption path the pool is given through.
 static const ComboForeignItemDef kForeignPoolV1[] = {
     { { (uint8_t)GAME_OOT, 0, (uint16_t)RG_PROGRESSIVE_HOOKSHOT }, "Progressive Hookshot", "a " },
-    { { (uint8_t)GAME_OOT, 0, (uint16_t)RG_FAIRY_BOW }, "Fairy Bow", "the " },
-    { { (uint8_t)GAME_OOT, 0, (uint16_t)RG_BOMB_BAG }, "Bomb Bag", "a " },
     { { (uint8_t)GAME_OOT, 0, (uint16_t)RG_PROGRESSIVE_STRENGTH }, "Progressive Strength Upgrade", "a " },
+    { { (uint8_t)GAME_OOT, 0, (uint16_t)RG_LENS_OF_TRUTH }, "Lens of Truth", "the " },
+    { { (uint8_t)GAME_OOT, 0, (uint16_t)RG_BOOMERANG }, "Boomerang", "the " },
+    { { (uint8_t)GAME_OOT, 0, (uint16_t)RG_MEGATON_HAMMER }, "Megaton Hammer", "the " },
 };
 
 static constexpr int kForeignPoolCount = sizeof(kForeignPoolV1) / sizeof(kForeignPoolV1[0]);

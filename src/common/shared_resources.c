@@ -56,21 +56,50 @@ static bool IsMonotonicKind(uint8_t kind) {
         case RSBS_SHARED_RES_HEALTH_QUARTERS:
         case RSBS_SHARED_RES_DOUBLE_DEFENSE:
         case RSBS_SHARED_RES_MAGIC_LEVEL:
+        case RSBS_SHARED_RES_QUIVER_TIER:
+        case RSBS_SHARED_RES_BOMB_BAG_TIER:
+        case RSBS_SHARED_RES_STICK_TIER:
+        case RSBS_SHARED_RES_NUT_TIER:
             return true;
         default:
-            // RSBS_SHARED_RES_RUPEES, RSBS_SHARED_RES_HEALTH_CURRENT,
-            // RSBS_SHARED_RES_MAGIC_CURRENT: the player spends these, so they
-            // are delta-harvested.
+            // The spent quantities — rupees, current health, current magic, and
+            // the five ammo counts — are delta-harvested.
             return false;
     }
 }
 
+// ============================================================================
+// TWO PHYSICAL BLOCKS, ONE LOGICAL ARRAY.
+//
+// gComboCtx.sharedResources[8] and gComboCtx.sharedResourcesExt[12] are
+// separate fields at separate .redsave offsets — they must be, because
+// widening the first in place would move the second (and everything carved
+// after it) off the offset every shipped save stored it at. But nothing above
+// this line should have to know that: a "slot" here is a LOGICAL index into
+// the concatenation, and every scan below covers the whole range in one pass.
+//
+// This resolver is the only place the split is visible. Keeping it that way is
+// the point — a scan that stops at the first block's end would split a kind
+// across blocks (two slots claiming one resource) or report "full" with twelve
+// free slots behind it.
+// ============================================================================
+
+static ComboSharedResource* SlotAt(int logical) {
+    if (logical < 0 || logical >= (int)RSBS_SHARED_RESOURCE_TOTAL_CAP) {
+        return NULL;
+    }
+    if (logical < (int)RSBS_SHARED_RESOURCE_CAP) {
+        return &gComboCtx.sharedResources[logical];
+    }
+    return &gComboCtx.sharedResourcesExt[logical - (int)RSBS_SHARED_RESOURCE_CAP];
+}
+
 // Locate the occupied slot holding `kind`, or -1 when the resource has never
 // been shared. Slots are unordered; there is at most one per kind because
-// FindOrCreateSlot always looks first.
+// FindOrCreateSlot always looks first — across BOTH blocks.
 static int FindSlot(uint8_t kind) {
-    for (int i = 0; i < (int)RSBS_SHARED_RESOURCE_CAP; i++) {
-        if (gComboCtx.sharedResources[i].kind == kind) {
+    for (int i = 0; i < (int)RSBS_SHARED_RESOURCE_TOTAL_CAP; i++) {
+        if (SlotAt(i)->kind == kind) {
             return i;
         }
     }
@@ -81,22 +110,25 @@ static int FindSlot(uint8_t kind) {
 // -1 only when every slot is taken by some OTHER resource. Nothing is ever
 // evicted: unlike a shared ITEM, a shared resource has no "redeemed" state, so
 // there is no slot that is safe to reclaim — a full array means the resource
-// set outgrew RSBS_SHARED_RESOURCE_CAP, which is a carve-time bug, not a
-// runtime condition. The array is sized with room for the whole class.
+// set outgrew both blocks, which is a carve-time bug, not a runtime condition.
+// The blocks are sized with room for the whole class.
 static int FindOrCreateSlot(uint8_t kind) {
     int slot = FindSlot(kind);
     if (slot >= 0) {
         return slot;
     }
-    for (int i = 0; i < (int)RSBS_SHARED_RESOURCE_CAP; i++) {
-        if (gComboCtx.sharedResources[i].kind == RSBS_SHARED_RES_NONE) {
-            gComboCtx.sharedResources[i].kind = kind;
-            gComboCtx.sharedResources[i].flags = IsMonotonicKind(kind) ? RSBS_SHARED_RES_F_MONOTONIC : 0u;
-            gComboCtx.sharedResources[i].value = 0u;
+    for (int i = 0; i < (int)RSBS_SHARED_RESOURCE_TOTAL_CAP; i++) {
+        ComboSharedResource* entry = SlotAt(i);
+        if (entry->kind == RSBS_SHARED_RES_NONE) {
+            entry->kind = kind;
+            entry->flags = IsMonotonicKind(kind) ? RSBS_SHARED_RES_F_MONOTONIC : 0u;
+            entry->value = 0u;
             return i;
         }
     }
-    fprintf(stderr, "[combo] shared-resource slots full; dropping kind=%u (raise RSBS_SHARED_RESOURCE_CAP by carving a second block)\n",
+    fprintf(stderr,
+            "[combo] shared-resource slots full across both blocks; dropping kind=%u (carve a THIRD "
+            "block from reserved[] and span it too — never widen an existing block in place)\n",
             (unsigned)kind);
     return -1;
 }
@@ -149,8 +181,9 @@ void Combo_HarvestSharedResource(GameId game, uint8_t kind, uint16_t liveValue) 
         if (slot < 0) {
             return;
         }
-        if (liveValue > gComboCtx.sharedResources[slot].value) {
-            gComboCtx.sharedResources[slot].value = liveValue;
+        ComboSharedResource* entry = SlotAt(slot);
+        if (liveValue > entry->value) {
+            entry->value = liveValue;
         }
         return;
     }
@@ -181,14 +214,15 @@ void Combo_HarvestSharedResource(GameId game, uint8_t kind, uint16_t liveValue) 
     if (slot < 0) {
         return;
     }
-    int32_t next = (int32_t)gComboCtx.sharedResources[slot].value + delta;
+    ComboSharedResource* entry = SlotAt(slot);
+    int32_t next = (int32_t)entry->value + delta;
     if (next < 0) {
         next = 0;
     }
     if (next > 0xFFFF) {
         next = 0xFFFF;
     }
-    gComboCtx.sharedResources[slot].value = (uint16_t)next;
+    entry->value = (uint16_t)next;
 }
 
 bool Combo_ApplySharedResource(GameId game, uint8_t kind, uint16_t cap, uint16_t* liveValue) {
@@ -208,7 +242,7 @@ bool Combo_ApplySharedResource(GameId game, uint8_t kind, uint16_t cap, uint16_t
         return false;
     }
 
-    const uint16_t shared = gComboCtx.sharedResources[slot].value;
+    const uint16_t shared = SlotAt(slot)->value;
     const uint16_t applied = (shared > cap) ? cap : shared;
 
     if (IsMonotonicKind(kind)) {
@@ -237,14 +271,14 @@ bool Combo_GetSharedResource(uint8_t kind, uint16_t* outValue) {
     if (slot < 0) {
         return false;
     }
-    *outValue = gComboCtx.sharedResources[slot].value;
+    *outValue = SlotAt(slot)->value;
     return true;
 }
 
 int Combo_CountSharedResources(void) {
     int count = 0;
-    for (int i = 0; i < (int)RSBS_SHARED_RESOURCE_CAP; i++) {
-        if (gComboCtx.sharedResources[i].kind != RSBS_SHARED_RES_NONE) {
+    for (int i = 0; i < (int)RSBS_SHARED_RESOURCE_TOTAL_CAP; i++) {
+        if (SlotAt(i)->kind != RSBS_SHARED_RES_NONE) {
             count++;
         }
     }

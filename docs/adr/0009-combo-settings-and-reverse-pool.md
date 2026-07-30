@@ -192,10 +192,11 @@ Publishing the allocation once beats five sequential re-versions:
 | 3 | MM option-profile digest (#497 step 7 / #499 step 4, Lane 4) | 4 B | **carved by Lane 4; size CONFIRMED at 4 B** |
 | 4 | Netplay grant fields (#460, ADR 0005/0007) | 64 B | reserved |
 | 5 | `sharedResources[8]` (#525, shared rupees + hearts + magic) | 32 B | **carved by #525** |
-| 6 | Unallocated floor | 132 B | must not drop below 64 |
+| 6 | `sharedResourcesExt[12]` (#525 optional tier, shared ammo) | 48 B | **carved by #525** |
+| 7 | Unallocated floor | 84 B | must not drop below 64 |
 
-Total reserved-against: 152 B of 284. After claims 1, 3 and 5 land, `reserved[]`
-is 180 bytes and 200 B of capacity remain.
+Total reserved-against: 152 B of 284. After claims 1, 3, 5 and 6 land, `reserved[]`
+is 132 bytes and 152 B of capacity remain.
 
 **Claim 5, settled (#525, 2026-07-29; amended for the optional tier).** Shared
 cross-game resources are eight kind-tagged 4-byte slots —
@@ -204,12 +205,32 @@ immediately after `mmProfileDigest`. Seven of the eight are occupied: five by
 v1 (rupees, wallet tier, health quarters, current health, double defense) and
 two by shared magic (meter level + current magic, kinds 6 and 7), which is why
 the claim is sized at the array rather than at any moment's resource count. The
-ammo upgrades — the queued remainder of the class — need ~10 more kinds and do
-NOT fit in the one remaining slot: per this ADR's own prescription they arrive
-as a SECOND block carved from the front of `reserved[]`, spanned together with
-this one by every accessor in `shared_resources.c`, never by bumping
-`RSBS_SHARED_RESOURCE_CAP` in place (the widen would move every field carved
-after the array off its shipped offset).
+ammo upgrades — the queued remainder of the class — needed nine more kinds and
+did NOT fit in the one remaining slot; see claim 6.
+
+**Claim 6, settled (#525 optional tier, 2026-07-29).** Shared ammo arrived
+exactly as claim 5's prescription requires: a SECOND block,
+`ComboSharedResource sharedResourcesExt[12]` at `.redsave` byte offset **824**,
+carved from the front of `reserved[]` and pinned by its own literal-offset
+static_assert. `RSBS_SHARED_RESOURCE_CAP` was **not** bumped — a widen in place
+would have moved this very block, and every field carved after it, off the
+offset every shipped save stored it at. `reserved[180]` becomes `reserved[132]`.
+
+The two blocks are ONE LOGICAL ARRAY of twenty slots. `shared_resources.c`
+addresses them through a single `SlotAt(logical)` resolver, and every scan — the
+duplicate lookup, the first-free claim, the occupancy count — spans both in one
+pass. That is not tidiness: a scan stopping at the first block's boundary would
+either split one kind across two slots or report the array full with twelve free
+slots behind it, silently dropping every resource past the eighth. Sixteen of
+the twenty are occupied (seven from v1 plus magic, nine from ammo); the block
+was sized for the whole class in one carve, because a third block would cost
+another literal offset, another span in every accessor, and another amendment
+here.
+
+Twelve is the ceiling the floor below permits rather than a preference: 48 B
+leaves `reserved[132]`, which still clears the 64-byte floor once the
+outstanding claims 2 and 4 (4 B + 64 B) land. Sixteen slots would have breached
+it.
 
 The tag is load-bearing, not bookkeeping. This ADR's growth contract is "zero
 means unset", and **0 rupees is a legal player state** — so a bare `uint16_t
