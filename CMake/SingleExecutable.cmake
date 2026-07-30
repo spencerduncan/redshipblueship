@@ -641,14 +641,21 @@ if(BUILD_TESTING)
     #   CI staged soh.o2r where only the install rules look
     #   (${CMAKE_BINARY_DIR}/soh), while ctest rows run with cwd =
     #   ${CMAKE_BINARY_DIR} and resolve archives via LocateFileAcrossAppDirs,
-    #   whose last resort is "./<name>". So every row in this tier was booting
+    #   which probes the app-config dir, then the binary's own directory, then
+    #   "./" — all three being ${CMAKE_BINARY_DIR} for a ctest row, and none of
+    #   them ${CMAKE_BINARY_DIR}/soh. So every row in this tier was booting
     #   with ZERO archives mounted. With none loaded, libultraship PAUSES the
     #   ResourceManager thread pool forever (ResourceManager.cpp:58-61, "Nothing
     #   ever unpauses the thread pool"), and OTRAudio_Init's synchronous
     #   ResourceMgr_LoadDirectory("audio") then deadlocks on .get().
     #
-    # Both workflows now stage the archives where the rows look, so the tier runs
-    # with soh.o2r mounted and the pool live. With that fixed nothing in the block
+    # The archives are now staged where the rows look, in both places they can
+    # come from: the build itself (copy-existing-otrs.cmake and the Generate*Otr
+    # targets also copy into ${CMAKE_BINARY_DIR}, which is what makes a plain
+    # local `ctest --test-dir <dir>` work), and a staging step in each workflow
+    # (CI downloads the archives as artifacts and never runs those targets in the
+    # test job). So the tier runs with soh.o2r mounted and the pool live —
+    # locally and on CI alike. With that fixed nothing in the block
     # needs the flag: soh.o2r carries no `audio/` entries so the precache is a
     # no-op and the audio thread parks on audio.cv_to_thread (no frame loop
     # signals it); OTRExtScanner / VanillaItemTable_Init / DebugConsole_Init are

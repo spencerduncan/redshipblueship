@@ -293,10 +293,11 @@ jobs:
     # Stage the port archives where the ctest tiers actually look (#560).
     # The downloads above land them where the INSTALL rules read them
     # (${CMAKE_BINARY_DIR}/soh, .../mm). Test rows resolve archives through
-    # Ship::Context::LocateFileAcrossAppDirs, whose last resort is "./<name>"
-    # relative to the row's cwd — and `ctest --test-dir build-cmake` runs rows
-    # with cwd = build-cmake. So every row in the redship and rando tiers has
-    # been booting with ZERO archives mounted. The rando log says so out loud:
+    # Ship::Context::LocateFileAcrossAppDirs, which probes the app-config dir,
+    # then the running binary's OWN directory, then "./" — and for a row started
+    # by `ctest --test-dir build-cmake` all three of those are build-cmake, never
+    # build-cmake/soh. So every row in the redship and rando tiers has been
+    # booting with ZERO archives mounted. The rando log says so out loud:
     #   "The archive at path .../build-cmake/./soh.o2r does not exist"
     #
     # Not cosmetic. libultraship PAUSES the ResourceManager thread pool forever

@@ -154,7 +154,8 @@ jobs:
 
     # Same staging fix as generate-builds' build-linux (#560): the redship and
     # rando ctest rows below run with cwd = build-cmake and resolve archives
-    # through LocateFileAcrossAppDirs, whose last resort is "./<name>" — so
+    # through LocateFileAcrossAppDirs, which probes the app-config dir, then the
+    # binary's own directory, then "./" — all of which are build-cmake, so
     # build-cmake/soh/soh.o2r is invisible to them and both tiers have been
     # booting with no archives mounted. With none loaded libultraship pauses the
     # ResourceManager thread pool permanently (ResourceManager.cpp:58-61), so any

@@ -558,15 +558,22 @@ TestResult Test_RandoGenFullInit(void) {
     // the real, previously-undocumented reason this tier carries
     // RSBS_DISABLE_OTR_INIT=1 — and it is why CI's rando rows had been running
     // with zero archives mounted for as long as the tier has existed (they were
-    // staged where only the install rules look; see the staging step added to
-    // both workflows for #560). Resolve exactly the way the
-    // bring-up will (OTRGlobals.cpp: LocateFileAcrossAppDirs("soh.o2r")) and fail
-    // in a second with a readable reason instead of burning the row's timeout.
+    // staged where only the install rules look; #560 fixes that in BOTH places
+    // the archive can come from — copy-existing-otrs.cmake / the Generate*Otr
+    // targets for a locally built archive, and a staging step in each workflow
+    // for the CI case where it arrives as a downloaded artifact instead).
+    // Resolve exactly the way the bring-up will (OTRGlobals.cpp:
+    // LocateFileAcrossAppDirs("soh.o2r")) and fail in a second with a readable
+    // reason instead of burning the row's timeout. Deliberately a FAIL and not a
+    // CTest SKIP: a staging regression must be loud, since the symptom it
+    // otherwise produces is a silently masked subsystem.
     const std::string sohArchive = Ship::Context::LocateFileAcrossAppDirs("soh.o2r");
     if (!std::filesystem::exists(sohArchive)) {
         printf("[TEST] FAIL: no soh.o2r resolvable (tried '%s'). This row needs a mounted archive: with none, "
                "libultraship pauses the resource thread pool and OTRAudio_Init's synchronous load never "
-               "returns. Stage soh.o2r next to the ctest working directory (#560).\n",
+               "returns. Build the port archives once ('cmake --build <dir> --target GenerateSohOtr "
+               "Generate2ShipOtr'), which now also lands them in the build root where the ctest rows look "
+               "(#560).\n",
                sohArchive.c_str());
         return TEST_FAIL;
     }

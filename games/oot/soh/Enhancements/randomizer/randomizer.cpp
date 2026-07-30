@@ -3604,22 +3604,35 @@ static int RunFullInitSeedTest(const char* seedStr) {
     }
 
     // GenerateRandomizerImgui sets `generated` as its last act; poll it the way
-    // the file-select gamestate does. Bounded so a hung fill fails with an
-    // attributable message instead of burning the whole CTest timeout.
+    // the file-select gamestate does.
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(150);
     while (!generated && std::chrono::steady_clock::now() < deadline) {
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
     const bool completed = generated != 0;
-    // Join unconditionally: a joinable std::thread left alive would std::terminate
-    // in randoThread's destructor at static-destruction time and turn any failure
-    // here into an abort with no diagnostic.
-    generated = 0;
+
+    // Say WHY before the join, not after. The join below is mandatory — a
+    // joinable std::thread left alive would std::terminate in randoThread's
+    // destructor at static-destruction time and turn any failure here into an
+    // abort with no diagnostic — but it is also UNBOUNDED, so on a genuinely
+    // hung fill it never returns and anything printed after it is never
+    // printed. So the deadline buys a DIAGNOSED hang, not a bounded one: the
+    // row still dies on its CTest timeout, but the log names the fill instead
+    // of showing nothing at all.
+    if (!completed) {
+        fprintf(stderr, "[rando-full-init] generation worker did not finish within 150s; joining it anyway — if "
+                        "this is the last line before the CTest timeout, the fill itself is hung\n");
+        fflush(stderr);
+    }
     if (randoThread.joinable()) {
         randoThread.join();
     }
+    // Cleared only AFTER the join: while the worker is alive it can still store
+    // 1 here, and a store racing ours would leave a stale 1 behind — which is
+    // exactly what makes a later GenerateRandomizer() join an already-joined
+    // thread.
+    generated = 0;
     if (!completed) {
-        fprintf(stderr, "[rando-full-init] generation worker did not finish within 150s\n");
         return 21;
     }
     if (!randoCtx->IsSeedGenerated()) {
