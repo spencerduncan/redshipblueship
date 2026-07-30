@@ -1292,8 +1292,16 @@ static void OoT_WriteHookshotTier(uint16_t tier) {
         gSaveContext.adultEquips.buttonItems,
         gSaveContext.childEquips.buttonItems,
     };
+    // From index 1, never 0. Index 0 is the B button; every vanilla loop that
+    // matches a hookshot against buttonItems starts at 1 (the ITEM_LONGSHOT
+    // give and the button-restriction passes alike), and B is not a slot the
+    // hookshot is equippable to. It is also not inert storage: SoH's Bottle
+    // Adventure restoration deliberately stages arbitrary save bytes THROUGH
+    // buttonItems[0], so a byte there that happens to equal 0x0A or 0x0B is
+    // data, not an equipped hookshot, and rewriting it would corrupt the value
+    // that restoration exists to reproduce.
     for (size_t set = 0; set < ARRAY_COUNT(buttonSets); set++) {
-        for (size_t i = 0; i < ARRAY_COUNT(gSaveContext.equips.buttonItems); i++) {
+        for (size_t i = 1; i < ARRAY_COUNT(gSaveContext.equips.buttonItems); i++) {
             if (buttonSets[set][i] == ITEM_HOOKSHOT || buttonSets[set][i] == ITEM_LONGSHOT) {
                 buttonSets[set][i] = item;
             }

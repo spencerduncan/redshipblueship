@@ -46,7 +46,7 @@ extern "C" {
  */
 typedef struct {
     SharedItem item;     // originGame == GAME_OOT, flags == 0, id == the RG_* value
-    const char* name;    // e.g. "Progressive Hookshot"
+    const char* name;    // e.g. "Megaton Hammer"
     const char* article; // "the ", "a ", "an " or "" — see below
 } ComboForeignItemDef;
 
