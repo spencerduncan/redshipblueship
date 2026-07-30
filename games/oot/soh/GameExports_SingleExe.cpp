@@ -523,6 +523,29 @@ static void OoT_RegisterIntegrationTestHooks(void) {
                 IntegrationTest_GameplayFail(ageMsg);
                 return;
             }
+            // Frame-counter reset lock. The scene build runs after the
+            // frame-counter block in OoT_Play_Init, so an arrival must land
+            // here with a counter that was just zeroed. Left stale, the
+            // suspended session's value (or MM's arena leftovers) rides into
+            // the arrival and voids the interval autosave's `gameplayFrames <
+            // 60` warm-up guard (soh/Enhancements/QoL/Autosave.cpp) — a save
+            // can then fire during the arrival fade. Return leg only: the warp
+            // and exit phases are ordinary in-game door transitions, where a
+            // large counter is the correct session-long value.
+            if (phase == GP_PHASE_OOT_RETURN && OoT_gPlayState != NULL) {
+                fprintf(stderr, "[GP-TEST] return leg gameplayFrames=%u (expect 0)\n",
+                        (unsigned)OoT_gPlayState->gameplayFrames);
+                fflush(stderr);
+                if (OoT_gPlayState->gameplayFrames != 0) {
+                    char frameMsg[176];
+                    snprintf(frameMsg, sizeof(frameMsg),
+                             "return leg arrived with gameplayFrames=%u, expected 0 — the arrival frame-counter "
+                             "reset regressed, so the autosave warm-up guard is void on re-arrivals",
+                             (unsigned)OoT_gPlayState->gameplayFrames);
+                    IntegrationTest_GameplayFail(frameMsg);
+                    return;
+                }
+            }
             // Demo-state leakage asserts (the bug 1a/1b/1c common-cause
             // class): every cross-game arrival and post-return load must be a
             // plain gameplay spawn. A title/attract gameMode, a live cutscene
