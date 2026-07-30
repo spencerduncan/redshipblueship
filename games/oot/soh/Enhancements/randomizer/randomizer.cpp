@@ -3466,44 +3466,49 @@ void GenerateRandomizerImgui(std::string seed = "") {
     CVarSetInteger(CVAR_GENERAL("RandoGenerating"), 1);
     Ship::Context::GetInstance()->GetWindow()->GetGui()->SaveConsoleVariablesNextFrame();
     auto ctx = Rando::Context::GetInstance();
-    // RANDOTODO proper UI for selecting if a spoiler loaded should be used for settings
-    Rando::Settings::GetInstance()->SetAllToContext();
 
-    // todo: this efficently when we build out cvar array support
-    std::set<RandomizerCheck> excludedLocations;
-    std::stringstream excludedLocationStringStream(CVarGetString(CVAR_RANDOMIZER_SETTING("ExcludedLocations"), ""));
-    std::string excludedLocationString;
-    while (getline(excludedLocationStringStream, excludedLocationString, ',')) {
-        excludedLocations.insert((RandomizerCheck)std::stoi(excludedLocationString));
-    }
-
-    // todo: better way to sort out linking tricks rather than name
-
-    std::set<RandomizerTrick> enabledTricks;
-    std::stringstream enabledTrickStringStream(CVarGetString(CVAR_RANDOMIZER_SETTING("EnabledTricks"), ""));
-    std::string enabledTrickString;
-    while (getline(enabledTrickStringStream, enabledTrickString, ',')) {
-        enabledTricks.insert((RandomizerTrick)std::stoi(enabledTrickString));
-    }
-
-    // Update the visibilitiy before removing conflicting excludes (in case the locations tab wasn't viewed)
-    RandomizerCheckObjects::UpdateImGuiVisibility();
-
-    // Remove excludes for locations that are no longer allowed to be excluded
-    for (auto& location : Rando::StaticData::GetLocationTable()) {
-        auto elfound = excludedLocations.find(location.GetRandomizerCheck());
-        if (!ctx->GetItemLocation(location.GetRandomizerCheck())->IsVisible() && elfound != excludedLocations.end()) {
-            excludedLocations.erase(elfound);
-        }
-    }
-
-    // #560: this runs on its own thread with nothing above it that catches. An
-    // exception escaping GenerateRando therefore std::terminate'd the process, and
-    // because RandoGenerating was already persisted as 1 by the
-    // SaveConsoleVariablesNextFrame above, the menu and the file-select screen were
-    // left believing a generation was still in flight. A failed attempt has to clear
-    // the flag and hand the thread back joinable, exactly like a successful one.
+    // #560: this function IS the thread entry, and nothing above it catches, so any
+    // exception escaping it std::terminate'd the process — with RandoGenerating
+    // already persisted as 1 by the SaveConsoleVariablesNextFrame above, leaving the
+    // menu and the file-select screen believing a generation was still in flight and
+    // the thread never joinable. The whole body has to be covered, not just the
+    // GenerateRando call: the std::stoi calls below parse persisted CVar strings and
+    // throw std::invalid_argument on any token that is not a number. A failed attempt
+    // must clear the flag and hand the thread back exactly like a successful one, so
+    // the fall-through below runs in every case.
     try {
+        // RANDOTODO proper UI for selecting if a spoiler loaded should be used for settings
+        Rando::Settings::GetInstance()->SetAllToContext();
+
+        // todo: this efficently when we build out cvar array support
+        std::set<RandomizerCheck> excludedLocations;
+        std::stringstream excludedLocationStringStream(CVarGetString(CVAR_RANDOMIZER_SETTING("ExcludedLocations"), ""));
+        std::string excludedLocationString;
+        while (getline(excludedLocationStringStream, excludedLocationString, ',')) {
+            excludedLocations.insert((RandomizerCheck)std::stoi(excludedLocationString));
+        }
+
+        // todo: better way to sort out linking tricks rather than name
+
+        std::set<RandomizerTrick> enabledTricks;
+        std::stringstream enabledTrickStringStream(CVarGetString(CVAR_RANDOMIZER_SETTING("EnabledTricks"), ""));
+        std::string enabledTrickString;
+        while (getline(enabledTrickStringStream, enabledTrickString, ',')) {
+            enabledTricks.insert((RandomizerTrick)std::stoi(enabledTrickString));
+        }
+
+        // Update the visibilitiy before removing conflicting excludes (in case the locations tab wasn't viewed)
+        RandomizerCheckObjects::UpdateImGuiVisibility();
+
+        // Remove excludes for locations that are no longer allowed to be excluded
+        for (auto& location : Rando::StaticData::GetLocationTable()) {
+            auto elfound = excludedLocations.find(location.GetRandomizerCheck());
+            if (!ctx->GetItemLocation(location.GetRandomizerCheck())->IsVisible() &&
+                elfound != excludedLocations.end()) {
+                excludedLocations.erase(elfound);
+            }
+        }
+
         RandoMain::GenerateRando(excludedLocations, enabledTricks, seed);
     } catch (const std::exception& e) {
         SPDLOG_ERROR("Seed generation threw: {}", e.what());

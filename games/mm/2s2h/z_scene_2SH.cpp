@@ -37,6 +37,7 @@
 #include "2s2h/resource/type/scenecommand/SetMinimapList.h"
 #include "2s2h/resource/type/scenecommand/SetMinimapChests.h"
 #include "2s2h/resource/type/scenecommand/SetCsCamera.h"
+#include <spdlog/spdlog.h>
 
 s32 MM_OTRScene_ExecuteCommands(PlayState* play, S2H::Scene* scene);
 
@@ -273,6 +274,16 @@ void MM_Scene_CommandLightList(PlayState* play, S2H::ISceneCommand* cmd) {
 
 void MM_Scene_CommandPathList(PlayState* play, S2H::ISceneCommand* cmd) {
     S2H::SetPathwaysMM* paths = (S2H::SetPathwaysMM*)cmd;
+
+    // GetPointer() is paths.data(), so indexing [0] on an empty list dereferences
+    // what data() returns for an empty vector (nullptr in practice). Same guard as
+    // OoT's OoT_Scene_CommandPathList: a scene with no usable pathway is equivalent
+    // to one with no SetPathways command at all, i.e. a null setupPathList.
+    if (paths->paths.empty()) {
+        SPDLOG_ERROR("MM scene command SetPathways has no usable pathway list; leaving setupPathList null");
+        play->setupPathList = nullptr;
+        return;
+    }
 
     play->setupPathList = (Path*)paths->GetPointer()[0];
 }
@@ -537,6 +548,17 @@ s32 MM_OTRScene_ExecuteCommands(PlayState* play, S2H::Scene* scene) {
 
     for (int i = 0; i < scene->commands.size(); i++) {
         auto sceneCmd = scene->commands[i];
+
+        // #560: ParseSceneCommand pushes a null entry for every command it could not
+        // build — an unknown command id, or a factory whose sub-load failed — and
+        // logs it there. OoT's OTRScene_ExecuteCommands has always skipped those;
+        // this loop read ->cmdId straight through the null, so any logged
+        // scene-command load failure became an access violation on the next MM scene
+        // load. Skip it and run the rest of the scene's commands.
+        if (sceneCmd == nullptr) {
+            continue;
+        }
+
         cmdId = sceneCmd->cmdId;
 
         // 2S2H [Port] This opcode is not in the original game. Its a special command for OTRs, for supporting multiple
