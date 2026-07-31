@@ -175,6 +175,15 @@ uint32_t SaveManager::StageCommit() {
     if (ootShadow == nullptr || mmShadow == nullptr) {
         std::fprintf(stderr, "[RsbsSave] commit NOT staged: context shadows are absent "
                              "(Context_InitFrozenStates has not run)\n");
+        // INVALIDATE rather than just refuse. WriteStagedCommit serializes
+        // "the most recently staged snapshot" for whatever slot its caller
+        // names, and OoT's worker hook fires unconditionally after the .sav
+        // write — so leaving an EARLIER stage addressable here would let a
+        // save whose own marshalling failed publish a previous commit's
+        // snapshot, potentially into a different slot. A failed stage must
+        // leave nothing to write.
+        std::lock_guard<std::mutex> lock(mStageMtx);
+        mStaged.valid = false;
         return 0;
     }
 

@@ -1603,7 +1603,17 @@ uint32_t SaveManager::GetLoadedCommitGeneration() {
     // == a .sav from before the stamp existed == 0, the exempt value.
     try {
         if (saveBlock.is_object() && saveBlock.contains("rsbsCommitGeneration")) {
-            return saveBlock["rsbsCommitGeneration"].get<uint32_t>();
+            // is_number_unsigned(), not just get<uint32_t>(): nlohmann happily
+            // converts a NEGATIVE or floating-point value into a uint32_t
+            // instead of throwing, and a wrapped-around huge generation would
+            // read as ".sav newer" — a hard REFUSE that quarantines a
+            // perfectly healthy .redsave. #533's premise is that detection
+            // must never become data loss, so anything that is not the
+            // unsigned integer this code wrote reads as "absent" (0, exempt).
+            const nlohmann::json& stamp = saveBlock["rsbsCommitGeneration"];
+            if (stamp.is_number_unsigned()) {
+                return stamp.get<uint32_t>();
+            }
         }
     } catch (const std::exception&) {
         // A malformed stamp reads as "absent" rather than killing the load.

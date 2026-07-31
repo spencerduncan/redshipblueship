@@ -209,7 +209,11 @@ public:
      *      gSaveContext) and set gComboCtx.sourceGame on the same thread,
      *      immediately before staging — that is what makes the snapshot
      *      single-instant. Returns the stamped generation, or 0 on refusal
-     *      (shadows absent). Never touches the filesystem. Callers that know
+     *      (shadows absent) — a refused stage also INVALIDATES whatever was
+     *      staged before it, so a save whose own marshalling failed can never
+     *      publish an earlier commit's snapshot (possibly into a different
+     *      slot) through the write phase that follows it unconditionally.
+     *      Never touches the filesystem. Callers that know
      *      their target slot should check IsSlotWritable FIRST: staging for a
      *      latched slot advances the generation (and, on OoT's path, mirrors
      *      it into the .sav) for a write that will refuse, manufacturing
