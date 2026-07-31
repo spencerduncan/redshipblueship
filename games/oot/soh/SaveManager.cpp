@@ -211,9 +211,17 @@ SaveManager::SaveManager() {
         // somewhere to save.
         Context_InvalidateSessionOnSlotLoad();
         RsbsSave_SetActiveSlot(fileNum);
-        if (RsbsSave_HasSave(fileNum)) {
-            RsbsSave_Load(fileNum);
-        }
+        // ALWAYS attempt the load — no HasSave gate (#533). HasSave is
+        // header-only, so a header-refused file (future version, bad magic,
+        // wrong slot) made the gate report "no save": the load never ran, the
+        // refusal never registered, and the next autosave rename-overwrote
+        // the mostly-intact file — including the only copy of the MM half —
+        // with a blank Tier-1 and an all-zero Tier-3. LoadSlot distinguishes
+        // the three outcomes itself: OK commits and arms the slot for writes,
+        // ABSENT arms it for its first write, REFUSED quarantines the file
+        // aside and latches the slot so no later save can destroy the
+        // evidence.
+        RsbsSave_LoadSlot(fileNum);
     });
 
     GameInteractor::Instance->RegisterGameHook<GameInteractor::OnDeleteFile>([](int32_t fileNum) {

@@ -417,6 +417,11 @@ TestResult Test_SessionInvalidation(void) {
         std::filesystem::create_directories(kSessionTestDir, ec);
         rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
         mgr.SetSaveDirectory(kSessionTestDir);
+        // #533: writes are latched per-slot until this session loads, creates,
+        // or erases the slot. Simulate a fresh session, then arm slot 1 the
+        // way production's create seam does before its first Save.
+        mgr.ResetSlotSessionState();
+        mgr.ArmSlotOnCreate(1);
 
         SeedSessionA(0x2468u, 0x1357u);
         std::vector<uint8_t> mmLive(MM_SAVE_CONTEXT_SIZE, kSessionAByte);
@@ -488,6 +493,7 @@ TestResult Test_SessionInvalidation(void) {
             SeedSessionA(0x1111u, 0x2222u);
             std::vector<uint8_t> mmEmpty(MM_SAVE_CONTEXT_SIZE, 0);
             Context_UpdateShadowCopy(GAME_MM, mmEmpty.data(), mmEmpty.size());
+            mgr.ArmSlotOnCreate(0); // #533: this block creates slot 0's save
             SESSION_ASSERT(mgr.Save(0));
 
             Context_InvalidateSessionOnSlotLoad();
@@ -521,6 +527,9 @@ TestResult Test_SessionInvalidation(void) {
         SeedSessionA(0x3333u, 0x4444u);
         StampGeneratedSeed(0x99999999u, 0x5555u);
         Context_InvalidateSessionOnNewGame(/*isRandoFile=*/1);
+        // #533: mirror z_sram.c's create seam, which arms the slot right after
+        // the invalidation and before the file's first save.
+        mgr.ArmSlotOnCreate(2);
         SESSION_ASSERT(Combo_CountForeignPlacementsOoT() == 1);
         SESSION_ASSERT(mgr.Save(2));
         // Clear first, so what the assertions below read came out of the file

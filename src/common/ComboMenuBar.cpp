@@ -355,10 +355,29 @@ void ComboMenuBar::DrawFileSelect() {
         ImGui::Text("Slot %d", slot + 1);
         ImGui::SameLine();
 
-        if (!meta.exists) {
+        if (meta.state == RSBS_SLOT_REFUSED) {
+            // REFUSED is a first-class state, rendered distinctly from empty
+            // (#533): the file failed validation (or this session already
+            // refused and quarantined it) and writes to the slot are latched.
+            // stderr is not a surface — this is.
+            ImGui::TextColored(ImVec4(0.9f, 0.35f, 0.3f, 1.0f), "[REFUSED: %s]",
+                               rsbs::SaveManager::RefuseReasonLabel(meta.refuseReason));
+            if (meta.hasQuarantine) {
+                ImGui::TextDisabled("Original preserved beside the save (.bak). Writes to this slot are locked;");
+                ImGui::TextDisabled("Delete releases the slot (and discards the preserved file).");
+            } else {
+                ImGui::TextDisabled("File left in place. Writes to this slot are locked; Delete releases it.");
+            }
+        } else if (!meta.exists) {
             ImGui::TextDisabled("[empty]");
-        } else if (!meta.valid) {
-            ImGui::TextDisabled("[invalid header]");
+            if (meta.hasQuarantine) {
+                // A previous session refused + quarantined this slot's file.
+                // The slot itself is empty and usable, but the evidence is
+                // still on disk — say so instead of pretending nothing
+                // happened.
+                ImGui::SameLine();
+                ImGui::TextDisabled("(quarantined backup on disk)");
+            }
         } else {
             // Name: prefer OoT if started, else MM; show both if both are
             // started so a slot with progress in each game is unambiguous.
@@ -390,21 +409,43 @@ void ComboMenuBar::DrawFileSelect() {
             ImGui::TextUnformatted(meta.mmStarted ? "[MM v]" : "[MM _]");
         }
 
-        // Action buttons. Load / Delete are only meaningful when the slot
-        // exists; Save-to-slot is always available so the user can promote
-        // the in-memory state into any slot (it'll create one if missing).
-        if (meta.exists) {
+        // Action buttons. Load is only meaningful for a VALID slot file;
+        // Delete also appears for a REFUSED slot (the explicit erase that
+        // releases the write latch and discards the quarantined evidence) and
+        // whenever evidence alone remains. Save-to-slot is the explicit
+        // user-initiated promote/create action: it arms the slot through the
+        // create seam — which quarantines a failing existing file first — and
+        // is withheld entirely for a REFUSED slot, where the player must
+        // decide (Delete) before the slot can be written again.
+        //
+        // The SameLine calls are driven by what still FOLLOWS on the row, not
+        // by what was just drawn: a REFUSED slot's only button is Delete, and
+        // an unconditional trailing SameLine there would pull the Separator up
+        // onto the button row.
+        const bool showLoad = (meta.state == RSBS_SLOT_VALID);
+        const bool showDelete = (meta.state != RSBS_SLOT_ABSENT) || meta.hasQuarantine;
+        const bool showSave = (meta.state != RSBS_SLOT_REFUSED);
+        if (showLoad) {
             if (ImGui::Button("Load")) {
-                RsbsSave_Load(slot);
+                RsbsSave_LoadSlot(slot);
             }
-            ImGui::SameLine();
+            if (showDelete || showSave) {
+                ImGui::SameLine();
+            }
+        }
+        if (showDelete) {
             if (ImGui::Button("Delete")) {
                 RsbsSave_DeleteSave(slot);
             }
-            ImGui::SameLine();
+            if (showSave) {
+                ImGui::SameLine();
+            }
         }
-        if (ImGui::Button("Save to slot")) {
-            RsbsSave_Save(slot);
+        if (showSave) {
+            if (ImGui::Button("Save to slot")) {
+                RsbsSave_ArmSlotOnCreate(slot);
+                RsbsSave_Save(slot);
+            }
         }
 
         ImGui::Separator();

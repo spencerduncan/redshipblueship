@@ -55,6 +55,42 @@
 #define RSBS_SAVE_ENDIAN_LE  1
 #define RSBS_SAVE_MAX_SLOTS  3           // matches each game's MaxFiles
 
+// ---- Slot state: ABSENT / VALID / REFUSED are three DIFFERENT facts ---------
+// (#533). A .redsave that fails validation used to leave the session in a state
+// byte-for-byte identical to "this slot has no cross-game state at all"; the
+// next OoT autosave then rename-overwrote the mostly-intact original with a
+// blank Tier-1 and an all-zero Tier-3 — MM's ONLY persistence — unrecoverably.
+// REFUSED is now first-class: the refused file is quarantined (renamed aside,
+// never overwritten in place), the refusing session latches the slot against
+// writes, and the file panel renders REFUSED distinctly from empty.
+typedef enum RsbsSlotState {
+    RSBS_SLOT_ABSENT = 0,   // no slot file (and this session refused nothing)
+    RSBS_SLOT_VALID = 1,    // slot file present, header passes every compat check
+    RSBS_SLOT_REFUSED = 2,  // file failed validation, in place or already quarantined
+} RsbsSlotState;
+
+// Why a load/validation was refused. Doubles as the quarantine filename tag so
+// the renamed-aside evidence names its own diagnosis.
+typedef enum RsbsRefuseReason {
+    RSBS_REFUSE_NONE = 0,
+    RSBS_REFUSE_UNREADABLE,   // file exists but cannot be opened/read
+    RSBS_REFUSE_HEADER,       // short header / bad magic / endianness / headerSize
+    RSBS_REFUSE_VERSION,      // outside [RSBS_SAVE_VERSION_MIN, RSBS_SAVE_VERSION]
+    RSBS_REFUSE_TIER_SIZE,    // a stored tier size exceeds this build's capacity
+    RSBS_REFUSE_WRONG_SLOT,   // header.slot != the slot this path belongs to
+    RSBS_REFUSE_TRUNCATED,    // a tier read came up short
+    RSBS_REFUSE_CRC,          // payload CRC mismatch
+    RSBS_REFUSE_COMBO_MAGIC,  // Tier-1 bytes are not a ComboContext
+} RsbsRefuseReason;
+
+// What a load attempt actually did — richer than the old bool, because ABSENT
+// and REFUSED must never collapse into one "false" again.
+typedef enum RsbsLoadOutcome {
+    RSBS_LOAD_OK = 0,       // loaded and committed; slot armed for writes
+    RSBS_LOAD_ABSENT = 1,   // no slot file; nothing loaded; slot armed (safe to create)
+    RSBS_LOAD_REFUSED = 2,  // validation failed; evidence quarantined; writes latched
+} RsbsLoadOutcome;
+
 // ---- C-visible per-game metadata-offset descriptor ------------------------
 // Registered by each game's TU (which alone knows its SaveContext layout) so
 // that save.cpp can read player-name / play-time / "valid" marker bytes from a
@@ -97,6 +133,16 @@ struct SlotMeta {
     uint32_t mmPlayTime;   // raw u32 at the registered MM play-time offset
     bool     ootStarted;   // OoT validMarker bytes match (file has been started)
     bool     mmStarted;    // MM  validMarker bytes match
+
+    // #533: REFUSED distinct from ABSENT. `state` folds together what is on
+    // disk right now AND what this session refused (a quarantined slot's file
+    // is gone from the slot path, but the slot is REFUSED, not empty).
+    // `refuseReason` names the failing check; `hasQuarantine` reports whether
+    // renamed-aside evidence (*.bak) sits next to the slot path, which
+    // survives process restarts even after `state` degrades to ABSENT.
+    RsbsSlotState    state;
+    RsbsRefuseReason refuseReason;
+    bool             hasQuarantine;
 };
 
 #pragma pack(push, 1)
@@ -130,10 +176,76 @@ class SaveManager {
 public:
     static SaveManager& Instance();
 
+    /**
+     * Write the resident cross-game state into `slot` — IF the armed-session
+     * latch allows it (#533). A slot is writable only after this session
+     * successfully loaded, created, or erased it; anything else refuses, so a
+     * session that REFUSED a slot's .redsave can never rename-overwrite the
+     * evidence with a blank Tier-1 + all-zero Tier-3.
+     */
     bool Save(int slot);
+
+    /**
+     * Full-validation load. RSBS_LOAD_OK commits and arms the slot;
+     * RSBS_LOAD_ABSENT arms the slot for its first write (opening an empty
+     * slot IS the create path); RSBS_LOAD_REFUSED quarantines the failing file
+     * (renamed aside with a reason suffix, never overwritten in place) and
+     * latches the slot against writes for the rest of the session. A refusal
+     * is sticky: re-opening the now-empty slot path stays REFUSED until the
+     * player explicitly erases the slot or a load actually succeeds.
+     */
+    RsbsLoadOutcome LoadSlot(int slot);
+
+    /** Compatibility wrapper: LoadSlot(slot) == RSBS_LOAD_OK. */
     bool Load(int slot);
+
     bool HasSave(int slot) const;
+
+    /**
+     * Explicit player-initiated erase: removes the slot file, its temp file,
+     * and any quarantined evidence, then ARMS the slot (erasing it this
+     * session is one of the three legitimate ways to make it writable) and
+     * clears any refusal record.
+     */
     void DeleteSave(int slot);
+
+    /**
+     * The file-create seam's arming call (#533): OoT's Sram_InitSave runs this
+     * for the slot the new file occupies, BEFORE its first Save_SaveFile fires
+     * the OnSaveFile -> RsbsSave_Save chain. If a slot file exists but fails
+     * validation, it is quarantined FIRST — creating a file over a corrupt
+     * .redsave must preserve the evidence, not rename-overwrite it — then the
+     * slot is armed and any refusal record cleared.
+     */
+    void ArmSlotOnCreate(int slot);
+
+    /** Armed-session latch state: true iff Save(slot) would be allowed to write. */
+    bool IsSlotWritable(int slot) const;
+
+    /**
+     * ABSENT / VALID / REFUSED for the slot, combining the on-disk file (header
+     * compat checks only — no CRC, this is called per-frame) with this
+     * session's refusal record, which wins: a quarantined slot reads REFUSED
+     * even though its slot path is now empty.
+     */
+    RsbsSlotState GetSlotState(int slot) const;
+
+    /** Why the slot is REFUSED (RSBS_REFUSE_NONE when it is not). */
+    RsbsRefuseReason GetSlotRefuseReason(int slot) const;
+
+    /** True iff renamed-aside quarantine evidence (*.bak) exists for the slot. */
+    bool HasQuarantine(int slot) const;
+
+    /**
+     * Restore process-start latch state: all slots unarmed, no refusal records.
+     * Headless tests use this to simulate a fresh session; production code has
+     * no business calling it (the latch deliberately survives session
+     * invalidation — it is a fact about the PROCESS, not about a session).
+     */
+    void ResetSlotSessionState();
+
+    /** Human-readable label for a refuse reason (for the file panel). */
+    static const char* RefuseReasonLabel(RsbsRefuseReason reason);
 
     /**
      * Read a cheap summary of `slot` (header + name/playtime bytes from each
@@ -191,23 +303,52 @@ public:
 private:
     SaveManager() = default;
 
-    // Validates magic / version / endian / headerSize and that all three
-    // stored tier sizes fit this build's capacities. Stored sizes may be
+    // Everything ReadSlotFile stages before any commit decision is made.
+    struct SlotFileData;
+
+    enum class SlotReadResult { Absent, Ok, Refused };
+
+    // Validates magic / version / endian / headerSize / slot and that all
+    // three stored tier sizes fit this build's capacities. Stored sizes may be
     // SMALLER (older builds wrote shorter tiers; Load zero-extends) but never
     // larger. Returns true and fills outHeader only on a fully valid header;
-    // never mutates live state.
+    // never mutates live state. `expectedSlot` >= 0 additionally requires
+    // header.slot to match — a cloud-synced or hand-copied file that claims a
+    // different slot must not silently attach one pair's identity + MM world
+    // to another OoT file (#533 / V13).
     //
     // `verbose` gates the rejection logging. Load() passes true — a user-
     // initiated load that silently does nothing is the failure mode this whole
     // path exists to prevent. HasSave/ReadMeta pass false: ReadMeta runs for
     // every slot on every file-select frame, so logging there would be a
     // per-frame spam loop, not a diagnostic.
-    bool DeserializeHeader(std::istream& in, RsbsSaveHeader& outHeader, bool verbose) const;
+    bool DeserializeHeader(std::istream& in, int expectedSlot, RsbsSaveHeader& outHeader, bool verbose,
+                           RsbsRefuseReason* outReason) const;
+
+    // Reads + FULLY validates (header, slot, tier reads, CRC, inner magic) the
+    // slot file into `out` without touching live state. The one validator both
+    // LoadSlot and the create-seam probe share, so "what counts as refused"
+    // cannot fork between them.
+    SlotReadResult ReadSlotFile(int slot, SlotFileData& out, RsbsRefuseReason& outReason, bool verbose) const;
+
+    // Renames the slot file aside as `<slot>.refused-<reason>[-N].bak`,
+    // never overwriting an existing quarantine file (dedupe suffix). On rename
+    // failure the file stays in place — still safe, because the caller latches
+    // the slot and Save() then refuses to touch it.
+    void QuarantineSlotFile(int slot, RsbsRefuseReason reason);
 
     std::string mSaveDir = "Save";
 
     // -1 == no slot established this session. See SetActiveSlot.
     int mActiveSlot = -1;
+
+    // #533 armed-session latch. A slot becomes writable ONLY via this
+    // session's own successful Load, an explicit erase, or the file-create
+    // seam — never by default. Deliberately NOT reset by session
+    // invalidation: "this process successfully established slot N" stays true
+    // across in-process session changes, while a refusal stays sticky.
+    bool             mSlotArmed[RSBS_SAVE_MAX_SLOTS]{};
+    RsbsRefuseReason mSlotRefused[RSBS_SAVE_MAX_SLOTS]{};
 
     // Game-side metadata descriptors, indexed by GameId (GAME_OOT / GAME_MM).
     // mMetaPresent[i] guards mMetaDescs[i]; an unset descriptor causes
@@ -229,6 +370,22 @@ int  RsbsSave_Save(int slot);
 int  RsbsSave_Load(int slot);
 int  RsbsSave_HasSave(int slot);
 void RsbsSave_DeleteSave(int slot);
+
+/**
+ * #533 REFUSED-state surface. LoadSlot is RsbsSave_Load with the three-way
+ * outcome preserved (returns RsbsLoadOutcome); ArmSlotOnCreate is the
+ * file-create seam's arming call (quarantines a failing existing file first);
+ * GetSlotState / GetSlotRefuseReason / HasQuarantine feed the file panel;
+ * IsSlotWritable reports the armed-session latch. ResetSlotSessionState
+ * restores process-start latch state and exists for the headless tests.
+ */
+int  RsbsSave_LoadSlot(int slot);
+void RsbsSave_ArmSlotOnCreate(int slot);
+int  RsbsSave_IsSlotWritable(int slot);
+int  RsbsSave_GetSlotState(int slot);
+int  RsbsSave_GetSlotRefuseReason(int slot);
+int  RsbsSave_HasQuarantine(int slot);
+void RsbsSave_ResetSlotSessionState(void);
 
 /**
  * Session-scoped "which slot is open" (see SaveManager::SetActiveSlot).

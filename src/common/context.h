@@ -1012,10 +1012,15 @@ void Context_InvalidateSessionOnNewGame(int isRandoFile);
  * state", which is the truth.
  *
  * Does NOT arm a frozen blob itself — this is the CLEAR half. The caller's
- * RsbsSave_Load repopulates gComboCtx and both shadows and performs its own
+ * RsbsSave_LoadSlot repopulates gComboCtx and both shadows and performs its own
  * explicit arming step (Context_ArmShadowAsFrozen) for a tier that actually
  * carries data. Ordering matters and is already correct at the call site: the
  * clear runs BEFORE the load, so it never wipes the bytes just read.
+ *
+ * The load is now attempted UNCONDITIONALLY (#533) — there is no HasSave gate
+ * in front of it — so this clear also covers the REFUSED outcome: a slot whose
+ * .redsave fails validation ends up with no resident cross-game state and a
+ * write latch, rather than silently inheriting the previous session's.
  */
 void Context_InvalidateSessionOnSlotLoad(void);
 

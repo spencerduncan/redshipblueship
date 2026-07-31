@@ -68,7 +68,57 @@ bool SaveLogFail(int slot, const char* reason) {
     return false;
 }
 
+// Filename-safe tag for the quarantine rename, so the renamed-aside evidence
+// names its own diagnosis: redship_slot0.redsave.refused-crc.bak.
+const char* RefuseReasonSlug(RsbsRefuseReason reason) {
+    switch (reason) {
+        case RSBS_REFUSE_UNREADABLE:
+            return "unreadable";
+        case RSBS_REFUSE_HEADER:
+            return "header";
+        case RSBS_REFUSE_VERSION:
+            return "version";
+        case RSBS_REFUSE_TIER_SIZE:
+            return "tiersize";
+        case RSBS_REFUSE_WRONG_SLOT:
+            return "wrongslot";
+        case RSBS_REFUSE_TRUNCATED:
+            return "truncated";
+        case RSBS_REFUSE_CRC:
+            return "crc";
+        case RSBS_REFUSE_COMBO_MAGIC:
+            return "combomagic";
+        case RSBS_REFUSE_NONE:
+        default:
+            return "unknown";
+    }
+}
+
 }  // namespace
+
+const char* SaveManager::RefuseReasonLabel(RsbsRefuseReason reason) {
+    switch (reason) {
+        case RSBS_REFUSE_UNREADABLE:
+            return "file unreadable";
+        case RSBS_REFUSE_HEADER:
+            return "not a .redsave (bad header)";
+        case RSBS_REFUSE_VERSION:
+            return "unsupported format version";
+        case RSBS_REFUSE_TIER_SIZE:
+            return "tier larger than this build supports";
+        case RSBS_REFUSE_WRONG_SLOT:
+            return "file claims a different slot";
+        case RSBS_REFUSE_TRUNCATED:
+            return "file truncated";
+        case RSBS_REFUSE_CRC:
+            return "corrupt (CRC mismatch)";
+        case RSBS_REFUSE_COMBO_MAGIC:
+            return "cross-game record damaged";
+        case RSBS_REFUSE_NONE:
+        default:
+            return "";
+    }
+}
 
 SaveManager& SaveManager::Instance() {
     static SaveManager sInstance;
@@ -114,6 +164,20 @@ uint32_t SaveManager::Crc32(const uint8_t* data, size_t len) {
 bool SaveManager::Save(int slot) {
     if (!SlotInRange(slot)) {
         return SaveLogFail(slot, "slot index out of range");
+    }
+
+    // #533 armed-session latch. Writing is legal only after THIS SESSION
+    // successfully loaded, created, or erased the slot. Without this gate, a
+    // session that refused (or simply never looked at) a slot's .redsave could
+    // rename-overwrite the only copy of the player's MM half with a blank
+    // Tier-1 + all-zero Tier-3 — the #533 data-loss conversion this latch
+    // exists to prevent. The refusal-specific message names the evidence.
+    if (!mSlotArmed[slot]) {
+        if (mSlotRefused[slot] != RSBS_REFUSE_NONE) {
+            return SaveLogFail(slot, "write latched: this session REFUSED the slot's .redsave "
+                                     "(evidence quarantined beside it); erase the slot to write");
+        }
+        return SaveLogFail(slot, "write latched: slot was not loaded, created, or erased this session");
     }
 
     // Serialization source = the context-layer shadow copies. Both must be
@@ -188,18 +252,24 @@ bool SaveManager::Save(int slot) {
     return true;
 }
 
-bool SaveManager::DeserializeHeader(std::istream& in, RsbsSaveHeader& outHeader,
-                                    bool verbose) const {
+bool SaveManager::DeserializeHeader(std::istream& in, int expectedSlot, RsbsSaveHeader& outHeader,
+                                    bool verbose, RsbsRefuseReason* outReason) const {
+    RsbsRefuseReason scratch = RSBS_REFUSE_NONE;
+    RsbsRefuseReason& reason = outReason != nullptr ? *outReason : scratch;
+    reason = RSBS_REFUSE_NONE;
+
     RsbsSaveHeader h;
     in.read(reinterpret_cast<char*>(&h), sizeof(h));
     if (!in || in.gcount() != static_cast<std::streamsize>(sizeof(h))) {
         SaveLogReject(verbose, "short header read", static_cast<unsigned long long>(in.gcount()),
                       sizeof(h));
+        reason = RSBS_REFUSE_HEADER;
         return false;
     }
 
     if (std::memcmp(h.magic, RSBS_SAVE_MAGIC, sizeof(h.magic)) != 0) {
         SaveLogReject(verbose, "bad magic (not a .redsave)", 0, 0);
+        reason = RSBS_REFUSE_HEADER;
         return false;
     }
     // A version WINDOW, not an equality test. Bumping RSBS_SAVE_VERSION against
@@ -207,14 +277,27 @@ bool SaveManager::DeserializeHeader(std::istream& in, RsbsSaveHeader& outHeader,
     // save; older versions inside the window are prefix-compatible and load.
     if (h.version < RSBS_SAVE_VERSION_MIN || h.version > RSBS_SAVE_VERSION) {
         SaveLogReject(verbose, "unsupported format version", h.version, RSBS_SAVE_VERSION);
+        reason = RSBS_REFUSE_VERSION;
         return false;
     }
     if (h.endian != RSBS_SAVE_ENDIAN_LE) {
         SaveLogReject(verbose, "wrong byte order", h.endian, RSBS_SAVE_ENDIAN_LE);
+        reason = RSBS_REFUSE_HEADER;
         return false;
     }
     if (h.headerSize != sizeof(RsbsSaveHeader)) {
         SaveLogReject(verbose, "unexpected header size", h.headerSize, sizeof(RsbsSaveHeader));
+        reason = RSBS_REFUSE_HEADER;
+        return false;
+    }
+    // header.slot was stamped at write time but never compared until #533
+    // (V13): a cloud-sync conflict or hand copy of slot 2's file sitting at
+    // slot 0's path would load silently, attaching one pair's identity and MM
+    // world to a different OoT file. Same treatment as a CRC failure: refuse.
+    if (expectedSlot >= 0 && h.slot != static_cast<uint8_t>(expectedSlot)) {
+        SaveLogReject(verbose, "header.slot does not match this slot path", h.slot,
+                      static_cast<unsigned long long>(expectedSlot));
+        reason = RSBS_REFUSE_WRONG_SLOT;
         return false;
     }
     // ALL THREE tiers are size-field-driven. A STORED size smaller than this
@@ -228,14 +311,17 @@ bool SaveManager::DeserializeHeader(std::istream& in, RsbsSaveHeader& outHeader,
     // truncate, because truncating Tier-1 would silently drop cross-game state.
     if (h.comboSize == 0 || h.comboSize > kComboSize) {
         SaveLogReject(verbose, "Tier-1 (ComboContext) size out of range", h.comboSize, kComboSize);
+        reason = RSBS_REFUSE_TIER_SIZE;
         return false;
     }
     if (h.ootSize == 0 || h.ootSize > kOoTSize) {
         SaveLogReject(verbose, "Tier-2 (OoT) size out of range", h.ootSize, kOoTSize);
+        reason = RSBS_REFUSE_TIER_SIZE;
         return false;
     }
     if (h.mmSize == 0 || h.mmSize > kMMSize) {
         SaveLogReject(verbose, "Tier-3 (MM) size out of range", h.mmSize, kMMSize);
+        reason = RSBS_REFUSE_TIER_SIZE;
         return false;
     }
 
@@ -243,21 +329,37 @@ bool SaveManager::DeserializeHeader(std::istream& in, RsbsSaveHeader& outHeader,
     return true;
 }
 
-bool SaveManager::Load(int slot) {
-    if (!SlotInRange(slot)) {
-        return false;
-    }
+struct SaveManager::SlotFileData {
+    RsbsSaveHeader header{};
+    std::vector<uint8_t> comboRecord;
+    std::vector<uint8_t> ootBlob;
+    std::vector<uint8_t> mmBlob;
+};
 
-    std::ifstream in(SlotPath(slot), std::ios::binary);
+SaveManager::SlotReadResult SaveManager::ReadSlotFile(int slot, SlotFileData& out,
+                                                      RsbsRefuseReason& outReason, bool verbose) const {
+    outReason = RSBS_REFUSE_NONE;
+
+    const std::string path = SlotPath(slot);
+    std::ifstream in(path, std::ios::binary);
     if (!in) {
-        std::fprintf(stderr, "[RsbsSave] cannot open slot %d for load\n", slot);
-        return false;
+        std::error_code ec;
+        if (!std::filesystem::exists(path, ec)) {
+            return SlotReadResult::Absent;
+        }
+        // Present but unopenable is NOT absence — treating it as absence is
+        // exactly the #533 collapse this type exists to prevent.
+        if (verbose) {
+            std::fprintf(stderr, "[RsbsSave] slot %d exists but cannot be opened\n", slot);
+        }
+        outReason = RSBS_REFUSE_UNREADABLE;
+        return SlotReadResult::Refused;
     }
 
-    RsbsSaveHeader header;
-    if (!DeserializeHeader(in, header, /*verbose=*/true)) {
-        return false;
+    if (!DeserializeHeader(in, slot, out.header, verbose, &outReason)) {
+        return SlotReadResult::Refused;
     }
+    const RsbsSaveHeader& header = out.header;
 
     // Read the whole payload into locals FIRST and validate everything before
     // committing — a bad file (short read, CRC mismatch, bad inner magic) must
@@ -269,50 +371,138 @@ bool SaveManager::Load(int slot) {
     // struct is copied out of the FRONT of it, so fields appended since the file
     // was written read as zero — exactly the value ComboContext_Init gives them
     // — instead of whatever was on the stack.
-    std::vector<uint8_t> comboRecord(kComboSize, 0);
-    std::vector<uint8_t> ootBlob(kOoTSize, 0);
-    std::vector<uint8_t> mmBlob(kMMSize, 0);
+    out.comboRecord.assign(kComboSize, 0);
+    out.ootBlob.assign(kOoTSize, 0);
+    out.mmBlob.assign(kMMSize, 0);
 
-    in.read(reinterpret_cast<char*>(comboRecord.data()), header.comboSize);
+    in.read(reinterpret_cast<char*>(out.comboRecord.data()), header.comboSize);
     if (!in || in.gcount() != static_cast<std::streamsize>(header.comboSize)) {
-        std::fprintf(stderr, "[RsbsSave] slot %d truncated in Tier-1\n", slot);
-        return false;
+        if (verbose) {
+            std::fprintf(stderr, "[RsbsSave] slot %d truncated in Tier-1\n", slot);
+        }
+        outReason = RSBS_REFUSE_TRUNCATED;
+        return SlotReadResult::Refused;
     }
-    in.read(reinterpret_cast<char*>(ootBlob.data()), header.ootSize);
+    in.read(reinterpret_cast<char*>(out.ootBlob.data()), header.ootSize);
     if (!in || in.gcount() != static_cast<std::streamsize>(header.ootSize)) {
-        std::fprintf(stderr, "[RsbsSave] slot %d truncated in Tier-2 (OoT)\n", slot);
-        return false;
+        if (verbose) {
+            std::fprintf(stderr, "[RsbsSave] slot %d truncated in Tier-2 (OoT)\n", slot);
+        }
+        outReason = RSBS_REFUSE_TRUNCATED;
+        return SlotReadResult::Refused;
     }
-    in.read(reinterpret_cast<char*>(mmBlob.data()), header.mmSize);
+    in.read(reinterpret_cast<char*>(out.mmBlob.data()), header.mmSize);
     if (!in || in.gcount() != static_cast<std::streamsize>(header.mmSize)) {
-        std::fprintf(stderr, "[RsbsSave] slot %d truncated in Tier-3 (MM)\n", slot);
-        return false;
+        if (verbose) {
+            std::fprintf(stderr, "[RsbsSave] slot %d truncated in Tier-3 (MM)\n", slot);
+        }
+        outReason = RSBS_REFUSE_TRUNCATED;
+        return SlotReadResult::Refused;
     }
-
-    ComboContext combo;
-    std::memcpy(&combo, comboRecord.data(), sizeof(ComboContext));
 
     // CRC over Tiers 1..3 exactly as stored (not the zero-extended tails), in
     // the same contiguous order they were written.
     std::vector<uint8_t> payload;
     payload.reserve(header.comboSize + header.ootSize + header.mmSize);
-    payload.insert(payload.end(), comboRecord.begin(), comboRecord.begin() + header.comboSize);
-    payload.insert(payload.end(), ootBlob.begin(), ootBlob.begin() + header.ootSize);
-    payload.insert(payload.end(), mmBlob.begin(), mmBlob.begin() + header.mmSize);
+    payload.insert(payload.end(), out.comboRecord.begin(), out.comboRecord.begin() + header.comboSize);
+    payload.insert(payload.end(), out.ootBlob.begin(), out.ootBlob.begin() + header.ootSize);
+    payload.insert(payload.end(), out.mmBlob.begin(), out.mmBlob.begin() + header.mmSize);
     if (Crc32(payload.data(), payload.size()) != header.crc32) {
-        std::fprintf(stderr, "[RsbsSave] slot %d failed CRC — file is corrupt, load refused\n", slot);
-        return false;
+        if (verbose) {
+            std::fprintf(stderr, "[RsbsSave] slot %d failed CRC — file is corrupt, load refused\n", slot);
+        }
+        outReason = RSBS_REFUSE_CRC;
+        return SlotReadResult::Refused;
     }
 
     // Inner ComboContext magic guards against a structurally-valid file whose
     // Tier-1 contents are not actually a ComboContext.
+    ComboContext combo;
+    std::memcpy(&combo, out.comboRecord.data(), sizeof(ComboContext));
     if (std::memcmp(combo.magic, COMBO_CONTEXT_MAGIC, sizeof(combo.magic)) != 0) {
-        std::fprintf(stderr, "[RsbsSave] slot %d Tier-1 is not a ComboContext, load refused\n", slot);
-        return false;
+        if (verbose) {
+            std::fprintf(stderr, "[RsbsSave] slot %d Tier-1 is not a ComboContext, load refused\n", slot);
+        }
+        outReason = RSBS_REFUSE_COMBO_MAGIC;
+        return SlotReadResult::Refused;
+    }
+
+    return SlotReadResult::Ok;
+}
+
+void SaveManager::QuarantineSlotFile(int slot, RsbsRefuseReason reason) {
+    const std::string path = SlotPath(slot);
+    std::error_code ec;
+    if (!std::filesystem::exists(path, ec)) {
+        return;
+    }
+    // Reason-suffixed, and NEVER overwriting existing evidence: a second
+    // refusal of the same kind dedupes with a numeric suffix instead of
+    // replacing the first quarantined file.
+    const std::string base = path + ".refused-" + RefuseReasonSlug(reason);
+    std::string target = base + ".bak";
+    for (int n = 2; std::filesystem::exists(target, ec); n++) {
+        target = base + "-" + std::to_string(n) + ".bak";
+    }
+    std::filesystem::rename(path, target, ec);
+    if (ec) {
+        // Rename failed (locked file, permissions). The evidence stays IN
+        // PLACE, which is still safe: the caller latches the slot and Save()
+        // refuses to touch an unarmed slot, so nothing overwrites it.
+        std::fprintf(stderr, "[RsbsSave] slot %d quarantine FAILED (%s); refused file left in place\n",
+                     slot, ec.message().c_str());
+        return;
+    }
+    std::fprintf(stderr, "[RsbsSave] slot %d refused file quarantined to '%s'\n", slot, target.c_str());
+}
+
+RsbsLoadOutcome SaveManager::LoadSlot(int slot) {
+    if (!SlotInRange(slot)) {
+        return RSBS_LOAD_REFUSED;
+    }
+
+    SlotFileData data;
+    RsbsRefuseReason reason = RSBS_REFUSE_NONE;
+    const SlotReadResult result = ReadSlotFile(slot, data, reason, /*verbose=*/true);
+
+    if (result == SlotReadResult::Absent) {
+        if (mSlotRefused[slot] != RSBS_REFUSE_NONE) {
+            // Sticky refusal: this session already refused (and quarantined)
+            // this slot's file. The now-empty slot path must NOT quietly
+            // become writable — the refusal stands until the player
+            // explicitly erases the slot or a load actually succeeds.
+            std::fprintf(stderr, "[RsbsSave] slot %d still REFUSED this session (%s); writes stay latched\n",
+                         slot, RefuseReasonLabel(mSlotRefused[slot]));
+            return RSBS_LOAD_REFUSED;
+        }
+        // Opening an empty slot IS the create path: the session legitimately
+        // established the slot and there is nothing on disk to destroy, so
+        // the first write is armed.
+        mSlotArmed[slot] = true;
+        std::fprintf(stderr, "[RsbsSave] slot %d has no .redsave; armed for first write\n", slot);
+        return RSBS_LOAD_ABSENT;
+    }
+
+    if (result == SlotReadResult::Refused) {
+        // REFUSED, first-class (#533): quarantine the evidence aside, record
+        // why, and latch the slot so no later autosave/capture can destroy
+        // what is left. Every refusal path used to fall through to a state
+        // indistinguishable from "no save at all".
+        QuarantineSlotFile(slot, reason);
+        mSlotRefused[slot] = reason;
+        mSlotArmed[slot] = false;
+        std::fprintf(stderr, "[RsbsSave] slot %d REFUSED (%s); slot latched against writes this session\n",
+                     slot, RefuseReasonLabel(reason));
+        return RSBS_LOAD_REFUSED;
     }
 
     // All checks passed — commit. gComboCtx and both shadows are updated.
+    ComboContext combo;
+    std::memcpy(&combo, data.comboRecord.data(), sizeof(ComboContext));
     std::memcpy(&gComboCtx, &combo, sizeof(ComboContext));
+
+    const std::vector<uint8_t>& ootBlob = data.ootBlob;
+    const std::vector<uint8_t>& mmBlob = data.mmBlob;
 
     // The shared-resource watermarks (#525) are RAM-only and describe the
     // PREVIOUS session's live save; the pool we just loaded belongs to a
@@ -359,7 +549,18 @@ bool SaveManager::Load(int slot) {
     const int armed = Context_ArmShadowAsFrozen(GAME_MM, MM_ENTR_SOUTH_CLOCK_TOWN_0);
     std::fprintf(stderr, "[RsbsSave] slot %d loaded; MM half %s\n", slot,
                  armed ? "armed for restore" : "empty (MM will cold-boot)");
-    return true;
+
+    // A successful load is one of the three legitimate arming events, and it
+    // retires any earlier refusal record — if a loadable file is back at the
+    // slot path (say, the player restored the quarantined .bak by hand), the
+    // slot is theirs again.
+    mSlotArmed[slot] = true;
+    mSlotRefused[slot] = RSBS_REFUSE_NONE;
+    return RSBS_LOAD_OK;
+}
+
+bool SaveManager::Load(int slot) {
+    return LoadSlot(slot) == RSBS_LOAD_OK;
 }
 
 bool SaveManager::HasSave(int slot) const {
@@ -371,7 +572,7 @@ bool SaveManager::HasSave(int slot) const {
         return false;
     }
     RsbsSaveHeader header;
-    return DeserializeHeader(in, header, /*verbose=*/false);
+    return DeserializeHeader(in, slot, header, /*verbose=*/false, nullptr);
 }
 
 void SaveManager::DeleteSave(int slot) {
@@ -379,10 +580,119 @@ void SaveManager::DeleteSave(int slot) {
         return;
     }
     std::error_code ec;
-    const std::string path = SlotPath(slot);
+    const std::filesystem::path path = SlotPath(slot);
     std::filesystem::remove(path, ec);
-    std::filesystem::remove(path + ".tmp", ec);
-    std::filesystem::remove(path + ".bak", ec);
+    std::filesystem::remove(path.string() + ".tmp", ec);
+    // Quarantined evidence goes with the slot on an EXPLICIT erase — this is
+    // the sanctioned disposal path (the .bak removal DeleteSave always
+    // promised). Quarantine names carry a reason suffix and a dedupe counter,
+    // so match by prefix instead of hard-coding one name.
+    const std::string prefix = path.filename().string();
+    std::filesystem::directory_iterator it(path.parent_path(), ec);
+    if (!ec) {
+        for (const auto& entry : it) {
+            const std::string name = entry.path().filename().string();
+            if (name.size() > prefix.size() && name.compare(0, prefix.size(), prefix) == 0 &&
+                name.size() >= 4 && name.compare(name.size() - 4, 4, ".bak") == 0) {
+                std::error_code rmEc;
+                std::filesystem::remove(entry.path(), rmEc);
+            }
+        }
+    }
+    // Erasing the slot this session is an explicit player decision: the slot
+    // is legitimately empty and writable, and any refusal record is retired
+    // with the evidence.
+    mSlotArmed[slot] = true;
+    mSlotRefused[slot] = RSBS_REFUSE_NONE;
+}
+
+void SaveManager::ArmSlotOnCreate(int slot) {
+    if (!SlotInRange(slot)) {
+        return;
+    }
+    // Creating a file over a slot whose .redsave fails validation must
+    // preserve the evidence BEFORE the new file's first Save_SaveFile
+    // rename-overwrites it. Full validation (CRC included) — this runs once
+    // per file creation, not per frame.
+    SlotFileData data;
+    RsbsRefuseReason reason = RSBS_REFUSE_NONE;
+    if (ReadSlotFile(slot, data, reason, /*verbose=*/false) == SlotReadResult::Refused) {
+        std::fprintf(stderr, "[RsbsSave] slot %d create: existing .redsave fails validation (%s); quarantining\n",
+                     slot, RefuseReasonLabel(reason));
+        QuarantineSlotFile(slot, reason);
+    }
+    mSlotArmed[slot] = true;
+    mSlotRefused[slot] = RSBS_REFUSE_NONE;
+}
+
+bool SaveManager::IsSlotWritable(int slot) const {
+    return SlotInRange(slot) && mSlotArmed[slot];
+}
+
+RsbsSlotState SaveManager::GetSlotState(int slot) const {
+    if (!SlotInRange(slot)) {
+        return RSBS_SLOT_ABSENT;
+    }
+    // The session's refusal record wins: after a quarantine the slot path is
+    // empty, but the slot is REFUSED, not absent — that distinction is the
+    // whole point (#533).
+    if (mSlotRefused[slot] != RSBS_REFUSE_NONE) {
+        return RSBS_SLOT_REFUSED;
+    }
+    std::ifstream in(SlotPath(slot), std::ios::binary);
+    if (!in) {
+        return RSBS_SLOT_ABSENT;
+    }
+    RsbsSaveHeader header;
+    return DeserializeHeader(in, slot, header, /*verbose=*/false, nullptr) ? RSBS_SLOT_VALID
+                                                                          : RSBS_SLOT_REFUSED;
+}
+
+RsbsRefuseReason SaveManager::GetSlotRefuseReason(int slot) const {
+    if (!SlotInRange(slot)) {
+        return RSBS_REFUSE_NONE;
+    }
+    if (mSlotRefused[slot] != RSBS_REFUSE_NONE) {
+        return mSlotRefused[slot];
+    }
+    // No session record: probe the on-disk header so an in-place failing file
+    // (not yet load-attempted) still names its reason in the panel.
+    std::ifstream in(SlotPath(slot), std::ios::binary);
+    if (!in) {
+        return RSBS_REFUSE_NONE;
+    }
+    RsbsSaveHeader header;
+    RsbsRefuseReason reason = RSBS_REFUSE_NONE;
+    DeserializeHeader(in, slot, header, /*verbose=*/false, &reason);
+    return reason;
+}
+
+bool SaveManager::HasQuarantine(int slot) const {
+    if (!SlotInRange(slot)) {
+        return false;
+    }
+    std::error_code ec;
+    const std::filesystem::path path = SlotPath(slot);
+    const std::string prefix = path.filename().string();
+    std::filesystem::directory_iterator it(path.parent_path(), ec);
+    if (ec) {
+        return false;
+    }
+    for (const auto& entry : it) {
+        const std::string name = entry.path().filename().string();
+        if (name.size() > prefix.size() && name.compare(0, prefix.size(), prefix) == 0 &&
+            name.size() >= 4 && name.compare(name.size() - 4, 4, ".bak") == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void SaveManager::ResetSlotSessionState() {
+    for (int i = 0; i < RSBS_SAVE_MAX_SLOTS; i++) {
+        mSlotArmed[i] = false;
+        mSlotRefused[i] = RSBS_REFUSE_NONE;
+    }
 }
 
 void SaveManager::RegisterGameMeta(GameId game, const RsbsGameMetaDesc* desc) {
@@ -451,9 +761,20 @@ SlotMeta SaveManager::ReadMeta(int slot) const {
     SlotMeta meta{};
     meta.slot = static_cast<uint8_t>(slot < 0 ? 0 : slot);
     meta.lastGame = GAME_NONE;
+    meta.state = RSBS_SLOT_ABSENT;
+    meta.refuseReason = RSBS_REFUSE_NONE;
 
     if (!SlotInRange(slot)) {
         return meta;
+    }
+
+    // Session refusal record + on-disk quarantine evidence. The record wins
+    // over whatever is (or is not) at the slot path: a quarantined slot's
+    // path is empty, but the slot is REFUSED, not "[empty]" (#533).
+    meta.hasQuarantine = HasQuarantine(slot);
+    if (mSlotRefused[slot] != RSBS_REFUSE_NONE) {
+        meta.state = RSBS_SLOT_REFUSED;
+        meta.refuseReason = mSlotRefused[slot];
     }
 
     std::ifstream in(SlotPath(slot), std::ios::binary);
@@ -463,10 +784,20 @@ SlotMeta SaveManager::ReadMeta(int slot) const {
     meta.exists = true;
 
     RsbsSaveHeader header;
-    if (!DeserializeHeader(in, header, /*verbose=*/false)) {
-        return meta;  // exists=true, valid=false
+    RsbsRefuseReason headerReason = RSBS_REFUSE_NONE;
+    if (!DeserializeHeader(in, slot, header, /*verbose=*/false, &headerReason)) {
+        // exists=true, valid=false: a file is present but this build refuses
+        // it. Surface it as REFUSED even before any load attempt.
+        meta.state = RSBS_SLOT_REFUSED;
+        if (meta.refuseReason == RSBS_REFUSE_NONE) {
+            meta.refuseReason = headerReason;
+        }
+        return meta;
     }
     meta.valid = true;
+    if (meta.state != RSBS_SLOT_REFUSED) {
+        meta.state = RSBS_SLOT_VALID;
+    }
     meta.slot = header.slot;
 
     // Read Tier-1 (ComboContext) and the game tiers at their STORED sizes to
@@ -482,6 +813,8 @@ SlotMeta SaveManager::ReadMeta(int slot) const {
     in.read(reinterpret_cast<char*>(comboRecord.data()), header.comboSize);
     if (!in || in.gcount() != static_cast<std::streamsize>(header.comboSize)) {
         meta.valid = false;
+        meta.state = RSBS_SLOT_REFUSED;
+        meta.refuseReason = RSBS_REFUSE_TRUNCATED;
         return meta;
     }
     ComboContext combo;
@@ -494,12 +827,16 @@ SlotMeta SaveManager::ReadMeta(int slot) const {
     in.read(reinterpret_cast<char*>(ootBlob.data()), header.ootSize);
     if (!in || in.gcount() != static_cast<std::streamsize>(header.ootSize)) {
         meta.valid = false;
+        meta.state = RSBS_SLOT_REFUSED;
+        meta.refuseReason = RSBS_REFUSE_TRUNCATED;
         return meta;
     }
     std::vector<uint8_t> mmBlob(header.mmSize);
     in.read(reinterpret_cast<char*>(mmBlob.data()), header.mmSize);
     if (!in || in.gcount() != static_cast<std::streamsize>(header.mmSize)) {
         meta.valid = false;
+        meta.state = RSBS_SLOT_REFUSED;
+        meta.refuseReason = RSBS_REFUSE_TRUNCATED;
         return meta;
     }
 
@@ -529,6 +866,34 @@ int RsbsSave_Save(int slot) {
 
 int RsbsSave_Load(int slot) {
     return rsbs::SaveManager::Instance().Load(slot) ? 1 : 0;
+}
+
+int RsbsSave_LoadSlot(int slot) {
+    return static_cast<int>(rsbs::SaveManager::Instance().LoadSlot(slot));
+}
+
+void RsbsSave_ArmSlotOnCreate(int slot) {
+    rsbs::SaveManager::Instance().ArmSlotOnCreate(slot);
+}
+
+int RsbsSave_IsSlotWritable(int slot) {
+    return rsbs::SaveManager::Instance().IsSlotWritable(slot) ? 1 : 0;
+}
+
+int RsbsSave_GetSlotState(int slot) {
+    return static_cast<int>(rsbs::SaveManager::Instance().GetSlotState(slot));
+}
+
+int RsbsSave_GetSlotRefuseReason(int slot) {
+    return static_cast<int>(rsbs::SaveManager::Instance().GetSlotRefuseReason(slot));
+}
+
+int RsbsSave_HasQuarantine(int slot) {
+    return rsbs::SaveManager::Instance().HasQuarantine(slot) ? 1 : 0;
+}
+
+void RsbsSave_ResetSlotSessionState(void) {
+    rsbs::SaveManager::Instance().ResetSlotSessionState();
 }
 
 int RsbsSave_HasSave(int slot) {
