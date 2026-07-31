@@ -81,6 +81,13 @@ typedef enum RsbsRefuseReason {
     RSBS_REFUSE_TRUNCATED,    // a tier read came up short
     RSBS_REFUSE_CRC,          // payload CRC mismatch
     RSBS_REFUSE_COMBO_MAGIC,  // Tier-1 bytes are not a ComboContext
+    // #537/#531: OoT's .sav mirrors a commit generation NEWER than the
+    // .redsave's Tier-1 stamp — at least one durable .redsave commit is
+    // missing (a write failed, or the file was replaced from elsewhere).
+    // Committing the rolled-back Tier-1 would resurrect already-consumed
+    // shared-item records (duplication) and roll MM's world back, so the load
+    // refuses BEFORE committing and quarantines the stale file as evidence.
+    RSBS_REFUSE_COMMIT_SKEW,
     // #498/#564: the MM option profile resolved at a cross-game arrival does
     // not match the identity frozen at the pair's creation
     // (gComboCtx.mmProfileDigest). Unlike every reason above, the slot FILE is
@@ -117,7 +124,9 @@ typedef struct RsbsGameMetaDesc {
 
 #include <cstddef>
 #include <iosfwd>
+#include <mutex>
 #include <string>
+#include <vector>
 
 namespace rsbs {
 
@@ -149,6 +158,17 @@ struct SlotMeta {
     RsbsSlotState    state;
     RsbsRefuseReason refuseReason;
     bool             hasQuarantine;
+
+    // #531/#564 V16 interim: the freshness relation the LAST checked load of
+    // this slot observed between the two durable artifacts of the ONE save.
+    // 0 = agreed (or never compared / either artifact predates the stamp);
+    // +1 = the .redsave was NEWER than OoT's .sav — an MM-side commit landed
+    // after OoT's last save point, so OoT's world resumed older than the
+    // cross-game records that account for it (the #531 loss shape). The file
+    // panel renders this as a staleness warning. (-1, the .sav-newer case,
+    // never appears here: that load REFUSES instead — see
+    // RSBS_REFUSE_COMMIT_SKEW.) Session state, reset by erase/create/reset.
+    int commitSkew;
 };
 
 #pragma pack(push, 1)
@@ -183,11 +203,53 @@ public:
     static SaveManager& Instance();
 
     /**
-     * Write the resident cross-game state into `slot` — IF the armed-session
-     * latch allows it (#533). A slot is writable only after this session
-     * successfully loaded, created, or erased it; anything else refuses, so a
-     * session that REFUSED a slot's .redsave can never rename-overwrite the
-     * evidence with a blank Tier-1 + all-zero Tier-3.
+     * THE .redsave COMMIT CHOKE POINT (#537/#531, #564 "one commit
+     * discipline"). Every durable .redsave write is a two-phase commit:
+     *
+     *   1. StageCommit() — GAME THREAD ONLY. Marshals ONE coherent snapshot of
+     *      the whole cross-game state (Tier-1 gComboCtx + the OoT shadow + the
+     *      MM shadow) into an internal staging buffer, and stamps the next
+     *      MONOTONIC commit generation into gComboCtx.commitGeneration first
+     *      so the snapshot carries it. The caller must have refreshed the
+     *      ACTIVE game's shadow (Context_UpdateShadowCopy from the live
+     *      gSaveContext) and set gComboCtx.sourceGame on the same thread,
+     *      immediately before staging — that is what makes the snapshot
+     *      single-instant. Returns the stamped generation, or 0 on refusal
+     *      (shadows absent) — a refused stage also INVALIDATES whatever was
+     *      staged before it, so a save whose own marshalling failed can never
+     *      publish an earlier commit's snapshot (possibly into a different
+     *      slot) through the write phase that follows it unconditionally.
+     *      Never touches the filesystem. Callers that know
+     *      their target slot should check IsSlotWritable FIRST: staging for a
+     *      latched slot advances the generation (and, on OoT's path, mirrors
+     *      it into the .sav) for a write that will refuse, manufacturing
+     *      artificial cross-artifact skew.
+     *
+     *   2. WriteStagedCommit(slot) — ANY THREAD. Serializes the most recently
+     *      staged snapshot to the slot file, IF the #533 armed-session latch
+     *      allows it (a slot is writable only after this session successfully
+     *      loaded, created, or erased it — a session that REFUSED the slot's
+     *      .redsave can never rename-overwrite the evidence). Reads ONLY the
+     *      immutable staged copy — never gComboCtx, never the live shadows —
+     *      so a worker thread can run it while the game thread keeps mutating
+     *      live state (the #537 tear becomes unrepresentable). Returns false
+     *      and logs if the latch refuses or nothing has been staged.
+     *
+     * Save(slot) below is the one-call form (latch check, then stage + write
+     * on the calling thread) and therefore inherits StageCommit's game-thread
+     * contract. There is deliberately NO other writer: SaveManager serializes
+     * staged snapshots only.
+     */
+    uint32_t StageCommit();
+    bool WriteStagedCommit(int slot);
+
+    /**
+     * Latch check + stage + write in one call, on the calling thread. GAME
+     * THREAD ONLY (it stages; see StageCommit). This is the route for
+     * synchronous commits: the MM-side capture funnel, OoT's exit-time
+     * snapshot, tests, and the debug menu's "Save to slot". The #533 latch is
+     * checked BEFORE staging so a refused write does not advance the commit
+     * generation.
      */
     bool Save(int slot);
 
@@ -199,11 +261,46 @@ public:
      * latches the slot against writes for the rest of the session. A refusal
      * is sticky: re-opening the now-empty slot path stays REFUSED until the
      * player explicitly erases the slot or a load actually succeeds.
+     *
+     * `ootSavGeneration` is the commit generation OoT's file{N+1}.sav JSON
+     * mirrors ("rsbsCommitGeneration"; 0 when absent/unknown — 0 exempts the
+     * comparison entirely). The commit choke point stamps the same monotonic
+     * generation into BOTH durable artifacts of the ONE save, so load is
+     * where their freshness is compared (#531/#564 V16 interim):
+     *
+     *   - equal, or either side pre-stamp (0): agreement; load proceeds.
+     *   - .redsave NEWER (an MM-side commit landed after OoT's last save
+     *     point): load proceeds — this is the designed post-MM-commit state,
+     *     refusing it would refuse every ordinary MM session's reload — but
+     *     the skew is RECORDED and surfaced in the file panel (SlotMeta
+     *     .commitSkew / GetSlotCommitSkew): OoT's world resumed older than
+     *     the cross-game records, the #531 loss shape. (The record-staging
+     *     residue that retires the loss itself is tracked in #531.)
+     *   - .sav NEWER (a .redsave commit is MISSING — lost write or foreign
+     *     file): REFUSED before committing, through the full #533 machinery
+     *     (quarantine + write latch + panel surface), because committing the
+     *     rolled-back Tier-1 would resurrect consumed shared-item records
+     *     and roll back MM's world.
      */
-    RsbsLoadOutcome LoadSlot(int slot);
+    RsbsLoadOutcome LoadSlot(int slot, uint32_t ootSavGeneration = 0);
 
     /** Compatibility wrapper: LoadSlot(slot) == RSBS_LOAD_OK. */
     bool Load(int slot);
+
+    /**
+     * The freshness relation the last checked load of `slot` observed:
+     * 0 = agreed/uncompared, +1 = .redsave was newer than the .sav (see
+     * LoadSlot). Session state; reset by erase, create, and ResetSlotSessionState.
+     */
+    int GetSlotCommitSkew(int slot) const;
+
+    /**
+     * The pure comparison LoadSlot applies (exposed for the headless locks):
+     * 0 when the generations agree or either side is 0 (pre-stamp legacy,
+     * exempt); +1 when the .redsave generation is newer; -1 when the .sav
+     * generation is newer.
+     */
+    static int CompareCommitGenerations(uint32_t redsaveGeneration, uint32_t ootSavGeneration);
 
     bool HasSave(int slot) const;
 
@@ -355,10 +452,49 @@ private:
     // the slot and Save() then refuses to touch it.
     void QuarantineSlotFile(int slot, RsbsRefuseReason reason);
 
+    // Serializes the given snapshot to the slot file (temp-write + rename).
+    // The ONLY function that writes .redsave bytes; both commit phases and
+    // Save() funnel here with an immutable snapshot. Serialized by mWriteMtx:
+    // the write phase can run on SoH's save worker (WriteStagedCommit from the
+    // OnSaveFile hook) at the same time as a synchronous game-thread commit
+    // (MM's capture during a crossing while an OoT autosave is still in
+    // flight), and both use the same `.tmp` staging path — unserialized, the
+    // interleaved temp writes produce a CRC-invalid file that the next load
+    // refuses.
+    bool WriteSlotFile(int slot, const ComboContext& combo, const uint8_t* ootBlob, const uint8_t* mmBlob);
+
     std::string mSaveDir = "Save";
 
     // -1 == no slot established this session. See SetActiveSlot.
     int mActiveSlot = -1;
+
+    // The #533 armed-session latch check both write phases share: names the
+    // refusal on stderr and returns false when `slot` is not writable this
+    // session. Runs on the save worker (WriteStagedCommit from the OnSaveFile
+    // hook) as well as the game thread; the latch flags are plain bools that
+    // are armed on the game thread strictly before any save targeting the
+    // slot can be issued, so the cross-thread read is benign (same shape the
+    // pre-choke-point Save() had).
+    bool CheckWriteAllowed(int slot) const;
+
+    // The staged commit snapshot (see StageCommit/WriteStagedCommit). Guarded
+    // by mStageMtx: the game thread overwrites it at each stage, the worker
+    // copies it out for serialization. The buffers are allocated at first
+    // stage and reused.
+    struct StagedCommit {
+        ComboContext combo{};
+        std::vector<uint8_t> oot;
+        std::vector<uint8_t> mm;
+        uint32_t generation = 0;
+        bool valid = false;
+    };
+    StagedCommit mStaged;
+    mutable std::mutex mStageMtx;
+
+    // Serializes concurrent slot-file writers (see WriteSlotFile). Never held
+    // together with mStageMtx: WriteStagedCommit copies the snapshot out under
+    // mStageMtx, releases it, and only then enters WriteSlotFile.
+    mutable std::mutex mWriteMtx;
 
     // #533 armed-session latch. A slot becomes writable ONLY via this
     // session's own successful Load, an explicit erase, or the file-create
@@ -367,6 +503,11 @@ private:
     // across in-process session changes, while a refusal stays sticky.
     bool             mSlotArmed[RSBS_SAVE_MAX_SLOTS]{};
     RsbsRefuseReason mSlotRefused[RSBS_SAVE_MAX_SLOTS]{};
+
+    // #531/#564 V16: the freshness relation the last checked load observed
+    // (see LoadSlot / GetSlotCommitSkew). 0 or +1; the -1 case refuses
+    // through mSlotRefused instead.
+    int mSlotSkew[RSBS_SAVE_MAX_SLOTS]{};
 
     // Game-side metadata descriptors, indexed by GameId (GAME_OOT / GAME_MM).
     // mMetaPresent[i] guards mMetaDescs[i]; an unset descriptor causes
@@ -388,6 +529,32 @@ int  RsbsSave_Save(int slot);
 int  RsbsSave_Load(int slot);
 int  RsbsSave_HasSave(int slot);
 void RsbsSave_DeleteSave(int slot);
+
+/**
+ * Two-phase commit shims (#537/#531; see SaveManager::StageCommit).
+ * RsbsSave_StageCommit marshals the game-thread snapshot and returns the
+ * stamped monotonic generation (0 on refusal); RsbsSave_WriteStagedCommit
+ * serializes the staged snapshot from any thread, reading no live state and
+ * honoring the #533 write latch. RsbsSave_Save == latch check + stage + write
+ * on the calling thread (game thread only).
+ */
+uint32_t RsbsSave_StageCommit(void);
+int      RsbsSave_WriteStagedCommit(int slot);
+
+/**
+ * Load with the cross-artifact freshness check (#531/#564 V16 interim; see
+ * SaveManager::LoadSlot). `ootSavGeneration` is the commit generation the OoT
+ * .sav JSON mirrors ("rsbsCommitGeneration", 0 when absent — exempt). Returns
+ * the RsbsLoadOutcome as an int; a .sav-newer skew refuses through the full
+ * #533 machinery (quarantine + latch + RSBS_REFUSE_COMMIT_SKEW), a
+ * .redsave-newer skew loads and is surfaced via RsbsSave_GetSlotCommitSkew /
+ * SlotMeta.commitSkew (0 agreed, +1 the #531 loss shape).
+ * RsbsSave_CompareCommitGenerations is the pure comparison, exposed for the
+ * headless locks.
+ */
+int RsbsSave_LoadSlotChecked(int slot, uint32_t ootSavGeneration);
+int RsbsSave_GetSlotCommitSkew(int slot);
+int RsbsSave_CompareCommitGenerations(uint32_t redsaveGeneration, uint32_t ootSavGeneration);
 
 /**
  * #533 REFUSED-state surface. LoadSlot is RsbsSave_Load with the three-way

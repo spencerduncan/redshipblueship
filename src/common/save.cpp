@@ -88,6 +88,8 @@ const char* RefuseReasonSlug(RsbsRefuseReason reason) {
             return "crc";
         case RSBS_REFUSE_COMBO_MAGIC:
             return "combomagic";
+        case RSBS_REFUSE_COMMIT_SKEW:
+            return "commitskew";
         case RSBS_REFUSE_IDENTITY:
             // Never actually used in a quarantine name today — an identity
             // refusal leaves the healthy slot file in place (RefuseSlotIdentity
@@ -120,6 +122,8 @@ const char* SaveManager::RefuseReasonLabel(RsbsRefuseReason reason) {
             return "corrupt (CRC mismatch)";
         case RSBS_REFUSE_COMBO_MAGIC:
             return "cross-game record damaged";
+        case RSBS_REFUSE_COMMIT_SKEW:
+            return "older than the OoT save (a commit is missing)";
         case RSBS_REFUSE_IDENTITY:
             return "options differ from this pair's creation";
         case RSBS_REFUSE_NONE:
@@ -169,11 +173,50 @@ uint32_t SaveManager::Crc32(const uint8_t* data, size_t len) {
     return ~crc;
 }
 
-bool SaveManager::Save(int slot) {
-    if (!SlotInRange(slot)) {
-        return SaveLogFail(slot, "slot index out of range");
+uint32_t SaveManager::StageCommit() {
+    // GAME THREAD ONLY — this is the marshalling half of the commit choke
+    // point (#537). Serialization source = the context-layer shadow copies.
+    // Both must be present (Context_InitFrozenStates run); otherwise there is
+    // nothing to capture and we refuse rather than stage a half-empty commit.
+    const void* ootShadow = Context_GetOoTSaveContext();
+    const void* mmShadow = Context_GetMMSaveContext();
+    if (ootShadow == nullptr || mmShadow == nullptr) {
+        std::fprintf(stderr, "[RsbsSave] commit NOT staged: context shadows are absent "
+                             "(Context_InitFrozenStates has not run)\n");
+        // INVALIDATE rather than just refuse. WriteStagedCommit serializes
+        // "the most recently staged snapshot" for whatever slot its caller
+        // names, and OoT's worker hook fires unconditionally after the .sav
+        // write — so leaving an EARLIER stage addressable here would let a
+        // save whose own marshalling failed publish a previous commit's
+        // snapshot, potentially into a different slot. A failed stage must
+        // leave nothing to write.
+        std::lock_guard<std::mutex> lock(mStageMtx);
+        mStaged.valid = false;
+        return 0;
     }
 
+    // Stamp the monotonic commit generation BEFORE copying, so the staged
+    // Tier-1 (and therefore the artifact) carries it. gComboCtx is game-thread
+    // state; mutating it here is legal precisely because staging is
+    // game-thread-only. A loaded slot resumes its own counter (Load memcpys
+    // the whole struct back), so the sequence is monotonic across sessions.
+    gComboCtx.commitGeneration += 1;
+    const uint32_t generation = gComboCtx.commitGeneration;
+
+    {
+        std::lock_guard<std::mutex> lock(mStageMtx);
+        std::memcpy(&mStaged.combo, &gComboCtx, sizeof(ComboContext));
+        mStaged.oot.assign(static_cast<const uint8_t*>(ootShadow),
+                           static_cast<const uint8_t*>(ootShadow) + kOoTSize);
+        mStaged.mm.assign(static_cast<const uint8_t*>(mmShadow),
+                          static_cast<const uint8_t*>(mmShadow) + kMMSize);
+        mStaged.generation = generation;
+        mStaged.valid = true;
+    }
+    return generation;
+}
+
+bool SaveManager::CheckWriteAllowed(int slot) const {
     // #533 armed-session latch. Writing is legal only after THIS SESSION
     // successfully loaded, created, or erased the slot. Without this gate, a
     // session that refused (or simply never looked at) a slot's .redsave could
@@ -187,31 +230,78 @@ bool SaveManager::Save(int slot) {
         }
         return SaveLogFail(slot, "write latched: slot was not loaded, created, or erased this session");
     }
+    return true;
+}
 
-    // Serialization source = the context-layer shadow copies. Both must be
-    // present (Context_InitFrozenStates run); otherwise there is nothing to
-    // capture and we refuse rather than write a half-empty file.
-    const void* ootShadow = Context_GetOoTSaveContext();
-    const void* mmShadow = Context_GetMMSaveContext();
-    if (ootShadow == nullptr || mmShadow == nullptr) {
-        return SaveLogFail(slot, "context shadows are absent (Context_InitFrozenStates has not run)");
+bool SaveManager::WriteStagedCommit(int slot) {
+    if (!SlotInRange(slot)) {
+        return SaveLogFail(slot, "slot index out of range");
     }
+    // The choke point honors the #533 latch: a REFUSED (or never-established)
+    // slot stays unwritten even when a perfectly coherent snapshot is staged.
+    if (!CheckWriteAllowed(slot)) {
+        return false;
+    }
+
+    // Copy the staged snapshot out under the lock, then serialize from the
+    // LOCAL copy only. This function must never read gComboCtx or the live
+    // shadows: it runs on SoH's save worker thread while the game thread keeps
+    // mutating both, which is exactly the #537 tear this choke point removes.
+    ComboContext combo;
+    std::vector<uint8_t> ootBlob;
+    std::vector<uint8_t> mmBlob;
+    {
+        std::lock_guard<std::mutex> lock(mStageMtx);
+        if (!mStaged.valid) {
+            return SaveLogFail(slot, "no commit has been staged this session (StageCommit not run)");
+        }
+        std::memcpy(&combo, &mStaged.combo, sizeof(ComboContext));
+        ootBlob = mStaged.oot;
+        mmBlob = mStaged.mm;
+    }
+    return WriteSlotFile(slot, combo, ootBlob.data(), mmBlob.data());
+}
+
+bool SaveManager::Save(int slot) {
+    // Latch check + stage + write on the calling thread. Game thread only (it
+    // stages). The latch is checked BEFORE staging: a refused write must not
+    // advance the monotonic commit generation (the stamp belongs to durable
+    // commits only, and a phantom advance would fake cross-artifact skew).
+    if (!SlotInRange(slot)) {
+        return SaveLogFail(slot, "slot index out of range");
+    }
+    if (!CheckWriteAllowed(slot)) {
+        return false;
+    }
+    if (StageCommit() == 0) {
+        return SaveLogFail(slot, "commit staging refused (see above)");
+    }
+    return WriteStagedCommit(slot);
+}
+
+bool SaveManager::WriteSlotFile(int slot, const ComboContext& combo, const uint8_t* ootBlob,
+                                const uint8_t* mmBlob) {
+    // One writer at a time: the OnSaveFile worker (WriteStagedCommit) and a
+    // synchronous game-thread commit (MM's capture, OnExitGame) share the same
+    // `.tmp` staging path per slot, and interleaved temp writes would produce
+    // a CRC-invalid file. The snapshot arguments are already immutable, so
+    // holding the lock across serialization stays deadlock-free (mStageMtx is
+    // never taken here).
+    std::lock_guard<std::mutex> writeLock(mWriteMtx);
 
     // Assemble Tiers 1..3 contiguously so the CRC covers exactly the bytes we
     // write, in write order: ComboContext, OoT blob, MM blob.
     std::vector<uint8_t> payload;
     payload.reserve(kComboSize + kOoTSize + kMMSize);
-    // Tier-1 goes out at the FIXED record size: the live struct, then zeros to
-    // the budget. The padding is what gives ComboContext room to grow later
-    // without the serialized size — and therefore every existing save file's
-    // validity — moving.
-    const uint8_t* comboBytes = reinterpret_cast<const uint8_t*>(&gComboCtx);
+    // Tier-1 goes out at the FIXED record size: the snapshot struct, then
+    // zeros to the budget. The padding is what gives ComboContext room to grow
+    // later without the serialized size — and therefore every existing save
+    // file's validity — moving.
+    const uint8_t* comboBytes = reinterpret_cast<const uint8_t*>(&combo);
     payload.insert(payload.end(), comboBytes, comboBytes + sizeof(ComboContext));
     payload.insert(payload.end(), kComboSize - sizeof(ComboContext), uint8_t{0});
-    payload.insert(payload.end(), static_cast<const uint8_t*>(ootShadow),
-                   static_cast<const uint8_t*>(ootShadow) + kOoTSize);
-    payload.insert(payload.end(), static_cast<const uint8_t*>(mmShadow),
-                   static_cast<const uint8_t*>(mmShadow) + kMMSize);
+    payload.insert(payload.end(), ootBlob, ootBlob + kOoTSize);
+    payload.insert(payload.end(), mmBlob, mmBlob + kMMSize);
 
     RsbsSaveHeader header;
     std::memset(&header, 0, sizeof(header));
@@ -464,10 +554,23 @@ void SaveManager::QuarantineSlotFile(int slot, RsbsRefuseReason reason) {
     std::fprintf(stderr, "[RsbsSave] slot %d refused file quarantined to '%s'\n", slot, target.c_str());
 }
 
-RsbsLoadOutcome SaveManager::LoadSlot(int slot) {
+int SaveManager::CompareCommitGenerations(uint32_t redsaveGeneration, uint32_t ootSavGeneration) {
+    // Either side at 0 predates the stamp (legacy artifact, or a .sav that
+    // never rode a choke-point commit); exempt rather than false-positive on
+    // every upgraded install's first load.
+    if (redsaveGeneration == 0 || ootSavGeneration == 0 || redsaveGeneration == ootSavGeneration) {
+        return 0;
+    }
+    return redsaveGeneration > ootSavGeneration ? 1 : -1;
+}
+
+RsbsLoadOutcome SaveManager::LoadSlot(int slot, uint32_t ootSavGeneration) {
     if (!SlotInRange(slot)) {
         return RSBS_LOAD_REFUSED;
     }
+    // The skew record describes what THIS load attempt observed; stale
+    // observations from an earlier load of the slot do not carry over.
+    mSlotSkew[slot] = 0;
 
     SlotFileData data;
     RsbsRefuseReason reason = RSBS_REFUSE_NONE;
@@ -504,9 +607,55 @@ RsbsLoadOutcome SaveManager::LoadSlot(int slot) {
         return RSBS_LOAD_REFUSED;
     }
 
-    // All checks passed — commit. gComboCtx and both shadows are updated.
+    // Structurally valid. Before committing, compare the two durable
+    // artifacts' freshness stamps (#531/#564 V16 interim): the commit choke
+    // point authors the same monotonic generation into the .redsave Tier-1
+    // and (mirrored) into OoT's .sav JSON, so load is where a torn PAIR —
+    // both files individually valid, describing different instants of the
+    // ONE save — becomes detectable.
     ComboContext combo;
     std::memcpy(&combo, data.comboRecord.data(), sizeof(ComboContext));
+    const int skew = CompareCommitGenerations(combo.commitGeneration, ootSavGeneration);
+    if (skew < 0) {
+        // OoT's .sav carries a NEWER commit generation than this .redsave: at
+        // least one durable .redsave commit is missing (a write failed, or an
+        // older copy was swapped in from cloud sync / a manual restore).
+        // Committing the rolled-back Tier-1 would resurrect shared-item
+        // records the newer commits already consumed (cross-game duplication)
+        // and roll MM's ONLY persistence back — under the one-game ruling
+        // that is corruption to refuse, not freshness to arbitrate. #533
+        // machinery, full strength: quarantine the stale file as evidence,
+        // latch the slot, surface the reason. Nothing was committed: live
+        // state is untouched, exactly like every other refusal.
+        std::fprintf(stderr,
+                     "[RsbsSave] slot %d REFUSED: COMMIT SKEW — OoT's .sav mirrors commit generation %u "
+                     "but the .redsave carries %u (a .redsave commit is missing). Loading it would roll "
+                     "back the cross-game records and the MM world. Evidence quarantined; erase the slot "
+                     "to release it.\n",
+                     slot, ootSavGeneration, combo.commitGeneration);
+        QuarantineSlotFile(slot, RSBS_REFUSE_COMMIT_SKEW);
+        mSlotRefused[slot] = RSBS_REFUSE_COMMIT_SKEW;
+        mSlotArmed[slot] = false;
+        return RSBS_LOAD_REFUSED;
+    }
+    if (skew > 0) {
+        // The .redsave is NEWER than OoT's .sav: an MM-side commit (owl save,
+        // exit capture) landed after OoT's last save point. This is the
+        // designed post-MM-commit state — an MM-side commit cannot rewrite
+        // OoT's own file — so the load proceeds, but it is exactly the #531
+        // loss shape: OoT's world resumes older than the cross-game records
+        // that account for it (an item delivered to OoT after its last save
+        // may be missing while marked REDEEMED). Recorded and surfaced in the
+        // file panel via SlotMeta.commitSkew; the record-staging fix that
+        // retires the loss itself is #531's residue.
+        std::fprintf(stderr,
+                     "[RsbsSave] slot %d COMMIT SKEW: .redsave generation %u is NEWER than OoT's .sav "
+                     "generation %u — OoT's world is stale relative to the cross-game records (#531).\n",
+                     slot, combo.commitGeneration, ootSavGeneration);
+        mSlotSkew[slot] = 1;
+    }
+
+    // All checks passed — commit. gComboCtx and both shadows are updated.
     std::memcpy(&gComboCtx, &combo, sizeof(ComboContext));
 
     const std::vector<uint8_t>& ootBlob = data.ootBlob;
@@ -612,6 +761,7 @@ void SaveManager::DeleteSave(int slot) {
     // with the evidence.
     mSlotArmed[slot] = true;
     mSlotRefused[slot] = RSBS_REFUSE_NONE;
+    mSlotSkew[slot] = 0;
 }
 
 void SaveManager::ArmSlotOnCreate(int slot) {
@@ -631,6 +781,7 @@ void SaveManager::ArmSlotOnCreate(int slot) {
     }
     mSlotArmed[slot] = true;
     mSlotRefused[slot] = RSBS_REFUSE_NONE;
+    mSlotSkew[slot] = 0;
 }
 
 bool SaveManager::IsSlotWritable(int slot) const {
@@ -720,7 +871,12 @@ void SaveManager::ResetSlotSessionState() {
     for (int i = 0; i < RSBS_SAVE_MAX_SLOTS; i++) {
         mSlotArmed[i] = false;
         mSlotRefused[i] = RSBS_REFUSE_NONE;
+        mSlotSkew[i] = 0;
     }
+}
+
+int SaveManager::GetSlotCommitSkew(int slot) const {
+    return SlotInRange(slot) ? mSlotSkew[slot] : 0;
 }
 
 void SaveManager::RegisterGameMeta(GameId game, const RsbsGameMetaDesc* desc) {
@@ -800,6 +956,7 @@ SlotMeta SaveManager::ReadMeta(int slot) const {
     // over whatever is (or is not) at the slot path: a quarantined slot's
     // path is empty, but the slot is REFUSED, not "[empty]" (#533).
     meta.hasQuarantine = HasQuarantine(slot);
+    meta.commitSkew = mSlotSkew[slot];
     if (mSlotRefused[slot] != RSBS_REFUSE_NONE) {
         meta.state = RSBS_SLOT_REFUSED;
         meta.refuseReason = mSlotRefused[slot];
@@ -890,6 +1047,26 @@ extern "C" {
 
 int RsbsSave_Save(int slot) {
     return rsbs::SaveManager::Instance().Save(slot) ? 1 : 0;
+}
+
+uint32_t RsbsSave_StageCommit(void) {
+    return rsbs::SaveManager::Instance().StageCommit();
+}
+
+int RsbsSave_WriteStagedCommit(int slot) {
+    return rsbs::SaveManager::Instance().WriteStagedCommit(slot) ? 1 : 0;
+}
+
+int RsbsSave_LoadSlotChecked(int slot, uint32_t ootSavGeneration) {
+    return static_cast<int>(rsbs::SaveManager::Instance().LoadSlot(slot, ootSavGeneration));
+}
+
+int RsbsSave_GetSlotCommitSkew(int slot) {
+    return rsbs::SaveManager::Instance().GetSlotCommitSkew(slot);
+}
+
+int RsbsSave_CompareCommitGenerations(uint32_t redsaveGeneration, uint32_t ootSavGeneration) {
+    return rsbs::SaveManager::CompareCommitGenerations(redsaveGeneration, ootSavGeneration);
 }
 
 int RsbsSave_Load(int slot) {

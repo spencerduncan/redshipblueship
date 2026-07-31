@@ -1675,8 +1675,17 @@ extern "C" int MM_Combo_CaptureSaveToUnifiedSlot(void) {
     Context_UpdateShadowCopy(GAME_MM, &gSaveContext, sizeof(gSaveContext));
     gComboCtx.sourceGame = GAME_MM;
 
+    // RsbsSave_Save is the commit choke point's one-call form (#537): it
+    // stages the whole cross-game snapshot (Tier-1 + both shadows) on THIS
+    // thread — MM's game thread, the only mutator of the state being captured
+    // — stamps the next monotonic commit generation into Tier-1, and
+    // serializes from the staged copy. Note the .redsave generation advances
+    // past the OoT .sav's here by design: an MM-side commit cannot rewrite
+    // OoT's own file, and the generation gap is exactly what lets the next
+    // load DETECT that OoT's world is older than these records (#531).
     const int ok = RsbsSave_Save(slot);
-    fprintf(stderr, "[MM] unified save to slot %d: %s\n", slot, ok ? "ok" : "FAILED");
+    fprintf(stderr, "[MM] unified save to slot %d: %s (commit generation %u)\n", slot, ok ? "ok" : "FAILED",
+            (unsigned)gComboCtx.commitGeneration);
     fflush(stderr);
     return ok;
 }
