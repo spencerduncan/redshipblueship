@@ -233,8 +233,9 @@ uint32_t ResolvePairedProfile(bool paired) {
         // LEGACY pre-freeze pair (created before the creation event stamped
         // identities): the first crossing is where its profile freezes. The
         // one transitional writer besides the creation event.
-        fprintf(stderr, "[MM] profile: no creation-time stamp (pre-freeze pair); freezing profile at this "
-                        "generation (digest %08X)\n",
+        fprintf(stderr,
+                "[MM] profile: no creation-time stamp (pre-freeze pair); freezing profile at this "
+                "generation (digest %08X)\n",
                 (unsigned)digest);
         gComboCtx.mmProfileDigest = digest;
     }
