@@ -72,6 +72,21 @@ nlohmann::json GenerateFromSaveContext() {
                 { "item", foreignName != nullptr ? foreignName : "(unknown foreign item)" },
             };
         }
+
+        // ADR 0010 increment 1.3 under-supply rule: when the reachability gate
+        // left fewer eligible hosts than pool items, FEWER were placed (cap ≠
+        // promise) and the spoiler is the durable, loud record of it — a
+        // player reading "4 items promised, 2 crossed" learns it here, not
+        // from a bug report. Absent whenever the pool placed in full.
+        const Rando::Foreign::PlacementStats& stats = Rando::Foreign::LastPlacementStats();
+        if (stats.placed < stats.requested) {
+            spoiler["foreignShortfall"] = {
+                { "requested", stats.requested },
+                { "placed", stats.placed },
+                { "eligibleHosts", stats.eligibleHosts },
+                { "reachableEligibleHosts", stats.reachableEligibleHosts },
+            };
+        }
     }
 #endif
 

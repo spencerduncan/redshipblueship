@@ -3,6 +3,9 @@
 
 #include "Logic.h"
 
+#include <cstring>
+#include <memory>
+
 namespace Rando {
 
 namespace Logic {
@@ -133,6 +136,198 @@ void FindReachableRegions(RandoRegionId currentRegion, std::set<RandoRegionId>& 
             FindReachableRegions(connectedRegionId, reachableRegions, regionTimeStates);
         }
     }
+}
+
+// ============================================================================
+// Factored reachability crawl + reachable-check closure (ADR 0010 increment
+// 1.3; #500 work item 2). Contracts in Logic.h; the discipline notes that are
+// implementation-shaped live here.
+// ============================================================================
+
+ReachabilityCrawl CrawlReachableRegions(s32 startEntrance) {
+    ReachabilityCrawl crawl;
+    // The check tracker's historical seeding, kept exactly: the virtual root
+    // (starting items + save-warp exits) plus wherever the save's entrance
+    // resolves. An unknown entrance resolves to RR_MAX, which collapses to the
+    // root-only seed.
+    crawl.reachableRegions = { RR_MAX, GetRegionIdFromEntrance(startEntrance) };
+    crawl.regionTimeStates = InitializeRegionTimeStates(RR_MAX);
+
+    // Fresh event evaluation (the tracker's discipline): stale RANDO_EVENTS
+    // from a previous evaluation must not satisfy this one.
+    for (int i = 0; i < RE_MAX; i++) {
+        RANDO_EVENTS[i] = 0;
+    }
+
+    // Event registrations already fired, keyed by (region, index in the
+    // region's event vector) — NOT by RandoEvent id. RANDO_EVENTS is a COUNT,
+    // and several events are deliberately registered many times so the count
+    // means something: RE_ACCESS_ZORA_EGG appears 7 times (4 in Pirates'
+    // Fortress, 3 at Pinnacle Rock) because
+    // RC_GREAT_BAY_COAST_NEW_WAVE_BOSSA_NOVA reads
+    // `RANDO_EVENTS[RE_ACCESS_ZORA_EGG] >= 7` (Regions/West.cpp:215), and
+    // RE_ACCESS_SPRING_WATER / RE_ACCESS_PIRATE_PICTURE / RE_ACCESS_BUGS are
+    // the same shape. The check tracker's inline loop guarded on
+    // `!RANDO_EVENTS[event.first]`, which dedupes by ID and so caps every one
+    // of those counters at 1 — permanently unsatisfying every `>= n` gate and
+    // everything behind it. That was cosmetic while the crawl only tinted
+    // tracker rows; it is not cosmetic now that a foreign-host decision is
+    // computed from it, so the shared crawl adopts the glitchless fill's
+    // per-REGISTRATION accounting (GlitchlessLogic.cpp's eventsInLogic keys on
+    // the registration, not the id). A (region, index) key rather than the
+    // fill's pointer key so nothing here can depend on an address ordering.
+    std::set<std::pair<RandoRegionId, size_t>> firedEventRegistrations;
+
+    bool changed = true;
+    while (changed) {
+        changed = false;
+
+        // Region/time propagation with a real JOIN (ADR 0010 D2.3): reaching
+        // an already-explored region with NEW time slices unions them and
+        // re-explores, where FindReachableRegions' first-visit guard keeps
+        // whichever time set arrived first and never looks again.
+        const std::set<RandoRegionId> frontier = crawl.reachableRegions;
+        for (RandoRegionId regionId : frontier) {
+            EnsureRegionTimeState(crawl.regionTimeStates, regionId);
+            auto& sourceRegion = Regions[regionId];
+            auto& sourceState = crawl.regionTimeStates[regionId];
+
+            if (sourceState.canStayOverTime) {
+                const uint64_t expanded = TimeLogic::ExpandTimeForward(sourceState.timeSlices, sourceRegion);
+                if (expanded != sourceState.timeSlices) {
+                    sourceState.timeSlices = expanded;
+                    changed = true;
+                }
+            }
+            const uint64_t currentTime = sourceState.timeSlices;
+            gCurrentRegionTime = currentTime;
+
+            auto propagate = [&](RandoRegionId targetId) {
+                if (targetId == RR_MAX) {
+                    // Never re-enter the root: it is the seed, and an exit
+                    // whose entrance resolves nowhere also lands here.
+                    return;
+                }
+                if (crawl.reachableRegions.insert(targetId).second) {
+                    crawl.regionTimeStates[targetId] = { .timeSlices = currentTime,
+                                                         .canStayOverTime = Regions[targetId].canStayOverTime };
+                    changed = true;
+                    return;
+                }
+                auto stateIt = crawl.regionTimeStates.find(targetId);
+                if (stateIt == crawl.regionTimeStates.end()) {
+                    // A seeded region not yet visited this round; its state is
+                    // established by EnsureRegionTimeState when the frontier
+                    // loop reaches it.
+                    return;
+                }
+                const uint64_t merged = stateIt->second.timeSlices | currentTime;
+                if (merged != stateIt->second.timeSlices) {
+                    stateIt->second.timeSlices = merged; // the join
+                    changed = true;
+                }
+            };
+
+            for (auto& [connectedRegionId, condition] : sourceRegion.connections) {
+                if (condition.first()) {
+                    propagate(connectedRegionId);
+                }
+            }
+            for (auto& [exitId, regionExit] : sourceRegion.exits) {
+                if (regionExit.condition()) {
+                    propagate(GetRegionIdFromEntrance(exitId));
+                }
+            }
+        }
+
+        // Event pass: fire newly satisfiable event REGISTRATIONS under each
+        // region's joined time state; anything fired re-runs the crawl. See
+        // firedEventRegistrations above for why the guard is per-registration
+        // and not per-event-id.
+        for (RandoRegionId regionId : crawl.reachableRegions) {
+            auto& randoRegion = Regions[regionId];
+            SetCurrentRegionTime(crawl.regionTimeStates, regionId);
+            for (size_t eventIndex = 0; eventIndex < randoRegion.events.size(); eventIndex++) {
+                auto& event = randoRegion.events[eventIndex];
+                if (firedEventRegistrations.contains({ regionId, eventIndex })) {
+                    continue;
+                }
+                if (event.second()) {
+                    RANDO_EVENTS[event.first]++;
+                    firedEventRegistrations.insert({ regionId, eventIndex });
+                    changed = true;
+                }
+            }
+        }
+    }
+
+    return crawl;
+}
+
+std::set<RandoCheckId> EvaluateReachableChecks(const ReachabilityCrawl& crawl) {
+    std::set<RandoCheckId> satisfiable;
+    for (RandoRegionId regionId : crawl.reachableRegions) {
+        auto& randoRegion = Regions.at(regionId);
+        SetCurrentRegionTime(crawl.regionTimeStates, regionId);
+        for (auto& [randoCheckId, checkLogic] : randoRegion.checks) {
+            // A check can live in more than one region (enemy drops); one
+            // satisfiable placement is enough.
+            if (!satisfiable.contains(randoCheckId) && checkLogic.first()) {
+                satisfiable.insert(randoCheckId);
+            }
+        }
+    }
+    return satisfiable;
+}
+
+std::set<RandoCheckId> ComputeReachableCheckSet() {
+    // The GlitchlessLogic memcpy swap discipline: the closure simulates a
+    // playthrough by GIVING items into the live save, so the whole run is
+    // bracketed by a byte snapshot/restore. Heap-allocated — the port's
+    // SaveContext is large, and unlike the fill this can be called from
+    // arbitrary harness stack depths.
+    auto copiedSaveContext = std::make_unique<SaveContext>();
+    memcpy(copiedSaveContext.get(), &gSaveContext, sizeof(SaveContext));
+    // GiveItem's triforce-completion branch queues a transition into the
+    // game-events queue — state OUTSIDE the save snapshot. Record the depth
+    // and truncate back to it so a simulated completion cannot leak a queued
+    // transition into gameplay.
+    const size_t gameEventsDepth = MM_GameEvents_Queue().size();
+
+    std::set<RandoCheckId> obtainable;
+    bool collectedAny = true;
+    while (collectedAny) {
+        collectedAny = false;
+        const ReachabilityCrawl crawl = CrawlReachableRegions(gSaveContext.save.entrance);
+        for (RandoCheckId randoCheckId : EvaluateReachableChecks(crawl)) {
+            if (obtainable.contains(randoCheckId)) {
+                continue;
+            }
+            obtainable.insert(randoCheckId);
+            // Simulate the collect: a shuffled check yields its fill-assigned
+            // item, an unshuffled check its vanilla item — the same sourcing
+            // the glitchless fill credits to logic (GlitchlessLogic.cpp's
+            // isShuffled branch). Through the REAL give path, so progressive
+            // resolution and flag side effects match gameplay; GiveItem and
+            // ConvertItem consume no Ship_Random (CurrentJunkItem, the one
+            // junk randomizer, is a pickup-time presentation concern that
+            // never runs here).
+            const RandoSaveCheck& randoSaveCheck = RANDO_SAVE_CHECKS[randoCheckId];
+            const RandoItemId placedItem = randoSaveCheck.shuffled
+                                               ? randoSaveCheck.randoItemId
+                                               : Rando::StaticData::Checks[randoCheckId].randoItemId;
+            if (placedItem != RI_UNKNOWN && placedItem != RI_NONE) {
+                GiveItem(ConvertItem(placedItem));
+            }
+            collectedAny = true;
+        }
+    }
+
+    memcpy(&gSaveContext, copiedSaveContext.get(), sizeof(SaveContext));
+    if (MM_GameEvents_Queue().size() > gameEventsDepth) {
+        MM_GameEvents_Queue().resize(gameEventsDepth);
+    }
+    return obtainable;
 }
 
 // clang-format off
