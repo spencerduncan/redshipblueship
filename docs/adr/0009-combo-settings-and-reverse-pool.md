@@ -417,10 +417,15 @@ Two constraints on anyone spending from this:
   scribble loop (`test_save_roundtrip.c:512-538`) iterates `sizeof(reserved)`; at
   zero it degenerates to zero iterations and passes vacuously, retiring the only
   test that proves headroom round-trips at all.
-- **Claim 3's size is a placeholder.** Lane 4 must confirm its digest size before
-  carving, not after. 4 B assumes a u32 digest by analogy with
+- ~~**Claim 3's size is a placeholder.** Lane 4 must confirm its digest size
+  before carving, not after. 4 B assumes a u32 digest by analogy with
   `sharedRandoSettingsHash`; a wider profile record changes the table and this
-  ADR should be amended rather than the floor quietly eaten.
+  ADR should be amended rather than the floor quietly eaten.~~ **Paid** — see
+  "Claim 3, settled" above (4 B, carved at offset 788) and, for why a wider
+  Tier-1 record is not the answer even under the freeze, "Claim 3's rationale
+  restated". Struck 2026-07-30 (#564) because the amendment two paragraphs
+  above re-opens the wider-record question and this bullet reads as though it
+  were still unanswered.
 
 Nothing here raises `RSBS_SAVE_VERSION`, `RSBS_COMBO_CONTEXT_RECORD_SIZE`, or
 `RSBS_COMBO_CONTEXT_PRECARVE_SIZE`. Every claim is a front-of-`reserved[]` carve

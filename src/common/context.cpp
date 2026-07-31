@@ -338,11 +338,18 @@ void Context_InvalidateSessionState(ComboSeedStampPolicy seedPolicy) {
     // immediately derives these placements from it (OoT_PlaceForeignItems),
     // both BEFORE the file being created exists. Nothing re-places the
     // reverse table after generation — unlike the FORWARD table
-    // (foreignPlacements), which MM re-authors at its own OnFileCreate on the
-    // next arrival and is therefore deliberately NOT snapshotted (at this
-    // point it can only hold a dead session's rows). Wiping the reverse table
-    // here made #524 inert in every real playthrough: the new file's first
-    // .redsave write then persisted the zeroed table.
+    // (foreignPlacements), which is deliberately NOT snapshotted because at
+    // this point it can only hold a DEAD session's rows, so keeping it would
+    // resurrect them. That is the whole reason. "MM re-authors it at its own
+    // OnFileCreate on the next arrival" used to be given alongside it and is
+    // no longer a reason for anything: it describes the deferred-generation
+    // model #564 retires, in which arrival authors the MM half. Under
+    // one-game semantics arrival becomes hydrate-or-refuse, and when the
+    // creation event authors the forward table too it joins the KEEP set by
+    // the rule in ComboSeedStampPolicy (context.h) rather than by an
+    // exception written here. Wiping the reverse table here made #524 inert
+    // in every real playthrough: the new file's first .redsave write then
+    // persisted the zeroed table.
     ComboForeignPlacement savedPlacementsOoT[RSBS_FOREIGN_PLACEMENT_CAP];
     memcpy(savedPlacementsOoT, gComboCtx.foreignPlacementsOoT, sizeof(savedPlacementsOoT));
 
