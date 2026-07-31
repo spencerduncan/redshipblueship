@@ -17,6 +17,14 @@
 
 #include <ship/Context.h>
 #include <ship/resource/ResourceManager.h>
+// For Test_ZipContention's headless factory registration (#560): both games
+// register these only inside their display-bound Initialize paths.
+#include <ship/resource/File.h>
+#include <ship/resource/ResourceLoader.h>
+#include <ship/resource/ResourceType.h>
+#include <ship/resource/factory/BlobFactory.h>
+#include <fast/resource/ResourceType.h>
+#include <fast/resource/factory/TextureFactory.h>
 
 // Shared-context bring-up entries for the boot regression tests (#329/#330).
 // Defined in games/oot/soh/OTRGlobals.cpp and
@@ -279,6 +287,14 @@ extern "C" {
 // included above), proving the budget is wall-clock and can fire before the
 // CTest timeout. No display, no ROM archives, no game loop.
 #include "tests/test_gp_watchdog.c"
+
+// #560 root-cause contention lock over the shared per-archive handle. FILE
+// SCOPE (compiled as C++): it drives the C++-linkage Ship::Context /
+// ResourceManager / ArchiveManager APIs directly. The wrapper
+// (Test_ZipContention below) performs the display-free shared bring-up and the
+// soh.o2r resolvability check (#562) before this body spins its loader
+// threads.
+#include "tests/test_zip_contention.c"
 
 // MM scene-command EXECUTE regression (issue #344). Unlike the parse test, the
 // body runs the parsed commands against a PlayState, so it needs MM's global.h
@@ -1068,6 +1084,79 @@ TestResult Test_BootMM(void) {
     return TEST_PASS;
 }
 
+// #560 root-cause lock: libultraship's O2rArchive reads ONE shared zip_t with
+// no synchronization anywhere (ResourceManager::mMutex guards only the cache
+// map). During menu-triggered seed generation, a resource-pool worker and the
+// render thread zip_fread the same handle concurrently; both reads come back
+// zeroed ("type 0x0, Format 0, Version 0" — the exact logged pair from the
+// field crash), both loads return nullptr, and one unchecked consumer AVs. The
+// fix is a per-archive-object mutex in the libultraship fork; this row is its
+// deterministic regression tripwire. Body in
+// src/common/tests/test_zip_contention.c: 4 loader threads over disjoint cold
+// slices of real soh.o2r entries + 1 hot reader over cached ones, all through
+// the REAL ResourceManager against the archive #562 now mounts in-tier, with a
+// single-threaded calibration pass first so a contention failure can only mean
+// concurrency.
+//
+// Display-free (no Fast3dWindow needed): the loads run on this test's own
+// threads via LoadResourceProcess — the render thread's exact call shape — so
+// concurrency never depends on the resource pool's sizing, and the row runs in
+// the display-free redship tier and inside `--test all`.
+//
+// SKIP (not FAIL) when soh.o2r is unresolvable: the netplay-relay CI job
+// re-runs the redship label archive-less ON PURPOSE, as the tier's
+// archive-less control (#562). This does not reopen the silent-staging hole —
+// the rando-tier RandoGenFullInit row hard-fails on exactly that condition, so
+// a staging regression stays loud there while this row reports an honest CTest
+// "Skipped" (SKIP_RETURN_CODE 77) instead of a false red.
+TestResult Test_ZipContention(void) {
+    printf("[TEST] zip-contention: concurrent cold loads from one o2r return intact resources (#560)\n");
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    const std::string sohArchive = Ship::Context::LocateFileAcrossAppDirs("soh.o2r");
+    if (!std::filesystem::exists(sohArchive)) {
+        printf("[TEST] SKIP: no soh.o2r resolvable (tried '%s') — the archive-less redship control run keeps "
+               "this row skipped by design; RandoGenFullInit is the loud tripwire for a staging regression "
+               "(#560/#562)\n",
+               sohArchive.c_str());
+        return TEST_SKIP;
+    }
+
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    // Give the calibration pass the factory surface the real bring-up would
+    // have. MM's headless registrar (the same call Test_BootMM makes) brings
+    // the Path/Room/Cutscene per-archive dispatchers and MM's own types; the
+    // Texture/Blob factories below are otherwise registered only inside the
+    // games' display-bound Initialize paths. Texture matters here: the
+    // OTR-format textures in soh.o2r are the largest factory-parseable
+    // entries, and a cold glyph texture load is the render-thread arm of the
+    // #560 race.
+    if (MM_RegisterResourceFactoriesHeadless() != 0) {
+        printf("[TEST] FAIL: MM resource factory registration failed\n");
+        return TEST_FAIL;
+    }
+    auto loader = ctx->GetResourceManager()->GetResourceLoader();
+    loader->RegisterResourceFactory(std::make_shared<Fast::ResourceFactoryBinaryTextureV0>(), RESOURCE_FORMAT_BINARY,
+                                    "Texture", static_cast<uint32_t>(Fast::ResourceType::Texture), 0);
+    loader->RegisterResourceFactory(std::make_shared<Fast::ResourceFactoryBinaryTextureV1>(), RESOURCE_FORMAT_BINARY,
+                                    "Texture", static_cast<uint32_t>(Fast::ResourceType::Texture), 1);
+    loader->RegisterResourceFactory(std::make_shared<Ship::ResourceFactoryBinaryBlobV0>(), RESOURCE_FORMAT_BINARY,
+                                    "Blob", static_cast<uint32_t>(Ship::ResourceType::Blob), 0);
+
+    int rc = ZipContention_RunHeadless();
+    printf("[TEST] %s: zip contention rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 TestResult Test_SwitchOoTMM(void) {
     printf("[TEST] switch-oot-mm: Test game switch OoT -> MM\n");
 
@@ -1779,6 +1868,10 @@ const TestDescriptor gTests[] = {
      Test_MMOwlSaveArmState},
     {"boot-oot", "Shared-context bring-up leaves no null subsystems (#329)", Test_BootOoT},
     {"boot-mm", "MM-first bring-up prerequisites on the shared context (#330)", Test_BootMM},
+    // #560: the archive-handle contention lock. Display-free — its own threads
+    // ARE the concurrency — so `--test all` runs it; it SKIPs itself when no
+    // soh.o2r is mounted (the netplay-relay archive-less control tier).
+    {"zip-contention", "Concurrent cold o2r loads return intact resources (#560)", Test_ZipContention},
     {"switch-oot-mm", "Test game switch OoT -> MM", Test_SwitchOoTMM},
     {"switch-mm-oot", "Test game switch MM -> OoT", Test_SwitchMMOoT},
     {"midos-house", "Test Mido's House entrance (test mode)", Test_MidosHouse},
@@ -2011,6 +2104,7 @@ int TestRunner_Run(const char* testName) {
     if (strcmp(testName, "all") == 0) {
         int failures = 0;
         int passed = 0;
+        int skipped = 0;
         int total = 0;
 
         for (int i = 0; gTests[i].name != nullptr; i++) {
@@ -2038,19 +2132,30 @@ int TestRunner_Run(const char* testName) {
 
             if (result == TEST_PASS) {
                 passed++;
+            } else if (result == TEST_SKIP) {
+                // Environment-gated (e.g. zip-contention with no archive
+                // mounted): counted and reported, never a failure.
+                skipped++;
             } else if (result == TEST_FAIL || result == TEST_ERROR) {
                 failures++;
             }
         }
 
         printf("\n=== Test Summary ===\n");
-        printf("Total: %d, Passed: %d, Failed: %d\n", total, passed, failures);
+        printf("Total: %d, Passed: %d, Skipped: %d, Failed: %d\n", total, passed, skipped, failures);
 
         return failures;
     }
 
     // Run single test
     TestResult result = RunSingleTest(testName);
+    if (result == TEST_SKIP) {
+        // Rows that can self-skip declare SKIP_RETURN_CODE 77 in
+        // CMake/SingleExecutable.cmake, so ctest reports "Skipped" rather than
+        // a false red (the netplay-relay job re-runs the redship label
+        // archive-less as a control; see Test_ZipContention).
+        return 77;
+    }
     return (result == TEST_PASS) ? 0 : 1;
 }
 

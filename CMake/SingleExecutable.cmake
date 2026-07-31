@@ -453,6 +453,22 @@ if(BUILD_TESTING)
         redship_add_test(NAME RelaySuspendLatch COMMAND redship --test relay-suspend-latch)
     endif()
     redship_add_test(NAME ArchiveHotswapLogic COMMAND redship --test archive-hotswap-logic)
+    # #560 archive-handle contention lock: 4 loader threads + 1 hot reader
+    # through the REAL ResourceManager against the soh.o2r that #562 mounts
+    # in-tier, asserting no concurrent cold load ever returns null / init-data
+    # type 0 / bytes differing from a single-threaded read. Deterministic
+    # regression tripwire for the per-archive mutex in the libultraship fork —
+    # on the unfixed archive layer (one shared, unlocked zip_t) it fails within
+    # a few hundred loads. Display-free: the test's own threads are the
+    # concurrency, so it needs no Fast3dWindow and runs in this tier.
+    #
+    # SKIP_RETURN_CODE: the netplay-relay job re-runs this label WITHOUT
+    # archives on purpose (the tier's archive-less control, #562); there the
+    # row self-skips (exit 77) instead of going red. That skip cannot mask a
+    # staging regression — RandoGenFullInit hard-fails on exactly that
+    # condition in the rando tier.
+    redship_add_test(NAME ZipContention COMMAND redship --test zip-contention)
+    set_tests_properties(ZipContention PROPERTIES SKIP_RETURN_CODE 77)
     # Unified save (.redsave) headless tests — Phase 2 T6 (#35)
     redship_add_test(NAME SaveRoundtripTiers COMMAND redship --test save-roundtrip-tiers)
     redship_add_test(NAME SaveHeader COMMAND redship --test save-header)
