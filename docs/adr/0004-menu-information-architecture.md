@@ -291,6 +291,12 @@ honest answer to #499's "measure dead-end rates before shipping a raised profile
 measuring a profile nobody chose. The one previously-hardcoded value, the paired `RO_LOGIC` pin
 to Nearly No Logic (#426), becomes a default that an explicit choice overrides.
 
+> **Forward pointer (2026-07-31):** [ADR 0010](0010-cross-game-logic-and-beatability.md)
+> (Proposed) increment 1 raises this one default to Glitchless, with a deterministic re-roll
+> attempt ladder answering the dead-end-rate concern recorded above. If ADR 0010 is accepted,
+> this paragraph's "defaults do not change" is superseded on that single point; the
+> explicit-choice-overrides rule is unchanged.
+
 #### 4.2 Shared-intent entries must be visibly marked (required, not cosmetic)
 
 Because a shared-intent control toggled while playing OoT also changes MM — a game the player

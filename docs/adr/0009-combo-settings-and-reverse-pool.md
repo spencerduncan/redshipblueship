@@ -23,6 +23,10 @@
     prescription and the 672/736 offsets this ADR's budget preserves.
 - Amends: nothing. ADR 0002's `ComboForeignPlacement` shape is preserved
   unchanged, which is decision 3's whole point.
+- Consumed by: [ADR 0010](0010-cross-game-logic-and-beatability.md) (Proposed)
+  folds the combo GOAL setting and both games' trick selections into this
+  ADR's identity machinery (`comboSettingsHash`, claim 2; the frozen record
+  of decision 1's amendment) without carving new bytes.
 
 ## Context
 
