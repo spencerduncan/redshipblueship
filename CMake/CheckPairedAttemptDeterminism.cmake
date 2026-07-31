@@ -2,7 +2,7 @@
 #
 # ADR 0010 increment 1.2, lock (b), two-process half: the paired MM ATTEMPT
 # LADDER is deterministic. The mm-paired-attempt dispatch generates the paired
-# MM world for a pinned master seed KNOWN to dead-end its first ladder attempt
+# MM world for a pinned master seed with one deterministic ladder rung injected
 # (kLadderMasterSeed, games/mm/2s2h/mm_rando_gen_test.cpp) and writes a digest
 # of (winning attempt, final seed, placement hash, every foreign placement) to
 # RSBS_ATTEMPT_DIGEST_OUT. Running it twice in two FRESH processes and diffing
@@ -51,8 +51,8 @@ function(_run_attempt_gen out_path label)
     if(NOT _rc EQUAL 0)
         message(FATAL_ERROR
             "CheckPairedAttemptDeterminism: ${label} run of '--test mm-paired-attempt' exited ${_rc} "
-            "(the pinned ladder seed no longer converges past attempt 0 — see the re-pin recipe at "
-            "kLadderMasterSeed in games/mm/2s2h/mm_rando_gen_test.cpp).\n"
+            "(the injected ladder rung no longer produces exactly one retry, or the winning attempt no longer "
+            "converges — see kLadderMasterSeed in games/mm/2s2h/mm_rando_gen_test.cpp).\n"
             "stdout:\n${_out}\nstderr:\n${_err}")
     endif()
     if(NOT EXISTS "${out_path}")

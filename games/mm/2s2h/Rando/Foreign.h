@@ -80,6 +80,14 @@ uint32_t MixPairedFinalSeed();
  *  ":glitchless-attempt-" literal is the ADR's domain-separation tag and is
  *  used under EVERY logic mode (it names the ladder, not the rung).
  *
+ *  WHICH FAILURES ARE RUNGS: only failures that are a function of the seeded
+ *  RNG stream. The Glitchless fill's 10s wall-clock abort is not — it depends
+ *  on machine speed and load — so it throws Rando::Logic::GenerationTimeout
+ *  and OnFileCreate STOPS the ladder on it (loud refusal) instead of
+ *  re-rolling. Otherwise a slow machine would climb to a different rung and
+ *  hand the player a different world for the same frozen identity, which is
+ *  precisely what this recipe exists to prevent.
+ *
  *  Same ordering contract as MixPairedFinalSeed: resolve the profile first. */
 uint32_t MixPairedFinalSeedForAttempt(uint32_t attempt);
 
@@ -95,6 +103,31 @@ inline constexpr int kPairedGenMaxAttempts = 10;
  *  calls this; the arrival gate and the CI locks read it through the C
  *  accessors below). attemptsTried == 0 resets the record. */
 void NotePairedGenerationOutcome(int attemptsTried, bool exhausted);
+
+/** TEST-ONLY: make the next `attempts` calls to PlaceForeignItems report a
+ *  shortfall, which OnFileCreate turns into the #488 throw — a DETERMINISTIC
+ *  ladder rung. 0 (the default, and the value on every shipping path) means
+ *  no injection; each injected pass decrements the count, so an armed lock's
+ *  WINNING attempt always runs the real placement and produces a real world.
+ *
+ *  Why injection rather than a pinned dead-end seed: measured at this tree
+ *  (2026-07-31, 66-master-seed scan under the dead-end-prone Glitchless
+ *  profile — ocarina buttons + swim + boss remains + owl statues + clock
+ *  shuffle), EVERY observed first-attempt failure was the fill's 10s
+ *  WALL-CLOCK abort and not one was a deterministic dead-end. A seed pinned
+ *  on a wall-clock failure is a race, not a lock: the same seed converges
+ *  first-try on a faster machine and the row flips on timing alone. So the
+ *  ladder's rung is injected deterministically instead, and what the lock
+ *  proves is the ladder's actual contract — attempt n>0 re-derives by the
+ *  documented recipe, restores the pre-attempt save, converges to a real
+ *  world, records the winning index, and reproduces byte-identically across
+ *  processes. Re-pin to a natural seed if the fill ever grows a deterministic
+ *  dead-end that a scan can find (RSBS_ATTEMPT_SEED_SCAN, mm_rando_gen_test). */
+void ForceShortForeignPlacements(int attempts);
+
+/** Remaining injected shortfalls; the lock asserts this drains to 0 so it
+ *  cannot pass on a world that was never really placed. */
+int ForcedShortForeignPlacementsRemaining();
 
 /** True if this MM check is a SAFE host for a foreign (cross-game) item —
  *  i.e. the check is in the fill, holds a legal junk-class MM item, and belongs

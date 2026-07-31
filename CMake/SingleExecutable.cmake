@@ -802,17 +802,19 @@ if(BUILD_TESTING)
         TIMEOUT 180
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
-    # ADR 0010 increment 1.2, lock (b), single-run half: a pinned master seed
-    # KNOWN to dead-end its first ladder attempt converges through the real
-    # OnSaveInit chain, reports its winning attempt, stamps the provenance
-    # record, and writes the world digest. The pinned seed AND the pinned
-    # profile (Glitchless + the heavy progression shuffles — the dead-end-
-    # prone configuration that makes such a seed findable; the all-default
-    # profile converges first-try on every seed a 1040-seed scan tried) live
-    # at kLadderMasterSeed in games/mm/2s2h/mm_rando_gen_test.cpp with the
-    # re-pin scan recipe. Also the --test row the completeness guard requires
-    # for the mm-paired-attempt dispatch entry. Timeout above its siblings:
-    # the fill runs at least twice by construction.
+    # ADR 0010 increment 1.2, lock (b), single-run half: a paired generation
+    # whose first ladder attempt fails DETERMINISTICALLY climbs one rung,
+    # converges through the real OnSaveInit chain, reports its winning
+    # attempt, stamps the provenance record, and writes the world digest.
+    # The failing rung is INJECTED (one short foreign-placement pass) rather
+    # than scan-pinned: measured 2026-07-31, every natural first-attempt
+    # failure under the dead-end-prone profile was the fill's 10s WALL-CLOCK
+    # abort, and pinning one of those would pin a race that flips on machine
+    # speed. Rationale, the scan recipe and the wall-clock discriminator live
+    # at kLadderMasterSeed in games/mm/2s2h/mm_rando_gen_test.cpp. Also the
+    # --test row the completeness guard requires for the mm-paired-attempt
+    # dispatch entry. Timeout above its siblings: the fill runs twice by
+    # construction.
     redship_add_test(NAME MMPairedAttemptGen COMMAND redship --test mm-paired-attempt
         LABEL rando
         TIMEOUT 240
@@ -842,6 +844,10 @@ if(BUILD_TESTING)
     # machinery, no leaked placements, no stale provenance — while the same
     # arrival with the fixture undone generates and latches nothing. The
     # anti-regression row for the silent-vanilla-revert class (#564 V7).
+    # Its third leg is the determinism boundary: a WALL-CLOCK fill abort (the
+    # one failure that depends on the machine rather than the seed) must stop
+    # the ladder at attempt 1 rather than climb to a different world, so the
+    # same seed + settings cannot generate differently on a slow machine.
     redship_add_test(NAME MMPairedExhaustion COMMAND redship --test mm-paired-exhaustion
         LABEL rando
         TIMEOUT 240

@@ -8,6 +8,7 @@
 
 #include <set>
 #include <cassert>
+#include <stdexcept>
 
 extern "C" {
 #include "functions.h"
@@ -126,6 +127,48 @@ void FindReachableRegions(RandoRegionId currentRegion, std::set<RandoRegionId>& 
                           std::unordered_map<RandoRegionId, RegionTimeState>& regionTimeStates);
 RandoRegionId GetRegionIdFromEntrance(s32 entrance);
 void GeneratePools(RandoSaveInfo& saveInfo, std::vector<RandoCheckId>& checkPool, std::vector<RandoItemId>& itemPool);
+
+/**
+ * The ONE non-deterministic failure the Glitchless forward fill can raise: its
+ * 10s WALL-CLOCK abort (GlitchlessLogic.cpp). Given its own type because a
+ * wall-clock failure is a function of machine speed and load, not of the seed
+ * and settings — so callers that would otherwise treat "the fill threw" as a
+ * re-rollable dead-end must be able to tell the two apart.
+ *
+ * ADR 0010 increment 1.2's attempt ladder is exactly such a caller: re-rolling
+ * on a timeout would make the WINNING ATTEMPT INDEX (and therefore the world)
+ * depend on how fast the machine was that day, which breaks the ADR's hard
+ * rule that a world is a pure function of the frozen identity. The ladder
+ * therefore stops cold on this type and refuses loudly instead. Every other
+ * failure the fill raises ("No checks with junk", "No non-junk items left",
+ * the pool-balance and foreign-placement throws) is a deterministic function
+ * of the seeded RNG stream and IS a legitimate ladder rung.
+ *
+ * Derived from std::runtime_error so every existing `catch (const
+ * std::exception&)` (OnFileCreate's outer catch included) keeps behaving
+ * exactly as it did — this adds a discriminator, not a new escape path.
+ */
+struct GenerationTimeout : public std::runtime_error {
+    using std::runtime_error::runtime_error;
+};
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+/**
+ * TEST-ONLY override of the Glitchless fill's wall-clock budget, in
+ * milliseconds. 0 (the definition's initial and only shipping value) means
+ * "use the upstream 10s budget"; nothing in game code ever writes it.
+ *
+ * It exists because the property the ADR 0010 lock has to prove — that the
+ * attempt ladder does NOT re-roll a wall-clock abort — is otherwise only
+ * observable by stalling CI for ten real seconds per ladder attempt, and a
+ * lock too expensive to run is a lock nobody runs. The MMPairedExhaustion
+ * row's third leg sets it to 1ms, drives one real paired arrival, and asserts
+ * the ladder stopped at attempt 1 instead of climbing to its bound; it
+ * restores 0 before returning.
+ */
+extern unsigned int gRsbsGlitchlessTimeoutMsOverride;
+#endif
+
 void ApplyGlitchlessLogicToSaveContext(std::vector<RandoCheckId>& checkPool, std::vector<RandoItemId>& itemPool);
 void ApplyNearlyNoLogicToSaveContext(std::vector<RandoCheckId>& checkPool, std::vector<RandoItemId>& itemPool);
 void ApplyNoLogicToSaveContext(std::vector<RandoCheckId>& checkPool, std::vector<RandoItemId>& itemPool);

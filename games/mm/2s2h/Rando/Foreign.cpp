@@ -29,7 +29,11 @@
  * surface (never a silent vanilla Termina). The pre-ladder rule "a retry
  * counter would make the world identity depend on state the digest cannot
  * see" survives as the recipe's discipline — the counter is an INPUT to the
- * hash, not hidden state beside it.
+ * hash, not hidden state beside it. For the same reason only DETERMINISTIC
+ * dead-ends are rungs: the Glitchless fill's wall-clock abort throws
+ * Rando::Logic::GenerationTimeout and stops the ladder cold, because a rung
+ * climbed because the machine was busy is exactly "state the digest cannot
+ * see" wearing the counter's clothes.
  */
 #ifdef RSBS_SINGLE_EXECUTABLE
 
@@ -442,8 +446,34 @@ bool IsEligibleHost(RandoCheckId randoCheckId) {
     return itemIt->second.randoItemType == RITYPE_JUNK;
 }
 
+// Test-only fault injection for the attempt ladder — see
+// ForceShortForeignPlacements' declaration in Foreign.h for why the lock
+// cannot get a deterministic ladder rung any other way at this tree. Zero in
+// every shipping path; decremented, not just read, so an armed count drains
+// and the winning attempt runs the REAL placement pass.
+static int sForcedShortPlacements = 0;
+
+void ForceShortForeignPlacements(int attempts) {
+    sForcedShortPlacements = attempts > 0 ? attempts : 0;
+}
+
+int ForcedShortForeignPlacementsRemaining() {
+    return sForcedShortPlacements;
+}
+
 int PlaceForeignItems() {
     Combo_ClearForeignPlacements();
+
+    if (sForcedShortPlacements > 0) {
+        // Armed only by MM_Rando_HeadlessPairedAttemptDigest. Reports "placed
+        // nothing", which is exactly the #488 shortfall OnFileCreate turns
+        // into a deterministic ladder rung.
+        sForcedShortPlacements--;
+        fprintf(stderr,
+                "[MM] foreign placement: FAULT-INJECTED shortfall (attempt-ladder lock; %d injection(s) left)\n",
+                sForcedShortPlacements);
+        return 0;
+    }
 
     if (!PairingActive()) {
         return 0;

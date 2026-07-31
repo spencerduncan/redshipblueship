@@ -116,6 +116,16 @@ void Rando::MiscBehavior::OnFileCreate(s16 fileNum) {
                 // here, so the only way to observe it was to run a whole fill;
                 // the display-free MMPairedProfile lock drives this function
                 // directly. See Rando/Foreign.h for the ordering contract.
+                //
+                // Reset the ladder bookkeeping BEFORE anything in this dispatch
+                // can throw (ResolvePairedProfile itself throws on a divergent
+                // post-creation profile): the arrival gate words its refusal
+                // from these counters, and a stale "ladder exhausted" left by
+                // an earlier dispatch would make it misname a failure that
+                // never reached the ladder at all.
+                if (rsbsPaired) {
+                    Rando::Foreign::NotePairedGenerationOutcome(0, false);
+                }
                 Rando::Foreign::ResolvePairedProfile(rsbsPaired);
 #else
                 for (auto& [randoOptionId, randoStaticOption] : Rando::StaticData::Options) {
@@ -292,8 +302,13 @@ void Rando::MiscBehavior::OnFileCreate(s16 fileNum) {
                     // (MM_Rando_PairOnCrossGameArrival) turns that into the
                     // loud #533 refusal surface: slot latched, player toasted,
                     // never a silent vanilla Termina.
+                    //
+                    // Only DETERMINISTIC dead-ends are rungs: the fill's
+                    // wall-clock abort gets its own catch below and stops the
+                    // ladder rather than re-rolling, because a rung climbed
+                    // because the machine was slow would hand two players the
+                    // same identity and different worlds.
                     // --------------------------------------------------------
-                    Rando::Foreign::NotePairedGenerationOutcome(0, false);
                     gComboCtx.mmPairedAttempt = 0;
                     static SaveContext sPreAttemptSave;
                     memcpy(&sPreAttemptSave, &gSaveContext, sizeof(SaveContext));
@@ -310,6 +325,32 @@ void Rando::MiscBehavior::OnFileCreate(s16 fileNum) {
                             rsbsWinningAttempt = attempt;
                             Rando::Foreign::NotePairedGenerationOutcome(attempt + 1, false);
                             break;
+                        } catch (const Rando::Logic::GenerationTimeout& timeoutError) {
+                            // NOT a ladder rung. The Glitchless fill's only
+                            // non-deterministic failure is its 10s WALL-CLOCK
+                            // abort (GlitchlessLogic.cpp), and re-rolling on it
+                            // would make the winning attempt index — and
+                            // therefore the WORLD — a function of how fast the
+                            // machine was, not of the frozen identity. Same
+                            // seed + settings must produce the same world on
+                            // every machine, so the ladder stops cold here and
+                            // takes the loud path (vanilla revert at the outer
+                            // catch, REFUSED at the arrival gate) rather than
+                            // silently delivering a different world to a slower
+                            // player. `exhausted` stays false: the bound was
+                            // never the problem, so the refusal copy says
+                            // "generation threw", which is the truth.
+                            Rando::Foreign::NotePairedGenerationOutcome(attempt + 1, false);
+                            fprintf(stderr,
+                                    "[MM] paired generation: attempt %d/%d hit the fill's WALL-CLOCK abort (%s) — "
+                                    "NOT re-rolled: a machine-speed-dependent retry would make this seed's world "
+                                    "differ between machines\n",
+                                    attempt + 1, Rando::Foreign::kPairedGenMaxAttempts, timeoutError.what());
+                            throw std::runtime_error(
+                                "Paired generation hit the Glitchless fill's wall-clock abort on ladder attempt " +
+                                std::to_string(attempt + 1) +
+                                "; the attempt ladder deliberately does not re-roll a non-deterministic failure (" +
+                                std::string(timeoutError.what()) + ")");
                         } catch (const std::exception& attemptError) {
                             fprintf(stderr, "[MM] paired generation: attempt %d/%d dead-ended (%s)\n", attempt + 1,
                                     Rando::Foreign::kPairedGenMaxAttempts, attemptError.what());
