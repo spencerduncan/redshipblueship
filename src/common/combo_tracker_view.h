@@ -77,7 +77,7 @@ typedef struct {
     bool paired;                      // Combo_ForeignPairingActive()
     uint32_t sharedRandoSeed;         // gComboCtx.sharedRandoSeed
     uint32_t sharedRandoSettingsHash; // gComboCtx.sharedRandoSettingsHash
-    uint32_t mmProfileDigest;         // gComboCtx.mmProfileDigest (0 = unresolved)
+    uint32_t mmProfileDigest;         // gComboCtx.mmProfileDigest (0 = identity not frozen, #498/#564)
     int mmHostedForeign;              // OoT items placed into MM checks
     int ootHostedForeign;             // MM items placed into OoT checks
 } ComboTrackerIdentity;

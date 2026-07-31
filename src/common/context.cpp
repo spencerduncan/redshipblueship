@@ -332,6 +332,15 @@ void Context_InvalidateSessionState(ComboSeedStampPolicy seedPolicy) {
     const bool savedSourceIsRando = gComboCtx.sourceIsRando;
     const uint32_t savedSeed = gComboCtx.sharedRandoSeed;
     const uint32_t savedSettingsHash = gComboCtx.sharedRandoSettingsHash;
+    // #498/#564 V9: the MM profile identity is stamped by the creation event
+    // (Playthrough_Init, via MM_Rando_ComputeProfileStamp) alongside the seed
+    // stamp above — same author, same moment — so it joins the KEEP set by the
+    // ComboSeedStampPolicy rule (context.h): any identity term stamped at or
+    // before file-create that KEEP does not carry is wiped by the creation
+    // itself, the stamping act destroying its own output. Before this entry,
+    // that is exactly what happened: file-create ran the re-init below and the
+    // creation-stamped digest never reached the file it named.
+    const uint32_t savedMmProfileDigest = gComboCtx.mmProfileDigest;
     // #534: the reverse placement table (OoT checks hosting MM items, #524)
     // travels WITH the stamp because it has the same author and the same
     // moment of authorship: Playthrough_Init stamps the pairing identity and
@@ -383,6 +392,11 @@ void Context_InvalidateSessionState(ComboSeedStampPolicy seedPolicy) {
         gComboCtx.sourceIsRando = savedSourceIsRando;
         gComboCtx.sharedRandoSeed = savedSeed;
         gComboCtx.sharedRandoSettingsHash = savedSettingsHash;
+        // The frozen MM profile identity travels with the stamp (#498/#564 V9)
+        // — and, like the stamp, is DROPPED on every other path: a surviving
+        // digest with no generation behind it would freeze the options pane
+        // (Combo_MMProfileFrozen) for a pair that no longer exists.
+        gComboCtx.mmProfileDigest = savedMmProfileDigest;
         // The other generation-authored artifact (#534) — see the snapshot
         // note above. KEEP-only on purpose: on a DROP path a populated table
         // belongs to a dead session and must go with it.
@@ -406,10 +420,10 @@ void Context_InvalidateSessionState(ComboSeedStampPolicy seedPolicy) {
 
     fprintf(stderr,
             "[Context] Session state invalidated (seed stamp %s: rando=%d seed=%u settings=%08X "
-            "reversePlacements=%d)\n",
+            "mmProfile=%08X reversePlacements=%d)\n",
             (seedPolicy == RSBS_SEED_STAMP_KEEP) ? "kept" : "dropped", (int)gComboCtx.sourceIsRando,
             (unsigned)gComboCtx.sharedRandoSeed, (unsigned)gComboCtx.sharedRandoSettingsHash,
-            Combo_CountForeignPlacementsOoT());
+            (unsigned)gComboCtx.mmProfileDigest, Combo_CountForeignPlacementsOoT());
 }
 
 int Context_InvalidateSessionOnReturnToTitle(void) {

@@ -322,10 +322,44 @@ TestResult Test_SaveWriteLatch(void) {
     REFUSE_ASSERT(mgr.IsSlotWritable(2), "an explicit erase must arm the slot");
     REFUSE_ASSERT(!std::filesystem::exists(mgr.SlotPath(2)), "erase must remove the slot file");
 
+    // ---- #498/#564: the arrival IDENTITY refusal — latch, no quarantine ----
+    // The fourth refusal producer. Unlike every load refusal above, the slot
+    // FILE is healthy — the running session's resolved profile diverged from
+    // the pair's creation identity — so RefuseSlotIdentity must latch and
+    // surface REFUSED while leaving the file byte-identical IN PLACE and
+    // minting no quarantine evidence: the healthy .redsave is exactly what
+    // the latch is protecting from the divergent session's captures.
+    RefusalFreshDir();
+    REFUSE_ASSERT(RefusalAuthorValidSlot(0, 0x1DE47177u), "could not author the healthy pair fixture");
+    std::vector<uint8_t> healthy;
+    REFUSE_ASSERT(RefusalReadFile(mgr.SlotPath(0), healthy), "could not snapshot the healthy fixture");
+    REFUSE_ASSERT(mgr.LoadSlot(0) == RSBS_LOAD_OK, "the healthy fixture must load");
+    REFUSE_ASSERT(mgr.IsSlotWritable(0), "the loaded slot must be writable before the refusal");
+
+    mgr.RefuseSlotIdentity(0);
+    REFUSE_ASSERT(!mgr.IsSlotWritable(0), "identity refusal must latch the slot");
+    REFUSE_ASSERT(mgr.GetSlotState(0) == RSBS_SLOT_REFUSED, "identity refusal must surface REFUSED");
+    REFUSE_ASSERT(mgr.GetSlotRefuseReason(0) == RSBS_REFUSE_IDENTITY, "the reason must name the identity mismatch");
+    REFUSE_ASSERT(!mgr.Save(0), "Save must refuse after an identity refusal");
+    {
+        std::vector<uint8_t> afterIdentity;
+        REFUSE_ASSERT(RefusalReadFile(mgr.SlotPath(0), afterIdentity) && afterIdentity == healthy,
+                      "the identity refusal (or its latched Save) altered the HEALTHY slot file");
+    }
+    REFUSE_ASSERT(RefusalQuarantines(0).empty(), "an identity refusal must not quarantine the healthy file");
+    // -1 is the legitimate "no active slot" value the arrival can hand over;
+    // it must be a no-op, not an out-of-bounds write.
+    mgr.RefuseSlotIdentity(-1);
+    // The explicit erase releases it, like every other refusal.
+    mgr.DeleteSave(0);
+    REFUSE_ASSERT(mgr.IsSlotWritable(0), "erase must release the identity latch");
+    REFUSE_ASSERT(mgr.GetSlotRefuseReason(0) == RSBS_REFUSE_NONE, "erase must clear the identity refusal record");
+
     std::error_code ec;
     std::filesystem::remove_all(kRefusalTestDir, ec);
     mgr.ResetSlotSessionState();
-    printf("[TEST] PASS: the latch protects un-established slots; load/create/erase are the only keys\n");
+    printf("[TEST] PASS: the latch protects un-established slots; load/create/erase are the only keys; the "
+           "identity refusal latches without touching the healthy file\n");
     return TEST_PASS;
 }
 

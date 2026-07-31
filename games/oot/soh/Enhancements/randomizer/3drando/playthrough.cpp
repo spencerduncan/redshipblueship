@@ -17,6 +17,9 @@
 #include "context.h" // src/common — gComboCtx, Lane B unified-seed carrier (ADR 0002)
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "foreign_items.h" // src/common — OoT_PlaceForeignItems (#510)
+// src/common — MM_Rando_ComputeProfileStamp (defined MM-side, Foreign.cpp):
+// the creation event freezes the MM half's option profile too (#498/#564).
+#include "combo_mm_options_view.h"
 #endif
 
 namespace Playthrough {
@@ -121,6 +124,19 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
     gComboCtx.sharedRandoSettingsHash = rsbsSettingsHash;
 
 #ifdef RSBS_SINGLE_EXECUTABLE
+    // #498/#564 phase 2 step 9: the creation event freezes the MM half's
+    // option profile INTO the pairing identity, here, alongside the seed and
+    // settings stamps it already publishes — everything about the one game
+    // decides at one creation event. MM_Rando_ComputeProfileStamp resolves the
+    // full profile (47 options with the resolved RO_LOGIC pin, excluded
+    // checks, starting items) from the CVars through the SAME computation MM's
+    // arrival re-runs to compare; a mismatch at arrival is refused through the
+    // #533 machinery, never honored. This stamp — like the two above — is
+    // carried through file-create invalidation by the KEEP policy
+    // (context.cpp), and this is its ONLY writer for post-freeze pairs.
+    gComboCtx.mmProfileDigest = MM_Rando_ComputeProfileStamp();
+    SPDLOG_INFO("Paired identity: MM profile frozen at creation (digest {:08X})", gComboCtx.mmProfileDigest);
+
     // #510, the reverse foreign pool: hand a few MM items to OoT checks now that
     // this world's paired identity is stamped just above (the placement stream is
     // derived from it, so the order is load-bearing — not stylistic).

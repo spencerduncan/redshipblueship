@@ -88,6 +88,12 @@ const char* RefuseReasonSlug(RsbsRefuseReason reason) {
             return "crc";
         case RSBS_REFUSE_COMBO_MAGIC:
             return "combomagic";
+        case RSBS_REFUSE_IDENTITY:
+            // Never actually used in a quarantine name today — an identity
+            // refusal leaves the healthy slot file in place (RefuseSlotIdentity
+            // quarantines nothing) — but kept total so a future producer that
+            // does rename gets a truthful tag instead of "unknown".
+            return "identity";
         case RSBS_REFUSE_NONE:
         default:
             return "unknown";
@@ -114,6 +120,8 @@ const char* SaveManager::RefuseReasonLabel(RsbsRefuseReason reason) {
             return "corrupt (CRC mismatch)";
         case RSBS_REFUSE_COMBO_MAGIC:
             return "cross-game record damaged";
+        case RSBS_REFUSE_IDENTITY:
+            return "options differ from this pair's creation";
         case RSBS_REFUSE_NONE:
         default:
             return "";
@@ -629,6 +637,26 @@ bool SaveManager::IsSlotWritable(int slot) const {
     return SlotInRange(slot) && mSlotArmed[slot];
 }
 
+void SaveManager::RefuseSlotIdentity(int slot) {
+    if (!SlotInRange(slot)) {
+        // -1 is the legitimate "no active slot" value; a divergent session with
+        // no slot has nothing durable to protect, and the caller's own log line
+        // is the surface.
+        return;
+    }
+    // Deliberately NO quarantine: the .redsave is healthy — it is the running
+    // session (its live CVar/config state) that diverged from the creation
+    // identity. The latch is what matters: without it, the divergent session's
+    // next capture would freeze its un-paired world into the healthy pair's
+    // Tier-3 under the pair's identity.
+    mSlotArmed[slot] = false;
+    mSlotRefused[slot] = RSBS_REFUSE_IDENTITY;
+    std::fprintf(stderr,
+                 "[RsbsSave] slot %d REFUSED (%s); slot latched against writes this session — the on-disk "
+                 ".redsave is intact and untouched\n",
+                 slot, RefuseReasonLabel(RSBS_REFUSE_IDENTITY));
+}
+
 RsbsSlotState SaveManager::GetSlotState(int slot) const {
     if (!SlotInRange(slot)) {
         return RSBS_SLOT_ABSENT;
@@ -878,6 +906,10 @@ void RsbsSave_ArmSlotOnCreate(int slot) {
 
 int RsbsSave_IsSlotWritable(int slot) {
     return rsbs::SaveManager::Instance().IsSlotWritable(slot) ? 1 : 0;
+}
+
+void RsbsSave_RefuseSlotIdentity(int slot) {
+    rsbs::SaveManager::Instance().RefuseSlotIdentity(slot);
 }
 
 int RsbsSave_GetSlotState(int slot) {

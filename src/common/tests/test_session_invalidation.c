@@ -113,6 +113,13 @@ const uint16_t kSessionAReverseCheck = 501;
 const uint16_t kGenReverseCheck = 777;
 const uint16_t kGenReverseItemId = 91;
 
+// MM profile identity stamps (#498/#564 V9): one belonging to the dead session
+// A, one authored by the mirrored generation pass. Distinct for the same
+// reason the reverse-table rows are — the KEEP case must prove it kept
+// GENERATION's stamp, and every DROP case must prove the dead session's went.
+const uint32_t kSessionAMmProfileDigest = 0x4D4DDEADu;
+const uint32_t kGenMmProfileDigest = 0x4D4D0777u;
+
 // Put a recognizable, fully-populated session into every global the bug leaks
 // through: both frozen blobs, both shadows, the seed stamp, the crossing
 // tables, and a staged-but-uncommitted pickup in the RAM outbox.
@@ -131,6 +138,7 @@ void SeedSessionA(uint32_t seed, uint32_t settingsHash) {
     gComboCtx.sourceIsRando = true;
     gComboCtx.sharedRandoSeed = seed;
     gComboCtx.sharedRandoSettingsHash = settingsHash;
+    gComboCtx.mmProfileDigest = kSessionAMmProfileDigest;
 
     // The two fields the netplay grant model composes with (#460).
     Combo_RecordSharedItem(GAME_OOT, 42);
@@ -195,6 +203,9 @@ void StampGeneratedSeed(uint32_t seed, uint32_t settingsHash) {
     gComboCtx.sourceIsRando = true;
     gComboCtx.sharedRandoSeed = seed;
     gComboCtx.sharedRandoSettingsHash = settingsHash;
+    // #498/#564: Playthrough_Init freezes the MM profile identity in the same
+    // publish block as the two stamps above (MM_Rando_ComputeProfileStamp).
+    gComboCtx.mmProfileDigest = kGenMmProfileDigest;
 
     Combo_ClearForeignPlacementsOoT();
     SharedItem mmItem;
@@ -285,6 +296,10 @@ TestResult Test_SessionInvalidation(void) {
     // `sourceIsRando && sharedRandoSettingsHash != 0`.
     SESSION_ASSERT(gComboCtx.sharedRandoSeed == 0);
     SESSION_ASSERT(gComboCtx.sharedRandoSettingsHash == 0);
+    // The frozen MM profile identity goes with the stamp (#498/#564): a
+    // surviving digest would keep the options pane frozen
+    // (Combo_MMProfileFrozen) for a pair that no longer exists.
+    SESSION_ASSERT(gComboCtx.mmProfileDigest == 0);
     SESSION_ASSERT(!Combo_ForeignPairingActive());
     // Both placement tables go with the session on a DROP — the reverse one
     // included, because at the title nothing stands behind it any more than
@@ -366,6 +381,15 @@ TestResult Test_SessionInvalidation(void) {
     SESSION_ASSERT(SessionIsClear(/*expectSeedStamp=*/true));
     SESSION_ASSERT(gComboCtx.sharedRandoSeed == 0x99999999u);
     SESSION_ASSERT(gComboCtx.sharedRandoSettingsHash == 0x5555u);
+    // ---- 5a. #498/#564 V9: the creation-frozen MM profile survives too ------
+    // Playthrough_Init stamps it in the same publish block as the seed stamp,
+    // BEFORE the file exists; if KEEP does not carry it, the creation event
+    // wipes its own identity output and every post-freeze pair arrives at MM
+    // with digest 0 — silently degrading the arrival compare into the legacy
+    // stamp-at-arrival path. This is the falsifiable KEEP lock: remove the
+    // mmProfileDigest snapshot/restore from Context_InvalidateSessionState and
+    // this goes red.
+    SESSION_ASSERT(gComboCtx.mmProfileDigest == kGenMmProfileDigest);
     // ---- 5b. #534: generation's REVERSE placement table survives too -------
     // Playthrough_Init authored it seconds after the stamp, for THIS file, and
     // nothing re-places it after file creation (the forward direction is
@@ -398,6 +422,9 @@ TestResult Test_SessionInvalidation(void) {
     SESSION_ASSERT(SessionIsClear(/*expectSeedStamp=*/false));
     SESSION_ASSERT(gComboCtx.sharedRandoSeed == 0);
     SESSION_ASSERT(gComboCtx.sharedRandoSettingsHash == 0);
+    // The frozen MM profile identity is DROP-only here too (#498/#564): no
+    // generation stands behind a vanilla file.
+    SESSION_ASSERT(gComboCtx.mmProfileDigest == 0);
     // No generation stands behind a vanilla file, so the reverse table is the
     // dead session's and goes with it — the #534 keep-set is KEEP-only.
     SESSION_ASSERT(Combo_CountForeignPlacementsOoT() == 0);

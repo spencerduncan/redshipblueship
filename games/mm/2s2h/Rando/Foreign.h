@@ -28,8 +28,8 @@ bool PairingActive();
 std::string PairedInputSeedString();
 
 /** Resolve MM's randomizer option profile into RANDO_SAVE_OPTIONS and, for a
- *  paired world, publish its digest into gComboCtx.mmProfileDigest
- *  (#499 steps 2-4; ADR 0009 claim 3).
+ *  paired world, CHECK it against the creation-frozen identity
+ *  (#499 steps 2-4; ADR 0009 claim 3; #498/#564 phase 2).
  *
  *  This is the ONE place the profile is decided. It was three inline blocks in
  *  MiscBehavior/OnFileCreate.cpp, reachable only by running a whole fill, which
@@ -37,10 +37,20 @@ std::string PairedInputSeedString();
  *  what lets the display-free MMPairedProfile CTest drive the REAL resolution
  *  rather than a copy of it.
  *
+ *  FREEZE SEMANTICS (#564): the paired identity digest is stamped by the
+ *  CREATION event (OoT's Playthrough_Init via MM_Rando_ComputeProfileStamp,
+ *  the same computation). When gComboCtx.mmProfileDigest is nonzero, this
+ *  function COMPARES the resolution against it and THROWS std::runtime_error
+ *  on a mismatch — landing in OnFileCreate's catch, which reverts the file to
+ *  vanilla, so a divergent world is never authored and the stamp is never
+ *  self-healed. When the stamp is zero (a LEGACY pre-freeze pair), the digest
+ *  is stamped here, at the pair's first crossing — the one transitional
+ *  writer besides creation.
+ *
  *  @param paired  true on the cross-game path (Foreign::PairingActive()). Only
- *                 a paired world gets the logic pin and the digest; a solo MM
- *                 rando file resolves its options and nothing else, exactly as
- *                 before.
+ *                 a paired world gets the logic pin and the identity check; a
+ *                 solo MM rando file resolves its options and nothing else,
+ *                 exactly as before.
  *  @return the profile digest (0 when `paired` is false).
  *
  *  ORDERING CONTRACT, unchanged and load-bearing: call this BEFORE

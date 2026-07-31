@@ -40,6 +40,12 @@
 // Paired-world keying + placement-table accessors (#439 switch-entry
 // activation logs the placement count at the pairing decision point).
 #include "foreign_items.h"
+// MM_Rando_ComputeProfileStamp — the arrival's identity re-resolution
+// (#498/#564: compare against the creation-frozen mmProfileDigest).
+#include "combo_mm_options_view.h"
+// OoT_Notification_Emit — the shared toast overlay (#427 bridge): the arrival
+// refusal must be player-visible in-game, not only in the file panel.
+#include "notification_bridge.h"
 #include "entrance.h"
 #include <ship/resource/ResourceManager.h>
 #include <ship/resource/ResourceLoader.h>
@@ -2786,6 +2792,68 @@ void MM_Rando_PairOnCrossGameArrival(int hadFrozenState) {
         fprintf(stderr, "[MM] pairing: skipped-because-already-paired (mmFinalSeed=%08X foreignPlacements=%d)\n",
                 gSaveContext.save.shipSaveInfo.rando.finalSeed, Combo_CountForeignPlacements());
         return;
+    }
+
+    // ------------------------------------------------------------------------
+    // The arrival identity gate (#498 decision 1 per #564, phase 2 step 9).
+    //
+    // The one game's MM profile was frozen into the pairing identity at the
+    // CREATION event (Playthrough_Init stamped gComboCtx.mmProfileDigest from
+    // the same MM_Rando_ComputeProfileStamp computation run here). Generation
+    // below would resolve the profile from the LIVE CVars/config — so before
+    // dispatching it, prove that resolution still IS the frozen identity.
+    // Divergence is corruption to refuse, never a choice to honor: no world is
+    // generated, the identity stamp is left untouched (never self-healed), and
+    // the refusal surfaces through the #533 machinery — the active slot is
+    // latched against writes (the divergent session must not capture its
+    // unpaired world into the healthy pair's .redsave) and the file panel
+    // renders the slot REFUSED with the reason.
+    // ------------------------------------------------------------------------
+    if (gComboCtx.mmProfileDigest != 0) {
+        const uint32_t arrivalDigest = MM_Rando_ComputeProfileStamp();
+        if (arrivalDigest != gComboCtx.mmProfileDigest) {
+            const int slot = RsbsSave_GetActiveSlot();
+            fprintf(stderr,
+                    "[MM] pairing: REFUSED — the MM option profile resolved at this arrival (%08X) does not match "
+                    "the identity frozen at creation (%08X). MM options/excluded checks/starting items changed "
+                    "after the paired world was created. No MM world is generated; the creation stamp is left "
+                    "untouched; unified-save slot %d is latched against writes this session\n",
+                    (unsigned)arrivalDigest, (unsigned)gComboCtx.mmProfileDigest, slot);
+            fflush(stderr);
+            RsbsSave_RefuseSlotIdentity(slot);
+
+            // Player-visible, immediately, on the shared overlay — stderr is
+            // not a surface and the file panel is only seen later.
+            ComboNotification refusalToast;
+            memset(&refusalToast, 0, sizeof(refusalToast));
+            refusalToast.prefix = "Cross-game pairing REFUSED:";
+            refusalToast.prefixColor[0] = 0.9f;
+            refusalToast.prefixColor[1] = 0.35f;
+            refusalToast.prefixColor[2] = 0.3f;
+            refusalToast.prefixColor[3] = 1.0f;
+            refusalToast.message = "Majora's Mask options no longer match this file's creation. "
+                                   "Termina stays un-randomized and progress here will not be saved to the pair.";
+            refusalToast.messageColor[0] = 1.0f;
+            refusalToast.messageColor[1] = 1.0f;
+            refusalToast.messageColor[2] = 1.0f;
+            refusalToast.messageColor[3] = 1.0f;
+            refusalToast.remainingTime = 15.0f;
+            // Muted: the overlay's ding is OoT's Audio_PlaySoundGeneral, and
+            // this call site runs on MM's boot path (and in the display-free
+            // rando tier) where OoT's audio session is not a given. The toast
+            // is the surface; the sound is not load-bearing.
+            refusalToast.mute = 1;
+            OoT_Notification_Emit(&refusalToast);
+            return;
+        }
+        fprintf(stderr, "[MM] pairing: arrival profile matches the creation-frozen identity (%08X)\n",
+                (unsigned)arrivalDigest);
+    } else {
+        // A LEGACY pre-freeze pair: its creation predates the identity stamp,
+        // so its profile freezes at this first crossing instead
+        // (ResolvePairedProfile stamps it during the generation below).
+        fprintf(stderr, "[MM] pairing: no creation-time profile stamp (pre-freeze pair); the profile freezes at "
+                        "this arrival\n");
     }
 
     fprintf(stderr, "[MM] pairing: armed on switch-entry (masterSeed=%u settingsHash=%08X) — dispatching OnSaveInit\n",
