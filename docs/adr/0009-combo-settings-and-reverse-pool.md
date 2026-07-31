@@ -4,8 +4,8 @@
   under the one-game-semantics ruling
 - For: #498 (combo-level settings), gating #493 (MM -> OoT foreign items); Phase
   3.1 tracker #492, Lane 1
-- Amended: **2026-07-30 (#564**, ruling recorded on
-  [#500](https://github.com/spencerduncan/redshipblueship/issues/500#issuecomment-5126492334)**)**
+- Amended: **2026-07-30, #564** (the one-game ruling is recorded on
+  [#500](https://github.com/spencerduncan/redshipblueship/issues/500#issuecomment-5126492334))
   — decision 1 (a frozen record on the save side is world identity, not a second
   settings store; the digest becomes a cross-check stamped before the act it
   validates) and decision 2 (identity is the post-condition of the WHOLE

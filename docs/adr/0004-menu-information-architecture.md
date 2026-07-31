@@ -6,8 +6,8 @@
 - Amended on acceptance: §4.1 (scope and host of the MM randomizer pane — see
   §4.1a), §2d (the #454 disagreement, now ruled), and "What this ADR does not
   decide" (all five calls resolved).
-- Amended **2026-07-30 (#564**, ruling recorded on
-  [#500](https://github.com/spencerduncan/redshipblueship/issues/500#issuecomment-5126492334)**)**:
+- Amended **2026-07-30, #564** (the one-game ruling is recorded on
+  [#500](https://github.com/spencerduncan/redshipblueship/issues/500#issuecomment-5126492334)):
   §6 gains a **fourth presentation state** — frozen-at-creation, read-only, with
   the reason — and its "a player should be able to set MM options before
   switching" clause is superseded; §4.1a's timing is restated as *reachable
@@ -332,20 +332,20 @@ now:
    about the world the player is in (§5's vacuous-gate class, in its most convincing form,
    because this control *used* to work).
 
-   Four states, four presentations. The distinctions are what each one denies:
+Four states, four presentations. The distinctions are what each one denies:
 
-   | State | Applies now? | Editable? | What the presentation must deny |
-   |---|---|---|---|
-   | Live | yes | yes | — |
-   | Editable-but-not-active | on resume | yes | "this takes effect now" |
-   | Disabled by capability (§5) | no | no | "this works" |
-   | Frozen at creation (#564) | it already did | **no** | "this is still a choice" |
+| State | Applies now? | Editable? | What the presentation must deny |
+|---|---|---|---|
+| Live | yes | yes | — |
+| Editable-but-not-active | on resume | yes | "this takes effect now" |
+| Disabled by capability (§5) | no | no | "this works" |
+| Frozen at creation (#564) | it already did | **no** | "this is still a choice" |
 
-   The reason string is not optional and is not the capability reason: a capability gate says
-   *not yet available*, a freeze says *already decided*, and a player who reads the wrong one
-   goes looking for a bug in the right one. Where a frozen key's value is also shown, show the
-   frozen value from the save rather than the CVar — after creation the two may legitimately
-   differ, and the save is the one the world was built from.
+A frozen entry's reason string is not optional and is not the capability reason: a capability
+gate says *not yet available*, a freeze says *already decided*, and a player who reads the wrong
+one goes looking for a bug in the right one. Where a frozen key's value is shown at all, show the
+value from the save rather than the CVar — after creation the two may legitimately differ, and
+the save is the one the world was built from.
 
 > **Why the fourth state exists (2026-07-30, ruling on #500, alignment plan #564).** *"This is
 > one game from a semantic standpoint"*: the paired OoT+MM world has ONE identity, fixed at ONE
