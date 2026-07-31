@@ -1,8 +1,19 @@
 # ADR 0009: Combo settings author in CVars and identify by digest; the reverse pool is a second origin-keyed table behind a pre-generation gate
 
-- Status: **Accepted** (2026-07-22)
+- Status: **Accepted** (2026-07-22); **decisions 1 and 2 amended 2026-07-30**
+  under the one-game-semantics ruling
 - For: #498 (combo-level settings), gating #493 (MM -> OoT foreign items); Phase
   3.1 tracker #492, Lane 1
+- Amended: **2026-07-30, #564** (the one-game ruling is recorded on
+  [#500](https://github.com/spencerduncan/redshipblueship/issues/500#issuecomment-5126492334))
+  — decision 1 (a frozen record on the save side is world identity, not a second
+  settings store; the digest becomes a cross-check stamped before the act it
+  validates) and decision 2 (identity is the post-condition of the WHOLE
+  creation, and the MM option profile freezes ahead of OoT's `Fill()`). Decision
+  3, the reverse-pool rules and the `reserved[]` budget table are unchanged;
+  claim 3's *rationale* is restated where it leaned on decision 1. Each
+  amendment sits at the end of its decision, with the original reasoning kept
+  above it so the decision trail stays legible.
 - Depends on:
   - **[ADR 0002](0002-origin-tagged-shared-items.md)** (Accepted) — the origin-tag
     invariant and the `ComboContext` growth contract every carve below obeys.
@@ -38,6 +49,9 @@ Measured against `claude/lane5-tracker-visibility` on 2026-07-22 by direct read.
 The `.redsave` carries a single `uint32_t comboSettingsHash`, not the settings
 themselves.**
 
+> **Amended 2026-07-30 (#564) — read the amendment block at the end of this
+> section before acting on the reasoning below, which is kept for the trail.**
+
 The two framings in #498 were "per-save carve, so a `.redsave` carries its own
 pairing rules" versus "per-install CVars, per ADR 0003's one-store posture".
 They are not actually in tension, because they answer different questions:
@@ -69,11 +83,87 @@ point under the growth contract, and the digest becomes a checksum over them.
 setting changes the derived world" is unassertable. That is #498's lock, not
 this ADR's.
 
+### Amendment to decision 1 — one game, one identity, frozen at creation
+
+> **2026-07-30, operator ruling on #500, alignment plan #564.** *"Freezing at
+> creation is the correct semantics for sure. Keep that idea in mind with all
+> designs. This is one game from a semantic standpoint."* Decision 1 is amended,
+> not withdrawn: the CVar authoring surface survives with a boundary, and the
+> digest survives with a different job.
+>
+> **Survives — CVars author, and there is still no second settings store.** ADR
+> 0003's one-store posture is about *authoring*, and nothing here weakens it. It
+> gains a boundary: CVars author the one game's settings **only up to the
+> creation event**. After creation, no CVar describes a created world, and no
+> gameplay path may read one to decide world behaviour.
+>
+> **Changes — a frozen record on the save side is world identity, not a store.**
+> The argument above ("a settings surface carved into the save would be a second
+> settings store") holds only while something *authors* there. Nothing does: such
+> a record is written once, by the creation event, and is read-only for the life
+> of the file — precisely the status the REVERSE placement table
+> `foreignPlacementsOoT` already has (claim 1 of the budget below; #534's KEEP
+> snapshot exists because "nothing re-places the reverse table after
+> generation", `context.cpp`), and nobody calls that table a second item
+> database. Take the analogy from the reverse table specifically and not from
+> the forward `foreignPlacements`: the forward table is re-authored by MM at its
+> own `OnFileCreate` on each arrival, which is the deferred-generation behaviour
+> this amendment retires — it is the counter-example, not the precedent.
+> Rejecting a profile record as a "second store" rejected the wrong thing.
+> *Where* the record lives stays a budget question, answered under claim 3
+> below: MM's own
+> `RANDO_SAVE_OPTIONS` in Tier-3 already IS a frozen per-save option record, so
+> the one game gets the storage for free and the digest stays a 4-byte
+> cross-check rather than becoming the storage.
+>
+> **Changes — the digest is a cross-check, and it is stamped BEFORE the act it
+> validates.** Today `mmProfileDigest` has one writer, zero comparators, and is
+> produced *by* the resolution it should be validating (`Foreign.cpp:149`; every
+> consumer is display-only). Under one-game semantics it is stamped by the
+> creation event before either half generates, and every arrival and every load
+> recomputes it from the frozen record and compares. A mismatch is **corruption
+> to refuse, never a divergence to honour** — the ruling's second binding
+> consequence — so the comparison is semantics, not defensive plumbing.
+>
+> **Changes — "detects but cannot repair … that is accepted."** Detection stops
+> being merely sufficient and becomes mandatory; and repair stops being
+> impossible wherever the frozen record exists, because a record can say what the
+> original rules were and a digest never could. The un-repairable case shrinks to
+> a save whose record is itself gone — which is the refusal path, not a
+> degraded-play path.
+>
+> **Reinterpretation that must be written down loudly — `mmProfileDigest == 0`
+> changes meaning.** It reads today as "the MM half has not been generated yet",
+> and is rendered to the player as the *normal* state of a file still in OoT
+> (`ComboMmOptionsWindow.cpp:80-85`). Once identity freezes at creation, zero
+> means **identity not frozen**, a state no created combo file may be in. Any
+> reader carried across unchanged will report corruption as normal.
+>
+> **Coverage — the identity term must span the generator's whole input set.**
+> `gRando.ExcludedChecks`, the StartingItems block, spoiler policy, the RESOLVED
+> `RO_LOGIC` default (today decided at arrival by probing CVar *existence*,
+> `Foreign.cpp:125`), and every trap-type key classified as world identity all
+> shape the MM world and all sit outside `MMOptionsString()`. A digest narrower
+> than the input set is vacuous — same seed, same digest, different world — so a
+> guard built on it would pass while the thing it guards diverges. OoT's own
+> settings hash already folds excludes and tricks; that is the scope to copy
+> (#564 V4).
+>
+> **Sequencing.** This amendment lands before #498 carves any tier-4 key. No
+> identity-mismatch refusal may ship before #533's quarantine and armed-session
+> latch: while a refused file is indistinguishable from an absent one and the
+> next save overwrites it, every new detection converts into data loss (#564
+> V19).
+
 ## Decision 2 — an explicit pre-generation gate; the pairing stamp does NOT move
 
 **Add a pre-generation opt-in read before `Fill()`. Leave the
 `sourceIsRando`/`sharedRandoSeed`/`sharedRandoSettingsHash` stamp exactly where
 it is, at the end of `Playthrough_Init`.**
+
+> **Amended 2026-07-30 (#564) — restated, not reversed. The amendment block at
+> the end of this section widens the post-condition and adds one ordering
+> constraint; everything below it still holds.**
 
 The tempting move — hoist the stamp above `Fill()`, since `rsbsSettingsHash` is
 already in hand at `playthrough.cpp:71` and `seed` is a parameter — is
@@ -112,6 +202,67 @@ then fails. That is harmless and self-correcting — the placement table lives i
 `gComboCtx`, and `Context_InvalidateSessionState` / `ComboContext_Init` wipe it
 (`context.cpp:208-231`, `:273-310`); a failed generation never reaches the stamp,
 so `Combo_ForeignPairingActive()` stays false and nothing consumes the table.
+
+### Amendment to decision 2 — the post-condition is the whole creation
+
+> **2026-07-30, #564.** The core of this decision is unchanged and still
+> load-bearing: the stamp is a post-condition, and hoisting it above `Fill()`
+> would publish an identity for a world that was never generated. Three things
+> change around it.
+>
+> **The post-condition widens from OoT's fill to the WHOLE creation.** As
+> written, atomicity is scoped to one game's fill: the stamp says "OoT generated
+> successfully", and MM's half is authored later, at first arrival. One game
+> means one identity from one creation event, so identity is the post-condition
+> of *everything* the creation does — both option profiles frozen, both fills,
+> both crossing passes, pair validation, one spoiler — published atomically or
+> not at all (the ordered form is #564's target creation-event contract, steps
+> 1-8). "OoT's fill succeeded" is no longer a sufficient pre-condition for
+> publishing a paired identity, because a paired identity now claims things about
+> a Termina that must already exist.
+>
+> **New ordering constraint: the MM option profile freezes BEFORE OoT's
+> `Fill()`.** Freezing an *input* early is not the hoist this decision forbids,
+> and holding those two acts apart is what lets both rules stand at once — the
+> freeze snapshots what the player chose, the stamp publishes what generation
+> produced. The constraint is not tidiness: reverse-pool criterion 3
+> (`ForeignItemsSingleExe.cpp:144-157`; #564 V24 cites `:139-157`, which starts
+> five lines into criterion 2) excludes the enemy/boss souls, the
+> ocarina buttons, `RI_ABILITY_SWIM` and the clock items solely because OoT's
+> placement pass "CANNOT read MM's option profile" — true only while the profile
+> resolves after that pass runs. With one frozen surface read by both directions,
+> criterion 3 becomes a profile-conditional predicate ("admissible when the
+> frozen profile arms its give") rather than a timing accident (#564 V24). It is
+> narrowed, not deleted: the promise it protects — never advertise a crossing in
+> OoT that Termina silently never delivers — is unaffected by the ruling.
+>
+> **The self-correcting consequence narrows to one attempt.** "A reverse pass can
+> run and place items into a world whose fill then fails … harmless and
+> self-correcting" holds *within* a creation attempt and no longer beyond it,
+> because there is no later generation to pick up the pieces: arrival becomes
+> hydrate-or-refuse, with no generation path reachable from it. A creation that
+> cannot produce both halves must therefore fail the creation, visibly, at the
+> file select where the player made the decision — never revert to a vanilla
+> Termina under an active pairing identity (`OnFileCreate.cpp:325`), which is a
+> divergence honoured forever (#564 V7).
+>
+> **A third tense joins the two predicates.** `Requested` (future) and `Active`
+> (past) do not cover the new question the option surfaces have to ask: *is this
+> world's identity already frozen?* (present). #564 V5 prescribes the
+> creation-stamped `mmProfileDigest != 0` as that fact, read from `src/common`
+> and never from a `gSaveContext` (ADR 0008 rule 5, and the pane's
+> game-agnosticism tripwire). The shape, names to be settled by the implementing
+> lane:
+>
+> ```
+> Combo_ForeignPairingRequested()  -- pre-condition, read before Fill()
+> <frozen predicate>               -- identity stamped; gates every authoring surface
+> Combo_ForeignPairingActive()     -- post-condition, read at give time
+> ```
+>
+> Reviewers must not collapse the three. They are three tenses of one noun, and
+> the same "simplify these into one" instinct that decision 2 was written against
+> applies unchanged to the third.
 
 ## Decision 3 — two independent origin-keyed pools; lookup keys on (origin, name)
 
@@ -249,16 +400,40 @@ the profile was rejected for decision 1's reason: the settings are authored in
 CVars, and storing them would be a second settings store that has to be
 re-versioned every time an option is added.
 
+**Claim 3's rationale restated (2026-07-30, #564).** The 4-byte carve is
+unchanged and the table still holds; the *reason* a wider Tier-1 record was
+rejected is not the one given above, which decision 1's amendment retires. Two
+reasons replace it, and both are arithmetic rather than posture:
+
+- **It does not fit.** After claims 1, 3, 5 and 6, `reserved[]` is 132 bytes;
+  claim 2 (4 B) and claim 4 (64 B) land it exactly on the 64-byte floor. A
+  47-option Tier-1 record fits in none of that, and could not be `u8` anyway —
+  `RO_CLOCK_TERMINAL_TIME` ranges to 359 (`OptionsUiSingleExe.cpp:339-342`).
+- **It is already stored, one tier down.** MM's `RANDO_SAVE_OPTIONS` lives in
+  the MM SaveContext the `.redsave` carries as Tier-3, is written once per file,
+  and is what every gameplay path already reads. The frozen record decision 1's
+  amendment calls for therefore costs zero new bytes; the digest stays a
+  cross-check over it, which is exactly the job the amendment gives it.
+
+Nothing here re-opens the floor or the table. It records that "a save-side record
+would be a second settings store" must not be re-used as an argument against
+freezing identity — it is the sentence #564 struck.
+
 Two constraints on anyone spending from this:
 
 - **Keep `reserved[]` at 64 bytes or more.** `Test_SaveComboRecordFixed`'s
   scribble loop (`test_save_roundtrip.c:512-538`) iterates `sizeof(reserved)`; at
   zero it degenerates to zero iterations and passes vacuously, retiring the only
   test that proves headroom round-trips at all.
-- **Claim 3's size is a placeholder.** Lane 4 must confirm its digest size before
-  carving, not after. 4 B assumes a u32 digest by analogy with
+- ~~**Claim 3's size is a placeholder.** Lane 4 must confirm its digest size
+  before carving, not after. 4 B assumes a u32 digest by analogy with
   `sharedRandoSettingsHash`; a wider profile record changes the table and this
-  ADR should be amended rather than the floor quietly eaten.
+  ADR should be amended rather than the floor quietly eaten.~~ **Paid** — see
+  "Claim 3, settled" above (4 B, carved at offset 788) and, for why a wider
+  Tier-1 record is not the answer even under the freeze, "Claim 3's rationale
+  restated". Struck 2026-07-30 (#564) because the amendment two paragraphs
+  above re-opens the wider-record question and this bullet reads as though it
+  were still unanswered.
 
 Nothing here raises `RSBS_SAVE_VERSION`, `RSBS_COMBO_CONTEXT_RECORD_SIZE`, or
 `RSBS_COMBO_CONTEXT_PRECARVE_SIZE`. Every claim is a front-of-`reserved[]` carve
@@ -284,3 +459,21 @@ leave nothing for claims 2-4.
   older one reads the new block as all-unset, which is correct.
 - ~~Lane 4 owes a digest size against claim 3 before it carves.~~ Paid: 4 B,
   carved as `ComboContext.mmProfileDigest` at offset 788 (see the budget table).
+
+Added by the 2026-07-30 amendments (#564):
+
+- **The identity terms this ADR names are creation-time state, so
+  `Context_InvalidateSessionState`'s KEEP policy must carry every one of them.**
+  A term stamped at or before file-create that KEEP drops is wiped by the
+  creation itself, which is a hole under any freeze design, not a preference
+  (#564 V9; the policy's contract lives at `src/common/context.h`).
+- **`mmProfileDigest` acquires comparators.** Every arrival and every load
+  recomputes and compares it; the display-only consumers stay, but a
+  display-only digest is no longer the whole of its use, and "digest 0 = not
+  generated yet" must be re-read as "identity not frozen" wherever it is
+  rendered.
+- **A creation-failure surface is owed on the OoT side.** Decision 2's amendment
+  makes "publish or fail" whole-creation, which leaves the silent
+  vanilla-Termina revert with nowhere to live; the refusal surface is shared
+  with #533's refused-load surface rather than invented per producer (#564's
+  one-authority persistence model, REFUSAL).

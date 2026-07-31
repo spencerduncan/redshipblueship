@@ -20,8 +20,13 @@
  *   post-stage mutations would then be serialized.
  *
  *   commit-generation-skew — the load-time freshness comparison between the
- *   two durable artifacts: agree == 0, .redsave newer == +1 (the #531 loss
- *   shape), .sav newer == -1, and either side at 0 (pre-stamp legacy) exempt.
+ *   two durable artifacts, surfaced through the #533 machinery: agreement and
+ *   the pre-stamp (0) exemptions load cleanly; a .redsave NEWER than the .sav
+ *   (the #531 loss shape) loads but records +1 on the slot's panel surface;
+ *   a .sav NEWER than the .redsave (a missing .redsave commit) REFUSES before
+ *   committing — quarantine, write latch, RSBS_REFUSE_COMMIT_SKEW — because
+ *   committing the rolled-back Tier-1 would resurrect consumed shared-item
+ *   records and roll back MM's only persistence.
  *
  * Linkage note: like test_save_roundtrip.c, this file is #included into
  * test_runner.cpp at FILE SCOPE (compiled as C++) so it can call the C++
@@ -91,6 +96,9 @@ TestResult Test_CommitGenerationMonotonic(void) {
     Context_InitFrozenStates();
     ComboContext_Init();
     CommitGenFillShadows(0x11);
+    // Hermetic latch state (#533): DeleteSave is one of the three legitimate
+    // arming events, so the commits below are latch-legal by construction.
+    mgr.ResetSlotSessionState();
     mgr.DeleteSave(0);
 
     CG_ASSERT(gComboCtx.commitGeneration == 0, "a fresh ComboContext must start at generation 0 (unset)");
@@ -137,6 +145,7 @@ TestResult Test_CommitTornWrite(void) {
 
     Context_InitFrozenStates();
     ComboContext_Init();
+    mgr.ResetSlotSessionState();
     mgr.DeleteSave(0);
 
     // ---- Instant A: the state the game thread marshals -------------------
@@ -200,6 +209,26 @@ TestResult Test_CommitTornWrite(void) {
     CG_ASSERT(CommitGenShadowsAreUniform(kInstantA),
               "TORN: the artifact's world tiers mix instants — the write read live shadows");
 
+    // ---- The choke point respects the #533 write latch -------------------
+    // A perfectly coherent staged snapshot must STILL not reach a slot the
+    // session has not established: stage a new instant, drop the armed state
+    // (a fresh process / a refused slot), and the write phase must refuse and
+    // leave the on-disk artifact untouched. COUNTERFACTUAL: remove the latch
+    // check from WriteStagedCommit and instant C lands in the file — the
+    // reload below then fails the instant-A assertions.
+    const uint8_t kInstantC = 0xC3;
+    CommitGenFillShadows(kInstantC);
+    CG_ASSERT(RsbsSave_StageCommit() != 0, "staging instant C failed");
+    rsbs::SaveManager::Instance().ResetSlotSessionState();
+    CG_ASSERT(RsbsSave_WriteStagedCommit(0) == 0, "an unarmed slot must refuse the staged write (#533)");
+    ComboContext_Init();
+    CommitGenFillShadows(0x00);
+    CG_ASSERT(mgr.Load(0), "reload after the latched write failed");
+    CG_ASSERT(CommitGenShadowsAreUniform(kInstantA),
+              "the latched write reached the artifact — the choke point ignored the #533 latch");
+    CG_ASSERT(gComboCtx.sharedFlags[3] == 0xAAAA5555u,
+              "the latched write replaced the artifact's Tier-1");
+
     mgr.DeleteSave(0);
     ComboContext_Init();
     CommitGenFillShadows(0x00);
@@ -208,29 +237,81 @@ TestResult Test_CommitTornWrite(void) {
 }
 
 TestResult Test_CommitGenerationSkew(void) {
-    printf("[TEST] commit-generation-skew: cross-artifact freshness comparison (#531/#564 V16)\n");
+    printf("[TEST] commit-generation-skew: cross-artifact freshness at load, surfaced via #533 (#531/#564 V16)\n");
+
+    rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
+    mgr.SetSaveDirectory(kCommitGenTestDir);
 
     Context_InitFrozenStates();
     ComboContext_Init();
+    CommitGenFillShadows(0x22);
+    mgr.ResetSlotSessionState();
+    mgr.DeleteSave(0);
 
-    // Agreement — and the legacy exemptions (either side 0 predates the stamp).
-    gComboCtx.commitGeneration = 7;
-    CG_ASSERT(RsbsSave_CheckCommitGenerationSkew(0, 7) == 0, "equal generations must read as agreement");
-    CG_ASSERT(RsbsSave_CheckCommitGenerationSkew(0, 0) == 0, "a pre-stamp .sav (0) must be exempt");
-    gComboCtx.commitGeneration = 0;
-    CG_ASSERT(RsbsSave_CheckCommitGenerationSkew(0, 5) == 0, "a pre-stamp .redsave (0) must be exempt");
-
-    // The #531 shape: .redsave ahead of the .sav (an MM-side commit landed
-    // after OoT's last save point). Must be detected, not silently composited.
-    gComboCtx.commitGeneration = 9;
-    CG_ASSERT(RsbsSave_CheckCommitGenerationSkew(0, 3) == 1,
+    // ---- The pure comparison: agree / legacy exemptions / both directions -
+    CG_ASSERT(RsbsSave_CompareCommitGenerations(7, 7) == 0, "equal generations must read as agreement");
+    CG_ASSERT(RsbsSave_CompareCommitGenerations(7, 0) == 0, "a pre-stamp .sav (0) must be exempt");
+    CG_ASSERT(RsbsSave_CompareCommitGenerations(0, 5) == 0, "a pre-stamp .redsave (0) must be exempt");
+    CG_ASSERT(RsbsSave_CompareCommitGenerations(9, 3) == 1,
               ".redsave newer than .sav must be detected (the #531 loss shape)");
+    CG_ASSERT(RsbsSave_CompareCommitGenerations(2, 6) == -1, ".sav newer than .redsave must be detected");
 
-    // The inverse: the unified slot missed a commit.
-    gComboCtx.commitGeneration = 2;
-    CG_ASSERT(RsbsSave_CheckCommitGenerationSkew(0, 6) == -1, ".sav newer than .redsave must be detected");
+    // ---- Author a real artifact at generation 3 --------------------------
+    CG_ASSERT(mgr.Save(0) && mgr.Save(0) && mgr.Save(0), "authoring the generation-3 artifact failed");
+    CG_ASSERT(gComboCtx.commitGeneration == 3, "authoring must have stamped generation 3");
 
+    // ---- Agreement: same commit signed both artifacts --------------------
+    mgr.ResetSlotSessionState();
     ComboContext_Init();
-    printf("[TEST] PASS: skew detection distinguishes agree / redsave-newer / sav-newer / legacy\n");
+    CG_ASSERT(RsbsSave_LoadSlotChecked(0, 3) == RSBS_LOAD_OK, "agreeing artifacts must load");
+    CG_ASSERT(RsbsSave_GetSlotCommitSkew(0) == 0, "agreement must record no skew");
+    CG_ASSERT(gComboCtx.commitGeneration == 3, "the agreed load must commit Tier-1");
+
+    // ---- Pre-stamp .sav (0): exempt, loads cleanly -----------------------
+    mgr.ResetSlotSessionState();
+    ComboContext_Init();
+    CG_ASSERT(RsbsSave_LoadSlotChecked(0, 0) == RSBS_LOAD_OK, "a pre-stamp .sav must be exempt at load");
+    CG_ASSERT(RsbsSave_GetSlotCommitSkew(0) == 0, "the exemption must record no skew");
+
+    // ---- .redsave newer (+1): the #531 loss shape — load, but SURFACE it -
+    // An MM-side commit landed after OoT's last save point. Refusing here
+    // would refuse every ordinary MM session's reload, so the load proceeds;
+    // the divergence is recorded on the slot and reaches the file panel.
+    mgr.ResetSlotSessionState();
+    ComboContext_Init();
+    CG_ASSERT(RsbsSave_LoadSlotChecked(0, 1) == RSBS_LOAD_OK, "a redsave-newer slot must still load");
+    CG_ASSERT(RsbsSave_GetSlotCommitSkew(0) == 1, "the #531 loss shape must be recorded (+1)");
+    CG_ASSERT(mgr.ReadMeta(0).commitSkew == 1, "the skew must surface on the file-panel meta");
+    CG_ASSERT(RsbsSave_IsSlotWritable(0) == 1, "a redsave-newer slot stays writable (next commit heals forward)");
+    CG_ASSERT(mgr.GetSlotState(0) == RSBS_SLOT_VALID, "a redsave-newer slot is VALID, not REFUSED");
+
+    // ---- .sav newer (-1): a .redsave commit is MISSING — REFUSE (#533) ---
+    // Committing the rolled-back Tier-1 would resurrect consumed shared-item
+    // records and roll back MM's only persistence. Full machinery: no commit,
+    // quarantined evidence, sticky write latch, surfaced reason.
+    mgr.ResetSlotSessionState();
+    ComboContext_Init();
+    gComboCtx.saveSlot = 0x51C3B00F;  // sentinel: a refused load must not clobber live state
+    CG_ASSERT(RsbsSave_LoadSlotChecked(0, 9) == RSBS_LOAD_REFUSED,
+              "a sav-newer slot must REFUSE (a .redsave commit is missing)");
+    CG_ASSERT(gComboCtx.saveSlot == 0x51C3B00F, "the skew refusal clobbered live ComboContext");
+    CG_ASSERT(mgr.GetSlotState(0) == RSBS_SLOT_REFUSED, "the slot must read REFUSED");
+    CG_ASSERT(mgr.GetSlotRefuseReason(0) == RSBS_REFUSE_COMMIT_SKEW, "the reason must name the skew");
+    CG_ASSERT(RsbsSave_IsSlotWritable(0) == 0, "the skew refusal must latch writes");
+    CG_ASSERT(RsbsSave_HasQuarantine(0) == 1, "the stale .redsave must be quarantined as evidence");
+    CG_ASSERT(RsbsSave_HasSave(0) == 0, "the slot path must be empty after quarantine");
+    CG_ASSERT(!mgr.Save(0), "a latched Save after the skew refusal must refuse");
+    CG_ASSERT(gComboCtx.commitGeneration == 0,
+              "the latched Save must not advance the generation (latch precedes staging)");
+
+    // ---- Explicit erase releases the slot and the evidence ---------------
+    mgr.DeleteSave(0);
+    CG_ASSERT(mgr.GetSlotState(0) == RSBS_SLOT_ABSENT, "erase must clear the REFUSED state");
+    CG_ASSERT(RsbsSave_HasQuarantine(0) == 0, "erase disposes the quarantined evidence");
+
+    mgr.ResetSlotSessionState();
+    ComboContext_Init();
+    CommitGenFillShadows(0x00);
+    printf("[TEST] PASS: agree/legacy load, redsave-newer surfaces, sav-newer refuses via #533\n");
     return TEST_PASS;
 }

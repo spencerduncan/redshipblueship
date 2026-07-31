@@ -209,19 +209,28 @@ SaveManager::SaveManager() {
         // somewhere to save.
         Context_InvalidateSessionOnSlotLoad();
         RsbsSave_SetActiveSlot(fileNum);
-        if (RsbsSave_HasSave(fileNum)) {
-            if (RsbsSave_Load(fileNum)) {
-                // #531/#564 V16 interim: compare the freshness stamp the
-                // commit choke point writes into BOTH artifacts. This hook
-                // fires from LoadFile after saveBlock is populated, so the
-                // .sav's mirrored generation is readable here. A mismatch is
-                // the two-authorities divergence made visible: .redsave newer
-                // == an MM-side commit landed after OoT's last save point
-                // (the #531 loss shape); .sav newer == a .redsave write was
-                // lost. Logged loudly for now; TODO(#533) surface as REFUSED.
-                RsbsSave_CheckCommitGenerationSkew(fileNum, this->GetLoadedCommitGeneration());
-            }
-        }
+        // ALWAYS attempt the load — no HasSave gate (#533). HasSave is
+        // header-only, so a header-refused file (future version, bad magic,
+        // wrong slot) made the gate report "no save": the load never ran, the
+        // refusal never registered, and the next autosave rename-overwrote
+        // the mostly-intact file — including the only copy of the MM half —
+        // with a blank Tier-1 and an all-zero Tier-3. LoadSlot distinguishes
+        // the three outcomes itself: OK commits and arms the slot for writes,
+        // ABSENT arms it for its first write, REFUSED quarantines the file
+        // aside and latches the slot so no later save can destroy the
+        // evidence.
+        //
+        // The Checked form carries the .sav's mirrored commit generation
+        // (#531/#537/#564 V16 interim). This hook fires from LoadFile after
+        // saveBlock is populated, so the mirror is readable here; the load
+        // compares it against the .redsave's Tier-1 stamp BEFORE committing.
+        // A .sav-newer mismatch (a .redsave commit is missing) refuses
+        // through the full #533 machinery — quarantine, write latch, file
+        // panel — because committing the rolled-back Tier-1 would resurrect
+        // consumed shared-item records; a .redsave-newer mismatch (an MM-side
+        // commit landed after OoT's last save point, the #531 loss shape)
+        // loads and is surfaced as SlotMeta.commitSkew.
+        RsbsSave_LoadSlotChecked(fileNum, this->GetLoadedCommitGeneration());
     });
 
     GameInteractor::Instance->RegisterGameHook<GameInteractor::OnDeleteFile>([](int32_t fileNum) {
@@ -1421,7 +1430,7 @@ void SaveManager::SaveFileThreaded(int fileNum, SaveContext* saveContext, int se
         // marshalling stamped into the staged .redsave Tier-1 (see
         // SaveSection). The same commit therefore signs BOTH durable
         // artifacts, which is what makes load-time freshness divergence
-        // between them detectable (RsbsSave_CheckCommitGenerationSkew).
+        // between them detectable (the load-time comparison in RsbsSave_LoadSlotChecked).
         // Section-only saves leave the previous base stamp in place — their
         // base data IS still that generation's.
         if (rsbsGeneration != 0) {
@@ -1541,15 +1550,25 @@ void SaveManager::SaveSection(int fileNum, int sectionID, bool threaded) {
         // Publish the slot so a later MM-side save can address it; MM has no
         // slot of its own (its fileNum is the 0xFF sentinel cross-game).
         RsbsSave_SetActiveSlot(fileNum);
-        // Shared cross-game resources (#525) BEFORE the shadow capture, so the
-        // pool and the OoT blob stored beside it agree. Without this, money
-        // earned since the last switch is in the OoT save but not in the pool,
-        // and the post-load first-harvest seed reads the balance as already
-        // counted and drops it.
-        OoT_HarvestSharedResources();
-        Context_UpdateShadowCopy(GAME_OOT, &gSaveContext, sizeof(gSaveContext));
-        gComboCtx.sourceGame = GAME_OOT;
-        rsbsGeneration = RsbsSave_StageCommit();
+        if (RsbsSave_IsSlotWritable(fileNum)) {
+            // Shared cross-game resources (#525) BEFORE the shadow capture, so
+            // the pool and the OoT blob stored beside it agree. Without this,
+            // money earned since the last switch is in the OoT save but not in
+            // the pool, and the post-load first-harvest seed reads the balance
+            // as already counted and drops it.
+            OoT_HarvestSharedResources();
+            Context_UpdateShadowCopy(GAME_OOT, &gSaveContext, sizeof(gSaveContext));
+            gComboCtx.sourceGame = GAME_OOT;
+            rsbsGeneration = RsbsSave_StageCommit();
+        } else {
+            // #533/#568: the slot is write-latched (this session REFUSED its
+            // .redsave, or never established it). Stage NOTHING: the worker's
+            // WriteStagedCommit will refuse anyway, and staging here would
+            // advance the Tier-1 commit generation and mirror it into the
+            // .sav for a .redsave commit that never lands — manufacturing the
+            // exact cross-artifact skew the load-time comparison exists to
+            // detect. The latch refusal is logged by the write phase.
+        }
     }
 
     if (threaded) {

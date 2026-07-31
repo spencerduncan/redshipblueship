@@ -51,7 +51,9 @@ int CosmeticGfxStub_RunHeadless(void);
 //     malloc returned NULL -> memset(NULL) AV).
 // (b) mm-startup-restore — MM_Play_ConsumeStartupEntrance must re-apply the
 //     frozen MM save after the boot chain's SaveContext wipes, then spawn at
-//     the startup entrance with cutscene/game-mode state reset.
+//     the startup entrance with cutscene/game-mode state reset, and re-derive
+//     the sound mode from the restored options (sSoundMode lives outside
+//     gSaveContext, so the restore memcpy cannot carry it — #483).
 // Return 0 on pass, non-zero on fail.
 int MM_ResumeArena_RunHeadless(void);
 int MM_StartupRestore_RunHeadless(void);
@@ -185,10 +187,17 @@ extern "C" {
 // FILE SCOPE (compiled as C++): they drive the C++-linkage rsbs::SaveManager.
 #include "tests/test_save_roundtrip.c"
 
+// REFUSED-state locks (#533): refusal quarantines the evidence (renamed aside,
+// reason-tagged, never overwritten), the refusing session latches the slot
+// against writes, and ABSENT / VALID / REFUSED surface as three different
+// facts. FILE SCOPE (compiled as C++) for rsbs::SaveManager.
+#include "tests/test_save_refusal.c"
+
 // The .redsave commit choke point (#537/#531): monotonic commit generation,
 // the torn-write impossibility (stage on the game thread, write from the
 // immutable snapshot only), and the load-time cross-artifact freshness
-// comparison. FILE SCOPE (compiled as C++), same reason as above.
+// comparison surfaced through the #533 machinery. FILE SCOPE (compiled as
+// C++), same reason as above.
 #include "tests/test_commit_generation.c"
 
 // Lane C1 foreign-item pipeline locks (#392, ADR 0002): give-path tagging,
@@ -1987,6 +1996,14 @@ const TestDescriptor gTests[] = {
     {"save-size-mismatch", "Unified save Load rejects oversized tier, no clobber (#35)", Test_SaveSizeMismatch},
     {"save-legacy-size", "Unified save Load zero-extends shorter legacy tiers (#35)", Test_SaveLegacySize},
     {"save-crc-corrupt", "Unified save Load rejects corrupt payload, no clobber (#35)", Test_SaveCrcCorrupt},
+    // #533: REFUSED as a first-class slot state, distinct from ABSENT.
+    {"save-refused-quarantine", "A refused .redsave is quarantined byte-exact and the slot write-latched (#533)",
+     Test_SaveRefusedQuarantine},
+    {"save-write-latch", "Save refuses slots this session never loaded/created/erased (#533)", Test_SaveWriteLatch},
+    {"save-arm-on-create", "File-create quarantines a failing .redsave before its first write (#533)",
+     Test_SaveArmOnCreate},
+    {"save-refused-meta", "The slot surface reports ABSENT / VALID / REFUSED distinctly (#533)",
+     Test_SaveRefusedMeta},
     // Tier-1 format-headroom locks: the migration path Lane A's widened
     // sharedItems rides on. Without these, "ComboContext can grow" is a claim.
     {"save-combo-legacy-record", "Pre-headroom Tier-1 still loads and zero-extends", Test_SaveComboLegacyRecord},

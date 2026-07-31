@@ -477,6 +477,18 @@ if(BUILD_TESTING)
     redship_add_test(NAME SaveSizeMismatch COMMAND redship --test save-size-mismatch)
     redship_add_test(NAME SaveLegacySize COMMAND redship --test save-legacy-size)
     redship_add_test(NAME SaveCrcCorrupt COMMAND redship --test save-crc-corrupt)
+    # REFUSED-state locks (#533): a .redsave that fails validation (CRC,
+    # truncation, wrong header.slot, future version) is QUARANTINED (renamed
+    # aside byte-exact with a reason suffix, never overwritten), the refusing
+    # session takes a per-slot write latch so the next autosave cannot destroy
+    # the evidence, file-create quarantines before its first write, and the
+    # slot surface reports ABSENT / VALID / REFUSED as three different facts.
+    # Counterfactual: revert the latch and SaveWriteLatch's direct Save() call
+    # rename-overwrites the corrupt fixture — the exact #533 data loss.
+    redship_add_test(NAME SaveRefusedQuarantine COMMAND redship --test save-refused-quarantine)
+    redship_add_test(NAME SaveWriteLatch COMMAND redship --test save-write-latch)
+    redship_add_test(NAME SaveArmOnCreate COMMAND redship --test save-arm-on-create)
+    redship_add_test(NAME SaveRefusedMeta COMMAND redship --test save-refused-meta)
     # Tier-1 (ComboContext) format headroom — Phase 3 Wave 1. The loader used to
     # demand comboSize == sizeof(ComboContext) exactly, so the moment Lane A
     # widens sharedItems to carry an origin-game tag, every existing .redsave

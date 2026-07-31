@@ -624,8 +624,10 @@ typedef struct {
     // artifacts came from the same commit instant; a .redsave generation AHEAD
     // of the .sav's is exactly the #531 shape (an MM-side commit after OoT's
     // last save point); a .sav generation ahead means the .redsave write was
-    // lost or the file was replaced from elsewhere. Detection lives in
-    // RsbsSave_CheckCommitGenerationSkew.
+    // lost or the file was replaced from elsewhere. Detection lives in the
+    // load itself (rsbs::SaveManager::LoadSlot, via CompareCommitGenerations):
+    // a .sav-newer mismatch REFUSES through the #533 machinery, a
+    // .redsave-newer mismatch loads and surfaces as SlotMeta.commitSkew.
     //
     // Zero == unset (no commit has ever been stamped), the growth contract's
     // required meaning: a zero-extended legacy record reads 0 and is exempt
@@ -924,13 +926,30 @@ typedef enum {
      */
     RSBS_SEED_STAMP_DROP = 0,
     /**
-     * Keep the stamp AND the reverse placement table (#534) — they were
-     * authored together and are only coherent together. Correct ONLY where
-     * generation has already authored them for the file now being created
-     * (OoT_Sram_InitSave on a randomizer file). The FORWARD table
-     * (foreignPlacements) is dropped even here: MM re-authors it at its own
-     * OnFileCreate on the next arrival, so at file-creation time it can only
-     * hold a dead session's rows.
+     * Keep what the creation event authored for the file now being created:
+     * the stamp, the reverse placement table (#534) — authored together and
+     * only coherent together — and every creation-stamped identity term.
+     * Correct ONLY where generation has already authored them for THIS file
+     * (OoT_Sram_InitSave on a randomizer file).
+     *
+     * THE RULE, NOT THE LIST, IS THE CONTRACT (#564 V9). Under one-game
+     * semantics the paired world's identity is frozen by the creation event,
+     * so any identity term stamped at or before file-create that KEEP does
+     * not carry is wiped by the creation itself — the stamping act destroying
+     * its own output. A new identity field carved into ComboContext must
+     * therefore join this policy's snapshot/restore pair in context.cpp in
+     * the same change that carves it. That pairing is the whole reason this
+     * is an explicit argument rather than a hidden policy.
+     *
+     * The FORWARD table (foreignPlacements) is dropped even here, and the
+     * reason is narrower than it used to read: at file-creation time it can
+     * only hold a DEAD session's rows, so keeping it would resurrect them.
+     * It is NOT dropped because "MM re-authors it at its own OnFileCreate on
+     * the next arrival" — that rationale belongs to the deferred-generation
+     * model #564 retires, in which arrival authors the MM half. Arrival
+     * becomes hydrate-or-refuse with no generation reachable from it; when
+     * the creation event authors the forward table too, it joins the KEEP
+     * set by the rule above rather than by an exception written here.
      */
     RSBS_SEED_STAMP_KEEP = 1,
 } ComboSeedStampPolicy;
@@ -1039,10 +1058,15 @@ void Context_InvalidateSessionOnNewGame(int isRandoFile);
  * state", which is the truth.
  *
  * Does NOT arm a frozen blob itself — this is the CLEAR half. The caller's
- * RsbsSave_Load repopulates gComboCtx and both shadows and performs its own
+ * RsbsSave_LoadSlot repopulates gComboCtx and both shadows and performs its own
  * explicit arming step (Context_ArmShadowAsFrozen) for a tier that actually
  * carries data. Ordering matters and is already correct at the call site: the
  * clear runs BEFORE the load, so it never wipes the bytes just read.
+ *
+ * The load is now attempted UNCONDITIONALLY (#533) — there is no HasSave gate
+ * in front of it — so this clear also covers the REFUSED outcome: a slot whose
+ * .redsave fails validation ends up with no resident cross-game state and a
+ * write latch, rather than silently inheriting the previous session's.
  */
 void Context_InvalidateSessionOnSlotLoad(void);
 
