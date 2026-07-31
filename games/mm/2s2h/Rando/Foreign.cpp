@@ -493,8 +493,8 @@ bool RecordForeignPickup(RandoCheckId randoCheckId) {
 // ============================================================================
 extern "C" uint32_t MM_Rando_ComputeProfileStamp(void) {
     std::vector<uint32_t> values(RO_MAX, 0);
-    ResolveProfileValues(values.data(), /*paired=*/true);
-    return DigestFromIdentity(ProfileIdentityString(values.data()));
+    Rando::Foreign::ResolveProfileValues(values.data(), /*paired=*/true);
+    return Rando::Foreign::DigestFromIdentity(Rando::Foreign::ProfileIdentityString(values.data()));
 }
 
 // ============================================================================
