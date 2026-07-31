@@ -240,6 +240,81 @@ extern "C" int MM_Rando_HeadlessGenTest(void) {
         return 17;
     }
     fprintf(stderr, "[MM-RANDO-GEN] glitchless generated with seed %s\n", glitchlessSeed);
+
+    // ======================================================================
+    // ADR 0010 increment 1.3 — reachable-closure COVERAGE lock.
+    //
+    // Every other lock on the closure proves it is deterministic, pure, and
+    // that placements land inside it. None of them would notice a closure
+    // that silently UNDER-reports, and under-reporting is this change's worst
+    // failure mode: it invents shortfalls and strips hosts out of every
+    // paired world without turning a single row red. (An over-reporting
+    // closure is caught by FAIL(30) the moment it admits a host the world
+    // cannot reach; the under-reporting direction had nothing.)
+    //
+    // The glitchless world just generated is the oracle, because in this one
+    // logic mode the fill's own bookkeeping records what it reached:
+    // GeneratePools writes `.shuffled = true` ONLY for user-excluded checks
+    // (the `.skipped` rows, GeneratePools.cpp:150-152); every other
+    // `.shuffled` bit in the save was written by ApplyGlitchlessLogicToSave-
+    // Context's checksInLogic tail, i.e. exactly when the check ENTERED
+    // LOGIC. So `shuffled && !skipped` is the fill's signed statement "I
+    // reached this", and the closure — which runs the join-correct crawl, a
+    // superset of the fill's first-visit-wins traversal, over the same world
+    // — must contain all of it.
+    //
+    // Goes RED if the crawl's seeding entrance drifts, if the give path stops
+    // crediting an item class (a new RI_* whose GiveItem leg is a no-op), if
+    // the outer collect loop stops iterating to a fixpoint, or if the region
+    // graph regresses. RC_DEKU_KINGS_CHAMBER_MONKEY is named separately: it
+    // is the #426 check that a broken region edge made unreachable, so a
+    // recurrence names itself here as well as at FAIL(17).
+    // ======================================================================
+    {
+        const std::set<RandoCheckId> glitchlessReachable = Rando::Logic::ComputeReachableCheckSet();
+        int placedByFill = 0;
+        int missing = 0;
+        RandoCheckId firstMissing = RC_UNKNOWN;
+        for (auto& [randoCheckId, randoStaticCheck] : Rando::StaticData::Checks) {
+            if (randoStaticCheck.randoCheckId == RC_UNKNOWN) {
+                continue;
+            }
+            const RandoSaveCheck& randoSaveCheck = RANDO_SAVE_CHECKS[randoCheckId];
+            if (!randoSaveCheck.shuffled || randoSaveCheck.skipped) {
+                continue;
+            }
+            placedByFill++;
+            if (!glitchlessReachable.contains(randoCheckId)) {
+                if (missing == 0) {
+                    firstMissing = randoCheckId;
+                }
+                missing++;
+            }
+        }
+        if (placedByFill == 0) {
+            fprintf(stderr, "[MM-RANDO-GEN] FAIL(33): the glitchless world recorded no in-logic placements — the "
+                            "coverage lock below would be vacuous\n");
+            return 33;
+        }
+        if (missing != 0) {
+            fprintf(stderr,
+                    "[MM-RANDO-GEN] FAIL(33): the reachable-check closure UNDER-REPORTS — %d of %d checks the "
+                    "glitchless fill placed in logic are missing from it (first: %s). A closure narrower than the "
+                    "fill's own reach silently strands foreign hosts and manufactures shortfalls\n",
+                    missing, placedByFill, Rando::StaticData::Checks[firstMissing].name);
+            return 33;
+        }
+        if (!glitchlessReachable.contains(RC_DEKU_KINGS_CHAMBER_MONKEY)) {
+            fprintf(stderr, "[MM-RANDO-GEN] FAIL(33): RC_DEKU_KINGS_CHAMBER_MONKEY is outside the closure on a "
+                            "glitchless world that placed it (#426 region-edge regression)\n");
+            return 33;
+        }
+        fprintf(stderr,
+                "[MM-RANDO-GEN] closure coverage verified on the glitchless world: %zu checks reachable, covering all "
+                "%d the fill placed in logic\n",
+                glitchlessReachable.size(), placedByFill);
+    }
+
     CVarClear(Rando::StaticData::Options[RO_LOGIC].cvar);
     CVarSetInteger(Rando::StaticData::Options[RO_LOGIC].cvar, RO_LOGIC_NEARLY_NO_LOGIC);
 

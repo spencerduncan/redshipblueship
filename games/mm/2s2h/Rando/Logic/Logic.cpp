@@ -159,6 +159,25 @@ ReachabilityCrawl CrawlReachableRegions(s32 startEntrance) {
         RANDO_EVENTS[i] = 0;
     }
 
+    // Event registrations already fired, keyed by (region, index in the
+    // region's event vector) — NOT by RandoEvent id. RANDO_EVENTS is a COUNT,
+    // and several events are deliberately registered many times so the count
+    // means something: RE_ACCESS_ZORA_EGG appears 7 times (4 in Pirates'
+    // Fortress, 3 at Pinnacle Rock) because
+    // RC_GREAT_BAY_COAST_NEW_WAVE_BOSSA_NOVA reads
+    // `RANDO_EVENTS[RE_ACCESS_ZORA_EGG] >= 7` (Regions/West.cpp:215), and
+    // RE_ACCESS_SPRING_WATER / RE_ACCESS_PIRATE_PICTURE / RE_ACCESS_BUGS are
+    // the same shape. The check tracker's inline loop guarded on
+    // `!RANDO_EVENTS[event.first]`, which dedupes by ID and so caps every one
+    // of those counters at 1 — permanently unsatisfying every `>= n` gate and
+    // everything behind it. That was cosmetic while the crawl only tinted
+    // tracker rows; it is not cosmetic now that a foreign-host decision is
+    // computed from it, so the shared crawl adopts the glitchless fill's
+    // per-REGISTRATION accounting (GlitchlessLogic.cpp's eventsInLogic keys on
+    // the registration, not the id). A (region, index) key rather than the
+    // fill's pointer key so nothing here can depend on an address ordering.
+    std::set<std::pair<RandoRegionId, size_t>> firedEventRegistrations;
+
     bool changed = true;
     while (changed) {
         changed = false;
@@ -221,14 +240,21 @@ ReachabilityCrawl CrawlReachableRegions(s32 startEntrance) {
             }
         }
 
-        // Event pass (the tracker's loop): fire newly satisfiable events under
-        // each region's joined time state; anything fired re-runs the crawl.
+        // Event pass: fire newly satisfiable event REGISTRATIONS under each
+        // region's joined time state; anything fired re-runs the crawl. See
+        // firedEventRegistrations above for why the guard is per-registration
+        // and not per-event-id.
         for (RandoRegionId regionId : crawl.reachableRegions) {
             auto& randoRegion = Regions[regionId];
             SetCurrentRegionTime(crawl.regionTimeStates, regionId);
-            for (auto& event : randoRegion.events) {
-                if (!RANDO_EVENTS[event.first] && event.second()) {
+            for (size_t eventIndex = 0; eventIndex < randoRegion.events.size(); eventIndex++) {
+                auto& event = randoRegion.events[eventIndex];
+                if (firedEventRegistrations.contains({ regionId, eventIndex })) {
+                    continue;
+                }
+                if (event.second()) {
                     RANDO_EVENTS[event.first]++;
+                    firedEventRegistrations.insert({ regionId, eventIndex });
                     changed = true;
                 }
             }

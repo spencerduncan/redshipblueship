@@ -37,6 +37,11 @@
 // player ever set one) and logs which branch of the logic pin it took.
 #include <libultraship/bridge/consolevariablebridge.h>
 #include <spdlog/spdlog.h>
+// std::runtime_error for the structural refused-insert throw below. Explicit
+// because nothing else in this TU's include chain guarantees <stdexcept>:
+// MSVC drags it in transitively, libstdc++ does not, and the Linux CI leg is
+// where that difference would show up.
+#include <stdexcept>
 
 // src/common — placement table + pinned pool surface, and the A1 producer
 // (Combo_RecordSharedItem). Included OUTSIDE any extern "C" block: they pull
