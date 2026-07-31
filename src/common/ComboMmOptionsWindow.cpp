@@ -97,12 +97,24 @@ void DrawPairingSummary() {
  * frozen-at-creation, read-only, with the reason stated where the rows are.
  * Distinct from "live", from "editable but suspended", and from "disabled by
  * capability" — collapsing it into any of those would misdescribe it.
+ *
+ * The copy names the ACTUAL escape, which is not obvious and is not "create a
+ * new paired world": the stamp lands at GENERATION (Playthrough_Init), so a
+ * player who generates a seed and only then wants different MM options is
+ * frozen with no file in existence yet, and re-generating re-stamps the same
+ * frozen profile. The only unfreezing events are the DROP paths in
+ * Context_InvalidateSessionState — returning to the title screen (the reset
+ * route through TitleSetup), starting a vanilla file, or loading a slot whose
+ * .redsave is unfrozen. Telling the player to "create a new paired world"
+ * without naming the title screen is advice they cannot act on, which is ADR
+ * 0004 §5's vacuous gate wearing a help string.
  */
 void DrawFrozenBanner() {
     ImGui::TextColored(ImVec4(0.55f, 0.78f, 0.98f, 1.0f), "Frozen at creation");
     ImGui::TextWrapped("This paired world's Majora's Mask profile was stamped into its identity when the world was "
                        "generated. The options below show the authoring surface read-only; changing them is no "
-                       "longer possible for this pair. To play different MM options, create a new paired world.");
+                       "longer possible for this pair. To play different MM options, return to the title screen — "
+                       "these unlock there — then set them and generate a new seed.");
     ImGui::Separator();
 }
 

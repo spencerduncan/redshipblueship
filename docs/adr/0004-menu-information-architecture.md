@@ -256,6 +256,21 @@ stamps `gComboCtx.mmProfileDigest`, the two `src/common` option writers reject a
 renders the frozen banner with every row disabled. The predicate is `Combo_MMProfileFrozen()`,
 the `src/common` fact §6 prescribes.
 
+**Residue, named rather than implied: state 4 is implemented as the gate and the presentation, not
+yet as the frozen VALUES.** §6 also requires that where a frozen key's value is shown, it be the
+value *from the save* rather than the CVar. This pane still renders live CVar reads. That is
+correct-but-fragile today — the two `src/common` writers are the only in-app writers and they
+reject while frozen, so the two agree — and it is genuinely unimplementable under the interim
+hybrid: the hybrid persists only the digest, so there is no frozen profile in `src/common`-owned
+storage to publish (§6's own "publishing the frozen profile into a `src/common` view is part of the
+freeze work" is the ask, and #564's carve budget shows a 47-option Tier-1 record does not fit).
+An out-of-band write the writers never see — a hand-edited config, libultraship's console
+`cvar_set` — therefore makes the pane display a value the world was not built from while labelled
+"frozen at creation". It is caught (the next arrival refuses on the digest) but it is displayed
+wrongly until then. Closing this is part of #564 step 11's move to delivery option 1, where the
+frozen profile lives in MM's Tier-3 `RANDO_SAVE_OPTIONS` and reaches the pane through the same
+`src/common` accessor the digest already uses.
+
 > **Amended 2026-07-30 (#564): the host conclusion survives and gets stronger; the deadline is
 > restated.** "Reachable while OoT is the running game, before the switch" was the right host
 > argument off the wrong deadline. Under one-game semantics the MM option profile freezes at the

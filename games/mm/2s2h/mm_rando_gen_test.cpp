@@ -1127,11 +1127,21 @@ extern "C" int MM_Rando_HeadlessPairSwitchEntry(void) {
     // latched and surfaced REFUSED through the #533 machinery — while a
     // matching arrival still generates.
     //
-    // THE COUNTERFACTUAL THIS LOCKS: revert the digest compare in
-    // MM_Rando_PairOnCrossGameArrival and the divergent leg below GENERATES a
-    // world under the mid-session-edited CVars — a post-creation edit silently
-    // changing the paired world, exactly what the one-game ruling forbids —
-    // and FAIL(22) goes red.
+    // THE COUNTERFACTUALS THIS LOCKS — TWO LAYERS, each independently red
+    // (both measured, 2026-07-31, not asserted):
+    //
+    //  - Revert the digest compare in MM_Rando_PairOnCrossGameArrival ALONE
+    //    and FAIL(24)/FAIL(26) go red, NOT FAIL(22): the arrival dispatches
+    //    generation, ResolvePairedProfile's backstop throws, and OnFileCreate's
+    //    catch reverts to vanilla — so no divergent world is authored, but the
+    //    refusal degrades into #564 V7's silent vanilla revert. No REFUSED
+    //    state, no reason, no write latch: the healthy pair's .redsave is left
+    //    open to this session's captures. That is what the arrival gate buys
+    //    over the backstop, and it is what these assertions measure.
+    //  - Revert BOTH compares (arrival gate + ResolvePairedProfile) and
+    //    FAIL(22) goes red: the divergent leg GENERATES a world under the
+    //    mid-session-edited CVars — a post-creation edit silently changing the
+    //    paired world, exactly what the one-game ruling forbids.
     // ----------------------------------------------------------------------
     const char* const kPhase4SaveDir = "rsbs_test_pairswitch_saves";
     rsbs::SaveManager::Instance().SetSaveDirectory(kPhase4SaveDir);

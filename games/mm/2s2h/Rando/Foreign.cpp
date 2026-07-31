@@ -174,6 +174,31 @@ static std::string ProfileIdentityString(const uint32_t* values) {
         s += std::to_string((int)randoItemId);
         s += ',';
     }
+    // ------------------------------------------------------------------------
+    // WHAT IS DELIBERATELY *NOT* FOLDED, and why. #564 V4 asks for each
+    // remaining CVar family to be CLASSIFIED world-identity vs runtime flavour
+    // rather than "left as an accident" — an unclassified key defaults to
+    // identity (ADR 0004 §6 scope note), so silence here is not neutral.
+    //
+    //  - `gRando.Traps.*` (Traps.cpp's trapToCvarMap: Freeze/Blast/Shock/Jinx/
+    //    Wallet/Enemy/Time) are RUNTIME FLAVOUR, not world identity. Their sole
+    //    consumer is RollTrapType(), called from actor behaviour when a trap is
+    //    collected (ActorBehavior/EnGirlA.cpp:73, Traps.cpp:133) — it draws
+    //    from the LIVE Ship_Random stream at pickup time and never runs inside
+    //    a fill. The trap knobs that DO shape the world (RO_SHUFFLE_TRAPS,
+    //    RO_TRAP_AMOUNT, read by GeneratePools.cpp:281) are ordinary option
+    //    rows and are already folded by the loop above. Flipping which trap
+    //    flavour fires changes no placement, so folding these would refuse
+    //    arrivals over a cosmetic preference.
+    //  - `gRando.SpoilerFile` / `gRando.SpoilerFileIndex` / `gRando.InputSeed`
+    //    are NOT identity and folding them would be actively harmful: the
+    //    paired path ignores all three by construction (OnFileCreate.cpp:83
+    //    forces generation over any stale spoiler index when rsbsPaired, and
+    //    :101 replaces the input seed with PairedInputSeedString), and
+    //    OnFileCreate.cpp:289 WRITES gRando.SpoilerFile after every successful
+    //    generation — so a pair that folded it would diverge its own identity
+    //    the instant it generated.
+    // ------------------------------------------------------------------------
     return s;
 }
 
