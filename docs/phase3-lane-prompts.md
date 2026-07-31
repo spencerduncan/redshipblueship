@@ -665,7 +665,7 @@ Deliverables:
    (`extern "C"`, `3drando/menu.cpp:33`) — the first output-equality test in the
    `rando` label (the existing three rows assert only generation-succeeds).
    Register in the `rando` pattern (xvfb, TIMEOUT 180, `SDL_AUDIODRIVER=dummy`,
-   `RSBS_DISABLE_OTR_INIT=1`). Three verified pitfalls to design around:
+   `RSBS_DISABLE_OTR_INIT=1`).
 
    > **CAVEAT ADDED 2026-07-30 (#560, PR #562) — do NOT copy the
    > `RSBS_DISABLE_OTR_INIT=1` half of that pattern into a new row without
@@ -689,6 +689,9 @@ Deliverables:
    > cannot silently decay into a masked clone. Copy that row for anything that
    > exercises resource loading; keep the mask only where a row states why it
    > needs one.
+
+   Three verified pitfalls to design around:
+
    - **Same seed → same spoiler path** (`Randomizer/<hash>.json`,
      `spoiler_log.cpp:390-395`), so the second run OVERWRITES the first and a naive
      diff compares the file against itself. Snapshot/copy the first JSON (or capture
