@@ -23,6 +23,7 @@
 #include <cstdio>
 #include <cstring>
 #include <cstdint>
+#include <filesystem>
 #include <fstream>
 #include <string>
 
@@ -43,6 +44,12 @@
 // src/common — placement table + pool surface (Lane C1). Outside extern "C":
 // it pulls context.h, whose <type_traits> include must not sit in C linkage.
 #include "foreign_items.h"
+// src/common — the #533 REFUSED surface (the arrival identity gate latches the
+// active slot; Phase 4 of the switch-entry lock asserts it) and the
+// creation-side profile stamp (combo_mm_options_view.h declares
+// MM_Rando_ComputeProfileStamp, defined in Foreign.cpp).
+#include "combo_mm_options_view.h"
+#include "save.h"
 
 extern "C" {
 #include "z64save.h"
@@ -888,6 +895,11 @@ extern "C" int MM_Rando_HeadlessPairSwitchEntry(void) {
         gComboCtx.sourceIsRando = 1;
         gComboCtx.sharedRandoSeed = masterSeed;
         gComboCtx.sharedRandoSettingsHash = 0x5DAD32CEu;
+        // Each iteration models a fresh LEGACY (pre-freeze) pair: no creation
+        // stamp, so the arrival identity gate (#498/#564) takes the
+        // freeze-at-first-crossing path rather than comparing against a stale
+        // digest a previous iteration froze.
+        gComboCtx.mmProfileDigest = 0;
 
         // The cold gamestate-chain boot a switch performs: ConsoleLogo skips
         // to TitleSetup, TitleSetup authors a VANILLA bootstrap file with
@@ -1108,13 +1120,144 @@ extern "C" int MM_Rando_HeadlessPairSwitchEntry(void) {
     }
     fprintf(stderr, "[MM-PAIR-SWITCH] existing vanilla save left untouched (skip path)\n");
 
+    // ----------------------------------------------------------------------
+    // Phase 4 — the arrival identity gate (#498 decision 1 per #564, phase 2
+    // step 9): a creation-stamped pair whose inputs diverged by arrival is
+    // REFUSED — no world generated, stamp never self-healed, the active slot
+    // latched and surfaced REFUSED through the #533 machinery — while a
+    // matching arrival still generates.
+    //
+    // THE COUNTERFACTUALS THIS LOCKS — TWO LAYERS, each independently red
+    // (both measured, 2026-07-31, not asserted):
+    //
+    //  - Revert the digest compare in MM_Rando_PairOnCrossGameArrival ALONE
+    //    and FAIL(24)/FAIL(26) go red, NOT FAIL(22): the arrival dispatches
+    //    generation, ResolvePairedProfile's backstop throws, and OnFileCreate's
+    //    catch reverts to vanilla — so no divergent world is authored, but the
+    //    refusal degrades into #564 V7's silent vanilla revert. No REFUSED
+    //    state, no reason, no write latch: the healthy pair's .redsave is left
+    //    open to this session's captures. That is what the arrival gate buys
+    //    over the backstop, and it is what these assertions measure.
+    //  - Revert BOTH compares (arrival gate + ResolvePairedProfile) and
+    //    FAIL(22) goes red: the divergent leg GENERATES a world under the
+    //    mid-session-edited CVars — a post-creation edit silently changing the
+    //    paired world, exactly what the one-game ruling forbids.
+    // ----------------------------------------------------------------------
+    const char* const kPhase4SaveDir = "rsbs_test_pairswitch_saves";
+    rsbs::SaveManager::Instance().SetSaveDirectory(kPhase4SaveDir);
+    RsbsSave_ResetSlotSessionState();
+    RsbsSave_ArmSlotOnCreate(0); // the create seam: slot 0 is this session's
+    RsbsSave_SetActiveSlot(0);
+    if (!RsbsSave_IsSlotWritable(0)) {
+        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(30): phase 4 could not arm its slot fixture\n");
+        return 30;
+    }
+
+    // 4a. The refuse leg. A fresh pair "created" under the CVars in force
+    // since Phase 1: the stamp is computed exactly as Playthrough_Init
+    // computes it (same MM_Rando_ComputeProfileStamp call).
+    Combo_ClearFrozenState("mm");
+    Combo_ClearStartupEntrance();
+    Combo_ClearForeignPlacements();
+    gComboCtx.sourceIsRando = 1;
+    gComboCtx.sharedRandoSeed = usedMasterSeed;
+    gComboCtx.sharedRandoSettingsHash = 0x5DAD32CEu;
+    gComboCtx.mmProfileDigest = MM_Rando_ComputeProfileStamp();
+    const uint32_t phase4Stamp = gComboCtx.mmProfileDigest;
+    if (phase4Stamp == 0) {
+        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(31): creation stamp computed as zero\n");
+        return 31;
+    }
+
+    // The mid-session divergence: an option edit AFTER creation.
+    CVarSetInteger(Rando::StaticData::Options[RO_SHUFFLE_COWS].cvar, RO_GENERIC_ON);
+
+    memset(&gSaveContext, 0, sizeof(gSaveContext));
+    MM_Sram_InitNewSave();
+    GameInteractor_ExecuteOnSaveLoad(gSaveContext.fileNum);
+    Combo_SetStartupEntrance(kArrival);
+    MM_Play_ConsumeStartupEntrance();
+
+    if (gSaveContext.save.shipSaveInfo.saveType == SAVETYPE_RANDO) {
+        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(22): a DIVERGENT arrival generated a world — a mid-session option "
+                        "edit changed the paired world instead of being refused (#498/#564)\n");
+        return 22;
+    }
+    if (gComboCtx.mmProfileDigest != phase4Stamp) {
+        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(23): the refusal self-healed the creation stamp (%08X -> %08X)\n",
+                phase4Stamp, gComboCtx.mmProfileDigest);
+        return 23;
+    }
+    if (RsbsSave_GetSlotState(0) != (int)RSBS_SLOT_REFUSED) {
+        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(24): the refused arrival did not surface REFUSED on the active slot "
+                        "(state=%d)\n",
+                RsbsSave_GetSlotState(0));
+        return 24;
+    }
+    if (RsbsSave_GetSlotRefuseReason(0) != (int)RSBS_REFUSE_IDENTITY) {
+        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(25): refusal reason is %d, expected RSBS_REFUSE_IDENTITY\n",
+                RsbsSave_GetSlotRefuseReason(0));
+        return 25;
+    }
+    if (RsbsSave_IsSlotWritable(0)) {
+        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(26): the refused arrival left the slot writable — the divergent "
+                        "session could capture its unpaired world into the pair's .redsave\n");
+        return 26;
+    }
+    fprintf(stderr, "[MM-PAIR-SWITCH] divergent arrival refused: no world, stamp intact, slot latched + surfaced\n");
+
+    // 4b. The match leg: same pair, divergence undone — the gate must not
+    // refuse a faithful arrival. (Same master seed and CVars as Phase 1, so
+    // the fill is known to succeed.)
+    CVarClear(Rando::StaticData::Options[RO_SHUFFLE_COWS].cvar);
+    RsbsSave_ResetSlotSessionState();
+    RsbsSave_ArmSlotOnCreate(0);
+    RsbsSave_SetActiveSlot(0);
+    Combo_ClearFrozenState("mm");
+    Combo_ClearStartupEntrance();
+    Combo_ClearForeignPlacements();
+    gComboCtx.mmProfileDigest = MM_Rando_ComputeProfileStamp();
+    if (gComboCtx.mmProfileDigest != phase4Stamp) {
+        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(27): undoing the divergence did not restore the creation profile "
+                        "(%08X vs %08X) — the identity computation is unstable\n",
+                gComboCtx.mmProfileDigest, phase4Stamp);
+        return 27;
+    }
+
+    memset(&gSaveContext, 0, sizeof(gSaveContext));
+    MM_Sram_InitNewSave();
+    GameInteractor_ExecuteOnSaveLoad(gSaveContext.fileNum);
+    Combo_SetStartupEntrance(kArrival);
+    MM_Play_ConsumeStartupEntrance();
+
+    if (gSaveContext.save.shipSaveInfo.saveType != SAVETYPE_RANDO) {
+        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(28): a MATCHING arrival was refused or dead-ended — the identity "
+                        "gate must pass a faithful arrival through to generation\n");
+        return 28;
+    }
+    if (!RsbsSave_IsSlotWritable(0)) {
+        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(29): a matching arrival latched the slot anyway\n");
+        return 29;
+    }
+    fprintf(stderr, "[MM-PAIR-SWITCH] matching arrival generated normally under the frozen profile\n");
+
     // Leave clean global state for later dispatches in the same process.
+    RsbsSave_DeleteSave(0);
+    RsbsSave_ResetSlotSessionState();
+    RsbsSave_SetActiveSlot(-1);
+    rsbs::SaveManager::Instance().SetSaveDirectory("Save"); // the documented harness default
+    {
+        std::error_code phase4Ec;
+        std::filesystem::remove_all(kPhase4SaveDir, phase4Ec);
+    }
     Combo_ClearFrozenState("mm");
     Combo_ClearStartupEntrance();
     Combo_ClearForeignPlacements();
     memset(&gSaveContext, 0, sizeof(gSaveContext));
+    ComboContext_Init();
 
-    fprintf(stderr, "[MM-PAIR-SWITCH] PASS: pairing activates on the switch-entry path, existing saves untouched\n");
+    fprintf(stderr, "[MM-PAIR-SWITCH] PASS: pairing activates on the switch-entry path, existing saves untouched, "
+                    "and a divergent arrival refuses through the #533 surface\n");
     return 0;
 }
 

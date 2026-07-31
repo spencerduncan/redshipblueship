@@ -572,16 +572,32 @@ typedef struct {
     // different MM halves — with nothing able to detect it. This field is the
     // missing term: the paired world's identity now covers both halves.
     //
-    // Computed by Rando::Foreign::ResolvePairedProfile() from the SAME string
-    // MixPairedFinalSeed() hashes, so "changing an MM option changes the derived
-    // MM world" and "changing an MM option changes the recorded identity" cannot
-    // drift apart — they are one input.
+    // WRITER AND MEANING (#498/#564 phase 2): stamped by the CREATION event —
+    // Playthrough_Init resolves the MM profile from the option CVars through
+    // MM_Rando_ComputeProfileStamp at the same moment it stamps
+    // sharedRandoSeed/sharedRandoSettingsHash — and carried through file-create
+    // invalidation by the KEEP policy. The digest is WIDER than the option
+    // table alone: it also folds gRando.ExcludedChecks, the StartingItems
+    // config block, and the RESOLVED RO_LOGIC value (#564 V4), because those
+    // shape the generated world just as the 47 options do. Every MM arrival
+    // that would generate re-resolves the same identity and COMPARES: mismatch
+    // refuses the pairing through the #533 REFUSED machinery — divergence is
+    // corruption to refuse, never a choice to honor. Rando::Foreign owns both
+    // computations (one shared string builder), so "changing an input changes
+    // the derived MM world" and "changing an input changes the recorded
+    // identity" cannot drift apart.
     //
-    // Zero == unset (no paired profile has been resolved), the growth contract's
-    // required meaning: a non-rando or zero-extended legacy record reads 0.
-    // Carved from the FRONT of the old reserved[216] under that contract, so
-    // every field above keeps its shipped offset and the record size is
-    // unchanged.
+    // Zero == "identity not frozen" (#564 V8's loud reinterpretation: it no
+    // longer reads as the benign "MM hasn't generated yet"). Nonzero is the
+    // frozen-state predicate the options pane and the two src/common option
+    // writers gate on (Combo_MMProfileFrozen). A LEGACY pre-freeze pair reads
+    // 0 until its first crossing, where ResolvePairedProfile stamps it — the
+    // one transitional writer besides creation.
+    //
+    // Zero is also the growth contract's required meaning: a non-rando or
+    // zero-extended legacy record reads 0. Carved from the FRONT of the old
+    // reserved[216] under that contract, so every field above keeps its
+    // shipped offset and the record size is unchanged.
     uint32_t mmProfileDigest;
 
     // #525: the shared cross-game RESOURCES — one quantity spanning both games,

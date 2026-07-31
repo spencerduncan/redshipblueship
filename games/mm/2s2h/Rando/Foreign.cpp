@@ -47,6 +47,7 @@
 
 #include <cstddef>
 #include <cstdio>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -76,6 +77,11 @@ static std::string MMOptionsString() {
     // The persisted options ARE the finalized MM settings profile — the loop
     // below must run after OnFileCreate copied them into the save. std::map
     // iteration gives a stable option order.
+    //
+    // SEED-DERIVATION INPUT ONLY, deliberately unchanged by the #498/#564
+    // identity widening: MixPairedFinalSeed() hashes this exact string, so
+    // touching it would re-derive every shipped pair's MM world. The widened
+    // IDENTITY string lives in ProfileIdentityString below.
     std::string s;
     for (auto& [randoOptionId, randoStaticOption] : Rando::StaticData::Options) {
         s += std::to_string(RANDO_SAVE_OPTIONS[randoOptionId]);
@@ -84,69 +90,180 @@ static std::string MMOptionsString() {
     return s;
 }
 
-uint32_t ResolvePairedProfile(bool paired) {
+// ---------------------------------------------------------------------------
+// The profile freeze (#498 decision 1 per #564, phase 2 step 9).
+//
+// ONE resolution, ONE identity string, TWO call sites. The creation event
+// (OoT's Playthrough_Init, via MM_Rando_ComputeProfileStamp at the bottom of
+// this file) resolves the profile from the CVars and stamps its digest into
+// gComboCtx.mmProfileDigest; every later arrival that would generate resolves
+// the SAME way and compares. Both sites go through ResolveProfileValues +
+// ProfileIdentityString, so "what creation froze" and "what arrival checks"
+// cannot drift apart — they are one computation.
+// ---------------------------------------------------------------------------
+
+/** Resolve the full option profile from the CVars into `values` (RO_MAX
+ *  entries), with no side effects: the generic copy, the skulltula
+ *  correction, and — paired only — the RO_LOGIC default pin. This is the
+ *  resolution OnFileCreate has always performed; extracting it is what lets
+ *  the creation event run it without an MM save to write into. */
+static void ResolveProfileValues(uint32_t* values, bool paired) {
     // (1) The generic copy: every registered option's CVar, with the
-    // StaticData row's default as the fallback. Unchanged from the loop this
-    // was extracted from — it is what makes the pane's CVars the profile.
+    // StaticData row's default as the fallback — what makes the pane's CVars
+    // the (pre-creation) authoring surface.
     for (auto& [randoOptionId, randoStaticOption] : Rando::StaticData::Options) {
-        RANDO_SAVE_OPTIONS[randoOptionId] =
-            (uint32_t)CVarGetInteger(randoStaticOption.cvar, randoStaticOption.defaultValue);
+        values[randoOptionId] = (uint32_t)CVarGetInteger(randoStaticOption.cvar, randoStaticOption.defaultValue);
     }
 
     // (2) Derived correction: with skulltulas unshuffled the token requirement
     // is the vanilla one, whatever the slider says. Runs for solo and paired
     // files alike, as it always has.
-    if (!RANDO_SAVE_OPTIONS[RO_SHUFFLE_GOLD_SKULLTULAS]) {
-        RANDO_SAVE_OPTIONS[RO_MINIMUM_SKULLTULA_TOKENS] = SPIDER_HOUSE_TOKENS_REQUIRED;
+    if (!values[RO_SHUFFLE_GOLD_SKULLTULAS]) {
+        values[RO_MINIMUM_SKULLTULA_TOKENS] = SPIDER_HOUSE_TOKENS_REQUIRED;
+    }
+
+    if (!paired) {
+        return;
+    }
+
+    // (3) The logic pin (#426 rationale), a DEFAULT rather than a law (#499
+    // step 3): the MVP pairs under Nearly No Logic unless the player made an
+    // explicit choice. EXISTENCE, not "is the value already extreme" — only
+    // existence distinguishes "the player chose Glitchless" from "nobody ever
+    // touched the key and the default is Glitchless". Because the pin runs
+    // inside the shared resolution, the RESOLVED value is what both the
+    // creation stamp and the arrival compare see (#564 V3): nothing after
+    // creation depends on CVar existence except through this one resolution,
+    // and a mid-gap flip of the key is a detected divergence, not a silently
+    // honored choice.
+    if (!Combo_CVarIsExplicitInt(Rando::StaticData::Options[RO_LOGIC].cvar)) {
+        SPDLOG_INFO("Paired profile resolution: no explicit MM logic choice; defaulting to Nearly No Logic (#426)");
+        values[RO_LOGIC] = RO_LOGIC_NEARLY_NO_LOGIC;
+    } else {
+        SPDLOG_INFO("Paired profile resolution: honouring explicit MM logic choice ({})", (unsigned)values[RO_LOGIC]);
+    }
+}
+
+/** The canonical identity string the profile digest hashes (#564 V4's widened
+ *  term). Wider than MMOptionsString on purpose: gRando.ExcludedChecks and the
+ *  StartingItems config block shape the generated world exactly as the 47
+ *  options do (Logic/GeneratePools.cpp:32, StartingItems.cpp:135), so a digest
+ *  that omits them is a vacuous guard — same seed + same digest could still
+ *  yield different MM worlds. OoT's own settings hash is the precedent: it
+ *  folds excludes and tricks. */
+static std::string ProfileIdentityString(const uint32_t* values) {
+    std::string s;
+    for (auto& [randoOptionId, randoStaticOption] : Rando::StaticData::Options) {
+        s += std::to_string(values[randoOptionId]);
+        s += ';';
+    }
+    // The excluded-check list, folded as the raw CVar string GeneratePools
+    // consumes. Raw rather than parse-normalized on purpose: the only writer
+    // is UI code emitting a canonical "id,id,..." form, and a string that
+    // changed in ANY way between creation and arrival means something wrote
+    // the identity input mid-pair — which is precisely what the digest exists
+    // to catch.
+    s += "|excluded:";
+    s += CVarGetString("gRando.ExcludedChecks", "");
+    // The StartingItems config block, folded as the resolved item-id list —
+    // the SAME accessor generation consumes (unknown names dropped both
+    // places, defaults on an absent config/context both places), so the
+    // identity term and the generation input are one computation.
+    s += "|starting:";
+    for (RandoItemId randoItemId : Rando::GetStartingItemsFromConfig()) {
+        s += std::to_string((int)randoItemId);
+        s += ',';
+    }
+    // ------------------------------------------------------------------------
+    // WHAT IS DELIBERATELY *NOT* FOLDED, and why. #564 V4 asks for each
+    // remaining CVar family to be CLASSIFIED world-identity vs runtime flavour
+    // rather than "left as an accident" — an unclassified key defaults to
+    // identity (ADR 0004 §6 scope note), so silence here is not neutral.
+    //
+    //  - `gRando.Traps.*` (Traps.cpp's trapToCvarMap: Freeze/Blast/Shock/Jinx/
+    //    Wallet/Enemy/Time) are RUNTIME FLAVOUR, not world identity. Their sole
+    //    consumer is RollTrapType(), called from actor behaviour when a trap is
+    //    collected (ActorBehavior/EnGirlA.cpp:73, Traps.cpp:133) — it draws
+    //    from the LIVE Ship_Random stream at pickup time and never runs inside
+    //    a fill. The trap knobs that DO shape the world (RO_SHUFFLE_TRAPS,
+    //    RO_TRAP_AMOUNT, read by GeneratePools.cpp:281) are ordinary option
+    //    rows and are already folded by the loop above. Flipping which trap
+    //    flavour fires changes no placement, so folding these would refuse
+    //    arrivals over a cosmetic preference.
+    //  - `gRando.SpoilerFile` / `gRando.SpoilerFileIndex` / `gRando.InputSeed`
+    //    are NOT identity and folding them would be actively harmful: the
+    //    paired path ignores all three by construction (OnFileCreate.cpp:83
+    //    forces generation over any stale spoiler index when rsbsPaired, and
+    //    :101 replaces the input seed with PairedInputSeedString), and
+    //    OnFileCreate.cpp:289 WRITES gRando.SpoilerFile after every successful
+    //    generation — so a pair that folded it would diverge its own identity
+    //    the instant it generated.
+    // ------------------------------------------------------------------------
+    return s;
+}
+
+/** Hash the identity string, displacing 0: zero is the growth contract's
+ *  "unset" for every field carved from reserved[] (context.h) — and now also
+ *  the frozen-state predicate's "not frozen" — so a real profile hashing to 0
+ *  would read as "no identity recorded", a mismatch that silently cannot be
+ *  detected. The collision this introduces is with one other profile out of
+ *  2^32, against a certainty of a false negative. */
+static uint32_t DigestFromIdentity(const std::string& identity) {
+    uint32_t digest = Ship_Hash(identity);
+    if (digest == 0) {
+        digest = 0x4D4D5044u; // 'MMPD'
+    }
+    return digest;
+}
+
+uint32_t ResolvePairedProfile(bool paired) {
+    std::vector<uint32_t> values(RO_MAX, 0);
+    ResolveProfileValues(values.data(), paired);
+    for (auto& [randoOptionId, randoStaticOption] : Rando::StaticData::Options) {
+        RANDO_SAVE_OPTIONS[randoOptionId] = values[randoOptionId];
     }
 
     if (!paired) {
         // A solo MM rando file has no cross-game identity to publish, and must
         // not stamp one: gComboCtx.mmProfileDigest is read as "the paired
-        // world was generated under this profile", and writing it here would
-        // make an unpaired file claim a pairing it does not have.
+        // world's frozen profile", and writing it here would make an unpaired
+        // file claim a pairing it does not have.
         return 0;
     }
 
-    // (3) The logic pin (#426 rationale), now a DEFAULT rather than a law
-    // (#499 step 3). The pin exists because the MVP pairs under Nearly No
-    // Logic — free-form placement, with the spoiler carrying what logic would
-    // otherwise carry. That is the right default and the wrong law: once the
-    // options pane can express a choice, overriding an explicit one would make
-    // the control a lie in exactly ADR 0004 section 5's sense (it flips a CVar
-    // and changes nothing).
-    //
-    // EXISTENCE, not "is the value already extreme". The old condition could
-    // not tell "the player chose Glitchless" from "nobody has ever touched
-    // this key and the StaticData default is Glitchless", so it pinned both.
-    // Existence is the only signal that distinguishes them. (Combo_ prefixed
-    // rather than libultraship's CVarExists, which is declared but undefined in
-    // the pinned submodule — see combo_mm_options_view.h.)
-    if (!Combo_CVarIsExplicitInt(Rando::StaticData::Options[RO_LOGIC].cvar)) {
-        SPDLOG_INFO("Paired-world generation: no explicit MM logic choice; defaulting to Nearly No Logic (#426)");
-        RANDO_SAVE_OPTIONS[RO_LOGIC] = RO_LOGIC_NEARLY_NO_LOGIC;
-    } else {
-        SPDLOG_INFO("Paired-world generation: honouring explicit MM logic choice ({})",
-                    (unsigned)RANDO_SAVE_OPTIONS[RO_LOGIC]);
+    // Compare-or-stamp against the creation identity (#498/#564 phase 2).
+    // Seed-INDEPENDENT on purpose: this answers "was this world generated
+    // under the frozen MM rules", a question about the rules alone;
+    // MixPairedFinalSeed() folds the master seed separately for the different
+    // question of "which world does this seed derive".
+    const uint32_t digest = DigestFromIdentity(ProfileIdentityString(values.data()));
+    if (gComboCtx.mmProfileDigest != 0 && gComboCtx.mmProfileDigest != digest) {
+        // NEVER self-heal (overwrite the stamp with the divergent profile) and
+        // NEVER generate under it. Throwing lands in OnFileCreate's catch,
+        // which reverts the save to vanilla — no divergent world is authored.
+        // The player-visible surface for the natural path lives EARLIER, in
+        // MM_Rando_PairOnCrossGameArrival, which runs this same computation
+        // and refuses before dispatching generation at all; this throw is the
+        // class-level backstop for every other route into OnFileCreate (MM
+        // file-select escapes, dev tools).
+        char msg[160];
+        snprintf(msg, sizeof(msg),
+                 "paired profile identity mismatch: creation stamped %08X, this resolution yields %08X "
+                 "(options/excludes/starting items changed after creation)",
+                 (unsigned)gComboCtx.mmProfileDigest, (unsigned)digest);
+        SPDLOG_ERROR("{}", msg);
+        throw std::runtime_error(msg);
     }
-
-    // (4) Publish the profile's identity. Seed-INDEPENDENT on purpose: this
-    // answers "were both halves generated under the same MM rules", which is a
-    // question about the rules alone. MixPairedFinalSeed() folds the master
-    // seed into the same option string for the different question of "which
-    // world does this seed derive"; sharing MMOptionsString() between them is
-    // what stops the two from drifting apart.
-    uint32_t digest = Ship_Hash(MMOptionsString());
-    if (digest == 0) {
-        // Zero is the growth contract's "unset" for every field carved from
-        // reserved[] (context.h), so a real profile that happened to hash to 0
-        // would read as "no profile recorded" — a mismatch that silently
-        // cannot be detected. Displace it to a fixed non-zero constant; the
-        // collision this introduces is with one other profile out of 2^32,
-        // against a certainty of a false negative.
-        digest = 0x4D4D5044u; // 'MMPD'
+    if (gComboCtx.mmProfileDigest == 0) {
+        // LEGACY pre-freeze pair (created before the creation event stamped
+        // identities): the first crossing is where its profile freezes. The
+        // one transitional writer besides the creation event.
+        fprintf(stderr,
+                "[MM] profile: no creation-time stamp (pre-freeze pair); freezing profile at this "
+                "generation (digest %08X)\n",
+                (unsigned)digest);
+        gComboCtx.mmProfileDigest = digest;
     }
-    gComboCtx.mmProfileDigest = digest;
     return digest;
 }
 
@@ -385,6 +502,25 @@ bool RecordForeignPickup(RandoCheckId randoCheckId) {
 
 } // namespace Foreign
 } // namespace Rando
+
+// ============================================================================
+// Creation-stamp bridge (#498/#564 phase 2 step 9; declared in
+// src/common/combo_mm_options_view.h).
+//
+// The ONE freeze/compare computation, callable from outside MM: resolves the
+// full profile identity from the CVars — through the SAME ResolveProfileValues
+// + ProfileIdentityString the arrival's ResolvePairedProfile uses — and
+// returns its digest, with no side effects on any save, CVar, or gComboCtx.
+// OoT's Playthrough_Init assigns the result to gComboCtx.mmProfileDigest as
+// part of publishing the pairing identity (the creation event); MM's arrival
+// gate (MM_Rando_PairOnCrossGameArrival) recomputes it to compare against
+// that stamp before any generation dispatch.
+// ============================================================================
+extern "C" uint32_t MM_Rando_ComputeProfileStamp(void) {
+    std::vector<uint32_t> values(RO_MAX, 0);
+    Rando::Foreign::ResolveProfileValues(values.data(), /*paired=*/true);
+    return Rando::Foreign::DigestFromIdentity(Rando::Foreign::ProfileIdentityString(values.data()));
+}
 
 // ============================================================================
 // ROM-free test bridge (redship tier; src/common/tests/test_foreign_items.c).

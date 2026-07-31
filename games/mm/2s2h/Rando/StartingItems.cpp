@@ -133,8 +133,18 @@ void SetStartingItemsInSave(RandoSaveInfo& randoSaveInfo, std::vector<RandoItemI
 }
 
 std::vector<RandoItemId> GetStartingItemsFromConfig() {
-    auto allConfig = Ship::Context::GetInstance()->GetConfig()->GetNestedJson();
     std::vector<RandoItemId> startingItems = { RI_PROGRESSIVE_SWORD, RI_SHIELD_HERO, RI_OCARINA, RI_SONG_TIME };
+
+    // Null-guarded for the display-free harness (#498/#564): the profile
+    // identity folds this list (Foreign.cpp's ProfileIdentityString), and the
+    // ROM-free tier runs without a Ship::Context. An absent context yields the
+    // same defaults an absent config block does, so the identity term is one
+    // computation with one default in one place.
+    auto shipContext = Ship::Context::GetInstance();
+    if (shipContext == nullptr || shipContext->GetConfig() == nullptr) {
+        return startingItems;
+    }
+    auto allConfig = shipContext->GetConfig()->GetNestedJson();
 
     // Verify that the config has CVars.gRando.StartingItems and its an array
     if (allConfig.find("CVars") != allConfig.end() && allConfig["CVars"].is_object() &&

@@ -21,23 +21,27 @@
  *     by src/common and registered on the shared Ship::Context Gui. This pane
  *     reads `gComboCtx` and CVars — never either game's `gSaveContext` — so it
  *     satisfies ADR 0008 rule 5 and needs no active-game gating to be SAFE.
- *  2. The paired profile is snapshotted when MM's cross-game arrival dispatches
- *     `OnSaveInit`, and an existing MM save is never regenerated. The chooser
- *     therefore has to be reachable **while OoT is active, before the switch**
- *     (#499's timing constraint). A common-owned window is reachable in every
- *     session state; that is the property being bought.
+ *  2. The paired profile freezes into the world's identity at the CREATION
+ *     event (#498/#564: Playthrough_Init stamps gComboCtx.mmProfileDigest),
+ *     and an arrival that no longer matches the stamp is refused. The chooser
+ *     therefore has to be reachable **while OoT is active, before creation**.
+ *     A common-owned window is reachable in every session state; that is the
+ *     property being bought.
  *
- * THREE PRESENTATION STATES, per ADR 0004 section 6 — and they are three, not
- * two:
+ * FOUR PRESENTATION STATES, per ADR 0004 section 6 as amended by #564 V25:
  *
  *  - LIVE: the option's behaviour is dispatched. Editable, unmarked.
- *  - EDITABLE BUT NOT ACTIVE: MM is not the running game. Still fully editable
- *    (that is the whole point — you set these before you cross), but the pane
- *    says so, because "editable" and "in effect right now" are different facts.
+ *  - EDITABLE BUT NOT ACTIVE: MM is not the running game. Still editable while
+ *    the profile is unfrozen, but the pane says so, because "editable" and "in
+ *    effect right now" are different facts.
  *  - DISABLED BY CAPABILITY: the behaviour has no MM dispatch point (#438), so
  *    the row is drawn disabled WITH ITS REASON. A control that flips a CVar and
  *    changes nothing is the vacuous gate in UI form; collapsing this into
  *    "editable" would produce exactly that.
+ *  - FROZEN AT CREATION (#498/#564): a creation event stamped the profile into
+ *    the paired world's identity (Combo_MMProfileFrozen). Every row read-only,
+ *    with the reason stated pane-wide; the underlying writers reject on their
+ *    own, so the greying is honest rather than the gate.
  *
  * Openability: `Ship::GuiWindow` latches its visibility CVar in the ctor and
  * nothing re-syncs CVar -> visibility per frame, so `Draw()` reads the CVar live

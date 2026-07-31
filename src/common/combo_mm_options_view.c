@@ -114,6 +114,16 @@ void Combo_MMOptionSetValue(const ComboMMOptionDesc* desc, int32_t value) {
     if (desc == NULL) {
         return;
     }
+    // #498/#564: post-creation the profile is world identity, not a setting.
+    // Rejecting here (rather than only greying the pane) is the actual gate —
+    // the pane is one caller, but any future caller of the writer inherits it.
+    if (Combo_MMProfileFrozen()) {
+        fprintf(stderr,
+                "[MMOptions] write to '%s' REJECTED: the MM profile is frozen into the paired world's "
+                "creation identity (digest %08X)\n",
+                desc->cvar, (unsigned)gComboCtx.mmProfileDigest);
+        return;
+    }
     int32_t lo = 0;
     int32_t hi = 0;
     OptionRange(desc, &lo, &hi);
@@ -149,7 +159,23 @@ void Combo_MMOptionClear(const ComboMMOptionDesc* desc) {
     if (desc == NULL) {
         return;
     }
+    // Clearing is a write too (see the header): it changes the resolved value
+    // and the logic pin's explicitness, both folded into the frozen identity.
+    if (Combo_MMProfileFrozen()) {
+        fprintf(stderr,
+                "[MMOptions] clear of '%s' REJECTED: the MM profile is frozen into the paired world's "
+                "creation identity (digest %08X)\n",
+                desc->cvar, (unsigned)gComboCtx.mmProfileDigest);
+        return;
+    }
     CVarClear(desc->cvar);
+}
+
+bool Combo_MMProfileFrozen(void) {
+    // The creation-stamped digest IS the predicate (#564 V5): a src/common
+    // fact, never a gSaveContext read — ADR 0008 rule 5 and this pane's own
+    // game-agnosticism tripwire both forbid the latter.
+    return gComboCtx.mmProfileDigest != 0;
 }
 
 void Combo_MMProfileSummary(ComboMMProfileSummary* out) {

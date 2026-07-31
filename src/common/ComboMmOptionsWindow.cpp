@@ -36,18 +36,21 @@ namespace {
  * It is not replaced by a "now fixed" notice: the pane states current hazards,
  * and a resolved one is simply absent.
  */
-void DrawStandingWarnings() {
+void DrawStandingWarnings(bool frozen) {
     const ImVec4 warn(0.98f, 0.76f, 0.24f, 1.0f);
 
-    // (1) The timing constraint (#499). The profile is snapshotted when MM's
-    // cross-game arrival dispatches OnSaveInit, and an existing MM save is
-    // never regenerated. Changing an option after crossing does nothing at
-    // all, which is exactly the kind of silent no-op this pane exists to stop
-    // being possible.
-    ImGui::TextColored(warn, "These apply to the NEXT Majora's Mask file.");
-    ImGui::TextWrapped("The paired MM world snapshots these options the first time you cross into Majora's Mask. An "
-                       "MM save that already exists is never regenerated, so set them before you cross.");
-    ImGui::Spacing();
+    if (!frozen) {
+        // (1) The timing contract (#498/#564): the profile freezes into the
+        // paired world's identity at the CREATION event, and after that a
+        // divergent arrival is refused, never honored. The old copy here —
+        // "set them before you cross" — taught the retired renegotiation
+        // window and went with it (#564 V5).
+        ImGui::TextColored(warn, "These freeze into the paired world's identity.");
+        ImGui::TextWrapped("Generating a randomized Ocarina of Time world stamps these options into the pair's "
+                           "identity. From that point they are locked: the Majora's Mask half is generated under "
+                           "exactly this profile, and a crossing whose options no longer match is refused.");
+        ImGui::Spacing();
+    }
 
     // (2) The silent-vanilla-revert hazard. A paired generation that throws
     // reverts the save to vanilla with no retry and no error surface; the
@@ -78,12 +81,40 @@ void DrawPairingSummary() {
     ImGui::Text("Paired seed: %u", (unsigned)summary.sharedRandoSeed);
     ImGui::Text("OoT settings digest: %08X", (unsigned)summary.sharedRandoSettingsHash);
     if (summary.mmProfileDigest == 0) {
-        // Zero is "unset", not "broken": the MM half has not been generated
-        // yet, which is the normal state for a player still in OoT.
-        ImGui::TextUnformatted("MM profile digest: not resolved yet (no MM file generated)");
+        // Zero means "identity not frozen" (#564 V8) — for a post-freeze pair
+        // this state is unreachable (creation stamps it), so a paired world
+        // showing it is a LEGACY pre-freeze pair whose profile freezes at its
+        // first crossing.
+        ImGui::TextUnformatted("MM profile: not frozen (pre-freeze pair; freezes at the first crossing)");
     } else {
-        ImGui::Text("MM profile digest: %08X", (unsigned)summary.mmProfileDigest);
+        ImGui::Text("MM profile digest: %08X (frozen at creation)", (unsigned)summary.mmProfileDigest);
     }
+    ImGui::Separator();
+}
+
+/**
+ * The FOURTH presentation state (ADR 0004 §6 as amended by #564 V25):
+ * frozen-at-creation, read-only, with the reason stated where the rows are.
+ * Distinct from "live", from "editable but suspended", and from "disabled by
+ * capability" — collapsing it into any of those would misdescribe it.
+ *
+ * The copy names the ACTUAL escape, which is not obvious and is not "create a
+ * new paired world": the stamp lands at GENERATION (Playthrough_Init), so a
+ * player who generates a seed and only then wants different MM options is
+ * frozen with no file in existence yet, and re-generating re-stamps the same
+ * frozen profile. The only unfreezing events are the DROP paths in
+ * Context_InvalidateSessionState — returning to the title screen (the reset
+ * route through TitleSetup), starting a vanilla file, or loading a slot whose
+ * .redsave is unfrozen. Telling the player to "create a new paired world"
+ * without naming the title screen is advice they cannot act on, which is ADR
+ * 0004 §5's vacuous gate wearing a help string.
+ */
+void DrawFrozenBanner() {
+    ImGui::TextColored(ImVec4(0.55f, 0.78f, 0.98f, 1.0f), "Frozen at creation");
+    ImGui::TextWrapped("This paired world's Majora's Mask profile was stamped into its identity when the world was "
+                       "generated. The options below show the authoring surface read-only; changing them is no "
+                       "longer possible for this pair. To play different MM options, return to the title screen — "
+                       "these unlock there — then set them and generate a new seed.");
     ImGui::Separator();
 }
 
@@ -218,9 +249,16 @@ void ComboMmOptionsWindow::DrawElement() {
         return;
     }
 
+    // Read once per frame so every widget below agrees with the banner: the
+    // writers reject on their own (the pane is not the gate, just its face).
+    const bool frozen = Combo_MMProfileFrozen();
+
     DrawPairingSummary();
     DrawActiveGameState();
-    DrawStandingWarnings();
+    if (frozen) {
+        DrawFrozenBanner();
+    }
+    DrawStandingWarnings(frozen);
 
     // Grouped in MM's own taxonomy rather than in id order: id order is the
     // enum's, which interleaves access conditions with hints with shuffles.
@@ -242,6 +280,13 @@ void ComboMmOptionsWindow::DrawElement() {
             continue;
         }
         ImGui::PushID((int)group);
+        // Frozen wraps the whole group body: the rows stay visible (the frozen
+        // profile is worth READING) but every widget is inert. The reason is
+        // stated once, legibly, by DrawFrozenBanner above — ADR 0004 §5's
+        // "disabled with a visible cause", pane-wide because the cause is.
+        if (frozen) {
+            ImGui::BeginDisabled();
+        }
         for (int i = 0; i < count; i++) {
             const ComboMMOptionDesc* desc = Combo_MMOptionAt(i);
             if (desc == NULL || desc->group != group) {
@@ -251,11 +296,23 @@ void ComboMmOptionsWindow::DrawElement() {
             DrawOptionRow(desc);
             ImGui::PopID();
         }
+        if (frozen) {
+            ImGui::EndDisabled();
+        }
         ImGui::PopID();
     }
 
     ImGui::Separator();
-    if (ImGui::Button("Reset all to defaults")) {
+    if (frozen) {
+        // The Reset button is a 47-write batch; drawing it live under a frozen
+        // profile would be a control that (correctly) does nothing — ADR 0004
+        // §5's vacuous gate. Disabled, with its cause inline.
+        ImGui::BeginDisabled();
+        ImGui::Button("Reset all to defaults");
+        ImGui::EndDisabled();
+        ImGui::SameLine();
+        ImGui::TextDisabled("- profile frozen at creation");
+    } else if (ImGui::Button("Reset all to defaults")) {
         // Clears the CVars rather than writing the defaults back. The two are
         // NOT the same: ResolvePairedProfile distinguishes "the player chose
         // this" from "nobody ever touched it" via CVarExists, and writing a

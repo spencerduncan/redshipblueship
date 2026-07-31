@@ -22,10 +22,10 @@
  * WHY NOT A SohMenu PANE. ADR 0008 settled the seam for panels that belong to
  * neither game: they are owned by src/common and registered on the shared
  * Ship::Context Gui. This pane must be reachable **while OoT is active, before
- * the switch**, because the paired profile is snapshotted when MM's arrival
- * dispatches OnSaveInit and an existing MM save is never regenerated (#499's
- * timing constraint). A pane hung off MM's boot would only exist after the point
- * at which it can still change anything.
+ * the paired world is created**, because the profile freezes into the world's
+ * identity at the creation event (#498/#564) and a divergent arrival is
+ * refused. A pane hung off MM's boot would only exist after the point at which
+ * it can still change anything.
  *
  * CAPABILITY GATING IS PART OF THE MODEL, NOT THE WIDGET (ADR 0004 section 5).
  * Every descriptor carries a liveness class and, when it is not live, a reason
@@ -35,10 +35,17 @@
  * and changes nothing is the vacuous gate in UI form; the table refuses to
  * describe one as enabled.
  *
- * VALUES LIVE IN CVars, NOT HERE. Per ADR 0009 decision 1, CVars author the
- * settings and the save carries only a digest. This model reads and writes
- * `gRando.Options.*` directly and caches nothing, so a value changed anywhere
- * else is visible on the next call.
+ * VALUES LIVE IN CVars — UNTIL THE CREATION EVENT (#498/#564; ADR 0009 D1 as
+ * amended). CVars are the AUTHORING surface for the one window in which
+ * authoring is legal: before the paired world is generated. Generation stamps
+ * the resolved profile's identity into gComboCtx.mmProfileDigest, and from that
+ * moment the profile is world identity: the two writers below
+ * (Combo_MMOptionSetValue / Combo_MMOptionClear) REJECT writes while
+ * Combo_MMProfileFrozen() is true, and the pane renders read-only. A
+ * post-creation edit would not "apply later" — it would make the next MM
+ * arrival's resolved profile diverge from the creation stamp, which the
+ * arrival refuses as corruption (never honors). This model still reads the
+ * CVars directly and caches nothing.
  *
  * Locked ROM-free by the MMRandoOptions CTest (table coverage and honesty,
  * driven MM-side where both tables are in scope) and the ComboMMOptionsWindow
@@ -180,6 +187,9 @@ int32_t Combo_MMOptionGetValue(const ComboMMOptionDesc* desc);
  * `RANDO_SAVE_OPTIONS` and then indexed by generation code, so an out-of-range
  * write reaches MM's tables as an out-of-range index. Refusing silently would
  * leave the pane showing a value the save does not hold.
+ *
+ * REJECTED (no CVar write, stderr log) while Combo_MMProfileFrozen() is true:
+ * post-creation the profile is world identity, not a setting (#498/#564).
  */
 void Combo_MMOptionSetValue(const ComboMMOptionDesc* desc, int32_t value);
 
@@ -206,8 +216,39 @@ bool Combo_CVarIsExplicitInt(const char* cvar);
  *  paired logic default turns on — see Rando::Foreign::ResolvePairedProfile. */
 bool Combo_MMOptionIsExplicit(const ComboMMOptionDesc* desc);
 
-/** Clear the option's CVar, returning it to "never chosen". */
+/** Clear the option's CVar, returning it to "never chosen". REJECTED while
+ *  Combo_MMProfileFrozen() is true, same as Combo_MMOptionSetValue: clearing is
+ *  a write (it flips the resolved value back to the default and the logic pin
+ *  back to "no explicit choice"), so it diverges the arrival profile exactly
+ *  as a set does. */
 void Combo_MMOptionClear(const ComboMMOptionDesc* desc);
+
+/**
+ * The frozen-state predicate (#498/#564; ADR 0004 §6's fourth presentation
+ * state, ADR 0009 D1 as amended): true once a creation event has stamped the
+ * MM profile identity — literally `gComboCtx.mmProfileDigest != 0`, a
+ * src/common fact, never a gSaveContext read (ADR 0008 rule 5). While true,
+ * the two option writers above reject and the pane renders read-only. Cleared
+ * only when the identity itself goes: session invalidation on a DROP path, or
+ * a .redsave load of an unfrozen pair.
+ */
+bool Combo_MMProfileFrozen(void);
+
+/**
+ * Resolve the FULL MM profile identity from the option CVars and compute its
+ * digest, with NO side effects — nothing is written to any save, CVar, or
+ * gComboCtx. DEFINED MM-SIDE (games/mm/2s2h/Rando/Foreign.cpp, the TU that
+ * owns the one canonical identity-string builder), declared here because the
+ * two callers live outside MM: OoT's Playthrough_Init stamps the result into
+ * gComboCtx.mmProfileDigest at the creation event, and MM's arrival gate
+ * recomputes it to compare against that stamp (#498/#564 phase 2 step 9).
+ *
+ * The identity covers every generation input the digest guards: the 47
+ * resolved option values (including the paired RO_LOGIC default pin),
+ * gRando.ExcludedChecks, and the StartingItems config block (#564 V4 — a
+ * digest narrower than the generator's input set is vacuous).
+ */
+uint32_t MM_Rando_ComputeProfileStamp(void);
 
 /**
  * Pairing header for the pane: whether a paired world exists, its identity, and
@@ -215,9 +256,11 @@ void Combo_MMOptionClear(const ComboMMOptionDesc* desc);
  *
  * `paired == false` means the worlds were never paired; the other fields are
  * then whatever `gComboCtx` holds (typically 0) and must not be shown as a real
- * pairing. `mmProfileDigest == 0` means no paired profile has been resolved
- * yet — which is the normal state while the player is still in OoT choosing
- * options, and is NOT an error.
+ * pairing. `mmProfileDigest == 0` means the profile IDENTITY IS NOT FROZEN
+ * (#564 V8's reinterpretation): for a pair created since the freeze that state
+ * is unreachable (creation stamps it), so it marks a LEGACY pre-freeze pair
+ * that has not crossed yet — whose options remain editable until its first
+ * crossing stamps them.
  */
 typedef struct {
     bool paired;

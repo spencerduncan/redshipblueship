@@ -88,6 +88,12 @@ typedef enum RsbsRefuseReason {
     // shared-item records (duplication) and roll MM's world back, so the load
     // refuses BEFORE committing and quarantines the stale file as evidence.
     RSBS_REFUSE_COMMIT_SKEW,
+    // #498/#564: the MM option profile resolved at a cross-game arrival does
+    // not match the identity frozen at the pair's creation
+    // (gComboCtx.mmProfileDigest). Unlike every reason above, the slot FILE is
+    // healthy — the running SESSION diverged — so this refusal latches and
+    // surfaces without quarantining anything (see RefuseSlotIdentity).
+    RSBS_REFUSE_IDENTITY,
 } RsbsRefuseReason;
 
 // What a load attempt actually did — richer than the old bool, because ABSENT
@@ -320,6 +326,18 @@ public:
     bool IsSlotWritable(int slot) const;
 
     /**
+     * #498/#564: record that THIS SESSION's resolved state diverged from the
+     * identity the slot's pair was created under (the arrival digest-mismatch
+     * producer). Latches the slot against writes and surfaces REFUSED with
+     * RSBS_REFUSE_IDENTITY, exactly like a refused load — but quarantines
+     * NOTHING: the on-disk .redsave is healthy and is precisely what must be
+     * protected from the divergent session's captures. Released by the same
+     * three events as any refusal (successful load, explicit erase, create).
+     * Out-of-range slots (including -1, "no active slot") are a no-op.
+     */
+    void RefuseSlotIdentity(int slot);
+
+    /**
      * ABSENT / VALID / REFUSED for the slot, combining the on-disk file (header
      * compat checks only — no CRC, this is called per-frame) with this
      * session's refusal record, which wins: a quarantined slot reads REFUSED
@@ -549,6 +567,7 @@ int RsbsSave_CompareCommitGenerations(uint32_t redsaveGeneration, uint32_t ootSa
 int  RsbsSave_LoadSlot(int slot);
 void RsbsSave_ArmSlotOnCreate(int slot);
 int  RsbsSave_IsSlotWritable(int slot);
+void RsbsSave_RefuseSlotIdentity(int slot);
 int  RsbsSave_GetSlotState(int slot);
 int  RsbsSave_GetSlotRefuseReason(int slot);
 int  RsbsSave_HasQuarantine(int slot);
