@@ -20,6 +20,9 @@ void BossRush_InitSave(void);
 // does not have src/common on its include path (same convention z_play.c uses
 // for the Combo_* entry points). See src/common/context.h for the contract.
 extern void Context_InvalidateSessionOnNewGame(int isRandoFile);
+// #533 armed-session latch: creating a file is one of the three legitimate
+// ways a slot becomes writable this session. See src/common/save.h.
+extern void RsbsSave_ArmSlotOnCreate(int slot);
 
 /**
  *  Initialize new save.
@@ -301,6 +304,16 @@ void OoT_Sram_InitSave(FileChooseContext* fileChooseCtx) {
     // Combo_ForeignPairingActive() reporting a paired world that does not
     // exist).
     Context_InvalidateSessionOnNewGame(isRandoFile);
+
+    // ARM the unified slot for this create (#533). Save_SaveFile() below fires
+    // OnSaveFile -> RsbsSave_Save, and the armed-session latch refuses writes
+    // to any slot this session did not load, create, or erase — this call IS
+    // the "create" event. It also quarantines (renames aside, reason-tagged)
+    // any existing .redsave at this slot that fails validation, so creating a
+    // file over a corrupt unified save preserves the evidence instead of
+    // letting the first autosave rename-overwrite it. Uses gSaveContext.fileNum
+    // because that is exactly the slot Save_SaveFile() will write.
+    RsbsSave_ArmSlotOnCreate(gSaveContext.fileNum);
 
     if (isRandoFile) {
         gSaveContext.ship.quest.id = QUEST_RANDOMIZER;
