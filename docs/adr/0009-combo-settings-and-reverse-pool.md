@@ -110,8 +110,8 @@ this ADR's.
 > own `OnFileCreate` on each arrival, which is the deferred-generation behaviour
 > this amendment retires — it is the counter-example, not the precedent.
 > Rejecting a profile record as a "second store" rejected the wrong thing.
-> *Where* the record
-> lives stays a budget question, answered under claim 3 below: MM's own
+> *Where* the record lives stays a budget question, answered under claim 3
+> below: MM's own
 > `RANDO_SAVE_OPTIONS` in Tier-3 already IS a frozen per-save option record, so
 > the one game gets the storage for free and the digest stays a 4-byte
 > cross-check rather than becoming the storage.
