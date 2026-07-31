@@ -1,6 +1,10 @@
 # ADR 0010: Cross-game logic and goal-parametric beatability — one bag, one linked fixpoint, frozen at creation
 
-- Status: **Proposed** (2026-07-31)
+- Status: **Accepted** (2026-07-31) — the operator answered nine of the eleven
+  open questions the same day; the answers are folded in below and recorded in
+  **Accepted answers**. **O4** (the combo-fill implementation shape) and **O9**
+  (MM's per-trick vocabulary) remain tracked open items, owned by the
+  increment-3 epic and the MM trick-vocabulary research respectively.
 - For: #500 (Phase 3.2 tracker — cross-game logic and beatability, Lane D
   promoted); shaped throughout by #564 (one-game alignment audit)
 - Depends on:
@@ -10,8 +14,8 @@
     object below obeys it.
   - **[ADR 0004](0004-menu-information-architecture.md)** (Accepted; §6/§4.1a
     amended 2026-07-30 for one-game semantics) — presentation states for
-    frozen identity keys. This ADR, if accepted, supersedes one §4.1a
-    consequence (the paired `RO_LOGIC` default) — see increment 1.
+    frozen identity keys. This ADR supersedes one §4.1a consequence (the
+    paired `RO_LOGIC` default) — see increment 1.
   - **[ADR 0009](0009-combo-settings-and-reverse-pool.md)** (Accepted;
     decisions 1/2 amended 2026-07-30) — combo settings authoring, the frozen
     profile record, `comboSettingsHash` (claim 2, reserved), the three-tense
@@ -30,9 +34,11 @@
   OoTMM commit `669aaf5` as read by the corpus; redship citations are
   re-verified at `origin/main` = `aafee46b`.
 
-Everything in the **Decisions** below is proposed as final for Phase 3.2.
-The **Open questions** table at the end is the part awaiting operator
-acceptance; nothing in it blocks increment 1.
+Everything in the **Decisions** below is final for Phase 3.2. The operator's
+2026-07-31 answers to nine of the eleven questions are folded into the
+decisions they touch and recorded verbatim-in-substance in **Accepted
+answers** at the end; the two that remain (**O4**, **O9**) are tracked in
+**Still open** and neither blocks increment 1.
 
 ## Context
 
@@ -146,7 +152,7 @@ A new combo-level (ADR 0003 tier-4, #498-owned) setting — working name
 |---|---|
 | `beat-both` (default) | `OOT_GOAL && MM_GOAL` |
 | `beat-either` | `OOT_GOAL \|\| MM_GOAL` |
-| `triforce-hunt` | combo-level piece requirement met (accounting: open question O10) |
+| `triforce-hunt` | combo-level piece requirement met (accounting: **one shared piece count across both worlds** — answer O10) |
 
 This is OoTMM's own shape — its `goal` setting defaults to `'both'` and is
 evaluated as one boolean over the merged event set
@@ -214,13 +220,31 @@ generator's input set is vacuous). The GOAL value composes them; it does not
 duplicate them.
 
 **Consequence, stated plainly:** beatability under `beat-either` promises
-exactly the goal expression and nothing else. If only one half's goal is
-provable, the other half may contain unreachable required items — that is
-the contract working, not failing. A player who wants both halves finishable
-selects `beat-both`. Per-half strictness beyond the goal ("all locations
-reachable") remains each half's own existing axis
-(`RSK_ALL_LOCATIONS_REACHABLE`; OoTMM's `allLocations` analogue) and
-composes with any GOAL.
+exactly the goal expression and nothing else — and that expression is a plain
+OR. Two halves of one answer, per the operator (2026-07-31, answering O1):
+
+> "yeah, if its beat either its okay if one is unbeatable. but don't try to
+> insist that only one is beatable."
+
+- **An unbeatable half is permitted, including by choice.** If only one half's
+  goal is provable, the other half may contain unreachable required items —
+  that is the contract working, not failing. A configuration whose own
+  authored parameters make a half unbeatable is a legitimate `beat-either`
+  world: it is accepted, not refused, with a **visible warning at creation**
+  naming the half that carries no proof (the warning recommendation stands),
+  and the frozen record says so afterwards.
+- **The OR is never narrowed to an XOR.** The fill and the solver must not
+  bias toward, prefer, or enforce "exactly one half beatable".
+  `OOT_GOAL || MM_GOAL` is satisfied the moment either disjunct is provable;
+  if both turn out provable, that is a **welcome outcome** and must never be
+  constrained away, perturbed, or re-rolled to restore asymmetry. Any rung,
+  heuristic, or lock that makes both-halves-beatable harder to reach under
+  `beat-either` is a bug against this ADR.
+
+A player who wants both halves finishable *by guarantee* selects `beat-both`.
+Per-half strictness beyond the goal ("all locations reachable") remains each
+half's own existing axis (`RSK_ALL_LOCATIONS_REACHABLE`; OoTMM's
+`allLocations` analogue) and composes with any GOAL.
 
 ## Decision 2 — One bag: items leave origin pools, and cross-game progression is base behavior
 
@@ -263,10 +287,12 @@ possibly zero. OoTMM's precedent for the guard's content: it auto-ANDs
 `can_reset_time` onto every entrance into MM except the designated game
 link, and re-stamps Day 1 into the MM time mask on every OoT→MM edge
 (`entrances.ts:210-212`; `pathfind.ts:596-599`; OoTMM @ `669aaf5`).
-Redship's exact requirement expression for each direction of
-Happy Mask Shop ↔ Clock Tower is **open question O2** — the corpus's
-"crossing-entrance safety predicate" question, now concretized as "author
-the crossing edge's requirement expression".
+Redship adopts that precedent by **accepted answer O2**: a Day-1 re-stamp
+plus a reset-time guard on entry to MM, with a symmetric requirement on the
+return trip. This is the corpus's "crossing-entrance safety predicate"
+question, concretized as "author the crossing edge's requirement expression"
+— the exact per-direction expressions for Happy Mask Shop ↔ Clock Tower are
+authored by the increment epic under that shape.
 
 ### 2.2 The logic ladder: no-logic base, provable rungs on top
 
@@ -291,11 +317,12 @@ this rung's rules". The rung set, frozen at creation like everything else:
 | `all-reachable(tricks = T)` | GOAL provable and every location reachable | completionists; composes per-half strictness axes |
 
 A maximal-tricks `beatable` config approximates the speedrunner while
-*keeping the proof* — see Decision 3.4. The shipped default rung is open
-question O11. This combo ladder is distinct from the **attempt ladder**
-(deterministic seed re-roll on fill dead-end, increment 1); the two are
-named separately everywhere below because conflating them produced the
-silent-vanilla-revert bug class.
+*keeping the proof* — see Decision 3.4. The shipped default rung mirrors Ship
+of Harkinian's own rando defaults (Glitchless, no tricks, all locations
+reachable) per accepted answer O11. This combo ladder is distinct from the
+**attempt ladder** (deterministic seed re-roll on fill dead-end,
+increment 1); the two are named separately everywhere below because
+conflating them produced the silent-vanilla-revert bug class.
 
 ### 2.3 What the guarantee is, formally
 
@@ -321,7 +348,8 @@ The reference's load-bearing mechanics, all adopted as disciplines here:
 - **Monotonicity is protected by a negation ban**: runtime `!` over
   `has()`/`event()` throws at expression-build time (`expr/builder.ts:61-74`).
   Redship's conditions are C++ lambdas, so the ban becomes a review rule
-  plus an enforcement mechanism (open question O6) — but the invariant
+  plus mechanical enforcement (accepted answer O6: review rule **and** static
+  probe **and** CI grow-check — all three, not a choice) — but the invariant
   itself is not optional; assumed fill and the trailing no-logic dump are
   unsound without it.
 - **Exclusive world states are per-path constraint accumulation, not state
@@ -498,11 +526,12 @@ smallest honest step closes the open half — MM's — and hardens the seams:
 2. **The deterministic attempt ladder replaces the silent vanilla revert.**
    On a fill dead-end: `seed_n = Hash(master ‖ ":glitchless-attempt-" ‖ n)`,
    attempt index recorded in the save and the spoiler so the world stays a
-   pure function of identity (spec details: open question O3). Terminal
-   failure **refuses** through the #533/#568 surface — at arrival while
-   generation still runs there, moving to file select with increment 2 —
-   never `SAVETYPE_VANILLA` (`OnFileCreate.cpp:317-329` loses its catch-all
-   job).
+   pure function of identity (spec details: accepted answer O3 — the
+   implementer picks hash recipe, attempt maximum and recording sites under
+   this ADR's determinism rules). Terminal failure **refuses** through the
+   #533/#568 surface — at arrival while generation still runs there, moving
+   to file select with increment 2 — never `SAVETYPE_VANILLA`
+   (`OnFileCreate.cpp:317-329` loses its catch-all job).
 3. **Reachability-gated foreign hosts**: factor the check-tracker crawl
    (`Rando/CheckTracker/CheckTracker.cpp:240-305`) into `Rando::Logic` — 
    adopting the join-and-recheck discipline while in there, fixing the
@@ -568,9 +597,10 @@ union bag and places across both games' shuffled check sets, per Decisions
   `Combo_ForeignPairingRequested()` (ADR 0009 decision 2 — designed, still
   unimplemented; #493's named gap); the ADR-0002-clean boundary language
   (origin-tagged `SharedItem` + host check id + game-neutral bounds — exact
-  scalars and carve budget: open question O7, against `reserved[132]` under
-  the append-only second-block rule); the negation-ban and constraint-bitset
-  disciplines in force in both graphs (Decision 2.3, enforcement: O6); MM's
+  scalars and carve budget: accepted answer O7, the increment-3 epic sizes
+  the carve against `reserved[132]` under the append-only second-block rule);
+  the negation-ban and constraint-bitset disciplines in force in both graphs
+  (Decision 2.3, enforcement: answer O6, all three mechanisms); MM's
   crawl join-fix landed (increment 1.3); the solver-inventory audit and the
   composition-vs-unification choice (Decision 4, O4).
 - **The fill's exit condition is the GOAL expression provable** under the
@@ -604,27 +634,33 @@ union bag and places across both games' shuffled check sets, per Decisions
 | D10 | **License mechanics if porting OoTMM material**: MIT of record (root LICENSE, 1093 bytes verbatim MIT) despite the two `"license": "ISC"` package.json fields (near-certain scaffolding leftovers — discrepancy recorded here so nobody rediscovers it); ported files carry the copyright line; a repo `THIRD_PARTY_NOTICES` accompanies any port; an upstream issue asks OoTMM to fix the fields; algorithms *reimplemented from reading* are not a port, world-data YAML/CSV taken wholesale is |
 | D11 | Scope exclusions for 3.2: **entrance randomization** and **networking/multiworld** are OUT; each exclusion becomes its own epic (below) |
 
-### Open questions (for operator acceptance; none blocks increment 1)
+### Accepted answers (operator, 2026-07-31)
 
-Headed by the four the rulings left sharpest, then the remainder of the
-corpus's list, updated for what is now settled. Settled and struck from the
-corpus's ten: pool removal (→ D3), "what does MM-beatable mean" (→ D1/D2),
-profile-freeze timing (one-game ruling), bidirectionality (a single bag is
-inherently bidirectional), license mechanics (→ D10).
+Eleven questions went to the operator on 2026-07-31; nine came back answered
+and bind as written here. The O-numbers are preserved because the prose above
+cites them by number. (Settled earlier and struck from the corpus's ten: pool
+removal (→ D3), "what does MM-beatable mean" (→ D1/D2), profile-freeze timing
+(one-game ruling), bidirectionality (a single bag is inherently
+bidirectional), license mechanics (→ D10).)
 
-| # | Question | What it decides |
+| # | Question | The answer, binding |
 |---|---|---|
-| O1 | **MM-beatability parameters at the combo surface**: which of MM's goal parameters are surfaced/validated per GOAL value; disposition of the dead `RO_ACCESS_MAJORA_REMAINS` row (`Options.cpp:36`, no consumer — implement or retire); whether `beat-either` permits a half whose own parameters make it unbeatable by choice | GOAL UI + validation at creation |
-| O2 | **The crossing edge's requirement expression**, per direction, for Happy Mask Shop ↔ Clock Tower: time-slice re-stamp on entry to MM (OoTMM re-stamps Day 1 and ANDs `can_reset_time`; redship must pick its equivalent), return-trip requirement, interaction with arrival hydrate-or-refuse | The one edge both expansions share |
-| O3 | **Attempt-ladder spec**: hash recipe and separator, max attempts, where the attempt index is recorded in save + spoiler, terminal-failure UX copy on the #533 surface | Determinism + failure surface |
-| O4 | **The combo-fill implementation shape** (after the Decision 4 audit): composition's coordinator contract (each engine's exported query surface, snapshot/restore around MM's mutating queries, which TU owns the boundary under ADR 0002's one-sanctioned-TU rule) — or unification, if the audit makes that case | Increment 3's engineering core |
-| O5 | **Canonical MM time-slice list**: redship has 45 (`Logic.h:20+`), OoTMM has 46 (missing `NIGHT2_AM_05_30`); adopt the u64 representation, add the slice or justify its absence, pin the list where both the crawl and any data port read it | Lattice height; digest stability |
-| O6 | **Monotonicity enforcement mechanism** for lambda logic: review rule + grep/clang-tidy probe + a CI check that adds items and asserts the reachable set never shrinks — which combination, and where it runs | Soundness of assumed fill |
-| O7 | **Boundary/constraint carrier scalars and carve budget**: exactly which game-neutral fields cross (SharedItem + host check id + earliness bound?), sized against `reserved[132]` under the append-only second-block rule and the 64-byte floor | `.redsave` format |
-| O8 | **Shared-item classification authority**: one owner per shared item's junk/progression/renewable classification (OoTMM's `SHARED_BOMBCHU` two-settings wart is the cautionary tale) | Bag construction |
-| O9 | **MM per-trick vocabulary**: does MM grow an `RT_*`-equivalent option table (the graph's TODO seams name the first candidates) before increment 3, or does its trick dimension ship RO_LOGIC-coarse at first and refine later | Trick axis symmetry |
-| O10 | **Combo triforce-hunt accounting**: one shared piece count across both worlds (a shared-resource-style carrier) vs per-half counts ANDed/ORed; both engines' existing piece machinery is the substrate | GOAL value semantics |
-| O11 | **Shipped default rung** of the logic ladder (`beatable(T = ∅)` is the conservative candidate; base `none` is the operator's named audience) — and whether the default GOAL stays `beat-both` | First-run experience |
+| O1 | **MM-beatability parameters at the combo surface**: which of MM's goal parameters are surfaced/validated per GOAL value; disposition of the dead `RO_ACCESS_MAJORA_REMAINS` row (`Options.cpp:36`, no consumer — implement or retire); whether `beat-either` permits a half whose own parameters make it unbeatable by choice | **Both halves of the `beat-either` question, per §1.2's amendment**: an unbeatable half *is* permitted, including one made unbeatable by its own authored parameters (the creation-time warning stands) — and the goal expression stays a plain OR, so the fill/solver must never bias toward or enforce only-one-beatable; both halves provable is a welcome outcome, never constrained away. **The dead `RO_ACCESS_MAJORA_REMAINS` row is RETIRED, not implemented**: it never gains a consumer and never becomes a working control. Retirement is *not* enumerator deletion — deleting it renumbers the 44 enumerators after it and `RANDO_SAVE_OPTIONS` is indexed by that number in every already-written MM rando save (`Options.cpp:23-36`) — so the always-zero row stays for id-space totality and the combo pane keeps drawing it disabled-with-reason (ADR 0004 §5). Recording the retirement at the row is a small code change carried by an increment-1-adjacent PR, not by this ADR. Per-GOAL surfacing/validation of the *live* parameters is GOAL-UI work the increment epic owns |
+| O2 | **The crossing edge's requirement expression**, per direction, for Happy Mask Shop ↔ Clock Tower: time-slice re-stamp on entry to MM (OoTMM re-stamps Day 1 and ANDs `can_reset_time`; redship must pick its equivalent), return-trip requirement, interaction with arrival hydrate-or-refuse | **Accepted as recommended — the OoTMM precedent**: Day-1 re-stamp into the MM time state plus a reset-time guard on entry to MM, with a symmetric requirement on the return trip. The increment epic authors the exact per-direction expressions under that shape (§2.1) |
+| O3 | **Attempt-ladder spec**: hash recipe and separator, max attempts, where the attempt index is recorded in save + spoiler, terminal-failure UX copy on the #533 surface | **Accepted as recommended**: the implementer picks the hash recipe/separator, the attempt maximum and the save+spoiler recording sites, bound by this ADR's determinism rules (the world stays a pure function of the frozen identity) and the #533/#568 terminal-failure surface |
+| O5 | **Canonical MM time-slice list**: redship has 45 (`Logic.h:20+`), OoTMM has 46 (missing `NIGHT2_AM_05_30`); adopt the u64 representation, add the slice or justify its absence, pin the list where both the crawl and any data port read it | **Accepted**: adopt the 46 slices — add `NIGHT2_AM_05_30` — with the u64 representation, pinned where both the crawl and any data port read it, **unless** the increment epic's source review justifies otherwise |
+| O6 | **Monotonicity enforcement mechanism** for lambda logic: review rule + grep/clang-tidy probe + a CI check that adds items and asserts the reachable set never shrinks — which combination, and where it runs | **Accepted: all three mechanisms**, not a choice among them — the review rule, the static probe (grep/clang-tidy over the lambda logic), and the CI grow-check that adds items and asserts the reachable set never shrinks |
+| O7 | **Boundary/constraint carrier scalars and carve budget**: exactly which game-neutral fields cross (SharedItem + host check id + earliness bound?), sized against `reserved[132]` under the append-only second-block rule and the 64-byte floor | **Accepted**: the increment-3 epic sizes the carve, against `reserved[132]` under the append-only second-block rule and the 64-byte floor |
+| O8 | **Shared-item classification authority**: one owner per shared item's junk/progression/renewable classification (OoTMM's `SHARED_BOMBCHU` two-settings wart is the cautionary tale) | **Accepted**: a single-owner classification table, one owner per shared item, living in the sanctioned ADR 0002 TU pair (`src/common/shared_items.h` / `src/common/shared_items.c`, deliberately free of game headers) — never a per-game duplicate that can disagree with itself |
+| O10 | **Combo triforce-hunt accounting**: one shared piece count across both worlds (a shared-resource-style carrier) vs per-half counts ANDed/ORed; both engines' existing piece machinery is the substrate | **Decided: ONE shared triforce piece count across both worlds**, carried shared-resource-style — not per-half composition. Both engines' existing piece machinery (OoT `RSK_TRIFORCE_HUNT_PIECES_*`, MM `RO_TRIFORCE_PIECES_*`) is the substrate feeding that one combo-level count |
+| O11 | **Shipped default rung** of the logic ladder (`beatable(T = ∅)` is the conservative candidate; base `none` is the operator's named audience) — and whether the default GOAL stays `beat-both` | **Decided: "copy what ship has for the rando settings."** At source, Ship of Harkinian defaults logic to Glitchless (`RSK_LOGIC_RULES` → `RO_LOGIC_GLITCHLESS`, `settings.cpp:1282`), every trick to "Disabled" (`TrickOption`'s default index 0, `option.cpp:361-364`), and `RSK_ALL_LOCATIONS_REACHABLE` to `RO_GENERIC_ON` (`settings.cpp:1283`). The combo's shipped default follows those defaults: the **proved, no-tricks rung** — `beatable(T = ∅)` — and **never** the base `none` rung, despite `none` being the operator's named audience. SoH's all-locations-reachable default carries through on the strictness axis §1.2 keeps per-half, which in ladder terms presents as `all-reachable(T = ∅)` if the combo surfaces strictness as a rung rather than as the per-half axis; that presentation choice is the increment epic's, and either way the default is the strictest SoH ships. Consistent with increment 1.1's paired-MM flip to Glitchless. **Default GOAL stays `beat-both`**: SoH has no combo-GOAL precedent to copy, and OoTMM's own `goal` likewise defaults to `'both'` (§1.1) |
+
+### Still open (tracked; neither blocks increment 1)
+
+| # | Question | What it decides | Owner |
+|---|---|---|---|
+| O4 | **The combo-fill implementation shape** (after the Decision 4 audit): composition's coordinator contract (each engine's exported query surface, snapshot/restore around MM's mutating queries, which TU owns the boundary under ADR 0002's one-sanctioned-TU rule) — or unification, if the audit makes that case | Increment 3's engineering core | The increment-3 epic, post-audit — deliberately left open until the solver-inventory audit is done |
+| O9 | **MM per-trick vocabulary**: does MM grow an `RT_*`-equivalent option table (the graph's TODO seams name the first candidates) before increment 3, or does its trick dimension ship RO_LOGIC-coarse at first and refine later | Trick axis symmetry | Pending a source inventory of the MM trick vocabularies — 2ship upstream, the original MM Randomizer, and OoTMM's MM tricks — research running separately from this ADR |
 
 ## Non-goals → future epics
 
@@ -704,7 +740,9 @@ is accepted (listed here; deliberately not filed by this ADR):
   label runs under a display and is skipped by `--test all`). Budget for
   slower feedback.
 - **`beat-either` is exactly what it says**: the un-required half may be
-  unfinishable. Documented at the setting, not discovered in a bug report.
+  unfinishable. Documented at the setting and warned at creation, not
+  discovered in a bug report — and the OR is never quietly narrowed to an XOR
+  (§1.2).
 - **Two logic dialects persist** under the composition default — the same
   reachability fact is written as a C++ lambda two different ways, forever,
   unless the audit chooses unification and pays its port cost instead.
