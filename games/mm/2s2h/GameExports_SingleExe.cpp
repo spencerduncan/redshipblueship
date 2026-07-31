@@ -33,6 +33,10 @@
 
 #include "game_lifecycle.h"
 #include "integration_test_hooks.h"
+
+// RSBS #557 diagnosis probe (local-only; never committed) — defined in
+// src/common/integration_test_hooks.cpp, env-gated on RSBS_HEAP_CHECK=1.
+extern "C" void IntegrationTest_HeapCheckTick(const char* game);
 #include "context.h"
 #include "save.h" // RsbsSave_* — MM's redship-native unified-save capture
 #include "shared_items.h"
@@ -731,6 +735,8 @@ extern "C" void MM_IntegrationGameplayFrameTick(void) {
     if (IntegrationTest_GetMode() != INT_TEST_GAMEPLAY_ROUNDTRIP) {
         return;
     }
+    // RSBS #557 diagnosis probe (local-only; never committed)
+    IntegrationTest_HeapCheckTick("mm");
     if (Context_GetCurrentGame() != GAME_MM) {
         return; // switch in flight; only count MM-owned frames
     }

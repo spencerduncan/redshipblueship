@@ -19,6 +19,10 @@
 
 #include "game_lifecycle.h"
 #include "integration_test_hooks.h"
+
+// RSBS #557 diagnosis probe (local-only; never committed) — defined in
+// src/common/integration_test_hooks.cpp, env-gated on RSBS_HEAP_CHECK=1.
+extern "C" void IntegrationTest_HeapCheckTick(const char* game);
 #include "context.h"
 #include "save.h" // RsbsSave_SetActiveSlot — publish the slot MM will save into
 #include "shared_items.h"
@@ -587,6 +591,8 @@ static void OoT_RegisterIntegrationTestHooks(void) {
             if (Context_GetCurrentGame() == GAME_MM) {
                 return; // shared hook storage guard (#344)
             }
+            // RSBS #557 diagnosis probe (local-only; never committed)
+            IntegrationTest_HeapCheckTick("oot");
             if (OoT_gPlayState == NULL) {
                 return;
             }

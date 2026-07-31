@@ -17,6 +17,44 @@
 #include <cstring>
 #include <atomic>
 
+// ---- RSBS #557 diagnosis probe (local-only; never committed) --------------
+// Frame-bracketed process-heap validation: turns "the CRT heap got corrupted
+// at some point before the gfx thread tripped" into "the heap went bad
+// between tick N-1 and tick N of game X". Gated on RSBS_HEAP_CHECK=1.
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+extern "C" void IntegrationTest_HeapCheckTick(const char* game) {
+    static int enabled = -1;
+    if (enabled < 0) {
+        const char* e = getenv("RSBS_HEAP_CHECK");
+        enabled = (e != nullptr && e[0] != '\0' && e[0] != '0') ? 1 : 0;
+    }
+    if (!enabled) {
+        return;
+    }
+    static unsigned long sTick = 0;
+    sTick++;
+    if (!HeapValidate(GetProcessHeap(), 0, NULL)) {
+        fprintf(stderr, "[RSBS-HEAPCHECK] process heap INVALID at %s tick %lu\n", game, sTick);
+        fflush(stderr);
+        *(volatile unsigned int*)(uintptr_t)0xDEAD0003u = sTick;
+    }
+    if ((sTick % 120) == 1) {
+        fprintf(stderr, "[RSBS-HEAPCHECK] heap ok at %s tick %lu\n", game, sTick);
+        fflush(stderr);
+    }
+}
+#else
+extern "C" void IntegrationTest_HeapCheckTick(const char*) {
+}
+#endif
+
 // Game switch request (to signal game to exit)
 extern "C" {
     void Combo_RequestGameSwitch(void);
