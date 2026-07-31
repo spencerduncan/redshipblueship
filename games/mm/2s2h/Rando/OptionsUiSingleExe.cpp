@@ -217,14 +217,20 @@ const OptionUi kOptionUi[] = {
       0, 4, nullptr, 0,
       COMBO_MM_LIVENESS_PARTIAL, "Logic only: the Majora gate needs MM OnOpenText dispatch (#438)" },
     { RO_ACCESS_MAJORA_REMAINS, COMBO_MM_GROUP_LOGIC, COMBO_MM_WIDGET_CHECKBOX,
-      "Majora Access: Remains (unimplemented)",
-      "Declared but never implemented: no code in MM's randomizer reads this option.",
+      "Majora Access: Remains (retired)",
+      "Retired: this option never had a consumer and, by operator ruling (ADR 0010 answer O1), never will. "
+      "The row remains as a save-format tombstone.",
       0, 0, nullptr, 0,
       // The 47th id. Given a StaticData row so the option id space is total
-      // (#499 step 5), and shown disabled because it has no consumer at all —
-      // a control that writes a CVar nothing reads is the vacuous gate ADR
-      // 0004 section 5 forbids.
-      COMBO_MM_LIVENESS_DORMANT, "Not implemented: no code reads this option" },
+      // (#499 step 5). RETIRED by the operator (ADR 0010 answer O1,
+      // 2026-07-31): it never gains a consumer and never becomes a working
+      // control — the accepted answer keeps it drawn disabled-with-reason
+      // (ADR 0004 §5) rather than hidden, and keeps the always-zero StaticData
+      // row for id-space totality and seed/digest-string stability (see the
+      // tombstone note at StaticData/Options.cpp). A future edit that gives
+      // this row a consumer or a live widget is overturning an operator
+      // ruling, not finishing a TODO; the mm-rando-options lock pins this.
+      COMBO_MM_LIVENESS_DORMANT, "Retired (ADR 0010 O1): no code will ever read this option" },
 
     // ---- Shuffle Options ---------------------------------------------------
     { RO_SHUFFLE_COWS, COMBO_MM_GROUP_SHUFFLE, COMBO_MM_WIDGET_CHECKBOX,

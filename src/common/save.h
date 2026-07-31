@@ -94,6 +94,14 @@ typedef enum RsbsRefuseReason {
     // healthy — the running SESSION diverged — so this refusal latches and
     // surfaces without quarantining anything (see RefuseSlotIdentity).
     RSBS_REFUSE_IDENTITY,
+    // ADR 0010 increment 1.2 (#500): the paired MM world could not be
+    // GENERATED at a cross-game arrival — the deterministic attempt ladder
+    // exhausted its bound, or generation threw outright. Like
+    // RSBS_REFUSE_IDENTITY the slot FILE is healthy and nothing is
+    // quarantined; the latch is what matters, because the session falls back
+    // to an UNPAIRED vanilla Termina and must never capture that world into
+    // the pair's .redsave (see RefuseSlotGeneration).
+    RSBS_REFUSE_GENERATION,
 } RsbsRefuseReason;
 
 // What a load attempt actually did — richer than the old bool, because ABSENT
@@ -338,6 +346,17 @@ public:
     void RefuseSlotIdentity(int slot);
 
     /**
+     * ADR 0010 increment 1.2 (#500): record that THIS SESSION could not
+     * GENERATE the paired MM world at a cross-game arrival (the attempt
+     * ladder exhausted, or generation threw). Same mechanics as
+     * RefuseSlotIdentity — latch, surface RSBS_REFUSE_GENERATION, quarantine
+     * NOTHING (the .redsave is healthy; the unpaired vanilla fallback session
+     * is what must not capture into it) — differing only in the reason the
+     * file panel names. Out-of-range slots (including -1) are a no-op.
+     */
+    void RefuseSlotGeneration(int slot);
+
+    /**
      * ABSENT / VALID / REFUSED for the slot, combining the on-disk file (header
      * compat checks only — no CRC, this is called per-frame) with this
      * session's refusal record, which wins: a quarantined slot reads REFUSED
@@ -568,6 +587,7 @@ int  RsbsSave_LoadSlot(int slot);
 void RsbsSave_ArmSlotOnCreate(int slot);
 int  RsbsSave_IsSlotWritable(int slot);
 void RsbsSave_RefuseSlotIdentity(int slot);
+void RsbsSave_RefuseSlotGeneration(int slot);
 int  RsbsSave_GetSlotState(int slot);
 int  RsbsSave_GetSlotRefuseReason(int slot);
 int  RsbsSave_HasQuarantine(int slot);

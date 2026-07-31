@@ -19,11 +19,17 @@
  * options => same placements, which is what the SeedDeterminism fold locks.
  *
  * Paired-world generation failure (a fill dead-end under the derived seed) is
- * NOT retried here: OnFileCreate's existing catch reverts the save to vanilla,
- * exactly as upstream does for any failed generation. The derivation is
- * attempt-free on purpose — a retry counter would make the world identity
- * depend on runtime state the digest cannot see. If a pinned CI seed
- * dead-ends, the fix is to pin a different seed, not to bend the derivation.
+ * retried by the DETERMINISTIC ATTEMPT LADDER (ADR 0010 increment 1.2;
+ * OnFileCreate owns the loop, MixPairedFinalSeedForAttempt below owns the
+ * derivation): attempt n's seed is a pure function of (master seed, MM options
+ * string, n), never of runtime state, so the world stays a pure function of
+ * the frozen identity and the winning attempt index is recorded in
+ * gComboCtx.mmPairedAttempt and the spoiler as provenance. Exhaustion is a
+ * LOUD failure: the arrival gate latches the slot REFUSED through the #533
+ * surface (never a silent vanilla Termina). The pre-ladder rule "a retry
+ * counter would make the world identity depend on state the digest cannot
+ * see" survives as the recipe's discipline — the counter is an INPUT to the
+ * hash, not hidden state beside it.
  */
 #ifdef RSBS_SINGLE_EXECUTABLE
 
@@ -126,19 +132,30 @@ static void ResolveProfileValues(uint32_t* values, bool paired) {
         return;
     }
 
-    // (3) The logic pin (#426 rationale), a DEFAULT rather than a law (#499
-    // step 3): the MVP pairs under Nearly No Logic unless the player made an
-    // explicit choice. EXISTENCE, not "is the value already extreme" — only
-    // existence distinguishes "the player chose Glitchless" from "nobody ever
-    // touched the key and the default is Glitchless". Because the pin runs
-    // inside the shared resolution, the RESOLVED value is what both the
-    // creation stamp and the arrival compare see (#564 V3): nothing after
-    // creation depends on CVar existence except through this one resolution,
-    // and a mid-gap flip of the key is a detected divergence, not a silently
-    // honored choice.
+    // (3) The logic pin, a DEFAULT rather than a law (#499 step 3), FLIPPED
+    // Nearly No Logic -> Glitchless by ADR 0010 increment 1.1 (superseding
+    // the #426/ADR 0004 §4.1a "no raised profile ships" consequence, and per
+    // accepted answer O11 mirroring Ship of Harkinian's own Glitchless
+    // default): the paired MM world must be BEATABLE by MM's own logic under
+    // its authored goal parameters, and the dead-end-rate concern that
+    // motivated the old NNL default is answered by the attempt ladder
+    // (increment 1.2), not ignored. Still pinned explicitly rather than
+    // falling through to the StaticData default, so an upstream default drift
+    // can never silently change the paired world's rules.
+    //
+    // EXISTENCE, not "is the value already extreme" — only existence
+    // distinguishes "the player chose this" from "nobody ever touched the
+    // key". An explicit choice of ANY mode, including a no-logic one, is
+    // honoured: choosing away the proof is legitimate and is recorded in the
+    // frozen identity like everything else. Because the pin runs inside the
+    // shared resolution, the RESOLVED value is what both the creation stamp
+    // and the arrival compare see (#564 V3): nothing after creation depends
+    // on CVar existence except through this one resolution, and a mid-gap
+    // flip of the key is a detected divergence, not a silently honored
+    // choice.
     if (!Combo_CVarIsExplicitInt(Rando::StaticData::Options[RO_LOGIC].cvar)) {
-        SPDLOG_INFO("Paired profile resolution: no explicit MM logic choice; defaulting to Nearly No Logic (#426)");
-        values[RO_LOGIC] = RO_LOGIC_NEARLY_NO_LOGIC;
+        SPDLOG_INFO("Paired profile resolution: no explicit MM logic choice; defaulting to Glitchless (ADR 0010)");
+        values[RO_LOGIC] = RO_LOGIC_GLITCHLESS;
     } else {
         SPDLOG_INFO("Paired profile resolution: honouring explicit MM logic choice ({})", (unsigned)values[RO_LOGIC]);
     }
@@ -271,7 +288,37 @@ uint32_t MixPairedFinalSeed() {
     // Mirrors OoT's Playthrough_Init: Hash(str(master seed) + settings), so
     // the same master seed reproduces the MM world only under the same MM
     // options — the "one seed + one pinned settings profile" contract.
-    return Ship_Hash(std::to_string(gComboCtx.sharedRandoSeed) + MMOptionsString());
+    return MixPairedFinalSeedForAttempt(0);
+}
+
+uint32_t MixPairedFinalSeedForAttempt(uint32_t attempt) {
+    // The attempt ladder's derivation (recipe documented at the declaration,
+    // Foreign.h). Attempt 0 hashes EXACTLY the string the shipped pre-ladder
+    // derivation hashed — str(master) + MMOptionsString() — so every world
+    // that converged first-try re-derives byte-identically. Attempts >= 1
+    // append the ADR's ":glitchless-attempt-<n>" domain-separation literal to
+    // that same string: the counter is an INPUT of the hash, never state
+    // beside it, which is what keeps the world a pure function of the frozen
+    // identity (master seed + resolved profile) plus a bounded index the
+    // spoiler and gComboCtx.mmPairedAttempt record.
+    std::string s = std::to_string(gComboCtx.sharedRandoSeed) + MMOptionsString();
+    if (attempt > 0) {
+        s += ":glitchless-attempt-";
+        s += std::to_string(attempt);
+    }
+    return Ship_Hash(s);
+}
+
+// Most recent paired generation's ladder outcome (attempt-ladder
+// observability, Foreign.h). Plain statics: generation runs on the game
+// thread only, and the readers (the arrival gate, the CI bridges) run on the
+// same thread immediately after the dispatch returns.
+static int sLastPairedGenAttempts = 0;
+static bool sLastPairedGenExhausted = false;
+
+void NotePairedGenerationOutcome(int attemptsTried, bool exhausted) {
+    sLastPairedGenAttempts = attemptsTried;
+    sLastPairedGenExhausted = exhausted;
 }
 
 // Local, self-contained PRNG for placement selection (see the file header).
@@ -520,6 +567,23 @@ extern "C" uint32_t MM_Rando_ComputeProfileStamp(void) {
     std::vector<uint32_t> values(RO_MAX, 0);
     Rando::Foreign::ResolveProfileValues(values.data(), /*paired=*/true);
     return Rando::Foreign::DigestFromIdentity(Rando::Foreign::ProfileIdentityString(values.data()));
+}
+
+// ============================================================================
+// Attempt-ladder observability (ADR 0010 increment 1.2; declared in Foreign.h).
+// Read by the arrival gate to surface an exhausted ladder through the #533
+// refusal machinery, and by the MMPairedAttempt* / MMPairedExhaustion CI locks.
+// ============================================================================
+extern "C" int MM_Rando_PairedGenMaxAttempts(void) {
+    return Rando::Foreign::kPairedGenMaxAttempts;
+}
+
+extern "C" int MM_Rando_PairedGenLastAttempts(void) {
+    return Rando::Foreign::sLastPairedGenAttempts;
+}
+
+extern "C" int MM_Rando_PairedGenLastExhausted(void) {
+    return Rando::Foreign::sLastPairedGenExhausted ? 1 : 0;
 }
 
 // ============================================================================

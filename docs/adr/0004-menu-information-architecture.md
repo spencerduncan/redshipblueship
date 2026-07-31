@@ -305,9 +305,11 @@ to Nearly No Logic (#426), becomes a default that an explicit choice overrides.
 > — **Accepted** 2026-07-31, [PR #572](https://github.com/spencerduncan/redshipblueship/pull/572) —
 > resolves the forward pointer previously recorded here. Its increment 1 raises this one default:
 > the paired `RO_LOGIC` default becomes **Glitchless**, not Nearly No Logic, at its single
-> resolution point (`Rando/Foreign.cpp:126-128`), with a deterministic re-roll attempt ladder
-> answering the dead-end-rate concern recorded above rather than ignoring it (implementation in
-> flight). This paragraph's "defaults do not change" and "no raised profile ships" are superseded
+> resolution point (`Rando::Foreign::ResolveProfileValues`, `Rando/Foreign.cpp`), with a
+> deterministic re-roll attempt ladder answering the dead-end-rate concern recorded above rather
+> than ignoring it. Implemented 2026-07-31: the flip lives at that resolution site and the ladder
+> at `Rando/MiscBehavior/OnFileCreate.cpp`'s paired branch, with exhaustion refusing loudly
+> through the #533 surface. This paragraph's "defaults do not change" and "no raised profile ships" are superseded
 > on that single point only — every `RO_SHUFFLE_*` and `RO_HINTS_*` row keeps its
 > `RO_GENERIC_OFF` default, and the explicit-choice-overrides rule is unchanged: an explicit
 > player choice of a no-logic mode is still honored and recorded in the frozen identity.

@@ -65,6 +65,7 @@
 #include "2s2h/Enhancements/Saving/SavingEnhancements.h"
 #include "2s2h/Enhancements/GfxPatcher/AuthenticGfxPatches.h"
 #include "2s2h/Rando/Rando.h"
+#include "2s2h/Rando/Foreign.h" // attempt-ladder outcome accessors (ADR 0010 inc. 1.2)
 #include "2s2h/ShipInit.hpp"
 #include "2s2h/resource/type/2shResourceType.h"
 #include "2s2h/resource/importer/PathFactory.h"
@@ -2875,13 +2876,56 @@ void MM_Rando_PairOnCrossGameArrival(int hadFrozenState) {
     GameInteractor_ExecuteOnSaveInit(gSaveContext.fileNum);
 
     if (gSaveContext.save.shipSaveInfo.saveType == SAVETYPE_RANDO) {
-        fprintf(stderr, "[MM] pairing: paired world ACTIVE (mmFinalSeed=%08X foreignPlacements=%d)\n",
-                gSaveContext.save.shipSaveInfo.rando.finalSeed, Combo_CountForeignPlacements());
+        fprintf(stderr, "[MM] pairing: paired world ACTIVE (mmFinalSeed=%08X foreignPlacements=%d ladderAttempt=%d)\n",
+                gSaveContext.save.shipSaveInfo.rando.finalSeed, Combo_CountForeignPlacements(),
+                MM_Rando_PairedGenLastAttempts());
     } else {
-        // OnFileCreate's catch reverts to a vanilla save on any generation
-        // failure. That is the correct fallback, but it must never be silent.
-        fprintf(stderr, "[MM] pairing: FAILED — generation reverted the save to vanilla; MM plays vanilla this "
-                        "session (see the preceding SPDLOG_ERROR for the cause)\n");
+        // ------------------------------------------------------------------
+        // ADR 0010 increment 1.2: a paired generation that still failed after
+        // the deterministic attempt ladder (or threw before it) is REFUSED
+        // loudly, never a silent vanilla Termina. OnFileCreate's catch has
+        // already reverted the save to vanilla — there is no other save state
+        // to be in at this seam — but that fallback world is UNPAIRED, so the
+        // #533 machinery latches the slot (this session's captures must not
+        // reach the pair's .redsave) and the shared overlay tells the player
+        // what happened and that generation, not their file, is at fault.
+        // Same surface, same shape as the identity refusal above; the reason
+        // distinguishes "your options diverged" from "the world would not
+        // converge".
+        // ------------------------------------------------------------------
+        const int slot = RsbsSave_GetActiveSlot();
+        const int attempts = MM_Rando_PairedGenLastAttempts();
+        const int exhausted = MM_Rando_PairedGenLastExhausted();
+        fprintf(stderr,
+                "[MM] pairing: REFUSED — paired generation failed (%s; %d attempt(s) of max %d); the save reverted "
+                "to vanilla and unified-save slot %d is latched against writes this session (see the preceding "
+                "SPDLOG_ERROR for the cause)\n",
+                exhausted ? "attempt ladder exhausted" : "generation threw", attempts, MM_Rando_PairedGenMaxAttempts(),
+                slot);
+        fflush(stderr);
+        RsbsSave_RefuseSlotGeneration(slot);
+
+        // Player-visible, immediately, on the shared overlay — mirroring the
+        // identity-refusal toast above (muted for the same reason).
+        ComboNotification refusalToast;
+        memset(&refusalToast, 0, sizeof(refusalToast));
+        refusalToast.prefix = "Cross-game pairing REFUSED:";
+        refusalToast.prefixColor[0] = 0.9f;
+        refusalToast.prefixColor[1] = 0.35f;
+        refusalToast.prefixColor[2] = 0.3f;
+        refusalToast.prefixColor[3] = 1.0f;
+        refusalToast.message = exhausted
+                                   ? "Majora's Mask world generation ran out of attempts for this seed and settings. "
+                                     "Termina stays un-randomized and progress here will not be saved to the pair."
+                                   : "Majora's Mask world generation failed. Termina stays un-randomized and "
+                                     "progress here will not be saved to the pair.";
+        refusalToast.messageColor[0] = 1.0f;
+        refusalToast.messageColor[1] = 1.0f;
+        refusalToast.messageColor[2] = 1.0f;
+        refusalToast.messageColor[3] = 1.0f;
+        refusalToast.remainingTime = 15.0f;
+        refusalToast.mute = 1;
+        OoT_Notification_Emit(&refusalToast);
     }
     fflush(stderr);
 }

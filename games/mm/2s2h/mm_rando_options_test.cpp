@@ -241,6 +241,32 @@ extern "C" int MM_RandoOptions_RunHeadless(void) {
         }
     }
 
+    // ---- the RO_ACCESS_MAJORA_REMAINS retirement (ADR 0010 answer O1) -----
+    // Operator-accepted 2026-07-31: the dead row is RETIRED — it never gains a
+    // consumer and never becomes a working control — while the always-zero
+    // StaticData row stays as a save-format tombstone and the pane keeps
+    // drawing it disabled-with-reason. Pinned here so "implementing" it one
+    // day is a deliberate act against a red test naming the ruling, never an
+    // accidental finish of what looked like a TODO. Counterfactual: flip the
+    // descriptor's liveness to LIVE (or drop the retirement wording from its
+    // reason) and this goes red.
+    {
+        const ComboMMOptionDesc* retired = Combo_MMOptionById((uint16_t)RO_ACCESS_MAJORA_REMAINS);
+        if (retired == NULL) {
+            return Fail(69, "RO_ACCESS_MAJORA_REMAINS has no descriptor");
+        }
+        if (retired->liveness != COMBO_MM_LIVENESS_DORMANT) {
+            return Fail(70, "RO_ACCESS_MAJORA_REMAINS is liveness %u — the operator retired this row (ADR 0010 "
+                            "answer O1); it must stay a dormant tombstone, never a working control",
+                        (unsigned)retired->liveness);
+        }
+        if (retired->disabledReason == NULL || strstr(retired->disabledReason, "Retired") == NULL) {
+            return Fail(71, "RO_ACCESS_MAJORA_REMAINS's reason ('%s') no longer names the retirement — the pane "
+                            "would present an operator-retired row as merely unfinished",
+                        retired->disabledReason ? retired->disabledReason : "(null)");
+        }
+    }
+
     // ---- (f) the value accessors actually reach the CVar store ------------
     {
         const ComboMMOptionDesc* logic = Combo_MMOptionById((uint16_t)RO_LOGIC);
@@ -327,12 +353,16 @@ extern "C" int MM_PairedProfile_RunHeadless(void) {
     };
     CVarClear("gRando.ExcludedChecks");
 
-    // ---- paired, nothing chosen: the #426 default applies ------------------
+    // ---- paired, nothing chosen: the ADR 0010 default applies --------------
+    // Increment 1.1's flip (lock a of the increment's CI set): the paired MM
+    // world defaults to GLITCHLESS — beatable by MM's own logic — superseding
+    // the #426 Nearly No Logic MVP default. Counterfactual: restore the old
+    // NNL pin in ResolveProfileValues and this goes red.
     restampUnfrozenCarrier();
     const uint32_t defaultDigest = Rando::Foreign::ResolvePairedProfile(true);
-    if (RANDO_SAVE_OPTIONS[RO_LOGIC] != RO_LOGIC_NEARLY_NO_LOGIC) {
-        return Fail(56, "with no explicit choice, the paired profile did not default RO_LOGIC to Nearly No Logic "
-                        "(got %u)",
+    if (RANDO_SAVE_OPTIONS[RO_LOGIC] != RO_LOGIC_GLITCHLESS) {
+        return Fail(56, "with no explicit choice, the paired profile did not default RO_LOGIC to Glitchless "
+                        "(ADR 0010 increment 1.1; got %u)",
                     (unsigned)RANDO_SAVE_OPTIONS[RO_LOGIC]);
     }
     if (defaultDigest == 0 || gComboCtx.mmProfileDigest != defaultDigest) {
@@ -376,8 +406,11 @@ extern "C" int MM_PairedProfile_RunHeadless(void) {
     // now models a post-creation edit reaching generation. The resolution must
     // THROW (OnFileCreate's catch turns that into the vanilla revert — no
     // divergent world is authored) and must NOT self-heal the stamp. Revert
-    // the compare in ResolvePairedProfile and both halves go red.
-    CVarSetInteger(Rando::StaticData::Options[RO_LOGIC].cvar, RO_LOGIC_GLITCHLESS);
+    // the compare in ResolvePairedProfile and both halves go red. (Nearly No
+    // Logic here because the default is now Glitchless — an explicit
+    // Glitchless choice would RESOLVE identically to the frozen default and
+    // diverge nothing.)
+    CVarSetInteger(Rando::StaticData::Options[RO_LOGIC].cvar, RO_LOGIC_NEARLY_NO_LOGIC);
     {
         bool refused = false;
         try {
@@ -398,14 +431,19 @@ extern "C" int MM_PairedProfile_RunHeadless(void) {
 
     // ---- paired, logic explicitly chosen: the choice survives --------------
     // This is the behaviour #499 step 3 asked for and the reason the pin moved
-    // from "unless already extreme" to "unless the player chose". The old
-    // condition could not tell a chosen Glitchless from an untouched key whose
-    // StaticData default happens to be Glitchless, and pinned both. A fresh
-    // carrier: this is a NEW creation under the chosen logic.
+    // from "unless already extreme" to "unless the player chose". Under ADR
+    // 0010 increment 1.1 the leg doubles as the "choosing away the proof is
+    // legitimate" lock: an explicit NEARLY NO LOGIC choice — a no-logic mode,
+    // exactly what the flipped Glitchless default would otherwise override —
+    // must survive the pin and move the digest. Counterfactual: make the pin
+    // unconditional (a law instead of a default) and Fail(60) goes red. A
+    // fresh carrier: this is a NEW creation under the chosen logic. (The CVar
+    // still holds NNL from the divergence leg above.)
     restampUnfrozenCarrier();
     const uint32_t chosenDigest = Rando::Foreign::ResolvePairedProfile(true);
-    if (RANDO_SAVE_OPTIONS[RO_LOGIC] != RO_LOGIC_GLITCHLESS) {
-        return Fail(60, "an explicitly chosen RO_LOGIC was overridden by the paired pin (got %u)",
+    if (RANDO_SAVE_OPTIONS[RO_LOGIC] != RO_LOGIC_NEARLY_NO_LOGIC) {
+        return Fail(60, "an explicitly chosen no-logic RO_LOGIC was overridden by the paired Glitchless pin "
+                        "(got %u) — choosing away the proof is legitimate (ADR 0010 increment 1.1)",
                     (unsigned)RANDO_SAVE_OPTIONS[RO_LOGIC]);
     }
     if (chosenDigest == defaultDigest) {

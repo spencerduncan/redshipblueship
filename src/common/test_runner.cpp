@@ -960,6 +960,18 @@ TestResult Test_MMRandoGen(void) {
 // mm-rando-gen, so `--test all` skips it.
 extern "C" int MM_Rando_HeadlessPairSwitchEntry(void);
 
+// Attempt-ladder locks (ADR 0010 increment 1.2), bridge bodies in
+// games/mm/2s2h/mm_rando_gen_test.cpp. The digest bridge generates the paired
+// MM world for a pinned master seed KNOWN to dead-end its first ladder
+// attempt, asserts convergence + the provenance record, and writes a world
+// digest to RSBS_ATTEMPT_DIGEST_OUT; the MMPairedAttemptDeterminism CTest row
+// (CMake/CheckPairedAttemptDeterminism.cmake) runs it twice in two processes
+// and diffs. The exhaustion bridge drives a cannot-converge profile through
+// the full switch-entry arrival and asserts the loud #533 refusal. Both need
+// a display like mm-rando-gen, so `--test all` skips them.
+extern "C" int MM_Rando_HeadlessPairedAttemptDigest(const char* outPath);
+extern "C" int MM_Rando_HeadlessPairedExhaustion(void);
+
 TestResult Test_MMPairSwitchEntry(void) {
     printf("[TEST] mm-pair-switch-entry: paired MM world activates through the switch-entry path (#439)\n");
 
@@ -975,6 +987,55 @@ TestResult Test_MMPairSwitchEntry(void) {
 
     int rc = MM_Rando_HeadlessPairSwitchEntry();
     printf("[TEST] %s: switch-entry pairing rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// Attempt-ladder convergence + determinism digest (ADR 0010 increment 1.2
+// lock (b)). Single-run assertions here; the two-process byte-diff runs via
+// the MMPairedAttemptDeterminism row (CMake/CheckPairedAttemptDeterminism
+// .cmake), which invokes this same dispatch twice with distinct
+// RSBS_ATTEMPT_DIGEST_OUT paths. Needs a display like mm-rando-gen, so
+// `--test all` skips it.
+TestResult Test_MMPairedAttempt(void) {
+    printf("[TEST] mm-paired-attempt: pinned multi-attempt master seed converges deterministically on the ladder "
+           "(ADR 0010 inc. 1.2)\n");
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    const char* digestOut = std::getenv("RSBS_ATTEMPT_DIGEST_OUT"); // NULL => digest to stdout
+    int rc = MM_Rando_HeadlessPairedAttemptDigest(digestOut);
+    printf("[TEST] %s: attempt-ladder digest rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// Attempt-ladder exhaustion surfaces loudly (ADR 0010 increment 1.2 lock (c)):
+// a cannot-converge profile must run the bounded ladder dry and refuse
+// through the #533 machinery at the arrival — never a silent vanilla Termina.
+// Needs a display like mm-rando-gen, so `--test all` skips it.
+TestResult Test_MMPairedExhaustion(void) {
+    printf("[TEST] mm-paired-exhaustion: an unconvergeable paired profile exhausts the ladder and refuses loudly "
+           "(ADR 0010 inc. 1.2)\n");
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    int rc = MM_Rando_HeadlessPairedExhaustion();
+    printf("[TEST] %s: exhaustion surface rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
@@ -1866,6 +1927,17 @@ const TestDescriptor gTests[] = {
     // Same display requirement as mm-rando-gen, so `--test all` skips it.
     {"mm-pair-switch-entry", "Paired MM world activates via switch-entry; existing saves untouched (#439)",
      Test_MMPairSwitchEntry},
+    // ADR 0010 increment 1.2 lock (b): a pinned master seed that NEEDS the
+    // attempt ladder converges, records its winning attempt, and digests the
+    // world for the two-process MMPairedAttemptDeterminism diff. Same display
+    // requirement as mm-rando-gen, so `--test all` skips it.
+    {"mm-paired-attempt", "Pinned multi-attempt seed converges deterministically on the ladder (ADR 0010 inc. 1.2)",
+     Test_MMPairedAttempt},
+    // ADR 0010 increment 1.2 lock (c): exhaustion is a LOUD failure on the
+    // #533 surface, never a silent vanilla Termina. Same display requirement
+    // as mm-rando-gen, so `--test all` skips it.
+    {"mm-paired-exhaustion", "Unconvergeable paired profile exhausts the ladder and refuses loudly (ADR 0010)",
+     Test_MMPairedExhaustion},
     // #439 follow-up: the OTHER entry paths into MM gameplay (file-select LOAD,
     // Song of Time / cycle reset, DayTelop) must also reach a live PlayState
     // with the IS_RANDO hooks matching the save. Same display requirement as
@@ -2150,6 +2222,8 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "rando-hint-crossgame") == 0 ||
                 strcmp(gTests[i].name, "mm-rando-gen") == 0 ||
                 strcmp(gTests[i].name, "mm-pair-switch-entry") == 0 ||
+                strcmp(gTests[i].name, "mm-paired-attempt") == 0 ||
+                strcmp(gTests[i].name, "mm-paired-exhaustion") == 0 ||
                 strcmp(gTests[i].name, "mm-reload-arm-state") == 0 ||
                 strcmp(gTests[i].name, "mm-moon-crash-arm-state") == 0 ||
                 strcmp(gTests[i].name, "mm-owl-save-arm-state") == 0 ||

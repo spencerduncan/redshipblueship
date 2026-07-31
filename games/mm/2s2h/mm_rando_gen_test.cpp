@@ -21,6 +21,7 @@
 #ifdef RSBS_SINGLE_EXECUTABLE
 
 #include <cstdio>
+#include <cstdlib> // getenv — the attempt-ladder scan/digest modes
 #include <cstring>
 #include <cstdint>
 #include <filesystem>
@@ -706,10 +707,12 @@ extern "C" int MM_Rando_HeadlessGenTest(void) {
  * byte-compare then covers OoT's fill AND the MM fill AND the foreign
  * placements in one diff.
  *
- * Deliberately attempt-free: the derived MM seed is a pure function of the
- * digest run's pinned OoT seed. If that derivation ever dead-ends the MM
- * fill, this fails loudly (rather than retrying into a world the derivation
- * cannot name) and the fix is to pin a different determinism seed.
+ * Since ADR 0010 increment 1.2 the generation itself carries the
+ * deterministic attempt ladder (OnFileCreate), so a first-try dead-end
+ * re-rolls deterministically rather than failing this bridge; the digest
+ * folds gComboCtx.mmPairedAttempt so the two-process diff also locks WHICH
+ * ladder rung both processes converged on. Exhaustion still fails loudly
+ * (FAIL(3)) and the fix is still to pin a different determinism seed.
  *
  * Returns 0 on success; nonzero step codes with stderr markers otherwise.
  */
@@ -725,15 +728,25 @@ extern "C" int MM_Rando_HeadlessForeignDigest(const char* outPath) {
         return 2;
     }
 
-    // Pin every CVar this generation depends on — CVar state can leak between
-    // dispatches through the shared config store, and determinism must not
-    // hinge on which test ran first. No spoiler file: the digest is the
-    // artifact, and skipping the write avoids the same-path-overwrite pitfall
-    // the OoT digest documents.
+    // Pin every NON-IDENTITY CVar this generation depends on — CVar state can
+    // leak between dispatches through the shared config store, and
+    // determinism must not hinge on which test ran first. No spoiler file:
+    // the digest is the artifact, and skipping the write avoids the
+    // same-path-overwrite pitfall the OoT digest documents.
+    //
+    // Deliberately NO option-table writes here (this used to pin RO_LOGIC to
+    // Nearly No Logic): the OoT half of this dispatch already ran the
+    // CREATION event, which stamped gComboCtx.mmProfileDigest from the live
+    // CVars (#570), so flipping ANY profile input between that stamp and this
+    // generation IS the post-creation divergence the machinery refuses — the
+    // flipped Glitchless default (ADR 0010 increment 1.1) made the old NNL
+    // pin exactly such a flip, and the refusal correctly killed this bridge.
+    // The MM fill therefore runs under the same resolved profile the stamp
+    // froze (all-defaults in CI => Glitchless), with the attempt ladder
+    // absorbing any first-try dead-end deterministically.
     CVarSetInteger("gRando.Enabled", 1);
     CVarSetInteger("gRando.SpoilerFileIndex", 0);
     CVarSetInteger("gRando.GenerateSpoiler", 0);
-    CVarSetInteger(Rando::StaticData::Options[RO_LOGIC].cvar, RO_LOGIC_NEARLY_NO_LOGIC);
     CVarSetString("gRando.InputSeed", "USERSEEDPOISON"); // paired branch must ignore this
 
     if (gRegEditor == NULL) {
@@ -790,8 +803,13 @@ extern "C" int MM_Rando_HeadlessForeignDigest(const char* outPath) {
     fprintf(out,
             "mmFinalSeed=%08X\n"
             "mmPlacementHash=%08X\n"
-            "foreignCount=%d\n",
-            gSaveContext.save.shipSaveInfo.rando.finalSeed, mmPlacementHash, Combo_CountForeignPlacements());
+            "foreignCount=%d\n"
+            // ADR 0010 increment 1.2: the winning ladder attempt joins the
+            // two-process diff, so both processes must not merely reach the
+            // same world — they must reach it via the same derivation.
+            "mmPairedAttempt=%u\n",
+            gSaveContext.save.shipSaveInfo.rando.finalSeed, mmPlacementHash, Combo_CountForeignPlacements(),
+            (unsigned)gComboCtx.mmPairedAttempt);
     for (int i = 0; i < (int)RSBS_FOREIGN_PLACEMENT_CAP; i++) {
         const ComboForeignPlacement& p = gComboCtx.foreignPlacements[i];
         if (p.item.originGame == GAME_NONE) {
@@ -1837,6 +1855,455 @@ extern "C" int MM_Rando_HeadlessOwlSaveArmState(void) {
 
     fprintf(stderr, "[MM-OWL-SAVE] PASS: an owl save and a file copy both preserve the paired world identity and "
                     "leave the IS_RANDO hooks armed\n");
+    return 0;
+}
+
+// ============================================================================
+// Attempt-ladder determinism lock (ADR 0010 increment 1.2 — lock (b) of the
+// increment's CI set).
+// ============================================================================
+namespace {
+
+/** Clear every option CVar so the paired profile resolves from "nobody chose
+ *  anything" — which, under increment 1.1's pin, is GLITCHLESS. */
+void LadderClearOptionCVars() {
+    for (auto& [randoOptionId, row] : Rando::StaticData::Options) {
+        (void)randoOptionId;
+        CVarClear(row.cvar);
+    }
+    CVarClear("gRando.ExcludedChecks");
+}
+
+/**
+ * THE PINNED LADDER MASTER SEED: a master seed whose paired MM world, under
+ * this row's pinned profile, deterministically DEAD-ENDS on ladder attempt 0
+ * and converges on a later attempt. That property is what makes the
+ * MMPairedAttemptGen / MMPairedAttemptDeterminism locks non-vacuous: a seed
+ * that converges first-try never exercises the ladder at all.
+ *
+ * THE PINNED PROFILE IS GLITCHLESS WITH THE HEAVY PROGRESSION SHUFFLES ON
+ * (ocarina buttons + swim + boss remains + owl statues + clock shuffle),
+ * deliberately: the Glitchless junk-swap forward fill is the only one that
+ * genuinely dead-ends, and only under pressure — measured 2026-07-31 at this
+ * tree, the ALL-DEFAULT profile converged attempt 0 on every one of master
+ * seeds 1..1040 (and a paired Nearly No Logic profile on every one of
+ * 1..1000; NNL's apply cannot throw at all), while THIS profile dead-ends
+ * attempt 0 on 44 of the first 200 seeds. A fixture that never dead-ends
+ * cannot pin a ladder-exercising seed. (The default profile still gets
+ * end-to-end generation coverage via MMPairedExhaustion's counter-leg; the
+ * default RESOLUTION is locked by MMPairedProfile. The ladder itself is
+ * logic-mode-agnostic — the ":glitchless-attempt-" literal is a domain tag.)
+ *
+ * Seed 17 under that profile: attempt 0 dead-ends, attempt 1 converges
+ * (attempts=2 — the minimal ladder-exercising shape).
+ *
+ * RE-PIN RECIPE (when a fill/logic change moves convergence and FAIL(4)
+ * (converged first try) or FAIL(3) (exhausted) goes red): run the scan mode —
+ *
+ *     RSBS_ATTEMPT_SEED_SCAN=<startSeed>:<count> redship --test mm-paired-attempt
+ *
+ * — which prints `seed=<n> attempts=<k>` per candidate under this same
+ * pinned profile, and pin the first seed reporting attempts >= 2. This is
+ * the SeedDeterminism re-pin discipline: the fix for a moved fill is a
+ * deliberate new pin, never a bent derivation.
+ */
+constexpr uint32_t kLadderMasterSeed = 17u; // scan-pinned 2026-07-31; see recipe
+
+/** A master seed verified (same 2026-07-31 scan) to converge on attempt 0
+ *  under the ALL-DEFAULT (Glitchless-pinned) profile — the exhaustion row's
+ *  counter-leg fixture, where first-try convergence is exactly what is
+ *  wanted: the leg proves a SUCCESSFUL default-profile arrival latches
+ *  nothing. */
+constexpr uint32_t kDefaultProfileConvergingSeed = 1u;
+} // namespace
+
+/**
+ * Lock (b): a pinned master seed KNOWN to need more than one ladder attempt
+ * converges — through the real OnSaveInit dispatch chain — and both the
+ * winning attempt index and the resulting world are deterministic. The
+ * in-process assertions here cover convergence, the non-vacuity floor
+ * (attempts >= 2) and the gComboCtx provenance record; byte-identical
+ * cross-PROCESS reproduction is driven by the MMPairedAttemptDeterminism
+ * CTest row (CMake/CheckPairedAttemptDeterminism.cmake), which runs this
+ * dispatch twice in two fresh processes and diffs the digest written to
+ * RSBS_ATTEMPT_DIGEST_OUT — two processes for the same reason SeedDeterminism
+ * uses them.
+ *
+ * COUNTERFACTUALS (each independently red): make the ladder derivation
+ * consume runtime state (e.g. seed attempt n from the previous attempt's RNG
+ * position instead of the documented hash) and the two-process digest diff
+ * fails; drop the gComboCtx.mmPairedAttempt stamp and FAIL(6) fires; make
+ * exhaustion silent (remove the ladder) and FAIL(3) fires because attempt 0
+ * dead-ends this seed by construction.
+ *
+ * Returns 0 on success, a distinct nonzero step code otherwise.
+ */
+extern "C" int MM_Rando_HeadlessPairedAttemptDigest(const char* outPath) {
+    auto ctx = Ship::Context::GetInstance();
+    if (ctx == nullptr || ctx->GetConsoleVariables() == nullptr) {
+        fprintf(stderr, "[MM-ATTEMPT] FAIL(1): Ship::Context not live\n");
+        return 1;
+    }
+
+    MM_Rando_Init();
+    if (Rando::Logic::Regions.empty()) {
+        fprintf(stderr, "[MM-ATTEMPT] FAIL(2): Logic/Regions graph empty\n");
+        return 2;
+    }
+    if (gRegEditor == NULL) {
+        static RegEditor sAttemptRegEditor = {};
+        gRegEditor = &sAttemptRegEditor;
+    }
+
+    // The pinned profile: Glitchless with the heavy progression shuffles ON —
+    // the dead-end-PRONE configuration that makes a multi-attempt seed
+    // findable (see kLadderMasterSeed's comment; the all-default profile
+    // converges first-try on every seed a wide scan tried, so it cannot
+    // exercise the ladder). Explicit CVar writes, so this is an explicit
+    // player profile frozen into the identity like any other.
+    LadderClearOptionCVars();
+    CVarSetInteger(Rando::StaticData::Options[RO_SHUFFLE_OCARINA_BUTTONS].cvar, RO_GENERIC_ON);
+    CVarSetInteger(Rando::StaticData::Options[RO_SHUFFLE_SWIM].cvar, RO_GENERIC_ON);
+    CVarSetInteger(Rando::StaticData::Options[RO_SHUFFLE_BOSS_REMAINS].cvar, RO_GENERIC_ON);
+    CVarSetInteger(Rando::StaticData::Options[RO_SHUFFLE_OWL_STATUES].cvar, RO_GENERIC_ON);
+    CVarSetInteger(Rando::StaticData::Options[RO_CLOCK_SHUFFLE].cvar, RO_GENERIC_ON);
+    CVarSetInteger("gRando.SpoilerFileIndex", 0);
+    CVarSetInteger("gRando.GenerateSpoiler", 0); // the digest is the artifact
+    CVarSetString("gRando.InputSeed", "USERSEEDPOISON"); // the paired branch must ignore this
+
+    // One paired generation for one master seed, through the real dispatch
+    // chain, from a fresh legacy (pre-freeze) carrier each time.
+    auto generateFor = [](uint32_t masterSeed) {
+        ComboContext_Init();
+        gComboCtx.sourceIsRando = 1;
+        gComboCtx.sharedRandoSeed = masterSeed;
+        gComboCtx.sharedRandoSettingsHash = 0x1ADD3125u; // nonzero: "profile recorded" (Lane B contract)
+        gComboCtx.mmProfileDigest = 0;
+        memset(&gSaveContext, 0, sizeof(gSaveContext));
+        MM_Sram_InitNewSave();
+        GameInteractor_ExecuteOnSaveInit(0);
+    };
+
+    // Re-pin scan mode (see kLadderMasterSeed's recipe). Prints per-seed
+    // ladder outcomes and asserts nothing — it exists to FIND the pin, and
+    // the pinned path below is what locks it.
+    const char* scanSpec = std::getenv("RSBS_ATTEMPT_SEED_SCAN");
+    if (scanSpec != NULL && scanSpec[0] != '\0') {
+        unsigned scanStart = 0;
+        unsigned scanCount = 0;
+        if (sscanf(scanSpec, "%u:%u", &scanStart, &scanCount) != 2 || scanCount == 0) {
+            fprintf(stderr, "[MM-ATTEMPT] FAIL(9): RSBS_ATTEMPT_SEED_SCAN must be <startSeed>:<count>\n");
+            return 9;
+        }
+        for (unsigned i = 0; i < scanCount; i++) {
+            const uint32_t seed = (uint32_t)(scanStart + i);
+            generateFor(seed);
+            fprintf(stderr, "[MM-ATTEMPT] scan: seed=%u attempts=%d exhausted=%d converged=%d\n", (unsigned)seed,
+                    MM_Rando_PairedGenLastAttempts(), MM_Rando_PairedGenLastExhausted(),
+                    gSaveContext.save.shipSaveInfo.saveType == SAVETYPE_RANDO ? 1 : 0);
+        }
+        ComboContext_Init();
+        memset(&gSaveContext, 0, sizeof(gSaveContext));
+        return 0;
+    }
+
+    generateFor(kLadderMasterSeed);
+
+    if (gSaveContext.save.shipSaveInfo.saveType != SAVETYPE_RANDO) {
+        fprintf(stderr,
+                "[MM-ATTEMPT] FAIL(3): the pinned ladder master seed %u EXHAUSTED the ladder (%d attempts) — a "
+                "fill/logic change moved convergence; re-pin via the scan recipe at kLadderMasterSeed\n",
+                (unsigned)kLadderMasterSeed, MM_Rando_PairedGenLastAttempts());
+        return 3;
+    }
+    const int attempts = MM_Rando_PairedGenLastAttempts();
+    if (attempts < 2) {
+        fprintf(stderr,
+                "[MM-ATTEMPT] FAIL(4): the pinned ladder master seed %u converged on attempt 0 (attempts=%d) — the "
+                "ladder was never exercised and this lock is vacuous; re-pin via the scan recipe at "
+                "kLadderMasterSeed\n",
+                (unsigned)kLadderMasterSeed, attempts);
+        return 4;
+    }
+    if (MM_Rando_PairedGenLastExhausted()) {
+        fprintf(stderr, "[MM-ATTEMPT] FAIL(5): converged world reports an exhausted ladder — bookkeeping broken\n");
+        return 5;
+    }
+    if (gComboCtx.mmPairedAttempt != (uint32_t)attempts) {
+        fprintf(stderr,
+                "[MM-ATTEMPT] FAIL(6): gComboCtx.mmPairedAttempt=%u but the ladder reports %d attempts — the combo "
+                "record would replay a different derivation than the one that authored this world\n",
+                (unsigned)gComboCtx.mmPairedAttempt, attempts);
+        return 6;
+    }
+    {
+        const ComboForeignItemDef* pool = NULL;
+        const int poolCount = Combo_GetForeignItemPool(&pool);
+        if (Combo_CountForeignPlacements() != poolCount) {
+            fprintf(stderr, "[MM-ATTEMPT] FAIL(7): expected %d foreign placements, found %d\n", poolCount,
+                    Combo_CountForeignPlacements());
+            return 7;
+        }
+    }
+
+    // Canonical world digest, mirroring MM_Rando_HeadlessForeignDigest's
+    // shape: final seed + attempt + placement blob hash + every foreign
+    // placement. Written fresh (not appended) — this row owns its file.
+    std::string blob;
+    for (auto& [randoCheckId, randoStaticCheck] : Rando::StaticData::Checks) {
+        if (randoStaticCheck.randoCheckId == RC_UNKNOWN) {
+            continue;
+        }
+        blob += std::to_string((int)randoCheckId);
+        blob += ':';
+        blob += std::to_string((int)RANDO_SAVE_CHECKS[randoCheckId].randoItemId);
+        blob += ';';
+    }
+    const uint32_t placementHash = Ship_Hash(blob);
+
+    FILE* out = stdout;
+    bool closeOut = false;
+    if (outPath != NULL && outPath[0] != '\0') {
+        out = fopen(outPath, "w");
+        if (out == NULL) {
+            fprintf(stderr, "[MM-ATTEMPT] FAIL(8): cannot open digest output '%s'\n", outPath);
+            return 8;
+        }
+        closeOut = true;
+    }
+    fprintf(out,
+            "ladderMasterSeed=%u\n"
+            "mmFinalSeed=%08X\n"
+            "winningAttempt=%d\n"
+            "mmPairedAttempt=%u\n"
+            "mmPlacementHash=%08X\n"
+            "foreignCount=%d\n",
+            (unsigned)kLadderMasterSeed, gSaveContext.save.shipSaveInfo.rando.finalSeed, attempts - 1,
+            (unsigned)gComboCtx.mmPairedAttempt, placementHash, Combo_CountForeignPlacements());
+    for (int i = 0; i < (int)RSBS_FOREIGN_PLACEMENT_CAP; i++) {
+        const ComboForeignPlacement& p = gComboCtx.foreignPlacements[i];
+        if (p.item.originGame == GAME_NONE) {
+            continue;
+        }
+        fprintf(out, "foreign%d=%u:%u:%u\n", i, (unsigned)p.mmCheckId, (unsigned)p.item.originGame,
+                (unsigned)p.item.id);
+    }
+    if (closeOut) {
+        fclose(out);
+    }
+    fprintf(stderr, "[MM-ATTEMPT] PASS: pinned seed %u converged on ladder attempt %d (mmFinalSeed=%08X, "
+                    "placementHash=%08X)\n",
+            (unsigned)kLadderMasterSeed, attempts - 1, gSaveContext.save.shipSaveInfo.rando.finalSeed, placementHash);
+
+    // Leave clean global state for later dispatches in the same process.
+    ComboContext_Init();
+    memset(&gSaveContext, 0, sizeof(gSaveContext));
+    return 0;
+}
+
+// ============================================================================
+// Attempt-ladder exhaustion lock (ADR 0010 increment 1.2 — lock (c) of the
+// increment's CI set).
+// ============================================================================
+/**
+ * A settings profile that CANNOT converge — every check user-excluded, so
+ * every ladder attempt deterministically throws "No checks in logic" — must
+ * exhaust the bounded ladder and surface the LOUD failure at the arrival:
+ * save reverted to vanilla (no partial world), the active unified-save slot
+ * latched REFUSED with RSBS_REFUSE_GENERATION through the #533 machinery
+ * (this session's unpaired fallback world must never capture into the pair's
+ * .redsave), and the shared-overlay toast emitted (presentation; the latch
+ * and state are what this asserts). Driven through the FULL switch-entry
+ * path — the only flow a player actually takes — exactly as
+ * MM_Rando_HeadlessPairSwitchEntry drives it.
+ *
+ * COUNTERFACTUALS (each independently red): restore the silent-vanilla
+ * fallback (drop RsbsSave_RefuseSlotGeneration from the arrival gate's
+ * failure branch) and FAIL(6)/FAIL(7)/FAIL(8) fire; unbound the ladder and
+ * the row times out instead of exhausting; latch unconditionally (refuse
+ * even on success) and the counter-leg's FAIL(12)/FAIL(13) fire.
+ *
+ * Returns 0 on success, a distinct nonzero step code otherwise.
+ */
+extern "C" int MM_Rando_HeadlessPairedExhaustion(void) {
+    const uint16_t kArrival = 0xD800; // ENTRANCE(SOUTH_CLOCK_TOWN, 0) — the OoT->MM arrival
+
+    auto ctx = Ship::Context::GetInstance();
+    if (ctx == nullptr || ctx->GetConsoleVariables() == nullptr) {
+        fprintf(stderr, "[MM-EXHAUST] FAIL(1): Ship::Context not live\n");
+        return 1;
+    }
+
+    MM_Rando_Init();
+    if (Rando::Logic::Regions.empty()) {
+        fprintf(stderr, "[MM-EXHAUST] FAIL(2): Logic/Regions graph empty\n");
+        return 2;
+    }
+    if (gRegEditor == NULL) {
+        static RegEditor sExhaustRegEditor = {};
+        gRegEditor = &sExhaustRegEditor;
+    }
+
+    LadderClearOptionCVars();
+    CVarSetInteger("gRando.SpoilerFileIndex", 0);
+    CVarSetInteger("gRando.GenerateSpoiler", 0);
+    CVarSetString("gRando.InputSeed", "USERSEEDPOISON");
+
+    // The cannot-converge fixture: exclude EVERY check. GeneratePools keeps
+    // excluded checks out of checkPool (Logic/GeneratePools.cpp), so every
+    // attempt throws "No checks in logic" before any fill work — the
+    // exhaustion path in microseconds, not 10s-per-attempt wall clock. Built
+    // in the canonical "id,id,..." form the UI writer emits (no trailing
+    // comma), because ProfileIdentityString folds the raw string.
+    {
+        std::string excludeAll;
+        for (auto& [randoCheckId, randoStaticCheck] : Rando::StaticData::Checks) {
+            if (randoStaticCheck.randoCheckId == RC_UNKNOWN) {
+                continue;
+            }
+            if (!excludeAll.empty()) {
+                excludeAll += ',';
+            }
+            excludeAll += std::to_string((int)randoCheckId);
+        }
+        CVarSetString("gRando.ExcludedChecks", excludeAll.c_str());
+    }
+
+    // Slot fixture, exactly as MMPairSwitchEntry's Phase 4 stands one up.
+    const char* const kExhaustSaveDir = "rsbs_test_pairedexhaustion_saves";
+    rsbs::SaveManager::Instance().SetSaveDirectory(kExhaustSaveDir);
+    RsbsSave_ResetSlotSessionState();
+    RsbsSave_ArmSlotOnCreate(0);
+    RsbsSave_SetActiveSlot(0);
+    if (!RsbsSave_IsSlotWritable(0)) {
+        fprintf(stderr, "[MM-EXHAUST] FAIL(3): could not arm the slot fixture\n");
+        return 3;
+    }
+
+    // A fresh legacy (pre-freeze) pair arriving through the real switch-entry
+    // path. No creation stamp: the identity gate must PASS this arrival (the
+    // profile freezes at generation), so the refusal asserted below can only
+    // come from the generation-failure branch — not from the identity gate.
+    // Same master seed as the counter-leg below, so the two legs differ in
+    // EXACTLY one input: the cannot-converge fixture.
+    Combo_ClearForeignPlacements();
+    Combo_ClearFrozenState("mm");
+    Combo_ClearStartupEntrance();
+    ComboContext_Init();
+    gComboCtx.sourceIsRando = 1;
+    gComboCtx.sharedRandoSeed = kDefaultProfileConvergingSeed;
+    gComboCtx.sharedRandoSettingsHash = 0x0E8A0570u;
+    gComboCtx.mmProfileDigest = 0;
+
+    memset(&gSaveContext, 0, sizeof(gSaveContext));
+    MM_Sram_InitNewSave();
+    GameInteractor_ExecuteOnSaveLoad(gSaveContext.fileNum);
+    Combo_SetStartupEntrance(kArrival);
+    MM_Play_ConsumeStartupEntrance();
+
+    if (gSaveContext.save.shipSaveInfo.saveType == SAVETYPE_RANDO) {
+        fprintf(stderr, "[MM-EXHAUST] FAIL(4): an all-excluded profile GENERATED a world — the cannot-converge "
+                        "fixture premise is broken\n");
+        return 4;
+    }
+    if (!MM_Rando_PairedGenLastExhausted() || MM_Rando_PairedGenLastAttempts() != MM_Rando_PairedGenMaxAttempts()) {
+        fprintf(stderr,
+                "[MM-EXHAUST] FAIL(5): the ladder did not run to its bound (attempts=%d of %d, exhausted=%d) — "
+                "either an attempt short-circuited or the bound moved\n",
+                MM_Rando_PairedGenLastAttempts(), MM_Rando_PairedGenMaxAttempts(), MM_Rando_PairedGenLastExhausted());
+        return 5;
+    }
+    if (RsbsSave_GetSlotState(0) != (int)RSBS_SLOT_REFUSED) {
+        fprintf(stderr, "[MM-EXHAUST] FAIL(6): the exhausted arrival did not surface REFUSED on the active slot "
+                        "(state=%d) — the silent-vanilla-revert class, back again (#564 V7)\n",
+                RsbsSave_GetSlotState(0));
+        return 6;
+    }
+    if (RsbsSave_GetSlotRefuseReason(0) != (int)RSBS_REFUSE_GENERATION) {
+        fprintf(stderr, "[MM-EXHAUST] FAIL(7): refusal reason is %d, expected RSBS_REFUSE_GENERATION — the file "
+                        "panel would misname the failure\n",
+                RsbsSave_GetSlotRefuseReason(0));
+        return 7;
+    }
+    if (RsbsSave_IsSlotWritable(0)) {
+        fprintf(stderr, "[MM-EXHAUST] FAIL(8): the exhausted arrival left the slot writable — the unpaired vanilla "
+                        "fallback session could capture into the pair's .redsave\n");
+        return 8;
+    }
+    if (Combo_CountForeignPlacements() != 0) {
+        fprintf(stderr, "[MM-EXHAUST] FAIL(9): the aborted generation leaked %d foreign placements\n",
+                Combo_CountForeignPlacements());
+        return 9;
+    }
+    if (gComboCtx.mmPairedAttempt != 0) {
+        fprintf(stderr, "[MM-EXHAUST] FAIL(10): the aborted generation left a stale attempt-provenance stamp (%u)\n",
+                (unsigned)gComboCtx.mmPairedAttempt);
+        return 10;
+    }
+    fprintf(stderr, "[MM-EXHAUST] exhausted arrival refused loudly: vanilla revert, slot latched + surfaced "
+                    "(reason=generation), no leaked placements\n");
+
+    // ----------------------------------------------------------------------
+    // Counter-leg (non-vacuity): the SAME arrival with the fixture undone
+    // generates normally and latches nothing — the refusal is failure-driven,
+    // not unconditional. All-default profile (the flipped Glitchless default
+    // resolves and generates end to end here) with a master seed the pin scan
+    // verified converges on attempt 0 under it.
+    // ----------------------------------------------------------------------
+    CVarClear("gRando.ExcludedChecks");
+    RsbsSave_ResetSlotSessionState();
+    RsbsSave_ArmSlotOnCreate(0);
+    RsbsSave_SetActiveSlot(0);
+    Combo_ClearForeignPlacements();
+    Combo_ClearFrozenState("mm");
+    Combo_ClearStartupEntrance();
+    ComboContext_Init();
+    gComboCtx.sourceIsRando = 1;
+    gComboCtx.sharedRandoSeed = kDefaultProfileConvergingSeed;
+    gComboCtx.sharedRandoSettingsHash = 0x0E8A0570u;
+    gComboCtx.mmProfileDigest = 0;
+
+    memset(&gSaveContext, 0, sizeof(gSaveContext));
+    MM_Sram_InitNewSave();
+    GameInteractor_ExecuteOnSaveLoad(gSaveContext.fileNum);
+    Combo_SetStartupEntrance(kArrival);
+    MM_Play_ConsumeStartupEntrance();
+
+    if (gSaveContext.save.shipSaveInfo.saveType != SAVETYPE_RANDO) {
+        fprintf(stderr, "[MM-EXHAUST] FAIL(11): the counter-leg arrival failed to generate — the exhaustion leg's "
+                        "assertions above cannot be attributed to the fixture\n");
+        return 11;
+    }
+    if (RsbsSave_GetSlotState(0) == (int)RSBS_SLOT_REFUSED || !RsbsSave_IsSlotWritable(0)) {
+        fprintf(stderr, "[MM-EXHAUST] FAIL(12): a SUCCESSFUL paired arrival latched or refused the slot — the "
+                        "refusal is not failure-driven\n");
+        return 12;
+    }
+    if (gComboCtx.mmPairedAttempt == 0) {
+        fprintf(stderr, "[MM-EXHAUST] FAIL(13): the successful counter-leg did not record its winning attempt\n");
+        return 13;
+    }
+    fprintf(stderr, "[MM-EXHAUST] counter-leg generated normally (attempt record %u), slot stays writable\n",
+            (unsigned)gComboCtx.mmPairedAttempt);
+
+    // Leave clean global state for later dispatches in the same process.
+    RsbsSave_DeleteSave(0);
+    RsbsSave_ResetSlotSessionState();
+    RsbsSave_SetActiveSlot(-1);
+    rsbs::SaveManager::Instance().SetSaveDirectory("Save"); // the documented harness default
+    {
+        std::error_code exhaustEc;
+        std::filesystem::remove_all(kExhaustSaveDir, exhaustEc);
+    }
+    LadderClearOptionCVars();
+    Combo_ClearForeignPlacements();
+    Combo_ClearFrozenState("mm");
+    Combo_ClearStartupEntrance();
+    memset(&gSaveContext, 0, sizeof(gSaveContext));
+    ComboContext_Init();
+
+    fprintf(stderr, "[MM-EXHAUST] PASS: a cannot-converge profile exhausts the bounded ladder and refuses loudly "
+                    "through the #533 surface; a converging one generates and latches nothing\n");
     return 0;
 }
 
