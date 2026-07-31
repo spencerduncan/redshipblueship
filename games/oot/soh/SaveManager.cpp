@@ -164,21 +164,19 @@ SaveManager::SaveManager() {
         if (fileNum < 0 || fileNum >= RSBS_SAVE_MAX_SLOTS) {
             return;
         }
-        // Publish the slot so a later MM-side save can address it; MM has no
-        // slot of its own (its fileNum is the 0xFF sentinel cross-game).
-        RsbsSave_SetActiveSlot(fileNum);
-        // Shared cross-game resources (#525) BEFORE the shadow capture, so the
-        // pool and the OoT blob stored beside it agree. Without this, money
-        // earned since the last switch is in the OoT save but not in the pool,
-        // and the post-load first-harvest seed reads the balance as already
-        // counted and drops it.
-        OoT_HarvestSharedResources();
-        Context_UpdateShadowCopy(GAME_OOT, &gSaveContext, sizeof(gSaveContext));
-        gComboCtx.sourceGame = GAME_OOT;
-        RsbsSave_Save(fileNum);
+        // #537: this hook fires at the TAIL of SaveFileThreaded, on the save
+        // worker thread, after the game-thread SaveContext snapshot has been
+        // deleted — so it must not touch gSaveContext, gComboCtx, or the
+        // shadows. The whole cross-game snapshot (harvest, shadow refresh,
+        // sourceGame, commit generation) was marshalled ON THE GAME THREAD in
+        // SaveSection, at the same instant SoH took its own SaveContext copy;
+        // all that happens here is serializing that immutable staged snapshot
+        // to disk. Reverting this split (reading live state here) re-arms the
+        // torn-.redsave class Test_CommitTornWrite locks against.
+        RsbsSave_WriteStagedCommit(fileNum);
     });
 
-    GameInteractor::Instance->RegisterGameHook<GameInteractor::OnLoadFile>([](int32_t fileNum) {
+    GameInteractor::Instance->RegisterGameHook<GameInteractor::OnLoadFile>([this](int32_t fileNum) {
         // Clear-and-reload (#440). The .redsave is per-OoT-slot
         // (redship_slot{0,1,2}.redsave) but gComboCtx and both shadows are
         // process singletons, so loading a slot has to REPLACE the resident
@@ -212,7 +210,17 @@ SaveManager::SaveManager() {
         Context_InvalidateSessionOnSlotLoad();
         RsbsSave_SetActiveSlot(fileNum);
         if (RsbsSave_HasSave(fileNum)) {
-            RsbsSave_Load(fileNum);
+            if (RsbsSave_Load(fileNum)) {
+                // #531/#564 V16 interim: compare the freshness stamp the
+                // commit choke point writes into BOTH artifacts. This hook
+                // fires from LoadFile after saveBlock is populated, so the
+                // .sav's mirrored generation is readable here. A mismatch is
+                // the two-authorities divergence made visible: .redsave newer
+                // == an MM-side commit landed after OoT's last save point
+                // (the #531 loss shape); .sav newer == a .redsave write was
+                // lost. Logged loudly for now; TODO(#533) surface as REFUSED.
+                RsbsSave_CheckCommitGenerationSkew(fileNum, this->GetLoadedCommitGeneration());
+            }
         }
     });
 
@@ -236,6 +244,13 @@ SaveManager::SaveManager() {
         // Snapshot on quit so unsaved cross-game flags (shared items, last
         // game) survive across a process exit even if the user never went
         // through the file-select panel.
+        //
+        // Thread affinity (#537): OnExitGame is dispatched from the GAME
+        // THREAD (z_play.c / kaleido), and the earlier-registered handler
+        // above has already drained the save worker pool — so refreshing the
+        // shadow from the live gSaveContext and committing synchronously here
+        // (RsbsSave_Save == stage + write through the commit choke point) is
+        // race-free by construction.
         if (fileNum < 0 || fileNum >= RSBS_SAVE_MAX_SLOTS) {
             return;
         }
@@ -1383,7 +1398,7 @@ int copy_file(const char* src, const char* dst) {
 
 // Threaded SaveFile takes copy of gSaveContext for local unmodified storage
 
-void SaveManager::SaveFileThreaded(int fileNum, SaveContext* saveContext, int sectionID) {
+void SaveManager::SaveFileThreaded(int fileNum, SaveContext* saveContext, int sectionID, uint32_t rsbsGeneration) {
     // RAII, not lock()/unlock(): every statement below can throw (json
     // serialization, std::filesystem::rename, and the OnSaveFile handlers), and
     // an escaped exception used to leave saveMtx held forever.
@@ -1402,6 +1417,16 @@ void SaveManager::SaveFileThreaded(int fileNum, SaveContext* saveContext, int se
         saveBlock["fileType"] = FILE_TYPE_SAVE_VANILLA;
     }
     if (sectionID == SECTION_ID_BASE) {
+        // RSBS (#537/#531): mirror the commit generation the game-thread
+        // marshalling stamped into the staged .redsave Tier-1 (see
+        // SaveSection). The same commit therefore signs BOTH durable
+        // artifacts, which is what makes load-time freshness divergence
+        // between them detectable (RsbsSave_CheckCommitGenerationSkew).
+        // Section-only saves leave the previous base stamp in place — their
+        // base data IS still that generation's.
+        if (rsbsGeneration != 0) {
+            saveBlock["rsbsCommitGeneration"] = rsbsGeneration;
+        }
         for (auto& sectionHandlerPair : sectionSaveHandlers) {
             auto& saveFuncInfo = sectionHandlerPair.second;
             // Don't call SaveFuncs for sections that aren't tied to game save
@@ -1498,10 +1523,40 @@ void SaveManager::SaveSection(int fileNum, int sectionID, bool threaded) {
     }
     auto saveContext = new SaveContext;
     memcpy(saveContext, &gSaveContext, sizeof(gSaveContext));
+
+    // RSBS commit marshalling (#537). This is the GAME THREAD — the same
+    // instant SoH just snapshotted gSaveContext for its own worker — so the
+    // whole cross-game snapshot is taken HERE, not in the OnSaveFile hook
+    // (which fires on the pool thread after this snapshot is deleted, and used
+    // to memcpy the LIVE globals mid-mutation: a CRC-valid but semantically
+    // torn .redsave). The staged copy and SoH's saveContext copy describe one
+    // instant; the worker later serializes both without touching live state.
+    //
+    // The stamped monotonic generation rides into BOTH artifacts: the staged
+    // Tier-1 carries it into the .redsave, and SaveFileThreaded mirrors it
+    // into the .sav JSON — the load-time freshness comparison depends on the
+    // two stamps being authored by this single commit.
+    uint32_t rsbsGeneration = 0;
+    if (sectionID == SECTION_ID_BASE && fileNum >= 0 && fileNum < RSBS_SAVE_MAX_SLOTS) {
+        // Publish the slot so a later MM-side save can address it; MM has no
+        // slot of its own (its fileNum is the 0xFF sentinel cross-game).
+        RsbsSave_SetActiveSlot(fileNum);
+        // Shared cross-game resources (#525) BEFORE the shadow capture, so the
+        // pool and the OoT blob stored beside it agree. Without this, money
+        // earned since the last switch is in the OoT save but not in the pool,
+        // and the post-load first-harvest seed reads the balance as already
+        // counted and drops it.
+        OoT_HarvestSharedResources();
+        Context_UpdateShadowCopy(GAME_OOT, &gSaveContext, sizeof(gSaveContext));
+        gComboCtx.sourceGame = GAME_OOT;
+        rsbsGeneration = RsbsSave_StageCommit();
+    }
+
     if (threaded) {
-        smThreadPool->detach_task(std::bind(&SaveManager::SaveFileThreaded, this, fileNum, saveContext, sectionID));
+        smThreadPool->detach_task(
+            std::bind(&SaveManager::SaveFileThreaded, this, fileNum, saveContext, sectionID, rsbsGeneration));
     } else {
-        SaveFileThreaded(fileNum, saveContext, sectionID);
+        SaveFileThreaded(fileNum, saveContext, sectionID, rsbsGeneration);
     }
 }
 
@@ -1521,6 +1576,20 @@ void SaveManager::SaveGlobal() {
 
     std::ofstream output(sGlobalPath);
     output << std::setw(1) << globalBlock << std::endl;
+}
+
+uint32_t SaveManager::GetLoadedCommitGeneration() {
+    // Called from the OnLoadFile hook, which LoadFile executes AFTER saveBlock
+    // is populated (and while saveMtx is held by that same thread). Absent key
+    // == a .sav from before the stamp existed == 0, the exempt value.
+    try {
+        if (saveBlock.is_object() && saveBlock.contains("rsbsCommitGeneration")) {
+            return saveBlock["rsbsCommitGeneration"].get<uint32_t>();
+        }
+    } catch (const std::exception&) {
+        // A malformed stamp reads as "absent" rather than killing the load.
+    }
+    return 0;
 }
 
 void SaveManager::LoadFile(int fileNum) {
