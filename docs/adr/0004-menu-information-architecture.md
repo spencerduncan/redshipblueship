@@ -1,10 +1,19 @@
 # ADR 0004: Menu information architecture — one shell, four tiers, capability-gated MM entries
 
-- Status: **Accepted** (2026-07-23, #497 step 1)
+- Status: **Accepted** (2026-07-23, #497 step 1); **§6 and §4.1a amended
+  2026-07-30** under the one-game-semantics ruling
 - For: #392 (Phase 3.0 tracker), #34 (settings migration), #497, #499
 - Amended on acceptance: §4.1 (scope and host of the MM randomizer pane — see
   §4.1a), §2d (the #454 disagreement, now ruled), and "What this ADR does not
   decide" (all five calls resolved).
+- Amended **2026-07-30 (#564**, ruling recorded on
+  [#500](https://github.com/spencerduncan/redshipblueship/issues/500#issuecomment-5126492334)**)**:
+  §6 gains a **fourth presentation state** — frozen-at-creation, read-only, with
+  the reason — and its "a player should be able to set MM options before
+  switching" clause is superseded; §4.1a's timing is restated as *reachable
+  before the combo file is created*, which strengthens rather than disturbs its
+  common-owned-window conclusion. The tier model, the capability-gating rule and
+  the section layout are untouched.
 - Depends on:
   - **[ADR 0003](0003-settings-namespace.md)** (settings namespace) — owns CVar key naming and
     the rename/migration rule; this ADR consumes its decisions rather than restating them.
@@ -240,8 +249,24 @@ arming condition is untouched (mechanized as the MM-side reader allowlist in
 
 **Consequence accepted: §4.2's shared-intent marker does not apply to this pane.** All 47 options
 are tier-3 (O) MM-only keys; none is in `kSharedIntentKeys`, so there is no "applies to both
-games" claim to mark. §6's three presentation states DO apply and are implemented: live,
-editable-but-not-active ("Majora's Mask — suspended"), and disabled-by-capability with a reason.
+games" claim to mark. §6's presentation states DO apply: live, editable-but-not-active
+("Majora's Mask — suspended"), and disabled-by-capability with a reason are implemented; §6's
+fourth state (frozen-at-creation, read-only) applies to this pane too and is **not** implemented
+— it is owed with the freeze work (#564 V5), and until it exists the pane is a live CVar editor
+at all times, including after the world it describes has been created.
+
+> **Amended 2026-07-30 (#564): the host conclusion survives and gets stronger; the deadline is
+> restated.** "Reachable while OoT is the running game, before the switch" was the right host
+> argument off the wrong deadline. Under one-game semantics the MM option profile freezes at the
+> **creation event** — OoT's file-create — not at the crossing, so the requirement restates as
+> **reachable before the combo file is created**: a strictly earlier window, and one in which OoT
+> is equally the running game. A `SohMenu` pane satisfies neither deadline, so ADR 0008's
+> common-owned window is confirmed rather than disturbed, and the precedent to copy for the gate
+> is OoT's own Generate button (file-select only, no save loaded — `SohMenuRandomizer.cpp`).
+> What changes is the pane's contract *after* that window closes: see §6 state 4. The shipped
+> copy that teaches the retired deadline — "These apply to the NEXT Majora's Mask file… set them
+> before you cross" (`ComboMmOptionsWindow.cpp:47-49`) — is superseded with it, and its
+> replacement must not describe a renegotiation window that no longer exists.
 
 **Consequence accepted: the options are a CHOICE, and the defaults do not change.** No raised
 profile ships. Every `RO_SHUFFLE_*` and `RO_HINTS_*` row keeps its `RO_GENERIC_OFF` default, so
@@ -293,12 +318,57 @@ now:
 1. **Tier 1 and tier 2 entries** apply to both games always — marked per §4.2.
 2. **Tier 3 entries** apply to one game. The inactive game's subsection must be visually
    de-emphasised and labelled with its state (e.g. "Majora's Mask — suspended"), while
-   remaining *readable and editable* (a player should be able to set MM options before
-   switching).
+   remaining *readable and editable* ~~(a player should be able to set MM options before
+   switching)~~ **for as long as they are still authorable at all — which, for any key that
+   is world identity, ends at the creation event. See state 4.**
 3. **Editable-but-not-active is a third state**, distinct from both "live" and "disabled by
    capability gating" (§5). Collapsing it into "disabled" would wrongly imply the setting is
-   broken; collapsing it into "live" would wrongly imply immediate effect. Three states, three
-   presentations.
+   broken; collapsing it into "live" would wrongly imply immediate effect.
+4. **Frozen-at-creation is a fourth state (added 2026-07-30, #564): read-only, labelled with
+   the reason and with the identity it is frozen to.** A world-identity key belonging to a
+   world that already exists is not editable, not suspended, and not broken — it was decided,
+   once, and the decision is part of the save. Rendering it live is the worst of the four
+   errors available here: the control accepts input, reports success, and changes nothing
+   about the world the player is in (§5's vacuous-gate class, in its most convincing form,
+   because this control *used* to work).
+
+   Four states, four presentations. The distinctions are what each one denies:
+
+   | State | Applies now? | Editable? | What the presentation must deny |
+   |---|---|---|---|
+   | Live | yes | yes | — |
+   | Editable-but-not-active | on resume | yes | "this takes effect now" |
+   | Disabled by capability (§5) | no | no | "this works" |
+   | Frozen at creation (#564) | it already did | **no** | "this is still a choice" |
+
+   The reason string is not optional and is not the capability reason: a capability gate says
+   *not yet available*, a freeze says *already decided*, and a player who reads the wrong one
+   goes looking for a bug in the right one. Where a frozen key's value is also shown, show the
+   frozen value from the save rather than the CVar — after creation the two may legitimately
+   differ, and the save is the one the world was built from.
+
+> **Why the fourth state exists (2026-07-30, ruling on #500, alignment plan #564).** *"This is
+> one game from a semantic standpoint"*: the paired OoT+MM world has ONE identity, fixed at ONE
+> creation event, and arrival-time divergence from it is corruption to detect and refuse rather
+> than a choice to honour. §6 as written assumed the opposite — that a suspended game's settings
+> stay negotiable until the player switches into it — which was true only because MM's half was
+> generated late, at first crossing. Once identity freezes at creation, a live editor over
+> world-identity keys is not a convenience; it is the mechanism by which a player silently
+> desynchronises the two halves of their own save.
+>
+> **Scope.** State 4 applies to a key when a world built from it exists — that is, to tier-3 and
+> tier-4 **world-identity** keys after creation. It does NOT apply to preference keys, which have
+> no identity role and stay live forever (Autosave and RememberSaveLocation are the named
+> examples; #539's missing MM driver is about those, not these). Classifying each key into one
+> bucket or the other is owed by the same work that ships the freeze — an unclassified key
+> defaults to identity, because guessing "preference" for an identity key is the failure this
+> state exists to prevent.
+>
+> **Enforcement is not the widget.** A read-only rendering that leaves the underlying writers
+> open is decorative: the pane is one caller of the `src/common` write choke points, and the gate
+> belongs on those (#564 V5). The predicate must be a `src/common` fact — the creation-stamped
+> `mmProfileDigest != 0` is what #564 prescribes — never a `gSaveContext` read, per ADR 0008 rule
+> 5 and the pane's game-agnosticism tripwire.
 
 ## Dependencies and sequencing
 
@@ -400,3 +470,9 @@ kept so the decision trail stays legible.
 - The rename list is generated from the classification table. A misclassification there becomes
   a wrong rename here — which is why every (S) row was verified by reading both
   implementations, and why the 7 (P) rows are called out explicitly as do-not-merge.
+- **Added 2026-07-30 (#564):** every world-identity key now needs a classification the
+  enhancement table does not currently carry — identity versus preference (§6 state 4). An
+  identity key misfiled as a preference stays editable after creation, which is the
+  desynchronisation the freeze exists to prevent; the safe default for an unclassified key is
+  therefore identity, and the cost of getting it wrong in that direction is a control that
+  refuses input a session too early.

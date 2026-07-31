@@ -666,6 +666,29 @@ Deliverables:
    `rando` label (the existing three rows assert only generation-succeeds).
    Register in the `rando` pattern (xvfb, TIMEOUT 180, `SDL_AUDIODRIVER=dummy`,
    `RSBS_DISABLE_OTR_INIT=1`). Three verified pitfalls to design around:
+
+   > **CAVEAT ADDED 2026-07-30 (#560, PR #562) — do NOT copy the
+   > `RSBS_DISABLE_OTR_INIT=1` half of that pattern into a new row without
+   > justifying it in the row's own comment.** This brief is where the copying
+   > started. The flag began as a bisect knob for init crashes (#199), reached
+   > this tier as diagnostic scaffolding on the RandoGen row (#339), was
+   > repeated here as "the `rando` pattern", and ended up on 14 rows, none of
+   > which ever justified it independently. It skips the whole
+   > `OTRMessage_Init` / `OTRAudio_Init` / `OTRExtScanner` /
+   > `VanillaItemTable_Init` / `DebugConsole_Init` block
+   > (`games/oot/soh/OTRGlobals.cpp`), so every rando row was generating seeds
+   > with that subsystem masked — which is why CI never saw #560's archive-layer
+   > race. A coverage hole with the shape of a convention.
+   >
+   > At HEAD the flag is no longer load-bearing here: the port archives are now
+   > staged where the ctest rows actually look, so nothing in the block hangs
+   > (the long comment above `RandoGenFullInit` in
+   > `CMake/SingleExecutable.cmake` records the deadlock this masked and how it
+   > was fixed). `RandoGenFullInit` is the reference for a row whose bring-up
+   > matches a player's, and it asserts the un-masking before it generates so it
+   > cannot silently decay into a masked clone. Copy that row for anything that
+   > exercises resource loading; keep the mask only where a row states why it
+   > needs one.
    - **Same seed → same spoiler path** (`Randomizer/<hash>.json`,
      `spoiler_log.cpp:390-395`), so the second run OVERWRITES the first and a naive
      diff compares the file against itself. Snapshot/copy the first JSON (or capture
