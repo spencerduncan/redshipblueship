@@ -476,6 +476,14 @@ if(BUILD_TESTING)
     # length is pinned to the pre-carve prefix (RSBS_COMBO_CONTEXT_PRECARVE_SIZE)
     # so the carve cannot silently widen what that test calls legacy.
     redship_add_test(NAME SaveTaggedItems COMMAND redship --test save-tagged-items)
+    # The .redsave commit choke point (#537/#531): every commit is a
+    # game-thread-marshalled snapshot with a monotonic generation stamped into
+    # both durable artifacts; the write phase reads no live state (the torn
+    # .redsave becomes unrepresentable), and load compares the two artifacts'
+    # stamps to detect freshness divergence.
+    redship_add_test(NAME CommitGenerationMonotonic COMMAND redship --test commit-generation-monotonic)
+    redship_add_test(NAME CommitTornWrite COMMAND redship --test commit-torn-write)
+    redship_add_test(NAME CommitGenerationSkew COMMAND redship --test commit-generation-skew)
     redship_add_test(NAME Context COMMAND redship --test context)
     # F10 hot-swap freeze/consume contract (#364): the hotkey path must freeze
     # the DEPARTING game (or refuse the switch), and a consumed frozen state

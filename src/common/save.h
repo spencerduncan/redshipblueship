@@ -75,7 +75,9 @@ typedef struct RsbsGameMetaDesc {
 
 #include <cstddef>
 #include <iosfwd>
+#include <mutex>
 #include <string>
+#include <vector>
 
 namespace rsbs {
 
@@ -130,6 +132,42 @@ class SaveManager {
 public:
     static SaveManager& Instance();
 
+    /**
+     * THE .redsave COMMIT CHOKE POINT (#537/#531, #564 "one commit
+     * discipline"). Every durable .redsave write is a two-phase commit:
+     *
+     *   1. StageCommit() — GAME THREAD ONLY. Marshals ONE coherent snapshot of
+     *      the whole cross-game state (Tier-1 gComboCtx + the OoT shadow + the
+     *      MM shadow) into an internal staging buffer, and stamps the next
+     *      MONOTONIC commit generation into gComboCtx.commitGeneration first
+     *      so the snapshot carries it. The caller must have refreshed the
+     *      ACTIVE game's shadow (Context_UpdateShadowCopy from the live
+     *      gSaveContext) and set gComboCtx.sourceGame on the same thread,
+     *      immediately before staging — that is what makes the snapshot
+     *      single-instant. Returns the stamped generation, or 0 on refusal
+     *      (shadows absent). Never touches the filesystem.
+     *
+     *   2. WriteStagedCommit(slot) — ANY THREAD. Serializes the most recently
+     *      staged snapshot to the slot file. Reads ONLY the immutable staged
+     *      copy — never gComboCtx, never the live shadows — so a worker
+     *      thread can run it while the game thread keeps mutating live state
+     *      (the #537 tear becomes unrepresentable). Returns false and logs if
+     *      nothing has been staged this session.
+     *
+     * Save(slot) below is the one-call form (stage + write on the calling
+     * thread) and therefore inherits StageCommit's game-thread contract.
+     * There is deliberately NO other writer: SaveManager serializes staged
+     * snapshots only.
+     */
+    uint32_t StageCommit();
+    bool WriteStagedCommit(int slot);
+
+    /**
+     * Stage + write in one call, on the calling thread. GAME THREAD ONLY (it
+     * stages; see StageCommit). This is the route for synchronous commits: the
+     * MM-side capture funnel, OoT's exit-time snapshot, tests, and the debug
+     * menu's "Save to slot".
+     */
     bool Save(int slot);
     bool Load(int slot);
     bool HasSave(int slot) const;
@@ -204,10 +242,29 @@ private:
     // per-frame spam loop, not a diagnostic.
     bool DeserializeHeader(std::istream& in, RsbsSaveHeader& outHeader, bool verbose) const;
 
+    // Serializes the given snapshot to the slot file (temp-write + rename).
+    // The ONLY function that writes .redsave bytes; both commit phases and
+    // Save() funnel here with an immutable snapshot.
+    bool WriteSlotFile(int slot, const ComboContext& combo, const uint8_t* ootBlob, const uint8_t* mmBlob);
+
     std::string mSaveDir = "Save";
 
     // -1 == no slot established this session. See SetActiveSlot.
     int mActiveSlot = -1;
+
+    // The staged commit snapshot (see StageCommit/WriteStagedCommit). Guarded
+    // by mStageMtx: the game thread overwrites it at each stage, the worker
+    // copies it out for serialization. The buffers are allocated at first
+    // stage and reused.
+    struct StagedCommit {
+        ComboContext combo{};
+        std::vector<uint8_t> oot;
+        std::vector<uint8_t> mm;
+        uint32_t generation = 0;
+        bool valid = false;
+    };
+    StagedCommit mStaged;
+    mutable std::mutex mStageMtx;
 
     // Game-side metadata descriptors, indexed by GameId (GAME_OOT / GAME_MM).
     // mMetaPresent[i] guards mMetaDescs[i]; an unset descriptor causes
@@ -229,6 +286,36 @@ int  RsbsSave_Save(int slot);
 int  RsbsSave_Load(int slot);
 int  RsbsSave_HasSave(int slot);
 void RsbsSave_DeleteSave(int slot);
+
+/**
+ * Two-phase commit shims (#537/#531; see SaveManager::StageCommit).
+ * RsbsSave_StageCommit marshals the game-thread snapshot and returns the
+ * stamped monotonic generation (0 on refusal); RsbsSave_WriteStagedCommit
+ * serializes the staged snapshot from any thread, reading no live state.
+ * RsbsSave_Save == stage + write on the calling thread (game thread only).
+ */
+uint32_t RsbsSave_StageCommit(void);
+int      RsbsSave_WriteStagedCommit(int slot);
+
+/**
+ * Load-time freshness comparison between the two durable artifacts of the ONE
+ * save (#531/#564 V16 interim). Call AFTER a successful RsbsSave_Load, with
+ * the commit generation the OoT .sav JSON mirrors ("rsbsCommitGeneration", 0
+ * when absent). Compares it against the just-loaded Tier-1 generation.
+ *
+ * Returns 0 when the artifacts agree (or either side predates the stamp,
+ * which is exempt), +1 when the .redsave is NEWER than the .sav (the #531
+ * shape: an MM-side commit landed after OoT's last save point — OoT's world
+ * is stale relative to the combo records), -1 when the .sav is NEWER (the
+ * .redsave write was lost, or a foreign file was swapped in).
+ *
+ * TODO(#533): a nonzero result should surface through the REFUSED/diagnostic
+ * machinery once it exists. Until then this logs loudly and the caller
+ * continues — each artifact remains authoritative for its own tiers, i.e. the
+ * newer generation's tiers are implicitly preferred, because refusing without
+ * #533's quarantine would convert detection into data loss (#564 V19).
+ */
+int RsbsSave_CheckCommitGenerationSkew(int slot, uint32_t ootSavGeneration);
 
 /**
  * Session-scoped "which slot is open" (see SaveManager::SetActiveSlot).

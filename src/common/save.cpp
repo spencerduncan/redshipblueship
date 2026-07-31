@@ -111,35 +111,87 @@ uint32_t SaveManager::Crc32(const uint8_t* data, size_t len) {
     return ~crc;
 }
 
-bool SaveManager::Save(int slot) {
+uint32_t SaveManager::StageCommit() {
+    // GAME THREAD ONLY — this is the marshalling half of the commit choke
+    // point (#537). Serialization source = the context-layer shadow copies.
+    // Both must be present (Context_InitFrozenStates run); otherwise there is
+    // nothing to capture and we refuse rather than stage a half-empty commit.
+    const void* ootShadow = Context_GetOoTSaveContext();
+    const void* mmShadow = Context_GetMMSaveContext();
+    if (ootShadow == nullptr || mmShadow == nullptr) {
+        std::fprintf(stderr, "[RsbsSave] commit NOT staged: context shadows are absent "
+                             "(Context_InitFrozenStates has not run)\n");
+        return 0;
+    }
+
+    // Stamp the monotonic commit generation BEFORE copying, so the staged
+    // Tier-1 (and therefore the artifact) carries it. gComboCtx is game-thread
+    // state; mutating it here is legal precisely because staging is
+    // game-thread-only. A loaded slot resumes its own counter (Load memcpys
+    // the whole struct back), so the sequence is monotonic across sessions.
+    gComboCtx.commitGeneration += 1;
+    const uint32_t generation = gComboCtx.commitGeneration;
+
+    {
+        std::lock_guard<std::mutex> lock(mStageMtx);
+        std::memcpy(&mStaged.combo, &gComboCtx, sizeof(ComboContext));
+        mStaged.oot.assign(static_cast<const uint8_t*>(ootShadow),
+                           static_cast<const uint8_t*>(ootShadow) + kOoTSize);
+        mStaged.mm.assign(static_cast<const uint8_t*>(mmShadow),
+                          static_cast<const uint8_t*>(mmShadow) + kMMSize);
+        mStaged.generation = generation;
+        mStaged.valid = true;
+    }
+    return generation;
+}
+
+bool SaveManager::WriteStagedCommit(int slot) {
     if (!SlotInRange(slot)) {
         return SaveLogFail(slot, "slot index out of range");
     }
 
-    // Serialization source = the context-layer shadow copies. Both must be
-    // present (Context_InitFrozenStates run); otherwise there is nothing to
-    // capture and we refuse rather than write a half-empty file.
-    const void* ootShadow = Context_GetOoTSaveContext();
-    const void* mmShadow = Context_GetMMSaveContext();
-    if (ootShadow == nullptr || mmShadow == nullptr) {
-        return SaveLogFail(slot, "context shadows are absent (Context_InitFrozenStates has not run)");
+    // Copy the staged snapshot out under the lock, then serialize from the
+    // LOCAL copy only. This function must never read gComboCtx or the live
+    // shadows: it runs on SoH's save worker thread while the game thread keeps
+    // mutating both, which is exactly the #537 tear this choke point removes.
+    ComboContext combo;
+    std::vector<uint8_t> ootBlob;
+    std::vector<uint8_t> mmBlob;
+    {
+        std::lock_guard<std::mutex> lock(mStageMtx);
+        if (!mStaged.valid) {
+            return SaveLogFail(slot, "no commit has been staged this session (StageCommit not run)");
+        }
+        std::memcpy(&combo, &mStaged.combo, sizeof(ComboContext));
+        ootBlob = mStaged.oot;
+        mmBlob = mStaged.mm;
     }
+    return WriteSlotFile(slot, combo, ootBlob.data(), mmBlob.data());
+}
 
+bool SaveManager::Save(int slot) {
+    // Stage + write on the calling thread. Game thread only (it stages).
+    if (StageCommit() == 0) {
+        return SaveLogFail(slot, "commit staging refused (see above)");
+    }
+    return WriteStagedCommit(slot);
+}
+
+bool SaveManager::WriteSlotFile(int slot, const ComboContext& combo, const uint8_t* ootBlob,
+                                const uint8_t* mmBlob) {
     // Assemble Tiers 1..3 contiguously so the CRC covers exactly the bytes we
     // write, in write order: ComboContext, OoT blob, MM blob.
     std::vector<uint8_t> payload;
     payload.reserve(kComboSize + kOoTSize + kMMSize);
-    // Tier-1 goes out at the FIXED record size: the live struct, then zeros to
-    // the budget. The padding is what gives ComboContext room to grow later
-    // without the serialized size — and therefore every existing save file's
-    // validity — moving.
-    const uint8_t* comboBytes = reinterpret_cast<const uint8_t*>(&gComboCtx);
+    // Tier-1 goes out at the FIXED record size: the snapshot struct, then
+    // zeros to the budget. The padding is what gives ComboContext room to grow
+    // later without the serialized size — and therefore every existing save
+    // file's validity — moving.
+    const uint8_t* comboBytes = reinterpret_cast<const uint8_t*>(&combo);
     payload.insert(payload.end(), comboBytes, comboBytes + sizeof(ComboContext));
     payload.insert(payload.end(), kComboSize - sizeof(ComboContext), uint8_t{0});
-    payload.insert(payload.end(), static_cast<const uint8_t*>(ootShadow),
-                   static_cast<const uint8_t*>(ootShadow) + kOoTSize);
-    payload.insert(payload.end(), static_cast<const uint8_t*>(mmShadow),
-                   static_cast<const uint8_t*>(mmShadow) + kMMSize);
+    payload.insert(payload.end(), ootBlob, ootBlob + kOoTSize);
+    payload.insert(payload.end(), mmBlob, mmBlob + kMMSize);
 
     RsbsSaveHeader header;
     std::memset(&header, 0, sizeof(header));
@@ -525,6 +577,47 @@ extern "C" {
 
 int RsbsSave_Save(int slot) {
     return rsbs::SaveManager::Instance().Save(slot) ? 1 : 0;
+}
+
+uint32_t RsbsSave_StageCommit(void) {
+    return rsbs::SaveManager::Instance().StageCommit();
+}
+
+int RsbsSave_WriteStagedCommit(int slot) {
+    return rsbs::SaveManager::Instance().WriteStagedCommit(slot) ? 1 : 0;
+}
+
+int RsbsSave_CheckCommitGenerationSkew(int slot, uint32_t ootSavGeneration) {
+    const uint32_t redsaveGeneration = gComboCtx.commitGeneration;
+    // Either side at 0 predates the stamp (legacy artifact); exempt rather
+    // than false-positive on every upgraded install's first load.
+    if (redsaveGeneration == 0 || ootSavGeneration == 0 || redsaveGeneration == ootSavGeneration) {
+        return 0;
+    }
+    if (redsaveGeneration > ootSavGeneration) {
+        // The #531 shape: the .redsave (combo records + MM world) is FRESHER
+        // than OoT's own .sav — a durable commit (e.g. an MM owl save) landed
+        // after OoT's last save point, so OoT's world will resume older than
+        // the records that account for it.
+        std::fprintf(stderr,
+                     "[RsbsSave] slot %d COMMIT SKEW: .redsave generation %u is NEWER than OoT's .sav "
+                     "generation %u — OoT's world is stale relative to the cross-game records "
+                     "(items delivered to OoT after its last save may be missing while marked "
+                     "REDEEMED). TODO(#533): surface as REFUSED once the quarantine/diagnostic "
+                     "machinery lands; continuing with each artifact authoritative for its own "
+                     "tiers (newer generation preferred).\n",
+                     slot, redsaveGeneration, ootSavGeneration);
+        return 1;
+    }
+    std::fprintf(stderr,
+                 "[RsbsSave] slot %d COMMIT SKEW: OoT's .sav generation %u is NEWER than the .redsave "
+                 "generation %u — the unified slot missed at least one commit (a .redsave write "
+                 "failed, or the file was replaced from elsewhere). Cross-game state may be stale. "
+                 "TODO(#533): surface as REFUSED once the quarantine/diagnostic machinery lands; "
+                 "continuing with each artifact authoritative for its own tiers (newer generation "
+                 "preferred).\n",
+                 slot, ootSavGeneration, redsaveGeneration);
+    return -1;
 }
 
 int RsbsSave_Load(int slot) {
