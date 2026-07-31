@@ -417,19 +417,31 @@ void ComboMenuBar::DrawFileSelect() {
         // create seam — which quarantines a failing existing file first — and
         // is withheld entirely for a REFUSED slot, where the player must
         // decide (Delete) before the slot can be written again.
-        if (meta.state == RSBS_SLOT_VALID) {
+        //
+        // The SameLine calls are driven by what still FOLLOWS on the row, not
+        // by what was just drawn: a REFUSED slot's only button is Delete, and
+        // an unconditional trailing SameLine there would pull the Separator up
+        // onto the button row.
+        const bool showLoad = (meta.state == RSBS_SLOT_VALID);
+        const bool showDelete = (meta.state != RSBS_SLOT_ABSENT) || meta.hasQuarantine;
+        const bool showSave = (meta.state != RSBS_SLOT_REFUSED);
+        if (showLoad) {
             if (ImGui::Button("Load")) {
                 RsbsSave_LoadSlot(slot);
             }
-            ImGui::SameLine();
+            if (showDelete || showSave) {
+                ImGui::SameLine();
+            }
         }
-        if (meta.state != RSBS_SLOT_ABSENT || meta.hasQuarantine) {
+        if (showDelete) {
             if (ImGui::Button("Delete")) {
                 RsbsSave_DeleteSave(slot);
             }
-            ImGui::SameLine();
+            if (showSave) {
+                ImGui::SameLine();
+            }
         }
-        if (meta.state != RSBS_SLOT_REFUSED) {
+        if (showSave) {
             if (ImGui::Button("Save to slot")) {
                 RsbsSave_ArmSlotOnCreate(slot);
                 RsbsSave_Save(slot);
