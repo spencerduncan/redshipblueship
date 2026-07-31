@@ -43,7 +43,9 @@ int CosmeticGfxStub_RunHeadless(void);
 //     malloc returned NULL -> memset(NULL) AV).
 // (b) mm-startup-restore — MM_Play_ConsumeStartupEntrance must re-apply the
 //     frozen MM save after the boot chain's SaveContext wipes, then spawn at
-//     the startup entrance with cutscene/game-mode state reset.
+//     the startup entrance with cutscene/game-mode state reset, and re-derive
+//     the audio sound mode the boot chain read off the bootstrap save (#483 —
+//     sSoundMode lives outside gSaveContext, so the restore cannot carry it).
 // Return 0 on pass, non-zero on fail.
 int MM_ResumeArena_RunHeadless(void);
 int MM_StartupRestore_RunHeadless(void);

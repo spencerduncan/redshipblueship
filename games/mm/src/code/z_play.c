@@ -2352,6 +2352,36 @@ void MM_Play_ConsumeStartupEntrance(void) {
     // values every fresh-boot path uses, z_common_data.c).
     gSaveContext.seqId = NA_BGM_DISABLED;
     gSaveContext.ambienceId = AMBIENCE_ID_DISABLED;
+    // The other half of the arrival's stale audio state — and the only piece
+    // that lives OUTSIDE gSaveContext, so the restore above cannot carry it.
+    // sSoundMode (games/mm/src/audio/code_8019AF00.c) is DERIVED from
+    // options.audioSetting, and the boot chain derived it from the throwaway
+    // bootstrap save (ConsoleLogo_Destroy -> MM_Sram_InitSram ->
+    // Audio_SetFileSelectSettings, z_sram_NES.c) before Combo_ConsumeFrozenState
+    // memcpy'd the player's real options in underneath it. A mono/headset player
+    // therefore arrived in stereo until the scene's audio bring-up re-derived it
+    // (#483, audit #482 row M5). Re-derive from the save that reaches gameplay.
+    //
+    // This is NOT the OnSaveLoad re-dispatch's job (bottom of this function).
+    // In vanilla MM gSaveContext.options is a global flash options page, not
+    // per-file state, so loading a file cannot change audioSetting — which is
+    // why upstream's file-load path re-derives nothing and no OnSaveLoad handler
+    // has ever touched audio. The cross-game restore is the only event in this
+    // build that swaps options under an already-derived sSoundMode, and it is
+    // not a file load; hanging engine-global rehydration off the save-shape
+    // COND_HOOK dispatch would also fire it on the boot-chain and dev-tool
+    // dispatches, which have no stale mode to fix. The inverse belongs here, in
+    // the block that already re-authors the frozen save's audio state.
+    //
+    // Upper-bound gated (the field is unsigned, so 0 needs no check):
+    // Audio_SetFileSelectSettings leaves its local soundMode UNINITIALIZED on an
+    // unrecognized setting and still queues it as a sequence command, indexing
+    // sSoundModeList[] with it. A frozen blob is bytes from another session, so
+    // an out-of-range value keeps the boot-derived mode rather than pushing an
+    // undefined one at the audio system.
+    if (gSaveContext.options.audioSetting <= SAVE_AUDIO_SURROUND) {
+        Audio_SetFileSelectSettings(gSaveContext.options.audioSetting);
+    }
     // Neutralize live gameplay state carried in the frozen blob (#373). This is
     // the MM half of the OoT twin at games/oot/src/code/z_play.c
     // ("Per-session runtime state a fresh file-load always authors ... but the

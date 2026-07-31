@@ -22,7 +22,9 @@
  *    chain wipes gSaveContext AFTER MM_Game_Resume's restore
  *    (Setup_InitImpl -> MM_SaveContext_Init memset; TitleSetup rewrites it
  *    as a new file), so Play_Init-time restore is what carries MM
- *    continuity across cycle-2+ round trips.
+ *    continuity across cycle-2+ round trips. State DERIVED from the save but
+ *    stored outside it is part of that contract — the restore memcpy cannot
+ *    carry it, so the consume has to re-derive it (#483/#482 row M5).
  */
 
 #ifdef RSBS_SINGLE_EXECUTABLE
@@ -50,6 +52,13 @@ void Combo_ClearStartupEntrance(void);
 }
 
 extern "C" u8* MM_gSystemHeap;
+
+// games/mm/src/audio/code_8019AF00.c — the derived audio global under test in
+// the sound-mode block below. It lives OUTSIDE gSaveContext (no header declares
+// it), so the frozen-state memcpy cannot carry it and the consume path has to
+// re-derive it (#483). Declared here rather than in a header to keep the
+// out-of-save-ness of the thing being locked visible at the lock.
+extern "C" s8 sSoundMode;
 
 namespace {
 
@@ -113,8 +122,9 @@ extern "C" int MM_ResumeArena_RunHeadless(void) {
 /**
  * mm-startup-restore: MM_Play_ConsumeStartupEntrance must (a) restore the
  * frozen save over a boot-chain wipe, (b) spawn at the startup entrance with
- * cutscene/game-mode state reset, (c) clear the startup slot, and (d) leave
- * a wiped save alone when there is no frozen state (first entry).
+ * cutscene/game-mode state reset, (c) clear the startup slot, (d) leave a wiped
+ * save alone when there is no frozen state (first entry), and (e) re-derive the
+ * out-of-save audio sound mode from the restored options (#483).
  */
 extern "C" int MM_StartupRestore_RunHeadless(void) {
     printf("[TEST] mm-startup-restore: startup consumption restores the frozen save post-wipe\n");
@@ -182,10 +192,61 @@ extern "C" int MM_StartupRestore_RunHeadless(void) {
     RESUME_ASSERT(CHECK_WEEKEVENTREG(WEEKEVENTREG_31_04),
                   "Tatl interrupt flag (WEEKEVENTREG_31_04) not pre-set on arrival");
 
+    // Arrival sound mode (#483, audit #482 row M5). sSoundMode is DERIVED from
+    // gSaveContext.options.audioSetting but stored outside gSaveContext, so the
+    // restore above cannot carry it: the boot chain derives it from the
+    // throwaway bootstrap save (ConsoleLogo_Destroy -> MM_Sram_InitSram ->
+    // Audio_SetFileSelectSettings), and Combo_ConsumeFrozenState then drops the
+    // player's real options in underneath. Drive the whole sequence — freeze a
+    // MONO player, wipe, let the bootstrap derivation run, consume — and require
+    // the consumed save's setting to be the one that is live afterwards.
+    //
+    // The mapping is deliberately non-identity: SAVE_AUDIO_MONO is 1 but
+    // SOUNDMODE_MONO is 3. So this fails both when the re-apply is missing (the
+    // mode stays at the bootstrap's SOUNDMODE_STEREO = 0) and when it is written
+    // as a raw copy of audioSetting.
+    Combo_ClearFrozenState("mm");
+    memset(&gSaveContext, 0, sizeof(gSaveContext));
+    gSaveContext.options.audioSetting = SAVE_AUDIO_MONO;
+    Combo_FreezeState("mm", kArrival, &gSaveContext, sizeof(gSaveContext));
+
+    memset(&gSaveContext, 0, sizeof(gSaveContext));
+    gSaveContext.options.audioSetting = SAVE_AUDIO_STEREO; // the bootstrap default
+    Audio_SetFileSelectSettings(gSaveContext.options.audioSetting);
+    // Non-vacuity control: the assertion below is reachable only because the
+    // boot-derived mode disagrees with the frozen save's going in.
+    RESUME_ASSERT(sSoundMode == SOUNDMODE_STEREO, "bootstrap derivation did not leave the stereo default");
+
+    Combo_SetStartupEntrance(kArrival);
+    MM_Play_ConsumeStartupEntrance();
+
+    RESUME_ASSERT(gSaveContext.options.audioSetting == SAVE_AUDIO_MONO,
+                  "frozen audioSetting not restored (precondition for the sound-mode lock)");
+    RESUME_ASSERT(sSoundMode == SOUNDMODE_MONO,
+                  "arrival kept the bootstrap sound mode instead of the restored save's (#483)");
+
+    // The range gate at the re-apply: Audio_SetFileSelectSettings leaves its
+    // local soundMode UNINITIALIZED on an unrecognized setting and queues it
+    // anyway, so a frozen blob carrying garbage in that byte must keep the
+    // boot-derived mode rather than push an undefined one at the audio system.
+    memset(&gSaveContext, kPattern, sizeof(gSaveContext)); // 0x5A is no SAVE_AUDIO_* value
+    Combo_FreezeState("mm", kArrival, &gSaveContext, sizeof(gSaveContext));
+
+    memset(&gSaveContext, 0, sizeof(gSaveContext));
+    gSaveContext.options.audioSetting = SAVE_AUDIO_HEADSET;
+    Audio_SetFileSelectSettings(gSaveContext.options.audioSetting);
+    RESUME_ASSERT(sSoundMode == SOUNDMODE_HEADSET, "bootstrap derivation did not take the headset setting");
+
+    Combo_SetStartupEntrance(kArrival);
+    MM_Play_ConsumeStartupEntrance();
+    RESUME_ASSERT(sSoundMode == SOUNDMODE_HEADSET,
+                  "out-of-range restored audioSetting overwrote the boot-derived sound mode (#483)");
+
     // Leave clean global state for later tests.
     Combo_ClearFrozenState("mm");
     Combo_ClearStartupEntrance();
     memset(&gSaveContext, 0, sizeof(gSaveContext));
+    Audio_SetFileSelectSettings(SAVE_AUDIO_STEREO);
 
     printf("[TEST] PASS: mm-startup-restore — restore-then-spawn contract holds\n");
     return 0;
