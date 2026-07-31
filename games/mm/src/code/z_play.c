@@ -2352,6 +2352,44 @@ void MM_Play_ConsumeStartupEntrance(void) {
     // values every fresh-boot path uses, z_common_data.c).
     gSaveContext.seqId = NA_BGM_DISABLED;
     gSaveContext.ambienceId = AMBIENCE_ID_DISABLED;
+    // Sound mode is the one DERIVED audio state the restore above cannot carry:
+    // Audio_SetFileSelectSettings writes sSoundMode (code_8019AF00.c) and
+    // queues SEQCMD_SET_SOUND_MODE for the audio thread, and both of those live
+    // OUTSIDE gSaveContext. The boot chain already derived them, at
+    // ConsoleLogo_Destroy -> MM_Sram_InitSram (z_sram_NES.c) — but that runs
+    // BEFORE Combo_ConsumeFrozenState, so it derived them from the VANILLA
+    // BOOTSTRAP options (STEREO), not the player's restored ones. Re-apply from
+    // the save that actually reaches gameplay (#483, audit #482 row M5).
+    //
+    // Not self-healing, despite #483's original framing: Audio_SetFileSelectSettings
+    // is the ONLY writer of sSoundMode in the tree, and the only path to the
+    // audio thread's copy (SEQCMD_SET_SOUND_MODE -> AUDIOCMD_GLOBAL_SET_SOUND_MODE).
+    // Its other two call sites are MM's file-select options menu and the
+    // file-select save enumeration, neither of which a cross-game arrival
+    // passes through — so without this the bootstrap's mode is live for the
+    // whole MM session, not just the arrival frame.
+    //
+    // This deliberately does NOT ride the OnSaveLoad re-dispatch at the end of
+    // this function (#447). That re-dispatch re-arms save-SHAPE-dependent state
+    // (COND_HOOKs conditioned on IS_RANDO, read off
+    // gSaveContext.save.shipSaveInfo.saveType); SaveOptions is not save state —
+    // it sits at SaveContext+0x3F40, outside `Save`, outside the per-file blob
+    // the port serializes, and is a per-install preference rather than world
+    // identity (#564 classifies #483 exactly so). Hanging a global preference
+    // off a file-load event would also newly re-apply audio on every other
+    // OnSaveLoad dispatch (file select, map select, warp point) for no gain.
+    // It belongs here, with the other out-of-save audio globals this
+    // consumption point already re-authors for the arrival.
+    //
+    // Range-checked because a restored blob — unlike the freshly-initialised
+    // options block MM_Sram_InitSram sees — is not guaranteed in range, and
+    // Audio_SetFileSelectSettings' default branch falls through to
+    // SEQCMD_SET_SOUND_MODE(soundMode) with soundMode never assigned. Out of
+    // range we leave the boot chain's mode standing, which is exactly today's
+    // behavior.
+    if (gSaveContext.options.audioSetting <= SAVE_AUDIO_SURROUND) {
+        Audio_SetFileSelectSettings(gSaveContext.options.audioSetting);
+    }
     // Neutralize live gameplay state carried in the frozen blob (#373). This is
     // the MM half of the OoT twin at games/oot/src/code/z_play.c
     // ("Per-session runtime state a fresh file-load always authors ... but the
