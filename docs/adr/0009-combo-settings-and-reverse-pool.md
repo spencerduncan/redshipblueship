@@ -101,9 +101,16 @@ this ADR's.
 > The argument above ("a settings surface carved into the save would be a second
 > settings store") holds only while something *authors* there. Nothing does: such
 > a record is written once, by the creation event, and is read-only for the life
-> of the file — precisely the status `foreignPlacements` already has under ADR
-> 0002, and nobody calls the placement table a second item database. Rejecting a
-> profile record as a "second store" rejected the wrong thing. *Where* the record
+> of the file — precisely the status the REVERSE placement table
+> `foreignPlacementsOoT` already has (claim 1 of the budget below; #534's KEEP
+> snapshot exists because "nothing re-places the reverse table after
+> generation", `context.cpp`), and nobody calls that table a second item
+> database. Take the analogy from the reverse table specifically and not from
+> the forward `foreignPlacements`: the forward table is re-authored by MM at its
+> own `OnFileCreate` on each arrival, which is the deferred-generation behaviour
+> this amendment retires — it is the counter-example, not the precedent.
+> Rejecting a profile record as a "second store" rejected the wrong thing.
+> *Where* the record
 > lives stays a budget question, answered under claim 3 below: MM's own
 > `RANDO_SAVE_OPTIONS` in Tier-3 already IS a frozen per-save option record, so
 > the one game gets the storage for free and the digest stays a 4-byte
