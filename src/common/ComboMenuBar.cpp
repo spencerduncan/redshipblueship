@@ -407,6 +407,19 @@ void ComboMenuBar::DrawFileSelect() {
             ImGui::TextUnformatted(meta.ootStarted ? "[OoT v]" : "[OoT _]");
             ImGui::SameLine();
             ImGui::TextUnformatted(meta.mmStarted ? "[MM v]" : "[MM _]");
+
+            if (meta.commitSkew > 0) {
+                // #531/#537: the last load of this slot observed the .redsave
+                // carrying a NEWER commit generation than OoT's own save — an
+                // MM-side commit landed after OoT's last save point, so OoT's
+                // world resumed older than the cross-game records that account
+                // for it. Loading proceeds (this is the designed post-MM-commit
+                // state), but the divergence must be player-visible, not
+                // stderr-only.
+                ImGui::TextColored(ImVec4(0.95f, 0.75f, 0.25f, 1.0f),
+                                   "[STALE: cross-game progress is newer than the OoT save]");
+                ImGui::TextDisabled("Items delivered to OoT after its last save point may be missing.");
+            }
         }
 
         // Action buttons. Load is only meaningful for a VALID slot file;

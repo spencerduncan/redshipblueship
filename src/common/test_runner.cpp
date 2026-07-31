@@ -193,6 +193,13 @@ extern "C" {
 // facts. FILE SCOPE (compiled as C++) for rsbs::SaveManager.
 #include "tests/test_save_refusal.c"
 
+// The .redsave commit choke point (#537/#531): monotonic commit generation,
+// the torn-write impossibility (stage on the game thread, write from the
+// immutable snapshot only), and the load-time cross-artifact freshness
+// comparison surfaced through the #533 machinery. FILE SCOPE (compiled as
+// C++), same reason as above.
+#include "tests/test_commit_generation.c"
+
 // Lane C1 foreign-item pipeline locks (#392, ADR 0002): give-path tagging,
 // round-trip survival with a real pool entry, and the foreignPlacements carve
 // serialization. FILE SCOPE (compiled as C++) for rsbs::SaveManager; the
@@ -2004,6 +2011,14 @@ const TestDescriptor gTests[] = {
     {"save-combo-oversize", "Load rejects an oversized Tier-1 record, no clobber", Test_SaveComboOversize},
     {"save-tagged-items", "Origin-tagged shared items round-trip; empty slots stay unset (ADR 0002)",
      Test_SaveTaggedItems},
+    // The commit choke point (#537/#531): one game-thread-marshalled snapshot,
+    // a monotonic generation in both artifacts, and load-time skew detection.
+    {"commit-generation-monotonic", "Choke-point commits stamp a monotonic Tier-1 generation (#537)",
+     Test_CommitGenerationMonotonic},
+    {"commit-torn-write", "Post-stage mutation cannot reach the .redsave; the #537 tear is unrepresentable",
+     Test_CommitTornWrite},
+    {"commit-generation-skew", "Load detects .redsave/.sav freshness divergence (#531/#564 V16)",
+     Test_CommitGenerationSkew},
     {"mm-scene-parse", "MM scene commands parse via the S2H factory (#344)", Test_MMSceneParse},
     {"seq-map-bounds", "Sequence-map capacity covers the id range + custom slack (#371, #378)", Test_SeqMapBounds},
     {"cvar-classification", "Cross-game CVar classification matches ADR 0003 + the inventory (#34)",

@@ -614,6 +614,37 @@ typedef struct {
     // blocks in every scan. Physically they must stay two, forever.
     ComboSharedResource sharedResourcesExt[RSBS_SHARED_RESOURCE_EXT_CAP];
 
+    // #537/#531 (one-game persistence, #564 V16/V20 interim): the MONOTONIC
+    // COMMIT GENERATION. Incremented by the .redsave commit choke point
+    // (rsbs::SaveManager::StageCommit) on every staged commit, serialized here
+    // in Tier-1, and MIRRORED into OoT's file{N+1}.sav JSON
+    // ("rsbsCommitGeneration") by the same commit whenever that commit also
+    // writes the .sav. The two durable artifacts describing the ONE save can
+    // therefore be compared for freshness at load: equal generations mean both
+    // artifacts came from the same commit instant; a .redsave generation AHEAD
+    // of the .sav's is exactly the #531 shape (an MM-side commit after OoT's
+    // last save point); a .sav generation ahead means the .redsave write was
+    // lost or the file was replaced from elsewhere. Detection lives in the
+    // load itself (rsbs::SaveManager::LoadSlot, via CompareCommitGenerations):
+    // a .sav-newer mismatch REFUSES through the #533 machinery, a
+    // .redsave-newer mismatch loads and surfaces as SlotMeta.commitSkew.
+    //
+    // Zero == unset (no commit has ever been stamped), the growth contract's
+    // required meaning: a zero-extended legacy record reads 0 and is exempt
+    // from skew comparison. Carved from the FRONT of the old reserved[132], so
+    // every field above keeps its shipped offset and the record size is
+    // unchanged. NOT in the .redsave header on purpose: DeserializeHeader
+    // pins headerSize with an equality check, so growing the header would
+    // orphan every shipped save, while a Tier-1 carve is the established
+    // compatible-growth path.
+    //
+    // Deliberately NOT in Context_InvalidateSessionState's KEEP set: a session
+    // teardown either precedes a slot load (which restores the slot's own
+    // generation from its .redsave) or a new game (whose first commit stamps
+    // generation 1 into BOTH fresh artifacts). Carrying a dead session's
+    // counter across would make an unrelated slot's artifacts look skewed.
+    uint32_t commitGeneration;
+
     // Headroom. Carve new fields from the FRONT of this array (as
     // sharedItemsTagged, sharedRandoSettingsHash, foreignPlacements, the
     // grant cursors, and the reverse placement table were) so the struct
@@ -625,13 +656,17 @@ typedef struct {
     // "zero means unset".
     //
     // 264 - 48 (foreignPlacementsOoT) - 4 (mmProfileDigest) - 32 (sharedResources)
-    // - 48 (sharedResourcesExt).
+    // - 48 (sharedResourcesExt) - 4 (commitGeneration).
     // ADR 0009 publishes the remaining
     // allocation across the other claimants and sets a 64-byte floor:
     // Test_SaveComboRecordFixed's scribble loop iterates sizeof(reserved), so
     // at zero it degenerates to zero iterations and passes vacuously, retiring
-    // the only test that proves headroom round-trips at all.
-    uint8_t reserved[132];
+    // the only test that proves headroom round-trips at all. NOTE: with the
+    // commitGeneration carve this stands at 128; ADR 0009's outstanding
+    // claims 2 and 4 (4 + 64) would leave 60, so the ADR's budget table needs
+    // a row before those land (raise the record size + RSBS_SAVE_VERSION
+    // together if the floor would break).
+    uint8_t reserved[128];
 } ComboContext;
 
 /**
@@ -753,13 +788,24 @@ RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, sharedResourcesExt) ==
                                RSBS_SHARED_RESOURCE_CAP * sizeof(ComboSharedResource),
                        "sharedResourcesExt must be carved from the FRONT of reserved[] (contiguous "
                        "with the first shared-resource block); moving it changes .redsave format");
-RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, reserved) ==
+// The commit generation is the next carve (#537/#531, 4 bytes). Pinned to the
+// literal 872 for the same reason 672, 736, 740, 788, 792 and 824 are: anything
+// carved after it inherits its position, so a field growing in place ahead of
+// it must break the build rather than slide it.
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, commitGeneration) == 872u,
+                       "commitGeneration lives at .redsave byte offset 872; if this fires, a field "
+                       "before it grew in place - carve from reserved[] instead");
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, commitGeneration) ==
                            offsetof(ComboContext, sharedResourcesExt) +
                                RSBS_SHARED_RESOURCE_EXT_CAP * sizeof(ComboSharedResource),
+                       "commitGeneration must be carved from the FRONT of reserved[] (contiguous "
+                       "with the second shared-resource block); moving it changes .redsave format");
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, reserved) ==
+                           offsetof(ComboContext, commitGeneration) + sizeof(uint32_t),
                        "the tagged-item array, the settings digest, both foreign-placement tables, "
                        "the grant cursors, the overflow count, the MM profile digest, BOTH shared "
-                       "resource blocks, and the remaining headroom must stay contiguous (no padding, "
-                       "no fields slipped between them)");
+                       "resource blocks, the commit generation, and the remaining headroom must stay "
+                       "contiguous (no padding, no fields slipped between them)");
 // ADR 0009's floor. reserved[] is what Test_SaveComboRecordFixed scribbles to
 // prove Tier-1 headroom round-trips; at zero that loop runs zero times and the
 // test passes vacuously, so the carve budget stops here rather than there.
