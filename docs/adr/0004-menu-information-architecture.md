@@ -347,8 +347,9 @@ one goes looking for a bug in the right one. Where a frozen key's value is shown
 value from the save rather than the CVar — after creation the two may legitimately differ, and
 the save is the one the world was built from. **"From the save" names the authority, not the read
 site.** The host of every one of these keys is a common-owned window, which may not read
-`gSaveContext` at all (ADR 0008 rule 5, restated below), and D1's amendment puts the frozen MM
-profile in MM's own SaveContext — so a pane that rendered it directly would break the rule in the
+`gSaveContext` at all (ADR 0008 rule 5, restated below), and [ADR 0009](0009-combo-settings-and-reverse-pool.md)
+decision 1's 2026-07-30 amendment puts the frozen MM profile in MM's own SaveContext
+(`RANDO_SAVE_OPTIONS`, Tier-3) — so a pane that rendered it directly would break the rule in the
 same breath as obeying this one. The frozen value reaches the pane the way the digest already
 does: through a `src/common` accessor over `src/common`-owned storage
 (`Combo_MMProfileSummary`, `combo_mm_options_view.c:155`, reads `gComboCtx` and nothing else).
