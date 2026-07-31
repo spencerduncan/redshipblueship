@@ -246,60 +246,22 @@ void RefreshChecksInLogic() {
     lastFrame = MM_gGameState->frames;
     checksInLogic.clear();
 
-    // Clear all events so they're re-evaluated fresh each refresh
-    for (int i = 0; i < RE_MAX; i++) {
-        RANDO_EVENTS[i] = 0;
-    }
+    // The regions+events fixpoint that used to live inline here is the
+    // factored Rando::Logic::CrawlReachableRegions (ADR 0010 increment 1.3;
+    // #500 work item 2) — one traversal shared with generation's foreign-host
+    // reachability gate, now with the join-and-recheck discipline the inline
+    // copy lacked (a region re-reached with better time slices is re-explored
+    // instead of keeping its first-arrival set). Same seeding, same
+    // clear-and-refire of RANDO_EVENTS.
+    const Rando::Logic::ReachabilityCrawl crawl = Rando::Logic::CrawlReachableRegions(gSaveContext.save.entrance);
 
-    std::set<RandoRegionId> reachableRegions = {
-        RR_MAX,
-        Rando::Logic::GetRegionIdFromEntrance(gSaveContext.save.entrance),
-    };
-    // Initialize time states using shared function
-    std::unordered_map<RandoRegionId, Rando::Logic::RegionTimeState> regionTimeStates =
-        Rando::Logic::InitializeRegionTimeStates(RR_MAX);
-
-    // Iteratively explore until no new regions/events discovered
-    bool changed = true;
-    while (changed) {
-        changed = false;
-        auto prevSize = reachableRegions.size();
-
-        // Explore from all currently reachable regions
-        std::set<RandoRegionId> regionsToExplore = reachableRegions;
-        for (RandoRegionId regionId : regionsToExplore) {
-            Rando::Logic::FindReachableRegions(regionId, reachableRegions, regionTimeStates);
-        }
-
-        // Trigger events for newly discovered regions
-        for (RandoRegionId regionId : reachableRegions) {
-            auto& randoRegion = Rando::Logic::Regions[regionId];
-            Rando::Logic::SetCurrentRegionTime(regionTimeStates, regionId);
-
-            for (auto& event : randoRegion.events) {
-                if (!RANDO_EVENTS[event.first] && event.second()) {
-                    RANDO_EVENTS[event.first]++;
-                    changed = true;
-                }
-            }
-        }
-
-        if (reachableRegions.size() != prevSize) {
-            changed = true;
-        }
-    }
-
-    // Evaluate checks for all reachable regions
-    for (RandoRegionId regionId : reachableRegions) {
-        auto& randoRegion = Rando::Logic::Regions[regionId];
-        Rando::Logic::SetCurrentRegionTime(regionTimeStates, regionId);
-
-        for (auto& [randoCheckId, accessLogicFunc] : randoRegion.checks) {
-            auto& randoStaticCheck = Rando::StaticData::Checks[randoCheckId];
-            auto& randoSaveCheck = RANDO_SAVE_CHECKS[randoCheckId];
-            if (randoSaveCheck.shuffled && !randoSaveCheck.obtained && accessLogicFunc.first()) {
-                checksInLogic.insert({ randoCheckId, true });
-            }
+    // The tracker's own semantics on top of the shared crawl: a check is "in
+    // logic" when its access lambda passes AND it is shuffled AND not yet
+    // obtained.
+    for (RandoCheckId randoCheckId : Rando::Logic::EvaluateReachableChecks(crawl)) {
+        auto& randoSaveCheck = RANDO_SAVE_CHECKS[randoCheckId];
+        if (randoSaveCheck.shuffled && !randoSaveCheck.obtained) {
+            checksInLogic.insert({ randoCheckId, true });
         }
     }
 }
