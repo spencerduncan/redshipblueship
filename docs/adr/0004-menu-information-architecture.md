@@ -345,7 +345,15 @@ A frozen entry's reason string is not optional and is not the capability reason:
 gate says *not yet available*, a freeze says *already decided*, and a player who reads the wrong
 one goes looking for a bug in the right one. Where a frozen key's value is shown at all, show the
 value from the save rather than the CVar — after creation the two may legitimately differ, and
-the save is the one the world was built from.
+the save is the one the world was built from. **"From the save" names the authority, not the read
+site.** The host of every one of these keys is a common-owned window, which may not read
+`gSaveContext` at all (ADR 0008 rule 5, restated below), and D1's amendment puts the frozen MM
+profile in MM's own SaveContext — so a pane that rendered it directly would break the rule in the
+same breath as obeying this one. The frozen value reaches the pane the way the digest already
+does: through a `src/common` accessor over `src/common`-owned storage
+(`Combo_MMProfileSummary`, `combo_mm_options_view.c:155`, reads `gComboCtx` and nothing else).
+Publishing the frozen profile into a `src/common` view is therefore part of the freeze work, not
+an afterthought of the presentation.
 
 > **Why the fourth state exists (2026-07-30, ruling on #500, alignment plan #564).** *"This is
 > one game from a semantic standpoint"*: the paired OoT+MM world has ONE identity, fixed at ONE

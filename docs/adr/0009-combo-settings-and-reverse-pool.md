@@ -226,7 +226,8 @@ so `Combo_ForeignPairingActive()` stays false and nothing consumes the table.
 > and holding those two acts apart is what lets both rules stand at once — the
 > freeze snapshots what the player chose, the stamp publishes what generation
 > produced. The constraint is not tidiness: reverse-pool criterion 3
-> (`ForeignItemsSingleExe.cpp:139-157`) excludes the enemy/boss souls, the
+> (`ForeignItemsSingleExe.cpp:144-157`; #564 V24 cites `:139-157`, which starts
+> five lines into criterion 2) excludes the enemy/boss souls, the
 > ocarina buttons, `RI_ABILITY_SWIM` and the clock items solely because OoT's
 > placement pass "CANNOT read MM's option profile" — true only while the profile
 > resolves after that pass runs. With one frozen surface read by both directions,
