@@ -249,11 +249,12 @@ arming condition is untouched (mechanized as the MM-side reader allowlist in
 
 **Consequence accepted: §4.2's shared-intent marker does not apply to this pane.** All 47 options
 are tier-3 (O) MM-only keys; none is in `kSharedIntentKeys`, so there is no "applies to both
-games" claim to mark. §6's presentation states DO apply: live, editable-but-not-active
-("Majora's Mask — suspended"), and disabled-by-capability with a reason are implemented; §6's
-fourth state (frozen-at-creation, read-only) applies to this pane too and is **not** implemented
-— it is owed with the freeze work (#564 V5), and until it exists the pane is a live CVar editor
-at all times, including after the world it describes has been created.
+games" claim to mark. §6's presentation states DO apply, all four: live, editable-but-not-active
+("Majora's Mask — suspended"), disabled-by-capability with a reason, and — implemented with the
+#564-V5 freeze work (#498 phase 2 step 9) — frozen-at-creation, read-only: once a creation event
+stamps `gComboCtx.mmProfileDigest`, the two `src/common` option writers reject and the pane
+renders the frozen banner with every row disabled. The predicate is `Combo_MMProfileFrozen()`,
+the `src/common` fact §6 prescribes.
 
 > **Amended 2026-07-30 (#564): the host conclusion survives and gets stronger; the deadline is
 > restated.** "Reachable while OoT is the running game, before the switch" was the right host
