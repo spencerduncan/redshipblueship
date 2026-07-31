@@ -1,7 +1,8 @@
 # ADR 0004: Menu information architecture — one shell, four tiers, capability-gated MM entries
 
 - Status: **Accepted** (2026-07-23, #497 step 1); **§6 and §4.1a amended
-  2026-07-30** under the one-game-semantics ruling
+  2026-07-30** under the one-game-semantics ruling; **one §4.1a consequence
+  superseded 2026-07-31** by ADR 0010
 - For: #392 (Phase 3.0 tracker), #34 (settings migration), #497, #499
 - Amended on acceptance: §4.1 (scope and host of the MM randomizer pane — see
   §4.1a), §2d (the #454 disagreement, now ruled), and "What this ADR does not
@@ -14,6 +15,15 @@
   before the combo file is created*, which strengthens rather than disturbs its
   common-owned-window conclusion. The tier model, the capability-gating rule and
   the section layout are untouched.
+- Superseded in part **2026-07-31**, by
+  [ADR 0010](0010-cross-game-logic-and-beatability.md) (Accepted 2026-07-31,
+  [PR #572](https://github.com/spencerduncan/redshipblueship/pull/572)):
+  §4.1a's "no raised profile ships" consequence — the paired `RO_LOGIC` default
+  is raised from Nearly No Logic to Glitchless by ADR 0010 increment 1, with
+  its deterministic attempt ladder answering the dead-end-rate concern §4.1a
+  recorded. The explicit-choice-overrides rule and every other §4.1a conclusion
+  stand. Annotated here separately because PR #572's stated scope excluded
+  amending this document.
 - Depends on:
   - **[ADR 0003](0003-settings-namespace.md)** (settings namespace) — owns CVar key naming and
     the rename/migration rule; this ADR consumes its decisions rather than restating them.
@@ -291,11 +301,16 @@ honest answer to #499's "measure dead-end rates before shipping a raised profile
 measuring a profile nobody chose. The one previously-hardcoded value, the paired `RO_LOGIC` pin
 to Nearly No Logic (#426), becomes a default that an explicit choice overrides.
 
-> **Forward pointer (2026-07-31):** [ADR 0010](0010-cross-game-logic-and-beatability.md)
-> (Proposed) increment 1 raises this one default to Glitchless, with a deterministic re-roll
-> attempt ladder answering the dead-end-rate concern recorded above. If ADR 0010 is accepted,
-> this paragraph's "defaults do not change" is superseded on that single point; the
-> explicit-choice-overrides rule is unchanged.
+> **Superseded on a single point (2026-07-31):** [ADR 0010](0010-cross-game-logic-and-beatability.md)
+> — **Accepted** 2026-07-31, [PR #572](https://github.com/spencerduncan/redshipblueship/pull/572) —
+> resolves the forward pointer previously recorded here. Its increment 1 raises this one default:
+> the paired `RO_LOGIC` default becomes **Glitchless**, not Nearly No Logic, at its single
+> resolution point (`Rando/Foreign.cpp:126-128`), with a deterministic re-roll attempt ladder
+> answering the dead-end-rate concern recorded above rather than ignoring it (implementation in
+> flight). This paragraph's "defaults do not change" and "no raised profile ships" are superseded
+> on that single point only — every `RO_SHUFFLE_*` and `RO_HINTS_*` row keeps its
+> `RO_GENERIC_OFF` default, and the explicit-choice-overrides rule is unchanged: an explicit
+> player choice of a no-logic mode is still honored and recorded in the frozen identity.
 
 #### 4.2 Shared-intent entries must be visibly marked (required, not cosmetic)
 
