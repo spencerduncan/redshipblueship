@@ -249,7 +249,15 @@ def main():
                             regs[nm2] = struct.unpack_from("<Q", ctx2, off)[0]
                         print("  REGS: " + " ".join("%s=0x%X" % (kk, vv) for kk, vv in regs.items()))
                         # ---- #557: GfxRenderingAPIOGL object dump ----
-                        # Layout at libultraship pin 8a8b20a (verified against
+                        # PRE-FIX LAYOUT ONLY. These offsets describe the class as it
+                        # stood at libultraship pin 8a8b20a, i.e. binaries built BEFORE
+                        # the #557 fix replaced `TextureInfo textures[1024]` with a
+                        # growable std::vector. After that fix the members shift (the
+                        # vector's three pointers sit where the array used to start) and
+                        # the dump below is meaningless -- update the offsets rather than
+                        # believing the output. The register identities printed above the
+                        # dump are layout-independent and stay valid either way.
+                        # Layout at 8a8b20a (verified against
                         # include/fast/backends/gfx_opengl.h + SHADER_MAX_TEXTURES=6
                         # in include/fast/interpreter.h):
                         #   +0x0010 TextureInfo textures[1024]   (u16 w,h,filtering)
