@@ -2534,6 +2534,11 @@ void MM_Play_Init(GameState* thisx) {
     }
 
     if (gSaveContext.save.entrance == -1) {
+        // RSBS-TITLESETUP-EXEMPT(#532): this is a boot-chain bail, not a
+        // gameplay exit. A cross-game arrival cannot reach it --
+        // MM_Play_ConsumeStartupEntrance (above) assigns a real startup
+        // entrance before this check, and a standalone MM session has no live
+        // cross-game state for TitleSetup to overwrite.
         gSaveContext.save.entrance = 0;
         STOP_GAMESTATE(&this->state);
         SET_NEXT_GAMESTATE(&this->state, MM_TitleSetup_Init, sizeof(TitleSetupState));
