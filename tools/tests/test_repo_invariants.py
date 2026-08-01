@@ -177,6 +177,61 @@ def _titlesetup_transitions():
                 yield rel, lineno, lines
 
 
+def _strip_comments(text):
+    """Blank out // and /* */ comments, preserving line structure.
+
+    Load-bearing for the guard check below, NOT cosmetic. The window search is
+    a substring test, so without this a bare mention of the guard's name in a
+    comment above an UNGUARDED transition satisfies it and the lock passes
+    vacuously — verified: adding the single line `// see
+    MM_Combo_OwlSaveExitToOoT` above an unwrapped transition in z_play.c turned
+    a red run green while #532's mechanism was fully re-armed. That is not a
+    contrived edit; the natural way to document a transition you left alone is
+    to name the guard the other ones use.
+
+    The exempt marker deliberately keeps searching the RAW window — it is a
+    comment by design. Only the guard has to be real code.
+    """
+    out = []
+    in_block = False
+    for line in text.splitlines():
+        buf = []
+        i = 0
+        while i < len(line):
+            if in_block:
+                end = line.find("*/", i)
+                if end == -1:
+                    i = len(line)
+                else:
+                    in_block = False
+                    i = end + 2
+            elif line.startswith("//", i):
+                break
+            elif line.startswith("/*", i):
+                in_block = True
+                i += 2
+            else:
+                buf.append(line[i])
+                i += 1
+        out.append("".join(buf))
+    return "\n".join(out)
+
+
+def _guard_is_wired_above(lines, lineno):
+    """True when a real CALL to the #532 guard sits just above `lineno`.
+
+    Comments are stripped (see _strip_comments) and the `extern` prototype is
+    excluded, so neither a doc mention nor a forward declaration that happens to
+    drift within the lookback can stand in for the call site itself.
+    """
+    window = lines[max(0, lineno - 1 - TITLESETUP_LOOKBACK) : lineno]
+    code = _strip_comments("\n".join(window))
+    return any(
+        TITLESETUP_GUARD in stripped and not stripped.lstrip().startswith("extern")
+        for stripped in code.splitlines()
+    )
+
+
 def test_titlesetup_transitions_are_guarded_or_marked_exempt():
     """#532: entering MM's TitleSetup from a LIVE cross-game session destroys it.
 
@@ -202,13 +257,16 @@ def test_titlesetup_transitions_are_guarded_or_marked_exempt():
 
     Counterfactual: revert the `if (!MM_Combo_OwlSaveExitToOoT())` wrapper in
     games/mm/src/code/z_play.c and this test fails, naming the file and line.
+    A second counterfactual the guard-in-comments bypass used to pass: putting
+    the guard's NAME in a comment above an unwrapped transition no longer
+    satisfies this, because the guard is matched against comment-stripped code.
     """
     offenders = []
     for rel, lineno, lines in _titlesetup_transitions():
         if rel in TITLESETUP_FRONT_END:
             continue
-        window = "\n".join(lines[max(0, lineno - 1 - TITLESETUP_LOOKBACK) : lineno])
-        if TITLESETUP_GUARD in window or TITLESETUP_EXEMPT_MARKER in window:
+        raw_window = "\n".join(lines[max(0, lineno - 1 - TITLESETUP_LOOKBACK) : lineno])
+        if _guard_is_wired_above(lines, lineno) or TITLESETUP_EXEMPT_MARKER in raw_window:
             continue
         offenders.append(f"{rel}:{lineno}")
     assert not offenders, (
@@ -236,9 +294,47 @@ def test_titlesetup_invariant_sees_the_known_transitions():
     guarded = [
         f"{rel}:{lineno}"
         for rel, lineno, lines in _titlesetup_transitions()
-        if TITLESETUP_GUARD in "\n".join(lines[max(0, lineno - 1 - TITLESETUP_LOOKBACK) : lineno])
+        if _guard_is_wired_above(lines, lineno)
     ]
     assert len(guarded) >= 2, f"expected at least the two #532-guarded transitions, found {guarded}"
+
+
+def test_titlesetup_guard_cannot_be_satisfied_by_a_comment():
+    """The guard check must read CODE, not prose.
+
+    `_guard_is_wired_above` is a substring search over a window; the whole
+    reason it strips comments is that a doc mention of the guard's name would
+    otherwise stand in for the call. Pin that directly, so a future
+    simplification back to a raw-text search fails here instead of silently
+    re-opening #532's mechanism to anything with a helpful comment.
+    """
+    real_call = [
+        "if (!MM_Combo_OwlSaveExitToOoT()) {",
+        "    STOP_GAMESTATE(&this->state);",
+        "    SET_NEXT_GAMESTATE(&this->state, MM_TitleSetup_Init, sizeof(TitleSetupState));",
+        "}",
+    ]
+    assert _guard_is_wired_above(real_call, 3), "a real guarded call site must count as guarded"
+
+    line_comment = [
+        "// see MM_Combo_OwlSaveExitToOoT",
+        "STOP_GAMESTATE(&this->state);",
+        "SET_NEXT_GAMESTATE(&this->state, MM_TitleSetup_Init, sizeof(TitleSetupState));",
+    ]
+    assert not _guard_is_wired_above(line_comment, 3), "a // mention of the guard must NOT count as guarded"
+
+    block_comment = [
+        "/* unlike the owl exit, which uses MM_Combo_OwlSaveExitToOoT,",
+        " * this one is different. */",
+        "SET_NEXT_GAMESTATE(&this->state, MM_TitleSetup_Init, sizeof(TitleSetupState));",
+    ]
+    assert not _guard_is_wired_above(block_comment, 3), "a /* */ mention of the guard must NOT count as guarded"
+
+    prototype = [
+        "extern int MM_Combo_OwlSaveExitToOoT(void);",
+        "SET_NEXT_GAMESTATE(&this->state, MM_TitleSetup_Init, sizeof(TitleSetupState));",
+    ]
+    assert not _guard_is_wired_above(prototype, 2), "the extern prototype must NOT count as guarded"
 
 
 def test_mm_2s2h_glob_is_configure_depends():
