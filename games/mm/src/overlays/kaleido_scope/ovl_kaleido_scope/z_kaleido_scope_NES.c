@@ -3743,7 +3743,7 @@ void MM_KaleidoScope_Update(PlayState* play) {
                             R_PAUSE_BG_PRERENDER_STATE = PAUSE_BG_PRERENDER_UNK4;
                             Object_LoadAll(&play->objectCtx);
                             BgCheck_InitCollisionHeaders(&play->colCtx, play);
-                            // RSBS (#532): the save-and-quit exit must not enter
+                            // RSBS (#532): a save-and-quit exit must not enter
                             // MM's TitleSetup in a cross-game session -- that
                             // chain runs MM_Sram_InitNewSave and authors a
                             // vanilla bootstrap over the session this save just
@@ -3751,6 +3751,18 @@ void MM_KaleidoScope_Update(PlayState* play) {
                             // Tier-3. Requesting a switch hands control to the
                             // launcher instead. Returns 0 for a standalone MM
                             // session, keeping vanilla behavior.
+                            //
+                            // REACHABILITY, stated honestly: nothing in this
+                            // tree ever assigns PAUSE_SAVEPROMPT_STATE_6, so
+                            // this case is dead today -- MM's reachable pause
+                            // save (PAUSE_SAVEPROMPT_STATE_1 above) SAVES and
+                            // returns to gameplay, it does not quit. The guard
+                            // is here so the state cannot be wired up later and
+                            // silently re-arm #532's mechanism; the reachable
+                            // #532 path is the owl-save exit in z_play.c. The
+                            // repo invariant in tools/tests/test_repo_invariants.py
+                            // ("no unguarded MM_TitleSetup_Init transition")
+                            // is what keeps that promise enforceable.
                             if (!MM_Combo_OwlSaveExitToOoT()) {
                                 STOP_GAMESTATE(&play->state);
                                 SET_NEXT_GAMESTATE(&play->state, MM_TitleSetup_Init, sizeof(TitleSetupState));
@@ -3998,6 +4010,21 @@ void MM_KaleidoScope_Update(PlayState* play) {
                         gSaveContext.save.saveInfo.playerData.magicLevel = 0;
                         gSaveContext.save.saveInfo.playerData.magic = 0;
                     } else { // PAUSE_PROMPT_NO
+                        // RSBS-TITLESETUP-EXEMPT(#532): KNOWN HOLE, not a
+                        // cleared one. The game-over "don't continue" prompt
+                        // carries the SAME mechanism as the owl-save exit — in
+                        // a cross-game session it authors a vanilla bootstrap
+                        // over the live MM session, which the next hop to OoT
+                        // freezes and OoT's next save launders into Tier-3.
+                        // It is left alone here because it is a DEATH path:
+                        // what the player should get after declining to
+                        // continue is a policy question about the combo's
+                        // death semantics, not a transcription of the owl-save
+                        // answer, and getting it wrong trades one data-loss
+                        // bug for a worse one. It needs its own change; this
+                        // marker exists so the invariant test names it out
+                        // loud rather than letting it hide among the
+                        // legitimately-exempt front-end transitions.
                         STOP_GAMESTATE(&play->state);
                         SET_NEXT_GAMESTATE(&play->state, MM_TitleSetup_Init, sizeof(TitleSetupState));
                     }

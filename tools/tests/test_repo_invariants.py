@@ -35,6 +35,24 @@ PROPERTIES_TEMPLATES = [
 MM_STUBS = REPO_ROOT / "src" / "common" / "mm_stubs.c"
 MM_CMAKELISTS = REPO_ROOT / "games" / "mm" / "CMakeLists.txt"
 
+MM_SRC = REPO_ROOT / "games" / "mm" / "src"
+TITLESETUP_GUARD = "MM_Combo_OwlSaveExitToOoT"
+TITLESETUP_EXEMPT_MARKER = "RSBS-TITLESETUP-EXEMPT"
+# How far above the transition the guard call (or the exempt marker) may sit.
+# Both live directly above it today; the slack is for a `STOP_GAMESTATE` line
+# and a short comment, not for an unrelated `if` several statements earlier.
+TITLESETUP_LOOKBACK = 24
+
+# MM's OWN front end. A transition into TitleSetup from the title screen or the
+# file-select is not an exit from a live session -- by the time either of these
+# runs there is no cross-game world left to author a bootstrap over. Exempting
+# whole files here (rather than per-line) is deliberate: every transition in
+# them is front-end-internal, and a NEW one would be too.
+TITLESETUP_FRONT_END = {
+    "games/mm/src/overlays/gamestates/ovl_title/z_title.c",
+    "games/mm/src/overlays/gamestates/ovl_file_choose/z_file_choose_NES.c",
+}
+
 
 def _parse(path):
     return ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
@@ -144,6 +162,83 @@ def test_mm_stubs_defines_no_unprefixed_frame_interpolation():
     stripped = re.sub(r"/\*.*?\*/", "", text, flags=re.DOTALL)
     offenders = re.findall(r"^\s*\w[\w\s*]*\bFrameInterpolation_\w+\s*\(", stripped, flags=re.MULTILINE)
     assert not offenders, f"mm_stubs.c defines unprefixed FrameInterpolation stubs: {offenders}"
+
+
+def _titlesetup_transitions():
+    """Every `SET_NEXT_GAMESTATE(..., MM_TitleSetup_Init, ...)` under games/mm/src.
+
+    Yields (repo-relative posix path, 1-based line number, the file's lines).
+    """
+    for path in sorted(MM_SRC.rglob("*.c")):
+        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+        rel = path.relative_to(REPO_ROOT).as_posix()
+        for lineno, line in enumerate(lines, start=1):
+            if "SET_NEXT_GAMESTATE" in line and "MM_TitleSetup_Init" in line:
+                yield rel, lineno, lines
+
+
+def test_titlesetup_transitions_are_guarded_or_marked_exempt():
+    """#532: entering MM's TitleSetup from a LIVE cross-game session destroys it.
+
+    TitleSetup_SetupTitleScreen calls MM_Sram_InitNewSave, so a fresh vanilla
+    file becomes the live gSaveContext while gComboCtx and OoT's frozen blob
+    stay resident (MM has no twin of Context_InvalidateSessionOnReturnToTitle).
+    The next hop back to OoT freezes that bootstrap into the MM shadow, and
+    OoT's next save serializes it into the .redsave's Tier-3 -- overwriting the
+    MM half the owl save persisted seconds earlier.
+
+    Nothing in the C build can fail on a NEW ungated transition: the fix is a
+    call-site decision, so a future edit that adds another
+    `SET_NEXT_GAMESTATE(..., MM_TitleSetup_Init, ...)` -- or that deletes the
+    guard from an existing one -- compiles, links, and passes every ctest row.
+    That is precisely why the lock lives here as a source-text assertion.
+
+    Three outcomes are allowed, and each must be spelled out in the source:
+      * guarded by MM_Combo_OwlSaveExitToOoT (the #532 fix);
+      * marked RSBS-TITLESETUP-EXEMPT with a reason (boot-chain bails, and the
+        game-over "don't continue" path, which is a known unfixed hole);
+      * inside MM's own front end (title screen / file select), where there is
+        no live session to destroy.
+
+    Counterfactual: revert the `if (!MM_Combo_OwlSaveExitToOoT())` wrapper in
+    games/mm/src/code/z_play.c and this test fails, naming the file and line.
+    """
+    offenders = []
+    for rel, lineno, lines in _titlesetup_transitions():
+        if rel in TITLESETUP_FRONT_END:
+            continue
+        window = "\n".join(lines[max(0, lineno - 1 - TITLESETUP_LOOKBACK) : lineno])
+        if TITLESETUP_GUARD in window or TITLESETUP_EXEMPT_MARKER in window:
+            continue
+        offenders.append(f"{rel}:{lineno}")
+    assert not offenders, (
+        "MM_TitleSetup_Init transitions with neither a "
+        f"{TITLESETUP_GUARD} guard nor a {TITLESETUP_EXEMPT_MARKER} marker "
+        f"(#532 -- these author a vanilla bootstrap over a live cross-game "
+        f"session): {offenders}"
+    )
+
+
+def test_titlesetup_invariant_sees_the_known_transitions():
+    """Guard against the guard: a scanner that finds nothing passes vacuously.
+
+    If a rename or a macro change made `_titlesetup_transitions` stop matching,
+    the assertion above would go green while the invariant it claims to enforce
+    was no longer enforced at all. Pin the two call sites the #532 fix owns.
+    """
+    found = {rel for rel, _, _ in _titlesetup_transitions()}
+    for required in (
+        "games/mm/src/code/z_play.c",
+        "games/mm/src/overlays/kaleido_scope/ovl_kaleido_scope/z_kaleido_scope_NES.c",
+    ):
+        assert required in found, f"the TitleSetup transition scanner no longer sees {required}"
+
+    guarded = [
+        f"{rel}:{lineno}"
+        for rel, lineno, lines in _titlesetup_transitions()
+        if TITLESETUP_GUARD in "\n".join(lines[max(0, lineno - 1 - TITLESETUP_LOOKBACK) : lineno])
+    ]
+    assert len(guarded) >= 2, f"expected at least the two #532-guarded transitions, found {guarded}"
 
 
 def test_mm_2s2h_glob_is_configure_depends():

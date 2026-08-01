@@ -48,12 +48,31 @@
  *      first: without that, a prefix write would leave zeros there and a
  *      "did the byte survive" check could pass vacuously against a zeroed
  *      buffer rather than against genuinely stale data.
+ *
+ *   6. The owl-save EXIT policy (#532). Capturing the save is only half the
+ *      job: MM's owl-save exit then hands control to MM_TitleSetup_Init, whose
+ *      MM_Sram_InitNewSave authors a fresh vanilla file over the live
+ *      gSaveContext. In a cross-game session that bootstrap is what the next
+ *      hop to OoT freezes, and what OoT's next save then writes into Tier-3 --
+ *      destroying the Tier-3 checks 3-5 above just proved was written
+ *      correctly. MM_Combo_OwlSaveExitToOoT is the decision that prevents it,
+ *      and this file is where the two halves belong together: the same test
+ *      writes a good MM half and then locks the exit that used to eat it.
+ *
+ *      The call-site half of that fix -- that the TitleSetup transitions in
+ *      z_play.c / z_kaleido_scope_NES.c actually consult this function -- is
+ *      NOT observable from here, and a check on the helper alone would pass
+ *      whether or not it is wired in. That half is locked as a source-text
+ *      invariant in tools/tests/test_repo_invariants.py
+ *      (test_titlesetup_transitions_are_guarded_or_marked_exempt). Neither
+ *      lock is sufficient alone; together they cover decision and wiring.
  */
 
 #include "global.h"
 
 #include "save.h"
 #include "context.h"
+#include "entrance.h"
 #include "game.h"
 
 #include <cstdio>
@@ -64,6 +83,7 @@
 
 extern "C" SaveContext gSaveContext;
 extern "C" int MM_Combo_CaptureSaveToUnifiedSlot(void);
+extern "C" int MM_Combo_OwlSaveExitToOoT(void);
 
 namespace {
 
@@ -170,7 +190,55 @@ extern "C" int MM_UnifiedSaveCapture_RunHeadless(void) {
                      "sizeof(Save) prefix write over a non-zero tail");
     }
 
+    // ---- 6. The owl-save exit policy (#532) ------------------------------
+    // Ordering is the point: the .redsave above is now GOOD. Everything below
+    // is about the exit that used to overwrite it.
+    Combo_ClearGameSwitchRequest();
+
+    // 6a. Standalone MM. No OoT session exists to return to, so the vanilla
+    //     2ship exit (TitleSetup) must stand and no switch may be requested.
+    //     This is the counterfactual that stops the fix from being "always
+    //     switch": an implementation that dropped the Context_HasFrozenState
+    //     gate would hijack upstream's own save-and-quit and strand a
+    //     standalone player in a game they never asked for.
+    Context_ClearAllFrozenStates();
+    USAVE_ASSERT(Context_HasFrozenState(GAME_OOT) == 0, "test setup: no OoT session must be frozen here");
+    USAVE_ASSERT(MM_Combo_OwlSaveExitToOoT() == 0,
+                 "a standalone MM session must keep the vanilla TitleSetup exit (#532 gate)");
+    USAVE_ASSERT(Combo_IsGameSwitchRequested() == false,
+                 "a standalone MM owl-save exit must not request a game switch");
+
+    // 6b. Cross-game MM. An OoT session is frozen — the player walked in
+    //     through the Happy Mask Shop and OoT is waiting behind them. The exit
+    //     must refuse TitleSetup (return 1) AND actually drive the launcher:
+    //     the return value alone is inert, it is the switch request that makes
+    //     MM's graph loop break before MM_Sram_InitNewSave can author a
+    //     bootstrap over the save checks 3-5 just verified.
+    {
+        std::vector<uint8_t> ootSession(OOT_SAVE_CONTEXT_SIZE, 0x11);
+        Context_FreezeState(GAME_OOT, OOT_ENTR_MARKET_FROM_MASK_SHOP, ootSession.data(), ootSession.size());
+    }
+    USAVE_ASSERT(Context_HasFrozenState(GAME_OOT) == 1, "test setup: the OoT session must be frozen here");
+    USAVE_ASSERT(MM_Combo_OwlSaveExitToOoT() == 1,
+                 "a cross-game MM owl-save exit must refuse MM's TitleSetup chain (#532)");
+    USAVE_ASSERT(Combo_IsGameSwitchRequested() == true,
+                 "refusing TitleSetup is not enough: the exit must request the switch that breaks MM's "
+                 "graph loop, or MM keeps running and reaches TitleSetup anyway");
+
+    // 6c. The decision must not depend on the write having landed. A slot
+    //     write-latched by #533 persists nothing, and that is precisely when
+    //     entering TitleSetup would be worst — the player would lose the
+    //     durable half AND have the live session replaced by a vanilla file.
+    Combo_ClearGameSwitchRequest();
+    RsbsSave_ResetSlotSessionState();
+    RsbsSave_SetActiveSlot(2);
+    USAVE_ASSERT(MM_Combo_CaptureSaveToUnifiedSlot() == 0, "test setup: the capture must be latch-refused here");
+    USAVE_ASSERT(MM_Combo_OwlSaveExitToOoT() == 1,
+                 "a refused capture must still take the cross-game exit, never MM's TitleSetup (#533 x #532)");
+    USAVE_ASSERT(Combo_IsGameSwitchRequested() == true, "a refused capture must still drive the launcher");
+
     // Leave global state clean for whatever runs next.
+    Combo_ClearGameSwitchRequest();
     memset(&gSaveContext, 0, sizeof(SaveContext));
     Context_ClearAllFrozenStates();
     ComboContext_Init();
