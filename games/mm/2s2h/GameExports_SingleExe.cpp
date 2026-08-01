@@ -19,7 +19,8 @@
 
 #ifdef RSBS_SINGLE_EXECUTABLE
 
-#include <cstddef> // offsetof for the #395 layout facts; ptrdiff_t
+#include <cstddef>     // offsetof for the #395 layout facts; ptrdiff_t
+#include <type_traits> // std::is_same_v for the #470 payload-divergence premise
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -39,6 +40,12 @@
 // Paired-world keying + placement-table accessors (#439 switch-entry
 // activation logs the placement count at the pairing decision point).
 #include "foreign_items.h"
+// MM_Rando_ComputeProfileStamp — the arrival's identity re-resolution
+// (#498/#564: compare against the creation-frozen mmProfileDigest).
+#include "combo_mm_options_view.h"
+// OoT_Notification_Emit — the shared toast overlay (#427 bridge): the arrival
+// refusal must be player-visible in-game, not only in the file panel.
+#include "notification_bridge.h"
 #include "entrance.h"
 #include <ship/resource/ResourceManager.h>
 #include <ship/resource/ResourceLoader.h>
@@ -689,6 +696,29 @@ extern "C" size_t MM_GI_InstanceSize(void) {
 
 extern "C" size_t MM_GI_NextHookIdOffset(void) {
     return offsetof(GameInteractor, nextHookId);
+}
+
+// #470 registry-identity probes — MM's view of the OnSceneInit hook registry.
+// Naming RegisteredGameHooks<OnSceneInit> here instantiates, from a linked MM
+// TU, exactly the symbol #470's arming scenario would create: OnSceneInit is
+// a hook NAME both ports' tables define, with divergent payloads (OoT
+// std::function<void(int16_t)>, MM the two-arg form the static_assert pins).
+// The MM_HookTypes tag scope (2s2h/GameInteractor/GameInteractor.h) keeps
+// this instantiation's mangled name disjoint from OoT's, so it is safe to
+// emit — and it is emitted ON PURPOSE: the mm-gi-shim lock asserts these
+// addresses differ from the OoT twins' (GameInteractor_Hooks.cpp), and the
+// check-symbol-collisions.sh #470 probe needs a same-named-hook registry in
+// the 2ship archives so a tag revert folds a real symbol instead of passing
+// vacuously.
+static_assert(std::is_same_v<GameInteractor::OnSceneInit::fn, std::function<void(s8, s8)>>,
+              "MM's OnSceneInit payload changed shape — revisit the #470 registry-identity lock");
+
+extern "C" void* MM_GI_OnSceneInitRegistryAddr(void) {
+    return &GameInteractor::RegisteredGameHooks<GameInteractor::OnSceneInit>::functions;
+}
+
+extern "C" void* MM_GI_OnSceneInitUnregQueueAddr(void) {
+    return &GameInteractor::HooksToUnregister<GameInteractor::OnSceneInit>::hooks;
 }
 
 // ============================================================================
@@ -1458,6 +1488,11 @@ extern "C" void MM_Rando_Init(void) {
     // only while MM is the active game. Upstream did this from BenGui.cpp's
     // SetupGuiElements (excluded); the bypass surface lives in
     // 2s2h/TrackersGuiSingleExe.cpp. No-op when the harness has no window.
+    //
+    // No longer the first caller (#535): rsbs/src/main.cpp registers them at
+    // startup so an OoT-first session can reach the menu rows that name them.
+    // Registration here is then idempotent, and what this call still does is
+    // load the tracker icons, which needs the mm.o2r this path has mounted.
     MM_TrackersGui_Init();
 
     // Shared cross-game resources (#525): keep the SHARED rupee pool alive
@@ -1679,8 +1714,17 @@ extern "C" int MM_Combo_CaptureSaveToUnifiedSlot(void) {
     Context_UpdateShadowCopy(GAME_MM, &gSaveContext, sizeof(gSaveContext));
     gComboCtx.sourceGame = GAME_MM;
 
+    // RsbsSave_Save is the commit choke point's one-call form (#537): it
+    // stages the whole cross-game snapshot (Tier-1 + both shadows) on THIS
+    // thread — MM's game thread, the only mutator of the state being captured
+    // — stamps the next monotonic commit generation into Tier-1, and
+    // serializes from the staged copy. Note the .redsave generation advances
+    // past the OoT .sav's here by design: an MM-side commit cannot rewrite
+    // OoT's own file, and the generation gap is exactly what lets the next
+    // load DETECT that OoT's world is older than these records (#531).
     const int ok = RsbsSave_Save(slot);
-    fprintf(stderr, "[MM] unified save to slot %d: %s\n", slot, ok ? "ok" : "FAILED");
+    fprintf(stderr, "[MM] unified save to slot %d: %s (commit generation %u)\n", slot, ok ? "ok" : "FAILED",
+            (unsigned)gComboCtx.commitGeneration);
     fflush(stderr);
     return ok;
 }
@@ -2142,6 +2186,13 @@ extern "C" int MM_ForeignItem_Give(uint16_t riId);
  * cleared (the durable record of the crossing). A give that reports failure is
  * logged but still consumes the redemption — an unresolvable id is a data bug,
  * not something to retry on every future arrival.
+ *
+ * NO PLAYER-FACING PRESENTATION HERE, deliberately (#494). The arrival toast
+ * lives next to the give itself (2s2h/Rando/ForeignItemsSingleExe.cpp), which is
+ * the only point gameplay-gated by construction — this callback runs before
+ * `MM_gPlayState = this`, and the ROM-free rows drive it headlessly with no Gui
+ * (src/common/tests/test_foreign_award.c). A Notification::Emit added back here
+ * would fire before the item exists and on a display-free CI path.
  */
 static void MM_AwardSharedItem(const SharedItem* item, void* ctx) {
     (void)ctx;
@@ -2186,6 +2237,8 @@ extern "C" void MM_Inventory_ChangeUpgrade(s16 upgrade, u32 value);
 extern "C" u32 MM_gUpgradeMasks[8];
 extern "C" u8 MM_gUpgradeShifts[8];
 extern "C" u16 MM_gUpgradeCapacities[][4];
+// Backs the SLOT/AMMO/INV_CONTENT macros (z64save.h) the ammo shim uses.
+extern "C" u8 MM_gItemSlots[77];
 
 // Heart pieces occupy the TOP NIBBLE of questItems in both games
 // (MM's QUEST_HEART_PIECE_COUNT is 0x1C; OoT writes 1 << (QUEST_HEART_PIECE+4)).
@@ -2196,6 +2249,64 @@ extern "C" u16 MM_gUpgradeCapacities[][4];
 // has 4 entries). Bounds the pool value so a tier authored by a future build
 // cannot index off the end of MM's capacity table.
 #define MM_MAX_WALLET_TIER 3u
+
+// Highest tier index in every ammo row of MM_gUpgradeCapacities, the twin of
+// OOT_MAX_AMMO_TIER. The rows themselves are identical across the two games —
+// quiver {0,30,40,50}, bomb bag {0,20,30,40}, sticks {0,10,20,30}, nuts
+// {0,20,30,40} — which is what lets a tier cross as one number with no
+// conversion, unlike the wallet.
+#define MM_MAX_AMMO_TIER 3u
+
+// See OoTSharedAmmo — same table, MM's ids. MM spells the stick and nut
+// upgrades UPG_DEKU_STICKS / UPG_DEKU_NUTS where OoT says UPG_STICKS /
+// UPG_NUTS, and its items ITEM_DEKU_STICK / ITEM_DEKU_NUT; the enum INDICES
+// agree, so the shared tier value means the same thing on both sides.
+typedef struct {
+    uint8_t tierKind;  // RSBS_SHARED_RES_*_TIER, or RSBS_SHARED_RES_NONE for the tier-less bombchu row
+    uint8_t countKind; // RSBS_SHARED_RES_*_COUNT
+    s16 upgrade;       // UPG_* row index, ignored when tierKind is NONE
+    uint8_t item;      // ITEM_* whose slot holds the count, and which a nonzero tier grants
+} MMSharedAmmo;
+
+static const MMSharedAmmo kMMSharedAmmo[] = {
+    { RSBS_SHARED_RES_QUIVER_TIER, RSBS_SHARED_RES_ARROW_COUNT, UPG_QUIVER, ITEM_BOW },
+    { RSBS_SHARED_RES_BOMB_BAG_TIER, RSBS_SHARED_RES_BOMB_COUNT, UPG_BOMB_BAG, ITEM_BOMB },
+    { RSBS_SHARED_RES_STICK_TIER, RSBS_SHARED_RES_STICK_COUNT, UPG_DEKU_STICKS, ITEM_DEKU_STICK },
+    { RSBS_SHARED_RES_NUT_TIER, RSBS_SHARED_RES_NUT_COUNT, UPG_DEKU_NUTS, ITEM_DEKU_NUT },
+    { RSBS_SHARED_RES_NONE, RSBS_SHARED_RES_BOMBCHU_COUNT, 0, ITEM_BOMBCHU },
+};
+
+static uint16_t MM_ReadAmmo(uint8_t item) {
+    const s8 held = AMMO(item);
+    return held < 0 ? 0u : (uint16_t)held;
+}
+
+// MM's bombchus have no upgrade row of their own — the bomb bag's capacity is
+// their ceiling, where OoT fixes it at 50. The pool holds the true count and
+// each side shows what it can hold, exactly as the 500-vs-999 wallet does.
+static uint16_t MM_AmmoCapacity(const MMSharedAmmo* row) {
+    if (row->tierKind == RSBS_SHARED_RES_NONE) {
+        return (uint16_t)CUR_CAPACITY(UPG_BOMB_BAG);
+    }
+    return (uint16_t)CUR_CAPACITY(row->upgrade);
+}
+
+static void MM_EnsureInventoryItem(uint8_t item) {
+    if (INV_CONTENT(item) == ITEM_NONE) {
+        INV_CONTENT(item) = item;
+    }
+}
+
+// MM's hookshot ceiling. MM has no longshot: there is no RI_LONGSHOT at all,
+// and MM's ITEM_LONGSHOT id is an OoT leftover its give path repurposes into a
+// Red Potion. So MM tops out at tier 1, and the pool's tier 2 materializes here
+// as an ordinary hookshot — which is why only the abstract TIER crosses and
+// never an item id.
+#define MM_MAX_HOOKSHOT_TIER 1u
+
+static uint16_t MM_ReadHookshotTier(void) {
+    return INV_CONTENT(ITEM_HOOKSHOT) == ITEM_HOOKSHOT ? 1u : 0u;
+}
 
 static uint16_t MM_ReadHealthQuarters(void) {
     const uint16_t pieces =
@@ -2209,13 +2320,132 @@ static uint16_t MM_ReadHealthQuarters(void) {
     return Combo_MakeHealthQuarters(rawCapacity < 0 ? 0u : (uint16_t)rawCapacity, pieces);
 }
 
+// Magic meter level (0 none / 1 single / 2 double) from the two acquired
+// FLAGS — never from playerData.magicLevel, which Sram_OpenSave zeroes on
+// every file load as the meter-regrow trigger. See the OoT twin.
+static uint16_t MM_ReadMagicLevel(void) {
+    if (!gSaveContext.save.saveInfo.playerData.isMagicAcquired) {
+        return 0u;
+    }
+    return gSaveContext.save.saveInfo.playerData.isDoubleMagicAcquired ? 2u : 1u;
+}
+
+// Current magic with pending CREDITS settled in, the twin of
+// OoT_ReadSettledMagic. MM parks the true amount in magicFillTarget during the
+// meter regrow (MM_Interface_Update zeroes playerData.magic there — the same
+// window MM_Sram_OpenSave opens on every load) and carries magic-jar credit in
+// the magicToAdd accumulator that Magic_UpdateAddRequest drains a few units
+// per frame. Pending debits (the CONSUME_* family, including MM's
+// lens/Goron/Zora/Giant's Mask slow drains) are deliberately not settled, for
+// the reason the OoT twin gives. Nothing is written back here; the APPLY side
+// zeroes magicToAdd after authoring an authoritative amount, which is what
+// keeps a frozen accumulator from draining on top of an applied value and
+// being counted twice.
+static uint16_t MM_ReadSettledMagic(void) {
+    const uint16_t level = MM_ReadMagicLevel();
+    if (level == 0u) {
+        // A fresh MM save parks MAGIC_NORMAL_METER in playerData.magic before
+        // any meter exists (the Sram default-data table). Without a meter that
+        // is not magic, and it must not enter the pool as phantom credit.
+        return 0u;
+    }
+    const s8 rawMagic = gSaveContext.save.saveInfo.playerData.magic;
+    int32_t settled = rawMagic < 0 ? 0 : (int32_t)rawMagic;
+    switch (gSaveContext.magicState) {
+        case MAGIC_STATE_STEP_CAPACITY:
+        case MAGIC_STATE_FILL:
+            if ((int32_t)gSaveContext.magicFillTarget > settled) {
+                settled = (int32_t)gSaveContext.magicFillTarget;
+            }
+            break;
+        default:
+            break;
+    }
+    if (gSaveContext.magicToAdd > 0) {
+        settled += (int32_t)gSaveContext.magicToAdd;
+    }
+    // MM's parked PRE-regrow idiom, the twin of the OoT helper's last fold:
+    // the kaleido game-over continue parks the amount in magicFillTarget with
+    // magic == 0 and magicLevel == 0, machine IDLE, and the regrow that would
+    // move it back is transition-gated — an F10 harvest inside that fade would
+    // otherwise read 0 and debit the pool by the pre-death meter. Gated on
+    // magic == 0 as well as magicLevel == 0 because MM's plain file load
+    // (unlike OoT's) does NOT author magicFillTarget — it leaves the loaded
+    // amount in playerData.magic — so a stale RAM fillTarget must not outvote
+    // a genuine nonzero balance.
+    if (gSaveContext.save.saveInfo.playerData.magicLevel == 0 && rawMagic == 0 &&
+        (int32_t)gSaveContext.magicFillTarget > settled) {
+        settled = (int32_t)gSaveContext.magicFillTarget;
+    }
+    const int32_t cap = (int32_t)level * MAGIC_NORMAL_METER;
+    return (uint16_t)(settled > cap ? cap : settled);
+}
+
+// The harvest gate's game-mode contract (see Combo_SaveIsLiveFile), asserted
+// against MM's own enumerators for the same reason the OoT shim asserts its: a
+// renumber upstream would silently invert the gate. MM is the side that adds
+// GAMEMODE_OWL_SAVE, so this is the only TU that can pin it.
+static_assert(GAMEMODE_NORMAL == RSBS_GAMEMODE_NORMAL, "MM GAMEMODE_NORMAL must match RSBS_GAMEMODE_NORMAL");
+static_assert(GAMEMODE_TITLE_SCREEN == RSBS_GAMEMODE_TITLE_SCREEN,
+              "MM GAMEMODE_TITLE_SCREEN must match RSBS_GAMEMODE_TITLE_SCREEN");
+static_assert(GAMEMODE_FILE_SELECT == RSBS_GAMEMODE_FILE_SELECT,
+              "MM GAMEMODE_FILE_SELECT must match RSBS_GAMEMODE_FILE_SELECT");
+static_assert(GAMEMODE_END_CREDITS == RSBS_GAMEMODE_END_CREDITS,
+              "MM GAMEMODE_END_CREDITS must match RSBS_GAMEMODE_END_CREDITS");
+static_assert(GAMEMODE_OWL_SAVE == RSBS_GAMEMODE_OWL_SAVE, "MM GAMEMODE_OWL_SAVE must match RSBS_GAMEMODE_OWL_SAVE");
+
+/**
+ * Is MM's live gSaveContext a real loaded file being played (#525 follow-up)?
+ *
+ * The twin of OoT_SaveIsLiveFile. fileNum is not consulted on either side, and
+ * on THIS side it could not be: a legitimate cross-game MM session runs pinned
+ * to the 0xFF "no real slot" sentinel for its entire life. gameMode carries the
+ * whole test — TitleSetup_SetupTitleScreen (z_opening.c) leaves
+ * GAMEMODE_TITLE_SCREEN over MM_Sram_InitNewSave's bootstrap file, the
+ * file-select actor (z_en_mag.c) sets GAMEMODE_FILE_SELECT, and the cross-game
+ * arrival sets GAMEMODE_NORMAL in the same z_play.c block that calls
+ * MM_ApplySharedResources, so no frame can observe the bootstrap save under a
+ * NORMAL mode.
+ *
+ * NOTE, because it surprises: unlike OoT, MM runs real GAMEPLAY FRAMES under
+ * GAMEMODE_TITLE_SCREEN — its opening cutscene plays that way, and a harness
+ * force-boot straight into a scene never leaves it. So this gate genuinely fires
+ * in MM (visible as the skip line in IntSwitchMmClockTownSouthToOoT, which
+ * force-boots MM and fires the Clock Tower door without ever passing through
+ * file select). Every such frame has the bootstrap save resident, so suppressing
+ * is correct; a legitimate standalone session is unaffected because MM's real
+ * file-load path sets GAMEMODE_NORMAL (z_file_choose_NES.c FileSelect_LoadGame).
+ */
+static bool MM_SaveIsLiveFile(void) {
+    return Combo_SaveIsLiveFile(GAME_MM, (int32_t)gSaveContext.gameMode);
+}
+
 /**
  * HARVEST (#525), the twin of OoT_HarvestSharedResources.
  *
  * Called from MM_Game_Suspend and immediately before MM's `.redsave` writes.
  * Idempotent in both merge disciplines.
+ *
+ * GATED on a real loaded file, for the reason spelled out in
+ * Combo_SaveIsLiveFile. MM's own title screen is the milder half of the class
+ * — its bootstrap save is 3 hearts and no gear, so it cannot inflate a MONOTONIC
+ * kind the way OoT's debug save does — but its CONSUMABLE kinds are the same
+ * hazard in the other direction: harvesting a 3-heart bootstrap against a
+ * watermark left by a real session's apply computes a large negative delta and
+ * DEBITS the shared health bar. The gate closes both directions at once.
  */
 extern "C" void MM_HarvestSharedResources(void) {
+    if (!MM_SaveIsLiveFile()) {
+        // Early return before the accumulator settle and before the first
+        // Combo_HarvestSharedResource call — neither the pool nor the RAM
+        // watermark table is touched, so the next real harvest still meets the
+        // world its first-harvest seed rule was written for.
+        fprintf(stderr, "[MM] shared-resource harvest skipped: not a live file (gameMode=%d fileNum=%d)\n",
+                (int)gSaveContext.gameMode, (int)gSaveContext.fileNum);
+        fflush(stderr);
+        return;
+    }
+
     // Settle rupeeAccumulator into the count first — MM drains it one per frame
     // exactly as OoT does, so a pending accumulator would be harvested as
     // nothing now and then credited again later.
@@ -2238,6 +2468,23 @@ extern "C" void MM_HarvestSharedResources(void) {
         gSaveContext.save.saveInfo.playerData.health < 0 ? 0u : (uint16_t)gSaveContext.save.saveInfo.playerData.health);
     Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_DOUBLE_DEFENSE,
                                 gSaveContext.save.saveInfo.playerData.doubleDefense ? 1u : 0u);
+    Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_MAGIC_LEVEL, MM_ReadMagicLevel());
+    Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_MAGIC_CURRENT, MM_ReadSettledMagic());
+
+    // Ammo, the twin of the OoT loop — no settle step, because ammo changes are
+    // immediate AMMO() writes in both games rather than accumulator drains.
+    for (int i = 0; i < ARRAY_COUNT(kMMSharedAmmo); i++) {
+        const MMSharedAmmo* row = &kMMSharedAmmo[i];
+        if (row->tierKind != RSBS_SHARED_RES_NONE) {
+            Combo_HarvestSharedResource(GAME_MM, row->tierKind, (uint16_t)CUR_UPG_VALUE(row->upgrade));
+        }
+        Combo_HarvestSharedResource(GAME_MM, row->countKind, MM_ReadAmmo(row->item));
+    }
+
+    // Harvesting MM's 1 can never demote a longshot the pool already holds:
+    // monotonic merges take the max, which is the whole reason a 2-vs-1 ceiling
+    // needs no special case here.
+    Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_HOOKSHOT_TIER, MM_ReadHookshotTier());
 }
 
 /**
@@ -2306,6 +2553,97 @@ extern "C" void MM_ApplySharedResources(void) {
         // through.
         gSaveContext.save.saveInfo.playerData.health = (s16)(health < 0x10u ? 0x10u : health);
     }
+
+    // --- Magic level (monotonic 0/1/2), then current magic clamped against it.
+    // The settled-current snapshot is taken BEFORE the level apply moves the
+    // acquired flags. This ordering is load-bearing on MM's side: a fresh MM
+    // save parks MAGIC_NORMAL_METER in playerData.magic with NO meter acquired
+    // (the Sram default-data table), and the settled read discards that
+    // residue only while the level is still 0. Reading it after the flag flip
+    // would promote the residue into a full phantom meter whenever the pool
+    // carries a level but no current slot (e.g. OoT earned the meter and spent
+    // it to exactly zero before crossing).
+    uint16_t magic = MM_ReadSettledMagic();
+    uint16_t magicLevel = MM_ReadMagicLevel();
+    const bool magicLevelShared = Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_MAGIC_LEVEL, 2u, &magicLevel);
+    if (magicLevelShared) {
+        if (magicLevel >= 1u) {
+            gSaveContext.save.saveInfo.playerData.isMagicAcquired = 1;
+        }
+        if (magicLevel >= 2u) {
+            gSaveContext.save.saveInfo.playerData.isDoubleMagicAcquired = 1;
+        }
+    }
+
+    // --- Current magic (consumable): one meter across both games. The cap is
+    // DERIVED from the level just applied, never read from live magicCapacity,
+    // which the boot chain leaves at 0 until the growth machine runs.
+    const uint16_t magicCap = (uint16_t)(magicLevel * MAGIC_NORMAL_METER);
+    const bool magicShared = Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_MAGIC_CURRENT, magicCap, &magic);
+
+    if ((magicLevelShared || magicShared) && magicLevel != 0u) {
+        // Re-author through MM's own file-load shape (MM_Sram_OpenSave): the
+        // amount stays in playerData.magic and only magicLevel is zeroed;
+        // MM_Interface_Update's regrow block then parks it in magicFillTarget
+        // ITSELF (magicFillTarget = playerData.magic; magic = 0) on its way
+        // into STEP_CAPACITY -> FILL. This is the one place MM's regrow
+        // differs from OoT's, and it is load-bearing: OoT's regrow leaves an
+        // externally-authored magicFillTarget alone, so OoT's apply parks the
+        // amount THERE — doing that here instead gets the target overwritten
+        // with the zeroed magic field and the meter refills to empty (caught
+        // by the int-gameplay-roundtrip probe, not by any ROM-free tier).
+        gSaveContext.magicState = MAGIC_STATE_IDLE;
+        gSaveContext.magicFlag = 0;
+        gSaveContext.magicCapacity = 0;
+        gSaveContext.save.saveInfo.playerData.magicLevel = 0;
+        gSaveContext.save.saveInfo.playerData.magic = (s8)(magic > magicCap ? magicCap : magic);
+        // The harvest that filled the pool already counted any pending
+        // magic-jar credit, so a frozen request draining on top of the amount
+        // just authored would be counted twice at the next harvest. Same rule
+        // as rupeeAccumulator, one accumulator further along; the stale consume
+        // request dies with it.
+        gSaveContext.isMagicRequested = 0;
+        gSaveContext.magicToAdd = 0;
+        gSaveContext.magicToConsume = 0;
+    }
+
+    // --- Ammo: tier before the count it bounds, per row. Deliberately does NOT
+    // copy MM's own rando bomb-bag give, which refills bombs AND bombchus to
+    // capacity — that is a give's semantics, and running it on every arrival
+    // would hand the player a free restock per switch. The apply authors an
+    // absolute count from the pool instead, which is what the watermark
+    // reconciles against.
+    for (int i = 0; i < ARRAY_COUNT(kMMSharedAmmo); i++) {
+        const MMSharedAmmo* row = &kMMSharedAmmo[i];
+
+        if (row->tierKind != RSBS_SHARED_RES_NONE) {
+            uint16_t tier = (uint16_t)CUR_UPG_VALUE(row->upgrade);
+            if (Combo_ApplySharedResource(GAME_MM, row->tierKind, MM_MAX_AMMO_TIER, &tier)) {
+                MM_Inventory_ChangeUpgrade(row->upgrade, (u32)tier);
+                if (tier >= 1u) {
+                    MM_EnsureInventoryItem(row->item);
+                }
+            }
+        }
+
+        uint16_t count = MM_ReadAmmo(row->item);
+        if (Combo_ApplySharedResource(GAME_MM, row->countKind, MM_AmmoCapacity(row), &count)) {
+            if (count > 0u) {
+                MM_EnsureInventoryItem(row->item);
+            }
+            AMMO(row->item) = (s8)count;
+        }
+    }
+
+    // --- Hookshot (monotonic). Clamped to MM's ceiling of 1, so an OoT
+    // longshot arrives as a plain hookshot; the pool keeps the 2 and OoT gets
+    // its longshot back. No C-button fixup is needed on this side, unlike
+    // OoT's: MM's id never changes, so an equipped hookshot stays correct.
+    uint16_t hookshotTier = MM_ReadHookshotTier();
+    if (Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_HOOKSHOT_TIER, MM_MAX_HOOKSHOT_TIER, &hookshotTier) &&
+        hookshotTier >= 1u) {
+        MM_EnsureInventoryItem(ITEM_HOOKSHOT);
+    }
 }
 
 // ============================================================================
@@ -2345,8 +2683,24 @@ extern "C" void MM_ApplySharedResources(void) {
 // health at 0x30, and under one-health-bar semantics that is a Song of Time
 // healing the single shared bar — which is what "as if OoT and MM were one
 // game" means. It reads as a heal, not a bug.
+//
+// SHARED MAGIC deliberately has no equivalent hook either, and that is a fact
+// about MM rather than a policy call: Sram_SaveEndOfCycle never touches magic,
+// magicLevel or either acquired flag. A bracket there would be dead code
+// guarding a wipe that does not happen.
+//
+// SHARED AMMO, by contrast, needs one — the wipe zeroes AMMO() for every slot
+// in MM_gAmmoItems (arrows, bombs, bombchus, sticks, nuts, and MM-local beans
+// and powder keg) except the pictograph box. The five SHARED counts are
+// bracketed below for the same reason rupees are; the MM-local ones are left to
+// be wiped exactly as vanilla does, because restoring those would silently
+// reimplement 2S2H's DoNotResetConsumables enhancement for items that are not
+// part of the shared model and whose loss the player opted into by playing MM.
+// The capacity TIERS need no bracket: the wipe never touches inventory.upgrades,
+// and a monotonic resource could not decay through it anyway.
 
 static s16 sPreCycleRupees = 0;
+static s8 sPreCycleAmmo[ARRAY_COUNT(kMMSharedAmmo)];
 
 extern "C" void MM_RegisterSharedResourceCycleHooks(void) {
     S2H::GameHooks::Register<GameInteractor::BeforeEndOfCycleSave>([]() {
@@ -2364,6 +2718,15 @@ extern "C" void MM_RegisterSharedResourceCycleHooks(void) {
             settled = walletCap;
         }
         sPreCycleRupees = (s16)settled;
+
+        // Snapshot the shared ammo counts by SLOT, through the same AMMO()
+        // macro the wipe itself uses. Deliberately not by raw item id: the
+        // vanilla-reference restore in EndOfCycle.cpp indexes inventory arrays
+        // with item enumerators directly, which is correct only because a
+        // handful of MM's ids happen to equal their slot numbers.
+        for (int i = 0; i < ARRAY_COUNT(kMMSharedAmmo); i++) {
+            sPreCycleAmmo[i] = AMMO(kMMSharedAmmo[i].item);
+        }
     });
 
     S2H::GameHooks::Register<GameInteractor::AfterEndOfCycleSave>([]() {
@@ -2372,6 +2735,18 @@ extern "C" void MM_RegisterSharedResourceCycleHooks(void) {
         // The "you lost your rupees" notice would be a lie now, and it is the
         // same flag 2S2H's DoNotResetRupees clears for the same reason.
         CLEAR_EVENTINF(EVENTINF_THREEDAYRESET_LOST_RUPEES);
+
+        for (int i = 0; i < ARRAY_COUNT(kMMSharedAmmo); i++) {
+            AMMO(kMMSharedAmmo[i].item) = sPreCycleAmmo[i];
+        }
+        // Same reasoning as the rupee notice: four of the five shared counts
+        // have a "you lost it" flag that the cycle stamps before wiping, and
+        // leaving them set makes the game report a loss that no longer
+        // happened. Bombchus have no such flag in vanilla.
+        CLEAR_EVENTINF(EVENTINF_THREEDAYRESET_LOST_ARROW_AMMO);
+        CLEAR_EVENTINF(EVENTINF_THREEDAYRESET_LOST_BOMB_AMMO);
+        CLEAR_EVENTINF(EVENTINF_THREEDAYRESET_LOST_NUT_AMMO);
+        CLEAR_EVENTINF(EVENTINF_THREEDAYRESET_LOST_STICK_AMMO);
     });
 }
 
@@ -2465,6 +2840,68 @@ void MM_Rando_PairOnCrossGameArrival(int hadFrozenState) {
         fprintf(stderr, "[MM] pairing: skipped-because-already-paired (mmFinalSeed=%08X foreignPlacements=%d)\n",
                 gSaveContext.save.shipSaveInfo.rando.finalSeed, Combo_CountForeignPlacements());
         return;
+    }
+
+    // ------------------------------------------------------------------------
+    // The arrival identity gate (#498 decision 1 per #564, phase 2 step 9).
+    //
+    // The one game's MM profile was frozen into the pairing identity at the
+    // CREATION event (Playthrough_Init stamped gComboCtx.mmProfileDigest from
+    // the same MM_Rando_ComputeProfileStamp computation run here). Generation
+    // below would resolve the profile from the LIVE CVars/config — so before
+    // dispatching it, prove that resolution still IS the frozen identity.
+    // Divergence is corruption to refuse, never a choice to honor: no world is
+    // generated, the identity stamp is left untouched (never self-healed), and
+    // the refusal surfaces through the #533 machinery — the active slot is
+    // latched against writes (the divergent session must not capture its
+    // unpaired world into the healthy pair's .redsave) and the file panel
+    // renders the slot REFUSED with the reason.
+    // ------------------------------------------------------------------------
+    if (gComboCtx.mmProfileDigest != 0) {
+        const uint32_t arrivalDigest = MM_Rando_ComputeProfileStamp();
+        if (arrivalDigest != gComboCtx.mmProfileDigest) {
+            const int slot = RsbsSave_GetActiveSlot();
+            fprintf(stderr,
+                    "[MM] pairing: REFUSED — the MM option profile resolved at this arrival (%08X) does not match "
+                    "the identity frozen at creation (%08X). MM options/excluded checks/starting items changed "
+                    "after the paired world was created. No MM world is generated; the creation stamp is left "
+                    "untouched; unified-save slot %d is latched against writes this session\n",
+                    (unsigned)arrivalDigest, (unsigned)gComboCtx.mmProfileDigest, slot);
+            fflush(stderr);
+            RsbsSave_RefuseSlotIdentity(slot);
+
+            // Player-visible, immediately, on the shared overlay — stderr is
+            // not a surface and the file panel is only seen later.
+            ComboNotification refusalToast;
+            memset(&refusalToast, 0, sizeof(refusalToast));
+            refusalToast.prefix = "Cross-game pairing REFUSED:";
+            refusalToast.prefixColor[0] = 0.9f;
+            refusalToast.prefixColor[1] = 0.35f;
+            refusalToast.prefixColor[2] = 0.3f;
+            refusalToast.prefixColor[3] = 1.0f;
+            refusalToast.message = "Majora's Mask options no longer match this file's creation. "
+                                   "Termina stays un-randomized and progress here will not be saved to the pair.";
+            refusalToast.messageColor[0] = 1.0f;
+            refusalToast.messageColor[1] = 1.0f;
+            refusalToast.messageColor[2] = 1.0f;
+            refusalToast.messageColor[3] = 1.0f;
+            refusalToast.remainingTime = 15.0f;
+            // Muted: the overlay's ding is OoT's Audio_PlaySoundGeneral, and
+            // this call site runs on MM's boot path (and in the display-free
+            // rando tier) where OoT's audio session is not a given. The toast
+            // is the surface; the sound is not load-bearing.
+            refusalToast.mute = 1;
+            OoT_Notification_Emit(&refusalToast);
+            return;
+        }
+        fprintf(stderr, "[MM] pairing: arrival profile matches the creation-frozen identity (%08X)\n",
+                (unsigned)arrivalDigest);
+    } else {
+        // A LEGACY pre-freeze pair: its creation predates the identity stamp,
+        // so its profile freezes at this first crossing instead
+        // (ResolvePairedProfile stamps it during the generation below).
+        fprintf(stderr, "[MM] pairing: no creation-time profile stamp (pre-freeze pair); the profile freezes at "
+                        "this arrival\n");
     }
 
     fprintf(stderr, "[MM] pairing: armed on switch-entry (masterSeed=%u settingsHash=%08X) — dispatching OnSaveInit\n",
@@ -2644,6 +3081,69 @@ static GameOps sMMOps = { "mm",           "Majora's Mask", MM_Game_Init, MM_Game
 
 extern "C" GameOps* MM_GetGameOps(void) {
     return &sMMOps;
+}
+
+// ============================================================================
+// Pause-menu / file-select hook dispatch (#438)
+// ============================================================================
+//
+// The last hook types that combined a LIVE registrant (2ship_rando links with
+// WHOLE_ARCHIVE, so Rando::MiscBehavior's registrations are in the binary)
+// with dead dispatch. Same class and remedy as the #512/#514/#515 blocks
+// above: the rebind block at the bottom of MM's GameInteractor.h routes each
+// upstream-spelled call site here, and these bridges consult ONLY the MM-owned
+// S2H::GameHooks registries. Locked by mm_hook_dispatch_test.cpp checks 9-11.
+//
+//  - OnKaleidoUpdate (z_kaleido_scope_NES.c KaleidoScope_Update): bound OoT's
+//    0-arg gated wrapper — C linkage hid the arity mismatch. KaleidoItemPage's
+//    registrant is the trade-slot item-cycling input handler; while it was
+//    dead, left/right on SLOT_TRADE_DEED/KEY_MAMA/COUPLE did nothing, so
+//    alternate shuffled trade items in those slots were unreachable from the
+//    pause menu.
+//  - Before/AfterKaleidoDrawPage (z_kaleido_scope_NES.c brackets every page
+//    draw with the pair): bound the mm_stubs.c no-ops. After carries
+//    KaleidoItemPage's COND_ID_HOOK(PAUSE_ITEM) cycling arrows and adjacent-
+//    item previews for those same slots — dead, and combined with the LIVE
+//    VB_KALEIDO_DISPLAY_ITEM_TEXT suppression that made the slots strictly
+//    worse than vanilla (static icon, no name, no arrows). Before's only
+//    registrant (PersistentMasks.cpp, 2ship_enh) stays link-elided today; it
+//    is wired here as a pair with After per the pairing rule mm_game_hooks.h
+//    records, and its plain-Unregister-vs-RegisterForID leg mismatch was
+//    fixed in the same change so un-elision cannot accumulate stale entries.
+//    Both ForID legs mirror the excluded GameInteractor.cpp twin (keyed on
+//    pauseIndex); upstream has no ForPtr/ForFilter legs for these.
+//  - OnFileSelectSaveLoad (five z_sram_NES.c file-select flows): bound a
+//    mm_stubs.c no-op whose (void*, int) signature had drifted from the real
+//    (s16, bool, SaveContext*) — the #372/#424 hazard class, retired with the
+//    stub. FileSelect.cpp's registrant is the sole isRando[] writer, so a
+//    randomizer file on MM's file-select list rendered exactly like a vanilla
+//    one.
+//
+// HEADLESS SAFETY (the #516 SIGSEGV class): KaleidoItemPage's OnKaleidoUpdate
+// and AfterKaleidoDrawPage registrants dereference MM_gPlayState with no null
+// check. Every call site newly reached here runs inside an active pause/file-
+// select flow — KaleidoScope_Update and the page draws only execute under a
+// live PlayState, and the z_sram_NES.c flows only under the file-select game
+// state — and no ROM-free CTest row drives any of them. The MMHookDispatch row
+// resets these registries before dispatching its own probes, so it cannot run
+// the production registrants against a null play state.
+
+extern "C" void MM_GameHooks_ExecuteOnKaleidoUpdate(PauseContext* pauseCtx) {
+    S2H::GameHooks::Execute<GameInteractor::OnKaleidoUpdate>(pauseCtx);
+}
+
+extern "C" void MM_GameHooks_ExecuteBeforeKaleidoDrawPage(PauseContext* pauseCtx, u16 pauseIndex) {
+    S2H::GameHooks::Execute<GameInteractor::BeforeKaleidoDrawPage>(pauseCtx, pauseIndex);
+    S2H::GameHooks::ExecuteForID<GameInteractor::BeforeKaleidoDrawPage>(pauseIndex, pauseCtx, pauseIndex);
+}
+
+extern "C" void MM_GameHooks_ExecuteAfterKaleidoDrawPage(PauseContext* pauseCtx, u16 pauseIndex) {
+    S2H::GameHooks::Execute<GameInteractor::AfterKaleidoDrawPage>(pauseCtx, pauseIndex);
+    S2H::GameHooks::ExecuteForID<GameInteractor::AfterKaleidoDrawPage>(pauseIndex, pauseCtx, pauseIndex);
+}
+
+extern "C" void MM_GameHooks_ExecuteOnFileSelectSaveLoad(s16 fileNum, bool isOwlSave, SaveContext* saveContext) {
+    S2H::GameHooks::Execute<GameInteractor::OnFileSelectSaveLoad>(fileNum, isOwlSave, saveContext);
 }
 
 #endif /* RSBS_SINGLE_EXECUTABLE */

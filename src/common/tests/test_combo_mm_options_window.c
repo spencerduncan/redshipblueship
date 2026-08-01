@@ -33,6 +33,15 @@
  *    a test or a headless run has every reason to read the options and none to
  *    draw them.
  *
+ * 4. THE FROZEN-PROFILE WRITE GATE (#498/#564 V5). Once a creation event has
+ *    stamped gComboCtx.mmProfileDigest, the two src/common option writers
+ *    (Combo_MMOptionSetValue / Combo_MMOptionClear) must REJECT — the profile
+ *    is world identity, and a post-creation edit would diverge the next MM
+ *    arrival from the creation stamp. Locked at the writers rather than the
+ *    widgets because the writers are the gate; the pane is just its face.
+ *    Falsifiable: remove the Combo_MMProfileFrozen() check from either writer
+ *    and its half goes red.
+ *
  * Deliberately absent: any assertion about appearance. Whether the grouping
  * reads well, whether the disabled rows' reasons are legible beside their
  * widgets, and whether the three standing warnings land are operator
@@ -169,6 +178,45 @@ extern "C" int Combo_MMOptionsWindow_RunHeadless(void) {
     }
 
     Context_SetCurrentGame(prevGame);
+
+    // ---- Frozen-profile write gate (#498/#564 V5) -------------------------
+    {
+        // Any checkbox row will do: 0/1 are always legal values for it, so a
+        // rejected write is distinguishable from a clamped one.
+        const ComboMMOptionDesc* checkbox = NULL;
+        for (int i = 0; i < Combo_MMOptionCount(); i++) {
+            const ComboMMOptionDesc* d = Combo_MMOptionAt(i);
+            if (d != NULL && d->widget == COMBO_MM_WIDGET_CHECKBOX) {
+                checkbox = d;
+                break;
+            }
+        }
+        CMOW_ASSERT(checkbox != NULL);
+
+        // Unfrozen (digest 0): the authoring window. Writes land.
+        ComboContext_Init();
+        CMOW_ASSERT(!Combo_MMProfileFrozen());
+        Combo_MMOptionClear(checkbox);
+        Combo_MMOptionSetValue(checkbox, 1);
+        CMOW_ASSERT(Combo_MMOptionGetValue(checkbox) == 1);
+        CMOW_ASSERT(Combo_MMOptionIsExplicit(checkbox));
+
+        // Frozen (a creation stamped the identity): both writers reject, and
+        // the CVar state is byte-for-byte what it was before the attempts.
+        gComboCtx.mmProfileDigest = 0x4D4D0001u;
+        CMOW_ASSERT(Combo_MMProfileFrozen());
+        Combo_MMOptionSetValue(checkbox, 0);
+        CMOW_ASSERT(Combo_MMOptionGetValue(checkbox) == 1);
+        Combo_MMOptionClear(checkbox);
+        CMOW_ASSERT(Combo_MMOptionIsExplicit(checkbox));
+        CMOW_ASSERT(Combo_MMOptionGetValue(checkbox) == 1);
+
+        // Unfrozen again (the pair's identity was dropped): authoring resumes.
+        gComboCtx.mmProfileDigest = 0;
+        CMOW_ASSERT(!Combo_MMProfileFrozen());
+        Combo_MMOptionClear(checkbox);
+        CMOW_ASSERT(!Combo_MMOptionIsExplicit(checkbox));
+    }
 
     // Leave global state clean for any subsequent test.
     CVarClear(ComboGui::kComboMMOptionsVisibilityCVar);

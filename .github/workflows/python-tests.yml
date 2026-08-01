@@ -1,15 +1,15 @@
 name: python-tests
 
+# Unfiltered on purpose (#379): tools/tests/test_repo_invariants.py asserts on
+# files outside tools/ (.claude/tools/, the properties.h.in templates,
+# src/common/mm_stubs.c, games/mm/CMakeLists.txt), and a paths filter would let
+# exactly the regressions it locks slip through unrun. The suite is hermetic and
+# finishes in seconds, so gating every PR on it is cheaper than keeping a paths
+# list in sync with what the tests read.
 on:
   push:
     branches: [main]
-    paths:
-      - 'tools/**'
-      - '.github/workflows/python-tests.yml'
   pull_request:
-    paths:
-      - 'tools/**'
-      - '.github/workflows/python-tests.yml'
 
 jobs:
   test:

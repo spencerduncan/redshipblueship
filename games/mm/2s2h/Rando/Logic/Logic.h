@@ -125,6 +125,62 @@ inline void SetCurrentRegionTime(const std::unordered_map<RandoRegionId, RegionT
 void FindReachableRegions(RandoRegionId currentRegion, std::set<RandoRegionId>& reachableRegions,
                           std::unordered_map<RandoRegionId, RegionTimeState>& regionTimeStates);
 RandoRegionId GetRegionIdFromEntrance(s32 entrance);
+
+// ============================================================================
+// Factored reachability crawl (ADR 0010 increment 1.3; #500 work item 2).
+//
+// One events+regions fixpoint, extracted from the check tracker's
+// RefreshChecksInLogic so the tracker and generation-time consumers share a
+// single traversal instead of each paraphrasing it. Unlike FindReachableRegions
+// above, this crawl implements the JOIN discipline ADR 0010 Decision 2.3
+// requires of anything a cross-game fact is computed from: a region re-reached
+// with new time slices UNIONS them into its state and is re-explored, where the
+// recursive walk's first-visit guard silently kept whichever time set arrived
+// first. FindReachableRegions itself is left untouched on purpose — the
+// glitchless FILL consumes it, and changing the fill's traversal moves every
+// generated world (a determinism re-pin this increment does not spend).
+// ============================================================================
+
+struct ReachabilityCrawl {
+    std::set<RandoRegionId> reachableRegions;
+    std::unordered_map<RandoRegionId, RegionTimeState> regionTimeStates;
+};
+
+/** Crawl regions + events to a fixpoint from { RR_MAX, region(startEntrance) }
+ *  over the CURRENT gSaveContext (inventory, options, flags). Clears
+ *  RANDO_EVENTS and re-fires them during the crawl, exactly as the check
+ *  tracker always has — callers that must not perturb the live save wrap this
+ *  in the memcpy snapshot/restore discipline (see ComputeReachableCheckSet).
+ *  Consumes no RNG stream (Ship_Random or otherwise). */
+ReachabilityCrawl CrawlReachableRegions(s32 startEntrance);
+
+/** The checks whose access lambdas pass on the crawl's reachable regions,
+ *  each evaluated under its region's joined time state. No save-side
+ *  filtering — callers intersect with shuffled/obtained/skipped per their own
+ *  semantics (the tracker wants shuffled && !obtained; the generation gate
+ *  wants everything the world can yield). */
+std::set<RandoCheckId> EvaluateReachableChecks(const ReachabilityCrawl& crawl);
+
+/** Headless reachable-check CLOSURE over the CURRENT generated world: starting
+ *  from the live save (post-fill, starting items granted), repeatedly crawl,
+ *  and simulate collecting every reachable check's placed item (shuffled
+ *  checks yield their fill-assigned item, unshuffled checks their vanilla
+ *  item) through the real GiveItem/ConvertItem path, until no new check
+ *  becomes reachable. Returns every check the player can actually obtain in
+ *  this world — the "reachable given whatever MM items are reachable" set
+ *  #500's honest-limit note names.
+ *
+ *  Save discipline: the whole run is bracketed by the GlitchlessLogic memcpy
+ *  snapshot/restore, so gSaveContext is byte-identical afterwards, and the
+ *  MM_GameEvents_Queue depth is restored (a simulated triforce-completion give
+ *  must not leak a queued transition into gameplay).
+ *
+ *  Determinism: iteration is over std::set/std::map orderings only and the
+ *  give path consumes no Ship_Random, so the result is a pure function of the
+ *  save + options + region graph — same inputs, identical set, any process.
+ *  The SeedDeterminism row's two-process byte-compare locks this via the
+ *  mmReachable* digest lines. */
+std::set<RandoCheckId> ComputeReachableCheckSet();
 void GeneratePools(RandoSaveInfo& saveInfo, std::vector<RandoCheckId>& checkPool, std::vector<RandoItemId>& itemPool);
 void ApplyGlitchlessLogicToSaveContext(std::vector<RandoCheckId>& checkPool, std::vector<RandoItemId>& itemPool);
 void ApplyNearlyNoLogicToSaveContext(std::vector<RandoCheckId>& checkPool, std::vector<RandoItemId>& itemPool);

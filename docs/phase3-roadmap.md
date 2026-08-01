@@ -281,7 +281,8 @@ intuitive ordering. Plans written without them are wrong in ways that compile.
 
 Directional, not committed:
 
-- **Cross-game logic + beatability check** — Lane D, promoted to #500
+- **Cross-game logic + beatability check** — Lane D, promoted to #500;
+  design: [ADR 0010](adr/0010-cross-game-logic-and-beatability.md) (Proposed)
 - **Cross-game entrance shuffle** — `entrance.h` was designed for it; the
   1:1 link table generalizes to any-entrance→any-entrance. Needs 3.2's logic to
   be more than a spoiler-log mode

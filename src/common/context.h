@@ -238,9 +238,9 @@ int Context_ArmShadowAsFrozen(GameId game, uint16_t returnEntrance);
  * RESOURCES can be tracked at once. A shared resource is not an item that
  * crosses once — it is ONE QUANTITY spanning both games, capacity and current
  * value together ("current health is tracked as if OoT and MM were one game
- * with a single health bar"). v1 occupies five of the eight slots (rupees,
- * wallet tier, health quarters, current health, double defense); magic and the
- * ammo upgrades are the queued members of the same class.
+ * with a single health bar"). All eight slots of THIS block are spoken for by
+ * v1 plus magic; the ammo tier's nine kinds live in the second block below.
+ * Together the two blocks hold twenty slots, seventeen of them occupied.
  *
  * DO NOT BUMP THIS CONSTANT to get more capacity, for the reason
  * RSBS_GRANT_SOURCE_CAP spells out: the array is carved from the front of
@@ -250,6 +250,36 @@ int Context_ArmShadowAsFrozen(GameId game, uint16_t returnEntrance);
  * accessor instead. See ADR 0005 §1 for the identical hazard.
  */
 #define RSBS_SHARED_RESOURCE_CAP 8u
+
+/**
+ * Capacity of ComboContext.sharedResourcesExt (#525 optional tier): the SECOND
+ * shared-resource block, carved exactly as the comment above prescribes rather
+ * than by widening the first one in place.
+ *
+ * The two blocks are ONE LOGICAL ARRAY. shared_resources.c addresses them by a
+ * logical index — 0..RSBS_SHARED_RESOURCE_CAP-1 in the first block, the rest in
+ * this one — and every scan (duplicate lookup, first-free, count) must cover
+ * both in a single pass. A scan that stops at the first block's end silently
+ * splits a kind across blocks or drops a harvest on a "full" array that has
+ * twelve free slots behind it.
+ *
+ * Sized for the whole class in ONE carve, deliberately. Today's set occupies
+ * seventeen of the twenty slots (seven from v1 plus magic, nine from ammo, one
+ * for the hookshot), and a carve is permanent: a third block would cost another
+ * literal offset, another span in every accessor, and another ADR amendment.
+ * The three spare slots are what keeps the next resource from needing any of
+ * that — the hookshot took one of them and needed no format change at all,
+ * which is the headroom doing its job.
+ *
+ * Bounded from above by ADR 0009's 64-byte reserved[] floor, not by taste:
+ * twelve slots is 48 bytes, leaving reserved[132], which still clears the floor
+ * after the ADR's outstanding claims 2 and 4 (4 + 64) land. Sixteen slots would
+ * not.
+ */
+#define RSBS_SHARED_RESOURCE_EXT_CAP 12u
+
+/** Logical slot count across BOTH shared-resource blocks. */
+#define RSBS_SHARED_RESOURCE_TOTAL_CAP (RSBS_SHARED_RESOURCE_CAP + RSBS_SHARED_RESOURCE_EXT_CAP)
 
 /**
  * One cross-game item, tagged with the game whose id-space `id` belongs to.
@@ -361,6 +391,28 @@ enum {
     RSBS_SHARED_RES_HEALTH_QUARTERS = 3,  // MONOTONIC: capacity + pieces*4, the canonical heart quantity
     RSBS_SHARED_RES_HEALTH_CURRENT = 4,   // CONSUMABLE: the single shared health bar, in 0x10-per-heart units
     RSBS_SHARED_RES_DOUBLE_DEFENSE = 5,   // MONOTONIC: 0/1 flag; each game sets its OWN differently-named field pair
+    RSBS_SHARED_RES_MAGIC_LEVEL = 6,      // MONOTONIC: meter level 0/1/2 from the two acquired FLAGS, never magicLevel
+    RSBS_SHARED_RES_MAGIC_CURRENT = 7,    // CONSUMABLE: the single shared magic meter, 0x30 per bar in both games
+    // Ammo (#525 optional tier). Both games pack the capacity tiers into
+    // inventory.upgrades with the SAME bit layout and the SAME capacity rows,
+    // so a tier is one number needing no conversion. The counts live in each
+    // game's own inventory.ammo[] and are spent, so they delta-harvest.
+    RSBS_SHARED_RES_QUIVER_TIER = 8,      // MONOTONIC: 0..3 ({0,30,40,50} arrows in both games)
+    RSBS_SHARED_RES_BOMB_BAG_TIER = 9,    // MONOTONIC: 0..3 ({0,20,30,40} bombs in both games)
+    RSBS_SHARED_RES_STICK_TIER = 10,      // MONOTONIC: 0..3 ({0,10,20,30} sticks in both games)
+    RSBS_SHARED_RES_NUT_TIER = 11,        // MONOTONIC: 0..3 ({0,20,30,40} nuts in both games)
+    RSBS_SHARED_RES_ARROW_COUNT = 12,     // CONSUMABLE: arrows held, clamped to the quiver capacity applied first
+    RSBS_SHARED_RES_BOMB_COUNT = 13,      // CONSUMABLE: bombs held, clamped to the bomb-bag capacity
+    RSBS_SHARED_RES_BOMBCHU_COUNT = 14,   // CONSUMABLE: bombchus held; the CAP is per-game (see the shims), not a kind
+    RSBS_SHARED_RES_STICK_COUNT = 15,     // CONSUMABLE: deku sticks held, clamped to the stick capacity
+    RSBS_SHARED_RES_NUT_COUNT = 16,       // CONSUMABLE: deku nuts held, clamped to the nut capacity
+    // Hookshot (#525 optional tier). An ITEM in OoTMM's wording ("combines the
+    // Hookshots into two progressive items for both games") but a monotonic
+    // TIER in both saves: each game stores it as one inventory byte, so the
+    // shared quantity is 0 none / 1 hookshot / 2 longshot. OoT's ceiling is 2
+    // and MM's is 1 — MM has no longshot at all — which max-merge handles
+    // natively: an MM visit can never demote the pool's longshot.
+    RSBS_SHARED_RES_HOOKSHOT_TIER = 17,   // MONOTONIC: 0/1/2; each game clamps to its OWN ceiling
 };
 
 /**
@@ -520,16 +572,32 @@ typedef struct {
     // different MM halves — with nothing able to detect it. This field is the
     // missing term: the paired world's identity now covers both halves.
     //
-    // Computed by Rando::Foreign::ResolvePairedProfile() from the SAME string
-    // MixPairedFinalSeed() hashes, so "changing an MM option changes the derived
-    // MM world" and "changing an MM option changes the recorded identity" cannot
-    // drift apart — they are one input.
+    // WRITER AND MEANING (#498/#564 phase 2): stamped by the CREATION event —
+    // Playthrough_Init resolves the MM profile from the option CVars through
+    // MM_Rando_ComputeProfileStamp at the same moment it stamps
+    // sharedRandoSeed/sharedRandoSettingsHash — and carried through file-create
+    // invalidation by the KEEP policy. The digest is WIDER than the option
+    // table alone: it also folds gRando.ExcludedChecks, the StartingItems
+    // config block, and the RESOLVED RO_LOGIC value (#564 V4), because those
+    // shape the generated world just as the 47 options do. Every MM arrival
+    // that would generate re-resolves the same identity and COMPARES: mismatch
+    // refuses the pairing through the #533 REFUSED machinery — divergence is
+    // corruption to refuse, never a choice to honor. Rando::Foreign owns both
+    // computations (one shared string builder), so "changing an input changes
+    // the derived MM world" and "changing an input changes the recorded
+    // identity" cannot drift apart.
     //
-    // Zero == unset (no paired profile has been resolved), the growth contract's
-    // required meaning: a non-rando or zero-extended legacy record reads 0.
-    // Carved from the FRONT of the old reserved[216] under that contract, so
-    // every field above keeps its shipped offset and the record size is
-    // unchanged.
+    // Zero == "identity not frozen" (#564 V8's loud reinterpretation: it no
+    // longer reads as the benign "MM hasn't generated yet"). Nonzero is the
+    // frozen-state predicate the options pane and the two src/common option
+    // writers gate on (Combo_MMProfileFrozen). A LEGACY pre-freeze pair reads
+    // 0 until its first crossing, where ResolvePairedProfile stamps it — the
+    // one transitional writer besides creation.
+    //
+    // Zero is also the growth contract's required meaning: a non-rando or
+    // zero-extended legacy record reads 0. Carved from the FRONT of the old
+    // reserved[216] under that contract, so every field above keeps its
+    // shipped offset and the record size is unchanged.
     uint32_t mmProfileDigest;
 
     // #525: the shared cross-game RESOURCES — one quantity spanning both games,
@@ -549,6 +617,50 @@ typedef struct {
     // gSaveContext against it at the switch boundary.
     ComboSharedResource sharedResources[RSBS_SHARED_RESOURCE_CAP];
 
+    // #525 optional tier: the SECOND shared-resource block, carved from the
+    // front of the old reserved[180] under the growth contract — all-zero =
+    // every slot EMPTY, exactly what a zero-extended record written before the
+    // ammo tier must read as. This is the prescription in
+    // RSBS_SHARED_RESOURCE_CAP's own comment, followed literally: the first
+    // block was NOT widened, because anything carved after it (this array, and
+    // whatever follows) would have slid off the offset every shipped .redsave
+    // stored it at.
+    //
+    // Logically these twenty slots are ONE array; shared_resources.c spans both
+    // blocks in every scan. Physically they must stay two, forever.
+    ComboSharedResource sharedResourcesExt[RSBS_SHARED_RESOURCE_EXT_CAP];
+
+    // #537/#531 (one-game persistence, #564 V16/V20 interim): the MONOTONIC
+    // COMMIT GENERATION. Incremented by the .redsave commit choke point
+    // (rsbs::SaveManager::StageCommit) on every staged commit, serialized here
+    // in Tier-1, and MIRRORED into OoT's file{N+1}.sav JSON
+    // ("rsbsCommitGeneration") by the same commit whenever that commit also
+    // writes the .sav. The two durable artifacts describing the ONE save can
+    // therefore be compared for freshness at load: equal generations mean both
+    // artifacts came from the same commit instant; a .redsave generation AHEAD
+    // of the .sav's is exactly the #531 shape (an MM-side commit after OoT's
+    // last save point); a .sav generation ahead means the .redsave write was
+    // lost or the file was replaced from elsewhere. Detection lives in the
+    // load itself (rsbs::SaveManager::LoadSlot, via CompareCommitGenerations):
+    // a .sav-newer mismatch REFUSES through the #533 machinery, a
+    // .redsave-newer mismatch loads and surfaces as SlotMeta.commitSkew.
+    //
+    // Zero == unset (no commit has ever been stamped), the growth contract's
+    // required meaning: a zero-extended legacy record reads 0 and is exempt
+    // from skew comparison. Carved from the FRONT of the old reserved[132], so
+    // every field above keeps its shipped offset and the record size is
+    // unchanged. NOT in the .redsave header on purpose: DeserializeHeader
+    // pins headerSize with an equality check, so growing the header would
+    // orphan every shipped save, while a Tier-1 carve is the established
+    // compatible-growth path.
+    //
+    // Deliberately NOT in Context_InvalidateSessionState's KEEP set: a session
+    // teardown either precedes a slot load (which restores the slot's own
+    // generation from its .redsave) or a new game (whose first commit stamps
+    // generation 1 into BOTH fresh artifacts). Carrying a dead session's
+    // counter across would make an unrelated slot's artifacts look skewed.
+    uint32_t commitGeneration;
+
     // Headroom. Carve new fields from the FRONT of this array (as
     // sharedItemsTagged, sharedRandoSettingsHash, foreignPlacements, the
     // grant cursors, and the reverse placement table were) so the struct
@@ -559,13 +671,18 @@ typedef struct {
     // a freshly-initialized one — every field carved from here must keep
     // "zero means unset".
     //
-    // 264 - 48 (foreignPlacementsOoT) - 4 (mmProfileDigest) - 32 (sharedResources).
+    // 264 - 48 (foreignPlacementsOoT) - 4 (mmProfileDigest) - 32 (sharedResources)
+    // - 48 (sharedResourcesExt) - 4 (commitGeneration).
     // ADR 0009 publishes the remaining
     // allocation across the other claimants and sets a 64-byte floor:
     // Test_SaveComboRecordFixed's scribble loop iterates sizeof(reserved), so
     // at zero it degenerates to zero iterations and passes vacuously, retiring
-    // the only test that proves headroom round-trips at all.
-    uint8_t reserved[180];
+    // the only test that proves headroom round-trips at all. NOTE: with the
+    // commitGeneration carve this stands at 128; ADR 0009's outstanding
+    // claims 2 and 4 (4 + 64) would leave 60, so the ADR's budget table needs
+    // a row before those land (raise the record size + RSBS_SAVE_VERSION
+    // together if the floor would break).
+    uint8_t reserved[128];
 } ComboContext;
 
 /**
@@ -672,13 +789,39 @@ RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, sharedResources) ==
                            offsetof(ComboContext, mmProfileDigest) + sizeof(uint32_t),
                        "sharedResources must be carved from the FRONT of reserved[] (contiguous with "
                        "the MM profile digest); moving it changes .redsave format");
-RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, reserved) ==
+// The second shared-resource block is the next carve (#525 optional tier, 48
+// bytes). Pinned to the literal 824 for the same reason 672, 736, 740, 788 and
+// 792 are: anything carved after it inherits its position, so a field growing
+// in place ahead of it must break the build rather than slide it. In
+// particular, an in-place widen of the FIRST block would move this one — which
+// is exactly the break RSBS_SHARED_RESOURCE_CAP's comment forbids, and this is
+// the assert that catches it.
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, sharedResourcesExt) == 824u,
+                       "sharedResourcesExt lives at .redsave byte offset 824; if this fires, a field "
+                       "before it grew in place - carve from reserved[] instead");
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, sharedResourcesExt) ==
                            offsetof(ComboContext, sharedResources) +
                                RSBS_SHARED_RESOURCE_CAP * sizeof(ComboSharedResource),
+                       "sharedResourcesExt must be carved from the FRONT of reserved[] (contiguous "
+                       "with the first shared-resource block); moving it changes .redsave format");
+// The commit generation is the next carve (#537/#531, 4 bytes). Pinned to the
+// literal 872 for the same reason 672, 736, 740, 788, 792 and 824 are: anything
+// carved after it inherits its position, so a field growing in place ahead of
+// it must break the build rather than slide it.
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, commitGeneration) == 872u,
+                       "commitGeneration lives at .redsave byte offset 872; if this fires, a field "
+                       "before it grew in place - carve from reserved[] instead");
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, commitGeneration) ==
+                           offsetof(ComboContext, sharedResourcesExt) +
+                               RSBS_SHARED_RESOURCE_EXT_CAP * sizeof(ComboSharedResource),
+                       "commitGeneration must be carved from the FRONT of reserved[] (contiguous "
+                       "with the second shared-resource block); moving it changes .redsave format");
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, reserved) ==
+                           offsetof(ComboContext, commitGeneration) + sizeof(uint32_t),
                        "the tagged-item array, the settings digest, both foreign-placement tables, "
-                       "the grant cursors, the overflow count, the MM profile digest, the shared "
-                       "resource slots, and the remaining headroom must stay contiguous (no padding, "
-                       "no fields slipped between them)");
+                       "the grant cursors, the overflow count, the MM profile digest, BOTH shared "
+                       "resource blocks, the commit generation, and the remaining headroom must stay "
+                       "contiguous (no padding, no fields slipped between them)");
 // ADR 0009's floor. reserved[] is what Test_SaveComboRecordFixed scribbles to
 // prove Tier-1 headroom round-trips; at zero that loop runs zero times and the
 // test passes vacuously, so the carve budget stops here rather than there.
@@ -774,29 +917,55 @@ bool Context_HasPendingSwitch(void);
 // .redsave would keep inheriting the previous session.
 
 /**
- * What Context_InvalidateSessionState does with the Lane B seed stamp
- * (sourceIsRando / sharedRandoSeed / sharedRandoSettingsHash).
+ * What Context_InvalidateSessionState does with the GENERATION-AUTHORED state:
+ * the Lane B seed stamp (sourceIsRando / sharedRandoSeed /
+ * sharedRandoSettingsHash) and, since #534, the reverse placement table
+ * (foreignPlacementsOoT) that generation derives from that stamp.
  *
- * The stamp is the one part of gComboCtx that is NOT authored by the session
- * being torn down: Playthrough_Init writes it at GENERATION time, which for a
- * new file happens BEFORE the file is created (generate a seed in the menu,
- * then name the file). So the new-file call site must keep a stamp that
- * generation just authored, while a return-to-title must drop one that nothing
- * stands behind. Making that an explicit argument rather than a hidden policy
- * means every call site has to state which situation it is in.
+ * These are the one part of gComboCtx that is NOT authored by the session
+ * being torn down: Playthrough_Init writes the stamp at GENERATION time and
+ * immediately derives the reverse placements from it (OoT_PlaceForeignItems),
+ * which for a new file happens BEFORE the file is created (generate a seed in
+ * the menu, then name the file). So the new-file call site must keep what
+ * generation just authored, while a return-to-title must drop a stamp that
+ * nothing stands behind. Making that an explicit argument rather than a
+ * hidden policy means every call site has to state which situation it is in.
  */
 typedef enum {
     /**
-     * Drop the stamp. Correct wherever no generation stands behind it: a soft
-     * reset to title, and a NON-rando new file. A surviving stamp is not inert
-     * — Combo_ForeignPairingActive() is literally
+     * Drop the stamp (and the reverse placement table with it). Correct
+     * wherever no generation stands behind it: a soft reset to title, and a
+     * NON-rando new file. A surviving stamp is not inert —
+     * Combo_ForeignPairingActive() is literally
      * `sourceIsRando && sharedRandoSettingsHash != 0`, so a dead session's
      * stamp makes MM believe a paired world exists for a seed that is gone.
      */
     RSBS_SEED_STAMP_DROP = 0,
     /**
-     * Keep the stamp. Correct ONLY where generation has already authored it
-     * for the file now being created (OoT_Sram_InitSave on a randomizer file).
+     * Keep what the creation event authored for the file now being created:
+     * the stamp, the reverse placement table (#534) — authored together and
+     * only coherent together — and every creation-stamped identity term.
+     * Correct ONLY where generation has already authored them for THIS file
+     * (OoT_Sram_InitSave on a randomizer file).
+     *
+     * THE RULE, NOT THE LIST, IS THE CONTRACT (#564 V9). Under one-game
+     * semantics the paired world's identity is frozen by the creation event,
+     * so any identity term stamped at or before file-create that KEEP does
+     * not carry is wiped by the creation itself — the stamping act destroying
+     * its own output. A new identity field carved into ComboContext must
+     * therefore join this policy's snapshot/restore pair in context.cpp in
+     * the same change that carves it. That pairing is the whole reason this
+     * is an explicit argument rather than a hidden policy.
+     *
+     * The FORWARD table (foreignPlacements) is dropped even here, and the
+     * reason is narrower than it used to read: at file-creation time it can
+     * only hold a DEAD session's rows, so keeping it would resurrect them.
+     * It is NOT dropped because "MM re-authors it at its own OnFileCreate on
+     * the next arrival" — that rationale belongs to the deferred-generation
+     * model #564 retires, in which arrival authors the MM half. Arrival
+     * becomes hydrate-or-refuse with no generation reachable from it; when
+     * the creation event authors the forward table too, it joins the KEEP
+     * set by the rule above rather than by an exception written here.
      */
     RSBS_SEED_STAMP_KEEP = 1,
 } ComboSeedStampPolicy;
@@ -828,7 +997,9 @@ typedef enum {
  *     foreignPlacements. A stale sharedItemsTagged is how another player's
  *     grants from a dead room would reach a fresh seed.
  *
- * The seed stamp is governed by @p seedPolicy; see ComboSeedStampPolicy.
+ * The seed stamp and the generation-authored reverse placement table
+ * (foreignPlacementsOoT, #534) are governed by @p seedPolicy; see
+ * ComboSeedStampPolicy.
  *
  * Deliberately does NOT touch gCurrentGame (which game is running right now is
  * still true) and does NOT arm a frozen blob from anything.
@@ -883,10 +1054,11 @@ int Context_InvalidateSessionOnReturnToTitle(void);
  *
  * @param isRandoFile non-zero iff the file being created is a randomizer file
  *        whose seed has already been generated. That is the ONLY case where the
- *        seed stamp is kept: generation ran moments ago, in the menu, and
- *        authored the stamp FOR this file. A vanilla new file passes 0 and the
- *        stamp goes with the rest of the dead session — otherwise
- *        Combo_ForeignPairingActive() would still report a paired world.
+ *        seed stamp and the reverse placement table are kept: generation ran
+ *        moments ago, in the menu, and authored both FOR this file (#534). A
+ *        vanilla new file passes 0 and the stamp goes with the rest of the dead
+ *        session — otherwise Combo_ForeignPairingActive() would still report a
+ *        paired world.
  */
 void Context_InvalidateSessionOnNewGame(int isRandoFile);
 
@@ -902,10 +1074,15 @@ void Context_InvalidateSessionOnNewGame(int isRandoFile);
  * state", which is the truth.
  *
  * Does NOT arm a frozen blob itself — this is the CLEAR half. The caller's
- * RsbsSave_Load repopulates gComboCtx and both shadows and performs its own
+ * RsbsSave_LoadSlot repopulates gComboCtx and both shadows and performs its own
  * explicit arming step (Context_ArmShadowAsFrozen) for a tier that actually
  * carries data. Ordering matters and is already correct at the call site: the
  * clear runs BEFORE the load, so it never wipes the bytes just read.
+ *
+ * The load is now attempted UNCONDITIONALLY (#533) — there is no HasSave gate
+ * in front of it — so this clear also covers the REFUSED outcome: a slot whose
+ * .redsave fails validation ends up with no resident cross-game state and a
+ * write latch, rather than silently inheriting the previous session's.
  */
 void Context_InvalidateSessionOnSlotLoad(void);
 

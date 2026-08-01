@@ -38,7 +38,12 @@
  *      it does, and the paired world is never generated at all. The dependency
  *      is one-directional: invalidating the blob restores correct pairing with
  *      no change to the guard.
- *   5. New game keeps a generated seed stamp and drops everything else.
+ *   5. New game keeps a generated seed stamp — and (#534) the reverse
+ *      placement table generation authored WITH that stamp — and drops
+ *      everything else. Generation runs before the file is created and
+ *      nothing re-places the reverse table afterwards, so a wipe here is a
+ *      permanent loss: #524's MM-items-in-OoT-checks never deliver and the
+ *      zeroed table is persisted by the new slot's first .redsave.
  *   6. A NON-rando new file drops the seed stamp too, or
  *      Combo_ForeignPairingActive() would keep reporting a paired world.
  *   7. A legitimate existing-slot load STILL restores that slot's .redsave.
@@ -46,6 +51,10 @@
  *      worse bug than the leak.
  *   8. Loading a slot with NO .redsave yields no cross-game state rather than
  *      inheriting the previous session's.
+ *  7b. (runs last, so case 8 still sees an unwritten slot) The table case 5
+ *      kept must reach the slot's FIRST .redsave — file creation is followed
+ *      immediately by Save_SaveFile, so a wipe at creation is what gets
+ *      stored, not just what is in RAM.
  *
  * Included at FILE SCOPE (compiled as C++, NOT inside an extern "C" block) so
  * it can drive the C++-linkage rsbs::SaveManager for cases 7 and 8, the same
@@ -96,6 +105,21 @@ const size_t kSessionBuf = 512;
 const uint8_t kSessionAByte = 0xA5;
 const uint8_t kSessionBByte = 0x5B;
 
+// Reverse-table rows (OoT checks hosting MM items, #524): one belonging to the
+// dead session A, one authored by the mirrored generation pass below. Distinct
+// on purpose — case 5 must be able to tell "generation's table was kept" from
+// "the dead session's table leaked through the keep-set" (#534).
+const uint16_t kSessionAReverseCheck = 501;
+const uint16_t kGenReverseCheck = 777;
+const uint16_t kGenReverseItemId = 91;
+
+// MM profile identity stamps (#498/#564 V9): one belonging to the dead session
+// A, one authored by the mirrored generation pass. Distinct for the same
+// reason the reverse-table rows are — the KEEP case must prove it kept
+// GENERATION's stamp, and every DROP case must prove the dead session's went.
+const uint32_t kSessionAMmProfileDigest = 0x4D4DDEADu;
+const uint32_t kGenMmProfileDigest = 0x4D4D0777u;
+
 // Put a recognizable, fully-populated session into every global the bug leaks
 // through: both frozen blobs, both shadows, the seed stamp, the crossing
 // tables, and a staged-but-uncommitted pickup in the RAM outbox.
@@ -114,6 +138,7 @@ void SeedSessionA(uint32_t seed, uint32_t settingsHash) {
     gComboCtx.sourceIsRando = true;
     gComboCtx.sharedRandoSeed = seed;
     gComboCtx.sharedRandoSettingsHash = settingsHash;
+    gComboCtx.mmProfileDigest = kSessionAMmProfileDigest;
 
     // The two fields the netplay grant model composes with (#460).
     Combo_RecordSharedItem(GAME_OOT, 42);
@@ -122,6 +147,15 @@ void SeedSessionA(uint32_t seed, uint32_t settingsHash) {
     foreign.flags = 0;
     foreign.id = 77;
     Combo_SetForeignPlacement(/*mmCheckId=*/9, foreign);
+
+    // The dead session's REVERSE row. Present so every DROP path below is
+    // proven to wipe it — the keep-set (#534) is generation's table, never a
+    // dead session's.
+    SharedItem foreignRev;
+    foreignRev.originGame = (uint8_t)GAME_MM;
+    foreignRev.flags = 0;
+    foreignRev.id = 88;
+    Combo_SetForeignPlacementOoT(kSessionAReverseCheck, foreignRev);
 
     // Staged but never committed — the session died mid-pickup.
     Combo_StageSharedItem(GAME_OOT, 43);
@@ -159,12 +193,26 @@ PairDecision ArrivalPairDecision(int hadFrozenState) {
     return PAIR_PROCEED;
 }
 
-// Stamp the seed fields the way Playthrough_Init does at generation time —
-// which for a new file happens BEFORE the file is created.
+// Author the generation-time gComboCtx state the way Playthrough_Init does —
+// which for a new file happens BEFORE the file is created: the seed stamp,
+// then immediately the reverse placement table derived from it
+// (OoT_PlaceForeignItems clears a predecessor's rows and re-places; #510).
+// Mirrored rather than called for the usual reason: the real pass needs a
+// finished fill, which a headless src/common test has no business booting.
 void StampGeneratedSeed(uint32_t seed, uint32_t settingsHash) {
     gComboCtx.sourceIsRando = true;
     gComboCtx.sharedRandoSeed = seed;
     gComboCtx.sharedRandoSettingsHash = settingsHash;
+    // #498/#564: Playthrough_Init freezes the MM profile identity in the same
+    // publish block as the two stamps above (MM_Rando_ComputeProfileStamp).
+    gComboCtx.mmProfileDigest = kGenMmProfileDigest;
+
+    Combo_ClearForeignPlacementsOoT();
+    SharedItem mmItem;
+    mmItem.originGame = (uint8_t)GAME_MM;
+    mmItem.flags = 0;
+    mmItem.id = kGenReverseItemId;
+    Combo_SetForeignPlacementOoT(kGenReverseCheck, mmItem);
 }
 
 // Every session field must read as freshly initialized.
@@ -182,6 +230,13 @@ bool SessionIsClear(bool expectSeedStamp) {
         return false;
     }
     if (Combo_CountForeignPlacements() != 0) {
+        return false;
+    }
+    // The reverse table follows the seed stamp's policy (#534): generation
+    // authors both together, so it may outlive invalidation ONLY when the
+    // stamp does. On every DROP path it must read empty; the KEEP case's exact
+    // expected content is asserted at the call site.
+    if (!expectSeedStamp && Combo_CountForeignPlacementsOoT() != 0) {
         return false;
     }
     if (expectSeedStamp != gComboCtx.sourceIsRando) {
@@ -216,6 +271,7 @@ TestResult Test_SessionInvalidation(void) {
     SESSION_ASSERT(Context_HasFrozenState(GAME_OOT) == 1);
     SESSION_ASSERT(Combo_CountSharedItems(GAME_OOT, true) == 1);
     SESSION_ASSERT(Combo_CountForeignPlacements() == 1);
+    SESSION_ASSERT(Combo_CountForeignPlacementsOoT() == 1);
     SESSION_ASSERT(Combo_ForeignPairingActive());
 
     // ---- 2. NEGATIVE CONTROL: an arrival must not invalidate --------------
@@ -229,6 +285,7 @@ TestResult Test_SessionInvalidation(void) {
     SESSION_ASSERT(Context_InvalidateSessionOnReturnToTitle() == 0);
     SESSION_ASSERT(Context_HasFrozenState(GAME_MM) == 1);
     SESSION_ASSERT(Combo_CountForeignPlacements() == 1);
+    SESSION_ASSERT(Combo_CountForeignPlacementsOoT() == 1);
     Entrance_ClearStartupEntrance();
 
     // ---- 3. Soft reset to title retires the session -----------------------
@@ -239,7 +296,15 @@ TestResult Test_SessionInvalidation(void) {
     // `sourceIsRando && sharedRandoSettingsHash != 0`.
     SESSION_ASSERT(gComboCtx.sharedRandoSeed == 0);
     SESSION_ASSERT(gComboCtx.sharedRandoSettingsHash == 0);
+    // The frozen MM profile identity goes with the stamp (#498/#564): a
+    // surviving digest would keep the options pane frozen
+    // (Combo_MMProfileFrozen) for a pair that no longer exists.
+    SESSION_ASSERT(gComboCtx.mmProfileDigest == 0);
     SESSION_ASSERT(!Combo_ForeignPairingActive());
+    // Both placement tables go with the session on a DROP — the reverse one
+    // included, because at the title nothing stands behind it any more than
+    // behind the stamp it was derived from (#534).
+    SESSION_ASSERT(Combo_CountForeignPlacementsOoT() == 0);
     // The shadows are the same storage as the blobs and must be wiped with
     // them, or a tracker (or a .redsave written afterwards) would still be
     // reading the dead session's bytes.
@@ -316,6 +381,31 @@ TestResult Test_SessionInvalidation(void) {
     SESSION_ASSERT(SessionIsClear(/*expectSeedStamp=*/true));
     SESSION_ASSERT(gComboCtx.sharedRandoSeed == 0x99999999u);
     SESSION_ASSERT(gComboCtx.sharedRandoSettingsHash == 0x5555u);
+    // ---- 5a. #498/#564 V9: the creation-frozen MM profile survives too ------
+    // Playthrough_Init stamps it in the same publish block as the seed stamp,
+    // BEFORE the file exists; if KEEP does not carry it, the creation event
+    // wipes its own identity output and every post-freeze pair arrives at MM
+    // with digest 0 — silently degrading the arrival compare into the legacy
+    // stamp-at-arrival path. This is the falsifiable KEEP lock: remove the
+    // mmProfileDigest snapshot/restore from Context_InvalidateSessionState and
+    // this goes red.
+    SESSION_ASSERT(gComboCtx.mmProfileDigest == kGenMmProfileDigest);
+    // ---- 5b. #534: generation's REVERSE placement table survives too -------
+    // Playthrough_Init authored it seconds after the stamp, for THIS file, and
+    // nothing re-places it after file creation (the forward direction is
+    // re-authored by MM at arrival; the reverse has no such second chance). A
+    // wipe here is what made #524 inert in every real playthrough — with the
+    // loss then persisted by the new slot's first .redsave write.
+    SESSION_ASSERT(Combo_CountForeignPlacementsOoT() == 1);
+    {
+        const SharedItem* kept = Combo_GetForeignPlacementForOoTCheck(kGenReverseCheck);
+        SESSION_ASSERT(kept != nullptr);
+        SESSION_ASSERT(kept->originGame == (uint8_t)GAME_MM);
+        SESSION_ASSERT(kept->id == kGenReverseItemId);
+    }
+    // ...and it is GENERATION's table that survived, not the dead session's
+    // leaking through the keep-set.
+    SESSION_ASSERT(Combo_GetForeignPlacementForOoTCheck(kSessionAReverseCheck) == nullptr);
     // The dead session's crossings must not reach the new seed. This is the
     // assertion the netplay agents' grant model composes with (#460): a stale
     // sharedItemsTagged is another player's grants from a dead room.
@@ -332,6 +422,12 @@ TestResult Test_SessionInvalidation(void) {
     SESSION_ASSERT(SessionIsClear(/*expectSeedStamp=*/false));
     SESSION_ASSERT(gComboCtx.sharedRandoSeed == 0);
     SESSION_ASSERT(gComboCtx.sharedRandoSettingsHash == 0);
+    // The frozen MM profile identity is DROP-only here too (#498/#564): no
+    // generation stands behind a vanilla file.
+    SESSION_ASSERT(gComboCtx.mmProfileDigest == 0);
+    // No generation stands behind a vanilla file, so the reverse table is the
+    // dead session's and goes with it — the #534 keep-set is KEEP-only.
+    SESSION_ASSERT(Combo_CountForeignPlacementsOoT() == 0);
     // A surviving stamp would leave MM believing a paired world exists for a
     // seed that no longer does — the arrival must decline, and for the RIGHT
     // reason (no paired world, not "the save already exists").
@@ -348,6 +444,11 @@ TestResult Test_SessionInvalidation(void) {
         std::filesystem::create_directories(kSessionTestDir, ec);
         rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
         mgr.SetSaveDirectory(kSessionTestDir);
+        // #533: writes are latched per-slot until this session loads, creates,
+        // or erases the slot. Simulate a fresh session, then arm slot 1 the
+        // way production's create seam does before its first Save.
+        mgr.ResetSlotSessionState();
+        mgr.ArmSlotOnCreate(1);
 
         SeedSessionA(0x2468u, 0x1357u);
         std::vector<uint8_t> mmLive(MM_SAVE_CONTEXT_SIZE, kSessionAByte);
@@ -371,6 +472,11 @@ TestResult Test_SessionInvalidation(void) {
         SESSION_ASSERT(Combo_CountSharedItems(GAME_OOT, true) == 1);
         SESSION_ASSERT(Combo_CountForeignPlacements() == 1);
         SESSION_ASSERT(Combo_GetForeignPlacementForCheck(9) != nullptr);
+        // ...and the slot's own reverse table (#534) — the durable complement
+        // of case 5b: what the keep-set preserved at creation, the .redsave
+        // must keep returning on every subsequent load.
+        SESSION_ASSERT(Combo_CountForeignPlacementsOoT() == 1);
+        SESSION_ASSERT(Combo_GetForeignPlacementForOoTCheck(kSessionAReverseCheck) != nullptr);
         {
             const uint8_t* mmShadow = static_cast<const uint8_t*>(Context_GetMMSaveContext());
             SESSION_ASSERT(mmShadow != nullptr);
@@ -414,6 +520,7 @@ TestResult Test_SessionInvalidation(void) {
             SeedSessionA(0x1111u, 0x2222u);
             std::vector<uint8_t> mmEmpty(MM_SAVE_CONTEXT_SIZE, 0);
             Context_UpdateShadowCopy(GAME_MM, mmEmpty.data(), mmEmpty.size());
+            mgr.ArmSlotOnCreate(0); // #533: this block creates slot 0's save
             SESSION_ASSERT(mgr.Save(0));
 
             Context_InvalidateSessionOnSlotLoad();
@@ -436,11 +543,42 @@ TestResult Test_SessionInvalidation(void) {
         SESSION_ASSERT(gComboCtx.sharedRandoSeed == 0);
         SESSION_ASSERT(!Combo_ForeignPairingActive());
 
+        // ---- 7b. #534 END TO END: the KEPT table reaches the slot's FIRST
+        // .redsave. Case 7 round-trips a table that was already durable before
+        // the invalidation; only this case round-trips the one the KEEP policy
+        // handed forward. That is the seam the bug actually lived on: file
+        // creation is immediately followed by Save_SaveFile (z_sram.c), so a
+        // wipe there is not a RAM-only loss — the zeroed table is what the new
+        // slot stores, and every later load re-reads the zeros. Runs after
+        // case 8 so slot 2 is still unwritten where that case needs it.
+        SeedSessionA(0x3333u, 0x4444u);
+        StampGeneratedSeed(0x99999999u, 0x5555u);
+        Context_InvalidateSessionOnNewGame(/*isRandoFile=*/1);
+        // #533: mirror z_sram.c's create seam, which arms the slot right after
+        // the invalidation and before the file's first save.
+        mgr.ArmSlotOnCreate(2);
+        SESSION_ASSERT(Combo_CountForeignPlacementsOoT() == 1);
+        SESSION_ASSERT(mgr.Save(2));
+        // Clear first, so what the assertions below read came out of the file
+        // rather than surviving in RAM.
+        Context_InvalidateSessionOnSlotLoad();
+        SESSION_ASSERT(Combo_CountForeignPlacementsOoT() == 0);
+        SESSION_ASSERT(mgr.Load(2));
+        SESSION_ASSERT(Combo_CountForeignPlacementsOoT() == 1);
+        {
+            const SharedItem* stored = Combo_GetForeignPlacementForOoTCheck(kGenReverseCheck);
+            SESSION_ASSERT(stored != nullptr);
+            SESSION_ASSERT(stored->originGame == (uint8_t)GAME_MM);
+            SESSION_ASSERT(stored->id == kGenReverseItemId);
+        }
+
         std::filesystem::remove_all(kSessionTestDir, ec);
     }
 
     printf("[TEST] PASS: a dead session's frozen blobs, shadows and gComboCtx crossings do not "
-           "survive a soft reset or a new game; arrivals and existing-slot loads still restore\n");
+           "survive a soft reset or a new game; the generation-authored seed stamp and reverse "
+           "placement table survive rando file creation and reach the new slot's first .redsave "
+           "(#534); arrivals and existing-slot loads still restore\n");
 
     // Leave global state clean for any subsequent test.
     Context_ClearAllFrozenStates();

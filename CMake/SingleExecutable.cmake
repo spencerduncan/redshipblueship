@@ -45,6 +45,12 @@ set(REDSHIP_COMMON_SOURCES
     ${CMAKE_SOURCE_DIR}/src/common/combo_spoiler_view.c
     # The window that renders it — the first common-owned Gui element (ADR 0008)
     ${CMAKE_SOURCE_DIR}/src/common/ComboSpoilerWindow.cpp
+    # Combo tracker (#458): both games' check progress through per-game
+    # adapters — MM's frozen shadow via a registered offset descriptor, OoT's
+    # suspended heap via a registered accessor vtable — staleness-labelled,
+    # plus the window that renders it
+    ${CMAKE_SOURCE_DIR}/src/common/combo_tracker_view.c
+    ${CMAKE_SOURCE_DIR}/src/common/ComboTrackerWindow.cpp
     # MM randomizer options: the registry + value accessors over the descriptor
     # table MM publishes (#497 step 4, #499), and the pane that draws it. The
     # pane is common-owned because it must be reachable while OoT is running —
@@ -108,6 +114,8 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/foreign_items.h
     ${CMAKE_SOURCE_DIR}/src/common/combo_spoiler_view.h
     ${CMAKE_SOURCE_DIR}/src/common/ComboSpoilerWindow.h
+    ${CMAKE_SOURCE_DIR}/src/common/combo_tracker_view.h
+    ${CMAKE_SOURCE_DIR}/src/common/ComboTrackerWindow.h
     ${CMAKE_SOURCE_DIR}/src/common/combo_mm_options_view.h
     ${CMAKE_SOURCE_DIR}/src/common/ComboMmOptionsWindow.h
     ${CMAKE_SOURCE_DIR}/src/common/entrance.h
@@ -397,6 +405,13 @@ if(BUILD_TESTING)
     redship_add_test(NAME SharedResources COMMAND redship --test shared-resources)
     redship_add_test(NAME ComboSpoilerView COMMAND redship --test combo-spoiler-view)
     redship_add_test(NAME ComboSpoilerWindow COMMAND redship --test combo-spoiler-window)
+    # Combo tracker (#458). Display-free: the MM adapter is driven over an
+    # AUTHORED shadow blob at the offsets the real MM TU registered, and the
+    # OoT adapter over an authored heap Rando::Context — no fill, no archives.
+    # The window row is the ADR 0008 inertness tripwire (no ImGui context, so
+    # an ungated draw path aborts the process).
+    redship_add_test(NAME ComboTrackerView COMMAND redship --test combo-tracker-view)
+    redship_add_test(NAME ComboTrackerWindow COMMAND redship --test combo-tracker-window)
     # MM randomizer options (#497 step 4, #499). Display-free: the option table
     # is a static global in the WHOLE_ARCHIVE'd 2ship_rando, the profile resolver
     # runs over a zeroed MM SaveContext with no fill, and the pane's window lock
@@ -438,6 +453,22 @@ if(BUILD_TESTING)
         redship_add_test(NAME RelaySuspendLatch COMMAND redship --test relay-suspend-latch)
     endif()
     redship_add_test(NAME ArchiveHotswapLogic COMMAND redship --test archive-hotswap-logic)
+    # #560 archive-handle contention lock: 4 loader threads + 1 hot reader
+    # through the REAL ResourceManager against the soh.o2r that #562 mounts
+    # in-tier, asserting no concurrent cold load ever returns null / init-data
+    # type 0 / bytes differing from a single-threaded read. Deterministic
+    # regression tripwire for the per-archive mutex in the libultraship fork —
+    # on the unfixed archive layer (one shared, unlocked zip_t) it fails within
+    # a few hundred loads. Display-free: the test's own threads are the
+    # concurrency, so it needs no Fast3dWindow and runs in this tier.
+    #
+    # SKIP_RETURN_CODE: the netplay-relay job re-runs this label WITHOUT
+    # archives on purpose (the tier's archive-less control, #562); there the
+    # row self-skips (exit 77) instead of going red. That skip cannot mask a
+    # staging regression — RandoGenFullInit hard-fails on exactly that
+    # condition in the rando tier.
+    redship_add_test(NAME ZipContention COMMAND redship --test zip-contention)
+    set_tests_properties(ZipContention PROPERTIES SKIP_RETURN_CODE 77)
     # Unified save (.redsave) headless tests — Phase 2 T6 (#35)
     redship_add_test(NAME SaveRoundtripTiers COMMAND redship --test save-roundtrip-tiers)
     redship_add_test(NAME SaveHeader COMMAND redship --test save-header)
@@ -446,6 +477,18 @@ if(BUILD_TESTING)
     redship_add_test(NAME SaveSizeMismatch COMMAND redship --test save-size-mismatch)
     redship_add_test(NAME SaveLegacySize COMMAND redship --test save-legacy-size)
     redship_add_test(NAME SaveCrcCorrupt COMMAND redship --test save-crc-corrupt)
+    # REFUSED-state locks (#533): a .redsave that fails validation (CRC,
+    # truncation, wrong header.slot, future version) is QUARANTINED (renamed
+    # aside byte-exact with a reason suffix, never overwritten), the refusing
+    # session takes a per-slot write latch so the next autosave cannot destroy
+    # the evidence, file-create quarantines before its first write, and the
+    # slot surface reports ABSENT / VALID / REFUSED as three different facts.
+    # Counterfactual: revert the latch and SaveWriteLatch's direct Save() call
+    # rename-overwrites the corrupt fixture — the exact #533 data loss.
+    redship_add_test(NAME SaveRefusedQuarantine COMMAND redship --test save-refused-quarantine)
+    redship_add_test(NAME SaveWriteLatch COMMAND redship --test save-write-latch)
+    redship_add_test(NAME SaveArmOnCreate COMMAND redship --test save-arm-on-create)
+    redship_add_test(NAME SaveRefusedMeta COMMAND redship --test save-refused-meta)
     # Tier-1 (ComboContext) format headroom — Phase 3 Wave 1. The loader used to
     # demand comboSize == sizeof(ComboContext) exactly, so the moment Lane A
     # widens sharedItems to carry an origin-game tag, every existing .redsave
@@ -461,6 +504,14 @@ if(BUILD_TESTING)
     # length is pinned to the pre-carve prefix (RSBS_COMBO_CONTEXT_PRECARVE_SIZE)
     # so the carve cannot silently widen what that test calls legacy.
     redship_add_test(NAME SaveTaggedItems COMMAND redship --test save-tagged-items)
+    # The .redsave commit choke point (#537/#531): every commit is a
+    # game-thread-marshalled snapshot with a monotonic generation stamped into
+    # both durable artifacts; the write phase reads no live state (the torn
+    # .redsave becomes unrepresentable), and load compares the two artifacts'
+    # stamps to detect freshness divergence.
+    redship_add_test(NAME CommitGenerationMonotonic COMMAND redship --test commit-generation-monotonic)
+    redship_add_test(NAME CommitTornWrite COMMAND redship --test commit-torn-write)
+    redship_add_test(NAME CommitGenerationSkew COMMAND redship --test commit-generation-skew)
     redship_add_test(NAME Context COMMAND redship --test context)
     # F10 hot-swap freeze/consume contract (#364): the hotkey path must freeze
     # the DEPARTING game (or refuse the switch), and a consumed frozen state
@@ -512,11 +563,16 @@ if(BUILD_TESTING)
     # the MM-owned extern "C" shim; registering through MM's larger view of
     # the shared class writes ~60-92 bytes past OoT's 4-byte allocation.
     redship_add_test(NAME MMGIShim COMMAND redship --test mm-gi-shim)
-    # MM Notification::Emit cross-bind (#427 item 1): MM's BenGui/Notification.cpp
-    # is excluded, so MM's Rando pickup toast binds OoT's Notification::Emit —
-    # safe only while both ports' Notification::Options stay layout-identical.
-    # This compares their layout fingerprints and fails on drift (one Emit
-    # definition survives, so no link error can catch a divergence).
+    # MM notification bridge (#427 item 1): MM's BenGui/Notification.cpp is
+    # excluded, so MM's toasts render on OoT's overlay. They used to bind OoT's
+    # identically-mangled Notification::Emit with MM's own Options — safe only
+    # while both ports' structs stayed layout-identical, and unlockable at link
+    # time (one Emit definition survives, so no link error can catch a
+    # divergence). This drives the explicit ComboNotification bridge that
+    # replaced that coincidence and checks the toast that lands in OoT's store,
+    # and still compares the two ports' Options layouts: both trees declare the
+    # type, so their implicit ctor/dtor COMDAT-fold whether or not the struct
+    # itself crosses.
     redship_add_test(NAME MMNotificationBinding COMMAND redship --test mm-notification-binding)
     # MM scaled framebuffer draw (#386): MM's framebuffer_effects.c is excluded,
     # so MM's FB_DrawFromFramebufferScaled bound OoT's surviving body, which
@@ -607,6 +663,61 @@ if(BUILD_TESTING)
         LABEL rando
         TIMEOUT 180
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+
+    # #560 ("Why CI never saw it"): every OTHER row in this tier sets
+    # RSBS_DISABLE_OTR_INIT=1, which skips the whole OTRMessage_Init /
+    # OTRAudio_Init / OTRExtScanner / VanillaItemTable_Init / DebugConsole_Init
+    # block (games/oot/soh/OTRGlobals.cpp:1811-1823). The flag started life as a
+    # bisect knob for init crashes (#199, e2a181c1) and reached this tier as
+    # diagnostic scaffolding in the row above (#339, 8dc2786d) — it was then
+    # copied verbatim onto 13 more rows. No row ever justified it independently —
+    # but it turned out to be load-bearing for a reason nobody had written down,
+    # found by adding this row and watching it hang for 300s on Linux CI:
+    #
+    #   CI staged soh.o2r where only the install rules look
+    #   (${CMAKE_BINARY_DIR}/soh), while ctest rows run with cwd =
+    #   ${CMAKE_BINARY_DIR} and resolve archives via LocateFileAcrossAppDirs,
+    #   which probes the app-config dir, then the binary's own directory, then
+    #   "./" — all three being ${CMAKE_BINARY_DIR} for a ctest row, and none of
+    #   them ${CMAKE_BINARY_DIR}/soh. So every row in this tier was booting
+    #   with ZERO archives mounted. With none loaded, libultraship PAUSES the
+    #   ResourceManager thread pool forever (ResourceManager.cpp:58-61, "Nothing
+    #   ever unpauses the thread pool"), and OTRAudio_Init's synchronous
+    #   ResourceMgr_LoadDirectory("audio") then deadlocks on .get().
+    #
+    # The archives are now staged where the rows look, in both places they can
+    # come from: the build itself (copy-existing-otrs.cmake and the Generate*Otr
+    # targets also copy into ${CMAKE_BINARY_DIR}, which is what makes a plain
+    # local `ctest --test-dir <dir>` work), and a staging step in each workflow
+    # (CI downloads the archives as artifacts and never runs those targets in the
+    # test job). So the tier runs with soh.o2r mounted and the pool live —
+    # locally and on CI alike. With that fixed nothing in the block
+    # needs the flag: soh.o2r carries no `audio/` entries so the precache is a
+    # no-op and the audio thread parks on audio.cv_to_thread (no frame loop
+    # signals it); OTRExtScanner / VanillaItemTable_Init / DebugConsole_Init are
+    # pure in-process work; and OTRMessage_Init self-skips on its inner
+    # hasGameArchive gate, which is false wherever oot.o2r is absent. The row
+    # additionally asserts a mounted archive BEFORE bring-up, so a staging
+    # regression fails in a second instead of hanging, and pairs OTRAudio_Init
+    # with OTRAudio_Exit (defensively — `--test` mode ends at _Exit and never runs
+    # static destructors today).
+    #
+    # This is the ONE row whose bring-up matches a player's, and the only one
+    # whose fill runs on a worker thread (the 1-arg GenerateRandomizer overload
+    # that z_file_choose.c:824 reaches, not the synchronous 3-arg one). It
+    # asserts the un-masking before it generates, so re-adding the flag here
+    # fails the row instead of quietly turning it into a RandoGen clone.
+    #
+    # It does NOT reproduce #560's crash and is not meant to: both sides of that
+    # race read oot.o2r-only entries and one of them is the render thread, so a
+    # ROM-free display-only tier structurally cannot host it. See #560.
+    #
+    # Deliberately NOT folded into RandoGen: that row's masked configuration is
+    # the one 13 siblings share, so it stays as-is and this row is the diff.
+    redship_add_test(NAME RandoGenFullInit COMMAND redship --test rando-gen-full-init
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy")
 
     # Hint validity (#441): a gossip stone read "catching Big Poes leads to No
     # Item" while that seed's spoiler named a real item, so the fill was fine

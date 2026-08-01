@@ -89,6 +89,9 @@ extern "C" int MM_UnifiedSaveCapture_RunHeadless(void) {
     std::filesystem::remove_all(dir, ec);
     std::filesystem::create_directories(dir, ec);
     rsbs::SaveManager::Instance().SetSaveDirectory(dir.string());
+    // #533: start from process-start latch state so earlier tests in the same
+    // process cannot have pre-armed the slots this test writes.
+    RsbsSave_ResetSlotSessionState();
 
     Context_InitFrozenStates();
     ComboContext_Init();
@@ -130,6 +133,15 @@ extern "C" int MM_UnifiedSaveCapture_RunHeadless(void) {
     reinterpret_cast<uint8_t*>(&gSaveContext)[TailProbeOffset()] = kTailStamp;
 
     RsbsSave_SetActiveSlot(2);
+    // #533 armed-session latch: an active slot alone is NOT enough — the slot
+    // must have been loaded, created, or erased THIS session, or MM's capture
+    // could destroy a refused slot's evidence.
+    USAVE_ASSERT(MM_Combo_CaptureSaveToUnifiedSlot() == 0,
+                 "capture into a slot this session never loaded/created/erased must be refused (#533 latch)");
+    USAVE_ASSERT(RsbsSave_HasSave(2) == 0, "a latched capture must not have written a slot file");
+    // Establish the slot the way production does (opening an empty slot arms
+    // it for its first write), then the capture must commit.
+    USAVE_ASSERT(RsbsSave_LoadSlot(2) == RSBS_LOAD_ABSENT, "an empty slot must open as ABSENT and arm");
     USAVE_ASSERT(MM_Combo_CaptureSaveToUnifiedSlot() == 1, "capture with an active slot must commit");
     USAVE_ASSERT(gComboCtx.sourceGame == GAME_MM, "an MM-authored save must record sourceGame == GAME_MM");
     USAVE_ASSERT(RsbsSave_HasSave(2) == 1, "capture must have produced a readable slot file");
@@ -163,6 +175,7 @@ extern "C" int MM_UnifiedSaveCapture_RunHeadless(void) {
     Context_ClearAllFrozenStates();
     ComboContext_Init();
     RsbsSave_SetActiveSlot(-1);
+    RsbsSave_ResetSlotSessionState();
     std::filesystem::remove_all(dir, ec);
 
     printf("[TEST] mm-unified-save-capture: PASS\n");

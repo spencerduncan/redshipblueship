@@ -28,6 +28,10 @@
 #include "soh/Enhancements/game-interactor/GameInteractor.h"
 #include "soh/Enhancements/game-interactor/GameInteractor_Hooks.h"
 #include "soh/Notification/Notification.h" // Lane 6 (#494): the foreign-arrival toast
+// Rando::Context's definition, for GetBombchuCapacity() in the ammo shim.
+// OTRGlobals.h only forward-declares Rando::Context, which is enough to hold
+// the shared_ptr but not to call through it.
+#include "soh/Enhancements/randomizer/SeedContext.h"
 // SET_NEXT_GAMESTATE for the gameplay round-trip driver. Must come after
 // GameInteractor.h (-> z64.h): macros.h declares `extern GraphicsContext*`
 // and needs the type defined first.
@@ -518,6 +522,29 @@ static void OoT_RegisterIntegrationTestHooks(void) {
                          (int)gSaveContext.linkAge, (int)LINK_AGE_CHILD);
                 IntegrationTest_GameplayFail(ageMsg);
                 return;
+            }
+            // Frame-counter reset lock. The scene build runs after the
+            // frame-counter block in OoT_Play_Init, so an arrival must land
+            // here with a counter that was just zeroed. Left stale, the
+            // suspended session's value (or MM's arena leftovers) rides into
+            // the arrival and voids the interval autosave's `gameplayFrames <
+            // 60` warm-up guard (soh/Enhancements/QoL/Autosave.cpp) — a save
+            // can then fire during the arrival fade. Return leg only: the warp
+            // and exit phases are ordinary in-game door transitions, where a
+            // large counter is the correct session-long value.
+            if (phase == GP_PHASE_OOT_RETURN && OoT_gPlayState != NULL) {
+                fprintf(stderr, "[GP-TEST] return leg gameplayFrames=%u (expect 0)\n",
+                        (unsigned)OoT_gPlayState->gameplayFrames);
+                fflush(stderr);
+                if (OoT_gPlayState->gameplayFrames != 0) {
+                    char frameMsg[176];
+                    snprintf(frameMsg, sizeof(frameMsg),
+                             "return leg arrived with gameplayFrames=%u, expected 0 — the arrival frame-counter "
+                             "reset regressed, so the autosave warm-up guard is void on re-arrivals",
+                             (unsigned)OoT_gPlayState->gameplayFrames);
+                    IntegrationTest_GameplayFail(frameMsg);
+                    return;
+                }
             }
             // Demo-state leakage asserts (the bug 1a/1b/1c common-cause
             // class): every cross-game arrival and post-return load must be a
@@ -1077,12 +1104,20 @@ static void OoT_AwardSharedItem(const SharedItem* item, void* ctx) {
     // pinned pool via the origin-tagged SharedItem, so this never fabricates an
     // id-space crossing; both return NULL when that origin's pool is not linked
     // into this build, hence the fallbacks.
+    //
+    // FIELD ARRANGEMENT (#494): verb in `.message`, item name in `.suffix` —
+    // the arrangement every OTHER OoT rando pickup toast uses
+    // (Enhancements/randomizer/hook_handlers.cpp). Options colours each field
+    // differently, so the earlier `.prefix` + `.message` form rendered a foreign
+    // arrival in blue-then-grey where an ordinary pickup is grey-then-red. That
+    // difference is visible at a glance and reads as "this one is special",
+    // which is the class of tell #510 removed from the model and the text.
     const char* foreignName = Combo_GetForeignItemName(*item);
     const char* foreignArticle = Combo_GetForeignItemArticle(*item);
     Notification::Emit({
-        .prefix = "You got",
-        .message = std::string(foreignArticle != nullptr ? foreignArticle : "") +
-                   (foreignName != nullptr ? foreignName : "a foreign item"),
+        .message = "You got ",
+        .suffix = std::string(foreignArticle != nullptr ? foreignArticle : "") +
+                  (foreignName != nullptr ? foreignName : "a foreign item"),
     });
 }
 
@@ -1122,6 +1157,16 @@ extern "C" void OoT_Inventory_ChangeUpgrade(s16 upgrade, s16 value);
 extern "C" u32 OoT_gUpgradeMasks[8];
 extern "C" u8 OoT_gUpgradeShifts[8];
 extern "C" u16 OoT_gUpgradeCapacities[8][4];
+// Backs the SLOT/AMMO/INV_CONTENT macros (macros.h) the ammo shim uses.
+extern "C" u8 OoT_gItemSlots[56];
+
+// Declared locally because OTRGlobals.h only declares this inside its
+// `#ifndef __cplusplus` block — the C half of the header — so it is invisible
+// to every C++ TU. Redeclaring it here is the established pattern rather than a
+// workaround: draw.cpp, CosmeticsEditor.cpp, NoMasterSword.cpp and several
+// other C++ callers each do exactly this. The definition (OTRGlobals.cpp) is
+// extern "C", which is the linkage this must match.
+extern "C" u8 Randomizer_GetSettingValue(RandomizerSettingKey randoSettingKey);
 
 // Heart pieces live in the TOP NIBBLE of questItems in BOTH games (OoT writes
 // `1 << (QUEST_HEART_PIECE + 4)`, MM's QUEST_HEART_PIECE_COUNT is 0x1C), which
@@ -1135,6 +1180,202 @@ extern "C" u16 OoT_gUpgradeCapacities[8][4];
 // capacity table.
 #define OOT_MAX_WALLET_TIER 3u
 
+// Highest tier index in every ammo row of OoT_gUpgradeCapacities (each row has
+// 4 entries). Passed as the apply CAP for the same reason OOT_MAX_WALLET_TIER
+// is: a pool value authored by a future build with more tiers must not index
+// off the end of the capacity table.
+#define OOT_MAX_AMMO_TIER 3u
+
+// OoT's VANILLA bombchu ceiling. Unlike arrows and bombs, bombchus have no
+// upgrade row in either game — OoT fixes the cap at 50 while MM derives it from
+// the bomb bag — so the two ends of this shared count clamp against different
+// numbers, which is exactly the asymmetry the watermark discipline absorbs.
+//
+// Only half the story under rando: see OoT_BombchuCapacity.
+#define OOT_BOMBCHU_CAPACITY 50u
+
+// One shared ammo pair: the capacity tier, the count it bounds, and the
+// inventory item a tier of 1 or more implies. Table-driven because the five
+// rows differ only in these four values, and a copy-pasted block per row is
+// how one of them silently ends up reading another's slot.
+typedef struct {
+    uint8_t tierKind;  // RSBS_SHARED_RES_*_TIER, or RSBS_SHARED_RES_NONE when the count has no tier (bombchus)
+    uint8_t countKind; // RSBS_SHARED_RES_*_COUNT
+    s16 upgrade;       // UPG_* row index, ignored when tierKind is NONE
+    uint8_t item;      // ITEM_* whose slot holds the count, and which a nonzero tier grants
+} OoTSharedAmmo;
+
+static const OoTSharedAmmo kOoTSharedAmmo[] = {
+    { RSBS_SHARED_RES_QUIVER_TIER, RSBS_SHARED_RES_ARROW_COUNT, UPG_QUIVER, ITEM_BOW },
+    { RSBS_SHARED_RES_BOMB_BAG_TIER, RSBS_SHARED_RES_BOMB_COUNT, UPG_BOMB_BAG, ITEM_BOMB },
+    { RSBS_SHARED_RES_STICK_TIER, RSBS_SHARED_RES_STICK_COUNT, UPG_STICKS, ITEM_STICK },
+    { RSBS_SHARED_RES_NUT_TIER, RSBS_SHARED_RES_NUT_COUNT, UPG_NUTS, ITEM_NUT },
+    { RSBS_SHARED_RES_NONE, RSBS_SHARED_RES_BOMBCHU_COUNT, 0, ITEM_BOMBCHU },
+};
+
+static uint16_t OoT_ReadAmmo(uint8_t item) {
+    const s8 held = AMMO(item);
+    return held < 0 ? 0u : (uint16_t)held;
+}
+
+/**
+ * OoT's LIVE bombchu ceiling, which is 50 only outside the randomizer.
+ *
+ * With RSK_BOMBCHU_BAG set to progressive, SoH replaces the ceiling entirely:
+ * Bombchus.cpp registers a VB_CHECK_BOMBCHU_CAPACITY override that CLAMPS
+ * AMMO(ITEM_BOMBCHU) down to gRandoContext->GetBombchuCapacity() (0/20/30/50 by
+ * bag level) on the next capacity check. Applying the shared pool against a
+ * hardcoded 50 therefore does not just overfill — it stages a silent theft:
+ * the clamp fires on the very next bombchu thrown, the count drops to the real
+ * capacity, and the following harvest reads that as the player having SPENT the
+ * difference and debits the shared pool by it. With bag level 0 the pool is
+ * zeroed outright, so bombchus the player earned in Termina disappear from both
+ * games at once.
+ *
+ * Mirrors the capacity expression in Bombchus.cpp rather than paraphrasing it,
+ * including its restriction to the progressive option (the single-bag and
+ * vanilla options leave the 50 in place and register no clamp).
+ */
+static uint16_t OoT_BombchuCapacity(void) {
+    if (IS_RANDO && OTRGlobals::Instance != nullptr && OTRGlobals::Instance->gRandoContext != nullptr &&
+        Randomizer_GetSettingValue(RSK_BOMBCHU_BAG) == RO_BOMBCHU_BAG_PROGRESSIVE) {
+        return (uint16_t)OTRGlobals::Instance->gRandoContext->GetBombchuCapacity();
+    }
+    return (uint16_t)OOT_BOMBCHU_CAPACITY;
+}
+
+// The count's ceiling in OoT right now: the live capacity for a row that has an
+// upgrade, the live bombchu capacity for the one that does not.
+static uint16_t OoT_AmmoCapacity(const OoTSharedAmmo* row) {
+    if (row->tierKind == RSBS_SHARED_RES_NONE) {
+        return OoT_BombchuCapacity();
+    }
+    return (uint16_t)CUR_CAPACITY(row->upgrade);
+}
+
+// Put `item` in its own inventory slot if the slot is empty.
+//
+// This is the half of a tier grant OoT does NOT do for itself. Its tier-2 and
+// tier-3 gives (Bigger Quiver, Bigger Bomb Bag) only widen the capacity, on the
+// assumption that whatever granted tier 1 already put the bow or the bombs in
+// the inventory. A cross-game apply breaks that assumption — the pool can hand
+// OoT a quiver tier it never earned locally — so without this the player gets
+// capacity and ammo with no usable C-item. MM's own gives set INV_CONTENT
+// unconditionally, which is the behavior being matched.
+static void OoT_EnsureInventoryItem(uint8_t item) {
+    if (INV_CONTENT(item) == ITEM_NONE) {
+        INV_CONTENT(item) = item;
+    }
+}
+
+// OoT's hookshot ceiling: 0 none, 1 hookshot, 2 longshot.
+#define OOT_MAX_HOOKSHOT_TIER 2u
+
+// The hookshot as a tier. Both games keep it in ONE inventory byte, so the
+// "progressive item" is really a small monotonic number — which is why this is
+// a shared RESOURCE and not a shared item. Nothing crosses but the number: MM's
+// ITEM_LONGSHOT is a different id that its give path repurposes into a Red
+// Potion, so passing a raw item id over the boundary would hand MM a potion.
+static uint16_t OoT_ReadHookshotTier(void) {
+    const u8 held = INV_CONTENT(ITEM_HOOKSHOT);
+    if (held == ITEM_LONGSHOT) {
+        return 2u;
+    }
+    if (held == ITEM_HOOKSHOT) {
+        return 1u;
+    }
+    return 0u;
+}
+
+/**
+ * Author OoT's hookshot byte for `tier`, including the part a bare INV_CONTENT
+ * write would miss.
+ *
+ * OoT's own longshot give does more than swap the inventory byte: it rewrites
+ * every C-button (and both age-specific equip sets) that currently holds the
+ * hookshot, because the button stores the ITEM id rather than the slot
+ * (z_parameter.c's ITEM_LONGSHOT branch). Skip that and a player who had the
+ * hookshot equipped keeps firing the SHORT one after the pool hands them a
+ * longshot — the upgrade silently does nothing until they re-equip it.
+ *
+ * The icon reload that vanilla pairs with those writes is deliberately NOT
+ * copied: it needs a live PlayState and this runs from Play_Init before there
+ * is one. The arrival's own interface init loads the C-button icons after this
+ * point, so the texture follows the id without it.
+ */
+static void OoT_WriteHookshotTier(uint16_t tier) {
+    if (tier == 0u) {
+        return; // monotonic: never take one away
+    }
+    const u8 item = (tier >= 2u) ? (u8)ITEM_LONGSHOT : (u8)ITEM_HOOKSHOT;
+    INV_CONTENT(ITEM_HOOKSHOT) = item;
+
+    u8* const buttonSets[] = {
+        gSaveContext.equips.buttonItems,
+        gSaveContext.adultEquips.buttonItems,
+        gSaveContext.childEquips.buttonItems,
+    };
+    // From index 1, never 0. Index 0 is the B button; every vanilla loop that
+    // matches a hookshot against buttonItems starts at 1 (the ITEM_LONGSHOT
+    // give and the button-restriction passes alike), and B is not a slot the
+    // hookshot is equippable to. It is also not inert storage: SoH's Bottle
+    // Adventure restoration deliberately stages arbitrary save bytes THROUGH
+    // buttonItems[0], so a byte there that happens to equal 0x0A or 0x0B is
+    // data, not an equipped hookshot, and rewriting it would corrupt the value
+    // that restoration exists to reproduce.
+    for (size_t set = 0; set < ARRAY_COUNT(buttonSets); set++) {
+        for (size_t i = 1; i < ARRAY_COUNT(gSaveContext.equips.buttonItems); i++) {
+            if (buttonSets[set][i] == ITEM_HOOKSHOT || buttonSets[set][i] == ITEM_LONGSHOT) {
+                buttonSets[set][i] = item;
+            }
+        }
+    }
+}
+
+/**
+ * Would GRANTING this row's item be handing the player a shuffled CHECK the
+ * seed placed elsewhere? Then the pool may not hand it over.
+ *
+ * OoT_Item_Give opens with exactly this refusal for sticks and nuts
+ * (z_parameter.c:1876-1885, "in case something got missed"): with
+ * RSK_SHUFFLE_DEKU_STICK_BAG or RSK_SHUFFLE_DEKU_NUT_BAG on, neither is
+ * obtainable until its bag check is found. That gate matters HERE and not for
+ * the wallet or the quiver because MM's side is not neutral: a fresh MM save is
+ * BORN at stick and nut tier 1 (the Sram default table), so plain monotonic
+ * sharing would push tier 1 into OoT on the very first crossing of every seed.
+ *
+ * Bombchus are the same hazard wearing different clothes. When the seed shuffles
+ * them (RSK_BOMBCHU_BAG is not NONE) the player is meant to hold none until the
+ * check is found, and Bombchus.cpp keys shop eligibility on
+ * INV_CONTENT(ITEM_BOMBCHU) — so materializing the item here would open the
+ * bombchu shops too.
+ *
+ * ONLY THE GRANT IS SUPPRESSED, not the whole row. The count apply still runs,
+ * clamped to this game's real (often zero) capacity, and that is deliberate:
+ * the apply is what transfers WATERMARK OWNERSHIP to OoT. Skipping it leaves
+ * the watermark owned by MM, and then the first OoT harvest after the player
+ * legitimately finds the bag takes the "no watermark for this game" seed path,
+ * records the live count as already-counted, and silently discards the stock
+ * the bag just granted. Applying a zero costs nothing (the player has none) and
+ * keeps the pool's arithmetic honest across the moment the gate opens.
+ */
+static bool OoT_SharedAmmoGrantBlocked(const OoTSharedAmmo* row) {
+    if (!IS_RANDO || OTRGlobals::Instance == nullptr || OTRGlobals::Instance->gRandoContext == nullptr) {
+        return false;
+    }
+    if (row->item == ITEM_STICK) {
+        return Randomizer_GetSettingValue(RSK_SHUFFLE_DEKU_STICK_BAG) != 0 && CUR_UPG_VALUE(UPG_STICKS) == 0;
+    }
+    if (row->item == ITEM_NUT) {
+        return Randomizer_GetSettingValue(RSK_SHUFFLE_DEKU_NUT_BAG) != 0 && CUR_UPG_VALUE(UPG_NUTS) == 0;
+    }
+    if (row->item == ITEM_BOMBCHU) {
+        return Randomizer_GetSettingValue(RSK_BOMBCHU_BAG) != RO_BOMBCHU_BAG_NONE &&
+               INV_CONTENT(ITEM_BOMBCHU) == ITEM_NONE;
+    }
+    return false;
+}
+
 static uint16_t OoT_ReadHealthQuarters(void) {
     const uint16_t pieces =
         (uint16_t)((gSaveContext.inventory.questItems & OOT_HEART_PIECE_MASK) >> OOT_HEART_PIECE_SHIFT);
@@ -1145,6 +1386,99 @@ static uint16_t OoT_ReadHealthQuarters(void) {
     return Combo_MakeHealthQuarters(capacity, pieces);
 }
 
+// Magic meter level (0 none / 1 single / 2 double), derived from the two
+// acquired FLAGS. Never from magicLevel: Sram_OpenSave zeroes magicLevel on
+// every file load and the interface treats "acquired but level 0" as its
+// meter-regrow trigger, so magicLevel is transiently 0 on exactly the frames a
+// suspend or a mid-play save can land on.
+static uint16_t OoT_ReadMagicLevel(void) {
+    if (!gSaveContext.isMagicAcquired) {
+        return 0u;
+    }
+    return gSaveContext.isDoubleMagicAcquired ? 2u : 1u;
+}
+
+// Current magic with the state machine's pending CREDITS settled in — the
+// magic twin of the rupeeAccumulator fold, except nothing is written back:
+// advancing the watermark to the settled value is enough, because the machine
+// completing later brings the live field to exactly this number (delta zero),
+// and on a switch the arrival path wipes the machine to IDLE and the apply
+// re-authors the amount from the pool.
+//
+//   - STEP_CAPACITY / FILL: the true amount is parked in magicFillTarget and
+//     `magic` itself can read 0 — the file-load meter-regrow window
+//     (z_file_choose parks the saved amount there) and the tail of every
+//     magic-upgrade give.
+//   - ADD: a magic jar's credit is stepping toward magicTarget.
+//   - The CONSUME_* family is deliberately NOT settled: a staged debit dies
+//     with the machine on a switch (the spell never completed, so its cost is
+//     refunded), and on a mid-play save the machine finishes normally and the
+//     next harvest picks the decrement up as an ordinary spend.
+//
+// A game with no meter reports 0 regardless of the raw field, so a stale
+// `magic` value can never enter the pool as phantom credit.
+static uint16_t OoT_ReadSettledMagic(void) {
+    const uint16_t level = OoT_ReadMagicLevel();
+    if (level == 0u) {
+        return 0u;
+    }
+    int32_t settled = gSaveContext.magic < 0 ? 0 : (int32_t)gSaveContext.magic;
+    switch (gSaveContext.magicState) {
+        case MAGIC_STATE_STEP_CAPACITY:
+        case MAGIC_STATE_FILL:
+            if ((int32_t)gSaveContext.magicFillTarget > settled) {
+                settled = (int32_t)gSaveContext.magicFillTarget;
+            }
+            break;
+        case MAGIC_STATE_ADD:
+            if ((int32_t)gSaveContext.magicTarget > settled) {
+                settled = (int32_t)gSaveContext.magicTarget;
+            }
+            break;
+        default:
+            break;
+    }
+    // The parked PRE-regrow idiom is state-machine-invisible: a file load, the
+    // debug-save injection, and this file's own apply all leave the true
+    // amount in magicFillTarget with magic == 0, magicLevel == 0 and the
+    // machine IDLE — and it STAYS that way for the whole arrival fade, because
+    // the regrow trigger is transition-gated. A harvest landing inside that
+    // window (F10 is polled ungated every frame; the interval autosave's
+    // OnSaveFile also harvests) would otherwise read 0 against a watermark
+    // holding the applied amount and debit the pool by a full meter. The
+    // signature is exact — acquired flags set (level != 0 above) with
+    // magicLevel still 0 and magic still 0 — and every OoT path that produces
+    // it authors magicFillTarget, so the park is trustworthy here.
+    if (gSaveContext.magicLevel == 0 && gSaveContext.magic == 0 && (int32_t)gSaveContext.magicFillTarget > settled) {
+        settled = (int32_t)gSaveContext.magicFillTarget;
+    }
+    const int32_t cap = (int32_t)level * MAGIC_NORMAL_METER;
+    return (uint16_t)(settled > cap ? cap : settled);
+}
+
+// The harvest gate's game-mode contract (see Combo_SaveIsLiveFile). Asserted
+// rather than assumed: these are OoT's own enumerators, and a renumber upstream
+// would silently invert the gate — accepting the title screen and rejecting
+// gameplay, which is precisely the bug the gate exists to close.
+static_assert(GAMEMODE_NORMAL == RSBS_GAMEMODE_NORMAL, "OoT GAMEMODE_NORMAL must match RSBS_GAMEMODE_NORMAL");
+static_assert(GAMEMODE_TITLE_SCREEN == RSBS_GAMEMODE_TITLE_SCREEN,
+              "OoT GAMEMODE_TITLE_SCREEN must match RSBS_GAMEMODE_TITLE_SCREEN");
+static_assert(GAMEMODE_FILE_SELECT == RSBS_GAMEMODE_FILE_SELECT,
+              "OoT GAMEMODE_FILE_SELECT must match RSBS_GAMEMODE_FILE_SELECT");
+static_assert(GAMEMODE_END_CREDITS == RSBS_GAMEMODE_END_CREDITS,
+              "OoT GAMEMODE_END_CREDITS must match RSBS_GAMEMODE_END_CREDITS");
+
+/**
+ * Is OoT's live gSaveContext a real loaded file being played (#525 follow-up)?
+ *
+ * Thin adapter over the shared policy so the two games cannot drift; all of the
+ * reasoning — including why fileNum is deliberately NOT consulted, even though
+ * OoT's title save is the 0xFF sentinel — lives in Combo_SaveIsLiveFile.
+ */
+static bool OoT_SaveIsLiveFile(void) {
+    return Combo_SaveIsLiveFile(GAME_OOT, (int32_t)gSaveContext.gameMode);
+}
+
 /**
  * HARVEST (#525). Fold OoT's live resource values into the shared pool.
  *
@@ -1153,8 +1487,27 @@ static uint16_t OoT_ReadHealthQuarters(void) {
  * before every `.redsave` write, so a file written mid-session carries a pool
  * that agrees with the OoT save stored beside it. Idempotent: a second call
  * with unchanged values is a no-op in both merge disciplines.
+ *
+ * GATED on a real loaded file. Without the gate, F10 on the title screen
+ * harvests the ATTRACT DEMO's debug save — 14 hearts, single magic, and tier 1
+ * of every ammo and wallet upgrade against a new file's zeroes — and because
+ * those kinds are MONOTONIC they can never leave the pool again. See
+ * Combo_SaveIsLiveFile.
  */
 extern "C" void OoT_HarvestSharedResources(void) {
+    if (!OoT_SaveIsLiveFile()) {
+        // Early return BEFORE the accumulator settle and before the first
+        // Combo_HarvestSharedResource call, so this touches neither the pool nor
+        // the RAM watermark table: the next real harvest must find the
+        // empty/occupied world its first-harvest seed rule expects. Skipping the
+        // settle is right too — a menu's save has no balance worth settling, and
+        // not writing gSaveContext leaves that save exactly as the menu left it.
+        fprintf(stderr, "[OoT] shared-resource harvest skipped: not a live file (gameMode=%d fileNum=%d)\n",
+                (int)gSaveContext.gameMode, (int)gSaveContext.fileNum);
+        fflush(stderr);
+        return;
+    }
+
     // SETTLE THE ACCUMULATOR FIRST. Both games write rupeeAccumulator, not the
     // count, and drain it one per frame. A pending accumulator would otherwise
     // ride the frozen blob and drain into OoT later — after an apply has
@@ -1178,6 +1531,22 @@ extern "C" void OoT_HarvestSharedResources(void) {
                                 gSaveContext.health < 0 ? 0u : (uint16_t)gSaveContext.health);
     Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_DOUBLE_DEFENSE,
                                 gSaveContext.isDoubleDefenseAcquired ? 1u : 0u);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_MAGIC_LEVEL, OoT_ReadMagicLevel());
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_MAGIC_CURRENT, OoT_ReadSettledMagic());
+
+    // Ammo. No settle step: unlike rupees and magic, neither game defers an
+    // ammo change through an accumulator — every give and every shot is an
+    // immediate AMMO() write with an inline clamp, so the live count is always
+    // already settled.
+    for (int i = 0; i < ARRAY_COUNT(kOoTSharedAmmo); i++) {
+        const OoTSharedAmmo* row = &kOoTSharedAmmo[i];
+        if (row->tierKind != RSBS_SHARED_RES_NONE) {
+            Combo_HarvestSharedResource(GAME_OOT, row->tierKind, (uint16_t)CUR_UPG_VALUE(row->upgrade));
+        }
+        Combo_HarvestSharedResource(GAME_OOT, row->countKind, OoT_ReadAmmo(row->item));
+    }
+
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_HOOKSHOT_TIER, OoT_ReadHookshotTier());
 }
 
 /**
@@ -1251,6 +1620,93 @@ extern "C" void OoT_ApplySharedResources(void) {
         // cross-game arrival lands in a death handler no arrival path has ever
         // been tested through.
         gSaveContext.health = (s16)(health < 0x10u ? 0x10u : health);
+    }
+
+    // --- Magic level (monotonic 0/1/2), then current magic clamped against it.
+    // The settled-current snapshot is taken BEFORE the level apply moves the
+    // acquired flags: the settled read gates on the game's own PRE-apply level,
+    // which is what keeps a magic-less half's residue (see the MM twin) from
+    // being promoted into real magic by the flag flip when the pool carries a
+    // level but no current slot.
+    uint16_t magic = OoT_ReadSettledMagic();
+    uint16_t magicLevel = OoT_ReadMagicLevel();
+    const bool magicLevelShared = Combo_ApplySharedResource(GAME_OOT, RSBS_SHARED_RES_MAGIC_LEVEL, 2u, &magicLevel);
+    if (magicLevelShared) {
+        if (magicLevel >= 1u) {
+            gSaveContext.isMagicAcquired = 1;
+        }
+        if (magicLevel >= 2u) {
+            gSaveContext.isDoubleMagicAcquired = 1;
+        }
+    }
+
+    // --- Current magic (consumable): one meter across both games, per OoTMM:
+    // "current magic is tracked as if OoT and MM were one game with a single
+    // magic meter". The cap is DERIVED from the level just applied, never read
+    // from live magicCapacity — at this point in the arrival the boot chain has
+    // not run the growth machine, so magicCapacity can be 0 or partial.
+    const uint16_t magicCap = (uint16_t)(magicLevel * MAGIC_NORMAL_METER);
+    const bool magicShared = Combo_ApplySharedResource(GAME_OOT, RSBS_SHARED_RES_MAGIC_CURRENT, magicCap, &magic);
+
+    if ((magicLevelShared || magicShared) && magicLevel != 0u) {
+        // Re-author through the vanilla file-load idiom (z_file_choose): park
+        // the amount in magicFillTarget, zero magic/magicLevel/magicCapacity,
+        // idle the machine, and let OoT_Interface_Update regrow the bar from
+        // the acquired flags (STEP_CAPACITY -> FILL) exactly as every file load
+        // does. Direct field writes would have to reproduce the
+        // level/capacity/HUD invariants by hand — and the idiom also repairs a
+        // blob frozen mid-regrow, whose magicCapacity is otherwise stranded at
+        // a partial value for the rest of the session (the regrow trigger
+        // requires magicLevel == 0, which only this and a real file load
+        // re-establish).
+        gSaveContext.magicFillTarget = (s16)(magic > magicCap ? magicCap : magic);
+        gSaveContext.magic = 0;
+        gSaveContext.magicLevel = 0;
+        gSaveContext.magicCapacity = 0;
+        gSaveContext.magicState = MAGIC_STATE_IDLE;
+        gSaveContext.prevMagicState = MAGIC_STATE_IDLE;
+    }
+
+    // --- Ammo: every tier BEFORE the count it bounds, in one pass per row, for
+    // the same reason wallet precedes rupees. A count applied against a
+    // capacity of zero clamps to zero and the watermark records that zero as
+    // materialized, quietly dropping the rest of the pool.
+    for (int i = 0; i < ARRAY_COUNT(kOoTSharedAmmo); i++) {
+        const OoTSharedAmmo* row = &kOoTSharedAmmo[i];
+        const bool grantBlocked = OoT_SharedAmmoGrantBlocked(row);
+
+        if (!grantBlocked && row->tierKind != RSBS_SHARED_RES_NONE) {
+            uint16_t tier = (uint16_t)CUR_UPG_VALUE(row->upgrade);
+            if (Combo_ApplySharedResource(GAME_OOT, row->tierKind, OOT_MAX_AMMO_TIER, &tier)) {
+                OoT_Inventory_ChangeUpgrade(row->upgrade, (s16)tier);
+                if (tier >= 1u) {
+                    OoT_EnsureInventoryItem(row->item);
+                }
+            }
+        }
+
+        // Runs even when the grant is blocked — see OoT_SharedAmmoGrantBlocked
+        // for why suppressing the apply entirely loses the player's stock the
+        // moment the gate opens. The cap does the suppressing: with no bag it
+        // is zero, so nothing materializes.
+        uint16_t count = OoT_ReadAmmo(row->item);
+        if (Combo_ApplySharedResource(GAME_OOT, row->countKind, OoT_AmmoCapacity(row), &count)) {
+            // Bombchus have no tier to carry the item across, so a nonzero
+            // shared count is what implies the item here.
+            if (!grantBlocked && count > 0u) {
+                OoT_EnsureInventoryItem(row->item);
+            }
+            AMMO(row->item) = (s8)count;
+        }
+    }
+
+    // --- Hookshot (monotonic 0/1/2). Clamped to OoT's own ceiling of 2, which
+    // is the higher of the two: MM has no longshot, so a longshot earned here
+    // survives a Termina round trip untouched (max-merge cannot demote it) and
+    // materializes there as a plain hookshot.
+    uint16_t hookshotTier = OoT_ReadHookshotTier();
+    if (Combo_ApplySharedResource(GAME_OOT, RSBS_SHARED_RES_HOOKSHOT_TIER, OOT_MAX_HOOKSHOT_TIER, &hookshotTier)) {
+        OoT_WriteHookshotTier(hookshotTier);
     }
 }
 

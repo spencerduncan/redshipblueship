@@ -829,6 +829,19 @@ void SohMenu::AddMenuRandomizer() {
         .Options(WindowButtonOptions()
                      .Tooltip("Toggles the cross-game spoiler (which MM check hosts which OoT item, and vice versa).")
                      .EmbedWindow(false));
+    // Combo tracker (#458) — both games' progress at once, the inactive game's
+    // included ("as of last freeze/save"). Race-disabled like the spoiler: its
+    // cross-game section names items sitting on uncollected checks.
+    // Constants: ComboGui::kComboTracker* in src/common/ComboTrackerWindow.h.
+    AddWidget(path, "Toggle Combo Tracker", WIDGET_WINDOW_BUTTON)
+        .CVar("gCombo.Windows.Tracker")
+        .RaceDisable(true)
+        .WindowName("Combo Tracker")
+        .HideInSearch(true)
+        .Options(WindowButtonOptions()
+                     .Tooltip("Toggles the combo tracker (both games' check progress at once, including the game "
+                              "that is not running).")
+                     .EmbedWindow(false));
 
     // MM's four tracker windows had the same unreachability bug as the two
     // windows above. #489 made them openable and correctly named (they register
@@ -848,8 +861,21 @@ void SohMenu::AddMenuRandomizer() {
     // Names and CVars are the constants in games/mm/2s2h/TrackersGuiSingleExe.h
     // (kCheckTracker*/kItemTracker*), spelled as literals to match the rows
     // above. The windows are MMActiveGated, so they draw only while MM is the
-    // running game — the buttons are always usable, the window simply stays
-    // blank under OoT, which is the upstream behavior.
+    // running game — the buttons are usable from the first frame, the window
+    // simply stays blank under OoT, which is the upstream behavior.
+    //
+    // "From the first frame" only holds because rsbs/src/main.cpp registers the
+    // four windows at startup (#535). They used to register from MM_Rando_Init,
+    // i.e. only once MM had booted in this process, which left this separator
+    // sitting over four rows whose per-frame GetGuiWindow lookup failed. Menu.cpp
+    // now greys such a row out instead of skipping it, but that is the fallback.
+    //
+    // EmbedWindow(false) on all four, unlike the OoT settings rows above: the
+    // embed path calls window->DrawElement() directly, which bypasses the
+    // MMActiveGated Draw wrapper — the only thing keeping MM tracker UI from
+    // drawing while OoT is the running game, and (before mm.o2r is mounted) from
+    // reaching for tracker icons that are not loaded. Pop-out only, so the gate
+    // stays the single authority on when MM tracker UI draws.
     AddWidget(path, "Majora's Mask Trackers", WIDGET_SEPARATOR_TEXT);
     AddWidget(path, "Toggle MM Item Tracker", WIDGET_WINDOW_BUTTON)
         .CVar("gWindows.ItemTracker")
@@ -862,7 +888,9 @@ void SohMenu::AddMenuRandomizer() {
         .RaceDisable(false)
         .WindowName("MM Item Tracker Settings")
         .HideInSearch(true)
-        .Options(WindowButtonOptions().Tooltip("Enables the Majora's Mask Item Tracker Settings window."));
+        .Options(WindowButtonOptions()
+                     .Tooltip("Enables the Majora's Mask Item Tracker Settings window.")
+                     .EmbedWindow(false));
     AddWidget(path, "Toggle MM Check Tracker", WIDGET_WINDOW_BUTTON)
         .CVar("gWindows.CheckTracker")
         .RaceDisable(false)
@@ -874,7 +902,9 @@ void SohMenu::AddMenuRandomizer() {
         .RaceDisable(false)
         .WindowName("MM Check Tracker Settings")
         .HideInSearch(true)
-        .Options(WindowButtonOptions().Tooltip("Enables the Majora's Mask Check Tracker Settings window."));
+        .Options(WindowButtonOptions()
+                     .Tooltip("Enables the Majora's Mask Check Tracker Settings window.")
+                     .EmbedWindow(false));
 }
 
 } // namespace SohGui

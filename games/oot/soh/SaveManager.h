@@ -109,6 +109,12 @@ class SaveManager {
     void DeleteZeldaFile(int fileNum);
     bool IsRandoFile();
 
+    // The RSBS commit generation mirrored in the currently-loaded .sav JSON
+    // ("rsbsCommitGeneration"), or 0 when the save predates the stamp. Read
+    // by the OnLoadFile hook to compare the .sav's freshness against the
+    // .redsave's Tier-1 stamp (#531/#537).
+    uint32_t GetLoadedCommitGeneration();
+
     // Test hook (#441): drive the REAL randomizer section through a
     // save -> context-reset -> reload cycle, in memory, exactly as loading a
     // saved file does (Save_LoadFile resets the Rando::Context, then
@@ -174,7 +180,12 @@ class SaveManager {
     void ConvertFromUnversioned();
     void CreateDefaultGlobal();
 
-    void SaveFileThreaded(int fileNum, SaveContext* saveContext, int sectionID);
+    // rsbsGeneration: the RSBS commit generation stamped by the game-thread
+    // marshalling in SaveSection (#537); 0 for non-base sections and for
+    // fileNums outside the unified-slot range. When nonzero it is mirrored
+    // into the .sav JSON so both durable artifacts carry the same freshness
+    // stamp.
+    void SaveFileThreaded(int fileNum, SaveContext* saveContext, int sectionID, uint32_t rsbsGeneration);
 
     void InitMeta(int slotNum);
     void StartupCheckAndInitMeta(int slotNum);

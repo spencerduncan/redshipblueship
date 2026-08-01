@@ -12,6 +12,10 @@
 // than from context.h so the header keeps its no-dependency shape.
 #include "shared_items.h"
 #include "shared_resources.h"
+// Combo_CountForeignPlacementsOoT() — invalidation reports how much of the
+// generation-authored reverse table each policy kept (#534). Same .cpp-only
+// placement rationale as shared_items.h above.
+#include "foreign_items.h"
 // Combo_HasStartupEntrance() — the discriminator that keeps the return-to-title
 // hook from eating a cross-game arrival's blob.
 #include "entrance.h"
@@ -322,12 +326,41 @@ bool Context_HasPendingSwitch(void) {
 // ----------------------------------------------------------------------------
 
 void Context_InvalidateSessionState(ComboSeedStampPolicy seedPolicy) {
-    // Snapshot the Lane B stamp BEFORE the re-init below wipes it. This is the
-    // only part of gComboCtx that can legitimately outlive the session, and
-    // only in the KEEP case — see ComboSeedStampPolicy.
+    // Snapshot the generation-authored state BEFORE the re-init below wipes
+    // it. These fields are the only part of gComboCtx that can legitimately
+    // outlive the session, and only in the KEEP case — see ComboSeedStampPolicy.
     const bool savedSourceIsRando = gComboCtx.sourceIsRando;
     const uint32_t savedSeed = gComboCtx.sharedRandoSeed;
     const uint32_t savedSettingsHash = gComboCtx.sharedRandoSettingsHash;
+    // #498/#564 V9: the MM profile identity is stamped by the creation event
+    // (Playthrough_Init, via MM_Rando_ComputeProfileStamp) alongside the seed
+    // stamp above — same author, same moment — so it joins the KEEP set by the
+    // ComboSeedStampPolicy rule (context.h): any identity term stamped at or
+    // before file-create that KEEP does not carry is wiped by the creation
+    // itself, the stamping act destroying its own output. Before this entry,
+    // that is exactly what happened: file-create ran the re-init below and the
+    // creation-stamped digest never reached the file it named.
+    const uint32_t savedMmProfileDigest = gComboCtx.mmProfileDigest;
+    // #534: the reverse placement table (OoT checks hosting MM items, #524)
+    // travels WITH the stamp because it has the same author and the same
+    // moment of authorship: Playthrough_Init stamps the pairing identity and
+    // immediately derives these placements from it (OoT_PlaceForeignItems),
+    // both BEFORE the file being created exists. Nothing re-places the
+    // reverse table after generation — unlike the FORWARD table
+    // (foreignPlacements), which is deliberately NOT snapshotted because at
+    // this point it can only hold a DEAD session's rows, so keeping it would
+    // resurrect them. That is the whole reason. "MM re-authors it at its own
+    // OnFileCreate on the next arrival" used to be given alongside it and is
+    // no longer a reason for anything: it describes the deferred-generation
+    // model #564 retires, in which arrival authors the MM half. Under
+    // one-game semantics arrival becomes hydrate-or-refuse, and when the
+    // creation event authors the forward table too it joins the KEEP set by
+    // the rule in ComboSeedStampPolicy (context.h) rather than by an
+    // exception written here. Wiping the reverse table here made #524 inert
+    // in every real playthrough: the new file's first .redsave write then
+    // persisted the zeroed table.
+    ComboForeignPlacement savedPlacementsOoT[RSBS_FOREIGN_PLACEMENT_CAP];
+    memcpy(savedPlacementsOoT, gComboCtx.foreignPlacementsOoT, sizeof(savedPlacementsOoT));
 
     // Frozen blobs and shadow copies in one call — they are the same storage
     // (FrozenStateManager::ClearFrozenState memsets the buffer AND clears
@@ -359,6 +392,15 @@ void Context_InvalidateSessionState(ComboSeedStampPolicy seedPolicy) {
         gComboCtx.sourceIsRando = savedSourceIsRando;
         gComboCtx.sharedRandoSeed = savedSeed;
         gComboCtx.sharedRandoSettingsHash = savedSettingsHash;
+        // The frozen MM profile identity travels with the stamp (#498/#564 V9)
+        // — and, like the stamp, is DROPPED on every other path: a surviving
+        // digest with no generation behind it would freeze the options pane
+        // (Combo_MMProfileFrozen) for a pair that no longer exists.
+        gComboCtx.mmProfileDigest = savedMmProfileDigest;
+        // The other generation-authored artifact (#534) — see the snapshot
+        // note above. KEEP-only on purpose: on a DROP path a populated table
+        // belongs to a dead session and must go with it.
+        memcpy(gComboCtx.foreignPlacementsOoT, savedPlacementsOoT, sizeof(gComboCtx.foreignPlacementsOoT));
     }
 
     // The unified save's ACTIVE SLOT is session state too, and it lived outside
@@ -376,9 +418,12 @@ void Context_InvalidateSessionState(ComboSeedStampPolicy seedPolicy) {
     // OnLoadFile / OnSaveFile hooks, or the departure publish.
     RsbsSave_SetActiveSlot(-1);
 
-    fprintf(stderr, "[Context] Session state invalidated (seed stamp %s: rando=%d seed=%u settings=%08X)\n",
+    fprintf(stderr,
+            "[Context] Session state invalidated (seed stamp %s: rando=%d seed=%u settings=%08X "
+            "mmProfile=%08X reversePlacements=%d)\n",
             (seedPolicy == RSBS_SEED_STAMP_KEEP) ? "kept" : "dropped", (int)gComboCtx.sourceIsRando,
-            (unsigned)gComboCtx.sharedRandoSeed, (unsigned)gComboCtx.sharedRandoSettingsHash);
+            (unsigned)gComboCtx.sharedRandoSeed, (unsigned)gComboCtx.sharedRandoSettingsHash,
+            (unsigned)gComboCtx.mmProfileDigest, Combo_CountForeignPlacementsOoT());
 }
 
 int Context_InvalidateSessionOnReturnToTitle(void) {

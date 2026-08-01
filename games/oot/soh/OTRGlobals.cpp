@@ -1709,6 +1709,24 @@ bool VerifyArchiveVersion(OTRVersion version) {
     return false;
 }
 
+// Whether InitOTRImpl ran the RSBS_DISABLE_OTR_INIT block below (OTRAudio_Init /
+// OTRExtScanner / VanillaItemTable_Init / DebugConsole_Init, plus
+// archive-gated OTRMessage_Init). Two consumers, both in the #560 full-init
+// CTest row (rando-gen-full-init):
+//   - it is the row's un-masking assertion: every OTHER rando row sets
+//     RSBS_DISABLE_OTR_INIT=1, and without a direct signal a re-added flag would
+//     turn that row into a silent duplicate of RandoGen;
+//   - it tells the row whether it must tear the audio thread down before
+//     returning. OTRAudio_Init starts a real std::thread against the file-static
+//     `audio` (soh/OTRAudio.h); the app pairs it with OTRAudio_Exit inside
+//     DeinitOTR, and OTRAudio_Exit joins unconditionally, so a test may only
+//     call it when the block actually ran.
+static bool sOtrInitRan = false;
+
+extern "C" int OoT_OtrInitRan(void) {
+    return sOtrInitRan ? 1 : 0;
+}
+
 static void InitOTRImpl(int argc, char* argv[], bool runExtract) {
     OTRGlobals::Instance = new OTRGlobals();
     if (runExtract) {
@@ -1801,6 +1819,7 @@ static void InitOTRImpl(int argc, char* argv[], bool runExtract) {
         OTRExtScanner();
         VanillaItemTable_Init();
         DebugConsole_Init();
+        sOtrInitRan = true;
     }
 
     if (RsbsFeatureEnabled("RSBS_DISABLE_MODS")) {

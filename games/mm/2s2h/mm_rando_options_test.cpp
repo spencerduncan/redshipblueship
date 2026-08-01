@@ -40,21 +40,31 @@
  *      indexed by generation code.
  *
  * ============================================================================
- * mm-paired-profile — the profile lock (#499 Tier 1)
+ * mm-paired-profile — the profile lock (#499 Tier 1; #498/#564 phase 2)
  * ============================================================================
  *
  * Drives the REAL `Rando::Foreign::ResolvePairedProfile()` — the same function
  * OnFileCreate calls, not a re-derivation — over a zeroed MM SaveContext, with
- * no fill and no display. It asserts the profile, the logic default's new
- * honour-an-explicit-choice rule, and the `gComboCtx.mmProfileDigest` carve.
+ * no fill and no display. It asserts the profile, the logic default's
+ * honour-an-explicit-choice rule, and the FREEZE semantics the #564 ruling
+ * made mandatory:
+ *
+ *  - an unstamped (legacy) pair freezes its profile at resolution;
+ *  - a stamped pair REFUSES a divergent resolution (throws, never overwrites
+ *    the stamp — reverting the compare turns the refusal assertions red);
+ *  - the creation-side computation (MM_Rando_ComputeProfileStamp, what OoT's
+ *    Playthrough_Init stamps) and the arrival-side resolution agree bit-exact
+ *    under identical inputs — the two sites cannot drift;
+ *  - the identity term is WIDER than the option table (#564 V4): a
+ *    gRando.ExcludedChecks edit moves the digest even though no option value
+ *    changed. Under the pre-widening digest that assertion is red.
  *
  * THE TRAP THIS DESIGN AVOIDS, stated because the obvious test is vacuous: an
  * assertion of the form "set a CVar, generate, observe it in the save" passes
  * TODAY — that path has always worked — and proves nothing about the profile
- * being chosen rather than defaulted. What is asserted instead is the thing
- * that was not true before: that an explicitly-set option survives the paired
- * pin, that an unset one gets the pinned default, and that the two produce
- * DIFFERENT digests.
+ * being chosen rather than defaulted. What is asserted instead is behavior
+ * that was not true before: explicit choices survive the pin, divergence
+ * refuses, and every generation input moves the digest.
  */
 
 #ifdef RSBS_SINGLE_EXECUTABLE
@@ -62,6 +72,7 @@
 #include <cstdarg>
 #include <cstdio>
 #include <cstring>
+#include <stdexcept>
 #include <string>
 
 #include <libultraship/bridge/consolevariablebridge.h>
@@ -304,13 +315,20 @@ extern "C" int MM_PairedProfile_RunHeadless(void) {
         return Fail(55, "unpaired resolution stamped a profile digest (%08X)", gComboCtx.mmProfileDigest);
     }
 
-    // ---- paired, nothing chosen: the #426 default applies ------------------
-    // Stamp the Lane B carrier the way OoT's producer would, so
-    // Combo_ForeignPairingActive() is true for the summary read below.
-    gComboCtx.sourceIsRando = true;
-    gComboCtx.sharedRandoSeed = 0xC0FFEE11u;
-    gComboCtx.sharedRandoSettingsHash = 0x5EED0411u;
+    // Every paired probe below starts from a FRESH, unstamped pairing carrier:
+    // under freeze semantics a stamped pair refuses a different profile rather
+    // than re-stamping, so digest-motion probes must model what they are — a
+    // NEW creation under new inputs, not an edit to a live pair.
+    auto restampUnfrozenCarrier = []() {
+        ComboContext_Init();
+        gComboCtx.sourceIsRando = true;
+        gComboCtx.sharedRandoSeed = 0xC0FFEE11u;
+        gComboCtx.sharedRandoSettingsHash = 0x5EED0411u;
+    };
+    CVarClear("gRando.ExcludedChecks");
 
+    // ---- paired, nothing chosen: the #426 default applies ------------------
+    restampUnfrozenCarrier();
     const uint32_t defaultDigest = Rando::Foreign::ResolvePairedProfile(true);
     if (RANDO_SAVE_OPTIONS[RO_LOGIC] != RO_LOGIC_NEARLY_NO_LOGIC) {
         return Fail(56, "with no explicit choice, the paired profile did not default RO_LOGIC to Nearly No Logic "
@@ -318,13 +336,26 @@ extern "C" int MM_PairedProfile_RunHeadless(void) {
                     (unsigned)RANDO_SAVE_OPTIONS[RO_LOGIC]);
     }
     if (defaultDigest == 0 || gComboCtx.mmProfileDigest != defaultDigest) {
-        return Fail(57, "paired resolution did not publish a non-zero digest (returned %08X, ctx holds %08X)",
+        return Fail(57, "unstamped paired resolution did not freeze a non-zero digest (returned %08X, ctx holds "
+                        "%08X)",
                     defaultDigest, gComboCtx.mmProfileDigest);
     }
 
-    // Stability: same inputs, same digest. Without this, "the digest detects a
-    // mismatch" is unprovable — an unstable digest reports a mismatch between
-    // a world and itself.
+    // ---- the creation site and the arrival site are ONE computation --------
+    // MM_Rando_ComputeProfileStamp is what OoT's Playthrough_Init stamps at
+    // the creation event; ResolvePairedProfile is what the arrival resolves.
+    // If they can disagree under identical inputs, every post-freeze pair
+    // refuses its own arrival — the falsifiable no-drift lock (#498/#564).
+    const uint32_t creationStamp = MM_Rando_ComputeProfileStamp();
+    if (creationStamp != defaultDigest) {
+        return Fail(65, "creation-side stamp %08X disagrees with the arrival-side resolution %08X under identical "
+                        "inputs — every pair would refuse its own arrival",
+                    creationStamp, defaultDigest);
+    }
+
+    // Stability: same inputs, same digest, no refusal. Without this, "the
+    // digest detects a mismatch" is unprovable — an unstable digest reports a
+    // mismatch between a world and itself.
     const uint32_t repeatDigest = Rando::Foreign::ResolvePairedProfile(true);
     if (repeatDigest != defaultDigest) {
         return Fail(58, "the profile digest is not stable across runs (%08X then %08X)", defaultDigest,
@@ -339,12 +370,39 @@ extern "C" int MM_PairedProfile_RunHeadless(void) {
                     summary.mmProfileDigest);
     }
 
+    // ---- STAMPED pair + divergent inputs: REFUSED, never re-stamped --------
+    // The freeze lock itself (#564 V8: the digest acquires comparators).
+    // gComboCtx still carries defaultDigest; choosing a different logic mode
+    // now models a post-creation edit reaching generation. The resolution must
+    // THROW (OnFileCreate's catch turns that into the vanilla revert — no
+    // divergent world is authored) and must NOT self-heal the stamp. Revert
+    // the compare in ResolvePairedProfile and both halves go red.
+    CVarSetInteger(Rando::StaticData::Options[RO_LOGIC].cvar, RO_LOGIC_GLITCHLESS);
+    {
+        bool refused = false;
+        try {
+            Rando::Foreign::ResolvePairedProfile(true);
+        } catch (const std::exception&) {
+            refused = true;
+        }
+        if (!refused) {
+            return Fail(66, "a stamped pair accepted a DIVERGENT profile resolution — post-creation edits would be "
+                            "honored instead of refused (#564)");
+        }
+        if (gComboCtx.mmProfileDigest != defaultDigest) {
+            return Fail(67, "the refusal self-healed the creation stamp (%08X -> %08X) — divergence must never "
+                            "rewrite identity",
+                        defaultDigest, gComboCtx.mmProfileDigest);
+        }
+    }
+
     // ---- paired, logic explicitly chosen: the choice survives --------------
     // This is the behaviour #499 step 3 asked for and the reason the pin moved
     // from "unless already extreme" to "unless the player chose". The old
     // condition could not tell a chosen Glitchless from an untouched key whose
-    // StaticData default happens to be Glitchless, and pinned both.
-    CVarSetInteger(Rando::StaticData::Options[RO_LOGIC].cvar, RO_LOGIC_GLITCHLESS);
+    // StaticData default happens to be Glitchless, and pinned both. A fresh
+    // carrier: this is a NEW creation under the chosen logic.
+    restampUnfrozenCarrier();
     const uint32_t chosenDigest = Rando::Foreign::ResolvePairedProfile(true);
     if (RANDO_SAVE_OPTIONS[RO_LOGIC] != RO_LOGIC_GLITCHLESS) {
         return Fail(60, "an explicitly chosen RO_LOGIC was overridden by the paired pin (got %u)",
@@ -358,6 +416,7 @@ extern "C" int MM_PairedProfile_RunHeadless(void) {
     // ---- a flipped shuffle row also moves the digest -----------------------
     CVarClear(Rando::StaticData::Options[RO_LOGIC].cvar);
     CVarSetInteger(Rando::StaticData::Options[RO_SHUFFLE_COWS].cvar, RO_GENERIC_ON);
+    restampUnfrozenCarrier();
     const uint32_t cowsDigest = Rando::Foreign::ResolvePairedProfile(true);
     if (RANDO_SAVE_OPTIONS[RO_SHUFFLE_COWS] != RO_GENERIC_ON) {
         return Fail(62, "an explicitly enabled shuffle did not reach RANDO_SAVE_OPTIONS");
@@ -366,11 +425,29 @@ extern "C" int MM_PairedProfile_RunHeadless(void) {
         return Fail(63, "flipping RO_SHUFFLE_COWS did not change the profile digest");
     }
 
+    // ---- the WIDENED identity term (#564 V4) -------------------------------
+    // gRando.ExcludedChecks shapes the generated world (GeneratePools reads it
+    // at fill time) but is not an option row, so the pre-widening digest could
+    // not see it: same seed + same digest, different world — a vacuous guard.
+    // With every option back at its default, an excluded-check edit ALONE must
+    // move the digest. Narrow the identity back to the option table and this
+    // goes red.
+    ClearAllOptionCVars();
+    CVarSetString("gRando.ExcludedChecks", "12,34");
+    restampUnfrozenCarrier();
+    const uint32_t excludedDigest = Rando::Foreign::ResolvePairedProfile(true);
+    if (excludedDigest == defaultDigest) {
+        return Fail(68, "editing gRando.ExcludedChecks did not change the profile digest — the identity term is "
+                        "narrower than the generator's input set (#564 V4)");
+    }
+    CVarClear("gRando.ExcludedChecks");
+
     // ---- the derived correction still applies -----------------------------
     // With skulltulas unshuffled the token requirement is the vanilla one
     // whatever the slider says. Regressing this makes an unreachable check.
     CVarSetInteger(Rando::StaticData::Options[RO_SHUFFLE_GOLD_SKULLTULAS].cvar, RO_GENERIC_OFF);
     CVarSetInteger(Rando::StaticData::Options[RO_MINIMUM_SKULLTULA_TOKENS].cvar, 5);
+    restampUnfrozenCarrier();
     Rando::Foreign::ResolvePairedProfile(true);
     if (RANDO_SAVE_OPTIONS[RO_MINIMUM_SKULLTULA_TOKENS] != SPIDER_HOUSE_TOKENS_REQUIRED) {
         return Fail(64, "with skulltulas unshuffled the token requirement was not forced to vanilla (got %u)",
@@ -379,12 +456,13 @@ extern "C" int MM_PairedProfile_RunHeadless(void) {
 
     // Leave global state clean for whatever runs next.
     ClearAllOptionCVars();
+    CVarClear("gRando.ExcludedChecks");
     memset(&gSaveContext, 0, sizeof(gSaveContext));
     ComboContext_Init();
     Context_SetCurrentGame(prevGame);
 
-    printf("[TEST] PASS: the paired profile honours an explicit choice, defaults the rest, and publishes a stable "
-           "digest that moves when the profile does\n");
+    printf("[TEST] PASS: the paired profile honours an explicit choice, freezes at creation, refuses divergence "
+           "without self-healing, and its widened digest moves with every generation input\n");
     return 0;
 }
 

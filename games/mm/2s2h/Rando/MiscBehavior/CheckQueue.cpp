@@ -181,7 +181,7 @@ void Rando::MiscBehavior::CheckQueue() {
                             CustomMessage::StartTextbox(entry.msg + "\x1C\x02\x10", entry);
                         } else {
                             if (Rando::StaticData::Items[randoItemId].randoItemType != RITYPE_JUNK) {
-                                Notification::Emit({
+                                Notification::MM_Notify_Emit({
                                     .itemIcon = Rando::StaticData::GetIconTexturePath(randoItemId),
                                     .message = prefix,
                                     .suffix = message,

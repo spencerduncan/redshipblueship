@@ -20,6 +20,9 @@ void BossRush_InitSave(void);
 // does not have src/common on its include path (same convention z_play.c uses
 // for the Combo_* entry points). See src/common/context.h for the contract.
 extern void Context_InvalidateSessionOnNewGame(int isRandoFile);
+// #533 armed-session latch: creating a file is one of the three legitimate
+// ways a slot becomes writable this session. See src/common/save.h.
+extern void RsbsSave_ArmSlotOnCreate(int slot);
 
 /**
  *  Initialize new save.
@@ -283,12 +286,34 @@ void OoT_Sram_InitSave(FileChooseContext* fileChooseCtx) {
     // cleared state, instead of persisting the dead session's crossings into
     // the new file's very first save.
     //
+    // INVARIANT (#534): ordering alone cannot protect what GENERATION already
+    // authored, because generation ran minutes ago in the menu — before this
+    // function. Two gComboCtx artifacts exist by now precisely because
+    // isRandoFile is true: the seed stamp and the reverse placement table
+    // (foreignPlacementsOoT, the MM items #524 hosts in this seed's OoT
+    // checks), written back-to-back by Playthrough_Init. Both must survive
+    // this clear — nothing re-places the reverse table afterwards, so a wipe
+    // here silences every reverse delivery, and the (b) write below then
+    // persists the loss into the slot's first .redsave. The KEEP policy
+    // inside the call preserves exactly those two; everything the dead
+    // session authored still goes.
+    //
     // isRandoFile is exactly the condition the branch below uses, so the seed
     // stamp is kept precisely when generation has already authored it for this
     // file and dropped for a vanilla file (where a surviving stamp would leave
     // Combo_ForeignPairingActive() reporting a paired world that does not
     // exist).
     Context_InvalidateSessionOnNewGame(isRandoFile);
+
+    // ARM the unified slot for this create (#533). Save_SaveFile() below fires
+    // OnSaveFile -> RsbsSave_Save, and the armed-session latch refuses writes
+    // to any slot this session did not load, create, or erase — this call IS
+    // the "create" event. It also quarantines (renames aside, reason-tagged)
+    // any existing .redsave at this slot that fails validation, so creating a
+    // file over a corrupt unified save preserves the evidence instead of
+    // letting the first autosave rename-overwrite it. Uses gSaveContext.fileNum
+    // because that is exactly the slot Save_SaveFile() will write.
+    RsbsSave_ArmSlotOnCreate(gSaveContext.fileNum);
 
     if (isRandoFile) {
         gSaveContext.ship.quest.id = QUEST_RANDOMIZER;

@@ -17,6 +17,14 @@
 
 #include <ship/Context.h>
 #include <ship/resource/ResourceManager.h>
+// For Test_ZipContention's headless factory registration (#560): both games
+// register these only inside their display-bound Initialize paths.
+#include <ship/resource/File.h>
+#include <ship/resource/ResourceLoader.h>
+#include <ship/resource/ResourceType.h>
+#include <ship/resource/factory/BlobFactory.h>
+#include <fast/resource/ResourceType.h>
+#include <fast/resource/factory/TextureFactory.h>
 
 // Shared-context bring-up entries for the boot regression tests (#329/#330).
 // Defined in games/oot/soh/OTRGlobals.cpp and
@@ -43,7 +51,9 @@ int CosmeticGfxStub_RunHeadless(void);
 //     malloc returned NULL -> memset(NULL) AV).
 // (b) mm-startup-restore — MM_Play_ConsumeStartupEntrance must re-apply the
 //     frozen MM save after the boot chain's SaveContext wipes, then spawn at
-//     the startup entrance with cutscene/game-mode state reset.
+//     the startup entrance with cutscene/game-mode state reset, and re-derive
+//     the sound mode from the restored options (sSoundMode lives outside
+//     gSaveContext, so the restore memcpy cannot carry it — #483).
 // Return 0 on pass, non-zero on fail.
 int MM_ResumeArena_RunHeadless(void);
 int MM_StartupRestore_RunHeadless(void);
@@ -58,13 +68,17 @@ int MM_CullingBinding_RunHeadless(void);
 // byte out-of-bounds write, layout is platform-dependent). Returns 0 on
 // pass, non-zero on fail.
 int MM_GIShim_RunHeadless(void);
-// MM Notification::Emit cross-bind lock (games/mm/2s2h/mm_notification_binding_test.cpp,
+// MM notification bridge lock (games/mm/2s2h/mm_notification_binding_test.cpp,
 // #427 item 1): MM's 2s2h/BenGui/Notification.cpp is excluded from single-exe
-// builds, so MM's Rando pickup toast binds OoT's Notification::Emit against
-// MM's own view of Notification::Options. Safe only while the two ports' Options
-// stay field-identical; this compares their layout fingerprints and fails on
-// drift (no link error can catch it — one Emit definition survives). Returns 0
-// on pass, non-zero on fail.
+// builds, so MM's toasts render on OoT's overlay. They used to get there by ABI
+// coincidence — MM's Notification::Emit call bound OoT's identically-mangled
+// body and handed it MM's own view of Options, with no link error possible when
+// the two structs drift (one Emit definition survives). This drives the
+// explicit bridge that replaced it from MM's side, reads the toast back out of
+// OoT's store field by field, and still compares the two ports' Options
+// layouts — both trees declare the type, so their implicit ctor/dtor
+// COMDAT-fold even now that the struct no longer crosses. Returns 0 on pass,
+// non-zero on fail.
 int MM_NotificationBinding_RunHeadless(void);
 // MM scaled framebuffer-draw binding (games/mm/2s2h/mm_fb_effects_test.cpp,
 // #386): MM's FB_DrawFromFramebufferScaled used to bind OoT's surviving body,
@@ -110,6 +124,12 @@ int Combo_SpoilerWindow_RunHeadless(void);
 // window lock; same bridge shape and the same reason (GuiWindow ctor reads
 // ConsoleVariables off the Ship::Context singleton).
 int Combo_MMOptionsWindow_RunHeadless(void);
+// src/common/tests/test_combo_tracker_view.c — the combo tracker's per-game
+// adapters (#458). Needs the shared bring-up because the OoT authoring seam
+// constructs a real Rando::Context. test_combo_tracker_window.c is the
+// window's lock — same bridge shape as the spoiler window above.
+int Combo_TrackerView_RunHeadless(void);
+int Combo_TrackerWindow_RunHeadless(void);
 // games/mm/2s2h/mm_rando_options_test.cpp (#497 step 4, #499): the option TABLE
 // and the paired PROFILE. Both bodies live in an MM TU because they drive
 // Rando::StaticData::Options and Rando::Foreign::ResolvePairedProfile, which
@@ -167,6 +187,19 @@ extern "C" {
 // FILE SCOPE (compiled as C++): they drive the C++-linkage rsbs::SaveManager.
 #include "tests/test_save_roundtrip.c"
 
+// REFUSED-state locks (#533): refusal quarantines the evidence (renamed aside,
+// reason-tagged, never overwritten), the refusing session latches the slot
+// against writes, and ABSENT / VALID / REFUSED surface as three different
+// facts. FILE SCOPE (compiled as C++) for rsbs::SaveManager.
+#include "tests/test_save_refusal.c"
+
+// The .redsave commit choke point (#537/#531): monotonic commit generation,
+// the torn-write impossibility (stage on the game thread, write from the
+// immutable snapshot only), and the load-time cross-artifact freshness
+// comparison surfaced through the #533 machinery. FILE SCOPE (compiled as
+// C++), same reason as above.
+#include "tests/test_commit_generation.c"
+
 // Lane C1 foreign-item pipeline locks (#392, ADR 0002): give-path tagging,
 // round-trip survival with a real pool entry, and the foreignPlacements carve
 // serialization. FILE SCOPE (compiled as C++) for rsbs::SaveManager; the
@@ -192,6 +225,14 @@ extern "C" {
 // deliberately READS the active game still never reads that game's save. FILE
 // SCOPE — it drives the C++-linkage ComboGui::RegisterComboMmOptionsWindow.
 #include "tests/test_combo_mm_options_window.c"
+
+// Combo tracker (#458): the per-game adapters over an authored MM shadow blob
+// + an authored OoT heap context, and the window's ADR 0008 inertness
+// tripwire. FILE SCOPE (compiled as C++) — the view lock uses std::vector for
+// the authored blob and the window lock drives the C++-linkage
+// ComboGui::RegisterComboTrackerWindow.
+#include "tests/test_combo_tracker_view.c"
+#include "tests/test_combo_tracker_window.c"
 
 // Sourced-grant model locks (ADR 0005, netplay 1a #460): per-source cursor
 // idempotency, switch-free received-order redemption, loud overflow with
@@ -262,6 +303,14 @@ extern "C" {
 // CTest timeout. No display, no ROM archives, no game loop.
 #include "tests/test_gp_watchdog.c"
 
+// #560 root-cause contention lock over the shared per-archive handle. FILE
+// SCOPE (compiled as C++): it drives the C++-linkage Ship::Context /
+// ResourceManager / ArchiveManager APIs directly. The wrapper
+// (Test_ZipContention below) performs the display-free shared bring-up and the
+// soh.o2r resolvability check (#562) before this body spins its loader
+// threads.
+#include "tests/test_zip_contention.c"
+
 // MM scene-command EXECUTE regression (issue #344). Unlike the parse test, the
 // body runs the parsed commands against a PlayState, so it needs MM's global.h
 // — which lives in an MM TU (games/mm/2s2h/mm_scene_execute_test.cpp) to keep
@@ -297,9 +346,8 @@ static TestResult Test_MMGIShim(void) {
     return MM_GIShim_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
-// MM Notification::Emit cross-bind lock (see the extern decl above). Thin
-// wrapper over the C entry point in
-// games/mm/2s2h/mm_notification_binding_test.cpp.
+// MM notification bridge lock (see the extern decl above). Thin wrapper over
+// the C entry point in games/mm/2s2h/mm_notification_binding_test.cpp.
 static TestResult Test_MMNotificationBinding(void) {
     return MM_NotificationBinding_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
@@ -438,6 +486,14 @@ TestResult Test_BootOoT(void) {
 }
 
 extern "C" int Rando_HeadlessSeedTest(const char* seedStr);
+// Full-bring-up generation lock (#560 "Why CI never saw it"; body in
+// games/oot/soh/Enhancements/randomizer/randomizer.cpp). Driven by the ONE rando
+// row that does not set RSBS_DISABLE_OTR_INIT=1: it first proves the normally
+// masked init block actually ran (populated ExtensionCache + vanilla item table +
+// registered debug console — the anti-vacuity guard), then generates through the
+// THREADED entry a player's file select takes rather than the synchronous
+// overload every other row uses.
+extern "C" int Rando_HeadlessFullInitSeedTest(const char* seedStr);
 // Lane B unified-seed determinism bridge (body in
 // games/oot/soh/Enhancements/randomizer/3drando/menu.cpp). Runs ONE seed
 // generation, asserts the live producer stamped gComboCtx, and writes a
@@ -502,6 +558,63 @@ TestResult Test_RandoGen(void) {
 
     int rc = Rando_HeadlessSeedTest("RSBSDIAG1");
     printf("[TEST] %s: seed generation rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #560 coverage hole. rando-gen above, and all 13 of its siblings, run under
+// RSBS_DISABLE_OTR_INIT=1, so CI's only seed-generation coverage runs a bring-up
+// with OTRAudio_Init / OTRExtScanner / VanillaItemTable_Init / DebugConsole_Init
+// all skipped (OTRGlobals.cpp:1811-1823), and drives the synchronous 3-arg
+// GenerateRandomizer inline. This entry is the same generation with none of that
+// masked and with the fill on a worker thread, which is what a player gets. It
+// asserts the un-masking BEFORE generating so the row cannot pass vacuously if
+// the env flag is ever re-added to it. Needs a display (Fast3dWindow) like
+// rando-gen, so `--test all` skips it.
+TestResult Test_RandoGenFullInit(void) {
+    printf("[TEST] rando-gen-full-init: seed generation with the full OTR bring-up live, on a worker thread "
+           "(#560)\n");
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    // Hard precondition, checked before bring-up because the failure mode is a
+    // 300-second HANG rather than a crash. With no archive loaded libultraship
+    // pauses the ResourceManager thread pool permanently (libultraship
+    // ResourceManager.cpp:58-61, "Nothing ever unpauses the thread pool"), and
+    // OTRAudio_Init inside the un-masked block does a synchronous
+    // ResourceMgr_LoadDirectory("audio") whose .get() then never returns. That is
+    // the real, previously-undocumented reason this tier carries
+    // RSBS_DISABLE_OTR_INIT=1 — and it is why CI's rando rows had been running
+    // with zero archives mounted for as long as the tier has existed (they were
+    // staged where only the install rules look; #560 fixes that in BOTH places
+    // the archive can come from — copy-existing-otrs.cmake / the Generate*Otr
+    // targets for a locally built archive, and a staging step in each workflow
+    // for the CI case where it arrives as a downloaded artifact instead).
+    // Resolve exactly the way the bring-up will (OTRGlobals.cpp:
+    // LocateFileAcrossAppDirs("soh.o2r")) and fail in a second with a readable
+    // reason instead of burning the row's timeout. Deliberately a FAIL and not a
+    // CTest SKIP: a staging regression must be loud, since the symptom it
+    // otherwise produces is a silently masked subsystem.
+    const std::string sohArchive = Ship::Context::LocateFileAcrossAppDirs("soh.o2r");
+    if (!std::filesystem::exists(sohArchive)) {
+        printf("[TEST] FAIL: no soh.o2r resolvable (tried '%s'). This row needs a mounted archive: with none, "
+               "libultraship pauses the resource thread pool and OTRAudio_Init's synchronous load never "
+               "returns. Build the port archives once ('cmake --build <dir> --target GenerateSohOtr "
+               "Generate2ShipOtr'), which now also lands them in the build root where the ctest rows look "
+               "(#560).\n",
+               sohArchive.c_str());
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    int rc = Rando_HeadlessFullInitSeedTest("RSBSFULL1");
+    printf("[TEST] %s: full-init seed generation rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
@@ -984,6 +1097,79 @@ TestResult Test_BootMM(void) {
 
     printf("[TEST] PASS: MM-first bring-up prerequisites satisfied\n");
     return TEST_PASS;
+}
+
+// #560 root-cause lock: libultraship's O2rArchive reads ONE shared zip_t with
+// no synchronization anywhere (ResourceManager::mMutex guards only the cache
+// map). During menu-triggered seed generation, a resource-pool worker and the
+// render thread zip_fread the same handle concurrently; both reads come back
+// zeroed ("type 0x0, Format 0, Version 0" — the exact logged pair from the
+// field crash), both loads return nullptr, and one unchecked consumer AVs. The
+// fix is a per-archive-object mutex in the libultraship fork; this row is its
+// deterministic regression tripwire. Body in
+// src/common/tests/test_zip_contention.c: 4 loader threads over disjoint cold
+// slices of real soh.o2r entries + 1 hot reader over cached ones, all through
+// the REAL ResourceManager against the archive #562 now mounts in-tier, with a
+// single-threaded calibration pass first so a contention failure can only mean
+// concurrency.
+//
+// Display-free (no Fast3dWindow needed): the loads run on this test's own
+// threads via LoadResourceProcess — the render thread's exact call shape — so
+// concurrency never depends on the resource pool's sizing, and the row runs in
+// the display-free redship tier and inside `--test all`.
+//
+// SKIP (not FAIL) when soh.o2r is unresolvable: the netplay-relay CI job
+// re-runs the redship label archive-less ON PURPOSE, as the tier's
+// archive-less control (#562). This does not reopen the silent-staging hole —
+// the rando-tier RandoGenFullInit row hard-fails on exactly that condition, so
+// a staging regression stays loud there while this row reports an honest CTest
+// "Skipped" (SKIP_RETURN_CODE 77) instead of a false red.
+TestResult Test_ZipContention(void) {
+    printf("[TEST] zip-contention: concurrent cold loads from one o2r return intact resources (#560)\n");
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    const std::string sohArchive = Ship::Context::LocateFileAcrossAppDirs("soh.o2r");
+    if (!std::filesystem::exists(sohArchive)) {
+        printf("[TEST] SKIP: no soh.o2r resolvable (tried '%s') — the archive-less redship control run keeps "
+               "this row skipped by design; RandoGenFullInit is the loud tripwire for a staging regression "
+               "(#560/#562)\n",
+               sohArchive.c_str());
+        return TEST_SKIP;
+    }
+
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    // Give the calibration pass the factory surface the real bring-up would
+    // have. MM's headless registrar (the same call Test_BootMM makes) brings
+    // the Path/Room/Cutscene per-archive dispatchers and MM's own types; the
+    // Texture/Blob factories below are otherwise registered only inside the
+    // games' display-bound Initialize paths. Texture matters here: the
+    // OTR-format textures in soh.o2r are the largest factory-parseable
+    // entries, and a cold glyph texture load is the render-thread arm of the
+    // #560 race.
+    if (MM_RegisterResourceFactoriesHeadless() != 0) {
+        printf("[TEST] FAIL: MM resource factory registration failed\n");
+        return TEST_FAIL;
+    }
+    auto loader = ctx->GetResourceManager()->GetResourceLoader();
+    loader->RegisterResourceFactory(std::make_shared<Fast::ResourceFactoryBinaryTextureV0>(), RESOURCE_FORMAT_BINARY,
+                                    "Texture", static_cast<uint32_t>(Fast::ResourceType::Texture), 0);
+    loader->RegisterResourceFactory(std::make_shared<Fast::ResourceFactoryBinaryTextureV1>(), RESOURCE_FORMAT_BINARY,
+                                    "Texture", static_cast<uint32_t>(Fast::ResourceType::Texture), 1);
+    loader->RegisterResourceFactory(std::make_shared<Ship::ResourceFactoryBinaryBlobV0>(), RESOURCE_FORMAT_BINARY,
+                                    "Blob", static_cast<uint32_t>(Ship::ResourceType::Blob), 0);
+
+    int rc = ZipContention_RunHeadless();
+    printf("[TEST] %s: zip contention rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 TestResult Test_SwitchOoTMM(void) {
@@ -1487,6 +1673,40 @@ TestResult Test_ComboMMOptionsWindow(void) {
     return Combo_MMOptionsWindow_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// Combo tracker adapters (#458). No Gui, but the OoT-side authoring seam
+// constructs a real Rando::Context, so it gets the same display-free bring-up
+// as the Gui bridges (cheap insurance against ctor-time singleton reads).
+TestResult Test_ComboTrackerView(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return Combo_TrackerView_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// Combo tracker window (#458, ADR 0008). Same bring-up as the Gui bridges
+// above and for the same reason (GuiWindow ctors read ConsoleVariables off
+// the Ship::Context singleton).
+TestResult Test_ComboTrackerWindow(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return Combo_TrackerWindow_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // MM option TABLE lock (#497 step 4, #499 step 5). No Gui, but it reads and
 // writes the option CVars through the real ConsoleVariables store, so it needs
 // the same display-free bring-up.
@@ -1606,6 +1826,11 @@ TestResult Test_Context(void) {
 
 const TestDescriptor gTests[] = {
     {"rando-gen", "Seed generation succeeds with default settings (#337)", Test_RandoGen},
+    // #560: the same generation with the RSBS_DISABLE_OTR_INIT mask OFF and the
+    // fill on a worker thread — the bring-up and call shape a player actually
+    // gets. Needs a display like rando-gen, so `--test all` skips it (below).
+    {"rando-gen-full-init", "Seed generation with the full OTR bring-up live, on a worker thread (#560)",
+     Test_RandoGenFullInit},
     // #441: no generated hint may resolve to the no-item sentinel. Needs a
     // display like rando-gen, so `--test all` skips it (below).
     {"rando-hint-validity", "Every generated hint names a real item (#441)", Test_RandoHintValidity},
@@ -1658,6 +1883,10 @@ const TestDescriptor gTests[] = {
      Test_MMOwlSaveArmState},
     {"boot-oot", "Shared-context bring-up leaves no null subsystems (#329)", Test_BootOoT},
     {"boot-mm", "MM-first bring-up prerequisites on the shared context (#330)", Test_BootMM},
+    // #560: the archive-handle contention lock. Display-free — its own threads
+    // ARE the concurrency — so `--test all` runs it; it SKIPs itself when no
+    // soh.o2r is mounted (the netplay-relay archive-less control tier).
+    {"zip-contention", "Concurrent cold o2r loads return intact resources (#560)", Test_ZipContention},
     {"switch-oot-mm", "Test game switch OoT -> MM", Test_SwitchOoTMM},
     {"switch-mm-oot", "Test game switch MM -> OoT", Test_SwitchMMOoT},
     {"midos-house", "Test Mido's House entrance (test mode)", Test_MidosHouse},
@@ -1703,6 +1932,14 @@ const TestDescriptor gTests[] = {
      Test_ComboSpoilerView},
     {"combo-spoiler-window", "Common-owned spoiler window registers de-collided; inert under every active game (#496)",
      Test_ComboSpoilerWindow},
+    // Combo tracker (#458): both games' progress through per-game adapters —
+    // MM's frozen shadow at registered offsets, OoT's suspended heap through a
+    // registered vtable — staleness-labelled, plus the window's inertness.
+    {"combo-tracker-view", "Tracker adapters recover authored MM shadow + OoT heap worlds, staleness-labelled (#458)",
+     Test_ComboTrackerView},
+    {"combo-tracker-window",
+     "Combo tracker window registers de-collided; inert under every active game and absent adapters (#458)",
+     Test_ComboTrackerWindow},
     // MM randomizer options surface (#497 step 4, #499). Three locks, split by
     // what they can see: the table needs MM's headers, the profile needs MM's
     // SaveContext, the window needs a Gui.
@@ -1759,6 +1996,14 @@ const TestDescriptor gTests[] = {
     {"save-size-mismatch", "Unified save Load rejects oversized tier, no clobber (#35)", Test_SaveSizeMismatch},
     {"save-legacy-size", "Unified save Load zero-extends shorter legacy tiers (#35)", Test_SaveLegacySize},
     {"save-crc-corrupt", "Unified save Load rejects corrupt payload, no clobber (#35)", Test_SaveCrcCorrupt},
+    // #533: REFUSED as a first-class slot state, distinct from ABSENT.
+    {"save-refused-quarantine", "A refused .redsave is quarantined byte-exact and the slot write-latched (#533)",
+     Test_SaveRefusedQuarantine},
+    {"save-write-latch", "Save refuses slots this session never loaded/created/erased (#533)", Test_SaveWriteLatch},
+    {"save-arm-on-create", "File-create quarantines a failing .redsave before its first write (#533)",
+     Test_SaveArmOnCreate},
+    {"save-refused-meta", "The slot surface reports ABSENT / VALID / REFUSED distinctly (#533)",
+     Test_SaveRefusedMeta},
     // Tier-1 format-headroom locks: the migration path Lane A's widened
     // sharedItems rides on. Without these, "ComboContext can grow" is a claim.
     {"save-combo-legacy-record", "Pre-headroom Tier-1 still loads and zero-extends", Test_SaveComboLegacyRecord},
@@ -1766,6 +2011,14 @@ const TestDescriptor gTests[] = {
     {"save-combo-oversize", "Load rejects an oversized Tier-1 record, no clobber", Test_SaveComboOversize},
     {"save-tagged-items", "Origin-tagged shared items round-trip; empty slots stay unset (ADR 0002)",
      Test_SaveTaggedItems},
+    // The commit choke point (#537/#531): one game-thread-marshalled snapshot,
+    // a monotonic generation in both artifacts, and load-time skew detection.
+    {"commit-generation-monotonic", "Choke-point commits stamp a monotonic Tier-1 generation (#537)",
+     Test_CommitGenerationMonotonic},
+    {"commit-torn-write", "Post-stage mutation cannot reach the .redsave; the #537 tear is unrepresentable",
+     Test_CommitTornWrite},
+    {"commit-generation-skew", "Load detects .redsave/.sav freshness divergence (#531/#564 V16)",
+     Test_CommitGenerationSkew},
     {"mm-scene-parse", "MM scene commands parse via the S2H factory (#344)", Test_MMSceneParse},
     {"seq-map-bounds", "Sequence-map capacity covers the id range + custom slack (#371, #378)", Test_SeqMapBounds},
     {"cvar-classification", "Cross-game CVar classification matches ADR 0003 + the inventory (#34)",
@@ -1778,7 +2031,8 @@ const TestDescriptor gTests[] = {
     {"mm-culling-binding", "MM's Ship_ExtendedCulling* bind MM's Actor, not OoT's (#382)", Test_MMCullingBinding},
     {"mm-gi-shim", "MM hook registration goes through the MM-owned shim, not the shared 4-byte instance (#395)",
      Test_MMGIShim},
-    {"mm-notification-binding", "MM Notification::Emit binds OoT's only while Options stays layout-identical (#427)",
+    {"mm-notification-binding",
+     "MM's toasts reach OoT's overlay through the MM_Notify_Emit bridge, Options stays layout-identical (#427)",
      Test_MMNotificationBinding},
     {"mm-fb-effects-binding", "MM's scaled framebuffer draw binds its own body against MM's dimensions (#386)",
      Test_MMFbEffectsBinding},
@@ -1881,6 +2135,7 @@ int TestRunner_Run(const char* testName) {
     if (strcmp(testName, "all") == 0) {
         int failures = 0;
         int passed = 0;
+        int skipped = 0;
         int total = 0;
 
         for (int i = 0; gTests[i].name != nullptr; i++) {
@@ -1888,7 +2143,8 @@ int TestRunner_Run(const char* testName) {
             // bring-up) and the RSBS_DISABLE_OTR_INIT environment; they run as
             // their own CTests ("rando" label, under xvfb-run) rather than in
             // this display-free suite, where they would hang the 60s timeout.
-            if (strcmp(gTests[i].name, "rando-gen") == 0 || strcmp(gTests[i].name, "rando-determinism") == 0 ||
+            if (strcmp(gTests[i].name, "rando-gen") == 0 || strcmp(gTests[i].name, "rando-gen-full-init") == 0 ||
+                strcmp(gTests[i].name, "rando-determinism") == 0 ||
                 strcmp(gTests[i].name, "rando-hint-validity") == 0 ||
                 strcmp(gTests[i].name, "rando-hint-reload") == 0 ||
                 strcmp(gTests[i].name, "rando-hint-crossgame") == 0 ||
@@ -1907,19 +2163,30 @@ int TestRunner_Run(const char* testName) {
 
             if (result == TEST_PASS) {
                 passed++;
+            } else if (result == TEST_SKIP) {
+                // Environment-gated (e.g. zip-contention with no archive
+                // mounted): counted and reported, never a failure.
+                skipped++;
             } else if (result == TEST_FAIL || result == TEST_ERROR) {
                 failures++;
             }
         }
 
         printf("\n=== Test Summary ===\n");
-        printf("Total: %d, Passed: %d, Failed: %d\n", total, passed, failures);
+        printf("Total: %d, Passed: %d, Skipped: %d, Failed: %d\n", total, passed, skipped, failures);
 
         return failures;
     }
 
     // Run single test
     TestResult result = RunSingleTest(testName);
+    if (result == TEST_SKIP) {
+        // Rows that can self-skip declare SKIP_RETURN_CODE 77 in
+        // CMake/SingleExecutable.cmake, so ctest reports "Skipped" rather than
+        // a false red (the netplay-relay job re-runs the redship label
+        // archive-less as a control; see Test_ZipContention).
+        return 77;
+    }
     return (result == TEST_PASS) ? 0 : 1;
 }
 

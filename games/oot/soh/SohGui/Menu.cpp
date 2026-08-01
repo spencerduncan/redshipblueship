@@ -7,6 +7,7 @@
 #include <variant>
 #include <spdlog/fmt/fmt.h>
 #include <tuple>
+#include <unordered_set>
 
 extern "C" {
 #include "z64.h"
@@ -481,15 +482,39 @@ void Menu::MenuDrawItem(WidgetInfo& widget, uint32_t width, UIWidgets::Colors me
                     SPDLOG_ERROR(msg.c_str());
                     break;
                 }
-                auto window = Ship::Context::GetInstance()->GetWindow()->GetGui()->GetGuiWindow(widget.windowName);
-                if (!window) {
-                    std::string msg =
-                        fmt::format("Error drawing window contents: windowName {} does not exist", widget.windowName);
-                    SPDLOG_ERROR(msg.c_str());
-                    break;
-                }
                 auto options = std::static_pointer_cast<UIWidgets::WindowButtonOptions>(widget.options);
                 options->color = menuThemeIndex;
+                auto window = Ship::Context::GetInstance()->GetWindow()->GetGui()->GetGuiWindow(widget.windowName);
+                if (!window) {
+                    // Expected state, not an error (#535): a row may name a
+                    // window whose owner has not registered it on the shared
+                    // Gui yet. This used to SPDLOG_ERROR and skip the draw, so
+                    // an affected page cost one log line per row per frame for
+                    // as long as it stayed open and showed a labelled separator
+                    // over nothing. Grey the row out but keep its name, the
+                    // treatment #497 settled on — a row that disappears reads
+                    // as a broken menu rather than as a not-yet state.
+                    //
+                    // Still reported, but ONCE per name and at warn: a row
+                    // naming a window nothing ever registers is a real
+                    // authoring bug, and dropping the log entirely would make
+                    // it invisible. Per-frame is what made the old line
+                    // useless, not the line itself.
+                    static std::unordered_set<std::string> reportedMissingWindows;
+                    if (reportedMissingWindows.insert(widget.windowName).second) {
+                        SPDLOG_WARN("windowName {} is not registered; drawing \"{}\" disabled until it is",
+                                    widget.windowName, widget.name);
+                    }
+                    if (options->showButton) {
+                        disabledTempTooltip += "\n- Its window is not available yet";
+                        ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0, 0));
+                        UIWidgets::Button((ICON_FA_EXTERNAL_LINK_SQUARE " " + widget.name).c_str(),
+                                          { { options->tooltip, true, disabledTempTooltip.c_str() }, options->size,
+                                            options->padding, options->color });
+                        ImGui::PopStyleVar();
+                    }
+                    break;
+                }
                 if (options->showButton) {
                     UIWidgets::WindowButton(widget.name.c_str(), widget.cVar, window, *options);
                 }

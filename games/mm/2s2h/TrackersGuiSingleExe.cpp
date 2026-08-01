@@ -352,11 +352,10 @@ extern "C" void MM_TrackersGui_Init(void) {
 
     S2H::TrackersGui::RegisterWindows(gui);
 
-    // #489 cause 1: honour the PERSISTED visibility CVars. Registration is
-    // once-only per process (MM_Rando_Init's sRandoInitDone), and libultraship
-    // never re-reads a window's visibility CVar after its ctor, so a config
-    // that already says "gWindows.ItemTracker=1" from a previous session must
-    // be applied here or the window silently stays shut. Runtime toggling is
+    // #489 cause 1: honour the PERSISTED visibility CVars. libultraship never
+    // re-reads a window's visibility CVar after its ctor, so a config that
+    // already says "gWindows.ItemTracker=1" from a previous session must be
+    // applied here or the window silently stays shut. Runtime toggling is
     // handled per-frame by the MMActiveGated Draw wrapper.
     S2H::TrackersGui::SyncVisibilityFromCVars();
 
@@ -364,8 +363,18 @@ extern "C" void MM_TrackersGui_Init(void) {
     // these from BenPort.cpp's InitOTR; gated on the archive because the
     // string-path LoadGuiTexture crashes on a missing resource (#330 class),
     // and mm-rando-gen brings this path up windowed but archive-free.
-    if (MM_Rando_AssetsReady()) {
+    //
+    // Once-only, unlike the two calls above: Gui::LoadGuiTexture overwrites
+    // mGuiTextures[name] without unloading the handle it replaces, so a second
+    // pass would leak one GPU texture per icon. This function stopped being
+    // called once per process with #535 — rsbs/src/main.cpp now also calls it
+    // at startup, which in an MM-first session lands after MM_Rando_Init has
+    // already loaded the icons, and in an OoT-first session runs archive-free
+    // and leaves the load to MM_Rando_Init.
+    static bool sTexturesLoaded = false;
+    if (!sTexturesLoaded && MM_Rando_AssetsReady()) {
         MM_LoadGuiTextures();
+        sTexturesLoaded = true;
     }
 }
 

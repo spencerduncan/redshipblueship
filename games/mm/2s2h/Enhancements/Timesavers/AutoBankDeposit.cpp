@@ -19,7 +19,7 @@ static void EmitDepositNotification(s16 depositAmount, s16 newBalance) {
     notif.suffix = "New Balance: " + std::to_string(newBalance);
     notif.suffixColor = ImVec4(0.3f, 1.0f, 0.3f, 1.0f);
     notif.remainingTime = 6.0f;
-    Notification::Emit(notif);
+    Notification::MM_Notify_Emit(notif);
 }
 
 static void GrantBankFirstReward() {

@@ -84,10 +84,18 @@
 #ifdef RSBS_SINGLE_EXECUTABLE
 
 #include <cstdio>
+#include <cstring>
+#include <string>
 
 #include "Rando/Rando.h"
 #include "Rando/Types.h"
 #include "Rando/StaticData/StaticData.h"
+// The arrival toast (#494), sent through MM_Notify_Emit — the explicit #427
+// item-1 bridge to OoT's shared overlay. MM's own BenGui/Notification.cpp is
+// excluded from single-exe builds and Notification::Emit is deliberately NOT
+// declared there; the layouts both sides compile against are locked by
+// src/common/notification_layout_probe.h and mm_notification_binding_test.cpp.
+#include "2s2h/BenGui/Notification.h"
 
 extern "C" {
 #include "variables.h" // MM_gPlayState
@@ -162,32 +170,42 @@ extern "C" {
 //      pickup text promises an award in Termina; delivering MM's trap machinery
 //      instead would make that text a lie.
 //
-//  (6) It is NOT a shared cross-game resource (#525). Rupees and hearts are one
-//      quantity spanning both games now — one wallet, one health bar, capacity
-//      AND current value (src/common/shared_resources.h) — so there is nothing
-//      left for a wallet or heart item to CROSS. Shipping one anyway would hand
-//      the player a second copy of a capacity they already have, or worse, a
-//      rupee award that the next harvest reconciles straight back out. Six rows
-//      left with the sharing that replaced them: RI_PROGRESSIVE_WALLET,
+//  (6) It is NOT a shared cross-game resource (#525). Rupees, hearts, magic and
+//      ammo are one quantity spanning both games now — one wallet, one health
+//      bar, one magic meter, one quiver, capacity AND current value
+//      (src/common/shared_resources.h) — so there is nothing left for a
+//      wallet, heart, magic or ammo item to CROSS. Shipping one anyway would
+//      hand the player a second copy of a capacity they already have, or worse,
+//      a rupee award that the next harvest reconciles straight back out. Six
+//      rows left with the sharing that replaced them: RI_PROGRESSIVE_WALLET,
 //      RI_WALLET_ADULT, RI_WALLET_GIANT, RI_DOUBLE_DEFENSE, RI_HEART_CONTAINER
-//      and RI_HEART_PIECE.
+//      and RI_HEART_PIECE. Three more left when shared magic landed (#525's
+//      optional tier): RI_PROGRESSIVE_MAGIC, RI_SINGLE_MAGIC and
+//      RI_DOUBLE_MAGIC. Eight more left with shared ammo: RI_BOMB_BAG_20,
+//      RI_BOMB_BAG_30, RI_BOMB_BAG_40, RI_QUIVER_40, RI_QUIVER_50,
+//      RI_PROGRESSIVE_BOMB_BAG, RI_BOW and RI_PROGRESSIVE_BOW. And one more
+//      with the shared hookshot: RI_HOOKSHOT. Both games keep the hookshot in a
+//      single inventory byte, which makes it a monotonic TIER (0 none, 1
+//      hookshot, 2 longshot) rather than an item to hand over once — see
+//      RSBS_SHARED_RES_HOOKSHOT_TIER.
+//
+//      THE BOW ROWS LEAVE FOR A REASON WORTH SPELLING OUT, because "a bow is
+//      not ammo" is the obvious objection. MM does not separate the two: its
+//      own give for the bow sets UPG_QUIVER to 1 (z_parameter.c), so in MM
+//      owning the bow IS quiver tier 1 — and that tier is now the shared
+//      resource. A bow crossing would therefore mutate the shared quantity,
+//      which is precisely what this criterion excludes. The same logic retires
+//      OoT's RG_FAIRY_BOW from its own pool.
 //
 //      Note RI_DOUBLE_DEFENSE was NOT in the "Health" block — it sat under core
 //      equipment, so a block delete misses it. The block-shaped grouping below
 //      is presentational; criterion 6 is not.
 //
-//      This criterion grows with the shared-resource set. Shared magic and the
-//      ammo upgrades are the queued members of that class, and when they land,
-//      RI_PROGRESSIVE_MAGIC / RI_SINGLE_MAGIC / RI_DOUBLE_MAGIC and the
-//      quiver/bomb-bag rows leave by this same rule — see the collision trap in
-//      #525's optional tier before deleting the bomb bags, since "Bomb Bag" is
-//      the only name shared with OoT's pool and a test depends on it.
-//
 // Everything else is IN — every mask, every song, every bottle, both shields,
-// the sword and magic and quiver and bomb-bag upgrades, the
+// the sword upgrades, the
 // progressives (which resolve against the LIVE MM save, so they are the single
 // best-behaved cross-game gift, and the OoT pool sets the precedent with
-// RG_PROGRESSIVE_HOOKSHOT / RG_PROGRESSIVE_STRENGTH), the boss remains, the
+// RG_PROGRESSIVE_STRENGTH), the boss remains, the
 // deeds and letters and other sidequest items, the owl statues, the Tingle maps,
 // and the dungeon keys/maps/compasses/stray fairies.
 //
@@ -201,36 +219,29 @@ extern "C" {
 // deferred to the first frame with a live MM_gPlayState (see the file header),
 // which is item-agnostic and O(1) in pool size — the #502 design note says in as
 // many words that an allowlist audited against today's pool would expire the
-// moment somebody added a row. This pool is that row, 128 times over, and it
+// moment somebody added a row. This pool is that row, 116 times over, and it
 // relies on the deferral instead of re-auditing it.
 //
 // Display names are MM's own (Rando::StaticData::Items) verbatim. They are a
 // PERSISTENCE KEY, not decoration: Combo_GetForeignItemByNameFor is the
 // spoiler-LOAD inverse, so renaming an entry breaks spoiler round-trips for
-// already-generated worlds. "Bomb Bag" is deliberately identical to the OoT
-// pool's row of the same name — that collision is real, is the reason the
+// already-generated worlds. "Lens of Truth" is deliberately identical to the
+// OoT pool's row of the same name — that collision is real, is the reason the
 // lookups are keyed on (originGame, name), and is asserted in
-// test_foreign_items.c rather than dodged.
+// test_foreign_items.c rather than dodged. It inherited that job from "Bomb
+// Bag", which was the colliding pair until shared ammo retired both halves;
+// OoT's pool gained its Lens row in the same commit that deleted them, because
+// the collision test goes red the instant one side exists without the other.
 static const ComboForeignItemDef kForeignPoolMMV1[] = {
     // --- Progressive upgrades: resolve against the live MM save at give time.
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_PROGRESSIVE_SWORD }, "Progressive Sword", "a " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_PROGRESSIVE_BOW }, "Progressive Bow", "a " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_PROGRESSIVE_BOMB_BAG }, "Progressive Bomb Bag", "a " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_PROGRESSIVE_MAGIC }, "Progressive Magic", "" },
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_PROGRESSIVE_LULLABY }, "Progressive Goron Lullaby", "" },
 
     // --- Core equipment, abilities and capacity upgrades.
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_BOW }, "Bow", "a " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_HOOKSHOT }, "Hookshot", "the " },
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_LENS }, "Lens of Truth", "the " },
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_ARROW_FIRE }, "Fire Arrows", "" },
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_ARROW_ICE }, "Ice Arrows", "" },
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_ARROW_LIGHT }, "Light Arrows", "" },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_BOMB_BAG_20 }, "Bomb Bag", "a " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_BOMB_BAG_30 }, "Big Bomb Bag", "a " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_BOMB_BAG_40 }, "Biggest Bomb Bag", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_QUIVER_40 }, "Large Quiver", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_QUIVER_50 }, "Largest Quiver", "the " },
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_POWDER_KEG }, "Powder Keg", "a " },
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_PICTOGRAPH_BOX }, "Pictograph Box", "a " },
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MAGIC_BEAN }, "Magic Bean", "a " },
@@ -242,8 +253,6 @@ static const ComboForeignItemDef kForeignPoolMMV1[] = {
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SWORD_GILDED }, "Gilded Sword", "the " },
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_GREAT_FAIRY_SWORD }, "Great Fairy's Sword", "the " },
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_GREAT_SPIN_ATTACK }, "Great Spin Attack", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SINGLE_MAGIC }, "Power of Magic", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_DOUBLE_MAGIC }, "Magic Upgrade", "a " },
 
     // --- Bottles (the bottle itself, not its refills).
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_BOTTLE_EMPTY }, "Empty Bottle", "an " },
@@ -405,9 +414,83 @@ bool IsGiveableItemId(uint16_t riId) {
     return riId != (uint16_t)RI_UNKNOWN && riId != (uint16_t)RI_NONE && riId < (uint16_t)RI_MAX;
 }
 
+/**
+ * The WHOLE arrival toast for `riId`, read from MM's OWN item table.
+ *
+ * Returns the complete Notification::Options rather than the item name alone,
+ * so that the ROM-free tier's assertion covers every field the player can read
+ * (MM_ForeignItem_TestArrivalText at the bottom of this file renders it the way
+ * the overlay does). A bridge that exposed only the name would let a re-added
+ * cross-game tell — an origin badge in `.prefix`, "from Ocarina of Time"
+ * appended to the verb — pass the lock untouched, which is exactly the
+ * regression #510 exists to prevent.
+ *
+ * Icon and name come from the same two accessors MM's native rando pickup toast
+ * calls (Rando/MiscBehavior/CheckQueue.cpp) — this is an MM item being received
+ * in MM, so nothing here is cross-game and nothing needs an archive that is not
+ * mounted. `.itemIcon` may be nullptr; Emit then renders text-only.
+ *
+ * Field arrangement matches that native toast exactly (verb in `.message`, item
+ * in `.suffix`, no `.prefix`), because Options colours each field differently
+ * and a bespoke arrangement would itself be a "this one is special" tell.
+ */
+Notification::Options BuildArrivalToast(RandoItemId randoItemId) {
+    return Notification::Options{
+        .itemIcon = Rando::StaticData::GetIconTexturePath(randoItemId),
+        .message = "You got",
+        .suffix = Rando::StaticData::GetItemName(randoItemId), // MM's article + name, e.g. "the Bunny Hood"
+    };
+}
+
+/**
+ * The toast as one line of text, joined the way Notification::Window::Draw lays
+ * it out: every non-empty field on the same line, one gap between neighbours
+ * (soh/Notification/Notification.cpp's ImGui::SameLine). The ROM-free lock's
+ * observable — see MM_ForeignItem_TestArrivalText.
+ */
+std::string RenderToastLine(const Notification::Options& toast) {
+    std::string line;
+    const std::string* const fields[] = { &toast.prefix, &toast.message, &toast.suffix };
+    for (const std::string* field : fields) {
+        if (field->empty()) {
+            continue;
+        }
+        if (!line.empty()) {
+            line += ' ';
+        }
+        line += *field;
+    }
+    return line;
+}
+
 /** The actual give. Precondition: MM_gPlayState != NULL and the id is real. */
 void GiveNow(uint16_t riId) {
-    Rando::GiveItem((RandoItemId)riId);
+    const RandoItemId randoItemId = (RandoItemId)riId;
+    Rando::GiveItem(randoItemId);
+
+    // #494: the arrival is the player's ONLY signal that this item landed.
+    // Until now it was silent — the item appeared in the inventory an arbitrary
+    // number of scenes after the OoT check that granted it, with no in-game
+    // feedback at all. That is the same gap the OoT arrival closed for the other
+    // direction (OoT_AwardSharedItem), here on MM's side.
+    //
+    // PRESENTED AS AN ORDINARY MM PICKUP: MM's own toast, MM's own icon, MM's
+    // own "article + name" sentence, and no mention of where the item came from
+    // (BuildArrivalToast, above).
+    //
+    // A toast rather than the get-item cutscene: this fires on a gameplay frame
+    // the player did not initiate, where seizing the camera and the message
+    // context would be a hijack. The toast is exactly what MM already falls back
+    // to for its own pickups when the cutscene is skipped.
+    //
+    // EMITTED HERE AND NOT IN MM_AwardSharedItem (GameExports_SingleExe.cpp)
+    // because this is the one point that is gameplay-gated by construction: both
+    // callers reach it only with a live MM_gPlayState. The award callback runs at
+    // the presence-gated arrival point, which the ROM-free rows drive headlessly
+    // (src/common/tests/test_foreign_award.c calls the real MM_ConsumeSharedItems
+    // with no PlayState and no Gui), so a Notification::Emit there would put an
+    // ImGui/audio call on a display-free CI path.
+    Notification::MM_Notify_Emit(BuildArrivalToast(randoItemId));
 }
 
 } // namespace
@@ -544,6 +627,45 @@ extern "C" int MM_ForeignItem_TestIsJunkClassId(uint16_t riId) {
         return -1;
     }
     return (it->second.randoItemType == RITYPE_JUNK) ? 1 : 0;
+}
+
+/**
+ * The WHOLE arrival toast for `riId` as one line, NUL-terminated into `out`
+ * (#494) — every field the player can read, joined the way the overlay draws
+ * them.
+ *
+ * The SAME BuildArrivalToast the give emits, not a paraphrase of it — a lock
+ * that rebuilt the string itself would keep passing after the toast changed.
+ * What CI can honestly assert is the resolution surface: that MM's own item
+ * table names every entry of MM's own pool, and that the toast is that name
+ * behind the native verb and NOTHING ELSE. Extra prose anywhere in the toast —
+ * "it came from Ocarina of Time" appended to the verb, an origin badge in the
+ * unused `.prefix` — breaks the equality, which is the no-tell contract (#510)
+ * stated as an assertion. Reporting only the item name would have left both of
+ * those regressions invisible to CI.
+ *
+ * @return the length written, or -1 if the id names no real MM item or `out` is
+ *         too small (never a truncated string).
+ */
+extern "C" int MM_ForeignItem_TestArrivalText(uint16_t riId, char* out, int cap) {
+    if (out == nullptr || cap <= 0 || !IsGiveableItemId(riId)) {
+        return -1;
+    }
+    const std::string line = RenderToastLine(BuildArrivalToast((RandoItemId)riId));
+    if ((int)line.size() >= cap) {
+        return -1;
+    }
+    memcpy(out, line.c_str(), line.size() + 1);
+    return (int)line.size();
+}
+
+/** The arrival toast's icon path for `riId`, or nullptr — which is a text-only
+ *  toast, not a defect (Notification::Emit skips a null icon). */
+extern "C" const char* MM_ForeignItem_TestArrivalIcon(uint16_t riId) {
+    if (!IsGiveableItemId(riId)) {
+        return nullptr;
+    }
+    return BuildArrivalToast((RandoItemId)riId).itemIcon;
 }
 
 #endif // RSBS_SINGLE_EXECUTABLE

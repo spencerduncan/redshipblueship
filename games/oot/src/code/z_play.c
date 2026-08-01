@@ -411,6 +411,7 @@ void OoT_Play_Init(GameState* thisx) {
     s32 playerStartBgCamIndex;
     s32 i;
     u8 baseSceneLayer;
+    s32 crossGameArrival = 0;
     s32 pad[2];
 
     enableBetaQuest();
@@ -427,6 +428,12 @@ void OoT_Play_Init(GameState* thisx) {
         // continuity point, so value-gating would drop a legitimate restore.
         if (Combo_HasStartupEntranceForGame("oot")) {
             uint16_t startupEntrance = Combo_GetStartupEntranceForGame("oot");
+            // Latched for the frame-counter reset below. Set from the presence
+            // check rather than inside the consuming branch on purpose: an
+            // out-of-range id is still an arrival that was routed here after a
+            // stint in the other game, so its Play_Init inherits an equally
+            // stale gameplayFrames and wants the same reset.
+            crossGameArrival = 1;
             if (startupEntrance >= ENTR_MAX) {
                 // Defense in depth: never index gEntranceTable out of range,
                 // even if a bogus value slips past the game-affinity check.
@@ -584,8 +591,39 @@ void OoT_Play_Init(GameState* thisx) {
         }
     }
 
-    // Properly initialize the frame counter so it doesn't use garbage data
-    if (!firstInit) {
+    // Properly initialize the frame counter so it doesn't use garbage data.
+    //
+    // Two distinct reasons to zero it here:
+    //
+    // 1. !firstInit — the process's very first Play_Init. The gamestate arena
+    //    is still fill-pattern garbage, so the counter has never been a count.
+    //    Once past that, gameplayFrames is deliberately session-long: it
+    //    survives ordinary scene transitions (each of which re-runs Play_Init)
+    //    because actors use it as a shared animation/behaviour phase.
+    //
+    // 2. crossGameArrival — a cross-game arrival into OoT. The single-exe
+    //    process keeps running across a switch, so firstInit stays latched and
+    //    the counter carries the SUSPENDED session's value into the arrival
+    //    (or MM's arena leftovers, if the gamestate memory was recycled while
+    //    OoT was away). An arrival is not a scene transition: it is a fresh
+    //    spawn from a save that was just restored and neutralized above —
+    //    exactly the situation a file load authors, and a file load starts the
+    //    counter at 0 (ResetGameplayFrames.cpp zeroes it on the way through the
+    //    title screen, so FileChoose_LoadGame enters gameplay at zero).
+    //
+    // Zero is also how the port already signals "a load just happened, hold off
+    // the autosave": z_kaleido_scope_PAL.c does the same assignment on a
+    // pause-menu save-and-respawn ("Reset frame counter to prevent autosave on
+    // respawn"). Without it on the return leg the interval autosave's warm-up
+    // guard (`gameplayFrames < 60`, soh/Enhancements/QoL/Autosave.cpp) is void
+    // on every re-arrival and a save can land during the arrival fade, before
+    // the restored save has settled on screen.
+    //
+    // Every other consumer reads gameplayFrames as a free-running phase
+    // (texture scroll, enemy attack cadence, effect spawn cadence), so an
+    // arrival-time reset is at most a one-frame phase jump for them — the same
+    // discontinuity they already take on a file load.
+    if (!firstInit || crossGameArrival) {
         play->gameplayFrames = 0;
         firstInit = 1;
     }

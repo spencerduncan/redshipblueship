@@ -105,12 +105,20 @@ GIEvent& MM_GameEvents_Current();
  * migration (#392, contract in PR #415).
  *
  * MM's upstream registry lives in `GameInteractor::RegisteredGameHooks<H>` /
- * `HooksToUnregister<H>` inline statics. Those mangle under the shared
- * `class GameInteractor` scope, so an MM instantiation COMDAT-contends with
- * OoT's identically-named instantiations — with incompatible H::fn signatures
- * for 14 of the 16 shared hook names (#395/#367 class) — and the registering
- * members read/write `this->nextHookId` on the 4-byte shared allocation (the
- * #395 OOB). This registry reproduces the upstream semantics MM's Rando code
+ * `HooksToUnregister<H>` inline statics, and the registering members
+ * read/write `this->nextHookId` on the 4-byte shared allocation — the #395
+ * OOB, which is the standing reason MM must not use them and which
+ * include/mm_gi_hook_guard.h enforces per target.
+ *
+ * Those statics ALSO used to COMDAT-contend with OoT's identically-named
+ * instantiations, whose H::fn payloads differ for 14 of the 16 shared hook
+ * names (#395/#367 class). That half is closed since #470: MM's hook types
+ * are tag-scoped under `GameInteractor::MM_HookTypes` (2s2h/GameInteractor/
+ * GameInteractor.h), so no MM hook-keyed symbol can share a mangled name
+ * with OoT's tree. Do not re-derive the folding argument from this file —
+ * the #395 OOB alone is what keeps registration off the upstream members.
+ *
+ * This registry reproduces the upstream semantics MM's Rando code
  * expects (shared id counter, deferred unregistration flushed at dispatch)
  * under the S2H namespace: only MM TUs instantiate it, so every fold partner
  * agrees on MM's types, and no instance member of the shared class is ever
@@ -135,33 +143,31 @@ GIEvent& MM_GameEvents_Current();
  * migration moved that target's direct Register* sites onto this registry.
  * Most of the hook types involved were ALREADY dormant — they carry
  * COND_HOOK/COND_ID_HOOK registrants from other MM targets and are listed in
- * #438's table (OnOpenText, OnActorInit, OnActorKill). Two types reach this
- * registry for the first time with that migration and have no Execute
- * placement, plus one that #438's table did not yet name:
+ * #438's table (OnOpenText, OnActorInit, OnActorKill). Two remain with no
+ * Execute placement:
  *
  *   - OnPlayDestroy       (Modes/PlayAsKafei.cpp, Songs/BetterSongOfDoubleTime.cpp)
- *   - BeforeKaleidoDrawPage (Masks/PersistentMasks.cpp)
  *   - OnPlayerPostLimbDraw  (Masks/PersistentMasks.cpp)
  *
  * These are dormant, NOT newly broken: before the migration the same
  * registrations went into MM's `GameInteractor::RegisteredGameHooks<H>`
  * statics while MM's call sites for GameInteractor_ExecuteOnPlayDestroy /
- * ExecuteBeforeKaleidoDrawPage / ExecuteOnPlayerPostLimbDraw resolved to
- * OoT's active-game-gated wrappers or to src/common/mm_stubs.c no-ops — so
- * the handlers never ran either way. What the migration removes is the #395
- * out-of-bounds write the raw registration performed on the way to being
- * dead. Wiring them is #438's job, and BeforeKaleidoDrawPage in particular
- * should be wired together with its AfterKaleidoDrawPage pair rather than
- * half-fixed (the reasoning mm_stubs.c records for the EndOfCycleSave pair).
+ * ExecuteOnPlayerPostLimbDraw resolved to OoT's active-game-gated wrappers or
+ * to src/common/mm_stubs.c no-ops — so the handlers never ran either way.
+ * What the migration removes is the #395 out-of-bounds write the raw
+ * registration performed on the way to being dead. Wiring them is #438's job;
+ * both registrant TUs are link-elided today (plain-archive 2ship_enh), so
+ * dispatch for them stays deliberately deferred to the WHOLE_ARCHIVE flip
+ * (ADR 0004 §5) — wiring now would execute an always-empty registry.
  *
- * One upstream quirk is preserved deliberately rather than repaired here:
- * PersistentMasks.cpp unregisters BeforeKaleidoDrawPage through the plain
- * Unregister<> leg while registering it through RegisterForID<>, so the
- * pending id never matches and the registration is never removed — exactly
- * what upstream 2S2H does (its UnregisterGameHook and RegisterGameHookForID
- * likewise address different maps). While the type stays dormant the stale
- * entry is inert; whoever wires its Execute under #438 must fix the leg
- * pairing at the same time, or the mask border will draw twice.
+ * BeforeKaleidoDrawPage left this list with the #438 pause-menu batch: it is
+ * dispatched from z_kaleido_scope_NES.c as a pair with AfterKaleidoDrawPage
+ * (the reasoning mm_stubs.c records for the EndOfCycleSave pair), and the
+ * upstream quirk this note used to preserve — PersistentMasks.cpp pairing a
+ * plain Unregister<> with RegisterForID<>, so the pending id never matched
+ * its bucket and stale registrations stacked per re-run — was repaired in
+ * the same change, as required here, so un-elision cannot make the mask
+ * border draw once per stack entry.
  *
  * Deviation from upstream, on purpose: iteration uses std::map (stable id
  * order) rather than unordered_map, so dispatch order is deterministic —

@@ -46,13 +46,13 @@ extern "C" {
  */
 typedef struct {
     SharedItem item;     // originGame == GAME_OOT, flags == 0, id == the RG_* value
-    const char* name;    // e.g. "Progressive Hookshot"
+    const char* name;    // e.g. "Megaton Hammer"
     const char* article; // "the ", "a ", "an " or "" — see below
 } ComboForeignItemDef;
 
 // WHY THE ARTICLE IS PART OF THE DESCRIPTOR (#510). A cross-game item is
 // presented as an ORDINARY pickup of whichever game the player found it in —
-// "You found the Bomb Bag!", never "it belongs to the other game". Both games
+// "You found the Lens of Truth!", never "it belongs to the other game". Both games
 // build that sentence by prepending a per-item article (MM:
 // Rando::StaticData::Items[].article; OoT: Item::GetArticle()), but the HOST
 // game cannot look up the FOREIGN game's item table — that is the whole ADR 0002
@@ -81,8 +81,10 @@ typedef struct {
 // pool linked resolves cleanly — the missing origin simply has no entries,
 // rather than failing to link.
 //
-// (originGame, name) IS THE KEY. Bare `name` is not: "Bomb Bag" is literally
-// present in BOTH pools (OoT's RG_BOMB_BAG row and MM's RI_BOMB_BAG_20 row), so
+// (originGame, name) IS THE KEY. Bare `name` is not: "Lens of Truth" is
+// literally present in BOTH pools (OoT's RG_LENS_OF_TRUTH row and MM's RI_LENS
+// row — it took the job over from "Bomb Bag", whose two halves both left when
+// shared ammo made the bomb-bag capacity a shared resource), so
 // a name-only inverse silently resolves to whichever pool it scans first and
 // writes a WRONG ORIGIN TAG into the placement table — the #356 aliasing class,
 // arriving through the one path that rebuilds state from untrusted text on
@@ -139,7 +141,7 @@ const char* Combo_GetForeignItemName(SharedItem item);
  *
  * Split from the name rather than baked into it because the two are consumed
  * separately: a spoiler line wants the bare name, a pickup textbox wants the
- * full "the Bomb Bag" phrase. See the note on ComboForeignItemDef.article.
+ * full "the Lens of Truth" phrase. See the note on ComboForeignItemDef.article.
  */
 const char* Combo_GetForeignItemArticle(SharedItem item);
 
