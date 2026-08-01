@@ -12,6 +12,12 @@
 void Sram_SyncWriteToFlash(SramContext* sramCtx, s32 curPage, s32 numPages);
 void func_80147414(SramContext* sramCtx, s32 fileNum, s32 arg2);
 
+// RSBS single-exe: MM's redship-native unified-save capture, defined in
+// games/mm/2s2h/GameExports_SingleExe.cpp. Declared locally because src/common
+// is not on this decomp TU's include path — the convention z_play.c already
+// uses for the Combo_* entry points.
+extern int MM_Combo_CaptureSaveToUnifiedSlot(void);
+
 #define CHECK_NEWF(newf)                                                                                 \
     ((newf)[0] != 'Z' || (newf)[1] != 'E' || (newf)[2] != 'L' || (newf)[3] != 'D' || (newf)[4] != 'A' || \
      (newf)[5] != '3')
@@ -1578,6 +1584,59 @@ void MM_Sram_OpenSave(FileSelectState* fileSelect, SramContext* sramCtx) {
     }
 }
 
+/**
+ * 2S2H/RSBS [Port] #530: the ONE cross-game commit funnel for MM's durable save
+ * routes.
+ *
+ * MM has SIX durable-save routes and they all converge here, on the two
+ * save-buffer marshallers below (func_8014546C and func_80145698): Song of Time
+ * new-cycle (z_message.c MSGMODE_NEW_CYCLE_0), owl statue (z_message.c
+ * MSGMODE_OWL_SAVE_0), pause save-and-quit (z_kaleido_scope_NES.c
+ * PAUSE_SAVEPROMPT_STATE_1), game-over save (z_kaleido_scope_NES.c
+ * PAUSE_STATE_GAMEOVER_SAVE_PROMPT), autosave (2s2h SavingEnhancements.cpp
+ * HandleAutoSave), and the two special saves (Sram_SaveSpecialEnterClockTown /
+ * Sram_SaveSpecialNewDay, driven from z_demo.c). Downstream of here every one
+ * of them is dead in a cross-game session, twice over: the flash funnel's write
+ * half is a no-op stub (games/mm/2s2h/mm_save_manager_stubs.c, because
+ * games/mm/CMakeLists.txt filters out 2s2h/SaveManager/*.cpp), and the
+ * Sram_FileNumHasFlashSlot / fileNum != 0xFF gates every flash write sits
+ * behind can never be satisfied while fileNum is pinned to the cross-game
+ * sentinel. Two of the six (owl, pause) had been rescued individually with a
+ * capture call pasted beside their flash write; the other four still presented
+ * the full save ceremony and persisted zero bytes (#530).
+ *
+ * Hooking the marshallers instead of the call sites is what makes that
+ * structural rather than an allowlist: a route reaches disk iff it marshals,
+ * and a future route inherits the commit by construction. It is also the right
+ * INSTANT — the marshallers are the last thing every route does to
+ * gSaveContext before handing bytes to the flash layer, so the state captured
+ * here is exactly the state the route intended to make durable (Song of Time,
+ * for one, rewinds day/time in gSaveContext *after* the marshal so the cutscene
+ * can keep playing; capturing at the call site after that rewind would durably
+ * record the old cycle).
+ *
+ * The commit itself is MM_Combo_CaptureSaveToUnifiedSlot -> RsbsSave_Save, the
+ * #537 choke point's one-call form. Everything that makes the commit legal is
+ * enforced in there, not here, and deliberately so:
+ *   - no active .redsave slot => honest no-op (a standalone MM session, or a
+ *     cross-game session that never established a slot, writes nothing);
+ *   - the #533/#568 write latch => a slot this session refused, or never
+ *     loaded/created/erased, stays unwritten and the monotonic generation does
+ *     not advance;
+ *   - the #570 identity refusal (RSBS_REFUSE_IDENTITY) latches through that
+ *     same gate, so a session whose MM profile diverged from the pairing
+ *     identity frozen at creation cannot commit a divergent world here either.
+ *
+ * Touches no PlayState: MM_Combo_CaptureSaveToUnifiedSlot reads gSaveContext
+ * and gComboCtx only, and MM_HarvestSharedResources is likewise MM_gPlayState-
+ * free and gated on a live file. That matters because two of the funneled
+ * routes run from cutscene and message state machines that can fire before
+ * MM_gPlayState is published (#516).
+ */
+void Sram_ComboCommitUnifiedSave(void) {
+    MM_Combo_CaptureSaveToUnifiedSlot();
+}
+
 // Similar to func_80145698, but accounts for owl saves?
 void func_8014546C(SramContext* sramCtx) {
     s32 i;
@@ -1612,6 +1671,9 @@ void func_8014546C(SramContext* sramCtx) {
             memcpy(&sramCtx->saveBuf[SAVE_BUFFER_SIZE_HALF], &gSaveContext.save, sizeof(Save));
         }
     }
+
+    // RSBS (#530): cross-game commit funnel. See Sram_ComboCommitUnifiedSave.
+    Sram_ComboCommitUnifiedSave();
 }
 
 /**
@@ -1634,6 +1696,9 @@ void func_80145698(SramContext* sramCtx) {
         memcpy(sramCtx->saveBuf, &gSaveContext, sizeof(Save));
         memcpy(&sramCtx->saveBuf[SAVE_BUFFER_SIZE_HALF], &gSaveContext.save, sizeof(Save));
     }
+
+    // RSBS (#530): cross-game commit funnel. See Sram_ComboCommitUnifiedSave.
+    Sram_ComboCommitUnifiedSave();
 }
 
 // Verifies save and use backup if corrupted?
@@ -2210,6 +2275,10 @@ void Sram_SaveSpecialEnterClockTown(PlayState* play) {
     gSaveContext.save.isOwlSave = false;
     // 2S2H [Enhancement] Store playtime before saving
     SavingEnhancements_AdvancePlaytime();
+    // RSBS (#530): commits to the unified .redsave from inside the marshal
+    // (Sram_ComboCommitUnifiedSave). This is the only route that reaches the
+    // commit through func_80145698 rather than func_8014546C, which is why the
+    // funnel has to sit in BOTH marshallers and not just the owl-aware one.
     func_80145698(sramCtx);
     // 2S2H [Port] Skip the flash write for the 0xFF "no real slot" sentinel (cross-game /
     // title / debug session); indexing gFlashSaveStartPages[fileNum * ...] would be OOB.
@@ -2233,6 +2302,10 @@ void Sram_SaveSpecialNewDay(PlayState* play) {
     CLEAR_WEEKEVENTREG(WEEKEVENTREG_84_20);
 
     Sram_SaveEndOfCycle(play);
+    // RSBS (#530): commits to the unified .redsave from inside the marshal
+    // (Sram_ComboCommitUnifiedSave), i.e. BEFORE the three restores below rewind
+    // gSaveContext to the current instant — the new cycle is what this route
+    // makes durable, exactly as in z_message.c's MSGMODE_NEW_CYCLE_0.
     func_8014546C(&play->sramCtx);
 
     gSaveContext.save.day = day;

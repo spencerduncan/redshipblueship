@@ -8,6 +8,14 @@ extern "C" {
 #include <functions.h>
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// src/common/save.h is a mixed C/C++ header that drags in the whole rsbs::
+// SaveManager surface; this TU needs exactly one C entry point out of it, so
+// declare it rather than include it — the convention the decomp TUs already use
+// for the Combo_* entry points.
+extern "C" int RsbsSave_GetActiveSlot(void);
+#endif
+
 #define CVAR_REMEMBER_SAVE_LOCATION_NAME "gEnhancements.RememberSaveLocation"
 #define CVAR_REMEMBER_SAVE_LOCATION CVarGetInteger(CVAR_REMEMBER_SAVE_LOCATION_NAME, 0)
 
@@ -60,14 +68,47 @@ extern "C" int SavingEnhancements_GetSaveEntrance() {
     }
 }
 
+/**
+ * RSBS (#530): is there ANY durable destination for a save right now?
+ *
+ * The vanilla predicate is "MM owns a real flash slot" — flashSaveAvailable
+ * plus a fileNum that is not the 0xFF no-real-slot sentinel. In a cross-game
+ * session that is permanently false: fileNum is pinned to 0xFF for the whole
+ * life of the MM half, so autosave and the hold-B pause save never even
+ * ARMED, and MM's periodic save silently did not exist. (That is the milder
+ * half of #530 — the other four routes ran their ceremony and wrote nothing;
+ * these two did not run at all.)
+ *
+ * Under the one-game ruling the combo's MM half has a durable destination
+ * whenever the session has an active `.redsave` slot, so the predicate widens
+ * to "a real flash slot OR an active unified slot". It stays a pure
+ * availability question: whether the write is actually PERMITTED is the commit
+ * choke point's business (the #533/#568 armed-session latch and the #570
+ * identity refusal both live in RsbsSave_Save), and a latched slot simply
+ * produces a refused commit rather than a silent one.
+ *
+ * Split out from SavingEnhancements_CanSave so the mm-unified-save-capture lock
+ * can drive it without fabricating a PlayState and a Player actor.
+ */
+extern "C" bool SavingEnhancements_HasDurableDestination() {
+    if (gSaveContext.flashSaveAvailable && gSaveContext.fileNum != 255) {
+        return true;
+    }
+#ifdef RSBS_SINGLE_EXECUTABLE
+    return RsbsSave_GetActiveSlot() >= 0;
+#else
+    return false;
+#endif
+}
+
 extern "C" bool SavingEnhancements_CanSave() {
     // Game State
     if (MM_gPlayState == NULL || GET_PLAYER(MM_gPlayState) == NULL) {
         return false;
     }
 
-    // Owl saving available
-    if (!gSaveContext.flashSaveAvailable || gSaveContext.fileNum == 255) {
+    // Owl saving available (vanilla flash slot, or this session's unified slot)
+    if (!SavingEnhancements_HasDurableDestination()) {
         return false;
     }
 
@@ -177,11 +218,20 @@ void HandleAutoSave() {
         SavingEnhancements_AdvancePlaytime();
         Play_SaveCycleSceneFlags(MM_gPlayState);
         gSaveContext.save.saveInfo.playerData.savedSceneId = MM_gPlayState->sceneId;
+        // RSBS (#530): the autosave's unified-slot commit rides inside this
+        // marshal (Sram_ComboCommitUnifiedSave, z_sram_NES.c), after the owl
+        // flags / entrance / scene above — the state an autosave means to record.
         func_8014546C(&MM_gPlayState->sramCtx);
-        Sram_SetFlashPagesOwlSave(&MM_gPlayState->sramCtx,
-                                  gFlashOwlSaveStartPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER],
-                                  gFlashOwlSaveNumPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER]);
-        Sram_StartWriteToFlashOwlSave(&MM_gPlayState->sramCtx);
+        // 2S2H [Port] The 0xFF sentinel guard the other flash routes carry: with
+        // SavingEnhancements_CanSave now also arming for a cross-game session
+        // (which has no flash slot at all), these two subscripts would otherwise
+        // index gFlashOwlSave*Pages at 510, hundreds of entries past the end.
+        if (Sram_FileNumHasFlashSlot(gSaveContext.fileNum)) {
+            Sram_SetFlashPagesOwlSave(&MM_gPlayState->sramCtx,
+                                      gFlashOwlSaveStartPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER],
+                                      gFlashOwlSaveNumPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER]);
+            Sram_StartWriteToFlashOwlSave(&MM_gPlayState->sramCtx);
+        }
         gSaveContext.save.isOwlSave = false;
         gSaveContext.save.shipSaveInfo.pauseSaveEntrance = -1;
     }
