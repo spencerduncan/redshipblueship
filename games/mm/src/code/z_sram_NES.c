@@ -1578,6 +1578,62 @@ void MM_Sram_OpenSave(FileSelectState* fileSelect, SramContext* sramCtx) {
     }
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+int MM_Combo_CaptureSaveToUnifiedSlot(void);
+
+/**
+ * THE MM SAVE-COMMIT FUNNEL (#530, the #564 one-commit discipline).
+ *
+ * WHY IT IS HERE AND NOT AT THE CALL SITES. MM's persistence in single-exe is
+ * the unified `.redsave`, because MM's own flash layer is dead-ended twice
+ * over: games/mm/2s2h/SaveManager/*.cpp is filtered out of the link (the
+ * replacement stubs in games/mm/2s2h/mm_save_manager_stubs.c are a -1 read and
+ * an EMPTY write), and every slot-addressed flash path is additionally gated on
+ * a real 0..2 fileNum that a cross-game session — pinned to the 0xFF sentinel
+ * for its entire life — can never satisfy. #527 and #529 hooked the unified
+ * capture at TWO call sites (the owl statue and pause save-and-quit). The other
+ * five routes kept presenting a completed save while persisting zero bytes:
+ * Song of Time's new cycle, the game-over save, both special saves (first
+ * entry to South Clock Town, "Dawn of the New Day"), and the autosave.
+ *
+ * Chasing call sites is what produced that 2-of-7 split, so the commit is
+ * funneled instead. func_8014546C and func_80145698 are MM's save
+ * SERIALIZATION layer — the step that folds the cycle scene flags into the
+ * permanent ones, checksums the save, and lays the durable image into
+ * sramCtx->saveBuf. Every save route in the game calls exactly one of them,
+ * immediately before its flash write and ABOVE the fileNum gate, and nothing
+ * else calls them at all (file select reads, copies and erases have their own
+ * paths). So the instant those two functions produce MM's durable image is
+ * precisely the instant the unified commit must capture, and hooking them
+ * means present AND future routes commit by default rather than by remembering
+ * to opt in.
+ *
+ * Placement is the TAIL of each function on purpose: the capture must see the
+ * checksummed, cycle-flag-folded gSaveContext that the flash buffer just took,
+ * not the state before it. On the new-cycle and "Dawn of the New Day" routes
+ * this also matters in the other direction — both restore the LIVE day/time/
+ * cutsceneIndex right AFTER serializing, so that the cutscene can finish, and a
+ * capture placed after the flash write would persist the old cycle's clock
+ * instead of the new one the flash buffer holds.
+ *
+ * The commit itself is RsbsSave_Save via MM_Combo_CaptureSaveToUnifiedSlot, so
+ * it inherits the whole #537/#533/#498 contract: it stages the coherent
+ * cross-game snapshot on THIS (game) thread, stamps the next monotonic commit
+ * generation, and refuses — without advancing the generation — when the #533
+ * armed-session latch or a #570 identity refusal has latched the slot.
+ *
+ * Deliberately NOT placed lower, in Sram_StartWriteToFlash*/SysFlashrom_*: the
+ * fileNum gates sit ABOVE those, so a funnel there would never run in the
+ * cross-game session that needs it.
+ */
+static void Sram_CommitUnifiedSave(void) {
+    MM_Combo_CaptureSaveToUnifiedSlot();
+}
+#define RSBS_COMMIT_UNIFIED_SAVE() Sram_CommitUnifiedSave()
+#else
+#define RSBS_COMMIT_UNIFIED_SAVE() ((void)0)
+#endif
+
 // Similar to func_80145698, but accounts for owl saves?
 void func_8014546C(SramContext* sramCtx) {
     s32 i;
@@ -1612,6 +1668,9 @@ void func_8014546C(SramContext* sramCtx) {
             memcpy(&sramCtx->saveBuf[SAVE_BUFFER_SIZE_HALF], &gSaveContext.save, sizeof(Save));
         }
     }
+
+    // #530: the durable image is final — commit it (see Sram_CommitUnifiedSave).
+    RSBS_COMMIT_UNIFIED_SAVE();
 }
 
 /**
@@ -1634,6 +1693,9 @@ void func_80145698(SramContext* sramCtx) {
         memcpy(sramCtx->saveBuf, &gSaveContext, sizeof(Save));
         memcpy(&sramCtx->saveBuf[SAVE_BUFFER_SIZE_HALF], &gSaveContext.save, sizeof(Save));
     }
+
+    // #530: the durable image is final — commit it (see Sram_CommitUnifiedSave).
+    RSBS_COMMIT_UNIFIED_SAVE();
 }
 
 // Verifies save and use backup if corrupted?

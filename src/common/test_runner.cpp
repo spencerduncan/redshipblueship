@@ -95,6 +95,14 @@ int MM_FbEffectsBinding_RunHeadless(void);
 // all-Ocarina corruption). Returns 0 on pass, non-zero on fail.
 int MM_FlashFileNumOob_RunHeadless(void);
 int MM_UnifiedSaveCapture_RunHeadless(void);
+// MM save-commit funnel (games/mm/2s2h/mm_save_route_funnel_test.cpp, #530):
+// #527/#529 hooked the unified capture at two call sites, leaving five MM save
+// routes -- Song of Time's new cycle, the game-over save, both special saves
+// and the autosave -- presenting a completed save while persisting zero bytes.
+// The commit is now funneled into MM's save-serialization layer
+// (func_8014546C / func_80145698), which every route calls above its fileNum
+// gate. Returns 0 on pass, non-zero on fail.
+int MM_SaveRouteFunnel_RunHeadless(void);
 // MM single-exe hook dispatch (games/mm/2s2h/mm_hook_dispatch_test.cpp, #511 /
 // #438): the COND_* macros park registrations in the MM-owned S2H::GameHooks
 // registry, but ShouldActorInit / OnActorInit / OnActorDraw / OnOpenText
@@ -366,6 +374,12 @@ static TestResult Test_MMFlashFileNumOob(void) {
 
 static TestResult Test_MMUnifiedSaveCapture(void) {
     return MM_UnifiedSaveCapture_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// MM save-commit funnel lock (see the extern decl above). Thin wrapper over the
+// C entry point in games/mm/2s2h/mm_save_route_funnel_test.cpp.
+static TestResult Test_MMSaveRouteFunnel(void) {
+    return MM_SaveRouteFunnel_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // MM hook-dispatch lock (see the extern decl above). Thin wrapper over the C
@@ -2051,6 +2065,14 @@ const TestDescriptor gTests[] = {
     // Pure (no display, no ROM).
     {"mm-unified-save-capture", "MM captures its live SaveContext into the unified slot, full-width and round-tripping",
      Test_MMUnifiedSaveCapture},
+    // Every MM save route commits through ONE funnel (#530). #527/#529 hooked
+    // two call sites; new-cycle, game-over, both special saves and the autosave
+    // still persisted zero bytes while presenting a completed save. Drives both
+    // serialization functions and one route end to end, and holds the #533/#568
+    // write latch and the no-slot case at the new commit sites. Pure (no
+    // display, no ROM).
+    {"mm-save-route-funnel", "Every MM save route commits through the one funnel, with an advanced generation (#530)",
+     Test_MMSaveRouteFunnel},
     // Hook dispatch reaches the MM-owned registry the COND_* macros register
     // into. Registers through the production macros and drives each dispatcher
     // through the name MM's call sites spell, so both a deleted bridge and a

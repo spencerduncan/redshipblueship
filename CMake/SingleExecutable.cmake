@@ -602,6 +602,20 @@ if(BUILD_TESTING)
     # capture is FULL-WIDTH rather than the sizeof(Save) prefix the excluded
     # file used. Display-free and ROM-free, so it runs in this redship tier.
     redship_add_test(NAME MMUnifiedSaveCapture COMMAND redship --test mm-unified-save-capture)
+    # MM's save-commit funnel (#530, games/mm/2s2h/mm_save_route_funnel_test.cpp).
+    # #527/#529 hooked the unified capture at two call sites (owl statue, pause
+    # save-and-quit); the other five MM save routes -- Song of Time's new cycle,
+    # the game-over save, both special saves and the autosave -- kept presenting
+    # a completed save while persisting zero bytes, because MM's flash layer is
+    # a no-op stub AND is gated on a real 0..2 fileNum a cross-game session
+    # never has. The commit is now funneled into MM's save-serialization layer
+    # (func_8014546C / func_80145698), which every route calls above its fileNum
+    # gate. Locks: each funnel produces a non-zero Tier-3 with an advanced
+    # commit generation that reaches the ARTIFACT; one route driven end to end
+    # at its real entry point under the 0xFF sentinel; the autosave gate; and
+    # the #533/#568 write latch plus the no-slot case at the new commit sites.
+    # Display-free and ROM-free, so it runs in this redship tier.
+    redship_add_test(NAME MMSaveRouteFunnel COMMAND redship --test mm-save-route-funnel)
     # MM single-exe hook dispatch (#511, #438): the COND_HOOK/COND_ID_HOOK
     # macros park registrations in the MM-owned S2H::GameHooks registry, but
     # ShouldActorInit / OnActorInit / OnActorDraw / OnOpenText dispatched

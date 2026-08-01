@@ -17,11 +17,6 @@
 #include "BenPort.h"
 #include <libultraship/bridge/gfxdebuggerbridge.h>
 
-// RSBS single-exe: MM's redship-native unified-save capture, defined in
-// games/mm/2s2h/GameExports_SingleExe.cpp. Declared locally because src/common
-// is not on this decomp TU's include path — the convention z_play.c and
-// z_message.c already use for the Combo_* entry points.
-extern int MM_Combo_CaptureSaveToUnifiedSlot(void);
 #include "archives/item_name_static/item_name_static.h"
 #include "archives/map_name_static/map_name_static.h"
 #include "2s2h/Enhancements/FrameInterpolation/FrameInterpolation.h"
@@ -3592,27 +3587,21 @@ void MM_KaleidoScope_Update(PlayState* play) {
                             gSaveContext.save.saveInfo.playerData.savedSceneId = play->sceneId;
                             func_8014546C(sramCtx);
 
-                            // RSBS (#35 follow-up): persist the pause save-and-quit to the
-                            // unified .redsave, OUTSIDE the fileNum gate immediately below,
-                            // for the same reason as the owl-statue capture in z_message.c.
-                            //
-                            // A cross-game MM session runs at the 0xFF fileNum sentinel for
-                            // its whole life, so the else-branch below never runs and this
-                            // leg wrote ZERO bytes -- "save and exit in MM" persisted
-                            // nothing at all. Placed after Play_SaveCycleSceneFlags /
-                            // savedSceneId / func_8014546C so the checksummed cycle flags
-                            // and scene are already in gSaveContext.
+                            // RSBS: the unified .redsave commit for this route now rides
+                            // func_8014546C above -- see Sram_CommitUnifiedSave in
+                            // games/mm/src/code/z_sram_NES.c (#530). It used to be an
+                            // explicit MM_Combo_CaptureSaveToUnifiedSlot() call right here
+                            // (#529); nothing mutates gSaveContext between the two points,
+                            // so funneling it is byte-identical for this route.
                             //
                             // NOTE the asymmetry this leg has and the owl statue does not:
                             // when the PauseSave enhancement is on, isOwlSave and
                             // pauseSaveEntrance are set ABOVE (before the gate), while the
                             // pair that clears them again lives in the else-branch and so
-                            // never runs cross-game. Capturing here is what makes that
-                            // state meaningful -- MM's spawn policy prefers
+                            // never runs cross-game. Capturing with them set is what makes
+                            // that state meaningful -- MM's spawn policy prefers
                             // pauseSaveEntrance over owlWarpId, which is the correct
                             // reading of a pause save.
-                            MM_Combo_CaptureSaveToUnifiedSlot();
-
                             if (!gSaveContext.flashSaveAvailable ||
                                 gSaveContext.fileNum ==
                                     255) { // 2S2H [Enhancement] Don't let them save if they are in debug save
@@ -3901,13 +3890,27 @@ void MM_KaleidoScope_Update(PlayState* play) {
                     Play_SaveCycleSceneFlags(play);
                     gSaveContext.save.saveInfo.playerData.savedSceneId = play->sceneId;
                     gSaveContext.save.saveInfo.playerData.health = 0x30;
+                    // #530: func_8014546C is this route's unified .redsave commit (see
+                    // Sram_CommitUnifiedSave in games/mm/src/code/z_sram_NES.c) -- the
+                    // game-over save was one of the five routes that presented a
+                    // completed save and persisted zero bytes in a cross-game session.
                     func_8014546C(sramCtx);
                     if (!gSaveContext.flashSaveAvailable) {
                         pauseCtx->state = PAUSE_STATE_GAMEOVER_8;
                     } else {
-                        Sram_SetFlashPagesDefault(sramCtx, gFlashSaveStartPages[gSaveContext.fileNum],
-                                                  gFlashSaveNumPages[gSaveContext.fileNum]);
-                        Sram_StartWriteToFlashDefault(sramCtx);
+                        // 2S2H [Port] Skip the flash write for the 0xFF "no real slot"
+                        // sentinel (cross-game / title / debug session). Unlike every
+                        // other flash site this one had NO fileNum guard at all, and it
+                        // subscripts the six-entry gFlashSave*Pages tables directly by
+                        // fileNum -- 0xFF reads hundreds of entries past their end and
+                        // hands the garbage to the write funnel. The state still advances
+                        // to PAUSE_STATE_GAMEOVER_7, which is a no-wait transition when
+                        // no write was started (sramCtx->status stays 0).
+                        if (Sram_FileNumHasFlashSlot(gSaveContext.fileNum)) {
+                            Sram_SetFlashPagesDefault(sramCtx, gFlashSaveStartPages[gSaveContext.fileNum],
+                                                      gFlashSaveNumPages[gSaveContext.fileNum]);
+                            Sram_StartWriteToFlashDefault(sramCtx);
+                        }
                         pauseCtx->state = PAUSE_STATE_GAMEOVER_7;
                     }
                     sDelayTimer = 90;

@@ -18,6 +18,14 @@ static uint64_t lastSaveTimestamp = GetUnixTimestamp();
 static int lastEntrance = -1;
 static int entranceToSave = -1;
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// RSBS single-exe (#530): the unified .redsave slot this session is attached
+// to, or -1 for none (src/common/save.h). Declared locally rather than pulling
+// src/common/save.h — and therefore context.h/game.h — into an MM enhancement
+// TU; same convention the decomp TUs use for the Combo_* entry points.
+extern "C" int RsbsSave_GetActiveSlot(void);
+#endif
+
 static HOOK_ID autosaveGameStateUpdateHookId = 0;
 static HOOK_ID autosaveGameStateDrawFinishHookId = 0;
 static HOOK_ID skipEntranceCutsceneHookId = 0;
@@ -60,14 +68,49 @@ extern "C" int SavingEnhancements_GetSaveEntrance() {
     }
 }
 
+/**
+ * Does this session have anywhere to persist an owl save? (#530)
+ *
+ * The vanilla pair of conditions is "flash buffer available AND a real 0..2
+ * file slot". In a single-exe cross-game MM session the second half is never
+ * true — gSaveContext.fileNum is pinned to the 0xFF sentinel for the session's
+ * entire life — so autosave (and the pause-menu B-button quick save, which
+ * shares this gate) rejected every attempt outright: the interval elapsed, the
+ * icon never drew, and nothing was ever persisted. But MM's persistence in that
+ * session is the unified .redsave, not flash, and the commit funnel in
+ * z_sram_NES.c (Sram_CommitUnifiedSave) reaches it from func_8014546C. So an
+ * active unified slot IS a save target.
+ *
+ * flashSaveAvailable stays a hard requirement in BOTH cases: func_8014546C's
+ * owl branch memcpys into sramCtx->saveBuf unconditionally, and Sram_Alloc only
+ * allocates that buffer when flashSaveAvailable is set.
+ *
+ * Split out of SavingEnhancements_CanSave so the decision is one function with
+ * no PlayState dependency — that is what the headless lock drives.
+ */
+extern "C" bool SavingEnhancements_HasSaveTarget() {
+    if (!gSaveContext.flashSaveAvailable) {
+        return false;
+    }
+    if (Sram_FileNumHasFlashSlot(gSaveContext.fileNum)) {
+        return true;
+    }
+#ifdef RSBS_SINGLE_EXECUTABLE
+    return RsbsSave_GetActiveSlot() >= 0;
+#else
+    return false;
+#endif
+}
+
 extern "C" bool SavingEnhancements_CanSave() {
     // Game State
     if (MM_gPlayState == NULL || GET_PLAYER(MM_gPlayState) == NULL) {
         return false;
     }
 
-    // Owl saving available
-    if (!gSaveContext.flashSaveAvailable || gSaveContext.fileNum == 255) {
+    // Somewhere to save to: a real flash slot, or (#530) this session's unified
+    // .redsave slot.
+    if (!SavingEnhancements_HasSaveTarget()) {
         return false;
     }
 
@@ -177,11 +220,20 @@ void HandleAutoSave() {
         SavingEnhancements_AdvancePlaytime();
         Play_SaveCycleSceneFlags(MM_gPlayState);
         gSaveContext.save.saveInfo.playerData.savedSceneId = MM_gPlayState->sceneId;
+        // #530: this is the autosave's unified .redsave commit as well as its
+        // flash serialization — see Sram_CommitUnifiedSave in
+        // games/mm/src/code/z_sram_NES.c.
         func_8014546C(&MM_gPlayState->sramCtx);
-        Sram_SetFlashPagesOwlSave(&MM_gPlayState->sramCtx,
-                                  gFlashOwlSaveStartPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER],
-                                  gFlashOwlSaveNumPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER]);
-        Sram_StartWriteToFlashOwlSave(&MM_gPlayState->sramCtx);
+        // 2S2H [Port] Skip the flash write for the 0xFF "no real slot" sentinel: a
+        // cross-game session now reaches this code (SavingEnhancements_HasSaveTarget
+        // accepts a unified slot), and gFlashOwlSave*Pages[0xFF * 2] is hundreds of
+        // entries past those six-entry tables.
+        if (Sram_FileNumHasFlashSlot(gSaveContext.fileNum)) {
+            Sram_SetFlashPagesOwlSave(&MM_gPlayState->sramCtx,
+                                      gFlashOwlSaveStartPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER],
+                                      gFlashOwlSaveNumPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER]);
+            Sram_StartWriteToFlashOwlSave(&MM_gPlayState->sramCtx);
+        }
         gSaveContext.save.isOwlSave = false;
         gSaveContext.save.shipSaveInfo.pauseSaveEntrance = -1;
     }
