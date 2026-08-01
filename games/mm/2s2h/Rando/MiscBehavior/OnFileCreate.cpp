@@ -247,30 +247,44 @@ void Rando::MiscBehavior::OnFileCreate(s16 fileNum) {
                         // junk-class MM item — ADR 0002). Runs before the spoiler write so the
                         // spoiler's foreign section describes this world.
                         //
-                        // #488: a SHORT placement is a fatal generation failure,
-                        // not a warning. Every pool item is pinned OoT progression;
-                        // one that never got a host is not "missing loot", it is a
-                        // world the player cannot finish, and before this throw the
-                        // return value was simply discarded. Tier A host
-                        // eligibility cut the candidate set from ~2000 to a few
-                        // dozen, so exhaustion is now plausible rather than
-                        // theoretical. Throwing lands in the attempt ladder below,
-                        // which restores the pre-attempt save and re-derives —
-                        // a re-rolled MM fill scatters junk differently, so the
-                        // eligible-host set genuinely changes per attempt.
+                        // ADR 0010 increment 1.3 (#500), superseding #488's
+                        // shortfall-is-fatal stance: hosts are now gated on the
+                        // check being in MM's own reachable-check closure, and a
+                        // SHORT placement against the pinned pool is UNDER-SUPPLY
+                        // — place fewer, loudly (cap ≠ promise), never place
+                        // unreachable and never fail the generation for it. While
+                        // crossings are duplicate overlays (increments 1-2), the
+                        // origin world keeps its own copy of every pool item, so a
+                        // missing crossing degrades to "fewer extras", not the
+                        // unwinnable world #488's throw guarded against.
+                        //
+                        // Attempt-ladder interaction (increment 1.2): an
+                        // under-supply is therefore NOT a ladder rung — this
+                        // attempt already produced a complete, playable world,
+                        // and re-rolling it to chase a fuller host set would
+                        // trade that world for extras the origin world already
+                        // carries. Only the genuinely structural failure #488
+                        // also covered — the placement table refusing an insert
+                        // while candidates remained — still throws, from inside
+                        // PlaceForeignItems (the injected test rung rides the
+                        // same throw), and lands in the ladder's deterministic
+                        // dead-end catch below. The reachable-check closure is
+                        // recomputed inside every attempt against THAT attempt's
+                        // world and consumes no RNG stream, so a re-rolled
+                        // attempt's placements stay a pure function of its
+                        // attempt-derived seed. The durable record of a
+                        // shortfall is the spoiler's foreignShortfall section
+                        // (Spoiler/Generate.cpp); the stderr line here is the
+                        // greppable alarm on the generation log.
                         const ComboForeignItemDef* pool = nullptr;
                         const int poolCount = Combo_GetForeignItemPool(&pool);
                         const int placed = Rando::Foreign::PlaceForeignItems();
                         if (placed < poolCount) {
-                            // Two distinct causes land here — the eligible-host
-                            // candidate set ran dry, or Combo_SetForeignPlacement
-                            // refused an insert (cap/duplicate). PlaceForeignItems
-                            // logs which to stderr immediately above; this message
-                            // names both rather than asserting one.
-                            throw std::runtime_error("Paired world could not host every foreign item: placed " +
-                                                     std::to_string(placed) + " of " + std::to_string(poolCount) +
-                                                     " (eligible hosts exhausted, or the placement table refused an "
-                                                     "insert — see the [MM] foreign placement log above)");
+                            fprintf(stderr,
+                                    "[MM] OnFileCreate: paired world hosts %d of %d foreign items (reachable eligible "
+                                    "hosts ran short — see the [MM] foreign placement SHORTFALL line above; the "
+                                    "spoiler records it)\n",
+                                    placed, poolCount);
                         }
                     }
 #endif

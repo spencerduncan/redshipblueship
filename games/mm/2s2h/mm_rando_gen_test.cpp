@@ -26,6 +26,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <memory>
 #include <string>
 
 #include <ship/Context.h>
@@ -240,6 +241,81 @@ extern "C" int MM_Rando_HeadlessGenTest(void) {
         return 17;
     }
     fprintf(stderr, "[MM-RANDO-GEN] glitchless generated with seed %s\n", glitchlessSeed);
+
+    // ======================================================================
+    // ADR 0010 increment 1.3 — reachable-closure COVERAGE lock.
+    //
+    // Every other lock on the closure proves it is deterministic, pure, and
+    // that placements land inside it. None of them would notice a closure
+    // that silently UNDER-reports, and under-reporting is this change's worst
+    // failure mode: it invents shortfalls and strips hosts out of every
+    // paired world without turning a single row red. (An over-reporting
+    // closure is caught by FAIL(30) the moment it admits a host the world
+    // cannot reach; the under-reporting direction had nothing.)
+    //
+    // The glitchless world just generated is the oracle, because in this one
+    // logic mode the fill's own bookkeeping records what it reached:
+    // GeneratePools writes `.shuffled = true` ONLY for user-excluded checks
+    // (the `.skipped` rows, GeneratePools.cpp:150-152); every other
+    // `.shuffled` bit in the save was written by ApplyGlitchlessLogicToSave-
+    // Context's checksInLogic tail, i.e. exactly when the check ENTERED
+    // LOGIC. So `shuffled && !skipped` is the fill's signed statement "I
+    // reached this", and the closure — which runs the join-correct crawl, a
+    // superset of the fill's first-visit-wins traversal, over the same world
+    // — must contain all of it.
+    //
+    // Goes RED if the crawl's seeding entrance drifts, if the give path stops
+    // crediting an item class (a new RI_* whose GiveItem leg is a no-op), if
+    // the outer collect loop stops iterating to a fixpoint, or if the region
+    // graph regresses. RC_DEKU_KINGS_CHAMBER_MONKEY is named separately: it
+    // is the #426 check that a broken region edge made unreachable, so a
+    // recurrence names itself here as well as at FAIL(17).
+    // ======================================================================
+    {
+        const std::set<RandoCheckId> glitchlessReachable = Rando::Logic::ComputeReachableCheckSet();
+        int placedByFill = 0;
+        int missing = 0;
+        RandoCheckId firstMissing = RC_UNKNOWN;
+        for (auto& [randoCheckId, randoStaticCheck] : Rando::StaticData::Checks) {
+            if (randoStaticCheck.randoCheckId == RC_UNKNOWN) {
+                continue;
+            }
+            const RandoSaveCheck& randoSaveCheck = RANDO_SAVE_CHECKS[randoCheckId];
+            if (!randoSaveCheck.shuffled || randoSaveCheck.skipped) {
+                continue;
+            }
+            placedByFill++;
+            if (!glitchlessReachable.contains(randoCheckId)) {
+                if (missing == 0) {
+                    firstMissing = randoCheckId;
+                }
+                missing++;
+            }
+        }
+        if (placedByFill == 0) {
+            fprintf(stderr, "[MM-RANDO-GEN] FAIL(33): the glitchless world recorded no in-logic placements — the "
+                            "coverage lock below would be vacuous\n");
+            return 33;
+        }
+        if (missing != 0) {
+            fprintf(stderr,
+                    "[MM-RANDO-GEN] FAIL(33): the reachable-check closure UNDER-REPORTS — %d of %d checks the "
+                    "glitchless fill placed in logic are missing from it (first: %s). A closure narrower than the "
+                    "fill's own reach silently strands foreign hosts and manufactures shortfalls\n",
+                    missing, placedByFill, Rando::StaticData::Checks[firstMissing].name);
+            return 33;
+        }
+        if (!glitchlessReachable.contains(RC_DEKU_KINGS_CHAMBER_MONKEY)) {
+            fprintf(stderr, "[MM-RANDO-GEN] FAIL(33): RC_DEKU_KINGS_CHAMBER_MONKEY is outside the closure on a "
+                            "glitchless world that placed it (#426 region-edge regression)\n");
+            return 33;
+        }
+        fprintf(stderr,
+                "[MM-RANDO-GEN] closure coverage verified on the glitchless world: %zu checks reachable, covering all "
+                "%d the fill placed in logic\n",
+                glitchlessReachable.size(), placedByFill);
+    }
+
     CVarClear(Rando::StaticData::Options[RO_LOGIC].cvar);
     CVarSetInteger(Rando::StaticData::Options[RO_LOGIC].cvar, RO_LOGIC_NEARLY_NO_LOGIC);
 
@@ -285,14 +361,115 @@ extern "C" int MM_Rando_HeadlessGenTest(void) {
         return 10;
     }
 
+    // ADR 0010 increment 1.3: the placement count is now min(pool, reachable
+    // eligible hosts) — under-supply places fewer rather than placing an
+    // unreachable host. Zero placements would make every assertion below
+    // vacuous, so that stays a hard failure.
     const int placedCount = Combo_CountForeignPlacements();
-    if (placedCount != poolCount) {
+    const Rando::Foreign::PlacementStats& placeStats = Rando::Foreign::LastPlacementStats();
+    const int expectedPlaced =
+        poolCount < placeStats.reachableEligibleHosts ? poolCount : placeStats.reachableEligibleHosts;
+    if (placedCount == 0 || placedCount != expectedPlaced || placedCount != placeStats.placed) {
         fprintf(stderr,
-                "[MM-RANDO-GEN] FAIL(11): expected %d foreign placements, found %d (test-side pairing key: "
-                "sourceIsRando=%d settingsHash=%08X seed=%08X)\n",
-                poolCount, placedCount, gComboCtx.sourceIsRando ? 1 : 0, gComboCtx.sharedRandoSettingsHash,
-                gComboCtx.sharedRandoSeed);
+                "[MM-RANDO-GEN] FAIL(11): expected %d foreign placements (pool %d, reachable eligible hosts %d), "
+                "found %d (test-side pairing key: sourceIsRando=%d settingsHash=%08X seed=%08X)\n",
+                expectedPlaced, poolCount, placeStats.reachableEligibleHosts, placedCount,
+                gComboCtx.sourceIsRando ? 1 : 0, gComboCtx.sharedRandoSettingsHash, gComboCtx.sharedRandoSeed);
         return 11;
+    }
+
+    // ======================================================================
+    // Reachability-gate locks (ADR 0010 increment 1.3, #500 work item 2).
+    //
+    // (a) The closure itself is side-effect-free and deterministic in-process:
+    //     computing it twice over the same world yields the identical set and
+    //     leaves gSaveContext byte-identical (the memcpy swap discipline).
+    //     The two-PROCESS half of the determinism lock is the mmReachable*
+    //     lines MM_Rando_HeadlessForeignDigest folds into SeedDeterminism's
+    //     byte-compare.
+    // (b) Every placement the shipping code just recorded is a member of the
+    //     closure recomputed from the post-fill save (asserted inside the
+    //     placement loop below). Counterfactual: revert the reachability gate
+    //     in Rando::Foreign::PlaceForeignItems and, for this pinned world,
+    //     the ungated selection provably pins an unreachable host — premise
+    //     (c) is what keeps that counterfactual deterministic rather than
+    //     xorshift-lucky.
+    // (c) Premise / non-vacuity: replay the UNGATED selection (the exact
+    //     xorshift stream over the eligible-only candidate list the pre-gate
+    //     code used) and assert it picks at least one host OUTSIDE the
+    //     closure. If a master-seed change ever breaks this premise, pin a
+    //     seed that restores it — do not delete the premise, it is what makes
+    //     lock (b) falsifiable.
+    // ======================================================================
+    auto reachSnapshot = std::make_unique<SaveContext>();
+    memcpy(reachSnapshot.get(), &gSaveContext, sizeof(SaveContext));
+    const std::set<RandoCheckId> reachable = Rando::Logic::ComputeReachableCheckSet();
+    if (memcmp(reachSnapshot.get(), &gSaveContext, sizeof(SaveContext)) != 0) {
+        fprintf(stderr, "[MM-RANDO-GEN] FAIL(28): ComputeReachableCheckSet left gSaveContext mutated — the memcpy "
+                        "swap discipline is broken\n");
+        return 28;
+    }
+    if (reachable.empty() || Rando::Logic::ComputeReachableCheckSet() != reachable) {
+        fprintf(stderr,
+                "[MM-RANDO-GEN] FAIL(28): reachable-check closure empty or unstable across two in-process runs "
+                "(%zu checks)\n",
+                reachable.size());
+        return 28;
+    }
+    fprintf(stderr, "[MM-RANDO-GEN] reachable-check closure: %zu checks\n", reachable.size());
+
+    {
+        // (c): the ungated candidate universe, then the shipping selection
+        // stream replayed over it. Stream recipe and step mirror
+        // Rando/Foreign.cpp (seed string ":foreign-v1", xorshift32 13/17/5,
+        // zero displaced to 0xB5297A4D); if that recipe ever changes, this
+        // probe fails loudly and moves with it.
+        std::vector<RandoCheckId> ungated;
+        int unreachableEligible = 0;
+        for (auto& [randoCheckId, randoStaticCheck] : Rando::StaticData::Checks) {
+            if (Rando::Foreign::IsEligibleHost(randoCheckId)) {
+                ungated.push_back(randoCheckId);
+                if (!reachable.contains(randoCheckId)) {
+                    unreachableEligible++;
+                }
+            }
+        }
+        if (unreachableEligible == 0) {
+            fprintf(stderr, "[MM-RANDO-GEN] FAIL(29): every eligible host is reachable in this world — the gate has "
+                            "nothing to exclude and lock (b) is vacuous; pin a different master seed\n");
+            return 29;
+        }
+        uint32_t simState = Ship_Hash(std::to_string(gComboCtx.sharedRandoSeed) + ":" +
+                                      std::to_string(gComboCtx.sharedRandoSettingsHash) + ":" +
+                                      std::to_string(gSaveContext.save.shipSaveInfo.rando.finalSeed) + ":foreign-v1");
+        if (simState == 0) {
+            simState = 0xB5297A4Du;
+        }
+        bool ungatedWouldStrand = false;
+        for (int i = 0; i < poolCount && !ungated.empty(); i++) {
+            uint32_t x = simState;
+            x ^= x << 13;
+            x ^= x >> 17;
+            x ^= x << 5;
+            simState = (x != 0) ? x : 0xB5297A4Du;
+            const size_t pick = (size_t)(simState % (uint32_t)ungated.size());
+            if (!reachable.contains(ungated[pick])) {
+                ungatedWouldStrand = true;
+            }
+            ungated.erase(ungated.begin() + (std::ptrdiff_t)pick);
+        }
+        if (!ungatedWouldStrand) {
+            fprintf(stderr,
+                    "[MM-RANDO-GEN] FAIL(29): the ungated selection replay picks only reachable hosts for this seed "
+                    "(%d of %d eligible hosts unreachable) — reverting the gate would not go red; pin a master seed "
+                    "whose ungated pick strands\n",
+                    unreachableEligible, placeStats.eligibleHosts);
+            return 29;
+        }
+        fprintf(stderr,
+                "[MM-RANDO-GEN] gate premise holds: %d of %d eligible hosts unreachable, ungated replay would have "
+                "stranded a foreign item\n",
+                unreachableEligible, placeStats.eligibleHosts);
     }
     // ADR 0002: hosting checks keep a legal MM item (junk-class) in the MM
     // save table; every recorded placement carries the OoT origin tag.
@@ -355,6 +532,19 @@ extern "C" int MM_Rando_HeadlessGenTest(void) {
                     RANDO_SAVE_CHECKS[hostCheck].skipped ? 1 : 0);
             return 12;
         }
+
+        // ADR 0010 increment 1.3, lock (b): the placement the SHIPPING code
+        // recorded is in the closure recomputed from the post-fill save. RED
+        // with the gate reverted — premise (c) above proved the ungated
+        // stream picks an unreachable host for this pinned world.
+        if (!reachable.contains(hostCheck)) {
+            fprintf(stderr,
+                    "[MM-RANDO-GEN] FAIL(30): hosting check %u (%s) is OUTSIDE the reachable-check closure — the "
+                    "reachability gate (ADR 0010 increment 1.3) is not being applied and this foreign item is "
+                    "stranded\n",
+                    (unsigned)p.mmCheckId, staticIt->second.name);
+            return 30;
+        }
     }
 
     // The spoiler landed under the DERIVED paired name and describes every
@@ -376,8 +566,20 @@ extern "C" int MM_Rando_HeadlessGenTest(void) {
         return 13;
     }
     if (!pairedSpoiler.contains("foreign") || !pairedSpoiler["foreign"].is_object() ||
-        (int)pairedSpoiler["foreign"].size() != poolCount) {
+        (int)pairedSpoiler["foreign"].size() != placedCount) {
         fprintf(stderr, "[MM-RANDO-GEN] FAIL(14): spoiler 'foreign' section missing or wrong size\n");
+        return 14;
+    }
+    // Shortfall bookkeeping must be consistent with the world: a full
+    // placement writes NO shortfall record; a short one writes the loud one
+    // (that branch is driven deterministically by the under-supply phase
+    // below).
+    if (placedCount == poolCount && pairedSpoiler.contains("foreignShortfall")) {
+        fprintf(stderr, "[MM-RANDO-GEN] FAIL(14): fully-placed world wrote a foreignShortfall record\n");
+        return 14;
+    }
+    if (placedCount < poolCount && !pairedSpoiler.contains("foreignShortfall")) {
+        fprintf(stderr, "[MM-RANDO-GEN] FAIL(14): short-placed world wrote no foreignShortfall record\n");
         return 14;
     }
     for (auto& [checkName, entry] : pairedSpoiler["foreign"].items()) {
@@ -441,9 +643,9 @@ extern "C" int MM_Rando_HeadlessGenTest(void) {
     // OnFileCreate's pre-apply clear) and reconstruct from the loaded spoiler.
     Combo_ClearForeignPlacements();
     const int reconstructed = Rando::Spoiler::ReconstructForeignPlacements(loadedSpoiler);
-    if (reconstructed != poolCount) {
+    if (reconstructed != placedCount) {
         fprintf(stderr, "[MM-RANDO-GEN] FAIL(17): reconstructed %d placements, expected %d\n", reconstructed,
-                poolCount);
+                placedCount);
         return 17;
     }
 
@@ -470,9 +672,9 @@ extern "C" int MM_Rando_HeadlessGenTest(void) {
             return 18;
         }
     }
-    if (Combo_CountForeignPlacements() != poolCount) {
+    if (Combo_CountForeignPlacements() != placedCount) {
         fprintf(stderr, "[MM-RANDO-GEN] FAIL(18): reconstructed count %d != generated %d\n",
-                Combo_CountForeignPlacements(), poolCount);
+                Combo_CountForeignPlacements(), placedCount);
         return 18;
     }
 
@@ -591,7 +793,7 @@ extern "C" int MM_Rando_HeadlessGenTest(void) {
         fprintf(stderr, "[MM-RANDO-GEN] FAIL(22): ApplyToSaveContext threw on the paired spoiler: %s\n", e.what());
         return 22;
     }
-    if (Combo_CountForeignPlacements() != poolCount) {
+    if (Combo_CountForeignPlacements() != placedCount) {
         fprintf(stderr,
                 "[MM-RANDO-GEN] FAIL(22): ApplyToSaveContext did not reconstruct foreign placements (found %d)\n",
                 Combo_CountForeignPlacements());
@@ -606,6 +808,89 @@ extern "C" int MM_Rando_HeadlessGenTest(void) {
 
     fprintf(stderr, "[MM-RANDO-GEN] spoiler-LOAD reconstruction verified: preserve-live, rebuild-exact, "
                     "redemption-safe, malformed-refused, absent-ok, stale-host-rejected, apply-wired\n");
+
+    // ======================================================================
+    // Under-supply lock (ADR 0010 increment 1.3 rule 3 — cap ≠ promise).
+    // Deterministically shrink the reachable eligible host supply below the
+    // pool size ON THE REAL PLACEMENT PATH: keep two of the gated run's own
+    // hosts (reachable + eligible by construction), mark every other eligible
+    // host user-excluded (.skipped — the bit GeneratePools writes for
+    // excluded checks, which IsEligibleHost rejects), rerun PlaceForeignItems,
+    // and assert it places exactly the supply — no throw, stats recorded,
+    // spoiler carrying the loud shortfall record. Counterfactuals: restore
+    // the pre-ADR-0010 shortfall-is-fatal throw and this phase dies in the
+    // catch; drop the spoiler record and the foreignShortfall assert goes
+    // red. Honest limit: this drives PlaceForeignItems directly, so
+    // OnFileCreate's no-throw-on-shortfall stance is covered by review, not
+    // by this phase (forcing a natural shortfall through the full
+    // OnFileCreate chain would need exclusion-list fixtures whose fill
+    // dead-end behavior is not deterministic).
+    // ======================================================================
+    {
+        auto shortSnapshot = std::make_unique<SaveContext>();
+        memcpy(shortSnapshot.get(), &gSaveContext, sizeof(SaveContext));
+
+        std::set<RandoCheckId> keepers;
+        for (int i = 0; i < (int)RSBS_FOREIGN_PLACEMENT_CAP && (int)keepers.size() < 2; i++) {
+            if (generated[i].item.originGame != GAME_NONE) {
+                keepers.insert((RandoCheckId)generated[i].mmCheckId);
+            }
+        }
+        if ((int)keepers.size() != 2 || poolCount <= 2) {
+            fprintf(stderr, "[MM-RANDO-GEN] FAIL(31): under-supply premise broken (%zu keepers, pool %d)\n",
+                    keepers.size(), poolCount);
+            return 31;
+        }
+        for (auto& [randoCheckId, randoStaticCheck] : Rando::StaticData::Checks) {
+            if (Rando::Foreign::IsEligibleHost(randoCheckId) && !keepers.contains(randoCheckId)) {
+                RANDO_SAVE_CHECKS[randoCheckId].skipped = true;
+            }
+        }
+
+        int shortPlaced = -1;
+        try {
+            shortPlaced = Rando::Foreign::PlaceForeignItems();
+        } catch (const std::exception& e) {
+            fprintf(stderr,
+                    "[MM-RANDO-GEN] FAIL(31): under-supply THREW instead of placing fewer (cap != promise): %s\n",
+                    e.what());
+            return 31;
+        }
+        const Rando::Foreign::PlacementStats& shortStats = Rando::Foreign::LastPlacementStats();
+        if (shortPlaced != 2 || shortStats.placed != 2 || shortStats.requested != poolCount ||
+            shortStats.reachableEligibleHosts != 2) {
+            fprintf(stderr,
+                    "[MM-RANDO-GEN] FAIL(31): under-supply placed %d (stats: placed %d, requested %d, reachable "
+                    "eligible %d) — expected exactly the supply of 2\n",
+                    shortPlaced, shortStats.placed, shortStats.requested, shortStats.reachableEligibleHosts);
+            return 31;
+        }
+        for (RandoCheckId keeper : keepers) {
+            if (Combo_GetForeignPlacementForCheck((uint16_t)keeper) == NULL) {
+                fprintf(stderr, "[MM-RANDO-GEN] FAIL(31): under-supply run did not host on remaining supply check %u\n",
+                        (unsigned)keeper);
+                return 31;
+            }
+        }
+
+        nlohmann::json shortSpoiler = Rando::Spoiler::GenerateFromSaveContext();
+        if (!shortSpoiler.contains("foreignShortfall") || (int)shortSpoiler["foreign"].size() != 2 ||
+            shortSpoiler["foreignShortfall"]["requested"] != poolCount ||
+            shortSpoiler["foreignShortfall"]["placed"] != 2 ||
+            shortSpoiler["foreignShortfall"]["reachableEligibleHosts"] != 2) {
+            fprintf(stderr,
+                    "[MM-RANDO-GEN] FAIL(32): spoiler does not carry the loud shortfall record (foreignShortfall) "
+                    "for a short-placed world\n");
+            return 32;
+        }
+        fprintf(stderr, "[MM-RANDO-GEN] under-supply verified: placed 2 of %d, shortfall recorded in the spoiler\n",
+                poolCount);
+
+        // Restore the world and the real run's placements for the phases below.
+        memcpy(&gSaveContext, shortSnapshot.get(), sizeof(SaveContext));
+        Combo_ClearForeignPlacements();
+        memcpy(gComboCtx.foreignPlacements, generated, sizeof(generated));
+    }
 
     // OnSaveLoad chain lock (Lane C1): dispatching the real save-load bridge
     // with the rando save live must arm the rando behaviors — the
@@ -765,12 +1050,21 @@ extern "C" int MM_Rando_HeadlessForeignDigest(const char* outPath) {
 
     // The digest must describe an ACTUAL cross-game world: a paired
     // generation that placed nothing would produce a stable-but-empty digest,
-    // turning lock (c) vacuous. Fail loudly instead.
+    // turning lock (c) vacuous. Fail loudly instead. ADR 0010 increment 1.3:
+    // the expected count is min(pool, reachable eligible hosts) — the
+    // reachability gate may legitimately place fewer than the pool — but zero
+    // stays fatal (vacuity).
     {
         const ComboForeignItemDef* digestPool = NULL;
         const int digestPoolCount = Combo_GetForeignItemPool(&digestPool);
-        if (Combo_CountForeignPlacements() != digestPoolCount) {
-            fprintf(stderr, "[MM-FOREIGN-DIGEST] FAIL(5): expected %d foreign placements, found %d\n", digestPoolCount,
+        const Rando::Foreign::PlacementStats& digestStats = Rando::Foreign::LastPlacementStats();
+        const int digestExpected =
+            digestPoolCount < digestStats.reachableEligibleHosts ? digestPoolCount : digestStats.reachableEligibleHosts;
+        if (Combo_CountForeignPlacements() == 0 || Combo_CountForeignPlacements() != digestExpected) {
+            fprintf(stderr,
+                    "[MM-FOREIGN-DIGEST] FAIL(5): expected %d foreign placements (pool %d, reachable eligible %d), "
+                    "found %d\n",
+                    digestExpected, digestPoolCount, digestStats.reachableEligibleHosts,
                     Combo_CountForeignPlacements());
             return 5;
         }
@@ -790,6 +1084,21 @@ extern "C" int MM_Rando_HeadlessForeignDigest(const char* outPath) {
     }
     const uint32_t mmPlacementHash = Ship_Hash(blob);
 
+    // ADR 0010 increment 1.3: the reachable-check closure is now a GENERATION
+    // INPUT (the foreign-host gate filters candidates by it), so the
+    // determinism artifact folds it too. Two processes computing different
+    // closures for the same world is exactly the divergence
+    // CheckSeedDeterminism's byte-compare exists to catch — this is the
+    // two-process half of the callable's determinism lock (the in-process
+    // half lives in MM_Rando_HeadlessGenTest's paired phase).
+    std::string reachableBlob;
+    const std::set<RandoCheckId> digestReachable = Rando::Logic::ComputeReachableCheckSet();
+    for (RandoCheckId randoCheckId : digestReachable) {
+        reachableBlob += std::to_string((int)randoCheckId);
+        reachableBlob += ';';
+    }
+    const uint32_t mmReachableHash = Ship_Hash(reachableBlob);
+
     FILE* out = stdout;
     bool closeOut = false;
     if (outPath != NULL && outPath[0] != '\0') {
@@ -803,13 +1112,15 @@ extern "C" int MM_Rando_HeadlessForeignDigest(const char* outPath) {
     fprintf(out,
             "mmFinalSeed=%08X\n"
             "mmPlacementHash=%08X\n"
+            "mmReachableCount=%zu\n"
+            "mmReachableHash=%08X\n"
             "foreignCount=%d\n"
             // ADR 0010 increment 1.2: the winning ladder attempt joins the
             // two-process diff, so both processes must not merely reach the
             // same world — they must reach it via the same derivation.
             "mmPairedAttempt=%u\n",
-            gSaveContext.save.shipSaveInfo.rando.finalSeed, mmPlacementHash, Combo_CountForeignPlacements(),
-            (unsigned)gComboCtx.mmPairedAttempt);
+            gSaveContext.save.shipSaveInfo.rando.finalSeed, mmPlacementHash, digestReachable.size(), mmReachableHash,
+            Combo_CountForeignPlacements(), (unsigned)gComboCtx.mmPairedAttempt);
     for (int i = 0; i < (int)RSBS_FOREIGN_PLACEMENT_CAP; i++) {
         const ComboForeignPlacement& p = gComboCtx.foreignPlacements[i];
         if (p.item.originGame == GAME_NONE) {
@@ -821,8 +1132,9 @@ extern "C" int MM_Rando_HeadlessForeignDigest(const char* outPath) {
     if (closeOut) {
         fclose(out);
     }
-    fprintf(stderr, "[MM-FOREIGN-DIGEST] mmFinalSeed=%08X mmPlacementHash=%08X foreign=%d\n",
-            gSaveContext.save.shipSaveInfo.rando.finalSeed, mmPlacementHash, Combo_CountForeignPlacements());
+    fprintf(stderr, "[MM-FOREIGN-DIGEST] mmFinalSeed=%08X mmPlacementHash=%08X mmReachableHash=%08X foreign=%d\n",
+            gSaveContext.save.shipSaveInfo.rando.finalSeed, mmPlacementHash, mmReachableHash,
+            Combo_CountForeignPlacements());
     return 0;
 }
 
@@ -991,12 +1303,37 @@ extern "C" int MM_Rando_HeadlessPairSwitchEntry(void) {
     }
     fprintf(stderr, "[MM-PAIR-SWITCH] switch-entry paired under master seed %u\n", usedMasterSeed);
 
-    if (Combo_CountForeignPlacements() != poolCount) {
-        fprintf(stderr,
-                "[MM-PAIR-SWITCH] FAIL(7): expected %d foreign placements after switch-entry pairing, found "
-                "%d\n",
-                poolCount, Combo_CountForeignPlacements());
-        return 7;
+    // ADR 0010 increment 1.3: expected count is min(pool, reachable eligible
+    // hosts), never zero; and every placement this pinned-seed row wrote must
+    // be inside the reachable closure recomputed from the arrived save — the
+    // placements-in-reachable-set assertion extended over the switch-entry
+    // pinned seed, per the ADR's increment-1 lock list.
+    const int pairSwitchPlaced = Combo_CountForeignPlacements();
+    {
+        const Rando::Foreign::PlacementStats& switchStats = Rando::Foreign::LastPlacementStats();
+        const int switchExpected =
+            poolCount < switchStats.reachableEligibleHosts ? poolCount : switchStats.reachableEligibleHosts;
+        if (pairSwitchPlaced == 0 || pairSwitchPlaced != switchExpected) {
+            fprintf(stderr,
+                    "[MM-PAIR-SWITCH] FAIL(7): expected %d foreign placements after switch-entry pairing (pool %d, "
+                    "reachable eligible %d), found %d\n",
+                    switchExpected, poolCount, switchStats.reachableEligibleHosts, pairSwitchPlaced);
+            return 7;
+        }
+        const std::set<RandoCheckId> switchReachable = Rando::Logic::ComputeReachableCheckSet();
+        for (int i = 0; i < (int)RSBS_FOREIGN_PLACEMENT_CAP; i++) {
+            const ComboForeignPlacement& p = gComboCtx.foreignPlacements[i];
+            if (p.item.originGame == GAME_NONE) {
+                continue;
+            }
+            if (!switchReachable.contains((RandoCheckId)p.mmCheckId)) {
+                fprintf(stderr,
+                        "[MM-PAIR-SWITCH] FAIL(7): hosting check %u is outside the reachable-check closure — the "
+                        "reachability gate (ADR 0010 increment 1.3) did not hold on the switch-entry path\n",
+                        (unsigned)p.mmCheckId);
+                return 7;
+            }
+        }
     }
     if (gSaveContext.save.entrance != kArrival) {
         fprintf(stderr,
@@ -1026,7 +1363,7 @@ extern "C" int MM_Rando_HeadlessPairSwitchEntry(void) {
             fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(9): paired spoiler unparseable: %s\n", e.what());
             return 9;
         }
-        if (!j.contains("foreign") || !j["foreign"].is_object() || (int)j["foreign"].size() != poolCount) {
+        if (!j.contains("foreign") || !j["foreign"].is_object() || (int)j["foreign"].size() != pairSwitchPlaced) {
             fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(10): spoiler 'foreign' section missing or wrong size\n");
             return 10;
         }
@@ -1207,8 +1544,9 @@ extern "C" int MM_Rando_HeadlessPairSwitchEntry(void) {
         return 23;
     }
     if (RsbsSave_GetSlotState(0) != (int)RSBS_SLOT_REFUSED) {
-        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(24): the refused arrival did not surface REFUSED on the active slot "
-                        "(state=%d)\n",
+        fprintf(stderr,
+                "[MM-PAIR-SWITCH] FAIL(24): the refused arrival did not surface REFUSED on the active slot "
+                "(state=%d)\n",
                 RsbsSave_GetSlotState(0));
         return 24;
     }
@@ -1236,8 +1574,9 @@ extern "C" int MM_Rando_HeadlessPairSwitchEntry(void) {
     Combo_ClearForeignPlacements();
     gComboCtx.mmProfileDigest = MM_Rando_ComputeProfileStamp();
     if (gComboCtx.mmProfileDigest != phase4Stamp) {
-        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(27): undoing the divergence did not restore the creation profile "
-                        "(%08X vs %08X) — the identity computation is unstable\n",
+        fprintf(stderr,
+                "[MM-PAIR-SWITCH] FAIL(27): undoing the divergence did not restore the creation profile "
+                "(%08X vs %08X) — the identity computation is unstable\n",
                 gComboCtx.mmProfileDigest, phase4Stamp);
         return 27;
     }
@@ -1877,9 +2216,11 @@ void LadderClearOptionCVars() {
 /**
  * THE PINNED LADDER MASTER SEED, run under the ALL-DEFAULT (Glitchless)
  * profile with ONE deterministic ladder rung injected
- * (Rando::Foreign::ForceShortForeignPlacements): attempt 0 fails the #488
- * foreign-placement check, attempt 1 re-derives by the documented recipe and
- * converges — attempts == 2, the minimal ladder-exercising shape.
+ * (Rando::Foreign::ForceShortForeignPlacements): attempt 0 throws the #488
+ * structural placement failure (under ADR 0010 increment 1.3 a mere shortfall
+ * is under-supply and no longer fails the attempt, so the injection rides the
+ * retained structural throw), attempt 1 re-derives by the documented recipe
+ * and converges — attempts == 2, the minimal ladder-exercising shape.
  *
  * WHY INJECTED AND NOT A NATURALLY DEAD-ENDING SEED. The obvious fixture is
  * "scan for a master seed that dead-ends first try". Measured at this tree on
@@ -2071,11 +2412,22 @@ extern "C" int MM_Rando_HeadlessPairedAttemptDigest(const char* outPath) {
         return 6;
     }
     {
+        // ADR 0010 increment 1.3: the winning attempt's placement pass runs
+        // under the reachability gate, so the expected count is
+        // min(pool, reachable eligible hosts) — the gate may legitimately
+        // place fewer than the pool — but ZERO stays fatal (a ladder digest
+        // describing a world that hosted nothing would be vacuous), mirroring
+        // MM_Rando_HeadlessForeignDigest's FAIL(5).
         const ComboForeignItemDef* pool = NULL;
         const int poolCount = Combo_GetForeignItemPool(&pool);
-        if (Combo_CountForeignPlacements() != poolCount) {
-            fprintf(stderr, "[MM-ATTEMPT] FAIL(7): expected %d foreign placements, found %d\n", poolCount,
-                    Combo_CountForeignPlacements());
+        const Rando::Foreign::PlacementStats& attemptStats = Rando::Foreign::LastPlacementStats();
+        const int attemptExpected =
+            poolCount < attemptStats.reachableEligibleHosts ? poolCount : attemptStats.reachableEligibleHosts;
+        if (Combo_CountForeignPlacements() == 0 || Combo_CountForeignPlacements() != attemptExpected) {
+            fprintf(stderr,
+                    "[MM-ATTEMPT] FAIL(7): expected %d foreign placements (pool %d, reachable eligible %d), "
+                    "found %d\n",
+                    attemptExpected, poolCount, attemptStats.reachableEligibleHosts, Combo_CountForeignPlacements());
             return 7;
         }
     }

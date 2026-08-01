@@ -39,11 +39,19 @@
 
 #include "Foreign.h"
 #include "Rando/Rando.h"
+// ComputeReachableCheckSet — the reachability gate on host candidates (ADR
+// 0010 increment 1.3, #500).
+#include "Rando/Logic/Logic.h"
 #include "2s2h/ShipUtils.h"
 // ResolvePairedProfile reads the option CVars (and asks CVarExists whether the
 // player ever set one) and logs which branch of the logic pin it took.
 #include <libultraship/bridge/consolevariablebridge.h>
 #include <spdlog/spdlog.h>
+// std::runtime_error for the structural refused-insert throw below. Explicit
+// because nothing else in this TU's include chain guarantees <stdexcept>:
+// MSVC drags it in transitively, libstdc++ does not, and the Linux CI leg is
+// where that difference would show up.
+#include <stdexcept>
 
 // src/common — placement table + pinned pool surface, and the A1 producer
 // (Combo_RecordSharedItem). Included OUTSIDE any extern "C" block: they pull
@@ -461,18 +469,35 @@ int ForcedShortForeignPlacementsRemaining() {
     return sForcedShortPlacements;
 }
 
+// Session-scoped record of the last placement run — the spoiler's shortfall
+// section and the CI locks read it (accessor below). RAM-only on purpose: the
+// spoiler is written in the same generation event that runs the placement, so
+// nothing durable needs to carry these numbers.
+static PlacementStats sLastPlacementStats;
+
+const PlacementStats& LastPlacementStats() {
+    return sLastPlacementStats;
+}
+
 int PlaceForeignItems() {
     Combo_ClearForeignPlacements();
+    sLastPlacementStats = {};
 
     if (sForcedShortPlacements > 0) {
-        // Armed only by MM_Rando_HeadlessPairedAttemptDigest. Reports "placed
-        // nothing", which is exactly the #488 shortfall OnFileCreate turns
-        // into a deterministic ladder rung.
+        // Armed only by MM_Rando_HeadlessPairedAttemptDigest. Under ADR 0010
+        // increment 1.3's under-supply rule a short placement no longer fails
+        // the attempt (place fewer, loudly — see below), so "placed nothing"
+        // is not a ladder rung anymore. The injection therefore rides the ONE
+        // deterministic generation failure this pass still owns — the
+        // structural #488 throw retained further down — landing in
+        // OnFileCreate's ladder catch exactly as a real placement-table
+        // defect would.
         sForcedShortPlacements--;
         fprintf(stderr,
-                "[MM] foreign placement: FAULT-INJECTED shortfall (attempt-ladder lock; %d injection(s) left)\n",
+                "[MM] foreign placement: FAULT-INJECTED structural failure (attempt-ladder lock; %d injection(s) "
+                "left)\n",
                 sForcedShortPlacements);
-        return 0;
+        throw std::runtime_error("foreign placement: fault-injected structural failure (attempt-ladder lock)");
     }
 
     if (!PairingActive()) {
@@ -484,12 +509,27 @@ int PlaceForeignItems() {
     if (poolCount <= 0 || pool == nullptr) {
         return 0;
     }
+    sLastPlacementStats.requested = poolCount;
 
-    // Candidates: checks IsEligibleHost accepts, in ascending RandoCheckId
-    // order (std::map), so selection stays deterministic. The predicate is a
-    // named function rather than an inline condition precisely so the CI lock
-    // can drive it directly — see IsEligibleHost above for what it enforces and
-    // why the previous inline blocklist was unsound.
+    // The reachability gate (ADR 0010 increment 1.3, #500 work item 2): the
+    // closure of everything MM's own logic can reach in THIS world, under its
+    // frozen settings (options, logic mode, excludes, starting items are all
+    // already inside the save the crawl reads). Computed BEFORE the selection
+    // stream is seeded, and it consumes no RNG stream at all — same
+    // gComboCtx + same MM save still means same placements, which is what the
+    // SeedDeterminism fold locks.
+    const std::set<RandoCheckId> reachable = Rando::Logic::ComputeReachableCheckSet();
+
+    // Candidates: checks IsEligibleHost accepts AND the closure can reach, in
+    // ascending RandoCheckId order (std::map), so selection stays
+    // deterministic. The predicate is a named function rather than an inline
+    // condition precisely so the CI lock can drive it directly — see
+    // IsEligibleHost above for what it enforces and why the previous inline
+    // blocklist was unsound. Reachability composes OUTSIDE the predicate, not
+    // inside it, because IsEligibleHost is also the LOAD path's gate
+    // (Spoiler/Apply.cpp), where "reachable in the world being loaded" is
+    // already witnessed by the spoiler itself; the ROM-free eligibility lock
+    // keeps driving the predicate without needing a region graph.
     //
     // The junk-class requirement inside it is the one part carried over
     // unchanged: the literal RI_JUNK sentinel alone is NOT the criterion,
@@ -498,16 +538,24 @@ int PlaceForeignItems() {
     // plentiful.
     std::vector<RandoCheckId> candidates;
     for (auto& [randoCheckId, randoStaticCheck] : Rando::StaticData::Checks) {
-        if (IsEligibleHost(randoCheckId)) {
+        if (!IsEligibleHost(randoCheckId)) {
+            continue;
+        }
+        sLastPlacementStats.eligibleHosts++;
+        if (reachable.contains(randoCheckId)) {
+            sLastPlacementStats.reachableEligibleHosts++;
             candidates.push_back(randoCheckId);
         }
     }
 
-    // Printed every generation on purpose: Tier A drops the candidate set from
-    // ~2000 to a few dozen, so host supply is now a number worth watching in
-    // CI logs and playtest output BEFORE it becomes a shortfall.
-    fprintf(stderr, "[MM] foreign placement: %d pool items over %zu eligible host checks\n", poolCount,
-            candidates.size());
+    // Printed every generation on purpose: Tier A dropped the candidate set
+    // from ~2000 to a few dozen and the reachability gate narrows it again, so
+    // host supply is a number worth watching in CI logs and playtest output
+    // BEFORE it becomes a shortfall.
+    fprintf(stderr,
+            "[MM] foreign placement: %d pool items over %zu reachable eligible host checks (%d eligible before the "
+            "reachability gate)\n",
+            poolCount, candidates.size(), sLastPlacementStats.eligibleHosts);
 
     sSelectState =
         Ship_Hash(std::to_string(gComboCtx.sharedRandoSeed) + ":" + std::to_string(gComboCtx.sharedRandoSettingsHash) +
@@ -526,12 +574,31 @@ int PlaceForeignItems() {
             placed++;
             fprintf(stderr, "[MM] foreign placement: '%s' hosted at MM check %s\n", pool[i].name,
                     Rando::StaticData::Checks[hostCheck].name);
+        } else {
+            // A refused insert while candidates remained is a STRUCTURAL
+            // defect (cap exceeded, duplicate host, untagged item), never
+            // supply — the under-supply rule below must not absorb it.
+            // Throwing lands in OnFileCreate's catch exactly as the old
+            // placed<poolCount check did for this case.
+            throw std::runtime_error("foreign placement table refused an insert for '" + std::string(pool[i].name) +
+                                     "' with candidates remaining — placement-table defect, not host supply");
         }
     }
+    sLastPlacementStats.placed = placed;
 
     if (placed < poolCount) {
-        fprintf(stderr, "[MM] foreign placement: only %d of %d pool items placed (eligible hosts exhausted)\n", placed,
-                poolCount);
+        // Under-supply (ADR 0010 increment 1.3; cap ≠ promise): fewer
+        // reachable eligible hosts than pool items means fewer placements —
+        // NEVER an unreachable placement, and (while crossings are duplicate
+        // overlays) never a failed generation: the origin world keeps its own
+        // copy, so a missing crossing degrades to "fewer extras", not
+        // "unwinnable". The spoiler carries the durable record
+        // (foreignShortfall, Spoiler/Generate.cpp); this line is the log-side
+        // alarm.
+        fprintf(stderr,
+                "[MM] foreign placement SHORTFALL: only %d of %d pool items placed — reachable eligible hosts "
+                "exhausted (%d eligible, %d reachable); recorded in the spoiler\n",
+                placed, poolCount, sLastPlacementStats.eligibleHosts, sLastPlacementStats.reachableEligibleHosts);
     }
     return placed;
 }
