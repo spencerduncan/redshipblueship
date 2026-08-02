@@ -95,6 +95,14 @@ int MM_FbEffectsBinding_RunHeadless(void);
 // all-Ocarina corruption). Returns 0 on pass, non-zero on fail.
 int MM_FlashFileNumOob_RunHeadless(void);
 int MM_UnifiedSaveCapture_RunHeadless(void);
+// MM capture harvest gate (games/mm/2s2h/mm_capture_harvest_gate_test.cpp,
+// #591): MM_Combo_CaptureSaveToUnifiedSlot harvested the shared-resource pool
+// BEFORE RsbsSave_Save checked the #533/#568 write latch, so a refused capture
+// still advanced gComboCtx.sharedResources and the RAM watermark table for a
+// commit that never landed -- and apply ASSIGNS the consumable kinds, so the
+// phantom pool was materialized verbatim on the far side of the next crossing.
+// Returns 0 on pass, non-zero on fail.
+int MM_CaptureHarvestGate_RunHeadless(void);
 // MM single-exe hook dispatch (games/mm/2s2h/mm_hook_dispatch_test.cpp, #511 /
 // #438): the COND_* macros park registrations in the MM-owned S2H::GameHooks
 // registry, but ShouldActorInit / OnActorInit / OnActorDraw / OnOpenText
@@ -366,6 +374,12 @@ static TestResult Test_MMFlashFileNumOob(void) {
 
 static TestResult Test_MMUnifiedSaveCapture(void) {
     return MM_UnifiedSaveCapture_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// MM capture harvest gate (#591; see the extern decl above). Thin wrapper over
+// the C entry point in games/mm/2s2h/mm_capture_harvest_gate_test.cpp.
+static TestResult Test_MMCaptureHarvestGate(void) {
+    return MM_CaptureHarvestGate_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // MM hook-dispatch lock (see the extern decl above). Thin wrapper over the C
@@ -2123,6 +2137,13 @@ const TestDescriptor gTests[] = {
     // Pure (no display, no ROM).
     {"mm-unified-save-capture", "MM captures its live SaveContext into the unified slot, full-width and round-tripping",
      Test_MMUnifiedSaveCapture},
+    // A capture the #533/#568 write latch refuses must be a no-op on the
+    // SHARED-RESOURCE POOL too, not just on the file: the harvest used to run
+    // ahead of the latch check, so a refused commit still credited (or debited)
+    // rupees/hearts/magic/ammo and raised permanent monotonic tiers for a record
+    // that never reached disk. Pure (no display, no ROM).
+    {"mm-capture-harvest-gate", "a latch-refused MM capture leaves the shared-resource pool untouched (#591)",
+     Test_MMCaptureHarvestGate},
     // Hook dispatch reaches the MM-owned registry the COND_* macros register
     // into. Registers through the production macros and drives each dispatcher
     // through the name MM's call sites spell, so both a deleted bridge and a

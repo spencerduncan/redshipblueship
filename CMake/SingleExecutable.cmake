@@ -602,6 +602,16 @@ if(BUILD_TESTING)
     # capture is FULL-WIDTH rather than the sizeof(Save) prefix the excluded
     # file used. Display-free and ROM-free, so it runs in this redship tier.
     redship_add_test(NAME MMUnifiedSaveCapture COMMAND redship --test mm-unified-save-capture)
+    # MM's capture must not advance the SHARED-RESOURCE POOL for a commit the
+    # write latch refuses (#591, games/mm/2s2h/mm_capture_harvest_gate_test.cpp).
+    # MM_Combo_CaptureSaveToUnifiedSlot harvested rupees/hearts/magic/ammo into
+    # gComboCtx.sharedResources BEFORE RsbsSave_Save checked the #533/#568
+    # armed-session latch, so an un-established or REFUSED slot still moved the
+    # pool and the RAM watermark table for a record that never reached disk.
+    # Apply ASSIGNS the consumable kinds, so the far game materialized that
+    # phantom balance verbatim at the next arrival; the monotonic tiers it also
+    # raised could never decay back out. Display-free and ROM-free.
+    redship_add_test(NAME MMCaptureHarvestGate COMMAND redship --test mm-capture-harvest-gate)
     # MM single-exe hook dispatch (#511, #438): the COND_HOOK/COND_ID_HOOK
     # macros park registrations in the MM-owned S2H::GameHooks registry, but
     # ShouldActorInit / OnActorInit / OnActorDraw / OnOpenText dispatched

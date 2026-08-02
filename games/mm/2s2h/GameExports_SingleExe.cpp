@@ -1654,7 +1654,23 @@ extern "C" void MM_ResumeColdBootPrep(void) {
  * past Save (eventInf, cycleSceneFlags, the timer arrays, the runtime respawn
  * table, ShipSaveContext) at whatever a DIFFERENT point in time left there.
  *
- * @return 1 on a committed write, 0 when there was nothing to write to.
+ * @return 1 on a committed write, 0 otherwise.
+ *
+ * The two REFUSAL returns below — no active slot, and the #533/#568 write
+ * latch — are no-ops on every store this function can reach, the
+ * shared-resource pool and the RAM watermark table included (#591). That is
+ * the guarantee the gate exists to provide and the one MMCaptureHarvestGate
+ * locks.
+ *
+ * It is deliberately NOT extended to the late failures RsbsSave_Save can still
+ * report after the latch admits the write (StageCommit refusing because the
+ * context shadows are absent, or the file write itself failing): by then the
+ * harvest has run, and the pool carries it. Those are benign in a way a refused
+ * session is not — the session is coherent, the harvested balance is MM's real
+ * live balance rather than a divergent world's, and the very next crossing's
+ * MM_Game_Suspend would have folded the identical numbers into the pool anyway.
+ * Claiming a blanket "0 means nothing moved" here would be false on those paths
+ * and would invite a future caller to trust it.
  */
 extern "C" int MM_Combo_CaptureSaveToUnifiedSlot(void) {
     const int slot = RsbsSave_GetActiveSlot();
@@ -1663,6 +1679,44 @@ extern "C" int MM_Combo_CaptureSaveToUnifiedSlot(void) {
         // defaulting to slot 0 here would let an MM session started from an
         // unsaved new file overwrite an unrelated slot.
         fprintf(stderr, "[MM] unified save skipped: no active slot for this session\n");
+        fflush(stderr);
+        return 0;
+    }
+
+    // #591 — THE LATCH IS CHECKED BEFORE THE HARVEST, not just inside
+    // RsbsSave_Save. The harvest below MUTATES process-global cross-game state
+    // (gComboCtx.sharedResources and the RAM watermark table), and a slot that
+    // is not writable this session — never established, or REFUSED for identity
+    // (#570) / generation (#500) divergence — means the commit that harvest is
+    // preparing for WILL NOT LAND. Advancing the pool for a record that is never
+    // written is the harvest/apply gate-asymmetry the #525 work already paid for
+    // once: apply ASSIGNS the consumable kinds (`*liveValue = applied`), so the
+    // phantom pool movement is materialized verbatim on the far side of the next
+    // crossing — rupees, the health bar, magic and every ammo count set from a
+    // commit nobody has. The monotonic kinds are worse in kind: max-merge cannot
+    // decay, so a tier harvested here is in the pool permanently.
+    //
+    // Returning here rather than rolling the harvest back afterwards is what
+    // keeps the ordering intact for the PERMITTED path: the harvest has to
+    // precede Context_UpdateShadowCopy so the pool and the MM blob stored beside
+    // it are one instant (see below), and there is no rollback that could
+    // restore the watermark table's pre-harvest owner/value pairs without
+    // duplicating the merge rules a second time.
+    //
+    // Symmetric with what OoT's side already does at its staging seam
+    // (games/oot/soh/SaveManager.cpp SaveSection: `if (RsbsSave_IsSlotWritable)`
+    // guards the harvest + shadow refresh + StageCommit together), and with
+    // SaveManager::Save itself, which checks the latch BEFORE staging so a
+    // refused write cannot advance the monotonic commit generation. Same rule,
+    // one store further out.
+    //
+    // Return 0, the same "nothing was committed" answer the refused
+    // RsbsSave_Save below would have produced, so no caller sees a new outcome.
+    if (!RsbsSave_IsSlotWritable(slot)) {
+        fprintf(stderr,
+                "[MM] unified save skipped: slot %d is not writable this session (#533/#568 latch);"
+                " shared-resource pool left untouched (#591)\n",
+                slot);
         fflush(stderr);
         return 0;
     }
