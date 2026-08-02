@@ -444,4 +444,5 @@ void InitMods() {
     RegisterHyperBosses();
     RegisterEnemyDefeatCounts();
     RegisterRandomizedEnemySizes();
+    RegisterCrossGameModelSpike();
 }

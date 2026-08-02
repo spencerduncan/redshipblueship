@@ -9,6 +9,9 @@ extern "C" {
 
 void UpdateHyperBossesState();
 void InitMods();
+// #577 spike surface: draws one MM-exclusive model from OoT when
+// RSBS_CROSSGAME_MODEL_SPIKE is set. Defined in crossgame_model_spike.cpp.
+void RegisterCrossGameModelSpike();
 void SwitchAge();
 
 #ifdef __cplusplus

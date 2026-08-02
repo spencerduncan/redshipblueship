@@ -25,6 +25,13 @@
 #include <ship/resource/factory/BlobFactory.h>
 #include <fast/resource/ResourceType.h>
 #include <fast/resource/factory/TextureFactory.h>
+// For Test_CrossGameModel (#577): the model pipeline's factories, registered
+// by both games only inside their display-bound Initialize paths.
+#include <fast/resource/factory/DisplayListFactory.h>
+#include <fast/resource/factory/VertexFactory.h>
+#include <fast/resource/type/DisplayList.h>
+#include <ship/resource/archive/Archive.h>
+#include <ship/resource/archive/ArchiveManager.h>
 
 // Shared-context bring-up entries for the boot regression tests (#329/#330).
 // Defined in games/oot/soh/OTRGlobals.cpp and
@@ -33,6 +40,11 @@
 extern "C" {
 int OoT_InitSharedContextSubsystems(void);
 int MM_RegisterResourceFactoriesHeadless(void);
+// Model-pipeline factories for the #577 cross-game model row (Texture,
+// DisplayList, Vertex, and the game-owned 'OARR' Array reader that extracted
+// vertex data needs). Defined in games/oot/soh/OTRGlobals.cpp — OoT's own TU,
+// so the row runs against the factory surface a real OoT session has.
+int OoT_RegisterModelResourceFactoriesHeadless(void);
 // MM scene-command EXECUTE regression (#344). Body lives in an MM TU
 // (games/mm/2s2h/mm_scene_execute_test.cpp) so MM's global.h / PlayState never
 // enters this translation unit; called through this C entry point, mirroring
@@ -310,6 +322,13 @@ extern "C" {
 // soh.o2r resolvability check (#562) before this body spins its loader
 // threads.
 #include "tests/test_zip_contention.c"
+
+// #577 cross-game model resolution lock. FILE SCOPE (compiled as C++): it walks
+// a parsed Fast::DisplayList and drives the C++-linkage ResourceManager /
+// ArchiveManager. The wrapper (Test_CrossGameModel below) performs the
+// display-free OoT bring-up, mounts the curated cross-game archive, and
+// registers the DisplayList/Vertex/Texture factories first.
+#include "tests/test_crossgame_model.c"
 
 // MM scene-command EXECUTE regression (issue #344). Unlike the parse test, the
 // body runs the parsed commands against a PlayState, so it needs MM's global.h
@@ -1233,6 +1252,59 @@ TestResult Test_ZipContention(void) {
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+TestResult Test_CrossGameModel(void) {
+    printf("[TEST] crossgame-model: an MM-exclusive model resolves and draws from an OoT-only session (#577)\n");
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    // The curated cross-game archive is produced by GenerateRedshipOtr, which
+    // needs BOTH games extracted. A tree that has not run it (or the tier's
+    // deliberate archive-less control run) skips rather than going red — the
+    // same convention as ZipContention.
+    const std::string crossGameArchive = Ship::Context::LocateFileAcrossAppDirs("redship.o2r");
+    if (!std::filesystem::exists(crossGameArchive)) {
+        printf("[TEST] SKIP: no redship.o2r resolvable (tried '%s') — run the GenerateRedshipOtr target "
+               "(needs both oot.o2r and mm.o2r extracted) to arm this row (#577)\n",
+               crossGameArchive.c_str());
+        return TEST_SKIP;
+    }
+
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    // ONLY OoT has been brought up at this point: the bring-up mounts soh.o2r
+    // and nothing else. Mounting the curated archive here is what makes an
+    // MM-exclusive path reachable — the headless equivalent of
+    // EnsureCrossGameArchiveLoaded in rsbs/src/main.cpp. If this row ever
+    // passes without this mount, the lock has gone vacuous.
+    auto archiveManager = ctx->GetResourceManager()->GetArchiveManager();
+    if (archiveManager == nullptr || archiveManager->AddArchive(crossGameArchive) == nullptr) {
+        printf("[TEST] FAIL: could not mount the cross-game archive at '%s'\n", crossGameArchive.c_str());
+        return TEST_FAIL;
+    }
+
+    // The model pipeline's factories, registered by OoT's own TU so this row
+    // exercises the factory surface a real OoT session has — Texture,
+    // DisplayList, Vertex, AND the game-owned 'OARR' Array reader that every
+    // extracted object's vertex data actually needs. Registering that set by
+    // hand here is how the first run of this row went red for the wrong reason
+    // (see the comment on OoT_RegisterModelResourceFactoriesHeadless).
+    if (OoT_RegisterModelResourceFactoriesHeadless() != 0) {
+        printf("[TEST] FAIL: OoT model factory registration failed\n");
+        return TEST_FAIL;
+    }
+
+    int rc = CrossGameModel_RunHeadless();
+    printf("[TEST] %s: cross-game model rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 TestResult Test_SwitchOoTMM(void) {
     printf("[TEST] switch-oot-mm: Test game switch OoT -> MM\n");
 
@@ -1959,6 +2031,8 @@ const TestDescriptor gTests[] = {
     // ARE the concurrency — so `--test all` runs it; it SKIPs itself when no
     // soh.o2r is mounted (the netplay-relay archive-less control tier).
     {"zip-contention", "Concurrent cold o2r loads return intact resources (#560)", Test_ZipContention},
+    {"crossgame-model", "An MM-exclusive model resolves+draws from an OoT-only session (#577)",
+     Test_CrossGameModel},
     {"switch-oot-mm", "Test game switch OoT -> MM", Test_SwitchOoTMM},
     {"switch-mm-oot", "Test game switch MM -> OoT", Test_SwitchMMOoT},
     {"midos-house", "Test Mido's House entrance (test mode)", Test_MidosHouse},

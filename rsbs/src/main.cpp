@@ -44,6 +44,9 @@
 // Resource archive hot-swap for cross-game switches (issue #154)
 // ============================================================================
 
+// Curated cross-game asset archive (#577); defined below.
+static void EnsureCrossGameArchiveLoaded(void);
+
 static void EnsureGameArchivesLoaded(GameId targetGame) {
     auto ctx = Ship::Context::GetInstance();
     if (!ctx || !ctx->GetResourceManager()) return;
@@ -81,6 +84,57 @@ static void EnsureGameArchivesLoaded(GameId targetGame) {
             fprintf(stderr, "[RSBS] Warning: Failed to load archive: %s\n", path.c_str());
         }
     }
+
+    EnsureCrossGameArchiveLoaded();
+}
+
+// ============================================================================
+// Curated cross-game asset archive (#577)
+// ============================================================================
+//
+// redship.o2r carries the models one game draws while the OTHER game is the one
+// that booted. It has to be mounted UNCONDITIONALLY — the whole point is that
+// an MM model is drawable from an OoT-only session, where mm.o2r has never been
+// mounted (nothing in RSBS mounts the other game's archives until the first
+// cross-game switch).
+//
+// Models resolve by resource PATH, not by object id or bank slot: the Fast3D
+// interpreter takes the `__OTR__objects/...` string straight out of the
+// display-list command word and hands it to GetResourceRawPointer
+// (libultraship/src/fast/interpreter.cpp, gfx_dl_otr_filepath_handler_custom /
+// the OTR-hash handlers). So "mounted" is the entire requirement.
+//
+// Mounted exactly once per process, and after whichever game's own archives the
+// boot path already brought up. Order is immaterial here — curated paths are
+// checked against the other game's archive at generation time and the build
+// fails on a collision (scripts/make_redship_otr.py) — but mounting last would
+// otherwise let a curated path win over a real game asset, so the once-only
+// guard is what keeps this from silently becoming a priority mechanism.
+//
+// Absent archive is not an error: a tree that never ran GenerateRedshipOtr, or
+// a user who only ever extracted one game, boots exactly as before.
+static void EnsureCrossGameArchiveLoaded(void) {
+    static bool sMounted = false;
+    if (sMounted) return;
+
+    auto ctx = Ship::Context::GetInstance();
+    if (!ctx || !ctx->GetResourceManager()) return;
+    auto archiveManager = ctx->GetResourceManager()->GetArchiveManager();
+    if (!archiveManager) return;
+
+    const std::string path = Ship::Context::GetPathRelativeToAppBundle("redship.o2r");
+    if (path.empty() || !std::filesystem::exists(path)) {
+        printf("[RSBS] No cross-game archive (redship.o2r) — foreign models unavailable (#577)\n");
+        sMounted = true; // Don't re-probe the filesystem on every switch.
+        return;
+    }
+
+    if (archiveManager->AddArchive(path)) {
+        printf("[RSBS] Cross-game archive ready: %s\n", path.c_str());
+    } else {
+        fprintf(stderr, "[RSBS] Warning: Failed to load cross-game archive: %s\n", path.c_str());
+    }
+    sMounted = true;
 }
 
 // ============================================================================
@@ -510,6 +564,12 @@ int main(int argc, char** argv) {
     printf("Initializing %s...\n", ops ? ops->name : "Unknown");
 
     int initResult = GameRunner_StartGame(&runner, selectedGame, gameArgc, gameArgv);
+
+    // The first boot never goes through EnsureGameArchivesLoaded — the booting
+    // game's own Init mounts its archives — so the curated cross-game archive
+    // has to be mounted here or an OoT-only session would never see it (#577).
+    EnsureCrossGameArchiveLoaded();
+
     if (initResult != 0) {
         fprintf(stderr, "Error: Failed to initialize game (code %d)\n", initResult);
         free(gameArgv);

@@ -1931,6 +1931,47 @@ std::shared_ptr<Ship::ResourceFactory> OoT_CreateCutsceneFactory() {
 std::shared_ptr<Ship::ResourceFactory> OoT_CreatePathFactory() {
     return std::make_shared<SOH::ResourceFactoryBinaryPathV0>();
 }
+
+/**
+ * Headless registration of the MODEL pipeline's factories (#577), for tests
+ * that need to load a display list without the display-bound Initialize path.
+ *
+ * These four slots are what it takes to walk a model end to end, and the set is
+ * not obvious: vertices are NOT the Fast "Vertex" type. Every extracted object's
+ * `*Vtx_*` resource is an 'OARR' Array (SohResourceType.h:5) whose factory is
+ * game-owned, so a harness that registered only DisplayList + Vertex + Texture
+ * loaded the display list and the texture and then failed on the vertices with
+ * "GetFactory failed to find an import factory for resource of type OARR".
+ *
+ * OoT's Array reader is used deliberately, not MM's: the point of the
+ * crossgame-model row is that an MM model parses under the factory surface an
+ * OoT session actually has. (The two readers' Vertex paths are byte-identical —
+ * same 16-byte F3DVtx layout, same field order; they diverge only on the scalar
+ * widths MM's reader additionally handles. Compare ArrayFactory.cpp in each
+ * tree before assuming that stays true.)
+ *
+ * Idempotent: re-registering a slot installs an equivalent factory.
+ */
+extern "C" int OoT_RegisterModelResourceFactoriesHeadless(void) {
+    auto ctx = Ship::Context::GetInstance();
+    if (ctx == nullptr || ctx->GetResourceManager() == nullptr ||
+        ctx->GetResourceManager()->GetResourceLoader() == nullptr) {
+        return -1;
+    }
+    auto loader = ctx->GetResourceManager()->GetResourceLoader();
+    loader->RegisterResourceFactory(std::make_shared<Fast::ResourceFactoryBinaryTextureV0>(), RESOURCE_FORMAT_BINARY,
+                                    "Texture", static_cast<uint32_t>(Fast::ResourceType::Texture), 0);
+    loader->RegisterResourceFactory(std::make_shared<Fast::ResourceFactoryBinaryTextureV1>(), RESOURCE_FORMAT_BINARY,
+                                    "Texture", static_cast<uint32_t>(Fast::ResourceType::Texture), 1);
+    loader->RegisterResourceFactory(std::make_shared<Fast::ResourceFactoryBinaryVertexV0>(), RESOURCE_FORMAT_BINARY,
+                                    "Vertex", static_cast<uint32_t>(Fast::ResourceType::Vertex), 0);
+    loader->RegisterResourceFactory(std::make_shared<Fast::ResourceFactoryBinaryDisplayListV0>(),
+                                    RESOURCE_FORMAT_BINARY, "DisplayList",
+                                    static_cast<uint32_t>(Fast::ResourceType::DisplayList), 0);
+    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryBinaryArrayV0>(), RESOURCE_FORMAT_BINARY,
+                                    "Array", static_cast<uint32_t>(SOH::ResourceType::SOH_Array), 0);
+    return 0;
+}
 #endif
 
 extern "C" void SaveManager_ThreadPoolWait() {

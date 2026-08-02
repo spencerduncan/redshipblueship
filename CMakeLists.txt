@@ -439,6 +439,40 @@ add_custom_target(
     # follows the same convention for soh.o2r).
 )
 
+# Curated cross-game asset archive (#577).
+#
+# redship.o2r holds the foreign models one game draws while the OTHER game is
+# the one that booted. It is carved out of the already-extracted oot.o2r /
+# mm.o2r (paths verbatim -- an extracted display list references its own
+# textures by CRC64-of-path, so renaming would break every reference), which is
+# why this target consumes archives rather than a --custom-assets-path XML tree
+# the way GenerateSohOtr / Generate2ShipOtr do: the point of the archive is to
+# carry ROM-derived models, and those only exist post-extraction.
+#
+# The generator hard-fails if a curated path also exists in the other game's
+# archive; see scripts/make_redship_otr.py and assets/crossgame/manifest.txt.
+#
+# Run AFTER ExtractAssets and ExtractMMAssets. Deliberately no add_dependencies
+# on them: both are always-out-of-date custom targets, so chaining would
+# re-extract both ROMs every time this ran. Missing inputs are a clear error
+# from the generator, not a silent empty archive.
+add_custom_target(
+    GenerateRedshipOtr
+    COMMAND ${CMAKE_COMMAND} -E rm -f redship.o2r
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/scripts/make_redship_otr.py
+            --oot-archive ${CMAKE_SOURCE_DIR}/oot.o2r
+            --mm-archive ${CMAKE_SOURCE_DIR}/mm.o2r
+            --manifest ${CMAKE_CURRENT_SOURCE_DIR}/assets/crossgame/manifest.txt
+            --out ${CMAKE_SOURCE_DIR}/redship.o2r
+    # Land it where a CTest row can see it: the rows run with cwd =
+    # ${CMAKE_BINARY_DIR} and the binary lives there too, so
+    # Ship::Context::LocateFileAcrossAppDirs / GetPathRelativeToAppBundle only
+    # ever find an archive sitting directly in the build root (#560/#562).
+    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/redship.o2r ${CMAKE_BINARY_DIR}/
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    COMMENT "Generating redship.o2r (curated cross-game assets)..."
+)
+
 if(CMAKE_SYSTEM_NAME MATCHES "Linux")
     find_package(ImageMagick COMPONENTS convert)
     if (ImageMagick_FOUND)
