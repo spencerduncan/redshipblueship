@@ -83,6 +83,15 @@
  *      also the route that proves the funnel had to sit in BOTH marshallers:
  *      it is the only one that reaches disk through func_80145698.
  *
+ *  7b. The funnel's PLACEMENT, not just its presence. Sram_SaveSpecialNewDay
+ *      rolls gSaveContext over to the new cycle, marshals, and then restores
+ *      day/time/cutsceneIndex so the cutscene can keep playing -- so the live
+ *      context after the route holds the OLD cycle while the marshalled bytes
+ *      hold the NEW one. The committed Tier-3 must carry the new cycle
+ *      (day 0). Committing at the CALL SITE instead of the marshal tail -- the
+ *      shape the retired #527/#529 patches used -- would durably record the old
+ *      cycle, and only this check goes red for it.
+ *
  *   8. The commit gates still hold at the NEW call sites. A funneled marshal
  *      into a slot this session never established must not write and must not
  *      advance the generation (#533/#568 write latch), and neither must one
@@ -181,7 +190,14 @@ void PoisonMMShadow(uint8_t value) {
 // the generation the load-time skew check compares against OoT's .sav), a slot
 // file exists, and a fresh Load brings back a non-zero Tier-3 carrying `stamp`.
 // Prints its own diagnosis and returns false on failure.
-bool CommitReached(int slot, uint32_t genBefore, u8 stamp, const char* what) {
+//
+// `stamp` < 0 skips the stamp comparison, for a route that legitimately writes
+// the probe field itself: Sram_SaveSpecialNewDay (check 7b) runs
+// Sram_SaveEndOfCycle, which zeroes masksGivenOnMoon (z_sram_NES.c), so the
+// route erases its own stamp exactly the way route 6 erased a lastTimeLog-based
+// one. That check carries its own, stronger content evidence instead -- the
+// committed cycle -- and full-width capture is already locked by checks 5-7.
+bool CommitReached(int slot, uint32_t genBefore, int stamp, const char* what) {
     const uint32_t genAfter = gComboCtx.commitGeneration;
     if (genAfter != genBefore + 1) {
         printf("[TEST] FAIL: %s must advance the commit generation by exactly 1 (%u -> %u)\n", what,
@@ -205,7 +221,7 @@ bool CommitReached(int slot, uint32_t genBefore, u8 stamp, const char* what) {
         printf("[TEST] FAIL: %s left no MM shadow after the reload\n", what);
         return false;
     }
-    if (mm[RouteProbeOffset()] != stamp) {
+    if (stamp >= 0 && mm[RouteProbeOffset()] != (uint8_t)stamp) {
         printf("[TEST] FAIL: %s did not round-trip its Tier-3 stamp (got 0x%02X, want 0x%02X)\n", what,
                (unsigned)mm[RouteProbeOffset()], (unsigned)stamp);
         return false;
@@ -389,6 +405,66 @@ extern "C" int MM_UnifiedSaveCapture_RunHeadless(void) {
         USAVE_ASSERT(gSaveContext.save.isFirstCycle, "the route's own save-state writes must still happen");
     }
 
+    // ---- 7b. The INSTANT, not merely the route -----------------------------
+    // Sram_SaveSpecialNewDay is the other headless-drivable route (it touches
+    // nothing on PlayState but sramCtx, sceneId and actorCtx.sceneFlags), and it
+    // is the one that makes the funnel's PLACEMENT falsifiable rather than just
+    // asserted in a comment.
+    //
+    // The route rolls gSaveContext over to the new cycle (Sram_SaveEndOfCycle
+    // sets day = 0), marshals, and then RESTORES day/time/cutsceneIndex right
+    // after the marshal so the "Dawn of the New Day" cutscene can keep playing.
+    // So once the route returns, the live gSaveContext holds the OLD cycle while
+    // the bytes the route meant to make durable hold the NEW one. Committing
+    // from the marshal tail captures the new cycle; committing at the call site
+    // -- the "simpler" hookup, and the one the retired #527/#529 patches used --
+    // would durably record the old cycle instead. Song of Time
+    // (MSGMODE_NEW_CYCLE_0) has the identical shape but is buried in a message
+    // state machine that cannot run headless, so this route stands in for both.
+    {
+        std::vector<uint8_t> playMem(sizeof(PlayState), uint8_t(0));
+        PlayState* play = reinterpret_cast<PlayState*>(playMem.data());
+        play->sramCtx.saveBuf = sSaveBuf;
+
+        const s32 kOldCycleDay = 3;
+        ArmCrossGameSaveContext(0xB7);
+        gSaveContext.save.day = kOldCycleDay;
+        const s32 resetsBefore = gSaveContext.save.saveInfo.playerData.threeDayResetCount;
+        PoisonMMShadow(0x00);
+        const uint32_t gen = gComboCtx.commitGeneration;
+        Sram_SaveSpecialNewDay(play);
+        // NOTE: no tail stamp for this route -- Sram_SaveEndOfCycle zeroes
+        // masksGivenOnMoon, the probe field, so the route would erase its own
+        // stamp. The committed cycle below is the stronger evidence anyway.
+
+        // The route really did do both halves: roll the cycle over, then rewind
+        // the LIVE context back to the old day. Without this the check below
+        // could pass vacuously on a route that simply never restored.
+        USAVE_ASSERT(gSaveContext.save.saveInfo.playerData.threeDayResetCount == resetsBefore + 1,
+                     "Sram_SaveSpecialNewDay must actually roll the cycle over (end-of-cycle writes)");
+        USAVE_ASSERT(gSaveContext.save.day == kOldCycleDay,
+                     "Sram_SaveSpecialNewDay must restore the live day after the marshal -- if it does not, "
+                     "this check cannot tell marshal-time from call-site-time");
+
+        // CommitReached reloads the committed Tier-3 from disk into the shadow.
+        USAVE_ASSERT(CommitReached(kSlot, gen, -1, "Sram_SaveSpecialNewDay"),
+                     "the Dawn-of-the-New-Day special save must persist (#530)");
+
+        const uint8_t* mm = static_cast<const uint8_t*>(Context_GetMMSaveContext());
+        USAVE_ASSERT(mm != nullptr, "MM shadow must exist after the reload");
+        s32 committedDay = -1;
+        memcpy(&committedDay, mm + offsetof(SaveContext, save.day), sizeof(committedDay));
+        USAVE_ASSERT(committedDay == 0,
+                     "the commit must capture the NEW cycle the marshal holds (day 0), not the old cycle the "
+                     "route restores immediately after it -- this is exactly why the funnel sits at the "
+                     "marshal tail and not at the call site (#530)");
+        // Corroborate from a second, independent field, so a zeroed/garbage
+        // blob cannot pass the day check by accident.
+        USAVE_ASSERT(mm[offsetof(SaveContext, save.saveInfo.playerData.threeDayResetCount)] ==
+                         (uint8_t)(resetsBefore + 1),
+                     "the committed blob must carry the rolled-over cycle's reset count too");
+    }
+
     // ---- 8. The commit gates hold at the NEW call sites --------------------
     // (a) #533/#568 write latch: a slot this session never loaded, created, or
     //     erased stays unwritten, and the monotonic generation must not move --
@@ -416,6 +492,12 @@ extern "C" int MM_UnifiedSaveCapture_RunHeadless(void) {
         USAVE_ASSERT(RsbsSave_IsSlotWritable(kSlot) == 0, "an identity refusal must latch the slot (#570)");
 
         ArmCrossGameSaveContext(0xB6);
+        // A day the last PERMITTED commit (7b's new cycle) cannot have, so the
+        // reload below can tell the refused world from the kept one. 7b's
+        // end-of-cycle zeroed masksGivenOnMoon, so the tail stamp alone can no
+        // longer distinguish them.
+        const s32 kRefusedDay = 9;
+        gSaveContext.save.day = kRefusedDay;
         PoisonMMShadow(0x00);
         const uint32_t gen = gComboCtx.commitGeneration;
         func_8014546C(&sramCtx);
@@ -430,8 +512,13 @@ extern "C" int MM_UnifiedSaveCapture_RunHeadless(void) {
         USAVE_ASSERT(RsbsSave_Load(kSlot) == 1, "the identity-refused slot's healthy file must still load");
         const uint8_t* mm = static_cast<const uint8_t*>(Context_GetMMSaveContext());
         USAVE_ASSERT(mm != nullptr, "MM shadow must exist after the reload");
-        USAVE_ASSERT(mm[RouteProbeOffset()] == 0xB4,
-                     "an identity-refused slot must still hold the LAST permitted commit, not the refused one");
+        s32 keptDay = -1;
+        memcpy(&keptDay, mm + offsetof(SaveContext, save.day), sizeof(keptDay));
+        USAVE_ASSERT(keptDay != kRefusedDay, "an identity-refused slot must not have absorbed the refused world");
+        USAVE_ASSERT(keptDay == 0,
+                     "an identity-refused slot must still hold the LAST permitted commit (7b's new cycle), "
+                     "not the refused one");
+        USAVE_ASSERT(mm[RouteProbeOffset()] != 0xB6, "the refused commit's tail must not have reached the file either");
     }
 
     // ---- 10. Autosave's gate actually opens -------------------------------
