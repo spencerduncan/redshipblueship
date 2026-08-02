@@ -109,6 +109,17 @@ time), read by MM's consumption path when Lane C makes it reachable. No new
 seed fields; no shape change. If B needs a settings digest beyond the seed, it
 carves that from `reserved[384]` under the same growth contract.
 
+> **Note added by #598 (record kept, fact corrected).** The parenthetical above
+> is wrong on one detail and stale on another. `OoT_FreezeState` was never
+> *compiled*: its guard was `#ifdef SINGLE_EXECUTABLE_BUILD`, a CMake option
+> name that is never turned into a compile definition (the single-exe define is
+> `RSBS_SINGLE_EXECUTABLE`). And it no longer exists — #598 deleted it, so that
+> a future reader grepping for a freeze-time writer of `sharedRandoSeed` finds
+> no precedent to imitate. The decision itself stands unchanged: the ONLY
+> sanctioned writer of the identity stamps is the creation event
+> (`3drando/playthrough.cpp`), which is what "written in the live path at OoT
+> generation time (not at freeze time)" already said.
+
 ### 4. Version knobs: neither moves
 
 - `RSBS_SAVE_VERSION` stays **2**. It bumps only with

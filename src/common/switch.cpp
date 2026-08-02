@@ -29,7 +29,10 @@
  * which is excluded from the single-exe build — so this translation unit could
  * only stay linkable as long as nothing pulled it in. Its declarations in
  * context.h are now dangling; removing them is a context.h change and belongs
- * to whoever owns that file.
+ * to whoever owns that file. `OoT_FreezeState` itself is gone as of #598 (it
+ * was never compiled either: its `#ifdef SINGLE_EXECUTABLE_BUILD` guard names a
+ * CMake option, not a compile definition), so the only remaining copy of that
+ * shape is MM's, in the same never-compiled state.
  */
 
 #include "context.h"

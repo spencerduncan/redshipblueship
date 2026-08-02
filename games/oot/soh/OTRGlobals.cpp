@@ -2898,91 +2898,24 @@ extern "C" uint32_t Ship_GetInterpolationFrameCount() {
 // ============================================================================
 // Cross-game switching support (for single-executable architecture)
 // ============================================================================
-
-#ifdef SINGLE_EXECUTABLE_BUILD
-
-#include "common/context.h"
-#include "common/entrance.h"
-
-extern "C" {
-
-/**
- * Freeze OoT game state before switching to MM
- * Called by Context_ProcessSwitch() in switch.cpp
- *
- * Saves the current SaveContext to frozen state and records rando status
- * for cross-game state propagation.
- */
-void OoT_FreezeState(ComboContext* ctx) {
-    fprintf(stderr, "[OoT] FreezeState called\n");
-
-    // Get the return entrance (where we'll spawn when coming back)
-    uint16_t returnEntrance = ctx->sourceEntrance;
-
-    // Save the current SaveContext to frozen state
-    Context_FreezeState(GAME_OOT, returnEntrance, &gSaveContext, sizeof(gSaveContext));
-
-    // Record rando status for the target game (MM)
-    // OoT uses IS_RANDO macro which checks gSaveContext.ship.quest.id == QUEST_RANDOMIZER
-    ctx->sourceIsRando = IS_RANDO;
-    if (ctx->sourceIsRando) {
-        // Get the seed from the randomizer context if available
-        auto randoContext = Rando::Context::GetInstance();
-        if (randoContext) {
-            ctx->sharedRandoSeed = randoContext->GetSeed();
-        }
-    }
-
-    fprintf(stderr, "[OoT] State frozen, return entrance: 0x%04X, isRando: %d, seed: %u\n", returnEntrance,
-            ctx->sourceIsRando, ctx->sharedRandoSeed);
-}
-
-/**
- * Resume OoT from a frozen state or start fresh from MM
- * Called by Context_ProcessSwitch() in switch.cpp
- *
- * If returning to OoT (has frozen state): restores SaveContext and spawns at return entrance
- * If first switch to OoT: this is the initial game, should already be initialized
- */
-void OoT_ResumeFromContext(ComboContext* ctx) {
-    fprintf(stderr, "[OoT] ResumeFromContext called\n");
-
-    if (Context_HasFrozenState(GAME_OOT)) {
-        // Returning to OoT - restore the frozen SaveContext
-        fprintf(stderr, "[OoT] Restoring frozen state\n");
-
-        Context_RestoreState(GAME_OOT, &gSaveContext, sizeof(gSaveContext));
-
-        // Get the return entrance from frozen state
-        uint16_t returnEntrance = Context_GetFrozenReturnEntrance(GAME_OOT);
-
-        // Apply the target entrance (either return entrance or startup entrance)
-        uint16_t targetEntrance = Combo_GetStartupEntrance();
-        if (targetEntrance == 0) {
-            targetEntrance = returnEntrance;
-        }
-        gSaveContext.entranceIndex = targetEntrance;
-
-        fprintf(stderr, "[OoT] State restored, entrance: 0x%04X\n", targetEntrance);
-    } else {
-        // First switch to OoT from MM - OoT should already be the initial game
-        // This case is rare (MM starting first), but handle it gracefully
-        fprintf(stderr, "[OoT] No frozen state (OoT should be initial game)\n");
-
-        // Apply startup entrance if set
-        uint16_t targetEntrance = Combo_GetStartupEntrance();
-        if (targetEntrance != 0) {
-            gSaveContext.entranceIndex = targetEntrance;
-            fprintf(stderr, "[OoT] Applied startup entrance: 0x%04X\n", targetEntrance);
-        }
-    }
-
-    // Clear the startup entrance now that we've used it
-    Combo_ClearStartupEntrance();
-
-    fprintf(stderr, "[OoT] ResumeFromContext complete\n");
-}
-
-} // extern "C"
-
-#endif // SINGLE_EXECUTABLE_BUILD
+//
+// DELIBERATELY EMPTY (#598). OoT_FreezeState / OoT_ResumeFromContext used to
+// live here behind `#ifdef SINGLE_EXECUTABLE_BUILD` — a macro this project
+// never defines for any target (SINGLE_EXECUTABLE_BUILD is a CMake *option*
+// name; the compile definition the single-exe build passes is
+// RSBS_SINGLE_EXECUTABLE), so the block had not been compiled, let alone
+// called, in any configuration. They were the last remains of the legacy
+// Context_ProcessSwitch() model; the live hot-swap freeze/consume policy is
+// Switch_PrepareHotSwap / Combo_ConsumeFrozenState in src/common/switch.cpp.
+//
+// WHY THE DELETION MATTERS DESPITE BEING A ZERO-BINARY CHANGE: OoT_FreezeState
+// wrote the master seed — `ctx->sourceIsRando` and `ctx->sharedRandoSeed` —
+// at FREEZE time. Under one-game semantics (#564) the combo identity is frozen
+// by ONE event, the file creation that authors it (3drando/playthrough.cpp
+// stamps sourceIsRando / sharedRandoSeed / sharedRandoSettingsHash /
+// mmProfileDigest there, and derives the reverse placement table from them in
+// the same breath). Any other writer re-stamps identity outside that event,
+// which #570's arrival compare would then read as corruption — and a
+// never-compiled writer is exactly the kind of thing a future revival copies
+// because it looks like precedent. The creation event is the ONLY sanctioned
+// stamp site; there is no second one to imitate now.

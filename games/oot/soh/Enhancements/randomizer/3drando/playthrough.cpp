@@ -110,8 +110,11 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
 
     // Lane B unified-seed producer (ADR 0002 §3): publish this OoT world's
     // identity into the process-global ComboContext at GENERATION time — NOT at
-    // freeze time (the legacy OoT_FreezeState / BenPort freeze-time producers are
-    // dead code and must not be imitated). Both the live GUI path
+    // freeze time. This is the ONE sanctioned stamp site (#598): OoT's legacy
+    // freeze-time producer (OoT_FreezeState) has been deleted outright, and MM's
+    // mirror in games/mm/2s2h/BenPort.cpp sits behind the same never-defined
+    // `SINGLE_EXECUTABLE_BUILD` macro — neither is precedent for a second
+    // writer. Both the live GUI path
     // (RandoMain::GenerateRando -> GenerateRandomizer -> here) and the headless
     // harness (Rando_HeadlessSeedTest -> GenerateRandomizer -> here) funnel
     // through this one point, and we only reach it on a fully successful fill +
