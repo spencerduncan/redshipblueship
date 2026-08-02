@@ -1092,10 +1092,15 @@ static void OoT_AwardSharedItem(const SharedItem* item, void* ctx) {
     // surface the arrival ALREADY renders over — MM's rando pickups cross-bind
     // to this exact Emit (#427 item 1).
     //
-    // No .itemIcon: resolving one needs a per-item icon-name accessor that
-    // src/common does not have yet (the Combo_GetForeignItemIconName tier of
-    // #494). Emitting text-only is an existing idiom, not a degradation — the
-    // MOD_RANDOMIZER branch in hook_handlers.cpp omits the icon too.
+    // .itemIcon comes from Combo_GetForeignItemIconName (#494): the pinned pool
+    // now carries each OoT item's ITEM_* texture-map key alongside its name and
+    // article, and the accessor serves it back origin-keyed, so src/common never
+    // translates an RG_* into a texture. It may still return NULL (an entry with
+    // no icon, or an id outside the pool), and a NULL icon is text-only, not a
+    // degradation — the MOD_RANDOMIZER branch in hook_handlers.cpp omits the icon
+    // too. The overlay stores the pointer and dereferences it at draw time, well
+    // after the item icons are registered, and the pool's key is a string literal
+    // that outlives the toast.
     //
     // WORDING (#510): "You got the Fairy Bow", not "Received from Termina: …".
     // The arrival IS the moment the player receives it in OoT, so the native
@@ -1115,6 +1120,7 @@ static void OoT_AwardSharedItem(const SharedItem* item, void* ctx) {
     const char* foreignName = Combo_GetForeignItemName(*item);
     const char* foreignArticle = Combo_GetForeignItemArticle(*item);
     Notification::Emit({
+        .itemIcon = Combo_GetForeignItemIconName(*item),
         .message = "You got ",
         .suffix = std::string(foreignArticle != nullptr ? foreignArticle : "") +
                   (foreignName != nullptr ? foreignName : "a foreign item"),

@@ -94,11 +94,24 @@ void GiveLinkRupees(int numOfRupees);
 // inventory items whose give falls through OoT_Item_Give's generic tail — save
 // writes only, no PlayState deref — which is what makes them safe on the
 // NULL-play redemption path the pool is given through.
+// The `iconName` column is the ITEM_* texture-map key each item's OoT arrival
+// toast renders (#494) — the exact string GetTextureForItemId returns for that
+// item's GetItemEntry.itemId, which is what the Notification overlay resolves
+// through GetTextureByName. Verified against item_list.cpp's item table and the
+// Plandomizer itemImageMap: GI_LENS -> ITEM_LENS, GI_BOOMERANG -> ITEM_BOOMERANG,
+// GI_HAMMER -> ITEM_HAMMER. Progressive Strength has no single item id (it
+// resolves per-tier at give time), so it takes the base-tier bracelet icon as a
+// stable representative rather than a per-tier lookup on the NULL-play redemption
+// path — a decoration, not the give. src/common serves these back verbatim via
+// Combo_GetForeignItemIconName; it never has to translate an RG_* itself.
 static const ComboForeignItemDef kForeignPoolV1[] = {
-    { { (uint8_t)GAME_OOT, 0, (uint16_t)RG_PROGRESSIVE_STRENGTH }, "Progressive Strength Upgrade", "a " },
-    { { (uint8_t)GAME_OOT, 0, (uint16_t)RG_LENS_OF_TRUTH }, "Lens of Truth", "the " },
-    { { (uint8_t)GAME_OOT, 0, (uint16_t)RG_BOOMERANG }, "Boomerang", "the " },
-    { { (uint8_t)GAME_OOT, 0, (uint16_t)RG_MEGATON_HAMMER }, "Megaton Hammer", "the " },
+    { { (uint8_t)GAME_OOT, 0, (uint16_t)RG_PROGRESSIVE_STRENGTH },
+      "Progressive Strength Upgrade",
+      "a ",
+      "ITEM_BRACELET" },
+    { { (uint8_t)GAME_OOT, 0, (uint16_t)RG_LENS_OF_TRUTH }, "Lens of Truth", "the ", "ITEM_LENS" },
+    { { (uint8_t)GAME_OOT, 0, (uint16_t)RG_BOOMERANG }, "Boomerang", "the ", "ITEM_BOOMERANG" },
+    { { (uint8_t)GAME_OOT, 0, (uint16_t)RG_MEGATON_HAMMER }, "Megaton Hammer", "the ", "ITEM_HAMMER" },
 };
 
 static constexpr int kForeignPoolCount = sizeof(kForeignPoolV1) / sizeof(kForeignPoolV1[0]);
