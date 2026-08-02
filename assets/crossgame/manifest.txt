@@ -1,0 +1,30 @@
+# Curated cross-game asset manifest -- the contents of redship.o2r (#577).
+#
+# Format: <game> <archive-path-prefix>
+#   game   = the archive the resources are carved OUT of (oot | mm)
+#   prefix = a path prefix in that archive; end it with '/' to take a whole
+#            object directory
+#
+# Paths are copied VERBATIM (see scripts/make_redship_otr.py for why), so every
+# entry here must be absent from the other game's archive.  The generator hard
+# -fails on a collision rather than shipping an order-dependent archive.
+#
+# It also hard-fails on Room/scene, Cutscene and Path resources.  Those three
+# loader slots are resolved by OWNING ARCHIVE in single-exe builds
+# (RsbsMMArchiveFactoryDispatcher, games/mm/2s2h/GameExports_SingleExe.cpp) and
+# redship.o2r is registered as neither game's archive, so anything of those
+# types carried here would be parsed with the wrong game's reader.  Models are
+# unaffected -- no model resource type is dispatched that way.
+#
+# Collision-free headroom as measured against the current archives (#577
+# re-examination, 2026-07-31): 313 MM-exclusive object directories, 230
+# OoT-exclusive, including all 24 `object_mask_*`.
+#
+# --- spike scope (#577) -------------------------------------------------------
+# One MM-exclusive model, chosen because it is the smallest interesting case:
+# 5,016 bytes across three resources, and its display list is fully
+# self-contained -- every G_SETTIMG/G_VTX reference in
+# object_mask_truth_DL_0001A0 resolves to a path inside this same directory,
+# with zero references into gameplay_keep or any other shared segment.  That is
+# what makes it the right probe for the segment-0x04 divergence question.
+mm objects/object_mask_truth/

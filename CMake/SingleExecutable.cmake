@@ -469,6 +469,23 @@ if(BUILD_TESTING)
     # condition in the rando tier.
     redship_add_test(NAME ZipContention COMMAND redship --test zip-contention)
     set_tests_properties(ZipContention PROPERTIES SKIP_RETURN_CODE 77)
+    # #577 cross-game model resolution lock: with ONLY OoT brought up, mount the
+    # curated cross-game archive and assert an MM-exclusive model's display list
+    # parses and every reference in its command stream resolves out of a non-OoT
+    # archive, with no raw segmented texture reference left (those resolve
+    # against the HOST game's segment table — the OoTMM kObjectPatches[] hazard,
+    # and the one real objection to cross-game rendering).
+    #
+    # SKIP_RETURN_CODE: redship.o2r only exists once GenerateRedshipOtr has run,
+    # which needs BOTH games extracted. A single-game or archive-less tree skips
+    # instead of going red, same convention as ZipContention above.
+    #
+    # RSBS_CROSSGAME_MODEL_PATH overrides which curated display list is walked.
+    # It exists so the raw-segmented-texture assertion can be shown to fire
+    # without a rebuild — curate an object that has one, point the variable at
+    # it, watch the row go red. Unset in the shipped row, on purpose.
+    redship_add_test(NAME CrossGameModel COMMAND redship --test crossgame-model)
+    set_tests_properties(CrossGameModel PROPERTIES SKIP_RETURN_CODE 77)
     # Unified save (.redsave) headless tests — Phase 2 T6 (#35)
     redship_add_test(NAME SaveRoundtripTiers COMMAND redship --test save-roundtrip-tiers)
     redship_add_test(NAME SaveHeader COMMAND redship --test save-header)
