@@ -1654,9 +1654,23 @@ extern "C" void MM_ResumeColdBootPrep(void) {
  * past Save (eventInf, cycleSceneFlags, the timer arrays, the runtime respawn
  * table, ShipSaveContext) at whatever a DIFFERENT point in time left there.
  *
- * @return 1 on a committed write, 0 when there was nothing to write to or the
- *         slot is latched against writes. A 0 return is a NO-OP on every store
- *         this function can reach — including the shared-resource pool (#591).
+ * @return 1 on a committed write, 0 otherwise.
+ *
+ * The two REFUSAL returns below — no active slot, and the #533/#568 write
+ * latch — are no-ops on every store this function can reach, the
+ * shared-resource pool and the RAM watermark table included (#591). That is
+ * the guarantee the gate exists to provide and the one MMCaptureHarvestGate
+ * locks.
+ *
+ * It is deliberately NOT extended to the late failures RsbsSave_Save can still
+ * report after the latch admits the write (StageCommit refusing because the
+ * context shadows are absent, or the file write itself failing): by then the
+ * harvest has run, and the pool carries it. Those are benign in a way a refused
+ * session is not — the session is coherent, the harvested balance is MM's real
+ * live balance rather than a divergent world's, and the very next crossing's
+ * MM_Game_Suspend would have folded the identical numbers into the pool anyway.
+ * Claiming a blanket "0 means nothing moved" here would be false on those paths
+ * and would invite a future caller to trust it.
  */
 extern "C" int MM_Combo_CaptureSaveToUnifiedSlot(void) {
     const int slot = RsbsSave_GetActiveSlot();
