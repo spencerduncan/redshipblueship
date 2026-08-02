@@ -19,12 +19,6 @@
 #include "2s2h_assets.h"
 #include <libultraship/bridge/consolevariablebridge.h>
 
-// RSBS single-exe: MM's redship-native unified-save capture, defined in
-// games/mm/2s2h/GameExports_SingleExe.cpp. Declared locally rather than via a
-// header because src/common is not on this decomp TU's include path — the same
-// convention z_play.c uses for the Combo_* entry points.
-extern int MM_Combo_CaptureSaveToUnifiedSlot(void);
-
 const char* gBombersNotebookPhotos[] = {
     gBombersNotebookPhotoAnjuTex,
     gBombersNotebookPhotoKafeiTex,
@@ -6200,6 +6194,13 @@ void MM_Message_Update(PlayState* play) {
 
             Sram_SaveEndOfCycle(play);
             gSaveContext.timerStates[TIMER_ID_MOON_CRASH] = TIMER_STATE_OFF;
+            // RSBS (#530): the Song of Time new-cycle save commits to the
+            // unified .redsave from inside this marshal
+            // (Sram_ComboCommitUnifiedSave, z_sram_NES.c). Note the commit MUST
+            // happen here and not after the three restores below: those rewind
+            // gSaveContext to the CURRENT instant so the cutscene can keep
+            // playing, while the save this route means to make durable is the
+            // NEW cycle Sram_SaveEndOfCycle just built.
             func_8014546C(&play->sramCtx);
 
             gSaveContext.save.day = sp40;
@@ -6232,26 +6233,22 @@ void MM_Message_Update(PlayState* play) {
             play->state.unk_A3 = 1;
             gSaveContext.save.isOwlSave = true;
             Play_SaveCycleSceneFlags(play);
-            func_8014546C(&play->sramCtx);
-
-            // RSBS (#35 follow-up): commit the owl save to the unified
-            // .redsave, OUTSIDE the fileNum gate below on purpose.
+            // RSBS (#35 follow-up, generalized by #530): the cross-game
+            // .redsave commit for this route now rides INSIDE func_8014546C
+            // above (Sram_ComboCommitUnifiedSave, z_sram_NES.c) rather than
+            // being pasted in beside the flash write here. Same instant, same
+            // ordering requirement — after Play_SaveCycleSceneFlags and the
+            // marshal, so the checksummed cycle flags are already in
+            // gSaveContext — but now it is the funnel every durable MM route
+            // shares instead of a two-site allowlist that left Song of Time,
+            // the game-over save, the special saves and autosave persisting
+            // zero bytes while presenting a completed save.
             //
-            // A cross-game MM session (entered via the Happy Mask Shop) runs
-            // with fileNum pinned to the 0xFF sentinel for its entire life, so
-            // the vanilla branch below never runs — yet the state machine
-            // still advances to MSGMODE_OWL_SAVE_1/_2 and plays the whole
-            // save-and-quit sequence. The player therefore saw a complete,
-            // indistinguishable owl save that attempted zero bytes of
-            // persistence, with no diagnostic. This call is what makes the owl
-            // save real in that session. It must come AFTER
-            // Play_SaveCycleSceneFlags/func_8014546C so the checksummed cycle
-            // flags are already in gSaveContext.
-            //
-            // Deliberately NOT fixed by handing cross-game MM a fake real
+            // Still deliberately NOT fixed by handing cross-game MM a fake real
             // fileNum: that would re-arm every slot-addressed flash path the
-            // 0xFF guards were added to close (#487/#515).
-            MM_Combo_CaptureSaveToUnifiedSlot();
+            // 0xFF guards were added to close (#487/#515). Hence the commit
+            // living outside the gate below rather than inside it.
+            func_8014546C(&play->sramCtx);
 
             if (gSaveContext.fileNum != 0xFF) {
                 Sram_SetFlashPagesOwlSave(&play->sramCtx,
