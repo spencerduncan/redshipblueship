@@ -319,6 +319,13 @@ extern "C" {
 // threads.
 #include "tests/test_zip_contention.c"
 
+// Curated-archive mount-order lock (#595) and the mod-survives-a-switch lock
+// (#593). FILE SCOPE (compiled as C++): both drive the C++-linkage
+// Ship::Context / ArchiveManager APIs directly, and the #593 body calls the
+// production Combo_EnsureGameArchivesLoaded defined in rsbs/src/main.cpp. The
+// wrappers below resolve the staged archives and SKIP when they are absent.
+#include "tests/test_curated_archive_order.c"
+
 // MM scene-command EXECUTE regression (issue #344). Unlike the parse test, the
 // body runs the parsed commands against a PlayState, so it needs MM's global.h
 // — which lives in an MM TU (games/mm/2s2h/mm_scene_execute_test.cpp) to keep
@@ -1247,6 +1254,69 @@ TestResult Test_ZipContention(void) {
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #595: the two archives we generate ourselves — soh.o2r and 2ship.o2r —
+// collided on 595 paths, 21 differing in content, in the ONE flat
+// ArchiveManager both are mounted into. Resolution is last-added-wins, so which
+// copy either game rendered depended on which game booted first and whether a
+// switch had happened (observed: chest-corner textures). This row mounts them
+// BOTH WAYS ROUND and requires every path to resolve to the same bytes either
+// way. Body + anti-vacuity guards in
+// src/common/tests/test_curated_archive_order.c.
+//
+// Archive-layer only: no ResourceManager, no factories, no display. SKIPs when
+// either curated archive is unstaged, matching the ZipContention policy (the
+// netplay-relay job re-runs this label archive-less on purpose, #562).
+TestResult Test_CuratedArchiveOrder(void) {
+    printf("[TEST] curated-archive-order: soh.o2r/2ship.o2r resolve identically in either mount order (#595)\n");
+
+    const std::string sohArchive = CaoResolveArchive("soh.o2r");
+    const std::string mmArchive = CaoResolveArchive("2ship.o2r");
+    if (sohArchive.empty() || mmArchive.empty()) {
+        printf("[TEST] SKIP: curated archives not staged (soh.o2r '%s', 2ship.o2r '%s') — the archive-less "
+               "control run keeps this row skipped by design (#562)\n",
+               sohArchive.c_str(), mmArchive.c_str());
+        return TEST_SKIP;
+    }
+
+    int rc = CuratedArchiveOrder_RunHeadless(sohArchive.c_str(), mmArchive.c_str());
+    printf("[TEST] %s: curated archive order rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #593: a user mod overrides a base asset only by being mounted after it, and
+// the switch-time base re-add (the #154 fix) put the base archives back on top
+// — silently revoking every override, with the mods still listed as enabled.
+// This row drives the production Combo_EnsureGameArchivesLoaded against the
+// real shared ArchiveManager with a copy of 2ship.o2r standing in for a mod,
+// and carries its own empty-registry negative control. Body in
+// src/common/tests/test_curated_archive_order.c.
+TestResult Test_ModArchiveSurvivesSwitch(void) {
+    printf("[TEST] mod-survives-switch: a registered mod archive still wins after a game switch (#593)\n");
+
+    const std::string sohArchive = CaoResolveArchive("soh.o2r");
+    const std::string mmArchive = CaoResolveArchive("2ship.o2r");
+    if (sohArchive.empty() || mmArchive.empty()) {
+        printf("[TEST] SKIP: no staged archive to stand in for a base archive and a mod (soh.o2r '%s', "
+               "2ship.o2r '%s')\n",
+               sohArchive.c_str(), mmArchive.c_str());
+        return TEST_SKIP;
+    }
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    int rc = ModArchiveSurvivesSwitch_RunHeadless(sohArchive.c_str(), mmArchive.c_str());
+    printf("[TEST] %s: mod survives switch rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 TestResult Test_SwitchOoTMM(void) {
     printf("[TEST] switch-oot-mm: Test game switch OoT -> MM\n");
 
@@ -1973,6 +2043,12 @@ const TestDescriptor gTests[] = {
     // ARE the concurrency — so `--test all` runs it; it SKIPs itself when no
     // soh.o2r is mounted (the netplay-relay archive-less control tier).
     {"zip-contention", "Concurrent cold o2r loads return intact resources (#560)", Test_ZipContention},
+    // #595/#593: archive-layer order locks. Display-free; both SKIP when the
+    // curated archives are not staged.
+    {"curated-archive-order", "soh.o2r/2ship.o2r resolve identically in either mount order (#595)",
+     Test_CuratedArchiveOrder},
+    {"mod-survives-switch", "A registered mod archive still wins after a game switch (#593)",
+     Test_ModArchiveSurvivesSwitch},
     {"switch-oot-mm", "Test game switch OoT -> MM", Test_SwitchOoTMM},
     {"switch-mm-oot", "Test game switch MM -> OoT", Test_SwitchMMOoT},
     {"midos-house", "Test Mido's House entrance (test mode)", Test_MidosHouse},

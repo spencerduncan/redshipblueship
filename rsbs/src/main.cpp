@@ -29,6 +29,7 @@
 #include "ComboMmOptionsWindow.h" // Combo_MMOptionsWindow_Init (#497/#499, ADR 0004+0008)
 #include "ComboTrackerWindow.h"   // Combo_TrackerWindow_Init (#458, ADR 0008)
 #include "entrance.h"
+#include "mod_archives.h" // #593 — user mod archives must survive a game switch
 #include "save.h" // rsbs::SaveManager — unified .redsave save-directory wiring
 #include "rsbs_version.h"
 #include "test_runner.h"
@@ -44,7 +45,10 @@
 // Resource archive hot-swap for cross-game switches (issue #154)
 // ============================================================================
 
-static void EnsureGameArchivesLoaded(GameId targetGame) {
+// Not static: declared in src/common/mod_archives.h so the #593 lock
+// (src/common/tests/test_curated_archive_order.c) can drive THIS function
+// rather than a copy of it.
+extern "C" void Combo_EnsureGameArchivesLoaded(GameId targetGame) {
     auto ctx = Ship::Context::GetInstance();
     if (!ctx || !ctx->GetResourceManager()) return;
     auto archiveManager = ctx->GetResourceManager()->GetArchiveManager();
@@ -79,6 +83,51 @@ static void EnsureGameArchivesLoaded(GameId targetGame) {
             printf("[RSBS] Archive ready: %s\n", path.c_str());
         } else {
             fprintf(stderr, "[RSBS] Warning: Failed to load archive: %s\n", path.c_str());
+        }
+    }
+
+    // #593: put the target game's mod archives back on top.
+    //
+    // ArchiveManager resolution is last-added-wins with no priority field
+    // (ArchiveManager::AddArchive overwrites mFileToArchive[hash]
+    // unconditionally), and that is the ONLY mechanism by which a user mod
+    // overrides a base asset: both ports mount mods/ AFTER their base
+    // archives. The base re-add above — which #154 requires — therefore puts
+    // the base archives back on top and silently revokes every mod override.
+    // OoT feels it on the first return trip (it mounts mods late, at GUI init)
+    // and MM on its second arrival. Re-apply here so the post-switch mount
+    // order matches the post-boot one.
+    //
+    // Only the TARGET game's mods: the base archives just re-added are the
+    // target's, so the target's mods are exactly what got clobbered. The other
+    // game's mods are still mounted above ITS base archives and are untouched.
+    //
+    // The registry (src/common/mod_archives.h) is fed by each port at mount
+    // time, so this replays the player's ACTUAL enabled set in the player's
+    // ACTUAL order. Re-globbing mods/ here would instead resurrect archives the
+    // player disabled.
+    const int modCount = Combo_GetModArchiveCount(targetGame);
+    for (int i = 0; i < modCount; i++) {
+        const char* modPath = Combo_GetModArchive(targetGame, i);
+        if (modPath == nullptr || modPath[0] == '\0') continue;
+
+        if (!std::filesystem::exists(modPath)) {
+            fprintf(stderr,
+                    "[RSBS] WARNING: mod archive is gone since it was mounted, so its overrides are NOT active "
+                    "after this switch: %s\n",
+                    modPath);
+            continue;
+        }
+
+        if (archiveManager->AddArchive(std::string(modPath))) {
+            printf("[RSBS] Mod archive re-applied over %s base archives: %s\n", Game_ToString(targetGame), modPath);
+        } else {
+            // Loud on purpose. Silence here is the whole bug: the mod stays
+            // listed as enabled in the menu while none of its assets apply.
+            fprintf(stderr,
+                    "[RSBS] WARNING: failed to re-apply mod archive after the switch; the base archives now "
+                    "override it and this mod will NOT apply: %s\n",
+                    modPath);
         }
     }
 }
@@ -711,7 +760,7 @@ int main(int argc, char** argv) {
             }
 
             // Hot-swap resource archives before game init/resume
-            EnsureGameArchivesLoaded(nextGame);
+            Combo_EnsureGameArchivesLoaded(nextGame);
 
             // GameRunner handles suspend/resume/init lifecycle
             int switchResult = GameRunner_SwitchTo(&runner, nextGame, gameArgc, gameArgv);
