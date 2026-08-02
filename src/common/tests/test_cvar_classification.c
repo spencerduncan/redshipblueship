@@ -260,6 +260,27 @@ TestResult Test_CVarClassification(void) {
         CVARCLASS_CHECK(covers, "a retired family prefix covers no converged legacy key — it is stale");
     }
 
+    // #454: gDeveloperTools.DebugSaveFileMode is now genuine class (S). The
+    // count static_asserts in cvar_shared_keys.h pin the SIZES (26 shared, 0
+    // disputed), but not the identity — 26 could be reached by adding some other
+    // key while this one silently vanished. Pin the identity too: the key is IN
+    // kSharedIntentKeys and NOT in the disputed table.
+    {
+        bool sharedHasDebugSave = false;
+        for (std::size_t i = 0; i < RSBS::kSharedIntentKeyCount; i++) {
+            if (strcmp(RSBS::kSharedIntentKeys[i], "gDeveloperTools.DebugSaveFileMode") == 0) {
+                sharedHasDebugSave = true;
+                break;
+            }
+        }
+        CVARCLASS_CHECK(sharedHasDebugSave,
+                        "gDeveloperTools.DebugSaveFileMode must be in kSharedIntentKeys after #454 (S) resolution");
+        for (std::size_t d = 0; d < RSBS::kDisputedClassificationKeyCount; d++) {
+            CVARCLASS_CHECK(strcmp(RSBS::kDisputedClassificationKeys[d], "gDeveloperTools.DebugSaveFileMode") != 0,
+                            "gDeveloperTools.DebugSaveFileMode is back in the disputed table — #454 reopened");
+        }
+    }
+
     // ------------------------------------------------------------------
     // (2) The migrator's decision rules (ADR 0003 §6.3).
     //

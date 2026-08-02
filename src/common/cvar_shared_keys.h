@@ -315,9 +315,13 @@ inline constexpr const char* kSharedIntentKeys[] = {
     "gCheats.InfiniteMagic",
     "gCheats.MoonJumpOnL",
     "gCheats.NoClip",
-    // Developer tooling. NOTE: gDeveloperTools.DebugSaveFileMode is
-    // deliberately ABSENT — see kDisputedClassificationKeys.
+    // Developer tooling. gDeveloperTools.DebugSaveFileMode joined this list when
+    // #454 was fixed: MM's clobbering write in RegisterDebugMode() was retired
+    // and its read default aligned to OoT's 1, so the key is now genuine class
+    // (S) — shared spelling, shared meaning, shared default, no writer. See the
+    // note where kDisputedClassificationKeys used to carry it.
     "gDeveloperTools.DebugEnabled",
+    "gDeveloperTools.DebugSaveFileMode",
     "gDeveloperTools.FrameAdvanceTick",
     "gDeveloperTools.LogLevel",
     // Graphics enhancements that describe the renderer, not the game.
@@ -354,49 +358,41 @@ inline constexpr const char* kDeliberateSharedCheatKeys[] = {
 };
 
 /**
- * Keys the two governing documents classified DIFFERENTLY. Kept as a table, and
- * asserted on only to the extent both readings agree: a key here is never swept
- * into the convergence set.
+ * Keys the two governing documents classified DIFFERENTLY. Kept as a named
+ * table so a future re-dispute has a home, and asserted on only to the extent
+ * both readings agree: a key here is never swept into the convergence set.
  *
- * `gDeveloperTools.DebugSaveFileMode`. ADR 0003 §4.1 called it (S) — "value
- * spaces align, only the unwritten fallback differs, acceptable". The inventory
- * §3.3 BUG 2 and ADR 0004 §2d took the (P) line on the strength of the
- * defaults disagreeing (OoT 1 = "vanilla debug save", MM 0 = "empty save").
+ * EMPTY as of #454's fix (2026-08-02). It carried exactly one key,
+ * `gDeveloperTools.DebugSaveFileMode`, which is now genuine class (S) and lives
+ * in kSharedIntentKeys.
  *
- * RULED (P), 2026-07-23 (#497 step 1, Lane 4) — and NOT on the defaults.
- * #454 was auto-closed by the merge of the docs-only PR #456, which itself says
- * #454 is the thing that will settle the question; nothing decided it. Lane 4
- * measured the tree instead and found the argument ADR 0003 §4.1 rests on is
- * false on its own terms:
+ * The history, because the resolution turned on it. ADR 0003 §4.1 first called
+ * the key (S) — "value spaces align, only the unwritten fallback differs,
+ * acceptable". ADR 0004 §2d and inventory §3.3 BUG 2 ruled it (P), and NOT on
+ * the defaults: the argument ADR 0003 rests on is false on its own terms,
+ * because MM did not merely READ the shared key with a different default — its
+ * registrar WROTE 0 into it whenever debug mode is off (the default state):
  *
  *   games/mm/2s2h/DeveloperTools/DeveloperTools.cpp, in RegisterDebugMode():
  *       if (!CVAR_DEBUG_MODE) {
  *           CVarSetInteger(CVAR_SAVE_FILE_MODE_NAME, DEBUG_SAVE_INFO_NONE);
  *
- * MM does not merely READ the shared key with a different default — it WRITES 0
- * into it at ShipInit whenever debug mode is off, which is the default state.
- * "Once written the shared value governs both; only the unwritten fallback
- * differs" is therefore not a benign observation: MM's registrar is the writer,
- * so the key is never left unwritten and OoT's default is destroyed on every
- * launch.
+ * so the key was never left unwritten and OoT's default was destroyed on every
+ * launch. That write is now RETIRED and MM's read default aligned to OoT's 1 in
+ * the same change that moved the key into kSharedIntentKeys — so the manifest
+ * only claims (S) against source that no longer contains the (P)-making write.
  *
- * DORMANT BUT ARMED. games/mm/CMakeLists.txt excludes 2s2h/DeveloperTools/
- * wholesale from the single-exe build, so the clobber does not run today. It
- * arms on the same un-elision work ADR 0004 §5 schedules — which is precisely
- * why it is recorded rather than left to be discovered then.
+ * An empty aggregate array literal (`= {}`) is ill-formed under MSVC (C2466: an
+ * array may not have zero size), so the empty table is expressed as a null
+ * pointer with an explicit zero count rather than an empty brace-init. The
+ * disputed-key loop in test_cvar_classification.c is bounded by the count and so
+ * never dereferences the pointer.
  *
- * The key stays HERE rather than moving into kSharedIntentKeys, because the
- * table should not claim (S) while games/mm still contains the write that makes
- * it (P). Retiring MM's clobber and aligning its read default is a BEHAVIOUR
- * change in a different lane's file; when it lands, move this key into
- * kSharedIntentKeys (count 25 -> 26) in the same commit as the fix, so the diff
- * is verifiable against the fixed source.
- *
- * Do not converge, split, or re-default this key as a side effect of other work.
+ * Do not converge, split, or re-default DebugSaveFileMode as a side effect of
+ * other work; it is a deliberate (S) now, not an accident.
  */
-inline constexpr const char* kDisputedClassificationKeys[] = {
-    "gDeveloperTools.DebugSaveFileMode",
-};
+inline constexpr const char* const* kDisputedClassificationKeys = nullptr;
+inline constexpr std::size_t kDisputedClassificationKeyCount = 0;
 
 /**
  * Menu-index keys: shared spelling, and the value names or indexes into a
@@ -427,8 +423,8 @@ inline constexpr std::size_t kMustStayDistinctCount = sizeof(kMustStayDistinct) 
 inline constexpr std::size_t kSharedIntentKeyCount = sizeof(kSharedIntentKeys) / sizeof(kSharedIntentKeys[0]);
 inline constexpr std::size_t kDeliberateSharedCheatKeyCount =
     sizeof(kDeliberateSharedCheatKeys) / sizeof(kDeliberateSharedCheatKeys[0]);
-inline constexpr std::size_t kDisputedClassificationKeyCount =
-    sizeof(kDisputedClassificationKeys) / sizeof(kDisputedClassificationKeys[0]);
+// kDisputedClassificationKeyCount is defined at the (now-empty) table itself,
+// because that table is a null pointer with no sizeof to divide — see there.
 inline constexpr std::size_t kMenuIndexKeyCount = sizeof(kMenuIndexKeys) / sizeof(kMenuIndexKeys[0]);
 
 // Tier 1 (#34) landed 9 keys — 6 audio + 3 tunic. #462 adds 23 of the inventory
@@ -437,20 +433,20 @@ inline constexpr std::size_t kMenuIndexKeyCount = sizeof(kMenuIndexKeys) / sizeo
 // silently dropped or double-added row a compile error.
 static_assert(kConvergedKeyCount == 32, "tier 1 (9) + inventory §5.3 remainder (23 of 26; 3 held out) = 32");
 
-// ADR 0003 Appendix B measured 26 class-(S) collisions. This table carries 25:
-// DebugSaveFileMode was pulled out into kDisputedClassificationKeys because the
-// inventory reclassified it (P) and #454 has not settled it. Pinning the count
-// makes a silent drop a compile error rather than a quietly weaker lock.
-static_assert(kSharedIntentKeyCount == 25,
-              "ADR 0003 Appendix B's 26 class-(S) keys, less DebugSaveFileMode — ruled (P) by #497 step 1 on "
-              "MM's DeveloperTools.cpp write, not on the default divergence");
+// ADR 0003 Appendix B measured 26 class-(S) collisions, and this table now
+// carries all 26: DebugSaveFileMode rejoined when #454 was fixed (MM's clobber
+// retired, read default aligned to OoT's 1). Pinning the count makes a silent
+// drop a compile error rather than a quietly weaker lock.
+static_assert(kSharedIntentKeyCount == 26,
+              "ADR 0003 Appendix B's 26 class-(S) keys, including DebugSaveFileMode — restored to (S) by #454 "
+              "once MM's DeveloperTools.cpp write was retired and its read default aligned to OoT's 1");
 static_assert(kMenuIndexKeyCount == 4, "four menu-index keys — #451");
-// The disputed table had no pinned count, so a silent drop would have retired
-// the one thing both readings agree on (never converge this key) with no
-// compile error. Pinned like every other table here.
-static_assert(kDisputedClassificationKeyCount == 1,
-              "one disputed key — gDeveloperTools.DebugSaveFileMode, ruled (P) and held here until MM's "
-              "clobber is retired (#497 step 1)");
+// The disputed table is empty since #454's fix. Pinned at 0 like every other
+// table here, so a key silently re-added to it is a compile error rather than a
+// quietly reopened dispute.
+static_assert(kDisputedClassificationKeyCount == 0,
+              "no disputed keys — gDeveloperTools.DebugSaveFileMode was resolved to (S) and moved into "
+              "kSharedIntentKeys by #454");
 
 } // namespace RSBS
 

@@ -4,8 +4,12 @@
 - For: #34 (settings migration), gating #35; the settings decision in
   `docs/unified-surface-findings.md` §6.1
 - Corrected on acceptance: §4.1's `gDeveloperTools.DebugSaveFileMode` row was
-  **wrong** and is struck below; §5 gains the `TimeSavers` casing decision
-  ADR 0004 asked this document to make.
+  **wrong** for the tree as it then stood and was struck below (the key was
+  class (P) while MM's registrar clobbered it); §5 gains the `TimeSavers` casing
+  decision ADR 0004 asked this document to make.
+- Update 2026-08-02 (#454 fixed): MM's clobbering write was retired and its read
+  default aligned to OoT's `1`, so `DebugSaveFileMode` is genuine class (S)
+  again; the §4.1 row is restored and the class-(S) count is back to 26.
 - Measured against `origin/main` on 2026-07-21 by exhaustive grep of both
   trees (method and its one correction in Appendix A — the numbers below are
   reproducible, not quoted)
@@ -340,7 +344,7 @@ No action. Documented as deliberate; see the §2.3 guard.
 |---|---|
 | `gCheats.{InfiniteHealth, InfiniteMagic, MoonJumpOnL, NoClip, EasyFrameAdvance}` | Identical meaning in both games. Maintainer decision. |
 | `gDeveloperTools.{DebugEnabled, FrameAdvanceTick, LogLevel}` | Host/debug state. `FrameAdvanceTick` is a transient both games set and clear; only one game is active at a time, so no interleaving. |
-| ~~`gDeveloperTools.DebugSaveFileMode`~~ | **STRUCK 2026-07-23 — this row was wrong; the key is class (P).** It said: *"Value spaces align… only the unwritten fallback differs. Acceptable, worth knowing."* The value spaces do align, but the key is never left unwritten: `games/mm/2s2h/DeveloperTools/DeveloperTools.cpp`'s `RegisterDebugMode()` does `CVarSetInteger(CVAR_SAVE_FILE_MODE_NAME, DEBUG_SAVE_INFO_NONE)` whenever debug mode is off — the default state — so MM's registrar destroys OoT's `1` on every launch. ADR 0004 §2d holds the record; the key sits in `kDisputedClassificationKeys` until MM's write is retired and its read default aligned. Dormant today only because `2s2h/DeveloperTools/` is excluded from the single-exe link. **Class (S) count is 25 here, not 26.** |
+| `gDeveloperTools.DebugSaveFileMode` | **STRUCK 2026-07-23, RESTORED to (S) 2026-08-02 (#454 fixed).** The struck row's reasoning was correct for the tree as it stood: `games/mm/2s2h/DeveloperTools/DeveloperTools.cpp`'s `RegisterDebugMode()` did `CVarSetInteger(CVAR_SAVE_FILE_MODE_NAME, DEBUG_SAVE_INFO_NONE)` whenever debug mode was off — the default state — so MM's registrar destroyed OoT's `1` on every launch, which is what made the key class (P). #454 retired that write and aligned MM's read default to OoT's `1` (`DEBUG_SAVE_INFO_VANILLA_DEBUG`), so the key is now genuine (S): shared spelling, shared meaning, shared default, no writer. Moved back into `kSharedIntentKeys` in the same change. **Class (S) count is 26 again.** |
 | `gEnhancements.Graphics.{IncreaseActorDrawDistance, ActorCullingAccountsForWidescreen}` | Same multiplier semantics, same default (`1`), same widescreen-culling boolean. |
 | `gAudioEditor.{EnemyBGMDisable, LowHpAlarm, SeqNameNotification, SeqNameNotificationDuration}` | Same audio-editor behaviours. |
 | `gSettings.{CursorVisibility, DisableChanges}` | Host UI state. |

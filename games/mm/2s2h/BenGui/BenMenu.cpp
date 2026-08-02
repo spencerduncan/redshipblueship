@@ -1814,7 +1814,12 @@ void BenMenu::AddDevTools() {
                               "- Empty Save: The default 3 heart save file in first cycle.\n"
                               "- Vanilla Debug Save: Uses the title screen save info (8 hearts, all items and masks).\n"
                               "- 100\% Save: All items, equipment, mask, quest status and Bombers' Notebook complete.")
-                     .ComboVec(&debugSaveOptions))
+                     .ComboVec(&debugSaveOptions)
+                     // #454: match the runtime read default (DeveloperTools.cpp,
+                     // DEBUG_SAVE_INFO_VANILLA_DEBUG == 1) and OoT's own menu
+                     // (SohMenuDevTools.cpp .DefaultIndex(1)), so the widget's
+                     // displayed default is not "Empty Save" while the game reads 1.
+                     .DefaultIndex(1))
         .PreFunc([](WidgetInfo& info) { info.isHidden = mBenMenu->disabledMap.at(DISABLE_FOR_DEBUG_MODE_OFF).active; });
     AddWidget(path, "Prevent Actor Update", WIDGET_CVAR_CHECKBOX)
         .CVar("gDeveloperTools.PreventActorUpdate")
