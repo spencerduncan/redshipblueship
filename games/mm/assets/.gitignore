@@ -8,3 +8,13 @@
 # Unignore our custom assets and header file
 !custom/**/*
 !2s2h_assets.h
+
+# ...except the Fast3D default shaders, which are NOT ours: ExtractMMAssets /
+# Generate2ShipOtr copy them in from libultraship/src/fast/shaders/ at
+# generation time, exactly as the OoT targets do into
+# games/oot/assets/custom/shaders (games/oot/assets/.gitignore). Keeping a
+# tracked second copy here is what let soh.o2r and 2ship.o2r disagree on
+# shaders/* (#595) — and, on Windows, a tracked copy would be rewritten with
+# CRLF by that same copy step on every build, dirtying the tree. Last match
+# wins, so this line must stay after the unignore above.
+custom/shaders

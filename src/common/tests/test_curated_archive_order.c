@@ -281,6 +281,19 @@ extern "C" int ModArchiveSurvivesSwitch_RunHeadless(const char* baseArchive, con
         return 1;
     }
 
+    // Exact snapshot of the shared manager's archive list, restored at the end.
+    // This row deliberately mounts things on top of the process-wide manager —
+    // the base archive twice, plus everything Combo_EnsureGameArchivesLoaded
+    // adds, twice — and `--test all` runs every row in ONE process. Removing
+    // only the stand-in mod would leave oot.o2r/soh.o2r re-added on top, which
+    // for the 151 paths oot.o2r and mm.o2r both carry would silently hand a
+    // LATER MM row OoT's copy. SetArchives replays exactly this list through
+    // ResetVirtualFileSystem, so mArchives/mHashes/mFileToArchive all come back
+    // to what they were.
+    // GetArchives() already hands back a freshly built vector, so this is a
+    // value snapshot and not a view that follows our own AddArchive calls.
+    auto archiveSnapshot = archiveManager->GetArchives();
+
     int rc = 0;
     Combo_ClearModArchives(GAME_OOT);
     Combo_ClearModArchives(GAME_MM);
@@ -376,10 +389,11 @@ extern "C" int ModArchiveSurvivesSwitch_RunHeadless(const char* baseArchive, con
         }
     } while (false);
 
-    // Leave the shared manager as we found it: `--test all` runs every row in
-    // one process, and a stray archive mounted on top of soh.o2r would follow
-    // later rows around.
-    archiveManager->RemoveArchive(modPath);
+    // Leave the shared manager EXACTLY as we found it — not merely without the
+    // stand-in mod. See the snapshot above: every extra AddArchive this row
+    // performed is undone here, so no later row in `--test all` inherits a
+    // re-ordered virtual file system.
+    archiveManager->SetArchives(archiveSnapshot);
     Combo_ClearModArchives(GAME_OOT);
     Combo_ClearModArchives(GAME_MM);
     std::filesystem::remove(modPath, ec);
