@@ -60,8 +60,77 @@ uint32_t ResolvePairedProfile(bool paired);
 
 /** The paired final seed: Ship_Hash(master seed + MM's persisted options),
  *  mirroring OoT's own Hash(seed + settingsStr) double-reseed (Lane B
- *  contract). Call AFTER the options are persisted into RANDO_SAVE_OPTIONS. */
+ *  contract). Call AFTER the options are persisted into RANDO_SAVE_OPTIONS.
+ *  Identical to MixPairedFinalSeedForAttempt(0). */
 uint32_t MixPairedFinalSeed();
+
+/** The ATTEMPT LADDER's seed derivation (ADR 0010 increment 1.2; accepted
+ *  answer O3 delegates recipe/bound/recording to the implementer under the
+ *  determinism rules). The documented recipe:
+ *
+ *      finalSeed(0) = Ship_Hash(decimal(masterSeed) ++ optionsString)
+ *      finalSeed(n) = Ship_Hash(decimal(masterSeed) ++ optionsString
+ *                               ++ ":glitchless-attempt-" ++ decimal(n))   n >= 1
+ *
+ *  where optionsString is the persisted RANDO_SAVE_OPTIONS in StaticData
+ *  option order ("<value>;" per row — MMOptionsString in Foreign.cpp), i.e.
+ *  the SAME settings term the shipped attempt-0 derivation has always hashed.
+ *  Attempt 0 is therefore byte-identical to the pre-ladder derivation: a
+ *  world that converged before the ladder existed re-derives unchanged. The
+ *  ":glitchless-attempt-" literal is the ADR's domain-separation tag and is
+ *  used under EVERY logic mode (it names the ladder, not the rung).
+ *
+ *  WHICH FAILURES ARE RUNGS: only failures that are a function of the seeded
+ *  RNG stream. The Glitchless fill's 10s wall-clock abort is not — it depends
+ *  on machine speed and load — so it throws Rando::Logic::GenerationTimeout
+ *  and OnFileCreate STOPS the ladder on it (loud refusal) instead of
+ *  re-rolling. Otherwise a slow machine would climb to a different rung and
+ *  hand the player a different world for the same frozen identity, which is
+ *  precisely what this recipe exists to prevent.
+ *
+ *  Same ordering contract as MixPairedFinalSeed: resolve the profile first. */
+uint32_t MixPairedFinalSeedForAttempt(uint32_t attempt);
+
+/** Attempt-ladder bound (ADR 0010 increment 1.2: "bounded attempts"). Ten is
+ *  a product budget, not a tuning knob: each Glitchless attempt is capped by
+ *  the fill's own 10s wall-clock abort (GlitchlessLogic.cpp), so the ladder's
+ *  worst case stays inside the arrival transition a player will actually sit
+ *  through, while ten deterministic re-rolls make a persistent dead-end
+ *  overwhelmingly a settings problem (surfaced loudly) rather than bad luck. */
+inline constexpr int kPairedGenMaxAttempts = 10;
+
+/** Bookkeeping for the most recent PAIRED generation dispatch (OnFileCreate
+ *  calls this; the arrival gate and the CI locks read it through the C
+ *  accessors below). attemptsTried == 0 resets the record. */
+void NotePairedGenerationOutcome(int attemptsTried, bool exhausted);
+
+/** TEST-ONLY: make the next `attempts` calls to PlaceForeignItems throw the
+ *  structural #488 placement failure — a DETERMINISTIC ladder rung. (Under
+ *  ADR 0010 increment 1.3 a mere shortfall is UNDER-SUPPLY — place fewer,
+ *  loudly — and no longer fails the attempt, so the injection throws rather
+ *  than short-placing.) 0 (the default, and the value on every shipping path)
+ *  means no injection; each injected pass decrements the count, so an armed
+ *  lock's WINNING attempt always runs the real placement and produces a real
+ *  world.
+ *
+ *  Why injection rather than a pinned dead-end seed: measured at this tree
+ *  (2026-07-31, 66-master-seed scan under the dead-end-prone Glitchless
+ *  profile — ocarina buttons + swim + boss remains + owl statues + clock
+ *  shuffle), EVERY observed first-attempt failure was the fill's 10s
+ *  WALL-CLOCK abort and not one was a deterministic dead-end. A seed pinned
+ *  on a wall-clock failure is a race, not a lock: the same seed converges
+ *  first-try on a faster machine and the row flips on timing alone. So the
+ *  ladder's rung is injected deterministically instead, and what the lock
+ *  proves is the ladder's actual contract — attempt n>0 re-derives by the
+ *  documented recipe, restores the pre-attempt save, converges to a real
+ *  world, records the winning index, and reproduces byte-identically across
+ *  processes. Re-pin to a natural seed if the fill ever grows a deterministic
+ *  dead-end that a scan can find (RSBS_ATTEMPT_SEED_SCAN, mm_rando_gen_test). */
+void ForceShortForeignPlacements(int attempts);
+
+/** Remaining injected shortfalls; the lock asserts this drains to 0 so it
+ *  cannot pass on a world that was never really placed. */
+int ForcedShortForeignPlacementsRemaining();
 
 /** True if this MM check is a SAFE host for a foreign (cross-game) item —
  *  i.e. the check is in the fill, holds a legal junk-class MM item, and belongs
@@ -127,6 +196,17 @@ bool RecordForeignPickup(RandoCheckId randoCheckId);
 
 } // namespace Foreign
 } // namespace Rando
+
+// ---------------------------------------------------------------------------
+// Attempt-ladder observability (ADR 0010 increment 1.2). C linkage so the
+// arrival gate (GameExports_SingleExe.cpp) and the CI bridges can read the
+// most recent paired generation's outcome without reaching into the
+// namespace. Values describe the LAST paired dispatch only: attempts == 0
+// means no paired generation has run (or one is being reset).
+// ---------------------------------------------------------------------------
+extern "C" int MM_Rando_PairedGenMaxAttempts(void);
+extern "C" int MM_Rando_PairedGenLastAttempts(void);
+extern "C" int MM_Rando_PairedGenLastExhausted(void);
 
 #endif // RSBS_SINGLE_EXECUTABLE
 

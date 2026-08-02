@@ -802,6 +802,57 @@ if(BUILD_TESTING)
         TIMEOUT 180
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
+    # ADR 0010 increment 1.2, lock (b), single-run half: a paired generation
+    # whose first ladder attempt fails DETERMINISTICALLY climbs one rung,
+    # converges through the real OnSaveInit chain, reports its winning
+    # attempt, stamps the provenance record, and writes the world digest.
+    # The failing rung is INJECTED (one short foreign-placement pass) rather
+    # than scan-pinned: measured 2026-07-31, every natural first-attempt
+    # failure under the dead-end-prone profile was the fill's 10s WALL-CLOCK
+    # abort, and pinning one of those would pin a race that flips on machine
+    # speed. Rationale, the scan recipe and the wall-clock discriminator live
+    # at kLadderMasterSeed in games/mm/2s2h/mm_rando_gen_test.cpp. Also the
+    # --test row the completeness guard requires for the mm-paired-attempt
+    # dispatch entry. Timeout above its siblings: the fill runs twice by
+    # construction.
+    redship_add_test(NAME MMPairedAttemptGen COMMAND redship --test mm-paired-attempt
+        LABEL rando
+        TIMEOUT 240
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+
+    # ADR 0010 increment 1.2, lock (b), two-process half: the SAME pinned seed
+    # must produce a byte-identical digest — final seed, winning attempt,
+    # placement hash, every foreign placement — across two fresh processes
+    # (CMake/CheckPairedAttemptDeterminism.cmake; two processes for the same
+    # generator-re-entry reason SeedDeterminism uses them). This is the row
+    # that goes red if the ladder derivation ever consumes runtime state the
+    # documented hash recipe does not name. A meta row (its COMMAND drives no
+    # --test entry); larger timeout because it runs the windowed bring-up twice.
+    redship_add_test(NAME MMPairedAttemptDeterminism
+        COMMAND ${CMAKE_COMMAND}
+                -DREDSHIP_EXE=$<TARGET_FILE:redship>
+                -DWORK_DIR=${CMAKE_BINARY_DIR}
+                -P ${CMAKE_CURRENT_LIST_DIR}/CheckPairedAttemptDeterminism.cmake
+        LABEL rando
+        TIMEOUT 480
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+
+    # ADR 0010 increment 1.2, lock (c): a profile that CANNOT converge (every
+    # check excluded, so every attempt dies pre-fill) exhausts the bounded
+    # ladder at the real switch-entry arrival and refuses LOUDLY — save
+    # reverted to vanilla, slot latched REFUSED(generation) through the #533
+    # machinery, no leaked placements, no stale provenance — while the same
+    # arrival with the fixture undone generates and latches nothing. The
+    # anti-regression row for the silent-vanilla-revert class (#564 V7).
+    # Its third leg is the determinism boundary: a WALL-CLOCK fill abort (the
+    # one failure that depends on the machine rather than the seed) must stop
+    # the ladder at attempt 1 rather than climb to a different world, so the
+    # same seed + settings cannot generate differently on a slow machine.
+    redship_add_test(NAME MMPairedExhaustion COMMAND redship --test mm-paired-exhaustion
+        LABEL rando
+        TIMEOUT 240
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+
     # #439 follow-up: MMPairSwitchEntry locks the cross-game arrival convergence;
     # this row locks the OTHER paths into MM gameplay the arrival fix does not
     # touch. The IS_RANDO COND_HOOKs (Rando.h: saveType == SAVETYPE_RANDO, re-
