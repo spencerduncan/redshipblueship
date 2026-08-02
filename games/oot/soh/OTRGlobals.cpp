@@ -2723,6 +2723,28 @@ extern "C" uint8_t Randomizer_IsSpoilerLoaded() {
     return OTRGlobals::Instance->gRandoContext->IsSpoilerLoaded() ? 1 : 0;
 }
 
+/**
+ * The identity of the rando world the process is currently holding — whichever
+ * way it got there. Generation publishes exactly this value as
+ * gComboCtx.sharedRandoSeed (3drando/playthrough.cpp passes ctx->GetSeed()),
+ * and a spoiler load restores exactly this value from the log's "finalSeed"
+ * field (Settings::ParseJson), so the two are directly comparable — which is
+ * what #597's file-creation KEEP test needs and the only reason this accessor
+ * exists.
+ *
+ * NOT ctx->GetHash()/the fill's finalHash: that mixes the settings string and
+ * the build version, and is not what the stamp carries.
+ *
+ * Returns 0 when no rando context exists, which the caller reads as "this
+ * process names no rando world" — the DROP direction.
+ */
+extern "C" uint32_t Randomizer_GetCurrentWorldSeed() {
+    if (OTRGlobals::Instance == nullptr || OTRGlobals::Instance->gRandoContext == nullptr) {
+        return 0;
+    }
+    return OTRGlobals::Instance->gRandoContext->GetSeed();
+}
+
 extern "C" void Randomizer_SetSpoilerLoaded(bool spoilerLoaded) {
     OTRGlobals::Instance->gRandoContext->SetSpoilerLoaded(spoilerLoaded);
 }

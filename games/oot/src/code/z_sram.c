@@ -19,7 +19,7 @@ void BossRush_InitSave(void);
 // Cross-game session invalidation (#440). Declared locally: games/oot/src/**.c
 // does not have src/common on its include path (same convention z_play.c uses
 // for the Combo_* entry points). See src/common/context.h for the contract.
-extern void Context_InvalidateSessionOnNewGame(int isRandoFile);
+extern void Context_InvalidateSessionOnNewGame(int isRandoFile, uint32_t createdWorldSeed);
 // #533 armed-session latch: creating a file is one of the three legitimate
 // ways a slot becomes writable this session. See src/common/save.h.
 extern void RsbsSave_ArmSlotOnCreate(int slot);
@@ -299,11 +299,25 @@ void OoT_Sram_InitSave(FileChooseContext* fileChooseCtx) {
     // session authored still goes.
     //
     // isRandoFile is exactly the condition the branch below uses, so the seed
-    // stamp is kept precisely when generation has already authored it for this
-    // file and dropped for a vanilla file (where a surviving stamp would leave
+    // stamp is a candidate for keeping precisely when this file is a rando
+    // file, and dropped for a vanilla file (where a surviving stamp would leave
     // Combo_ForeignPairingActive() reporting a paired world that does not
     // exist).
-    Context_InvalidateSessionOnNewGame(isRandoFile);
+    //
+    // BUT IT IS ONLY A CANDIDATE (#597). isRandoFile counts
+    // Randomizer_IsSpoilerLoaded(), and Context::ParseSpoiler authors no combo
+    // identity — it re-seeds Rando::Context from the log and nothing else. So
+    // "generate seed A in the menu, load spoiler B, create the file" is a rando
+    // file whose world is B while the resident stamp still names A; keeping on
+    // isRandoFile alone handed world B identity A and, since #545, A's reverse
+    // placement table, pinning MM items into checks belonging to a different
+    // world. The second argument is what lets the context layer tell authorship
+    // from inheritance: the identity of the world THIS file will play, which is
+    // the same quantity the stamp carries whether generation or a spoiler load
+    // put it there. A mismatch discards; it never re-derives, because under
+    // one-game semantics (#564) an identity this file did not have authored for
+    // it is not this file's identity.
+    Context_InvalidateSessionOnNewGame(isRandoFile, isRandoFile ? Randomizer_GetCurrentWorldSeed() : 0);
 
     // ARM the unified slot for this create (#533). Save_SaveFile() below fires
     // OnSaveFile -> RsbsSave_Save, and the armed-session latch refuses writes
