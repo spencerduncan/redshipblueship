@@ -113,12 +113,38 @@
  *      no destination at all, and leave the vanilla flash-slot answer alone --
  *      while Sram_FileNumHasFlashSlot keeps the now-reachable autosave from
  *      indexing the flash page tables at 0xFF.
+ *
+ * ---------------------------------------------------------------------------
+ * #532 EXTENSION: committing correctly is only half the job -- the EXIT.
+ *
+ * Checks 1-10 above lock that a save COMMITS. Check 11 locks that the save then
+ * SURVIVES the exit taken immediately after it.
+ *
+ *  11. The owl-save EXIT policy (#532). MM's owl-save exit hands control to
+ *      MM_TitleSetup_Init, whose MM_Sram_InitNewSave authors a fresh vanilla
+ *      file over the live gSaveContext. In a cross-game session that bootstrap
+ *      is what the next hop to OoT freezes, and what OoT's next save then
+ *      writes into Tier-3 -- destroying the very Tier-3 every check above just
+ *      proved was written correctly. The #530 funnel does not address this: it
+ *      made the routes commit, and the commit is precisely what the bootstrap
+ *      then eats. MM_Combo_OwlSaveExitToOoT is the decision that prevents it,
+ *      and this file is where the two halves belong together: the same test
+ *      writes a good MM half and then locks the exit that used to eat it.
+ *
+ *      The call-site half of that fix -- that the TitleSetup transitions in
+ *      z_play.c / z_kaleido_scope_NES.c actually consult this function -- is
+ *      NOT observable from here, and a check on the helper alone would pass
+ *      whether or not it is wired in. That half is locked as a source-text
+ *      invariant in tools/tests/test_repo_invariants.py
+ *      (test_titlesetup_transitions_are_guarded_or_marked_exempt). Neither
+ *      lock is sufficient alone; together they cover decision and wiring.
  */
 
 #include "global.h"
 
 #include "save.h"
 #include "context.h"
+#include "entrance.h"
 #include "game.h"
 
 #include "2s2h/Enhancements/Saving/SavingEnhancements.h"
@@ -131,6 +157,7 @@
 
 extern "C" SaveContext gSaveContext;
 extern "C" int MM_Combo_CaptureSaveToUnifiedSlot(void);
+extern "C" int MM_Combo_OwlSaveExitToOoT(void);
 
 namespace {
 
@@ -553,7 +580,61 @@ extern "C" int MM_UnifiedSaveCapture_RunHeadless(void) {
                      "0xFF must still be rejected as a flash slot -- the autosave's page-table index depends on it");
     }
 
+    // ---- 11. The owl-save exit policy (#532) ------------------------------
+    // Ordering is the point: every check above proved a save COMMITS, and the
+    // .redsave those commits produced is now GOOD. Everything below is about
+    // the exit taken immediately after such a save -- the exit that used to
+    // author a vanilla bootstrap straight over it. #530's funnel made the
+    // commit happen; it is exactly the commit this exit used to destroy.
+    Combo_ClearGameSwitchRequest();
+
+    // 11a. Standalone MM. No OoT session exists to return to, so the vanilla
+    //      2ship exit (TitleSetup) must stand and no switch may be requested.
+    //      This is the counterfactual that stops the fix from being "always
+    //      switch": an implementation that dropped the Context_HasFrozenState
+    //      gate would hijack upstream's own save-and-quit and strand a
+    //      standalone player in a game they never asked for.
+    Context_ClearAllFrozenStates();
+    USAVE_ASSERT(Context_HasFrozenState(GAME_OOT) == 0, "test setup: no OoT session must be frozen here");
+    USAVE_ASSERT(MM_Combo_OwlSaveExitToOoT() == 0,
+                 "a standalone MM session must keep the vanilla TitleSetup exit (#532 gate)");
+    USAVE_ASSERT(Combo_IsGameSwitchRequested() == false,
+                 "a standalone MM owl-save exit must not request a game switch");
+
+    // 11b. Cross-game MM. An OoT session is frozen — the player walked in
+    //      through the Happy Mask Shop and OoT is waiting behind them. The exit
+    //      must refuse TitleSetup (return 1) AND actually drive the launcher:
+    //      the return value alone is inert, it is the switch request that makes
+    //      MM's graph loop break before MM_Sram_InitNewSave can author a
+    //      bootstrap over the save the checks above just verified.
+    {
+        std::vector<uint8_t> ootSession(OOT_SAVE_CONTEXT_SIZE, 0x11);
+        Context_FreezeState(GAME_OOT, OOT_ENTR_MARKET_FROM_MASK_SHOP, ootSession.data(), ootSession.size());
+    }
+    USAVE_ASSERT(Context_HasFrozenState(GAME_OOT) == 1, "test setup: the OoT session must be frozen here");
+    USAVE_ASSERT(MM_Combo_OwlSaveExitToOoT() == 1,
+                 "a cross-game MM owl-save exit must refuse MM's TitleSetup chain (#532)");
+    USAVE_ASSERT(Combo_IsGameSwitchRequested() == true,
+                 "refusing TitleSetup is not enough: the exit must request the switch that breaks MM's "
+                 "graph loop, or MM keeps running and reaches TitleSetup anyway");
+
+    // 11c. The decision must not depend on the write having landed. A slot
+    //      write-latched by #533 persists nothing, and that is precisely when
+    //      entering TitleSetup would be worst — the player would lose the
+    //      durable half AND have the live session replaced by a vanilla file.
+    //      Slot 2 carries a healthy file from checks 3-5, and
+    //      RsbsSave_ResetSlotSessionState drops the arming that permitted it,
+    //      which is the shape #533 refuses.
+    Combo_ClearGameSwitchRequest();
+    RsbsSave_ResetSlotSessionState();
+    RsbsSave_SetActiveSlot(2);
+    USAVE_ASSERT(MM_Combo_CaptureSaveToUnifiedSlot() == 0, "test setup: the capture must be latch-refused here");
+    USAVE_ASSERT(MM_Combo_OwlSaveExitToOoT() == 1,
+                 "a refused capture must still take the cross-game exit, never MM's TitleSetup (#533 x #532)");
+    USAVE_ASSERT(Combo_IsGameSwitchRequested() == true, "a refused capture must still drive the launcher");
+
     // Leave global state clean for whatever runs next.
+    Combo_ClearGameSwitchRequest();
     memset(&gSaveContext, 0, sizeof(SaveContext));
     Context_ClearAllFrozenStates();
     ComboContext_Init();

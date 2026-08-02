@@ -1692,6 +1692,68 @@ extern "C" int MM_Combo_CaptureSaveToUnifiedSlot(void) {
 }
 
 /**
+ * Decide what an owl save's EXIT should do, and if this is a cross-game
+ * session, drive the launcher instead of MM's own boot chain.
+ *
+ * WHY THIS EXISTS (#532). MM's owl-save exit does
+ * SET_NEXT_GAMESTATE(MM_TitleSetup_Init) from inside MM's own graph loop, with
+ * no cross-game condition. TitleSetup_SetupTitleScreen then calls
+ * MM_Sram_InitNewSave(), so a fresh vanilla file becomes the live gSaveContext
+ * — while gComboCtx and OoT's frozen blob stay resident, because MM has no twin
+ * of Context_InvalidateSessionOnReturnToTitle. The next hop back to OoT freezes
+ * that bootstrap into the MM shadow and OoT's next save serializes it into
+ * Tier-3, DESTROYING the good MM half the owl save persisted seconds earlier.
+ * The player watches a successful save become an unrelated vanilla world.
+ *
+ * Requesting a switch makes Combo_CheckHotSwap return true, so MM's graph loop
+ * breaks and control returns to rsbs/src/main.cpp — which then takes its
+ * !isEntranceSwitch branch, freezes MM's live (correctly owl-saved) state, and
+ * sets OoT's startup entrance from OoT's own frozen return entrance. MM never
+ * reaches TitleSetup, so the bootstrap is never authored and there is nothing
+ * to launder.
+ *
+ * Gated on OoT having frozen state, which is precisely "there is an OoT session
+ * to go back to" — and it means that only because of #364's single-use blob
+ * contract: Combo_ConsumeFrozenState retires the blob as it applies it, so a
+ * frozen OoT state here cannot be a stale souvenir of a trip the player already
+ * came back from. A standalone MM session has none, and for it the vanilla
+ * TitleSetup exit remains correct — this must not hijack 2ship's own behavior.
+ *
+ * NO RE-TRIGGER LOOP, and this is load-bearing rather than lucky. Skipping the
+ * gamestate transition leaves gSaveContext.gameMode == GAMEMODE_OWL_SAVE, and
+ * the launcher's hot-swap freeze captures it that way. What stops the next
+ * arrival back into MM from immediately re-running this same exit is
+ * MM_Play_ConsumeStartupEntrance (games/mm/src/code/z_play.c), which resets
+ * gameMode to GAMEMODE_NORMAL along with the other live-session state an
+ * arrival must not inherit. Removing that reset would turn this into a loop.
+ *
+ * COMPOSITION WITH THE #533/#537 SAVE MACHINERY (2026-08 adoption pass). This
+ * is deliberately NOT conditioned on whether the owl capture above actually
+ * committed. RsbsSave_Save refuses a write-latched slot (#533/#568), so a
+ * cross-game owl save into a REFUSED slot persists nothing — and that is
+ * exactly the case where entering TitleSetup would be worst: the player would
+ * lose the durable half AND have the live session replaced by a bootstrap. The
+ * decision this function makes is "never author a vanilla file over a live
+ * cross-game session", which is independent of the write's outcome. It also
+ * does not duplicate the freeze: the launcher's own hot-swap freeze
+ * (Switch_PrepareHotSwap) is the single writer of the MM shadow on this path,
+ * and it runs after MM's graph loop has stopped.
+ *
+ * @return 1 if a switch was requested and the caller must NOT enter TitleSetup;
+ *         0 to keep vanilla behavior.
+ */
+extern "C" int MM_Combo_OwlSaveExitToOoT(void) {
+    if (!Context_HasFrozenState(GAME_OOT)) {
+        return 0;
+    }
+
+    fprintf(stderr, "[MM] owl/pause save exit in a cross-game session: returning to OoT\n");
+    fflush(stderr);
+    Combo_RequestGameSwitch();
+    return 1;
+}
+
+/**
  * Resume MM after being suspended for a game switch (issue #170, #270).
  * - Re-arms the system arena for the cold gamestate-chain boot (see
  *   MM_ResumeColdBootPrep — the retired session's allocations leak by
