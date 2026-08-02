@@ -25,6 +25,13 @@
 #include <ship/resource/factory/BlobFactory.h>
 #include <fast/resource/ResourceType.h>
 #include <fast/resource/factory/TextureFactory.h>
+// For Test_CrossGameModel (#577): the model pipeline's factories, registered
+// by both games only inside their display-bound Initialize paths.
+#include <fast/resource/factory/DisplayListFactory.h>
+#include <fast/resource/factory/VertexFactory.h>
+#include <fast/resource/type/DisplayList.h>
+#include <ship/resource/archive/Archive.h>
+#include <ship/resource/archive/ArchiveManager.h>
 
 // Shared-context bring-up entries for the boot regression tests (#329/#330).
 // Defined in games/oot/soh/OTRGlobals.cpp and
@@ -33,6 +40,11 @@
 extern "C" {
 int OoT_InitSharedContextSubsystems(void);
 int MM_RegisterResourceFactoriesHeadless(void);
+// Model-pipeline factories for the #577 cross-game model row (Texture,
+// DisplayList, Vertex, and the game-owned 'OARR' Array reader that extracted
+// vertex data needs). Defined in games/oot/soh/OTRGlobals.cpp — OoT's own TU,
+// so the row runs against the factory surface a real OoT session has.
+int OoT_RegisterModelResourceFactoriesHeadless(void);
 // MM scene-command EXECUTE regression (#344). Body lives in an MM TU
 // (games/mm/2s2h/mm_scene_execute_test.cpp) so MM's global.h / PlayState never
 // enters this translation unit; called through this C entry point, mirroring
@@ -325,6 +337,13 @@ extern "C" {
 // production Combo_EnsureGameArchivesLoaded defined in rsbs/src/main.cpp. The
 // wrappers below resolve the staged archives and SKIP when they are absent.
 #include "tests/test_curated_archive_order.c"
+
+// #577 cross-game model resolution lock. FILE SCOPE (compiled as C++): it walks
+// a parsed Fast::DisplayList and drives the C++-linkage ResourceManager /
+// ArchiveManager. The wrapper (Test_CrossGameModel below) performs the
+// display-free OoT bring-up, mounts the curated cross-game archive, and
+// registers the DisplayList/Vertex/Texture factories first.
+#include "tests/test_crossgame_model.c"
 
 // MM scene-command EXECUTE regression (issue #344). Unlike the parse test, the
 // body runs the parsed commands against a PlayState, so it needs MM's global.h
