@@ -15,8 +15,24 @@ namespace Rando {
 
 namespace Logic {
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// Declared in Logic.h. Zero in every shipping path — see the declaration for
+// why the lock needs it and why nothing but the lock may write it.
+unsigned int gRsbsGlitchlessTimeoutMsOverride = 0;
+#endif
+
 void ApplyGlitchlessLogicToSaveContext(std::vector<RandoCheckId>& checkPool, std::vector<RandoItemId>& itemPool) {
     uint64_t tick = GetUnixTimestamp();
+
+    // The fill's wall-clock budget. 10s is upstream's number and the shipping
+    // one; the override exists only so the ADR 0010 lock can observe a
+    // wall-clock abort without stalling CI for ten real seconds per attempt.
+    uint64_t timeoutBudgetMs = 10000;
+#ifdef RSBS_SINGLE_EXECUTABLE
+    if (gRsbsGlitchlessTimeoutMsOverride != 0) {
+        timeoutBudgetMs = (uint64_t)gRsbsGlitchlessTimeoutMsOverride;
+    }
+#endif
 
     SaveContext copiedSaveContext;
     memcpy(&copiedSaveContext, &gSaveContext, sizeof(SaveContext));
@@ -42,7 +58,12 @@ void ApplyGlitchlessLogicToSaveContext(std::vector<RandoCheckId>& checkPool, std
         }
     }
 
-    auto handleError = [&](std::string message) {
+    // `wallClock` marks the ONE failure below that is not a function of the
+    // seeded RNG stream (the timeout at the top of the loop). It is thrown as
+    // Rando::Logic::GenerationTimeout so a caller cannot mistake a slow
+    // machine for a dead-end seed — see the type's comment in Logic.h and ADR
+    // 0010 increment 1.2's attempt ladder, which must not re-roll on it.
+    auto handleError = [&](std::string message, bool wallClock = false) {
         SPDLOG_ERROR("Items/Checks: {}/{}", itemPool.size(), checkPool.size());
 
         // Log out the checks that are still in the pool
@@ -55,13 +76,16 @@ void ApplyGlitchlessLogicToSaveContext(std::vector<RandoCheckId>& checkPool, std
         }
 
         memcpy(&gSaveContext, &copiedSaveContext, sizeof(SaveContext));
+        if (wallClock) {
+            throw GenerationTimeout(message);
+        }
         throw std::runtime_error(message);
     };
 
     while (true) {
         // Break if we've been running for too long
-        if (GetUnixTimestamp() - tick > 10000) {
-            handleError("Logic Generation Timeout");
+        if (GetUnixTimestamp() - tick > timeoutBudgetMs) {
+            handleError("Logic Generation Timeout", /*wallClock=*/true);
         }
 
         bool regionsInLogicChanged = false;

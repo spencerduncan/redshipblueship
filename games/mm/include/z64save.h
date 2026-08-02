@@ -1856,6 +1856,16 @@ void MM_Sram_InitDebugSave(void);
 s32 Sram_FileNumHasFlashSlot(s32 fileNum);
 void Sram_ResetSaveFromMoonCrash(SramContext* sramCtx);
 void MM_Sram_OpenSave(struct FileSelectState* fileSelect, SramContext* sramCtx);
+// #region 2S2H/RSBS [Port] #530: the one cross-game commit funnel every durable
+// MM save route reaches through func_8014546C / func_80145698. Non-static so
+// the mm-unified-save-capture lock can drive it directly.
+void Sram_ComboCommitUnifiedSave(void);
+// The second save-buffer marshaller, previously undeclared here because its one
+// vanilla caller (Sram_SaveSpecialEnterClockTown) sits in the same TU. #530
+// makes it one of the two homes of the commit funnel, so the lock has to be able
+// to drive it.
+void func_80145698(SramContext* sramCtx);
+// #endregion
 void func_8014546C(SramContext* sramCtx);
 void func_801457CC(struct GameState* gameState, SramContext* sramCtx);
 void Sram_EraseSave(struct FileSelectState* fileSelect2, SramContext* sramCtx, s32 fileNum);

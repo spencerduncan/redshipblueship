@@ -248,6 +248,79 @@ def main():
                                          ("R10",0xC8),("R11",0xD0)]:
                             regs[nm2] = struct.unpack_from("<Q", ctx2, off)[0]
                         print("  REGS: " + " ".join("%s=0x%X" % (kk, vv) for kk, vv in regs.items()))
+                        # ---- #557: GfxRenderingAPIOGL object dump ----
+                        # PRE-FIX LAYOUT ONLY. These offsets describe the class as it
+                        # stood at libultraship pin 8a8b20a, i.e. binaries built BEFORE
+                        # the #557 fix replaced `TextureInfo textures[1024]` with a
+                        # growable std::vector. After that fix the members shift (the
+                        # vector's three pointers sit where the array used to start) and
+                        # the dump below is meaningless -- update the offsets rather than
+                        # believing the output. The register identities printed above the
+                        # dump are layout-independent and stay valid either way.
+                        # Layout at 8a8b20a (verified against
+                        # include/fast/backends/gfx_opengl.h + SHADER_MAX_TEXTURES=6
+                        # in include/fast/interpreter.h):
+                        #   +0x0010 TextureInfo textures[1024]   (u16 w,h,filtering)
+                        #   +0x1810 GLuint mCurrentTextureIds[6]
+                        #   +0x1828 uint8_t mCurrentTile
+                        # The faulting instruction at the #557 read site is
+                        # movzx eax, word ptr [rbx+rdx*2+0x14] (0f b7 44 53 14),
+                        # so rbx is the object. Everything below is self-checking:
+                        # it prints the rdx==3*rax and fault==rbx+2*rdx+0x14
+                        # identities rather than trusting a map.
+                        codeb = read_mem(pi.hProcess, rip, 24)
+                        if codeb:
+                            print("  CODE@RIP: " + codeb.hex())
+                        rbx = regs.get("Rbx", 0)
+                        rax = regs.get("Rax", 0)
+                        rdx = regs.get("Rdx", 0)
+                        fa = rec.ExceptionInformation[1] if rec.NumberParameters >= 2 else 0
+                        # Two known #557 faulting forms, both indexing textures[]
+                        # (6-byte stride) by a GL texture name:
+                        #   READ  0f b7 44 53 14  movzx eax,[rbx+rdx*2+0x14]  obj=rbx, idx=rax
+                        #   WRITE 66 89 34 47     mov  [rdi+rax*2],si         obj=rdi-0x10, idx=rax/3
+                        # Identify the object by finding a candidate whose first
+                        # qword resolves to a vtable inside redship.exe, so this
+                        # needs no map and survives any relink.
+                        cands = [("rbx", rbx), ("rdi-0x10", regs.get("Rdi", 0) - 0x10),
+                                 ("rcx", regs.get("Rcx", 0)), ("rsi", regs.get("Rsi", 0))]
+                        obj = 0
+                        objwhy = ""
+                        for nm3, cv in cands:
+                            if cv <= 0x10000:
+                                continue
+                            vp = rq(cv)
+                            if vp and resolve(mods, vp):
+                                obj, objwhy = cv, nm3
+                                break
+                        if codeb[:5] == b"\x0f\xb7\x44\x53\x14":
+                            print("  IDENTITY(read): rdx==3*rax -> %s ; fault==rbx+2*rdx+0x14 -> %s ; wild id=0x%X"
+                                  % (rdx == 3 * rax, fa == rbx + 2 * rdx + 0x14, rax))
+                        elif codeb[:4] == b"\x66\x89\x34\x47":
+                            rdi = regs.get("Rdi", 0)
+                            print("  IDENTITY(write): rax==3*rcx -> %s ; fault==rdi+2*rax -> %s ; wild id=0x%X value=0x%X"
+                                  % (rax == 3 * regs.get("Rcx", 0), fa == rdi + 2 * rax,
+                                     regs.get("Rcx", 0), regs.get("Rsi", 0)))
+                        if obj:
+                            vptr = rq(obj)
+                            print("  OBJ %s=0x%X vptr=%s" % (objwhy, obj, resolve(mods, vptr or 0) or hex(vptr or 0)))
+                            rbx = obj
+                            ids = read_mem(pi.hProcess, rbx + 0x1810, 24)
+                            if len(ids) == 24:
+                                print("  mCurrentTextureIds = [%s]"
+                                      % ", ".join("0x%X" % v for v in struct.unpack("<6I", ids)))
+                            tile = read_mem(pi.hProcess, rbx + 0x1828, 1)
+                            if tile:
+                                print("  mCurrentTile = 0x%X" % tile[0])
+                            tex = read_mem(pi.hProcess, rbx + 0x10, 6 * 1024)
+                            if len(tex) == 6 * 1024:
+                                nz = [i for i in range(1024)
+                                      if struct.unpack_from("<H", tex, 6 * i)[0] != 0]
+                                print("  textures[]: %d entries with nonzero width, highest index %s"
+                                      % (len(nz), nz[-1] if nz else "none"))
+                                for i in nz[-4:]:
+                                    w, h, f = struct.unpack_from("<HHH", tex, 6 * i)
+                                    print("    textures[%d] = w=%d h=%d filtering=%d" % (i, w, h, f))
                     # MM graph/arena forensics — global RVAs resolved from the
                     # CURRENT build's redship.map (next to the exe), never
                     # hardcoded: they shift on every relink.

@@ -96,6 +96,10 @@ const char* RefuseReasonSlug(RsbsRefuseReason reason) {
             // quarantines nothing) — but kept total so a future producer that
             // does rename gets a truthful tag instead of "unknown".
             return "identity";
+        case RSBS_REFUSE_GENERATION:
+            // Same situation as RSBS_REFUSE_IDENTITY: a session refusal that
+            // quarantines nothing, tagged totally for the same reason.
+            return "generation";
         case RSBS_REFUSE_NONE:
         default:
             return "unknown";
@@ -126,6 +130,8 @@ const char* SaveManager::RefuseReasonLabel(RsbsRefuseReason reason) {
             return "older than the OoT save (a commit is missing)";
         case RSBS_REFUSE_IDENTITY:
             return "options differ from this pair's creation";
+        case RSBS_REFUSE_GENERATION:
+            return "the paired Termina world could not be generated";
         case RSBS_REFUSE_NONE:
         default:
             return "";
@@ -808,6 +814,25 @@ void SaveManager::RefuseSlotIdentity(int slot) {
                  slot, RefuseReasonLabel(RSBS_REFUSE_IDENTITY));
 }
 
+void SaveManager::RefuseSlotGeneration(int slot) {
+    if (!SlotInRange(slot)) {
+        // Same -1 semantics as RefuseSlotIdentity: no slot, nothing durable to
+        // protect, the caller's log line is the surface.
+        return;
+    }
+    // Same NO-quarantine reasoning as RefuseSlotIdentity: the .redsave is
+    // healthy — it is this session that could not AUTHOR the paired MM world
+    // (attempt ladder exhausted, or generation threw; ADR 0010 increment 1.2).
+    // The session falls back to an unpaired vanilla Termina, and the latch is
+    // what keeps that world's captures out of the pair's .redsave.
+    mSlotArmed[slot] = false;
+    mSlotRefused[slot] = RSBS_REFUSE_GENERATION;
+    std::fprintf(stderr,
+                 "[RsbsSave] slot %d REFUSED (%s); slot latched against writes this session — the on-disk "
+                 ".redsave is intact and untouched\n",
+                 slot, RefuseReasonLabel(RSBS_REFUSE_GENERATION));
+}
+
 RsbsSlotState SaveManager::GetSlotState(int slot) const {
     if (!SlotInRange(slot)) {
         return RSBS_SLOT_ABSENT;
@@ -1087,6 +1112,10 @@ int RsbsSave_IsSlotWritable(int slot) {
 
 void RsbsSave_RefuseSlotIdentity(int slot) {
     rsbs::SaveManager::Instance().RefuseSlotIdentity(slot);
+}
+
+void RsbsSave_RefuseSlotGeneration(int slot) {
+    rsbs::SaveManager::Instance().RefuseSlotGeneration(slot);
 }
 
 int RsbsSave_GetSlotState(int slot) {

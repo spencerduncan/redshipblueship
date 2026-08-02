@@ -661,6 +661,26 @@ typedef struct {
     // counter across would make an unrelated slot's artifacts look skewed.
     uint32_t commitGeneration;
 
+    // ADR 0010 increment 1.2 (#500, accepted answer O3): the paired MM
+    // generation's WINNING ATTEMPT-LADDER INDEX, displaced by one — stored
+    // value == winning attempt + 1, so 0 keeps the growth contract's "unset"
+    // meaning (legacy record, no paired MM world authored, or a world that
+    // predates the ladder). Written by MM's OnFileCreate when the paired fill
+    // converges; reset to 0 when a paired generation aborts, so a reverted
+    // world can never carry a stale provenance stamp.
+    //
+    // The ladder is deterministic — attempt n's final seed is a pure function
+    // of (master seed, MM options string, n; recipe in Rando/Foreign.cpp) —
+    // so this field is provenance plus a regeneration cross-check, never an
+    // input: replaying generation under the same frozen identity re-converges
+    // at the same attempt by construction (the MMPairedAttemptDeterminism row
+    // locks exactly that). Like the forward foreignPlacements table (and
+    // unlike mmProfileDigest), it is NOT in the invalidation KEEP set: it is
+    // authored by MM's generation, not by the creation event, and describes a
+    // world a dead session may have authored — the .redsave Tier-1 record is
+    // what carries it for a live pair.
+    uint32_t mmPairedAttempt;
+
     // Headroom. Carve new fields from the FRONT of this array (as
     // sharedItemsTagged, sharedRandoSettingsHash, foreignPlacements, the
     // grant cursors, and the reverse placement table were) so the struct
@@ -672,17 +692,17 @@ typedef struct {
     // "zero means unset".
     //
     // 264 - 48 (foreignPlacementsOoT) - 4 (mmProfileDigest) - 32 (sharedResources)
-    // - 48 (sharedResourcesExt) - 4 (commitGeneration).
+    // - 48 (sharedResourcesExt) - 4 (commitGeneration) - 4 (mmPairedAttempt).
     // ADR 0009 publishes the remaining
     // allocation across the other claimants and sets a 64-byte floor:
     // Test_SaveComboRecordFixed's scribble loop iterates sizeof(reserved), so
     // at zero it degenerates to zero iterations and passes vacuously, retiring
     // the only test that proves headroom round-trips at all. NOTE: with the
-    // commitGeneration carve this stands at 128; ADR 0009's outstanding
-    // claims 2 and 4 (4 + 64) would leave 60, so the ADR's budget table needs
-    // a row before those land (raise the record size + RSBS_SAVE_VERSION
-    // together if the floor would break).
-    uint8_t reserved[128];
+    // mmPairedAttempt carve this stands at 124; ADR 0009's outstanding
+    // claims 2 and 4 (4 + 64) would leave 56, UNDER the 64-byte floor, so the
+    // ADR's budget table needs a row before those land (raise the record size
+    // + RSBS_SAVE_VERSION together if the floor would break).
+    uint8_t reserved[124];
 } ComboContext;
 
 /**
@@ -816,12 +836,25 @@ RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, commitGeneration) ==
                                RSBS_SHARED_RESOURCE_EXT_CAP * sizeof(ComboSharedResource),
                        "commitGeneration must be carved from the FRONT of reserved[] (contiguous "
                        "with the second shared-resource block); moving it changes .redsave format");
-RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, reserved) ==
+// The paired-attempt record is the next carve (ADR 0010 increment 1.2, 4
+// bytes). Pinned to the literal 876 for the same reason 672, 736, 740, 788,
+// 792, 824 and 872 are: anything carved after it inherits its position, so a
+// field growing in place ahead of it must break the build rather than slide
+// it.
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, mmPairedAttempt) == 876u,
+                       "mmPairedAttempt lives at .redsave byte offset 876; if this fires, a field "
+                       "before it grew in place - carve from reserved[] instead");
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, mmPairedAttempt) ==
                            offsetof(ComboContext, commitGeneration) + sizeof(uint32_t),
+                       "mmPairedAttempt must be carved from the FRONT of reserved[] (contiguous "
+                       "with the commit generation); moving it changes .redsave format");
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, reserved) ==
+                           offsetof(ComboContext, mmPairedAttempt) + sizeof(uint32_t),
                        "the tagged-item array, the settings digest, both foreign-placement tables, "
                        "the grant cursors, the overflow count, the MM profile digest, BOTH shared "
-                       "resource blocks, the commit generation, and the remaining headroom must stay "
-                       "contiguous (no padding, no fields slipped between them)");
+                       "resource blocks, the commit generation, the paired-attempt record, and the "
+                       "remaining headroom must stay contiguous (no padding, no fields slipped "
+                       "between them)");
 // ADR 0009's floor. reserved[] is what Test_SaveComboRecordFixed scribbles to
 // prove Tier-1 headroom round-trips; at zero that loop runs zero times and the
 // test passes vacuously, so the carve budget stops here rather than there.

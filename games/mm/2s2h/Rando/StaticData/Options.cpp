@@ -29,10 +29,18 @@ std::map<RandoOptionId, RandoStaticOption> Options = {
     // RANDO_SAVE_OPTIONS is indexed BY that number in every already-written MM
     // rando save — a silent value shift across a save format, to tidy dead
     // surface. Adding the row costs one always-zero slot and makes the id space
-    // total. NOTE the option has no consumer anywhere in MM; the combo options
-    // pane therefore draws it disabled-with-reason rather than as a working
-    // control (ADR 0004 §5), which is exactly the honest presentation of a row
-    // that exists for table completeness.
+    // total.
+    //
+    // RETIRED (operator-accepted, ADR 0010 answer O1, 2026-07-31): this option
+    // never gains a consumer and never becomes a working control. The row is a
+    // TOMBSTONE, kept — not deleted — for THREE stability reasons: (1) the
+    // enumerator-renumbering save break above; (2) removing only this map row
+    // would shift every paired world's seed derivation (MMOptionsString hashes
+    // the table in row order — Foreign.cpp) and (3) every profile identity
+    // digest (ProfileIdentityString iterates the same rows), refusing shipped
+    // pairs at arrival over a tidy-up. The combo pane keeps drawing it
+    // disabled-with-reason (ADR 0004 §5), with the reason now naming the
+    // retirement rather than a pending implementation.
     RO(RO_ACCESS_MAJORA_REMAINS,       RO_GENERIC_OFF),
     RO(RO_ACCESS_MOON_MASKS_COUNT,     0),
     RO(RO_ACCESS_MOON_REMAINS_COUNT,   4),
