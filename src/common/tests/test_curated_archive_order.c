@@ -289,9 +289,9 @@ extern "C" int ModArchiveSurvivesSwitch_RunHeadless(const char* baseArchive, con
     // for the 151 paths oot.o2r and mm.o2r both carry would silently hand a
     // LATER MM row OoT's copy. SetArchives replays exactly this list through
     // ResetVirtualFileSystem, so mArchives/mHashes/mFileToArchive all come back
-    // to what they were.
-    // GetArchives() already hands back a freshly built vector, so this is a
-    // value snapshot and not a view that follows our own AddArchive calls.
+    // to what they were. GetArchives() already hands back a freshly built
+    // vector, so this is a value snapshot and not a view that would follow our
+    // own AddArchive calls.
     auto archiveSnapshot = archiveManager->GetArchives();
 
     int rc = 0;
