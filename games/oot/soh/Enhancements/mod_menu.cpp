@@ -5,6 +5,9 @@
 #include <ship/utils/StringHelper.h>
 
 #include "mod_menu.h"
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "mod_archives.h" // src/common — #593, mod mounts must survive a game switch
+#endif
 #include "soh/OTRGlobals.h"
 #include "soh/resource/type/Skeleton.h"
 #include "soh/SohGui/MenuTypes.h"
@@ -163,7 +166,19 @@ void UpdateModFiles(bool init = false, bool reset = false) {
                 std::vector<std::string> enabledTemp(enabledModFiles);
                 for (std::string mod : enabledTemp) {
                     if (filePaths.contains(mod)) {
-                        GetArchiveManager()->AddArchive(filePaths.at(mod).generic_string());
+                        const std::string modArchivePath = filePaths.at(mod).generic_string();
+                        GetArchiveManager()->AddArchive(modArchivePath);
+#ifdef RSBS_SINGLE_EXECUTABLE
+                        // #593: OoT mounts its mods HERE, at GUI init — long
+                        // after the base archives — and relies on
+                        // ArchiveManager's last-added-wins resolution to make
+                        // the override stick. Every cross-game switch re-adds
+                        // oot.o2r/soh.o2r on top (EnsureGameArchivesLoaded,
+                        // rsbs/src/main.cpp), which silently revoked that.
+                        // Recording the mount lets the switch path re-apply it
+                        // in this exact order.
+                        Combo_RegisterModArchive(GAME_OOT, modArchivePath.c_str());
+#endif
                     } else {
                         enabledModFiles.erase(std::find(enabledModFiles.begin(), enabledModFiles.end(), mod));
                         changed = true;

@@ -137,46 +137,63 @@ static const ALIGN_ASSET(2) char gFileSelCheatingDayTex[] = dgFileSelCheatingDay
 #define dgFileSelRandIconTex "__OTR__misc/title_static/gFileSelRandIconTex"
 static const ALIGN_ASSET(2) char gFileSelRandIconTex[] = dgFileSelRandIconTex;
 
-#define dgBoxChestCornerHealthTex "__OTR__objects/object_box/gBoxChestCornerHealthTex"
+// Chest-appearance-matches-contents corner/lock textures.
+//
+// These live under the game-scoped "mm/" subtree of 2ship.o2r, NOT under the
+// bare "objects/object_box/" that the symbol names suggest (#595). SoH ships a
+// custom object_box with the SAME fourteen symbol names in soh.o2r, with
+// different art. In a single-executable build both curated archives are mounted
+// into the ONE flat ArchiveManager, resolution is last-added-wins, and the
+// resource cache is keyed by path -- so under the old unqualified paths, which
+// game's chest textures either game rendered depended on which game booted
+// first and whether a switch had happened. The source files are at
+// games/mm/assets/custom/mm/objects/object_box/; the archive path mirrors the
+// filesystem path relative to --custom-assets-path (OTRExporter Main.cpp).
+//
+// Anything else 2ship.o2r would ship under a path soh.o2r also ships, with
+// differing content, belongs under "mm/" for the same reason. The
+// curated-archive-order lock (src/common/tests/test_curated_archive_order.c)
+// fails if a new one appears.
+#define dgBoxChestCornerHealthTex "__OTR__mm/objects/object_box/gBoxChestCornerHealthTex"
 static const ALIGN_ASSET(2) char gBoxChestCornerHealthTex[] = dgBoxChestCornerHealthTex;
 
-#define dgBoxChestCornerLesserTex "__OTR__objects/object_box/gBoxChestCornerLesserTex"
+#define dgBoxChestCornerLesserTex "__OTR__mm/objects/object_box/gBoxChestCornerLesserTex"
 static const ALIGN_ASSET(2) char gBoxChestCornerLesserTex[] = dgBoxChestCornerLesserTex;
 
-#define dgBoxChestCornerMajorTex "__OTR__objects/object_box/gBoxChestCornerMajorTex"
+#define dgBoxChestCornerMajorTex "__OTR__mm/objects/object_box/gBoxChestCornerMajorTex"
 static const ALIGN_ASSET(2) char gBoxChestCornerMajorTex[] = dgBoxChestCornerMajorTex;
 
-#define dgBoxChestCornerMaskTex "__OTR__objects/object_box/gBoxChestCornerMaskTex"
+#define dgBoxChestCornerMaskTex "__OTR__mm/objects/object_box/gBoxChestCornerMaskTex"
 static const ALIGN_ASSET(2) char gBoxChestCornerMaskTex[] = dgBoxChestCornerMaskTex;
 
-#define dgBoxChestCornerSkullTokenTex "__OTR__objects/object_box/gBoxChestCornerSkullTokenTex"
+#define dgBoxChestCornerSkullTokenTex "__OTR__mm/objects/object_box/gBoxChestCornerSkullTokenTex"
 static const ALIGN_ASSET(2) char gBoxChestCornerSkullTokenTex[] = dgBoxChestCornerSkullTokenTex;
 
-#define dgBoxChestCornerSmallKeyTex "__OTR__objects/object_box/gBoxChestCornerSmallKeyTex"
+#define dgBoxChestCornerSmallKeyTex "__OTR__mm/objects/object_box/gBoxChestCornerSmallKeyTex"
 static const ALIGN_ASSET(2) char gBoxChestCornerSmallKeyTex[] = dgBoxChestCornerSmallKeyTex;
 
-#define dgBoxChestCornerStrayFairyTex "__OTR__objects/object_box/gBoxChestCornerStrayFairyTex"
+#define dgBoxChestCornerStrayFairyTex "__OTR__mm/objects/object_box/gBoxChestCornerStrayFairyTex"
 static const ALIGN_ASSET(2) char gBoxChestCornerStrayFairyTex[] = dgBoxChestCornerStrayFairyTex;
 
-#define dgBoxChestLockHealthTex "__OTR__objects/object_box/gBoxChestLockHealthTex"
+#define dgBoxChestLockHealthTex "__OTR__mm/objects/object_box/gBoxChestLockHealthTex"
 static const ALIGN_ASSET(2) char gBoxChestLockHealthTex[] = dgBoxChestLockHealthTex;
 
-#define dgBoxChestLockLesserTex "__OTR__objects/object_box/gBoxChestLockLesserTex"
+#define dgBoxChestLockLesserTex "__OTR__mm/objects/object_box/gBoxChestLockLesserTex"
 static const ALIGN_ASSET(2) char gBoxChestLockLesserTex[] = dgBoxChestLockLesserTex;
 
-#define dgBoxChestLockMajorTex "__OTR__objects/object_box/gBoxChestLockMajorTex"
+#define dgBoxChestLockMajorTex "__OTR__mm/objects/object_box/gBoxChestLockMajorTex"
 static const ALIGN_ASSET(2) char gBoxChestLockMajorTex[] = dgBoxChestLockMajorTex;
 
-#define dgBoxChestLockMaskTex "__OTR__objects/object_box/gBoxChestLockMaskTex"
+#define dgBoxChestLockMaskTex "__OTR__mm/objects/object_box/gBoxChestLockMaskTex"
 static const ALIGN_ASSET(2) char gBoxChestLockMaskTex[] = dgBoxChestLockMaskTex;
 
-#define dgBoxChestLockSkullTokenTex "__OTR__objects/object_box/gBoxChestLockSkullTokenTex"
+#define dgBoxChestLockSkullTokenTex "__OTR__mm/objects/object_box/gBoxChestLockSkullTokenTex"
 static const ALIGN_ASSET(2) char gBoxChestLockSkullTokenTex[] = dgBoxChestLockSkullTokenTex;
 
-#define dgBoxChestLockSmallKeyTex "__OTR__objects/object_box/gBoxChestLockSmallKeyTex"
+#define dgBoxChestLockSmallKeyTex "__OTR__mm/objects/object_box/gBoxChestLockSmallKeyTex"
 static const ALIGN_ASSET(2) char gBoxChestLockSmallKeyTex[] = dgBoxChestLockSmallKeyTex;
 
-#define dgBoxChestLockStrayFairyTex "__OTR__objects/object_box/gBoxChestLockStrayFairyTex"
+#define dgBoxChestLockStrayFairyTex "__OTR__mm/objects/object_box/gBoxChestLockStrayFairyTex"
 static const ALIGN_ASSET(2) char gBoxChestLockStrayFairyTex[] = dgBoxChestLockStrayFairyTex;
 
 #define dgPotBossKeyDL "__OTR__objects/object_tsubo/gPotBossKeyDL"
