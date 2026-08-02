@@ -16,8 +16,10 @@
 > has already migrated away from, while this document includes it. Including it is what
 > surfaced the tunic desync (§3.3 BUG 1) — the key only looks shared *because* it appears in
 > the migrator — and ADR 0003 independently arrived at the same fix by a different route
-> (its §5.1 Tier-1 rename list). The two documents agree on every substantive row except
-> `DebugSaveFileMode`; see ADR 0004 §2d for that disagreement.
+> (its §5.1 Tier-1 rename list). The two documents originally disagreed on only one
+> substantive row — `DebugSaveFileMode`, which this document read (P) and ADR 0003 §4.1 read
+> (S). #454 has since removed what made it (P) (MM's clobbering write retired, read default
+> aligned to OoT's 1), so both now classify it (S); see ADR 0004 §2d for that history.
 
 ## 0. Governing principle
 
@@ -170,11 +172,16 @@ Currently inert only because `BenPort.cpp` is excluded from the single-exe link.
 moment MM's cosmetic surface is un-elided. **Classification: (S) shared-intent, CONVERGE →
 OoT's `gCosmetics.Link.{Kokiri,Goron,Zora}Tunic.Value`.**
 
-#### ❌ BUG 2 — `gDeveloperTools.DebugSaveFileMode`: shared key, divergent defaults
+#### ✅ BUG 2 (RESOLVED #454, 2026-08-02) — `gDeveloperTools.DebugSaveFileMode`: shared key, defaults now aligned
+
+> **Fixed by #454.** MM's `RegisterDebugMode()` clobbering write into the shared cell is retired and
+> MM's read default is aligned to OoT's `1` (`DEBUG_SAVE_INFO_VANILLA_DEBUG`), so the key is genuine
+> class (S). The measurement below is the pre-fix state, kept for the record. The MM default is now
+> **1**, not 0.
 
 | | OoT | MM |
 |---|---|---|
-| Default | **1** (`.DefaultIndex(1)`, `SaveManager.cpp:975` reads default `1`) | **0** (`DEBUG_SAVE_INFO_NONE`, `DeveloperTools.cpp:26`) |
+| Default | **1** (`.DefaultIndex(1)`, `SaveManager.cpp:975` reads default `1`) | **1** since #454 (`DEBUG_SAVE_INFO_VANILLA_DEBUG`, `DeveloperTools.cpp:26`); was `0` (`DEBUG_SAVE_INFO_NONE`) |
 | Value 0 | "Off — normal savefile" | `DEBUG_SAVE_INFO_NONE` — empty save |
 | Value 1 | "Vanilla debug save" | `DEBUG_SAVE_INFO_VANILLA_DEBUG` |
 | Value 2 | "Maxed — all items & upgrades" | `DEBUG_SAVE_INFO_COMPLETE` — 100% save |
@@ -184,13 +191,15 @@ The *enum ordering happens to align*, but the **defaults disagree**: unset, OoT 
 game's debug-save behaviour away from its own default. Low blast radius (debug-only, gated
 behind `DebugEnabled`) but it is a genuine accidental divergence on a shared key.
 
-**Classification: (P)** — the key already matches so nothing renames, but the defaults must be
-reconciled, which is a behaviour decision.
+**Classification: (S) — RESOLVED by #454.** The original reading here was (P): the key already
+matched so nothing renamed, but the divergent default had to be reconciled, which is a behaviour
+decision. #454 made that decision — MM's default was aligned to OoT's `1` and MM's clobbering
+write retired — so the key is now genuine (S). The pre-fix (P) framing is kept below for the record.
 
-> ⚠️ **ADR 0003 §4.1 classifies this (S)** — "value spaces align… only the unwritten fallback
-> differs. Acceptable, worth knowing." This document takes the more conservative (P) line. The
-> disagreement is narrow and safe (no rename either way); #454 decides it. Recorded rather than
-> reconciled so neither document silently overrides the other.
+> ⚠️ **ADR 0003 §4.1 always classified this (S)** — "value spaces align… only the unwritten
+> fallback differs." This document originally took the more conservative (P) line, and #454 then
+> decided it in favour of (S), aligning MM's default to OoT's 1 and retiring MM's clobbering
+> write. Recorded rather than silently overwritten so the route to the shared conclusion is legible.
 
 ## 4. (P) — per-game parallel: same idea, incompatible realisation
 
@@ -203,7 +212,7 @@ rename pass.**
 | P2 | **Infinite Sword Glitch** | `gCheats.EasyISG` (a **Cheat**) | `gEnhancements.Restorations.TatlISG` (a **Restoration**) | Taxonomy conflict *and* semantics: OoT treats ISG as a cheat to grant; MM treats restoring the Navi-ISG behaviour (via Tatl) as authenticity. Different menu sections, different framing. Needs a maintainer call before any merge. |
 | P3 | **Camera invert / sensitivity** | `gSettings.FreeLook.Invert{X,Y}Axis`, `gSettings.Controls.InvertAiming{X,Y}Axis`, `…InvertShieldAiming{X,Y}Axis`, `…InvertZAimingYAxis`, `gSettings.FirstPersonCameraSensitivity.{Enabled,X,Y}` | `gEnhancements.Camera.RightStick.Invert{X,Y}Axis`, `gEnhancements.Camera.FirstPerson.Invert{X,Y}`, `…RightStickInvert{X,Y}`, `…GyroInvert{X,Y}`, `…Sensitivity{X,Y}` | **Different axis decomposition.** OoT splits by *context* (free-look vs aiming vs shield-aiming vs Z-aiming); MM splits by *input device* (right stick vs gyro vs first-person). There is no 1:1 mapping — OoT has no gyro axis, MM has no shield-aim axis. Merging would drop settings on both sides. |
 | P4 | **Tunic / transformation colours** | `gCosmetics.Link.{Kokiri,Goron,Zora}Tunic.Value` | `gCosmetics.Link_{Kokiri,Goron,Zora}Tunic.Value` | See §3.3 BUG 1. Intent is shared; the *current keys* are desynced by an OoT migration MM never followed. Converge, but as a fix, not a plain rename. |
-| P5 | **Debug save file mode** | `gDeveloperTools.DebugSaveFileMode` (default 1) | `gDeveloperTools.DebugSaveFileMode` (default 0) | See §3.3 BUG 2. Same key, disagreeing defaults. |
+| P5 | **Debug save file mode** | `gDeveloperTools.DebugSaveFileMode` (default 1) | `gDeveloperTools.DebugSaveFileMode` (default 1 since #454) | **RESOLVED (#454): now (S).** See §3.3 BUG 2 — MM's clobbering write retired and read default aligned to OoT's 1. |
 | P6 | **Ocarina D-pad input** | `gEnhancements.DpadNoDropOcarinaInput`, `gSettings.OcarinaControl.Dpad`, `gSettings.CustomOcarina.Dpad` | `gEnhancements.Playback.DpadOcarina`, `…NoDropOcarinaInput`, `…RightStickOcarina` | Split across **different top-level namespaces** (OoT: partly `gSettings`, partly `gEnhancements`; MM: all `gEnhancements.Playback`) with different member sets — MM adds right-stick ocarina, OoT adds a custom-mapping layer. Structurally parallel, not identical. |
 | P7 | **Shield aim inversion** | `gSettings.Controls.InvertShieldAimingYAxis` (+ X axis) | `gEnhancements.Equipment.InvertShieldY` (Y only) | Different namespace *and* different axis coverage (OoT X+Y, MM Y only). Merging loses OoT's X axis. |
 
@@ -344,9 +353,9 @@ Scoped to the enhancement/cheat/cosmetic surface classified at **individual-sett
 
 | Class | Rows | Notes |
 |---|---:|---|
-| **(S) shared-intent** | **59** | 33 already MATCH + 26 need CONVERGE |
+| **(S) shared-intent** | **60** | 34 already MATCH + 26 need CONVERGE (DebugSaveFileMode joined MATCH via #454) |
 | — of which port-level MATCH | 19 | §3.1 |
-| — of which gameplay/tooling MATCH | 14 | §3.2 |
+| — of which gameplay/tooling MATCH | 15 | §3.2 (incl. DebugSaveFileMode since #454) |
 | — of which CONVERGE (→ rename list) | 26 | §5.3 |
 | **(P) per-game parallel** | **7** | §4 |
 | **(O) only-in-one (MM side)** | **~146** | of MM's 185 in-scope keys |
@@ -354,12 +363,15 @@ Scoped to the enhancement/cheat/cosmetic surface classified at **individual-sett
 
 **Collision set:** 35 exact + 2 by-design = **37 shared keys**.
 
-- 33 deliberate-and-correct — (S) (19 port-level, 14 shared-intent gameplay)
-- **2 accidental-divergence bugs** — the tunic stale-key desync (3 keys) and
-  `DebugSaveFileMode` default disagreement (1 key). Filed; see §3.3.
+- 34 deliberate-and-correct — (S) (19 port-level, 15 shared-intent gameplay/tooling — the
+  latter now including `DebugSaveFileMode`, reconciled to (S) by #454)
+- **1 accidental-divergence bug** — the tunic stale-key desync (3 keys). Filed; see §3.3.
+  (`DebugSaveFileMode`'s default disagreement was the second bug here; #454 resolved it —
+  MM's clobbering write retired and its read default aligned to OoT's 1 — so it is now (S).)
 
-**Bug list for filing:** exactly 2 issues, not the 5-cheat block a naive scan reports. Under
-decision (2) the cheat sharing is correct by design.
+**Bug list for filing:** 1 open issue (the tunic desync), not the 5-cheat block a naive scan
+reports; `DebugSaveFileMode` was the other and is resolved by #454. Under decision (2) the cheat
+sharing is correct by design.
 
 ## 8. Hazards surfaced in passing
 

@@ -23,7 +23,12 @@ extern u16 sPersistentCycleWeekEventRegs[ARRAY_COUNT(gSaveContext.save.saveInfo.
 #define CVAR_DEBUG_MODE CVarGetInteger(CVAR_DEBUG_MODE_NAME, 0)
 
 #define CVAR_SAVE_FILE_MODE_NAME "gDeveloperTools.DebugSaveFileMode"
-#define CVAR_SAVE_FILE_MODE CVarGetInteger(CVAR_SAVE_FILE_MODE_NAME, DEBUG_SAVE_INFO_NONE)
+// Read default aligned with OoT's (#454): OoT reads this shared key with a
+// default of 1 (SaveManager.cpp), and MM's enumerators match value-for-value
+// (NONE=0, VANILLA_DEBUG=1, COMPLETE=2), so the two games now agree on the
+// unwritten fallback. This makes the key genuine class (S) — see
+// src/common/cvar_shared_keys.h's kSharedIntentKeys entry.
+#define CVAR_SAVE_FILE_MODE CVarGetInteger(CVAR_SAVE_FILE_MODE_NAME, DEBUG_SAVE_INFO_VANILLA_DEBUG)
 
 void SetSaveFileInfo() {
     u8 playerName[8];
@@ -146,9 +151,16 @@ void RegisterPreventActorInitHooks() {
 }
 
 void RegisterDebugMode() {
-    // Disable various debug options when toggled off
+    // Disable various debug options when toggled off.
+    //
+    // NOTE (#454): this used to also do
+    //   CVarSetInteger(CVAR_SAVE_FILE_MODE_NAME, DEBUG_SAVE_INFO_NONE);
+    // which is retired. In the single-shell combo, DebugSaveFileMode is ONE
+    // shared cell that OoT reads with a default of 1; writing 0 into it here on
+    // every launch (debug-off is the default state) destroyed OoT's default and
+    // is what made the key class (P). The other options below are MM-only cvars,
+    // so clearing them is correct and stays. See src/common/cvar_shared_keys.h.
     if (!CVAR_DEBUG_MODE) {
-        CVarSetInteger(CVAR_SAVE_FILE_MODE_NAME, DEBUG_SAVE_INFO_NONE);
         CVarSetInteger(CVAR_PREVENT_ACTOR_UPDATE_NAME, 0);
         CVarSetInteger(CVAR_PREVENT_ACTOR_DRAW_NAME, 0);
         CVarSetInteger(CVAR_PREVENT_ACTOR_INIT_NAME, 0);

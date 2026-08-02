@@ -113,10 +113,12 @@ resolving it"* — is discharged, provided MM's menu is never revived as a secon
 proviso is now load-bearing for both documents, which is the second reason §3 tier 1 flags the
 sidebar-name caveat.
 
-**~~One live disagreement, deliberately preserved.~~ RULED (P) on acceptance, 2026-07-23.** On
-`gDeveloperTools.DebugSaveFileMode`, ADR 0003 §4.1 classified (S) — value spaces align, only the
-unwritten fallback differs, "acceptable, worth knowing" — and this document classified it **(P)**,
-filed as [#454](https://github.com/spencerduncan/redshipblueship/issues/454).
+**~~One live disagreement, deliberately preserved.~~ RULED (P) on acceptance, 2026-07-23; FIXED and
+returned to (S), 2026-08-02 (#454).** On `gDeveloperTools.DebugSaveFileMode`, ADR 0003 §4.1 classified
+(S) — value spaces align, only the unwritten fallback differs, "acceptable, worth knowing" — and this
+document classified it **(P)**, filed as [#454](https://github.com/spencerduncan/redshipblueship/issues/454).
+The (P) reading was correct for the tree as it stood; #454 has since removed what made it (P) (see the
+resolution note at the end of this subsection), so the key is genuine (S) now.
 
 **#454 never decided it.** It was auto-closed by the squash-merge of PR #456, a docs-only change
 whose own text says #454 is the thing that will settle the question. The close is an artifact.
@@ -136,13 +138,15 @@ MM's registrar unconditionally writes `0` into the shared cell whenever debug mo
 the default state — so the key is never left unwritten once MM's devtools link, and OoT's `1` is
 destroyed on every launch. **ADR 0003 §4.1's row is therefore wrong and is corrected there.**
 
-Dormant but armed: `games/mm/CMakeLists.txt` excludes `2s2h/DeveloperTools/` from the single-exe
-build, so the clobber does not run today. It arms on the same un-elision work §5's gate 4
-schedules. The rename pass remains safe under either reading — the key name already matches — so
-this is a behaviour fix (retire MM's write, align MM's read default to OoT's `1`) owed by whichever
-lane un-elides `DeveloperTools`, not a namespace change. `kDisputedClassificationKeys` keeps the key
-until that fix lands, because the manifest must not claim (S) while the source still contains the
-write that makes it (P).
+**RESOLVED 2026-08-02 (#454).** The behaviour fix was made ahead of un-elision rather than deferred to
+it: `RegisterDebugMode()`'s `CVarSetInteger(CVAR_SAVE_FILE_MODE_NAME, DEBUG_SAVE_INFO_NONE)` write is
+retired, and MM's read default is aligned to OoT's `1` (`DEBUG_SAVE_INFO_VANILLA_DEBUG`). The rename
+pass was always safe under either reading — the key name already matched — so this was only ever a
+behaviour fix, and it is done. `games/mm/2s2h/DeveloperTools/` is still excluded from the single-exe
+build (so the clobber never ran there), but the source no longer contains the write, so whichever lane
+un-elides `DeveloperTools` inherits a key that is already (S). `kDisputedClassificationKeys` is now
+empty and `DebugSaveFileMode` sits in `kSharedIntentKeys`; the manifest claims (S) only against the
+fixed source.
 
 ### 3. The four tiers
 
@@ -464,11 +468,12 @@ kept so the decision trail stays legible.
    would silently switch a restoration on for players who asked for neither. Stays in
    `kMustStayDistinct`.
 3. **(P) row P5 — `gDeveloperTools.DebugSaveFileMode` defaults.**
-   **RESOLVED (P), against ADR 0003 §4.1 — see §2d for the evidence.** Not on the default
-   divergence: on MM's `DeveloperTools.cpp` write into the shared cell, which falsifies 0003's
-   "only the unwritten fallback differs" outright. The fix is a behaviour change owed by whichever
-   lane un-elides `2s2h/DeveloperTools/`; until then the key stays in
-   `kDisputedClassificationKeys`.
+   **RULED (P), against ADR 0003 §4.1 — see §2d for the evidence — then FIXED and returned to (S),
+   2026-08-02 (#454).** The (P) call was not on the default divergence but on MM's
+   `DeveloperTools.cpp` write into the shared cell, which falsified 0003's "only the unwritten
+   fallback differs" outright. #454 made the behaviour change ahead of un-elision: retired MM's
+   write and aligned its read default to OoT's `1`. `kDisputedClassificationKeys` is now empty and
+   the key lives in `kSharedIntentKeys`.
 4. **Group B rename confirmations.** *Was:* `InfiniteAmmo`/`InfiniteConsumables` and
    `NoRestrictItems`/`UnrestrictedItems` need a semantic check before renaming.
    **RESOLVED: neither converges. Both stay in `kMustStayDistinct`, and the recorded reasons are
