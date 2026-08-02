@@ -10,8 +10,11 @@
  *
  * Headless: this test only touches the shared ComboContext struct via its
  * public C API. It does NOT boot either game, allocate a SaveContext, or call
- * the game-port freeze/resume hooks (OoT_FreezeState / MM_ResumeFromContext),
- * which are unavailable in the headless --test path.
+ * the game-port freeze/resume hooks (MM_FreezeState / MM_ResumeFromContext),
+ * which are unavailable in the headless --test path. (OoT's counterparts used
+ * to be named here too; they were deleted by #598 — never compiled, never
+ * called, and a freeze-time writer of the seed stamp that the creation event
+ * is now the sole author of.)
  *
  * Included into test_runner.cpp inside an extern "C" block (mirrors
  * test_game_lifecycle.c). Only C-linkage ComboContext_* symbols and gComboCtx

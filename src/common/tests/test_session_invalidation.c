@@ -44,6 +44,16 @@
  *      nothing re-places the reverse table afterwards, so a wipe here is a
  *      permanent loss: #524's MM-items-in-OoT-checks never deliver and the
  *      zeroed table is persisted by the new slot's first .redsave.
+ *  5c. (#597) ...but ONLY when the file being created plays the world that
+ *      was stamped. Generate seed A, load a spoiler for world B, create the
+ *      file: still a "rando file" (the caller's test counts
+ *      Randomizer_IsSpoilerLoaded), yet nothing authored an identity for it,
+ *      so keeping would hand world B identity A and A's reverse placements —
+ *      MM items pinned into checks chosen for a different world. #570's
+ *      arrival compare cannot catch this; identity A is internally consistent
+ *      and the corruption is upstream of it.
+ *  5d. The boundary of 5c: an unstamped rando creation (both sides 0) must
+ *      not read as a match.
  *   6. A NON-rando new file drops the seed stamp too, or
  *      Combo_ForeignPairingActive() would keep reporting a paired world.
  *   7. A legitimate existing-slot load STILL restores that slot's .redsave.
@@ -353,7 +363,7 @@ TestResult Test_SessionInvalidation(void) {
     SeedSessionA(0x1234u, 0xABCDu);
     SESSION_ASSERT(Context_InvalidateSessionOnReturnToTitle() == 1);
     StampGeneratedSeed(0x99999999u, 0x5555u);
-    Context_InvalidateSessionOnNewGame(/*isRandoFile=*/1);
+    Context_InvalidateSessionOnNewGame(/*isRandoFile=*/1, /*createdWorldSeed=*/0x99999999u);
     {
         std::vector<uint8_t> arriving(kSessionBuf, kSessionBByte);
         const int hadFrozen = Combo_ConsumeFrozenState("mm", arriving.data(), arriving.size());
@@ -377,7 +387,7 @@ TestResult Test_SessionInvalidation(void) {
     // can be asked to preserve.
     SeedSessionA(0x1234u, 0xABCDu);
     StampGeneratedSeed(0x99999999u, 0x5555u);
-    Context_InvalidateSessionOnNewGame(/*isRandoFile=*/1);
+    Context_InvalidateSessionOnNewGame(/*isRandoFile=*/1, /*createdWorldSeed=*/0x99999999u);
     SESSION_ASSERT(SessionIsClear(/*expectSeedStamp=*/true));
     SESSION_ASSERT(gComboCtx.sharedRandoSeed == 0x99999999u);
     SESSION_ASSERT(gComboCtx.sharedRandoSettingsHash == 0x5555u);
@@ -416,9 +426,82 @@ TestResult Test_SessionInvalidation(void) {
     SESSION_ASSERT(Combo_CommitStagedSharedItems() == 0);
     SESSION_ASSERT(Combo_CountSharedItems(GAME_OOT, true) == 0);
 
+    // ---- 5c. #597: a rando file that plays a DIFFERENT world inherits ------
+    //          NOTHING. The corruption case, and the reason case 5's KEEP is
+    //          not simply "isRandoFile".
+    //
+    // The sequence, exactly as a player performs it: generate seed A from the
+    // menu (identity A stamped, A's reverse table authored), then load a
+    // SPOILER for a different world B and create a file from it. The caller's
+    // rando test counts Randomizer_IsSpoilerLoaded(), so isRandoFile is still
+    // 1 — but Context::ParseSpoiler authors no combo identity whatsoever, it
+    // only re-seeds Rando::Context from the log's "finalSeed". So the resident
+    // stamp still names A while the file plays B.
+    //
+    // Keeping here is silent, permanent corruption: world B would carry
+    // identity A, MM would generate its half against A's seed and settings,
+    // and A's reverse placements would pin MM items into OoT checks chosen for
+    // a world this file is not playing. #570's arrival compare is structurally
+    // unable to catch it — it validates that the identity is internally
+    // consistent, and identity A is perfectly consistent with itself; the
+    // corruption is upstream of everything it can see.
+    //
+    // FALSIFIABILITY: make Context_InvalidateSessionOnNewGame keep on
+    // isRandoFile alone again (the pre-#597 `isRandoFile ? KEEP : DROP`) and
+    // every assertion in this block goes red — the seed, the settings hash,
+    // the MM profile digest and A's reverse row all survive into world B.
+    SeedSessionA(0x1234u, 0xABCDu);
+    StampGeneratedSeed(/*seed=*/0x99999999u, /*settingsHash=*/0x5555u);
+    Context_InvalidateSessionOnNewGame(/*isRandoFile=*/1, /*createdWorldSeed=*/0x77777777u);
+    SESSION_ASSERT(SessionIsClear(/*expectSeedStamp=*/false));
+    SESSION_ASSERT(gComboCtx.sharedRandoSeed == 0);
+    SESSION_ASSERT(gComboCtx.sharedRandoSettingsHash == 0);
+    SESSION_ASSERT(gComboCtx.mmProfileDigest == 0);
+    // Neither generation's table nor the dead session's: an inherited reverse
+    // table is the half of this bug #545 added, and it is the half that puts
+    // wrong items in wrong checks rather than merely mislabelling the pair.
+    SESSION_ASSERT(Combo_CountForeignPlacementsOoT() == 0);
+    SESSION_ASSERT(Combo_GetForeignPlacementForOoTCheck(kGenReverseCheck) == nullptr);
+    SESSION_ASSERT(Combo_GetForeignPlacementForOoTCheck(kSessionAReverseCheck) == nullptr);
+    // The file is unpaired, which is the correct disposition for a file that
+    // has no identity of its own — the same shape a vanilla file has. It is
+    // NOT re-derived or re-stamped: under one-game semantics an identity this
+    // file did not have authored for it is not this file's identity.
+    SESSION_ASSERT(!Combo_ForeignPairingActive());
+    SESSION_ASSERT(ArrivalPairDecision(/*hadFrozenState=*/0) == PAIR_DECLINE_NO_WORLD);
+
+    // ---- 5d. #597 boundary: "both sides are 0" is NOT a match --------------
+    // The caller names no world — Randomizer_GetCurrentWorldSeed() returns 0
+    // when no rando context exists, and z_sram.c passes a literal 0 for a
+    // non-rando file — while the resident stamp's seed is also 0. Equality
+    // alone would call that a match and hand the file an identity nobody
+    // authored, so the seed test is `!= 0 && ==`, not `==`.
+    //
+    // WRITTEN TO BE FALSIFIABLE, WHICH THE OBVIOUS VERSION IS NOT: seeding this
+    // case with a bare ComboContext_Init() would assert nothing, because KEEP
+    // and DROP both leave an all-zero context and the assertions pass either
+    // way. So the resident state here is a REAL-looking identity whose seed
+    // happens to be 0 — settings hash, MM profile digest and a reverse row all
+    // populated — which makes the two policies observably different. Drop the
+    // `gComboCtx.sharedRandoSeed != 0` term from the KEEP test and this block
+    // goes red on the settings hash, the digest, the reverse row and the
+    // pairing flag.
+    SeedSessionA(0x1234u, 0xABCDu);
+    StampGeneratedSeed(/*seed=*/0u, /*settingsHash=*/0x5555u);
+    // Precondition: KEEP and DROP really are distinguishable from here.
+    SESSION_ASSERT(Combo_ForeignPairingActive());
+    SESSION_ASSERT(Combo_CountForeignPlacementsOoT() == 1);
+    Context_InvalidateSessionOnNewGame(/*isRandoFile=*/1, /*createdWorldSeed=*/0u);
+    SESSION_ASSERT(SessionIsClear(/*expectSeedStamp=*/false));
+    SESSION_ASSERT(!gComboCtx.sourceIsRando);
+    SESSION_ASSERT(gComboCtx.sharedRandoSettingsHash == 0);
+    SESSION_ASSERT(gComboCtx.mmProfileDigest == 0);
+    SESSION_ASSERT(Combo_CountForeignPlacementsOoT() == 0);
+    SESSION_ASSERT(!Combo_ForeignPairingActive());
+
     // ---- 6. New VANILLA file: the seed stamp goes too ----------------------
     SeedSessionA(0x1234u, 0xABCDu);
-    Context_InvalidateSessionOnNewGame(/*isRandoFile=*/0);
+    Context_InvalidateSessionOnNewGame(/*isRandoFile=*/0, /*createdWorldSeed=*/0u);
     SESSION_ASSERT(SessionIsClear(/*expectSeedStamp=*/false));
     SESSION_ASSERT(gComboCtx.sharedRandoSeed == 0);
     SESSION_ASSERT(gComboCtx.sharedRandoSettingsHash == 0);
@@ -553,7 +636,7 @@ TestResult Test_SessionInvalidation(void) {
         // case 8 so slot 2 is still unwritten where that case needs it.
         SeedSessionA(0x3333u, 0x4444u);
         StampGeneratedSeed(0x99999999u, 0x5555u);
-        Context_InvalidateSessionOnNewGame(/*isRandoFile=*/1);
+        Context_InvalidateSessionOnNewGame(/*isRandoFile=*/1, /*createdWorldSeed=*/0x99999999u);
         // #533: mirror z_sram.c's create seam, which arms the slot right after
         // the invalidation and before the file's first save.
         mgr.ArmSlotOnCreate(2);
@@ -578,7 +661,8 @@ TestResult Test_SessionInvalidation(void) {
     printf("[TEST] PASS: a dead session's frozen blobs, shadows and gComboCtx crossings do not "
            "survive a soft reset or a new game; the generation-authored seed stamp and reverse "
            "placement table survive rando file creation and reach the new slot's first .redsave "
-           "(#534); arrivals and existing-slot loads still restore\n");
+           "(#534) but ONLY for the file that plays the stamped world (#597); arrivals and "
+           "existing-slot loads still restore\n");
 
     // Leave global state clean for any subsequent test.
     Context_ClearAllFrozenStates();

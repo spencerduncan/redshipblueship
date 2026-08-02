@@ -56,6 +56,9 @@ CrowdControl* CrowdControl::Instance;
 #include "2s2h/Enhancements/GfxPatcher/PlayerCustomFlipbooks.h"
 #include "2s2h/DeveloperTools/DebugConsole.h"
 #include "2s2h/Rando/Rando.h"
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "mod_archives.h" // src/common — #593, mod mounts must survive a game switch
+#endif
 #include "2s2h/Rando/Spoiler/Spoiler.h"
 #include "2s2h/SaveManager/SaveManager.h"
 #include "2s2h/CustomMessage/CustomMessage.h"
@@ -181,6 +184,20 @@ OTRGlobals::OTRGlobals() {
     });
 
     archiveFiles.insert(archiveFiles.end(), patchFiles.begin(), patchFiles.end());
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #593: record the mods, in this exact mount order, so the cross-game
+    // switch can put them back on top. Ship::Context::InitResourceManager below
+    // mounts archiveFiles in order and ArchiveManager resolution is
+    // last-added-wins, so these winning here is the whole point of appending
+    // them after mm.o2r/2ship.o2r. EnsureGameArchivesLoaded re-adds those two
+    // base archives on every switch (rsbs/src/main.cpp), which — unrepaired —
+    // silently un-does every override from MM's SECOND arrival onward.
+    for (const auto& patchFile : patchFiles) {
+        Combo_RegisterModArchive(GAME_MM, patchFile.c_str());
+    }
+#endif
+
     fprintf(stderr, "[MM OTRGlobals DEBUG] Total archive files: %zu\n", archiveFiles.size());
     for (size_t i = 0; i < archiveFiles.size(); i++) {
         fprintf(stderr, "[MM OTRGlobals DEBUG]   Archive %zu: %s\n", i, archiveFiles[i].c_str());

@@ -441,11 +441,41 @@ int Context_InvalidateSessionOnReturnToTitle(void) {
     return 1;
 }
 
-void Context_InvalidateSessionOnNewGame(int isRandoFile) {
-    fprintf(stderr, "[Context] New file (rando=%d): retiring cross-game session state\n", isRandoFile);
-    // A rando file's stamp was authored by generation minutes ago and belongs
-    // to the file being created, not to the session being discarded.
-    Context_InvalidateSessionState(isRandoFile ? RSBS_SEED_STAMP_KEEP : RSBS_SEED_STAMP_DROP);
+void Context_InvalidateSessionOnNewGame(int isRandoFile, uint32_t createdWorldSeed) {
+    // The KEEP question is "did generation author this identity FOR the file
+    // being created?", and only an identity comparison answers it (#597).
+    // "Is this a rando file?" does not: the caller's test counts
+    // Randomizer_IsSpoilerLoaded(), and a spoiler load authors no identity at
+    // all — it only re-seeds Rando::Context from the log — so generate-A then
+    // spoiler-load-B then create used to hand world B identity A, and with it
+    // A's reverse placement table (#545). Nothing downstream can recover from
+    // that: #570's arrival compare validates the identity's INTERNAL
+    // consistency, and identity A is perfectly consistent with itself.
+    //
+    // sourceIsRando is part of the test because it is half of what makes a
+    // stamp real (Combo_ForeignPairingActive), and a zero seed is rejected
+    // outright so that "nothing was ever stamped" (a cold boot's all-zero
+    // gComboCtx) can never match a caller that has no world of its own.
+    const int identityIsThisFiles = gComboCtx.sourceIsRando && gComboCtx.sharedRandoSeed != 0 &&
+                                    gComboCtx.sharedRandoSeed == createdWorldSeed;
+    const int keep = (isRandoFile != 0) && identityIsThisFiles;
+
+    fprintf(stderr,
+            "[Context] New file (rando=%d, world seed=%u, resident stamp=%u): retiring cross-game session state\n",
+            isRandoFile, (unsigned)createdWorldSeed, (unsigned)gComboCtx.sharedRandoSeed);
+    if (isRandoFile && !identityIsThisFiles) {
+        // Loud on purpose: this is a refusal to inherit, and it is the only
+        // path where a rando file ends up deliberately unpaired. Silence here
+        // would be indistinguishable from the #597 corruption it replaces.
+        fprintf(stderr,
+                "[Context] New file: resident identity %u does not name this world (%u) — DISCARDING the stamp and "
+                "the reverse placement table rather than inheriting them (#597). This file is unpaired.\n",
+                (unsigned)gComboCtx.sharedRandoSeed, (unsigned)createdWorldSeed);
+    }
+
+    // A matching stamp was authored by generation minutes ago and belongs to
+    // the file being created, not to the session being discarded.
+    Context_InvalidateSessionState(keep ? RSBS_SEED_STAMP_KEEP : RSBS_SEED_STAMP_DROP);
 }
 
 void Context_InvalidateSessionOnSlotLoad(void) {

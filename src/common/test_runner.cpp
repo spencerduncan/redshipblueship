@@ -25,13 +25,6 @@
 #include <ship/resource/factory/BlobFactory.h>
 #include <fast/resource/ResourceType.h>
 #include <fast/resource/factory/TextureFactory.h>
-// For Test_CrossGameModel (#577): the model pipeline's factories, registered
-// by both games only inside their display-bound Initialize paths.
-#include <fast/resource/factory/DisplayListFactory.h>
-#include <fast/resource/factory/VertexFactory.h>
-#include <fast/resource/type/DisplayList.h>
-#include <ship/resource/archive/Archive.h>
-#include <ship/resource/archive/ArchiveManager.h>
 
 // Shared-context bring-up entries for the boot regression tests (#329/#330).
 // Defined in games/oot/soh/OTRGlobals.cpp and
@@ -40,11 +33,6 @@
 extern "C" {
 int OoT_InitSharedContextSubsystems(void);
 int MM_RegisterResourceFactoriesHeadless(void);
-// Model-pipeline factories for the #577 cross-game model row (Texture,
-// DisplayList, Vertex, and the game-owned 'OARR' Array reader that extracted
-// vertex data needs). Defined in games/oot/soh/OTRGlobals.cpp — OoT's own TU,
-// so the row runs against the factory surface a real OoT session has.
-int OoT_RegisterModelResourceFactoriesHeadless(void);
 // MM scene-command EXECUTE regression (#344). Body lives in an MM TU
 // (games/mm/2s2h/mm_scene_execute_test.cpp) so MM's global.h / PlayState never
 // enters this translation unit; called through this C entry point, mirroring
@@ -107,6 +95,14 @@ int MM_FbEffectsBinding_RunHeadless(void);
 // all-Ocarina corruption). Returns 0 on pass, non-zero on fail.
 int MM_FlashFileNumOob_RunHeadless(void);
 int MM_UnifiedSaveCapture_RunHeadless(void);
+// MM capture harvest gate (games/mm/2s2h/mm_capture_harvest_gate_test.cpp,
+// #591): MM_Combo_CaptureSaveToUnifiedSlot harvested the shared-resource pool
+// BEFORE RsbsSave_Save checked the #533/#568 write latch, so a refused capture
+// still advanced gComboCtx.sharedResources and the RAM watermark table for a
+// commit that never landed -- and apply ASSIGNS the consumable kinds, so the
+// phantom pool was materialized verbatim on the far side of the next crossing.
+// Returns 0 on pass, non-zero on fail.
+int MM_CaptureHarvestGate_RunHeadless(void);
 // MM single-exe hook dispatch (games/mm/2s2h/mm_hook_dispatch_test.cpp, #511 /
 // #438): the COND_* macros park registrations in the MM-owned S2H::GameHooks
 // registry, but ShouldActorInit / OnActorInit / OnActorDraw / OnOpenText
@@ -323,12 +319,12 @@ extern "C" {
 // threads.
 #include "tests/test_zip_contention.c"
 
-// #577 cross-game model resolution lock. FILE SCOPE (compiled as C++): it walks
-// a parsed Fast::DisplayList and drives the C++-linkage ResourceManager /
-// ArchiveManager. The wrapper (Test_CrossGameModel below) performs the
-// display-free OoT bring-up, mounts the curated cross-game archive, and
-// registers the DisplayList/Vertex/Texture factories first.
-#include "tests/test_crossgame_model.c"
+// Curated-archive mount-order lock (#595) and the mod-survives-a-switch lock
+// (#593). FILE SCOPE (compiled as C++): both drive the C++-linkage
+// Ship::Context / ArchiveManager APIs directly, and the #593 body calls the
+// production Combo_EnsureGameArchivesLoaded defined in rsbs/src/main.cpp. The
+// wrappers below resolve the staged archives and SKIP when they are absent.
+#include "tests/test_curated_archive_order.c"
 
 // MM scene-command EXECUTE regression (issue #344). Unlike the parse test, the
 // body runs the parsed commands against a PlayState, so it needs MM's global.h
@@ -385,6 +381,12 @@ static TestResult Test_MMFlashFileNumOob(void) {
 
 static TestResult Test_MMUnifiedSaveCapture(void) {
     return MM_UnifiedSaveCapture_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// MM capture harvest gate (#591; see the extern decl above). Thin wrapper over
+// the C entry point in games/mm/2s2h/mm_capture_harvest_gate_test.cpp.
+static TestResult Test_MMCaptureHarvestGate(void) {
+    return MM_CaptureHarvestGate_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // MM hook-dispatch lock (see the extern decl above). Thin wrapper over the C
@@ -1306,6 +1308,69 @@ TestResult Test_CrossGameModel(void) {
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #595: the two archives we generate ourselves — soh.o2r and 2ship.o2r —
+// collided on 595 paths, 21 differing in content, in the ONE flat
+// ArchiveManager both are mounted into. Resolution is last-added-wins, so which
+// copy either game rendered depended on which game booted first and whether a
+// switch had happened (observed: chest-corner textures). This row mounts them
+// BOTH WAYS ROUND and requires every path to resolve to the same bytes either
+// way. Body + anti-vacuity guards in
+// src/common/tests/test_curated_archive_order.c.
+//
+// Archive-layer only: no ResourceManager, no factories, no display. SKIPs when
+// either curated archive is unstaged, matching the ZipContention policy (the
+// netplay-relay job re-runs this label archive-less on purpose, #562).
+TestResult Test_CuratedArchiveOrder(void) {
+    printf("[TEST] curated-archive-order: soh.o2r/2ship.o2r resolve identically in either mount order (#595)\n");
+
+    const std::string sohArchive = CaoResolveArchive("soh.o2r");
+    const std::string mmArchive = CaoResolveArchive("2ship.o2r");
+    if (sohArchive.empty() || mmArchive.empty()) {
+        printf("[TEST] SKIP: curated archives not staged (soh.o2r '%s', 2ship.o2r '%s') — the archive-less "
+               "control run keeps this row skipped by design (#562)\n",
+               sohArchive.c_str(), mmArchive.c_str());
+        return TEST_SKIP;
+    }
+
+    int rc = CuratedArchiveOrder_RunHeadless(sohArchive.c_str(), mmArchive.c_str());
+    printf("[TEST] %s: curated archive order rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #593: a user mod overrides a base asset only by being mounted after it, and
+// the switch-time base re-add (the #154 fix) put the base archives back on top
+// — silently revoking every override, with the mods still listed as enabled.
+// This row drives the production Combo_EnsureGameArchivesLoaded against the
+// real shared ArchiveManager with a copy of 2ship.o2r standing in for a mod,
+// and carries its own empty-registry negative control. Body in
+// src/common/tests/test_curated_archive_order.c.
+TestResult Test_ModArchiveSurvivesSwitch(void) {
+    printf("[TEST] mod-survives-switch: a registered mod archive still wins after a game switch (#593)\n");
+
+    const std::string sohArchive = CaoResolveArchive("soh.o2r");
+    const std::string mmArchive = CaoResolveArchive("2ship.o2r");
+    if (sohArchive.empty() || mmArchive.empty()) {
+        printf("[TEST] SKIP: no staged archive to stand in for a base archive and a mod (soh.o2r '%s', "
+               "2ship.o2r '%s')\n",
+               sohArchive.c_str(), mmArchive.c_str());
+        return TEST_SKIP;
+    }
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    int rc = ModArchiveSurvivesSwitch_RunHeadless(sohArchive.c_str(), mmArchive.c_str());
+    printf("[TEST] %s: mod survives switch rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 TestResult Test_SwitchOoTMM(void) {
     printf("[TEST] switch-oot-mm: Test game switch OoT -> MM\n");
 
@@ -2034,6 +2099,12 @@ const TestDescriptor gTests[] = {
     {"zip-contention", "Concurrent cold o2r loads return intact resources (#560)", Test_ZipContention},
     {"crossgame-model", "An MM-exclusive model resolves+draws from an OoT-only session (#577)",
      Test_CrossGameModel},
+    // #595/#593: archive-layer order locks. Display-free; both SKIP when the
+    // curated archives are not staged.
+    {"curated-archive-order", "soh.o2r/2ship.o2r resolve identically in either mount order (#595)",
+     Test_CuratedArchiveOrder},
+    {"mod-survives-switch", "A registered mod archive still wins after a game switch (#593)",
+     Test_ModArchiveSurvivesSwitch},
     {"switch-oot-mm", "Test game switch OoT -> MM", Test_SwitchOoTMM},
     {"switch-mm-oot", "Test game switch MM -> OoT", Test_SwitchMMOoT},
     {"midos-house", "Test Mido's House entrance (test mode)", Test_MidosHouse},
@@ -2198,6 +2269,13 @@ const TestDescriptor gTests[] = {
     // Pure (no display, no ROM).
     {"mm-unified-save-capture", "MM captures its live SaveContext into the unified slot, full-width and round-tripping",
      Test_MMUnifiedSaveCapture},
+    // A capture the #533/#568 write latch refuses must be a no-op on the
+    // SHARED-RESOURCE POOL too, not just on the file: the harvest used to run
+    // ahead of the latch check, so a refused commit still credited (or debited)
+    // rupees/hearts/magic/ammo and raised permanent monotonic tiers for a record
+    // that never reached disk. Pure (no display, no ROM).
+    {"mm-capture-harvest-gate", "a latch-refused MM capture leaves the shared-resource pool untouched (#591)",
+     Test_MMCaptureHarvestGate},
     // Hook dispatch reaches the MM-owned registry the COND_* macros register
     // into. Registers through the production macros and drives each dispatcher
     // through the name MM's call sites spell, so both a deleted bridge and a

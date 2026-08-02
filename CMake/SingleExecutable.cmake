@@ -58,6 +58,10 @@ set(REDSHIP_COMMON_SOURCES
     ${CMAKE_SOURCE_DIR}/src/common/combo_mm_options_view.c
     ${CMAKE_SOURCE_DIR}/src/common/ComboMmOptionsWindow.cpp
     ${CMAKE_SOURCE_DIR}/src/common/entrance.cpp
+    # Per-game registry of the user mod archives each port mounted (#593), so
+    # the base-archive re-add on every cross-game switch can put them back on
+    # top instead of silently revoking every mod override
+    ${CMAKE_SOURCE_DIR}/src/common/mod_archives.cpp
     ${CMAKE_SOURCE_DIR}/src/common/test_runner.cpp
     ${CMAKE_SOURCE_DIR}/src/common/integration_test_hooks.cpp
     # Note: game_stubs.cpp is NOT included - real implementations come from
@@ -486,6 +490,28 @@ if(BUILD_TESTING)
     # it, watch the row go red. Unset in the shipped row, on purpose.
     redship_add_test(NAME CrossGameModel COMMAND redship --test crossgame-model)
     set_tests_properties(CrossGameModel PROPERTIES SKIP_RETURN_CODE 77)
+
+    # #595 curated-archive mount-order lock: soh.o2r and 2ship.o2r — the two
+    # archives WE generate from in-tree custom assets — collided on 595 paths,
+    # 21 differing in content, in the one flat ArchiveManager both are mounted
+    # into. Last-added-wins meant chest-corner textures (and three accessibility
+    # text banks, and Fast3D's four default shaders) depended on which game
+    # booted first. This row mounts both archives BOTH WAYS ROUND and requires
+    # every path to resolve to identical bytes either way, with anti-vacuity
+    # guards on the archive sizes and on the collision set being non-empty.
+    #
+    # #593 mod-survival lock: EnsureGameArchivesLoaded re-adds the destination
+    # game's base archives on every switch, which put them back on top of the
+    # player's mods and silently revoked every override. This row drives the
+    # production Combo_EnsureGameArchivesLoaded and carries its own
+    # empty-registry negative control.
+    #
+    # Same SKIP_RETURN_CODE policy as ZipContention: the netplay-relay job
+    # re-runs this label without archives on purpose.
+    redship_add_test(NAME CuratedArchiveOrder COMMAND redship --test curated-archive-order)
+    set_tests_properties(CuratedArchiveOrder PROPERTIES SKIP_RETURN_CODE 77)
+    redship_add_test(NAME ModArchiveSurvivesSwitch COMMAND redship --test mod-survives-switch)
+    set_tests_properties(ModArchiveSurvivesSwitch PROPERTIES SKIP_RETURN_CODE 77)
     # Unified save (.redsave) headless tests — Phase 2 T6 (#35)
     redship_add_test(NAME SaveRoundtripTiers COMMAND redship --test save-roundtrip-tiers)
     redship_add_test(NAME SaveHeader COMMAND redship --test save-header)
@@ -619,6 +645,16 @@ if(BUILD_TESTING)
     # capture is FULL-WIDTH rather than the sizeof(Save) prefix the excluded
     # file used. Display-free and ROM-free, so it runs in this redship tier.
     redship_add_test(NAME MMUnifiedSaveCapture COMMAND redship --test mm-unified-save-capture)
+    # MM's capture must not advance the SHARED-RESOURCE POOL for a commit the
+    # write latch refuses (#591, games/mm/2s2h/mm_capture_harvest_gate_test.cpp).
+    # MM_Combo_CaptureSaveToUnifiedSlot harvested rupees/hearts/magic/ammo into
+    # gComboCtx.sharedResources BEFORE RsbsSave_Save checked the #533/#568
+    # armed-session latch, so an un-established or REFUSED slot still moved the
+    # pool and the RAM watermark table for a record that never reached disk.
+    # Apply ASSIGNS the consumable kinds, so the far game materialized that
+    # phantom balance verbatim at the next arrival; the monotonic tiers it also
+    # raised could never decay back out. Display-free and ROM-free.
+    redship_add_test(NAME MMCaptureHarvestGate COMMAND redship --test mm-capture-harvest-gate)
     # MM single-exe hook dispatch (#511, #438): the COND_HOOK/COND_ID_HOOK
     # macros park registrations in the MM-owned S2H::GameHooks registry, but
     # ShouldActorInit / OnActorInit / OnActorDraw / OnOpenText dispatched

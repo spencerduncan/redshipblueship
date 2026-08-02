@@ -392,6 +392,25 @@ add_custom_target(
 add_custom_target(
     ExtractMMAssets
     COMMAND ${CMAKE_COMMAND} -E rm -f mm.o2r 2ship.o2r
+
+    # Re-copy LUS's default shaders into MM's custom assets, byte-for-byte the
+    # same steps the OoT targets already run (#595). Fast3D fetches these by
+    # FIXED archive path ("shaders/opengl/default.shader.fs", gfx_opengl.cpp)
+    # and there is one renderer for both games, so soh.o2r and 2ship.o2r must
+    # ship the SAME bytes -- otherwise which shader the process compiles
+    # depends on archive mount order. Sourcing both sides from the single
+    # libultraship copy makes that structural instead of a thing to remember.
+    #
+    # MM used to keep its own TRACKED copies here; they are now untracked and
+    # gitignored (games/mm/assets/.gitignore), exactly like OoT's, so this copy
+    # is the only writer. That also keeps the working tree clean on Windows,
+    # where the repo's `.gitattributes eol=lf` does not reach into the
+    # libultraship submodule: with core.autocrlf=true the LUS copies are CRLF
+    # on disk, and copying them over tracked LF files would report four
+    # modified files after every build.
+    COMMAND ${CMAKE_COMMAND} -E rm -r -f ${CMAKE_CURRENT_SOURCE_DIR}/games/mm/assets/custom/shaders/
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/libultraship/src/fast/shaders/ ${CMAKE_CURRENT_SOURCE_DIR}/games/mm/assets/custom/shaders/
+
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/OTRExporter/extract_assets.py -z "$<TARGET_FILE:ZAPD_MM>" --non-interactive --xml-root assets/xml --custom-otr-file 2ship.o2r "--custom-assets-path" ${CMAKE_CURRENT_SOURCE_DIR}/games/mm/assets/custom --port-ver "${CMAKE_PROJECT_VERSION}" "${CMAKE_CURRENT_SOURCE_DIR}/OTRExporter/mm.z64"
     # Land 2ship.o2r where the install rules read it (${CMAKE_BINARY_DIR}/mm/)
     # and at the source root, mirroring what copy-existing-otrs.cmake does for
@@ -421,6 +440,13 @@ add_custom_target(
 add_custom_target(
     Generate2ShipOtr
     COMMAND ${CMAKE_COMMAND} -E rm -f 2ship.o2r
+
+    # Same LUS shader re-copy as ExtractMMAssets above (#595) -- see the comment
+    # there for why the two curated archives must agree byte-for-byte on
+    # shaders/*, and why this directory is untracked.
+    COMMAND ${CMAKE_COMMAND} -E rm -r -f ${CMAKE_CURRENT_SOURCE_DIR}/games/mm/assets/custom/shaders/
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/libultraship/src/fast/shaders/ ${CMAKE_CURRENT_SOURCE_DIR}/games/mm/assets/custom/shaders/
+
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/OTRExporter/extract_assets.py -z "$<TARGET_FILE:ZAPD_MM>" --norom --custom-otr-file 2ship.o2r "--custom-assets-path" ${CMAKE_CURRENT_SOURCE_DIR}/games/mm/assets/custom --port-ver "${CMAKE_PROJECT_VERSION}"
     # Land 2ship.o2r where the install rules read it (${CMAKE_BINARY_DIR}/mm/)
     # and at the source root (which CI uploads as the 2ship.o2r artifact),
