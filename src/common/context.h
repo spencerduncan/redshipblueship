@@ -930,10 +930,13 @@ bool Context_HasPendingSwitch(void);
 //   cold boot           | none (init)  | zeroed   | none      | none       | n/a until a seed exists
 //   reset -> same slot  | DROPPED      | reloaded | reloaded  | reloaded   | yes, from that slot's .redsave
 //   reset -> diff slot  | DROPPED      | reloaded | reloaded  | reloaded   | yes, from that slot's .redsave
-//   reset -> new file   | DROPPED      | zeroed   | DROPPED   | kept iff   | YES for a rando file (the
-//                       |              |          |           | rando file | operator's case); declines
-//                       |              |          |           |            | with no-paired-oot-world for
-//                       |              |          |           |            | a vanilla file, correctly
+//   reset -> new file   | DROPPED      | zeroed   | DROPPED   | kept iff   | YES for a file playing the
+//                       |              |          |           | the file   | world that was stamped (the
+//                       |              |          |           | plays the  | operator's case); declines
+//                       |              |          |           | stamped    | with no-paired-oot-world for
+//                       |              |          |           | world      | a vanilla file, and for a
+//                       |              |          |           | (#597)     | spoiler-loaded file that
+//                       |              |          |           |            | names a different world
 //   cross-game arrival  | PRESERVED    | preserved| preserved | preserved  | declines (existing save) —
 //                       |              |          |           |            | correct: it IS the player's
 //                       |              |          |           |            | own restored MM session
@@ -978,8 +981,11 @@ typedef enum {
      * Keep what the creation event authored for the file now being created:
      * the stamp, the reverse placement table (#534) — authored together and
      * only coherent together — and every creation-stamped identity term.
-     * Correct ONLY where generation has already authored them for THIS file
-     * (OoT_Sram_InitSave on a randomizer file).
+     * Correct ONLY where generation has already authored them for THIS file:
+     * OoT_Sram_InitSave on a randomizer file whose world IS the stamped world
+     * (#597 — "a randomizer file" alone is not the condition; see
+     * Context_InvalidateSessionOnNewGame, which is where that judgement is
+     * made, because this enum cannot express it).
      *
      * THE RULE, NOT THE LIST, IS THE CONTRACT (#564 V9). Under one-game
      * semantics the paired world's identity is frozen by the creation event,
@@ -1085,15 +1091,55 @@ int Context_InvalidateSessionOnReturnToTitle(void);
 /**
  * A new OoT file is being created (OoT_Sram_InitSave).
  *
+ * KEEP IS CONDITIONAL ON IDENTITY, NOT ON "IS THIS A RANDO FILE" (#597). The
+ * resident stamp is only this file's stamp when the world being created is the
+ * world generation stamped. Both facts have to reach this function or it cannot
+ * tell inheritance from authorship, which is exactly the hole #597 names: the
+ * caller's rando test counts Randomizer_IsSpoilerLoaded(), and ParseSpoiler
+ * authors NO combo identity, so "generate seed A, load spoiler B, create a
+ * file" used to take the KEEP path and hand world B the identity of world A —
+ * plus, since #545, A's reverse placement table, pinning MM items into checks
+ * that belong to a different world. #570's arrival compare cannot see it: the
+ * identity it validates is internally consistent, and the corruption is
+ * upstream of it.
+ *
+ * A mismatch DISCARDS. It never re-derives, re-stamps or otherwise heals the
+ * identity — under one-game semantics (#564) a file whose identity was not
+ * authored for it has no identity at all, and an identity-less file is an
+ * ordinary unpaired one (Combo_ForeignPairingActive() reads false), which is
+ * the same shape a vanilla file already has.
+ *
+ * WHY A SPOILER LOAD DOES NOT AUTHOR ONE INSTEAD (#597, decided here). It
+ * cannot, from today's spoiler format: of the four terms the creation event
+ * stamps, the log carries exactly one. `finalSeed` gives sharedRandoSeed;
+ * sharedRandoSettingsHash is Hash(settingsStr) built inside Playthrough_Init
+ * from the live option set and is NOT written to the log (recomputing it after
+ * Settings::ParseJson round-trips every option through GetOptionText/
+ * GetValueFromText, and one option that does not survive that trip is a
+ * different digest — i.e. a different world identity, which is the same
+ * mis-pairing arriving by a politer route); mmProfileDigest describes the MM
+ * half and has never been in an OoT spoiler at all; and foreignPlacementsOoT
+ * is not in the log either, because Playthrough_Init writes the spoiler BEFORE
+ * it stamps the identity and derives the reverse table from it. Authoring a
+ * faithful identity at spoiler load therefore requires writing the identity
+ * block into the spoiler at creation and hydrating it on load — a spoiler
+ * format change, and its own piece of work. Until then, spoiler-loaded files
+ * are honestly unpaired rather than dishonestly paired.
+ *
  * @param isRandoFile non-zero iff the file being created is a randomizer file
- *        whose seed has already been generated. That is the ONLY case where the
- *        seed stamp and the reverse placement table are kept: generation ran
- *        moments ago, in the menu, and authored both FOR this file (#534). A
- *        vanilla new file passes 0 and the stamp goes with the rest of the dead
- *        session — otherwise Combo_ForeignPairingActive() would still report a
- *        paired world.
+ *        (a generated seed OR a loaded spoiler). Necessary but NOT sufficient
+ *        for KEEP — see @p createdWorldSeed. A vanilla new file passes 0 and
+ *        the stamp goes with the rest of the dead session, or
+ *        Combo_ForeignPairingActive() would still report a paired world.
+ * @param createdWorldSeed the identity of the world THIS file will play —
+ *        Rando::Context::GetInstance()->GetSeed(), which is the exact quantity
+ *        Playthrough_Init publishes as gComboCtx.sharedRandoSeed and the exact
+ *        quantity a spoiler load restores from the log's "finalSeed". 0 means
+ *        "this file names no rando world" and always DROPS; a rando world that
+ *        genuinely hashes to 0 loses its pairing rather than risking a false
+ *        match, which is the safe direction (unpaired, never mis-paired).
  */
-void Context_InvalidateSessionOnNewGame(int isRandoFile);
+void Context_InvalidateSessionOnNewGame(int isRandoFile, uint32_t createdWorldSeed);
 
 /**
  * An existing slot is being loaded, BEFORE its .redsave is read back.

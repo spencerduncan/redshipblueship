@@ -125,6 +125,10 @@ GetItemEntry GetItemMystery();
 ItemObtainability Randomizer_GetItemObtainabilityFromRandomizerCheck(RandomizerCheck randomizerCheck);
 uint8_t Randomizer_IsSeedGenerated();
 uint8_t Randomizer_IsSpoilerLoaded();
+// The seed of the rando world this process currently holds, however it got
+// there (generated or spoiler-loaded) — the quantity gComboCtx.sharedRandoSeed
+// carries. Used by file creation to tell authorship from inheritance (#597).
+uint32_t Randomizer_GetCurrentWorldSeed();
 void Randomizer_SetSpoilerLoaded(bool spoilerLoaded);
 uint8_t Randomizer_GenerateRandomizer();
 void Randomizer_ShowRandomizerMenu();
