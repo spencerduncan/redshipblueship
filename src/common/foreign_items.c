@@ -107,6 +107,21 @@ const char* Combo_GetForeignItemArticle(SharedItem item) {
     return NULL;
 }
 
+const char* Combo_GetForeignItemIconName(SharedItem item) {
+    // The icon column of the SAME origin-keyed walk. A pool entry may carry a
+    // NULL icon (its origin's toast renders text-only), so a NULL result here
+    // means either "not in the pool" or "no icon for this entry" — both of which
+    // the arrival toast treats identically, so they need not be distinguished.
+    const ComboForeignItemDef* pool = NULL;
+    const int poolCount = Combo_GetForeignItemPoolFor(item.originGame, &pool);
+    for (int i = 0; i < poolCount; i++) {
+        if (pool[i].item.originGame == item.originGame && pool[i].item.id == item.id) {
+            return pool[i].iconName;
+        }
+    }
+    return NULL;
+}
+
 bool Combo_GetForeignItemByNameFor(uint8_t originGame, const char* name, SharedItem* outItem) {
     // The spoiler-LOAD inverse. Reused (not re-derived) so reconstruction shares
     // one source of truth with generation, and so a raw RG_*/RI_* is never

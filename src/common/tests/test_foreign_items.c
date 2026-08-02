@@ -166,6 +166,14 @@ TestResult Test_ForeignItemGive(void) {
         if (pool[i].article[0] != '\0') {
             FI_ASSERT(pool[i].article[strlen(pool[i].article) - 1] == ' ');
         }
+        // #494: the arrival-toast icon accessor serves the pool's own iconName
+        // pointer back verbatim (identity, not a copy), origin-keyed like the
+        // name/article lookups. Every OoT pool entry carries an ITEM_* key, so
+        // none is NULL here — but a NULL entry would be a text-only toast, not a
+        // defect, so the contract asserted is "serves the column exactly", not
+        // "always non-NULL".
+        FI_ASSERT(Combo_GetForeignItemIconName(pool[i].item) == pool[i].iconName);
+        FI_ASSERT(pool[i].iconName != NULL && pool[i].iconName[0] == 'I'); // ITEM_* texture-map key
     }
     // (originGame, name) uniqueness WITHIN a pool. Two entries sharing a name
     // in one id-space would make that origin's inverse ambiguous, which no
@@ -282,12 +290,14 @@ TestResult Test_ForeignItemGive(void) {
         const char* ootName = Combo_GetForeignItemName(ootSameId);
         FI_ASSERT(ootName == NULL || strcmp(ootName, mmProbe.name) != 0);
 
-        // An untagged item resolves to no pool and therefore to no name.
+        // An untagged item resolves to no pool and therefore to no name — and,
+        // by the same walk, to no icon (#494).
         SharedItem untaggedName;
         untaggedName.originGame = (uint8_t)GAME_NONE;
         untaggedName.flags = 0;
         untaggedName.id = mmProbe.item.id;
         FI_ASSERT(Combo_GetForeignItemName(untaggedName) == NULL);
+        FI_ASSERT(Combo_GetForeignItemIconName(untaggedName) == NULL);
     }
 
     // ------------------------------------------------------------------

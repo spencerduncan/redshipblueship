@@ -48,6 +48,14 @@ typedef struct {
     SharedItem item;     // originGame == GAME_OOT, flags == 0, id == the RG_* value
     const char* name;    // e.g. "Megaton Hammer"
     const char* article; // "the ", "a ", "an " or "" — see below
+    // The host game's texture-map key for this item's arrival-toast icon, or
+    // NULL for a text-only toast. Like `name`, it is filled in by the pool's
+    // defining TU (where the item's icon is known) and served back through this
+    // header, so src/common never has to translate a foreign id into a texture.
+    // The OoT pool carries the `ITEM_*` key its Notification overlay resolves via
+    // GetTextureByName (the same string GetTextureForItemId returns); see
+    // Combo_GetForeignItemIconName.
+    const char* iconName;
 } ComboForeignItemDef;
 
 // WHY THE ARTICLE IS PART OF THE DESCRIPTOR (#510). A cross-game item is
@@ -144,6 +152,22 @@ const char* Combo_GetForeignItemName(SharedItem item);
  * full "the Lens of Truth" phrase. See the note on ComboForeignItemDef.article.
  */
 const char* Combo_GetForeignItemArticle(SharedItem item);
+
+/**
+ * The arrival-toast icon for a foreign item — the host game's texture-map key,
+ * or NULL if (originGame, id) is not in that origin's pinned pool OR the pool
+ * entry carries no icon. NULL is not a defect: Notification::Emit renders a
+ * text-only toast for a null icon, the same idiom the native pickup paths use.
+ *
+ * The returned string is the pool's own static storage (a string literal in the
+ * defining TU), so it outlives any toast that stores it as a bare pointer and
+ * dereferences it at draw time (see notification_bridge.h). Origin-aware by the
+ * same construction as Combo_GetForeignItemName: the tag on the SharedItem
+ * selects which pool is walked, so an OoT-origin item resolves an OoT `ITEM_*`
+ * key and nothing else. This is the accessor GameExports' OoT_AwardSharedItem
+ * needs so the cross-game arrival toast can show the item's icon (#494).
+ */
+const char* Combo_GetForeignItemIconName(SharedItem item);
 
 /**
  * The inverse of Combo_GetForeignItemName, keyed on (originGame, name). Used by
