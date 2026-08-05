@@ -385,6 +385,16 @@ extern "C" {
 // registers the DisplayList/Vertex/Texture factories first.
 #include "tests/test_crossgame_model.c"
 
+// #605: the curated-archive GENERATOR's raw-segmented-texture admission guard.
+// FILE SCOPE (compiled as C++): unlike test_crossgame_model.c, this drives
+// scripts/make_redship_otr.py itself as a subprocess against the real
+// extracted archives, so what is under test is the generator's own admission
+// decision rather than a re-implementation of it. The wrapper
+// (Test_CuratedArchiveGenerator below) resolves the Python interpreter, the
+// script, the shipped manifest and the extracted archives, and SKIPs when any
+// of them are unavailable.
+#include "tests/test_curated_archive_generator.c"
+
 // MM scene-command EXECUTE regression (issue #344). Unlike the parse test, the
 // body runs the parsed commands against a PlayState, so it needs MM's global.h
 // — which lives in an MM TU (games/mm/2s2h/mm_scene_execute_test.cpp) to keep
@@ -1444,6 +1454,67 @@ TestResult Test_ModArchiveSurvivesSwitch(void) {
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #605: scripts/make_redship_otr.py must refuse a curated model whose display
+// list carries a raw segmented texture reference (see the module docstring's
+// constraint 5), not just a path collision or a dispatched resource type
+// (#602/#603). Drives the REAL generator script as a subprocess against the
+// REAL extracted oot.o2r/mm.o2r — body + both controls in
+// src/common/tests/test_curated_archive_generator.c.
+//
+// SKIPs when the Python interpreter path baked in at configure time, the
+// generator script, the shipped manifest, or either extracted archive is
+// unavailable — same policy as CrossGameModel/CuratedArchiveOrder above.
+TestResult Test_CuratedArchiveGenerator(void) {
+    printf("[TEST] curated-archive-generator: make_redship_otr.py refuses a raw-segmented-texture model (#605)\n");
+
+#ifdef REDSHIP_PYTHON3_EXECUTABLE
+    const std::string pythonExe = REDSHIP_PYTHON3_EXECUTABLE;
+#else
+    const std::string pythonExe;
+#endif
+#ifdef RSBS_SOURCE_DIR
+    const std::string generatorScript = std::string(RSBS_SOURCE_DIR) + "/scripts/make_redship_otr.py";
+    const std::string shippedManifest = std::string(RSBS_SOURCE_DIR) + "/assets/crossgame/manifest.txt";
+#else
+    const std::string generatorScript;
+    const std::string shippedManifest;
+#endif
+
+    // The generator consumes already-EXTRACTED archives (constraint 1: it
+    // carves curated paths out of them, it does not extract anything itself),
+    // so it needs the same two candidate locations GenerateRedshipOtr does
+    // (CMakeLists.txt): ExtractAssets normalizes oot.o2r to the source root,
+    // but ExtractMMAssets leaves mm.o2r in games/mm. CaoResolveArchive's
+    // app-dir search covers a tree that staged them directly in the build
+    // root instead (the local-verification convention this repo documents).
+    const std::string ootArchive = CaoResolveArchive("oot.o2r");
+    const std::string mmArchive = CaoResolveArchive("mm.o2r");
+
+    if (pythonExe.empty() || !std::filesystem::exists(pythonExe)) {
+        printf("[TEST] SKIP: no Python interpreter baked in at configure time (REDSHIP_PYTHON3_EXECUTABLE='%s')\n",
+               pythonExe.c_str());
+        return TEST_SKIP;
+    }
+    if (generatorScript.empty() || !std::filesystem::exists(generatorScript) || shippedManifest.empty() ||
+        !std::filesystem::exists(shippedManifest)) {
+        printf("[TEST] SKIP: source tree not found (RSBS_SOURCE_DIR undefined, or generator script / shipped "
+               "manifest missing) — tried script '%s', manifest '%s'\n",
+               generatorScript.c_str(), shippedManifest.c_str());
+        return TEST_SKIP;
+    }
+    if (ootArchive.empty() || mmArchive.empty()) {
+        printf("[TEST] SKIP: extracted archives not staged (oot.o2r '%s', mm.o2r '%s') — the archive-less control "
+               "run keeps this row skipped by design\n",
+               ootArchive.c_str(), mmArchive.c_str());
+        return TEST_SKIP;
+    }
+
+    int rc = CuratedArchiveGenerator_RunHeadless(pythonExe.c_str(), generatorScript.c_str(), shippedManifest.c_str(),
+                                                 ootArchive.c_str(), mmArchive.c_str());
+    printf("[TEST] %s: curated archive generator rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 TestResult Test_SwitchOoTMM(void) {
     printf("[TEST] switch-oot-mm: Test game switch OoT -> MM\n");
 
@@ -2235,6 +2306,8 @@ const TestDescriptor gTests[] = {
      Test_CuratedArchiveOrder},
     {"mod-survives-switch", "A registered mod archive still wins after a game switch (#593)",
      Test_ModArchiveSurvivesSwitch},
+    {"curated-archive-generator", "make_redship_otr.py refuses a raw-segmented-texture model (#605)",
+     Test_CuratedArchiveGenerator},
     {"switch-oot-mm", "Test game switch OoT -> MM", Test_SwitchOoTMM},
     {"switch-mm-oot", "Test game switch MM -> OoT", Test_SwitchMMOoT},
     {"midos-house", "Test Mido's House entrance (test mode)", Test_MidosHouse},

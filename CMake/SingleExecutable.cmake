@@ -186,6 +186,19 @@ target_compile_definitions(redship_common PRIVATE COMBO_BUILDING_DLL)
 # from a relocated artifact rather than its build tree.
 target_compile_definitions(redship_common PRIVATE RSBS_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 
+# The curated-archive-generator lock (--test curated-archive-generator, #605)
+# drives scripts/make_redship_otr.py as a real subprocess, so it needs an
+# absolute interpreter path at runtime -- not a PATH-searched "python3", which
+# ZapdSubprocess_Run's CreateProcessA/execv cannot resolve. This module is
+# include()'d before the top-level CMakeLists.txt's own
+# find_package(Python3 COMPONENTS Interpreter) call, so it is repeated here;
+# find_package is idempotent and CMake caches the result either way. The test
+# SKIPs (not fails) when no interpreter was found.
+find_package(Python3 COMPONENTS Interpreter)
+if(Python3_EXECUTABLE)
+    target_compile_definitions(redship_common PRIVATE REDSHIP_PYTHON3_EXECUTABLE="${Python3_EXECUTABLE}")
+endif()
+
 # Netplay relay (ADR 0007). PUBLIC so test_runner.cpp's guarded #include of
 # tests/test_netplay_relay.c compiles in the same configuration the relay
 # sources do — a PRIVATE define here would silently drop the tests while the
@@ -533,6 +546,17 @@ if(BUILD_TESTING)
     set_tests_properties(CuratedArchiveOrder PROPERTIES SKIP_RETURN_CODE 77)
     redship_add_test(NAME ModArchiveSurvivesSwitch COMMAND redship --test mod-survives-switch)
     set_tests_properties(ModArchiveSurvivesSwitch PROPERTIES SKIP_RETURN_CODE 77)
+
+    # #605 curated-archive GENERATOR lock: make_redship_otr.py must refuse a
+    # curated model whose display list carries a raw segmented texture
+    # reference, not just a path collision (#602) or a dispatched resource
+    # type (#603). Drives the real generator script as a subprocess against a
+    # known-bad object (objects/object_slime/gChuchuEyesDL, the #577 spike's
+    # own counterfactual) and, as a positive control, the real shipped
+    # manifest. Same SKIP_RETURN_CODE policy: needs both extracted archives
+    # and a configured Python interpreter.
+    redship_add_test(NAME CuratedArchiveGenerator COMMAND redship --test curated-archive-generator)
+    set_tests_properties(CuratedArchiveGenerator PROPERTIES SKIP_RETURN_CODE 77)
     # Unified save (.redsave) headless tests — Phase 2 T6 (#35)
     redship_add_test(NAME SaveRoundtripTiers COMMAND redship --test save-roundtrip-tiers)
     redship_add_test(NAME SaveHeader COMMAND redship --test save-header)
