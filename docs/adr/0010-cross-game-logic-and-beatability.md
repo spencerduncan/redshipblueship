@@ -583,6 +583,24 @@ and is "option 1 with the bytes thrown away"):
 - Cost acknowledged: SeedDeterminism / MMRandoGen / HeadlessForeignDigest
   digests re-pin.
 
+**2026-08-04 operator decision (#582) — the fill budget.** PR #581's
+increment-1 review measured the open question this section's "Creation-time
+compute budget" cost flagged as owed: under the heavy Glitchless profile, 14
+of 66 master seeds' first attempts failed, and every one of those 14 was the
+fill's 10-second wall-clock abort — zero were deterministic dead-ends
+(100% wall-clock abort, 0% dead-ends). The operator ruled on that evidence:
+**increment 2 ships with a visible generation-progress surface and a ~30
+second cap as the floor, layered with a per-attempt adaptive budget
+calibrated to host speed.** This preserves PR #581 §2a's determinism rule —
+a timeout never climbs a ladder rung, because a wall-clock abort is a
+function of machine speed, not of the seed, and letting it advance the
+ladder would hand two players on different hardware two different worlds
+under one frozen identity. The adaptive per-attempt budget changes how long
+a slow host waits before that rule fires; it does not change the rule. Sizing
+the ~30s floor, the adaptive calibration, and the progress surface's copy is
+left to the increment-2 implementer; #582 stays open as that epic's
+implementation tracker.
+
 Increment 2 is the **prerequisite of increment 3**: a single-bag fill is a
 single generation event by definition — both worlds' placements must be
 decided at one seam before either spoiler exists.
@@ -598,7 +616,10 @@ union bag and places across both games' shuffled check sets, per Decisions
   unimplemented; #493's named gap); the ADR-0002-clean boundary language
   (origin-tagged `SharedItem` + host check id + game-neutral bounds — exact
   scalars and carve budget: accepted answer O7, the increment-3 epic sizes
-  the carve against `reserved[132]` under the append-only second-block rule);
+  the carve against `reserved[132]` [corrected 2026-08-04, #584: now
+  `reserved[124]` — two carves (#569, #581) landed after this ADR was
+  accepted; see ADR 0009's byte-budget amendment] under the append-only
+  second-block rule);
   the negation-ban and constraint-bitset disciplines in force in both graphs
   (Decision 2.3, enforcement: answer O6, all three mechanisms); MM's
   crawl join-fix landed (increment 1.3); the solver-inventory audit and the
@@ -650,7 +671,7 @@ bidirectional), license mechanics (→ D10).)
 | O3 | **Attempt-ladder spec**: hash recipe and separator, max attempts, where the attempt index is recorded in save + spoiler, terminal-failure UX copy on the #533 surface | **Accepted as recommended**: the implementer picks the hash recipe/separator, the attempt maximum and the save+spoiler recording sites, bound by this ADR's determinism rules (the world stays a pure function of the frozen identity) and the #533/#568 terminal-failure surface |
 | O5 | **Canonical MM time-slice list**: redship has 45 (`Logic.h:20+`), OoTMM has 46 (missing `NIGHT2_AM_05_30`); adopt the u64 representation, add the slice or justify its absence, pin the list where both the crawl and any data port read it | **Accepted**: adopt the 46 slices — add `NIGHT2_AM_05_30` — with the u64 representation, pinned where both the crawl and any data port read it, **unless** the increment epic's source review justifies otherwise |
 | O6 | **Monotonicity enforcement mechanism** for lambda logic: review rule + grep/clang-tidy probe + a CI check that adds items and asserts the reachable set never shrinks — which combination, and where it runs | **Accepted: all three mechanisms**, not a choice among them — the review rule, the static probe (grep/clang-tidy over the lambda logic), and the CI grow-check that adds items and asserts the reachable set never shrinks |
-| O7 | **Boundary/constraint carrier scalars and carve budget**: exactly which game-neutral fields cross (SharedItem + host check id + earliness bound?), sized against `reserved[132]` under the append-only second-block rule and the 64-byte floor | **Accepted**: the increment-3 epic sizes the carve, against `reserved[132]` under the append-only second-block rule and the 64-byte floor |
+| O7 | **Boundary/constraint carrier scalars and carve budget**: exactly which game-neutral fields cross (SharedItem + host check id + earliness bound?), sized against `reserved[132]` under the append-only second-block rule and the 64-byte floor | **Accepted**: the increment-3 epic sizes the carve, against `reserved[132]` under the append-only second-block rule and the 64-byte floor [corrected 2026-08-04, #584: the live figure is `reserved[124]`, not 132 — the #569 and #581 carves landed after this answer was ratified; the append-only rule and the 64-byte floor are unaffected, and this correction does not reopen O7's answer] |
 | O8 | **Shared-item classification authority**: one owner per shared item's junk/progression/renewable classification (OoTMM's `SHARED_BOMBCHU` two-settings wart is the cautionary tale) | **Accepted**: a single-owner classification table, one owner per shared item, living in the sanctioned ADR 0002 TU pair (`src/common/shared_items.h` / `src/common/shared_items.c`, deliberately free of game headers) — never a per-game duplicate that can disagree with itself |
 | O10 | **Combo triforce-hunt accounting**: one shared piece count across both worlds (a shared-resource-style carrier) vs per-half counts ANDed/ORed; both engines' existing piece machinery is the substrate | **Decided: ONE shared triforce piece count across both worlds**, carried shared-resource-style — not per-half composition. Both engines' existing piece machinery (OoT `RSK_TRIFORCE_HUNT_PIECES_*`, MM `RO_TRIFORCE_PIECES_*`) is the substrate feeding that one combo-level count |
 | O11 | **Shipped default rung** of the logic ladder (`beatable(T = ∅)` is the conservative candidate; base `none` is the operator's named audience) — and whether the default GOAL stays `beat-both` | **Decided: "copy what ship has for the rando settings."** At source, Ship of Harkinian defaults logic to Glitchless (`RSK_LOGIC_RULES` → `RO_LOGIC_GLITCHLESS`, `settings.cpp:1282`), every trick to "Disabled" (`TrickOption`'s default index 0, `option.cpp:361-364`), and `RSK_ALL_LOCATIONS_REACHABLE` to `RO_GENERIC_ON` (`settings.cpp:1283`). The combo's shipped default follows those defaults: the **proved, no-tricks rung** — `beatable(T = ∅)` — and **never** the base `none` rung, despite `none` being the operator's named audience. SoH's all-locations-reachable default carries through on the strictness axis §1.2 keeps per-half, which in ladder terms presents as `all-reachable(T = ∅)` if the combo surfaces strictness as a rung rather than as the per-half axis; that presentation choice is the increment epic's, and either way the default is the strictest SoH ships. Consistent with increment 1.1's paired-MM flip to Glitchless. **Default GOAL stays `beat-both`**: SoH has no combo-GOAL precedent to copy, and OoTMM's own `goal` likewise defaults to `'both'` (§1.1) |
@@ -728,14 +749,21 @@ is accepted (listed here; deliberately not filed by this ADR):
   fixpoint itself is cheap — but MM's 10s Glitchless wall-clock abort
   (`GlitchlessLogic.cpp:64`) is unmeasured under creation flow and must be
   measured, not assumed, before increment 2 ships. Re-roll time is a
-  budgeted product cost.
+  budgeted product cost. **Measured and decided 2026-08-04 (#582, PR #581):**
+  14/66 heavy-profile first attempts failed, 100% of those by wall-clock
+  abort and 0% by dead-end — the abort is the *dominant* failure mode, not a
+  tail case. The operator decision (see increment 2 above) is a visible
+  generation-progress surface plus a ~30s floor, layered with a per-attempt
+  adaptive budget keyed to host speed; #582 remains open as the
+  implementation tracker.
 - **Determinism re-pins, twice**: increment 2 re-pins the
   SeedDeterminism/MMRandoGen/HeadlessForeignDigest rows; increment 3 re-pins
   everything again when the fill unifies. Batched deliberately; never
   silently.
 - **Increment 3's blast radius is the largest in the phase**: both fills'
   ordering, the spoiler identity (one artifact, both worlds — #564 V23),
-  boundary carve bytes against a 132-byte budget with a 64-byte floor, and
+  boundary carve bytes against a 132-byte budget [corrected 2026-08-04, #584:
+  now a 124-byte budget — see ADR 0009's amendment] with a 64-byte floor, and
   the CI tier cost (MM logic needs registrars + a live save; the `rando`
   label runs under a display and is skipped by `--test all`). Budget for
   slower feedback.
