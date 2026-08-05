@@ -78,6 +78,36 @@ Design constraints, in the order they matter:
      reference that escapes the curated set entirely is already refused by the
      unresolved/OoT-served checks the CTest row performs at load time.
 
+  6. ONLY ARRAY RESOURCES BOTH READERS PARSE IDENTICALLY (#604).  Every
+     extracted object's vertex data (`*Vtx_*`) is an 'OARR' Array resource, and
+     the Array factory is GAME-OWNED -- OoT registers
+     SOH::ResourceFactoryBinaryArrayV0 (games/oot/soh/resource/importer/
+     ArrayFactory.cpp) and MM registers S2H::ResourceFactoryBinaryArrayV0
+     (games/mm/2s2h/resource/importer/ArrayFactory.cpp).  redship.o2r belongs to
+     neither game's registry, so whichever game is RUNNING parses the curated
+     array -- OoT's factory parses MM's vertices, and vice versa.
+
+     That works today only by coincidence of layout, and only on part of the
+     format.  The two factories are byte-identical on the VERTEX path (same
+     16-byte F3DVtx, same field order, same read order), which is why the
+     shipped model works.  They diverge on the SCALAR path: MM implements
+     S8/U8/X8/S16/U16/X16/S32/U32/X32/S64/U64/X64, OoT implements only
+     S16/U16 and falls through `default: break` on the rest -- reading ZERO
+     bytes where MM reads one to eight.  A curated array carrying any of those
+     widths does not merely produce a wrong value; it DESYNCS the reader, so
+     every element after it is garbage.  This is not hypothetical: MM's
+     `objects/object_link_zora/object_link_zora_U8_011710` is a ZSCALAR_X8
+     scalar array that clears constraints 2, 4 and 5 and would be admitted.
+
+     So rather than assume agreement, this walks each curated Array resource
+     and simulates BOTH factories' byte consumption element by element,
+     refusing the first element where the two disagree.  Vertex arrays are
+     admitted because the two read loops are the same code; anything else is
+     admitted only where both readers consume the same width.  This is the
+     contained half of #604 -- it cannot lock the VERTEX path against a future
+     upstream change to either port's reader, which is a code-equality property
+     no archive walk can see.  See the #604 discussion for that residual.
+
 The manifest is a text file of `<game> <path-prefix>` lines; `#` comments and
 blank lines are ignored.  A prefix ending in `/` selects a whole object
 directory.
@@ -258,6 +288,133 @@ def find_raw_segmented_texture_refs(data):
     return findings
 
 
+# ------------------------------------------------------------------------
+# Array reader-agreement guard (constraint 6, #604).
+#
+# Simulates the byte consumption of BOTH games' Array factories over the same
+# resource bytes:
+#   games/oot/soh/resource/importer/ArrayFactory.cpp  (SOH::...ArrayV0)
+#   games/mm/2s2h/resource/importer/ArrayFactory.cpp  (S2H::...ArrayV0)
+# ------------------------------------------------------------------------
+
+# Fast::ResourceType::Array -- 'OARR' in the OTR header's Type field.
+ARRAY_TYPE = b"OARR"
+
+# ArrayResourceType (games/{oot/soh,mm/2s2h}/resource/type/Array.h). The two
+# enums are declared in the SAME order in both games, so the on-disk tag means
+# the same thing to either reader; only these two members are needed here.
+ARRAY_RESOURCE_TYPE_VECTOR = 24
+ARRAY_RESOURCE_TYPE_VERTEX = 25
+
+# ScalarType (same header, also identically ordered in both games).
+SCALAR_TYPE_NAMES = {
+    0: "ZSCALAR_NONE",
+    1: "ZSCALAR_S8",
+    2: "ZSCALAR_U8",
+    3: "ZSCALAR_X8",
+    4: "ZSCALAR_S16",
+    5: "ZSCALAR_U16",
+    6: "ZSCALAR_X16",
+    7: "ZSCALAR_S32",
+    8: "ZSCALAR_U32",
+    9: "ZSCALAR_X32",
+    10: "ZSCALAR_S64",
+    11: "ZSCALAR_U64",
+    12: "ZSCALAR_X64",
+    13: "ZSCALAR_F32",
+    14: "ZSCALAR_F64",
+}
+
+# Bytes each game's factory actually consumes per scalar. A type absent from a
+# table is one that factory's switch does not handle: it hits `default: break`
+# and reads NOTHING, which is exactly how the two desync.
+OOT_SCALAR_WIDTHS = {4: 2, 5: 2}
+MM_SCALAR_WIDTHS = {1: 1, 2: 1, 3: 1, 4: 2, 5: 2, 6: 2, 7: 4, 8: 4, 9: 4, 10: 8, 11: 8, 12: 8}
+
+# F3DVtx: 3*s16 + u16 + 2*s16 + 4*u8 (libultraship/include/fast/lus_gbi.h).
+VERTEX_ELEMENT_SIZE = 16
+
+
+class MalformedArray(Exception):
+    """A curated 'OARR' resource could not be walked far enough to prove both
+    games' Array factories consume it identically. Treated as a refusal, not a
+    silent pass -- same policy as MalformedDisplayList."""
+
+
+def is_array(data):
+    """Return True if `data` is an 'OARR' (Array) resource, in either byte
+    order -- same convention as dispatched_type_of/is_display_list."""
+    if len(data) < OTR_HEADER_TYPE_OFFSET + 4:
+        return False
+    tag = data[OTR_HEADER_TYPE_OFFSET:OTR_HEADER_TYPE_OFFSET + 4]
+    return tag == ARRAY_TYPE or tag[::-1] == ARRAY_TYPE
+
+
+def find_array_reader_disagreements(data):
+    """Walk an 'OARR' resource and return a list of
+    (element_index, scalar_type, oot_width, mm_width) for the point at which
+    the two games' Array factories stop consuming the same bytes.
+
+    At most one finding is returned: once the readers desync, every later
+    element is read from a different offset by each factory, so comparing
+    further would report noise rather than a second independent defect.
+
+    Raises MalformedArray if the resource cannot be walked to its end.
+    """
+    if len(data) < OTR_HEADER_SIZE + 8:
+        raise MalformedArray("resource is smaller than the OTR header plus the type/count fields")
+
+    byte_order = "little" if data[0] == 0 else "big"
+    body = data[OTR_HEADER_SIZE:]
+    n = len(body)
+    array_type = int.from_bytes(body[0:4], byte_order)
+    count = int.from_bytes(body[4:8], byte_order)
+
+    # A count larger than the payload could ever hold means the walk cannot be
+    # trusted -- refuse rather than loop on a bogus length.
+    if count > n:
+        raise MalformedArray("element count %d exceeds the %d-byte payload" % (count, n))
+
+    if array_type == ARRAY_RESOURCE_TYPE_VERTEX:
+        # Both factories run the SAME ten reads per element here; there is no
+        # width to disagree about. Only confirm the payload really holds them.
+        need = 8 + count * VERTEX_ELEMENT_SIZE
+        if need > n:
+            raise MalformedArray("vertex array declares %d element(s) but the payload holds %d byte(s), not %d" %
+                                 (count, n, need))
+        return []
+
+    pos = 8
+    for index in range(count):
+        if pos + 4 > n:
+            raise MalformedArray("scalar element %d's type field runs past the payload (at body offset %d)" %
+                                 (index, pos))
+        scalar_type = int.from_bytes(body[pos:pos + 4], byte_order)
+        pos += 4
+
+        # Only ArrayResourceType::Vector carries a per-element repeat count,
+        # and BOTH factories read it the same way before any scalar.
+        repeat = 1
+        if array_type == ARRAY_RESOURCE_TYPE_VECTOR:
+            if pos + 4 > n:
+                raise MalformedArray("vector element %d's repeat count runs past the payload (at body offset %d)" %
+                                     (index, pos))
+            repeat = int.from_bytes(body[pos:pos + 4], byte_order)
+            pos += 4
+
+        oot_width = OOT_SCALAR_WIDTHS.get(scalar_type, 0)
+        mm_width = MM_SCALAR_WIDTHS.get(scalar_type, 0)
+        if oot_width != mm_width:
+            return [(index, scalar_type, oot_width, mm_width)]
+
+        pos += repeat * mm_width
+        if pos > n:
+            raise MalformedArray("scalar element %d runs past the payload (needs body offset %d of %d)" %
+                                 (index, pos, n))
+
+    return []
+
+
 def read_manifest(path):
     entries = []
     with open(path, "r", encoding="utf-8") as handle:
@@ -397,6 +554,46 @@ def main():
                  "docstring and src/common/tests/test_crossgame_model.c). Drop the offending resource from the "
                  "manifest, or give it a hand-authored patch before curating it."
                  % (len(raw_segmented), len(offenders), ", ".join("%s:%s" % (g, p) for g, p in offenders)))
+
+    # Array reader-agreement guard (constraint 6 above, #604). The curated
+    # archive belongs to neither game's factory registry, so whichever game is
+    # RUNNING parses these arrays. Walk each one under both factories' read
+    # rules and refuse the first element where they stop consuming the same
+    # bytes -- a disagreement there does not just skew one value, it desyncs
+    # the reader for the whole rest of the resource.
+    array_disagreements = []  # (game, path, index, scalar_type, oot_width, mm_width)
+    unwalkable_arrays = []  # (game, path, reason)
+    for game, path in selected:
+        data = payloads[(game, path)]
+        if not is_array(data):
+            continue
+        try:
+            findings = find_array_reader_disagreements(data)
+        except MalformedArray as exc:
+            unwalkable_arrays.append((game, path, str(exc)))
+            continue
+        for index, scalar_type, oot_width, mm_width in findings:
+            array_disagreements.append((game, path, index, scalar_type, oot_width, mm_width))
+    if unwalkable_arrays:
+        for game, path, reason in unwalkable_arrays:
+            print("[redship.o2r] UNPARSABLE ARRAY: %s-owned %r: %s" % (game, path, reason), file=sys.stderr)
+        sys.exit("[redship.o2r] refusing to build: %d curated array resource(s) could not be walked far enough to "
+                 "prove both games' Array factories consume them identically; an array this guard cannot verify is "
+                 "refused, not shipped." % len(unwalkable_arrays))
+    if array_disagreements:
+        for game, path, index, scalar_type, oot_width, mm_width in array_disagreements:
+            print("[redship.o2r] ARRAY READER DISAGREEMENT: %s-owned %r element %d is %s -- OoT's factory consumes "
+                  "%d byte(s) there, MM's consumes %d"
+                  % (game, path, index, SCALAR_TYPE_NAMES.get(scalar_type, "scalar type %d" % scalar_type), oot_width,
+                     mm_width), file=sys.stderr)
+        sys.exit("[redship.o2r] refusing to build: %d curated array resource(s) are parsed DIFFERENTLY by the two "
+                 "games' Array factories (%s). The curated archive is in neither game's factory registry, so the "
+                 "RUNNING game parses these -- and the factory that does not implement the scalar width reads zero "
+                 "bytes for it, desyncing every element after it (see constraint 6 in this script's docstring, "
+                 "games/oot/soh/resource/importer/ArrayFactory.cpp vs games/mm/2s2h/resource/importer/"
+                 "ArrayFactory.cpp, and #604). Drop the offending resource from the manifest."
+                 % (len(array_disagreements),
+                    ", ".join("%s:%s" % (g, p) for g, p, _i, _s, _o, _m in array_disagreements)))
 
     out_dir = os.path.dirname(os.path.abspath(args.out))
     if out_dir:
