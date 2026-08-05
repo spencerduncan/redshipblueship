@@ -14,7 +14,7 @@
  * PARAMETER COUNT for HudEditor_ModifyMatrixValues (3 vs the real 2),
  * HudEditor_ModifyDrawValuesFromBase (5 vs the real 8) and
  * HudEditor_ModifyDrawValues (3 vs the real 6), the wrong TYPE for every
- * s16* rect/step/kaleido parameter (stubbed as float*/int*), and the wrong
+ * s16* rect/step/kaleido parameter (stubbed as float* / int*), and the wrong
  * RETURN type for HudEditor_ShouldOverrideDraw / HudEditor_IsActiveElementHidden
  * (stubbed int, real bool). None of that surfaced as a build break because
  * mm_stubs.c's redeclarations are exactly what every MM caller linked
