@@ -17,6 +17,20 @@ struct ShipInitEntry {
     std::source_location registeredAt;
 };
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+/**
+ * #539: MM's registrar map is a SEPARATE map (`S2H::ShipInit`, the #375
+ * COMDAT-fold split), and in single-exe nothing drives it on a CVar change —
+ * MM's own widget layer is not the live menu. `SohMenu`'s widgets all funnel
+ * through `ShipInit::Init(cvar)` below, so forwarding from there is the one
+ * choke point that re-arms both games from one click.
+ *
+ * Defined in games/mm/2s2h/ShipInitBridge_SingleExe.cpp, which also owns the
+ * policy (which paths forward, and why `"*"` / `"IS_RANDO"` do not).
+ */
+extern "C" void MM_ShipInit_OnCVarChanged(const char* path);
+#endif
+
 struct ShipInit {
     static std::unordered_map<std::string, std::vector<ShipInitEntry>>& GetAll() {
         static std::unordered_map<std::string, std::vector<ShipInitEntry>> shipInitFuncs;
@@ -45,6 +59,14 @@ struct ShipInit {
             }
             entry.initFunc();
         }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // #539: re-arm MM's half of the combo on the same change. Runs AFTER
+        // OoT's own registrars so the ordering matches a standalone build of
+        // either game (its own registrars first), and unconditionally on every
+        // path — the bridge, not this header, decides what is forwarded.
+        MM_ShipInit_OnCVarChanged(path.c_str());
+#endif
     }
 };
 

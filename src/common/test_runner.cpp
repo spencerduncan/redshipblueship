@@ -50,6 +50,13 @@ int OoT_RegisterModelResourceFactoriesHeadless(void);
 // enters this translation unit; called through this C entry point, mirroring
 // MM_RegisterResourceFactoriesHeadless. Returns 0 on pass, non-zero on fail.
 int MM_SceneExecute_RunHeadless(void);
+// #539 — the CVar-change driver for MM's S2H::ShipInit map. The body lives in
+// an OoT TU (games/oot/soh/soh_shipinit_driver_test.cpp) because it must call
+// OoT's inline ShipInit::Init, the exact entry every SohMenu widget uses; its
+// probes live in an MM TU (games/mm/2s2h/mm_shipinit_driver_test.cpp) because
+// they must sit in MM's map. No TU can hold both games' ShipInit headers —
+// which is the same seam that let the bug exist. Returns 0 on pass.
+int OoT_ShipInitMMDriver_RunHeadless(void);
 // CosmeticEditor gfx-wrapper contract (games/mm/2s2h/CosmeticGfxSingleExe.cpp):
 // MM's HUD draw consumes these wrappers' Gfx* return as its display-list
 // write pointer; the old void stubs in mm_stubs.c fed it garbage (WRITE AV
@@ -351,6 +358,14 @@ extern "C" {
 // MM's umbrella headers out of this TU. Thin wrapper over the C entry point.
 static TestResult Test_MMSceneExecute(void) {
     return MM_SceneExecute_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #539: a CVar change on the unified menu path must re-arm MM's registrars,
+// not only OoT's. Needs no Ship::Context — it touches the two registrar maps
+// and nothing else, and it drives only a synthetic key plus the two pseudo-
+// paths, so no production registrar with live side effects runs here.
+static TestResult Test_MMShipInitDriver(void) {
+    return OoT_ShipInitMMDriver_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // CosmeticEditor gfx-wrapper contract (see the extern decl above). Thin
@@ -2301,6 +2316,12 @@ const TestDescriptor gTests[] = {
     // dropped rebind #define fail here. Pure (no display, no ROM).
     {"mm-hook-dispatch", "ShouldActorInit/OnActorInit/OnActorDraw/OnOpenText dispatch reaches S2H::GameHooks (#511)",
      Test_MMHookDispatch},
+    // The sibling of the row above, one layer earlier: a hook is only as armed
+    // as the registrar that (un)registers it, and MM's registrar map had no
+    // CVar-change driver at all — the unified menu re-armed OoT and left MM
+    // latched at its first-boot value. Pure (no display, no ROM).
+    {"mm-shipinit-driver", "A unified-menu CVar change re-arms MM's ShipInit registrars, not only OoT's (#539)",
+     Test_MMShipInitDriver},
     // filePlaytime epoch injection: AdvancePlaytime accrued now-lastTimeLog with
     // lastTimeLog unseeded (0), writing a full Unix epoch into the persisted
     // playtime. Pure (no display), so it runs in the display-free suite.
