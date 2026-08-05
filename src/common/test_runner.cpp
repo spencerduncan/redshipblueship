@@ -122,6 +122,16 @@ int MM_UnifiedSaveCapture_RunHeadless(void);
 // phantom pool was materialized verbatim on the far side of the next crossing.
 // Returns 0 on pass, non-zero on fail.
 int MM_CaptureHarvestGate_RunHeadless(void);
+// OoT exit-save harvest gate (games/oot/soh/oot_exit_harvest_gate_test.cpp,
+// #606, same class as #591 above): the OnExitGame GameInteractor hook
+// (SaveManager.cpp :252-275) ran OoT_HarvestSharedResources() BEFORE
+// RsbsSave_Save checked the #533/#568 armed-session latch, so an
+// un-established or REFUSED slot still moved the shared-resource pool and the
+// RAM watermark table for a record that never reached disk. OoT's OTHER
+// staging seam (SaveManager.cpp SaveSection, ~:1553) already guarded the
+// identical sequence; OnExitGame was the one seam left unguarded. Returns 0
+// on pass, non-zero on fail.
+int OoT_ExitHarvestGate_RunHeadless(void);
 // MM single-exe hook dispatch (games/mm/2s2h/mm_hook_dispatch_test.cpp, #511 /
 // #438): the COND_* macros park registrations in the MM-owned S2H::GameHooks
 // registry, but ShouldActorInit / OnActorInit / OnActorDraw / OnOpenText
@@ -437,6 +447,12 @@ static TestResult Test_MMUnifiedSaveCapture(void) {
 // the C entry point in games/mm/2s2h/mm_capture_harvest_gate_test.cpp.
 static TestResult Test_MMCaptureHarvestGate(void) {
     return MM_CaptureHarvestGate_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// OoT exit-save harvest gate (#606; see the extern decl above). Thin wrapper
+// over the C entry point in games/oot/soh/oot_exit_harvest_gate_test.cpp.
+static TestResult Test_OoTExitHarvestGate(void) {
+    return OoT_ExitHarvestGate_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // MM hook-dispatch lock (see the extern decl above). Thin wrapper over the C
@@ -2352,6 +2368,13 @@ const TestDescriptor gTests[] = {
     // that never reached disk. Pure (no display, no ROM).
     {"mm-capture-harvest-gate", "a latch-refused MM capture leaves the shared-resource pool untouched (#591)",
      Test_MMCaptureHarvestGate},
+    // Same class as mm-capture-harvest-gate above, on OoT's OnExitGame seam:
+    // the harvest used to run ahead of the #533/#568 latch check, so a
+    // refused exit-save still credited (or debited) rupees/hearts/magic and
+    // raised permanent monotonic tiers for a record that never reached disk.
+    // Pure (no display, no ROM).
+    {"oot-exit-harvest-gate", "a latch-refused OoT exit-save leaves the shared-resource pool untouched (#606)",
+     Test_OoTExitHarvestGate},
     // Hook dispatch reaches the MM-owned registry the COND_* macros register
     // into. Registers through the production macros and drives each dispatcher
     // through the name MM's call sites spell, so both a deleted bridge and a
