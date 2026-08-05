@@ -1442,6 +1442,12 @@ extern "C" void MM_Rando_Init(void) {
     // MM ShouldActorInit and OnOpenText execute points their bodies were written
     // against; before that, reviving them here would have registered into a
     // registry nothing dispatched.
+    //
+    // LOCKED. The four calls below are asserted at runtime by the
+    // MMRegistrarCoverage ctest row (games/mm/2s2h/mm_registrar_coverage_test.cpp),
+    // which drives this function and fails if any of their registries is still
+    // empty afterwards. Deleting or condition-gating one turns that row red --
+    // which is the point, since the #516 failure mode is otherwise silent.
     CustomItem::RegisterHooks();    // ShouldActorInit[EN_ITEM00]: the swap that
                                     // makes CustomItem::Spawn's placeholder a
                                     // real item — cross-game arrivals + every

@@ -134,6 +134,15 @@ int MM_HookDispatch_RunHeadless(void);
 // a full Unix epoch -- into the persisted filePlaytime. The fix treats the zero
 // as the seed. Returns 0 on pass, non-zero on fail.
 int MM_PlaytimeSeed_RunHeadless(void);
+// MM registrar coverage (games/mm/2s2h/mm_registrar_coverage_test.cpp, #516):
+// BenPort.cpp's exclusion elided InitOTR's whole registration list, so
+// CustomItem / CustomMessage / RegisterSavingEnhancements / RegisterAutosave
+// were absent from the binary. They are re-homed into MM_Rando_Init; this row
+// drives that production entry point and asserts each one's registry actually
+// filled. Complements the CI symbol allowlist, which can only prove the
+// symbols LINKED -- and which cannot attribute RegisterAutosave at all, since
+// OoT ships a static twin of that name. Returns 0 on pass, non-zero on fail.
+int MM_RegistrarCoverage_RunHeadless(void);
 // MM tracker registration surface (games/mm/2s2h/mm_trackers_gui_test.cpp,
 // #392): the four MM tracker windows must register on a Gui under
 // "MM "-prefixed names (SoH owns the unprefixed ones and Gui::AddGuiWindow
@@ -1878,6 +1887,25 @@ TestResult Test_MMTrackersGui(void) {
     return MM_TrackersGui_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// MM registrar coverage (#516). Needs the same display-free shared bring-up as
+// the Gui rows above, for a different reason: it drives the real MM_Rando_Init,
+// whose ShipInit registrars and CVar-gated legs read the Ship::Context
+// singleton's ConsoleVariables. Without it MM_Rando_Init dereferences a null
+// singleton rather than reporting a clean failure.
+TestResult Test_MMRegistrarCoverage(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_RegistrarCoverage_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // Cross-game spoiler window (#496, ADR 0008). Same bring-up as the MM tracker
 // bridge above and for the same reason: the test constructs real
 // Ship::GuiWindow objects on a standalone Ship::Gui, and the GuiWindow ctor
@@ -2343,6 +2371,14 @@ const TestDescriptor gTests[] = {
      Test_MMPlaytimeSeed},
     {"mm-trackers-gui", "MM tracker windows register de-collided on the shared Gui + gate on the active game (#392)",
      Test_MMTrackersGui},
+    // Registrar coverage: BenPort.cpp's exclusion elided InitOTR's whole
+    // registration list, so the re-homed registrars in MM_Rando_Init must be
+    // shown to POPULATE their registries, not merely to link. Runs the real
+    // MM_Rando_Init, which is irreversible in-process, so `--test all` skips
+    // this entry and it is exercised only through its own CTest row (see the
+    // skip block in TestRunner_Run for the full reasoning).
+    {"mm-registrar-coverage", "MM_Rando_Init populates the registries BenPort's exclusion emptied (#516)",
+     Test_MMRegistrarCoverage},
     // The two MM resume-contract tests below mutate process-global state
     // (mm-resume-arena re-inits the MM system arena + heaps; mm-startup-restore
     // scribbles and re-zeroes the unified gSaveContext). Both clean up after
@@ -2436,6 +2472,35 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "mm-owl-save-arm-state") == 0 ||
                 strcmp(gTests[i].name, "foreign-placement-oot") == 0) {
                 printf("\n--- Skipping: %s (needs display; runs as a rando-label CTest) ---\n", gTests[i].name);
+                continue;
+            }
+            // mm-registrar-coverage is display-free, but it is the only row that
+            // runs the real MM_Rando_Init, and that is IRREVERSIBLE in-process:
+            // the once-guard cannot be cleared, and InitAll + Rando::Init leave
+            // registrants across dozens of S2H::GameHooks types, far more than a
+            // row could plausibly reset. Those registrations are correct
+            // production state, but later rows in this shared process were
+            // written against a process where MM's registrars had never run.
+            //
+            // Concretely: mm-startup-restore freezes a byte-patterned save and
+            // asserts an exact restore, and MM_Play_ConsumeStartupEntrance ends
+            // in GameInteractor_ExecuteOnSaveLoad. With RegisterSavingEnhancements
+            // live, that hook seeds shipSaveContext.lastTimeLog -- and
+            // shipSaveContext is the LAST member of SaveContext, so the seed
+            // overwrites the very tail byte that row checks.
+            //
+            // Worth stating plainly, because it is a latent finding rather than
+            // a quirk of this row: in a real MM boot MM_Rando_Init runs before
+            // any restore, so that seeder IS live, and mm-startup-restore's
+            // byte-exact tail assertion passes today only because its isolated
+            // process never registered it. Re-examining that assertion against
+            // production is its own change, not this one's.
+            //
+            // Skipping here costs no coverage: MMRegistrarCoverage has its own
+            // CTest row in the redship tier, which is what CI enforces.
+            if (strcmp(gTests[i].name, "mm-registrar-coverage") == 0) {
+                printf("\n--- Skipping: %s (runs MM_Rando_Init irreversibly; has its own CTest row) ---\n",
+                       gTests[i].name);
                 continue;
             }
             printf("\n--- Running: %s ---\n", gTests[i].name);
