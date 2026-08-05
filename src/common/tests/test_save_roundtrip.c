@@ -491,6 +491,15 @@ TestResult Test_SaveComboLegacyRecord(void) {
                         gComboCtx.sharedItemsTagged[i].flags == 0 && gComboCtx.sharedItemsTagged[i].id == 0,
                     "tagged items from a pre-carve record must load as unset slots");
     }
+    // The ADR 0011 carve reads as ABSENT from a pre-carve record, which is the
+    // whole compatibility claim: formatVersion is the occupancy tag, so an
+    // all-zero block is "no combo settings were ever frozen" — exempt from
+    // comparison and repaired at the first crossing (accepted answer O5) —
+    // rather than a formatted record whose direction byte happens to be 0.
+    SAVE_ASSERT(gComboCtx.comboSettings.formatVersion == 0,
+                "the combo settings record from a pre-carve save must read as ABSENT");
+    SAVE_ASSERT(gComboCtx.comboSettingsHash == 0,
+                "the combo settings fingerprint from a pre-carve save must read as unset");
     for (size_t i = 0; i < sizeof(gComboCtx.reserved); i++) {
         SAVE_ASSERT(gComboCtx.reserved[i] == 0, "Tier-1 tail beyond the legacy record not zero-extended");
     }
@@ -535,6 +544,37 @@ TestResult Test_SaveComboLegacyRecord(void) {
     static const uint8_t kCraftedExtKind = RSBS_SHARED_RES_QUIVER_TIER;
     static const uint8_t kCraftedExtFlags = RSBS_SHARED_RES_F_MONOTONIC;
     static const uint16_t kCraftedExtValue = 0x0003u;
+    // The ADR 0011 carve: the whole-pair fingerprint at 880 (ADR 0009 claim 2,
+    // spent exactly as reserved) and the 12-byte frozen rule record at 884 (ADR
+    // 0011 claim 10). Crafted BYTE BY BYTE at the literal offsets, so the record
+    // pins every MEMBER offset too — those same twelve bytes are what the
+    // canonical digest encoder walks in declaration order, so a member reorder
+    // here would silently re-identify every already-created world rather than
+    // merely moving a field.
+    //
+    // formatVersion is crafted as 0 ON PURPOSE, and the other eleven bytes are
+    // distinctive: the tag says ABSENT, so the load's combo identity check
+    // (ADR 0011 decision 4) exempts the record and the file loads — while the
+    // loader still copies all twelve bytes, which is what lets every member be
+    // read back and its offset asserted. A formatted record would be COMPARED,
+    // and an arbitrary crafted one would (correctly) be refused before anything
+    // could be read out of it. The identity refusal has its own lock; this one
+    // is about where the bytes land.
+    static const size_t kComboSettingsHashOffset = 880u;
+    static const size_t kComboSettingsOffset = 884u;
+    static const uint32_t kCraftedComboHash = 0xC0FFEE11u;
+    static const uint8_t kCraftedComboRecord[12] = {
+        0x00,       // formatVersion — ABSENT tag (see above)
+        0x03,       // direction
+        0x06,       // poolSizeOoT
+        0x07,       // poolSizeMM
+        0x21, 0x43, // itemClassOoT LE == 0x4321
+        0x65, 0x87, // itemClassMM  LE == 0x8765
+        0x02,       // goal
+        0x09,       // logicRung
+        0x11,       // spare0
+        0x22,       // spare1
+    };
 
     SaveTestSeed(tag);  // re-inits gComboCtx and restamps the magic/version
     {
@@ -549,6 +589,8 @@ TestResult Test_SaveComboLegacyRecord(void) {
         std::memcpy(image + kSharedResourcesExtOffset + 0, &kCraftedExtKind, sizeof(kCraftedExtKind));
         std::memcpy(image + kSharedResourcesExtOffset + 1, &kCraftedExtFlags, sizeof(kCraftedExtFlags));
         std::memcpy(image + kSharedResourcesExtOffset + 2, &kCraftedExtValue, sizeof(kCraftedExtValue));
+        std::memcpy(image + kComboSettingsHashOffset, &kCraftedComboHash, sizeof(kCraftedComboHash));
+        std::memcpy(image + kComboSettingsOffset, kCraftedComboRecord, sizeof(kCraftedComboRecord));
     }
 
     mgr.DeleteSave(0);
@@ -562,6 +604,8 @@ TestResult Test_SaveComboLegacyRecord(void) {
     std::memset(gComboCtx.foreignPlacements, 0x5A, sizeof(gComboCtx.foreignPlacements));
     std::memset(gComboCtx.sharedResources, 0x5A, sizeof(gComboCtx.sharedResources));
     std::memset(gComboCtx.sharedResourcesExt, 0x5A, sizeof(gComboCtx.sharedResourcesExt));
+    std::memset(&gComboCtx.comboSettings, 0x5A, sizeof(gComboCtx.comboSettings));
+    gComboCtx.comboSettingsHash = 0x5A5A5A5Au;
 
     SAVE_ASSERT(mgr.Load(0), "Load refused a full-length v2 Tier-1 record");
 
@@ -590,9 +634,29 @@ TestResult Test_SaveComboLegacyRecord(void) {
     SAVE_ASSERT(offsetof(ComboContext, sharedResourcesExt) == kSharedResourcesExtOffset,
                 "sharedResourcesExt moved off .redsave byte offset 824");
 
+    SAVE_ASSERT(gComboCtx.comboSettingsHash == kCraftedComboHash,
+                "byte 880 did not land in comboSettingsHash — a field before it grew in place and orphaned every "
+                "shipped save's combo identity (ADR 0009 claim 2)");
+    SAVE_ASSERT(gComboCtx.comboSettings.formatVersion == kCraftedComboRecord[0] &&
+                    gComboCtx.comboSettings.direction == kCraftedComboRecord[1] &&
+                    gComboCtx.comboSettings.poolSizeOoT == kCraftedComboRecord[2] &&
+                    gComboCtx.comboSettings.poolSizeMM == kCraftedComboRecord[3] &&
+                    gComboCtx.comboSettings.itemClassOoT == 0x4321u &&
+                    gComboCtx.comboSettings.itemClassMM == 0x8765u &&
+                    gComboCtx.comboSettings.goal == kCraftedComboRecord[8] &&
+                    gComboCtx.comboSettings.logicRung == kCraftedComboRecord[9] &&
+                    gComboCtx.comboSettings.spare0 == kCraftedComboRecord[10] &&
+                    gComboCtx.comboSettings.spare1 == kCraftedComboRecord[11],
+                "bytes 884..895 did not land member-for-member in comboSettings — the combo rule record's layout "
+                "IS .redsave format, and it is the same byte order the canonical digest encoder walks");
+    SAVE_ASSERT(offsetof(ComboContext, comboSettingsHash) == kComboSettingsHashOffset,
+                "comboSettingsHash moved off .redsave byte offset 880");
+    SAVE_ASSERT(offsetof(ComboContext, comboSettings) == kComboSettingsOffset,
+                "comboSettings moved off .redsave byte offset 884");
+
     mgr.DeleteSave(0);
     printf("[TEST] PASS: pre-headroom Tier-1 loads, added fields read as zero, "
-           "and bytes 672/676/736/824 still land in their carves\n");
+           "and bytes 672/676/736/824/880/884 still land in their carves\n");
     return TEST_PASS;
 }
 

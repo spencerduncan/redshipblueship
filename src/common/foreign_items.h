@@ -204,8 +204,403 @@ bool Combo_GetForeignItemByName(const char* name, SharedItem* outItem);
  * generated in the live path (gComboCtx.sourceIsRando) AND it recorded its
  * settings profile digest (sharedRandoSettingsHash != 0 — Lane B's carrier
  * contract: 0 means "no profile recorded" and the worlds must not pair).
+ *
+ * THE POST-CONDITION, past tense: "a paired world EXISTS". Read at give time.
+ * It has two siblings and reviewers must not collapse the three (ADR 0009
+ * decision 2's amendment — they are three tenses of one noun):
+ *
+ *   Combo_ForeignPairingRequested()  -- future:  a paired world is being ASKED for
+ *   Combo_ComboSettingsFrozen()      -- present: this world's rules are FROZEN
+ *   Combo_ForeignPairingActive()     -- past:    a paired world EXISTS
  */
 bool Combo_ForeignPairingActive(void);
+
+// ============================================================================
+// Combo-level settings: the pinned value spaces (ADR 0011 decision 1.2.1)
+// ============================================================================
+//
+// EVERY ENUMERATOR AND BIT POSITION BELOW IS ASSIGNED AN EXPLICIT NUMERIC
+// LITERAL AND IS APPEND-ONLY. To remove a value, RETIRE IT IN PLACE — keep the
+// literal, mark it dead, never renumber.
+//
+// This is stated as a rule rather than left to the implementer because the
+// default C idiom (a bare sequential `enum`) gets it wrong SILENTLY, and two
+// separate things break when it does:
+//
+//  1. A LOCAL save corruption with no netplay involved. Inserting a value
+//     mid-list reassigns the meaning of direction/goal/logicRung/itemClass* in
+//     every already-written formatVersion >= 1 record, so a newer binary reads
+//     an old world's rules as different rules.
+//  2. comboSettingsHash stops being usable as a cross-peer comparison term the
+//     moment #574's identity handshake exchanges it: two peers on builds either
+//     side of a renumbering compute different hashes for identical settings —
+//     or, if two renumberings cancel, IDENTICAL hashes for DIFFERENT settings,
+//     which is the failure mode a digest exists to prevent.
+//
+// Same discipline as RSBS_SHARED_RES_* (context.h, explicit = 0, = 1, = 2, ...)
+// and as MM's own Options.cpp, which retires a dead option row rather than
+// deleting it because RANDO_SAVE_OPTIONS is indexed by that number in every
+// already-written MM rando save.
+
+/** The ComboSettingsRecord format version this build writes and understands.
+ *  Bump it when old content must be DISTINGUISHED, not merely extended (ADR
+ *  0002 §4's COMBO_CONTEXT_VERSION rule, scoped to one block) — i.e. when
+ *  spare0/spare1 are spent and a reader must tell "field absent" from "field
+ *  zero". */
+#define RSBS_COMBO_SETTINGS_FORMAT_VERSION 1u
+
+// Direction. Pinned, append-only, retire-never-renumber.
+// 0 is unreachable inside a formatted record: a legacy record zero-extends to
+// all zeros, so if 0 meant OFF every pre-3.1 paired save would silently lose
+// its crossings on the first load by a new build (context.h, decision 1.3).
+#define RSBS_COMBO_DIR_OFF 1u     // paired world, zero crossings (a real, chooseable world)
+#define RSBS_COMBO_DIR_FORWARD 2u // OoT-origin items into MM checks only
+#define RSBS_COMBO_DIR_REVERSE 3u // MM-origin items into OoT checks only
+#define RSBS_COMBO_DIR_BOTH 4u    // today's shipped behaviour; the accepted answer O2 default
+
+// GOAL. ADR 0010 D1 owns the value LIST; ADR 0011 owns their ENCODING.
+// Pinned, append-only.
+#define RSBS_COMBO_GOAL_BEAT_BOTH 1u
+#define RSBS_COMBO_GOAL_BEAT_EITHER 2u
+#define RSBS_COMBO_GOAL_TRIFORCE_HUNT 3u
+
+// Logic rung. ADR 0010 §2.2's ladder; same ownership split. The trick set T is
+// a PARAMETER of the rung and is deliberately NOT encoded here — it is each
+// half's own authored settings, reached through the half-digests
+// comboSettingsHash folds.
+#define RSBS_COMBO_RUNG_NONE 1u          // base: no proof; the spoiler carries the burden
+#define RSBS_COMBO_RUNG_BEATABLE 2u      // GOAL provable under the frozen trick set
+#define RSBS_COMBO_RUNG_ALL_REACHABLE 3u // GOAL provable and every location reachable
+
+// Item classes. Pinned BIT POSITIONS, append-only: allocate the next free bit,
+// never re-point an allocated one. Bits 0x0040..0x8000 are UNALLOCATED and must
+// read as 0 in a formatVersion == 1 record, which is what lets a future build
+// tell "class not armed" from "class did not exist yet" by the record's own
+// version.
+//
+// A class bit is only ever a FILTER OVER CANDIDATES THAT ALREADY PASSED the six
+// membership criteria (ADR 0011 decision 3.1). No bit can widen a pool past
+// them — in particular no bit can readmit a #525 shared cross-game resource
+// (wallet / heart / magic / ammo / hookshot), because the criteria run FIRST and
+// the bitset selects among the survivors. Increment 3 may append bits; it may
+// not weaken that ordering.
+#define RSBS_ITEMCLASS_PROGRESSION 0x0001u   // progressive/major items
+#define RSBS_ITEMCLASS_SONGS 0x0002u         //
+#define RSBS_ITEMCLASS_MASKS 0x0004u         //
+#define RSBS_ITEMCLASS_DUNGEON_ITEMS 0x0008u // small/boss keys, maps, compasses
+#define RSBS_ITEMCLASS_DUNGEON_REWARD 0x0010u // medallions, stones, remains
+#define RSBS_ITEMCLASS_SIDEQUEST 0x0020u     // non-progression sidequest rewards
+
+/** Every bit ALLOCATED at formatVersion 1, and the shipped default for both
+ *  directions. It is the union rather than a narrower selection on purpose:
+ *  today's two pools are hand-transcribed and filtered by no class at all, so
+ *  any narrower default would silently narrow them the moment increment 3
+ *  makes the bitset load-bearing. "Reproduce today's world exactly" is the
+ *  binding constraint on every default in this file. */
+#define RSBS_ITEMCLASS_ALL_V1                                                                                   \
+    (RSBS_ITEMCLASS_PROGRESSION | RSBS_ITEMCLASS_SONGS | RSBS_ITEMCLASS_MASKS | RSBS_ITEMCLASS_DUNGEON_ITEMS |   \
+     RSBS_ITEMCLASS_DUNGEON_REWARD | RSBS_ITEMCLASS_SIDEQUEST)
+
+// The pinning lock. A renumbering is a RED BUILD rather than a silently
+// re-read save — the same shape RSBS_SHARED_RES_* carries, and the reason
+// decision 1.2.1 is a BLOCKER finding's disposition rather than a style note.
+RSBS_CTX_STATIC_ASSERT(RSBS_COMBO_DIR_OFF == 1u && RSBS_COMBO_DIR_FORWARD == 2u && RSBS_COMBO_DIR_REVERSE == 3u &&
+                           RSBS_COMBO_DIR_BOTH == 4u,
+                       "RSBS_COMBO_DIR_* values are .redsave format: pinned, append-only, "
+                       "retire-never-renumber (ADR 0011 decision 1.2.1)");
+RSBS_CTX_STATIC_ASSERT(RSBS_COMBO_GOAL_BEAT_BOTH == 1u && RSBS_COMBO_GOAL_BEAT_EITHER == 2u &&
+                           RSBS_COMBO_GOAL_TRIFORCE_HUNT == 3u,
+                       "RSBS_COMBO_GOAL_* values are .redsave format: pinned, append-only, "
+                       "retire-never-renumber (ADR 0011 decision 1.2.1)");
+RSBS_CTX_STATIC_ASSERT(RSBS_COMBO_RUNG_NONE == 1u && RSBS_COMBO_RUNG_BEATABLE == 2u &&
+                           RSBS_COMBO_RUNG_ALL_REACHABLE == 3u,
+                       "RSBS_COMBO_RUNG_* values are .redsave format: pinned, append-only, "
+                       "retire-never-renumber (ADR 0011 decision 1.2.1)");
+RSBS_CTX_STATIC_ASSERT(RSBS_ITEMCLASS_PROGRESSION == 0x0001u && RSBS_ITEMCLASS_SONGS == 0x0002u &&
+                           RSBS_ITEMCLASS_MASKS == 0x0004u && RSBS_ITEMCLASS_DUNGEON_ITEMS == 0x0008u &&
+                           RSBS_ITEMCLASS_DUNGEON_REWARD == 0x0010u && RSBS_ITEMCLASS_SIDEQUEST == 0x0020u &&
+                           RSBS_ITEMCLASS_ALL_V1 == 0x003Fu,
+                       "RSBS_ITEMCLASS_* bit positions are .redsave format: pinned, append-only, "
+                       "allocate the next free bit and never re-point an allocated one (ADR 0011 "
+                       "decision 1.2.1)");
+
+// ============================================================================
+// Combo-level settings: predicates, freeze, digest, divergence (ADR 0011)
+// ============================================================================
+
+/**
+ * Fill @p out with the SHIPPED DEFAULTS — the rules that reproduce today's
+ * world exactly (accepted answers O2, O4, O7 and ADR 0010 answer O11):
+ * direction BOTH, both pool sizes at RSBS_FOREIGN_PLACEMENT_CAP, every
+ * version-1 item class armed, GOAL beat-both, logic rung beatable.
+ *
+ * This is also what the O5 transitional writer freezes into a legacy pair, and
+ * it is deliberately ONE definition rather than a set of scattered fallbacks:
+ * a default that differs from shipped behaviour silently changes every new
+ * world at the moment the setting lands, and the change is invisible in a diff.
+ */
+void Combo_ComboSettingsDefaults(ComboSettingsRecord* out);
+
+/**
+ * The session's RESOLVED combo settings — what a creation event would freeze
+ * right now, and what an arrival compares the frozen record against.
+ *
+ * ONE RESOLVER, TWO CALL SITES, exactly as Rando::Foreign::ResolveProfileValues
+ * is one resolution behind both the creation stamp and the arrival compare:
+ * "what creation froze" and "what arrival checks" cannot drift apart if they
+ * are one computation.
+ *
+ * INCREMENT 1 RESOLVES TO THE SHIPPED DEFAULTS, because the tier-4 authoring
+ * keys (`gCombo.Rando.Direction`, `.PoolSize.*`, `.ItemClass.*`) are increment
+ * 2's work and do not exist yet. When they land, THIS function grows the CVar
+ * read and every call site follows with no change — which is the whole reason
+ * the resolver is a named function rather than an inlined defaults copy.
+ */
+void Combo_ResolveComboSettings(ComboSettingsRecord* out);
+
+/**
+ * The PRE-CONDITION predicate ADR 0009 decision 2 designed and nobody built:
+ * "a paired world is being ASKED for" (future tense), answerable BEFORE
+ * generation by construction.
+ *
+ * Derived from the resolved settings and NEVER from gComboCtx's stamp, so it is
+ * immune to the ordering hazard that made hoisting the stamp above Fill() look
+ * necessary. Do not "simplify" it into Combo_ForeignPairingActive(): that one
+ * is the post-condition and answers a different question in a different tense.
+ */
+bool Combo_ForeignPairingRequested(void);
+
+/**
+ * The PRESENT-tense predicate (ADR 0009 decision 2's amendment; the exact twin
+ * of Combo_MMProfileFrozen): true once a creation event — or the O5
+ * transitional writer — has frozen this world's combo rules. Literally
+ * `gComboCtx.comboSettings.formatVersion != 0`, a src/common fact, never a
+ * gSaveContext read (ADR 0008 rule 5).
+ *
+ * On a LEGACY (pre-carve) file, false means "no combo settings were ever
+ * frozen" — correct, exempt from comparison, repaired at the first crossing.
+ * On a file CREATED since this carve, false means IDENTITY NOT FROZEN, a state
+ * no created combo file may be in; any surface that renders it as a benign
+ * default will report corruption as normal (ADR 0011 decision 4.2).
+ */
+bool Combo_ComboSettingsFrozen(void);
+
+/** The resolved direction: the frozen record's when frozen, else the shipped
+ *  default. Increment 4 is where each placement pass NO-OPS on an unarmed
+ *  direction — increment 1 only reads and reports it, because that increment is
+ *  the only one that can change a generated world and it lands on top of a
+ *  frozen, compared, rendered setting rather than under one. */
+uint8_t Combo_ComboDirection(void);
+
+/** Does the resolved direction arm crossings ORIGINATING in @p originGame?
+ *  (GAME_OOT -> the forward pass, GAME_MM -> the reverse pass.) Increment 4's
+ *  gate; see Combo_ComboDirection. */
+bool Combo_ComboDirectionArms(uint8_t originGame);
+
+/**
+ * How many placements this direction may make: the frozen record's pool size
+ * for @p originGame, CLAMPED to RSBS_FOREIGN_PLACEMENT_CAP.
+ *
+ * An UNFROZEN record yields the shipped default (the cap), so a legacy world,
+ * a pre-freeze world and a world generated before this carve all place exactly
+ * what they place today. That fallback is not defensive tidiness — without it a
+ * zero-extended record would resolve to pool size 0 and silently generate a
+ * paired world with no crossings at all.
+ *
+ * @param originGame GAME_OOT (into MM checks) or GAME_MM (into OoT checks)
+ * @return 1..RSBS_FOREIGN_PLACEMENT_CAP, or 0 for an origin with no pool.
+ */
+int Combo_ComboPoolSizeFor(uint8_t originGame);
+
+/** Number of bytes Combo_ComboSettingsCanonical writes. Equal to
+ *  sizeof(ComboSettingsRecord) on every supported host BY CONSTRUCTION rather
+ *  than by luck — see the encoder. */
+#define RSBS_COMBO_SETTINGS_CANONICAL_LEN 12u
+
+/**
+ * canonical(comboSettings) — the byte-pinned DIGEST INPUT (ADR 0011 decision
+ * 1.4; ADR 0007 §2's codec discipline).
+ *
+ * The twelve bytes of the record encoded FIELD BY FIELD IN DECLARATION ORDER,
+ * each uint16_t little-endian, WRITTEN A BYTE AT A TIME — never a struct memcpy
+ * and never a cast of a packed struct, so a big-endian host emits identical
+ * bytes. The member-offset static_asserts in context.h pin the STORAGE format;
+ * this pins the DIGEST INPUT; on every supported host they are the same twelve
+ * bytes in the same order, and the byte-at-a-time codec makes that true by
+ * construction.
+ *
+ * This also keeps comboSettingsHash in family with the two terms it folds,
+ * which are both encoded-first rather than struct-hashed (OoT's settings hash
+ * runs over a GetOptionText string, MM's profile digest over
+ * ProfileIdentityString). A raw-struct hash beside two string-first digests
+ * would be the one term in the fingerprint whose bytes depend on the toolchain.
+ *
+ * @param rec  NULL is treated as an all-zero record.
+ * @param out  receives exactly RSBS_COMBO_SETTINGS_CANONICAL_LEN bytes.
+ */
+void Combo_ComboSettingsCanonical(const ComboSettingsRecord* rec, uint8_t* out);
+
+/**
+ * The WHOLE PAIR's fingerprint (accepted answer O6):
+ *
+ *   Hash( canonical(rec) || ":" || LE32(sharedRandoSettingsHash) || ":" ||
+ *         LE32(mmProfileDigest) )
+ *
+ * FNV-1a 32 over that byte string — the project's hash, the same one
+ * SohUtils::Hash and Ship_Hash compute — with the two u32 terms encoded
+ * little-endian a byte at a time for decision 1.4's reason.
+ *
+ * ZERO DISPLACES to a fixed nonzero constant, exactly as DigestFromIdentity
+ * does: a real identity hashing to 0 would read as "not frozen" and become an
+ * undetectable mismatch. One collision in 2^32 against a certain false negative.
+ *
+ * Pure — reads nothing, writes nothing. Both the creation stamp and every
+ * arrival cross-check go through it.
+ */
+uint32_t Combo_ComputeComboSettingsHash(const ComboSettingsRecord* rec, uint32_t sharedRandoSettingsHash,
+                                        uint32_t mmProfileDigest);
+
+/**
+ * Freeze @p rec into gComboCtx as this world's combo identity, then compute and
+ * stamp comboSettingsHash over it and BOTH half-digests.
+ *
+ * CALL ORDER IS LOAD-BEARING (ADR 0011 decision 4.1): the creation event must
+ * have stamped sharedRandoSettingsHash and mmProfileDigest FIRST, because the
+ * fingerprint folds them and a hash computed earlier folds a term that has not
+ * been decided yet. The creation event's order is therefore: resolve the combo
+ * record -> stamp sharedRandoSettingsHash -> stamp mmProfileDigest -> call this.
+ *
+ * Forces formatVersion to RSBS_COMBO_SETTINGS_FORMAT_VERSION: a caller must not
+ * be able to freeze a record that reads as absent.
+ *
+ * @return the stamped comboSettingsHash (always nonzero).
+ */
+uint32_t Combo_FreezeComboSettings(const ComboSettingsRecord* rec);
+
+/**
+ * Recompute comboSettingsHash from the RESIDENT record and the two resident
+ * half-digests, and stamp it. Used by Combo_FreezeComboSettings and by the O5
+ * transitional writer; exposed so a caller that re-stamps a half-digest can
+ * restore the fingerprint's ordering invariant without re-freezing the record.
+ * A no-op returning 0 when the record is not frozen.
+ */
+uint32_t Combo_StampComboSettingsHash(void);
+
+/**
+ * THE O5 TRANSITIONAL WRITER (ADR 0011 decision 4.4). A paired file whose
+ * record reads absent (formatVersion == 0) predates this carve; it was
+ * generated when there was only ever ONE rule set, so it freezes the SHIPPED
+ * DEFAULTS at its FIRST CROSSING and compares normally thereafter. This is the
+ * ResolvePairedProfile precedent applied verbatim — the one transitional writer
+ * besides the creation event.
+ *
+ * Refusing legacy pairs instead would orphan every already-written paired
+ * .redsave to detect a divergence that cannot have happened.
+ *
+ * Does nothing (returning 0) when there is no live pairing or the record is
+ * already frozen — so a second crossing COMPARES rather than re-freezes, which
+ * is the property that makes 4.4 a behaviour and not a promise.
+ *
+ * @return 1 if this call froze the defaults, 0 otherwise.
+ */
+int Combo_FreezeLegacyComboSettings(void);
+
+// ---- Field-level divergence (ADR 0011 decision 1.1 justification 2) --------
+//
+// A refusal that can only say "something diverged" is the un-repairable case
+// ADR 0009 accepted for want of an alternative. Twelve stored bytes buy the
+// alternative, and they only buy it if something DIFFS them — so this is a
+// scheduled surface with its own test lock, not an implied benefit of the carve.
+
+#define RSBS_COMBO_DIVERGE_DIRECTION 0x0001u
+#define RSBS_COMBO_DIVERGE_POOL_SIZE_OOT 0x0002u
+#define RSBS_COMBO_DIVERGE_POOL_SIZE_MM 0x0004u
+#define RSBS_COMBO_DIVERGE_ITEM_CLASS_OOT 0x0008u
+#define RSBS_COMBO_DIVERGE_ITEM_CLASS_MM 0x0010u
+#define RSBS_COMBO_DIVERGE_GOAL 0x0020u
+#define RSBS_COMBO_DIVERGE_LOGIC_RUNG 0x0040u
+#define RSBS_COMBO_DIVERGE_SPARE0 0x0080u
+#define RSBS_COMBO_DIVERGE_SPARE1 0x0100u
+/** The frozen record carries a formatVersion this build does not understand, so
+ *  its fields cannot be compared at all. Refuse; never guess. */
+#define RSBS_COMBO_DIVERGE_UNREADABLE 0x0200u
+/** The stored comboSettingsHash is not the fingerprint its own resident record
+ *  and half-digests produce. Set only by the session-level diff, because it is
+ *  a property of gComboCtx rather than of two records. */
+#define RSBS_COMBO_DIVERGE_FINGERPRINT 0x0400u
+
+/**
+ * Which FIELDS differ between a frozen record and a live resolution, as
+ * RSBS_COMBO_DIVERGE_* bits. 0 means "these are the same rules".
+ *
+ * Fields are compared at the LOWER of the two format versions: a field
+ * introduced at version N is authoritative only in a record at version >= N, so
+ * comparing it against an older record would refuse a world for carrying rules
+ * that did not exist when it was made. A frozen record NEWER than this build
+ * yields RSBS_COMBO_DIVERGE_UNREADABLE alone.
+ *
+ * An ABSENT frozen record (formatVersion == 0) yields 0 — it is exempt from
+ * comparison until the O5 writer freezes it, which is decision 4.2's meaning of
+ * zero, not a silent pass.
+ */
+uint32_t Combo_ComboSettingsDivergenceBetween(const ComboSettingsRecord* frozen, const ComboSettingsRecord* live);
+
+/**
+ * The full diff for ONE stored identity: @p frozen against the live resolution,
+ * PLUS the fingerprint cross-check (RSBS_COMBO_DIVERGE_FINGERPRINT) recomputed
+ * from that identity's OWN three terms.
+ *
+ * Takes the terms explicitly rather than reading gComboCtx so the .redsave LOAD
+ * path can run it over the record it just read, BEFORE committing those bytes
+ * over the resident context — a check that had to read the destination would be
+ * checking the wrong world.
+ *
+ * The fingerprint cross-check is not redundant with the field diff: the record,
+ * the two half-digests and the stored hash all ride the SAME Tier-1 write, so a
+ * disagreement between them is not a settings change — it is a record and a hash
+ * that describe different worlds.
+ */
+uint32_t Combo_ComboSettingsDivergenceFor(const ComboSettingsRecord* frozen, uint32_t storedHash,
+                                          uint32_t sharedRandoSettingsHash, uint32_t mmProfileDigest);
+
+/**
+ * The session-level diff the arrival refusal calls: Combo_ComboSettingsDivergenceFor
+ * over the RESIDENT gComboCtx identity. 0 when nothing is frozen (exempt).
+ */
+uint32_t Combo_ComboSettingsDivergence(void);
+
+/** The field name for ONE RSBS_COMBO_DIVERGE_* bit ("direction",
+ *  "poolSizeOoT", ...). Never NULL; an unknown bit reports "(unknown)". */
+const char* Combo_ComboSettingsDivergenceFieldName(uint32_t bit);
+
+/**
+ * Render EVERY set bit of @p bits as a comma-separated field list into @p out —
+ * what the refusal notification and log line say instead of "something
+ * diverged". Always NUL-terminates when len > 0; writes "(none)" for 0.
+ * @return the number of named fields.
+ */
+int Combo_ComboSettingsDivergenceDescribe(uint32_t bits, char* out, size_t len);
+
+/**
+ * The pairing header for the combo pane (ADR 0011 increment 2) and for any
+ * renderer — the twin of Combo_MMProfileSummary, reading gComboCtx and nothing
+ * else (ADR 0008 rule 5).
+ *
+ * `frozen == false` with `paired == true` marks a LEGACY pre-carve pair that has
+ * not crossed yet. ADR 0004 §6 state 4 requires the value shown post-creation to
+ * come FROM THE SAVE rather than from the CVar — after creation the two may
+ * legitimately differ, and the save is the one the world was built from — which
+ * is exactly why the record exists and a digest could not have served.
+ */
+typedef struct {
+    bool paired;
+    bool frozen;
+    ComboSettingsRecord record;
+    uint32_t comboSettingsHash;
+} ComboSettingsSummary;
+
+/** Fill @p out with the combo-settings header. NULL @p out is ignored. */
+void Combo_ComboSettingsSummary(ComboSettingsSummary* out);
 
 /**
  * Record "MM check `mmCheckId` hosts `item`". Rejects (returning -1) an unset

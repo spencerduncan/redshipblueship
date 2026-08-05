@@ -189,6 +189,11 @@ int MM_PairedProfile_RunHeadless(void);
 // Rando::Foreign::RecordForeignPickup. Return 0 on pass.
 int MM_SpoilerIdentity_RunHeadless(void);
 int MM_ForeignPickupGate_RunHeadless(void);
+// games/mm/2s2h/mm_combo_settings_test.cpp (#498, ADR 0011 increment 1): the
+// COMBO-LEVEL arrival identity gate. MM-side because it drives the REAL
+// MM_Rando_PairOnCrossGameArrival, and because reaching its combo leg means
+// first satisfying its MM-profile leg. Returns 0 on pass.
+int MM_ComboSettingsGate_RunHeadless(void);
 // VB-affinity regression: MM's GameInteractor_* calls resolve to OoT's
 // extern "C" wrappers in single-exe builds, and the two games' vanilla-
 // behavior ordinals alias each other. The wrappers gate on the active game;
@@ -259,6 +264,13 @@ extern "C" {
 // the AUTHORITY rather than a warning. FILE SCOPE (compiled as C++), same
 // reason as above.
 #include "tests/test_whole_file_commit.c"
+
+// The frozen COMBO-LEVEL rule record (ADR 0011 increment 1, #498): the 16-byte
+// carve at 880/884 as .redsave format, the byte-pinned canonical() encoder and
+// its golden-vector fingerprint, the field-level divergence diff behind the
+// named refusal, and the O5 transitional writer for legacy pairs. FILE SCOPE
+// (compiled as C++) for rsbs::SaveManager; everything under test is C-linkage.
+#include "tests/test_combo_settings.c"
 
 // Lane C1 foreign-item pipeline locks (#392, ADR 0002): give-path tagging,
 // round-trip survival with a real pool entry, and the foreignPlacements carve
@@ -2070,6 +2082,28 @@ TestResult Test_MMForeignPickupGate(void) {
     return MM_ForeignPickupGate_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// The COMBO-LEVEL arrival identity gate (#498, ADR 0011 increment 1). Drives
+// the REAL MM_Rando_PairOnCrossGameArrival: a divergent frozen record must
+// refuse through the #533/#568 surface AND name the diverged rule (the
+// capability ADR 0011 decision 1.1 justification 2 claims, without which the
+// twelve-byte record buys display alone), while a legacy pair freezes the
+// shipped defaults instead of being orphaned. Needs the shared bring-up: the
+// refusal surfaces through the shared notification overlay, and the MM-profile
+// leg the gate reaches first resolves against MM's option tables.
+TestResult Test_MMComboSettingsGate(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_ComboSettingsGate_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 TestResult Test_RoundtripIntegrity(void) {
     printf("[TEST] roundtrip-integrity: OoT SaveContext byte-integrity across roundtrip (issue #262)\n");
     int failures = TestRoundtripIntegrity_Run();
@@ -2303,6 +2337,13 @@ const TestDescriptor gTests[] = {
      Test_MMSpoilerIdentity},
     {"mm-foreign-pickup-gate", "An unpaired session authors no durable shared-item record on a foreign pickup (#610)",
      Test_MMForeignPickupGate},
+    // ADR 0011 increment 1 (#498): the arrival gate that CONSUMES the combo
+    // divergence diff. The refusal must NAME the diverged rule, not merely
+    // refuse — that capability is what the twelve-byte record buys over ADR
+    // 0009's reserved four-byte digest.
+    {"mm-combo-settings-gate",
+     "A divergent combo record refuses at arrival BY NAME; a legacy pair freezes the shipped defaults (#498)",
+     Test_MMComboSettingsGate},
     {"combo-mm-options-window",
      "Common-owned MM options pane registers de-collided; inert under every active game (#497)",
      Test_ComboMMOptionsWindow},
@@ -2382,6 +2423,21 @@ const TestDescriptor gTests[] = {
      Test_WholeFileCommit},
     {"whole-file-redeemed-item", "A REDEEMED record and the world it was redeemed into survive together (#531)",
      Test_WholeFileRedeemedItem},
+    // The frozen COMBO-LEVEL rule record (ADR 0011 increment 1, #498). Four
+    // rows split by what each can prove: the carve is format, the digest input
+    // is byte-pinned, the diff names the rule, and a legacy pair freezes rather
+    // than being orphaned. The arrival GATE that consumes the diff is its own
+    // row (mm-combo-settings-gate), MM-side.
+    {"combo-settings-format", "The combo record is .redsave format and its defaults reproduce today's world (#498)",
+     Test_ComboSettingsFormat},
+    {"combo-settings-canonical",
+     "canonical() and the whole-pair fingerprint are pinned byte-for-byte (ADR 0011 decision 1.4)",
+     Test_ComboSettingsCanonical},
+    {"combo-settings-divergence", "The divergence diff names WHICH combo rule diverged (ADR 0011 decision 1.1)",
+     Test_ComboSettingsDivergence},
+    {"combo-settings-legacy-freeze",
+     "A legacy paired file freezes the shipped defaults at its first crossing and compares thereafter (O5)",
+     Test_ComboSettingsLegacyFreeze},
     {"mm-scene-parse", "MM scene commands parse via the S2H factory (#344)", Test_MMSceneParse},
     {"seq-map-bounds", "Sequence-map capacity covers the id range + custom slack (#371, #378)", Test_SeqMapBounds},
     {"cvar-classification", "Cross-game CVar classification matches ADR 0003 + the inventory (#34)",

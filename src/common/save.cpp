@@ -10,6 +10,9 @@
 
 #include "context.h"
 #include "entrance.h" // MM_ENTR_SOUTH_CLOCK_TOWN_0 — the armed blob's return entrance
+// Combo_ComboSettingsDivergenceFor — the combo-level identity check the load
+// runs over the record it just read (ADR 0011 decision 4).
+#include "foreign_items.h"
 #include "game.h"
 #include "shared_resources.h"
 
@@ -694,6 +697,34 @@ RsbsLoadOutcome SaveManager::LoadSlot(int slot, uint32_t ootSavGeneration) {
                      "generation %u — the .redsave's OoT half is the authority for this load (#531/#589).\n",
                      slot, combo.commitGeneration, ootSavGeneration);
         mSlotSkew[slot] = 1;
+    }
+
+    // The COMBO-LEVEL IDENTITY check (ADR 0011 decision 4: "compare at every
+    // arrival and load; refuse on divergence"). Run over the record just READ
+    // and BEFORE the commit below, because a check that read gComboCtx would be
+    // checking the world this load is about to replace.
+    //
+    // A legacy .redsave written before this carve zero-extends to
+    // formatVersion == 0 and is EXEMPT — it is repaired by the O5 transitional
+    // writer at its first crossing, never refused (refusing would orphan every
+    // already-written paired file to detect a divergence that cannot have
+    // happened). So today this can only fire on a record and a fingerprint that
+    // disagree with each other, i.e. genuine damage. It becomes the live guard
+    // the moment increment 2 gives the resolver its tier-4 CVars to read.
+    const uint32_t comboDiverged = Combo_ComboSettingsDivergenceFor(
+        &combo.comboSettings, combo.comboSettingsHash, combo.sharedRandoSettingsHash, combo.mmProfileDigest);
+    if (comboDiverged != 0) {
+        char fields[192];
+        Combo_ComboSettingsDivergenceDescribe(comboDiverged, fields, sizeof(fields));
+        std::fprintf(stderr,
+                     "[RsbsSave] slot %d REFUSED: COMBO SETTINGS IDENTITY — the cross-game rules this file was "
+                     "created under no longer match this session's: %s. Divergence is corruption to refuse, never "
+                     "a choice to honour. Evidence quarantined; erase the slot to release it.\n",
+                     slot, fields);
+        QuarantineSlotFile(slot, RSBS_REFUSE_IDENTITY);
+        mSlotRefused[slot] = RSBS_REFUSE_IDENTITY;
+        mSlotArmed[slot] = false;
+        return RSBS_LOAD_REFUSED;
     }
 
     // All checks passed — commit. gComboCtx and both shadows are updated.

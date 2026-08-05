@@ -361,7 +361,22 @@ extern "C" int OoT_PlaceForeignItems(void) {
         poolIndices.push_back(i);
     }
 
-    const int wanted = std::min({ poolCount, (int)RSBS_FOREIGN_PLACEMENT_CAP, (int)candidates.size() });
+    // How many crossings this direction may make comes from the FROZEN COMBO
+    // RECORD (ADR 0011 decision 1, accepted answer O4), not from the cap alone.
+    // Combo_ComboPoolSizeFor already clamps to RSBS_FOREIGN_PLACEMENT_CAP and
+    // falls back to it for an unfrozen record, so the shipped defaults place
+    // exactly what this line placed before the record existed — a count that
+    // could exceed the table's capacity would be a setting that lies, and a
+    // zero-extended legacy record must never resolve to "no crossings".
+    const int poolSize = Combo_ComboPoolSizeFor((uint8_t)GAME_MM);
+    const int wanted = std::min({ poolCount, poolSize, (int)candidates.size() });
+    // The direction itself is READ here and reported; ADR 0011 increment 4 is
+    // where an unarmed direction makes this pass a no-op. It lands last on
+    // purpose: it is the only increment that can change a generated world, and
+    // it should land on top of a frozen, compared, rendered setting rather than
+    // under one.
+    fprintf(stderr, "[OoT] foreign placement: combo rules direction=%u poolSizeMM=%d (frozen=%d)\n",
+            (unsigned)Combo_ComboDirection(), poolSize, Combo_ComboSettingsFrozen() ? 1 : 0);
 
     int placed = 0;
     for (int i = 0; i < wanted; i++) {

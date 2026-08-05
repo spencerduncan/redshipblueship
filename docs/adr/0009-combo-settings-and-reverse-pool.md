@@ -488,7 +488,7 @@ Publishing the allocation once beats five sequential re-versions:
 | # | Claimant | Size | Status |
 |---|---|---|---|
 | 1 | `foreignPlacementsOoT[8]` (#493 step 2, Lane 1) | 48 B | **carved by this arc** |
-| 2 | `comboSettingsHash` (#498 decision 1, Lane 1) | 4 B | reserved |
+| 2 | `comboSettingsHash` (#498 decision 1, Lane 1) | 4 B | **carved 2026-08-05** — ADR 0011 increment 1, offset **880**; spent exactly as reserved |
 | 3 | MM option-profile digest (#497 step 7 / #499 step 4, Lane 4) | 4 B | **carved by Lane 4; size CONFIRMED at 4 B** |
 | 4 | Netplay grant fields (#460, ADR 0005/0007) | 64 B | ~~reserved~~ **RETIRED 2026-08-04 (#584)** — already spent by PR #473, see amendment below |
 | 5 | `sharedResources[8]` (#525, shared rupees + hearts + magic) | 32 B | **carved by #525** |
@@ -496,6 +496,7 @@ Publishing the allocation once beats five sequential re-versions:
 | 7 | Unallocated floor | 84 B | must not drop below 64 |
 | 8 | `commitGeneration` (#569, one-game-persistence commit-generation stamp) | 4 B | **carved** — PR #569, merged 2026-07-31; missing from this table until the 2026-08-04 (#584) amendment |
 | 9 | `mmPairedAttempt` (#581, ADR 0010 increment 1.2 / accepted answer O3) | 4 B | **carved** — PR #581, merged 2026-08-02; missing from this table until the 2026-08-04 (#584) amendment |
+| **10 (new, 2026-08-05)** | `comboSettings` (`ComboSettingsRecord`, ADR 0011 decision 1 / accepted answer O1) | 12 B | **carved 2026-08-05** — ADR 0011 increment 1, offset **884** |
 
 Total reserved-against: 152 B of 284. After claims 1, 3, 5 and 6 land, `reserved[]`
 is 132 bytes and 152 B of capacity remain.
@@ -611,6 +612,35 @@ still being live. It is not. No format-version bump, no
 this correction; it is bookkeeping only, and nothing in decisions 1-3 above
 changes.
 
+### Amendment — claims 2 and 10 carved; the outstanding list is EMPTY (2026-08-05, ADR 0011 increment 1)
+
+**Claim 2 is spent, and claim 10 is the row ADR 0011 adds.** ADR 0011 decision
+1 (accepted answer O1) carves both in one change: `uint32_t comboSettingsHash`
+at `.redsave` byte offset **880** — claim 2, exactly the 4 bytes this table
+reserved — and `ComboSettingsRecord comboSettings` (12 B) at offset **884**,
+the new claim 10. `RSBS_SAVE_VERSION`, `RSBS_COMBO_CONTEXT_RECORD_SIZE` and
+`RSBS_COMBO_CONTEXT_PRECARVE_SIZE` are all unmoved; `sizeof(ComboContext)`
+stays 1004 against the 1024 budget.
+
+**Reconciling to `src/common/context.h` (re-derived 2026-08-05).** Following
+the table from its 264-byte start: `264 − 48` (claim 1) `− 4` (claim 3) `− 32`
+(claim 5) `− 48` (claim 6) `− 4` (claim 8, #569) `− 4` (claim 9, #581) `− 4`
+(claim 2) `− 12` (claim 10) = **108**, matching `reserved[108]` in
+`context.h` exactly. Its start offset is **896** (884 + 12 — the byte
+immediately after `comboSettings`), and both new offsets carry literal-integer
+`RSBS_CTX_STATIC_ASSERT`s in the style of 672/736/740/788/792/824/872/876, so a
+field growing in place ahead of either one is a build error rather than a
+silent reinterpretation of every shipped save.
+
+**108 clears the 64-byte floor by 44 bytes, and no claim remains outstanding.**
+Claim 4 was retired as already spent by the 2026-08-04 (#584) amendment above,
+and claims 2 and 10 are now carved, so the next carver starts from 108 with the
+append-only second-block rule in force. The stale warning in `context.h`'s
+`reserved[]` comment — that claims 2 and 4 "would leave 56, UNDER the 64-byte
+floor" — is removed by the same change, because leaving it in place invites the
+next carver to raise the record size to solve a problem that no longer exists
+(ADR 0011 increment 0).
+
 Two constraints on anyone spending from this:
 
 - **Keep `reserved[]` at 64 bytes or more.** `Test_SaveComboRecordFixed`'s
@@ -683,3 +713,19 @@ Added by the 2026-08-04 amendment (#584):
 - **Only claim 2 remains outstanding.** `comboSettingsHash` (4 B) is the sole
   unspent claim; landing it leaves `reserved[120]`, clear of the 64-byte
   floor by 56 bytes.
+
+Added by the 2026-08-05 amendment (ADR 0011 increment 1):
+
+- **Claim 2 is carved (offset 880) and claim 10 is added and carved (offset
+  884, 12 B).** `reserved[124]` becomes `reserved[108]`, beginning at offset
+  896. The bullet above is superseded on its arithmetic only: ADR 0011 spends
+  16 bytes rather than claim 2's 4, because combo-level terms have no per-half
+  tier to live in the way MM's options did, so O1 chose a frozen record plus
+  the digest over the digest alone.
+- **The outstanding-claim list against `reserved[]` is now empty.**
+- **`Rando_HeadlessSeedDeterminismDigest` folds `comboSettingsHash`**, paying
+  decision 1's stated consequence: "changing a combo setting changes the
+  derived world" is assertable from that increment on. `MixPairedFinalSeed()`
+  is deliberately NOT widened with it — ADR 0011 decision 1.4 forbids it,
+  because folding an identity term into the SEED derivation would re-derive
+  every already-generated paired world.

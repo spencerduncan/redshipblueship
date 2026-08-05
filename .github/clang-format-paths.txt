@@ -41,6 +41,7 @@ games/mm/2s2h/ShipInitBridge_SingleExe.cpp
 games/mm/2s2h/TrackersGuiSingleExe.cpp
 games/mm/2s2h/TrackersGuiSingleExe.h
 games/mm/2s2h/mm_capture_harvest_gate_test.cpp
+games/mm/2s2h/mm_combo_settings_test.cpp
 games/mm/2s2h/mm_culling_test.cpp
 games/mm/2s2h/mm_fb_effects_test.cpp
 games/mm/2s2h/mm_flash_filenum_test.cpp
