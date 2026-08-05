@@ -113,6 +113,8 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/zapd_subprocess.h
     ${CMAKE_SOURCE_DIR}/src/common/context.h
     ${CMAKE_SOURCE_DIR}/src/common/shared_items.h
+    # Header for shared_resources.c above (#525)
+    ${CMAKE_SOURCE_DIR}/src/common/shared_resources.h
     ${CMAKE_SOURCE_DIR}/src/common/foreign_items.h
     ${CMAKE_SOURCE_DIR}/src/common/combo_spoiler_view.h
     ${CMAKE_SOURCE_DIR}/src/common/ComboSpoilerWindow.h
@@ -121,6 +123,8 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/combo_mm_options_view.h
     ${CMAKE_SOURCE_DIR}/src/common/ComboMmOptionsWindow.h
     ${CMAKE_SOURCE_DIR}/src/common/entrance.h
+    # Header for mod_archives.cpp above (#593)
+    ${CMAKE_SOURCE_DIR}/src/common/mod_archives.h
     ${CMAKE_SOURCE_DIR}/src/common/test_runner.h
     ${CMAKE_SOURCE_DIR}/src/common/integration_test_hooks.h
     ${CMAKE_SOURCE_DIR}/src/common/ComboMenuBar.h
@@ -131,6 +135,17 @@ set(REDSHIP_COMMON_HEADERS
     # enhancement-classification inventory), consumed by OoT's version-7
     # config updater, the 2Ship importer, and the classification lock.
     ${CMAKE_SOURCE_DIR}/src/common/cvar_shared_keys.h
+    # DLL export/import macros (Phase 2 T10, #265); the only live consumer is
+    # SharedGraphics.h above.
+    ${CMAKE_SOURCE_DIR}/src/common/Export.h
+    # RSBS's own release identity (#319), independent of the upstream Ship
+    # VERSION baked into the archive/save validation.
+    ${CMAKE_SOURCE_DIR}/src/common/rsbs_version.h
+    # The plain-C cross-game notification interface (#427 item 1) and its
+    # runtime layout-equality lock — see their header comments for why both
+    # are still needed even though MM no longer hands OoT its own Options.
+    ${CMAKE_SOURCE_DIR}/src/common/notification_bridge.h
+    ${CMAKE_SOURCE_DIR}/src/common/notification_layout_probe.h
 )
 
 # ============================================================================
