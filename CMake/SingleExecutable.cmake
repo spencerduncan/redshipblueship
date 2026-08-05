@@ -568,6 +568,16 @@ if(BUILD_TESTING)
     redship_add_test(NAME CommitGenerationMonotonic COMMAND redship --test commit-generation-monotonic)
     redship_add_test(NAME CommitTornWrite COMMAND redship --test commit-torn-write)
     redship_add_test(NAME CommitGenerationSkew COMMAND redship --test commit-generation-skew)
+    # Whole-file commit (#589, operator ruling 2026-08-04) — the read half of
+    # the same machinery. A durable save-and-quit in EITHER half commits BOTH
+    # halves at ONE generation, and on load the newest WHOLE commit wins: its
+    # Tier-2 is armed and delivered over OoT's older .sav. That is what
+    # structurally retires #531 (a durable RSBS_SHARED_ITEM_REDEEMED record
+    # outliving the item it accounts for = permanent loss of a progression
+    # item). Counterfactual: drop the Tier-2 arming from LoadSlot and
+    # WholeFileRedeemedItem goes red on the assertion that names the loss.
+    redship_add_test(NAME WholeFileCommit COMMAND redship --test whole-file-commit)
+    redship_add_test(NAME WholeFileRedeemedItem COMMAND redship --test whole-file-redeemed-item)
     redship_add_test(NAME Context COMMAND redship --test context)
     # F10 hot-swap freeze/consume contract (#364): the hotkey path must freeze
     # the DEPARTING game (or refuse the switch), and a consumed frozen state
@@ -701,6 +711,23 @@ if(BUILD_TESTING)
     # gSaveContext storage means an ungated MM tracker reads OoT bytes through
     # MM's SaveContext layout.
     redship_add_test(NAME MMTrackersGui COMMAND redship --test mm-trackers-gui)
+    # Registrar coverage (#516): games/mm/2s2h/BenPort.cpp is excluded from the
+    # single exe and was the SOLE caller of InitOTR's registration sequence, so
+    # 2ship_enh (a plain STATIC archive) lost the TUs entirely -- CustomItem and
+    # CustomMessage's RegisterHooks, RegisterSavingEnhancements and
+    # RegisterAutosave were all 0-hit in redship.map, leaving every randomized
+    # custom item uncollectable and every rando textbox on vanilla message
+    # 0x004B. They are re-homed into MM_Rando_Init; this row drives that real
+    # entry point and asserts each registry actually filled.
+    #
+    # It is NOT redundant with check-registrar-elision.sh's per-symbol
+    # allowlist: that grep proves the symbols LINKED, which a call moved under a
+    # never-true condition would still satisfy. It is also the only possible
+    # gate on RegisterAutosave, whose name the script cannot attribute (OoT
+    # ships a static twin at Enhancements/QoL/Autosave.cpp). Display-free and
+    # ROM-free -- MM_Rando_Init gates its one asset-dependent call behind
+    # MM_Rando_AssetsReady() -- so it runs in this redship tier.
+    redship_add_test(NAME MMRegistrarCoverage COMMAND redship --test mm-registrar-coverage)
     redship_add_test(NAME MMResumeArena COMMAND redship --test mm-resume-arena)
     redship_add_test(NAME MMStartupRestore COMMAND redship --test mm-startup-restore)
     redship_add_test(NAME AllTests COMMAND redship --test all)

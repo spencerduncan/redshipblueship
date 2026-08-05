@@ -409,16 +409,19 @@ void ComboMenuBar::DrawFileSelect() {
             ImGui::TextUnformatted(meta.mmStarted ? "[MM v]" : "[MM _]");
 
             if (meta.commitSkew > 0) {
-                // #531/#537: the last load of this slot observed the .redsave
-                // carrying a NEWER commit generation than OoT's own save — an
-                // MM-side commit landed after OoT's last save point, so OoT's
-                // world resumed older than the cross-game records that account
-                // for it. Loading proceeds (this is the designed post-MM-commit
-                // state), but the divergence must be player-visible, not
-                // stderr-only.
-                ImGui::TextColored(ImVec4(0.95f, 0.75f, 0.25f, 1.0f),
-                                   "[STALE: cross-game progress is newer than the OoT save]");
-                ImGui::TextDisabled("Items delivered to OoT after its last save point may be missing.");
+                // #531/#589: the last load of this slot observed the .redsave
+                // carrying a NEWER whole commit than OoT's own save — a commit
+                // landed after OoT's file was last written (an MM-side save,
+                // or OoT's exit snapshot). Under the 2026-08-04 whole-file
+                // commit ruling that is no longer a loss warning: the commit
+                // captured OoT's half too, and the load applies it, so the two
+                // halves resume at ONE instant. Reported rather than dropped
+                // because the player's OoT file on disk really is older than
+                // what they just resumed from, and that is worth knowing
+                // before they go looking for it with an external tool.
+                ImGui::TextColored(ImVec4(0.55f, 0.85f, 0.55f, 1.0f),
+                                   "[SYNCED: cross-game progress newer than the OoT save, applied]");
+                ImGui::TextDisabled("Resumed from the newest whole commit; both halves at one instant.");
             }
         }
 
