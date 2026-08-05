@@ -182,6 +182,13 @@ int Combo_TrackerWindow_RunHeadless(void);
 // need MM's headers — this file must never acquire them. Return 0 on pass.
 int MM_RandoOptions_RunHeadless(void);
 int MM_PairedProfile_RunHeadless(void);
+// games/mm/2s2h/mm_spoiler_identity_test.cpp (#610): the spoiler-drop identity
+// gate on the cross-game commit, and the foreign-pickup durable-record gate.
+// MM-side for the same reason as the two above — they drive
+// Rando::Spoiler::LoadFromFile/ApplyToSaveContext and
+// Rando::Foreign::RecordForeignPickup. Return 0 on pass.
+int MM_SpoilerIdentity_RunHeadless(void);
+int MM_ForeignPickupGate_RunHeadless(void);
 // VB-affinity regression: MM's GameInteractor_* calls resolve to OoT's
 // extern "C" wrappers in single-exe builds, and the two games' vanilla-
 // behavior ordinals alias each other. The wrappers gate on the active game;
@@ -2041,6 +2048,44 @@ TestResult Test_MMPairedProfile(void) {
     return MM_PairedProfile_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// Spoiler-drop identity gate (#610). Drives the REAL spoiler-LOAD consumer pair
+// (Rando::Spoiler::LoadFromFile + ApplyToSaveContext — the two calls
+// OnFileCreate's LOAD branch makes) over a spoiler written by the real writer
+// and staged the way HandleFileDropped stages one. Needs the shared bring-up:
+// the spoiler path resolves against the live Ship::Context's app directory and
+// the refusal surfaces through the shared notification overlay.
+TestResult Test_MMSpoilerIdentity(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_SpoilerIdentity_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// Foreign-pickup durable-record gate (#610), the defense-in-depth half: a
+// populated placement table with no live pairing must author no shared-item
+// record. Same bring-up as its sibling for consistency; the gate itself reads
+// only gComboCtx.
+TestResult Test_MMForeignPickupGate(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_ForeignPickupGate_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 TestResult Test_RoundtripIntegrity(void) {
     printf("[TEST] roundtrip-integrity: OoT SaveContext byte-integrity across roundtrip (issue #262)\n");
     int failures = TestRoundtripIntegrity_Run();
@@ -2266,6 +2311,14 @@ const TestDescriptor gTests[] = {
      Test_MMRandoOptions},
     {"mm-paired-profile", "The paired MM profile honours explicit choices and publishes a moving digest (#499)",
      Test_MMPairedProfile},
+    // Spoiler-drop identity gate (#610): a dropped spoiler's cross-game section
+    // is a COMBO commit, so it reaches gComboCtx only when its identity names
+    // the live pairing; divergence refuses through the #533 surface.
+    {"mm-spoiler-identity",
+     "A spoiler's foreign section commits only when its identity names the live pairing (#610)",
+     Test_MMSpoilerIdentity},
+    {"mm-foreign-pickup-gate", "An unpaired session authors no durable shared-item record on a foreign pickup (#610)",
+     Test_MMForeignPickupGate},
     {"combo-mm-options-window",
      "Common-owned MM options pane registers de-collided; inert under every active game (#497)",
      Test_ComboMMOptionsWindow},

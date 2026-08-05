@@ -1814,6 +1814,117 @@ extern "C" int MM_Combo_OwlSaveExitToOoT(void) {
 }
 
 /**
+ * Decide what the game-over "don't continue" prompt should do, and if this is a
+ * cross-game session, drive the launcher instead of MM's own boot chain.
+ *
+ * WHY THIS IS NOT MM_Combo_OwlSaveExitToOoT (#590). The transition it replaces
+ * carried the identical #532 mechanism -- z_kaleido_scope_NES.c's
+ * PAUSE_STATE_GAMEOVER_10 / PAUSE_PROMPT_NO leg did
+ * SET_NEXT_GAMESTATE(MM_TitleSetup_Init) with no cross-game condition, so
+ * TitleSetup_SetupTitleScreen's MM_Sram_InitNewSave authored a fresh vanilla
+ * file over the live gSaveContext while gComboCtx and OoT's frozen blob stayed
+ * resident. But it is a DEATH path, and that changes what a correct exit owes:
+ *
+ *   - The owl exit is taken from a HEALTHY, just-committed session. Refusing
+ *     TitleSetup is the whole fix; the state the launcher freezes is already the
+ *     state the player should return to.
+ *   - This exit is taken from a state where Link is DEAD. Refusing TitleSetup
+ *     alone would substitute a different corruption for the bootstrap: the
+ *     launcher's hot-swap freeze captures gSaveContext verbatim, so MM's shadow
+ *     -- and, through #589's whole-file commit, the .redsave's Tier-3 -- would
+ *     durably record a save whose health is 0. Re-entering MM restores it
+ *     (MM_Play_ConsumeStartupEntrance), Player's first update reads health 0 and
+ *     re-enters the game-over it just left, and the only way out is this same
+ *     prompt: loss of the MM half by a different route.
+ *
+ * So the death exit's obligation has two halves -- refuse TitleSetup AND leave
+ * MM's live SaveContext RESUMABLE -- and the revive below is the second half.
+ * That is why this is a separate function rather than a second caller of the owl
+ * guard: the revive would be wrong on a save exit, which must freeze exactly
+ * what it just committed.
+ *
+ * IT IS ALSO A SHARED-POOL OBLIGATION, not only an MM-side one. Current health
+ * is RSBS_SHARED_RES_HEALTH_CURRENT, a CONSUMABLE (src/common/context.h) -- one
+ * health bar across both games. MM_HarvestSharedResources runs later, at
+ * Game_Suspend, and harvests playerData.health verbatim; apply ASSIGNS a
+ * consumable on the far side. A departure taken at health 0 therefore hands OoT
+ * a dead bar. Both apply sides floor it at one heart
+ * (OoT_ApplySharedResources / MM_ApplySharedResources) and their comments say a
+ * departing game "cannot normally hand over a dead bar" -- this path is exactly
+ * the case that premise misses, and the revive is what keeps it true rather than
+ * leaning on the floor to paper over it.
+ *
+ * WHAT IS REVIVED, AND WHAT DELIBERATELY IS NOT. Vanilla's "continue" leg (the
+ * PAUSE_PROMPT_YES arm of the same PAUSE_STATE_GAMEOVER_10 switch) restores
+ * health to 0x30 and then runs MM's magic-meter REGROW ceremony: magic,
+ * magicLevel and magicCapacity to 0 with the true amount parked in
+ * magicFillTarget, refilled over subsequent frames. Only the health half is
+ * replicated here.
+ *
+ * The regrow is a multi-frame animation and this exit has no frames left -- MM's
+ * graph loop breaks on the next Combo_CheckHotSwap. Freezing its INTERMEDIATE
+ * state would park magic == 0 / magicLevel == 0 in the blob with the machine
+ * IDLE, and nothing on the arrival path restarts it
+ * (MM_Play_ConsumeStartupEntrance re-authors magicState but not the meter), so
+ * the player would return to MM with no magic meter at all. Leaving the meter
+ * untouched keeps the balance the player actually had when they died, which is
+ * both resumable and what MM_ReadSettledMagic already reads correctly.
+ *
+ * The health revive is CONDITIONAL on a dead bar rather than unconditional. The
+ * same PAUSE_STATE_GAMEOVER_10 state is reachable from the save-prompt chain via
+ * PAUSE_STATE_GAMEOVER_8 (the !flashSaveAvailable arm), where Link is alive;
+ * assigning 0x30 there would DEMOTE a player above three hearts. That arm cannot
+ * be taken in a cross-game session today -- flashSaveAvailable is true, so the
+ * save prompt exits through PAUSE_STATE_GAMEOVER_7 -- but the condition costs one
+ * comparison and removes the dependency on that staying so.
+ *
+ * WHAT THIS EXIT DOES NOT DO: COMMIT. It is deliberately not a save. ADR 0009
+ * decision 4a rules that quit-to-title is a durable commit -- but after this
+ * function the combo does not quit. Declining to continue in a cross-game
+ * session is a SWITCH back to the OoT session still live behind the player,
+ * structurally identical to F10 and to #543's owl exit, and a switch freezes
+ * rather than commits. Durability rides seams that already exist: the launcher
+ * freeze publishes the revived state into MM's shadow, and OoT's next commit --
+ * autosave, save point, or the OnExitGame quit that IS a 4a commit -- carries it
+ * as MM's half of one whole-file generation. Adding a commit here would decide,
+ * silently, that dying and declining is an autosave point; that question is
+ * recorded for the operator rather than answered in code.
+ *
+ * Standalone MM keeps vanilla 2ship behavior by the same gate as the owl exit:
+ * Context_HasFrozenState(GAME_OOT) is precisely "there is an OoT session to go
+ * back to", and it is single-use (#364), so it cannot be a stale souvenir. A
+ * standalone player who declines to continue still gets MM's title screen, and
+ * their SaveContext is not touched -- the revive sits behind the gate for that
+ * reason, not merely for tidiness.
+ *
+ * @return 1 if a switch was requested and the caller must NOT enter TitleSetup;
+ *         0 to keep vanilla behavior.
+ */
+extern "C" int MM_Combo_GameOverExitToOoT(void) {
+    if (!Context_HasFrozenState(GAME_OOT)) {
+        return 0;
+    }
+
+    // 0x30 == three hearts, the literal vanilla's own "continue" leg uses.
+    if (gSaveContext.save.saveInfo.playerData.health <= 0) {
+        gSaveContext.save.saveInfo.playerData.health = 0x30;
+        // healthAccumulator is the pending damage/heal drain. A death leaves it
+        // holding the blow that killed Link; carried into the revived bar it
+        // re-applies on the first frame back in MM. The arrival path zeroes it
+        // too, but the harvest at Game_Suspend runs BEFORE that arrival and
+        // #589 makes the frozen blob durable in its own right, so the value has
+        // to be right here rather than only by the time it is read again.
+        gSaveContext.healthAccumulator = 0;
+    }
+
+    fprintf(stderr, "[MM] game-over 'don't continue' in a cross-game session: returning to OoT (health %d)\n",
+            (int)gSaveContext.save.saveInfo.playerData.health);
+    fflush(stderr);
+    Combo_RequestGameSwitch();
+    return 1;
+}
+
+/**
  * Resume MM after being suspended for a game switch (issue #170, #270).
  * - Re-arms the system arena for the cold gamestate-chain boot (see
  *   MM_ResumeColdBootPrep — the retired session's allocations leak by
