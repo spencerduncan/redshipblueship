@@ -31,11 +31,29 @@
  * shared enhancement key?) is asserted on the OoT side through
  * `MM_ShipInit_RegistrarCountForPath`, which is production code in
  * 2s2h/ShipInitBridge_SingleExe.cpp.
+ *
+ * #614 ADDITION: `MMShipInitTest_AutosaveDrawFinishSettledCount` breaks the
+ * "no production registrar with live side effects" rule above, deliberately,
+ * for one registrar only. RegisterAutosave itself was the thing missing from
+ * the map (see SavingEnhancements.cpp's #614 comment), so a synthetic probe
+ * cannot stand in for it the way it does for legs 1-5 — the point of the leg
+ * is to observe the REAL RegisterAutosave react to a REAL CVar change. Its
+ * side effects are self-contained (two S2H::GameHooks registrations, gated on
+ * `MM_gPlayState == nullptr` before touching anything else) and it is exactly
+ * the registrar mm_registrar_coverage_test.cpp already runs live in its own
+ * ctest row, so nothing new is asked of the headless harness. Per that file's
+ * ATTRIBUTION note, `OnGameStateDrawFinish` has exactly one possible
+ * registrant tree-wide (RegisterAutosave's CVar-gated branch), so its settled
+ * count is an exact tell for whether RegisterAutosave ran and what it saw —
+ * no forcing of competing registrars needed, unlike the ShouldActorInit probe
+ * that note also describes.
  */
 
 #ifdef RSBS_SINGLE_EXECUTABLE
 
 #include "2s2h/ShipInit.hpp"
+#include "2s2h/GameInteractor/GameInteractor.h"
+#include "mm_game_hooks.h"
 
 #include <cstdio>
 #include <string>
@@ -98,6 +116,20 @@ void MMShipInitTest_DumpCVarKeys(void) {
         }
         printf("[TEST]   %s -> %d\n", path.c_str(), (int)funcs.size());
     }
+}
+
+/**
+ * #614: settled registrant count for OnGameStateDrawFinish, the exact tell
+ * for RegisterAutosave (see this file's #614 ADDITION header comment and
+ * mm_registrar_coverage_test.cpp's ATTRIBUTION note). Flushes pending
+ * unregistrations first — RegisterAutosave unregisters-then-registers on
+ * every call, and S2H::GameHooks::Unregister only queues an id for removal at
+ * the next Execute of that hook type, so an unflushed read could still credit
+ * a hook already slated for removal (or double-count across a re-arm).
+ */
+int MMShipInitTest_AutosaveDrawFinishSettledCount(void) {
+    S2H::GameHooks::FlushPendingUnregistrations<GameInteractor::OnGameStateDrawFinish>();
+    return static_cast<int>(S2H::GameHooks::Registry<GameInteractor::OnGameStateDrawFinish>::functions.size());
 }
 
 } // extern "C"

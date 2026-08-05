@@ -41,11 +41,42 @@
  * pass in that state — they lock the deliberate scoping, and their
  * counterfactual is deleting the pseudo-path filter in the bridge, which turns
  * them red.
+ *
+ * LEG 6 (#614): RegisterAutosave was reachable only from MM_Rando_Init's
+ * once-only bring-up, so it sat OUTSIDE MM's `S2H::ShipInit` map entirely and
+ * leg 2's driver had nothing to re-arm for it — the exact gap #539's own body
+ * flagged as deliberately out of scope. Unlike legs 1-5, this leg drives the
+ * REAL production `RegisterAutosave` through the REAL production CVar
+ * (`gEnhancements.Autosave`), because a synthetic probe cannot show that the
+ * registrar itself was missing from the map; only observing the registrar's
+ * OWN side effect can. `OnGameStateDrawFinish` has exactly one possible
+ * registrant tree-wide — RegisterAutosave's CVar-gated branch
+ * (SavingEnhancements.cpp; see mm_registrar_coverage_test.cpp's ATTRIBUTION
+ * note) — so its settled count is an exact tell for whether RegisterAutosave
+ * ran and what it saw. This needs a live Ship::Context (RegisterAutosave
+ * reads the CVar through CVarGetInteger), which is why
+ * `Test_MMShipInitDriver` (src/common/test_runner.cpp) now stands one up
+ * before calling in, unlike before #614.
+ *
+ * ARM-STATE FINDING, verified here rather than assumed: RegisterAutosave
+ * already unregisters both its hooks unconditionally before conditionally
+ * re-registering them (SavingEnhancements.cpp), the same shape as COND_HOOK —
+ * so re-arming is idempotent by construction. Leg 6 proves it: it drives
+ * RegisterAutosave twice with the CVar ON and asserts the settled count stays
+ * 1 both times, not 2. No new policy was invented for this; the existing
+ * registrar was already written the idempotent way, it just was not wired
+ * into the map that makes idempotence matter.
+ *
+ * VERIFIED RED BEFORE GREEN (leg 6): with the `RegisterShipInitFunc`
+ * registration removed from SavingEnhancements.cpp (RegisterAutosave's own
+ * #614 fix), leg 6 fails FAIL(6) — MM has no registrar under the converged
+ * Autosave key at all, so re-arming it is a no-op by construction.
  */
 
 #ifdef RSBS_SINGLE_EXECUTABLE
 
 #include "ShipInit.hpp"
+#include <libultraship/bridge/consolevariablebridge.h>
 
 #include <cstdio>
 #include <cstring>
@@ -61,6 +92,8 @@ const char* MMShipInitTest_ProbePath(void);
 void MMShipInitTest_DumpCVarKeys(void);
 int MM_ShipInit_RegistrarCountForPath(const char* path);
 void MM_ShipInit_OnCVarChanged(const char* path);
+// #614: real-registrar settled-count probe (games/mm/2s2h/mm_shipinit_driver_test.cpp).
+int MMShipInitTest_AutosaveDrawFinishSettledCount(void);
 }
 
 namespace {
@@ -70,6 +103,11 @@ namespace {
 // leg is that BOTH games agree on this literal, so a divergence in either
 // game's spelling is exactly what should turn it red.
 constexpr const char* kConvergedKey = "gEnhancements.RememberSaveLocation";
+
+// #614: the Autosave leg's converged key, spelled here for the same reason —
+// this TU must not see MM's SavingEnhancements.cpp, so a spelling drift
+// between the two games shows up as a red leg 6 rather than a silent pass.
+constexpr const char* kAutosaveKey = "gEnhancements.Autosave";
 
 int Fail(int code, const char* msg) {
     printf("[TEST] FAIL(%d): %s\n", code, msg);
@@ -142,9 +180,73 @@ extern "C" int OoT_ShipInitMMDriver_RunHeadless(void) {
     // Leave the counters clean for whatever runs next in AllTests.
     MMShipInitTest_ResetProbes();
 
+    // ---- leg 6: the Autosave CVar re-arms MM's REAL RegisterAutosave (#614) ---
+    // Legs 1-5 above never invoke a production registrar with live side
+    // effects — leg 1 only counts registrars keyed on the RememberSaveLocation
+    // key, it never calls Init on it. This leg is different on purpose: #614's
+    // bug was that RegisterAutosave sat OUTSIDE MM's map, so counting alone
+    // cannot distinguish "registered but never re-armed" from "never
+    // registered at all" the way it can for a key with a synthetic probe
+    // sitting next to the real registrar. Only running the real thing and
+    // reading its own settled registry state proves the map entry exists AND
+    // that the driver reaches it.
+    //
+    // Reality check first, mirroring leg 1: a registrar really is keyed on the
+    // converged Autosave path. If this is 0, #614 either regressed or the two
+    // games' spellings of the converged key drifted, and everything below
+    // would be exercising a no-op.
+    const int autosaveRegistrars = MM_ShipInit_RegistrarCountForPath(kAutosaveKey);
+    if (autosaveRegistrars <= 0) {
+        printf("[TEST] MM registrar count for '%s' is %d\n", kAutosaveKey, autosaveRegistrars);
+        MMShipInitTest_DumpCVarKeys();
+        return Fail(6, "no MM registrar is keyed on the converged Autosave key — RegisterAutosave is still outside "
+                       "MM's ShipInit map and re-arming it is a no-op (#614)");
+    }
+
+    // Drive with the CVar OFF first and settle: RegisterAutosave's hooks must
+    // not be left registered from an earlier state (this process's — or an
+    // earlier --test-all row's — prior CVar value).
+    CVarSetInteger(kAutosaveKey, 0);
+    MM_ShipInit_OnCVarChanged(kAutosaveKey);
+    const int settledOff = MMShipInitTest_AutosaveDrawFinishSettledCount();
+    if (settledOff != 0) {
+        printf("[TEST] OnGameStateDrawFinish settled count with Autosave OFF: %d\n", settledOff);
+        return Fail(7, "RegisterAutosave left an OnGameStateDrawFinish registrant behind with the Autosave CVar "
+                       "OFF (#614)");
+    }
+
+    // THE FIX. Turn it ON through the exact call the unified menu makes
+    // (CVarSetInteger, then the same ShipInit::Init(path) entry point leg 2
+    // proved reaches MM). Before #614, MM's map had no entry here at all, so
+    // this call is a lookup miss — settledOn stays 0, not 1.
+    CVarSetInteger(kAutosaveKey, 1);
+    MM_ShipInit_OnCVarChanged(kAutosaveKey);
+    const int settledOn = MMShipInitTest_AutosaveDrawFinishSettledCount();
+    if (settledOn != 1) {
+        printf("[TEST] OnGameStateDrawFinish settled count with Autosave ON: %d\n", settledOn);
+        return Fail(8, "changing the Autosave CVar through the unified menu path did not re-arm MM's registrar — "
+                       "RegisterAutosave is still outside MM's ShipInit map (#614)");
+    }
+
+    // ARM-STATE CHECK: re-drive with the CVar unchanged (a second click, or
+    // AllTests re-running this row). RegisterAutosave unregisters both hooks
+    // unconditionally before conditionally re-registering them — the same
+    // shape as COND_HOOK — so this must settle back to 1, never stack to 2.
+    MM_ShipInit_OnCVarChanged(kAutosaveKey);
+    const int settledOnAgain = MMShipInitTest_AutosaveDrawFinishSettledCount();
+    if (settledOnAgain != 1) {
+        printf("[TEST] OnGameStateDrawFinish settled count after a second re-arm: %d\n", settledOnAgain);
+        return Fail(9, "re-arming MM's Autosave registrar stacked hooks instead of staying idempotent (#614)");
+    }
+
+    // Leave it disarmed for whatever runs next in AllTests.
+    CVarSetInteger(kAutosaveKey, 0);
+    MM_ShipInit_OnCVarChanged(kAutosaveKey);
+
     printf("[TEST] PASS: a CVar change on the unified menu path re-arms MM's registrars (%d on the converged key), "
-           "while the '*' and 'IS_RANDO' pseudo-paths stay MM-driven\n",
-           convergedRegistrars);
+           "while the '*' and 'IS_RANDO' pseudo-paths stay MM-driven; the real Autosave registrar (%d on its "
+           "converged key) re-arms idempotently too (#614)\n",
+           convergedRegistrars, autosaveRegistrars);
     return 0;
 }
 
