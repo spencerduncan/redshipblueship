@@ -2,7 +2,8 @@
 
 - Status: **Accepted** (2026-07-22); **decisions 1 and 2 amended 2026-07-30**
   under the one-game-semantics ruling; **decision 4 added 2026-08-04** (#589,
-  whole-file commit) under the same ruling
+  whole-file commit) and **decision 4a decided 2026-08-05** (#589,
+  quit-to-title is a durable commit) under the same ruling
 - For: #498 (combo-level settings), gating #493 (MM -> OoT foreign items); Phase
   3.1 tracker #492, Lane 1
 - Amended: **2026-07-30, #564** (the one-game ruling is recorded on
@@ -21,7 +22,9 @@
   retires [#531](https://github.com/spencerduncan/redshipblueship/issues/531).
   Decisions 1-3 are unchanged. Added rather than amended because it decides a
   question none of them addressed: not what a save file *identifies*, but what
-  a save *commits*.
+  a save *commits*. **Decision 4a (2026-08-05)** closes the one question
+  decision 4 left open: quit-to-title is a durable commit — deliberate
+  autosave-on-quit, not a side effect.
 - Depends on:
   - **[ADR 0002](0002-origin-tagged-shared-items.md)** (Accepted) — the origin-tag
     invariant and the `ComboContext` growth contract every carve below obeys.
@@ -408,25 +411,53 @@ effect, by construction.
    erase, create, session reset) clears the claim with it. The #533 invariant
    that detection must never become data loss is unchanged.
 
-**Consequence to state plainly: OoT's exit-time commit becomes durable.**
-OoT's `OnExitGame` hook already committed on quit-to-title (`SaveManager.cpp`),
-and its Tier-2 — previously inert, because Tier-2 was never armed — is now the
-newest whole commit's OoT half. So a quit-to-title now resumes from the state
-at the quit, including the branch a player reaches by declining the death
-prompt's "Save?". That is the *atomic* answer and it is strictly better than
-the status quo ante, where that same quit already persisted Tier-1's REDEEMED
-records while discarding the world they accounted for — #531 by a second route.
-The alternative atomic answer is that a quit-without-saving should commit
-NOTHING, which means suppressing the exit-time commit rather than scoping the
-authority; that belongs to whoever owns that hook and is recorded as an open
-question on #589 rather than decided here.
-
 **Locks.** `whole-file-commit` and `whole-file-redeemed-item`
 (`src/common/tests/test_whole_file_commit.c`, CTest label `redship`) own the
 atomicity and authority claims and the #531 scenario end to end;
 `commit-generation-skew` keeps the detection claims;
 `mm-unified-save-capture` check 12 locks that a real MM route commits OoT's
 half too.
+
+### Decision 4a — quit-to-title is a DURABLE COMMIT (decided, not a consequence)
+
+> **2026-08-05, operator ruling on #589.** *Durable commit — keep the shipped
+> behavior. Quit-to-title commits the whole file at one generation; reload
+> resumes from the quit state. This is deliberate autosave-on-quit under the
+> one-game ruling, chosen over "commit nothing" partly because it atomically
+> closes #531's second route.*
+
+This shipped as a *consequence* of decision 4 and was raised as an open
+question; the ruling above **settles it as intended semantics**. The rationale
+below is the analysis that was put to the operator, kept verbatim as the
+reasoning behind the decision rather than as an argument still in flight.
+
+OoT's `OnExitGame` hook already committed on quit-to-title (`SaveManager.cpp`),
+and its Tier-2 — previously inert, because Tier-2 was never armed — is now the
+newest whole commit's OoT half. So a quit-to-title now resumes from the state
+at the quit, including the branch a player reaches by declining the death
+prompt's "Save?". That is the *atomic* answer and it is strictly better than
+the status quo ante, where that same quit already persisted Tier-1's REDEEMED
+records while discarding the world they accounted for — **#531's second route**,
+and the reason the ruling names it: an unsaved OoT leg that follows an MM leg
+would otherwise durably keep the REDEEMED records while discarding the items
+they account for, reproducing the exact loss decision 4 exists to retire.
+
+The alternative atomic answer — a quit-without-saving commits NOTHING, by
+suppressing the exit-time commit rather than scoping the authority — was
+**considered and rejected**. It is atomic too, but it leaves #531's second
+route open until the exit-time commit is restructured, and it trades a
+player-visible improvement (progress since the last save point survives a quit)
+for fidelity to a vanilla affordance that one-game semantics has already
+superseded elsewhere. Scoping the *authority* instead (e.g. by `sourceGame`)
+was rejected outright and must not be revisited: it reintroduces the loss —
+play past a save point after an MM leg, then quit without saving, and the
+REDEEMED records survive while the world does not.
+
+**What this obliges.** Quit-to-title is now a save route in every sense that
+matters, so it inherits the same rules as one: it commits through the #569
+choke point, it respects the #533/#568 write latch, and it must never commit a
+half. Anyone touching that hook (the #606 lane's region) is changing a *save*,
+not a teardown.
 
 ---
 
