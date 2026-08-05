@@ -309,6 +309,25 @@ main() {
     fi
 
     local overall=0
+    # WHY 2ship_enh AND 2ship_rando_ui STAY report-only -- do not "fix" this by
+    # flipping them to required (#516 asked the question twice; the answer is
+    # the same both times).
+    #
+    # `required` means EVERY registrar TU in the archive must survive the link.
+    # For 2ship_enh that is the wrong assertion, not a stricter one: most of its
+    # members must legitimately stay dead in single-exe. BenGui::SetupGuiElements
+    # would bring up a second menu surface; DebugConsole_Init ODR-collides with
+    # OoT's and, since AddCommand is first-wins, would be inert anyway;
+    # GameInteractor::RegisterOwnHooks writes into OoT's instance through
+    # poisoned names; OTRAudio_Init would spawn a second SDL audio thread;
+    # ConfigVersion1Updater would corrupt OoT's config migration at ordinal 1.
+    # Requiring the archive whole would demand exactly those link. 2ship_rando_ui
+    # is the same shape -- it is compiled only for bit-rot protection and is
+    # meant to be elided until MM's menu surface is ported.
+    #
+    # Enforcement for this archive therefore has to be PER-SYMBOL, which is what
+    # the required_mm_registrars allowlist below does, backed by the
+    # MMRegistrarCoverage ctest row for the half a symbol grep cannot see.
     run_elision_gate "$bin" \
         "$build_dir/games/oot/libsoh_rando.a:required" \
         "$build_dir/games/oot/libsoh_enh.a:required" \
@@ -347,10 +366,26 @@ main() {
     # dropped the hard call and re-elided a required MM feature.
     #
     # Same plain-grep-not-`-q` discipline as the probes above (pipefail + SIGPIPE).
-    # RegisterAutosave is deliberately ABSENT: its symbol ODR-folds with OoT's
-    # soh_enh Autosave.cpp twin (a static void RegisterAutosave()), so a presence
-    # probe cannot attribute a hit to MM's copy. RegisterSavingEnhancements has no
-    # such twin and is gated here (#516 Phase 2).
+    # RegisterAutosave is deliberately ABSENT: OoT ships a static
+    # RegisterAutosave (games/oot/soh/Enhancements/QoL/Autosave.cpp:80), whose
+    # symbol nm still lists, so a presence probe cannot attribute a hit to MM's
+    # copy. RegisterSavingEnhancements has no such twin and is gated here.
+    #
+    # RegisterAutosave is instead gated at RUNTIME by the MMRegistrarCoverage
+    # ctest row (games/mm/2s2h/mm_registrar_coverage_test.cpp), which attributes
+    # by registry content rather than by symbol name: OnGameStateDrawFinish has
+    # exactly one registrant in the whole MM tree, inside RegisterAutosave's
+    # CVar-gated branch, so a non-empty registry after the real MM_Rando_Init is
+    # an exact tell. That closes #516's open question 1 without renaming
+    # upstream-tracked code.
+    #
+    # NOTE ON WHAT THIS LOOP CAN AND CANNOT SEE. A name found here proves only
+    # that the symbol LINKED. It does not prove the registrar RAN -- a call
+    # moved under a never-true condition, or a once-guard that latches before
+    # it, keeps the symbol and leaves the registry as empty as full elision did.
+    # MMRegistrarCoverage covers that half for all four. Keep both: the grep
+    # catches re-elision at link time on every CI build, the ctest row catches
+    # the silent-no-op failure this whole issue class is made of.
     local required_mm_registrars=(
         "CustomItem::RegisterHooks"                 # cross-game + rando item delivery (critical)
         "S2H::CustomMessage::RegisterHooks"         # custom rando/hint message text 0x4B (critical)

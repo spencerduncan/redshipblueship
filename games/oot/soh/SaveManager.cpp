@@ -43,6 +43,12 @@ extern "C" SaveContext gSaveContext;
 // surface; it is called immediately before each .redsave write below so the
 // pool never lags the OoT blob stored beside it.
 extern "C" void OoT_HarvestSharedResources(void);
+// Whole-file commit, read side (#589/#531), defined in src/common/switch.cpp.
+// Restores the armed OoT blob into the live gSaveContext and RETIRES it in the
+// same call (#364's single-use contract). Declared rather than included for the
+// same narrow-surface reason as the harvest above; z_play.c declares it the
+// same way.
+extern "C" int Combo_ConsumeFrozenState(const char* gameId, void* saveContext, size_t size);
 using namespace std::string_literals;
 
 void SaveManager::WriteSaveFile(const std::filesystem::path& savePath, const uintptr_t addr, void* dramAddr,
@@ -227,10 +233,40 @@ SaveManager::SaveManager() {
         // A .sav-newer mismatch (a .redsave commit is missing) refuses
         // through the full #533 machinery — quarantine, write latch, file
         // panel — because committing the rolled-back Tier-1 would resurrect
-        // consumed shared-item records; a .redsave-newer mismatch (an MM-side
-        // commit landed after OoT's last save point, the #531 loss shape)
-        // loads and is surfaced as SlotMeta.commitSkew.
+        // consumed shared-item records; a .redsave-newer mismatch means the
+        // .redsave holds a WHOLE commit this .sav does not, and the newest
+        // whole commit wins (#589).
         RsbsSave_LoadSlotChecked(fileNum, this->GetLoadedCommitGeneration());
+
+        // WHOLE-FILE COMMIT, delivery seam (#589/#531, operator ruling
+        // 2026-08-04). This hook fires at the TAIL of LoadFile — every section
+        // has already been applied to the live gSaveContext — so it is the one
+        // point that is both after the .sav is fully in memory and before
+        // Sram_OpenSave interprets it (entrance fixups, health floor, spoiling
+        // items). If the load found a newer whole commit in the .redsave, its
+        // Tier-2 is OoT's half at that commit and is now armed; consume it
+        // here so the file resumes from the newest whole commit rather than
+        // from a .sav that predates it.
+        //
+        // Without this, the load is the #531 machine: Tier-1's REDEEMED
+        // shared-item records commit (they ride the same Tier-1 the choke
+        // point just restored) while the OoT world they were redeemed INTO
+        // does not, the redeem loop skips those entries forever, and the item
+        // is permanently gone.
+        //
+        // fileNum is carried across the restore deliberately. The blob is
+        // OoT's own SaveContext from this same slot, so its fileNum agrees —
+        // but "agrees" is an inference about how the blob was captured, and
+        // every later save addresses the file through this field. Re-asserting
+        // the slot the player actually opened costs two lines and removes the
+        // inference.
+        if (RsbsSave_TakeOoTHalfAuthority()) {
+            const int32_t openedFileNum = gSaveContext.fileNum;
+            Combo_ConsumeFrozenState("oot", &gSaveContext, sizeof(gSaveContext));
+            gSaveContext.fileNum = openedFileNum;
+            SPDLOG_INFO("RSBS: applied the .redsave's OoT half over file{}.sav (newer whole commit, #589)",
+                        fileNum + 1);
+        }
     });
 
     GameInteractor::Instance->RegisterGameHook<GameInteractor::OnDeleteFile>([](int32_t fileNum) {
@@ -263,14 +299,33 @@ SaveManager::SaveManager() {
         if (fileNum < 0 || fileNum >= RSBS_SAVE_MAX_SLOTS) {
             return;
         }
-        // Shared cross-game resources (#525) BEFORE the shadow capture, so the
-        // pool and the OoT blob stored beside it agree. Without this, money
-        // earned since the last switch is in the OoT save but not in the pool,
-        // and the post-load first-harvest seed reads the balance as already
-        // counted and drops it.
-        OoT_HarvestSharedResources();
-        Context_UpdateShadowCopy(GAME_OOT, &gSaveContext, sizeof(gSaveContext));
-        gComboCtx.sourceGame = GAME_OOT;
+        // #606: gated on the #533/#568 write latch, matching the SaveSection
+        // staging seam's guard (~:1553, `if (RsbsSave_IsSlotWritable(fileNum))`).
+        // The harvest below MUTATES process-global cross-game state
+        // (gComboCtx.sharedResources and the RAM watermark table), and a slot
+        // that is not writable this session -- never established, or REFUSED
+        // for identity (#570) / generation (#500) divergence -- means the
+        // RsbsSave_Save below WILL REFUSE. Advancing the pool for a record that
+        // is never written is the harvest/apply gate-asymmetry class #591/#600
+        // already fixed on MM's capture path: apply ASSIGNS the consumable
+        // kinds, so the phantom pool movement is materialized verbatim on the
+        // far side of the next crossing; the monotonic kinds are worse in
+        // kind, since max-merge cannot decay.
+        if (RsbsSave_IsSlotWritable(fileNum)) {
+            // Shared cross-game resources (#525) BEFORE the shadow capture, so
+            // the pool and the OoT blob stored beside it agree. Without this,
+            // money earned since the last switch is in the OoT save but not in
+            // the pool, and the post-load first-harvest seed reads the balance
+            // as already counted and drops it.
+            OoT_HarvestSharedResources();
+            Context_UpdateShadowCopy(GAME_OOT, &gSaveContext, sizeof(gSaveContext));
+            gComboCtx.sourceGame = GAME_OOT;
+        }
+        // Still called unconditionally: RsbsSave_Save's own CheckWriteAllowed
+        // latch check refuses cleanly on its own (this part was never buggy) --
+        // leaving the call here is what keeps behavior/logging identical to
+        // before for the permitted path, and produces the refusal log line for
+        // the latched one.
         RsbsSave_Save(fileNum);
     });
 

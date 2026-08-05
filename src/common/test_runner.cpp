@@ -50,6 +50,13 @@ int OoT_RegisterModelResourceFactoriesHeadless(void);
 // enters this translation unit; called through this C entry point, mirroring
 // MM_RegisterResourceFactoriesHeadless. Returns 0 on pass, non-zero on fail.
 int MM_SceneExecute_RunHeadless(void);
+// #539 — the CVar-change driver for MM's S2H::ShipInit map. The body lives in
+// an OoT TU (games/oot/soh/soh_shipinit_driver_test.cpp) because it must call
+// OoT's inline ShipInit::Init, the exact entry every SohMenu widget uses; its
+// probes live in an MM TU (games/mm/2s2h/mm_shipinit_driver_test.cpp) because
+// they must sit in MM's map. No TU can hold both games' ShipInit headers —
+// which is the same seam that let the bug exist. Returns 0 on pass.
+int OoT_ShipInitMMDriver_RunHeadless(void);
 // CosmeticEditor gfx-wrapper contract (games/mm/2s2h/CosmeticGfxSingleExe.cpp):
 // MM's HUD draw consumes these wrappers' Gfx* return as its display-list
 // write pointer; the old void stubs in mm_stubs.c fed it garbage (WRITE AV
@@ -115,6 +122,16 @@ int MM_UnifiedSaveCapture_RunHeadless(void);
 // phantom pool was materialized verbatim on the far side of the next crossing.
 // Returns 0 on pass, non-zero on fail.
 int MM_CaptureHarvestGate_RunHeadless(void);
+// OoT exit-save harvest gate (games/oot/soh/oot_exit_harvest_gate_test.cpp,
+// #606, same class as #591 above): the OnExitGame GameInteractor hook
+// (SaveManager.cpp :252-275) ran OoT_HarvestSharedResources() BEFORE
+// RsbsSave_Save checked the #533/#568 armed-session latch, so an
+// un-established or REFUSED slot still moved the shared-resource pool and the
+// RAM watermark table for a record that never reached disk. OoT's OTHER
+// staging seam (SaveManager.cpp SaveSection, ~:1553) already guarded the
+// identical sequence; OnExitGame was the one seam left unguarded. Returns 0
+// on pass, non-zero on fail.
+int OoT_ExitHarvestGate_RunHeadless(void);
 // MM single-exe hook dispatch (games/mm/2s2h/mm_hook_dispatch_test.cpp, #511 /
 // #438): the COND_* macros park registrations in the MM-owned S2H::GameHooks
 // registry, but ShouldActorInit / OnActorInit / OnActorDraw / OnOpenText
@@ -127,6 +144,15 @@ int MM_HookDispatch_RunHeadless(void);
 // a full Unix epoch -- into the persisted filePlaytime. The fix treats the zero
 // as the seed. Returns 0 on pass, non-zero on fail.
 int MM_PlaytimeSeed_RunHeadless(void);
+// MM registrar coverage (games/mm/2s2h/mm_registrar_coverage_test.cpp, #516):
+// BenPort.cpp's exclusion elided InitOTR's whole registration list, so
+// CustomItem / CustomMessage / RegisterSavingEnhancements / RegisterAutosave
+// were absent from the binary. They are re-homed into MM_Rando_Init; this row
+// drives that production entry point and asserts each one's registry actually
+// filled. Complements the CI symbol allowlist, which can only prove the
+// symbols LINKED -- and which cannot attribute RegisterAutosave at all, since
+// OoT ships a static twin of that name. Returns 0 on pass, non-zero on fail.
+int MM_RegistrarCoverage_RunHeadless(void);
 // MM tracker registration surface (games/mm/2s2h/mm_trackers_gui_test.cpp,
 // #392): the four MM tracker windows must register on a Gui under
 // "MM "-prefixed names (SoH owns the unprefixed ones and Gui::AddGuiWindow
@@ -219,6 +245,13 @@ extern "C" {
 // comparison surfaced through the #533 machinery. FILE SCOPE (compiled as
 // C++), same reason as above.
 #include "tests/test_commit_generation.c"
+
+// WHOLE-FILE COMMIT (#589, operator ruling 2026-08-04) — the read half of the
+// same machinery, and what structurally retires #531: one commit carries BOTH
+// halves at ONE generation, and on load the newest whole commit's OoT half is
+// the AUTHORITY rather than a warning. FILE SCOPE (compiled as C++), same
+// reason as above.
+#include "tests/test_whole_file_commit.c"
 
 // Lane C1 foreign-item pipeline locks (#392, ADR 0002): give-path tagging,
 // round-trip survival with a real pool entry, and the foreignPlacements carve
@@ -353,6 +386,14 @@ static TestResult Test_MMSceneExecute(void) {
     return MM_SceneExecute_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #539: a CVar change on the unified menu path must re-arm MM's registrars,
+// not only OoT's. Needs no Ship::Context — it touches the two registrar maps
+// and nothing else, and it drives only a synthetic key plus the two pseudo-
+// paths, so no production registrar with live side effects runs here.
+static TestResult Test_MMShipInitDriver(void) {
+    return OoT_ShipInitMMDriver_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // CosmeticEditor gfx-wrapper contract (see the extern decl above). Thin
 // wrapper over the C entry point in games/mm/2s2h/CosmeticGfxSingleExe.cpp.
 static TestResult Test_CosmeticGfxStub(void) {
@@ -406,6 +447,12 @@ static TestResult Test_MMUnifiedSaveCapture(void) {
 // the C entry point in games/mm/2s2h/mm_capture_harvest_gate_test.cpp.
 static TestResult Test_MMCaptureHarvestGate(void) {
     return MM_CaptureHarvestGate_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// OoT exit-save harvest gate (#606; see the extern decl above). Thin wrapper
+// over the C entry point in games/oot/soh/oot_exit_harvest_gate_test.cpp.
+static TestResult Test_OoTExitHarvestGate(void) {
+    return OoT_ExitHarvestGate_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // MM hook-dispatch lock (see the extern decl above). Thin wrapper over the C
@@ -1856,6 +1903,25 @@ TestResult Test_MMTrackersGui(void) {
     return MM_TrackersGui_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// MM registrar coverage (#516). Needs the same display-free shared bring-up as
+// the Gui rows above, for a different reason: it drives the real MM_Rando_Init,
+// whose ShipInit registrars and CVar-gated legs read the Ship::Context
+// singleton's ConsoleVariables. Without it MM_Rando_Init dereferences a null
+// singleton rather than reporting a clean failure.
+TestResult Test_MMRegistrarCoverage(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_RegistrarCoverage_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // Cross-game spoiler window (#496, ADR 0008). Same bring-up as the MM tracker
 // bridge above and for the same reason: the test constructs real
 // Ship::GuiWindow objects on a standalone Ship::Gui, and the GuiWindow ctor
@@ -2254,8 +2320,15 @@ const TestDescriptor gTests[] = {
      Test_CommitGenerationMonotonic},
     {"commit-torn-write", "Post-stage mutation cannot reach the .redsave; the #537 tear is unrepresentable",
      Test_CommitTornWrite},
-    {"commit-generation-skew", "Load detects .redsave/.sav freshness divergence (#531/#564 V16)",
+    {"commit-generation-skew", "Load detects .redsave/.sav freshness divergence (#531/#589)",
      Test_CommitGenerationSkew},
+    // Whole-file commit (#589): a durable save in either half commits BOTH
+    // halves at one generation, and on load the newest whole commit wins —
+    // which is what retires #531's permanent item loss.
+    {"whole-file-commit", "One commit carries both halves; the newest whole commit is the authority (#589)",
+     Test_WholeFileCommit},
+    {"whole-file-redeemed-item", "A REDEEMED record and the world it was redeemed into survive together (#531)",
+     Test_WholeFileRedeemedItem},
     {"mm-scene-parse", "MM scene commands parse via the S2H factory (#344)", Test_MMSceneParse},
     {"seq-map-bounds", "Sequence-map capacity covers the id range + custom slack (#371, #378)", Test_SeqMapBounds},
     {"cvar-classification", "Cross-game CVar classification matches ADR 0003 + the inventory (#34)",
@@ -2295,12 +2368,25 @@ const TestDescriptor gTests[] = {
     // that never reached disk. Pure (no display, no ROM).
     {"mm-capture-harvest-gate", "a latch-refused MM capture leaves the shared-resource pool untouched (#591)",
      Test_MMCaptureHarvestGate},
+    // Same class as mm-capture-harvest-gate above, on OoT's OnExitGame seam:
+    // the harvest used to run ahead of the #533/#568 latch check, so a
+    // refused exit-save still credited (or debited) rupees/hearts/magic and
+    // raised permanent monotonic tiers for a record that never reached disk.
+    // Pure (no display, no ROM).
+    {"oot-exit-harvest-gate", "a latch-refused OoT exit-save leaves the shared-resource pool untouched (#606)",
+     Test_OoTExitHarvestGate},
     // Hook dispatch reaches the MM-owned registry the COND_* macros register
     // into. Registers through the production macros and drives each dispatcher
     // through the name MM's call sites spell, so both a deleted bridge and a
     // dropped rebind #define fail here. Pure (no display, no ROM).
     {"mm-hook-dispatch", "ShouldActorInit/OnActorInit/OnActorDraw/OnOpenText dispatch reaches S2H::GameHooks (#511)",
      Test_MMHookDispatch},
+    // The sibling of the row above, one layer earlier: a hook is only as armed
+    // as the registrar that (un)registers it, and MM's registrar map had no
+    // CVar-change driver at all — the unified menu re-armed OoT and left MM
+    // latched at its first-boot value. Pure (no display, no ROM).
+    {"mm-shipinit-driver", "A unified-menu CVar change re-arms MM's ShipInit registrars, not only OoT's (#539)",
+     Test_MMShipInitDriver},
     // filePlaytime epoch injection: AdvancePlaytime accrued now-lastTimeLog with
     // lastTimeLog unseeded (0), writing a full Unix epoch into the persisted
     // playtime. Pure (no display), so it runs in the display-free suite.
@@ -2308,6 +2394,14 @@ const TestDescriptor gTests[] = {
      Test_MMPlaytimeSeed},
     {"mm-trackers-gui", "MM tracker windows register de-collided on the shared Gui + gate on the active game (#392)",
      Test_MMTrackersGui},
+    // Registrar coverage: BenPort.cpp's exclusion elided InitOTR's whole
+    // registration list, so the re-homed registrars in MM_Rando_Init must be
+    // shown to POPULATE their registries, not merely to link. Runs the real
+    // MM_Rando_Init, which is irreversible in-process, so `--test all` skips
+    // this entry and it is exercised only through its own CTest row (see the
+    // skip block in TestRunner_Run for the full reasoning).
+    {"mm-registrar-coverage", "MM_Rando_Init populates the registries BenPort's exclusion emptied (#516)",
+     Test_MMRegistrarCoverage},
     // The two MM resume-contract tests below mutate process-global state
     // (mm-resume-arena re-inits the MM system arena + heaps; mm-startup-restore
     // scribbles and re-zeroes the unified gSaveContext). Both clean up after
@@ -2401,6 +2495,35 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "mm-owl-save-arm-state") == 0 ||
                 strcmp(gTests[i].name, "foreign-placement-oot") == 0) {
                 printf("\n--- Skipping: %s (needs display; runs as a rando-label CTest) ---\n", gTests[i].name);
+                continue;
+            }
+            // mm-registrar-coverage is display-free, but it is the only row that
+            // runs the real MM_Rando_Init, and that is IRREVERSIBLE in-process:
+            // the once-guard cannot be cleared, and InitAll + Rando::Init leave
+            // registrants across dozens of S2H::GameHooks types, far more than a
+            // row could plausibly reset. Those registrations are correct
+            // production state, but later rows in this shared process were
+            // written against a process where MM's registrars had never run.
+            //
+            // Concretely: mm-startup-restore freezes a byte-patterned save and
+            // asserts an exact restore, and MM_Play_ConsumeStartupEntrance ends
+            // in GameInteractor_ExecuteOnSaveLoad. With RegisterSavingEnhancements
+            // live, that hook seeds shipSaveContext.lastTimeLog -- and
+            // shipSaveContext is the LAST member of SaveContext, so the seed
+            // overwrites the very tail byte that row checks.
+            //
+            // Worth stating plainly, because it is a latent finding rather than
+            // a quirk of this row: in a real MM boot MM_Rando_Init runs before
+            // any restore, so that seeder IS live, and mm-startup-restore's
+            // byte-exact tail assertion passes today only because its isolated
+            // process never registered it. Re-examining that assertion against
+            // production is its own change, not this one's.
+            //
+            // Skipping here costs no coverage: MMRegistrarCoverage has its own
+            // CTest row in the redship tier, which is what CI enforces.
+            if (strcmp(gTests[i].name, "mm-registrar-coverage") == 0) {
+                printf("\n--- Skipping: %s (runs MM_Rando_Init irreversibly; has its own CTest row) ---\n",
+                       gTests[i].name);
                 continue;
             }
             printf("\n--- Running: %s ---\n", gTests[i].name);

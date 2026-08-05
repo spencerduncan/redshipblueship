@@ -33,8 +33,11 @@ games/mm/2s2h/GameInteractorEventsSingleExe.cpp
 games/mm/2s2h/Rando/Foreign.cpp
 games/mm/2s2h/Rando/Foreign.h
 games/mm/2s2h/Rando/ForeignItemsSingleExe.cpp
+games/mm/2s2h/Rando/OptionsUiSingleExe.cpp
 games/mm/2s2h/Rando/TrackerAdapterSingleExe.cpp
+games/mm/2s2h/SaveEditorTimeSingleExe.cpp
 games/mm/2s2h/ShipInit.hpp
+games/mm/2s2h/ShipInitBridge_SingleExe.cpp
 games/mm/2s2h/TrackersGuiSingleExe.cpp
 games/mm/2s2h/TrackersGuiSingleExe.h
 games/mm/2s2h/mm_capture_harvest_gate_test.cpp
@@ -43,12 +46,14 @@ games/mm/2s2h/mm_fb_effects_test.cpp
 games/mm/2s2h/mm_flash_filenum_test.cpp
 games/mm/2s2h/mm_hook_dispatch_test.cpp
 games/mm/2s2h/mm_playtime_seed_test.cpp
+games/mm/2s2h/mm_registrar_coverage_test.cpp
 games/mm/2s2h/mm_framebuffer_effects.c
 games/mm/2s2h/mm_gi_shim_test.cpp
 games/mm/2s2h/mm_notification_binding_test.cpp
 games/mm/2s2h/mm_notification_bridge.cpp
 games/mm/2s2h/mm_resume_state_test.cpp
 games/mm/2s2h/mm_save_manager_stubs.c
+games/mm/2s2h/mm_shipinit_driver_test.cpp
 games/mm/2s2h/mm_trackers_gui_test.cpp
 games/mm/2s2h/mm_unified_save_test.cpp
 games/mm/2s2h/z_scene_2SH.cpp
@@ -72,7 +77,10 @@ games/oot/soh/ResourceManagerHelpers.cpp
 games/oot/soh/ResourceManagerHelpers.h
 games/oot/soh/SaveManager.cpp
 games/oot/soh/SaveManager.h
+games/oot/soh/ShipInit.hpp
 games/oot/soh/mixer.c
+games/oot/soh/oot_exit_harvest_gate_test.cpp
+games/oot/soh/soh_shipinit_driver_test.cpp
 games/oot/soh/z_scene_otr.cpp
 games/oot/src/code/audio_load.c
 games/oot/src/code/code_800E4FE0.c

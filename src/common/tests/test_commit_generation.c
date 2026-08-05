@@ -20,13 +20,23 @@
  *   post-stage mutations would then be serialized.
  *
  *   commit-generation-skew — the load-time freshness comparison between the
- *   two durable artifacts, surfaced through the #533 machinery: agreement and
- *   the pre-stamp (0) exemptions load cleanly; a .redsave NEWER than the .sav
- *   (the #531 loss shape) loads but records +1 on the slot's panel surface;
- *   a .sav NEWER than the .redsave (a missing .redsave commit) REFUSES before
- *   committing — quarantine, write latch, RSBS_REFUSE_COMMIT_SKEW — because
- *   committing the rolled-back Tier-1 would resurrect consumed shared-item
- *   records and roll back MM's only persistence.
+ *   two durable artifacts: agreement and the pre-stamp (0) exemptions load
+ *   cleanly; a .redsave NEWER than the .sav loads and records +1 on the slot's
+ *   panel surface; a .sav NEWER than the .redsave (a missing .redsave commit)
+ *   REFUSES before committing — quarantine, write latch,
+ *   RSBS_REFUSE_COMMIT_SKEW — because committing the rolled-back Tier-1 would
+ *   resurrect consumed shared-item records and roll back MM's only
+ *   persistence.
+ *
+ *   DOCTRINE NOTE (2026-08-04, #589). What the +1 direction MEANS changed with
+ *   the whole-file-commit ruling: it used to be "the #531 loss shape, load and
+ *   warn", and is now "the .redsave holds the newest WHOLE commit, so its OoT
+ *   half is the authority for this load". This file still owns the DETECTION
+ *   claims — the comparison and its two exemptions, both directions' outcomes,
+ *   and the #533 refusal — while the AUTHORITY claims that detection now feeds
+ *   live in test_whole_file_commit.c. Splitting them that way is deliberate:
+ *   a regression in the comparison and a regression in what is done with it
+ *   are different bugs and should fail different tests.
  *
  * Linkage note: like test_save_roundtrip.c, this file is #included into
  * test_runner.cpp at FILE SCOPE (compiled as C++) so it can call the C++
@@ -273,17 +283,39 @@ TestResult Test_CommitGenerationSkew(void) {
     CG_ASSERT(RsbsSave_LoadSlotChecked(0, 0) == RSBS_LOAD_OK, "a pre-stamp .sav must be exempt at load");
     CG_ASSERT(RsbsSave_GetSlotCommitSkew(0) == 0, "the exemption must record no skew");
 
-    // ---- .redsave newer (+1): the #531 loss shape — load, but SURFACE it -
-    // An MM-side commit landed after OoT's last save point. Refusing here
-    // would refuse every ordinary MM session's reload, so the load proceeds;
-    // the divergence is recorded on the slot and reaches the file panel.
+    // ---- .redsave newer (+1): the newest WHOLE commit — load and SURFACE it
+    // A commit landed after OoT's last save point (an MM-side save, or OoT's
+    // exit snapshot). Refusing here would refuse every ordinary MM session's
+    // reload, so the load proceeds; the divergence is recorded on the slot and
+    // reaches the file panel.
+    //
+    // RENEGOTIATED 2026-08-04 (#589). This block used to assert only that the
+    // divergence was RECORDED, and its comment called it "the #531 loss shape"
+    // — i.e. it encoded ".sav always wins for OoT's half, so the load is lossy
+    // but visible" as required behaviour. Under the whole-file-commit ruling
+    // the same +1 means the .redsave carries a whole commit the .sav does not,
+    // and its Tier-2 is OoT's half at that commit. The recording assertions
+    // below are unchanged and still load-bearing (the panel surface and the
+    // slot's writability are both about detection); what this file no longer
+    // claims is that the detection ENDS there. test_whole_file_commit.c owns
+    // the authority claims.
     mgr.ResetSlotSessionState();
     ComboContext_Init();
     CG_ASSERT(RsbsSave_LoadSlotChecked(0, 1) == RSBS_LOAD_OK, "a redsave-newer slot must still load");
-    CG_ASSERT(RsbsSave_GetSlotCommitSkew(0) == 1, "the #531 loss shape must be recorded (+1)");
+    CG_ASSERT(RsbsSave_GetSlotCommitSkew(0) == 1, "the newer whole commit must be recorded (+1)");
     CG_ASSERT(mgr.ReadMeta(0).commitSkew == 1, "the skew must surface on the file-panel meta");
     CG_ASSERT(RsbsSave_IsSlotWritable(0) == 1, "a redsave-newer slot stays writable (next commit heals forward)");
     CG_ASSERT(mgr.GetSlotState(0) == RSBS_SLOT_VALID, "a redsave-newer slot is VALID, not REFUSED");
+    // The detection now hands off to the authority path (#589/#531): this load
+    // must have armed the .redsave's OoT half. Asserted here as well as in
+    // test_whole_file_commit.c because it is the ONE consequence of a +1 that
+    // must never silently disappear — a +1 that arms nothing is #531 restored.
+    CG_ASSERT(RsbsSave_OoTHalfIsAuthoritative() == 1,
+              "a redsave-newer load must claim OoT-half authority — detection without authority is #531");
+    // Retire the claim (and the armed blob) so the refusal case below starts
+    // from a clean session, exactly as the production load seam would.
+    CG_ASSERT(RsbsSave_TakeOoTHalfAuthority() == 1, "taking the authority must report it");
+    Context_ClearAllFrozenStates();
 
     // ---- .sav newer (-1): a .redsave commit is MISSING — REFUSE (#533) ---
     // Committing the rolled-back Tier-1 would resurrect consumed shared-item

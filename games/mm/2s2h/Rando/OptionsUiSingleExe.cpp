@@ -125,14 +125,14 @@ namespace {
 // ---------------------------------------------------------------------------
 
 const char* const kLogicLabels[] = {
-    "Glitchless",       // RO_LOGIC_GLITCHLESS
-    "No Logic",         // RO_LOGIC_NO_LOGIC
-    "Nearly No Logic",  // RO_LOGIC_NEARLY_NO_LOGIC
-    "Vanilla",          // RO_LOGIC_VANILLA
+    "Glitchless",      // RO_LOGIC_GLITCHLESS
+    "No Logic",        // RO_LOGIC_NO_LOGIC
+    "Nearly No Logic", // RO_LOGIC_NEARLY_NO_LOGIC
+    "Vanilla",         // RO_LOGIC_VANILLA
 };
 
 const char* const kDungeonAccessLabels[] = {
-    "Requires Transformation & Song", // RO_ACCESS_DUNGEONS_FORM_AND_SONG
+    "Requires Transformation & Song",  // RO_ACCESS_DUNGEONS_FORM_AND_SONG
     "Requires Transformation or Song", // RO_ACCESS_DUNGEONS_FORM_OR_SONG
     "Requires Only Transformation",    // RO_ACCESS_DUNGEONS_FORM_ONLY
     "Requires Only Song",              // RO_ACCESS_DUNGEONS_SONG_ONLY
@@ -178,8 +178,7 @@ struct OptionUi {
 
 // Reason strings shared by several rows, so a wording change stays one edit.
 constexpr const char* kReasonOpenText = "Not yet available: MM OnOpenText dispatch not placed (#438)";
-constexpr const char* kReasonActorInitDrop =
-    "Would strand items: the drop's OnActorInit dispatch is not placed (#438)";
+constexpr const char* kReasonActorInitDrop = "Would strand items: the drop's OnActorInit dispatch is not placed (#438)";
 
 // clang-format off
 const OptionUi kOptionUi[] = {

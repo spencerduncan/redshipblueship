@@ -64,8 +64,6 @@ set(REDSHIP_COMMON_SOURCES
     ${CMAKE_SOURCE_DIR}/src/common/mod_archives.cpp
     ${CMAKE_SOURCE_DIR}/src/common/test_runner.cpp
     ${CMAKE_SOURCE_DIR}/src/common/integration_test_hooks.cpp
-    # Note: game_stubs.cpp is NOT included - real implementations come from
-    # games/oot/soh/GameExports_SingleExe.cpp and games/mm/2s2h/GameExports_SingleExe.cpp
     # Unified SaveContext storage for both games
     ${CMAKE_SOURCE_DIR}/src/common/unified_save.c
     # Unified cross-game save file (.redsave) — Phase 2 T6 (#35)
@@ -115,6 +113,8 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/zapd_subprocess.h
     ${CMAKE_SOURCE_DIR}/src/common/context.h
     ${CMAKE_SOURCE_DIR}/src/common/shared_items.h
+    # Header for shared_resources.c above (#525)
+    ${CMAKE_SOURCE_DIR}/src/common/shared_resources.h
     ${CMAKE_SOURCE_DIR}/src/common/foreign_items.h
     ${CMAKE_SOURCE_DIR}/src/common/combo_spoiler_view.h
     ${CMAKE_SOURCE_DIR}/src/common/ComboSpoilerWindow.h
@@ -123,6 +123,8 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/combo_mm_options_view.h
     ${CMAKE_SOURCE_DIR}/src/common/ComboMmOptionsWindow.h
     ${CMAKE_SOURCE_DIR}/src/common/entrance.h
+    # Header for mod_archives.cpp above (#593)
+    ${CMAKE_SOURCE_DIR}/src/common/mod_archives.h
     ${CMAKE_SOURCE_DIR}/src/common/test_runner.h
     ${CMAKE_SOURCE_DIR}/src/common/integration_test_hooks.h
     ${CMAKE_SOURCE_DIR}/src/common/ComboMenuBar.h
@@ -133,6 +135,17 @@ set(REDSHIP_COMMON_HEADERS
     # enhancement-classification inventory), consumed by OoT's version-7
     # config updater, the 2Ship importer, and the classification lock.
     ${CMAKE_SOURCE_DIR}/src/common/cvar_shared_keys.h
+    # DLL export/import macros (Phase 2 T10, #265); the only live consumer is
+    # SharedGraphics.h above.
+    ${CMAKE_SOURCE_DIR}/src/common/Export.h
+    # RSBS's own release identity (#319), independent of the upstream Ship
+    # VERSION baked into the archive/save validation.
+    ${CMAKE_SOURCE_DIR}/src/common/rsbs_version.h
+    # The plain-C cross-game notification interface (#427 item 1) and its
+    # runtime layout-equality lock — see their header comments for why both
+    # are still needed even though MM no longer hands OoT its own Options.
+    ${CMAKE_SOURCE_DIR}/src/common/notification_bridge.h
+    ${CMAKE_SOURCE_DIR}/src/common/notification_layout_probe.h
 )
 
 # ============================================================================
@@ -555,6 +568,16 @@ if(BUILD_TESTING)
     redship_add_test(NAME CommitGenerationMonotonic COMMAND redship --test commit-generation-monotonic)
     redship_add_test(NAME CommitTornWrite COMMAND redship --test commit-torn-write)
     redship_add_test(NAME CommitGenerationSkew COMMAND redship --test commit-generation-skew)
+    # Whole-file commit (#589, operator ruling 2026-08-04) — the read half of
+    # the same machinery. A durable save-and-quit in EITHER half commits BOTH
+    # halves at ONE generation, and on load the newest WHOLE commit wins: its
+    # Tier-2 is armed and delivered over OoT's older .sav. That is what
+    # structurally retires #531 (a durable RSBS_SHARED_ITEM_REDEEMED record
+    # outliving the item it accounts for = permanent loss of a progression
+    # item). Counterfactual: drop the Tier-2 arming from LoadSlot and
+    # WholeFileRedeemedItem goes red on the assertion that names the loss.
+    redship_add_test(NAME WholeFileCommit COMMAND redship --test whole-file-commit)
+    redship_add_test(NAME WholeFileRedeemedItem COMMAND redship --test whole-file-redeemed-item)
     redship_add_test(NAME Context COMMAND redship --test context)
     # F10 hot-swap freeze/consume contract (#364): the hotkey path must freeze
     # the DEPARTING game (or refuse the switch), and a consumed frozen state
@@ -655,6 +678,16 @@ if(BUILD_TESTING)
     # phantom balance verbatim at the next arrival; the monotonic tiers it also
     # raised could never decay back out. Display-free and ROM-free.
     redship_add_test(NAME MMCaptureHarvestGate COMMAND redship --test mm-capture-harvest-gate)
+    # Same class as MMCaptureHarvestGate above (#591/#600), on OoT's OnExitGame
+    # seam (#606, games/oot/soh/oot_exit_harvest_gate_test.cpp): the
+    # SaveManager.cpp OnExitGame GameInteractor hook harvested OoT's shared
+    # cross-game resources BEFORE RsbsSave_Save checked the #533/#568
+    # armed-session latch, so an un-established or REFUSED slot still moved
+    # the pool and the RAM watermark table for a record that never reached
+    # disk. OoT's OTHER staging seam (SaveSection, ~:1553) already guarded the
+    # identical sequence; OnExitGame was the one seam left unguarded.
+    # Display-free and ROM-free, so it runs in this redship tier.
+    redship_add_test(NAME OoTExitHarvestGate COMMAND redship --test oot-exit-harvest-gate)
     # MM single-exe hook dispatch (#511, #438): the COND_HOOK/COND_ID_HOOK
     # macros park registrations in the MM-owned S2H::GameHooks registry, but
     # ShouldActorInit / OnActorInit / OnActorDraw / OnOpenText dispatched
@@ -665,6 +698,15 @@ if(BUILD_TESTING)
     # randomized while their models and dialog stayed vanilla. Display-free and
     # ROM-free, so it runs in this redship tier.
     redship_add_test(NAME MMHookDispatch COMMAND redship --test mm-hook-dispatch)
+    # One layer earlier than the row above (#539): a hook is only as armed as the
+    # registrar that (un)registers it, and MM's registrar map — S2H::ShipInit,
+    # separate from OoT's since the #375 COMDAT-fold split — had no CVar-change
+    # driver in the link. The unified menu's widgets call OoT's
+    # ShipInit::Init(cvar), so a converged key like
+    # gEnhancements.RememberSaveLocation re-armed OoT on the click and left MM
+    # latched at its first-boot value for the rest of the process.
+    # Display-free and ROM-free, so it runs in this redship tier.
+    redship_add_test(NAME MMShipInitDriver COMMAND redship --test mm-shipinit-driver)
     # filePlaytime epoch injection (#513): SavingEnhancements_AdvancePlaytime is
     # called from plain C (z_sram_NES.c, z_kaleido_scope_NES.c) regardless of
     # hook wiring, and accrued now - lastTimeLog with lastTimeLog unseeded (0) --
@@ -679,6 +721,23 @@ if(BUILD_TESTING)
     # gSaveContext storage means an ungated MM tracker reads OoT bytes through
     # MM's SaveContext layout.
     redship_add_test(NAME MMTrackersGui COMMAND redship --test mm-trackers-gui)
+    # Registrar coverage (#516): games/mm/2s2h/BenPort.cpp is excluded from the
+    # single exe and was the SOLE caller of InitOTR's registration sequence, so
+    # 2ship_enh (a plain STATIC archive) lost the TUs entirely -- CustomItem and
+    # CustomMessage's RegisterHooks, RegisterSavingEnhancements and
+    # RegisterAutosave were all 0-hit in redship.map, leaving every randomized
+    # custom item uncollectable and every rando textbox on vanilla message
+    # 0x004B. They are re-homed into MM_Rando_Init; this row drives that real
+    # entry point and asserts each registry actually filled.
+    #
+    # It is NOT redundant with check-registrar-elision.sh's per-symbol
+    # allowlist: that grep proves the symbols LINKED, which a call moved under a
+    # never-true condition would still satisfy. It is also the only possible
+    # gate on RegisterAutosave, whose name the script cannot attribute (OoT
+    # ships a static twin at Enhancements/QoL/Autosave.cpp). Display-free and
+    # ROM-free -- MM_Rando_Init gates its one asset-dependent call behind
+    # MM_Rando_AssetsReady() -- so it runs in this redship tier.
+    redship_add_test(NAME MMRegistrarCoverage COMMAND redship --test mm-registrar-coverage)
     redship_add_test(NAME MMResumeArena COMMAND redship --test mm-resume-arena)
     redship_add_test(NAME MMStartupRestore COMMAND redship --test mm-startup-restore)
     redship_add_test(NAME AllTests COMMAND redship --test all)
