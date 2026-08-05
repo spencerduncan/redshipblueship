@@ -405,7 +405,29 @@ static TestResult Test_CosmeticGfxStub(void) {
 static TestResult Test_MMResumeArena(void) {
     return MM_ResumeArena_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
+// Forward declaration: defined below (shared by every wrapper that needs the
+// display-free Context bring-up), needed here because this wrapper sits above
+// that definition.
+static std::shared_ptr<Ship::Context> CreateHarnessStyleContext(void);
+
+// #617: unlike the wrapper above, this one needs the same display-free shared
+// bring-up as the Gui/registrar-coverage rows below — MM_StartupRestore_RunHeadless
+// now drives RegisterSavingEnhancements directly (so its restored
+// shipSaveContext.lastTimeLog assertion is checking the same live seeder a
+// real MM boot has, not an isolated process that never registered it), and
+// that registrar's CVAR_REMEMBER_SAVE_LOCATION leg reads the Ship::Context
+// singleton's ConsoleVariables.
 static TestResult Test_MMStartupRestore(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
     return MM_StartupRestore_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
@@ -2397,9 +2419,12 @@ const TestDescriptor gTests[] = {
     // Registrar coverage: BenPort.cpp's exclusion elided InitOTR's whole
     // registration list, so the re-homed registrars in MM_Rando_Init must be
     // shown to POPULATE their registries, not merely to link. Runs the real
-    // MM_Rando_Init, which is irreversible in-process, so `--test all` skips
-    // this entry and it is exercised only through its own CTest row (see the
-    // skip block in TestRunner_Run for the full reasoning).
+    // MM_Rando_Init, which is irreversible in-process (the once-guard cannot
+    // be cleared) — it used to be skipped by `--test all` for exactly that
+    // reason, until it conflicted with mm-startup-restore's byte-exact tail
+    // assertion. #617 fixed that assertion (see TestRunner_Run's "all"
+    // dispatch for the retirement), so this entry now also runs there,
+    // ahead of the resume-contract rows below, matching real boot order.
     {"mm-registrar-coverage", "MM_Rando_Init populates the registries BenPort's exclusion emptied (#516)",
      Test_MMRegistrarCoverage},
     // The two MM resume-contract tests below mutate process-global state
@@ -2497,35 +2522,27 @@ int TestRunner_Run(const char* testName) {
                 printf("\n--- Skipping: %s (needs display; runs as a rando-label CTest) ---\n", gTests[i].name);
                 continue;
             }
-            // mm-registrar-coverage is display-free, but it is the only row that
-            // runs the real MM_Rando_Init, and that is IRREVERSIBLE in-process:
-            // the once-guard cannot be cleared, and InitAll + Rando::Init leave
-            // registrants across dozens of S2H::GameHooks types, far more than a
-            // row could plausibly reset. Those registrations are correct
-            // production state, but later rows in this shared process were
-            // written against a process where MM's registrars had never run.
+            // mm-registrar-coverage used to be skipped here: it is the only row
+            // that runs the real MM_Rando_Init, which is IRREVERSIBLE in-process
+            // (the once-guard cannot be cleared), and mm-startup-restore's old
+            // byte-exact tail assertion broke once RegisterSavingEnhancements'
+            // live OnSaveLoad hook seeded shipSaveContext.lastTimeLog --
+            // shipSaveContext was the LAST member of SaveContext, so the seed
+            // overwrote the very tail byte that assertion pinned.
             //
-            // Concretely: mm-startup-restore freezes a byte-patterned save and
-            // asserts an exact restore, and MM_Play_ConsumeStartupEntrance ends
-            // in GameInteractor_ExecuteOnSaveLoad. With RegisterSavingEnhancements
-            // live, that hook seeds shipSaveContext.lastTimeLog -- and
-            // shipSaveContext is the LAST member of SaveContext, so the seed
-            // overwrites the very tail byte that row checks.
-            //
-            // Worth stating plainly, because it is a latent finding rather than
-            // a quirk of this row: in a real MM boot MM_Rando_Init runs before
-            // any restore, so that seeder IS live, and mm-startup-restore's
-            // byte-exact tail assertion passes today only because its isolated
-            // process never registered it. Re-examining that assertion against
-            // production is its own change, not this one's.
-            //
-            // Skipping here costs no coverage: MMRegistrarCoverage has its own
-            // CTest row in the redship tier, which is what CI enforces.
-            if (strcmp(gTests[i].name, "mm-registrar-coverage") == 0) {
-                printf("\n--- Skipping: %s (runs MM_Rando_Init irreversibly; has its own CTest row) ---\n",
-                       gTests[i].name);
-                continue;
-            }
+            // #617 resolved that as a test bug, not a production one:
+            // shipSaveContext is documented (z64save.h) as "values added by
+            // 2S2H that aren't persisted to the save file", production zeroes
+            // lastTimeLog in lockstep on every new-file/continue path
+            // (z_sram_NES.c), and MM_Play_ConsumeStartupEntrance dispatching
+            // OnSaveLoad after every restore is deliberate (#439). The tail
+            // assertion is now byte-exact only up to (excluding) shipSaveContext,
+            // plus a freshness check on lastTimeLog — both true whether or not
+            // MM_Rando_Init has already run in this process, since
+            // mm-startup-restore now brings its own seeder up (see
+            // Test_MMStartupRestore / MM_StartupRestore_RunHeadless). Running
+            // mm-registrar-coverage's real MM_Rando_Init here, ahead of it in
+            // this array, matches real boot order and no longer costs anything.
             printf("\n--- Running: %s ---\n", gTests[i].name);
             TestResult result = gTests[i].runFunc();
             total++;
