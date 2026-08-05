@@ -45,12 +45,14 @@ bool HandleFileDropped(char* path);
 // junk-class MM host item. Called by ApplyToSaveContext; exposed for the
 // MMRandoGen CTest lock.
 //
-// Returns the number of placements reconstructed (>= 0), 0 for an absent
-// "foreign" section, or -1 when it PRESERVES an already-populated (live-
-// session) table rather than overwriting it. Throws std::runtime_error on a
-// malformed section (validate-then-commit; the table is left untouched). Never
-// reads or writes gComboCtx.sharedItemsTagged, so redeemed crossings survive.
-// See Apply.cpp for the full overwrite semantics.
+// Returns the number of placements reconstructed (>= 0), 0 for an absent or
+// empty "foreign" section, -1 when it PRESERVES an already-populated (live-
+// session) table rather than overwriting it, or -2 when the spoiler's cross-game
+// IDENTITY does not name the world this session is playing (#610) — refused
+// through the #533 surface, nothing committed, MM's own world still applied.
+// Throws std::runtime_error on a malformed section (validate-then-commit; the
+// table is left untouched). Never reads or writes gComboCtx.sharedItemsTagged,
+// so redeemed crossings survive. See Apply.cpp for the full semantics.
 int ReconstructForeignPlacements(const nlohmann::json& spoiler);
 #endif
 

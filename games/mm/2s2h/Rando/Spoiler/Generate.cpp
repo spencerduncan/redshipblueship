@@ -2,6 +2,10 @@
 #include "Rando/Rando.h"
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "Rando/Foreign.h" // Lane C1 (#392): foreign-check lookup for the spoiler
+// src/common — gComboCtx, for the pairing identity the spoiler now stamps
+// alongside its cross-game section (#610). Included OUTSIDE any extern "C"
+// block: context.h manages its own linkage (see its header comment).
+#include "context.h"
 #endif
 
 namespace Rando {
@@ -61,6 +65,24 @@ nlohmann::json GenerateFromSaveContext() {
     // it". Only present (possibly empty) when this world was generated as the
     // MM half of a paired world.
     if (Rando::Foreign::PairingActive()) {
+        // #610: the "foreign" section below is a COMBO COMMIT, not a
+        // description — reloading it writes gComboCtx.foreignPlacements, from
+        // which every durable cross-game record flows. A spoiler is an
+        // untrusted file on disk (HandleFileDropped copies in whatever was
+        // dragged onto the window), so it has to NAME the world it was authored
+        // for or the LOAD path has nothing to compare against and must refuse.
+        //
+        // These are exactly the terms #570 freezes at creation, in exactly the
+        // form the arrival gate compares. They are written HERE rather than
+        // unconditionally because an unpaired world has no cross-game identity
+        // to name, and stamping a zeroed one would make "no pairing" look like
+        // a pairing that happens to be all zeros.
+        spoiler["rsbsPairing"] = {
+            { "sharedRandoSeed", gComboCtx.sharedRandoSeed },
+            { "sharedRandoSettingsHash", gComboCtx.sharedRandoSettingsHash },
+            { "mmProfileDigest", gComboCtx.mmProfileDigest },
+        };
+
         spoiler["foreign"] = nlohmann::json::object();
         for (auto& [randoCheckId, randoStaticCheck] : Rando::StaticData::Checks) {
             if (randoStaticCheck.randoCheckId == RC_UNKNOWN || !Rando::Foreign::IsForeignCheck(randoCheckId)) {
