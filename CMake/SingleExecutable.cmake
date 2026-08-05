@@ -436,6 +436,14 @@ if(BUILD_TESTING)
     redship_add_test(NAME MMRandoOptions COMMAND redship --test mm-rando-options)
     redship_add_test(NAME MMPairedProfile COMMAND redship --test mm-paired-profile)
     redship_add_test(NAME ComboMMOptionsWindow COMMAND redship --test combo-mm-options-window)
+    # Spoiler-drop identity gate (#610). MM's spoiler-LOAD path rebuilt
+    # gComboCtx.foreignPlacements from ANY dropped spoiler with no comparison
+    # against the #570 identity terms, and the pickup that followed authored a
+    # durable shared-item record a later genuine pair would redeem. Display-free
+    # for the same reasons as the two rows above — the spoiler writer/loader and
+    # the placement table need no fill, no display, and no ROM.
+    redship_add_test(NAME MMSpoilerIdentity COMMAND redship --test mm-spoiler-identity)
+    redship_add_test(NAME MMForeignPickupGate COMMAND redship --test mm-foreign-pickup-gate)
     # Cross-game session invalidation (#440). A soft reset or a new game must
     # retire the previous session's frozen blobs, shadows and gComboCtx
     # crossings — while a cross-game arrival and a legitimate existing-slot

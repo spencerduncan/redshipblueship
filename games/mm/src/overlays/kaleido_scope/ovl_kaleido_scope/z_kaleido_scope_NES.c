@@ -26,6 +26,13 @@
 // points. (The unified-save CAPTURE that used to be declared here alongside it
 // was retired into the marshal-tail funnel by #530; see z_sram_NES.c.)
 extern int MM_Combo_OwlSaveExitToOoT(void);
+// Cross-game DEATH exit policy (#590), same TU, same contract, separate
+// decision: the game-over "don't continue" prompt took the identical TitleSetup
+// escape, but from a state where Link is dead — so refusing TitleSetup is only
+// half of it, and the callee also has to leave gSaveContext resumable before the
+// launcher freezes it. See MM_Combo_GameOverExitToOoT for why that must not be
+// folded into the save-exit guard above.
+extern int MM_Combo_GameOverExitToOoT(void);
 #include "archives/item_name_static/item_name_static.h"
 #include "archives/map_name_static/map_name_static.h"
 #include "2s2h/Enhancements/FrameInterpolation/FrameInterpolation.h"
@@ -4027,23 +4034,31 @@ void MM_KaleidoScope_Update(PlayState* play) {
                         gSaveContext.save.saveInfo.playerData.magicLevel = 0;
                         gSaveContext.save.saveInfo.playerData.magic = 0;
                     } else { // PAUSE_PROMPT_NO
-                        // RSBS-TITLESETUP-EXEMPT(#532): KNOWN HOLE, not a
-                        // cleared one. The game-over "don't continue" prompt
-                        // carries the SAME mechanism as the owl-save exit — in
-                        // a cross-game session it authors a vanilla bootstrap
-                        // over the live MM session, which the next hop to OoT
-                        // freezes and OoT's next save launders into Tier-3.
-                        // It is left alone here because it is a DEATH path:
-                        // what the player should get after declining to
-                        // continue is a policy question about the combo's
-                        // death semantics, not a transcription of the owl-save
-                        // answer, and getting it wrong trades one data-loss
-                        // bug for a worse one. It needs its own change; this
-                        // marker exists so the invariant test names it out
-                        // loud rather than letting it hide among the
-                        // legitimately-exempt front-end transitions.
-                        STOP_GAMESTATE(&play->state);
-                        SET_NEXT_GAMESTATE(&play->state, MM_TitleSetup_Init, sizeof(TitleSetupState));
+                        // RSBS (#590): declining to continue must not enter
+                        // MM's TitleSetup in a cross-game session -- that chain
+                        // runs MM_Sram_InitNewSave and authors a vanilla
+                        // bootstrap over the live session, which the next hop to
+                        // OoT freezes and OoT's next whole-file commit writes
+                        // into Tier-3 as MM's half. This carried #532's exact
+                        // mechanism on a path reached by ordinary play, and it
+                        // shipped for a release behind the exempt marker #543
+                        // left here. That marker is gone and the invariant now
+                        // ENFORCES this line instead of passing around it
+                        // (tools/tests/test_repo_invariants.py,
+                        // test_titlesetup_game_over_exit_is_guarded). Writing
+                        // the marker string anywhere in this file is itself a
+                        // hard failure there, which is why it is not spelled out
+                        // above.
+                        //
+                        // The callee also revives the dead health bar before
+                        // requesting the switch -- see MM_Combo_GameOverExitToOoT
+                        // (games/mm/2s2h/GameExports_SingleExe.cpp), which is why
+                        // this is not the owl guard. Returns 0 for a standalone
+                        // MM session, keeping vanilla 2ship behavior.
+                        if (!MM_Combo_GameOverExitToOoT()) {
+                            STOP_GAMESTATE(&play->state);
+                            SET_NEXT_GAMESTATE(&play->state, MM_TitleSetup_Init, sizeof(TitleSetupState));
+                        }
                     }
                 }
             }

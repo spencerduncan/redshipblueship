@@ -166,12 +166,46 @@
  *      must sit PAST offsetof(SaveContext, fileNum), so a commit that ever
  *      inherited the owl memcpy's width would fail checks 6 and 12 rather than
  *      pass them by accident.
+ *
+ * ---------------------------------------------------------------------------
+ * #590 EXTENSION: the DEATH exit owes more than the save exit does.
+ *
+ * Check 11 locks the save exits. The game-over "don't continue" prompt carried
+ * the identical TitleSetup mechanism but is reached by ordinary play rather than
+ * by a deliberate save action, and it is taken from a state where Link is DEAD.
+ * That second fact is the whole reason it is a separate decision:
+ *
+ *  13. The game-over exit policy (#590). Refusing TitleSetup is only half of it.
+ *      The launcher's hot-swap freeze captures gSaveContext verbatim, so an exit
+ *      that refused TitleSetup and nothing else would freeze health 0 into MM's
+ *      shadow — and under #589 that is DURABLE as MM's half of the next whole
+ *      commit. The next arrival restores it and re-enters the game-over it just
+ *      left. So the exit must also leave the live SaveContext RESUMABLE, and
+ *      13a-13d lock decision, wiring-independent behavior, and the two ways the
+ *      revive could be wrong: absent (13b/13d) and over-applied (13a/13c).
+ *
+ *      13d is the one that makes this more than a field assignment. Current
+ *      health is RSBS_SHARED_RES_HEALTH_CURRENT, a CONSUMABLE — ONE bar across
+ *      both games — and the harvest that publishes it runs at Game_Suspend,
+ *      after this exit. A death exit that handed over a dead bar would carry the
+ *      death across the crossing into OoT. Both apply sides floor at one heart
+ *      and their comments assert a departing game "cannot normally hand over a
+ *      dead bar"; this path is the case that premise misses, and 13d is what
+ *      keeps the premise true rather than leaving the floor to hide it.
+ *
+ *      As with check 11, the CALL-SITE half — that
+ *      z_kaleido_scope_NES.c's PAUSE_STATE_GAMEOVER_10 leg actually consults
+ *      this function — is not observable from here and is locked as a
+ *      source-text invariant instead (tools/tests/test_repo_invariants.py,
+ *      test_titlesetup_game_over_exit_is_guarded, which additionally pins that
+ *      the exemption marker never returns to that file).
  */
 
 #include "global.h"
 
 #include "save.h"
 #include "context.h"
+#include "shared_resources.h" // check 13d: the shared health bar the death exit hands over
 #include "entrance.h"
 #include "game.h"
 
@@ -186,6 +220,8 @@
 extern "C" SaveContext gSaveContext;
 extern "C" int MM_Combo_CaptureSaveToUnifiedSlot(void);
 extern "C" int MM_Combo_OwlSaveExitToOoT(void);
+extern "C" int MM_Combo_GameOverExitToOoT(void);
+extern "C" void MM_HarvestSharedResources(void);
 
 namespace {
 
@@ -724,11 +760,104 @@ extern "C" int MM_UnifiedSaveCapture_RunHeadless(void) {
                  "a refused capture must still take the cross-game exit, never MM's TitleSetup (#533 x #532)");
     USAVE_ASSERT(Combo_IsGameSwitchRequested() == true, "a refused capture must still drive the launcher");
 
+    // ---- 13. The game-over "don't continue" exit policy (#590) ------------
+    // The same TitleSetup mechanism as check 11, on a DEATH path — and the
+    // reason it is a separate decision rather than a second caller of the owl
+    // guard is the part this check exists for: refusing TitleSetup is only half
+    // of a correct death exit, because the state the launcher would freeze has
+    // Link DEAD in it. The other half is leaving gSaveContext resumable, and
+    // that half is invisible to the source-text invariant in
+    // tools/tests/test_repo_invariants.py — which can see that the call site is
+    // wired, and nothing about what the callee owes.
+    Combo_ClearGameSwitchRequest();
+    memset(&gSaveContext, 0, sizeof(SaveContext));
+    ComboContext_Init();
+
+    // 13a. Standalone MM. The vanilla 2ship exit must stand, no switch may be
+    //      requested, and — the counterfactual that keeps the revive from
+    //      hijacking upstream — the dead SaveContext must be left ALONE. MM's
+    //      own TitleSetup chain is about to replace it wholesale; a port that
+    //      reached into a standalone player's save here would be editing a game
+    //      it was not asked to change.
+    Context_ClearAllFrozenStates();
+    gSaveContext.save.saveInfo.playerData.health = 0;
+    USAVE_ASSERT(MM_Combo_GameOverExitToOoT() == 0,
+                 "a standalone MM game-over must keep the vanilla TitleSetup exit (#590 gate)");
+    USAVE_ASSERT(Combo_IsGameSwitchRequested() == false, "a standalone MM game-over must not request a game switch");
+    USAVE_ASSERT(gSaveContext.save.saveInfo.playerData.health == 0,
+                 "a standalone MM game-over must not touch the save at all");
+
+    // 13b. Cross-game MM, Link dead. Refuse TitleSetup, drive the launcher, AND
+    //      hand back a bar that can be resumed into. Without the revive the
+    //      launcher freezes health 0 into MM's shadow, #589's whole-file commit
+    //      makes that durable as MM's half, and the next arrival re-enters the
+    //      game-over it just left — the bootstrap's data loss by another route.
+    {
+        std::vector<uint8_t> ootSession(OOT_SAVE_CONTEXT_SIZE, 0x22);
+        Context_FreezeState(GAME_OOT, OOT_ENTR_MARKET_FROM_MASK_SHOP, ootSession.data(), ootSession.size());
+    }
+    gSaveContext.save.saveInfo.playerData.health = 0;
+    gSaveContext.healthAccumulator = -8; // the blow that killed Link, still pending
+    USAVE_ASSERT(MM_Combo_GameOverExitToOoT() == 1,
+                 "a cross-game game-over exit must refuse MM's TitleSetup chain (#590)");
+    USAVE_ASSERT(Combo_IsGameSwitchRequested() == true,
+                 "refusing TitleSetup is not enough: the exit must request the switch that breaks MM's "
+                 "graph loop, or MM keeps running and reaches TitleSetup anyway");
+    USAVE_ASSERT(gSaveContext.save.saveInfo.playerData.health == 0x30,
+                 "the death exit must leave MM's live SaveContext RESUMABLE — a frozen dead bar is durable "
+                 "under #589 and re-enters the game-over on the next arrival");
+    USAVE_ASSERT(gSaveContext.healthAccumulator == 0,
+                 "the pending killing blow must not ride the revived bar into the next MM frame");
+
+    // 13c. The revive is CONDITIONAL, not a blanket assignment. The same
+    //      PAUSE_STATE_GAMEOVER_10 state is reachable with Link alive (the
+    //      !flashSaveAvailable arm of the save prompt), and 0x30 there would
+    //      DEMOTE a player who had more than three hearts.
+    Combo_ClearGameSwitchRequest();
+    gSaveContext.save.saveInfo.playerData.health = 0x50; // five hearts, alive
+    USAVE_ASSERT(MM_Combo_GameOverExitToOoT() == 1, "a live-bar cross-game game-over exit still takes the switch");
+    USAVE_ASSERT(Combo_IsGameSwitchRequested() == true, "a live-bar game-over exit must still drive the launcher");
+    USAVE_ASSERT(gSaveContext.save.saveInfo.playerData.health == 0x50,
+                 "the revive must not demote a bar that is already alive");
+
+    // 13d. The SHARED-POOL consequence, which is what makes 13b more than a
+    //      field assignment. Current health is a CONSUMABLE — one bar across
+    //      both games — and MM_HarvestSharedResources reads playerData.health
+    //      verbatim at Game_Suspend, i.e. AFTER this exit runs. Against a fresh
+    //      pool the revived 0x30 is published; a dead bar would publish NOTHING
+    //      (delta zero from a zero seed), and once a watermark exists it debits
+    //      the shared bar outright. Both apply sides floor at one heart, so the
+    //      symptom without this is a silent demotion rather than a crash —
+    //      exactly the kind that ships.
+    Combo_ClearGameSwitchRequest();
+    ComboContext_Init();
+    // The RAM watermarks are NOT part of gComboCtx, and checks 6-12 above left
+    // MM owning this kind's. Without the reset the delta below would be measured
+    // against whatever health those checks last harvested, and the assertion
+    // would depend on their setup instead of on this exit.
+    Combo_ResetSharedResourceWatermarks();
+    gSaveContext.gameMode = GAMEMODE_NORMAL; // the harvest gate (Combo_SaveIsLiveFile)
+    gSaveContext.save.saveInfo.playerData.health = 0;
+    gSaveContext.healthAccumulator = 0;
+    USAVE_ASSERT(MM_Combo_GameOverExitToOoT() == 1, "test setup: the cross-game death exit must be taken here");
+    MM_HarvestSharedResources();
+    {
+        uint16_t pooled = 0;
+        USAVE_ASSERT(Combo_GetSharedResource(RSBS_SHARED_RES_HEALTH_CURRENT, &pooled),
+                     "the departing death exit must publish a health bar at all — a dead bar publishes nothing");
+        USAVE_ASSERT(pooled == 0x30, "the shared health bar must carry the revived value, not the dead one");
+    }
+
     // Leave global state clean for whatever runs next.
     Combo_ClearGameSwitchRequest();
     memset(&gSaveContext, 0, sizeof(SaveContext));
     Context_ClearAllFrozenStates();
     ComboContext_Init();
+    // The watermark table lives outside gComboCtx, so ComboContext_Init above
+    // does not reach it. AllTests runs every row in ONE process and check 13d
+    // harvests, so leaving MM owning a watermark here would seed the next row's
+    // first harvest against this row's leftovers.
+    Combo_ResetSharedResourceWatermarks();
     RsbsSave_SetActiveSlot(-1);
     RsbsSave_ResetSlotSessionState();
     std::filesystem::remove_all(dir, ec);

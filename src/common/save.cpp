@@ -129,7 +129,14 @@ const char* SaveManager::RefuseReasonLabel(RsbsRefuseReason reason) {
         case RSBS_REFUSE_COMMIT_SKEW:
             return "older than the OoT save (a commit is missing)";
         case RSBS_REFUSE_IDENTITY:
-            return "options differ from this pair's creation";
+            // Deliberately names the CLASS, not one producer's instance of it.
+            // Two paths latch this reason now: #570's arrival gate (the live MM
+            // options no longer resolve to the frozen profile) and #610's
+            // spoiler-load gate (the loaded spoiler's cross-game section names
+            // a different world). "Options differ from this pair's creation"
+            // was true of the first and actively misleading about the second.
+            // Each producer's own stderr line carries the specific term.
+            return "this session diverges from this pair's creation identity";
         case RSBS_REFUSE_GENERATION:
             return "the paired Termina world could not be generated";
         case RSBS_REFUSE_NONE:
