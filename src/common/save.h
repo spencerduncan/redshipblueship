@@ -167,15 +167,18 @@ struct SlotMeta {
     RsbsRefuseReason refuseReason;
     bool             hasQuarantine;
 
-    // #531/#564 V16 interim: the freshness relation the LAST checked load of
-    // this slot observed between the two durable artifacts of the ONE save.
+    // #531/#589 (whole-file commit, operator ruling 2026-08-04): the freshness
+    // relation the LAST checked load of this slot observed between the two
+    // durable artifacts of the ONE save.
     // 0 = agreed (or never compared / either artifact predates the stamp);
-    // +1 = the .redsave was NEWER than OoT's .sav — an MM-side commit landed
-    // after OoT's last save point, so OoT's world resumed older than the
-    // cross-game records that account for it (the #531 loss shape). The file
-    // panel renders this as a staleness warning. (-1, the .sav-newer case,
-    // never appears here: that load REFUSES instead — see
-    // RSBS_REFUSE_COMMIT_SKEW.) Session state, reset by erase/create/reset.
+    // +1 = the .redsave carried a NEWER whole commit than OoT's .sav — a
+    // commit landed after OoT's own file was last written (an MM-side owl
+    // save, or OoT's exit-time snapshot). Under whole-file commit that is not
+    // a warning any more: the .redsave's Tier-2 IS OoT's half at that commit,
+    // so the load ARMS it and OoT's load seam takes it (see LoadSlot and
+    // OoTHalfIsAuthoritative). (-1, the .sav-newer case, never appears here:
+    // that load REFUSES instead — see RSBS_REFUSE_COMMIT_SKEW.) Session state,
+    // reset by erase/create/reset.
     int commitSkew;
 };
 
@@ -274,23 +277,57 @@ public:
      * mirrors ("rsbsCommitGeneration"; 0 when absent/unknown — 0 exempts the
      * comparison entirely). The commit choke point stamps the same monotonic
      * generation into BOTH durable artifacts of the ONE save, so load is
-     * where their freshness is compared (#531/#564 V16 interim):
+     * where their freshness is compared — and, since the 2026-08-04 whole-file
+     * commit ruling (#589), where AUTHORITY is decided (#531):
      *
-     *   - equal, or either side pre-stamp (0): agreement; load proceeds.
-     *   - .redsave NEWER (an MM-side commit landed after OoT's last save
-     *     point): load proceeds — this is the designed post-MM-commit state,
-     *     refusing it would refuse every ordinary MM session's reload — but
-     *     the skew is RECORDED and surfaced in the file panel (SlotMeta
-     *     .commitSkew / GetSlotCommitSkew): OoT's world resumed older than
-     *     the cross-game records, the #531 loss shape. (The record-staging
-     *     residue that retires the loss itself is tracked in #531.)
+     *   - equal, or either side pre-stamp (0): agreement; load proceeds and
+     *     OoT's own .sav delivers OoT's half, exactly as before. A pre-stamp
+     *     artifact makes no authority claim: legacy files stay on the old
+     *     path rather than being adjudicated on evidence they do not carry.
+     *   - .redsave NEWER: the .redsave carries a whole commit that OoT's own
+     *     file does not. Under the ruling a durable commit is the WHOLE file
+     *     — the saving half live, the other half from its frozen shadow, one
+     *     generation — so its Tier-2 IS OoT's half at that commit, and the
+     *     newest whole commit wins. The load therefore ARMS Tier-2 as well as
+     *     Tier-3 and reports OoTHalfIsAuthoritative() so OoT's load seam
+     *     takes it into the live SaveContext. This is what structurally
+     *     retires #531: the REDEEMED shared-item records in Tier-1 and the
+     *     world they were redeemed INTO now travel together, so a record can
+     *     no longer outlive the item it accounts for. Still recorded on the
+     *     slot (SlotMeta.commitSkew / GetSlotCommitSkew) — the panel now
+     *     reads it as "cross-game progress newer than the OoT save, applied"
+     *     rather than as a loss warning.
      *   - .sav NEWER (a .redsave commit is MISSING — lost write or foreign
      *     file): REFUSED before committing, through the full #533 machinery
      *     (quarantine + write latch + panel surface), because committing the
      *     rolled-back Tier-1 would resurrect consumed shared-item records
-     *     and roll back MM's world.
+     *     and roll back MM's world. UNCHANGED by the ruling: "the newest
+     *     whole commit wins" is not "arbitrate freshness in both directions"
+     *     — a missing commit is corruption to refuse, and a refused slot must
+     *     never lose to, or clobber, anything.
      */
     RsbsLoadOutcome LoadSlot(int slot, uint32_t ootSavGeneration = 0);
+
+    /**
+     * Whole-file commit, read side (#589/#531). True iff the load that just
+     * ran found the .redsave's whole commit NEWER than OoT's .sav and
+     * therefore armed Tier-2 — i.e. OoT's half must come from the .redsave,
+     * not from the .sav that OoT's own loader just applied.
+     *
+     * TakeOoTHalfAuthority() is the ONE-SHOT form the load seam uses: it
+     * returns the same answer and clears the flag, so the authoritative half
+     * is delivered exactly once per load. One-shot on purpose — the armed
+     * Tier-2 blob is single-use (#364: a frozen blob that survives its own
+     * consumption is indistinguishable, on the next return leg, from one that
+     * was just frozen, and re-applying it rolls the player back), so the
+     * signal that drives the consumption has to retire with it.
+     *
+     * Cleared by every load attempt (including a refusal), by erase, by
+     * create, and by ResetSlotSessionState: a slot that was REFUSED has no
+     * authoritative half to deliver.
+     */
+    bool OoTHalfIsAuthoritative() const;
+    bool TakeOoTHalfAuthority();
 
     /** Compatibility wrapper: LoadSlot(slot) == RSBS_LOAD_OK. */
     bool Load(int slot);
@@ -523,10 +560,17 @@ private:
     bool             mSlotArmed[RSBS_SAVE_MAX_SLOTS]{};
     RsbsRefuseReason mSlotRefused[RSBS_SAVE_MAX_SLOTS]{};
 
-    // #531/#564 V16: the freshness relation the last checked load observed
+    // #531/#589: the freshness relation the last checked load observed
     // (see LoadSlot / GetSlotCommitSkew). 0 or +1; the -1 case refuses
     // through mSlotRefused instead.
     int mSlotSkew[RSBS_SAVE_MAX_SLOTS]{};
+
+    // #589 whole-file commit: the slot whose loaded Tier-2 is the
+    // authoritative OoT half and has been armed for restore, or -1 for none.
+    // One-shot: TakeOoTHalfAuthority clears it. Not per-slot storage — a
+    // session has at most one load in flight and exactly one live OoT
+    // SaveContext to deliver into.
+    int mOoTHalfAuthoritySlot = -1;
 
     // Game-side metadata descriptors, indexed by GameId (GAME_OOT / GAME_MM).
     // mMetaPresent[i] guards mMetaDescs[i]; an unset descriptor causes
@@ -561,19 +605,33 @@ uint32_t RsbsSave_StageCommit(void);
 int      RsbsSave_WriteStagedCommit(int slot);
 
 /**
- * Load with the cross-artifact freshness check (#531/#564 V16 interim; see
+ * Load with the cross-artifact freshness check (#531/#589; see
  * SaveManager::LoadSlot). `ootSavGeneration` is the commit generation the OoT
  * .sav JSON mirrors ("rsbsCommitGeneration", 0 when absent — exempt). Returns
  * the RsbsLoadOutcome as an int; a .sav-newer skew refuses through the full
  * #533 machinery (quarantine + latch + RSBS_REFUSE_COMMIT_SKEW), a
- * .redsave-newer skew loads and is surfaced via RsbsSave_GetSlotCommitSkew /
- * SlotMeta.commitSkew (0 agreed, +1 the #531 loss shape).
- * RsbsSave_CompareCommitGenerations is the pure comparison, exposed for the
- * headless locks.
+ * .redsave-newer skew loads, ARMS the .redsave's OoT half as the authority for
+ * this load (RsbsSave_TakeOoTHalfAuthority) and is surfaced via
+ * RsbsSave_GetSlotCommitSkew / SlotMeta.commitSkew (0 agreed, +1 the newest
+ * whole commit came from the .redsave). RsbsSave_CompareCommitGenerations is
+ * the pure comparison, exposed for the headless locks.
  */
 int RsbsSave_LoadSlotChecked(int slot, uint32_t ootSavGeneration);
 int RsbsSave_GetSlotCommitSkew(int slot);
 int RsbsSave_CompareCommitGenerations(uint32_t redsaveGeneration, uint32_t ootSavGeneration);
+
+/**
+ * Whole-file commit, read side (#589/#531; see SaveManager::TakeOoTHalfAuthority).
+ * RsbsSave_TakeOoTHalfAuthority returns 1 exactly once after a load whose
+ * .redsave carried a newer whole commit than OoT's .sav, and 0 otherwise. The
+ * caller — OoT's OnLoadFile seam, which runs after OoT's own sections have
+ * been applied to the live gSaveContext — answers a 1 by consuming the armed
+ * OoT blob (Combo_ConsumeFrozenState("oot", ...)) so the newest whole commit's
+ * OoT half is the one the file resumes from. RsbsSave_OoTHalfIsAuthoritative
+ * is the non-consuming peek, for panels and tests.
+ */
+int RsbsSave_TakeOoTHalfAuthority(void);
+int RsbsSave_OoTHalfIsAuthoritative(void);
 
 /**
  * #533 REFUSED-state surface. LoadSlot is RsbsSave_Load with the three-way

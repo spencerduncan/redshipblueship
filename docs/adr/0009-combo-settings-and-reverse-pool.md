@@ -1,7 +1,8 @@
 # ADR 0009: Combo settings author in CVars and identify by digest; the reverse pool is a second origin-keyed table behind a pre-generation gate
 
 - Status: **Accepted** (2026-07-22); **decisions 1 and 2 amended 2026-07-30**
-  under the one-game-semantics ruling
+  under the one-game-semantics ruling; **decision 4 added 2026-08-04** (#589,
+  whole-file commit) under the same ruling
 - For: #498 (combo-level settings), gating #493 (MM -> OoT foreign items); Phase
   3.1 tracker #492, Lane 1
 - Amended: **2026-07-30, #564** (the one-game ruling is recorded on
@@ -14,6 +15,13 @@
   claim 3's *rationale* is restated where it leaned on decision 1. Each
   amendment sits at the end of its decision, with the original reasoning kept
   above it so the decision trail stays legible.
+- Extended: **2026-08-04, [#589](https://github.com/spencerduncan/redshipblueship/issues/589)**
+  — decision 4 applies the same one-game ruling to durable commits (a commit is
+  the WHOLE file; on load the newest whole commit wins), which structurally
+  retires [#531](https://github.com/spencerduncan/redshipblueship/issues/531).
+  Decisions 1-3 are unchanged. Added rather than amended because it decides a
+  question none of them addressed: not what a save file *identifies*, but what
+  a save *commits*.
 - Depends on:
   - **[ADR 0002](0002-origin-tagged-shared-items.md)** (Accepted) — the origin-tag
     invariant and the `ComboContext` growth contract every carve below obeys.
@@ -330,6 +338,95 @@ state by calling `ComboContext_Init()`, which `memset`s the whole struct
 automatically. The sites that genuinely need pairing are the explicit
 `Combo_ClearForeignPlacements` callers, the spoiler write/read pair, and the
 determinism digest.
+
+## Decision 4 — a durable commit is the WHOLE file; on load, the newest whole commit wins
+
+> **2026-08-04, operator ruling on [#589](https://github.com/spencerduncan/redshipblueship/issues/589).**
+> *Whole-file commit: any half's save-and-quit commits BOTH halves at one
+> generation, in one instant, through the existing #569 commit choke point; on
+> load, the newest whole commit wins.* Recorded here rather than in a new ADR
+> because it is the same one-game ruling decisions 1 and 2 were amended under
+> (#500/#564), applied to the durable-commit space instead of the identity
+> space: a paired OoT+MM slot is ONE save, so divergence between its halves is
+> corruption, not choice.
+
+**The question.** #589 asked what a save-and-quit in one half of a cross-game
+session commits. Before this ruling the honest answer was "half the file": MM's
+owl save captured MM's half into the `.redsave` while OoT's half stayed at
+OoT's last durable write, and OoT's `file{N+1}.sav` was never rewritten because
+an MM-side commit cannot reach OoT's own save flow. #569 made that divergence
+*visible* — a monotonic commit generation stamped into both artifacts, compared
+at load, rendered as `[STALE: cross-game progress is newer than the OoT save]`
+— without making it *correct*.
+
+**The decision, in two halves.**
+
+*Write.* Every durable commit carries the whole file: the saving half live
+(refreshed from its own `gSaveContext` on the game thread immediately before
+staging) and the other half from its frozen shadow, which is that half's true
+state as of when it was last live. One monotonic generation, one instant, one
+choke point (`rsbs::SaveManager::StageCommit`). No route commits a half.
+
+*Read.* The generation names which artifact holds the newest WHOLE commit, and
+every tier of that commit wins together. When the `.redsave`'s generation is
+newer than the one OoT's `.sav` mirrors, the `.redsave`'s Tier-2 is OoT's half
+at that commit: `LoadSlot` arms it and OoT's load seam consumes it into the
+live `SaveContext` before `Sram_OpenSave` interprets the file. Detection
+becomes authority.
+
+**What this retires.** [#531](https://github.com/spencerduncan/redshipblueship/issues/531)
+(P1, permanent loss of cross-game progression items) is retired
+*structurally*, not patched. Its mechanism was a durable
+`RSBS_SHARED_ITEM_REDEEMED` record outliving the world state it accounted for:
+the record rode Tier-1 into the `.redsave`, the item rode only OoT's live
+`SaveContext`, the load committed the former and discarded the latter, and the
+redeem loop skips a REDEEMED entry forever. Under whole-file commit the record
+and the world it was redeemed into are tiers of the same commit — they are
+restored together or not at all, so the shape has no representation. Note what
+this is *not*: it is not the redemption-staging residue #531's own comment
+sketched (flags staged until a commit whose world tier contains the effect).
+Staging was the right fix for a world where commits were partial. Once a commit
+is whole, the record is already in a commit whose world tier contains its
+effect, by construction.
+
+**Boundaries — three things the ruling does NOT say.**
+
+1. **It is not "the `.redsave` always wins".** Equal generations, and either
+   artifact at the pre-stamp 0, claim no authority: the `.sav` delivers OoT's
+   half exactly as before. An unconditional arm would race a redundant or
+   legacy copy of OoT's world against the file the engine just loaded — the
+   original reason Tier-2 was left unarmed, which is correct for those cases
+   and only those.
+2. **It is not freshness arbitration in both directions.** The inverse skew
+   (OoT's `.sav` newer, i.e. a `.redsave` commit is MISSING) still REFUSES at
+   full #533 strength: no commit, evidence quarantined, slot write-latched.
+   Committing a rolled-back Tier-1 would resurrect already-consumed shared-item
+   records and roll MM's only persistence back. "Newest whole commit wins"
+   presumes both artifacts are intact; a missing commit is corruption.
+3. **A REFUSED slot has no authoritative half.** Refusal is checked before any
+   authority is claimed, and every release event (successful load, explicit
+   erase, create, session reset) clears the claim with it. The #533 invariant
+   that detection must never become data loss is unchanged.
+
+**Consequence to state plainly: OoT's exit-time commit becomes durable.**
+OoT's `OnExitGame` hook already committed on quit-to-title (`SaveManager.cpp`),
+and its Tier-2 — previously inert, because Tier-2 was never armed — is now the
+newest whole commit's OoT half. So a quit-to-title now resumes from the state
+at the quit, including the branch a player reaches by declining the death
+prompt's "Save?". That is the *atomic* answer and it is strictly better than
+the status quo ante, where that same quit already persisted Tier-1's REDEEMED
+records while discarding the world they accounted for — #531 by a second route.
+The alternative atomic answer is that a quit-without-saving should commit
+NOTHING, which means suppressing the exit-time commit rather than scoping the
+authority; that belongs to whoever owns that hook and is recorded as an open
+question on #589 rather than decided here.
+
+**Locks.** `whole-file-commit` and `whole-file-redeemed-item`
+(`src/common/tests/test_whole_file_commit.c`, CTest label `redship`) own the
+atomicity and authority claims and the #531 scenario end to end;
+`commit-generation-skew` keeps the detection claims;
+`mm-unified-save-capture` check 12 locks that a real MM route commits OoT's
+half too.
 
 ---
 

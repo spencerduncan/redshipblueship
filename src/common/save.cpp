@@ -184,6 +184,17 @@ uint32_t SaveManager::StageCommit() {
     // point (#537). Serialization source = the context-layer shadow copies.
     // Both must be present (Context_InitFrozenStates run); otherwise there is
     // nothing to capture and we refuse rather than stage a half-empty commit.
+    //
+    // WHOLE-FILE COMMIT (#589, operator ruling 2026-08-04). Reading BOTH
+    // shadows here is not an implementation convenience, it is the ruling:
+    // a durable save-and-quit in either half commits the WHOLE file — the
+    // saving half live (its caller refreshed its own shadow from the live
+    // gSaveContext immediately before staging, on this thread) and the other
+    // half from its frozen shadow, which is that half's true state as of when
+    // it was last live. One generation, one instant, both halves. That is what
+    // makes the REDEEMED shared-item records in Tier-1 and the world they were
+    // redeemed INTO inseparable, and it is why a partial stage is a refusal
+    // rather than a best-effort write.
     const void* ootShadow = Context_GetOoTSaveContext();
     const void* mmShadow = Context_GetMMSaveContext();
     if (ootShadow == nullptr || mmShadow == nullptr) {
@@ -575,8 +586,13 @@ RsbsLoadOutcome SaveManager::LoadSlot(int slot, uint32_t ootSavGeneration) {
         return RSBS_LOAD_REFUSED;
     }
     // The skew record describes what THIS load attempt observed; stale
-    // observations from an earlier load of the slot do not carry over.
+    // observations from an earlier load of the slot do not carry over. The
+    // whole-file authority signal (#589) is dropped for the same reason, and
+    // for a second one: it is dropped BEFORE the read, so every early return
+    // below — absent, refused, sticky-refused, commit-skew — leaves no
+    // authority claim behind. A refused slot has no authoritative half.
     mSlotSkew[slot] = 0;
+    mOoTHalfAuthoritySlot = -1;
 
     SlotFileData data;
     RsbsRefuseReason reason = RSBS_REFUSE_NONE;
@@ -645,18 +661,30 @@ RsbsLoadOutcome SaveManager::LoadSlot(int slot, uint32_t ootSavGeneration) {
         return RSBS_LOAD_REFUSED;
     }
     if (skew > 0) {
-        // The .redsave is NEWER than OoT's .sav: an MM-side commit (owl save,
-        // exit capture) landed after OoT's last save point. This is the
-        // designed post-MM-commit state — an MM-side commit cannot rewrite
-        // OoT's own file — so the load proceeds, but it is exactly the #531
-        // loss shape: OoT's world resumes older than the cross-game records
-        // that account for it (an item delivered to OoT after its last save
-        // may be missing while marked REDEEMED). Recorded and surfaced in the
-        // file panel via SlotMeta.commitSkew; the record-staging fix that
-        // retires the loss itself is #531's residue.
+        // The .redsave carries a whole commit OoT's own file does not: a
+        // commit landed after OoT's .sav was last written (an MM-side owl
+        // save / new cycle / autosave, or OoT's own exit-time snapshot). An
+        // MM-side commit cannot rewrite OoT's file, so this is the designed
+        // post-commit state and refusing it would refuse every ordinary MM
+        // session's reload.
+        //
+        // WHOLE-FILE COMMIT (#589, 2026-08-04): this used to be a warning and
+        // nothing more — the load proceeded, Tier-2 was left unarmed, and OoT
+        // resumed from its older .sav while Tier-1's RSBS_SHARED_ITEM_REDEEMED
+        // records (which the same commit made durable) stood. That is #531
+        // exactly: the record outlives the item it accounts for, the redeem
+        // loop skips the entry forever, and a progression item is gone.
+        //
+        // Under the ruling the detection becomes AUTHORITY. The commit that
+        // stamped this generation captured OoT's half in Tier-2 at the same
+        // instant — the frozen shadow, i.e. OoT's true state as of when it was
+        // last live — so the newest whole commit's Tier-2 IS OoT's half. Arm
+        // it, record the authority, and let OoT's load seam deliver it over
+        // the .sav the engine just applied. Record and world travel together;
+        // the loss becomes unrepresentable rather than merely visible.
         std::fprintf(stderr,
-                     "[RsbsSave] slot %d COMMIT SKEW: .redsave generation %u is NEWER than OoT's .sav "
-                     "generation %u — OoT's world is stale relative to the cross-game records (#531).\n",
+                     "[RsbsSave] slot %d WHOLE-FILE COMMIT: .redsave generation %u is NEWER than OoT's .sav "
+                     "generation %u — the .redsave's OoT half is the authority for this load (#531/#589).\n",
                      slot, combo.commitGeneration, ootSavGeneration);
         mSlotSkew[slot] = 1;
     }
@@ -687,11 +715,36 @@ RsbsLoadOutcome SaveManager::LoadSlot(int slot, uint32_t ootSavGeneration) {
     // the next crossing produced. That is the read-side half of "MM will be
     // reset after game restart".
     //
-    // MM ONLY, deliberately. OoT's own file{N+1}.sav is the authority for OoT
-    // state and is applied by Sram_OpenSave on the normal load path; arming
-    // Tier-2 as well would race a second, staler copy of OoT's world against
-    // it. MM has no such per-game file in single-exe — the unified slot is its
-    // only persistence — so Tier-3 is the one that needs delivering.
+    // MM ALWAYS; OoT only when the whole commit is newer than OoT's own file.
+    //
+    // RENEGOTIATED by the 2026-08-04 whole-file-commit ruling (#589). The
+    // original rule here was "MM only, deliberately: OoT's own file{N+1}.sav
+    // is the authority for OoT state, arming Tier-2 too would race a second,
+    // staler copy of OoT's world against it". The staleness argument is
+    // exactly right for the case it was written for and exactly backwards for
+    // the case below it:
+    //
+    //   - generations AGREE (or either artifact predates the stamp): Tier-2
+    //     and the .sav were authored by the same commit, or the .redsave makes
+    //     no authority claim at all. Arming would at best duplicate the .sav
+    //     and at worst race a legacy copy. Stay unarmed — unchanged.
+    //   - the .redsave is NEWER: there is no second, staler copy to race. The
+    //     .sav is the stale one, by a generation the same commit stamped into
+    //     both artifacts, and Tier-2 is the only record of OoT's half at that
+    //     commit. Arming it is what makes the file whole again.
+    //
+    // The safety property the second case rests on, stated because it is an
+    // invariant of OTHER code and would break silently: the OoT shadow is
+    // refreshed at every point where OoT stops being live (both crossing paths
+    // and the F10 hot swap freeze it) AND at every OoT save (SaveSection
+    // refreshes it in the same breath as writing the .sav). So a committed
+    // Tier-2 is never OLDER than the .sav it is being compared against, and
+    // "newer generation" cannot deliver a rolled-back OoT world. A future
+    // commit route that stages without refreshing OoT's shadow first would
+    // violate that and must not exist.
+    //
+    // MM has no per-game file in single-exe at all — the unified slot is its
+    // only persistence — so Tier-3 is delivered unconditionally, as before.
     //
     // Arming is refused for an all-zero tier (see Context_ArmShadowAsFrozen),
     // which is exactly a slot saved before the player ever entered MM: that
@@ -712,6 +765,41 @@ RsbsLoadOutcome SaveManager::LoadSlot(int slot, uint32_t ootSavGeneration) {
     const int armed = Context_ArmShadowAsFrozen(GAME_MM, MM_ENTR_SOUTH_CLOCK_TOWN_0);
     std::fprintf(stderr, "[RsbsSave] slot %d loaded; MM half %s\n", slot,
                  armed ? "armed for restore" : "empty (MM will cold-boot)");
+
+    // The OoT half of the newest whole commit (#589). Same machinery, same
+    // all-zero refusal (a slot that never held an OoT world has nothing to
+    // deliver, and restoring a zeroed SaveContext over the file the engine
+    // just loaded would be strictly worse than the .sav it replaces).
+    //
+    // The return entrance is the OoT-side twin of the MM arming's floor: the
+    // .redsave does not serialize either game's frozen return entrance, so use
+    // the same cross-game arrival entrance the real freeze records for this
+    // direction (out of the Happy Mask Shop). It is a floor, not a policy —
+    // the seam below consumes this blob immediately, before any consumer of
+    // the return entrance runs, and a slot-resume that wants its own spawn
+    // policy overrides it later. What it must NOT be is 0: entrance presence
+    // is tracked by a separate flag, so 0 is a real consumable id (see the MM
+    // arming above, where 0 spawned Link inside the Mayor's Residence).
+    if (mSlotSkew[slot] > 0) {
+        if (Context_ArmShadowAsFrozen(GAME_OOT, OOT_ENTR_MARKET_FROM_MASK_SHOP)) {
+            mOoTHalfAuthoritySlot = slot;
+            std::fprintf(stderr,
+                         "[RsbsSave] slot %d OoT half armed from the .redsave: the whole commit in the "
+                         ".redsave is newer than OoT's own .sav, so its Tier-2 is the authority (#531/#589)\n",
+                         slot);
+        } else {
+            // An all-zero Tier-2 with a newer generation is not a state any
+            // commit this build authors can produce (StageCommit copies the
+            // OoT shadow whole, and a slot only reaches a non-zero generation
+            // through a commit). Name it rather than silently falling back:
+            // the .sav delivers OoT's half, which is the pre-ruling behaviour
+            // and still safe.
+            std::fprintf(stderr,
+                         "[RsbsSave] slot %d has a newer whole commit but an EMPTY OoT half; falling back to "
+                         "OoT's own .sav for this load (#589)\n",
+                         slot);
+        }
+    }
 
     // A successful load is one of the three legitimate arming events, and it
     // retires any earlier refusal record — if a loadable file is back at the
@@ -768,6 +856,9 @@ void SaveManager::DeleteSave(int slot) {
     mSlotArmed[slot] = true;
     mSlotRefused[slot] = RSBS_REFUSE_NONE;
     mSlotSkew[slot] = 0;
+    if (mOoTHalfAuthoritySlot == slot) {
+        mOoTHalfAuthoritySlot = -1;
+    }
 }
 
 void SaveManager::ArmSlotOnCreate(int slot) {
@@ -788,6 +879,11 @@ void SaveManager::ArmSlotOnCreate(int slot) {
     mSlotArmed[slot] = true;
     mSlotRefused[slot] = RSBS_REFUSE_NONE;
     mSlotSkew[slot] = 0;
+    if (mOoTHalfAuthoritySlot == slot) {
+        // A brand-new file authors its own OoT half; nothing loaded can be
+        // authoritative over it (#589).
+        mOoTHalfAuthoritySlot = -1;
+    }
 }
 
 bool SaveManager::IsSlotWritable(int slot) const {
@@ -898,10 +994,25 @@ void SaveManager::ResetSlotSessionState() {
         mSlotRefused[i] = RSBS_REFUSE_NONE;
         mSlotSkew[i] = 0;
     }
+    mOoTHalfAuthoritySlot = -1;
 }
 
 int SaveManager::GetSlotCommitSkew(int slot) const {
     return SlotInRange(slot) ? mSlotSkew[slot] : 0;
+}
+
+bool SaveManager::OoTHalfIsAuthoritative() const {
+    return mOoTHalfAuthoritySlot >= 0;
+}
+
+bool SaveManager::TakeOoTHalfAuthority() {
+    // One-shot (#589). The armed Tier-2 blob is single-use by the #364 frozen
+    // -blob contract, so the signal that drives its consumption retires with
+    // it: a second caller must not be told to re-apply a blob that has already
+    // been consumed and retired.
+    const bool authoritative = mOoTHalfAuthoritySlot >= 0;
+    mOoTHalfAuthoritySlot = -1;
+    return authoritative;
 }
 
 void SaveManager::RegisterGameMeta(GameId game, const RsbsGameMetaDesc* desc) {
@@ -1092,6 +1203,14 @@ int RsbsSave_GetSlotCommitSkew(int slot) {
 
 int RsbsSave_CompareCommitGenerations(uint32_t redsaveGeneration, uint32_t ootSavGeneration) {
     return rsbs::SaveManager::CompareCommitGenerations(redsaveGeneration, ootSavGeneration);
+}
+
+int RsbsSave_TakeOoTHalfAuthority(void) {
+    return rsbs::SaveManager::Instance().TakeOoTHalfAuthority() ? 1 : 0;
+}
+
+int RsbsSave_OoTHalfIsAuthoritative(void) {
+    return rsbs::SaveManager::Instance().OoTHalfIsAuthoritative() ? 1 : 0;
 }
 
 int RsbsSave_Load(int slot) {

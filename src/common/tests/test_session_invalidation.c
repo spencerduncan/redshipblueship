@@ -585,10 +585,17 @@ TestResult Test_SessionInvalidation(void) {
         // is 0, which put Link inside the Mayor's Residence. Must match what
         // the real hot-swap freeze records.
         SESSION_ASSERT(Context_GetFrozenReturnEntrance(GAME_MM) == MM_ENTR_SOUTH_CLOCK_TOWN_0);
-        // OoT stays unarmed on purpose: OoT's own file{N+1}.sav is the
-        // authority for OoT state and Sram_OpenSave applies it on the normal
-        // load path. Arming Tier-2 too would race a second, staler copy of
-        // OoT's world against it.
+        // OoT stays unarmed HERE, and the reason is narrower than it used to
+        // be. The original reason — "OoT's own file{N+1}.sav is the authority
+        // for OoT state, full stop" — was retired by the 2026-08-04 whole-file
+        // commit ruling (#589): when the .redsave carries a NEWER whole commit
+        // than the .sav, its Tier-2 IS OoT's half and the load arms it (see
+        // test_whole_file_commit.c). This load is the other case: mgr.Load()
+        // passes no .sav generation, so the comparison takes the pre-stamp
+        // exemption, the .redsave makes no authority claim, and Tier-2 must
+        // stay unarmed so it cannot race the copy of OoT's world that
+        // Sram_OpenSave is about to apply. Keeping this assertion is what
+        // stops the ruling from being implemented as a blanket "always arm".
         SESSION_ASSERT(Context_HasFrozenState(GAME_OOT) == 0);
 
         // ...and the complement, which is what stops the arming from being a

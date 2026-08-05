@@ -43,6 +43,12 @@ extern "C" SaveContext gSaveContext;
 // surface; it is called immediately before each .redsave write below so the
 // pool never lags the OoT blob stored beside it.
 extern "C" void OoT_HarvestSharedResources(void);
+// Whole-file commit, read side (#589/#531), defined in src/common/switch.cpp.
+// Restores the armed OoT blob into the live gSaveContext and RETIRES it in the
+// same call (#364's single-use contract). Declared rather than included for the
+// same narrow-surface reason as the harvest above; z_play.c declares it the
+// same way.
+extern "C" int Combo_ConsumeFrozenState(const char* gameId, void* saveContext, size_t size);
 using namespace std::string_literals;
 
 void SaveManager::WriteSaveFile(const std::filesystem::path& savePath, const uintptr_t addr, void* dramAddr,
@@ -227,10 +233,40 @@ SaveManager::SaveManager() {
         // A .sav-newer mismatch (a .redsave commit is missing) refuses
         // through the full #533 machinery — quarantine, write latch, file
         // panel — because committing the rolled-back Tier-1 would resurrect
-        // consumed shared-item records; a .redsave-newer mismatch (an MM-side
-        // commit landed after OoT's last save point, the #531 loss shape)
-        // loads and is surfaced as SlotMeta.commitSkew.
+        // consumed shared-item records; a .redsave-newer mismatch means the
+        // .redsave holds a WHOLE commit this .sav does not, and the newest
+        // whole commit wins (#589).
         RsbsSave_LoadSlotChecked(fileNum, this->GetLoadedCommitGeneration());
+
+        // WHOLE-FILE COMMIT, delivery seam (#589/#531, operator ruling
+        // 2026-08-04). This hook fires at the TAIL of LoadFile — every section
+        // has already been applied to the live gSaveContext — so it is the one
+        // point that is both after the .sav is fully in memory and before
+        // Sram_OpenSave interprets it (entrance fixups, health floor, spoiling
+        // items). If the load found a newer whole commit in the .redsave, its
+        // Tier-2 is OoT's half at that commit and is now armed; consume it
+        // here so the file resumes from the newest whole commit rather than
+        // from a .sav that predates it.
+        //
+        // Without this, the load is the #531 machine: Tier-1's REDEEMED
+        // shared-item records commit (they ride the same Tier-1 the choke
+        // point just restored) while the OoT world they were redeemed INTO
+        // does not, the redeem loop skips those entries forever, and the item
+        // is permanently gone.
+        //
+        // fileNum is carried across the restore deliberately. The blob is
+        // OoT's own SaveContext from this same slot, so its fileNum agrees —
+        // but "agrees" is an inference about how the blob was captured, and
+        // every later save addresses the file through this field. Re-asserting
+        // the slot the player actually opened costs two lines and removes the
+        // inference.
+        if (RsbsSave_TakeOoTHalfAuthority()) {
+            const int32_t openedFileNum = gSaveContext.fileNum;
+            Combo_ConsumeFrozenState("oot", &gSaveContext, sizeof(gSaveContext));
+            gSaveContext.fileNum = openedFileNum;
+            SPDLOG_INFO("RSBS: applied the .redsave's OoT half over file{}.sav (newer whole commit, #589)",
+                        fileNum + 1);
+        }
     });
 
     GameInteractor::Instance->RegisterGameHook<GameInteractor::OnDeleteFile>([](int32_t fileNum) {

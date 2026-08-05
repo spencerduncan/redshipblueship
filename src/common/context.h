@@ -643,7 +643,11 @@ typedef struct {
     // lost or the file was replaced from elsewhere. Detection lives in the
     // load itself (rsbs::SaveManager::LoadSlot, via CompareCommitGenerations):
     // a .sav-newer mismatch REFUSES through the #533 machinery, a
-    // .redsave-newer mismatch loads and surfaces as SlotMeta.commitSkew.
+    // .redsave-newer mismatch loads and — since the 2026-08-04 whole-file
+    // commit ruling (#589) — makes the .redsave's Tier-2 the AUTHORITY for
+    // OoT's half of that load, not merely a warning on SlotMeta.commitSkew.
+    // That is what retires #531: the generation names which artifact holds the
+    // newest WHOLE commit, and every tier of that commit wins together.
     //
     // Zero == unset (no commit has ever been stamped), the growth contract's
     // required meaning: a zero-extended legacy record reads 0 and is exempt

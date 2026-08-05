@@ -555,6 +555,16 @@ if(BUILD_TESTING)
     redship_add_test(NAME CommitGenerationMonotonic COMMAND redship --test commit-generation-monotonic)
     redship_add_test(NAME CommitTornWrite COMMAND redship --test commit-torn-write)
     redship_add_test(NAME CommitGenerationSkew COMMAND redship --test commit-generation-skew)
+    # Whole-file commit (#589, operator ruling 2026-08-04) — the read half of
+    # the same machinery. A durable save-and-quit in EITHER half commits BOTH
+    # halves at ONE generation, and on load the newest WHOLE commit wins: its
+    # Tier-2 is armed and delivered over OoT's older .sav. That is what
+    # structurally retires #531 (a durable RSBS_SHARED_ITEM_REDEEMED record
+    # outliving the item it accounts for = permanent loss of a progression
+    # item). Counterfactual: drop the Tier-2 arming from LoadSlot and
+    # WholeFileRedeemedItem goes red on the assertion that names the loss.
+    redship_add_test(NAME WholeFileCommit COMMAND redship --test whole-file-commit)
+    redship_add_test(NAME WholeFileRedeemedItem COMMAND redship --test whole-file-redeemed-item)
     redship_add_test(NAME Context COMMAND redship --test context)
     # F10 hot-swap freeze/consume contract (#364): the hotkey path must freeze
     # the DEPARTING game (or refuse the switch), and a consumed frozen state
