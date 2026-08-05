@@ -191,7 +191,13 @@ const char* ForeignArticleForCheck(RandoCheckId randoCheckId);
 /** Give-path core: record the check's foreign item into the shared structure
  *  (durable immediately; de-duped by the A1 producer). Returns true if a
  *  foreign item was recorded. The CheckQueue lambda calls this and layers the
- *  generic presentation on top; the ROM-free unit test drives it directly. */
+ *  generic presentation on top; the ROM-free unit test drives it directly.
+ *
+ *  Returns false — authoring NOTHING — when the check hosts no foreign item OR
+ *  when PairingActive() is false (#610). The second case is defense in depth:
+ *  Combo_RecordSharedItem carries no identity and is redeemed by whichever
+ *  paired world arrives next, so a record authored with no live pairing is an
+ *  item injected into a world that never placed it. */
 bool RecordForeignPickup(RandoCheckId randoCheckId);
 
 } // namespace Foreign

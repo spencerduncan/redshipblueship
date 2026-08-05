@@ -636,6 +636,30 @@ bool RecordForeignPickup(RandoCheckId randoCheckId) {
     if (item == nullptr) {
         return false;
     }
+    // #610, DEFENSE IN DEPTH for a placement table populated by any route.
+    //
+    // Combo_RecordSharedItem takes no identity argument and performs no
+    // identity check (src/common/shared_items.c): whatever it records is
+    // redeemed by whichever paired OoT world arrives next, blind to which world
+    // authored it. So the ONE place that can refuse to author a record for a
+    // world that does not exist is here, before the record is written.
+    //
+    // With no live pairing there is no such world. The spoiler-LOAD gate
+    // (Spoiler/Apply.cpp) is what stops the table being populated in this state
+    // in the first place; this is the second lock on the same door, for any
+    // future route that reaches the table without going through it. The check
+    // degrades to the junk-class MM item it physically holds — the documented
+    // absent-placement behavior (foreign_items.h) — rather than to a crossing
+    // nobody can receive.
+    if (!PairingActive()) {
+        fprintf(stderr,
+                "[MM] foreign pickup REFUSED: MM check %u holds a foreign placement, but this session has no live "
+                "cross-game pairing (sourceIsRando=%d settingsHash=%08X). No durable shared-item record is "
+                "authored — there is no paired world it could belong to (#610)\n",
+                (unsigned)randoCheckId, gComboCtx.sourceIsRando ? 1 : 0, gComboCtx.sharedRandoSettingsHash);
+        fflush(stderr);
+        return false;
+    }
     // Durable immediately (Combo_RecordSharedItem writes the serialized array,
     // so an MM save+quit before the next switch cannot lose the pickup — the
     // stage/commit outbox is RAM-only, see shared_items.h). The producer
