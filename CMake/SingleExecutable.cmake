@@ -665,6 +665,16 @@ if(BUILD_TESTING)
     # phantom balance verbatim at the next arrival; the monotonic tiers it also
     # raised could never decay back out. Display-free and ROM-free.
     redship_add_test(NAME MMCaptureHarvestGate COMMAND redship --test mm-capture-harvest-gate)
+    # Same class as MMCaptureHarvestGate above (#591/#600), on OoT's OnExitGame
+    # seam (#606, games/oot/soh/oot_exit_harvest_gate_test.cpp): the
+    # SaveManager.cpp OnExitGame GameInteractor hook harvested OoT's shared
+    # cross-game resources BEFORE RsbsSave_Save checked the #533/#568
+    # armed-session latch, so an un-established or REFUSED slot still moved
+    # the pool and the RAM watermark table for a record that never reached
+    # disk. OoT's OTHER staging seam (SaveSection, ~:1553) already guarded the
+    # identical sequence; OnExitGame was the one seam left unguarded.
+    # Display-free and ROM-free, so it runs in this redship tier.
+    redship_add_test(NAME OoTExitHarvestGate COMMAND redship --test oot-exit-harvest-gate)
     # MM single-exe hook dispatch (#511, #438): the COND_HOOK/COND_ID_HOOK
     # macros park registrations in the MM-owned S2H::GameHooks registry, but
     # ShouldActorInit / OnActorInit / OnActorDraw / OnOpenText dispatched

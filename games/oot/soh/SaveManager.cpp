@@ -299,14 +299,33 @@ SaveManager::SaveManager() {
         if (fileNum < 0 || fileNum >= RSBS_SAVE_MAX_SLOTS) {
             return;
         }
-        // Shared cross-game resources (#525) BEFORE the shadow capture, so the
-        // pool and the OoT blob stored beside it agree. Without this, money
-        // earned since the last switch is in the OoT save but not in the pool,
-        // and the post-load first-harvest seed reads the balance as already
-        // counted and drops it.
-        OoT_HarvestSharedResources();
-        Context_UpdateShadowCopy(GAME_OOT, &gSaveContext, sizeof(gSaveContext));
-        gComboCtx.sourceGame = GAME_OOT;
+        // #606: gated on the #533/#568 write latch, matching the SaveSection
+        // staging seam's guard (~:1553, `if (RsbsSave_IsSlotWritable(fileNum))`).
+        // The harvest below MUTATES process-global cross-game state
+        // (gComboCtx.sharedResources and the RAM watermark table), and a slot
+        // that is not writable this session -- never established, or REFUSED
+        // for identity (#570) / generation (#500) divergence -- means the
+        // RsbsSave_Save below WILL REFUSE. Advancing the pool for a record that
+        // is never written is the harvest/apply gate-asymmetry class #591/#600
+        // already fixed on MM's capture path: apply ASSIGNS the consumable
+        // kinds, so the phantom pool movement is materialized verbatim on the
+        // far side of the next crossing; the monotonic kinds are worse in
+        // kind, since max-merge cannot decay.
+        if (RsbsSave_IsSlotWritable(fileNum)) {
+            // Shared cross-game resources (#525) BEFORE the shadow capture, so
+            // the pool and the OoT blob stored beside it agree. Without this,
+            // money earned since the last switch is in the OoT save but not in
+            // the pool, and the post-load first-harvest seed reads the balance
+            // as already counted and drops it.
+            OoT_HarvestSharedResources();
+            Context_UpdateShadowCopy(GAME_OOT, &gSaveContext, sizeof(gSaveContext));
+            gComboCtx.sourceGame = GAME_OOT;
+        }
+        // Still called unconditionally: RsbsSave_Save's own CheckWriteAllowed
+        // latch check refuses cleanly on its own (this part was never buggy) --
+        // leaving the call here is what keeps behavior/logging identical to
+        // before for the permitted path, and produces the refusal log line for
+        // the latched one.
         RsbsSave_Save(fileNum);
     });
 

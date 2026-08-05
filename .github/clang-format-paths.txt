@@ -77,6 +77,7 @@ games/oot/soh/SaveManager.cpp
 games/oot/soh/SaveManager.h
 games/oot/soh/ShipInit.hpp
 games/oot/soh/mixer.c
+games/oot/soh/oot_exit_harvest_gate_test.cpp
 games/oot/soh/soh_shipinit_driver_test.cpp
 games/oot/soh/z_scene_otr.cpp
 games/oot/src/code/audio_load.c
