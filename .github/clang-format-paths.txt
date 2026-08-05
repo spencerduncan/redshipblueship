@@ -44,6 +44,7 @@ games/mm/2s2h/mm_fb_effects_test.cpp
 games/mm/2s2h/mm_flash_filenum_test.cpp
 games/mm/2s2h/mm_hook_dispatch_test.cpp
 games/mm/2s2h/mm_playtime_seed_test.cpp
+games/mm/2s2h/mm_registrar_coverage_test.cpp
 games/mm/2s2h/mm_framebuffer_effects.c
 games/mm/2s2h/mm_gi_shim_test.cpp
 games/mm/2s2h/mm_notification_binding_test.cpp
