@@ -4,6 +4,21 @@
  * This file provides:
  * 1. Aliases for MM_ prefixed functions to their non-prefixed versions
  * 2. Stub implementations for enhancement layer functions that were excluded
+ *
+ * Header-blindness rule: this file includes NO real MM headers (it predates
+ * RSBS_SINGLE_EXECUTABLE and is built into redship_common, which is not
+ * compiled with that define), so every declaration here is an unchecked
+ * redeclaration the compiler cannot compare against the real prototype. That
+ * has shipped signature-drift bugs before (#372, #379, #424, and the
+ * GameInteractor/HudEditor class documented at length below). A stub
+ * belongs here ONLY if it genuinely cannot see MM headers -- libultra/libc
+ * aliases, FaultDrawer, and other symbols with no real MM-side declaration
+ * to check against. Anything that stubs a real MM function (anything
+ * declared in an MM header under games/mm/) belongs in a header-checked MM
+ * target TU instead, guarded by `#ifdef RSBS_SINGLE_EXECUTABLE` so a
+ * standalone 2ship build still gets the real definition. See
+ * games/mm/2s2h/mm_save_manager_stubs.c, games/mm/2s2h/mm_gameinteractor_stubs.c
+ * and games/mm/2s2h/mm_hudeditor_stubs.c for the pattern.
  */
 
 #include <math.h>
@@ -79,165 +94,19 @@ void MM_FaultDrawer_SetCharPad(int xPad, int yPad) { (void)xPad; (void)yPad; }
  * Enhancement layer stubs - these are excluded in single-exe mode
  * ========================================================================== */
 
-/* GameInteractor stubs.
- *
- * These cover MM's GameInteractor_* references that no linked TU defines. A
- * second set of MM references (ExecuteOnFlagSet, ExecuteOnActorUpdate, ...)
- * resolves to OoT's extern "C" wrappers in
- * games/oot/soh/Enhancements/game-interactor/GameInteractor_Hooks.cpp instead
- * — that is NOT a valid provider: MM's GIVanillaBehavior ordinals alias OoT's
- * (MM VB_SETUP_TRANSITION == OoT VB_PLAY_RAINBOW_BRIDGE_CS == 206), so routing
- * MM calls into OoT's hook registry runs OoT handlers against MM state. Those
- * wrappers therefore gate on Context_GetCurrentGame() and return vanilla
- * behavior while MM is active, making them equivalent to the stubs below.
- *
- * The "Should" family (GameInteractor_Should, ShouldActorInit,
- * ShouldActorUpdate, ShouldActorDraw, ShouldItemGive) is no longer in either
- * bucket (#392 VB follow-up): the single-exe macro rebind at the bottom of
- * MM's GameInteractor.h renames every MM call site to the MM-owned
- * MM_GameHooks_Execute* dispatchers in games/mm/2s2h/GameExports_SingleExe.cpp,
- * which consult only the S2H::GameHooks registries — rando/enhancement VB
- * overrides fire on MM frames without MM ids ever reaching OoT's tables.
- * Re-adding Should stubs here would silently sever that dispatch. */
-/* GameInteractor_ExecuteOnActorDraw / ExecuteOnActorInit / ExecuteOnOpenText
- * moved to real, header-checked dispatch in
- * games/mm/2s2h/GameExports_SingleExe.cpp (#438), reached through the
- * single-exe macro rebind at the bottom of MM's GameInteractor.h. This stub
- * was the reason the draw pair looked wired while doing nothing: 21 TUs
- * register ShouldActorInit and 24 register OnOpenText through the COND_*
- * macros, all of which park in S2H::GameHooks, and none of which this no-op
- * ever consulted. Re-stubbing any of the three here would silently sever that
- * dispatch again — chest models and every rando text override go back to
- * vanilla with no diagnostic. */
-/* GameInteractor_ExecuteOnGameStateUpdate / ExecuteOnGameStateDrawFinish moved
- * to real, header-checked dispatch in games/mm/2s2h/GameExports_SingleExe.cpp
- * (#442): MM's own frame loop (games/mm/src/code/game.c MM_GameState_Update)
- * already calls both at the right points every frame — the "pump" upstream
- * 2S2H used — so once SavingEnhancements.cpp's raw registrations for these
- * two hook types moved onto S2H::GameHooks, leaving these as no-ops would
- * have kept autosave (OnGameStateUpdate: HandleAutoSave) and its owl-save
- * icon (OnGameStateDrawFinish: DrawAutosaveIcon) permanently dead even though
- * registration itself no longer corrupts memory. Re-stubbing them here would
- * silently sever that dispatch again. */
-void GameInteractor_ExecuteOnGameStateMainFinish(void* state) { (void)state; }
-void GameInteractor_ExecuteOnPlayDrawWorldEnd(void* play) { (void)play; }
-void GameInteractor_ExecuteOnInterfaceDrawStart(void* play) { (void)play; }
-/* GameInteractor_ExecuteBeforeKaleidoDrawPage / ExecuteAfterKaleidoDrawPage
- * moved to real, header-checked dispatch in
- * games/mm/2s2h/GameExports_SingleExe.cpp (#438), reached through the
- * single-exe macro rebind at the bottom of MM's GameInteractor.h — wired as a
- * PAIR on purpose, matching how z_kaleido_scope_NES.c brackets every page
- * draw (the same both-or-neither reasoning the EndOfCycleSave pair below
- * records). The After half had a live registrant the whole time:
- * KaleidoItemPage.cpp's COND_ID_HOOK(PAUSE_ITEM) draws the trade-slot cycling
- * arrows and adjacent-item previews, which these no-ops kept invisible while
- * the LIVE VB_KALEIDO_DISPLAY_ITEM_TEXT override still suppressed the vanilla
- * item text — strictly worse than vanilla. Both stubs also carried the
- * #372/#424 signature-drift hazard ((void*, int) against the real
- * (PauseContext*, u16)), retired with them. Re-stubbing either here would
- * silently sever the dispatch again. (MM-only symbols — OoT defines no
- * twins.) */
-/* GameInteractor_ExecuteOnSaveInit / GameInteractor_ExecuteOnSaveLoad moved to
- * real, header-checked dispatch in games/mm/2s2h/GameExports_SingleExe.cpp
- * (Lane C1, #392): they now Execute the MM-owned S2H::GameHooks registries
- * (OnSaveInit -> Rando::MiscBehavior::OnFileCreate at MM_Sram_InitSave,
- * OnSaveLoad -> Rando's OnSaveLoadHandler at the file-select/opening loads).
- * Re-stubbing them here would silently sever MM rando generation. */
-/* GameInteractor_ExecuteOnOpenText USED to resolve, from MM call sites, to
- * OoT's wrapper in
- * games/oot/soh/Enhancements/game-interactor/GameInteractor_Hooks.cpp
- * (signature (uint16_t* textId, bool* loadFromMessageTable), #228) — which
- * no-ops while MM is the active game, so MM text boxes fired no hooks at all.
- * OoT's own z_message_PAL.c still reaches that wrapper; MM's z_message.c is
- * rebound to MM_GameHooks_ExecuteOnOpenText (#438), see the block above. */
-void GameInteractor_ExecuteOnItemGive(int itemId) { (void)itemId; }
-/* GameInteractor_ShouldItemGive / GameInteractor_ShouldActorDraw stubs
- * retired (#392 VB follow-up): MM call sites now rebind to the header-checked
- * MM_GameHooks_ExecuteShouldItemGive / MM_GameHooks_ExecuteShouldActorDraw in
- * games/mm/2s2h/GameExports_SingleExe.cpp (see the Should-family note above).
- * The stubs here carried the signature-drift hazard class of #372/#424
- * (int(int) / int(void*) against the real bool(u8) / bool(Actor*)). */
-void GameInteractor_ExecuteOnCameraChangeModeFlags(void* camera) { (void)camera; }
-void GameInteractor_ExecuteOnCameraChangeSettingsFlags(void* camera) { (void)camera; }
-void GameInteractor_ExecuteAfterCameraUpdate(void* camera) { (void)camera; }
-/* GameInteractor_ExecuteOnPassPlayerInputs moved to real, header-checked
- * dispatch in games/mm/2s2h/GameExports_SingleExe.cpp (#442): MM's real
- * z_player.c call site already pumps this every gameplay frame; the stub was
- * keeping SavingEnhancements.cpp's post-migration OnPassPlayerInputs
- * registration (cutscene-skip-on-load's gameplay-started detector) a
- * permanent no-op. Re-stubbing here would silently sever it again. */
-void GameInteractor_ExecuteOnPlayerPostLimbDraw(void* player, int limbIndex) { (void)player; (void)limbIndex; }
-void GameInteractor_ExecuteOnBossDefeated(int bossId) { (void)bossId; }
-void GameInteractor_ExecuteOnBottleContentsUpdate(int slotId) { (void)slotId; }
-void GameInteractor_ExecuteOnConsoleLogoUpdate(void) {}
-/* GameInteractor_ExecuteOnFileSelectSaveLoad moved to real, header-checked
- * dispatch in games/mm/2s2h/GameExports_SingleExe.cpp (#438), reached through
- * the single-exe macro rebind at the bottom of MM's GameInteractor.h. The stub
- * was both dead dispatch — FileSelect.cpp's registrant is the sole isRando[]
- * writer, so a randomizer file on MM's file-select list rendered exactly like
- * a vanilla one — and the worst signature drift in this file: (void*, int)
- * against the real (s16, bool, SaveContext*), so even a future caller-side
- * fix would have marshalled garbage. Re-stubbing it here would silently sever
- * the dispatch again. (MM-only symbol — OoT defines no twin.) */
-/* GameInteractor_ExecuteOnGameCompletion moved to real, header-checked dispatch
- * in games/mm/2s2h/GameExports_SingleExe.cpp (#438), reached through the
- * single-exe macro rebind at the bottom of MM's GameInteractor.h. Its registrant
- * (RegisterSavingEnhancements' fileCompletedAt stamp) went live with #520, so a
- * no-op here would silently drop the game-completion stamp again. Re-stubbing it
- * would sever that dispatch. (MM-only symbol — OoT defines no twin, so deleting
- * the stub cannot orphan an OoT caller.) */
-/* GameInteractor_ExecuteBeforeEndOfCycleSave / ExecuteAfterEndOfCycleSave moved
- * to real, header-checked dispatch in
- * games/mm/2s2h/GameExports_SingleExe.cpp (#514), reached through the
- * single-exe macro rebind at the bottom of MM's GameInteractor.h. #442 left
- * this pair stubbed deliberately, to be wired as a pair rather than half-wired;
- * #514 wires both, so that deferral is spent and the "stay stubbed on purpose"
- * note it carried is gone with it.
- *
- * These two were the most expensive no-ops in this file. Both call sites in
- * games/mm/src/code/z_sram_NES.c (Sram_SaveEndOfCycle, entered by Song of Time
- * and "Dawn of the New Day") are live and unguarded, so the vanilla three-day
- * wipe ran with no snapshot taken and no restore performed:
- * Rando::MiscBehavior::AfterEndOfCycleSave — dungeon/boss keys, stray fairies,
- * skulltula tokens, frog flags, the three trade slots, and the per-check
- * cycleObtained reset — was registered and unreachable, and because the checks
- * stay flagged obtained none of what the wipe took was re-collectable.
- * Re-stubbing either name here silently restores that: routine play quietly
- * eats randomizer progress with no diagnostic, and the loss only surfaces
- * cycles later when a check refuses to re-offer an item the player had. */
-/* GameInteractor_ExecuteBeforeMoonCrashSaveReset moved to real, header-checked
- * dispatch in games/mm/2s2h/GameExports_SingleExe.cpp (#442): MM's real
- * z_sram_NES.c call site already pumps this at the moon-crash reset point;
- * the stub was keeping SavingEnhancements.cpp's post-migration registration
- * (owl-save deletion on moon crash) a permanent no-op. */
-void GameInteractor_ExecuteBeforeInterfaceClockDraw(void) {}
-void GameInteractor_ExecuteAfterInterfaceClockDraw(void) {}
-/* GameInteractor_InvertControl, GameInteractor_Dpad, and
- * GameInteractor_RightStickOcarina moved to real, header-checked definitions
- * in games/mm/2s2h/GameExports_SingleExe.cpp (#372): the untyped stubs here
- * drifted from MM's GameInteractor.h. InvertControl returned the ENUM
- * ORDINAL as a ±1 multiplier (stick_x *= 2 on every Lib_GetControlStickData
- * movement frame); Dpad returned the button combo unconditionally, forcing
- * the CVar-gated D-pad-equip and D-pad-ocarina enhancements permanently ON;
- * RightStickOcarina happened to return the right default but was one field
- * away from the same fate. */
-
-/* HudEditor stubs */
-void* hudEditorElements = NULL;
-int hudEditorActiveElement = 0;
-
-void HudEditor_SetActiveElement(int element) { (void)element; }
-int HudEditor_ShouldOverrideDraw(void) { return 0; }
-float HudEditor_GetActiveElementScale(void) { return 1.0f; }
-int HudEditor_IsActiveElementHidden(void) { return 0; }
-void HudEditor_ModifyDrawValues(float* x, float* y, float* scale) { (void)x; (void)y; (void)scale; }
-void HudEditor_ModifyDrawValuesFromBase(float* x, float* y, float* scale, float bx, float by) { (void)x; (void)y; (void)scale; (void)bx; (void)by; }
-void HudEditor_ModifyMatrixValues(float* x, float* y, float* scale) { (void)x; (void)y; (void)scale; }
-void HudEditor_ModifyRectPosValues(int* x, int* y) { (void)x; (void)y; }
-void HudEditor_ModifyRectPosValuesFromBase(int* x, int* y, int bx, int by) { (void)x; (void)y; (void)bx; (void)by; }
-void HudEditor_ModifyRectSizeValues(int* w, int* h) { (void)w; (void)h; }
-void HudEditor_ModifyTextureStepValues(int* x, int* y) { (void)x; (void)y; }
-void HudEditor_ModifyKaleidoEquipAnimValues(float* x, float* y, float* scale) { (void)x; (void)y; (void)scale; }
+/* GameInteractor stubs (all 13) and HudEditor stubs moved to
+ * games/mm/2s2h/mm_gameinteractor_stubs.c and
+ * games/mm/2s2h/mm_hudeditor_stubs.c respectively: both stub real MM
+ * functions declared in games/mm/2s2h/GameInteractor/GameInteractor.h and
+ * games/mm/2s2h/BenGui/HudEditor.h, so per the header-blindness rule above
+ * they belong in a header-checked MM TU, not here. See those two files for
+ * the fault history this comment used to carry (#372/#379/#392/#424/#438/
+ * #442/#514 and the mm_stubs.c drift class in general) and for why the
+ * "Should" family, ExecuteOnActorDraw/Init/OpenText, ExecuteOnGameStateUpdate/
+ * DrawFinish, the Kaleido draw pair, OnSaveInit/OnSaveLoad, the end-of-cycle
+ * pair, OnFileSelectSaveLoad, OnGameCompletion, BeforeMoonCrashSaveReset, and
+ * InvertControl/Dpad/RightStickOcarina are NOT stubbed anywhere: they all
+ * have real, header-checked dispatch elsewhere now. */
 
 /* Graphics override + CosmeticEditor wrappers: implemented for real in
  * games/mm/2s2h/CosmeticGfxSingleExe.cpp, compiled against the declarations

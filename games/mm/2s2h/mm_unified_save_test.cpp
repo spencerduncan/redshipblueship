@@ -138,6 +138,34 @@
  *      invariant in tools/tests/test_repo_invariants.py
  *      (test_titlesetup_transitions_are_guarded_or_marked_exempt). Neither
  *      lock is sufficient alone; together they cover decision and wiring.
+ *
+ * ---------------------------------------------------------------------------
+ * #589 EXTENSION: an MM save commits the WHOLE file, not MM's half of it.
+ *
+ * Checks 1-11 are all about MM's own half. The operator's 2026-08-04 ruling on
+ * #589 says a durable save-and-quit in EITHER half commits BOTH halves, at one
+ * generation, in one instant: the saving half live, the other half from its
+ * frozen shadow. Check 12 locks that from MM's side, where it is checkable
+ * against a REAL route rather than against the choke point in isolation.
+ *
+ *  12. An MM owl-shaped marshal commits OoT's half too. The OoT shadow is
+ *      stamped with a pattern of its own before the marshal; the reloaded
+ *      Tier-2 must carry it back WHOLE, alongside MM's Tier-3, at the single
+ *      generation the commit advanced. Two ways this goes red: a commit that
+ *      captured only the saving half (Tier-2 comes back zeroed or stale), and
+ *      a commit that took a generation per half.
+ *
+ *      This is also where #589's SIBLING concern is settled: func_8014546C's
+ *      owl branch memcpys only offsetof(SaveContext, fileNum) bytes. That
+ *      truncation is REAL and it is vanilla MM behaviour — but its destination
+ *      is sramCtx->saveBuf, MM's N64 flash staging buffer, whose writer is a
+ *      no-op stub in single-exe builds. The .redsave capture is a separate,
+ *      full-width Context_UpdateShadowCopy of sizeof(SaveContext), so the
+ *      truncation cannot reach the unified commit. The check asserts that
+ *      relationship instead of asserting the absence of a bug: the route probe
+ *      must sit PAST offsetof(SaveContext, fileNum), so a commit that ever
+ *      inherited the owl memcpy's width would fail checks 6 and 12 rather than
+ *      pass them by accident.
  */
 
 #include "global.h"
@@ -210,6 +238,27 @@ void ArmCrossGameSaveContext(u8 stamp) {
 void PoisonMMShadow(uint8_t value) {
     std::vector<uint8_t> poison(MM_SAVE_CONTEXT_SIZE, value);
     Context_UpdateShadowCopy(GAME_MM, poison.data(), poison.size());
+}
+
+// The OoT half, as the frozen shadow a cross-game MM session leaves behind it
+// (#589 check 12). Filled uniformly so "came back WHOLE" is a scan, not a
+// spot check.
+void FillOoTShadow(uint8_t value) {
+    std::vector<uint8_t> oot(OOT_SAVE_CONTEXT_SIZE, value);
+    Context_UpdateShadowCopy(GAME_OOT, oot.data(), oot.size());
+}
+
+bool OoTShadowIsUniform(uint8_t value) {
+    const uint8_t* oot = static_cast<const uint8_t*>(Context_GetOoTSaveContext());
+    if (oot == nullptr) {
+        return false;
+    }
+    for (size_t i = 0; i < OOT_SAVE_CONTEXT_SIZE; i++) {
+        if (oot[i] != value) {
+            return false;
+        }
+    }
+    return true;
 }
 
 // Did `what` produce a real durable commit? Requires: the monotonic #537
@@ -492,6 +541,49 @@ extern "C" int MM_UnifiedSaveCapture_RunHeadless(void) {
                      "the committed blob must carry the rolled-over cycle's reset count too");
     }
 
+    // ---- 12. An MM save commits the WHOLE file (#589) ---------------------
+    // Runs here, on the owl-shaped marshal, because the owl statue is the
+    // route the ruling was written about ("a save-and-quit in one half"). The
+    // OoT half is stamped with a pattern of its own before the marshal — that
+    // is what a cross-game MM session actually has resident: the frozen shadow
+    // the crossing left behind. The commit must carry it, whole, at the SAME
+    // single generation advance CommitReached already requires.
+    //
+    // Without this, an MM save is a HALF-file commit: MM's half persists, OoT's
+    // half stays at whatever the .redsave last held, and the two halves of the
+    // ONE save drift apart — which is #589's title and #531's mechanism.
+    {
+        const uint8_t kOoTHalfPattern = 0x6D;
+        ArmCrossGameSaveContext(0xB8);
+        gSaveContext.save.isOwlSave = true;
+        PoisonMMShadow(0x00);
+        FillOoTShadow(kOoTHalfPattern);
+
+        const uint32_t gen = gComboCtx.commitGeneration;
+        func_8014546C(&sramCtx);
+        // CommitReached clears every shadow and reloads from the FILE, so both
+        // assertions below are about what reached disk, not about memory.
+        USAVE_ASSERT(CommitReached(kSlot, gen, 0xB8, "func_8014546C (owl branch, whole-file commit)"),
+                     "the owl route must still commit MM's half (#530)");
+        USAVE_ASSERT(OoTShadowIsUniform(kOoTHalfPattern),
+                     "an MM-side save must commit OoT's half too, WHOLE, at the same generation -- a save "
+                     "that persists only the saving half is a half-file commit (#589)");
+
+        // #589's sibling concern, settled by construction rather than by
+        // assertion-of-absence. func_8014546C's owl branch memcpys only
+        // offsetof(SaveContext, fileNum) bytes into sramCtx->saveBuf -- real,
+        // vanilla, and confined to MM's N64 flash staging buffer, whose writer
+        // is a no-op stub in single-exe. The unified capture is a separate
+        // full-width Context_UpdateShadowCopy(sizeof(SaveContext)). Pinning the
+        // route probe PAST that width is what makes the distinction
+        // falsifiable: if the commit ever inherited the owl memcpy's bound, the
+        // stamp check inside CommitReached above would fail rather than pass by
+        // accident.
+        USAVE_ASSERT(RouteProbeOffset() > offsetof(SaveContext, fileNum),
+                     "the route probe must sit past the owl marshal's truncated memcpy width, or check 12 "
+                     "cannot distinguish a full-width commit from an owl-width one (#589)");
+    }
+
     // ---- 8. The commit gates hold at the NEW call sites --------------------
     // (a) #533/#568 write latch: a slot this session never loaded, created, or
     //     erased stays unwritten, and the monotonic generation must not move --
@@ -519,10 +611,10 @@ extern "C" int MM_UnifiedSaveCapture_RunHeadless(void) {
         USAVE_ASSERT(RsbsSave_IsSlotWritable(kSlot) == 0, "an identity refusal must latch the slot (#570)");
 
         ArmCrossGameSaveContext(0xB6);
-        // A day the last PERMITTED commit (7b's new cycle) cannot have, so the
-        // reload below can tell the refused world from the kept one. 7b's
-        // end-of-cycle zeroed masksGivenOnMoon, so the tail stamp alone can no
-        // longer distinguish them.
+        // A day the last PERMITTED commit (check 12's, day 0) cannot have, so
+        // the reload below can tell the refused world from the kept one. The
+        // tail stamp alone cannot: 7b's end-of-cycle zeroes masksGivenOnMoon,
+        // so the probe field is not a reliable discriminator here.
         const s32 kRefusedDay = 9;
         gSaveContext.save.day = kRefusedDay;
         PoisonMMShadow(0x00);
@@ -542,9 +634,8 @@ extern "C" int MM_UnifiedSaveCapture_RunHeadless(void) {
         s32 keptDay = -1;
         memcpy(&keptDay, mm + offsetof(SaveContext, save.day), sizeof(keptDay));
         USAVE_ASSERT(keptDay != kRefusedDay, "an identity-refused slot must not have absorbed the refused world");
-        USAVE_ASSERT(keptDay == 0,
-                     "an identity-refused slot must still hold the LAST permitted commit (7b's new cycle), "
-                     "not the refused one");
+        USAVE_ASSERT(keptDay == 0, "an identity-refused slot must still hold the LAST permitted commit (check 12's), "
+                                   "not the refused one");
         USAVE_ASSERT(mm[RouteProbeOffset()] != 0xB6, "the refused commit's tail must not have reached the file either");
     }
 
