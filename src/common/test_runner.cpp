@@ -227,6 +227,13 @@ extern "C" {
 // C++), same reason as above.
 #include "tests/test_commit_generation.c"
 
+// WHOLE-FILE COMMIT (#589, operator ruling 2026-08-04) — the read half of the
+// same machinery, and what structurally retires #531: one commit carries BOTH
+// halves at ONE generation, and on load the newest whole commit's OoT half is
+// the AUTHORITY rather than a warning. FILE SCOPE (compiled as C++), same
+// reason as above.
+#include "tests/test_whole_file_commit.c"
+
 // Lane C1 foreign-item pipeline locks (#392, ADR 0002): give-path tagging,
 // round-trip survival with a real pool entry, and the foreignPlacements carve
 // serialization. FILE SCOPE (compiled as C++) for rsbs::SaveManager; the
@@ -2269,8 +2276,15 @@ const TestDescriptor gTests[] = {
      Test_CommitGenerationMonotonic},
     {"commit-torn-write", "Post-stage mutation cannot reach the .redsave; the #537 tear is unrepresentable",
      Test_CommitTornWrite},
-    {"commit-generation-skew", "Load detects .redsave/.sav freshness divergence (#531/#564 V16)",
+    {"commit-generation-skew", "Load detects .redsave/.sav freshness divergence (#531/#589)",
      Test_CommitGenerationSkew},
+    // Whole-file commit (#589): a durable save in either half commits BOTH
+    // halves at one generation, and on load the newest whole commit wins —
+    // which is what retires #531's permanent item loss.
+    {"whole-file-commit", "One commit carries both halves; the newest whole commit is the authority (#589)",
+     Test_WholeFileCommit},
+    {"whole-file-redeemed-item", "A REDEEMED record and the world it was redeemed into survive together (#531)",
+     Test_WholeFileRedeemedItem},
     {"mm-scene-parse", "MM scene commands parse via the S2H factory (#344)", Test_MMSceneParse},
     {"seq-map-bounds", "Sequence-map capacity covers the id range + custom slack (#371, #378)", Test_SeqMapBounds},
     {"cvar-classification", "Cross-game CVar classification matches ADR 0003 + the inventory (#34)",
