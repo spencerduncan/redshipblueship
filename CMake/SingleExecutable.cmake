@@ -678,6 +678,15 @@ if(BUILD_TESTING)
     # randomized while their models and dialog stayed vanilla. Display-free and
     # ROM-free, so it runs in this redship tier.
     redship_add_test(NAME MMHookDispatch COMMAND redship --test mm-hook-dispatch)
+    # One layer earlier than the row above (#539): a hook is only as armed as the
+    # registrar that (un)registers it, and MM's registrar map — S2H::ShipInit,
+    # separate from OoT's since the #375 COMDAT-fold split — had no CVar-change
+    # driver in the link. The unified menu's widgets call OoT's
+    # ShipInit::Init(cvar), so a converged key like
+    # gEnhancements.RememberSaveLocation re-armed OoT on the click and left MM
+    # latched at its first-boot value for the rest of the process.
+    # Display-free and ROM-free, so it runs in this redship tier.
+    redship_add_test(NAME MMShipInitDriver COMMAND redship --test mm-shipinit-driver)
     # filePlaytime epoch injection (#513): SavingEnhancements_AdvancePlaytime is
     # called from plain C (z_sram_NES.c, z_kaleido_scope_NES.c) regardless of
     # hook wiring, and accrued now - lastTimeLog with lastTimeLog unseeded (0) --
