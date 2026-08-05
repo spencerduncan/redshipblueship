@@ -1,9 +1,10 @@
 # ADR 0009: Combo settings author in CVars and identify by digest; the reverse pool is a second origin-keyed table behind a pre-generation gate
 
 - Status: **Accepted** (2026-07-22); **decisions 1 and 2 amended 2026-07-30**
-  under the one-game-semantics ruling; **decision 4 added 2026-08-04** (#589,
-  whole-file commit) and **decision 4a decided 2026-08-05** (#589,
-  quit-to-title is a durable commit) under the same ruling
+  under the one-game-semantics ruling; **the `reserved[]` byte budget amended
+  2026-08-04** under the #584 operator ruling; **decision 4 added 2026-08-04**
+  (#589, whole-file commit) and **decision 4a decided 2026-08-05** (#589,
+  quit-to-title is a durable commit) under the one-game ruling
 - For: #498 (combo-level settings), gating #493 (MM -> OoT foreign items); Phase
   3.1 tracker #492, Lane 1
 - Amended: **2026-07-30, #564** (the one-game ruling is recorded on
@@ -16,6 +17,15 @@
   claim 3's *rationale* is restated where it leaned on decision 1. Each
   amendment sits at the end of its decision, with the original reasoning kept
   above it so the decision trail stays legible.
+- Amended: **2026-08-04, #584** (operator ruling: claim 4, "Netplay grant
+  fields, 64 B", double-counted a carve **PR #473**/ADR 0005 already spent
+  the day before this ADR was created; the claim is retired as already spent,
+  not reduced. Two carves that landed after this ADR shipped and were never
+  recorded — `commitGeneration` (#569) and `mmPairedAttempt` (#581) — are
+  added so the table reconciles to `src/common/context.h`'s actual
+  `reserved[124]`.) See the amendment inside "The `reserved[264]` byte
+  budget" below; the table's original rows are kept for the trail and marked,
+  not deleted.
 - Extended: **2026-08-04, [#589](https://github.com/spencerduncan/redshipblueship/issues/589)**
   — decision 4 applies the same one-game ruling to durable commits (a commit is
   the WHOLE file; on load the newest whole commit wins), which structurally
@@ -24,7 +34,9 @@
   question none of them addressed: not what a save file *identifies*, but what
   a save *commits*. **Decision 4a (2026-08-05)** closes the one question
   decision 4 left open: quit-to-title is a durable commit — deliberate
-  autosave-on-quit, not a side effect.
+  autosave-on-quit, not a side effect. **Carves no Tier-1 bytes**, so the #584
+  budget amendment above is untouched by it: the authority signal decision 4
+  adds is `rsbs::SaveManager` session state, not a `ComboContext` field.
 - Depends on:
   - **[ADR 0002](0002-origin-tagged-shared-items.md)** (Accepted) — the origin-tag
     invariant and the `ComboContext` growth contract every carve below obeys.
@@ -370,6 +382,11 @@ staging) and the other half from its frozen shadow, which is that half's true
 state as of when it was last live. One monotonic generation, one instant, one
 choke point (`rsbs::SaveManager::StageCommit`). No route commits a half.
 
+The generation this decision turns into an authority is `commitGeneration`,
+already carved by #569 — **row 8 of the budget table below**, which the
+2026-08-04 #584 amendment added because it had landed unrecorded. This decision
+spends no further Tier-1 bytes: it gives an existing field a second job.
+
 *Read.* The generation names which artifact holds the newest WHOLE commit, and
 every tier of that commit wins together. When the `.redsave`'s generation is
 newer than the one OoT's `.sav` mirrors, the `.redsave`'s Tier-2 is OoT's half
@@ -473,10 +490,12 @@ Publishing the allocation once beats five sequential re-versions:
 | 1 | `foreignPlacementsOoT[8]` (#493 step 2, Lane 1) | 48 B | **carved by this arc** |
 | 2 | `comboSettingsHash` (#498 decision 1, Lane 1) | 4 B | reserved |
 | 3 | MM option-profile digest (#497 step 7 / #499 step 4, Lane 4) | 4 B | **carved by Lane 4; size CONFIRMED at 4 B** |
-| 4 | Netplay grant fields (#460, ADR 0005/0007) | 64 B | reserved |
+| 4 | Netplay grant fields (#460, ADR 0005/0007) | 64 B | ~~reserved~~ **RETIRED 2026-08-04 (#584)** — already spent by PR #473, see amendment below |
 | 5 | `sharedResources[8]` (#525, shared rupees + hearts + magic) | 32 B | **carved by #525** |
 | 6 | `sharedResourcesExt[12]` (#525 optional tier, shared ammo) | 48 B | **carved by #525** |
 | 7 | Unallocated floor | 84 B | must not drop below 64 |
+| 8 | `commitGeneration` (#569, one-game-persistence commit-generation stamp) | 4 B | **carved** — PR #569, merged 2026-07-31; missing from this table until the 2026-08-04 (#584) amendment |
+| 9 | `mmPairedAttempt` (#581, ADR 0010 increment 1.2 / accepted answer O3) | 4 B | **carved** — PR #581, merged 2026-08-02; missing from this table until the 2026-08-04 (#584) amendment |
 
 Total reserved-against: 152 B of 284. After claims 1, 3, 5 and 6 land, `reserved[]`
 is 132 bytes and 152 B of capacity remain.
@@ -551,6 +570,47 @@ Nothing here re-opens the floor or the table. It records that "a save-side recor
 would be a second settings store" must not be re-used as an argument against
 freezing identity — it is the sentence #564 struck.
 
+### Amendment — claim 4 retired, table reconciled to `context.h` (2026-08-04, #584)
+
+**Claim 4, retired 2026-08-04 (#584 operator ruling).** This claim
+double-counted a carve that had already landed. `grantCursors[8]` (64 B,
+offset 672) and `sharedItemOverflowCount` (4 B, offset 736) were carved by
+**PR #473** (ADR 0005), merged **2026-07-21T20:46:51Z** — one day before this
+ADR was created (2026-07-22, per the Status line above). The `reserved[264]`
+baseline / 284-byte capacity this section opens with is measured *after* that
+carve (ADR 0005 §5: `reserved[332]` shrinks to `reserved[264]`), so claim 4's
+"Netplay grant fields … 64 B … reserved" row asked for the same 64 bytes a
+second time — once implicitly, by starting the count at 264 rather than 332,
+and once explicitly, as an outstanding line in this table. ADR 0007 (the
+grant-relay transport that actually shipped netplay) confirms this from the
+consumer side: its §5.2 states plainly that it carves "**nothing** from
+`reserved[]`" and that "`reserved[264]` at offset 740 is left wholly to ADR
+0005's successors." There is no further netplay carve to make. Claim 4 is
+retired, not reduced — the work it named was already done, by a different
+ADR, before this one existed.
+
+**Reconciling the table to `src/common/context.h` (re-derived 2026-08-04).**
+Two carves landed after this ADR shipped and were never recorded here:
+`commitGeneration` (**#569**, one-game-persistence commit-generation stamp, 4
+B, offset 872) and `mmPairedAttempt` (**#581** / ADR 0010 increment 1.2,
+accepted answer O3, 4 B, offset 876) — rows 8-9 above. Following the table
+from its 264-byte start: 264 − 48 (claim 1) − 4 (claim 3) − 32 (claim 5) − 48
+(claim 6) − 4 (claim 8, #569) − 4 (claim 9, #581) = **124**, matching
+`reserved[124]` at `context.h:705` exactly (its start offset, 880, is
+876 + 4 — the byte immediately after `mmPairedAttempt`).
+
+**Corrected arithmetic: outstanding claims vs. the 64-byte floor.** With
+claim 4 retired, the only claim still outstanding against `reserved[]` is
+**claim 2** (`comboSettingsHash`, 4 B — not yet carved as of this amendment;
+verified absent from `context.h`). `124 − 4 = 120`, which clears the 64-byte
+floor with 56 bytes to spare. This retires the alarm both `context.h:701-704`
+and issue #584 raised — that outstanding claims "2 and 4 (4 + 64) would leave
+56, UNDER the 64-byte floor" — because that arithmetic depended on claim 4
+still being live. It is not. No format-version bump, no
+`RSBS_COMBO_CONTEXT_RECORD_SIZE` raise, and no record-size change are owed by
+this correction; it is bookkeeping only, and nothing in decisions 1-3 above
+changes.
+
 Two constraints on anyone spending from this:
 
 - **Keep `reserved[]` at 64 bytes or more.** `Test_SaveComboRecordFixed`'s
@@ -609,3 +669,17 @@ Added by the 2026-07-30 amendments (#564):
   vanilla-Termina revert with nowhere to live; the refusal surface is shared
   with #533's refused-load surface rather than invented per producer (#564's
   one-authority persistence model, REFUSAL).
+
+Added by the 2026-08-04 amendment (#584):
+
+- **Claim 4 ("Netplay grant fields, 64 B") is retired, not reduced.** It was
+  already spent by PR #473/ADR 0005 the day before this ADR was created; the
+  264-byte baseline the budget table opens with was already computed after
+  that carve, so counting it again as an outstanding claim double-counted the
+  same 64 bytes.
+- **The table now carries rows 8-9** (`commitGeneration` #569,
+  `mmPairedAttempt` #581) so it reconciles to `reserved[124]`, the figure
+  actually in `src/common/context.h` as of this amendment.
+- **Only claim 2 remains outstanding.** `comboSettingsHash` (4 B) is the sole
+  unspent claim; landing it leaves `reserved[120]`, clear of the 64-byte
+  floor by 56 bytes.
