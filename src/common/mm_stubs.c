@@ -119,9 +119,9 @@ void MM_FaultDrawer_SetCharPad(int xPad, int yPad) { (void)xPad; (void)yPad; }
  * icon (OnGameStateDrawFinish: DrawAutosaveIcon) permanently dead even though
  * registration itself no longer corrupts memory. Re-stubbing them here would
  * silently sever that dispatch again. */
-void GameInteractor_ExecuteOnGameStateMainFinish(void* state) { (void)state; }
-void GameInteractor_ExecuteOnPlayDrawWorldEnd(void* play) { (void)play; }
-void GameInteractor_ExecuteOnInterfaceDrawStart(void* play) { (void)play; }
+void GameInteractor_ExecuteOnGameStateMainFinish(void) {}
+void GameInteractor_ExecuteOnPlayDrawWorldEnd(void) {}
+void GameInteractor_ExecuteOnInterfaceDrawStart(void) {}
 /* GameInteractor_ExecuteBeforeKaleidoDrawPage / ExecuteAfterKaleidoDrawPage
  * moved to real, header-checked dispatch in
  * games/mm/2s2h/GameExports_SingleExe.cpp (#438), reached through the
@@ -150,7 +150,7 @@ void GameInteractor_ExecuteOnInterfaceDrawStart(void* play) { (void)play; }
  * no-ops while MM is the active game, so MM text boxes fired no hooks at all.
  * OoT's own z_message_PAL.c still reaches that wrapper; MM's z_message.c is
  * rebound to MM_GameHooks_ExecuteOnOpenText (#438), see the block above. */
-void GameInteractor_ExecuteOnItemGive(int itemId) { (void)itemId; }
+void GameInteractor_ExecuteOnItemGive(unsigned char itemId) { (void)itemId; }
 /* GameInteractor_ShouldItemGive / GameInteractor_ShouldActorDraw stubs
  * retired (#392 VB follow-up): MM call sites now rebind to the header-checked
  * MM_GameHooks_ExecuteShouldItemGive / MM_GameHooks_ExecuteShouldActorDraw in
@@ -167,8 +167,8 @@ void GameInteractor_ExecuteAfterCameraUpdate(void* camera) { (void)camera; }
  * registration (cutscene-skip-on-load's gameplay-started detector) a
  * permanent no-op. Re-stubbing here would silently sever it again. */
 void GameInteractor_ExecuteOnPlayerPostLimbDraw(void* player, int limbIndex) { (void)player; (void)limbIndex; }
-void GameInteractor_ExecuteOnBossDefeated(int bossId) { (void)bossId; }
-void GameInteractor_ExecuteOnBottleContentsUpdate(int slotId) { (void)slotId; }
+void GameInteractor_ExecuteOnBossDefeated(short bossId) { (void)bossId; }
+void GameInteractor_ExecuteOnBottleContentsUpdate(unsigned char slotId) { (void)slotId; }
 void GameInteractor_ExecuteOnConsoleLogoUpdate(void) {}
 /* GameInteractor_ExecuteOnFileSelectSaveLoad moved to real, header-checked
  * dispatch in games/mm/2s2h/GameExports_SingleExe.cpp (#438), reached through
