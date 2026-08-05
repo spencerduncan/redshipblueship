@@ -33,7 +33,9 @@ games/mm/2s2h/GameInteractorEventsSingleExe.cpp
 games/mm/2s2h/Rando/Foreign.cpp
 games/mm/2s2h/Rando/Foreign.h
 games/mm/2s2h/Rando/ForeignItemsSingleExe.cpp
+games/mm/2s2h/Rando/OptionsUiSingleExe.cpp
 games/mm/2s2h/Rando/TrackerAdapterSingleExe.cpp
+games/mm/2s2h/SaveEditorTimeSingleExe.cpp
 games/mm/2s2h/ShipInit.hpp
 games/mm/2s2h/TrackersGuiSingleExe.cpp
 games/mm/2s2h/TrackersGuiSingleExe.h
