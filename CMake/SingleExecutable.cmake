@@ -64,8 +64,6 @@ set(REDSHIP_COMMON_SOURCES
     ${CMAKE_SOURCE_DIR}/src/common/mod_archives.cpp
     ${CMAKE_SOURCE_DIR}/src/common/test_runner.cpp
     ${CMAKE_SOURCE_DIR}/src/common/integration_test_hooks.cpp
-    # Note: game_stubs.cpp is NOT included - real implementations come from
-    # games/oot/soh/GameExports_SingleExe.cpp and games/mm/2s2h/GameExports_SingleExe.cpp
     # Unified SaveContext storage for both games
     ${CMAKE_SOURCE_DIR}/src/common/unified_save.c
     # Unified cross-game save file (.redsave) — Phase 2 T6 (#35)
