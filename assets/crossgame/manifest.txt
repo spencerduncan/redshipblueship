@@ -16,9 +16,27 @@
 # types carried here would be parsed with the wrong game's reader.  Models are
 # unaffected -- no model resource type is dispatched that way.
 #
+# Two further hard-fails guard the properties that make a model safe to draw
+# under the OTHER game.  Neither is a style rule; both refuse the build and
+# name the offending resource.
+#
+#   * Raw segmented texture references (#605).  A display list whose stream
+#     carries a raw gsDPSetTextureImage resolves that texture against the HOST
+#     game's segment table at draw time -- the OoTMM kObjectPatches[] hazard.
+#     ~3.5% of each archive's object display lists carry one, so "cross-game
+#     models work" is true PER MODEL, not universally.  Check before assuming
+#     an object is curatable; the generator will tell you.
+#
+#   * Array resources the two games' readers parse differently (#604).  Vertex
+#     arrays are safe (both factories run identical code).  Scalar arrays are
+#     not: OoT's factory implements only S16/U16 and reads ZERO bytes for any
+#     other width, desyncing the rest of the resource.
+#
 # Collision-free headroom as measured against the current archives (#577
 # re-examination, 2026-07-31): 313 MM-exclusive object directories, 230
-# OoT-exclusive, including all 24 `object_mask_*`.
+# OoT-exclusive, including all 24 `object_mask_*`.  Headroom is NOT the same
+# as admissibility -- a collision-free object can still be refused by either
+# guard above.
 #
 # --- spike scope (#577) -------------------------------------------------------
 # One MM-exclusive model, chosen because it is the smallest interesting case:
