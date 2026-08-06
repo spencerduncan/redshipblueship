@@ -2301,6 +2301,90 @@ extern "C" void MM_GameHooks_ExecuteOnGameCompletion(void) {
 }
 
 /**
+ * The item/progression trio (#438): OnItemGive, OnBottleContentsUpdate and
+ * OnBossDefeated.
+ *
+ * WHAT WAS DEAD. All three call sites are live and unguarded on real MM frames
+ * -- z_parameter.c's MM_Item_Give (:4604, the 2S2H wrapper around
+ * Item_GiveImpl), Inventory_Dpad_UpdateBottleItem and
+ * MM_Inventory_UpdateBottleItem (:4905/:4922), and the five boss overlays
+ * (z_boss_01/02/03/07/hakugin) -- while the names bound header-checked no-ops
+ * in mm_gameinteractor_stubs.c. Unlike the #512/#515 class there is no OoT
+ * wrapper hiding behind them: OoT defines none of these three symbols, so the
+ * stubs were the only definitions, and deleting them with this change turns a
+ * dropped bridge or a missing rebind into a LINK error rather than another
+ * silent no-op (the Before/AfterEndOfCycleSave property).
+ *
+ * WHY THESE THREE AND NOT THE OTHER TEN. None of the 13 remaining stubs has a
+ * linked registrant today: every registrant TU is either link-elided from the
+ * plain-archive 2ship_enh or excluded from the build outright (2s2h/
+ * DeveloperTools, games/mm/CMakeLists.txt:254). So no tranche here can be cut
+ * on "has a live registrant", and -- contrary to the working assumption on
+ * #438 -- none of the 13 has a randomizer-gated registrant either; they are
+ * all cosmetic/tracker/dev-tool enhancements behind gSettings/gEnhancements/
+ * gModes CVars. The axis that does separate them is what runs on the day
+ * 2ship_enh flips to WHOLE_ARCHIVE. The sole registrant of all three,
+ * Enhancements/Trackers/TimeSplits/TimeSplitsActions.cpp:373/387/388, calls
+ * UpdateSplitStatusById / GetSplitByActorId, which read MM_splitList and
+ * gSaveContext.save.shipSaveInfo.fileCreatedAt and nothing else: no
+ * MM_gPlayState, no gfxCtx, no actor context. Every other candidate in the
+ * batch dereferences live play state with no null check -- PersistentMasks /
+ * BowReticle / HyruleWarriorsStyledLink on OnPlayerPostLimbDraw,
+ * AmmoBuyback.cpp:317 on OnInterfaceDrawStart, BetterSongOfDoubleTime's
+ * UpdateDayTexture on the clock pair, FreeLook's GET_PLAYER on
+ * OnCameraChangeModeFlags -- which is the #516 SIGSEGV class and needs its
+ * guards landed WITH the flip, not ahead of it.
+ *
+ * WHAT NOW RUNS THAT DID NOT BEFORE: nothing, today. Every leg below iterates
+ * an empty registry, because both OnItemGive registrants are unreachable
+ * (TimeSplitsActions elided, DeveloperTools/EventLog excluded) and the other
+ * two types have only the elided TimeSplits one. This is dispatch placed ahead
+ * of un-elision on purpose -- ADR 0004 section 5 condition 3, which imposes no
+ * ordering between the three conditions -- so that the flip does not arm three
+ * hook types at once with nothing behind them. games/mm/include/mm_game_hooks.h
+ * carries the same note beside the blanket rule it refines.
+ *
+ * THE FOREIGN-AWARD SEAM, for whoever adds the first real registrant. MM's
+ * cross-game arrival path DOES route through MM_Item_Give: MM_ConsumeSharedItems
+ * (z_play.c) -> Combo_RedeemSharedItemsForGame -> MM_AwardSharedItem ->
+ * MM_ForeignItem_Give -> GiveNow (Rando/ForeignItemsSingleExe.cpp:467) ->
+ * Rando::GiveItem -> MM_Item_Give for most of kForeignPoolMMV1. Reviving this
+ * dispatch cannot double-give: the two locks that matter both sit UPSTREAM of
+ * the give and are untouched here -- the durable RSBS_SHARED_ITEM_REDEEMED
+ * latch (src/common/shared_items.c:277-283) and the clear-the-queue-before-
+ * giving re-entrancy guard (ForeignItemsSingleExe.cpp:552-561). What it does
+ * mean is that a future OnItemGive registrant will observe foreign awards, on
+ * an arrival frame the player did not initiate, carrying raw MM item bytes
+ * rather than rando intent (Rando/GiveItem.cpp hands ITEM_LONGSHOT over to mean
+ * "bottle of red potion"). GiveNow is the seam to suppress at if that is ever
+ * wrong for a given registrant. The shared-RESOURCE path is unaffected either
+ * way: MM_ApplySharedResources writes gSaveContext fields directly and never
+ * calls MM_Item_Give.
+ *
+ * LEGS. Execute + ExecuteForID, mirroring the excluded GameInteractor.cpp twins
+ * (:266-277 key the two item hooks on the item byte, :186-191 keys OnBossDefeated
+ * on the actor id) minus the standing ForFilter deviation -- the S2H registry has
+ * no filter surface. OnBossDefeated's upstream ForPtr leg is dropped too, and
+ * that one is a correction rather than a deviation: upstream keys the POINTER
+ * registry with (uintptr_t)actorId, an actor-id VALUE and not an address, so no
+ * registrant could bind it without inventing a fake key, and no MM TU does.
+ */
+extern "C" void MM_GameHooks_ExecuteOnItemGive(u8 item) {
+    S2H::GameHooks::Execute<GameInteractor::OnItemGive>(item);
+    S2H::GameHooks::ExecuteForID<GameInteractor::OnItemGive>(item, item);
+}
+
+extern "C" void MM_GameHooks_ExecuteOnBottleContentsUpdate(u8 item) {
+    S2H::GameHooks::Execute<GameInteractor::OnBottleContentsUpdate>(item);
+    S2H::GameHooks::ExecuteForID<GameInteractor::OnBottleContentsUpdate>(item, item);
+}
+
+extern "C" void MM_GameHooks_ExecuteOnBossDefeated(s16 actorId) {
+    S2H::GameHooks::Execute<GameInteractor::OnBossDefeated>(actorId);
+    S2H::GameHooks::ExecuteForID<GameInteractor::OnBossDefeated>(actorId, actorId);
+}
+
+/**
  * MM-owned "Should" dispatch (#392 VB follow-up). MM call sites reach these
  * through the single-exe macro rebind at the bottom of MM's GameInteractor.h
  * (GameInteractor_Should -> MM_GameHooks_ExecuteVBShould, etc.), so MM VB ids
