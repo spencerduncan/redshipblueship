@@ -69,6 +69,14 @@ void MM_Rando_Foreign_TestItemSentinels(uint16_t* outJunk, uint16_t* outNone, ui
 int MM_ForeignItem_TestIsGiveableId(uint16_t riId);
 int MM_ForeignItem_TestIsJunkClassId(uint16_t riId);
 
+// #495 criterion-attribution bridges: each pool TU's table of ids that were
+// CONSIDERED and rejected, with the criterion number that rejected them. This
+// TU has neither game's enum in scope by design, so it cannot name RI_TRAP or
+// RG_FAIRY_BOW itself — it walks these instead, which is also what keeps the
+// lock testing the real tables rather than a second copy of them.
+int MM_ForeignItem_TestExclusionAt(int index, uint16_t* outId, uint8_t* outCriterion);
+int OoT_ForeignItem_TestExclusionAt(int index, uint16_t* outId, uint8_t* outCriterion);
+
 // #510 OoT-side host predicate (games/oot/soh/Enhancements/randomizer/
 // ForeignItemsSingleExe.cpp) — the SAME function OoT_PlaceForeignItems' candidate
 // loop calls. Its fill-side half reads GetPlacedRandomizerGet(), so it accepts
@@ -149,10 +157,35 @@ TestResult Test_ForeignItemGive(void) {
     // ------------------------------------------------------------------
     // Pool sanity: pinned, OoT-tagged, named, lookup round-trips.
     // ------------------------------------------------------------------
+    //
+    // #495'S PRIMARY LOCK LIVES HERE, AND IT IS RE-AIMED (ADR 0011 decision
+    // 3.2). The issue asked for "a different sharedRandoSeed must produce a
+    // different pool — otherwise the 'rule' is a constant wearing a rule's
+    // clothes". That assertion MUST NOT BE WRITTEN: it is satisfiable only by a
+    // seed-varying class, which makes Combo_GetForeignItemByNameFor PARTIAL on
+    // the spoiler-LOAD path (a name that was in the pool at generation is absent
+    // at load, in a process that never generated). A lock that cannot pass gets
+    // "fixed" by weakening it, which is why the correction is recorded in an ADR
+    // rather than in a review comment.
+    //
+    // Re-aimed at the two observables that DO matter, and both are asserted —
+    // "a different seed must produce different PLACEMENTS" by SeedDeterminism's
+    // foreignOoTHash fold and MMRandoGen's digest, and "a different itemClass*
+    // bitset must produce a different derived pool" by the ForeignItemClass row
+    // below, which also carries the parity pin this one leaves implicit.
     const ComboForeignItemDef* pool = NULL;
     const int poolCount = Combo_GetForeignItemPool(&pool);
     FI_ASSERT(pool != NULL);
     FI_ASSERT(poolCount >= 1 && poolCount <= (int)RSBS_FOREIGN_PLACEMENT_CAP);
+    // The pool this row goes on to drive is the DRAWN pool under the shipped
+    // rules: with every class armed the draw is the whole table, so everything
+    // below is testing what a created world actually places. Written against
+    // the explicit v1 union rather than the resolved mask because this block
+    // runs BEFORE the clean-slate ComboContext_Init below, and `--test all`
+    // shares one process — the claim is about the TABLE, not about whatever the
+    // previous row left frozen.
+    FI_ASSERT(Combo_ForeignPoolClassMembersFor((uint8_t)GAME_OOT, (uint16_t)RSBS_ITEMCLASS_ALL_V1, NULL, 0) ==
+              poolCount);
     for (int i = 0; i < poolCount; i++) {
         FI_ASSERT(pool[i].item.originGame == (uint8_t)GAME_OOT);
         FI_ASSERT(pool[i].item.id != 0);
@@ -950,5 +983,320 @@ TestResult Test_ForeignPoolMM(void) {
 
     printf("[TEST] PASS: MM source pool registered, well-formed, giveable, non-junk, name-invertible, "
            "no shared resources\n");
+    return TEST_PASS;
+}
+
+// ============================================================================
+// #495: the cross-game item class is a RULE, and the class BITSET is the
+// setting (ADR 0011 decision 3; accepted answers O3 and O7).
+//
+// What replaced what: the pool draw used to be "the literal table, in order",
+// so the four pinned OoT rows WERE the whole universe and the bitset carved by
+// increment 1 was read but unconsumed. Now every row names one
+// RSBS_ITEMCLASS_* bit, the draw is Combo_ForeignPoolDrawFor over the FROZEN
+// bitset, and the pinned table is one class's membership.
+//
+// THE THREE CLAIMS THIS ROW EXISTS FOR, in the order they can fail:
+//
+//  (P) PARITY. Under the shipped defaults the draw is the identity permutation,
+//      so every already-generated world is byte-identical. This is the pin the
+//      whole increment is bounded by — SeedDeterminism's foreignOoTHash and
+//      MMRandoGen's placement digest both fold the drawn entries, so if this
+//      assertion is wrong those rows move.
+//
+//  (N) NARROWING. A narrowed bitset draws ONLY members of the armed classes.
+//      RED before the rule engine: the bitset was stored and compared but no
+//      code consumed it, so every mask produced the same full pool.
+//
+//  (T) TOTALITY. Combo_GetForeignItemByNameFor stays TOTAL over every item ANY
+//      class can name, whatever is frozen. This is why the class carries no
+//      seed term (O3) and why the FILTER returns indices while the REGISTRY
+//      keeps serving the whole pool: the spoiler-LOAD path runs in processes
+//      that never generated, and a selection-scoped inverse would make a
+//      spoiler that was valid at generation unreadable at load.
+//
+// Display-free, ROM-free, save-free: both tables are statics in WHOLE_ARCHIVE'd
+// libraries whose registrars run before main().
+// ============================================================================
+
+namespace {
+// Every allocated bit, spelled out rather than reusing RSBS_ITEMCLASS_ALL_V1,
+// so a bit ADDED to the union without a matching lock update is a red row here
+// instead of a silently widened default.
+const uint16_t kAllocatedClassBits[] = {
+    (uint16_t)RSBS_ITEMCLASS_PROGRESSION,   (uint16_t)RSBS_ITEMCLASS_SONGS,
+    (uint16_t)RSBS_ITEMCLASS_MASKS,         (uint16_t)RSBS_ITEMCLASS_DUNGEON_ITEMS,
+    (uint16_t)RSBS_ITEMCLASS_DUNGEON_REWARD, (uint16_t)RSBS_ITEMCLASS_SIDEQUEST,
+};
+const int kAllocatedClassBitCount = (int)(sizeof(kAllocatedClassBits) / sizeof(kAllocatedClassBits[0]));
+
+int PopCount16(uint16_t v) {
+    int n = 0;
+    while (v != 0) {
+        n += (v & 1u);
+        v = (uint16_t)(v >> 1);
+    }
+    return n;
+}
+} // namespace
+
+TestResult Test_ForeignItemClass(void) {
+    printf("[TEST] foreign-item-class: the frozen class bitset selects the DRAW; the pool and the name inverse stay "
+           "whole (#495)\n");
+
+    ComboContext_Init();
+
+    const uint8_t kOrigins[] = { (uint8_t)GAME_OOT, (uint8_t)GAME_MM };
+
+    // ------------------------------------------------------------------
+    // (0) The bit table is pinned, and every bit has a name.
+    // ------------------------------------------------------------------
+    // A renumbering is already a red BUILD (foreign_items.h's static_assert);
+    // this is the runtime half — an allocated bit with no name would render as
+    // "(unknown)" in every log line and refusal message the rule produces.
+    FI_ASSERT((uint16_t)RSBS_ITEMCLASS_ALL_V1 == 0x003Fu);
+    uint16_t unionOfBits = 0;
+    for (int b = 0; b < kAllocatedClassBitCount; b++) {
+        FI_ASSERT(PopCount16(kAllocatedClassBits[b]) == 1);
+        FI_ASSERT(strcmp(Combo_ForeignItemClassName(kAllocatedClassBits[b]), "(unknown)") != 0);
+        unionOfBits = (uint16_t)(unionOfBits | kAllocatedClassBits[b]);
+    }
+    FI_ASSERT(unionOfBits == (uint16_t)RSBS_ITEMCLASS_ALL_V1);
+    // An UNALLOCATED bit has no name and, below, no members.
+    FI_ASSERT(strcmp(Combo_ForeignItemClassName(0x0040u), "(unknown)") == 0);
+    // The criteria are named too — an exclusion attributed to a criterion the
+    // name table does not know is an exclusion nobody can read.
+    for (uint8_t c = (uint8_t)RSBS_FOREIGN_CRIT_REAL_ITEM; c < (uint8_t)RSBS_FOREIGN_CRIT_COUNT; c++) {
+        FI_ASSERT(strcmp(Combo_ForeignCriterionName(c), "(unknown)") != 0);
+    }
+    FI_ASSERT(strcmp(Combo_ForeignCriterionName((uint8_t)RSBS_FOREIGN_CRIT_COUNT), "(unknown)") == 0);
+
+    // ------------------------------------------------------------------
+    // (1) EVERY ROW OF BOTH POOLS IS CLASSIFIED, with EXACTLY ONE bit.
+    // ------------------------------------------------------------------
+    // Zero bits: the row is selected by no mask and would silently leave the
+    // pool the moment the rule went live. Two bits: the row is drawn by either
+    // class, which makes claim (N) untestable. C cannot express "exactly one
+    // allocated bit" in an initializer, so it is asserted here.
+    for (int o = 0; o < 2; o++) {
+        const ComboForeignItemDef* pool = NULL;
+        const int poolCount = Combo_GetForeignItemPoolFor(kOrigins[o], &pool);
+        FI_ASSERT(poolCount >= 1 && pool != NULL);
+        for (int i = 0; i < poolCount; i++) {
+            FI_ASSERT(PopCount16(pool[i].itemClass) == 1);
+            FI_ASSERT((pool[i].itemClass & (uint16_t)RSBS_ITEMCLASS_ALL_V1) == pool[i].itemClass);
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // (P) THE PARITY PIN. Default bitset => the identity permutation.
+    // ------------------------------------------------------------------
+    // Asserted as index-for-index equality with 0..poolCount-1, not merely as
+    // an equal COUNT: the forward pass assigns pool[draw[i]] to the i-th drawn
+    // host, so a permutation with the right size and the wrong order would
+    // re-order every already-generated world's crossings while passing a
+    // count check.
+    FI_ASSERT(!Combo_ComboSettingsFrozen()); // fresh gComboCtx: the unfrozen fallback path
+    for (int o = 0; o < 2; o++) {
+        const uint8_t origin = kOrigins[o];
+        const ComboForeignItemDef* pool = NULL;
+        const int poolCount = Combo_GetForeignItemPoolFor(origin, &pool);
+
+        // The unfrozen fallback is the shipped default, NOT zero. A
+        // zero-extended legacy record resolving to "no classes" would silently
+        // generate a paired world with no crossings at all.
+        FI_ASSERT(Combo_ComboItemClassFor(origin) == (uint16_t)RSBS_ITEMCLASS_ALL_V1);
+
+        std::vector<int> draw((size_t)poolCount, -1);
+        const int drawCount = Combo_ForeignPoolDrawFor(origin, draw.data(), poolCount);
+        FI_ASSERT(drawCount == poolCount);
+        for (int i = 0; i < poolCount; i++) {
+            FI_ASSERT(draw[(size_t)i] == i);
+        }
+        printf("[TEST] foreign-item-class: origin %u parity — draw is the identity permutation over %d rows\n",
+               (unsigned)origin, poolCount);
+    }
+
+    // The same parity under an explicitly FROZEN default record, because that
+    // is the path a created world actually takes (the fallback above is only
+    // for legacy/pre-freeze files).
+    {
+        ComboSettingsRecord defaults;
+        Combo_ComboSettingsDefaults(&defaults);
+        gComboCtx.comboSettings = defaults;
+        FI_ASSERT(Combo_ComboSettingsFrozen());
+        for (int o = 0; o < 2; o++) {
+            const ComboForeignItemDef* pool = NULL;
+            const int poolCount = Combo_GetForeignItemPoolFor(kOrigins[o], &pool);
+            FI_ASSERT(Combo_ComboItemClassFor(kOrigins[o]) == (uint16_t)RSBS_ITEMCLASS_ALL_V1);
+            std::vector<int> draw((size_t)poolCount, -1);
+            FI_ASSERT(Combo_ForeignPoolDrawFor(kOrigins[o], draw.data(), poolCount) == poolCount);
+            for (int i = 0; i < poolCount; i++) {
+                FI_ASSERT(draw[(size_t)i] == i);
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // (N) NARROWING. Each armed bit yields ONLY members of that class, the
+    //     classes PARTITION the pool, and the frozen record is what selects.
+    // ------------------------------------------------------------------
+    for (int o = 0; o < 2; o++) {
+        const uint8_t origin = kOrigins[o];
+        const ComboForeignItemDef* pool = NULL;
+        const int poolCount = Combo_GetForeignItemPoolFor(origin, &pool);
+
+        int summed = 0;
+        for (int b = 0; b < kAllocatedClassBitCount; b++) {
+            const uint16_t bit = kAllocatedClassBits[b];
+
+            // Freeze a record that arms exactly this one class for this origin.
+            // Written through the RECORD, not through a parameter, because the
+            // claim under test is "the FROZEN setting selects" — a filter
+            // driven only by an explicit mask argument would pass even if no
+            // production path ever read gComboCtx.
+            ComboSettingsRecord rec;
+            Combo_ComboSettingsDefaults(&rec);
+            if (origin == (uint8_t)GAME_OOT) {
+                rec.itemClassOoT = bit;
+            } else {
+                rec.itemClassMM = bit;
+            }
+            gComboCtx.comboSettings = rec;
+            FI_ASSERT(Combo_ComboItemClassFor(origin) == bit);
+
+            std::vector<int> draw((size_t)poolCount, -1);
+            const int n = Combo_ForeignPoolDrawFor(origin, draw.data(), poolCount);
+            FI_ASSERT(n >= 0 && n <= poolCount);
+            summed += n;
+
+            int prev = -1;
+            for (int i = 0; i < n; i++) {
+                const int idx = draw[(size_t)i];
+                FI_ASSERT(idx >= 0 && idx < poolCount);
+                // ONLY members of the armed class...
+                FI_ASSERT(pool[idx].itemClass == bit);
+                // ...and still in POOL ORDER, which is world-visible.
+                FI_ASSERT(idx > prev);
+                prev = idx;
+            }
+            // The count-only form must agree with the filled form, or the
+            // shortfall alarm that uses it reports a different number from the
+            // pass it is describing.
+            FI_ASSERT(Combo_ForeignPoolDrawFor(origin, NULL, 0) == n);
+
+            printf("[TEST] foreign-item-class: origin %u class %-14s -> %d of %d rows\n", (unsigned)origin,
+                   Combo_ForeignItemClassName(bit), n, poolCount);
+        }
+        // The classes PARTITION the pool: exactly-one-bit per row (asserted
+        // above) plus per-class counts summing to the whole means no row is
+        // double-counted and none is stranded.
+        FI_ASSERT(summed == poolCount);
+    }
+
+    // The empty and unallocated masks select nothing — "no classes armed" is a
+    // legitimate state (the direction byte is what says OFF), and an
+    // unallocated bit must not resolve to members it cannot have.
+    for (int o = 0; o < 2; o++) {
+        FI_ASSERT(Combo_ForeignPoolClassMembersFor(kOrigins[o], 0u, NULL, 0) == 0);
+        FI_ASSERT(Combo_ForeignPoolClassMembersFor(kOrigins[o], 0x0040u, NULL, 0) == 0);
+    }
+    // An origin with no pool has no members and no class, whatever is frozen.
+    FI_ASSERT(Combo_ForeignPoolDrawFor((uint8_t)GAME_NONE, NULL, 0) == 0);
+    FI_ASSERT(Combo_ComboItemClassFor((uint8_t)GAME_NONE) == 0);
+
+    // A FROZEN zero is honoured verbatim rather than clamped up to the
+    // defaults (ADR 0011 decision 3.3). This is the one place the class differs
+    // from the pool SIZE, whose zero IS clamped, and getting it backwards would
+    // silently re-arm a direction the player turned off.
+    {
+        ComboSettingsRecord rec;
+        Combo_ComboSettingsDefaults(&rec);
+        rec.itemClassOoT = 0;
+        rec.itemClassMM = 0;
+        gComboCtx.comboSettings = rec;
+        FI_ASSERT(Combo_ComboItemClassFor((uint8_t)GAME_OOT) == 0);
+        FI_ASSERT(Combo_ComboItemClassFor((uint8_t)GAME_MM) == 0);
+        FI_ASSERT(Combo_ForeignPoolDrawFor((uint8_t)GAME_OOT, NULL, 0) == 0);
+        FI_ASSERT(Combo_ForeignPoolDrawFor((uint8_t)GAME_MM, NULL, 0) == 0);
+    }
+
+    // ------------------------------------------------------------------
+    // (T) TOTALITY of the name inverse, UNDER THE NARROWEST SELECTION.
+    // ------------------------------------------------------------------
+    // Left frozen at itemClass == 0 from the block above — the state in which a
+    // selection-scoped inverse would resolve NOTHING. Every name any class can
+    // produce must still round-trip, because this is the spoiler-LOAD path and
+    // it runs in processes that never generated (accepted answer O3).
+    FI_ASSERT(Combo_ComboItemClassFor((uint8_t)GAME_OOT) == 0);
+    for (int o = 0; o < 2; o++) {
+        const uint8_t origin = kOrigins[o];
+        const ComboForeignItemDef* pool = NULL;
+        const int poolCount = Combo_GetForeignItemPoolFor(origin, &pool);
+        // The REGISTRY still serves the whole pool: only the DRAW narrows.
+        FI_ASSERT(poolCount >= 1 && pool != NULL);
+        for (int i = 0; i < poolCount; i++) {
+            SharedItem back;
+            FI_ASSERT(Combo_GetForeignItemByNameFor(origin, pool[i].name, &back));
+            FI_ASSERT(back.originGame == origin && back.id == pool[i].item.id);
+            // And the forward direction with it — a spoiler writes the name the
+            // pool gave it, so both halves must span the same set.
+            FI_ASSERT(Combo_GetForeignItemName(pool[i].item) == pool[i].name);
+        }
+        printf("[TEST] foreign-item-class: origin %u name inverse total over %d rows with ZERO classes armed\n",
+               (unsigned)origin, poolCount);
+    }
+
+    // ------------------------------------------------------------------
+    // (C) CRITERION ATTRIBUTION: every excluded candidate names the criterion
+    //     that excluded it, and is absent from the pool AND the inverse.
+    // ------------------------------------------------------------------
+    // Without this the class rule has no observable and the lock degenerates
+    // into "the table looks right" (ADR 0011's increment-3 test-locks row). It
+    // is driven through each pool TU's own table rather than a list kept here,
+    // so a row that drifts back into a pool goes red at the exclusion it
+    // contradicts rather than passing quietly.
+    for (int o = 0; o < 2; o++) {
+        const uint8_t origin = kOrigins[o];
+        const ComboForeignItemDef* pool = NULL;
+        const int poolCount = Combo_GetForeignItemPoolFor(origin, &pool);
+
+        int exclusions = 0;
+        uint16_t excludedId = 0;
+        uint8_t criterion = 0;
+        int seenCriteria = 0;
+        for (int index = 0;; index++) {
+            const int ok = (origin == (uint8_t)GAME_OOT)
+                               ? OoT_ForeignItem_TestExclusionAt(index, &excludedId, &criterion)
+                               : MM_ForeignItem_TestExclusionAt(index, &excludedId, &criterion);
+            if (!ok) {
+                break;
+            }
+            exclusions++;
+            // A real criterion, in the published range, with a real name.
+            FI_ASSERT(criterion >= (uint8_t)RSBS_FOREIGN_CRIT_REAL_ITEM &&
+                      criterion < (uint8_t)RSBS_FOREIGN_CRIT_COUNT);
+            FI_ASSERT(strcmp(Combo_ForeignCriterionName(criterion), "(unknown)") != 0);
+            seenCriteria |= (1 << criterion);
+            // ...and the id it names really is out of the pool. This is the
+            // assertion that catches a shared resource drifting back in.
+            for (int i = 0; i < poolCount; i++) {
+                FI_ASSERT(pool[i].item.id != excludedId);
+            }
+        }
+        // Non-vacuous: an empty table would make every assertion above a no-op.
+        FI_ASSERT(exclusions >= 5);
+        // And the exclusions are not all one criterion — a table that only ever
+        // said "criterion 6" would not be evidence that six criteria exist.
+        FI_ASSERT(PopCount16((uint16_t)(seenCriteria & 0xFFFF)) >= 4);
+        printf("[TEST] foreign-item-class: origin %u — %d attributed exclusions across %d criteria\n",
+               (unsigned)origin, exclusions, PopCount16((uint16_t)(seenCriteria & 0xFFFF)));
+    }
+
+    // Leave global state clean for any subsequent row in `--test all`.
+    ComboContext_Init();
+
+    printf("[TEST] PASS: default bitset draws the pinned pool byte-identically; a narrowed bitset draws only its "
+           "classes; the name inverse stays total\n");
     return TEST_PASS;
 }

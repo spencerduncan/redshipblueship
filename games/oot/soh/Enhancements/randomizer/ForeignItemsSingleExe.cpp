@@ -104,19 +104,118 @@ void GiveLinkRupees(int numOfRupees);
 // stable representative rather than a per-tier lookup on the NULL-play redemption
 // path — a decoration, not the give. src/common serves these back verbatim via
 // Combo_GetForeignItemIconName; it never has to translate an RG_* itself.
+//
+// THE CLASS COLUMN (#495, ADR 0011 decision 3). Every row now names the ONE
+// RSBS_ITEMCLASS_* bit it belongs to, and the pool draw is a rule evaluation
+// over those bits rather than "the whole array, in order". Both placement
+// passes call Combo_ForeignPoolDrawFor, which filters this table by the frozen
+// itemClass* bitset and preserves pool order.
+//
+// ALL FOUR ROWS ARE `PROGRESSION`, and that is the point rather than an
+// accident: this table WAS the entire cross-game item class, and it becomes ONE
+// CLASS'S MEMBERSHIP. Every row is a major/progressive OoT item whose give is
+// unconditionally effectful and NULL-play safe — which is exactly what
+// RSBS_ITEMCLASS_PROGRESSION names. The other five classes are unpopulated on
+// this side today: OoT's songs, masks (it has none), dungeon items and dungeon
+// rewards have not been adjudicated against the six criteria, and an unaudited
+// row admitted by a class bit would be a crossing the redemption path cannot
+// safely give. Appending members later is a table edit here, not a format
+// change anywhere — which is the whole reason the class is a rule.
 static const ComboForeignItemDef kForeignPoolV1[] = {
     { { (uint8_t)GAME_OOT, 0, (uint16_t)RG_PROGRESSIVE_STRENGTH },
       "Progressive Strength Upgrade",
       "a ",
+      RSBS_ITEMCLASS_PROGRESSION,
       "ITEM_BRACELET" },
-    { { (uint8_t)GAME_OOT, 0, (uint16_t)RG_LENS_OF_TRUTH }, "Lens of Truth", "the ", "ITEM_LENS" },
-    { { (uint8_t)GAME_OOT, 0, (uint16_t)RG_BOOMERANG }, "Boomerang", "the ", "ITEM_BOOMERANG" },
-    { { (uint8_t)GAME_OOT, 0, (uint16_t)RG_MEGATON_HAMMER }, "Megaton Hammer", "the ", "ITEM_HAMMER" },
+    { { (uint8_t)GAME_OOT, 0, (uint16_t)RG_LENS_OF_TRUTH },
+      "Lens of Truth",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      "ITEM_LENS" },
+    { { (uint8_t)GAME_OOT, 0, (uint16_t)RG_BOOMERANG },
+      "Boomerang",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      "ITEM_BOOMERANG" },
+    { { (uint8_t)GAME_OOT, 0, (uint16_t)RG_MEGATON_HAMMER },
+      "Megaton Hammer",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      "ITEM_HAMMER" },
 };
 
 static constexpr int kForeignPoolCount = sizeof(kForeignPoolV1) / sizeof(kForeignPoolV1[0]);
+// A COMPILE-TIME BOUND ON THE MAXIMUM, not the runtime limit. How many of these
+// rows a given world may actually place is the frozen record's poolSizeOoT,
+// clamped by Combo_ComboPoolSizeFor and applied at the placement pass (ADR 0011
+// increment 3). This assert survives because the OoT table happens to be
+// smaller than the carve; the MM table deliberately carries no such assert, for
+// the reason its own header states.
 static_assert(kForeignPoolCount <= (int)RSBS_FOREIGN_PLACEMENT_CAP,
               "the pinned foreign pool must fit the gComboCtx placement carve");
+
+// ----------------------------------------------------------------------------
+// THE EXCLUSIONS, WITH ATTRIBUTION (ADR 0011 decision 3.4)
+// ----------------------------------------------------------------------------
+//
+// The six criteria are numbered in src/common/foreign_items.h. Every id below
+// was considered for this pool and REJECTED, and each names the criterion that
+// rejected it. Promoting these from prose to a table is what gives the class
+// rule an observable: without it, the only evidence "the rule ran" is a table
+// that happens to look right, and a row that quietly drifted back in would be
+// invisible to CI. The ForeignItemClass lock walks this table and asserts every
+// entry is absent from the pool AND absent from the name inverse.
+//
+// This is deliberately the ADJUDICATED set, not a machine sweep of RG_NONE..
+// RG_MAX. Criterion 3 ("the give is unconditionally effectful") is a property of
+// the PAIRED world's option profile, which OoT's generation pass cannot read —
+// ADR 0011 decision 3.5 / answer O8 keep that criterion blanket until ADR 0010
+// increment 2 moves the MM freeze ahead of Fill() and publishes option VALUES
+// rather than a digest. A sweep would therefore have to guess criterion 3, and
+// guessing it is precisely the promise ("it will be awarded there!") that
+// criterion 3 exists to protect.
+namespace {
+struct ForeignExclusionOoT {
+    uint16_t id;
+    uint8_t criterion;
+};
+
+const ForeignExclusionOoT kForeignExclusionsOoT[] = {
+    // (1) Sentinels. RG_NONE is "the fill placed nothing here"; it is not an item.
+    { (uint16_t)RG_NONE, (uint8_t)RSBS_FOREIGN_CRIT_REAL_ITEM },
+    // (2) Junk-class. A foreign HOST already physically holds an OoT junk item —
+    //     that is the degrade invariant — so crossing junk spends one of at most
+    //     RSBS_FOREIGN_PLACEMENT_CAP slots on a worse duplicate of what is there.
+    { (uint16_t)RG_GREEN_RUPEE, (uint8_t)RSBS_FOREIGN_CRIT_NOT_JUNK },
+    // (4) Global world event: the Triforce completion cascade is a per-world goal
+    //     quantity, and detonating it from a redemption flush is exactly what a
+    //     cross-game seam must not do.
+    { (uint16_t)RG_TRIFORCE, (uint8_t)RSBS_FOREIGN_CRIT_NO_WORLD_EVENT },
+    { (uint16_t)RG_TRIFORCE_PIECE, (uint8_t)RSBS_FOREIGN_CRIT_NO_WORLD_EVENT },
+    // (5) Reward, not punishment. The MM-side pickup text promises an award in
+    //     Hyrule; delivering a trap instead would make that text a lie. (The give
+    //     still HANDLES RG_ICE_TRAP — it arrives through other paths — but the
+    //     cross-game class does not source it.)
+    { (uint16_t)RG_ICE_TRAP, (uint8_t)RSBS_FOREIGN_CRIT_REWARD },
+    // (6) #525 shared cross-game resources. These are one quantity spanning both
+    //     games now, so there is nothing left for them to CROSS. The first three
+    //     were REALLY IN THIS TABLE and left with the sharing that replaced them —
+    //     "Fairy Bow" and "Bomb Bag" with shared ammo, "Progressive Hookshot" with
+    //     RSBS_SHARED_RES_HOOKSHOT_TIER — which is what makes this block a record
+    //     of decisions rather than a hypothetical.
+    { (uint16_t)RG_FAIRY_BOW, (uint8_t)RSBS_FOREIGN_CRIT_NOT_SHARED_RESOURCE },
+    { (uint16_t)RG_BOMB_BAG, (uint8_t)RSBS_FOREIGN_CRIT_NOT_SHARED_RESOURCE },
+    { (uint16_t)RG_PROGRESSIVE_HOOKSHOT, (uint8_t)RSBS_FOREIGN_CRIT_NOT_SHARED_RESOURCE },
+    { (uint16_t)RG_PROGRESSIVE_BOW, (uint8_t)RSBS_FOREIGN_CRIT_NOT_SHARED_RESOURCE },
+    { (uint16_t)RG_PROGRESSIVE_BOMB_BAG, (uint8_t)RSBS_FOREIGN_CRIT_NOT_SHARED_RESOURCE },
+    { (uint16_t)RG_PROGRESSIVE_WALLET, (uint8_t)RSBS_FOREIGN_CRIT_NOT_SHARED_RESOURCE },
+    { (uint16_t)RG_PROGRESSIVE_MAGIC_METER, (uint8_t)RSBS_FOREIGN_CRIT_NOT_SHARED_RESOURCE },
+    { (uint16_t)RG_HEART_CONTAINER, (uint8_t)RSBS_FOREIGN_CRIT_NOT_SHARED_RESOURCE },
+    { (uint16_t)RG_PIECE_OF_HEART, (uint8_t)RSBS_FOREIGN_CRIT_NOT_SHARED_RESOURCE },
+};
+
+constexpr int kForeignExclusionsOoTCount = sizeof(kForeignExclusionsOoT) / sizeof(kForeignExclusionsOoT[0]);
+} // namespace
 
 // Publish the table into src/common's origin-indexed registry (ADR 0009
 // decision 3) rather than defining the lookups here. The pool DEFINITION still
@@ -355,10 +454,25 @@ extern "C" int OoT_PlaceForeignItems(void) {
     // order (as the forward pass does, where pool <= cap made that equivalent)
     // would place the same first 8 entries in every seed and make the other ~126
     // dead weight.
-    std::vector<int> poolIndices;
-    poolIndices.reserve((size_t)poolCount);
-    for (int i = 0; i < poolCount; i++) {
-        poolIndices.push_back(i);
+    //
+    // WHICH pool entries are drawable is now the RULE (#495, ADR 0011 decision
+    // 3): Combo_ForeignPoolDrawFor filters MM's pool by the FROZEN itemClassMM
+    // bitset, in pool order. With the shipped defaults (every allocated bit) this
+    // is the identity permutation 0..poolCount-1 — byte-identical to the list
+    // this loop used to build by hand — which is what keeps SeedDeterminism's
+    // foreignOoTHash from moving. There is NO seed term in the class (accepted
+    // answer O3): variety comes from the draw below, and a seed-varying class
+    // would make the spoiler-load name inverse partial.
+    std::vector<int> poolIndices((size_t)poolCount, 0);
+    const int drawable = Combo_ForeignPoolDrawFor((uint8_t)GAME_MM, poolIndices.data(), poolCount);
+    poolIndices.resize((size_t)(drawable > 0 ? drawable : 0));
+    if (poolIndices.empty()) {
+        // Every class unarmed for this direction. A real, chooseable world under
+        // ADR 0011 decision 3.3 (the direction byte, not this, is what says
+        // "off"), so it is a loud log and zero placements rather than a failure.
+        fprintf(stderr, "[OoT] foreign placement: MM item classes %04X select no pool entry — no crossings\n",
+                (unsigned)Combo_ComboItemClassFor((uint8_t)GAME_MM));
+        return 0;
     }
 
     // How many crossings this direction may make comes from the FROZEN COMBO
@@ -369,14 +483,21 @@ extern "C" int OoT_PlaceForeignItems(void) {
     // could exceed the table's capacity would be a setting that lies, and a
     // zero-extended legacy record must never resolve to "no crossings".
     const int poolSize = Combo_ComboPoolSizeFor((uint8_t)GAME_MM);
-    const int wanted = std::min({ poolCount, poolSize, (int)candidates.size() });
+    // FILTER FIRST, THEN DRAW TO COUNT. The class rule decides WHICH entries are
+    // drawable; the pool size decides HOW MANY of them get placed. Bounding on
+    // poolIndices.size() rather than poolCount is what makes the two compose —
+    // bounding on the raw pool would let the draw index past the filtered list.
+    const int wanted = std::min({ (int)poolIndices.size(), poolSize, (int)candidates.size() });
     // The direction itself is READ here and reported; ADR 0011 increment 4 is
     // where an unarmed direction makes this pass a no-op. It lands last on
     // purpose: it is the only increment that can change a generated world, and
     // it should land on top of a frozen, compared, rendered setting rather than
     // under one.
-    fprintf(stderr, "[OoT] foreign placement: combo rules direction=%u poolSizeMM=%d (frozen=%d)\n",
-            (unsigned)Combo_ComboDirection(), poolSize, Combo_ComboSettingsFrozen() ? 1 : 0);
+    fprintf(stderr,
+            "[OoT] foreign placement: combo rules direction=%u poolSizeMM=%d classMM=%04X (%zu of %d pool entries in "
+            "class) (frozen=%d)\n",
+            (unsigned)Combo_ComboDirection(), poolSize, (unsigned)Combo_ComboItemClassFor((uint8_t)GAME_MM),
+            poolIndices.size(), poolCount, Combo_ComboSettingsFrozen() ? 1 : 0);
 
     int placed = 0;
     for (int i = 0; i < wanted; i++) {
@@ -404,6 +525,31 @@ extern "C" int OoT_PlaceForeignItems(void) {
 // lock that restates the rule stops testing it the moment the rule moves.
 extern "C" int OoT_Foreign_IsEligibleHost(uint16_t rc) {
     return OoT_Foreign_IsEligibleHostImpl((RandomizerCheck)rc) ? 1 : 0;
+}
+
+/**
+ * Walk the CRITERION-ATTRIBUTED EXCLUSION table (#495, ADR 0011 decision 3.4):
+ * entry `index`'s rejected RG_* id and the criterion number that rejected it.
+ *
+ * The observable that makes the class rule testable. src/common has no OoT enum
+ * in scope by design, so the lock cannot name RG_FAIRY_BOW itself; it walks this
+ * bridge instead and asserts each excluded id is absent from the pool and from
+ * the name inverse. Exposed rather than re-listed in the test for the standing
+ * reason: a lock that keeps its own copy of the rule stops testing the rule.
+ *
+ * @return 1 while `index` names an entry, 0 once it is past the end.
+ */
+extern "C" int OoT_ForeignItem_TestExclusionAt(int index, uint16_t* outId, uint8_t* outCriterion) {
+    if (index < 0 || index >= kForeignExclusionsOoTCount) {
+        return 0;
+    }
+    if (outId != nullptr) {
+        *outId = kForeignExclusionsOoT[index].id;
+    }
+    if (outCriterion != nullptr) {
+        *outCriterion = kForeignExclusionsOoT[index].criterion;
+    }
+    return 1;
 }
 
 #endif // RSBS_SINGLE_EXECUTABLE

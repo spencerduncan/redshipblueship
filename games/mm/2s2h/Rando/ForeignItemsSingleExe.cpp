@@ -222,6 +222,39 @@ extern "C" {
 // moment somebody added a row. This pool is that row, 116 times over, and it
 // relies on the deferral instead of re-auditing it.
 //
+// ---------------------------------------------------------------------------
+// THE CLASS COLUMN (#495, ADR 0011 decision 3)
+// ---------------------------------------------------------------------------
+// Every row names the ONE RSBS_ITEMCLASS_* bit it belongs to, and the pool draw
+// is a RULE EVALUATION over those bits rather than "the whole array, in order":
+// OoT's placement pass calls Combo_ForeignPoolDrawFor, which filters this table
+// by the FROZEN itemClassMM bitset and preserves pool order.
+//
+// THE CRITERIA RUN FIRST, THE BITSET SELECTS AMONG SURVIVORS. Every row below
+// already passed the six criteria above; a class bit can only ever narrow that
+// set, never widen it, so no bit can readmit a #525 shared cross-game resource.
+// That ordering is the invariant, not a convention (see foreign_items.h).
+//
+// NO SEED TERM (accepted answer O3). The class is a pure function of (this
+// table, the frozen bitset). Seed-to-seed variety already comes from the
+// placement draw, which picks pool entry AND host without replacement from an
+// identity-seeded stream; a second randomisation of the same axis would buy
+// nothing and would make Combo_GetForeignItemByNameFor PARTIAL on the
+// spoiler-LOAD path, which runs in processes that never generated.
+//
+// WHERE THE BLOCK HEADINGS AND THE CLASSES DISAGREE, THE CLASS WINS -- the
+// headings below are presentational groupings that predate the rule:
+//   - "Progressive Goron Lullaby" sits under progressives but is a SONG.
+//   - "Bomber's Notebook" sits under core equipment but is the sidequest
+//     tracker, so it is SIDEQUEST.
+//   - "Ocarina of Time" sits under quest items but is PROGRESSION: every song
+//     in the game is unusable without it.
+//   - The boss REMAINS are DUNGEON_REWARD (MM's medallion analogue), while the
+//     keys/maps/compasses are DUNGEON_ITEMS -- the bit table's own split.
+//   - Stray fairies are SIDEQUEST, not DUNGEON_ITEMS: the bit's published
+//     meaning is "small/boss keys, maps, compasses", and the fairy chain is a
+//     Great Fairy reward sidequest that happens to be dungeon-scoped.
+//
 // Display names are MM's own (Rando::StaticData::Items) verbatim. They are a
 // PERSISTENCE KEY, not decoration: Combo_GetForeignItemByNameFor is the
 // spoiler-LOAD inverse, so renaming an entry breaks spoiler round-trips for
@@ -234,150 +267,348 @@ extern "C" {
 // the collision test goes red the instant one side exists without the other.
 static const ComboForeignItemDef kForeignPoolMMV1[] = {
     // --- Progressive upgrades: resolve against the live MM save at give time.
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_PROGRESSIVE_SWORD }, "Progressive Sword", "a " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_PROGRESSIVE_LULLABY }, "Progressive Goron Lullaby", "" },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_PROGRESSIVE_SWORD }, "Progressive Sword", "a ", RSBS_ITEMCLASS_PROGRESSION },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_PROGRESSIVE_LULLABY },
+      "Progressive Goron Lullaby",
+      "",
+      RSBS_ITEMCLASS_SONGS },
 
     // --- Core equipment, abilities and capacity upgrades.
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_LENS }, "Lens of Truth", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_ARROW_FIRE }, "Fire Arrows", "" },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_ARROW_ICE }, "Ice Arrows", "" },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_ARROW_LIGHT }, "Light Arrows", "" },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_POWDER_KEG }, "Powder Keg", "a " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_PICTOGRAPH_BOX }, "Pictograph Box", "a " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MAGIC_BEAN }, "Magic Bean", "a " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_BOMBERS_NOTEBOOK }, "Bomber's Notebook", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SHIELD_HERO }, "Hero's Shield", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SHIELD_MIRROR }, "Mirror Shield", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SWORD_KOKIRI }, "Kokiri Sword", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SWORD_RAZOR }, "Razor Sword", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SWORD_GILDED }, "Gilded Sword", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_GREAT_FAIRY_SWORD }, "Great Fairy's Sword", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_GREAT_SPIN_ATTACK }, "Great Spin Attack", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_LENS }, "Lens of Truth", "the ", RSBS_ITEMCLASS_PROGRESSION },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_ARROW_FIRE }, "Fire Arrows", "", RSBS_ITEMCLASS_PROGRESSION },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_ARROW_ICE }, "Ice Arrows", "", RSBS_ITEMCLASS_PROGRESSION },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_ARROW_LIGHT }, "Light Arrows", "", RSBS_ITEMCLASS_PROGRESSION },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_POWDER_KEG }, "Powder Keg", "a ", RSBS_ITEMCLASS_PROGRESSION },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_PICTOGRAPH_BOX }, "Pictograph Box", "a ", RSBS_ITEMCLASS_PROGRESSION },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MAGIC_BEAN }, "Magic Bean", "a ", RSBS_ITEMCLASS_PROGRESSION },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_BOMBERS_NOTEBOOK }, "Bomber's Notebook", "the ", RSBS_ITEMCLASS_SIDEQUEST },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SHIELD_HERO }, "Hero's Shield", "the ", RSBS_ITEMCLASS_PROGRESSION },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SHIELD_MIRROR }, "Mirror Shield", "the ", RSBS_ITEMCLASS_PROGRESSION },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SWORD_KOKIRI }, "Kokiri Sword", "the ", RSBS_ITEMCLASS_PROGRESSION },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SWORD_RAZOR }, "Razor Sword", "the ", RSBS_ITEMCLASS_PROGRESSION },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SWORD_GILDED }, "Gilded Sword", "the ", RSBS_ITEMCLASS_PROGRESSION },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_GREAT_FAIRY_SWORD },
+      "Great Fairy's Sword",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_GREAT_SPIN_ATTACK },
+      "Great Spin Attack",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION },
 
     // --- Bottles (the bottle itself, not its refills).
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_BOTTLE_EMPTY }, "Empty Bottle", "an " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_BOTTLE_MILK }, "Bottle of Milk", "a " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_BOTTLE_RED_POTION }, "Bottle with Red Potion", "a " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_BOTTLE_GOLD_DUST }, "Bottle With Gold Dust", "a " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_BOTTLE_CHATEAU_ROMANI }, "Bottle of Chateau Romani", "a " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_BOTTLE_EMPTY }, "Empty Bottle", "an ", RSBS_ITEMCLASS_PROGRESSION },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_BOTTLE_MILK }, "Bottle of Milk", "a ", RSBS_ITEMCLASS_PROGRESSION },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_BOTTLE_RED_POTION },
+      "Bottle with Red Potion",
+      "a ",
+      RSBS_ITEMCLASS_PROGRESSION },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_BOTTLE_GOLD_DUST },
+      "Bottle With Gold Dust",
+      "a ",
+      RSBS_ITEMCLASS_PROGRESSION },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_BOTTLE_CHATEAU_ROMANI },
+      "Bottle of Chateau Romani",
+      "a ",
+      RSBS_ITEMCLASS_PROGRESSION },
 
     // --- Masks. All 24, transformation masks included.
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_DEKU }, "Deku Mask", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_GORON }, "Goron Mask", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_ZORA }, "Zora Mask", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_FIERCE_DEITY }, "Fierce Deity Mask", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_ALL_NIGHT }, "All-Night Mask", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_BLAST }, "Blast Mask", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_BREMEN }, "Bremen Mask", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_BUNNY }, "Bunny Hood", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_CAPTAIN }, "Captain's Hat", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_CIRCUS_LEADER }, "Circus Leader's Mask", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_COUPLE }, "Couples Mask", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_DON_GERO }, "Don Gero Mask", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_GARO }, "Garo's Mask", "" },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_GIANT }, "Giant's Mask", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_GIBDO }, "Gibdo Mask", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_GREAT_FAIRY }, "Great Fairy Mask", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_KAFEIS_MASK }, "Kafei's Mask", "" },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_KAMARO }, "Kamaro's Mask", "" },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_KEATON }, "Keaton Mask", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_POSTMAN }, "Postman's Hat", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_ROMANI }, "Romani's Mask", "" },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_SCENTS }, "Mask of Scents", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_STONE }, "Stone Mask", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_TRUTH }, "Mask of Truth", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_DEKU }, "Deku Mask", "the ", RSBS_ITEMCLASS_MASKS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_GORON }, "Goron Mask", "the ", RSBS_ITEMCLASS_MASKS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_ZORA }, "Zora Mask", "the ", RSBS_ITEMCLASS_MASKS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_FIERCE_DEITY }, "Fierce Deity Mask", "the ", RSBS_ITEMCLASS_MASKS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_ALL_NIGHT }, "All-Night Mask", "the ", RSBS_ITEMCLASS_MASKS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_BLAST }, "Blast Mask", "the ", RSBS_ITEMCLASS_MASKS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_BREMEN }, "Bremen Mask", "the ", RSBS_ITEMCLASS_MASKS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_BUNNY }, "Bunny Hood", "the ", RSBS_ITEMCLASS_MASKS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_CAPTAIN }, "Captain's Hat", "the ", RSBS_ITEMCLASS_MASKS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_CIRCUS_LEADER }, "Circus Leader's Mask", "the ", RSBS_ITEMCLASS_MASKS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_COUPLE }, "Couples Mask", "the ", RSBS_ITEMCLASS_MASKS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_DON_GERO }, "Don Gero Mask", "the ", RSBS_ITEMCLASS_MASKS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_GARO }, "Garo's Mask", "", RSBS_ITEMCLASS_MASKS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_GIANT }, "Giant's Mask", "the ", RSBS_ITEMCLASS_MASKS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_GIBDO }, "Gibdo Mask", "the ", RSBS_ITEMCLASS_MASKS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_GREAT_FAIRY }, "Great Fairy Mask", "the ", RSBS_ITEMCLASS_MASKS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_KAFEIS_MASK }, "Kafei's Mask", "", RSBS_ITEMCLASS_MASKS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_KAMARO }, "Kamaro's Mask", "", RSBS_ITEMCLASS_MASKS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_KEATON }, "Keaton Mask", "the ", RSBS_ITEMCLASS_MASKS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_POSTMAN }, "Postman's Hat", "the ", RSBS_ITEMCLASS_MASKS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_ROMANI }, "Romani's Mask", "", RSBS_ITEMCLASS_MASKS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_SCENTS }, "Mask of Scents", "the ", RSBS_ITEMCLASS_MASKS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_STONE }, "Stone Mask", "the ", RSBS_ITEMCLASS_MASKS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MASK_TRUTH }, "Mask of Truth", "the ", RSBS_ITEMCLASS_MASKS },
 
     // --- Songs.
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SONG_SONATA }, "Sonata of Awakening", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SONG_LULLABY }, "Goron Lullaby", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SONG_LULLABY_INTRO }, "Goron Lullaby Intro", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SONG_NOVA }, "New Wave Bossa Nova", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SONG_ELEGY }, "Elegy of Emptiness", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SONG_OATH }, "Oath to Order", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SONG_SOARING }, "Song of Soaring", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SONG_HEALING }, "Song of Healing", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SONG_EPONA }, "Epona's Song", "" },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SONG_SUN }, "Sun's Song", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SONG_TIME }, "Song of Time", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SONG_STORMS }, "Song of Storms", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SONG_SONATA }, "Sonata of Awakening", "the ", RSBS_ITEMCLASS_SONGS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SONG_LULLABY }, "Goron Lullaby", "the ", RSBS_ITEMCLASS_SONGS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SONG_LULLABY_INTRO }, "Goron Lullaby Intro", "the ", RSBS_ITEMCLASS_SONGS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SONG_NOVA }, "New Wave Bossa Nova", "the ", RSBS_ITEMCLASS_SONGS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SONG_ELEGY }, "Elegy of Emptiness", "the ", RSBS_ITEMCLASS_SONGS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SONG_OATH }, "Oath to Order", "the ", RSBS_ITEMCLASS_SONGS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SONG_SOARING }, "Song of Soaring", "the ", RSBS_ITEMCLASS_SONGS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SONG_HEALING }, "Song of Healing", "the ", RSBS_ITEMCLASS_SONGS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SONG_EPONA }, "Epona's Song", "", RSBS_ITEMCLASS_SONGS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SONG_SUN }, "Sun's Song", "the ", RSBS_ITEMCLASS_SONGS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SONG_TIME }, "Song of Time", "the ", RSBS_ITEMCLASS_SONGS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SONG_STORMS }, "Song of Storms", "the ", RSBS_ITEMCLASS_SONGS },
 
     // --- Quest and sidequest items.
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_OCARINA }, "Ocarina of Time", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MOONS_TEAR }, "Moon's Tear", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_DEED_LAND }, "Land Title Deed", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_DEED_SWAMP }, "Swamp Title Deed", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_DEED_MOUNTAIN }, "Mountain Title Deed", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_DEED_OCEAN }, "Ocean Title Deed", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_ROOM_KEY }, "Room Key", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_LETTER_TO_KAFEI }, "Letter to Kafei", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_LETTER_TO_MAMA }, "Letter to Mama", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_PENDANT_OF_MEMORIES }, "Pendant of Memories", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MUSHROOM }, "Magic Mushroom", "a " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_FROG_BLUE }, "Blue Frog", "a " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_FROG_CYAN }, "Cyan Frog", "a " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_FROG_PINK }, "Pink Frog", "a " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_FROG_WHITE }, "White Frog", "a " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_OCARINA }, "Ocarina of Time", "the ", RSBS_ITEMCLASS_PROGRESSION },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MOONS_TEAR }, "Moon's Tear", "the ", RSBS_ITEMCLASS_SIDEQUEST },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_DEED_LAND }, "Land Title Deed", "the ", RSBS_ITEMCLASS_SIDEQUEST },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_DEED_SWAMP }, "Swamp Title Deed", "the ", RSBS_ITEMCLASS_SIDEQUEST },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_DEED_MOUNTAIN }, "Mountain Title Deed", "the ", RSBS_ITEMCLASS_SIDEQUEST },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_DEED_OCEAN }, "Ocean Title Deed", "the ", RSBS_ITEMCLASS_SIDEQUEST },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_ROOM_KEY }, "Room Key", "the ", RSBS_ITEMCLASS_SIDEQUEST },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_LETTER_TO_KAFEI }, "Letter to Kafei", "the ", RSBS_ITEMCLASS_SIDEQUEST },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_LETTER_TO_MAMA }, "Letter to Mama", "the ", RSBS_ITEMCLASS_SIDEQUEST },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_PENDANT_OF_MEMORIES },
+      "Pendant of Memories",
+      "the ",
+      RSBS_ITEMCLASS_SIDEQUEST },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_MUSHROOM }, "Magic Mushroom", "a ", RSBS_ITEMCLASS_SIDEQUEST },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_FROG_BLUE }, "Blue Frog", "a ", RSBS_ITEMCLASS_SIDEQUEST },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_FROG_CYAN }, "Cyan Frog", "a ", RSBS_ITEMCLASS_SIDEQUEST },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_FROG_PINK }, "Pink Frog", "a ", RSBS_ITEMCLASS_SIDEQUEST },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_FROG_WHITE }, "White Frog", "a ", RSBS_ITEMCLASS_SIDEQUEST },
 
     // --- Boss remains.
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_REMAINS_ODOLWA }, "Odolwa's Remains", "" },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_REMAINS_GOHT }, "Goht's Remains", "" },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_REMAINS_GYORG }, "Gyorg's Remains", "" },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_REMAINS_TWINMOLD }, "Twinmold's Remains", "" },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_REMAINS_ODOLWA }, "Odolwa's Remains", "", RSBS_ITEMCLASS_DUNGEON_REWARD },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_REMAINS_GOHT }, "Goht's Remains", "", RSBS_ITEMCLASS_DUNGEON_REWARD },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_REMAINS_GYORG }, "Gyorg's Remains", "", RSBS_ITEMCLASS_DUNGEON_REWARD },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_REMAINS_TWINMOLD }, "Twinmold's Remains", "", RSBS_ITEMCLASS_DUNGEON_REWARD },
 
     // --- Health: EMPTY since #525. Heart containers, heart pieces and double
     // defense are a SHARED RESOURCE now (criterion 6 below), not a crossing.
 
     // --- Skulltula tokens.
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_GS_TOKEN_SWAMP }, "Swamp Gold Skulltula Token", "a " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_GS_TOKEN_OCEAN }, "Ocean Gold Skulltula Token", "an " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_GS_TOKEN_SWAMP },
+      "Swamp Gold Skulltula Token",
+      "a ",
+      RSBS_ITEMCLASS_SIDEQUEST },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_GS_TOKEN_OCEAN },
+      "Ocean Gold Skulltula Token",
+      "an ",
+      RSBS_ITEMCLASS_SIDEQUEST },
 
     // --- Owl statues (Sram_ActivateOwl: always a real warp unlock).
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_OWL_CLOCK_TOWN_SOUTH }, "Clock Town Owl Statue", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_OWL_MILK_ROAD }, "Milk Road Owl Statue", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_OWL_SOUTHERN_SWAMP }, "Southern Swamp Owl Statue", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_OWL_WOODFALL }, "Woodfall Owl Statue", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_OWL_MOUNTAIN_VILLAGE }, "Mountain Village Owl Statue", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_OWL_SNOWHEAD }, "Snowhead Owl Statue", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_OWL_GREAT_BAY_COAST }, "Great Bay Coast Owl Statue", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_OWL_ZORA_CAPE }, "Zora Cape Owl Statue", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_OWL_IKANA_CANYON }, "Ikana Canyon Owl Statue", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_OWL_STONE_TOWER }, "Stone Tower Owl Statue", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_OWL_CLOCK_TOWN_SOUTH },
+      "Clock Town Owl Statue",
+      "the ",
+      RSBS_ITEMCLASS_SIDEQUEST },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_OWL_MILK_ROAD }, "Milk Road Owl Statue", "the ", RSBS_ITEMCLASS_SIDEQUEST },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_OWL_SOUTHERN_SWAMP },
+      "Southern Swamp Owl Statue",
+      "the ",
+      RSBS_ITEMCLASS_SIDEQUEST },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_OWL_WOODFALL }, "Woodfall Owl Statue", "the ", RSBS_ITEMCLASS_SIDEQUEST },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_OWL_MOUNTAIN_VILLAGE },
+      "Mountain Village Owl Statue",
+      "the ",
+      RSBS_ITEMCLASS_SIDEQUEST },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_OWL_SNOWHEAD }, "Snowhead Owl Statue", "the ", RSBS_ITEMCLASS_SIDEQUEST },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_OWL_GREAT_BAY_COAST },
+      "Great Bay Coast Owl Statue",
+      "the ",
+      RSBS_ITEMCLASS_SIDEQUEST },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_OWL_ZORA_CAPE }, "Zora Cape Owl Statue", "the ", RSBS_ITEMCLASS_SIDEQUEST },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_OWL_IKANA_CANYON },
+      "Ikana Canyon Owl Statue",
+      "the ",
+      RSBS_ITEMCLASS_SIDEQUEST },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_OWL_STONE_TOWER },
+      "Stone Tower Owl Statue",
+      "the ",
+      RSBS_ITEMCLASS_SIDEQUEST },
 
     // --- Tingle maps.
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_TINGLE_MAP_CLOCK_TOWN }, "Tingle's Clock Town Map", "" },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_TINGLE_MAP_WOODFALL }, "Tingle's Woodfall Map", "" },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_TINGLE_MAP_SNOWHEAD }, "Tingle's Snowhead Map", "" },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_TINGLE_MAP_ROMANI_RANCH }, "Tingle's Romani Ranch Map", "" },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_TINGLE_MAP_GREAT_BAY }, "Tingle's Great Bay Map", "" },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_TINGLE_MAP_STONE_TOWER }, "Tingle's Stone Tower Map", "" },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_TINGLE_MAP_CLOCK_TOWN },
+      "Tingle's Clock Town Map",
+      "",
+      RSBS_ITEMCLASS_SIDEQUEST },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_TINGLE_MAP_WOODFALL },
+      "Tingle's Woodfall Map",
+      "",
+      RSBS_ITEMCLASS_SIDEQUEST },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_TINGLE_MAP_SNOWHEAD },
+      "Tingle's Snowhead Map",
+      "",
+      RSBS_ITEMCLASS_SIDEQUEST },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_TINGLE_MAP_ROMANI_RANCH },
+      "Tingle's Romani Ranch Map",
+      "",
+      RSBS_ITEMCLASS_SIDEQUEST },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_TINGLE_MAP_GREAT_BAY },
+      "Tingle's Great Bay Map",
+      "",
+      RSBS_ITEMCLASS_SIDEQUEST },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_TINGLE_MAP_STONE_TOWER },
+      "Tingle's Stone Tower Map",
+      "",
+      RSBS_ITEMCLASS_SIDEQUEST },
 
     // --- Dungeon items. Additive, so an extra key can only ever trivialize.
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_WOODFALL_BOSS_KEY }, "Woodfall Boss Key", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_WOODFALL_SMALL_KEY }, "Woodfall Small Key", "a " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_WOODFALL_MAP }, "Woodfall Map", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_WOODFALL_COMPASS }, "Woodfall Compass", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SNOWHEAD_BOSS_KEY }, "Snowhead Boss Key", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SNOWHEAD_SMALL_KEY }, "Snowhead Small Key", "a " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SNOWHEAD_MAP }, "Snowhead Map", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SNOWHEAD_COMPASS }, "Snowhead Compass", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_GREAT_BAY_BOSS_KEY }, "Great Bay Boss Key", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_GREAT_BAY_SMALL_KEY }, "Great Bay Small Key", "a " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_GREAT_BAY_MAP }, "Great Bay Map", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_GREAT_BAY_COMPASS }, "Great Bay Compass", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_STONE_TOWER_BOSS_KEY }, "Stone Tower Boss Key", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_STONE_TOWER_SMALL_KEY }, "Stone Tower Small Key", "a " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_STONE_TOWER_MAP }, "Stone Tower Map", "the " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_STONE_TOWER_COMPASS }, "Stone Tower Compass", "the " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_WOODFALL_BOSS_KEY },
+      "Woodfall Boss Key",
+      "the ",
+      RSBS_ITEMCLASS_DUNGEON_ITEMS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_WOODFALL_SMALL_KEY },
+      "Woodfall Small Key",
+      "a ",
+      RSBS_ITEMCLASS_DUNGEON_ITEMS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_WOODFALL_MAP }, "Woodfall Map", "the ", RSBS_ITEMCLASS_DUNGEON_ITEMS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_WOODFALL_COMPASS },
+      "Woodfall Compass",
+      "the ",
+      RSBS_ITEMCLASS_DUNGEON_ITEMS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SNOWHEAD_BOSS_KEY },
+      "Snowhead Boss Key",
+      "the ",
+      RSBS_ITEMCLASS_DUNGEON_ITEMS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SNOWHEAD_SMALL_KEY },
+      "Snowhead Small Key",
+      "a ",
+      RSBS_ITEMCLASS_DUNGEON_ITEMS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SNOWHEAD_MAP }, "Snowhead Map", "the ", RSBS_ITEMCLASS_DUNGEON_ITEMS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SNOWHEAD_COMPASS },
+      "Snowhead Compass",
+      "the ",
+      RSBS_ITEMCLASS_DUNGEON_ITEMS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_GREAT_BAY_BOSS_KEY },
+      "Great Bay Boss Key",
+      "the ",
+      RSBS_ITEMCLASS_DUNGEON_ITEMS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_GREAT_BAY_SMALL_KEY },
+      "Great Bay Small Key",
+      "a ",
+      RSBS_ITEMCLASS_DUNGEON_ITEMS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_GREAT_BAY_MAP }, "Great Bay Map", "the ", RSBS_ITEMCLASS_DUNGEON_ITEMS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_GREAT_BAY_COMPASS },
+      "Great Bay Compass",
+      "the ",
+      RSBS_ITEMCLASS_DUNGEON_ITEMS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_STONE_TOWER_BOSS_KEY },
+      "Stone Tower Boss Key",
+      "the ",
+      RSBS_ITEMCLASS_DUNGEON_ITEMS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_STONE_TOWER_SMALL_KEY },
+      "Stone Tower Small Key",
+      "a ",
+      RSBS_ITEMCLASS_DUNGEON_ITEMS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_STONE_TOWER_MAP }, "Stone Tower Map", "the ", RSBS_ITEMCLASS_DUNGEON_ITEMS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_STONE_TOWER_COMPASS },
+      "Stone Tower Compass",
+      "the ",
+      RSBS_ITEMCLASS_DUNGEON_ITEMS },
 
     // --- Stray fairies.
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_CLOCK_TOWN_STRAY_FAIRY }, "Clock Town Stray Fairy", "a " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_WOODFALL_STRAY_FAIRY }, "Woodfall Stray Fairy", "a " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SNOWHEAD_STRAY_FAIRY }, "Snowhead Stray Fairy", "a " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_GREAT_BAY_STRAY_FAIRY }, "Great Bay Stray Fairy", "a " },
-    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_STONE_TOWER_STRAY_FAIRY }, "Stone Tower Stray Fairy", "a " },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_CLOCK_TOWN_STRAY_FAIRY },
+      "Clock Town Stray Fairy",
+      "a ",
+      RSBS_ITEMCLASS_SIDEQUEST },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_WOODFALL_STRAY_FAIRY },
+      "Woodfall Stray Fairy",
+      "a ",
+      RSBS_ITEMCLASS_SIDEQUEST },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SNOWHEAD_STRAY_FAIRY },
+      "Snowhead Stray Fairy",
+      "a ",
+      RSBS_ITEMCLASS_SIDEQUEST },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_GREAT_BAY_STRAY_FAIRY },
+      "Great Bay Stray Fairy",
+      "a ",
+      RSBS_ITEMCLASS_SIDEQUEST },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_STONE_TOWER_STRAY_FAIRY },
+      "Stone Tower Stray Fairy",
+      "a ",
+      RSBS_ITEMCLASS_SIDEQUEST },
 };
 
 static constexpr int kForeignPoolMMCount = sizeof(kForeignPoolMMV1) / sizeof(kForeignPoolMMV1[0]);
+
+// ----------------------------------------------------------------------------
+// THE EXCLUSIONS, WITH ATTRIBUTION (#495, ADR 0011 decision 3.4)
+// ----------------------------------------------------------------------------
+//
+// The six criteria are numbered in src/common/foreign_items.h. Every id below
+// was considered for this pool and REJECTED, and each names the criterion that
+// rejected it. This is the prose above promoted to code, and it is what makes
+// the class lock a test of the RULE rather than of a table that happens to look
+// right: without an attributed exclusion set, a row that quietly drifted back
+// into the pool would be invisible to CI.
+//
+// It is the ADJUDICATED set, not a machine sweep of RI_UNKNOWN..RI_MAX. Two
+// criteria are not decidable from any table this build can read: criterion 3 is
+// a property of the PAIRED world's option profile, which OoT's placement pass
+// cannot see (ADR 0011 decision 3.5 / answer O8 keep it blanket until the MM
+// freeze moves ahead of Fill() AND a values-publishing src/common surface
+// exists), and criterion 4 is a property of a give's control flow. Guessing
+// either is exactly the promise -- "it will be awarded there!" -- that criteria
+// 3 and 4 exist to protect.
+//
+// The soul rows are REPRESENTED rather than enumerated: there are ~55 of them,
+// all excluded by criterion 3 for one reason (a bare rando-inf flag whose
+// meaning comes from an MM shuffle setting), and listing every one would make
+// this table a second copy of the enum instead of a record of decisions.
+namespace {
+struct ForeignExclusionMM {
+    uint16_t id;
+    uint8_t criterion;
+};
+
+const ForeignExclusionMM kForeignExclusionsMM[] = {
+    // (1) Sentinels -- the #488 trap. RI_UNKNOWN is enumerator 0, i.e. a
+    //     zero-initialised slot; RI_NONE is "literally nothing".
+    { (uint16_t)RI_UNKNOWN, (uint8_t)RSBS_FOREIGN_CRIT_REAL_ITEM },
+    { (uint16_t)RI_NONE, (uint8_t)RSBS_FOREIGN_CRIT_REAL_ITEM },
+    // (2) Junk-class, plus the row that is typed RITYPE_LESSER but is
+    //     semantically a bottle refill.
+    { (uint16_t)RI_JUNK, (uint8_t)RSBS_FOREIGN_CRIT_NOT_JUNK },
+    { (uint16_t)RI_GOLD_DUST_REFILL, (uint8_t)RSBS_FOREIGN_CRIT_NOT_JUNK },
+    // (3) Settings-armed gives. Each is a bare rando-inf / week-event flag whose
+    //     only meaning comes from a specific MM shuffle setting.
+    { (uint16_t)RI_SOUL_ENEMY_DINOLFOS, (uint8_t)RSBS_FOREIGN_CRIT_UNCONDITIONAL_GIVE }, // representative soul row
+    { (uint16_t)RI_OCARINA_BUTTON_A, (uint8_t)RSBS_FOREIGN_CRIT_UNCONDITIONAL_GIVE },
+    { (uint16_t)RI_OCARINA_BUTTON_C_DOWN, (uint8_t)RSBS_FOREIGN_CRIT_UNCONDITIONAL_GIVE },
+    { (uint16_t)RI_OCARINA_BUTTON_C_RIGHT, (uint8_t)RSBS_FOREIGN_CRIT_UNCONDITIONAL_GIVE },
+    { (uint16_t)RI_OCARINA_BUTTON_C_LEFT, (uint8_t)RSBS_FOREIGN_CRIT_UNCONDITIONAL_GIVE },
+    { (uint16_t)RI_OCARINA_BUTTON_C_UP, (uint8_t)RSBS_FOREIGN_CRIT_UNCONDITIONAL_GIVE },
+    { (uint16_t)RI_ABILITY_SWIM, (uint8_t)RSBS_FOREIGN_CRIT_UNCONDITIONAL_GIVE },
+    { (uint16_t)RI_TIME_PROGRESSIVE, (uint8_t)RSBS_FOREIGN_CRIT_UNCONDITIONAL_GIVE },
+    // (4) Global world event: Rando::GiveItem's Triforce branch fires
+    //     GameInteractor_ExecuteOnGameCompletion() and queues a forced scene
+    //     transition once the required count is reached.
+    { (uint16_t)RI_TRIFORCE_PIECE, (uint8_t)RSBS_FOREIGN_CRIT_NO_WORLD_EVENT },
+    { (uint16_t)RI_TRIFORCE_PIECE_PREVIOUS, (uint8_t)RSBS_FOREIGN_CRIT_NO_WORLD_EVENT },
+    // (5) Reward, not punishment.
+    { (uint16_t)RI_TRAP, (uint8_t)RSBS_FOREIGN_CRIT_REWARD },
+    // (6) #525 shared cross-game resources -- the eighteen rows that LEFT this
+    //     table across the three sharing tiers. Listed here rather than merely
+    //     deleted, so the reason survives the deletion.
+    { (uint16_t)RI_PROGRESSIVE_WALLET, (uint8_t)RSBS_FOREIGN_CRIT_NOT_SHARED_RESOURCE },
+    { (uint16_t)RI_WALLET_ADULT, (uint8_t)RSBS_FOREIGN_CRIT_NOT_SHARED_RESOURCE },
+    { (uint16_t)RI_WALLET_GIANT, (uint8_t)RSBS_FOREIGN_CRIT_NOT_SHARED_RESOURCE },
+    { (uint16_t)RI_DOUBLE_DEFENSE, (uint8_t)RSBS_FOREIGN_CRIT_NOT_SHARED_RESOURCE },
+    { (uint16_t)RI_HEART_CONTAINER, (uint8_t)RSBS_FOREIGN_CRIT_NOT_SHARED_RESOURCE },
+    { (uint16_t)RI_HEART_PIECE, (uint8_t)RSBS_FOREIGN_CRIT_NOT_SHARED_RESOURCE },
+    { (uint16_t)RI_PROGRESSIVE_MAGIC, (uint8_t)RSBS_FOREIGN_CRIT_NOT_SHARED_RESOURCE },
+    { (uint16_t)RI_SINGLE_MAGIC, (uint8_t)RSBS_FOREIGN_CRIT_NOT_SHARED_RESOURCE },
+    { (uint16_t)RI_DOUBLE_MAGIC, (uint8_t)RSBS_FOREIGN_CRIT_NOT_SHARED_RESOURCE },
+    { (uint16_t)RI_BOMB_BAG_20, (uint8_t)RSBS_FOREIGN_CRIT_NOT_SHARED_RESOURCE },
+    { (uint16_t)RI_BOMB_BAG_30, (uint8_t)RSBS_FOREIGN_CRIT_NOT_SHARED_RESOURCE },
+    { (uint16_t)RI_BOMB_BAG_40, (uint8_t)RSBS_FOREIGN_CRIT_NOT_SHARED_RESOURCE },
+    { (uint16_t)RI_PROGRESSIVE_BOMB_BAG, (uint8_t)RSBS_FOREIGN_CRIT_NOT_SHARED_RESOURCE },
+    { (uint16_t)RI_QUIVER_40, (uint8_t)RSBS_FOREIGN_CRIT_NOT_SHARED_RESOURCE },
+    { (uint16_t)RI_QUIVER_50, (uint8_t)RSBS_FOREIGN_CRIT_NOT_SHARED_RESOURCE },
+    // MM's own bow give sets UPG_QUIVER to 1, so in MM owning the bow IS quiver
+    // tier 1 -- a bow crossing would mutate the shared quantity itself.
+    { (uint16_t)RI_BOW, (uint8_t)RSBS_FOREIGN_CRIT_NOT_SHARED_RESOURCE },
+    { (uint16_t)RI_PROGRESSIVE_BOW, (uint8_t)RSBS_FOREIGN_CRIT_NOT_SHARED_RESOURCE },
+    { (uint16_t)RI_HOOKSHOT, (uint8_t)RSBS_FOREIGN_CRIT_NOT_SHARED_RESOURCE },
+};
+
+constexpr int kForeignExclusionsMMCount = sizeof(kForeignExclusionsMM) / sizeof(kForeignExclusionsMM[0]);
+} // namespace
 
 // Publish into src/common's origin-indexed registry (ADR 0009 decision 3), the
 // same way the OoT pool does. File-scope initializer, so it runs before main()
@@ -610,6 +841,31 @@ extern "C" int MM_ForeignItem_TestItemIdMax(void) {
  *  moves. */
 extern "C" int MM_ForeignItem_TestIsGiveableId(uint16_t riId) {
     return IsGiveableItemId(riId) ? 1 : 0;
+}
+
+/**
+ * Walk the CRITERION-ATTRIBUTED EXCLUSION table (#495, ADR 0011 decision 3.4):
+ * entry `index`'s rejected RI_* id and the criterion number that rejected it.
+ *
+ * The observable that makes the class rule testable. src/common has no MM enum
+ * in scope by design, so the lock cannot name RI_TRAP itself; it walks this
+ * bridge instead and asserts each excluded id is absent from the pool and from
+ * the name inverse. Exposed rather than re-listed in the test for the standing
+ * reason a lock never keeps its own copy of the rule.
+ *
+ * @return 1 while `index` names an entry, 0 once it is past the end.
+ */
+extern "C" int MM_ForeignItem_TestExclusionAt(int index, uint16_t* outId, uint8_t* outCriterion) {
+    if (index < 0 || index >= kForeignExclusionsMMCount) {
+        return 0;
+    }
+    if (outId != nullptr) {
+        *outId = kForeignExclusionsMM[index].id;
+    }
+    if (outCriterion != nullptr) {
+        *outCriterion = kForeignExclusionsMM[index].criterion;
+    }
+    return 1;
 }
 
 /** Is `riId` declared RITYPE_JUNK in MM's item table? (#510)

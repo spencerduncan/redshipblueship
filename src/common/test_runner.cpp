@@ -2395,6 +2395,14 @@ const TestDescriptor gTests[] = {
     // main() — so this also proves that registrar survived the link.
     {"foreign-pool-mm", "MM's cross-game source pool: registered, well-formed, giveable, non-junk (#510)",
      Test_ForeignPoolMM},
+    // #495: the cross-game item class is a RULE over the pool and the class
+    // BITSET is the setting. The parity half is the acceptance bar — under the
+    // shipped defaults the draw is the identity permutation, so no generated
+    // world moves — and the totality half is why the class carries no seed term.
+    {"foreign-item-class",
+     "Item class is a rule: default bitset draws the pinned pool byte-identically, a narrowed one draws only its "
+     "classes, the name inverse stays total (#495)",
+     Test_ForeignItemClass},
     // #525: shared cross-game resources. Display-free, ROM-free and save-free —
     // everything under test is gComboCtx plus a RAM watermark table.
     {"shared-resources", "One quantity across both games: watermark, disciplines, seed, heart clamp (#525)",

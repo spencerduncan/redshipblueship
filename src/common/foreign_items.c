@@ -145,6 +145,106 @@ int Combo_ComboPoolSizeFor(uint8_t originGame) {
     return size;
 }
 
+uint16_t Combo_ComboItemClassFor(uint8_t originGame) {
+    if (originGame != (uint8_t)GAME_OOT && originGame != (uint8_t)GAME_MM) {
+        return 0;
+    }
+
+    // The frozen record is the authority for a created world. Unlike the pool
+    // SIZE, a frozen ZERO is honoured verbatim: inside a formatted record
+    // "itemClass == 0" is a legitimate "no classes armed for this direction"
+    // (ADR 0011 decision 3.3), and clamping it up to the defaults would silently
+    // re-arm a direction the player turned off. The size clamp is different only
+    // because 0 is not a value poolSize can legitimately carry.
+    if (Combo_ComboSettingsFrozen()) {
+        return (originGame == (uint8_t)GAME_OOT) ? gComboCtx.comboSettings.itemClassOoT
+                                                 : gComboCtx.comboSettings.itemClassMM;
+    }
+
+    // UNFROZEN: the shipped default (every allocated bit). Load-bearing for the
+    // same reason the pool-size fallback is — a zero-extended legacy record must
+    // not resolve to "no eligible source items at all".
+    ComboSettingsRecord live;
+    Combo_ResolveComboSettings(&live);
+    return (originGame == (uint8_t)GAME_OOT) ? live.itemClassOoT : live.itemClassMM;
+}
+
+int Combo_ForeignPoolClassMembersFor(uint8_t originGame, uint16_t classMask, int* outIndices, int maxIndices) {
+    const ComboForeignItemDef* pool = NULL;
+    const int poolCount = Combo_GetForeignItemPoolFor(originGame, &pool);
+    if (poolCount <= 0 || pool == NULL) {
+        return 0;
+    }
+
+    // IN POOL ORDER, because pool order is world-visible: the forward pass
+    // assigns pool[members[i]] to the i-th drawn host, so regrouping by class
+    // here would re-order every already-generated world's crossings.
+    //
+    // An UNCLASSIFIED row (itemClass == 0) matches no mask and is therefore
+    // never drawn. That is deliberate rather than defensive — a row nobody
+    // classified is a row nobody adjudicated the criteria for — and the
+    // ForeignItemClass lock refuses one at CI rather than at an operator's
+    // generation.
+    int selected = 0;
+    for (int i = 0; i < poolCount; i++) {
+        if ((pool[i].itemClass & classMask) == 0) {
+            continue;
+        }
+        if (outIndices != NULL) {
+            if (selected >= maxIndices) {
+                break;
+            }
+            outIndices[selected] = i;
+        }
+        selected++;
+    }
+    return selected;
+}
+
+int Combo_ForeignPoolDrawFor(uint8_t originGame, int* outIndices, int maxIndices) {
+    return Combo_ForeignPoolClassMembersFor(originGame, Combo_ComboItemClassFor(originGame), outIndices, maxIndices);
+}
+
+const char* Combo_ForeignCriterionName(uint8_t criterion) {
+    switch (criterion) {
+        case RSBS_FOREIGN_CRIT_NONE:
+            return "(none)";
+        case RSBS_FOREIGN_CRIT_REAL_ITEM:
+            return "real-item";
+        case RSBS_FOREIGN_CRIT_NOT_JUNK:
+            return "not-junk";
+        case RSBS_FOREIGN_CRIT_UNCONDITIONAL_GIVE:
+            return "unconditional-give";
+        case RSBS_FOREIGN_CRIT_NO_WORLD_EVENT:
+            return "no-world-event";
+        case RSBS_FOREIGN_CRIT_REWARD:
+            return "reward-not-punishment";
+        case RSBS_FOREIGN_CRIT_NOT_SHARED_RESOURCE:
+            return "not-shared-resource";
+        default:
+            return "(unknown)";
+    }
+}
+
+const char* Combo_ForeignItemClassName(uint16_t classBit) {
+    switch (classBit) {
+        case RSBS_ITEMCLASS_PROGRESSION:
+            return "progression";
+        case RSBS_ITEMCLASS_SONGS:
+            return "songs";
+        case RSBS_ITEMCLASS_MASKS:
+            return "masks";
+        case RSBS_ITEMCLASS_DUNGEON_ITEMS:
+            return "dungeon-items";
+        case RSBS_ITEMCLASS_DUNGEON_REWARD:
+            return "dungeon-reward";
+        case RSBS_ITEMCLASS_SIDEQUEST:
+            return "sidequest";
+        default:
+            return "(unknown)";
+    }
+}
+
 // ---- canonical() and the whole-pair fingerprint (decision 1.4) -------------
 
 void Combo_ComboSettingsCanonical(const ComboSettingsRecord* rec, uint8_t* out) {

@@ -276,15 +276,21 @@ void Rando::MiscBehavior::OnFileCreate(s16 fileNum) {
                         // shortfall is the spoiler's foreignShortfall section
                         // (Spoiler/Generate.cpp); the stderr line here is the
                         // greppable alarm on the generation log.
-                        const ComboForeignItemDef* pool = nullptr;
-                        const int poolCount = Combo_GetForeignItemPool(&pool);
+                        // Compared against the DRAWABLE count, not the raw pool
+                        // (#495): once the frozen itemClassOoT bitset narrows the
+                        // class, placing fewer than the whole pool is the rules
+                        // working rather than hosts running short, and an alarm
+                        // that cannot tell those apart is an alarm nobody reads.
+                        // With the shipped defaults the two counts are equal, so
+                        // this line says exactly what it said before.
+                        const int drawable = Combo_ForeignPoolDrawFor((uint8_t)GAME_OOT, nullptr, 0);
                         const int placed = Rando::Foreign::PlaceForeignItems();
-                        if (placed < poolCount) {
+                        if (placed < drawable) {
                             fprintf(stderr,
                                     "[MM] OnFileCreate: paired world hosts %d of %d foreign items (reachable eligible "
                                     "hosts ran short — see the [MM] foreign placement SHORTFALL line above; the "
                                     "spoiler records it)\n",
-                                    placed, poolCount);
+                                    placed, drawable);
                         }
                     }
 #endif
