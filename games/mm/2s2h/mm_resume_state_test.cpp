@@ -23,6 +23,22 @@
  *    (Setup_InitImpl -> MM_SaveContext_Init memset; TitleSetup rewrites it
  *    as a new file), so Play_Init-time restore is what carries MM
  *    continuity across cycle-2+ round trips.
+ *
+ * mm-startup-restore's poison byte for "was the frozen save restored"
+ * used to sit at the very last byte of gSaveContext, which is the last byte
+ * of shipSaveContext — a trailing member z64save.h documents as "values
+ * added by 2S2H that aren't persisted to the save file". That member is
+ * legitimately live-seeded on every restore: RegisterSavingEnhancements'
+ * OnSaveLoad hook stamps shipSaveContext.lastTimeLog, the same way production
+ * always has (z_sram_NES.c zeroes it in lockstep on every new-file/continue
+ * path, and MM_Play_ConsumeStartupEntrance dispatches OnSaveLoad after every
+ * restore, the #439 fix). #617 found the poison byte's placement wrong, not
+ * the seeder — it moved to the last byte of `Save save` (still inside the
+ * persisted, byte-exact-restorable region, but ahead of both the seeder and
+ * every field this function's own arrival-spawn logic explicitly resets) —
+ * plus an explicit freshness assertion on lastTimeLog. See the assertion site
+ * below, same shape as the pre-existing sSoundMode carve-out a few lines down
+ * from it.
  */
 
 #ifdef RSBS_SINGLE_EXECUTABLE
@@ -31,6 +47,10 @@
 
 #include <cstdio>
 #include <cstring>
+
+#include <ship/Context.h>
+
+#include "2s2h/Enhancements/Saving/SavingEnhancements.h"
 
 extern "C" {
 // GameExports_SingleExe.cpp — the resume-path cold-boot re-arm under test.
@@ -59,6 +79,10 @@ extern s8 sSoundMode;
 // Audio_SetFileSelectSettings' default branch leaves sSoundMode untouched but
 // still queues SEQCMD_SET_SOUND_MODE with an unassigned soundMode.
 extern u8 sSeqCmdWritePos;
+// games/mm/2s2h/BenPort.cpp — the wall clock RegisterSavingEnhancements'
+// OnSaveLoad hook stamps into shipSaveContext.lastTimeLog (#617). Used here to
+// check the restored value is a fresh timestamp, not to seed it ourselves.
+uint64_t GetUnixTimestamp(void);
 }
 
 extern "C" u8* MM_gSystemHeap;
@@ -173,6 +197,21 @@ extern "C" int MM_ResumeArena_RunHeadless(void) {
 extern "C" int MM_StartupRestore_RunHeadless(void) {
     printf("[TEST] mm-startup-restore: startup consumption restores the frozen save post-wipe\n");
 
+    // The seeder under test (#617): MM_Play_ConsumeStartupEntrance ends in
+    // GameInteractor_ExecuteOnSaveLoad, and in every real MM boot
+    // RegisterSavingEnhancements' OnSaveLoad hook is already registered by
+    // then (MM_Rando_Init always runs before Play). Bring that one registrar
+    // up directly rather than the full MM_Rando_Init: MM_Rando_Init also arms
+    // Rando::Init()'s OnSaveLoad handler, whose IS_RANDO-gated legs are
+    // unrelated to this contract and untested against this function's
+    // pattern-filled SaveContext. RegisterSavingEnhancements' OnSaveLoad hooks
+    // unregister-before-register (COND_HOOK), so calling it again is harmless
+    // if MMRegistrarCoverage already ran in this process.
+    auto ctx = Ship::Context::GetInstance();
+    RESUME_ASSERT(ctx != nullptr && ctx->GetConsoleVariables() != nullptr,
+                  "Ship::Context/ConsoleVariables missing — run the shared bring-up first");
+    RegisterSavingEnhancements();
+
     const uint16_t kArrival = 0xD800; // ENTRANCE(SOUTH_CLOCK_TOWN, 0), the OoT->MM arrival
     const uint8_t kPattern = 0x5A;
 
@@ -184,7 +223,18 @@ extern "C" int MM_StartupRestore_RunHeadless(void) {
     // otherwise leave audioSetting out of range, which is a separate case
     // (locked at the end of this function).
     gSaveContext.options.audioSetting = SAVE_AUDIO_HEADSET;
-    ((uint8_t*)&gSaveContext)[sizeof(gSaveContext) - 1] = 0x77;
+    // Poison byte: the last byte of `Save save` (z64save.h), landing inside
+    // shipSaveInfo -- 2S2H-added but PERSISTED (unlike shipSaveContext) and
+    // untouched by both MM_Play_ConsumeStartupEntrance's explicit arrival-spawn
+    // resets (all scattered through SaveContext's OTHER top-level members --
+    // seqId, ambienceId, magicState, forcedSeqId, nextCutsceneIndex,
+    // nextDayTime, timerStates[], powderKegTimer -- none of which live inside
+    // `save`) and RegisterSavingEnhancements' live OnSaveLoad hook (which only
+    // writes shipSaveContext and, since fileCreatedAt is non-zero here, does
+    // not touch shipSaveInfo either). #617: the OLD poison offset,
+    // sizeof(gSaveContext) - 1, is the last byte of shipSaveContext instead --
+    // seeded, not restored verbatim, once that hook is live.
+    ((uint8_t*)&gSaveContext)[sizeof(Save) - 1] = 0x77;
     Combo_FreezeState("mm", kArrival, &gSaveContext, sizeof(gSaveContext));
 
     // The boot chain's wipe (Setup_InitImpl -> MM_SaveContext_Init).
@@ -203,13 +253,28 @@ extern "C" int MM_StartupRestore_RunHeadless(void) {
 
     // Act: the consumption point in MM_Play_Init.
     const u8 seqCmdPosBeforeArrival = sSeqCmdWritePos;
+    const uint64_t timestampBeforeArrival = GetUnixTimestamp();
     MM_Play_ConsumeStartupEntrance();
 
     // Assert: frozen save is back...
     RESUME_ASSERT(gSaveContext.save.day == 3, "frozen save.day not restored after wipe");
     RESUME_ASSERT(gSaveContext.save.time == 0x4321, "frozen save.time not restored after wipe");
-    RESUME_ASSERT(((uint8_t*)&gSaveContext)[sizeof(gSaveContext) - 1] == 0x77,
-                  "frozen save tail byte not restored after wipe");
+    RESUME_ASSERT(((uint8_t*)&gSaveContext)[sizeof(Save) - 1] == 0x77,
+                  "frozen save tail byte (last byte of `save`, ahead of the arrival-spawn resets and the "
+                  "2S2H-added, non-persisted shipSaveContext tail) not restored after wipe (#617)");
+    // ...and shipSaveContext.lastTimeLog -- deliberately NOT covered by the
+    // poison byte above, since RegisterSavingEnhancements' OnSaveLoad hook
+    // genuinely re-seeds it on every restore, the same way sSoundMode below is
+    // genuinely re-derived rather than restored verbatim -- is a FRESH stamp,
+    // not the frozen/poisoned value riding the restore memcpy untouched. The
+    // seeder must actually have run, not merely have been tolerated.
+    // GetUnixTimestamp (BenPort.cpp) returns milliseconds since the Unix
+    // epoch; 5000ms is generous slack for a synchronous in-process call.
+    RESUME_ASSERT(gSaveContext.shipSaveContext.lastTimeLog != 0,
+                  "shipSaveContext.lastTimeLog not seeded by the OnSaveLoad hook after restore (#617)");
+    RESUME_ASSERT(gSaveContext.shipSaveContext.lastTimeLog >= timestampBeforeArrival &&
+                      gSaveContext.shipSaveContext.lastTimeLog - timestampBeforeArrival < 5000,
+                  "shipSaveContext.lastTimeLog not a fresh plausible timestamp after restore (#617)");
     // ...the arrival spawn is armed with plain-gameplay cutscene state...
     RESUME_ASSERT(gSaveContext.save.entrance == kArrival, "startup entrance not applied to save.entrance");
     RESUME_ASSERT(gSaveContext.save.cutsceneIndex == 0, "cutsceneIndex not reset for arrival spawn");
