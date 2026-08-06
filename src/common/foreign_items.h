@@ -48,6 +48,25 @@ typedef struct {
     SharedItem item;     // originGame == GAME_OOT, flags == 0, id == the RG_* value
     const char* name;    // e.g. "Megaton Hammer"
     const char* article; // "the ", "a ", "an " or "" — see below
+    // WHICH ITEM CLASS THIS MEMBER BELONGS TO (#495, ADR 0011 decision 3):
+    // EXACTLY ONE allocated RSBS_ITEMCLASS_* bit, decided in the pool's own TU
+    // where the item's enum is in scope, and served back through this header so
+    // src/common can evaluate the class rule without ever translating an RG_* /
+    // RI_* itself — the same division of labour `name`, `article` and `iconName`
+    // already use.
+    //
+    // A row's class is authored, not derived at runtime, because the six
+    // membership criteria (RSBS_FOREIGN_CRIT_*) that admitted it are themselves
+    // hand-adjudicated: criterion 3 in particular ("the give is unconditionally
+    // effectful") is a property of another game's option profile, not of any
+    // table this build can read (ADR 0011 decision 3.5 / answer O8). What the
+    // rule engine below evaluates is the SELECTION — which classes are armed —
+    // over rows that have already passed the criteria.
+    //
+    // Zero means UNCLASSIFIED, which no shipping row may be: an unclassified row
+    // is selected by no mask at all and would silently leave the pool. The
+    // ForeignItemClass lock asserts exactly-one-bit over both real tables.
+    uint16_t itemClass;
     // The host game's texture-map key for this item's arrival-toast icon, or
     // NULL for a text-only toast. Like `name`, it is filled in by the pool's
     // defining TU (where the item's icon is known) and served back through this
@@ -323,6 +342,125 @@ RSBS_CTX_STATIC_ASSERT(RSBS_ITEMCLASS_PROGRESSION == 0x0001u && RSBS_ITEMCLASS_S
                        "RSBS_ITEMCLASS_* bit positions are .redsave format: pinned, append-only, "
                        "allocate the next free bit and never re-point an allocated one (ADR 0011 "
                        "decision 1.2.1)");
+
+// ============================================================================
+// The six MEMBERSHIP CRITERIA, and the class rule (#495; ADR 0011 decision 3)
+// ============================================================================
+//
+// WHERE THE CRITERIA LIVE. The predicates must name RG_* / RI_*, so they cannot
+// leave their pool TUs. The CRITERIA can and must (ADR 0011 decision 3.4): they
+// are numbered HERE, game-header-free, exactly as ADR 0010 answer O8 places the
+// shared-item classification table in the sanctioned shared_items pair rather
+// than in a per-game duplicate that can disagree with itself. Each pool TU
+// evaluates them against its own enum and reports, per REJECTED candidate,
+// which criterion rejected it — that attribution is what makes the lock a test
+// of the rule rather than of a table that happens to look right.
+//
+// ORDER IS THE RULE, not presentation. The criteria run FIRST and the
+// RSBS_ITEMCLASS_* bitset selects among the survivors, so no class bit can
+// widen a pool past them — in particular no bit can readmit a #525 shared
+// cross-game resource. A future increment may append classes; it may not
+// weaken that ordering.
+
+#define RSBS_FOREIGN_CRIT_NONE 0u /* not rejected — this id is a class member */
+/** A real item, not a sentinel (each game's "unknown" / "nothing" enumerators). */
+#define RSBS_FOREIGN_CRIT_REAL_ITEM 1u
+/** Not junk-class: junk is what a foreign HOST degrades to when the placement
+ *  table is absent, so crossing it spends a slot on a strictly worse duplicate
+ *  of what the host already physically holds. */
+#define RSBS_FOREIGN_CRIT_NOT_JUNK 2u
+/** The give is UNCONDITIONALLY effectful — it changes save state whatever
+ *  options the paired world was generated under. A settings-gated entry is a
+ *  crossing promised in one game and silently never delivered in the other. */
+#define RSBS_FOREIGN_CRIT_UNCONDITIONAL_GIVE 3u
+/** The give fires no GLOBAL WORLD EVENT (a completion cascade, a forced scene
+ *  transition, a per-world goal quantity). */
+#define RSBS_FOREIGN_CRIT_NO_WORLD_EVENT 4u
+/** A reward, not a punishment: the far side's pickup text promises an award. */
+#define RSBS_FOREIGN_CRIT_REWARD 5u
+/** Not a #525 SHARED CROSS-GAME RESOURCE (wallet / heart / magic / ammo /
+ *  hookshot). One quantity spanning both games has nothing left to cross. */
+#define RSBS_FOREIGN_CRIT_NOT_SHARED_RESOURCE 6u
+/** One past the highest criterion. */
+#define RSBS_FOREIGN_CRIT_COUNT 7u
+
+// The criteria are a published, numbered list for the same reason the value
+// spaces above are: an exclusion recorded as "criterion 4" in one TU and read
+// as "criterion 5" in a lock is worse than no attribution at all.
+RSBS_CTX_STATIC_ASSERT(RSBS_FOREIGN_CRIT_REAL_ITEM == 1u && RSBS_FOREIGN_CRIT_NOT_JUNK == 2u &&
+                           RSBS_FOREIGN_CRIT_UNCONDITIONAL_GIVE == 3u && RSBS_FOREIGN_CRIT_NO_WORLD_EVENT == 4u &&
+                           RSBS_FOREIGN_CRIT_REWARD == 5u && RSBS_FOREIGN_CRIT_NOT_SHARED_RESOURCE == 6u,
+                       "the six membership criteria are numbered in ADR 0011 decision 3.1 and both pool TUs "
+                       "report exclusions by that number");
+
+/** The criterion's name ("real-item", "not-junk", ...); "(none)" for
+ *  RSBS_FOREIGN_CRIT_NONE and "(unknown)" past the table. Never NULL. */
+const char* Combo_ForeignCriterionName(uint8_t criterion);
+
+/** One class bit's name ("progression", "songs", ...), or "(unknown)" for an
+ *  unallocated bit or a mask with more than one bit set. Never NULL. */
+const char* Combo_ForeignItemClassName(uint16_t classBit);
+
+/**
+ * The RESOLVED item-class bitset for crossings ORIGINATING in @p originGame:
+ * the frozen record's when frozen, else the shipped default (every allocated
+ * bit). The exact twin of Combo_ComboPoolSizeFor, read for the same reason —
+ * the world's rules are FROZEN AT CREATION, so no live CVar may reach a
+ * placement pass mid-session.
+ *
+ * A FROZEN zero is honoured verbatim: inside a formatted record `itemClass == 0`
+ * is a legitimate "no classes armed for this direction", and it is not a hidden
+ * second OFF because the direction byte says so first (ADR 0011 decision 3.3).
+ * An UNFROZEN record falls back to the default instead — a zero-extended legacy
+ * record would otherwise resolve to "no eligible source items at all", which is
+ * the opposite of the world it was generated with.
+ *
+ * @return an RSBS_ITEMCLASS_* mask, or 0 for an origin with no pool.
+ */
+uint16_t Combo_ComboItemClassFor(uint8_t originGame);
+
+/**
+ * THE RULE EVALUATION (#495). Filter @p originGame's registered pool down to
+ * the members of @p classMask, writing their INDICES into @p outIndices in POOL
+ * ORDER.
+ *
+ * INDICES, NOT A FILTERED COPY, for two reasons that are both load-bearing.
+ * Pool ORDER is world-visible — the forward pass walks the result positionally
+ * and both passes draw from it — so the filter must preserve it rather than
+ * regroup by class. And the `name` pointers must stay the pool's OWN storage:
+ * test_foreign_items.c asserts pointer identity against Combo_GetForeignItemName,
+ * so a copy would need an arena and would break that identity for no gain.
+ *
+ * THE REGISTRY STILL SERVES THE WHOLE POOL, and that is the whole of accepted
+ * answer O3: Combo_GetForeignItemPoolFor and Combo_GetForeignItemByNameFor keep
+ * spanning every item ANY class can name, independent of the frozen selection,
+ * so the spoiler-LOAD inverse stays TOTAL in a process that never generated.
+ * Only the DRAW narrows. A selection-scoped inverse would make a spoiler that
+ * was valid at generation unreadable at load, which is the failure ADR 0011
+ * decision 3.2 rejects a seed term to avoid.
+ *
+ * @param classMask   an RSBS_ITEMCLASS_* mask; 0 selects nothing
+ * @param outIndices  receives the selected pool indices; NULL COUNTS ONLY (and
+ *                    then @p maxIndices is ignored)
+ * @param maxIndices  capacity of outIndices; selection stops there
+ * @return the number of members selected (>= 0).
+ */
+int Combo_ForeignPoolClassMembersFor(uint8_t originGame, uint16_t classMask, int* outIndices, int maxIndices);
+
+/**
+ * THE PRODUCTION DRAW: Combo_ForeignPoolClassMembersFor under the RESOLVED
+ * class bitset for @p originGame. Both placement passes call this, so "which
+ * classes are armed" is read from the frozen record in exactly one place.
+ *
+ * With the shipped defaults (every allocated bit) the result is the identity
+ * permutation 0..poolCount-1 — byte-identical to the table both passes walked
+ * before the rule existed. That parity is a test lock (ForeignItemClass), not
+ * a hope: it is what keeps SeedDeterminism's foreignOoTHash and MMRandoGen's
+ * placement digest from moving when the rule lands.
+ *
+ * @param outIndices NULL counts only, as above.
+ */
+int Combo_ForeignPoolDrawFor(uint8_t originGame, int* outIndices, int maxIndices);
 
 // ============================================================================
 // Combo-level settings: predicates, freeze, digest, divergence (ADR 0011)

@@ -425,6 +425,19 @@ if(BUILD_TESTING)
     # silent at compile and link time and would leave OoT unable to place
     # anything (#516's dead-registrar class).
     redship_add_test(NAME ForeignPoolMM COMMAND redship --test foreign-pool-mm)
+    # #495 / ADR 0011 decision 3: the cross-game item class is a RULE over both
+    # pools and the RSBS_ITEMCLASS_* bitset in the frozen combo record is the
+    # setting that selects it. Three claims, in the order they can fail: the
+    # DEFAULT bitset draws the pinned tables byte-identically (the parity pin —
+    # SeedDeterminism's foreignOoTHash and MMRandoGen's placement digest both
+    # fold the drawn entries, so this row failing is those rows moving); a
+    # NARROWED bitset draws only members of the armed classes (red before the
+    # rule engine, when the bitset was stored and compared but consumed by
+    # nothing); and the name inverse stays TOTAL over every item any class can
+    # name even with ZERO classes armed, which is why the class carries no seed
+    # term (accepted answer O3) and why the spoiler-LOAD path can run in a
+    # process that never generated. Display-free and ROM-free like its siblings.
+    redship_add_test(NAME ForeignItemClass COMMAND redship --test foreign-item-class)
     # Shared cross-game resources (#525): rupees and hearts are ONE quantity
     # spanning both games. Locks the delta-harvest watermark that survives MM's
     # 500-rupee tier-3 wallet against OoT's 999 (a naive copy costs the player

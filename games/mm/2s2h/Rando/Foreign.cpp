@@ -528,12 +528,38 @@ int PlaceForeignItems() {
     // than `poolCount` so the shortfall alarm below stays honest: placing fewer
     // than the pool BECAUSE THE RULES SAY SO is not a host-supply shortfall.
     const int poolSize = Combo_ComboPoolSizeFor((uint8_t)GAME_OOT);
-    const int wanted = (poolCount < poolSize) ? poolCount : poolSize;
+
+    // WHICH pool entries are drawable is the RULE (#495, ADR 0011 decision 3):
+    // Combo_ForeignPoolDrawFor filters OoT's pool by the FROZEN itemClassOoT
+    // bitset, in pool order, with NO seed term (accepted answer O3). With the
+    // shipped defaults (every allocated bit) `drawable` is the identity
+    // permutation 0..poolCount-1, so pool[drawable[i]] IS pool[i] and no
+    // generated world moves — the parity this increment is bounded by.
+    //
+    // FILTER FIRST, THEN DRAW TO COUNT: the class decides WHICH entries may
+    // cross, the pool size decides HOW MANY do. `wanted` therefore bounds on the
+    // filtered count, never on the raw pool, or the loop would index past the
+    // filtered list the first time a class is unarmed.
+    std::vector<int> drawable((size_t)poolCount, 0);
+    const int drawableCount = Combo_ForeignPoolDrawFor((uint8_t)GAME_OOT, drawable.data(), poolCount);
+    drawable.resize((size_t)(drawableCount > 0 ? drawableCount : 0));
+
+    const int wanted = (drawableCount < poolSize) ? drawableCount : poolSize;
     // Read and reported here; ADR 0011 increment 4 is where an unarmed direction
     // makes this pass a no-op (deliberately last — it is the only increment that
     // can change a generated world).
-    fprintf(stderr, "[MM] foreign placement: combo rules direction=%u poolSizeOoT=%d (frozen=%d)\n",
-            (unsigned)Combo_ComboDirection(), poolSize, Combo_ComboSettingsFrozen() ? 1 : 0);
+    fprintf(stderr,
+            "[MM] foreign placement: combo rules direction=%u poolSizeOoT=%d classOoT=%04X (%d of %d pool entries in "
+            "class) (frozen=%d)\n",
+            (unsigned)Combo_ComboDirection(), poolSize, (unsigned)Combo_ComboItemClassFor((uint8_t)GAME_OOT),
+            drawableCount, poolCount, Combo_ComboSettingsFrozen() ? 1 : 0);
+    if (drawableCount <= 0) {
+        // Every class unarmed for this direction: a real, chooseable world under
+        // ADR 0011 decision 3.3 (the direction byte, not this, is what says
+        // "off"). Zero placements and a loud log, never a generation failure.
+        fprintf(stderr, "[MM] foreign placement: OoT item classes select no pool entry — no crossings\n");
+        return 0;
+    }
     sLastPlacementStats.requested = wanted;
 
     // The reachability gate (ADR 0010 increment 1.3, #500 work item 2): the
@@ -591,13 +617,18 @@ int PlaceForeignItems() {
 
     int placed = 0;
     for (int i = 0; i < wanted && !candidates.empty(); i++) {
+        // The i-th DRAWABLE entry, not the i-th pool row. Under the shipped
+        // defaults these are the same index, which is the parity pin; under a
+        // narrowed bitset this is what keeps the pass inside the armed classes.
+        const ComboForeignItemDef& entry = pool[drawable[(size_t)i]];
+
         const size_t pick = (size_t)(SelectNext() % (uint32_t)candidates.size());
         const RandoCheckId hostCheck = candidates[pick];
         candidates.erase(candidates.begin() + (std::ptrdiff_t)pick);
 
-        if (Combo_SetForeignPlacement((uint16_t)hostCheck, pool[i].item) >= 0) {
+        if (Combo_SetForeignPlacement((uint16_t)hostCheck, entry.item) >= 0) {
             placed++;
-            fprintf(stderr, "[MM] foreign placement: '%s' hosted at MM check %s\n", pool[i].name,
+            fprintf(stderr, "[MM] foreign placement: '%s' hosted at MM check %s\n", entry.name,
                     Rando::StaticData::Checks[hostCheck].name);
         } else {
             // A refused insert while candidates remained is a STRUCTURAL
@@ -605,7 +636,7 @@ int PlaceForeignItems() {
             // supply — the under-supply rule below must not absorb it.
             // Throwing lands in OnFileCreate's catch exactly as the old
             // placed<poolCount check did for this case.
-            throw std::runtime_error("foreign placement table refused an insert for '" + std::string(pool[i].name) +
+            throw std::runtime_error("foreign placement table refused an insert for '" + std::string(entry.name) +
                                      "' with candidates remaining — placement-table defect, not host supply");
         }
     }
