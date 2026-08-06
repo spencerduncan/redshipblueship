@@ -407,35 +407,15 @@ static TestResult Test_CosmeticGfxStub(void) {
     return CosmeticGfxStub_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
-// MM resume-path cold-boot contracts (see the extern decls above). Thin
-// wrappers over the C entry points in games/mm/2s2h/mm_resume_state_test.cpp.
+// MM resume-path cold-boot contract (see the extern decls above). Thin
+// wrapper over the C entry point in games/mm/2s2h/mm_resume_state_test.cpp.
+// Its sibling, Test_MMStartupRestore, is defined further down right after
+// CreateHarnessStyleContext instead of here: unlike this row, it needs that
+// display-free shared Context bring-up (#617), and CreateHarnessStyleContext
+// lives inside the anonymous namespace that starts below this point, so it
+// cannot be forward-declared from file scope here.
 static TestResult Test_MMResumeArena(void) {
     return MM_ResumeArena_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
-}
-// Forward declaration: defined below (shared by every wrapper that needs the
-// display-free Context bring-up), needed here because this wrapper sits above
-// that definition.
-static std::shared_ptr<Ship::Context> CreateHarnessStyleContext(void);
-
-// #617: unlike the wrapper above, this one needs the same display-free shared
-// bring-up as the Gui/registrar-coverage rows below — MM_StartupRestore_RunHeadless
-// now drives RegisterSavingEnhancements directly (so its restored
-// shipSaveContext.lastTimeLog assertion is checking the same live seeder a
-// real MM boot has, not an isolated process that never registered it), and
-// that registrar's CVAR_REMEMBER_SAVE_LOCATION leg reads the Ship::Context
-// singleton's ConsoleVariables.
-static TestResult Test_MMStartupRestore(void) {
-    auto ctx = CreateHarnessStyleContext();
-    if (!ctx) {
-        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
-        return TEST_FAIL;
-    }
-    if (OoT_InitSharedContextSubsystems() != 0) {
-        printf("[TEST] FAIL: shared bring-up reported failure\n");
-        return TEST_FAIL;
-    }
-
-    return MM_StartupRestore_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // MM extended-culling binding (see the extern decl above). Thin wrapper over
@@ -545,6 +525,29 @@ static std::shared_ptr<Ship::Context> CreateHarnessStyleContext(void) {
     }
 
     return ctx;
+}
+
+// MM resume-path cold-boot contract (see the extern decl above). Thin wrapper
+// over the C entry point in games/mm/2s2h/mm_resume_state_test.cpp. Unlike
+// its mm-resume-arena sibling, this one needs the same display-free shared
+// bring-up as the Gui/registrar-coverage rows below — MM_StartupRestore_RunHeadless
+// now drives RegisterSavingEnhancements directly (#617), so its restored
+// shipSaveContext.lastTimeLog assertion is checking the same live seeder a
+// real MM boot has, not an isolated process that never registered it. That
+// registrar's CVAR_REMEMBER_SAVE_LOCATION leg also reads the Ship::Context
+// singleton's ConsoleVariables.
+TestResult Test_MMStartupRestore(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_StartupRestore_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 TestResult Test_BootOoT(void) {
