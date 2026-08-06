@@ -19,6 +19,11 @@ extern "C" int RsbsSave_GetActiveSlot(void);
 #define CVAR_REMEMBER_SAVE_LOCATION_NAME "gEnhancements.RememberSaveLocation"
 #define CVAR_REMEMBER_SAVE_LOCATION CVarGetInteger(CVAR_REMEMBER_SAVE_LOCATION_NAME, 0)
 
+// #614: named so the ShipInit registration below and RegisterAutosave's own
+// CVarGetInteger read (and mm_registrar_coverage_test.cpp's ATTRIBUTION probe)
+// can't drift apart the way an inline literal would let them.
+#define CVAR_AUTOSAVE_NAME "gEnhancements.Autosave"
+
 static uint32_t autosaveInterval = 0;
 static uint32_t iconTimer = 0;
 static uint64_t currentTimestamp = 0;
@@ -349,7 +354,7 @@ void RegisterAutosave() {
         autosaveGameStateDrawFinishHookId = 0;
     }
 
-    if (CVarGetInteger("gEnhancements.Autosave", 0)) {
+    if (CVarGetInteger(CVAR_AUTOSAVE_NAME, 0)) {
         autosaveGameStateUpdateHookId = S2H::GameHooks::Register<GameInteractor::OnGameStateUpdate>([]() {
             if (MM_gPlayState == nullptr) {
                 return;
@@ -367,6 +372,46 @@ void RegisterAutosave() {
         });
     }
 }
+
+/**
+ * #614: RegisterAutosave was reachable only from MM_Rando_Init's once-only
+ * bring-up (games/mm/2s2h/GameExports_SingleExe.cpp), so it was outside MM's
+ * `S2H::ShipInit` map and the #539 unified-menu driver
+ * (games/mm/2s2h/ShipInitBridge_SingleExe.cpp) had nothing to re-arm.
+ * Toggling Autosave mid-session re-armed OoT's twin (Autosave.cpp:85)
+ * immediately while MM stayed latched at whatever the CVar read at MM's first
+ * boot — the exact divergence class #539 closed for every OTHER converged
+ * key. This registration is the fix: it puts RegisterAutosave in the map
+ * under the converged CVar, the same shape as OoT's twin, so a click on the
+ * one live menu re-arms both halves.
+ *
+ * ARM-STATE ANALYSIS (re-running RegisterAutosave mid-session):
+ * RegisterAutosave already unregisters both hooks unconditionally before
+ * conditionally re-registering them from the current CVar read — the same
+ * unregister-then-register shape as the single-exe COND_HOOK macro
+ * (2s2h/GameInteractor/GameInteractor.h), just spelled out by hand because it
+ * manages two hook types (OnGameStateUpdate + OnGameStateDrawFinish) behind
+ * one CVar read instead of one hook per COND_HOOK call. So re-arming is
+ * already idempotent: calling it N times with the CVar unchanged leaves
+ * exactly one live registrant per hook type, never a stack (S2H::GameHooks
+ * hands out a fresh id per Register call, but the matching Unregister is
+ * queued first and settles on the next flush — see
+ * mm_registrar_coverage_test.cpp's SettledUnkeyedCount comment). Locked by
+ * the mm-shipinit-driver Autosave leg (games/oot/soh/soh_shipinit_driver_test.cpp),
+ * which drives RegisterAutosave twice with the CVar ON and asserts
+ * OnGameStateDrawFinish's settled count stays 1, not 2.
+ *
+ * The one side effect NOT reset by re-arming is the pending-interval clock:
+ * lastSaveTimestamp, iconTimer and autosaveInterval are file-static and
+ * untouched by RegisterAutosave, so toggling Autosave off and back on does
+ * not restart the 5-minute interval — the next HandleAutoSave tick picks up
+ * wherever the elapsed time already was. This is not a new divergence: OoT's
+ * twin (Autosave.cpp) keeps its own file-static lastSaveTimestamp the same
+ * way, untouched by its own re-registration, so both halves already agree on
+ * "re-arm changes whether autosave is armed, not when the clock last ticked."
+ * No operator ruling needed; nothing here required inventing new policy.
+ */
+static RegisterShipInitFunc registerAutosaveShipInitFunc(RegisterAutosave, { CVAR_AUTOSAVE_NAME });
 
 void RegisterRememberSaveLocation() {
     COND_VB_SHOULD(VB_PLAY_TRANSITION_CS, CVAR_REMEMBER_SAVE_LOCATION, {

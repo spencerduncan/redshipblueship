@@ -415,14 +415,6 @@ static TestResult Test_MMSceneExecute(void) {
     return MM_SceneExecute_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
-// #539: a CVar change on the unified menu path must re-arm MM's registrars,
-// not only OoT's. Needs no Ship::Context — it touches the two registrar maps
-// and nothing else, and it drives only a synthetic key plus the two pseudo-
-// paths, so no production registrar with live side effects runs here.
-static TestResult Test_MMShipInitDriver(void) {
-    return OoT_ShipInitMMDriver_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
-}
-
 // CosmeticEditor gfx-wrapper contract (see the extern decl above). Thin
 // wrapper over the C entry point in games/mm/2s2h/CosmeticGfxSingleExe.cpp.
 static TestResult Test_CosmeticGfxStub(void) {
@@ -1993,6 +1985,30 @@ TestResult Test_MMTrackersGui(void) {
     return MM_TrackersGui_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #539/#614: a CVar change on the unified menu path must re-arm MM's
+// registrars, not only OoT's. Legs 1-5 (the original #539 lock) touch only
+// the two registrar maps and a synthetic probe, so they never needed a
+// Ship::Context. Leg 6 (#614) is different: RegisterAutosave was missing from
+// MM's map entirely, and proving the fix means driving the REAL registrar
+// through the REAL Autosave CVar and observing ITS OWN settled hook-registry
+// state — which means CVarGetInteger/CVarSetInteger need a live
+// ConsoleVariables, the same reason Test_MMRegistrarCoverage below needs this
+// same bring-up. Legs 1-5 are unaffected by Context now being available; they
+// still touch nothing but the registrar maps.
+static TestResult Test_MMShipInitDriver(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return OoT_ShipInitMMDriver_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // MM registrar coverage (#516). Needs the same display-free shared bring-up as
 // the Gui rows above, for a different reason: it drives the real MM_Rando_Init,
 // whose ShipInit registrars and CVar-gated legs read the Ship::Context
@@ -2567,7 +2583,8 @@ const TestDescriptor gTests[] = {
     // as the registrar that (un)registers it, and MM's registrar map had no
     // CVar-change driver at all — the unified menu re-armed OoT and left MM
     // latched at its first-boot value. Pure (no display, no ROM).
-    {"mm-shipinit-driver", "A unified-menu CVar change re-arms MM's ShipInit registrars, not only OoT's (#539)",
+    {"mm-shipinit-driver",
+     "A unified-menu CVar change re-arms MM's ShipInit registrars, including RegisterAutosave (#539, #614)",
      Test_MMShipInitDriver},
     // filePlaytime epoch injection: AdvancePlaytime accrued now-lastTimeLog with
     // lastTimeLog unseeded (0), writing a full Unix epoch into the persisted
