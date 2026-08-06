@@ -20,8 +20,7 @@
 // src/common. OUTSIDE the extern "C" block below: these headers manage their own
 // linkage and pull in context.h, whose <type_traits> include must not be wrapped
 // in C linkage (see context.h's header comment).
-#include "foreign_items.h" // Combo_GetForeignPlacementForOoTCheck, Combo_GetForeignItemName (#510)
-#include "shared_items.h"  // Combo_RecordSharedItem (#510)
+#include "foreign_items.h" // Combo_GetForeignPlacementForOoTCheck, OoT_Rando_Foreign_RecordPickup (#510/#493)
 #endif
 
 extern "C" {
@@ -380,13 +379,20 @@ void RandomizerOnPlayerUpdateForRCQueueHandler() {
     //
     // Deliberately BEFORE the local getItemEntry resolution and the collectible
     // drop: a foreign host must not also give its local item.
+    //
+    // THE DECISION AND THE RECORD ARE NOT HERE (#493). Both live in
+    // OoT_Rando_Foreign_RecordPickup (ForeignItemsSingleExe.cpp), the twin of
+    // MM's Rando::Foreign::RecordForeignPickup, so the ROM-free
+    // ForeignItemGiveReverse row can drive the REAL producer instead of poking
+    // the placement table. This block keeps only what a display-free tier cannot
+    // honestly assert: the toast, the tracker write and the queue pop.
+    //
+    // It also inherits that function's #610 pairing refusal. A refusal falls
+    // THROUGH to the ordinary give below, which is the documented degrade: the
+    // host still physically holds its own junk item, so the player gets that
+    // rather than a crossing no paired world could receive.
     const SharedItem* foreignItem = Combo_GetForeignPlacementForOoTCheck((uint16_t)rc);
-    if (foreignItem != nullptr && !loc->HasObtained()) {
-        // Durable immediately (Combo_RecordSharedItem writes the serialized
-        // array, so an OoT save+quit before the next switch cannot lose the
-        // pickup), and de-duped by content so a re-fired queue cannot double it.
-        Combo_RecordSharedItem(GAME_MM, foreignItem->id);
-
+    if (foreignItem != nullptr && !loc->HasObtained() && OoT_Rando_Foreign_RecordPickup((uint16_t)rc) != 0) {
         // Presented as an ORDINARY OoT pickup (#510): "You found the Bunny
         // Hood" — no mention of Termina, no "will be awarded there", no
         // stand-in model. The item is not given locally (it belongs to MM's

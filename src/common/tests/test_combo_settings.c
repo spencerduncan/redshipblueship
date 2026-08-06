@@ -209,6 +209,46 @@ TestResult Test_ComboSettingsFormat(void) {
     CS_ASSERT(Combo_ComboPoolSizeFor((uint8_t)GAME_NONE) == 0, "GAME_NONE has no pool");
     CS_ASSERT(Combo_ComboDirection() == RSBS_COMBO_DIR_BOTH, "an unfrozen direction resolves to the default");
 
+    // ---- The direction GATE (ADR 0011 increment 4, #493) -------------------
+    //
+    // Combo_ComboDirectionArms is what each placement pass reads to decide
+    // whether to run at all, and the ORIGIN argument is the pass's own origin,
+    // not the host's: GAME_OOT is the FORWARD pass (OoT items into MM checks),
+    // GAME_MM is the REVERSE pass (MM items into OoT checks). Getting that
+    // backwards compiles, generates, and produces a world with exactly the
+    // crossings the player did not ask for — so the mapping is pinned here,
+    // value by value, rather than left to the two call sites to agree on.
+    //
+    // The unfrozen row first, because it is the one that must never narrow: a
+    // legacy or pre-freeze world places what it places today.
+    CS_ASSERT(Combo_ComboDirectionArms((uint8_t)GAME_OOT) && Combo_ComboDirectionArms((uint8_t)GAME_MM),
+              "an UNFROZEN record must arm BOTH directions — the shipped default is what already ships (O2)");
+    CS_ASSERT(!Combo_ComboDirectionArms((uint8_t)GAME_NONE), "GAME_NONE is not a crossing origin");
+    {
+        static const struct {
+            uint8_t direction;
+            bool armsForward;
+            bool armsReverse;
+        } kDirectionTruth[] = {
+            { (uint8_t)RSBS_COMBO_DIR_OFF, false, false },    // a real, chooseable world: paired, zero crossings
+            { (uint8_t)RSBS_COMBO_DIR_FORWARD, true, false }, // OoT-origin items into MM checks only
+            { (uint8_t)RSBS_COMBO_DIR_REVERSE, false, true }, // MM-origin items into OoT checks only
+            { (uint8_t)RSBS_COMBO_DIR_BOTH, true, true },     // today's shipped behaviour
+        };
+        for (int i = 0; i < (int)(sizeof(kDirectionTruth) / sizeof(kDirectionTruth[0])); i++) {
+            ComboSettingsRecord dirRec = defaults;
+            dirRec.direction = kDirectionTruth[i].direction;
+            Combo_FreezeComboSettings(&dirRec);
+            CS_ASSERT(Combo_ComboDirection() == kDirectionTruth[i].direction,
+                      "the frozen record is the authority for a created world's direction");
+            CS_ASSERT(Combo_ComboDirectionArms((uint8_t)GAME_OOT) == kDirectionTruth[i].armsForward,
+                      "the FORWARD pass (GAME_OOT origin) is armed by the wrong direction values");
+            CS_ASSERT(Combo_ComboDirectionArms((uint8_t)GAME_MM) == kDirectionTruth[i].armsReverse,
+                      "the REVERSE pass (GAME_MM origin) is armed by the wrong direction values");
+        }
+        ComboContext_Init();
+    }
+
     // A frozen record is the authority, and an over-cap value is CLAMPED rather
     // than honoured: a count that can exceed the table's capacity is a setting
     // that lies (accepted answer O4).

@@ -1026,8 +1026,64 @@ TestResult Test_ForeignPlacementOoT(void) {
         return TEST_FAIL;
     }
 
+    // ------------------------------------------------------------------
+    // THE DIRECTION GATE, on the REAL pass (ADR 0011 increment 4, #493).
+    // ------------------------------------------------------------------
+    // Driven by re-running OoT_PlaceForeignItems over the LIVE fill this test
+    // already has, with the frozen record's direction byte moved — which is the
+    // only way to assert the gate without a second generation, and which drives
+    // the production function rather than the predicate it calls.
+    //
+    // The frozen record is the authority: generation froze it (Playthrough_Init,
+    // ADR 0011 decision 4.1), and no CVar may reach a placement pass. Two
+    // unarmed values, because they fail differently in principle —
+    // RSBS_COMBO_DIR_FORWARD arms the OTHER direction, RSBS_COMBO_DIR_OFF arms
+    // neither — and a gate that keyed on "not BOTH" rather than on this pass's
+    // own origin would pass one and fail the other.
+    //
+    // Restoring BOTH must reproduce the SAME table byte for byte. That is the
+    // acceptance bar the whole increment is bounded by: under the shipped
+    // default nothing moves, which is why SeedDeterminism's foreignOoTHash and
+    // foreignOoTCount are unchanged by this change.
+    {
+        const uint8_t savedDirection = gComboCtx.comboSettings.direction;
+        if (!Combo_ComboSettingsFrozen()) {
+            printf("[TEST] FAIL: generation did not freeze the combo record — the gate has no authority to read\n");
+            return TEST_FAIL;
+        }
+        if (savedDirection != RSBS_COMBO_DIR_BOTH) {
+            printf("[TEST] FAIL: the shipped default direction is not BOTH (got %u) — every world just changed\n",
+                   (unsigned)savedDirection);
+            return TEST_FAIL;
+        }
+
+        static const uint8_t kUnarmed[] = { (uint8_t)RSBS_COMBO_DIR_FORWARD, (uint8_t)RSBS_COMBO_DIR_OFF };
+        for (size_t i = 0; i < sizeof(kUnarmed) / sizeof(kUnarmed[0]); i++) {
+            gComboCtx.comboSettings.direction = kUnarmed[i];
+            const int replaced = OoT_PlaceForeignItems();
+            if (replaced != 0 || Combo_CountForeignPlacementsOoT() != 0) {
+                printf("[TEST] FAIL: direction=%u still placed %d MM items (%d in table) — the reverse pass is not "
+                       "gated\n",
+                       (unsigned)kUnarmed[i], replaced, Combo_CountForeignPlacementsOoT());
+                return TEST_FAIL;
+            }
+        }
+
+        gComboCtx.comboSettings.direction = savedDirection;
+        const int rearmed = OoT_PlaceForeignItems();
+        if (rearmed != placedCount) {
+            printf("[TEST] FAIL: re-arming direction=BOTH placed %d, expected %d\n", rearmed, placedCount);
+            return TEST_FAIL;
+        }
+        if (memcmp(firstRun, gComboCtx.foreignPlacementsOoT, sizeof(firstRun)) != 0) {
+            printf("[TEST] FAIL: the re-armed pass produced a DIFFERENT table — the gate is not free\n");
+            return TEST_FAIL;
+        }
+    }
+
     Combo_ClearSharedItemOutbox();
-    printf("[TEST] PASS: %d MM items hosted over %d eligible OoT checks, deterministic, MM awards each once\n",
+    printf("[TEST] PASS: %d MM items hosted over %d eligible OoT checks, deterministic, gated on the frozen "
+           "direction, MM awards each once\n",
            placedCount, eligibleHosts);
     return TEST_PASS;
 }

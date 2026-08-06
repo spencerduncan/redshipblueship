@@ -859,6 +859,36 @@ int OoT_PlaceForeignItems(void);
  */
 int OoT_Foreign_IsEligibleHost(uint16_t rc);
 
+/**
+ * THE REVERSE DIRECTION'S GIVE-PATH CORE (#493) — the exact twin of
+ * MM_Rando_Foreign_RecordPickup, and the OoT counterpart of
+ * Rando::Foreign::RecordForeignPickup.
+ *
+ * "OoT check @p rc was just collected; if it hosts an MM-origin foreign item,
+ * author the durable crossing." Called by the RC-queue drain
+ * (soh/Enhancements/randomizer/hook_handlers.cpp) — which is where OoT's rando
+ * delivers CHEST checks, the only host class OoT_Foreign_IsEligibleHost accepts,
+ * because the vanilla chest give is suppressed for a shuffled location
+ * (VB_GIVE_ITEM_FROM_CHEST) and the item is granted from the queue instead.
+ *
+ * ONE PRODUCTION FUNCTION, TWO CALLERS: the hook and the ForeignItemGiveReverse
+ * lock. That is the whole reason it is extracted — a lock that reached the
+ * placement table directly would assert the accessors and never the give.
+ *
+ * Records nothing when the check hosts no foreign item, and REFUSES to record
+ * when there is no live cross-game pairing (the #610 rule, which the forward
+ * direction has carried since that fix and this one did not): a record authored
+ * with no paired world is redeemed by whichever world arrives next. The check
+ * then degrades to the junk-class OoT item it physically holds.
+ *
+ * Presentation is deliberately NOT here — the caller emits the pickup toast and
+ * marks the tracker, so a display-free tier can drive the record without
+ * pretending to assert pixels.
+ *
+ * @return 1 if a durable crossing was authored, 0 otherwise.
+ */
+int OoT_Rando_Foreign_RecordPickup(uint16_t rc);
+
 #ifdef __cplusplus
 }
 #endif
