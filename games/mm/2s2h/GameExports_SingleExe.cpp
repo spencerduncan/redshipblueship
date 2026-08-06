@@ -2986,6 +2986,28 @@ void MM_Rando_PairOnCrossGameArrival(int hadFrozenState) {
         return;
     }
 
+    // ------------------------------------------------------------------------
+    // The O5 TRANSITIONAL WRITER (ADR 0011 decision 4.4), placed here — under a
+    // live pairing and ahead of every "this MM save already exists" early
+    // return below — because ALL of those returns are still crossings, and a
+    // legacy pair that always has an existing MM save would otherwise never
+    // freeze at all: permanently exempt from comparison, with 4.4 describing a
+    // behaviour nothing builds.
+    //
+    // A pair whose record reads absent predates this carve and was generated
+    // when there was only one rule set, so it freezes the SHIPPED DEFAULTS and
+    // compares normally thereafter. Refusing it instead would orphan every
+    // already-written paired .redsave to detect a divergence that cannot have
+    // happened. No-op for an already-frozen record — a second crossing COMPARES
+    // rather than re-freezes, which is what keeps this a transitional writer and
+    // not a self-healing overwrite.
+    //
+    // On a pre-freeze pair whose mmProfileDigest is ALSO still 0, the
+    // fingerprint stamped here folds that 0; ResolvePairedProfile re-stamps it
+    // immediately after it freezes the profile, which is decision 4.1's order
+    // restored.
+    Combo_FreezeLegacyComboSettings();
+
     if (hadFrozenState) {
         // Self-heal a save that is INTERNALLY INCONSISTENT before accepting it.
         //
@@ -3097,6 +3119,79 @@ void MM_Rando_PairOnCrossGameArrival(int hadFrozenState) {
         // (ResolvePairedProfile stamps it during the generation below).
         fprintf(stderr, "[MM] pairing: no creation-time profile stamp (pre-freeze pair); the profile freezes at "
                         "this arrival\n");
+    }
+
+    // ------------------------------------------------------------------------
+    // The COMBO-LEVEL arrival identity gate (ADR 0011 decision 4).
+    //
+    // Same surface, same call, same semantics as the MM-profile gate above —
+    // with one thing the profile gate cannot do, and which is the whole reason
+    // twelve bytes were carved instead of four: THIS REFUSAL NAMES THE RULE.
+    // "Your combo rules do not match this save" with no ability to say WHICH is
+    // the un-repairable case ADR 0009 accepted only because it had no
+    // alternative. A digest could never have been shown or diffed; a record can.
+    //
+    // Divergence is corruption to refuse, never a choice to honor: no world is
+    // generated, the frozen record is left untouched (NEVER self-healed — a
+    // self-heal would make every divergence disappear the instant it was
+    // detected), the slot is latched against writes so the divergent session
+    // cannot capture its rules into the healthy pair's .redsave, and the file
+    // panel renders the slot REFUSED.
+    //
+    // An ABSENT record yields no bits (decision 4.2's exemption), so a legacy
+    // pair passes here and is repaired by the transitional writer above.
+    // ------------------------------------------------------------------------
+    {
+        const uint32_t comboDiverged = Combo_ComboSettingsDivergence();
+        if (comboDiverged != 0) {
+            char fields[192];
+            Combo_ComboSettingsDivergenceDescribe(comboDiverged, fields, sizeof(fields));
+            const int slot = RsbsSave_GetActiveSlot();
+            fprintf(stderr,
+                    "[MM] pairing: REFUSED — the CROSS-GAME RULES resolved at this arrival do not match the ones "
+                    "frozen when this file was created. Diverged: %s. (frozen: dir=%u poolOoT=%u poolMM=%u "
+                    "classOoT=%04X classMM=%04X goal=%u rung=%u fingerprint=%08X). No MM world is generated; the "
+                    "frozen record is left untouched; unified-save slot %d is latched against writes this "
+                    "session\n",
+                    fields, (unsigned)gComboCtx.comboSettings.direction, (unsigned)gComboCtx.comboSettings.poolSizeOoT,
+                    (unsigned)gComboCtx.comboSettings.poolSizeMM, (unsigned)gComboCtx.comboSettings.itemClassOoT,
+                    (unsigned)gComboCtx.comboSettings.itemClassMM, (unsigned)gComboCtx.comboSettings.goal,
+                    (unsigned)gComboCtx.comboSettings.logicRung, (unsigned)gComboCtx.comboSettingsHash, slot);
+            fflush(stderr);
+            RsbsSave_RefuseSlotIdentity(slot);
+
+            // Player-visible, immediately, on the shared overlay, and it NAMES
+            // THE FIELD — the capability decision 1.1 justification 2 claims,
+            // built rather than promised.
+            static char refusalMessage[320];
+            snprintf(refusalMessage, sizeof(refusalMessage),
+                     "Cross-game rules changed since this file was created (%s). "
+                     "Termina stays un-randomized and progress here will not be saved to the pair.",
+                     fields);
+            ComboNotification refusalToast;
+            memset(&refusalToast, 0, sizeof(refusalToast));
+            refusalToast.prefix = "Cross-game pairing REFUSED:";
+            refusalToast.prefixColor[0] = 0.9f;
+            refusalToast.prefixColor[1] = 0.35f;
+            refusalToast.prefixColor[2] = 0.3f;
+            refusalToast.prefixColor[3] = 1.0f;
+            refusalToast.message = refusalMessage;
+            refusalToast.messageColor[0] = 1.0f;
+            refusalToast.messageColor[1] = 1.0f;
+            refusalToast.messageColor[2] = 1.0f;
+            refusalToast.messageColor[3] = 1.0f;
+            refusalToast.remainingTime = 15.0f;
+            // Muted for the same reason the profile refusal above is: the
+            // overlay's ding is OoT's Audio_PlaySoundGeneral, and this call site
+            // runs on MM's boot path (and in the display-free rando tier).
+            refusalToast.mute = 1;
+            OoT_Notification_Emit(&refusalToast);
+            return;
+        }
+        if (Combo_ComboSettingsFrozen()) {
+            fprintf(stderr, "[MM] pairing: arrival combo rules match the creation-frozen record (fingerprint %08X)\n",
+                    (unsigned)gComboCtx.comboSettingsHash);
+        }
     }
 
     fprintf(stderr, "[MM] pairing: armed on switch-entry (masterSeed=%u settingsHash=%08X) — dispatching OnSaveInit\n",

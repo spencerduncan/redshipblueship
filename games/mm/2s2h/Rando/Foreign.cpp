@@ -292,6 +292,17 @@ uint32_t ResolvePairedProfile(bool paired) {
                 "generation (digest %08X)\n",
                 (unsigned)digest);
         gComboCtx.mmProfileDigest = digest;
+        // ADR 0011 decision 4.4: the combo fingerprint FOLDS this digest, and on
+        // a doubly-legacy pair the transitional combo writer ran at the arrival
+        // gate while it was still 0. Re-stamp it here — "recomputes
+        // comboSettingsHash in the order of 4.1 immediately after" — or the next
+        // arrival's cross-check would see a fingerprint that disagrees with its
+        // own record and refuse a healthy pair.
+        if (Combo_ComboSettingsFrozen()) {
+            const uint32_t refreshed = Combo_StampComboSettingsHash();
+            fprintf(stderr, "[MM] combo settings: fingerprint re-stamped over the freshly frozen MM profile (%08X)\n",
+                    (unsigned)refreshed);
+        }
     }
     return digest;
 }
@@ -509,7 +520,21 @@ int PlaceForeignItems() {
     if (poolCount <= 0 || pool == nullptr) {
         return 0;
     }
-    sLastPlacementStats.requested = poolCount;
+    // How many crossings this direction may make comes from the FROZEN COMBO
+    // RECORD (ADR 0011 decision 1, accepted answer O4). Combo_ComboPoolSizeFor
+    // clamps to RSBS_FOREIGN_PLACEMENT_CAP and falls back to it for an unfrozen
+    // record, so with the shipped defaults `wanted` is poolCount exactly as
+    // before and no generated world moves. `requested` follows `wanted` rather
+    // than `poolCount` so the shortfall alarm below stays honest: placing fewer
+    // than the pool BECAUSE THE RULES SAY SO is not a host-supply shortfall.
+    const int poolSize = Combo_ComboPoolSizeFor((uint8_t)GAME_OOT);
+    const int wanted = (poolCount < poolSize) ? poolCount : poolSize;
+    // Read and reported here; ADR 0011 increment 4 is where an unarmed direction
+    // makes this pass a no-op (deliberately last — it is the only increment that
+    // can change a generated world).
+    fprintf(stderr, "[MM] foreign placement: combo rules direction=%u poolSizeOoT=%d (frozen=%d)\n",
+            (unsigned)Combo_ComboDirection(), poolSize, Combo_ComboSettingsFrozen() ? 1 : 0);
+    sLastPlacementStats.requested = wanted;
 
     // The reachability gate (ADR 0010 increment 1.3, #500 work item 2): the
     // closure of everything MM's own logic can reach in THIS world, under its
@@ -565,7 +590,7 @@ int PlaceForeignItems() {
     }
 
     int placed = 0;
-    for (int i = 0; i < poolCount && !candidates.empty(); i++) {
+    for (int i = 0; i < wanted && !candidates.empty(); i++) {
         const size_t pick = (size_t)(SelectNext() % (uint32_t)candidates.size());
         const RandoCheckId hostCheck = candidates[pick];
         candidates.erase(candidates.begin() + (std::ptrdiff_t)pick);
@@ -586,7 +611,7 @@ int PlaceForeignItems() {
     }
     sLastPlacementStats.placed = placed;
 
-    if (placed < poolCount) {
+    if (placed < wanted) {
         // Under-supply (ADR 0010 increment 1.3; cap ≠ promise): fewer
         // reachable eligible hosts than pool items means fewer placements —
         // NEVER an unreachable placement, and (while crossings are duplicate
@@ -596,9 +621,9 @@ int PlaceForeignItems() {
         // (foreignShortfall, Spoiler/Generate.cpp); this line is the log-side
         // alarm.
         fprintf(stderr,
-                "[MM] foreign placement SHORTFALL: only %d of %d pool items placed — reachable eligible hosts "
+                "[MM] foreign placement SHORTFALL: only %d of %d wanted placements made — reachable eligible hosts "
                 "exhausted (%d eligible, %d reachable); recorded in the spoiler\n",
-                placed, poolCount, sLastPlacementStats.eligibleHosts, sLastPlacementStats.reachableEligibleHosts);
+                placed, wanted, sLastPlacementStats.eligibleHosts, sLastPlacementStats.reachableEligibleHosts);
     }
     return placed;
 }

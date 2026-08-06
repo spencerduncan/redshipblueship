@@ -361,6 +361,19 @@ void Context_InvalidateSessionState(ComboSeedStampPolicy seedPolicy) {
     // persisted the zeroed table.
     ComboForeignPlacement savedPlacementsOoT[RSBS_FOREIGN_PLACEMENT_CAP];
     memcpy(savedPlacementsOoT, gComboCtx.foreignPlacementsOoT, sizeof(savedPlacementsOoT));
+    // ADR 0011 decision 4.3: the frozen combo record and its whole-pair
+    // fingerprint are authored BY THE CREATION EVENT, at the same moment and by
+    // the same writer as the seed stamp and the MM profile digest above — so the
+    // ComboSeedStampPolicy rule (context.h) puts them in the KEEP set, and the
+    // rule is not optional. A term stamped at or before file-create that KEEP
+    // drops is wiped by the creation itself: the stamping act destroying its own
+    // output, which is a hole under any freeze design.
+    //
+    // Explicitly NOT alongside mmPairedAttempt, which is authored by GENERATION
+    // rather than by creation and is correctly dropped. Getting this backwards
+    // is silent in exactly one direction.
+    const ComboSettingsRecord savedComboSettings = gComboCtx.comboSettings;
+    const uint32_t savedComboSettingsHash = gComboCtx.comboSettingsHash;
 
     // Frozen blobs and shadow copies in one call — they are the same storage
     // (FrozenStateManager::ClearFrozenState memsets the buffer AND clears
@@ -401,6 +414,15 @@ void Context_InvalidateSessionState(ComboSeedStampPolicy seedPolicy) {
         // note above. KEEP-only on purpose: on a DROP path a populated table
         // belongs to a dead session and must go with it.
         memcpy(gComboCtx.foreignPlacementsOoT, savedPlacementsOoT, sizeof(gComboCtx.foreignPlacementsOoT));
+        // The frozen combo rules travel with the stamp (ADR 0011 decision 4.3)
+        // — and, like the stamp, are DROPPED on every other path: a surviving
+        // record with no generation behind it would report a created world's
+        // rules for a pair that no longer exists, and would freeze the combo
+        // pane (Combo_ComboSettingsFrozen) against a world nobody is playing.
+        // The record and its fingerprint move TOGETHER: a reader that found one
+        // without the other could not tell a legacy record from a torn one.
+        gComboCtx.comboSettings = savedComboSettings;
+        gComboCtx.comboSettingsHash = savedComboSettingsHash;
     }
 
     // The unified save's ACTIVE SLOT is session state too, and it lived outside
@@ -420,10 +442,11 @@ void Context_InvalidateSessionState(ComboSeedStampPolicy seedPolicy) {
 
     fprintf(stderr,
             "[Context] Session state invalidated (seed stamp %s: rando=%d seed=%u settings=%08X "
-            "mmProfile=%08X reversePlacements=%d)\n",
+            "mmProfile=%08X reversePlacements=%d comboSettings=v%u/%08X)\n",
             (seedPolicy == RSBS_SEED_STAMP_KEEP) ? "kept" : "dropped", (int)gComboCtx.sourceIsRando,
             (unsigned)gComboCtx.sharedRandoSeed, (unsigned)gComboCtx.sharedRandoSettingsHash,
-            (unsigned)gComboCtx.mmProfileDigest, Combo_CountForeignPlacementsOoT());
+            (unsigned)gComboCtx.mmProfileDigest, Combo_CountForeignPlacementsOoT(),
+            (unsigned)gComboCtx.comboSettings.formatVersion, (unsigned)gComboCtx.comboSettingsHash);
 }
 
 int Context_InvalidateSessionOnReturnToTitle(void) {

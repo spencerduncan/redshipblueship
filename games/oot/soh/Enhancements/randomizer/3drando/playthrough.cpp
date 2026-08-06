@@ -140,6 +140,28 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
     gComboCtx.mmProfileDigest = MM_Rando_ComputeProfileStamp();
     SPDLOG_INFO("Paired identity: MM profile frozen at creation (digest {:08X})", gComboCtx.mmProfileDigest);
 
+    // ADR 0011 decision 4.1: the creation event also freezes the COMBO-LEVEL
+    // rules — the ones governing the crossing itself, which belong to neither
+    // game's save by construction — and computes the whole-pair fingerprint
+    // over all three terms.
+    //
+    // THE ORDER HERE IS THE ADR'S ORDER AND IT IS LOAD-BEARING: resolve the
+    // combo record -> stamp sharedRandoSettingsHash (above) -> stamp
+    // mmProfileDigest (above) -> compute comboSettingsHash LAST. The fingerprint
+    // folds both half-digests (accepted answer O6, because a digest narrower
+    // than the generator's input set is vacuous), so computing it any earlier
+    // would fold a term that has not been decided yet.
+    //
+    // Frozen BEFORE OoT_PlaceForeignItems below, because that pass reads the
+    // record's pool size — the same reason the identity stamp has to precede it.
+    {
+        ComboSettingsRecord comboSettings;
+        Combo_ResolveComboSettings(&comboSettings);
+        Combo_FreezeComboSettings(&comboSettings);
+        SPDLOG_INFO("Paired identity: combo settings frozen at creation (fingerprint {:08X})",
+                    gComboCtx.comboSettingsHash);
+    }
+
     // #510, the reverse foreign pool: hand a few MM items to OoT checks now that
     // this world's paired identity is stamped just above (the placement stream is
     // derived from it, so the order is load-bearing — not stylistic).

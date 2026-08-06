@@ -457,6 +457,15 @@ if(BUILD_TESTING)
     # the placement table need no fill, no display, and no ROM.
     redship_add_test(NAME MMSpoilerIdentity COMMAND redship --test mm-spoiler-identity)
     redship_add_test(NAME MMForeignPickupGate COMMAND redship --test mm-foreign-pickup-gate)
+    # Combo-level arrival identity gate (#498, ADR 0011 increment 1). Drives the
+    # REAL MM_Rando_PairOnCrossGameArrival. A divergent frozen combo record must
+    # refuse through the #533/#568 surface AND NAME the diverged rule — the
+    # capability that justifies carving a 12-byte record instead of spending ADR
+    # 0009 claim 2's 4-byte digest alone; without it the record buys display
+    # only. The legacy legs pass hadFrozenState=1 so the gate returns before any
+    # generation dispatch, which keeps this row ROM-free while exercising the
+    # exact early-return path the O5 transitional writer has to sit ahead of.
+    redship_add_test(NAME MMComboSettingsGate COMMAND redship --test mm-combo-settings-gate)
     # Cross-game session invalidation (#440). A soft reset or a new game must
     # retire the previous session's frozen blobs, shadows and gComboCtx
     # crossings — while a cross-game arrival and a legitimate existing-slot
@@ -610,6 +619,18 @@ if(BUILD_TESTING)
     # WholeFileRedeemedItem goes red on the assertion that names the loss.
     redship_add_test(NAME WholeFileCommit COMMAND redship --test whole-file-commit)
     redship_add_test(NAME WholeFileRedeemedItem COMMAND redship --test whole-file-redeemed-item)
+    # The frozen COMBO-LEVEL rule record (#498, ADR 0011 increment 1): 16 bytes
+    # out of reserved[124] -> reserved[108], carved at .redsave offsets 880
+    # (comboSettingsHash, ADR 0009 claim 2 spent exactly as reserved) and 884
+    # (ComboSettingsRecord, ADR 0011 claim 10). ComboSettingsCanonical is the
+    # golden-vector row and it is the one #574's cross-peer identity handshake
+    # will inherit: the digest input is pinned byte-for-byte precisely so a
+    # struct-layout or endianness change is a red test rather than a silently
+    # different world identity on one peer's build.
+    redship_add_test(NAME ComboSettingsFormat COMMAND redship --test combo-settings-format)
+    redship_add_test(NAME ComboSettingsCanonical COMMAND redship --test combo-settings-canonical)
+    redship_add_test(NAME ComboSettingsDivergence COMMAND redship --test combo-settings-divergence)
+    redship_add_test(NAME ComboSettingsLegacyFreeze COMMAND redship --test combo-settings-legacy-freeze)
     redship_add_test(NAME Context COMMAND redship --test context)
     # F10 hot-swap freeze/consume contract (#364): the hotkey path must freeze
     # the DEPARTING game (or refuse the switch), and a consumed frozen state

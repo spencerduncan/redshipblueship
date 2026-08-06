@@ -590,9 +590,23 @@ extern "C" int Rando_HeadlessSeedDeterminismDigest(const char* seedStr, const ch
             "placementHash=%08X\n"
             "placedCount=%zu\n"
             "foreignOoTHash=%08X\n"
-            "foreignOoTCount=%zu\n",
+            "foreignOoTCount=%zu\n"
+            // ADR 0009 decision 1's consequence, finally payable: fold the
+            // combo-level rules into the determinism digest, or "changing a
+            // combo setting changes the derived world" stays unassertable —
+            // which is exactly what #498 says about this digest today. The
+            // creation event stamps it just above the reverse placement pass, so
+            // it is live by the time this runs. The RECORD is emitted beside the
+            // fingerprint deliberately: a digest-only line would tell a diff
+            // that something changed without telling a human what.
+            "comboSettingsHash=%08X\n"
+            "comboSettings=v%u/d%u/p%u,%u/c%04X,%04X/g%u/r%u\n",
             gComboCtx.sharedRandoSeed, gComboCtx.sharedRandoSettingsHash, gComboCtx.sourceIsRando ? 1 : 0,
-            placementHash, placedCount, foreignHash, foreignCount);
+            placementHash, placedCount, foreignHash, foreignCount, gComboCtx.comboSettingsHash,
+            (unsigned)gComboCtx.comboSettings.formatVersion, (unsigned)gComboCtx.comboSettings.direction,
+            (unsigned)gComboCtx.comboSettings.poolSizeOoT, (unsigned)gComboCtx.comboSettings.poolSizeMM,
+            (unsigned)gComboCtx.comboSettings.itemClassOoT, (unsigned)gComboCtx.comboSettings.itemClassMM,
+            (unsigned)gComboCtx.comboSettings.goal, (unsigned)gComboCtx.comboSettings.logicRung);
     if (closeOut) {
         fclose(out);
     }

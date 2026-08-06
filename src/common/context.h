@@ -455,6 +455,75 @@ RSBS_CTX_STATIC_ASSERT(offsetof(ComboSharedResource, kind) == 0 && offsetof(Comb
                            offsetof(ComboSharedResource, value) == 2,
                        "ComboSharedResource member offsets are .redsave format and must not move");
 
+/**
+ * The FROZEN COMBO-LEVEL RULE RECORD (ADR 0011 decision 1, accepted answer O1).
+ *
+ * The rules that govern the CROSSING itself — direction, per-direction pool
+ * size, the item-class bitsets, the combo GOAL and the logic rung. They belong
+ * to neither game's save by construction (that is what "combo-level" means), so
+ * unlike MM's option profile they have no per-half tier to live in: ADR 0009
+ * claim 3 could stay a 4-byte digest only because `RANDO_SAVE_OPTIONS` already
+ * held MM's values one tier down. Nothing holds these.
+ *
+ * A RECORD AND NOT JUST THE DIGEST, for two shipped reasons (decision 1.1):
+ * ADR 0004 §6 state 4 requires a frozen key's value to be shown FROM THE SAVE,
+ * and a hash cannot be shown; and the #533/#568 refusal surface was built to be
+ * loud AND explainable, which requires naming WHICH rule diverged
+ * (Combo_ComboSettingsDivergence, foreign_items.h).
+ *
+ * `formatVersion` IS THE OCCUPANCY TAG, and it is what makes the other eleven
+ * bytes usable. This is the ComboSharedResource device (see above: "0 rupees is
+ * a legal player state") applied to a struct instead of a slot. The growth
+ * contract's "zero means unset" is satisfied AT THE BLOCK, which frees every
+ * field inside a formatted record to use zero legitimately — and it is a
+ * VERSION rather than a bool precisely so `spare0`/`spare1` are safe to spend
+ * later: a field added at version N is authoritative only at
+ * `formatVersion >= N` (ADR 0002 §4's rule for COMBO_CONTEXT_VERSION, scoped to
+ * one block).
+ *
+ * TWO ZERO TRAPS, stated because both are silent (decision 1.3):
+ *   - `direction == 0` must NOT mean "no crossings". A legacy record
+ *     zero-extends to all zeros, so if 0 meant OFF every pre-3.1 paired save
+ *     would silently lose its crossings on the first load by a new build.
+ *     RSBS_COMBO_DIR_OFF is 1u; 0 is reachable only when formatVersion == 0.
+ *   - `goal == 0` inside a FORMATTED record is CORRUPTION, not "unset". ADR
+ *     0010 D1's "stored value 0 means unset" is superseded in mechanism and
+ *     preserved in effect: unset-ness is now a property of formatVersion.
+ *     `logicRung == 0` reads identically.
+ *
+ * Every value space here is PINNED and APPEND-ONLY — see the RSBS_COMBO_DIR_* /
+ * RSBS_COMBO_GOAL_* / RSBS_COMBO_RUNG_* / RSBS_ITEMCLASS_* tables in
+ * foreign_items.h, which carry the retire-never-renumber rule and its
+ * compile-time pinning asserts. The tables live there rather than here because
+ * they are the crossing's SEMANTICS; this struct is its FORMAT.
+ */
+typedef struct {
+    uint8_t formatVersion; // 0 = record ABSENT (legacy / never frozen); nonzero = every field below is authoritative
+    uint8_t direction;     // RSBS_COMBO_DIR_*; OFF is a NONZERO enumerator
+    uint8_t poolSizeOoT;   // max OoT-origin placements into MM checks, 1..RSBS_FOREIGN_PLACEMENT_CAP
+    uint8_t poolSizeMM;    // max MM-origin placements into OoT checks, 1..RSBS_FOREIGN_PLACEMENT_CAP
+    uint16_t itemClassOoT; // RSBS_ITEMCLASS_* bitset over the OoT pool
+    uint16_t itemClassMM;  // RSBS_ITEMCLASS_* bitset over the MM pool
+    uint8_t goal;          // RSBS_COMBO_GOAL_* (ADR 0010 D1); illegal to be 0 inside a formatted record
+    uint8_t logicRung;     // RSBS_COMBO_RUNG_* (ADR 0010 §2.2); likewise
+    uint8_t spare0;        // growth under formatVersion, NOT under zero-means-unset
+    uint8_t spare1;
+} ComboSettingsRecord;
+
+RSBS_CTX_STATIC_ASSERT(sizeof(ComboSettingsRecord) == 12,
+                       "ComboSettingsRecord is serialized raw inside the .redsave Tier-1 record; its layout is "
+                       "format (ADR 0011 decision 1.2)");
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboSettingsRecord, formatVersion) == 0 &&
+                           offsetof(ComboSettingsRecord, direction) == 1 &&
+                           offsetof(ComboSettingsRecord, poolSizeOoT) == 2 &&
+                           offsetof(ComboSettingsRecord, poolSizeMM) == 3 &&
+                           offsetof(ComboSettingsRecord, itemClassOoT) == 4 &&
+                           offsetof(ComboSettingsRecord, itemClassMM) == 6 && offsetof(ComboSettingsRecord, goal) == 8 &&
+                           offsetof(ComboSettingsRecord, logicRung) == 9 &&
+                           offsetof(ComboSettingsRecord, spare0) == 10 && offsetof(ComboSettingsRecord, spare1) == 11,
+                       "ComboSettingsRecord member offsets are .redsave format and must not move; the canonical "
+                       "digest encoder walks them in this declaration order (ADR 0011 decision 1.4)");
+
 typedef struct {
     char magic[8];        // "OoT+MM<3"
     uint32_t version;
@@ -685,6 +754,67 @@ typedef struct {
     // what carries it for a live pair.
     uint32_t mmPairedAttempt;
 
+    // ADR 0009 CLAIM 2, spent exactly as reserved (ADR 0011 decision 1.4,
+    // accepted answer O6): the WHOLE PAIR's fingerprint — not a checksum of the
+    // twelve bytes beside it.
+    //
+    //   comboSettingsHash = Hash( canonical(comboSettings) || ":" ||
+    //                             sharedRandoSettingsHash || ":" || mmProfileDigest )
+    //
+    // Folding both half-digests is what makes the term non-vacuous (ADR 0009
+    // decision 1's amendment: "a digest narrower than the input set is vacuous —
+    // same seed, same digest, different world"). Two peers can already agree on
+    // seed AND settings hash AND MM profile and still be running different
+    // CROSSING rules; this is the term that covers those.
+    //
+    // canonical() is DEFINED, not left to the compiler: field-by-field in
+    // declaration order, each uint16_t little-endian, written a byte at a time —
+    // never a struct memcpy and never a cast of a packed struct (ADR 0007 §2's
+    // codec discipline, adopted here for the same reason). The member-offset
+    // asserts above pin the STORAGE format; the encoder in foreign_items.c pins
+    // the DIGEST INPUT, and a golden-vector test pins the pair of them.
+    //
+    // ORDER IS A CONSTRAINT, NOT A CONVENTION: this is computed LAST, after both
+    // half-digests are stamped and after the record is frozen. Anything else
+    // hashes a term that has not been decided yet.
+    //
+    // Zero DISPLACES (foreign_items.c), exactly as DigestFromIdentity does: a
+    // real identity hashing to 0 would read as "not frozen" and become an
+    // undetectable mismatch. Zero is therefore also the growth contract's
+    // required "unset": a non-rando or zero-extended legacy record reads 0.
+    //
+    // NOT folded into MixPairedFinalSeed(). The digest answers "were these
+    // worlds generated under the same rules"; the seed answers "which world does
+    // this seed derive". Two questions, two computations — folding identity
+    // terms into the SEED derivation would re-derive finalSeed for every
+    // already-generated paired world.
+    //
+    // Carved from the FRONT of the old reserved[124] under the growth contract,
+    // so every field above keeps its shipped offset and the record size is
+    // unchanged.
+    uint32_t comboSettingsHash;
+
+    // ADR 0011 CLAIM 10 (new): the frozen combo-level rule record itself. See
+    // ComboSettingsRecord above for the shape and the two zero traps, and
+    // foreign_items.h for the pinned value tables and the accessors.
+    //
+    // FROZEN AT CREATION, like every other identity term: written once by the
+    // creation event (Playthrough_Init, from the tier-4 authoring surface),
+    // read-only for the life of the file, and NEVER mutated by an arrival or a
+    // load. Under one-game semantics arrival-time divergence is corruption, not
+    // choice — every arrival re-resolves the live rules and REFUSES on a
+    // mismatch through the #533/#568 surface, naming which rule diverged.
+    //
+    // The ONE transitional writer besides creation is the legacy pair (accepted
+    // answer O5): a paired file with formatVersion == 0 predates this carve, was
+    // generated under exactly one set of rules, and freezes the SHIPPED DEFAULTS
+    // at its first crossing — the ResolvePairedProfile precedent, not a refusal.
+    //
+    // Carved from the FRONT of the old reserved[120] under the growth contract:
+    // all-zero = formatVersion 0 = record absent, which is exactly what a
+    // zero-extended pre-ADR-0011 record must read as.
+    ComboSettingsRecord comboSettings;
+
     // Headroom. Carve new fields from the FRONT of this array (as
     // sharedItemsTagged, sharedRandoSettingsHash, foreignPlacements, the
     // grant cursors, and the reverse placement table were) so the struct
@@ -696,17 +826,25 @@ typedef struct {
     // "zero means unset".
     //
     // 264 - 48 (foreignPlacementsOoT) - 4 (mmProfileDigest) - 32 (sharedResources)
-    // - 48 (sharedResourcesExt) - 4 (commitGeneration) - 4 (mmPairedAttempt).
+    // - 48 (sharedResourcesExt) - 4 (commitGeneration) - 4 (mmPairedAttempt)
+    // - 4 (comboSettingsHash) - 12 (comboSettings) = 108.
     // ADR 0009 publishes the remaining
     // allocation across the other claimants and sets a 64-byte floor:
     // Test_SaveComboRecordFixed's scribble loop iterates sizeof(reserved), so
     // at zero it degenerates to zero iterations and passes vacuously, retiring
-    // the only test that proves headroom round-trips at all. NOTE: with the
-    // mmPairedAttempt carve this stands at 124; ADR 0009's outstanding
-    // claims 2 and 4 (4 + 64) would leave 56, UNDER the 64-byte floor, so the
-    // ADR's budget table needs a row before those land (raise the record size
-    // + RSBS_SAVE_VERSION together if the floor would break).
-    uint8_t reserved[124];
+    // the only test that proves headroom round-trips at all.
+    //
+    // THE OUTSTANDING-CLAIM LIST IS NOW EMPTY. An earlier revision of this note
+    // warned that "claims 2 and 4 (4 + 64) would leave 56, UNDER the 64-byte
+    // floor". That arithmetic depended on ADR 0009 claim 4 still being live; the
+    // 2026-08-04 (#584) amendment retired it as ALREADY SPENT by PR #473 (the
+    // grant cursors at 672 and the overflow count at 736 — the 264-byte baseline
+    // was already measured after that carve, so counting it again double-counted
+    // the same 64 bytes). Claim 2 landed here with ADR 0011, together with that
+    // ADR's new claim 10. 108 clears the floor by 44 bytes, and the next carver
+    // starts from 108 with the append-only second-block rule in force — never a
+    // widen in place of anything ahead of it.
+    uint8_t reserved[108];
 } ComboContext;
 
 /**
@@ -852,13 +990,43 @@ RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, mmPairedAttempt) ==
                            offsetof(ComboContext, commitGeneration) + sizeof(uint32_t),
                        "mmPairedAttempt must be carved from the FRONT of reserved[] (contiguous "
                        "with the commit generation); moving it changes .redsave format");
-RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, reserved) ==
+// The whole-pair fingerprint is the next carve (ADR 0009 claim 2, spent by ADR
+// 0011, 4 bytes). Pinned to the literal 880 for the same reason 672, 736, 740,
+// 788, 792, 824, 872 and 876 are: anything carved after it inherits its
+// position, so a field growing in place ahead of it must break the build rather
+// than slide it. ADR 0009's budget amendment names 880 explicitly as where
+// reserved[] began before this carve.
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, comboSettingsHash) == 880u,
+                       "comboSettingsHash lives at .redsave byte offset 880; if this fires, a field "
+                       "before it grew in place - carve from reserved[] instead");
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, comboSettingsHash) ==
                            offsetof(ComboContext, mmPairedAttempt) + sizeof(uint32_t),
+                       "comboSettingsHash must be carved from the FRONT of reserved[] (contiguous "
+                       "with the paired-attempt record); moving it changes .redsave format");
+// The frozen combo record is the next carve (ADR 0011 claim 10, 12 bytes),
+// pinned to the literal 884 on the same terms. It is DELIBERATELY contiguous
+// with its own digest: the two are written by one creation event and read by
+// one comparison, and a reader that finds one without the other cannot tell a
+// legacy record from a torn one.
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, comboSettings) == 884u,
+                       "comboSettings lives at .redsave byte offset 884; if this fires, a field "
+                       "before it grew in place - carve from reserved[] instead");
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, comboSettings) ==
+                           offsetof(ComboContext, comboSettingsHash) + sizeof(uint32_t),
+                       "comboSettings must be carved from the FRONT of reserved[] (contiguous with "
+                       "the combo settings digest); moving it changes .redsave format");
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, reserved) ==
+                           offsetof(ComboContext, comboSettings) + sizeof(ComboSettingsRecord),
                        "the tagged-item array, the settings digest, both foreign-placement tables, "
                        "the grant cursors, the overflow count, the MM profile digest, BOTH shared "
-                       "resource blocks, the commit generation, the paired-attempt record, and the "
+                       "resource blocks, the commit generation, the paired-attempt record, the "
+                       "combo settings digest and record, and the "
                        "remaining headroom must stay contiguous (no padding, no fields slipped "
                        "between them)");
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, reserved) == 896u,
+                       "reserved[] begins at .redsave byte offset 896 after the ADR 0011 carve; if "
+                       "this fires, a field ahead of it moved and every shipped save is being "
+                       "reinterpreted - that is a format generation, not an assert edit");
 // ADR 0009's floor. reserved[] is what Test_SaveComboRecordFixed scribbles to
 // prove Tier-1 headroom round-trips; at zero that loop runs zero times and the
 // test passes vacuously, so the carve budget stops here rather than there.
@@ -884,6 +1052,10 @@ static_assert(!std::is_convertible<int, ComboSharedResource>::value &&
                   !std::is_assignable<ComboSharedResource&, int>::value,
               "a raw integer must never become a shared resource — the kind tag is what separates "
               "an unset slot from a legitimate zero");
+static_assert(!std::is_convertible<int, ComboSettingsRecord>::value &&
+                  !std::is_assignable<ComboSettingsRecord&, int>::value,
+              "a raw integer must never become a combo settings record — formatVersion is what "
+              "separates an absent record from a legitimately zero-valued field inside one");
 static_assert(std::is_trivially_copyable<ComboContext>::value,
               "gComboCtx is serialized with memcpy; ComboContext must stay trivially copyable");
 #endif
