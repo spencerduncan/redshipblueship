@@ -160,6 +160,26 @@ GIEvent& MM_GameEvents_Current();
  * dispatch for them stays deliberately deferred to the WHOLE_ARCHIVE flip
  * (ADR 0004 §5) — wiring now would execute an always-empty registry.
  *
+ * THAT LAST SENTENCE IS NOT A GENERAL RULE, and #438's item/progression tranche
+ * is the exception that fixes its scope. "The registry is empty" is a reason to
+ * wire LAST, not a reason not to wire: ADR 0004 §5 lists TU-links, registrar-
+ * runs and dispatch-placed as three INDEPENDENT conditions and imposes no
+ * ordering between them, and #438's own 48-hook audit records the opposite
+ * instruction ("dispatch first, un-elide second"). OnItemGive,
+ * OnBottleContentsUpdate and OnBossDefeated were therefore wired ahead of their
+ * registrant in GameExports_SingleExe.cpp, so the flip does not arm three hook
+ * types at once with nothing behind them.
+ *
+ * The criterion that let them go early — and that OnPlayerPostLimbDraw above
+ * still FAILS — is what the newly-firing registrant body touches on the day it
+ * un-elides. The trio's sole registrant (TimeSplitsActions.cpp) reads
+ * MM_splitList and gSaveContext and nothing else. PersistentMasks, BowReticle
+ * and HyruleWarriorsStyledLink all dereference MM_gPlayState->viewProjectionMtxF
+ * or ->state.gfxCtx with no null check, which is the #516 SIGSEGV class; their
+ * guards have to land WITH the flip, so their dispatch waits for it too. Apply
+ * that test, not the blanket sentence, to the ten types still stubbed in
+ * games/mm/2s2h/mm_gameinteractor_stubs.c.
+ *
  * BeforeKaleidoDrawPage left this list with the #438 pause-menu batch: it is
  * dispatched from z_kaleido_scope_NES.c as a pair with AfterKaleidoDrawPage
  * (the reasoning mm_stubs.c records for the EndOfCycleSave pair), and the

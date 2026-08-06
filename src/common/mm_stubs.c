@@ -94,7 +94,9 @@ void MM_FaultDrawer_SetCharPad(int xPad, int yPad) { (void)xPad; (void)yPad; }
  * Enhancement layer stubs - these are excluded in single-exe mode
  * ========================================================================== */
 
-/* GameInteractor stubs (all 13) and HudEditor stubs moved to
+/* GameInteractor stubs (13 at the time of the move, 10 today after #438's
+ * item/progression tranche gave three of them real dispatch) and HudEditor
+ * stubs moved to
  * games/mm/2s2h/mm_gameinteractor_stubs.c and
  * games/mm/2s2h/mm_hudeditor_stubs.c respectively: both stub real MM
  * functions declared in games/mm/2s2h/GameInteractor/GameInteractor.h and

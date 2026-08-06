@@ -767,6 +767,23 @@ void MM_GameHooks_ExecuteOnFileSelectSaveLoad(s16 fileNum, bool isOwlSave, SaveC
 #define GameInteractor_ExecuteBeforeKaleidoDrawPage MM_GameHooks_ExecuteBeforeKaleidoDrawPage
 #define GameInteractor_ExecuteAfterKaleidoDrawPage MM_GameHooks_ExecuteAfterKaleidoDrawPage
 #define GameInteractor_ExecuteOnFileSelectSaveLoad MM_GameHooks_ExecuteOnFileSelectSaveLoad
+
+// The item/progression trio (#438). Like the four names above, these three are
+// MM-only: OoT defines none of them, so their mm_gameinteractor_stubs.c no-ops
+// were the only definitions and are deleted with this rebind — a dropped
+// rebind or bridge is now a LINK error rather than another silent no-op.
+// Unlike every earlier tranche this one is wired AHEAD of its registrants
+// rather than behind them: all three registries are empty today and stay empty
+// until 2ship_enh flips to WHOLE_ARCHIVE. The criterion that made these three
+// safe to wire early — the registrant body touches no live play state — is
+// recorded in full at the bridges in GameExports_SingleExe.cpp and beside the
+// dormant-types note in mm_game_hooks.h.
+void MM_GameHooks_ExecuteOnItemGive(u8 item);
+void MM_GameHooks_ExecuteOnBottleContentsUpdate(u8 item);
+void MM_GameHooks_ExecuteOnBossDefeated(s16 actorId);
+#define GameInteractor_ExecuteOnItemGive MM_GameHooks_ExecuteOnItemGive
+#define GameInteractor_ExecuteOnBottleContentsUpdate MM_GameHooks_ExecuteOnBottleContentsUpdate
+#define GameInteractor_ExecuteOnBossDefeated MM_GameHooks_ExecuteOnBossDefeated
 #endif // RSBS_SINGLE_EXECUTABLE
 
 #ifdef __cplusplus

@@ -1,8 +1,8 @@
 /**
  * MM GameInteractor dormant-dispatch stubs for the single-executable build
- * (#438 tracking, relocation only).
+ * (#438 tracking).
  *
- * These 13 GameInteractor_Execute* entry points have no linked provider in
+ * These 10 GameInteractor_Execute* entry points have no linked provider in
  * single-exe mode: 2s2h/GameInteractor/GameInteractor.cpp (the real MM
  * implementation) is filtered out of the single-exe link (games/mm/CMakeLists.txt,
  * "GameInteractor (use OoT's)"), and none of them collides with an OoT-side
@@ -13,7 +13,10 @@
  * 2s2h/GameInteractor/GameInteractor.h -- the same class of hazard that #372,
  * #379 and #424 each shipped as a live bug.
  *
- * Moved here, header-checked, by relocation only: no dispatch is wired.
+ * Moved here header-checked by #620, which wired no dispatch. #438's
+ * item/progression tranche then took three of the original 13 -- OnItemGive,
+ * OnBottleContentsUpdate, OnBossDefeated -- out of this file and gave them real
+ * bridges (tombstone at their old position below).
  * Every body below is the same no-op src/common/mm_stubs.c always ran, now
  * compiled against the real prototypes (2s2h/GameInteractor/GameInteractor.h,
  * matching 2s2h/GameInteractor/GameInteractor.cpp's real definitions) so the
@@ -30,7 +33,7 @@
  *
  * ==========================================================================
  * Fault history (carried over verbatim from src/common/mm_stubs.c; none of
- * it concerns the 13 stubs below, but it documents why several sibling
+ * it concerns the 10 stubs below, but it documents why several sibling
  * GameInteractor_Execute* names are NOT stubbed here or anywhere -- they now
  * have real, header-checked dispatch elsewhere, and re-adding a stub for any
  * of them would silently sever that dispatch again).
@@ -145,9 +148,20 @@ void GameInteractor_ExecuteOnGameStateMainFinish(void) {}
 void GameInteractor_ExecuteOnPlayDrawWorldEnd(void) {}
 void GameInteractor_ExecuteOnInterfaceDrawStart(void) {}
 
-void GameInteractor_ExecuteOnItemGive(u8 item) {
-    (void)item;
-}
+/* OnItemGive, OnBottleContentsUpdate and OnBossDefeated were stubbed here until
+ * #438's item/progression tranche gave them real dispatch. Their definitions now
+ * live in games/mm/2s2h/GameExports_SingleExe.cpp as MM_GameHooks_Execute*, are
+ * reached through the macro rebind at the bottom of GameInteractor.h, and are
+ * covered by check 12 of games/mm/2s2h/mm_hook_dispatch_test.cpp. Do not
+ * reintroduce no-ops for them: OoT defines none of the three, so absent both the
+ * stub and the bridge the names fail to LINK, which is the diagnostic that the
+ * silent-no-op era lacked.
+ *
+ * They were also the tranche that broke this file's "wire it when the registrant
+ * links" convention on purpose — see the criterion recorded at the bridges and in
+ * mm_game_hooks.h. The ten stubs that remain below did NOT meet it: every one of
+ * their registrant bodies dereferences live play state with no null check.
+ */
 
 void GameInteractor_ExecuteOnCameraChangeModeFlags(Camera* camera) {
     (void)camera;
@@ -162,12 +176,6 @@ void GameInteractor_ExecuteAfterCameraUpdate(Camera* camera) {
 void GameInteractor_ExecuteOnPlayerPostLimbDraw(Player* player, s32 limbIndex) {
     (void)player;
     (void)limbIndex;
-}
-void GameInteractor_ExecuteOnBossDefeated(s16 actorId) {
-    (void)actorId;
-}
-void GameInteractor_ExecuteOnBottleContentsUpdate(u8 item) {
-    (void)item;
 }
 void GameInteractor_ExecuteOnConsoleLogoUpdate(void) {}
 

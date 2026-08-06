@@ -146,6 +146,15 @@ int sOnFileSelectSaveLoadRuns = 0;
 s16 sFileSelectLastFileNum = -1;
 bool sFileSelectLastOwl = false;
 SaveContext* sFileSelectLastCtx = nullptr;
+int sOnItemGiveRuns = 0;
+int sOnItemGiveForIdRuns = 0;
+u8 sOnItemGiveLastItem = 0;
+int sOnBottleContentsUpdateRuns = 0;
+int sOnBottleContentsUpdateForIdRuns = 0;
+u8 sOnBottleContentsUpdateLastItem = 0;
+int sOnBossDefeatedRuns = 0;
+int sOnBossDefeatedForIdRuns = 0;
+s16 sOnBossDefeatedLastActorId = 0;
 
 // Distinct sentinel ids, so no check can be satisfied by another's registrant.
 constexpr s16 kActorIdInit = 0x0BAD;
@@ -155,6 +164,16 @@ constexpr s16 kActorIdDestroy = 0x0BB0;
 constexpr u16 kTextIdPlain = 0x0C0D;
 constexpr u16 kPauseIndexKaleido = 0x0BB1;
 constexpr s16 kFileSelectFileNum = 2;
+// Check 12. OnItemGive and OnBottleContentsUpdate are both (u8 item), so the
+// two sentinels differ: a bridge that dispatches one type's registry from the
+// other's entry point is a silent copy-paste regression the run counts alone
+// would not separate.
+// They are also kept two apart, not adjacent: the check dispatches
+// kItemGiveItem + 1 to prove the id-keyed leg discriminates, and that probe
+// must not collide with the other type's sentinel.
+constexpr u8 kItemGiveItem = 0x5A;
+constexpr u8 kBottleContentsItem = 0x6B;
+constexpr s16 kBossActorId = 0x0BB2;
 
 // Pointer target for check 11 only; the probe never reads through it, it just
 // proves the dispatcher forwards the pointer untouched. Static because MM's
@@ -182,6 +201,13 @@ void ResetAll() {
     S2H::GameHooks::ResetForTest<GameInteractor::BeforeKaleidoDrawPage>();
     S2H::GameHooks::ResetForTest<GameInteractor::AfterKaleidoDrawPage>();
     S2H::GameHooks::ResetForTest<GameInteractor::OnFileSelectSaveLoad>();
+    // The item/progression trio (check 12). Unlike the batch above, these three
+    // have NO live registrant to keep out of the way -- every registrant TU is
+    // link-elided (see the check's own note) -- so the reset here is hygiene
+    // against a future one rather than a headless-safety requirement.
+    S2H::GameHooks::ResetForTest<GameInteractor::OnItemGive>();
+    S2H::GameHooks::ResetForTest<GameInteractor::OnBottleContentsUpdate>();
+    S2H::GameHooks::ResetForTest<GameInteractor::OnBossDefeated>();
 }
 
 } // namespace
@@ -575,6 +601,122 @@ extern "C" int MM_HookDispatch_RunHeadless(void) {
                     "OnFileSelectSaveLoad isOwlSave arrived corrupted -- owl rows would alias file rows");
         HOOK_ASSERT(sFileSelectLastCtx == &sFileSelectProbeSave, 11,
                     "OnFileSelectSaveLoad saveContext pointer arrived corrupted");
+    }
+
+    // ---------------------------------------------------------------- 12
+    // The item/progression trio (#438): OnItemGive, OnBottleContentsUpdate and
+    // OnBossDefeated. All three bound header-checked no-ops in
+    // games/mm/2s2h/mm_gameinteractor_stubs.c while their call sites --
+    // z_parameter.c's MM_Item_Give (:4604), Inventory_Dpad_UpdateBottleItem /
+    // MM_Inventory_UpdateBottleItem (:4905/:4922) and the five boss overlays --
+    // ran live and unguarded on every MM frame that gave an item or killed a
+    // boss.
+    //
+    // WHY THIS TRANCHE AND NOT ANOTHER. None of the 13 stubbed types has a
+    // linked registrant today (build-cmake/redship.map lists no registrant TU
+    // for any of them; all sit in the plain-archive 2ship_enh or in outright
+    // excluded DeveloperTools). What separates these three is what happens when
+    // 2ship_enh flips to WHOLE_ARCHIVE: their only registrant,
+    // Enhancements/Trackers/TimeSplits/TimeSplitsActions.cpp, touches nothing
+    // but its own MM_splitList and gSaveContext -- no MM_gPlayState, no
+    // gfxCtx. Every other candidate in the batch dereferences live play state
+    // with no null check (PersistentMasks/BowReticle/HyruleWarriorsStyledLink
+    // on OnPlayerPostLimbDraw, BetterSongOfDoubleTime's UpdateDayTexture on the
+    // clock pair, SkipToFileSelect's MM_gGameState cast), which is the #516
+    // SIGSEGV class and needs the guards landed with the flip, not before it.
+    // So this is the sub-batch whose revival is inert now and safe later.
+    //
+    // ARGUMENT FIDELITY IS ASSERTED, AND CROSS-TYPE SEPARATION WITH IT.
+    // OnItemGive and OnBottleContentsUpdate have the SAME signature, (u8 item),
+    // and adjacent bridges: a copy-paste that dispatches one type's registry
+    // from the other's entry point links clean, keeps every run count at 1, and
+    // silently ticks the wrong split. Each dispatcher is therefore asserted to
+    // leave the other two types' counters untouched.
+    {
+        sOnItemGiveRuns = 0;
+        sOnItemGiveForIdRuns = 0;
+        sOnItemGiveLastItem = 0;
+        sOnBottleContentsUpdateRuns = 0;
+        sOnBottleContentsUpdateForIdRuns = 0;
+        sOnBottleContentsUpdateLastItem = 0;
+        sOnBossDefeatedRuns = 0;
+        sOnBossDefeatedForIdRuns = 0;
+        sOnBossDefeatedLastActorId = 0;
+
+        // The TimeSplitsActions.cpp shape for all three (COND_HOOK -> unkeyed).
+        S2H::GameHooks::Register<GameInteractor::OnItemGive>([](u8 item) {
+            sOnItemGiveRuns++;
+            sOnItemGiveLastItem = item;
+        });
+        S2H::GameHooks::Register<GameInteractor::OnBottleContentsUpdate>([](u8 item) {
+            sOnBottleContentsUpdateRuns++;
+            sOnBottleContentsUpdateLastItem = item;
+        });
+        S2H::GameHooks::Register<GameInteractor::OnBossDefeated>([](s16 actorId) {
+            sOnBossDefeatedRuns++;
+            sOnBossDefeatedLastActorId = actorId;
+        });
+        // The id-keyed legs mirror the excluded GameInteractor.cpp twins
+        // (:266-277 key OnItemGive/OnBottleContentsUpdate on the item byte,
+        // :186-191 keys OnBossDefeated on the actor id). No MM TU registers
+        // these by id today, so an Execute-only bridge would ship green
+        // without them -- they are probed for the same reason check 7 probes
+        // OnActorKill's.
+        S2H::GameHooks::RegisterForID<GameInteractor::OnItemGive>(kItemGiveItem, [](u8 item) {
+            (void)item;
+            sOnItemGiveForIdRuns++;
+        });
+        S2H::GameHooks::RegisterForID<GameInteractor::OnBottleContentsUpdate>(kBottleContentsItem, [](u8 item) {
+            (void)item;
+            sOnBottleContentsUpdateForIdRuns++;
+        });
+        S2H::GameHooks::RegisterForID<GameInteractor::OnBossDefeated>(kBossActorId, [](s16 actorId) {
+            (void)actorId;
+            sOnBossDefeatedForIdRuns++;
+        });
+
+        HOOK_ASSERT(sOnItemGiveRuns == 0, 12, "OnItemGive ran at registration time");
+        HOOK_ASSERT(sOnBottleContentsUpdateRuns == 0, 12, "OnBottleContentsUpdate ran at registration time");
+        HOOK_ASSERT(sOnBossDefeatedRuns == 0, 12, "OnBossDefeated ran at registration time");
+
+        // Spelled exactly as z_parameter.c's MM_Item_Give spells it.
+        GameInteractor_ExecuteOnItemGive(kItemGiveItem);
+        HOOK_ASSERT(sOnItemGiveRuns == 1, 12,
+                    "OnItemGive registrant never ran -- dispatch is not reaching S2H::GameHooks");
+        HOOK_ASSERT(sOnItemGiveForIdRuns == 1, 12, "OnItemGive id-keyed registrant never ran");
+        HOOK_ASSERT(sOnItemGiveLastItem == kItemGiveItem, 12,
+                    "OnItemGive item arrived corrupted -- split ids would be matched against the wrong byte");
+        HOOK_ASSERT(sOnBottleContentsUpdateRuns == 0, 12,
+                    "the OnItemGive dispatcher also ran OnBottleContentsUpdate registrants");
+        HOOK_ASSERT(sOnBossDefeatedRuns == 0, 12, "the OnItemGive dispatcher also ran OnBossDefeated registrants");
+
+        // Another item reaches the unkeyed leg but must NOT reach the id-keyed one.
+        GameInteractor_ExecuteOnItemGive((u8)(kItemGiveItem + 1));
+        HOOK_ASSERT(sOnItemGiveRuns == 2, 12, "OnItemGive unkeyed leg skipped an item of another id");
+        HOOK_ASSERT(sOnItemGiveForIdRuns == 1, 12, "OnItemGive id-keyed leg fired for the wrong item");
+
+        // Spelled exactly as z_parameter.c's bottle updates spell it.
+        GameInteractor_ExecuteOnBottleContentsUpdate(kBottleContentsItem);
+        HOOK_ASSERT(sOnBottleContentsUpdateRuns == 1, 12,
+                    "OnBottleContentsUpdate registrant never ran -- dispatch is not reaching S2H::GameHooks");
+        HOOK_ASSERT(sOnBottleContentsUpdateForIdRuns == 1, 12, "OnBottleContentsUpdate id-keyed registrant never ran");
+        HOOK_ASSERT(sOnBottleContentsUpdateLastItem == kBottleContentsItem, 12,
+                    "OnBottleContentsUpdate item arrived corrupted");
+        HOOK_ASSERT(sOnItemGiveRuns == 2, 12, "the OnBottleContentsUpdate dispatcher also ran OnItemGive registrants");
+
+        // Spelled exactly as the five boss overlays spell it.
+        GameInteractor_ExecuteOnBossDefeated(kBossActorId);
+        HOOK_ASSERT(sOnBossDefeatedRuns == 1, 12,
+                    "OnBossDefeated registrant never ran -- dispatch is not reaching S2H::GameHooks");
+        HOOK_ASSERT(sOnBossDefeatedForIdRuns == 1, 12, "OnBossDefeated id-keyed registrant never ran");
+        HOOK_ASSERT(sOnBossDefeatedLastActorId == kBossActorId, 12, "OnBossDefeated actorId arrived corrupted");
+        HOOK_ASSERT(sOnItemGiveRuns == 2, 12, "the OnBossDefeated dispatcher also ran OnItemGive registrants");
+        HOOK_ASSERT(sOnBottleContentsUpdateRuns == 1, 12,
+                    "the OnBossDefeated dispatcher also ran OnBottleContentsUpdate registrants");
+
+        GameInteractor_ExecuteOnBossDefeated((s16)(kBossActorId + 1));
+        HOOK_ASSERT(sOnBossDefeatedRuns == 2, 12, "OnBossDefeated unkeyed leg skipped an actor of another id");
+        HOOK_ASSERT(sOnBossDefeatedForIdRuns == 1, 12, "OnBossDefeated id-keyed leg fired for the wrong actor id");
     }
 
     // NOTE ON WHAT COVERS THE REBIND. An earlier draft of this row compared
