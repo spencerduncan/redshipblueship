@@ -1135,6 +1135,77 @@ extern "C" int MM_Rando_HeadlessForeignDigest(const char* outPath) {
     fprintf(stderr, "[MM-FOREIGN-DIGEST] mmFinalSeed=%08X mmPlacementHash=%08X mmReachableHash=%08X foreign=%d\n",
             gSaveContext.save.shipSaveInfo.rando.finalSeed, mmPlacementHash, mmReachableHash,
             Combo_CountForeignPlacements());
+
+    // ------------------------------------------------------------------
+    // THE FORWARD DIRECTION'S GATE (ADR 0011 increment 4, #493).
+    // ------------------------------------------------------------------
+    // The MM twin of the leg Test_ForeignPlacementOoT runs on OoT's reverse
+    // pass, and it lives HERE because this is the only headless bridge that
+    // reaches Rando::Foreign::PlaceForeignItems with a LIVE PAIRING —
+    // MMRandoGen's world is solo, so the same leg there would assert a pass
+    // that returns 0 for the wrong reason (vacuity).
+    //
+    // Deliberately AFTER the digest is written and closed, so it cannot perturb
+    // a single byte of the two-process determinism artifact. The pass is
+    // re-runnable by construction: it re-seeds its selection stream from the
+    // paired identity, so restoring the armed direction rebuilds the identical
+    // table — which is also what this leg asserts, and what makes "the gate is
+    // free at the shipped defaults" a measurement rather than a claim.
+    {
+        ComboForeignPlacement digestTable[RSBS_FOREIGN_PLACEMENT_CAP];
+        memcpy(digestTable, gComboCtx.foreignPlacements, sizeof(digestTable));
+        const int digestPlaced = Combo_CountForeignPlacements();
+        const uint8_t savedDirection = gComboCtx.comboSettings.direction;
+
+        if (!Combo_ComboSettingsFrozen() || savedDirection != RSBS_COMBO_DIR_BOTH) {
+            fprintf(stderr, "[MM-FOREIGN-DIGEST] FAIL(6): the creation event did not freeze direction=BOTH (frozen=%d "
+                            "direction=%u) — the gate has no authority to read\n",
+                    Combo_ComboSettingsFrozen() ? 1 : 0, (unsigned)savedDirection);
+            return 6;
+        }
+
+        // Two unarmed values, because they fail differently in principle:
+        // REVERSE arms the OTHER direction, OFF arms neither. A gate keyed on
+        // "not BOTH" would pass one and fail the other.
+        // PlaceForeignItems signals a STRUCTURAL defect by throwing (the #488
+        // "the table refused an insert" path), which OnFileCreate's attempt
+        // ladder catches in production. Nothing catches it here, so the leg
+        // does — an uncaught throw out of this extern "C" bridge would
+        // std::terminate the determinism row instead of failing it.
+        static const uint8_t kUnarmed[] = { (uint8_t)RSBS_COMBO_DIR_REVERSE, (uint8_t)RSBS_COMBO_DIR_OFF };
+        try {
+            for (uint8_t direction : kUnarmed) {
+                gComboCtx.comboSettings.direction = direction;
+                const int replaced = Rando::Foreign::PlaceForeignItems();
+                if (replaced != 0 || Combo_CountForeignPlacements() != 0) {
+                    fprintf(stderr,
+                            "[MM-FOREIGN-DIGEST] FAIL(7): direction=%u still placed %d OoT items (%d in table) — the "
+                            "forward pass is not gated\n",
+                            (unsigned)direction, replaced, Combo_CountForeignPlacements());
+                    gComboCtx.comboSettings.direction = savedDirection;
+                    return 7;
+                }
+            }
+
+            gComboCtx.comboSettings.direction = savedDirection;
+            const int rearmed = Rando::Foreign::PlaceForeignItems();
+            if (rearmed != digestPlaced || memcmp(digestTable, gComboCtx.foreignPlacements, sizeof(digestTable)) != 0) {
+                fprintf(stderr,
+                        "[MM-FOREIGN-DIGEST] FAIL(8): re-arming direction=BOTH placed %d (expected %d) or produced a "
+                        "different table — the gate is not free at the shipped defaults\n",
+                        rearmed, digestPlaced);
+                return 8;
+            }
+            fprintf(stderr, "[MM-FOREIGN-DIGEST] direction gate: unarmed => 0 placements, re-armed => %d, table "
+                            "byte-identical\n",
+                    rearmed);
+        } catch (const std::exception& e) {
+            gComboCtx.comboSettings.direction = savedDirection;
+            fprintf(stderr, "[MM-FOREIGN-DIGEST] FAIL(9): the direction-gate leg threw: %s\n", e.what());
+            return 9;
+        }
+    }
+
     return 0;
 }
 

@@ -515,6 +515,28 @@ int PlaceForeignItems() {
         return 0;
     }
 
+    // THE DIRECTION GATE (ADR 0011 increment 4). Read from the FROZEN record —
+    // never a live CVar — through the same accessor OoT's reverse pass uses for
+    // its own origin. GAME_OOT is this pass's origin: it places OoT-ORIGIN items
+    // into MM checks, so it is armed by RSBS_COMBO_DIR_FORWARD and by
+    // RSBS_COMBO_DIR_BOTH.
+    //
+    // Zero placements, not a failure: RSBS_COMBO_DIR_OFF and
+    // RSBS_COMBO_DIR_REVERSE both describe real, chooseable paired worlds (ADR
+    // 0011 decision 2.3). Returning here also keeps sLastPlacementStats at its
+    // zeroed default, so OnFileCreate's shortfall alarm — which compares
+    // `placed` against `requested` — cannot read "the rules say no crossings" as
+    // "hosts ran short". Under the shipped default (BOTH) the predicate is true
+    // and nothing moves, which is what keeps MMRandoGen's placement digest and
+    // SeedDeterminism's foreign0..3 lines byte-stable.
+    if (!Combo_ComboDirectionArms((uint8_t)GAME_OOT)) {
+        fprintf(stderr,
+                "[MM] foreign placement: direction=%u does not arm OoT-origin crossings — no forward placements "
+                "(frozen=%d)\n",
+                (unsigned)Combo_ComboDirection(), Combo_ComboSettingsFrozen() ? 1 : 0);
+        return 0;
+    }
+
     const ComboForeignItemDef* pool = nullptr;
     const int poolCount = Combo_GetForeignItemPool(&pool);
     if (poolCount <= 0 || pool == nullptr) {
@@ -545,9 +567,9 @@ int PlaceForeignItems() {
     drawable.resize((size_t)(drawableCount > 0 ? drawableCount : 0));
 
     const int wanted = (drawableCount < poolSize) ? drawableCount : poolSize;
-    // Read and reported here; ADR 0011 increment 4 is where an unarmed direction
-    // makes this pass a no-op (deliberately last — it is the only increment that
-    // can change a generated world).
+    // The direction reached here necessarily ARMS this pass — the gate above
+    // returned already if it did not. Still printed: "which rules produced this
+    // world" is the first line a reader of a generation log looks for.
     fprintf(stderr,
             "[MM] foreign placement: combo rules direction=%u poolSizeOoT=%d classOoT=%04X (%d of %d pool entries in "
             "class) (frozen=%d)\n",

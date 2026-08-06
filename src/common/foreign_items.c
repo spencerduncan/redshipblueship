@@ -99,6 +99,18 @@ uint8_t Combo_ComboDirection(void) {
 }
 
 bool Combo_ComboDirectionArms(uint8_t originGame) {
+    // THE ORIGIN TEST RUNS FIRST, and that ordering is the bug fix rather than
+    // a style choice (#493). With BOTH short-circuiting ahead of it, every
+    // origin — including GAME_NONE, which is what a zero-initialised or
+    // mis-typed argument reads as — answered "armed" under the shipped default.
+    // That is the shape of trap ADR 0002 exists to remove: the wrong call is
+    // indistinguishable from the right one at exactly the setting nobody
+    // changes. Combo_ComboPoolSizeFor already refuses a non-origin the same
+    // way, so this also makes the two accessors agree about what an origin is.
+    if (originGame != (uint8_t)GAME_OOT && originGame != (uint8_t)GAME_MM) {
+        return false;
+    }
+
     const uint8_t dir = Combo_ComboDirection();
     if (dir == (uint8_t)RSBS_COMBO_DIR_BOTH) {
         return true;
@@ -106,10 +118,7 @@ bool Combo_ComboDirectionArms(uint8_t originGame) {
     if (originGame == (uint8_t)GAME_OOT) {
         return dir == (uint8_t)RSBS_COMBO_DIR_FORWARD;
     }
-    if (originGame == (uint8_t)GAME_MM) {
-        return dir == (uint8_t)RSBS_COMBO_DIR_REVERSE;
-    }
-    return false;
+    return dir == (uint8_t)RSBS_COMBO_DIR_REVERSE;
 }
 
 int Combo_ComboPoolSizeFor(uint8_t originGame) {

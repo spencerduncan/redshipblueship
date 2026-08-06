@@ -83,6 +83,24 @@ int OoT_ForeignItem_TestExclusionAt(int index, uint16_t* outId, uint8_t* outCrit
 // nothing until a real generation has run: see Test_ForeignPlacementOoT, which
 // lives in the display-requiring `rando` tier for exactly that reason.
 int OoT_Foreign_IsEligibleHost(uint16_t rc);
+
+// #493 REVERSE-DIRECTION PRODUCTION CHAIN. Every symbol below is the real
+// shipping one; there is no stand-in anywhere in this list, which is the whole
+// point of the row that drives them:
+//   OoT_Rando_Foreign_RecordPickup  the give-path core the RC-queue drain calls
+//                                   (soh/.../ForeignItemsSingleExe.cpp)
+//   MM_ConsumeSharedItems           MM's real consumer hook (the exact function
+//                                   z_play.c's startup-entrance consumption calls)
+//   MM_ForeignItem_TestPending*     the observable for "MM's real award reached
+//                                   the real give" — with no PlayState the give
+//                                   DEFERS into this queue (#502) rather than
+//                                   dereferencing, which is exactly the state
+//                                   MM's arrival point is in.
+int OoT_Rando_Foreign_RecordPickup(uint16_t rc);
+void MM_ConsumeSharedItems(void);
+int MM_ForeignItem_TestPendingCount(void);
+uint16_t MM_ForeignItem_TestPendingAt(int index);
+void MM_ForeignItem_TestResetPending(void);
 }
 
 #define FI_ASSERT(cond)                                                                                                \
@@ -455,14 +473,23 @@ TestResult Test_ForeignItemGiveReverse(void) {
     // RandomizerCheck, sharing a struct whose member is named mmCheckId and
     // sharing a .redsave record with the forward table.
     //
-    // Scope note, stated because a reader will look for it: the production
-    // give-path bridge (OoT_Rando_Foreign_RecordPickup -> the same core
-    // Randomizer_Item_Give's foreign branch calls) and MM's real award are
-    // #493 steps 5-8 and Lane 6's MM_AwardSharedItem, neither of which exists
-    // yet. This row therefore drives the real ACCESSORS, the real
-    // SaveManager::Load, and the real Combo_RedeemSharedItemsForGame walk; it
-    // does not yet enter the OoT give path. It must gain that leg when the
-    // interception lands, or it locks the carve without locking the give.
+    // SCOPE, RESTATED (#493). This row used to carry a note saying it "does not
+    // yet enter the OoT give path" and that MM's real award did not exist. Both
+    // halves of that note are now discharged and the row drives the WHOLE
+    // reverse chain with no stand-in at any step:
+    //
+    //   Combo_SetForeignPlacementOoT       the real generation-side accessor
+    //     -> OoT_Rando_Foreign_RecordPickup  the real give-path core the
+    //                                        RC-queue drain calls
+    //       -> Combo_RecordSharedItem        the real durable producer
+    //         -> MM_ConsumeSharedItems       MM's real arrival hook
+    //           -> MM_AwardSharedItem        MM's real award callback (#507)
+    //             -> MM_ForeignItem_Give     the real give entry point
+    //
+    // plus the REDEEMED latch, and a whole-file commit + reload over the top.
+    // The one thing it still does NOT assert is presentation: the pickup toast
+    // and the tracker write stay at the hook, in the gameplay tier, because a
+    // display-free process cannot honestly claim anything about pixels.
 
     ComboContext_Init();
     Context_InitFrozenStates();
@@ -606,11 +633,12 @@ TestResult Test_ForeignItemGiveReverse(void) {
     // ------------------------------------------------------------------
     // The redeem walk: an MM-origin crossing awards exactly once, to MM.
     // ------------------------------------------------------------------
-    // The real Combo_RedeemSharedItemsForGame, with a test award callback
-    // standing in for MM_AwardSharedItem (which is still a Lane-C placeholder
-    // fprintf, so asserting through it would assert nothing). What this locks
-    // is that an MM-tagged crossing is delivered to MM and not to OoT, and
-    // that redemption is single-use.
+    // The real Combo_RedeemSharedItemsForGame with an INSTRUMENTED award
+    // callback. It is kept alongside the real-award chain below rather than
+    // replaced by it, because it observes something the pending queue cannot:
+    // WHICH game an entry was offered to. The real MM award simply ignores an
+    // OoT-origin entry, so "not awarded to OoT" and "MM declined it" are
+    // indistinguishable downstream; here they are not.
     ComboContext_Init();
     Combo_ClearSharedItemOutbox();
     FI_ASSERT(Combo_RecordSharedItem(GAME_MM, mmItem.id) >= 0);
@@ -632,12 +660,141 @@ TestResult Test_ForeignItemGiveReverse(void) {
     FI_ASSERT(Combo_RedeemSharedItemsForGame(GAME_MM, ForeignTestAward, &award) == 0);
     FI_ASSERT(award.awardCount == 0);
 
+    // ==================================================================
+    // THE PRODUCTION CHAIN (#493). No stand-in at any step.
+    // ==================================================================
+    // Everything above drives ACCESSORS. This drives the give: the same
+    // function the RC-queue drain calls, into the same durable producer, into
+    // MM's real arrival hook, into MM's real award, into MM's real give. A row
+    // that reached Combo_RecordSharedItem directly would assert that the
+    // shared-item machinery works — which SharedItemRoundtrip already asserts —
+    // and would say nothing at all about the reverse direction.
+    ComboContext_Init();
+    Context_ClearAllFrozenStates();
+    Combo_ClearSharedItemOutbox();
+    MM_ForeignItem_TestResetPending();
+    FI_ASSERT(MM_ForeignItem_TestPendingCount() == 0);
+
+    // A REAL MM pool entry: the reverse pass can only ever place one of these,
+    // and MM's give only accepts ids its own table knows. An arbitrary u16
+    // would be refused downstream and the chain would look broken for the wrong
+    // reason.
+    const ComboForeignItemDef* mmPool = NULL;
+    const int mmPoolCount = Combo_GetForeignItemPoolFor((uint8_t)GAME_MM, &mmPool);
+    FI_ASSERT(mmPoolCount > 0 && mmPool != NULL);
+    const SharedItem placedItem = mmPool[0].item;
+    FI_ASSERT(placedItem.originGame == (uint8_t)GAME_MM);
+
+    FI_ASSERT(Combo_SetForeignPlacementOoT(kForeignTestCheckA, placedItem) >= 0);
+
+    // ---- (1) THE #610 REFUSAL, FIRST -----------------------------------
+    // Non-vacuity leg, and the bug this lane found: the forward direction has
+    // refused to author a crossing for a world that does not exist since #610
+    // (Rando::Foreign::RecordForeignPickup), and the reverse direction did not.
+    // Combo_RecordSharedItem performs no identity check of its own, so whatever
+    // reaches it is redeemed by whichever paired MM world arrives next — blind
+    // to which world authored it. RED before the gate landed: the pickup
+    // recorded, and an unpaired OoT session minted a crossing.
+    FI_ASSERT(!Combo_ForeignPairingActive());
+    FI_ASSERT(OoT_Rando_Foreign_RecordPickup(kForeignTestCheckA) == 0);
+    FI_ASSERT(Combo_CountSharedItems(GAME_MM, /*includeRedeemed=*/true) == 0);
+
+    // ---- (2) Paired: the real core records the crossing, MM-tagged -----
+    gComboCtx.sourceIsRando = true;
+    gComboCtx.sharedRandoSeed = 0xC0FFEE03u;
+    gComboCtx.sharedRandoSettingsHash = 0x5EED5A5Cu;
+    FI_ASSERT(Combo_ForeignPairingActive());
+
+    // A check that hosts nothing records nothing — the ordinary case for every
+    // OoT check in the world, and the reason the hook falls through to the
+    // local give.
+    FI_ASSERT(OoT_Rando_Foreign_RecordPickup(kForeignTestCheckB) == 0);
+    FI_ASSERT(Combo_CountSharedItems(GAME_MM, /*includeRedeemed=*/true) == 0);
+
+    FI_ASSERT(OoT_Rando_Foreign_RecordPickup(kForeignTestCheckA) == 1);
+    FI_ASSERT(Combo_CountSharedItems(GAME_MM, /*includeRedeemed=*/false) == 1);
+    FI_ASSERT(gComboCtx.sharedItemsTagged[0].originGame == (uint8_t)GAME_MM);
+    FI_ASSERT(gComboCtx.sharedItemsTagged[0].id == placedItem.id);
+    FI_ASSERT(gComboCtx.sharedItemsTagged[0].flags == 0);
+
+    // ---- (3) A re-fired queue de-dups rather than doubling -------------
+    FI_ASSERT(OoT_Rando_Foreign_RecordPickup(kForeignTestCheckA) == 1);
+    FI_ASSERT(Combo_CountSharedItems(GAME_MM, /*includeRedeemed=*/true) == 1);
+
+    // ---- (4) The crossing: OoT suspends, MM arrives, MM awards ---------
+    // The real switch seam, then MM's real consumer. With no PlayState the give
+    // DEFERS into MM's pending queue (#502) — the state MM's arrival point is
+    // genuinely in — so the queue is the faithful observable that the id
+    // survived the whole path in MM's own id-space.
+    {
+        static uint8_t ootSave[256];
+        static uint8_t mmScratch[256];
+        memset(ootSave, 0xA7, sizeof(ootSave));
+        FI_ASSERT(Switch_PrepareHotSwap(GAME_OOT, ootSave, sizeof(ootSave)) == 1);
+        FI_ASSERT(Combo_CommitStagedSharedItems() == 0); // recorded directly; the outbox stays empty
+        memset(mmScratch, 0x00, sizeof(mmScratch));
+        Combo_ConsumeFrozenState("mm", mmScratch, sizeof(mmScratch)); // first MM arrival: nothing frozen
+    }
+
+    MM_ConsumeSharedItems();
+    FI_ASSERT(MM_ForeignItem_TestPendingCount() == 1);
+    FI_ASSERT(MM_ForeignItem_TestPendingAt(0) == placedItem.id);
+    // The REDEEMED latch: retired, still present (the durable record of the
+    // crossing, which is what keeps the spoiler truthful).
+    FI_ASSERT((gComboCtx.sharedItemsTagged[0].flags & RSBS_SHARED_ITEM_REDEEMED) != 0);
+    FI_ASSERT(Combo_CountSharedItems(GAME_MM, /*includeRedeemed=*/false) == 0);
+    FI_ASSERT(Combo_CountSharedItems(GAME_MM, /*includeRedeemed=*/true) == 1);
+    // And the placement survived redemption: the world still hosts the item.
+    FI_ASSERT(Combo_GetForeignPlacementForOoTCheck(kForeignTestCheckA) != NULL);
+
+    // ---- (5) Single-use: a second arrival awards nothing ---------------
+    MM_ForeignItem_TestResetPending();
+    MM_ConsumeSharedItems();
+    FI_ASSERT(MM_ForeignItem_TestPendingCount() == 0);
+
+    // ---- (6) A WHOLE-FILE COMMIT + RELOAD carries all three ------------
+    // Tier-1 is written as one unit (ADR 0009 decision 4 / #612), so the
+    // placement, the REDEEMED crossing and the pairing identity ride the same
+    // write. What must NOT happen is the REDEEMED bit going durable while the
+    // placement does not (the crossing would re-fire into a world that already
+    // has it) or the reverse (a redeemed crossing re-awarded on the next
+    // arrival). Scribbled before the load so a pass cannot come from residue.
+    {
+        rsbs::SaveManager& commitMgr = rsbs::SaveManager::Instance();
+        commitMgr.SetSaveDirectory(kForeignSaveDir);
+        commitMgr.DeleteSave(0);
+        FI_ASSERT(commitMgr.Save(0));
+
+        ComboContext_Init();
+        memset(gComboCtx.foreignPlacementsOoT, 0x5A, sizeof(gComboCtx.foreignPlacementsOoT));
+        memset(gComboCtx.sharedItemsTagged, 0x5A, sizeof(gComboCtx.sharedItemsTagged));
+        FI_ASSERT(commitMgr.Load(0));
+
+        const SharedItem* reloaded = Combo_GetForeignPlacementForOoTCheck(kForeignTestCheckA);
+        FI_ASSERT(reloaded != NULL);
+        FI_ASSERT(reloaded->originGame == (uint8_t)GAME_MM && reloaded->id == placedItem.id);
+        FI_ASSERT(Combo_CountSharedItems(GAME_MM, /*includeRedeemed=*/true) == 1);
+        FI_ASSERT(Combo_CountSharedItems(GAME_MM, /*includeRedeemed=*/false) == 0);
+        FI_ASSERT((gComboCtx.sharedItemsTagged[0].flags & RSBS_SHARED_ITEM_REDEEMED) != 0);
+        FI_ASSERT(Combo_ForeignPairingActive()); // the identity rode the same record
+
+        // The load-side arrival awards nothing: the latch is what makes the
+        // crossing single-use ACROSS a process, not merely within one.
+        MM_ForeignItem_TestResetPending();
+        MM_ConsumeSharedItems();
+        FI_ASSERT(MM_ForeignItem_TestPendingCount() == 0);
+        commitMgr.DeleteSave(0);
+    }
+
     // Leave global state clean for any subsequent test.
+    MM_ForeignItem_TestResetPending();
     Context_ClearAllFrozenStates();
     Combo_ClearSharedItemOutbox();
     ComboContext_Init();
 
-    printf("[TEST] PASS: reverse carve is a separate key space, serializes byte-exact, zero-extends, redeems once\n");
+    printf("[TEST] PASS: reverse carve is a separate key space, serializes byte-exact, zero-extends; the real "
+           "pickup core refuses an unpaired session, records once, and MM's real award redeems it once across a "
+           "whole-file commit\n");
     return TEST_PASS;
 }
 

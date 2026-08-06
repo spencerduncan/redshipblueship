@@ -47,6 +47,7 @@
 #include "soh/Enhancements/randomizer/logic.h"
 
 #include "foreign_items.h" // src/common — ComboForeignItemDef, SharedItem
+#include "shared_items.h"  // src/common — Combo_RecordSharedItem (#493)
 
 extern "C" {
 #include <z64.h>
@@ -404,6 +405,27 @@ extern "C" int OoT_PlaceForeignItems(void) {
         return 0; // solo OoT rando: nothing to pair with, and that is normal
     }
 
+    // THE DIRECTION GATE (ADR 0011 increment 4, #493's "the direction byte").
+    // Read from the FROZEN record — never a live CVar — through the same
+    // accessor MM's forward pass uses for its own origin. GAME_MM is this
+    // pass's origin: it places MM-ORIGIN items into OoT checks, so it is armed
+    // by RSBS_COMBO_DIR_REVERSE and by RSBS_COMBO_DIR_BOTH.
+    //
+    // Zero placements is the correct outcome, NOT an error: RSBS_COMBO_DIR_OFF
+    // and RSBS_COMBO_DIR_FORWARD both describe real, chooseable paired worlds
+    // (ADR 0011 decision 2.3), so this returns 0 like the solo case rather than
+    // one of the negative shortfall codes, which mean "a paired world's
+    // cross-game half would be SILENTLY absent". Under the shipped default
+    // (BOTH) this predicate is true and nothing moves — the parity that keeps
+    // SeedDeterminism's foreignOoTHash byte-stable.
+    if (!Combo_ComboDirectionArms((uint8_t)GAME_MM)) {
+        fprintf(stderr,
+                "[OoT] foreign placement: direction=%u does not arm MM-origin crossings — no reverse placements "
+                "(frozen=%d)\n",
+                (unsigned)Combo_ComboDirection(), Combo_ComboSettingsFrozen() ? 1 : 0);
+        return 0;
+    }
+
     const ComboForeignItemDef* pool = nullptr;
     const int poolCount = Combo_GetForeignItemPoolFor((uint8_t)GAME_MM, &pool);
     if (poolCount <= 0 || pool == nullptr) {
@@ -488,11 +510,10 @@ extern "C" int OoT_PlaceForeignItems(void) {
     // poolIndices.size() rather than poolCount is what makes the two compose —
     // bounding on the raw pool would let the draw index past the filtered list.
     const int wanted = std::min({ (int)poolIndices.size(), poolSize, (int)candidates.size() });
-    // The direction itself is READ here and reported; ADR 0011 increment 4 is
-    // where an unarmed direction makes this pass a no-op. It lands last on
-    // purpose: it is the only increment that can change a generated world, and
-    // it should land on top of a frozen, compared, rendered setting rather than
-    // under one.
+    // The direction reached here is necessarily one that ARMS this pass — the
+    // gate above returned already if it did not (ADR 0011 increment 4). It is
+    // still printed, because "which rules produced this world" is the line a
+    // reader of a generation log looks for first.
     fprintf(stderr,
             "[OoT] foreign placement: combo rules direction=%u poolSizeMM=%d classMM=%04X (%zu of %d pool entries in "
             "class) (frozen=%d)\n",
@@ -525,6 +546,78 @@ extern "C" int OoT_PlaceForeignItems(void) {
 // lock that restates the rule stops testing it the moment the rule moves.
 extern "C" int OoT_Foreign_IsEligibleHost(uint16_t rc) {
     return OoT_Foreign_IsEligibleHostImpl((RandomizerCheck)rc) ? 1 : 0;
+}
+
+// ============================================================================
+// REVERSE DIRECTION (#493): the PICKUP CORE — the OoT twin of
+// Rando::Foreign::RecordForeignPickup
+// ============================================================================
+//
+// WHY THIS IS A NAMED FUNCTION AND NOT THE FOUR LINES IT REPLACES. Until now
+// the reverse leg's producer lived entirely inside the RC-queue drain lambda in
+// hook_handlers.cpp, which needs a live PlayState, a Player and the CheckTracker
+// — so nothing ROM-free could enter it, and #493's own Lock section says in as
+// many words that a row which pokes the placement table instead "would be
+// vacuous". The forward direction has had the extraction since Lane C1
+// (Rando::Foreign::RecordForeignPickup + the MM_Rando_Foreign_RecordPickup
+// bridge); this is the missing twin, and the ForeignItemGiveReverse row now
+// drives it.
+//
+// The split is deliberately the SAME one MM makes: this function owns the
+// DECISION and the durable RECORD, and owns nothing about presentation. The
+// toast, the tracker write and the queue pop stay at the hook, because they are
+// display/gameplay concerns that a display-free tier cannot honestly assert.
+//
+// THE PAIRING REFUSAL IS THE #610 RULE, APPLIED TO THE DIRECTION THAT DID NOT
+// HAVE IT. Combo_RecordSharedItem takes no identity argument and performs no
+// identity check (src/common/shared_items.c): whatever it records is redeemed by
+// whichever paired MM world arrives next, blind to which world authored it. MM's
+// forward-side core has refused to author such a record since #610; the reverse
+// side did not, so an OoT session whose foreignPlacementsOoT survived into an
+// unpaired state (a .redsave loaded into a solo session, a future spoiler-drop
+// route, a session invalidation that KEEPs the table) could mint a crossing with
+// no paired world to receive it. The check DEGRADES to the junk-class OoT item
+// the host physically holds — the documented absent-placement behaviour
+// (foreign_items.h) — rather than to a crossing nobody can receive.
+//
+// @return true only when a durable shared-item record was authored. The caller
+//         presents the foreign pickup if and only if that happened.
+static bool OoT_Foreign_RecordPickupImpl(uint16_t rc) {
+    const SharedItem* item = Combo_GetForeignPlacementForOoTCheck(rc);
+    if (item == nullptr) {
+        return false;
+    }
+
+    if (!Combo_ForeignPairingActive()) {
+        fprintf(stderr,
+                "[OoT] foreign pickup REFUSED: OoT check %u holds a foreign placement, but this session has no live "
+                "cross-game pairing (sourceIsRando=%d settingsHash=%08X). No durable shared-item record is authored — "
+                "there is no paired world it could belong to (#610/#493)\n",
+                (unsigned)rc, gComboCtx.sourceIsRando ? 1 : 0, gComboCtx.sharedRandoSettingsHash);
+        fflush(stderr);
+        return false;
+    }
+
+    // Durable immediately (Combo_RecordSharedItem writes the serialized array,
+    // so an OoT save+quit before the next switch cannot lose the pickup — the
+    // stage/commit outbox is RAM-only, see shared_items.h). The producer de-dups
+    // an identical un-redeemed entry, so a re-fired queue cannot double-record.
+    return Combo_RecordSharedItem((GameId)item->originGame, item->id) >= 0;
+}
+
+/**
+ * The reverse direction's give-path entry point, called by the RC-queue drain
+ * (hook_handlers.cpp) and driven directly by the ForeignItemGiveReverse lock.
+ *
+ * The exact twin of MM_Rando_Foreign_RecordPickup, and named to match: one
+ * production function, two callers, so the lock covers the real recording path
+ * rather than a copy of it.
+ *
+ * @return 1 if a durable crossing was authored for this OoT check, 0 otherwise
+ *         (no foreign placement here, or no live pairing to author it for).
+ */
+extern "C" int OoT_Rando_Foreign_RecordPickup(uint16_t rc) {
+    return OoT_Foreign_RecordPickupImpl(rc) ? 1 : 0;
 }
 
 /**
