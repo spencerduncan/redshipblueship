@@ -70,5 +70,19 @@ reasoning behind them, and #392 is the closed phase they build on.
 - If an issue's premise turns out to be wrong, do not force a fix. Report what you
   found and recommend closing or re-scoping. Several findings have changed shape
   under scrutiny; that is a good outcome.
+- Human-filed issues and PRs are hands-off. Anything authored by an account other
+  than `spencerduncan` was filed by a person, and only the operator talks to
+  people. Never comment on, label, assign, retitle, edit, close, or auto-close
+  (`Fixes`/`Closes`/`Resolves #N`) it, and never reply to a person's comment on
+  an agent issue or PR; surface it in your report instead. To work on one, file
+  a secondary tracking issue titled `[agent] #N: <summary>` with the
+  `agent-tracking` label, link the human issue from its body, verify the premise
+  in code there, and point PRs at the agent issue (`Fixes #<agent>`,
+  `Refs #<human>`). When unsure whether an author is a person, treat them as one.
+- No upstream reports unless the operator explicitly asks. Never file, draft,
+  propose, or mention an issue, PR, or comment to HarbourMasters or any other
+  external repo, and do not offer it as an option. Document inherited defects in
+  this tracker only, with the lineage evidence. PRs against the operator's own
+  forks (libultraship, ZAPDTR, OTRExporter) are not upstream reports.
 
 See `CLAUDE.md` for build, test, and architecture basics.
