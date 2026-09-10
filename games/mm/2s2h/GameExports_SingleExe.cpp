@@ -1878,17 +1878,65 @@ extern "C" int MM_Combo_OwlSaveExitToOoT(void) {
  * save prompt exits through PAUSE_STATE_GAMEOVER_7 -- but the condition costs one
  * comparison and removes the dependency on that staying so.
  *
- * WHAT THIS EXIT DOES NOT DO: COMMIT. It is deliberately not a save. ADR 0009
- * decision 4a rules that quit-to-title is a durable commit -- but after this
- * function the combo does not quit. Declining to continue in a cross-game
- * session is a SWITCH back to the OoT session still live behind the player,
- * structurally identical to F10 and to #543's owl exit, and a switch freezes
- * rather than commits. Durability rides seams that already exist: the launcher
- * freeze publishes the revived state into MM's shadow, and OoT's next commit --
- * autosave, save point, or the OnExitGame quit that IS a 4a commit -- carries it
- * as MM's half of one whole-file generation. Adding a commit here would decide,
- * silently, that dying and declining is an autosave point; that question is
- * recorded for the operator rather than answered in code.
+ * WHETHER THIS EXIT COMMITS: ADR 0009 DECISION 4b (operator ruling 2026-09-06).
+ * It is an AUTOSAVE POINT if and only if MM's Autosave enhancement is on. #625
+ * shipped it as a pure switch and recorded the question for the operator:
+ * after this function the combo does not quit -- the OoT session is still live
+ * behind the player -- so decision 4a's "quit-to-title is a durable commit" did
+ * not settle it, and durability already rides seams that exist (the launcher
+ * freeze publishes the revived state into MM's shadow; OoT's next commit
+ * carries it as MM's half of one whole-file generation). What was left to
+ * decide was only WHEN the revived half becomes durable, and the ruling ties
+ * that to the same switch that already answers it for MM's periodic save:
+ *
+ *   - Autosave ON: a whole-file commit through the #569 choke point, taken
+ *     AFTER the revive above so the committed health bar is resumable, and the
+ *     enhancement's interval clock is reset exactly as HandleAutoSave resets it
+ *     after a save of its own. The commit is MM_Combo_CaptureSaveToUnifiedSlot
+ *     -- the body every funneled MM route (owl, pause, new-cycle, autosave)
+ *     reaches through Sram_ComboCommitUnifiedSave -- because RsbsSave_Save
+ *     alone would stage the MM shadow as the LAST crossing left it, not the
+ *     live, revived gSaveContext; the capture is what refreshes the shadow from
+ *     live state on this thread before staging. It also checks the #533/#568
+ *     write latch BEFORE its harvest (#591), so a refused commit moves neither
+ *     the file nor the shared-resource pool, and the clock is reset only when
+ *     the commit actually landed: a refused commit is not an autosave.
+ *   - Autosave OFF: NOTHING is written at the death moment, vanilla-style. The
+ *     revived half rides in RAM until OoT's next commit -- the behavior #625
+ *     shipped, now chosen rather than deferred.
+ *
+ * Two boundaries the ruling draws. It is NOT a rollback of MM's half: vanilla's
+ * decline reloads the last save, but that is a whole-world reload, and the
+ * combo has no whole-world reload at a decline because OoT's half is live;
+ * reverting MM's half on its own while Tier-1's REDEEMED records and OoT's
+ * world march on is exactly the #531 loss mechanism decision 4 retired. And the
+ * gate is the Autosave enhancement's ARMED state (SavingEnhancements_
+ * AutosaveArmed), the same registered image of the CVar HandleAutoSave itself
+ * fires on, so the two autosave points cannot disagree about whether autosave
+ * is on.
+ *
+ * Gated on gameMode, not fileNum: a cross-game MM session runs pinned to the
+ * 0xFF sentinel for its whole life, and the one state that must NOT commit
+ * here is a death under GAMEMODE_TITLE_SCREEN -- MM plays real frames there
+ * (a force-boot never leaves it) with MM_Sram_InitNewSave's bootstrap file
+ * resident, and committing that would write a vanilla bootstrap into the
+ * player's slot: #532/#590's corruption by one more route. Combo_SaveIsLiveFile
+ * is the one policy both harvest shims already share.
+ *
+ * What the commit records, beyond the live SaveContext: the death scene's live
+ * scene flags (Play_SaveCycleSceneFlags) and savedSceneId, the two writes MM's
+ * own autosave makes before it marshals (HandleAutoSave), when a PlayState is
+ * published -- the ROM-free lock drives this exit with none, and the commit
+ * must not need one. This is NOT the freeze-side flush #638 owes every
+ * departure: this commit runs BEFORE the launcher freeze, so a flush there
+ * cannot reach the bytes staged here. Deliberately not replicated from
+ * HandleAutoSave: its isOwlSave / pauseSaveEntrance framing, which
+ * parameterizes MM's own file-select resume at an owl statue -- a cross-game
+ * half is resumed by the launcher at the startup entrance
+ * (MM_Play_ConsumeStartupEntrance) and never takes that path.
+ *
+ * The F10-during-game-over route (#626) bypasses this leg entirely and is not
+ * decided here.
  *
  * Standalone MM keeps vanilla 2ship behavior by the same gate as the owl exit:
  * Context_HasFrozenState(GAME_OOT) is precisely "there is an OoT session to go
@@ -1915,6 +1963,32 @@ extern "C" int MM_Combo_GameOverExitToOoT(void) {
         // #589 makes the frozen blob durable in its own right, so the value has
         // to be right here rather than only by the time it is read again.
         gSaveContext.healthAccumulator = 0;
+    }
+
+    // ADR 0009 decision 4b: an autosave point iff the Autosave enhancement is
+    // on. AFTER the revive, so the committed bar is the resumable one; BEFORE
+    // the switch request, so the commit and the freeze that follows it publish
+    // the same state. See the function comment for the ruling and its bounds.
+    if (SavingEnhancements_AutosaveArmed()) {
+        if (Combo_SaveIsLiveFile(GAME_MM, (int32_t)gSaveContext.gameMode)) {
+            if (MM_gPlayState != NULL) {
+                Play_SaveCycleSceneFlags(MM_gPlayState);
+                gSaveContext.save.saveInfo.playerData.savedSceneId = MM_gPlayState->sceneId;
+            }
+            SavingEnhancements_AdvancePlaytime();
+            if (MM_Combo_CaptureSaveToUnifiedSlot()) {
+                // Only a commit that LANDED restarts the periodic clock. A
+                // latch-refused capture wrote nothing and is not an autosave.
+                SavingEnhancements_ResetAutosaveInterval();
+                fprintf(stderr, "[MM] game-over 'don't continue': autosave point committed (ADR 0009 4b)\n");
+            } else {
+                fprintf(stderr, "[MM] game-over 'don't continue': autosave point REFUSED; nothing written\n");
+            }
+        } else {
+            fprintf(stderr, "[MM] game-over 'don't continue': autosave point skipped, not a live file (gameMode=%d)\n",
+                    (int)gSaveContext.gameMode);
+        }
+        fflush(stderr);
     }
 
     fprintf(stderr, "[MM] game-over 'don't continue' in a cross-game session: returning to OoT (health %d)\n",

@@ -754,6 +754,17 @@ if(BUILD_TESTING)
     # identical sequence; OnExitGame was the one seam left unguarded.
     # Display-free and ROM-free, so it runs in this redship tier.
     redship_add_test(NAME OoTExitHarvestGate COMMAND redship --test oot-exit-harvest-gate)
+    # ADR 0009 decision 4b (#590/#625, games/mm/2s2h/mm_death_decline_autosave_test.cpp):
+    # MM's cross-game game-over "don't continue" exit is an AUTOSAVE POINT iff
+    # the Autosave enhancement is on -- a whole-file commit through the #569
+    # choke point taken AFTER the #625 revive, and the enhancement's interval
+    # clock reset -- and writes NOTHING at the death moment with it off. Locks
+    # both halves of the iff against the real MM_Combo_GameOverExitToOoT, the
+    # gameMode (not fileNum) gate, the #533/#568 latch (a refused commit is not
+    # an autosave: no file, no clock reset, no pool movement), and the
+    # cross-game gate that keeps standalone 2ship vanilla. Display-free and
+    # ROM-free; needs the shared bring-up only for CVarSetInteger.
+    redship_add_test(NAME MMDeathDeclineAutosave COMMAND redship --test mm-death-decline-autosave)
     # MM single-exe hook dispatch (#511, #438): the COND_HOOK/COND_ID_HOOK
     # macros park registrations in the MM-owned S2H::GameHooks registry, but
     # ShouldActorInit / OnActorInit / OnActorDraw / OnOpenText dispatched

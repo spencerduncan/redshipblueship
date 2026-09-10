@@ -590,6 +590,24 @@ jobs:
       with:
         name: 2ship.o2r
         path: bw/mm
+    # Stage the port archives where the ctest tier actually looks (#560, #623).
+    # Same mechanism as build-linux's step of this name: the downloads above
+    # land where the INSTALL rules read them (bw/soh, bw/mm), but a row
+    # started by `ctest --test-dir bw` resolves archives through
+    # Ship::Context::LocateFileAcrossAppDirs, which probes the app-config
+    # dir, then the running binary's OWN directory, then "./". On Windows
+    # SHIP_HOME is not honored, so the app-config dir is "." = the row's cwd
+    # (bw/); the exe is bw/redship.exe (RUNTIME_OUTPUT_DIRECTORY under the
+    # single-config Ninja generator); and "./" is bw/ again. None of the three
+    # is bw/soh, so without this copy ZipContention / CuratedArchiveOrder /
+    # ModArchiveSurvivesSwitch self-skip (exit 77) and the tier silently loses
+    # its archive-mounted rows. A copy, not a move: Package still installs
+    # from bw/soh/soh.o2r and bw/mm/2ship.o2r.
+    - name: Stage port archives for the ctest tier (#560)
+      run: |
+        Copy-Item bw/soh/soh.o2r bw/soh.o2r
+        Copy-Item bw/mm/2ship.o2r bw/2ship.o2r
+        Get-ChildItem bw/soh.o2r, bw/2ship.o2r
     # Build is split into Configure / Build / Package so the GitHub Actions UI
     # surfaces per-stage timing. Issue #177 — previously a single ~24 min step,
     # making it impossible to tell whether time was going to vcpkg, compile, link
@@ -614,6 +632,26 @@ jobs:
     - name: sccache stats (Windows)
       if: always()
       run: sccache --show-stats
+    # Run the display-free `redship` tier against the Windows binary (#623).
+    # Until this step the job compiled both games and every test row and ran
+    # none of them, so MSVC codegen, /FORCE:MULTIPLE first-wins link semantics
+    # and Windows CRT behavior had no automated coverage — the operator's
+    # local ctest runs were the de facto Windows gate. The tier needs no
+    # display, no ROM and no GPU (rows that need extracted archives or
+    # redship.o2r self-skip with exit 77, exactly as on Linux). The `rando`
+    # tier is NOT run here: its rows bring up a Fast3dWindow (xvfb-run on
+    # Linux) and a hosted Windows runner has no equivalent; it stays
+    # Linux-only.
+    #
+    # ctest is resolved next to the cmake.exe the configure step already
+    # used (same install, same version) rather than trusting a second PATH
+    # lookup. --no-tests=error mirrors build-linux: if the label ever
+    # regresses, fail loudly instead of exiting 0 with "No tests were found".
+    - name: Run tests (Windows)
+      run: |
+        $ctest = Join-Path (Split-Path -Parent (Get-Command cmake).Source) 'ctest.exe'
+        & $ctest --version
+        & $ctest --test-dir bw --output-on-failure --label-regex '^redship$' --no-tests=error
     - name: Package (Windows)
       run: |
         cd bw
