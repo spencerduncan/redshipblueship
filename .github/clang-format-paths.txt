@@ -60,6 +60,7 @@ games/mm/2s2h/mm_spoiler_identity_test.cpp
 games/mm/2s2h/mm_trackers_gui_test.cpp
 games/mm/2s2h/mm_unified_save_test.cpp
 games/mm/2s2h/z_scene_2SH.cpp
+games/mm/2s2h/mm_death_decline_autosave_test.cpp
 games/mm/src/audio/lib/dcache.c
 games/mm/src/audio/lib/load.c
 games/mm/src/audio/lib/thread.c
