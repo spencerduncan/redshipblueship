@@ -1,54 +1,70 @@
-# Worker loop goals — Phase 3.1 lanes (updated 2026-07-22)
+# Worker loop goals — 2026-09-10 wave (updated 2026-09-10)
 
-**Current phase: Phase 3.1 — Two-Way Combo Randomizer (#492).** Phase 3.0 closed
-its contract (milestone 17/17): four hand-pinned OoT items crossing into MM
-checks, one direction, surviving a round trip, described by a spoiler log.
+**Where the phases stand.** Phase 3.1 (#492, two-way combo randomizer) has
+shipped Waves 0-2 and most of Wave 3; what remains is #497's `SohMenu` residue and
+ADR 0011 increment 2 (#498). Phase 3.2 (#500, ADR 0010, cross-game logic) has its
+increment epics filed — **#644** (merged generation, full delivery) precedes
+**#645** (the single-bag combo fill), and #645 is gated on the O4
+solver-inventory audit. On 2026-08-14 a community member filed three reports
+against a GitHub Actions build (#634, #635, #636); they are human-filed and
+hands-off, tracked agent-side as #640, #638 and #639.
 
-## Lanes — one prompt per lane in `.claude/lanes/`
+## Lanes — one card per lane in `.claude/lanes/`
 
 Read `.claude/lanes/SHARED.md` first; it carries the append-only shared-file
 protocol and the three-edit CTest registration rule that hard-fails the build if
-you do fewer.
+you do fewer. Then read your own card and the issue or ADR it names.
 
-| Lane | Issues | Owns, roughly |
-|---|---|---|
-| 1 | #490 → #498 ADR → #493 | `context.h`, `foreign_items.*`, OoT rando pool + spoiler |
-| 2 | #488 | `Rando/Foreign.cpp`, `Spoiler/Apply.cpp` (for #488 only) |
-| 3 | #487 → #491 | `z_sram_NES.c`, `mm_stubs.c`, `mm_rando_gen_test.cpp` |
-| 4 | #497 → #499 | `SohGui/*`, ADR 0003/0004, `cvar_shared_keys.h`, `OnFileCreate.cpp` |
-| 5 | #489 → #496 | `TrackersGuiSingleExe.*`, trackers, `combo_spoiler_view.*` |
-| 6 | #502 → #494 | `CheckQueue.cpp`, `DrawItem.cpp`, both `*_AwardSharedItem` |
+| Lane | Branch | Serves | Owns, roughly |
+|---|---|---|---|
+| 1 | `claude/adr0009-4b-death-decline-autosave` | ADR 0009 decision 4b | `docs/adr/0009-*.md`; the MM kaleido death-prompt leg; `MM_Combo_*ExitToOoT` and the MM exit/commit functions in `games/mm/2s2h/GameExports_SingleExe.cpp` |
+| 2 | `claude/adr0011-inc2-combo-settings-pane` | ADR 0011 increment 2 (#498) | `src/common/foreign_items.*`, `src/common/cvar_shared_keys.h`, the combo options view/window, the interim Cross-Game rows in `SohMenuRandomizer.cpp`, `docs/adr/0011-*.md` (+ folding PR #628's eight resolutions) |
+| 3 | `claude/623-windows-ci-redship-tier` | #623 | `.github/workflows/generate-builds.yml` |
+| 4 | `claude/tracker-docs-hygiene-2026-09` | tracker + docs sweep after the 2026-08 wave | `docs/known-issues.md`, this file's lane table, `.claude/lanes/lane*.md`; tracker edits on #500 / #492 / #497 and the ADR 0010 epics |
+| 5 | `claude/solver-inventory-audit-o4` | ADR 0010 Decision 4 / open question O4 | `docs/solver-inventory.md` (new) |
+| 6 | `claude/638-flush-before-freeze-626-dead-bar` | #638 (flush scene flags before every freeze), #626 (F10 dead bar) | `src/common/switch.cpp` / `context.cpp` freeze path; `Combo_CheckEntranceSwitch`; the hot-swap freeze in both `GameExports_SingleExe.cpp`; new scene-flag-freeze tests |
+| 7 | `claude/640-soh-port-registrar-elision` | #640 (Anchor registrar elided from `soh_port`; empty-page `SetNextWindowPos` leak) | `games/oot/CMakeLists.txt`, `games/oot/soh/SohGui/Menu.cpp`, `.github/scripts/check-registrar-elision.sh` |
+| 8 | `claude/639-first-arrival-clock` | #639 option A (new-file clock on first MM arrival) | `MM_Play_ConsumeStartupEntrance` in `games/mm/src/code/z_play.c`; `games/mm/2s2h/mm_resume_state_test.cpp` |
 
-Lane 1 is the only lane that changes `.redsave` format and owns the
-`reserved[264]` byte budget across all five claimants — Lane 4 must hand it a
-digest size before carving, not after.
+Shared-file hotspots this wave: `games/mm/2s2h/GameExports_SingleExe.cpp` is
+touched by **lane 1** (the exit/commit functions) and **lane 6** (the hot-swap
+freeze) — function-scoped claims, rebase rather than reorder. Nobody else edits it.
+`src/common/context.cpp` is lane 6's this wave. The ADRs are single-owner: 0009 is
+lane 1's, 0011 is lane 2's, 0010 is **read-only for everyone** (lane 5 writes a new
+doc, not the ADR).
 
-Ordering that is load-bearing: **Lane 3 lands first** (#487 is P0 and Lane 5's
-verification depends on it). Lane 1 rebases onto Lane 2 **before #493 step 7**,
-not before step 3 — gating the longest pole on the smallest lane idles the phase.
+Ordering that is load-bearing: lanes 6 and 8 both sit on MM's switch path but in
+different functions — lane 6's flush goes *before* the freeze on departure, lane 8's
+re-authoring goes in the first-entry leg of the consume on arrival; neither should
+move the other's code. Lane 2's pane is the interim host until #497 step 6 builds
+the tier-4 Combo section; lane 2 does **not** build step 6. Lane 4 has no local
+build; lane 5 is docs-only; every code lane verifies locally (ROM-staged build, both
+ctest tiers) before its PR is merged.
 
 This file deliberately holds almost no state. Its failure mode is going stale — an
 earlier revision claimed "Wave 3" and "eleven commits awaiting push" for a day
-after both were false, and that misled planning. Everything below lives somewhere
-that gets updated as work lands.
+after both were false, and a later one still described the Phase 3.1 lanes a month
+after they had merged. Everything below lives somewhere that gets updated as work
+lands.
 
 ## Where the plan actually lives
 
 | What | Where |
 |---|---|
-| Phase 3.1 tracker (waves, corrections, current state) | **#492** |
-| Per-lane worker prompts | `.claude/lanes/lane<N>.md` |
-| Phase 3.1 waves and the four sequencing corrections | `docs/phase3-roadmap.md` §5 |
-| Phase 3.2 (cross-game logic, Lane D promoted) | #500 |
-| Phase 3.0 tracker (closed contract, prior art) | #392 |
-| Phase 3 execution plan and wave assignments | `docs/phase3-execution-prompt.md` |
-| Phase 2 follow-ups still open | #381 |
-| Pre-alpha v0.1.0 readiness gates | #321 |
+| Phase 3.2 tracker (ADR 0010 increments, O4/O9, the 2026-09-10 sweep) | **#500** |
+| ADR 0010 increment epics | **#644** (increment 2, merged generation) → **#645** (increment 3, single-bag fill) |
+| Phase 3.1 tracker (closing; re-scoped 2026-09-10) | #492 |
+| Per-lane worker cards | `.claude/lanes/lane<N>.md` |
+| Combo-level settings (ADR 0011, increments 2-4) | #498 |
+| MM hook dispatch coverage | #438 |
+| Community reports (human-filed, hands-off) and their agent trackers | #634 → #640, #635 → #638, #636 → #639 |
 | Player-visible known issues | `docs/known-issues.md` |
+| Phase 3 roadmap and execution plan (reasoning behind the trackers) | `docs/phase3-roadmap.md`, `docs/phase3-execution-prompt.md` |
+| Phase 3.0 tracker (closed contract, prior art) | #392 |
 | Prior local-iteration postmortems | `docs/ci-gameplay-repro-postmortem.md` |
 
-Read #492 and your lane prompt first. They are the live ones; the docs are the
-reasoning behind them, and #392 is the closed phase they build on.
+Read the tracker or issue your card names first. They are the live ones; the docs
+are the reasoning behind them.
 
 ## Standing conventions
 
