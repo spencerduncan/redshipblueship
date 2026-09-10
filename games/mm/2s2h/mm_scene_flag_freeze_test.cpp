@@ -123,10 +123,22 @@ void ArmLiveMMSession(int16_t health) {
 // Fresh entrance table with the production links, no pending switch, no F10
 // request. Combo_CheckEntranceSwitch suppresses its freeze when a switch is
 // already pending (wasAlreadyPending), so every entrance leg needs this first.
-void ResetEntranceTable(void) {
+//
+// Entrance_Init here, but NOT in the OoT twin: MM's header chain never declares
+// the C-linkage Entrance_Init that SoH's entrance shuffle owns, so this
+// spelling reaches src/common/entrance.cpp's C++-linkage function. On the OoT
+// side the same name is already taken and the row crashed for it; the note above
+// oot_scene_flag_freeze_test.cpp's ResetEntranceTable records the whole trap.
+//
+// Returns false if the table was NOT actually reset. Entrance_RegisterDefaultLinks
+// refuses a door that some link already claims, so a true return is proof the
+// preceding Entrance_Init really cleared the combo link table. Both rows carry
+// the guard so a rebind on either side fails with a message, not a crash.
+bool ResetEntranceTable(void) {
     Entrance_Init();
-    Entrance_RegisterDefaultLinks();
+    const bool registered = Entrance_RegisterDefaultLinks();
     Combo_ClearGameSwitchRequest();
+    return registered;
 }
 
 // Read the frozen MM half back. Context_RestoreState copies without retiring
@@ -170,7 +182,7 @@ int RunChecks(PlayState* play) {
                "later capture read the live struct, not the blob");
     SFF_ASSERT(sScratch.save.saveInfo.playerData.health == 0x50,
                "a live bar must pass through the entrance freeze untouched (#626's revive is conditional)");
-    ResetEntranceTable();
+    SFF_ASSERT(ResetEntranceTable(), "the combo entrance table must reset between legs");
     Context_ClearFrozenState(GAME_MM);
 
     // ---- 2. Hot-swap driver: the same, through the launcher's bridge -------
@@ -266,7 +278,7 @@ int RunChecks(PlayState* play) {
     Combo_CheckEntranceSwitch(MM_ENTR_CLOCK_TOWER_INTERIOR_1);
     SFF_ASSERT(Context_HasFrozenState(GAME_MM) == 1,
                "an entrance freeze with no PlayState must not crash and must still record a blob");
-    ResetEntranceTable();
+    SFF_ASSERT(ResetEntranceTable(), "the combo entrance table must reset between legs");
     Context_ClearFrozenState(GAME_MM);
 
     return 0;
@@ -283,7 +295,11 @@ extern "C" int MM_SceneFlagFreeze_RunHeadless(void) {
     // Combo_CheckEntranceSwitch resolves the departing game -- and therefore
     // which entrance table and which blob -- from the current-game tracker.
     Context_SetCurrentGame(GAME_MM);
-    ResetEntranceTable();
+    if (!ResetEntranceTable()) {
+        printf("[TEST] FAIL: the combo entrance table did not reset (%s:%d)\n", __FILE__, __LINE__);
+        Context_SetCurrentGame(prevGame);
+        return 1;
+    }
 
     // A minimal live PlayState: the flush reads sceneId and actorCtx.sceneFlags
     // and nothing else. calloc'd on the C heap, not MM's arena, so this row is
@@ -307,7 +323,7 @@ extern "C" int MM_SceneFlagFreeze_RunHeadless(void) {
     ComboContext_Init();
     // The watermark table lives outside gComboCtx; leg 3 harvested into it.
     Combo_ResetSharedResourceWatermarks();
-    ResetEntranceTable();
+    (void)ResetEntranceTable();
     Context_SetCurrentGame(prevGame);
 
     if (rc == 0) {

@@ -84,10 +84,45 @@ void ArmLiveOoTSession(void) {
 // Fresh entrance table with the production links, no pending switch, no F10
 // request. Combo_CheckEntranceSwitch suppresses its freeze when a switch is
 // already pending (wasAlreadyPending), so every entrance leg needs this first.
-void ResetEntranceTable(void) {
-    Entrance_Init();
-    Entrance_RegisterDefaultLinks();
+//
+// DELIBERATELY NOT Entrance_Init(), even though that is the one call this wants
+// and is what the MM twin uses. This TU cannot name that function.
+//
+// src/common/entrance.h declares the combo Entrance_Init with C++ linkage
+// exactly so it does not collide with OoT's own C-linkage Entrance_* family
+// (see the "C++ API" banner in that header). But <z64.h> reaches
+// soh/Enhancements/randomizer/randomizer_entrance.h through
+// games/oot/include/z64save.h, and that header declares
+// `extern "C" void Entrance_Init(void)` -- SoH's ENTRANCE-SHUFFLE initializer,
+// a different function with the same spelling and the same signature. So in any
+// OoT-side TU the name is already taken by the time entrance.h is read:
+//   - <z64.h> first (the only order MSVC accepts here): calls bind to SoH's
+//     randomizer init, which walks Randomizer_GetEntranceOverrides() and
+//     gEntranceTable with no rando context. That is not a subtle wrong answer;
+//     it is an access violation, and it is how this row first failed.
+//   - entrance.h first: MSVC rejects the file outright, C2732 "linkage
+//     specification contradicts earlier specification for Entrance_Init".
+// /FORCE:MULTIPLE (CMakeLists.txt) keeps the duplicate DEFINITION quiet at link
+// time, so nothing warns either way.
+//
+// The way out is to stop using the ambiguous spelling and compose the same
+// state reset out of combo entry points whose names nothing else claims. This is
+// Entrance_Init's body (src/common/entrance.cpp), term for term:
+//   Entrance_ClearLinks()          -> gEntranceLinks.clear()
+//   Combo_ClearPendingSwitch()     -> gPendingSwitch = {}
+//   Combo_ClearStartupEntrance()   -> sStartupEntrance / Present / Game
+//   Combo_ClearGameSwitchRequest() -> sGameSwitchRequested = false
+//
+// Returns false if the table was NOT actually reset. That is not a formality:
+// Entrance_RegisterDefaultLinks refuses a door that some link already claims, so
+// a true return is proof the link table really was cleared -- which is the same
+// thing as proof that these calls reached the combo entrance module at all.
+bool ResetEntranceTable(void) {
+    Entrance_ClearLinks();
+    Combo_ClearPendingSwitch();
+    Combo_ClearStartupEntrance();
     Combo_ClearGameSwitchRequest();
+    return Entrance_RegisterDefaultLinks();
 }
 
 bool ReadFrozenOoT(void) {
@@ -127,7 +162,7 @@ int RunChecks(PlayState* play) {
     OSFF_ASSERT(gSaveContext.sceneFlags[SCENE_MARKET_DAY].collect == kCollectBit,
                 "the LIVE gSaveContext must carry the flushed bit as well: OoT's suspend-time capture reads the "
                 "live struct, not the blob");
-    ResetEntranceTable();
+    OSFF_ASSERT(ResetEntranceTable(), "the combo entrance table must reset between legs");
     Context_ClearFrozenState(GAME_OOT);
 
     // ---- 2. Hot-swap driver: the same, through the launcher's bridge -------
@@ -162,7 +197,7 @@ int RunChecks(PlayState* play) {
     Combo_CheckEntranceSwitch(OOT_ENTR_HAPPY_MASK_SHOP);
     OSFF_ASSERT(Context_HasFrozenState(GAME_OOT) == 1,
                 "an entrance freeze with no PlayState must not crash and must still record a blob");
-    ResetEntranceTable();
+    OSFF_ASSERT(ResetEntranceTable(), "the combo entrance table must reset between legs");
     Context_ClearFrozenState(GAME_OOT);
 
     return 0;
@@ -178,7 +213,13 @@ extern "C" int OoT_SceneFlagFreeze_RunHeadless(void) {
     // Combo_CheckEntranceSwitch resolves the departing game -- and therefore
     // which entrance table and which blob -- from the current-game tracker.
     Context_SetCurrentGame(GAME_OOT);
-    ResetEntranceTable();
+    if (!ResetEntranceTable()) {
+        // A false return means the link table was not cleared, i.e. these calls
+        // did not reach the combo entrance module. See ResetEntranceTable.
+        printf("[TEST] FAIL: the combo entrance table did not reset (%s:%d)\n", __FILE__, __LINE__);
+        Context_SetCurrentGame(prevGame);
+        return 1;
+    }
 
     // A minimal live PlayState: the flush reads sceneNum and actorCtx.flags and
     // nothing else. calloc'd on the C heap, not OoT's arena.
@@ -199,7 +240,7 @@ extern "C" int OoT_SceneFlagFreeze_RunHeadless(void) {
     memset(&gSaveContext, 0, sizeof(SaveContext));
     Context_ClearAllFrozenStates();
     ComboContext_Init();
-    ResetEntranceTable();
+    (void)ResetEntranceTable();
     Context_SetCurrentGame(prevGame);
 
     if (rc == 0) {
