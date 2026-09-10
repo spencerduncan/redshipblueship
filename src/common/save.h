@@ -92,7 +92,12 @@ typedef enum RsbsRefuseReason {
     // not match the identity frozen at the pair's creation
     // (gComboCtx.mmProfileDigest). Unlike every reason above, the slot FILE is
     // healthy — the running SESSION diverged — so this refusal latches and
-    // surfaces without quarantining anything (see RefuseSlotIdentity).
+    // surfaces without quarantining anything (see RefuseSlotIdentity). The
+    // load-side combo-settings check (ADR 0011 decision 4) refuses under this
+    // reason too, and keeps the same contract for a field-only divergence; only
+    // its DAMAGE case — an unreadable record, or a fingerprint the record does
+    // not produce (Combo_ComboSettingsDivergenceIsDamage) — is evidence and is
+    // quarantined like any other refused file.
     RSBS_REFUSE_IDENTITY,
     // ADR 0010 increment 1.2 (#500): the paired MM world could not be
     // GENERATED at a cross-game arrival — the deterministic attempt ladder

@@ -66,6 +66,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -82,6 +83,10 @@
 namespace {
 
 const char* const kComboSettingsTestDir = "rsbs_test_combo_settings";
+// Its own directory for the load-side leg, because RsbsSave_HasQuarantine
+// reports ANY slotN.redsave*.bak beside the slot and an earlier run's
+// evidence would confound "nothing was quarantined by THIS load".
+const char* const kComboSettingsLoadTestDir = "rsbs_test_combo_settings_load";
 
 /** Give the commit choke point something to stage. StageCommit refuses when the
  *  context shadows are absent, and a Tier-1-only test would otherwise never get
@@ -1046,6 +1051,68 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
         int32_t stored = 0;
         CS_ASSERT(Combo_ComboSettingReadStore(COMBO_SETTING_DIRECTION, &stored) && stored == 9,
                   "resolution reports and falls back; it does not silently repair the store");
+    }
+
+    // ---- (7) A healthy file met by a divergent SESSION is refused at load
+    // WITHOUT being quarantined (RefuseSlotIdentity's contract, save.h) ------
+    //
+    // The case the authorable keys make ordinary: author FORWARD, create,
+    // save; go back to the title screen (the identity drops), pick BOTH; load
+    // the FORWARD file. It must refuse by name and latch — and the .redsave
+    // must still be exactly where it was, because the file is healthy and the
+    // session is what moved. Then set the rule back and the same file loads.
+    // Falsifiable: restore the unconditional QuarantineSlotFile in
+    // SaveManager::LoadSlot's combo branch and the HasSave assertion is red.
+    {
+        for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
+            CS_ASSERT(Combo_ComboSettingClear((ComboSettingId)i) == 1, "clear the leg-6 junk first");
+        }
+        std::error_code ec;
+        std::filesystem::remove_all(kComboSettingsLoadTestDir, ec); // no stale .bak from an earlier run
+        rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
+        mgr.SetSaveDirectory(kComboSettingsLoadTestDir);
+        RsbsSave_ResetSlotSessionState();
+
+        ComboContext_Init();
+        ComboSettingsSeedShadows(0x7Au);
+        CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, (int32_t)RSBS_COMBO_DIR_FORWARD) == 1,
+                  "author FORWARD for the file");
+        ComboSettingsArmPairing(0xA07A0007u, 0x5E77A177u, 0x11FEDC77u);
+        ComboSettingsRecord authored;
+        Combo_ResolveComboSettings(&authored);
+        Combo_FreezeComboSettings(&authored);
+        CS_ASSERT(mgr.Save(0), "Save(0) failed for the session-divergence leg");
+        CS_ASSERT(RsbsSave_HasSave(0) == 1 && RsbsSave_HasQuarantine(0) == 0, "baseline: one file, no quarantine");
+
+        // The session walks away: back at the title screen the identity drops,
+        // authoring resumes, and the player picks BOTH.
+        RsbsSave_ResetSlotSessionState();
+        ComboContext_Init();
+        CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, (int32_t)RSBS_COMBO_DIR_BOTH) == 1,
+                  "authoring resumes once the identity is dropped");
+        CS_ASSERT(!mgr.Load(0),
+                  "loading a FORWARD file under a BOTH session must be REFUSED (ADR 0011 decision 4)");
+        CS_ASSERT(RsbsSave_GetSlotRefuseReason(0) == (int)RSBS_REFUSE_IDENTITY, "refused as RSBS_REFUSE_IDENTITY");
+        CS_ASSERT(RsbsSave_IsSlotWritable(0) == 0, "the slot must be latched against writes (#533)");
+        CS_ASSERT(!Combo_ComboSettingsFrozen(), "a refused load must not commit the record");
+        CS_ASSERT(RsbsSave_HasSave(0) == 1,
+                  "the HEALTHY .redsave was renamed away — a settings change at the title screen must never "
+                  "quarantine a file that is not damaged");
+        CS_ASSERT(RsbsSave_HasQuarantine(0) == 0, "a session divergence must quarantine nothing");
+
+        // Set the rule back: the same file, untouched, loads.
+        RsbsSave_ResetSlotSessionState();
+        ComboContext_Init();
+        CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, (int32_t)RSBS_COMBO_DIR_FORWARD) == 1,
+                  "set the rule back");
+        CS_ASSERT(mgr.Load(0), "with the rule restored the untouched file must load");
+        CS_ASSERT(Combo_ComboSettingsFrozen() && gComboCtx.comboSettings.direction == RSBS_COMBO_DIR_FORWARD,
+                  "the loaded record is the authored one");
+
+        RsbsSave_ResetSlotSessionState();
+        mgr.DeleteSave(0);
+        mgr.SetSaveDirectory(kComboSettingsTestDir);
+        ComboContext_Init();
     }
 
     // ---- Cleanup: leave the process-global store and context clean ---------

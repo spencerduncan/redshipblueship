@@ -94,10 +94,11 @@ const char* RefuseReasonSlug(RsbsRefuseReason reason) {
         case RSBS_REFUSE_COMMIT_SKEW:
             return "commitskew";
         case RSBS_REFUSE_IDENTITY:
-            // Never actually used in a quarantine name today — an identity
-            // refusal leaves the healthy slot file in place (RefuseSlotIdentity
-            // quarantines nothing) — but kept total so a future producer that
-            // does rename gets a truthful tag instead of "unknown".
+            // Used only for the DAMAGE half of the load-side combo identity
+            // check (an unreadable record, or a fingerprint its own record does
+            // not produce). A SESSION divergence — the arrival gate's
+            // RefuseSlotIdentity, and the load path's field-only case — leaves
+            // the healthy slot file in place and never reaches a rename.
             return "identity";
         case RSBS_REFUSE_GENERATION:
             // Same situation as RSBS_REFUSE_IDENTITY: a session refusal that
@@ -708,20 +709,39 @@ RsbsLoadOutcome SaveManager::LoadSlot(int slot, uint32_t ootSavGeneration) {
     // formatVersion == 0 and is EXEMPT — it is repaired by the O5 transitional
     // writer at its first crossing, never refused (refusing would orphan every
     // already-written paired file to detect a divergence that cannot have
-    // happened). So today this can only fire on a record and a fingerprint that
-    // disagree with each other, i.e. genuine damage. It becomes the live guard
-    // the moment increment 2 gives the resolver its tier-4 CVars to read.
+    // happened).
+    //
+    // TWO KINDS OF DIVERGENCE, HANDLED DIFFERENTLY (ADR 0011 increment 2). A
+    // record this build cannot read, or a fingerprint its own record and
+    // half-digests do not produce, is DAMAGE to the stored identity: evidence,
+    // quarantined like every other refused file. A field-only divergence is a
+    // healthy file met by a SESSION that walked away from it — since the tier-4
+    // keys became authorable, the ordinary case: the player changed a rule at
+    // the title screen and then loaded an older paired file. That is
+    // RefuseSlotIdentity's situation exactly (save.h: "the slot FILE is
+    // healthy … without quarantining anything"), and it is handled the same
+    // way — latched, surfaced by name, and the on-disk file left precisely
+    // where it is, because renaming a healthy save away for a settings change
+    // is data loss wearing a refusal's clothes.
     const uint32_t comboDiverged = Combo_ComboSettingsDivergenceFor(
         &combo.comboSettings, combo.comboSettingsHash, combo.sharedRandoSettingsHash, combo.mmProfileDigest);
     if (comboDiverged != 0) {
         char fields[192];
         Combo_ComboSettingsDivergenceDescribe(comboDiverged, fields, sizeof(fields));
-        std::fprintf(stderr,
-                     "[RsbsSave] slot %d REFUSED: COMBO SETTINGS IDENTITY — the cross-game rules this file was "
-                     "created under no longer match this session's: %s. Divergence is corruption to refuse, never "
-                     "a choice to honour. Evidence quarantined; erase the slot to release it.\n",
-                     slot, fields);
-        QuarantineSlotFile(slot, RSBS_REFUSE_IDENTITY);
+        if (Combo_ComboSettingsDivergenceIsDamage(comboDiverged)) {
+            std::fprintf(stderr,
+                         "[RsbsSave] slot %d REFUSED: COMBO SETTINGS IDENTITY — the stored cross-game identity is "
+                         "damaged (%s). Evidence quarantined; erase the slot to release it.\n",
+                         slot, fields);
+            QuarantineSlotFile(slot, RSBS_REFUSE_IDENTITY);
+        } else {
+            std::fprintf(stderr,
+                         "[RsbsSave] slot %d REFUSED: COMBO SETTINGS IDENTITY — the cross-game rules this file was "
+                         "created under do not match this session's: %s. Divergence is corruption to refuse, never "
+                         "a choice to honour. The on-disk .redsave is intact and untouched; set the rules back to "
+                         "match it (or erase the slot) and load again.\n",
+                         slot, fields);
+        }
         mSlotRefused[slot] = RSBS_REFUSE_IDENTITY;
         mSlotArmed[slot] = false;
         return RSBS_LOAD_REFUSED;
