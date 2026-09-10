@@ -118,7 +118,9 @@ namespace {
 // Must match CVAR_AUTOSAVE_NAME in SavingEnhancements.cpp. A drift shows up as
 // the ON leg's armed-state precondition failing, not as a silent pass.
 constexpr const char* kAutosaveCVar = "gEnhancements.Autosave";
-constexpr int kSlot = 3;
+// In range of RSBS_SAVE_MAX_SLOTS (three slots, 0-2). This row owns an
+// isolated save directory, so the number only has to be a real slot.
+constexpr int kSlot = 1;
 
 // Probe byte the ON leg stamps into the live SaveContext and looks for in the
 // reloaded Tier-3. masksGivenOnMoon sits far past sizeof(Save) and no save
