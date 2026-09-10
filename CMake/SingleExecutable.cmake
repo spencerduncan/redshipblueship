@@ -57,6 +57,13 @@ set(REDSHIP_COMMON_SOURCES
     # the paired MM profile snapshots at MM's arrival and is never regenerated
     ${CMAKE_SOURCE_DIR}/src/common/combo_mm_options_view.c
     ${CMAKE_SOURCE_DIR}/src/common/ComboMmOptionsWindow.cpp
+    # The tier-4 combo settings (ADR 0011 increment 2): the five gCombo.Rando.*
+    # keys' authoring surface — the one reader the resolver uses and the one
+    # writer pair that refuses once the record is frozen — and the pane that
+    # renders it. C++ because the CVar store hangs off the Ship::Context
+    # singleton and the read must be guarded on its existence.
+    ${CMAKE_SOURCE_DIR}/src/common/combo_settings_view.cpp
+    ${CMAKE_SOURCE_DIR}/src/common/ComboSettingsWindow.cpp
     ${CMAKE_SOURCE_DIR}/src/common/entrance.cpp
     # Per-game registry of the user mod archives each port mounted (#593), so
     # the base-archive re-add on every cross-game switch can put them back on
@@ -122,6 +129,8 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/ComboTrackerWindow.h
     ${CMAKE_SOURCE_DIR}/src/common/combo_mm_options_view.h
     ${CMAKE_SOURCE_DIR}/src/common/ComboMmOptionsWindow.h
+    ${CMAKE_SOURCE_DIR}/src/common/combo_settings_view.h
+    ${CMAKE_SOURCE_DIR}/src/common/ComboSettingsWindow.h
     ${CMAKE_SOURCE_DIR}/src/common/entrance.h
     # Header for mod_archives.cpp above (#593)
     ${CMAKE_SOURCE_DIR}/src/common/mod_archives.h
@@ -644,6 +653,19 @@ if(BUILD_TESTING)
     redship_add_test(NAME ComboSettingsCanonical COMMAND redship --test combo-settings-canonical)
     redship_add_test(NAME ComboSettingsDivergence COMMAND redship --test combo-settings-divergence)
     redship_add_test(NAME ComboSettingsLegacyFreeze COMMAND redship --test combo-settings-legacy-freeze)
+    # ADR 0011 increment 2: the five tier-4 gCombo.Rando.* keys and the pane.
+    # ComboSettingsAuthoring proves the keys reach the record BEFORE the freeze
+    # (the frozen record is what the player authored), that the defaults still
+    # reproduce the shipped record and its pinned fingerprint byte for byte
+    # (which is why SeedDeterminism / MMRandoGen / HeadlessForeignDigest do not
+    # move), that an out-of-space store value resolves to the default and never
+    # to a new enumerator, and that the writers refuse once frozen — the gate
+    # is on the writers, not the widget (ADR 0004 §6). ComboSettingsWindow is
+    # the common-owned pane's headless lock (ADR 0008). Both need the
+    # display-free shared bring-up (the keys live in the CVar store) and run in
+    # this ROM-free tier.
+    redship_add_test(NAME ComboSettingsAuthoring COMMAND redship --test combo-settings-authoring)
+    redship_add_test(NAME ComboSettingsWindow COMMAND redship --test combo-settings-window)
     redship_add_test(NAME Context COMMAND redship --test context)
     # F10 hot-swap freeze/consume contract (#364): the hotkey path must freeze
     # the DEPARTING game (or refuse the switch), and a consumed frozen state

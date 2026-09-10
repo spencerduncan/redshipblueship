@@ -820,6 +820,23 @@ void SohMenu::AddMenuRandomizer() {
         .Options(WindowButtonOptions()
                      .Tooltip("Toggles the Majora's Mask randomizer options pane (the paired MM world's settings).")
                      .EmbedWindow(false));
+    // Combo settings (ADR 0011 increment 2): the five tier-4 gCombo.Rando.*
+    // keys — direction, per-direction pool sizes, per-direction item classes.
+    // A common-owned window for the same reasons as the MM options pane and one
+    // more: ADR 0004 §6 state 4 names a common-owned window as the host of
+    // every world-identity key, and its enforcement rule needs a src/common
+    // writer to gate, which a SohMenu widget (its own CVar writer) would not
+    // have. This row only OPENS it, which ADR 0008 explicitly leaves to SohMenu.
+    // Constants: ComboGui::kComboSettings* in src/common/ComboSettingsWindow.h.
+    AddWidget(path, "Toggle Combo Settings", WIDGET_WINDOW_BUTTON)
+        .CVar("gCombo.Windows.ComboSettings")
+        .RaceDisable(false)
+        .WindowName("Combo Settings")
+        .HideInSearch(true)
+        .Options(WindowButtonOptions()
+                     .Tooltip("Toggles the combo settings pane (the cross-game rules: direction, pool sizes and "
+                              "item classes — frozen into the paired world's identity at creation).")
+                     .EmbedWindow(false));
     // Spoiler — reveals paired-seed placements, so race-disabled like a spoiler tool.
     AddWidget(path, "Toggle Cross-Game Spoiler", WIDGET_WINDOW_BUTTON)
         .CVar("gCombo.Windows.Spoiler")

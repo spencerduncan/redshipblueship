@@ -3,7 +3,9 @@
 - Status: **Accepted** (2026-08-05) — the operator answered all eight open
   questions the same day, adopting every recommended answer as written (see
   **Accepted answers** below). **O1** and **O3**, both marked blocking, are
-  resolved; increment 1 is clear to carve.
+  resolved; increment 1 is clear to carve. **Amended 2026-09-10**: increment
+  1's eight under-specification resolutions (PR #628, merged 2026-08-06) and
+  increment 2 as landed are recorded under **Amendments** at the end.
 - For: **#498** (combo-level settings: direction, pool size, item classes). Feeds
   **#493** Lane C2 and **#495** (rule-defined item class); Phase 3.1 tracker #492,
   Lane 1.
@@ -681,6 +683,8 @@ behaviour change it cannot lock.
   accessor. Enforcement stays on the writers.
 - Per ADR 0004 §6's scope note, every new key is classified identity-vs-preference
   at introduction; all five above are identity.
+- **Landed 2026-09-10** — see the Amendments section for what shipped and the
+  one load-side consequence it names.
 
 ### Increment 3 — rule-defined classes (#495), both halves
 
@@ -895,3 +899,103 @@ Two adversarial reviews were run against the draft — a one-game-semantics lens
    the conflict must be named rather than absorbed — is accepted in full.
 
 No finding was rejected outright.
+
+---
+
+## Amendments
+
+### 2026-09-10 — Increment 1 as landed: the eight under-specification resolutions recorded in PR #628 (merged 2026-08-06, `c414a6d1`)
+
+Increment 1 shipped as [PR #628](https://github.com/spencerduncan/redshipblueship/pull/628).
+Its body recorded eight points on which this ADR was under-specified and which
+the implementation had to resolve; until now they lived only in that PR body.
+They are folded in here, each dated to the merge (2026-08-06) and stated with
+the anchor it landed at (re-read at `origin/main` = `c8947177` on 2026-09-10).
+None changes a decision; each makes one precise.
+
+| # | Under-specification | Resolution (2026-08-06, PR #628) | Anchor |
+|---|---|---|---|
+| R1 | Decision 1.4 wrote `Hash(…)` without naming the function. | **FNV-1a 32**, the project's hash (`SohUtils::Hash` / `Ship_Hash` compute the same), reimplemented over bytes so the game-header-free C TU can compute it. | `ComboFnv1a`, `src/common/foreign_items.c` |
+| R2 | Decision 1.4 wrote the fold as `canonical ‖ ":" ‖ sharedRandoSettingsHash ‖ ":" ‖ mmProfileDigest` without saying how the two `uint32_t` terms are encoded. | Each is **little-endian, a byte at a time** (`ComboAppendLe32`), the same codec discipline as `canonical()` itself: `canonical(12) ‖ ':' ‖ LE32(sharedRandoSettingsHash) ‖ ':' ‖ LE32(mmProfileDigest)`, 22 bytes in. | `Combo_ComputeComboSettingsHash`, `foreign_items.c` |
+| R3 | "Zero displaces" named the rule but not the constant. | `0x43425348` (`'CBSH'`). | `Combo_ComputeComboSettingsHash` |
+| R4 | Decisions 1.1 and 4.1 promised a field-level diff but not its shape. | `RSBS_COMBO_DIVERGE_*` bits, one per record field, plus **`UNREADABLE`** (a frozen record at a `formatVersion` newer than this build — refuse, never guess) and **`FINGERPRINT`** (the stored hash is not what its own record and half-digests produce — a session-level property, set only by the session diff). Fields compare at the LOWER of the two format versions; an ABSENT record (`formatVersion == 0`) yields 0 — exempt, not passing. `Combo_ComboSettingsDivergenceBetween` / `…For` / `…Divergence`, plus `…FieldName` and `…Describe` for the refusal text. | `foreign_items.h`, `foreign_items.c` |
+| R5 | Decision 4.1 said "refuse through the #533/#568 surface" without saying which refusal kind. | **`RSBS_REFUSE_IDENTITY`** via `RsbsSave_RefuseSlotIdentity`: the slot is latched against writes, **nothing is quarantined** (the file is healthy; the session diverged), a shared-overlay toast names the diverged field(s), and the frozen record is never self-healed. | `MM_Rando_PairOnCrossGameArrival`, `games/mm/2s2h/GameExports_SingleExe.cpp` |
+| R6 | Decision 4 said "compared at every arrival **and load**"; the load half was unspecified. | The same diff runs on the record a `.redsave` load just READ, before those bytes are committed over the resident context, and refuses as `RSBS_REFUSE_IDENTITY`. **As landed it also quarantines** (`QuarantineSlotFile`) — see the increment-2 amendment below for why that is a contract violation the authorable keys arm. | `SaveManager::LoadSlot`, `src/common/save.cpp` |
+| R7 | Decision 4.4 placed the O5 transitional writer "at the same arrival gate that already carries `ResolvePairedProfile`'s transitional stamp" — but that gate has early returns. | The writer sits **ahead of every `hadFrozenState` / `alreadyRando` early return**, because those are all still crossings; otherwise a legacy pair that always restores an existing MM session would never freeze and would stay permanently exempt. On a *doubly*-legacy pair (no combo record **and** no `mmProfileDigest`) the fingerprint is stamped over a zero profile digest, so `ResolvePairedProfile` re-stamps it (`Combo_StampComboSettingsHash`) immediately after freezing the profile — decision 4.1's order restored. | the `Combo_FreezeLegacyComboSettings` call in `MM_Rando_PairOnCrossGameArrival`; `ResolvePairedProfile`, `games/mm/2s2h/Rando/Foreign.cpp` |
+| R8 | Increment 1 said "both passes read direction/pool size from the record"; increment 4 said the direction gate is "deliberately last". | **Pool size effective at increment 1** through `Combo_ComboPoolSizeFor` — clamped to `RSBS_FOREIGN_PLACEMENT_CAP`, with the shipped default as the fallback for an UNFROZEN record (load-bearing: a zero-extended `poolSize == 0` would otherwise generate a paired world with no crossings). **Direction read and reported only**; the gate landed as increment 4 (#632). The item class likewise resolves through `Combo_ComboItemClassFor`, where a FROZEN zero is honoured verbatim (decision 3.3) and only an unfrozen record falls back. | `Combo_ComboPoolSizeFor`, `Combo_ComboItemClassFor`, `foreign_items.c`; the two placement passes |
+
+Two further details the PR fixed and this ADR had left open, recorded for
+completeness: the record's occupancy tag is `RSBS_COMBO_SETTINGS_FORMAT_VERSION`
+(`1u`) and `Combo_FreezeComboSettings` forces it — a caller cannot freeze a
+record that reads as absent; and `comboSettingsHash` is folded into
+`Rando_HeadlessSeedDeterminismDigest` (`3drando/menu.cpp`) alongside the
+record's fields, and **not** into `MixPairedFinalSeed()` (`MMRandoGen` and
+`MMPairedAttemptDeterminism` did not move — the signal decision 1.4 asks for).
+
+### 2026-09-10 — Increment 2 as landed: the tier-4 keys, their classification, the pane, and the load-side consequence
+
+- **The five keys** are `gCombo.Rando.Direction`, `gCombo.Rando.PoolSize.OoT`,
+  `gCombo.Rando.PoolSize.MM`, `gCombo.Rando.ItemClass.OoT` and
+  `gCombo.Rando.ItemClass.MM` (`RSBS_CVAR_COMBO_RANDO_*`,
+  `src/common/cvar_shared_keys.h`). Integer CVars over the pinned spaces:
+  `RSBS_COMBO_DIR_*` (1..4), `1..RSBS_FOREIGN_PLACEMENT_CAP`, and a mask within
+  `RSBS_ITEMCLASS_ALL_V1` (zero legal, decision 3.3). **An out-of-space stored
+  value resolves to the shipped default with a logged reason** — never to a new
+  enumerator, never to a clamp — and the writers refuse it outright, so it can
+  only arrive out-of-band (the console, a hand-edited config).
+- **Classification.** All five are **identity** (ADR 0004 §6's scope note). The
+  classification is a checked-in manifest, `RSBS::kComboKeys`, covering the
+  whole `gCombo.` namespace (the four `gCombo.Windows.*` visibility toggles are
+  classified **preference** in the same table), and the `cvar-classification`
+  lock scans `src/common`, `rsbs`, `games/oot` and `games/mm` for `gCombo.`
+  literals: an unclassified key is a red test naming the key and the file, a
+  manifest row nothing spells is a red test naming the row, and a compile-time
+  assert refuses a `gCombo.Rando.*` row classified anything but identity.
+- **The resolver reads the keys before the freeze.** `Combo_ResolveComboSettings`
+  (`foreign_items.c`) overlays the five authored fields onto the shipped
+  defaults through `Combo_ComboSettingResolved`
+  (`src/common/combo_settings_view.{h,cpp}`); the creation event's existing
+  resolve-then-freeze order (`Playthrough_Init`) makes the frozen record what
+  the player authored. `goal` and `logicRung` stay at their defaults (ADR 0010
+  owns them). With nothing authored the record and its fingerprint are
+  byte-identical to increment 1's (locked by `combo-settings-authoring`), which
+  is why no determinism digest moved.
+- **Why the CVar read lives in a C++ TU.** libultraship's C bridge dereferences
+  `Ship::Context::GetInstance()` unconditionally, and most ROM-free `redship`
+  rows that reach the resolver never bring a context up.
+  `Combo_ComboSettingStoreAvailable()` guards the read; "no store" resolves to
+  the defaults, which is the honest answer in a process with no authoring
+  surface.
+- **The writers are the gate.** `Combo_ComboSettingSet` / `Combo_ComboSettingClear`
+  refuse while `Combo_ComboSettingsFrozen()` is true, refuse out-of-space
+  values, and refuse with no store. The pane is one caller.
+- **The pane is a common-owned window** (`src/common/ComboSettingsWindow.{h,cpp}`,
+  registered as "Combo Settings"), not rows in the interim Cross-Game host, on
+  three grounds: ADR 0004 §6 state 4 names a common-owned window as the host
+  of every world-identity key; ADR 0008 rule 1's ownership test is the data
+  source (`gComboCtx` and CVars, never `gSaveContext`); and ADR 0004 §6's
+  enforcement rule needs a `src/common` writer to gate, which a SohMenu widget
+  — its own CVar writer — would not have. The interim host gains only the
+  `WIDGET_WINDOW_BUTTON` row that opens it, which ADR 0008 explicitly leaves to
+  SohMenu. Post-creation the pane renders state 4: read-only, reason string
+  **"already decided"**, values from `Combo_ComboSettingsSummary()`. It
+  registers from `Combo_MMOptionsWindow_Init` — the two panes are the two
+  halves of one authoring surface, frozen by one creation event — and is
+  idempotent, so `rsbs/src/main.cpp` may also call
+  `Combo_ComboSettingsWindow_Init` directly.
+- **The load-side consequence, named rather than absorbed.** R6 above:
+  `SaveManager::LoadSlot` refuses a field-divergent record as
+  `RSBS_REFUSE_IDENTITY` **and quarantines the file**. While the resolver was
+  constant (increment 1) that branch could only fire on damage — a record and
+  fingerprint that disagree. With the keys authorable it fires whenever a
+  player changes a rule at the title screen and then loads an older paired
+  file: a healthy `.redsave` is renamed to `.refused-identity.bak`. That
+  contradicts `save.h`'s own contract for the reason ("the slot FILE is healthy
+  … this refusal latches and surfaces without quarantining anything") and
+  `RefuseSlotIdentity`'s deliberate non-quarantine at the arrival gate (R5).
+  **The distinction is now expressible**: `Combo_ComboSettingsDivergenceIsDamage(bits)`
+  is true for `UNREADABLE | FINGERPRINT` only, and the load path should
+  quarantine on damage and latch-without-quarantine on a field-only
+  divergence, mirroring `RefuseSlotIdentity`. That one-line change in
+  `save.cpp` is scheduled as increment 2's follow-up rather than absorbed into
+  it, because `save.cpp` was outside the increment's ownership when it landed.

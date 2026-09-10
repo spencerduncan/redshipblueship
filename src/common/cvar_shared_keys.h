@@ -112,6 +112,47 @@
 /* Percent -> linear scale, the expression OoT's own read sites use. */
 #define RSBS_VOLUME_SCALE(percent) ((float)(percent) / 100.0f)
 
+/* ==========================================================================
+ * Tier-4 combo-level keys (ADR 0004 §3 tier 4; ADR 0011 increment 2).
+ *
+ * The `gCombo.` namespace is the combo's own. Keys here describe the PAIR,
+ * belong to neither game's save by construction, and have no upstream
+ * counterpart: ADR 0003 names them "new tier-4 keys, not converged MM keys",
+ * so none of them is a ConvergedKey row and none has a legacy spelling.
+ *
+ * The five `gCombo.Rando.*` keys are WORLD IDENTITY (ADR 0004 §6 state 4):
+ * they author a ComboSettingsRecord up to the creation event and no further.
+ * Combo_ResolveComboSettings (foreign_items.h) is the ONE reader that turns
+ * them into the record, through combo_settings_view.h, which also holds the
+ * ONE writer surface — and that surface refuses once
+ * Combo_ComboSettingsFrozen() is true. Values are the pinned RSBS_COMBO_DIR_*
+ * / 1..RSBS_FOREIGN_PLACEMENT_CAP / RSBS_ITEMCLASS_* spaces; an out-of-space
+ * value in the store resolves to the shipped default with a logged reason,
+ * never to a new enumerator.
+ *
+ * The classification itself lives in RSBS::kComboKeys below, and the
+ * cvar-classification lock scans the whole tree for `gCombo.` literals: a new
+ * key in this namespace that is not classified there is a red build naming
+ * the key and the file, because an unclassified key defaults to identity and
+ * guessing "preference" for an identity key is the failure ADR 0004 §6 state
+ * 4 exists to prevent.
+ * ========================================================================== */
+#define RSBS_CVAR_COMBO_RANDO_DIRECTION "gCombo.Rando.Direction"
+#define RSBS_CVAR_COMBO_RANDO_POOL_SIZE_OOT "gCombo.Rando.PoolSize.OoT"
+#define RSBS_CVAR_COMBO_RANDO_POOL_SIZE_MM "gCombo.Rando.PoolSize.MM"
+#define RSBS_CVAR_COMBO_RANDO_ITEM_CLASS_OOT "gCombo.Rando.ItemClass.OoT"
+#define RSBS_CVAR_COMBO_RANDO_ITEM_CLASS_MM "gCombo.Rando.ItemClass.MM"
+
+/* The common-owned windows' visibility toggles (ADR 0008). PREFERENCE keys:
+ * no identity role, live forever. Spelled here so the tier-4 manifest carries
+ * the whole namespace and not just its identity half; the three older
+ * windows' headers still spell their own literal, which the lock verifies
+ * against this table. */
+#define RSBS_CVAR_COMBO_WINDOW_SPOILER "gCombo.Windows.Spoiler"
+#define RSBS_CVAR_COMBO_WINDOW_MM_OPTIONS "gCombo.Windows.MMOptions"
+#define RSBS_CVAR_COMBO_WINDOW_TRACKER "gCombo.Windows.Tracker"
+#define RSBS_CVAR_COMBO_WINDOW_COMBO_SETTINGS "gCombo.Windows.ComboSettings"
+
 #ifdef __cplusplus
 
 #include <cstddef>
@@ -417,6 +458,85 @@ inline constexpr const char* kMenuIndexKeys[] = {
     "gSettings.Menu.DevToolsSidebarSection",
 };
 
+/**
+ * Tier-4 key classification (ADR 0004 §6's scope note; ADR 0011 increment 2).
+ *
+ * State 4 (frozen-at-creation) "applies to a key when a world built from it
+ * exists — that is, to tier-3 and tier-4 WORLD-IDENTITY keys after creation.
+ * It does NOT apply to preference keys, which have no identity role and stay
+ * live forever. Classifying each key into one bucket or the other is owed by
+ * the same work that ships the freeze — an unclassified key defaults to
+ * identity, because guessing 'preference' for an identity key is the failure
+ * this state exists to prevent."
+ *
+ * So every key in the combo's own `gCombo.` namespace is classified HERE, at
+ * introduction, and the cvar-classification lock scans the tree for the
+ * namespace: a `gCombo.` literal with no row is a red build that names it.
+ */
+enum class ComboKeyClass {
+    /// World identity: authors a frozen record up to the creation event, is
+    /// read-only after it (ADR 0004 §6 state 4), and is folded into the
+    /// identity an arrival or load compares and refuses on.
+    Identity,
+    /// No identity role. Live forever; never frozen, never compared.
+    Preference,
+};
+
+struct ComboKey {
+    const char* key;
+    ComboKeyClass cls;
+    const char* why; ///< What the key authors, or why it is only a preference.
+};
+
+/// The namespace the lock scans. A literal equal to a bare prefix (ending in
+/// '.') is a prefix constant like this one, not a key, and the lock skips it.
+inline constexpr const char* kComboKeyPrefix = "gCombo.";
+/// The identity sub-namespace: every key under it MUST be classified Identity.
+inline constexpr const char* kComboIdentityKeyPrefix = "gCombo.Rando.";
+
+inline constexpr ComboKey kComboKeys[] = {
+    // ---- gCombo.Rando.*: the five authorable fields of ComboSettingsRecord
+    //      (ADR 0011 increment 2). All IDENTITY.
+    { RSBS_CVAR_COMBO_RANDO_DIRECTION, ComboKeyClass::Identity,
+      "ComboSettingsRecord.direction (RSBS_COMBO_DIR_*): which placement passes run" },
+    { RSBS_CVAR_COMBO_RANDO_POOL_SIZE_OOT, ComboKeyClass::Identity,
+      "ComboSettingsRecord.poolSizeOoT: max OoT-origin placements into MM checks" },
+    { RSBS_CVAR_COMBO_RANDO_POOL_SIZE_MM, ComboKeyClass::Identity,
+      "ComboSettingsRecord.poolSizeMM: max MM-origin placements into OoT checks" },
+    { RSBS_CVAR_COMBO_RANDO_ITEM_CLASS_OOT, ComboKeyClass::Identity,
+      "ComboSettingsRecord.itemClassOoT (RSBS_ITEMCLASS_* mask): which OoT item classes may cross" },
+    { RSBS_CVAR_COMBO_RANDO_ITEM_CLASS_MM, ComboKeyClass::Identity,
+      "ComboSettingsRecord.itemClassMM (RSBS_ITEMCLASS_* mask): which MM item classes may cross" },
+    // ---- gCombo.Windows.*: the common-owned windows' visibility (ADR 0008).
+    //      All PREFERENCE: whether a pane is open says nothing about a world.
+    { RSBS_CVAR_COMBO_WINDOW_SPOILER, ComboKeyClass::Preference, "cross-game spoiler window visibility (#496)" },
+    { RSBS_CVAR_COMBO_WINDOW_MM_OPTIONS, ComboKeyClass::Preference, "MM options pane visibility (#497/#499)" },
+    { RSBS_CVAR_COMBO_WINDOW_TRACKER, ComboKeyClass::Preference, "combo tracker window visibility (#458)" },
+    { RSBS_CVAR_COMBO_WINDOW_COMBO_SETTINGS, ComboKeyClass::Preference,
+      "combo settings pane visibility (ADR 0011 increment 2)" },
+};
+
+constexpr bool ComboKeyHasPrefix(const char* key, const char* prefix) {
+    for (std::size_t i = 0; prefix[i] != '\0'; i++) {
+        if (key[i] != prefix[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/// Every key under the identity sub-namespace is classified Identity. A
+/// compile-time twin of the lock's runtime check, so a row added as
+/// Preference by mistake is a red build before it is a red test.
+constexpr bool ComboIdentityKeysAreIdentity() {
+    for (const ComboKey& row : kComboKeys) {
+        if (ComboKeyHasPrefix(row.key, kComboIdentityKeyPrefix) && row.cls != ComboKeyClass::Identity) {
+            return false;
+        }
+    }
+    return true;
+}
+
 inline constexpr std::size_t kConvergedKeyCount = sizeof(kConvergedKeys) / sizeof(kConvergedKeys[0]);
 inline constexpr std::size_t kRetiredKeyPrefixCount = sizeof(kRetiredKeyPrefixes) / sizeof(kRetiredKeyPrefixes[0]);
 inline constexpr std::size_t kMustStayDistinctCount = sizeof(kMustStayDistinct) / sizeof(kMustStayDistinct[0]);
@@ -447,6 +567,15 @@ static_assert(kMenuIndexKeyCount == 4, "four menu-index keys — #451");
 static_assert(kDisputedClassificationKeyCount == 0,
               "no disputed keys — gDeveloperTools.DebugSaveFileMode was resolved to (S) and moved into "
               "kSharedIntentKeys by #454");
+
+inline constexpr std::size_t kComboKeyCount = sizeof(kComboKeys) / sizeof(kComboKeys[0]);
+// Five identity keys (ADR 0011 increment 2) + four window-visibility
+// preferences. Pinning the count makes a silently dropped row a compile error;
+// the lock's tree scan makes a silently ADDED key a red test.
+static_assert(kComboKeyCount == 9, "five gCombo.Rando.* identity keys + four gCombo.Windows.* preferences = 9");
+static_assert(ComboIdentityKeysAreIdentity(),
+              "every gCombo.Rando.* key authors the frozen ComboSettingsRecord and MUST be classified Identity "
+              "(ADR 0004 §6 state 4; ADR 0011 increment 2)");
 
 } // namespace RSBS
 

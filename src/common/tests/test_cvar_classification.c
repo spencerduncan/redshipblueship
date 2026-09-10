@@ -518,6 +518,115 @@ TestResult Test_CVarClassification(void) {
             }
         }
 
+        // (3g) The tier-4 namespace is CLASSIFIED (ADR 0004 §6's scope note;
+        // ADR 0011 increment 2).
+        //
+        // State 4 (frozen-at-creation) applies to world-identity keys and not
+        // to preference keys, and "an unclassified key defaults to identity,
+        // because guessing 'preference' for an identity key is the failure
+        // this state exists to prevent". So every key in the combo's own
+        // namespace must have a row in RSBS::kComboKeys — and the row must be
+        // reachable from the tree, or the manifest classifies a key nothing
+        // spells. Both directions, like the convergence tables above.
+        //
+        // The scan is the whole tree this time (src/common, rsbs, both games),
+        // because the namespace is common-owned and its keys are spelled in
+        // src/common headers and in OoT's interim Cross-Game host alike. A
+        // literal that is a bare prefix (ends in '.') is one of the manifest's
+        // own prefix constants and is skipped.
+        {
+            const std::filesystem::path kComboRoots[] = {
+                sourceRoot / "src" / "common",
+                sourceRoot / "rsbs",
+                sourceRoot / "games" / "oot",
+                sourceRoot / "games" / "mm",
+            };
+            std::vector<CvarClassSourceFile> comboFiles;
+            for (const std::filesystem::path& root : kComboRoots) {
+                bool rootOk = false;
+                std::vector<CvarClassSourceFile> part = CvarClassSlurpTreeWithPaths(root, rootOk);
+                CVARCLASS_CHECK(rootOk && !part.empty(),
+                                "could not scan a tree for the tier-4 namespace — the scan would be vacuous");
+                for (CvarClassSourceFile& f : part) {
+                    comboFiles.push_back(std::move(f));
+                }
+            }
+
+            const std::string needle = std::string("\"") + RSBS::kComboKeyPrefix;
+            bool seen[RSBS::kComboKeyCount] = {};
+            std::size_t literalsSeen = 0;
+            for (const CvarClassSourceFile& f : comboFiles) {
+                std::size_t pos = 0;
+                while ((pos = f.text.find(needle, pos)) != std::string::npos) {
+                    const std::size_t start = pos + 1;
+                    const std::size_t end = f.text.find('"', start);
+                    if (end == std::string::npos) {
+                        break;
+                    }
+                    const std::string key = f.text.substr(start, end - start);
+                    pos = end + 1;
+                    if (key.empty() || key.back() == '.') {
+                        continue; // a prefix constant, not a key
+                    }
+                    if (key.find_first_not_of("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.") !=
+                        std::string::npos) {
+                        // Prose inside a quoted comment (a wildcard, a space),
+                        // not a key: a CVar key spells only [A-Za-z0-9_.].
+                        continue;
+                    }
+                    literalsSeen++;
+                    bool classified = false;
+                    for (std::size_t k = 0; k < RSBS::kComboKeyCount; k++) {
+                        if (key == RSBS::kComboKeys[k].key) {
+                            seen[k] = true;
+                            classified = true;
+                            break;
+                        }
+                    }
+                    if (!classified) {
+                        printf("[TEST] FAIL: %s spells the tier-4 key \"%s\", which is NOT classified.\n"
+                               "[TEST]       Every key in the combo's own namespace is world identity or preference\n"
+                               "[TEST]       (ADR 0004 §6 state 4), decided at introduction. Add a row to\n"
+                               "[TEST]       RSBS::kComboKeys in src/common/cvar_shared_keys.h saying which, and why.\n"
+                               "[TEST]       An unclassified key defaults to identity; do not guess 'preference'.\n",
+                               f.relPath.c_str(), key.c_str());
+                        return TEST_FAIL;
+                    }
+                }
+            }
+            CVARCLASS_CHECK(literalsSeen > 0, "no tier-4 literal anywhere in the tree — the namespace scan is vacuous");
+            for (std::size_t k = 0; k < RSBS::kComboKeyCount; k++) {
+                if (!seen[k]) {
+                    printf("[TEST] FAIL: RSBS::kComboKeys classifies \"%s\" but nothing in the tree spells it.\n"
+                           "[TEST]       A manifest row nothing reads is a classification of nothing — check the\n"
+                           "[TEST]       spelling, or retire the row with the key.\n",
+                           RSBS::kComboKeys[k].key);
+                    return TEST_FAIL;
+                }
+            }
+
+            // The identity rule, at runtime as well as at compile time
+            // (cvar_shared_keys.h static_asserts it): every key under the
+            // identity sub-namespace is Identity, and there are exactly the
+            // five ADR 0011 increment 2 introduced.
+            std::size_t identityKeys = 0;
+            for (std::size_t k = 0; k < RSBS::kComboKeyCount; k++) {
+                if (strncmp(RSBS::kComboKeys[k].key, RSBS::kComboIdentityKeyPrefix,
+                            strlen(RSBS::kComboIdentityKeyPrefix)) == 0) {
+                    CVARCLASS_CHECK(RSBS::kComboKeys[k].cls == RSBS::ComboKeyClass::Identity,
+                                    "a key under the identity sub-namespace is classified as a preference — it "
+                                    "authors the frozen ComboSettingsRecord and must be Identity");
+                    identityKeys++;
+                }
+            }
+            CVARCLASS_CHECK(identityKeys == 5,
+                            "exactly five tier-4 identity keys (direction, two pool sizes, two item classes — "
+                            "ADR 0011 increment 2)");
+            printf("[TEST]   tier-4 namespace: %zu literal(s) across %zu files, all %zu manifest rows spelled, "
+                   "%zu identity\n",
+                   literalsSeen, comboFiles.size(), RSBS::kComboKeyCount, identityKeys);
+        }
+
         printf("[TEST]   scanned %zu MM + %zu OoT source files\n", mmTree.size(), ootTree.size());
     }
 #else
