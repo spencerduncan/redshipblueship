@@ -920,7 +920,7 @@ None changes a decision; each makes one precise.
 | R3 | "Zero displaces" named the rule but not the constant. | `0x43425348` (`'CBSH'`). | `Combo_ComputeComboSettingsHash` |
 | R4 | Decisions 1.1 and 4.1 promised a field-level diff but not its shape. | `RSBS_COMBO_DIVERGE_*` bits, one per record field, plus **`UNREADABLE`** (a frozen record at a `formatVersion` newer than this build — refuse, never guess) and **`FINGERPRINT`** (the stored hash is not what its own record and half-digests produce — a session-level property, set only by the session diff). Fields compare at the LOWER of the two format versions; an ABSENT record (`formatVersion == 0`) yields 0 — exempt, not passing. `Combo_ComboSettingsDivergenceBetween` / `…For` / `…Divergence`, plus `…FieldName` and `…Describe` for the refusal text. | `foreign_items.h`, `foreign_items.c` |
 | R5 | Decision 4.1 said "refuse through the #533/#568 surface" without saying which refusal kind. | **`RSBS_REFUSE_IDENTITY`** via `RsbsSave_RefuseSlotIdentity`: the slot is latched against writes, **nothing is quarantined** (the file is healthy; the session diverged), a shared-overlay toast names the diverged field(s), and the frozen record is never self-healed. | `MM_Rando_PairOnCrossGameArrival`, `games/mm/2s2h/GameExports_SingleExe.cpp` |
-| R6 | Decision 4 said "compared at every arrival **and load**"; the load half was unspecified. | The same diff runs on the record a `.redsave` load just READ, before those bytes are committed over the resident context, and refuses as `RSBS_REFUSE_IDENTITY`. **As landed it also quarantines** (`QuarantineSlotFile`) — see the increment-2 amendment below for why that is a contract violation the authorable keys arm. | `SaveManager::LoadSlot`, `src/common/save.cpp` |
+| R6 | Decision 4 said "compared at every arrival **and load**"; the load half was unspecified. | The same diff runs on the record a `.redsave` load just READ, before those bytes are committed over the resident context, and refuses as `RSBS_REFUSE_IDENTITY`. **As landed it also quarantined** (`QuarantineSlotFile`) on every divergence — corrected with increment 2; see the amendment below. | `SaveManager::LoadSlot`, `src/common/save.cpp` |
 | R7 | Decision 4.4 placed the O5 transitional writer "at the same arrival gate that already carries `ResolvePairedProfile`'s transitional stamp" — but that gate has early returns. | The writer sits **ahead of every `hadFrozenState` / `alreadyRando` early return**, because those are all still crossings; otherwise a legacy pair that always restores an existing MM session would never freeze and would stay permanently exempt. On a *doubly*-legacy pair (no combo record **and** no `mmProfileDigest`) the fingerprint is stamped over a zero profile digest, so `ResolvePairedProfile` re-stamps it (`Combo_StampComboSettingsHash`) immediately after freezing the profile — decision 4.1's order restored. | the `Combo_FreezeLegacyComboSettings` call in `MM_Rando_PairOnCrossGameArrival`; `ResolvePairedProfile`, `games/mm/2s2h/Rando/Foreign.cpp` |
 | R8 | Increment 1 said "both passes read direction/pool size from the record"; increment 4 said the direction gate is "deliberately last". | **Pool size effective at increment 1** through `Combo_ComboPoolSizeFor` — clamped to `RSBS_FOREIGN_PLACEMENT_CAP`, with the shipped default as the fallback for an UNFROZEN record (load-bearing: a zero-extended `poolSize == 0` would otherwise generate a paired world with no crossings). **Direction read and reported only**; the gate landed as increment 4 (#632). The item class likewise resolves through `Combo_ComboItemClassFor`, where a FROZEN zero is honoured verbatim (decision 3.3) and only an unfrozen record falls back. | `Combo_ComboPoolSizeFor`, `Combo_ComboItemClassFor`, `foreign_items.c`; the two placement passes |
 
@@ -993,9 +993,11 @@ record's fields, and **not** into `MixPairedFinalSeed()` (`MMRandoGen` and
   contradicts `save.h`'s own contract for the reason ("the slot FILE is healthy
   … this refusal latches and surfaces without quarantining anything") and
   `RefuseSlotIdentity`'s deliberate non-quarantine at the arrival gate (R5).
-  **The distinction is now expressible**: `Combo_ComboSettingsDivergenceIsDamage(bits)`
-  is true for `UNREADABLE | FINGERPRINT` only, and the load path should
-  quarantine on damage and latch-without-quarantine on a field-only
-  divergence, mirroring `RefuseSlotIdentity`. That one-line change in
-  `save.cpp` is scheduled as increment 2's follow-up rather than absorbed into
-  it, because `save.cpp` was outside the increment's ownership when it landed.
+  **Corrected with increment 2**: `Combo_ComboSettingsDivergenceIsDamage(bits)`
+  is true for `UNREADABLE | FINGERPRINT` only, and `LoadSlot`'s combo branch
+  now quarantines on damage and latches-without-quarantine on a field-only
+  divergence, mirroring `RefuseSlotIdentity` — surfaced by name, the file left
+  where it is, and the same file loading once the rules are set back (locked
+  by `combo-settings-authoring` leg 7). `save.cpp` was outside the lane's named
+  ownership and no wave card claimed it, so the correction is its own commit,
+  droppable independently of the keys and the pane.
