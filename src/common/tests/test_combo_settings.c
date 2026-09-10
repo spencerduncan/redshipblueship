@@ -1090,8 +1090,7 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
         ComboContext_Init();
         CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, (int32_t)RSBS_COMBO_DIR_BOTH) == 1,
                   "authoring resumes once the identity is dropped");
-        CS_ASSERT(!mgr.Load(0),
-                  "loading a FORWARD file under a BOTH session must be REFUSED (ADR 0011 decision 4)");
+        CS_ASSERT(!mgr.Load(0), "loading a FORWARD file under a BOTH session must be REFUSED (ADR 0011 decision 4)");
         CS_ASSERT(RsbsSave_GetSlotRefuseReason(0) == (int)RSBS_REFUSE_IDENTITY, "refused as RSBS_REFUSE_IDENTITY");
         CS_ASSERT(RsbsSave_IsSlotWritable(0) == 0, "the slot must be latched against writes (#533)");
         CS_ASSERT(!Combo_ComboSettingsFrozen(), "a refused load must not commit the record");
