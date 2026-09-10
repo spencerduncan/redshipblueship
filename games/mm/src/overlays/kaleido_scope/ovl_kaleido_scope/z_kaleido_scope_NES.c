@@ -4053,7 +4053,11 @@ void MM_KaleidoScope_Update(PlayState* play) {
                         // The callee also revives the dead health bar before
                         // requesting the switch -- see MM_Combo_GameOverExitToOoT
                         // (games/mm/2s2h/GameExports_SingleExe.cpp), which is why
-                        // this is not the owl guard. Returns 0 for a standalone
+                        // this is not the owl guard -- and, under ADR 0009
+                        // decision 4b, treats the exit as an autosave point iff
+                        // the Autosave enhancement is on (whole-file commit
+                        // after the revive, interval clock reset); with it off
+                        // nothing is written here. Returns 0 for a standalone
                         // MM session, keeping vanilla 2ship behavior.
                         if (!MM_Combo_GameOverExitToOoT()) {
                             STOP_GAMESTATE(&play->state);

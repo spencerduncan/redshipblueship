@@ -341,6 +341,55 @@ void RegisterSavingEnhancements() {
     S2H::GameHooks::Register<GameInteractor::OnSaveLoad>(loadRespawnData);
 }
 
+/**
+ * ADR 0009 decision 4b: is the Autosave enhancement ON, as its own registrar
+ * last saw it?
+ *
+ * This is the registered image of the CVAR_AUTOSAVE_NAME CVar, not a fresh
+ * read of it, and that is deliberate on two counts. First, it is the exact
+ * state MM's periodic autosave fires on: HandleAutoSave runs only through the
+ * OnGameStateUpdate registrant RegisterAutosave installs when the CVar is on,
+ * and #614 keeps that registration in lockstep with the CVar by re-running
+ * RegisterAutosave from the unified menu's ShipInit driver on every toggle. An
+ * out-of-band autosave point that consulted anything else could disagree with
+ * the periodic one about whether autosave is on. Second, the caller is a
+ * game-over EXIT reached in a state the ROM-free locks drive without a
+ * Ship::Context, and CVarGetInteger dereferences that singleton unconditionally
+ * (libultraship consolevariablebridge.cpp); the registrar's own field answers
+ * without one.
+ */
+extern "C" bool SavingEnhancements_AutosaveArmed() {
+    return autosaveGameStateUpdateHookId != 0;
+}
+
+/**
+ * ADR 0009 decision 4b: restart the periodic autosave's interval clock, exactly
+ * as HandleAutoSave does after a save it performed itself.
+ *
+ * Called by an autosave point that lives OUTSIDE HandleAutoSave -- the
+ * cross-game death-decline exit -- after its commit has actually landed. The
+ * ruling names the reset explicitly: an autosave point that left the clock
+ * running would let the periodic save fire again seconds after the exit's own
+ * commit, for no new state. Only the timestamp is reset, not iconTimer: MM's
+ * graph loop breaks on the next Combo_CheckHotSwap, so the confirmation icon
+ * would not be drawn now and would instead surface, stale, on the NEXT arrival
+ * into MM.
+ */
+extern "C" void SavingEnhancements_ResetAutosaveInterval() {
+    lastSaveTimestamp = GetUnixTimestamp();
+}
+
+/**
+ * The interval clock's current value: Unix milliseconds of the last autosave
+ * (periodic or out-of-band), or of process start if none has happened. Read
+ * side of SavingEnhancements_ResetAutosaveInterval, so the
+ * mm-death-decline-autosave lock can observe the reset -- and its absence --
+ * rather than infer them.
+ */
+extern "C" uint64_t SavingEnhancements_GetLastAutosaveTimestamp() {
+    return lastSaveTimestamp;
+}
+
 void RegisterAutosave() {
     // #442: S2H::GameHooks, not the raw GameInteractor::Instance-> surface (see
     // UnregisterEntranceCutsceneSkip above for why).

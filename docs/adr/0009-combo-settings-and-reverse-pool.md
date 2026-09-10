@@ -4,7 +4,9 @@
   under the one-game-semantics ruling; **the `reserved[]` byte budget amended
   2026-08-04** under the #584 operator ruling; **decision 4 added 2026-08-04**
   (#589, whole-file commit) and **decision 4a decided 2026-08-05** (#589,
-  quit-to-title is a durable commit) under the one-game ruling
+  quit-to-title is a durable commit) under the one-game ruling; **decision 4b
+  decided 2026-09-06, recorded 2026-09-10** (#590/#625, MM's death-decline
+  exit is an autosave point iff Autosave is on)
 - For: #498 (combo-level settings), gating #493 (MM -> OoT foreign items); Phase
   3.1 tracker #492, Lane 1
 - Amended: **2026-07-30, #564** (the one-game ruling is recorded on
@@ -37,6 +39,13 @@
   autosave-on-quit, not a side effect. **Carves no Tier-1 bytes**, so the #584
   budget amendment above is untouched by it: the authority signal decision 4
   adds is `rsbs::SaveManager` session state, not a `ComboContext` field.
+  **Decision 4b (ruled 2026-09-06, recorded 2026-09-10, #590/PR #625)**
+  closes the one sub-question 4a did not reach: MM's game-over "don't
+  continue" exit, which after #625 is a switch rather than a quit, is an
+  autosave point if and only if the MM Autosave enhancement is on — a
+  whole-file commit after the revive, with the enhancement's own interval
+  clock reset — and writes nothing at the death moment with it off. Also
+  carves no bytes.
 - Depends on:
   - **[ADR 0002](0002-origin-tagged-shared-items.md)** (Accepted) — the origin-tag
     invariant and the `ComboContext` growth contract every carve below obeys.
@@ -476,6 +485,108 @@ choke point, it respects the #533/#568 write latch, and it must never commit a
 half. Anyone touching that hook (the #606 lane's region) is changing a *save*,
 not a teardown.
 
+### Decision 4b — MM's death-decline exit is an AUTOSAVE POINT iff Autosave is on (decided, not a consequence)
+
+> **2026-09-06, operator ruling on the sub-question PR #625 recorded for
+> [#590](https://github.com/spencerduncan/redshipblueship/issues/590); written
+> down 2026-09-10.** *When the player declines the "continue?" prompt on MM's
+> game-over screen and exits, that exit is an AUTOSAVE point if and only if the
+> MM Autosave enhancement is on: a whole-file commit through the #569 choke
+> point, taken AFTER the #625 revive so the committed health bar is resumable,
+> and it resets the autosave timer. With Autosave off it writes NOTHING at the
+> death moment, vanilla-style: the revived MM half rides in RAM until OoT's
+> next commit (the behaviour PR #625 shipped). This is explicitly NOT a
+> rollback of MM's half; an independent half-rollback is the #531 loss
+> mechanism.*
+
+**The question.** #590 was the death-path twin of #532: the game-over
+"don't continue" leg in `z_kaleido_scope_NES.c` entered MM's TitleSetup, which
+authored a vanilla bootstrap over the live cross-game session for OoT's next
+whole-file commit to write into Tier-3. PR #625 closed it by turning the leg
+into a launcher switch (`MM_Combo_GameOverExitToOoT`) that also *revives* the
+dead bar — because a switch freezes `gSaveContext` verbatim, a frozen
+`health == 0` is durable under decision 4, and the next arrival would re-enter
+the game-over it just left. #625 deliberately committed nothing at the seam and
+put one question to the operator: should declining be a COMMIT point?
+
+Decision 4a did not answer it. 4a's subject is a *quit*: quit-to-title is
+terminal, nothing after it can carry the state, so it commits. After #625 the
+decline is not a quit — the OoT session is still live behind the player, and
+the revived half already reaches durability through seams that exist: the
+launcher freeze publishes it into MM's shadow, and OoT's next commit
+(autosave, save point, or the `OnExitGame` quit that *is* a 4a commit) carries
+it as MM's half of one whole-file generation. Committing at the seam would
+therefore not create durability; it would decide *when* the revived half
+becomes durable — and, because MM's commit body harvests, that dying and
+declining fires the shared-resource harvest. That is a semantics call, which
+is why #625 recorded it rather than made it.
+
+**The decision.** The seam is an autosave point if and only if MM's Autosave
+enhancement is on.
+
+*Autosave on.* After the revive, and before the switch request, the exit
+commits the whole file through the #569 choke point and resets the
+enhancement's interval clock. The body is `MM_Combo_CaptureSaveToUnifiedSlot`
+— the same funnel every MM save route reaches through
+`Sram_ComboCommitUnifiedSave` — not a bare `RsbsSave_Save`: `StageCommit`
+serializes the *shadows*, and MM's shadow at that instant is whatever the last
+crossing left there; the capture is what refreshes it from the live, revived
+`gSaveContext` on the game thread before staging. The clock reset reuses the
+enhancement's own `lastSaveTimestamp` (`SavingEnhancements_ResetAutosaveInterval`),
+so the periodic save does not fire again seconds later for no new state.
+
+*Autosave off.* Nothing is written at the death moment. The revived half rides
+in RAM until OoT's next commit — #625's shipped behaviour, now chosen rather
+than deferred. This is the vanilla-style answer: a player who turned Autosave
+off has asked that state become durable only when they save.
+
+**Why the enhancement is the switch.** "How often does state become durable
+without the player asking for it" is exactly the question the Autosave
+enhancement already answers for MM's periodic save, and the unified menu keeps
+it in lockstep for both halves (#539/#614). Tying the death-decline commit to
+the same switch keeps one player-facing setting meaning one thing. The gate
+reads the enhancement's *armed* state — the registered image of the CVar that
+`HandleAutoSave` itself fires on — rather than re-reading the CVar, so the two
+autosave points cannot disagree about whether autosave is on.
+
+**Why after the revive.** The commit serializes the live `gSaveContext`; a
+commit taken before the revive would durably record `health == 0`, which is
+the #625 corruption the revive exists to prevent, now with a generation stamp
+that makes it authoritative on the next load. Ordering is the entire
+guarantee, and the lock asserts it on the reloaded Tier-3 rather than on the
+live struct.
+
+**Why it is NOT a rollback — considered and rejected.** Vanilla's decline
+reloads the last save, so "declining reverts MM's half to its last commit" has
+surface plausibility. It is rejected outright: vanilla's reload is a
+*whole-world* reload, and the combo has no whole-world reload at a decline
+because OoT's half is live. Rolling MM's half back on its own while Tier-1's
+`RSBS_SHARED_ITEM_REDEEMED` records and OoT's world march on is precisely the
+#531 loss mechanism decision 4 retired — a record outliving the world it
+accounts for. Under decision 4 the halves are tiers of one commit; the only
+degree of freedom at a decline is *when* the live half commits, never *which*
+half.
+
+**Boundaries.** Gated on `gameMode` (`Combo_SaveIsLiveFile`), not `fileNum`:
+a cross-game MM session runs pinned to the `0xFF` sentinel for its whole life,
+while a death under `GAMEMODE_TITLE_SCREEN` — MM plays real frames there, and
+a force-boot never leaves it — has the bootstrap file resident, and committing
+it would write a vanilla bootstrap into the player's slot by one more route.
+Behind the same cross-game gate as the owl exit (`Context_HasFrozenState(GAME_OOT)`),
+so standalone 2ship keeps its title-screen exit and its save untouched. The
+F10-during-game-over route ([#626](https://github.com/spencerduncan/redshipblueship/issues/626))
+bypasses this leg entirely and is not decided here.
+
+**What this obliges.** The death-decline exit is now a save route when Autosave
+is on, so it inherits the rules of one: it commits through the #569 choke
+point, it respects the #533/#568 write latch — and a refused commit is *not*
+an autosave: no file, no clock reset, and (#591) no shared-resource pool
+movement — and it never commits a half. Anyone touching
+`MM_Combo_GameOverExitToOoT` after the revive is changing a *save*. Lock:
+`mm-death-decline-autosave` (`games/mm/2s2h/mm_death_decline_autosave_test.cpp`,
+CTest label `redship`), which drives the real exit both ways and asserts the
+committed Tier-3 carries the revived bar.
+
 ---
 
 ## The `reserved[264]` byte budget
@@ -729,3 +840,20 @@ Added by the 2026-08-05 amendment (ADR 0011 increment 1):
   is deliberately NOT widened with it — ADR 0011 decision 1.4 forbids it,
   because folding an identity term into the SEED derivation would re-derive
   every already-generated paired world.
+
+Added by decision 4b (ruled 2026-09-06, recorded 2026-09-10):
+
+- **`MM_Combo_GameOverExitToOoT` is a save route whenever Autosave is on.**
+  It commits through the #569 choke point via `MM_Combo_CaptureSaveToUnifiedSlot`,
+  respects the #533/#568 latch (a refused commit is not an autosave: no file,
+  no clock reset, no pool movement), and gates on `gameMode`, never `fileNum`.
+- **The Autosave enhancement gains two out-of-band entry points**
+  (`SavingEnhancements_AutosaveArmed`, `SavingEnhancements_ResetAutosaveInterval`)
+  so a second autosave point shares the periodic one's armed state and clock
+  rather than inventing its own. A future autosave point must go through them
+  too; two clocks would re-open the "fires again seconds later" hole the
+  reset exists to close.
+- **Decision 4a's boundary is sharpened, not moved.** 4a commits because a
+  quit is terminal; 4b does not inherit that rule for a switch. Any future
+  MM exit that is a *switch* rather than a quit follows 4b's shape (durable
+  only through an autosave point or a later commit), not 4a's.
