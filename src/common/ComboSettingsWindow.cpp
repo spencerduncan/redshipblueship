@@ -11,6 +11,7 @@
 
 #include "ComboSettingsWindow.h"
 
+#include <cctype>
 #include <cstdio>
 
 #include <imgui.h>
@@ -28,20 +29,37 @@ namespace ComboGui {
 
 namespace {
 
-// THE REASON STRING for ADR 0004 §6 state 4. "Already decided", and not a
-// capability reason: a capability gate says "not yet available", a freeze says
-// "already chosen", and a player who reads the wrong one goes looking for a
-// bug in the wrong place.
-const char* const kDecidedReason = "already decided";
-
 const ImVec4 kWarnColor(0.98f, 0.76f, 0.24f, 1.0f);
 const ImVec4 kDecidedColor(0.55f, 0.78f, 0.98f, 1.0f);
+
+// THE REASON STRING for ADR 0004 §6 state 4 comes from the MODEL
+// (Combo_ComboSettingReadOnlyReason, combo_settings_view.h) and is not spelled
+// here: it is "already decided" and not a capability reason -- a capability
+// gate says "not yet available", a freeze says "already chosen", and a player
+// who reads the wrong one goes looking for a bug in the wrong place. Owning it
+// model-side is what makes that requirement assertable (combo-settings-
+// authoring locks the string and both of its states); a literal held only by
+// the renderer could only be verified by looking at the window.
 
 /** The inline tag every read-only row carries beside its widget (ADR 0004 §5:
  *  the cause must be legible without hovering). */
 void DecidedTag() {
+    const char* reason = Combo_ComboSettingReadOnlyReason();
     ImGui::SameLine();
-    ImGui::TextDisabled("- %s", kDecidedReason);
+    ImGui::TextDisabled("- %s", reason != nullptr ? reason : "");
+}
+
+/** The state-4 heading: the same model string, sentence-cased. One spelling of
+ *  the reason, in one place, however it is presented. */
+void DecidedHeading() {
+    const char* reason = Combo_ComboSettingReadOnlyReason();
+    if (reason == nullptr || reason[0] == '\0') {
+        return;
+    }
+    char heading[64];
+    snprintf(heading, sizeof(heading), "%s", reason);
+    heading[0] = (char)toupper((unsigned char)heading[0]);
+    ImGui::TextColored(kDecidedColor, "%s", heading);
 }
 
 /** The pairing header: which world these rules describe, if any. */
@@ -86,7 +104,7 @@ void DrawPairingSummary(const ComboSettingsSummary& summary) {
  * wearing a help string.
  */
 void DrawDecidedBanner(const ComboSettingsSummary& summary) {
-    ImGui::TextColored(kDecidedColor, "Already decided");
+    DecidedHeading();
     ImGui::TextWrapped("This paired world's cross-game rules were frozen into its identity when the world was "
                        "created. The values below are read from the save, not from the settings store, and are "
                        "shown read-only; changing them is no longer possible for this pair. To play under different "

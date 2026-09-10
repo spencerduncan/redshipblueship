@@ -978,11 +978,17 @@ record's fields, and **not** into `MixPairedFinalSeed()` (`MMRandoGen` and
   — its own CVar writer — would not have. The interim host gains only the
   `WIDGET_WINDOW_BUTTON` row that opens it, which ADR 0008 explicitly leaves to
   SohMenu. Post-creation the pane renders state 4: read-only, reason string
-  **"already decided"**, values from `Combo_ComboSettingsSummary()`. It
-  registers from `Combo_MMOptionsWindow_Init` — the two panes are the two
-  halves of one authoring surface, frozen by one creation event — and is
-  idempotent, so `rsbs/src/main.cpp` may also call
-  `Combo_ComboSettingsWindow_Init` directly.
+  **"already decided"**, values from `Combo_ComboSettingsSummary()`. **That
+  reason string belongs to the MODEL, not to the renderer**
+  (`Combo_ComboSettingReadOnlyReason`, NULL while editable) — the same place
+  `ComboMMOptionDesc::disabledReason` lives, and for the same reason: no
+  headless row can read pixels, so a literal held only by the window would
+  leave "and not a capability reason" unassertable.
+  `combo-settings-authoring` locks the string and both of its states. The pane
+  registers from `rsbs/src/main.cpp` beside the three sibling common-owned
+  windows, and also from `Combo_MMOptionsWindow_Init` — the two panes are the
+  two halves of one authoring surface, frozen by one creation event — which is
+  safe because registration is idempotent (the #457 `GetGuiWindow` guard).
 - **The load-side consequence, named rather than absorbed.** R6 above:
   `SaveManager::LoadSlot` refuses a field-divergent record as
   `RSBS_REFUSE_IDENTITY` **and quarantines the file**. While the resolver was

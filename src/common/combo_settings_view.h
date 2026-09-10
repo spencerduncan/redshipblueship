@@ -158,6 +158,20 @@ int Combo_ComboSettingClear(ComboSettingId id);
  *  store is unavailable. */
 bool Combo_ComboSettingIsExplicit(ComboSettingId id);
 
+/**
+ * THE REASON the rows are read-only, or NULL while they are editable -- ADR
+ * 0004 §6 state 4's reason string, owned by the MODEL rather than by the
+ * widget for the same reason ComboMMOptionDesc::disabledReason is: a string
+ * only the renderer holds cannot be asserted, and this one carries a
+ * requirement. It is "already decided" and deliberately NOT a capability
+ * reason ("not yet available"): a capability gate says the feature is missing
+ * and sends a player looking for a bug, while a freeze says the choice was
+ * already made. Tracks Combo_ComboSettingsFrozen() exactly, so the pane's
+ * greying and the writers' refusal cannot disagree about which state they are
+ * in.
+ */
+const char* Combo_ComboSettingReadOnlyReason(void);
+
 /** A short name for an RSBS_COMBO_DIR_* value ("off", "forward", "reverse",
  *  "both"); "(unknown)" otherwise. Never NULL. */
 const char* Combo_ComboDirectionName(uint8_t direction);

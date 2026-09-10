@@ -216,6 +216,14 @@ bool Combo_ComboSettingIsExplicit(ComboSettingId id) {
     return Combo_CVarIsExplicitInt(kComboSettingDescs[id].key);
 }
 
+const char* Combo_ComboSettingReadOnlyReason(void) {
+    // The SAME predicate the writers gate on, so a pane drawn from this string
+    // and a write refused by Combo_ComboSettingSet can never disagree. NULL
+    // while editable, because "no reason" and "an empty reason" are different
+    // facts and only one of them is renderable.
+    return Combo_ComboSettingsFrozen() ? "already decided" : NULL;
+}
+
 const char* Combo_ComboDirectionName(uint8_t direction) {
     switch (direction) {
         case (uint8_t)RSBS_COMBO_DIR_OFF:

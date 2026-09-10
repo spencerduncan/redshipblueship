@@ -804,6 +804,8 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
         CS_ASSERT(Combo_ComboSettingClear(id) == 1, "clear must succeed while nothing is frozen");
         CS_ASSERT(!Combo_ComboSettingIsExplicit(id), "a cleared key must read as unset");
     }
+    CS_ASSERT(Combo_ComboSettingReadOnlyReason() == NULL,
+              "nothing is frozen, so there is no read-only reason: the pane must draw these editable");
 
     // ---- (1) Nothing authored => the shipped record, byte for byte, and its
     // pinned fingerprint. This is the acceptance bar the whole increment is
@@ -972,6 +974,21 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
             CS_ASSERT(Combo_ComboSettingClear(id) == 0, "every key's clear must refuse while frozen");
         }
 
+        // ADR 0004 §6 state 4's REASON STRING, which the pane renders and this
+        // owns: "already decided", not a capability reason. A capability gate
+        // ("not yet available") sends the player looking for a missing feature;
+        // a freeze tells them the choice was made and is a different fact.
+        // Locked here rather than in the window test because no headless row
+        // can read pixels, and a string only the renderer holds is unassertable.
+        {
+            const char* reason = Combo_ComboSettingReadOnlyReason();
+            CS_ASSERT(reason != NULL, "a frozen record must give the pane a read-only reason to show");
+            CS_ASSERT(strcmp(reason, "already decided") == 0,
+                      "state 4's reason string is 'already decided' (ADR 0011 increment 2)");
+            CS_ASSERT(strstr(reason, "not yet") == NULL && strstr(reason, "navailable") == NULL,
+                      "state 4's reason must NOT be a capability reason — nothing is unavailable, it was chosen");
+        }
+
         // The pane's read surface post-creation: values FROM THE SAVE.
         ComboSettingsSummary summary;
         Combo_ComboSettingsSummary(&summary);
@@ -1012,6 +1029,8 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
     // ---- (5) The identity dropped (title screen) => authoring resumes ------
     ComboContext_Init();
     CS_ASSERT(!Combo_ComboSettingsFrozen(), "ComboContext_Init must drop the frozen record");
+    CS_ASSERT(Combo_ComboSettingReadOnlyReason() == NULL,
+              "dropping the identity must drop the read-only reason with it — the pane goes editable again");
     CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, (int32_t)RSBS_COMBO_DIR_BOTH) == 1,
               "authoring must resume once nothing is frozen");
     CS_ASSERT(Combo_ComboSettingResolved(COMBO_SETTING_DIRECTION) == (int32_t)RSBS_COMBO_DIR_BOTH, "and be read back");
@@ -1072,6 +1091,11 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
         rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
         mgr.SetSaveDirectory(kComboSettingsLoadTestDir);
         RsbsSave_ResetSlotSessionState();
+        // ARM THE WRITE LATCH (#533). Save() refuses a slot that was not
+        // loaded, created or erased this session, and the reset above cleared
+        // whatever the legs before this one had done, so the erase has to come
+        // after it -- the same order the round-trip legs use.
+        mgr.DeleteSave(0);
 
         ComboContext_Init();
         ComboSettingsSeedShadows(0x7Au);
