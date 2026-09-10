@@ -194,6 +194,22 @@ int MM_ForeignPickupGate_RunHeadless(void);
 // MM_Rando_PairOnCrossGameArrival, and because reaching its combo leg means
 // first satisfying its MM-profile leg. Returns 0 on pass.
 int MM_ComboSettingsGate_RunHeadless(void);
+// Pre-freeze discipline (#638 / #626), one TU per game:
+//   games/mm/2s2h/mm_scene_flag_freeze_test.cpp and
+//   games/oot/soh/oot_scene_flag_freeze_test.cpp.
+// Both games keep the CURRENT scene's flags in the live PlayState and copy them
+// into gSaveContext only on a scene transition (Actor_CleanupContext), which a
+// cross-game departure never reaches: the entrance switch freezes the instant
+// nextEntrance is assigned and the switch then kills the gamestate without
+// Play_Destroy, so every flag set during the final scene visit was frozen as
+// unset and the pickup respawned on the return leg (#635's heart-piece dupe).
+// The MM row also locks #626: an F10 during MM's game-over screen bypasses the
+// kaleido death exit PR #625 guarded and froze health == 0, which the suspend
+// harvest then handed to OoT as the shared CONSUMABLE bar. Both drive the two
+// REAL freeze drivers (Combo_CheckEntranceSwitch and
+// Combo_FreezeActiveGameForHotSwap). Return 0 on pass.
+int MM_SceneFlagFreeze_RunHeadless(void);
+int OoT_SceneFlagFreeze_RunHeadless(void);
 // VB-affinity regression: MM's GameInteractor_* calls resolve to OoT's
 // extern "C" wrappers in single-exe builds, and the two games' vanilla-
 // behavior ordinals alias each other. The wrappers gate on the active game;
@@ -488,6 +504,17 @@ static TestResult Test_MMHookDispatch(void) {
 // entry point in games/mm/2s2h/mm_playtime_seed_test.cpp.
 static TestResult Test_MMPlaytimeSeed(void) {
     return MM_PlaytimeSeed_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// Pre-freeze discipline locks (#638 / #626; see the extern decls above). Thin
+// wrappers over the C entry points in games/mm/2s2h/mm_scene_flag_freeze_test.cpp
+// and games/oot/soh/oot_scene_flag_freeze_test.cpp.
+static TestResult Test_MMSceneFlagFreeze(void) {
+    return MM_SceneFlagFreeze_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+static TestResult Test_OoTSceneFlagFreeze(void) {
+    return OoT_SceneFlagFreeze_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // ============================================================================
@@ -2682,6 +2709,19 @@ const TestDescriptor gTests[] = {
      Test_MMPlaytimeSeed},
     {"mm-trackers-gui", "MM tracker windows register de-collided on the shared Gui + gate on the active game (#392)",
      Test_MMTrackersGui},
+    // Pre-freeze discipline (#638 / #626): both freeze drivers must fold the
+    // live scene flags (and, on MM, a dead health bar) into gSaveContext before
+    // capturing it. Each row publishes a calloc'd PlayState as the game's live
+    // pointer, drives the REAL Combo_CheckEntranceSwitch and
+    // Combo_FreezeActiveGameForHotSwap, and reads the frozen blob back. Pure
+    // (no display, no ROM). Both re-register the default entrance links on the
+    // way out, so they are order-free with respect to everything but the
+    // archive-hotswap-logic row, which must stay last.
+    {"mm-scene-flag-freeze",
+     "MM's live scene flags + a dead health bar are folded into the blob on both freeze drivers (#638, #626)",
+     Test_MMSceneFlagFreeze},
+    {"oot-scene-flag-freeze", "OoT's live scene flags are folded into the blob on both freeze drivers (#638)",
+     Test_OoTSceneFlagFreeze},
     // Registrar coverage: BenPort.cpp's exclusion elided InitOTR's whole
     // registration list, so the re-homed registrars in MM_Rando_Init must be
     // shown to POPULATE their registries, not merely to link. Runs the real

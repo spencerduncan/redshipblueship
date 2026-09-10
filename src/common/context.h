@@ -1348,6 +1348,25 @@ void Context_InvalidateSessionOnSlotLoad(void);
 // Switch_PrepareHotSwap / Combo_ConsumeFrozenState in switch.cpp.
 
 /**
+ * Flush the departing game's LIVE state into its gSaveContext immediately
+ * before that gSaveContext is frozen (#638, #626). Implemented in switch.cpp;
+ * dispatches to the per-game hooks in each GameExports_SingleExe.cpp:
+ *
+ *   - both games copy the current scene's live flags (play->actorCtx) into
+ *     gSaveContext, which a normal scene transition does from
+ *     Actor_CleanupContext and a cross-game departure never reaches (#638);
+ *   - MM additionally revives a dead health bar (health <= 0 -> three hearts,
+ *     healthAccumulator cleared) so an F10 during the game-over screen freezes
+ *     a resumable MM half and hands OoT a live shared bar (#626).
+ *
+ * Every production freeze driver calls this immediately before its freeze:
+ * Combo_CheckEntranceSwitch before Combo_FreezeState, and
+ * Combo_FreezeActiveGameForHotSwap before Switch_PrepareHotSwap. Idempotent;
+ * a game with no live PlayState flushes nothing. GAME_NONE is a no-op.
+ */
+void Combo_FlushLiveStateForFreeze(GameId departing);
+
+/**
  * Set the current game (used during initialization)
  */
 void Context_SetCurrentGame(GameId game);

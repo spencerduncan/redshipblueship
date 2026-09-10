@@ -42,6 +42,13 @@
 
 extern "C" {
 
+// Per-game pre-freeze hooks behind Combo_FlushLiveStateForFreeze below. Each
+// lives in its game's GameExports_SingleExe.cpp because only that TU can see
+// the game's PlayState / SaveContext layout; this TU only orders them.
+void OoT_Combo_FlushSceneFlagsForFreeze(void);
+void MM_Combo_FlushSceneFlagsForFreeze(void);
+void MM_Combo_ReviveDeadHealthForFreeze(void);
+
 /**
  * Where a hot-swapped game should spawn when the player comes back to it.
  *
@@ -105,6 +112,63 @@ int Switch_PrepareHotSwap(GameId departing, const void* saveContext, size_t size
 
     fprintf(stderr, "[Switch] Hot swap froze %s, return entrance 0x%04X\n", Game_ToString(departing), returnEntrance);
     return 1;
+}
+
+/**
+ * Flush the departing game's LIVE state into its gSaveContext, immediately
+ * before that gSaveContext is frozen (#638, #626).
+ *
+ * WHY A SEPARATE STEP. Context_FreezeState copies gSaveContext verbatim, but
+ * gSaveContext is not the whole of a game's state: both games keep the scene
+ * flags of the CURRENT scene visit in the live PlayState
+ * (play->actorCtx.sceneFlags on MM, play->actorCtx.flags on OoT) and copy them
+ * into gSaveContext only on a scene transition, from Actor_CleanupContext via
+ * Play_SaveCycleSceneFlags / Play_SaveSceneFlags. A cross-game departure never
+ * reaches that copy: the entrance switch freezes the instant nextEntrance is
+ * assigned (z_player.c / z_play.c, before the transition), and both switch
+ * paths then stop the gamestate without running Play_Destroy. So every flag set
+ * during the final scene visit -- a heart piece, a chest, a switch, a cleared
+ * room -- was frozen as unset, restored as unset on the return leg, and the
+ * pickup respawned (#635's heart-piece dupe is one instance of this class).
+ *
+ * The same seam is where MM revives a dead health bar before it is frozen
+ * (#626): an F10 during MM's game-over screen bypasses the kaleido death exit
+ * that PR #625 guarded, and would otherwise freeze health == 0 into MM's shadow
+ * and hand the shared CONSUMABLE bar to OoT at zero.
+ *
+ * WHERE IT IS CALLED, AND WHERE IT DELIBERATELY IS NOT. Both production freeze
+ * drivers call this immediately before their freeze:
+ *   - Combo_CheckEntranceSwitch (games/oot/soh/GameExports_SingleExe.cpp),
+ *     before its Combo_FreezeState -- the entrance path;
+ *   - Combo_FreezeActiveGameForHotSwap (same TU), before Switch_PrepareHotSwap
+ *     -- the F10 path, which is also the launcher's re-freeze
+ *     (rsbs/src/main.cpp) and the owl-save / game-over exits' freeze.
+ * It is NOT inside Switch_PrepareHotSwap: that function's contract is "freeze
+ * THIS buffer", and the src/common tests (test_hotswap_freeze.c,
+ * test_foreign_items.c) drive it with scratch buffers that are not gSaveContext.
+ * A flush there would write the live gSaveContext while a scratch buffer is
+ * frozen -- wrong for those tests and coupling an opaque-buffer policy to game
+ * globals. The flush belongs at the two points that pass the REAL gSaveContext.
+ *
+ * Idempotent: each hook re-copies the same words, so a second call (the
+ * game-over exit revives, then the launcher freeze revives again) is a no-op.
+ * A game with no live PlayState (owl-save / game-over exits, headless tests)
+ * flushes nothing and does not dereference anything. Does not touch the
+ * .redsave commit path: the blob it corrects is the one Context_FreezeState
+ * captures; the durable write of that blob is unchanged.
+ */
+void Combo_FlushLiveStateForFreeze(GameId departing) {
+    switch (departing) {
+        case GAME_OOT:
+            OoT_Combo_FlushSceneFlagsForFreeze();
+            break;
+        case GAME_MM:
+            MM_Combo_FlushSceneFlagsForFreeze();
+            MM_Combo_ReviveDeadHealthForFreeze();
+            break;
+        default:
+            break;
+    }
 }
 
 /**

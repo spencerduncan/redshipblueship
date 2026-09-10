@@ -1032,6 +1032,40 @@ void Combo_ClearGameSwitchRequest(void);
 int Switch_PrepareHotSwap(GameId departing, const void* saveContext, size_t size);
 }
 
+// z_play.c. The matching prototype is in functions.h, which this TU does not
+// include (it reaches z64.h through GameInteractor.h, not global.h).
+extern "C" void Play_SaveSceneFlags(PlayState* play);
+
+/**
+ * OoT's half of Combo_FlushLiveStateForFreeze (#638): copy the current scene's
+ * live flags into gSaveContext before the departure freezes it.
+ *
+ * OoT keeps the flags of the scene being played in play->actorCtx.flags and
+ * copies them into gSaveContext.sceneFlags[play->sceneNum] only from
+ * Actor_CleanupContext (z_actor.c) on a scene transition. Both cross-game
+ * departures skip that copy: the entrance path freezes from inside
+ * Play_Update's transition check (z_play.c, before the transition runs) and
+ * then stops the gamestate with init/destroy nulled, and the F10 path breaks the
+ * graph loop with the PlayState still live and never destroys it. Everything
+ * set during the final scene visit -- a chest, a switch, a collectible -- was
+ * frozen as unset and the return leg restored it that way. MM has the same
+ * shape (MM_Combo_FlushSceneFlagsForFreeze) and, unlike OoT's Market, a
+ * persistent collectible right at its portal, which is how #635 surfaced it.
+ *
+ * Play_SaveSceneFlags is the exact copy Actor_CleanupContext would have made:
+ * four u32 words, idempotent, indexed by the live sceneNum. NULL-safe: the
+ * launcher's freeze can run with no PlayState (a switch requested from outside
+ * gameplay, or the headless rows), and OoT_gPlayState is nulled by Play_Destroy
+ * and OoT_Graph_ResetRunFrameContext, so a non-NULL value is a live PlayState.
+ */
+extern "C" void OoT_Combo_FlushSceneFlagsForFreeze(void) {
+    PlayState* play = OoT_gPlayState;
+    if (play == NULL) {
+        return;
+    }
+    Play_SaveSceneFlags(play);
+}
+
 /**
  * Freeze the departing game for an F10 hot swap (#364).
  *
@@ -1052,6 +1086,12 @@ int Switch_PrepareHotSwap(GameId departing, const void* saveContext, size_t size
  *         switch instead of proceeding into a stale restore.
  */
 extern "C" int Combo_FreezeActiveGameForHotSwap(GameId departing) {
+    // Pre-freeze discipline (#638, #626): the live scene flags and, on MM, a
+    // dead health bar must be folded into gSaveContext BEFORE the bytes are
+    // captured. This is the one point on the F10 path that passes the real
+    // gSaveContext, so the flush lives here rather than inside
+    // Switch_PrepareHotSwap (which src/common tests drive with scratch buffers).
+    Combo_FlushLiveStateForFreeze(departing);
     return Switch_PrepareHotSwap(departing, &gSaveContext, sizeof(gSaveContext));
 }
 
@@ -1803,6 +1843,15 @@ extern "C" uint16_t Combo_CheckEntranceSwitch(uint16_t entranceIndex) {
         }
 
         uint16_t returnEntrance = Combo_GetSwitchReturnEntrance();
+        // Pre-freeze discipline (#638): this hook runs the instant nextEntrance
+        // is assigned, before the scene transition that would normally copy the
+        // live scene flags into gSaveContext (Actor_CleanupContext), and the
+        // switch then stops the gamestate without ever running Play_Destroy.
+        // Flush them now, or every flag set during the final scene visit is
+        // frozen as unset and the pickup respawns on the return leg (#635).
+        // Resolved the same way gameId is above: a not-yet-populated tracker
+        // means OoT, never a third game.
+        Combo_FlushLiveStateForFreeze((currentGame == GAME_MM) ? GAME_MM : GAME_OOT);
         // sizeof(gSaveContext) in this TU is OoT's SaveContext layout. When MM
         // is the active game this over-reads relative to MM's smaller struct,
         // but the underlying unified storage (unified_save.c) is
