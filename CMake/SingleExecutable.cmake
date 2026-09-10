@@ -555,6 +555,7 @@ if(BUILD_TESTING)
     redship_add_test(NAME CommitGenerationMonotonic COMMAND redship --test commit-generation-monotonic)
     redship_add_test(NAME CommitTornWrite COMMAND redship --test commit-torn-write)
     redship_add_test(NAME CommitGenerationSkew COMMAND redship --test commit-generation-skew)
+    redship_add_test(NAME SaveOwlStagedRedeemedNoOotSave COMMAND redship --test save-owl-staged-redeemed)
     redship_add_test(NAME Context COMMAND redship --test context)
     # F10 hot-swap freeze/consume contract (#364): the hotkey path must freeze
     # the DEPARTING game (or refuse the switch), and a consumed frozen state

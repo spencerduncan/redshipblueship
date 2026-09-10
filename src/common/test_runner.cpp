@@ -2256,6 +2256,8 @@ const TestDescriptor gTests[] = {
      Test_CommitTornWrite},
     {"commit-generation-skew", "Load detects .redsave/.sav freshness divergence (#531/#564 V16)",
      Test_CommitGenerationSkew},
+    {"save-owl-staged-redeemed", "Owl-save without OoT save does not durably mark REDEEMED (#531)",
+     Test_SaveOwlStagedRedeemedNoOotSave},
     {"mm-scene-parse", "MM scene commands parse via the S2H factory (#344)", Test_MMSceneParse},
     {"seq-map-bounds", "Sequence-map capacity covers the id range + custom slack (#371, #378)", Test_SeqMapBounds},
     {"cvar-classification", "Cross-game CVar classification matches ADR 0003 + the inventory (#34)",

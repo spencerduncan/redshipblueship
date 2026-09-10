@@ -11,6 +11,7 @@
 #include "context.h"
 #include "entrance.h" // MM_ENTR_SOUTH_CLOCK_TOWN_0 — the armed blob's return entrance
 #include "game.h"
+#include "shared_items.h"
 #include "shared_resources.h"
 
 #include <cstdio>
@@ -206,6 +207,15 @@ uint32_t SaveManager::StageCommit() {
     // state; mutating it here is legal precisely because staging is
     // game-thread-only. A loaded slot resumes its own counter (Load memcpys
     // the whole struct back), so the sequence is monotonic across sessions.
+    if (gComboCtx.sourceGame == GAME_OOT) {
+        Combo_CommitStagedRedeemedForGame(GAME_OOT);
+    } else if (gComboCtx.sourceGame == GAME_MM) {
+        Combo_CommitStagedRedeemedForGame(GAME_MM);
+    } else {
+        Combo_CommitStagedRedeemedForGame(GAME_OOT);
+        Combo_CommitStagedRedeemedForGame(GAME_MM);
+    }
+
     gComboCtx.commitGeneration += 1;
     const uint32_t generation = gComboCtx.commitGeneration;
 

@@ -25,19 +25,14 @@
  * Mechanism: force-included AFTER GameInteractor.h (games/mm/CMakeLists.txt,
  * the _force_include_cxx_guarded list), so the class definition itself parses
  * with the real member names; any LATER use of a poisoned name in the TU
- * fails to compile with an identifier that points here. Applied to every MM
- * C++ target with no exemptions: 2ship_src/2ship_port (#415),
- * 2ship_rando/2ship_rando_ui (Lane C0, #392), and 2ship_enh (#427 item 2,
- * which retired the last one). #442's interim carve-out — guarding only the
- * six 2ship_enh sources the link census confirmed were non-elided
- * (_mm_gi_hook_guard_linked_enh_sources in games/mm/CMakeLists.txt, added
- * after SavingEnhancements.cpp's raw sites reached the shared instance
- * through the target-wide exemption) — is gone with it: whole-target
- * coverage subsumes the list, so there is no longer a census to keep in sync
- * and no way for a newly un-elided 2ship_enh TU to arrive carrying raw
- * registrations.
+ * fails to compile with an identifier that points here. Applied to every MM C++ target: 2ship_src/2ship_port (#415),
+ * and 2ship_rando/2ship_rando_ui (Lane C0, #392). 2ship_enh stays exempt (#427 item 2)
+ * because ~21 raw GameInteractor registration sites remain across elided TUs
+ * (CustomItem.cpp, CustomMessage.cpp, ActorViewer.cpp, CollisionViewer.cpp,
+ * DeveloperTools.cpp, EventLog.cpp, WarpPoint.cpp, AudioEditor.cpp, NameTag.cpp).
+ * Un-exempting 2ship_enh requires migrating these sites to S2H::GameHooks first.
  *
- * The only upstream raw-registration file left untouched is
+ * The only upstream raw-registration file left untouched in 2ship_enh is
  * 2s2h/Enhancements/Audio/AudioEditor.cpp, which is not compiled at all in
  * single-exe builds (dropped from ship__Enhancements in
  * games/mm/CMakeLists.txt because it depends on the excluded BenGui/BenMenu

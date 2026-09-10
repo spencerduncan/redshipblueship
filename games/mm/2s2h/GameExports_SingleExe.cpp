@@ -62,6 +62,7 @@
 // than file-local extern prototypes.
 #include "2s2h/CustomItem/CustomItem.h"
 #include "2s2h/CustomMessage/CustomMessage.h"
+#include "2s2h/Enhancements/Enhancements.h"
 #include "2s2h/Enhancements/Saving/SavingEnhancements.h"
 #include "2s2h/Enhancements/GfxPatcher/AuthenticGfxPatches.h"
 #include "2s2h/Rando/Rando.h"
@@ -1407,18 +1408,13 @@ extern "C" void MM_RegisterSharedResourceCycleHooks(void);
 // reference it from MM_Rando_Init above the definition.
 extern "C" bool MM_Rando_AssetsReady(void);
 
-extern "C" void MM_Rando_Init(void) {
-    static bool sRandoInitDone = false;
-    if (sRandoInitDone) {
-        return;
-    }
-    sRandoInitDone = true;
-
-    fprintf(stderr, "[MM] MM_Rando_Init: running ShipInit registrars + Rando::Init\n");
-    fflush(stderr);
-    S2H::ShipInit::InitAll();
-    Rando::Init();
-
+/**
+ * Single-executable MM registrar initialization (#516).
+ * Replicates the registration sequence from BenPort.cpp (lines 849-885)
+ * for the single-exe build, calling each single-exe-safe registrar function so
+ * that static archive link elision (/OPT:REF) does not strip required MM TUs.
+ */
+extern "C" void MM_InitRegistrars(void) {
     // #516: registrars orphaned by the excluded BenPort InitOTR sequence.
     //
     // BenPort.cpp (MM's OTRGlobals equivalent) is excluded from the single exe —
@@ -1435,78 +1431,47 @@ extern "C" void MM_Rando_Init(void) {
     //
     // This block MUST run exactly once: CustomItem/CustomMessage register through
     // raw RegisterForID (no unregister-first) and RegisterSavingEnhancements
-    // through plain Register<>, none of which de-dup. The sRandoInitDone guard
-    // above provides that — MM_Game_Resume does not re-enter here.
+    // through plain Register<>, none of which de-dup.
     //
-    // Both hook registrars only became LIVE with #512/#514/#515, which wired the
-    // MM ShouldActorInit and OnOpenText execute points their bodies were written
-    // against; before that, reviving them here would have registered into a
-    // registry nothing dispatched.
-    CustomItem::RegisterHooks();    // ShouldActorInit[EN_ITEM00]: the swap that
-                                    // makes CustomItem::Spawn's placeholder a
-                                    // real item — cross-game arrivals + every
-                                    // rando reward. #516 critical.
-    CustomMessage::RegisterHooks(); // OnOpenText[0x4B]: loads staged rando/hint
-                                    // text; without it every custom message
-                                    // renders vanilla entry 0x4B. #516 critical.
-    // #516 Phase 2 — save mechanics. RegisterSavingEnhancements gives owl-save
-    // persistence, cycle-save playtime banking, grotto respawn restore and
-    // moon-crash owl cleanup; RegisterAutosave gives MM its periodic owl autosave
-    // and its on-screen icon.
-    //
-    // These were held back from Phase 1 because their DeleteOwlSave leg (on
-    // BeforeMoonCrashSaveReset / BeforeEndOfCycleSave) dereferences MM_gPlayState,
-    // which crashed the headless MMMoonCrashArmState test — the only test that
-    // drives a real reset path. That test now stands up a play state (as
-    // production always has: z_demo.c:379 resets from a live &play->sramCtx), so
-    // the leg runs faithfully rather than being avoided.
-    //
-    // The Autosave frame legs are headless-safe as-is and need no scaffolding:
-    // HandleAutoSave's interval guard and DrawAutosaveIcon's iconTimer==0 guard
-    // both return before touching MM_gPlayState, and OnGameStateUpdate/DrawFinish
-    // dispatch only from MM's real frame loop (game.c), never a headless test.
-    RegisterSavingEnhancements();
-    RegisterAutosave();
+    // 1. Enhancements registration (BenPort.cpp line 884)
+    // InitEnhancements() calls RegisterSavingEnhancements and RegisterAutosave.
+    InitEnhancements();
 
-    // GfxPatcher is a one-shot resource patcher, not a hook registrar, so it is
-    // called (not registered) and gated on assets: its ResourceMgr_Load*ByName
-    // helpers null-deref with no mm.o2r, and mm_rando_gen_test.cpp drives this
-    // function ROM-free. Fixes OOB textures, mini-game symbols, and a latent
-    // matrix-stack UB the smithy chimney-fire DL hits (per its own comment).
+    // 2. Custom item & custom message hook registrars (BenPort.cpp lines 889-890)
+    CustomItem::RegisterHooks();    // ShouldActorInit[EN_ITEM00]: placeholder swap
+    CustomMessage::RegisterHooks(); // OnOpenText[0x4B]: custom rando/hint text
+
+    // 3. GfxPatcher authentic rendering patches (BenPort.cpp line 886)
     if (MM_Rando_AssetsReady()) {
         GfxPatcher_ApplyNecessaryAuthenticPatches();
     }
 
-    // Lane C1 (#392): register the GIEvent pump (the port of upstream's
-    // ProcessEvents player-update hook, games/mm/2s2h/
-    // GameInteractorEventsSingleExe.cpp). Upstream registered it from
-    // GameInteractor::RegisterOwnHooks at boot; in the single exe only the
-    // rando queue produces GIEvents, so the rando bring-up is its natural
-    // (once-only, same guard) home.
+    // 4. Game Interactor / Event pump & GUI Trackers
     MM_GameEvents_RegisterPump();
-
-    // MM tracker windows (#392): register on the shared Gui, gated to draw
-    // only while MM is the active game. Upstream did this from BenGui.cpp's
-    // SetupGuiElements (excluded); the bypass surface lives in
-    // 2s2h/TrackersGuiSingleExe.cpp. No-op when the harness has no window.
-    //
-    // No longer the first caller (#535): rsbs/src/main.cpp registers them at
-    // startup so an OoT-first session can reach the menu rows that name them.
-    // Registration here is then idempotent, and what this call still does is
-    // load the tracker icons, which needs the mm.o2r this path has mounted.
     MM_TrackersGui_Init();
 
-    // Shared cross-game resources (#525): keep the SHARED rupee pool alive
-    // across MM's three-day cycle. Registered from HERE, not from
-    // 2s2h/Enhancements/Cycle/EndOfCycle.cpp where the analogous
-    // DoNotResetRupees restore lives, because that TU is link-elided from the
-    // plain-archive 2ship_enh — its six registrants are absent from the binary
-    // (verified against redship.map; see the Before/AfterEndOfCycleSave
-    // dispatch comment below). Registering there would be the #516/#513
-    // elided-provider class exactly: code that reads correctly and never runs.
-    // This TU is always linked, and the sRandoInitDone guard above is what
-    // makes the registration once-only, as the block header requires.
+    // 5. Shared cross-game resources cycle hooks (#525)
     MM_RegisterSharedResourceCycleHooks();
+
+    // Note on registrars from BenPort.cpp lines 849-885 omitted or handled elsewhere:
+    // - OTRGlobals / GameInteractor / BenGui: Excluded from single-exe in favor of shared context & shims.
+    // - DebugConsole_Init(): Excluded due to duplicate symbol collision with OoT twin (#384).
+}
+
+extern "C" void MM_Rando_Init(void) {
+    static bool sRandoInitDone = false;
+    if (sRandoInitDone) {
+        return;
+    }
+    sRandoInitDone = true;
+
+    fprintf(stderr, "[MM] MM_Rando_Init: running ShipInit registrars + Rando::Init + MM_InitRegistrars\n");
+    fflush(stderr);
+    S2H::ShipInit::InitAll();
+    Rando::Init();
+
+    // Replicate BenPort.cpp registration sequence for single-exe build (#516)
+    MM_InitRegistrars();
 }
 
 /**
@@ -1729,6 +1694,7 @@ extern "C" int MM_Combo_CaptureSaveToUnifiedSlot(void) {
 
     Context_UpdateShadowCopy(GAME_MM, &gSaveContext, sizeof(gSaveContext));
     gComboCtx.sourceGame = GAME_MM;
+    Combo_CommitStagedRedeemedForGame(GAME_MM);
 
     // RsbsSave_Save is the commit choke point's one-call form (#537): it
     // stages the whole cross-game snapshot (Tier-1 + both shadows) on THIS

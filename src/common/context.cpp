@@ -374,6 +374,7 @@ void Context_InvalidateSessionState(ComboSeedStampPolicy seedPolicy) {
     // outbox is RAM-only and would otherwise drain into the NEXT session's
     // array at its first suspend.
     Combo_ClearSharedItemOutbox();
+    Combo_ClearStagedRedeemedFlags();
 
     // Same reasoning for the shared-resource watermarks (#525): RAM-only, they
     // describe how much of the dead session's pool was materialized in its live

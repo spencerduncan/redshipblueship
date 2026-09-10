@@ -267,6 +267,20 @@ int Combo_CountSharedItems(GameId game, bool includeRedeemed);
  */
 void Combo_ClearSharedItemOutbox(void);
 
+/**
+ * Commit staged REDEEMED flags in RAM (sStagedRedeemed) to durable gComboCtx.sharedItemsTagged
+ * for the specified game (originGame == game).
+ *
+ * @param game The GameId (GAME_OOT or GAME_MM) whose staged REDEEMED flags to commit.
+ * @return The number of staged flags committed to durable gComboCtx.
+ */
+int Combo_CommitStagedRedeemedForGame(GameId game);
+
+/**
+ * Clear all RAM-only staged REDEEMED flags (sStagedRedeemed) without touching gComboCtx.
+ */
+void Combo_ClearStagedRedeemedFlags(void);
+
 #ifdef __cplusplus
 }
 #endif

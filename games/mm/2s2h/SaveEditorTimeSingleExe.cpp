@@ -10,9 +10,9 @@
  * This TU carries a copy of that function (and its file-local
  * FindEnTest4Actor helper) for single-exe builds only; outside single-exe
  * this file compiles empty and SaveEditor.cpp remains the one definition, so
- * the two copies can never both link. If upstream 2S2H changes
- * UpdateGameTime, re-sync this copy (provenance: SaveEditor.cpp, upstream
- * shape as of the Lane C0 port).
+ * the two copies can never both link. Verified matching upstream's implementation in
+ * DeveloperTools/SaveEditor.cpp (commit 1c16817f / c8777b38, #427 item 4).
+ * Re-sync this copy when upstream 2S2H or DeveloperTools/SaveEditor.cpp is bumped.
  */
 #ifdef RSBS_SINGLE_EXECUTABLE
 

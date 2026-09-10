@@ -18,7 +18,10 @@
 #include "../context.h"
 #include "../game.h"
 #include "../save.h"
+#include "../shared_items.h"
 #include "../test_runner.h"
+
+extern "C" int MM_Combo_CaptureSaveToUnifiedSlot(void);
 
 #include <cstddef>
 #include <cstdint>
@@ -714,5 +717,97 @@ TestResult Test_SaveTaggedItems(void) {
 
     mgr.DeleteSave(0);
     printf("[TEST] PASS: tagged shared items survive Save/Load; empty slots stay unset\n");
+    return TEST_PASS;
+}
+
+/**
+ * @brief Locks Option B (#531): Owl-save without OoT save does not durably mark
+ * cross-game shared items as REDEEMED on disk or across reloads.
+ */
+TestResult Test_SaveOwlStagedRedeemedNoOotSave(void) {
+    printf("[TEST] save-owl-staged-redeemed: Owl-save without OoT save does not durably mark REDEEMED (#531)\n");
+
+    const char* const kOwlStagedTestDir = "rsbs_test_owl_staged";
+    rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
+    mgr.SetSaveDirectory(kOwlStagedTestDir);
+
+    // 1. Reset state to clean baseline
+    Context_InitFrozenStates();
+    ComboContext_Init();
+    Combo_ClearStagedRedeemedFlags();
+    mgr.ResetSlotSessionState();
+    mgr.DeleteSave(0);
+
+    // 2. Record a cross-game shared item bound for OoT
+    const uint16_t kTestItemId = 0x0042;
+    int slotIdx = Combo_RecordSharedItem(GAME_OOT, kTestItemId);
+    SAVE_ASSERT(slotIdx >= 0, "failed to record test shared item for OoT");
+    SAVE_ASSERT((gComboCtx.sharedItemsTagged[slotIdx].flags & RSBS_SHARED_ITEM_REDEEMED) == 0,
+                "freshly recorded item must not be REDEEMED");
+
+    // Perform baseline full save (slot 0 armed)
+    SAVE_ASSERT(mgr.Save(0), "baseline Save(0) failed");
+    RsbsSave_SetActiveSlot(0);
+
+    // 3. Redeem the item in OoT (sets staged REDEEMED flag in RAM)
+    int redeemedCount = Combo_RedeemSharedItemsForGame(GAME_OOT, NULL, NULL);
+    SAVE_ASSERT(redeemedCount == 1, "expected exactly 1 item redeemed for OoT");
+    SAVE_ASSERT((gComboCtx.sharedItemsTagged[slotIdx].flags & RSBS_SHARED_ITEM_REDEEMED) == 0,
+                "REDEEMED flag in gComboCtx must NOT be set yet before save commit");
+
+    // 4. Perform MM Owl Save (simulates owl-save capture without OoT save)
+    int captureOk = MM_Combo_CaptureSaveToUnifiedSlot();
+    SAVE_ASSERT(captureOk == 1, "MM_Combo_CaptureSaveToUnifiedSlot failed");
+
+    // 5. DIRECT DISK VERIFICATION: Read the written .redsave file directly from disk.
+    // Confirm that RSBS_SHARED_ITEM_REDEEMED is NOT committed to disk.
+    {
+        std::ifstream fileIn(mgr.SlotPath(0), std::ios::binary);
+        SAVE_ASSERT(static_cast<bool>(fileIn), "could not open slot file for direct disk verification");
+
+        rsbs::RsbsSaveHeader header;
+        fileIn.read(reinterpret_cast<char*>(&header), sizeof(header));
+        SAVE_ASSERT(header.headerSize == sizeof(rsbs::RsbsSaveHeader), "bad header size on disk");
+
+        ComboContext diskComboCtx;
+        fileIn.read(reinterpret_cast<char*>(&diskComboCtx), sizeof(diskComboCtx));
+        SAVE_ASSERT(fileIn.gcount() == static_cast<std::streamsize>(sizeof(diskComboCtx)),
+                    "short read of ComboContext from disk");
+
+        // CORE INVARIANT LOCK (#531):
+        SAVE_ASSERT((diskComboCtx.sharedItemsTagged[slotIdx].flags & RSBS_SHARED_ITEM_REDEEMED) == 0,
+                    "INVARIANT VIOLATION (#531): Owl save without OoT save durably committed REDEEMED to disk!");
+    }
+
+    // 6. RELOAD VERIFICATION: Wipe live state and load from disk.
+    ComboContext_Init();
+    Context_ClearAllFrozenStates();
+    Combo_ClearStagedRedeemedFlags();
+    mgr.ResetSlotSessionState();
+
+    SAVE_ASSERT(mgr.Load(0), "Load(0) after owl save failed");
+    SAVE_ASSERT((gComboCtx.sharedItemsTagged[slotIdx].flags & RSBS_SHARED_ITEM_REDEEMED) == 0,
+                "Loaded ComboContext from owl save must NOT carry durable REDEEMED flag!");
+
+    // 7. FULL SAVE COMMIT VERIFICATION: Perform a full save containing receiving game's effect.
+    Combo_RedeemSharedItemsForGame(GAME_OOT, NULL, NULL);
+    SAVE_ASSERT(mgr.Save(0), "full Save(0) failed");
+
+    // Verify that the full save DOES commit REDEEMED to disk.
+    {
+        std::ifstream fileIn(mgr.SlotPath(0), std::ios::binary);
+        SAVE_ASSERT(static_cast<bool>(fileIn), "could not open slot file after full save");
+
+        rsbs::RsbsSaveHeader header;
+        fileIn.read(reinterpret_cast<char*>(&header), sizeof(header));
+
+        ComboContext diskComboCtx;
+        fileIn.read(reinterpret_cast<char*>(&diskComboCtx), sizeof(diskComboCtx));
+        SAVE_ASSERT((diskComboCtx.sharedItemsTagged[slotIdx].flags & RSBS_SHARED_ITEM_REDEEMED) != 0,
+                    "Full save MUST durably commit REDEEMED flag to disk");
+    }
+
+    mgr.DeleteSave(0);
+    printf("[TEST] PASS: owl-save without OoT save correctly preserves staged REDEEMED invariant (#531)\n");
     return TEST_PASS;
 }

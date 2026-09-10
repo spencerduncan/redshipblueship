@@ -1,3 +1,12 @@
+/**
+ * 2ship_rando_ui (Rando/Menu.cpp + CheckTracker) is deliberately excluded from
+ * single-exe builds with the rest of MM's menu surface — the four BenGui symbols from
+ * the measured link gap (#427 item 3).
+ *
+ * This elision is intentional and avoids dragging BenMenu/BenGui into the single-exe build.
+ * Cross-reference #383 and #392 (Lane C0).
+ */
+
 #include "Rando/Rando.h"
 #include "Rando/Spoiler/Spoiler.h"
 #include "2s2h/BenGui/UIWidgets.hpp"

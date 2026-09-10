@@ -28,8 +28,17 @@
 static SharedItem sOutbox[SHARED_ITEM_OUTBOX_CAP];
 static int sOutboxCount = 0;
 
+// RAM-only staging array for REDEEMED flags (#531 Option B).
+static bool sStagedRedeemed[RSBS_SHARED_ITEM_CAP];
+
 static bool IsRealGame(GameId game) {
     return game == GAME_OOT || game == GAME_MM;
+}
+
+static bool IsItemRedeemed(int slotIndex) {
+    if (slotIndex < 0 || slotIndex >= (int)RSBS_SHARED_ITEM_CAP) return false;
+    const SharedItem* slot = &gComboCtx.sharedItemsTagged[slotIndex];
+    return ((slot->flags & RSBS_SHARED_ITEM_REDEEMED) != 0) || sStagedRedeemed[slotIndex];
 }
 
 // ============================================================================
@@ -64,6 +73,9 @@ static int ReclaimOldestRedeemedSlot(void) {
             memmove(&gComboCtx.sharedItemsTagged[i], &gComboCtx.sharedItemsTagged[i + 1],
                     ((size_t)RSBS_SHARED_ITEM_CAP - 1u - (size_t)i) * sizeof(SharedItem));
             memset(&gComboCtx.sharedItemsTagged[RSBS_SHARED_ITEM_CAP - 1], 0, sizeof(SharedItem));
+            memmove(&sStagedRedeemed[i], &sStagedRedeemed[i + 1],
+                    ((size_t)RSBS_SHARED_ITEM_CAP - 1u - (size_t)i) * sizeof(bool));
+            sStagedRedeemed[RSBS_SHARED_ITEM_CAP - 1] = false;
             return (int)RSBS_SHARED_ITEM_CAP - 1;
         }
     }
@@ -121,7 +133,7 @@ int Combo_RecordSharedItem(GameId originGame, uint16_t id) {
     for (int i = 0; i < (int)RSBS_SHARED_ITEM_CAP; i++) {
         SharedItem* slot = &gComboCtx.sharedItemsTagged[i];
         if (slot->originGame == (uint8_t)originGame && slot->id == id &&
-            (slot->flags & (RSBS_SHARED_ITEM_REDEEMED | RSBS_SHARED_ITEM_SOURCED)) == 0) {
+            !IsItemRedeemed(i) && (slot->flags & RSBS_SHARED_ITEM_SOURCED) == 0) {
             return i; // already pending — leave it exactly as-is
         }
     }
@@ -274,19 +286,43 @@ int Combo_RedeemSharedItemsForGame(GameId arrivingGame, ComboSharedItemAward awa
         if (slot->originGame != (uint8_t)arrivingGame) {
             continue; // empty slot or an item bound for the other game
         }
-        if ((slot->flags & RSBS_SHARED_ITEM_REDEEMED) != 0) {
-            continue; // already awarded on an earlier arrival
+        if (IsItemRedeemed(i)) {
+            continue; // already awarded on an earlier arrival or staged in RAM
         }
         if (award != NULL) {
             award(slot, ctx);
         }
-        slot->flags |= RSBS_SHARED_ITEM_REDEEMED;
+        sStagedRedeemed[i] = true;
         redeemed++;
     }
     if (redeemed > 0) {
-        fprintf(stderr, "[SharedItem] redeemed %d item(s) for %s\n", redeemed, Game_ToString(arrivingGame));
+        fprintf(stderr, "[SharedItem] redeemed (staged in RAM) %d item(s) for %s\n", redeemed, Game_ToString(arrivingGame));
     }
     return redeemed;
+}
+
+int Combo_CommitStagedRedeemedForGame(GameId game) {
+    if (!IsRealGame(game)) {
+        return 0;
+    }
+    int committed = 0;
+    for (int i = 0; i < (int)RSBS_SHARED_ITEM_CAP; i++) {
+        SharedItem* slot = &gComboCtx.sharedItemsTagged[i];
+        if (slot->originGame == (uint8_t)game && sStagedRedeemed[i]) {
+            slot->flags |= RSBS_SHARED_ITEM_REDEEMED;
+            sStagedRedeemed[i] = false;
+            committed++;
+        }
+    }
+    if (committed > 0) {
+        fprintf(stderr, "[SharedItem] committed %d staged REDEEMED flag(s) to durable gComboCtx for %s\n",
+                committed, Game_ToString(game));
+    }
+    return committed;
+}
+
+void Combo_ClearStagedRedeemedFlags(void) {
+    memset(sStagedRedeemed, 0, sizeof(sStagedRedeemed));
 }
 
 // ============================================================================
@@ -303,7 +339,7 @@ int Combo_CountSharedItems(GameId game, bool includeRedeemed) {
         if (slot->originGame != (uint8_t)game) {
             continue;
         }
-        if (!includeRedeemed && (slot->flags & RSBS_SHARED_ITEM_REDEEMED) != 0) {
+        if (!includeRedeemed && IsItemRedeemed(i)) {
             continue;
         }
         count++;
