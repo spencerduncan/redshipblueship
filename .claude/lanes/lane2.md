@@ -1,40 +1,22 @@
-You are Lane 2 of six on RedShipBlueShip Phase 3.1 (#492). Small, fast, and it unblocks part of Lane 1 and part of Lane 4.
+You are Lane 2 of eight in the 2026-09-10 wave: **ADR 0011 increment 2 — the five tier-4 `gCombo.Rando.*` keys, the creation-time resolver that reads them, and the pane that renders ADR 0004 §6 state 4 after creation.**
 
-Read #492, then #488.
+- **Branch:** `claude/adr0011-inc2-combo-settings-pane`
+- **Serves:** #498 via ADR 0011 (`docs/adr/0011-combo-level-settings.md`, Accepted 2026-08-05), "Increment 2 — the tier-4 keys and the pane" (`:675-683`). Increment 1 landed in PR #628 (the frozen 12-byte `ComboSettingsRecord` at `src/common/context.h:816`, `comboSettingsHash` at `:795`, `Combo_ForeignPairingRequested()` at `foreign_items.h:509`, compare-and-refuse). #628 also left eight review resolutions to fold into the ADR — do that in the same PR.
 
-## Your work
+## Scope
 
-Close #488: foreign-item host selection trusts the fill-time `.shuffled` bit alone, so a pinned OoT item can land on a check with no runtime give-path and strand — invisible, unwinnable, indistinguishable from a missing item.
+1. The keys: `gCombo.Rando.Direction`, `.PoolSize.OoT`, `.PoolSize.MM`, `.ItemClass.OoT`, `.ItemClass.MM` — ADR 0003 naming, new tier-4 keys (never converged MM keys), each classified **identity** at introduction per ADR 0004 §6's scope note. Register them in `src/common/cvar_shared_keys.h` with the count asserts that file already carries.
+2. The creation-time resolver reads them into the record in the freeze order of ADR 0011 §4.1, before OoT's `Fill()`; defaults must reproduce today's world exactly, so `SeedDeterminism` and `MMRandoGen` must not move.
+3. The pane renders §6 **state 4** post-creation: read-only, reason string "already decided" (not the capability reason), values from `Combo_ComboSettingsSummary()`. Pre-creation it is editable. Enforcement stays on the writers.
 
-`Rando::Foreign::PlaceForeignItems` (`Foreign.cpp:117-161`) selects hosts by `RANDO_SAVE_CHECKS[id].shuffled` plus `RITYPE_JUNK`, excluding only `RCTYPE_SHOP` / `RCTYPE_TINGLE_SHOP`. Replace that inline predicate with an allowlist of check types that have a **game-guaranteed** setter, anchored on `RCTYPE_CHEST` — the chest flag is set by vanilla actor code independent of any rando hook.
+## Owns
 
-Extract it as `Rando::Foreign::IsEligibleHost(RandoCheckId)` with an `extern "C" int MM_Rando_Foreign_IsEligibleHost(uint16_t)` bridge, placed next to the existing `MM_Rando_Foreign_RecordPickup` bridge at `Foreign.cpp:204-206`. That bridge is what makes the lock non-vacuous, and it is the whole reason to extract rather than edit in place.
-
-Report how many checks survive the tightened predicate. That number sizes the foreign pool — it feeds **#495** (the rule-defined pool), not #493, which is capped at `RSBS_FOREIGN_PLACEMENT_CAP` regardless. Say it on #495 so the number has a consumer.
-
-## Files you own
-
-`games/mm/2s2h/Rando/Foreign.cpp` and `Foreign.h`, and you are **first writer** on `src/common/tests/test_foreign_items.c` — append your rows now; Lane 1 rebases onto you.
-
-You also own `games/mm/2s2h/Rando/Spoiler/Apply.cpp` for the duration of #488 step 6. Lane 5 has been told to treat `Rando/Spoiler/*` as read-only, so it is yours; hand it back when you merge.
-
-## Two cross-lane asks you must make before you start
-
-Both are mandatory steps of #488 in files another lane owns. Neither lane will offer — ask on the issue.
-
-- **`games/mm/2s2h/Rando/MiscBehavior/OnFileCreate.cpp:245`** (Lane 4). Step 5 throws a `runtime_error` inside `OnFileCreate`'s existing try on a host shortfall. Lane 4 rewrites `:112-120` and `:132-137` for #499 — different region, same file. Agree an order.
-- **`games/mm/2s2h/mm_rando_gen_test.cpp:296-303`** (Lane 3). Your secondary lock replaces the `FAIL(12)` post-condition with `MM_Rando_Foreign_IsEligibleHost(p.mmCheckId) != 0`. Note `FAIL(11)` at `:276-285` asserts `placedCount == poolCount`, so a supply shortfall breaks that row whether or not you touch it. Lane 3 lands first (#487 is P0) — rebase onto it.
+`src/common/foreign_items.h` / `.c`, `src/common/cvar_shared_keys.h`, the combo options view/window (new `src/common` view + `Combo*Window.cpp` pair, or an extension of `combo_mm_options_view.*` / `ComboMmOptionsWindow.cpp` — your call, recorded in the PR), the interim Cross-Game rows in `games/oot/soh/SohGui/SohMenuRandomizer.cpp:793-827`, and ADR 0011.
 
 ## Do not touch
 
-`src/common/context.h`, `foreign_items.h`, `foreign_items.c` (Lane 1 — if your predicate needs a new accessor, ask on #493 rather than adding one), `ForeignItemsSingleExe.cpp` (Lane 1), `Rando/StaticData/*` (read-only; if the host class needs a new field on `RandoStaticCheck` at `StaticData.h:20-28`, that is #488's embedded decision and the issue recommends deferring it to its own ADR — raise it, do not just do it), `MiscBehavior/CheckQueue.cpp` (Lane 6; read `:40-52` to understand the give path — the foreign branch is nested inside `if (randoSaveCheck.eligible)` at `:39-53`).
+`SohMenu.cpp` / `Menu.h` capability gating and the tier-4 Combo header are #497 steps 3/6 — **not** this lane; the Cross-Game sidebar remains the interim host. `context.h` needs no new carve (the record exists). ADR 0010 is read-only.
 
-## Non-negotiables
+## Verify
 
-- Lock at the default `redship` label. The bar: drive `MM_Rando_Foreign_IsEligibleHost` directly and assert it returns 0 for a disallowed host, so the check never enters `candidates`. RED today because the predicate reads no eligibility bit, accepts sentinel items, and accepts every non-shop check type.
-- Do **not** phrase the bar around `Combo_SetForeignPlacement`. That function already rejects `mmCheckId == 0`, untagged items, duplicate hosts and overflow — and it lives in `src/common/foreign_items.c`, which is Lane 1's. Making it the observable would force you into a forbidden file and push MM check-class semantics into a deliberately game-agnostic layer.
-- There is no relocation mechanism in the tree. `PlaceForeignItems` picks from a candidate vector and erases the pick; nothing re-homes a placement. Do not assert "rejected **or relocated**" — you would be inviting yourself to invent one.
-
-## Stop and report if
-
-The tightened predicate cannot host 4 items, or the current 4 pinned placements have been landing on unsafe hosts all along. Both change the operator's playtest expectations and #495's sizing, and both are worth more than a quiet fix that widens the predicate to hit a number.
+Local ROM-staged build plus both ctest tiers. The golden-vector digest test from increment 1 must still pass with defaults; a re-pin means you changed a default, which this increment must not. `Fixes` nothing — #498 stays open for increments 3-4; reference it as `Refs #498`.
