@@ -893,7 +893,16 @@ void Menu::DrawElement() {
         columns = 1;
     }
     float columnWidth = (sectionWidth - style.ItemSpacing.x * columns) / columns;
-    bool useColumns = columns > 1;
+    // #640: a multi-column page with NO column widgets (its registrar TU was
+    // elided from the link -- Network / Anchor's, before soh_port was
+    // WHOLE_ARCHIVE'd) must still consume the SetNextWindowPos above. With
+    // useColumns the column loop below runs zero times, the pending position
+    // survives to the next Begin -- libultraship's docked "Main Game" window --
+    // and BeginDocked reads HasPos|PosUndock as an undock request, detaching
+    // the game view from its dock node. Route the widget-less page through the
+    // single-section child instead: it consumes the position and renders an
+    // empty page.
+    bool useColumns = columns > 1 && columnFuncs > 0;
     if (!useColumns || (headerSearch && menuSearchText.length() > 0)) {
         ImGui::SameLine();
         ImGui::SetNextWindowSizeConstraints({ sectionWidth, 0 }, { sectionWidth, columnHeight });

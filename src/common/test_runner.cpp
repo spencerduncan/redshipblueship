@@ -132,6 +132,18 @@ int MM_CaptureHarvestGate_RunHeadless(void);
 // identical sequence; OnExitGame was the one seam left unguarded. Returns 0
 // on pass, non-zero on fail.
 int OoT_ExitHarvestGate_RunHeadless(void);
+// soh_port menu registrar survival (games/oot/soh/soh_menu_registrar_test.cpp,
+// #640): Network/Anchor/Menu.cpp and SohGui/ResolutionEditor.cpp register their
+// widgets purely through RegisterMenuInitFunc / RegisterMenuUpdateFunc static
+// initializers and export nothing anything references, and soh_port was the one
+// OoT archive linked without WHOLE_ARCHIVE, so the linker dropped both members
+// -- the Anchor page shipped with columnCount = 2 and zero widgets, whose
+// unconsumed SetNextWindowPos undocked the game window, and the resolution
+// editor never appeared in Settings / Graphics on any platform.
+// Asserts the registrars RAN by the exact size of the registries they populate,
+// naming neither symbol (a reference would un-elide them by itself). Returns 0
+// on pass, non-zero on fail.
+int OoT_MenuRegistrars_RunHeadless(void);
 // MM single-exe hook dispatch (games/mm/2s2h/mm_hook_dispatch_test.cpp, #511 /
 // #438): the COND_* macros park registrations in the MM-owned S2H::GameHooks
 // registry, but ShouldActorInit / OnActorInit / OnActorDraw / OnOpenText
@@ -476,6 +488,12 @@ static TestResult Test_MMCaptureHarvestGate(void) {
 // over the C entry point in games/oot/soh/oot_exit_harvest_gate_test.cpp.
 static TestResult Test_OoTExitHarvestGate(void) {
     return OoT_ExitHarvestGate_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// soh_port menu registrar survival (#640; see the extern decl above). Thin
+// wrapper over the C entry point in games/oot/soh/soh_menu_registrar_test.cpp.
+static TestResult Test_OoTMenuRegistrars(void) {
+    return OoT_MenuRegistrars_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // MM hook-dispatch lock (see the extern decl above). Thin wrapper over the C
@@ -2700,6 +2718,12 @@ const TestDescriptor gTests[] = {
     // a pre-populated gSaveContext must run BEFORE them.
     {"mm-resume-arena", "MM resume re-arms an exhausted system arena for the cold boot chain", Test_MMResumeArena},
     {"mm-startup-restore", "MM startup-entrance consumption restores the frozen save post-wipe", Test_MMStartupRestore},
+    // soh_port registrar elision (#640): the Anchor page's and the resolution
+    // editor's RegisterMenuInitFunc registrars must have RUN, observed by the
+    // exact size of the MenuInit registries they populate. Pure (no display,
+    // no ROM, no Ship::Context).
+    {"oot-menu-registrars", "soh_port's RegisterMenuInitFunc registrars survive the link (#640)",
+     Test_OoTMenuRegistrars},
     // Keep archive-hotswap-logic LAST: it re-inits the entrance table, so it
     // must not run before any test that relies on the default links.
     {"archive-hotswap-logic", "Headless multi-switch archive/state regression (#263)", Test_ArchiveHotswapLogic},

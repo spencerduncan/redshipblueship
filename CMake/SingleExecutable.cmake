@@ -806,6 +806,24 @@ if(BUILD_TESTING)
     redship_add_test(NAME MMRegistrarCoverage COMMAND redship --test mm-registrar-coverage)
     redship_add_test(NAME MMResumeArena COMMAND redship --test mm-resume-arena)
     redship_add_test(NAME MMStartupRestore COMMAND redship --test mm-startup-restore)
+    # soh_port registrar elision (#640): Network/Anchor/Menu.cpp and
+    # SohGui/ResolutionEditor.cpp register their menu widgets purely through
+    # RegisterMenuInitFunc static initializers and export nothing anything
+    # references, and soh_port was the one OoT archive linked without
+    # WHOLE_ARCHIVE, so the linker dropped both members. The Anchor page shipped
+    # widget-less and its unconsumed SetNextWindowPos undocked the game window;
+    # the resolution editor simply never appeared in Settings / Graphics, on
+    # Windows included (measured, see the test TU). games/oot/CMakeLists.txt now
+    # whole-archives soh_port; this row asserts the registrars actually RAN, by
+    # the exact size of the MenuInit registries they populate, without naming
+    # either symbol (a reference would un-elide them by itself). Runtime
+    # complement of check-registrar-elision.sh's libsoh_port.a gate, which is
+    # nm-based and Linux-only; this row runs on every platform. Its Anchor arm is
+    # compiled in only under ENABLE_REMOTE_CONTROL, which CI sets everywhere and
+    # a local build without SDL2_net does not -- see the test TU's header for
+    # what that means for red-before-green. Pure (no display, no ROM, no
+    # Ship::Context), so it runs in this redship tier.
+    redship_add_test(NAME OoTMenuRegistrars COMMAND redship --test oot-menu-registrars)
     redship_add_test(NAME AllTests COMMAND redship --test all)
 
     # Registration-completeness guard (#376). Diffs the dispatch table the
