@@ -194,6 +194,12 @@ int MM_ForeignPickupGate_RunHeadless(void);
 // MM_Rando_PairOnCrossGameArrival, and because reaching its combo leg means
 // first satisfying its MM-profile leg. Returns 0 on pass.
 int MM_ComboSettingsGate_RunHeadless(void);
+// games/mm/2s2h/mm_death_decline_autosave_test.cpp (ADR 0009 decision 4b,
+// #590/#625): MM's cross-game death-decline exit is an autosave point iff the
+// Autosave enhancement is on -- a whole-file commit after the revive, clock
+// reset -- and writes nothing with it off. MM-side because it drives the real
+// MM_Combo_GameOverExitToOoT and RegisterAutosave. Returns 0 on pass.
+int MM_DeathDeclineAutosave_RunHeadless(void);
 // VB-affinity regression: MM's GameInteractor_* calls resolve to OoT's
 // extern "C" wrappers in single-exe builds, and the two games' vanilla-
 // behavior ordinals alias each other. The wrappers gate on the active game;
@@ -2272,6 +2278,28 @@ TestResult Test_MMComboSettingsGate(void) {
     return MM_ComboSettingsGate_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// ADR 0009 decision 4b (#590/#625): MM's cross-game death-decline exit is an
+// autosave point iff the Autosave enhancement is on. Needs the shared bring-up
+// for ONE reason: the lock arms and disarms the REAL RegisterAutosave through
+// the Autosave CVar (CVarSetInteger), and the CVar bridge dereferences the
+// Ship::Context singleton unconditionally. The exit under test needs no
+// Context of its own -- it reads the registrar's armed state, not the CVar --
+// which is what lets mm-unified-save-capture's check 13 keep driving the same
+// exit Context-free.
+TestResult Test_MMDeathDeclineAutosave(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_DeathDeclineAutosave_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 TestResult Test_RoundtripIntegrity(void) {
     printf("[TEST] roundtrip-integrity: OoT SaveContext byte-integrity across roundtrip (issue #262)\n");
     int failures = TestRoundtripIntegrity_Run();
@@ -2662,6 +2690,14 @@ const TestDescriptor gTests[] = {
     // Pure (no display, no ROM).
     {"oot-exit-harvest-gate", "a latch-refused OoT exit-save leaves the shared-resource pool untouched (#606)",
      Test_OoTExitHarvestGate},
+    // ADR 0009 decision 4b: MM's cross-game game-over "don't continue" exit is
+    // an AUTOSAVE POINT iff the Autosave enhancement is on -- a whole-file
+    // commit after the #625 revive with the interval clock reset -- and writes
+    // nothing at the death moment with it off. Display-free and ROM-free; the
+    // bring-up it takes is for CVarSetInteger only.
+    {"mm-death-decline-autosave",
+     "MM's death-decline exit commits a whole-file autosave iff Autosave is on, nothing otherwise (ADR 0009 4b)",
+     Test_MMDeathDeclineAutosave},
     // Hook dispatch reaches the MM-owned registry the COND_* macros register
     // into. Registers through the production macros and drives each dispatcher
     // through the name MM's call sites spell, so both a deleted bridge and a
