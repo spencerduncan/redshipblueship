@@ -188,9 +188,10 @@ extern "C" int MM_ResumeArena_RunHeadless(void) {
 /**
  * mm-startup-restore: MM_Play_ConsumeStartupEntrance must (a) restore the
  * frozen save over a boot-chain wipe, (b) spawn at the startup entrance with
- * cutscene/game-mode state reset, (c) clear the startup slot, (d) leave
- * a wiped save alone when there is no frozen state (first entry), and (e)
- * re-apply the sound mode DERIVED from the restored save's
+ * cutscene/game-mode state reset, (c) clear the startup slot, (d) on a first
+ * entry (no frozen state) re-author the new-file clock over the title-demo
+ * bootstrap the boot chain hands it, while leaving the rest of that save alone
+ * (#639), and (e) re-apply the sound mode DERIVED from the restored save's
  * options.audioSetting, which lives outside gSaveContext and so cannot ride
  * the restore memcpy (#483, audit #482 row M5).
  */
@@ -318,14 +319,48 @@ extern "C" int MM_StartupRestore_RunHeadless(void) {
     // ...and the slot is consumed.
     RESUME_ASSERT(!Combo_HasStartupEntrance(), "startup entrance not cleared after consumption");
 
-    // First-entry behavior: no frozen state -> the wiped save must stay
-    // wiped (bootstrap fills it elsewhere), only the entrance is applied.
+    // First-entry behavior: no frozen state -> the arrival spawns on the boot
+    // chain's bootstrap save. Arrange THAT save exactly, not a zeroed one
+    // (#639): a first MM entry reaches MM_Play_Init through
+    // TitleSetup_SetupTitleScreen (ovl_opening/z_opening.c), which authors a
+    // new file with MM_Sram_InitNewSave() and then lays the title-screen
+    // attract demo's 08:00 / day 1 over its clock. This leg used to memset the
+    // save to 0 before the act, so its "day == 0 afterwards" could never see
+    // the demo clock riding through the consume -- which is exactly what
+    // shipped (#636: South Clock Town at 08:00 on Day 1, no dawn telop).
+    // TitleSetup_SetupTitleScreen itself is not callable here (it hops
+    // gamestates and needs a gfx context); its two-line override is pinned
+    // to its source instead.
     Combo_ClearFrozenState("mm");
     memset(&gSaveContext, 0, sizeof(gSaveContext));
+    MM_Sram_InitNewSave();
+    gSaveContext.save.time = CLOCK_TIME(8, 0); // z_opening.c TitleSetup_SetupTitleScreen:
+    gSaveContext.save.day = 1;                 //   "save.time = CLOCK_TIME(8, 0); save.day = 1;"
+    // Non-vacuity guard: the staged bootstrap must be the demo clock, and the
+    // demo clock must differ from the new-file clock the assertions below
+    // expect, or a consume that never touches the clock passes by coincidence.
+    RESUME_ASSERT(gSaveContext.save.time == CLOCK_TIME(8, 0) && gSaveContext.save.day == 1,
+                  "first-entry arrange did not stage the title-demo bootstrap clock");
+    RESUME_ASSERT(gSaveContext.save.time != CLOCK_TIME(6, 0) - 1 && gSaveContext.save.day != 0 &&
+                      gSaveContext.save.eventDayCount == 0,
+                  "first-entry arrange cannot distinguish the demo clock from a new file's");
     Combo_SetStartupEntrance(kArrival);
     MM_Play_ConsumeStartupEntrance();
     RESUME_ASSERT(gSaveContext.save.entrance == kArrival, "first-entry startup entrance not applied");
-    RESUME_ASSERT(gSaveContext.save.day == 0, "first-entry consumption must not invent save state");
+    // The clock is re-authored exactly as MM_Sram_InitNewSave authors it
+    // (z_sram_NES.c: CLOCK_TIME(6, 0) - 1, day 0, eventDayCount 0), so
+    // En_Test4 runs vanilla's "Dawn of the First Day" ceremony on the arrival
+    // load (EnTest4_Init's day-0 branch -> DayTelop) instead of the player
+    // landing at 08:00 on Day 1. skyboxTime is paired with save.time the way
+    // MM_Play_Init's nextDayTime rewrite pairs them.
+    RESUME_ASSERT(gSaveContext.save.time == CLOCK_TIME(6, 0) - 1,
+                  "first-entry arrival kept the title-demo 08:00 instead of the new-file clock (#639)");
+    RESUME_ASSERT(gSaveContext.save.day == 0,
+                  "first-entry arrival kept the title-demo day 1 instead of the new-file day 0 (#639)");
+    RESUME_ASSERT(gSaveContext.save.eventDayCount == 0,
+                  "first-entry arrival eventDayCount not re-authored to 0 (#639)");
+    RESUME_ASSERT(gSaveContext.skyboxTime == CLOCK_TIME(6, 0) - 1,
+                  "first-entry arrival skyboxTime not paired with the re-authored save.time (#639)");
     RESUME_ASSERT(!Combo_HasStartupEntrance(), "first-entry startup entrance not cleared");
     // Cross-game arrivals are plain spawns: the Clock Town first-visit intro
     // layer must be pre-suppressed on every consumed startup entrance. The

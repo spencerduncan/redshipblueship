@@ -2348,6 +2348,51 @@ void MM_Play_ConsumeStartupEntrance(void) {
     // arrival block means the cross-game arrival state always wins, exactly as
     // it does over a restored frozen save.
     MM_Rando_PairOnCrossGameArrival(hadFrozenState);
+    // A FIRST MM entry spawns on the boot chain's bootstrap save, and that save
+    // carries the TITLE-SCREEN ATTRACT DEMO's clock, not a new file's (#639,
+    // tracking the human-filed #636). TitleSetup_SetupTitleScreen
+    // (ovl_opening/z_opening.c) authors the bootstrap with MM_Sram_InitNewSave()
+    // -- time CLOCK_TIME(6, 0) - 1, day 0, eventDayCount 0 (z_sram_NES.c) -- and
+    // then lays "save.time = CLOCK_TIME(8, 0); save.day = 1;" over it so the
+    // attract cutscene plays in daylight. Every other piece of title-demo state
+    // that rides into this function is neutralized for the arrival below
+    // (cutsceneIndex, gameMode, respawnFlag, nextDayTime, timers, audio ids),
+    // but the clock was never on that list, so the player landed in South Clock
+    // Town at 08:00 on Day 1: no "Dawn of the First Day" telop, no 72-hour
+    // reset, two hours already gone from the first cycle. No OoT value is
+    // involved -- nothing in the combo maps OoT's dayTime into MM; the 08:00 is
+    // MM's own (CLOCK_TIME(8, 0) == 0x5555 vs CLOCK_TIME(6, 0) == 0x4000).
+    //
+    // Re-author exactly what MM_Sram_InitNewSave authors (mirrored from
+    // z_sram_NES.c, not invented) and let vanilla's own machinery run: South
+    // Clock Town's clock actor sees CURRENT_DAY == 0 with time < 06:01 and hops
+    // to DayTelop (ovl_En_Test4 EnTest4_Init), whose Init runs
+    // Sram_ClearFlagsAtDawnOfTheFirstDay + Sram_IncrementDay and whose exit sets
+    // time = CLOCK_TIME(6, 0) (ovl_daytelop) -- the same "Dawn of the First Day,
+    // 72 Hours Remain" ceremony a new file gets on its first tower exit, and the
+    // path upstream's SkipIntroSequence enhancement and rando OnFileCreate both
+    // rely on. The startup entrance is retired at the end of this function, so
+    // the second MM_Play_Init after the telop takes the presence-gated early
+    // return at the top instead of re-running this arrival logic. Neither Sram
+    // helper touches the intro-suppression flags set further down.
+    //
+    // Gated on !hadFrozenState: a restored return-leg save is the player's own
+    // session and keeps its clock (mm-startup-restore asserts 0x4321 / day 3
+    // survive). Runs AFTER MM_Rando_PairOnCrossGameArrival on purpose: a paired
+    // world's OnFileCreate authors entrance/Tatl/threeDayResetCount/isFirstCycle
+    // but never the clock, so the re-author overrides nothing it decided --
+    // this is the same InitNewSave -> OnFileCreate -> Play -> telop order a
+    // standalone rando new file follows. skyboxTime is paired with save.time
+    // the way MM_Play_Init's nextDayTime rewrite pairs them (further down in
+    // this file); MM_Sram_InitNewSave itself leaves skyboxTime alone and
+    // MM_Environment_Init re-derives it from CURRENT_TIME on the scene load, so
+    // this keeps the triple internally consistent rather than doing new work.
+    if (!hadFrozenState) {
+        gSaveContext.save.time = CLOCK_TIME(6, 0) - 1;
+        gSaveContext.save.day = 0;
+        gSaveContext.save.eventDayCount = 0;
+        gSaveContext.skyboxTime = gSaveContext.save.time;
+    }
     gSaveContext.save.entrance = startupEntrance;
     // On a first MM entry this Play_Init is reached through MM's
     // title-screen boot (TitleSetup_SetupTitleScreen), so the save
