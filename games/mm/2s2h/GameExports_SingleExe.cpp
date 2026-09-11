@@ -2840,6 +2840,106 @@ extern "C" void MM_HarvestSharedResources(void) {
     Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_HOOKSHOT_TIER, MM_ReadHookshotTier());
 }
 
+// ============================================================================
+// Pre-freeze discipline (#638, #626) -- MM's halves of
+// Combo_FlushLiveStateForFreeze (src/common/switch.cpp). Both freeze drivers
+// (Combo_CheckEntranceSwitch and Combo_FreezeActiveGameForHotSwap,
+// games/oot/soh/GameExports_SingleExe.cpp) call the seam immediately before
+// they capture gSaveContext; these are what the seam runs when MM departs.
+// ============================================================================
+
+/**
+ * Copy the current scene's live flags into gSaveContext before the departure
+ * freezes it (#638, the agent tracker for the reporter's #635).
+ *
+ * MECHANISM. A pickup writes the live PlayState only: MM_Flags_SetCollectible
+ * (z_actor.c) ORs into play->actorCtx.sceneFlags.collectible[]. The only copier
+ * from there into gSaveContext.cycleSceneFlags is Play_SaveCycleSceneFlags
+ * (z_play.c), reached from Actor_CleanupContext on a normal scene transition
+ * and from the save routes -- nowhere else. Walking into the Clock Tower door
+ * runs Combo_CheckEntranceSwitch the instant nextEntrance is assigned
+ * (z_player.c), which freezes gSaveContext BEFORE the transition, and the
+ * switch then breaks MM's graph loop without ever running Play_Destroy. The F10
+ * path has the same shape one frame later. So every flag set during the final
+ * scene visit was frozen as unset; the return leg restored the stale blob,
+ * Actor_InitContext reseeded actorCtx.sceneFlags from it, and the heart piece
+ * respawned. permanentSceneFlags cannot rescue it: it is only ever a copy of
+ * cycleSceneFlags taken at save time, so it can never be fresher.
+ *
+ * WHAT THIS IS. The same call SavingEnhancements.cpp's autosave already makes
+ * from a 2s2h TU: five u32 copies into cycleSceneFlags[Play_GetOriginalSceneId],
+ * idempotent, mirroring exactly what Actor_CleanupContext would have done. The
+ * temp words (collectible[1..3], switches[2..3], clearedRoomTemp) are per-visit
+ * by design and are correctly dropped, as they are on any transition. This
+ * does not touch the .redsave commit path (#569/#612): that path is faithful
+ * to the blob it is given; the blob was simply captured too early.
+ *
+ * NULL-safe on purpose: the owl-save and game-over exits and the headless rows
+ * reach the launcher freeze with no PlayState, and MM_gPlayState is nulled by
+ * Play_Destroy and MM_Graph_ResetRunFrameContext, so non-NULL means live.
+ */
+extern "C" void MM_Combo_FlushSceneFlagsForFreeze(void) {
+    PlayState* play = MM_gPlayState;
+    if (play == NULL) {
+        return;
+    }
+    Play_SaveCycleSceneFlags(play);
+}
+
+/**
+ * Revive a dead health bar before the departure freezes it (#626).
+ *
+ * THE ROUTE #625 LEFT OPEN. PR #625 made the kaleido "don't continue" exit
+ * revive (MM_Combo_GameOverExitToOoT above) because a frozen dead bar is
+ * durable under #612 and re-enters the game-over on the next arrival, and
+ * because MM_HarvestSharedResources reads playerData.health verbatim at
+ * Game_Suspend while apply ASSIGNS the CONSUMABLE bar on the far side. But
+ * that exit is only one of two ways to leave the game-over screen: F10 is
+ * polled ungated every frame (Combo_CheckHotSwap), and a press while the
+ * game-over is up breaks the graph loop, freezes gSaveContext with health == 0,
+ * and switches -- never touching the kaleido leg. Both apply-side comments'
+ * "cannot normally hand over a dead bar" premise is false on this route.
+ *
+ * WHY REVIVE RATHER THAN REFUSE. #625 already decided that leaving MM from a
+ * game-over in a cross-game session is a SWITCH, not a quit (ADR 0009
+ * decision 4a rules on quit-to-title; a switch back to the live OoT session is
+ * neither a quit nor a commit), and that a switch taken with Link dead owes a
+ * RESUMABLE MM half. F10 from the same screen is the same departure by a
+ * different button; refusing it would make the two exits from one state behave
+ * differently and leave the player unable to hot-swap out of a game-over at
+ * all. So this applies exactly #625's revive, at the seam every freeze passes
+ * through: health <= 0 -> 0x30 (three hearts, vanilla's own continue literal),
+ * healthAccumulator cleared so the killing blow does not re-apply on the first
+ * frame back. The magic-meter regrow ceremony is deliberately NOT replicated,
+ * for the reason #625 records: it is multi-frame and this departure has no
+ * frames left. Running after MM_Combo_GameOverExitToOoT is a no-op, since the
+ * bar is already alive.
+ *
+ * GATED ON gameMode, NOT fileNum, and on nothing else. A cross-game MM session
+ * runs pinned to the 0xFF fileNum sentinel for its whole life, so fileNum can
+ * say nothing; gameMode is the discriminator the harvest itself uses
+ * (MM_SaveIsLiveFile / Combo_SaveIsLiveFile), and a revive that fired where the
+ * harvest would not -- the title screen's bootstrap save under
+ * GAMEMODE_TITLE_SCREEN -- would be editing a save nobody is playing. Not gated
+ * on Context_HasFrozenState(GAME_OOT) the way the kaleido exit is: that gate
+ * distinguishes standalone 2ship (which never reaches this seam) from a combo
+ * session, whereas an MM-first session hot-swapping to a fresh OoT still owes
+ * a resumable MM blob for the trip back.
+ */
+extern "C" void MM_Combo_ReviveDeadHealthForFreeze(void) {
+    if (!MM_SaveIsLiveFile()) {
+        return;
+    }
+    if (gSaveContext.save.saveInfo.playerData.health > 0) {
+        return;
+    }
+    gSaveContext.save.saveInfo.playerData.health = 0x30;
+    gSaveContext.healthAccumulator = 0;
+    fprintf(stderr, "[MM] pre-freeze: revived a dead health bar to %d before the departure freeze (#626)\n",
+            (int)gSaveContext.save.saveInfo.playerData.health);
+    fflush(stderr);
+}
+
 /**
  * APPLY (#525), the twin of OoT_ApplySharedResources.
  *

@@ -839,6 +839,23 @@ if(BUILD_TESTING)
     redship_add_test(NAME MMRegistrarCoverage COMMAND redship --test mm-registrar-coverage)
     redship_add_test(NAME MMResumeArena COMMAND redship --test mm-resume-arena)
     redship_add_test(NAME MMStartupRestore COMMAND redship --test mm-startup-restore)
+    # Pre-freeze discipline (#638, the agent tracker for #635; and #626). Both
+    # games keep the CURRENT scene's flags in the live PlayState and copy them
+    # into gSaveContext only on a scene transition (Actor_CleanupContext ->
+    # Play_SaveCycleSceneFlags / Play_SaveSceneFlags). A cross-game departure
+    # never reaches that copy -- the entrance switch freezes the instant
+    # nextEntrance is assigned and then kills the gamestate without
+    # Play_Destroy; F10 breaks the graph loop the same way -- so every flag set
+    # during the final scene visit was frozen as unset and the pickup respawned
+    # on the return leg. The MM row also locks #626: an F10 during MM's
+    # game-over screen bypasses the kaleido death exit PR #625 guarded, froze
+    # health == 0, and the suspend harvest handed OoT the shared CONSUMABLE bar
+    # at zero. Each row drives the two REAL freeze drivers
+    # (Combo_CheckEntranceSwitch, Combo_FreezeActiveGameForHotSwap) against a
+    # calloc'd PlayState and reads the frozen blob back. Display-free and
+    # ROM-free, so they run in this redship tier.
+    redship_add_test(NAME MMSceneFlagFreeze COMMAND redship --test mm-scene-flag-freeze)
+    redship_add_test(NAME OoTSceneFlagFreeze COMMAND redship --test oot-scene-flag-freeze)
     # soh_port registrar elision (#640): Network/Anchor/Menu.cpp and
     # SohGui/ResolutionEditor.cpp register their menu widgets purely through
     # RegisterMenuInitFunc static initializers and export nothing anything
