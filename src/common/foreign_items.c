@@ -12,6 +12,7 @@
  */
 
 #include "foreign_items.h"
+#include "combo_settings_view.h" // the tier-4 authoring surface the resolver reads (increment 2)
 #include <stdio.h>
 #include <string.h>
 
@@ -63,15 +64,27 @@ void Combo_ResolveComboSettings(ComboSettingsRecord* out) {
     if (out == NULL) {
         return;
     }
-    // INCREMENT 1 RESOLVES TO THE DEFAULTS. The tier-4 authoring keys
-    // (gCombo.Rando.Direction, .PoolSize.OoT/.MM, .ItemClass.OoT/.MM) are
-    // increment 2's work and do not exist in any store yet, so "what the player
-    // chose" and "what ships" are the same record today. When those keys land,
-    // the CVar read goes HERE and every caller follows unchanged — which is the
-    // whole reason this is a named resolver rather than an inlined copy of the
-    // defaults at each site (the same one-resolver discipline
-    // Rando::Foreign::ResolveProfileValues holds for MM's profile).
+    // THE SHIPPED DEFAULTS, OVERLAID WITH THE FIVE AUTHORED FIELDS (ADR 0011
+    // increment 2). This is the one resolver both the creation freeze and every
+    // arrival/load compare go through (the same one-resolver discipline
+    // Rando::Foreign::ResolveProfileValues holds for MM's profile), so the CVar
+    // read lives HERE and nowhere else.
+    //
+    // Combo_ComboSettingResolved validates each stored value against its
+    // pinned space and resolves an out-of-space value to the shipped default
+    // with a logged reason — never to a new enumerator. An unset key, or a
+    // process with no CVar store at all (every ROM-free row that never brings
+    // up a Ship::Context), resolves to the default; that is what keeps "nothing
+    // authored" and "what ships" the same record, and the SeedDeterminism /
+    // MMRandoGen / HeadlessForeignDigest rows byte-stable.
+    //
+    // goal and logicRung stay at their defaults: ADR 0010 owns their authoring.
     Combo_ComboSettingsDefaults(out);
+    out->direction = (uint8_t)Combo_ComboSettingResolved(COMBO_SETTING_DIRECTION);
+    out->poolSizeOoT = (uint8_t)Combo_ComboSettingResolved(COMBO_SETTING_POOL_SIZE_OOT);
+    out->poolSizeMM = (uint8_t)Combo_ComboSettingResolved(COMBO_SETTING_POOL_SIZE_MM);
+    out->itemClassOoT = (uint16_t)Combo_ComboSettingResolved(COMBO_SETTING_ITEM_CLASS_OOT);
+    out->itemClassMM = (uint16_t)Combo_ComboSettingResolved(COMBO_SETTING_ITEM_CLASS_MM);
 }
 
 bool Combo_ForeignPairingRequested(void) {
@@ -492,6 +505,14 @@ const char* Combo_ComboSettingsDivergenceFieldName(uint32_t bit) {
         default:
             return "(unknown)";
     }
+}
+
+bool Combo_ComboSettingsDivergenceIsDamage(uint32_t bits) {
+    // UNREADABLE and FINGERPRINT are properties of the stored identity ITSELF
+    // — a record this build cannot parse, or a hash its own record and
+    // half-digests do not produce. Every other bit is a property of the
+    // SESSION: the file is healthy and the live resolution walked away from it.
+    return (bits & (RSBS_COMBO_DIVERGE_UNREADABLE | RSBS_COMBO_DIVERGE_FINGERPRINT)) != 0;
 }
 
 int Combo_ComboSettingsDivergenceDescribe(uint32_t bits, char* out, size_t len) {

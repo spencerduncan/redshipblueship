@@ -27,6 +27,7 @@
 #include "context.h"
 #include "ComboSpoilerWindow.h"   // Combo_SpoilerWindow_Init (#496, ADR 0008)
 #include "ComboMmOptionsWindow.h" // Combo_MMOptionsWindow_Init (#497/#499, ADR 0004+0008)
+#include "ComboSettingsWindow.h"  // Combo_ComboSettingsWindow_Init (#498, ADR 0011 inc 2)
 #include "ComboTrackerWindow.h"   // Combo_TrackerWindow_Init (#458, ADR 0008)
 #include "entrance.h"
 #include "mod_archives.h" // #593 — user mod archives must survive a game switch
@@ -583,6 +584,15 @@ int main(int argc, char** argv) {
     // exist after the point at which it could still change anything. It has to
     // be reachable while OoT is the running game.
     Combo_MMOptionsWindow_Init();
+
+    // The combo settings pane (#498, ADR 0011 increment 2): the five tier-4
+    // gCombo.Rando.* keys. Same seam, same reason as the MM options pane above,
+    // and the same timing argument -- these freeze into the paired world's
+    // identity at OoT's generation, so the pane has to be reachable while OoT
+    // is the running game or it can no longer change anything. Named here
+    // rather than left to the MM pane's own bring-up (which also calls it, and
+    // it is idempotent) so this list is the whole set of common-owned windows.
+    Combo_ComboSettingsWindow_Init();
 
     // MM's four tracker windows (#535). Same seam, same reason: registration
     // used to hang off MM_Rando_Init, so the windows existed only once MM had

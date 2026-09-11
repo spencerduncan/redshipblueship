@@ -488,11 +488,21 @@ void Combo_ComboSettingsDefaults(ComboSettingsRecord* out);
  * "what creation froze" and "what arrival checks" cannot drift apart if they
  * are one computation.
  *
- * INCREMENT 1 RESOLVES TO THE SHIPPED DEFAULTS, because the tier-4 authoring
- * keys (`gCombo.Rando.Direction`, `.PoolSize.*`, `.ItemClass.*`) are increment
- * 2's work and do not exist yet. When they land, THIS function grows the CVar
- * read and every call site follows with no change — which is the whole reason
- * the resolver is a named function rather than an inlined defaults copy.
+ * THE SHIPPED DEFAULTS OVERLAID WITH THE FIVE AUTHORED FIELDS (ADR 0011
+ * increment 2): direction, both pool sizes and both class bitsets are read
+ * from the tier-4 `gCombo.Rando.*` keys through combo_settings_view.h's
+ * Combo_ComboSettingResolved, which validates each stored value against its
+ * pinned space and resolves an out-of-space value to the shipped default with
+ * a logged reason — never to a new enumerator. An unset key, or a process with
+ * no CVar store at all (every ROM-free row that never brings up a
+ * Ship::Context), resolves to the default, so "nothing authored" and "what
+ * ships" are the same record and the determinism digests do not move. `goal`
+ * and `logicRung` stay at their defaults: ADR 0010 owns their authoring.
+ *
+ * Read BEFORE the freeze at the creation event (Playthrough_Init: resolve ->
+ * freeze), so the frozen record is what the player authored. After the freeze
+ * nothing reads a CVar to decide world behaviour, and the writers in
+ * combo_settings_view.h refuse while Combo_ComboSettingsFrozen() is true.
  */
 void Combo_ResolveComboSettings(ComboSettingsRecord* out);
 
@@ -718,6 +728,24 @@ const char* Combo_ComboSettingsDivergenceFieldName(uint32_t bit);
  * @return the number of named fields.
  */
 int Combo_ComboSettingsDivergenceDescribe(uint32_t bits, char* out, size_t len);
+
+/**
+ * Does a divergence bitset describe DAMAGE to the stored identity — an
+ * unreadable record, or a fingerprint its own record and half-digests do not
+ * produce — rather than a SESSION that diverged from a healthy file (field
+ * bits only)? Both are refused; they must be HANDLED differently. A damaged
+ * file is evidence to quarantine. A healthy file met by a divergent session is
+ * precisely what must be left in place: RefuseSlotIdentity's contract (save.h)
+ * is that an identity refusal "quarantines NOTHING — the on-disk .redsave is
+ * healthy and is precisely what must be protected".
+ *
+ * Load-bearing from increment 2 on: with the tier-4 keys authorable, a
+ * field-only divergence at LOAD is the ordinary case — the player changed a
+ * rule at the title screen and then loaded an older paired file — not the
+ * damage case it could only be while the resolver was constant. A load path
+ * that quarantines on it renames a healthy save away.
+ */
+bool Combo_ComboSettingsDivergenceIsDamage(uint32_t bits);
 
 /**
  * The pairing header for the combo pane (ADR 0011 increment 2) and for any

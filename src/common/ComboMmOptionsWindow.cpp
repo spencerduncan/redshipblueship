@@ -17,6 +17,7 @@
 #include <ship/window/gui/Gui.h>
 #include <libultraship/bridge/consolevariablebridge.h>
 
+#include "ComboSettingsWindow.h" // Combo_ComboSettingsWindow_Init — the tier-4 twin of this pane
 #include "combo_mm_options_view.h"
 #include "context.h" // Context_GetCurrentGame — for the "MM is suspended" state
 
@@ -348,6 +349,15 @@ extern "C" void Combo_MMOptionsWindow_Init(void) {
     // This runs unconditionally, even in the headless case below, so the model
     // is populated for tests that never construct a Gui.
     MM_RandoOptionsUi_Register();
+
+    // The paired world's OTHER authoring pane — the five tier-4 combo settings
+    // (ADR 0011 increment 2) — registers alongside this one. The two are the
+    // two halves of one authoring surface: one creation event freezes MM's
+    // tier-3 profile and the combo's tier-4 rules together (decision 4.1's
+    // order), so they share a bring-up point. Called BEFORE this function's own
+    // headless early-out because it carries its own (and is idempotent, so
+    // rsbs/src/main.cpp may also call it directly).
+    Combo_ComboSettingsWindow_Init();
 
     auto ctx = Ship::Context::GetInstance();
     if (ctx == nullptr || ctx->GetWindow() == nullptr) {

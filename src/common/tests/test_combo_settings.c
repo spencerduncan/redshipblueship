@@ -41,20 +41,36 @@
  *   would make every arrival-time divergence disappear the instant it was
  *   detected.
  *
+ *   combo-settings-authoring (ADR 0011 increment 2) — the five tier-4 keys.
+ *   A RunHeadless bridge rather than a TestResult body, because the keys live
+ *   in the CVar store on the Ship::Context singleton: with nothing authored
+ *   the resolver still produces the shipped record and its pinned fingerprint
+ *   byte for byte; authored values reach the record BEFORE the freeze and move
+ *   the fingerprint; the writers refuse once frozen (the gate is on the
+ *   writers, not the widget); the pane's summary serves the save and not the
+ *   CVar; an out-of-space store value resolves to the shipped default and
+ *   never to a new enumerator; and a session divergence is distinguishable
+ *   from damage (Combo_ComboSettingsDivergenceIsDamage).
+ *
  * Linkage note: #included into test_runner.cpp at FILE SCOPE (compiled as
  * C++, like test_save_roundtrip.c) for the rsbs::SaveManager half; every
  * symbol under test is C-linkage.
  */
 
+#include "../combo_settings_view.h"
 #include "../context.h"
+#include "../cvar_shared_keys.h"
 #include "../foreign_items.h"
 #include "../save.h"
 #include "../test_runner.h"
 
 #include <cstdio>
 #include <cstring>
+#include <filesystem>
 #include <string>
 #include <vector>
+
+#include <libultraship/bridge/consolevariablebridge.h>
 
 #define CS_ASSERT(cond, msg)                    \
     do {                                        \
@@ -67,6 +83,10 @@
 namespace {
 
 const char* const kComboSettingsTestDir = "rsbs_test_combo_settings";
+// Its own directory for the load-side leg, because RsbsSave_HasQuarantine
+// reports ANY slotN.redsave*.bak beside the slot and an earlier run's
+// evidence would confound "nothing was quarantined by THIS load".
+const char* const kComboSettingsLoadTestDir = "rsbs_test_combo_settings_load";
 
 /** Give the commit choke point something to stage. StageCommit refuses when the
  *  context shadows are absent, and a Tier-1-only test would otherwise never get
@@ -755,5 +775,380 @@ TestResult Test_ComboSettingsLegacyFreeze(void) {
 
     ComboContext_Init();
     printf("[TEST] PASS: the legacy transitional writer freezes once, compares thereafter, and never self-heals\n");
+    return TEST_PASS;
+}
+
+// ============================================================================
+// combo-settings-authoring — the tier-4 keys reach the record BEFORE the
+// freeze, and not after it (ADR 0011 increment 2)
+// ============================================================================
+//
+// A RunHeadless bridge rather than a TestResult body: the five keys live in the
+// CVar store on the Ship::Context singleton, so this row needs the
+// display-free shared bring-up that lives (static) in test_runner.cpp. The
+// rows above deliberately run WITHOUT one — that is how they prove the
+// resolver falls back to the shipped defaults when nothing is authored, which
+// is the same fallback this row's first leg re-proves with a store present.
+
+extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
+    printf("[TEST] combo-settings-authoring: the five tier-4 keys author the record before the freeze, move the "
+           "fingerprint, and are refused once frozen (ADR 0011 increment 2)\n");
+
+    CS_ASSERT(Combo_ComboSettingStoreAvailable(),
+              "the bridge brought up no CVar store — every leg below would pass vacuously on the defaults");
+
+    // ---- Clean slate: nothing frozen, nothing authored ----------------------
+    ComboContext_Init();
+    for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
+        const ComboSettingId id = (ComboSettingId)i;
+        CS_ASSERT(Combo_ComboSettingClear(id) == 1, "clear must succeed while nothing is frozen");
+        CS_ASSERT(!Combo_ComboSettingIsExplicit(id), "a cleared key must read as unset");
+    }
+    CS_ASSERT(Combo_ComboSettingReadOnlyReason() == NULL,
+              "nothing is frozen, so there is no read-only reason: the pane must draw these editable");
+
+    // ---- (1) Nothing authored => the shipped record, byte for byte, and its
+    // pinned fingerprint. This is the acceptance bar the whole increment is
+    // bounded by: with the store present but empty, the resolver must produce
+    // exactly what it produced before any key existed, or SeedDeterminism,
+    // MMRandoGen and HeadlessForeignDigest all move.
+    ComboSettingsRecord defaults;
+    Combo_ComboSettingsDefaults(&defaults);
+    ComboSettingsRecord live;
+    Combo_ResolveComboSettings(&live);
+    CS_ASSERT(ComboSettingsRecordsEqual(defaults, live),
+              "with no key set the resolver must produce the shipped defaults — anything else moves every new world");
+    // The same vector Test_ComboSettingsCanonical pins; restated here so THIS
+    // row is red on its own if the defaults drift, without a reader having to
+    // notice that a different row went red for a related reason.
+    static const uint8_t kDefaultsCanon[RSBS_COMBO_SETTINGS_CANONICAL_LEN] = {
+        0x01, 0x04, 0x08, 0x08, 0x3F, 0x00, 0x3F, 0x00, 0x01, 0x02, 0x00, 0x00,
+    };
+    static const uint32_t kSettingsHash = 0xDEADBEEFu;
+    static const uint32_t kProfileDigest = 0x0BADF00Du;
+    static const uint32_t kDefaultsFingerprint = 0xBA5FC364u;
+    uint8_t canon[RSBS_COMBO_SETTINGS_CANONICAL_LEN];
+    Combo_ComboSettingsCanonical(&live, canon);
+    CS_ASSERT(memcmp(canon, kDefaultsCanon, sizeof(kDefaultsCanon)) == 0,
+              "the resolved defaults' canonical bytes moved — the identity of every unauthored world just changed");
+    CS_ASSERT(Combo_ComputeComboSettingsHash(&live, kSettingsHash, kProfileDigest) == kDefaultsFingerprint,
+              "the resolved defaults' fingerprint moved off its golden vector");
+    CS_ASSERT(Combo_ComboSettingDefault(COMBO_SETTING_DIRECTION) == (int32_t)defaults.direction &&
+                  Combo_ComboSettingDefault(COMBO_SETTING_POOL_SIZE_OOT) == (int32_t)defaults.poolSizeOoT &&
+                  Combo_ComboSettingDefault(COMBO_SETTING_POOL_SIZE_MM) == (int32_t)defaults.poolSizeMM &&
+                  Combo_ComboSettingDefault(COMBO_SETTING_ITEM_CLASS_OOT) == (int32_t)defaults.itemClassOoT &&
+                  Combo_ComboSettingDefault(COMBO_SETTING_ITEM_CLASS_MM) == (int32_t)defaults.itemClassMM,
+              "each key's default must be the defaults record's own field — one definition of 'what ships'");
+    for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
+        const ComboSettingId id = (ComboSettingId)i;
+        CS_ASSERT(Combo_ComboSettingResolved(id) == Combo_ComboSettingDefault(id),
+                  "an unset key must resolve to its default");
+        CS_ASSERT(Combo_ComboSettingKey(id) != NULL && strncmp(Combo_ComboSettingKey(id), RSBS::kComboIdentityKeyPrefix,
+                                                               strlen(RSBS::kComboIdentityKeyPrefix)) == 0,
+                  "every authoring key lives under the tier-4 identity namespace (ADR 0003 naming)");
+    }
+
+    // ---- (2) The pinned value spaces (decision 1.2.1) ----------------------
+    {
+        struct Probe {
+            ComboSettingId id;
+            int32_t value;
+            bool valid;
+        };
+        static const Probe kProbes[] = {
+            { COMBO_SETTING_DIRECTION, 0, false }, // 0 is unreachable inside a formatted record
+            { COMBO_SETTING_DIRECTION, (int32_t)RSBS_COMBO_DIR_OFF, true },
+            { COMBO_SETTING_DIRECTION, (int32_t)RSBS_COMBO_DIR_BOTH, true },
+            { COMBO_SETTING_DIRECTION, 5, false }, // one past the table: never a new enumerator
+            { COMBO_SETTING_DIRECTION, -1, false },
+            { COMBO_SETTING_DIRECTION, 255, false },
+            { COMBO_SETTING_POOL_SIZE_OOT, 0, false }, // the direction byte says "off", not a zero pool
+            { COMBO_SETTING_POOL_SIZE_OOT, 1, true },
+            { COMBO_SETTING_POOL_SIZE_OOT, (int32_t)RSBS_FOREIGN_PLACEMENT_CAP, true },
+            { COMBO_SETTING_POOL_SIZE_OOT, (int32_t)RSBS_FOREIGN_PLACEMENT_CAP + 1, false }, // a count that lies
+            { COMBO_SETTING_POOL_SIZE_MM, -3, false },
+            { COMBO_SETTING_POOL_SIZE_MM, (int32_t)RSBS_FOREIGN_PLACEMENT_CAP, true },
+            { COMBO_SETTING_ITEM_CLASS_OOT, 0, true }, // "no classes armed" is a legitimate world (decision 3.3)
+            { COMBO_SETTING_ITEM_CLASS_OOT, (int32_t)RSBS_ITEMCLASS_ALL_V1, true },
+            { COMBO_SETTING_ITEM_CLASS_OOT, (int32_t)RSBS_ITEMCLASS_PROGRESSION, true },
+            { COMBO_SETTING_ITEM_CLASS_OOT, 0x0040, false }, // the first UNALLOCATED bit must read 0
+            { COMBO_SETTING_ITEM_CLASS_MM, (int32_t)(RSBS_ITEMCLASS_SONGS | RSBS_ITEMCLASS_SIDEQUEST), true },
+            { COMBO_SETTING_ITEM_CLASS_MM, 0x8000, false },
+            { COMBO_SETTING_ITEM_CLASS_MM, 0x10000, false }, // past uint16
+            { COMBO_SETTING_ITEM_CLASS_MM, -1, false },
+        };
+        for (size_t i = 0; i < sizeof(kProbes) / sizeof(kProbes[0]); i++) {
+            if (Combo_ComboSettingValueValid(kProbes[i].id, kProbes[i].value) != kProbes[i].valid) {
+                printf("[TEST] FAIL: '%s' = %d judged %s, expected %s\n", Combo_ComboSettingKey(kProbes[i].id),
+                       (int)kProbes[i].value, kProbes[i].valid ? "INVALID" : "valid",
+                       kProbes[i].valid ? "valid" : "INVALID");
+                return TEST_FAIL;
+            }
+        }
+        CS_ASSERT(!Combo_ComboSettingValueValid(COMBO_SETTING_COUNT, 1), "an id past the table is never valid");
+    }
+
+    // ---- (3) Authored values reach the record BEFORE the freeze ------------
+    CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, (int32_t)RSBS_COMBO_DIR_FORWARD) == 1,
+              "an in-space write must land while nothing is frozen");
+    CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_ITEM_CLASS_OOT,
+                                    (int32_t)(RSBS_ITEMCLASS_SONGS | RSBS_ITEMCLASS_MASKS)) == 1,
+              "an in-space class bitset must land while nothing is frozen");
+    CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_POOL_SIZE_MM, 3) == 1, "an in-space pool size must land");
+    CS_ASSERT(Combo_ComboSettingIsExplicit(COMBO_SETTING_DIRECTION) &&
+                  Combo_ComboSettingIsExplicit(COMBO_SETTING_ITEM_CLASS_OOT) &&
+                  Combo_ComboSettingIsExplicit(COMBO_SETTING_POOL_SIZE_MM),
+              "a landed write must read as explicit");
+    CS_ASSERT(!Combo_ComboSettingIsExplicit(COMBO_SETTING_POOL_SIZE_OOT), "an untouched key stays unset");
+    CS_ASSERT(Combo_ComboSettingResolved(COMBO_SETTING_DIRECTION) == (int32_t)RSBS_COMBO_DIR_FORWARD,
+              "the reader must serve the authored direction");
+
+    Combo_ResolveComboSettings(&live);
+    CS_ASSERT(live.direction == RSBS_COMBO_DIR_FORWARD, "the resolver did not read the authored direction");
+    CS_ASSERT(live.itemClassOoT == (RSBS_ITEMCLASS_SONGS | RSBS_ITEMCLASS_MASKS),
+              "the resolver did not read the authored OoT class bitset");
+    CS_ASSERT(live.poolSizeMM == 3, "the resolver did not read the authored MM pool size");
+    CS_ASSERT(live.poolSizeOoT == defaults.poolSizeOoT && live.itemClassMM == defaults.itemClassMM &&
+                  live.goal == defaults.goal && live.logicRung == defaults.logicRung && live.spare0 == 0 &&
+                  live.spare1 == 0 && live.formatVersion == defaults.formatVersion,
+              "an unauthored field must keep its shipped default");
+    CS_ASSERT(!ComboSettingsRecordsEqual(live, defaults), "an authored record must differ from the defaults");
+    const uint32_t authoredFingerprint = Combo_ComputeComboSettingsHash(&live, kSettingsHash, kProfileDigest);
+    CS_ASSERT(authoredFingerprint != kDefaultsFingerprint,
+              "a different direction and class bitset must change comboSettingsHash — the whole point of folding "
+              "the record into the fingerprint");
+
+    // The pre-condition predicate follows the AUTHORED direction (ADR 0009
+    // decision 2): OFF is "no paired world is being asked for".
+    CS_ASSERT(Combo_ForeignPairingRequested(), "FORWARD asks for a paired world");
+    CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, (int32_t)RSBS_COMBO_DIR_OFF) == 1, "OFF is authorable");
+    CS_ASSERT(!Combo_ForeignPairingRequested(), "OFF must answer 'no paired world is being asked for'");
+    CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, (int32_t)RSBS_COMBO_DIR_FORWARD) == 1, "back to FORWARD");
+
+    // THE CREATION EVENT'S OWN ORDER (Playthrough_Init; decision 4.1): resolve
+    // the record from the keys, THEN freeze it. The frozen record must be what
+    // the player authored, not the defaults.
+    ComboContext_Init();
+    ComboSettingsArmPairing(0xA07A0002u, kSettingsHash, kProfileDigest);
+    ComboSettingsRecord toFreeze;
+    Combo_ResolveComboSettings(&toFreeze);
+    const uint32_t frozenHash = Combo_FreezeComboSettings(&toFreeze);
+    CS_ASSERT(Combo_ComboSettingsFrozen(), "the freeze must set the occupancy tag");
+    CS_ASSERT(gComboCtx.comboSettings.direction == RSBS_COMBO_DIR_FORWARD &&
+                  gComboCtx.comboSettings.itemClassOoT == (RSBS_ITEMCLASS_SONGS | RSBS_ITEMCLASS_MASKS) &&
+                  gComboCtx.comboSettings.poolSizeMM == 3,
+              "the FROZEN record is not what the player authored — the keys were read after the freeze, or not "
+              "at all");
+    CS_ASSERT(frozenHash == authoredFingerprint && gComboCtx.comboSettingsHash == authoredFingerprint,
+              "the stamped fingerprint must be the authored record's, over the same two half-digests");
+    CS_ASSERT(Combo_ComboSettingsDivergence() == 0,
+              "a world frozen from the store it was authored in must compare healthy at its first arrival");
+    // And the consumers the earlier increments armed now read the authored
+    // values: the gate (#632), the size (O4), the class rule (#631).
+    CS_ASSERT(Combo_ComboDirection() == RSBS_COMBO_DIR_FORWARD, "the gate reads the frozen direction");
+    CS_ASSERT(Combo_ComboDirectionArms((uint8_t)GAME_OOT) && !Combo_ComboDirectionArms((uint8_t)GAME_MM),
+              "FORWARD arms the forward pass only");
+    CS_ASSERT(Combo_ComboPoolSizeFor((uint8_t)GAME_MM) == 3, "the reverse pass reads the frozen MM pool size");
+    CS_ASSERT(Combo_ComboItemClassFor((uint8_t)GAME_OOT) == (RSBS_ITEMCLASS_SONGS | RSBS_ITEMCLASS_MASKS),
+              "the forward pass reads the frozen OoT class bitset");
+
+    // ---- (4) The writers REFUSE once frozen (ADR 0004 §6 state 4) ---------
+    // Locked at the writers, not the widget: the pane is one caller, and every
+    // future caller inherits the gate. Falsifiable — remove the
+    // Combo_ComboSettingsFrozen() check from either writer and its half is red.
+    {
+        CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, (int32_t)RSBS_COMBO_DIR_BOTH) == 0,
+                  "a post-creation write must be REJECTED at the writer");
+        int32_t stored = 0;
+        CS_ASSERT(Combo_ComboSettingReadStore(COMBO_SETTING_DIRECTION, &stored) &&
+                      stored == (int32_t)RSBS_COMBO_DIR_FORWARD,
+                  "a refused write must leave the store byte-for-byte what it was");
+        CS_ASSERT(Combo_ComboSettingClear(COMBO_SETTING_DIRECTION) == 0, "a post-creation clear must be REJECTED");
+        CS_ASSERT(Combo_ComboSettingIsExplicit(COMBO_SETTING_DIRECTION), "a refused clear must leave the key set");
+        for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
+            // Even a write of the DEFAULT is refused: "already decided" is
+            // about the act, not the value.
+            const ComboSettingId id = (ComboSettingId)i;
+            CS_ASSERT(Combo_ComboSettingSet(id, Combo_ComboSettingDefault(id)) == 0,
+                      "every key's writer must refuse while frozen, whatever the value");
+            CS_ASSERT(Combo_ComboSettingClear(id) == 0, "every key's clear must refuse while frozen");
+        }
+
+        // ADR 0004 §6 state 4's REASON STRING, which the pane renders and this
+        // owns: "already decided", not a capability reason. A capability gate
+        // ("not yet available") sends the player looking for a missing feature;
+        // a freeze tells them the choice was made and is a different fact.
+        // Locked here rather than in the window test because no headless row
+        // can read pixels, and a string only the renderer holds is unassertable.
+        {
+            const char* reason = Combo_ComboSettingReadOnlyReason();
+            CS_ASSERT(reason != NULL, "a frozen record must give the pane a read-only reason to show");
+            CS_ASSERT(strcmp(reason, "already decided") == 0,
+                      "state 4's reason string is 'already decided' (ADR 0011 increment 2)");
+            CS_ASSERT(strstr(reason, "not yet") == NULL && strstr(reason, "navailable") == NULL,
+                      "state 4's reason must NOT be a capability reason — nothing is unavailable, it was chosen");
+        }
+
+        // The pane's read surface post-creation: values FROM THE SAVE.
+        ComboSettingsSummary summary;
+        Combo_ComboSettingsSummary(&summary);
+        CS_ASSERT(summary.paired && summary.frozen, "the summary must report a frozen pair");
+        CS_ASSERT(summary.record.direction == RSBS_COMBO_DIR_FORWARD && summary.comboSettingsHash == frozenHash,
+                  "the summary must serve the frozen values");
+
+        // An OUT-OF-BAND write — the console, a hand-edited config — bypasses
+        // the writers. The pane still shows the save (state 4's "from the
+        // save, not the CVar"), and the compare that guards every arrival and
+        // load sees exactly this as a SESSION divergence, not as damage.
+        CVarSetInteger(Combo_ComboSettingKey(COMBO_SETTING_DIRECTION), (int32_t)RSBS_COMBO_DIR_BOTH);
+        Combo_ComboSettingsSummary(&summary);
+        CS_ASSERT(summary.record.direction == RSBS_COMBO_DIR_FORWARD,
+                  "post-creation the pane's value must come from the save, never from the CVar");
+        const uint32_t sessionBits = Combo_ComboSettingsDivergence();
+        CS_ASSERT((sessionBits & RSBS_COMBO_DIVERGE_DIRECTION) != 0,
+                  "an out-of-band CVar change must be visible to the arrival/load compare, by name");
+        CS_ASSERT(!Combo_ComboSettingsDivergenceIsDamage(sessionBits),
+                  "a session that walked away from a healthy file is NOT damage — the file must not be quarantined "
+                  "for it (RefuseSlotIdentity's contract)");
+        CVarSetInteger(Combo_ComboSettingKey(COMBO_SETTING_DIRECTION), (int32_t)RSBS_COMBO_DIR_FORWARD);
+        CS_ASSERT(Combo_ComboSettingsDivergence() == 0, "restoring the store restores agreement");
+
+        // Whereas a fingerprint its own record does not produce IS damage.
+        gComboCtx.comboSettingsHash ^= 0x00000001u;
+        CS_ASSERT(Combo_ComboSettingsDivergenceIsDamage(Combo_ComboSettingsDivergence()),
+                  "a corrupted fingerprint is damage to the stored identity");
+        CS_ASSERT(Combo_StampComboSettingsHash() == frozenHash && Combo_ComboSettingsDivergence() == 0,
+                  "re-stamping restores the fingerprint");
+        CS_ASSERT(Combo_ComboSettingsDivergenceIsDamage(RSBS_COMBO_DIVERGE_UNREADABLE) &&
+                      !Combo_ComboSettingsDivergenceIsDamage(0) &&
+                      !Combo_ComboSettingsDivergenceIsDamage(RSBS_COMBO_DIVERGE_POOL_SIZE_OOT |
+                                                             RSBS_COMBO_DIVERGE_ITEM_CLASS_MM),
+                  "damage is UNREADABLE or FINGERPRINT and nothing else");
+    }
+
+    // ---- (5) The identity dropped (title screen) => authoring resumes ------
+    ComboContext_Init();
+    CS_ASSERT(!Combo_ComboSettingsFrozen(), "ComboContext_Init must drop the frozen record");
+    CS_ASSERT(Combo_ComboSettingReadOnlyReason() == NULL,
+              "dropping the identity must drop the read-only reason with it — the pane goes editable again");
+    CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, (int32_t)RSBS_COMBO_DIR_BOTH) == 1,
+              "authoring must resume once nothing is frozen");
+    CS_ASSERT(Combo_ComboSettingResolved(COMBO_SETTING_DIRECTION) == (int32_t)RSBS_COMBO_DIR_BOTH, "and be read back");
+
+    // ---- (6) An out-of-space value resolves to the shipped default --------
+    // The writers refuse one outright...
+    CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, 0) == 0 &&
+                  Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, 9) == 0,
+              "an out-of-table direction must be refused at the writer");
+    CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_POOL_SIZE_OOT, 0) == 0 &&
+                  Combo_ComboSettingSet(COMBO_SETTING_POOL_SIZE_OOT, (int32_t)RSBS_FOREIGN_PLACEMENT_CAP + 1) == 0,
+              "an out-of-range pool size must be refused at the writer");
+    CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_ITEM_CLASS_MM, 0x0040) == 0 &&
+                  Combo_ComboSettingSet(COMBO_SETTING_ITEM_CLASS_MM, -1) == 0,
+              "an unallocated class bit must be refused at the writer");
+    {
+        int32_t stored = 0;
+        CS_ASSERT(Combo_ComboSettingReadStore(COMBO_SETTING_DIRECTION, &stored) &&
+                      stored == (int32_t)RSBS_COMBO_DIR_BOTH,
+                  "refused writes must not touch the store");
+    }
+    // ...so only an out-of-band write can plant one. Plant four, one per
+    // shape of wrongness, and resolve.
+    CVarSetInteger(Combo_ComboSettingKey(COMBO_SETTING_DIRECTION), 9);
+    CVarSetInteger(Combo_ComboSettingKey(COMBO_SETTING_POOL_SIZE_OOT), 0);
+    CVarSetInteger(Combo_ComboSettingKey(COMBO_SETTING_POOL_SIZE_MM), 99);
+    CVarSetInteger(Combo_ComboSettingKey(COMBO_SETTING_ITEM_CLASS_MM), 0x8000);
+    Combo_ResolveComboSettings(&live);
+    CS_ASSERT(live.direction == RSBS_COMBO_DIR_BOTH,
+              "an out-of-table direction must resolve to the SHIPPED DEFAULT, never to a new enumerator");
+    CS_ASSERT(live.poolSizeOoT == RSBS_FOREIGN_PLACEMENT_CAP && live.poolSizeMM == RSBS_FOREIGN_PLACEMENT_CAP,
+              "an out-of-range pool size must resolve to the shipped default, not to a clamp");
+    CS_ASSERT(live.itemClassMM == RSBS_ITEMCLASS_ALL_V1,
+              "a mask with an unallocated bit must resolve to the shipped default, not to a masked-off value");
+    CS_ASSERT(Combo_ComboDirection() == RSBS_COMBO_DIR_BOTH, "the gate sees the default, not the junk");
+    {
+        int32_t stored = 0;
+        CS_ASSERT(Combo_ComboSettingReadStore(COMBO_SETTING_DIRECTION, &stored) && stored == 9,
+                  "resolution reports and falls back; it does not silently repair the store");
+    }
+
+    // ---- (7) A healthy file met by a divergent SESSION is refused at load
+    // WITHOUT being quarantined (RefuseSlotIdentity's contract, save.h) ------
+    //
+    // The case the authorable keys make ordinary: author FORWARD, create,
+    // save; go back to the title screen (the identity drops), pick BOTH; load
+    // the FORWARD file. It must refuse by name and latch — and the .redsave
+    // must still be exactly where it was, because the file is healthy and the
+    // session is what moved. Then set the rule back and the same file loads.
+    // Falsifiable: restore the unconditional QuarantineSlotFile in
+    // SaveManager::LoadSlot's combo branch and the HasSave assertion is red.
+    {
+        for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
+            CS_ASSERT(Combo_ComboSettingClear((ComboSettingId)i) == 1, "clear the leg-6 junk first");
+        }
+        std::error_code ec;
+        std::filesystem::remove_all(kComboSettingsLoadTestDir, ec); // no stale .bak from an earlier run
+        rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
+        mgr.SetSaveDirectory(kComboSettingsLoadTestDir);
+        RsbsSave_ResetSlotSessionState();
+        // ARM THE WRITE LATCH (#533). Save() refuses a slot that was not
+        // loaded, created or erased this session, and the reset above cleared
+        // whatever the legs before this one had done, so the erase has to come
+        // after it -- the same order the round-trip legs use.
+        mgr.DeleteSave(0);
+
+        ComboContext_Init();
+        ComboSettingsSeedShadows(0x7Au);
+        CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, (int32_t)RSBS_COMBO_DIR_FORWARD) == 1,
+                  "author FORWARD for the file");
+        ComboSettingsArmPairing(0xA07A0007u, 0x5E77A177u, 0x11FEDC77u);
+        ComboSettingsRecord authored;
+        Combo_ResolveComboSettings(&authored);
+        Combo_FreezeComboSettings(&authored);
+        CS_ASSERT(mgr.Save(0), "Save(0) failed for the session-divergence leg");
+        CS_ASSERT(RsbsSave_HasSave(0) == 1 && RsbsSave_HasQuarantine(0) == 0, "baseline: one file, no quarantine");
+
+        // The session walks away: back at the title screen the identity drops,
+        // authoring resumes, and the player picks BOTH.
+        RsbsSave_ResetSlotSessionState();
+        ComboContext_Init();
+        CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, (int32_t)RSBS_COMBO_DIR_BOTH) == 1,
+                  "authoring resumes once the identity is dropped");
+        CS_ASSERT(!mgr.Load(0), "loading a FORWARD file under a BOTH session must be REFUSED (ADR 0011 decision 4)");
+        CS_ASSERT(RsbsSave_GetSlotRefuseReason(0) == (int)RSBS_REFUSE_IDENTITY, "refused as RSBS_REFUSE_IDENTITY");
+        CS_ASSERT(RsbsSave_IsSlotWritable(0) == 0, "the slot must be latched against writes (#533)");
+        CS_ASSERT(!Combo_ComboSettingsFrozen(), "a refused load must not commit the record");
+        CS_ASSERT(RsbsSave_HasSave(0) == 1,
+                  "the HEALTHY .redsave was renamed away — a settings change at the title screen must never "
+                  "quarantine a file that is not damaged");
+        CS_ASSERT(RsbsSave_HasQuarantine(0) == 0, "a session divergence must quarantine nothing");
+
+        // Set the rule back: the same file, untouched, loads.
+        RsbsSave_ResetSlotSessionState();
+        ComboContext_Init();
+        CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, (int32_t)RSBS_COMBO_DIR_FORWARD) == 1,
+                  "set the rule back");
+        CS_ASSERT(mgr.Load(0), "with the rule restored the untouched file must load");
+        CS_ASSERT(Combo_ComboSettingsFrozen() && gComboCtx.comboSettings.direction == RSBS_COMBO_DIR_FORWARD,
+                  "the loaded record is the authored one");
+
+        RsbsSave_ResetSlotSessionState();
+        mgr.DeleteSave(0);
+        mgr.SetSaveDirectory(kComboSettingsTestDir);
+        ComboContext_Init();
+    }
+
+    // ---- Cleanup: leave the process-global store and context clean ---------
+    for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
+        const ComboSettingId id = (ComboSettingId)i;
+        CS_ASSERT(Combo_ComboSettingClear(id) == 1, "cleanup clear");
+        CS_ASSERT(!Combo_ComboSettingIsExplicit(id), "cleanup left a key set");
+    }
+    ComboContext_Init();
+    Combo_ResolveComboSettings(&live);
+    CS_ASSERT(ComboSettingsRecordsEqual(defaults, live), "cleanup must leave the resolver at the shipped defaults");
+
+    printf("[TEST] PASS: the tier-4 keys author the record before the freeze, move the fingerprint, resolve "
+           "out-of-space values to the defaults, and are refused once frozen\n");
     return TEST_PASS;
 }

@@ -206,6 +206,14 @@ int MM_ForeignPickupGate_RunHeadless(void);
 // MM_Rando_PairOnCrossGameArrival, and because reaching its combo leg means
 // first satisfying its MM-profile leg. Returns 0 on pass.
 int MM_ComboSettingsGate_RunHeadless(void);
+// src/common/tests/test_combo_settings.c (ADR 0011 increment 2): the tier-4
+// AUTHORING surface. Needs the shared bring-up because the five gCombo.Rando.*
+// keys live in the CVar store on the Ship::Context singleton — the increment-1
+// rows in the same file deliberately run WITHOUT one. Returns 0 on pass.
+int Combo_SettingsAuthoring_RunHeadless(void);
+// src/common/tests/test_combo_settings_window.c — the combo settings pane's
+// window lock; same bridge shape as the MM options pane above.
+int Combo_SettingsWindow_RunHeadless(void);
 // games/mm/2s2h/mm_death_decline_autosave_test.cpp (ADR 0009 decision 4b,
 // #590/#625): MM's cross-game death-decline exit is an autosave point iff the
 // Autosave enhancement is on -- a whole-file commit after the revive, clock
@@ -315,6 +323,13 @@ extern "C" {
 // deliberately READS the active game still never reads that game's save. FILE
 // SCOPE — it drives the C++-linkage ComboGui::RegisterComboMmOptionsWindow.
 #include "tests/test_combo_mm_options_window.c"
+
+// The combo settings pane's window (ADR 0011 increment 2, ADR 0004 §6 + 0008):
+// same registration/idempotence/de-collision shape as the two above, plus the
+// draw-path tripwire under all three pairing states the pane renders
+// differently. FILE SCOPE — it drives the C++-linkage
+// ComboGui::RegisterComboSettingsWindow.
+#include "tests/test_combo_settings_window.c"
 
 // Combo tracker (#458): the per-game adapters over an authored MM shadow blob
 // + an authored OoT heap context, and the window's ADR 0008 inertness
@@ -2296,6 +2311,40 @@ TestResult Test_MMComboSettingsGate(void) {
     return MM_ComboSettingsGate_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// The tier-4 authoring surface (ADR 0011 increment 2). Needs the shared
+// bring-up because the five keys live in the CVar store on the Ship::Context
+// singleton, and libultraship's C bridge dereferences that singleton without
+// checking; the increment-1 rows in the same file run without one on purpose.
+TestResult Test_ComboSettingsAuthoring(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return Combo_SettingsAuthoring_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// The combo settings pane's window (ADR 0011 increment 2). Same bring-up as
+// the Gui bridges above and for the same reason.
+TestResult Test_ComboSettingsWindow(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return Combo_SettingsWindow_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // ADR 0009 decision 4b (#590/#625): MM's cross-game death-decline exit is an
 // autosave point iff the Autosave enhancement is on. Needs the shared bring-up
 // for ONE reason: the lock arms and disarms the REAL RegisterAutosave through
@@ -2662,6 +2711,15 @@ const TestDescriptor gTests[] = {
     {"combo-settings-legacy-freeze",
      "A legacy paired file freezes the shipped defaults at its first crossing and compares thereafter (O5)",
      Test_ComboSettingsLegacyFreeze},
+    // ADR 0011 increment 2: the tier-4 keys and the pane. The authoring row
+    // proves the keys reach the record BEFORE the freeze and are refused after
+    // it; the window row is the common-owned pane's headless lock.
+    {"combo-settings-authoring",
+     "The five tier-4 keys author the combo record before the freeze and are refused after it (ADR 0011 inc 2)",
+     Test_ComboSettingsAuthoring},
+    {"combo-settings-window",
+     "Common-owned combo settings pane registers de-collided; inert under every game and pairing state (ADR 0011)",
+     Test_ComboSettingsWindow},
     {"mm-scene-parse", "MM scene commands parse via the S2H factory (#344)", Test_MMSceneParse},
     {"seq-map-bounds", "Sequence-map capacity covers the id range + custom slack (#371, #378)", Test_SeqMapBounds},
     {"cvar-classification", "Cross-game CVar classification matches ADR 0003 + the inventory (#34)",
