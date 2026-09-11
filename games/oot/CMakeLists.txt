@@ -301,7 +301,63 @@ if(SINGLE_EXECUTABLE_BUILD)
     # i.e. most self-registering enhancements were silently absent. Unlike the
     # MM archives (whose deps are unported — see games/mm/CMakeLists.txt),
     # soh_enh's dependencies are already in the OoT link.
-    set(SOH_STATIC_TARGETS soh_src soh_port
+    #
+    # soh_port joins them (#640). games/oot/soh/Network/Anchor/Menu.cpp
+    # populates the Network / Anchor page solely through a RegisterMenuInitFunc
+    # static initializer and exports nothing anything references, so plain
+    # archive semantics let the linker drop the member: the page shipped with
+    # columnCount = 2 and zero widgets, and Menu::DrawElement's unconsumed
+    # SetNextWindowPos then undocked libultraship's "Main Game" window (grey
+    # client area, displaced game rectangle -- the reported symptom, #634).
+    # SohGui/ResolutionEditor.cpp (the Settings / Graphics resolution editor) is
+    # the same shape -- nothing outside it references RegisterResolutionWidgets,
+    # UpdateResolutionVars or IsDroppingFrames -- and was in fact ALSO being
+    # dropped, silently, on Windows as well (measured below), so the resolution
+    # editor has been missing from Settings / Graphics all along.
+    # ObjectExtension/ActorMaximumHealth.cpp is the third TU of this shape, saved
+    # today only by GetActorMaximumHealth having real callers in z_parameter.c
+    # and z_en_fz.c. Those three are the whole class: no other soh_port TU has a
+    # self-registering static as its only effect.
+    #
+    # MEASURED on the Windows workstation, so the next reader need not re-derive
+    # it. Two redship.map censuses of the same tree, differing only in this
+    # set(): with soh_port left plain, 149 of its 150 objects reach the link and
+    # the missing one is ResolutionEditor.cpp.obj (0 hits for
+    # RegisterResolutionWidgets); with WHOLE_ARCHIVE, 150 of 150 and
+    # ?RegisterResolutionWidgets@SohGui@@YAXXZ is defined. The OoTMenuRegistrars
+    # ctest row reads the same fact from the other end -- 0 Settings/Graphics
+    # MenuInit update registrants and 9 of 10 init registrants before, 1 and 10
+    # after. Only one member is recovered here because the Anchor TU is compiled
+    # out locally (no SDL2_net, so no ENABLE_REMOTE_CONTROL); CI passes
+    # -DBUILD_REMOTE_CONTROL=1 on every platform (generate-builds.yml,
+    # link-check.yml), where it is the second. Note also how brittle the plain
+    # link is: whether ResolutionEditor.cpp.obj gets pulled at all depends on
+    # which TU the linker happens to take some std::unordered_map COMDAT
+    # instantiation from, so merely adding an unrelated TU can flip it. That is
+    # not a link contract, which is why both TUs get WHOLE_ARCHIVE rather than
+    # two hand-added call sites the next re-home would silently drop again.
+    #
+    # COST. redship.exe 70,121,472 -> 70,559,232 bytes (+437,760, +0.6%),
+    # reproducible to the byte across relinks. Link time is unchanged as far as
+    # this tree can tell: 10.6 s plain vs 11.5 s whole-archived back to back, but
+    # a repeat of the whole-archived link took 17.3 s, so the run-to-run noise
+    # (10.6-24.6 s observed) swamps any difference.
+    #
+    # RISK. The MSVC limits the split above exists for are untouched:
+    # /WHOLEARCHIVE changes neither the archive's size (LNK1248) nor the
+    # response-file length (LNK1170). Duplicate-symbol exposure is bounded by
+    # measurement rather than hope -- the whole-archived MSVC link, all 150
+    # members forced in, produces no LNK2005, and
+    # .github/symbol-collision-baseline.txt is empty, i.e. no symbol is defined
+    # by both a soh_* and a 2ship_* archive, so forcing soh_port's members in
+    # cannot create a cross-game multiple definition.
+    #
+    # .github/scripts/check-registrar-elision.sh audits libsoh_port.a as required
+    # and additionally probes both registrars by demangled name, because the
+    # archive gate keys on _GLOBAL__sub_I_<basename> and soh_port holds two
+    # Menu.cpp TUs; the OoTMenuRegistrars ctest row is the runtime half.
+    set(SOH_STATIC_TARGETS soh_src
+        "$<LINK_LIBRARY:WHOLE_ARCHIVE,soh_port>"
         "$<LINK_LIBRARY:WHOLE_ARCHIVE,soh_enh>"
         "$<LINK_LIBRARY:WHOLE_ARCHIVE,soh_rando>" PARENT_SCOPE)
 else()

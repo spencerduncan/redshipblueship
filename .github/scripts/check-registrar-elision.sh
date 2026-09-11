@@ -50,6 +50,22 @@
 # the running binary whether MM's pool actually registered. A dropped initializer
 # is a red test, not a subtle count.
 #
+# soh_port (#640): the third OoT archive, WHOLE_ARCHIVE'd since #640 after its
+# plain-archive link dropped Network/Anchor/Menu.cpp -- the Network / Anchor
+# page's only widget source -- and SohGui/ResolutionEditor.cpp, the same shape
+# (nothing references it either), which a redship.map diff shows was the one
+# soh_port member of 150 missing from the plain MSVC link as well. So both are
+# probed below, not just the one that visibly broke.
+# The archive is audited as required below, with one caveat the basename
+# keying above makes sharp: the Anchor TU is Network/Anchor/Menu.cpp and its
+# sibling SohGui/Menu.cpp sits in the SAME archive, so both emit
+# _GLOBAL__sub_I_Menu.cpp and the per-archive dedupe (sort -u) can only ever
+# claim one of them -- the archive gate is satisfied by either surviving, i.e.
+# blind to exactly the Anchor member. require_linked_if_archived probes it (and
+# the resolution editor) by demangled function name instead. The
+# OoTMenuRegistrars ctest row is the runtime half, by registry size, on every
+# platform.
+#
 # Usage: check-registrar-elision.sh [build-dir]   (default: build-cmake)
 #
 #        check-registrar-elision.sh --self-test
@@ -62,9 +78,14 @@
 #            its own member is genuinely also linked, and (d) reports it
 #            MISSING when only the required archive's same-named member
 #            survived — the exact measurement artifact this fix closes.
+#            Also (e), for the #640 per-symbol probe
+#            require_linked_if_archived: a name the archive defines and the
+#            binary carries PASSES, a name the archive defines and the binary
+#            lacks FAILS, and a name the archive merely references (U) is
+#            SKIPPED with a note rather than becoming required.
 #            Mirrors the check-exporter-symbol-collisions.sh --self-test
 #            added in #430 for the same "guard the guard" reason. Exit 0:
-#            all four scenarios behaved as expected. Exit 1: the detection
+#            all five scenarios behaved as expected. Exit 1: the detection
 #            logic itself is broken. Exit 2: no usable toolchain found.
 
 set -uo pipefail
@@ -145,6 +166,38 @@ run_elision_gate() {
     return "$overall"
 }
 
+# require_linked_if_archived <bin-path> <archive-path> <demangled-name> <why>
+#
+# Per-symbol complement to run_elision_gate for the one shape it cannot see:
+# two TUs in the SAME archive sharing a basename (#640: soh_port holds both
+# SohGui/Menu.cpp and Network/Anchor/Menu.cpp, both emitting
+# _GLOBAL__sub_I_Menu.cpp; the per-archive dedupe claims one and is satisfied
+# by either surviving). Only DEFINED occurrences in the archive count -- an
+# undefined reference (U) elsewhere in it must not turn a compiled-out TU into
+# a required one, which is how a BUILD_REMOTE_CONTROL=0 build stays honest.
+#
+# Returns 0 when the archive does not define <demangled-name> (prints a note),
+# 0 when it does and the binary carries it, 1 when it does and the binary does
+# not. Plain grep, never grep -q, on the nm pipelines: pipefail + SIGPIPE, see
+# main().
+require_linked_if_archived() {
+    local bin="$1" archive="$2" sym="$3" why="$4"
+    if [ ! -f "$archive" ]; then
+        echo "error: archive $archive not found for probe '$sym' -- build layout changed? Fix the path here rather than losing the guard." >&2
+        return 1
+    fi
+    if ! nm --demangle "$archive" 2>/dev/null | grep -v ' U ' | grep "$sym" > /dev/null; then
+        echo "note: $archive does not define '$sym' -- probe skipped ($why)"
+        return 0
+    fi
+    if ! nm --demangle "$bin" 2>/dev/null | grep -v ' U ' | grep "$sym" > /dev/null; then
+        echo "FAIL: '$sym' is defined in $archive but missing from redship -- registrar TU elided (#640; $why)" >&2
+        return 1
+    fi
+    echo "$archive: '$sym' linked [$why]"
+    return 0
+}
+
 # ---------------------------------------------------------------------------
 # --self-test machinery: entirely synthetic, no OTRExporter/soh/2ship content.
 # ---------------------------------------------------------------------------
@@ -203,6 +256,53 @@ build_fake_binary() {
     local out="$1"
     shift
     "$LD_BIN" -r -o "$out" "$@"
+}
+
+# write_global_object <out.o> <symbol-name>
+# Like write_registrar_object but GLOBAL: a defined, externally visible
+# function the way RegisterAnchorMenu / SohGui::RegisterResolutionWidgets are,
+# for the require_linked_if_archived scenario.
+write_global_object() {
+    local out="$1" symname="$2"
+    local tmp
+    tmp="$(mktemp -d)"
+    {
+        echo "    .text"
+        echo "    .globl ${symname}"
+        echo "    .type ${symname}, @function"
+        echo "${symname}:"
+        echo "    ret"
+    } > "$tmp/sym.s"
+    "$CC_BIN" -c -o "$out" "$tmp/sym.s"
+    rm -rf "$tmp"
+}
+
+# write_reference_object <out.o> <symbol-name>
+# An object that only REFERENCES <symbol-name> (nm lists it as U) from a data
+# word whose own label shares no substring with it, so the probe's
+# defined-vs-referenced distinction is exactly what the scenario exercises.
+# A data reference rather than a call keeps it architecture-neutral.
+write_reference_object() {
+    local out="$1" symname="$2"
+    local tmp
+    tmp="$(mktemp -d)"
+    {
+        echo "    .data"
+        echo "    .globl RefHost"
+        echo "RefHost:"
+        echo "    .quad ${symname}"
+    } > "$tmp/ref.s"
+    "$CC_BIN" -c -o "$out" "$tmp/ref.s"
+    rm -rf "$tmp"
+}
+
+# archive_objects <out.a> <member.o...>
+# build_archive's sibling for pre-built members.
+archive_objects() {
+    local out_archive="$1"
+    shift
+    rm -f "$out_archive"
+    ar rcs "$out_archive" "$@"
 }
 
 run_self_test() {
@@ -287,10 +387,53 @@ run_self_test() {
         overall=1
     fi
 
+    # --- Scenario 5 (#640): the per-symbol probe. (a) a name the archive
+    #     defines and the binary carries passes; (b) defined but absent from
+    #     the binary FAILS -- the Anchor shape, which the archive gate cannot
+    #     see while a same-basename sibling in the same archive survived;
+    #     (c) a name the archive only REFERENCES is skipped with a note, so a
+    #     compiled-out TU (BUILD_REMOTE_CONTROL=0) never becomes required.
+    write_global_object "$dir/s5_def.o" "ProbeRegistrarSym"
+    archive_objects "$dir/s5_def.a" "$dir/s5_def.o"
+    build_fake_binary "$dir/s5_bin_has" "$dir/s5_def.o"
+    out="$(require_linked_if_archived "$dir/s5_bin_has" "$dir/s5_def.a" "ProbeRegistrarSym" "self-test" 2>&1)"
+    rc=$?
+    if [ "$rc" -eq 0 ] && grep -q "'ProbeRegistrarSym' linked" <<< "$out"; then
+        echo "self-test: per-symbol probe correctly passes a defined-and-linked name (rc=0)"
+    else
+        echo "self-test FAIL: per-symbol probe did not pass a defined-and-linked name (rc=$rc):" >&2
+        echo "$out" >&2
+        overall=1
+    fi
+
+    write_registrar_object "$dir/s5_other.o" "_GLOBAL__sub_I_Unrelated.cpp"
+    build_fake_binary "$dir/s5_bin_lacks" "$dir/s5_other.o"
+    out="$(require_linked_if_archived "$dir/s5_bin_lacks" "$dir/s5_def.a" "ProbeRegistrarSym" "self-test" 2>&1)"
+    rc=$?
+    if [ "$rc" -eq 1 ] && grep -q "FAIL: 'ProbeRegistrarSym' is defined in" <<< "$out"; then
+        echo "self-test: per-symbol probe correctly FAILS a defined-but-unlinked name (rc=1)"
+    else
+        echo "self-test FAIL: per-symbol probe did not fail a defined-but-unlinked name (rc=$rc):" >&2
+        echo "$out" >&2
+        overall=1
+    fi
+
+    write_reference_object "$dir/s5_ref.o" "ProbeRegistrarSym"
+    archive_objects "$dir/s5_ref.a" "$dir/s5_ref.o"
+    out="$(require_linked_if_archived "$dir/s5_bin_lacks" "$dir/s5_ref.a" "ProbeRegistrarSym" "self-test" 2>&1)"
+    rc=$?
+    if [ "$rc" -eq 0 ] && grep -q "note: .* does not define 'ProbeRegistrarSym'" <<< "$out"; then
+        echo "self-test: per-symbol probe correctly SKIPS a name the archive only references (rc=0)"
+    else
+        echo "self-test FAIL: per-symbol probe did not skip a merely-referenced name (rc=$rc):" >&2
+        echo "$out" >&2
+        overall=1
+    fi
+
     rm -rf "$dir"
 
     if [ "$overall" -eq 0 ]; then
-        echo "self-test: OK (all 4 scenarios behaved as expected)"
+        echo "self-test: OK (all 5 scenarios behaved as expected)"
     fi
     return "$overall"
 }
@@ -331,6 +474,7 @@ main() {
     run_elision_gate "$bin" \
         "$build_dir/games/oot/libsoh_rando.a:required" \
         "$build_dir/games/oot/libsoh_enh.a:required" \
+        "$build_dir/games/oot/libsoh_port.a:required" \
         "$build_dir/games/mm/lib2ship_rando.a:required" \
         "$build_dir/games/mm/lib2ship_enh.a:report-only" \
         "$build_dir/games/mm/lib2ship_rando_ui.a:report-only"
@@ -400,11 +544,26 @@ main() {
         fi
     done
 
+    # #640: soh_port's registrar TUs, probed by name. libsoh_port.a is now a
+    # required archive above, but that gate keys on _GLOBAL__sub_I_<basename>
+    # and soh_port holds two Menu.cpp TUs (SohGui/Menu.cpp and
+    # Network/Anchor/Menu.cpp), so a dropped Anchor member is invisible to it
+    # while its sibling survives. RegisterAnchorMenu exists only under
+    # BUILD_REMOTE_CONTROL (CI passes it on every platform); the probe skips
+    # with a note when the archive does not define it rather than failing a
+    # build that legitimately compiled it out. Runtime half: the
+    # OoTMenuRegistrars ctest row, which asserts both registrars RAN.
+    local soh_port_archive="$build_dir/games/oot/libsoh_port.a"
+    require_linked_if_archived "$bin" "$soh_port_archive" "SohGui::RegisterResolutionWidgets" \
+        "Settings/Graphics resolution editor, SohGui/ResolutionEditor.cpp" || overall=1
+    require_linked_if_archived "$bin" "$soh_port_archive" "RegisterAnchorMenu" \
+        "Network/Anchor page, Network/Anchor/Menu.cpp, BUILD_REMOTE_CONTROL only" || overall=1
+
     if [ "$overall" -ne 0 ]; then
         echo "FAIL: registrar symbols were elided from a WHOLE_ARCHIVE-protected archive (#341)" >&2
         exit 1
     fi
-    echo "OK: no registrar elision in protected archives; 2ship_rando generation surface present"
+    echo "OK: no registrar elision in protected archives; 2ship_rando generation surface present; soh_port registrars linked"
 }
 
 if [ "${1:-}" = "--self-test" ]; then
