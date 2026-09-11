@@ -817,7 +817,6 @@ if(BUILD_TESTING)
     redship_add_test(NAME MMRegistrarCoverage COMMAND redship --test mm-registrar-coverage)
     redship_add_test(NAME MMResumeArena COMMAND redship --test mm-resume-arena)
     redship_add_test(NAME MMStartupRestore COMMAND redship --test mm-startup-restore)
-<<<<<<< HEAD
     # Pre-freeze discipline (#638, the agent tracker for #635; and #626). Both
     # games keep the CURRENT scene's flags in the live PlayState and copy them
     # into gSaveContext only on a scene transition (Actor_CleanupContext ->
@@ -835,7 +834,6 @@ if(BUILD_TESTING)
     # ROM-free, so they run in this redship tier.
     redship_add_test(NAME MMSceneFlagFreeze COMMAND redship --test mm-scene-flag-freeze)
     redship_add_test(NAME OoTSceneFlagFreeze COMMAND redship --test oot-scene-flag-freeze)
-=======
     # soh_port registrar elision (#640): Network/Anchor/Menu.cpp and
     # SohGui/ResolutionEditor.cpp register their menu widgets purely through
     # RegisterMenuInitFunc static initializers and export nothing anything
@@ -854,7 +852,6 @@ if(BUILD_TESTING)
     # what that means for red-before-green. Pure (no display, no ROM, no
     # Ship::Context), so it runs in this redship tier.
     redship_add_test(NAME OoTMenuRegistrars COMMAND redship --test oot-menu-registrars)
->>>>>>> origin/main
     redship_add_test(NAME AllTests COMMAND redship --test all)
 
     # Registration-completeness guard (#376). Diffs the dispatch table the
