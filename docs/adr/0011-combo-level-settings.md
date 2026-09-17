@@ -989,6 +989,33 @@ record's fields, and **not** into `MixPairedFinalSeed()` (`MMRandoGen` and
   windows, and also from `Combo_MMOptionsWindow_Init` — the two panes are the
   two halves of one authoring surface, frozen by one creation event — which is
   safe because registration is idempotent (the #457 `GetGuiWindow` guard).
+
+  > **Amended 2026-09-16 (#655): the presentation is SohMenu rows, not the
+  > pane.** Operator direction after reviewing increment 2 on the 2026-09-11
+  > nightly — *"For the combo settings they should be built into the menu itself
+  > like all the other combo settings instead of being pop out panes."* The five
+  > keys are now rows in the interim Cross-Game section of
+  > `games/oot/soh/SohGui/SohMenuRandomizer.cpp`, and the
+  > `WIDGET_WINDOW_BUTTON` row that opened the pane is gone, so nothing writes
+  > `gCombo.Windows.ComboSettings` and the pane no longer appears; it stays
+  > registered (its two registrars are outside this change's file scope, its
+  > visibility key is a classified entry in the tier-4 manifest, and its
+  > game-agnosticism lock is worth keeping green) and is reachable only from the
+  > console. **Nothing but the presentation moved**: the model, the
+  > creation-time resolver, the writers' gate, the pinned value spaces and the
+  > fingerprint are untouched, and no determinism digest moves. Of the three
+  > grounds recorded above, the first two are overridden by the operator for
+  > this surface and the **third was simply wrong**: a SohMenu row does not have
+  > to be its own writer. The rows use the pointer-based widget types
+  > (`WIDGET_COMBOBOX` / `WIDGET_SLIDER_INT` / `WIDGET_CHECKBOX`) over a staging
+  > buffer, refresh it from the model in their `PreFunc`, and offer every edit to
+  > `Combo_ComboSettingSet` in their `Callback` — so `src/common`'s writers are
+  > still the only choke point and still the only gate. Only a `WIDGET_CVAR_*`
+  > row would have had the defect that ground described, and `ComboSettingsRows`
+  > is the lock that refuses one. ADR 0004 §4.2's persistent marker now applies
+  > (it did not to the pane, per §4.1a): each row's NAME leads with
+  > `Combo_ComboSettingSharedMarker()`, model-owned for the same reason the
+  > read-only reason is.
 - **The load-side consequence, named rather than absorbed.** R6 above:
   `SaveManager::LoadSlot` refuses a field-divergent record as
   `RSBS_REFUSE_IDENTITY` **and quarantines the file**. While the resolver was

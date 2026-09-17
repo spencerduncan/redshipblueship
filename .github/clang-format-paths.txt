@@ -99,3 +99,4 @@ games/oot/src/code/z_debug.c
 games/oot/src/code/z_play.c
 games/oot/src/code/z_scene.c
 games/oot/src/overlays/gamestates/ovl_title/z_title.c
+games/oot/soh/soh_combo_settings_rows_test.cpp
