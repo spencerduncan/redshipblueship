@@ -839,3 +839,64 @@ int Combo_CountForeignPlacementsOoT(void) {
 void Combo_ClearForeignPlacementsOoT(void) {
     ForeignClear(gComboCtx.foreignPlacementsOoT);
 }
+
+// ---- The values-publishing surface (ADR 0011 O8; ADR 0010 increment 2) -------
+//
+// RAM-only, session-scoped, indexed by GameId. See foreign_items.h for why the
+// published word is capability BITS rather than option values, and why
+// "published" is tracked separately from "nonzero".
+
+static uint32_t sForeignGiveCaps[2];
+static bool sForeignGiveCapsPublished[2];
+
+static int GiveCapsSlotFor(uint8_t originGame) {
+    if (originGame == (uint8_t)GAME_OOT) {
+        return 0;
+    }
+    if (originGame == (uint8_t)GAME_MM) {
+        return 1;
+    }
+    return -1;
+}
+
+void Combo_PublishForeignGiveCaps(uint8_t originGame, uint32_t caps) {
+    const int slot = GiveCapsSlotFor(originGame);
+    if (slot < 0) {
+        return;
+    }
+    // Mask rather than reject: an unallocated bit means the publisher is from a
+    // newer build than this reader, and the allocated bits it did set are still
+    // exactly what they say. Reinterpreting an unknown bit is the one thing a
+    // pinned value space must never do.
+    sForeignGiveCaps[slot] = caps & (uint32_t)RSBS_GIVECAP_ALL_V1;
+    sForeignGiveCapsPublished[slot] = true;
+}
+
+uint32_t Combo_ForeignGiveCaps(uint8_t originGame) {
+    const int slot = GiveCapsSlotFor(originGame);
+    return (slot < 0) ? 0u : sForeignGiveCaps[slot];
+}
+
+bool Combo_ForeignGiveCapsPublished(uint8_t originGame) {
+    const int slot = GiveCapsSlotFor(originGame);
+    return (slot < 0) ? false : sForeignGiveCapsPublished[slot];
+}
+
+bool Combo_ForeignGiveCapsArm(uint8_t originGame, uint32_t caps) {
+    const int slot = GiveCapsSlotFor(originGame);
+    if (slot < 0 || !sForeignGiveCapsPublished[slot]) {
+        // An unpublished profile promises nothing. A membership rule that
+        // treated silence as consent would admit a crossing the receiving world
+        // cannot deliver — the exact failure criterion 3 exists to prevent.
+        return false;
+    }
+    const uint32_t wanted = caps & (uint32_t)RSBS_GIVECAP_ALL_V1;
+    return (sForeignGiveCaps[slot] & wanted) == wanted;
+}
+
+void Combo_ClearForeignGiveCaps(void) {
+    for (int i = 0; i < 2; i++) {
+        sForeignGiveCaps[i] = 0;
+        sForeignGiveCapsPublished[i] = false;
+    }
+}

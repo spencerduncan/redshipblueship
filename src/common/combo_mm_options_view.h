@@ -251,6 +251,22 @@ bool Combo_MMProfileFrozen(void);
 uint32_t MM_Rando_ComputeProfileStamp(void);
 
 /**
+ * Publish MM's frozen profile as GIVE CAPABILITIES (ADR 0011 O8's
+ * values-publishing surface; the bits and the rationale live in
+ * foreign_items.h). The twin of MM_Rando_ComputeProfileStamp: that one answers
+ * "did the rules change", this one answers "what do the rules ARM".
+ *
+ * @param fromSave 0 resolves the profile from the CVars through the SAME
+ *        ResolveProfileValues the creation stamp uses — the creation-freeze
+ *        publish, which must happen BEFORE OoT's Fill() so the reverse
+ *        placement pass can read it. Nonzero reads the save's frozen
+ *        RANDO_SAVE_OPTIONS instead — the hydrate publish, for a later process
+ *        that never generated and whose CVars are therefore not this world's
+ *        rules.
+ */
+void MM_Rando_PublishProfileGiveCaps(int fromSave);
+
+/**
  * Pairing header for the pane: whether a paired world exists, its identity, and
  * the MM profile digest it was generated under.
  *
