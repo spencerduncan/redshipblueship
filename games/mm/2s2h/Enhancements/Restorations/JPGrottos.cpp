@@ -65,6 +65,21 @@ void RegisterJPGrottos() {
     });
 
     COND_ID_HOOK(AfterRoomSceneCommands, SCENE_22DEKUCITY, CVAR, [](s8 sceneId, s8 roomNum) {
+        // #438: guard landed with the AfterRoomSceneCommands registry swap
+        // (GameExports_SingleExe.cpp), which is what made this body reachable.
+        // Every MM_Actor_Spawn below passes &MM_gPlayState->actorCtx and
+        // MM_gPlayState with no upstream check -- the #516 SIGSEGV class.
+        //
+        // Returning BEFORE setting isSpawningJPGrottos is the load-bearing
+        // detail. That flag is what suppresses this file's four already-live
+        // ShouldActorInit legs, which delete Deku Palace's vanilla grottos and
+        // torches; leaving it latched true on an early return would invert the
+        // suppression for every later actor init in the session. Failing closed
+        // here means the vanilla grottos survive, which is the safe direction.
+        //
+        // Expands to nothing outside the single exe; see GameInteractor.h for
+        // why it is a macro and not an #ifdef.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         isSpawningJPGrottos = true;
         bool lightTorches = (CURRENT_TIME > CLOCK_TIME(18, 0)) || (CURRENT_TIME < CLOCK_TIME(6, 0));
         u16 torchParams = lightTorches ? 10367 : 8319;

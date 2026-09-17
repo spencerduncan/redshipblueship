@@ -59,6 +59,17 @@ void UpdatePersistentMasksState() {
             if (!STATE_CVAR) {
                 return;
             }
+#ifdef RSBS_SINGLE_EXECUTABLE
+            // #438: guard landed with the OnPlayerPostLimbDraw dispatch. The
+            // body below reads MM_gPlayState->viewProjectionMtxF and opens
+            // display lists on ->state.gfxCtx; STATE_CVAR is a CVar that
+            // survives play teardown, so the early return above does not imply
+            // a play state exists. The #516 SIGSEGV class.
+            // RSBS_SINGLE_EXECUTABLE-guarded because this is a vendored 2S2H TU.
+            if (MM_gPlayState == NULL || player == NULL) {
+                return;
+            }
+#endif
 
             // This emulates the vanilla check for if the masks should be drawn, specifically around
             // z_player.c 12923 (MM_Player_Draw)
@@ -88,6 +99,18 @@ void UpdatePersistentMasksState() {
     // This hook sets up the quad and draws the "active" blue border around the mask in the pause menu
     beforePageDrawHook = S2H::GameHooks::RegisterForID<GameInteractor::BeforeKaleidoDrawPage>(
         PAUSE_MASK, [](PauseContext* _, u16 __) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+            // Same class as the limb-draw leg above, on a hook that has been
+            // dispatching since #547: this reads MM_gPlayState twice before
+            // doing anything, and takes no argument that would carry a play
+            // state instead (upstream passes the PauseContext and this body
+            // ignores it in favour of the global). Guarded here rather than left
+            // for the next audit because the TU is link-elided today, so the
+            // read has never actually run.
+            if (MM_gPlayState == NULL) {
+                return;
+            }
+#endif
             GraphicsContext* gfxCtx = MM_gPlayState->state.gfxCtx;
             PauseContext* pauseCtx = &MM_gPlayState->pauseCtx;
             s16 i = 0;

@@ -1,30 +1,42 @@
 /**
- * MM GameInteractor dormant-dispatch stubs for the single-executable build
- * (#438 tracking).
+ * MM GameInteractor dispatch tombstone for the single-executable build (#438).
  *
- * These 10 GameInteractor_Execute* entry points have no linked provider in
- * single-exe mode: 2s2h/GameInteractor/GameInteractor.cpp (the real MM
- * implementation) is filtered out of the single-exe link (games/mm/CMakeLists.txt,
- * "GameInteractor (use OoT's)"), and none of them collides with an OoT-side
- * extern "C" wrapper the way the "Should" family and OnActorInit/OnActorDraw/
- * OnOpenText used to (see the historical notes below). They previously lived
- * as untyped redeclarations in src/common/mm_stubs.c, which includes no real
- * headers and so could not catch signature drift against
- * 2s2h/GameInteractor/GameInteractor.h -- the same class of hazard that #372,
- * #379 and #424 each shipped as a live bug.
+ * THIS FILE NOW DEFINES NOTHING, and that is the point of it. It exists as the
+ * fault history for every GameInteractor_Execute* entry point that once
+ * resolved to a no-op here (or, before #620, to an untyped redeclaration in
+ * src/common/mm_stubs.c), together with the reason each one stopped. Re-adding
+ * a stub for ANY name recorded below would silently sever a real dispatch, and
+ * the record is what makes that visible to whoever is tempted.
  *
- * Moved here header-checked by #620, which wired no dispatch. #438's
- * item/progression tranche then took three of the original 13 -- OnItemGive,
- * OnBottleContentsUpdate, OnBossDefeated -- out of this file and gave them real
- * bridges (tombstone at their old position below).
- * Every body below is the same no-op src/common/mm_stubs.c always ran, now
- * compiled against the real prototypes (2s2h/GameInteractor/GameInteractor.h,
- * matching 2s2h/GameInteractor/GameInteractor.cpp's real definitions) so the
- * compiler rejects any future drift instead of leaving an ABI mismatch to be
- * discovered at runtime. It lives in the MM target rather than in
- * src/common/mm_stubs.c for the same reason as
- * games/mm/2s2h/mm_save_manager_stubs.c: mm_stubs.c is built into
- * redship_common, which is NOT compiled with RSBS_SINGLE_EXECUTABLE, and
+ * WHY THE STUBS EXISTED. games/mm/2s2h/GameInteractor/GameInteractor.cpp -- the
+ * real MM implementation -- is filtered out of the single-exe link
+ * (games/mm/CMakeLists.txt, "GameInteractor (use OoT's)"), so MM's C call sites
+ * had no definition for the MM-only Execute* names. A no-op made them link. It
+ * also made them permanently dead: the single-exe COND_HOOK / COND_ID_HOOK
+ * redirection parks every MM registration in the MM-owned S2H::GameHooks
+ * registry, which no stub ever consulted.
+ *
+ * WHY THE STUBS ARE GONE. Each name now has a real, header-checked dispatcher
+ * in games/mm/2s2h/GameExports_SingleExe.cpp, reached through the macro rebind
+ * at the bottom of 2s2h/GameInteractor/GameInteractor.h. OoT defines none of
+ * the MM-only names, so with no stub to fall back on a dropped bridge or a
+ * dropped rebind is a LINK error instead of another silent no-op -- the
+ * Before/AfterEndOfCycleSave property, and the single most useful thing this
+ * file's retirement buys.
+ *
+ * The header include below is kept deliberately: it costs one compile and it
+ * means that if someone ever does re-add a definition here, it is compiled
+ * against the real prototypes (2s2h/GameInteractor/GameInteractor.h, matching
+ * GameInteractor.cpp's real definitions) rather than drifting silently. Several
+ * of the names retired below shipped with a drifted signature at some point --
+ * AfterKaleidoDrawPage (void*, int) against (PauseContext*, u16),
+ * OnFileSelectSaveLoad (void*, int) against (s16, bool, SaveContext*),
+ * OnBossDefeated int against s16, OnBottleContentsUpdate int against u8 -- the
+ * hazard class #372, #379 and #424 each shipped as a live bug.
+ *
+ * The file lives in the MM target rather than in src/common/mm_stubs.c for the
+ * same reason as games/mm/2s2h/mm_save_manager_stubs.c: mm_stubs.c is built
+ * into redship_common, which is NOT compiled with RSBS_SINGLE_EXECUTABLE, and
  * GameInteractor.h needs MM's z64.h surface (Actor/Camera/Player/PauseContext/
  * SaveContext/u8/s16/s32) to declare these at all.
  *
@@ -32,12 +44,88 @@
  * GameInteractor.cpp, which owns these symbols there.
  *
  * ==========================================================================
- * Fault history (carried over verbatim from src/common/mm_stubs.c; none of
- * it concerns the 10 stubs below, but it documents why several sibling
- * GameInteractor_Execute* names are NOT stubbed here or anywhere -- they now
- * have real, header-checked dispatch elsewhere, and re-adding a stub for any
- * of them would silently sever that dispatch again).
+ * FAULT HISTORY -- every Execute* name that was ever stubbed, and what wiring
+ * it cost or bought. None of these is stubbed anywhere any more; re-adding one
+ * re-creates the bug named beside it, with no diagnostic.
  * ==========================================================================
+ *
+ * THE #438 REMAINDER (this file's last ten, plus the two OoT-gated names and
+ * the two wrong-registry ones that were never stubbed). Wired together because
+ * they shared one blocker: their registrant bodies dereference live play state
+ * with no null check, which is the #516 SIGSEGV class, so the guards had to
+ * land in the same change as the dispatch rather than ahead of it. They did.
+ *
+ *   AfterRoomSceneCommands  Never stubbed -- it had a real, linked dispatcher
+ *     that walked the WRONG registry (GameInteractor::Instance's upstream
+ *     container, not S2H::GameHooks). Fixed in place, and FIRST of the
+ *     remainder, because it is the only one that is DESTRUCTIVE rather than
+ *     inert on un-elision: JPGrottos.cpp's four already-live ShouldActorInit
+ *     legs delete Deku Palace's vanilla grottos and torches while gated on a
+ *     flag only the dead AfterRoomSceneCommands registrant sets. OnRoomInit was
+ *     swapped alongside it, same registry, no registrants yet.
+ *   OnGameStateMainStart    Never stubbed -- MM's dispatcher walked only the
+ *     raw extern "C" vector the CI integration blocks use, so the COND_HOOK
+ *     registrants (AmmoBuyback's B/C-Up mask over the buyback quantity prompt,
+ *     EasyFrameAdvance, PauseBufferWindow) were never drained. The S2H leg was
+ *     added beside the raw walk, which stays: it is the only hook surface a C TU
+ *     can reach.
+ *   OnPlayDestroy / OnSeqPlayerInit   Never stubbed either, and the #512/#515
+ *     shape: OoT DEFINES both names as active-game-gated wrappers, so MM's call
+ *     sites (z_play.c, audio/lib/load.c) bound an unconditional return for the
+ *     whole MM session. Now rebound MM-side. Cost while dead: Better Song of
+ *     Double Time never committed its chosen day/time at teardown, Play as
+ *     Kafei never re-applied on scene destroy, and the sequence-name toast
+ *     worked in OoT and went silent at the Clock Tower crossing (shared CVar,
+ *     OoT's registrant whole-archived, MM's elided).
+ *   OnInterfaceDrawStart    Stubbed here. Enemy health bars recorded max health
+ *     through their live OnActorInit sibling and drew nothing; Ammo Buyback's
+ *     digit readout was the other casualty. Guard landed in
+ *     Enhancements/Items/AmmoBuyback.cpp (DrawAmmoSelectionDigits read
+ *     MM_gPlayState->msgCtx unguarded; EnemyHealthBars.cpp was already
+ *     guarded).
+ *   OnPlayerPostLimbDraw    Stubbed here. Persistent Bunny Hood drew no hood,
+ *     Bow Reticle no reticle, Hyrule Warriors Styled Link neither mask. All
+ *     three registrants dereferenced MM_gPlayState->viewProjectionMtxF or
+ *     ->state.gfxCtx unguarded; all three are guarded now. The id leg keys on
+ *     limbIndex, which all four of those registrations use -- an Execute-only
+ *     bridge would have been the plausible half-fix.
+ *   Before/AfterInterfaceClockDraw  Stubbed here, wired as a PAIR for the
+ *     reason the EndOfCycleSave pair records: Before hijacks the save's day and
+ *     time so the clock renders the scrub target and After puts them back, so
+ *     half a fix leaves the player's real time overwritten. Guard landed in
+ *     Enhancements/Songs/BetterSongOfDoubleTime.cpp (UpdateDayTexture took
+ *     MM_gPlayState unguarded).
+ *   OnCameraChangeModeFlags / OnCameraChangeSettingsFlags / AfterCameraUpdate
+ *     Stubbed here. The camera trio guards the CAMERA at the bridge rather
+ *     than in the registrants, because the bridge itself keys its id leg on
+ *     camera->uid the way the excluded upstream twins do. Free look's latch was
+ *     never cleared on non-Z camera-mode transitions; the other two had no
+ *     registrant at all (OnCameraChangeSettingsFlags still has none).
+ *   OnConsoleLogoUpdate     Stubbed here, and the one whose call site
+ *     (z_title.c ConsoleLogo_Main) is deliberately unreachable on a cross-game
+ *     switch: the arrival fast-forward returns above it, which is correct,
+ *     because SkipToFileSelect's registrant would MM_Sram_InitNewSave over the
+ *     save the switch is carrying. Reached on a cold `redship --game mm` boot
+ *     and the debug MapSelect route. Guard landed in
+ *     Enhancements/Cutscenes/SkipToFileSelect.cpp (it casts MM_gGameState with
+ *     no null check).
+ *   OnPlayDrawWorldEnd      Stubbed here. Premise correction against #438: it
+ *     has NO compiled registrant in any single-exe build rather than an elided
+ *     one -- 2s2h/NameTag/*.cpp and 2s2h/DeveloperTools/*.cpp are both excluded
+ *     outright, and both register through the upstream GameInteractor::Instance
+ *     members anyway. Wired regardless, because its z_play.c call site is live
+ *     and a real dispatcher makes the next registrant work.
+ *   OnGameStateMainFinish   Stubbed here, no registrants in the tree. Wired for
+ *     the same reason: game.c's call site is live, so the alternative to a
+ *     dispatcher is a stub that quietly eats the first registrant somebody adds.
+ *
+ * GameInteractor_ExecuteOnItemGive / ExecuteOnBottleContentsUpdate /
+ * ExecuteOnBossDefeated moved to real dispatch (#438's item/progression
+ * tranche). That tranche is where the criterion above was written down: it went
+ * AHEAD of its registrants on purpose, because its sole registrant
+ * (Enhancements/Trackers/TimeSplits/TimeSplitsActions.cpp) reads MM_splitList
+ * and gSaveContext and nothing else, while every other candidate needed guards
+ * first. Covered by check 12 of games/mm/2s2h/mm_hook_dispatch_test.cpp.
  *
  * GameInteractor_ExecuteOnActorDraw / ExecuteOnActorInit / ExecuteOnOpenText
  * moved to real, header-checked dispatch in
@@ -144,42 +232,8 @@
 
 #include "2s2h/GameInteractor/GameInteractor.h"
 
-void GameInteractor_ExecuteOnGameStateMainFinish(void) {}
-void GameInteractor_ExecuteOnPlayDrawWorldEnd(void) {}
-void GameInteractor_ExecuteOnInterfaceDrawStart(void) {}
-
-/* OnItemGive, OnBottleContentsUpdate and OnBossDefeated were stubbed here until
- * #438's item/progression tranche gave them real dispatch. Their definitions now
- * live in games/mm/2s2h/GameExports_SingleExe.cpp as MM_GameHooks_Execute*, are
- * reached through the macro rebind at the bottom of GameInteractor.h, and are
- * covered by check 12 of games/mm/2s2h/mm_hook_dispatch_test.cpp. Do not
- * reintroduce no-ops for them: OoT defines none of the three, so absent both the
- * stub and the bridge the names fail to LINK, which is the diagnostic that the
- * silent-no-op era lacked.
- *
- * They were also the tranche that broke this file's "wire it when the registrant
- * links" convention on purpose — see the criterion recorded at the bridges and in
- * mm_game_hooks.h. The ten stubs that remain below did NOT meet it: every one of
- * their registrant bodies dereferences live play state with no null check.
- */
-
-void GameInteractor_ExecuteOnCameraChangeModeFlags(Camera* camera) {
-    (void)camera;
-}
-void GameInteractor_ExecuteOnCameraChangeSettingsFlags(Camera* camera) {
-    (void)camera;
-}
-void GameInteractor_ExecuteAfterCameraUpdate(Camera* camera) {
-    (void)camera;
-}
-
-void GameInteractor_ExecuteOnPlayerPostLimbDraw(Player* player, s32 limbIndex) {
-    (void)player;
-    (void)limbIndex;
-}
-void GameInteractor_ExecuteOnConsoleLogoUpdate(void) {}
-
-void GameInteractor_ExecuteBeforeInterfaceClockDraw(void) {}
-void GameInteractor_ExecuteAfterInterfaceClockDraw(void) {}
+/* No definitions. See the file comment: every name that used to live here has
+ * real dispatch in games/mm/2s2h/GameExports_SingleExe.cpp, and the absence of
+ * a fallback definition is what turns a dropped bridge into a link error. */
 
 #endif // RSBS_SINGLE_EXECUTABLE

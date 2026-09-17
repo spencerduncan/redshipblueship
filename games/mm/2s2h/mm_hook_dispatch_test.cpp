@@ -76,6 +76,37 @@
  * fileNum/isOwlSave -- a bridge that dispatches but marshals wrong would
  * corrupt that array while passing a run-count-only check.
  *
+ * Checks 13-18 close #438 out: the remainder, which is every hook type that was
+ * still registered-and-undispatched after the item/progression trio. Three
+ * shapes, and the shape decides what a regression looks like.
+ *   13 is the void() batch (OnGameStateMainStart's COND_HOOK leg,
+ *      OnGameStateMainFinish, OnPlayDrawWorldEnd, OnPlayDestroy,
+ *      OnInterfaceDrawStart, Before/AfterInterfaceClockDraw,
+ *      OnConsoleLogoUpdate). Eight types, ONE signature, adjacent one-line
+ *      bridges -- so cross-type separation carries this check rather than the run
+ *      counts do: a bridge Executing a neighbour's registry links clean and
+ *      leaves every count at 1.
+ *   14 is OnPlayerPostLimbDraw, where the id-keyed (limbIndex) leg is
+ *      load-bearing: all four production registrations are limb-keyed, so an
+ *      Execute-only bridge would leave every one of them dead.
+ *   15 is the camera trio, and the only check here that asserts a bridge REFUSES
+ *      to dispatch: those three bridges key their id leg on camera->uid, so
+ *      "never dispatch a NULL camera" is the bridge's contract and not the
+ *      registrants', which is what lets FreeLook.cpp stay textually upstream.
+ *   16 is AfterRoomSceneCommands / OnRoomInit -- the WRONG-REGISTRY pair, and the
+ *      one regression shape no link error and no missing symbol can catch: both
+ *      had linked dispatchers running a real loop over the upstream
+ *      GameInteractor registry while every MM registrant sat in S2H::GameHooks.
+ *      Revert the swap and the build stays green and only this row notices.
+ *   17 is OnSeqPlayerInit, the check-7 shape (OoT defines the name as a gated
+ *      wrapper, so a dropped rebind is silent).
+ *   18 is the NULL-play-state lock for all of them at once. Read its own comment
+ *      before trusting it: it locks that DISPATCH never needs or invents a play
+ *      state, and it explicitly does NOT cover the null guards the same change
+ *      added to the eight link-elided registrant TUs -- referencing those from
+ *      this TU would un-elide them, which is the trap
+ *      mm_registrar_coverage_test.cpp's header names.
+ *
  * WHAT THIS DOES NOT COVER -- READ BEFORE TRUSTING THE SUITE ON IT. The
  * z_actor.c half (two stale `#ifdef RSBS_SINGLE_EXECUTABLE` blocks that skipped
  * the ShouldActorInit call site outright) is a call-site edit in ROM-dependent
@@ -156,6 +187,43 @@ int sOnBossDefeatedRuns = 0;
 int sOnBossDefeatedForIdRuns = 0;
 s16 sOnBossDefeatedLastActorId = 0;
 
+// Checks 13-18 -- the #438 remainder.
+int sOnGameStateMainStartRuns = 0;
+int sOnGameStateMainFinishRuns = 0;
+int sOnPlayDrawWorldEndRuns = 0;
+int sOnPlayDestroyRuns = 0;
+int sOnInterfaceDrawStartRuns = 0;
+int sBeforeInterfaceClockDrawRuns = 0;
+int sAfterInterfaceClockDrawRuns = 0;
+int sOnConsoleLogoUpdateRuns = 0;
+int sOnPlayerPostLimbDrawRuns = 0;
+int sOnPlayerPostLimbDrawForIdRuns = 0;
+Player* sPostLimbLastPlayer = nullptr;
+s32 sPostLimbLastLimb = -1;
+int sOnCameraChangeModeFlagsRuns = 0;
+int sOnCameraChangeModeFlagsForIdRuns = 0;
+int sOnCameraChangeModeFlagsForPtrRuns = 0;
+Camera* sCameraModeLastCamera = nullptr;
+int sOnCameraChangeSettingsFlagsRuns = 0;
+int sOnCameraChangeSettingsFlagsForIdRuns = 0;
+int sAfterCameraUpdateRuns = 0;
+int sAfterCameraUpdateForIdRuns = 0;
+int sAfterRoomSceneCommandsRuns = 0;
+int sAfterRoomSceneCommandsForIdRuns = 0;
+s8 sRoomSceneLastRoom = -1;
+int sOnRoomInitRuns = 0;
+int sOnRoomInitForIdRuns = 0;
+int sOnSeqPlayerInitRuns = 0;
+int32_t sSeqLastPlayerIdx = -1;
+int32_t sSeqLastSeqId = -1;
+// Check 18 records what each registrant SAW rather than only that it ran: the
+// property under test is that dispatch neither requires nor invents a play
+// state, so "the body observed MM_gPlayState == NULL and returned" is the
+// observation, and a bridge that started guarding on the global would show up
+// here as a run count of 0 rather than as a wrong flag.
+int sNullPlayStateObservations = 0;
+int sNullPlayStateDispatches = 0;
+
 // Distinct sentinel ids, so no check can be satisfied by another's registrant.
 constexpr s16 kActorIdInit = 0x0BAD;
 constexpr s16 kActorIdDraw = 0x0BAE;
@@ -174,6 +242,30 @@ constexpr s16 kFileSelectFileNum = 2;
 constexpr u8 kItemGiveItem = 0x5A;
 constexpr u8 kBottleContentsItem = 0x6B;
 constexpr s16 kBossActorId = 0x0BB2;
+
+// Checks 14-17. Every id-keyed leg gets its own sentinel for the reason the
+// block above gives; the camera uids additionally differ per hook type because
+// all three camera bridges key their ForID leg on camera->uid, so one shared uid
+// would let a bridge that dispatched the wrong type's registry still satisfy
+// the id-keyed assertion.
+constexpr s32 kPostLimbIndex = 0x0BB3;
+constexpr s16 kCameraUidMode = 0x0BB4;
+constexpr s16 kCameraUidSettings = 0x0BB5;
+constexpr s16 kCameraUidAfterUpdate = 0x0BB6;
+constexpr s16 kRoomSceneId = 0x0BB7;
+constexpr s16 kRoomInitSceneId = 0x0BB8;
+constexpr s8 kRoomNum = 3;
+constexpr int32_t kSeqPlayerIdx = 2;
+constexpr int32_t kSeqId = 0x0BB9;
+
+// Argument targets for checks 14-17. Static for the same reason
+// sFileSelectProbeSave is: MM's port-side Player and Camera are large, and the
+// probes only need stable addresses plus (for the cameras) a uid the id-keyed
+// leg can match.
+Player sPostLimbProbePlayer;
+Camera sCameraProbeMode;
+Camera sCameraProbeSettings;
+Camera sCameraProbeAfterUpdate;
 
 // Pointer target for check 11 only; the probe never reads through it, it just
 // proves the dispatcher forwards the pointer untouched. Static because MM's
@@ -208,6 +300,32 @@ void ResetAll() {
     S2H::GameHooks::ResetForTest<GameInteractor::OnItemGive>();
     S2H::GameHooks::ResetForTest<GameInteractor::OnBottleContentsUpdate>();
     S2H::GameHooks::ResetForTest<GameInteractor::OnBossDefeated>();
+    // The #438 remainder (checks 13-18). Same hygiene reasoning as the trio
+    // above -- none of these has a linked registrant today -- with one
+    // difference worth naming: AfterRoomSceneCommands' registrants
+    // (Enhancements/Cheats/TimeStop.cpp, Enhancements/Restorations/JPGrottos.cpp)
+    // would SPAWN ACTORS against MM_gPlayState if they ever linked and ran here,
+    // so for that type the reset is a headless-safety requirement like the
+    // Kaleido batch's, not hygiene.
+    S2H::GameHooks::ResetForTest<GameInteractor::OnGameStateMainStart>();
+    S2H::GameHooks::ResetForTest<GameInteractor::OnGameStateMainFinish>();
+    S2H::GameHooks::ResetForTest<GameInteractor::OnPlayDrawWorldEnd>();
+    S2H::GameHooks::ResetForTest<GameInteractor::OnPlayDestroy>();
+    S2H::GameHooks::ResetForTest<GameInteractor::OnInterfaceDrawStart>();
+    S2H::GameHooks::ResetForTest<GameInteractor::BeforeInterfaceClockDraw>();
+    S2H::GameHooks::ResetForTest<GameInteractor::AfterInterfaceClockDraw>();
+    S2H::GameHooks::ResetForTest<GameInteractor::OnConsoleLogoUpdate>();
+    S2H::GameHooks::ResetForTest<GameInteractor::OnPlayerPostLimbDraw>();
+    S2H::GameHooks::ResetForTest<GameInteractor::OnCameraChangeModeFlags>();
+    S2H::GameHooks::ResetForTest<GameInteractor::OnCameraChangeSettingsFlags>();
+    S2H::GameHooks::ResetForTest<GameInteractor::AfterCameraUpdate>();
+    S2H::GameHooks::ResetForTest<GameInteractor::AfterRoomSceneCommands>();
+    S2H::GameHooks::ResetForTest<GameInteractor::OnRoomInit>();
+    S2H::GameHooks::ResetForTest<GameInteractor::OnSeqPlayerInit>();
+    // The raw extern "C" OnGameStateMainStart vector is a SECOND container
+    // behind the same dispatcher (the CI integration blocks and mm_gi_shim_test
+    // use it). Emptying it is what makes check 13's S2H-side count attributable.
+    MM_GameHooks_ResetForTest();
 }
 
 } // namespace
@@ -717,6 +835,547 @@ extern "C" int MM_HookDispatch_RunHeadless(void) {
         GameInteractor_ExecuteOnBossDefeated((s16)(kBossActorId + 1));
         HOOK_ASSERT(sOnBossDefeatedRuns == 2, 12, "OnBossDefeated unkeyed leg skipped an actor of another id");
         HOOK_ASSERT(sOnBossDefeatedForIdRuns == 1, 12, "OnBossDefeated id-keyed leg fired for the wrong actor id");
+    }
+
+    // ---------------------------------------------------------------- 13
+    // The void() batch of #438's remainder: OnGameStateMainStart's new S2H leg,
+    // OnGameStateMainFinish, OnPlayDrawWorldEnd, OnPlayDestroy,
+    // OnInterfaceDrawStart, Before/AfterInterfaceClockDraw and
+    // OnConsoleLogoUpdate.
+    //
+    // CROSS-TYPE SEPARATION IS THE WHOLE POINT OF THIS BLOCK, more than for any
+    // earlier check. Eight hook types, all signature void(), all dispatched from
+    // adjacent one-line bridges in the same block of
+    // GameExports_SingleExe.cpp. A copy-paste that has one bridge Execute
+    // another type's registry links clean, keeps every run count at exactly 1,
+    // and is invisible to any check that only asks "did my registrant run" --
+    // so every dispatcher below is asserted to leave the other seven counters
+    // untouched, and the assertions are spelled out per type rather than looped,
+    // so a failure names the pair that crossed.
+    //
+    // Two of the eight are driven differently on purpose:
+    //  - OnGameStateMainStart goes through the MM-OWNED spelling, not the
+    //    upstream one. games/mm/src/code/game.c calls BOTH: the upstream name
+    //    (which binds OoT's gated wrapper and correctly no-ops on MM frames) and
+    //    then MM_GameHooks_ExecuteOnGameStateMainStart inside an
+    //    RSBS_SINGLE_EXECUTABLE block. Driving the upstream spelling here would
+    //    test OoT's no-op.
+    //  - OnPlayDestroy goes through the upstream spelling and that is
+    //    load-bearing: OoT DEFINES GameInteractor_ExecuteOnPlayDestroy as an
+    //    active-game-gated wrapper, so dropping the rebind #define links fine
+    //    and silently restores the bug. Same shape as check 7.
+    {
+        sOnGameStateMainStartRuns = 0;
+        sOnGameStateMainFinishRuns = 0;
+        sOnPlayDrawWorldEndRuns = 0;
+        sOnPlayDestroyRuns = 0;
+        sOnInterfaceDrawStartRuns = 0;
+        sBeforeInterfaceClockDrawRuns = 0;
+        sAfterInterfaceClockDrawRuns = 0;
+        sOnConsoleLogoUpdateRuns = 0;
+
+        S2H::GameHooks::Register<GameInteractor::OnGameStateMainStart>([]() { sOnGameStateMainStartRuns++; });
+        S2H::GameHooks::Register<GameInteractor::OnGameStateMainFinish>([]() { sOnGameStateMainFinishRuns++; });
+        S2H::GameHooks::Register<GameInteractor::OnPlayDrawWorldEnd>([]() { sOnPlayDrawWorldEndRuns++; });
+        S2H::GameHooks::Register<GameInteractor::OnPlayDestroy>([]() { sOnPlayDestroyRuns++; });
+        S2H::GameHooks::Register<GameInteractor::OnInterfaceDrawStart>([]() { sOnInterfaceDrawStartRuns++; });
+        S2H::GameHooks::Register<GameInteractor::BeforeInterfaceClockDraw>([]() { sBeforeInterfaceClockDrawRuns++; });
+        S2H::GameHooks::Register<GameInteractor::AfterInterfaceClockDraw>([]() { sAfterInterfaceClockDrawRuns++; });
+        S2H::GameHooks::Register<GameInteractor::OnConsoleLogoUpdate>([]() { sOnConsoleLogoUpdateRuns++; });
+
+        HOOK_ASSERT(sOnGameStateMainStartRuns == 0, 13, "OnGameStateMainStart ran at registration time");
+        HOOK_ASSERT(sOnInterfaceDrawStartRuns == 0, 13, "OnInterfaceDrawStart ran at registration time");
+        HOOK_ASSERT(sOnPlayDestroyRuns == 0, 13, "OnPlayDestroy ran at registration time");
+
+        // Spelled as games/mm/src/code/game.c spells the MM-owned leg.
+        MM_GameHooks_ExecuteOnGameStateMainStart();
+        HOOK_ASSERT(sOnGameStateMainStartRuns == 1, 13,
+                    "OnGameStateMainStart COND_HOOK registrant never ran -- the dispatcher is still walking only "
+                    "the raw extern \"C\" vector");
+        HOOK_ASSERT(sOnGameStateMainFinishRuns == 0, 13,
+                    "the OnGameStateMainStart dispatcher also ran OnGameStateMainFinish registrants");
+
+        // Spelled as games/mm/src/code/game.c spells it.
+        GameInteractor_ExecuteOnGameStateMainFinish();
+        HOOK_ASSERT(sOnGameStateMainFinishRuns == 1, 13,
+                    "OnGameStateMainFinish registrant never ran -- dispatch is not reaching S2H::GameHooks");
+        HOOK_ASSERT(sOnGameStateMainStartRuns == 1, 13,
+                    "the OnGameStateMainFinish dispatcher also re-ran OnGameStateMainStart registrants");
+
+        // Spelled as games/mm/src/code/z_play.c spells it.
+        GameInteractor_ExecuteOnPlayDrawWorldEnd();
+        HOOK_ASSERT(sOnPlayDrawWorldEndRuns == 1, 13,
+                    "OnPlayDrawWorldEnd registrant never ran -- dispatch is not reaching S2H::GameHooks");
+        HOOK_ASSERT(sOnPlayDestroyRuns == 0, 13,
+                    "the OnPlayDrawWorldEnd dispatcher also ran OnPlayDestroy "
+                    "registrants");
+
+        // Spelled as games/mm/src/code/z_play.c spells it -- and through the
+        // UPSTREAM name, which OoT also defines.
+        GameInteractor_ExecuteOnPlayDestroy();
+        HOOK_ASSERT(sOnPlayDestroyRuns == 1, 13,
+                    "OnPlayDestroy registrant never ran -- the call is still binding OoT's active-game-gated "
+                    "wrapper");
+        HOOK_ASSERT(sOnPlayDrawWorldEndRuns == 1, 13,
+                    "the OnPlayDestroy dispatcher also re-ran OnPlayDrawWorldEnd registrants");
+
+        // Spelled as games/mm/src/code/z_parameter.c spells it.
+        GameInteractor_ExecuteOnInterfaceDrawStart();
+        HOOK_ASSERT(sOnInterfaceDrawStartRuns == 1, 13,
+                    "OnInterfaceDrawStart registrant never ran -- enemy health bars and the ammo-buyback digits "
+                    "stay invisible");
+        HOOK_ASSERT(sBeforeInterfaceClockDrawRuns == 0, 13,
+                    "the OnInterfaceDrawStart dispatcher also ran BeforeInterfaceClockDraw registrants");
+        HOOK_ASSERT(sAfterInterfaceClockDrawRuns == 0, 13,
+                    "the OnInterfaceDrawStart dispatcher also ran AfterInterfaceClockDraw registrants");
+
+        // The clock pair, asserted as a PAIR like check 6: Before hijacks the
+        // save's time/day so the clock renders the scrub target and After puts
+        // them back, so a half-wired pair leaves the player's real time
+        // overwritten. FAIL(13) has to be reachable from half a fix, which means
+        // the two legs must not be interchangeable -- hence the separation
+        // assertions in both directions.
+        GameInteractor_ExecuteBeforeInterfaceClockDraw();
+        HOOK_ASSERT(sBeforeInterfaceClockDrawRuns == 1, 13,
+                    "BeforeInterfaceClockDraw registrant never ran -- Better Song of Double Time scrubs against a "
+                    "clock showing the current time");
+        HOOK_ASSERT(sAfterInterfaceClockDrawRuns == 0, 13,
+                    "the Before dispatcher also ran AfterInterfaceClockDraw registrants -- the restore would run "
+                    "before the draw");
+
+        GameInteractor_ExecuteAfterInterfaceClockDraw();
+        HOOK_ASSERT(sAfterInterfaceClockDrawRuns == 1, 13,
+                    "AfterInterfaceClockDraw registrant never ran -- the hijacked time/day is never restored");
+        HOOK_ASSERT(sBeforeInterfaceClockDrawRuns == 1, 13,
+                    "the After dispatcher also re-ran BeforeInterfaceClockDraw registrants");
+
+        // Spelled as z_title.c ConsoleLogo_Main spells it. This row proves the
+        // dispatcher works when called; it deliberately does NOT claim the call
+        // site is reached on a cross-game switch, because it is not -- the
+        // arrival fast-forward returns above it, which is the correct behaviour
+        // (see the bridge comment). Nothing in the ROM-free tier can observe
+        // that ordering.
+        GameInteractor_ExecuteOnConsoleLogoUpdate();
+        HOOK_ASSERT(sOnConsoleLogoUpdateRuns == 1, 13,
+                    "OnConsoleLogoUpdate registrant never ran -- dispatch is not reaching S2H::GameHooks");
+        HOOK_ASSERT(sOnInterfaceDrawStartRuns == 1, 13,
+                    "the OnConsoleLogoUpdate dispatcher also re-ran OnInterfaceDrawStart registrants");
+        HOOK_ASSERT(sOnGameStateMainFinishRuns == 1, 13,
+                    "the OnConsoleLogoUpdate dispatcher also re-ran OnGameStateMainFinish registrants");
+    }
+
+    // ---------------------------------------------------------------- 14
+    // OnPlayerPostLimbDraw (#438): the hook three mask/reticle enhancements
+    // draw through. ARGUMENT FIDELITY and the ID-KEYED LEG are both asserted,
+    // and the id leg is the load-bearing one -- all four production
+    // registrations are COND_ID_HOOK keyed on a limb index (PersistentMasks and
+    // HyruleWarriorsStyledLink on PLAYER_LIMB_HEAD, BowReticle on
+    // PLAYER_LIMB_RIGHT_HAND, HyruleWarriorsStyledLink again on
+    // PLAYER_LIMB_WAIST), so an Execute-only bridge would link, read correctly,
+    // and leave every one of them dead.
+    {
+        sOnPlayerPostLimbDrawRuns = 0;
+        sOnPlayerPostLimbDrawForIdRuns = 0;
+        sPostLimbLastPlayer = nullptr;
+        sPostLimbLastLimb = -1;
+
+        S2H::GameHooks::Register<GameInteractor::OnPlayerPostLimbDraw>([](Player* player, s32 limbIndex) {
+            sOnPlayerPostLimbDrawRuns++;
+            sPostLimbLastPlayer = player;
+            sPostLimbLastLimb = limbIndex;
+        });
+        S2H::GameHooks::RegisterForID<GameInteractor::OnPlayerPostLimbDraw>(kPostLimbIndex,
+                                                                            [](Player* player, s32 limbIndex) {
+                                                                                (void)player;
+                                                                                (void)limbIndex;
+                                                                                sOnPlayerPostLimbDrawForIdRuns++;
+                                                                            });
+
+        HOOK_ASSERT(sOnPlayerPostLimbDrawRuns == 0, 14, "OnPlayerPostLimbDraw ran at registration time");
+
+        // Spelled exactly as games/mm/src/code/z_player_lib.c spells it.
+        GameInteractor_ExecuteOnPlayerPostLimbDraw(&sPostLimbProbePlayer, kPostLimbIndex);
+        HOOK_ASSERT(sOnPlayerPostLimbDrawRuns == 1, 14,
+                    "OnPlayerPostLimbDraw registrant never ran -- persistent Bunny Hood, the bow reticle and both "
+                    "Hyrule Warriors masks stay undrawn");
+        HOOK_ASSERT(sOnPlayerPostLimbDrawForIdRuns == 1, 14,
+                    "OnPlayerPostLimbDraw id-keyed registrant never ran -- all four production registrations are "
+                    "limb-keyed");
+        HOOK_ASSERT(sPostLimbLastPlayer == &sPostLimbProbePlayer, 14,
+                    "OnPlayerPostLimbDraw player pointer arrived corrupted");
+        HOOK_ASSERT(sPostLimbLastLimb == kPostLimbIndex, 14,
+                    "OnPlayerPostLimbDraw limbIndex arrived corrupted -- masks would draw on the wrong limb");
+
+        // Another limb reaches the unkeyed leg but must NOT reach the id-keyed one.
+        GameInteractor_ExecuteOnPlayerPostLimbDraw(&sPostLimbProbePlayer, kPostLimbIndex + 1);
+        HOOK_ASSERT(sOnPlayerPostLimbDrawRuns == 2, 14, "OnPlayerPostLimbDraw unkeyed leg skipped another limb");
+        HOOK_ASSERT(sOnPlayerPostLimbDrawForIdRuns == 1, 14,
+                    "OnPlayerPostLimbDraw id-keyed leg fired for the wrong limb");
+    }
+
+    // ---------------------------------------------------------------- 15
+    // The camera trio (#438): OnCameraChangeModeFlags,
+    // OnCameraChangeSettingsFlags, AfterCameraUpdate.
+    //
+    // THE NULL-CAMERA ASSERTION IS THE REASON THIS CHECK EXISTS SEPARATELY FROM
+    // 13. These three bridges are the only ones in the batch that dereference an
+    // argument themselves: they key their id leg on camera->uid, the way the
+    // excluded upstream twins in 2s2h/GameInteractor/GameInteractor.cpp do. So
+    // the bridge -- not the registrant -- owns "do not dispatch a NULL camera",
+    // which is what lets Enhancements/Camera/FreeLook.cpp's UpdateFreeLookState
+    // stay textually upstream with no guard of its own. Asserted by dispatching
+    // NULL and requiring that NOTHING ran, which also fails if someone
+    // "simplifies" the guard into a deref-then-check.
+    //
+    // Three types, one signature, adjacent bridges: cross-type separation is
+    // asserted for the same reason as check 13, and each type's probe camera
+    // carries a DIFFERENT uid so a bridge dispatching the wrong registry cannot
+    // satisfy the id-keyed assertion either.
+    {
+        sOnCameraChangeModeFlagsRuns = 0;
+        sOnCameraChangeModeFlagsForIdRuns = 0;
+        sOnCameraChangeModeFlagsForPtrRuns = 0;
+        sCameraModeLastCamera = nullptr;
+        sOnCameraChangeSettingsFlagsRuns = 0;
+        sOnCameraChangeSettingsFlagsForIdRuns = 0;
+        sAfterCameraUpdateRuns = 0;
+        sAfterCameraUpdateForIdRuns = 0;
+        sCameraProbeMode.uid = kCameraUidMode;
+        sCameraProbeSettings.uid = kCameraUidSettings;
+        sCameraProbeAfterUpdate.uid = kCameraUidAfterUpdate;
+
+        S2H::GameHooks::Register<GameInteractor::OnCameraChangeModeFlags>([](Camera* camera) {
+            sOnCameraChangeModeFlagsRuns++;
+            sCameraModeLastCamera = camera;
+        });
+        S2H::GameHooks::RegisterForID<GameInteractor::OnCameraChangeModeFlags>(kCameraUidMode, [](Camera* camera) {
+            (void)camera;
+            sOnCameraChangeModeFlagsForIdRuns++;
+        });
+        S2H::GameHooks::RegisterForPtr<GameInteractor::OnCameraChangeModeFlags>(
+            (uintptr_t)&sCameraProbeMode, [](Camera* camera) {
+                (void)camera;
+                sOnCameraChangeModeFlagsForPtrRuns++;
+            });
+        S2H::GameHooks::Register<GameInteractor::OnCameraChangeSettingsFlags>([](Camera* camera) {
+            (void)camera;
+            sOnCameraChangeSettingsFlagsRuns++;
+        });
+        S2H::GameHooks::RegisterForID<GameInteractor::OnCameraChangeSettingsFlags>(
+            kCameraUidSettings, [](Camera* camera) {
+                (void)camera;
+                sOnCameraChangeSettingsFlagsForIdRuns++;
+            });
+        S2H::GameHooks::Register<GameInteractor::AfterCameraUpdate>([](Camera* camera) {
+            (void)camera;
+            sAfterCameraUpdateRuns++;
+        });
+        S2H::GameHooks::RegisterForID<GameInteractor::AfterCameraUpdate>(kCameraUidAfterUpdate, [](Camera* camera) {
+            (void)camera;
+            sAfterCameraUpdateForIdRuns++;
+        });
+
+        HOOK_ASSERT(sOnCameraChangeModeFlagsRuns == 0, 15, "OnCameraChangeModeFlags ran at registration time");
+
+        // The NULL-camera contract, asserted BEFORE the positive legs so a
+        // bridge that crashes here never reaches them. Spelled as
+        // games/mm/src/code/z_camera.c spells each call.
+        GameInteractor_ExecuteOnCameraChangeModeFlags(nullptr);
+        GameInteractor_ExecuteOnCameraChangeSettingsFlags(nullptr);
+        GameInteractor_ExecuteAfterCameraUpdate(nullptr);
+        HOOK_ASSERT(sOnCameraChangeModeFlagsRuns == 0, 15,
+                    "OnCameraChangeModeFlags dispatched a NULL camera -- the id leg keys on camera->uid");
+        HOOK_ASSERT(sOnCameraChangeSettingsFlagsRuns == 0, 15, "OnCameraChangeSettingsFlags dispatched a NULL camera");
+        HOOK_ASSERT(sAfterCameraUpdateRuns == 0, 15, "AfterCameraUpdate dispatched a NULL camera");
+
+        GameInteractor_ExecuteOnCameraChangeModeFlags(&sCameraProbeMode);
+        HOOK_ASSERT(sOnCameraChangeModeFlagsRuns == 1, 15,
+                    "OnCameraChangeModeFlags registrant never ran -- free look's latch is never cleared on "
+                    "non-Z camera transitions");
+        HOOK_ASSERT(sOnCameraChangeModeFlagsForIdRuns == 1, 15,
+                    "OnCameraChangeModeFlags id-keyed (camera->uid) registrant never ran");
+        HOOK_ASSERT(sOnCameraChangeModeFlagsForPtrRuns == 1, 15,
+                    "OnCameraChangeModeFlags ptr-keyed registrant never ran");
+        HOOK_ASSERT(sCameraModeLastCamera == &sCameraProbeMode, 15,
+                    "OnCameraChangeModeFlags camera pointer arrived corrupted");
+        HOOK_ASSERT(sOnCameraChangeSettingsFlagsRuns == 0, 15,
+                    "the OnCameraChangeModeFlags dispatcher also ran OnCameraChangeSettingsFlags registrants");
+        HOOK_ASSERT(sAfterCameraUpdateRuns == 0, 15,
+                    "the OnCameraChangeModeFlags dispatcher also ran AfterCameraUpdate registrants");
+
+        GameInteractor_ExecuteOnCameraChangeSettingsFlags(&sCameraProbeSettings);
+        HOOK_ASSERT(sOnCameraChangeSettingsFlagsRuns == 1, 15,
+                    "OnCameraChangeSettingsFlags registrant never ran -- dispatch is not reaching S2H::GameHooks");
+        HOOK_ASSERT(sOnCameraChangeSettingsFlagsForIdRuns == 1, 15,
+                    "OnCameraChangeSettingsFlags id-keyed registrant never ran");
+        HOOK_ASSERT(sOnCameraChangeModeFlagsRuns == 1, 15,
+                    "the OnCameraChangeSettingsFlags dispatcher also re-ran OnCameraChangeModeFlags registrants");
+
+        GameInteractor_ExecuteAfterCameraUpdate(&sCameraProbeAfterUpdate);
+        HOOK_ASSERT(sAfterCameraUpdateRuns == 1, 15,
+                    "AfterCameraUpdate registrant never ran -- dispatch is not reaching S2H::GameHooks");
+        HOOK_ASSERT(sAfterCameraUpdateForIdRuns == 1, 15, "AfterCameraUpdate id-keyed registrant never ran");
+        HOOK_ASSERT(sOnCameraChangeModeFlagsRuns == 1, 15,
+                    "the AfterCameraUpdate dispatcher also re-ran OnCameraChangeModeFlags registrants");
+        HOOK_ASSERT(sOnCameraChangeSettingsFlagsRuns == 1, 15,
+                    "the AfterCameraUpdate dispatcher also re-ran OnCameraChangeSettingsFlags registrants");
+
+        // A camera with a different uid reaches the unkeyed leg only.
+        sCameraProbeMode.uid = kCameraUidMode + 1;
+        GameInteractor_ExecuteOnCameraChangeModeFlags(&sCameraProbeMode);
+        HOOK_ASSERT(sOnCameraChangeModeFlagsRuns == 2, 15,
+                    "OnCameraChangeModeFlags unkeyed leg skipped a camera with another uid");
+        HOOK_ASSERT(sOnCameraChangeModeFlagsForIdRuns == 1, 15,
+                    "OnCameraChangeModeFlags id-keyed leg fired for the wrong uid");
+        sCameraProbeMode.uid = kCameraUidMode;
+    }
+
+    // ---------------------------------------------------------------- 16
+    // AfterRoomSceneCommands and OnRoomInit (#438) -- the WRONG-REGISTRY pair,
+    // and the only members of this batch that never had a stub to notice.
+    //
+    // Both had a real, linked dispatcher in GameExports_SingleExe.cpp that ran a
+    // real loop over GameInteractor::RegisteredGameHooks<H> while every MM
+    // registrant sat in S2H::GameHooks. Nothing to grep, nothing to link-error,
+    // and a bridge that reads correct. The regression shape is therefore
+    // different from every other check here: revert the registry swap and this
+    // check fails, but the build stays green and no symbol goes missing -- which
+    // is exactly why the row is the only gate.
+    //
+    // THE ID-KEYED LEG IS THE DESTRUCTIVE HALF. JPGrottos.cpp registers
+    // COND_ID_HOOK(AfterRoomSceneCommands, SCENE_22DEKUCITY, ...), and that
+    // registrant is the ONLY writer of the isSpawningJPGrottos flag its four
+    // already-live ShouldActorInit legs read before deleting Deku Palace's
+    // vanilla grottos and torches. An unkeyed-only registry swap revives
+    // TimeStop and leaves that half broken, so the two legs are asserted
+    // separately.
+    //
+    // Driven through the upstream spelling, which here is also the definition's
+    // own name: these two are MM-only names with no OoT counterpart and no
+    // rebind, so what is under test is the registry the definition walks.
+    {
+        sAfterRoomSceneCommandsRuns = 0;
+        sAfterRoomSceneCommandsForIdRuns = 0;
+        sRoomSceneLastRoom = -1;
+        sOnRoomInitRuns = 0;
+        sOnRoomInitForIdRuns = 0;
+
+        S2H::GameHooks::Register<GameInteractor::AfterRoomSceneCommands>([](s8 sceneId, s8 roomNum) {
+            (void)sceneId;
+            sAfterRoomSceneCommandsRuns++;
+            sRoomSceneLastRoom = roomNum;
+        });
+        S2H::GameHooks::RegisterForID<GameInteractor::AfterRoomSceneCommands>(kRoomSceneId, [](s8 sceneId, s8 roomNum) {
+            (void)sceneId;
+            (void)roomNum;
+            sAfterRoomSceneCommandsForIdRuns++;
+        });
+        S2H::GameHooks::Register<GameInteractor::OnRoomInit>([](s8 sceneId, s8 roomNum) {
+            (void)sceneId;
+            (void)roomNum;
+            sOnRoomInitRuns++;
+        });
+        S2H::GameHooks::RegisterForID<GameInteractor::OnRoomInit>(kRoomInitSceneId, [](s8 sceneId, s8 roomNum) {
+            (void)sceneId;
+            (void)roomNum;
+            sOnRoomInitForIdRuns++;
+        });
+
+        HOOK_ASSERT(sAfterRoomSceneCommandsRuns == 0, 16, "AfterRoomSceneCommands ran at registration time");
+
+        // Spelled exactly as games/mm/2s2h/z_play_2SH.cpp spells it.
+        GameInteractor_ExecuteAfterRoomSceneCommands(kRoomSceneId, kRoomNum);
+        HOOK_ASSERT(sAfterRoomSceneCommandsRuns == 1, 16,
+                    "AfterRoomSceneCommands registrant never ran -- the dispatcher is still walking the upstream "
+                    "GameInteractor registry");
+        HOOK_ASSERT(sAfterRoomSceneCommandsForIdRuns == 1, 16,
+                    "AfterRoomSceneCommands id-keyed registrant never ran -- JP Grottos would delete Deku Palace's "
+                    "vanilla grottos and spawn no replacements");
+        HOOK_ASSERT(sRoomSceneLastRoom == kRoomNum, 16, "AfterRoomSceneCommands roomNum arrived corrupted");
+        HOOK_ASSERT(sOnRoomInitRuns == 0, 16,
+                    "the AfterRoomSceneCommands dispatcher also ran OnRoomInit "
+                    "registrants");
+
+        // A different scene reaches the unkeyed leg but not the id-keyed one.
+        GameInteractor_ExecuteAfterRoomSceneCommands(kRoomSceneId + 1, kRoomNum);
+        HOOK_ASSERT(sAfterRoomSceneCommandsRuns == 2, 16, "AfterRoomSceneCommands unkeyed leg skipped another scene");
+        HOOK_ASSERT(sAfterRoomSceneCommandsForIdRuns == 1, 16,
+                    "AfterRoomSceneCommands id-keyed leg fired for the wrong scene");
+
+        // Spelled exactly as games/mm/2s2h/z_scene_2SH.cpp spells it.
+        GameInteractor_ExecuteOnRoomInit(kRoomInitSceneId, kRoomNum);
+        HOOK_ASSERT(sOnRoomInitRuns == 1, 16,
+                    "OnRoomInit registrant never ran -- the dispatcher is still walking the upstream "
+                    "GameInteractor registry");
+        HOOK_ASSERT(sOnRoomInitForIdRuns == 1, 16, "OnRoomInit id-keyed registrant never ran");
+        HOOK_ASSERT(sAfterRoomSceneCommandsRuns == 2, 16,
+                    "the OnRoomInit dispatcher also re-ran AfterRoomSceneCommands registrants");
+    }
+
+    // ---------------------------------------------------------------- 17
+    // OnSeqPlayerInit (#438): the check-7 shape again. OoT DEFINES
+    // GameInteractor_ExecuteOnSeqPlayerInit as an active-game-gated wrapper, so
+    // MM's call site in games/mm/src/audio/lib/load.c linked and bound an
+    // unconditional return for the whole MM session -- with a cross-game tell,
+    // because gAudioEditor.SeqNameNotification is a converged shared CVar and
+    // OoT's registrant is whole-archived: the sequence-name toast worked in OoT
+    // and went silent at the Clock Tower crossing. Dropping the rebind restores
+    // that silently, so the upstream spelling is what this drives.
+    //
+    // Both arguments are asserted because they are the same type and adjacent:
+    // a bridge that forwarded (seqId, playerIdx) would keep the run count at 1
+    // and notify on the wrong sequence.
+    {
+        sOnSeqPlayerInitRuns = 0;
+        sSeqLastPlayerIdx = -1;
+        sSeqLastSeqId = -1;
+
+        S2H::GameHooks::Register<GameInteractor::OnSeqPlayerInit>([](s32 playerIdx, s32 seqId) {
+            sOnSeqPlayerInitRuns++;
+            sSeqLastPlayerIdx = playerIdx;
+            sSeqLastSeqId = seqId;
+        });
+
+        HOOK_ASSERT(sOnSeqPlayerInitRuns == 0, 17, "OnSeqPlayerInit ran at registration time");
+
+        // Spelled exactly as games/mm/src/audio/lib/load.c spells it.
+        GameInteractor_ExecuteOnSeqPlayerInit(kSeqPlayerIdx, kSeqId);
+        HOOK_ASSERT(sOnSeqPlayerInitRuns == 1, 17,
+                    "OnSeqPlayerInit registrant never ran -- the call is still binding OoT's active-game-gated "
+                    "wrapper");
+        HOOK_ASSERT(sSeqLastPlayerIdx == kSeqPlayerIdx, 17, "OnSeqPlayerInit playerIdx arrived corrupted");
+        HOOK_ASSERT(sSeqLastSeqId == kSeqId, 17,
+                    "OnSeqPlayerInit seqId arrived corrupted -- the toast would name the wrong sequence");
+    }
+
+    // ---------------------------------------------------------------- 18
+    // NULL PLAY STATE. Every type wired by #438's remainder, dispatched with
+    // MM_gPlayState explicitly NULL, asserted to reach its registrant and
+    // survive.
+    //
+    // READ WHAT THIS DOES AND DOES NOT ESTABLISH, because the distinction is the
+    // whole reason the guards this change also landed are NOT covered here.
+    //
+    // WHAT IT LOCKS: that DISPATCH neither requires nor invents a play state.
+    // None of the bridges in GameExports_SingleExe.cpp reads MM_gPlayState, and
+    // two of these hook types (OnConsoleLogoUpdate, OnGameStateMainFinish)
+    // legitimately fire when there is none -- so a future edit that "helpfully"
+    // adds a blanket `if (MM_gPlayState == NULL) return;` at the bridges would
+    // break them, and shows up here as a run count of 0. The registrants below
+    // record that they OBSERVED a null global rather than merely that they ran,
+    // so the check also fails if something under dispatch were to substitute a
+    // play state.
+    //
+    // WHAT IT CANNOT LOCK: the null guards this change added to the real
+    // registrant bodies (AmmoBuyback, PersistentMasks, BowReticle,
+    // HyruleWarriorsStyledLink, BetterSongOfDoubleTime, SkipToFileSelect,
+    // TimeStop, JPGrottos). Those TUs are link-elided from the plain-archive
+    // 2ship_enh, so their code is not in this binary and no ROM-free row can
+    // call it. Referencing any of their registrar functions from this TU would
+    // ITSELF be the inbound reference that un-elides them -- the trap
+    // mm_registrar_coverage_test.cpp's header names -- which would defeat the
+    // measurement the elision gate makes and arm eight enhancements as a side
+    // effect of a test. So the guards are verified by inspection and by the
+    // lock's shape (a NULL-play-state dispatch of every type reaches its
+    // registrant), and they become executable only when 2ship_enh flips to
+    // WHOLE_ARCHIVE. The flip is where a real gameplay check belongs; the
+    // operator playtest is the check until then.
+    //
+    // Not covered either: mm-registrar-coverage and mm-shipinit-driver cannot be
+    // extended for these types for the same reason. Those rows attribute a
+    // non-empty registry to exactly one production registrar, and none of these
+    // types has a registrar in the binary to attribute anything to.
+    {
+        PlayState* savedPlayState = MM_gPlayState;
+        MM_gPlayState = nullptr;
+        sNullPlayStateObservations = 0;
+        sNullPlayStateDispatches = 0;
+
+        ResetAll();
+
+        auto observe = []() {
+            sNullPlayStateDispatches++;
+            if (MM_gPlayState == nullptr) {
+                sNullPlayStateObservations++;
+            }
+        };
+        S2H::GameHooks::Register<GameInteractor::OnGameStateMainStart>(observe);
+        S2H::GameHooks::Register<GameInteractor::OnGameStateMainFinish>(observe);
+        S2H::GameHooks::Register<GameInteractor::OnPlayDrawWorldEnd>(observe);
+        S2H::GameHooks::Register<GameInteractor::OnPlayDestroy>(observe);
+        S2H::GameHooks::Register<GameInteractor::OnInterfaceDrawStart>(observe);
+        S2H::GameHooks::Register<GameInteractor::BeforeInterfaceClockDraw>(observe);
+        S2H::GameHooks::Register<GameInteractor::AfterInterfaceClockDraw>(observe);
+        S2H::GameHooks::Register<GameInteractor::OnConsoleLogoUpdate>(observe);
+        S2H::GameHooks::Register<GameInteractor::OnPlayerPostLimbDraw>([](Player* player, s32 limbIndex) {
+            (void)player;
+            (void)limbIndex;
+            sNullPlayStateDispatches++;
+            if (MM_gPlayState == nullptr) {
+                sNullPlayStateObservations++;
+            }
+        });
+        S2H::GameHooks::Register<GameInteractor::AfterRoomSceneCommands>([](s8 sceneId, s8 roomNum) {
+            (void)sceneId;
+            (void)roomNum;
+            sNullPlayStateDispatches++;
+            if (MM_gPlayState == nullptr) {
+                sNullPlayStateObservations++;
+            }
+        });
+        S2H::GameHooks::Register<GameInteractor::OnRoomInit>([](s8 sceneId, s8 roomNum) {
+            (void)sceneId;
+            (void)roomNum;
+            sNullPlayStateDispatches++;
+            if (MM_gPlayState == nullptr) {
+                sNullPlayStateObservations++;
+            }
+        });
+        S2H::GameHooks::Register<GameInteractor::OnSeqPlayerInit>([](s32 playerIdx, s32 seqId) {
+            (void)playerIdx;
+            (void)seqId;
+            sNullPlayStateDispatches++;
+            if (MM_gPlayState == nullptr) {
+                sNullPlayStateObservations++;
+            }
+        });
+        auto observeCamera = [](Camera* camera) {
+            (void)camera;
+            sNullPlayStateDispatches++;
+            if (MM_gPlayState == nullptr) {
+                sNullPlayStateObservations++;
+            }
+        };
+        S2H::GameHooks::Register<GameInteractor::OnCameraChangeModeFlags>(observeCamera);
+        S2H::GameHooks::Register<GameInteractor::OnCameraChangeSettingsFlags>(observeCamera);
+        S2H::GameHooks::Register<GameInteractor::AfterCameraUpdate>(observeCamera);
+
+        MM_GameHooks_ExecuteOnGameStateMainStart();
+        GameInteractor_ExecuteOnGameStateMainFinish();
+        GameInteractor_ExecuteOnPlayDrawWorldEnd();
+        GameInteractor_ExecuteOnPlayDestroy();
+        GameInteractor_ExecuteOnInterfaceDrawStart();
+        GameInteractor_ExecuteBeforeInterfaceClockDraw();
+        GameInteractor_ExecuteAfterInterfaceClockDraw();
+        GameInteractor_ExecuteOnConsoleLogoUpdate();
+        GameInteractor_ExecuteOnPlayerPostLimbDraw(&sPostLimbProbePlayer, kPostLimbIndex);
+        GameInteractor_ExecuteAfterRoomSceneCommands(kRoomSceneId, kRoomNum);
+        GameInteractor_ExecuteOnRoomInit(kRoomInitSceneId, kRoomNum);
+        GameInteractor_ExecuteOnSeqPlayerInit(kSeqPlayerIdx, kSeqId);
+        GameInteractor_ExecuteOnCameraChangeModeFlags(&sCameraProbeMode);
+        GameInteractor_ExecuteOnCameraChangeSettingsFlags(&sCameraProbeSettings);
+        GameInteractor_ExecuteAfterCameraUpdate(&sCameraProbeAfterUpdate);
+
+        MM_gPlayState = savedPlayState;
+
+        // Fifteen dispatchers, one registrant each. Spelled as a literal rather
+        // than counted from a table so that adding a bridge without adding it
+        // here is a failure rather than a silent pass.
+        HOOK_ASSERT(sNullPlayStateDispatches == 15, 18,
+                    "a #438-remainder dispatcher did not reach its registrant with MM_gPlayState NULL");
+        HOOK_ASSERT(sNullPlayStateObservations == 15, 18,
+                    "a #438-remainder registrant saw a non-NULL MM_gPlayState -- something under dispatch is "
+                    "substituting a play state");
     }
 
     // NOTE ON WHAT COVERS THE REBIND. An earlier draft of this row compared
