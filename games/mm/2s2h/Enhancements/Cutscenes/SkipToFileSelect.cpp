@@ -14,6 +14,22 @@ extern "C" {
 void RegisterSkipToFileSelect() {
     COND_HOOK(OnConsoleLogoUpdate, CVAR, []() {
         ConsoleLogoState* consoleLogoState = (ConsoleLogoState*)MM_gGameState;
+        // #438: guard landed with the OnConsoleLogoUpdate dispatch. Both legs
+        // in this file cast MM_gGameState and immediately dereference it with no
+        // upstream check -- the #516 SIGSEGV class. The cast is sound at the one
+        // call site (ConsoleLogo_Main), so this is a null check and not a type
+        // check.
+        //
+        // Worth knowing while reading this: on a cross-game switch into MM the
+        // hook never fires at all. ConsoleLogo_Main early-returns into
+        // MM_TitleSetup_Init above the dispatch when a startup entrance is
+        // pending, which is deliberate -- MM_Sram_InitNewSave below would
+        // discard the save the switch is carrying. This leg runs on a cold
+        // `redship --game mm` boot and the debug MapSelect route.
+        //
+        // Expands to nothing outside the single exe; see GameInteractor.h for
+        // why it is a macro and not an #ifdef.
+        RSBS_SINGLE_EXE_REQUIRE(consoleLogoState != NULL);
 
         // Wait for the console logo to fade out
         if (consoleLogoState->exit) {
@@ -39,6 +55,9 @@ void RegisterSkipToFileSelect() {
     // Allows pressing A to skip the boot logo and go to the next state (opening or file select)
     COND_HOOK(OnConsoleLogoUpdate, true, []() {
         ConsoleLogoState* consoleLogoState = (ConsoleLogoState*)MM_gGameState;
+        // See the leg above (#438). This one also reads state.input, a second
+        // pointer the cast does not validate.
+        RSBS_SINGLE_EXE_REQUIRE(consoleLogoState != NULL && consoleLogoState->state.input != NULL);
 
         if (CHECK_BTN_ANY(consoleLogoState->state.input->press.button, BTN_A | BTN_B | BTN_START)) {
             // Force the title state to start fading to black and to last roughly 5 frames based on current fade in/out

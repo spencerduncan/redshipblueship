@@ -14,6 +14,12 @@ extern const char* D_801C0B20[28];
 
 void RegisterHyruleWarriorsStyledLink() {
     COND_ID_HOOK(OnPlayerPostLimbDraw, PLAYER_LIMB_HEAD, CVAR, [](Player* player, s32 limbIndex) {
+        // #438: guard landed with the OnPlayerPostLimbDraw dispatch, not after
+        // it. Both legs in this file dereference MM_gPlayState->viewProjectionMtxF
+        // and ->state.gfxCtx (through OPEN_DISPS) with no upstream check -- the
+        // #516 SIGSEGV class. Expands to nothing outside the single exe; see
+        // GameInteractor.h for why it is a macro and not an #ifdef.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL && player != NULL);
         // This emulates the vanilla check for if the masks should be drawn, specifically around
         // z_player.c 12923 (MM_Player_Draw)
         if (player->stateFlags1 & PLAYER_STATE1_100000) {
@@ -39,6 +45,8 @@ void RegisterHyruleWarriorsStyledLink() {
         }
     });
     COND_ID_HOOK(OnPlayerPostLimbDraw, PLAYER_LIMB_WAIST, CVAR, [](Player* player, s32 limbIndex) {
+        // See the PLAYER_LIMB_HEAD leg above (#438).
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL && player != NULL);
         if (player->transformation == PLAYER_FORM_HUMAN && player->itemAction != PLAYER_IA_MASK_FIERCE_DEITY &&
             INV_CONTENT(ITEM_MASK_FIERCE_DEITY) == ITEM_MASK_FIERCE_DEITY) {
             OPEN_DISPS(MM_gPlayState->state.gfxCtx);

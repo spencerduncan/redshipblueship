@@ -64,6 +64,10 @@
 #include "2s2h/CustomMessage/CustomMessage.h"
 #include "2s2h/Enhancements/Saving/SavingEnhancements.h"
 #include "2s2h/Enhancements/GfxPatcher/AuthenticGfxPatches.h"
+// #618 (#516 Phase 3): the last BenPort InitOTR entry. C++ linkage (its header
+// declares it outside any extern "C"), so it must be included rather than
+// forward-declared, or the call would not resolve to the 2ship_enh definition.
+#include "2s2h/Enhancements/GfxPatcher/PlayerCustomFlipbooks.h"
 #include "2s2h/Rando/Rando.h"
 #include "2s2h/Rando/Foreign.h" // attempt-ladder outcome accessors (ADR 0010 inc. 1.2)
 #include "2s2h/ShipInit.hpp"
@@ -306,6 +310,19 @@ extern "C" void MM_GameHooks_ExecuteOnGameStateMainStart(void) {
     for (size_t i = 0; i < count; i++) {
         sMMHooksOnGameStateMainStart[i].fn();
     }
+
+    // The S2H::GameHooks leg (#438). The raw vector above is NOT redundant with
+    // it and is deliberately kept: the CI integration-test blocks further down
+    // this file and games/mm/2s2h/mm_gi_shim_test.cpp register through the
+    // extern "C" triple, which is the only hook surface a C TU can reach. What
+    // the raw walk could never reach is the COND_HOOK production path -- the
+    // single-exe macro redirection parks every
+    // COND_HOOK(OnGameStateMainStart, ...) registrant in S2H::GameHooks, and
+    // nothing drained it. Three 2ship_enh TUs sit there today
+    // (Enhancements/Items/AmmoBuyback.cpp's B/C-Up mask over the buyback
+    // quantity prompt, EasyFrameAdvance, PauseBufferWindow), all link-elided,
+    // so this leg runs an empty registry until 2ship_enh whole-archives.
+    S2H::GameHooks::Execute<GameInteractor::OnGameStateMainStart>();
 }
 
 extern "C" uint32_t MM_GameHooks_CountOnGameStateMainStart(void) {
@@ -440,8 +457,11 @@ static void MM_RegisterIntegrationTestHooks(void) {
         // The old criteria (console-logo frames / 10 OnGameStateMainStart
         // firings) passed while MM was still on the console logo, ~5s before
         // the title-demo Play state crashed in MM_Actor_SpawnEntry. (The
-        // OnConsoleLogoUpdate hook was dead anyway: MM's executor is excluded
-        // in single-exe builds and the call resolves to a no-op stub.)
+        // OnConsoleLogoUpdate hook was dead anyway at the time: MM's executor
+        // is excluded in single-exe builds and the call resolved to a no-op
+        // stub. #438's remainder gave it real dispatch, which does not revive
+        // the old criteria -- a completed scene load is still the only honest
+        // PASS signal.)
         MM_GameHooks_RegisterOnGameStateMainStart([]() {
             if (!MM_SceneLoadComplete()) {
                 sSceneLoadStableFrames = 0;
@@ -1028,6 +1048,41 @@ extern "C" int MM_RegisterResourceFactoriesHeadless(void) {
 }
 
 /**
+ * Headless entry for the #618 ExtensionCache-rescan lock row
+ * (src/common/tests/test_mm_extension_rescan.c): mount ONE archive and record it
+ * as MM-owned, which is exactly the pair of calls LoadMMArchives() makes per
+ * archive — AddArchive plus RecordMMArchivePath. The recording is the
+ * load-bearing half: `Combo_ArchivePathIsMM` (and therefore the "mm" scope of
+ * Combo_ExtensionCache_ScanGame) keys on that registry, so a test that mounted
+ * an archive without it would be testing a scope that can never match.
+ *
+ * Deliberately NOT a wrapper over LoadMMArchives() itself: that function also
+ * latches sMMArchivesLoaded, which is what MM_Rando_AssetsReady() reports, and
+ * flipping it true in a process where mm.o2r is absent (CI stages soh.o2r and
+ * 2ship.o2r only — oot.o2r/mm.o2r are ROM-derived and undistributable) would
+ * open MM_Rando_Init's GfxPatcher gate onto missing assets. This seam cannot do
+ * that, so the lock row carries no ordering coupling to any other row.
+ *
+ * Returns 0 on success, -1 with no live ArchiveManager or on a failed mount.
+ */
+extern "C" int MM_MountArchiveHeadless(const char* path) {
+    if (path == nullptr || path[0] == '\0') {
+        return -1;
+    }
+    auto ctx = Ship::Context::GetInstance();
+    if (ctx == nullptr || ctx->GetResourceManager() == nullptr ||
+        ctx->GetResourceManager()->GetArchiveManager() == nullptr) {
+        return -1;
+    }
+    std::string archivePath = path;
+    if (ctx->GetResourceManager()->GetArchiveManager()->AddArchive(archivePath) == nullptr) {
+        return -1;
+    }
+    RecordMMArchivePath(archivePath);
+    return 0;
+}
+
+/**
  * Verify the shared Ship::Context is ready for MM's graph thread (#271).
  *
  * MM_Graph_ThreadEntry calls WindowIsRunning(), GfxDebuggerIsDebugging(),
@@ -1409,6 +1464,8 @@ extern "C" void MM_Combo_RegisterFirstCycleOverrides(void);
 // Defined below in this TU; forward-declared so the #516 GfxPatcher gate can
 // reference it from MM_Rando_Init above the definition.
 extern "C" bool MM_Rando_AssetsReady(void);
+// #618 (#516 Phase 3), also defined below in this TU.
+extern "C" void MM_ExtensionRescan_AfterArchiveMount(void);
 
 extern "C" void MM_Rando_Init(void) {
     static bool sRandoInitDone = false;
@@ -1526,6 +1583,24 @@ extern "C" void MM_Rando_Init(void) {
     // type at all. Registered once, unconditionally, with the combo predicate
     // inside the body.
     MM_Combo_RegisterFirstCycleOverrides();
+
+    // #618 — the LAST two entries of BenPort's InitOTR list, and the #516
+    // remainder: OTRExtScanner() and PlayerCustomFlipbooks_Patch(). Both need
+    // the shared ExtensionCache to have seen MM's archives, which is why they
+    // could not ride Phases 1-2. They can run from here because
+    // MM_Game_Init has ALREADY mounted MM's archives by the time it calls this
+    // function — LoadMMArchives() is several steps above MM_Rando_Init() in
+    // MM_Game_Init, and Combo_EnsureGameArchivesLoaded(GAME_MM) has run ahead of
+    // even that on a switch-in. So the mount always precedes MM's bring-up and
+    // no new mount seam is needed. Placed last, mirroring InitOTR's own order.
+    //
+    // Unlike the GfxPatcher call above this is NOT gated on
+    // MM_Rando_AssetsReady(): neither leg dereferences a resource (the scan
+    // walks archive path LISTS; the flipbook patch only reads the extension map
+    // and writes MM's own texture-pointer arrays), so both are safe with no
+    // archives mounted and the ROM-free MMRegistrarCoverage row can therefore
+    // observe that they ran.
+    MM_ExtensionRescan_AfterArchiveMount();
 }
 
 /**
@@ -1538,6 +1613,106 @@ extern "C" void MM_Rando_Init(void) {
  */
 extern "C" bool MM_Rando_AssetsReady(void) {
     return sMMArchivesLoaded;
+}
+
+// ============================================================================
+// #618 (#516 Phase 3) — ExtensionCache rescan + player flipbook patch
+// ============================================================================
+//
+// The two entries BenPort's `InitOTR` ends with, and the only ones PR #616's
+// audit left unrestored:
+//
+//     OTRExtScanner();
+//     PlayerCustomFlipbooks_Patch();
+//
+// Both read the SHARED `ExtensionCache` (games/oot/soh/OTRGlobals.cpp), the map
+// `ResourceMgr_FileExists` answers from. It is filled exactly once, by OoT's
+// `InitOTRImpl`, at a point where MM's archives are not mounted yet — and MM's
+// own copy of the scanner is in the excluded BenPort.cpp. So every MM path was
+// missing from it, and MM's two custom-asset consumers read false for
+// everything: `MM_GfxPrint_HasArchiveTexture` (MM's HD gfxprint font) and
+// `PlayerCustomFlipbooks_Patch`'s FD/Deku/Goron eye+mouth checks, which is why
+// #516 classed them as cosmetic-but-absent rather than re-homing them wholesale.
+//
+// The scan is MM-scoped (`Combo_ExtensionCache_ScanGame("mm")`, defined next to
+// the cache in games/oot/soh/ResourceManagerHelpers.cpp) rather than a second
+// unscoped `OTRExtScanner()` call. That file's comment has the full argument;
+// the short version is that an unscoped rescan would ALSO newly admit paths from
+// archives OoT mounted after its own scan — OoT mounts `mods/` late, at GUI init
+// — making OoT's own answers depend on whether MM had ever been visited.
+//
+// ORDERING IS LOAD-BEARING, not cosmetic. `PlayerCustomFlipbooks_PatchOnce`
+// latches `sFacePatchState` on its first call and never re-evaluates. Calling it
+// before the rescan would permanently decide "no custom faces" from a cache that
+// had not yet seen mm.o2r — the silent-no-op shape this whole issue class is
+// made of. The two flags below record that the patch ran WITH the scan already
+// complete, and the MMRegistrarCoverage row asserts it.
+
+static bool sExtRescanScanned = false;
+static bool sExtRescanFlipbooksPatchedAfterScan = false;
+static int sExtRescanCalls = 0;
+static int sExtRescanLastAdded = 0;
+
+// Defined in games/oot/soh/ResourceManagerHelpers.cpp. Declared locally because
+// MM translation units cannot include OoT's ResourceManagerHelpers.h (it pulls
+// OoT's z64* umbrella headers, which collide with MM's).
+extern "C" int Combo_ExtensionCache_ScanGame(const char* gameTag);
+
+/**
+ * Run BenPort InitOTR's trailing pair, in order, against MM's now-mounted
+ * archives. Called from the end of MM_Rando_Init (once-only via its guard), and
+ * safe to call again: the scan is insert-only and re-derives identical entries,
+ * and the flipbook patch self-latches.
+ */
+extern "C" void MM_ExtensionRescan_AfterArchiveMount(void) {
+    sExtRescanCalls++;
+
+    const int added = Combo_ExtensionCache_ScanGame("mm");
+    if (added < 0) {
+        // No live ResourceManager/ArchiveManager. Leave both flags alone so the
+        // lock row reports the real state instead of a false "it ran", and do
+        // NOT patch the flipbooks: latching them off against a cache that was
+        // never scanned is exactly the failure this ordering exists to prevent.
+        sExtRescanLastAdded = 0;
+        fprintf(stderr, "[MM] ExtensionCache rescan skipped — no ResourceManager (#618)\n");
+        return;
+    }
+
+    sExtRescanLastAdded = added;
+    sExtRescanScanned = true;
+    fprintf(stderr, "[MM] ExtensionCache rescan: +%d MM-owned entries (#618)\n", added);
+
+    PlayerCustomFlipbooks_Patch();
+    // Records the ORDER, not merely the call: it can only be true because the
+    // scan above already completed. Moving the patch ahead of the scan turns
+    // the MMRegistrarCoverage probe red instead of silently latching MM's faces
+    // to vanilla — verified by doing exactly that (FAIL(9)).
+    sExtRescanFlipbooksPatchedAfterScan = sExtRescanScanned;
+}
+
+/** True once the MM-scoped ExtensionCache scan has completed at least once. */
+extern "C" int MM_ExtensionRescan_Scanned(void) {
+    return sExtRescanScanned ? 1 : 0;
+}
+
+/**
+ * True once PlayerCustomFlipbooks_Patch has been called WITH the scan already
+ * complete. Separate from the flag above on purpose: it is the ordering half,
+ * and it is the only ROM-free evidence that the flipbook patch did not latch
+ * against an unscanned cache.
+ */
+extern "C" int MM_ExtensionRescan_FlipbooksPatchedAfterScan(void) {
+    return sExtRescanFlipbooksPatchedAfterScan ? 1 : 0;
+}
+
+/** How many times the rescan entry point has been called (idempotency probe). */
+extern "C" int MM_ExtensionRescan_CallCount(void) {
+    return sExtRescanCalls;
+}
+
+/** New ExtensionCache keys added by the most recent scan. */
+extern "C" int MM_ExtensionRescan_LastEntriesAdded(void) {
+    return sExtRescanLastAdded;
 }
 
 void MM_Game_Run(void) {
@@ -2109,22 +2284,61 @@ const char* MM_Game_GetId(void) {
 }
 
 /**
- * Room-load hook executors for MM's scene loader (#344).
- *
- * z_scene_2SH.cpp (MM_OTRfunc_8009728C) and z_play_2SH.cpp
+ * Room-load hook executors for MM's scene loader (#344; registry corrected by
+ * #438). z_scene_2SH.cpp (MM_OTRfunc_8009728C) and z_play_2SH.cpp
  * (MM_OTRfunc_800973FC) call these; the real executors live in MM's
- * GameInteractor.cpp, which is excluded in single-exe builds. OnRoomInit and
- * AfterRoomSceneCommands are MM-only hook types (no OoT counterpart, so no
- * signature clash in the merged hook storage), and ExecuteHooks only touches
- * the per-hook-type inline-static maps — safe to run against the shared
- * GameInteractor instance that OoT's port layer owns.
+ * GameInteractor.cpp, which is excluded from the single-exe link.
+ *
+ * WRONG REGISTRY, NOT A MISSING BRIDGE -- and the reason this one was the
+ * hardest of #438's dormant set to see. Both of these WERE linked, WERE called,
+ * and DID run a real dispatch loop; they just walked
+ * GameInteractor::RegisteredGameHooks<H>::functions, the upstream container,
+ * while the single-exe COND_HOOK / COND_ID_HOOK redirection parks every MM
+ * registrant in S2H::GameHooks::Registry<H>. Disjoint containers, no
+ * diagnostic, and a bridge that reads correct at a glance.
+ *
+ * The note this replaces argued the shared instance was safe here because
+ * "OnRoomInit and AfterRoomSceneCommands are MM-only hook types, and
+ * ExecuteHooks only touches the per-hook-type inline-static maps". That is TRUE
+ * about storage aliasing -- which is why this never corrupted anything -- and
+ * IRRELEVANT to reachability, and it is exactly what made the miss read as
+ * intentional. Deleted rather than amended.
+ *
+ * WHY AfterRoomSceneCommands WENT FIRST OF #438's REMAINDER. It is the only
+ * dormant type in the set that is DESTRUCTIVE rather than inert on un-elision.
+ * Enhancements/Restorations/JPGrottos.cpp registers four
+ * COND_ID_HOOK(ShouldActorInit, ...) legs that are ALREADY live (#512 rebound
+ * ShouldActorInit) and force *should = false for every ACTOR_DOOR_ANA and
+ * rot.x == 0 ACTOR_OBJ_SYOKUDAI in SCENE_22DEKUCITY -- gated on
+ * isSpawningJPGrottos, whose ONLY writer is the AfterRoomSceneCommands
+ * registrant. With that registrant unreachable while its siblings run, enabling
+ * JP Grottos would delete Deku Palace's vanilla grottos and torches and spawn
+ * no replacements, breaking their checks and the rando logic that assumes them.
+ * The other registrant (Enhancements/Cheats/TimeStop.cpp) is plain inert by
+ * comparison.
+ *
+ * THE ID-KEYED LEG IS LOAD-BEARING, not symmetry. JPGrottos registers through
+ * COND_ID_HOOK(AfterRoomSceneCommands, SCENE_22DEKUCITY, ...), so a
+ * registry swap that added only the unkeyed leg would link clean, revive
+ * TimeStop, and leave the destructive half exactly as broken -- the same shape
+ * as ObjGrass's id-keyed OnActorKill registrant in #515. ForFilter stays absent
+ * (the standing deviation: the S2H registry has no filter surface and no
+ * compiled MM TU registers one).
+ *
+ * Both AfterRoomSceneCommands registrant bodies dereference MM_gPlayState with
+ * no null check -- a scene-id switch in TimeStop, MM_Actor_Spawn against
+ * &MM_gPlayState->actorCtx in JPGrottos -- so their guards landed WITH this
+ * swap rather than after it, per the criterion recorded on the
+ * item/progression bridges below.
  */
 void GameInteractor_ExecuteOnRoomInit(s16 sceneId, s8 roomNum) {
-    GameInteractor::Instance->ExecuteHooks<GameInteractor::OnRoomInit>(sceneId, roomNum);
+    S2H::GameHooks::Execute<GameInteractor::OnRoomInit>(sceneId, roomNum);
+    S2H::GameHooks::ExecuteForID<GameInteractor::OnRoomInit>(sceneId, sceneId, roomNum);
 }
 
 void GameInteractor_ExecuteAfterRoomSceneCommands(s16 sceneId, s8 roomNum) {
-    GameInteractor::Instance->ExecuteHooks<GameInteractor::AfterRoomSceneCommands>(sceneId, roomNum);
+    S2H::GameHooks::Execute<GameInteractor::AfterRoomSceneCommands>(sceneId, roomNum);
+    S2H::GameHooks::ExecuteForID<GameInteractor::AfterRoomSceneCommands>(sceneId, sceneId, roomNum);
 }
 
 /**
@@ -2469,6 +2683,191 @@ extern "C" void MM_GameHooks_ExecuteOnBottleContentsUpdate(u8 item) {
 extern "C" void MM_GameHooks_ExecuteOnBossDefeated(s16 actorId) {
     S2H::GameHooks::Execute<GameInteractor::OnBossDefeated>(actorId);
     S2H::GameHooks::ExecuteForID<GameInteractor::OnBossDefeated>(actorId, actorId);
+}
+
+/**
+ * The last of #438's dormant GameInteractor_Execute* types.
+ *
+ * These are the residue of the 48-hook audit. Every one of their call sites in
+ * games/mm/src is live and unguarded, and every one of the names bound a
+ * header-checked no-op in games/mm/2s2h/mm_gameinteractor_stubs.c, which keeps
+ * no definitions at all after this change. OoT defines NONE of these names, so
+ * -- as with the end-of-cycle pair and the item/progression trio before them --
+ * a dropped bridge or a dropped rebind is now a LINK error rather than another
+ * silent no-op. That property is the whole reason the stubs go rather than being
+ * left "harmlessly" in place.
+ *
+ * THE CRITERION, AND WHY THE ANSWER IS NOW "WIRE" FOR ALL OF THEM. The
+ * item/progression tranche recorded the test: wire a dispatch only when every
+ * registrant body that would start running is safe on the day its TU
+ * un-elides. Ten of those thirteen failed it because their registrant bodies
+ * dereference live play state with no null check -- the #516 SIGSEGV class --
+ * and the guards had to land WITH the dispatch, not after it. This change lands
+ * them, in the registrant TUs, each wrapped in RSBS_SINGLE_EXECUTABLE because
+ * those are vendored 2S2H files:
+ *
+ *   OnInterfaceDrawStart   Enhancements/Items/AmmoBuyback.cpp
+ *                          (DrawAmmoSelectionDigits -> MM_gPlayState->msgCtx;
+ *                          the sibling EnemyHealthBars.cpp registrant was
+ *                          already guarded)
+ *   OnPlayerPostLimbDraw   Enhancements/Masks/PersistentMasks.cpp,
+ *                          Enhancements/Graphics/BowReticle.cpp,
+ *                          Enhancements/Modes/HyruleWarriorsStyledLink.cpp
+ *                          (MM_gPlayState->viewProjectionMtxF / ->state.gfxCtx)
+ *   Before/AfterInterfaceClockDraw
+ *                          Enhancements/Songs/BetterSongOfDoubleTime.cpp
+ *                          (UpdateDayTexture(MM_gPlayState, CURRENT_DAY))
+ *   OnConsoleLogoUpdate    Enhancements/Cutscenes/SkipToFileSelect.cpp
+ *                          (MM_gGameState cast to ConsoleLogoState*)
+ *   AfterRoomSceneCommands Enhancements/Cheats/TimeStop.cpp,
+ *                          Enhancements/Restorations/JPGrottos.cpp
+ *                          (see the room-load block above)
+ *
+ * PLAY STATE IS NOT GUARDED HERE, ON PURPOSE. None of these bridges reads
+ * MM_gPlayState, and none should: OnConsoleLogoUpdate and OnGameStateMainFinish
+ * legitimately run when there is no play state at all, so a blanket guard at the
+ * bridge would be wrong for them, and it would also let a future edit
+ * "simplify" away the per-registrant guards on the belief that the bridge
+ * covers them. The invariant this file owns is narrower, and
+ * mm_hook_dispatch_test.cpp asserts it: dispatch survives a NULL MM_gPlayState,
+ * because dispatch never touches it.
+ *
+ * CAMERA IS GUARDED HERE, for the opposite reason -- the bridge itself
+ * dereferences it. The excluded upstream twins key their id leg on camera->uid
+ * (2s2h/GameInteractor/GameInteractor.cpp), so the ForID leg is a null deref on
+ * a NULL camera whatever the registrants do. The three camera bridges therefore
+ * dispatch nothing at all for a NULL camera -- also asserted by the lock -- and
+ * registrant bodies may rely on a non-NULL camera, which is what lets
+ * Enhancements/Camera/FreeLook.cpp's UpdateFreeLookState stay textually
+ * upstream.
+ *
+ * TWO PREMISES #438 CARRIED INTO THIS TRANCHE THAT DID NOT HOLD:
+ *
+ *  - OnCameraChangeModeFlags's registrant does NOT deref play state. The
+ *    unguarded GET_PLAYER(MM_gPlayState) the issue attributes to it is in
+ *    FreeLook.cpp's Camera_FreeLook, reached from that file's
+ *    COND_VB_SHOULD(VB_USE_CUSTOM_CAMERA) leg -- ShouldVanillaBehavior, live
+ *    dispatch since #392, a different hook entirely. UpdateFreeLookState, the
+ *    actual OnCameraChangeModeFlags registrant, reads camera->mode and one file
+ *    static and nothing else.
+ *  - OnPlayDrawWorldEnd has no compiled registrant in any single-exe build,
+ *    rather than an elided one. Both candidates are excluded outright:
+ *    2s2h/NameTag/*.cpp by the "NameTag (in its own directory)" filter in
+ *    games/mm/CMakeLists.txt, and 2s2h/DeveloperTools/*.cpp (CollisionViewer)
+ *    by the developer-tools filter. Both also register through the upstream
+ *    GameInteractor::Instance members rather than S2H::GameHooks, so
+ *    un-excluding either needs that migration before this bridge could see it
+ *    -- games/mm/include/mm_gi_hook_guard.h says so at compile time. It is
+ *    wired anyway, because the call site (games/mm/src/code/z_play.c) is live:
+ *    a real dispatcher makes the next registrant work, where the stub made it
+ *    silently dead.
+ *
+ * AfterCameraUpdate, and why its unconditional gate is ACCEPTED rather than
+ * CVar-gated first. Enhancements/Camera/CameraInterpolationFixes.cpp is the one
+ * registrant in the set whose COND_HOOK condition is literally `true`, so it
+ * arms for every player the instant its TU links, and #438's audit flagged its
+ * effect on MM frames as unverified. Re-measured: the body is
+ * Camera_ShouldInterpolateDist (camera math over six function-local statics)
+ * feeding MM_FrameInterpolation_ShouldInterpolateFrame, whose entire effect is
+ * one bool gating MM's OWN matrix recorder. The consumer of that recording,
+ * MM_FrameInterpolation_Interpolate, has exactly one caller in the tree --
+ * 2s2h/BenPort.cpp -- and BenPort is excluded from the single-exe link, so MM's
+ * recording is never replayed and the bool cannot reach a rendered frame. The
+ * gate therefore stays upstream-faithful: diverging from a vendored 2S2H
+ * registration to CVar-gate a body that can only make MM skip a recording
+ * nothing reads would buy nothing and cost an upstream-sync landmine. Restoring
+ * MM's replay path is the change that has to re-measure this row.
+ *
+ * LEGS mirror each excluded twin minus ForFilter. OnPlayerPostLimbDraw keys its
+ * id leg on limbIndex, which is what PersistentMasks (PLAYER_LIMB_HEAD),
+ * BowReticle (PLAYER_LIMB_RIGHT_HAND) and HyruleWarriorsStyledLink (HEAD and
+ * WAIST) all register through, so an Execute-only bridge would be the plausible
+ * half-fix and would leave all four of those registrations dead. The camera trio
+ * carries ForPtr because upstream does and the ptr-keyed registry exists; no MM
+ * TU binds one today.
+ */
+extern "C" void MM_GameHooks_ExecuteOnGameStateMainFinish(void) {
+    S2H::GameHooks::Execute<GameInteractor::OnGameStateMainFinish>();
+}
+
+extern "C" void MM_GameHooks_ExecuteOnPlayDrawWorldEnd(void) {
+    S2H::GameHooks::Execute<GameInteractor::OnPlayDrawWorldEnd>();
+}
+
+extern "C" void MM_GameHooks_ExecuteOnPlayDestroy(void) {
+    S2H::GameHooks::Execute<GameInteractor::OnPlayDestroy>();
+}
+
+extern "C" void MM_GameHooks_ExecuteOnInterfaceDrawStart(void) {
+    S2H::GameHooks::Execute<GameInteractor::OnInterfaceDrawStart>();
+}
+
+extern "C" void MM_GameHooks_ExecuteBeforeInterfaceClockDraw(void) {
+    S2H::GameHooks::Execute<GameInteractor::BeforeInterfaceClockDraw>();
+}
+
+extern "C" void MM_GameHooks_ExecuteAfterInterfaceClockDraw(void) {
+    S2H::GameHooks::Execute<GameInteractor::AfterInterfaceClockDraw>();
+}
+
+extern "C" void MM_GameHooks_ExecuteOnPlayerPostLimbDraw(Player* player, s32 limbIndex) {
+    S2H::GameHooks::Execute<GameInteractor::OnPlayerPostLimbDraw>(player, limbIndex);
+    S2H::GameHooks::ExecuteForID<GameInteractor::OnPlayerPostLimbDraw>(limbIndex, player, limbIndex);
+}
+
+/**
+ * The console-logo update -- the one bridge in this batch whose call site is
+ * deliberately unreachable on the cross-game path.
+ *
+ * games/mm/src/overlays/gamestates/ovl_title/z_title.c ConsoleLogo_Main
+ * early-returns into MM_TitleSetup_Init as soon as
+ * Combo_HasStartupEntranceForGame("mm") is true -- the arrival fast-forward
+ * that skips the "powered by libultraship" splash on a Clock Tower crossing --
+ * and that return is ABOVE this dispatch. So on a game switch into MM the hook
+ * does not fire, and that is correct rather than a gap: the registrant that
+ * most wants it, Enhancements/Cutscenes/SkipToFileSelect.cpp, calls
+ * MM_Sram_InitNewSave and hands off to FileSelect_Init, which on an arrival
+ * frame would discard the save the switch is carrying. Hoisting the dispatch
+ * above the fast-forward, or duplicating it into the fast-forward leg, would
+ * turn a dormant cosmetic hook into save loss.
+ *
+ * The site IS reached on the routes where the hook means anything: a cold
+ * `redship --game mm` boot and the debug MapSelect route, neither of which has
+ * a pending startup entrance. Wired for those, documented for the other.
+ */
+extern "C" void MM_GameHooks_ExecuteOnConsoleLogoUpdate(void) {
+    S2H::GameHooks::Execute<GameInteractor::OnConsoleLogoUpdate>();
+}
+
+extern "C" void MM_GameHooks_ExecuteOnCameraChangeModeFlags(Camera* camera) {
+    if (camera == nullptr) {
+        return;
+    }
+    S2H::GameHooks::Execute<GameInteractor::OnCameraChangeModeFlags>(camera);
+    S2H::GameHooks::ExecuteForID<GameInteractor::OnCameraChangeModeFlags>(camera->uid, camera);
+    S2H::GameHooks::ExecuteForPtr<GameInteractor::OnCameraChangeModeFlags>((uintptr_t)camera, camera);
+}
+
+extern "C" void MM_GameHooks_ExecuteOnCameraChangeSettingsFlags(Camera* camera) {
+    if (camera == nullptr) {
+        return;
+    }
+    S2H::GameHooks::Execute<GameInteractor::OnCameraChangeSettingsFlags>(camera);
+    S2H::GameHooks::ExecuteForID<GameInteractor::OnCameraChangeSettingsFlags>(camera->uid, camera);
+    S2H::GameHooks::ExecuteForPtr<GameInteractor::OnCameraChangeSettingsFlags>((uintptr_t)camera, camera);
+}
+
+extern "C" void MM_GameHooks_ExecuteAfterCameraUpdate(Camera* camera) {
+    if (camera == nullptr) {
+        return;
+    }
+    S2H::GameHooks::Execute<GameInteractor::AfterCameraUpdate>(camera);
+    S2H::GameHooks::ExecuteForID<GameInteractor::AfterCameraUpdate>(camera->uid, camera);
+    S2H::GameHooks::ExecuteForPtr<GameInteractor::AfterCameraUpdate>((uintptr_t)camera, camera);
+}
+
+extern "C" void MM_GameHooks_ExecuteOnSeqPlayerInit(int32_t playerIdx, int32_t seqId) {
+    S2H::GameHooks::Execute<GameInteractor::OnSeqPlayerInit>(playerIdx, seqId);
 }
 
 /**

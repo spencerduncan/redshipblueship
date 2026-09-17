@@ -459,6 +459,13 @@ extern "C" {
 // wrappers below resolve the staged archives and SKIP when they are absent.
 #include "tests/test_curated_archive_order.c"
 
+// #618 (#516 Phase 3) ExtensionCache rescan lock. FILE SCOPE (compiled as C++):
+// it drives the C++-linkage Ship::Context / ResourceManager APIs directly and
+// declares the C-linkage cache/rescan entry points it needs itself. The wrapper
+// (Test_MMExtensionRescan below) performs the display-free OoT bring-up and
+// resolves the staged MM-side archive, SKIPping when it is absent.
+#include "tests/test_mm_extension_rescan.c"
+
 // #577 cross-game model resolution lock. FILE SCOPE (compiled as C++): it walks
 // a parsed Fast::DisplayList and drives the C++-linkage ResourceManager /
 // ArchiveManager. The wrapper (Test_CrossGameModel below) performs the
@@ -1648,6 +1655,43 @@ TestResult Test_ModArchiveSurvivesSwitch(void) {
 
     int rc = ModArchiveSurvivesSwitch_RunHeadless(sohArchive.c_str(), mmArchive.c_str());
     printf("[TEST] %s: mod survives switch rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #618 (#516 Phase 3): the ExtensionCache rescan that BenPort's last two InitOTR
+// entries depend on. The display-free shared bring-up mounts soh.o2r, which is
+// the OoT baseline the body scans and then re-verifies path by path; the body
+// mounts the MM-side archive itself, through MM's own recorder, because the
+// rescan's "mm" scope keys on that registry.
+//
+// 2ship.o2r, not mm.o2r: mm.o2r is ROM-derived and undistributable, so CI never
+// stages it, and a row needing it would skip on every CI run. SKIPs when
+// 2ship.o2r is unresolvable — the netplay-relay job re-runs this label
+// archive-less on purpose (#562) — and also self-skips (kMerSkip) when the
+// staged archive cannot support a non-vacuous comparison.
+TestResult Test_MMExtensionRescan(void) {
+    const std::string mmArchive = MerResolveArchive("2ship.o2r");
+    if (mmArchive.empty()) {
+        printf("[TEST] SKIP: no 2ship.o2r resolvable — the archive-less control run keeps this row skipped by "
+               "design (#562/#618)\n");
+        return TEST_SKIP;
+    }
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    int rc = MMExtensionRescan_RunHeadless(mmArchive.c_str());
+    if (rc == kMerSkip) {
+        return TEST_SKIP;
+    }
+    printf("[TEST] %s: mm extension rescan rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
@@ -2932,6 +2976,13 @@ const TestDescriptor gTests[] = {
     // no ROM, no Ship::Context).
     {"oot-menu-registrars", "soh_port's RegisterMenuInitFunc registrars survive the link (#640)",
      Test_OoTMenuRegistrars},
+    // #618 (#516 Phase 3): the ExtensionCache rescan MM's two remaining InitOTR
+    // entries depend on. Placed near the END on purpose — it MOUNTS an extra MM
+    // archive into the shared ArchiveManager, and resolution is last-added-wins,
+    // so rows that read soh.o2r paths through the ResourceManager (zip-contention
+    // in particular) must have run already. SKIPs when 2ship.o2r is unstaged.
+    {"mm-extension-rescan", "A rescan after MM's archives mount adds MM extension entries, keeps OoT's (#618)",
+     Test_MMExtensionRescan},
     // The tier-4 combo settings' menu rows (#655). Builds a SohMenu headless, so
     // it needs the display-free shared bring-up above but no window; it writes
     // the five gCombo.Rando.* keys and freezes gComboCtx, and restores both.

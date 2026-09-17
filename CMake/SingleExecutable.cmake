@@ -847,6 +847,27 @@ if(BUILD_TESTING)
     # ROM-free -- MM_Rando_Init gates its one asset-dependent call behind
     # MM_Rando_AssetsReady() -- so it runs in this redship tier.
     redship_add_test(NAME MMRegistrarCoverage COMMAND redship --test mm-registrar-coverage)
+    # #618 (#516 Phase 3): the two entries BenPort's InitOTR list ends with,
+    # OTRExtScanner and PlayerCustomFlipbooks_Patch, both depend on the SHARED
+    # ExtensionCache having been re-scanned once MM's archives are mounted.
+    # OTRExtScanner runs once, from OoT's InitOTR, with only OoT's archives
+    # mounted, and MM's own copy is in the excluded BenPort.cpp — so MM's paths
+    # were absent from the map ResourceMgr_FileExists answers from and MM's HD
+    # gfxprint font and its static FD/Deku/Goron faces silently stayed vanilla.
+    #
+    # MMRegistrarCoverage above proves MM_Rando_Init REACHES both entries, in
+    # order; it is ROM-free, so it cannot show the rescan finds anything. This row
+    # mounts a real MM-side archive (2ship.o2r — mm.o2r is ROM-derived and never
+    # staged on CI) and asserts the content contract: MM-owned paths appear, the
+    # cache size grows by EXACTLY the reported number of new keys, a sampled set
+    # of OoT-owned paths still resolves, a second rescan is a no-op, and both
+    # scope directions add nothing where they should not.
+    #
+    # Same SKIP_RETURN_CODE policy as the other archive rows: the netplay-relay
+    # job re-runs this label archive-less on purpose (#562), and the row also
+    # self-skips when the staged archive cannot support a non-vacuous comparison.
+    redship_add_test(NAME MMExtensionRescan COMMAND redship --test mm-extension-rescan)
+    set_tests_properties(MMExtensionRescan PROPERTIES SKIP_RETURN_CODE 77)
     redship_add_test(NAME MMResumeArena COMMAND redship --test mm-resume-arena)
     redship_add_test(NAME MMStartupRestore COMMAND redship --test mm-startup-restore)
     # The cross-game arrival IS MM's intro event (#654, operator ruling

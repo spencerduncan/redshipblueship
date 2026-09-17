@@ -351,6 +351,25 @@ void RegisterBetterSongOfDoubleTime() {
     // Hijack the time and day values on the save before drawing the clock so that it renders our selected time
     COND_HOOK(BeforeInterfaceClockDraw, CVAR, []() {
         if (sActivelyChangingTime) {
+            // #438: guard landed with the Before/AfterInterfaceClockDraw
+            // dispatch, which was wired as a pair. UpdateDayTexture writes
+            // play->interfaceCtx.doActionSegment[...].mainTex, so a NULL
+            // MM_gPlayState here is a write through a null pointer, not just a
+            // read -- the #516 SIGSEGV class with a store. sActivelyChangingTime
+            // is a file static that no play teardown clears, so reaching this
+            // line without a play state is possible rather than theoretical.
+            //
+            // Returning early is the correct behaviour and not a partial one:
+            // the pair's contract is that After undoes exactly what Before did,
+            // and the same guard on the After leg keeps them symmetric. The
+            // save-field writes are deliberately left INSIDE the guard for the
+            // same reason -- writing time/day here with no clock draw to consume
+            // them would leave the player's real time overwritten, which is the
+            // half-wired failure the pair exists to prevent.
+            //
+            // Expands to nothing outside the single exe; see GameInteractor.h
+            // for why it is a macro and not an #ifdef.
+            RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
             gSaveContext.save.time = sSelectedTime;
             gSaveContext.save.day = sSelectedDay;
             UpdateDayTexture(MM_gPlayState, CURRENT_DAY);
@@ -362,6 +381,10 @@ void RegisterBetterSongOfDoubleTime() {
     // Return everything back to normal after drawing the clock
     COND_HOOK(AfterInterfaceClockDraw, CVAR, []() {
         if (sActivelyChangingTime) {
+            // The symmetric half of the guard on the Before leg above (#438).
+            // If Before returned early it wrote nothing, so skipping the restore
+            // here is what keeps the pair balanced.
+            RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
             gSaveContext.save.time = sOriginalTime;
             gSaveContext.save.day = sOriginalDay;
             UpdateDayTexture(MM_gPlayState, CURRENT_DAY);
