@@ -7,6 +7,41 @@
  * pool sizes, per-direction item classes — and, once a creation event has
  * frozen them, the values FROM THE SAVE through Combo_ComboSettingsSummary.
  *
+ * SUPERSEDED AS THE LIVE SURFACE (2026-09-16, #655). Operator direction after
+ * the 2026-09-11 nightly: "For the combo settings they should be built into the
+ * menu itself like all the other combo settings instead of being pop out
+ * panes." The five settings are SohMenu rows now, in the interim Cross-Game
+ * section of games/oot/soh/SohGui/SohMenuRandomizer.cpp, and the
+ * WIDGET_WINDOW_BUTTON row that used to open this pane is gone — nothing in the
+ * menu writes kComboSettingsVisibilityCVar, so this window no longer appears.
+ *
+ * It is KEPT, unshown, rather than deleted, for reasons that are about the
+ * repository and not about taste:
+ *
+ *  - Two of its three registration callers are outside #655's file scope
+ *    (ComboMmOptionsWindow.cpp registers it as the tier-4 twin of the MM options
+ *    pane; rsbs/src/main.cpp calls it directly), and deleting it would edit a
+ *    sibling pane's bring-up to no behavioural end.
+ *  - kComboSettingsVisibilityCVar is a classified entry in cvar_shared_keys.h's
+ *    tier-4 manifest; removing the window would orphan a manifest row in a file
+ *    whose classification lock is deliberately hard to edit.
+ *  - Its headless lock (the ComboSettingsWindow CTest) is the assertion that a
+ *    common-owned pane over these keys stays game-agnostic under all three
+ *    GameIds, which is ADR 0008 rule 5's tripwire and is worth keeping green.
+ *
+ * Reason 3 below — the enforcement argument — is the one that did NOT survive
+ * contact: a SohMenu row does not have to be its own writer. The rows use the
+ * POINTER-based widget types (WIDGET_COMBOBOX / WIDGET_SLIDER_INT /
+ * WIDGET_CHECKBOX) over a staging buffer, refresh that buffer from the model in
+ * their PreFunc and offer every edit to Combo_ComboSettingSet in their
+ * Callback, so src/common's writers are still the only choke point and still
+ * the only gate. Only a WIDGET_CVAR_* row would have had the defect that
+ * argument describes.
+ *
+ * The original argument, recorded as written, for the two reasons that do still
+ * hold (a common-owned window reads gComboCtx and never gSaveContext, and it
+ * does not hang off either game's boot):
+ *
  * WHY A COMMON-OWNED WINDOW AND NOT ROWS IN THE INTERIM Cross-Game HOST. Three
  * reasons, each from a different ADR, and each sufficient on its own:
  *
@@ -30,6 +65,9 @@
  * The interim Cross-Game host keeps what ADR 0008 explicitly leaves it: a
  * WIDGET_WINDOW_BUTTON row that OPENS this window. Registering and opening are
  * separate questions, and only the first is settled by rule 1.
+ * (#655 removed that row. Registration is untouched, so the window is still
+ * openable from the console — `set gCombo.Windows.ComboSettings 1` — and its
+ * lock still drives Draw(); nothing in the UI opens it.)
  *
  * THE PRESENTATION STATES (ADR 0004 §6):
  *

@@ -57,8 +57,9 @@
  * Locked ROM-free by ComboSettingsAuthoring (the defaults reproduce the
  * shipped record and its pinned fingerprint byte for byte; authored values
  * reach the record BEFORE the freeze and move the fingerprint; the writers
- * refuse once frozen; out-of-space store values resolve to the defaults) and
- * by ComboSettingsWindow (the pane that renders it).
+ * refuse once frozen; out-of-space store values resolve to the defaults), by
+ * ComboSettingsRows (the SohMenu rows that render it — the live surface since
+ * #655) and by ComboSettingsWindow (the common-owned pane, no longer shown).
  */
 
 #ifndef RSBS_COMMON_COMBO_SETTINGS_VIEW_H
@@ -171,6 +172,26 @@ bool Combo_ComboSettingIsExplicit(ComboSettingId id);
  * in.
  */
 const char* Combo_ComboSettingReadOnlyReason(void);
+
+/**
+ * THE PERSISTENT ROW MARKER every surface over these five keys carries -- ADR
+ * 0004 §4.2, applied to the SohMenu rows by #655.
+ *
+ * §4.2 puts its requirement on the WIDGET and not on its tooltip: "the minimum
+ * is a persistent marker in the row itself (icon or badge), legible without
+ * hovering. A tooltip alone does not satisfy it." The claim being marked is the
+ * one a player cannot otherwise check -- that a control they are touching while
+ * Ocarina of Time is on screen also governs Majora's Mask, a game they cannot
+ * currently see. All five of these keys make that claim by construction: they
+ * are tier-4 rules about the crossing between the two games, not settings of
+ * either one.
+ *
+ * Owned by the MODEL rather than spelled in the menu file, for the same reason
+ * Combo_ComboSettingReadOnlyReason is: a string only the renderer holds cannot
+ * be asserted, and this one carries a requirement rather than a preference.
+ * Never NULL.
+ */
+const char* Combo_ComboSettingSharedMarker(void);
 
 /** A short name for an RSBS_COMBO_DIR_* value ("off", "forward", "reverse",
  *  "both"); "(unknown)" otherwise. Never NULL. */

@@ -144,6 +144,17 @@ int OoT_ExitHarvestGate_RunHeadless(void);
 // naming neither symbol (a reference would un-elide them by itself). Returns 0
 // on pass, non-zero on fail.
 int OoT_MenuRegistrars_RunHeadless(void);
+// Tier-4 combo-settings ROWS (games/oot/soh/soh_combo_settings_rows_test.cpp,
+// #655): the five gCombo.Rando.* keys are SohMenu rows in the interim Cross-Game
+// section now, not the pop-out pane PR #652 shipped. Builds a SohMenu headless,
+// calls the real AddMenuRandomizer(), and drives the rows' PreFuncs/Callbacks --
+// asserting ADR 0004 §4.2's marker is in each row's NAME, that no row binds one
+// of the keys as a CVar widget (which would be a second, ungated writer), and
+// that once the record is frozen every row is read-only with the MODEL's reason
+// and shows the SAVE's values while its Callback cannot move the store. Needs
+// the display-free shared bring-up (the keys live in the CVar store). Returns 0
+// on pass, non-zero on fail.
+int OoT_ComboSettingsRows_RunHeadless(void);
 // MM single-exe hook dispatch (games/mm/2s2h/mm_hook_dispatch_test.cpp, #511 /
 // #438): the COND_* macros park registrations in the MM-owned S2H::GameHooks
 // registry, but ShouldActorInit / OnActorInit / OnActorDraw / OnOpenText
@@ -532,6 +543,10 @@ static TestResult Test_OoTExitHarvestGate(void) {
 static TestResult Test_OoTMenuRegistrars(void) {
     return OoT_MenuRegistrars_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
+
+// Tier-4 combo-settings menu rows (#655) — the wrapper lives further down,
+// beside the other rows that need the display-free shared Context bring-up,
+// because CreateHarnessStyleContext is defined below this point.
 
 // MM hook-dispatch lock (see the extern decl above). Thin wrapper over the C
 // entry point in games/mm/2s2h/mm_hook_dispatch_test.cpp.
@@ -2111,6 +2126,28 @@ TestResult Test_VBAffinity(void) {
     return TEST_PASS;
 }
 
+// Tier-4 combo-settings menu rows (#655; body in
+// games/oot/soh/soh_combo_settings_rows_test.cpp). Needs the display-free shared
+// bring-up for both of its reasons at once: SohMenu::AddMenuRandomizer reads
+// CVars while it REGISTERS, so libultraship's C bridge dereferences a null
+// ConsoleVariables before the first row exists; and Combo_ComboSettingSet
+// refuses outright with no store, which would make every behavioural leg
+// vacuous. No window, and no ImGui context — the rows' PreFuncs and Callbacks
+// are driven directly, which is possible only because they touch neither.
+static TestResult Test_ComboSettingsRows(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return OoT_ComboSettingsRows_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // MM tracker registration surface (#392). The bridge (see the extern decl at
 // the top) constructs a standalone Ship::Gui, so it needs the same
 // display-free shared bring-up as boot-oot: GuiWindow ctors read
@@ -2858,6 +2895,11 @@ const TestDescriptor gTests[] = {
     // no ROM, no Ship::Context).
     {"oot-menu-registrars", "soh_port's RegisterMenuInitFunc registrars survive the link (#640)",
      Test_OoTMenuRegistrars},
+    // The tier-4 combo settings' menu rows (#655). Builds a SohMenu headless, so
+    // it needs the display-free shared bring-up above but no window; it writes
+    // the five gCombo.Rando.* keys and freezes gComboCtx, and restores both.
+    {"combo-settings-rows", "The five tier-4 combo settings are marked, model-backed SohMenu rows (#655)",
+     Test_ComboSettingsRows},
     // Keep archive-hotswap-logic LAST: it re-inits the entrance table, so it
     // must not run before any test that relies on the default links.
     {"archive-hotswap-logic", "Headless multi-switch archive/state regression (#263)", Test_ArchiveHotswapLogic},

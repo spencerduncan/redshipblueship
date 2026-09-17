@@ -224,6 +224,17 @@ const char* Combo_ComboSettingReadOnlyReason(void) {
     return Combo_ComboSettingsFrozen() ? "already decided" : NULL;
 }
 
+const char* Combo_ComboSettingSharedMarker(void) {
+    // ADR 0004 §4.2's affordance, as a badge the row NAME carries rather than a
+    // tooltip: "applies to both games" must be legible without hovering, and a
+    // player who toggles a crossing rule under Ocarina of Time and later finds
+    // Majora's Mask changed would otherwise read correct behaviour as a bug.
+    // Text rather than an icon so the same string is searchable in the menu's
+    // own search, assertable from a headless row lock, and legible in the one
+    // place a font-atlas glyph would not be.
+    return "[Both Games]";
+}
+
 const char* Combo_ComboDirectionName(uint8_t direction) {
     switch (direction) {
         case (uint8_t)RSBS_COMBO_DIR_OFF:
