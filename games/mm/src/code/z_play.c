@@ -93,13 +93,19 @@ extern int MM_Combo_OwlSaveExitToOoT(void);
 // src/common resource types.
 extern void MM_ApplySharedResources(void);
 
-// Paired-world activation on the switch-entry path (#439). Defined in
-// games/mm/2s2h/GameExports_SingleExe.cpp so this TU stays free of the Rando
-// C++ surface. Dispatches OnSaveInit (the generation entry point) when a live
-// paired OoT rando world exists AND this MM entry is creating the bootstrap
-// save rather than restoring the player's own. See its doc comment for why
-// the file-select-only dispatch left the natural flow unpaired.
-extern void MM_Rando_PairOnCrossGameArrival(int hadFrozenState);
+// Paired-world HYDRATION on the switch-entry path (#439's dispatch site, ADR
+// 0010 increment 2). Defined in games/mm/2s2h/GameExports_SingleExe.cpp so this
+// TU stays free of the Rando C++ surface.
+//
+// These two used to be one function that DISPATCHED GENERATION. Since increment
+// 2 the MM half is authored at OoT's file-create seam and armed as the frozen
+// MM blob, so the arrival only compares and applies. The split is an ordering
+// requirement, not tidiness: the compare must run BEFORE Combo_ConsumeFrozenState
+// because "refuse" now means "do not apply the half", and applying a world we
+// are about to refuse — or un-applying it afterwards over a restored player
+// session — are both worse. See MM_Rando_GateCrossGameArrival's doc comment.
+extern int MM_Rando_GateCrossGameArrival(void);
+extern void MM_Rando_HydrateCrossGameArrival(int hadFrozenState, int refused);
 
 // Cross-game arrival latch (#654, src/common/entrance.cpp). The consumption
 // point below is the one place that knows an arrival happened, and the startup
@@ -2491,16 +2497,27 @@ void MM_Play_ConsumeStartupEntrance(void) {
     // player back (#364). Retiring it here makes "frozen state exists" mean
     // "MM was left and has not been returned to", which is the only condition
     // the restore is valid for. A first MM entry has no frozen state — no-op.
-    int hadFrozenState = Combo_ConsumeFrozenState("mm", &gSaveContext, sizeof(gSaveContext));
-    // Paired-world activation (#439). Runs HERE — after the restore, before
-    // the arrival spawn is armed below — for two reasons. (a) It needs to know
-    // whether the save under it is the player's restored session (never
-    // regenerate) or the boot chain's throwaway bootstrap file (the MM half of
-    // the paired world). (b) Generation authors its own start state
-    // (SOUTH_CLOCK_TOWN, cutsceneIndex 0, Tatl flags); running it before the
-    // arrival block means the cross-game arrival state always wins, exactly as
-    // it does over a restored frozen save.
-    MM_Rando_PairOnCrossGameArrival(hadFrozenState);
+    //
+    // THE IDENTITY GATE RUNS FIRST (ADR 0010 increment 2). It compares this
+    // session's resolved MM profile and combo rules against the ones frozen when
+    // the file was created; a divergence is corruption to refuse, never a choice
+    // to honor (#500's one-game ruling). Refusing means NOT APPLYING the frozen
+    // half: the blob stays armed and untouched on disk, the slot is latched
+    // against writes, and MM plays the boot chain's vanilla bootstrap — which is
+    // exactly what the refusal's own copy promises. That is only expressible if
+    // the compare precedes the consume, which is why this call is above it and
+    // why the old single function became two.
+    const int rsbsPairingRefused = MM_Rando_GateCrossGameArrival();
+    int hadFrozenState = 0;
+    if (!rsbsPairingRefused) {
+        hadFrozenState = Combo_ConsumeFrozenState("mm", &gSaveContext, sizeof(gSaveContext));
+    }
+    // The HYDRATE half: repair a save whose type byte was lost, report which
+    // state this arrival landed in, and refuse a pairing whose MM half is
+    // MISSING. It authors no world — since increment 2 the arrival has zero
+    // generation capability, and MM_Rando_OnSaveInitDispatchCount() is the
+    // observable that keeps it that way.
+    MM_Rando_HydrateCrossGameArrival(hadFrozenState, rsbsPairingRefused);
     // A FIRST MM entry spawns on the boot chain's bootstrap save, and that save
     // carries the TITLE-SCREEN ATTRACT DEMO's clock, not a new file's (#639,
     // tracking the human-filed #636). TitleSetup_SetupTitleScreen
@@ -2529,31 +2546,37 @@ void MM_Play_ConsumeStartupEntrance(void) {
     // return at the top instead of re-running this arrival logic. Neither Sram
     // helper touches the intro-suppression flags set further down.
     //
-    // Gated on !hadFrozenState: a restored return-leg save is the player's own
-    // session and keeps its clock (mm-startup-restore asserts 0x4321 / day 3
-    // survive). Runs AFTER MM_Rando_PairOnCrossGameArrival on purpose: a paired
-    // world's OnFileCreate authors entrance/Tatl/threeDayResetCount/isFirstCycle
-    // but never the clock, so the re-author overrides nothing it decided --
-    // this is the same InitNewSave -> OnFileCreate -> Play -> telop order a
-    // standalone rando new file follows. skyboxTime is paired with save.time
-    // the way MM_Play_Init's nextDayTime rewrite pairs them (further down in
-    // this file); MM_Sram_InitNewSave itself leaves skyboxTime alone and
-    // MM_Environment_Init re-derives it from CURRENT_TIME on the scene load, so
-    // this keeps the triple internally consistent rather than doing new work.
+    // Gated on !hadFrozenState: a save that came back from the frozen blob is
+    // authored state and keeps its clock (mm-startup-restore asserts 0x4321 /
+    // day 3 survive). skyboxTime is paired with save.time the way MM_Play_Init's
+    // nextDayTime rewrite pairs them (further down in this file);
+    // MM_Sram_InitNewSave itself leaves skyboxTime alone and MM_Environment_Init
+    // re-derives it from CURRENT_TIME on the scene load, so this keeps the
+    // triple internally consistent rather than doing new work.
+    //
+    // WHICH ARRIVALS STILL REACH THIS LEG, after ADR 0010 increment 2 moved the
+    // MM half's authoring to OoT's file-create seam. A paired RANDO half no
+    // longer does: its shadow was authored at creation from MM_Sram_InitNewSave,
+    // which writes exactly the clock below, so it arrives with the new-file
+    // clock already in hand and hadFrozenState is 1 on its very first crossing.
+    // What still reaches here is every arrival with no frozen half to apply — a
+    // vanilla OoT file crossing, a session with no paired OoT world, a pairing
+    // the gate REFUSED, and a pre-increment-2 file whose MM half was never
+    // authored — which is precisely the set that lands on the title chain's
+    // bootstrap save and therefore on the ATTRACT DEMO's 08:00 clock (#639).
+    // The gate is unchanged; what changed is which files answer it which way.
     if (!hadFrozenState) {
         gSaveContext.save.time = CLOCK_TIME(6, 0) - 1;
         gSaveContext.save.day = 0;
         gSaveContext.save.eventDayCount = 0;
         gSaveContext.skyboxTime = gSaveContext.save.time;
-        // The arrival IS the intro event (#654). Same gate as the clock, for the
-        // same reason: this is the leg that AUTHORS the MM half of a cross-game
-        // file, and a restored return leg is the player's own session, which must
-        // not be re-authored (mm-startup-restore asserts the restored save comes
-        // back byte-exact through the persisted region). Runs AFTER
-        // MM_Rando_PairOnCrossGameArrival because the function's own gate is the
-        // saveType that dispatch decides: a paired rando half owns its start
-        // state and its item set, every other pairing kind gets the vanilla
-        // post-intro one.
+        // The arrival IS the intro event (#654). Same gate as the clock, and now
+        // the same reason: this leg runs for exactly the pairing kinds whose MM
+        // half is a vanilla bootstrap, and its own saveType check makes it a
+        // second no-op for a paired rando half that somehow reached it. A paired
+        // rando half's intro rewards are CHECKS the creation-time fill placed,
+        // and its start state was authored by the creation event — so the
+        // vanilla post-intro grant belongs to everyone else.
         MM_Play_GrantComboArrivalIntroRewards();
     }
     gSaveContext.save.entrance = startupEntrance;

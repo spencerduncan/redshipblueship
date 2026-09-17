@@ -1466,15 +1466,50 @@ extern "C" void MM_Combo_RegisterFirstCycleOverrides(void);
 extern "C" bool MM_Rando_AssetsReady(void);
 // #618 (#516 Phase 3), also defined below in this TU.
 extern "C" void MM_ExtensionRescan_AfterArchiveMount(void);
+// The two asset-gated ShipInit bodies the ASSET phase re-runs (ADR 0010
+// increment 2, P13) — Rando/ActorBehavior/EnBox.cpp and Rando/DrawItem.cpp.
+// See MM_Rando_InitAssets for why re-running them is mandatory rather than
+// belt-and-braces.
+extern "C" void MM_Rando_InitChestCopyDLs(void);
+extern "C" void MM_Rando_InitGICopyDLs(void);
 
-extern "C" void MM_Rando_Init(void) {
-    static bool sRandoInitDone = false;
-    if (sRandoInitDone) {
+/**
+ * THE CORE/ASSET SPLIT (ADR 0010 increment 2; solver-inventory P13).
+ *
+ * Until this increment MM_Rando_Init was ONE function behind ONE latch, and the
+ * latch was the bug waiting to happen. The creation event now runs MM's
+ * generation at OoT's file-create seam (MM_Rando_GenerateAtCreation below), with
+ * MM never booted and mm.o2r possibly not mounted — so it must bring up MM's
+ * rando CORE. Under one latch, that first call would set the latch and the REAL
+ * MM boot, which runs later with the archives mounted, would take the early
+ * return and silently skip every asset-dependent step: GfxPatcher's authentic
+ * patches, the tracker icon loads, the ExtensionCache rescan. That is the
+ * once-only-init class from the single-exe resume contract, running in reverse —
+ * an init that latches away work it never did.
+ *
+ * So there are two latches and two phases:
+ *
+ *   CORE  — registrars, Rando::Init, the re-homed #516 hook registrars, the
+ *           event pump, the shared-resource cycle hooks and the combo first-cycle
+ *           overrides. Every one is asset-free (the ROM-free rando tier has been
+ *           driving them through MM_Rando_Init for as long as they have existed),
+ *           so this phase latches unconditionally.
+ *   ASSETS — GfxPatcher, the tracker icon load, the ExtensionCache rescan. This
+ *           phase latches ONLY when MM_Rando_AssetsReady() is true. Called with
+ *           no archives it does nothing and LEAVES THE LATCH OPEN, which is the
+ *           whole point: the later boot that mounts mm.o2r still runs it.
+ *
+ * MM_Rando_Init() = core + assets, so every existing caller (MM_Game_Init, the
+ * headless rows) keeps its exact behaviour.
+ */
+extern "C" void MM_Rando_InitCore(void) {
+    static bool sRandoCoreInitDone = false;
+    if (sRandoCoreInitDone) {
         return;
     }
-    sRandoInitDone = true;
+    sRandoCoreInitDone = true;
 
-    fprintf(stderr, "[MM] MM_Rando_Init: running ShipInit registrars + Rando::Init\n");
+    fprintf(stderr, "[MM] MM_Rando_InitCore: running ShipInit registrars + Rando::Init\n");
     fflush(stderr);
     S2H::ShipInit::InitAll();
     Rando::Init();
@@ -1495,8 +1530,8 @@ extern "C" void MM_Rando_Init(void) {
     //
     // This block MUST run exactly once: CustomItem/CustomMessage register through
     // raw RegisterForID (no unregister-first) and RegisterSavingEnhancements
-    // through plain Register<>, none of which de-dup. The sRandoInitDone guard
-    // above provides that — MM_Game_Resume does not re-enter here.
+    // through plain Register<>, none of which de-dup. The sRandoCoreInitDone
+    // guard above provides that — MM_Game_Resume does not re-enter here.
     //
     // Both hook registrars only became LIVE with #512/#514/#515, which wired the
     // MM ShouldActorInit and OnOpenText execute points their bodies were written
@@ -1534,15 +1569,6 @@ extern "C" void MM_Rando_Init(void) {
     RegisterSavingEnhancements();
     RegisterAutosave();
 
-    // GfxPatcher is a one-shot resource patcher, not a hook registrar, so it is
-    // called (not registered) and gated on assets: its ResourceMgr_Load*ByName
-    // helpers null-deref with no mm.o2r, and mm_rando_gen_test.cpp drives this
-    // function ROM-free. Fixes OOB textures, mini-game symbols, and a latent
-    // matrix-stack UB the smithy chimney-fire DL hits (per its own comment).
-    if (MM_Rando_AssetsReady()) {
-        GfxPatcher_ApplyNecessaryAuthenticPatches();
-    }
-
     // Lane C1 (#392): register the GIEvent pump (the port of upstream's
     // ProcessEvents player-update hook, games/mm/2s2h/
     // GameInteractorEventsSingleExe.cpp). Upstream registered it from
@@ -1550,17 +1576,6 @@ extern "C" void MM_Rando_Init(void) {
     // rando queue produces GIEvents, so the rando bring-up is its natural
     // (once-only, same guard) home.
     MM_GameEvents_RegisterPump();
-
-    // MM tracker windows (#392): register on the shared Gui, gated to draw
-    // only while MM is the active game. Upstream did this from BenGui.cpp's
-    // SetupGuiElements (excluded); the bypass surface lives in
-    // 2s2h/TrackersGuiSingleExe.cpp. No-op when the harness has no window.
-    //
-    // No longer the first caller (#535): rsbs/src/main.cpp registers them at
-    // startup so an OoT-first session can reach the menu rows that name them.
-    // Registration here is then idempotent, and what this call still does is
-    // load the tracker icons, which needs the mm.o2r this path has mounted.
-    MM_TrackersGui_Init();
 
     // Shared cross-game resources (#525): keep the SHARED rupee pool alive
     // across MM's three-day cycle. Registered from HERE, not from
@@ -1584,23 +1599,97 @@ extern "C" void MM_Rando_Init(void) {
     // inside the body.
     MM_Combo_RegisterFirstCycleOverrides();
 
-    // #618 — the LAST two entries of BenPort's InitOTR list, and the #516
-    // remainder: OTRExtScanner() and PlayerCustomFlipbooks_Patch(). Both need
-    // the shared ExtensionCache to have seen MM's archives, which is why they
-    // could not ride Phases 1-2. They can run from here because
-    // MM_Game_Init has ALREADY mounted MM's archives by the time it calls this
-    // function — LoadMMArchives() is several steps above MM_Rando_Init() in
-    // MM_Game_Init, and Combo_EnsureGameArchivesLoaded(GAME_MM) has run ahead of
-    // even that on a switch-in. So the mount always precedes MM's bring-up and
-    // no new mount seam is needed. Placed last, mirroring InitOTR's own order.
+    // #618's trailing InitOTR pair is deliberately NOT here — it belongs to the
+    // ASSET phase, and moving it there is a correctness fix rather than a
+    // tidy-up. PlayerCustomFlipbooks_PatchOnce LATCHES sFacePatchState on its
+    // first call and never re-evaluates, and the ExtensionCache scan reports
+    // success (0 added) rather than failure when a live ResourceManager simply
+    // has no MM archives in it. Running the pair from the CORE phase would
+    // therefore, at the creation seam in an OoT-first session, permanently
+    // decide "MM has no custom faces" against a cache that had never seen
+    // mm.o2r — the exact silent-no-op shape #618 exists to close, re-created by
+    // the very split meant to prevent it.
+}
+
+/**
+ * The ASSET phase (see MM_Rando_InitCore's header for the split's contract).
+ *
+ * Latches ONLY when the archives are mounted. Called with none — which is
+ * exactly what the creation event and every ROM-free row do — it logs and
+ * returns with the latch OPEN, so the real MM boot still performs this work.
+ */
+static bool sRandoAssetPhaseLatched = false;
+
+extern "C" void MM_Rando_InitAssets(void) {
+    if (sRandoAssetPhaseLatched) {
+        return;
+    }
+    if (!MM_Rando_AssetsReady()) {
+        // NOT an error and NOT a latch. "Assets are not mounted yet" is the
+        // normal state at the creation seam and in every ROM-free row; the only
+        // wrong answer here is to remember having been called.
+        fprintf(stderr, "[MM] MM_Rando_InitAssets: no MM archives mounted — deferred (latch stays open)\n");
+        fflush(stderr);
+        return;
+    }
+    sRandoAssetPhaseLatched = true;
+
+    // GfxPatcher is a one-shot resource patcher, not a hook registrar, so it is
+    // called (not registered): its ResourceMgr_Load*ByName helpers null-deref
+    // with no mm.o2r. Fixes OOB textures, mini-game symbols, and a latent
+    // matrix-stack UB the smithy chimney-fire DL hits (per its own comment).
+    GfxPatcher_ApplyNecessaryAuthenticPatches();
+
+    // THE ASSET-GATED SHIPINIT WORK, RE-RUN. These two bodies are registered as
+    // ordinary ShipInit registrars and therefore fired ONCE, during the core
+    // phase — which the creation event runs with no MM archives mounted, so both
+    // took their MM_Rando_AssetsReady() early return. ShipInit never fires a
+    // registrar twice, so without these calls that early return would be
+    // permanent and MM would draw chests, keys, boss keys and skulltula tokens
+    // out of uninitialised copy display lists. This is the concrete instance of
+    // the "asset-gated DLs" P13 names, and the reason both bodies were given
+    // names (Rando/ActorBehavior/EnBox.cpp, Rando/DrawItem.cpp). Idempotent:
+    // each only memcpy's fresh resource data over its copies.
+    MM_Rando_InitChestCopyDLs();
+    MM_Rando_InitGICopyDLs();
+
+    // MM tracker windows (#392): register on the shared Gui, gated to draw only
+    // while MM is the active game. Upstream did this from BenGui.cpp's
+    // SetupGuiElements (excluded); the bypass surface lives in
+    // 2s2h/TrackersGuiSingleExe.cpp.
     //
-    // Unlike the GfxPatcher call above this is NOT gated on
-    // MM_Rando_AssetsReady(): neither leg dereferences a resource (the scan
-    // walks archive path LISTS; the flipbook patch only reads the extension map
-    // and writes MM's own texture-pointer arrays), so both are safe with no
-    // archives mounted and the ROM-free MMRegistrarCoverage row can therefore
-    // observe that they ran.
+    // No longer the first caller (#535): rsbs/src/main.cpp registers them at
+    // startup so an OoT-first session can reach the menu rows that name them.
+    // Registration here is then idempotent, and what this call still does is
+    // load the tracker ICONS, which needs the mm.o2r this path has mounted —
+    // which is precisely why it belongs to the asset phase and not the core one.
+    MM_TrackersGui_Init();
+
+    // #618 — the LAST two entries of BenPort's InitOTR list: OTRExtScanner()
+    // and PlayerCustomFlipbooks_Patch(). ASSET phase, and the core phase's
+    // comment says why that is not optional: the flipbook patch self-latches on
+    // its first call, so it must not run until the ExtensionCache has actually
+    // seen MM's archives. Placed last, mirroring InitOTR's own order.
     MM_ExtensionRescan_AfterArchiveMount();
+
+    fprintf(stderr, "[MM] MM_Rando_InitAssets: asset-gated rando bring-up complete\n");
+    fflush(stderr);
+}
+
+/** P13's observable: has the ASSET phase latched? The creation event runs the
+ *  CORE phase with no archives mounted, and the whole point of the split is that
+ *  doing so must NOT consume the real MM boot's asset work. The ROM-free
+ *  registrar-coverage row asserts this is still 0 after a full MM_Rando_Init. */
+extern "C" int MM_Rando_AssetPhaseLatched(void) {
+    return sRandoAssetPhaseLatched ? 1 : 0;
+}
+
+/**
+ * Both phases in order — the shape every pre-increment-2 caller expects.
+ */
+extern "C" void MM_Rando_Init(void) {
+    MM_Rando_InitCore();
+    MM_Rando_InitAssets();
 }
 
 /**
@@ -2359,7 +2448,21 @@ void GameInteractor_ExecuteAfterRoomSceneCommands(s16 sceneId, s8 roomNum) {
  * GameInteractor_Execute* calls that cross-bind to OoT's (correctly no-op
  * while MM is active) wrappers.
  */
+// ADR 0010 increment 2: the ARRIVAL has ZERO GENERATION CAPABILITY, and this
+// counter is what makes that assertable instead of merely intended. OnSaveInit
+// is MM's one generation entry point (it dispatches
+// Rando::MiscBehavior::OnFileCreate and nothing else authors a world), so a
+// counter on the dispatch is a counter on generation. The locks snapshot it
+// across an arrival and fail if it moved; a future edit that re-adds a dispatch
+// to the arrival path turns them red rather than silently re-authoring worlds.
+static uint32_t sOnSaveInitDispatchCount = 0;
+
+extern "C" uint32_t MM_Rando_OnSaveInitDispatchCount(void) {
+    return sOnSaveInitDispatchCount;
+}
+
 extern "C" void GameInteractor_ExecuteOnSaveInit(s16 fileNum) {
+    sOnSaveInitDispatchCount++;
     S2H::GameHooks::Execute<GameInteractor::OnSaveInit>(fileNum);
 }
 
@@ -3696,53 +3799,210 @@ extern "C" void MM_Combo_RegisterFirstCycleOverrides(void) {
 }
 
 /**
- * Paired-world activation on the SWITCH-ENTRY path (#439).
+ * THE MM HALF OF THE MERGED CREATION EVENT (ADR 0010 increment 2; #564 steps
+ * 3, 4, 6, 9).
  *
- * The bug this closes is a dispatch-site gap, not a registration gap.
- * Rando::MiscBehavior::OnFileCreate is registered against OnSaveInit at boot
- * (Rando::MiscBehavior::Init), but OnSaveInit is only ever DISPATCHED from
- * MM_Sram_InitSave (z_sram_NES.c) — MM's file-select "create a new file"
- * flow. The natural player flow into the paired world never touches file
- * select: entering the Happy Mask Shop hands off to GameRunner_SwitchTo,
- * whose cold gamestate-chain boot runs ConsoleLogo -> TitleSetup ->
- * MM_Play_Init. TitleSetup authors the save with MM_Sram_InitNewSave() (a
- * plain VANILLA new file) and dispatches OnSaveLoad, never OnSaveInit. So
- * OnFileCreate never ran, no MM fill happened, gComboCtx.foreignPlacements
- * stayed empty and no MM spoiler was ever written — exactly the operator
- * forensics on #439, where Lane B's producer had correctly stamped
- * sourceIsRando/sharedRandoSeed in every slot.
+ * Runs at OoT's file-create seam (games/oot/src/code/z_sram.c, through
+ * OoT_RunPairedCreationEvent in soh/Enhancements/randomizer/
+ * ForeignItemsSingleExe.cpp), with MM NEVER BOOTED. It generates the paired MM
+ * world, authors it as the MM shadow and ARMS that shadow, so the file's very
+ * first .redsave — written by the Save_SaveFile() a few lines later — already
+ * carries a complete MM half. Arrival then hydrates it and generates nothing.
  *
- * Called from MM_Play_ConsumeStartupEntrance (games/mm/src/code/z_play.c) —
- * the one point that is after every boot-chain wipe and before the save is
- * interpreted, and the same point the frozen-state restore uses.
+ * WHY THIS IS FEASIBLE AND NOT HOPEFUL. The rando-determinism CI row has run
+ * OoT generation plus the FULL paired MM generation in one process, with MM
+ * never booted and no MM archives mounted, since Lane C1
+ * (mm_rando_gen_test.cpp's MM_Rando_HeadlessForeignDigest). This function is
+ * that same sequence with the shadow write added and the CVar pinning removed;
+ * ADR 0010 :578-582 calls the feasibility "settled, not hoped" for exactly this
+ * reason.
  *
- * @param hadFrozenState nonzero when Combo_ConsumeFrozenState just restored a
- *        real MM session over the boot-chain save. That save belongs to the
- *        player, so it is NEVER regenerated — the whole point of the
- *        "existing MM saves are never silently modified" contract.
+ * WHAT THE CALLER MUST DO, AND WHY IT IS NOT DONE HERE. gSaveContext is ONE
+ * buffer shared by both games (src/common/unified_save.c) and reinterpreted
+ * through each game's layout. This function memsets it and authors MM's world
+ * over it, so it DESTROYS the in-progress OoT file the seam is creating. The
+ * OoT-side wrapper snapshots the whole unified buffer before calling and
+ * restores it after — the snapshot/restore bracket docs/solver-inventory.md
+ * §6.1 amendment (1) names as mandatory around every MM call. It is the
+ * caller's job because only the caller knows the buffer's full size; MM's
+ * `sizeof(SaveContext)` is the smaller of the two layouts.
  *
- * Every decision point logs to stderr with a greppable `[MM] pairing:`
- * prefix: the operator flew blind through this seam for an entire playtest.
+ * WHAT IT AUTHORS BEYOND THE FILL. Nothing. OnFileCreate's rando block already
+ * authors the post-intro start state (South Clock Town, human form, Tatl,
+ * threeDayResetCount, isFirstCycle, the Happy Mask Salesman flag,
+ * cutsceneIndex 0) and MM_Sram_InitNewSave already authors the NEW-FILE CLOCK
+ * (time CLOCK_TIME(6,0)-1, day 0, eventDayCount 0) that #639's arrival-side
+ * re-author existed to restore over the title demo's 08:00. A creation-authored
+ * half never passes through the title demo, so it never acquires that clock in
+ * the first place; skyboxTime is paired with save.time here for the same reason
+ * the arrival pairs them. The intro-reward GRANT (#654,
+ * MM_Play_GrantComboArrivalIntroRewards) is deliberately NOT run: it returns
+ * early for SAVETYPE_RANDO by design, because a paired rando half's intro
+ * rewards are CHECKS the fill placed.
+ *
+ * @param slot the OoT slot being created — logged only; MM's generation has no
+ *        slot of its own.
+ * @return 0 on success; a nonzero step code on failure. FAILURE IS TERMINAL FOR
+ *         THE CREATION (ADR 0010 increment 2): nothing here is a partial state
+ *         the caller may keep, and the caller fails the whole file creation on
+ *         any nonzero return.
  */
-void MM_Rando_PairOnCrossGameArrival(int hadFrozenState) {
-    const bool pairing = Combo_ForeignPairingActive();
-    const bool alreadyRando = (gSaveContext.save.shipSaveInfo.saveType == SAVETYPE_RANDO);
+extern "C" int MM_Rando_GenerateAtCreation(int slot, const char* ootSpoilerPath) {
+    if (!Combo_ForeignPairingActive()) {
+        // Not a paired creation. Not an error: a vanilla OoT file has no MM half
+        // to author, and its first crossing still gets the vanilla post-intro
+        // grant at arrival (#654).
+        fprintf(stderr, "[MM] creation: no live paired identity — no MM half authored for slot %d\n", slot);
+        fflush(stderr);
+        return 0;
+    }
 
-    if (!pairing) {
+    // CORE only (P13). The real MM boot has not happened, mm.o2r may not be
+    // mounted, and latching the asset phase here would silently rob that boot of
+    // GfxPatcher, the tracker icons and the ExtensionCache rescan. See
+    // MM_Rando_InitCore's header.
+    // An empty region graph after this call is not checked separately: the
+    // generation below throws "No checks in logic" from GeneratePools, which
+    // lands in the same terminal-failure return as every other dead end.
+    MM_Rando_InitCore();
+
+    // Registers are read by logic predicates through R_* macros and are only
+    // allocated by MM_Regs_Init on a real boot. Same guard the headless rows
+    // carry, same reason: this seam runs before any of that.
+    if (gRegEditor == NULL) {
+        static RegEditor sCreationRegEditor = {};
+        gRegEditor = &sCreationRegEditor;
+    }
+
+    // A fresh vanilla bootstrap, then the REAL generation chain — the same two
+    // calls MM's own file select makes (MM_Sram_InitSave) and the same two the
+    // headless digest makes, so there is exactly one generation code path in the
+    // binary and this seam does not acquire a private copy of it.
+    memset(&gSaveContext, 0, sizeof(SaveContext));
+    MM_Sram_InitNewSave();
+    GameInteractor_ExecuteOnSaveInit(0);
+
+    if (gSaveContext.save.shipSaveInfo.saveType != SAVETYPE_RANDO) {
+        // OnFileCreate's catch ran: the attempt ladder was exhausted, or the
+        // generation threw before it. Under increment 2 that is a TERMINAL
+        // creation failure surfaced at file select — never a vanilla Termina
+        // under a pairing identity. The caller owns the surface; this function
+        // owns the verdict.
+        fprintf(stderr,
+                "[MM] creation: FAILED — paired generation produced no rando world (%s; %d attempt(s) of max %d)\n",
+                MM_Rando_PairedGenLastExhausted() ? "attempt ladder exhausted" : "generation threw",
+                MM_Rando_PairedGenLastAttempts(), MM_Rando_PairedGenMaxAttempts());
+        fflush(stderr);
+        return 3;
+    }
+
+    // THE ONE SPOILER ARTIFACT (#660), joined HERE rather than by the OoT seam
+    // for a reason that is easy to get wrong: the join reads MM's world out of
+    // gSaveContext, and the caller RESTORES OoT's bytes over it the instant this
+    // function returns. There is exactly one window in which both the MM world
+    // and the OoT spoiler document exist, and this is it.
+    if (ootSpoilerPath != NULL && ootSpoilerPath[0] != 0) {
+        MM_Rando_AugmentSpoilerWithPairedHalf(ootSpoilerPath);
+    }
+
+    // skyboxTime is the one clock field MM_Sram_InitNewSave leaves alone;
+    // MM_Environment_Init re-derives it on the scene load, but a shadow that
+    // disagrees with save.time is a shadow somebody will read before that.
+    gSaveContext.skyboxTime = gSaveContext.save.time;
+
+    // #564 step 9: the MM half becomes the shadow, and the shadow is ARMED so
+    // the arrival's Combo_ConsumeFrozenState hands it to MM's live gSaveContext.
+    // Arming is the explicit inverse the freeze machinery lacked until #589 —
+    // shadow bytes and frozen blob are the same storage, and hasBeenFrozen is
+    // the only thing separating them (context.h).
+    Context_UpdateShadowCopy(GAME_MM, &gSaveContext, sizeof(gSaveContext));
+    const int armed = Context_ArmShadowAsFrozen(GAME_MM, MM_ENTR_SOUTH_CLOCK_TOWN_0);
+    if (!armed) {
+        // Context_ArmShadowAsFrozen refuses an all-zero blob. Reaching that with
+        // saveType == SAVETYPE_RANDO is impossible by construction, so treat it
+        // as the structural defect it would be rather than shipping a file whose
+        // MM half is unreachable.
+        fprintf(stderr, "[MM] creation: FAILED — the generated MM half refused to arm (all-zero shadow)\n");
+        fflush(stderr);
+        return 4;
+    }
+
+    fprintf(stderr,
+            "[MM] creation: MM half authored and armed for slot %d (mmFinalSeed=%08X foreignPlacements=%d "
+            "ladderAttempt=%d)\n",
+            slot, gSaveContext.save.shipSaveInfo.rando.finalSeed, Combo_CountForeignPlacements(),
+            MM_Rando_PairedGenLastAttempts());
+    fflush(stderr);
+    return 0;
+}
+
+/**
+ * THE ARRIVAL, AFTER ADR 0010 INCREMENT 2: HYDRATE OR REFUSE, WITH ZERO
+ * GENERATION CAPABILITY (#439's dispatch site, #570's compare-and-refuse,
+ * completed).
+ *
+ * WHAT THIS FUNCTION USED TO BE. It was the second creation event. #439 found
+ * that Rando::MiscBehavior::OnFileCreate is registered against OnSaveInit but
+ * OnSaveInit is only dispatched from MM's file select, which a cross-game
+ * arrival never touches — so the paired MM world was never generated. The fix
+ * was to dispatch OnSaveInit from here, at the arrival. That worked, and it made
+ * the MM half a product of whatever CVars were live minutes or hours after the
+ * file was created: two creation events for one game, which #564 ruled is the
+ * violation at the root of the whole cluster.
+ *
+ * WHAT IT IS NOW. The MM half is authored at OoT's file-create seam
+ * (MM_Rando_GenerateAtCreation above) and armed as the MM shadow, so by the time
+ * a player reaches Clock Town the world already exists and the only questions
+ * left are "is this still the same game" and "is the half actually here". The
+ * generation dispatch is DELETED — not gated, deleted — and
+ * MM_Rando_OnSaveInitDispatchCount() is the observable that keeps it deleted.
+ *
+ * THE TWO HALVES, AND WHY THE ORDER CHANGED. The compare must happen BEFORE
+ * Combo_ConsumeFrozenState, because "refuse" now means "do not hydrate": the
+ * blob stays armed and untouched, the slot is latched against writes, and MM
+ * plays the vanilla bootstrap the boot chain authored — which is exactly what
+ * the refusal toast has always promised ("Termina stays un-randomized"). Doing
+ * it the other way round would mean either applying a world we just refused, or
+ * destroying a restored session to undo the application. So:
+ *
+ *   MM_Rando_GateCrossGameArrival()      — before the consume. Compares.
+ *   Combo_ConsumeFrozenState()           — z_play.c, skipped on a refusal.
+ *   MM_Rando_HydrateCrossGameArrival()   — after the consume. Repairs, reports,
+ *                                          and refuses a MISSING half.
+ *
+ * WHY THE COMPARE STILL EXISTS WHEN NOTHING REGENERATES. Under one-game
+ * semantics the file's identity is frozen at creation and arrival-time
+ * divergence is corruption to detect and refuse, never a choice to honor
+ * (#500's ruling; ADR 0011 decision 4). What the refusal protects is no longer
+ * "the world MM is about to generate" — it is the .redsave: a session whose
+ * resolved rules disagree with the file's must not capture its state into the
+ * healthy pair's unified save. The latch is the mechanism and it is unchanged.
+ *
+ * WHAT IT ALSO FIXES FOR FREE. The old identity gate sat AFTER the
+ * `if (hadFrozenState) { ...; return; }` block, so a return leg was never
+ * compared at all: divergence was only ever caught on the very first crossing.
+ * The gate now runs on every arrival, first or fifth.
+ *
+ * Every decision point logs to stderr with a greppable `[MM] pairing:` prefix:
+ * the operator flew blind through this seam for an entire playtest.
+ *
+ * @return 1 when the arrival is REFUSED and the frozen MM half must NOT be
+ *         consumed; 0 to proceed.
+ */
+int MM_Rando_GateCrossGameArrival(void) {
+    if (!Combo_ForeignPairingActive()) {
         fprintf(stderr,
                 "[MM] pairing: skipped-because-no-paired-oot-world "
                 "(sourceIsRando=%d settingsHash=%08X masterSeed=%u)\n",
                 gComboCtx.sourceIsRando ? 1 : 0, gComboCtx.sharedRandoSettingsHash, gComboCtx.sharedRandoSeed);
-        return;
+        return 0;
     }
 
     // ------------------------------------------------------------------------
     // The O5 TRANSITIONAL WRITER (ADR 0011 decision 4.4), placed here — under a
-    // live pairing and ahead of every "this MM save already exists" early
-    // return below — because ALL of those returns are still crossings, and a
-    // legacy pair that always has an existing MM save would otherwise never
-    // freeze at all: permanently exempt from comparison, with 4.4 describing a
-    // behaviour nothing builds.
+    // live pairing and ahead of both compares below — because a legacy pair
+    // whose record reads ABSENT would otherwise be permanently exempt from
+    // comparison, with 4.4 describing a behaviour nothing builds.
     //
     // A pair whose record reads absent predates this carve and was generated
     // when there was only one rule set, so it freezes the SHIPPED DEFAULTS and
@@ -3751,78 +4011,19 @@ void MM_Rando_PairOnCrossGameArrival(int hadFrozenState) {
     // happened. No-op for an already-frozen record — a second crossing COMPARES
     // rather than re-freezes, which is what keeps this a transitional writer and
     // not a self-healing overwrite.
-    //
-    // On a pre-freeze pair whose mmProfileDigest is ALSO still 0, the
-    // fingerprint stamped here folds that 0; ResolvePairedProfile re-stamps it
-    // immediately after it freezes the profile, which is decision 4.1's order
-    // restored.
+    // ------------------------------------------------------------------------
     Combo_FreezeLegacyComboSettings();
 
-    if (hadFrozenState) {
-        // Self-heal a save that is INTERNALLY INCONSISTENT before accepting it.
-        //
-        // A legitimately vanilla MM file always has rando.finalSeed == 0:
-        // Sram_ResetSave memsets shipSaveInfo wholesale and MM_Sram_InitNewSave
-        // then stamps SAVETYPE_VANILLA, so nothing in MM's own code can author
-        // "a complete rando world sitting under a vanilla type byte". Seeing it
-        // is positive evidence that a RANDO file lost its type byte to a bulk
-        // Save overwrite (the moon-crash reload in z_sram_NES.c
-        // Sram_ResetSaveFromMoonCrash is the operator-confirmed instance, fixed
-        // at its source; this is the belt-and-braces catch for that whole class).
-        //
-        // Without this, the loss is PERMANENT and silent: once a vanilla-stamped
-        // save is frozen on the next switch-out, every later return leg restores
-        // it, re-reports "existing save", and MM plays vanilla forever with the
-        // player's entire placement table still sitting intact underneath.
-        if (!alreadyRando && gSaveContext.save.shipSaveInfo.rando.finalSeed != 0) {
-            gSaveContext.save.shipSaveInfo.saveType = SAVETYPE_RANDO;
-            fprintf(stderr,
-                    "[MM] pairing: REPAIRED — restored save carried a complete rando world "
-                    "(finalSeed=%08X) under saveType=vanilla; re-stamping SAVETYPE_RANDO\n",
-                    gSaveContext.save.shipSaveInfo.rando.finalSeed);
-            fflush(stderr);
-            // Fall through to the skip below: the world is the player's own and
-            // must NOT be regenerated. z_play.c's GameInteractor_ExecuteOnSaveLoad
-            // at the end of MM_Play_ConsumeStartupEntrance then arms the IS_RANDO
-            // COND_HOOKs against the repaired save.
-            fprintf(stderr, "[MM] pairing: skipped-because-existing-mm-save "
-                            "(frozen MM session restored, saveType=rando) — an existing file is never regenerated\n");
-            return;
-        }
-
-        // A restored MM session — vanilla or rando — is the player's own save.
-        // Re-running generation over it would wipe their progress (OnFileCreate
-        // memsets shipSaveInfo.rando and re-authors the starting state), so the
-        // paired world simply does not apply to a file that already exists.
-        fprintf(stderr,
-                "[MM] pairing: skipped-because-existing-mm-save "
-                "(frozen MM session restored, saveType=%s) — an existing file is never regenerated\n",
-                alreadyRando ? "rando" : "vanilla");
-        return;
-    }
-
-    if (alreadyRando) {
-        // Defensive: the bootstrap save the boot chain authored should always
-        // be vanilla. If some other path already paired it, do not do it twice.
-        fprintf(stderr, "[MM] pairing: skipped-because-already-paired (mmFinalSeed=%08X foreignPlacements=%d)\n",
-                gSaveContext.save.shipSaveInfo.rando.finalSeed, Combo_CountForeignPlacements());
-        return;
-    }
-
     // ------------------------------------------------------------------------
-    // The arrival identity gate (#498 decision 1 per #564, phase 2 step 9).
+    // The MM-PROFILE identity gate (#498 decision 1 per #564; #570).
     //
     // The one game's MM profile was frozen into the pairing identity at the
-    // CREATION event (Playthrough_Init stamped gComboCtx.mmProfileDigest from
-    // the same MM_Rando_ComputeProfileStamp computation run here). Generation
-    // below would resolve the profile from the LIVE CVars/config — so before
-    // dispatching it, prove that resolution still IS the frozen identity.
-    // Divergence is corruption to refuse, never a choice to honor: no world is
-    // generated, the identity stamp is left untouched (never self-healed), and
-    // the refusal surfaces through the #533 machinery — the active slot is
-    // latched against writes (the divergent session must not capture its
-    // unpaired world into the healthy pair's .redsave) and the file panel
-    // renders the slot REFUSED with the reason.
+    // CREATION event (Playthrough_Init stamps gComboCtx.mmProfileDigest from the
+    // same MM_Rando_ComputeProfileStamp computation run here, BEFORE OoT's
+    // Fill()). Divergence is corruption to refuse, never a choice to honor: the
+    // frozen half is not applied, the identity stamp is left untouched (never
+    // self-healed), the active slot is latched against writes, and the file
+    // panel renders the slot REFUSED with the reason.
     // ------------------------------------------------------------------------
     if (gComboCtx.mmProfileDigest != 0) {
         const uint32_t arrivalDigest = MM_Rando_ComputeProfileStamp();
@@ -3831,8 +4032,8 @@ void MM_Rando_PairOnCrossGameArrival(int hadFrozenState) {
             fprintf(stderr,
                     "[MM] pairing: REFUSED — the MM option profile resolved at this arrival (%08X) does not match "
                     "the identity frozen at creation (%08X). MM options/excluded checks/starting items changed "
-                    "after the paired world was created. No MM world is generated; the creation stamp is left "
-                    "untouched; unified-save slot %d is latched against writes this session\n",
+                    "after the paired world was created. The frozen MM half is NOT applied; the creation stamp is "
+                    "left untouched; unified-save slot %d is latched against writes this session\n",
                     (unsigned)arrivalDigest, (unsigned)gComboCtx.mmProfileDigest, slot);
             fflush(stderr);
             RsbsSave_RefuseSlotIdentity(slot);
@@ -3859,34 +4060,28 @@ void MM_Rando_PairOnCrossGameArrival(int hadFrozenState) {
             // is the surface; the sound is not load-bearing.
             refusalToast.mute = 1;
             OoT_Notification_Emit(&refusalToast);
-            return;
+            return 1;
         }
         fprintf(stderr, "[MM] pairing: arrival profile matches the creation-frozen identity (%08X)\n",
                 (unsigned)arrivalDigest);
     } else {
-        // A LEGACY pre-freeze pair: its creation predates the identity stamp,
-        // so its profile freezes at this first crossing instead
-        // (ResolvePairedProfile stamps it during the generation below).
-        fprintf(stderr, "[MM] pairing: no creation-time profile stamp (pre-freeze pair); the profile freezes at "
-                        "this arrival\n");
+        // A LEGACY pre-freeze pair: its creation predates the identity stamp.
+        // Nothing freezes it here any more — under increment 2 there is no
+        // generation at this seam to freeze it DURING, and a writer that stamped
+        // an identity for a world it did not author would be the self-heal the
+        // whole design forbids. The missing-half check in the hydrate half below
+        // is what such a pair actually meets.
+        fprintf(stderr, "[MM] pairing: no creation-time profile stamp (pre-freeze pair)\n");
     }
 
     // ------------------------------------------------------------------------
-    // The COMBO-LEVEL arrival identity gate (ADR 0011 decision 4).
+    // The COMBO-LEVEL identity gate (ADR 0011 decision 4).
     //
-    // Same surface, same call, same semantics as the MM-profile gate above —
-    // with one thing the profile gate cannot do, and which is the whole reason
-    // twelve bytes were carved instead of four: THIS REFUSAL NAMES THE RULE.
-    // "Your combo rules do not match this save" with no ability to say WHICH is
-    // the un-repairable case ADR 0009 accepted only because it had no
-    // alternative. A digest could never have been shown or diffed; a record can.
-    //
-    // Divergence is corruption to refuse, never a choice to honor: no world is
-    // generated, the frozen record is left untouched (NEVER self-healed — a
-    // self-heal would make every divergence disappear the instant it was
-    // detected), the slot is latched against writes so the divergent session
-    // cannot capture its rules into the healthy pair's .redsave, and the file
-    // panel renders the slot REFUSED.
+    // Same surface, same call, same semantics as the profile gate above — with
+    // one thing the profile gate cannot do, and which is the whole reason twelve
+    // bytes were carved instead of four: THIS REFUSAL NAMES THE RULE. "Your
+    // combo rules do not match this save" with no ability to say WHICH is the
+    // un-repairable case ADR 0009 accepted only because it had no alternative.
     //
     // An ABSENT record yields no bits (decision 4.2's exemption), so a legacy
     // pair passes here and is repaired by the transitional writer above.
@@ -3900,9 +4095,9 @@ void MM_Rando_PairOnCrossGameArrival(int hadFrozenState) {
             fprintf(stderr,
                     "[MM] pairing: REFUSED — the CROSS-GAME RULES resolved at this arrival do not match the ones "
                     "frozen when this file was created. Diverged: %s. (frozen: dir=%u poolOoT=%u poolMM=%u "
-                    "classOoT=%04X classMM=%04X goal=%u rung=%u fingerprint=%08X). No MM world is generated; the "
-                    "frozen record is left untouched; unified-save slot %d is latched against writes this "
-                    "session\n",
+                    "classOoT=%04X classMM=%04X goal=%u rung=%u fingerprint=%08X). The frozen MM half is NOT "
+                    "applied; the frozen record is left untouched; unified-save slot %d is latched against writes "
+                    "this session\n",
                     fields, (unsigned)gComboCtx.comboSettings.direction, (unsigned)gComboCtx.comboSettings.poolSizeOoT,
                     (unsigned)gComboCtx.comboSettings.poolSizeMM, (unsigned)gComboCtx.comboSettings.itemClassOoT,
                     (unsigned)gComboCtx.comboSettings.itemClassMM, (unsigned)gComboCtx.comboSettings.goal,
@@ -3931,12 +4126,10 @@ void MM_Rando_PairOnCrossGameArrival(int hadFrozenState) {
             refusalToast.messageColor[2] = 1.0f;
             refusalToast.messageColor[3] = 1.0f;
             refusalToast.remainingTime = 15.0f;
-            // Muted for the same reason the profile refusal above is: the
-            // overlay's ding is OoT's Audio_PlaySoundGeneral, and this call site
-            // runs on MM's boot path (and in the display-free rando tier).
+            // Muted for the same reason the profile refusal above is.
             refusalToast.mute = 1;
             OoT_Notification_Emit(&refusalToast);
-            return;
+            return 1;
         }
         if (Combo_ComboSettingsFrozen()) {
             fprintf(stderr, "[MM] pairing: arrival combo rules match the creation-frozen record (fingerprint %08X)\n",
@@ -3944,68 +4137,140 @@ void MM_Rando_PairOnCrossGameArrival(int hadFrozenState) {
         }
     }
 
-    fprintf(stderr, "[MM] pairing: armed on switch-entry (masterSeed=%u settingsHash=%08X) — dispatching OnSaveInit\n",
-            gComboCtx.sharedRandoSeed, gComboCtx.sharedRandoSettingsHash);
     fflush(stderr);
+    return 0;
+}
 
-    // The REAL dispatch — the same bridge MM_Sram_InitSave calls on the
-    // file-select path, so both entry paths converge on one generation code
-    // path (S2H::GameHooks Execute<OnSaveInit> -> Rando::MiscBehavior::OnFileCreate).
-    GameInteractor_ExecuteOnSaveInit(gSaveContext.fileNum);
-
-    if (gSaveContext.save.shipSaveInfo.saveType == SAVETYPE_RANDO) {
-        fprintf(stderr, "[MM] pairing: paired world ACTIVE (mmFinalSeed=%08X foreignPlacements=%d ladderAttempt=%d)\n",
-                gSaveContext.save.shipSaveInfo.rando.finalSeed, Combo_CountForeignPlacements(),
-                MM_Rando_PairedGenLastAttempts());
-    } else {
-        // ------------------------------------------------------------------
-        // ADR 0010 increment 1.2: a paired generation that still failed after
-        // the deterministic attempt ladder (or threw before it) is REFUSED
-        // loudly, never a silent vanilla Termina. OnFileCreate's catch has
-        // already reverted the save to vanilla — there is no other save state
-        // to be in at this seam — but that fallback world is UNPAIRED, so the
-        // #533 machinery latches the slot (this session's captures must not
-        // reach the pair's .redsave) and the shared overlay tells the player
-        // what happened and that generation, not their file, is at fault.
-        // Same surface, same shape as the identity refusal above; the reason
-        // distinguishes "your options diverged" from "the world would not
-        // converge".
-        // ------------------------------------------------------------------
-        const int slot = RsbsSave_GetActiveSlot();
-        const int attempts = MM_Rando_PairedGenLastAttempts();
-        const int exhausted = MM_Rando_PairedGenLastExhausted();
-        fprintf(stderr,
-                "[MM] pairing: REFUSED — paired generation failed (%s; %d attempt(s) of max %d); the save reverted "
-                "to vanilla and unified-save slot %d is latched against writes this session (see the preceding "
-                "SPDLOG_ERROR for the cause)\n",
-                exhausted ? "attempt ladder exhausted" : "generation threw", attempts, MM_Rando_PairedGenMaxAttempts(),
-                slot);
-        fflush(stderr);
-        RsbsSave_RefuseSlotGeneration(slot);
-
-        // Player-visible, immediately, on the shared overlay — mirroring the
-        // identity-refusal toast above (muted for the same reason).
-        ComboNotification refusalToast;
-        memset(&refusalToast, 0, sizeof(refusalToast));
-        refusalToast.prefix = "Cross-game pairing REFUSED:";
-        refusalToast.prefixColor[0] = 0.9f;
-        refusalToast.prefixColor[1] = 0.35f;
-        refusalToast.prefixColor[2] = 0.3f;
-        refusalToast.prefixColor[3] = 1.0f;
-        refusalToast.message = exhausted
-                                   ? "Majora's Mask world generation ran out of attempts for this seed and settings. "
-                                     "Termina stays un-randomized and progress here will not be saved to the pair."
-                                   : "Majora's Mask world generation failed. Termina stays un-randomized and "
-                                     "progress here will not be saved to the pair.";
-        refusalToast.messageColor[0] = 1.0f;
-        refusalToast.messageColor[1] = 1.0f;
-        refusalToast.messageColor[2] = 1.0f;
-        refusalToast.messageColor[3] = 1.0f;
-        refusalToast.remainingTime = 15.0f;
-        refusalToast.mute = 1;
-        OoT_Notification_Emit(&refusalToast);
+/**
+ * The HYDRATE half (see MM_Rando_GateCrossGameArrival's header for the split).
+ *
+ * Runs immediately after Combo_ConsumeFrozenState, with the MM half — if there
+ * was one — already applied to the live gSaveContext. Its jobs are to repair a
+ * save whose type byte was lost, to report which state the arrival landed in,
+ * and to refuse a pairing whose MM half is MISSING.
+ *
+ * @param hadFrozenState nonzero when Combo_ConsumeFrozenState applied a blob.
+ * @param refused        nonzero when the gate above refused, so the consume was
+ *        deliberately skipped and this function must not re-report it.
+ */
+void MM_Rando_HydrateCrossGameArrival(int hadFrozenState, int refused) {
+    if (refused) {
+        // The gate already surfaced the reason and latched the slot. MM plays
+        // the boot chain's vanilla bootstrap, and z_play.c's !hadFrozenState leg
+        // gives it the arrival's intro rewards (#654), which is what makes a
+        // refused half a playable vanilla Termina rather than a broken one.
+        return;
     }
+
+    const bool pairing = Combo_ForeignPairingActive();
+    const bool alreadyRando = (gSaveContext.save.shipSaveInfo.saveType == SAVETYPE_RANDO);
+
+    if (!pairing) {
+        // Logged by the gate. Nothing to hydrate and nothing to refuse: a
+        // vanilla OoT file's MM half is a vanilla MM file.
+        return;
+    }
+
+    if (hadFrozenState) {
+        // Self-heal a save that is INTERNALLY INCONSISTENT before accepting it.
+        //
+        // A legitimately vanilla MM file always has rando.finalSeed == 0:
+        // Sram_ResetSave memsets shipSaveInfo wholesale and MM_Sram_InitNewSave
+        // then stamps SAVETYPE_VANILLA, so nothing in MM's own code can author
+        // "a complete rando world sitting under a vanilla type byte". Seeing it
+        // is positive evidence that a RANDO file lost its type byte to a bulk
+        // Save overwrite (the moon-crash reload in z_sram_NES.c
+        // Sram_ResetSaveFromMoonCrash is the operator-confirmed instance, fixed
+        // at its source; this is the belt-and-braces catch for that whole class).
+        //
+        // Without this, the loss is PERMANENT and silent: once a vanilla-stamped
+        // save is frozen on the next switch-out, every later return leg restores
+        // it, re-reports "existing save", and MM plays vanilla forever with the
+        // player's entire placement table still sitting intact underneath.
+        if (!alreadyRando && gSaveContext.save.shipSaveInfo.rando.finalSeed != 0) {
+            gSaveContext.save.shipSaveInfo.saveType = SAVETYPE_RANDO;
+            fprintf(stderr,
+                    "[MM] pairing: REPAIRED — restored save carried a complete rando world "
+                    "(finalSeed=%08X) under saveType=vanilla; re-stamping SAVETYPE_RANDO\n",
+                    gSaveContext.save.shipSaveInfo.rando.finalSeed);
+            fflush(stderr);
+        }
+
+        fprintf(stderr,
+                "[MM] pairing: HYDRATED from the frozen MM half (saveType=%s mmFinalSeed=%08X foreignPlacements=%d)"
+                " — nothing was generated at this arrival\n",
+                (gSaveContext.save.shipSaveInfo.saveType == SAVETYPE_RANDO) ? "rando" : "vanilla",
+                gSaveContext.save.shipSaveInfo.rando.finalSeed, Combo_CountForeignPlacements());
+
+        // The hydrated half's frozen option profile is this world's rules, so it
+        // is what the values-publishing surface must carry in a process that
+        // never generated (ADR 0011 O8). Republished from the SAVE, never from
+        // the CVars, for exactly that reason.
+        if (gSaveContext.save.shipSaveInfo.saveType == SAVETYPE_RANDO) {
+            MM_Rando_PublishProfileGiveCaps(/*fromSave=*/1);
+        }
+        fflush(stderr);
+        return;
+    }
+
+    if (alreadyRando) {
+        // Defensive: the bootstrap save the boot chain authored should always be
+        // vanilla, and with no frozen blob consumed nothing can have made it
+        // rando. Report rather than act.
+        fprintf(stderr, "[MM] pairing: already-rando save with no frozen half (mmFinalSeed=%08X placements=%d)\n",
+                gSaveContext.save.shipSaveInfo.rando.finalSeed, Combo_CountForeignPlacements());
+        fflush(stderr);
+        return;
+    }
+
+    // ------------------------------------------------------------------------
+    // THE MISSING HALF (ADR 0010 increment 2's "hydrate or refuse").
+    //
+    // A live pairing identity says this file HAS an MM half; no frozen blob was
+    // consumed and the save is vanilla, so it does not. Under increment 2 there
+    // is exactly one legitimate author of an MM half — the creation event — and
+    // it runs before the file's first save, so this state means one of:
+    //
+    //   - the file was created BEFORE this increment and never crossed (its
+    //     Tier-3 is all zeroes, which Context_ArmShadowAsFrozen correctly
+    //     refuses to arm), or
+    //   - its .redsave is missing, refused, or torn.
+    //
+    // The first is a real migration cost and is stated as such rather than
+    // papered over with a transitional generation path: "arrival has zero
+    // generation capability" is the contract, and a generation here would be the
+    // second creation event the whole increment exists to delete. Such a file
+    // still plays — OoT's half is intact and Termina is vanilla — it simply is
+    // not the paired world its identity claims, and it says so.
+    // ------------------------------------------------------------------------
+    const int slot = RsbsSave_GetActiveSlot();
+    fprintf(stderr,
+            "[MM] pairing: REFUSED — this file's identity claims a paired Majora's Mask world "
+            "(masterSeed=%u settingsHash=%08X mmProfileDigest=%08X) but no MM half is present to hydrate. Since ADR "
+            "0010 increment 2 the MM half is authored at file creation and the arrival never generates one, so a "
+            "file created before that change (or whose unified save is missing/refused) has none. Termina stays "
+            "un-randomized; unified-save slot %d is latched against writes this session\n",
+            gComboCtx.sharedRandoSeed, gComboCtx.sharedRandoSettingsHash, gComboCtx.mmProfileDigest, slot);
     fflush(stderr);
+    RsbsSave_RefuseSlotGeneration(slot);
+
+    ComboNotification missingToast;
+    memset(&missingToast, 0, sizeof(missingToast));
+    missingToast.prefix = "Cross-game pairing REFUSED:";
+    missingToast.prefixColor[0] = 0.9f;
+    missingToast.prefixColor[1] = 0.35f;
+    missingToast.prefixColor[2] = 0.3f;
+    missingToast.prefixColor[3] = 1.0f;
+    missingToast.message = "This file has no paired Majora's Mask world. Files created before the merged "
+                           "generation update must be re-created to get one. Termina stays un-randomized and "
+                           "progress here will not be saved to the pair.";
+    missingToast.messageColor[0] = 1.0f;
+    missingToast.messageColor[1] = 1.0f;
+    missingToast.messageColor[2] = 1.0f;
+    missingToast.messageColor[3] = 1.0f;
+    missingToast.remainingTime = 15.0f;
+    missingToast.mute = 1;
+    OoT_Notification_Emit(&missingToast);
 }
 
 } // extern "C"

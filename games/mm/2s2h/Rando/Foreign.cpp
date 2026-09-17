@@ -39,6 +39,9 @@
 
 #include "Foreign.h"
 #include "Rando/Rando.h"
+// GenerateFromSaveContext - the MM half of the ONE paired spoiler
+// artifact (#660; #564 V23).
+#include "Rando/Spoiler/Spoiler.h"
 // ComputeReachableCheckSet — the reachability gate on host candidates (ADR
 // 0010 increment 1.3, #500).
 #include "Rando/Logic/Logic.h"
@@ -65,6 +68,8 @@
 
 #include <cstddef>
 #include <cstdio>
+#include <cstring>
+#include <fstream>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -766,6 +771,286 @@ extern "C" uint32_t MM_Rando_ComputeProfileStamp(void) {
     std::vector<uint32_t> values(RO_MAX, 0);
     Rando::Foreign::ResolveProfileValues(values.data(), /*paired=*/true);
     return Rando::Foreign::DigestFromIdentity(Rando::Foreign::ProfileIdentityString(values.data()));
+}
+
+// ============================================================================
+// The VALUES-publishing half of the same freeze (ADR 0011 O8; ADR 0010
+// increment 2; declared in src/common/combo_mm_options_view.h).
+//
+// MM_Rando_ComputeProfileStamp answers "did the rules change". This answers
+// "what do the rules ARM" — the question reverse-pool criterion 3 could not ask
+// because the only thing crossing the boundary was a digest. The mapping from
+// MM option ids to the game-neutral RSBS_GIVECAP_* families lives HERE, in the
+// TU where the enum is in scope, exactly as the pools and the options table do
+// (ADR 0002 / ADR 0009 decision 3): src/common learns a bit, never an id.
+//
+// TWO SOURCES, ONE MAPPING. The creation freeze publishes from the CVar
+// resolution (fromSave == 0) so the surface exists BEFORE OoT's Fill() and both
+// crossing passes read one frozen profile. A later process that never generated
+// publishes from the save's frozen RANDO_SAVE_OPTIONS (fromSave != 0), because
+// that process's CVars are somebody's staging for the NEXT file and are not
+// this world's rules. The families below are read the same way from either.
+// ============================================================================
+extern "C" void MM_Rando_PublishProfileGiveCaps(int fromSave) {
+    std::vector<uint32_t> values(RO_MAX, 0);
+    if (fromSave != 0) {
+        for (auto& [randoOptionId, randoStaticOption] : Rando::StaticData::Options) {
+            values[randoOptionId] = RANDO_SAVE_OPTIONS[randoOptionId];
+        }
+    } else {
+        Rando::Foreign::ResolveProfileValues(values.data(), /*paired=*/true);
+    }
+
+    uint32_t caps = 0;
+    // Souls are one family on purpose: criterion 3's exclusion covers the enemy
+    // AND boss rows together, and a crossing that needed only one of the two
+    // would still be a promise the other half of the family cannot keep.
+    if (values[RO_SHUFFLE_ENEMY_SOULS] != RO_GENERIC_OFF && values[RO_SHUFFLE_BOSS_SOULS] != RO_GENERIC_OFF) {
+        caps |= RSBS_GIVECAP_SOULS;
+    }
+    if (values[RO_SHUFFLE_OCARINA_BUTTONS] != RO_GENERIC_OFF) {
+        caps |= RSBS_GIVECAP_OCARINA_BUTTONS;
+    }
+    if (values[RO_SHUFFLE_SWIM] != RO_GENERIC_OFF) {
+        caps |= RSBS_GIVECAP_SWIM;
+    }
+    if (values[RO_CLOCK_SHUFFLE] != RO_GENERIC_OFF) {
+        caps |= RSBS_GIVECAP_CLOCKS;
+    }
+
+    Combo_PublishForeignGiveCaps((uint8_t)GAME_MM, caps);
+    fprintf(stderr, "[MM] profile: give capabilities published from %s (caps=%04X)\n",
+            fromSave != 0 ? "the save's frozen options" : "the creation-time resolution", (unsigned)caps);
+}
+
+// ============================================================================
+// ONE SPOILER ARTIFACT PER PAIR (#660; #564 V23; solver-inventory P11;
+// ADR 0010 increment 2).
+//
+// WHAT WAS WRONG. A paired generation wrote TWO independent files: OoT's
+// Randomizer/<hash-icons>.json (settings, playthrough, hints, entrances, every
+// location) and MM's RSBSPAIR<masterSeed>.json (no playthrough, no spheres, no
+// WotH, no hints). Two artifacts, two schemas, one world — and the eight reverse
+// crossings appeared in NEITHER. #564 V23 asks for one artifact written once by
+// the creation event, carrying both worlds, both crossing directions and the
+// full identity tuple.
+//
+// THE SHAPE CHOSEN, AND WHY. The combined artifact is OoT's spoiler document
+// with ONE additional top-level key, "combo". #660 leaves "one schema vs. one
+// file with two sections" to the implementer, and augmenting beats inventing:
+// every existing OoT spoiler consumer — the in-game viewer, plando, race
+// tooling, the CVAR_GENERAL("SpoilerLog") path — keeps working unchanged because
+// unknown top-level keys are ignored, while the file becomes a complete
+// description of the pair. A brand-new schema would have bought one artifact at
+// the cost of every reader of the old one.
+//
+// WHY MM OWNS THIS FUNCTION when the file is OoT's. Everything the "combo"
+// section needs is MM-side: Rando::Spoiler::GenerateFromSaveContext walks MM's
+// own tables, and the placement names resolve through src/common's origin-keyed
+// lookups. The OoT seam supplies a path; it never learns MM's schema.
+//
+// FAILURE IS CONTAINED. A spoiler is a REPORT of the world, not part of it
+// (#439's lesson, learned by turning "could not write a log file" into "your
+// paired world silently did not happen"). Every failure here logs and returns
+// nonzero; the creation succeeds regardless.
+// ============================================================================
+static int sLastSpoilerForward = 0;
+static int sLastSpoilerReverse = 0;
+static int sLastSpoilerIdentityOk = 0;
+
+/** The one-artifact lock's observable: what the JOINED document on disk
+ *  actually contains, read back after the write. Any out pointer may be NULL. */
+extern "C" void MM_Rando_LastPairedSpoilerStats(int* outForward, int* outReverse, int* outIdentityOk) {
+    if (outForward != nullptr) {
+        *outForward = sLastSpoilerForward;
+    }
+    if (outReverse != nullptr) {
+        *outReverse = sLastSpoilerReverse;
+    }
+    if (outIdentityOk != nullptr) {
+        *outIdentityOk = sLastSpoilerIdentityOk;
+    }
+}
+
+extern "C" int MM_Rando_AugmentSpoilerWithPairedHalf(const char* ootSpoilerPath) {
+    sLastSpoilerForward = 0;
+    sLastSpoilerReverse = 0;
+    sLastSpoilerIdentityOk = 0;
+    if (ootSpoilerPath == nullptr || ootSpoilerPath[0] == '\0') {
+        fprintf(stderr, "[MM] spoiler: no OoT spoiler path given - the paired half has nothing to join\n");
+        return -1;
+    }
+
+    try {
+        nlohmann::json doc;
+        {
+            std::ifstream in(ootSpoilerPath);
+            if (!in.is_open()) {
+                fprintf(stderr, "[MM] spoiler: cannot open '%s' to join the paired half\n", ootSpoilerPath);
+                return -2;
+            }
+            in >> doc;
+        }
+
+        nlohmann::json combo;
+
+        // The full identity tuple, embedded (#564 V23): a reader can tell which
+        // pair this is without trusting the filename, and a future load path can
+        // refuse a document whose identity is not the world being played.
+        combo["identity"] = {
+            { "masterSeed", gComboCtx.sharedRandoSeed },
+            { "ootSettingsHash", gComboCtx.sharedRandoSettingsHash },
+            { "mmProfileDigest", gComboCtx.mmProfileDigest },
+            { "comboSettingsHash", gComboCtx.comboSettingsHash },
+            { "mmFinalSeed", gSaveContext.save.shipSaveInfo.rando.finalSeed },
+            { "mmPairedAttempt", gComboCtx.mmPairedAttempt },
+        };
+        combo["comboSettings"] = {
+            { "formatVersion", gComboCtx.comboSettings.formatVersion },
+            { "direction", gComboCtx.comboSettings.direction },
+            { "poolSizeOoT", gComboCtx.comboSettings.poolSizeOoT },
+            { "poolSizeMM", gComboCtx.comboSettings.poolSizeMM },
+            { "itemClassOoT", gComboCtx.comboSettings.itemClassOoT },
+            { "itemClassMM", gComboCtx.comboSettings.itemClassMM },
+            { "goal", gComboCtx.comboSettings.goal },
+            { "logicRung", gComboCtx.comboSettings.logicRung },
+        };
+
+        // The MM world, in MM's own schema, under its own key.
+        combo["mm"] = Rando::Spoiler::GenerateFromSaveContext();
+        combo["mm"]["inputSeed"] = Rando::Foreign::PairedInputSeedString();
+
+        // BOTH crossing directions, which is the part neither old artifact had.
+        // Names rather than raw ids for the ITEMS: src/common resolves those
+        // origin-keyed, and that lookup is also the spoiler-LOAD inverse, so what
+        // is written here is what a load can read back.
+        nlohmann::json forward = nlohmann::json::array();
+        nlohmann::json reverse = nlohmann::json::array();
+        for (int i = 1; i < RC_MAX; i++) {
+            const SharedItem* hosted = Combo_GetForeignPlacementForCheck((uint16_t)i);
+            if (hosted == nullptr) {
+                continue;
+            }
+            const char* name = Combo_GetForeignItemName(*hosted);
+            forward.push_back({ { "mmCheckId", i },
+                                { "mmCheckName", Rando::StaticData::Checks[(RandoCheckId)i].name },
+                                { "ootItem", name != nullptr ? name : "?" } });
+        }
+        // The reverse table is keyed by OoT check id, whose DISPLAY NAME belongs
+        // to OoT's tables — which this TU must not acquire (ADR 0002). The id is
+        // the durable key and the OoT section of this same document already names
+        // every OoT location, so a reader joins on the id rather than being
+        // handed a translated string from the wrong side of the boundary.
+        for (int i = 0; i < RSBS_FOREIGN_PLACEMENT_CAP; i++) {
+            const ComboForeignPlacement* row = &gComboCtx.foreignPlacementsOoT[i];
+            if (row->item.originGame == (uint8_t)GAME_NONE) {
+                continue;
+            }
+            const char* name = Combo_GetForeignItemName(row->item);
+            reverse.push_back({ { "ootCheckId", row->mmCheckId }, { "mmItem", name != nullptr ? name : "?" } });
+        }
+        combo["crossings"] = { { "ootItemsInMM", forward }, { "mmItemsInOoT", reverse } };
+
+        // The shortfall, durably (#583): the toast is seen once, this is kept.
+        const Rando::Foreign::PlacementStats& stats = Rando::Foreign::LastPlacementStats();
+        combo["crossings"]["forwardShortfall"] = {
+            { "requested", stats.requested },
+            { "placed", stats.placed },
+            { "eligibleHosts", stats.eligibleHosts },
+            { "reachableEligibleHosts", stats.reachableEligibleHosts },
+            { "short", stats.placed < stats.requested },
+        };
+
+        doc["combo"] = combo;
+
+        // ABSORB, then RETIRE. MM's own RSBSPAIR<masterSeed>.json is what the
+        // "mm" section above was built from, and leaving it on disk beside the
+        // combined document would be the two-artifacts state #660 exists to end.
+        // Removed only after the join has been built in memory, and only on the
+        // paired creation path — the MM-only harnesses never reach this function
+        // and keep the file they assert on.
+        try {
+            const std::string mmOwnSpoiler =
+                Rando::Spoiler::SpoilerDirectory() + "/" + Rando::Foreign::PairedInputSeedString() + ".json";
+            if (std::remove(mmOwnSpoiler.c_str()) == 0) {
+                fprintf(stderr, "[MM] spoiler: retired the separate MM artifact '%s' (#660)\n", mmOwnSpoiler.c_str());
+            }
+        } catch (const std::exception&) {
+            // SpoilerDirectory() throws if it cannot resolve; a file that cannot
+            // be removed is untidy, never incorrect.
+        }
+
+        {
+            std::ofstream out(ootSpoilerPath);
+            if (!out.is_open()) {
+                fprintf(stderr, "[MM] spoiler: cannot rewrite '%s' with the paired half\n", ootSpoilerPath);
+                return -3;
+            }
+            out << doc.dump(4) << std::endl;
+        }
+        // READ BACK WHAT LANDED, not what was built. The one-artifact lock
+        // (src/common/test_runner.cpp, combo-creation-event) asserts on these
+        // counts, and a lock that trusted the in-memory document would be
+        // asserting that the join was CONSTRUCTED rather than that it reached
+        // disk — which is the half that can actually fail.
+        {
+            std::ifstream verify(ootSpoilerPath);
+            nlohmann::json landed;
+            verify >> landed;
+            sLastSpoilerForward = (int)landed["combo"]["crossings"]["ootItemsInMM"].size();
+            sLastSpoilerReverse = (int)landed["combo"]["crossings"]["mmItemsInOoT"].size();
+            sLastSpoilerIdentityOk =
+                (landed["combo"]["identity"]["masterSeed"].get<uint32_t>() == gComboCtx.sharedRandoSeed) ? 1 : 0;
+        }
+
+        fprintf(stderr,
+                "[MM] spoiler: ONE paired artifact written - '%s' now carries both worlds and both crossing "
+                "directions (%d forward, %d reverse) (#660)\n",
+                ootSpoilerPath, sLastSpoilerForward, sLastSpoilerReverse);
+        fflush(stderr);
+        return 0;
+    } catch (const std::exception& e) {
+        fprintf(stderr, "[MM] spoiler: joining the paired half FAILED (%s) - the generated world is unaffected\n",
+                e.what());
+        fflush(stderr);
+        return -4;
+    }
+}
+
+// ============================================================================
+// THE FOREIGN-PLACEMENT SHORTFALL, AT CREATION (#583; ADR 0010 increment 2;
+// declared in src/common/foreign_items.h).
+//
+// PR #580's under-supply rule places FEWER crossings rather than stranding them
+// on unreachable hosts — correct — but until now the only record of it was the
+// spoiler and a stderr line. A player promised four crossings who receives two
+// learned it by reading a JSON file. The creation event is where the number is
+// decided, so it is where the number is surfaced; this bridge is what lets the
+// OoT-side seam ask without acquiring MM's PlacementStats type.
+//
+// Session-scoped and read immediately after the generation that produced it,
+// which is why nothing durable carries these numbers.
+// ============================================================================
+extern "C" int MM_Rando_LastPlacementStats(int* outRequested, int* outPlaced, int* outEligibleHosts,
+                                           int* outReachableEligibleHosts) {
+    const Rando::Foreign::PlacementStats& stats = Rando::Foreign::LastPlacementStats();
+    if (outRequested != nullptr) {
+        *outRequested = stats.requested;
+    }
+    if (outPlaced != nullptr) {
+        *outPlaced = stats.placed;
+    }
+    if (outEligibleHosts != nullptr) {
+        *outEligibleHosts = stats.eligibleHosts;
+    }
+    if (outReachableEligibleHosts != nullptr) {
+        *outReachableEligibleHosts = stats.reachableEligibleHosts;
+    }
+    // A SHORTFALL is "the rules asked for more crossings than the world could
+    // host". Placing fewer than the whole POOL is not one (the class filter and
+    // the pool size legitimately narrow it — #495), which is why `requested`
+    // follows the drawable/pool-size minimum and not poolCount.
+    return (stats.placed < stats.requested) ? 1 : 0;
 }
 
 // ============================================================================

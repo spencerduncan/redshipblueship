@@ -20,6 +20,7 @@
 // src/common — MM_Rando_ComputeProfileStamp (defined MM-side, Foreign.cpp):
 // the creation event freezes the MM half's option profile too (#498/#564).
 #include "combo_mm_options_view.h"
+#include "gen_budget.h" // src/common — the #582 progress surface (OoT's half)
 #endif
 
 namespace Playthrough {
@@ -84,8 +85,143 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
     Random_Init(finalHash);
     ctx->SetHash(std::to_string(finalHash));
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // ========================================================================
+    // THE FREEZE (#564 creation-event step 1; ADR 0009 decision 2's amendment;
+    // solver-inventory P1/P2; ADR 0010 increment 2).
+    //
+    // WHY THIS BLOCK MOVED ABOVE Fill(). It used to sit after the fill and the
+    // spoiler write, which made the whole identity a POST-hoc receipt of a world
+    // already decided. Two things were wrong with that, and both are structural
+    // rather than cosmetic:
+    //
+    //  (1) ADR 0009 D2's amendment requires the MM option profile to freeze
+    //      BEFORE OoT's Fill(), because the reverse-pool membership rule
+    //      (criterion 3, games/mm/2s2h/Rando/ForeignItemsSingleExe.cpp) excludes
+    //      whole item families ONLY because "OoT's placement pass runs at OoT
+    //      generation time — possibly before the paired MM world exists at all".
+    //      That is a TIMING accident, and this is the line that retires it: from
+    //      here on, everything downstream — the fill, both crossing passes, the
+    //      MM generation the creation seam now runs (z_sram.c) — reads one
+    //      frozen surface, and nothing reads a CVar.
+    //  (2) Increment 3's single-bag fill IS Fill(), so a freeze that happens
+    //      after it can never be the fill's input. Moving it now is what makes
+    //      that increment a change of algorithm rather than a change of order.
+    //
+    // NOTHING HERE CONSUMES THE RNG STREAM, which is why moving it above Fill()
+    // does not move a single generated world: MM_Rando_ComputeProfileStamp reads
+    // CVars and hashes, Combo_ResolveComboSettings reads CVars, and
+    // Combo_FreezeComboSettings is a struct copy plus an FNV fold. Random_Init
+    // above is the last thing to touch the stream before Fill() draws from it,
+    // exactly as before. (SeedDeterminism / MMRandoGen / HeadlessForeignDigest
+    // are unchanged by this commit, and that is the acceptance bar for it.)
+    //
+    // ORDER INSIDE THE BLOCK IS ADR 0011 decision 4.1's ORDER AND IS
+    // LOAD-BEARING: seed + settings hash -> MM profile digest -> combo record ->
+    // comboSettingsHash LAST, because the fingerprint folds both half-digests
+    // (accepted answer O6 — a digest narrower than the generator's input set is
+    // vacuous), so computing it any earlier would fold a term not yet decided.
+    //
+    // ROLLBACK, NOT "STAMP AND HOPE". #564 step 8 says the identity is published
+    // as the post-condition of the WHOLE creation: no partial identity, ever.
+    // Freezing before the fill means a fill that fails would otherwise leave a
+    // stamped identity behind with no world under it — the exact state
+    // Combo_MMProfileFrozen() and the options pane read as "this world's rules
+    // are decided". So the previous terms are snapshotted here and restored on
+    // every failure exit below. The two states are "fully frozen" and
+    // "untouched"; there is no third.
+    // ========================================================================
+    const bool rsbsPriorSourceIsRando = gComboCtx.sourceIsRando;
+    const uint32_t rsbsPriorSeed = gComboCtx.sharedRandoSeed;
+    const uint32_t rsbsPriorSettingsHash = gComboCtx.sharedRandoSettingsHash;
+    const uint32_t rsbsPriorMmProfileDigest = gComboCtx.mmProfileDigest;
+    const ComboSettingsRecord rsbsPriorComboSettings = gComboCtx.comboSettings;
+    const uint32_t rsbsPriorComboSettingsHash = gComboCtx.comboSettingsHash;
+    const uint32_t rsbsPriorGiveCaps = Combo_ForeignGiveCaps((uint8_t)GAME_MM);
+    const bool rsbsPriorGiveCapsPublished = Combo_ForeignGiveCapsPublished((uint8_t)GAME_MM);
+    auto rsbsRollbackFreeze = [&]() {
+        gComboCtx.sourceIsRando = rsbsPriorSourceIsRando;
+        gComboCtx.sharedRandoSeed = rsbsPriorSeed;
+        gComboCtx.sharedRandoSettingsHash = rsbsPriorSettingsHash;
+        gComboCtx.mmProfileDigest = rsbsPriorMmProfileDigest;
+        gComboCtx.comboSettings = rsbsPriorComboSettings;
+        gComboCtx.comboSettingsHash = rsbsPriorComboSettingsHash;
+        Combo_ClearForeignGiveCaps();
+        if (rsbsPriorGiveCapsPublished) {
+            Combo_PublishForeignGiveCaps((uint8_t)GAME_MM, rsbsPriorGiveCaps);
+        }
+        SPDLOG_ERROR("Paired identity: generation failed; the creation freeze was rolled back (no partial identity)");
+    };
+
+    // THE PRE-FILL PAIRING GATE (ADR 0009 decision 2; ADR 0010 :615;
+    // solver-inventory P2). Implemented since #628 and, until now, called by
+    // nothing but a unit test — the predicate existed, the GATE it was designed
+    // for did not. It is asked HERE, in the future tense, before a single item
+    // is placed, because that is the only place an answer can still shape the
+    // fill; increment 3's single-bag fill is its real consumer. Increment 2 uses
+    // it to decide, once and up front, whether this creation authors crossings
+    // at all, and records the answer for the creation seam so the seam cannot
+    // reach a different conclusion later from a re-read CVar.
+    const bool rsbsPairingRequested = Combo_ForeignPairingRequested();
+
+    // The progress surface (#582), OoT's half. Two sessions per paired creation,
+    // not one: this one measures the staged OoT generation, and the file-create
+    // seam opens a second one for the MM half. Measuring them as one session
+    // would fold in however long the player spent in the menu between pressing
+    // Generate and creating the file, which is not a cost anything can budget.
+    Combo_GenProgress_Begin();
+    Combo_GenProgress_Report((uint8_t)RSBS_GENPHASE_FREEZE, 0, nullptr);
+
+    // Lane B unified-seed producer (ADR 0002 §3) — the ONE sanctioned stamp site
+    // (#598). OoT's legacy freeze-time producer (OoT_FreezeState) was deleted
+    // outright and MM's mirror sits behind a never-defined macro, so neither is
+    // precedent for a second writer. Both the live GUI path (RandoMain::
+    // GenerateRando -> GenerateRandomizer -> here) and the headless harness
+    // (Rando_HeadlessSeedTest -> GenerateRandomizer -> here) funnel through this
+    // point. `seed` == ctx->GetSeed() (the caller passes exactly that). These
+    // are carried through file-create invalidation by the KEEP policy
+    // (context.cpp).
+    gComboCtx.sourceIsRando = true;
+    gComboCtx.sharedRandoSeed = seed;
+    gComboCtx.sharedRandoSettingsHash = rsbsSettingsHash;
+
+    // The MM half's option profile, frozen INTO the pairing identity.
+    // MM_Rando_ComputeProfileStamp resolves the full profile (every registered
+    // option with the resolved RO_LOGIC pin, excluded checks, starting items)
+    // from the CVars through the SAME computation MM's arrival re-runs to
+    // compare; a mismatch at arrival is refused through the #533 machinery,
+    // never honored. This is its ONLY writer for post-freeze pairs.
+    gComboCtx.mmProfileDigest = MM_Rando_ComputeProfileStamp();
+    // ...and the VALUES half of the same freeze (ADR 0011 O8): the give
+    // capabilities the frozen profile arms, published game-neutrally so the
+    // reverse placement pass below can finally ask a question a digest could
+    // never answer. See foreign_items.h.
+    MM_Rando_PublishProfileGiveCaps(/*fromSave=*/0);
+    SPDLOG_INFO("Paired identity: MM profile frozen at creation (digest {:08X}, giveCaps {:04X}, pairing requested {})",
+                gComboCtx.mmProfileDigest, Combo_ForeignGiveCaps((uint8_t)GAME_MM), rsbsPairingRequested ? 1 : 0);
+
+    // ADR 0011 decision 4.1: the creation event also freezes the COMBO-LEVEL
+    // rules — the ones governing the crossing itself, which belong to neither
+    // game's save by construction — and computes the whole-pair fingerprint over
+    // all three terms.
+    {
+        ComboSettingsRecord comboSettings;
+        Combo_ResolveComboSettings(&comboSettings);
+        Combo_FreezeComboSettings(&comboSettings);
+        SPDLOG_INFO("Paired identity: combo settings frozen at creation (fingerprint {:08X})",
+                    gComboCtx.comboSettingsHash);
+    }
+#endif
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+    Combo_GenProgress_Report((uint8_t)RSBS_GENPHASE_OOT_FILL, 0, nullptr);
+#endif
     int ret = Fill();
     if (ret < 0) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+        rsbsRollbackFreeze();
+        Combo_GenProgress_End(false);
+#endif
         return ret;
     }
 
@@ -95,6 +231,9 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
         // TODO: Handle different types of file output (i.e. Spoiler Log, Plando Template, Patch Files, Race Files,
         // etc.)
         //  write logs
+#ifdef RSBS_SINGLE_EXECUTABLE
+        Combo_GenProgress_Report((uint8_t)RSBS_GENPHASE_SPOILER, 0, nullptr);
+#endif
         SPDLOG_INFO("Writing Spoiler Log...");
         StartPerformanceTimer(PT_SPOILER_LOG);
         if (SpoilerLog_Write()) {
@@ -108,63 +247,33 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
     ctx->playthroughLocations.clear();
     ctx->playthroughBeatable = false;
 
-    // Lane B unified-seed producer (ADR 0002 §3): publish this OoT world's
-    // identity into the process-global ComboContext at GENERATION time — NOT at
-    // freeze time. This is the ONE sanctioned stamp site (#598): OoT's legacy
-    // freeze-time producer (OoT_FreezeState) has been deleted outright, and MM's
-    // mirror in games/mm/2s2h/BenPort.cpp sits behind the same never-defined
-    // `SINGLE_EXECUTABLE_BUILD` macro — neither is precedent for a second
-    // writer. Both the live GUI path
-    // (RandoMain::GenerateRando -> GenerateRandomizer -> here) and the headless
-    // harness (Rando_HeadlessSeedTest -> GenerateRandomizer -> here) funnel
-    // through this one point, and we only reach it on a fully successful fill +
-    // spoiler write. `seed` == ctx->GetSeed() (the caller passes exactly that).
-    // MM (Lane C) consumes these when it becomes reachable, to reproduce the
-    // paired world (sharedRandoSeed) and verify the pinned settings profile
-    // matches (sharedRandoSettingsHash).
+#ifndef RSBS_SINGLE_EXECUTABLE
+    // Lane B unified-seed producer (ADR 0002 §3), standalone-SoH shape. In the
+    // single exe this stamp moved ABOVE Fill() with the rest of the creation
+    // freeze (see the block there); a standalone SoH has no MM half, no combo
+    // record and no crossing pass, so there is nothing for it to precede and the
+    // post-hoc stamp stays where it was.
     gComboCtx.sourceIsRando = true;
     gComboCtx.sharedRandoSeed = seed;
     gComboCtx.sharedRandoSettingsHash = rsbsSettingsHash;
+#endif
 
 #ifdef RSBS_SINGLE_EXECUTABLE
-    // #498/#564 phase 2 step 9: the creation event freezes the MM half's
-    // option profile INTO the pairing identity, here, alongside the seed and
-    // settings stamps it already publishes — everything about the one game
-    // decides at one creation event. MM_Rando_ComputeProfileStamp resolves the
-    // full profile (47 options with the resolved RO_LOGIC pin, excluded
-    // checks, starting items) from the CVars through the SAME computation MM's
-    // arrival re-runs to compare; a mismatch at arrival is refused through the
-    // #533 machinery, never honored. This stamp — like the two above — is
-    // carried through file-create invalidation by the KEEP policy
-    // (context.cpp), and this is its ONLY writer for post-freeze pairs.
-    gComboCtx.mmProfileDigest = MM_Rando_ComputeProfileStamp();
-    SPDLOG_INFO("Paired identity: MM profile frozen at creation (digest {:08X})", gComboCtx.mmProfileDigest);
-
-    // ADR 0011 decision 4.1: the creation event also freezes the COMBO-LEVEL
-    // rules — the ones governing the crossing itself, which belong to neither
-    // game's save by construction — and computes the whole-pair fingerprint
-    // over all three terms.
+    // #510, the reverse foreign pool: hand a few MM items to OoT checks, under
+    // the identity and the combo record frozen ABOVE Fill(). The placement
+    // stream is derived from that identity, so the order is load-bearing — not
+    // stylistic — and it is now the freeze, not this call site, that guarantees
+    // it.
     //
-    // THE ORDER HERE IS THE ADR'S ORDER AND IT IS LOAD-BEARING: resolve the
-    // combo record -> stamp sharedRandoSettingsHash (above) -> stamp
-    // mmProfileDigest (above) -> compute comboSettingsHash LAST. The fingerprint
-    // folds both half-digests (accepted answer O6, because a digest narrower
-    // than the generator's input set is vacuous), so computing it any earlier
-    // would fold a term that has not been decided yet.
-    //
-    // Frozen BEFORE OoT_PlaceForeignItems below, because that pass reads the
-    // record's pool size — the same reason the identity stamp has to precede it.
-    {
-        ComboSettingsRecord comboSettings;
-        Combo_ResolveComboSettings(&comboSettings);
-        Combo_FreezeComboSettings(&comboSettings);
-        SPDLOG_INFO("Paired identity: combo settings frozen at creation (fingerprint {:08X})",
-                    gComboCtx.comboSettingsHash);
-    }
-
-    // #510, the reverse foreign pool: hand a few MM items to OoT checks now that
-    // this world's paired identity is stamped just above (the placement stream is
-    // derived from it, so the order is load-bearing — not stylistic).
+    // WHY THIS PASS STAYS HERE while the FORWARD pass moved to the file-create
+    // seam (see OoT_RunPairedCreationEvent, ForeignItemsSingleExe.cpp). Its
+    // input is OoT's finished fill, which exists exactly here; its rules are the
+    // frozen record, which now exists before the fill; and it consumes no RNG
+    // stream (a local xorshift seeded from the identity). Moving it would
+    // therefore change nothing observable while re-pinning four locks, so it
+    // moves when it has a REASON to move: increment 3's single-bag fill, where
+    // both directions become one draw over one bag and the whole fill relocates
+    // with them.
     //
     // The #ifdef is required, not defensive: OoT_PlaceForeignItems exists only in
     // the single-exe build, while Playthrough_Init is ordinary OoT code that also
@@ -175,11 +284,15 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
     // would std::terminate the headless CI rows and the live generate alike.
     // A PARTIAL placement is not a failure and returns >= 0; only "the pairing is
     // on but could not be honoured at all" is negative (see foreign_items.h).
+    Combo_GenProgress_Report((uint8_t)RSBS_GENPHASE_CROSSINGS, 0, "linking Termina's items into Hyrule");
     const int foreignPlaced = OoT_PlaceForeignItems();
     if (foreignPlaced < 0) {
         SPDLOG_ERROR("Cross-game foreign placement failed ({}); aborting generation", foreignPlaced);
+        rsbsRollbackFreeze();
+        Combo_GenProgress_End(false);
         return foreignPlaced;
     }
+    Combo_GenProgress_End(true);
 #endif
 
     return 1;

@@ -125,6 +125,10 @@ extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
 extern "C" {
 // The production bring-up under test. Declared, never defined here.
 void MM_Rando_Init(void);
+// ADR 0010 increment 2 (P13): the core/asset split's observable and the
+// asset phase's #618 entry, both driven directly by this row.
+int MM_Rando_AssetPhaseLatched(void);
+
 // #618 (#516 Phase 3) state, recorded by MM_ExtensionRescan_AfterArchiveMount
 // in GameExports_SingleExe.cpp. Declaring the ACCESSORS rather than the two
 // restored entries keeps this row from becoming an inbound reference to
@@ -133,6 +137,9 @@ void MM_Rando_Init(void);
 int MM_ExtensionRescan_Scanned(void);
 int MM_ExtensionRescan_FlipbooksPatchedAfterScan(void);
 int MM_ExtensionRescan_CallCount(void);
+// The asset phase's #618 entry point, driven by name below (ADR 0010 increment
+// 2 moved it out of the core phase — see the call site for why).
+void MM_ExtensionRescan_AfterArchiveMount(void);
 }
 
 namespace {
@@ -216,7 +223,29 @@ extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
 
     // ---- The production bring-up -------------------------------------------
     // Once-only guarded internally; this row is the only caller in its process.
+    //
+    // TWO PHASES since ADR 0010 increment 2 (solver-inventory P13). The CORE
+    // phase is everything in this row's coverage; the ASSET phase DEFERS with no
+    // archives mounted, which is its entire purpose — the creation event runs
+    // the core phase at OoT's file-create seam with MM never booted, and a latch
+    // consumed there would rob the real MM boot of GfxPatcher, the tracker icons,
+    // the asset-gated display-list copies and the ExtensionCache rescan.
     MM_Rando_Init();
+
+    // P13, asserted rather than assumed: a full MM_Rando_Init in a ROM-free
+    // process must leave the asset phase UNLATCHED. If this ever reads 1 here,
+    // the split has silently collapsed back into one guard and the next real MM
+    // boot after a creation event will skip every asset-dependent step.
+    RC_ASSERT(MM_Rando_AssetPhaseLatched() == 0, 10,
+              "the ASSET phase latched in a ROM-free process — a creation-time core bring-up would consume the "
+              "real MM boot's asset work (ADR 0010 increment 2, P13)");
+
+    // #618's trailing InitOTR pair belongs to the ASSET phase (the flipbook
+    // patch self-latches, so it must not run before the ExtensionCache has seen
+    // MM's archives). Driven by name here, which is what keeps this row's #618
+    // coverage ROM-free: it is the SAME function the asset phase calls, at the
+    // same point in the order.
+    MM_ExtensionRescan_AfterArchiveMount();
 
     // ---- CustomItem::RegisterHooks (#516 critical) -------------------------
     // Without it CustomItem::Spawn's ACTOR_EN_ITEM00/ITEM00_NOTHING placeholder

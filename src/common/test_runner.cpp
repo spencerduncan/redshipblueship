@@ -6,6 +6,10 @@
 #include "test_runner.h"
 #include "context.h"
 #include "entrance.h"
+#include "foreign_items.h" // ADR 0010 inc. 2: the frozen record + the O8 give-caps surface
+#include "gen_budget.h"    // ADR 0010 inc. 2: the #582 fill budget + progress surface
+#include "save.h"          // the #533 slot-session surface the creation/arrival legs reset
+
 #include "integration_test_hooks.h"
 #include "headless_crash.h"
 #include "rsbs_version.h"
@@ -1006,6 +1010,333 @@ TestResult Test_RandoDeterminism(void) {
     int mmRc = MM_Rando_HeadlessForeignDigest(digestOut);
     printf("[TEST] %s: foreign-placement digest rc=%d\n", mmRc == 0 ? "PASS" : "FAIL", mmRc);
     return mmRc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// ============================================================================
+// ADR 0010 INCREMENT 2 — THE MERGED CREATION EVENT, END TO END (epic #644)
+//
+// One row, because the increment's claims are about ORDER and they only mean
+// anything together. Each numbered leg below is one of the locks the epic's
+// deliverable 3 names, and each is written so the failure mode it guards is the
+// thing that turns it red — not a paraphrase of it.
+//
+//   1  the freeze PRECEDES OoT's Fill() (P1; ADR 0009 D2's amendment), observed
+//      through the progress surface's phase order rather than inferred from a
+//      value being set afterwards
+//   2  the values-publishing surface exists and is published by that freeze
+//      (ADR 0011 O8)
+//   3  creation-time generation runs with MM NEVER BOOTED, authors the MM half
+//      and ARMS it, and dispatches MM's generation entry point EXACTLY ONCE
+//   4  OoT's in-progress save survives the snapshot bracket BYTE-EXACT — the
+//      one thing that can go silently wrong when two games share one
+//      gSaveContext buffer (src/common/unified_save.c)
+//   5  an arrival with a valid shadow HYDRATES and generates NOTHING (the
+//      generation dispatch counter does not move)
+//   6  an arrival with a DIVERGENT identity refuses, still does not generate,
+//      and does not self-heal the stamp
+//   7  the single spoiler artifact carries both halves and both crossing
+//      directions (#660)
+//   8  the #582 budget numbers are the ruled ones
+//   9  #585's join is in force (MM_Rando_Logic_JoinOrderProbe: red before the
+//      fix, green after)
+//
+// WHY THE `rando` TIER. Every leg downstream of 1 needs a REAL OoT fill: the
+// creation event refuses to run without a live pairing identity, and the
+// reverse placement pass reads fill results. A ROM-free run would pass legs 3-7
+// with empty tables — the same vacuity trap foreign-placement-oot records.
+// ============================================================================
+extern "C" {
+int OoT_RunPairedCreationEvent(int slot);
+int MM_Rando_GateCrossGameArrival(void);
+void MM_Rando_HydrateCrossGameArrival(int hadFrozenState, int refused);
+uint32_t MM_Rando_OnSaveInitDispatchCount(void);
+int MM_Rando_Logic_JoinOrderProbe(void);
+void MM_Rando_LastPairedSpoilerStats(int* outForward, int* outReverse, int* outIdentityOk);
+int Combo_ConsumeFrozenState(const char* gameId, void* saveContext, size_t size);
+// The UNIFIED save buffer (src/common/unified_save.c): one char array both games
+// reinterpret through their own layouts. Declared as what it is, because leg 4
+// compares it byte for byte and neither game's struct spans all of it.
+extern char gSaveContext[];
+}
+
+// Leg 1's observable. The progress surface reports a phase at each boundary of
+// the creation; recording the order is how "the freeze precedes the fill"
+// becomes an assertion instead of a comment.
+static uint8_t sCreationPhaseOrder[16];
+static int sCreationPhaseCount = 0;
+
+static void CreationPhaseSink(const ComboGenProgress* progress) {
+    const int cap = (int)(sizeof(sCreationPhaseOrder) / sizeof(sCreationPhaseOrder[0]));
+    if (progress != NULL && sCreationPhaseCount < cap) {
+        sCreationPhaseOrder[sCreationPhaseCount++] = progress->phase;
+    }
+}
+
+static int CreationPhaseIndexOf(uint8_t phase) {
+    for (int i = 0; i < sCreationPhaseCount; i++) {
+        if (sCreationPhaseOrder[i] == phase) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+TestResult Test_ComboCreationEvent(void) {
+    printf("[TEST] combo-creation-event: the whole paired creation runs at one seam; the arrival hydrates or "
+           "refuses (ADR 0010 increment 2, #644)\n");
+
+    auto shipCtx = CreateHarnessStyleContext();
+    if (!shipCtx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    // ------------------------------------------------------------------
+    // Leg 8 — the #582 budget numbers, asserted BEFORE anything arms an
+    // override, so the values under test are the shipped ones.
+    // ------------------------------------------------------------------
+    {
+        const uint32_t scale = Combo_GenBudget_HostScalePercent();
+        const uint32_t perAttempt = Combo_GenBudget_FillBudgetMs(0);
+        const uint32_t total = Combo_GenBudget_TotalBudgetMs();
+        printf("[TEST] budget: host scale %u%%, per-attempt %ums, total %ums\n", scale, perAttempt, total);
+        if (scale < 100u || scale > (uint32_t)RSBS_GENBUDGET_MAX_SCALE_PERCENT) {
+            printf("[TEST] FAIL: host scale %u%% outside [100, %u]\n", scale,
+                   (unsigned)RSBS_GENBUDGET_MAX_SCALE_PERCENT);
+            return TEST_FAIL;
+        }
+        // THE OPERATOR'S FLOOR. "~30 second cap as the floor" is a product
+        // decision (#582, 2026-08-04); a tuning pass that quietly drops below it
+        // changes what was ruled, so the number is asserted rather than trusted.
+        if (perAttempt < (uint32_t)RSBS_GENBUDGET_FLOOR_MS || perAttempt > (uint32_t)RSBS_GENBUDGET_CEILING_MS) {
+            printf("[TEST] FAIL: per-attempt budget %ums outside [%u, %u]\n", perAttempt,
+                   (unsigned)RSBS_GENBUDGET_FLOOR_MS, (unsigned)RSBS_GENBUDGET_CEILING_MS);
+            return TEST_FAIL;
+        }
+        if (total != perAttempt * (uint32_t)RSBS_GENBUDGET_TOTAL_MULTIPLIER) {
+            printf("[TEST] FAIL: total budget %ums is not %u x the per-attempt budget\n", total,
+                   (unsigned)RSBS_GENBUDGET_TOTAL_MULTIPLIER);
+            return TEST_FAIL;
+        }
+        // A slower host must get MORE, never less — the point of calibrating at
+        // all. Pinning the scale afterwards keeps the rest of this row
+        // reproducible on any CI machine.
+        Combo_GenBudget_SetHostScalePercentOverride(200);
+        if (Combo_GenBudget_FillBudgetMs(0) < perAttempt) {
+            printf("[TEST] FAIL: a 2x-slower host got a SMALLER budget\n");
+            return TEST_FAIL;
+        }
+        Combo_GenBudget_SetHostScalePercentOverride(100);
+        if (Combo_GenBudget_FillBudgetMs(0) != (uint32_t)RSBS_GENBUDGET_FLOOR_MS) {
+            printf("[TEST] FAIL: the reference host did not get exactly the floor\n");
+            return TEST_FAIL;
+        }
+        Combo_GenBudget_SetHostScalePercentOverride(0);
+    }
+
+    // ------------------------------------------------------------------
+    // Legs 1-2 — a REAL OoT generation, with the phase order recorded.
+    // ------------------------------------------------------------------
+    sCreationPhaseCount = 0;
+    Combo_GenProgress_SetSink(CreationPhaseSink);
+
+    const char* kSeed = "RSBSINC2CREATION";
+    int rc = Rando_HeadlessSeedTest(kSeed);
+    if (rc != 0) {
+        printf("[TEST] FAIL: seed generation rc=%d\n", rc);
+        Combo_GenProgress_SetSink(NULL);
+        return TEST_FAIL;
+    }
+
+    const int freezeAt = CreationPhaseIndexOf((uint8_t)RSBS_GENPHASE_FREEZE);
+    const int fillAt = CreationPhaseIndexOf((uint8_t)RSBS_GENPHASE_OOT_FILL);
+    if (freezeAt < 0 || fillAt < 0 || freezeAt >= fillAt) {
+        // THE LOCK P1 IS ABOUT. Before this increment the MM profile digest and
+        // the combo record were stamped AFTER Fill() and after the spoiler — a
+        // post-hoc receipt of a world already decided, which is exactly why
+        // reverse-pool criterion 3 could say "OoT's placement pass cannot read
+        // MM's option profile". Ordering is the deliverable, so ordering is the
+        // assertion.
+        printf("[TEST] FAIL: the creation freeze did not precede OoT's Fill() (freeze idx %d, fill idx %d) — ADR "
+               "0009 D2's amendment is what this increment delivers\n",
+               freezeAt, fillAt);
+        Combo_GenProgress_SetSink(NULL);
+        return TEST_FAIL;
+    }
+    printf("[TEST] freeze precedes Fill() (phase order index %d < %d)\n", freezeAt, fillAt);
+
+    if (!Combo_ComboSettingsFrozen()) {
+        printf("[TEST] FAIL: generation did not freeze the combo record\n");
+        Combo_GenProgress_SetSink(NULL);
+        return TEST_FAIL;
+    }
+    // ADR 0011 O8's values-publishing surface. "Published" and "arms nothing"
+    // are different states, and the narrowing that will consume this depends on
+    // telling them apart — so published-ness is what is asserted.
+    if (!Combo_ForeignGiveCapsPublished((uint8_t)GAME_MM)) {
+        printf("[TEST] FAIL: the freeze published no MM give capabilities — ADR 0011 O8's surface is missing\n");
+        Combo_GenProgress_SetSink(NULL);
+        return TEST_FAIL;
+    }
+    printf("[TEST] MM give capabilities published: %04X\n", (unsigned)Combo_ForeignGiveCaps((uint8_t)GAME_MM));
+
+    // ------------------------------------------------------------------
+    // Legs 3-4 — the creation event itself, bracketed.
+    // ------------------------------------------------------------------
+    // A recognisable pattern across the WHOLE unified buffer, so leg 4 catches a
+    // restore that is merely "the right size" as well as one that is missing.
+    static unsigned char sBefore[OOT_SAVE_CONTEXT_SIZE];
+    unsigned char* saveBytes = (unsigned char*)gSaveContext;
+    for (size_t i = 0; i < (size_t)OOT_SAVE_CONTEXT_SIZE; i++) {
+        saveBytes[i] = (unsigned char)(0xA5u ^ (unsigned char)(i * 31u));
+    }
+    memcpy(sBefore, saveBytes, sizeof(sBefore));
+
+    const uint32_t dispatchesBeforeCreation = MM_Rando_OnSaveInitDispatchCount();
+    sCreationPhaseCount = 0;
+    const int created = OoT_RunPairedCreationEvent(0);
+    const uint32_t dispatchesAfterCreation = MM_Rando_OnSaveInitDispatchCount();
+    const uint32_t creationMs = Combo_GenProgress_Current()->elapsedMs;
+    Combo_GenProgress_SetSink(NULL);
+
+    if (!created) {
+        printf("[TEST] FAIL: the paired creation event failed for the pinned seed\n");
+        return TEST_FAIL;
+    }
+    if (memcmp(sBefore, saveBytes, sizeof(sBefore)) != 0) {
+        // gSaveContext is ONE buffer both games reinterpret. If the bracket ever
+        // stops restoring it, the file the seam is in the middle of creating is
+        // overwritten with MM's world and written to disk that way.
+        printf("[TEST] FAIL: the creation event did not restore OoT's gSaveContext byte-exact — MM's world leaked "
+               "into the file being created (src/common/unified_save.c)\n");
+        return TEST_FAIL;
+    }
+    if (dispatchesAfterCreation != dispatchesBeforeCreation + 1u) {
+        printf("[TEST] FAIL: the creation event dispatched MM generation %u times, expected exactly 1\n",
+               (unsigned)(dispatchesAfterCreation - dispatchesBeforeCreation));
+        return TEST_FAIL;
+    }
+    if (!Context_HasFrozenState(GAME_MM)) {
+        printf("[TEST] FAIL: the creation event authored no ARMED MM half — the arrival would have nothing to "
+               "hydrate\n");
+        return TEST_FAIL;
+    }
+    if (Context_GetFrozenReturnEntrance(GAME_MM) != MM_ENTR_SOUTH_CLOCK_TOWN_0) {
+        printf("[TEST] FAIL: the armed MM half's return entrance is %04X, expected South Clock Town\n",
+               (unsigned)Context_GetFrozenReturnEntrance(GAME_MM));
+        return TEST_FAIL;
+    }
+    if (CreationPhaseIndexOf((uint8_t)RSBS_GENPHASE_PUBLISH) < 0) {
+        printf("[TEST] FAIL: the creation event reported no publish phase — the progress surface is not wired\n");
+        return TEST_FAIL;
+    }
+    // P12's measurement, printed on every run so a cost regression is visible in
+    // CI logs before it is a player complaint.
+    printf("[TEST] creation event: MM half authored and armed, one generation dispatch, OoT's save intact, %ums\n",
+           creationMs);
+
+    // ------------------------------------------------------------------
+    // Leg 5 — the arrival HYDRATES and generates nothing.
+    // ------------------------------------------------------------------
+    {
+        const uint32_t before = MM_Rando_OnSaveInitDispatchCount();
+        const int refused = MM_Rando_GateCrossGameArrival();
+        if (refused) {
+            printf("[TEST] FAIL: a healthy pair's arrival was refused\n");
+            return TEST_FAIL;
+        }
+        const int hadFrozenState = Combo_ConsumeFrozenState("mm", gSaveContext, (size_t)OOT_SAVE_CONTEXT_SIZE);
+        if (!hadFrozenState) {
+            printf("[TEST] FAIL: the arrival found no frozen MM half to hydrate\n");
+            return TEST_FAIL;
+        }
+        MM_Rando_HydrateCrossGameArrival(hadFrozenState, refused);
+        if (MM_Rando_OnSaveInitDispatchCount() != before) {
+            // ADR 0010 increment 2 deletes the arrival's generation dispatch
+            // outright. This counter is what keeps it deleted.
+            printf("[TEST] FAIL: the arrival DISPATCHED GENERATION — it must hydrate or refuse, never author\n");
+            return TEST_FAIL;
+        }
+        printf("[TEST] arrival: hydrated the frozen MM half, zero generation dispatches\n");
+    }
+
+    // ------------------------------------------------------------------
+    // Leg 6 — a DIVERGENT identity is refused, still without generating.
+    // ------------------------------------------------------------------
+    {
+        const uint32_t before = MM_Rando_OnSaveInitDispatchCount();
+        const uint32_t frozenDigest = gComboCtx.mmProfileDigest;
+        const uint32_t divergent = frozenDigest ^ 0x5A5A5A5Au; // "the options changed after creation"
+        gComboCtx.mmProfileDigest = divergent;
+        const int refused = MM_Rando_GateCrossGameArrival();
+        if (!refused) {
+            printf("[TEST] FAIL: a divergent MM profile was not refused at the arrival\n");
+            gComboCtx.mmProfileDigest = frozenDigest;
+            return TEST_FAIL;
+        }
+        MM_Rando_HydrateCrossGameArrival(/*hadFrozenState=*/0, refused);
+        if (MM_Rando_OnSaveInitDispatchCount() != before) {
+            printf("[TEST] FAIL: a refused arrival still dispatched generation\n");
+            gComboCtx.mmProfileDigest = frozenDigest;
+            return TEST_FAIL;
+        }
+        // NEVER self-healed: overwriting the stamp with the divergent value would
+        // make every divergence disappear the instant it was detected.
+        if (gComboCtx.mmProfileDigest != divergent) {
+            printf("[TEST] FAIL: the refusal rewrote the identity stamp\n");
+            return TEST_FAIL;
+        }
+        gComboCtx.mmProfileDigest = frozenDigest;
+        printf("[TEST] arrival: a divergent identity is refused, nothing generated, the stamp untouched\n");
+    }
+
+    // ------------------------------------------------------------------
+    // Leg 7 — ONE spoiler artifact carrying both halves and both crossing
+    // directions (#660). The counts come from the joiner RE-READING the file it
+    // wrote, so this asserts what landed on disk rather than what was built.
+    // ------------------------------------------------------------------
+    {
+        int forward = 0;
+        int reverse = 0;
+        int identityOk = 0;
+        MM_Rando_LastPairedSpoilerStats(&forward, &reverse, &identityOk);
+        if (!identityOk) {
+            printf("[TEST] FAIL: no combined spoiler was written, or its embedded identity is not this pair's "
+                   "(#660)\n");
+            return TEST_FAIL;
+        }
+        if (forward == 0 || reverse == 0) {
+            // A stable-but-empty section is the vacuity this leg exists to
+            // avoid: the counts are what prove the sections describe a world,
+            // and the reverse placements appeared in NEITHER old artifact.
+            printf("[TEST] FAIL: the spoiler's crossing sections are empty (%d forward, %d reverse)\n", forward,
+                   reverse);
+            return TEST_FAIL;
+        }
+        printf("[TEST] spoiler: ONE artifact with both worlds and %d + %d crossings\n", forward, reverse);
+    }
+
+    // ------------------------------------------------------------------
+    // Leg 9 — #585's join.
+    // ------------------------------------------------------------------
+    {
+        const int probeRc = MM_Rando_Logic_JoinOrderProbe();
+        if (probeRc != 0) {
+            printf("[TEST] FAIL: the #585 join probe returned %d\n", probeRc);
+            return TEST_FAIL;
+        }
+        printf("[TEST] #585: the fill's reachability traversal joins time states instead of first-visit-wins\n");
+    }
+
+    ComboContext_Init();
+    RsbsSave_ResetSlotSessionState();
+    printf("[TEST] PASS: one creation event authored both halves; the arrival hydrates or refuses and never "
+           "generates\n");
+    return TEST_PASS;
 }
 
 // ============================================================================
@@ -2626,6 +2957,15 @@ const TestDescriptor gTests[] = {
     // no fill it accepts nothing and the lock would pass vacuously.
     {"foreign-placement-oot", "Real OoT fill hosts MM items deterministically; MM's award chain accepts them (#510)",
      Test_ForeignPlacementOoT},
+    // ADR 0010 increment 2 (#644): the whole paired creation at one seam,
+    // the arrival reduced to hydrate-or-refuse, the #582 budget, the one
+    // spoiler and #585's join. Same tier and the same reason as the row
+    // above: without a REAL fill every table is empty and the legs pass
+    // vacuously.
+    {"combo-creation-event",
+     "One creation event authors both halves; arrival hydrates or refuses and never generates (ADR 0010 "
+     "increment 2, #644)",
+     Test_ComboCreationEvent},
     // #439: the paired world must activate on the SWITCH-ENTRY path (the only
     // flow a player actually takes), not just the direct OnSaveInit chain.
     // Same display requirement as mm-rando-gen, so `--test all` skips it.
@@ -3072,7 +3412,8 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "mm-reload-arm-state") == 0 ||
                 strcmp(gTests[i].name, "mm-moon-crash-arm-state") == 0 ||
                 strcmp(gTests[i].name, "mm-owl-save-arm-state") == 0 ||
-                strcmp(gTests[i].name, "foreign-placement-oot") == 0) {
+                strcmp(gTests[i].name, "foreign-placement-oot") == 0 ||
+                strcmp(gTests[i].name, "combo-creation-event") == 0) {
                 printf("\n--- Skipping: %s (needs display; runs as a rando-label CTest) ---\n", gTests[i].name);
                 continue;
             }

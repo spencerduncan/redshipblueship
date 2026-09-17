@@ -3,8 +3,9 @@
  * 1, #498). CTest label "redship" (display-free); row `mm-combo-settings-gate`
  * in src/common/test_runner.cpp.
  *
- * Lives MM-side because the surface under test is `MM_Rando_PairOnCrossGameArrival`
- * — the REAL arrival gate, the one the Happy Mask Shop hand-off runs through
+ * Lives MM-side because the surface under test is the REAL arrival gate
+ * (`MM_Rando_GateCrossGameArrival` + `MM_Rando_HydrateCrossGameArrival`), the
+ * pair the Happy Mask Shop hand-off runs through
  * (games/mm/2s2h/GameExports_SingleExe.cpp, called from
  * MM_Play_ConsumeStartupEntrance) — and because reaching its combo leg means
  * first satisfying its MM-profile leg, which needs MM's option tables.
@@ -43,9 +44,9 @@
  * every "this MM save already exists" early return on purpose (all of them are
  * still crossings, and a legacy pair that always has a restored MM session
  * would otherwise never freeze at all). Passing 1 exercises exactly that
- * placement AND keeps this row ROM-free: with a restored session the gate
- * returns before `GameInteractor_ExecuteOnSaveInit`, so no MM fill is
- * dispatched.
+ * placement AND keeps this row ROM-free — and since ADR 0010 increment 2 the
+ * arrival cannot dispatch a fill at all, which every leg asserts through
+ * MM_Rando_OnSaveInitDispatchCount rather than assuming.
  */
 
 #ifdef RSBS_SINGLE_EXECUTABLE
@@ -66,7 +67,16 @@
 
 extern "C" {
 #include "variables.h"
-void MM_Rando_PairOnCrossGameArrival(int hadFrozenState);
+// ADR 0010 increment 2 split the single arrival function in two: the GATE
+// compares (and runs the O5 transitional freeze) BEFORE the frozen MM half is
+// consumed, and the HYDRATE half repairs/reports/refuses-a-missing-half after.
+// RunArrival below drives them in z_play.c's exact order.
+int MM_Rando_GateCrossGameArrival(void);
+void MM_Rando_HydrateCrossGameArrival(int hadFrozenState, int refused);
+// The generation entry point's dispatch counter. ADR 0010 increment 2 deletes
+// generation from the arrival outright, and this is the observable that keeps it
+// deleted: every leg below asserts it did not move.
+uint32_t MM_Rando_OnSaveInitDispatchCount(void);
 }
 
 namespace {
@@ -80,6 +90,27 @@ int Fail(int code, const char* fmt, ...) {
     va_end(args);
     fflush(stderr);
     return code;
+}
+
+// Drive an arrival exactly as MM_Play_ConsumeStartupEntrance does — gate, then
+// (unless refused) the consume, then hydrate — and ASSERT that no generation was
+// dispatched along the way. `hadFrozenState` stands in for
+// Combo_ConsumeFrozenState's return: this row never restores a real blob, so it
+// passes the answer directly the way the pre-split test passed it to the single
+// function.
+//
+// @return 1 when the gate REFUSED, 0 otherwise; -1 when generation was
+//         dispatched, which is a contract violation rather than an outcome.
+int RunArrival(int hadFrozenState) {
+    const uint32_t beforeDispatches = MM_Rando_OnSaveInitDispatchCount();
+    const int refused = MM_Rando_GateCrossGameArrival();
+    MM_Rando_HydrateCrossGameArrival(hadFrozenState, refused);
+    if (MM_Rando_OnSaveInitDispatchCount() != beforeDispatches) {
+        Fail(99, "the arrival DISPATCHED GENERATION (OnSaveInit) — ADR 0010 increment 2 deletes that dispatch; the "
+                 "MM half is authored at OoT's file-create seam and the arrival may only hydrate or refuse");
+        return -1;
+    }
+    return refused;
 }
 
 constexpr int kSlot = 0;
@@ -202,7 +233,9 @@ extern "C" int MM_ComboSettingsGate_RunHeadless(void) {
             return Fail(1, "leg 1 setup: expected exactly the direction bit, got %04X", (unsigned)bits);
         }
 
-        MM_Rando_PairOnCrossGameArrival(/*hadFrozenState=*/0);
+        if (RunArrival(/*hadFrozenState=*/0) < 0) {
+            return 99;
+        }
 
         const int rc = AssertRefusedNaming(10, "leg 1 (direction diverged)", "direction");
         if (rc != 0) {
@@ -235,12 +268,13 @@ extern "C" int MM_ComboSettingsGate_RunHeadless(void) {
             return Fail(20, "leg 2 setup: the record must start ABSENT (a pre-ADR-0011 pair)");
         }
 
-        // hadFrozenState: a restored MM session. The gate returns before any
-        // generation dispatch, which is exactly the early-return path the
-        // transitional writer has to sit AHEAD of — a legacy pair that always
-        // restores an existing MM save would otherwise stay at formatVersion 0
-        // forever, permanently exempt from comparison.
-        MM_Rando_PairOnCrossGameArrival(/*hadFrozenState=*/1);
+        // hadFrozenState: a restored MM session — the path the transitional
+        // writer has to sit AHEAD of, because a legacy pair that always restores
+        // an existing MM save would otherwise stay at formatVersion 0 forever,
+        // permanently exempt from comparison.
+        if (RunArrival(/*hadFrozenState=*/1) < 0) {
+            return 99;
+        }
 
         if (!Combo_ComboSettingsFrozen()) {
             return Fail(21, "leg 2: one crossing did not freeze a legacy pair — 4.4 would describe a behaviour "
@@ -269,7 +303,9 @@ extern "C" int MM_ComboSettingsGate_RunHeadless(void) {
         // Leg 3 — a SECOND crossing COMPARES rather than re-freezing.
         // --------------------------------------------------------------------
         const uint32_t frozenHash = gComboCtx.comboSettingsHash;
-        MM_Rando_PairOnCrossGameArrival(/*hadFrozenState=*/1);
+        if (RunArrival(/*hadFrozenState=*/1) < 0) {
+            return 99;
+        }
         if (gComboCtx.comboSettingsHash != frozenHash ||
             memcmp(&gComboCtx.comboSettings, &defaults, sizeof(defaults)) != 0) {
             return Fail(30, "leg 3: a second crossing rewrote the frozen record — the transitional writer became a "

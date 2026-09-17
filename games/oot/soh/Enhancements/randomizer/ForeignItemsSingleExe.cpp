@@ -36,6 +36,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdio>
+#include <cstring> // memcpy/memset — the creation event's snapshot bracket
 #include <string>
 #include <vector>
 
@@ -46,8 +47,10 @@
 #include "soh/Enhancements/randomizer/SeedContext.h"
 #include "soh/Enhancements/randomizer/logic.h"
 
-#include "foreign_items.h" // src/common — ComboForeignItemDef, SharedItem
-#include "shared_items.h"  // src/common — Combo_RecordSharedItem (#493)
+#include "foreign_items.h"       // src/common — ComboForeignItemDef, SharedItem
+#include "shared_items.h"        // src/common — Combo_RecordSharedItem (#493)
+#include "notification_bridge.h" // src/common — the shared refusal/failure overlay
+#include "gen_budget.h"          // src/common — the #582 fill budget + progress surface
 
 extern "C" {
 #include <z64.h>
@@ -643,6 +646,267 @@ extern "C" int OoT_ForeignItem_TestExclusionAt(int index, uint16_t* outId, uint8
         *outCriterion = kForeignExclusionsOoT[index].criterion;
     }
     return 1;
+}
+
+
+// ============================================================================
+// THE MERGED CREATION EVENT (ADR 0010 increment 2; #564's creation-event
+// contract; epic #644)
+// ============================================================================
+//
+// WHERE IT RUNS. games/oot/src/code/z_sram.c, inside Save_InitFile, after
+// Context_InvalidateSessionOnNewGame retires the previous cross-game session
+// and after Randomizer_InitSaveFile authors OoT's half, and BEFORE
+// Save_SaveFile writes the slot. That ordering is the whole design: the
+// .redsave this file's very first save produces already carries a complete,
+// armed MM half, so arrival has nothing left to author.
+//
+// WHY THE ORCHESTRATOR IS HERE AND NOT IN z_sram.c. games/oot/src/**.c has no
+// src/common on its include path (the same reason
+// Context_InvalidateSessionOnNewGame is declared locally there), and the seam
+// needs gComboCtx, the MM bridges and a 136KB scratch buffer. z_sram.c declares
+// one function and calls it; everything structural lives in this C++ TU, which
+// already owns the reverse crossing pass.
+//
+// THE SNAPSHOT BRACKET IS NOT OPTIONAL. gSaveContext is ONE buffer shared by
+// both games (src/common/unified_save.c) reinterpreted through two layouts, so
+// MM's generation writes over the OoT file this seam is in the middle of
+// creating. docs/solver-inventory.md §6.1 amendment (1) names this bracket as
+// the first thing any coordinator must do around an MM call, and this is its
+// first production instance. The buffer is snapshotted whole
+// (OOT_SAVE_CONTEXT_SIZE, the larger of the two layouts) rather than at either
+// game's sizeof, because a partial restore would leave MM's bytes visible past
+// OoT's struct end.
+//
+// FAILURE IS TOTAL (ADR 0010 increment 2). "Generation failure fails the
+// creation, at file select, wholly — no partial identity, no vanilla Termina."
+// On any nonzero return from the MM half this function rolls the identity back
+// to nothing, clears both placement tables, and returns nonzero; z_sram.c then
+// abandons the file. The caller sees one boolean and a reason string.
+
+// The MM half of the creation event (games/mm/2s2h/GameExports_SingleExe.cpp).
+extern "C" int MM_Rando_GenerateAtCreation(int slot, const char* ootSpoilerPath);
+// The #533 refusal surface (src/common/save.h) and this file's own
+// file-select failure toast, both raised from the failure branch below so
+// that ONE callable carries the whole terminal-failure contract — z_sram.c
+// only has to not write the file, and the lock can drive the surface without
+// standing up OoT's file select.
+extern "C" void RsbsSave_RefuseSlotGeneration(int slot);
+extern "C" void OoT_Creation_ReportFailureAtFileSelect(int slot, int reason);
+
+// The unified buffer's true capacity. context.h (already included above) pulls
+// game.h, so OOT_SAVE_CONTEXT_SIZE is in scope; this assertion is what makes
+// "snapshot the whole buffer" mean what it says.
+static_assert(sizeof(SaveContext) <= OOT_SAVE_CONTEXT_SIZE,
+              "OoT's runtime SaveContext outgrew the unified gSaveContext storage "
+              "(src/common/unified_save.c); raise OOT_SAVE_CONTEXT_SIZE in src/common/game.h");
+
+/**
+ * Run the MM half of the creation event over a snapshot-bracketed
+ * gSaveContext, and publish or retract the pairing identity accordingly.
+ *
+ * @param slot the slot being created (gSaveContext.fileNum at the seam).
+ * @return 1 when the whole creation succeeded (including "this is not a paired
+ *         file", which succeeds by authoring nothing); 0 when the paired
+ *         creation FAILED and the file must not be written.
+ */
+extern "C" int OoT_RunPairedCreationEvent(int slot) {
+    if (!Combo_ForeignPairingActive()) {
+        // A vanilla file, or a rando file whose stamp the KEEP identity check
+        // discarded (#597). Nothing to author; not a failure.
+        return 1;
+    }
+
+    // The pre-Fill gate's answer, re-asked here only to LOG the pairing's shape
+    // at the seam. It cannot change: Combo_ResolveComboSettings is frozen by now
+    // and the writers refuse while frozen, so this reads the same record the
+    // freeze wrote. A disagreement would mean a CVar reached a frozen world.
+    fprintf(stderr,
+            "[OoT] creation event: slot %d, masterSeed=%u settingsHash=%08X mmProfileDigest=%08X "
+            "comboFingerprint=%08X crossingsRequested=%d\n",
+            slot, gComboCtx.sharedRandoSeed, gComboCtx.sharedRandoSettingsHash, gComboCtx.mmProfileDigest,
+            gComboCtx.comboSettingsHash, Combo_ForeignPairingRequested() ? 1 : 0);
+
+    // The OoT spoiler document this creation will grow its "combo" section into
+    // (#660). CVAR_GENERAL("SpoilerLog") holds "./Randomizer/<hash-icons>.json",
+    // written minutes ago by SpoilerLog_Write; resolve it the way that writer
+    // did. Handed to the MM half rather than used here, because the join needs
+    // MM's world live in gSaveContext and the bracket below takes that away the
+    // moment the call returns.
+    std::string ootSpoilerAbsolute;
+    {
+        const std::string cvarPath = CVarGetString(CVAR_GENERAL("SpoilerLog"), "");
+        if (cvarPath.empty()) {
+            fprintf(stderr, "[OoT] creation event: no OoT spoiler on record - the paired half has nothing to join\n");
+        } else {
+            std::string relative = cvarPath;
+            if (relative.rfind("./", 0) == 0) {
+                relative = relative.substr(2);
+            }
+            ootSpoilerAbsolute = Ship::Context::GetPathRelativeToAppDirectory(relative.c_str());
+        }
+    }
+
+    // The creation seam's own progress session (#582). Separate from the one
+    // Playthrough_Init opened around OoT's staged generation, because the two
+    // are separated by however long the player spent in the menu. THIS is the
+    // one whose elapsed time a player actually waits through at file select, and
+    // therefore the one the ~30 s floor is about (P12).
+    Combo_GenProgress_Begin();
+
+    // THE BRACKET. Static rather than stack: 136KB is far past any sane frame
+    // budget, this seam is game-thread-only, and MM's own attempt ladder uses
+    // the same shape for the same reason. Copied at the UNIFIED capacity, not at
+    // OoT's sizeof, so MM's writes past OoT's struct end are restored too.
+    static char sOoTSaveSnapshot[OOT_SAVE_CONTEXT_SIZE];
+    memcpy(sOoTSaveSnapshot, &gSaveContext, sizeof(sOoTSaveSnapshot));
+
+    const int mmRc = MM_Rando_GenerateAtCreation(slot, ootSpoilerAbsolute.c_str());
+
+    memcpy(&gSaveContext, sOoTSaveSnapshot, sizeof(sOoTSaveSnapshot));
+
+    if (mmRc != 0) {
+        // TERMINAL. Retract everything the freeze published so no artifact of a
+        // half-created world survives: no identity for a later arrival to
+        // compare against, no crossing tables for either direction, no armed MM
+        // shadow (the MM half never armed one — it returned before that, or
+        // arming itself failed).
+        fprintf(stderr,
+                "[OoT] creation event: FAILED (MM half rc=%d) — retracting the pairing identity; slot %d must not be "
+                "written\n",
+                mmRc, slot);
+        fflush(stderr);
+        Combo_GenProgress_End(false);
+        // The player-visible half, raised HERE rather than by the caller: a
+        // creation that failed must surface identically from every route into
+        // it, and the only way to guarantee that is for the surface to live
+        // with the verdict.
+        RsbsSave_RefuseSlotGeneration(slot);
+        OoT_Creation_ReportFailureAtFileSelect(slot, 0);
+        Context_ClearFrozenState(GAME_MM);
+        Combo_ClearForeignPlacements();
+        Combo_ClearForeignPlacementsOoT();
+        Combo_ClearForeignGiveCaps();
+        // formatVersion 0 is the record's ABSENT tag (ADR 0011 decision 4.2) —
+        // the occupancy byte that makes the other eleven usable. Zeroing it is
+        // how a record is retracted; there is deliberately no "unfreeze" API,
+        // because the only legitimate retraction is this one.
+        memset(&gComboCtx.comboSettings, 0, sizeof(gComboCtx.comboSettings));
+        gComboCtx.comboSettingsHash = 0;
+        gComboCtx.sourceIsRando = false;
+        gComboCtx.sharedRandoSeed = 0;
+        gComboCtx.sharedRandoSettingsHash = 0;
+        gComboCtx.mmProfileDigest = 0;
+        gComboCtx.mmPairedAttempt = 0;
+        return 0;
+    }
+
+    // ------------------------------------------------------------------------
+    // THE FOREIGN-PLACEMENT SHORTFALL, SURFACED AT CREATION (#583).
+    //
+    // The under-supply rule (#580) places fewer crossings rather than stranding
+    // them on unreachable hosts. That is right, and it was invisible: a player
+    // promised four crossings who got two found out by reading the spoiler JSON.
+    // The number is decided here, so it is announced here — on the same overlay
+    // every other creation-time verdict uses, with the counts that explain it.
+    //
+    // NOT AN ERROR AND NOT A FAILURE. While crossings are duplicate overlays
+    // (increments 1-2) the origin world keeps its own copy of every pool item,
+    // so a missing crossing costs "fewer extras" and never a winnable world.
+    // The toast says fewer, the creation succeeds, and the spoiler keeps the
+    // durable record.
+    {
+        int requested = 0;
+        int placed = 0;
+        int eligible = 0;
+        int reachable = 0;
+        if (MM_Rando_LastPlacementStats(&requested, &placed, &eligible, &reachable)) {
+            fprintf(stderr,
+                    "[OoT] creation event: SHORTFALL — %d of %d cross-game items found a host in Termina "
+                    "(%d eligible host checks, %d of them reachable)\n",
+                    placed, requested, eligible, reachable);
+            fflush(stderr);
+
+            static char shortfallMessage[224];
+            snprintf(shortfallMessage, sizeof(shortfallMessage),
+                     "Only %d of %d Ocarina of Time items could be hidden in Termina - this seed's reachable "
+                     "chests ran short. Your Hyrule world still contains all of them; you will simply find "
+                     "fewer of them over there.",
+                     placed, requested);
+            ComboNotification shortfallToast;
+            memset(&shortfallToast, 0, sizeof(shortfallToast));
+            shortfallToast.prefix = "Fewer cross-game items:";
+            shortfallToast.prefixColor[0] = 1.0f;
+            shortfallToast.prefixColor[1] = 0.8f;
+            shortfallToast.prefixColor[2] = 0.3f;
+            shortfallToast.prefixColor[3] = 1.0f;
+            shortfallToast.message = shortfallMessage;
+            shortfallToast.messageColor[0] = 1.0f;
+            shortfallToast.messageColor[1] = 1.0f;
+            shortfallToast.messageColor[2] = 1.0f;
+            shortfallToast.messageColor[3] = 1.0f;
+            shortfallToast.remainingTime = 15.0f;
+            OoT_Notification_Emit(&shortfallToast);
+        }
+    }
+
+    Combo_GenProgress_Report((uint8_t)RSBS_GENPHASE_PUBLISH, 0, nullptr);
+    Combo_GenProgress_End(true);
+    fprintf(stderr, "[OoT] creation event: slot %d complete — both halves authored under one frozen identity\n", slot);
+    fflush(stderr);
+    return 1;
+}
+
+
+/**
+ * THE FILE-SELECT FAILURE SURFACE (ADR 0010 increment 2; #533/#568's machinery,
+ * new leg).
+ *
+ * Before this increment a paired generation that could not converge was
+ * discovered in Termina, hours later: OnFileCreate's catch reverted the MM save
+ * to vanilla and the arrival gate raised the refusal. The whole point of moving
+ * generation to the creation seam is that the failure now lands WHERE THE
+ * DECISION WAS MADE — at file select, on the same shared overlay the arrival
+ * refusals use, while the player still has the settings that caused it in front
+ * of them.
+ *
+ * Not muted, unlike the arrival refusals: those fire on MM's boot path where
+ * OoT's audio session is not a given, and this one fires inside OoT's own file
+ * select where it certainly is. The sound is the part a player looking at the
+ * file list rather than the toast will notice.
+ *
+ * VISUAL, THEREFORE UNVERIFIABLE BY THE TIERS. The locks assert the CREATION's
+ * verdict (no file written, no identity left, slot refused); that the toast
+ * renders is a playtest observation. Stated rather than implied.
+ *
+ * @param slot   the slot whose creation failed.
+ * @param reason reserved for a future failure taxonomy; 0 today ("generation
+ *               did not converge"), which is the only way to get here.
+ */
+extern "C" void OoT_Creation_ReportFailureAtFileSelect(int slot, int reason) {
+    (void)reason;
+    fprintf(stderr,
+            "[OoT] creation event: slot %d REFUSED at file select — the paired Majora's Mask world could not be "
+            "generated; no file was written and no pairing identity survives\n",
+            slot);
+    fflush(stderr);
+
+    ComboNotification failureToast;
+    memset(&failureToast, 0, sizeof(failureToast));
+    failureToast.prefix = "File NOT created:";
+    failureToast.prefixColor[0] = 0.9f;
+    failureToast.prefixColor[1] = 0.35f;
+    failureToast.prefixColor[2] = 0.3f;
+    failureToast.prefixColor[3] = 1.0f;
+    failureToast.message = "The paired Majora's Mask world could not be generated for this seed and these "
+                           "settings. Nothing was saved. Try a different seed, or relax the Majora's Mask "
+                           "options, and create the file again.";
+    failureToast.messageColor[0] = 1.0f;
+    failureToast.messageColor[1] = 1.0f;
+    failureToast.messageColor[2] = 1.0f;
+    failureToast.messageColor[3] = 1.0f;
+    failureToast.remainingTime = 20.0f;
+    OoT_Notification_Emit(&failureToast);
 }
 
 #endif // RSBS_SINGLE_EXECUTABLE

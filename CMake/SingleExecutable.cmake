@@ -83,6 +83,11 @@ set(REDSHIP_COMMON_SOURCES
     ${CMAKE_SOURCE_DIR}/src/common/mm_stubs.c
     ${CMAKE_SOURCE_DIR}/src/common/mm_stubs.cpp
     ${CMAKE_SOURCE_DIR}/src/common/game_lifecycle.c
+    # The creation event's FILL BUDGET and PROGRESS SURFACE (#582's operator
+    # decision; ADR 0010 increment 2). Host-speed calibration, the ~30 s floor
+    # and the phase channel the creation seam reports into. APPENDED, never
+    # reordered.
+    ${CMAKE_SOURCE_DIR}/src/common/gen_budget.c
 )
 
 # Windows-specific: import thunks for libultraship compatibility
@@ -1065,6 +1070,24 @@ if(BUILD_TESTING)
     redship_add_test(NAME ForeignPlacementOoT COMMAND redship --test foreign-placement-oot
         LABEL rando
         TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+
+    # ADR 0010 increment 2 (#644): THE MERGED CREATION EVENT, end to end. The
+    # freeze precedes OoT's Fill(), the whole MM half is authored and armed at
+    # the file-create seam with MM never booted, OoT's own in-progress save
+    # survives the shared-gSaveContext bracket byte-exact, the arrival hydrates
+    # or refuses and NEVER generates (a dispatch counter, not a comment), the
+    # #582 budget is the ruled one, the pair writes ONE spoiler carrying both
+    # crossing directions (#660), and #585's join is in force.
+    #
+    # In the `rando` tier for the same correctness reason as the row above: the
+    # creation event refuses to run without a live pairing identity, and every
+    # table it authors reads a fill result. The timeout is generous because this
+    # row runs TWO real generations (OoT's plus the paired MM half) plus the
+    # #585 probe's repeated graph traversals.
+    redship_add_test(NAME ComboCreationEvent COMMAND redship --test combo-creation-event
+        LABEL rando
+        TIMEOUT 420
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
     # Lane C0 (#392): MM's 2ship_rando is un-elided and actually generates —

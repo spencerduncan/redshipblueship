@@ -64,6 +64,13 @@ extern SaveContext gSaveContext;
 // path's own state plumbing, driven exactly as rsbs/src/main.cpp and
 // MM_Play_Init drive them.
 void MM_Play_ConsumeStartupEntrance(void);
+// ADR 0010 increment 2 (#644): the paired MM half is authored at OoT's
+// file-create seam, not at the arrival. OoT_RunPairedCreationEvent is the
+// whole creation (snapshot bracket, MM generation, shadow arm, and the #533
+// refusal surface on failure); MM_Rando_GenerateAtCreation is its MM half
+// alone, for the rows that want the world without the OoT-side ceremony.
+int OoT_RunPairedCreationEvent(int slot);
+int MM_Rando_GenerateAtCreation(int slot, const char* ootSpoilerPath);
 void Combo_FreezeState(const char* gameId, uint16_t returnEntrance, const void* saveContext, size_t size);
 void Combo_ClearFrozenState(const char* gameId);
 void Combo_SetStartupEntrance(uint16_t entrance);
@@ -981,6 +988,150 @@ extern "C" int MM_Rando_HeadlessGenTest(void) {
     return 0;
 }
 
+// ============================================================================
+// #585 — THE JOIN PROBE: red before the fix, green after (ADR 0010 increment 2).
+//
+// The defect is invisible in any "did the fill succeed" assertion, because a
+// first-visit-wins traversal still reaches every region — it just reaches some
+// of them under a NARROWER set of time slices than the world really allows, and
+// never widens them. So the probe has to observe the widening itself.
+//
+// THE CONSTRUCTION, and why it is exact rather than statistical:
+//
+//   1. Expand FindReachableRegions from the virtual root over the REAL region
+//      graph and the REAL save, and record every region's time state.
+//   2. Pick one non-root region X and NARROW its recorded state to a single time
+//      slice, leaving it in the reachable set and leaving every other region's
+//      state alone.
+//   3. Expand again from the root.
+//
+//   - FIRST-VISIT-WINS (before the fix): X is already in `reachableRegions`, so
+//     every edge into it is skipped and nothing ever propagates a time set into
+//     it again. X keeps the single bit. RED.
+//   - WITH THE JOIN (after the fix): the edges into X are evaluated as they
+//     always are, the arriving time set is UNIONED into X's, and X comes back at
+//     least as wide as it was. GREEN.
+//
+// X is chosen from the regions the expansion itself reached, so it necessarily
+// has at least one incoming edge from a region whose state this probe did NOT
+// narrow — which is what makes the restoration guaranteed rather than likely. A
+// handful of X's are probed rather than one, so a single oddly-connected region
+// cannot make the row vacuous.
+//
+// COUNTERFACTUAL, MEASURED not asserted (2026-09-17): revert Logic.cpp's
+// FindReachableRegions to its first-visit-wins form and this probe returns
+// FAIL(3) - "region 24 was narrowed to 0000100000000000 and a full re-expansion
+// left it at 0000100000000000 instead of restoring 00001FFFFFFFFFFF". Green with
+// the join in place. That is the red-before/green-after this row carries, and it
+// was run in both directions rather than reasoned about - the FIRST version of
+// this probe passed against the bug (see the highest-set-slice note below).
+//
+// Driven ROM-free-ish from the rando tier's creation-event row, after a real
+// paired generation, so the save under the traversal is a real world.
+//
+// @return 0 on success; a nonzero step code otherwise.
+// ============================================================================
+extern "C" int MM_Rando_Logic_JoinOrderProbe(void) {
+    using Rando::Logic::RegionTimeState;
+    using Rando::Logic::Regions;
+
+    if (Regions.empty()) {
+        fprintf(stderr, "[MM-JOIN-PROBE] FAIL(1): region graph is empty (registrars did not run)\n");
+        return 1;
+    }
+
+    // Drive it the way the FILL drives it: ApplyGlitchlessLogicToSaveContext
+    // loops `for (regionId : regionsInLogic) FindReachableRegions(regionId, ...)`
+    // every round, so every reachable region is a SOURCE. A probe that only
+    // expanded from the root would be testing a traversal production never
+    // performs — and would miss the join entirely, since on a re-run nothing
+    // new is inserted and the worklist drains after the root.
+    auto expandLikeTheFill = [](const std::set<RandoRegionId>& sources, std::set<RandoRegionId>& regions,
+                                std::unordered_map<RandoRegionId, RegionTimeState>& states) {
+        for (RandoRegionId regionId : sources) {
+            Rando::Logic::FindReachableRegions(regionId, regions, states);
+        }
+    };
+
+    std::set<RandoRegionId> baseline;
+    std::unordered_map<RandoRegionId, RegionTimeState> baselineStates;
+    baseline.insert(RR_MAX);
+    baselineStates = Rando::Logic::InitializeRegionTimeStates(RR_MAX);
+    // Two rounds, like the fill: the first discovers the regions, the second
+    // lets every one of them act as a source so the time states settle.
+    expandLikeTheFill({ RR_MAX }, baseline, baselineStates);
+    expandLikeTheFill(std::set<RandoRegionId>(baseline), baseline, baselineStates);
+
+    if (baseline.size() < 3) {
+        fprintf(stderr, "[MM-JOIN-PROBE] FAIL(2): only %zu regions reachable from the root — nothing to probe\n",
+                baseline.size());
+        return 2;
+    }
+
+    int probed = 0;
+    for (RandoRegionId victim : baseline) {
+        if (victim == RR_MAX) {
+            continue;
+        }
+        auto baseIt = baselineStates.find(victim);
+        if (baseIt == baselineStates.end()) {
+            continue;
+        }
+        const uint64_t originalSlices = baseIt->second.timeSlices;
+        if (originalSlices == 0) {
+            continue; // nothing to narrow
+        }
+        // NARROW TO THE HIGHEST SET SLICE, NOT THE LOWEST, and the difference is
+        // what makes this probe falsifiable at all. A canStayOverTime region
+        // runs ExpandTimeForward on its OWN state every time it is visited as a
+        // source, so a victim narrowed to its LOWEST slice re-widens itself and
+        // the probe passes even against first-visit-wins — measured, and vacuous.
+        // Expansion is strictly FORWARD, so a victim pinned to its latest slice
+        // cannot recover a single earlier one on its own. The only thing that can
+        // is a predecessor joining its wider state back in, which is precisely
+        // the behaviour under test.
+        uint64_t narrowed = originalSlices;
+        for (int bit = 63; bit >= 0; bit--) {
+            if (originalSlices & (1ull << bit)) {
+                narrowed = (1ull << bit);
+                break;
+            }
+        }
+        if (narrowed == originalSlices) {
+            continue; // already one slice wide; the probe would prove nothing
+        }
+
+        std::set<RandoRegionId> regions = baseline;
+        std::unordered_map<RandoRegionId, RegionTimeState> states = baselineStates;
+        states[victim].timeSlices = narrowed;
+
+        expandLikeTheFill(baseline, regions, states);
+
+        const uint64_t after = states[victim].timeSlices;
+        if ((after & originalSlices) != originalSlices) {
+            fprintf(stderr,
+                    "[MM-JOIN-PROBE] FAIL(3): region %d was narrowed to %016llX and a full re-expansion left it at "
+                    "%016llX instead of restoring %016llX — FindReachableRegions is still first-visit-wins and is "
+                    "under-approximating its own reachability (#585)\n",
+                    (int)victim, (unsigned long long)narrowed, (unsigned long long)after,
+                    (unsigned long long)originalSlices);
+            return 3;
+        }
+        if (++probed >= 5) {
+            break;
+        }
+    }
+
+    if (probed == 0) {
+        fprintf(stderr, "[MM-JOIN-PROBE] FAIL(4): no region had a widenable time state — the probe was vacuous\n");
+        return 4;
+    }
+
+    fprintf(stderr, "[MM-JOIN-PROBE] PASS: %d narrowed regions were re-widened by the join (#585)\n", probed);
+    fflush(stderr);
+    return 0;
+}
+
 /**
  * Foreign-placement determinism digest (Lane C1, #392) — the MM half of the
  * SeedDeterminism lock. Runs inside the rando-determinism dispatch AFTER the
@@ -1281,10 +1432,20 @@ extern "C" int MM_Rando_HeadlessPairSwitchEntry(void) {
     // ----------------------------------------------------------------------
     // Phase 1 — fresh switch-entry into a live paired OoT world.
     // ----------------------------------------------------------------------
+    // WHAT THIS PHASE ASSERTS CHANGED WITH ADR 0010 INCREMENT 2, and the change
+    // is the point of that increment rather than a weakening of this row. #439's
+    // claim was "the switch-entry path REACHES GENERATION", because generation
+    // lived at the arrival. It no longer does: the MM half is authored and ARMED
+    // at OoT's file-create seam, so the claim becomes "the switch-entry path
+    // HYDRATES the authored half, and authors nothing". Everything downstream —
+    // placements in the reachable closure, the arrival entrance surviving, the
+    // spoiler, the return leg never regenerating — is unchanged and still the
+    // real consumption point.
+    //
     // A fixed master-seed list, for the same reason MMRandoGen keeps one: the
     // MM fill can genuinely dead-end on an unlucky seed, and the claim under
-    // test is that the switch-entry path REACHES generation, not that any
-    // particular seed fills. Deterministic either way (fixed list, fixed fill).
+    // test is about the seam, not about any particular seed filling.
+    // Deterministic either way (fixed list, fixed fill).
     static const uint32_t kMasterSeeds[] = { 2108649350u, 1234567u, 77777777u, 424242u, 999983u };
     uint32_t usedMasterSeed = 0;
 
@@ -1302,11 +1463,16 @@ extern "C" int MM_Rando_HeadlessPairSwitchEntry(void) {
         // digest a previous iteration froze.
         gComboCtx.mmProfileDigest = 0;
 
+        // THE CREATION EVENT, which is where the MM half now comes from. It
+        // brackets its own gSaveContext snapshot, so the bootstrap authored
+        // below is unaffected by it.
+        const int mmCreated = MM_Rando_GenerateAtCreation(0, nullptr);
+
         // The cold gamestate-chain boot a switch performs: ConsoleLogo skips
         // to TitleSetup, TitleSetup authors a VANILLA bootstrap file with
         // MM_Sram_InitNewSave and dispatches OnSaveLoad against it. File
         // select is never touched, so OnSaveInit is never dispatched here —
-        // that absence is the whole bug.
+        // and since increment 2 nothing on this path ever dispatches it.
         memset(&gSaveContext, 0, sizeof(gSaveContext));
         MM_Sram_InitNewSave();
         GameInteractor_ExecuteOnSaveLoad(gSaveContext.fileNum);
@@ -1348,23 +1514,20 @@ extern "C" int MM_Rando_HeadlessPairSwitchEntry(void) {
             break;
         }
 
-        // Discriminator: did the switch-entry path fail to REACH generation,
-        // or did this seed's fill dead-end? Re-run the same gComboCtx through
-        // the DIRECT chain MMRandoGen uses. If the direct chain pairs and the
-        // switch-entry path did not, the dispatch site is gone — the exact
-        // #439 regression, and a distinct, unambiguous failure.
-        memset(&gSaveContext, 0, sizeof(gSaveContext));
-        MM_Sram_InitNewSave();
-        Combo_ClearForeignPlacements();
-        GameInteractor_ExecuteOnSaveInit(gSaveContext.fileNum);
-        if (gSaveContext.save.shipSaveInfo.saveType == SAVETYPE_RANDO) {
+        // Discriminator: did the switch-entry path fail to HYDRATE, or did
+        // this seed's fill dead-end at creation? mmCreated answers it directly —
+        // it is the creation event's own verdict, taken before the arrival ran.
+        // A created-but-not-hydrated half is the increment-2 shape of the #439
+        // regression: the seam that applies the authored world is gone.
+        if (mmCreated == 0) {
             fprintf(stderr,
-                    "[MM-PAIR-SWITCH] FAIL(4): the direct OnSaveInit chain pairs under master seed %u but "
-                    "SWITCH-ENTRY did not — MM_Play_ConsumeStartupEntrance no longer reaches generation (#439)\n",
+                    "[MM-PAIR-SWITCH] FAIL(4): the CREATION event authored a paired world under master seed %u but "
+                    "SWITCH-ENTRY did not hydrate it — MM_Play_ConsumeStartupEntrance no longer applies the frozen "
+                    "MM half (#439 / ADR 0010 increment 2)\n",
                     masterSeed);
             return 4;
         }
-        fprintf(stderr, "[MM-PAIR-SWITCH] master seed %u dead-ended on both paths (fill); trying next\n", masterSeed);
+        fprintf(stderr, "[MM-PAIR-SWITCH] master seed %u dead-ended at creation (fill); trying next\n", masterSeed);
     }
 
     if (usedMasterSeed == 0) {
@@ -1372,7 +1535,8 @@ extern "C" int MM_Rando_HeadlessPairSwitchEntry(void) {
                         "different seed (generation machinery itself is covered by MMRandoGen)\n");
         return 6;
     }
-    fprintf(stderr, "[MM-PAIR-SWITCH] switch-entry paired under master seed %u\n", usedMasterSeed);
+    fprintf(stderr, "[MM-PAIR-SWITCH] switch-entry HYDRATED the creation-authored half under master seed %u\n",
+            usedMasterSeed);
 
     // ADR 0010 increment 1.3: expected count is min(pool, reachable eligible
     // hosts), never zero; and every placement this pinned-seed row wrote must
@@ -1595,6 +1759,17 @@ extern "C" int MM_Rando_HeadlessPairSwitchEntry(void) {
         return 31;
     }
 
+    // AUTHOR THE HALF FIRST. Since ADR 0010 increment 2 the arrival cannot
+    // generate, so "a divergent arrival did not generate" would be true of an
+    // empty session too — vacuously. What the refusal must actually do now is
+    // DECLINE TO APPLY an MM half that really is sitting there armed, so the
+    // half is authored under the MATCHING profile before the divergence.
+    if (MM_Rando_GenerateAtCreation(0, nullptr) != 0 || !Context_HasFrozenState(GAME_MM)) {
+        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(32): phase 4a could not author the MM half to refuse — the refuse "
+                        "leg would pass vacuously\n");
+        return 32;
+    }
+
     // The mid-session divergence: an option edit AFTER creation.
     CVarSetInteger(Rando::StaticData::Options[RO_SHUFFLE_COWS].cvar, RO_GENERIC_ON);
 
@@ -1605,9 +1780,14 @@ extern "C" int MM_Rando_HeadlessPairSwitchEntry(void) {
     MM_Play_ConsumeStartupEntrance();
 
     if (gSaveContext.save.shipSaveInfo.saveType == SAVETYPE_RANDO) {
-        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(22): a DIVERGENT arrival generated a world — a mid-session option "
-                        "edit changed the paired world instead of being refused (#498/#564)\n");
+        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(22): a DIVERGENT arrival APPLIED the frozen MM half — a "
+                        "mid-session option edit must be refused, not honoured (#498/#564)\n");
         return 22;
+    }
+    if (!Context_HasFrozenState(GAME_MM)) {
+        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(33): the refusal CONSUMED the frozen MM half — refusing means not "
+                        "applying it, and the player's world must survive a settings divergence untouched\n");
+        return 33;
     }
     if (gComboCtx.mmProfileDigest != phase4Stamp) {
         fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(23): the refusal self-healed the creation stamp (%08X -> %08X)\n",
@@ -1652,6 +1832,11 @@ extern "C" int MM_Rando_HeadlessPairSwitchEntry(void) {
         return 27;
     }
 
+    if (MM_Rando_GenerateAtCreation(0, nullptr) != 0 || !Context_HasFrozenState(GAME_MM)) {
+        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(34): phase 4b could not author the MM half to hydrate\n");
+        return 34;
+    }
+
     memset(&gSaveContext, 0, sizeof(gSaveContext));
     MM_Sram_InitNewSave();
     GameInteractor_ExecuteOnSaveLoad(gSaveContext.fileNum);
@@ -1659,15 +1844,15 @@ extern "C" int MM_Rando_HeadlessPairSwitchEntry(void) {
     MM_Play_ConsumeStartupEntrance();
 
     if (gSaveContext.save.shipSaveInfo.saveType != SAVETYPE_RANDO) {
-        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(28): a MATCHING arrival was refused or dead-ended — the identity "
-                        "gate must pass a faithful arrival through to generation\n");
+        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(28): a MATCHING arrival was refused — the identity gate must pass a "
+                        "faithful arrival through and let it HYDRATE the frozen half\n");
         return 28;
     }
     if (!RsbsSave_IsSlotWritable(0)) {
         fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(29): a matching arrival latched the slot anyway\n");
         return 29;
     }
-    fprintf(stderr, "[MM-PAIR-SWITCH] matching arrival generated normally under the frozen profile\n");
+    fprintf(stderr, "[MM-PAIR-SWITCH] matching arrival hydrated normally under the frozen profile\n");
 
     // Leave clean global state for later dispatches in the same process.
     RsbsSave_DeleteSave(0);
@@ -2662,16 +2847,30 @@ extern "C" int MM_Rando_HeadlessPairedExhaustion(void) {
     gComboCtx.sharedRandoSettingsHash = 0x0E8A0570u;
     gComboCtx.mmProfileDigest = 0;
 
-    memset(&gSaveContext, 0, sizeof(gSaveContext));
-    MM_Sram_InitNewSave();
-    GameInteractor_ExecuteOnSaveLoad(gSaveContext.fileNum);
-    Combo_SetStartupEntrance(kArrival);
-    MM_Play_ConsumeStartupEntrance();
+    // THE CREATION EVENT, end to end — which since ADR 0010 increment 2 is where
+    // a terminal ladder failure lands. It raises the whole refusal surface
+    // itself (the #533 slot latch and the file-select toast) and retracts the
+    // identity, so every assertion below is about the CREATION's verdict rather
+    // than about a vanilla Termina discovered hours later.
+    const int exhaustCreated = OoT_RunPairedCreationEvent(0);
 
-    if (gSaveContext.save.shipSaveInfo.saveType == SAVETYPE_RANDO) {
-        fprintf(stderr, "[MM-EXHAUST] FAIL(4): an all-excluded profile GENERATED a world — the cannot-converge "
+    if (exhaustCreated != 0) {
+        fprintf(stderr, "[MM-EXHAUST] FAIL(4): an all-excluded profile CREATED a world — the cannot-converge "
                         "fixture premise is broken\n");
         return 4;
+    }
+    if (Context_HasFrozenState(GAME_MM)) {
+        fprintf(stderr, "[MM-EXHAUST] FAIL(18): the failed creation left an ARMED MM half — a partial world would "
+                        "be hydrated by the next arrival\n");
+        return 18;
+    }
+    if (Combo_ForeignPairingActive() || gComboCtx.sharedRandoSeed != 0 || gComboCtx.mmProfileDigest != 0 ||
+        Combo_ComboSettingsFrozen()) {
+        fprintf(stderr, "[MM-EXHAUST] FAIL(19): the failed creation left a PARTIAL IDENTITY behind (sourceIsRando=%d "
+                        "seed=%u digest=%08X comboFrozen=%d) — ADR 0010 increment 2 requires no partial identity\n",
+                gComboCtx.sourceIsRando ? 1 : 0, gComboCtx.sharedRandoSeed, (unsigned)gComboCtx.mmProfileDigest,
+                Combo_ComboSettingsFrozen() ? 1 : 0);
+        return 19;
     }
     if (!MM_Rando_PairedGenLastExhausted() || MM_Rando_PairedGenLastAttempts() != MM_Rando_PairedGenMaxAttempts()) {
         fprintf(stderr,
@@ -2730,15 +2929,11 @@ extern "C" int MM_Rando_HeadlessPairedExhaustion(void) {
     gComboCtx.sharedRandoSettingsHash = 0x0E8A0570u;
     gComboCtx.mmProfileDigest = 0;
 
-    memset(&gSaveContext, 0, sizeof(gSaveContext));
-    MM_Sram_InitNewSave();
-    GameInteractor_ExecuteOnSaveLoad(gSaveContext.fileNum);
-    Combo_SetStartupEntrance(kArrival);
-    MM_Play_ConsumeStartupEntrance();
+    const int counterCreated = OoT_RunPairedCreationEvent(0);
 
-    if (gSaveContext.save.shipSaveInfo.saveType != SAVETYPE_RANDO) {
-        fprintf(stderr, "[MM-EXHAUST] FAIL(11): the counter-leg arrival failed to generate — the exhaustion leg's "
-                        "assertions above cannot be attributed to the fixture\n");
+    if (counterCreated == 0 || !Context_HasFrozenState(GAME_MM)) {
+        fprintf(stderr, "[MM-EXHAUST] FAIL(11): the counter-leg creation failed — the exhaustion leg's assertions "
+                        "above cannot be attributed to the fixture\n");
         return 11;
     }
     if (RsbsSave_GetSlotState(0) == (int)RSBS_SLOT_REFUSED || !RsbsSave_IsSlotWritable(0)) {
@@ -2786,15 +2981,16 @@ extern "C" int MM_Rando_HeadlessPairedExhaustion(void) {
     gComboCtx.sharedRandoSettingsHash = 0x0E8A0570u;
     gComboCtx.mmProfileDigest = 0;
 
+    // ARMED BEFORE the creation runs, which is also the non-vacuity guard on the
+    // #582 budget: OnFileCreate only writes its calibrated budget into a ZERO
+    // override, so an armed one survives. If that guard were ever dropped, this
+    // leg would silently start testing the shipped 30s budget instead of a 1ms
+    // one and FAIL(14) would go red — which is the behaviour wanted.
     Rando::Logic::gRsbsGlitchlessTimeoutMsOverride = 1; // the fill cannot finish in 1ms
-    memset(&gSaveContext, 0, sizeof(gSaveContext));
-    MM_Sram_InitNewSave();
-    GameInteractor_ExecuteOnSaveLoad(gSaveContext.fileNum);
-    Combo_SetStartupEntrance(kArrival);
-    MM_Play_ConsumeStartupEntrance();
+    const int wallClockCreated = OoT_RunPairedCreationEvent(0);
     Rando::Logic::gRsbsGlitchlessTimeoutMsOverride = 0; // restore before ANY assertion can return
 
-    if (gSaveContext.save.shipSaveInfo.saveType == SAVETYPE_RANDO) {
+    if (wallClockCreated != 0) {
         fprintf(stderr, "[MM-EXHAUST] FAIL(14): a 1ms fill budget still produced a world — the wall-clock leg's "
                         "premise is broken and its determinism assertions below prove nothing\n");
         return 14;

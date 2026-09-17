@@ -23,6 +23,14 @@ extern void Context_InvalidateSessionOnNewGame(int isRandoFile, uint32_t created
 // #533 armed-session latch: creating a file is one of the three legitimate
 // ways a slot becomes writable this session. See src/common/save.h.
 extern void RsbsSave_ArmSlotOnCreate(int slot);
+#ifdef RSBS_SINGLE_EXECUTABLE
+// ADR 0010 increment 2 (#644): THE MERGED CREATION EVENT. Declared locally for
+// the same reason as the two above — games/oot/src/**.c has no src/common on
+// its include path. The definition and the whole contract live in
+// soh/Enhancements/randomizer/ForeignItemsSingleExe.cpp. Returns 0 when the
+// paired creation FAILED and this file must not be written.
+extern int OoT_RunPairedCreationEvent(int slot);
+#endif
 
 /**
  *  Initialize new save.
@@ -336,6 +344,46 @@ void OoT_Sram_InitSave(FileChooseContext* fileChooseCtx) {
     } else {
         gSaveContext.ship.quest.id = currentQuest;
     }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // ========================================================================
+    // THE MERGED CREATION EVENT (ADR 0010 increment 2; #564's creation-event
+    // contract steps 3-4, 6 and 9; epic #644).
+    //
+    // Until this increment the MM half of a paired world was authored the first
+    // time the player walked into the Happy Mask Shop — minutes or hours after
+    // the file existed, from whatever CVars happened to be live then. Under
+    // one-game semantics (#500's operator ruling) that is two creation events
+    // for one game. This call is the second half of the one event: it generates
+    // the MM world from the identity frozen before OoT's Fill(), authors it as
+    // the MM shadow and ARMS that shadow, so the Save_SaveFile() immediately
+    // below writes a .redsave whose MM half is already complete. Arrival becomes
+    // hydrate-or-refuse with no generation capability at all.
+    //
+    // PLACED HERE, between Randomizer_InitSaveFile() and Save_SaveFile(), for
+    // three reasons. (a) The previous cross-game session is already retired
+    // (Context_InvalidateSessionOnNewGame above), so the shadow this arms cannot
+    // be confused with the dead session's. (b) OoT's own half is fully authored,
+    // so the snapshot the call brackets around MM's generation is of a FINISHED
+    // OoT save — gSaveContext is one buffer shared by both games
+    // (src/common/unified_save.c) and MM's generation writes over it. (c) It is
+    // before the only write, which is what makes failure recoverable by simply
+    // not writing.
+    //
+    // FAILURE FAILS THE WHOLE CREATION, AT FILE SELECT. ADR 0010 increment 2:
+    // "no partial identity, no vanilla Termina". The identity is already
+    // retracted inside the call; here the slot is marked REFUSED on the #533
+    // surface and the file is NOT written, so file select shows an empty slot
+    // and says why, rather than a playable OoT file whose paired half silently
+    // does not exist.
+    // The call raises the whole refusal surface itself — the #533 slot latch
+    // and the player-visible toast — so all this seam has to do is NOT write
+    // the file. File select then shows an empty slot and says why, rather than
+    // a playable OoT file whose paired half silently does not exist.
+    if (isRandoFile && !OoT_RunPairedCreationEvent(gSaveContext.fileNum)) {
+        return;
+    }
+#endif
 
     Save_SaveFile();
     SaveManager_ThreadPoolWait();
