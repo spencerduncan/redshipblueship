@@ -666,6 +666,16 @@ if(BUILD_TESTING)
     # this ROM-free tier.
     redship_add_test(NAME ComboSettingsAuthoring COMMAND redship --test combo-settings-authoring)
     redship_add_test(NAME ComboSettingsWindow COMMAND redship --test combo-settings-window)
+    # #655 moved the PRESENTATION into the one live menu: the five keys are rows
+    # in the interim Cross-Game section of SohMenuRandomizer.cpp, and the pane
+    # above is registered but no longer opened by anything. ComboSettingsRows
+    # builds a SohMenu headless, calls the real AddMenuRandomizer(), and drives
+    # the rows' PreFuncs/Callbacks — so it locks the three ways a presentation
+    # move goes wrong silently: a missing row, a CVar-typed row that writes the
+    # store itself and never reaches the freeze gate, and a frozen row that shows
+    # the CVar instead of the record the world was built from (ADR 0004 §4.2,
+    # §6 state 4).
+    redship_add_test(NAME ComboSettingsRows COMMAND redship --test combo-settings-rows)
     redship_add_test(NAME Context COMMAND redship --test context)
     # F10 hot-swap freeze/consume contract (#364): the hotkey path must freeze
     # the DEPARTING game (or refuse the switch), and a consumed frozen state
