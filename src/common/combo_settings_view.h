@@ -1,19 +1,21 @@
 /**
  * @file combo_settings_view.h
- * @brief The tier-4 combo-level settings AUTHORING surface: the five
+ * @brief The tier-4 combo-level settings AUTHORING surface: the six
  *        `gCombo.Rando.*` keys behind ComboSettingsRecord (ADR 0011 increment
- *        2, #498; ADR 0003 naming; ADR 0004 §6 state 4).
+ *        2, #498, plus the shared ocarina #668; ADR 0003 naming; ADR 0004 §6
+ *        state 4).
  *
  * WHAT THIS IS. ComboSettingsRecord (context.h) is the frozen 12-byte identity
  * of the crossing rules — direction, per-direction pool sizes, per-direction
- * item classes — and foreign_items.h owns it: the pinned value spaces, the
+ * item classes, and (since #668) the comboFlags bitset — and foreign_items.h
+ * owns it: the pinned value spaces, the
  * resolver, the freeze, the fingerprint, the divergence diff. What it did not
  * have until this increment was a way for a PLAYER to author the record:
  * Combo_ResolveComboSettings produced the shipped defaults, so the direction
  * gate (#632) and the class rule (#631) were armed but only their defaults
  * were reachable. This header is the authoring surface — the ONE reader that
  * turns a stored value into a record field, and the ONE writer pair that the
- * pane (ComboSettingsWindow.cpp) and every future caller go through.
+ * SohMenu rows and every future caller go through.
  *
  * WHY A SEPARATE TU, AND WHY C++. foreign_items.c is deliberately
  * game-header-free AND libultraship-free: it is a pure function of gComboCtx
@@ -37,20 +39,21 @@
  *    describes it.
  *  - ENFORCEMENT IS ON THE WRITERS, NOT THE WIDGET (ADR 0004 §6): both
  *    Combo_ComboSettingSet and Combo_ComboSettingClear REJECT while
- *    Combo_ComboSettingsFrozen() is true. The pane renders read-only with the
- *    reason "already decided" and shows the values FROM THE SAVE
- *    (Combo_ComboSettingsSummary), but the pane is one caller; the gate is
+ *    Combo_ComboSettingsFrozen() is true. The rows render read-only with the
+ *    reason "already decided" and show the values FROM THE SAVE
+ *    (Combo_ComboSettingsSummary), but a row is one caller; the gate is
  *    here.
  *  - VALUES ARE THE PINNED SPACES (ADR 0011 decision 1.2.1): RSBS_COMBO_DIR_*
  *    for the direction, 1..RSBS_FOREIGN_PLACEMENT_CAP for a pool size, a mask
  *    within RSBS_ITEMCLASS_ALL_V1 for a class bitset (zero included — inside a
- *    formatted record it is a legitimate "no classes armed", decision 3.3). A
+ *    formatted record it is a legitimate "no classes armed", decision 3.3),
+ *    and 0-or-1 for a comboFlags bit. A
  *    stored value OUTSIDE its space RESOLVES TO THE SHIPPED DEFAULT WITH A
  *    LOGGED REASON — never to a new enumerator, and never to a clamp that
  *    invents a value the player did not choose. The writers refuse such a
  *    value outright, so the only way one reaches the store is out-of-band (a
  *    hand-edited config, the console).
- *  - ALL FIVE KEYS ARE WORLD IDENTITY, not preference (ADR 0004 §6's scope
+ *  - ALL SIX KEYS ARE WORLD IDENTITY, not preference (ADR 0004 §6's scope
  *    note). The manifest in cvar_shared_keys.h carries the classification and
  *    the cvar-classification lock refuses an unclassified `gCombo.` key.
  *
@@ -73,10 +76,15 @@ extern "C" {
 #endif
 
 /**
- * The five AUTHORABLE fields of ComboSettingsRecord, in the record's own
+ * The six AUTHORABLE fields of ComboSettingsRecord, in the record's own
  * declaration order. `goal` and `logicRung` are deliberately NOT here: ADR
  * 0010 owns their authoring, and until it lands they freeze at their shipped
  * defaults (Combo_ComboSettingsDefaults).
+ *
+ * THIS ENUM IS APPEND-ONLY TOO, though for a weaker reason than the record's:
+ * nothing stores an id, but the SohMenu rows index staging buffers by it and
+ * the locks index expectation tables by it, so an insertion mid-list silently
+ * re-points both.
  */
 typedef enum {
     COMBO_SETTING_DIRECTION = 0,  // gCombo.Rando.Direction     -> record.direction    (RSBS_COMBO_DIR_*)
@@ -84,6 +92,10 @@ typedef enum {
     COMBO_SETTING_POOL_SIZE_MM,   // gCombo.Rando.PoolSize.MM   -> record.poolSizeMM   (1..CAP)
     COMBO_SETTING_ITEM_CLASS_OOT, // gCombo.Rando.ItemClass.OoT -> record.itemClassOoT (RSBS_ITEMCLASS_* mask)
     COMBO_SETTING_ITEM_CLASS_MM,  // gCombo.Rando.ItemClass.MM  -> record.itemClassMM  (RSBS_ITEMCLASS_* mask)
+    // #668. A BIT of record.comboFlags rather than a field of its own, so the
+    // resolver assembles the byte from every flag key instead of overlaying one
+    // (see Combo_ResolveComboSettings). 0 or 1; the default is 0.
+    COMBO_SETTING_SHARED_OCARINA, // gCombo.Rando.SharedOcarina -> record.comboFlags & RSBS_COMBO_FLAG_SHARED_OCARINA
     COMBO_SETTING_COUNT
 } ComboSettingId;
 
@@ -102,7 +114,10 @@ int32_t Combo_ComboSettingDefault(ComboSettingId id);
  * Is @p value inside @p id's PINNED value space (ADR 0011 decision 1.2.1)?
  * Direction: exactly RSBS_COMBO_DIR_OFF..RSBS_COMBO_DIR_BOTH. Pool size:
  * 1..RSBS_FOREIGN_PLACEMENT_CAP. Item class: a mask with no bit outside
- * RSBS_ITEMCLASS_ALL_V1 (zero is valid). False for an invalid id.
+ * RSBS_ITEMCLASS_ALL_V1 (zero is valid). A comboFlags bit: exactly 0 or 1 —
+ * never "nonzero is true", because a 2 stored in a boolean key is a value
+ * nobody chose and the rule for those is the shipped default with a logged
+ * reason. False for an invalid id.
  */
 bool Combo_ComboSettingValueValid(ComboSettingId id, int32_t value);
 
@@ -182,9 +197,10 @@ const char* Combo_ComboSettingReadOnlyReason(void);
  * hovering. A tooltip alone does not satisfy it." The claim being marked is the
  * one a player cannot otherwise check -- that a control they are touching while
  * Ocarina of Time is on screen also governs Majora's Mask, a game they cannot
- * currently see. All five of these keys make that claim by construction: they
+ * currently see. All six of these keys make that claim by construction: they
  * are tier-4 rules about the crossing between the two games, not settings of
- * either one.
+ * either one — and #668's shared ocarina makes it most literally of all, since
+ * the instrument it governs is held in both.
  *
  * Owned by the MODEL rather than spelled in the menu file, for the same reason
  * Combo_ComboSettingReadOnlyReason is: a string only the renderer holds cannot

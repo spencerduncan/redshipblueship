@@ -263,9 +263,20 @@ bool Combo_ForeignPairingActive(void);
 
 /** The ComboSettingsRecord format version this build writes and understands.
  *  Bump it when old content must be DISTINGUISHED, not merely extended (ADR
- *  0002 §4's COMBO_CONTEXT_VERSION rule, scoped to one block) — i.e. when
- *  spare0/spare1 are spent and a reader must tell "field absent" from "field
- *  zero". */
+ *  0002 §4's COMBO_CONTEXT_VERSION rule, scoped to one block) — i.e. when a
+ *  spare is spent by a field whose ZERO means something other than what a
+ *  pre-existing record already meant, so a reader must tell "field absent" from
+ *  "field zero".
+ *
+ *  STILL 1 AFTER #668, deliberately, and this is the test the next spender
+ *  applies. `comboFlags` (byte 10, formerly spare0) was spent by a BITSET whose
+ *  every clear bit reproduces the behaviour of a record written before the bit
+ *  existed: shared ocarina OFF is what every world before #668 did. "Absent"
+ *  and "zero" are therefore the same world, there is nothing to distinguish,
+ *  and a bump would have been strictly harmful — formatVersion is
+ *  canonical()[0], so every new world's comboSettingsHash would have moved and
+ *  every determinism digest with it, for a setting nobody turned on. Spend
+ *  `spare1` the same way ONLY if its zero is likewise the legacy behaviour. */
 #define RSBS_COMBO_SETTINGS_FORMAT_VERSION 1u
 
 // Direction. Pinned, append-only, retire-never-renumber.
@@ -320,6 +331,54 @@ bool Combo_ForeignPairingActive(void);
     (RSBS_ITEMCLASS_PROGRESSION | RSBS_ITEMCLASS_SONGS | RSBS_ITEMCLASS_MASKS | RSBS_ITEMCLASS_DUNGEON_ITEMS |   \
      RSBS_ITEMCLASS_DUNGEON_REWARD | RSBS_ITEMCLASS_SIDEQUEST)
 
+// ---- comboFlags: the yes/no combo rules (record byte 10; #668) -------------
+//
+// Pinned BIT POSITIONS, append-only, retire-never-renumber — the same rule the
+// item classes carry, and for the same two reasons (a local save re-read and
+// #574's cross-peer hash). Bits 0x02..0x80 are UNALLOCATED and must read as 0.
+//
+// EVERY BIT IN THIS BYTE MUST HAVE "CLEAR == THE BEHAVIOUR BEFORE IT EXISTED".
+// That is what let byte 10 be spent without a formatVersion bump (see
+// RSBS_COMBO_SETTINGS_FORMAT_VERSION): a zero-extended legacy record, a record
+// written by an older build, and a new record with the flag off are all the
+// same world, so "absent" never has to be distinguished from "zero". A future
+// flag whose CLEAR state would change an existing world does not belong in this
+// byte at its current version — it needs the bump this one did not.
+
+/**
+ * ONE OCARINA ACROSS BOTH GAMES (#668; operator direction, 2026-09-16:
+ * "there should be an option to have the ocarina be shared in both games").
+ *
+ * Set, the ocarina becomes RSBS_SHARED_RES_OCARINA_TIER — a MONOTONIC shared
+ * resource on the hookshot's model (#525/#556): origin-tagged, harvested at
+ * suspend, applied at the arriving game's startup entrance, never lowered by a
+ * harvest. The tier is 0 none / 1 an ocarina / 2 OoT's Ocarina of Time, OoT's
+ * ceiling is 2 and MM's is 1.
+ *
+ * THE MAPPING, stated here because it is the decision and not an implementation
+ * detail:
+ *   - ANY OoT ocarina gives MM its Ocarina of Time. This is the operator's
+ *     direction read literally — MM has exactly one ocarina, so "shared in both
+ *     games" can only mean the Fairy Ocarina counts.
+ *   - MM's Ocarina of Time gives OoT the FAIRY Ocarina, not the Ocarina of
+ *     Time. The shared model transports what the player HAS; it never invents a
+ *     promotion. Mapping MM's single rung onto OoT's top rung would award the
+ *     Door of Time's key for the price of a Termina round trip, to a player who
+ *     only ever found the Fairy Ocarina — and that is the same ruling the
+ *     hookshot already carries in the other direction (MM's tier-1 hookshot
+ *     never becomes a longshot in OoT).
+ *
+ * Clear, NOTHING changes: no slot, no harvest, no apply, and a record whose
+ * canonical bytes and fingerprint are exactly what they were before this bit
+ * existed. That is the whole reason the default is off.
+ */
+#define RSBS_COMBO_FLAG_SHARED_OCARINA 0x01u
+
+/** Every comboFlags bit ALLOCATED at formatVersion 1. The shipped default is 0
+ *  — "reproduce today's world exactly" is the binding constraint on every
+ *  default in this file, and every flag here changes a world. */
+#define RSBS_COMBO_FLAGS_ALL_V1 (RSBS_COMBO_FLAG_SHARED_OCARINA)
+
 // The pinning lock. A renumbering is a RED BUILD rather than a silently
 // re-read save — the same shape RSBS_SHARED_RES_* carries, and the reason
 // decision 1.2.1 is a BLOCKER finding's disposition rather than a style note.
@@ -342,6 +401,10 @@ RSBS_CTX_STATIC_ASSERT(RSBS_ITEMCLASS_PROGRESSION == 0x0001u && RSBS_ITEMCLASS_S
                        "RSBS_ITEMCLASS_* bit positions are .redsave format: pinned, append-only, "
                        "allocate the next free bit and never re-point an allocated one (ADR 0011 "
                        "decision 1.2.1)");
+RSBS_CTX_STATIC_ASSERT(RSBS_COMBO_FLAG_SHARED_OCARINA == 0x01u && RSBS_COMBO_FLAGS_ALL_V1 == 0x01u,
+                       "RSBS_COMBO_FLAG_* bit positions are .redsave format: pinned, append-only, "
+                       "allocate the next free bit and never re-point an allocated one (ADR 0011 "
+                       "decision 1.2.1, amended 2026-09-16 for #668)");
 
 // ============================================================================
 // The six MEMBERSHIP CRITERIA, and the class rule (#495; ADR 0011 decision 3)
@@ -540,6 +603,23 @@ bool Combo_ComboSettingsFrozen(void);
  *  frozen, compared, rendered setting rather than under one. */
 uint8_t Combo_ComboDirection(void);
 
+/**
+ * IS THE OCARINA ONE SHARED INSTRUMENT in this world (#668)?
+ *
+ * The frozen record's RSBS_COMBO_FLAG_SHARED_OCARINA bit when frozen, else the
+ * live resolution's — the exact shape of Combo_ComboDirection, and for the same
+ * reason: after creation the rules are world identity, so a session that
+ * resolved differently is REFUSED at the arrival gate (by name, through
+ * RSBS_COMBO_DIVERGE_SHARED_OCARINA) rather than honoured here.
+ *
+ * FALSE is the shipped default and means NOTHING CHANGES — no shared-resource
+ * slot, no harvest, no apply. Its one consumer is
+ * Combo_SharedResourceKindArmed (shared_resources.h), which is where both the
+ * harvest and the apply halves of RSBS_SHARED_RES_OCARINA_TIER pass through, so
+ * the gate cannot be applied to one direction and not the other.
+ */
+bool Combo_ComboSharedOcarina(void);
+
 /** Does the resolved direction arm crossings ORIGINATING in @p originGame?
  *  (GAME_OOT -> the forward pass, GAME_MM -> the reverse pass.) Increment 4's
  *  gate; see Combo_ComboDirection. */
@@ -667,7 +747,13 @@ int Combo_FreezeLegacyComboSettings(void);
 #define RSBS_COMBO_DIVERGE_ITEM_CLASS_MM 0x0010u
 #define RSBS_COMBO_DIVERGE_GOAL 0x0020u
 #define RSBS_COMBO_DIVERGE_LOGIC_RUNG 0x0040u
-#define RSBS_COMBO_DIVERGE_SPARE0 0x0080u
+/** Some UNALLOCATED bit of comboFlags differs — a state a formatVersion-1
+ *  record may not be in, so it is named for the byte rather than for a rule.
+ *  The value is the one `spare0` carried before byte 10 was spent (#668): the
+ *  byte, its offset and its canonical position are unchanged, only its name and
+ *  its meaning are, and a runtime bit that is not .redsave format is free to be
+ *  renamed where a stored one would not be. */
+#define RSBS_COMBO_DIVERGE_COMBO_FLAGS 0x0080u
 #define RSBS_COMBO_DIVERGE_SPARE1 0x0100u
 /** The frozen record carries a formatVersion this build does not understand, so
  *  its fields cannot be compared at all. Refuse; never guess. */
@@ -676,6 +762,11 @@ int Combo_FreezeLegacyComboSettings(void);
  *  and half-digests produce. Set only by the session-level diff, because it is
  *  a property of gComboCtx rather than of two records. */
 #define RSBS_COMBO_DIVERGE_FINGERPRINT 0x0400u
+/** The shared-ocarina rule differs (#668). A BIT of comboFlags gets its own
+ *  divergence bit rather than hiding inside the byte's, because decision 1.1's
+ *  whole justification for storing twelve bytes is that the refusal can name
+ *  WHICH RULE diverged — and "comboFlags" is a field name, not a rule. */
+#define RSBS_COMBO_DIVERGE_SHARED_OCARINA 0x0800u
 
 /**
  * Which FIELDS differ between a frozen record and a live resolution, as

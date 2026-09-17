@@ -56,8 +56,13 @@ void Combo_ComboSettingsDefaults(ComboSettingsRecord* out) {
     // describe a world that was already created.
     out->goal = (uint8_t)RSBS_COMBO_GOAL_BEAT_BOTH;
     out->logicRung = (uint8_t)RSBS_COMBO_RUNG_BEATABLE;
-    // spare0/spare1 stay 0: unallocated at formatVersion 1, and a nonzero spare
-    // in a version-1 record is corruption the divergence diff reports.
+    // comboFlags stays 0 (#668): every allocated flag CHANGES a world, so the
+    // "reproduce today's world exactly" rule makes the shipped default every bit
+    // clear — which is also what a record written before the byte was spent
+    // already holds, and what keeps the canonical bytes and the fingerprint off
+    // their golden vectors only when a player actually turns something on.
+    // spare1 stays 0: unallocated at formatVersion 1, and a nonzero spare in a
+    // version-1 record is corruption the divergence diff reports.
 }
 
 void Combo_ResolveComboSettings(ComboSettingsRecord* out) {
@@ -85,6 +90,29 @@ void Combo_ResolveComboSettings(ComboSettingsRecord* out) {
     out->poolSizeMM = (uint8_t)Combo_ComboSettingResolved(COMBO_SETTING_POOL_SIZE_MM);
     out->itemClassOoT = (uint16_t)Combo_ComboSettingResolved(COMBO_SETTING_ITEM_CLASS_OOT);
     out->itemClassMM = (uint16_t)Combo_ComboSettingResolved(COMBO_SETTING_ITEM_CLASS_MM);
+    // comboFlags is ASSEMBLED from its flag keys, never overlaid: the byte is a
+    // bitset and each bit has its own key, so writing the whole byte from the
+    // set of resolved booleans is what keeps an unallocated bit at 0 in a
+    // formatVersion-1 record no matter what a stored value holds. With every
+    // flag off this is 0, i.e. byte-identical to the defaults — the digest
+    // guarantee (#668).
+    out->comboFlags = 0u;
+    if (Combo_ComboSettingResolved(COMBO_SETTING_SHARED_OCARINA) != 0) {
+        out->comboFlags |= (uint8_t)RSBS_COMBO_FLAG_SHARED_OCARINA;
+    }
+}
+
+bool Combo_ComboSharedOcarina(void) {
+    // The exact shape of Combo_ComboDirection: the FROZEN record once a world
+    // exists, the live resolution before then. Reading the CVar after creation
+    // would let a title-screen toggle change a world that was already built,
+    // which is the thing the freeze exists to make impossible.
+    if (Combo_ComboSettingsFrozen()) {
+        return (gComboCtx.comboSettings.comboFlags & (uint8_t)RSBS_COMBO_FLAG_SHARED_OCARINA) != 0u;
+    }
+    ComboSettingsRecord live;
+    Combo_ResolveComboSettings(&live);
+    return (live.comboFlags & (uint8_t)RSBS_COMBO_FLAG_SHARED_OCARINA) != 0u;
 }
 
 bool Combo_ForeignPairingRequested(void) {
@@ -294,7 +322,7 @@ void Combo_ComboSettingsCanonical(const ComboSettingsRecord* rec, uint8_t* out) 
     out[7] = (uint8_t)((rec->itemClassMM >> 8) & 0xFFu);
     out[8] = rec->goal;
     out[9] = rec->logicRung;
-    out[10] = rec->spare0;
+    out[10] = rec->comboFlags;
     out[11] = rec->spare1;
 }
 
@@ -443,8 +471,17 @@ uint32_t Combo_ComboSettingsDivergenceBetween(const ComboSettingsRecord* frozen,
     if (frozen->logicRung != live->logicRung) {
         bits |= RSBS_COMBO_DIVERGE_LOGIC_RUNG;
     }
-    if (frozen->spare0 != live->spare0) {
-        bits |= RSBS_COMBO_DIVERGE_SPARE0;
+    // comboFlags diffs PER RULE, not per byte (#668). Decision 1.1's
+    // justification for storing the record at all is that a refusal can name
+    // which RULE diverged, and "comboFlags" names a field. Any unallocated bit
+    // that differs falls through to the byte-level bit, which is the honest
+    // report for a state a version-1 record may not be in at all.
+    const uint8_t flagsDelta = (uint8_t)(frozen->comboFlags ^ live->comboFlags);
+    if ((flagsDelta & (uint8_t)RSBS_COMBO_FLAG_SHARED_OCARINA) != 0u) {
+        bits |= RSBS_COMBO_DIVERGE_SHARED_OCARINA;
+    }
+    if ((flagsDelta & (uint8_t)~RSBS_COMBO_FLAGS_ALL_V1) != 0u) {
+        bits |= RSBS_COMBO_DIVERGE_COMBO_FLAGS;
     }
     if (frozen->spare1 != live->spare1) {
         bits |= RSBS_COMBO_DIVERGE_SPARE1;
@@ -494,8 +531,10 @@ const char* Combo_ComboSettingsDivergenceFieldName(uint32_t bit) {
             return "goal";
         case RSBS_COMBO_DIVERGE_LOGIC_RUNG:
             return "logicRung";
-        case RSBS_COMBO_DIVERGE_SPARE0:
-            return "spare0";
+        case RSBS_COMBO_DIVERGE_SHARED_OCARINA:
+            return "sharedOcarina";
+        case RSBS_COMBO_DIVERGE_COMBO_FLAGS:
+            return "comboFlags";
         case RSBS_COMBO_DIVERGE_SPARE1:
             return "spare1";
         case RSBS_COMBO_DIVERGE_UNREADABLE:

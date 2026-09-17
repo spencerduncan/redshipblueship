@@ -572,7 +572,7 @@ TestResult Test_SaveComboLegacyRecord(void) {
         0x65, 0x87, // itemClassMM  LE == 0x8765
         0x02,       // goal
         0x09,       // logicRung
-        0x11,       // spare0
+        0x11,       // comboFlags (byte 10, formerly spare0; #668)
         0x22,       // spare1
     };
 
@@ -645,7 +645,7 @@ TestResult Test_SaveComboLegacyRecord(void) {
                     gComboCtx.comboSettings.itemClassMM == 0x8765u &&
                     gComboCtx.comboSettings.goal == kCraftedComboRecord[8] &&
                     gComboCtx.comboSettings.logicRung == kCraftedComboRecord[9] &&
-                    gComboCtx.comboSettings.spare0 == kCraftedComboRecord[10] &&
+                    gComboCtx.comboSettings.comboFlags == kCraftedComboRecord[10] &&
                     gComboCtx.comboSettings.spare1 == kCraftedComboRecord[11],
                 "bytes 884..895 did not land member-for-member in comboSettings — the combo rule record's layout "
                 "IS .redsave format, and it is the same byte order the canonical digest encoder walks");

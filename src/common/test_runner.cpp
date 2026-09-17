@@ -218,7 +218,7 @@ int MM_ForeignPickupGate_RunHeadless(void);
 // first satisfying its MM-profile leg. Returns 0 on pass.
 int MM_ComboSettingsGate_RunHeadless(void);
 // src/common/tests/test_combo_settings.c (ADR 0011 increment 2): the tier-4
-// AUTHORING surface. Needs the shared bring-up because the five gCombo.Rando.*
+// AUTHORING surface. Needs the shared bring-up because the six gCombo.Rando.*
 // keys live in the CVar store on the Ship::Context singleton — the increment-1
 // rows in the same file deliberately run WITHOUT one. Returns 0 on pass.
 int Combo_SettingsAuthoring_RunHeadless(void);
@@ -381,6 +381,15 @@ extern "C" {
 // (compiled as C++) like the file above; every symbol it drives is C-linkage
 // via shared_resources.h.
 #include "tests/test_shared_resources.c"
+
+// The SHARED OCARINA tier (#668): the first RSBS_SHARED_RES_* kind whose
+// existence is a per-world choice, armed by ComboSettingsRecord.comboFlags. Its
+// own row rather than a leg of the file above, because the two claims it owns
+// are meaningless for the other eighteen kinds — that with the option OFF
+// nothing is harvested, applied or even slotted, and that the arming gate is
+// consulted by BOTH halves so it cannot be applied one-sidedly. FILE SCOPE for
+// the same reason as its neighbour.
+#include "tests/test_shared_ocarina.c"
 
 // Netplay grant-relay loopback locks (ADR 0007, #460). Guarded: with
 // RSBS_NETPLAY=OFF (the default) the relay sources are not in the build at all,
@@ -2647,6 +2656,13 @@ const TestDescriptor gTests[] = {
     // everything under test is gComboCtx plus a RAM watermark table.
     {"shared-resources", "One quantity across both games: watermark, disciplines, seed, heart clamp (#525)",
      Test_SharedResources},
+    // #668: the ocarina as ONE instrument, and the first shared kind a player
+    // can decline. Same display-free, ROM-free, save-free shape as the row
+    // above — gComboCtx, the RAM watermark table, and the frozen record.
+    {"shared-ocarina",
+     "One ocarina across both games when the frozen combo setting arms it, and nothing at all when it does not "
+     "(#668)",
+     Test_SharedOcarina},
     {"combo-spoiler-view", "In-game spoiler view model: named crossings, collected state, unpaired != empty (#496)",
      Test_ComboSpoilerView},
     {"combo-spoiler-window", "Common-owned spoiler window registers de-collided; inert under every active game (#496)",
@@ -2779,7 +2795,7 @@ const TestDescriptor gTests[] = {
     // proves the keys reach the record BEFORE the freeze and are refused after
     // it; the window row is the common-owned pane's headless lock.
     {"combo-settings-authoring",
-     "The five tier-4 keys author the combo record before the freeze and are refused after it (ADR 0011 inc 2)",
+     "The six tier-4 keys author the combo record before the freeze and are refused after it (ADR 0011 inc 2, #668)",
      Test_ComboSettingsAuthoring},
     {"combo-settings-window",
      "Common-owned combo settings pane registers de-collided; inert under every game and pairing state (ADR 0011)",
@@ -2898,7 +2914,7 @@ const TestDescriptor gTests[] = {
     // The tier-4 combo settings' menu rows (#655). Builds a SohMenu headless, so
     // it needs the display-free shared bring-up above but no window; it writes
     // the five gCombo.Rando.* keys and freezes gComboCtx, and restores both.
-    {"combo-settings-rows", "The five tier-4 combo settings are marked, model-backed SohMenu rows (#655)",
+    {"combo-settings-rows", "The six tier-4 combo settings are marked, model-backed SohMenu rows (#655, #668)",
      Test_ComboSettingsRows},
     // Keep archive-hotswap-logic LAST: it re-inits the entrance table, so it
     // must not run before any test that relies on the default links.

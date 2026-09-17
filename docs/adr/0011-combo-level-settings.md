@@ -186,6 +186,13 @@ typedef struct {
 } ComboSettingsRecord;      // sizeof == 12, alignment 2, no padding
 ```
 
+> **Amended 2026-09-17 (#668): `spare0` is spent.** Byte 10 is now `comboFlags`,
+> an `RSBS_COMBO_FLAG_*` bitset whose first bit is the shared ocarina. The
+> offset, the size and the canonical position are unchanged, and
+> `formatVersion` stays 1 — every bit in that byte must have "clear == the
+> behaviour before it existed", which is what makes *absent* and *zero* the same
+> world. See the dated section under **Amendments**.
+
 - **`formatVersion` is the occupancy tag, and it is what makes the other ten bytes
   usable.** This is the `ComboSharedResource` device (`context.h:371-396`: "0 rupees
   is a legal player state, so a bare `uint16_t sharedRupees` cannot distinguish a
@@ -791,6 +798,8 @@ to look for it rather than to re-pin.
 - **`spare0`/`spare1` will be spent, and they are the record's only headroom.** A
   third field beyond them needs a second block from `reserved[108]`, never a widen in
   place — the same prescription `RSBS_SHARED_RESOURCE_EXT_CAP` followed literally.
+  *(2026-09-17, #668: `spare0` is spent, as `comboFlags` — a bitset, so the next
+  yes/no rule costs a bit rather than a byte. `spare1` is the last spare.)*
 - **The pinned value tables are a permanent maintenance obligation.** Every future
   direction, goal, rung or class arrives as the next free literal or bit, and a dead
   one is retired in place. This is a cost the ADR accepts deliberately: the
@@ -1034,3 +1043,96 @@ record's fields, and **not** into `MixPairedFinalSeed()` (`MMRandoGen` and
   by `combo-settings-authoring` leg 7). `save.cpp` was outside the lane's named
   ownership and no wave card claimed it, so the correction is its own commit,
   droppable independently of the keys and the pane.
+
+### 2026-09-17 — The shared ocarina (#668): record byte 10 becomes `comboFlags`, and the first shared-resource kind a player chooses
+
+Operator direction, 2026-09-16, alongside the [#654](https://github.com/spencerduncan/redshipblueship/issues/654)
+ruling that the ocarina is a pool item findable in either game — *"there should
+be an option to have the ocarina be shared in both games."* Landed as
+[#668](https://github.com/spencerduncan/redshipblueship/issues/668). Nothing in
+decisions 1–4 changes; this records the value space, the record bit and the
+mapping, which decision 1.2.1 requires to be written down before they are
+spent.
+
+- **The key.** `gCombo.Rando.SharedOcarina`, a sixth tier-4 identity key under
+  the ADR 0003 naming rule, classified `Identity` in
+  `RSBS::kComboKeys` (`src/common/cvar_shared_keys.h`) for the same reason as
+  its five siblings: it authors the frozen record and nothing else. **Value
+  space: exactly 0 or 1** — not "nonzero is true". The record stores one bit,
+  so a coercion would make two different stored values produce the same world,
+  which is precisely what pinning the spaces prevents; an out-of-space value
+  resolves to the shipped default with a logged reason, as everywhere else in
+  this ADR. **The shipped default is 0**, so every world created before the key
+  existed, and every world whose player leaves the row alone, resolves to the
+  same twelve bytes and the same `comboSettingsHash`.
+
+- **The record bit — the first spare SPENT.** Byte 10, formerly `spare0`,
+  becomes `comboFlags`: an `RSBS_COMBO_FLAG_*` bitset over combo rules that are
+  yes/no rather than enumerated. `RSBS_COMBO_FLAG_SHARED_OCARINA` is `0x01`;
+  bits `0x02..0x80` are unallocated and must read 0 in a formatVersion-1
+  record. The byte's offset, its size and its position in `canonical()` are
+  unchanged — decision 1.2.1's append-only rule is about *renumbering*, and
+  nothing here is renumbered or re-pointed. The static assert on the member
+  offsets is updated for the new name only.
+
+- **`RSBS_COMBO_SETTINGS_FORMAT_VERSION` stays 1, and this is the test the next
+  spender applies.** §1.5 prices a bump at "a reader must tell *field absent*
+  from *field zero*". A bitset whose every CLEAR bit reproduces the behaviour of
+  a record written before the bit existed has nothing to distinguish: shared
+  ocarina OFF *is* what every world before #668 did. A bump would have been
+  strictly harmful — `formatVersion` is `canonical()[0]`, so every new world's
+  fingerprint and every determinism digest would have moved for a setting nobody
+  turned on. **Spend `spare1`, or a further bit of `comboFlags`, the same way
+  only if its zero is likewise the legacy behaviour.**
+
+- **The divergence bit is the RULE's, not the byte's.** `sharedOcarina`
+  (`RSBS_COMBO_DIVERGE_SHARED_OCARINA`) names the rule; the byte-level
+  `comboFlags` bit — which inherits `spare0`'s old value, a runtime constant and
+  not `.redsave` format — reports only an UNALLOCATED bit that differs, a state
+  a version-1 record may not be in at all. Decision 1.1's whole justification
+  for storing twelve bytes rather than a digest is that a refusal names *which
+  rule* diverged, and `comboFlags` is a field name.
+
+- **The semantics: a MONOTONIC shared resource, and the first CONDITIONAL one.**
+  `RSBS_SHARED_RES_OCARINA_TIER` (kind 18) on the hookshot's model
+  (#525 / PR #556): origin-tagged, harvested at suspend, applied at the arriving
+  game's startup entrance, never lowered by a harvest. The tier is **0 none, 1
+  an ocarina, 2 Ocarina of Time's Ocarina of Time**; OoT's ceiling is 2 and MM's
+  is 1, exactly the hookshot's 2-vs-1, which max-merge handles natively. Every
+  other kind is unconditional — #525 decided one wallet and one health bar for
+  every world — so this one introduces `Combo_SharedResourceKindArmed`, consulted
+  by **both** `Combo_HarvestSharedResource` and `Combo_ApplySharedResource`.
+  Harvest and apply are not inverses (apply ASSIGNS for a consumable), so a gate
+  written into the per-game call sites instead would be four chances to gate one
+  direction and not the other, and a one-sided gate leaks rather than
+  under-sharing. With the option off nothing is harvested, applied, or even
+  slotted: the `.redsave` of a world that never asked for it is byte-identical
+  to one written before the option existed.
+
+- **THE MAPPING, which is the decision and not an implementation detail.**
+  - **Any OoT ocarina gives MM its Ocarina of Time.** The operator's direction
+    read literally: MM has exactly one ocarina, so "shared in both games" can
+    only mean the Fairy Ocarina counts.
+  - **MM's Ocarina of Time gives OoT the FAIRY Ocarina, never the Ocarina of
+    Time.** The shared model transports what the player HAS and never invents a
+    promotion. Mapping MM's single rung onto OoT's top rung would award the Door
+    of Time's key for the price of a Termina round trip to a player who had only
+    ever found the Fairy Ocarina — and it is the same ruling the hookshot
+    already carries in the other direction (MM's tier-1 hookshot never becomes a
+    longshot in OoT).
+
+- **Presentation and locks.** A sixth row in the interim Cross-Game section
+  (`SohGui::AddCrossGameWidgets`), a `WIDGET_CHECKBOX` over a staging buffer
+  with `src/common`'s writer as its only write path, ADR 0004 §4.2's marker in
+  its name, ADR 0004 §6 state 4 read-only from the save after creation — the
+  2026-09-16 amendment's pattern verbatim. Locked by `cvar-classification` (six
+  identity keys), `combo-settings-format` / `combo-settings-canonical` (the
+  pinned bit, the unchanged format version, and golden vectors for both the set
+  and the clear state), `combo-settings-divergence` and
+  `combo-settings-authoring` (the refusal, by name, in both directions),
+  `combo-settings-rows` (six rows), and the new `shared-ocarina` row (the tier,
+  the mapping, the monotonic discipline, and the symmetric gate).
+
+- **No fill, pool or placement change.** The ocarina's #654 pool membership is
+  unchanged; this setting governs only whether the instrument the player holds
+  is one across both halves.

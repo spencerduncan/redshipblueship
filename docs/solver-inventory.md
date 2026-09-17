@@ -747,11 +747,13 @@ touch outside the save (nothing found statically — see §6.3).
 ### 3.2 The frozen combo record, direction gate, item-class rule
 
 - `ComboSettingsRecord` is twelve bytes — `formatVersion, direction,
-  poolSizeOoT, poolSizeMM, itemClassOoT, itemClassMM, goal, logicRung, spare0,
-  spare1` (`context.h:500-511`) — with every value space pinned
+  poolSizeOoT, poolSizeMM, itemClassOoT, itemClassMM, goal, logicRung,
+  comboFlags, spare1` (`context.h:500-511`) — with every value space pinned
   (`foreign_items.h:275-344`): `RSBS_COMBO_DIR_{OFF,FORWARD,REVERSE,BOTH}`,
   `RSBS_COMBO_GOAL_{BEAT_BOTH,BEAT_EITHER,TRIFORCE_HUNT}`,
-  `RSBS_COMBO_RUNG_{NONE,BEATABLE,ALL_REACHABLE}`, six `RSBS_ITEMCLASS_*` bits.
+  `RSBS_COMBO_RUNG_{NONE,BEATABLE,ALL_REACHABLE}`, six `RSBS_ITEMCLASS_*` bits,
+  and (since #668) `RSBS_COMBO_FLAG_SHARED_OCARINA` in `comboFlags`, the byte
+  formerly named `spare0`.
   The GOAL and rung ADR 0010 D1/§2.2 define therefore already have an encoding
   and a frozen home; the trick set T is deliberately not in the record
   (`:286-289`) — it lives in the two half-digests.
