@@ -608,7 +608,9 @@ TestResult Test_CVarClassification(void) {
             // The identity rule, at runtime as well as at compile time
             // (cvar_shared_keys.h static_asserts it): every key under the
             // identity sub-namespace is Identity, and there are exactly the
-            // five ADR 0011 increment 2 introduced.
+            // five ADR 0011 increment 2 introduced plus the shared ocarina
+            // (#668), which is a BIT of the same frozen record and therefore
+            // identity for exactly the same reason.
             std::size_t identityKeys = 0;
             for (std::size_t k = 0; k < RSBS::kComboKeyCount; k++) {
                 if (strncmp(RSBS::kComboKeys[k].key, RSBS::kComboIdentityKeyPrefix,
@@ -619,9 +621,9 @@ TestResult Test_CVarClassification(void) {
                     identityKeys++;
                 }
             }
-            CVARCLASS_CHECK(identityKeys == 5,
-                            "exactly five tier-4 identity keys (direction, two pool sizes, two item classes — "
-                            "ADR 0011 increment 2)");
+            CVARCLASS_CHECK(identityKeys == 6,
+                            "exactly six tier-4 identity keys (direction, two pool sizes, two item classes — ADR "
+                            "0011 increment 2 — and the shared ocarina, #668)");
             printf("[TEST]   tier-4 namespace: %zu literal(s) across %zu files, all %zu manifest rows spelled, "
                    "%zu identity\n",
                    literalsSeen, comboFiles.size(), RSBS::kComboKeyCount, identityKeys);

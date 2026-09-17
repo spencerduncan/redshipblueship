@@ -1378,6 +1378,80 @@ static void OoT_WriteHookshotTier(uint16_t tier) {
     }
 }
 
+// OoT's ocarina ceiling: 0 none, 1 Fairy Ocarina, 2 Ocarina of Time (#668).
+#define OOT_MAX_OCARINA_TIER 2u
+
+// The ocarina as a tier, the hookshot's shape a second time: both games keep
+// their ocarina in ONE inventory byte, so "one shared instrument" is a small
+// monotonic number and nothing but the number crosses. Passing a raw item id
+// would be wrong in the MM direction anyway — MM's ITEM_OCARINA_OF_TIME is a
+// different enumerator in a different id space (ADR 0002).
+//
+// SLOT_OCARINA holds ITEM_OCARINA_FAIRY or ITEM_OCARINA_TIME, and INV_CONTENT()
+// indexes by item rather than by slot, so both reads below name the same byte.
+static uint16_t OoT_ReadOcarinaTier(void) {
+    const u8 held = INV_CONTENT(ITEM_OCARINA_FAIRY);
+    if (held == ITEM_OCARINA_TIME) {
+        return 2u;
+    }
+    if (held == ITEM_OCARINA_FAIRY) {
+        return 1u;
+    }
+    return 0u;
+}
+
+/**
+ * Author OoT's ocarina byte for `tier`, including the part a bare INV_CONTENT
+ * write would miss.
+ *
+ * OoT's own Ocarina of Time give rewrites every C-button (and, under rando,
+ * both age-specific equip sets) that currently holds the FAIRY ocarina, because
+ * a button stores the ITEM id and not the slot (z_parameter.c's
+ * ITEM_OCARINA_TIME branch). Skip that and a player who had the fairy ocarina
+ * equipped keeps the old icon and the old id after the pool upgrades them — the
+ * same silent no-op the hookshot's writer above exists to avoid.
+ *
+ * The age-set rewrite is done UNCONDITIONALLY here where vanilla gates it on
+ * IS_RANDO && LINK_IS_CHILD/ADULT. Vanilla can assume the other age's set will
+ * be re-authored when the player time-travels; a cross-game apply runs from
+ * Play_Init on an arrival that may be at either age and may never travel again,
+ * and leaving the other set holding ITEM_OCARINA_FAIRY would resurrect the
+ * un-upgraded id on the next age change. Writing both is idempotent.
+ *
+ * Interface_LoadItemIcon1 is deliberately NOT called: it needs a live PlayState
+ * and this runs before there is one. The arrival's own interface init loads the
+ * C-button icons after this point, exactly as for the hookshot.
+ */
+static void OoT_WriteOcarinaTier(uint16_t tier) {
+    if (tier == 0u) {
+        return; // monotonic: never take one away
+    }
+    const u8 item = (tier >= 2u) ? (u8)ITEM_OCARINA_TIME : (u8)ITEM_OCARINA_FAIRY;
+    if (INV_CONTENT(ITEM_OCARINA_FAIRY) == ITEM_NONE || item == (u8)ITEM_OCARINA_TIME) {
+        INV_CONTENT(ITEM_OCARINA_FAIRY) = item;
+    }
+    if (item != (u8)ITEM_OCARINA_TIME) {
+        return; // nothing equipped can be stale: tier 1 never replaces an id
+    }
+
+    u8* const buttonSets[] = {
+        gSaveContext.equips.buttonItems,
+        gSaveContext.adultEquips.buttonItems,
+        gSaveContext.childEquips.buttonItems,
+    };
+    // From index 1, never 0 — the same rule and the same reason as the hookshot
+    // writer above: index 0 is the B button, which is not a slot the ocarina is
+    // equippable to and which SoH's Bottle Adventure restoration stages
+    // arbitrary save bytes through.
+    for (size_t set = 0; set < ARRAY_COUNT(buttonSets); set++) {
+        for (size_t i = 1; i < ARRAY_COUNT(gSaveContext.equips.buttonItems); i++) {
+            if (buttonSets[set][i] == ITEM_OCARINA_FAIRY) {
+                buttonSets[set][i] = item;
+            }
+        }
+    }
+}
+
 /**
  * Would GRANTING this row's item be handing the player a shuffled CHECK the
  * seed placed elsewhere? Then the pool may not hand it over.
@@ -1593,6 +1667,13 @@ extern "C" void OoT_HarvestSharedResources(void) {
     }
 
     Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_HOOKSHOT_TIER, OoT_ReadHookshotTier());
+
+    // Ocarina (#668). Offered UNCONDITIONALLY from here: the arming gate lives
+    // in Combo_HarvestSharedResource, which consults the same predicate the
+    // apply does, so a per-world option cannot end up gated on one side only.
+    // With the option off this call touches neither the pool nor the watermark
+    // table.
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_OCARINA_TIER, OoT_ReadOcarinaTier());
 }
 
 /**
@@ -1753,6 +1834,18 @@ extern "C" void OoT_ApplySharedResources(void) {
     uint16_t hookshotTier = OoT_ReadHookshotTier();
     if (Combo_ApplySharedResource(GAME_OOT, RSBS_SHARED_RES_HOOKSHOT_TIER, OOT_MAX_HOOKSHOT_TIER, &hookshotTier)) {
         OoT_WriteHookshotTier(hookshotTier);
+    }
+
+    // --- Ocarina (monotonic 0/1/2), armed per world by the frozen combo
+    // setting (#668). Clamped to OoT's ceiling of 2, the higher of the two: MM
+    // holds only one ocarina and harvests tier 1, so an Ocarina of Time earned
+    // here survives a Termina round trip untouched — max-merge cannot demote it
+    // — and MM's ocarina arrives as the Fairy Ocarina rather than promoting the
+    // player to the Door of Time's key. With the option off
+    // Combo_ApplySharedResource returns false and nothing below runs.
+    uint16_t ocarinaTier = OoT_ReadOcarinaTier();
+    if (Combo_ApplySharedResource(GAME_OOT, RSBS_SHARED_RES_OCARINA_TIER, OOT_MAX_OCARINA_TIER, &ocarinaTier)) {
+        OoT_WriteOcarinaTier(ocarinaTier);
     }
 }
 

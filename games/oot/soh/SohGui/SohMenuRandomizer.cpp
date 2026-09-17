@@ -34,8 +34,9 @@ static const std::map<int32_t, const char*> skipGetItemAnimationOptions = {
 // ============================================================================
 // Cross-Game combo rules (#655; ADR 0011 increment 2, #498)
 // ============================================================================
-// The five tier-4 `gCombo.Rando.*` keys — direction, per-direction pool sizes,
-// per-direction item classes — render as ROWS in the interim Cross-Game page
+// The six tier-4 `gCombo.Rando.*` keys — direction, per-direction pool sizes,
+// per-direction item classes, and the shared ocarina (#668) — render as ROWS in
+// the interim Cross-Game page
 // below. PR #652 shipped them as a common-owned pop-out pane
 // (src/common/ComboSettingsWindow.cpp); operator direction after the 2026-09-11
 // nightly was that they "should be built into the menu itself like all the
@@ -58,6 +59,7 @@ static const std::map<int32_t, const char*> skipGetItemAnimationOptions = {
 static int32_t comboRuleDirection;
 static int32_t comboRulePoolSize[2];  // [0] OoT items -> MM checks, [1] MM items -> OoT checks
 static bool comboRuleItemClass[2][6]; // [0] OoT pool, [1] MM pool; second index is comboRuleClassBits'
+static bool comboRuleSharedOcarina;   // #668: ComboSettingsRecord.comboFlags' shared-ocarina bit
 
 // The allocated RSBS_ITEMCLASS_* bits in bit order (foreign_items.h). Appending
 // a class is a new checkbox here; re-pointing an existing bit is forbidden
@@ -1066,8 +1068,8 @@ void AddCrossGameWidgets(SohMenu& menu, WidgetPath& path) {
     path.sidebarName = "Cross-Game";
     menu.AddSidebarEntry("Randomizer", path.sidebarName, 1);
 
-    // ---- The combo rules themselves (#655) ---------------------------------
-    // Five settings, rendered as rows rather than as the pop-out pane PR #652
+    // ---- The combo rules themselves (#655, #668) ---------------------------
+    // Six settings, rendered as rows rather than as the pop-out pane PR #652
     // shipped. See the block comment at the top of this file for why every row
     // is a pointer-based widget over a src/common writer rather than a
     // WIDGET_CVAR_* one, and for which value each row shows in which state.
@@ -1173,6 +1175,28 @@ void AddCrossGameWidgets(SohMenu& menu, WidgetPath& path) {
             .Options(TextOptions().Color(UIWidgets::Colors::Gray));
     }
 
+    // The shared ocarina (#668). A comboFlags BIT rather than a field of its
+    // own, so the row is a plain checkbox over the model's 0/1 space; everything
+    // else about it is the five rows' pattern verbatim — the staging buffer, the
+    // PreFunc that refreshes from the record, the Callback that offers the edit
+    // to src/common's writer, and the marker in the name.
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_OCARINA), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleSharedOcarina)
+        .PreFunc([](WidgetInfo& info) {
+            ComboSettingsRecord shown;
+            const bool decided = ComboRuleShownRecord(&shown);
+            comboRuleSharedOcarina = (shown.comboFlags & (uint8_t)RSBS_COMBO_FLAG_SHARED_OCARINA) != 0;
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback([](WidgetInfo& info) {
+            Combo_ComboSettingSet(COMBO_SETTING_SHARED_OCARINA, comboRuleSharedOcarina ? 1 : 0);
+        })
+        .Options(CheckboxOptions().Tooltip(
+            "Treat the ocarina as ONE instrument across both games: finding an ocarina in either game gives you "
+            "one in the other. Ocarina of Time's Fairy Ocarina counts, because Majora's Mask has only one "
+            "ocarina; Majora's Mask's ocarina gives you the Fairy Ocarina in Ocarina of Time, never the Ocarina "
+            "of Time itself."));
+
     menu.AddWidget(path, "Reset Combo Rules To Defaults", WIDGET_BUTTON)
         .PreFunc([](WidgetInfo& info) {
             // A live Reset under a frozen record would be a control that
@@ -1189,7 +1213,7 @@ void AddCrossGameWidgets(SohMenu& menu, WidgetPath& path) {
         })
         .Options(ButtonOptions()
                      .Size(ImVec2(250.f, 0.f))
-                     .Tooltip("Clears all five rules back to the values RedShipBlueShip ships with."));
+                     .Tooltip("Clears all six rules back to the values RedShipBlueShip ships with."));
 
     // ---- The common-owned cross-game windows --------------------------------
     menu.AddWidget(path, "Cross-Game Windows", WIDGET_SEPARATOR_TEXT);

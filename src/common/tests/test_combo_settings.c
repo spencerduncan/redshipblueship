@@ -121,7 +121,11 @@ ComboSettingsRecord ComboSettingsGoldenRecord() {
     r.itemClassMM = 0xABCDu;
     r.goal = (uint8_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT;       // 3
     r.logicRung = (uint8_t)RSBS_COMBO_RUNG_ALL_REACHABLE;  // 3
-    r.spare0 = 0u;
+    // comboFlags stays CLEAR in the golden record on purpose (#668): the
+    // pinned bytes and the pinned fingerprint below are the ones this project
+    // has shipped since increment 1, and spending byte 10 must not move them.
+    // The flag's own vector is a separate, additional constant.
+    r.comboFlags = 0u;
     r.spare1 = 0u;
     return r;
 }
@@ -129,7 +133,7 @@ ComboSettingsRecord ComboSettingsGoldenRecord() {
 bool ComboSettingsRecordsEqual(const ComboSettingsRecord& a, const ComboSettingsRecord& b) {
     return a.formatVersion == b.formatVersion && a.direction == b.direction && a.poolSizeOoT == b.poolSizeOoT &&
            a.poolSizeMM == b.poolSizeMM && a.itemClassOoT == b.itemClassOoT && a.itemClassMM == b.itemClassMM &&
-           a.goal == b.goal && a.logicRung == b.logicRung && a.spare0 == b.spare0 && a.spare1 == b.spare1;
+           a.goal == b.goal && a.logicRung == b.logicRung && a.comboFlags == b.comboFlags && a.spare1 == b.spare1;
 }
 
 } // namespace
@@ -155,7 +159,8 @@ TestResult Test_ComboSettingsFormat(void) {
     CS_ASSERT(offsetof(ComboSettingsRecord, itemClassMM) == 6, "itemClassMM moved off byte 6");
     CS_ASSERT(offsetof(ComboSettingsRecord, goal) == 8, "goal moved off byte 8");
     CS_ASSERT(offsetof(ComboSettingsRecord, logicRung) == 9, "logicRung moved off byte 9");
-    CS_ASSERT(offsetof(ComboSettingsRecord, spare0) == 10, "spare0 moved off byte 10");
+    CS_ASSERT(offsetof(ComboSettingsRecord, comboFlags) == 10,
+              "comboFlags moved off byte 10 (the byte formerly named spare0, spent by #668)");
     CS_ASSERT(offsetof(ComboSettingsRecord, spare1) == 11, "spare1 moved off byte 11");
 
     // ---- The carve's position and the budget it leaves ---------------------
@@ -186,6 +191,13 @@ TestResult Test_ComboSettingsFormat(void) {
                   RSBS_ITEMCLASS_MASKS == 0x0004u && RSBS_ITEMCLASS_DUNGEON_ITEMS == 0x0008u &&
                   RSBS_ITEMCLASS_DUNGEON_REWARD == 0x0010u && RSBS_ITEMCLASS_SIDEQUEST == 0x0020u,
               "RSBS_ITEMCLASS_* bit positions moved — a bit may be appended, never re-pointed");
+    CS_ASSERT(RSBS_COMBO_FLAG_SHARED_OCARINA == 0x01u && RSBS_COMBO_FLAGS_ALL_V1 == 0x01u,
+              "RSBS_COMBO_FLAG_* bit positions moved — comboFlags is .redsave format, append-only (#668)");
+    CS_ASSERT(RSBS_COMBO_SETTINGS_FORMAT_VERSION == 1u,
+              "the record format version moved. Spending a spare does NOT earn a bump — #668 spent byte 10 with "
+              "a bitset whose CLEAR state is the pre-#668 behaviour, so 'absent' and 'zero' are the same world. "
+              "A bump is canonical()[0] and moves EVERY world's fingerprint; only spend it for a field whose "
+              "zero would change an existing world");
 
     // ---- The shipped defaults ---------------------------------------------
     ComboSettingsRecord defaults;
@@ -202,8 +214,10 @@ TestResult Test_ComboSettingsFormat(void) {
     CS_ASSERT(defaults.goal == RSBS_COMBO_GOAL_BEAT_BOTH, "the default GOAL must stay beat-both (ADR 0010 O11)");
     CS_ASSERT(defaults.logicRung == RSBS_COMBO_RUNG_BEATABLE,
               "the default rung must be the proved no-tricks rung, never base `none` (ADR 0010 O11)");
-    CS_ASSERT(defaults.spare0 == 0 && defaults.spare1 == 0,
-              "unallocated spares must read 0 in a formatVersion 1 record");
+    CS_ASSERT(defaults.comboFlags == 0,
+              "the shipped default must have every comboFlags bit CLEAR (#668): each one changes a world, and "
+              "'reproduce today's world exactly' binds every default in this file");
+    CS_ASSERT(defaults.spare1 == 0, "unallocated spares must read 0 in a formatVersion 1 record");
 
     // The resolver is what both the creation stamp and the arrival compare go
     // through; at increment 1 it must BE the defaults, or the two would already
@@ -443,6 +457,47 @@ TestResult Test_ComboSettingsCanonical(void) {
     CS_ASSERT(Combo_ComputeComboSettingsHash(&defaults, kSettingsHash, kProfileDigest) == 0xBA5FC364u,
               "the shipped defaults' fingerprint changed");
 
+    // --- The comboFlags vector: SET moves it, CLEAR does not (#668) ---------
+    // Both halves matter and they are different claims.
+    //
+    // CLEAR is the DIGEST GUARANTEE: byte 10 was spent without a formatVersion
+    // bump precisely so that a world nobody changed keeps the identity it
+    // always had, and the two constants just above are the evidence. The two
+    // vectors above already assert it (both records carry comboFlags == 0), so
+    // this leg restates it explicitly against a record built from the defaults
+    // with the flag left alone — the shape the resolver produces for every
+    // player who never touches the row.
+    //
+    // SET is the OTHER half: a bit that did not reach canonical() would be a
+    // world rule outside the world's identity, which is exactly the vacuity ADR
+    // 0009 decision 1 refuses. The byte moves, and it moves at position 10.
+    {
+        ComboSettingsRecord flagged = defaults;
+        flagged.comboFlags = (uint8_t)RSBS_COMBO_FLAG_SHARED_OCARINA;
+        static const uint8_t kSharedOcarinaCanonGold[RSBS_COMBO_SETTINGS_CANONICAL_LEN] = {
+            0x01, 0x04, 0x08, 0x08, 0x3F, 0x00, 0x3F, 0x00, 0x01, 0x02, 0x01, 0x00,
+        };
+        uint8_t flaggedCanon[RSBS_COMBO_SETTINGS_CANONICAL_LEN];
+        Combo_ComboSettingsCanonical(&flagged, flaggedCanon);
+        CS_ASSERT(memcmp(flaggedCanon, kSharedOcarinaCanonGold, sizeof(kSharedOcarinaCanonGold)) == 0,
+                  "the shared-ocarina record's canonical bytes moved off their vector — the flag rides byte 10, "
+                  "the byte formerly named spare0, and nothing else may shift with it");
+        CS_ASSERT(memcmp(flaggedCanon, kDefaultsCanonGold, 10) == 0 && flaggedCanon[11] == kDefaultsCanonGold[11],
+                  "setting the shared-ocarina flag changed a byte OTHER than byte 10");
+        CS_ASSERT(Combo_ComputeComboSettingsHash(&flagged, kSettingsHash, kProfileDigest) == 0x0B1A2145u,
+                  "the shared-ocarina world's fingerprint moved off its vector");
+        CS_ASSERT(Combo_ComputeComboSettingsHash(&flagged, kSettingsHash, kProfileDigest) !=
+                      Combo_ComputeComboSettingsHash(&defaults, kSettingsHash, kProfileDigest),
+                  "turning the shared ocarina ON did not change comboSettingsHash — a world rule outside the "
+                  "world's identity is the vacuity the record exists to prevent");
+
+        ComboSettingsRecord cleared = flagged;
+        cleared.comboFlags = 0u;
+        CS_ASSERT(Combo_ComputeComboSettingsHash(&cleared, kSettingsHash, kProfileDigest) == 0xBA5FC364u,
+                  "clearing the shared-ocarina flag did not return the fingerprint to the shipped defaults' — "
+                  "the off state must be byte-identical to a world written before the flag existed");
+    }
+
     // --- Construction order is irrelevant; VALUES are the identity ----------
     // The property the byte-at-a-time encoder exists to guarantee: the digest
     // is a function of the values, not of how the struct got them.
@@ -450,7 +505,7 @@ TestResult Test_ComboSettingsCanonical(void) {
         ComboSettingsRecord other;
         memset(&other, 0xFF, sizeof(other)); // deliberately dirty before assignment
         other.spare1 = 0u;
-        other.spare0 = 0u;
+        other.comboFlags = 0u;
         other.logicRung = (uint8_t)RSBS_COMBO_RUNG_ALL_REACHABLE;
         other.goal = (uint8_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT;
         other.itemClassMM = 0xABCDu;
@@ -469,7 +524,7 @@ TestResult Test_ComboSettingsCanonical(void) {
     // constant on the day it was written).
     {
         const char* names[10] = { "formatVersion", "direction", "poolSizeOoT", "poolSizeMM", "itemClassOoT",
-                                  "itemClassMM",   "goal",      "logicRung",   "spare0",     "spare1" };
+                                  "itemClassMM",   "goal",      "logicRung",   "comboFlags", "spare1" };
         for (int i = 0; i < 10; i++) {
             ComboSettingsRecord moved = golden;
             switch (i) {
@@ -481,7 +536,7 @@ TestResult Test_ComboSettingsCanonical(void) {
                 case 5: moved.itemClassMM = 0xDCBAu; break;
                 case 6: moved.goal = (uint8_t)RSBS_COMBO_GOAL_BEAT_EITHER; break;
                 case 7: moved.logicRung = (uint8_t)RSBS_COMBO_RUNG_NONE; break;
-                case 8: moved.spare0 = 0x77u; break;
+                case 8: moved.comboFlags = 0x77u; break;
                 default: moved.spare1 = 0x77u; break;
             }
             if (Combo_ComputeComboSettingsHash(&moved, kSettingsHash, kProfileDigest) == kGoldenFingerprint) {
@@ -564,7 +619,13 @@ TestResult Test_ComboSettingsDivergence(void) {
         { RSBS_COMBO_DIVERGE_ITEM_CLASS_MM, "itemClassMM" },
         { RSBS_COMBO_DIVERGE_GOAL, "goal" },
         { RSBS_COMBO_DIVERGE_LOGIC_RUNG, "logicRung" },
-        { RSBS_COMBO_DIVERGE_SPARE0, "spare0" },
+        // comboFlags diffs PER RULE (#668): an ALLOCATED bit names the rule it
+        // carries, and only an UNALLOCATED one falls back to the byte's own
+        // name. Decision 1.1's justification for storing twelve bytes rather
+        // than a digest is that the refusal names WHICH RULE moved, and
+        // "comboFlags" is a field name, not a rule.
+        { RSBS_COMBO_DIVERGE_SHARED_OCARINA, "sharedOcarina" },
+        { RSBS_COMBO_DIVERGE_COMBO_FLAGS, "comboFlags" },
         { RSBS_COMBO_DIVERGE_SPARE1, "spare1" },
     };
 
@@ -578,7 +639,12 @@ TestResult Test_ComboSettingsDivergence(void) {
             case RSBS_COMBO_DIVERGE_ITEM_CLASS_MM: frozen.itemClassMM = RSBS_ITEMCLASS_MASKS; break;
             case RSBS_COMBO_DIVERGE_GOAL: frozen.goal = (uint8_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT; break;
             case RSBS_COMBO_DIVERGE_LOGIC_RUNG: frozen.logicRung = (uint8_t)RSBS_COMBO_RUNG_NONE; break;
-            case RSBS_COMBO_DIVERGE_SPARE0: frozen.spare0 = 1u; break;
+            case RSBS_COMBO_DIVERGE_SHARED_OCARINA:
+                frozen.comboFlags = (uint8_t)RSBS_COMBO_FLAG_SHARED_OCARINA;
+                break;
+            // 0x80 is UNALLOCATED at formatVersion 1: the byte-level bit is the
+            // honest report for a state a version-1 record may not be in at all.
+            case RSBS_COMBO_DIVERGE_COMBO_FLAGS: frozen.comboFlags = 0x80u; break;
             default: frozen.spare1 = 1u; break;
         }
 
@@ -602,6 +668,37 @@ TestResult Test_ComboSettingsDivergence(void) {
                    named, kLegs[i].name);
             return TEST_FAIL;
         }
+    }
+
+    // ---- The shared ocarina diverges in BOTH directions (#668) -------------
+    // The loop above sets the bit in the frozen record; this is the other half,
+    // and it is not the same claim. comboFlags is a BITSET and the diff is
+    // computed from an XOR, so a sign error or a one-sided `&` would pass the
+    // loop and still let a world CREATED with one ocarina be loaded by a
+    // session that resolved two — the direction a player actually reaches by
+    // turning the row off at the title screen. Both halves must refuse, and
+    // both must refuse BY THE RULE'S NAME.
+    {
+        ComboSettingsRecord shared = live;
+        shared.comboFlags = (uint8_t)RSBS_COMBO_FLAG_SHARED_OCARINA;
+
+        const uint32_t setFrozen = Combo_ComboSettingsDivergenceBetween(&shared, &live);
+        CS_ASSERT(setFrozen == RSBS_COMBO_DIVERGE_SHARED_OCARINA,
+                  "a file created with the shared ocarina ON, met by a session resolving it OFF, did not diverge as "
+                  "the shared-ocarina rule");
+        const uint32_t setLive = Combo_ComboSettingsDivergenceBetween(&live, &shared);
+        CS_ASSERT(setLive == RSBS_COMBO_DIVERGE_SHARED_OCARINA,
+                  "a file created with the shared ocarina OFF, met by a session resolving it ON, did not diverge as "
+                  "the shared-ocarina rule — the flag diff is one-sided");
+        CS_ASSERT(strcmp(Combo_ComboSettingsDivergenceFieldName(setLive), "sharedOcarina") == 0,
+                  "the refusal must name the RULE; 'comboFlags' is where it lives, not what it is");
+        CS_ASSERT(!Combo_ComboSettingsDivergenceIsDamage(setLive),
+                  "a session that picked a different ocarina rule is a SETTINGS divergence, not damage: the healthy "
+                  "file must not be quarantined for it");
+        // And the two records must agree with themselves — otherwise every leg
+        // above is passing because the diff refuses everything.
+        CS_ASSERT(Combo_ComboSettingsDivergenceBetween(&shared, &shared) == 0,
+                  "two identical shared-ocarina records reported divergence");
     }
 
     // ---- Several at once render as a list ----------------------------------
@@ -876,6 +973,16 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
             { COMBO_SETTING_ITEM_CLASS_MM, 0x8000, false },
             { COMBO_SETTING_ITEM_CLASS_MM, 0x10000, false }, // past uint16
             { COMBO_SETTING_ITEM_CLASS_MM, -1, false },
+            // A comboFlags BIT is EXACTLY 0 or 1 (#668), never "nonzero is
+            // true": the record stores one bit, so a coercion would make two
+            // different stored values produce the same world — the very thing
+            // the pinned value spaces exist to prevent — and would silently
+            // turn a typo into "on".
+            { COMBO_SETTING_SHARED_OCARINA, 0, true },
+            { COMBO_SETTING_SHARED_OCARINA, 1, true },
+            { COMBO_SETTING_SHARED_OCARINA, 2, false },
+            { COMBO_SETTING_SHARED_OCARINA, -1, false },
+            { COMBO_SETTING_SHARED_OCARINA, 0x100, false },
         };
         for (size_t i = 0; i < sizeof(kProbes) / sizeof(kProbes[0]); i++) {
             if (Combo_ComboSettingValueValid(kProbes[i].id, kProbes[i].value) != kProbes[i].valid) {
@@ -886,6 +993,80 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
             }
         }
         CS_ASSERT(!Combo_ComboSettingValueValid(COMBO_SETTING_COUNT, 1), "an id past the table is never valid");
+    }
+
+    // ---- (2b) The shared ocarina, end to end (#668) -------------------------
+    // A comboFlags BIT rather than a field of its own, which is the one shape
+    // no other key in this table has, so it gets its own leg: key -> resolver
+    // -> record byte -> the consumer predicate -> the arrival refusal. Self
+    // contained (it re-inits and clears its key at the end) so leg 3 still
+    // starts from the untouched store it asserts about.
+    {
+        ComboContext_Init();
+        CS_ASSERT(Combo_ComboSettingDefault(COMBO_SETTING_SHARED_OCARINA) == 0,
+                  "the shipped default must be OFF — an existing world has to reproduce byte for byte");
+        CS_ASSERT(!Combo_ComboSharedOcarina(),
+                  "with nothing authored and nothing frozen the ocarina must not be shared");
+
+        ComboSettingsRecord off;
+        Combo_ResolveComboSettings(&off);
+        CS_ASSERT(off.comboFlags == 0, "an unauthored flag key must resolve to a CLEAR comboFlags byte");
+
+        CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_SHARED_OCARINA, 1) == 1, "the flag must be authorable");
+        ComboSettingsRecord on;
+        Combo_ResolveComboSettings(&on);
+        CS_ASSERT(on.comboFlags == (uint8_t)RSBS_COMBO_FLAG_SHARED_OCARINA,
+                  "the resolver did not assemble the authored flag into comboFlags");
+        CS_ASSERT((on.comboFlags & (uint8_t)~RSBS_COMBO_FLAGS_ALL_V1) == 0,
+                  "the resolver set an UNALLOCATED comboFlags bit; every one of them must read 0 in a "
+                  "formatVersion-1 record");
+        CS_ASSERT(Combo_ComputeComboSettingsHash(&on, kSettingsHash, kProfileDigest) !=
+                      Combo_ComputeComboSettingsHash(&off, kSettingsHash, kProfileDigest),
+                  "turning the shared ocarina on did not move the world's fingerprint");
+        CS_ASSERT(Combo_ComboSharedOcarina(), "the consumer predicate did not follow the live resolution");
+
+        // Freeze it, and the predicate must read THE RECORD: a title-screen
+        // toggle after creation changes a world that was already built.
+        ComboSettingsArmPairing(0xA07A0668u, kSettingsHash, kProfileDigest);
+        Combo_FreezeComboSettings(&on);
+        CS_ASSERT(gComboCtx.comboSettings.comboFlags == (uint8_t)RSBS_COMBO_FLAG_SHARED_OCARINA,
+                  "the freeze did not carry the flag into the record");
+        CS_ASSERT(Combo_ComboSharedOcarina(), "the frozen record's flag must arm the predicate");
+        CS_ASSERT(Combo_ComboSettingsDivergence() == 0, "a world frozen from its own store must compare healthy");
+
+        // THE SESSION WALKS AWAY: the key is cleared out of band (the console,
+        // a hand-edited config, or the same player turning the row off at the
+        // title screen before loading). The arrival/load compare must refuse it
+        // BY THE RULE'S NAME, without treating the healthy file as damaged...
+        CVarClear(Combo_ComboSettingKey(COMBO_SETTING_SHARED_OCARINA));
+        const uint32_t bits = Combo_ComboSettingsDivergence();
+        CS_ASSERT((bits & RSBS_COMBO_DIVERGE_SHARED_OCARINA) != 0,
+                  "a session that resolved the shared ocarina OFF against a file created with it ON was not "
+                  "refused — the option would silently change an existing world");
+        CS_ASSERT(strcmp(Combo_ComboSettingsDivergenceFieldName(bits), "sharedOcarina") == 0,
+                  "the refusal must name the shared-ocarina RULE");
+        CS_ASSERT(!Combo_ComboSettingsDivergenceIsDamage(bits), "a settings divergence must not quarantine the file");
+        CS_ASSERT(Combo_ComboSharedOcarina(),
+                  "the predicate followed the SESSION instead of the frozen record — after creation the rules are "
+                  "world identity, and a divergent session is refused rather than honoured");
+
+        // ...and the reverse: a file created with it OFF, met by a session that
+        // turned it ON. Same bit, same name; the diff is an XOR, not a test of
+        // one side.
+        Combo_FreezeComboSettings(&off);
+        CS_ASSERT(Combo_ComboSettingsDivergence() == 0, "control: the OFF file agrees with the cleared store");
+        CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_SHARED_OCARINA, 1) == 0,
+                  "the writer must refuse once the record is frozen, whatever the value");
+        CVarSetInteger(Combo_ComboSettingKey(COMBO_SETTING_SHARED_OCARINA), 1);
+        const uint32_t reverse = Combo_ComboSettingsDivergence();
+        CS_ASSERT((reverse & RSBS_COMBO_DIVERGE_SHARED_OCARINA) != 0,
+                  "a session that resolved the shared ocarina ON against a file created with it OFF was not "
+                  "refused");
+        CS_ASSERT(!Combo_ComboSharedOcarina(), "the OFF file's rule must hold against an ON session");
+
+        ComboContext_Init();
+        CS_ASSERT(Combo_ComboSettingClear(COMBO_SETTING_SHARED_OCARINA) == 1, "clear the flag before leg 3");
+        CS_ASSERT(!Combo_ComboSettingIsExplicit(COMBO_SETTING_SHARED_OCARINA), "the cleared flag must read unset");
     }
 
     // ---- (3) Authored values reach the record BEFORE the freeze ------------
@@ -909,7 +1090,7 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
               "the resolver did not read the authored OoT class bitset");
     CS_ASSERT(live.poolSizeMM == 3, "the resolver did not read the authored MM pool size");
     CS_ASSERT(live.poolSizeOoT == defaults.poolSizeOoT && live.itemClassMM == defaults.itemClassMM &&
-                  live.goal == defaults.goal && live.logicRung == defaults.logicRung && live.spare0 == 0 &&
+                  live.goal == defaults.goal && live.logicRung == defaults.logicRung && live.comboFlags == 0 &&
                   live.spare1 == 0 && live.formatVersion == defaults.formatVersion,
               "an unauthored field must keep its shipped default");
     CS_ASSERT(!ComboSettingsRecordsEqual(live, defaults), "an authored record must differ from the defaults");

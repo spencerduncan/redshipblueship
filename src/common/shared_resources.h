@@ -17,7 +17,7 @@
  * level and current magic, "current magic is tracked as if OoT and MM were one
  * game with a single magic meter" — then ammo: the quiver, bomb-bag, stick
  * and nut capacity TIERS plus the arrow, bomb, bombchu, stick and nut COUNTS —
- * and finally the hookshot.
+ * then the hookshot — and, behind a per-world setting, the ocarina (#668).
  * That is what justifies the matching pool shrink in `kForeignPoolMMV1`
  * (#525): with one wallet, one health bar, one magic meter, one quiver and one
  * hookshot spanning both games, MM's wallet/heart/double-defense/magic/ammo/
@@ -37,6 +37,16 @@
  * the cycle. (MM's OnItemGive is also a no-op stub, so that half would have
  * been dead on arrival — the #512/#517 class.) Harvest-at-suspend /
  * apply-at-arrival has no edge back to the producer at all.
+ *
+ * THE OCARINA (#668) IS THAT ARGUMENT RUN A SECOND TIME, with one addition.
+ * OoT keeps the Fairy Ocarina and the Ocarina of Time in a single inventory
+ * byte and MM keeps its one Ocarina of Time in a single inventory byte, so the
+ * "one instrument across both games" the operator asked for is a monotonic tier
+ * — 0 none, 1 an ocarina, 2 OoT's Ocarina of Time — with OoT's ceiling at 2 and
+ * MM's at 1, exactly the hookshot's 2-vs-1. THE ADDITION: it is the only kind
+ * that is not unconditional. It is ARMED PER WORLD by a combo-level setting
+ * frozen at file creation; see Combo_SharedResourceKindArmed below for where
+ * that gate lives and why it lives in exactly one place.
  *
  * A CAPACITY TIER CARRIES THE ITEM WITH IT, copying OoTMM ("a Shared Bow
  * grants the ability to use the Hero's Bow in MM and the Fairy Bow in OoT").
@@ -137,7 +147,31 @@ extern "C" {
  * table, which is indexed by KIND (stable) rather than by slot (slots are found
  * by scan and a future compaction could move them).
  */
-#define RSBS_SHARED_RES_KIND_COUNT 18u
+#define RSBS_SHARED_RES_KIND_COUNT 19u
+
+/**
+ * Is `kind` ARMED for this world?
+ *
+ * Seventeen of the eighteen kinds are unconditional: #525 decided that both
+ * games share one wallet, one health bar, one magic meter, one set of ammo and
+ * one hookshot, and no save can turn that off. RSBS_SHARED_RES_OCARINA_TIER
+ * (#668) is the first that a PLAYER chooses, through the tier-4
+ * `gCombo.Rando.SharedOcarina` key frozen into ComboSettingsRecord.comboFlags
+ * at file creation.
+ *
+ * THE GATE LIVES HERE, ONCE, AND BOTH ENTRY POINTS CONSULT IT. A gate written
+ * into the four per-game call sites instead would be four chances to gate one
+ * direction and not the other, and harvest and apply are NOT inverses — apply
+ * ASSIGNS for a consumable — so a one-sided gate leaks or corrupts rather than
+ * merely under-sharing. Exposed rather than static so the lock can drive the
+ * predicate directly.
+ *
+ * Reads the FROZEN record once a world exists and the live resolution before
+ * then, exactly as Combo_ComboDirection does: after creation the rules are
+ * identity, and a session that resolved differently is refused at the arrival
+ * gate, never honoured here.
+ */
+bool Combo_SharedResourceKindArmed(uint8_t kind);
 
 /**
  * Canonical heart quantity ceiling, in health units (0x10 per heart, 4 per

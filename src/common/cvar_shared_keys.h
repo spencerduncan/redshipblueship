@@ -120,15 +120,15 @@
  * counterpart: ADR 0003 names them "new tier-4 keys, not converged MM keys",
  * so none of them is a ConvergedKey row and none has a legacy spelling.
  *
- * The five `gCombo.Rando.*` keys are WORLD IDENTITY (ADR 0004 §6 state 4):
+ * The six `gCombo.Rando.*` keys are WORLD IDENTITY (ADR 0004 §6 state 4):
  * they author a ComboSettingsRecord up to the creation event and no further.
  * Combo_ResolveComboSettings (foreign_items.h) is the ONE reader that turns
  * them into the record, through combo_settings_view.h, which also holds the
  * ONE writer surface — and that surface refuses once
  * Combo_ComboSettingsFrozen() is true. Values are the pinned RSBS_COMBO_DIR_*
- * / 1..RSBS_FOREIGN_PLACEMENT_CAP / RSBS_ITEMCLASS_* spaces; an out-of-space
- * value in the store resolves to the shipped default with a logged reason,
- * never to a new enumerator.
+ * / 1..RSBS_FOREIGN_PLACEMENT_CAP / RSBS_ITEMCLASS_* / 0-or-1 spaces; an
+ * out-of-space value in the store resolves to the shipped default with a logged
+ * reason, never to a new enumerator.
  *
  * The classification itself lives in RSBS::kComboKeys below, and the
  * cvar-classification lock scans the whole tree for `gCombo.` literals: a new
@@ -142,6 +142,10 @@
 #define RSBS_CVAR_COMBO_RANDO_POOL_SIZE_MM "gCombo.Rando.PoolSize.MM"
 #define RSBS_CVAR_COMBO_RANDO_ITEM_CLASS_OOT "gCombo.Rando.ItemClass.OoT"
 #define RSBS_CVAR_COMBO_RANDO_ITEM_CLASS_MM "gCombo.Rando.ItemClass.MM"
+/* #668: one ocarina across both games. Boolean (0/1), DEFAULT 0, so every world
+ * created before it existed — and every world whose player leaves it alone —
+ * resolves to the same twelve record bytes and the same comboSettingsHash. */
+#define RSBS_CVAR_COMBO_RANDO_SHARED_OCARINA "gCombo.Rando.SharedOcarina"
 
 /* The common-owned windows' visibility toggles (ADR 0008). PREFERENCE keys:
  * no identity role, live forever. Spelled here so the tier-4 manifest carries
@@ -507,6 +511,9 @@ inline constexpr ComboKey kComboKeys[] = {
       "ComboSettingsRecord.itemClassOoT (RSBS_ITEMCLASS_* mask): which OoT item classes may cross" },
     { RSBS_CVAR_COMBO_RANDO_ITEM_CLASS_MM, ComboKeyClass::Identity,
       "ComboSettingsRecord.itemClassMM (RSBS_ITEMCLASS_* mask): which MM item classes may cross" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_OCARINA, ComboKeyClass::Identity,
+      "ComboSettingsRecord.comboFlags' RSBS_COMBO_FLAG_SHARED_OCARINA bit (#668): the ocarina is ONE "
+      "monotonic shared instrument across both games" },
     // ---- gCombo.Windows.*: the common-owned windows' visibility (ADR 0008).
     //      All PREFERENCE: whether a pane is open says nothing about a world.
     { RSBS_CVAR_COMBO_WINDOW_SPOILER, ComboKeyClass::Preference, "cross-game spoiler window visibility (#496)" },
@@ -569,10 +576,11 @@ static_assert(kDisputedClassificationKeyCount == 0,
               "kSharedIntentKeys by #454");
 
 inline constexpr std::size_t kComboKeyCount = sizeof(kComboKeys) / sizeof(kComboKeys[0]);
-// Five identity keys (ADR 0011 increment 2) + four window-visibility
-// preferences. Pinning the count makes a silently dropped row a compile error;
-// the lock's tree scan makes a silently ADDED key a red test.
-static_assert(kComboKeyCount == 9, "five gCombo.Rando.* identity keys + four gCombo.Windows.* preferences = 9");
+// Six identity keys (the five of ADR 0011 increment 2 plus SharedOcarina, #668)
+// + four window-visibility preferences. Pinning the count makes a silently
+// dropped row a compile error; the lock's tree scan makes a silently ADDED key a
+// red test.
+static_assert(kComboKeyCount == 10, "six gCombo.Rando.* identity keys + four gCombo.Windows.* preferences = 10");
 static_assert(ComboIdentityKeysAreIdentity(),
               "every gCombo.Rando.* key authors the frozen ComboSettingsRecord and MUST be classified Identity "
               "(ADR 0004 §6 state 4; ADR 0011 increment 2)");
