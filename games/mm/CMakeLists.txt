@@ -266,6 +266,57 @@ if(SINGLE_EXECUTABLE_BUILD)
     # MM's real (S2H-namespaced) collection.
     list(FILTER ship__Enhancements EXCLUDE REGEX "2s2h/Enhancements/Audio/AudioEditor\\.cpp$")
 
+    # #678 - the two Enhancements TUs that are the ONLY callers of
+    # Rando::ClockShuffle's public API, carved into their own archive so they
+    # can be WHOLE_ARCHIVE'd without flipping 2ship_enh whole (#427 item 3).
+    #
+    # THE FAILURE. Rando::ClockShuffle::IsTimeOwnedForClockShuffle,
+    # GetTimeDescriptionForMessage and SetTimeToHalfDayStart have their only
+    # callers in BetterSongOfDoubleTime.cpp and SkipSoTCutscenes.cpp. Both
+    # register purely through file-scope RegisterShipInitFunc objects and
+    # export nothing anything else references, so plain archive semantics
+    # dropped both members outright: neither object appears in the operator's
+    # redship.map. With them went two whole enhancements - toggling
+    # gEnhancements.Songs.BetterSongOfDoubleTime or ...SkipSoTCutscenes did
+    # nothing at all - and with those, the RO_CLOCK_SHUFFLE ownership checks
+    # they carry: Song of Double Time's free-form time selector refusing an
+    # unowned half-day, and a Song of Time reset landing on the earliest OWNED
+    # half-day instead of the vanilla dawn. This is the #516 elided-registrar
+    # class exactly.
+    #
+    # WHY A CARVE-OUT AND NOT A HAND-ADDED REFERENCE. PR #651 measured that
+    # question on soh_port and answered it: whether a plain-archive member is
+    # pulled can turn on which TU the linker happens to take a COMDAT
+    # instantiation from, so an incidental reference "is not a link contract".
+    # This tree has a live example - Songs/PauseOwlWarp.cpp survives only
+    # because z_kaleido_*.c calls its one extern "C" accessor. WHOLE_ARCHIVE is
+    # the contract; the archive boundary is what keeps it targeted.
+    #
+    # WHY NOT ALL OF 2ship_enh (#427 item 3). Flipping the whole archive arms
+    # every enhancement PR #673 wired a dispatcher for, in one step, and
+    # .github/scripts/check-registrar-elision.sh records why that answer has
+    # twice been "no": most 2ship_enh members must legitimately stay dead in
+    # single-exe (BenGui's second menu surface, DebugConsole_Init's ODR twin,
+    # OTRAudio_Init's second SDL audio thread, ...). Two named TUs, with their
+    # play-state guards landed in the same change, is the reviewable unit.
+    #
+    # WHY NOT THE WHOLE Songs DIRECTORY. The other six TUs under it are not
+    # part of #678 and arming them is blast radius with nobody to pay for it.
+    #
+    # Duplicate-symbol exposure was measured, not assumed: no name these two
+    # TUs define at namespace scope (RegisterBetterSongOfDoubleTime,
+    # RegisterSkipSoTCutscenes, OnPlayerUpdate(Actor*), UpdateDayTexture,
+    # DrawTexRectI4, DrawTexRectIA8, DrawIndicators,
+    # UpdateStickDirectionPromptAnim, sArrowAnimColor) has a twin anywhere in
+    # games/oot or games/mm. soh_enh's ?OnPlayerUpdate@@YAXXZ takes no
+    # arguments, so it does not mangle to MM's ?OnPlayerUpdate@@YAXPEAUActor@@@Z.
+    set(ship__Enh_clockshuffle
+        "2s2h/Enhancements/Songs/BetterSongOfDoubleTime.cpp"
+        "2s2h/Enhancements/Songs/SkipSoTCutscenes.cpp"
+    )
+    list(FILTER ship__Enhancements EXCLUDE REGEX "2s2h/Enhancements/Songs/BetterSongOfDoubleTime\\.cpp$")
+    list(FILTER ship__Enhancements EXCLUDE REGEX "2s2h/Enhancements/Songs/SkipSoTCutscenes\\.cpp$")
+
     # GameInteractor (use OoT's)
     list(FILTER ship__ EXCLUDE REGEX "2s2h/GameInteractor/.*\\.cpp$")
 
@@ -376,9 +427,16 @@ if(SINGLE_EXECUTABLE_BUILD)
         "${CMAKE_CURRENT_SOURCE_DIR}/2s2h/GameExports_SingleExe.cpp"
     )
     add_library(2ship_enh STATIC ${ship__Enhancements})
+    # #678: the ClockShuffle-consuming Songs TUs, carved out above so they can
+    # be WHOLE_ARCHIVE'd on their own. Listed in TWOSHIP_COMPILE_TARGETS below
+    # so it inherits every per-target loop in this file unchanged (the
+    # RSBS_SINGLE_EXECUTABLE define, the redship_common/rsbs/libultraship/
+    # ZAPDLib deps, the include dirs, and the mm_gi_hook_guard.h poison prelude
+    # that #427 item 2 made whole-target).
+    add_library(2ship_enh_clockshuffle STATIC ${ship__Enh_clockshuffle})
     add_library(2ship_rando STATIC ${ship__Rando})
     add_library(2ship_rando_ui STATIC ${ship__Rando_ui})
-    set(TWOSHIP_COMPILE_TARGETS 2ship_src 2ship_port 2ship_enh 2ship_rando 2ship_rando_ui)
+    set(TWOSHIP_COMPILE_TARGETS 2ship_src 2ship_port 2ship_enh 2ship_enh_clockshuffle 2ship_rando 2ship_rando_ui)
     foreach(_t ${TWOSHIP_COMPILE_TARGETS})
         target_compile_definitions(${_t} PRIVATE RSBS_SINGLE_EXECUTABLE)
     endforeach()
@@ -403,7 +461,16 @@ if(SINGLE_EXECUTABLE_BUILD)
     # archive semantics until MM's menu surface ports. Elision in those two
     # is surfaced (report-only) by .github/scripts/check-registrar-elision.sh,
     # which also now REQUIRES 2ship_rando's registrars to survive the link.
+    #
+    # 2ship_enh_clockshuffle links WHOLE_ARCHIVE as of #678, for the same
+    # reason and with a much smaller radius: two Enhancements TUs whose only
+    # effect is a file-scope RegisterShipInitFunc, and which are the sole
+    # callers of Rando::ClockShuffle's public API. Both were dropped by plain
+    # archive semantics; see the carve-out block above for why this is a
+    # separate archive rather than an added reference or the #427 item-3 flip
+    # of 2ship_enh itself. check-registrar-elision.sh audits it as required.
     set(TWOSHIP_STATIC_TARGETS 2ship_src 2ship_port 2ship_enh
+        "$<LINK_LIBRARY:WHOLE_ARCHIVE,2ship_enh_clockshuffle>"
         "$<LINK_LIBRARY:WHOLE_ARCHIVE,2ship_rando>"
         2ship_rando_ui PARENT_SCOPE)
 else()

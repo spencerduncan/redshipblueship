@@ -928,6 +928,23 @@ if(BUILD_TESTING)
     # what that means for red-before-green. Pure (no display, no ROM, no
     # Ship::Context), so it runs in this redship tier.
     redship_add_test(NAME OoTMenuRegistrars COMMAND redship --test oot-menu-registrars)
+    # The MM twin of the row above, and the same elided-registrar class (#678).
+    # games/mm/2s2h/Enhancements/Songs/BetterSongOfDoubleTime.cpp and
+    # SkipSoTCutscenes.cpp register only through a file-scope
+    # RegisterShipInitFunc and export nothing anything references, so
+    # plain-archive 2ship_enh dropped both objects: two enhancements that did
+    # nothing when toggled, and with them the only callers of
+    # Rando::ClockShuffle's half-day ownership API -- which is why
+    # RO_CLOCK_SHUFFLE was the one row PR #677's re-measure could not promote.
+    # They are carved into the WHOLE_ARCHIVE'd 2ship_enh_clockshuffle
+    # (games/mm/CMakeLists.txt); this row asserts both TUs reached the link
+    # (their ShipInit map entries exist) AND that their registrars RUN when the
+    # CVar is driven through the production MM_ShipInit_OnCVarChanged path --
+    # the half check-registrar-elision.sh's nm gate cannot see, and which it
+    # also cannot see on Windows at all. Names no symbol from either TU (a
+    # reference would un-elide them by itself). Pure (no display, no ROM);
+    # needs the shared bring-up only for CVarSetInteger.
+    redship_add_test(NAME MMClockShuffleSongs COMMAND redship --test mm-clock-shuffle-songs)
     redship_add_test(NAME AllTests COMMAND redship --test all)
 
     # Registration-completeness guard (#376). Diffs the dispatch table the
