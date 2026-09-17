@@ -205,6 +205,113 @@ extern "C" char** ResourceMgr_ListFilesForGame(const char* gameTag, const char* 
     return result;
 }
 
+/**
+ * Per-game ExtensionCache (re)scan — #618, the #516 Phase 3 prerequisite.
+ *
+ * WHAT WAS BROKEN. `ExtensionCache` (OTRGlobals.cpp) is the ONE shared map that
+ * `ResourceMgr_FileExists` / `ResourceMgr_FileAltExists` answer from, and
+ * `OTRExtScanner()` fills it exactly once, from OoT's `InitOTRImpl`. MM's
+ * archives are not mounted yet at that point — `LoadMMArchives()` runs later,
+ * inside `MM_Game_Init` — and MM's own copy of the scanner lives in the excluded
+ * `2s2h/BenPort.cpp`, so nothing ever rescanned. Every MM path was therefore
+ * absent from the cache, and both of BenPort's trailing `InitOTR` entries read
+ * false for everything: MM's HD gfxprint font (`MM_GfxPrint_HasArchiveTexture`)
+ * and `PlayerCustomFlipbooks_Patch`'s FD/Deku/Goron face checks.
+ *
+ * WHY THIS IS SCOPED PER GAME rather than just re-running `OTRExtScanner()`.
+ * An unscoped rescan would also (newly) admit paths from archives the OTHER
+ * game mounted after its own scan — OoT mounts `mods/` late, at GUI init, after
+ * `OTRExtScanner` has already run — so OoT's answers would start depending on
+ * whether MM had ever been visited this session. Scoping keeps this change to
+ * exactly one effect: MM's own archives become visible to MM's checks.
+ *
+ * WHY IT CANNOT CLOBBER THE OTHER GAME'S ENTRIES. The loop only ever inserts or
+ * overwrites, never erases, and the stored value is a pure function of the key's
+ * source path — `{rPath, ext}` is derived from `rPath` alone — so re-visiting an
+ * existing key writes back an identical value. Two distinct source paths can map
+ * onto one key (`a/b` and `a/b.png` both key `a/b`), but that is the existing
+ * base-vs-HD-override mechanic and is intra-key by construction: the KEY SET is
+ * monotone. Both consumers read `contains()` only, never the value, so a rescan
+ * can add true answers and can never take one away. The #618 lock row proves
+ * that empirically by exact size accounting.
+ *
+ * Idempotent across repeated switches: both games' archives stay mounted for the
+ * process lifetime (nothing calls `RemoveArchive`), so a second call re-derives
+ * the same entries and reports 0 new keys.
+ *
+ * NOTE FOR WHOEVER WIRES MM's `mods/` FOLDER. MM's mod mounting lives in the
+ * excluded BenPort.cpp, so in single-exe builds MM currently mounts no mods at
+ * all. When that is restored, those archives must be recorded through MM's
+ * archive-path registry (`RecordMMArchivePath`, GameExports_SingleExe.cpp) as
+ * well as `Combo_RegisterModArchive`, or the "mm" scope here will not see them —
+ * and MM mod assets are the main thing this cache exists to find.
+ *
+ * @return the number of NEW keys added, or -1 with no live
+ *         ResourceManager/ArchiveManager.
+ */
+extern "C" int Combo_ExtensionCache_ScanGame(const char* gameTag) {
+    if (gameTag == nullptr) {
+        return -1;
+    }
+    auto ctx = Ship::Context::GetInstance();
+    if (ctx == nullptr || ctx->GetResourceManager() == nullptr ||
+        ctx->GetResourceManager()->GetArchiveManager() == nullptr) {
+        return -1;
+    }
+
+    int listSize = 0;
+    // Deliberately the production enumerator, not a private glob: it is the ONE
+    // place the archive-ownership filter lives (and the one the audio
+    // sequence/soundfont scoping is already locked against), so "which paths are
+    // MM's" cannot drift between this scan and the rest of the port.
+    char** files = ResourceMgr_ListFilesForGame(gameTag, "*", &listSize);
+    if (files == nullptr) {
+        // An empty scope makes that function malloc(0), which is allowed to
+        // return null. "Nothing to add" is 0, not a failure — MM's bring-up
+        // distinguishes the two, and the archive-less CTest control run
+        // (#562) takes exactly this path.
+        return (listSize == 0) ? 0 : -1;
+    }
+
+    int added = 0;
+    for (int i = 0; i < listSize; i++) {
+        if (files[i] == nullptr) {
+            continue;
+        }
+        std::string rPath = files[i];
+        free(files[i]);
+
+        // Key derivation, byte-for-byte equivalent to OTRExtScanner's. Its
+        // StringHelper::Split(".")-based arithmetic has a degenerate no-dot
+        // case that is load-bearing: `ext` becomes the whole path and the
+        // substr length underflows to npos, so `nPath` ends up the whole path
+        // too. Every extracted base resource is extension-less and therefore
+        // keys ITSELF, which is precisely what makes ResourceMgr_FileExists a
+        // plain "is this resource in any mounted archive" test rather than a
+        // custom-assets-only one. Reproduced here, not cleaned up.
+        const size_t dot = rPath.find_last_of('.');
+        std::string ext = (dot == std::string::npos) ? rPath : rPath.substr(dot + 1);
+        std::string nPath = (dot == std::string::npos) ? rPath : rPath.substr(0, dot);
+        for (char& c : nPath) {
+            if (c == '\\') {
+                c = '/';
+            }
+        }
+
+        if (!ExtensionCache.contains(nPath)) {
+            added++;
+        }
+        ExtensionCache[nPath] = { rPath, ext };
+    }
+    free(files);
+
+    return added;
+}
+
+extern "C" size_t Combo_ExtensionCache_Size(void) {
+    return ExtensionCache.size();
+}
+
 extern "C" uint8_t ResourceMgr_FileExists(const char* filePath) {
     std::string path = filePath;
     if (path.substr(0, 7) == "__OTR__") {

@@ -315,6 +315,22 @@ static void DrawAmmoSelectionDigits() {
         return;
 
     PlayState* play = MM_gPlayState;
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #438: this is an OnInterfaceDrawStart registrant, and in the single exe
+    // that hook only started dispatching when its guards landed. The call site
+    // (Interface_Draw, games/mm/src/code/z_parameter.c) is handed a `play`, but
+    // this body reads the MM_gPlayState GLOBAL, which is NULL outside a play
+    // state -- and sAmmoSale.isInputActive is a file static that no play
+    // teardown clears, so "not in play" and "input active" are not mutually
+    // exclusive. That combination is the #516 SIGSEGV class. The sibling
+    // BlockAmmoBuybackInput below already guards the same way; this one did not.
+    //
+    // RSBS_SINGLE_EXECUTABLE-guarded because this is a vendored 2S2H TU and an
+    // unguarded divergence is an upstream-sync landmine.
+    if (play == NULL) {
+        return;
+    }
+#endif
     if (play->msgCtx.rupeesSelected < 10) {
         play->msgCtx.rupeesSelected = 10;
         sAmmoSale.lastRupeesSelected = 10;

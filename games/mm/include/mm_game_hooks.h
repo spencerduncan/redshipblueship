@@ -139,46 +139,78 @@ GIEvent& MM_GameEvents_Current();
  * REGISTERED but dormant; wiring their Execute calls is per-type, deliberate
  * Lane C work, never a side effect of registration.
  *
- * DORMANT TYPES INTRODUCED BY #427 item 2 (tracked on #438). The 2ship_enh
- * migration moved that target's direct Register* sites onto this registry.
- * Most of the hook types involved were ALREADY dormant — they carry
- * COND_HOOK/COND_ID_HOOK registrants from other MM targets and are listed in
- * #438's table (OnOpenText, OnActorInit, OnActorKill). Two remain with no
- * Execute placement:
+ * DISPATCH PLACEMENT POLICY, and the shape the #438 series settled on. No hook
+ * type in GameInteractor_HookTable.h is dormant any more: every one is either
+ * dispatched from the point MM's own code path executes it, or has no registrant
+ * and a dispatcher waiting for the first one. What follows is the rule for the
+ * NEXT hook type somebody adds, because getting it wrong in either direction has
+ * cost this project real bugs.
  *
- *   - OnPlayDestroy       (Modes/PlayAsKafei.cpp, Songs/BetterSongOfDoubleTime.cpp)
- *   - OnPlayerPostLimbDraw  (Masks/PersistentMasks.cpp)
+ * THE RULE IS NOT "WIRE WHEN THE REGISTRY IS NON-EMPTY". This note used to say
+ * exactly that -- "wiring now would execute an always-empty registry" -- and it
+ * was wrong, not merely conservative. ADR 0004 section 5 lists TU-links,
+ * registrar-runs and dispatch-placed as three INDEPENDENT conditions and imposes
+ * no ordering between them, and #438's own 48-hook audit records the opposite
+ * instruction: "dispatch first, un-elide second." An empty registry is a reason
+ * to wire LAST, not a reason not to wire, and leaving a type undispatched has a
+ * concrete cost: the name keeps a no-op definition, so on the day its registrant
+ * links, nothing fails and the enhancement is simply silently dead. That is the
+ * #438 bug class in one sentence.
  *
- * These are dormant, NOT newly broken: before the migration the same
- * registrations went into MM's `GameInteractor::RegisteredGameHooks<H>`
- * statics while MM's call sites for GameInteractor_ExecuteOnPlayDestroy /
- * ExecuteOnPlayerPostLimbDraw resolved to OoT's active-game-gated wrappers or
- * to src/common/mm_stubs.c no-ops — so the handlers never ran either way.
- * What the migration removes is the #395 out-of-bounds write the raw
- * registration performed on the way to being dead. Wiring them is #438's job;
- * both registrant TUs are link-elided today (plain-archive 2ship_enh), so
- * dispatch for them stays deliberately deferred to the WHOLE_ARCHIVE flip
- * (ADR 0004 §5) — wiring now would execute an always-empty registry.
+ * THE RULE IS: wire a dispatch only when every registrant body that would start
+ * running is safe on the day its TU un-elides -- and land whatever makes it safe
+ * in the SAME change as the dispatch.
  *
- * THAT LAST SENTENCE IS NOT A GENERAL RULE, and #438's item/progression tranche
- * is the exception that fixes its scope. "The registry is empty" is a reason to
- * wire LAST, not a reason not to wire: ADR 0004 §5 lists TU-links, registrar-
- * runs and dispatch-placed as three INDEPENDENT conditions and imposes no
- * ordering between them, and #438's own 48-hook audit records the opposite
- * instruction ("dispatch first, un-elide second"). OnItemGive,
- * OnBottleContentsUpdate and OnBossDefeated were therefore wired ahead of their
- * registrant in GameExports_SingleExe.cpp, so the flip does not arm three hook
- * types at once with nothing behind them.
+ * What "safe" meant in practice, from the two tranches that applied this test:
  *
- * The criterion that let them go early — and that OnPlayerPostLimbDraw above
- * still FAILS — is what the newly-firing registrant body touches on the day it
- * un-elides. The trio's sole registrant (TimeSplitsActions.cpp) reads
- * MM_splitList and gSaveContext and nothing else. PersistentMasks, BowReticle
- * and HyruleWarriorsStyledLink all dereference MM_gPlayState->viewProjectionMtxF
- * or ->state.gfxCtx with no null check, which is the #516 SIGSEGV class; their
- * guards have to land WITH the flip, so their dispatch waits for it too. Apply
- * that test, not the blanket sentence, to the ten types still stubbed in
- * games/mm/2s2h/mm_gameinteractor_stubs.c.
+ *  - #438's item/progression trio (OnItemGive, OnBottleContentsUpdate,
+ *    OnBossDefeated) passed it as written. Their sole registrant,
+ *    Enhancements/Trackers/TimeSplits/TimeSplitsActions.cpp, reads MM_splitList
+ *    and gSaveContext and nothing else: no MM_gPlayState, no gfxCtx, no actor
+ *    context. Wired ahead of their registrant with nothing else to do.
+ *  - #438's remainder -- OnPlayerPostLimbDraw, OnInterfaceDrawStart,
+ *    Before/AfterInterfaceClockDraw, OnCameraChangeModeFlags,
+ *    OnCameraChangeSettingsFlags, AfterCameraUpdate, OnConsoleLogoUpdate,
+ *    OnPlayDrawWorldEnd, OnGameStateMainFinish, OnGameStateMainStart's COND_HOOK
+ *    leg, AfterRoomSceneCommands, OnRoomInit, OnPlayDestroy, OnSeqPlayerInit --
+ *    FAILED it as found. Eight registrant TUs dereferenced live play state (or
+ *    MM_gGameState) with no null check, which is the #516 SIGSEGV class. They
+ *    were wired anyway, because the guards landed with them: AmmoBuyback,
+ *    PersistentMasks, BowReticle, HyruleWarriorsStyledLink,
+ *    BetterSongOfDoubleTime, SkipToFileSelect, TimeStop and JPGrottos each carry
+ *    an RSBS_SINGLE_EXECUTABLE-guarded null check now. That is what the rule
+ *    asks for; deferring the dispatch instead would have left the guards
+ *    unwritten and the trap intact for whoever flips 2ship_enh.
+ *
+ * Three corollaries worth keeping:
+ *
+ *  - DELETE THE STUB WITH THE BRIDGE. OoT defines none of MM's MM-only Execute*
+ *    names, so with no fallback definition a dropped bridge or a dropped rebind
+ *    #define is a LINK error rather than another silent no-op.
+ *    games/mm/2s2h/mm_gameinteractor_stubs.c is a pure tombstone now for exactly
+ *    this reason, and carries the per-name history.
+ *  - GUARD WHERE THE DEREF IS. Play state is guarded in the registrant bodies,
+ *    because two of these hook types legitimately fire when there is no play
+ *    state at all (OnConsoleLogoUpdate, OnGameStateMainFinish) and a blanket
+ *    bridge guard would be wrong for them. The camera is guarded in the BRIDGES,
+ *    because the bridges themselves key their id leg on camera->uid.
+ *    games/mm/2s2h/mm_hook_dispatch_test.cpp checks 13-18 lock both halves --
+ *    including that dispatch survives a NULL MM_gPlayState, which is what stops
+ *    someone "simplifying" the per-registrant guards into a bridge-side one.
+ *  - CHECK THE REGISTRY, NOT JUST THE NAME. Two of the remainder
+ *    (AfterRoomSceneCommands, OnRoomInit) were never stubbed and never
+ *    unresolved: they had linked dispatchers running a real loop over
+ *    GameInteractor::RegisteredGameHooks<H>, the upstream container, while every
+ *    MM registrant sat in S2H::GameHooks::Registry<H>. Disjoint containers read
+ *    correct at a glance and produce no diagnostic of any kind, so a new bridge
+ *    must be checked against the container the COND_* macros actually write.
+ *
+ * None of the registrations listed above was ever newly broken by the #427 item
+ * 2 migration that first recorded them here: before it, the same registrations
+ * went into MM's `GameInteractor::RegisteredGameHooks<H>` statics while MM's
+ * call sites resolved to OoT's active-game-gated wrappers or to no-ops, so the
+ * handlers never ran either way. What the migration removed is the #395
+ * out-of-bounds write the raw registration performed on the way to being dead.
  *
  * BeforeKaleidoDrawPage left this list with the #438 pause-menu batch: it is
  * dispatched from z_kaleido_scope_NES.c as a pair with AfterKaleidoDrawPage

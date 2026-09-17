@@ -620,6 +620,40 @@ bool GameInteractor_Should(GIVanillaBehavior flag, uint32_t result, ...);
         }                                                                                                 \
     }
 
+//
+// RSBS single-exe null guard for vendored registrant bodies (#438).
+//
+// Eight 2S2H enhancement TUs dereference MM_gPlayState (or MM_gGameState) inside
+// a hook body with no check. That was inert only while the hook types they
+// register on had no MM dispatch; #438's remainder gave all of them dispatch, so
+// each body needs the check landed in the same change -- the #516 SIGSEGV class.
+//
+// WHY A MACRO AND NOT AN #ifdef AT THE CALL SITE. Every one of those bodies is a
+// lambda passed as a COND_HOOK / COND_ID_HOOK ARGUMENT, and a preprocessor
+// directive cannot appear inside a macro argument list: MSVC rejects it outright
+// (C2121, "invalid character '#': possibly the result of a macro expansion").
+// The alternatives were hoisting each lambda into a named function -- a large and
+// permanent diff against vendored bodies we track upstream -- or leaving the
+// derefs unguarded. This keeps each divergence to one line. (Comments inside a
+// macro argument are fine; they are gone before macro expansion. Only directives
+// are not.)
+//
+// Outside the single exe it expands to nothing and `cond` is never parsed, so a
+// standalone 2ship build compiles the upstream body unchanged. The early return
+// is deliberate and per-body: see each call site for why returning is the correct
+// behaviour there rather than a partial one.
+//
+#if defined(RSBS_SINGLE_EXECUTABLE)
+#define RSBS_SINGLE_EXE_REQUIRE(cond) \
+    do {                              \
+        if (!(cond)) {                \
+            return;                   \
+        }                             \
+    } while (0)
+#else
+#define RSBS_SINGLE_EXE_REQUIRE(cond) ((void)0)
+#endif
+
 int GameInteractor_InvertControl(GIInvertType type);
 uint32_t GameInteractor_Dpad(GIDpadType type, uint32_t buttonCombo);
 uint32_t GameInteractor_RightStickOcarina(Input* input);
@@ -784,6 +818,59 @@ void MM_GameHooks_ExecuteOnBossDefeated(s16 actorId);
 #define GameInteractor_ExecuteOnItemGive MM_GameHooks_ExecuteOnItemGive
 #define GameInteractor_ExecuteOnBottleContentsUpdate MM_GameHooks_ExecuteOnBottleContentsUpdate
 #define GameInteractor_ExecuteOnBossDefeated MM_GameHooks_ExecuteOnBossDefeated
+
+// The remainder of #438 -- the last hook types that were registered on the
+// MM-owned registry and never dispatched from it. Twelve names, three shapes,
+// and the shape is what decides how a regression here shows up:
+//
+//  * TEN were MM-ONLY names whose only definitions were the header-checked
+//    no-ops in games/mm/2s2h/mm_gameinteractor_stubs.c, deleted with this
+//    rebind. OoT defines none of them, so a dropped bridge or a dropped #define
+//    is a LINK error -- the Before/AfterEndOfCycleSave property, and the reason
+//    the stubs go rather than being left in place "harmlessly".
+//  * TWO -- OnPlayDestroy and OnSeqPlayerInit -- are the #512/#515 shape
+//    instead: OoT DEFINES both names, as active-game-gated wrappers whose first
+//    statement is GI_SINGLE_EXE_GATE(), so MM's call sites in z_play.c and
+//    audio/lib/load.c linked without complaint and bound an unconditional
+//    return for the whole MM session. Drop either #define and the call binds
+//    that wrapper again: it links, it does nothing, and only
+//    mm_hook_dispatch_test.cpp notices.
+//
+// AfterRoomSceneCommands and OnRoomInit are the third shape and need no entry
+// here: they are MM-only names with no OoT counterpart, already defined
+// MM-side, and their bug was the REGISTRY those definitions walked. Fixed in
+// place in GameExports_SingleExe.cpp.
+//
+// The registrant bodies all dereference live play state (or, for the camera
+// trio, the camera the bridge itself keys its id leg on), so their null guards
+// landed in the same change as this rebind rather than after it. That ordering
+// is the criterion the item/progression trio above recorded and
+// games/mm/include/mm_game_hooks.h now states in full; read it before wiring
+// anything else ahead of its registrants.
+void MM_GameHooks_ExecuteOnGameStateMainFinish(void);
+void MM_GameHooks_ExecuteOnConsoleLogoUpdate(void);
+void MM_GameHooks_ExecuteOnPlayDrawWorldEnd(void);
+void MM_GameHooks_ExecuteOnPlayDestroy(void);
+void MM_GameHooks_ExecuteOnInterfaceDrawStart(void);
+void MM_GameHooks_ExecuteBeforeInterfaceClockDraw(void);
+void MM_GameHooks_ExecuteAfterInterfaceClockDraw(void);
+void MM_GameHooks_ExecuteOnPlayerPostLimbDraw(Player* player, s32 limbIndex);
+void MM_GameHooks_ExecuteOnCameraChangeModeFlags(Camera* camera);
+void MM_GameHooks_ExecuteOnCameraChangeSettingsFlags(Camera* camera);
+void MM_GameHooks_ExecuteAfterCameraUpdate(Camera* camera);
+void MM_GameHooks_ExecuteOnSeqPlayerInit(int32_t playerIdx, int32_t seqId);
+#define GameInteractor_ExecuteOnGameStateMainFinish MM_GameHooks_ExecuteOnGameStateMainFinish
+#define GameInteractor_ExecuteOnConsoleLogoUpdate MM_GameHooks_ExecuteOnConsoleLogoUpdate
+#define GameInteractor_ExecuteOnPlayDrawWorldEnd MM_GameHooks_ExecuteOnPlayDrawWorldEnd
+#define GameInteractor_ExecuteOnPlayDestroy MM_GameHooks_ExecuteOnPlayDestroy
+#define GameInteractor_ExecuteOnInterfaceDrawStart MM_GameHooks_ExecuteOnInterfaceDrawStart
+#define GameInteractor_ExecuteBeforeInterfaceClockDraw MM_GameHooks_ExecuteBeforeInterfaceClockDraw
+#define GameInteractor_ExecuteAfterInterfaceClockDraw MM_GameHooks_ExecuteAfterInterfaceClockDraw
+#define GameInteractor_ExecuteOnPlayerPostLimbDraw MM_GameHooks_ExecuteOnPlayerPostLimbDraw
+#define GameInteractor_ExecuteOnCameraChangeModeFlags MM_GameHooks_ExecuteOnCameraChangeModeFlags
+#define GameInteractor_ExecuteOnCameraChangeSettingsFlags MM_GameHooks_ExecuteOnCameraChangeSettingsFlags
+#define GameInteractor_ExecuteAfterCameraUpdate MM_GameHooks_ExecuteAfterCameraUpdate
+#define GameInteractor_ExecuteOnSeqPlayerInit MM_GameHooks_ExecuteOnSeqPlayerInit
 #endif // RSBS_SINGLE_EXECUTABLE
 
 #ifdef __cplusplus

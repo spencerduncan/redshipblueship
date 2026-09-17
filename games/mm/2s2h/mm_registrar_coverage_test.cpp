@@ -60,7 +60,9 @@
  * and non-empty after, so a registry populated by something else, or by an
  * earlier phase of the harness, cannot satisfy it. Verified red before green:
  * commenting out any one of the four calls in MM_Rando_Init fails this row at
- * that probe's own FAIL code, and re-adding it turns it green.
+ * that probe's own FAIL code, and re-adding it turns it green. The two Phase-3
+ * probes below follow the same contract on their own state -- not run before,
+ * run after (FAIL 8), patched-after-scan after (FAIL 9).
  *
  * DELIBERATELY NOT REFERENCED HERE. This row drives only the production entry
  * point MM_Rando_Init(); it never calls CustomItem::RegisterHooks and friends
@@ -69,6 +71,21 @@
  * symbols in the binary, which would make the CI symbol gate pass on a build
  * where production had dropped every call. The test must not prop up what the
  * gate measures.
+ *
+ * PHASE 3 (#618) -- THE TWO ENTRIES WITH NO REGISTRY. OTRExtScanner and
+ * PlayerCustomFlipbooks_Patch were the complete remainder of BenPort's InitOTR
+ * list after PR #616's audit: both depend on the SHARED ExtensionCache having
+ * been re-scanned once MM's archives are mounted, which is why they could not
+ * ride Phases 1-2. Neither is a hook registrar, so neither has a registry to
+ * probe. What this row probes instead is that MM_Rando_Init REACHED them, and
+ * in the right order, through the state MM_ExtensionRescan_AfterArchiveMount
+ * records (GameExports_SingleExe.cpp). The order matters on its own:
+ * PlayerCustomFlipbooks_PatchOnce latches on its first call, so running it
+ * before the rescan would permanently pin MM's faces to vanilla against a cache
+ * that had never seen mm.o2r. That the rescan actually ADDS MM-scoped entries
+ * and removes none of OoT's is the separate MMExtensionRescan row's job
+ * (src/common/tests/test_mm_extension_rescan.c), which needs a staged archive
+ * and so SKIPs where this row cannot.
  *
  * WHAT THIS DOES NOT COVER. GfxPatcher_ApplyNecessaryAuthenticPatches is a
  * one-shot resource patcher, not a hook registrar, and MM_Rando_Init gates it
@@ -108,6 +125,14 @@ extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
 extern "C" {
 // The production bring-up under test. Declared, never defined here.
 void MM_Rando_Init(void);
+// #618 (#516 Phase 3) state, recorded by MM_ExtensionRescan_AfterArchiveMount
+// in GameExports_SingleExe.cpp. Declaring the ACCESSORS rather than the two
+// restored entries keeps this row from becoming an inbound reference to
+// PlayerCustomFlipbooks_Patch — the same discipline the rest of this file
+// follows (see DELIBERATELY NOT REFERENCED HERE in the header).
+int MM_ExtensionRescan_Scanned(void);
+int MM_ExtensionRescan_FlipbooksPatchedAfterScan(void);
+int MM_ExtensionRescan_CallCount(void);
 }
 
 namespace {
@@ -179,6 +204,15 @@ extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
               "BeforeMoonCrashSaveReset was already populated before MM_Rando_Init — probe would be vacuous");
     RC_ASSERT(SettledUnkeyedCount<GameInteractor::OnGameStateDrawFinish>() == 0, 2,
               "OnGameStateDrawFinish was already populated before MM_Rando_Init — probe would be vacuous");
+    // #618 Phase 3: same non-vacuity contract for the two restored InitOTR
+    // entries. Neither may have run before the production bring-up does.
+    RC_ASSERT(MM_ExtensionRescan_CallCount() == 0, 2,
+              "the ExtensionCache rescan already ran before MM_Rando_Init — probe would be vacuous (#618)");
+    RC_ASSERT(MM_ExtensionRescan_Scanned() == 0, 2,
+              "the MM-scoped ExtensionCache scan already completed before MM_Rando_Init — probe would be "
+              "vacuous (#618)");
+    RC_ASSERT(MM_ExtensionRescan_FlipbooksPatchedAfterScan() == 0, 2,
+              "PlayerCustomFlipbooks_Patch already ran before MM_Rando_Init — probe would be vacuous (#618)");
 
     // ---- The production bring-up -------------------------------------------
     // Once-only guarded internally; this row is the only caller in its process.
@@ -227,7 +261,30 @@ extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
               "OnGameStateDrawFinish empty after MM_Rando_Init — RegisterAutosave never ran, "
               "MM has no periodic autosave and no autosave icon (#516)");
 
-    printf("[TEST] mm-registrar-coverage: PASS (4 re-homed registrars all populated their registries)\n");
+    // ---- #618 / #516 Phase 3: the last two InitOTR entries ------------------
+    // Presence. Neither entry has a hook registry to probe, so what is probed
+    // instead is that the bring-up REACHED them: the rescan completed, and the
+    // flipbook patch was then called. Without the rescan MM's own archives are
+    // absent from the shared ExtensionCache and every ResourceMgr_FileExists on
+    // an MM path reads false — MM's HD gfxprint font and the static FD/Deku/
+    // Goron faces both silently stay vanilla.
+    RC_ASSERT(MM_ExtensionRescan_CallCount() == 1, 8,
+              "MM_Rando_Init did not call the ExtensionCache rescan exactly once — MM's archives never reach "
+              "the shared extension map, so every MM custom-asset check reads false (#618)");
+    RC_ASSERT(MM_ExtensionRescan_Scanned() == 1, 8,
+              "the MM-scoped ExtensionCache scan did not complete during MM_Rando_Init — MM custom assets are "
+              "invisible to ResourceMgr_FileExists (#618)");
+    // Order. PlayerCustomFlipbooks_PatchOnce latches sFacePatchState on its
+    // FIRST call and never re-evaluates, so being called before the rescan would
+    // permanently decide "no custom faces" from a cache that had not yet seen
+    // MM's archives. This flag is only set when the patch ran with the scan
+    // already complete, which is the ROM-free evidence of that ordering.
+    RC_ASSERT(MM_ExtensionRescan_FlipbooksPatchedAfterScan() == 1, 9,
+              "PlayerCustomFlipbooks_Patch did not run after the ExtensionCache rescan — its one-shot latch "
+              "would fix MM's faces to vanilla against an unscanned cache (#618)");
+
+    printf("[TEST] mm-registrar-coverage: PASS (4 re-homed registrars populated their registries; the two "
+           "Phase-3 ExtensionCache entries ran, in order)\n");
     return 0;
 }
 

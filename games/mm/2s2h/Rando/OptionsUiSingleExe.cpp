@@ -71,17 +71,33 @@
  * GameExports_SingleExe.cpp, called from z_play.c), so RO_ACCESS_DUNGEONS is
  * fully live. Re-measure before trusting either document.
  *
- * AND THE TABLE IS NOW STALE IN THAT SAME DIRECTION, left that way on purpose
- * rather than guessed at. It was measured before #512 wired OnActorInit /
- * OnActorDraw / OnOpenText, so `kReasonActorInitDrop` names a blocker that no
- * longer exists — RO_SHUFFLE_CRATE_DROPS, RO_SHUFFLE_BARREL_DROPS and
- * RO_SHUFFLE_GRASS_DROPS are still DORMANT against a hook that dispatches, and
- * grass's other blocker (OnActorKill, the only writer of non-actor grass check
- * ids) was cleared by #515. Promoting a row ENABLES it, which ADR 0004 calls
- * the high-stakes direction, so those three want a deliberate re-measure of
- * every leg rather than a flip riding on someone else's fix. Being stale
- * towards DORMANT costs a disabled option; being wrong towards LIVE costs an
- * unwinnable seed.
+ * THE THREE DROP ROWS WERE THAT STALENESS, AND ARE NOW RE-MEASURED (#438
+ * remainder). This table was written before #512 wired OnActorInit /
+ * OnActorDraw / OnOpenText, so `kReasonActorInitDrop` went on naming a blocker
+ * that no longer existed. Promoting a row ENABLES it, which ADR 0004 calls the
+ * high-stakes direction, so the flip was held until every leg could be checked
+ * rather than ridden on someone else's fix. Done leg by leg, per row, at the
+ * dispatchers in games/mm/2s2h/GameExports_SingleExe.cpp:
+ * ObjKibako/ObjTaru/ObjGrass identify their checks through id-keyed OnActorInit
+ * (ExecuteForID leg present, #512); grass's non-actor elements ride id-keyed
+ * OnActorKill with OnActorDestroy as their reaper (both #515); every remaining
+ * leg is ShouldVanillaBehavior (#392). All three behaviour TUs sit under
+ * 2s2h/Rando/, which links WHOLE_ARCHIVE, so the TU-links and registrar-runs
+ * legs of ADR 0004's test were never in doubt. The rows are LIVE and
+ * kReasonActorInitDrop is retired. The same standing instruction applies to
+ * whoever reads this next: re-measure, do not trust the history.
+ *
+ * STILL STALE, AND DELIBERATELY LEFT THAT WAY: every row whose reason names
+ * `OnOpenText`. That hook has dispatched since #512 too, so `kReasonOpenText`
+ * and the PARTIAL reasons on RO_ACCESS_TRIALS, the two Majora-access sliders,
+ * RO_SHUFFLE_STRAY_FAIRIES / FROGS / SHOPS / TINGLE, RO_CLOCK_SHUFFLE and the
+ * hint family are naming a blocker that is gone. They are NOT promoted here
+ * because the hook was never their only question: each needs its own behaviour
+ * TU checked (hint generation, the CustomMessage path #520 revived, the
+ * trial-gate text) and promoting a hint row wrongly is the unwinnable-seed
+ * direction. Being stale towards DORMANT costs a disabled option; being wrong
+ * towards LIVE costs a seed. That re-measure is its own piece of work, not a
+ * side effect of the hook-dispatch lane.
  *
  * THE HAZARD THAT WAS NOT PER-ROW, AND IS NOW GONE (#514). This table used to
  * be read alongside a pane-wide banner: `BeforeEndOfCycleSave` /
@@ -178,7 +194,8 @@ struct OptionUi {
 
 // Reason strings shared by several rows, so a wording change stays one edit.
 constexpr const char* kReasonOpenText = "Not yet available: MM OnOpenText dispatch not placed (#438)";
-constexpr const char* kReasonActorInitDrop = "Would strand items: the drop's OnActorInit dispatch is not placed (#438)";
+// kReasonActorInitDrop is retired: the crate, barrel and grass rows it gated are
+// LIVE as of #438's remainder. See the re-measure recorded in the file header.
 
 // clang-format off
 const OptionUi kOptionUi[] = {
@@ -277,19 +294,37 @@ const OptionUi kOptionUi[] = {
       "Shuffle Tingle Maps", "Adds the maps Tingle sells to the check pool.",
       0, 0, nullptr, 0,
       COMBO_MM_LIVENESS_PARTIAL, "Tingle shop text needs MM OnOpenText dispatch (#438)" },
+    // Re-measured leg by leg for #438's remainder (see the file header). All
+    // three rode OnActorInit, which #512 dispatched; grass additionally rode
+    // OnActorKill and OnActorDestroy, which #515 dispatched. Every behaviour TU
+    // is under 2s2h/Rando/, which links WHOLE_ARCHIVE, and every remaining leg
+    // is ShouldVanillaBehavior, live since #392. Nothing left to block them.
     { RO_SHUFFLE_CRATE_DROPS, COMBO_MM_GROUP_SHUFFLE, COMBO_MM_WIDGET_CHECKBOX,
       "Shuffle Crate Drops", "Adds the item dropped by breaking a crate to the check pool.",
       0, 0, nullptr, 0,
-      // Total dormancy, not cosmetic: the identify-the-check helper has no
-      // call site outside the undispatched hook, and the surviving VB legs
-      // bail on RC_UNKNOWN. Items placed here can never be collected.
-      COMBO_MM_LIVENESS_DORMANT, kReasonActorInitDrop },
+      // Was DORMANT on "the drop's OnActorInit dispatch is not placed". It is
+      // placed: ObjKibako.cpp keys COND_ID_HOOK(OnActorInit) on ACTOR_OBJ_KIBAKO
+      // and ACTOR_OBJ_KIBAKO2, and MM_GameHooks_ExecuteOnActorInit carries the
+      // ExecuteForID leg those need. Its other two legs
+      // (VB_CRATE_DRAW_BE_OVERRIDDEN, VB_BARREL_OR_CRATE_DROP_COLLECTIBLE) are
+      // ShouldVanillaBehavior.
+      COMBO_MM_LIVENESS_LIVE, "" },
     { RO_SHUFFLE_BARREL_DROPS, COMBO_MM_GROUP_SHUFFLE, COMBO_MM_WIDGET_CHECKBOX,
       "Shuffle Barrel Drops", "Adds the item dropped by breaking a barrel to the check pool.",
-      0, 0, nullptr, 0, COMBO_MM_LIVENESS_DORMANT, kReasonActorInitDrop },
+      // ObjTaru.cpp, same two hook types as the crate row: id-keyed OnActorInit
+      // on ACTOR_OBJ_TARU plus VB_BARREL_OR_CRATE_DROP_COLLECTIBLE.
+      0, 0, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
     { RO_SHUFFLE_GRASS_DROPS, COMBO_MM_GROUP_SHUFFLE, COMBO_MM_WIDGET_CHECKBOX,
       "Shuffle Grass Drops", "Adds the item dropped by cutting grass to the check pool.",
-      0, 0, nullptr, 0, COMBO_MM_LIVENESS_DORMANT, kReasonActorInitDrop },
+      // The one that needed two separate fixes, and the reason this row was held
+      // back longest. ObjGrass.cpp identifies actor-backed bushes through
+      // id-keyed OnActorInit (ACTOR_EN_KUSA) -- live since #512 -- but the
+      // NON-actor grass elements, which are the bulk of the pool (216 in Termina
+      // Field alone), get their RandoCheckIds only from its id-keyed OnActorKill
+      // registrant on ACTOR_OBJ_GRASS_UNIT, and the entries that creates are
+      // freed only by its id-keyed OnActorDestroy registrants. #515 dispatched
+      // that pair together, for exactly that reason. Five VB legs, all live.
+      0, 0, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
 
     // ---- Items -------------------------------------------------------------
     { RO_PLENTIFUL_ITEMS, COMBO_MM_GROUP_ITEMS, COMBO_MM_WIDGET_CHECKBOX,
