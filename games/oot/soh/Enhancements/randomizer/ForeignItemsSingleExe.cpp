@@ -648,7 +648,6 @@ extern "C" int OoT_ForeignItem_TestExclusionAt(int index, uint16_t* outId, uint8
     return 1;
 }
 
-
 // ============================================================================
 // THE MERGED CREATION EVENT (ADR 0010 increment 2; #564's creation-event
 // contract; epic #644)
@@ -856,7 +855,6 @@ extern "C" int OoT_RunPairedCreationEvent(int slot) {
     fflush(stderr);
     return 1;
 }
-
 
 /**
  * THE FILE-SELECT FAILURE SURFACE (ADR 0010 increment 2; #533/#568's machinery,
