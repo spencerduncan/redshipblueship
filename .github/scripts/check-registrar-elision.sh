@@ -523,6 +523,15 @@ main() {
     # an exact tell. That closes #516's open question 1 without renaming
     # upstream-tracked code.
     #
+    # PlayerCustomFlipbooks_Patch is the #516 Phase 3 pair's elidable half (#618):
+    # it lives in 2ship_enh and had no caller at all, so a presence probe here is
+    # exact. Its partner, OTRExtScanner, is deliberately ABSENT from this list --
+    # MM's copy is in the excluded BenPort.cpp and MM now goes through
+    # Combo_ExtensionCache_ScanGame in OoT's always-linked ResourceManagerHelpers,
+    # so the name would be satisfied by OoT's copy regardless. Both are instead
+    # gated at RUNTIME by MMRegistrarCoverage (they ran, in order) and
+    # MMExtensionRescan (the rescan actually adds MM-scoped entries).
+    #
     # NOTE ON WHAT THIS LOOP CAN AND CANNOT SEE. A name found here proves only
     # that the symbol LINKED. It does not prove the registrar RAN -- a call
     # moved under a never-true condition, or a once-guard that latches before
@@ -535,6 +544,7 @@ main() {
         "S2H::CustomMessage::RegisterHooks"         # custom rando/hint message text 0x4B (critical)
         "RegisterSavingEnhancements"                # owl-save persistence, cycle-save playtime (#516 Phase 2)
         "GfxPatcher_ApplyNecessaryAuthenticPatches" # authentic gfx patches incl. latent matrix-stack UB
+        "PlayerCustomFlipbooks_Patch"               # static FD/Deku/Goron faces (#618, the #516 Phase 3 pair)
     )
     local sym
     for sym in "${required_mm_registrars[@]}"; do
