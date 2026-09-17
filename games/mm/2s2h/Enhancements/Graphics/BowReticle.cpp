@@ -55,6 +55,15 @@ void DrawBowReticle(PlayState* play, Player* player, f32 bowDistance) {
 
 void RegisterBowReticle() {
     COND_ID_HOOK(OnPlayerPostLimbDraw, PLAYER_LIMB_RIGHT_HAND, CVAR, [](Player* player, s32 limbIndex) {
+        // #438: OnPlayerPostLimbDraw only began dispatching in the single exe
+        // once this guard existed. DrawBowReticle below is handed MM_gPlayState
+        // and dereferences ->colCtx, ->state.gfxCtx, ->viewProjectionMtxF and
+        // ->objectCtx through it; the player pointer comes from the dispatcher.
+        // Neither is checked upstream, which is the #516 SIGSEGV class. Expands
+        // to nothing outside the single exe -- this is a vendored 2S2H TU, and
+        // the macro exists because a directive cannot go inside a COND_ID_HOOK
+        // argument (GameInteractor.h has the full reason).
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL && player != NULL);
         if (player->actor.scale.y >= 0.0f &&
             ((player->heldItemAction == PLAYER_IA_BOW_FIRE) || (player->heldItemAction == PLAYER_IA_BOW_ICE) ||
              (player->heldItemAction == PLAYER_IA_BOW_LIGHT) || (player->heldItemAction == PLAYER_IA_BOW))) {

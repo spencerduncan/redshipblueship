@@ -12,6 +12,16 @@ extern "C" {
 
 void RegisterTimeStopInTemples() {
     COND_HOOK(AfterRoomSceneCommands, CVAR != TIME_STOP_OFF, [](s16 sceneId, s8 roomNum) {
+        // #438: guard landed with the AfterRoomSceneCommands registry swap
+        // (GameExports_SingleExe.cpp), which is what made this body reachable at
+        // all. Every switch below reads MM_gPlayState->sceneId with no upstream
+        // check -- the #516 SIGSEGV class. Note the sceneId ARGUMENT is not a
+        // substitute: upstream reads the global here, and changing which value
+        // the switches test would be a behaviour change smuggled in as a guard.
+        //
+        // Expands to nothing outside the single exe; see GameInteractor.h for
+        // why it is a macro and not an #ifdef.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         uint8_t selectedOption = CVarGetInteger("gCheats.TempleTimeStop", TIME_STOP_OFF);
 
         switch (selectedOption) {
