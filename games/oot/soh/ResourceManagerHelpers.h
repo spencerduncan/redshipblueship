@@ -35,6 +35,20 @@ char** ResourceMgr_ListFiles(const char* searchMask, int* resultSize);
 // the given game's archives ("oot" or "mm"). In standalone builds the filter
 // is a no-op (only one game's archives are ever loaded).
 char** ResourceMgr_ListFilesForGame(const char* gameTag, const char* searchMask, int* resultSize);
+// #618 (#516 Phase 3): re-scan the shared ExtensionCache for ONE game's
+// archives. OTRExtScanner runs once, inside OoT's InitOTR, when only OoT's
+// archives are mounted — so every MM path is absent from the cache that
+// ResourceMgr_FileExists / ResourceMgr_FileAltExists answer from, and MM's
+// custom-asset checks (its HD gfxprint font, PlayerCustomFlipbooks' static
+// FD/Deku/Goron faces) all read false. MM calls this once its own archives are
+// mounted. Insert-only and idempotent — see the definition for why it cannot
+// clobber the other game's entries. Returns the number of NEW keys added, or
+// -1 when there is no live ResourceManager/ArchiveManager.
+int Combo_ExtensionCache_ScanGame(const char* gameTag);
+// Entry count of the shared ExtensionCache. For the #618 lock row, which proves
+// a rescan is purely additive by exact size accounting: the size must grow by
+// precisely the number of new keys the scan reported.
+size_t Combo_ExtensionCache_Size(void);
 uint8_t ResourceMgr_FileExists(const char* resName);
 uint8_t ResourceMgr_FileAltExists(const char* resName);
 void ResourceMgr_UnloadOriginalWhenAltExists(const char* resName);

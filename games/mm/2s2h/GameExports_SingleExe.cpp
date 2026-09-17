@@ -64,6 +64,10 @@
 #include "2s2h/CustomMessage/CustomMessage.h"
 #include "2s2h/Enhancements/Saving/SavingEnhancements.h"
 #include "2s2h/Enhancements/GfxPatcher/AuthenticGfxPatches.h"
+// #618 (#516 Phase 3): the last BenPort InitOTR entry. C++ linkage (its header
+// declares it outside any extern "C"), so it must be included rather than
+// forward-declared, or the call would not resolve to the 2ship_enh definition.
+#include "2s2h/Enhancements/GfxPatcher/PlayerCustomFlipbooks.h"
 #include "2s2h/Rando/Rando.h"
 #include "2s2h/Rando/Foreign.h" // attempt-ladder outcome accessors (ADR 0010 inc. 1.2)
 #include "2s2h/ShipInit.hpp"
@@ -1028,6 +1032,41 @@ extern "C" int MM_RegisterResourceFactoriesHeadless(void) {
 }
 
 /**
+ * Headless entry for the #618 ExtensionCache-rescan lock row
+ * (src/common/tests/test_mm_extension_rescan.c): mount ONE archive and record it
+ * as MM-owned, which is exactly the pair of calls LoadMMArchives() makes per
+ * archive — AddArchive plus RecordMMArchivePath. The recording is the
+ * load-bearing half: `Combo_ArchivePathIsMM` (and therefore the "mm" scope of
+ * Combo_ExtensionCache_ScanGame) keys on that registry, so a test that mounted
+ * an archive without it would be testing a scope that can never match.
+ *
+ * Deliberately NOT a wrapper over LoadMMArchives() itself: that function also
+ * latches sMMArchivesLoaded, which is what MM_Rando_AssetsReady() reports, and
+ * flipping it true in a process where mm.o2r is absent (CI stages soh.o2r and
+ * 2ship.o2r only — oot.o2r/mm.o2r are ROM-derived and undistributable) would
+ * open MM_Rando_Init's GfxPatcher gate onto missing assets. This seam cannot do
+ * that, so the lock row carries no ordering coupling to any other row.
+ *
+ * Returns 0 on success, -1 with no live ArchiveManager or on a failed mount.
+ */
+extern "C" int MM_MountArchiveHeadless(const char* path) {
+    if (path == nullptr || path[0] == '\0') {
+        return -1;
+    }
+    auto ctx = Ship::Context::GetInstance();
+    if (ctx == nullptr || ctx->GetResourceManager() == nullptr ||
+        ctx->GetResourceManager()->GetArchiveManager() == nullptr) {
+        return -1;
+    }
+    std::string archivePath = path;
+    if (ctx->GetResourceManager()->GetArchiveManager()->AddArchive(archivePath) == nullptr) {
+        return -1;
+    }
+    RecordMMArchivePath(archivePath);
+    return 0;
+}
+
+/**
  * Verify the shared Ship::Context is ready for MM's graph thread (#271).
  *
  * MM_Graph_ThreadEntry calls WindowIsRunning(), GfxDebuggerIsDebugging(),
@@ -1406,6 +1445,8 @@ extern "C" void MM_RegisterSharedResourceCycleHooks(void);
 // Defined below in this TU; forward-declared so the #516 GfxPatcher gate can
 // reference it from MM_Rando_Init above the definition.
 extern "C" bool MM_Rando_AssetsReady(void);
+// #618 (#516 Phase 3), also defined below in this TU.
+extern "C" void MM_ExtensionRescan_AfterArchiveMount(void);
 
 extern "C" void MM_Rando_Init(void) {
     static bool sRandoInitDone = false;
@@ -1513,6 +1554,24 @@ extern "C" void MM_Rando_Init(void) {
     // This TU is always linked, and the sRandoInitDone guard above is what
     // makes the registration once-only, as the block header requires.
     MM_RegisterSharedResourceCycleHooks();
+
+    // #618 — the LAST two entries of BenPort's InitOTR list, and the #516
+    // remainder: OTRExtScanner() and PlayerCustomFlipbooks_Patch(). Both need
+    // the shared ExtensionCache to have seen MM's archives, which is why they
+    // could not ride Phases 1-2. They can run from here because
+    // MM_Game_Init has ALREADY mounted MM's archives by the time it calls this
+    // function — LoadMMArchives() is several steps above MM_Rando_Init() in
+    // MM_Game_Init, and Combo_EnsureGameArchivesLoaded(GAME_MM) has run ahead of
+    // even that on a switch-in. So the mount always precedes MM's bring-up and
+    // no new mount seam is needed. Placed last, mirroring InitOTR's own order.
+    //
+    // Unlike the GfxPatcher call above this is NOT gated on
+    // MM_Rando_AssetsReady(): neither leg dereferences a resource (the scan
+    // walks archive path LISTS; the flipbook patch only reads the extension map
+    // and writes MM's own texture-pointer arrays), so both are safe with no
+    // archives mounted and the ROM-free MMRegistrarCoverage row can therefore
+    // observe that they ran.
+    MM_ExtensionRescan_AfterArchiveMount();
 }
 
 /**
@@ -1525,6 +1584,106 @@ extern "C" void MM_Rando_Init(void) {
  */
 extern "C" bool MM_Rando_AssetsReady(void) {
     return sMMArchivesLoaded;
+}
+
+// ============================================================================
+// #618 (#516 Phase 3) — ExtensionCache rescan + player flipbook patch
+// ============================================================================
+//
+// The two entries BenPort's `InitOTR` ends with, and the only ones PR #616's
+// audit left unrestored:
+//
+//     OTRExtScanner();
+//     PlayerCustomFlipbooks_Patch();
+//
+// Both read the SHARED `ExtensionCache` (games/oot/soh/OTRGlobals.cpp), the map
+// `ResourceMgr_FileExists` answers from. It is filled exactly once, by OoT's
+// `InitOTRImpl`, at a point where MM's archives are not mounted yet — and MM's
+// own copy of the scanner is in the excluded BenPort.cpp. So every MM path was
+// missing from it, and MM's two custom-asset consumers read false for
+// everything: `MM_GfxPrint_HasArchiveTexture` (MM's HD gfxprint font) and
+// `PlayerCustomFlipbooks_Patch`'s FD/Deku/Goron eye+mouth checks, which is why
+// #516 classed them as cosmetic-but-absent rather than re-homing them wholesale.
+//
+// The scan is MM-scoped (`Combo_ExtensionCache_ScanGame("mm")`, defined next to
+// the cache in games/oot/soh/ResourceManagerHelpers.cpp) rather than a second
+// unscoped `OTRExtScanner()` call. That file's comment has the full argument;
+// the short version is that an unscoped rescan would ALSO newly admit paths from
+// archives OoT mounted after its own scan — OoT mounts `mods/` late, at GUI init
+// — making OoT's own answers depend on whether MM had ever been visited.
+//
+// ORDERING IS LOAD-BEARING, not cosmetic. `PlayerCustomFlipbooks_PatchOnce`
+// latches `sFacePatchState` on its first call and never re-evaluates. Calling it
+// before the rescan would permanently decide "no custom faces" from a cache that
+// had not yet seen mm.o2r — the silent-no-op shape this whole issue class is
+// made of. The two flags below record that the patch ran WITH the scan already
+// complete, and the MMRegistrarCoverage row asserts it.
+
+static bool sExtRescanScanned = false;
+static bool sExtRescanFlipbooksPatchedAfterScan = false;
+static int sExtRescanCalls = 0;
+static int sExtRescanLastAdded = 0;
+
+// Defined in games/oot/soh/ResourceManagerHelpers.cpp. Declared locally because
+// MM translation units cannot include OoT's ResourceManagerHelpers.h (it pulls
+// OoT's z64* umbrella headers, which collide with MM's).
+extern "C" int Combo_ExtensionCache_ScanGame(const char* gameTag);
+
+/**
+ * Run BenPort InitOTR's trailing pair, in order, against MM's now-mounted
+ * archives. Called from the end of MM_Rando_Init (once-only via its guard), and
+ * safe to call again: the scan is insert-only and re-derives identical entries,
+ * and the flipbook patch self-latches.
+ */
+extern "C" void MM_ExtensionRescan_AfterArchiveMount(void) {
+    sExtRescanCalls++;
+
+    const int added = Combo_ExtensionCache_ScanGame("mm");
+    if (added < 0) {
+        // No live ResourceManager/ArchiveManager. Leave both flags alone so the
+        // lock row reports the real state instead of a false "it ran", and do
+        // NOT patch the flipbooks: latching them off against a cache that was
+        // never scanned is exactly the failure this ordering exists to prevent.
+        sExtRescanLastAdded = 0;
+        fprintf(stderr, "[MM] ExtensionCache rescan skipped — no ResourceManager (#618)\n");
+        return;
+    }
+
+    sExtRescanLastAdded = added;
+    sExtRescanScanned = true;
+    fprintf(stderr, "[MM] ExtensionCache rescan: +%d MM-owned entries (#618)\n", added);
+
+    PlayerCustomFlipbooks_Patch();
+    // Records the ORDER, not merely the call: it can only be true because the
+    // scan above already completed. Moving the patch ahead of the scan turns
+    // the MMRegistrarCoverage probe red instead of silently latching MM's faces
+    // to vanilla — verified by doing exactly that (FAIL(9)).
+    sExtRescanFlipbooksPatchedAfterScan = sExtRescanScanned;
+}
+
+/** True once the MM-scoped ExtensionCache scan has completed at least once. */
+extern "C" int MM_ExtensionRescan_Scanned(void) {
+    return sExtRescanScanned ? 1 : 0;
+}
+
+/**
+ * True once PlayerCustomFlipbooks_Patch has been called WITH the scan already
+ * complete. Separate from the flag above on purpose: it is the ordering half,
+ * and it is the only ROM-free evidence that the flipbook patch did not latch
+ * against an unscanned cache.
+ */
+extern "C" int MM_ExtensionRescan_FlipbooksPatchedAfterScan(void) {
+    return sExtRescanFlipbooksPatchedAfterScan ? 1 : 0;
+}
+
+/** How many times the rescan entry point has been called (idempotency probe). */
+extern "C" int MM_ExtensionRescan_CallCount(void) {
+    return sExtRescanCalls;
+}
+
+/** New ExtensionCache keys added by the most recent scan. */
+extern "C" int MM_ExtensionRescan_LastEntriesAdded(void) {
+    return sExtRescanLastAdded;
 }
 
 void MM_Game_Run(void) {
