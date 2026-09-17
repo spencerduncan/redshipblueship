@@ -460,6 +460,16 @@ if(BUILD_TESTING)
     # and the canonical heart quantity with its 20-heart clamp. Display-free,
     # ROM-free and save-free, so it runs in this redship tier.
     redship_add_test(NAME SharedResources COMMAND redship --test shared-resources)
+    # The shared OCARINA (#668): one instrument across both games, and the FIRST
+    # shared kind whose existence a player chooses — armed by the
+    # gCombo.Rando.SharedOcarina bit frozen into ComboSettingsRecord.comboFlags
+    # at file creation. Locks the two claims the row above cannot make: with the
+    # option OFF nothing is harvested, applied or even slotted (so an existing
+    # world's .redsave is byte-identical to one written before the option
+    # existed), and the arming gate is consulted by BOTH the harvest and the
+    # apply, because a one-sided gate on a pair that is not inverse leaks rather
+    # than under-shares. Display-free, ROM-free and save-free.
+    redship_add_test(NAME SharedOcarina COMMAND redship --test shared-ocarina)
     redship_add_test(NAME ComboSpoilerView COMMAND redship --test combo-spoiler-view)
     redship_add_test(NAME ComboSpoilerWindow COMMAND redship --test combo-spoiler-window)
     # Combo tracker (#458). Display-free: the MM adapter is driven over an
@@ -658,7 +668,7 @@ if(BUILD_TESTING)
     redship_add_test(NAME ComboSettingsCanonical COMMAND redship --test combo-settings-canonical)
     redship_add_test(NAME ComboSettingsDivergence COMMAND redship --test combo-settings-divergence)
     redship_add_test(NAME ComboSettingsLegacyFreeze COMMAND redship --test combo-settings-legacy-freeze)
-    # ADR 0011 increment 2: the five tier-4 gCombo.Rando.* keys and the pane.
+    # ADR 0011 increment 2 (+ #668): the six tier-4 gCombo.Rando.* keys and the pane.
     # ComboSettingsAuthoring proves the keys reach the record BEFORE the freeze
     # (the frozen record is what the player authored), that the defaults still
     # reproduce the shipped record and its pinned fingerprint byte for byte
@@ -671,7 +681,7 @@ if(BUILD_TESTING)
     # this ROM-free tier.
     redship_add_test(NAME ComboSettingsAuthoring COMMAND redship --test combo-settings-authoring)
     redship_add_test(NAME ComboSettingsWindow COMMAND redship --test combo-settings-window)
-    # #655 moved the PRESENTATION into the one live menu: the five keys are rows
+    # #655 moved the PRESENTATION into the one live menu: the six keys are rows
     # in the interim Cross-Game section of SohMenuRandomizer.cpp, and the pane
     # above is registered but no longer opened by anything. ComboSettingsRows
     # builds a SohMenu headless, calls the real AddMenuRandomizer(), and drives

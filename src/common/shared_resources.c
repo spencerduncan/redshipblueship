@@ -15,6 +15,10 @@
  */
 
 #include "shared_resources.h"
+// #668: the ONE kind whose existence is a per-world choice reads its arming bit
+// from the frozen combo record. foreign_items.h is game-header-free too, so this
+// TU stays compilable in the ROM-free harness.
+#include "foreign_items.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -61,6 +65,7 @@ static bool IsMonotonicKind(uint8_t kind) {
         case RSBS_SHARED_RES_STICK_TIER:
         case RSBS_SHARED_RES_NUT_TIER:
         case RSBS_SHARED_RES_HOOKSHOT_TIER:
+        case RSBS_SHARED_RES_OCARINA_TIER:
             return true;
         default:
             // The spent quantities — rupees, current health, current magic, and
@@ -186,8 +191,32 @@ bool Combo_SaveIsLiveFile(GameId game, int32_t gameMode) {
     return gameMode == RSBS_GAMEMODE_NORMAL || (game == GAME_MM && gameMode == RSBS_GAMEMODE_OWL_SAVE);
 }
 
+bool Combo_SharedResourceKindArmed(uint8_t kind) {
+    // ONE conditional kind, and the condition is the FROZEN world rule, not a
+    // live preference (Combo_ComboSharedOcarina reads the record once a world
+    // exists). Everything else #525 decided for every world.
+    //
+    // Deliberately a positive allowlist of the conditional kinds rather than a
+    // `switch` returning false by default: a kind appended without a row here
+    // must keep working, because the default for a shared resource is
+    // unconditional and a silently disarmed kind is invisible — it looks exactly
+    // like a player who has not found the item.
+    if (kind == (uint8_t)RSBS_SHARED_RES_OCARINA_TIER) {
+        return Combo_ComboSharedOcarina();
+    }
+    return true;
+}
+
 void Combo_HarvestSharedResource(GameId game, uint8_t kind, uint16_t liveValue) {
     if (!IsRealGame(game) || !IsRealKind(kind)) {
+        return;
+    }
+    // THE ARMING GATE, half one of two (#668). Before any slot is created and
+    // before any watermark is touched, so a disarmed kind leaves BOTH stores
+    // exactly as it found them — the same clean-no-op discipline
+    // Combo_SaveIsLiveFile's early return keeps, and for the same reason: a
+    // world that never asked for this resource must not grow a slot for it.
+    if (!Combo_SharedResourceKindArmed(kind)) {
         return;
     }
 
@@ -256,6 +285,15 @@ void Combo_HarvestSharedResource(GameId game, uint8_t kind, uint16_t liveValue) 
 
 bool Combo_ApplySharedResource(GameId game, uint8_t kind, uint16_t cap, uint16_t* liveValue) {
     if (!IsRealGame(game) || !IsRealKind(kind) || liveValue == NULL) {
+        return false;
+    }
+    // THE ARMING GATE, half two of two (#668). Symmetric with the harvest by
+    // construction: both halves call the same predicate, so the pair cannot be
+    // gated one-sidedly. A disarmed apply answers exactly as a never-shared
+    // resource does — false, *liveValue untouched, no watermark — which is the
+    // honest answer and the one every caller already handles. A pool populated
+    // under a different world's rules is therefore inert rather than half-read.
+    if (!Combo_SharedResourceKindArmed(kind)) {
         return false;
     }
 

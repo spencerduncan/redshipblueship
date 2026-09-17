@@ -3176,6 +3176,24 @@ static uint16_t MM_ReadHookshotTier(void) {
     return INV_CONTENT(ITEM_HOOKSHOT) == ITEM_HOOKSHOT ? 1u : 0u;
 }
 
+// MM's ocarina ceiling (#668). MM has exactly ONE ocarina — the Ocarina of Time
+// — where OoT has two rungs, so MM tops out at tier 1 and the pool's tier 2
+// materializes here as that same single ocarina. The 2-vs-1 shape is the
+// hookshot's, and max-merge handles it for the same reason.
+//
+// WHY MM HARVESTS 1 AND NOT 2, which is the mapping decision rather than a
+// detail: reading MM's ocarina as the pool's TOP rung would hand OoT the Ocarina
+// of Time — the Door of Time's key — to a player who has only ever found the
+// Fairy Ocarina, for the price of a Termina round trip. The shared model
+// transports what the player HAS and never invents a promotion; this is the
+// hookshot's own ruling (MM's tier-1 hookshot never becomes a longshot in OoT)
+// applied in the direction #668 raises.
+#define MM_MAX_OCARINA_TIER 1u
+
+static uint16_t MM_ReadOcarinaTier(void) {
+    return INV_CONTENT(ITEM_OCARINA_OF_TIME) == ITEM_OCARINA_OF_TIME ? 1u : 0u;
+}
+
 static uint16_t MM_ReadHealthQuarters(void) {
     const uint16_t pieces =
         (uint16_t)((gSaveContext.save.saveInfo.inventory.questItems & MM_HEART_PIECE_MASK) >> MM_HEART_PIECE_SHIFT);
@@ -3353,6 +3371,13 @@ extern "C" void MM_HarvestSharedResources(void) {
     // monotonic merges take the max, which is the whole reason a 2-vs-1 ceiling
     // needs no special case here.
     Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_HOOKSHOT_TIER, MM_ReadHookshotTier());
+
+    // Ocarina (#668), the twin of OoT's line. Offered unconditionally: the
+    // arming gate is inside Combo_HarvestSharedResource and is the same
+    // predicate the apply consults, so the two halves cannot diverge. Harvesting
+    // MM's 1 can never demote an Ocarina of Time the pool already holds — the
+    // tier is monotonic, exactly as for the hookshot just above.
+    Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_OCARINA_TIER, MM_ReadOcarinaTier());
 }
 
 // ============================================================================
@@ -3611,6 +3636,25 @@ extern "C" void MM_ApplySharedResources(void) {
     if (Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_HOOKSHOT_TIER, MM_MAX_HOOKSHOT_TIER, &hookshotTier) &&
         hookshotTier >= 1u) {
         MM_EnsureInventoryItem(ITEM_HOOKSHOT);
+    }
+
+    // --- Ocarina (monotonic), armed per world by the frozen combo setting
+    // (#668). ANY ocarina in OoT — Fairy or Time — arrives here as MM's one
+    // Ocarina of Time, which is the operator's "one shared ocarina" read
+    // literally: MM has a single instrument, so the Fairy Ocarina has to count.
+    //
+    // THIS IS ALSO MM'S "HAS THE OCARINA" STATE. Every MM consumer that matters
+    // reads INV_CONTENT(ITEM_OCARINA_OF_TIME) — the Song of Time gate
+    // (z_elf_message.c), the rando logic's HAS_ITEM, Skull Kid's rooftop event —
+    // so authoring the inventory byte here is what makes the shared state the
+    // one MM plays under. No C-button fixup is needed on this side, unlike
+    // OoT's: MM's ocarina id never changes, so an equipped ocarina stays correct.
+    // With the option off Combo_ApplySharedResource returns false and nothing
+    // below runs.
+    uint16_t ocarinaTier = MM_ReadOcarinaTier();
+    if (Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_OCARINA_TIER, MM_MAX_OCARINA_TIER, &ocarinaTier) &&
+        ocarinaTier >= 1u) {
+        MM_EnsureInventoryItem(ITEM_OCARINA_OF_TIME);
     }
 }
 

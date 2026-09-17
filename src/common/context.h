@@ -413,6 +413,19 @@ enum {
     // and MM's is 1 — MM has no longshot at all — which max-merge handles
     // natively: an MM visit can never demote the pool's longshot.
     RSBS_SHARED_RES_HOOKSHOT_TIER = 17,   // MONOTONIC: 0/1/2; each game clamps to its OWN ceiling
+    // Ocarina (#668). The hookshot's shape exactly — one inventory byte per
+    // game, so the "one instrument" the operator asked for is a monotonic tier:
+    // 0 none, 1 OoT's Fairy Ocarina / MM's Ocarina of Time, 2 OoT's Ocarina of
+    // Time. OoT's ceiling is 2 and MM's is 1, and max-merge handles the mismatch
+    // the same way it does the longshot's.
+    //
+    // THE ONLY KIND THAT IS NOT UNCONDITIONAL. Every kind above is a decision
+    // #525 made for every world; this one is armed per world by
+    // ComboSettingsRecord.comboFlags' RSBS_COMBO_FLAG_SHARED_OCARINA bit,
+    // frozen at file creation. Disarmed, nothing is harvested and nothing is
+    // applied, so a world that never asked for it has no slot at all and its
+    // `.redsave` is byte-identical to one written before the option existed.
+    RSBS_SHARED_RES_OCARINA_TIER = 18,    // MONOTONIC: 0/1/2, gated by the frozen combo setting (#668)
 };
 
 /**
@@ -506,8 +519,14 @@ typedef struct {
     uint16_t itemClassMM;  // RSBS_ITEMCLASS_* bitset over the MM pool
     uint8_t goal;          // RSBS_COMBO_GOAL_* (ADR 0010 D1); illegal to be 0 inside a formatted record
     uint8_t logicRung;     // RSBS_COMBO_RUNG_* (ADR 0010 §2.2); likewise
-    uint8_t spare0;        // growth under formatVersion, NOT under zero-means-unset
-    uint8_t spare1;
+    // Byte 10, formerly `spare0` — the first spare SPENT (#668, 2026-09-16). An
+    // RSBS_COMBO_FLAG_* bitset over combo rules that are yes/no rather than
+    // enumerated. Zero means "every flag clear", which is exactly what a record
+    // written before any flag existed already holds, so no formatVersion bump is
+    // owed: the bit's clear state IS the legacy behaviour (see
+    // RSBS_COMBO_FLAG_SHARED_OCARINA in foreign_items.h, which states the rule).
+    uint8_t comboFlags;
+    uint8_t spare1;        // growth under formatVersion, NOT under zero-means-unset
 } ComboSettingsRecord;
 
 RSBS_CTX_STATIC_ASSERT(sizeof(ComboSettingsRecord) == 12,
@@ -520,7 +539,8 @@ RSBS_CTX_STATIC_ASSERT(offsetof(ComboSettingsRecord, formatVersion) == 0 &&
                            offsetof(ComboSettingsRecord, itemClassOoT) == 4 &&
                            offsetof(ComboSettingsRecord, itemClassMM) == 6 && offsetof(ComboSettingsRecord, goal) == 8 &&
                            offsetof(ComboSettingsRecord, logicRung) == 9 &&
-                           offsetof(ComboSettingsRecord, spare0) == 10 && offsetof(ComboSettingsRecord, spare1) == 11,
+                           offsetof(ComboSettingsRecord, comboFlags) == 10 &&
+                           offsetof(ComboSettingsRecord, spare1) == 11,
                        "ComboSettingsRecord member offsets are .redsave format and must not move; the canonical "
                        "digest encoder walks them in this declaration order (ADR 0011 decision 1.4)");
 

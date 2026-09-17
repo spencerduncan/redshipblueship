@@ -1,7 +1,8 @@
 /**
  * @file combo_settings_view.cpp
  * @brief The tier-4 combo-level settings authoring surface (ADR 0011
- *        increment 2). See combo_settings_view.h for the contract.
+ *        increment 2, plus the shared ocarina #668). See
+ *        combo_settings_view.h for the contract.
  *
  * C++ rather than C for exactly one reason: the CVar store hangs off the
  * Ship::Context singleton and libultraship's C bridge dereferences that
@@ -31,13 +32,15 @@ struct ComboSettingDesc {
 
 // Indexed by ComboSettingId. The keys are the manifest's literals, not local
 // copies, so the classification lock and this table cannot disagree about
-// how a key is spelled.
+// how a key is spelled. Appended to, never reordered: the menu's staging
+// buffers and the locks' expectation tables are both indexed by the id.
 const ComboSettingDesc kComboSettingDescs[COMBO_SETTING_COUNT] = {
     { RSBS_CVAR_COMBO_RANDO_DIRECTION, "Direction" },
     { RSBS_CVAR_COMBO_RANDO_POOL_SIZE_OOT, "Ocarina of Time items into Majora's Mask checks (max)" },
     { RSBS_CVAR_COMBO_RANDO_POOL_SIZE_MM, "Majora's Mask items into Ocarina of Time checks (max)" },
     { RSBS_CVAR_COMBO_RANDO_ITEM_CLASS_OOT, "Ocarina of Time item classes that may cross" },
     { RSBS_CVAR_COMBO_RANDO_ITEM_CLASS_MM, "Majora's Mask item classes that may cross" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_OCARINA, "Shared Ocarina (one instrument in both games)" },
 };
 
 bool ComboSettingIdValid(ComboSettingId id) {
@@ -73,6 +76,11 @@ int32_t Combo_ComboSettingDefault(ComboSettingId id) {
             return (int32_t)defaults.itemClassOoT;
         case COMBO_SETTING_ITEM_CLASS_MM:
             return (int32_t)defaults.itemClassMM;
+        case COMBO_SETTING_SHARED_OCARINA:
+            // A BIT of the defaults record, read the same way its siblings read
+            // their fields: one definition of "what ships", even when the field
+            // is a bitset and the key is one of its bits (#668).
+            return (defaults.comboFlags & (uint8_t)RSBS_COMBO_FLAG_SHARED_OCARINA) != 0u ? 1 : 0;
         default:
             return 0;
     }
@@ -99,6 +107,15 @@ bool Combo_ComboSettingValueValid(ComboSettingId id, int32_t value) {
             // must read 0 in a formatVersion-1 record (decision 1.2.1), so it
             // must not be authorable. Zero is legal (decision 3.3).
             return value >= 0 && value <= 0xFFFF && (((uint32_t)value & ~(uint32_t)RSBS_ITEMCLASS_ALL_V1) == 0u);
+        case COMBO_SETTING_SHARED_OCARINA:
+            // EXACTLY 0 or 1, not "nonzero is true" (#668). A flag key holding 2
+            // is a value nobody chose, and this file's rule for those is the
+            // shipped default with a logged reason -- not a coercion that
+            // silently turns a typo into "on". The record stores it as one bit,
+            // so a coercion here would also make two different stored values
+            // produce the same world, which is precisely what the pinned value
+            // spaces exist to prevent.
+            return value == 0 || value == 1;
         default:
             return false;
     }
