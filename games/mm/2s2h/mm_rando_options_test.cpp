@@ -38,6 +38,17 @@
  *  (f) the value accessors round-trip through the real CVar store, and clamp:
  *      an out-of-range write must not reach RANDO_SAVE_OPTIONS, which is
  *      indexed by generation code.
+ *  (g) no gated row blames a hook type that dispatches (#669). This is the
+ *      anti-staleness lock, and it exists because the defect recurred: a
+ *      reason names a hook as its blocker, the hook later gains an MM dispatch
+ *      point, and the row stays disabled for months citing a cause that is
+ *      gone. kReasonActorInitDrop did it once (#438's remainder) and
+ *      kReasonOpenText did it again to thirteen rows (#669). The dispatched set
+ *      is not transcribed here — each entry takes the address of the
+ *      MM_GameHooks_Execute* bridge that dispatches it, so the linker proves
+ *      the claim on every build and the list cannot rot the way the reasons
+ *      did. Check (d) already said a gated row must explain itself; (g) says
+ *      the explanation must be true.
  *
  * ============================================================================
  * mm-paired-profile — the profile lock (#499 Tier 1; #498/#564 phase 2)
@@ -96,6 +107,98 @@ extern "C" {
 
 namespace {
 
+// ---------------------------------------------------------------------------
+// THE DISPATCHED HOOK TYPES (#669) — the set a reason string may not name.
+//
+// Every stale reason this table has ever carried failed the same way: it named
+// a hook type as the blocker, someone later gave that hook type an MM dispatch
+// point, and the reason went on telling the player a lie no test could see.
+// That happened to kReasonActorInitDrop (#438's remainder) and then to
+// kReasonOpenText and the whole PARTIAL batch around it (#669). Two rounds of
+// the same defect is a missing lock, not bad luck.
+//
+// So: a PARTIAL/DORMANT row may not name a hook type that dispatches. The set
+// below is not a hand-copied list of names — each row takes the ADDRESS of the
+// MM_GameHooks_Execute* bridge that dispatches that hook type, so the claim
+// "this hook type has an MM dispatch point" is checked by the LINKER on every
+// build. Delete a bridge and this TU stops linking; rename one and it stops
+// compiling. Neither can drift quietly, which is the whole point.
+//
+// The bridges are declared in 2s2h/GameInteractor/GameInteractor.h (force-
+// included into every MM C++ TU) and games/mm/include/mm_game_hooks.h. A
+// handful of dispatched hook types reach S2H::GameHooks through differently
+// spelled entry points that no header this TU sees declares (the MM-only
+// names, and the ones fixed in place rather than bridged); they are listed
+// after the macro with a null bridge, since the lock still has to reject a
+// reason naming them. Derived from the dispatch points in
+// games/mm/2s2h/GameExports_SingleExe.cpp, which is the same source of truth
+// the mm-hook-dispatch row drives.
+// ---------------------------------------------------------------------------
+#define MM_BRIDGED_HOOK_TYPES(X)                                    \
+    X(AfterCameraUpdate, AfterCameraUpdate)                         \
+    X(AfterEndOfCycleSave, AfterEndOfCycleSave)                     \
+    X(AfterInterfaceClockDraw, AfterInterfaceClockDraw)             \
+    X(AfterKaleidoDrawPage, AfterKaleidoDrawPage)                   \
+    X(BeforeEndOfCycleSave, BeforeEndOfCycleSave)                   \
+    X(BeforeInterfaceClockDraw, BeforeInterfaceClockDraw)           \
+    X(BeforeKaleidoDrawPage, BeforeKaleidoDrawPage)                 \
+    X(OnActorDestroy, OnActorDestroy)                               \
+    X(OnActorDraw, OnActorDraw)                                     \
+    X(OnActorInit, OnActorInit)                                     \
+    X(OnActorKill, OnActorKill)                                     \
+    X(OnBossDefeated, OnBossDefeated)                               \
+    X(OnBottleContentsUpdate, OnBottleContentsUpdate)               \
+    X(OnCameraChangeModeFlags, OnCameraChangeModeFlags)             \
+    X(OnCameraChangeSettingsFlags, OnCameraChangeSettingsFlags)     \
+    X(OnConsoleLogoUpdate, OnConsoleLogoUpdate)                     \
+    X(OnFileSelectSaveLoad, OnFileSelectSaveLoad)                   \
+    X(OnGameCompletion, OnGameCompletion)                           \
+    X(OnGameStateMainFinish, OnGameStateMainFinish)                 \
+    X(OnGameStateMainStart, OnGameStateMainStart)                   \
+    X(OnInterfaceDrawStart, OnInterfaceDrawStart)                   \
+    X(OnItemGive, OnItemGive)                                       \
+    X(OnKaleidoUpdate, OnKaleidoUpdate)                             \
+    X(OnOpenText, OnOpenText)                                       \
+    X(OnPlayDestroy, OnPlayDestroy)                                 \
+    X(OnPlayDrawWorldEnd, OnPlayDrawWorldEnd)                       \
+    X(OnPlayerPostLimbDraw, OnPlayerPostLimbDraw)                   \
+    X(OnSeqPlayerInit, OnSeqPlayerInit)                             \
+    X(ShouldActorDraw, ShouldActorDraw)                             \
+    X(ShouldActorInit, ShouldActorInit)                             \
+    X(ShouldActorUpdate, ShouldActorUpdate)                         \
+    X(ShouldItemGive, ShouldItemGive)                               \
+    /* The one whose bridge is not spelled after its hook type. */  \
+    X(ShouldVanillaBehavior, VBShould)
+
+struct DispatchedHook {
+    const char* name;
+    /** The bridge that dispatches it, or NULL when this TU has no declaration. */
+    const void* bridge;
+};
+
+const DispatchedHook kDispatchedHooks[] = {
+#define MM_DISPATCHED_HOOK_ROW(hookType, bridge) \
+    { #hookType, reinterpret_cast<const void*>(&MM_GameHooks_Execute##bridge) },
+    MM_BRIDGED_HOOK_TYPES(MM_DISPATCHED_HOOK_ROW)
+#undef MM_DISPATCHED_HOOK_ROW
+    // Dispatched, but not through a bridge declared where this TU can see it.
+    // AfterRoomSceneCommands / OnRoomInit were fixed in place (their MM-side
+    // definitions walked the wrong registry, #438); the rest are MM-only names
+    // defined directly in GameExports_SingleExe.cpp.
+    { "AfterRoomSceneCommands", NULL },
+    { "BeforeMoonCrashSaveReset", NULL },
+    { "OnActorUpdate", NULL },
+    { "OnFlagSet", NULL },
+    { "OnGameStateDrawFinish", NULL },
+    { "OnGameStateUpdate", NULL },
+    { "OnPassPlayerInputs", NULL },
+    { "OnRoomInit", NULL },
+    { "OnSaveInit", NULL },
+    { "OnSaveLoad", NULL },
+    { "OnSceneFlagSet", NULL },
+    { "OnSceneInit", NULL },
+};
+
 int Fail(int code, const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
@@ -135,6 +238,16 @@ extern "C" int MM_RandoOptions_RunHeadless(void) {
     }
     if ((int)Rando::StaticData::Options.size() != RO_MAX) {
         return Fail(24, "Options table holds %d rows for %d ids", (int)Rando::StaticData::Options.size(), (int)RO_MAX);
+    }
+
+    // ---- the dispatched-hook table is real, not a wish list (#669) --------
+    // Reading the addresses is what makes the linker resolve every bridge in
+    // MM_BRIDGED_HOOK_TYPES; without a runtime use the table could be folded
+    // away and the "the linker proves it" claim in check (g) would be empty.
+    for (const DispatchedHook& hook : kDispatchedHooks) {
+        if (hook.name == NULL || hook.name[0] == '\0') {
+            return Fail(74, "the dispatched-hook table has an unnamed entry");
+        }
     }
 
     // ---- (b)(c) descriptor coverage, exactness, and binding ---------------
@@ -195,6 +308,38 @@ extern "C" int MM_RandoOptions_RunHeadless(void) {
         }
         if (!blocked && desc->disabledReason[0] != '\0') {
             return Fail(37, "%s is live but carries a disabled reason ('%s')", row.name, desc->disabledReason);
+        }
+
+        // ---- (g) a reason may not blame a hook that dispatches (#669) ------
+        // The staleness lock. Twice now a reason has outlived its blocker by
+        // naming a hook type that later gained an MM dispatch point, and both
+        // times the row stayed disabled for months after the thing it blamed
+        // was fixed. A reason naming a live hook is not a small inaccuracy: it
+        // is the pane telling the player an option is unavailable for a cause
+        // that no longer exists, and there is no way to notice by reading it.
+        //
+        // Counterfactual: restore kReasonOpenText ("...MM OnOpenText dispatch
+        // not placed") on any gated row and this goes red on the name.
+        if (blocked) {
+            for (const DispatchedHook& hook : kDispatchedHooks) {
+                if (strstr(desc->disabledReason, hook.name) != NULL) {
+                    return Fail(72,
+                                "%s is gated with a reason naming '%s', but that hook type HAS an MM dispatch "
+                                "point — the row is stale, not blocked (reason: '%s')",
+                                row.name, hook.name, desc->disabledReason);
+                }
+            }
+            // #438 is the dispatch-coverage tracker, and it is complete: every
+            // hook type MM registers on now has a dispatch point. So a reason
+            // citing it is stale by construction, whatever else it says —
+            // which catches the paraphrase the name check above would miss
+            // ("needs the MM hook dispatch from #438").
+            if (strstr(desc->disabledReason, "#438") != NULL) {
+                return Fail(73,
+                            "%s is gated with a reason citing #438 ('%s'), but #438's dispatch surface is "
+                            "complete — name the real blocker instead of the tracker",
+                            row.name, desc->disabledReason);
+            }
         }
 
         // ---- (e) widget well-formedness ------------------------------------
@@ -305,7 +450,7 @@ extern "C" int MM_RandoOptions_RunHeadless(void) {
 
     ClearAllOptionCVars();
     printf("[TEST] PASS: %d option ids all have StaticData rows and descriptor rows, every widget is bound to the "
-           "row's own cvar, and every gated row names its reason\n",
+           "row's own cvar, and every gated row names a reason that is not a hook with a dispatch point\n",
            (int)RO_MAX);
     return 0;
 }

@@ -55,16 +55,14 @@
  * 0004 calls this the worst state available and why a disabled row with a
  * reason is the honest presentation.
  *
- * Three rows are the pure form of that trap and are flagged as such below:
- * crate, barrel and grass drops. Their identify-the-check helpers have NO call
- * site outside the undispatched OnActorInit hooks, and the surviving VB legs
- * bail on RC_UNKNOWN — so the dormancy is total rather than cosmetic.
- *
- * Two rows are worse than inert: RO_HINTS_GOSSIP_STONES / RO_HINTS_PURCHASEABLE
- * force a mask-of-truth verdict and redirect the textbox to a message whose
- * filler is the undispatched OnOpenText handler, and RO_ACCESS_TRIALS' VB leg
- * returns "unlocked" for every trial while the text leg that would gate it is
- * dead. Enabling those is a REGRESSION against vanilla behaviour, not a no-op.
+ * Two paragraphs used to stand here describing the rows caught in that trap.
+ * Both were accurate when written and both are now HISTORY, kept only because
+ * the SHAPES they name are what to recognise again — not the rows. One:
+ * "the pure form of that trap", an identify-the-check helper with no call site
+ * outside an undispatched OnActorInit (the three drop rows). Two: "worse than
+ * inert", a VB leg forcing a permissive verdict while the text leg that would
+ * gate it is dead (the gossip-stone pair, RO_ACCESS_TRIALS). Every hook under
+ * both descriptions dispatches today. See the two re-measures below.
  *
  * #438 IS STALE IN ONE DIRECTION and this table follows the tree, not the
  * issue: `OnSceneInit` IS dispatched (MM_GameHooks_ExecuteOnSceneInit,
@@ -87,17 +85,58 @@
  * kReasonActorInitDrop is retired. The same standing instruction applies to
  * whoever reads this next: re-measure, do not trust the history.
  *
- * STILL STALE, AND DELIBERATELY LEFT THAT WAY: every row whose reason names
- * `OnOpenText`. That hook has dispatched since #512 too, so `kReasonOpenText`
- * and the PARTIAL reasons on RO_ACCESS_TRIALS, the two Majora-access sliders,
- * RO_SHUFFLE_STRAY_FAIRIES / FROGS / SHOPS / TINGLE, RO_CLOCK_SHUFFLE and the
- * hint family are naming a blocker that is gone. They are NOT promoted here
- * because the hook was never their only question: each needs its own behaviour
- * TU checked (hint generation, the CustomMessage path #520 revived, the
- * trial-gate text) and promoting a hint row wrongly is the unwinnable-seed
- * direction. Being stale towards DORMANT costs a disabled option; being wrong
- * towards LIVE costs a seed. That re-measure is its own piece of work, not a
- * side effect of the hook-dispatch lane.
+ * THE OnOpenText BATCH IS NOW RE-MEASURED TOO (#669), AND THIRTEEN ROWS ARE
+ * PROMOTED. The paragraph that stood here said those rows were left stale on
+ * purpose, because the hook was never their only question: each needed its own
+ * behaviour TU checked. That check is what #669 was. What it found, leg by leg:
+ *
+ *   - THE HOOK SURFACE IS NARROWER THAN THE REASONS IMPLIED. Every behaviour TU
+ *     behind these rows registers on exactly five hook types: OnOpenText,
+ *     OnActorInit, ShouldActorInit, ShouldActorUpdate and ShouldVanillaBehavior.
+ *     All five have an MM dispatch point (MM_GameHooks_ExecuteOnOpenText /
+ *     ...OnActorInit / ...ShouldActorInit / ...ShouldActorUpdate / ...VBShould,
+ *     GameExports_SingleExe.cpp), and their actor-side call sites in z_actor.c
+ *     are live and unguarded. There is no sixth hook type hiding in this batch.
+ *
+ *   - THE CustomMessage QUESTION, WHICH WAS THE ONE WORTH NOT ASSUMING, ANSWERS
+ *     ITSELF IN THE HANDLERS. The hint handlers do NOT ride the
+ *     CUSTOM_MESSAGE_ID registrant that #520 revived. Each one calls
+ *     CustomMessage::LoadCustomMessageIntoFont() ITSELF and then sets
+ *     *loadFromMessageTable = false; MM_Message_OpenText (z_message.c) has a
+ *     live `if (!loadFromMessageTable)` leg that leaves the font buffer the
+ *     handler just wrote untouched. That is load-bearing, not incidental: the
+ *     dispatcher's ExecuteForID leg is keyed ONCE per call, so a handler that
+ *     merely staged a message and rewrote textId would never be re-entered and
+ *     the staged text would never be drawn. These handlers are written the way
+ *     that works.
+ *
+ *   - THE REGISTRAR-RUNS LEG IS ONE SHARED ANSWER. Every registrar here is
+ *     called from Rando::ActorBehavior::OnFileLoad() (or
+ *     Rando::ClockShuffle::OnFileLoad()), reached from OnSaveLoadHandler, which
+ *     Rando::Init registers on OnSaveLoad — and GameInteractor_ExecuteOnSaveLoad
+ *     is MM-defined over S2H::GameHooks and called from z_play.c and
+ *     z_sram_NES.c. Every behaviour TU named below is present in the operator's
+ *     redship.map, so the TU-links leg is ground truth, not inference.
+ *
+ *   - THE HINT ROWS CANNOT WIDEN THE POOL AT ALL. No RO_HINTS_* id appears in
+ *     Logic/GeneratePools.cpp: hints only READ a placement the fill already
+ *     made. ADR 0004's unwinnable-seed hazard — the reason promotion is the
+ *     high-stakes direction — simply does not apply to six of these thirteen.
+ *
+ *   - THE THREE THAT DO WIDEN THE POOL WERE CHECKED FOR A PAYOUT, NOT JUST A
+ *     HOOK. FROGS, SHOPS and TINGLE each have a leg that sets
+ *     RANDO_SAVE_CHECKS[...].eligible through a dispatched hook. For SHOPS that
+ *     meant confirming all 25 RCTYPE_SHOP checks are served — EnIn, EnTab,
+ *     EnGirlA and EnSob1, all four in the link — rather than only the two the
+ *     row's own reason happened to mention.
+ *
+ * `kReasonOpenText` is retired with the rows it gated. ONE row survives the
+ * re-measure still gated, and its reason now names the real blocker instead of
+ * a hook: RO_CLOCK_SHUFFLE. Read its row comment — the blocker was never the
+ * hook, and naming the hook is what kept it hidden this long.
+ *
+ * Same standing instruction as the paragraphs above, now earned three times:
+ * re-measure against the tree, do not trust this history.
  *
  * THE HAZARD THAT WAS NOT PER-ROW, AND IS NOW GONE (#514). This table used to
  * be read alongside a pane-wide banner: `BeforeEndOfCycleSave` /
@@ -192,10 +231,14 @@ struct OptionUi {
 
 #define UI_COUNT(a) (uint8_t)(sizeof(a) / sizeof((a)[0]))
 
-// Reason strings shared by several rows, so a wording change stays one edit.
-constexpr const char* kReasonOpenText = "Not yet available: MM OnOpenText dispatch not placed (#438)";
-// kReasonActorInitDrop is retired: the crate, barrel and grass rows it gated are
-// LIVE as of #438's remainder. See the re-measure recorded in the file header.
+// No shared reason strings remain. Both that existed are retired by re-measure:
+// kReasonActorInitDrop (crate, barrel, grass — #438's remainder) and
+// kReasonOpenText (the hint family and the OnOpenText batch — #669). Each named
+// a hook type that has had an MM dispatch point since #512. The two rows still
+// gated carry their own reason, because neither is blocked by a hook at all.
+// The MMRandoOptions lock now REFUSES any reason naming a dispatched hook type,
+// so a third shared "waiting on dispatch" constant cannot be reintroduced
+// without the test going red.
 
 // clang-format off
 const OptionUi kOptionUi[] = {
@@ -214,24 +257,38 @@ const OptionUi kOptionUi[] = {
       "Trials Access",
       "What the Moon trials require. Mask counts, associated remains, associated transformation, or open.",
       0, 0, kTrialsAccessLabels, UI_COUNT(kTrialsAccessLabels),
-      // Worse than inert: the VB leg reports every trial unlocked while the
-      // text leg that would gate it is dead, so a setting here reads as "Open"
-      // whatever it says.
-      COMBO_MM_LIVENESS_PARTIAL, "Trials read as Open regardless: gating needs MM OnOpenText dispatch (#438)" },
+      // Was PARTIAL on "trials read as Open regardless", which was true while
+      // the gate was dead: EnJs.cpp's VB_JS_OVERRIDE_MASK_CHECK reports jsType
+      // 1-4 unlocked unconditionally, so the ONLY thing enforcing a trial
+      // requirement is the text leg. That leg is OverrideSubJsText on
+      // OnOpenText[0x2215], which dispatches (#512) — it reads
+      // RO_ACCESS_TRIALS and, when the requirement is unmet, swaps in the
+      // refusal message and routes to 0x2216, which ends the conversation
+      // without starting the trial. All three modes (20_MASKS, REMAINS, FORMS)
+      // are handled there; OPEN falls through by design. Both legs are
+      // dispatched hook types, EnJs.cpp is in the link, so the gate this row
+      // sets is the gate the player gets.
+      COMBO_MM_LIVENESS_LIVE, "" },
     { RO_ACCESS_MOON_MASKS_COUNT, COMBO_MM_GROUP_LOGIC, COMBO_MM_WIDGET_SLIDER,
       "Moon Access: Masks Required", "How many masks are needed to enter the Moon.",
       0, 20, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
     { RO_ACCESS_MOON_REMAINS_COUNT, COMBO_MM_GROUP_LOGIC, COMBO_MM_WIDGET_SLIDER,
       "Moon Access: Remains Required", "How many boss remains are needed to enter the Moon.",
       0, 4, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
+    // Both Majora sliders were PARTIAL on "logic only: the gate needs
+    // OnOpenText". They share one gate and it is live: EnJs.cpp's
+    // OverrideMainJsText, on OnOpenText[0x21FC], compares
+    // Rando::Logic::MoonMaskCount() and RemainsCount() against these two
+    // options and substitutes "You are not strong enough to play with me..."
+    // when either is short, routing to 0x21FD to end the exchange. Nothing else
+    // gates them, so "logic only" stopped being true when #512 dispatched
+    // OnOpenText.
     { RO_ACCESS_MAJORA_MASKS_COUNT, COMBO_MM_GROUP_LOGIC, COMBO_MM_WIDGET_SLIDER,
       "Majora Access: Masks Required", "How many masks are needed to reach Majora.",
-      0, 20, nullptr, 0,
-      COMBO_MM_LIVENESS_PARTIAL, "Logic only: the Majora gate needs MM OnOpenText dispatch (#438)" },
+      0, 20, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
     { RO_ACCESS_MAJORA_REMAINS_COUNT, COMBO_MM_GROUP_LOGIC, COMBO_MM_WIDGET_SLIDER,
       "Majora Access: Remains Required", "How many boss remains are needed to reach Majora.",
-      0, 4, nullptr, 0,
-      COMBO_MM_LIVENESS_PARTIAL, "Logic only: the Majora gate needs MM OnOpenText dispatch (#438)" },
+      0, 4, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
     { RO_ACCESS_MAJORA_REMAINS, COMBO_MM_GROUP_LOGIC, COMBO_MM_WIDGET_CHECKBOX,
       "Majora Access: Remains (retired)",
       "Retired: this option never had a consumer and, by operator ruling (ADR 0010 answer O1), never will. "
@@ -281,19 +338,50 @@ const OptionUi kOptionUi[] = {
       "Minimum Stray Fairies",
       "Stray Fairies needed for a Great Fairy reward. Does not affect the Clock Town fairy.",
       1, STRAY_FAIRY_SCATTERED_TOTAL, nullptr, 0,
-      COMBO_MM_LIVENESS_PARTIAL, "Custom fairy counts need MM OnActorInit dispatch (#438)" },
+      // Was PARTIAL on "custom fairy counts need OnActorInit". The count is
+      // applied by EnElfgrp.cpp's id-keyed OnActorInit registrant on
+      // ACTOR_EN_ELFGRP, which compares the held fairies against
+      // RO_MINIMUM_STRAY_FAIRIES and swaps the Great Fairy's actionFunc to the
+      // reward one. That hook type dispatches (#512, ExecuteForID leg present)
+      // and z_actor.c's call site is live. Its other legs are VB.
+      COMBO_MM_LIVENESS_LIVE, "" },
     { RO_SHUFFLE_FROGS, COMBO_MM_GROUP_SHUFFLE, COMBO_MM_WIDGET_CHECKBOX,
       "Shuffle Frogs", "Adds the Frog Choir frogs to the check pool.",
       0, 0, nullptr, 0,
-      COMBO_MM_LIVENESS_PARTIAL, "Frog checks need MM OnActorInit/OnOpenText dispatch (#438)" },
+      // Pool-widening, so the payout was checked rather than assumed:
+      // EnMinifrog.cpp's id-keyed OnActorInit swaps the frog to a
+      // cutscene-free actionFunc, whose successor sets
+      // RANDO_SAVE_CHECKS[frogCheck].eligible — the same eligible-then-award
+      // path every LIVE check rides. VB_DESPAWN_FROG keeps an obtained frog
+      // gone and OnOpenText[0xD81] carries the text. All three dispatch.
+      COMBO_MM_LIVENESS_LIVE, "" },
     { RO_SHUFFLE_SHOPS, COMBO_MM_GROUP_SHUFFLE, COMBO_MM_WIDGET_CHECKBOX,
       "Shuffle Shops", "Adds purchaseable shop slots to the check pool.",
       0, 0, nullptr, 0,
-      COMBO_MM_LIVENESS_PARTIAL, "Shop text and pricing need MM OnOpenText/OnActorInit dispatch (#438)" },
+      // The widest of the three pool-widening promotions, and the one whose old
+      // reason undersold the surface: it named EnIn/EnTab (Gorman milk, the two
+      // Milk Bar slots) but RCTYPE_SHOP is 25 checks. The other 22 — Trading
+      // Post, Bomb Shop, Curiosity, Goron, Hags, Zora — are served by
+      // EnGirlA.cpp (id-keyed OnActorInit on ACTOR_EN_GIRLA plus ~18 OnOpenText
+      // registrants for the shelf descriptions, prices and refusals) and
+      // EnSob1.cpp (VB_DRAW_ITEM_FROM_SOB1, id-keyed OnActorDraw on
+      // ACTOR_EN_OSSAN). All four TUs are in redship.map; every leg is
+      // OnActorInit / OnActorDraw / OnOpenText / VB, all dispatched. The give
+      // is VB_GIVE_ITEM_FROM_OFFER setting .eligible, and pricing rides
+      // VB_EXEC_MSG_EVENT. Note the two checks GeneratePools shuffles even with
+      // this option OFF (RC_CURIOSITY_SHOP_SPECIAL_ITEM,
+      // RC_BOMB_SHOP_ITEM_04_OR_CURIOSITY_SHOP_ITEM): that machinery has been
+      // carrying real checks all along, which is corroboration the path works.
+      COMBO_MM_LIVENESS_LIVE, "" },
     { RO_SHUFFLE_TINGLE_SHOPS, COMBO_MM_GROUP_SHUFFLE, COMBO_MM_WIDGET_CHECKBOX,
       "Shuffle Tingle Maps", "Adds the maps Tingle sells to the check pool.",
       0, 0, nullptr, 0,
-      COMBO_MM_LIVENESS_PARTIAL, "Tingle shop text needs MM OnOpenText dispatch (#438)" },
+      // EnBal.cpp: VB_TINGLE_GIVE_MAP_UNLOCK sets .eligible for the map the
+      // player bought, VB_NOT_AFFORD_TINGLE_MAP / VB_ALREADY_HAVE_TINGLE_MAP
+      // apply the generated price and obtainability, and seven OnOpenText
+      // registrants (0x1D09-0x1D16) carry the shop text. VB plus OnOpenText,
+      // both dispatched; no third hook type.
+      COMBO_MM_LIVENESS_LIVE, "" },
     // Re-measured leg by leg for #438's remainder (see the file header). All
     // three rode OnActorInit, which #512 dispatched; grass additionally rode
     // OnActorKill and OnActorDestroy, which #515 dispatched. Every behaviour TU
@@ -368,10 +456,38 @@ const OptionUi kOptionUi[] = {
     { RO_TRIFORCE_PIECES_REQUIRED, COMBO_MM_GROUP_ITEMS, COMBO_MM_WIDGET_SLIDER,
       "Triforce Pieces Required", "How many pieces win the seed. Capped at the number shuffled.",
       1, 15, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
+    // THE ONE ROW THE #669 RE-MEASURE LEFT GATED, AND THE REASON IT WAS WORTH
+    // DOING PER ROW INSTEAD OF PER HOOK. Its old reason ("half-day prompts need
+    // OnOpenText dispatch") was stale in the usual way — ClockShuffle.cpp's own
+    // legs are an id-keyed ShouldActorUpdate on ACTOR_EN_TEST4, six OnOpenText
+    // registrants and two VB flags, and all of those dispatch. But naming the
+    // hook hid the blocker that is actually there, which is an ELISION, not a
+    // dispatch gap:
+    //
+    //   Rando::ClockShuffle::IsTimeOwnedForClockShuffle,
+    //   GetTimeDescriptionForMessage and SetTimeToHalfDayStart have their only
+    //   callers in 2s2h/Enhancements/Songs/BetterSongOfDoubleTime.cpp and
+    //   SkipSoTCutscenes.cpp. Those live in `2ship_enh`, which — unlike
+    //   `2ship_rando` — is NOT linked WHOLE_ARCHIVE (games/mm/CMakeLists.txt),
+    //   and nothing else references them, so both objects are dropped: neither
+    //   appears in the operator's redship.map, and the three ClockShuffle
+    //   functions they call are absent from it too while the rest of
+    //   ClockShuffle.cpp is present. Their registrars are file-scope
+    //   RegisterShipInitFunc objects, so this is the #516 elided-registrar
+    //   class exactly.
+    //
+    // What that costs: Song of Double Time will warp into a half-day the player
+    // has not unlocked (the ownership check never arms), and a Song of Time
+    // reset lands at the vanilla dawn instead of the earliest owned half-day.
+    // The core option still works — the six half-day items generate, gate and
+    // award — so this is PARTIAL rather than DORMANT, and the reason names the
+    // link, which is where the fix has to happen.
     { RO_CLOCK_SHUFFLE, COMBO_MM_GROUP_ITEMS, COMBO_MM_WIDGET_CHECKBOX,
       "Shuffle Time", "Breaks the three-day cycle into six half-days that must be unlocked as items.",
       0, 0, nullptr, 0,
-      COMBO_MM_LIVENESS_PARTIAL, "Partly live: half-day prompts need MM OnOpenText dispatch (#438)" },
+      COMBO_MM_LIVENESS_PARTIAL,
+      "Song of Double Time can reach unowned half-days: its Songs enhancements are elided from the single-exe "
+      "link (2ship_enh is not WHOLE_ARCHIVE'd)" },
     { RO_CLOCK_SHUFFLE_PROGRESSIVE, COMBO_MM_GROUP_ITEMS, COMBO_MM_WIDGET_COMBO,
       "Time Progression", "Random shuffles all six half-days; Ascending and Descending unlock them in order.",
       0, 0, kClockProgressiveLabels, UI_COUNT(kClockProgressiveLabels),
@@ -396,30 +512,68 @@ const OptionUi kOptionUi[] = {
       0, 0, nullptr, 0, COMBO_MM_LIVENESS_GENERATION_ONLY, "" },
 
     // ---- Hints -------------------------------------------------------------
-    // Every hint family registers on OnOpenText, which has no MM dispatch
-    // point at all (#438's largest dormant surface, 98 registrations). None of
-    // these can do anything today, and two of them make things worse.
+    // The whole family was gated on "OnOpenText has no MM dispatch point"
+    // (#438's largest dormant surface, 98 registrations). It has one, since
+    // #512. All six rows are re-measured LIVE for #669, and they are the
+    // CHEAPEST promotions in the table for a reason worth stating once here:
+    // no RO_HINTS_* id appears in Logic/GeneratePools.cpp. A hint row adds
+    // nothing to the check pool and places no item; it reads a placement the
+    // fill already made and renders a sentence about it. The unwinnable-seed
+    // hazard that makes promotion the high-stakes direction cannot reach them.
+    //
+    // The shared mechanism, which is what actually had to be verified: every
+    // handler below builds a CustomMessage::Entry, calls
+    // CustomMessage::LoadCustomMessageIntoFont() ITSELF, and sets
+    // *loadFromMessageTable = false — so the text reaches the screen through
+    // z_message.c's live `if (!loadFromMessageTable)` leg, NOT through a
+    // second dispatch into the CUSTOM_MESSAGE_ID registrant. That distinction
+    // is the one that could have gone wrong: the dispatcher keys ExecuteForID
+    // once per call, so a handler that only staged text and rewrote textId
+    // would never be re-entered.
     { RO_HINTS_GOSSIP_STONES, COMBO_MM_GROUP_HINTS, COMBO_MM_WIDGET_CHECKBOX,
       "Gossip Stone Hints", "Each gossip stone gives a fixed hint about one location's contents.",
       0, 0, nullptr, 0,
-      COMBO_MM_LIVENESS_PARTIAL, "Breaks stones: the verdict fires but the hint text needs OnOpenText (#438)" },
+      // Was PARTIAL as "breaks stones": VB_GS_CONSIDER_MASK_OF_TRUTH_EQUIPPED
+      // forced the permissive verdict while the text that justified it was
+      // dead. EnGs.cpp's OnOpenText[FIRST_GS_MESSAGE] handler now runs, so the
+      // stone says what the forced verdict promised. VB_GS_CONTINUE_TEXTBOX
+      // routes to SECOND_GS_MESSAGE, also dispatched.
+      COMBO_MM_LIVENESS_LIVE, "" },
     { RO_HINTS_PURCHASEABLE, COMBO_MM_GROUP_HINTS, COMBO_MM_WIDGET_CHECKBOX,
       "Purchaseable Gossip Hints", "Gossip stones sell a hint for a scaling rupee cost.",
       0, 0, nullptr, 0,
-      COMBO_MM_LIVENESS_PARTIAL, "Breaks stones: the purchase prompt needs OnOpenText dispatch (#438)" },
+      // Same TU and the same two OnOpenText ids as the row above; this one adds
+      // the choice prompt to the first message and does the rupee deduction in
+      // the SECOND_GS_MESSAGE handler. Both are live.
+      COMBO_MM_LIVENESS_LIVE, "" },
     { RO_HINTS_SPIDER_HOUSES, COMBO_MM_GROUP_HINTS, COMBO_MM_WIDGET_CHECKBOX,
       "Spider House Hints", "Hints for the two Spider House rewards.",
-      0, 0, nullptr, 0, COMBO_MM_LIVENESS_DORMANT, kReasonOpenText },
+      0, 0, nullptr, 0,
+      // EnSsh.cpp, OnOpenText[0x915 / 0x1130 / 0x1131]. Reads the placed item
+      // off RANDO_SAVE_CHECKS and names it; no other hook type involved.
+      COMBO_MM_LIVENESS_LIVE, "" },
     { RO_HINTS_HOOKSHOT, COMBO_MM_GROUP_HINTS, COMBO_MM_WIDGET_CHECKBOX,
       "Hookshot Hint", "The Zora on Great Bay Coast hints where the Hookshot is.",
-      0, 0, nullptr, 0, COMBO_MM_LIVENESS_DORMANT, kReasonOpenText },
+      0, 0, nullptr, 0,
+      // EnZow.cpp, six OnOpenText ids onto one handler. The purest case in the
+      // batch: OnOpenText is the TU's only hook type, so dispatch was the
+      // entire question and it is answered.
+      COMBO_MM_LIVENESS_LIVE, "" },
     { RO_HINTS_BOSS_REMAINS, COMBO_MM_GROUP_HINTS, COMBO_MM_WIDGET_CHECKBOX,
       "Boss Remains Hints", "The Clock Town recruitment posters hint where the Boss Remains are.",
-      0, 0, nullptr, 0, COMBO_MM_LIVENESS_DORMANT, kReasonOpenText },
+      0, 0, nullptr, 0,
+      // EnTalk.cpp registers exactly one hook, OnOpenText[0x1C06], which walks
+      // the four remains across successive poster reads via nextMessageID.
+      COMBO_MM_LIVENESS_LIVE, "" },
     { RO_HINTS_OATH_TO_ORDER, COMBO_MM_GROUP_HINTS, COMBO_MM_WIDGET_CHECKBOX,
       "Oath to Order Hint", "Skull Kid hints where Oath to Order is once the Moon is reachable.",
       0, 0, nullptr, 0,
-      COMBO_MM_LIVENESS_PARTIAL, "Partly live: the hint text needs MM OnOpenText dispatch (#438)" },
+      // DmStk.cpp pairs OnOpenText[0x2013] with an id-keyed ShouldActorUpdate
+      // on ACTOR_DM_STK that makes Skull Kid offer the talk in the first place.
+      // Both hook types dispatch, so neither half is left half-armed — which
+      // mattered here, since the text alone with no talk offer is a hint the
+      // player can never trigger.
+      COMBO_MM_LIVENESS_LIVE, "" },
 };
 // clang-format on
 
