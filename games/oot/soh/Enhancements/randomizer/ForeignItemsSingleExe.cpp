@@ -699,6 +699,14 @@ extern "C" void OoT_Creation_ReportFailureAtFileSelect(int slot, int reason);
 static_assert(sizeof(SaveContext) <= OOT_SAVE_CONTEXT_SIZE,
               "OoT's runtime SaveContext outgrew the unified gSaveContext storage "
               "(src/common/unified_save.c); raise OOT_SAVE_CONTEXT_SIZE in src/common/game.h");
+// ...and the fact that makes the bracket below SAFE at OoT's sizeof rather than
+// at the unified capacity: MM's whole SaveContext fits INSIDE OoT's, so MM's
+// generation cannot write past OoT's struct end and nothing beyond it needs
+// restoring. Compile-time rather than a comment, because if MM's capacity ever
+// overtook OoT's struct the bracket would start silently under-restoring.
+static_assert(MM_SAVE_CONTEXT_SIZE <= sizeof(SaveContext),
+              "MM's SaveContext capacity outgrew OoT's struct, so MM's generation can now write past the region "
+              "the creation event's snapshot bracket restores (ForeignItemsSingleExe.cpp)");
 
 /**
  * Run the MM half of the creation event over a snapshot-bracketed
@@ -753,16 +761,24 @@ extern "C" int OoT_RunPairedCreationEvent(int slot) {
     // therefore the one the ~30 s floor is about (P12).
     Combo_GenProgress_Begin();
 
-    // THE BRACKET. Static rather than stack: 136KB is far past any sane frame
-    // budget, this seam is game-thread-only, and MM's own attempt ladder uses
-    // the same shape for the same reason. Copied at the UNIFIED capacity, not at
-    // OoT's sizeof, so MM's writes past OoT's struct end are restored too.
-    static char sOoTSaveSnapshot[OOT_SAVE_CONTEXT_SIZE];
-    memcpy(sOoTSaveSnapshot, &gSaveContext, sizeof(sOoTSaveSnapshot));
+    // THE BRACKET. Static rather than stack: OoT's SaveContext is ~136 KB, far
+    // past any sane frame budget; this seam is game-thread-only, and MM's own
+    // attempt ladder uses the same shape for the same reason.
+    //
+    // SIZED AT OoT's sizeof, NOT at the unified capacity, and that is a fix
+    // rather than a nicety. Copying OOT_SAVE_CONTEXT_SIZE bytes THROUGH a
+    // SaveContext* reads and writes past the declared object even though the
+    // real storage behind it is a larger char array, which glibc's
+    // _FORTIFY_SOURCE catches as "*** buffer overflow detected ***" and aborts —
+    // green on MSVC, SIGABRT on the Linux CI leg. The static_assert above is what
+    // makes the smaller copy sufficient: MM's whole SaveContext fits inside
+    // OoT's, so there is nothing past OoT's struct end for MM to have written.
+    static char sOoTSaveSnapshot[sizeof(SaveContext)];
+    memcpy(sOoTSaveSnapshot, &gSaveContext, sizeof(SaveContext));
 
     const int mmRc = MM_Rando_GenerateAtCreation(slot, ootSpoilerAbsolute.c_str());
 
-    memcpy(&gSaveContext, sOoTSaveSnapshot, sizeof(sOoTSaveSnapshot));
+    memcpy(&gSaveContext, sOoTSaveSnapshot, sizeof(SaveContext));
 
     if (mmRc != 0) {
         // TERMINAL. Retract everything the freeze published so no artifact of a

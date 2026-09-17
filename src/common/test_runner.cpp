@@ -1258,7 +1258,7 @@ TestResult Test_ComboCreationEvent(void) {
             printf("[TEST] FAIL: a healthy pair's arrival was refused\n");
             return TEST_FAIL;
         }
-        const int hadFrozenState = Combo_ConsumeFrozenState("mm", gSaveContext, (size_t)OOT_SAVE_CONTEXT_SIZE);
+        const int hadFrozenState = Combo_ConsumeFrozenState("mm", gSaveContext, (size_t)MM_SAVE_CONTEXT_SIZE);
         if (!hadFrozenState) {
             printf("[TEST] FAIL: the arrival found no frozen MM half to hydrate\n");
             return TEST_FAIL;
