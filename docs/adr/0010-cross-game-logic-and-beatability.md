@@ -62,11 +62,11 @@ check that requires MM's Bow is the hardest problem in the phase"). At
   harness, and CI-pinned determinism digests.
 - MM has a real region graph (`games/mm/2s2h/Rando/Logic/Logic.cpp:10`,
   populated by ShipInit registrars; traversal `FindReachableRegions` at
-  `Logic.cpp:92-136`; a 45-slice time model, `Logic.h:20+`) but **no
+  `Logic.cpp:126-188`; a 45-slice time model, `Logic.h:20+`) but **no
   beatability predicate anywhere in `games/mm`**, a Glitchless solver that
   is a forward fill mutating the live `gSaveContext`
-  (`GlitchlessLogic.cpp:22, :57, :258`) under a 10s wall-clock abort
-  (`:64`), and a paired world that defaults to **Nearly No Logic** — a
+  (`GlitchlessLogic.cpp:38, :78, :282`) under a 10s wall-clock abort
+  (`:87-89`), and a paired world that defaults to **Nearly No Logic** — a
   shuffle plus a scene blacklist, zero reachability
   (`Rando/Logic/NearlyNoLogic.cpp:12-89`; default resolved at
   `Rando/Foreign.cpp:126-128` by CVar-existence probe).
@@ -361,7 +361,7 @@ The reference's load-bearing mechanics, all adopted as disciplines here:
   intersects constraint flags, and iteration re-explores on a covering test
   (`pathfind.ts:155-170, :348-351`). Redship MM's `FindReachableRegions`
   guards on first visit and **overwrites** `regionTimeStates`
-  (`Logic.cpp:92-136`) — a region first reached with a poor time set is
+  (`Logic.cpp:126-188`) — a region first reached with a poor time set is
   never re-explored when a better one appears. That is a correctness bug
   class in MM's crawl **today** and is fixed as part of increment 1's
   factoring, before any cross-game fact is computed from that crawl.
@@ -494,7 +494,7 @@ stated so the choice is made with eyes open:
 | Upstream diffs | small, both trees | large port; permanent divergence cost against SoH/2ship |
 | ADR 0002 | clean by construction (boundary = SharedItem-shaped) | needs explicit care; a unified engine is one namespace by temptation |
 | Logic dialects | two, forever (C++ lambda styles differ) | one dialect, one engine to maintain |
-| MM's live-save mutation | contained behind the query seam (memcpy swap discipline, `GlitchlessLogic.cpp:22/:258`) | forced to fix it properly (detached simulated save, as OoT's `Logic::mSaveContext`) |
+| MM's live-save mutation | contained behind the query seam (memcpy swap discipline, `GlitchlessLogic.cpp:38/:282`) | forced to fix it properly (detached simulated save, as OoT's `Logic::mSaveContext`) |
 | Determinism digests | re-pin once (boundary observable) | re-pin everything |
 
 **The contract is binding regardless of shape**: single bag, unified
@@ -903,7 +903,7 @@ is accepted (listed here; deliberately not filed by this ADR):
   ladder's retries) runs inside the creation event at file select. OoTMM
   ships thousands of whole-world re-solves as normal user options, so the
   fixpoint itself is cheap — but MM's 10s Glitchless wall-clock abort
-  (`GlitchlessLogic.cpp:64`) is unmeasured under creation flow and must be
+  (`GlitchlessLogic.cpp:87-89`) is unmeasured under creation flow and must be
   measured, not assumed, before increment 2 ships. Re-roll time is a
   budgeted product cost. **Measured and decided 2026-08-04 (#582, PR #581):**
   14/66 heavy-profile first attempts failed, 100% of those by wall-clock
@@ -934,7 +934,7 @@ is accepted (listed here; deliberately not filed by this ADR):
 **Risks:**
 
 - MM's Glitchless solver mutates the live `gSaveContext`
-  (`GlitchlessLogic.cpp:22/:258`); every coordinator round must run the
+  (`GlitchlessLogic.cpp:38/:282`); every coordinator round must run the
   memcpy swap discipline or corrupt the session. This is the single biggest
   structural obstacle the audit must size (and the strongest standing
   argument unification will make for itself).
@@ -947,3 +947,26 @@ is accepted (listed here; deliberately not filed by this ADR):
   wants and still has zero references. Both traps are inherited by every
   epic above and are re-stated here because they will outlive this ADR's
   authors' attention.
+
+---
+
+## Amendments
+
+### 2026-09-17 — MM code anchors re-measured at `7bab54bd` (#662)
+
+The six MM-code line citations below had drifted from the lines they name,
+most recently by PR #680's merge (which shifted `Logic.cpp` further down).
+Re-measured directly against the file bodies at `origin/main` = `7bab54bd`
+(PR #680, ADR 0010 increment 2, merged 2026-09-17) and corrected in place
+above; this entry is the amendment-log record, not a text change to any
+decided position.
+
+| Citation | Was | Now (`7bab54bd`) |
+|---|---|---|
+| `FindReachableRegions` traversal | `Logic.cpp:92-136` | `Logic.cpp:126-188` |
+| Glitchless save-mutation seam (snapshot / error-path restore / success-path restore) | `GlitchlessLogic.cpp:22, :57, :258` | `GlitchlessLogic.cpp:38, :78, :282` |
+| Glitchless wall-clock abort check | `GlitchlessLogic.cpp:64` | `GlitchlessLogic.cpp:87-89` |
+
+No decided text changed. The anchors will drift again as the increment-3
+epic (#645) edits these same files; re-measure at that point rather than
+trusting this table.
