@@ -101,6 +101,14 @@ extern void MM_ApplySharedResources(void);
 // the file-select-only dispatch left the natural flow unpaired.
 extern void MM_Rando_PairOnCrossGameArrival(int hadFrozenState);
 
+// Cross-game arrival latch (#654, src/common/entrance.cpp). The consumption
+// point below is the one place that knows an arrival happened, and the startup
+// entrance it reads is retired in the same call — so the fact is recorded here
+// and answered for the rest of the session from src/common, never re-derived
+// from gSaveContext (ADR 0008 rule 5). Read by the combo first-cycle overrides
+// in games/mm/2s2h/GameExports_SingleExe.cpp.
+extern void Combo_NoteCrossGameArrival(const char* gameId);
+
 s32 MM_gDbgCamEnabled = false;
 u8 D_801D0D54 = false;
 
@@ -2303,6 +2311,144 @@ void Play_FillScreen(PlayState* this, s16 fillScreenOn, u8 red, u8 green, u8 blu
 }
 
 /**
+ * The cross-game arrival IS Majora's Mask's intro event (#654, operator ruling
+ * 2026-09-16). Author the post-intro start state a VANILLA-paired MM half would
+ * have had if it had played the intro, and award the intro rewards' vanilla
+ * contents.
+ *
+ * WHY THIS EXISTS. A combo arrival lands at a Clock Town entrance and skips the
+ * intro entirely: the ocarina is never granted, the Deku Mask is never granted,
+ * neither song is learned, magic is never acquired and the file is still in its
+ * first cycle. Vanilla MM then reads "no Ocarina of Time" as "the player has not
+ * finished the intro yet" and loads Termina Field's FIRST-CYCLE EMPTY layer
+ * (MM_Play_ShouldEmptyFirstCycleTerminaField below -> nextCutsceneIndex 0xFFF4
+ * -> scene layer 5: no enemies, and a different SCENE_CMD_SOUND_SETTINGS, so no
+ * BGM either). With no ocarina there is also no Song of Time, so the cycle can
+ * never be reset and the field stays empty forever.
+ *
+ * THE MODEL IS 2SHIP'S OWN RANDO START, minus the shuffle. Term for term:
+ *   - the start state from Rando::MiscBehavior::OnFileCreate (human form, Tatl,
+ *     threeDayResetCount 1, isFirstCycle, the two Tatl week-event regs, the
+ *     Happy Mask Salesman permanent flag, cutsceneIndex 0) — everything a rando
+ *     file gets, except the sword/shield REMOVAL, which exists only so the
+ *     shuffle can place them. Nothing is shuffled in a vanilla pairing. The
+ *     entrance, cutsceneIndex, the two Tatl regs and the PERMANENT Happy Mask
+ *     Salesman flag are not repeated here — MM_Play_ConsumeStartupEntrance
+ *     already authors all four for every arrival, pairing kind irrelevant.
+ *   - the grants from the SkipFirstCycle leg of 2ship's own intro-skip
+ *     enhancement (2s2h/Enhancements/Cutscenes/SkipIntroSequence.cpp:38-44):
+ *     Ocarina of Time, Deku Mask, Song of Time, Song of Healing, magic acquired,
+ *     the opened Deku Nuts chest and the nuts lost with the Deku form.
+ *
+ * WHY IT WRITES THE FIELDS RATHER THAN CALLING MM_Item_Give. This runs from
+ * MM_Play_ConsumeStartupEntrance, which is BEFORE `MM_gPlayState = this`, and
+ * MM's give path is not NULL-play tolerant — the same reason the shared-item
+ * consumer next to it defers to a queue (see MM_AwardSharedItem's header in
+ * games/mm/2s2h/GameExports_SingleExe.cpp). The two writes below are exactly
+ * what Item_GiveImpl's ITEM_OCARINA_OF_TIME branch and its mask branch do for a
+ * fresh give (z_parameter.c), with no icon reload to need a PlayState for.
+ *
+ * WHAT IT DOES NOT TOUCH — the paired-RANDO half. A rando pairing's intro
+ * rewards are CHECKS (RC_STARTING_ITEM_DEKU_MASK / RC_STARTING_ITEM_SONG_OF_
+ * HEALING in SCENE_INSIDETOWER, RC_CLOCK_TOWER_ROOF_OCARINA / RC_CLOCK_TOWER_
+ * ROOF_SONG_OF_TIME in SCENE_OKUJOU) and its start state is authored by
+ * OnFileCreate, whose default starting set already includes RI_OCARINA and
+ * RI_SONG_TIME. Overwriting that here would hand the player items the fill did
+ * not place. The saveType gate is the whole discrimination, and it is inside
+ * this function so the ROM-free row can drive both answers directly.
+ *
+ * Non-static and PlayState-free for that row (mm-combo-first-cycle).
+ */
+void MM_Play_GrantComboArrivalIntroRewards(void) {
+    // A paired RANDO half owns its own start state and its own item set; see the
+    // header. Every other pairing kind reaches here: a vanilla OoT file that
+    // crossed, a session with no paired OoT world at all, and a pairing the
+    // arrival gate REFUSED (identity divergence or a generation that dead-ended
+    // — OnFileCreate's catch reverts the save to SAVETYPE_VANILLA).
+    if (gSaveContext.save.shipSaveInfo.saveType == SAVETYPE_RANDO) {
+        return;
+    }
+
+    // --- the post-intro start state (Rando::MiscBehavior::OnFileCreate) -------
+    gSaveContext.save.playerForm = PLAYER_FORM_HUMAN;
+    gSaveContext.save.hasTatl = true;
+    gSaveContext.save.saveInfo.playerData.threeDayResetCount = 1;
+    // "Link has entered Clock Town" — permanent, not first-cycle scratch.
+    gSaveContext.save.isFirstCycle = true;
+
+    // --- the intro rewards (SkipIntroSequence.cpp:38-44) ---------------------
+    // Item_GiveImpl's own writes for a fresh give of each (z_parameter.c).
+    INV_CONTENT(ITEM_OCARINA_OF_TIME) = ITEM_OCARINA_OF_TIME;
+    INV_CONTENT(ITEM_MASK_DEKU) = ITEM_MASK_DEKU;
+    gSaveContext.save.saveInfo.inventory.questItems |= (1 << QUEST_SONG_TIME) | (1 << QUEST_SONG_HEALING);
+    gSaveContext.save.saveInfo.playerData.isMagicAcquired = true;
+
+    // The Deku Nuts chest in the Clock Tower interior, opened, and the nuts lost
+    // with the Deku form — what a post-intro vanilla file actually holds. The
+    // upgrade tier and the occupied slot are ITEM_DEKU_NUTS_10's effect;
+    // SkipIntroSequence then zeroes the ammo in its first-cycle leg.
+    gSaveContext.cycleSceneFlags[SCENE_OPENINGDAN].chest |= (1 << 0);
+    if (INV_CONTENT(ITEM_DEKU_NUT) != ITEM_DEKU_NUT) {
+        INV_CONTENT(ITEM_DEKU_NUT) = ITEM_DEKU_NUT;
+        MM_Inventory_ChangeUpgrade(UPG_DEKU_NUTS, 1);
+    }
+    AMMO(ITEM_DEKU_NUT) = 0;
+
+    // Keep the sword and shield. A plain vanilla bootstrap already has them
+    // (MM_Sram_InitNewSave -> sSaveDefaultItemEquips, equipment 0x11), but a
+    // REFUSED pairing does not: OnFileCreate strips both for the shuffle before
+    // its generation throws and the catch reverts the file to vanilla. Nothing
+    // is shuffled in a file that reaches this function, so a swordless start is
+    // never right here. Conditional so this only ever restores, never downgrades.
+    if (GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SWORD) == EQUIP_VALUE_SWORD_NONE) {
+        SET_EQUIP_VALUE(EQUIP_TYPE_SWORD, EQUIP_VALUE_SWORD_KOKIRI);
+        BUTTON_ITEM_EQUIP(0, EQUIP_SLOT_B) = ITEM_SWORD_KOKIRI;
+    }
+    if (GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SHIELD) == EQUIP_VALUE_SHIELD_NONE) {
+        SET_EQUIP_VALUE(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_HERO);
+    }
+
+    // The one-time cutscene/text flags the skipped intro would have consumed.
+    // The three Clock Town ENTERED_* regs and the two Tatl regs are already set
+    // unconditionally for every arrival further down in
+    // MM_Play_ConsumeStartupEntrance (they are plain-spawn hygiene, not
+    // intro-reward state); these three are the rest of the set
+    // SkipIntroSequence/OnFileCreate arm, and all are idempotent bit-ORs.
+    gSaveContext.cycleSceneFlags[SCENE_INSIDETOWER].switch0 |= (1 << 0); // Happy Mask Salesman, this cycle
+    gSaveContext.cycleSceneFlags[SCENE_OPENINGDAN].switch0 |= (1 << 0) | (1 << 2);
+    gSaveContext.cycleSceneFlags[SCENE_YOUSEI_IZUMI].switch0 |= (1 << 10); // Tatl's broken-great-fairy text
+}
+
+/**
+ * Should Termina Field load vanilla MM's FIRST-CYCLE EMPTY layer?
+ *
+ * Extracted verbatim from MM_Play_Init's scene-resolution block so the ROM-free
+ * mm-combo-first-cycle row can drive the verdict without booting a scene: the
+ * gate reads no PlayState, only the save and the resolved scene/entrance.
+ *
+ * `true` means MM_Play_Init sets nextCutsceneIndex = 0xFFF4, which resolves to
+ * Termina Field's scene layer 5 — a different actor list (no enemies) and a
+ * different SCENE_CMD_SOUND_SETTINGS (no BGM).
+ *
+ * The ocarina-less default is vanilla's own "the intro has not happened yet"
+ * test, and it is what #654 reported: a combo MM half skipped the intro, so it
+ * held no ocarina and the field was empty on every visit, with no Song of Time
+ * to leave the cycle. Overriding it is the VB hook's job, not this function's —
+ * MM_Combo_RegisterFirstCycleOverrides (GameExports_SingleExe.cpp) answers false
+ * for every combo MM half, and rando's own IS_RANDO override answers false for a
+ * paired rando half. This function stays the vanilla verdict plus the hook.
+ *
+ * @param scene    the resolved ENTR_SCENE_* the arrival is loading
+ * @param entrance the save's entrance id at that point
+ */
+bool MM_Play_ShouldEmptyFirstCycleTerminaField(s32 scene, u16 entrance) {
+    if (!GameInteractor_Should(VB_TERMINA_FIELD_BE_EMPTY, INV_CONTENT(ITEM_OCARINA_OF_TIME) != ITEM_OCARINA_OF_TIME)) {
+        return false;
+    }
+    return (scene == ENTR_SCENE_TERMINA_FIELD) && (entrance != ENTRANCE(TERMINA_FIELD, 10));
+}
+
+/**
  * Cross-game combo: consume a pending startup entrance on the way into Play.
  *
  * Only consumes an entrance tagged for MM. A value tagged for OoT that
@@ -2322,6 +2468,13 @@ void MM_Play_ConsumeStartupEntrance(void) {
         return;
     }
     uint16_t startupEntrance = Combo_GetStartupEntranceForGame("mm");
+    // MM's world is a COMBO HALF from here on (#654). Noted before anything
+    // below runs, because two of the things below read it: the paired-world
+    // dispatch's OnSaveLoad re-arm at the end of this function, and — for the
+    // rest of the session, long after the startup entrance this presence gate
+    // just read has been retired — the first-cycle VB overrides. Idempotent and
+    // monotonic; a return leg re-notes the same bit.
+    Combo_NoteCrossGameArrival("mm");
     // Re-apply the frozen MM save AFTER the boot chain's wipes. MM_Game_Resume
     // restores it at switch time, but every re-entry cold-starts the gamestate
     // chain (see MM_Graph_ResetRunFrameContext), and that chain scribbles over
@@ -2392,6 +2545,16 @@ void MM_Play_ConsumeStartupEntrance(void) {
         gSaveContext.save.day = 0;
         gSaveContext.save.eventDayCount = 0;
         gSaveContext.skyboxTime = gSaveContext.save.time;
+        // The arrival IS the intro event (#654). Same gate as the clock, for the
+        // same reason: this is the leg that AUTHORS the MM half of a cross-game
+        // file, and a restored return leg is the player's own session, which must
+        // not be re-authored (mm-startup-restore asserts the restored save comes
+        // back byte-exact through the persisted region). Runs AFTER
+        // MM_Rando_PairOnCrossGameArrival because the function's own gate is the
+        // saveType that dispatch decides: a paired rando half owns its start
+        // state and its item set, every other pairing kind gets the vanilla
+        // post-intro one.
+        MM_Play_GrantComboArrivalIntroRewards();
     }
     gSaveContext.save.entrance = startupEntrance;
     // On a first MM entry this Play_Init is reached through MM's
@@ -2629,13 +2792,11 @@ void MM_Play_Init(GameState* thisx) {
             gSaveContext.nextCutsceneIndex = 0xFFF0;
         }
 
-        // "First cycle" Termina Field
-        if (GameInteractor_Should(VB_TERMINA_FIELD_BE_EMPTY,
-                                  INV_CONTENT(ITEM_OCARINA_OF_TIME) != ITEM_OCARINA_OF_TIME)) {
-            if ((scene == ENTR_SCENE_TERMINA_FIELD) &&
-                (((void)0, gSaveContext.save.entrance) != ENTRANCE(TERMINA_FIELD, 10))) {
-                gSaveContext.nextCutsceneIndex = 0xFFF4;
-            }
+        // "First cycle" Termina Field. Verdict extracted to a PlayState-free
+        // helper above so the ROM-free mm-combo-first-cycle row can drive it
+        // (#654); behaviour unchanged.
+        if (MM_Play_ShouldEmptyFirstCycleTerminaField(scene, ((void)0, gSaveContext.save.entrance))) {
+            gSaveContext.nextCutsceneIndex = 0xFFF4;
         }
         gSaveContext.save.entrance = Entrance_Create(scene, (((void)0, gSaveContext.save.entrance) >> 4) & 0x1F,
                                                      ((void)0, gSaveContext.save.entrance) & 0xF);

@@ -1403,6 +1403,9 @@ extern "C" void MM_TrackersGui_Init(void);
 // rest of the MM shared-resource half.
 extern "C" void MM_RegisterSharedResourceCycleHooks(void);
 
+// Combo first-cycle VB overrides (#654) — defined further down THIS TU.
+extern "C" void MM_Combo_RegisterFirstCycleOverrides(void);
+
 // Defined below in this TU; forward-declared so the #516 GfxPatcher gate can
 // reference it from MM_Rando_Init above the definition.
 extern "C" bool MM_Rando_AssetsReady(void);
@@ -1513,6 +1516,16 @@ extern "C" void MM_Rando_Init(void) {
     // This TU is always linked, and the sRandoInitDone guard above is what
     // makes the registration once-only, as the block header requires.
     MM_RegisterSharedResourceCycleHooks();
+
+    // The combo's first-cycle overrides (#654). Registered here, from this
+    // always-linked TU, for the same elided-provider reason as the block above:
+    // the natural home would be beside rando's own overrides in
+    // Rando/MiscBehavior/MiscBehavior.cpp, but those are COND_VB_SHOULDs
+    // re-evaluated on every OnSaveLoad against IS_RANDO, and a combo override
+    // must outlive that re-dispatch and must not be conditioned on the save's
+    // type at all. Registered once, unconditionally, with the combo predicate
+    // inside the body.
+    MM_Combo_RegisterFirstCycleOverrides();
 }
 
 /**
@@ -3201,6 +3214,86 @@ extern "C" void MM_RegisterSharedResourceCycleHooks(void) {
         CLEAR_EVENTINF(EVENTINF_THREEDAYRESET_LOST_NUT_AMMO);
         CLEAR_EVENTINF(EVENTINF_THREEDAYRESET_LOST_STICK_AMMO);
     });
+}
+
+/**
+ * Every combo MM half acts as if the Ocarina of Time is held, for the
+ * FIRST-CYCLE gates (#654, operator ruling 2026-09-16).
+ *
+ * Vanilla MM uses "no Ocarina of Time" as its proxy for "the intro has not
+ * happened yet" and degrades two behaviours off it:
+ *
+ *   VB_TERMINA_FIELD_BE_EMPTY  (games/mm/src/code/z_play.c, via
+ *       MM_Play_ShouldEmptyFirstCycleTerminaField) — loads Termina Field's scene
+ *       layer 5: no enemies, and a different SCENE_CMD_SOUND_SETTINGS, so no
+ *       BGM. This is the reported symptom.
+ *   VB_FASTER_FIRST_CYCLE      (games/mm/2s2h/z_scene_2SH.cpp
+ *       MM_Scene_CommandTimeSettings) — runs the clock at sceneTimeSpeed 5.
+ *
+ * In the combo the arrival IS the intro event, so neither degradation applies to
+ * any combo MM half — whatever its pairing kind, and whether or not the ocarina
+ * happens to be in hand at that moment (under ADR 0010 increments 2-3 the
+ * ocarina becomes a pool item that may be found in either game, so "held" and
+ * "past the intro" stop being the same fact even for a rando half).
+ *
+ * WHY HERE AND NOT BESIDE RANDO'S OWN OVERRIDES. The only pre-existing override
+ * is `COND_VB_SHOULD(VB_TERMINA_FIELD_BE_EMPTY, IS_RANDO, ...)` in
+ * Rando/MiscBehavior/MiscBehavior.cpp, and COND_VB_SHOULD unregisters and
+ * re-registers on every OnSaveLoad dispatch — including the one
+ * MM_Play_ConsumeStartupEntrance fires at the end of every arrival — against
+ * IS_RANDO, i.e. the save's type. A combo override must survive that
+ * re-dispatch and must not be conditioned on the save's type at all, so it is
+ * registered ONCE, unconditionally, from MM_Rando_Init (whose sRandoInitDone
+ * guard makes it once-only), with the combo predicate inside the body. Nothing
+ * ever unregisters it, which is precisely the property the COND_ macros lack.
+ * The per-call-site `static HOOK_ID` in COND_VB_SHOULD means rando's registrant
+ * and this one coexist; both only ever force `false`, so the order is immaterial.
+ *
+ * WHERE THE PREDICATE COMES FROM. `Combo_IsCrossGameHalf("mm")`, the src/common
+ * arrival latch (src/common/entrance.cpp), set by MM's startup-entrance
+ * consumption point. NOT a gSaveContext read from common code (ADR 0008 rule 5),
+ * and not `Combo_ForeignPairingActive()` — that one answers "does a paired RANDO
+ * world exist", which is false for exactly the pairing kinds #654 is about.
+ *
+ * HONEST SCOPE — VB_FASTER_FIRST_CYCLE IS NOT DISPATCHED IN THE SINGLE EXE
+ * TODAY. Its one consumer is `#ifdef RSBS_SINGLE_EXECUTABLE`-branched
+ * (z_scene_2SH.cpp:335-350, from #344) to evaluate the un-hooked default
+ * directly rather than call GameInteractor_Should, so neither this registrant nor
+ * rando's IS_RANDO one can fire. MM's VB dispatch has since been rebound to the
+ * MM-owned registry (MM_GameHooks_ExecuteVBShould, the #392 follow-up), which is
+ * what that bypass was guarding against, so the bypass is stale — but removing it
+ * is a change to a file this lane does not own. It is registered here anyway
+ * because it costs nothing and is correct the moment the bypass goes; the
+ * behaviour a combo MM half actually gets today comes from the arrival's ocarina
+ * grant (MM_Play_GrantComboArrivalIntroRewards), which makes the un-hooked
+ * predicate false at its source. mm-combo-first-cycle asserts both legs through
+ * MM's real dispatcher and says which is which.
+ */
+extern "C" void MM_Combo_RegisterFirstCycleOverrides(void) {
+    // REGISTER_VB_SHOULD does not de-duplicate (unlike the COND_ macros, which
+    // unregister first), and MM_Rando_Init's own guard is not available to the
+    // ROM-free row that drives this directly. Guard here so the registrar is
+    // idempotent from either caller.
+    static bool sRegistered = false;
+    if (sRegistered) {
+        return;
+    }
+    sRegistered = true;
+
+    REGISTER_VB_SHOULD(VB_TERMINA_FIELD_BE_EMPTY, {
+        if (Combo_IsCrossGameHalf("mm")) {
+            *should = false;
+        }
+    });
+
+    REGISTER_VB_SHOULD(VB_FASTER_FIRST_CYCLE, {
+        if (Combo_IsCrossGameHalf("mm")) {
+            *should = false;
+        }
+    });
+
+    fprintf(stderr, "[MM] combo first-cycle overrides registered (#654)\n");
+    fflush(stderr);
 }
 
 /**

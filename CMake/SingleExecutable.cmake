@@ -839,6 +839,19 @@ if(BUILD_TESTING)
     redship_add_test(NAME MMRegistrarCoverage COMMAND redship --test mm-registrar-coverage)
     redship_add_test(NAME MMResumeArena COMMAND redship --test mm-resume-arena)
     redship_add_test(NAME MMStartupRestore COMMAND redship --test mm-startup-restore)
+    # The cross-game arrival IS MM's intro event (#654, operator ruling
+    # 2026-09-16). Vanilla MM proxies "the intro has not happened yet" off "no
+    # Ocarina of Time" and degrades two first-cycle behaviours from it -- Termina
+    # Field's EMPTY scene layer 5 (no enemies, no BGM) and the 5x first-cycle
+    # clock -- and a combo arrival skips the intro that grants the ocarina, so an
+    # MM half whose pairing is not a live rando one got the empty field forever,
+    # with no Song of Time to leave the cycle. This row drives the extracted gate
+    # (MM_Play_ShouldEmptyFirstCycleTerminaField), the grants
+    # (MM_Play_GrantComboArrivalIntroRewards) for both a vanilla and a rando
+    # pairing, and the real MM_Play_ConsumeStartupEntrance for the first-entry /
+    # restored-return-leg split. Display-free and ROM-free, so it runs in this
+    # redship tier.
+    redship_add_test(NAME MMComboFirstCycle COMMAND redship --test mm-combo-first-cycle)
     # Pre-freeze discipline (#638, the agent tracker for #635; and #626). Both
     # games keep the CURRENT scene's flags in the live PlayState and copy them
     # into gSaveContext only on a scene transition (Actor_CleanupContext ->
