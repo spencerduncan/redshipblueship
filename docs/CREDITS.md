@@ -1,5 +1,21 @@
 # Credits
 
+## Licensing
+
+RedShipBlueShip's own code is MIT — see [`LICENSE`](../LICENSE) at the repository
+root. Every vendored component, submodule, build-time dependency and font keeps
+its own license; they are inventoried, with copyright lines and upstream links,
+in [`THIRD_PARTY_NOTICES.md`](../THIRD_PARTY_NOTICES.md). That file also records
+the two components whose license status is unresolved, and states explicitly
+that mm-rando (GPL-3.0) is not a source of any bytes or names in this project.
+
+## RedShipBlueShip
+
+    Spencer Duncan | Combo port, cross-game randomization, single-executable build
+
+The credits below are inherited from Ship of Harkinian and describe the OoT
+port's authors, not RedShipBlueShip's.
+
 ## The Harbour Masters Are...
 
     Kenix | Lead Developer/Public Relations - Resource Management Programmer, Audio System Programmer, and General Programmer
