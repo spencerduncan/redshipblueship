@@ -92,48 +92,97 @@ void EnsureRegionTimeState(std::unordered_map<RandoRegionId, RegionTimeState>& r
 // Time expansion during region traversal with stay restrictions
 // Time expansion semantics: if canStayOverTime, sequentially test each future time slice
 // Stop permanently if any timeStayRestrictions check fails
+//
+// #585 — THE JOIN. This used to be FIRST-VISIT-WINS in two ways that compound.
+// A region was explored only when `reachableRegions.count(target) == 0`, so
+// (a) its edge condition was never re-evaluated once anything had reached it,
+// and (b) its `regionTimeStates` entry was OVERWRITTEN with whichever time set
+// happened to arrive first and never widened again. Reaching a region early
+// under a narrow set of time slices therefore PINNED it to that set for the rest
+// of the fill, and everything behind it inherited the under-approximation. The
+// fill was measurably less capable than the reachability crawl sitting beside it
+// in this same file (CrawlReachableRegions, ADR 0010 increment 1.3), which does
+// the join correctly — and the observable cost was avoidable ladder attempts, in
+// a fill whose dominant failure mode is a wall-clock abort.
+//
+// The fix adopts the crawl's discipline verbatim (ADR 0010 D2.3's join rule):
+// a target already in the set is not skipped — its time slices are UNIONED with
+// the arriving set, and if that union GREW, the target is re-explored. Growth is
+// monotone and bounded by the 45-slice word, so the worklist drains.
+//
+// Two shape changes come with it, both forced rather than stylistic:
+//   - ITERATIVE, not recursive. With re-exploration the recursion depth is no
+//     longer bounded by the region count but by the number of growth events
+//     (regions x slices), which is a stack depth nobody should have to reason
+//     about. The worklist is the same traversal without the frame.
+//   - Edge conditions are evaluated on EVERY visit, as the crawl does, because
+//     "already reachable" no longer means "nothing more to learn here". The
+//     conditions are pure predicates over the save, so this costs evaluations
+//     and changes no state.
+//
+// RR_MAX is never re-entered, mirroring the crawl: it is the virtual root, and
+// GetRegionIdFromEntrance also resolves an unknown exit to it, so propagating
+// into it would splice arbitrary time sets into every save-warp destination.
 void FindReachableRegions(RandoRegionId currentRegion, std::set<RandoRegionId>& reachableRegions,
                           std::unordered_map<RandoRegionId, RegionTimeState>& regionTimeStates) {
-    // Ensure current region has time state
-    EnsureRegionTimeState(regionTimeStates, currentRegion);
+    std::vector<RandoRegionId> worklist;
+    worklist.push_back(currentRegion);
 
-    auto& sourceRegion = Regions[currentRegion];
-    auto& sourceTimeState = regionTimeStates[currentRegion];
+    while (!worklist.empty()) {
+        const RandoRegionId regionId = worklist.back();
+        worklist.pop_back();
 
-    // Expand time if player can wait in this region
-    uint64_t currentTime = sourceTimeState.timeSlices;
-    if (sourceTimeState.canStayOverTime) {
-        currentTime = TimeLogic::ExpandTimeForward(currentTime, sourceRegion);
-        sourceTimeState.timeSlices = currentTime;
-    }
+        // Ensure this region has time state
+        EnsureRegionTimeState(regionTimeStates, regionId);
 
-    // Set global time for check evaluation
-    gCurrentRegionTime = currentTime;
+        auto& sourceRegion = Regions[regionId];
+        auto& sourceTimeState = regionTimeStates[regionId];
 
-    // Explore connections
-    for (auto& [connectedRegionId, condition] : sourceRegion.connections) {
-        if (reachableRegions.count(connectedRegionId) == 0 && condition.first()) {
-            reachableRegions.insert(connectedRegionId);
-
-            auto& targetRegion = Regions[connectedRegionId];
-            regionTimeStates[connectedRegionId] = { .timeSlices = currentTime,
-                                                    .canStayOverTime = targetRegion.canStayOverTime };
-
-            FindReachableRegions(connectedRegionId, reachableRegions, regionTimeStates);
+        // Expand time if player can wait in this region
+        uint64_t currentTime = sourceTimeState.timeSlices;
+        if (sourceTimeState.canStayOverTime) {
+            currentTime = TimeLogic::ExpandTimeForward(currentTime, sourceRegion);
+            sourceTimeState.timeSlices = currentTime;
         }
-    }
 
-    // Explore exits
-    for (auto& [exitId, regionExit] : sourceRegion.exits) {
-        RandoRegionId connectedRegionId = GetRegionIdFromEntrance(exitId);
-        if (reachableRegions.count(connectedRegionId) == 0 && regionExit.condition()) {
-            reachableRegions.insert(connectedRegionId);
+        // Set global time for check evaluation
+        gCurrentRegionTime = currentTime;
 
-            auto& targetRegion = Regions[connectedRegionId];
-            regionTimeStates[connectedRegionId] = { .timeSlices = currentTime,
-                                                    .canStayOverTime = targetRegion.canStayOverTime };
+        auto propagate = [&](RandoRegionId targetId) {
+            if (targetId == RR_MAX) {
+                return; // never re-enter the virtual root (see the header note)
+            }
+            if (reachableRegions.insert(targetId).second) {
+                regionTimeStates[targetId] = { .timeSlices = currentTime,
+                                               .canStayOverTime = Regions[targetId].canStayOverTime };
+                worklist.push_back(targetId);
+                return;
+            }
+            auto stateIt = regionTimeStates.find(targetId);
+            if (stateIt == regionTimeStates.end()) {
+                // Seeded but not yet visited; EnsureRegionTimeState establishes
+                // its state when the worklist reaches it.
+                return;
+            }
+            const uint64_t merged = stateIt->second.timeSlices | currentTime;
+            if (merged != stateIt->second.timeSlices) {
+                stateIt->second.timeSlices = merged; // THE JOIN
+                worklist.push_back(targetId);
+            }
+        };
 
-            FindReachableRegions(connectedRegionId, reachableRegions, regionTimeStates);
+        // Explore connections
+        for (auto& [connectedRegionId, condition] : sourceRegion.connections) {
+            if (condition.first()) {
+                propagate(connectedRegionId);
+            }
+        }
+
+        // Explore exits
+        for (auto& [exitId, regionExit] : sourceRegion.exits) {
+            if (regionExit.condition()) {
+                propagate(GetRegionIdFromEntrance(exitId));
+            }
         }
     }
 }

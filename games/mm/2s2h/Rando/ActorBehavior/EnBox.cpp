@@ -258,12 +258,24 @@ static RegisterShipInitFunc initFunc(
 extern "C" bool MM_Rando_AssetsReady(void);
 #endif
 
-static RegisterShipInitFunc initializeChestCopyDLs(
-    []() {
+// ADR 0010 increment 2 (solver-inventory P13) — WHY THIS BODY IS A NAMED
+// FUNCTION AND NOT JUST A LAMBDA. The creation event runs MM's rando CORE at
+// OoT's file-create seam, with MM never booted and mm.o2r not mounted, so
+// S2H::ShipInit::InitAll() fires this registrar while MM_Rando_AssetsReady()
+// is false and it takes the early return below. ShipInit registrars run
+// exactly once per process, so under a lambda-only body that early return
+// would be PERMANENT: the real MM boot, which does mount the archives, would
+// never get another chance and MM would render these display lists out of
+// uninitialised copies. That is the once-only-init-in-reverse class the
+// resume contract names, and the fix is to make the asset work RE-RUNNABLE:
+// MM_Rando_InitAssets (GameExports_SingleExe.cpp) calls this by name once the
+// archives are actually there. Idempotent by construction — it only ever
+// memcpy's fresh resource data over the copies.
+extern "C" void MM_Rando_InitChestCopyDLs(void) {
 #ifdef RSBS_SINGLE_EXECUTABLE
-        if (!MM_Rando_AssetsReady()) {
-            return;
-        }
+    if (!MM_Rando_AssetsReady()) {
+        return;
+    }
 #endif
         // Normal Chest
         Gfx* baseDL = ResourceMgr_LoadGfxByName(gBoxChestBaseDL);
@@ -290,5 +302,6 @@ static RegisterShipInitFunc initializeChestCopyDLs(
         memcpy(gBoxChestLidOrnateCopyDL, lidOrnateDL, sizeof(gBoxChestLidOrnateCopyDL));
         gBoxChestLidOrnateCopyDL[7] = gsDPSetTextureImage(G_IM_FMT_RGBA, G_IM_SIZ_16b_LOAD_BLOCK, 1, 0x09000000 | 1);
         gBoxChestLidOrnateCopyDL[8] = gsDPNoOp();
-    },
-    {});
+}
+
+static RegisterShipInitFunc initializeChestCopyDLs([]() { MM_Rando_InitChestCopyDLs(); }, {});

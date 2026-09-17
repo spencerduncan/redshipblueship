@@ -10,6 +10,7 @@
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "Rando/Foreign.h" // Lane C1 (#392): paired-world seed derivation + foreign placement
 #include "foreign_items.h" // src/common — Combo_ClearForeignPlacements
+#include "gen_budget.h"    // src/common — the #582 fill budget + progress surface
 #endif
 
 extern "C" {
@@ -332,11 +333,73 @@ void Rando::MiscBehavior::OnFileCreate(s16 fileNum) {
                     gComboCtx.mmPairedAttempt = 0;
                     static SaveContext sPreAttemptSave;
                     memcpy(&sPreAttemptSave, &gSaveContext, sizeof(SaveContext));
+                    // ------------------------------------------------------
+                    // THE FILL BUDGET (#582's operator decision; ADR 0010
+                    // increment 2). Every number and every reason lives in
+                    // src/common/gen_budget.h; what happens HERE is the
+                    // plumbing of it into the one place the fill reads.
+                    //
+                    // Written through Rando::Logic's existing override rather
+                    // than by editing GlitchlessLogic's constant, because that
+                    // override already IS the fill's budget channel — it was
+                    // added so a lock could observe a wall-clock abort without
+                    // stalling CI for ten real seconds, and a second channel
+                    // beside it would be two sources of truth for one number.
+                    //
+                    // THE ARMED-OVERRIDE GUARD IS LOAD-BEARING: the locks set
+                    // that variable directly to force an abort. A budget write
+                    // that clobbered a pre-armed value would silently make those
+                    // rows test the shipped budget instead of the injected one —
+                    // a vacuous pass. So the budget only ever fills a ZERO.
+                    const bool budgetOwnsTimeout = (Rando::Logic::gRsbsGlitchlessTimeoutMsOverride == 0);
+                    // Restore on EVERY exit, including the throws below: leaving
+                    // the budget armed would silently apply a paired world's
+                    // budget to the next SOLO generation in the same process
+                    // (every headless row runs several).
+                    struct BudgetRestore {
+                        bool owns;
+                        ~BudgetRestore() {
+                            if (owns) {
+                                Rando::Logic::gRsbsGlitchlessTimeoutMsOverride = 0;
+                            }
+                        }
+                    } budgetRestore{ budgetOwnsTimeout };
+                    Combo_GenProgress_SetMaxAttempts((uint8_t)Rando::Foreign::kPairedGenMaxAttempts);
+                    // The TOTAL creation budget is checked BETWEEN attempts, so
+                    // it can never truncate an attempt that is about to succeed.
+                    // Ten deterministic dead-ends that each grind for most of
+                    // their per-attempt budget would otherwise keep a player at
+                    // the file-select screen for minutes.
+                    const uint32_t totalBudgetMs = Combo_GenBudget_TotalBudgetMs();
                     for (int attempt = 0;; attempt++) {
                         if (attempt > 0) {
                             memcpy(&gSaveContext, &sPreAttemptSave, sizeof(SaveContext));
                             Combo_ClearForeignPlacements();
+                            if (Combo_GenProgress_ElapsedMs() > totalBudgetMs) {
+                                // A WALL-CLOCK STOP, NOT A RUNG. Same rule as the
+                                // per-attempt abort below and for the same
+                                // reason: how many attempts a machine gets
+                                // through in a fixed time is a property of the
+                                // machine, so letting it decide the ladder index
+                                // would hand two players different worlds under
+                                // one frozen identity. It stops the ladder; it
+                                // never advances it.
+                                Rando::Foreign::NotePairedGenerationOutcome(attempt, false);
+                                fprintf(stderr,
+                                        "[MM] paired generation: the whole creation exceeded its %ums budget after "
+                                        "%d attempt(s) — stopping the ladder (a wall-clock stop NEVER climbs a "
+                                        "rung)\n",
+                                        totalBudgetMs, attempt);
+                                throw std::runtime_error(
+                                    "Paired generation exceeded the creation's total wall-clock budget after " +
+                                    std::to_string(attempt) + " attempt(s)");
+                            }
                         }
+                        if (budgetOwnsTimeout) {
+                            Rando::Logic::gRsbsGlitchlessTimeoutMsOverride =
+                                Combo_GenBudget_FillBudgetMs(attempt);
+                        }
+                        Combo_GenProgress_Report((uint8_t)RSBS_GENPHASE_MM_FILL, attempt + 1, nullptr);
                         finalSeed = Rando::Foreign::MixPairedFinalSeedForAttempt((uint32_t)attempt);
                         gSaveContext.save.shipSaveInfo.rando.finalSeed = finalSeed;
                         Ship_Random_Seed(finalSeed);
@@ -424,6 +487,17 @@ void Rando::MiscBehavior::OnFileCreate(s16 fileNum) {
                         }
 #endif
 
+                        // ONE ARTIFACT PER PAIR (#660; #564 V23), and this write
+                        // is still the one that produces MM's half of it. For a
+                        // PAIRED world the creation event reads this file back,
+                        // folds it into OoT's spoiler document as the "combo"
+                        // section, and DELETES it — so exactly one artifact
+                        // survives a paired creation while the MM-only harnesses
+                        // (MMRandoGen, the spoiler-identity row), which never run
+                        // the creation event, keep the artifact they assert on.
+                        // Suppressing the write here instead would have made
+                        // "one artifact" and "MM's generation is observable on
+                        // its own" mutually exclusive.
                         std::string fileName = inputSeed + ".json";
                         Rando::Spoiler::SaveToFile(fileName, spoiler);
 

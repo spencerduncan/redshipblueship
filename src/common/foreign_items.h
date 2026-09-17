@@ -1008,6 +1008,128 @@ int OoT_Foreign_IsEligibleHost(uint16_t rc);
  */
 int OoT_Rando_Foreign_RecordPickup(uint16_t rc);
 
+// ============================================================================
+// THE VALUES-PUBLISHING SURFACE (ADR 0011 O8; solver-inventory P1/P5;
+// ADR 0010 increment 2)
+// ============================================================================
+//
+// WHAT WAS MISSING, EXACTLY. Reverse-pool criterion 3
+// (games/mm/2s2h/Rando/ForeignItemsSingleExe.cpp) excludes the enemy/boss
+// souls, the ocarina buttons, RI_ABILITY_SWIM and the clock items for ONE
+// stated reason: "OoT's placement pass runs at OoT generation time — possibly
+// before the paired MM world exists at all — so it CANNOT read MM's option
+// profile". MM published a DIGEST of that profile and nothing else
+// (MM_Rando_ComputeProfileStamp, Foreign.cpp), and a digest answers "did the
+// rules change", never "what are the rules". ADR 0011 O8 chose (b): the
+// narrowing is gated on the freeze preceding OoT's Fill() (delivered by this
+// increment) PLUS a surface that publishes VALUES. This is that surface.
+//
+// WHY CAPABILITY BITS AND NOT OPTION VALUES. ADR 0002's boundary rule: an
+// option id belongs to the game whose enum declares it, and src/common must
+// never acquire an MM header to see one — the same rule the foreign pools and
+// the options view-model follow. So the frozen profile is published as a small,
+// GAME-NEUTRAL bitset naming the give CLASSES the world arms. The bits below
+// are exactly the families criterion 3 names, one bit each, which keeps the
+// surface the size of its only question. A publisher that needs a new family
+// adds a bit; nothing here ever learns an id.
+//
+// SESSION SCOPE, ONE COMPUTATION, TWO PUBLISH POINTS. The caps are RAM-only —
+// no .redsave field and no carve from reserved[] — because they are
+// re-derivable from the frozen profile wherever that profile is resident.
+// Published at the CREATION freeze from the CVar-resolved values, and
+// re-published from the save's frozen RANDO_SAVE_OPTIONS when a hydrated MM
+// half comes back in a later process. Both go through the one MM-side
+// computation (MM_Rando_PublishProfileGiveCaps, combo_mm_options_view.h), for
+// the same reason ResolveProfileValues is one computation behind both the
+// creation stamp and the arrival compare.
+//
+// PUBLISHED-NESS IS A DISTINCT STATE from "published, all bits clear". An
+// unpublished surface means "no MM profile has been frozen in this session",
+// and a membership rule that read that as "the profile arms nothing" would
+// narrow every pool to nothing on every process that never generated.
+// Combo_ForeignGiveCapsPublished is that discriminator, and it is why this is
+// not simply a uint32_t whose 0 would mean both things.
+
+/** Enemy and boss soul shuffle (MM: RO_SHUFFLE_ENEMY_SOULS /
+ *  RO_SHUFFLE_BOSS_SOULS). Unarmed, a soul give is a bare rando-inf flag with
+ *  no meaning in the receiving world. */
+#define RSBS_GIVECAP_SOULS 0x0001u
+/** Ocarina-button shuffle (MM: RO_SHUFFLE_OCARINA_BUTTONS). */
+#define RSBS_GIVECAP_OCARINA_BUTTONS 0x0002u
+/** Swim-ability shuffle (MM: RO_SHUFFLE_SWIM). */
+#define RSBS_GIVECAP_SWIM 0x0004u
+/** Clock shuffle (MM: RO_CLOCK_SHUFFLE) — the RI_TIME_* family. */
+#define RSBS_GIVECAP_CLOCKS 0x0008u
+/** Every bit ALLOCATED at v1. Append only; an unallocated bit in a published
+ *  word comes from a newer build and is masked off rather than reinterpreted. */
+#define RSBS_GIVECAP_ALL_V1                                                                                        \
+    (RSBS_GIVECAP_SOULS | RSBS_GIVECAP_OCARINA_BUTTONS | RSBS_GIVECAP_SWIM | RSBS_GIVECAP_CLOCKS)
+
+/**
+ * Publish @p caps as the give capabilities of @p originGame's FROZEN option
+ * profile. Idempotent; the last publish of a session wins, and during a
+ * creation the freeze is the only writer.
+ *
+ * @param originGame GAME_OOT or GAME_MM — the game whose profile these are.
+ * @param caps       an OR of RSBS_GIVECAP_*; unallocated bits are masked off.
+ */
+void Combo_PublishForeignGiveCaps(uint8_t originGame, uint32_t caps);
+
+/** The published caps for @p originGame, or 0 when nothing is published. Always
+ *  pair a nonzero test with Combo_ForeignGiveCapsPublished — see the block
+ *  comment for why "unpublished" and "arms nothing" are different states. */
+uint32_t Combo_ForeignGiveCaps(uint8_t originGame);
+
+/** True once a profile freeze published caps for @p originGame this session. */
+bool Combo_ForeignGiveCapsPublished(uint8_t originGame);
+
+/** Does @p originGame's frozen profile arm EVERY bit in @p caps? False when
+ *  nothing is published: an unpublished profile promises nothing, which is the
+ *  conservative answer for a pool-membership rule. */
+bool Combo_ForeignGiveCapsArm(uint8_t originGame, uint32_t caps);
+
+/** Retire the session's published caps (a new creation, a session
+ *  invalidation). */
+void Combo_ClearForeignGiveCaps(void);
+
+/**
+ * The last forward placement pass's counts, and whether they were a SHORTFALL
+ * (#583; ADR 0010 increment 2). Defined MM-side (Rando/Foreign.cpp), where the
+ * PlacementStats type lives; declared here so the creation seam can surface the
+ * number without acquiring an MM header.
+ *
+ * "Shortfall" means the rules asked for more crossings than the world could
+ * host. Placing fewer than the whole POOL is NOT one — the class filter and the
+ * pool size legitimately narrow it (#495) — which is why the comparison is
+ * against `requested`, not against the pool count.
+ *
+ * Any out pointer may be NULL.
+ *
+ * @return 1 when the last pass fell short of what it requested, 0 otherwise.
+ */
+int MM_Rando_LastPlacementStats(int* outRequested, int* outPlaced, int* outEligibleHosts,
+                                int* outReachableEligibleHosts);
+
+/**
+ * Join the paired MM half onto OoT's spoiler document, producing the ONE
+ * artifact per pair #564 V23 requires and #660 tracks. Defined MM-side
+ * (Rando/Foreign.cpp), where MM's spoiler generator and schema live.
+ *
+ * Reads the JSON at @p ootSpoilerPath, adds a single top-level "combo" key
+ * carrying the identity tuple, the frozen combo record, MM's whole spoiler and
+ * BOTH crossing directions (plus the #583 shortfall), and writes it back. An
+ * unknown top-level key is ignored by every existing OoT spoiler reader, which
+ * is why augmenting was chosen over a new schema.
+ *
+ * A spoiler is a REPORT of the world, not part of it: every failure logs and
+ * returns nonzero, and the creation succeeds regardless.
+ *
+ * @param ootSpoilerPath absolute path to the OoT spoiler just written.
+ * @return 0 on success; negative on a missing path, an unreadable or
+ *         unwritable file, or a malformed document.
+ */
+int MM_Rando_AugmentSpoilerWithPairedHalf(const char* ootSpoilerPath);
+
 #ifdef __cplusplus
 }
 #endif

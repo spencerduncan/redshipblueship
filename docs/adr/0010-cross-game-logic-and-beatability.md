@@ -601,6 +601,145 @@ the ~30s floor, the adaptive calibration, and the progress surface's copy is
 left to the increment-2 implementer; #582 stays open as that epic's
 implementation tracker.
 
+**2026-09-17 — increment 2 as built (epic #644).** The design note for what
+actually shipped, recorded here because the increment's claims are about ORDER
+and an order is only checkable against a written one.
+
+*The seam order, exactly.* The creation of a paired file is one event spanning
+two instants that no player-reachable edit can separate, because nothing after
+the first instant reads a CVar:
+
+1. **Freeze** — `Playthrough_Init`, immediately after `Random_Init(finalHash)`
+   and **before `Fill()`**: `sourceIsRando` / `sharedRandoSeed` /
+   `sharedRandoSettingsHash`, then `mmProfileDigest`
+   (`MM_Rando_ComputeProfileStamp`), then the give-capability publish
+   (`MM_Rando_PublishProfileGiveCaps`), then the combo record and
+   `comboSettingsHash` last — ADR 0011 decision 4.1's order. The pre-`Fill()`
+   gate `Combo_ForeignPairingRequested()` is asked here and logged, its first
+   production caller. Nothing in the block consumes the RNG stream, which is why
+   the move does not itself change a generated world.
+2. **OoT's `Fill()`**, unchanged.
+3. **OoT's spoiler**, unchanged, at its own path.
+4. **Reverse crossing pass** (`OoT_PlaceForeignItems`), still at the end of
+   `Playthrough_Init` — see the deviation below.
+5. — the player names the file —
+6. **`z_sram.c` `Save_InitFile`**, after `Context_InvalidateSessionOnNewGame`
+   and `Randomizer_InitSaveFile`, before `Save_SaveFile`:
+   `OoT_RunPairedCreationEvent(slot)`. It snapshots the whole unified
+   `gSaveContext` buffer, calls `MM_Rando_GenerateAtCreation`, and restores it.
+7. Inside that call: `MM_Rando_InitCore()` → `MM_Sram_InitNewSave()` →
+   `GameInteractor_ExecuteOnSaveInit(0)` (the real `OnFileCreate` chain: MM's
+   fill, the forward crossing pass, the attempt ladder) → **the one spoiler
+   artifact** → `Context_UpdateShadowCopy(GAME_MM, …)` +
+   `Context_ArmShadowAsFrozen(GAME_MM, MM_ENTR_SOUTH_CLOCK_TOWN_0)`.
+8. Back in the seam: the shortfall surface, then `Save_SaveFile()` — whose first
+   `.redsave` therefore already carries a complete, armed MM half.
+
+*The identity publish point.* The identity is published by the **freeze**
+(step 1) and RETRACTED on any failure: `Playthrough_Init` snapshots the previous
+terms and rolls them back if `Fill()` or the reverse pass fails, and
+`OoT_RunPairedCreationEvent` zeroes every term (including the combo record's
+`formatVersion` occupancy tag and the armed MM shadow) if the MM half fails.
+There are two states, "fully frozen" and "untouched"; #564 step 8's
+all-or-nothing is implemented as publish-then-retract rather than
+publish-at-the-end, because the freeze must precede `Fill()` and the fill is not
+the last thing that can fail.
+
+*What the arrival still authors.* Nothing about a paired RANDO half — its start
+state and its clock come from the creation event, because
+`MM_Sram_InitNewSave` writes exactly the new-file clock `#639`'s arrival-side
+re-author existed to restore, and a creation-authored half never passes through
+the title demo that broke it. **PR #674's grant stays exactly where it is, and
+its gate is unchanged**: `MM_Play_GrantComboArrivalIntroRewards` still runs on
+the `!hadFrozenState` leg and still returns early for `SAVETYPE_RANDO`. What
+changed is which files answer that gate which way. A paired rando half now
+arrives with `hadFrozenState == 1` on its FIRST crossing (the creation armed the
+shadow), so the leg is skipped; the files that still reach it are exactly the
+ones whose MM half is a vanilla bootstrap — a vanilla OoT file crossing, a
+session with no paired OoT world, a REFUSED pairing, and a pre-increment-2 file
+with no authored half. Those are precisely the pairing kinds #654's ruling is
+about, so the arrival remains the intro event for them and moves nowhere.
+
+*The budget (#582).* `src/common/gen_budget.{h,c}`. Per-attempt wall-clock
+budget = `clamp(30 s × hostScale, 30 s, 90 s)`; `hostScale` is
+`measured / reference` in integer percent, clamped to `[100 %, 300 %]`, measured
+once per process by timing a fixed 24 M-iteration integer loop against a pinned
+55 ms reference (the development workstation this increment was measured on —
+an arbitrary reference on purpose, because only the ratio is used and a
+runtime-sampled reference would make every host's scale drift). The whole
+creation additionally gets `2 ×` the per-attempt budget, checked BETWEEN ladder
+attempts so it can never truncate an attempt about to succeed; worst-case wait
+is that total plus one in-flight attempt, ~90 s at scale 1.0. The budget is
+delivered into the fill through `Rando::Logic::gRsbsGlitchlessTimeoutMsOverride`
+— the channel that already existed for the locks — and only ever fills a ZERO,
+so an armed test override is never clobbered (the alternative is a lock that
+silently tests the shipped budget). **PR #581 §2a is untouched**: neither the
+per-attempt abort nor the new total abort climbs a rung; both stop the ladder.
+
+*The progress surface.* `Combo_GenProgress_*` in the same file: a
+phase/attempt/elapsed/budget record with a greppable stderr leg that always
+fires and a registered sink for presentation. Two sessions per paired creation —
+one around OoT's staged generation, one around the file-create seam — because
+the two are separated by however long the player spent in the menu, and only the
+second is a wait. An in-frame progress BAR needs a render-during-blocking-work
+seam that does not exist in this tree and would live in `SohGui`; the channel is
+built and wired, the bar is not, and that is stated rather than implied. The
+second session's elapsed time is also **P12's measurement**, printed on every
+real creation.
+
+*The shortfall surface (#583).* Surfaced at creation on the shared overlay, with
+the counts that explain it (placed / requested / eligible hosts / reachable
+eligible hosts), read through `MM_Rando_LastPlacementStats`. It is not an error:
+while crossings are duplicate overlays the origin world keeps its own copy, so a
+missing crossing costs "fewer extras". **The drop order is NOT changed here.**
+#583's option 1 (shuffle-then-truncate, so the dropped entries stop being the
+pool's tail) moves every generated world and therefore belongs in the same
+commit as the re-pin, or in none; it is recorded as remaining rather than
+smuggled in beside a surface change.
+
+*The spoiler shape (#660).* ONE artifact: OoT's spoiler document plus a single
+top-level `"combo"` key carrying the identity tuple, the frozen combo record,
+MM's whole spoiler under `combo.mm`, and BOTH crossing directions plus the
+shortfall under `combo.crossings`. Augmenting rather than inventing a schema
+keeps every existing OoT spoiler reader working. MM's own
+`RSBSPAIR<masterSeed>.json` is still written by `OnFileCreate` — the MM-only
+harnesses assert on it — and is DELETED by the join, so exactly one artifact
+survives a paired creation. The join runs inside `MM_Rando_GenerateAtCreation`,
+because that is the only window in which MM's world and OoT's document both
+exist: the caller's snapshot bracket takes MM's world away the instant the call
+returns.
+
+*Deviations from the literal contract, and why.*
+
+- **OoT's `Fill()` did not move to the file-create seam, and neither did the
+  reverse crossing pass.** Moving `Fill()` means moving the Generate button's
+  whole flow, which lives in `SohGui` and is what `Randomizer_IsSeedGenerated()`
+  — the predicate that decides a new file is a rando file at all — reads. The
+  reverse pass's inputs are OoT's finished fill (which exists only where it is)
+  and the frozen record (which now exists before the fill), and it consumes no
+  RNG stream, so relocating it would change nothing observable while re-pinning
+  four locks. What the contract is actually FOR is delivered: one freeze, before
+  `Fill()`, with no CVar read after it, so no edit in the gap can change the
+  world. Both move when they have a reason to — increment 3's single-bag fill,
+  where the two directions become one draw over one bag and the whole fill
+  relocates with them.
+- **A pre-increment-2 paired file that never crossed is REFUSED at its first
+  arrival**, by name, with copy that says to re-create it. Its `.redsave`
+  Tier-3 is all zeroes, so there is no half to hydrate, and "arrival has zero
+  generation capability" leaves no legitimate way to author one there. This is a
+  stated migration cost, not an oversight: a transitional generation path at the
+  arrival would be the second creation event the increment exists to delete.
+- **The compare-and-refuse now runs on EVERY arrival**, not only the first. The
+  old gate sat after the `if (hadFrozenState) … return;` block, so a return leg
+  was never compared. Refusing means "do not apply the frozen half" — the blob
+  stays armed and untouched, the slot is latched, and Termina is vanilla, which
+  is what the refusal copy has always promised.
+
+*Cost paid.* `SeedDeterminism` / `RandoDeterminism` / `MMRandoGen` /
+`MMPairedAttemptDeterminism` / `HeadlessForeignDigest` re-pin ONCE, for #585's
+`FindReachableRegions` join alone: the freeze move and the creation-seam move
+are RNG-neutral and were verified byte-stable before #585 landed on top of them.
+
 Increment 2 is the **prerequisite of increment 3**: a single-bag fill is a
 single generation event by definition — both worlds' placements must be
 decided at one seam before either spoiler exists.
