@@ -32,6 +32,13 @@ bool sStartupEntrancePresent = false;
 // gEntranceTable index and reading far out of bounds (crash 0xC0000005).
 GameId sStartupEntranceGame = GAME_NONE;
 
+// Cross-game arrival latch (#654), one bit per GameId. Set when that game's
+// Play_Init consumes a pending startup entrance; never cleared in production.
+// Indexed by GameId, so GAME_NONE occupies slot 0 and is never set. See
+// entrance.h for why this exists as a latch rather than a read of the startup
+// entrance (which is retired by the same call that consumes it).
+bool sCrossGameHalf[GAME_MM + 1] = { false, false, false };
+
 // Game switch request flag (for F10 hotkey)
 bool sGameSwitchRequested = false;
 
@@ -51,6 +58,10 @@ void Entrance_Init(void) {
     sStartupEntrancePresent = false;
     sStartupEntranceGame = GAME_NONE;
     sGameSwitchRequested = false;
+    // The arrival latch is session state like everything else here, so a fresh
+    // init clears it. Production calls this once, from rsbs/src/main.cpp before
+    // either game boots; the ROM-free rows use it as their reset.
+    Entrance_ClearCrossGameHalves();
 }
 
 bool Entrance_RegisterDefaultLinks(void) {
@@ -270,6 +281,26 @@ void Entrance_ClearStartupEntrance(void) {
     sStartupEntranceGame = GAME_NONE;
 }
 
+void Entrance_NoteCrossGameArrival(GameId game) {
+    if (game <= GAME_NONE || game > GAME_MM) {
+        return;
+    }
+    sCrossGameHalf[game] = true;
+}
+
+bool Entrance_IsCrossGameHalf(GameId game) {
+    if (game <= GAME_NONE || game > GAME_MM) {
+        return false;
+    }
+    return sCrossGameHalf[game];
+}
+
+void Entrance_ClearCrossGameHalves(void) {
+    for (size_t i = 0; i < sizeof(sCrossGameHalf) / sizeof(sCrossGameHalf[0]); i++) {
+        sCrossGameHalf[i] = false;
+    }
+}
+
 // ============================================================================
 // C API - extern "C" for use by game code
 // ============================================================================
@@ -333,6 +364,19 @@ bool Combo_HasStartupEntranceForGame(const char* gameId) {
     GameId game = Game_FromString(gameId);
     if (game == GAME_NONE) return false;
     return Entrance_HasStartupEntranceForGame(game);
+}
+
+// Cross-game arrival latch (#654). See entrance.h for the contract.
+void Combo_NoteCrossGameArrival(const char* gameId) {
+    Entrance_NoteCrossGameArrival(Game_FromString(gameId));
+}
+
+bool Combo_IsCrossGameHalf(const char* gameId) {
+    return Entrance_IsCrossGameHalf(Game_FromString(gameId));
+}
+
+void Combo_ClearCrossGameHalves(void) {
+    Entrance_ClearCrossGameHalves();
 }
 
 // ============================================================================

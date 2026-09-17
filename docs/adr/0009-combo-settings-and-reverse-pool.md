@@ -589,6 +589,155 @@ committed Tier-3 carries the revived bar.
 
 ---
 
+## Operator rulings 2026-09-16 — MM's death path, and the arrival as the intro event
+
+Two rulings landed the same day against the 2026-09-10 wave's nightly. Both are
+recorded here because both are *creation-event and arrival-contract* statements
+about the one game's MM half, which is what this ADR's decision-1 amendment
+("one game, one identity, frozen at creation") and decisions 4/4a/4b already
+govern. ADR 0010's increments 2-3 own the *fill* consequence of the second one;
+see the cross-reference at the end of this section.
+
+### (a) #653 — MM death keeps 2ship's inherited direct respawn
+
+> **2026-09-16, operator ruling on
+> [#653](https://github.com/spencerduncan/redshipblueship/issues/653).** *"Keep
+> the current respawn behaviour (vanilla MM: reload at the area entrance with
+> three hearts, no prompt). Works as intended."*
+
+**What was found.** MM's kaleido game-over chain — "GAME OVER", the save prompt,
+"Continue playing?" — is a 2ship enhancement gated on
+`CVarGetInteger("gEnhancements.Kaleido.GameOver", 0)` at
+`games/mm/src/code/z_game_over.c:84`, with the prompt draw behind the same key at
+`z_kaleido_scope_NES.c:978`. **Nothing in this repository writes that key**: no
+widget in the unified menu, no `ShipInit` seed, no config updater, no preset. With
+it 0, `GAMEOVER_DEATH_FADE_OUT` takes the ungated arm (`z_game_over.c:93-106`):
+`func_80169F78` reloads at the last entrance, `respawnFlag = -6`, and
+`playerData.health = 0x30` — three hearts, which is "full" against a three-heart
+capacity. That is vanilla MM, on any death, in any scene.
+
+**The consequence this ADR must carry.** **Decisions 4a and 4b, PR #625's revive
+and #626's F10-during-game-over leg all describe a screen a default build cannot
+show.** They are not withdrawn and nothing about them is wrong — the seam they
+decide is real the moment the enhancement is on — but their scope is now stated:
+*they apply if and only if `gEnhancements.Kaleido.GameOver` is enabled, which the
+unified menu does not expose.* Their locks
+(`mm_death_decline_autosave_test.cpp`, `mm_unified_save_test.cpp`) stay green
+because they call `MM_Combo_GameOverExitToOoT()` directly and never drive the
+kaleido state machine — which is the registered-but-not-dispatched class one
+layer up, and is worth naming so nobody reads those rows as evidence that the
+production path runs.
+
+**What this does NOT decide.** Whether to expose the toggle, classify the key in
+`src/common/cvar_shared_keys.h`, or make the prompt combo-aware (#653's option A).
+The ruling is "works as intended" for the behaviour, not a closure of the
+menu-surface question.
+
+### (b) #654 — the cross-game arrival IS Majora's Mask's intro event
+
+> **2026-09-16, operator ruling on
+> [#654](https://github.com/spencerduncan/redshipblueship/issues/654).** *"The way
+> it works in both combo and rando is: MM starts with the randomized starting
+> items, going into the field acts like you have the ocarina, etc. Going into MM
+> triggers those drops as checks (ocarina/deku/songs/magic), puts you in human
+> form, maybe you don't have the ocarina yet. If you do, it's at one of the checks
+> you can access somewhere, maybe MM, maybe OoT."*
+
+**The mechanism.** Vanilla MM proxies *"the intro has not happened yet"* off
+*"the Ocarina of Time is not held"* and degrades two first-cycle behaviours from
+it: Termina Field loads its EMPTY scene layer 5 — a different actor list (no
+enemies) and a different `SCENE_CMD_SOUND_SETTINGS` (no BGM) — and the clock runs
+at `sceneTimeSpeed` 5. A cross-game arrival lands at a Clock Town entrance and
+skips the intro that grants the ocarina, so an MM half whose pairing is not a live
+rando one held no ocarina, got the empty field on **every** visit, and had no Song
+of Time to leave the cycle. The only override in the tree was
+`COND_VB_SHOULD(VB_TERMINA_FIELD_BE_EMPTY, IS_RANDO, ...)`.
+
+**The decision, in three parts.**
+
+1. **The arrival is a creation event for the MM half, and it authors the
+   post-intro start state** — the same one 2ship's randomizer authors
+   (`Rando/MiscBehavior/OnFileCreate.cpp`: human form, South Clock Town, Tatl,
+   `threeDayResetCount = 1`, `isFirstCycle`, the two Tatl week-event regs, the
+   Happy Mask Salesman flag, `cutsceneIndex = 0`) **minus the shuffle-specific
+   parts**. The sword/shield removal is shuffle-specific: nothing is shuffled in a
+   vanilla pairing, so both are kept — and *restored* where a REFUSED pairing
+   stripped them before its generation threw.
+2. **The intro rewards are CHECKS, and entering MM awards their contents.** In a
+   vanilla pairing those contents are the vanilla ones (Ocarina of Time, Deku
+   Mask, Song of Time, Song of Healing, magic acquired, the opened Deku Nuts chest
+   and the nuts the form change loses — term for term with 2ship's own
+   `SkipIntroSequence.cpp:38-44`). In a rando pairing they are whatever the fill
+   placed, which is `OnFileCreate`'s and the fill's business and is **not** touched
+   by the vanilla grant. The four checks already exist:
+   `RC_STARTING_ITEM_DEKU_MASK` and `RC_STARTING_ITEM_SONG_OF_HEALING`
+   (`SCENE_INSIDETOWER`), `RC_CLOCK_TOWER_ROOF_OCARINA` and
+   `RC_CLOCK_TOWER_ROOF_SONG_OF_TIME` (`SCENE_OKUJOU`).
+3. **Every combo MM half acts as if the ocarina is held for the first-cycle
+   gates**, regardless of pairing kind and regardless of whether the ocarina is
+   actually in hand. This is the part that cannot be a consequence of the grants:
+   under the end state below the ocarina may legitimately not be in hand, and
+   "past the intro" must stop meaning "holding the ocarina".
+
+**Where the combo predicate reads from.** A `src/common` session latch —
+`Combo_IsCrossGameHalf("mm")` (`src/common/entrance.cpp`), set by MM's
+startup-entrance consumption point, the one place that knows an arrival happened.
+Not a `gSaveContext` read from common code (ADR 0008 rule 5), not the startup
+entrance itself (retired by the call that consumes it), and **not**
+`Combo_ForeignPairingActive()`, which answers "does a paired RANDO world exist"
+and is false for exactly the pairing kinds this ruling is about. Registered ONCE,
+unconditionally, from `MM_Rando_Init` rather than as a `COND_VB_SHOULD` beside
+rando's: the `COND_` macros unregister and re-register on every `OnSaveLoad`
+dispatch — including the one every arrival fires — against the save's type, which
+is precisely the condition a combo override must not have.
+
+**The intended end state, recorded and NOT built here.** The Ocarina of Time
+becomes a **pool item, findable at a check in either game**, so a combo file may
+legitimately begin without it; the first-cycle gates are already unconditional,
+which is what makes that state playable. Moving the ocarina into the pool changes
+the fill, the pools and the starting-items defaults, and would re-pin the
+determinism digests — so it belongs to **ADR 0010 increments 2-3**, where the
+single generation event and the single bag live, and it is deliberately excluded
+from the #654 fix. A separate option to **share one ocarina between both games**
+is filed alongside and is not decided by this ruling.
+
+**Which pairing kinds were affected, proven in code.** A paired **rando** half was
+never affected on either count: `OnFileCreate`'s rando block authors the start
+state and `GrantStartingItems()` grants the default starting set, which is
+`{ RI_PROGRESSIVE_SWORD, RI_SHIELD_HERO, RI_OCARINA, RI_SONG_TIME }`
+(`Rando/StartingItems.cpp:136`), *and* the `IS_RANDO` override answers false
+anyway. The affected halves are the ones whose save stays `SAVETYPE_VANILLA` past
+the arrival dispatch: a **vanilla OoT file crossing** (`pairing:
+skipped-because-no-paired-oot-world`), a pairing **REFUSED** on identity or combo
+rules, and a paired generation that **failed** the attempt ladder — whose catch
+reverts to `SAVETYPE_VANILLA` *without* undoing the sword/shield strip, which is
+why the grant restores them.
+
+**An override that cannot fire, named rather than assumed.**
+`VB_FASTER_FIRST_CYCLE`'s only consumer is `#ifdef RSBS_SINGLE_EXECUTABLE`-branched
+to evaluate the un-hooked default directly (`games/mm/2s2h/z_scene_2SH.cpp:335-350`,
+from #344), so **neither** rando's `IS_RANDO` registrant nor the combo one can be
+dispatched in the single exe today. The `#344` hazard that bypass guards against —
+MM's VB ordinals aliasing OoT's — was closed by the `#392` follow-up that rebound
+MM's dispatch to the MM-owned registry, so the bypass is stale. It is left in
+place by the #654 fix (a different file's contract) and the behaviour a combo MM
+half gets today comes from the ocarina grant making the un-hooked predicate false
+at its source.
+
+**Locks.** `mm-combo-first-cycle`
+(`games/mm/2s2h/mm_combo_first_cycle_test.cpp`, CTest label `redship`): the
+extracted PlayState-free gate `MM_Play_ShouldEmptyFirstCycleTerminaField` with the
+non-combo baseline asserted first, the vanilla-paired grants, the rando-paired
+no-op, and the real `MM_Play_ConsumeStartupEntrance` for the
+first-entry-versus-restored-return-leg split. The restored leg's "grants nothing"
+assertion is what keeps `mm-startup-restore`'s byte-exact restore contract (#617)
+true.
+
+**Cross-reference.** ADR 0010 §"Increment 2 / Increment 3" carries the end state
+in (b) above; this section is the contract those increments inherit.
+
+---
+
 ## The `reserved[264]` byte budget
 
 `reserved[]` begins at offset 740 and there are 20 further bytes of record slack

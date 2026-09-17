@@ -76,6 +76,15 @@ int CosmeticGfxStub_RunHeadless(void);
 // Return 0 on pass, non-zero on fail.
 int MM_ResumeArena_RunHeadless(void);
 int MM_StartupRestore_RunHeadless(void);
+// The cross-game arrival IS MM's intro event (#654, operator ruling 2026-09-16;
+// games/mm/2s2h/mm_combo_first_cycle_test.cpp). Vanilla MM proxies "the intro
+// has not happened yet" off "no Ocarina of Time" and degrades Termina Field to
+// its EMPTY first-cycle scene layer (no enemies, no BGM) plus the 5x first-cycle
+// clock. A combo arrival skips the intro, so every MM half that is not a live
+// paired rando one got the empty field permanently, with no Song of Time to
+// leave the cycle. Locks the extracted gate, the vanilla-paired grants, the
+// rando-paired no-op, and the first-entry-only wiring. 0 on pass.
+int MM_ComboFirstCycle_RunHeadless(void);
 // MM extended-culling binding (games/mm/2s2h/mm_culling_test.cpp, #382): MM's
 // Ship_ExtendedCullingActor* calls used to bind OoT's bodies, which index
 // Actor::projectedPos 8 bytes earlier than MM's Actor puts it, and the restore
@@ -650,6 +659,28 @@ TestResult Test_MMStartupRestore(void) {
     }
 
     return MM_StartupRestore_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// The cross-game arrival is MM's intro event (#654; see the extern decl above).
+// Thin wrapper over the C entry point in
+// games/mm/2s2h/mm_combo_first_cycle_test.cpp. Needs the same display-free
+// shared bring-up as its mm-startup-restore sibling, and for the same reason: it
+// drives the real MM_Play_ConsumeStartupEntrance, whose closing
+// GameInteractor_ExecuteOnSaveLoad dispatches whatever registrars an earlier row
+// in this process armed, and those read the Ship::Context singleton's
+// ConsoleVariables.
+TestResult Test_MMComboFirstCycle(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_ComboFirstCycle_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 TestResult Test_BootOoT(void) {
@@ -2933,6 +2964,12 @@ const TestDescriptor gTests[] = {
     // a pre-populated gSaveContext must run BEFORE them.
     {"mm-resume-arena", "MM resume re-arms an exhausted system arena for the cold boot chain", Test_MMResumeArena},
     {"mm-startup-restore", "MM startup-entrance consumption restores the frozen save post-wipe", Test_MMStartupRestore},
+    // Must stay AFTER mm-startup-restore for the same reason mm-startup-restore
+    // stays after mm-resume-arena: it scribbles and re-zeroes the unified
+    // gSaveContext, and it latches MM as a cross-game half (src/common/
+    // entrance.cpp) before clearing it again on the way out.
+    {"mm-combo-first-cycle", "MM's cross-game arrival is the intro event; the first-cycle gates know it (#654)",
+     Test_MMComboFirstCycle},
     // soh_port registrar elision (#640): the Anchor page's and the resolution
     // editor's RegisterMenuInitFunc registrars must have RUN, observed by the
     // exact size of the MenuInit registries they populate. Pure (no display,

@@ -605,6 +605,23 @@ Increment 2 is the **prerequisite of increment 3**: a single-bag fill is a
 single generation event by definition — both worlds' placements must be
 decided at one seam before either spoiler exists.
 
+**2026-09-16 (#654) — the MM intro rewards join the bag here, not before.** The
+operator ruled that the cross-game arrival *is* MM's intro event: the intro
+rewards (Ocarina of Time, Deku Mask, Song of Time, Song of Healing, magic) are
+CHECKS whose contents are awarded on entering MM, and every combo MM half plays
+the first-cycle gates as if the ocarina were held regardless of whether it is.
+The #654 fix delivers the arrival contract and the unconditional gates for a
+vanilla pairing only; the **intended end state — the ocarina as an ordinary pool
+item, findable at a check in either game — is increments 2-3's**, because moving
+it into the pool is a change to the fill, the pools and the starting-items
+defaults and re-pins the determinism digests this section already lists as an
+acknowledged cost. `RC_CLOCK_TOWER_ROOF_OCARINA` / `RC_CLOCK_TOWER_ROOF_SONG_OF_TIME`
+(`SCENE_OKUJOU`) also inherit a reachability question these increments must
+answer: the Clock Tower interior is the cross-game portal, so the roof is not
+reachable the vanilla way in a combo file. The creation-event and arrival contract
+is recorded in **ADR 0009, "Operator rulings 2026-09-16" (b)**; this bullet is the
+pointer, not a second copy.
+
 ### Increment 3 — the single-bag combo fill (DECIDED scope; the phase's destination)
 
 Items leave origin pools. One fill, at the creation event, draws from the

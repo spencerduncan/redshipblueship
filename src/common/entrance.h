@@ -105,6 +105,42 @@ void Combo_ClearStartupEntrance(void);
 uint16_t Combo_GetStartupEntranceForGame(const char* gameId);
 bool Combo_HasStartupEntranceForGame(const char* gameId);
 
+// ============================================================================
+// Cross-game arrival latch (#654) — "is this game's world a COMBO HALF?"
+//
+// A game's half is a combo half from the moment a cross-game arrival is
+// consumed for it: the target game's Play_Init takes its pending startup
+// entrance (Combo_HasStartupEntranceForGame above) and spawns from it instead
+// of from its own title-screen boot. The consumption point notes the arrival;
+// the latch then answers the question for the rest of the process.
+//
+// Why a latch and not a live read of something already there. The startup
+// entrance is RETIRED by the very function that consumes it
+// (Combo_ClearStartupEntrance), so it cannot answer "am I a combo half" one
+// frame later, let alone on the tenth Termina Field load; the frozen-state
+// blobs are retired the same way (#364). `Combo_ForeignPairingActive()` answers
+// a DIFFERENT question — whether a paired RANDO world exists — and is false for
+// exactly the pairing kinds #654 is about (a vanilla OoT file crossing, and a
+// REFUSED pairing).
+//
+// Why src/common owns it (ADR 0008 rule 5). The readers are MM's first-cycle
+// gates, and they must not decide combo-ness from `gSaveContext`: MM's save is
+// authored by MM's own boot chain and says nothing about whether OoT is running
+// behind it. The fact is a property of the SESSION, which is src/common's to
+// keep, and it is deliberately not persisted — a `.redsave` records the paired
+// world, not how this process reached it.
+//
+// MONOTONIC for the life of the process, per game. Round trips re-note it,
+// returning to the other game never clears it, and quitting to title does not
+// either: a session that has crossed once is a combo session, and the only
+// behaviour keyed off it is "treat the one game as one game".
+void Combo_NoteCrossGameArrival(const char* gameId);
+bool Combo_IsCrossGameHalf(const char* gameId);
+// Test hygiene only — the ROM-free rows drive arrivals in-process and must be
+// able to arrange a NON-combo baseline for their non-vacuity checks.
+// Production never clears the latch (see MONOTONIC above).
+void Combo_ClearCrossGameHalves(void);
+
 // Game switch request API
 void Combo_RequestGameSwitch(void);
 bool Combo_IsGameSwitchRequested(void);
@@ -260,6 +296,23 @@ uint16_t Entrance_GetStartupEntranceForGame(GameId game);
  * Clear the startup entrance (called after game reads it)
  */
 void Entrance_ClearStartupEntrance(void);
+
+/**
+ * Note that `game` was entered by a cross-game arrival (#654). Called from the
+ * game's startup-entrance consumption point. Idempotent and monotonic — see the
+ * C API block above for the whole contract.
+ */
+void Entrance_NoteCrossGameArrival(GameId game);
+
+/**
+ * Whether `game`'s world is a combo half in this process (#654).
+ */
+bool Entrance_IsCrossGameHalf(GameId game);
+
+/**
+ * Clear every arrival latch. Test hygiene only; production never calls it.
+ */
+void Entrance_ClearCrossGameHalves(void);
 
 #endif // __cplusplus
 
