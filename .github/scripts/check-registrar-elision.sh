@@ -471,11 +471,32 @@ main() {
     # Enforcement for this archive therefore has to be PER-SYMBOL, which is what
     # the required_mm_registrars allowlist below does, backed by the
     # MMRegistrarCoverage ctest row for the half a symbol grep cannot see.
+    #
+    # THE ONE 2ship_enh MEMBER SET THAT IS NOT ENFORCED PER-SYMBOL, AND WHY IT
+    # IS ITS OWN ARCHIVE (#678). lib2ship_enh_clockshuffle.a holds exactly two
+    # TUs -- Enhancements/Songs/BetterSongOfDoubleTime.cpp and
+    # SkipSoTCutscenes.cpp -- which games/mm/CMakeLists.txt carves out of
+    # ship__Enhancements and links WHOLE_ARCHIVE. They are the only callers of
+    # Rando::ClockShuffle's half-day ownership API, they registered purely
+    # through file-scope RegisterShipInitFunc objects, and the plain link
+    # dropped both: two enhancements that did nothing when toggled, and the
+    # blocker that kept RO_CLOCK_SHUFFLE off LIVE (#677).
+    #
+    # Auditing that archive as `required` is the RIGHT assertion here, unlike
+    # for 2ship_enh, precisely because the carve-out makes the archive's
+    # membership the claim: every member of it must link, and there are two of
+    # them, both deliberate. Adding a TU to it is therefore a decision to
+    # arm that TU, and this gate is where it gets checked. That is also why the
+    # carve-out is preferred to adding these two names to
+    # required_mm_registrars: the allowlist would prove the SYMBOLS survived a
+    # plain link that happens to pull them, which PR #651 measured to be
+    # linker-incidental rather than a contract.
     run_elision_gate "$bin" \
         "$build_dir/games/oot/libsoh_rando.a:required" \
         "$build_dir/games/oot/libsoh_enh.a:required" \
         "$build_dir/games/oot/libsoh_port.a:required" \
         "$build_dir/games/mm/lib2ship_rando.a:required" \
+        "$build_dir/games/mm/lib2ship_enh_clockshuffle.a:required" \
         "$build_dir/games/mm/lib2ship_enh.a:report-only" \
         "$build_dir/games/mm/lib2ship_rando_ui.a:report-only"
     overall=$?

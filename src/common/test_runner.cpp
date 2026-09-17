@@ -185,6 +185,16 @@ int MM_PlaytimeSeed_RunHeadless(void);
 // symbols LINKED -- and which cannot attribute RegisterAutosave at all, since
 // OoT ships a static twin of that name. Returns 0 on pass, non-zero on fail.
 int MM_RegistrarCoverage_RunHeadless(void);
+// RO_CLOCK_SHUFFLE's Songs handlers (games/mm/2s2h/mm_clock_shuffle_songs_test.cpp,
+// #678): BetterSongOfDoubleTime.cpp and SkipSoTCutscenes.cpp register only
+// through a file-scope RegisterShipInitFunc, so plain-archive 2ship_enh dropped
+// both objects -- two dead enhancements, and with them the only callers of
+// Rando::ClockShuffle's half-day ownership API. Now carved into the
+// WHOLE_ARCHIVE'd 2ship_enh_clockshuffle; this row asserts both TUs are in the
+// link AND that their registrars run when their CVar is driven. Needs the
+// display-free shared bring-up first (CVarSetInteger). Returns 0 on pass,
+// non-zero on fail.
+int MM_ClockShuffleSongs_RunHeadless(void);
 // MM tracker registration surface (games/mm/2s2h/mm_trackers_gui_test.cpp,
 // #392): the four MM tracker windows must register on a Gui under
 // "MM "-prefixed names (SoH owns the unprefixed ones and Gui::AddGuiWindow
@@ -2296,6 +2306,26 @@ TestResult Test_MMRegistrarCoverage(void) {
     return MM_RegistrarCoverage_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// RO_CLOCK_SHUFFLE's Songs handlers (#678). Needs the same display-free shared
+// bring-up as the rows above, for the narrowest of the usual reasons: the row
+// drives MM's registrars through CVarSetInteger + MM_ShipInit_OnCVarChanged,
+// and both read the Ship::Context singleton's ConsoleVariables. It leaves both
+// CVars back at 0 and both registries drained, so it is order-free with respect
+// to every other row.
+static TestResult Test_MMClockShuffleSongs(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_ClockShuffleSongs_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // Cross-game spoiler window (#496, ADR 0008). Same bring-up as the MM tracker
 // bridge above and for the same reason: the test constructs real
 // Ship::GuiWindow objects on a standalone Ship::Gui, and the GuiWindow ctor
@@ -2973,6 +3003,16 @@ const TestDescriptor gTests[] = {
     // ahead of the resume-contract rows below, matching real boot order.
     {"mm-registrar-coverage", "MM_Rando_Init populates the registries BenPort's exclusion emptied (#516)",
      Test_MMRegistrarCoverage},
+    // The same elided-registrar class, one archive over (#678): the two Songs
+    // TUs carrying RO_CLOCK_SHUFFLE's half-day ownership checks were dropped by
+    // plain-archive 2ship_enh and are now carved into the WHOLE_ARCHIVE'd
+    // 2ship_enh_clockshuffle. Asserts both are in the link and that their
+    // registrars run when the CVar is driven. Pure (no display, no ROM);
+    // restores both CVars and drains both registries on the way out, so it has
+    // no ordering constraints.
+    {"mm-clock-shuffle-songs",
+     "RO_CLOCK_SHUFFLE's Songs handlers survive the link and their registrars run (#678)",
+     Test_MMClockShuffleSongs},
     // The two MM resume-contract tests below mutate process-global state
     // (mm-resume-arena re-inits the MM system arena + heaps; mm-startup-restore
     // scribbles and re-zeroes the unified gSaveContext). Both clean up after

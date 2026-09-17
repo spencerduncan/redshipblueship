@@ -61,12 +61,22 @@
  * HudEditor.cpp, which owns these symbols there.
  *
  * HudEditor_OverrideNextElementMode is declared in HudEditor.h and called
- * from games/mm/2s2h/Enhancements/Songs/BetterSongOfDoubleTime.cpp, but was
- * never stubbed in src/common/mm_stubs.c and is not added here: 2ship_enh
- * links with plain archive semantics, and nothing else in the single-exe
- * link needs a symbol BetterSongOfDoubleTime.o defines, so that object file
- * (and its unresolved reference) is never pulled into the link. Adding a
- * stub for it is new dispatch surface this relocation does not add.
+ * from games/mm/2s2h/Enhancements/Songs/BetterSongOfDoubleTime.cpp. It used
+ * to be the one name in this header deliberately NOT stubbed, on the ground
+ * that 2ship_enh linked with plain archive semantics and nothing pulled
+ * BetterSongOfDoubleTime.o in, so its unresolved reference never reached the
+ * link. #678 makes that object part of the link on purpose (it carries the
+ * RO_CLOCK_SHUFFLE ownership checks), so the reference is now real and the
+ * stub below is what keeps it resolving.
+ *
+ * The no-op is the FAITHFUL body here, not a placeholder: the real
+ * HudEditor_OverrideNextElementMode only writes hudEditorOverrideNextElemMode,
+ * whose sole reader is HudEditor_ShouldOverrideDraw -- stubbed above to return
+ * false unconditionally, because the whole HUD editor is inert in the single
+ * exe. Storing the mode would change nothing any code in this binary reads.
+ * If HudEditor.cpp is ever compiled into the single exe, this whole file goes
+ * with it (it is RSBS_SINGLE_EXECUTABLE-guarded, and HudEditor.cpp owns every
+ * one of these symbols there).
  */
 #ifdef RSBS_SINGLE_EXECUTABLE
 
@@ -143,6 +153,13 @@ void HudEditor_ModifyDrawValues(s16* rectLeft, s16* rectTop, s16* rectWidth, s16
     (void)rectHeight;
     (void)dsdx;
     (void)dtdy;
+}
+
+/* #678: see the header comment. BetterSongOfDoubleTime.cpp is now in the link,
+ * so this reference is real; the no-op matches what the inert HUD editor above
+ * already does with the value. */
+void HudEditor_OverrideNextElementMode(HudEditorElementMode mode) {
+    (void)mode;
 }
 
 #endif // RSBS_SINGLE_EXECUTABLE

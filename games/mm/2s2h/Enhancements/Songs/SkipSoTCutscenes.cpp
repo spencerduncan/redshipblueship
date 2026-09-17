@@ -72,6 +72,13 @@ void RegisterSkipSoTCutscenes() {
 
         if (enTest6->actionFunc == EnTest6_DoubleSoTCutscene) {
             enTest6->actionFunc = EnTest6_StopDoubleSoTCutscene;
+            // #678, per PR #673's criterion: GET_PLAYER walks play->actorCtx,
+            // and everything after it writes through MM_gPlayState. Placed
+            // AFTER the actionFunc swap on purpose -- that swap IS the skip
+            // this enhancement exists for and touches only the actor, so the
+            // cutscene is still skipped with no play state; only the
+            // day->night respawn below is given up.
+            RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
             Player* player = GET_PLAYER(MM_gPlayState);
 
             // Respawns the player out when going from day -> night

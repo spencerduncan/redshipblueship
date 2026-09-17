@@ -102,6 +102,15 @@ void OnPlayerUpdate(Actor* actor) {
 
     UpdateStickDirectionPromptAnim();
 
+    // #678: this TU is in the single-exe link from now on, so PR #673's
+    // criterion applies to every play-state deref below it -- the same #516
+    // SIGSEGV class the Before/AfterInterfaceClockDraw pair was guarded for.
+    // Placed AFTER the sActivelyChangingTime early-out above on purpose: that
+    // block is this hook's own self-unregistration and must keep running with
+    // or without a play state. Everything from here down reads or writes
+    // through MM_gPlayState.
+    RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
+
     MM_gPlayState->interfaceCtx.bAlpha = 255;
 
     Input* input = &MM_gPlayState->state.input[0];
@@ -139,6 +148,13 @@ void OnPlayerUpdate(Actor* actor) {
         // and everything is reloaded in a fresh state
         onEnTest6KillHookId = S2H::GameHooks::RegisterForID<GameInteractor::OnActorKill>(
             ACTOR_EN_TEST6, [](Actor* actor) {
+                // #678, per PR #673's criterion. GET_PLAYER walks
+                // play->actorCtx, so this is a deref on the first line.
+                // Returning early leaves the hook REGISTERED rather than
+                // unregistering it at the bottom, which is the right trade:
+                // the only thing it would miss is one respawn, and it fires
+                // again on the next EN_TEST6 kill.
+                RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
                 Player* player = GET_PLAYER(MM_gPlayState);
 
                 MM_gPlayState->nextEntrance = gSaveContext.save.entrance;
@@ -394,6 +410,17 @@ void RegisterBetterSongOfDoubleTime() {
     });
 
     COND_VB_SHOULD(VB_DISPLAY_SONG_OF_DOUBLE_TIME_PROMPT, CVAR, {
+        // #678, per PR #673's criterion. Every branch below writes through
+        // MM_gPlayState (msgCtx.ocarinaMode, MM_Message_StartTextbox,
+        // Interface_SetAButtonDoAction).
+        //
+        // ORDER IS LOAD-BEARING: this sits BEFORE `*should = false`, so a
+        // NULL play state leaves the vanilla verdict untouched and z_message.c
+        // shows the stock prompt. Guarding after the assignment would suppress
+        // vanilla and then substitute nothing, which is the half-wired failure
+        // -- the player would play the song and get no prompt at all.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
+
         *should = false;
 
         if (gSaveContext.save.day >= 4) {
@@ -426,6 +453,15 @@ void RegisterBetterSongOfDoubleTime() {
         if (!sActivelyChangingTime) {
             return;
         }
+
+        // #678, per PR #673's criterion: DrawIndicators opens display lists on
+        // MM_gPlayState->state.gfxCtx. This body never writes *should, so the
+        // early return is behaviour-neutral -- it draws nothing, exactly as it
+        // does when sActivelyChangingTime is false. sActivelyChangingTime is a
+        // file static no play teardown clears, so reaching here with no play
+        // state is possible rather than theoretical (the same reasoning as the
+        // clock-draw pair above).
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
 
         DrawIndicators();
     });

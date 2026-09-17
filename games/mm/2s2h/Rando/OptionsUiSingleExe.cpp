@@ -130,12 +130,21 @@
  *     EnGirlA and EnSob1, all four in the link — rather than only the two the
  *     row's own reason happened to mention.
  *
- * `kReasonOpenText` is retired with the rows it gated. ONE row survives the
- * re-measure still gated, and its reason now names the real blocker instead of
- * a hook: RO_CLOCK_SHUFFLE. Read its row comment — the blocker was never the
- * hook, and naming the hook is what kept it hidden this long.
+ * `kReasonOpenText` is retired with the rows it gated. ONE row survived that
+ * re-measure still gated — RO_CLOCK_SHUFFLE — with its reason finally naming
+ * the real blocker instead of a hook: a link ELISION, not a dispatch gap.
  *
- * Same standing instruction as the paragraphs above, now earned three times:
+ * THAT ROW IS NOW LIVE TOO (#678), BECAUSE THE BLOCKER WAS FIXED RATHER THAN
+ * RE-WORDED. The two Enhancements TUs holding its ownership checks are carved
+ * into 2ship_enh_clockshuffle and linked WHOLE_ARCHIVE (games/mm/CMakeLists.txt),
+ * so the objects, their registrars and the three ClockShuffle functions they
+ * call are all in the binary. Read its row comment for the three-part evidence
+ * and for what the previous reason over-claimed. NO ROW IN THIS TABLE IS GATED
+ * ON AN UNFINISHED PORT ANY MORE: the only non-LIVE entry left is
+ * RO_ACCESS_MAJORA_REMAINS, and that is an operator retirement (ADR 0010 answer
+ * O1), not a blocker.
+ *
+ * Same standing instruction as the paragraphs above, now earned four times:
  * re-measure against the tree, do not trust this history.
  *
  * THE HAZARD THAT WAS NOT PER-ROW, AND IS NOW GONE (#514). This table used to
@@ -234,10 +243,12 @@ struct OptionUi {
 // No shared reason strings remain. Both that existed are retired by re-measure:
 // kReasonActorInitDrop (crate, barrel, grass — #438's remainder) and
 // kReasonOpenText (the hint family and the OnOpenText batch — #669). Each named
-// a hook type that has had an MM dispatch point since #512. The two rows still
-// gated carry their own reason, because neither is blocked by a hook at all.
-// The MMRandoOptions lock now REFUSES any reason naming a dispatched hook type,
-// so a third shared "waiting on dispatch" constant cannot be reintroduced
+// a hook type that has had an MM dispatch point since #512. Exactly ONE row is
+// still gated — RO_ACCESS_MAJORA_REMAINS, retired by operator ruling — and it
+// carries its own reason naming that ruling, not a blocker. (RO_CLOCK_SHUFFLE,
+// the other row that used to be here, went LIVE in #678 when its elision was
+// fixed.) The MMRandoOptions lock REFUSES any reason naming a dispatched hook
+// type, so a shared "waiting on dispatch" constant cannot be reintroduced
 // without the test going red.
 
 // clang-format off
@@ -456,38 +467,60 @@ const OptionUi kOptionUi[] = {
     { RO_TRIFORCE_PIECES_REQUIRED, COMBO_MM_GROUP_ITEMS, COMBO_MM_WIDGET_SLIDER,
       "Triforce Pieces Required", "How many pieces win the seed. Capped at the number shuffled.",
       1, 15, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
-    // THE ONE ROW THE #669 RE-MEASURE LEFT GATED, AND THE REASON IT WAS WORTH
-    // DOING PER ROW INSTEAD OF PER HOOK. Its old reason ("half-day prompts need
-    // OnOpenText dispatch") was stale in the usual way — ClockShuffle.cpp's own
-    // legs are an id-keyed ShouldActorUpdate on ACTOR_EN_TEST4, six OnOpenText
-    // registrants and two VB flags, and all of those dispatch. But naming the
-    // hook hid the blocker that is actually there, which is an ELISION, not a
-    // dispatch gap:
+    // THE ROW THE #669 RE-MEASURE LEFT GATED, NOW PROMOTED BY FIXING WHAT IT
+    // NAMED (#678). Worth reading as the whole arc, because it is the one row
+    // where each layer of reason was wrong in a different way.
     //
-    //   Rando::ClockShuffle::IsTimeOwnedForClockShuffle,
-    //   GetTimeDescriptionForMessage and SetTimeToHalfDayStart have their only
-    //   callers in 2s2h/Enhancements/Songs/BetterSongOfDoubleTime.cpp and
-    //   SkipSoTCutscenes.cpp. Those live in `2ship_enh`, which — unlike
-    //   `2ship_rando` — is NOT linked WHOLE_ARCHIVE (games/mm/CMakeLists.txt),
-    //   and nothing else references them, so both objects are dropped: neither
-    //   appears in the operator's redship.map, and the three ClockShuffle
-    //   functions they call are absent from it too while the rest of
-    //   ClockShuffle.cpp is present. Their registrars are file-scope
-    //   RegisterShipInitFunc objects, so this is the #516 elided-registrar
-    //   class exactly.
+    //   1. The ORIGINAL reason ("half-day prompts need OnOpenText dispatch")
+    //      was stale: ClockShuffle.cpp's own legs are an id-keyed
+    //      ShouldActorUpdate on ACTOR_EN_TEST4, six OnOpenText registrants and
+    //      two VB flags, and all of those have dispatched since #512.
+    //   2. #669/#677 replaced it with the real blocker, an ELISION rather than
+    //      a dispatch gap: Rando::ClockShuffle::IsTimeOwnedForClockShuffle,
+    //      GetTimeDescriptionForMessage and SetTimeToHalfDayStart have their
+    //      only callers in 2s2h/Enhancements/Songs/BetterSongOfDoubleTime.cpp
+    //      and SkipSoTCutscenes.cpp, both of which register purely through
+    //      file-scope RegisterShipInitFunc objects and were dropped from the
+    //      plain-archive 2ship_enh — the #516 elided-registrar class exactly.
+    //   3. #678 fixes that. Both TUs are carved into 2ship_enh_clockshuffle,
+    //      which links WHOLE_ARCHIVE (games/mm/CMakeLists.txt), so both objects
+    //      are in the binary, both registrars run, and the three ClockShuffle
+    //      functions they call have live callers again.
     //
-    // What that costs: Song of Double Time will warp into a half-day the player
-    // has not unlocked (the ownership check never arms), and a Song of Time
-    // reset lands at the vanilla dawn instead of the earliest owned half-day.
-    // The core option still works — the six half-day items generate, gate and
-    // award — so this is PARTIAL rather than DORMANT, and the reason names the
-    // link, which is where the fix has to happen.
+    // THE THREE-PART EVIDENCE (ADR 0004 §5), measured at #678:
+    //   TU links      — BetterSongOfDoubleTime.cpp.obj and SkipSoTCutscenes.cpp.obj
+    //                   are present in redship.map, along with
+    //                   ?IsTimeOwnedForClockShuffle@..., ?GetTimeDescriptionForMessage@...
+    //                   and ?SetTimeToHalfDayStart@... — all five were 0-hit
+    //                   before. ClockShuffle.cpp itself was always in the link
+    //                   (2s2h/Rando/ is WHOLE_ARCHIVE'd).
+    //   Registrars run — Rando::ClockShuffle::OnFileLoad() ← OnSaveLoadHandler
+    //                   ← Rando::Init on OnSaveLoad, and the two Songs
+    //                   registrars through S2H::ShipInit (their ShipInit map
+    //                   entries and their live hook registrations are both
+    //                   asserted by the MMClockShuffleSongs ctest row).
+    //   Dispatch       — ShouldActorUpdate, OnOpenText, ShouldVanillaBehavior,
+    //                   OnActorUpdate and OnActorKill all have MM dispatch
+    //                   points in GameExports_SingleExe.cpp, with live
+    //                   unguarded call sites.
+    //
+    // WHAT THE OLD REASON OVER-CLAIMED, recorded so the next re-measure does not
+    // re-learn it. "Song of Double Time will warp into a half-day the player has
+    // not unlocked" was the consequence of the elision only for a player who had
+    // BetterSongOfDoubleTime ON — and while that TU was elided, nobody could:
+    // the CVar existed but its whole enhancement was absent, so vanilla Song of
+    // Double Time ran, and ClockShuffle's OWN proactive skip
+    // (CheckAndSkipUnownedTime on ShouldActorUpdate[ACTOR_EN_TEST4]) still
+    // pushed an unowned destination forward. The accurate statement of the
+    // defect is the one this fix addresses: the two enhancements were dead, so
+    // turning either on did nothing, and their clock-shuffle-aware legs — the
+    // selector refusing an unowned half-day by name, and a Song of Time reset
+    // landing on the earliest OWNED half-day rather than the vanilla dawn — did
+    // not exist to be reached.
     { RO_CLOCK_SHUFFLE, COMBO_MM_GROUP_ITEMS, COMBO_MM_WIDGET_CHECKBOX,
       "Shuffle Time", "Breaks the three-day cycle into six half-days that must be unlocked as items.",
       0, 0, nullptr, 0,
-      COMBO_MM_LIVENESS_PARTIAL,
-      "Song of Double Time can reach unowned half-days: its Songs enhancements are elided from the single-exe "
-      "link (2ship_enh is not WHOLE_ARCHIVE'd)" },
+      COMBO_MM_LIVENESS_LIVE, "" },
     { RO_CLOCK_SHUFFLE_PROGRESSIVE, COMBO_MM_GROUP_ITEMS, COMBO_MM_WIDGET_COMBO,
       "Time Progression", "Random shuffles all six half-days; Ascending and Descending unlock them in order.",
       0, 0, kClockProgressiveLabels, UI_COUNT(kClockProgressiveLabels),
