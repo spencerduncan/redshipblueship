@@ -861,6 +861,10 @@ extern "C" int OoT_RunPairedCreationEvent(int slot) {
             shortfallToast.messageColor[2] = 1.0f;
             shortfallToast.messageColor[3] = 1.0f;
             shortfallToast.remainingTime = 15.0f;
+            // Muted for the same reason the failure toast below is: the creation
+            // event runs inside the display-free locks as well as inside file
+            // select, and Notification::Emit's unmuted arm plays an OoT sound.
+            shortfallToast.mute = 1;
             OoT_Notification_Emit(&shortfallToast);
         }
     }
@@ -884,10 +888,15 @@ extern "C" int OoT_RunPairedCreationEvent(int slot) {
  * refusals use, while the player still has the settings that caused it in front
  * of them.
  *
- * Not muted, unlike the arrival refusals: those fire on MM's boot path where
- * OoT's audio session is not a given, and this one fires inside OoT's own file
- * select where it certainly is. The sound is the part a player looking at the
- * file list rather than the toast will notice.
+ * MUTED, like every other cross-game refusal toast, and the reasoning that said
+ * otherwise was wrong in an instructive way. "This fires inside OoT's own file
+ * select, where the audio session certainly exists" is true of PRODUCTION and
+ * false of this function's other callers: the creation event is driven directly
+ * by the ROM-free and display-free locks, where Notification::Emit's unmuted arm
+ * reaches Audio_PlaySoundGeneral with no archives mounted. That is the same
+ * hazard the arrival refusals mute for, and the seam does not get an exemption
+ * just because its production caller is better equipped. The toast is the
+ * surface; the sound is not load-bearing.
  *
  * VISUAL, THEREFORE UNVERIFIABLE BY THE TIERS. The locks assert the CREATION's
  * verdict (no file written, no identity left, slot refused); that the toast
@@ -920,6 +929,7 @@ extern "C" void OoT_Creation_ReportFailureAtFileSelect(int slot, int reason) {
     failureToast.messageColor[2] = 1.0f;
     failureToast.messageColor[3] = 1.0f;
     failureToast.remainingTime = 20.0f;
+    failureToast.mute = 1; // see the header: this seam is driven by display-free locks too
     OoT_Notification_Emit(&failureToast);
 }
 
