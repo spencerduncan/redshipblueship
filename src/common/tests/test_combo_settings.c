@@ -233,6 +233,8 @@ TestResult Test_ComboSettingsFormat(void) {
     CS_ASSERT(!Combo_ComboSettingsFrozen(), "a freshly initialized context must read as NOT frozen");
     CS_ASSERT(Combo_ForeignPairingRequested(),
               "the pre-condition predicate must answer YES under the shipped defaults, or nothing generates");
+    CS_ASSERT(Combo_ForeignCrossingsRequested(),
+              "the shipped default direction is BOTH, so crossings must be requested under the defaults (#667)");
     // The load-bearing fallback: an unfrozen (zero-extended) record must NOT
     // resolve to pool size 0, which would silently generate a paired world with
     // no crossings at all.
@@ -1099,11 +1101,91 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
               "a different direction and class bitset must change comboSettingsHash — the whole point of folding "
               "the record into the fingerprint");
 
-    // The pre-condition predicate follows the AUTHORED direction (ADR 0009
-    // decision 2): OFF is "no paired world is being asked for".
+    // ---- THE OFF RULING (#667) --------------------------------------------
+    //
+    // Two pre-Fill predicates, and the whole point of the ruling is that they
+    // answer DIFFERENTLY under RSBS_COMBO_DIR_OFF:
+    //
+    //   Combo_ForeignPairingRequested()   -- a paired WORLD is asked for. TRUE
+    //                                        for OFF: ADR 0011 decision 2.3's
+    //                                        gloss, "a paired world with no
+    //                                        crossings — not an unpaired world",
+    //                                        and one-game semantics make it
+    //                                        binding. This assertion is the
+    //                                        inverse of what this file locked
+    //                                        before #667.
+    //   Combo_ForeignCrossingsRequested() -- CROSSINGS are asked for. FALSE for
+    //                                        OFF, which is the question the old
+    //                                        body actually answered.
+    //
+    // Collapsing them again makes OFF read as an unpaired world at the creation
+    // gate, which ships a file whose MM half was never authored.
     CS_ASSERT(Combo_ForeignPairingRequested(), "FORWARD asks for a paired world");
+    CS_ASSERT(Combo_ForeignCrossingsRequested(), "FORWARD asks for crossings");
     CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, (int32_t)RSBS_COMBO_DIR_OFF) == 1, "OFF is authorable");
-    CS_ASSERT(!Combo_ForeignPairingRequested(), "OFF must answer 'no paired world is being asked for'");
+    CS_ASSERT(Combo_ForeignPairingRequested(),
+              "OFF must answer 'a paired world IS being asked for' — it is a paired world with zero crossings (ADR "
+              "0011 decision 2.3), and a creation gate that reads it as unpaired never authors the MM half (#667)");
+    CS_ASSERT(!Combo_ForeignCrossingsRequested(), "OFF must answer 'no crossings are being asked for' (#667)");
+
+    // The RULE itself, over records the resolver cannot produce. This is what
+    // keeps the ruling falsifiable rather than a comment: the predicate above
+    // resolves its own record from the keys, and the keys reject an out-of-space
+    // direction, so the only way to drive the false branches is to hand the rule
+    // a record directly.
+    {
+        ComboSettingsRecord probe;
+        Combo_ComboSettingsDefaults(&probe);
+        CS_ASSERT(!Combo_ComboSettingsDescribePairedWorld(NULL), "a NULL record describes no world");
+        probe.direction = (uint8_t)RSBS_COMBO_DIR_OFF;
+        CS_ASSERT(Combo_ComboSettingsDescribePairedWorld(&probe), "OFF describes a paired world (#667)");
+        probe.direction = (uint8_t)RSBS_COMBO_DIR_FORWARD;
+        CS_ASSERT(Combo_ComboSettingsDescribePairedWorld(&probe), "FORWARD describes a paired world");
+        probe.direction = (uint8_t)RSBS_COMBO_DIR_REVERSE;
+        CS_ASSERT(Combo_ComboSettingsDescribePairedWorld(&probe), "REVERSE describes a paired world");
+        probe.direction = (uint8_t)RSBS_COMBO_DIR_BOTH;
+        CS_ASSERT(Combo_ComboSettingsDescribePairedWorld(&probe), "BOTH describes a paired world");
+        // 0 is unreachable inside a formatted record by construction (decision
+        // 1.3) and 99 is simply not an enumerator; both are rules no consumer can
+        // interpret, so a creation must refuse rather than clamp them.
+        probe.direction = 0u;
+        CS_ASSERT(!Combo_ComboSettingsDescribePairedWorld(&probe),
+                  "direction 0 is not a pinned enumerator and must refuse a creation");
+        probe.direction = 99u;
+        CS_ASSERT(!Combo_ComboSettingsDescribePairedWorld(&probe),
+                  "an out-of-space direction must refuse a creation, never be clamped into one");
+        probe.direction = (uint8_t)RSBS_COMBO_DIR_BOTH;
+        probe.formatVersion = 0u;
+        CS_ASSERT(!Combo_ComboSettingsDescribePairedWorld(&probe),
+                  "formatVersion 0 is the ABSENT tag (decision 4.2) — freezing it would stamp 'no record' as this "
+                  "world's identity");
+    }
+
+    // THE IDENTITY THE CREATION GATE RESTS ON (#657). The pre-Fill question
+    // (Combo_ForeignCrossingsRequested, from the keys) and the post-freeze one
+    // (Combo_ComboDirectionArms, from the record) must be the same fact read from
+    // two surfaces. Driven over EVERY pinned direction, so adding a fifth
+    // enumerator that arms neither origin — or that arms one while reading as OFF
+    // — is caught here rather than at a player's file select.
+    {
+        const int32_t kPinnedDirections[] = { (int32_t)RSBS_COMBO_DIR_OFF, (int32_t)RSBS_COMBO_DIR_FORWARD,
+                                              (int32_t)RSBS_COMBO_DIR_REVERSE, (int32_t)RSBS_COMBO_DIR_BOTH };
+        for (size_t i = 0; i < sizeof(kPinnedDirections) / sizeof(kPinnedDirections[0]); i++) {
+            CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, kPinnedDirections[i]) == 1,
+                      "every pinned direction must be authorable while nothing is frozen");
+            // Unfrozen, so Combo_ComboDirectionArms serves the LIVE resolution —
+            // which is what makes this an identity over the same input rather
+            // than a comparison of two different worlds.
+            const bool arms =
+                Combo_ComboDirectionArms((uint8_t)GAME_OOT) || Combo_ComboDirectionArms((uint8_t)GAME_MM);
+            CS_ASSERT(Combo_ForeignCrossingsRequested() == arms,
+                      "the pre-Fill crossings question and the frozen-record one disagree for a pinned direction — "
+                      "the creation gate compares them and would refuse every creation (#657)");
+            CS_ASSERT(Combo_ForeignPairingRequested(),
+                      "every pinned direction describes a paired world, OFF included (#667)");
+        }
+    }
+
     CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, (int32_t)RSBS_COMBO_DIR_FORWARD) == 1, "back to FORWARD");
 
     // THE CREATION EVENT'S OWN ORDER (Playthrough_Init; decision 4.1): resolve
@@ -1111,6 +1193,14 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
     // the player authored, not the defaults.
     ComboContext_Init();
     ComboSettingsArmPairing(0xA07A0002u, kSettingsHash, kProfileDigest);
+    // THE GATE REFUSES AN UNFROZEN WORLD (#657), whatever the pre-Fill ask was.
+    // A creation that reached the check with nothing frozen has no identity for
+    // the file-create seam or any arrival to read, and formatVersion 0 makes such
+    // a world indistinguishable from an uncreated one (decision 4.2).
+    CS_ASSERT(!Combo_ComboSettingsFrozen(), "precondition: nothing is frozen yet");
+    CS_ASSERT(!Combo_ForeignCreationGateHolds(true), "an unfrozen world must fail the creation gate (#657)");
+    CS_ASSERT(!Combo_ForeignCreationGateHolds(false),
+              "an unfrozen world must fail the creation gate whichever answer the pre-Fill ask gave (#657)");
     ComboSettingsRecord toFreeze;
     Combo_ResolveComboSettings(&toFreeze);
     const uint32_t frozenHash = Combo_FreezeComboSettings(&toFreeze);
@@ -1132,6 +1222,16 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
     CS_ASSERT(Combo_ComboPoolSizeFor((uint8_t)GAME_MM) == 3, "the reverse pass reads the frozen MM pool size");
     CS_ASSERT(Combo_ComboItemClassFor((uint8_t)GAME_OOT) == (RSBS_ITEMCLASS_SONGS | RSBS_ITEMCLASS_MASKS),
               "the forward pass reads the frozen OoT class bitset");
+    // ...and THE CREATION GATE'S SECOND ACT (#657): the frozen record has to
+    // reproduce the answer the CVars gave before Fill(). FORWARD authors
+    // crossings, so the gate holds for `true` and REFUSES `false` — the shape of
+    // the refusal playthrough.cpp rolls the whole freeze back on, which is what
+    // stops a world being filled under rules the player did not ask for.
+    CS_ASSERT(Combo_ForeignCreationGateHolds(true),
+              "the frozen FORWARD record authors crossings, so the gate must hold for a pre-Fill ask of yes (#657)");
+    CS_ASSERT(!Combo_ForeignCreationGateHolds(false),
+              "the gate must REFUSE when the frozen record and the pre-Fill ask disagree — otherwise the freeze "
+              "preserves nothing and the seam can reach its own conclusion (#657)");
 
     // ---- (4) The writers REFUSE once frozen (ADR 0004 §6 state 4) ---------
     // Locked at the writers, not the widget: the pane is one caller, and every
