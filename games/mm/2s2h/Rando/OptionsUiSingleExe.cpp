@@ -733,18 +733,50 @@ const MMRandoTrickId kBoundTricks[] = {
     // part 2. Logic/Regions/North.cpp — the Mountain Village -> Goron Graveyard
     // exit, the site MMRT_LENS excludes by name.
     MMRT_DARMANI_WALL,
+    // part 3. Logic/Regions/West.cpp — RR_PINNACLE_ROCK_ENTRANCE's connection to
+    // RR_PINNACLE_ROCK_INNER; the seahorse term only, CAN_BE_ZORA kept.
+    MMRT_NO_SEAHORSE,
     // part 2. Logic/Regions/West.cpp — the four Zora Hall back-room doors.
     MMRT_ZORA_HALL_HUMAN,
+    // part 3. Logic/Regions/East.cpp — RR_IKANA_CANYON_LOWER's connection to
+    // RR_IKANA_CANYON_UPPER; the Ice Arrow term only, the Hookshot kept.
+    MMRT_ICELESS_IKANA,
     // part 2. Logic/Regions/MilkRoad.cpp — RR_MILK_ROAD <->
     // RR_MILK_ROAD_BEHIND_FENCE, both directions.
     MMRT_GORON_BOMB_JUMP,
+    // part 3. Logic/Regions/Central.cpp — RE_BOMBER_CODE, which is what both
+    // RC_CLOCK_TOWN_BOMBERS_NOTEBOOK rows already read.
+    MMRT_BOMBER_GUESS,
+    // part 3. Logic/Regions/SnowheadTemple.cpp —
+    // RR_SNOWHEAD_TEMPLE_PILLARS_ROOM_LOWER's connection up, that room only.
+    MMRT_SHT_PILLAR_ROOM_HOOKSHOT,
     // part 1 (finding (a)). Logic/Logic.h's CAN_USE_EXPLOSIVE — 32 uses across
     // Regions/ plus the CanKillEnemy table.
     MMRT_KEG_EXPLOSIVES,
     // part 2. Logic/Regions/MilkRoad.cpp — RC_DOGGY_RACETRACK_CHEST.
     MMRT_DOG_RACE_CHEST_NOTHING,
+    // part 3. Logic/Regions/South.cpp — RC_SOUTHERN_SWAMP_PIECE_OF_HEART's
+    // CAN_BE_DEKU term; the Land Title Deed flag kept.
+    MMRT_SOUTHERN_SWAMP_SCRUB_HP_GORON,
+    // part 3. Logic/Regions/West.cpp — RC_ZORA_HALL_SCRUB_PIECE_OF_HEART's
+    // CAN_BE_DEKU term; the Mountain Title Deed flag and CAN_BE_GORON kept.
+    MMRT_ZORA_HALL_SCRUB_HP_NO_DEKU,
     // part 2. Logic/Regions/Central.cpp — RC_CLOCK_TOWN_WEST_POSTMAN_MINIGAME.
     MMRT_POST_OFFICE_GAME,
+    // part 3. Logic/Regions/BeneathTheWell.cpp — the Dexihand room's
+    // RE_ACCESS_HOT_SPRING_WATER.
+    MMRT_WELL_HSW,
+    // part 3. Logic/Regions/GreatBayTemple.cpp —
+    // RC_GREAT_BAY_TEMPLE_ENTRANCE_CHEST, with the Bow as the disjunct's own term.
+    MMRT_GBT_ENTRANCE_BOW,
+    // part 3. Logic/Regions/Central.cpp — the two Clock Town West bank rewards
+    // that carry a wallet term.
+    MMRT_BANK_NO_WALLET,
+    // part 3. Logic/Regions/StoneTowerTemple.cpp — the eight Zora-gated
+    // pre-Twinmold floating rupees.
+    MMRT_ISTT_RUPEES_GORON,
+    // part 3. Logic/Regions/Central.cpp — North Clock Town's two Tingle maps.
+    MMRT_NCT_TINGLE,
     // part 2. Logic/Regions/WoodfallTemple.cpp (the water-room hive) and
     // Logic/Regions/PiratesFortress.cpp (RE_PIRATE_FORTRESS_BEEHIVE_HIT).
     MMRT_HIVE_BOMBCHU,
