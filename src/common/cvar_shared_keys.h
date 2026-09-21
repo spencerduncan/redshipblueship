@@ -544,6 +544,202 @@ constexpr bool ComboIdentityKeysAreIdentity() {
     return true;
 }
 
+// ============================================================================
+// The curated MM enhancement toggles hosted in the unified menu (#682)
+// ============================================================================
+/**
+ * WHY THIS TABLE IS HERE. `games/mm/2s2h/BenGui/BenMenu.cpp` is excluded from
+ * the single exe, so MM's own enhancement toggles have no widget anywhere: the
+ * only way to reach them was `shipofharkinian.json` or the console. #682 asks
+ * for a CURATED allowlist rather than BenMenu's whole table, each row carrying
+ * ADR 0004 section 5's three-part liveness evidence (the provider TU links, its
+ * registrar runs, its hook type has an MM dispatch point).
+ *
+ * The rows live in this header, next to the classification tables, for the
+ * reason the MM randomizer-options table gives for its own descriptors: a menu
+ * row that spells its own CVar literal can drift from the provider that reads
+ * it, and the drift is invisible — the widget flips a key nothing consults
+ * (#499's exact failure). One table, read by the menu page AND by the locks,
+ * makes a typo a red test instead of a dead control.
+ *
+ * SCOPE, deliberately narrow. Four keys, the four #682 names. Widening the
+ * allowlist is a separate decision, because `2ship_enh` is a plain archive by
+ * design (see `.github/scripts/check-registrar-elision.sh`: most of its members
+ * must legitimately stay dead in single-exe) and #427 item 3 keeps
+ * "WHOLE_ARCHIVE the lot" as its own call.
+ *
+ * NOT world identity. Every key here is a PREFERENCE: it shapes how the game
+ * plays for this player, never what the paired world contains, so none of them
+ * is frozen at creation and none enters a digest. That is why the table is not a
+ * `ComboKey` — it needs no `ComboKeyClass` at all.
+ */
+enum class MmEnhancementLiveness {
+    /// ADR 0004 section 5 satisfied on all three legs: the provider TU survives
+    /// the link, its registrar runs (or it needs none — see `registrarKey`), and
+    /// the hook type it rides has a real MM dispatch point.
+    Live,
+    /// Some legs live, at least one dormant. Draw the row DISABLED with the
+    /// reason; a control that half-arms is worse than no control (#682).
+    Partial,
+    /// The provider is elided, its registrar never runs, or its hook type has no
+    /// MM dispatch point (#438). Draw it disabled with the reason.
+    Dormant,
+};
+
+/** Where the control for a key lives. */
+enum class MmEnhancementHosting {
+    /// This page owns the widget: nothing else in the unified menu writes the key.
+    OwnRow,
+    /// A row ALREADY EXISTS elsewhere in the unified menu and writes this key,
+    /// and OoT's `ShipInit::Init` forwards the change to MM's registrar map
+    /// (#539/#614), so MM's half re-arms from that click. This page points at it
+    /// instead of adding a second writer over one key.
+    HostedElsewhere,
+};
+
+/** One hosted MM enhancement, with the evidence for its liveness class. */
+struct HostedMmEnhancement {
+    const char* key;     ///< The CVar the provider TU reads. Never NULL or empty.
+    const char* label;   ///< Menu row name (OwnRow) or the row that points at it.
+    const char* tooltip; ///< One-or-two sentences for the player. Never empty.
+    /// Repo-relative provider TU(s) that READ `key`, with line anchors. This is
+    /// leg 1 of section 5's test written down.
+    const char* provider;
+    /// The `S2H::ShipInit` path the provider's registrar is keyed on — normally
+    /// `key` itself. NULL for a provider that needs NO registrar because it
+    /// reads the CVar inline on a path the frame loop already runs (leg 2 is
+    /// then not "the registrar ran" but "there is nothing to arm").
+    const char* registrarKey;
+    /// How a lock ATTRIBUTES the registrar to this provider without naming its
+    /// symbol (naming it would itself be the inbound reference that keeps the TU
+    /// in the link, and the probe would pass vacuously — the discipline
+    /// mm_registrar_coverage_test.cpp and mm_clock_shuffle_songs_test.cpp
+    /// follow). EMPTY exactly when `registrarKey` is NULL.
+    const char* registryProbe;
+    MmEnhancementHosting hosting;
+    MmEnhancementLiveness liveness;
+    /// Why the row is not fully live, for the disabled tooltip. EMPTY (never
+    /// NULL) exactly when `liveness` is Live — a dormant row with no reason is a
+    /// control that looks broken, and a live row with one is a control that
+    /// looks broken and is not.
+    const char* reason;
+};
+
+inline constexpr HostedMmEnhancement kHostedMmEnhancements[] = {
+    // MM's kaleido game-over chain: "GAME OVER", the save prompt, "Continue
+    // playing?". NO REGISTRAR AT ALL — both readers are inline CVarGetInteger
+    // calls in MM's own decomp, on paths z_play.c already drives every frame
+    // (MM_GameOver_Update at z_play.c:1173, the kaleido prompt draw inside
+    // KaleidoScope_Draw), and both TUs are in `2ship_src`, pulled by real
+    // references rather than by archive semantics. So leg 2 is vacuous by
+    // construction and leg 3 is z_play's own switch. #653 traced MM death
+    // straight to vanilla respawn because NOTHING in this repository writes the
+    // key: no widget, no ShipInit seed, no preset. This row is that fix. The
+    // operator's 2026-09-16 ruling keeps the DEFAULT (off, vanilla respawn);
+    // exposing the toggle does not change it.
+    { "gEnhancements.Kaleido.GameOver", "Game Over Prompt",
+      "Majora's Mask only. Dying opens Majora's Mask's \"GAME OVER\" screen with the save prompt and "
+      "\"Continue playing?\", the way Ocarina of Time's half always does, instead of reloading the area entrance "
+      "with three hearts. Off by default (#653): the reload is 2ship's inherited behaviour and the operator kept it. "
+      "The prompt's own artwork has never been drawn in this build - see #682.",
+      "games/mm/src/code/z_game_over.c:84, "
+      "games/mm/src/overlays/kaleido_scope/ovl_kaleido_scope/z_kaleido_scope_NES.c:978",
+      nullptr, "", MmEnhancementHosting::OwnRow, MmEnhancementLiveness::Live, "" },
+
+    // The two ClockShuffle-consuming Songs enhancements. #679 carved their TUs
+    // into `2ship_enh_clockshuffle` and links it WHOLE_ARCHIVE, and
+    // check-registrar-elision.sh audits that archive as `required`, so leg 1 is
+    // enforced on every CI build. Legs 2 and 3 are MMClockShuffleSongs'
+    // registry-content probes.
+    { "gEnhancements.Songs.BetterSongOfDoubleTime", "Better Song of Double Time",
+      "Majora's Mask only. Song of Double Time asks for any time of day rather than only the next dawn or dusk, "
+      "and refuses a half-day this file does not own when Clock Shuffle is on.",
+      "games/mm/2s2h/Enhancements/Songs/BetterSongOfDoubleTime.cpp:472",
+      "gEnhancements.Songs.BetterSongOfDoubleTime", "ShouldVanillaBehavior[VB_DISPLAY_SONG_OF_DOUBLE_TIME_PROMPT]",
+      MmEnhancementHosting::OwnRow, MmEnhancementLiveness::Live, "" },
+    { "gEnhancements.Songs.SkipSoTCutscenes", "Skip Song of Time Cutscenes",
+      "Majora's Mask only. Skips the Song of Time, Inverted Song of Time and Song of Double Time cutscenes. "
+      "With Clock Shuffle on, a Song of Time reset lands on the earliest half-day this file owns instead of the "
+      "vanilla dawn.",
+      "games/mm/2s2h/Enhancements/Songs/SkipSoTCutscenes.cpp:101", "gEnhancements.Songs.SkipSoTCutscenes",
+      "OnActorUpdate[ACTOR_EN_TEST6]", MmEnhancementHosting::OwnRow, MmEnhancementLiveness::Live, "" },
+
+    // AUTOSAVE IS ALREADY HOSTED, and #682's premise for this one row is false.
+    // `gEnhancements.Autosave` is the CANONICAL converged key (see
+    // kConvergedKeys above: MM's `gEnhancements.Saving.Autosave` retired onto
+    // it), and OoT's own Enhancements page has carried a checkbox on it all
+    // along (games/oot/soh/SohGui/SohMenuEnhancements.cpp:156). Since #539 every
+    // SohMenu widget funnels through OoT's `ShipInit::Init`, which forwards to
+    // `MM_ShipInit_OnCVarChanged`, and since #614/#629 MM's `RegisterAutosave`
+    // sits in `S2H::ShipInit` under this exact key — so that one click already
+    // re-arms BOTH halves. A second checkbox here would be a second writer over
+    // one key with nothing to gain, which is the duplicate-host shape #655
+    // removed for the tier-4 rules. The row points at the live control instead.
+    { "gEnhancements.Autosave", "Autosave (hosted under Enhancements)",
+      "Applies to both games. The control is Enhancements -> Saving -> \"Autosave\"; clicking it re-arms Majora's "
+      "Mask's periodic owl save too (#614/#629). Majora's Mask's interval is a separate, Majora's-Mask-only key "
+      "(gEnhancements.Saving.AutosaveInterval, 5 minutes) that no widget writes yet.",
+      "games/mm/2s2h/Enhancements/Saving/SavingEnhancements.cpp:463", "gEnhancements.Autosave",
+      "OnGameStateDrawFinish", MmEnhancementHosting::HostedElsewhere, MmEnhancementLiveness::Live, "" },
+};
+
+inline constexpr std::size_t kHostedMmEnhancementCount =
+    sizeof(kHostedMmEnhancements) / sizeof(kHostedMmEnhancements[0]);
+
+/** constexpr `str == ""`, for the honesty check below. A NULL reads as empty. */
+constexpr bool MmEnhStringEmpty(const char* s) {
+    return s == nullptr || s[0] == '\0';
+}
+
+/** constexpr `strcmp(a, b) == 0`. Both must be non-NULL. */
+constexpr bool MmEnhStringEqual(const char* a, const char* b) {
+    std::size_t i = 0;
+    for (; a[i] != '\0' && b[i] != '\0'; i++) {
+        if (a[i] != b[i]) {
+            return false;
+        }
+    }
+    return a[i] == b[i];
+}
+
+/**
+ * The invariants a row cannot be allowed to break, checked at COMPILE time so a
+ * badly-classified row is a red build before it is a red test:
+ *
+ *  - key, label, tooltip and provider are all present. A row with no provider
+ *    has no leg-1 evidence at all, which is the claim-without-measurement #669
+ *    was filed about.
+ *  - `reason` is empty EXACTLY when the row is Live. Both directions.
+ *  - `registryProbe` is empty EXACTLY when `registrarKey` is NULL. A probe with
+ *    no registrar to attribute, or a registrar nothing can attribute, is a
+ *    liveness claim nobody can check.
+ *  - keys are unique. Two rows on one key would draw two controls over it.
+ */
+constexpr bool HostedMmEnhancementsAreHonest() {
+    for (std::size_t i = 0; i < kHostedMmEnhancementCount; i++) {
+        const HostedMmEnhancement& row = kHostedMmEnhancements[i];
+        if (MmEnhStringEmpty(row.key) || MmEnhStringEmpty(row.label) || MmEnhStringEmpty(row.tooltip) ||
+            MmEnhStringEmpty(row.provider)) {
+            return false;
+        }
+        if (row.reason == nullptr || row.registryProbe == nullptr) {
+            return false;
+        }
+        if (MmEnhStringEmpty(row.reason) != (row.liveness == MmEnhancementLiveness::Live)) {
+            return false;
+        }
+        if (MmEnhStringEmpty(row.registryProbe) != (row.registrarKey == nullptr)) {
+            return false;
+        }
+        for (std::size_t j = i + 1; j < kHostedMmEnhancementCount; j++) {
+            if (MmEnhStringEqual(row.key, kHostedMmEnhancements[j].key)) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 inline constexpr std::size_t kConvergedKeyCount = sizeof(kConvergedKeys) / sizeof(kConvergedKeys[0]);
 inline constexpr std::size_t kRetiredKeyPrefixCount = sizeof(kRetiredKeyPrefixes) / sizeof(kRetiredKeyPrefixes[0]);
 inline constexpr std::size_t kMustStayDistinctCount = sizeof(kMustStayDistinct) / sizeof(kMustStayDistinct[0]);
@@ -581,6 +777,17 @@ inline constexpr std::size_t kComboKeyCount = sizeof(kComboKeys) / sizeof(kCombo
 // dropped row a compile error; the lock's tree scan makes a silently ADDED key a
 // red test.
 static_assert(kComboKeyCount == 10, "six gCombo.Rando.* identity keys + four gCombo.Windows.* preferences = 10");
+
+// #682's curated allowlist is exactly the four keys the issue names. Pinning the
+// count makes both a silently dropped row and a quietly WIDENED allowlist a
+// compile error: widening is #427 item 3's separate decision, not a side effect.
+static_assert(kHostedMmEnhancementCount == 4,
+              "#682's curated MM enhancement allowlist: Kaleido.GameOver, Songs.BetterSongOfDoubleTime, "
+              "Songs.SkipSoTCutscenes, Autosave");
+static_assert(HostedMmEnhancementsAreHonest(),
+              "a hosted MM enhancement row is dishonest: a missing key/label/tooltip/provider, a reason that does "
+              "not match its liveness class, a registry probe with no registrar (or the reverse), or two rows on "
+              "one key");
 static_assert(ComboIdentityKeysAreIdentity(),
               "every gCombo.Rando.* key authors the frozen ComboSettingsRecord and MUST be classified Identity "
               "(ADR 0004 §6 state 4; ADR 0011 increment 2)");
