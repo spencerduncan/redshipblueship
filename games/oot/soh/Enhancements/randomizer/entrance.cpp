@@ -637,13 +637,60 @@ static void SetShuffledEntrances(EntrancePools entrancePools) {
     }
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// RSBS #661: the Happy Mask Shop door IS the OoT<->MM crossing. src/common/
+// entrance.h pins the combo's crossing to the VANILLA entrance ids
+// (OOT_ENTR_HAPPY_MASK_SHOP 0x0530 / OOT_ENTR_MARKET_FROM_MASK_SHOP), and
+// src/common/entrance.cpp never consults Randomizer_GetEntranceOverrides(), so if
+// OoT's own entrance shuffle rewires this pair then the door the player walks
+// through and the door the combo thinks it owns stop being the same door.
+//
+// The operator ruled (2026-09-17) that the pin is the fix, rather than resolving
+// the crossing region through whatever replacement the shuffle picked. It is
+// UNCONDITIONAL in single-exe builds, not gated on a runtime
+// Combo_ForeignPairingRequested() query: the crossing is the combo's reason to
+// exist, and one-game semantics require the entrance topology a file is generated
+// with to be the topology it is played with, so the pool must not depend on a
+// predicate that can answer differently at generation time and at arrival time.
+//
+// Region-keyed rather than index-keyed on purpose: the pool is built out of the
+// region graph (the EntranceType::Interior pair RR_THE_MARKET <->
+// RR_MARKET_MASK_SHOP declared in this file), and the entrance index is only
+// attached later, by SetAllEntrancesData().
+static bool EntranceIsCrossGameCrossing(const Entrance* entrance) {
+    const RandomizerRegion parent = entrance->GetParentRegionKey();
+    const RandomizerRegion connected = entrance->GetOriginalConnectedRegionKey();
+    return (parent == RR_THE_MARKET && connected == RR_MARKET_MASK_SHOP) ||
+           (parent == RR_MARKET_MASK_SHOP && connected == RR_THE_MARKET);
+}
+#endif
+
+// Every shuffle-POOL construction site goes through this instead of calling
+// GetShuffleableEntrances() directly, so one filter covers the Interior pool, the
+// decoupled InteriorReverse pool derived from it, the Mixed pool folded out of it,
+// and the one-way (Spawn / Warp Song) target pools that may include interiors.
+//
+// The two `EntranceType::All` walks are deliberately NOT routed through here:
+// ValidateWorld()'s age-access check and CreateEntranceOverrides() iterate every
+// entrance and then filter on IsShuffled(), which is false for a pinned pair
+// precisely because it never entered a pool. Filtering them too would be
+// redundant, and hiding the pair from CreateEntranceOverrides' input would be the
+// wrong mechanism for keeping it out of the override table.
+static std::vector<Entrance*> GetShufflePoolEntrances(EntranceType type, bool onlyPrimary = true) {
+    std::vector<Entrance*> pool = GetShuffleableEntrances(type, onlyPrimary);
+#ifdef RSBS_SINGLE_EXECUTABLE
+    FilterAndEraseFromPool(pool, [](Entrance* entrance) { return EntranceIsCrossGameCrossing(entrance); });
+#endif
+    return pool;
+}
+
 static std::vector<Entrance*>
 BuildOneWayTargets(std::vector<EntranceType> typesToInclude,
                    std::vector<std::pair<RandomizerRegion, RandomizerRegion>> exclude = {} /*, target_region_names*/) {
     std::vector<Entrance*> oneWayEntrances = {};
     // Get all entrances of the specified type
     for (EntranceType poolType : typesToInclude) {
-        AddElementsToPool(oneWayEntrances, GetShuffleableEntrances(poolType, false));
+        AddElementsToPool(oneWayEntrances, GetShufflePoolEntrances(poolType, false));
     }
     // Filter out any that are passed in the exclusion list
     FilterAndEraseFromPool(oneWayEntrances, [&exclude](Entrance* entrance) {
@@ -1221,17 +1268,17 @@ int EntranceShuffler::ShuffleAllEntrances() {
 
     // Owl Drops
     if (ctx->GetOption(RSK_SHUFFLE_OWL_DROPS)) {
-        oneWayEntrancePools[EntranceType::OwlDrop] = GetShuffleableEntrances(EntranceType::OwlDrop);
+        oneWayEntrancePools[EntranceType::OwlDrop] = GetShufflePoolEntrances(EntranceType::OwlDrop);
     }
 
     // Spawns
     if (ctx->GetOption(RSK_SHUFFLE_OVERWORLD_SPAWNS)) {
-        oneWayEntrancePools[EntranceType::Spawn] = GetShuffleableEntrances(EntranceType::Spawn);
+        oneWayEntrancePools[EntranceType::Spawn] = GetShufflePoolEntrances(EntranceType::Spawn);
     }
 
     // Warpsongs
     if (ctx->GetOption(RSK_SHUFFLE_WARP_SONGS)) {
-        oneWayEntrancePools[EntranceType::WarpSong] = GetShuffleableEntrances(EntranceType::WarpSong);
+        oneWayEntrancePools[EntranceType::WarpSong] = GetShufflePoolEntrances(EntranceType::WarpSong);
         // In Glitchless, there aren't any other ways to access these areas
         if (ctx->GetOption(RSK_LOGIC_RULES).Is(RO_LOGIC_GLITCHLESS)) {
             oneWayPriorities["Bolero"] = priorityEntranceTable["Bolero"];
@@ -1245,8 +1292,8 @@ int EntranceShuffler::ShuffleAllEntrances() {
     // Shuffle Bosses
     if (ctx->GetOption(RSK_SHUFFLE_BOSS_ENTRANCES).IsNot(RO_BOSS_ROOM_ENTRANCE_SHUFFLE_OFF)) {
         if (ctx->GetOption(RSK_SHUFFLE_BOSS_ENTRANCES).Is(RO_BOSS_ROOM_ENTRANCE_SHUFFLE_FULL)) {
-            entrancePools[EntranceType::Boss] = GetShuffleableEntrances(EntranceType::ChildBoss);
-            AddElementsToPool(entrancePools[EntranceType::Boss], GetShuffleableEntrances(EntranceType::AdultBoss));
+            entrancePools[EntranceType::Boss] = GetShufflePoolEntrances(EntranceType::ChildBoss);
+            AddElementsToPool(entrancePools[EntranceType::Boss], GetShufflePoolEntrances(EntranceType::AdultBoss));
             if (ctx->GetOption(RSK_DECOUPLED_ENTRANCES)) {
                 for (Entrance* entrance : entrancePools[EntranceType::Boss]) {
                     entrancePools[EntranceType::BossReverse].push_back(entrance->GetReverse());
@@ -1254,16 +1301,16 @@ int EntranceShuffler::ShuffleAllEntrances() {
             }
 
             if (ctx->GetOption(RSK_SHUFFLE_GANONS_TOWER_ENTRANCE).IsNot(RO_GENERIC_OFF)) {
-                AddElementsToPool(entrancePools[EntranceType::Boss], GetShuffleableEntrances(EntranceType::GanonTower));
+                AddElementsToPool(entrancePools[EntranceType::Boss], GetShufflePoolEntrances(EntranceType::GanonTower));
                 if (ctx->GetOption(RSK_DECOUPLED_ENTRANCES)) {
-                    for (Entrance* entrance : GetShuffleableEntrances(EntranceType::GanonTower)) {
+                    for (Entrance* entrance : GetShufflePoolEntrances(EntranceType::GanonTower)) {
                         entrancePools[EntranceType::BossReverse].push_back(entrance->GetReverse());
                     }
                 }
             }
         } else {
-            entrancePools[EntranceType::ChildBoss] = GetShuffleableEntrances(EntranceType::ChildBoss);
-            entrancePools[EntranceType::AdultBoss] = GetShuffleableEntrances(EntranceType::AdultBoss);
+            entrancePools[EntranceType::ChildBoss] = GetShufflePoolEntrances(EntranceType::ChildBoss);
+            entrancePools[EntranceType::AdultBoss] = GetShufflePoolEntrances(EntranceType::AdultBoss);
             if (ctx->GetOption(RSK_DECOUPLED_ENTRANCES)) {
                 for (Entrance* entrance : entrancePools[EntranceType::ChildBoss]) {
                     entrancePools[EntranceType::ChildBossReverse].push_back(entrance->GetReverse());
@@ -1275,9 +1322,9 @@ int EntranceShuffler::ShuffleAllEntrances() {
 
             if (ctx->GetOption(RSK_SHUFFLE_GANONS_TOWER_ENTRANCE).IsNot(RO_GENERIC_OFF)) {
                 AddElementsToPool(entrancePools[EntranceType::AdultBoss],
-                                  GetShuffleableEntrances(EntranceType::GanonTower));
+                                  GetShufflePoolEntrances(EntranceType::GanonTower));
                 if (ctx->GetOption(RSK_DECOUPLED_ENTRANCES)) {
-                    for (Entrance* entrance : GetShuffleableEntrances(EntranceType::GanonTower)) {
+                    for (Entrance* entrance : GetShufflePoolEntrances(EntranceType::GanonTower)) {
                         entrancePools[EntranceType::AdultBossReverse].push_back(entrance->GetReverse());
                     }
                 }
@@ -1287,11 +1334,11 @@ int EntranceShuffler::ShuffleAllEntrances() {
 
     // Shuffle Dungeon Entrances
     if (ctx->GetOption(RSK_SHUFFLE_DUNGEON_ENTRANCES).IsNot(RO_DUNGEON_ENTRANCE_SHUFFLE_OFF)) {
-        entrancePools[EntranceType::Dungeon] = GetShuffleableEntrances(EntranceType::Dungeon);
+        entrancePools[EntranceType::Dungeon] = GetShufflePoolEntrances(EntranceType::Dungeon);
         // Add Ganon's Castle, if set to On + Ganon
         if (ctx->GetOption(RSK_SHUFFLE_DUNGEON_ENTRANCES).Is(RO_DUNGEON_ENTRANCE_SHUFFLE_ON_PLUS_GANON)) {
             AddElementsToPool(entrancePools[EntranceType::Dungeon],
-                              GetShuffleableEntrances(EntranceType::GanonDungeon));
+                              GetShufflePoolEntrances(EntranceType::GanonDungeon));
         }
         if (ctx->GetOption(RSK_DECOUPLED_ENTRANCES)) {
             for (Entrance* entrance : entrancePools[EntranceType::Dungeon]) {
@@ -1302,11 +1349,11 @@ int EntranceShuffler::ShuffleAllEntrances() {
 
     // Interior entrances
     if (ctx->GetOption(RSK_SHUFFLE_INTERIOR_ENTRANCES).IsNot(RO_INTERIOR_ENTRANCE_SHUFFLE_OFF)) {
-        entrancePools[EntranceType::Interior] = GetShuffleableEntrances(EntranceType::Interior);
+        entrancePools[EntranceType::Interior] = GetShufflePoolEntrances(EntranceType::Interior);
         // Special interiors
         if (ctx->GetOption(RSK_SHUFFLE_INTERIOR_ENTRANCES).Is(RO_INTERIOR_ENTRANCE_SHUFFLE_ALL)) {
             AddElementsToPool(entrancePools[EntranceType::Interior],
-                              GetShuffleableEntrances(EntranceType::SpecialInterior));
+                              GetShufflePoolEntrances(EntranceType::SpecialInterior));
         }
         if (ctx->GetOption(RSK_DECOUPLED_ENTRANCES)) {
             for (Entrance* entrance : entrancePools[EntranceType::Interior]) {
@@ -1317,7 +1364,7 @@ int EntranceShuffler::ShuffleAllEntrances() {
 
     // Thieves' Hideout entrances
     if (ctx->GetOption(RSK_SHUFFLE_THIEVES_HIDEOUT_ENTRANCES)) {
-        entrancePools[EntranceType::ThievesHideout] = GetShuffleableEntrances(EntranceType::ThievesHideout);
+        entrancePools[EntranceType::ThievesHideout] = GetShufflePoolEntrances(EntranceType::ThievesHideout);
 
         if (ctx->GetOption(RSK_DECOUPLED_ENTRANCES)) {
             for (Entrance* entrance : entrancePools[EntranceType::ThievesHideout]) {
@@ -1328,7 +1375,7 @@ int EntranceShuffler::ShuffleAllEntrances() {
 
     // grotto entrances
     if (ctx->GetOption(RSK_SHUFFLE_GROTTO_ENTRANCES)) {
-        entrancePools[EntranceType::GrottoGrave] = GetShuffleableEntrances(EntranceType::GrottoGrave);
+        entrancePools[EntranceType::GrottoGrave] = GetShufflePoolEntrances(EntranceType::GrottoGrave);
 
         if (ctx->GetOption(RSK_DECOUPLED_ENTRANCES)) {
             for (Entrance* entrance : entrancePools[EntranceType::GrottoGrave]) {
@@ -1342,7 +1389,7 @@ int EntranceShuffler::ShuffleAllEntrances() {
         bool excludeOverworldReverse =
             ctx->GetOption(RSK_MIX_OVERWORLD_ENTRANCES) && !ctx->GetOption(RSK_DECOUPLED_ENTRANCES);
         entrancePools[EntranceType::Overworld] =
-            GetShuffleableEntrances(EntranceType::Overworld, excludeOverworldReverse);
+            GetShufflePoolEntrances(EntranceType::Overworld, excludeOverworldReverse);
         // Only shuffle GV Lower Stream -> Lake Hylia if decoupled entrances are on
         if (!ctx->GetOption(RSK_DECOUPLED_ENTRANCES)) {
             FilterAndEraseFromPool(entrancePools[EntranceType::Overworld], [](const Entrance* entrance) {
@@ -1746,3 +1793,80 @@ void EntranceShuffler::ApplyEntranceOverrides() {
 extern "C" EntranceOverride* Randomizer_GetEntranceOverrides() {
     return Rando::Context::GetInstance()->GetEntranceShuffler()->entranceOverrides.data();
 }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// #661 probe surface for the OoTEntrancePin lock (games/oot/soh/
+// oot_entrance_pin_test.cpp). Both EntranceIsCrossGameCrossing() and
+// GetShufflePoolEntrances() are file-local by design — nothing outside pool
+// construction should consult them — so the lock reaches them through this bridge
+// rather than through a header.
+//
+// Brings the region graph up with no display, no archives and no ROM, so the
+// probe below can run in the display-free `redship` tier. Mirrors the order
+// ShuffleAllEntrances() itself uses: RegionTable_Init() only creates the exits,
+// and it is SetAllEntrancesData() that stamps each one's EntranceType and index
+// off the entranceShuffleTable — without it every exit is EntranceType::None and
+// every pool comes back empty. Idempotent; reuses the live Rando::Context when a
+// generation already created one.
+extern "C" int Rando_InitRegionGraphForTest(void) {
+    auto ctx = Rando::Context::GetInstance();
+    if (!ctx) {
+        ctx = Rando::Context::CreateInstance();
+        ctx->InitStaticData();
+    }
+    RegionTable_Init();
+    Rando::SetAllEntrancesData();
+    return Rando::Context::GetInstance() ? 0 : 1;
+}
+
+// `filtered` picks the builder: 0 = upstream GetShuffleableEntrances(), 1 = the
+// pinning GetShufflePoolEntrances(). Returns the number of crossing entrances in
+// the Interior pool and, when `poolSize` is non-NULL, writes the pool's total
+// size. The lock asserts a NON-ZERO raw count and a ZERO filtered count over the
+// same live region graph, so it proves the filter is what removes the pair — it
+// cannot pass vacuously if upstream ever drops the pair from the Interior table
+// or renames a region.
+extern "C" int Rando_CountCrossingEntrancesInInteriorPool(int onlyPrimary, int filtered, int* poolSize) {
+    const std::vector<Rando::Entrance*> pool =
+        filtered ? Rando::GetShufflePoolEntrances(Rando::EntranceType::Interior, onlyPrimary != 0)
+                 : GetShuffleableEntrances(Rando::EntranceType::Interior, onlyPrimary != 0);
+    if (poolSize != nullptr) {
+        *poolSize = static_cast<int>(pool.size());
+    }
+    int crossings = 0;
+    for (const Rando::Entrance* entrance : pool) {
+        if (Rando::EntranceIsCrossGameCrossing(entrance)) {
+            crossings++;
+        }
+    }
+    return crossings;
+}
+
+// Ties the region-keyed predicate above to the INDEX-keyed crossing the combo
+// layer actually owns (src/common/entrance.h's OOT_ENTR_HAPPY_MASK_SHOP /
+// OOT_ENTR_MARKET_FROM_MASK_SHOP). Runs SetAllEntrancesData() so the entrance
+// indices exist, then reports the indices of the two crossing entrances. Returns
+// how many were found (2 when the pair is intact), or a negative value on a null
+// out-parameter.
+extern "C" int Rando_GetCrossingEntranceIndices(int* forwardIndex, int* reverseIndex) {
+    if (forwardIndex == nullptr || reverseIndex == nullptr) {
+        return -1;
+    }
+    *forwardIndex = -1;
+    *reverseIndex = -1;
+    Rando::SetAllEntrancesData();
+    int found = 0;
+    for (const Rando::Entrance* entrance : GetShuffleableEntrances(Rando::EntranceType::All, false)) {
+        if (!Rando::EntranceIsCrossGameCrossing(entrance)) {
+            continue;
+        }
+        found++;
+        if (entrance->GetParentRegionKey() == RR_THE_MARKET) {
+            *forwardIndex = entrance->GetIndex();
+        } else {
+            *reverseIndex = entrance->GetIndex();
+        }
+    }
+    return found;
+}
+#endif
