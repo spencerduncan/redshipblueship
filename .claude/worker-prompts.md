@@ -125,6 +125,20 @@ are the reasoning behind them.
   external repo, and do not offer it as an option. Document inherited defects in
   this tracker only, with the lineage evidence. PRs against the operator's own
   forks (libultraship, ZAPDTR, OTRExporter) are not upstream reports.
+- **A green determinism row is not evidence that a world did not change.**
+  `SeedDeterminism`/`RandoDeterminism`/`MMPairedAttemptDeterminism` diff two runs
+  of your own binary against each other, so they detect nondeterminism only. The
+  rows that fail on a MOVED world are the golden ones —
+  `GoldenSeedDigestDefault`, `GoldenSeedDigestProfileV1`,
+  `GoldenPairedAttemptDigest` — which compare one run against `tests/golden/`. If
+  your change is meant to move a world, re-pin deliberately
+  (`cmake --build <dir> --target regen-golden-digests`) in its own commit stating
+  which fields moved and why; if it is not, a red golden row is the bug report.
+  Two things the rows do NOT give you: the two seed rows **skip** in a ROM-staged
+  local run, so your local merge gate does not check them (both CI legs do — Linux
+  in the `rando` tier, Windows in its own `^Golden` step); and they pin the
+  archive-free world, not a player's (#702). Full policy:
+  `docs/determinism-goldens.md`.
 - This project is pre-release: invalidating an existing save to land a fix is
   acceptable and does not need product sign-off, but every PR that invalidates a
   save format or a paired file's identity must say so explicitly in its body.
