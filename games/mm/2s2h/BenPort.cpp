@@ -1,6 +1,7 @@
 #include "BenPort.h"
 #include <iostream>
 #include <algorithm>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <chrono>
@@ -126,6 +127,79 @@ std::vector<std::shared_ptr<std::string>> cameraStdStrings;
 Color_RGB8 kokiriColor = { 0x1E, 0x69, 0x1B };
 Color_RGB8 goronColor = { 0x64, 0x14, 0x00 };
 Color_RGB8 zoraColor = { 0x00, 0xEC, 0x64 };
+
+namespace Ben {
+
+/**
+ * The overlay font names this translation unit registers with
+ * Ship::GameOverlay::LoadFont() below. Keep this list in step with the
+ * LoadFont() calls: the resolver is only as good as the list.
+ *
+ * A second font used to be loaded here and was removed in the license follow-up
+ * to #578, because it asserted "All rights reserved" with no license grant of
+ * any kind and so cannot be redistributed. THIRD_PARTY_NOTICES.md ("Resolved by
+ * removal") names it; this file deliberately does not, and neither does any
+ * other source or build file under `games/`, `src/`, `rsbs/` or `CMake/` — the
+ * `font-license` test row scans exactly those roots and enforces it. It was never
+ * the default (`CVAR_GAME_OVERLAY_FONT` — `gSettings.OverlayFont` in this build,
+ * per `CMake/lus-cvars.cmake:16`, NOT the pre-migration `gOverlayFont` that
+ * `soh/config/ConfigMigrators.h` renames away — defaults to "Press Start 2P"),
+ * but a player who had selected it has that name persisted in their config, which
+ * is why the resolver below exists.
+ *
+ * THIS TU IS COMPILED BY NOTHING IN THIS REPOSITORY, and that is stated plainly
+ * rather than dressed up. `SINGLE_EXECUTABLE_BUILD` defaults ON
+ * (`CMakeLists.txt`), `games/mm/CMakeLists.txt` then drops this file from every
+ * target (`list(FILTER ship__ EXCLUDE REGEX "2s2h/BenPort\\.cpp$")`), no CI
+ * workflow configures with it OFF, and the static-analysis job's `clang-tidy -p
+ * build` has no compile command for it and swallows the miss. Its only caller,
+ * `InitOTR()`, is reached solely from `MM_SDL_main` in
+ * `games/mm/src/code/main.c`, itself behind `#ifndef RSBS_SINGLE_EXECUTABLE`. So
+ * nothing below runs, or even compiles, in any configuration this repository
+ * builds or checks; in single-exe the overlay font is OoT's, set by
+ * `SOH::ResolveOverlayFontName` in `games/oot/soh/OTRGlobals.cpp`, and that is
+ * the copy the `font-license` row EXECUTES. This copy exists so the standalone
+ * 2ship configuration is not left with the defect, and the one property a test
+ * can hold over unbuilt code — that the fallback is itself a loaded name — is
+ * arranged BY CONSTRUCTION below (index into the array, no second literal)
+ * rather than asserted, precisely because no assertion here would ever run.
+ */
+static constexpr const char* const kOverlayFontNames[] = { "Press Start 2P" };
+
+/// What an unrecognized `CVAR_GAME_OVERLAY_FONT` resolves to. Defined AS the
+/// first loaded name, so it cannot drift out of the loaded set: editing
+/// `kOverlayFontNames` moves the fallback with it. Writing a second literal here
+/// would let a future edit name a fallback that is not loaded, which is the
+/// null-`mFonts`-row defect this resolver exists to prevent — and nothing in this
+/// repository compiles this TU, so nothing would catch it.
+const char* const kOverlayFontFallback = kOverlayFontNames[0];
+
+/**
+ * Map a persisted `CVAR_GAME_OVERLAY_FONT` value onto a font this TU loaded.
+ *
+ * Ship::GameOverlay::SetCurrentFont() looks the name up with `mFonts[name]` —
+ * `std::unordered_map::operator[]`, which INSERTS a null-valued entry for a
+ * name that was never loaded, before it logs the error and returns. The
+ * inserted row then appears in GameOverlay::DrawSettings()'s combo as a
+ * selectable dead font that can never be made current. Resolving the name here,
+ * BEFORE the call, is what stops that row from being created at all.
+ *
+ * Returns a pointer to a string literal with static storage duration — one of
+ * `kOverlayFontNames` or `kOverlayFontFallback`. Never null, never the caller's
+ * buffer.
+ */
+const char* ResolveOverlayFontName(const char* requested) {
+    if (requested != nullptr) {
+        for (const char* loaded : kOverlayFontNames) {
+            if (loaded != nullptr && strcmp(requested, loaded) == 0) {
+                return loaded;
+            }
+        }
+    }
+    return kOverlayFontFallback;
+}
+
+} // namespace Ben
 
 OTRGlobals::OTRGlobals() {
     fprintf(stderr, "[MM OTRGlobals DEBUG] Constructor entered\n");
@@ -298,8 +372,13 @@ OTRGlobals::OTRGlobals() {
     fflush(stderr);
     auto overlay = context->GetInstance()->GetWindow()->GetGui()->GetGameOverlay();
     overlay->LoadFont("Press Start 2P", 12.0f, "fonts/PressStart2P-Regular.ttf");
-    overlay->LoadFont("Fipps", 32.0f, "fonts/Fipps-Regular.otf");
-    overlay->SetCurrentFont(CVarGetString(CVAR_GAME_OVERLAY_FONT, "Press Start 2P"));
+    // A second LoadFont used to sit here. It is gone with the font file itself
+    // (license follow-up to #578; THIRD_PARTY_NOTICES.md, "Resolved by
+    // removal", names it). Anyone whose CVAR_GAME_OVERLAY_FONT still selects it
+    // is mapped back to a loaded font by Ben::ResolveOverlayFontName. Reminder:
+    // this TU is in no target's source list, so this line runs only in a
+    // standalone 2ship build that nothing here configures.
+    overlay->SetCurrentFont(Ben::ResolveOverlayFontName(CVarGetString(CVAR_GAME_OVERLAY_FONT, "Press Start 2P")));
 
     context->InitAudio({ .SampleRate = 32000, .SampleLength = 1024, .DesiredBuffered = 1680 });
 
