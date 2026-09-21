@@ -25,6 +25,10 @@
 // The registry
 // ============================================================================
 
+// Indexed by GameId, so the bound is the origin-id space's size, not a pool
+// property — RSBS_FOREIGN_POOL_ORIGIN_COUNT is reused because it already IS
+// "one past the highest origin id" (foreign_items.h) and a second constant for
+// the same fact could drift against it.
 static const ComboLogicEngine* sEngines[RSBS_FOREIGN_POOL_ORIGIN_COUNT];
 
 static bool ComboLogicIsGame(uint8_t game) {
