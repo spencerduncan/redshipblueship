@@ -66,6 +66,12 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
     endif()
 endif()
 
+# Must run after the launcher-dependent MSVC debug-format block above (it keys
+# off the operator's raw CMAKE_C_COMPILER_LAUNCHER) and before the first target
+# is created, because <LANG>_COMPILER_LAUNCHER is copied onto each target at
+# creation time.
+include(CMake/SccacheWorktreeDeps.cmake)
+
 # Find packages at top level for visibility across subdirectories
 find_package(PNG REQUIRED)
 find_package(Threads REQUIRED)

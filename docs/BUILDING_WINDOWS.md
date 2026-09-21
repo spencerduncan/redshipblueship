@@ -70,6 +70,72 @@ Options:
 - `--game mm` - Start with Majora's Mask
 - `--test-entrance` - Use Mido's House for cross-game testing
 
+## sccache and several checkouts on one machine (#676)
+
+If you build with `-DCMAKE_C_COMPILER_LAUNCHER=sccache` (and the C++ one) under
+the Ninja generator, and you have more than one checkout or git worktree of this
+repo on the machine sharing one sccache, read this.
+
+**The hazard.** Ninja learns each object's header dependencies by parsing
+`cl.exe`'s `/showIncludes` lines off stdout (`deps = msvc` in `build.ninja`).
+`cl` prints every header the way the include search spelled it, and CMake's
+Ninja generator passes absolute `-I` flags for every directory outside the build
+tree, so those lines are absolute paths rooted in the checkout that ran the
+compile. sccache stores the compiler's stdout beside the object and replays it
+verbatim on a cache hit, and it deliberately keeps `-I` flags out of the cache
+key (the preprocessed output it hashes is made with `/EP`, which carries no
+paths). So two checkouts sharing one sccache hit each other's objects, and the
+second one records the first one's header paths. Editing a header in the second
+checkout then changes a file ninja is not watching, and the object is never
+recompiled. You see either `LNK2019` on a symbol no source at HEAD mentions, or
+nothing at all — a stale object that links and passes tests.
+
+**What the build does about it.** `CMake/SccacheWorktreeDeps.cmake` detects
+exactly that combination (MSVC + Ninja + an sccache launcher) and repoints the
+compiler launcher at a small generated shim, `build/rsbs-sccache-tree.cmd`, that
+sets sccache's `SCCACHE_C_CUSTOM_CACHE_BUSTER` to the source tree's path. An
+object is then only ever served back to the checkout whose headers its
+dependency records name. Configure prints:
+
+```
+-- sccache: partitioning the C/C++ cache key by source tree (#676): C:\path\to\your\checkout
+```
+
+Caching is not disabled. Every rebuild, branch switch and object-directory wipe
+inside a checkout still hits the cache (measured: 99.9% on a 2404-object rebuild
+after wiping the object dirs). What you give up is reuse *between* checkouts on
+the same machine, which is the reuse that was producing wrong answers: the first
+build of a fresh checkout goes from ~6 min at a ~61% hit rate to ~19 min at 0%,
+once.
+
+CI is deliberately excluded. A runner builds one checkout at a fixed workspace
+path, so the hazard — which needs two checkouts — cannot occur there, and
+partitioning would invalidate the whole shared cache for nothing. When
+`GITHUB_ACTIONS` or `CI` is set in the environment, configure says so and leaves
+the key alone:
+
+```
+-- sccache: single-checkout CI environment detected; leaving the cache key shared
+```
+
+**Turning it off.** `-DRSBS_SCCACHE_TREE_PARTITION=OFF` restores cross-checkout
+reuse. If you do that and you have more than one checkout, wipe the object
+directories after every header change and after every merge, or expect stale
+objects:
+
+```cmd
+:: from the build dir's parent
+for /d %D in (build\games\mm\CMakeFiles\*.dir build\games\oot\CMakeFiles\*.dir) do rmdir /s /q "%D"
+```
+
+**Things that look like they would fix it and do not** (all measured on
+sccache 0.17.0): `SCCACHE_DIRECT=false` — the replay still happens;
+`SCCACHE_BASEDIR=<common ancestor>` — it rewrites preprocessor output, not the
+stored `/showIncludes` stdout; a private `SCCACHE_DIR` per checkout — correct,
+but it also splits the disk budget and the eviction pool. Relative `-I` flags
+*would* fix it and keep cross-checkout reuse, but CMake's Ninja generator has no
+supported way to emit them.
+
 ## Troubleshooting
 
 ### "add_subdirectory given source ... which is not an existing directory"

@@ -99,6 +99,15 @@ are the reasoning behind them.
   once CI is fully green. Never merge red or partial CI — push and report instead.
 - When modifying MM code in single-exe mode, check `src/common/mm_stubs.c` for
   related stubs. Signature drift there has caused two separate faults.
+- Configure with `-DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache`
+  and let the build's own guard handle the shared cache: configure prints
+  `sccache: partitioning the C/C++ cache key by source tree (#676)`, which means
+  ninja's MSVC `/showIncludes` dependency records cannot come from another lane's
+  worktree any more. A lane worktree's first build is therefore a real cold build
+  (~25 min, not ~8), and the old "wipe the object dirs after merging main or
+  editing a widely included header" step is no longer needed. If that line is
+  missing from your configure output, it is needed again — see
+  `docs/BUILDING_WINDOWS.md`.
 - If an issue's premise turns out to be wrong, do not force a fix. Report what you
   found and recommend closing or re-scoping. Several findings have changed shape
   under scrutiny; that is a good outcome.
