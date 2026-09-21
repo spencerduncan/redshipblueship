@@ -53,6 +53,22 @@
  *    in `Graph_ProcessGfxCommands`, after the update returns), so there is no
  *    enclosing ImGui frame to nest inside. A re-entrancy latch below refuses
  *    anyway rather than trusting that analysis forever.
+ *
+ *    WHAT ELSE IS ON A PUMPED FRAME, STATED PLAINLY. `Gui::StartDraw()` is
+ *    `StartFrame(); DrawMenu(); CalculateGameViewport();` and `Gui::EndDraw()` is
+ *    `DrawGame(); EndFrame(); DrawFloatingWindows(); CheckSaveCvars();`
+ *    (libultraship/src/ship/window/gui/Gui.cpp), so a pumped frame submits SoH's
+ *    whole menu and every registered floating window, not only this overlay.
+ *    DRAWING them is harmless -- they read, and the gSaveContext bracket below is
+ *    what makes what they read correct. ACCEPTING INPUT on them is not:
+ *    `HandleEvents()` feeds ImGui real input, so a click would run a menu handler
+ *    re-entrantly on the render thread in the middle of the creation, with the
+ *    bracket active and MM's world live in `gSaveContext` outside the paint. So
+ *    every pumped frame is submitted with `ImGuiConfigFlags_NoMouse |
+ *    ImGuiConfigFlags_NoKeyboard` and a cleared input queue, restored the moment
+ *    the frame ends. The menu is therefore VISIBLE during a creation and inert.
+ *    That, and not the dimming rect, is what makes "nothing else is actionable"
+ *    true; the rect only says so to the player.
  * 3. Nothing here blocks. `IsFrameReady()` is polled, never waited on: SDL2's
  *    backend returns true unconditionally and DXGI's can decline, and a decline
  *    means "skip this paint", not "spin". A minimised window therefore costs
@@ -95,8 +111,15 @@
  * reads. It does not read a wall clock to decide anything (#581 section 2a): the
  * repaint interval is measured in milliseconds the FILL already computed for its
  * own timeout check, and the presentation time each paint costs is credited back
- * to the fill's budget at the call site, so a host with a window gets the same
- * generation headroom as a headless one.
+ * to BOTH of the creation's wall-clock stops -- the fill's per-attempt timeout at
+ * its own call site, and the ladder's total budget through the state machine's
+ * Combo_GenProgress_PresentationBegin/End bracket -- so a host with a window gets
+ * the same generation headroom as a headless one at either stop.
+ *
+ * And on a host where nothing is presentable it is not installed at all: the
+ * install asks CanPresentHere() and arms nothing when the answer is no, which is
+ * what makes a headless creation the pre-#582 code path rather than a path through
+ * bailing guards.
  */
 
 #ifdef RSBS_SINGLE_EXECUTABLE
@@ -169,6 +192,23 @@ uint32_t gPresentedFrames = 0;
  * present a gui-only frame from inside a blocking call.
  */
 bool gForceRenderLoopForTest = false;
+/**
+ * What ImGui's ConfigFlags were WHILE the last pumped frame was being submitted,
+ * read inside the frame rather than where they are set.
+ *
+ * It exists because "the pumped frame does not accept input" is otherwise an
+ * un-observable claim: the row that watches a real paired creation can see frames
+ * go out (gPresentedFrames) but has no way to see what was in force inside them.
+ * Reading the live io from inside the draw makes the suppression a checked fact.
+ */
+uint32_t gLastPumpedConfigFlags = 0;
+/**
+ * Which guard the last paint attempt stopped at. The values are the header's
+ * RSBS_GENOVERLAY_REFUSED_* codes, and the split that matters is in the header too:
+ * some refusals are an honest answer about the environment, and the rest can only
+ * happen when this file is wired wrong.
+ */
+int gLastRefusal = RSBS_GENOVERLAY_REFUSED_NONE;
 
 /** The view being painted. A file static because the gSaveContext bracket takes
  *  a plain `void(*)()` -- it is a C seam and giving it a capture would mean
@@ -189,10 +229,16 @@ const char* kWindowName = "Creating your paired world";
  * over file select, and the public API has no "close that popup by name". A
  * window is submitted or it is not: when the state machine stops being SHOWN we
  * simply stop drawing, and there is no residue to clean up. The dimming rect
- * carries the modal MEANING (nothing else on screen is actionable) without the
- * modal state.
+ * SAYS "nothing else on screen is actionable"; what MAKES that true is the input
+ * suppression in PresentOneGuiFrame, because a pumped frame draws SoH's whole menu
+ * and not just this window (property 2 in the file comment).
  */
 void DrawOverlayContents() {
+    // Read from inside the frame, so the row that checks the suppression is
+    // checking what was actually in force while the menu was submitted, not what
+    // some earlier line intended.
+    gLastPumpedConfigFlags = (uint32_t)ImGui::GetIO().ConfigFlags;
+
     const ComboGenOverlayView* view = gPaintingView;
     if (view == nullptr || view->state != (uint8_t)RSBS_GENOVERLAY_SHOWN) {
         // Not SHOWN covers both terminal paints. On success file select must be
@@ -248,8 +294,16 @@ void PaintUnderOoTSave() {
 /**
  * Present ONE gui-only frame. The sequence is RunExtract's, and every guard is
  * justified in the file comment.
+ *
+ * EVERY REFUSAL RECORDS WHICH GUARD IT WAS (gLastRefusal), because "this process
+ * could not present" is a legitimate environment answer for some of them and a
+ * WIRING DEFECT for others, and the row that watches a real creation has to tell
+ * those apart. It did not, and that cost a real defect its red: a missing
+ * render-thread latch made every paint bail at the first guard, the probe answered
+ * "canNOT present", and leg 10 skipped itself green on a workstation that can.
  */
 bool PresentOneGuiFrame(const ComboGenOverlayView* view) {
+    gLastRefusal = RSBS_GENOVERLAY_REFUSED_OFF_THREAD;
     if (std::this_thread::get_id() != gRenderThread) {
         if (!gWarnedOffThread) {
             gWarnedOffThread = true;
@@ -258,9 +312,11 @@ bool PresentOneGuiFrame(const ComboGenOverlayView* view) {
         }
         return false;
     }
+    gLastRefusal = RSBS_GENOVERLAY_REFUSED_REENTRANT;
     if (gPainting) {
         return false;
     }
+    gLastRefusal = RSBS_GENOVERLAY_REFUSED_WINDOW_CLOSING;
     if (!WindowIsRunning()) {
         // The player closed the window mid-creation. The backend's Close() only
         // sets a flag (GfxWindowBackendSDL2::Close), so this is safe to observe
@@ -268,6 +324,7 @@ bool PresentOneGuiFrame(const ComboGenOverlayView* view) {
         // way out; the creation finishes and the game loop exits after it.
         return false;
     }
+    gLastRefusal = RSBS_GENOVERLAY_REFUSED_NO_RENDER_LOOP;
     if (!gForceRenderLoopForTest && !OoT_Graph_HasPresentedFrame()) {
         // NOT A LIVE RENDER LOOP. A unit-test harness constructs a real
         // Fast3dWindow (the `rando` tier needs one) and never runs a frame
@@ -282,12 +339,14 @@ bool PresentOneGuiFrame(const ComboGenOverlayView* view) {
         return false;
     }
 
+    gLastRefusal = RSBS_GENOVERLAY_REFUSED_NO_CONTEXT;
     std::shared_ptr<Ship::Context> ctx = Ship::Context::GetInstance();
     if (ctx == nullptr) {
         return false;
     }
     std::shared_ptr<Ship::Window> window = ctx->GetWindow();
     std::shared_ptr<Fast::Fast3dWindow> fast = std::dynamic_pointer_cast<Fast::Fast3dWindow>(window);
+    gLastRefusal = RSBS_GENOVERLAY_REFUSED_NO_FAST3D;
     if (fast == nullptr) {
         // A headless row, or a backend that is not Fast3D. The channel's stderr
         // leg is the whole surface there, which is what every existing lock
@@ -299,9 +358,11 @@ bool PresentOneGuiFrame(const ComboGenOverlayView* view) {
         return false;
     }
     std::shared_ptr<Ship::Gui> gui = fast->GetGui();
+    gLastRefusal = RSBS_GENOVERLAY_REFUSED_NO_GUI;
     if (gui == nullptr) {
         return false;
     }
+    gLastRefusal = RSBS_GENOVERLAY_REFUSED_FRAME_DECLINED;
 
     gPainting = true;
     gPaintingView = view;
@@ -313,14 +374,41 @@ bool PresentOneGuiFrame(const ComboGenOverlayView* view) {
 
     bool presented = false;
     if (fast->IsFrameReady()) {
+        // INPUT SUPPRESSION, for the duration of this one frame.
+        //
+        // A pumped frame submits the whole SoH menu and every floating window
+        // (Gui::StartDraw -> DrawMenu, Gui::EndDraw -> DrawFloatingWindows), and
+        // HandleEvents() above has just fed ImGui real input. Without this, a
+        // click during the creation would run a menu handler re-entrantly on the
+        // render thread while the creation seam's bracket is active and MM's world
+        // is live in gSaveContext outside the paint -- which the whole-buffer swap
+        // does NOT cover, because it only wraps PaintUnderOoTSave.
+        //
+        // The flags are ImGui's own mechanism for this: NoMouse clears the hovered
+        // window (imgui.cpp, UpdateMouseInputs) so no widget can be hovered or
+        // activated, and NoKeyboard calls io.ClearInputKeys() at the top of
+        // NewFrame. The queue is cleared as well so input made during the creation
+        // is DROPPED rather than delivered to the first real frame afterwards --
+        // ImGui itself does exactly this on focus loss. Restored right after the
+        // frame, so the game's own frames are untouched.
+        ImGuiIO& io = ImGui::GetIO();
+        const ImGuiConfigFlags savedConfigFlags = io.ConfigFlags;
+        io.ConfigFlags |= ImGuiConfigFlags_NoMouse | ImGuiConfigFlags_NoKeyboard;
+        io.ClearEventsQueue();
+        io.ClearInputKeys();
+        io.ClearInputMouse();
+
         gui->StartDraw();
         fast->StartFrame();
         fast->RunGuiOnly();
         OoT_Creation_PaintWithOoTSaveVisible(&PaintUnderOoTSave);
         gui->EndDraw();
         fast->EndFrame();
+
+        io.ConfigFlags = savedConfigFlags;
         presented = true;
         gPresentedFrames++;
+        gLastRefusal = RSBS_GENOVERLAY_REFUSED_NONE;
     }
 
     gPaintingView = nullptr;
@@ -339,13 +427,58 @@ void CreationProgressSink(const ComboGenProgress* progress) {
     ComboGenOverlay_OnProgress(progress);
 }
 
+/**
+ * Can this process present at all?
+ *
+ * Asked at INSTALL time, not only inside the paint, and that is the whole point:
+ * a creation with no presentable window must leave the painter slot EMPTY, so
+ * ComboGenOverlay_WantsHeartbeat() is false, so MM's fill does not read its clock
+ * a second time and does not accumulate a presentation credit. That is what makes
+ * "a headless creation runs the pre-#582 code path exactly" a fact about the code
+ * rather than a hope about the guards further in. Before this gate the seam
+ * installed unconditionally and every headless paired creation DID take the
+ * heartbeat path, with its guards bailing one call later.
+ *
+ * In the anonymous namespace with everything else here: a bare `CanPresentHere`
+ * with external linkage in a single-exe build is the ODR landmine this tree keeps
+ * a gate for.
+ */
+bool CanPresentHere() {
+    if (!gForceRenderLoopForTest && !OoT_Graph_HasPresentedFrame()) {
+        // No live render loop: a harness with a real window that never ran a
+        // frame, or a boot that has not reached one.
+        return false;
+    }
+    std::shared_ptr<Ship::Context> ctx = Ship::Context::GetInstance();
+    if (ctx == nullptr) {
+        return false;
+    }
+    std::shared_ptr<Fast::Fast3dWindow> fast = std::dynamic_pointer_cast<Fast::Fast3dWindow>(ctx->GetWindow());
+    return fast != nullptr && fast->GetGui() != nullptr;
+}
+
 } // namespace
 
 extern "C" void OoT_CreationProgressOverlay_Install(void) {
-    gRenderThread = std::this_thread::get_id();
-    if (gInstalled) {
+    // ONE RULE FOR ALL THREE SLOTS: a call either arms the latch, the painter and
+    // the display sink together, or arms none of them. The earlier shape latched
+    // the render thread ABOVE an `if (gInstalled) return;` and armed the slots
+    // below it, so the latch was re-pointed on every call while the slots could
+    // never be re-armed -- which meant anything that cleared them (a test row
+    // does, at its teardown) disarmed the overlay permanently for the process,
+    // and a call from another thread could steal the render-thread identity while
+    // changing nothing else.
+    if (!CanPresentHere()) {
+        if (!gWarnedNoWindow) {
+            gWarnedNoWindow = true;
+            fprintf(stderr, "[OoT] creation overlay: nothing presentable here — creation progress stays on stderr, "
+                            "and the fill keeps its headless path\n");
+        }
         return;
     }
+    // The latch is INSIDE the same gate as the slots, which is the one rule: a
+    // call that arms nothing also re-points nothing.
+    gRenderThread = std::this_thread::get_id();
     gInstalled = true;
     ComboGenOverlay_SetPainter(&OverlayPainter);
     Combo_GenProgress_SetDisplaySink(&CreationProgressSink);
@@ -353,6 +486,19 @@ extern "C" void OoT_CreationProgressOverlay_Install(void) {
 
 extern "C" uint32_t OoT_CreationProgressOverlay_TestPresentedFrames(void) {
     return gPresentedFrames;
+}
+
+extern "C" int OoT_CreationProgressOverlay_TestIsArmed(void) {
+    return gInstalled ? 1 : 0;
+}
+
+extern "C" int OoT_CreationProgressOverlay_TestLastRefusal(void) {
+    return gLastRefusal;
+}
+
+extern "C" int OoT_CreationProgressOverlay_TestLastFrameSuppressedInput(void) {
+    const uint32_t needed = (uint32_t)(ImGuiConfigFlags_NoMouse | ImGuiConfigFlags_NoKeyboard);
+    return (gLastPumpedConfigFlags & needed) == needed ? 1 : 0;
 }
 
 extern "C" int OoT_CreationProgressOverlay_TestPresentOnce(void) {
@@ -367,10 +513,12 @@ extern "C" int OoT_CreationProgressOverlay_TestPresentOnce(void) {
     // overlay leg skips; if it returns 1, the renderer demonstrably works and a
     // creation that then paints NOTHING is a real wiring defect.
     //
-    // The force flag stays set on purpose: the creation the caller is about to
-    // run is the thing under test, and it has to reach the same pump.
-    OoT_CreationProgressOverlay_Install();
+    // The force flag is set BEFORE the install, because the install now asks
+    // CanPresentHere() and would refuse in a harness that has a real window and
+    // has never run a game frame. It stays set on purpose: the creation the caller
+    // is about to run is the thing under test, and it has to reach the same pump.
     gForceRenderLoopForTest = true;
+    OoT_CreationProgressOverlay_Install();
 
     ComboGenOverlayView probe;
     memset(&probe, 0, sizeof(probe));

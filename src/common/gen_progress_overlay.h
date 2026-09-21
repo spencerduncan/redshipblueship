@@ -81,11 +81,48 @@ extern "C" {
  * ~16 ms. Painting on every fill iteration would spend most of the fill in the
  * presentation path. 10 Hz is fast enough that a bar and an elapsed counter
  * read as live, and slow enough that the presentation cost stays a small
- * fraction of the fill; and whatever it does cost is CREDITED BACK to the
- * fill's budget by the caller (Combo_GenProgress_Pump, gen_budget.h), so
- * painting never buys the generation less headroom than a headless run gets.
+ * fraction of the fill; and whatever it does cost is CREDITED BACK to BOTH of the
+ * creation's wall-clock stops, so painting never buys the generation less
+ * headroom than a headless run gets:
+ *
+ *   - the fill's PER-ATTEMPT timeout, at its own call site in MM's Glitchless
+ *     fill loop (`tick += afterPaint - beforePaint`), in that loop's own clock;
+ *   - the ladder's TOTAL budget, through the
+ *     Combo_GenProgress_PresentationBegin/End bracket this file's Paint() wraps
+ *     every painter call in, which is what
+ *     Combo_GenProgress_GenerationElapsedMs() subtracts (gen_budget.h).
+ *
+ * Crediting only the first one -- which is what the first cut of #582 did -- left
+ * a creation that failed on a host with a window and succeeded on the same host
+ * headless, at the OTHER stop.
  */
 #define RSBS_GENOVERLAY_REPAINT_INTERVAL_MS 100u
+
+/**
+ * WHY A PAINTER DID NOT PAINT.
+ *
+ * A painter that needs a renderer has guards, and the guards fall into two kinds
+ * that a test must not confuse. The ENVIRONMENT kind is an honest answer -- this
+ * box, or this moment, cannot present, and the channel's stderr leg is the whole
+ * surface. The WIRING kind cannot happen in a process where the painter armed
+ * itself, because arming asked the same questions and said yes; seeing one means
+ * the painter is installed wrong, and a row that treats it like the first kind
+ * skips itself green over a real defect. (Exactly that happened once here: a
+ * missing render-thread latch put every paint in OFF_THREAD and the creation row
+ * skipped its paint assertion on a workstation that can present.)
+ *
+ * The codes live in THIS header, not in the painter's own, so the display-free test
+ * runner can read them without reaching into `games/oot/soh/SohGui`.
+ */
+#define RSBS_GENOVERLAY_REFUSED_NONE 0           /**< the frame went out */
+#define RSBS_GENOVERLAY_REFUSED_WINDOW_CLOSING 1 /**< environment: the window is on its way out */
+#define RSBS_GENOVERLAY_REFUSED_NO_RENDER_LOOP 2 /**< environment: no frame has ever been presented */
+#define RSBS_GENOVERLAY_REFUSED_FRAME_DECLINED 3 /**< environment: the backend declined this frame */
+#define RSBS_GENOVERLAY_REFUSED_OFF_THREAD 4     /**< wiring: the latch is not this thread */
+#define RSBS_GENOVERLAY_REFUSED_REENTRANT 5      /**< wiring: a paint inside a paint */
+#define RSBS_GENOVERLAY_REFUSED_NO_CONTEXT 6     /**< wiring: the context vanished */
+#define RSBS_GENOVERLAY_REFUSED_NO_FAST3D 7      /**< wiring: the window is not the expected backend */
+#define RSBS_GENOVERLAY_REFUSED_NO_GUI 8         /**< wiring: no Gui on the window */
 
 typedef enum ComboGenOverlayState {
     RSBS_GENOVERLAY_HIDDEN = 0, /**< no creation in flight; nothing drawn */

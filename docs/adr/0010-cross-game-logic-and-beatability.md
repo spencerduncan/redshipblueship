@@ -1072,14 +1072,35 @@ latched render-thread id, a re-entrancy latch, and a live-render-loop
 precondition so a test harness's real window is never rendered into), and one
 heartbeat inside MM's Glitchless fill loop.
 
+Two properties of the painter are worth recording because they are what keep a
+headless creation and a windowed one the same generation. The install REFUSES when
+nothing here is presentable, leaving the painter slot empty so the fill's heartbeat
+guard is false and the fill does not read its clock a second time — a headless
+paired creation is the pre-#582 code path, not a path through bailing guards. And a
+pumped frame is submitted with ImGui's mouse and keyboard suppressed, because
+`Gui::StartDraw`/`EndDraw` submit SoH's whole menu and every floating window, so
+without the suppression a click during a creation would run a menu handler
+re-entrantly on the render thread with MM's world live in `gSaveContext`.
+
 **Three positions this does not move.** (1) PR #581 §2a still holds: the
 repaint decision is made with milliseconds the fill had already computed for its
 own timeout check, and no wall clock decides anything about a world. (2) The
-budget numbers are unchanged — but presentation time is now CREDITED BACK to the
-fill's budget (`tick += paintDuration`), because a painted frame waits for vblank
-and charging that to the budget would give a host with a window measurably less
+budget numbers are unchanged — but presentation time is now CREDITED BACK to
+**both** of the creation's wall-clock stops, because a painted frame waits for
+vblank and charging that to a stop would give a host with a window measurably less
 generation headroom than the same host headless: two abort probabilities for one
-seed on one machine, decided by whether anything was on screen. (3) The creation
+seed on one machine, decided by whether anything was on screen. The two stops are
+credited separately and each in its own clock, because they are compared against
+baselines in different clocks: the fill's PER-ATTEMPT timeout at its own call site
+(`tick += paintDuration`, a `GetUnixTimestamp()` delta), and the ladder's TOTAL
+budget through a `Combo_GenProgress_PresentationBegin/End` bracket around every
+painter call, which `Combo_GenProgress_GenerationElapsedMs()` subtracts and which
+`OnFileCreate.cpp` compares instead of raw elapsed. Crediting only the first —
+which is what this work's first cut did, and what review caught — left the
+asymmetry intact at the second stop, where a windowed host would fail a creation
+the same host completed headless. Wall elapsed is still what a player is shown and
+what the P12 line measures; only the number that DECIDES excludes presentation.
+(3) The creation
 event's snapshot bracket is unchanged in effect and gained a second use: a
 painted frame runs with OoT's snapshot swapped in and MM's in-flight bytes
 swapped back after, because `Gui::EndDraw` draws every registered floating window

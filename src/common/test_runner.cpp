@@ -1185,7 +1185,11 @@ TestResult Test_RandoDeterminism(void) {
 //  10  the #582 on-screen progress overlay PAINTS FROM INSIDE the blocking
 //      creation call — the one observation that needs both a real window (this
 //      tier has one) and a real paired creation (only this row runs one), and
-//      the one a display-free row provably cannot make
+//      the one a display-free row provably cannot make. Three parts: (a) frames
+//      are presented from inside the call; (b) the install RE-ARMS after the
+//      slots are cleared, which the row forces on purpose; (c) those frames
+//      carry ImGui's mouse and keyboard suppression, because they submit the
+//      whole SoH menu while the creation's gSaveContext bracket is active
 //
 // WHY THE `rando` TIER. Every leg downstream of 1 needs a REAL OoT fill: the
 // creation event refuses to run without a live pairing identity, and the
@@ -1204,6 +1208,9 @@ int Combo_ConsumeFrozenState(const char* gameId, void* saveContext, size_t size)
 // why the probe returns whether it could present rather than asserting it.
 int OoT_CreationProgressOverlay_TestPresentOnce(void);
 uint32_t OoT_CreationProgressOverlay_TestPresentedFrames(void);
+int OoT_CreationProgressOverlay_TestIsArmed(void);
+int OoT_CreationProgressOverlay_TestLastFrameSuppressedInput(void);
+int OoT_CreationProgressOverlay_TestLastRefusal(void);
 // The UNIFIED save buffer (src/common/unified_save.c): one char array both games
 // reinterpret through their own layouts. Declared as what it is, because leg 4
 // compares it byte for byte and neither game's struct spans all of it.
@@ -1388,6 +1395,38 @@ TestResult Test_ComboCreationEvent(void) {
     const uint32_t overlayPresentsBefore = OoT_CreationProgressOverlay_TestPresentedFrames();
     ComboGenOverlay_Reset();
     printf("[TEST] overlay: this process %s present a gui-only frame\n", overlayRendererWorks ? "CAN" : "canNOT");
+    if (overlayRendererWorks && !OoT_CreationProgressOverlay_TestIsArmed()) {
+        printf("[TEST] FAIL: the overlay presented a probe frame yet reports itself un-armed (#582)\n");
+        return TEST_FAIL;
+    }
+    // WHY THE SKIP IS NOT A FREE PASS. "This process cannot present" is a legitimate
+    // answer on a software-GL or frame-declining box, and the leg below skips for it.
+    // It is NOT legitimate when the install ARMED the overlay — the install asked the
+    // same questions and said yes — so a refusal from one of the wiring guards is a
+    // defect being hidden by a skip. This row was shipped once with a missing
+    // render-thread latch: every paint refused OFF_THREAD, the probe answered
+    // "canNOT", and leg 10 skipped itself green on a workstation that can present.
+    if (!overlayRendererWorks && OoT_CreationProgressOverlay_TestIsArmed()) {
+        const int refusal = OoT_CreationProgressOverlay_TestLastRefusal();
+        if (refusal != RSBS_GENOVERLAY_REFUSED_WINDOW_CLOSING && refusal != RSBS_GENOVERLAY_REFUSED_NO_RENDER_LOOP &&
+            refusal != RSBS_GENOVERLAY_REFUSED_FRAME_DECLINED) {
+            printf("[TEST] FAIL: the overlay armed itself — so this process IS presentable — yet the probe frame was "
+                   "refused by guard %d, which is a wiring defect and not a headless box (#582)\n",
+                   refusal);
+            return TEST_FAIL;
+        }
+        printf("[TEST] overlay: armed, and the probe was declined by the environment (guard %d)\n", refusal);
+    }
+    // THE INSTALL'S RED HALF. The probe above already installed, so the slots are
+    // armed; clearing them here is what a process that installs, tears down and
+    // creates again does — and it is what the shipped teardown of
+    // test_gen_progress_overlay.c does to the same process-global slots. With the
+    // install's old shape (a `gInstalled` once-guard ABOVE the slot writes, with
+    // only the thread latch outside it) this clearing was PERMANENT: the creation
+    // below would present nothing and leg 10 would go red. The install now either
+    // arms all three slots or arms none, so it re-arms here.
+    ComboGenOverlay_SetPainter(NULL);
+    Combo_GenProgress_SetDisplaySink(NULL);
 
     const int created = OoT_RunPairedCreationEvent(0);
     const uint32_t overlayPaints = ComboGenOverlay_PaintCount();
@@ -1427,6 +1466,20 @@ TestResult Test_ComboCreationEvent(void) {
         printf("[TEST] overlay: the paired creation PRESENTED %u frames from inside the blocking call (painter "
                "invoked %u times) (#582)\n",
                (unsigned)overlayPresents, (unsigned)overlayPaints);
+        // A pumped frame submits SoH's whole menu and every floating window
+        // (Gui::StartDraw -> DrawMenu, Gui::EndDraw -> DrawFloatingWindows) while
+        // the creation seam's gSaveContext bracket is active. If input is live on
+        // those frames, a click runs a menu handler re-entrantly on the render
+        // thread in the middle of the creation — and the bracket does not cover it,
+        // because the swap only wraps the overlay's own draw. Read from the live io
+        // INSIDE the last pumped frame, not from the line that sets it.
+        if (!OoT_CreationProgressOverlay_TestLastFrameSuppressedInput()) {
+            printf("[TEST] FAIL: the creation's pumped frames accepted input — the whole SoH menu was live and "
+                   "clickable during the creation (#582)\n");
+            return TEST_FAIL;
+        }
+        printf("[TEST] overlay: those frames were submitted with mouse and keyboard suppressed, so the menu they "
+               "draw is inert\n");
     } else {
         printf("[TEST] overlay: SKIPPED the paint assertion — this renderer cannot present a gui-only frame here "
                "(the phase channel's stderr leg is the surface in that case)\n");

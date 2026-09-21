@@ -111,6 +111,16 @@ void ApplyGlitchlessLogicToSaveContext(std::vector<RandoCheckId>& checkPool, std
         // keeps measuring GENERATION, exactly as it does with no overlay
         // installed. The guard means a headless run does not even read the
         // clock twice.
+        //
+        // THIS CREDIT IS ONE OF TWO, and it covers only the PER-ATTEMPT stop
+        // below. The creation's other wall-clock stop — the ladder's TOTAL
+        // budget in OnFileCreate.cpp — is credited by the
+        // Combo_GenProgress_PresentationBegin/End bracket inside the overlay's
+        // own Paint(), in gen_budget's clock, because `tick` here is a
+        // GetUnixTimestamp() value and only a delta in that same clock may be
+        // added to it. Crediting one and not the other (the first cut of #582)
+        // just moved the windowed-vs-headless asymmetry to the stop nobody was
+        // looking at.
         if (ComboGenOverlay_WantsHeartbeat()) {
             const uint64_t beforePaint = GetUnixTimestamp();
             ComboGenOverlay_Heartbeat((uint32_t)(beforePaint >= tick ? beforePaint - tick : 0));

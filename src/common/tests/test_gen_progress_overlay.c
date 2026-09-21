@@ -16,11 +16,27 @@
  *     are checked, and the display leg is checked to hear Begin while the
  *     phase-order leg is checked NOT to.
  *
- *  2. PHASES ARRIVE IN ORDER, AND THE FRACTION NEVER GOES BACKWARDS. The
- *     attempt ladder is the reason this is not trivially true: attempt 2 of the
- *     MM fill starts its own elapsed/budget ratio at zero, and a bar computed
- *     fresh from that ratio would visibly rewind at every re-roll — which reads
- *     as a crash to a player watching a 90-second creation.
+ *  2. PHASES ARRIVE IN ORDER, AND THE LADDER ADVANCES THE BAR. The attempt
+ *     ladder is the reason this is worth asserting: attempt 2 of the MM fill
+ *     starts its own elapsed/budget ratio at zero, and a bar computed fresh from
+ *     that ratio would sit where attempt 1 started. What this stream locks is that
+ *     AttemptBase is ladder-aware.
+ *
+ *     IT DOES NOT LOCK THE WATERMARK, and saying so is the point of 2b. The
+ *     within-attempt creep is capped strictly below the next attempt's base
+ *     (AttemptSlice * ratio * 0.95 < AttemptSlice), so the ordinary ladder stream
+ *     is monotone even if RaiseFraction were a plain assignment — every assertion
+ *     in it stays green with the watermark removed. A lock whose feature can be
+ *     deleted without reddening it is not a lock.
+ *
+ *  2b. THE WATERMARK'S RED HALF. Three streams that each hand the state machine a
+ *     LOWER candidate than the fraction already reached: an attempt clock that
+ *     steps backwards (the fill's own clock can, and a re-roll resets it), an
+ *     EARLIER ladder attempt reported after a later one, and a lower-weight phase
+ *     reported after a higher one. Each of them paints, and the painted fraction
+ *     must not drop. Turn RaiseFraction's `>` into an assignment and all three go
+ *     red — which is how this file knows it is testing the design and not the
+ *     arithmetic of one happy stream.
  *
  *  3. THE STATE MACHINE'S TERMINAL EDGES ARE DISTINCT. shown -> dismissed and
  *     shown -> failed are different states because the presenter does different
@@ -40,6 +56,16 @@
  *
  *  6. A SECOND CREATION STARTS FROM ZERO. The fraction is a watermark, so
  *     failing to reset it would leave the next file's bar pinned at 100%.
+ *
+ *  7. PRESENTATION TIME IS CREDITED OUT OF THE NUMBER THE LADDER DECIDES WITH. A
+ *     painted frame waits for vblank; the creation has TWO wall-clock stops, and
+ *     the first cut of #582 credited only the fill's per-attempt one, leaving the
+ *     ladder's TOTAL budget charging every presented frame in full — a creation
+ *     that fails on a host with a window and succeeds on the same host headless.
+ *     A painter that deliberately burns measurable time is what makes the credit
+ *     observable: wall elapsed must exceed GENERATION elapsed by at least what was
+ *     burned. Have Combo_GenProgress_GenerationElapsedMs() return the raw clock
+ *     and this goes red.
  *
  * Deliberately absent: anything about appearance, and anything about the
  * gSaveContext paint bracket (that one needs a real creation and is exercised by
@@ -109,10 +135,43 @@ static void GpoPainter(const ComboGenOverlayView* view) {
     snprintf(sLastPaintedCaption, sizeof(sLastPaintedCaption), "%s", view->caption);
 }
 
+/** How long GpoSpinPainter burns, in ms of the channel's own clock. Long enough
+ *  that clock() granularity is not the dominant term, short enough to be free. */
+#define GPO_SPIN_MS 150u
+
+static int sSpinPaints = 0;
+
+/**
+ * A painter that COSTS something, standing in for the buffer swap a real painted
+ * frame waits on. Busy work rather than a sleep on purpose: the channel's clock is
+ * clock(), which is CPU time on glibc, and a sleeping painter would credit nothing
+ * there while a real vblank wait would — the spin is the shape that behaves the
+ * same on both platforms.
+ */
+static void GpoSpinPainter(const ComboGenOverlayView* view) {
+    (void)view;
+    sSpinPaints++;
+    const uint32_t start = Combo_GenProgress_ElapsedMs();
+    volatile uint64_t acc = 1469598103934665603ull;
+    // Bounded, so a clock that never advances fails an assertion below instead of
+    // hanging the row.
+    for (uint64_t i = 0; i < 2000000000ull; i++) {
+        acc ^= i;
+        acc *= 1099511628211ull;
+        if ((i & 0xFFFFull) == 0ull && (Combo_GenProgress_ElapsedMs() - start) >= GPO_SPIN_MS) {
+            break;
+        }
+    }
+    if (acc == 0ull) {
+        printf("[TEST] spin accumulator collapsed (impossible)\n");
+    }
+}
+
 static void GpoResetObservers(void) {
     sPhaseLegCount = 0;
     sDisplayLegCount = 0;
     sPaintedCount = 0;
+    sSpinPaints = 0;
     sLastPaintedState = 0;
     sLastPaintedCaption[0] = '\0';
 }
@@ -303,6 +362,104 @@ TestResult Test_GenProgressOverlay(void) {
     GPO_ASSERT(!ComboGenOverlay_WantsHeartbeat());
     printf("[TEST] second creation restarted at %.4f and failed at %.4f (not 100%%)\n", (double)fractionAtSecondBegin,
            (double)ComboGenOverlay_View()->fraction);
+
+    // ------------------------------------------------------------------
+    // 2b — THE WATERMARK'S RED HALF. Everything above stays green with
+    //      RaiseFraction reduced to `sView.fraction = candidate;`, because the
+    //      ladder's own stream never offers a lower candidate. These three do.
+    // ------------------------------------------------------------------
+    GpoResetObservers();
+    ComboGenOverlay_Reset();
+    ComboGenOverlay_SetPainter(&GpoPainter);
+    Combo_GenProgress_Begin();
+    Combo_GenProgress_SetMaxAttempts(10);
+    Combo_GenProgress_Report((uint8_t)RSBS_GENPHASE_MM_FILL, 5, NULL);
+    const float atFifthAttempt = ComboGenOverlay_View()->fraction;
+    GPO_ASSERT(ComboGenOverlay_Heartbeat(0));
+    GPO_ASSERT(ComboGenOverlay_Heartbeat(20000));
+    const float highWater = ComboGenOverlay_View()->fraction;
+    // The creep actually moved the bar past the attempt's base, or the three legs
+    // below would be comparing a fraction against itself and could not tell an
+    // assignment from a raise.
+    GPO_ASSERT(highWater > atFifthAttempt);
+
+    // (i) THE ATTEMPT CLOCK STEPS BACKWARDS. The fill hands the heartbeat its own
+    //     elapsed-in-this-attempt value; a re-roll resets it to near zero, and
+    //     GetUnixTimestamp() itself can step back (an NTP correction). The rate
+    //     limit deliberately does not swallow this case, so it paints.
+    int rewindPaints = sPaintedCount;
+    GPO_ASSERT(ComboGenOverlay_Heartbeat(10));
+    GPO_ASSERT(sPaintedCount == rewindPaints + 1);
+    GPO_ASSERT(ComboGenOverlay_View()->fraction >= highWater);
+
+    // (ii) AN EARLIER LADDER ATTEMPT AFTER A LATER ONE. The caption is allowed to
+    //      follow the report; the bar is not.
+    rewindPaints = sPaintedCount;
+    Combo_GenProgress_Report((uint8_t)RSBS_GENPHASE_MM_FILL, 2, NULL);
+    GPO_ASSERT(sPaintedCount == rewindPaints + 1);
+    GPO_ASSERT(ComboGenOverlay_View()->attempt == 2);
+    GPO_ASSERT(ComboGenOverlay_View()->fraction >= highWater);
+
+    // (iii) A LOWER-WEIGHT PHASE AFTER A HIGHER ONE.
+    Combo_GenProgress_Report((uint8_t)RSBS_GENPHASE_PUBLISH, 0, NULL);
+    const float publishedFraction = ComboGenOverlay_View()->fraction;
+    GPO_ASSERT(publishedFraction > highWater);
+    rewindPaints = sPaintedCount;
+    Combo_GenProgress_Report((uint8_t)RSBS_GENPHASE_OOT_FILL, 0, NULL);
+    GPO_ASSERT(sPaintedCount == rewindPaints + 1);
+    GPO_ASSERT(ComboGenOverlay_View()->fraction >= publishedFraction);
+
+    for (int i = 1; i < sPaintedCount; i++) {
+        if (sPaintedFractions[i] < sPaintedFractions[i - 1]) {
+            printf("[TEST] FAIL: the watermark let the bar rewind at paint %d (%.6f after %.6f) — the fraction is "
+                   "being assigned, not raised\n",
+                   i, (double)sPaintedFractions[i], (double)sPaintedFractions[i - 1]);
+            return TEST_FAIL;
+        }
+    }
+    printf("[TEST] watermark: a backwards attempt clock, an earlier attempt and a lower-weight phase each painted and "
+           "none rewound the bar (%d paints, high water %.4f)\n",
+           sPaintedCount, (double)ComboGenOverlay_View()->fraction);
+    Combo_GenProgress_End(false);
+
+    // ------------------------------------------------------------------
+    // 7 — PRESENTATION TIME IS CREDITED OUT OF THE NUMBER THE LADDER'S TOTAL
+    //     BUDGET IS COMPARED AGAINST. A painter that burns measurable time is
+    //     what makes the credit observable at all.
+    // ------------------------------------------------------------------
+    GpoResetObservers();
+    ComboGenOverlay_Reset();
+    ComboGenOverlay_SetPainter(&GpoSpinPainter);
+    Combo_GenProgress_Begin(); // one paint, through the real channel
+    GPO_ASSERT(sSpinPaints == 1);
+    // GENERATION read FIRST and wall second, so the two clock reads cannot make
+    // the difference look smaller than the credit.
+    const uint32_t generationMs = Combo_GenProgress_GenerationElapsedMs();
+    const uint32_t wallMs = Combo_GenProgress_ElapsedMs();
+    const uint32_t creditedMs = Combo_GenProgress_PresentationMs();
+    GPO_ASSERT(creditedMs >= GPO_SPIN_MS);
+    GPO_ASSERT(wallMs >= creditedMs);
+    // THE ASSERTION THE FIX EXISTS FOR: the ladder's stop reads generation, and
+    // generation is behind wall by at least what the paint cost. Return the raw
+    // clock from Combo_GenProgress_GenerationElapsedMs and this line is red.
+    GPO_ASSERT(wallMs >= generationMs + GPO_SPIN_MS);
+    printf("[TEST] credit: %ums wall, %ums generating, %ums presenting — the total-budget stop is charged the "
+           "generation, not the frames\n",
+           (unsigned)wallMs, (unsigned)generationMs, (unsigned)creditedMs);
+    Combo_GenProgress_End(true);
+
+    // A fresh creation starts the credit from ZERO, or the second file created in
+    // one session would inherit the first one's presentation time and get a
+    // quietly larger total budget. With no painter there is nothing to credit, so
+    // generation and wall are the same number again — which is also exactly the
+    // arithmetic every headless row runs.
+    ComboGenOverlay_SetPainter(NULL);
+    ComboGenOverlay_Reset();
+    Combo_GenProgress_Begin();
+    GPO_ASSERT(Combo_GenProgress_PresentationMs() == 0u);
+    GPO_ASSERT(Combo_GenProgress_GenerationElapsedMs() <= Combo_GenProgress_ElapsedMs());
+    printf("[TEST] credit: a second creation starts at 0ms presented, so generation == wall with nothing on screen\n");
+    Combo_GenProgress_End(true);
 
     // Leave the channel as it was found: these slots are process-global and
     // later rows in the same binary read them.

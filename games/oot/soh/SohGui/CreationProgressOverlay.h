@@ -28,11 +28,24 @@ extern "C" {
  * machine's painter, and latch THIS thread as the only one allowed to touch the
  * renderer.
  *
- * Idempotent, and deliberately called from the creation seam rather than at
- * boot: the seam runs on the game/render thread, so the latch cannot pick up
- * the wrong thread, and OoT's own menu-side generation (which runs on a worker
- * thread and already has the menu's own spinner) is then filtered out by the
- * latch instead of by a guess about who calls what.
+ * RE-ARMING, NOT ONCE-ONLY, and all three slots follow that one rule: a call
+ * either arms the latch, the painter and the display sink together, or arms none
+ * of them. (It used to latch the thread unconditionally and arm the slots only the
+ * first time, so the latch was re-pointable while the slots were not -- anything
+ * that cleared them disarmed the overlay for the rest of the process.)
+ *
+ * IT CAN REFUSE. When this process has nothing presentable -- no Fast3D window, no
+ * Gui, or no frame has ever been presented -- it arms NOTHING and returns, leaving
+ * `ComboGenOverlay_WantsHeartbeat()` false. That is what makes a headless creation
+ * take the pre-#582 code path exactly: MM's fill never reads its clock a second
+ * time and never accumulates a presentation credit, rather than calling into
+ * guards that bail.
+ *
+ * Deliberately called from the creation seam rather than at boot: the seam runs on
+ * the game/render thread, so the latch cannot pick up the wrong thread, and OoT's
+ * own menu-side generation (which runs on a worker thread and already has the
+ * menu's own spinner) is then filtered out by the latch instead of by a guess
+ * about who calls what.
  */
 void OoT_CreationProgressOverlay_Install(void);
 
@@ -56,6 +69,32 @@ int OoT_CreationProgressOverlay_TestPresentOnce(void);
  * frame went out, which is what "the bar paints" has to mean.
  */
 uint32_t OoT_CreationProgressOverlay_TestPresentedFrames(void);
+
+/** TEST SEAM. The RSBS_GENOVERLAY_REFUSED_* code (src/common/gen_progress_overlay.h,
+ *  which is where the codes live so the display-free runner can read them without
+ *  reaching into SohGui) from the last paint attempt. */
+int OoT_CreationProgressOverlay_TestLastRefusal(void);
+
+/**
+ * TEST SEAM. 1 when the install armed this process's slots, 0 when it refused
+ * because nothing here is presentable. The row uses it to tell "the overlay is
+ * wired" from "this box cannot present", and to check that a call after the slots
+ * were cleared RE-arms them.
+ */
+int OoT_CreationProgressOverlay_TestIsArmed(void);
+
+/**
+ * TEST SEAM. 1 when the last frame this file presented was submitted with
+ * ImGuiConfigFlags_NoMouse and ImGuiConfigFlags_NoKeyboard both in force, read
+ * from the live io INSIDE that frame.
+ *
+ * A pumped frame draws SoH's whole menu (Gui::StartDraw -> DrawMenu, Gui::EndDraw
+ * -> DrawFloatingWindows) while the creation seam's gSaveContext bracket is
+ * active, so a click landing on a menu handler would run it re-entrantly in the
+ * middle of the creation. The suppression is what stops that, and this is how a
+ * row sees it rather than taking a comment's word for it.
+ */
+int OoT_CreationProgressOverlay_TestLastFrameSuppressedInput(void);
 
 #ifdef __cplusplus
 }

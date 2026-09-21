@@ -113,7 +113,15 @@ static void Paint(void) {
         return;
     }
     sPaintCount++;
+    // BRACKETED, so the ladder's TOTAL budget measures generation rather than
+    // presentation (gen_budget.h explains why both stops need the credit and why
+    // each is measured in its own clock). Here rather than at the heartbeat's
+    // call site because a phase TRANSITION paints too, and it waits for the same
+    // vblank; the per-attempt credit at the fill's call site only ever saw the
+    // heartbeat paints.
+    Combo_GenProgress_PresentationBegin();
     sPainter(&sView);
+    Combo_GenProgress_PresentationEnd();
 }
 
 /**
@@ -140,7 +148,19 @@ static void BuildCaption(const ComboGenProgress* progress) {
     }
 }
 
-/** Raise the watermark; never lower it (see the header on why). */
+/**
+ * Raise the watermark; never lower it (see the header on why).
+ *
+ * THE `>` IS THE FEATURE, and the row that proves it is
+ * test_gen_progress_overlay.c's "the watermark's red half": three streams that
+ * each hand this function a LOWER candidate than the current fraction (an attempt
+ * clock that steps back, an earlier ladder attempt reported after a later one, a
+ * lower-weight phase after a higher one). Turn this into a plain assignment and
+ * all three go red. The ordinary ladder stream does NOT distinguish them — its
+ * within-attempt creep is capped strictly below the next attempt's base, so it
+ * stays monotone even under assignment, which is exactly why that stream alone
+ * could not lock this.
+ */
 static void RaiseFraction(float candidate) {
     if (candidate > 1.0f) {
         candidate = 1.0f;
