@@ -2896,6 +2896,30 @@ TestResult Test_MMRegistrarCoverage(void) {
     return MM_RegistrarCoverage_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// MM_GOAL's "Majora defeated" conjunct (#658, ADR 0010 D1). Needs the same
+// display-free shared bring-up as the rows around it: the row drives
+// MM_Rando_InitCore, whose ShipInit registrars read the Ship::Context
+// singleton's ConsoleVariables, and that same call is what populates
+// Rando::Logic::Regions for the fill-inertness leg. Bridge body in
+// games/mm/2s2h/mm_majora_goal_test.cpp (extern "C" so MM headers never enter
+// this multi-include TU). It brackets gSaveContext with a memcpy
+// snapshot/restore, so it leaves the shared `--test all` process untouched.
+extern "C" int MM_MajoraGoal_RunHeadless(void);
+
+static TestResult Test_MMMajoraGoal(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_MajoraGoal_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // RO_CLOCK_SHUFFLE's Songs handlers (#678). Needs the same display-free shared
 // bring-up as the rows above, for the narrowest of the usual reasons: the row
 // drives MM's registrars through CVarSetInteger + MM_ShipInit_OnCVarChanged,
@@ -3688,6 +3712,14 @@ const TestDescriptor gTests[] = {
     {"menu-combo-section", "The tier-4 Combo section hosts the cross-game rows and a contributed-page seam (#497)",
      Test_MenuComboSection},
     {"setmenu-count", "Exactly one menu shell reaches Ship::Gui::SetMenu (#497, ADR 0004 §3)", Test_SetMenuCount},
+    // #658: MM_GOAL's "Majora defeated" conjunct. Display-free and ROM-free,
+    // but it MUST stay after mm-registrar-coverage in this table: it drives
+    // MM_Rando_InitCore, and that row's non-vacuity requires the registries to
+    // be empty before its own MM_Rando_Init call. It restores gSaveContext
+    // byte-for-byte, so it is otherwise order-free.
+    {"mm-majora-goal", "MM_GOAL's \"Majora defeated\" predicate answers from the save and stays out of the fill "
+                       "(#658, ADR 0010 D1)",
+     Test_MMMajoraGoal},
     // Keep archive-hotswap-logic LAST: it re-inits the entrance table, so it
     // must not run before any test that relies on the default links.
     {"archive-hotswap-logic", "Headless multi-switch archive/state regression (#263)", Test_ArchiveHotswapLogic},

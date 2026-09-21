@@ -1002,6 +1002,17 @@ if(BUILD_TESTING)
     redship_add_test(NAME MenuCapabilityGating COMMAND redship --test menu-capability-gating)
     redship_add_test(NAME MenuComboSection COMMAND redship --test menu-combo-section)
     redship_add_test(NAME SetMenuCount COMMAND redship --test setmenu-count)
+    # #658: MM_GOAL's "Majora defeated" conjunct (ADR 0010 D1). Three things in
+    # one row, all display-free and ROM-free: the predicate answers from the save
+    # at all (it used to fall through CanKillEnemy's default assert), its polarity
+    # matches all three phases' damage tables in ovl_Boss_07 — notably that a
+    # bow-only or hookshot-only kit can stun Majora forever and never kill it —
+    # and the lair region carries NO fill-visible goal term, because a region
+    # event or check there would bump the glitchless fill's `weight` and move
+    # every generated world. Needs the shared bring-up for MM_Rando_InitCore's
+    # registrars (they read the CVar store), which is also what populates the
+    # region graph leg 2 reads.
+    redship_add_test(NAME MMMajoraGoal COMMAND redship --test mm-majora-goal)
 
     # #661: the Happy Mask Shop interior door IS the OoT<->MM crossing, and OoT's
     # own entrance shuffle lists it as an ordinary EntranceType::Interior pair.
