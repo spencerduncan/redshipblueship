@@ -104,7 +104,18 @@ redshipblueship/
 
 ## License
 
-This project is built upon the work of HarbourMasters and follows their licensing.
+RedShipBlueShip's own code is licensed under the **MIT License** — see
+[`LICENSE`](LICENSE), which states precisely which paths that grant covers.
+
+The vendored game ports, submodules, build-time dependencies and font assets
+keep their own licenses. All of them are inventoried — license, copyright line,
+upstream URL, path in this tree — in
+[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md), together with the two
+components whose license status is unresolved. Read it before redistributing a
+build.
+
+No copyrighted Nintendo asset is included here; assets are extracted at build
+time from ROMs you supply.
 
 <a href="https://github.com/Kenix3/libultraship/">
   <picture>

@@ -1,0 +1,58 @@
+RedShipBlueShip is licensed under the MIT License, reproduced in full below.
+
+SCOPE. The MIT grant below covers RedShipBlueShip's OWN code, documentation and
+build glue only. Concretely, that is:
+
+  * src/common/**            (unified lifecycle, context, entrance, menu,
+                              netplay, shared-resource and test code)
+  * rsbs/**                  (the redship entry point)
+  * CMake/**                 (this project's build configuration, except the
+                              vendored automate-vcpkg.cmake noted below)
+  * tools/**, scripts/**     (this project's audit and packaging scripts)
+  * docs/**, CLAUDE.md, README.md, this file
+  * the single-executable glue added to the vendored game trees - the
+    *SingleExe* translation units under games/oot/** and games/mm/**, the
+    RedShipBlueShip test translation units alongside them, and the changes
+    made inside SINGLE_EXECUTABLE_BUILD guards
+
+It does NOT cover, and does not purport to relicense:
+
+  * games/oot/**  - the vendored Ship of Harkinian tree
+  * games/mm/**   - the vendored 2Ship2Harkinian tree
+  * libultraship/, ZAPDTR/, OTRExporter/ - submodules with their own LICENSE
+  * CMake/automate-vcpkg.cmake - MIT, Copyright (c) 2019 REGoth-project
+  * any other third-party code, font or data file in the tree or fetched at
+    build time
+
+Those components keep their own licenses. THIRD_PARTY_NOTICES.md inventories
+every one of them, with the license, the copyright line, the upstream URL, and
+the two components whose license status is unresolved. Read it before
+redistributing a build.
+
+No copyrighted Nintendo asset is included in this repository. RedShipBlueShip
+extracts assets at build time from original Ocarina of Time and Majora's Mask
+ROMs that you must supply yourself.
+
+----------------------------------------------------------------------
+
+MIT License
+
+Copyright (c) 2026 Spencer Duncan and the RedShipBlueShip contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
