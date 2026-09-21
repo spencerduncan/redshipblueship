@@ -597,6 +597,13 @@ extern "C" {
 // of them are unavailable.
 #include "tests/test_curated_archive_generator.c"
 
+// The font-licensing invariant (license follow-up to #578). FILE SCOPE
+// (compiled as C++): it scans the asset and source trees via RSBS_SOURCE_DIR
+// and calls SOH::ResolveOverlayFontName, which is defined in
+// games/oot/soh/OTRGlobals.cpp and declared inside the test rather than
+// included, so redship_common takes no header dependency on OoT's port glue.
+#include "tests/test_font_license.c"
+
 // MM scene-command EXECUTE regression (issue #344). Unlike the parse test, the
 // body runs the parsed commands against a PlayState, so it needs MM's global.h
 // — which lives in an MM TU (games/mm/2s2h/mm_scene_execute_test.cpp) to keep
@@ -3913,6 +3920,14 @@ const TestDescriptor gTests[] = {
     // label in its own process).
     {"mm-trick-bindings", "Every trick part 2 bound closes its edge off and opens it on, and none removes reach (#578)",
      Test_MMTrickBindings},
+    // The font-licensing invariant (license follow-up to #578). Order-free: an
+    // asset/source scan under RSBS_SOURCE_DIR plus SOH::ResolveOverlayFontName,
+    // a pure function over string literals. It reads no globals and writes none,
+    // so the "keep archive-hotswap-logic LAST" dependency does not apply.
+    {"font-license",
+     "No ungranted font ships, the OFL 1.1 and CC0 texts are in the tree, and a stale gOverlayFont resolves to a "
+     "loaded font (#578 follow-up)",
+     Test_FontLicense},
     // The combo-logic coordinator (#645). Order-free: each row registers its own
     // stub engines, resets the coordinator's tables before every scenario, and
     // un-registers both engines before returning, so nothing it touches outlives
