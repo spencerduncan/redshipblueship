@@ -102,10 +102,21 @@ dependency records name. Configure prints:
 ```
 
 Caching is not disabled. Every rebuild, branch switch and object-directory wipe
-inside a checkout still hits the cache, and if you build one checkout — which is
-every CI runner and every ordinary clone — the buster value is constant and your
-hit rate is unchanged. What you give up is reuse *between* checkouts on the same
-machine, which is the reuse that was producing wrong answers.
+inside a checkout still hits the cache (measured: 99.9% on a 2404-object rebuild
+after wiping the object dirs). What you give up is reuse *between* checkouts on
+the same machine, which is the reuse that was producing wrong answers: the first
+build of a fresh checkout goes from ~6 min at a ~61% hit rate to ~19 min at 0%,
+once.
+
+CI is deliberately excluded. A runner builds one checkout at a fixed workspace
+path, so the hazard — which needs two checkouts — cannot occur there, and
+partitioning would invalidate the whole shared cache for nothing. When
+`GITHUB_ACTIONS` or `CI` is set in the environment, configure says so and leaves
+the key alone:
+
+```
+-- sccache: single-checkout CI environment detected; leaving the cache key shared
+```
 
 **Turning it off.** `-DRSBS_SCCACHE_TREE_PARTITION=OFF` restores cross-checkout
 reuse. If you do that and you have more than one checkout, wipe the object

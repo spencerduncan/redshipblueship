@@ -61,6 +61,20 @@ function(_rsbs_sccache_tree_partition)
         return()
     endif()
 
+    # A CI runner builds exactly one checkout, always at the same workspace path,
+    # so every `/showIncludes` path it replays out of its shared cache already
+    # belongs to the tree being built: the hazard needs two checkouts and there
+    # is only one. Partitioning there would buy nothing and cost everything --
+    # measured on PR #692, whose first Windows run changed every cache key and
+    # fell from the documented 99.8% hit rate and ~8 minutes to 0.00% and
+    # 1h35m. So CI keeps the shared key.
+    if(DEFINED ENV{GITHUB_ACTIONS} OR DEFINED ENV{CI})
+        message(STATUS
+            "sccache: single-checkout CI environment detected; leaving the cache key shared "
+            "(the #676 cross-checkout dependency hazard needs two checkouts).")
+        return()
+    endif()
+
     set(_launcher "")
     foreach(_var CMAKE_C_COMPILER_LAUNCHER CMAKE_CXX_COMPILER_LAUNCHER)
         if(${_var})
