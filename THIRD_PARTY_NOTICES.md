@@ -10,6 +10,14 @@ memory and not from a package manifest. Where a claim could not be verified, it
 is listed under [Unresolved license status](#unresolved-license-status) rather
 than guessed at.
 
+**Re-verified 2026-09-21** for the elections pass: the font `name` tables were
+re-parsed from the shipped files; the upstream license text of every component
+whose license this file describes as a choice was fetched read-only at the
+revision actually in use; and GLEW's licensing was corrected (it is cumulative,
+not a choice — see [Elections](#elections)). The mechanical part of this file is
+now locked by a CTest row, `FontLicense`
+(`src/common/tests/test_font_license.c`).
+
 **No copyrighted Nintendo asset ships in this repository.** Game assets are
 extracted at build time from original Ocarina of Time and Majora's Mask ROMs the
 user supplies.
@@ -17,19 +25,23 @@ user supplies.
 ## Summary of the licensing picture
 
 * Every component that is compiled into `redship`, or shipped beside it, is
-  under a **permissive** license: MIT, CC0-1.0, zlib, BSD-3-Clause, the
-  Unlicense, the PNG Reference Library License v2, the bzip2 license, or the SIL
-  Open Font License 1.1 for fonts.
+  under a **permissive** license: MIT, MIT No Attribution, CC0-1.0, zlib,
+  BSD-3-Clause, the PNG Reference Library License v2, the bzip2 license, or the
+  SIL Open Font License 1.1 for fonts.
+* Two components let the user **choose** which license to take them under. This
+  project has chosen, and the choices are recorded with their upstream evidence
+  under [Elections](#elections). Every other component offers no choice at all,
+  and is used under the single license its upstream publishes.
 * **No GPL, LGPL, AGPL or MPL code is present in the tree or linked into the
   binary.** The only copyleft references anywhere in this repository are three
   documentation passages (`docs/adr/0006-netplay-transport-scope.md:204`,
   `docs/adr/0007-grant-relay-netplay.md:59`,
   `docs/netplay-increment-1-spike.md:343`) that name GPL-3.0 prior art
   explicitly in order to record that it was **not** read, adapted or vendored.
-* Two components have an unresolved status and are called out in their own
-  section: the Ship of Harkinian upstream publishes no license file at all, and
-  the `Fipps-Regular.otf` font asserts "All rights reserved" with no license
-  identifier.
+* **One** component has an unresolved status and is called out in its own
+  section: the Ship of Harkinian upstream publishes no license file at all. The
+  second such item, the `Fipps-Regular.otf` font, was resolved on 2026-09-21 by
+  deleting it — see [Unresolved license status](#unresolved-license-status).
 
 ## Inventory
 
@@ -38,7 +50,7 @@ user supplies.
 | Component | Path in tree | License | Copyright | Upstream | License text in-tree |
 |---|---|---|---|---|---|
 | Ship of Harkinian (OoT port) | `games/oot/` | **None published upstream** — see [Unresolved license status](#unresolved-license-status) | not stated upstream | https://github.com/HarbourMasters/Shipwright | no |
-| 2Ship2Harkinian (MM port) | `games/mm/` | CC0-1.0 (Creative Commons Zero v1.0 Universal, a public-domain dedication) | dedicated to the public domain by the 2Ship2Harkinian authors | https://github.com/HarbourMasters/2ship2harkinian | no (upstream `LICENSE`, 7048 bytes, was not copied with the snapshot) |
+| 2Ship2Harkinian (MM port) | `games/mm/` | CC0-1.0 (Creative Commons Zero v1.0 Universal, a public-domain dedication) | dedicated to the public domain by the 2Ship2Harkinian authors | https://github.com/HarbourMasters/2ship2harkinian | **yes** — `games/mm/LICENSE`, copied byte-for-byte from upstream `develop` on 2026-09-21 (7048 bytes, matching the size GitHub's contents API reports for that path) |
 | 3drando (OoT-Randomizer derivative inside SoH) | `games/oot/soh/Enhancements/randomizer/3drando/` | MIT | Copyright (c) 2017 Amazing Ampharos | https://github.com/TestRunnerSRL/OoT-Randomizer | **yes** — `games/oot/soh/Enhancements/randomizer/3drando/LICENSE.md` |
 
 Both game trees derive from the zeldaret decompilation projects
@@ -71,8 +83,8 @@ notices must accompany a distributed build.
 | Component | Declared at | License | Copyright | Upstream |
 |---|---|---|---|---|
 | Dear ImGui (v1.91.9b-docking, patched) | `libultraship/cmake/dependencies/common.cmake` | MIT | Copyright (c) 2014-2025 Omar Cornut | https://github.com/ocornut/imgui |
-| stb_image (pinned `0bc88af4`) | `libultraship/cmake/dependencies/common.cmake` | MIT **or** public domain (dual, at the user's choice) | Copyright (c) 2017 Sean Barrett | https://github.com/nothings/stb |
-| dr_libs (pinned `da35f9d6`) | `games/oot/CMakeLists.txt:463`, `games/mm/CMakeLists.txt:36` | Unlicense (public domain) **or** MIT-0 (dual, at the user's choice) | David Reid | https://github.com/mackron/dr_libs |
+| stb_image (pinned `0bc88af4`) | `libultraship/cmake/dependencies/common.cmake` | MIT **or** public domain, at the user's choice — **MIT elected**, see [Elections](#elections) | Copyright (c) 2017 Sean Barrett | https://github.com/nothings/stb |
+| dr_libs (pinned `da35f9d6`) | `games/oot/CMakeLists.txt:463`, `games/mm/CMakeLists.txt:36` | Unlicense (public domain) **or** MIT No Attribution, at the user's choice — **MIT-0 elected**, see [Elections](#elections) | David Reid | https://github.com/mackron/dr_libs |
 | thread-pool (v4.1.0) | `libultraship/cmake/dependencies/common.cmake` | MIT | Copyright (c) 2024 Barak Shoshany | https://github.com/bshoshany/thread-pool |
 | prism-processor (pinned `bbcbc7e3`) | `libultraship/cmake/dependencies/common.cmake` | MIT | KiritoDv | https://github.com/KiritoDv/prism-processor |
 | StormLib (v9.25, optional — `INCLUDE_MPQ_SUPPORT`) | `libultraship/cmake/dependencies/common.cmake` | MIT | Copyright (c) Ladislav Zezula | https://github.com/ladislav-zezula/StormLib |
@@ -91,7 +103,7 @@ to the distributed binary.
 |---|---|---|---|
 | SDL2 | zlib | Copyright (C) 1997-2026 Sam Lantinga <slouken@libsdl.org> | https://github.com/libsdl-org/SDL |
 | SDL2_net | zlib | Copyright (C) 1997-2026 Sam Lantinga | https://github.com/libsdl-org/SDL_net |
-| GLEW | Modified BSD (BSD-3-Clause) / MIT / GLX public domain, tri-licensed | Copyright (C) 2002-2007 Milan Ikits, Marcelo E. Magallon; Copyright (C) 2002 Lev Povalahev | https://github.com/nigels-com/glew |
+| GLEW | Modified BSD **and** MIT (**not** a choice — corrected 2026-09-21; see [Elections](#elections)) | Copyright (C) 2002-2007 Milan Ikits, Marcelo E. Magallon; Copyright (C) 2002 Lev Povalahev; Mesa 3-D: Copyright (C) 1999-2007 Brian Paul; Copyright (c) 2007 The Khronos Group Inc. | https://github.com/nigels-com/glew |
 | GLFW | zlib/libpng | Copyright (c) 2002-2006 Marcus Geelnard; Copyright (c) 2006-2019 Camilla Lowy | https://github.com/glfw/glfw |
 | zlib | zlib | (C) 1995-2026 Jean-loup Gailly and Mark Adler | https://github.com/madler/zlib |
 | bzip2 | bzip2 license (BSD-style) | Copyright (C) 1996-2019 Julian R Seward | https://sourceware.org/bzip2/ |
@@ -119,11 +131,34 @@ license description) — not from a distribution page.
 | Montserrat Regular | `games/{oot,mm}/assets/custom/fonts/Montserrat-Regular.ttf` | SIL Open Font License 1.1 | Copyright 2011 The Montserrat Project Authors | https://github.com/JulietaUla/Montserrat |
 | Noto Sans JP Regular | `games/oot/assets/custom/fonts/NotoSansJP-Regular.ttf` | SIL Open Font License 1.1 | (c) 2014-2021 Adobe, with Reserved Font Name 'Source' | https://github.com/notofonts/noto-cjk |
 | Press Start 2P Regular | `games/{oot,mm}/assets/custom/fonts/PressStart2P-Regular.ttf` | SIL Open Font License 1.1 | Copyright 2012 The Press Start 2P Project Authors (cody@zone38.net), with Reserved Font Name "Press Start 2P" | https://fonts.google.com/specimen/Press+Start+2P |
-| Fipps Regular | `games/{oot,mm}/assets/custom/fonts/Fipps-Regular.otf` | **unresolved** — see below | Copyright (c) 2007 by Stefanie Koerner (pheist). All rights reserved. | http://pheist.net |
 
-The SIL Open Font License 1.1 requires its text to travel with the font files.
-It is not currently in the tree next to them; see
-[Open items](#open-items-for-the-operator).
+`Fipps-Regular.otf` used to be a fifth row here, with an unresolved status. It
+was **deleted from both trees on 2026-09-21** rather than resolved; see
+[Unresolved license status](#unresolved-license-status).
+
+The SIL Open Font License 1.1 requires its text, and each font's copyright
+notice, to travel with the font files (OFL 1.1 condition 2). Both are now in the
+tree beside them: **`games/oot/assets/custom/fonts/OFL.txt`** and
+**`games/mm/assets/custom/fonts/OFL.txt`**. Each names the fonts in its own
+directory with that font's `name`-table copyright line, and reproduces the OFL
+1.1 body verbatim. Because this repository's custom-asset step packs everything
+under `assets/custom/` into `soh.o2r` / `2ship.o2r` verbatim
+(`OTRExporter/OTRExporter/Main.cpp`), the notice travels inside the shipped
+archives as well as in the source tree.
+
+The copyright column above was re-verified on 2026-09-21 by parsing each shipped
+file's own `name` table (IDs 0, 7, 13, 14). Two details worth recording: the
+Montserrat copy in this tree states `Copyright 2011 The Montserrat Project
+Authors`, where upstream's current `OFL.txt` says 2024 — the in-tree notice is
+the one that governs the in-tree file, and is what `OFL.txt` carries; and Noto
+Sans JP's name ID 7 asserts `Source is a trademark of Adobe`, which is reproduced
+in `games/oot/assets/custom/fonts/OFL.txt` alongside its copyright line.
+
+`src/common/tests/test_font_license.c` (CTest row `FontLicense`, `redship` tier)
+asserts all of this mechanically: no `Fipps*` file in either fonts directory, the
+expected fonts still present, an `OFL.txt` in each directory carrying the OFL 1.1
+body and every covered font's notice, `games/mm/LICENSE` being the CC0 text, and
+no source file naming the removed font.
 
 ## OoTMM
 
@@ -177,12 +212,66 @@ neither is read as a reference when authoring logic. The GPL-3.0 references in
 is a deliberate licensing boundary: importing GPL-3.0 material would make the
 MIT grant in `LICENSE` false. It must stay intact.
 
+## Elections
+
+Some upstreams do not publish one license: they publish two or more and let the
+recipient pick. Picking is not optional in practice — a redistributor has to say
+which one it took, or its own notice file is unreadable. This section is that
+statement.
+
+The rules this table follows, so that it can be audited rather than trusted:
+
+* An election is recorded **only** where the upstream's own text, at the version
+  this project actually uses, offers the option. The pinned revision is named.
+* Where a choice exists, the **MIT-family or CC0 option is elected** — the most
+  permissive one with an explicit grant, so the notice obligation is a copyright
+  line rather than a public-domain theory that not every jurisdiction accepts.
+* A single-license component is **never** relabelled. "MIT" appearing in the
+  inventory for imgui or spdlog is not an election; it is their only license.
+* Where no MIT/CC0 option is offered, the row says **no election available** and
+  the required license text is carried instead.
+
+### Elections made
+
+| Component | Version in use | Options the upstream offers | Elected | Evidence (fetched read-only 2026-09-21) |
+|---|---|---|---|---|
+| stb_image | `stb_image.h` pinned at `0bc88af4de5fb022db643c2d8e549a0927749354` (`libultraship/cmake/dependencies/common.cmake:55`) | MIT **or** public domain (the Unlicense) | **MIT** | `LICENSE` at that commit, line 1: `This software is available under 2 licenses -- choose whichever you prefer.` Line 3 heads the elected branch: `ALTERNATIVE A - MIT License`, with `Copyright (c) 2017 Sean Barrett`. (Line 21 is `ALTERNATIVE B - Public Domain (www.unlicense.org)`, not taken.) |
+| dr_libs (`dr_wav.h`, `dr_mp3.h`, `dr_flac.h`) | repository pinned at `da35f9d6c7374a95353fd1df1d394d44ab66cf01` (`games/oot/CMakeLists.txt`, `games/mm/CMakeLists.txt`) | the Unlicense (public domain) **or** MIT No Attribution | **MIT No Attribution (MIT-0)** | `LICENSE` at that commit, lines 1-2: `This software is available as a choice of the following licenses. Choose whichever you prefer.` Line 30 heads the elected branch: `ALTERNATIVE 2 - MIT No Attribution`. (Line 5 is `ALTERNATIVE 1 - Public Domain (www.unlicense.org)`, not taken.) The same two alternatives are repeated at the end of each `dr_*.h` header. |
+
+MIT-0 is MIT with the attribution condition removed; its text is in the
+[Appendix](#mit-no-attribution-mit-0). Electing it rather than the Unlicense
+means dr_libs is used under an express grant, which is the same posture as every
+other component here.
+
+### No election available
+
+Every other component in the inventory publishes exactly one license, so there
+is nothing to elect. The ones where somebody might expect a choice, and why
+there is none:
+
+| Component | Why no election | What is carried instead |
+|---|---|---|
+| GLEW | **Not a choice — the earlier "tri-licensed" wording in this file was wrong, corrected 2026-09-21.** `LICENSE.txt` is three *cumulative* notices over three bodies of code GLEW is assembled from: GLEW itself (Modified BSD, lines 1-28), the Mesa 3-D graphics library (MIT, lines 31-51) and Khronos Group material (MIT-style, lines 54-73). There is no "choose whichever you prefer" sentence anywhere in the file, so all three apply at once. | Both the BSD-3-Clause and MIT texts in the [Appendix](#appendix-license-texts), plus all four copyright lines in the inventory table. |
+| GLFW | "zlib/libpng license" is **one** license under two names, not two options. `LICENSE.md` states a single set of terms under Marcus Geelnard's and Camilla Löwy's copyrights. | The [zlib License](#zlib-license) text. |
+| SDL2, SDL2_net, zlib, TinyXML-2, SDL_GameControllerDB | zlib license only. | The [zlib License](#zlib-license) text. |
+| libzip, libogg, libvorbis, opus, opusfile | BSD-3-Clause only. | The [BSD 3-Clause License](#bsd-3-clause-license) text. |
+| libpng | PNG Reference Library License v2 only. The v1/v2 split is a *version* boundary, not an offer. | Referenced by URL below. |
+| bzip2 | The bzip2 license (BSD-style) only. | Referenced by URL below. |
+| Inconsolata, Montserrat, Noto Sans JP, Press Start 2P | SIL Open Font License 1.1 only; the OFL is explicitly non-relicensable (condition 5). | `games/{oot,mm}/assets/custom/fonts/OFL.txt`, in the tree beside the fonts. |
+| 2Ship2Harkinian (`games/mm/`) | CC0-1.0 only. Already the CC0 posture this project would elect — but it is the upstream's single license, not a choice made here. | `games/mm/LICENSE`. |
+| 3drando (`games/oot/soh/Enhancements/randomizer/3drando/`) | MIT only. | `.../3drando/LICENSE.md`, already in the tree. |
+| libultraship, Fast3D, ZAPDTR, OTRExporter, libgfxd, Automate-VCPKG | MIT only. | Each one's own `LICENSE` in the tree (see the inventory's "License text in-tree" column). |
+| Dear ImGui, thread-pool, prism-processor, StormLib, nlohmann/json, spdlog, linuxdeploy | MIT only. | The [MIT License](#mit-license) text with each component's copyright line. |
+| OoTMM | **Not a choice.** The root `LICENSE` is MIT and governs; `packages/core/package.json:12`'s `"license": "ISC"` is a scaffolding leftover, recorded under [OoTMM](#ootmm) above. A conflicting metadata field is a discrepancy to note, not an option to elect. | The [MIT License](#mit-license) text with `Copyright (c) 2020-2022 OoTMM Team`. |
+| Ship of Harkinian (`games/oot/`) | **No license at all** is published upstream, so there is nothing to choose between. See [Unresolved license status](#unresolved-license-status). | Nothing; the status is stated rather than papered over. |
+| OpenGL (system) | Platform-provided; no bundled code. | — |
+
 ## Unresolved license status
 
-Two items are honestly unresolved. Neither is copyleft, so neither blocks the
-MIT grant over RedShipBlueShip's own code, and both are inherited rather than
-introduced here. They are recorded so that a redistribution decision is made
-with the facts.
+**One** item is honestly unresolved. It is not copyleft, so it does not block the
+MIT grant over RedShipBlueShip's own code, and it is inherited rather than
+introduced here. It is recorded so that a redistribution decision is made with
+the facts.
 
 1. **Ship of Harkinian (`games/oot/`) has no published license.** Verified
    2026-09-17: `HarbourMasters/Shipwright` at `develop` has no root `LICENSE`,
@@ -192,28 +281,43 @@ with the facts.
    tree already carries at the corresponding path); and its `README.md` makes no
    license statement. Under default copyright, no express grant accompanies that
    code. The MM half is unaffected — 2Ship2Harkinian's root `LICENSE` is
-   CC0-1.0.
-2. **`Fipps-Regular.otf` states "All rights reserved."** Its `name` table
-   contains no license description (name ID 13) and no license URL (name ID
-   14); name IDs 0 and 10 read `Copyright (c) 2007 by Stefanie Koerner
-   (pheist). All rights reserved.` and name ID 7 asserts a trademark. The font
-   is widely redistributed as an open font, but nothing in the file or in this
-   tree substantiates a specific grant, so none is claimed here.
+   CC0-1.0, and is now carried at `games/mm/LICENSE`.
+
+   **This is still unresolved and is not softened here.** No election is
+   possible, because an election needs an upstream offer and there is none: a
+   repository that publishes no license has not offered anything to choose
+   between. Nothing in this pass changed that fact, and nothing was reported to
+   or requested from that upstream. The pre-release caveat below stands.
+
+### Resolved by removal
+
+**`Fipps-Regular.otf` — deleted from both trees on 2026-09-21.** The font stated
+`Copyright (c) 2007 by Stefanie Koerner (pheist). All rights reserved.` at name
+IDs 0 and 10, asserted a trademark at name ID 7, and carried no license
+description (name ID 13) and no license URL (name ID 14) — no grant of any kind.
+It was widely redistributed as an open font, but nothing in the file or in this
+tree substantiated a specific grant, so rather than claim one this project
+stopped shipping it. It arrived in the initial commit as part of the vendored
+Ship of Harkinian and 2Ship2Harkinian trees; nothing this project authored added
+it.
+
+It was never the default overlay font (`gOverlayFont` defaults to
+`Press Start 2P`), so the removal is a menu option disappearing, not a visual
+change for anyone who had not gone looking for it. A player whose config still
+names it is mapped back to `Press Start 2P` by
+`SOH::ResolveOverlayFontName` in `games/oot/soh/OTRGlobals.cpp` before the name
+reaches libultraship, which is also what stops
+`Ship::GameOverlay::SetCurrentFont`'s `mFonts[name]` (`operator[]`) inserting a
+null-valued entry that the font combo would then list as a dead row. Recorded in
+`docs/known-issues.md`.
 
 ## Open items for the operator
 
 These are documentation/packaging gaps, not blockers:
 
-* Bundle the SIL Open Font License 1.1 text alongside
-  `games/{oot,mm}/assets/custom/fonts/` (the OFL requires it to travel with the
-  fonts).
-* Copy 2Ship2Harkinian's CC0-1.0 `LICENSE` into `games/mm/` so the MM tree's
-  grant is visible in this repository rather than only upstream.
-* Decide the disposition of the two unresolved items above before any public
-  binary release.
-* The copyright line in `LICENSE` uses `Spencer Duncan`, the majority git author
-  name on this repository (`Penelope Duncan` and `Penny` also appear in the
-  history); change it if a different attribution is wanted.
+* Decide the disposition of the one remaining unresolved item above (Ship of
+  Harkinian's absent license) before any public binary release. Note that it
+  cannot be resolved by an election, only by a decision about redistribution.
 
 ## Appendix: license texts
 
@@ -299,9 +403,37 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
+### MIT No Attribution (MIT-0)
+
+The option **elected** for dr_libs (see [Elections](#elections)). Reproduced
+verbatim from `LICENSE` at `da35f9d6c7374a95353fd1df1d394d44ab66cf01`,
+`ALTERNATIVE 2`.
+
+```
+Copyright 2020 David Reid
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished to do
+so.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
 ### The Unlicense
 
-One of the two options dr_libs offers; the other is MIT-0.
+The option **not** taken for either component that offers it (dr_libs'
+`ALTERNATIVE 1`, stb_image's `ALTERNATIVE B`). Kept here because the offers name
+it, and because a reader auditing the elections above should be able to see what
+was declined.
 
 ```
 This is free and unencumbered software released into the public domain.
@@ -327,15 +459,24 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 ```
 
+### Licenses whose text is in this tree beside the component
+
+These two are not reproduced here because they are carried where the license
+itself requires them to be — next to the files they cover, which is also where
+the packaging step picks them up:
+
+* **CC0 1.0 Universal** (2Ship2Harkinian, `games/mm/`) — `games/mm/LICENSE`,
+  7048 bytes, copied byte-for-byte from upstream on 2026-09-21.
+* **SIL Open Font License 1.1** (the fonts above) —
+  `games/oot/assets/custom/fonts/OFL.txt` and
+  `games/mm/assets/custom/fonts/OFL.txt`, each with the covered fonts' own
+  copyright notices.
+
 ### Licenses referenced by URL
 
 These are reproduced in full by their upstreams; a distributed build should
 carry them alongside the components they cover.
 
-* **CC0 1.0 Universal** (2Ship2Harkinian) —
-  https://creativecommons.org/publicdomain/zero/1.0/legalcode
-* **SIL Open Font License 1.1** (the fonts above) —
-  https://scripts.sil.org/OFL
 * **PNG Reference Library License v2** (libpng) —
   https://github.com/glennrp/libpng/blob/master/LICENSE
 * **bzip2 license** — https://sourceware.org/bzip2/

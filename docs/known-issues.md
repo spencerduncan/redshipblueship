@@ -344,6 +344,15 @@ where they were caught; the MM randomizer options pane labels each row live,
 partial, dormant or generation-only with a reason. This pass was not exhaustive —
 an enabled-looking toggle that does nothing is a plausible bug, and worth reporting.
 
+### The "Fipps" overlay font choice is gone
+
+`Fipps-Regular.otf` shipped with the inherited port trees and asserted "All rights
+reserved" with no license grant, so it was deleted (2026-09-21; see
+`THIRD_PARTY_NOTICES.md`). It is no longer offered in the overlay font picker. It
+was never the default, and a saved `gOverlayFont` that still names it — or names
+anything else that is not loaded — falls back to **Press Start 2P** rather than
+leaving a dead entry in the picker.
+
 ---
 
 ## CI and quality gates (for contributors)
