@@ -25,9 +25,13 @@ It does NOT cover, and does not purport to relicense:
     build time
 
 Those components keep their own licenses. THIRD_PARTY_NOTICES.md inventories
-every one of them, with the license, the copyright line, the upstream URL, and
-the two components whose license status is unresolved. Read it before
-redistributing a build.
+every one of them, with the license, the copyright line, the upstream URL, the
+license elected where the upstream offers a choice, and the one remaining
+component whose license status is unresolved. Read it before redistributing a
+build. The license texts that must travel with a component are in the tree
+beside it: games/mm/LICENSE (CC0-1.0, the vendored MM port) and
+games/{oot,mm}/assets/custom/fonts/OFL.txt (SIL Open Font License 1.1, the
+fonts).
 
 No copyrighted Nintendo asset is included in this repository. RedShipBlueShip
 extracts assets at build time from original Ocarina of Time and Majora's Mask
@@ -37,7 +41,7 @@ ROMs that you must supply yourself.
 
 MIT License
 
-Copyright (c) 2026 Spencer Duncan and the RedShipBlueShip contributors
+Copyright (c) 2026 Penelope Duncan and the RedShipBlueShip contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

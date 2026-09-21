@@ -1454,6 +1454,22 @@ if(BUILD_TESTING)
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
+    # The font-licensing invariant (license follow-up to #578). Three facts that
+    # were prose in THIRD_PARTY_NOTICES.md and are now tree state: the ungranted
+    # "All rights reserved" font named in that file's "Resolved by removal"
+    # section is gone from both custom-asset trees and from every source and
+    # build file under games/, src/, rsbs/ and CMake/ — this comment deliberately
+    # does not name it, because the row below scans CMake/*.cmake too and would
+    # fail on this line; the SIL OFL 1.1 text sits beside both font sets with
+    # each shipped font's own name-table copyright line; and 2Ship2Harkinian's
+    # CC0-1.0 grant is visible at games/mm/LICENSE. Plus the runtime consequence
+    # of removing a SELECTABLE font: SOH::ResolveOverlayFontName maps a stale
+    # CVAR_GAME_OVERLAY_FONT (gSettings.OverlayFont in this build) back to a
+    # loaded name before Ship::GameOverlay::SetCurrentFont's mFonts[name] can
+    # insert a null-valued dead row. Default `redship` tier: a source/asset scan
+    # plus one pure function, no window, no archive, no ROM.
+    redship_add_test(NAME FontLicense COMMAND redship --test font-license)
+
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)
     # These tests actually boot the games and verify boot completion
