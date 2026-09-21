@@ -518,7 +518,9 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
  * way); the authoritative constants are ComboGui::kComboMMOptions* /
  * kComboSpoiler* / kComboTracker* in src/common/ComboMmOptionsWindow.h,
  * ComboSpoilerWindow.h and ComboTrackerWindow.h, and
- * kCheckTracker*/kItemTracker* in games/mm/2s2h/TrackersGuiSingleExe.h.
+ * kCheckTracker* / kItemTracker* in games/mm/2s2h/TrackersGuiSingleExe.h.
+ * (Spaced deliberately: "kCheckTracker*" followed immediately by "/" closes this
+ * block comment, which is what it did before this line was fixed.)
  *
  * WHY THESE ROWS ARE UNGATED, now that #497 step 3 gives them a gate to use.
  * Both common-owned windows read only gComboCtx and CVars, never either game's
