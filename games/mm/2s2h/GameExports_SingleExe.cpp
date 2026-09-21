@@ -33,7 +33,6 @@
 #include <vector>
 
 #include <ship/Context.h>
-#include <ship/utils/StringHelper.h> // #670: IEquals for mod-archive extensions
 #include <ship/window/Window.h>
 
 #include "game_lifecycle.h"
@@ -878,7 +877,7 @@ extern "C" void MM_IntegrationGameplayFrameTick(void) {
 // PlayerCustomFlipbooks frame names) could only ever read false, because the
 // paths they want are override-only by design.
 //
-// This is BenPort's block re-homed, with three differences forced by the shared
+// This is BenPort's block re-homed, with four differences forced by the shared
 // process:
 //
 //   1. The mods ROOT is partitioned. Both ports resolve "mods" through
@@ -894,6 +893,10 @@ extern "C" void MM_IntegrationGameplayFrameTick(void) {
 //      mechanism: ArchiveManager resolution is last-added-wins with no priority
 //      field (ArchiveManager::AddArchive overwrites mFileToArchive[hash]
 //      unconditionally).
+//   4. The accepted extension set is OoT's, not BenPort's, via the shared
+//      Combo_ModArchiveExtensionIsValid — so `.zip` is out. Same reason as (1):
+//      one shared folder tree must not accept different file types in its two
+//      halves. See MMIsModArchiveExtension below.
 //
 // HOW A COLLIDING PATH RESOLVES. oot.o2r and mm.o2r already collide on 151
 // object names, 14 overlays and the three gameplay_*_keep archives
@@ -912,6 +915,16 @@ extern "C" void MM_IntegrationGameplayFrameTick(void) {
 // Everything under mods/mm/ is mounted — MM has no equivalent of OoT's
 // enabled-subset mod menu, so there is no enabled set to consult, and upstream
 // BenPort mounts the whole folder too. Precedence is the sort below.
+//
+// That IS a one-game-semantics divergence and it ships knowingly: inside one game,
+// OoT's half of the mods tree has enable/disable/reorder and MM's half does not
+// (rename to reorder, move the file out to disable). It is not hidden — it is
+// stated in docs/MODDING.md and in the PR — and the MM mod menu that closes it is
+// the filed follow-up. The alternative available today would be to make MM read
+// OoT's `gSettings.EnabledMods` CVar, which would put MM's mods in OoT's mod menu
+// list and let a stale OoT enabled-set silently disable an MM mod; that is a worse
+// divergence, not a smaller one. The extension set, by contrast, was cheap to
+// align and therefore was (difference 4 above).
 
 // Sort key for mod precedence: the whole path with its EXTENSION removed,
 // compared case-insensitively. Byte-for-byte upstream BenPort's comparator
@@ -932,10 +945,20 @@ static bool MMModNameLess(const std::string& a, const std::string& b) {
     });
 }
 
+// Which files in mods/mm are archives at all. The SHARED rule
+// (src/common/mod_archives.cpp), which is OoT's rule: `.o2r`, plus `.otr` where
+// the MPQ reader is compiled in, and never `.zip`.
+//
+// Upstream BenPort's own list here was `.o2r`/`.zip`/`.otr`
+// (games/mm/2s2h/BenPort.cpp), and an earlier revision of this PR copied it. That
+// gave the two halves of ONE shared folder tree different file types — the same
+// distribution zip mounted under mods/mm and ignored under mods/ — which is the
+// divergence the one-game rule exists to prevent, and OoT's reason for excluding
+// `.zip` (a mod is usually distributed AS a zip that CONTAINS the .o2r) applies
+// verbatim to mods/mm. Nothing regresses: single-exe MM mounted no mods at all
+// before #670, so there is no installed base of MM `.zip` mods to break.
 static bool MMIsModArchiveExtension(const std::filesystem::path& p) {
-    const std::string ext = p.extension().string();
-    return StringHelper::IEquals(ext, ".o2r") || StringHelper::IEquals(ext, ".zip") ||
-           StringHelper::IEquals(ext, ".otr");
+    return Combo_ModArchiveExtensionIsValid(p.extension().string().c_str());
 }
 
 /**

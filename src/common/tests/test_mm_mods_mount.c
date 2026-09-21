@@ -4,8 +4,17 @@
  *        partitioned between the two games, and an MM mod override survives a
  *        cross-game switch without ever shadowing an OoT path once OoT is active.
  *
- * CTest row MMModsMount (label "redship"), dispatch "mm-mods-mount" in
- * src/common/test_runner.cpp.
+ * TWO CTest rows (label "redship"), both dispatched from src/common/test_runner.cpp:
+ *
+ *   MMModsPartition ("mm-mods-partition") — the shared-tree partition and the
+ *     shared extension rule, as pure path logic. No archive, no filesystem, no
+ *     Ship::Context, so it NEVER skips: it runs in the archive-less netplay-relay
+ *     job too (#562). It used to be part 1 of the row below, which meant the only
+ *     lock on Combo_ModPathIsForGame — the predicate BOTH globs depend on — was
+ *     skipped in exactly that job, together with a comment claiming the opposite.
+ *   MMModsMount ("mm-mods-mount") — everything that needs real archives: both
+ *     production globs, both registries, the ownership legs and the switch round
+ *     trip. SKIPs when soh.o2r or 2ship.o2r is unstaged.
  *
  * WHAT WAS BROKEN. MM's whole mod-mount sequence lives in
  * games/mm/2s2h/BenPort.cpp's InitOTR, and games/mm/CMakeLists.txt:244 EXCLUDES
@@ -32,6 +41,17 @@
  *   1. The partition is total and disjoint, over path spellings that actually
  *      occur: "./mods" vs "mods", '\' separators, "MM" in any case, the
  *      near-misses "mmx"/"xmm", a nested archive, and a path outside the root.
+ *      Plus the shared extension rule, which is the other half of "whose file is
+ *      this": `.o2r` yes, `.otr` yes (this build compiles the MPQ reader in),
+ *      `.zip` no for BOTH games.
+ *   1b. OoT's real glob honours the partition too. MM's half being locked is the
+ *      easy half; the dangerous direction is a mod registered under the WRONG
+ *      game, because THAT survives the switch, and before this leg existed the
+ *      whole `#ifdef` block in mod_menu.cpp could be deleted with every row still
+ *      green. OoT_MountModArchivesHeadless drives CollectOoTModFiles — the same
+ *      function UpdateModFiles's own loop iterates — and the leg asserts OoT
+ *      claims the root-level archive and registers NEITHER mods/mm archive under
+ *      GAME_OOT.
  *   2. MM's real glob (MM_MountModArchivesHeadless -> MountMMModArchives) mounts
  *      the two staged mods/mm archives and NOT the root-level one, recurses into
  *      mods/mm/sub, ignores a non-archive file, sorts by file-name stem, and
@@ -70,9 +90,10 @@
  * ships OoT-owned paths".
  *
  * mm.o2r is never used: it is ROM-derived and undistributable, so a row needing
- * it would skip on every CI run. SKIPs when soh.o2r or 2ship.o2r is unstaged, the
- * same policy as the #593/#595/#618 rows — the netplay-relay CI job re-runs this
- * label archive-less on purpose (#562).
+ * it would skip on every CI run. MMModsMount SKIPs when soh.o2r or 2ship.o2r is
+ * unstaged, the same policy as the #593/#595/#618 rows — the netplay-relay CI job
+ * re-runs this label archive-less on purpose (#562). MMModsPartition needs
+ * neither archive and never skips.
  *
  * The staged tree lives in a private directory under the CWD and is deleted
  * afterwards; the row never touches the player's ./mods, and it restores the
@@ -101,6 +122,10 @@ extern "C" {
 // MM's production mod glob + mount + both registrations, over an explicitly
 // supplied mods root (games/mm/2s2h/GameExports_SingleExe.cpp, #670).
 int MM_MountModArchivesHeadless(const char* modsRoot);
+// OoT's production mods walk (CollectOoTModFiles, the one UpdateModFiles's loop
+// iterates) plus its init-leg registration, over an explicitly supplied root
+// (games/oot/soh/Enhancements/mod_menu.cpp, #670).
+int OoT_MountModArchivesHeadless(const char* modsRoot);
 // MM's archive-origin registry, fed by RecordMMArchivePath — what the #344
 // Room/Cutscene factory dispatcher and the #618 "mm" extension scope key on.
 bool Combo_ArchivePathIsMM(const char* path);
@@ -133,30 +158,27 @@ bool MmmPathContains(const std::string& haystack, const char* needle) {
 } // namespace
 
 /**
- * @param sohArchive a staged soh.o2r (an OoT-side archive, and the source for the
- *                   MM mod that deliberately carries OoT-owned paths).
- * @param mmArchive  a staged 2ship.o2r (MM's port-asset archive: the base the
- *                   MM-side override has to beat).
+ * The partition and the shared extension rule, as pure path logic: no filesystem,
+ * no archive, no Ship::Context.
+ *
+ * Its own CTest row (MMModsPartition) precisely so it cannot be skipped. This was
+ * part 1 of MMModsMount, whose wrapper returns TEST_SKIP before calling the body
+ * when soh.o2r or 2ship.o2r is unstaged — so the only lock on
+ * Combo_ModPathIsForGame, the predicate both globs share, did not run in the one CI
+ * job that deliberately runs this label archive-less (#562), while the comment
+ * here claimed "these run even when the archives are unstaged".
+ *
+ * The spellings covered are the ones that actually reach the two globs: modsRoot
+ * arrives from LocateFileAcrossAppDirs (can be "./mods"), while mod_menu hands over
+ * a lexically_normal()'d path ("mods/mm/x.o2r") and Windows iteration yields '\'
+ * separators.
+ *
  * @return 0 pass, non-zero failure code.
  */
-extern "C" int MMModsMount_RunHeadless(const char* sohArchive, const char* mmArchive) {
-    printf("[TEST] mm-mods-mount: MM mounts mods/mm, the tree is partitioned, and the override survives a switch "
-           "(#670)\n");
+extern "C" int MMModsPartition_RunHeadless(void) {
+    printf("[TEST] mm-mods-partition: the shared mods/ tree partition and the shared archive-extension rule, as pure "
+           "path logic (#670)\n");
 
-    auto ctx = Ship::Context::GetInstance();
-    MMM_ASSERT(ctx != nullptr && ctx->GetResourceManager() != nullptr &&
-                   ctx->GetResourceManager()->GetArchiveManager() != nullptr,
-               1, "no Ship::Context/ResourceManager/ArchiveManager — run the shared bring-up first");
-    MMM_ASSERT(sohArchive != nullptr && sohArchive[0] != '\0' && mmArchive != nullptr && mmArchive[0] != '\0', 1,
-               "no staged archives supplied");
-    auto archiveMgr = ctx->GetResourceManager()->GetArchiveManager();
-
-    // ---- Part 1: the partition, as pure path logic -------------------------
-    // No filesystem involved, so these run even when the archives are unstaged
-    // and they cover the spellings that actually reach the two globs: modsRoot
-    // arrives from LocateFileAcrossAppDirs (can be "./mods"), while mod_menu
-    // hands over a lexically_normal()'d path ("mods/mm/x.o2r") and Windows
-    // iteration yields '\' separators.
     struct PartitionCase {
         const char* root;
         const char* path;
@@ -227,6 +249,58 @@ extern "C" int MMModsMount_RunHeadless(const char* sohArchive, const char* mmArc
     MMM_ASSERT(std::string(Combo_ModsSubdirForGame(GAME_MM)) == "mm", 3, "MM's mods subdir is not 'mm'");
     MMM_ASSERT(std::string(Combo_ModsSubdirForGame(GAME_OOT)).empty(), 3, "OoT's mods subdir is not the root");
 
+    // The other half of "whose file is this": ONE extension rule for both halves
+    // of the shared tree. MM's glob used to take BenPort's `.zip` while OoT's
+    // deliberately refuses it, so the same distribution zip mounted under mods/mm
+    // and was ignored under mods/ — one folder tree, two file types.
+    MMM_ASSERT(Combo_ModArchiveExtensionIsValid(".o2r"), 3, ".o2r is not accepted as a mod archive");
+    MMM_ASSERT(Combo_ModArchiveExtensionIsValid(".O2R"), 3, "the extension rule is case-sensitive");
+    // Unconditional, not #ifdef'd: this project sets INCLUDE_MPQ_SUPPORT ON
+    // unconditionally (CMakeLists.txt:217) and libultraship exports it PUBLIC
+    // (CMakeLists.txt:237). Asserting it here is what would catch the shared
+    // predicate's TU losing sight of that definition and silently narrowing OoT's
+    // accepted set, which an #ifdef in this file would hide.
+    MMM_ASSERT(Combo_ModArchiveExtensionIsValid(".otr"), 3,
+               ".otr is not accepted although this build compiles the MPQ reader in");
+    MMM_ASSERT(!Combo_ModArchiveExtensionIsValid(".zip"), 3,
+               ".zip is accepted as a mod archive — a distribution zip would be mounted as one");
+    MMM_ASSERT(!Combo_ModArchiveExtensionIsValid(".txt"), 3, ".txt is accepted as a mod archive");
+    MMM_ASSERT(!Combo_ModArchiveExtensionIsValid(""), 3, "an empty extension is accepted as a mod archive");
+    MMM_ASSERT(!Combo_ModArchiveExtensionIsValid(nullptr), 3, "a NULL extension is accepted as a mod archive");
+
+    printf("[mm-mods-partition] PASS: %d MM / %d OoT path cases, exactly one claimant each; degenerate arguments claim "
+           "nothing; one extension rule for both games (.o2r/.otr yes, .zip no)\n",
+           mmClaims, ootClaims);
+    return 0;
+}
+
+/**
+ * @param sohArchive a staged soh.o2r (an OoT-side archive, and the source for the
+ *                   MM mod that deliberately carries OoT-owned paths).
+ * @param mmArchive  a staged 2ship.o2r (MM's port-asset archive: the base the
+ *                   MM-side override has to beat).
+ * @return 0 pass, non-zero failure code.
+ */
+extern "C" int MMModsMount_RunHeadless(const char* sohArchive, const char* mmArchive) {
+    printf("[TEST] mm-mods-mount: MM mounts mods/mm, both globs honour the partition, and the override survives a "
+           "switch (#670)\n");
+
+    auto ctx = Ship::Context::GetInstance();
+    MMM_ASSERT(ctx != nullptr && ctx->GetResourceManager() != nullptr &&
+                   ctx->GetResourceManager()->GetArchiveManager() != nullptr,
+               1, "no Ship::Context/ResourceManager/ArchiveManager — run the shared bring-up first");
+    MMM_ASSERT(sohArchive != nullptr && sohArchive[0] != '\0' && mmArchive != nullptr && mmArchive[0] != '\0', 1,
+               "no staged archives supplied");
+    auto archiveMgr = ctx->GetResourceManager()->GetArchiveManager();
+
+    // The pure-path part runs here too, so this row stays self-contained and its
+    // preconditions are stated rather than assumed. MMModsPartition is the row that
+    // guarantees it also runs with no archives staged.
+    const int partitionRc = MMModsPartition_RunHeadless();
+    if (partitionRc != 0) {
+        return partitionRc;
+    }
+
     // ---- Stage a private mods tree ----------------------------------------
     //   <root>/root-level.o2r      OoT's (the root) — MM must NOT mount it
     //   <root>/mm/10-mm.o2r        MM's, a copy of 2ship.o2r
@@ -247,17 +321,65 @@ extern "C" int MMModsMount_RunHeadless(const char* sohArchive, const char* mmArc
     const std::string rootMod = (root / "root-level.o2r").generic_string();
     const std::string mmModFirst = (root / "mm" / "10-mm.o2r").generic_string();
     const std::string mmModLast = (root / "mm" / "sub" / "20-soh.o2r").generic_string();
+    const std::string notAnArchive = (root / "mm" / "notes.txt").generic_string();
+
+    // ONE error_code PER COPY, checked immediately. std::filesystem's error_code
+    // overloads CLEAR ec on success, so sharing one across three copies and
+    // checking it after the last means a failure of the FIRST copy is erased by the
+    // third's success. The first copy is root-level.o2r — the entire negative
+    // control for "MM's glob skips the root". With it silently missing, the
+    // staged tree holds 2 MM archives instead of 3 files and MM's mount still
+    // reports 2, so the FAIL(6) leg below passes while asserting a property of a
+    // file that does not exist. Same for notes.txt: an unchecked fopen would make
+    // "ignores a non-archive file" vanish with no assertion at all.
     const auto copyOpts = std::filesystem::copy_options::overwrite_existing;
-    std::filesystem::copy_file(mmArchive, rootMod, copyOpts, ec);
-    std::filesystem::copy_file(mmArchive, mmModFirst, copyOpts, ec);
-    std::filesystem::copy_file(sohArchive, mmModLast, copyOpts, ec);
-    if (ec) {
-        printf("[TEST] FAIL(4): could not stage the stand-in mod archives (%s)\n", ec.message().c_str());
-        std::filesystem::remove_all(root, ec);
-        return 4;
+    struct StagedCopy {
+        const char* from;
+        const std::string& to;
+        const char* why;
+    };
+    const StagedCopy kCopies[] = {
+        { mmArchive, rootMod, "the root-level archive: OoT's, the negative control for MM's partition skip" },
+        { mmArchive, mmModFirst, "the first mods/mm archive" },
+        { sohArchive, mmModLast, "the nested mods/mm archive that carries OoT-owned paths" },
+    };
+    for (const auto& c : kCopies) {
+        std::error_code copyEc;
+        std::filesystem::copy_file(c.from, c.to, copyOpts, copyEc);
+        if (copyEc) {
+            printf("[TEST] FAIL(4): could not stage %s -> %s (%s) — %s\n", c.from, c.to.c_str(),
+                   copyEc.message().c_str(), c.why);
+            std::filesystem::remove_all(root, ec);
+            return 4;
+        }
     }
-    { std::FILE* f = std::fopen((root / "mm" / "notes.txt").string().c_str(), "wb");
-      if (f != nullptr) { std::fputs("not an archive\n", f); std::fclose(f); } }
+    {
+        std::FILE* f = std::fopen(notAnArchive.c_str(), "wb");
+        if (f == nullptr || std::fputs("not an archive\n", f) < 0) {
+            if (f != nullptr) {
+                std::fclose(f);
+            }
+            printf("[TEST] FAIL(4): could not write the non-archive control file %s — the 'ignores a non-archive file' "
+                   "assertion would not be measuring anything\n",
+                   notAnArchive.c_str());
+            std::filesystem::remove_all(root, ec);
+            return 4;
+        }
+        std::fclose(f);
+    }
+
+    // All four staged entries exist before either glob runs. Without this, every
+    // count assertion below is conditional on staging that was never confirmed.
+    for (const std::string& staged : { rootMod, mmModFirst, mmModLast, notAnArchive }) {
+        std::error_code existsEc;
+        if (!std::filesystem::is_regular_file(staged, existsEc)) {
+            printf("[TEST] FAIL(4): staged entry %s is not a regular file (%s) — the glob assertions would be "
+                   "vacuous\n",
+                   staged.c_str(), existsEc.message().c_str());
+            std::filesystem::remove_all(root, ec);
+            return 4;
+        }
+    }
 
     // Value snapshot of the shared manager's archive list (GetArchives already
     // hands back a freshly built vector, so this does not follow our own
@@ -436,6 +558,66 @@ extern "C" int MMModsMount_RunHeadless(const char* sohArchive, const char* mmArc
             rc = 13;
             break;
         }
+
+        // ---- Part 8: the OoT half of the partition -------------------------
+        // The MM half above is the easy half. THIS is the direction the whole
+        // design is afraid of: a mod registered under the WRONG game survives the
+        // switch, because Combo_EnsureGameArchivesLoaded re-applies the arriving
+        // game's registered mods on top of its base archives every time. An MM mod
+        // in OoT's list would therefore shadow OoT permanently, not just while MM
+        // is active — and until this leg existed, the entire RSBS_SINGLE_EXECUTABLE
+        // block in mod_menu.cpp could be deleted with every row in the tree still
+        // green.
+        //
+        // Drives OoT's production walk: OoT_MountModArchivesHeadless ->
+        // CollectOoTModFiles, the same function UpdateModFiles's own loop iterates,
+        // then UpdateModFiles's init-leg registration (AddArchive then
+        // Combo_RegisterModArchive(GAME_OOT, ...)). Over the SAME staged tree, so
+        // the two globs are measured against one another: MM claimed exactly the
+        // two under mods/mm, OoT must claim exactly the one in the root.
+        Combo_ClearModArchives(GAME_OOT);
+        const int ootClaimed = OoT_MountModArchivesHeadless(root.generic_string().c_str());
+        if (ootClaimed != 1 || Combo_GetModArchiveCount(GAME_OOT) != 1) {
+            printf("[TEST] FAIL(14): OoT's glob claimed %d archive(s) and registered %d, expected 1 and 1 (only the "
+                   "root-level one; the two under mods/mm are MM's and notes.txt is not an archive)\n",
+                   ootClaimed, Combo_GetModArchiveCount(GAME_OOT));
+            rc = 14;
+            break;
+        }
+        const char* ootReg0 = Combo_GetModArchive(GAME_OOT, 0);
+        if (ootReg0 == nullptr || !MmmPathContains(ootReg0, "root-level.o2r")) {
+            printf("[TEST] FAIL(14): OoT registered '%s', expected the root-level archive\n",
+                   ootReg0 != nullptr ? ootReg0 : "(null)");
+            rc = 14;
+            break;
+        }
+        for (int i = 0; i < Combo_GetModArchiveCount(GAME_OOT); i++) {
+            const char* p = Combo_GetModArchive(GAME_OOT, i);
+            if (p != nullptr && (MmmPathContains(p, "10-mm.o2r") || MmmPathContains(p, "20-soh.o2r"))) {
+                printf("[TEST] FAIL(15): OoT registered an archive from mods/mm ('%s'). The #593 switch-time re-apply "
+                       "would then stack an MM mod over OoT's base archives on EVERY OoT arrival — the shadowing that "
+                       "survives the switch (#670)\n",
+                       p);
+                rc = 15;
+                break;
+            }
+        }
+        if (rc != 0) {
+            break;
+        }
+        // MM's list is untouched by OoT's walk: the partition is not a race between
+        // two globs over one registry.
+        if (Combo_GetModArchiveCount(GAME_MM) != 2) {
+            printf("[TEST] FAIL(15): OoT's walk changed MM's registry (now %d entries, expected 2)\n",
+                   Combo_GetModArchiveCount(GAME_MM));
+            rc = 15;
+            break;
+        }
+        if (OoT_MountModArchivesHeadless(nullptr) != -1 || OoT_MountModArchivesHeadless("") != -1) {
+            printf("[TEST] FAIL(15): OoT's seam did not report -1 for a NULL/empty mods root\n");
+            rc = 15;
+            break;
+        }
     } while (false);
 
     // Leave the shared manager and both registries EXACTLY as we found them.
@@ -445,9 +627,10 @@ extern "C" int MMModsMount_RunHeadless(const char* sohArchive, const char* mmArc
     std::filesystem::remove_all(root, ec);
 
     if (rc == 0) {
-        printf("[mm-mods-mount] PASS: 2 of 4 staged files mounted (mods/mm only, nested included, sorted by stem), "
-               "both registries fed, the override beats MM's base archive, an OoT path is reclaimed by soh.o2r on "
-               "the switch to OoT and the override returns on the switch back, and a second mount is a no-op\n");
+        printf("[mm-mods-mount] PASS: MM mounted 2 of 4 staged files (mods/mm only, nested included, sorted by stem) "
+               "and OoT claimed exactly the 1 in the root, both registries fed, the override beats MM's base archive, "
+               "an OoT path is reclaimed by soh.o2r on the switch to OoT and the override returns on the switch back, "
+               "and a second mount is a no-op\n");
     }
     return rc;
 }

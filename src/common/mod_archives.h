@@ -63,15 +63,30 @@
  *   - MM's mods are the ones under `mods/mm/` (at any depth).
  *   - OoT's mods are everything else: the root and any other subfolder. OoT
  *     keeps the root because existing installs and every upstream SoH mod
- *     distribution already put archives there; the only behavioural change on
- *     OoT's side is that it now skips `mods/mm/`, a path that had no meaning
- *     before this issue, so no existing install can depend on it.
+ *     distribution already put archives there.
+ *
+ * THIS RE-HOMES ARCHIVES THAT WERE ALREADY OoT's. It is not a no-op for existing
+ * installs, and an earlier version of this comment ("a subdirectory that had no
+ * meaning before #670") was simply wrong. OoT's glob is, and always was, a
+ * `recursive_directory_iterator` over the WHOLE tree
+ * (games/oot/soh/Enhancements/mod_menu.cpp), so an archive a player already had
+ * at `mods/mm/*.o2r` — a mod distributed inside a folder somebody named `mm`, a
+ * Majora-themed OoT retexture pack — was enumerated, offered in OoT's mod menu
+ * and mounted as an OoT mod. After this change the same file is MM's: mounted for
+ * MM, and no longer mounted for OoT. The change of owner is deliberate (the
+ * folder name is the only signal available in one shared tree), but it IS a
+ * migration. So that it is not a silent one for the installs that actually have
+ * such a file, OoT's walk warns once on stderr when it skips an archive under
+ * `mods/mm/` whose name OoT's own enabled-mods CVar still lists.
  *
  * Combo_ModPathIsForGame is the single definition of that split, used by BOTH
  * globs (games/oot/soh/Enhancements/mod_menu.cpp and
  * games/mm/2s2h/GameExports_SingleExe.cpp), so the two can never disagree about
  * who owns a file. Total and disjoint by construction: for any path, exactly one
- * of the two games claims it.
+ * of the two games claims it. Combo_ModArchiveExtensionIsValid is the same
+ * arrangement for the other half of the question — "is this file a mod archive at
+ * all" — because one shared tree must not accept different file types in its two
+ * halves.
  */
 
 #ifndef RSBS_MOD_ARCHIVES_H
@@ -116,6 +131,28 @@ const char* Combo_ModsSubdirForGame(GameId game);
  * LocateFileAcrossAppDirs built by concatenating with '/'.
  */
 bool Combo_ModPathIsForGame(GameId game, const char* modsRoot, const char* path);
+
+/**
+ * Is @p extension (with its leading dot, as
+ * `std::filesystem::path::extension()` yields it) a mod archive this build can
+ * mount? Case-insensitive; false for NULL.
+ *
+ * ONE rule for both halves of the shared mods/ tree, which is the point of it.
+ * The rule is OoT's, unchanged: `.o2r` always; `.otr` only where the MPQ reader
+ * is compiled in (INCLUDE_MPQ_SUPPORT — without it libultraship cannot read one
+ * at all); and `.zip` NEVER, because a mod is most often DISTRIBUTED as a zip
+ * containing the .o2r, and mounting the wrapper silently mounts nothing useful
+ * while looking like success (the reason is stated in OoT's own
+ * IsValidExtension).
+ *
+ * MM's single-exe glob used to take `.zip` too, copied from upstream BenPort
+ * (games/mm/2s2h/BenPort.cpp). That made one folder tree accept different file
+ * types on its two sides — the same distribution zip mounted under `mods/mm/` and
+ * ignored under `mods/` — so MM now shares this rule instead. Nothing regresses:
+ * MM mounted no mods at all in single-exe builds before #670, so there is no
+ * installed base of MM `.zip` mods to break here.
+ */
+bool Combo_ModArchiveExtensionIsValid(const char* extension);
 
 /**
  * Record that @p game mounted the mod archive at @p path.

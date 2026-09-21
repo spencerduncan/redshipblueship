@@ -45,9 +45,23 @@ first run, with a `majoras_mask_mod_files_go_here.txt` marker inside.
 Nothing else in the tree is reserved: `mods/anything-else/` is OoT's, like the
 root.
 
+> **Upgrading: if you already have a `mods/mm/` folder, its archives change
+> owner.** OoT's mods folder has always been searched recursively, so anything you
+> had at `mods/mm/*.o2r` — a mod that happened to ship inside a folder called `mm`,
+> a Majora-themed OoT retexture pack — was an **OoT** mod and was listed in OoT's
+> mod menu. From this version that folder is MM's: those archives are mounted for
+> MM and no longer for OoT. Move them up into `mods/` (or into
+> `mods/some-other-name/`) to keep them as OoT mods. If one of them is still listed
+> in OoT's enabled mods, OoT prints a one-line `[OoT] NOTE:` about it on startup.
+
+Both games accept the same archive types: `.o2r`, and `.otr` for older mods.
+A `.zip` is **not** mounted for either game, because a mod is usually *distributed*
+as a zip that contains the `.o2r` — unpack it. (Standalone 2Ship does mount a
+`.zip`; the combo deliberately does not, so that one shared folder tree does not
+accept different file types on its two sides.)
+
 Loose (unpacked) asset files are **not** supported for either game — neither port
-mounts a directory as an archive, so assets have to be inside a `.o2r`. `.otr` and
-`.zip` archives are accepted for MM as well, matching upstream 2Ship.
+mounts a directory as an archive, so assets have to be inside an archive.
 
 ### Which mod wins
 
@@ -64,6 +78,15 @@ overrides a base asset at all.
   disable it. (Precisely, MM compares the whole path with the extension removed,
   which is upstream 2Ship's own comparator — so a subfolder name participates
   too: `mods/mm/aaa/z.o2r` loses to `mods/mm/bbb/a.o2r`.)
+
+  **This is a known asymmetry inside one game, and it is not the intended end
+  state.** OoT's half of the tree has enable/disable/reorder and MM's half does
+  not; an MM mod menu at parity is tracked as a follow-up issue. It is listed here
+  rather than papered over, because the alternative available today — making MM
+  read OoT's `EnabledMods` setting — would let a stale OoT list silently disable an
+  MM mod, which is a worse asymmetry, not a smaller one. The *other* half of the
+  question, which file types count as a mod archive, was cheap to align and has
+  been: both sides use OoT's rule.
 - **Between the two games:** OoT and MM already ship many colliding resource
   paths of their own — 151 object names, 14 actor overlays and all three
   `gameplay_*_keep` archives (`docs/resource-namespace-audit.md`), plus 595 paths

@@ -97,6 +97,29 @@ extern "C" bool Combo_ModPathIsForGame(GameId game, const char* modsRoot, const 
     return game == GAME_MM ? isMm : !isMm;
 }
 
+extern "C" bool Combo_ModArchiveExtensionIsValid(const char* extension) {
+    if (extension == nullptr || extension[0] == '\0') {
+        return false;
+    }
+    const std::string ext(extension);
+    if (IEqualsAscii(ext, ".o2r")) {
+        return true;
+    }
+#ifdef INCLUDE_MPQ_SUPPORT
+    // Gated exactly as OoT gates it: the .otr reader is StormLib, which is only
+    // linked in when MPQ support is on. This project sets INCLUDE_MPQ_SUPPORT ON
+    // unconditionally (CMakeLists.txt:217) and libultraship exports it PUBLIC
+    // (CMakeLists.txt:237), so both halves see the same answer; the #670 partition
+    // row asserts .otr is accepted, which is what would go red if this TU ever
+    // stopped seeing the definition.
+    if (IEqualsAscii(ext, ".otr")) {
+        return true;
+    }
+#endif
+    // .zip deliberately absent. See the header.
+    return false;
+}
+
 extern "C" void Combo_RegisterModArchive(GameId game, const char* path) {
     if (!ValidGame(game) || path == nullptr || path[0] == '\0') {
         return;

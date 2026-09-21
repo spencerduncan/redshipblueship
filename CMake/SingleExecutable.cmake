@@ -1473,6 +1473,17 @@ if(BUILD_TESTING)
     redship_add_test(NAME MMModsMount COMMAND redship --test mm-mods-mount)
     set_tests_properties(MMModsMount PROPERTIES SKIP_RETURN_CODE 77)
 
+    # #670, the archive-free half of that row. Combo_ModPathIsForGame is the ONE
+    # predicate both globs consult, and Combo_ModArchiveExtensionIsValid is the one
+    # rule for which files are archives at all; neither touches the disk. This row
+    # asserts both — the partition is total and disjoint over the path spellings
+    # that actually occur, and the extension set is the same on both sides of the
+    # shared tree — with nothing staged, so it also runs in the netplay-relay job
+    # that re-runs this label archive-less (#562), where MMModsMount SKIPs. It was
+    # part of MMModsMount and therefore skipped there, which is precisely the gap.
+    # No SKIP_RETURN_CODE: this row has no reason to skip, ever.
+    redship_add_test(NAME MMModsPartition COMMAND redship --test mm-mods-partition)
+
     # The font-licensing invariant (license follow-up to #578). Three facts that
     # were prose in THIRD_PARTY_NOTICES.md and are now tree state: the ungranted
     # "All rights reserved" font named in that file's "Resolved by removal"

@@ -6,6 +6,7 @@
 
 #include "mod_menu.h"
 #ifdef RSBS_SINGLE_EXECUTABLE
+#include <cstdio>         // #670: the one-time re-homing notice goes to stderr
 #include "mod_archives.h" // src/common — #593, mod mounts must survive a game switch
 #endif
 #include "soh/OTRGlobals.h"
@@ -110,6 +111,15 @@ std::shared_ptr<Ship::ArchiveManager> GetArchiveManager() {
 }
 
 bool IsValidExtension(std::string extension) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #670: one rule for both halves of the shared mods/ tree. The shared
+    // predicate is this function's rule verbatim — `.o2r` always, `.otr` only with
+    // INCLUDE_MPQ_SUPPORT, never `.zip` for the reason spelled out below — so OoT's
+    // accepted set is unchanged by the delegation. MM's glob now calls the same
+    // predicate, which is what stops one folder tree from accepting a distribution
+    // zip on its `mods/mm/` side and ignoring it on its `mods/` side.
+    return Combo_ModArchiveExtensionIsValid(extension.c_str());
+#else
     if (
 #ifdef INCLUDE_MPQ_SUPPORT
         // .mpq doesn't make sense to support because all tools to make such mods output OTR
@@ -121,6 +131,80 @@ bool IsValidExtension(std::string extension) {
         return true;
     }
     return false;
+#endif
+}
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// #670: `mods/mm/` is Majora's Mask's folder now, and it was NOT an unused
+// namespace before this change — the walk below is recursive over the whole tree,
+// so an archive already sitting at `mods/mm/x.o2r` WAS an OoT mod and is now
+// mounted for MM instead. The re-homing is deliberate (in one shared tree the
+// folder name is the only signal there is) but it must not be silent for the
+// installs that actually have such a file, so say so once per run — and only when
+// OoT's own enabled-mods CVar still names the file, which is exactly the set of
+// installs whose behaviour changes.
+static void WarnOnceOnRehomedEnabledMod(const std::filesystem::path& skipped) {
+    static bool warned = false;
+    if (warned || !Combo_ModArchiveExtensionIsValid(skipped.extension().generic_string().c_str())) {
+        return;
+    }
+    const std::string name = skipped.filename().generic_string();
+    const std::string stem = name.substr(0, name.rfind("."));
+    if (std::find(enabledModFiles.begin(), enabledModFiles.end(), stem) == enabledModFiles.end()) {
+        return;
+    }
+    warned = true;
+    fprintf(stderr,
+            "[OoT] NOTE: mod archive '%s' is under mods/mm, which is Majora's Mask's folder as of #670. It is still "
+            "listed in OoT's enabled mods, but OoT no longer mounts it — MM does. Move it up into mods/ to keep it as "
+            "an OoT mod.\n",
+            skipped.generic_string().c_str());
+}
+#endif
+
+// #670: the mods walk itself, extracted from UpdateModFiles so that the partition
+// skip and the extension filter have exactly ONE definition, shared by the real
+// menu path below and by OoT_MountModArchivesHeadless (the seam the #670 lock
+// drives). A lock over a second copy of this loop would keep passing after someone
+// deleted the partition from the copy that ships.
+//
+// @return the entries of @p modsPath that are OoT's mod archives, in iteration
+//         order. Unchanged behaviour for standalone SoH: without
+//         RSBS_SINGLE_EXECUTABLE the only filter is IsValidExtension, as before.
+std::vector<std::filesystem::path> CollectOoTModFiles(const std::string& modsPath) {
+    std::vector<std::filesystem::path> claimed;
+    if (modsPath.empty() || !std::filesystem::exists(modsPath) || !std::filesystem::is_directory(modsPath)) {
+        return claimed;
+    }
+    for (const std::filesystem::directory_entry& p : std::filesystem::recursive_directory_iterator(
+             modsPath, std::filesystem::directory_options::follow_directory_symlink)) {
+        if (p.is_directory()) {
+            continue;
+        }
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // #670: the one mods/ tree is shared with MM, because
+        // LocateFileAcrossAppDirs's appName argument is inert in a portable build
+        // and both games resolve "mods" to ./mods. MM's mods live in mods/mm and
+        // are mounted by MountMMModArchives
+        // (games/mm/2s2h/GameExports_SingleExe.cpp). Picking them up here would
+        // mount them a second time AND list them in OoT's enabled set, so the #593
+        // switch-time re-apply would stack MM's mods over OoT's base archives on
+        // every OoT arrival — a cross-game shadowing that survives the switch.
+        // OoT keeps every other path in the tree. This skip DOES change OoT's
+        // behaviour for an install that already had an archive under mods/mm (that
+        // file was an OoT mod and is now MM's); the notice above is why that is not
+        // silent.
+        if (!Combo_ModPathIsForGame(GAME_OOT, modsPath.c_str(), p.path().generic_string().c_str())) {
+            WarnOnceOnRehomedEnabledMod(p.path());
+            continue;
+        }
+#endif
+        if (!IsValidExtension(p.path().extension().generic_string())) {
+            continue;
+        }
+        claimed.push_back(p.path());
+    }
+    return claimed;
 }
 
 void UpdateModFiles(bool init = false, bool reset = false) {
@@ -137,40 +221,19 @@ void UpdateModFiles(bool init = false, bool reset = false) {
     if (modsPath.length() > 0 && std::filesystem::exists(modsPath)) {
         std::vector<std::filesystem::path> enabledFiles;
         if (std::filesystem::is_directory(modsPath)) {
-            for (const std::filesystem::directory_entry& p : std::filesystem::recursive_directory_iterator(
-                     modsPath, std::filesystem::directory_options::follow_directory_symlink)) {
-                if (p.is_directory()) {
-                    continue;
-                }
-#ifdef RSBS_SINGLE_EXECUTABLE
-                // #670: the one mods/ tree is shared with MM, because
-                // LocateFileAcrossAppDirs's appName argument is inert in a
-                // portable build and both games resolve "mods" to ./mods. MM's
-                // mods live in mods/mm and are mounted by
-                // MountMMModArchives (games/mm/2s2h/GameExports_SingleExe.cpp).
-                // Picking them up here would mount them a second time AND list
-                // them in OoT's enabled set, so the #593 switch-time re-apply
-                // would stack MM's mods over OoT's base archives on every OoT
-                // arrival — a cross-game shadowing that survives the switch.
-                // OoT keeps every other path in the tree, so this skip is the
-                // only change to OoT's behaviour, over a subdirectory that had
-                // no meaning before #670.
-                if (!Combo_ModPathIsForGame(GAME_OOT, modsPath.c_str(), p.path().generic_string().c_str())) {
-                    continue;
-                }
-#endif
+            // #670: the walk, the partition and the extension filter now live in
+            // CollectOoTModFiles above — one definition, shared with the seam the
+            // lock drives. Everything below is this function's own bookkeeping,
+            // unchanged.
+            for (const std::filesystem::path& modPath : CollectOoTModFiles(modsPath)) {
                 std::string filename =
-                    p.path().filename().generic_string().substr(0, p.path().filename().generic_string().rfind("."));
-                std::string extension = p.path().extension().generic_string();
-                if (!IsValidExtension(extension)) {
-                    continue;
-                }
+                    modPath.filename().generic_string().substr(0, modPath.filename().generic_string().rfind("."));
                 bool enabled =
                     std::find(enabledModFiles.begin(), enabledModFiles.end(), filename) != enabledModFiles.end();
                 if (!enabled) {
-                    tempMods.emplace(p.path().lexically_normal().generic_string(), filename);
+                    tempMods.emplace(modPath.lexically_normal().generic_string(), filename);
                 }
-                filePaths.emplace(filename, p.path());
+                filePaths.emplace(filename, modPath);
             }
             if (tempMods.size() > 0) {
                 changed = true;
@@ -208,6 +271,47 @@ void UpdateModFiles(bool init = false, bool reset = false) {
         }
     }
 }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+/**
+ * Headless seam for the #670 partition lock (src/common/tests/test_mm_mods_mount.c).
+ *
+ * Runs OoT's REAL mods walk — CollectOoTModFiles, the very function
+ * UpdateModFiles's loop above iterates, so the partition skip and the extension
+ * filter have one definition and deleting either from the production walk turns
+ * this red — over an explicitly supplied root, then performs UpdateModFiles's
+ * init-leg registration on what it claims: AddArchive followed by
+ * Combo_RegisterModArchive(GAME_OOT, ...), in that order, and without consulting
+ * AddArchive's return value, exactly as the init leg does.
+ *
+ * The root is a parameter rather than resolved through LocateFileAcrossAppDirs so
+ * the row can stage a private tree and never touch the player's ./mods. Nothing
+ * else in the menu's state is read or written: not the enabled-mods CVar, not
+ * filePaths, not enabledModFiles.
+ *
+ * @return how many archives OoT claimed and registered, or -1 for a NULL/empty
+ *         root or with no live ArchiveManager.
+ */
+extern "C" int OoT_MountModArchivesHeadless(const char* modsRoot) {
+    if (modsRoot == nullptr || modsRoot[0] == '\0') {
+        return -1;
+    }
+    auto ctx = Ship::Context::GetInstance();
+    if (ctx == nullptr || ctx->GetResourceManager() == nullptr ||
+        ctx->GetResourceManager()->GetArchiveManager() == nullptr) {
+        return -1;
+    }
+
+    int registered = 0;
+    for (const std::filesystem::path& modPath : CollectOoTModFiles(std::string(modsRoot))) {
+        const std::string modArchivePath = modPath.generic_string();
+        GetArchiveManager()->AddArchive(modArchivePath);
+        Combo_RegisterModArchive(GAME_OOT, modArchivePath.c_str());
+        registered++;
+    }
+    return registered;
+}
+#endif
 
 extern "C" void gfx_texture_cache_clear();
 
