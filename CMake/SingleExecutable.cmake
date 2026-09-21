@@ -69,6 +69,13 @@ set(REDSHIP_COMMON_SOURCES
     # singleton and the read must be guarded on its existence.
     ${CMAKE_SOURCE_DIR}/src/common/combo_settings_view.cpp
     ${CMAKE_SOURCE_DIR}/src/common/ComboSettingsWindow.cpp
+    # The combo-logic coordinator (ADR 0010 increment 3, #645; O4 = composition):
+    # the union bag, the two origin-keyed placement tables and the round loop,
+    # over a registered per-game engine vtable. Game-header-free like
+    # foreign_items.c, and NOT wired into any production path at this commit —
+    # no shipping TU registers an engine, so the coordinator is reachable only
+    # from its own locks.
+    ${CMAKE_SOURCE_DIR}/src/common/combo_logic.c
     ${CMAKE_SOURCE_DIR}/src/common/entrance.cpp
     # Per-game registry of the user mod archives each port mounted (#593), so
     # the base-archive re-add on every cross-game switch can put them back on
@@ -141,6 +148,9 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/ComboMmOptionsWindow.h
     ${CMAKE_SOURCE_DIR}/src/common/combo_settings_view.h
     ${CMAKE_SOURCE_DIR}/src/common/ComboSettingsWindow.h
+    # Header for combo_logic.c above — it also carries the ENGINE CONTRACT the
+    # two follow-on lanes implement (#645)
+    ${CMAKE_SOURCE_DIR}/src/common/combo_logic.h
     ${CMAKE_SOURCE_DIR}/src/common/entrance.h
     # Header for mod_archives.cpp above (#593)
     ${CMAKE_SOURCE_DIR}/src/common/mod_archives.h
@@ -1453,6 +1463,15 @@ if(BUILD_TESTING)
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+
+    # The combo-logic coordinator (ADR 0010 increment 3, #645). All three rows are
+    # the default `redship` tier: they drive the coordinator over two SYNTHETIC
+    # STUB ENGINES the test authors, so they need no ROM, no display and no
+    # generated world. That is the whole reason the engine surface is a registered
+    # vtable instead of fixed extern "C" symbols (src/common/combo_logic.h).
+    redship_add_test(NAME ComboLogicEngineSurface COMMAND redship --test combo-logic-engine-surface)
+    redship_add_test(NAME ComboLogicFixpoint COMMAND redship --test combo-logic-fixpoint)
+    redship_add_test(NAME ComboLogicFill COMMAND redship --test combo-logic-fill)
 
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)
