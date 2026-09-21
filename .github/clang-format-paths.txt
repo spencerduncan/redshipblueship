@@ -104,4 +104,5 @@ games/mm/2s2h/mm_clock_shuffle_songs_test.cpp
 games/oot/soh/SohGui/SohMenuCombo.cpp
 games/oot/soh/soh_menu_capability_test.cpp
 games/oot/soh/soh_menu_combo_section_test.cpp
+games/mm/2s2h/mm_entrance_region_cache_test.cpp
 games/mm/2s2h/mm_majora_goal_test.cpp

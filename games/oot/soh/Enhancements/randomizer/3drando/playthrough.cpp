@@ -154,15 +154,39 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
     };
 
     // THE PRE-FILL PAIRING GATE (ADR 0009 decision 2; ADR 0010 :615;
-    // solver-inventory P2). Implemented since #628 and, until now, called by
-    // nothing but a unit test — the predicate existed, the GATE it was designed
-    // for did not. It is asked HERE, in the future tense, before a single item
-    // is placed, because that is the only place an answer can still shape the
-    // fill; increment 3's single-bag fill is its real consumer. Increment 2 uses
-    // it to decide, once and up front, whether this creation authors crossings
-    // at all, and records the answer for the creation seam so the seam cannot
-    // reach a different conclusion later from a re-read CVar.
+    // solver-inventory P2; finished in #657). It is asked HERE, in the future
+    // tense, before a single item is placed, because that is the only place an
+    // answer can still shape the fill; increment 3's single-bag fill is its real
+    // consumer.
+    //
+    // TWO QUESTIONS, NOT ONE, and #667 is why they had to be separated before
+    // this gate could have a consequence:
+    //
+    //   Combo_ForeignPairingRequested()   -- is a paired WORLD being asked for?
+    //                                        TRUE for every pinned direction,
+    //                                        OFF included: OFF is a paired world
+    //                                        with zero crossings, so a gate that
+    //                                        skipped the paired creation for it
+    //                                        would ship a file whose MM half was
+    //                                        never authored.
+    //   Combo_ForeignCrossingsRequested() -- does this creation author any
+    //                                        CROSSINGS? The old body of the
+    //                                        predicate above, and the answer the
+    //                                        freeze below has to preserve.
+    //
+    // A creation that cannot answer the first question YES must not generate at
+    // all. Nothing is frozen yet at this point and no progress session is open,
+    // so the refusal is a plain early return: no rollback to do, no partial
+    // identity to retract, and — deliberately — no world on disk whose rules no
+    // consumer can interpret (see Combo_ComboSettingsDescribePairedWorld).
     const bool rsbsPairingRequested = Combo_ForeignPairingRequested();
+    const bool rsbsCrossingsRequested = Combo_ForeignCrossingsRequested();
+    if (!rsbsPairingRequested) {
+        SPDLOG_ERROR("Paired identity: the resolved combo record does not describe a creatable paired world "
+                     "(direction {}); refusing to generate (#657)",
+                     (unsigned)Combo_ComboDirection());
+        return -1;
+    }
 
     // The progress surface (#582), OoT's half. Two sessions per paired creation,
     // not one: this one measures the staged OoT generation, and the file-create
@@ -197,8 +221,10 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
     // reverse placement pass below can finally ask a question a digest could
     // never answer. See foreign_items.h.
     MM_Rando_PublishProfileGiveCaps(/*fromSave=*/0);
-    SPDLOG_INFO("Paired identity: MM profile frozen at creation (digest {:08X}, giveCaps {:04X}, pairing requested {})",
-                gComboCtx.mmProfileDigest, Combo_ForeignGiveCaps((uint8_t)GAME_MM), rsbsPairingRequested ? 1 : 0);
+    SPDLOG_INFO("Paired identity: MM profile frozen at creation (digest {:08X}, giveCaps {:04X}, paired world "
+                "requested {}, crossings requested {})",
+                gComboCtx.mmProfileDigest, Combo_ForeignGiveCaps((uint8_t)GAME_MM), rsbsPairingRequested ? 1 : 0,
+                rsbsCrossingsRequested ? 1 : 0);
 
     // ADR 0011 decision 4.1: the creation event also freezes the COMBO-LEVEL
     // rules — the ones governing the crossing itself, which belong to neither
@@ -210,6 +236,26 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
         Combo_FreezeComboSettings(&comboSettings);
         SPDLOG_INFO("Paired identity: combo settings frozen at creation (fingerprint {:08X})",
                     gComboCtx.comboSettingsHash);
+    }
+
+    // THE GATE'S SECOND ACT (#657). Asking the CVars before Fill() is only half
+    // of what ADR 0009 decision 2 designed: the answer then has to be FROZEN, so
+    // that every later reader — the file-create seam, both placement passes,
+    // every arrival — reaches the same conclusion without consulting a CVar
+    // again. This is the assertion that the freeze actually preserved it.
+    //
+    // A disagreement here is not a state to honour. It means either nothing
+    // froze, or something moved the direction between the ask and the freeze, so
+    // the world about to be filled is not the world the player asked for — and a
+    // combo-level decision freezes at creation, once, for the life of the file.
+    // Rolled back the same way a failed fill is: the two states are "fully
+    // frozen" and "untouched", never a third.
+    if (!Combo_ForeignCreationGateHolds(rsbsCrossingsRequested)) {
+        SPDLOG_ERROR("Paired identity: the pre-Fill gate's answer did not survive the freeze; aborting generation "
+                     "(#657)");
+        rsbsRollbackFreeze();
+        Combo_GenProgress_End(false);
+        return -1;
     }
 #endif
 

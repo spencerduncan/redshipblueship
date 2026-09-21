@@ -951,6 +951,22 @@ if(BUILD_TESTING)
     # reference would un-elide them by itself). Pure (no display, no ROM);
     # needs the shared bring-up only for CVarSetInteger.
     redship_add_test(NAME MMClockShuffleSongs COMMAND redship --test mm-clock-shuffle-songs)
+    # The entrance -> region cache's registration boundary (#659).
+    # Rando::Logic::Regions is filled by eighteen independent ShipInit
+    # registrars whose order is link order, and the cache inside
+    # GetRegionIdFromEntrance used to be guarded on its own emptiness -- so a
+    # lookup made while the graph was PARTIALLY populated built a non-empty map
+    # and froze it, leaving every entrance owned by a not-yet-run registrar at
+    # RR_MAX for the life of the process (silently: CrawlReachableRegions seeds
+    # from it, so the world merely looks less reachable). This row is both the
+    # probe #659 asked for -- drive the real MM_Rando_Init and read whether
+    # anything looked an entrance up mid-registration, which no static reading of
+    # link order can answer -- and the lock on the fix, by reducing Regions to
+    # one region, looking up an entrance it does not own, restoring the graph and
+    # demanding the right answer. Display-free and ROM-free (MM_Rando_Init's
+    # asset phase defers with no archives mounted), so it runs in this redship
+    # tier.
+    redship_add_test(NAME MMEntranceRegionCache COMMAND redship --test mm-entrance-region-cache)
     # #497's SohMenu remainder, the three rows ADR 0004 asks for.
     #
     # MenuCapabilityGating is the lock #497 named `menu-capability-gating` and

@@ -231,6 +231,13 @@ bool Combo_GetForeignItemByName(const char* name, SharedItem* outItem);
  *   Combo_ForeignPairingRequested()  -- future:  a paired world is being ASKED for
  *   Combo_ComboSettingsFrozen()      -- present: this world's rules are FROZEN
  *   Combo_ForeignPairingActive()     -- past:    a paired world EXISTS
+ *
+ * NONE OF THE THREE CARRIES A DIRECTION TERM (#667, 2026-09-17). OFF is a
+ * paired world with zero crossings (ADR 0011 decision 2.3), so "is it paired?"
+ * is answered identically in all three tenses, and the separate question "does
+ * it cross anything?" is Combo_ForeignCrossingsRequested() / the frozen
+ * Combo_ComboDirectionArms(). Folding direction back into any of the three
+ * makes OFF read as an unpaired world, which is the MM-plays-vanilla class.
  */
 bool Combo_ForeignPairingActive(void);
 
@@ -570,16 +577,97 @@ void Combo_ComboSettingsDefaults(ComboSettingsRecord* out);
 void Combo_ResolveComboSettings(ComboSettingsRecord* out);
 
 /**
- * The PRE-CONDITION predicate ADR 0009 decision 2 designed and nobody built:
- * "a paired world is being ASKED for" (future tense), answerable BEFORE
- * generation by construction.
+ * "Could a paired world be created from THIS record?" — the #667 ruling as a
+ * predicate over an arbitrary record rather than over the live session, which
+ * is what makes the ruling falsifiable (test_combo_settings.c drives it with
+ * every pinned direction plus two out-of-space ones).
+ *
+ * TRUE for RSBS_COMBO_DIR_OFF, because OFF is a paired world with zero
+ * crossings (ADR 0011 decision 2.3). FALSE only for a record no consumer can
+ * interpret: formatVersion 0 (the ABSENT tag, decision 4.2) or a direction
+ * outside the pinned space. See the .c for why each of those must refuse a
+ * creation rather than be clamped into one.
+ */
+bool Combo_ComboSettingsDescribePairedWorld(const ComboSettingsRecord* rec);
+
+/**
+ * The PRE-CONDITION predicate ADR 0009 decision 2 designed: "a paired WORLD is
+ * being ASKED for" (future tense), answerable BEFORE generation by construction.
  *
  * Derived from the resolved settings and NEVER from gComboCtx's stamp, so it is
  * immune to the ordering hazard that made hoisting the stamp above Fill() look
  * necessary. Do not "simplify" it into Combo_ForeignPairingActive(): that one
  * is the post-condition and answers a different question in a different tense.
+ *
+ * ================== THE OFF RULING (#667, 2026-09-17) ======================
+ * IT ANSWERS TRUE FOR RSBS_COMBO_DIR_OFF, and that is a fix rather than a
+ * loosening. Until this commit the body was `direction != OFF`, which made the
+ * future tense disagree with its own past tense about what "paired" means:
+ *
+ *   Combo_ForeignPairingActive()    == sourceIsRando && sharedRandoSettingsHash
+ *                                      != 0 -- no direction term at all, so it
+ *                                      is TRUE under OFF
+ *   Combo_ForeignPairingRequested() == direction != OFF -- FALSE under OFF
+ *
+ * ADR 0011 decision 2.3 is explicit that "RSBS_COMBO_DIR_OFF is a real value,
+ * and its world is a paired world with no crossings — not an unpaired world",
+ * and one-game semantics make that binding: the combo is ONE game, so a rando
+ * creation always authors both halves and OFF describes a Termina that exists
+ * and simply hosts nothing. A gate that read OFF as "skip the paired creation"
+ * would leave a file whose MM half was never authored, which arrival then has to
+ * refuse (hydrate-or-refuse, ADR 0009 decision 2's #564 amendment) — the
+ * MM-plays-vanilla failure class, reached through a setting rather than a bug.
+ * Every OTHER consumer already behaved this way: OoT_RunPairedCreationEvent
+ * gates on Combo_ForeignPairingActive() (direction-free) and both placement
+ * passes gate on Combo_ComboDirectionArms(). This predicate was the only
+ * disagreeing reader, so the flip is what makes the system consistent.
+ *
+ * THE QUESTION THE OLD BODY ACTUALLY ANSWERED now has its own name:
+ * Combo_ForeignCrossingsRequested() below. Both are pre-Fill and CVar-derived;
+ * they differ in what they decide, and the creation gate asks both.
  */
 bool Combo_ForeignPairingRequested(void);
+
+/**
+ * "Does this creation author any CROSSINGS at all?" (future tense, #667).
+ *
+ * `direction != RSBS_COMBO_DIR_OFF`, read from the resolved settings — the body
+ * Combo_ForeignPairingRequested() used to carry, under the name that describes
+ * it. It is the pre-Fill twin of `Combo_ComboDirectionArms(GAME_OOT) ||
+ * Combo_ComboDirectionArms(GAME_MM)`, which is the same fact read from the
+ * FROZEN record after the freeze; Combo_ForeignCreationGateHolds() below is the
+ * assertion that the two agree, and test_combo_settings.c locks the identity so
+ * a new direction enumerator cannot arrive on one side only.
+ *
+ * FALSE is a real, chooseable world (ADR 0011 decision 2.3), never an error:
+ * both halves are still generated, both are still armed, and both placement
+ * passes simply place nothing.
+ */
+bool Combo_ForeignCrossingsRequested(void);
+
+/**
+ * THE PRE-FILL CREATION GATE'S POST-CHECK (#657, ADR 0009 decision 2).
+ *
+ * The gate ADR 0009 decision 2 designed is two acts, not one: ask the CVars
+ * before Fill() what world is being asked for, then FREEZE that answer so
+ * nothing downstream can reach a different one from a re-read CVar. This is the
+ * second act's verification — call it with the answer
+ * Combo_ForeignCrossingsRequested() gave BEFORE the freeze, and it reports
+ * whether the record the freeze actually wrote reproduces it.
+ *
+ * @param crossingsRequestedPreFill what Combo_ForeignCrossingsRequested()
+ *        answered before Combo_FreezeComboSettings ran.
+ * @return true when the frozen record agrees. FALSE means the creation must
+ *         FAIL: either nothing froze (so there is no record for the seam and
+ *         every arrival to read, and the world would be identity-less), or a
+ *         writer moved the direction between the ask and the freeze, so the
+ *         world about to be filled is not the world the player asked for.
+ *
+ * Refusing rather than picking a side is the one-game rule: a combo-level
+ * decision freezes at file creation, and a later disagreement about it is
+ * corruption to refuse, never a divergence to honour.
+ */
+bool Combo_ForeignCreationGateHolds(bool crossingsRequestedPreFill);
 
 /**
  * The PRESENT-tense predicate (ADR 0009 decision 2's amendment; the exact twin
@@ -977,6 +1065,59 @@ int OoT_PlaceForeignItems(void);
  * @return 1 if eligible, 0 otherwise.
  */
 int OoT_Foreign_IsEligibleHost(uint16_t rc);
+
+/**
+ * Is OoT check `rc` inside OoT's own reachable closure (#656)?
+ *
+ * The reachability half of the reverse pass's candidate test, composed OUTSIDE
+ * OoT_Foreign_IsEligibleHost for the same reason MM composes it outside its own
+ * predicate: that predicate is also the spoiler-LOAD path's gate, where
+ * reachability is already witnessed by the spoiler, and the ROM-free eligibility
+ * lock drives it without a region graph.
+ *
+ * Reads the ItemLocation pool mark the fill's own ReachabilitySearch sets — the
+ * same mark ValidateEntrances tests to decide ctx->allLocationsReachable — so
+ * "reachable" here means what it means to the All Locations Reachable setting
+ * rather than a second definition that could drift from it.
+ *
+ * @return 1 when reachable, 0 otherwise (including no Rando::Context).
+ */
+int OoT_Foreign_IsReachableHost(uint16_t rc);
+
+/**
+ * The last reverse placement pass's host counts, before and after the
+ * reachability gate (#656).
+ *
+ * They are EQUAL under the shipped default, because RSK_ALL_LOCATIONS_REACHABLE
+ * defaults to on and the closure is then total — which is why the gate moves no
+ * placement there. The ForeignPlacementOoT lock MEASURES that equality rather
+ * than assuming it, and that measurement is what caught the gate's first draft
+ * computing its closure over stale Logic state (48 of 57 hosts at the tail of a
+ * real generation, 57 of 57 a moment later). Neither determinism row could have:
+ * both compare two runs of the same binary to each other, so a deterministic
+ * change of world is invisible to them.
+ */
+int OoT_Foreign_TestLastEligibleHosts(void);
+int OoT_Foreign_TestLastReachableHosts(void);
+
+/**
+ * TEST-ONLY. Switch the reverse pass's own reachability recompute off (0) or on
+ * (1); returns the previous setting. Production never calls it and the default is
+ * the production behaviour, so a build without the test TU still gates.
+ *
+ * It exists because the pass necessarily recomputes the closure as its first act
+ * (the pool marks left after Fill() are the residue of whichever search ran
+ * last, not a closure over the finished world), which would erase any
+ * reachability state a lock installs before the pass could read it. With the
+ * recompute off, a lock can make one host unreachable and assert the real pass
+ * never chooses it — the assertion that goes red if the gate is deleted.
+ */
+int OoT_Foreign_TestSetReachabilityRecompute(int enable);
+
+/** TEST-ONLY. Set (1) or clear (0) one check's reachability mark through the
+ *  same ItemLocation pool API the fill's search uses. Returns 1 when applied.
+ *  Pairs with OoT_Foreign_TestSetReachabilityRecompute. */
+int OoT_Foreign_TestSetHostReachable(uint16_t rc, int reachable);
 
 /**
  * THE REVERSE DIRECTION'S GIVE-PATH CORE (#493) — the exact twin of
