@@ -395,12 +395,14 @@ namespace SOH {
  * Ship::GameOverlay::LoadFont() below. Keep this list in step with the
  * LoadFont() calls: the resolver is only as good as the list.
  *
- * `Fipps` used to be loaded here. It was removed (license follow-up, Refs
- * #578): `Fipps-Regular.otf` asserted "All rights reserved" with no license
- * grant of any kind, so it cannot be redistributed. It was never the default —
- * `gOverlayFont` defaults to "Press Start 2P" — but a player who had selected
- * it has that name persisted in their config, which is why the resolver below
- * exists.
+ * A second font used to be loaded here and was removed in the license follow-up
+ * to #578, because it asserted "All rights reserved" with no license grant of
+ * any kind and so cannot be redistributed. THIRD_PARTY_NOTICES.md ("Resolved by
+ * removal") names it; this file deliberately does not, and neither does any
+ * other source file — the `font-license` test row enforces that. It was never
+ * the default (`gOverlayFont` defaults to "Press Start 2P"), but a player who
+ * had selected it has that name persisted in their config, which is why the
+ * resolver below exists.
  */
 static const char* const kOverlayFontNames[] = { "Press Start 2P" };
 
@@ -516,9 +518,9 @@ OTRGlobals::OTRGlobals() {
 
         auto overlay = context->GetInstance()->GetWindow()->GetGui()->GetGameOverlay();
         overlay->LoadFont("Press Start 2P", 12.0f, "fonts/PressStart2P-Regular.ttf");
-        // The "Fipps" LoadFont that used to sit here is gone with the font
-        // itself (license follow-up, Refs #578): Fipps-Regular.otf asserted
-        // "All rights reserved". Anyone whose gOverlayFont still names it is
+        // A second LoadFont used to sit here. It is gone with the font file
+        // itself (license follow-up to #578; THIRD_PARTY_NOTICES.md, "Resolved
+        // by removal", names it). Anyone whose gOverlayFont still selects it is
         // mapped back to a loaded font by SOH::ResolveOverlayFontName.
         overlay->SetCurrentFont(SOH::ResolveOverlayFontName(CVarGetString(CVAR_GAME_OVERLAY_FONT, "Press Start 2P")));
 

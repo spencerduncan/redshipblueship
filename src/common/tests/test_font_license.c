@@ -467,8 +467,11 @@ TestResult Test_FontLicense(void) {
                 continue;
             }
             if (FontLicHas(f.text, "Fipps")) {
-                printf("[TEST] FAIL: %s still names \"Fipps\". The font is gone from both asset trees, so a load of "
-                       "it can only fail; the reference must go with it.\n",
+                printf("[TEST] FAIL: %s names the removed font. The check is on the bare name and covers COMMENTS "
+                       "too, deliberately: the font file is gone from both asset trees, so a load can only fail, and "
+                       "a comment naming it is how the name creeps back toward a load. THIRD_PARTY_NOTICES.md "
+                       "(\"Resolved by removal\") and docs/known-issues.md are where it is named; a source file "
+                       "should point there instead.\n",
                        f.relPath.c_str());
                 return TEST_FAIL;
             }
