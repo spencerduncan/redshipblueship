@@ -909,13 +909,21 @@ extern "C" void MM_IntegrationGameplayFrameTick(void) {
 // that stops an OoT mod being registered under GAME_MM, which WOULD survive the
 // switch and shadow MM permanently.
 //
-// Everything in mods/mm/ is mounted, sorted by file-name stem
-// case-insensitively, exactly as upstream BenPort does — MM has no equivalent of
-// OoT's enabled-subset mod menu, so there is no enabled set to consult.
+// Everything under mods/mm/ is mounted — MM has no equivalent of OoT's
+// enabled-subset mod menu, so there is no enabled set to consult, and upstream
+// BenPort mounts the whole folder too. Precedence is the sort below.
 
-// Sort key for mod precedence: the file name WITHOUT its extension, lowercased.
-// Upstream BenPort sorts this way on purpose, so that renaming `10-foo.otr` to
-// `10-foo.o2r` does not move it in the precedence order.
+// Sort key for mod precedence: the whole path with its EXTENSION removed,
+// compared case-insensitively. Byte-for-byte upstream BenPort's comparator
+// (games/mm/2s2h/BenPort.cpp), kept identical on purpose so a mod behaves the
+// same here as in standalone 2Ship.
+//
+// Two consequences worth stating because they are not obvious. Stripping the
+// extension means renaming `10-foo.otr` to `10-foo.o2r` does not move a mod in
+// the order — that is the point of it. Comparing the whole path rather than the
+// file name means a subfolder's name participates: mods sitting directly in
+// mods/mm/ are ordered by their file names, which is the common case, but
+// mods/mm/aaa/z.o2r sorts before mods/mm/bbb/a.o2r.
 static bool MMModNameLess(const std::string& a, const std::string& b) {
     const std::string aStem = a.substr(0, a.find_last_of('.'));
     const std::string bStem = b.substr(0, b.find_last_of('.'));
@@ -957,14 +965,21 @@ static int MountMMModArchives(const std::string& modsRoot) {
 
     std::vector<std::string> modPaths;
     // recursive: a mod may ship as mods/mm/<modname>/<archive>.o2r, and upstream
-    // BenPort recurses too. The error_code overload so that one unreadable
-    // subdirectory cannot throw out of MM's boot path.
+    // BenPort recurses too. Every step takes an error_code overload, so nothing in
+    // a player's mods folder — a broken reparse point, a permission-denied
+    // subdirectory — can throw out of MM's boot path.
+    //
+    // walkEc is the ITERATION's error and controls the loop; entryEc is separate
+    // and per-entry. Sharing one would end the walk on the first entry whose
+    // status could not be read, silently dropping every mod after it.
+    std::error_code walkEc;
     for (std::filesystem::recursive_directory_iterator
-             it(modsRoot, std::filesystem::directory_options::skip_permission_denied, ec),
+             it(modsRoot, std::filesystem::directory_options::skip_permission_denied, walkEc),
          end;
-         it != end && !ec; it.increment(ec)) {
+         it != end && !walkEc; it.increment(walkEc)) {
         const std::filesystem::path& p = it->path();
-        if (it->is_directory(ec) || !MMIsModArchiveExtension(p)) {
+        std::error_code entryEc;
+        if (it->is_directory(entryEc) || !MMIsModArchiveExtension(p)) {
             continue;
         }
         const std::string generic = p.generic_string();

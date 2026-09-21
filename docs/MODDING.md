@@ -61,7 +61,9 @@ overrides a base asset at all.
   disable and drag to reorder. MM has no such menu yet: **every** archive under
   `mods/mm/` is mounted, sorted by file name ignoring the extension, so `10-base`
   loses to `20-override`. Rename to reorder; move the file out of `mods/mm/` to
-  disable it.
+  disable it. (Precisely, MM compares the whole path with the extension removed,
+  which is upstream 2Ship's own comparator — so a subfolder name participates
+  too: `mods/mm/aaa/z.o2r` loses to `mods/mm/bbb/a.o2r`.)
 - **Between the two games:** OoT and MM already ship many colliding resource
   paths of their own — 151 object names, 14 actor overlays and all three
   `gameplay_*_keep` archives (`docs/resource-namespace-audit.md`), plus 595 paths
