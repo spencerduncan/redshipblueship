@@ -18,6 +18,7 @@
 #include <cstdlib>
 #include <atomic>
 #include <filesystem>
+#include <vector> // the #656 reachability leg collects its host list
 
 #include <ship/Context.h>
 #include <ship/resource/ResourceManager.h>
@@ -199,6 +200,18 @@ int MM_RegistrarCoverage_RunHeadless(void);
 // display-free shared bring-up first (CVarSetInteger). Returns 0 on pass,
 // non-zero on fail.
 int MM_ClockShuffleSongs_RunHeadless(void);
+// Entrance -> region cache boundary (games/mm/2s2h/mm_entrance_region_cache_test.cpp,
+// #659): Rando::Logic::Regions is filled by eighteen ShipInit registrars in link
+// order, and the cache inside GetRegionIdFromEntrance used to be guarded on its
+// own emptiness -- a lookup against a PARTIALLY populated graph built a
+// non-empty map and froze it, so every entrance owned by a not-yet-run registrar
+// resolved to RR_MAX forever. This row drives the real MM_Rando_Init and reads
+// whether anything looked an entrance up mid-registration (the probe #659 asked
+// for; link order is not answerable statically), then locks the fix by reducing
+// Regions to one region, missing a lookup, restoring, and demanding the right
+// answer. Needs the display-free shared bring-up first (MM_Rando_Init's
+// registrars read ConsoleVariables). Returns 0 on pass, non-zero on fail.
+int MM_EntranceRegionCache_RunHeadless(void);
 // MM tracker registration surface (games/mm/2s2h/mm_trackers_gui_test.cpp,
 // #392): the four MM tracker windows must register on a Gui under
 // "MM "-prefixed names (SoH owns the unprefixed ones and Gui::AddGuiWindow
@@ -1575,9 +1588,132 @@ TestResult Test_ForeignPlacementOoT(void) {
         }
     }
 
+    // ------------------------------------------------------------------
+    // THE REACHABILITY GATE, on the REAL pass (#656; ADR 0010 increment 1.3).
+    // ------------------------------------------------------------------
+    // The forward pass (MM) has filtered its candidates through
+    // ComputeReachableCheckSet since PR #580; the reverse pass had no
+    // reachability term at all, so an MM item could land on an OoT check the OoT
+    // solver can never reach — beatability broken with no signal.
+    //
+    // TWO CLAIMS, and they are different:
+    //
+    //  (a) THE GATE IS VACUOUS UNDER THE SHIPPED DEFAULT, measured rather than
+    //      assumed. RSK_ALL_LOCATIONS_REACHABLE defaults to on, so every eligible
+    //      host is inside the closure and the gate drops nothing — which is
+    //      precisely why SeedDeterminism's foreignOoTHash / foreignOoTCount do
+    //      not move. If this ever stops holding, the pinned digests are about to
+    //      move and this row says so first.
+    //
+    //  (b) THE PASS HONOURS THE GATE. Asserted by making a specific host
+    //      unreachable and watching the real OoT_PlaceForeignItems never choose
+    //      it. The pass recomputes the closure itself (that is deliberate: the
+    //      pool marks after Fill() are the residue of whichever search ran last),
+    //      so the recompute is switched off for the duration — otherwise the
+    //      injected state is erased before the pass reads it and this leg could
+    //      only ever test the predicate, never the gate. The switch defaults to
+    //      the production behaviour and production never calls it.
+    {
+        const int gateEligible = OoT_Foreign_TestLastEligibleHosts();
+        const int gateReachable = OoT_Foreign_TestLastReachableHosts();
+        printf("[TEST] foreign-placement-oot: reachability gate saw %d eligible hosts, %d reachable\n", gateEligible,
+               gateReachable);
+        if (gateEligible <= 0 || gateReachable <= 0) {
+            printf("[TEST] FAIL: the reachability gate recorded no hosts — it did not run (#656)\n");
+            return TEST_FAIL;
+        }
+        if (gateReachable != gateEligible) {
+            printf("[TEST] FAIL: the gate dropped %d of %d eligible hosts under the SHIPPED default (All Locations "
+                   "Reachable is on, so the closure must be total) — the pinned determinism digests are about to "
+                   "move (#656)\n",
+                   gateEligible - gateReachable, gateEligible);
+            return TEST_FAIL;
+        }
+
+        // Collect the reachable eligible hosts the pass would draw from, then
+        // make all but ONE unreachable. Every placement must land on the survivor.
+        std::vector<uint16_t> hosts;
+        for (int id = 1; id < 4200; id++) {
+            if (OoT_Foreign_IsEligibleHost((uint16_t)id) && OoT_Foreign_IsReachableHost((uint16_t)id)) {
+                hosts.push_back((uint16_t)id);
+            }
+        }
+        if (hosts.size() < 2) {
+            printf("[TEST] FAIL: fewer than two reachable eligible hosts (%zu) — this leg cannot distinguish\n",
+                   hosts.size());
+            return TEST_FAIL;
+        }
+
+        const int priorRecompute = OoT_Foreign_TestSetReachabilityRecompute(0);
+        const uint16_t survivor = hosts.back();
+        for (size_t i = 0; i + 1 < hosts.size(); i++) {
+            if (!OoT_Foreign_TestSetHostReachable(hosts[i], 0)) {
+                printf("[TEST] FAIL: could not clear the reachability mark on host %u\n", (unsigned)hosts[i]);
+                OoT_Foreign_TestSetReachabilityRecompute(priorRecompute);
+                return TEST_FAIL;
+            }
+        }
+
+        const int gatedPlaced = OoT_PlaceForeignItems();
+        int offending = -1;
+        for (int slot = 0; slot < (int)RSBS_FOREIGN_PLACEMENT_CAP; slot++) {
+            const ComboForeignPlacement& p = gComboCtx.foreignPlacementsOoT[slot];
+            if (p.item.originGame == (uint8_t)GAME_NONE) {
+                continue;
+            }
+            if (p.mmCheckId != survivor) {
+                offending = (int)p.mmCheckId;
+                break;
+            }
+        }
+        // ONE reachable host, so exactly one placement: hosts are drawn without
+        // replacement and the count is min(pool, poolSize, candidates).
+        const bool honoured = (gatedPlaced == 1) && (offending < 0);
+
+        // ...and with the survivor unreachable too, the pass must FAIL rather
+        // than fall back to an unreachable host: -2 is "a paired world's
+        // cross-game half would be silently absent", which is exactly what an
+        // unhostable world is.
+        int starvedRc = 0;
+        if (honoured) {
+            OoT_Foreign_TestSetHostReachable(survivor, 0);
+            starvedRc = OoT_PlaceForeignItems();
+        }
+
+        // Restore before judging, so a failure cannot leave the process poisoned
+        // for the assertions after this block.
+        for (size_t i = 0; i < hosts.size(); i++) {
+            OoT_Foreign_TestSetHostReachable(hosts[i], 1);
+        }
+        OoT_Foreign_TestSetReachabilityRecompute(priorRecompute);
+
+        if (!honoured) {
+            printf("[TEST] FAIL: with one reachable host the pass placed %d items and hosted on check %d — the "
+                   "reverse pass ignores the reachability gate (#656)\n",
+                   gatedPlaced, offending);
+            return TEST_FAIL;
+        }
+        if (starvedRc != -2) {
+            printf("[TEST] FAIL: with NO reachable host the pass returned %d, expected -2 (a paired world whose "
+                   "cross-game half is silently absent must fail generation) (#656)\n",
+                   starvedRc);
+            return TEST_FAIL;
+        }
+
+        // The restore must reproduce the original table byte for byte: the gate
+        // is free when the closure is total.
+        const int restored = OoT_PlaceForeignItems();
+        if (restored != placedCount || memcmp(firstRun, gComboCtx.foreignPlacementsOoT, sizeof(firstRun)) != 0) {
+            printf("[TEST] FAIL: restoring full reachability placed %d (expected %d) or a different table — the gate "
+                   "is not free under the shipped default (#656)\n",
+                   restored, placedCount);
+            return TEST_FAIL;
+        }
+    }
+
     Combo_ClearSharedItemOutbox();
-    printf("[TEST] PASS: %d MM items hosted over %d eligible OoT checks, deterministic, gated on the frozen "
-           "direction, MM awards each once\n",
+    printf("[TEST] PASS: %d MM items hosted over %d eligible OoT checks, all inside OoT's reachable closure, "
+           "deterministic, gated on the frozen direction, MM awards each once\n",
            placedCount, eligibleHosts);
     return TEST_PASS;
 }
@@ -2657,6 +2793,32 @@ static TestResult Test_MMClockShuffleSongs(void) {
     return MM_ClockShuffleSongs_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// The entrance -> region cache's registration boundary (#659). Same display-free
+// shared bring-up as the rows above, for the same reason mm-registrar-coverage
+// needs it: it drives the real MM_Rando_Init, whose ShipInit registrars read the
+// Ship::Context singleton's ConsoleVariables.
+//
+// ORDER-SENSITIVE IN ONE DIRECTION ONLY. Its probe leg needs a process where
+// MM_Rando_Init has not yet run, which is exactly this row's own CTest process;
+// inside `--test all` mm-registrar-coverage has already run it (irreversibly),
+// and the probe reports itself as not run rather than passing vacuously. The
+// boundary lock below it needs no freshness and runs either way. Nothing it
+// touches outlives it: the region graph is snapshotted and restored, and the
+// cache is left rebuilt against the complete graph.
+static TestResult Test_MMEntranceRegionCache(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_EntranceRegionCache_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // Cross-game spoiler window (#496, ADR 0008). Same bring-up as the MM tracker
 // bridge above and for the same reason: the test constructs real
 // Ship::GuiWindow objects on a standalone Ship::Gui, and the GuiWindow ctor
@@ -3384,6 +3546,14 @@ const TestDescriptor gTests[] = {
     // the five gCombo.Rando.* keys and freezes gComboCtx, and restores both.
     {"combo-settings-rows", "The six tier-4 combo settings are marked, model-backed SohMenu rows (#655, #668)",
      Test_ComboSettingsRows},
+    // The entrance -> region cache's registration boundary (#659). Its probe leg
+    // wants a process where MM_Rando_Init has not run; in THIS array
+    // mm-registrar-coverage has already run it, so the probe reports itself as
+    // not run and the row's own CTest process carries that claim. The boundary
+    // lock needs no freshness. Snapshots and restores Rando::Logic::Regions.
+    {"mm-entrance-region-cache",
+     "No lookup runs against a half-registered region graph, and a partial build cannot freeze the cache (#659)",
+     Test_MMEntranceRegionCache},
     // Keep archive-hotswap-logic LAST: it re-inits the entrance table, so it
     // must not run before any test that relies on the default links.
     {"archive-hotswap-logic", "Headless multi-switch archive/state regression (#263)", Test_ArchiveHotswapLogic},

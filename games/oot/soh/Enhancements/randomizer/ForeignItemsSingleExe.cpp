@@ -46,6 +46,9 @@
 #include "soh/Enhancements/randomizer/item.h"
 #include "soh/Enhancements/randomizer/SeedContext.h"
 #include "soh/Enhancements/randomizer/logic.h"
+// ReachabilitySearch — the reverse pass's reachability gate (#656). The same
+// header entrance.cpp reaches it through, from the same directory.
+#include "3drando/fill.hpp"
 
 #include "foreign_items.h"       // src/common — ComboForeignItemDef, SharedItem
 #include "shared_items.h"        // src/common — Combo_RecordSharedItem (#493)
@@ -359,6 +362,85 @@ static bool OoT_Foreign_IsEligibleHostImpl(RandomizerCheck rc) {
     return Rando::StaticData::RetrieveItem(placedItem).GetCategory() == ITEM_CATEGORY_JUNK;
 }
 
+// ============================================================================
+// THE REVERSE PASS'S REACHABILITY GATE (#656; ADR 0010 increment 1.3, P6)
+// ============================================================================
+//
+// WHAT WAS ASYMMETRIC. Increment 1.3's reachability requirement (PR #580) was
+// applied to the FORWARD pass only: Rando::Foreign::PlaceForeignItems filters
+// its candidates through Rando::Logic::ComputeReachableCheckSet(), while this
+// file's reverse pass accepted every eligible chest in 1..RC_MAX regardless of
+// whether OoT's own solver can reach it. Under a setting that does not
+// guarantee full reachability that silently hosts an MM item on an OoT check
+// the player can never open — a beatability break with no signal until someone
+// notices the check is unobtainable.
+//
+// THE ORACLE IS THE FILL'S OWN, not a second definition of reachable.
+// ReachabilitySearch (3drando/fill.hpp) walks the region graph from RR_ROOT
+// with the starting inventory applied and every placed item collected as it
+// goes, and marks each location it reaches with ItemLocation::AddToPool(). That
+// mark is EXACTLY what ValidateEntrances tests to decide
+// ctx->allLocationsReachable (fill.cpp: "Location ... not reachable"), so
+// "reachable" here means the same thing it means to the All Locations Reachable
+// setting. Copying MM's shape but not MM's definition is the trap this avoids:
+// a second reachability notion would drift from the fill's, and the drift would
+// look like a placement bug.
+//
+// WHY THE MARKS MUST BE RECOMPUTED RATHER THAN READ. addedToPool is scratch
+// state that every search resets (ResetLogic -> Context::LocationReset), so
+// whatever survives Fill() is the residue of whichever search ran last —
+// CalculateBarren's, not a closure over the finished world. Reading it would be
+// a gate whose answer depends on the order of the calculations before it.
+//
+// VACUOUS UNDER THE SHIPPED DEFAULT, AND THAT IS THE POINT. RSK_ALL_LOCATIONS_
+// REACHABLE defaults to RO_GENERIC_ON (settings.cpp), so a default seed has
+// every location in the closure and this gate removes no candidate — which is
+// what keeps SeedDeterminism's foreignOoTHash and every other pinned digest
+// from moving. It earns its place on the non-default settings (ALR off, and the
+// no-logic rules) where unreachable locations genuinely exist. The counters
+// below make the vacuity measurable rather than asserted: the lock prints
+// eligible vs reachable and fails if the gate ever drops a host under the
+// shipped default.
+//
+// NO RNG, AND NOTHING AFTER IT DRAWS. ReachabilitySearch consumes no random
+// numbers (the fill already calls it inside PareDownPlaythrough, before the
+// spoiler is written), and this pass runs at the very end of Playthrough_Init,
+// so it cannot shift a draw the fill already made. The state it does mutate —
+// region access flags, the simulated inventory, the pool marks — is generation
+// scratch against Logic's OWN scratch SaveContext (Logic::GetSaveContext
+// allocates one; it is pointed at gSaveContext only on a save LOAD), so no live
+// save is touched.
+static int sOoTLastEligibleHosts = 0;
+static int sOoTLastReachableHosts = 0;
+// Production is always true. The reverse-placement lock flips it off so it can
+// install a hand-made reachability mark set and prove the PASS honours it —
+// otherwise the pass's own recompute would erase the injected state and the
+// lock could only ever test the predicate, never the gate. See
+// OoT_Foreign_TestSetReachabilityRecompute.
+static bool sOoTRecomputeHostReachability = true;
+
+// Recompute the closure, for its SIDE EFFECT on the pool marks. The return
+// value is deliberately ignored: with every location holding a placed item and
+// calculatingAvailableChecks false, ReachabilitySearch's own filter returns an
+// empty vector, while the AddToPool marks it set along the way are the complete
+// closure. That is the same thing ValidateEntrances reads.
+static void OoT_Foreign_RecomputeHostReachability() {
+    auto ctx = Rando::Context::GetInstance();
+    if (ctx == nullptr) {
+        return;
+    }
+    ReachabilitySearch(ctx->allLocations);
+}
+
+static bool OoT_Foreign_IsReachableHostImpl(RandomizerCheck rc) {
+    auto ctx = Rando::Context::GetInstance();
+    if (ctx == nullptr) {
+        return false;
+    }
+    Rando::ItemLocation* itemLoc = ctx->GetItemLocation(rc);
+    return itemLoc != nullptr && itemLoc->IsAddedToPool();
+}
+
 // Local, self-contained PRNG for placement selection — deliberately NOT drawn
 // from Random_Init's stream. The fill consumes that stream, so taking numbers
 // out of it here would shift every subsequent draw and change the OoT world
@@ -443,23 +525,59 @@ extern "C" int OoT_PlaceForeignItems(void) {
         return -1;
     }
 
+    // THE REACHABILITY GATE (#656), computed before the candidate walk and
+    // before the selection stream is seeded. Symmetric with the forward pass,
+    // which computes Rando::Logic::ComputeReachableCheckSet() at the same point
+    // for the same reason. See the block above OoT_Foreign_Recompute-
+    // HostReachability for the oracle, the vacuity under the shipped default and
+    // why it consumes no RNG.
+    if (sOoTRecomputeHostReachability) {
+        OoT_Foreign_RecomputeHostReachability();
+    }
+
     // Candidates in ascending RandomizerCheck order. Walking the enum range
     // rather than ctx->allLocations keeps the order fixed by construction — it
     // cannot be perturbed by pool-bookkeeping changes — which is what the
     // SeedDeterminism digest needs. Same shape as the digest's own walk.
+    //
+    // Reachability composes OUTSIDE OoT_Foreign_IsEligibleHostImpl, exactly as
+    // it does on MM's side and for the same reason: that predicate is also the
+    // LOAD path's gate and the ROM-free eligibility lock's subject, neither of
+    // which has a reachability closure to consult.
     std::vector<RandomizerCheck> candidates;
+    int eligibleHosts = 0;
     for (int i = 1; i < RC_MAX; i++) {
         const RandomizerCheck rc = (RandomizerCheck)i;
-        if (OoT_Foreign_IsEligibleHostImpl(rc)) {
+        if (!OoT_Foreign_IsEligibleHostImpl(rc)) {
+            continue;
+        }
+        eligibleHosts++;
+        if (OoT_Foreign_IsReachableHostImpl(rc)) {
             candidates.push_back(rc);
         }
     }
+    sOoTLastEligibleHosts = eligibleHosts;
+    sOoTLastReachableHosts = (int)candidates.size();
 
-    fprintf(stderr, "[OoT] foreign placement: %d MM pool items over %zu eligible host checks\n", poolCount,
-            candidates.size());
+    // Both counts printed every generation, like MM's pass prints its own: host
+    // supply is a number worth watching in CI logs and playtest output BEFORE it
+    // becomes a shortfall, and the gap between them is how much work the
+    // reachability gate did for this world.
+    fprintf(stderr,
+            "[OoT] foreign placement: %d MM pool items over %zu reachable eligible host checks (%d eligible before "
+            "the reachability gate)\n",
+            poolCount, candidates.size(), eligibleHosts);
 
     if (candidates.empty()) {
-        fprintf(stderr, "[OoT] foreign placement: no eligible OoT host check in this fill (#510)\n");
+        // -2 keeps its meaning: "a paired world's cross-game half would be
+        // SILENTLY absent". It now covers one more cause — every eligible host
+        // is outside OoT's own reachable closure — and that is a generation
+        // failure for exactly the same reason the predicate-drift case is. The
+        // alternative, placing into the unreachable ones anyway, is the #656 bug.
+        fprintf(stderr,
+                "[OoT] foreign placement: no REACHABLE eligible OoT host check in this fill (%d eligible, all "
+                "outside the reachable closure) (#510/#656)\n",
+                eligibleHosts);
         return -2;
     }
 
@@ -549,6 +667,70 @@ extern "C" int OoT_PlaceForeignItems(void) {
 // lock that restates the rule stops testing it the moment the rule moves.
 extern "C" int OoT_Foreign_IsEligibleHost(uint16_t rc) {
     return OoT_Foreign_IsEligibleHostImpl((RandomizerCheck)rc) ? 1 : 0;
+}
+
+// ---------------------------------------------------------------------------
+// The reachability gate's test surface (#656). Four bridges, each exposing a
+// fact the lock cannot otherwise observe, and none of them called by production.
+// ---------------------------------------------------------------------------
+
+/** The reachability term ALONE, for the check the candidate walk would ask
+ *  about. Exposed rather than paraphrased for the same reason
+ *  OoT_Foreign_IsEligibleHost is: a lock that restates the rule stops testing it
+ *  the moment the rule moves. */
+extern "C" int OoT_Foreign_IsReachableHost(uint16_t rc) {
+    return OoT_Foreign_IsReachableHostImpl((RandomizerCheck)rc) ? 1 : 0;
+}
+
+/** Eligible hosts counted by the LAST placement pass, before the gate. */
+extern "C" int OoT_Foreign_TestLastEligibleHosts(void) {
+    return sOoTLastEligibleHosts;
+}
+
+/** ...and after it. Equal to the above under the shipped default (All Locations
+ *  Reachable is on), which is how the lock asserts the gate moves nothing there
+ *  instead of taking it on trust. */
+extern "C" int OoT_Foreign_TestLastReachableHosts(void) {
+    return sOoTLastReachableHosts;
+}
+
+/**
+ * Turn the pass's own closure recompute off (0) or on (1), returning the
+ * previous setting.
+ *
+ * TEST-ONLY, AND LOAD-BEARING FOR NON-VACUITY. With the recompute on, any
+ * reachability state a lock installs by hand is erased by the pass's first act,
+ * so the only thing a lock could prove is that the predicate distinguishes —
+ * never that the PASS honours it. With it off, a lock can mark a specific host
+ * unreachable, run the real OoT_PlaceForeignItems, and assert that host is never
+ * chosen: the assertion that goes red if the gate is deleted. Production never
+ * calls this, and the flag defaults to the production behaviour, so a build that
+ * lost the test TU still gates.
+ */
+extern "C" int OoT_Foreign_TestSetReachabilityRecompute(int enable) {
+    const int previous = sOoTRecomputeHostReachability ? 1 : 0;
+    sOoTRecomputeHostReachability = (enable != 0);
+    return previous;
+}
+
+/** Set (1) or clear (0) one check's reachability mark, through the same
+ *  ItemLocation pool API the fill's own search uses. Returns 1 when the mark was
+ *  applied. Test-only; pairs with the recompute switch above. */
+extern "C" int OoT_Foreign_TestSetHostReachable(uint16_t rc, int reachable) {
+    auto ctx = Rando::Context::GetInstance();
+    if (ctx == nullptr) {
+        return 0;
+    }
+    Rando::ItemLocation* itemLoc = ctx->GetItemLocation((RandomizerCheck)rc);
+    if (itemLoc == nullptr) {
+        return 0;
+    }
+    if (reachable != 0) {
+        itemLoc->AddToPool();
+    } else {
+        itemLoc->RemoveFromPool();
+    }
+    return 1;
 }
 
 // ============================================================================
@@ -724,15 +906,33 @@ extern "C" int OoT_RunPairedCreationEvent(int slot) {
         return 1;
     }
 
-    // The pre-Fill gate's answer, re-asked here only to LOG the pairing's shape
-    // at the seam. It cannot change: Combo_ResolveComboSettings is frozen by now
-    // and the writers refuse while frozen, so this reads the same record the
-    // freeze wrote. A disagreement would mean a CVar reached a frozen world.
+    // The pre-Fill gate's answer, read HERE FROM THE FROZEN RECORD rather than
+    // re-resolved from the CVars (#657/#667). That is the whole point of the
+    // gate's second act: the seam must be unable to reach a different conclusion
+    // than the creation did, and the only way to guarantee that is to read the
+    // record the freeze wrote. Combo_ComboDirectionArms serves the frozen
+    // direction once Combo_ComboSettingsFrozen() is true, so this is the same
+    // fact both placement passes gate on.
+    const bool crossingsAuthored =
+        Combo_ComboDirectionArms((uint8_t)GAME_OOT) || Combo_ComboDirectionArms((uint8_t)GAME_MM);
     fprintf(stderr,
             "[OoT] creation event: slot %d, masterSeed=%u settingsHash=%08X mmProfileDigest=%08X "
-            "comboFingerprint=%08X crossingsRequested=%d\n",
+            "comboFingerprint=%08X crossingsAuthored=%d\n",
             slot, gComboCtx.sharedRandoSeed, gComboCtx.sharedRandoSettingsHash, gComboCtx.mmProfileDigest,
-            gComboCtx.comboSettingsHash, Combo_ForeignPairingRequested() ? 1 : 0);
+            gComboCtx.comboSettingsHash, crossingsAuthored ? 1 : 0);
+    // A LOG, NOT A REFUSAL, and the asymmetry is deliberate. The sanctioned
+    // writers refuse while frozen, so a live CVar that disagrees with the record
+    // by now can only have come from a raw store write — worth naming loudly
+    // because it means something is authoring behind the freeze. It changes
+    // nothing: the frozen record is the authority for a created world, which is
+    // precisely why a player toggling a setting between Generate and file select
+    // must NOT fail their creation.
+    if (Combo_ForeignCrossingsRequested() != crossingsAuthored) {
+        fprintf(stderr,
+                "[OoT] creation event: WARNING the live combo store now resolves crossings=%d against a frozen "
+                "record that authored %d — a raw write reached a frozen world; the RECORD wins (#657)\n",
+                Combo_ForeignCrossingsRequested() ? 1 : 0, crossingsAuthored ? 1 : 0);
+    }
 
     // The OoT spoiler document this creation will grow its "combo" section into
     // (#660). CVAR_GENERAL("SpoilerLog") holds "./Randomizer/<hash-icons>.json",

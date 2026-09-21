@@ -3,6 +3,7 @@
 
 #include "Logic.h"
 
+#include <cstdio>
 #include <cstring>
 #include <memory>
 
@@ -15,24 +16,99 @@ std::map<RandoRegionId, RandoRegion> Regions = {};
 // Thread-local storage for current region time during check evaluation
 thread_local uint64_t gCurrentRegionTime = 0;
 
+// ============================================================================
+// THE ENTRANCE -> REGION CACHE (#659)
+// ============================================================================
+//
+// WHAT WAS WRONG WITH `if (entranceToRegionId.empty())`. Regions is populated by
+// EIGHTEEN independent RegisterShipInitFunc registrars (the seventeen files
+// under Logic/Regions/ plus the virtual RR_MAX root at the bottom of this file),
+// all of them run by one S2H::ShipInit::InitAll() pass over a map whose
+// iteration order is the order the static initializers happened to register in —
+// i.e. link order, which nothing in the source controls.
+//
+// An `empty()` guard is self-correcting for a call made while Regions is
+// COMPLETELY unpopulated: the cache stays empty and the next call rebuilds. The
+// hazard is the PARTIAL case. A call made after some registrars have run and
+// before the rest builds a NON-empty map from whatever existed at that instant,
+// the guard then reads false for the rest of the process, and every entrance
+// owned by a not-yet-run registrar resolves to RR_MAX forever. That is silent in
+// the worst place: CrawlReachableRegions seeds reachableRegions from
+// GetRegionIdFromEntrance(save->entrance), and an unknown entrance there
+// collapses to the root-only seed, so a world simply looks less reachable than
+// it is — no crash, no log, a wrong fill.
+//
+// THE FIX IS TO KEY THE CACHE ON REGISTRATION PROGRESS, NOT ON ITS OWN
+// EMPTINESS. Registrars only ever ADD regions, so Regions.size() is monotonic
+// across registration and constant once it finishes; rebuilding whenever the
+// count differs from the count the cache was built at makes a partial build
+// self-correcting in exactly the way an empty one already was, at the cost of
+// one size_t compare per call (the crawl calls this once per exit per worklist
+// pop, so an O(regions) content stamp here would be O(regions * exits) per
+// crawl — measurably worse for no additional coverage of the #659 hazard).
+//
+// WHAT THE COUNT CANNOT SEE, and the hook that covers it:
+// InvalidateEntranceRegionCache(). A mutation that REWIRES an existing region's
+// exits without changing how many regions exist — entrance randomization is the
+// live candidate — leaves the count identical, so any such writer must invalidate
+// explicitly. Nothing does today, which is why this is a hook rather than a call:
+// stating the contract at the one place that can honour it is what keeps the next
+// entrance-shuffle lane from having to rediscover #659.
+static std::map<s32, RandoRegionId> sEntranceToRegionId;
+// The region count sEntranceToRegionId was built from. SIZE_MAX is "never
+// built", which is distinct from "built from zero regions" — without that
+// distinction a first call made before any registrar has run would look like a
+// valid empty build.
+static size_t sEntranceToRegionIdBuiltAt = (size_t)-1;
+
+// Rebuild counter. Observable rather than internal because "was this cache ever
+// built before registration finished?" is the question #659 asks and no static
+// analysis of link order can answer it.
+static int sEntranceToRegionIdRebuilds = 0;
+
+void InvalidateEntranceRegionCache() {
+    sEntranceToRegionId.clear();
+    sEntranceToRegionIdBuiltAt = (size_t)-1;
+}
+
+size_t EntranceRegionCacheBuiltAtRegionCount() {
+    return sEntranceToRegionIdBuiltAt;
+}
+
+int EntranceRegionCacheRebuildCount() {
+    return sEntranceToRegionIdRebuilds;
+}
+
 RandoRegionId GetRegionIdFromEntrance(s32 entrance) {
-    static std::map<s32, RandoRegionId> entranceToRegionId;
-    if (entranceToRegionId.empty()) {
+    if (sEntranceToRegionIdBuiltAt != Regions.size()) {
+        // A rebuild AFTER a previous build means a call landed mid-registration
+        // (or a mutator added regions without invalidating). Harmless now — this
+        // is the self-correction — but it is exactly the #659 symptom, and it
+        // used to be permanent, so it is named rather than swallowed.
+        if (sEntranceToRegionIdBuiltAt != (size_t)-1) {
+            fprintf(stderr,
+                    "[MM] entrance->region cache rebuilt: %zu regions now, built from %zu - a lookup ran before "
+                    "region registration finished (#659)\n",
+                    Regions.size(), sEntranceToRegionIdBuiltAt);
+        }
+        sEntranceToRegionId.clear();
         for (auto& [randoRegionId, randoRegion] : Regions) {
             for (auto& [_, regionExit] : randoRegion.exits) {
                 if (regionExit.returnEntrance == ONE_WAY_EXIT) {
                     continue;
                 }
-                entranceToRegionId[regionExit.returnEntrance] = randoRegionId;
+                sEntranceToRegionId[regionExit.returnEntrance] = randoRegionId;
             }
             for (auto& entrance : randoRegion.oneWayEntrances) {
-                entranceToRegionId[entrance] = randoRegionId;
+                sEntranceToRegionId[entrance] = randoRegionId;
             }
         }
+        sEntranceToRegionIdBuiltAt = Regions.size();
+        sEntranceToRegionIdRebuilds++;
     }
 
-    if (entranceToRegionId.contains(entrance)) {
-        return entranceToRegionId[entrance];
+    if (sEntranceToRegionId.contains(entrance)) {
+        return sEntranceToRegionId[entrance];
     }
 
     return RR_MAX;

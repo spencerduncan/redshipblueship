@@ -422,6 +422,51 @@ not armed. Three consequences:
   `Combo_ComboSettingsFrozen()` ≡ `gComboCtx.comboSettings.formatVersion != 0`, the
   exact twin of `Combo_MMProfileFrozen()` (`combo_mm_options_view.c:174`).
 
+### Amendment to decision 2.3 — the OFF gloss stands; the predicate was wrong (#667)
+
+> **2026-09-17, #667.** Decision 2.3's first bullet is **confirmed, not amended**.
+> `RSBS_COMBO_DIR_OFF` is a paired world with zero crossings, and one-game
+> semantics (operator ruling, 2026-09-17: the paired OoT+MM world is ONE game)
+> make that binding rather than stylistic — a creation that read OFF as "unpaired"
+> would author no MM half, which arrival must then refuse under ADR 0009 decision
+> 2's #564 amendment (hydrate-or-refuse). That is the MM-plays-vanilla failure
+> class arrived at through a setting.
+>
+> **What was wrong was the code, and it was the predicate this very section said
+> was still owed.** `Combo_ForeignPairingRequested()` shipped in #628 as
+> `direction != RSBS_COMBO_DIR_OFF`, which put a direction term in the FUTURE
+> tense that its own PAST tense does not have: `Combo_ForeignPairingActive()` is
+> `sourceIsRando && sharedRandoSettingsHash != 0`, true under OFF. Two tenses of
+> one noun cannot disagree about the noun. The predicate now answers **true for
+> OFF** (`src/common/foreign_items.c`), and `src/common/tests/test_combo_settings.c`
+> locks the flipped answer.
+>
+> **The question the old body answered keeps a name.**
+> `Combo_ForeignCrossingsRequested()` is `direction != OFF`, pre-`Fill()` and
+> CVar-derived, and it is the pre-freeze twin of
+> `Combo_ComboDirectionArms(GAME_OOT) || Combo_ComboDirectionArms(GAME_MM)` read
+> from the frozen record afterwards. The creation gate (#657) asks both and
+> refuses a creation where the frozen record does not reproduce the pre-`Fill()`
+> answer; the identity between the two surfaces is locked over every pinned
+> direction, so a fifth enumerator cannot land on one side only.
+>
+> **Consequence for decision 4's freeze step, stated explicitly because it is the
+> thing a future reader will want:** under OFF the creation event still runs in
+> full. Both option profiles freeze, the combo record freezes, OoT fills, the MM
+> half is authored and armed at the file-create seam, one spoiler is written, and
+> the two placement passes place nothing. `Combo_ForeignPairingRequested()` gates
+> whether a paired creation runs; the direction byte gates only what crosses.
+> Nothing in the tree ever behaved otherwise — `OoT_RunPairedCreationEvent` gates
+> on `Combo_ForeignPairingActive()` and both passes on
+> `Combo_ComboDirectionArms()` — so this amendment records a ruling that makes the
+> predicate agree with the shipped system rather than one that changes the system.
+>
+> **The second bullet below is now discharged.** "The pre-condition predicate ADR
+> 0009 decision 2 designed is still owed … zero source hits" was true when written
+> and is not any more: PR #680 moved the ask to `playthrough.cpp` above `Fill()`
+> and #657 gave it a consequence there. The bullet is left in place as the record
+> of what was owed; read it with this amendment.
+
 ### 2.4 What this hands #493 Lane C2
 
 - **"Second placement carve"** — done (offset 740). Lane C2 inherits it.
