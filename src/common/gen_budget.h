@@ -186,6 +186,22 @@ uint32_t Combo_GenProgress_ElapsedMs(void);
 /** Register the presentation leg; NULL removes it. */
 void Combo_GenProgress_SetSink(ComboGenProgressSink sink);
 
+/**
+ * Register the ON-SCREEN leg (#582); NULL removes it.
+ *
+ * A SECOND SLOT RATHER THAN SHARING THE ONE ABOVE, because the two legs have
+ * different owners and neither may displace the other. The sink above is what
+ * the headless `combo-creation-event` row installs to record the phase ORDER;
+ * the shipped overlay installs here. With one slot they were mutually
+ * exclusive, so wiring the overlay would have silently emptied that row's
+ * phase-order array -- a green test asserting nothing.
+ *
+ * It also differs in WHAT it is told: this leg additionally hears
+ * Combo_GenProgress_Begin (an overlay has to appear before the first phase
+ * lands, and a phase-order recorder must not see a synthetic entry for it).
+ */
+void Combo_GenProgress_SetDisplaySink(ComboGenProgressSink sink);
+
 /** Stable short name for a phase. Never NULL. */
 const char* Combo_GenPhaseName(uint8_t phase);
 

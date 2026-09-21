@@ -147,11 +147,16 @@ const char* Combo_GenPhaseName(uint8_t phase) {
 
 static ComboGenProgress sProgress = { RSBS_GENPHASE_IDLE, 0, 0, 0, 0, "idle" };
 static ComboGenProgressSink sProgressSink = NULL;
+static ComboGenProgressSink sDisplaySink = NULL;
 static uint32_t sProgressStartMs = 0;
 static bool sProgressRunning = false;
 
 void Combo_GenProgress_SetSink(ComboGenProgressSink sink) {
     sProgressSink = sink;
+}
+
+void Combo_GenProgress_SetDisplaySink(ComboGenProgressSink sink) {
+    sDisplaySink = sink;
 }
 
 const ComboGenProgress* Combo_GenProgress_Current(void) {
@@ -184,6 +189,15 @@ void Combo_GenProgress_Begin(void) {
     fprintf(stderr, "[Combo] creation progress: BEGIN (per-attempt budget %ums, total budget %ums, host scale %u%%)\n",
             Combo_GenBudget_FillBudgetMs(0), Combo_GenBudget_TotalBudgetMs(), Combo_GenBudget_HostScalePercent());
     fflush(stderr);
+
+    // THE ON-SCREEN LEG ONLY (#582). An overlay has to exist before the first
+    // phase lands, or the player stares at a frozen file-select screen for the
+    // whole of the first MM fill attempt. The phase-order sink is deliberately
+    // NOT told: it records transitions, and a synthetic IDLE entry at index 0
+    // would shift every index the existing row asserts about.
+    if (sDisplaySink != NULL) {
+        sDisplaySink(&sProgress);
+    }
 }
 
 void Combo_GenProgress_Report(uint8_t phase, int attempt, const char* detail) {
@@ -212,6 +226,9 @@ void Combo_GenProgress_Report(uint8_t phase, int attempt, const char* detail) {
     if (sProgressSink != NULL) {
         sProgressSink(&sProgress);
     }
+    if (sDisplaySink != NULL) {
+        sDisplaySink(&sProgress);
+    }
 }
 
 void Combo_GenProgress_End(bool ok) {
@@ -232,6 +249,9 @@ void Combo_GenProgress_End(bool ok) {
 
     if (sProgressSink != NULL) {
         sProgressSink(&sProgress);
+    }
+    if (sDisplaySink != NULL) {
+        sDisplaySink(&sProgress);
     }
 }
 

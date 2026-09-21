@@ -589,6 +589,10 @@ extern "C" {
 // of them are unavailable.
 #include "tests/test_curated_archive_generator.c"
 
+// The creation-progress surface's state machine (#582). Display-free by
+// construction: the row installs a counting painter, never a renderer.
+#include "tests/test_gen_progress_overlay.c"
+
 // MM scene-command EXECUTE regression (issue #344). Unlike the parse test, the
 // body runs the parsed commands against a PlayState, so it needs MM's global.h
 // — which lives in an MM TU (games/mm/2s2h/mm_scene_execute_test.cpp) to keep
@@ -3905,6 +3909,15 @@ const TestDescriptor gTests[] = {
     // label in its own process).
     {"mm-trick-bindings", "Every trick part 2 bound closes its edge off and opens it on, and none removes reach (#578)",
      Test_MMTrickBindings},
+    // #582: the on-screen creation-progress surface's headless half — the two
+    // channel legs' independence, the monotone bar across the attempt ladder,
+    // the state machine's two terminal edges, and "no painter means no
+    // behaviour". Appended at the end of the block; it touches only its own
+    // sinks and restores them, so it is order-free.
+    {"gen-progress-overlay",
+     "Creation progress reaches both channel legs, the bar never rewinds across the ladder, and the overlay's state "
+     "machine has two distinct terminal edges (#582)",
+     Test_GenProgressOverlay},
     {nullptr, nullptr, nullptr}  // Sentinel
 };
 

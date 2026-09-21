@@ -11,6 +11,14 @@ extern "C" {
 uint64_t GetUnixTimestamp();
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// The creation-progress overlay (#582). This loop is the ONLY place in the
+// paired creation that runs long enough to need a heartbeat: everything else
+// the creation event does reports a phase and moves on within milliseconds,
+// while one pass of this fill can occupy the whole per-attempt budget.
+#include "gen_progress_overlay.h"
+#endif
+
 namespace Rando {
 
 namespace Logic {
@@ -83,6 +91,32 @@ void ApplyGlitchlessLogicToSaveContext(std::vector<RandoCheckId>& checkPool, std
     };
 
     while (true) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // ------------------------------------------------------------------
+        // THE ON-SCREEN HEARTBEAT (#582).
+        //
+        // The paired creation runs on the thread that renders, so without a
+        // pump from in here the window produces no frame and answers no OS
+        // message for the whole of this fill. The overlay itself decides how
+        // rarely to paint (RSBS_GENOVERLAY_REPAINT_INTERVAL_MS); this loop only
+        // offers it the elapsed time it had already computed for the timeout
+        // check below, so no new clock and no new decision enter the fill.
+        //
+        // THE CREDIT IS THE LOAD-BEARING PART. A painted frame waits for
+        // vblank, and charging that wait to the fill's wall-clock budget would
+        // give a host with a window measurably less generation headroom than
+        // the same host running headless — two different abort probabilities
+        // for one seed on one machine, decided by whether anything was on
+        // screen. So presentation time is added back to `tick`: the budget
+        // keeps measuring GENERATION, exactly as it does with no overlay
+        // installed. The guard means a headless run does not even read the
+        // clock twice.
+        if (ComboGenOverlay_WantsHeartbeat()) {
+            const uint64_t beforePaint = GetUnixTimestamp();
+            ComboGenOverlay_Heartbeat((uint32_t)(beforePaint - tick));
+            tick += GetUnixTimestamp() - beforePaint;
+        }
+#endif
         // Break if we've been running for too long
         if (GetUnixTimestamp() - tick > timeoutBudgetMs) {
             handleError("Logic Generation Timeout", /*wallClock=*/true);
