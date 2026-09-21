@@ -1088,26 +1088,6 @@ TestResult Test_ComboLogicFill(void) {
         CL_ASSERT(digestOther != digestA, "a different seed must place differently");
     }
 
-    // --- the `none` rung places without proof; `beatable` refuses --------
-    {
-        ClBuildFillWorld(false); // MM's goal item is in no bag and no host
-        CL_ASSERT(ClRunFill(bag, bagCount, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_NONE, 0x0B00u, &res) ==
-                      RSBS_COMBO_LOGIC_OK,
-                  "the base rung is the same fill with the proof skipped: it must succeed");
-        CL_ASSERT(res.proofSkipped, "and say so");
-        CL_ASSERT(!res.goalProven, "and claim nothing: `not proven` is not `failed`, and it is not `proven` either");
-        CL_ASSERT(res.placed == bagCount, "the whole bag must still be distributed");
-        CL_ASSERT(res.attempts == 1, "and with no proof obligation there is nothing to retry");
-        CL_ASSERT(res.rounds == 0, "and no round may have been run at all: `none` is the absence of the round");
-
-        ClBuildFillWorld(false);
-        CL_ASSERT(ClRunFill(bag, bagCount, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_BEATABLE, 0x0B00u, &res) ==
-                      RSBS_COMBO_LOGIC_ERR_GOAL_UNPROVABLE,
-                  "the identical world under `beatable` must refuse: the GOAL is the fill's exit condition");
-        CL_ASSERT(!res.goalProven && !res.proofSkipped, "a refused proof is neither proven nor skipped");
-        CL_ASSERT(res.attempts == RSBS_COMBO_LOGIC_FILL_RETRIES, "and the batch roll-backs must all have been spent");
-    }
-
     // --- WHAT `none` MEANS: all empties, no round ------------------------
     // The world the two host sources disagree about. Its ONLY free host is
     // unreached and never offered as a candidate, so:
@@ -1117,6 +1097,10 @@ TestResult Test_ComboLogicFill(void) {
     //              reachability-gated and there is no reached host.
     // Without the second half the first is satisfied by any rung at all; without
     // the first, `none` is a third logic rung wearing the name of no logic.
+    //
+    // FIRST in this row deliberately: it is the assertion that DISCRIMINATES
+    // between the two readings of D5, so it is the one a mutation should trip
+    // before any weaker `none` claim below can mask it.
     {
         ComboLogicBagItem one[1];
         ComboLogicPlacement p;
@@ -1138,6 +1122,26 @@ TestResult Test_ComboLogicFill(void) {
                   "`beatable` on the identical world must refuse: it draws from REACHED empties and there are none");
         CL_ASSERT(res.placed == 0, "and it placed nothing");
         CL_ASSERT(gClOoT.beginCalls > 0, "having actually run its rounds");
+    }
+
+    // --- the `none` rung places without proof; `beatable` refuses --------
+    {
+        ClBuildFillWorld(false); // MM's goal item is in no bag and no host
+        CL_ASSERT(ClRunFill(bag, bagCount, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_NONE, 0x0B00u, &res) ==
+                      RSBS_COMBO_LOGIC_OK,
+                  "the base rung is the same fill with the proof skipped: it must succeed");
+        CL_ASSERT(res.proofSkipped, "and say so");
+        CL_ASSERT(!res.goalProven, "and claim nothing: `not proven` is not `failed`, and it is not `proven` either");
+        CL_ASSERT(res.placed == bagCount, "the whole bag must still be distributed");
+        CL_ASSERT(res.attempts == 1, "and with no proof obligation there is nothing to retry");
+        CL_ASSERT(res.rounds == 0, "and no round may have been run at all: `none` is the absence of the round");
+
+        ClBuildFillWorld(false);
+        CL_ASSERT(ClRunFill(bag, bagCount, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_BEATABLE, 0x0B00u, &res) ==
+                      RSBS_COMBO_LOGIC_ERR_GOAL_UNPROVABLE,
+                  "the identical world under `beatable` must refuse: the GOAL is the fill's exit condition");
+        CL_ASSERT(!res.goalProven && !res.proofSkipped, "a refused proof is neither proven nor skipped");
+        CL_ASSERT(res.attempts == RSBS_COMBO_LOGIC_FILL_RETRIES, "and the batch roll-backs must all have been spent");
     }
 
     // --- an engine that refuses a host it offered ------------------------
