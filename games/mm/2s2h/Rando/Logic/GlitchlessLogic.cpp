@@ -113,8 +113,18 @@ void ApplyGlitchlessLogicToSaveContext(std::vector<RandoCheckId>& checkPool, std
         // clock twice.
         if (ComboGenOverlay_WantsHeartbeat()) {
             const uint64_t beforePaint = GetUnixTimestamp();
-            ComboGenOverlay_Heartbeat((uint32_t)(beforePaint - tick));
-            tick += GetUnixTimestamp() - beforePaint;
+            ComboGenOverlay_Heartbeat((uint32_t)(beforePaint >= tick ? beforePaint - tick : 0));
+            const uint64_t afterPaint = GetUnixTimestamp();
+            // GUARDED, because GetUnixTimestamp() is system_clock and can step
+            // BACKWARDS (an NTP correction mid-generation). An unguarded
+            // subtraction would underflow to an enormous credit, push `tick`
+            // far into the future, and make the check below underflow in turn
+            // and abort the fill instantly. A backwards step simply credits
+            // nothing, which leaves this loop exactly as exposed to a clock
+            // step as it already was and no more.
+            if (afterPaint >= beforePaint) {
+                tick += afterPaint - beforePaint;
+            }
         }
 #endif
         // Break if we've been running for too long
