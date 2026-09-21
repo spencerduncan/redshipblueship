@@ -2,7 +2,9 @@
 
 - Status: **Accepted** (2026-07-23, #497 step 1); **§6 and §4.1a amended
   2026-07-30** under the one-game-semantics ruling; **one §4.1a consequence
-  superseded 2026-07-31** by ADR 0010
+  superseded 2026-07-31** by ADR 0010; **§5, §4.2, §6 and §4's Combo row
+  implemented 2026-09-20** (#497 steps 3/5/6 — see the amendment at the end;
+  no decided text changes)
 - For: #392 (Phase 3.0 tracker), #34 (settings migration), #497, #499
 - Amended on acceptance: §4.1 (scope and host of the MM randomizer pane — see
   §4.1a), §2d (the #454 disagreement, now ruled), and "What this ADR does not
@@ -529,3 +531,78 @@ kept so the decision trail stays legible.
   desynchronisation the freeze exists to prevent; the safe default for an unclassified key is
   therefore identity, and the cost of getting it wrong in that direction is a control that
   refuses input a session too early.
+
+## Amendment 2026-09-20 — §5, §4.2 and §6 are built; §4's Combo row is partly built
+
+**Nothing decided above changes.** This paragraph records what shipped against it, on the
+operator's 2026-09-17 ruling on [#497](https://github.com/spencerduncan/redshipblueship/issues/497):
+*"#497 go ahead"* — build steps 3, 5 and 6 and the `SetMenu`-count invariant. Written as an
+amendment rather than an edit because §5, §4.2 and §6 are decided text.
+
+**§5 (capability gating) now has infrastructure, and it is a sibling of `disabledMap` rather than
+more rows in it.** §5 says "reuse the existing `disabledMap` mechanism"; the mechanism was reused,
+the container was not, and the reason is mechanical rather than stylistic. `disabledMap` is keyed on
+`uint32_t`, but the only way a widget NAMES one of its rows is `WidgetInfo::activeDisables`, a
+`std::vector<DisableOption>` over an unscoped enum with no fixed underlying type — so its value
+range is the smallest bit-field holding its enumerators, and a capability key cast into it is out of
+range rather than merely ugly. Appending capability enumerators to that upstream enum instead would
+collide with every SoH sync, which §5's own "one shell, extend SohMenu" premise is there to avoid.
+So capabilities live in a registry of the same SHAPE — a predicate paired with an explanation,
+`disabledInfo` — and compose with `disabledMap` exactly the way the dozens of existing PreFuncs
+that set `options->disabled`/`disabledTooltip` directly already do.
+
+Four capabilities ship: MM-hosted, combo-hosted, combo-paired, single-executable. §5's
+"gating must be computed over the whole fan-out set, never a representative file" is honoured by
+making every predicate an OBSERVED fact rather than a transcribed claim — the MM-hosted predicate
+asks the foreign-item pool registry whether MM's pool TU registered, which is the same
+observe-the-effect-never-name-the-symbol rule #640 established, because naming a symbol in that TU
+would keep it in the link and make the gate pass vacuously. §5's part 3 (a hook type's dispatch
+placement) is deliberately NOT folded into a capability: a row whose behaviour rides a specific
+hook composes its own reason on top, which is the per-option liveness the MM options pane already
+carries. A reason string must name the issue that tracks the absence; the lock refuses one that
+does not, because both stale-reason incidents this mechanism exists to prevent (#438's remainder,
+then #669) were reasons nobody could trace to a tracker.
+
+**§4.2's marker is manifest-driven, and it is text rather than an icon.** The badge is one string,
+owned by `src/common` (`Combo_ComboSettingSharedMarker`, `"[Both Games]"`) because the tier-4 rows
+already rendered it and a requirement with two spellings is one that half a menu will fail. It is
+applied by a PASS over every registered row, keyed on `RSBS::kSharedIntentKeys`, run at the end of
+`AddMenuElements()` once every section and every `MenuInit` registrar has contributed — rather than
+by a per-widget call an author must remember, which is the shape of requirement that ends up
+satisfied only on the rows somebody thought about. It runs at the END because a row's `cVar` arrives
+AFTER the widget does: `AddWidget` returns a reference and the caller chains `.CVar(...)` onto it.
+
+**§6's four presentations are a `SohMenu` API, and the enum is closed.** §6 decides there are four
+and that "the distinctions are what each one denies", so a fifth would be a change to decided text
+rather than an addition in code. Two of §6's prose rules are enforced rather than trusted: a LIVE
+row handed a reason drops it, and a FROZEN row handed a registered CAPABILITY reason drops it for
+the freeze label — §6's "a frozen entry's reason is not optional and is not the capability reason".
+The state is written into the row NAME as well as the tooltip, for §4.2's "legible without
+hovering" and for a mechanical reason §6 could not have known: `MenuDrawItem`'s race-lockout branch
+overwrites `disabledTooltip` outright, so a state that lived only there would vanish under a race
+lockout.
+
+**§4's Combo row: two of four sidebars.** The tier-4 **Combo** header exists, with
+`gSettings.Menu.ComboSidebarSection` — a new `gSettings.Menu.*` key, minted the way
+`Menu.RandomizerSidebarSection` and `Menu.NetworkSidebarSection` were, and deliberately not added to
+`RSBS::kMenuIndexKeys`, which holds the four keys #451 contends over and carries neither of those
+two either. It hosts `Cross-Game Rules` (the six tier-4 `gCombo.Rando.*` rows, moved off their
+interim host in `SohMenuRandomizer.cpp`) and `Cross-Game Windows`. §4's table lists four sidebars;
+the other two plus the `ComboMenuBar` `.redsave` file-select absorption are **not built**, and they
+are unregistered rather than registered-and-empty because an empty multi-column page leaves
+`Menu::DrawElement`'s unconditional `SetNextWindowPos` unconsumed and undocks libultraship's
+"Main Game" window (#640). `Randomizer → Cross-Game` survives with a pointer row: sidebar selection
+persists BY DISPLAY-NAME STRING, which is the same measured fact that made resolved call 1 refuse to
+promote Cheats out of Enhancements. Contributed pages register through an extension point rather
+than by editing the section's own TU.
+
+**§3's "one shell" proviso is mechanized, and the reason is worse than it looked.** `Ship::Gui`
+holds a SINGLE menu slot (`std::shared_ptr<GuiWindow> mMenu`), which answers #497's open
+investigation question — and the consequence is not reassuring. A second `SetMenu` call does not
+collide, does not warn and does not fail: it silently REPLACES the first, and whichever shell ran
+second owns the menu. So the invariant asserted is the COUNT of first-party call sites (two: MM's,
+in a TU `games/mm/CMakeLists.txt` excludes from every target, and OoT's live one), plus
+`BenMenu.cpp` being named by no target, plus the slot still being a slot.
+
+**Locks:** `MenuCapabilityGating`, `MenuComboSection` and `SetMenuCount` in the `redship` tier,
+with `ComboSettingsRows` following the rows to their new host.

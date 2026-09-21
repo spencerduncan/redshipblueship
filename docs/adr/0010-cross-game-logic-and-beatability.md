@@ -62,11 +62,11 @@ check that requires MM's Bow is the hardest problem in the phase"). At
   harness, and CI-pinned determinism digests.
 - MM has a real region graph (`games/mm/2s2h/Rando/Logic/Logic.cpp:10`,
   populated by ShipInit registrars; traversal `FindReachableRegions` at
-  `Logic.cpp:92-136`; a 45-slice time model, `Logic.h:20+`) but **no
+  `Logic.cpp:126-188`; a 45-slice time model, `Logic.h:20+`) but **no
   beatability predicate anywhere in `games/mm`**, a Glitchless solver that
   is a forward fill mutating the live `gSaveContext`
-  (`GlitchlessLogic.cpp:22, :57, :258`) under a 10s wall-clock abort
-  (`:64`), and a paired world that defaults to **Nearly No Logic** — a
+  (`GlitchlessLogic.cpp:38, :78, :282`) under a 10s wall-clock abort
+  (`:87-89`), and a paired world that defaults to **Nearly No Logic** — a
   shuffle plus a scene blacklist, zero reachability
   (`Rando/Logic/NearlyNoLogic.cpp:12-89`; default resolved at
   `Rando/Foreign.cpp:126-128` by CVar-existence probe).
@@ -361,7 +361,7 @@ The reference's load-bearing mechanics, all adopted as disciplines here:
   intersects constraint flags, and iteration re-explores on a covering test
   (`pathfind.ts:155-170, :348-351`). Redship MM's `FindReachableRegions`
   guards on first visit and **overwrites** `regionTimeStates`
-  (`Logic.cpp:92-136`) — a region first reached with a poor time set is
+  (`Logic.cpp:126-188`) — a region first reached with a poor time set is
   never re-explored when a better one appears. That is a correctness bug
   class in MM's crawl **today** and is fixed as part of increment 1's
   factoring, before any cross-game fact is computed from that crawl.
@@ -494,7 +494,7 @@ stated so the choice is made with eyes open:
 | Upstream diffs | small, both trees | large port; permanent divergence cost against SoH/2ship |
 | ADR 0002 | clean by construction (boundary = SharedItem-shaped) | needs explicit care; a unified engine is one namespace by temptation |
 | Logic dialects | two, forever (C++ lambda styles differ) | one dialect, one engine to maintain |
-| MM's live-save mutation | contained behind the query seam (memcpy swap discipline, `GlitchlessLogic.cpp:22/:258`) | forced to fix it properly (detached simulated save, as OoT's `Logic::mSaveContext`) |
+| MM's live-save mutation | contained behind the query seam (memcpy swap discipline, `GlitchlessLogic.cpp:38/:282`) | forced to fix it properly (detached simulated save, as OoT's `Logic::mSaveContext`) |
 | Determinism digests | re-pin once (boundary observable) | re-pin everything |
 
 **The contract is binding regardless of shape**: single bag, unified
@@ -808,7 +808,7 @@ union bag and places across both games' shuffled check sets, per Decisions
 | D7 | **Informed reuse**: solver-inventory audit first; composition (alternating fixpoint, thin `src/common` coordinator, SharedItem-shaped boundary) is the default posture; code-level unification permitted on demonstrated maintainability grounds; the contract binds either way |
 | D8 | Increment 1 (paired default Glitchless + attempt ladder + reachability-gated hosts + pinned-seed CI locks) and increment 2 (merged generation, FULL delivery, creation-event contract, `sRandoInitDone` split, fail-at-file-select) as specified; increment 2 precedes 3 |
 | D9 | Beatable rungs respect **renewable-vs-consumable discipline** (#525/#540/#554/#555's shared-resource machinery; OoTMM's renewable/license triad as precedent); exhaustion is designed out, not counted |
-| D10 | **License mechanics if porting OoTMM material**: MIT of record (root LICENSE, 1093 bytes verbatim MIT) despite the two `"license": "ISC"` package.json fields (near-certain scaffolding leftovers — discrepancy recorded here so nobody rediscovers it); ported files carry the copyright line; a repo `THIRD_PARTY_NOTICES` accompanies any port; an upstream issue asks OoTMM to fix the fields; algorithms *reimplemented from reading* are not a port, world-data YAML/CSV taken wholesale is |
+| D10 | **License mechanics if porting OoTMM material**: MIT of record (root LICENSE, 1072 bytes verbatim MIT [corrected 2026-09-20, see Amendment below — was misstated as 1093 bytes]) despite the two `"license": "ISC"` package.json fields (near-certain scaffolding leftovers — discrepancy recorded here so nobody rediscovers it); ported files carry the copyright line; a repo `THIRD_PARTY_NOTICES` accompanies any port; ~~an upstream issue asks OoTMM to fix the fields~~ **[VOIDED 2026-09-20 — see Amendment below]**; algorithms *reimplemented from reading* are not a port, world-data YAML/CSV taken wholesale is |
 | D11 | Scope exclusions for 3.2: **entrance randomization** and **networking/multiworld** are OUT; each exclusion becomes its own epic (below) |
 
 ### Accepted answers (operator, 2026-07-31)
@@ -836,7 +836,7 @@ bidirectional), license mechanics (→ D10).)
 
 | # | Question | What it decides | Owner |
 |---|---|---|---|
-| O4 | **The combo-fill implementation shape** (after the Decision 4 audit): composition's coordinator contract (each engine's exported query surface, snapshot/restore around MM's mutating queries, which TU owns the boundary under ADR 0002's one-sanctioned-TU rule) — or unification, if the audit makes that case | Increment 3's engineering core | The increment-3 epic, post-audit — deliberately left open until the solver-inventory audit is done |
+| O4 | **The combo-fill implementation shape** (after the Decision 4 audit): composition's coordinator contract (each engine's exported query surface, snapshot/restore around MM's mutating queries, which TU owns the boundary under ADR 0002's one-sanctioned-TU rule) — or unification, if the audit makes that case | Increment 3's engineering core | **RULED 2026-09-17: composition** (operator; see the 2026-09-17 Amendment below). The coordinator contract is the audit's §4.1 surface with the three code-forced amendments; unification is rejected |
 | O9 | **MM per-trick vocabulary**: does MM grow an `RT_*`-equivalent option table (the graph's TODO seams name the first candidates) before increment 3, or does its trick dimension ship RO_LOGIC-coarse at first and refine later | Trick axis symmetry | Pending a source inventory of the MM trick vocabularies — 2ship upstream, the original MM Randomizer, and OoTMM's MM tricks — research running separately from this ADR |
 
 ## Non-goals → future epics
@@ -903,7 +903,7 @@ is accepted (listed here; deliberately not filed by this ADR):
   ladder's retries) runs inside the creation event at file select. OoTMM
   ships thousands of whole-world re-solves as normal user options, so the
   fixpoint itself is cheap — but MM's 10s Glitchless wall-clock abort
-  (`GlitchlessLogic.cpp:64`) is unmeasured under creation flow and must be
+  (`GlitchlessLogic.cpp:87-89`) is unmeasured under creation flow and must be
   measured, not assumed, before increment 2 ships. Re-roll time is a
   budgeted product cost. **Measured and decided 2026-08-04 (#582, PR #581):**
   14/66 heavy-profile first attempts failed, 100% of those by wall-clock
@@ -934,7 +934,7 @@ is accepted (listed here; deliberately not filed by this ADR):
 **Risks:**
 
 - MM's Glitchless solver mutates the live `gSaveContext`
-  (`GlitchlessLogic.cpp:22/:258`); every coordinator round must run the
+  (`GlitchlessLogic.cpp:38/:282`); every coordinator round must run the
   memcpy swap discipline or corrupt the session. This is the single biggest
   structural obstacle the audit must size (and the strongest standing
   argument unification will make for itself).
@@ -947,3 +947,102 @@ is accepted (listed here; deliberately not filed by this ADR):
   wants and still has zero references. Both traps are inherited by every
   epic above and are re-stated here because they will outlive this ADR's
   authors' attention.
+
+---
+
+## Amendments
+
+### 2026-09-17 — MM code anchors re-measured at `7bab54bd` (#662)
+
+The six MM-code line citations below had drifted from the lines they name,
+most recently by PR #680's merge (which shifted `Logic.cpp` further down).
+Re-measured directly against the file bodies at `origin/main` = `7bab54bd`
+(PR #680, ADR 0010 increment 2, merged 2026-09-17) and corrected in place
+above; this entry is the amendment-log record, not a text change to any
+decided position.
+
+| Citation | Was | Now (`7bab54bd`) |
+|---|---|---|
+| `FindReachableRegions` traversal | `Logic.cpp:92-136` | `Logic.cpp:126-188` |
+| Glitchless save-mutation seam (snapshot / error-path restore / success-path restore) | `GlitchlessLogic.cpp:22, :57, :258` | `GlitchlessLogic.cpp:38, :78, :282` |
+| Glitchless wall-clock abort check | `GlitchlessLogic.cpp:64` | `GlitchlessLogic.cpp:87-89` |
+
+No decided text changed. The anchors will drift again as the increment-3
+epic (#645) edits these same files; re-measure at that point rather than
+trusting this table.
+
+### 2026-09-20 — O4 answered: composition (operator ruling)
+
+**Operator ruling, 2026-09-17, verbatim: "composition is the way here, lets
+us keep bringing upstream in."** This closes open question O4. The
+solver-inventory audit (`docs/solver-inventory.md`, Decision 4's explicit
+first step) reported on 2026-09-10 (PR #647); the operator ruled on the
+recommendation on 2026-09-17.
+
+**The combo fill is built by composition**: the two solvers stay
+authoritative and untouched in their dialects, and a game-header-free
+coordinator in `src/common` (working name `combo_logic.c/.h`, the twin of
+`foreign_items.c`) owns only the union bag, the two origin-keyed placement
+tables and the round loop. Each engine exports a C-linkage query surface
+over game-neutral scalars from a TU beside its foreign-items TU (audit
+§4.1: begin/assume-own-item/expand/crossing-open/check-reached/
+reached-empty-hosts/goal-reached/place, plus MM's snapshot/restore).
+Unification is rejected: the two dialects encode different world-state
+lattices (audit §5 — OoT: age × day/night over a detached save; MM: a
+45-slice time mask over the live save with a free cycle reset), and merging
+them would fork both ports' region files permanently. The operator's stated
+reason for the ruling is keeping the ability to bring upstream logic fixes
+in.
+
+Three amendments the code forces are adopted with the recommendation (audit
+§6.1):
+
+1. Every MM query, the crawl included, writes the live save, so one
+   snapshot/restore brackets a whole coordinator round and the round's
+   placements are re-applied after restore, as MM's own fill already does.
+2. The union bag is only OoT's last general pass (`fill.cpp`'s
+   remaining-advancement fill plus MM's whole shuffled pool) — OoT's
+   restricted-pool passes and both games' junk `FastFill`s stay per-game,
+   and MM's forward fill does not run for paired worlds.
+3. The crossing observables are region facts (`RR_MARKET_MASK_SHOP` child
+   access on the OoT side; `RR_CLOCK_TOWER_INTERIOR ∈ reachable` on the MM
+   side), not new graph edges, so neither port's region files change for
+   increment 3.
+
+Consequences for the increment-3 epic (#645): its first act is no longer a
+decision but two measurements the audit could not make statically (§6.3) —
+the cost of one linked round against the #582 creation budget floor, and
+whether an assumed fill over MM's forward-authored graph converges on the
+shipped profile without retries. D7's "composition is the default posture"
+is now the decided posture; #576 (the OoTMM world-data port, unification
+tail) is closed as not-applicable to this phase (see below).
+
+No other decided text in this ADR changes. The O4 row above is annotated in
+place per this amendment's precedent (the 2026-09-17 anchors amendment); the
+underlying decision record is this dated paragraph.
+
+### 2026-09-20 — D10 correction: OoTMM LICENSE size, and the upstream-issue clause voided
+
+Two corrections to D10, found while closing O4:
+
+1. **Byte count.** D10 as written stated OoTMM's root `LICENSE` is 1093
+   bytes. Re-measured directly against the upstream file
+   (`gh api repos/OoTMM/OoTMM/contents/LICENSE --jq .size`, read-only, this
+   amendment's date): it is **1072 bytes**. The MIT-of-record conclusion is
+   unaffected; only the byte count was wrong. Corrected in place above per
+   the same precedent as the 2026-09-17 line-anchor corrections — this
+   paragraph is the amendment-log record, not a text change to any decided
+   position.
+2. **The upstream-issue clause is VOID.** D10 as written calls for "an
+   upstream issue asks OoTMM to fix the fields" (the two stray
+   `"license": "ISC"` `package.json` entries). The operator's standing
+   no-upstream-reports directive — never file, draft, propose, or mention an
+   issue/PR/comment to HarbourMasters, OoTMM, or any other external repo,
+   and never offer it as an option; reading external repos is fine —
+   postdates and overrides this clause of D10. **Voided 2026-09-20**, reason:
+   the no-upstream-reports directive overrides it; nobody acts on the
+   ISC/MIT discrepancy externally. The discrepancy itself stays recorded in
+   D10 for posterity. Reading external repos read-only (as this correction's
+   re-measurement did) remains fine — the directive bars outbound reports,
+   not inbound reads.
+

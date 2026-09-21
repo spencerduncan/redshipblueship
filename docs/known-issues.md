@@ -1,8 +1,8 @@
 # Known issues
 
-**Applies to:** `main` at `c8947177` (2026-09-06) and the GitHub Actions builds cut from
+**Applies to:** `main` at `7bab54bd` (2026-09-17, PR #680) and the GitHub Actions builds cut from
 it; the `v0.1.1-prealpha` tag (2026-07-03) is older than everything in the first section.
-**Last updated:** 2026-09-10.
+**Last updated:** 2026-09-17.
 
 RedShipBlueShip is **pre-alpha**. It boots Ocarina of Time and Majora's Mask from
 one executable, round-trips between them through the Happy Mask Shop ↔ Clock Tower
@@ -23,10 +23,15 @@ this list, the issue link is the place to add detail.
 
 The headline feature is real but partial. Phase 3.1 (tracker
 [#492](https://github.com/spencerduncan/redshipblueship/issues/492)) shipped; Phase
-3.2 — cross-game *logic* — has not started
-([#500](https://github.com/spencerduncan/redshipblueship/issues/500)).
+3.2 — cross-game *logic* — has its **increment 2 merged** (PR
+[#680](https://github.com/spencerduncan/redshipblueship/pull/680), 2026-09-17):
+generation now happens once, at file creation, not on first arrival. Increment 3
+(the single-bag fill and the beatability proof) has not started
+([#500](https://github.com/spencerduncan/redshipblueship/issues/500), epics
+[#644](https://github.com/spencerduncan/redshipblueship/issues/644) delivered,
+[#645](https://github.com/spencerduncan/redshipblueship/issues/645) in progress).
 
-**What ships at `c8947177`:**
+**What ships at `7bab54bd`:**
 
 - **One seed, one paired world, items crossing in both directions.** Generating an
   OoT randomizer seed also generates a paired Majora's Mask world; OoT items are
@@ -35,6 +40,13 @@ The headline feature is real but partial. Phase 3.1 (tracker
   [#631](https://github.com/spencerduncan/redshipblueship/pull/631)); the reverse
   direction is armed and delivered (PR
   [#632](https://github.com/spencerduncan/redshipblueship/pull/632)).
+- **Both worlds are generated together, once, at file creation.** The whole
+  paired creation — freeze, both fills, both crossing passes, one spoiler, one
+  atomic identity publish, and an authored-and-armed MM shadow — now runs at the
+  OoT file-create seam (PR [#680](https://github.com/spencerduncan/redshipblueship/pull/680)).
+  Arrival in MM no longer generates anything: it hydrates the frozen shadow or
+  refuses. A generation failure fails file creation itself, at file select, with
+  no partial identity and no silent vanilla Termina fallback.
 - **Foreign items have their own identity.** An OoT item in Termina shows its real
   name and a coloured pickup toast; an MM item in Hyrule is presented as a native
   pickup (PRs [#524](https://github.com/spencerduncan/redshipblueship/pull/524),
@@ -51,11 +63,19 @@ The headline feature is real but partial. Phase 3.1 (tracker
   options *before* creating the file: `Randomizer → Cross-Game → Toggle MM
   Randomizer Options`.
 - **The paired MM world is generated with logic set to Glitchless** by default,
-  behind a deterministic attempt ladder, and foreign items are only hosted on
-  checks the MM crawl can reach (PRs
+  behind a deterministic attempt ladder with a visible generation-progress surface
+  and a host-calibrated budget (~30 s floor, ~90 s ceiling; PR
+  [#680](https://github.com/spencerduncan/redshipblueship/pull/680)), and foreign
+  items are only hosted on checks the MM crawl can reach (PRs
   [#580](https://github.com/spencerduncan/redshipblueship/pull/580),
   [#581](https://github.com/spencerduncan/redshipblueship/pull/581)). Each half is
-  beatable on its own terms.
+  beatable on its own terms. The progress surface is text-only for now — an
+  on-screen bar remains open
+  ([#582](https://github.com/spencerduncan/redshipblueship/issues/582)).
+- **You may opt into one shared Ocarina across both games** — off by default,
+  frozen at file creation like every other combo rule: obtaining an ocarina in
+  either game grants it in the other (PR
+  [#675](https://github.com/spencerduncan/redshipblueship/pull/675)).
 
 **What does not ship yet:**
 
@@ -65,24 +85,26 @@ The headline feature is real but partial. Phase 3.1 (tracker
   Toggle Cross-Game Spoiler`, or the JSON next to your OoT spoiler) before you
   commit to a route. This is ADR 0010's territory — epics
   [#644](https://github.com/spencerduncan/redshipblueship/issues/644) (merged
-  generation) and [#645](https://github.com/spencerduncan/redshipblueship/issues/645)
-  (the single-bag fill with a beatability proof).
+  generation, delivered) and
+  [#645](https://github.com/spencerduncan/redshipblueship/issues/645)
+  (the single-bag fill with a beatability proof, in progress).
 - **Crossings are still duplicates.** An item that crosses is *also* still in its
   home game's pool. Items leave origin pools only with #645.
-- **Generation can abort.** MM's Glitchless fill has a fixed 10-second wall-clock
-  budget; on a slow machine, a heavy MM profile can exhaust the attempt ladder and
-  the paired world is refused. Today that refusal surfaces when you first cross
-  into MM, because the MM half is still generated on arrival, not at file creation.
-  The product decision (a ~30 s floor, an adaptive per-attempt budget, and a
-  visible progress surface) is recorded on
-  [#582](https://github.com/spencerduncan/redshipblueship/issues/582) and ships
-  with #644. If your first crossing lands you on a refusal toast, the fix is to
-  create a new file, ideally with a lighter MM profile.
+- **Generation can still abort**, now at file creation rather than at first
+  crossing. If file creation refuses, the fix is to try again or use a lighter
+  MM profile; no partial or corrupt file is left behind.
 - **Some MM randomizer options are disabled-with-reason** in the MM options pane:
   their gameplay hooks are not yet dispatched in the single-executable build
   ([#438](https://github.com/spencerduncan/redshipblueship/issues/438), 14 of 23
   hook types remain). The pane says which and why; an option that is enabled and
   does nothing is a bug worth reporting.
+- **MM's own enhancement toggles (not randomizer options) are config-file-only.**
+  The MM-side enhancement CVars — the game-over prompt, `BetterSongOfDoubleTime`,
+  `SkipSoTCutscenes`, `Autosave` — have no row in the unified menu yet; set them
+  in `shipofharkinian.json` or the console. A hosted, per-row-verified menu
+  surface is tracked on
+  [#682](https://github.com/spencerduncan/redshipblueship/issues/682) and is not
+  in this build.
 
 ### Back up your saves. Seriously.
 
@@ -97,6 +119,14 @@ durable write goes through one commit point with a generation stamp (PR
 [#569](https://github.com/spencerduncan/redshipblueship/pull/569)). None of that
 is a promise that the *next* format change will migrate. Treat any progress made on
 a pre-alpha build as disposable, and keep copies of files you care about.
+
+**Paired files created before PR #680 (2026-09-17) are refused, not migrated.**
+Increment 2 moved the entire paired generation to the file-create seam; a save
+whose pair never crossed that seam has no frozen identity to hydrate from and is
+refused on load rather than silently re-generated. This project is pre-release —
+the operator has accepted invalidating existing saves rather than spending effort
+on migration. **If a paired file from before this build is refused, create a new
+file**; there is no recovery path for the old one.
 
 ---
 
@@ -200,6 +230,16 @@ a switch with custom music installed, it is a new report.
 
 MM is the newer half of the combo and still carries more debt than OoT.
 
+### Dying in MM respawns you at the entrance instead of showing a game-over prompt — this is intentional
+
+MM's vanilla death behaviour (reload at the area entrance with three hearts, no
+"Continue?" prompt) is the combo's shipped default; it is not a regression. The
+2ship game-over prompt enhancement (`gEnhancements.Kaleido.GameOver`) exists but
+has no row in the unified menu yet ([#682](https://github.com/spencerduncan/redshipblueship/issues/682)).
+ADR 0009's death-decline autosave machinery and #626's F10-during-game-over case
+only apply once that enhancement is enabled — operator ruling, 2026-09-16
+([#653](https://github.com/spencerduncan/redshipblueship/issues/653)).
+
 ### First arrival in Clock Town reads 08:00 instead of 06:00 — [#636](https://github.com/spencerduncan/redshipblueship/issues/636) (community report; tracked in [#639](https://github.com/spencerduncan/redshipblueship/issues/639))
 
 The first crossing from OoT into a new MM file lands in South Clock Town at Day 1,
@@ -252,6 +292,17 @@ and the item/progression trio (PR
 ---
 
 ## Switching and entrances
+
+### ~~MM's clock-shuffle randomizer option was unreachable~~ — RESOLVED ([#678](https://github.com/spencerduncan/redshipblueship/issues/678), PR [#679](https://github.com/spencerduncan/redshipblueship/pull/679))
+
+`RO_CLOCK_SHUFFLE` is now live and reachable in the MM options pane. The two
+`2ship_enh` translation units it depends on (`BetterSongOfDoubleTime.cpp`,
+`SkipSoTCutscenes.cpp`) were dropped by plain archive linking because they
+register only through a file-scope `RegisterShipInitFunc`; a targeted
+`WHOLE_ARCHIVE` carve-out links and guards both, and `check-registrar-elision.sh`
+now locks the registrars in. This is not a general `2ship_enh` link change
+([#427](https://github.com/spencerduncan/redshipblueship/issues/427) item 3
+stays a separate decision).
 
 ### ~~Test and default entrance links collide~~ — RESOLVED ([#374](https://github.com/spencerduncan/redshipblueship/issues/374), PR [#397](https://github.com/spencerduncan/redshipblueship/pull/397))
 

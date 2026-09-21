@@ -681,10 +681,11 @@ if(BUILD_TESTING)
     # this ROM-free tier.
     redship_add_test(NAME ComboSettingsAuthoring COMMAND redship --test combo-settings-authoring)
     redship_add_test(NAME ComboSettingsWindow COMMAND redship --test combo-settings-window)
-    # #655 moved the PRESENTATION into the one live menu: the six keys are rows
-    # in the interim Cross-Game section of SohMenuRandomizer.cpp, and the pane
-    # above is registered but no longer opened by anything. ComboSettingsRows
-    # builds a SohMenu headless, calls the real AddMenuRandomizer(), and drives
+    # #655 moved the PRESENTATION into the one live menu: the six keys are rows —
+    # in the tier-4 Combo section's Cross-Game Rules page since #497 step 6 moved
+    # them off their interim host in SohMenuRandomizer.cpp — and the pane above is
+    # registered but no longer opened by anything. ComboSettingsRows
+    # builds a SohMenu headless, calls the real AddMenuCombo(), and drives
     # the rows' PreFuncs/Callbacks — so it locks the three ways a presentation
     # move goes wrong silently: a missing row, a CVar-typed row that writes the
     # store itself and never reaches the freeze gate, and a frozen row that shows
@@ -966,6 +967,41 @@ if(BUILD_TESTING)
     # asset phase defers with no archives mounted), so it runs in this redship
     # tier.
     redship_add_test(NAME MMEntranceRegionCache COMMAND redship --test mm-entrance-region-cache)
+    # #497's SohMenu remainder, the three rows ADR 0004 asks for.
+    #
+    # MenuCapabilityGating is the lock #497 named `menu-capability-gating` and
+    # recorded as not existing. §5's rule is that an entry appears enabled only
+    # when its TU links AND its registrar ran AND its hook has a dispatch, and
+    # everything else is disabled-WITH-REASON — so the one thing this row must not
+    # do is check only the enabled case. It drives a REAL capability through both
+    # answers: SOH_MENU_CAP_MM_HOSTED observes the foreign-item pool registry
+    # (never a symbol in MM's TU, which would un-elide it and pass vacuously), and
+    # the row un-registers that pool, watches a gated widget grey itself with the
+    # capability's reason, then re-registers it and watches the widget recover its
+    # NAME as well as its enabled state. Plus §6's four presentation states and
+    # every transition between them, and §4.2's marker pass run over a PRODUCTION
+    # section (Dev Tools, the only one that registers ROM-free).
+    #
+    # MenuComboSection owns step 6's shape: the Combo header and its own sidebar
+    # CVar, both shipped pages non-empty (an empty multi-column page is #640's
+    # undocked-window failure), every row inside a column the page draws, the seven
+    # window rows' CVar/WindowName pairs with EmbedWindow(false), the pointer row
+    # left on Randomizer / Cross-Game so a persisted sidebar name is not stranded,
+    # and the contributed-page extension point lane G hangs #682's MM enhancement
+    # rows off.
+    #
+    # SetMenuCount is #497 step 2's second half, which shipped as prose: ADR 0004
+    # §3's "one shell" proviso. Ship::Gui holds a SINGLE menu slot, so a second
+    # SetMenu call replaces the first with no error — the count of first-party call
+    # sites, and MM's BenMenu.cpp staying out of every target, are the invariant.
+    # Source-level and therefore platform-independent, unlike
+    # check-registrar-elision.sh's nm gate.
+    #
+    # All three are display-free and ROM-free; the first two need the shared
+    # bring-up for the CVar store but no window.
+    redship_add_test(NAME MenuCapabilityGating COMMAND redship --test menu-capability-gating)
+    redship_add_test(NAME MenuComboSection COMMAND redship --test menu-combo-section)
+    redship_add_test(NAME SetMenuCount COMMAND redship --test setmenu-count)
     redship_add_test(NAME AllTests COMMAND redship --test all)
 
     # Registration-completeness guard (#376). Diffs the dispatch table the

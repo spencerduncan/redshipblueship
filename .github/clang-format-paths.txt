@@ -101,4 +101,7 @@ games/oot/src/code/z_scene.c
 games/oot/src/overlays/gamestates/ovl_title/z_title.c
 games/oot/soh/soh_combo_settings_rows_test.cpp
 games/mm/2s2h/mm_clock_shuffle_songs_test.cpp
+games/oot/soh/SohGui/SohMenuCombo.cpp
+games/oot/soh/soh_menu_capability_test.cpp
+games/oot/soh/soh_menu_combo_section_test.cpp
 games/mm/2s2h/mm_entrance_region_cache_test.cpp
