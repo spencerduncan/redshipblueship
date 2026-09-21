@@ -338,7 +338,13 @@ static RegisterShipInitFunc initFunc([]() {
     };
     Regions[RR_SOUTHERN_SWAMP_NORTH] = RandoRegion{ .name = "North Tourist Section", .sceneId = SCENE_20SICHITAI,
         .checks = {
-            CHECK(RC_SOUTHERN_SWAMP_PIECE_OF_HEART, CAN_BE_DEKU && Flags_GetRandoInf(RANDO_INF_OBTAINED_DEED_LAND)),
+            // #578 part 3 — MMRT_SOUTHERN_SWAMP_SCRUB_HP_GORON ("Use Goron's ground pound in front of
+            // the Tourist Center door to land on the roof and reach the heart piece"), DEFAULT OFF. Only
+            // the CAN_BE_DEKU term is widened. The deed flag stays a conjunct on purpose, even though a
+            // Goron pounding off the doorframe plausibly does not need the scrub gone: the tooltip talks
+            // about the movement and nothing else, and leaving a term standing can only under-widen.
+            // Its sibling MMRT_SOUTHERN_SWAMP_SCRUB_HP_BOOMERANG is reserved (an OoT item on every leg).
+            CHECK(RC_SOUTHERN_SWAMP_PIECE_OF_HEART, (CAN_BE_DEKU || (MM_TRICK(MMRT_SOUTHERN_SWAMP_SCRUB_HP_GORON) && CAN_BE_GORON)) && Flags_GetRandoInf(RANDO_INF_OBTAINED_DEED_LAND)),
             CHECK(RC_SOUTHERN_SWAMP_SCRUB_DEED, Flags_GetRandoInf(RANDO_INF_OBTAINED_DEED_LAND)),
             CHECK(RC_SOUTHERN_SWAMP_SCRUB_BEANS, CAN_BE_DEKU),
             CHECK(RC_SOUTHERN_SWAMP_OWL_STATUE, CAN_USE_SWORD),
