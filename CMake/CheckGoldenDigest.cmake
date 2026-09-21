@@ -119,8 +119,12 @@ if(REGEN)
     get_filename_component(_golden_dir "${_golden}" DIRECTORY)
     file(MAKE_DIRECTORY "${_golden_dir}")
     # Write through _digest_lines' normalisation rather than copying the raw
-    # file: a golden regenerated on Windows would otherwise land CRLF in the
-    # repository and every later `git diff` of a re-pin would be unreadable.
+    # file, so a stray blank line or a free-text line cannot reach a golden.
+    # Line endings are NOT guaranteed here — CMake's file(WRITE) still lands CRLF
+    # on Windows (measured) — and deliberately do not have to be: the comparison
+    # above strips CR before diffing, and .gitattributes' `* text=auto eol=lf`
+    # normalises the committed bytes, so a golden re-pinned on Windows and one
+    # re-pinned on Linux produce the same blob and the same reviewable diff.
     string(REPLACE ";" "\n" _normalised "${_actual_lines}")
     file(WRITE "${_golden}" "${_normalised}\n")
     message(STATUS

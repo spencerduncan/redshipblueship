@@ -30,9 +30,11 @@ tests/golden/paired-attempt-digest.txt    # --test mm-paired-attempt, the ladder
 ```
 
 Each is the digest text the corresponding dispatch writes, one `key=value` per
-line, normalised to LF. The comparison is line-by-line after stripping CR, never
-a byte compare: the digest writers use stdio text mode, so the same world writes
-LF on Linux and CRLF on Windows.
+line. The comparison is line-by-line after stripping CR, never a byte compare:
+the digest writers use stdio text mode, so the same world writes LF on Linux and
+CRLF on Windows, and a byte compare would report every field as moved on one of
+them. The committed bytes are LF regardless of where a re-pin ran, because
+`.gitattributes` carries `* text=auto eol=lf`.
 
 Two OoT profiles rather than one, because a single golden pins one settings
 profile's fill and says nothing about whether a change is settings-sensitive. The
