@@ -580,6 +580,14 @@ extern "C" {
 // registers the DisplayList/Vertex/Texture factories first.
 #include "tests/test_crossgame_model.c"
 
+// The combo-logic coordinator's locks (ADR 0010 increment 3, #645): the engine
+// contract, one round's fixpoint, and the single-bag fill — all three driven over
+// two synthetic stub engines the test authors and registers through
+// Combo_Logic_RegisterEngine, so no ROM, no display and no generated world are
+// involved. FILE SCOPE (compiled as C++, like every file in that directory);
+// every symbol under test is C-linkage through combo_logic.h.
+#include "tests/test_combo_logic.c"
+
 // #605: the curated-archive GENERATOR's raw-segmented-texture admission guard.
 // FILE SCOPE (compiled as C++): unlike test_crossgame_model.c, this drives
 // scripts/make_redship_otr.py itself as a subprocess against the real
@@ -4044,6 +4052,22 @@ const TestDescriptor gTests[] = {
      "No ungranted font ships, the OFL 1.1 and CC0 texts are in the tree, and a stale gOverlayFont resolves to a "
      "loaded font (#578 follow-up)",
      Test_FontLicense},
+    // The combo-logic coordinator (#645). Order-free: each row registers its own
+    // stub engines, resets the coordinator's tables before every scenario, and
+    // un-registers both engines before returning, so nothing it touches outlives
+    // it and it depends on nothing that ran earlier. No ROM, no display.
+    {"combo-logic-engine-surface",
+     "The engine contract holds: registration validation, the GOAL table, ADR 0002 routing, and both premise "
+     "watchdogs (#645)",
+     Test_ComboLogicEngineSurface},
+    {"combo-logic-fixpoint",
+     "One round terminates, is order-independent, exchanges both ways, and proves the pair-level goal that removing "
+     "the MM host un-proves (#645)",
+     Test_ComboLogicFixpoint},
+    {"combo-logic-fill",
+     "The single-bag fill is seed-determined, `none` draws from all empties with no round run, and beat-either is "
+     "never biased (#645)",
+     Test_ComboLogicFill},
     {nullptr, nullptr, nullptr}  // Sentinel
 };
 

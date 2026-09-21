@@ -525,8 +525,11 @@ int Combo_ForeignPoolClassMembersFor(uint8_t originGame, uint16_t classMask, int
  * With the shipped defaults (every allocated bit) the result is the identity
  * permutation 0..poolCount-1 — byte-identical to the table both passes walked
  * before the rule existed. That parity is a test lock (ForeignItemClass), not
- * a hope: it is what keeps SeedDeterminism's foreignOoTHash and MMRandoGen's
- * placement digest from moving when the rule lands.
+ * a hope. It was ALSO claimed here to be what keeps "SeedDeterminism's
+ * foreignOoTHash and MMRandoGen's placement digest from moving"; SeedDeterminism
+ * cannot detect that (it diffs two runs of one binary — #688), so the row that
+ * would actually go red on a moved draw is GoldenSeedDigestDefault, naming
+ * foreignOoTHash and the per-slot foreignOoT<n> lines as moved OUTPUT fields.
  *
  * @param outIndices NULL counts only, as above.
  */
@@ -566,8 +569,18 @@ void Combo_ComboSettingsDefaults(ComboSettingsRecord* out);
  * a logged reason — never to a new enumerator. An unset key, or a process with
  * no CVar store at all (every ROM-free row that never brings up a
  * Ship::Context), resolves to the default, so "nothing authored" and "what
- * ships" are the same record and the determinism digests do not move. `goal`
- * and `logicRung` stay at their defaults: ADR 0010 owns their authoring.
+ * ships" are the same record. `goal` and `logicRung` stay at their defaults:
+ * ADR 0010 owns their authoring.
+ *
+ * "AND THE DETERMINISM DIGESTS DO NOT MOVE" USED TO END THAT SENTENCE, AND IT
+ * NAMED NOTHING (#688). The determinism rows run one seed twice and diff the two
+ * runs against each other; they cannot notice a world that moved, only one that
+ * moved BETWEEN two runs of the same binary. What enforces the claim since #688
+ * is the GOLDEN rows (GoldenSeedDigestDefault, GoldenSeedDigestProfileV1,
+ * GoldenPairedAttemptDigest), which compare one run against a digest stored in
+ * `tests/golden/`. If a change here moves the resolved record, those go red with
+ * comboSettingsHash named as a moved INPUT field, and re-pinning is a deliberate
+ * commit (docs/determinism-goldens.md).
  *
  * Read BEFORE the freeze at the creation event (Playthrough_Init: resolve ->
  * freeze), so the frozen record is what the player authored. After the freeze

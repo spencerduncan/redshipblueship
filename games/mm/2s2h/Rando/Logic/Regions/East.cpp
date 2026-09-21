@@ -163,7 +163,12 @@ static RegisterShipInitFunc initFunc([]() {
         },
         .connections = {
             // Octorok soul not needed; the player can also create ice platforms on the water itself.
-            CONNECTION(RR_IKANA_CANYON_UPPER, HAS_ITEM(ITEM_HOOKSHOT) && CAN_USE_MAGIC_ARROW(ICE)),
+            //
+            // #578 part 3 — MMRT_ICELESS_IKANA ("With a precise Hookshot position, you can hit the
+            // first tree directly from the riverside, removing the Ice Arrow requirement"), DEFAULT
+            // OFF. The trick names the Hookshot, and the Hookshot is what the vanilla route needs too,
+            // so it stays the conjunct and only the ice term is widened.
+            CONNECTION(RR_IKANA_CANYON_UPPER, HAS_ITEM(ITEM_HOOKSHOT) && (CAN_USE_MAGIC_ARROW(ICE) || MM_TRICK(MMRT_ICELESS_IKANA))),
             CONNECTION(RR_IKANA_CANYON_GROTTO, CAN_USE_ABILITY(SWIM)), // TODO: Grotto mapping
         },
         .events = {

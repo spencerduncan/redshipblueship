@@ -17,6 +17,13 @@
 # comparison. Each run writes to its OWN digest path so the diff can never
 # compare a file against itself.
 #
+# WHAT THIS ROW CANNOT DO (#688). Like CheckSeedDeterminism it compares two runs
+# of the SAME binary and nothing to a stored value, so it detects NONDETERMINISM
+# only: a change that deterministically moves the paired world — or moves which
+# rung the ladder converges on — passes it green. The stored-value oracle for this
+# same digest is the GoldenPairedAttemptDigest row
+# (CMake/CheckGoldenDigest.cmake, golden in `tests/golden/`).
+#
 # Run as a CTest row in the "rando" tier (under xvfb-run):
 #   cmake -DREDSHIP_EXE=<redship> -DWORK_DIR=<dir> -P CheckPairedAttemptDeterminism.cmake
 # The display-free env (SDL_AUDIODRIVER / RSBS_DISABLE_OTR_INIT) comes from the
@@ -80,4 +87,7 @@ if(NOT _cmp EQUAL 0)
 endif()
 
 file(READ "${_digest1}" _digest)
-message(STATUS "Paired attempt-ladder determinism verified — two runs agree:\n${_digest}")
+# "Reproducible", not "unchanged" — see the #688 note in the header.
+message(STATUS
+    "Paired attempt-ladder determinism verified — two runs of THIS binary agree, i.e. the ladder is reproducible. "
+    "Whether it converges on the PINNED world is GoldenPairedAttemptDigest's question:\n${_digest}")

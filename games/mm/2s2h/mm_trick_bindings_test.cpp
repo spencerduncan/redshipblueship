@@ -1,7 +1,7 @@
 /**
  * @file mm_trick_bindings_test.cpp
- * @brief The red/green lock on every trick binding #578 part 2 authored. CTest
- *        row `mm-trick-bindings` (label `rando`), registered in
+ * @brief The red/green lock on every trick binding #578 parts 2 and 3 authored.
+ *        CTest row `mm-trick-bindings` (label `rando`), registered in
  *        src/common/test_runner.cpp.
  *
  * Part 1's two rows already do this shape for its two keys —
@@ -26,11 +26,26 @@
  *      this file exists to catch), then evaluate it with the frozen trick bit off
  *      and on. Off must be false, on must be true. A binding without both halves
  *      is theatre.
- *  (b) PER EDGE WHOSE TRICK CARRIES AN ITEM TERM, A NEGATIVE CONTROL. Take the
- *      item away and turn the trick ON: the edge must stay closed. This is what
- *      catches a disjunct that REPLACED the item requirement instead of joining
- *      it — e.g. `MM_TRICK(X) || HAS_ITEM(...)` where the trick's own definition
- *      says it needs the item.
+ *  (b) PER EDGE THAT STILL REQUIRES SOMETHING, A NEGATIVE CONTROL. Take that
+ *      requirement away and turn the trick ON: the edge must stay closed. This
+ *      catches a disjunct that REPLACED a requirement instead of joining it —
+ *      `MM_TRICK(X) || HAS_ITEM(...)` where it should have been `&&`.
+ *      SCOPE, stated exactly because an earlier version of this comment
+ *      overclaimed: leg (b) proves only that the trick did not replace THE TERM
+ *      THIS ARM REMOVES. On a `(A || MM_TRICK(X)) && B` widening whose control
+ *      removes something inside the trick's own disjunct, it says nothing about
+ *      B — with `(A || (X && G)) && B` and a control that clears G, an edit that
+ *      had swallowed B into the parentheses passes every arm. That hole is what
+ *      leg (f) closes.
+ *  (f) PER SURVIVING OUTER CONJUNCT, AN ARM THAT CLEARS IT. Where the vanilla
+ *      condition keeps a conjunct outside the widened term — `(A || MM_TRICK(X))
+ *      && B` — satisfy the VANILLA disjunct A, clear B, and require the edge shut
+ *      with the trick both OFF and ON. Off catches B swallowed into the
+ *      parentheses (`A || (X && G && B)`), which is a tricks-OFF widening and the
+ *      mis-parenthesisation legs (a)/(b) cannot see; on catches B deleted
+ *      outright. `kSurvivorProbes` holds these, and unlike the other legs it does
+ *      not stop at the first failure, so one broken build shows every arm it
+ *      breaks.
  *  (c) COVERAGE, against the shipped `bound` flag rather than against a list in
  *      this file. Every key the pane describes as bound-and-not-reserved must be
  *      probed here or be one of part 1's two (which their own rows cover). So
@@ -42,11 +57,20 @@
  *      skipping. A probe that silently evaluates nothing is worse than no probe.
  *  (e) MONOTONICITY over a REAL generated glitchless world, per bound key: the
  *      tricks-off reachable check set must be a SUBSET of the set with that one
- *      trick on. Every part-2 binding is a `||` disjunct, so enabling one can
- *      only ever widen reach — this is what catches an inverted polarity, a gate
- *      landing on the wrong side of an `&&`, or a mis-parenthesised edit that
- *      turns an existing term into a conjunct of the trick. It also holds
- *      whatever the numbers are, so it does not rot.
+ *      trick on. Every binding is a `||` disjunct, so enabling one can only ever
+ *      widen reach — this catches an inverted polarity or a gate that makes
+ *      turning the trick ON take reach AWAY.
+ *      WHAT LEG (e) DOES NOT DO, because an earlier version of this file leaned
+ *      on it for coverage it cannot provide: both sets come from the SAME binary,
+ *      one with the bit off and one with it on, so a tricks-OFF TIGHTENING (an
+ *      `&&` where a `||` was meant, an existing term pulled inside the trick's
+ *      parentheses) drops the check from BOTH sets and the subset relation still
+ *      holds. Leg (e) therefore cannot stand in for a probe on an unprobed edge,
+ *      and it is not evidence that a sibling row survived an edit. What covers a
+ *      tricks-off tightening is the per-edge red half above plus the main-binary
+ *      vs branch-binary digest comparison in the PR; what covers each edge is its
+ *      own row, which is why all eight ISTT rupees, both Tingle maps and both
+ *      bank rows have one.
  *
  * Deltas are PRINTED, never pinned: pinning them would turn every unrelated pool
  * or logic edit into a failure of this row. The claim they support is the PR's —
@@ -149,9 +173,12 @@ struct Probe {
     /** Everything the edge needs EXCEPT the trick. */
     void (*inventory)();
     /**
-     * Optional. The same save minus the item the TRICK itself names. With the
-     * trick on, the edge must stay closed. NULL for a trick whose definition
-     * carries no item term.
+     * Optional. The same save minus ONE thing the edge must still require with
+     * the trick on: the item the trick's own definition names, or a conjunct of
+     * the vanilla condition that the widening had to leave standing. With the
+     * trick on, the edge must stay closed. NULL only when the trick carries no
+     * item term AND the widened term was the edge's whole condition — then there
+     * is nothing left to take away and an arm here would pass vacuously.
      */
     void (*withoutTrickItem)();
 };
@@ -161,6 +188,12 @@ struct Probe {
 // would have no red half to observe.
 constexpr uint64_t kAllTime = Rando::Logic::TIME_ALL_SLICES;
 constexpr uint64_t kDay1Only = ((Rando::Logic::TIME_BIT_ONE << Rando::Logic::TIME_NIGHT1_PM_06_00) - 1);
+// Night 1 only, for leg (f) on an edge whose surviving conjunct is IS_DAY(): every
+// slice here sits at or above TIME_NIGHT1_PM_06_00 and below TIME_DAY2_AM_06_00, so
+// RawBefore(NIGHT1_PM_06_00) and both RawBetween day windows are empty and IS_DAY()
+// is false whatever the CLOCK_* half-day terms say.
+constexpr uint64_t kNight1Only = ((Rando::Logic::TIME_BIT_ONE << Rando::Logic::TIME_DAY2_AM_06_00) - 1) &
+                                 ~((Rando::Logic::TIME_BIT_ONE << Rando::Logic::TIME_NIGHT1_PM_06_00) - 1);
 
 void InvEmpty() {
 }
@@ -191,6 +224,71 @@ void InvBombchuAndGreatFairyMask() {
 
 void InvGreatFairyMaskOnly() {
     Give(ITEM_MASK_GREAT_FAIRY);
+}
+
+// ---- part 3's setups -----------------------------------------------------
+
+void InvZoraMask() {
+    Give(ITEM_MASK_ZORA);
+}
+
+void InvHookshot() {
+    Give(ITEM_HOOKSHOT);
+}
+
+void InvBow() {
+    Give(ITEM_BOW);
+}
+
+/** The Great Fairy's Sword rather than an equipped blade: CAN_USE_HUMAN_SWORD
+ *  reads the equips bitfield, and an item slot is what Give() can set. */
+void InvGreatFairySword() {
+    Give(ITEM_SWORD_GREAT_FAIRY);
+}
+
+void InvGoronAndDeedLand() {
+    Give(ITEM_MASK_GORON);
+    Flags_SetRandoInf(RANDO_INF_OBTAINED_DEED_LAND);
+}
+
+void InvDeedLandOnly() {
+    Flags_SetRandoInf(RANDO_INF_OBTAINED_DEED_LAND);
+}
+
+void InvGoronAndDeedMountain() {
+    Give(ITEM_MASK_GORON);
+    Flags_SetRandoInf(RANDO_INF_OBTAINED_DEED_MOUNTAIN);
+}
+
+void InvDeedMountainOnly() {
+    Flags_SetRandoInf(RANDO_INF_OBTAINED_DEED_MOUNTAIN);
+}
+
+// ---- leg (f)'s setups: the vanilla route satisfied, one outer conjunct NOT ----
+
+/** The Deku-flower route up, and no title deed of either kind. */
+void InvDekuOnly() {
+    Give(ITEM_MASK_DEKU);
+}
+
+/** Deku AND Goron — every mask term the Zora Hall row names — but no deed. */
+void InvDekuAndGoron() {
+    Give(ITEM_MASK_DEKU);
+    Give(ITEM_MASK_GORON);
+}
+
+/** The Mountain Title Deed and the Deku route, but not the outer CAN_BE_GORON. */
+void InvDekuAndDeedMountain() {
+    Give(ITEM_MASK_DEKU);
+    Flags_SetRandoInf(RANDO_INF_OBTAINED_DEED_MOUNTAIN);
+}
+
+/** A Bow (so CAN_USE_PROJECTILE, the vanilla disjunct, is true) AND the sword the
+ *  trick names, so the arm is meaningful with the trick both off and on; what the
+ *  row withholds is IS_DAY(), through its clock rather than its inventory. */
+void InvBowAndGreatFairySword() {
+    Give(ITEM_BOW);
+    Give(ITEM_SWORD_GREAT_FAIRY);
 }
 
 const Probe kProbes[] = {
@@ -229,6 +327,146 @@ const Probe kProbes[] = {
     { MMRT_HIVE_BOMBCHU, "Woodfall Temple's water-room beehive with a Bombchu and the Great Fairy Mask", EDGE_CHECK,
       RR_WOODFALL_TEMPLE_WATER_ROOM, (int32_t)RC_WOODFALL_TEMPLE_SF_WATER_ROOM_BEEHIVE, kAllTime,
       InvBombchuAndGreatFairyMask, InvGreatFairyMaskOnly },
+
+    // ---- #578 part 3 ----------------------------------------------------
+    //
+    // Every row below is a plain widening over a key part 1 declared. Where the
+    // control arm takes away a VANILLA conjunct rather than an item the trick
+    // names, the row says so: that arm is what proves the surviving conjunct is
+    // still outside the parentheses.
+
+    // MMRT_NO_SEAHORSE. Zora Mask and no pictograph box, so the seahorse event is
+    // false; the control removes the Zora Mask, which the widening kept.
+    { MMRT_NO_SEAHORSE, "Pinnacle Rock's interior without the seahorse to guide you", EDGE_CONNECTION,
+      RR_PINNACLE_ROCK_ENTRANCE, (int32_t)RR_PINNACLE_ROCK_INNER, kAllTime, InvZoraMask, InvEmpty },
+    // MMRT_ICELESS_IKANA. Hookshot and no Ice Arrows. The Hookshot is both the
+    // trick's own item term and the vanilla conjunct, so one control covers both.
+    { MMRT_ICELESS_IKANA, "Ikana Canyon's upper half by hookshotting the first tree, without Ice Arrows",
+      EDGE_CONNECTION, RR_IKANA_CANYON_LOWER, (int32_t)RR_IKANA_CANYON_UPPER, kAllTime, InvHookshot, InvEmpty },
+    // MMRT_BOMBER_GUESS. No hide-and-seek events are set in a zeroed save, so all
+    // three day-triples are false. "Guess the code" carries no item term.
+    { MMRT_BOMBER_GUESS, "the Bombers' code guessed instead of played for", EDGE_EVENT, RR_CLOCK_TOWN_NORTH,
+      (int32_t)RE_BOMBER_CODE, kAllTime, InvEmpty, NULL },
+    // MMRT_SHT_PILLAR_ROOM_HOOKSHOT. Hookshot only: the vanilla route wants Deku
+    // AND Fire Arrows, so the red half is genuinely closed.
+    { MMRT_SHT_PILLAR_ROOM_HOOKSHOT, "Snowhead Temple's pillar room from the ground floor with a Hookshot",
+      EDGE_CONNECTION, RR_SNOWHEAD_TEMPLE_PILLARS_ROOM_LOWER, (int32_t)RR_SNOWHEAD_TEMPLE_PILLARS_ROOM_UPPER, kAllTime,
+      InvHookshot, InvEmpty },
+    // MMRT_SOUTHERN_SWAMP_SCRUB_HP_GORON. Goron Mask + the Land Title Deed and no
+    // Deku Mask. The control keeps the deed and drops the Goron Mask — the trick's
+    // own item term.
+    { MMRT_SOUTHERN_SWAMP_SCRUB_HP_GORON, "the Southern Swamp scrub's heart piece by Goron pound, without Deku",
+      EDGE_CHECK, RR_SOUTHERN_SWAMP_NORTH, (int32_t)RC_SOUTHERN_SWAMP_PIECE_OF_HEART, kAllTime, InvGoronAndDeedLand,
+      InvDeedLandOnly },
+    // MMRT_ZORA_HALL_SCRUB_HP_NO_DEKU. Same shape one deed over; dropping the
+    // Goron Mask also drops the vanilla CAN_BE_GORON conjunct, so this control
+    // covers the trick's term and the surviving term at once.
+    { MMRT_ZORA_HALL_SCRUB_HP_NO_DEKU, "the Zora Hall scrub's heart piece as Goron, without Deku", EDGE_CHECK,
+      RR_ZORA_HALL_LULUS_ROOM, (int32_t)RC_ZORA_HALL_SCRUB_PIECE_OF_HEART, kAllTime, InvGoronAndDeedMountain,
+      InvDeedMountainOnly },
+    // MMRT_WELL_HSW. No Bow, so the Dexihand cannot be killed. "Grab the water
+    // before the hand grabs you" carries no item term and the Bow term was the
+    // event's whole condition, so there is nothing left for a control arm.
+    { MMRT_WELL_HSW, "the well's hot spring water without killing the Dexihand", EDGE_EVENT,
+      RR_BENEATH_THE_WELL_DEXIHAND_ROOM, (int32_t)RE_ACCESS_HOT_SPRING_WATER, kAllTime, InvEmpty, NULL },
+    // MMRT_GBT_ENTRANCE_BOW. A Bow with no Fire Arrows and no Deku Stick, so
+    // CAN_LIGHT_TORCH_NEAR_ANOTHER is false; the control takes the Bow away.
+    { MMRT_GBT_ENTRANCE_BOW, "Great Bay Temple's entrance chest with plain arrows", EDGE_CHECK,
+      RR_GREAT_BAY_TEMPLE_ENTRANCE, (int32_t)RC_GREAT_BAY_TEMPLE_ENTRANCE_CHEST, kAllTime, InvBow, InvEmpty },
+    // MMRT_BANK_NO_WALLET, BOTH rows it widens. A zeroed save holds the Child
+    // Wallet (upgrade level 0), which is exactly what the trick says is enough, so
+    // there is no item to take. The two rows are separately probed rather than one
+    // standing for the other: leg (e) cannot substantiate a sibling (see its note
+    // above), and the INTEREST row is the one MMRT_BANK_ONE_WALLET's text argues
+    // about, so a future edit there must break a probe, not just a digest.
+    { MMRT_BANK_NO_WALLET, "the bank's heart piece with no wallet upgrade", EDGE_CHECK, RR_CLOCK_TOWN_WEST,
+      (int32_t)RC_CLOCK_TOWN_WEST_BANK_PIECE_OF_HEART, kAllTime, InvEmpty, NULL },
+    { MMRT_BANK_NO_WALLET, "the bank's interest reward with no wallet upgrade", EDGE_CHECK, RR_CLOCK_TOWN_WEST,
+      (int32_t)RC_CLOCK_TOWN_WEST_BANK_INTEREST, kAllTime, InvEmpty, NULL },
+    // MMRT_ISTT_RUPEES_GORON, all EIGHT gated rupees. One row per check, because
+    // "one of eight stands for the set" was never true: leg (e) reads both of its
+    // sets off the same binary, so a tightening on an unprobed sibling drops the
+    // check from BOTH and passes. Eight table entries cost nothing and make each
+    // condition its own red/green pair.
+    { MMRT_ISTT_RUPEES_GORON, "ISTT's floating pre-Twinmold rupee 04 as Goron", EDGE_CHECK,
+      RR_STONE_TOWER_TEMPLE_INVERTED_SPIKED_BAR_ROOM_LOWER,
+      (int32_t)RC_STONE_TOWER_TEMPLE_INVERTED_PRE_BOSS_FREESTANDING_RUPEE_04, kAllTime, InvGoronOnly, InvEmpty },
+    { MMRT_ISTT_RUPEES_GORON, "ISTT's floating pre-Twinmold rupee 05 as Goron", EDGE_CHECK,
+      RR_STONE_TOWER_TEMPLE_INVERTED_SPIKED_BAR_ROOM_LOWER,
+      (int32_t)RC_STONE_TOWER_TEMPLE_INVERTED_PRE_BOSS_FREESTANDING_RUPEE_05, kAllTime, InvGoronOnly, InvEmpty },
+    { MMRT_ISTT_RUPEES_GORON, "ISTT's floating pre-Twinmold rupee 06 as Goron", EDGE_CHECK,
+      RR_STONE_TOWER_TEMPLE_INVERTED_SPIKED_BAR_ROOM_LOWER,
+      (int32_t)RC_STONE_TOWER_TEMPLE_INVERTED_PRE_BOSS_FREESTANDING_RUPEE_06, kAllTime, InvGoronOnly, InvEmpty },
+    { MMRT_ISTT_RUPEES_GORON, "ISTT's floating pre-Twinmold rupee 07 as Goron", EDGE_CHECK,
+      RR_STONE_TOWER_TEMPLE_INVERTED_SPIKED_BAR_ROOM_LOWER,
+      (int32_t)RC_STONE_TOWER_TEMPLE_INVERTED_PRE_BOSS_FREESTANDING_RUPEE_07, kAllTime, InvGoronOnly, InvEmpty },
+    { MMRT_ISTT_RUPEES_GORON, "ISTT's floating pre-Twinmold rupee 08 as Goron", EDGE_CHECK,
+      RR_STONE_TOWER_TEMPLE_INVERTED_SPIKED_BAR_ROOM_LOWER,
+      (int32_t)RC_STONE_TOWER_TEMPLE_INVERTED_PRE_BOSS_FREESTANDING_RUPEE_08, kAllTime, InvGoronOnly, InvEmpty },
+    { MMRT_ISTT_RUPEES_GORON, "ISTT's floating pre-Twinmold rupee 09 as Goron", EDGE_CHECK,
+      RR_STONE_TOWER_TEMPLE_INVERTED_SPIKED_BAR_ROOM_LOWER,
+      (int32_t)RC_STONE_TOWER_TEMPLE_INVERTED_PRE_BOSS_FREESTANDING_RUPEE_09, kAllTime, InvGoronOnly, InvEmpty },
+    { MMRT_ISTT_RUPEES_GORON, "ISTT's floating pre-Twinmold rupee 10 as Goron", EDGE_CHECK,
+      RR_STONE_TOWER_TEMPLE_INVERTED_SPIKED_BAR_ROOM_LOWER,
+      (int32_t)RC_STONE_TOWER_TEMPLE_INVERTED_PRE_BOSS_FREESTANDING_RUPEE_10, kAllTime, InvGoronOnly, InvEmpty },
+    { MMRT_ISTT_RUPEES_GORON, "ISTT's floating pre-Twinmold rupee 11 as Goron", EDGE_CHECK,
+      RR_STONE_TOWER_TEMPLE_INVERTED_SPIKED_BAR_ROOM_LOWER,
+      (int32_t)RC_STONE_TOWER_TEMPLE_INVERTED_PRE_BOSS_FREESTANDING_RUPEE_11, kAllTime, InvGoronOnly, InvEmpty },
+    // MMRT_NCT_TINGLE, BOTH maps. The Great Fairy's Sword and nothing else: no
+    // Bow, Hookshot, Deku or Zora, so CAN_USE_PROJECTILE is false. kAllTime
+    // satisfies IS_DAY(); kSurvivorProbes is what pins IS_DAY() outside the
+    // parentheses.
+    { MMRT_NCT_TINGLE, "North Clock Town's first Tingle map by jump slash", EDGE_CHECK, RR_CLOCK_TOWN_NORTH,
+      (int32_t)RC_CLOCK_TOWN_NORTH_TINGLE_MAP_01, kAllTime, InvGreatFairySword, InvEmpty },
+    { MMRT_NCT_TINGLE, "North Clock Town's second Tingle map by jump slash", EDGE_CHECK, RR_CLOCK_TOWN_NORTH,
+      (int32_t)RC_CLOCK_TOWN_NORTH_TINGLE_MAP_02, kAllTime, InvGreatFairySword, InvEmpty },
+};
+
+/**
+ * Leg (f). Each row satisfies the VANILLA disjunct of a `(A || MM_TRICK(X)) && B`
+ * widening and CLEARS one conjunct B that the widening left outside the
+ * parentheses. The edge must be shut with the trick OFF (which is what catches B
+ * swallowed into the trick's own disjunct — a tricks-off widening) and shut with
+ * it ON (which catches B deleted). Rows whose surviving conjunct is already the
+ * thing their leg-(b) control removes are not repeated here: MMRT_ICELESS_IKANA's
+ * outer Hookshot is exactly what `InvEmpty` takes away.
+ */
+struct SurvivorProbe {
+    MMRandoTrickId trick;
+    /** "<edge> stays shut with <B> cleared". */
+    const char* what;
+    EdgeKind kind;
+    RandoRegionId region;
+    int32_t target;
+    uint64_t time;
+    /** Satisfies A (and anything else the edge wants) but NOT the conjunct B. */
+    void (*inventory)();
+};
+
+const SurvivorProbe kSurvivorProbes[] = {
+    // (CAN_BE_DEKU || (trick && CAN_BE_GORON)) && deed. The Deku route is
+    // satisfied and the Land Title Deed is not: if the deed were dropped or
+    // absorbed into the trick's parentheses, the trick-OFF half of this arm opens.
+    { MMRT_SOUTHERN_SWAMP_SCRUB_HP_GORON,
+      "the Southern Swamp scrub's heart piece stays shut for a Deku with no Land Title Deed", EDGE_CHECK,
+      RR_SOUTHERN_SWAMP_NORTH, (int32_t)RC_SOUTHERN_SWAMP_PIECE_OF_HEART, kAllTime, InvDekuOnly },
+    // deed && CAN_BE_GORON && (CAN_BE_DEKU || (trick && (CAN_BE_GORON || CAN_BE_ZORA))).
+    // TWO outer conjuncts, so two arms: the deed cleared, and the outer
+    // CAN_BE_GORON cleared. The second is the one the region file's own comment
+    // turns on — it is why the trick's Zora leg is dead — so it is pinned here.
+    { MMRT_ZORA_HALL_SCRUB_HP_NO_DEKU,
+      "the Zora Hall scrub's heart piece stays shut for a Goron Deku with no Mountain Title Deed", EDGE_CHECK,
+      RR_ZORA_HALL_LULUS_ROOM, (int32_t)RC_ZORA_HALL_SCRUB_PIECE_OF_HEART, kAllTime, InvDekuAndGoron },
+    { MMRT_ZORA_HALL_SCRUB_HP_NO_DEKU,
+      "the Zora Hall scrub's heart piece stays shut for a deed-holding Deku who is not Goron", EDGE_CHECK,
+      RR_ZORA_HALL_LULUS_ROOM, (int32_t)RC_ZORA_HALL_SCRUB_PIECE_OF_HEART, kAllTime, InvDekuAndDeedMountain },
+    // (CAN_USE_PROJECTILE || (trick && sword)) && CAN_AFFORD(..) && IS_DAY().
+    // The surviving conjunct here is a TIME term, so the arm clears it with the
+    // clock rather than the inventory: night 1 only, where IS_DAY() is false.
+    { MMRT_NCT_TINGLE, "North Clock Town's first Tingle map stays shut at night", EDGE_CHECK, RR_CLOCK_TOWN_NORTH,
+      (int32_t)RC_CLOCK_TOWN_NORTH_TINGLE_MAP_01, kNight1Only, InvBowAndGreatFairySword },
+    { MMRT_NCT_TINGLE, "North Clock Town's second Tingle map stays shut at night", EDGE_CHECK, RR_CLOCK_TOWN_NORTH,
+      (int32_t)RC_CLOCK_TOWN_NORTH_TINGLE_MAP_02, kNight1Only, InvBowAndGreatFairySword },
 };
 
 /** Part 1's keys, whose red/green pairs live in their own rows. Named here so
@@ -243,16 +481,16 @@ const MMRandoTrickId kCoveredElsewhere[] = {
  * stored `std::function` rather than re-deriving the condition is the point of
  * the whole file.
  */
-const std::function<bool()>* FindCondition(const Probe& probe, const char** outWhy) {
-    auto regionIt = Rando::Logic::Regions.find(probe.region);
+const std::function<bool()>* FindCondition(EdgeKind kind, RandoRegionId regionId, int32_t target, const char** outWhy) {
+    auto regionIt = Rando::Logic::Regions.find(regionId);
     if (regionIt == Rando::Logic::Regions.end()) {
         *outWhy = "the region is not in the graph";
         return NULL;
     }
     const Rando::Logic::RandoRegion& region = regionIt->second;
-    switch (probe.kind) {
+    switch (kind) {
         case EDGE_CHECK: {
-            auto it = region.checks.find((RandoCheckId)probe.target);
+            auto it = region.checks.find((RandoCheckId)target);
             if (it == region.checks.end()) {
                 *outWhy = "the region has no such check";
                 return NULL;
@@ -260,7 +498,7 @@ const std::function<bool()>* FindCondition(const Probe& probe, const char** outW
             return &it->second.first;
         }
         case EDGE_CONNECTION: {
-            auto it = region.connections.find((RandoRegionId)probe.target);
+            auto it = region.connections.find((RandoRegionId)target);
             if (it == region.connections.end()) {
                 *outWhy = "the region has no connection to that region";
                 return NULL;
@@ -268,7 +506,7 @@ const std::function<bool()>* FindCondition(const Probe& probe, const char** outW
             return &it->second.first;
         }
         case EDGE_EXIT: {
-            auto it = region.exits.find((s32)probe.target);
+            auto it = region.exits.find((s32)target);
             if (it == region.exits.end()) {
                 *outWhy = "the region has no exit at that entrance index";
                 return NULL;
@@ -277,7 +515,7 @@ const std::function<bool()>* FindCondition(const Probe& probe, const char** outW
         }
         case EDGE_EVENT: {
             for (const auto& entry : region.events) {
-                if ((int32_t)entry.first == probe.target) {
+                if ((int32_t)entry.first == target) {
                     return &entry.second;
                 }
             }
@@ -294,10 +532,10 @@ void SetFrozenTrick(MMRandoTrickId mmRandoTrickId, bool on) {
 }
 
 /** Stand up the save for one probe arm: empty, then the row's own setup. */
-void ArmSave(const Probe& probe, void (*inventory)()) {
+void ArmSave(uint64_t time, void (*inventory)()) {
     ResetSaveWithEmptyInventory();
     inventory();
-    Rando::Logic::gCurrentRegionTime = probe.time;
+    Rando::Logic::gCurrentRegionTime = time;
 }
 
 const char* TrickName(MMRandoTrickId id) {
@@ -308,8 +546,8 @@ const char* TrickName(MMRandoTrickId id) {
 } // namespace
 
 extern "C" int MM_TrickBindings_RunHeadless(void) {
-    printf("[TEST] mm-trick-bindings: each of part 2's trick bindings closes its edge with the trick off and opens "
-           "it with the trick on (#578 part 2)\n");
+    printf("[TEST] mm-trick-bindings: each of parts 2 and 3's trick bindings closes its edge with the trick off and "
+           "opens it with the trick on (#578 parts 2, 3)\n");
 
     // Populate the graph. The region definitions are file-scope ShipInit
     // registrars and InitOTRForMMFirstBoot does NOT fire them — MM_Rando_InitCore
@@ -339,14 +577,14 @@ extern "C" int MM_TrickBindings_RunHeadless(void) {
     // ---- (a), (b), (d): the per-edge red/green pairs ----------------------
     for (const Probe& probe : kProbes) {
         const char* why = "";
-        const std::function<bool()>* condition = FindCondition(probe, &why);
+        const std::function<bool()>* condition = FindCondition(probe.kind, probe.region, probe.target, &why);
         if (condition == NULL) {
             rc = BindFail(1, "%s [%s]: %s — the binding's edge is gone, so this probe would be vacuous", probe.what,
                           TrickName(probe.trick), why);
             break;
         }
 
-        ArmSave(probe, probe.inventory);
+        ArmSave(probe.time, probe.inventory);
         SetFrozenTrick(probe.trick, false);
         if ((*condition)()) {
             rc = BindFail(2,
@@ -366,12 +604,12 @@ extern "C" int MM_TrickBindings_RunHeadless(void) {
         }
 
         if (probe.withoutTrickItem != NULL) {
-            ArmSave(probe, probe.withoutTrickItem);
+            ArmSave(probe.time, probe.withoutTrickItem);
             SetFrozenTrick(probe.trick, true);
             if ((*condition)()) {
                 rc = BindFail(4,
-                              "%s [%s]: the trick ALONE opens the edge, without the item its own definition names — "
-                              "the disjunct replaced the item requirement instead of joining it",
+                              "%s [%s]: the trick ALONE opens the edge, without a term the edge must still require — "
+                              "the disjunct replaced that requirement instead of joining it",
                               probe.what, TrickName(probe.trick));
                 break;
             }
@@ -379,6 +617,42 @@ extern "C" int MM_TrickBindings_RunHeadless(void) {
 
         printf("[TEST]   ok: %s [%s]%s\n", probe.what, TrickName(probe.trick),
                probe.withoutTrickItem != NULL ? " (+ item-still-required control)" : "");
+    }
+
+    // ---- (f): the surviving OUTER conjunct of each `(A || trick) && B` ----
+    //
+    // Deliberately does NOT break on the first failure: these arms exist because
+    // the reviewer of #703 showed leg (b) never observed its red half for these
+    // rows, so when one of them is broken it should be possible to see ALL of them
+    // in one run rather than one per rebuild.
+    if (rc == 0) {
+        for (const SurvivorProbe& probe : kSurvivorProbes) {
+            const char* why = "";
+            const std::function<bool()>* condition = FindCondition(probe.kind, probe.region, probe.target, &why);
+            if (condition == NULL) {
+                rc = BindFail(12, "%s [%s]: %s — the edge this arm guards is gone", probe.what, TrickName(probe.trick),
+                              why);
+                continue;
+            }
+
+            bool broke = false;
+            for (int on = 0; on <= 1; on++) {
+                ArmSave(probe.time, probe.inventory);
+                SetFrozenTrick(probe.trick, on != 0);
+                if ((*condition)()) {
+                    rc = BindFail(13,
+                                  "%s [%s], trick %s: the edge is OPEN with a conjunct the widening had to leave "
+                                  "OUTSIDE its parentheses cleared — that term was deleted or swallowed into the "
+                                  "trick's disjunct, which widens the TRICKS-OFF condition",
+                                  probe.what, TrickName(probe.trick), on ? "ON" : "OFF");
+                    broke = true;
+                }
+            }
+            if (!broke) {
+                printf("[TEST]   ok: %s [%s] (surviving-conjunct arm, trick off and on)\n", probe.what,
+                       TrickName(probe.trick));
+            }
+        }
     }
 
     // ---- (c): coverage, measured against the SHIPPED bound flag -----------
@@ -529,9 +803,11 @@ extern "C" int MM_TrickBindings_RunHeadless(void) {
     Rando::Logic::gCurrentRegionTime = savedTime;
 
     if (rc == 0) {
-        printf("[TEST] PASS: %d edges across %d trick keys are closed with the trick off and open with it on, every "
-               "shipped bound key is probed, and no key removes reach when enabled\n",
-               (int)(sizeof(kProbes) / sizeof(kProbes[0])), (int)probedKeys.size());
+        printf("[TEST] PASS: %d edges across %d trick keys are closed with the trick off and open with it on, %d "
+               "surviving-conjunct arms stay shut with the trick off AND on, every shipped bound key is probed, and no "
+               "key removes reach when enabled\n",
+               (int)(sizeof(kProbes) / sizeof(kProbes[0])), (int)probedKeys.size(),
+               (int)(sizeof(kSurvivorProbes) / sizeof(kSurvivorProbes[0])));
     }
     return rc;
 }

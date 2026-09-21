@@ -607,6 +607,22 @@ extern "C" int Rando_HeadlessSeedDeterminismDigest(const char* seedStr, const ch
             (unsigned)gComboCtx.comboSettings.poolSizeOoT, (unsigned)gComboCtx.comboSettings.poolSizeMM,
             (unsigned)gComboCtx.comboSettings.itemClassOoT, (unsigned)gComboCtx.comboSettings.itemClassMM,
             (unsigned)gComboCtx.comboSettings.goal, (unsigned)gComboCtx.comboSettings.logicRung);
+    // #688: the REVERSE table, slot by slot, beside its hash. The hash alone is
+    // enough for a two-run self-diff (either it matches or it does not), but a
+    // GOLDEN row has to tell a reviewer WHICH placement moved — "foreignOoTHash
+    // 3F2A1B07 -> 91CC04DE" is unreviewable, and the forward table has carried
+    // its per-slot lines since Lane C1 for exactly this reason. Occupied slots
+    // only, mirroring the MM half's `foreign%d=` convention; the u16 in THIS
+    // table holds an OoT RandomizerCheck (context.h:636), so the line is named
+    // for what it carries rather than for the struct field.
+    for (int i = 0; i < (int)RSBS_FOREIGN_PLACEMENT_CAP; i++) {
+        const ComboForeignPlacement& slot = gComboCtx.foreignPlacementsOoT[i];
+        if (slot.item.originGame == (uint8_t)GAME_NONE) {
+            continue;
+        }
+        fprintf(out, "foreignOoT%d=%u:%u:%u\n", i, (unsigned)slot.mmCheckId, (unsigned)slot.item.originGame,
+                (unsigned)slot.item.id);
+    }
     if (closeOut) {
         fclose(out);
     }
