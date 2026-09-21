@@ -658,8 +658,8 @@ jobs:
     # on Linux), which this comment used to assert a hosted Windows runner has no
     # equivalent of. That assertion was never measured and is now known to be at
     # least partly wrong — the three `Golden*` rando rows DO run here, see the
-    # next step. What remains true is that the tier as a whole has not been tried;
-    # the untested part is the claim, not a fact.
+    # next step. What remains true is that the tier as a whole has not been tried
+    # (#709); the untested part is the claim, not a fact.
     #
     # ctest is resolved next to the cmake.exe the configure step already
     # used (same install, same version) rather than trusting a second PATH
@@ -685,8 +685,8 @@ jobs:
     # A probe step said otherwise: 3/3 passed in 5.4s on windows-latest
     # (run 35648094332, job 106493621321). So the rows are a gate here, not a note in
     # a doc about why they cannot be. Whether the REST of the rando tier also runs on
-    # this runner is untested and tracked separately; do not widen this to
-    # `--label-regex rando` without measuring it.
+    # this runner is untested and tracked in #709; do not widen this to
+    # `--label-regex rando` without measuring it, which is what #709 is for.
     #
     # Consequence worth keeping in view: this leg and the Linux leg check the SAME
     # committed bytes, so "MSVC and GCC generate the same world for the same seed" is

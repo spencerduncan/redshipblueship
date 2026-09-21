@@ -183,7 +183,8 @@ Things to keep in view rather than rediscover:
 
 * The rows are selected **by name**, not by label. The `rando` tier as a whole is
   still Linux-only; only these three are known to run on a hosted Windows runner. Do
-  not widen the step to `--label-regex rando` without measuring it.
+  not widen the step to `--label-regex rando` without measuring it — that measurement
+  is #709.
 * Both legs check the **same committed bytes**, which is what makes "MSVC and GCC
   generate the same world for the same seed" a property CI re-verifies on every PR
   rather than a measurement somebody took once. See "Platform portability".
