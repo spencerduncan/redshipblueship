@@ -1461,14 +1461,25 @@ if(BUILD_TESTING)
     # be RE-PINNED under a different profile than the row CHECKS it under. That
     # drift would be silent and green — the worst possible failure for an oracle —
     # and it is the reason this is a table instead of six hand-written blocks.
-    # Fields: <ctest-name>|<golden-name>|<dispatch>|<digest-env-var>|<extra-env>
+    # THE ARCHIVE SET IS PART OF THE PIN, and the last field says which goldens
+    # depend on it. MEASURED, not assumed: with the ROM-derived oot.o2r mounted,
+    # the 2,449 per-area exclude-location options drop out of the settings string
+    # Playthrough_Init hashes (3087 per-option lines against 638; the 638 shared
+    # lines are byte-equal), the fill is re-seeded differently and the whole OoT
+    # world moves. Hosted CI can never have ROM-derived archives, so the goldens
+    # pin the archive-free world and a ROM-staged local run SKIPS those rows with
+    # a printed reason instead of going red about a move that did not happen. The
+    # mm-paired-attempt digest is archive-INSENSITIVE (measured: a ROM-staged
+    # Windows golden passed unchanged on archive-free Linux CI), so it carries no
+    # guard and is enforced everywhere.
+    # Fields: <ctest-name>|<golden-name>|<dispatch>|<digest-env-var>|<archive-free-only>|<extra-env>
     set(REDSHIP_GOLDEN_DIGESTS
-        "GoldenSeedDigestDefault|seed-digest-default|rando-determinism|RSBS_SEED_DIGEST_OUT|"
-        "GoldenSeedDigestProfileV1|seed-digest-profile-v1|rando-determinism|RSBS_SEED_DIGEST_OUT|RSBS_DIAG_CVARS=gRandoSettings.ShuffleSongs=2"
+        "GoldenSeedDigestDefault|seed-digest-default|rando-determinism|RSBS_SEED_DIGEST_OUT|ON|"
+        "GoldenSeedDigestProfileV1|seed-digest-profile-v1|rando-determinism|RSBS_SEED_DIGEST_OUT|ON|RSBS_DIAG_CVARS=gRandoSettings.ShuffleSongs=2"
         # The paired MM world's own golden. Its digest carries the ladder rung the
         # world converged through (winningAttempt / mmPairedAttempt), so this row
         # pins not just the world but the DERIVATION that reached it.
-        "GoldenPairedAttemptDigest|paired-attempt-digest|mm-paired-attempt|RSBS_ATTEMPT_DIGEST_OUT|"
+        "GoldenPairedAttemptDigest|paired-attempt-digest|mm-paired-attempt|RSBS_ATTEMPT_DIGEST_OUT|OFF|"
     )
     set(REDSHIP_GOLDEN_DIR "${CMAKE_SOURCE_DIR}/tests/golden")
 
@@ -1478,7 +1489,8 @@ if(BUILD_TESTING)
         list(GET _golden_fields 1 _golden_name)
         list(GET _golden_fields 2 _golden_dispatch)
         list(GET _golden_fields 3 _golden_env_var)
-        list(GET _golden_fields 4 _golden_extra_env)
+        list(GET _golden_fields 4 _golden_archive_free_only)
+        list(GET _golden_fields 5 _golden_extra_env)
         set(_golden_env "SDL_AUDIODRIVER=dummy" "RSBS_DISABLE_OTR_INIT=1")
         if(_golden_extra_env)
             list(APPEND _golden_env "${_golden_extra_env}")
@@ -1491,10 +1503,19 @@ if(BUILD_TESTING)
                     -DDIGEST_ENV=${_golden_env_var}
                     -DGOLDEN_DIR=${REDSHIP_GOLDEN_DIR}
                     -DGOLDEN_NAME=${_golden_name}
+                    -DSKIP_IF_ROM_ARCHIVES=${_golden_archive_free_only}
                     -P ${CMAKE_CURRENT_LIST_DIR}/CheckGoldenDigest.cmake
             LABEL rando
             TIMEOUT 300
             ENVIRONMENT ${_golden_env})
+        if(_golden_archive_free_only)
+            # CTest turns the marker into SKIPPED, so a ROM-staged local run says
+            # "not applicable here, and here is why" instead of either going red
+            # about a move that did not happen or passing silently. Set directly
+            # rather than through redship_add_test: one property on three rows is
+            # not worth widening a helper every lane shares.
+            set_tests_properties(${_golden_row} PROPERTIES SKIP_REGULAR_EXPRESSION "RSBS_GOLDEN_SKIP:")
+        endif()
     endforeach()
 
     # #661 end to end: the OoTEntrancePin row above proves the pair is not a POOL
@@ -1590,8 +1611,14 @@ if(BUILD_TESTING)
     # of authorship, and a target that regenerated goldens as a side effect of a
     # build would turn the oracle back into the no-op #688 was filed about.
     #
-    # Needs what the rando tier needs: the ROM-derived archives beside the binary
-    # and a GL-capable display. On a headless Linux box, run it under xvfb-run.
+    # RUN IT WITH THE PORT ARCHIVES ONLY (soh.o2r / 2ship.o2r / redship.o2r) and
+    # a GL-capable display; on a headless Linux box, under xvfb-run. Move oot.o2r
+    # and mm.o2r out of the build directory first: they change the OoT settings
+    # string and therefore the whole fill (see the table above), and a golden
+    # re-pinned with them mounted pins a world CI can never reproduce, so every
+    # archive-free run would then go red. REGEN deliberately does NOT skip on
+    # their presence — an author asking to re-pin gets what they asked for — so
+    # this is the one step the machinery leaves to a human.
     # ========================================================================
     add_custom_target(regen-golden-digests
         COMMENT "Re-pinning the golden determinism digests in tests/golden/ (#688)")
@@ -1600,7 +1627,7 @@ if(BUILD_TESTING)
         list(GET _golden_fields 1 _golden_name)
         list(GET _golden_fields 2 _golden_dispatch)
         list(GET _golden_fields 3 _golden_env_var)
-        list(GET _golden_fields 4 _golden_extra_env)
+        list(GET _golden_fields 5 _golden_extra_env)
         set(_golden_env "SDL_AUDIODRIVER=dummy" "RSBS_DISABLE_OTR_INIT=1")
         if(_golden_extra_env)
             list(APPEND _golden_env "${_golden_extra_env}")

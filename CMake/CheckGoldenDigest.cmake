@@ -35,6 +35,28 @@
 # Windows. A byte compare would report every field as moved on one of the two
 # platforms and teach everyone to distrust the row.
 #
+# THE ARCHIVE SET IS PART OF THE PIN (SKIP_IF_ROM_ARCHIVES), and that is a
+# measurement, not a precaution. The OoT seed digest moves when the ROM-DERIVED
+# archives (oot.o2r / mm.o2r) are mounted beside the binary, for a reason that has
+# nothing to do with the platform: with them present, the 2,449 per-area
+# exclude-location options (option groups RSG_EXCLUDES_KOKIRI_FOREST ..
+# RSG_EXCLUDES_GANONS_CASTLE) contribute NOTHING to the settings string
+# Playthrough_Init hashes, and without them all 2,449 do. Every other option is
+# character-identical between the two runs — measured by dumping the per-option
+# text both ways, 3087 lines against 638, with the 638 shared lines byte-equal.
+# Since the fill is re-seeded with Hash(seed + settingsStr), that difference moves
+# the entire world.
+#
+# Hosted CI can never have ROM-derived archives, so the goldens pin the
+# ARCHIVE-FREE world and a ROM-staged local run is a DIFFERENT, unpinned world.
+# Such a run SKIPS this row rather than failing it: a red row there would say
+# "you moved the world" when nothing moved, and a permanently red row in the
+# operator's local merge gate is worse than no row at all. Enforcement lives where
+# it is reproducible — every PR's Linux and Windows CI legs, which are archive-free.
+# The mm-paired-attempt digest is NOT archive-sensitive (measured: a ROM-staged
+# Windows golden passed unchanged on archive-free Linux CI), so its row carries no
+# such guard.
+#
 # Usage (see the rows in CMake/SingleExecutable.cmake):
 #   cmake -DREDSHIP_EXE=<redship> -DWORK_DIR=<dir> -DDISPATCH=rando-determinism
 #         -DDIGEST_ENV=RSBS_SEED_DIGEST_OUT -DGOLDEN_DIR=<repo>/tests/golden
@@ -51,6 +73,36 @@ foreach(_required REDSHIP_EXE WORK_DIR DISPATCH DIGEST_ENV GOLDEN_DIR GOLDEN_NAM
 endforeach()
 if(NOT EXISTS "${REDSHIP_EXE}")
     message(FATAL_ERROR "CheckGoldenDigest: redship binary not found: ${REDSHIP_EXE}")
+endif()
+
+# ----------------------------------------------------------------------------
+# The archive-environment guard (see the header). Checked BEFORE generating, so a
+# ROM-staged run does not spend a generation to reach a verdict it cannot give.
+# The row's SKIP_REGULAR_EXPRESSION matches the marker below, so CTest reports
+# SKIPPED with this reason rather than PASSED — a silent pass here would be the
+# same vacuity #688 is about.
+# ----------------------------------------------------------------------------
+if(SKIP_IF_ROM_ARCHIVES AND NOT REGEN)
+    set(_rom_archives "")
+    foreach(_rom oot.o2r mm.o2r)
+        if(EXISTS "${WORK_DIR}/${_rom}")
+            list(APPEND _rom_archives "${_rom}")
+        endif()
+    endforeach()
+    if(_rom_archives)
+        string(REPLACE ";" ", " _rom_list "${_rom_archives}")
+        message(STATUS
+            "RSBS_GOLDEN_SKIP: CheckGoldenDigest(${GOLDEN_NAME}) needs an ARCHIVE-FREE run and found ${_rom_list} in "
+            "${WORK_DIR}.\n"
+            "  The goldens pin the world generated with the PORT archives only, because that is the world hosted CI "
+            "can reproduce (a runner never has ROM-derived archives). With oot.o2r mounted the per-area "
+            "exclude-location option groups drop out of the settings string Playthrough_Init hashes, the fill is "
+            "re-seeded differently, and this run generates a DIFFERENT, unpinned world — so comparing it to the "
+            "golden would report a move that did not happen.\n"
+            "  This row is enforced on every PR by the archive-free CI legs. To run it here, move oot.o2r and mm.o2r "
+            "out of ${WORK_DIR} first. See docs/determinism-goldens.md.")
+        return()
+    endif()
 endif()
 
 # ----------------------------------------------------------------------------
