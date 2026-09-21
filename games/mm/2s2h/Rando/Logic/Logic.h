@@ -127,6 +127,38 @@ void FindReachableRegions(RandoRegionId currentRegion, std::set<RandoRegionId>& 
                           std::unordered_map<RandoRegionId, RegionTimeState>& regionTimeStates);
 RandoRegionId GetRegionIdFromEntrance(s32 entrance);
 
+/**
+ * Drop the entrance -> region cache GetRegionIdFromEntrance builds (#659).
+ *
+ * That cache rebuilds by itself whenever the number of registered Regions
+ * changes, which is what makes a lookup that lands mid-registration
+ * self-correcting instead of permanently frozen in a partial map. A mutation
+ * that REWIRES existing exits without changing how many regions exist — entrance
+ * randomization is the live candidate — is invisible to that count, so such a
+ * writer must call this. Nothing in the tree needs it today; it exists so the
+ * contract is stated at the one place that can honour it.
+ */
+void InvalidateEntranceRegionCache();
+
+/**
+ * The region count the entrance -> region cache was last built from, or
+ * (size_t)-1 when it has never been built (#659).
+ *
+ * THE PROBE #659 ASKS FOR, not a diagnostic ornament. "Does any real path reach
+ * GetRegionIdFromEntrance before region registration finishes?" is answerable
+ * in-process and only this way: run the production bring-up and read this. Still
+ * (size_t)-1 afterwards means nothing in the whole ShipInit pass looked an
+ * entrance up while the graph was half-built. mm_entrance_region_cache_test.cpp
+ * is that probe.
+ */
+size_t EntranceRegionCacheBuiltAtRegionCount();
+
+/** How many times the cache has been (re)built this process (#659). A rebuild
+ *  after the first one means a lookup ran against a partial graph and the cache
+ *  self-corrected — under the old emptiness guard that lookup would have frozen
+ *  the partial map for the life of the process. */
+int EntranceRegionCacheRebuildCount();
+
 // ============================================================================
 // Factored reachability crawl (ADR 0010 increment 1.3; #500 work item 2).
 //

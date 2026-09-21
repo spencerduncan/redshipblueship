@@ -115,13 +115,95 @@ bool Combo_ComboSharedOcarina(void) {
     return (live.comboFlags & (uint8_t)RSBS_COMBO_FLAG_SHARED_OCARINA) != 0u;
 }
 
+bool Combo_ComboSettingsDescribePairedWorld(const ComboSettingsRecord* rec) {
+    // THE #667 RULING, as one falsifiable function rather than a comment.
+    //
+    // "Is this a record a paired world can be created from?" — and the answer
+    // does NOT depend on the direction being a crossing direction, because
+    // RSBS_COMBO_DIR_OFF is a paired world with zero crossings and not an
+    // unpaired one (ADR 0011 decision 2.3, and the dated amendment recording
+    // this ruling). Two things make it false, and both are real refusals:
+    //
+    //  - formatVersion 0 is the record's ABSENT tag (ADR 0011 decision 4.2).
+    //    Freezing one would stamp "no record" AS this world's identity, which
+    //    every later arrival reads as an unfrozen world it must refuse.
+    //  - a direction outside the pinned space is a rule no consumer can
+    //    interpret: Combo_ComboDirectionArms answers "not armed" for it in both
+    //    directions, which is indistinguishable from OFF, while the divergence
+    //    diff would report the world healthy. Generating under it is the
+    //    silently-mispaired outcome ADR 0002 exists to refuse, so the creation
+    //    gate refuses it instead. The authoring writers already reject such a
+    //    value (Combo_ComboSettingValueValid) and the resolver clamps a stored
+    //    one to the shipped default, so it can only arrive from a direct write
+    //    to the record — which is exactly why the check lives on the RECORD
+    //    rather than on the key.
+    if (rec == NULL) {
+        return false;
+    }
+    if (rec->formatVersion == 0) {
+        return false;
+    }
+    return Combo_ComboSettingValueValid(COMBO_SETTING_DIRECTION, (int32_t)rec->direction);
+}
+
 bool Combo_ForeignPairingRequested(void) {
     // The FUTURE tense. Derived from the resolved settings and never from
     // gComboCtx's stamp, so it is answerable before generation by construction
     // (ADR 0009 decision 2). Do not collapse it into Combo_ForeignPairingActive.
+    //
+    // NO DIRECTION TERM since #667 — see the header for why `direction != OFF`
+    // was the wrong body and what now carries that question
+    // (Combo_ForeignCrossingsRequested). Under the shipped value spaces every
+    // authorable setting yields true here, and that is the point: in a combo
+    // build a rando creation always asks for a paired world, so the creation
+    // gate asserts the invariant instead of hoping for it.
+    ComboSettingsRecord live;
+    Combo_ResolveComboSettings(&live);
+    return Combo_ComboSettingsDescribePairedWorld(&live);
+}
+
+bool Combo_ForeignCrossingsRequested(void) {
+    // The old Combo_ForeignPairingRequested body, under the name that describes
+    // it (#667). Still the FUTURE tense and still CVar-derived: this is the
+    // question the pre-Fill gate has to settle BEFORE the freeze, because after
+    // the freeze the same fact is read from the record through
+    // Combo_ComboDirectionArms and no CVar is consulted again.
     ComboSettingsRecord live;
     Combo_ResolveComboSettings(&live);
     return live.direction != (uint8_t)RSBS_COMBO_DIR_OFF;
+}
+
+bool Combo_ForeignCreationGateHolds(bool crossingsRequestedPreFill) {
+    // #657's second act. The FIRST act (asking the CVars before Fill()) shipped
+    // at playthrough.cpp and, until now, only logged its answer; this is the
+    // part that gives the gate a consequence.
+    //
+    // Nothing frozen is a refusal, not a pass. A creation that reached this
+    // point without a record has no identity for the file-create seam or any
+    // later arrival to read, and ADR 0011 decision 4.2's ABSENT tag means such a
+    // world cannot be told from an uncreated one.
+    if (!Combo_ComboSettingsFrozen()) {
+        fprintf(stderr, "[Combo] creation gate: nothing froze before Fill() - the world would carry no combo "
+                        "identity (#657)\n");
+        return false;
+    }
+    // The frozen record's own answer to the question the CVars answered before
+    // it. Combo_ComboDirectionArms reads the FROZEN record once frozen, so this
+    // compares the two surfaces rather than the same surface twice; the two
+    // expressions are identical by construction over the pinned space (OFF arms
+    // neither origin, every other direction arms at least one), and
+    // test_combo_settings.c locks that identity so a new enumerator cannot land
+    // on one side only.
+    const bool frozenAuthorsCrossings =
+        Combo_ComboDirectionArms((uint8_t)GAME_OOT) || Combo_ComboDirectionArms((uint8_t)GAME_MM);
+    if (frozenAuthorsCrossings != crossingsRequestedPreFill) {
+        fprintf(stderr,
+                "[Combo] creation gate: the frozen record authors crossings=%d but the pre-Fill ask was %d - a "
+                "writer moved the direction between the ask and the freeze (#657)\n",
+                frozenAuthorsCrossings ? 1 : 0, crossingsRequestedPreFill ? 1 : 0);
+        return false;
+    }
+    return true;
 }
 
 bool Combo_ComboSettingsFrozen(void) {
