@@ -419,7 +419,8 @@ extern "C" int MM_TrickBindings_RunHeadless(void) {
             if (boundCount == 0) {
                 rc = BindFail(7, "no key is described as bound at all, so the coverage leg passed vacuously");
             } else {
-                printf("[TEST]   ok: all %d bound-and-live keys are probed (%d here, %d in part 1's own rows)\n",
+                printf("[TEST]   ok: all %d bound-and-live keys are probed (%d edges here, %d keys in part 1's own "
+                       "rows)\n",
                        boundCount, (int)(sizeof(kProbes) / sizeof(kProbes[0])),
                        (int)(sizeof(kCoveredElsewhere) / sizeof(kCoveredElsewhere[0])));
             }

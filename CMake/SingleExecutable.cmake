@@ -1042,6 +1042,40 @@ if(BUILD_TESTING)
     # the rando tier below.
     redship_add_test(NAME OoTEntrancePin COMMAND redship --test oot-entrance-pin)
 
+    # #682: the curated MM enhancement toggles, in two halves that fail
+    # differently on purpose.
+    #
+    # MenuMmEnhancementRows is the PRESENTATION half. The contributed Combo page
+    # is registered (a file-scope registrar in a WHOLE_ARCHIVE'd OoT archive, but
+    # #516/#640 are what "should not be elidable" looked like last time), every
+    # manifest key has a row bound to exactly that key, every row is inside the
+    # one column the page draws, and each row's ADR 0004 §5 presentation matches
+    # its manifest liveness class — driven TWICE per row, because ApplyPresentation
+    # is called from a PreFunc with its own name as the base and a non-idempotent
+    # one compounds the suffix (the defect #497's lane found). All four shipped
+    # rows are Live, so the leg that matters most — what a Partial or Dormant row
+    # renders — is driven with synthetic rows through the same call.
+    #
+    # MMEnhancementToggles is the EVIDENCE half, MM-side because the registries
+    # are. Per key: exactly one `S2H::ShipInit` registrar under the CVar the menu
+    # writes (provider linked AND its initializer ran, in one observation), the
+    # registry settles empty with the key off, exactly one registrant with it on,
+    # and NOTHING in the other keys' registries — arming one at a time is what
+    # makes the attribution exact rather than "something registered". It is also
+    # the only possible gate for MM's `RegisterAutosave`, whose symbol name OoT's
+    # own static twin satisfies, which is why check-registrar-elision.sh
+    # deliberately leaves it off its allowlist. Its last leg is the one #653's
+    # triage asked for: drive the real `MM_GameOver_Update` from
+    # GAMEOVER_DEATH_FADE_OUT with `gEnhancements.Kaleido.GameOver` cleared and
+    # then set, and assert the branch — vanilla reload versus the kaleido prompt
+    # arm. That key has no registrar at all (two inline CVar reads in MM's decomp),
+    # so its read site IS its liveness evidence.
+    #
+    # Both display-free and ROM-free; both need the shared bring-up for the CVar
+    # store but no window.
+    redship_add_test(NAME MenuMmEnhancementRows COMMAND redship --test menu-mm-enhancement-rows)
+    redship_add_test(NAME MMEnhancementToggles COMMAND redship --test mm-enhancement-toggles)
+
     redship_add_test(NAME AllTests COMMAND redship --test all)
 
     # Registration-completeness guard (#376). Diffs the dispatch table the
