@@ -538,7 +538,9 @@ extern "C" int OoT_PlaceForeignItems(void) {
     // one of the negative shortfall codes, which mean "a paired world's
     // cross-game half would be SILENTLY absent". Under the shipped default
     // (BOTH) this predicate is true and nothing moves — the parity that keeps
-    // SeedDeterminism's foreignOoTHash byte-stable.
+    // foreignOoTHash byte-stable, which since #688 is checked by the GOLDEN row
+    // GoldenSeedDigestDefault and not (as this comment used to say) by
+    // SeedDeterminism, which cannot see a deterministic move at all.
     if (!Combo_ComboDirectionArms((uint8_t)GAME_MM)) {
         fprintf(stderr,
                 "[OoT] foreign placement: direction=%u does not arm MM-origin crossings — no reverse placements "
@@ -573,8 +575,8 @@ extern "C" int OoT_PlaceForeignItems(void) {
 
     // Candidates in ascending RandomizerCheck order. Walking the enum range
     // rather than ctx->allLocations keeps the order fixed by construction — it
-    // cannot be perturbed by pool-bookkeeping changes — which is what the
-    // SeedDeterminism digest needs. Same shape as the digest's own walk.
+    // cannot be perturbed by pool-bookkeeping changes — which is what a STORED
+    // digest needs (the golden rows; #688). Same shape as the digest's own walk.
     //
     // Reachability composes OUTSIDE OoT_Foreign_IsEligibleHostImpl, exactly as
     // it does on MM's side and for the same reason: that predicate is also the
@@ -638,8 +640,9 @@ extern "C" int OoT_PlaceForeignItems(void) {
     // 3): Combo_ForeignPoolDrawFor filters MM's pool by the FROZEN itemClassMM
     // bitset, in pool order. With the shipped defaults (every allocated bit) this
     // is the identity permutation 0..poolCount-1 — byte-identical to the list
-    // this loop used to build by hand — which is what keeps SeedDeterminism's
-    // foreignOoTHash from moving. There is NO seed term in the class (accepted
+    // this loop used to build by hand — which is what keeps foreignOoTHash from
+    // moving, as GoldenSeedDigestDefault checks and SeedDeterminism never could
+    // (#688). There is NO seed term in the class (accepted
     // answer O3): variety comes from the draw below, and a seed-varying class
     // would make the spoiler-load name inverse partial.
     std::vector<int> poolIndices((size_t)poolCount, 0);
