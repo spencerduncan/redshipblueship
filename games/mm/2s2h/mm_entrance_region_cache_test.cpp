@@ -191,12 +191,32 @@ extern "C" int MM_EntranceRegionCache_RunHeadless(void) {
     Rando::Logic::Regions.clear();
     Rando::Logic::Regions[keepId] = completeGraph.at(keepId);
 
-    // Non-vacuity, in this order on purpose: the partial map must be NON-EMPTY
-    // (the kept region resolves) AND must not already answer the victim. A
-    // partial map that is empty was self-correcting even under the old guard.
+    // Non-vacuity, in this order on purpose, and the ORDER is what makes a red
+    // run name its own cause. Verified by actually reverting the guard to
+    // `sEntranceToRegionId.empty()` and rebuilding: with the assertions in any
+    // other order the old guard fails the victim assertion below and blames the
+    // region pair, which is the wrong diagnosis for the bug this row exists to
+    // catch.
+    //
+    //  (1) the partial map must be NON-EMPTY (the kept region resolves). A
+    //      partial map that is empty was self-correcting even under the old
+    //      guard, so an empty one would make this lock pass against the bug.
     ERC_ASSERT(Rando::Logic::GetRegionIdFromEntrance(keepEntrance) == keepId, 5,
                "the partial graph produced an EMPTY entrance map — this lock would pass against the bug it exists "
                "to catch (#659)");
+    //  (2) ...and the lookup in (1) must have REBUILT the cache against the
+    //      partial graph. THIS is the assertion the old emptiness guard fails:
+    //      that guard reads false against the non-empty map built from the
+    //      complete graph above, so it keeps serving that map and the partial
+    //      state is never entered at all. It is named separately from (3) because
+    //      "the cache never noticed the graph changed" and "this row picked two
+    //      regions that share an entrance" are different faults with the same
+    //      symptom.
+    ERC_ASSERT(Rando::Logic::EntranceRegionCacheBuiltAtRegionCount() == Rando::Logic::Regions.size(), 5,
+               "the cache did not rebuild for the partial region graph — it is still serving the map it built from "
+               "the complete one, which is precisely the emptiness-guarded behaviour #659 describes");
+    //  (3) and the partial map must not already answer the victim, or the pair
+    //      this row discovered proves nothing.
     ERC_ASSERT(Rando::Logic::GetRegionIdFromEntrance(victimEntrance) == RR_MAX, 5,
                "the kept region also owns the victim entrance — pick a different pair, this lock proves nothing");
 
