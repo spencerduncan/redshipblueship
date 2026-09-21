@@ -330,6 +330,8 @@ static RegisterShipInitFunc initFunc([]() {
             CONNECTION(RR_SNOWHEAD_TEMPLE_CENTRAL_ROOM_SECOND_FLOOR, true),
         },
     };
+    // #578 part 3 — MMRT_SHT_PILLAR_ROOM_HOOKSHOT is bound on this region's one connection up; see the
+    // note there.
     Regions[RR_SNOWHEAD_TEMPLE_PILLARS_ROOM_LOWER] = RandoRegion{ .sceneId = SCENE_HAKUGIN,
         .checks = {
             CHECK(RC_SNOWHEAD_TEMPLE_PILLARS_ROOM_LOWER_POT_01, true),
@@ -342,7 +344,12 @@ static RegisterShipInitFunc initFunc([]() {
         },
         .connections = {
             CONNECTION(RR_SNOWHEAD_TEMPLE_CENTRAL_ROOM_BOTTOM, true),
-            CONNECTION(RR_SNOWHEAD_TEMPLE_PILLARS_ROOM_UPPER, CAN_BE_DEKU && CAN_USE_MAGIC_ARROW(FIRE)),
+            // #578 part 3 — MMRT_SHT_PILLAR_ROOM_HOOKSHOT ("From the ground floor of pillar room, use a
+            // Hookshot to kill the freezards and then climb using the chest that spawns."), DEFAULT OFF.
+            // "From the ground floor" is why only THIS region's connection up is gated: the two
+            // CAN_USE_MAGIC_ARROW(FIRE) connections into the upper pillar room from the central rooms
+            // start somewhere else and the trick says nothing about them. Item term: the Hookshot.
+            CONNECTION(RR_SNOWHEAD_TEMPLE_PILLARS_ROOM_UPPER, (CAN_BE_DEKU && CAN_USE_MAGIC_ARROW(FIRE)) || (MM_TRICK(MMRT_SHT_PILLAR_ROOM_HOOKSHOT) && HAS_ITEM(ITEM_HOOKSHOT))),
         },
     };
     Regions[RR_SNOWHEAD_TEMPLE_PILLARS_ROOM_UPPER] = RandoRegion{ .sceneId = SCENE_HAKUGIN,

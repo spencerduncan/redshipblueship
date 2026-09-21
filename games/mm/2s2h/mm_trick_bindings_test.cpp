@@ -1,7 +1,7 @@
 /**
  * @file mm_trick_bindings_test.cpp
- * @brief The red/green lock on every trick binding #578 part 2 authored. CTest
- *        row `mm-trick-bindings` (label `rando`), registered in
+ * @brief The red/green lock on every trick binding #578 parts 2 and 3 authored.
+ *        CTest row `mm-trick-bindings` (label `rando`), registered in
  *        src/common/test_runner.cpp.
  *
  * Part 1's two rows already do this shape for its two keys —
@@ -26,11 +26,15 @@
  *      this file exists to catch), then evaluate it with the frozen trick bit off
  *      and on. Off must be false, on must be true. A binding without both halves
  *      is theatre.
- *  (b) PER EDGE WHOSE TRICK CARRIES AN ITEM TERM, A NEGATIVE CONTROL. Take the
- *      item away and turn the trick ON: the edge must stay closed. This is what
- *      catches a disjunct that REPLACED the item requirement instead of joining
- *      it — e.g. `MM_TRICK(X) || HAS_ITEM(...)` where the trick's own definition
- *      says it needs the item.
+ *  (b) PER EDGE THAT STILL REQUIRES SOMETHING, A NEGATIVE CONTROL. Take that
+ *      requirement away and turn the trick ON: the edge must stay closed. Two
+ *      shapes qualify and part 3 uses both. Where the TRICK's own definition
+ *      names an item, this catches a disjunct that REPLACED the item requirement
+ *      instead of joining it — `MM_TRICK(X) || HAS_ITEM(...)` where it should
+ *      have been `&&`. Where the VANILLA condition keeps a conjunct outside the
+ *      widened term — `(A || MM_TRICK(X)) && B` — the same arm proves B survived
+ *      the edit, which is the mis-parenthesisation that would otherwise only
+ *      show up as a fill that expects nothing.
  *  (c) COVERAGE, against the shipped `bound` flag rather than against a list in
  *      this file. Every key the pane describes as bound-and-not-reserved must be
  *      probed here or be one of part 1's two (which their own rows cover). So
@@ -149,9 +153,12 @@ struct Probe {
     /** Everything the edge needs EXCEPT the trick. */
     void (*inventory)();
     /**
-     * Optional. The same save minus the item the TRICK itself names. With the
-     * trick on, the edge must stay closed. NULL for a trick whose definition
-     * carries no item term.
+     * Optional. The same save minus ONE thing the edge must still require with
+     * the trick on: the item the trick's own definition names, or a conjunct of
+     * the vanilla condition that the widening had to leave standing. With the
+     * trick on, the edge must stay closed. NULL only when the trick carries no
+     * item term AND the widened term was the edge's whole condition — then there
+     * is nothing left to take away and an arm here would pass vacuously.
      */
     void (*withoutTrickItem)();
 };
@@ -193,6 +200,44 @@ void InvGreatFairyMaskOnly() {
     Give(ITEM_MASK_GREAT_FAIRY);
 }
 
+// ---- part 3's setups -----------------------------------------------------
+
+void InvZoraMask() {
+    Give(ITEM_MASK_ZORA);
+}
+
+void InvHookshot() {
+    Give(ITEM_HOOKSHOT);
+}
+
+void InvBow() {
+    Give(ITEM_BOW);
+}
+
+/** The Great Fairy's Sword rather than an equipped blade: CAN_USE_HUMAN_SWORD
+ *  reads the equips bitfield, and an item slot is what Give() can set. */
+void InvGreatFairySword() {
+    Give(ITEM_SWORD_GREAT_FAIRY);
+}
+
+void InvGoronAndDeedLand() {
+    Give(ITEM_MASK_GORON);
+    Flags_SetRandoInf(RANDO_INF_OBTAINED_DEED_LAND);
+}
+
+void InvDeedLandOnly() {
+    Flags_SetRandoInf(RANDO_INF_OBTAINED_DEED_LAND);
+}
+
+void InvGoronAndDeedMountain() {
+    Give(ITEM_MASK_GORON);
+    Flags_SetRandoInf(RANDO_INF_OBTAINED_DEED_MOUNTAIN);
+}
+
+void InvDeedMountainOnly() {
+    Flags_SetRandoInf(RANDO_INF_OBTAINED_DEED_MOUNTAIN);
+}
+
 const Probe kProbes[] = {
     // MMRT_LENS. Empty inventory and no magic, so the only way in is the trick.
     { MMRT_LENS, "Lone Peak Shrine's invisible chest without Lens of Truth", EDGE_CHECK, RR_LONE_PEAK_SHRINE,
@@ -229,6 +274,65 @@ const Probe kProbes[] = {
     { MMRT_HIVE_BOMBCHU, "Woodfall Temple's water-room beehive with a Bombchu and the Great Fairy Mask", EDGE_CHECK,
       RR_WOODFALL_TEMPLE_WATER_ROOM, (int32_t)RC_WOODFALL_TEMPLE_SF_WATER_ROOM_BEEHIVE, kAllTime,
       InvBombchuAndGreatFairyMask, InvGreatFairyMaskOnly },
+
+    // ---- #578 part 3 ----------------------------------------------------
+    //
+    // Every row below is a plain widening over a key part 1 declared. Where the
+    // control arm takes away a VANILLA conjunct rather than an item the trick
+    // names, the row says so: that arm is what proves the surviving conjunct is
+    // still outside the parentheses.
+
+    // MMRT_NO_SEAHORSE. Zora Mask and no pictograph box, so the seahorse event is
+    // false; the control removes the Zora Mask, which the widening kept.
+    { MMRT_NO_SEAHORSE, "Pinnacle Rock's interior without the seahorse to guide you", EDGE_CONNECTION,
+      RR_PINNACLE_ROCK_ENTRANCE, (int32_t)RR_PINNACLE_ROCK_INNER, kAllTime, InvZoraMask, InvEmpty },
+    // MMRT_ICELESS_IKANA. Hookshot and no Ice Arrows. The Hookshot is both the
+    // trick's own item term and the vanilla conjunct, so one control covers both.
+    { MMRT_ICELESS_IKANA, "Ikana Canyon's upper half by hookshotting the first tree, without Ice Arrows",
+      EDGE_CONNECTION, RR_IKANA_CANYON_LOWER, (int32_t)RR_IKANA_CANYON_UPPER, kAllTime, InvHookshot, InvEmpty },
+    // MMRT_BOMBER_GUESS. No hide-and-seek events are set in a zeroed save, so all
+    // three day-triples are false. "Guess the code" carries no item term.
+    { MMRT_BOMBER_GUESS, "the Bombers' code guessed instead of played for", EDGE_EVENT, RR_CLOCK_TOWN_NORTH,
+      (int32_t)RE_BOMBER_CODE, kAllTime, InvEmpty, NULL },
+    // MMRT_SHT_PILLAR_ROOM_HOOKSHOT. Hookshot only: the vanilla route wants Deku
+    // AND Fire Arrows, so the red half is genuinely closed.
+    { MMRT_SHT_PILLAR_ROOM_HOOKSHOT, "Snowhead Temple's pillar room from the ground floor with a Hookshot",
+      EDGE_CONNECTION, RR_SNOWHEAD_TEMPLE_PILLARS_ROOM_LOWER, (int32_t)RR_SNOWHEAD_TEMPLE_PILLARS_ROOM_UPPER, kAllTime,
+      InvHookshot, InvEmpty },
+    // MMRT_SOUTHERN_SWAMP_SCRUB_HP_GORON. Goron Mask + the Land Title Deed and no
+    // Deku Mask. The control keeps the deed and drops the Goron Mask — the trick's
+    // own item term.
+    { MMRT_SOUTHERN_SWAMP_SCRUB_HP_GORON, "the Southern Swamp scrub's heart piece by Goron pound, without Deku",
+      EDGE_CHECK, RR_SOUTHERN_SWAMP_NORTH, (int32_t)RC_SOUTHERN_SWAMP_PIECE_OF_HEART, kAllTime, InvGoronAndDeedLand,
+      InvDeedLandOnly },
+    // MMRT_ZORA_HALL_SCRUB_HP_NO_DEKU. Same shape one deed over; dropping the
+    // Goron Mask also drops the vanilla CAN_BE_GORON conjunct, so this control
+    // covers the trick's term and the surviving term at once.
+    { MMRT_ZORA_HALL_SCRUB_HP_NO_DEKU, "the Zora Hall scrub's heart piece as Goron, without Deku", EDGE_CHECK,
+      RR_ZORA_HALL_LULUS_ROOM, (int32_t)RC_ZORA_HALL_SCRUB_PIECE_OF_HEART, kAllTime, InvGoronAndDeedMountain,
+      InvDeedMountainOnly },
+    // MMRT_WELL_HSW. No Bow, so the Dexihand cannot be killed. "Grab the water
+    // before the hand grabs you" carries no item term and the Bow term was the
+    // event's whole condition, so there is nothing left for a control arm.
+    { MMRT_WELL_HSW, "the well's hot spring water without killing the Dexihand", EDGE_EVENT,
+      RR_BENEATH_THE_WELL_DEXIHAND_ROOM, (int32_t)RE_ACCESS_HOT_SPRING_WATER, kAllTime, InvEmpty, NULL },
+    // MMRT_GBT_ENTRANCE_BOW. A Bow with no Fire Arrows and no Deku Stick, so
+    // CAN_LIGHT_TORCH_NEAR_ANOTHER is false; the control takes the Bow away.
+    { MMRT_GBT_ENTRANCE_BOW, "Great Bay Temple's entrance chest with plain arrows", EDGE_CHECK,
+      RR_GREAT_BAY_TEMPLE_ENTRANCE, (int32_t)RC_GREAT_BAY_TEMPLE_ENTRANCE_CHEST, kAllTime, InvBow, InvEmpty },
+    // MMRT_BANK_NO_WALLET. A zeroed save holds the Child Wallet (upgrade level 0),
+    // which is exactly what the trick says is enough, so there is no item to take.
+    { MMRT_BANK_NO_WALLET, "the bank's heart piece with no wallet upgrade", EDGE_CHECK, RR_CLOCK_TOWN_WEST,
+      (int32_t)RC_CLOCK_TOWN_WEST_BANK_PIECE_OF_HEART, kAllTime, InvEmpty, NULL },
+    // MMRT_ISTT_RUPEES_GORON. One of the eight gated rupees stands for the set;
+    // they are one edit with one condition, and leg (e) crawls all of them.
+    { MMRT_ISTT_RUPEES_GORON, "ISTT's floating pre-Twinmold rupees as Goron", EDGE_CHECK,
+      RR_STONE_TOWER_TEMPLE_INVERTED_SPIKED_BAR_ROOM_LOWER,
+      (int32_t)RC_STONE_TOWER_TEMPLE_INVERTED_PRE_BOSS_FREESTANDING_RUPEE_04, kAllTime, InvGoronOnly, InvEmpty },
+    // MMRT_NCT_TINGLE. The Great Fairy's Sword and nothing else: no Bow, Hookshot,
+    // Deku or Zora, so CAN_USE_PROJECTILE is false. kAllTime satisfies IS_DAY().
+    { MMRT_NCT_TINGLE, "North Clock Town's Tingle maps by jump slash", EDGE_CHECK, RR_CLOCK_TOWN_NORTH,
+      (int32_t)RC_CLOCK_TOWN_NORTH_TINGLE_MAP_01, kAllTime, InvGreatFairySword, InvEmpty },
 };
 
 /** Part 1's keys, whose red/green pairs live in their own rows. Named here so
@@ -308,8 +412,8 @@ const char* TrickName(MMRandoTrickId id) {
 } // namespace
 
 extern "C" int MM_TrickBindings_RunHeadless(void) {
-    printf("[TEST] mm-trick-bindings: each of part 2's trick bindings closes its edge with the trick off and opens "
-           "it with the trick on (#578 part 2)\n");
+    printf("[TEST] mm-trick-bindings: each of parts 2 and 3's trick bindings closes its edge with the trick off and "
+           "opens it with the trick on (#578 parts 2, 3)\n");
 
     // Populate the graph. The region definitions are file-scope ShipInit
     // registrars and InitOTRForMMFirstBoot does NOT fire them — MM_Rando_InitCore
@@ -370,8 +474,9 @@ extern "C" int MM_TrickBindings_RunHeadless(void) {
             SetFrozenTrick(probe.trick, true);
             if ((*condition)()) {
                 rc = BindFail(4,
-                              "%s [%s]: the trick ALONE opens the edge, without the item its own definition names — "
-                              "the disjunct replaced the item requirement instead of joining it",
+                              "%s [%s]: the trick ALONE opens the edge, without a term the edge must still require — "
+                              "the disjunct replaced that requirement instead of joining it, or a surviving conjunct "
+                              "ended up inside the parentheses",
                               probe.what, TrickName(probe.trick));
                 break;
             }

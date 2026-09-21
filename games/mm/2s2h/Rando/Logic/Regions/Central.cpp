@@ -147,8 +147,14 @@ static RegisterShipInitFunc initFunc([]() {
     };
     Regions[RR_CLOCK_TOWN_NORTH] = RandoRegion{ .sceneId = SCENE_BACKTOWN,
         .checks = {
-            CHECK(RC_CLOCK_TOWN_NORTH_TINGLE_MAP_01, CAN_USE_PROJECTILE && CAN_AFFORD(RC_CLOCK_TOWN_NORTH_TINGLE_MAP_01) && IS_DAY()),
-            CHECK(RC_CLOCK_TOWN_NORTH_TINGLE_MAP_02, CAN_USE_PROJECTILE && CAN_AFFORD(RC_CLOCK_TOWN_NORTH_TINGLE_MAP_02) && IS_DAY()),
+            // #578 part 3 — MMRT_NCT_TINGLE ("Jump off the tree and jump slash Tingle's balloon. Sticks
+            // will not work."), DEFAULT OFF, on North Clock Town's two Tingle maps only — the key is
+            // NCT-specific and the Ikana / Milk Road / Twin Islands Tingles keep their projectile term.
+            // The trick's own item term is a sword you can jump slash with: CAN_USE_SWORD is NOT used,
+            // because its CAN_BE_DEITY disjunct would assert the Fierce Deity mask in Clock Town.
+            // "Sticks will not work" is why no Deku Stick disjunct appears.
+            CHECK(RC_CLOCK_TOWN_NORTH_TINGLE_MAP_01, (CAN_USE_PROJECTILE || (MM_TRICK(MMRT_NCT_TINGLE) && (CAN_USE_HUMAN_SWORD || HAS_ITEM(ITEM_SWORD_GREAT_FAIRY)))) && CAN_AFFORD(RC_CLOCK_TOWN_NORTH_TINGLE_MAP_01) && IS_DAY()),
+            CHECK(RC_CLOCK_TOWN_NORTH_TINGLE_MAP_02, (CAN_USE_PROJECTILE || (MM_TRICK(MMRT_NCT_TINGLE) && (CAN_USE_HUMAN_SWORD || HAS_ITEM(ITEM_SWORD_GREAT_FAIRY)))) && CAN_AFFORD(RC_CLOCK_TOWN_NORTH_TINGLE_MAP_02) && IS_DAY()),
             CHECK(RC_CLOCK_TOWN_NORTH_TREE_PIECE_OF_HEART, true),
             CHECK(RC_CLOCK_TOWN_NORTH_BOMB_LADY, RANDO_EVENTS[RE_SAVE_BOMB_SHOP_LADY]),
             CHECK(RC_CLOCK_TOWN_BOMBERS_NOTEBOOK, RANDO_EVENTS[RE_BOMBER_CODE]),
@@ -185,7 +191,16 @@ static RegisterShipInitFunc initFunc([]() {
             EVENT(RE_BOMBERS_WEST_DAY2, RANDO_EVENTS[RE_HIDE_SEEK_DAY2]),
             EVENT(RE_BOMBERS_WEST_DAY3, RANDO_EVENTS[RE_HIDE_SEEK_DAY3]),
             // Bomber code event
-            EVENT(RE_BOMBER_CODE, 
+            //
+            // #578 part 3 — MMRT_BOMBER_GUESS ("Guess the Bombers' Code for Astral Observatory from 120
+            // possible combinations. Grants access to the Bomber's Notebook check when entering ECT
+            // from the Bombers Hideout."), DEFAULT OFF, as a whole-event disjunct: knowing the code is
+            // exactly what hide-and-seek buys, and the notebook check is already gated on this event in
+            // both regions that carry it, so the tooltip's second sentence follows with no second edit.
+            // Its sibling MMRT_BOMBER_BACKFLIP is NOT bound here and must not be: that trick's own
+            // definition says it does NOT grant the notebook, and this event is what the notebook reads.
+            EVENT(RE_BOMBER_CODE,
+                MM_TRICK(MMRT_BOMBER_GUESS) ||
                 (RANDO_EVENTS[RE_BOMBERS_NORTH_DAY1] && RANDO_EVENTS[RE_BOMBERS_WEST_DAY1] && RANDO_EVENTS[RE_BOMBERS_EAST_DAY1]) ||
                 (RANDO_EVENTS[RE_BOMBERS_NORTH_DAY2] && RANDO_EVENTS[RE_BOMBERS_WEST_DAY2] && RANDO_EVENTS[RE_BOMBERS_EAST_DAY2]) ||
                 (RANDO_EVENTS[RE_BOMBERS_NORTH_DAY3] && RANDO_EVENTS[RE_BOMBERS_WEST_DAY3] && RANDO_EVENTS[RE_BOMBERS_EAST_DAY3])),
@@ -222,8 +237,17 @@ static RegisterShipInitFunc initFunc([]() {
         .checks = {
             CHECK(RC_CLOCK_TOWN_POSTBOX, HAS_ITEM(ITEM_MASK_POSTMAN)),
             CHECK(RC_CLOCK_TOWN_WEST_BANK_ADULTS_WALLET, true),
-            CHECK(RC_CLOCK_TOWN_WEST_BANK_PIECE_OF_HEART, CUR_UPG_VALUE(UPG_WALLET) >= 1),
-            CHECK(RC_CLOCK_TOWN_WEST_BANK_INTEREST, CUR_UPG_VALUE(UPG_WALLET) >= 1),
+            // #578 part 3 — MMRT_BANK_NO_WALLET ("Bank Rewards Require No Extra Wallets — All bank
+            // rewards will only require the Child Wallet."), DEFAULT OFF, on the two rewards that carry
+            // a wallet term (ADULTS_WALLET above is already free). No item term: the Child Wallet is
+            // what you start with, so the trick's own requirement is the empty one.
+            //
+            // Its sibling MMRT_BANK_ONE_WALLET is deliberately NOT bound: both rewards are priced at
+            // exactly one upgrade here, so "one less wallet" and "no extra wallets" would be the SAME
+            // disjunct and one of the two keys would be indistinguishable from the other. Telling them
+            // apart needs these rows to carry the per-reward rupee thresholds first.
+            CHECK(RC_CLOCK_TOWN_WEST_BANK_PIECE_OF_HEART, CUR_UPG_VALUE(UPG_WALLET) >= 1 || MM_TRICK(MMRT_BANK_NO_WALLET)),
+            CHECK(RC_CLOCK_TOWN_WEST_BANK_INTEREST, CUR_UPG_VALUE(UPG_WALLET) >= 1 || MM_TRICK(MMRT_BANK_NO_WALLET)),
             CHECK(RC_CLOCK_TOWN_WEST_SISTERS_PIECE_OF_HEART, HAS_ITEM(ITEM_MASK_KAMARO) && (IS_NIGHT1() || IS_NIGHT2())),
         },
         .exits = { //     TO                                         FROM

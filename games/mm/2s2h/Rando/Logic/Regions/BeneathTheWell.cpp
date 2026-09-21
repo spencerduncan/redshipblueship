@@ -71,7 +71,11 @@ static RegisterShipInitFunc initFunc([]() {
         .events = {
             EVENT(RE_ACCESS_SPRING_WATER, true),
             EVENT(RE_ACCESS_FISH, true),
-            EVENT(RE_ACCESS_HOT_SPRING_WATER, HAS_ITEM(ITEM_BOW))
+            // #578 part 3 — MMRT_WELL_HSW ("Well's Hot Spring Water without Killing Dexihand — Grab the
+            // water before the hand grabs you."), DEFAULT OFF. The Bow here is how you kill the
+            // Dexihand from range (RC_ENEMY_DROP_DEXIHAND above is the same enemy); the trick is
+            // grabbing the water without killing it at all, so it carries no item term of its own.
+            EVENT(RE_ACCESS_HOT_SPRING_WATER, HAS_ITEM(ITEM_BOW) || MM_TRICK(MMRT_WELL_HSW))
         },
     };
     Regions[RR_BENEATH_THE_WELL_ENTRANCE] = RandoRegion{ .name = "Entrance", .sceneId = SCENE_REDEAD,

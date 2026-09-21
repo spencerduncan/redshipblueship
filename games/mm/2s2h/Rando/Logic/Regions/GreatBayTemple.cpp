@@ -141,7 +141,12 @@ static RegisterShipInitFunc initFunc([]() {
             CHECK(RC_GREAT_BAY_TEMPLE_ENTRANCE_BARREL_06, true),
             CHECK(RC_GREAT_BAY_TEMPLE_ENTRANCE_BARREL_07, true),
             CHECK(RC_GREAT_BAY_TEMPLE_ENTRANCE_BARREL_08, true),
-            CHECK(RC_GREAT_BAY_TEMPLE_ENTRANCE_CHEST,     CAN_LIGHT_TORCH_NEAR_ANOTHER),
+            // #578 part 3 — MMRT_GBT_ENTRANCE_BOW ("Great Bay Temple Entrance Chest using only Bow —
+            // Light the four torches using somewhat precise arrow shots"), DEFAULT OFF. Vanilla wants
+            // CAN_LIGHT_TORCH_NEAR_ANOTHER, i.e. a Deku Stick or Fire Arrows (Logic.h); the trick is
+            // carrying the flame on a PLAIN arrow, so its own item term is the Bow alone and that term
+            // is a conjunct of the disjunct rather than a replacement for it.
+            CHECK(RC_GREAT_BAY_TEMPLE_ENTRANCE_CHEST,     CAN_LIGHT_TORCH_NEAR_ANOTHER || (MM_TRICK(MMRT_GBT_ENTRANCE_BOW) && HAS_ITEM(ITEM_BOW))),
         },
         .exits = { //     TO                                         FROM
             EXIT(ENTRANCE(ZORA_CAPE, 7),                    ENTRANCE(GREAT_BAY_TEMPLE, 0), HAS_ITEM(ITEM_HOOKSHOT)),

@@ -224,7 +224,12 @@ static RegisterShipInitFunc initFunc([]() {
             EXIT(ENTRANCE(GREAT_BAY_COAST, 3),              ENTRANCE(PINNACLE_ROCK, 0), true),
         },
         .connections = {
-            CONNECTION(RR_PINNACLE_ROCK_INNER, RANDO_EVENTS[RE_ACCESS_SEAHORSE] && CAN_BE_ZORA)
+            // #578 part 3 — MMRT_NO_SEAHORSE ("Cross Pinnacle Rock blind. The signs are your markers
+            // for turns."), DEFAULT OFF. The seahorse is the GUIDE through the maze, so only that term
+            // is widened; CAN_BE_ZORA stays a conjunct, because nothing in the trick's own definition
+            // removes the swim. RC_PINNACLE_ROCK_REUNITE_SEAHORSE below is deliberately NOT touched:
+            // that check IS handing the seahorse back, so it needs the real one however you crossed.
+            CONNECTION(RR_PINNACLE_ROCK_INNER, (RANDO_EVENTS[RE_ACCESS_SEAHORSE] || MM_TRICK(MMRT_NO_SEAHORSE)) && CAN_BE_ZORA)
         }
     };
     Regions[RR_PINNACLE_ROCK_INNER] = RandoRegion{ .name = "Inner", .sceneId = SCENE_SINKAI,
@@ -355,7 +360,13 @@ static RegisterShipInitFunc initFunc([]() {
     Regions[RR_ZORA_HALL_LULUS_ROOM] = RandoRegion{ .name = "Lulu's Room", .sceneId = SCENE_BANDROOM,
         .checks = {
             CHECK(RC_ZORA_HALL_SCRUB_DEED,           Flags_GetRandoInf(RANDO_INF_OBTAINED_DEED_MOUNTAIN) && CAN_BE_GORON),
-            CHECK(RC_ZORA_HALL_SCRUB_PIECE_OF_HEART, Flags_GetRandoInf(RANDO_INF_OBTAINED_DEED_MOUNTAIN) && CAN_BE_GORON && CAN_BE_DEKU),
+            // #578 part 3 — MMRT_ZORA_HALL_SCRUB_HP_NO_DEKU ("As either Goron or Zora Link, jump up to
+            // the heart piece."), DEFAULT OFF. Only the CAN_BE_DEKU term (the Deku-flower route up to
+            // the heart piece) is widened; the deed flag and CAN_BE_GORON stay conjuncts. The trick's
+            // own "Goron or Zora" is written out rather than leaned on, even though CAN_BE_GORON
+            // already implies it today: if the deed's own terms are ever re-shaped, the trick's
+            // requirement should not silently come along.
+            CHECK(RC_ZORA_HALL_SCRUB_PIECE_OF_HEART, Flags_GetRandoInf(RANDO_INF_OBTAINED_DEED_MOUNTAIN) && CAN_BE_GORON && (CAN_BE_DEKU || (MM_TRICK(MMRT_ZORA_HALL_SCRUB_HP_NO_DEKU) && (CAN_BE_GORON || CAN_BE_ZORA)))),
             CHECK(RC_ZORA_HALL_SCRUB_POTION_REFILL,  CAN_BE_ZORA),
         },
         .exits = { //     TO                                         FROM
