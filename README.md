@@ -110,9 +110,9 @@ RedShipBlueShip's own code is licensed under the **MIT License** — see
 The vendored game ports, submodules, build-time dependencies and font assets
 keep their own licenses. All of them are inventoried — license, copyright line,
 upstream URL, path in this tree — in
-[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md), together with the two
-components whose license status is unresolved. Read it before redistributing a
-build.
+[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md), together with the licenses
+elected where an upstream offers a choice and the one component whose license
+status is unresolved. Read it before redistributing a build.
 
 No copyrighted Nintendo asset is included here; assets are extracted at build
 time from ROMs you supply.

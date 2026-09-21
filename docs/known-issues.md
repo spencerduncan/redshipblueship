@@ -344,6 +344,24 @@ where they were caught; the MM randomizer options pane labels each row live,
 partial, dormant or generation-only with a reason. This pass was not exhaustive —
 an enabled-looking toggle that does nothing is a plausible bug, and worth reporting.
 
+### The "Fipps" overlay font choice is gone
+
+`Fipps-Regular.otf` shipped with the inherited port trees and asserted "All rights
+reserved" with no license grant, so it was deleted (2026-09-21; see
+`THIRD_PARTY_NOTICES.md`). It is no longer offered in the overlay font picker. It
+was never the default, and a saved overlay-font selection that still names it — or
+names anything else that is not loaded — falls back to **Press Start 2P** rather
+than leaving a dead entry in the picker.
+
+**Your saved selection is rewritten, once.** The setting is
+`gSettings.OverlayFont` in `shipofharkinian.json` (older configs spell it
+`gOverlayFont`; the game's own config migration renames it for you). Because the
+fallback is a font that IS loaded, the first launch after this change stores
+`Press Start 2P` over whatever the key used to say and flushes the config, so a
+selection of the removed font is not kept for later. That is deliberate: the
+alternative left the overlay drawn in ImGui's built-in face instead of a font this
+project ships. No save file is touched — this is a settings key, not save data.
+
 ---
 
 ## CI and quality gates (for contributors)
