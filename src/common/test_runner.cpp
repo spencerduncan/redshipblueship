@@ -3926,8 +3926,8 @@ const TestDescriptor gTests[] = {
      "the MM host un-proves (#645)",
      Test_ComboLogicFixpoint},
     {"combo-logic-fill",
-     "The single-bag fill is seed-determined, parametrizes the rungs on one code path, and never biases beat-either "
-     "(#645)",
+     "The single-bag fill is seed-determined, `none` draws from all empties with no round run, and beat-either is "
+     "never biased (#645)",
      Test_ComboLogicFill},
     {nullptr, nullptr, nullptr}  // Sentinel
 };
