@@ -19,8 +19,8 @@
 
 #ifdef RSBS_SINGLE_EXECUTABLE
 
-#include <algorithm> // std::sort / std::lexicographical_compare for the #670 mod order
-#include <cstddef>   // offsetof for the #395 layout facts; ptrdiff_t
+#include <algorithm>   // std::sort / std::lexicographical_compare for the #670 mod order
+#include <cstddef>     // offsetof for the #395 layout facts; ptrdiff_t
 #include <type_traits> // std::is_same_v for the #470 payload-divergence premise
 #include <cctype>
 #include <cstdio>
@@ -959,7 +959,9 @@ static int MountMMModArchives(const std::string& modsRoot) {
     // recursive: a mod may ship as mods/mm/<modname>/<archive>.o2r, and upstream
     // BenPort recurses too. The error_code overload so that one unreadable
     // subdirectory cannot throw out of MM's boot path.
-    for (std::filesystem::recursive_directory_iterator it(modsRoot, std::filesystem::directory_options::skip_permission_denied, ec), end;
+    for (std::filesystem::recursive_directory_iterator
+             it(modsRoot, std::filesystem::directory_options::skip_permission_denied, ec),
+         end;
          it != end && !ec; it.increment(ec)) {
         const std::filesystem::path& p = it->path();
         if (it->is_directory(ec) || !MMIsModArchiveExtension(p)) {
@@ -1008,9 +1010,8 @@ static void MMCreateModFolder() {
     try {
         const std::string existing = Ship::Context::LocateFileAcrossAppDirs("mods", kMmAppName);
         std::string mmModsPath =
-            (std::filesystem::path(existing.empty()
-                                       ? Ship::Context::GetPathRelativeToAppDirectory("mods", kMmAppName)
-                                       : existing) /
+            (std::filesystem::path(existing.empty() ? Ship::Context::GetPathRelativeToAppDirectory("mods", kMmAppName)
+                                                    : existing) /
              Combo_ModsSubdirForGame(GAME_MM))
                 .generic_string();
         if (!std::filesystem::exists(mmModsPath)) {

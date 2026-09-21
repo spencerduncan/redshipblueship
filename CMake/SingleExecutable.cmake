@@ -1454,6 +1454,25 @@ if(BUILD_TESTING)
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
+    # #670: MM mounted NO mod archives in single-exe — its whole mod-mount
+    # sequence is in the excluded games/mm/2s2h/BenPort.cpp, so
+    # Combo_GetModArchiveCount(GAME_MM) was structurally always 0 and #593's
+    # switch-time re-apply loop was a permanent no-op for MM. This row drives
+    # MM's REAL glob/mount (MountMMModArchives) against a privately staged
+    # mods/ tree and the REAL Combo_EnsureGameArchivesLoaded, and asserts:
+    # the shared mods/ tree is partitioned (MM takes mods/mm, OoT the
+    # complement, total and disjoint over the path spellings that actually
+    # occur); both registries are fed; the mod beats MM's base archive; an
+    # OoT-owned path carried BY an MM mod is reclaimed by soh.o2r on the switch
+    # to OoT; and the override returns on the switch back to MM.
+    #
+    # Same SKIP_RETURN_CODE policy as the other archive rows: it needs staged
+    # soh.o2r/2ship.o2r as the base archives and as the byte sources for the
+    # stand-in mods, and the netplay-relay job re-runs this label archive-less
+    # on purpose (#562).
+    redship_add_test(NAME MMModsMount COMMAND redship --test mm-mods-mount)
+    set_tests_properties(MMModsMount PROPERTIES SKIP_RETURN_CODE 77)
+
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)
     # These tests actually boot the games and verify boot completion
