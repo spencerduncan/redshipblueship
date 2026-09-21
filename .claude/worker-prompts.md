@@ -1,16 +1,21 @@
-# Worker loop goals — 2026-09-17 wave (wave 3; updated 2026-09-17)
+# Worker loop goals — 2026-09-21 wave (wave 4; updated 2026-09-21)
 
-**Where the phases stand.** Phase 3.2 (#500, ADR 0010, cross-game logic)
-increment 2 **merged** as PR #680 (`7bab54bd`): the whole paired creation now
-runs once, at the OoT file-create seam, and MM arrival is hydrate-or-refuse
-with zero generation capability. Increment 3 (#645, the single-bag fill and
-the beatability proof) is next; its gate, the O4 solver-inventory audit
-(`docs/solver-inventory.md`, PR #647), is delivered and recommends composition,
-but the operator has not yet ruled on O4 itself. This wave lands increment 3's
-prerequisites (#656/#657/#658/#659/#661/#667), MM's per-trick vocabulary
-(#578, split into parts), the `SohMenu` remainder (#497) and what it unblocks
-(#682), a workstation build-cache hazard (#676), the repo's license file, and
-this tracker/docs sweep. Phase 3.1 (#492) is closed. Community reports
+**Where the phases stand.** Wave 3 closed epic #644 (ADR 0010 increment 2,
+merged PR #680) and its remaining prerequisites for increment 3: #656, #657,
+#659, #667 (PR #689), #658 (PR #690), and #661 (PR #691, which also closed
+#644). O4 (composition vs. unification) is **ruled: composition** (operator,
+2026-09-17; ADR 0010 amendment). Increment 3 itself is epic **#645** and this
+wave lands its first real slice: the combo-logic coordinator and stub-engine
+locks (lane K1), the two real solver exports it is written against (lanes
+K2a/K2b), and the first cost/convergence measurements over those exports
+(lane K3) — none of it wired into a production path yet. Alongside increment
+3: a real golden determinism digest so "the world did not change" is
+enforceable rather than asserted (#688, lane Q), the remaining plain
+widenings in MM's per-trick vocabulary (#578 part 3, #697, lane T3), MM's
+`mods/` folder never mounting in single-exe (#670, lane M), the on-screen
+generation-progress bar (#582, lane P), license-attribution and font-license
+follow-up (lane N), and this tracker/docs sweep (lane H). Phase 3.1 (#492)
+and Phase 3.2's increment-2 epic (#644) are both closed. Community reports
 #634/#635/#636 remain human-filed and hands-off, tracked agent-side as
 #640/#638/#639 (resolved in earlier waves; #634/#640's Anchor-page regression
 is the only one still open, unrelated to this wave).
@@ -23,38 +28,40 @@ you do fewer. Then read your own card and the issue or ADR it names.
 
 | Lane | Branch | Serves | Owns, roughly |
 |---|---|---|---|
-| A1 | `claude/578-mm-tricks-part1` | #578 part 1 (MM per-trick vocabulary substrate, ADR 0010 O9) | `games/mm/2s2h/Rando/Logic/Logic.h` (`CAN_USE_EXPLOSIVE` macro only), `Regions/GreatBayTemple.cpp:120`, new `StaticData/Tricks.*`, the MM rando save-options storage, `Foreign.cpp` (`ProfileIdentityString` only), `OptionsUiSingleExe.cpp` (new Tricks section), `mm_rando_options_test.cpp` |
-| A2 | `claude/578-mm-tricks-part2` | #578 part 2 (bind first candidate tricks to region seams) | `games/mm/2s2h/Rando/Logic/Regions/*.cpp` (touched seams only, not `Moon.cpp`); starts only after A1 merges |
-| B | `claude/inc3-prereqs-657-667-659-656` | Increment-3 prerequisites #657, #667, #659, #656 | `src/common/foreign_items.c/.h`, `src/common/tests/test_combo_settings.c`, `games/oot/soh/Enhancements/randomizer/ForeignItemsSingleExe.cpp`, `playthrough.cpp` (gate site only), `games/mm/2s2h/Rando/Logic/Logic.cpp` (entrance cache only), `Foreign.cpp` only if #667 forces a consumer change, `docs/adr/0011-*.md` (amendment only) |
-| C | `claude/658-majora-defeated-predicate` | #658 (MM_GOAL's "Majora defeated" predicate) | `games/mm/2s2h/Rando/Logic/Regions/Moon.cpp`, `CanKillEnemy`/a new function appended at the END of `games/mm/2s2h/Rando/Logic/Logic.h` |
-| D | `claude/497-sohmenu-remainder` | #497 (ADR 0004 remainder: capability gating, shared-intent marker, tier-4 Combo section) | `games/oot/soh/SohGui/SohMenu.cpp/.h`, `SohMenuRandomizer.cpp` (interim rows only), new `SohMenuCombo.cpp`, `src/common/combo_settings_view.*` (function granularity, if needed), `docs/adr/0004-*.md` (amendment) |
-| G | `claude/682-mm-enhancement-toggles` | #682 (host MM enhancement toggles in the unified menu) | `games/mm/CMakeLists.txt` (carve-outs), provider TUs under `games/mm/2s2h/Enhancements/` (guards only), `.github/scripts/check-registrar-elision.sh`, `mm_registrar_coverage_test.cpp`, lane D's MM sub-section extension point, `src/common/cvar_shared_keys.h` (append); starts only after D merges |
-| E | `claude/676-sccache-showincludes-deps` | #676 (sccache `/showIncludes` replay poisons ninja's MSVC deps across worktrees) | `CMakeLists.txt` / `CMake/DefaultCXX.cmake` (sccache-conditional block only), `docs/BUILDING_WINDOWS.md`, one bullet in this file's Standing conventions, an optional `scripts/` tool |
-| F | `claude/wave3-tracker-docs-sweep` | Tracker + docs sweep after increment 2 (#662 and wave-3 bookkeeping) | `docs/adr/0010-*.md` (anchors + amendment log only), `docs/known-issues.md`, this file, `.claude/lanes/*.md` |
-| H | `claude/661-pin-mask-shop-entrance` | #661 (pin the Happy Mask Shop interior out of OoT's entrance shuffle) | `games/oot/soh/Enhancements/randomizer/entrance.cpp` (pool construction), `randomizer_entrance_tracker.cpp` only if a display fix is needed |
-| L | `claude/root-license-and-third-party-notices` | Root `LICENSE` (MIT, if appropriate) and `THIRD_PARTY_NOTICES.md` | `LICENSE`, `THIRD_PARTY_NOTICES.md`, `docs/CREDITS.md`, the README's license line. No local build. |
+| K1 | `claude/inc3-coordinator-core` | #645 increment 3: the combo-logic coordinator and engine surface, locked over stub engines | new `src/common/combo_logic.{h,c}`, new `src/common/tests/test_combo_logic.c`; `src/common` only, not wired into any production path |
+| K2a | `claude/inc3-oot-logic-export` | #645: implement K1's engine surface over OoT's real solver | new TU beside `ForeignItemsSingleExe.cpp` (guard `RSBS_SINGLE_EXECUTABLE`), its test; starts only after K1 merges |
+| K2b | `claude/inc3-mm-logic-export` | #645: implement K1's engine surface over MM's real solver | new TU under `games/mm/2s2h/Rando/` beside the foreign-items TU, its test; starts only after K1 merges |
+| K3 | `claude/inc3-linked-round-measurements` | #645: measure the linked round's cost and the assumed fill's convergence over the real K2a/K2b exports | a new measurement test TU, minimal read-only accessors in the K2a/K2b export TUs if needed; starts only after K1, K2a and K2b all merge |
+| Q | `claude/688-golden-determinism-digest` | #688 (the determinism rows prove reproducibility, not stability — no golden digest exists to re-pin) | `CMake/Check*Determinism.cmake` (or new siblings), new golden files, the determinism rows in `CMake/SingleExecutable.cmake` (append only), the three false "digests are pinned" comments, a new docs page, one bullet in this file's Standing conventions |
+| T3 | `claude/578-mm-tricks-part3` | #697 (#578 part 3: bind the remaining plain widenings in MM's per-trick vocabulary) | `games/mm/2s2h/Rando/Logic/Regions/*.cpp` (touched seams only), the `MMTrickBindings` test, `OptionsUiSingleExe.cpp` (`kBoundTricks` only) |
+| M | `claude/670-mm-mods-folder-mount` | #670 (MM never mounts its `mods/` folder in single-exe) | MM's archive-mount path in `games/mm/2s2h/` (`GameExports_SingleExe.cpp` / `BenPort.cpp`), `src/common` mount helpers if any, `docs/MODDING.md`, a new test |
+| P | `claude/582-creation-progress-bar` | #582 (the on-screen generation-progress bar; the phase channel exists, nothing paints) | the progress sink/overlay under `games/oot/soh/SohGui/` or `src/common/`, the creation call site at function granularity, its tests |
+| H | `claude/wave4-tracker-docs-hygiene` | Tracker + docs hygiene after wave 3 (this file, epic #644/#645 bookkeeping, the solver-inventory audit's delivered prerequisites, ADR 0010 O9) | `docs/solver-inventory.md` (status annotations only), `docs/adr/0010-*.md` (amendment only), this file, `.claude/lanes/*.md`. No local build. |
+| N | `claude/license-elections-and-fipps-removal` | License follow-up: attribution name, remove the all-rights-reserved Fipps font, ship required license texts, elect MIT/CC0 wherever upstream offers it | `LICENSE`, `THIRD_PARTY_NOTICES.md`, `docs/CREDITS.md`, `docs/known-issues.md`, both `OTRGlobals.cpp`/`BenPort.cpp` `LoadFont("Fipps", ...)` call sites, both games' `assets/custom/fonts/` |
 
-Shared-file hotspots this wave: `games/mm/2s2h/Rando/Logic/Logic.h` is touched
-by **lane A1** (the `CAN_USE_EXPLOSIVE` macro near `:289`) and **lane C** (a new
-function appended at the END of the header, kept far from A1's hunk) —
-function-scoped claims, rebase rather than reorder, trivial merge expected.
-ADR 0010 is **read-only for everyone except lane F this wave** (anchor
-corrections and one amendment-log entry only; no decided text changes).
-`.claude/worker-prompts.md` (this file) is written by both **lane F** (the
-header, lane table, hotspots) and **lane E** (one bullet under Standing
-conventions) — expect a small, easy merge.
+Shared-file hotspots this wave: `games/mm/2s2h/Rando/Logic/Regions/*.cpp` is
+touched only by **lane T3** (no other lane this wave binds MM trick edges).
+`.claude/worker-prompts.md` (this file) is written by both **lane H** (this
+header, the lane table, hotspots) and **lane Q** (one bullet under Standing
+conventions, the re-pin procedure) — expect a small, easy merge. ADR 0010 is
+**read-only for everyone except lane H this wave** (the O9 amendment-log
+entry only; no decided text changes). `docs/solver-inventory.md` is likewise
+**lane H only** this wave (status annotations on already-decided rows; no
+rewritten analysis).
 
-Ordering that is load-bearing: **lane A2 branches only after lane A1 merges**
-(it builds on A1's `MMRT_*` table, storage and `MM_TRICK(...)` predicate);
-**lane G branches only after lane D merges** (it hosts its rows in lane D's
-tier-4 Combo section extension point). Both lanes report `blocked` and stop
-rather than branching early if their prerequisite is not yet on `main`. Lane F
-and lane L have no local build; every code lane verifies locally (ROM-staged
-build, both ctest tiers) before its PR is merged. Determinism digests
+Ordering that is load-bearing: **lane K2a and lane K2b both branch only
+after lane K1 merges** (they implement the contract `combo_logic.h`
+declares); **lane K3 branches only after K1, K2a and K2b all merge** (it
+measures the two real exports through the coordinator). All three report
+`blocked` and stop rather than branching early if their prerequisite is not
+yet on `main`. Lane H and lane N have local-build status stated on their own
+card (H: no build, docs only; N: builds, both tiers). Determinism digests
 (`SeedDeterminism`, `MMRandoGen`, `MMPairedAttemptDeterminism`,
 `HeadlessForeignDigest`) move only where a lane's brief says a re-pin is
-allowed (lane A1, gating the Powder Keg and the GBT boss-key edge); every
-other lane asserts the digests stay byte-identical.
+allowed; every other lane asserts the digests stay byte-identical. None of
+K1/K2a/K2b/K3's work is wired into a production path, so it cannot move a
+generated world by construction — each lane still states that explicitly
+rather than relying on the digests to prove it.
 
 This file deliberately holds almost no state. Its failure mode is going stale
 — an earlier revision claimed "Wave 3" and "eleven commits awaiting push" for a
@@ -67,9 +74,9 @@ gets updated as work lands.
 | What | Where |
 |---|---|
 | Phase 3.2 tracker (ADR 0010 increments, O4/O9, wave sweeps) | **#500** |
-| ADR 0010 increment epics | **#644** (increment 2, merged as PR #680) → **#645** (increment 3, single-bag fill, gated on #578, the O4 ruling, and #656/#657/#658/#659/#661/#667) |
-| The O4 solver-inventory audit | `docs/solver-inventory.md` (PR #647); recommends composition; **decision awaiting the operator** |
-| MM per-trick vocabulary (O9) | #578, split into part 1 (substrate, lane A1), part 2 (first bindings, lane A2), part 3 (remaining bindings, filed once part 2 knows the unbound set) |
+| ADR 0010 increment epics | **#644** (increment 2, merged PR #680; CLOSED 2026-09-21, all prerequisites delivered) → **#645** (increment 3, single-bag fill; O4 ruled composition; coordinator/exports/measurement in flight, lanes K1/K2a/K2b/K3) |
+| The O4 solver-inventory audit | `docs/solver-inventory.md` (PR #647); recommended composition; **RULED composition** (operator, 2026-09-17; ADR 0010 amendment) |
+| MM per-trick vocabulary (O9) | #578: part 1 (substrate, PR #686) and part 2 (first bindings, PR #696) merged; part 3 (#697, remaining plain widenings, lane T3) in flight |
 | Phase 3.1 tracker (closed) | #492 |
 | Combo-level settings (ADR 0011) | #498, `docs/adr/0011-combo-level-settings.md` |
 | MM hook dispatch coverage | #438 |
@@ -97,6 +104,7 @@ are the reasoning behind them.
   mechanism and the failure it prevents. Comments explain *why*.
 - Push as you work; open a PR when the change is ready for CI; squash-merge only
   once CI is fully green. Never merge red or partial CI — push and report instead.
+- **Closing keywords: repeat the keyword per issue.** GitHub closes only the issue directly after the keyword — `Fixes #659 #656` closes #659 and leaves #656 open. Write `Fixes #659, fixes #656`. `Fixes` is for agent-authored issues only; use `Refs #N` for everything else.
 - When modifying MM code in single-exe mode, check `src/common/mm_stubs.c` for
   related stubs. Signature drift there has caused two separate faults.
 - Configure with `-DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache`
