@@ -387,10 +387,19 @@ static RegisterShipInitFunc initFunc([]() {
         .exits = { //     TO                                         FROM
             EXIT(ENTRANCE(ZORA_CAPE, 1),                    ENTRANCE(ZORA_HALL, 0), true),           
             EXIT(ENTRANCE(ZORA_HALL_ROOMS, 5),              ENTRANCE(ZORA_HALL, 2), true), // To Shop
-            EXIT(ENTRANCE(ZORA_HALL_ROOMS, 2),              ENTRANCE(ZORA_HALL, 3), CAN_BE_ZORA), // To Lulu's Room
-            EXIT(ENTRANCE(ZORA_HALL_ROOMS, 3),              ENTRANCE(ZORA_HALL, 4), CAN_BE_ZORA), // To Evan's Room
-            EXIT(ENTRANCE(ZORA_HALL_ROOMS, 1),              ENTRANCE(ZORA_HALL, 5), CAN_BE_ZORA), // To Japas's Room
-            EXIT(ENTRANCE(ZORA_HALL_ROOMS, 0),              ENTRANCE(ZORA_HALL, 6), CAN_BE_ZORA), // To Mikaus's Room
+            // #578 part 2 — MMRT_ZORA_HALL_HUMAN, DEFAULT OFF, on the four BACK-ROOM doors and only
+            // those. OoTMM's "Swim to Zora Hall as Human" is "Swim around Zora Hall to reach the
+            // back without Zora Mask", and in this graph "the back" is exactly what CAN_BE_ZORA
+            // gates: the shop door above is already `true` because it is on the near side.
+            //
+            // CAN_USE_ABILITY(SWIM) is a real conjunct, not decoration. Human Link's swim is a
+            // shuffled item here (RO_SHUFFLE_SWIM; StartingItems.cpp grants it up front when the
+            // shuffle is off), so a trick whose whole content is "swim as Human" must ask for it —
+            // otherwise the trick would silently substitute for the shuffled ability.
+            EXIT(ENTRANCE(ZORA_HALL_ROOMS, 2),              ENTRANCE(ZORA_HALL, 3), CAN_BE_ZORA || (MM_TRICK(MMRT_ZORA_HALL_HUMAN) && CAN_USE_ABILITY(SWIM))), // To Lulu's Room
+            EXIT(ENTRANCE(ZORA_HALL_ROOMS, 3),              ENTRANCE(ZORA_HALL, 4), CAN_BE_ZORA || (MM_TRICK(MMRT_ZORA_HALL_HUMAN) && CAN_USE_ABILITY(SWIM))), // To Evan's Room
+            EXIT(ENTRANCE(ZORA_HALL_ROOMS, 1),              ENTRANCE(ZORA_HALL, 5), CAN_BE_ZORA || (MM_TRICK(MMRT_ZORA_HALL_HUMAN) && CAN_USE_ABILITY(SWIM))), // To Japas's Room
+            EXIT(ENTRANCE(ZORA_HALL_ROOMS, 0),              ENTRANCE(ZORA_HALL, 6), CAN_BE_ZORA || (MM_TRICK(MMRT_ZORA_HALL_HUMAN) && CAN_USE_ABILITY(SWIM))), // To Mikaus's Room
         },
     };
 }, {});

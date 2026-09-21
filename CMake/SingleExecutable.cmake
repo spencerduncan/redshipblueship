@@ -1437,6 +1437,23 @@ if(BUILD_TESTING)
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
+    # #578 part 2: every trick binding this pass authored, as a table of edges
+    # each probed with the frozen trick bit off and then on. Tier `rando` for the
+    # same reason as MMTrickGbtGate above, stated again because it is the reason
+    # somebody would get wrong: these are std::functions inside
+    # Rando::Logic::Regions, populated by ShipInit registrars reached only through
+    # InitOTRForMMFirstBoot, whose OTRGlobals ctor constructs a Fast3dWindow. The
+    # row evaluates the REAL lambdas — a re-statement of each condition would pass
+    # with every binding deleted.
+    #
+    # Timeout 300, not 180: after the per-edge pairs it generates one glitchless
+    # world and runs a full reachability crawl once per bound key to assert
+    # monotonicity (a binding may only ever widen reach).
+    redship_add_test(NAME MMTrickBindings COMMAND redship --test mm-trick-bindings
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)
     # These tests actually boot the games and verify boot completion

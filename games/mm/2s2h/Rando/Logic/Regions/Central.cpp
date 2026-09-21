@@ -362,8 +362,12 @@ static RegisterShipInitFunc initFunc([]() {
     };
     Regions[RR_POST_OFFICE] = RandoRegion{ .sceneId = SCENE_POSTHOUSE,
         .checks = {
-            // TODO: Trick for doing without the Bunny Hood
-            CHECK(RC_CLOCK_TOWN_WEST_POSTMAN_MINIGAME, HAS_ITEM(ITEM_MASK_BUNNY) && (BETWEEN(TIME_DAY1_PM_03_00, TIME_NIGHT1_AM_12_00) || (Flags_GetRandoInf(RANDO_INF_OBTAINED_LETTER_TO_KAFEI) && BETWEEN(TIME_NIGHT2_PM_06_00, TIME_NIGHT2_AM_12_00)))),
+            // #578 part 2 — MMRT_POST_OFFICE_GAME, DEFAULT OFF. The TODO asked for exactly this
+            // trick; OoTMM calls it "Post Office Timing Game without Bunny Hood" ("Obtain the
+            // reward without an on-screen timer to help you"). It widens the BUNNY HOOD term only:
+            // the time window stays a conjunct, because the postman only runs the game then, which
+            // is not something a trick can change.
+            CHECK(RC_CLOCK_TOWN_WEST_POSTMAN_MINIGAME, (HAS_ITEM(ITEM_MASK_BUNNY) || MM_TRICK(MMRT_POST_OFFICE_GAME)) && (BETWEEN(TIME_DAY1_PM_03_00, TIME_NIGHT1_AM_12_00) || (Flags_GetRandoInf(RANDO_INF_OBTAINED_LETTER_TO_KAFEI) && BETWEEN(TIME_NIGHT2_PM_06_00, TIME_NIGHT2_AM_12_00)))),
         },
         .exits = { //     TO                                         FROM
             EXIT(ENTRANCE(WEST_CLOCK_TOWN, 7),              ENTRANCE(POST_OFFICE, 0), true),

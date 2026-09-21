@@ -15,6 +15,14 @@ static RegisterShipInitFunc initFunc([]() {
         },
         .connections = {
             CONNECTION(RR_SNOWHEAD_TEMPLE_CENTRAL_ROOM_FIRST_FLOOR,  true),
+            // #578 part 2 — NOT BOUND, and the TODO stays. Answering it "yes" would move CAN_BE_ZORA
+            // out of the shipped Glitchless rung, i.e. TIGHTEN tricks-off logic. Part 2's contract is
+            // widenings only (every edge it touches evaluates identically with tricks off), and the
+            // one tightening in this epic so far — the Great Bay Temple boss-key edge — took an
+            // explicit operator ruling because it changes what worlds the fill can produce. There is
+            // also no declared key for it: OoTMM has no Snowhead block-room entry, so this needs a
+            // key of ours. Both halves are part 3's, along with the mirror at
+            // RR_SNOWHEAD_TEMPLE_COMPASS_ROOM below.
             CONNECTION(RR_SNOWHEAD_TEMPLE_BLOCK_ROOM_UPPER, HAS_ITEM(ITEM_HOOKSHOT) || CAN_BE_ZORA), // TODO : Should using Zora for this be considered a trick?
         },
     };
@@ -88,6 +96,12 @@ static RegisterShipInitFunc initFunc([]() {
         },
         .connections = {
             CONNECTION(RR_SNOWHEAD_TEMPLE_ENTRANCE_AFTER_BLOCK, true),
+            // #578 part 2 — NOT BOUND, and the TODO stays. This one IS a widening, so the contract is
+            // not the blocker: the missing piece is a KEY. OoTMM has no Snowhead bomb-jump entry (its
+            // MMRT_GORON_BOMB_JUMP is specifically "Bomb Jump Fences as Goron", and this is a gap, not
+            // a fence), so the binding needs a key of ours, which part 1's table does not declare and
+            // which appending here would grow MMRT_MAX and therefore the frozen save array and the
+            // profile identity string. Part 3 adds the key and the disjunct together.
             CONNECTION(RR_SNOWHEAD_TEMPLE_BRIDGE_ROOM_AFTER, (CAN_BE_GORON && HAS_MAGIC) || (HAS_ITEM(ITEM_HOOKSHOT) && CAN_BE_ZORA)) // TODO : Add bomb jump trick here.
         },
     };
@@ -167,7 +181,13 @@ static RegisterShipInitFunc initFunc([]() {
     Regions[RR_SNOWHEAD_TEMPLE_CENTRAL_ROOM_THIRD_FLOOR] = RandoRegion{ .sceneId = SCENE_HAKUGIN,
         // This region is being treated the same as the upper part that you can access using the completed pillar puzzle...its probably fine like this.
         .checks = {
-            CHECK(RC_SNOWHEAD_TEMPLE_CENTRAL_ROOM_ALCOVE_CHEST, ((CAN_BE_DEKU && CAN_BE_GORON) || HAS_ITEM(ITEM_LENS_OF_TRUTH) && HAS_ITEM(ITEM_HOOKSHOT))),
+            // #578 part 2 — MMRT_LENS ("Fewer Lens Requirements (MM)"), default off. North.cpp's
+            // header note carries the rationale and names the two sites the trick excludes.
+            // The Lens term here has no HAS_MAGIC conjunct, unlike every other site in this file;
+            // that asymmetry is left exactly as it was, because changing it would change tricks-off
+            // logic. The disjunct is parenthesized around the Lens term ONLY, so the Hookshot stays
+            // required: `(DEKU && GORON) || ((trick || LENS) && HOOKSHOT)`.
+            CHECK(RC_SNOWHEAD_TEMPLE_CENTRAL_ROOM_ALCOVE_CHEST, ((CAN_BE_DEKU && CAN_BE_GORON) || (MM_TRICK(MMRT_LENS) || HAS_ITEM(ITEM_LENS_OF_TRUTH)) && HAS_ITEM(ITEM_HOOKSHOT))),
             CHECK(RC_SNOWHEAD_TEMPLE_CENTRAL_ROOM_LEVEL_3_LARGE_SNOWBALL_01, CanKillEnemy(ACTOR_OBJ_SNOWBALL)),
             CHECK(RC_SNOWHEAD_TEMPLE_CENTRAL_ROOM_LEVEL_3_LARGE_SNOWBALL_02, CanKillEnemy(ACTOR_OBJ_SNOWBALL)),
             CHECK(RC_SNOWHEAD_TEMPLE_CENTRAL_ROOM_LEVEL_3_LARGE_SNOWBALL_03, CanKillEnemy(ACTOR_OBJ_SNOWBALL)),
@@ -192,11 +212,18 @@ static RegisterShipInitFunc initFunc([]() {
             CHECK(RC_SNOWHEAD_TEMPLE_COMPASS_ROOM_POT_03, true),
             CHECK(RC_SNOWHEAD_TEMPLE_COMPASS_ROOM_POT_04, true),
             CHECK(RC_SNOWHEAD_TEMPLE_COMPASS_ROOM_POT_05, true),
+            // #578 part 2 — NOT BOUND, and the TODO stays, for the same reason as the bridge-room
+            // bomb jump above: a widening with no declared key to hang it on (OoTMM has no Snowhead
+            // compass-room entry). Part 3 adds the key and the disjunct together.
             CHECK(RC_SNOWHEAD_TEMPLE_SF_COMPASS_ROOM_CRATE, (CAN_USE_EXPLOSIVE && HAS_ITEM(ITEM_MASK_GREAT_FAIRY))), // TODO : Zora Mask can be used from the upper ledge to reach this after breaking the crate. Implement as a trick?
             CHECK(RC_ENEMY_DROP_WOLFOS, CanKillEnemy(ACTOR_EN_WF)),
         },
         .connections = {
             CONNECTION(RR_SNOWHEAD_TEMPLE_ENTRANCE_AFTER_BLOCK,     KEY_COUNT(SNOWHEAD_TEMPLE) >= 1),
+            // #578 part 2 — NOT BOUND; the mirror of the block-room seam at the top of this file,
+            // which carries the reasoning (gating it would tighten tricks-off logic, and there is no
+            // declared key). Part 3 owns both, together, because gating one and not the other would
+            // make the pair inconsistent.
             CONNECTION(RR_SNOWHEAD_TEMPLE_BLOCK_ROOM_UPPER,   CAN_BE_ZORA || HAS_ITEM(ITEM_HOOKSHOT) || CAN_USE_MAGIC_ARROW(FIRE)), // TODO : Should using Zora for this be considered a trick?
             CONNECTION(RR_SNOWHEAD_TEMPLE_ICICLE_ROOM,  CAN_USE_EXPLOSIVE),
         },
@@ -218,7 +245,7 @@ static RegisterShipInitFunc initFunc([]() {
             CHECK(RC_SNOWHEAD_TEMPLE_DUAL_SWITCHES_ROOM_LARGE_CRATE_02, true),
             CHECK(RC_SNOWHEAD_TEMPLE_DUAL_SWITCHES_POT_01, true),
             CHECK(RC_SNOWHEAD_TEMPLE_DUAL_SWITCHES_POT_02, true),
-            CHECK(RC_SNOWHEAD_TEMPLE_SF_DUAL_SWITCHES, ((HAS_ITEM(ITEM_LENS_OF_TRUTH) && HAS_MAGIC && HAS_ITEM(ITEM_MASK_GREAT_FAIRY)) && ((HAS_ITEM(ITEM_BOW) || HAS_ITEM(ITEM_HOOKSHOT)) || CAN_BE_DEKU))),
+            CHECK(RC_SNOWHEAD_TEMPLE_SF_DUAL_SWITCHES, (((MM_TRICK(MMRT_LENS) || (HAS_ITEM(ITEM_LENS_OF_TRUTH) && HAS_MAGIC)) && HAS_ITEM(ITEM_MASK_GREAT_FAIRY)) && ((HAS_ITEM(ITEM_BOW) || HAS_ITEM(ITEM_HOOKSHOT)) || CAN_BE_DEKU))), // #578 part 2 — MMRT_LENS
             CHECK(RC_ENEMY_DROP_BOE, CanKillEnemy(ACTOR_EN_MKK)),
         },
         .connections = {
@@ -252,7 +279,7 @@ static RegisterShipInitFunc initFunc([]() {
     };
     Regions[RR_SNOWHEAD_TEMPLE_ICICLE_ROOM] = RandoRegion{ .sceneId = SCENE_HAKUGIN,
         .checks = {
-            CHECK(RC_SNOWHEAD_TEMPLE_ICICLE_ROOM_ALCOVE_CHEST, (HAS_ITEM(ITEM_LENS_OF_TRUTH) && HAS_MAGIC)),
+            CHECK(RC_SNOWHEAD_TEMPLE_ICICLE_ROOM_ALCOVE_CHEST, (MM_TRICK(MMRT_LENS) || (HAS_ITEM(ITEM_LENS_OF_TRUTH) && HAS_MAGIC))), // #578 part 2 — MMRT_LENS
             CHECK(RC_SNOWHEAD_TEMPLE_ICICLE_ROOM_CHEST, ((CAN_USE_EXPLOSIVE && HAS_ITEM(ITEM_HOOKSHOT)) || CAN_BE_GORON)),
             CHECK(RC_SNOWHEAD_TEMPLE_ICICLE_ROOM_FREESTANDING_RUPEE_01, CAN_USE_MAGIC_ARROW(FIRE)),
             CHECK(RC_SNOWHEAD_TEMPLE_ICICLE_ROOM_FREESTANDING_RUPEE_02, CAN_USE_MAGIC_ARROW(FIRE)),
@@ -295,7 +322,7 @@ static RegisterShipInitFunc initFunc([]() {
     };
     Regions[RR_SNOWHEAD_TEMPLE_MAP_ROOM_UPPER] = RandoRegion{ .sceneId = SCENE_HAKUGIN,
         .checks = {
-            CHECK(RC_SNOWHEAD_TEMPLE_MAP_ALCOVE_CHEST, (HAS_ITEM(ITEM_LENS_OF_TRUTH) && HAS_MAGIC && HAS_ITEM(ITEM_BOW) && HAS_ITEM(ITEM_ARROW_FIRE))),
+            CHECK(RC_SNOWHEAD_TEMPLE_MAP_ALCOVE_CHEST, ((MM_TRICK(MMRT_LENS) || (HAS_ITEM(ITEM_LENS_OF_TRUTH) && HAS_MAGIC)) && HAS_ITEM(ITEM_BOW) && HAS_ITEM(ITEM_ARROW_FIRE))), // #578 part 2 — MMRT_LENS
             CHECK(RC_ENEMY_DROP_FREEZARD, CanKillEnemy(ACTOR_EN_FZ)),
         },
         .connections = {
@@ -337,7 +364,7 @@ static RegisterShipInitFunc initFunc([]() {
     };
     Regions[RR_SNOWHEAD_TEMPLE_SNOW_ROOM] = RandoRegion{ .sceneId = SCENE_HAKUGIN,
         .checks = {
-            CHECK(RC_SNOWHEAD_TEMPLE_SF_SNOW_ROOM, HAS_ITEM(ITEM_LENS_OF_TRUTH) && HAS_MAGIC && HAS_ITEM(ITEM_MASK_GREAT_FAIRY) && CAN_USE_PROJECTILE),
+            CHECK(RC_SNOWHEAD_TEMPLE_SF_SNOW_ROOM, (MM_TRICK(MMRT_LENS) || (HAS_ITEM(ITEM_LENS_OF_TRUTH) && HAS_MAGIC)) && HAS_ITEM(ITEM_MASK_GREAT_FAIRY) && CAN_USE_PROJECTILE), // #578 part 2 — MMRT_LENS
             CHECK(RC_SNOWHEAD_TEMPLE_SNOW_ROOM_SMALL_SNOWBALL_01, true),
             CHECK(RC_SNOWHEAD_TEMPLE_SNOW_ROOM_SMALL_SNOWBALL_02, true),
             CHECK(RC_SNOWHEAD_TEMPLE_SNOW_ROOM_SMALL_SNOWBALL_03, true),

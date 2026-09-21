@@ -7,9 +7,34 @@ using namespace Rando::Logic;
 
 // clang-format off
 static RegisterShipInitFunc initFunc([]() {
+    // ========================================================================
+    // #578 part 2 — MMRT_LENS and MMRT_DARMANI_WALL, both DEFAULT OFF.
+    //
+    // MMRT_LENS is OoTMM's "Fewer Lens Requirements (MM)", and its definition
+    // names its own two exceptions: "Makes Lens of Truth not a required item for
+    // most checks, EXCLUDING Shiro (Stone Mask check) and climbing the wall to
+    // Darmani". So the binding is a `MM_TRICK(MMRT_LENS) ||` disjunct on every
+    // `ITEM_LENS_OF_TRUTH` term in Regions/ except two, by name:
+    //
+    //   - East.cpp's RC_ROAD_TO_IKANA_STONE_MASK (Shiro) keeps its Lens term with
+    //     no disjunct at all — the trick excludes it.
+    //   - THIS file's Mountain Village -> Goron Graveyard exit is "climbing the
+    //     wall to Darmani", and it is not left ungated either: it gets its OWN
+    //     key, MMRT_DARMANI_WALL ("Climb Mountain Village Wall Blind" / "Climb the
+    //     Mountain Village wall without Lens of Truth"), which is the key OoTMM
+    //     carves that route out of MM_LENS *for*. Anyone who wants the blind climb
+    //     asks for the blind climb.
+    //
+    // RC_GORON_GRAVEYARD_DARMANI below is under MMRT_LENS, not MMRT_DARMANI_WALL:
+    // the excluded thing is the WALL, and this is the ghost on the other side of
+    // it, which is an ordinary see-the-invisible check.
+    //
+    // Every one of these is a widening, so with both tricks off each condition
+    // evaluates exactly as it did before.
+    // ========================================================================
     Regions[RR_GORON_GRAVEYARD] = RandoRegion{ .sceneId = SCENE_GORON_HAKA,
         .checks = {
-            CHECK(RC_GORON_GRAVEYARD_DARMANI, CAN_PLAY_SONG(HEALING) && HAS_MAGIC && HAS_ITEM(ITEM_LENS_OF_TRUTH))
+            CHECK(RC_GORON_GRAVEYARD_DARMANI, CAN_PLAY_SONG(HEALING) && (MM_TRICK(MMRT_LENS) || (HAS_MAGIC && HAS_ITEM(ITEM_LENS_OF_TRUTH))))
         },
         .exits = { //     TO                                         FROM
             EXIT(ENTRANCE(MOUNTAIN_VILLAGE_WINTER, 3),      ENTRANCE(GORON_GRAVERYARD, 0), true),
@@ -139,14 +164,14 @@ static RegisterShipInitFunc initFunc([]() {
             EXIT(ENTRANCE(GROTTOS, 16),               ENTRANCE(GORON_VILLAGE_WINTER, 3), true)
         },
         .connections = {
-            CONNECTION(RR_GORON_VILLAGE, HAS_MAGIC && HAS_ITEM(ITEM_LENS_OF_TRUTH))
+            CONNECTION(RR_GORON_VILLAGE, MM_TRICK(MMRT_LENS) || (HAS_MAGIC && HAS_ITEM(ITEM_LENS_OF_TRUTH))) // #578 part 2 — MMRT_LENS
         }
     };
     Regions[RR_LONE_PEAK_SHRINE] = RandoRegion{ .name = "Lone Peak", .sceneId = SCENE_KAKUSIANA,
         // Lone Peak Shrine behaves differently from Grottos despite sharing a map. Seems okay to add here.
         .checks = {
             CHECK(RC_LONE_PEAK_SHRINE_BOULDER_CHEST, CAN_USE_EXPLOSIVE),
-            CHECK(RC_LONE_PEAK_SHRINE_INVISIBLE_CHEST, HAS_ITEM(ITEM_LENS_OF_TRUTH) && HAS_MAGIC),
+            CHECK(RC_LONE_PEAK_SHRINE_INVISIBLE_CHEST, MM_TRICK(MMRT_LENS) || (HAS_ITEM(ITEM_LENS_OF_TRUTH) && HAS_MAGIC)), // #578 part 2 — MMRT_LENS
             CHECK(RC_LONE_PEAK_SHRINE_LENS_CHEST, true),
             CHECK(RC_LONE_PEAK_SHRINE_GRASS_01, true),
             CHECK(RC_LONE_PEAK_SHRINE_GRASS_02, true),
@@ -219,7 +244,7 @@ static RegisterShipInitFunc initFunc([]() {
             CHECK(RC_MOUNTAIN_VILLAGE_DON_GERO_MASK,                RANDO_EVENTS[RE_SPAWN_SIRLOIN]), // TODO: For entrance rando we need to find a way to ensure the Rock Sirloin can be "walked" here
             CHECK(RC_MOUNTAIN_VILLAGE_FROG_CHOIR,                   HAS_ITEM(ITEM_MASK_DON_GERO) && RANDO_EVENTS[RE_CLEARED_SNOWHEAD_TEMPLE] && FOUND_ALL_FROGS),
             CHECK(RC_MOUNTAIN_VILLAGE_OWL_STATUE,                   CAN_USE_SWORD),
-            CHECK(RC_MOUNTAIN_VILLAGE_WATERFALL_CHEST,              RANDO_EVENTS[RE_CLEARED_SNOWHEAD_TEMPLE] && HAS_ITEM(ITEM_LENS_OF_TRUTH) && HAS_MAGIC),
+            CHECK(RC_MOUNTAIN_VILLAGE_WATERFALL_CHEST,              RANDO_EVENTS[RE_CLEARED_SNOWHEAD_TEMPLE] && (MM_TRICK(MMRT_LENS) || (HAS_ITEM(ITEM_LENS_OF_TRUTH) && HAS_MAGIC))), // #578 part 2 — MMRT_LENS
             CHECK(RC_MOUNTAIN_VILLAGE_WINTER_POT,                   CAN_HOOK_SCARECROW),
             CHECK(RC_MOUNTAIN_VILLAGE_SPRING_POT,                   CAN_HOOK_SCARECROW && RANDO_EVENTS[RE_CLEARED_SNOWHEAD_TEMPLE]),
             CHECK(RC_MOUNTAIN_VILLAGE_SPRING_FREESTANDING_RUPEE_01, CAN_BE_GORON && RANDO_EVENTS[RE_CLEARED_SNOWHEAD_TEMPLE]),
@@ -267,8 +292,8 @@ static RegisterShipInitFunc initFunc([]() {
             CHECK(RC_MOUNTAIN_VILLAGE_SMALL_SNOWBALL_07, true),
             CHECK(RC_MOUNTAIN_VILLAGE_SMALL_SNOWBALL_08, true),
             CHECK(RC_MOUNTAIN_VILLAGE_SMALL_SNOWBALL_09, true),
-            CHECK(RC_MOUNTAIN_VILLAGE_SMALL_SNOWBALL_10, HAS_ITEM(ITEM_LENS_OF_TRUTH) && HAS_MAGIC),
-            CHECK(RC_MOUNTAIN_VILLAGE_SMALL_SNOWBALL_11, HAS_ITEM(ITEM_LENS_OF_TRUTH) && HAS_MAGIC),
+            CHECK(RC_MOUNTAIN_VILLAGE_SMALL_SNOWBALL_10, MM_TRICK(MMRT_LENS) || (HAS_ITEM(ITEM_LENS_OF_TRUTH) && HAS_MAGIC)), // #578 part 2 — MMRT_LENS
+            CHECK(RC_MOUNTAIN_VILLAGE_SMALL_SNOWBALL_11, MM_TRICK(MMRT_LENS) || (HAS_ITEM(ITEM_LENS_OF_TRUTH) && HAS_MAGIC)), // #578 part 2 — MMRT_LENS
             CHECK(RC_ENEMY_DROP_GUAY, RANDO_EVENTS[RE_CLEARED_SNOWHEAD_TEMPLE] && CanKillEnemy(ACTOR_EN_CROW)),
             CHECK(RC_ENEMY_DROP_GIANT_BEE, CanKillEnemy(ACTOR_EN_BEE) && RANDO_EVENTS[RE_CLEARED_SNOWHEAD_TEMPLE]),
             CHECK(RC_ENEMY_DROP_BOE, CanKillEnemy(ACTOR_EN_MKK) && RANDO_EVENTS[RE_CLEARED_SNOWHEAD_TEMPLE]),
@@ -279,7 +304,8 @@ static RegisterShipInitFunc initFunc([]() {
             EXIT(ENTRANCE(MOUNTAIN_SMITHY, 0),              ENTRANCE(MOUNTAIN_VILLAGE_WINTER, 1), true),
             EXIT(ENTRANCE(PATH_TO_GORON_VILLAGE_WINTER, 0), ENTRANCE(MOUNTAIN_VILLAGE_WINTER, 2), true),
             // TODO: When it's spring you need goron mask or zora mask instead?
-            EXIT(ENTRANCE(GORON_GRAVERYARD, 0),             ENTRANCE(MOUNTAIN_VILLAGE_WINTER, 3), HAS_ITEM(ITEM_LENS_OF_TRUTH) && HAS_MAGIC),
+            // #578 part 2 — MMRT_DARMANI_WALL, not MMRT_LENS (see this file's header note).
+            EXIT(ENTRANCE(GORON_GRAVERYARD, 0),             ENTRANCE(MOUNTAIN_VILLAGE_WINTER, 3), MM_TRICK(MMRT_DARMANI_WALL) || (HAS_ITEM(ITEM_LENS_OF_TRUTH) && HAS_MAGIC)),
             EXIT(ENTRANCE(PATH_TO_SNOWHEAD, 0),             ENTRANCE(MOUNTAIN_VILLAGE_WINTER, 4), true),
             EXIT(ENTRANCE(PATH_TO_MOUNTAIN_VILLAGE, 1),     ENTRANCE(MOUNTAIN_VILLAGE_WINTER, 6), true),
         },
@@ -465,7 +491,7 @@ static RegisterShipInitFunc initFunc([]() {
     };
     Regions[RR_PATH_TO_SNOWHEAD_MIDDLE] = RandoRegion{ .sceneId = SCENE_14YUKIDAMANOMITI,
         .checks = {
-            CHECK(RC_PATH_TO_SNOWHEAD_PIECE_OF_HEART, HAS_ITEM(ITEM_LENS_OF_TRUTH) && HAS_MAGIC && CAN_HOOK_SCARECROW),
+            CHECK(RC_PATH_TO_SNOWHEAD_PIECE_OF_HEART, (MM_TRICK(MMRT_LENS) || (HAS_ITEM(ITEM_LENS_OF_TRUTH) && HAS_MAGIC)) && CAN_HOOK_SCARECROW), // #578 part 2 — MMRT_LENS
             CHECK(RC_PATH_TO_SNOWHEAD_LARGE_SNOWBALL_01, CanKillEnemy(ACTOR_OBJ_SNOWBALL)),
             CHECK(RC_PATH_TO_SNOWHEAD_LARGE_SNOWBALL_02, CanKillEnemy(ACTOR_OBJ_SNOWBALL)),
             CHECK(RC_ENEMY_DROP_KEESE, CanKillEnemy(ACTOR_EN_FIREFLY)),

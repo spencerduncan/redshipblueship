@@ -114,3 +114,4 @@ games/oot/soh/oot_entrance_pin_test.cpp
 games/oot/soh/SohGui/SohMenuComboMmEnhancements.cpp
 games/oot/soh/soh_menu_mm_enhancements_test.cpp
 games/mm/2s2h/mm_enhancement_toggles_test.cpp
+games/mm/2s2h/mm_trick_bindings_test.cpp

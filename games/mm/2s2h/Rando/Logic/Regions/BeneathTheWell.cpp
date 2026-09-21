@@ -118,7 +118,9 @@ static RegisterShipInitFunc initFunc([]() {
     };
     Regions[RR_BENEATH_THE_WELL_LEFT_FIRE_KEESE] = RandoRegion{ .name = "Left Fire Keese Room", .sceneId = SCENE_REDEAD,
         .checks = {
-            CHECK(RC_BENEATH_THE_WELL_KEESE_CHEST, HAS_ITEM(ITEM_LENS_OF_TRUTH) && HAS_MAGIC),
+            // #578 part 2 — MMRT_LENS ("Fewer Lens Requirements (MM)"), default off. North.cpp's
+            // header note carries the rationale and names the two sites the trick excludes.
+            CHECK(RC_BENEATH_THE_WELL_KEESE_CHEST, MM_TRICK(MMRT_LENS) || (HAS_ITEM(ITEM_LENS_OF_TRUTH) && HAS_MAGIC)),
             CHECK(RC_ENEMY_DROP_KEESE, CanKillEnemy(ACTOR_EN_FIREFLY)),
             CHECK(RC_ENEMY_DROP_WALLMASTER, CanKillEnemy(ACTOR_EN_WALLMAS)),
         },

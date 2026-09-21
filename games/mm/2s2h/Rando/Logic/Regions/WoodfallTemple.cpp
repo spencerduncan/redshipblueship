@@ -143,6 +143,10 @@ static RegisterShipInitFunc initFunc([]() {
         .checks = {
             CHECK(RC_WOODFALL_TEMPLE_MAZE_POT_01, true),
             CHECK(RC_WOODFALL_TEMPLE_MAZE_POT_02, true),
+            // #578 part 2 — no gate added here, and the TODO stays as the record of why: its own
+            // second clause says a bomb breaks this hive from above with no trick, and
+            // CAN_USE_EXPLOSIVE already admits Bombchu, so an MMRT_HIVE_BOMBCHU disjunct would be
+            // vacuous — it could never change this check's verdict either way.
             // TODO: Trick for bombs & chus here - Doesn't need a trick. Bomb can break it from above
             CHECK(RC_WOODFALL_TEMPLE_SF_MAZE_BEEHIVE, CAN_USE_PROJECTILE ||  CAN_USE_EXPLOSIVE),
             // TODO: Maybe add a health check here later
@@ -199,8 +203,15 @@ static RegisterShipInitFunc initFunc([]() {
         .checks = {
             CHECK(RC_WOODFALL_TEMPLE_WATER_CHEST, CAN_BE_DEKU || HAS_ITEM(ITEM_HOOKSHOT)),
             CHECK(RC_WOODFALL_TEMPLE_SF_WATER_ROOM_BEEHIVE, (
-                // Can they break it, leaving the fairy up high? // TODO: Trick for bombs & chus here
+                // Can they break it, leaving the fairy up high?
                 ((HAS_ITEM(ITEM_HOOKSHOT) || CAN_BE_ZORA) && HAS_ITEM(ITEM_MASK_GREAT_FAIRY)) ||
+                // #578 part 2 — MMRT_HIVE_BOMBCHU, DEFAULT OFF, answering the TODO's "chus" half.
+                // OoTMM's "Destroy Beehives using Bombchu (MM)" ("Use some careful timing with a
+                // Bombchu to blow up the beehives across Termina"). The Great Fairy Mask is kept as
+                // a CONJUNCT here and not in the Pirates' Fortress binding, because of the question
+                // the line above asks: a chu breaks this hive from across the room, which leaves the
+                // fairy up high, so the mask is what collects it.
+                (MM_TRICK(MMRT_HIVE_BOMBCHU) && HAS_ITEM(ITEM_BOMBCHU) && HAS_ITEM(ITEM_MASK_GREAT_FAIRY)) ||
                 // Can they break it, making it drop into the water? --- Only if you make the item drop if not it will float
                 (HAS_ITEM(ITEM_BOW) || (CAN_BE_DEKU && HAS_MAGIC))
             )),
