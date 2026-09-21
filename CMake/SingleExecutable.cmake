@@ -1481,12 +1481,16 @@ if(BUILD_TESTING)
     # the regen loop below reads all of 1, 2, 3, 4 and 5, and a field added here
     # must be wired into both consumers in the same commit.
     #
-    # WHERE THESE ROWS ARE ACTUALLY ENFORCED: on the LINUX CI leg only. `LABEL
-    # rando` puts them in the Linux-only tier (the rows bring up a Fast3dWindow;
-    # Linux CI has xvfb-run, a hosted Windows runner has no equivalent and runs
-    # `^redship$` alone), and the two archive-sensitive rows additionally SKIP in a
-    # ROM-staged local tree. One automated gate, no Windows gate: see the header of
-    # CMake/CheckGoldenDigest.cmake and docs/determinism-goldens.md.
+    # WHERE THESE ROWS ARE ACTUALLY ENFORCED: on BOTH CI legs, and `LABEL rando` is
+    # only half of how. Linux runs them inside the `rando` tier under xvfb-run. The
+    # Windows job runs `^redship$` and would therefore skip them entirely, so it
+    # carries a separate `--tests-regex '^Golden'` step — measured to work on
+    # windows-latest, against the expectation that a hosted runner could not bring up
+    # the Fast3dWindow these rows need. The two archive-sensitive rows additionally
+    # SKIP in a ROM-staged local tree, so there is no LOCAL gate for them. If you add
+    # a golden row, it lands in the Linux tier automatically and on Windows only
+    # because its name starts with `Golden` — keep that prefix. Full picture: the
+    # header of CMake/CheckGoldenDigest.cmake and docs/determinism-goldens.md.
     #
     # THE ARCHIVE SET IS PART OF THE PIN, and field 4 says which goldens depend on
     # it. MEASURED, not assumed: with the ROM-derived oot.o2r mounted,

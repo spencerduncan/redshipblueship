@@ -56,19 +56,23 @@
 # Windows golden passed unchanged on archive-free Linux CI), so its row carries no
 # such guard.
 #
-# WHICH GATE ACTUALLY RUNS THESE ROWS — exactly ONE, the LINUX CI leg. Stated here
-# because this file used to claim "every PR's Linux and Windows CI legs", and that
-# was never true. All three golden rows carry `LABEL rando`, and the `rando` tier is
-# Linux-only: its rows bring up a Fast3dWindow, which Linux CI gets from xvfb-run
-# and a hosted Windows runner has no equivalent of. The Windows job runs
-# `ctest --label-regex '^redship$'` and therefore never evaluates a golden
-# (.github/workflows/generate-builds.yml). Together with the SKIP above that means
-# the two seed rows are enforced on exactly ONE automated gate and are NOT enforced
-# in the operator's ROM-staged local run. So: do not write "the CI legs" (plural)
-# about these rows, and do not assume a Windows/MSVC-only regression in a pinned
-# world would be caught automatically — it would not. What that costs the
-# portability claim, and the re-pin rule that keeps the claim alive, are in
-# docs/determinism-goldens.md ("Platform portability").
+# WHICH GATES ACTUALLY RUN THESE ROWS — the Linux CI leg and the Windows CI leg,
+# and the wording here is careful because it was wrong once in each direction. The
+# original text claimed "every PR's Linux and Windows CI legs" while only Linux ran
+# them: all three rows carry `LABEL rando`, and the Windows job runs
+# `ctest --label-regex '^redship$'`. The obvious correction was to write down that
+# Windows CANNOT run them, on the reasoning that every `rando` row brings up a
+# Fast3dWindow and a hosted runner's OpenGL is the GDI generic 1.1 implementation.
+# That reasoning was never measured, and it is wrong: the three rows run and pass on
+# windows-latest in 5.4s (run 35648094332, job 106493621321). So the Windows job now
+# carries a `--tests-regex '^Golden'` step and both legs check the SAME committed
+# bytes, which is what makes cross-platform agreement a thing CI re-verifies rather
+# than folklore (docs/determinism-goldens.md, "Platform portability").
+#
+# Still true and still worth knowing: the rows are selected by NAME on Windows, not
+# by label — the `rando` tier as a whole remains untried there — and the two
+# archive-sensitive rows are NOT enforced in the operator's ROM-staged local run
+# (see the SKIP above). Two CI gates, no local gate.
 #
 # Usage (see the rows in CMake/SingleExecutable.cmake):
 #   cmake -DREDSHIP_EXE=<redship> -DWORK_DIR=<dir> -DDISPATCH=rando-determinism
@@ -150,9 +154,10 @@ if(SKIP_IF_ROM_ARCHIVES)
                 "exclude-location option groups drop out of the settings string Playthrough_Init hashes, the fill is "
                 "re-seeded differently, and this run generates a DIFFERENT, unpinned world — so comparing it to the "
                 "golden would report a move that did not happen.\n"
-                "  This row is enforced on every PR by the archive-free LINUX CI leg — the only leg that runs the "
-                "`rando` tier, and therefore the ONLY automated gate that evaluates it. To run it here, move oot.o2r "
-                "and mm.o2r out of ${WORK_DIR} first. See docs/determinism-goldens.md.")
+                "  This row IS enforced on every PR, by both archive-free CI legs: Linux runs it as part of the "
+                "`rando` tier under xvfb-run, and Windows runs it by name in its own `--tests-regex '^Golden'` step. "
+                "It is not enforced HERE, in a ROM-staged tree. To run it here, move oot.o2r and mm.o2r out of "
+                "${WORK_DIR} first. See docs/determinism-goldens.md.")
             return()
         endif()
     endif()

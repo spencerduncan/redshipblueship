@@ -108,11 +108,10 @@ build would turn the oracle back into a no-op.
 4. Re-pinning is a save-invalidating act in spirit: a player generating the same
    seed before and after gets different worlds. Say so in the PR body, as the
    pre-release save policy in `.claude/worker-prompts.md` requires.
-5. **Re-pin on Windows**, because the committed bytes being Windows-generated is the
-   only thing that makes the Linux CI leg a cross-platform check (see "Platform
-   portability"). No automated gate compares MSVC output to a stored world. If you
-   re-pin on Linux instead, say so in the commit body and state that the portability
-   property is unchecked until somebody re-pins on Windows.
+5. Re-pin on **either** platform. Both CI legs check the same committed bytes (see
+   "Which gate runs these rows"), so a re-pin on Linux and a re-pin on Windows are
+   equally verifiable and a divergence between the two toolchains turns one leg red
+   rather than passing unnoticed.
 
 ## The archive set is part of the pin
 
@@ -136,9 +135,9 @@ Consequences you will actually hit:
   `GoldenSeedDigestProfileV1`**, printing the reason. That is deliberate. A red row
   there would claim "you moved the world" when nothing moved, and a permanently red
   row in the local merge gate is worse than no row. To exercise them locally, move
-  `oot.o2r` and `mm.o2r` out of `build-cmake` and re-run. Combined with
-  "Which gate runs these rows" below, this means the two seed rows are enforced on
-  exactly one gate — the Linux CI leg — and on nothing else.
+  `oot.o2r` and `mm.o2r` out of `build-cmake` and re-run. So the two seed rows are
+  enforced by CI (both legs — see "Which gate runs these rows") and by a local
+  archive-free run, and by nothing in the operator's normal ROM-staged merge gate.
 * **`GoldenPairedAttemptDigest` is archive-insensitive and is enforced
   everywhere** — measured: a golden regenerated with ROM archives staged and one
   regenerated without them are byte-identical, and the ROM-staged file passed
@@ -161,28 +160,35 @@ the skip. It is not the goldens' job to hide it.
 
 ## Which gate runs these rows
 
-Exactly one: the **Linux CI leg**. This is written down because the first version of
-this machinery claimed "the Linux and Windows CI legs" and that was never true.
+Two CI legs, and the answer was measured rather than reasoned about — the first
+version of this machinery claimed "the Linux and Windows CI legs" while only Linux
+ran them, and the correction very nearly went the other way, into a doc explaining
+why Windows *could not*.
 
-| Gate | Runs the golden rows? | Why |
+| Gate | Runs the golden rows? | How |
 |---|---|---|
-| Linux CI (`build-linux`) | **yes**, all three | runs `ctest --label-regex '^rando$'` under `xvfb-run` |
-| Windows CI (`build-windows`) | **no** | runs `ctest --label-regex '^redship$'` only; the `rando` rows bring up a Fast3dWindow and a hosted Windows runner has no `xvfb-run` equivalent |
+| Linux CI (`build-linux`) | **yes**, all three | `ctest --label-regex '^rando$'` under `xvfb-run` |
+| Windows CI (`build-windows`) | **yes**, all three | a dedicated `--tests-regex '^Golden'` step; the `redship` label step does not include them |
 | Operator's local ROM-staged run | `GoldenPairedAttemptDigest` only | the two seed rows skip — see "The archive set is part of the pin" |
 | Operator's local archive-free run | **yes**, all three | this is how the goldens are generated and re-pinned |
 
-Consequences to keep in mind rather than rediscover:
+The Windows step exists because the golden rows carry `LABEL rando` and that job runs
+the `redship` label only, so for one PR they were enforced on exactly one gate. The
+expectation was that Windows *could not* run them: the `rando` rows bring up a
+Fast3dWindow, and a hosted `windows-latest` runner's OpenGL was assumed to be the GDI
+generic 1.1 implementation. **Measured instead of assumed, and the assumption was
+wrong** — 3/3 passed in 5.4 s on `windows-latest` (run 35648094332, job 106493621321).
 
-* A regression that moved a pinned world **only on MSVC** would not be caught by any
-  automated gate. Windows output is compared against a stored world only when
-  somebody re-pins on Windows, or runs the `rando` tier locally archive-free.
-* The three rows are one Linux job away from being unenforced. If that job's `rando`
-  step is ever narrowed, narrow it explicitly and say so here.
-* Whether the golden rows *could* run on a hosted Windows runner is being
-  **measured, not assumed** — the Windows job carries a `Probe whether the golden
-  rows can run on Windows CI` step whose only job is to answer that. The answer and
-  its evidence land in this bullet; until then, treat "Windows cannot run them" as
-  an expectation about the runner's OpenGL, not a finding.
+Things to keep in view rather than rediscover:
+
+* The rows are selected **by name**, not by label. The `rando` tier as a whole is
+  still Linux-only; only these three are known to run on a hosted Windows runner. Do
+  not widen the step to `--label-regex rando` without measuring it.
+* Both legs check the **same committed bytes**, which is what makes "MSVC and GCC
+  generate the same world for the same seed" a property CI re-verifies on every PR
+  rather than a measurement somebody took once. See "Platform portability".
+* The two seed rows are still **not** enforced in a ROM-staged local run. The
+  operator's local merge gate skips them; CI is where they bite.
 
 ## Platform portability
 
@@ -204,24 +210,18 @@ field for field (`settingsHash` 01CBE129, `placementHash` 98F07849, `foreignOoTH
 9362087A, `comboSettingsHash` EAF43DC3, and every per-slot line), so the variable
 was the archive set, not the platform. Windows and Linux agree.
 
-**How live that measurement stays, precisely.** The committed goldens are
-Windows-generated bytes and the Linux CI leg checks *those same bytes*, so while
-that holds, the Linux `rando` tier passing is also a cross-platform statement. It
-holds only as long as every re-pin is generated on Windows. Nothing enforces that,
-and a golden re-pinned on Linux would make the Linux leg check Linux-generated bytes
-— still a valid stability oracle, but no longer a portability statement, and nothing
-would detect the change of meaning (see "Which gate runs these rows": the Windows
-job never evaluates a golden).
-
-So the rule is explicit, and it is rule 5 of the re-pin policy above:
-
-> **Re-pin on Windows.** If you re-pin on Linux, say so in the commit body and state
-> that the cross-platform property is no longer being checked by CI until somebody
-> re-pins on Windows or runs the archive-free `rando` tier on Windows and reports it.
+**The measurement is re-taken on every PR, not remembered.** Both CI legs compare the
+**same committed golden bytes** — Linux/GCC under `xvfb-run`, Windows/MSVC in its own
+`--tests-regex '^Golden'` step — so "MSVC and GCC produce the same world for the same
+seed" is a property CI would go red about, on whichever leg diverged. That is why the
+Windows step exists and why it must not be dropped: without it the property reverts to
+folklore, and a golden re-pinned on one platform would silently stop saying anything
+about the other. It also means a re-pin from **either** platform is fine, which is the
+opposite of the rule this page briefly carried when only Linux ran the rows.
 
 Every golden row prints its full digest before comparing, and the Linux job cats the
-digest artifacts in every run, pass or fail, so the Linux world can always be read
-off a log and compared by hand against a Windows run.
+digest artifacts in every run, pass or fail, so both platforms' worlds can be read off
+their logs directly.
 
 Portability also has a mechanism behind it, which is why it was worth measuring
 rather than assuming. The fill's randomness is `ShipUtils::next32` — a PCG-style
@@ -253,6 +253,11 @@ set is part of the pin"). Use `OFF` only when you have measured that the digest 
 identical with and without the ROM archives. A five-field line aborts configure at
 `list(GET _golden_fields 5 ...)` with `list index: 5 out of range`; both consumers
 read all six.
+
+**Name the row `Golden...`.** The `LABEL rando` the loop applies gets it run on Linux
+CI automatically, but the Windows leg selects these rows by `--tests-regex '^Golden'`,
+so a row named anything else is silently enforced on one leg only — the exact gap this
+page's "Which gate runs these rows" section exists to close.
 
 Then run the regen target and commit the new file. The dispatch must write its
 digest to the named environment variable's path and must emit one `key=value` per

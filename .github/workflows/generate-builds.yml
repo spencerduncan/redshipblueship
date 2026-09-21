@@ -654,9 +654,12 @@ jobs:
     # local ctest runs were the de facto Windows gate. The tier needs no
     # display, no ROM and no GPU (rows that need extracted archives or
     # redship.o2r self-skip with exit 77, exactly as on Linux). The `rando`
-    # tier is NOT run here: its rows bring up a Fast3dWindow (xvfb-run on
-    # Linux) and a hosted Windows runner has no equivalent; it stays
-    # Linux-only.
+    # tier is NOT run here as a tier: its rows bring up a Fast3dWindow (xvfb-run
+    # on Linux), which this comment used to assert a hosted Windows runner has no
+    # equivalent of. That assertion was never measured and is now known to be at
+    # least partly wrong — the three `Golden*` rando rows DO run here, see the
+    # next step. What remains true is that the tier as a whole has not been tried;
+    # the untested part is the claim, not a fact.
     #
     # ctest is resolved next to the cmake.exe the configure step already
     # used (same install, same version) rather than trusting a second PATH
@@ -667,18 +670,29 @@ jobs:
         $ctest = Join-Path (Split-Path -Parent (Get-Command cmake).Source) 'ctest.exe'
         & $ctest --version
         & $ctest --test-dir bw --output-on-failure --label-regex '^redship$' --no-tests=error
-    # MEASUREMENT, not a gate (#688 review). The three golden rows carry LABEL
-    # rando, so the step above never evaluates one and the Linux leg is the only
-    # automated gate for a moved world — which also means an MSVC-only regression in
-    # a pinned world is caught by nothing. Before writing that down as permanent, we
-    # find out whether a hosted windows-latest runner can run them at all: they need
-    # the Fast3dWindow bring-up every rando row performs, and a hosted runner's
-    # OpenGL is expected to be the GDI generic 1.1 implementation. This step is here
-    # to turn that expectation into an observation. If the rows pass, they become a
-    # second real gate and this comment becomes a gate description; if they cannot
-    # run, the step goes away and docs/determinism-goldens.md records the failure
-    # output it produced.
-    - name: Probe whether the golden rows can run on Windows CI (#688)
+    # THE GOLDEN ROWS, ON MSVC (#688 and its review). The step above runs the
+    # `redship` label, which does not include them: all three carry LABEL rando.
+    # Without this step the Linux leg would be the ONLY automated gate that can fail
+    # on a moved world, and an MSVC-only regression in a pinned world would be caught
+    # by nothing — while the goldens' whole cross-platform claim rests on the
+    # committed (Windows-generated) bytes also reproducing on GCC.
+    #
+    # Selected by name rather than by label, and that is the point: the `rando` tier
+    # as a whole is still Linux-only (see the note above), but these three rows were
+    # MEASURED to run here. The expectation was that they could not — a hosted
+    # windows-latest runner's OpenGL was assumed to be the GDI generic 1.1
+    # implementation, too old for the Fast3dWindow bring-up every rando row performs.
+    # A probe step said otherwise: 3/3 passed in 5.4s on windows-latest
+    # (run 35648094332, job 106493621321). So the rows are a gate here, not a note in
+    # a doc about why they cannot be. Whether the REST of the rando tier also runs on
+    # this runner is untested and tracked separately; do not widen this to
+    # `--label-regex rando` without measuring it.
+    #
+    # Consequence worth keeping in view: this leg and the Linux leg check the SAME
+    # committed bytes, so "MSVC and GCC generate the same world for the same seed" is
+    # now a property CI re-verifies on every PR rather than a measurement somebody
+    # took once (docs/determinism-goldens.md, "Platform portability").
+    - name: Run the golden determinism rows (Windows/MSVC) (#688)
       run: |
         $ctest = Join-Path (Split-Path -Parent (Get-Command cmake).Source) 'ctest.exe'
         & $ctest --test-dir bw --output-on-failure --tests-regex '^Golden' --no-tests=error

@@ -135,9 +135,10 @@ are the reasoning behind them.
   (`cmake --build <dir> --target regen-golden-digests`) in its own commit stating
   which fields moved and why; if it is not, a red golden row is the bug report.
   Two things the rows do NOT give you: the two seed rows **skip** in a ROM-staged
-  local run and run on the **Linux CI leg only** (the Windows job runs `^redship$`),
-  so a golden is never checked automatically on MSVC; and they pin the archive-free
-  world, not a player's (#702). Full policy: `docs/determinism-goldens.md`.
+  local run, so your local merge gate does not check them (both CI legs do — Linux
+  in the `rando` tier, Windows in its own `^Golden` step); and they pin the
+  archive-free world, not a player's (#702). Full policy:
+  `docs/determinism-goldens.md`.
 - This project is pre-release: invalidating an existing save to land a fix is
   acceptable and does not need product sign-off, but every PR that invalidates a
   save format or a paired file's identity must say so explicitly in its body.
