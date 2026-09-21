@@ -110,11 +110,13 @@ tests/golden/<name>.<host-system>.txt   # Windows / Linux / Darwin
 tests/golden/<name>.txt                 # portable — the normal case
 ```
 
-Only portable files exist today: the same seed produces the same digest on
-Windows (MSVC) and Linux (GCC). That is a *measured* claim — the goldens were
-generated on a Windows workstation and the Linux CI leg checks those same files —
-and it stays answerable at any time from two logs, because every golden row prints
-its full digest to the CTest log before comparing.
+Only portable files exist today, and the measurement is built into the setup
+rather than asserted beside it: the committed goldens were generated on a Windows
+workstation (MSVC) and the Linux CI leg (GCC) checks *those same bytes*, so the
+Linux `rando` tier passing on these files **is** the statement that both platforms
+produce the same world for the same seed. Every golden row also prints its full
+digest before comparing, and the Linux job cats the digest artifacts in every run,
+pass or fail, so the two platforms' worlds can always be read off two logs.
 
 It is also a claim with a mechanism behind it, which is why it was worth
 measuring rather than assuming. The fill's randomness is `ShipUtils::next32` (a
