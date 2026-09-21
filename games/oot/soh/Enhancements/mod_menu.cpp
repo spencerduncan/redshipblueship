@@ -142,6 +142,23 @@ void UpdateModFiles(bool init = false, bool reset = false) {
                 if (p.is_directory()) {
                     continue;
                 }
+#ifdef RSBS_SINGLE_EXECUTABLE
+                // #670: the one mods/ tree is shared with MM, because
+                // LocateFileAcrossAppDirs's appName argument is inert in a
+                // portable build and both games resolve "mods" to ./mods. MM's
+                // mods live in mods/mm and are mounted by
+                // MountMMModArchives (games/mm/2s2h/GameExports_SingleExe.cpp).
+                // Picking them up here would mount them a second time AND list
+                // them in OoT's enabled set, so the #593 switch-time re-apply
+                // would stack MM's mods over OoT's base archives on every OoT
+                // arrival — a cross-game shadowing that survives the switch.
+                // OoT keeps every other path in the tree, so this skip is the
+                // only change to OoT's behaviour, over a subdirectory that had
+                // no meaning before #670.
+                if (!Combo_ModPathIsForGame(GAME_OOT, modsPath.c_str(), p.path().generic_string().c_str())) {
+                    continue;
+                }
+#endif
                 std::string filename =
                     p.path().filename().generic_string().substr(0, p.path().filename().generic_string().rfind("."));
                 std::string extension = p.path().extension().generic_string();

@@ -37,16 +37,77 @@
  *     known path keeps its ORIGINAL position, because relative mod precedence
  *     is user-visible (OoT's mod menu reorders it deliberately).
  *   - The registry records paths only. It never mounts anything itself.
+ *
+ * ---------------------------------------------------------------------------
+ * The shared mods/ tree (issue #670)
+ * ---------------------------------------------------------------------------
+ *
+ * Both ports look their mods folder up with
+ * `Ship::Context::LocateFileAcrossAppDirs("mods", <appShortName>)` — "soh" for
+ * OoT, "2s2h" for MM. In a PORTABLE build (`NON_PORTABLE=OFF`, which is what
+ * this project configures and what every release ships)
+ * `Context::GetAppDirectoryPath(appName)` ignores its appName argument entirely
+ * and returns "." (libultraship/src/ship/Context.cpp), so BOTH lookups resolve
+ * to the SAME `./mods` directory. The per-app-name separation upstream relies on
+ * exists only in non-portable builds.
+ *
+ * That collapse is why MM cannot simply re-use upstream BenPort's glob: it would
+ * mount every OoT mod a second time and register it under GAME_MM, and the
+ * switch-time re-apply above would then stack OoT's mods on top of MM's base
+ * archives on every arrival in MM — a cross-game shadowing that SURVIVES the
+ * switch, which is strictly worse than the bug being fixed.
+ *
+ * So the one shared `mods/` tree is partitioned by subdirectory, and the
+ * partition is asymmetric on purpose:
+ *
+ *   - MM's mods are the ones under `mods/mm/` (at any depth).
+ *   - OoT's mods are everything else: the root and any other subfolder. OoT
+ *     keeps the root because existing installs and every upstream SoH mod
+ *     distribution already put archives there; the only behavioural change on
+ *     OoT's side is that it now skips `mods/mm/`, a path that had no meaning
+ *     before this issue, so no existing install can depend on it.
+ *
+ * Combo_ModPathIsForGame is the single definition of that split, used by BOTH
+ * globs (games/oot/soh/Enhancements/mod_menu.cpp and
+ * games/mm/2s2h/GameExports_SingleExe.cpp), so the two can never disagree about
+ * who owns a file. Total and disjoint by construction: for any path, exactly one
+ * of the two games claims it.
  */
 
 #ifndef RSBS_MOD_ARCHIVES_H
 #define RSBS_MOD_ARCHIVES_H
 
-#include "game.h"
+#include "game.h" /* GameId; also pulls stdbool.h for the bool return below */
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/**
+ * Subdirectory of the shared mods/ tree that holds @p game's mod archives,
+ * relative to the mods root: "" for OoT (the root itself) and "mm" for MM.
+ * Never NULL; "" for an unknown game.
+ */
+const char* Combo_ModsSubdirForGame(GameId game);
+
+/**
+ * Does the mod file at @p path belong to @p game?
+ *
+ * @param modsRoot the mods directory both games glob, as
+ *                 LocateFileAcrossAppDirs returned it (e.g. "./mods").
+ * @param path     a file path yielded by iterating @p modsRoot.
+ *
+ * GAME_MM is true exactly when @p path is under `<modsRoot>/mm` at any depth,
+ * matched case-insensitively — the reserved folder name must not depend on how
+ * the player typed it. GAME_OOT is the exact complement, so the two partition
+ * every path between them with no gap and no overlap. False for an unknown
+ * game, and false for both games on a NULL/empty argument.
+ *
+ * Path-shaped, not filesystem-shaped: it compares lexically normalized paths and
+ * never touches the disk, so it gives the same answer for a file that has since
+ * been deleted and is safe to call from inside a directory-iteration loop.
+ */
+bool Combo_ModPathIsForGame(GameId game, const char* modsRoot, const char* path);
 
 /**
  * Record that @p game mounted the mod archive at @p path.

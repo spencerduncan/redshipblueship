@@ -19,16 +19,21 @@
 
 #ifdef RSBS_SINGLE_EXECUTABLE
 
-#include <cstddef>     // offsetof for the #395 layout facts; ptrdiff_t
+#include <algorithm> // std::sort / std::lexicographical_compare for the #670 mod order
+#include <cstddef>   // offsetof for the #395 layout facts; ptrdiff_t
 #include <type_traits> // std::is_same_v for the #470 payload-divergence premise
+#include <cctype>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <cassert>
 #include <filesystem>
+#include <fstream> // #670: the mods/mm first-run marker file
 #include <string>
+#include <vector>
 
 #include <ship/Context.h>
+#include <ship/utils/StringHelper.h> // #670: IEquals for mod-archive extensions
 #include <ship/window/Window.h>
 
 #include "game_lifecycle.h"
@@ -37,6 +42,9 @@
 #include "save.h" // RsbsSave_* — MM's redship-native unified-save capture
 #include "shared_items.h"
 #include "shared_resources.h" // Shared cross-game rupees/hearts (#525)
+// #670: the per-game mod-archive registry (#593) plus the shared mods/ tree
+// partition. MM's mod mount feeds the first and obeys the second.
+#include "mod_archives.h"
 // Paired-world keying + placement-table accessors (#439 switch-entry
 // activation logs the placement count at the pairing decision point).
 #include "foreign_items.h"
@@ -855,8 +863,197 @@ extern "C" void MM_IntegrationGameplayFrameTick(void) {
     IntegrationTest_SetGameplayPhase(GP_PHASE_OOT_RETURN);
 }
 
+// ============================================================================
+// MM's mods/ mount (#670)
+// ============================================================================
+// In single-exe builds MM mounted NO mod archives at all. Its whole mod-mount
+// sequence lives in games/mm/2s2h/BenPort.cpp (InitOTR), which
+// games/mm/CMakeLists.txt EXCLUDES from this build
+// (`list(FILTER ship__ EXCLUDE REGEX "2s2h/BenPort\\.cpp$")`), and nothing
+// replaced it — LoadMMArchives() below mounted mm.o2r and 2ship.o2r and stopped.
+// So no MM mod, HD texture pack or alt/ asset could apply, #593's switch-time
+// re-apply loop was a permanent no-op for GAME_MM
+// (Combo_GetModArchiveCount(GAME_MM) was always 0), and MM's two
+// ResourceMgr_FileExists consumers (MM_GfxPrint_HasArchiveTexture, the split
+// PlayerCustomFlipbooks frame names) could only ever read false, because the
+// paths they want are override-only by design.
+//
+// This is BenPort's block re-homed, with three differences forced by the shared
+// process:
+//
+//   1. The mods ROOT is partitioned. Both ports resolve "mods" through
+//      LocateFileAcrossAppDirs, whose appName argument is inert in a portable
+//      build, so both land on the same ./mods — see src/common/mod_archives.h.
+//      MM takes only `mods/mm/`; OoT keeps the rest and skips that subtree.
+//   2. Each mount is recorded twice: RecordMMArchivePath, so the #344
+//      Room/Cutscene factory dispatcher parses the mod's scenes with MM's
+//      command set and the #618 "mm" extension scope can see its paths at all;
+//      and Combo_RegisterModArchive(GAME_MM, ...), so the switch-time re-apply
+//      puts the mod back on top of the base archives it overrides.
+//   3. Mount order is base-archives-then-mods, which is the ENTIRE override
+//      mechanism: ArchiveManager resolution is last-added-wins with no priority
+//      field (ArchiveManager::AddArchive overwrites mFileToArchive[hash]
+//      unconditionally).
+//
+// HOW A COLLIDING PATH RESOLVES. oot.o2r and mm.o2r already collide on 151
+// object names, 14 overlays and the three gameplay_*_keep archives
+// (docs/resource-namespace-audit.md), and soh.o2r/2ship.o2r collided on 595
+// paths (docs/asset-collision-analysis.md, #595). A mod introduces no new class
+// of collision: it is resolved by the same mechanism, which is
+// Combo_EnsureGameArchivesLoaded re-adding the ARRIVING game's base archives and
+// then its mods on every switch (rsbs/src/main.cpp). An MM mod that ships an
+// OoT-owned path therefore owns it only while MM is the active game, and the
+// first Combo_EnsureGameArchivesLoaded(GAME_OOT) hands it back to
+// oot.o2r/oot-mq.o2r/soh.o2r — every OoT-owned path is in one of those by
+// definition. The partition in (1) is what keeps that guarantee: it is the thing
+// that stops an OoT mod being registered under GAME_MM, which WOULD survive the
+// switch and shadow MM permanently.
+//
+// Everything in mods/mm/ is mounted, sorted by file-name stem
+// case-insensitively, exactly as upstream BenPort does — MM has no equivalent of
+// OoT's enabled-subset mod menu, so there is no enabled set to consult.
+
+// Sort key for mod precedence: the file name WITHOUT its extension, lowercased.
+// Upstream BenPort sorts this way on purpose, so that renaming `10-foo.otr` to
+// `10-foo.o2r` does not move it in the precedence order.
+static bool MMModNameLess(const std::string& a, const std::string& b) {
+    const std::string aStem = a.substr(0, a.find_last_of('.'));
+    const std::string bStem = b.substr(0, b.find_last_of('.'));
+    return std::lexicographical_compare(aStem.begin(), aStem.end(), bStem.begin(), bStem.end(), [](char c1, char c2) {
+        return std::tolower((unsigned char)c1) < std::tolower((unsigned char)c2);
+    });
+}
+
+static bool MMIsModArchiveExtension(const std::filesystem::path& p) {
+    const std::string ext = p.extension().string();
+    return StringHelper::IEquals(ext, ".o2r") || StringHelper::IEquals(ext, ".zip") ||
+           StringHelper::IEquals(ext, ".otr");
+}
+
 /**
- * Load MM archives (mm.o2r, 2ship.o2r) into the shared ArchiveManager.
+ * Mount every MM mod archive under @p modsRoot, in precedence order.
+ *
+ * @param modsRoot the shared mods directory (LocateFileAcrossAppDirs("mods")).
+ *                 Only the `mm` subtree of it is MM's; see the block comment.
+ * @return how many archives mounted successfully (0 when the folder is absent or
+ *         holds no MM mod, which is the normal case and not an error).
+ *
+ * Idempotent in the sense that matters: AddArchive on an already-mounted path
+ * re-adds it (harmless, it only re-asserts the same ownership) while
+ * RecordMMArchivePath and Combo_RegisterModArchive are both de-duplicating, so a
+ * second call cannot grow either registry or reorder mod precedence.
+ */
+static int MountMMModArchives(const std::string& modsRoot) {
+    auto ctx = Ship::Context::GetInstance();
+    if (!ctx || !ctx->GetResourceManager() || !ctx->GetResourceManager()->GetArchiveManager()) {
+        return 0;
+    }
+    auto archiveMgr = ctx->GetResourceManager()->GetArchiveManager();
+
+    std::error_code ec;
+    if (modsRoot.empty() || !std::filesystem::is_directory(modsRoot, ec)) {
+        return 0;
+    }
+
+    std::vector<std::string> modPaths;
+    // recursive: a mod may ship as mods/mm/<modname>/<archive>.o2r, and upstream
+    // BenPort recurses too. The error_code overload so that one unreadable
+    // subdirectory cannot throw out of MM's boot path.
+    for (std::filesystem::recursive_directory_iterator it(modsRoot, std::filesystem::directory_options::skip_permission_denied, ec), end;
+         it != end && !ec; it.increment(ec)) {
+        const std::filesystem::path& p = it->path();
+        if (it->is_directory(ec) || !MMIsModArchiveExtension(p)) {
+            continue;
+        }
+        const std::string generic = p.generic_string();
+        // The partition. A file OoT owns must never be mounted here: registering
+        // it under GAME_MM would make the switch-time re-apply stack OoT's mods
+        // over MM's base archives on every MM arrival.
+        if (!Combo_ModPathIsForGame(GAME_MM, modsRoot.c_str(), generic.c_str())) {
+            continue;
+        }
+        modPaths.push_back(generic);
+    }
+
+    std::sort(modPaths.begin(), modPaths.end(), MMModNameLess);
+
+    int mounted = 0;
+    for (const std::string& modPath : modPaths) {
+        if (archiveMgr->AddArchive(modPath) == nullptr) {
+            // Loud: a silently skipped mod is indistinguishable from a mod whose
+            // assets simply did not take effect.
+            fprintf(stderr, "[MM] WARNING: could not mount mod archive, its overrides will NOT apply: %s\n",
+                    modPath.c_str());
+            continue;
+        }
+        RecordMMArchivePath(modPath);
+        Combo_RegisterModArchive(GAME_MM, modPath.c_str());
+        fprintf(stderr, "[MM] Loaded mod archive: %s\n", modPath.c_str());
+        mounted++;
+    }
+
+    if (mounted > 0) {
+        fprintf(stderr, "[MM] Mounted %d mod archive(s) from %s/%s\n", mounted, modsRoot.c_str(),
+                Combo_ModsSubdirForGame(GAME_MM));
+    }
+    return mounted;
+}
+
+/**
+ * Create `mods/mm/` on first run so the folder MM reads is discoverable, the way
+ * OoT's InitOTRImpl and BenPort's CheckAndCreateModFolder create `mods/`.
+ * Entirely best-effort: a read-only install must still boot.
+ */
+static void MMCreateModFolder() {
+    try {
+        const std::string existing = Ship::Context::LocateFileAcrossAppDirs("mods", kMmAppName);
+        std::string mmModsPath =
+            (std::filesystem::path(existing.empty()
+                                       ? Ship::Context::GetPathRelativeToAppDirectory("mods", kMmAppName)
+                                       : existing) /
+             Combo_ModsSubdirForGame(GAME_MM))
+                .generic_string();
+        if (!std::filesystem::exists(mmModsPath)) {
+            if (std::filesystem::create_directories(mmModsPath)) {
+                std::ofstream(mmModsPath + "/majoras_mask_mod_files_go_here.txt").close();
+            }
+        }
+    } catch (const std::filesystem::filesystem_error&) {
+        // Couldn't make the folder — continue silently, exactly as MM's upstream
+        // CheckAndCreateModFolder does.
+        return;
+    }
+}
+
+/**
+ * Headless seam for the #670 lock row (src/common/tests/test_mm_mods_mount.c):
+ * run MM's REAL mod glob + mount + both registrations against a staged mods
+ * tree, without the rest of LoadMMArchives.
+ *
+ * Takes the root explicitly rather than resolving it, so the row can stage a
+ * private tree and never touch the player's ./mods. Deliberately does NOT latch
+ * sMMArchivesLoaded, for the same reason MM_MountArchiveHeadless does not: that
+ * latch is what MM_Rando_AssetsReady() reports, and flipping it true in a
+ * process where mm.o2r is absent would open MM_Rando_Init's GfxPatcher gate onto
+ * missing assets.
+ *
+ * @return the number of archives mounted, or -1 with no live ArchiveManager.
+ */
+extern "C" int MM_MountModArchivesHeadless(const char* modsRoot) {
+    if (modsRoot == nullptr || modsRoot[0] == '\0') {
+        return -1;
+    }
+    auto ctx = Ship::Context::GetInstance();
+    if (ctx == nullptr || ctx->GetResourceManager() == nullptr ||
+        ctx->GetResourceManager()->GetArchiveManager() == nullptr) {
+        return -1;
+    }
+    return MountMMModArchives(std::string(modsRoot));
+}
+
+/**
+ * Load MM archives (mm.o2r, 2ship.o2r) into the shared ArchiveManager, then
+ * MM's mod archives from mods/mm on top of them (#670).
  * OoT already initialized Ship::Context with OoT archives; we add MM's.
  * Idempotent — skips if already loaded.
  */
@@ -920,6 +1117,16 @@ static int LoadMMArchives() {
         fprintf(stderr, "[MM] ERROR: No MM archives found — cannot proceed\n");
         return -1;
     }
+
+    // #670: MM's mods, LAST. After mm.o2r and 2ship.o2r, because last-added-wins
+    // is the whole override mechanism; before sMMArchivesLoaded is latched, so
+    // that MM_Rando_AssetsReady() only reports true once the mods a player's
+    // custom assets live in are actually mounted — MM_Rando_Init's #618 rescan
+    // then picks their paths up on the pass it already makes, with no further
+    // change. A failure to mount a mod is never fatal to MM's boot.
+    MMCreateModFolder();
+    (void)MountMMModArchives(Ship::Context::LocateFileAcrossAppDirs("mods", kMmAppName));
+
     sMMArchivesLoaded = true;
     return 0;
 }
