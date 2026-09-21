@@ -40,7 +40,7 @@
  *     ...ImGui...
  *     gui->EndDraw(); fast->EndFrame();
  *
- * Four properties make it safe to run that mid-update rather than only at boot:
+ * Five properties make it safe to run that mid-update rather than only at boot:
  *
  * 1. `RunGuiOnly()` (libultraship/src/fast/interpreter.cpp) is `Run()` minus the
  *    display-list execution. It touches the interpreter's own RSP/RDP state and
@@ -62,6 +62,13 @@
  *    window unresponsive, and its only destructive event (close) merely sets a
  *    flag (`GfxWindowBackendSDL2::Close`). We stop painting once that flag is
  *    down rather than drawing into a window on its way out.
+ * 5. This only ever CONTINUES a live render loop; it never starts one. The
+ *    `rando` test tier constructs a real Fast3dWindow and then drives generation
+ *    directly, without ever running the game loop, so a frame pumped from inside
+ *    a test's creation call would be this file's own invention. A counter
+ *    incremented where a game frame demonstrably completed
+ *    (`OoT_Graph_HasPresentedFrame`, OTRGlobals.cpp) is the precondition, so
+ *    those rows keep exactly the behaviour they have today: the stderr leg.
  *
  * ============================================================================
  * THE ONE HAZARD THAT NEEDED A FIX, NOT A COMMENT
@@ -112,10 +119,12 @@
 // reaches context.h); the header carries its own extern "C" guard.
 #include "gen_progress_overlay.h"
 
-// The creation seam's gSaveContext bracket (ForeignItemsSingleExe.cpp). Declared
-// here rather than included because OTRGlobals.h keeps most of its C entry
-// points inside `#ifndef __cplusplus`, and this file needs exactly one symbol.
+// The creation seam's gSaveContext bracket (ForeignItemsSingleExe.cpp) and the
+// render loop's own liveness counter (OTRGlobals.cpp). Declared here rather than
+// included because OTRGlobals.h keeps most of its C entry points inside
+// `#ifndef __cplusplus`, and this file needs exactly these two symbols.
 extern "C" void OoT_Creation_PaintWithOoTSaveVisible(void (*paint)(void));
+extern "C" int OoT_Graph_HasPresentedFrame(void);
 
 namespace {
 
@@ -135,6 +144,7 @@ bool gInstalled = false;
 bool gPainting = false;
 bool gWarnedNoWindow = false;
 bool gWarnedOffThread = false;
+bool gWarnedNoFrames = false;
 
 /** The view being painted. A file static because the gSaveContext bracket takes
  *  a plain `void(*)()` -- it is a C seam and giving it a capture would mean
@@ -174,16 +184,16 @@ void DrawOverlayContents() {
         viewport->Pos, ImVec2(viewport->Pos.x + viewport->Size.x, viewport->Pos.y + viewport->Size.y),
         IM_COL32(0, 0, 0, 170));
 
-    ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x + viewport->Size.x * 0.5f, viewport->Pos.y + viewport->Size.y * 0.5f),
-                            ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+    ImGui::SetNextWindowPos(
+        ImVec2(viewport->Pos.x + viewport->Size.x * 0.5f, viewport->Pos.y + viewport->Size.y * 0.5f), ImGuiCond_Always,
+        ImVec2(0.5f, 0.5f));
     ImGui::SetNextWindowBgAlpha(0.94f);
     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 3.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(18.0f, 16.0f));
     if (ImGui::Begin(kWindowName, nullptr,
                      ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
-                         ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoScrollbar |
-                         ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoNav |
-                         ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoDocking)) {
+                         ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings |
+                         ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoDocking)) {
         ImGui::Text("%s", view->caption);
 
         // The elapsed counter is the honest part of the surface: the fraction is
@@ -228,6 +238,23 @@ void PresentOneGuiFrame(const ComboGenOverlayView* view) {
         return;
     }
     if (!WindowIsRunning()) {
+        // The player closed the window mid-creation. The backend's Close() only
+        // sets a flag (GfxWindowBackendSDL2::Close), so this is safe to observe
+        // and the right thing to do with it is stop drawing into a window on its
+        // way out; the creation finishes and the game loop exits after it.
+        return;
+    }
+    if (!OoT_Graph_HasPresentedFrame()) {
+        // NOT A LIVE RENDER LOOP. A unit-test harness constructs a real
+        // Fast3dWindow (the `rando` tier needs one) and never runs a frame
+        // through it, so pumping one from inside a test's creation call would be
+        // this file inventing a render loop rather than continuing one. The
+        // stderr leg is the whole surface there, which is what those rows read.
+        if (!gWarnedNoFrames) {
+            gWarnedNoFrames = true;
+            fprintf(stderr, "[OoT] creation overlay: no frame has been presented in this process — creation "
+                            "progress stays on stderr\n");
+        }
         return;
     }
 

@@ -1051,9 +1051,12 @@ extern "C" int OoT_RunPairedCreationEvent(int slot) {
     OoT_CreationProgressOverlay_Install();
     Combo_GenProgress_Begin();
 
-    // THE BRACKET. Static rather than stack: OoT's SaveContext is ~136 KB, far
-    // past any sane frame budget; this seam is game-thread-only, and MM's own
-    // attempt ladder uses the same shape for the same reason.
+    // THE BRACKET. Its buffer is a file static (declared above, beside the
+    // overlay's window into it) rather than a stack array: OoT's SaveContext is
+    // ~136 KB, far past any sane frame budget; this seam is game-thread-only,
+    // and MM's own attempt ladder uses the same shape for the same reason. The
+    // `active` flag is what lets a frame painted from INSIDE the call below show
+    // OoT's bytes instead of MM's (#582).
     //
     // SIZED AT OoT's sizeof, NOT at the unified capacity, and that is a fix
     // rather than a nicety. Copying OOT_SAVE_CONTEXT_SIZE bytes THROUGH a
