@@ -17,12 +17,16 @@
  *   a hole in the vtable, and a snapshot without its restore; un-registration
  *   restores the registry. The GOAL truth table, including triforce-hunt
  *   REFUSING rather than being approximated (answer O10's shared piece count
- *   does not exist). A fill with one engine refuses instead of half-filling.
- *   ADR 0002: after every scenario, no foreign id ever reached an engine's
- *   `assumeOwnItem` and no foreign id ever entered an engine's own table. And
- *   the two premise watchdogs: an engine whose reached set SHRINKS is reported
- *   NON_MONOTONE, an engine that reports change forever is reported NO_FIXPOINT
- *   at the bound — detected, bounded, not looped on.
+ *   does not exist). A fill with one engine refuses instead of half-filling, and
+ *   a refusal taken BEFORE any attempt reports on the call rather than on the
+ *   tables — asserted over FULL tables, because over empty ones "it placed
+ *   nothing" is a fact about the fixture. ADR 0002 routing, split into the half
+ *   this file's code controls (the `SharedItem` reaching `place` still carries
+ *   its foreign origin; the item never reached its own engine's `assumeOwnItem`)
+ *   and the half the stub models (the junk cover, which is the two engine lanes'
+ *   obligation). And the two premise watchdogs: an engine whose reached set
+ *   SHRINKS is reported NON_MONOTONE, an engine that reports change forever is
+ *   reported NO_FIXPOINT at the bound — detected, bounded, not looped on.
  *
  *   combo-logic-fixpoint — one ROUND. It terminates in a handful of
  *   alternations; it is order-independent (the same world assembled with the
@@ -40,7 +44,13 @@
  *   combo-logic-fill — the FILL. Same seed, same placement digest; a different
  *   seed, a different one (the sensitivity control, without which the first half
  *   is satisfied by a constant). The `none` rung places the whole bag with the
- *   proof skipped, where `beatable` on the identical world refuses. `beatable`
+ *   proof skipped, where `beatable` on the identical world refuses — and, on the
+ *   one world where the two host sources disagree (its only free host is
+ *   unreached and never offered), `none` PLACES THERE while `beatable` refuses
+ *   with ERR_NO_CANDIDATE, which is what pins `none` to "draw from all empties,
+ *   run no round" rather than to a third reachability-gated rung. An engine that
+ *   refuses a host it had itself offered aborts the fill AND leaves no row in
+ *   the coordinator's table claiming that host. `beatable`
  *   and `beat-either` produce BYTE-IDENTICAL placements on a world where both
  *   halves prove — the no-bias lock, since a fill that ever short-circuited on
  *   one half would diverge there — and on a world where MM's half cannot prove,
@@ -120,6 +130,10 @@ struct ClEngine {
     bool overReport;                   // offer hosts it has already placed on
     bool restoreDropsPlacements;       // a harsh restore: the table comes back empty
     bool withSnapshot;
+    /** Refuse the next NEW placement (an idempotent re-apply still succeeds).
+     *  Models an engine that rejects a host it had itself offered — the branch
+     *  whose table entry the coordinator must take back out. */
+    bool refuseNextNewPlace;
     ClFault fault;
 
     // --- live state ------------------------------------------------------
@@ -138,7 +152,12 @@ struct ClEngine {
 
     int placedCount;
     uint16_t placedHost[kClMaxHosts];
-    SharedItem placedItem[kClMaxHosts];
+    SharedItem placedItem[kClMaxHosts]; // what the engine STORED (a cover, if foreign)
+    /** What the COORDINATOR handed to `place`, verbatim. The cover above is this
+     *  stub's own doing and proves nothing about the coordinator; this array is
+     *  the half the coordinator controls, so it is what the ADR 0002 routing
+     *  assertions read. */
+    SharedItem placedRaw[kClMaxHosts];
     bool placedIsCover[kClMaxHosts];
 
     // --- contract traps --------------------------------------------------
@@ -310,6 +329,26 @@ int ClReachedEmptyHosts(void* self, uint16_t* out, int cap) {
     return total;
 }
 
+/** Every host not in this engine's own placement table, REACHED OR NOT, and
+ *  legal outside a query bracket — the `none` rung's host source. Deliberately
+ *  does NOT touch `reached`, and deliberately does NOT set
+ *  `sawQueryOutsideRound`: this is the one query the contract says may be asked
+ *  with no round open. */
+int ClAllEmptyHosts(void* self, uint16_t* out, int cap) {
+    ClEngine* e = (ClEngine*)self;
+    int total = 0;
+    for (int i = 0; i < e->hostCount; ++i) {
+        if (!e->overReport && ClOwnPlacementIndex(e, e->hostId[i]) >= 0) {
+            continue;
+        }
+        if (out != NULL && total < cap) {
+            out[total] = e->hostId[i]; // ascending, by construction
+        }
+        total++;
+    }
+    return total;
+}
+
 int ClGoalReached(void* self) {
     ClEngine* e = (ClEngine*)self;
     if (!e->inQuery) {
@@ -333,10 +372,17 @@ int ClPlace(void* self, uint16_t hostCheck, SharedItem item) {
         }
         return 0; // a different item on an assigned host is a coordinator defect
     }
+    if (e->refuseNextNewPlace) {
+        // An engine refusing a host it had itself offered. One-shot, so the
+        // coordinator's re-apply of an already-accepted placement is unaffected.
+        e->refuseNextNewPlace = false;
+        return 0;
+    }
     if (e->placedCount >= kClMaxHosts) {
         return 0;
     }
     e->placedHost[e->placedCount] = hostCheck;
+    e->placedRaw[e->placedCount] = item; // exactly what the coordinator passed
     e->placedIsCover[e->placedCount] = foreign;
     if (foreign) {
         // JUNK COVER. The engine's own table gets a legal LOCAL item; the
@@ -397,6 +443,7 @@ void ClFillVtable(ComboLogicEngine* vt, ClEngine* e) {
     vt->crossingOpen = ClCrossingOpen;
     vt->checkReached = ClCheckReached;
     vt->reachedEmptyHosts = ClReachedEmptyHosts;
+    vt->allEmptyHosts = ClAllEmptyHosts;
     vt->goalReached = ClGoalReached;
     vt->place = ClPlace;
     vt->clearPlacements = ClClearPlacements;
@@ -569,6 +616,28 @@ void ClBuildOfferUnreachedWorld() {
     ClInstall();
 }
 
+/**
+ * A world whose ONLY free host is UNREACHED and NOT offered as a candidate: OoT
+ * host 10 requires a bit no item in the world can supply, `alwaysOffer` is
+ * clear, and MM has no hosts at all. So `reachedEmptyHosts` never names host 10
+ * while `allEmptyHosts` always does — which is exactly the pair of worlds the
+ * two host sources disagree about, and therefore the world that decides what
+ * `RSBS_COMBO_RUNG_NONE` means.
+ */
+void ClBuildUnreachedOnlyWorld() {
+    ClResetEngine(&gClOoT, (uint8_t)GAME_OOT);
+    ClAddItem(&gClOoT, kOotSword);
+    ClAddHost(&gClOoT, 10, 1u << 7); // a requirement no item in this world meets
+    gClOoT.crossingRequires = 0u;
+    gClOoT.goalRequires = 0u;
+
+    ClResetEngine(&gClMM, (uint8_t)GAME_MM);
+    ClAddItem(&gClMM, kMmOcarina);
+    gClMM.crossingRequires = 0u;
+    gClMM.goalRequires = 0u;
+    ClInstall();
+}
+
 /** The bag both fill worlds use. Five advancement items, both origins. */
 int ClBuildFillBag(ComboLogicBagItem* bag) {
     int n = 0;
@@ -631,6 +700,14 @@ TestResult Test_ComboLogicEngineSurface(void) {
         CL_ASSERT(!Combo_Logic_RegisterEngine(GAME_OOT, &bad), "a NULL required entry point must be refused");
     }
     {
+        // `allEmptyHosts` is REQUIRED, not optional: it is the `none` rung's only
+        // host source, and an engine that omitted it would crash inside a fill
+        // rather than at registration.
+        ComboLogicEngine bad = gClVtOoT;
+        bad.allEmptyHosts = NULL;
+        CL_ASSERT(!Combo_Logic_RegisterEngine(GAME_OOT, &bad), "a NULL allEmptyHosts must be refused");
+    }
+    {
         ComboLogicEngine bad = gClVtOoT;
         bad.snapshot = ClSnapshot;
         bad.restore = NULL;
@@ -670,9 +747,14 @@ TestResult Test_ComboLogicEngineSurface(void) {
         Combo_Logic_RegisterEngine(GAME_OOT, &gClVtOoT);
         Combo_Logic_RegisterEngine(GAME_MM, NULL);
 
+        const int ootCallsBefore = gClOoT.placeCalls;
         CL_ASSERT(ClRunFill(bag, 1, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_BEATABLE, 1u, &res) ==
                       RSBS_COMBO_LOGIC_ERR_NO_ENGINE,
                   "a paired fill with one engine must refuse, not half-fill");
+        // `res.placed == 0` alone would be satisfied by tables that were empty
+        // already. `placeCalls` is a property of THIS call: it moves iff the
+        // coordinator asked an engine to place something.
+        CL_ASSERT(gClOoT.placeCalls == ootCallsBefore, "and must not have asked the one engine it does have to place");
         CL_ASSERT(res.placed == 0, "a refused fill must place nothing");
 
         ClResetEngine(&gClMM, (uint8_t)GAME_MM);
@@ -680,10 +762,14 @@ TestResult Test_ComboLogicEngineSurface(void) {
         ClAddHost(&gClMM, 20, 0u);
         ClInstall();
 
+        const int ootCalls2 = gClOoT.placeCalls;
+        const int mmCalls2 = gClMM.placeCalls;
         CL_ASSERT(ClRunFill(bag, 1, RSBS_COMBO_GOAL_TRIFORCE_HUNT, RSBS_COMBO_RUNG_BEATABLE, 1u, &res) ==
                       RSBS_COMBO_LOGIC_ERR_UNSUPPORTED_GOAL,
                   "triforce-hunt must refuse rather than be evaluated as beat-both");
-        CL_ASSERT(res.placed == 0, "an unsupported goal must be caught before anything is placed");
+        CL_ASSERT(gClOoT.placeCalls == ootCalls2 && gClMM.placeCalls == mmCalls2,
+                  "an unsupported goal must be caught before anything is placed");
+        CL_ASSERT(res.placed == 0 && res.attempts == 0, "and no attempt may have run");
         CL_ASSERT(ClRunFill(bag, 1, RSBS_COMBO_GOAL_BEAT_BOTH, 0u, 1u, &res) == RSBS_COMBO_LOGIC_ERR_BAD_REQUEST,
                   "an unpinned logic rung must refuse");
         CL_ASSERT(ClRunFill(NULL, 3, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_BEATABLE, 1u, &res) ==
@@ -698,6 +784,42 @@ TestResult Test_ComboLogicEngineSurface(void) {
         }
     }
 
+    // --- a pre-attempt refusal describes the CALL, not the tables ---------
+    // Every refusal above ran against empty tables, which cannot tell "this call
+    // placed nothing" from "the tables happened to be empty". So: fill a world
+    // for real, then refuse a call ON TOP of the full tables.
+    {
+        ComboLogicBagItem pair[2];
+        ComboLogicFillResult filled;
+        ComboLogicFillResult refused;
+        pair[0] = ClBagItem((uint8_t)GAME_OOT, kOotLens, RSBS_ITEMCLASS_PROGRESSION);
+        pair[1] = ClBagItem((uint8_t)GAME_MM, kMmRemains, RSBS_ITEMCLASS_DUNGEON_REWARD);
+
+        ClBuildFillWorld(true);
+        CL_ASSERT(ClRunFill(pair, 2, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_BEATABLE, 0xA11CEu, &filled) ==
+                      RSBS_COMBO_LOGIC_OK,
+                  "fill the tables first, so the refusal below has something to be distinguished from");
+        CL_ASSERT(filled.placed == 2, "both items placed");
+
+        const int ootPlaced = Combo_Logic_PlacementCount(GAME_OOT);
+        const int mmPlaced = Combo_Logic_PlacementCount(GAME_MM);
+        const uint32_t tableDigest = Combo_Logic_PlacementDigest();
+        const int ootCalls = gClOoT.placeCalls;
+        const int mmCalls = gClMM.placeCalls;
+
+        CL_ASSERT(ClRunFill(pair, 2, RSBS_COMBO_GOAL_TRIFORCE_HUNT, RSBS_COMBO_RUNG_BEATABLE, 0xA11CEu, &refused) ==
+                      RSBS_COMBO_LOGIC_ERR_UNSUPPORTED_GOAL,
+                  "the unsupported goal must still refuse");
+        CL_ASSERT(refused.attempts == 0, "no attempt ran");
+        CL_ASSERT(refused.placed == 0 && refused.placementDigest == 0u,
+                  "a pre-attempt refusal must report on the call — it placed nothing — and must not describe tables it "
+                  "never looked at");
+        CL_ASSERT(gClOoT.placeCalls == ootCalls && gClMM.placeCalls == mmCalls, "and must not have called either engine");
+        CL_ASSERT(Combo_Logic_PlacementCount(GAME_OOT) == ootPlaced && Combo_Logic_PlacementCount(GAME_MM) == mmPlaced &&
+                      Combo_Logic_PlacementDigest() == tableDigest,
+                  "and the tables it did not touch must still hold the previous fill, untouched");
+    }
+
     // --- ADR 0002: a foreign item is covered, never stored ----------------
     ClBuildCrossingWorld(0u);
     {
@@ -705,9 +827,21 @@ TestResult Test_ComboLogicEngineSurface(void) {
         CL_ASSERT(Combo_Logic_Place(GAME_OOT, 10, ClItem((uint8_t)GAME_MM, kMmOcarina), RSBS_ITEMCLASS_PROGRESSION),
                   "authoring an MM-origin item into an OoT host must succeed");
         CL_ASSERT(ClRunRound(RSBS_COMBO_GOAL_BEAT_BOTH, NULL, 0, &round) == RSBS_COMBO_LOGIC_OK, "the round must run");
-        CL_ASSERT(gClOoT.placedCount == 1 && gClOoT.placedIsCover[0], "the OoT host must hold a junk COVER");
+        // THE COORDINATOR'S HALF. What `place` receives is the coordinator's
+        // doing and nothing else's: the origin tag must survive untouched, and
+        // the coordinator must not have invented a cover of its own (that is the
+        // host engine's obligation, and no assertion here can lock it).
+        CL_ASSERT(gClOoT.placedCount == 1, "the OoT engine must have been handed exactly one placement");
+        CL_ASSERT(gClOoT.placedRaw[0].originGame == (uint8_t)GAME_MM && gClOoT.placedRaw[0].id == kMmOcarina,
+                  "the SharedItem reaching `place` must still carry its MM origin: the coordinator routes by origin "
+                  "and never rewrites it");
+        CL_ASSERT(gClMM.placeCalls == 0, "and the item's OWN engine must not have been told to host it");
+        // THE ENGINE'S HALF, asserted of the stub so the stub's own modelling is
+        // visible rather than implied. It is the two engine lanes' obligation,
+        // not this PR's: nothing in combo_logic.c can flip these two lines.
+        CL_ASSERT(gClOoT.placedIsCover[0], "the stub models the host's table taking a junk COVER");
         CL_ASSERT(gClOoT.placedItem[0].originGame == (uint8_t)GAME_OOT && gClOoT.placedItem[0].id == kOotJunk,
-                  "the cover must be a legal LOCAL item: a raw foreign id never enters the host's own table");
+                  "and that cover is a legal LOCAL item");
         CL_ASSERT(ClContractClean(), "no foreign id may reach an engine's assumeOwnItem or its own table");
     }
 
@@ -964,6 +1098,7 @@ TestResult Test_ComboLogicFill(void) {
         CL_ASSERT(!res.goalProven, "and claim nothing: `not proven` is not `failed`, and it is not `proven` either");
         CL_ASSERT(res.placed == bagCount, "the whole bag must still be distributed");
         CL_ASSERT(res.attempts == 1, "and with no proof obligation there is nothing to retry");
+        CL_ASSERT(res.rounds == 0, "and no round may have been run at all: `none` is the absence of the round");
 
         ClBuildFillWorld(false);
         CL_ASSERT(ClRunFill(bag, bagCount, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_BEATABLE, 0x0B00u, &res) ==
@@ -971,6 +1106,63 @@ TestResult Test_ComboLogicFill(void) {
                   "the identical world under `beatable` must refuse: the GOAL is the fill's exit condition");
         CL_ASSERT(!res.goalProven && !res.proofSkipped, "a refused proof is neither proven nor skipped");
         CL_ASSERT(res.attempts == RSBS_COMBO_LOGIC_FILL_RETRIES, "and the batch roll-backs must all have been spent");
+    }
+
+    // --- WHAT `none` MEANS: all empties, no round ------------------------
+    // The world the two host sources disagree about. Its ONLY free host is
+    // unreached and never offered as a candidate, so:
+    //   `none`     must place there — "bag, then randomly distribute" cannot
+    //              dead-end while a check is free (audit §4.3 / ADR 0010 D5);
+    //   `beatable` must refuse the SAME world, because the proving rungs ARE
+    //              reachability-gated and there is no reached host.
+    // Without the second half the first is satisfied by any rung at all; without
+    // the first, `none` is a third logic rung wearing the name of no logic.
+    {
+        ComboLogicBagItem one[1];
+        ComboLogicPlacement p;
+        one[0] = ClBagItem((uint8_t)GAME_OOT, kOotSword, RSBS_ITEMCLASS_PROGRESSION);
+
+        ClBuildUnreachedOnlyWorld();
+        CL_ASSERT(ClRunFill(one, 1, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_NONE, 11u, &res) == RSBS_COMBO_LOGIC_OK,
+                  "`none` must place into the only free host even though no search reaches it");
+        CL_ASSERT(res.placed == 1 && res.attempts == 1 && res.rounds == 0, "one item, one attempt, no round");
+        CL_ASSERT(Combo_Logic_GetPlacement(GAME_OOT, 10, &p) && p.item.id == kOotSword,
+                  "and the unreached host is where it went");
+        CL_ASSERT(gClOoT.beginCalls == 0 && gClMM.beginCalls == 0,
+                  "and no query bracket was opened on either engine: the round is not run, not run-and-ignored");
+        CL_ASSERT(gClOoT.expands == 0, "nor was anything expanded");
+
+        ClBuildUnreachedOnlyWorld();
+        CL_ASSERT(ClRunFill(one, 1, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_BEATABLE, 11u, &res) ==
+                      RSBS_COMBO_LOGIC_ERR_NO_CANDIDATE,
+                  "`beatable` on the identical world must refuse: it draws from REACHED empties and there are none");
+        CL_ASSERT(res.placed == 0, "and it placed nothing");
+        CL_ASSERT(gClOoT.beginCalls > 0, "having actually run its rounds");
+    }
+
+    // --- an engine that refuses a host it offered ------------------------
+    // The one `place` failure path the fill has. The coordinator's table is the
+    // occupancy authority, so a row the engine never accepted would be served by
+    // Combo_Logic_GetPlacement, counted, and folded into the digest — the two
+    // disagreeing about what a host holds.
+    {
+        ClBuildFillWorld(true);
+        gClOoT.refuseNextNewPlace = true;
+        gClMM.refuseNextNewPlace = true; // whichever side the union draw lands on
+        ClInstall();
+
+        CL_ASSERT(ClRunFill(bag, bagCount, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_BEATABLE, 0xBADCAFEu, &res) ==
+                      RSBS_COMBO_LOGIC_ERR_ENGINE_REFUSED,
+                  "a refusal on a host the engine itself offered is an engine-contract failure, not a dead end");
+        CL_ASSERT(Combo_Logic_PlacementCount(GAME_OOT) == 0 && Combo_Logic_PlacementCount(GAME_MM) == 0,
+                  "and the coordinator must have taken its own row back out: it may not claim a host the engine "
+                  "rejected");
+        CL_ASSERT(res.placed == 0, "so the result agrees with the tables");
+        CL_ASSERT(gClOoT.placedCount == 0 && gClMM.placedCount == 0, "and so do the engines");
+        for (uint16_t h = 10; h <= 25; ++h) {
+            CL_ASSERT(!Combo_Logic_GetPlacement(GAME_OOT, h, NULL) && !Combo_Logic_GetPlacement(GAME_MM, h, NULL),
+                      "no host in either world may read back as occupied");
+        }
     }
 
     // --- beat-either: no bias, and no starved half ------------------------

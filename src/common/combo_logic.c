@@ -67,8 +67,8 @@ bool Combo_Logic_RegisterEngine(GameId originGame, const ComboLogicEngine* engin
     // middle of a round, where the crash would name the coordinator.
     if (engine->beginQuery == NULL || engine->assumeOwnItem == NULL || engine->expand == NULL ||
         engine->crossingOpen == NULL || engine->checkReached == NULL || engine->reachedEmptyHosts == NULL ||
-        engine->goalReached == NULL || engine->place == NULL || engine->clearPlacements == NULL ||
-        engine->endQuery == NULL) {
+        engine->allEmptyHosts == NULL || engine->goalReached == NULL || engine->place == NULL ||
+        engine->clearPlacements == NULL || engine->endQuery == NULL) {
         fprintf(stderr, "[ComboLogic] engine registration rejected: %s engine has a NULL required entry point\n",
                 Game_ToString((GameId)g));
         return false;
@@ -213,6 +213,30 @@ static bool ComboLogicAddPlacement(uint8_t hostGame, uint16_t hostCheck, SharedI
     return true;
 }
 
+/**
+ * Undo the placement ComboLogicAddPlacement just appended for `hostCheck`.
+ *
+ * THE ONLY CALLER SHAPE IS "the engine refused the entry we had just added", so
+ * the entry is always the last one — asserted here rather than assumed, because
+ * popping the wrong row would corrupt the table far more quietly than leaving a
+ * stale one. The table and the engine must never disagree about what a host
+ * holds, and a half-recorded placement is the worse of the two states: the
+ * tables are the coordinator's occupancy authority (combo_logic.h), so a row the
+ * engine never accepted would be read back by Combo_Logic_GetPlacement, counted
+ * by Combo_Logic_PlacementCount and mixed into Combo_Logic_PlacementDigest.
+ */
+static void ComboLogicUndoLastPlacement(uint8_t hostGame, uint16_t hostCheck) {
+    const int last = sPlacementCount[hostGame] - 1;
+
+    if (last < 0 || sPlacements[hostGame][last].hostCheck != hostCheck) {
+        fprintf(stderr, "[ComboLogic] internal: undo of %s check %u is not the last placement\n",
+                Game_ToString((GameId)hostGame), (unsigned)hostCheck);
+        return;
+    }
+    sPlacementCount[hostGame] = last;
+    sOccupied[hostGame][hostCheck >> 3] &= (uint8_t)~(1u << (hostCheck & 7));
+}
+
 bool Combo_Logic_Place(GameId hostGame, uint16_t hostCheck, SharedItem item, uint16_t itemClass) {
     const uint8_t g = (uint8_t)hostGame;
 
@@ -228,10 +252,7 @@ bool Combo_Logic_Place(GameId hostGame, uint16_t hostCheck, SharedItem item, uin
         return false;
     }
     if (!e->place(e->self, hostCheck, item)) {
-        // Undo the table entry: the two must never disagree about what the host
-        // holds, and a half-recorded placement is the worse of the two states.
-        sPlacementCount[g]--;
-        sOccupied[g][hostCheck >> 3] &= (uint8_t)~(1u << (hostCheck & 7));
+        ComboLogicUndoLastPlacement(g, hostCheck);
         fprintf(stderr, "[ComboLogic] authored placement refused by the %s engine on check %u\n",
                 Game_ToString(hostGame), (unsigned)hostCheck);
         return false;
@@ -359,12 +380,19 @@ static uint16_t sHostScratch[RSBS_COMBO_LOGIC_PLACEMENT_CAP];
  * already hold. Occupancy has exactly one authority (ours), so an engine that
  * over-reports costs nothing here.
  *
+ * @param reachedOnly true inside a round: the hosts the engine can currently
+ *                    REACH (`reachedEmptyHosts`). False for the `none` rung,
+ *                    which runs no round at all and draws from ALL empty hosts
+ *                    (`allEmptyHosts`) — audit §4.3's "the round is skipped and
+ *                    hosts are drawn from all empties". The two differ in more
+ *                    than breadth: `allEmptyHosts` is legal OUTSIDE a query
+ *                    bracket and `reachedEmptyHosts` is not.
  * @return RSBS_COMBO_LOGIC_OK, or ERR_CAPACITY when the engine reports more
  *         hosts than the scratch buffer holds — refused rather than truncated,
  *         because a truncated candidate set silently narrows the world to a
  *         prefix of one engine's table.
  */
-static int ComboLogicCollectCandidates(uint8_t game) {
+static int ComboLogicCollectFrom(uint8_t game, bool reachedOnly) {
     ComboLogicHostBuf* buf = &sCandidates[game];
     buf->count = 0;
 
@@ -373,7 +401,8 @@ static int ComboLogicCollectCandidates(uint8_t game) {
         return RSBS_COMBO_LOGIC_ERR_NO_ENGINE;
     }
 
-    const int total = e->reachedEmptyHosts(e->self, sHostScratch, RSBS_COMBO_LOGIC_PLACEMENT_CAP);
+    const int total = reachedOnly ? e->reachedEmptyHosts(e->self, sHostScratch, RSBS_COMBO_LOGIC_PLACEMENT_CAP)
+                                  : e->allEmptyHosts(e->self, sHostScratch, RSBS_COMBO_LOGIC_PLACEMENT_CAP);
     if (total < 0) {
         return RSBS_COMBO_LOGIC_ERR_ENGINE_REFUSED;
     }
@@ -389,6 +418,10 @@ static int ComboLogicCollectCandidates(uint8_t game) {
         }
     }
     return RSBS_COMBO_LOGIC_OK;
+}
+
+static int ComboLogicCollectCandidates(uint8_t game) {
+    return ComboLogicCollectFrom(game, true);
 }
 
 /**
@@ -695,6 +728,118 @@ static bool ComboLogicRungIsPinned(uint8_t rung) {
     return rung == RSBS_COMBO_RUNG_NONE || rung == RSBS_COMBO_RUNG_BEATABLE || rung == RSBS_COMBO_RUNG_ALL_REACHABLE;
 }
 
+/**
+ * Draw ONE host uniformly from the UNION of both sides' candidate buffers and
+ * put `item` on it, in both the coordinator's table and the owning engine.
+ *
+ * ONE uniform draw over the union. Not "pick a side, then a host": weighting by
+ * side would bias the world toward the smaller game, and under `beat-either` a
+ * side preference is exactly the XOR bias ADR 0010 §1.2 forbids. Shared by both
+ * fill paths so that the rungs cannot drift apart on the half that decides the
+ * distribution — only on the half that decides which hosts are offered.
+ *
+ * @param deadEnd set true, with OK returned, when the union is empty. What that
+ *                MEANS is the caller's to interpret: a logic dead end under the
+ *                proving rungs, plain exhaustion under `none`.
+ */
+static int ComboLogicDrawAndPlace(const ComboLogicBagItem* item, uint32_t* rng, bool* deadEnd) {
+    const int nOoT = sCandidates[(uint8_t)GAME_OOT].count;
+    const int nMM = sCandidates[(uint8_t)GAME_MM].count;
+    const int total = nOoT + nMM;
+
+    *deadEnd = false;
+    if (total == 0) {
+        *deadEnd = true;
+        return RSBS_COMBO_LOGIC_OK;
+    }
+
+    const uint32_t pick = ComboLogicRngBelow(rng, (uint32_t)total);
+    const uint8_t hostGame = (pick < (uint32_t)nOoT) ? (uint8_t)GAME_OOT : (uint8_t)GAME_MM;
+    const int hostIndex = (pick < (uint32_t)nOoT) ? (int)pick : (int)(pick - (uint32_t)nOoT);
+    const uint16_t host = sCandidates[hostGame].host[hostIndex];
+
+    if (!ComboLogicAddPlacement(hostGame, host, item->item, item->itemClass)) {
+        return RSBS_COMBO_LOGIC_ERR_CAPACITY;
+    }
+
+    const ComboLogicEngine* e = ComboLogicEngineFor(hostGame);
+    if (!e->place(e->self, host, item->item)) {
+        // The engine refused a host IT offered. Take the row back out before
+        // reporting: the coordinator's table is the occupancy authority, so a
+        // row no engine accepted would be served by Combo_Logic_GetPlacement,
+        // counted by Combo_Logic_PlacementCount and folded into the digest — the
+        // two disagreeing about what a host holds is the worse of the two states
+        // (the same reason Combo_Logic_Place undoes its own entry).
+        ComboLogicUndoLastPlacement(hostGame, host);
+        fprintf(stderr, "[ComboLogic] %s engine refused a placement on check %u it had offered\n",
+                Game_ToString((GameId)hostGame), (unsigned)host);
+        return RSBS_COMBO_LOGIC_ERR_ENGINE_REFUSED;
+    }
+    return RSBS_COMBO_LOGIC_OK;
+}
+
+/**
+ * RSBS_COMBO_RUNG_NONE: the operator's "bag, then randomly distribute" base
+ * mode, which audit §4.3 states as "the round is skipped and hosts are drawn
+ * from all empties".
+ *
+ * NO ROUND IS RUN HERE — not one per item, not a final one. That is the whole
+ * difference, and it is load-bearing in both directions:
+ *   - CORRECTNESS. Drawing from `reachedEmptyHosts` would make the no-logic rung
+ *     reachability-gated: a world with a free host that no reachability search
+ *     reaches would be REFUSED with ERR_NO_CANDIDATE, although "randomly
+ *     distribute to each check" cannot dead-end while a check is free. The
+ *     `none` rung would then be a third logic rung wearing the name of the
+ *     absence of logic.
+ *   - COST. A round per bag item is the expensive half of the fill, and it is
+ *     exactly what the rung throws away unread. Paying it against the #582
+ *     creation budget to compute a filter the rung must not apply is not a
+ *     defensible trade.
+ * There is ONE attempt, because no re-shuffle can change the answer: the union
+ * of all empty hosts does not depend on the order the bag is placed in, so if it
+ * runs out it runs out for every order.
+ */
+static int ComboLogicFillNoLogic(const ComboLogicFillRequest* req, ComboLogicFillResult* res) {
+    uint32_t rng = ComboLogicAttemptSeed(req->seed, 0);
+
+    res->attempts = 1;
+    res->proofSkipped = true;
+    res->goalProven = false;
+    res->allHostsReached = false; // nothing was evaluated, so nothing is claimed
+    Combo_Logic_ResetPlacements();
+
+    for (int i = 0; i < req->bagCount; ++i) {
+        sBagOrder[i] = i;
+    }
+    ComboLogicShuffle(sBagOrder, req->bagCount, &rng);
+
+    for (int k = 0; k < req->bagCount; ++k) {
+        bool deadEnd = false;
+        int st = ComboLogicCollectFrom((uint8_t)GAME_OOT, false);
+
+        if (st == RSBS_COMBO_LOGIC_OK) {
+            st = ComboLogicCollectFrom((uint8_t)GAME_MM, false);
+        }
+        if (st != RSBS_COMBO_LOGIC_OK) {
+            return st;
+        }
+        // The arrival gate is deliberately NOT applied: it is a reachability
+        // rule, and this rung asserts nothing about reachability. Gating MM's
+        // hosts on a crossing nobody proved open would silently empty half the
+        // world under the one rung that promises to fill all of it.
+        st = ComboLogicDrawAndPlace(&req->bag[sBagOrder[k]], &rng, &deadEnd);
+        if (st != RSBS_COMBO_LOGIC_OK) {
+            return st;
+        }
+        if (deadEnd) {
+            fprintf(stderr, "[ComboLogic] `none` fill ran out of free hosts with %d of %d bag items unplaced\n",
+                    req->bagCount - k, req->bagCount);
+            return RSBS_COMBO_LOGIC_ERR_NO_CANDIDATE;
+        }
+    }
+    return RSBS_COMBO_LOGIC_OK;
+}
+
 int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* out) {
     ComboLogicFillResult res;
     ComboLogicRoundResult round;
@@ -741,6 +886,14 @@ int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* 
         goto finish;
     }
 
+    // The base rung is a different HOST SOURCE, not a different distribution:
+    // see ComboLogicFillNoLogic. Everything below this point runs a round per
+    // bag item and is therefore the PROVING path.
+    if (req->logicRung == RSBS_COMBO_RUNG_NONE) {
+        status = ComboLogicFillNoLogic(req, &res);
+        goto finish;
+    }
+
     maxAttempts = (req->maxAttempts > 0) ? req->maxAttempts : RSBS_COMBO_LOGIC_FILL_RETRIES;
 
     for (int attempt = 0; attempt < maxAttempts; ++attempt) {
@@ -774,39 +927,16 @@ int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* 
                 goto finish;
             }
 
-            const int nOoT = sCandidates[(uint8_t)GAME_OOT].count;
-            const int nMM = sCandidates[(uint8_t)GAME_MM].count;
-            const int total = nOoT + nMM;
-            if (total == 0) {
+            const int drawn = ComboLogicDrawAndPlace(&req->bag[sBagOrder[k]], &rng, &deadEnd);
+            if (drawn != RSBS_COMBO_LOGIC_OK) {
+                status = drawn;
+                goto finish;
+            }
+            if (deadEnd) {
                 // Dead end: roll the whole batch back and re-shuffle, which is
                 // OoT's own assumed-fill discipline. The ATTEMPT LADDER (a new
                 // seed) is the layer above and is not invoked here.
-                deadEnd = true;
                 break;
-            }
-
-            // ONE uniform draw over the UNION of both sides' candidates. Not
-            // "pick a side, then a host": weighting by side would bias the
-            // world toward the smaller game, and under `beat-either` a side
-            // preference is exactly the XOR bias ADR 0010 §1.2 forbids.
-            const uint32_t pick = ComboLogicRngBelow(&rng, (uint32_t)total);
-            const uint8_t hostGame =
-                (pick < (uint32_t)nOoT) ? (uint8_t)GAME_OOT : (uint8_t)GAME_MM;
-            const int hostIndex = (pick < (uint32_t)nOoT) ? (int)pick : (int)(pick - (uint32_t)nOoT);
-            const uint16_t host = sCandidates[hostGame].host[hostIndex];
-            const ComboLogicBagItem* item = &req->bag[sBagOrder[k]];
-
-            if (!ComboLogicAddPlacement(hostGame, host, item->item, item->itemClass)) {
-                status = RSBS_COMBO_LOGIC_ERR_CAPACITY;
-                goto finish;
-            }
-
-            const ComboLogicEngine* e = Combo_Logic_GetEngine((GameId)hostGame);
-            if (!e->place(e->self, host, item->item)) {
-                fprintf(stderr, "[ComboLogic] %s engine refused a placement on check %u it had offered\n",
-                        Game_ToString((GameId)hostGame), (unsigned)host);
-                status = RSBS_COMBO_LOGIC_ERR_ENGINE_REFUSED;
-                goto finish;
             }
         }
 
@@ -818,17 +948,8 @@ int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* 
         // --- the exit condition ------------------------------------------
         //
         // The guarantee is the fill's exit condition, never a check bolted on
-        // after it (ADR 0010 §2.3). The three rungs are this one code path with
-        // that condition parametrized — `none` is the operator's "bag, then
-        // randomly distribute" base mode, reached by skipping the proof and
-        // nothing else.
-        if (req->logicRung == RSBS_COMBO_RUNG_NONE) {
-            res.proofSkipped = true;
-            res.goalProven = false;
-            status = RSBS_COMBO_LOGIC_OK;
-            goto finish;
-        }
-
+        // after it (ADR 0010 §2.3). `beatable` and `all-reachable` differ only
+        // in this block; `none` never reaches it (it returned above).
         {
             const int st = ComboLogicRoundRun(NULL, 0, req->goal, &round);
             res.rounds++;
@@ -856,8 +977,20 @@ int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* 
 
 finish:
     res.status = status;
-    res.placed = Combo_Logic_PlacementCount(GAME_OOT) + Combo_Logic_PlacementCount(GAME_MM);
-    res.placementDigest = Combo_Logic_PlacementDigest();
+    // `placed` and `placementDigest` describe THIS CALL, not the tables. A
+    // request refused before any attempt ran (bad request, unpinned rung,
+    // unsupported GOAL, a missing engine) never called an engine and never
+    // touched a table, so reading the tables here would report whatever some
+    // earlier fill left in them and dress it up as a property of the refusal —
+    // which is exactly what a lock on "a refused fill places nothing" would then
+    // be measuring. `res.attempts` is nonzero iff an attempt ran.
+    if (res.attempts > 0) {
+        res.placed = Combo_Logic_PlacementCount(GAME_OOT) + Combo_Logic_PlacementCount(GAME_MM);
+        res.placementDigest = Combo_Logic_PlacementDigest();
+    } else {
+        res.placed = 0;
+        res.placementDigest = 0u;
+    }
     if (out != NULL) {
         *out = res;
     }

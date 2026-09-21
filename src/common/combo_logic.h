@@ -84,7 +84,7 @@ extern "C" {
  *  half-updated engine would otherwise be diagnosed as a logic bug months
  *  later. This is a build-internal number: nothing here is serialized, so it is
  *  not .redsave format and carries no append-only obligation. */
-#define RSBS_COMBO_LOGIC_ENGINE_ABI 1u
+#define RSBS_COMBO_LOGIC_ENGINE_ABI 2u
 
 // ============================================================================
 // Status codes — DIAGNOSTICS, NOT FORMAT
@@ -122,7 +122,13 @@ extern "C" {
 /** Dead end: an item had to be placed and no reached, unassigned host existed
  *  on either side, on every attempt. This is the failure the ATTEMPT LADDER
  *  above the coordinator answers with a deterministic re-roll (ADR 0010 §2.3);
- *  the coordinator's own retries are the batch roll-back inside one seed. */
+ *  the coordinator's own retries are the batch roll-back inside one seed.
+ *
+ *  Under RSBS_COMBO_RUNG_NONE it cannot mean that: that rung runs no round and
+ *  draws from ALL empty hosts, so the only way it can exhaust them is that both
+ *  worlds together hold fewer free hosts than the bag holds items. That is a
+ *  capacity fact about the pools, not a logic fact about the world, and no
+ *  re-roll can fix it. */
 #define RSBS_COMBO_LOGIC_ERR_NO_CANDIDATE 6
 /** Every attempt placed the whole bag, and on none of them was the GOAL
  *  expression provable with the bag empty. The GOAL check is the fill's EXIT
@@ -219,6 +225,11 @@ const char* Combo_Logic_StatusName(int status);
 // lost anything, so re-placing there would be pure cost — and the cost is not
 // small: it is one `place` per placement per round, and the fill runs a round
 // per bag item.
+//
+// RSBS_COMBO_RUNG_NONE RUNS NO ROUND AT ALL. Under that rung the only engine
+// calls are `clearPlacements` (the reset), `allEmptyHosts` and `place` — no
+// bracket is opened, nothing is assumed, nothing is expanded. See the rung list
+// at Combo_Logic_RunFill.
 //
 // THE EXCHANGE GATES, stated as the travel they model (audit §4.5):
 //   - An MM-origin item sitting in an OoT host reaches MM iff that host is
@@ -372,6 +383,37 @@ typedef struct ComboLogicEngine {
      * its own world. Occupancy has exactly one authority and it is not here.
      */
     int (*reachedEmptyHosts)(void* self, uint16_t* out, int cap);
+
+    /**
+     * EVERY host this engine owns that it does not consider already assigned —
+     * the same list as `reachedEmptyHosts` WITHOUT the reachability filter.
+     *
+     * THIS IS THE `none` RUNG'S HOST SOURCE and it is the reason the call
+     * exists. Audit §4.3 says that under RSBS_COMBO_RUNG_NONE "the round is
+     * skipped and hosts are drawn from all empties" — the operator's "bag, then
+     * randomly distribute" base mode. Drawing from `reachedEmptyHosts` instead
+     * would make the no-logic rung reachability-gated: it could refuse a world
+     * with ERR_NO_CANDIDATE although a free host existed, and it would pay a
+     * full reachability round per bag item for an answer it then throws away.
+     *
+     * CALLED OUTSIDE ANY ROUND. There is no `beginQuery` in force when the
+     * coordinator calls this, so it must NOT consult the simulated inventory,
+     * the reached set, or anything else a round sets up. It is a pure
+     * enumeration of the engine's own shuffled-check table minus the hosts it
+     * already holds — the same shape as asking a pool what is still in it.
+     *
+     * ORDER IS A CONTRACT, for the same reason as `reachedEmptyHosts`: a
+     * STABLE order that is a function of the engine's own table alone.
+     *
+     * @param out NULL to count only (then `cap` is ignored).
+     * @param cap capacity of `out`; at most `cap` ids are written.
+     * @return the TOTAL, which may EXCEED `cap`, in both the count-only and the
+     *         write case — truncation must be distinguishable from exhaustion.
+     *
+     * The coordinator filters the result against its own tables, so this must
+     * be a SUPERSET of `reachedEmptyHosts`'s list and over-reporting is free.
+     */
+    int (*allEmptyHosts)(void* self, uint16_t* out, int cap);
 
     /**
      * Is THIS HALF'S goal reached right now? OoT: `RG_TRIFORCE` reached, i.e.
@@ -641,13 +683,14 @@ typedef struct {
 
 typedef struct {
     int status;
-    int attempts;         // attempts consumed, including the successful one
-    int placed;           // placements in the tables on return
-    int rounds;           // rounds run across every attempt
+    int attempts; // attempts consumed, including the successful one; 0 when the
+                  // request was refused before any attempt ran
+    int placed;   // placements this call put in the tables; 0 on a pre-attempt refusal
+    int rounds;   // rounds run across every attempt; always 0 under rung `none`
     bool goalProven;      // the exit condition was evaluated and held
     bool proofSkipped;    // rung `none`: no proof was attempted (goalProven is false)
     bool allHostsReached; // rung `all-reachable` only: every placed host was reached
-    uint32_t placementDigest;
+    uint32_t placementDigest; // 0 on a pre-attempt refusal (see the note at RunFill)
 } ComboLogicFillResult;
 
 /**
@@ -663,19 +706,29 @@ typedef struct {
  * assumed and require the GOAL expression — that requirement is the loop's exit
  * condition, never a check bolted on after it.
  *
- * THE RUNGS ARE ONE CODE PATH with the exit condition parametrized, which is
- * ADR 0010 D5 read literally — the operator's "bag, then randomly distribute"
- * base mode is this same fill:
- *   RSBS_COMBO_RUNG_NONE          - the final round is SKIPPED. Placement still
- *                                   happens through the rounds (so a `none`
- *                                   world is still a legal single-bag world),
- *                                   but nothing is proved: `proofSkipped` is
- *                                   true and `goalProven` is false. A caller
- *                                   must not read "not proven" as "failed".
- *   RSBS_COMBO_RUNG_BEATABLE      - the GOAL expression must hold.
- *   RSBS_COMBO_RUNG_ALL_REACHABLE - the GOAL expression must hold AND every
- *                                   host the COMBO FILL placed on must be
- *                                   reached in that final round.
+ * THE RUNGS, and what each one actually does. They share the bag, the RNG, the
+ * uniform union draw and the two tables; they do NOT share the host source,
+ * because ADR 0010 D5's base mode is "bag, then randomly distribute" and audit
+ * §4.3 spells that out as "the round is skipped and hosts are drawn from all
+ * empties":
+ *   RSBS_COMBO_RUNG_NONE          - NO ROUND IS RUN, at all. Hosts are drawn
+ *                                   from `allEmptyHosts` on both sides, the
+ *                                   arrival gate does not apply (a rung that
+ *                                   makes no reachability claim cannot gate on
+ *                                   one), `rounds` is 0, and there is exactly
+ *                                   one attempt: nothing here can dead-end for
+ *                                   a logic reason, so nothing can be fixed by
+ *                                   re-shuffling. Nothing is proved:
+ *                                   `proofSkipped` is true and `goalProven` is
+ *                                   false, and a caller must not read "not
+ *                                   proven" as "failed".
+ *   RSBS_COMBO_RUNG_BEATABLE      - a round per bag item over REACHED empty
+ *                                   hosts, then a final round with nothing
+ *                                   assumed in which the GOAL expression must
+ *                                   hold.
+ *   RSBS_COMBO_RUNG_ALL_REACHABLE - the same, plus: every host the COMBO FILL
+ *                                   placed on must be reached in that final
+ *                                   round.
  *
  * The all-reachable rung's obligation is deliberately over PLACED hosts and not
  * over every location in either world. "Every location reachable" is each half's
@@ -683,15 +736,25 @@ typedef struct {
  * analogue), which ADR 0010 §1.2 explicitly keeps per-half and composes with any
  * GOAL; the pair-level obligation this rung adds on top is that nothing the
  * SINGLE BAG distributed ended up somewhere the player cannot stand. Widening it
- * would also need a vtable call that enumerates every shuffled host, which no
- * consumer has asked for.
+ * to "every host in both worlds" would duplicate that per-half axis at the pair
+ * level, which §1.2 kept per-half deliberately. (`allEmptyHosts` could now
+ * enumerate the wider set — it exists for the `none` rung — so the narrow
+ * reading is a decision here, not a limitation of the surface.)
  *
  * DETERMINISM: the whole result is a pure function of (`bag` contents and
  * order, `goal`, `logicRung`, `seed`, `maxAttempts`, the two registered
  * engines). Same inputs, same placements, byte for byte.
  *
- * ON FAILURE the placement tables hold the LAST attempt's partial state; a
- * caller that means to discard them calls Combo_Logic_ResetPlacements().
+ * ON FAILURE OF AN ATTEMPT the placement tables hold the LAST attempt's partial
+ * state; a caller that means to discard them calls Combo_Logic_ResetPlacements().
+ *
+ * ON A REFUSAL BEFORE ANY ATTEMPT — a malformed request, an unpinned rung, an
+ * unsupported GOAL, a missing engine — NOTHING is touched: no engine is called,
+ * the tables keep whatever they already held, and `placed` and `placementDigest`
+ * are reported as 0 rather than describing tables this call never looked at. A
+ * caller that wants the tables' contents after such a refusal reads them through
+ * Combo_Logic_PlacementCount / Combo_Logic_PlacementDigest, which are about the
+ * tables; the result struct is about the call.
  *
  * @return the status, also written to `out->status` when `out` is non-NULL.
  */

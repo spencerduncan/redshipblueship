@@ -76,7 +76,7 @@ S.endQuery()
   OoT re-points `Logic::mSaveContext` at the live save (audit §4.4/§1.8) — the
   engine must still be in query shape while the re-apply runs.
 
-## 3. Three things the audit's surface did not have
+## 3. Four things the audit's surface did not have
 
 These are the decisions a reviewer should look at hardest, because each one is
 an addition to §4.1 rather than an implementation of it.
@@ -127,9 +127,40 @@ narrower and precise: **every host the single-bag fill placed on must be reached
 in the final round.** Nothing the bag distributed may land where the player
 cannot stand.
 
-Widening it to every shuffled host in both worlds would need a vtable call that
-enumerates them, which no consumer has asked for and which would duplicate a
-per-half setting that already exists.
+Widening it to every shuffled host in both worlds would duplicate a per-half
+setting that already exists. (`allEmptyHosts`, added in §3.4 below, could now
+enumerate the wider set, so the narrow reading is a decision rather than a limit
+of the surface.)
+
+### 3.4 `allEmptyHosts` is part of the surface, and the `none` rung is why
+
+Audit §4.1's surface has one host enumerator, `ReachedEmptyHosts`. Audit §4.3
+then says that under `RSBS_COMBO_RUNG_NONE` "the round is skipped and hosts are
+drawn from all empties (the operator's *bag → randomly distribute* base mode as
+the same code path, D5)" — which the single enumerator cannot express. So the
+vtable carries a second, required call: **every host the engine does not already
+hold, reached or not, callable outside any query bracket.**
+
+Without it, `none` would be reachability-gated, and that is not a cosmetic
+difference:
+
+- It could **refuse a world it must accept.** With no reached, unassigned host on
+  either side the fill dead-ends and the attempt ladder exhausts into
+  `ERR_NO_CANDIDATE` — but "randomly distribute to each check" cannot dead-end
+  while any check is free. A rung defined by the absence of a logic obligation
+  would be failing for a logic reason.
+- It would **pay for the round it discards.** A reachability round per bag item
+  is the expensive half of the fill, against the #582 creation budget, computing
+  a filter this rung is required not to apply.
+
+The arrival gate (§3.1) is likewise not applied under `none`: it is a
+reachability rule, and a rung that asserts nothing about reachability must not
+gate on one — doing so would quietly empty half the world under the one rung that
+promises to fill all of it.
+
+A test row pins both sides over the one world where the two host sources
+disagree (its only free host is unreached and never offered): `none` places
+there, and `beatable` on the identical world refuses with `ERR_NO_CANDIDATE`.
 
 ## 4. The fill
 
@@ -145,12 +176,24 @@ Three points worth stating because a reviewer could reasonably expect otherwise:
   by side would bias toward the smaller game, and under `beat-either` a side
   preference *is* the XOR bias ADR 0010 §1.2 forbids.
 - **The GOAL check is the loop's exit condition**, evaluated by a final round with
-  nothing assumed — never a check bolted on after the fill. The three rungs are
-  one code path with that condition parametrized: `none` skips the final round
-  (and reports `proofSkipped`, so "not proven" cannot be misread as "proven"),
-  `beatable` requires the GOAL expression, `all-reachable` requires it plus §3.3.
-  That is ADR 0010 D5's "the operator's bag-then-distribute base mode is the same
-  fill" read literally.
+  nothing assumed — never a check bolted on after the fill. `beatable` requires
+  the GOAL expression; `all-reachable` requires it plus §3.3; the two differ in
+  that block and nowhere else.
+- **`none` is the same distribution over a different host source**, not the same
+  path with the proof switched off. It runs **no round at all** and draws from
+  `allEmptyHosts` (§3.4), so `rounds` is 0 and there is exactly one attempt —
+  nothing there can dead-end for a logic reason, so no re-shuffle could help. It
+  reports `proofSkipped`, so "not proven" cannot be misread as "proven". What the
+  three rungs genuinely share is the bag, the private RNG, the uniform union
+  draw and the two tables: one function, `ComboLogicDrawAndPlace`, does the
+  drawing and placing for all of them, so they cannot drift apart on the half
+  that decides the distribution.
+- **A refusal taken before any attempt describes the call, not the tables.** A
+  bad request, an unpinned rung, an unsupported GOAL or a missing engine returns
+  with `attempts == 0`, `placed == 0` and `placementDigest == 0`, having called
+  no engine and touched no table. Reading the tables there would report whatever
+  an earlier fill left in them dressed up as a property of the refusal — and a
+  lock on "a refused fill places nothing" would then be measuring the fixture.
 - **The RNG is private and injected.** `seed` comes from the frozen identity; a
   query must consume no game RNG, because a query runs a variable number of times
   per fill and a coordinator drawing from a game's stream would make the world a
@@ -206,21 +249,33 @@ Three `redship` rows, all over two synthetic bitmask stub engines.
 
 Proved: the registration refusals; the GOAL truth table including
 `beat-either`'s OR never narrowing to an XOR and triforce-hunt refusing; that a
-paired fill with one engine refuses instead of half-filling; ADR 0002 routing (no
-id ever reaches the wrong engine's `assumeOwnItem`, and a foreign item becomes a
-local junk cover rather than entering the host's own table); both premise
-watchdogs, bounded; one round terminating in a handful of alternations and being
-independent of the order facts arrived in; crossing exchange in **both**
-directions inside one world; the arrival gate; **the pair-level goal with
-removal** (an OoT-origin item hosted only in the MM stub makes `beat-both`
-provable; deleting that one host flips it unprovable, and the same world under
-`beat-either` is a legitimate world with one unbeatable half); the re-apply
-invariant against a restore that returns the engine's table empty; same-seed
-determinism **with** a different-seed sensitivity control; the `none` rung
-placing where `beatable` refuses on the identical world; `beat-either` placing
-byte-identically to `beat-both` where both halves prove, and not starving the
-permitted unbeatable half's checks; and `all-reachable` refusing a world
-`beatable` accepts.
+paired fill with one engine refuses instead of half-filling; that a refusal taken
+before any attempt reports on the call and leaves full tables untouched;
+**the coordinator's half of ADR 0002 routing** — the `SharedItem` reaching
+`place` still carries its foreign origin (the coordinator routes by origin and
+never rewrites it) and the id never reaches its own engine's `assumeOwnItem`;
+both premise watchdogs, bounded; one round terminating in a handful of
+alternations and being independent of the order facts arrived in; crossing
+exchange in **both** directions inside one world; the arrival gate; **the
+pair-level goal with removal** (an OoT-origin item hosted only in the MM stub
+makes `beat-both` provable; deleting that one host flips it unprovable, and the
+same world under `beat-either` is a legitimate world with one unbeatable half);
+the re-apply invariant against a restore that returns the engine's table empty;
+that an engine refusing a host it had itself offered aborts the fill and leaves
+no row in the coordinator's table claiming that host; same-seed determinism
+**with** a different-seed sensitivity control; **what `none` means** — on the one
+world where the two host sources disagree it places into the unreached host while
+`beatable` refuses the same world with `ERR_NO_CANDIDATE`, and it opens no query
+bracket on either engine; `beat-either` placing byte-identically to `beat-both`
+where both halves prove, and not starving the permitted unbeatable half's checks;
+and `all-reachable` refusing a world `beatable` accepts.
+
+Asserted of the stub rather than of the coordinator, and therefore **not** proved
+here: the junk cover. `ClPlace` makes a foreign item into a local junk item
+because that is what a real engine must do; no change to `combo_logic.c` can flip
+that assertion, and substituting the cover is the two engine lanes' obligation.
+It is asserted anyway, visibly, so that the stub's modelling of the contract is
+on the page instead of implied.
 
 Not proved, and not claimed: anything about either real engine. The stubs answer
 the coordinator's questions correctly by construction; whether OoT's
