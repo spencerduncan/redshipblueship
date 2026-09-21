@@ -8,6 +8,7 @@
 #include "entrance.h"
 #include "foreign_items.h" // ADR 0010 inc. 2: the frozen record + the O8 give-caps surface
 #include "gen_budget.h"    // ADR 0010 inc. 2: the #582 fill budget + progress surface
+#include "gen_progress_overlay.h" // #582: the on-screen creation-progress surface
 #include "save.h"          // the #533 slot-session surface the creation/arrival legs reset
 
 #include "integration_test_hooks.h"
@@ -1175,6 +1176,10 @@ TestResult Test_RandoDeterminism(void) {
 //   8  the #582 budget numbers are the ruled ones
 //   9  #585's join is in force (MM_Rando_Logic_JoinOrderProbe: red before the
 //      fix, green after)
+//  10  the #582 on-screen progress overlay PAINTS FROM INSIDE the blocking
+//      creation call — the one observation that needs both a real window (this
+//      tier has one) and a real paired creation (only this row runs one), and
+//      the one a display-free row provably cannot make
 //
 // WHY THE `rando` TIER. Every leg downstream of 1 needs a REAL OoT fill: the
 // creation event refuses to run without a live pairing identity, and the
@@ -1189,6 +1194,9 @@ uint32_t MM_Rando_OnSaveInitDispatchCount(void);
 int MM_Rando_Logic_JoinOrderProbe(void);
 void MM_Rando_LastPairedSpoilerStats(int* outForward, int* outReverse, int* outIdentityOk);
 int Combo_ConsumeFrozenState(const char* gameId, void* saveContext, size_t size);
+// #582's overlay leg. games/oot/soh/SohGui/CreationProgressOverlay.h documents
+// why the probe returns whether it could present rather than asserting it.
+int OoT_CreationProgressOverlay_TestPresentOnce(void);
 // The UNIFIED save buffer (src/common/unified_save.c): one char array both games
 // reinterpret through their own layouts. Declared as what it is, because leg 4
 // compares it byte for byte and neither game's struct spans all of it.
@@ -1349,7 +1357,26 @@ TestResult Test_ComboCreationEvent(void) {
 
     const uint32_t dispatchesBeforeCreation = MM_Rando_OnSaveInitDispatchCount();
     sCreationPhaseCount = 0;
+
+    // ------------------------------------------------------------------
+    // Leg 10 (#582) — THE OVERLAY ACTUALLY PAINTS DURING THE CREATION.
+    //
+    // This is the only place in the suite where that can be observed: the leg
+    // needs a real Fast3dWindow (this tier has one) AND a real paired creation
+    // (this row is the only one that runs one). The self-probe below answers
+    // "can this process present a gui-only frame at all" first, so a renderer
+    // that cannot (software GL, a backend that declines frames) skips the leg
+    // instead of reddening a row about creation.
+    //
+    // The count is taken AROUND the creation, so what it proves is specifically
+    // that frames were pumped from INSIDE the blocking call — which is the whole
+    // deliverable, and the thing a green display-free row cannot show.
+    const int overlayRendererWorks = OoT_CreationProgressOverlay_TestPresentOnce();
+    ComboGenOverlay_Reset();
+    printf("[TEST] overlay: this process %s present a gui-only frame\n", overlayRendererWorks ? "CAN" : "canNOT");
+
     const int created = OoT_RunPairedCreationEvent(0);
+    const uint32_t overlayPaints = ComboGenOverlay_PaintCount();
     const uint32_t dispatchesAfterCreation = MM_Rando_OnSaveInitDispatchCount();
     const uint32_t creationMs = Combo_GenProgress_Current()->elapsedMs;
     Combo_GenProgress_SetSink(NULL);
@@ -1362,9 +1389,31 @@ TestResult Test_ComboCreationEvent(void) {
         // gSaveContext is ONE buffer both games reinterpret. If the bracket ever
         // stops restoring it, the file the seam is in the middle of creating is
         // overwritten with MM's world and written to disk that way.
+        //
+        // Since #582 this also covers the overlay's paint bracket
+        // (OoT_Creation_PaintWithOoTSaveVisible): every painted frame swaps OoT's
+        // snapshot in and MM's in-flight bytes back, and a swap that failed to
+        // restore either direction lands here.
         printf("[TEST] FAIL: the creation event did not restore OoT's gSaveContext byte-exact — MM's world leaked "
                "into the file being created (src/common/unified_save.c)\n");
         return TEST_FAIL;
+    }
+    // Leg 10's verdict. A renderer that could present a probe frame and then
+    // painted nothing across a whole paired creation means the surface is wired
+    // to nothing — exactly the state this issue was open for.
+    if (overlayRendererWorks) {
+        if (overlayPaints == 0) {
+            printf("[TEST] FAIL: this process can present a gui-only frame, yet the paired creation painted %u "
+                   "overlay frames — the on-screen progress surface is not reached from inside the blocking call "
+                   "(#582)\n",
+                   (unsigned)overlayPaints);
+            return TEST_FAIL;
+        }
+        printf("[TEST] overlay: the paired creation painted %u frames from inside the blocking call (#582)\n",
+               (unsigned)overlayPaints);
+    } else {
+        printf("[TEST] overlay: SKIPPED the paint assertion — this renderer cannot present a gui-only frame here "
+               "(the phase channel's stderr leg is the surface in that case)\n");
     }
     if (dispatchesAfterCreation != dispatchesBeforeCreation + 1u) {
         printf("[TEST] FAIL: the creation event dispatched MM generation %u times, expected exactly 1\n",

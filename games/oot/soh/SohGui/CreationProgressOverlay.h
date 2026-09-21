@@ -34,6 +34,18 @@ extern "C" {
  */
 void OoT_CreationProgressOverlay_Install(void);
 
+/**
+ * TEST SEAM (combo-creation-event's overlay leg). Install, stand in for the game
+ * loop, and try to present ONE gui-only frame.
+ *
+ * @return 1 when a frame was actually presented, 0 when this process cannot
+ *         present one at all (no Fast3D window, a backend that declined). The
+ *         caller uses that to tell "this renderer cannot do it here" (skip the
+ *         leg) from "the renderer can and the creation painted nothing" (a
+ *         defect). Nothing in a shipping path calls this.
+ */
+int OoT_CreationProgressOverlay_TestPresentOnce(void);
+
 #ifdef __cplusplus
 }
 #endif

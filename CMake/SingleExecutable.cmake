@@ -1236,7 +1236,10 @@ if(BUILD_TESTING)
     # survives the shared-gSaveContext bracket byte-exact, the arrival hydrates
     # or refuses and NEVER generates (a dispatch counter, not a comment), the
     # #582 budget is the ruled one, the pair writes ONE spoiler carrying both
-    # crossing directions (#660), and #585's join is in force.
+    # crossing directions (#660), #585's join is in force, and (#582) the
+    # on-screen progress overlay paints frames from INSIDE the blocking creation
+    # call — which needs both a real window and a real creation, so this row is
+    # the only place in the suite where it can be observed at all.
     #
     # In the `rando` tier for the same correctness reason as the row above: the
     # creation event refuses to run without a live pairing identity, and every

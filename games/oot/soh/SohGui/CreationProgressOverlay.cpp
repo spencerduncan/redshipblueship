@@ -112,6 +112,7 @@
 #include <ship/window/gui/Gui.h>
 
 #include <cstdio>
+#include <cstring>
 #include <memory>
 #include <thread>
 
@@ -145,6 +146,17 @@ bool gPainting = false;
 bool gWarnedNoWindow = false;
 bool gWarnedOffThread = false;
 bool gWarnedNoFrames = false;
+/**
+ * TEST SEAM. Stands in for "the game loop is running", and nothing in a shipping
+ * path writes it -- the same shape and the same rule as
+ * Combo_GenBudget_SetHostScalePercentOverride (gen_budget.h).
+ *
+ * It exists because the `rando` tier has a REAL Fast3dWindow and no game loop,
+ * which is the only place the whole pump can be exercised at all: without it the
+ * paint path would ship with no automated evidence that this renderer can
+ * present a gui-only frame from inside a blocking call.
+ */
+bool gForceRenderLoopForTest = false;
 
 /** The view being painted. A file static because the gSaveContext bracket takes
  *  a plain `void(*)()` -- it is a C seam and giving it a capture would mean
@@ -225,7 +237,7 @@ void PaintUnderOoTSave() {
  * Present ONE gui-only frame. The sequence is RunExtract's, and every guard is
  * justified in the file comment.
  */
-void PresentOneGuiFrame(const ComboGenOverlayView* view) {
+bool PresentOneGuiFrame(const ComboGenOverlayView* view) {
     if (std::this_thread::get_id() != gRenderThread) {
         if (!gWarnedOffThread) {
             gWarnedOffThread = true;
@@ -242,9 +254,9 @@ void PresentOneGuiFrame(const ComboGenOverlayView* view) {
         // sets a flag (GfxWindowBackendSDL2::Close), so this is safe to observe
         // and the right thing to do with it is stop drawing into a window on its
         // way out; the creation finishes and the game loop exits after it.
-        return;
+        return false;
     }
-    if (!OoT_Graph_HasPresentedFrame()) {
+    if (!gForceRenderLoopForTest && !OoT_Graph_HasPresentedFrame()) {
         // NOT A LIVE RENDER LOOP. A unit-test harness constructs a real
         // Fast3dWindow (the `rando` tier needs one) and never runs a frame
         // through it, so pumping one from inside a test's creation call would be
@@ -287,6 +299,7 @@ void PresentOneGuiFrame(const ComboGenOverlayView* view) {
     // actually visible rather than queued behind a stalled message loop.
     fast->HandleEvents();
 
+    bool presented = false;
     if (fast->IsFrameReady()) {
         gui->StartDraw();
         fast->StartFrame();
@@ -294,10 +307,12 @@ void PresentOneGuiFrame(const ComboGenOverlayView* view) {
         OoT_Creation_PaintWithOoTSaveVisible(&PaintUnderOoTSave);
         gui->EndDraw();
         fast->EndFrame();
+        presented = true;
     }
 
     gPaintingView = nullptr;
     gPainting = false;
+    return presented;
 }
 
 void OverlayPainter(const ComboGenOverlayView* view) {
@@ -321,6 +336,34 @@ extern "C" void OoT_CreationProgressOverlay_Install(void) {
     gInstalled = true;
     ComboGenOverlay_SetPainter(&OverlayPainter);
     Combo_GenProgress_SetDisplaySink(&CreationProgressSink);
+}
+
+extern "C" int OoT_CreationProgressOverlay_TestPresentOnce(void) {
+    // Install first, so the render-thread latch is this thread, then stand in for
+    // the game loop and try to present exactly one frame.
+    //
+    // WHAT THE RETURN VALUE IS FOR. The `rando` tier's renderer may or may not be
+    // able to present at all (software GL under Xvfb, a headless CI box, a
+    // backend that declines frames). A row that demanded a paint would then go
+    // red for a reason that has nothing to do with this code. So the row asks
+    // FIRST: if this returns 0, presenting is simply not available here and the
+    // overlay leg skips; if it returns 1, the renderer demonstrably works and a
+    // creation that then paints NOTHING is a real wiring defect.
+    //
+    // The force flag stays set on purpose: the creation the caller is about to
+    // run is the thing under test, and it has to reach the same pump.
+    OoT_CreationProgressOverlay_Install();
+    gForceRenderLoopForTest = true;
+
+    ComboGenOverlayView probe;
+    memset(&probe, 0, sizeof(probe));
+    probe.state = (uint8_t)RSBS_GENOVERLAY_SHOWN;
+    probe.phase = (uint8_t)RSBS_GENPHASE_MM_FILL;
+    probe.attempt = 1;
+    probe.maxAttempts = 1;
+    probe.fraction = 0.5f;
+    snprintf(probe.caption, sizeof(probe.caption), "Creation overlay self-probe");
+    return PresentOneGuiFrame(&probe) ? 1 : 0;
 }
 
 #endif // RSBS_SINGLE_EXECUTABLE
