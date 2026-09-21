@@ -139,12 +139,24 @@ was **deleted from both trees on 2026-09-21** rather than resolved; see
 The SIL Open Font License 1.1 requires its text, and each font's copyright
 notice, to travel with the font files (OFL 1.1 condition 2). Both are now in the
 tree beside them: **`games/oot/assets/custom/fonts/OFL.txt`** and
-**`games/mm/assets/custom/fonts/OFL.txt`**. Each names the fonts in its own
-directory with that font's `name`-table copyright line, and reproduces the OFL
-1.1 body verbatim. Because this repository's custom-asset step packs everything
-under `assets/custom/` into `soh.o2r` / `2ship.o2r` verbatim
+**`games/mm/assets/custom/fonts/OFL.txt`**. Each names every font in the table
+above with that font's `name`-table copyright line, and reproduces the OFL 1.1
+body verbatim. Because this repository's custom-asset step packs everything under
+`assets/custom/` into `soh.o2r` / `2ship.o2r` verbatim
 (`OTRExporter/OTRExporter/Main.cpp`), the notice travels inside the shipped
 archives as well as in the source tree.
+
+**The two copies are byte-identical, and must stay that way.** They are not a
+per-directory notice, and the reason is the archive layer rather than tidiness:
+both archives are packed to the same path (`fonts/OFL.txt`) and are mounted into
+one flat libultraship `ArchiveManager` in a single-executable build, where
+resolution is last-added-wins with no priority field. A path carried by both
+archives with different bytes therefore resolves differently depending on which
+game booted first — issue #595. A first draft of these notices listed only each
+directory's own fonts and `src/common/tests/test_curated_archive_order.c` caught
+it. So one notice covers the whole shipped set, and the per-tree difference is
+recorded in its "carried in" column instead. The byte-identity is asserted by the
+`FontLicense` row, with that reason attached.
 
 The copyright column above was re-verified on 2026-09-21 by parsing each shipped
 file's own `name` table (IDs 0, 7, 13, 14). Two details worth recording: the

@@ -1,27 +1,41 @@
-SIL Open Font License 1.1 — the license of every font file in this directory.
+SIL Open Font License 1.1 - the license of every font file RedShipBlueShip ships.
 ================================================================================
 
 OFL 1.1 condition 2 permits the fonts to be "bundled, redistributed and/or sold
 with any software, provided that each copy contains the above copyright notice
-and this license". This file is that copy. It sits beside the font files and is
-packed into 2ship.o2r with them by this repository's custom-asset step, so the
-notice travels with the fonts in a distributed build as well as in the source
-tree.
+and this license". This file is that copy. It sits beside the font files in both
+games' custom-asset trees and is packed into soh.o2r and 2ship.o2r with them by
+this repository's custom-asset step, so the notice travels with the fonts in a
+distributed build as well as in the source tree.
 
 Condition 3 is the one to read before renaming anything: a Reserved Font Name
 below may not be used by a Modified Version of that font without the copyright
 holder's written permission.
 
+THE TWO COPIES OF THIS FILE ARE BYTE-IDENTICAL ON PURPOSE. Do not "tidy" either
+one to list only the fonts in its own directory. Both custom-asset archives are
+mounted into a single libultraship ArchiveManager in a single-executable build,
+where resolution is last-added-wins, so a path carried by both archives with
+different bytes resolves differently depending on which game booted first. That
+is issue #595, and src/common/tests/test_curated_archive_order.c fails on it.
+One notice covering the whole shipped set is what keeps `fonts/OFL.txt`
+order-independent. The "carried in" column below is how the per-tree difference
+is recorded instead.
+
 Fonts covered, with each one's copyright notice read from its own `name` table
 (name ID 0), not from a distribution page:
 
-  Inconsolata-Regular.ttf
+  Inconsolata-Regular.ttf  (carried in: both trees)
     Copyright 2006 The Inconsolata Project Authors (https://github.com/cyrealtype/Inconsolata)
 
-  Montserrat-Regular.ttf
+  Montserrat-Regular.ttf  (carried in: both trees)
     Copyright 2011 The Montserrat Project Authors (https://github.com/JulietaUla/Montserrat)
 
-  PressStart2P-Regular.ttf
+  NotoSansJP-Regular.ttf  (carried in: games/oot only)
+    (c) 2014-2021 Adobe (http://www.adobe.com/), with Reserved Font Name 'Source'.
+    Source is a trademark of Adobe in the United States and/or other countries.
+
+  PressStart2P-Regular.ttf  (carried in: both trees)
     Copyright 2012 The Press Start 2P Project Authors (cody@zone38.net), with Reserved Font Name "Press Start 2P"
 
 Nothing else is claimed about these fonts here. RedShipBlueShip's own MIT grant

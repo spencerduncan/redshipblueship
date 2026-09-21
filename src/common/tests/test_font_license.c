@@ -45,6 +45,16 @@
  * path that is not a format-suffixed PNG and adds it verbatim, so the tree IS
  * the archive's font manifest).
  *
+ * ONE MORE THING THE ARCHIVE LAYER FORCES. The two `OFL.txt` copies are
+ * byte-identical, and that is asserted here rather than left to whoever edits
+ * them next. Both custom-asset trees are packed to the same archive path
+ * (`fonts/OFL.txt`) in two archives that share one last-added-wins
+ * `ArchiveManager`, so a per-directory notice makes the shipped license text a
+ * function of which game booted first — issue #595, whose row
+ * (`test_curated_archive_order.c`) is exactly what caught the first draft of
+ * these notices. So one notice covers the whole shipped font set and records the
+ * per-tree difference in a column instead.
+ *
  * MM's `2s2h/BenPort.cpp` is excluded from every single-exe target
  * (`games/mm/CMakeLists.txt`'s `list(FILTER ship__ EXCLUDE REGEX
  * "2s2h/BenPort\\.cpp$")`) and its only caller, `InitOTR()`, is reached solely
@@ -205,19 +215,32 @@ struct FontLicShippedFont {
     const char* copyrightFragment;
 };
 
-/// Verified against each file's name table on 2026-09-21 (name ID 0).
-const FontLicShippedFont kOotFonts[] = {
+/**
+ * Every font this project ships, from either tree, with the copyright fragment
+ * its own `name` table carries. Verified against each file on 2026-09-21.
+ *
+ * ONE list for BOTH directories, because both `OFL.txt` copies must name the
+ * whole set — see the byte-identity assertion below for why they cannot each
+ * name only their own directory.
+ */
+const FontLicShippedFont kShippedFonts[] = {
     { "Inconsolata-Regular.ttf", "Copyright 2006 The Inconsolata Project Authors" },
     { "Montserrat-Regular.ttf", "Copyright 2011 The Montserrat Project Authors" },
     { "NotoSansJP-Regular.ttf", "with Reserved Font Name 'Source'" },
     { "PressStart2P-Regular.ttf", "Reserved Font Name \"Press Start 2P\"" },
 };
 
-/// MM's tree carries the same set minus the Japanese face.
-const FontLicShippedFont kMmFonts[] = {
-    { "Inconsolata-Regular.ttf", "Copyright 2006 The Inconsolata Project Authors" },
-    { "Montserrat-Regular.ttf", "Copyright 2011 The Montserrat Project Authors" },
-    { "PressStart2P-Regular.ttf", "Reserved Font Name \"Press Start 2P\"" },
+/// Which of those files each tree actually carries. MM has no Japanese face.
+const char* const kOotFontFiles[] = {
+    "Inconsolata-Regular.ttf",
+    "Montserrat-Regular.ttf",
+    "NotoSansJP-Regular.ttf",
+    "PressStart2P-Regular.ttf",
+};
+const char* const kMmFontFiles[] = {
+    "Inconsolata-Regular.ttf",
+    "Montserrat-Regular.ttf",
+    "PressStart2P-Regular.ttf",
 };
 
 } // namespace
@@ -348,13 +371,15 @@ TestResult Test_FontLicense(void) {
     // that got wiped, and that would be a worse bug shipped green.
     struct FontDir {
         const char* relPath;
-        const FontLicShippedFont* fonts;
-        std::size_t fontCount;
+        const char* const* fontFiles;
+        std::size_t fontFileCount;
     };
     const FontDir kFontDirs[] = {
-        { "games/oot/assets/custom/fonts", kOotFonts, sizeof(kOotFonts) / sizeof(kOotFonts[0]) },
-        { "games/mm/assets/custom/fonts", kMmFonts, sizeof(kMmFonts) / sizeof(kMmFonts[0]) },
+        { "games/oot/assets/custom/fonts", kOotFontFiles, sizeof(kOotFontFiles) / sizeof(kOotFontFiles[0]) },
+        { "games/mm/assets/custom/fonts", kMmFontFiles, sizeof(kMmFontFiles) / sizeof(kMmFontFiles[0]) },
     };
+    std::string oflTexts[sizeof(kFontDirs) / sizeof(kFontDirs[0])];
+    std::size_t dirIndex = 0;
 
     for (const FontDir& dir : kFontDirs) {
         const std::filesystem::path path = repoRoot / dir.relPath;
@@ -379,18 +404,18 @@ TestResult Test_FontLicense(void) {
         }
 
         // The positive half: every font that is supposed to be here, is.
-        for (std::size_t i = 0; i < dir.fontCount; i++) {
+        for (std::size_t i = 0; i < dir.fontFileCount; i++) {
             bool found = false;
             for (const std::string& name : names) {
-                if (name == dir.fonts[i].fileName) {
+                if (name == dir.fontFiles[i]) {
                     found = true;
                     break;
                 }
             }
             if (!found) {
-                printf("[TEST] FAIL: %s/%s is missing. The \"no Fipps\" check above passes vacuously over an empty "
-                       "or gutted font directory, so the expected set is asserted explicitly.\n",
-                       dir.relPath, dir.fonts[i].fileName);
+                printf("[TEST] FAIL: %s/%s is missing. The check above passes vacuously over an empty or gutted font "
+                       "directory, so the expected set is asserted explicitly.\n",
+                       dir.relPath, dir.fontFiles[i]);
                 return TEST_FAIL;
             }
         }
@@ -411,15 +436,48 @@ TestResult Test_FontLicense(void) {
                    dir.relPath);
             return TEST_FAIL;
         }
-        for (std::size_t i = 0; i < dir.fontCount; i++) {
-            if (!FontLicHas(ofl, dir.fonts[i].copyrightFragment)) {
+        // EVERY shipped font's notice, not just this directory's. The two copies
+        // are byte-identical (asserted below), so each covers the whole set.
+        for (const FontLicShippedFont& font : kShippedFonts) {
+            if (!FontLicHas(ofl, font.copyrightFragment)) {
                 printf("[TEST] FAIL: %s/OFL.txt does not carry %s's copyright notice (looking for \"%s\"). The OFL "
                        "requires the notice of each font it covers, and a Reserved Font Name is part of it.\n",
-                       dir.relPath, dir.fonts[i].fileName, dir.fonts[i].copyrightFragment);
+                       dir.relPath, font.fileName, font.copyrightFragment);
                 return TEST_FAIL;
             }
         }
-        printf("[TEST]   %s: %zu font(s), no Fipps*, OFL.txt names every one\n", dir.relPath, dir.fontCount);
+        oflTexts[dirIndex++] = ofl;
+        printf("[TEST]   %s: %zu font file(s), no Fipps*, OFL.txt names all %zu shipped fonts\n", dir.relPath,
+               dir.fontFileCount, sizeof(kShippedFonts) / sizeof(kShippedFonts[0]));
+    }
+
+    // ---- (2b) The two OFL.txt copies must be BYTE-IDENTICAL ----------------
+    //
+    // Not tidiness — an archive-layer requirement, and the reason this file
+    // carries one notice for both trees instead of a per-directory one. Both
+    // custom-asset trees are packed into curated archives (soh.o2r, 2ship.o2r)
+    // that are mounted into ONE flat libultraship ArchiveManager in a
+    // single-executable build, where resolution is last-added-wins with no
+    // priority field. A path carried by both archives with different bytes
+    // therefore resolves differently depending on which game booted first.
+    // That is issue #595, and test_curated_archive_order.c fails on it — it is
+    // what caught the first draft of these notices, which named only each
+    // directory's own fonts. This assertion states the cause at the source
+    // file, so the next person to "fix" the over-inclusive list reads why.
+    {
+        FONTLIC_CHECK(dirIndex == sizeof(kFontDirs) / sizeof(kFontDirs[0]),
+                      "not every fonts directory yielded an OFL.txt, so the byte-identity check below would compare "
+                      "an empty string against itself");
+        if (oflTexts[0] != oflTexts[1]) {
+            printf("[TEST] FAIL: the two OFL.txt copies differ (%zu vs %zu bytes). They are packed to the SAME "
+                   "archive path (fonts/OFL.txt) in two archives that share one ArchiveManager, so differing bytes "
+                   "make the shipped notice depend on which game booted first (#595). Keep one notice covering every "
+                   "shipped font in both trees; record the per-tree difference in its \"carried in\" column.\n",
+                   oflTexts[0].size(), oflTexts[1].size());
+            return TEST_FAIL;
+        }
+        printf("[TEST]   both OFL.txt copies byte-identical (%zu bytes), so fonts/OFL.txt is mount-order independent\n",
+               oflTexts[0].size());
     }
 
     // ---- (3) MM's CC0 grant is visible in this repository ------------------
