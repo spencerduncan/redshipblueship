@@ -679,8 +679,10 @@ if(BUILD_TESTING)
     # ComboSettingsAuthoring proves the keys reach the record BEFORE the freeze
     # (the frozen record is what the player authored), that the defaults still
     # reproduce the shipped record and its pinned fingerprint byte for byte
-    # (which is why SeedDeterminism / MMRandoGen / HeadlessForeignDigest do not
-    # move), that an out-of-space store value resolves to the default and never
+    # (which is why the GOLDEN rows do not move — this parenthesis used to name
+    # "SeedDeterminism / MMRandoGen / HeadlessForeignDigest", of which the first
+    # cannot detect a move at all and the last is not a CTest row; #688), that an
+    # out-of-space store value resolves to the default and never
     # to a new enumerator, and that the writers refuse once frozen — the gate
     # is on the writers, not the widget (ADR 0004 §6). ComboSettingsWindow is
     # the common-owned pane's headless lock (ADR 0008). Both need the
