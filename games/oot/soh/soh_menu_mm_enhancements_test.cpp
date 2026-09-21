@@ -194,7 +194,7 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
     // elision class (#516/#640) that would drop the initializer silently.
     {
         bool registered = false;
-        for (const ComboSectionPage& page : SohGui::GetComboSectionPages()) {
+        for (const SohGui::ComboSectionPage& page : SohGui::GetComboSectionPages()) {
             if (page.sidebarName == pageName) {
                 registered = true;
                 MME_CHECK(page.columnCount == 1,
@@ -349,7 +349,7 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
                                    .RaceDisable(false)
                                    .Options(UIWidgets::CheckboxOptions().Tooltip("synthetic"));
             info.PreFunc([reason](WidgetInfo& i) {
-                SohGui::SohMenu::ApplyPresentation(i, i.name, SOH_MENU_PRESENT_CAPABILITY, reason);
+                SohGui::SohMenu::ApplyPresentation(i, i.name, SohGui::SOH_MENU_PRESENT_CAPABILITY, reason);
             });
         }
 
