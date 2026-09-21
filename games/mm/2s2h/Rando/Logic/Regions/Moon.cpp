@@ -65,8 +65,19 @@ static RegisterShipInitFunc initFunc([]() {
     };
     Regions[RR_MOON_MAJORAS_LAIR] = RandoRegion{ .sceneId = SCENE_LAST_BS,
         .checks = {
-            // TODO: 1) Add a check for Game Completion?
-            //       2) Determine if it's ok for these pots to be shuffled since we cannot return from here.
+            // 1) Game completion: RESOLVED as an evaluable predicate, deliberately NOT as a region term
+            //    (#658). "Majora defeated" is Rando::Logic::CanDefeatMajora() -- the ACTOR_BOSS_07 row of
+            //    CanKillEnemy in Rando/Logic/Logic.h -- and ADR 0010 D1's MM_GOAL is
+            //    Rando::Logic::MmGoalMajoraDefeated(crawl), which conjoins it with this region's
+            //    reachability. It is not a .checks or .events entry here because BOTH traversals read this
+            //    same struct: the glitchless FILL (Rando/Logic/GlitchlessLogic.cpp) and the factored crawl
+            //    (Rando/Logic/Logic.cpp). In the fill, an event that first fires in an iteration where
+            //    nothing else changed takes the eventsInLogicChanged branch instead of the junk-swap branch
+            //    and bumps `weight`, which feeds the cumulative-weight Ship_Random draw that picks the check
+            //    to re-roll -- i.e. adding the win as an event here moves placements in every generated
+            //    world. ADR 0010 increment 3 (#645) is where the fill consumes the goal, with the
+            //    determinism re-pin that implies; this increment only makes the fact derivable.
+            // 2) TODO: Determine if it's ok for these pots to be shuffled since we cannot return from here.
             CHECK(RC_MOON_MAJORA_POT_01, true),
             CHECK(RC_MOON_MAJORA_POT_02, true),
         },

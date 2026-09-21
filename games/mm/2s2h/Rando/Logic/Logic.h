@@ -891,10 +891,80 @@ inline bool CanKillEnemy(ActorId EnemyId) {
             return HAS_ITEM(ITEM_BOW);
         case ACTOR_EN_THIEFBIRD: // Takkuri
             return (CAN_USE_PROJECTILE || CAN_BE_GORON || CAN_BE_ZORA || CAN_USE_EXPLOSIVE || CAN_USE_SWORD);
+        case ACTOR_BOSS_07: // Majora (Mask -> Incarnation -> Wrath: one actor, three consecutive phases)
+            // Authored from the fight's own damage tables and damage handlers in
+            // games/mm/src/overlays/actors/ovl_Boss_07/z_boss_07.c. Two facts from that source shape this row:
+            //
+            //  1. Every phase is stun-THEN-damage. The first landed hit sets the stunned action; only a hit
+            //     that lands while the boss is already stunned or in its damaged animation reaches that
+            //     phase's SetupDamaged and subtracts health (Boss07_Mask_UpdateDamage,
+            //     Boss07_Incarnation_UpdateDamage, Boss07_Wrath_UpdateDamage). The fight therefore needs one
+            //     kit that can do both, not two.
+            //
+            //  2. Wrath is the binding phase and the only one that filters WHICH attack may deal the damage:
+            //     while stunned, any damage effect other than ANIM_FRAME_CHECK, DAMAGE_NONE, BLUE_LIGHT_ORB
+            //     or EXPLOSIVE re-stuns instead of damaging. In sWrathDmgTable those four effects are carried
+            //     by Deku stick, Goron punch, Goron spikes, Deku spin, Deku launch, Zora punch, sword, spin
+            //     attack, sword beam and explosives. They are NOT carried by arrows of any kind -- plain,
+            //     fire, ice and light arrows are all stun-only on Wrath -- and the hookshot is IMMUNE in all
+            //     three phases' tables. A bow-only or hookshot-only kit can stun Majora forever and never
+            //     kill it, which is why neither term appears below and why this row is NOT
+            //     CAN_USE_PROJECTILE.
+            //
+            // Every term below deals nonzero damage in all three phases' tables, so the row is one expression
+            // rather than one per phase. Deku is gated on magic because the Deku attack that survives Wrath's
+            // filter is the spin; the Deku launch needs a flower this arena does not provide.
+            //
+            // The soul gate is the exact negation of shouldMajoraRegister() (Rando/ActorBehavior/Souls.cpp):
+            // Majora's soul is armed by EITHER boss-soul shuffle or the Triforce hunt, because in hunt mode
+            // GiveItem grants RI_SOUL_BOSS_MAJORA on reaching RO_TRIFORCE_PIECES_REQUIRED and that grant is
+            // what blocks beating the game early (Rando/GiveItem.cpp), while GeneratePools drops the soul
+            // from the boss-soul pool in that mode. Mirroring the arm condition is what makes this row mean
+            // "Majora can be killed in THIS world's settings" rather than "in vanilla".
+            return (CAN_USE_SWORD || CAN_BE_GORON || CAN_BE_ZORA || (CAN_BE_DEKU && HAS_MAGIC) ||
+                    CAN_USE_EXPLOSIVE || HAS_ITEM(ITEM_DEKU_STICK)) &&
+                   (Flags_GetRandoInf(RANDO_INF_OBTAINED_SOUL_OF_BOSS_MAJORA) ||
+                    (RANDO_SAVE_OPTIONS[RO_SHUFFLE_BOSS_SOULS] != RO_GENERIC_YES &&
+                     RANDO_SAVE_OPTIONS[RO_SHUFFLE_TRIFORCE_PIECES] != RO_GENERIC_YES));
         default: // Incorrect actor ID inputed.
             assert(false);
             return false;
     }
+}
+
+// ============================================================================
+// MM_GOAL (ADR 0010 Decision 1, docs/adr/0010-cross-game-logic-and-beatability.md:186-200)
+//
+// ADR 0010 D1 defines MM_GOAL as "Majora's Lair reached AND Majora defeated".
+// Until #658 only the first conjunct was derivable: RR_MOON_MAJORAS_LAIR was a
+// reachable region with no completion term, and CanKillEnemy had no row for
+// Majora's actor, so asking it hit the default branch's assert instead of
+// answering. The two functions below make the second conjunct a real, evaluable
+// fact and compose the pair, so "the lair is reachable" is no longer the
+// strongest goal fact the graph can yield.
+//
+// Neither is wired into a region's .checks or .events, on purpose -- see the
+// note on RR_MOON_MAJORAS_LAIR in Regions/Moon.cpp for why a region term would
+// move every generated world. ADR 0010 increment 3 (#645) is where the fill
+// consumes this. Nothing consumes it yet, which is also why it is not exported
+// through games/mm/2s2h/GameExports_SingleExe.cpp: there is no src/common
+// caller, and an export with no consumer is a seam that drifts unobserved.
+// ============================================================================
+
+/** ADR 0010 D1's "Majora defeated" conjunct, over the CURRENT gSaveContext
+ *  (inventory, forms, equipment, magic, rando options and flags). Pure: reads
+ *  the save, consumes no RNG, mutates nothing. */
+inline bool CanDefeatMajora() {
+    return CanKillEnemy(ACTOR_BOSS_07);
+}
+
+/** MM_GOAL itself: both of ADR 0010 D1's conjuncts against one crawl result.
+ *  Lair reachability stays exactly where MM authored it -- the one-way
+ *  MAJORAS_LAIR exit's RO_ACCESS_MAJORA_REMAINS_COUNT / _MASKS_COUNT gate in
+ *  Regions/Moon.cpp -- so the goal's parameters remain MM's own authored
+ *  settings, as D1.2 requires; this function only conjoins the defeat term. */
+inline bool MmGoalMajoraDefeated(const ReachabilityCrawl& crawl) {
+    return crawl.reachableRegions.find(RR_MOON_MAJORAS_LAIR) != crawl.reachableRegions.end() && CanDefeatMajora();
 }
 
 } // namespace Logic
