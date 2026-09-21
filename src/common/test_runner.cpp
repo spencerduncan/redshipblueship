@@ -301,6 +301,14 @@ int MM_DeathDeclineAutosave_RunHeadless(void);
 // Combo_FreezeActiveGameForHotSwap). Return 0 on pass.
 int MM_SceneFlagFreeze_RunHeadless(void);
 int OoT_SceneFlagFreeze_RunHeadless(void);
+// #661: the Happy Mask Shop interior pair is the OoT<->MM crossing and must
+// never enter OoT's own entrance-shuffle pools. Both bodies live in
+// games/oot/soh/oot_entrance_pin_test.cpp. The pool probe is ROM-free and
+// display-free (it only needs the rando region graph); the generated-seed lock
+// runs a real fill with interior shuffle ALL + mixed + decoupled and therefore
+// needs the display bring-up, like the other rando-tier rows. Return 0 on pass.
+int OoTTest_EntrancePinPool(void);
+int RandoTest_EntrancePinGenerated(void);
 // VB-affinity regression: MM's GameInteractor_* calls resolve to OoT's
 // extern "C" wrappers in single-exe builds, and the two games' vanilla-
 // behavior ordinals alias each other. The wrappers gate on the active game;
@@ -647,6 +655,13 @@ static TestResult Test_MMSceneFlagFreeze(void) {
 
 static TestResult Test_OoTSceneFlagFreeze(void) {
     return OoT_SceneFlagFreeze_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #661 pool-candidate probe (see the extern decl above). Thin wrapper over the C
+// entry point in games/oot/soh/oot_entrance_pin_test.cpp. Display-free: it brings
+// up only the rando region graph, no Ship::Context and no archives.
+static TestResult Test_OoTEntrancePin(void) {
+    return OoTTest_EntrancePinPool() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // ============================================================================
@@ -1025,6 +1040,29 @@ TestResult Test_TrackerArrivalRehydration(void) {
     failures += RandoTest_ItemTrackerArrivalLock();
     printf("[TEST] %s: tracker arrival rehydration failures=%d\n", failures == 0 ? "PASS" : "FAIL", failures);
     return failures == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #661 end-to-end lock: a real OoT fill with interior shuffle ALL plus the
+// strongest pool-mixing settings must still leave the mask-shop crossing out of
+// the generated entrance-override table, while OTHER interiors are shuffled.
+// Needs the display bring-up like rando-gen (it runs a real generation), so
+// `--test all` skips it. Assertions in games/oot/soh/oot_entrance_pin_test.cpp.
+TestResult Test_RandoEntrancePin(void) {
+    printf("[TEST] rando-entrance-pin: generated seeds never shuffle the Happy Mask Shop crossing (#661)\n");
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    int rc = RandoTest_EntrancePinGenerated();
+    printf("[TEST] %s: entrance-pin generation rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // Lane B unified-seed lock. Single run: bring up OoT, generate one pinned seed,
@@ -3653,6 +3691,18 @@ const TestDescriptor gTests[] = {
     // Keep archive-hotswap-logic LAST: it re-inits the entrance table, so it
     // must not run before any test that relies on the default links.
     {"archive-hotswap-logic", "Headless multi-switch archive/state regression (#263)", Test_ArchiveHotswapLogic},
+    // #661: the Happy Mask Shop interior pair is the OoT<->MM crossing, so it
+    // must never be a candidate in OoT's own entrance shuffle. The pool probe is
+    // display-free and runs here; the generated-seed row needs a display like
+    // rando-gen, so `--test all` skips it (below). Both appended after
+    // archive-hotswap-logic to honour its "keep LAST" comment for the rows that
+    // depend on the default entrance links: neither of these touches the combo
+    // entrance table (the pool probe reads the rando region graph; the generation
+    // row runs in its own process under the rando label).
+    {"oot-entrance-pin", "The Happy Mask Shop pair never enters OoT's entrance-shuffle pools (#661)",
+     Test_OoTEntrancePin},
+    {"rando-entrance-pin", "A generated seed with interior shuffle ON keeps the mask-shop door vanilla (#661)",
+     Test_RandoEntrancePin},
     {nullptr, nullptr, nullptr}  // Sentinel
 };
 
@@ -3735,7 +3785,8 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "mm-moon-crash-arm-state") == 0 ||
                 strcmp(gTests[i].name, "mm-owl-save-arm-state") == 0 ||
                 strcmp(gTests[i].name, "foreign-placement-oot") == 0 ||
-                strcmp(gTests[i].name, "combo-creation-event") == 0) {
+                strcmp(gTests[i].name, "combo-creation-event") == 0 ||
+                strcmp(gTests[i].name, "rando-entrance-pin") == 0) {
                 printf("\n--- Skipping: %s (needs display; runs as a rando-label CTest) ---\n", gTests[i].name);
                 continue;
             }

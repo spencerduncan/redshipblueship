@@ -1002,6 +1002,23 @@ if(BUILD_TESTING)
     redship_add_test(NAME MenuCapabilityGating COMMAND redship --test menu-capability-gating)
     redship_add_test(NAME MenuComboSection COMMAND redship --test menu-combo-section)
     redship_add_test(NAME SetMenuCount COMMAND redship --test setmenu-count)
+
+    # #661: the Happy Mask Shop interior door IS the OoT<->MM crossing, and OoT's
+    # own entrance shuffle lists it as an ordinary EntranceType::Interior pair.
+    # This row probes the POOL CANDIDATE LIST: it builds the Interior pool twice
+    # off the same live region graph, unfiltered and pinned, and asserts the pair
+    # is offered by the first and not by the second — so it fails if the pin is
+    # removed AND if upstream ever stops offering the pair (which would make the
+    # lock vacuous). It also asserts the pinned pair's entrance indices are
+    # src/common/entrance.h's OOT_ENTR_HAPPY_MASK_SHOP / _MARKET_FROM_MASK_SHOP,
+    # tying the region-keyed predicate to the index-keyed crossing.
+    #
+    # Display-free and ROM-free: it brings up only the rando region graph
+    # (RegionTable_Init over a fresh Rando::Context), no window and no archives.
+    # The end-to-end complement, which needs a real fill, is RandoEntrancePin in
+    # the rando tier below.
+    redship_add_test(NAME OoTEntrancePin COMMAND redship --test oot-entrance-pin)
+
     redship_add_test(NAME AllTests COMMAND redship --test all)
 
     # Registration-completeness guard (#376). Diffs the dispatch table the
@@ -1331,6 +1348,24 @@ if(BUILD_TESTING)
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1;RSBS_DIAG_CVARS=gRandoSettings.ShuffleSongs=2")
+
+    # #661 end to end: the OoTEntrancePin row above proves the pair is not a POOL
+    # candidate; this one proves a REAL fill with entrance shuffle on never writes
+    # an override that names it. The settings are the strongest configuration that
+    # would otherwise swallow the pair (Interior = All, overworld entrances on,
+    # mixed pools over interiors + overworld, decoupled), set by the dispatch
+    # itself rather than via RSBS_DIAG_CVARS so the profile travels with the lock.
+    # It also asserts the table is NOT near-empty, so "no row names the crossing"
+    # cannot be true of a generation where the settings failed to take.
+    #
+    # In the rando tier for the same correctness reason as ForeignPlacementOoT:
+    # the assertion reads a fill result, and with no fill there are no override
+    # rows at all and the lock would pass vacuously. Timeout is generous because
+    # decoupled + mixed pools makes entrance shuffle retry more than stock.
+    redship_add_test(NAME RandoEntrancePin COMMAND redship --test rando-entrance-pin
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)
