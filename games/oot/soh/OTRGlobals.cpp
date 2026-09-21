@@ -2,6 +2,8 @@
 #include "OTRAudio.h"
 #include <algorithm>
 #include <atomic>
+#include <cstddef>
+#include <cstring>
 #include <type_traits>
 #include <filesystem>
 #include <fstream>
@@ -386,6 +388,108 @@ extern "C" int OoT_InitSharedContextSubsystems(void) {
                : -1;
 }
 
+namespace SOH {
+
+/**
+ * The overlay font names this translation unit registers with
+ * Ship::GameOverlay::LoadFont() below. Keep this list in step with the
+ * LoadFont() calls: the resolver is only as good as the list.
+ *
+ * A second font used to be loaded here and was removed in the license follow-up
+ * to #578, because it asserted "All rights reserved" with no license grant of
+ * any kind and so cannot be redistributed. THIRD_PARTY_NOTICES.md ("Resolved by
+ * removal") names it; this file deliberately does not, and neither does any
+ * other source or build file under `games/`, `src/`, `rsbs/` or `CMake/` — the
+ * `font-license` test row scans exactly those roots and enforces it. It was
+ * never the default, but a player who had selected it has that name persisted in
+ * their config, which is why the resolver below exists.
+ *
+ * The CVar is `CVAR_GAME_OVERLAY_FONT`, which in THIS build expands to
+ * `gSettings.OverlayFont` — `CMake/lus-cvars.cmake:16` over
+ * `CMake/soh-cvars.cmake`'s `gSettings` prefix, set before libultraship's own
+ * `cmake/cvars.cmake` default of `gOverlayFont` and therefore winning the CACHE
+ * race. `gOverlayFont` is the PRE-migration spelling that
+ * `soh/config/ConfigMigrators.h` renames away, so never write it in prose here.
+ * Its default value is "Press Start 2P".
+ */
+static constexpr const char* const kOverlayFontNames[] = { "Press Start 2P" };
+
+/// What an unrecognized `CVAR_GAME_OVERLAY_FONT` resolves to. Defined AS the
+/// first loaded name rather than as its own literal, so "the fallback is itself
+/// one of the loaded fonts" holds by construction instead of by two lists
+/// somebody has to keep in step. A fallback that is not loaded would reintroduce
+/// the exact defect this resolver exists to prevent.
+const char* const kOverlayFontFallback = kOverlayFontNames[0];
+
+/**
+ * The resolution rule, over an EXPLICIT candidate set.
+ *
+ * Split out from the one-argument form below so it can be tested against a set
+ * with more than one member. That is not gold-plating: this TU currently loads
+ * exactly one font, and that one font is also the fallback, so a test of the
+ * one-argument form alone cannot tell "passed the requested name through" apart
+ * from "answered the fallback to everything" — the two produce the same string.
+ * Driven with a multi-member set, the distinction is observable.
+ *
+ * Returns a member of @p loaded when @p requested names one, else @p fallback.
+ * Never null for a non-null @p fallback, and never the caller's buffer.
+ */
+const char* ResolveOverlayFontNameIn(const char* requested, const char* const* loaded, std::size_t loadedCount,
+                                     const char* fallback) {
+    if (requested != nullptr && loaded != nullptr) {
+        for (std::size_t i = 0; i < loadedCount; i++) {
+            if (loaded[i] != nullptr && strcmp(requested, loaded[i]) == 0) {
+                return loaded[i];
+            }
+        }
+    }
+    return fallback;
+}
+
+/**
+ * Map a persisted `CVAR_GAME_OVERLAY_FONT` value onto a font this TU loaded.
+ *
+ * Ship::GameOverlay::SetCurrentFont() looks the name up with `mFonts[name]` —
+ * `std::unordered_map::operator[]`, which INSERTS a null-valued entry for a
+ * name that was never loaded, before it logs the error and returns. The
+ * inserted row then appears in GameOverlay::DrawSettings()'s combo as a
+ * selectable dead font that can never be made current. Resolving the name here,
+ * BEFORE the call, is what stops that row from being created at all.
+ *
+ * KNOWN CONSEQUENCE, deliberate and documented in `docs/known-issues.md`:
+ * because the resolved name IS loaded, control now reaches the tail of
+ * SetCurrentFont, which writes the name back to the CVar and schedules a config
+ * flush. So the first boot after this change REWRITES a stale
+ * `gSettings.OverlayFont` to "Press Start 2P" instead of leaving the stale value
+ * in `shipofharkinian.json`. The alternative — skipping the call when the name
+ * resolved to something else — is what used to happen, and it left `mCurrentFont`
+ * at its initial "Default", i.e. the overlay drawn in ImGui's built-in face
+ * rather than in a font this project ships. Rendering correctly was preferred
+ * over preserving a selection that names a file no build contains.
+ */
+const char* ResolveOverlayFontName(const char* requested) {
+    return ResolveOverlayFontNameIn(requested, kOverlayFontNames,
+                                    sizeof(kOverlayFontNames) / sizeof(kOverlayFontNames[0]), kOverlayFontFallback);
+}
+
+/**
+ * The candidate set the one-argument form uses, for the test that asserts the
+ * fallback is itself one of the loaded names. A fallback that is NOT loaded
+ * would reintroduce the exact defect this resolver exists to prevent.
+ */
+const char* const* OverlayFontNames(std::size_t* count) {
+    if (count != nullptr) {
+        *count = sizeof(kOverlayFontNames) / sizeof(kOverlayFontNames[0]);
+    }
+    return kOverlayFontNames;
+}
+
+const char* OverlayFontFallback() {
+    return kOverlayFontFallback;
+}
+
+} // namespace SOH
+
 OTRGlobals::OTRGlobals() {
 #ifdef RSBS_SINGLE_EXECUTABLE
     // In single-exe mode the harness (rsbs/src/main.cpp) pre-creates the
@@ -436,8 +540,14 @@ OTRGlobals::OTRGlobals() {
 
         auto overlay = context->GetInstance()->GetWindow()->GetGui()->GetGameOverlay();
         overlay->LoadFont("Press Start 2P", 12.0f, "fonts/PressStart2P-Regular.ttf");
-        overlay->LoadFont("Fipps", 32.0f, "fonts/Fipps-Regular.otf");
-        overlay->SetCurrentFont(CVarGetString(CVAR_GAME_OVERLAY_FONT, "Press Start 2P"));
+        // A second LoadFont used to sit here. It is gone with the font file
+        // itself (license follow-up to #578; THIRD_PARTY_NOTICES.md, "Resolved
+        // by removal", names it). Anyone whose CVAR_GAME_OVERLAY_FONT still
+        // selects it is mapped back to a loaded font by
+        // SOH::ResolveOverlayFontName, which also means SetCurrentFont reaches
+        // its CVar write and rewrites that stale selection — see the resolver's
+        // comment and docs/known-issues.md.
+        overlay->SetCurrentFont(SOH::ResolveOverlayFontName(CVarGetString(CVAR_GAME_OVERLAY_FONT, "Press Start 2P")));
 
         fontMonoSmall = CreateFontWithSize(14.0f, "fonts/Inconsolata-Regular.ttf");
         fontMono = CreateFontWithSize(16.0f, "fonts/Inconsolata-Regular.ttf");
