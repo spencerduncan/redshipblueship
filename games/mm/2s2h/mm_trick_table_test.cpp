@@ -268,9 +268,10 @@ extern "C" int MM_TrickTable_RunHeadless(void) {
     }
 
     // The reserved COUNT, transcribed. Not a style check: it is the tell that a
-    // table edit reclassified a key. Measured against OoTMM `master` on
-    // 2026-09-17 — 20 of the 85 ported keys require an OoT-side item on every leg
-    // their own definition states. ADR 0010 increment 3 is expected to drive this
+    // table edit reclassified a key. Measured row by row against OoTMM `master`
+    // on 2026-09-20 — 20 of the 85 ported keys require an OoT-side item on every
+    // leg their own definition states (TrickIds.h records the row-by-row delta
+    // from #578's quoted 22). ADR 0010 increment 3 is expected to drive this
     // to 0, one batch at a time, and each batch updates this number on purpose.
     if (reservedCount != 20) {
         return Fail(17,

@@ -13,9 +13,11 @@
  *     Copyright (c) 2020-2022 OoTMM Team
  *     https://github.com/OoTMM/OoTMM  (LICENSE, verbatim MIT)
  *
- * Read at OoTMM `master` on 2026-09-17; 85 `MM_*` keys, transcribed in source
- * order with the `MM_` prefix replaced by `MMRT_`. `MMRT_GBT_BOSS_KEY_ICE` at
- * the end is OURS and its strings are original.
+ * 85 `MM_*` keys, transcribed in source order with the `MM_` prefix replaced by
+ * `MMRT_`, and verified string-for-string against `master` on 2026-09-20 (see
+ * TrickIds.h's ATTRIBUTION for what "verified" covered, including the two
+ * upstream `\s` escapes transcribed as JavaScript renders them).
+ * `MMRT_GBT_BOSS_KEY_ICE` at the end is OURS and its strings are original.
  *
  * EXPLICIT NON-SOURCE: **mm-rando (GPL-3.0)**. Nothing in this file came from
  * it — see Tricks.h's ATTRIBUTION section for why that matters and why the

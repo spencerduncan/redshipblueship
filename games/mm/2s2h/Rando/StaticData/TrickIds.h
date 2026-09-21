@@ -22,7 +22,12 @@
  *     Copyright (c) 2020-2022 OoTMM Team
  *     https://github.com/OoTMM/OoTMM  (LICENSE, verbatim MIT)
  *
- * Read at OoTMM `master` on 2026-09-17. What is taken is the community-consensus
+ * Verified key-for-key against OoTMM `master` on 2026-09-20: 85 `MM_*` keys, this
+ * enum's order identical to tricks.ts source order, every display name and
+ * tooltip byte-equal to the JS-evaluated string (two of them, MM_BOMBER_GUESS and
+ * MM_BOMBER_BACKFLIP, contain an invalid `\s` escape upstream that JavaScript
+ * renders as a bare `s`, and they are transcribed as RENDERED — "Bombers
+ * Hideout"). What is taken is the community-consensus
  * TAXONOMY — which tricks exist, what they are called, and what each one means —
  * which is the expensive part and the part two independent MM communities agree
  * on. What is NOT taken is any logic wiring: every binding of a key to a region
@@ -96,9 +101,19 @@
  * `MMRT_GBT_CENTRAL_GEYSER` (Fire + Ice Arrows or an OoT spell),
  * `MMRT_GBT_FIRELESS` (Zora Mask or Adult Link). Nor is a trick that names an
  * OoT item as something it REMOVES (`MMRT_BIO_BABA_LUCK`, "without Zora Mask or
- * Iron Boots"). #578's body quotes 22 reserved keys from the #500 inventory
- * taken at OoTMM `e64a8652`; measured at `master` today the set is 20 of 85, and
- * the PR records the delta row by row.
+ * Iron Boots").
+ *
+ * #578's body quotes 22 reserved keys from the #500 inventory taken at OoTMM
+ * `e64a8652`. Re-measured row by row at `master` on 2026-09-20 the set is 20,
+ * and the four differences are all reclassifications, not upstream churn:
+ *   - Din's Fire 2 -> 3: the inventory undercounted. `MMRT_IGOS_DINS`,
+ *     `MMRT_STAGE_LIGHTS_DIN` and `MMRT_ALIENS_DIN` all require it.
+ *   - Iron Boots 5 -> 4: `MMRT_BIO_BABA_LUCK` names Iron Boots as something the
+ *     trick REMOVES the need for, so its MM-only leg is expressible now.
+ *   - "Scarecrow" -> live: the only scarecrow trick is `MMRT_KEG_HOOKBUNNY`, and
+ *     the scarecrows it uses are MM's own (Pierre), not OoT's.
+ *   - "Adult Link" -> live: `MMRT_GBT_FIRELESS` offers Zora Mask as an
+ *     alternative to Adult Link, so it has an MM-only leg.
  *
  * ============================================================================
  * APPEND-ONLY
