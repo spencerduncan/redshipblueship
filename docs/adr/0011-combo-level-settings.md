@@ -461,7 +461,7 @@ not armed. Three consequences:
 > `Combo_ComboDirectionArms()` — so this amendment records a ruling that makes the
 > predicate agree with the shipped system rather than one that changes the system.
 >
-> **The second bullet below is now discharged.** "The pre-condition predicate ADR
+> **The second bullet above is now discharged.** "The pre-condition predicate ADR
 > 0009 decision 2 designed is still owed … zero source hits" was true when written
 > and is not any more: PR #680 moved the ask to `playthrough.cpp` above `Fill()`
 > and #657 gave it a consequence there. The bullet is left in place as the record
