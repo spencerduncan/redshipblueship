@@ -18,6 +18,17 @@
 # excluded-location / enabled-trick sets, so this locks reproducibility for the
 # pinned settings profile only; exclusion/trick-driven fills are not covered.
 #
+# WHAT THIS ROW CANNOT DO (#688). It compares two runs of the SAME binary to each
+# other and nothing to a stored value, so it detects NONDETERMINISM only. A change
+# that moves every placement DETERMINISTICALLY passes it, unchanged and green — and
+# one did: a reachability gate computing its closure off a stale simulated
+# inventory silently dropped nine reachable hosts from the pool and this row never
+# noticed. "The pinned determinism digests do not move" is enforced by the GOLDEN
+# rows (CMake/CheckGoldenDigest.cmake: GoldenSeedDigestDefault,
+# GoldenSeedDigestProfileV1, GoldenPairedAttemptDigest), which compare one run
+# against `tests/golden/`. Neither kind subsumes the other; both exist on purpose.
+# Never cite a green row here as evidence that a world did not change.
+#
 # Run as a CTest row in the "rando" tier (under xvfb-run):
 #   cmake -DREDSHIP_EXE=<redship> -DWORK_DIR=<dir> -P CheckSeedDeterminism.cmake
 # The pinned settings profile (RSBS_DIAG_CVARS) and the display-free env
@@ -79,4 +90,7 @@ if(NOT _cmp EQUAL 0)
 endif()
 
 file(READ "${_digest1}" _digest)
-message(STATUS "Seed determinism verified — two same-seed runs agree:\n${_digest}")
+# Says "reproducible", not "unchanged", because that is all it proves (#688).
+message(STATUS
+    "Seed determinism verified — two same-seed runs of THIS binary agree, i.e. generation is reproducible. "
+    "Whether this is the SAME world as the pinned one is the golden rows' question, not this row's:\n${_digest}")

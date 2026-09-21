@@ -410,8 +410,17 @@ static bool OoT_Foreign_IsEligibleHostImpl(RandomizerCheck rc) {
 // VACUOUS UNDER THE SHIPPED DEFAULT, AND THAT IS THE POINT. RSK_ALL_LOCATIONS_
 // REACHABLE defaults to RO_GENERIC_ON (settings.cpp), so a default seed has
 // every location in the closure and this gate removes no candidate — which is
-// what keeps the reverse pass's placements, and therefore the rando tier's
-// determinism digests, byte-identical to the pre-gate ones. It earns its place
+// what keeps the reverse pass's placements byte-identical to the pre-gate ones.
+//
+// THAT USED TO READ "and therefore the rando tier's determinism digests", which
+// credited the wrong rows (#688): SeedDeterminism and its siblings diff two runs
+// of the SAME binary, so a gate that deterministically dropped nine reachable
+// hosts passed all of them — which is precisely how the stale-inventory defect
+// above reached a green tier. Since #688 the rows that hold this claim are the
+// GOLDEN ones (GoldenSeedDigestDefault / GoldenSeedDigestProfileV1), which
+// compare one run against `tests/golden/`; a gate that starts dropping hosts
+// under the shipped default moves foreignOoTHash, foreignOoTCount and the
+// per-slot foreignOoT<n> lines and turns them red. It earns its place
 // on the non-default settings (ALR off, and the no-logic rules) where
 // unreachable locations genuinely exist. The counters below make the vacuity
 // MEASURED rather than asserted: the lock reads eligible vs reachable and fails
