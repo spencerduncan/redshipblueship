@@ -244,10 +244,10 @@ bool PresentOneGuiFrame(const ComboGenOverlayView* view) {
             fprintf(stderr, "[OoT] creation overlay: a progress report arrived off the render thread — stderr only "
                             "(this is the menu-side worker; the menu draws its own spinner)\n");
         }
-        return;
+        return false;
     }
     if (gPainting) {
-        return;
+        return false;
     }
     if (!WindowIsRunning()) {
         // The player closed the window mid-creation. The backend's Close() only
@@ -267,12 +267,12 @@ bool PresentOneGuiFrame(const ComboGenOverlayView* view) {
             fprintf(stderr, "[OoT] creation overlay: no frame has been presented in this process — creation "
                             "progress stays on stderr\n");
         }
-        return;
+        return false;
     }
 
     std::shared_ptr<Ship::Context> ctx = Ship::Context::GetInstance();
     if (ctx == nullptr) {
-        return;
+        return false;
     }
     std::shared_ptr<Ship::Window> window = ctx->GetWindow();
     std::shared_ptr<Fast::Fast3dWindow> fast = std::dynamic_pointer_cast<Fast::Fast3dWindow>(window);
@@ -284,11 +284,11 @@ bool PresentOneGuiFrame(const ComboGenOverlayView* view) {
             gWarnedNoWindow = true;
             fprintf(stderr, "[OoT] creation overlay: no Fast3D window — creation progress stays on stderr\n");
         }
-        return;
+        return false;
     }
     std::shared_ptr<Ship::Gui> gui = fast->GetGui();
     if (gui == nullptr) {
-        return;
+        return false;
     }
 
     gPainting = true;
