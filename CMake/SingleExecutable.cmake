@@ -69,6 +69,13 @@ set(REDSHIP_COMMON_SOURCES
     # singleton and the read must be guarded on its existence.
     ${CMAKE_SOURCE_DIR}/src/common/combo_settings_view.cpp
     ${CMAKE_SOURCE_DIR}/src/common/ComboSettingsWindow.cpp
+    # The combo-logic coordinator (ADR 0010 increment 3, #645; O4 = composition):
+    # the union bag, the two origin-keyed placement tables and the round loop,
+    # over a registered per-game engine vtable. Game-header-free like
+    # foreign_items.c, and NOT wired into any production path at this commit —
+    # no shipping TU registers an engine, so the coordinator is reachable only
+    # from its own locks.
+    ${CMAKE_SOURCE_DIR}/src/common/combo_logic.c
     ${CMAKE_SOURCE_DIR}/src/common/entrance.cpp
     # Per-game registry of the user mod archives each port mounted (#593), so
     # the base-archive re-add on every cross-game switch can put them back on
@@ -141,6 +148,9 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/ComboMmOptionsWindow.h
     ${CMAKE_SOURCE_DIR}/src/common/combo_settings_view.h
     ${CMAKE_SOURCE_DIR}/src/common/ComboSettingsWindow.h
+    # Header for combo_logic.c above — it also carries the ENGINE CONTRACT the
+    # two follow-on lanes implement (#645)
+    ${CMAKE_SOURCE_DIR}/src/common/combo_logic.h
     ${CMAKE_SOURCE_DIR}/src/common/entrance.h
     # Header for mod_archives.cpp above (#593)
     ${CMAKE_SOURCE_DIR}/src/common/mod_archives.h
@@ -1569,6 +1579,31 @@ if(BUILD_TESTING)
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+
+    # The font-licensing invariant (license follow-up to #578). Three facts that
+    # were prose in THIRD_PARTY_NOTICES.md and are now tree state: the ungranted
+    # "All rights reserved" font named in that file's "Resolved by removal"
+    # section is gone from both custom-asset trees and from every source and
+    # build file under games/, src/, rsbs/ and CMake/ — this comment deliberately
+    # does not name it, because the row below scans CMake/*.cmake too and would
+    # fail on this line; the SIL OFL 1.1 text sits beside both font sets with
+    # each shipped font's own name-table copyright line; and 2Ship2Harkinian's
+    # CC0-1.0 grant is visible at games/mm/LICENSE. Plus the runtime consequence
+    # of removing a SELECTABLE font: SOH::ResolveOverlayFontName maps a stale
+    # CVAR_GAME_OVERLAY_FONT (gSettings.OverlayFont in this build) back to a
+    # loaded name before Ship::GameOverlay::SetCurrentFont's mFonts[name] can
+    # insert a null-valued dead row. Default `redship` tier: a source/asset scan
+    # plus one pure function, no window, no archive, no ROM.
+    redship_add_test(NAME FontLicense COMMAND redship --test font-license)
+
+    # The combo-logic coordinator (ADR 0010 increment 3, #645). All three rows are
+    # the default `redship` tier: they drive the coordinator over two SYNTHETIC
+    # STUB ENGINES the test authors, so they need no ROM, no display and no
+    # generated world. That is the whole reason the engine surface is a registered
+    # vtable instead of fixed extern "C" symbols (src/common/combo_logic.h).
+    redship_add_test(NAME ComboLogicEngineSurface COMMAND redship --test combo-logic-engine-surface)
+    redship_add_test(NAME ComboLogicFixpoint COMMAND redship --test combo-logic-fixpoint)
+    redship_add_test(NAME ComboLogicFill COMMAND redship --test combo-logic-fill)
 
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)
