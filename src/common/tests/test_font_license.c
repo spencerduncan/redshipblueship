@@ -94,6 +94,19 @@ struct FontLicFile {
     std::string text;
 };
 
+/**
+ * This file's own repo-relative path.
+ *
+ * It must be excluded from the source scan below, and the reason is not
+ * fastidiousness: this file NECESSARILY contains every string the scan looks
+ * for — the removed font's name (in the resolver cases and in the prose) and all
+ * three spellings of the resolved `SetCurrentFont` call. Scanned, it would fail
+ * itself. The exclusion is asserted to have matched exactly once, so renaming or
+ * moving this file cannot quietly turn the scan into one that skips nothing (or,
+ * worse, skips a real call site that happens to share the name).
+ */
+const char* const kFontLicSelfPath = "src/common/tests/test_font_license.c";
+
 std::string FontLicRead(const std::filesystem::path& path, bool& ok) {
     std::ifstream file(path, std::ios::binary);
     if (!file.is_open()) {
@@ -372,7 +385,12 @@ TestResult Test_FontLicense(void) {
 
         int resolvedCallSites = 0;
         int bareCallSites = 0;
+        int selfExclusions = 0;
         for (const FontLicFile& f : tree) {
+            if (f.relPath == kFontLicSelfPath) {
+                selfExclusions++;
+                continue;
+            }
             if (FontLicHas(f.text, "Fipps")) {
                 printf("[TEST] FAIL: %s still names \"Fipps\". The font is gone from both asset trees, so a load of "
                        "it can only fail; the reference must go with it.\n",
@@ -393,6 +411,13 @@ TestResult Test_FontLicense(void) {
             }
         }
         FONTLIC_CHECK(bareCallSites == 0, "an overlay-font call site bypasses the resolver (named above)");
+        if (selfExclusions != 1) {
+            printf("[TEST] FAIL: expected to skip exactly 1 file as this test's own source (%s); skipped %d. This "
+                   "file contains every string the scan looks for, so the exclusion must hit it exactly once — a "
+                   "miss fails the row against itself, and a rename must not silently widen the skip.\n",
+                   kFontLicSelfPath, selfExclusions);
+            return TEST_FAIL;
+        }
         if (resolvedCallSites != 2) {
             printf("[TEST] FAIL: expected exactly 2 resolved SetCurrentFont call sites (OoT's "
                    "games/oot/soh/OTRGlobals.cpp and MM's games/mm/2s2h/BenPort.cpp); found %d. A third site is an "
@@ -400,7 +425,8 @@ TestResult Test_FontLicense(void) {
                    resolvedCallSites);
             return TEST_FAIL;
         }
-        printf("[TEST]   scanned %zu source files: 0 name \"Fipps\", 2 resolved SetCurrentFont call sites, 0 bare\n",
+        printf("[TEST]   scanned %zu source files (1 skipped as this row's own source): 0 name the removed font, 2 "
+               "resolved SetCurrentFont call sites, 0 bare\n",
                tree.size());
     }
 
