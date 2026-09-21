@@ -246,8 +246,17 @@ other component here.
 ### No election available
 
 Every other component in the inventory publishes exactly one license, so there
-is nothing to elect. The ones where somebody might expect a choice, and why
-there is none:
+is nothing to elect. That negative claim was measured rather than assumed: on
+2026-09-21 the upstream license text of each component below was fetched
+read-only and scanned for choice-of-license language (`choose whichever`,
+`choice of the following`, `available under 2 licenses`, `ALTERNATIVE n`, `at
+your option`). Two components matched — the two elected above. Every other file
+scanned as a single license. The one component not re-fetched this pass is
+**bzip2**, whose canonical distribution is not a Git host this scan could reach
+(`https://sourceware.org/bzip2/`); its single BSD-style license is carried from
+the earlier verification and is listed below unchanged.
+
+The ones where somebody might expect a choice, and why there is none:
 
 | Component | Why no election | What is carried instead |
 |---|---|---|
