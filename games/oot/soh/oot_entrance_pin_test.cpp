@@ -54,6 +54,11 @@ extern "C" int Rando_GetCrossingEntranceIndices(int* forwardIndex, int* reverseI
 // generation runs with.
 extern "C" int Rando_HeadlessSeedTest(const char* seedStr);
 
+// games/oot/soh/Enhancements/randomizer/entrance.h declares this inside the
+// header's C++-only region, which also drags in location_access.h and
+// nlohmann/json; redeclared here so this TU stays header-light.
+extern "C" EntranceOverride* Randomizer_GetEntranceOverrides();
+
 namespace {
 
 #define OEP_ASSERT(cond, msg)                                             \
@@ -108,7 +113,7 @@ extern "C" int OoTTest_EntrancePinPool(void) {
         Rando_CountCrossingEntrancesInInteriorPool(/*onlyPrimary=*/1, /*filtered=*/1, &pinnedPrimarySize);
     printf("[TEST]   pinned Interior pool: %d of %d entrances are the crossing\n", pinnedPrimary, pinnedPrimarySize);
     OEP_ASSERT(pinnedPrimary == 0, "the crossing is STILL a candidate in the Interior shuffle pool - the pin is not in "
-                                   "force (is SINGLE_EXECUTABLE_BUILD defined for this TU?)");
+                                   "force (is RSBS_SINGLE_EXECUTABLE defined for soh_rando?)");
     OEP_ASSERT(pinnedPrimarySize == rawPrimarySize - rawPrimary, "the pin removed more than the crossing from the "
                                                                  "Interior pool");
 
@@ -170,10 +175,13 @@ extern "C" int RandoTest_EntrancePinGenerated(void) {
                                 overrides[i].overrideDestination };
         for (int f = 0; f < 4; f++) {
             if (fields[f] == kOotEntrHappyMaskShop || fields[f] == kOotEntrMarketFromMaskShop) {
+                // Cast through uint16_t: these fields are int16_t and -1 is the
+                // "no destination" sentinel, which %04X would print as FFFFFFFF.
                 printf("[TEST]   override row %d names the crossing: type=%u index=0x%04X destination=0x%04X "
                        "override=0x%04X overrideDestination=0x%04X\n",
-                       i, overrides[i].type, overrides[i].index, overrides[i].destination, overrides[i].override,
-                       overrides[i].overrideDestination);
+                       i, overrides[i].type, (unsigned)(uint16_t)overrides[i].index,
+                       (unsigned)(uint16_t)overrides[i].destination, (unsigned)(uint16_t)overrides[i].override,
+                       (unsigned)(uint16_t)overrides[i].overrideDestination);
                 crossingRows++;
                 break;
             }

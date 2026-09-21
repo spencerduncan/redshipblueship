@@ -637,7 +637,7 @@ static void SetShuffledEntrances(EntrancePools entrancePools) {
     }
 }
 
-#ifdef SINGLE_EXECUTABLE_BUILD
+#ifdef RSBS_SINGLE_EXECUTABLE
 // RSBS #661: the Happy Mask Shop door IS the OoT<->MM crossing. src/common/
 // entrance.h pins the combo's crossing to the VANILLA entrance ids
 // (OOT_ENTR_HAPPY_MASK_SHOP 0x0530 / OOT_ENTR_MARKET_FROM_MASK_SHOP), and
@@ -678,7 +678,7 @@ static bool EntranceIsCrossGameCrossing(const Entrance* entrance) {
 // wrong mechanism for keeping it out of the override table.
 static std::vector<Entrance*> GetShufflePoolEntrances(EntranceType type, bool onlyPrimary = true) {
     std::vector<Entrance*> pool = GetShuffleableEntrances(type, onlyPrimary);
-#ifdef SINGLE_EXECUTABLE_BUILD
+#ifdef RSBS_SINGLE_EXECUTABLE
     FilterAndEraseFromPool(pool, [](Entrance* entrance) { return EntranceIsCrossGameCrossing(entrance); });
 #endif
     return pool;
@@ -1794,7 +1794,7 @@ extern "C" EntranceOverride* Randomizer_GetEntranceOverrides() {
     return Rando::Context::GetInstance()->GetEntranceShuffler()->entranceOverrides.data();
 }
 
-#ifdef SINGLE_EXECUTABLE_BUILD
+#ifdef RSBS_SINGLE_EXECUTABLE
 // #661 probe surface for the OoTEntrancePin lock (games/oot/soh/
 // oot_entrance_pin_test.cpp). Both EntranceIsCrossGameCrossing() and
 // GetShufflePoolEntrances() are file-local by design — nothing outside pool
@@ -1802,8 +1802,12 @@ extern "C" EntranceOverride* Randomizer_GetEntranceOverrides() {
 // rather than through a header.
 //
 // Brings the region graph up with no display, no archives and no ROM, so the
-// probe below can run in the display-free `redship` tier. Idempotent, and a no-op
-// on the live Rando::Context when a generation already created one.
+// probe below can run in the display-free `redship` tier. Mirrors the order
+// ShuffleAllEntrances() itself uses: RegionTable_Init() only creates the exits,
+// and it is SetAllEntrancesData() that stamps each one's EntranceType and index
+// off the entranceShuffleTable — without it every exit is EntranceType::None and
+// every pool comes back empty. Idempotent; reuses the live Rando::Context when a
+// generation already created one.
 extern "C" int Rando_InitRegionGraphForTest(void) {
     auto ctx = Rando::Context::GetInstance();
     if (!ctx) {
@@ -1811,6 +1815,7 @@ extern "C" int Rando_InitRegionGraphForTest(void) {
         ctx->InitStaticData();
     }
     RegionTable_Init();
+    Rando::SetAllEntrancesData();
     return Rando::Context::GetInstance() ? 0 : 1;
 }
 
