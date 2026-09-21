@@ -106,4 +106,8 @@ games/oot/soh/soh_menu_capability_test.cpp
 games/oot/soh/soh_menu_combo_section_test.cpp
 games/mm/2s2h/mm_entrance_region_cache_test.cpp
 games/mm/2s2h/mm_majora_goal_test.cpp
+games/mm/2s2h/Rando/StaticData/TrickIds.h
+games/mm/2s2h/Rando/StaticData/Tricks.h
+games/mm/2s2h/Rando/StaticData/Tricks.cpp
+games/mm/2s2h/mm_trick_table_test.cpp
 games/oot/soh/oot_entrance_pin_test.cpp

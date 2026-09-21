@@ -19,7 +19,8 @@
 
 #include "ComboSettingsWindow.h" // Combo_ComboSettingsWindow_Init — the tier-4 twin of this pane
 #include "combo_mm_options_view.h"
-#include "context.h" // Context_GetCurrentGame — for the "MM is suspended" state
+#include "combo_mm_tricks_view.h" // the per-trick table (#578 part 1)
+#include "context.h"              // Context_GetCurrentGame — for the "MM is suspended" state
 
 namespace ComboGui {
 
@@ -218,6 +219,123 @@ void DrawOptionRow(const ComboMMOptionDesc* desc) {
     }
 }
 
+/**
+ * One trick row. Same shape as an option row, one widget narrower (every trick
+ * is a checkbox) and one axis wider: the tag set is drawn inline, because the
+ * difficulty rung is what a player picking tricks is actually choosing on.
+ *
+ * A row with a non-empty `disabledReason` is drawn disabled WITH that reason
+ * visible, not hidden in a tooltip — the two causes are "needs an OoT item that
+ * MM cannot hold yet" (reserved, increment 3) and "no logic binding yet"
+ * (#578 part 2). Both are ADR 0004 §5's disabled-with-a-visible-cause, and both
+ * matter to say out loud: a trick that silently did nothing would be the vacuous
+ * gate this pane exists to refuse.
+ */
+void DrawTrickRow(const ComboMMTrickDesc* desc) {
+    const bool blocked = desc->disabledReason != nullptr && desc->disabledReason[0] != '\0';
+
+    if (blocked) {
+        ImGui::BeginDisabled();
+    }
+
+    bool on = Combo_MMTrickGetValue(desc);
+    if (ImGui::Checkbox(desc->label, &on)) {
+        Combo_MMTrickSetValue(desc, on);
+    }
+    HoverTooltip(desc->tooltip);
+
+    if (blocked) {
+        ImGui::EndDisabled();
+        ImGui::SameLine();
+        ImGui::TextDisabled("- %s", desc->disabledReason);
+    } else {
+        ImGui::SameLine();
+        ImGui::TextDisabled("[%s]", desc->tagSummary);
+    }
+}
+
+/**
+ * The Tricks section, grouped by area.
+ *
+ * Collapsed by default, unlike the option groups: 86 rows would otherwise push
+ * every option off the first screen, and tricks are the thing a player opts into
+ * rather than the thing they scan.
+ *
+ * Frozen wraps the whole section the same way it wraps each option group — the
+ * rows stay READABLE (a frozen trick set is worth seeing) and every widget is
+ * inert, with the cause stated once by DrawFrozenBanner.
+ */
+void DrawTricksSection(bool frozen) {
+    const int count = Combo_MMTrickCount();
+    if (count == 0) {
+        // Distinct from "MM has no tricks": say the table is missing.
+        ImGui::TextDisabled("Tricks: table not available in this build.");
+        return;
+    }
+
+    if (!ImGui::CollapsingHeader("Tricks", ImGuiTreeNodeFlags_None)) {
+        return;
+    }
+    ImGui::PushID("tricks");
+
+    int settable = 0;
+    for (int i = 0; i < count; i++) {
+        const ComboMMTrickDesc* desc = Combo_MMTrickAt(i);
+        if (desc != nullptr && desc->bound && !desc->reserved) {
+            settable++;
+        }
+    }
+    // The honest headline. Saying "86 tricks" and drawing 84 dead checkboxes
+    // would be the overclaim; naming the split is what makes the dead ones read
+    // as staged rather than broken.
+    ImGui::TextWrapped("%d of %d trick keys are wired to logic in this build. The rest are declared so the key "
+                       "space and the frozen identity are already final; they light up as their bindings land.",
+                       settable, count);
+    ImGui::TextWrapped("These freeze into the paired world's identity exactly like the options above.");
+    ImGui::Spacing();
+
+    if (frozen) {
+        ImGui::BeginDisabled();
+    }
+    // Grouped by area, in area-enum order, skipping empty areas — same rule the
+    // option groups follow, for the same reason (an always-empty section implies
+    // something is missing from it). The bound is the `uint8_t` field's range
+    // rather than MMRTA_MAX: this file must not learn an MM enum (ADR 0009 D3),
+    // and the descriptor's own `areaName` supplies the header text.
+    for (int area = 0; area < 256; area++) {
+        int inArea = 0;
+        const char* areaName = nullptr;
+        for (int i = 0; i < count; i++) {
+            const ComboMMTrickDesc* desc = Combo_MMTrickAt(i);
+            if (desc != nullptr && (int)desc->area == area) {
+                inArea++;
+                areaName = desc->areaName;
+            }
+        }
+        if (inArea == 0) {
+            continue;
+        }
+        ImGui::PushID(area);
+        if (ImGui::TreeNode(areaName)) {
+            for (int i = 0; i < count; i++) {
+                const ComboMMTrickDesc* desc = Combo_MMTrickAt(i);
+                if (desc == nullptr || (int)desc->area != area) {
+                    continue;
+                }
+                ImGui::PushID(i);
+                DrawTrickRow(desc);
+                ImGui::PopID();
+            }
+            ImGui::TreePop();
+        }
+        ImGui::PopID();
+    }
+    if (frozen) {
+        ImGui::EndDisabled();
+    }
+    ImGui::PopID();
+}
+
 } // namespace
 
 void ComboMmOptionsWindow::Draw() {
@@ -303,6 +421,11 @@ void ComboMmOptionsWindow::DrawElement() {
         ImGui::PopID();
     }
 
+    // After the option groups: tricks are a different id space and a different
+    // save array, so they are a section of their own rather than a tenth group
+    // (combo_mm_tricks_view.h explains why the tables are separate).
+    DrawTricksSection(frozen);
+
     ImGui::Separator();
     if (frozen) {
         // The Reset button is a 47-write batch; drawing it live under a frozen
@@ -321,6 +444,12 @@ void ComboMmOptionsWindow::DrawElement() {
         // made.
         for (int i = 0; i < count; i++) {
             Combo_MMOptionClear(Combo_MMOptionAt(i));
+        }
+        // Tricks reset with the options: "reset all" that left a trick armed
+        // would leave the profile — and therefore the frozen identity — in a
+        // state the button claims it cleared.
+        for (int i = 0; i < Combo_MMTrickCount(); i++) {
+            Combo_MMTrickClear(Combo_MMTrickAt(i));
         }
     }
 }
@@ -349,6 +478,11 @@ extern "C" void Combo_MMOptionsWindow_Init(void) {
     // This runs unconditionally, even in the headless case below, so the model
     // is populated for tests that never construct a Gui.
     MM_RandoOptionsUi_Register();
+    // The trick table, published the same way and for the same reason (#578
+    // part 1): it is derived from another TU's namespace-scope std::map, so it
+    // cannot be a file-scope registrar. Also unconditional, so the headless
+    // harness has the model populated without a Gui.
+    MM_RandoTricksUi_Register();
 
     // The paired world's OTHER authoring pane — the five tier-4 combo settings
     // (ADR 0011 increment 2) — registers alongside this one. The two are the

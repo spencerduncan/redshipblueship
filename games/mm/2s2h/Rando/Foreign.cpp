@@ -178,6 +178,22 @@ static void ResolveProfileValues(uint32_t* values, bool paired) {
     }
 }
 
+/** Resolve the frozen TRICK set from the `gRando.Tricks.*` CVars into `tricks`
+ *  (MMRT_MAX entries), with no side effects — the trick-side twin of
+ *  ResolveProfileValues, and for the same reason: one resolution, used by the
+ *  creation stamp and by every arrival's compare, so the two cannot drift.
+ *
+ *  Goes through Rando::StaticData::ResolveTrickFromCVar rather than reading the
+ *  CVar here, so the "a RESERVED key always resolves off" rule lives in ONE
+ *  place (Tricks.cpp) and applies to the identity term, the save write and the
+ *  pane alike. Without that, a CVar left behind from before a key was reserved
+ *  would move the digest of a world whose logic cannot consult it. */
+static void ResolveProfileTricks(uint8_t* tricks) {
+    for (auto& [mmRandoTrickId, randoStaticTrick] : Rando::StaticData::Tricks) {
+        tricks[mmRandoTrickId] = Rando::StaticData::ResolveTrickFromCVar(mmRandoTrickId) ? 1 : 0;
+    }
+}
+
 /** The canonical identity string the profile digest hashes (#564 V4's widened
  *  term). Wider than MMOptionsString on purpose: gRando.ExcludedChecks and the
  *  StartingItems config block shape the generated world exactly as the 47
@@ -185,11 +201,32 @@ static void ResolveProfileValues(uint32_t* values, bool paired) {
  *  that omits them is a vacuous guard — same seed + same digest could still
  *  yield different MM worlds. OoT's own settings hash is the precedent: it
  *  folds excludes and tricks. */
-static std::string ProfileIdentityString(const uint32_t* values) {
+static std::string ProfileIdentityString(const uint32_t* values, const uint8_t* tricks) {
     std::string s;
     for (auto& [randoOptionId, randoStaticOption] : Rando::StaticData::Options) {
         s += std::to_string(values[randoOptionId]);
         s += ';';
+    }
+    // The TRICK SET (#578 part 1; #570's widened mmProfileDigest scope; ADR 0010
+    // §3.3, and ADR 0009 decision 1's amendment that a narrower digest is
+    // vacuous). Tricks are an INPUT of the reachability operator (ADR 0010 D6):
+    // two profiles identical except for one trick generate different worlds, so
+    // a digest blind to them would let a pair created with the Powder Keg trick
+    // on be arrived at by a process with it off — and the arrival would accept
+    // a world whose logic it no longer agrees with.
+    //
+    // Folded POSITIONALLY, in MMRT_* order, for the same reason the option loop
+    // is positional: the id's number is the term's position, which is what makes
+    // the enum append-only (Rando/StaticData/TrickIds.h).
+    //
+    // NOT folded into MMOptionsString above, deliberately. That string is the
+    // SEED derivation and every shipped pair's MM world re-derives from it; the
+    // question tricks answer is "what are this world's rules", which is this
+    // string's question. A world's seed is unchanged by its trick set; its
+    // CONTENT is not, and the fill is what notices.
+    s += "|tricks:";
+    for (auto& [mmRandoTrickId, randoStaticTrick] : Rando::StaticData::Tricks) {
+        s += (tricks[mmRandoTrickId] != 0) ? '1' : '0';
     }
     // The excluded-check list, folded as the raw CVar string GeneratePools
     // consumes. Raw rather than parse-normalized on purpose: the only writer
@@ -257,6 +294,21 @@ uint32_t ResolvePairedProfile(bool paired) {
         RANDO_SAVE_OPTIONS[randoOptionId] = values[randoOptionId];
     }
 
+    // The trick set freezes into the SAVE here, in the same resolution that
+    // freezes the options and before any fill runs — which is what makes
+    // MM_TRICK() (the predicate every gated region condition consults) read this
+    // world's rules rather than the authoring CVars. Runs for SOLO rando files
+    // too, unlike the paired identity work below: a solo file's logic is gated by
+    // its own trick set exactly the same way, and leaving the array zeroed there
+    // would silently mean "every trick off" for a player who set one.
+    static_assert(sizeof(gSaveContext.save.shipSaveInfo.rando.randoSaveTricks) == (size_t)MMRT_MAX,
+                  "randoSaveTricks must be sized by MMRT_MAX — the id IS the index");
+    std::vector<uint8_t> tricks(MMRT_MAX, 0);
+    ResolveProfileTricks(tricks.data());
+    for (auto& [mmRandoTrickId, randoStaticTrick] : Rando::StaticData::Tricks) {
+        gSaveContext.save.shipSaveInfo.rando.randoSaveTricks[mmRandoTrickId] = tricks[mmRandoTrickId];
+    }
+
     if (!paired) {
         // A solo MM rando file has no cross-game identity to publish, and must
         // not stamp one: gComboCtx.mmProfileDigest is read as "the paired
@@ -270,7 +322,7 @@ uint32_t ResolvePairedProfile(bool paired) {
     // under the frozen MM rules", a question about the rules alone;
     // MixPairedFinalSeed() folds the master seed separately for the different
     // question of "which world does this seed derive".
-    const uint32_t digest = DigestFromIdentity(ProfileIdentityString(values.data()));
+    const uint32_t digest = DigestFromIdentity(ProfileIdentityString(values.data(), tricks.data()));
     if (gComboCtx.mmProfileDigest != 0 && gComboCtx.mmProfileDigest != digest) {
         // NEVER self-heal (overwrite the stamp with the divergent profile) and
         // NEVER generate under it. Throwing lands in OnFileCreate's catch,
@@ -770,7 +822,14 @@ bool RecordForeignPickup(RandoCheckId randoCheckId) {
 extern "C" uint32_t MM_Rando_ComputeProfileStamp(void) {
     std::vector<uint32_t> values(RO_MAX, 0);
     Rando::Foreign::ResolveProfileValues(values.data(), /*paired=*/true);
-    return Rando::Foreign::DigestFromIdentity(Rando::Foreign::ProfileIdentityString(values.data()));
+    // The trick set is resolved from the CVars here as well, NOT read from the
+    // save: this function is the CREATION-side computation (OoT's
+    // Playthrough_Init calls it before any MM save exists) and the arrival-side
+    // compare, and both must see the same authoring surface or the two sites
+    // drift — the exact defect the single resolution exists to prevent.
+    std::vector<uint8_t> tricks(MMRT_MAX, 0);
+    Rando::Foreign::ResolveProfileTricks(tricks.data());
+    return Rando::Foreign::DigestFromIdentity(Rando::Foreign::ProfileIdentityString(values.data(), tricks.data()));
 }
 
 // ============================================================================

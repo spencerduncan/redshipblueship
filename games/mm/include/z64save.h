@@ -8,6 +8,11 @@
 #include "unk.h"
 #include "z64item.h"
 #include "Rando/Types.h"
+// MMRT_MAX — the per-trick vocabulary's sentinel, sizing randoSaveTricks below
+// (#578 part 1). A deliberately include-free, C-safe header: this one is reached
+// from C TUs and from inside `extern "C"` blocks, so the C++ trick table lives
+// in Rando/StaticData/Tricks.h instead.
+#include "Rando/StaticData/TrickIds.h"
 
 struct GameState;
 struct PlayState;
@@ -388,6 +393,25 @@ typedef struct RandoSaveInfo {
     u16 randoStartingItems[256]; // Max 256 starting items, using u16 in case we add more than 255 items
     s8 foundDungeonKeys[9]; // Tracks the number of dungeon keys found, opposed to the number of keys in the inventory
     u16 foundTriforcePieces;
+    // The FROZEN per-file trick set (#578 part 1; ADR 0010 §3.3, ADR 0004 §6
+    // state 4), indexed by MMRT_* — one byte per key rather than a bitfield so
+    // the index arithmetic is the enumerator itself and a future tri-state
+    // ("on / off / forced by another setting") costs no format change.
+    //
+    // APPENDED AT THE END OF RandoSaveInfo, which is itself the last member of
+    // ShipSaveInfo, which is the last member of Save, deliberately: a .redsave
+    // written before this field existed zero-extends into it, and zero is "every
+    // trick off" — which is exactly O11's shipped default rung. So the LAYOUT
+    // survives old saves. Their IDENTITY does not: ProfileIdentityString now
+    // folds the trick set, so every already-created paired world's MM profile
+    // digest changes and its next arrival is refused as divergent. That
+    // invalidation is accepted pre-release (operator ruling 2026-09-17) and is
+    // stated rather than papered over.
+    //
+    // Sized by MMRT_MAX, so adding a key grows this array. It must stay
+    // APPEND-ONLY: the enumerator's number is the index in every written save
+    // and a positional term in the identity string.
+    u8 randoSaveTricks[MMRT_MAX];
 } RandoSaveInfo;
 
 // These are values added by 2S2H that we need to be persisted to the save file

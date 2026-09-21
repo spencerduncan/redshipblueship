@@ -318,9 +318,25 @@ void ValidateRegionTimeOwnership(RandoRegionId regionId, RandoCheckId checkId, u
 #define HAS_MAGIC (gSaveContext.save.saveInfo.playerData.isMagicAcquired)
 #define CAN_HOOK_SCARECROW \
     (HAS_ITEM(ITEM_OCARINA_OF_TIME) && HAS_ITEM(ITEM_HOOKSHOT) && canPlaySong(OCARINA_SONG_SCARECROW_SPAWN))
+// #578 finding (a) — the Powder Keg disjunct is now TRICK-GATED, default off.
+//
+// Powder-Keg-as-generic-explosive is a first-class opt-in trick in both
+// reference projects (OoTMM's MM_KEG_EXPLOSIVES; the single most-referenced
+// trick in both of mm-rando's editions). Here it was UNCONDITIONAL, across 32
+// CAN_USE_EXPLOSIVE uses in Regions/ plus the CanKillEnemy table below — so
+// redship's "Glitchless" sat measurably ABOVE both projects' tricks-off
+// baseline, and ADR 0010's answer O11 ("the shipped default rung is
+// beatable(T = ∅)") was literally unachievable: T was never empty.
+//
+// Gating it is what makes the shipped default mean what O11 says. It also
+// TIGHTENS logic — a keg-only route is no longer assumed — which is the safe
+// direction for beatability: the fill may place fewer items behind a keg, never
+// more. MM_TRICK reads the FROZEN per-file set (Rando/StaticData/Tricks.h), so a
+// world generated with the trick on keeps expecting it forever and a
+// post-creation toggle cannot change a live world's rules.
 #define CAN_USE_EXPLOSIVE                                                           \
     ((HAS_ITEM(ITEM_BOMB) || HAS_ITEM(ITEM_BOMBCHU) || HAS_ITEM(ITEM_MASK_BLAST) || \
-      (HAS_ITEM(ITEM_POWDER_KEG) && CAN_BE_GORON)))
+      (MM_TRICK(MMRT_KEG_EXPLOSIVES) && HAS_ITEM(ITEM_POWDER_KEG) && CAN_BE_GORON)))
 #define CAN_USE_HUMAN_SWORD (GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SWORD) >= EQUIP_VALUE_SWORD_KOKIRI)
 #define CAN_USE_SWORD (CAN_USE_HUMAN_SWORD || HAS_ITEM(ITEM_SWORD_GREAT_FAIRY) || CAN_BE_DEITY)
 // Be careful here, as some checks require you to play the song as a specific form

@@ -4,6 +4,11 @@
 #include <map>
 #include <array>
 #include "Rando/Types.h"
+// The per-trick table and MM_TRICK() (#578 part 1). Aggregated here, alongside
+// Checks/Items/Options/Regions, so every logic TU that already includes
+// StaticData.h sees the predicate with no further include: MM_TRICK expands
+// inside Logic.h's own inline CanKillEnemy as well as in Regions/*.cpp.
+#include "Tricks.h"
 #include "2s2h/GameInteractor/GameInteractor.h"
 
 extern "C" {

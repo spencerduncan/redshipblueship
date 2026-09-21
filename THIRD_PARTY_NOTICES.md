@@ -128,7 +128,7 @@ It is not currently in the tree next to them; see
 ## OoTMM
 
 [OoTMM](https://github.com/OoTMM/OoTMM) is RedShipBlueShip's design reference
-for cross-game randomization, and the planned source of MM trick names
+for cross-game randomization, and the source of MM trick names
 (`packages/core/src/settings/tricks.ts`, per issue #578 and ADR 0010 D10).
 
 * **License of record: MIT.** OoTMM's root `LICENSE` is verbatim MIT, 1072
@@ -141,11 +141,24 @@ for cross-game randomization, and the planned source of MM trick names
   report is filed upstream about it.** ADR 0010 D10's text proposes such a
   report; that clause is superseded by the later no-upstream-reports directive
   and should be read as void.
-* **Nothing from OoTMM is vendored today.** No OoTMM file, data table or name
-  list is present in this repository. Every reference to OoTMM in `games/**`,
-  `src/**` and `CMake/**` is a prose comment citing precedent. When a port does
-  happen, the ported files carry OoTMM's copyright line, and this section gains
-  OoTMM's MIT text and the concrete paths (ADR 0010 D10).
+* **What IS vendored, and where** (#578 part 1, landed 2026-09-20; this bullet
+  replaces the earlier "nothing from OoTMM is vendored today"):
+  * `games/mm/2s2h/Rando/StaticData/TrickIds.h` — the 85 `MM_*` trick KEYS of
+    `packages/core/src/settings/tricks.ts`, read at `master` on 2026-09-20, in
+    source order with the `MM_` prefix replaced by `MMRT_`.
+  * `games/mm/2s2h/Rando/StaticData/Tricks.cpp` — those 85 rows' DISPLAY NAMES
+    and TOOLTIPS, transcribed from the same file.
+
+  Both files carry an ATTRIBUTION header naming OoTMM, the MIT license and the
+  `Copyright (c) 2020-2022 OoTMM Team` line, per ADR 0010 D10. `MMRT_GBT_BOSS_KEY_ICE`
+  and the area/tag classification axes in those files are ours, not OoTMM's.
+  Nothing else from OoTMM is vendored: every other reference to it in
+  `games/**`, `src/**` and `CMake/**` remains a prose comment citing precedent,
+  and no OoTMM logic wiring was ported (the bindings are hand-authored against
+  2ship's own `RandoRegionId` graph).
+* MIT permits this with attribution. The MIT text is in this file under
+  [Appendix: license texts](#appendix-license-texts); OoTMM's copyright line
+  above is the line that substitutes into it.
 * Per D10: algorithms **reimplemented from reading** OoTMM are not a port;
   world-data YAML/CSV or name tables taken wholesale are.
 
