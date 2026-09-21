@@ -1046,3 +1046,46 @@ Two corrections to D10, found while closing O4:
    re-measurement did) remains fine — the directive bars outbound reports,
    not inbound reads.
 
+
+### 2026-09-21 — The bar exists: creation progress is on screen (#582)
+
+Decision 5's increment-2 text above, under *The progress surface*, says "an
+in-frame progress BAR needs a render-during-blocking-work seam that does not
+exist in this tree and would live in `SohGui`; the channel is built and wired,
+the bar is not, and that is stated rather than implied." **That sentence is
+superseded as of this date.** The seam was found rather than built: OoT's ROM
+extraction (`OTRGlobals::RunExtract`) already presents live ImGui frames from
+inside a blocking loop, with the sequence `HandleEvents` / `IsFrameReady` /
+`Gui::StartDraw` / `Interpreter::StartFrame` / `RunGuiOnly` / `Gui::EndDraw` /
+`Interpreter::EndFrame`, and `RunGuiOnly` is `Run()` minus the display-list
+execution — it touches the interpreter's own RSP/RDP state, which `Run()`
+re-initialises at its top, and never OoT's `gfxCtx`. So the frame the outer
+update is in the middle of building is unaffected, and the same sequence is
+safe to pump from inside the creation call.
+
+What was added: `src/common/gen_progress_overlay.{h,c}` (the state machine —
+HIDDEN → SHOWN → DISMISSED or FAILED, and a fraction that is a watermark rather
+than an estimate, because both the attempt ladder and the per-attempt
+elapsed/budget ratio reset and a freshly computed bar would rewind at every
+re-roll), `games/oot/soh/SohGui/CreationProgressOverlay.cpp` (the painter, with a
+latched render-thread id, a re-entrancy latch, and a live-render-loop
+precondition so a test harness's real window is never rendered into), and one
+heartbeat inside MM's Glitchless fill loop.
+
+**Three positions this does not move.** (1) PR #581 §2a still holds: the
+repaint decision is made with milliseconds the fill had already computed for its
+own timeout check, and no wall clock decides anything about a world. (2) The
+budget numbers are unchanged — but presentation time is now CREDITED BACK to the
+fill's budget (`tick += paintDuration`), because a painted frame waits for vblank
+and charging that to the budget would give a host with a window measurably less
+generation headroom than the same host headless: two abort probabilities for one
+seed on one machine, decided by whether anything was on screen. (3) The creation
+event's snapshot bracket is unchanged in effect and gained a second use: a
+painted frame runs with OoT's snapshot swapped in and MM's in-flight bytes
+swapped back after, because `Gui::EndDraw` draws every registered floating window
+and SoH's trackers read `gSaveContext` — which, inside the bracket, holds MM's
+world through OoT's layout.
+
+The rest of the *progress surface* paragraph (two sessions per creation, the
+stderr leg, the second session as P12's measurement) is unchanged and still
+accurate.
