@@ -158,9 +158,10 @@ int OoT_ExitHarvestGate_RunHeadless(void);
 // on pass, non-zero on fail.
 int OoT_MenuRegistrars_RunHeadless(void);
 // Tier-4 combo-settings ROWS (games/oot/soh/soh_combo_settings_rows_test.cpp,
-// #655): the five gCombo.Rando.* keys are SohMenu rows in the interim Cross-Game
-// section now, not the pop-out pane PR #652 shipped. Builds a SohMenu headless,
-// calls the real AddMenuRandomizer(), and drives the rows' PreFuncs/Callbacks --
+// #655): the six gCombo.Rando.* keys are SohMenu rows -- in the tier-4 Combo
+// section's Cross-Game Rules page since #497 step 6 moved them off their interim
+// host -- not the pop-out pane PR #652 shipped. Builds a SohMenu headless, calls
+// the real AddMenuCombo(), and drives the rows' PreFuncs/Callbacks --
 // asserting ADR 0004 §4.2's marker is in each row's NAME, that no row binds one
 // of the keys as a CVar widget (which would be a second, ungated writer), and
 // that once the record is frozen every row is read-only with the MODEL's reason
@@ -168,6 +169,23 @@ int OoT_MenuRegistrars_RunHeadless(void);
 // the display-free shared bring-up (the keys live in the CVar store). Returns 0
 // on pass, non-zero on fail.
 int OoT_ComboSettingsRows_RunHeadless(void);
+// SohMenu capability gating and the shared-intent marker
+// (games/oot/soh/soh_menu_capability_test.cpp, #497 steps 3 and 5). ADR 0004 §5:
+// a row may declare a capability and must render disabled-WITH-REASON when it is
+// absent. Driven non-vacuously through both answers of a REAL capability -- MM's
+// item pool is un-registered and re-registered around the assertions -- plus §6's
+// four presentation states and the §4.2 marker pass over a production section
+// (Dev Tools, the one that registers ROM-free). Needs the display-free shared
+// bring-up: AddMenuDevTools reads CVars while it registers. Returns 0 on pass.
+int OoT_MenuCapabilityGating_RunHeadless(void);
+// The tier-4 Combo section (games/oot/soh/soh_menu_combo_section_test.cpp, #497
+// step 6): ADR 0004 §4's ninth top-level header, its two shipped pages, the
+// pointer row left on the interim host so a persisted "Cross-Game" sidebar
+// selection is not stranded, the seven window rows' CVar/WindowName pairs, and
+// the contributed-page extension point lane G hangs #682's MM enhancement rows
+// off. Needs the display-free shared bring-up for the same reason the row above
+// does. Returns 0 on pass, non-zero on fail.
+int OoT_MenuComboSection_RunHeadless(void);
 // MM single-exe hook dispatch (games/mm/2s2h/mm_hook_dispatch_test.cpp, #511 /
 // #438): the COND_* macros park registrations in the MM-owned S2H::GameHooks
 // registry, but ShouldActorInit / OnActorInit / OnActorDraw / OnOpenText
@@ -454,6 +472,14 @@ extern "C" {
 // drift in BOTH directions — a converged key diverging again, and a per-game
 // key being merged because the names looked equivalent.
 #include "tests/test_cvar_classification.c"
+
+// ADR 0004 §3's "one shell" proviso, mechanized (#497 step 2's second half).
+// Ship::Gui holds a SINGLE menu slot, so a second SetMenu call replaces the first
+// with no error and no warning -- which is why the COUNT of first-party call
+// sites, and MM's shell staying out of every target, are the invariant. A source
+// scan over games/, src/ and rsbs/ plus games/mm/CMakeLists.txt and
+// libultraship's Gui.h. FILE SCOPE, like the rest; no subsystem, no archives.
+#include "tests/test_setmenu_count.c"
 
 // Active-thread-queue contract (issue #385). soh/stubs.c's empty-bodied
 // __osGetActiveQueue fed a return register to the crash handler's thread walk
@@ -2560,7 +2586,7 @@ TestResult Test_VBAffinity(void) {
 
 // Tier-4 combo-settings menu rows (#655; body in
 // games/oot/soh/soh_combo_settings_rows_test.cpp). Needs the display-free shared
-// bring-up for both of its reasons at once: SohMenu::AddMenuRandomizer reads
+// bring-up for both of its reasons at once: SohMenu::AddMenuCombo reads
 // CVars while it REGISTERS, so libultraship's C bridge dereferences a null
 // ConsoleVariables before the first row exists; and Combo_ComboSettingSet
 // refuses outright with no store, which would make every behavioural leg
@@ -2578,6 +2604,42 @@ static TestResult Test_ComboSettingsRows(void) {
     }
 
     return OoT_ComboSettingsRows_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// SohMenu capability gating + the §4.2 marker and §6's four presentation states
+// (#497 steps 3 and 5; body in games/oot/soh/soh_menu_capability_test.cpp). Needs
+// the display-free shared bring-up: AddMenuDevTools registers real rows and
+// libultraship's CVar bridge dereferences ConsoleVariables unconditionally, and
+// SOH_MENU_CAP_COMBO_HOSTED's predicate asks whether that store exists at all.
+static TestResult Test_MenuCapabilityGating(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return OoT_MenuCapabilityGating_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// The tier-4 Combo section's shape (#497 step 6; body in
+// games/oot/soh/soh_menu_combo_section_test.cpp). Same bring-up requirement as
+// the two rows above, for the same reason.
+static TestResult Test_MenuComboSection(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return OoT_MenuComboSection_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // MM tracker registration surface (#392). The bridge (see the extern decl at
@@ -3431,6 +3493,17 @@ const TestDescriptor gTests[] = {
     // the five gCombo.Rando.* keys and freezes gComboCtx, and restores both.
     {"combo-settings-rows", "The six tier-4 combo settings are marked, model-backed SohMenu rows (#655, #668)",
      Test_ComboSettingsRows},
+    // #497 steps 3, 5 and 6 and step 2's second half. The first two build a
+    // SohMenu headless like the row above, so they need the display-free shared
+    // bring-up and no window. menu-capability-gating un-registers MM's foreign
+    // item pool to drive a real capability ABSENT and re-registers it before
+    // returning; it also installs and withdraws two synthetic capability keys.
+    // setmenu-count is a pure source scan (RSBS_SOURCE_DIR) and touches nothing.
+    {"menu-capability-gating", "SohMenu rows gate on capabilities and render ADR 0004 §6's four states (#497)",
+     Test_MenuCapabilityGating},
+    {"menu-combo-section", "The tier-4 Combo section hosts the cross-game rows and a contributed-page seam (#497)",
+     Test_MenuComboSection},
+    {"setmenu-count", "Exactly one menu shell reaches Ship::Gui::SetMenu (#497, ADR 0004 §3)", Test_SetMenuCount},
     // MM's per-trick vocabulary (#578 part 1). Two rows because they see
     // different things: the table lock is graph-free (it proves finding (a) on
     // Rando::Logic::CanKillEnemy, a plain inline function), while finding (b)'s
