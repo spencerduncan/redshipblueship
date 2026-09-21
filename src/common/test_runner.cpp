@@ -1197,6 +1197,7 @@ int Combo_ConsumeFrozenState(const char* gameId, void* saveContext, size_t size)
 // #582's overlay leg. games/oot/soh/SohGui/CreationProgressOverlay.h documents
 // why the probe returns whether it could present rather than asserting it.
 int OoT_CreationProgressOverlay_TestPresentOnce(void);
+uint32_t OoT_CreationProgressOverlay_TestPresentedFrames(void);
 // The UNIFIED save buffer (src/common/unified_save.c): one char array both games
 // reinterpret through their own layouts. Declared as what it is, because leg 4
 // compares it byte for byte and neither game's struct spans all of it.
@@ -1371,12 +1372,20 @@ TestResult Test_ComboCreationEvent(void) {
     // The count is taken AROUND the creation, so what it proves is specifically
     // that frames were pumped from INSIDE the blocking call — which is the whole
     // deliverable, and the thing a green display-free row cannot show.
+    //
+    // PRESENTED frames, not painter invocations. ComboGenOverlay_PaintCount()
+    // counts calls into the painter, every one of which could have bailed at a
+    // guard; the presented counter only moves when the whole StartDraw ->
+    // EndFrame sequence completed. Asserting the former would have been the
+    // vacuous version of this leg.
     const int overlayRendererWorks = OoT_CreationProgressOverlay_TestPresentOnce();
+    const uint32_t overlayPresentsBefore = OoT_CreationProgressOverlay_TestPresentedFrames();
     ComboGenOverlay_Reset();
     printf("[TEST] overlay: this process %s present a gui-only frame\n", overlayRendererWorks ? "CAN" : "canNOT");
 
     const int created = OoT_RunPairedCreationEvent(0);
     const uint32_t overlayPaints = ComboGenOverlay_PaintCount();
+    const uint32_t overlayPresents = OoT_CreationProgressOverlay_TestPresentedFrames() - overlayPresentsBefore;
     const uint32_t dispatchesAfterCreation = MM_Rando_OnSaveInitDispatchCount();
     const uint32_t creationMs = Combo_GenProgress_Current()->elapsedMs;
     Combo_GenProgress_SetSink(NULL);
@@ -1402,15 +1411,16 @@ TestResult Test_ComboCreationEvent(void) {
     // painted nothing across a whole paired creation means the surface is wired
     // to nothing — exactly the state this issue was open for.
     if (overlayRendererWorks) {
-        if (overlayPaints == 0) {
-            printf("[TEST] FAIL: this process can present a gui-only frame, yet the paired creation painted %u "
-                   "overlay frames — the on-screen progress surface is not reached from inside the blocking call "
-                   "(#582)\n",
-                   (unsigned)overlayPaints);
+        if (overlayPresents == 0) {
+            printf("[TEST] FAIL: this process can present a gui-only frame, yet the paired creation PRESENTED %u "
+                   "(painter invoked %u times) — the on-screen progress surface is not reached from inside the "
+                   "blocking call (#582)\n",
+                   (unsigned)overlayPresents, (unsigned)overlayPaints);
             return TEST_FAIL;
         }
-        printf("[TEST] overlay: the paired creation painted %u frames from inside the blocking call (#582)\n",
-               (unsigned)overlayPaints);
+        printf("[TEST] overlay: the paired creation PRESENTED %u frames from inside the blocking call (painter "
+               "invoked %u times) (#582)\n",
+               (unsigned)overlayPresents, (unsigned)overlayPaints);
     } else {
         printf("[TEST] overlay: SKIPPED the paint assertion — this renderer cannot present a gui-only frame here "
                "(the phase channel's stderr leg is the surface in that case)\n");

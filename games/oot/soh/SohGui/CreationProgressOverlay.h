@@ -17,6 +17,8 @@
  * fill heartbeat reaches this indirectly through the common state machine.
  */
 
+#include <stdint.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -45,6 +47,15 @@ void OoT_CreationProgressOverlay_Install(void);
  *         defect). Nothing in a shipping path calls this.
  */
 int OoT_CreationProgressOverlay_TestPresentOnce(void);
+
+/**
+ * TEST SEAM. Frames actually PRESENTED since process start -- the full
+ * StartDraw / StartFrame / RunGuiOnly / EndDraw / EndFrame sequence, not painter
+ * invocations. The state machine's ComboGenOverlay_PaintCount() counts calls,
+ * which could all have bailed at a guard; this counter can only move when a
+ * frame went out, which is what "the bar paints" has to mean.
+ */
+uint32_t OoT_CreationProgressOverlay_TestPresentedFrames(void);
 
 #ifdef __cplusplus
 }

@@ -147,6 +147,18 @@ bool gWarnedNoWindow = false;
 bool gWarnedOffThread = false;
 bool gWarnedNoFrames = false;
 /**
+ * Frames this file has ACTUALLY presented -- incremented where the whole
+ * StartDraw / StartFrame / RunGuiOnly / EndDraw / EndFrame sequence completed,
+ * not where the painter was merely invoked.
+ *
+ * The distinction is the whole value of the number. The state machine's own
+ * ComboGenOverlay_PaintCount() counts painter CALLS, which a row could read
+ * while every one of them bailed at a guard -- exactly the "green test asserting
+ * nothing" shape this surface is supposed to end. This counter can only move
+ * when a frame went out.
+ */
+uint32_t gPresentedFrames = 0;
+/**
  * TEST SEAM. Stands in for "the game loop is running", and nothing in a shipping
  * path writes it -- the same shape and the same rule as
  * Combo_GenBudget_SetHostScalePercentOverride (gen_budget.h).
@@ -308,6 +320,7 @@ bool PresentOneGuiFrame(const ComboGenOverlayView* view) {
         gui->EndDraw();
         fast->EndFrame();
         presented = true;
+        gPresentedFrames++;
     }
 
     gPaintingView = nullptr;
@@ -336,6 +349,10 @@ extern "C" void OoT_CreationProgressOverlay_Install(void) {
     gInstalled = true;
     ComboGenOverlay_SetPainter(&OverlayPainter);
     Combo_GenProgress_SetDisplaySink(&CreationProgressSink);
+}
+
+extern "C" uint32_t OoT_CreationProgressOverlay_TestPresentedFrames(void) {
+    return gPresentedFrames;
 }
 
 extern "C" int OoT_CreationProgressOverlay_TestPresentOnce(void) {
