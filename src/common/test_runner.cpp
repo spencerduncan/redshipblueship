@@ -266,6 +266,10 @@ int MM_PairedProfile_RunHeadless(void);
 // display-free tier; the GBT bridge needs the region graph. Return 0 on pass.
 int MM_TrickTable_RunHeadless(void);
 int MM_TrickGbtGate_RunHeadless(void);
+// games/mm/2s2h/mm_trick_bindings_test.cpp (#578 part 2): the table-driven
+// red/green lock on every trick binding part 2 authored. Needs the region graph
+// for the same reason the GBT bridge does. Return 0 on pass.
+int MM_TrickBindings_RunHeadless(void);
 // games/mm/2s2h/mm_spoiler_identity_test.cpp (#610): the spoiler-drop identity
 // gate on the cross-game commit, and the foreign-pickup durable-record gate.
 // MM-side for the same reason as the two above — they drive
@@ -3116,6 +3120,28 @@ TestResult Test_MMTrickGbtGate(void) {
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// The red/green lock on part 2's trick bindings (#578 part 2). Same bring-up and
+// the same reason as mm-trick-gbt-gate above: every edge it evaluates is a
+// std::function inside the ShipInit-populated Rando::Logic::Regions, so `--test
+// all` skips it and it runs as a rando-label CTest.
+TestResult Test_MMTrickBindings(void) {
+    printf("[TEST] mm-trick-bindings: part 2's trick bindings each move their own edge (#578)\n");
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    int rc = MM_TrickBindings_RunHeadless();
+    printf("[TEST] %s: MM trick bindings rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // Spoiler-drop identity gate (#610). Drives the REAL spoiler-LOAD consumer pair
 // (Rando::Spoiler::LoadFromFile + ApplyToSaveContext — the two calls
 // OnFileCreate's LOAD branch makes) over a spoiler written by the real writer
@@ -3793,6 +3819,13 @@ const TestDescriptor gTests[] = {
      Test_OoTEntrancePin},
     {"rando-entrance-pin", "A generated seed with interior shuffle ON keeps the mask-shop door vanilla (#661)",
      Test_RandoEntrancePin},
+    // #578 part 2: the trick BINDINGS. Appended at the end of the block rather
+    // than next to its part-1 siblings above, because those sit before
+    // archive-hotswap-logic's "keep LAST" row and this one runs a real generation
+    // (it needs a display, so `--test all` skips it and it runs under the rando
+    // label in its own process).
+    {"mm-trick-bindings", "Every trick part 2 bound closes its edge off and opens it on, and none removes reach (#578)",
+     Test_MMTrickBindings},
     {nullptr, nullptr, nullptr}  // Sentinel
 };
 
@@ -3877,6 +3910,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "foreign-placement-oot") == 0 ||
                 strcmp(gTests[i].name, "combo-creation-event") == 0 ||
                 strcmp(gTests[i].name, "mm-trick-gbt-gate") == 0 ||
+                strcmp(gTests[i].name, "mm-trick-bindings") == 0 ||
                 strcmp(gTests[i].name, "rando-entrance-pin") == 0) {
                 printf("\n--- Skipping: %s (needs display; runs as a rando-label CTest) ---\n", gTests[i].name);
                 continue;
