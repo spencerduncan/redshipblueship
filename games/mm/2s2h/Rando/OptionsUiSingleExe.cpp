@@ -181,6 +181,7 @@ extern "C" {
 // The trick table's half of the same seam (#578 part 1).
 #include "combo_mm_tricks_view.h"
 
+#include <map>
 #include <string>
 
 namespace {
@@ -736,11 +737,25 @@ bool IsBoundTrick(MMRandoTrickId mmRandoTrickId) {
 }
 
 /** The tag set as one human string. Joined here so src/common never learns
- *  MM's tag enum; the bitmask travels too, for a future filter UI. */
+ *  MM's tag enum; the bitmask travels too, for a future filter UI.
+ *
+ *  The cache is a std::map, NOT a vector, and that is load-bearing rather than
+ *  taste. This function hands out a `const char*` into a stored string and is
+ *  then called again for the next row: a vector reallocates as it grows and
+ *  MOVES its elements, so every pointer handed out before the growth dangles —
+ *  and with the short-string optimization the character buffer lives INSIDE the
+ *  moved string object, so a heap buffer does not save it either. A map's nodes
+ *  never move, so a returned pointer stays valid for the process's life. Keying
+ *  by the bitmask also collapses the 86 rows onto the handful of distinct tag
+ *  sets. The vector version of this function is what `mm-trick-table` check (c)
+ *  caught: row index 2's tag summary read empty once a later row grew the
+ *  vector out from under it. */
 const char* TagSummary(uint32_t tags) {
-    // Owned by the descriptor vector's lifetime: one string per row, never freed,
-    // exactly like the descriptors themselves.
-    static std::vector<std::string> sTagStrings;
+    static std::map<uint32_t, std::string> sTagStrings;
+    auto cached = sTagStrings.find(tags);
+    if (cached != sTagStrings.end()) {
+        return cached->second.c_str();
+    }
     std::string s;
     static const MMRandoTrickTag kAllTags[] = { MMRTT_NOVICE,       MMRTT_INTERMEDIATE, MMRTT_ADVANCED, MMRTT_EXPERT,
                                                 MMRTT_EXPERIMENTAL, MMRTT_GLITCH,       MMRTT_COMBO };
@@ -758,8 +773,7 @@ const char* TagSummary(uint32_t tags) {
         // handing the pane a NULL-adjacent empty label.
         s = "(untagged)";
     }
-    sTagStrings.push_back(s);
-    return sTagStrings.back().c_str();
+    return sTagStrings.emplace(tags, s).first->second.c_str();
 }
 
 std::vector<ComboMMTrickDesc>& TrickDescriptorTable() {
@@ -767,9 +781,10 @@ std::vector<ComboMMTrickDesc>& TrickDescriptorTable() {
     if (!sTrickDescriptors.empty()) {
         return sTrickDescriptors;
     }
-    // Reserve up front: TagSummary hands out pointers into a vector of strings,
-    // and the descriptors themselves are handed to src/common as a raw pointer —
-    // a reallocation mid-build would leave the registry pointing at freed memory.
+    // Reserve up front: the descriptors are handed to src/common as a raw
+    // pointer, so a reallocation mid-build would leave the registry pointing at
+    // freed memory. (TagSummary's own strings are kept in a node-based map for
+    // the same reason; see its comment.)
     sTrickDescriptors.reserve((size_t)MMRT_MAX);
     for (auto& [mmRandoTrickId, row] : Rando::StaticData::Tricks) {
         ComboMMTrickDesc desc = {};

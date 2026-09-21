@@ -76,16 +76,36 @@
  * lambda (not a re-statement of its condition) over a save holding Zora Mask,
  * Bow, Ice Arrows and magic: trick off => false, trick on => true. Before the
  * gate the first assertion is RED, because the edge was unconditional.
+ *
+ * Two further legs run on a REAL generated glitchless world, and exist to answer
+ * the question a placement digest would otherwise have to answer — "what do the
+ * two gates actually cost the shipped default":
+ *
+ *  - MONOTONICITY. One world, measured three times with only the frozen trick bit
+ *    changed: the tricks-off reachable check set must be a SUBSET of each
+ *    trick-on set. Both gates are extra CONJUNCTS, so enabling one can only
+ *    restore reach; this is what catches an inverted polarity or a gate landing
+ *    on the wrong disjunct.
+ *  - THE FILL. The same seed generated twice, differing only in the trick's
+ *    authoring CVar, counting checks whose placed item moved — with a SENSITIVITY
+ *    CONTROL (a second seed, which must move many) so that a report of zero means
+ *    "the gate changed nothing" rather than "the snapshot is not watching the
+ *    fill".
+ *
+ * Both counts are PRINTED, never pinned: pinning them would turn every unrelated
+ * pool or logic edit into a failure of this row.
  */
 
 #ifdef RSBS_SINGLE_EXECUTABLE
 
+#include <algorithm>
 #include <cstdarg>
 #include <cstdio>
 #include <cstring>
 #include <memory>
 #include <set>
 #include <string>
+#include <vector>
 
 #include <libultraship/bridge/consolevariablebridge.h>
 
@@ -104,6 +124,12 @@
 extern "C" {
 #include "variables.h"
 }
+
+// games/mm/2s2h/GameExports_SingleExe.cpp and z_sram_NES.c. Declared here rather
+// than reached through a header because the single-exe export surface has none;
+// this matches how mm_rando_gen_test.cpp names the same two.
+extern "C" void MM_Rando_InitCore(void);
+extern "C" void MM_Sram_InitNewSave(void);
 
 namespace {
 
@@ -518,9 +544,25 @@ extern "C" int MM_TrickTable_RunHeadless(void) {
 extern "C" int MM_TrickGbtGate_RunHeadless(void) {
     printf("[TEST] mm-trick-gbt-gate: the Great Bay Temple boss-key connection is trick-gated (#578 finding (b))\n");
 
-    // The graph is populated by ShipInit registrars, which the caller's MM boot
-    // ran. If it is empty, the probe would pass vacuously by never evaluating
-    // anything — so say so instead.
+    // Populate the graph. The region definitions are file-scope ShipInit
+    // registrars, and InitOTRForMMFirstBoot does NOT fire them — MM_Rando_InitCore
+    // is what calls S2H::ShipInit::InitAll(), which is why every headless MM row
+    // that touches logic calls it (GameExports_SingleExe.cpp's
+    // MM_Rando_GenerateAtCreation does exactly this). CORE only, never the asset
+    // phase: latching that here with no archives mounted would rob a later real
+    // boot of GfxPatcher and the tracker icons. It is idempotent.
+    MM_Rando_InitCore();
+    // Registers are read by logic predicates through R_* macros and are only
+    // allocated by MM_Regs_Init on a real boot. Same guard, same reason, as the
+    // creation seam and the other headless rows: this probe runs before any of
+    // that, and the GBT condition itself reads only inventory and magic.
+    if (gRegEditor == NULL) {
+        static RegEditor sProbeRegEditor = {};
+        gRegEditor = &sProbeRegEditor;
+    }
+
+    // If the graph is STILL empty the probe would pass vacuously by never
+    // evaluating anything — so say so instead.
     auto regionIt = Rando::Logic::Regions.find(RR_GREAT_BAY_TEMPLE_COMPASS_ROOM);
     if (regionIt == Rando::Logic::Regions.end()) {
         return GateFail(1, "RR_GREAT_BAY_TEMPLE_COMPASS_ROOM is not in the region graph — the ShipInit registrars "
@@ -570,10 +612,193 @@ extern "C" int MM_TrickGbtGate_RunHeadless(void) {
         }
     }
 
-    memcpy(&gSaveContext, saved.get(), sizeof(SaveContext));
+    // ---- WHAT THE TWO GATES COST THE SHIPPED DEFAULT -----------------------
+    //
+    // The two probes above prove each gate moves its own edge. This leg measures
+    // what that is worth over the WHOLE graph, because that is the claim the two
+    // gates actually make: that the shipped default rung is now beatable(T = ∅)
+    // and that gating only ever NARROWS reachability (ADR 0010 O11; the "safe
+    // direction for beatability" in Logic.h's comment).
+    //
+    // One real generated world, measured three times with only the frozen trick
+    // bit changed between measurements — so the fill, the seed and the placements
+    // are held fixed and the delta is the gate's effect on logic alone. A fresh
+    // generation per arm would confound the two.
     if (rc == 0) {
-        printf("[TEST] PASS: the GBT boss-key connection is closed with the trick off, open with it on, and still "
-               "requires Ice Arrows either way\n");
+        // GLITCHLESS on purpose, unlike mm-rando-gen's pinned Nearly-No-Logic
+        // profile: the rung the two gates are about is the shipped Glitchless
+        // default (ADR 0010 O11). Under Nearly No Logic every check is reachable
+        // regardless, so the delta would be 0 for a reason that says nothing.
+        CVarSetInteger("gRando.Enabled", 1);
+        CVarSetInteger("gRando.GenerateSpoiler", 0);
+        CVarSetInteger(Rando::StaticData::Options[RO_LOGIC].cvar, RO_LOGIC_GLITCHLESS);
+        // A fixed seed LIST, same reason mm-rando-gen carries one: MM's
+        // glitchless fill is a forward fill that can genuinely dead-end on an
+        // unlucky seed, deterministically. Take the first that converges; fail
+        // only if every one dead-ends. Deterministic either way.
+        static const char* kSeeds[] = { "RSBSTRICK1", "RSBSTRICK2", "RSBSTRICK3", "RSBSTRICK4", "RSBSTRICK5" };
+        bool generated = false;
+        for (const char* seed : kSeeds) {
+            CVarSetString("gRando.InputSeed", seed);
+            memset(&gSaveContext, 0, sizeof(gSaveContext));
+            MM_Sram_InitNewSave();
+            GameInteractor_ExecuteOnSaveInit(0);
+            if (gSaveContext.save.shipSaveInfo.saveType == SAVETYPE_RANDO) {
+                printf("[TEST] reachability world: glitchless solo rando on seed '%s'\n", seed);
+                generated = true;
+                break;
+            }
+        }
+        if (!generated) {
+            rc = GateFail(6, "no seed produced a glitchless rando world, so the reachability delta would be measured "
+                             "over a vanilla save");
+        }
+    }
+    if (rc == 0) {
+        // The shipped default IS tricks-off: nothing set the gRando.Tricks.*
+        // CVars, so the resolution froze zeroes. This is O11's rung, asserted
+        // rather than assumed.
+        for (int id = 0; id < MMRT_MAX; id++) {
+            if (gSaveContext.save.shipSaveInfo.rando.randoSaveTricks[id] != 0) {
+                rc = GateFail(7,
+                              "a freshly generated world froze trick id %d ON with no CVar set — the shipped "
+                              "default is not T = empty",
+                              id);
+                break;
+            }
+        }
+    }
+    if (rc == 0) {
+        auto measure = [](MMRandoTrickId trick, bool on) {
+            if (trick != MMRT_MAX) {
+                gSaveContext.save.shipSaveInfo.rando.randoSaveTricks[trick] = on ? 1 : 0;
+            }
+            std::set<RandoCheckId> set = Rando::Logic::ComputeReachableCheckSet();
+            if (trick != MMRT_MAX) {
+                gSaveContext.save.shipSaveInfo.rando.randoSaveTricks[trick] = 0;
+            }
+            return set;
+        };
+        const std::set<RandoCheckId> tricksOff = measure(MMRT_MAX, false);
+        if (tricksOff.empty()) {
+            rc = GateFail(8, "the tricks-off reachable check set is EMPTY, so every comparison below would pass "
+                             "vacuously");
+        }
+        if (rc == 0) {
+            const std::set<RandoCheckId> kegOn = measure(MMRT_KEG_EXPLOSIVES, true);
+            const std::set<RandoCheckId> gbtOn = measure(MMRT_GBT_BOSS_KEY_ICE, true);
+            // MONOTONICITY is the lock. Both gates are extra CONJUNCTS on an
+            // existing disjunct, so turning one on can only ever restore reach,
+            // never remove it: tricks-off must be a SUBSET of each trick-on set.
+            // If someone later inverts a gate's polarity — writes !MM_TRICK, or
+            // gates the wrong disjunct — this is what catches it, and it holds
+            // whatever the numbers turn out to be.
+            if (!std::includes(kegOn.begin(), kegOn.end(), tricksOff.begin(), tricksOff.end())) {
+                rc = GateFail(9, "turning MMRT_KEG_EXPLOSIVES ON made some check UNREACHABLE — a trick gate must "
+                                 "only ever widen reach");
+            } else if (!std::includes(gbtOn.begin(), gbtOn.end(), tricksOff.begin(), tricksOff.end())) {
+                rc = GateFail(10, "turning MMRT_GBT_BOSS_KEY_ICE ON made some check UNREACHABLE — a trick gate must "
+                                  "only ever widen reach");
+            }
+            // The counts are REPORTED, not asserted. They are the number the PR
+            // owes ("how many checks changed reachability under the shipped
+            // default"), and pinning them here would turn every unrelated logic
+            // or pool edit into a failure in this row.
+            printf("[TEST] reachable checks on one pinned world: tricks-off %d, +MMRT_KEG_EXPLOSIVES %d (delta %d), "
+                   "+MMRT_GBT_BOSS_KEY_ICE %d (delta %d)\n",
+                   (int)tricksOff.size(), (int)kegOn.size(), (int)(kegOn.size() - tricksOff.size()), (int)gbtOn.size(),
+                   (int)(gbtOn.size() - tricksOff.size()));
+        }
+    }
+
+    // ---- WHAT THE GATE DOES TO THE FILL ------------------------------------
+    //
+    // The leg above holds the fill fixed and re-measures the CLOSURE, so it
+    // answers "does this trick unlock a check nothing else unlocks" (over a
+    // full-closure crawl, usually no: the keg leg is shadowed by bombs being
+    // obtainable eventually). That is NOT the same question as "does the gate
+    // change the generated world", which is what a placement digest would
+    // notice: the fill is a FORWARD fill, so tightening an edge changes what is
+    // placeable EARLY even when the final closure is identical.
+    //
+    // So generate the SAME seed twice, differing only in the trick's authoring
+    // CVar, and count the checks whose placed item differs. This is the number
+    // the PR's digest statement owes.
+    if (rc == 0) {
+        auto generateAndSnapshot = [](bool kegOn, const char* seed, std::vector<uint16_t>& out) {
+            if (kegOn) {
+                CVarSetInteger(Rando::StaticData::Tricks.at(MMRT_KEG_EXPLOSIVES).cvar, 1);
+            } else {
+                CVarClear(Rando::StaticData::Tricks.at(MMRT_KEG_EXPLOSIVES).cvar);
+            }
+            CVarSetString("gRando.InputSeed", seed);
+            memset(&gSaveContext, 0, sizeof(gSaveContext));
+            MM_Sram_InitNewSave();
+            GameInteractor_ExecuteOnSaveInit(0);
+            if (gSaveContext.save.shipSaveInfo.saveType != SAVETYPE_RANDO) {
+                return false;
+            }
+            out.assign((size_t)RC_MAX, 0);
+            for (int i = 0; i < (int)RC_MAX; i++) {
+                out[(size_t)i] = (uint16_t)RANDO_SAVE_CHECKS[i].randoItemId;
+            }
+            // The gate must have reached the frozen world, or the comparison is
+            // between two identical configurations wearing different labels.
+            return gSaveContext.save.shipSaveInfo.rando.randoSaveTricks[MMRT_KEG_EXPLOSIVES] == (kegOn ? 1 : 0);
+        };
+        auto countDifferences = [](const std::vector<uint16_t>& a, const std::vector<uint16_t>& b) {
+            int moved = 0;
+            for (size_t i = 0; i < a.size() && i < b.size(); i++) {
+                if (a[i] != b[i]) {
+                    moved++;
+                }
+            }
+            return moved;
+        };
+        std::vector<uint16_t> withoutKeg;
+        std::vector<uint16_t> withKeg;
+        std::vector<uint16_t> otherSeed;
+        if (!generateAndSnapshot(false, "RSBSTRICKFILL", withoutKeg)) {
+            rc = GateFail(11, "the tricks-off fill did not converge (or did not freeze the trick off), so the "
+                              "placement comparison has no baseline");
+        } else if (!generateAndSnapshot(true, "RSBSTRICKFILL", withKeg)) {
+            rc = GateFail(12, "the keg-on fill did not converge (or did not freeze the trick on), so the placement "
+                              "comparison has no second arm");
+        } else if (!generateAndSnapshot(false, "RSBSTRICKFILL2", otherSeed)) {
+            rc = GateFail(13, "the control fill on a second seed did not converge, so the comparison below has no "
+                              "sensitivity control");
+        } else {
+            const int moved = countDifferences(withoutKeg, withKeg);
+            // THE SENSITIVITY CONTROL, and the reason the number above is worth
+            // printing at all. A comparison that reports 0 is only informative
+            // once the same instrument is shown to report a LOT when the world
+            // really does change — otherwise "the gate changes nothing" and "the
+            // snapshot is taken at the wrong moment" produce the same 0. A
+            // different seed under the same settings must move many placements.
+            const int control = countDifferences(withoutKeg, otherSeed);
+            if (control <= 0) {
+                rc = GateFail(14, "two DIFFERENT seeds produced identical placements — the placement snapshot is not "
+                                  "observing the fill, so the keg comparison above is vacuous");
+            }
+            // REPORTED, not pinned, for the same reason as the counts above.
+            printf("[TEST] same seed, MMRT_KEG_EXPLOSIVES off vs on: %d of %d checks hold a different item "
+                   "(sensitivity control, a different seed: %d)\n",
+                   moved, (int)RC_MAX, control);
+        }
+        CVarClear(Rando::StaticData::Tricks.at(MMRT_KEG_EXPLOSIVES).cvar);
+    }
+
+    memcpy(&gSaveContext, saved.get(), sizeof(SaveContext));
+    // Leave the authoring surface as it was found: this row sets four CVars to
+    // stand up its world, and a leaked gRando.Enabled would silently reconfigure
+    // anything that ran after it in the same process.
+    CVarClear("gRando.Enabled");
+    CVarClear("gRando.GenerateSpoiler");
+    CVarClear("gRando.InputSeed");
+    CVarClear(Rando::StaticData::Options[RO_LOGIC].cvar);
+    if (rc == 0) {
+        printf("[TEST] PASS: the GBT boss-key connection is closed with the trick off, open with it on, still "
+               "requires Ice Arrows either way, and neither gate removes reach when enabled\n");
     }
     return rc;
 }

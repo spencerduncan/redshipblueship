@@ -28,11 +28,18 @@ void Combo_RegisterMMTrickTable(const ComboMMTrickDesc* table, int count) {
         fprintf(stderr, "[MMTricks] table registration rejected: empty table (%d entries)\n", count);
         return;
     }
-    if (sTrickTable != NULL) {
+    if (sTrickTable != NULL && (sTrickTable != table || sTrickCount != count)) {
         // Last writer wins, but not silently — same reasoning as the option
-        // table: two tables over one id space means the pane and the save can
-        // disagree with no way to tell which is authoritative.
-        fprintf(stderr, "[MMTricks] trick table re-registered (%d entries replace %d)\n", count, sTrickCount);
+        // table: two DIFFERENT tables over one id space means the pane and the
+        // save can disagree with no way to tell which is authoritative.
+        //
+        // Re-registering the SAME table is silent on purpose. MM_RandoTricksUi_Register
+        // is idempotent (it publishes one function-local static vector), and both
+        // Combo_MMOptionsWindow_Init and any test that wants the model without a
+        // window call it. Warning on that path would fire in the normal case and
+        // teach everyone to ignore the message that matters.
+        fprintf(stderr, "[MMTricks] a DIFFERENT trick table was registered (%d entries replace %d)\n", count,
+                sTrickCount);
     }
     sTrickTable = table;
     sTrickCount = count;
