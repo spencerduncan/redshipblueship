@@ -1089,10 +1089,13 @@ int OoT_Foreign_IsReachableHost(uint16_t rc);
  * reachability gate (#656).
  *
  * They are EQUAL under the shipped default, because RSK_ALL_LOCATIONS_REACHABLE
- * defaults to on and the closure is then total — which is exactly why the gate
- * moves no placement and the pinned determinism digests do not move with it. The
- * ForeignPlacementOoT lock asserts that equality rather than assuming it, so the
- * day it stops holding is the day the row says the digests are about to move.
+ * defaults to on and the closure is then total — which is why the gate moves no
+ * placement there. The ForeignPlacementOoT lock MEASURES that equality rather
+ * than assuming it, and that measurement is what caught the gate's first draft
+ * computing its closure over stale Logic state (48 of 57 hosts at the tail of a
+ * real generation, 57 of 57 a moment later). Neither determinism row could have:
+ * both compare two runs of the same binary to each other, so a deterministic
+ * change of world is invisible to them.
  */
 int OoT_Foreign_TestLastEligibleHosts(void);
 int OoT_Foreign_TestLastReachableHosts(void);

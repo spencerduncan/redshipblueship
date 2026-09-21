@@ -1626,10 +1626,18 @@ TestResult Test_ForeignPlacementOoT(void) {
     //
     //  (a) THE GATE IS VACUOUS UNDER THE SHIPPED DEFAULT, measured rather than
     //      assumed. RSK_ALL_LOCATIONS_REACHABLE defaults to on, so every eligible
-    //      host is inside the closure and the gate drops nothing — which is
-    //      precisely why SeedDeterminism's foreignOoTHash / foreignOoTCount do
-    //      not move. If this ever stops holding, the pinned digests are about to
-    //      move and this row says so first.
+    //      host is inside the closure and the gate drops nothing — which is what
+    //      keeps the reverse pass's placements identical to the pre-gate ones.
+    //      This is the assertion that EARNED its place: the first draft of the
+    //      gate recomputed the closure without resetting the Logic inventory
+    //      first, and this leg measured 48 of 57 hosts "reachable" at the tail of
+    //      a real generation against 57 of 57 a moment later — nine reachable
+    //      hosts silently removed and a different world produced. Note that
+    //      neither SeedDeterminism nor RandoDeterminism could have caught it:
+    //      both compare two runs of the SAME binary to each other
+    //      (CMake/CheckSeedDeterminism.cmake), so a change that is deterministic
+    //      is invisible to them. The byte-comparison against the pre-gate table
+    //      in the direction-gate block above is what went red.
     //
     //  (b) THE PASS HONOURS THE GATE. Asserted by making a specific host
     //      unreachable and watching the real OoT_PlaceForeignItems never choose
@@ -1650,8 +1658,8 @@ TestResult Test_ForeignPlacementOoT(void) {
         }
         if (gateReachable != gateEligible) {
             printf("[TEST] FAIL: the gate dropped %d of %d eligible hosts under the SHIPPED default (All Locations "
-                   "Reachable is on, so the closure must be total) — the pinned determinism digests are about to "
-                   "move (#656)\n",
+                   "Reachable is on, so the closure must be total) — the reverse pass is now producing a different "
+                   "world than it did before the gate (#656)\n",
                    gateEligible - gateReachable, gateEligible);
             return TEST_FAIL;
         }

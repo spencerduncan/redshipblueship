@@ -376,15 +376,13 @@ static bool OoT_Foreign_IsEligibleHostImpl(RandomizerCheck rc) {
 // notices the check is unobtainable.
 //
 // THE ORACLE IS THE FILL'S OWN, not a second definition of reachable.
-// ReachabilitySearch (3drando/fill.hpp) walks the region graph from RR_ROOT
-// with the starting inventory applied and every placed item collected as it
-// goes, and marks each location it reaches with ItemLocation::AddToPool(). That
-// mark is EXACTLY what ValidateEntrances tests to decide
-// ctx->allLocationsReachable (fill.cpp: "Location ... not reachable"), so
-// "reachable" here means the same thing it means to the All Locations Reachable
-// setting. Copying MM's shape but not MM's definition is the trap this avoids:
-// a second reachability notion would drift from the fill's, and the drift would
-// look like a placement bug.
+// ReachabilitySearch (3drando/fill.hpp) walks the region graph from RR_ROOT with
+// the starting inventory applied and every placed item collected as it goes, and
+// marks each location it reaches with ItemLocation::AddToPool(). That mark is the
+// one ValidateEntrances tests to decide ctx->allLocationsReachable (fill.cpp:
+// "Location ... not reachable"), so "reachable" here is the fill's own notion
+// rather than a second one that could drift from it; the drift would look like a
+// placement bug.
 //
 // WHY THE MARKS MUST BE RECOMPUTED RATHER THAN READ. addedToPool is scratch
 // state that every search resets (ResetLogic -> Context::LocationReset), so
@@ -392,24 +390,43 @@ static bool OoT_Foreign_IsEligibleHostImpl(RandomizerCheck rc) {
 // CalculateBarren's, not a closure over the finished world. Reading it would be
 // a gate whose answer depends on the order of the calculations before it.
 //
+// ...AND WHY THE RECOMPUTE MUST RESET Logic FIRST. This is the correction that
+// makes the gate correct rather than merely present, and it was MEASURED, not
+// reasoned: ResetLogic's own comment is "Reset non-Logic-class logic", and it
+// does not touch the `logic` singleton's simulated inventory at all — it only
+// clears region access and the pool marks, then ADDS the starting inventory on
+// top of whatever items the previous search happened to leave collected. So
+// ReachabilitySearch alone is not a function of the finished world; it is a
+// function of the finished world PLUS the residue of the last search. Without
+// the logic->Reset() below, this gate reported 48 of 57 eligible hosts reachable
+// when it ran at the tail of a real generation and 57 of 57 when the same pass
+// ran again a moment later — it silently removed nine reachable hosts and
+// changed which checks the world used, and ForeignPlacementOoT's "re-arming must
+// reproduce the same table" assertion is what caught it. Every other caller that
+// wants a closure over a finished world resets first the same way
+// (GeneratePlaythrough: logic->Reset() then ResetLogic; IsBeatableWithout:
+// logic->Reset() then CheckBeatable).
+//
 // VACUOUS UNDER THE SHIPPED DEFAULT, AND THAT IS THE POINT. RSK_ALL_LOCATIONS_
 // REACHABLE defaults to RO_GENERIC_ON (settings.cpp), so a default seed has
 // every location in the closure and this gate removes no candidate — which is
-// what keeps SeedDeterminism's foreignOoTHash and every other pinned digest
-// from moving. It earns its place on the non-default settings (ALR off, and the
-// no-logic rules) where unreachable locations genuinely exist. The counters
-// below make the vacuity measurable rather than asserted: the lock prints
-// eligible vs reachable and fails if the gate ever drops a host under the
-// shipped default.
+// what keeps the reverse pass's placements, and therefore the rando tier's
+// determinism digests, byte-identical to the pre-gate ones. It earns its place
+// on the non-default settings (ALR off, and the no-logic rules) where
+// unreachable locations genuinely exist. The counters below make the vacuity
+// MEASURED rather than asserted: the lock reads eligible vs reachable and fails
+// if the gate ever drops a host under the shipped default, which is exactly how
+// the stale-inventory defect above was found.
 //
-// NO RNG, AND NOTHING AFTER IT DRAWS. ReachabilitySearch consumes no random
-// numbers (the fill already calls it inside PareDownPlaythrough, before the
-// spoiler is written), and this pass runs at the very end of Playthrough_Init,
-// so it cannot shift a draw the fill already made. The state it does mutate —
-// region access flags, the simulated inventory, the pool marks — is generation
-// scratch against Logic's OWN scratch SaveContext (Logic::GetSaveContext
-// allocates one; it is pointed at gSaveContext only on a save LOAD), so no live
-// save is touched.
+// NO RNG, AND NOTHING AFTER IT DRAWS. Neither logic->Reset() nor
+// ReachabilitySearch consumes a random number (the fill already calls the search
+// inside its own playthrough work, before the spoiler is written), and this pass
+// runs after Fill(), GenerateHash() and SpoilerLog_Write(), so it cannot shift a
+// draw the fill already made. The state it mutates — region access flags, the
+// simulated inventory, the pool marks — is generation scratch: Logic::Reset's
+// NewSaveContext() allocates a fresh heap SaveContext and never writes
+// gSaveContext, and nothing in the tree reads addedToPool after generation
+// (SeedContext.cpp's only use is another reset).
 static int sOoTLastEligibleHosts = 0;
 static int sOoTLastReachableHosts = 0;
 // Production is always true. The reverse-placement lock flips it off so it can
@@ -419,16 +436,26 @@ static int sOoTLastReachableHosts = 0;
 // OoT_Foreign_TestSetReachabilityRecompute.
 static bool sOoTRecomputeHostReachability = true;
 
-// Recompute the closure, for its SIDE EFFECT on the pool marks. The return
-// value is deliberately ignored: with every location holding a placed item and
-// calculatingAvailableChecks false, ReachabilitySearch's own filter returns an
-// empty vector, while the AddToPool marks it set along the way are the complete
-// closure. That is the same thing ValidateEntrances reads.
+// Recompute the closure, for its SIDE EFFECT on the pool marks. The return value
+// is deliberately ignored: with every location holding a placed item and
+// calculatingAvailableChecks false, ReachabilitySearch never pushes a placed
+// location into accessibleLocations (fill.cpp AddCheckToLogic), so the returned
+// vector is empty while the AddToPool marks it set along the way are the complete
+// closure. Those marks are what ValidateEntrances reads.
+//
+// logic->Reset() FIRST, and it is load-bearing — see the block above. Without it
+// the search starts from the previous search's collected inventory and the gate
+// is not a function of the finished world.
 static void OoT_Foreign_RecomputeHostReachability() {
     auto ctx = Rando::Context::GetInstance();
-    if (ctx == nullptr) {
+    if (ctx == nullptr || logic == nullptr) {
+        // No fill in this process: nothing to compute a closure over. Leaving the
+        // marks alone rather than clearing them keeps the pass's behaviour
+        // decided by the eligibility predicate, which is the only oracle a
+        // fill-less process has.
         return;
     }
+    logic->Reset();
     ReachabilitySearch(ctx->allLocations);
 }
 
