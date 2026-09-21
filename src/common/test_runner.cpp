@@ -228,6 +228,13 @@ int Combo_TrackerWindow_RunHeadless(void);
 // need MM's headers — this file must never acquire them. Return 0 on pass.
 int MM_RandoOptions_RunHeadless(void);
 int MM_PairedProfile_RunHeadless(void);
+// games/mm/2s2h/mm_trick_table_test.cpp (#578 part 1): MM's per-trick
+// vocabulary. MM-side for the same reason as the two above — they drive
+// Rando::StaticData::Tricks, Rando::Logic::CanKillEnemy and
+// Rando::Logic::Regions. The table bridge is graph-free and runs in the
+// display-free tier; the GBT bridge needs the region graph. Return 0 on pass.
+int MM_TrickTable_RunHeadless(void);
+int MM_TrickGbtGate_RunHeadless(void);
 // games/mm/2s2h/mm_spoiler_identity_test.cpp (#610): the spoiler-drop identity
 // gate on the cross-game commit, and the foreign-pickup durable-record gate.
 // MM-side for the same reason as the two above — they drive
@@ -2760,6 +2767,46 @@ TestResult Test_MMPairedProfile(void) {
     return MM_PairedProfile_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// MM per-trick TABLE lock (#578 part 1). Same display-free bring-up as the two
+// rows above: no Gui and no region graph, but it reads and writes the
+// gRando.Tricks.* CVars through the real ConsoleVariables store and drives the
+// real ResolvePairedProfile.
+TestResult Test_MMTrickTable(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_TrickTable_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// MM trick GATE lock on the live region graph (#578 finding (b)). Needs MM's
+// boot, because Rando::Logic::Regions is populated by ShipInit registrars — the
+// same requirement (and the same bring-up) as mm-rando-gen, so `--test all`
+// skips it and it runs as a rando-label CTest.
+TestResult Test_MMTrickGbtGate(void) {
+    printf("[TEST] mm-trick-gbt-gate: the GBT boss-key edge is gated on MMRT_GBT_BOSS_KEY_ICE (#578)\n");
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    int rc = MM_TrickGbtGate_RunHeadless();
+    printf("[TEST] %s: MM trick GBT gate rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // Spoiler-drop identity gate (#610). Drives the REAL spoiler-LOAD consumer pair
 // (Rando::Spoiler::LoadFromFile + ApplyToSaveContext — the two calls
 // OnFileCreate's LOAD branch makes) over a spoiler written by the real writer
@@ -3384,6 +3431,16 @@ const TestDescriptor gTests[] = {
     // the five gCombo.Rando.* keys and freezes gComboCtx, and restores both.
     {"combo-settings-rows", "The six tier-4 combo settings are marked, model-backed SohMenu rows (#655, #668)",
      Test_ComboSettingsRows},
+    // MM's per-trick vocabulary (#578 part 1). Two rows because they see
+    // different things: the table lock is graph-free (it proves finding (a) on
+    // Rando::Logic::CanKillEnemy, a plain inline function), while finding (b)'s
+    // edge is a std::function inside the ShipInit-populated region graph and so
+    // needs MM's boot.
+    {"mm-trick-table",
+     "MM's trick table is total, mirrored and honest; the Powder Keg gate and the trick digest term are real (#578)",
+     Test_MMTrickTable},
+    {"mm-trick-gbt-gate", "The Great Bay Temple boss-key edge is gated on MMRT_GBT_BOSS_KEY_ICE (#578)",
+     Test_MMTrickGbtGate},
     // Keep archive-hotswap-logic LAST: it re-inits the entrance table, so it
     // must not run before any test that relies on the default links.
     {"archive-hotswap-logic", "Headless multi-switch archive/state regression (#263)", Test_ArchiveHotswapLogic},
@@ -3469,7 +3526,8 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "mm-moon-crash-arm-state") == 0 ||
                 strcmp(gTests[i].name, "mm-owl-save-arm-state") == 0 ||
                 strcmp(gTests[i].name, "foreign-placement-oot") == 0 ||
-                strcmp(gTests[i].name, "combo-creation-event") == 0) {
+                strcmp(gTests[i].name, "combo-creation-event") == 0 ||
+                strcmp(gTests[i].name, "mm-trick-gbt-gate") == 0) {
                 printf("\n--- Skipping: %s (needs display; runs as a rando-label CTest) ---\n", gTests[i].name);
                 continue;
             }

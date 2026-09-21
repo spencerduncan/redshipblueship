@@ -178,6 +178,10 @@ extern "C" {
 // src/common. Included OUTSIDE any extern "C" block: the header manages its own
 // linkage and pulls <stdbool.h>/<stdint.h> (matching Foreign.cpp).
 #include "combo_mm_options_view.h"
+// The trick table's half of the same seam (#578 part 1).
+#include "combo_mm_tricks_view.h"
+
+#include <string>
 
 namespace {
 
@@ -680,6 +684,129 @@ std::vector<ComboMMOptionDesc>& DescriptorTable() {
 extern "C" void MM_RandoOptionsUi_Register(void) {
     auto& table = DescriptorTable();
     Combo_RegisterMMOptionTable(table.data(), (int)table.size());
+}
+
+// ============================================================================
+// THE TRICK TABLE'S DESCRIPTORS (#578 part 1)
+// ============================================================================
+//
+// The same seam, one table over: MM owns the `MMRT_*` id space and its strings,
+// src/common gets flat data (combo_mm_tricks_view.h explains why this is a
+// SEPARATE table rather than extra option rows).
+//
+// EVERY FIELD EXCEPT THE TWO HONESTY FLAGS IS COPIED from the
+// `Rando::StaticData::Tricks` row, not restated — same rule as the option table,
+// and the `mm-trick-table` lock asserts the copy is exact. What is NOT in the MM
+// row and is decided here is `bound`: whether some region condition in THIS
+// BUILD consults the key.
+//
+// `kBoundTricks` IS THE PART THAT MUST NOT ROT, and it is the same anti-staleness
+// problem the option table's reason strings had twice (#438's remainder, then
+// #669: a row went on citing a blocker that had been fixed months earlier). The
+// shape of the fix there was "do not transcribe a claim you can prove" — take the
+// address of the dispatcher and let the linker prove it. There is no equivalent
+// address to take here: a binding is a token inside a `std::function` in a region
+// definition, not a symbol. So the claim is transcribed, and the lock that keeps
+// it honest is different in kind: `mm-trick-table` EVALUATES the two bound keys'
+// real conditions with the trick off and then on, and fails if the verdict does
+// not move. A key listed here whose binding was deleted turns that red; a key
+// bound in part 2 and not listed here draws disabled-with-reason, which is
+// wrong-but-visible rather than wrong-and-silent.
+//
+// Part 2 adds keys to this list as it authors their bindings. Keep it sorted the
+// way the table is (id order) so the diff reads as an append.
+namespace {
+
+const MMRandoTrickId kBoundTricks[] = {
+    // Logic/Logic.h's CAN_USE_EXPLOSIVE — 32 uses across Regions/ plus the
+    // CanKillEnemy table (#578 finding (a)).
+    MMRT_KEG_EXPLOSIVES,
+    // Logic/Regions/GreatBayTemple.cpp — the compass-room boss-key connection
+    // (#578 finding (b)).
+    MMRT_GBT_BOSS_KEY_ICE,
+};
+
+bool IsBoundTrick(MMRandoTrickId mmRandoTrickId) {
+    for (MMRandoTrickId bound : kBoundTricks) {
+        if (bound == mmRandoTrickId) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/** The tag set as one human string. Joined here so src/common never learns
+ *  MM's tag enum; the bitmask travels too, for a future filter UI. */
+const char* TagSummary(uint32_t tags) {
+    // Owned by the descriptor vector's lifetime: one string per row, never freed,
+    // exactly like the descriptors themselves.
+    static std::vector<std::string> sTagStrings;
+    std::string s;
+    static const MMRandoTrickTag kAllTags[] = { MMRTT_NOVICE,       MMRTT_INTERMEDIATE, MMRTT_ADVANCED, MMRTT_EXPERT,
+                                                MMRTT_EXPERIMENTAL, MMRTT_GLITCH,       MMRTT_COMBO };
+    for (MMRandoTrickTag tag : kAllTags) {
+        if ((tags & (uint32_t)tag) == 0) {
+            continue;
+        }
+        if (!s.empty()) {
+            s += ", ";
+        }
+        s += Rando::StaticData::GetTrickTagName(tag);
+    }
+    if (s.empty()) {
+        // The lock forbids an empty tag set; this keeps a broken table from
+        // handing the pane a NULL-adjacent empty label.
+        s = "(untagged)";
+    }
+    sTagStrings.push_back(s);
+    return sTagStrings.back().c_str();
+}
+
+std::vector<ComboMMTrickDesc>& TrickDescriptorTable() {
+    static std::vector<ComboMMTrickDesc> sTrickDescriptors;
+    if (!sTrickDescriptors.empty()) {
+        return sTrickDescriptors;
+    }
+    // Reserve up front: TagSummary hands out pointers into a vector of strings,
+    // and the descriptors themselves are handed to src/common as a raw pointer —
+    // a reallocation mid-build would leave the registry pointing at freed memory.
+    sTrickDescriptors.reserve((size_t)MMRT_MAX);
+    for (auto& [mmRandoTrickId, row] : Rando::StaticData::Tricks) {
+        ComboMMTrickDesc desc = {};
+        desc.id = (uint16_t)mmRandoTrickId;
+        desc.name = row.name;
+        desc.cvar = row.cvar;
+        desc.label = row.displayName;
+        desc.tooltip = row.tooltip;
+        desc.area = (uint8_t)row.area;
+        desc.areaName = Rando::StaticData::GetTrickAreaName(row.area);
+        desc.tags = row.tags;
+        desc.tagSummary = TagSummary(row.tags);
+        desc.reserved = row.reserved;
+        desc.bound = IsBoundTrick(mmRandoTrickId);
+        if (row.reserved) {
+            // The MM row's own reason, which names the OoT item. Reserved beats
+            // unbound in the message because it is the harder blocker: part 2
+            // cannot bind these at all.
+            desc.disabledReason = row.reservedReason;
+        } else if (!desc.bound) {
+            desc.disabledReason = "No logic binding yet (#578 part 2)";
+        } else {
+            desc.disabledReason = "";
+        }
+        sTrickDescriptors.push_back(desc);
+    }
+    return sTrickDescriptors;
+}
+
+} // namespace
+
+/** Publish the trick table to src/common. Same not-a-registrar reasoning as
+ *  MM_RandoOptionsUi_Register above, for the same reason: it reads a
+ *  namespace-scope std::map in another TU. */
+extern "C" void MM_RandoTricksUi_Register(void) {
+    auto& table = TrickDescriptorTable();
+    Combo_RegisterMMTrickTable(table.data(), (int)table.size());
 }
 
 #endif // RSBS_SINGLE_EXECUTABLE

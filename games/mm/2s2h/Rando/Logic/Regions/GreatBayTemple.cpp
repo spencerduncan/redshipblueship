@@ -117,7 +117,16 @@ static RegisterShipInitFunc initFunc([]() {
         },
         .connections = {
             CONNECTION(RR_GREAT_BAY_TEMPLE_BABA_CHEST_ROOM,                   true),
-            CONNECTION(RR_GREAT_BAY_TEMPLE_COMPASS_ROOM_WITH_BOSS_KEY_CHEST,  CAN_BE_ZORA && CAN_USE_MAGIC_ARROW(ICE)), // TODO : Decide if this should be considered a trick
+            // #578 finding (b) — DECIDED (operator ruling 2026-09-17: sync and gate).
+            // Upstream 2Ship commented this exact connection out in its PR #1661: "Boss Key
+            // connection in GBT was left over when it was intended to be done as a trick(my bad)
+            // Commented it out for now until trick menu is implemented." Our games/mm snapshot
+            // predates that, so redship's Glitchless assumed a trick upstream's does not — an
+            // accident, not a bug. Now it is a trick-gated disjunct under MMRT_GBT_BOSS_KEY_ICE
+            // (ours; no OoTMM equivalent), DEFAULT OFF: tricks-off logic matches upstream's
+            // current shape, and the route is still available to anyone who asks for it instead
+            // of being deleted. The TODO is resolved, so it is gone.
+            CONNECTION(RR_GREAT_BAY_TEMPLE_COMPASS_ROOM_WITH_BOSS_KEY_CHEST,  MM_TRICK(MMRT_GBT_BOSS_KEY_ICE) && CAN_BE_ZORA && CAN_USE_MAGIC_ARROW(ICE)),
             CONNECTION(RR_GREAT_BAY_TEMPLE_GEKKO,                             CAN_USE_MAGIC_ARROW(ICE) && CAN_USE_MAGIC_ARROW(FIRE)),
             CONNECTION(RR_GREAT_BAY_TEMPLE_COMPASS_ROOM_TUNNEL, CAN_USE_ABILITY(SWIM))
         },

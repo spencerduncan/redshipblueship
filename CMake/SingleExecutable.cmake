@@ -56,6 +56,11 @@ set(REDSHIP_COMMON_SOURCES
     # pane is common-owned because it must be reachable while OoT is running —
     # the paired MM profile snapshots at MM's arrival and is never regenerated
     ${CMAKE_SOURCE_DIR}/src/common/combo_mm_options_view.c
+    # MM's per-trick table, same seam one id space over (#578 part 1). Separate
+    # from the option registry because MMRT_* is a different id space indexing a
+    # different save array, and the MMRandoOptions lock asserts the option
+    # descriptor set covers RandoOptionId exactly.
+    ${CMAKE_SOURCE_DIR}/src/common/combo_mm_tricks_view.c
     ${CMAKE_SOURCE_DIR}/src/common/ComboMmOptionsWindow.cpp
     # The tier-4 combo settings (ADR 0011 increment 2): the five gCombo.Rando.*
     # keys' authoring surface — the one reader the resolver uses and the one
@@ -950,6 +955,13 @@ if(BUILD_TESTING)
     # reference would un-elide them by itself). Pure (no display, no ROM);
     # needs the shared bring-up only for CVarSetInteger.
     redship_add_test(NAME MMClockShuffleSongs COMMAND redship --test mm-clock-shuffle-songs)
+    # MM's per-trick vocabulary substrate (#578 part 1): the MMRT_* table's
+    # integrity and mirror, the 20 reserved-and-inert keys, the frozen-save
+    # predicate, the trick term in the profile identity digest, and finding (a)'s
+    # Powder Keg gate proved on the real CanKillEnemy table. Graph-free, so it
+    # runs in this display-free tier; finding (b)'s probe needs the region graph
+    # and is MMTrickGbtGate in the rando tier below.
+    redship_add_test(NAME MMTrickTable COMMAND redship --test mm-trick-table)
     redship_add_test(NAME AllTests COMMAND redship --test all)
 
     # Registration-completeness guard (#376). Diffs the dispatch table the
@@ -1242,6 +1254,19 @@ if(BUILD_TESTING)
     # with no window -- but it cannot carry the VB arm-state probe, which is
     # this row's entire point.
     redship_add_test(NAME MMOwlSaveArmState COMMAND redship --test mm-owl-save-arm-state
+        LABEL rando
+        TIMEOUT 180
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+
+    # #578 finding (b): the Great Bay Temple boss-key connection is trick-gated.
+    # Tier `rando` for one reason, stated so nobody "tidies" it into the cheap
+    # tier: the edge is a std::function inside Rando::Logic::Regions, and that map
+    # is populated by ShipInit registrars reached only through
+    # InitOTRForMMFirstBoot, whose OTRGlobals ctor constructs a Fast3dWindow. The
+    # probe evaluates the REAL lambda rather than re-stating its condition, which
+    # is the whole point — a re-statement would pass with the gate deleted. The
+    # table lock and finding (a)'s probe are graph-free and live in MMTrickTable.
+    redship_add_test(NAME MMTrickGbtGate COMMAND redship --test mm-trick-gbt-gate
         LABEL rando
         TIMEOUT 180
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
