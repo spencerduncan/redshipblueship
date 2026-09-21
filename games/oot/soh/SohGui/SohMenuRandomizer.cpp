@@ -836,6 +836,11 @@ void AddCrossGamePointerWidgets(SohMenu& menu, WidgetPath& path) {
                    "0004 gives them.",
                    WIDGET_TEXT)
         .RaceDisable(false)
+        // Out of the menu search, like the tier-4 status row: a widget's NAME is
+        // what the search indexes, and seeding it with a paragraph buries the rows
+        // a player was actually looking for. The searchable pointer is the
+        // separator above.
+        .HideInSearch(true)
         .Options(TextOptions().Color(UIWidgets::Colors::Gray));
 }
 

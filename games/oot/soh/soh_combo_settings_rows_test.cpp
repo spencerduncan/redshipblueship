@@ -1,7 +1,7 @@
 /**
  * @file soh_combo_settings_rows_test.cpp
  * @brief ROM-free, display-free lock for #655 (and #668): the six tier-4 combo
- *        settings must exist as SohMenu ROWS in the interim Cross-Game section,
+ *        settings must exist as SohMenu ROWS in the tier-4 Combo section,
  *        carry ADR
  *        0004 §4.2's persistent marker, and behave the way ADR 0004 §6 state 4
  *        requires — editable before the creation event, read-only afterwards
@@ -40,11 +40,22 @@
  *      same values it authored would pass with the accessor wired to the wrong
  *      source, which is the vacuity trap this file is shaped to avoid.
  *
- * HOW IT OBSERVES. It builds a real SohMenu headless and calls the real
- * registrar for the Cross-Game page. That is safe with no window and no ImGui
- * context because registration is container work — every widget's heavy lifting
- * lives in a lambda that only the draw path calls — and a `Ship::GuiWindow`
- * constructed
+ * WHERE THE ROWS LIVE NOW (#497 step 6). They were registered by
+ * `SohGui::AddCrossGameWidgets` into `Randomizer → Cross-Game`, a page that said
+ * in-tree it was the interim host until the tier-4 Combo section existed. That
+ * section exists, so this lock follows them: the rows are now
+ * `Combo → Cross-Game Rules`, registered by `SohMenu::AddMenuCombo()`. The old
+ * page survives with a pointer row, and `MenuComboSection` owns the section's
+ * shape (both pages, the pointer row, the extension point); this row still owns
+ * the seam between the model and the rows, which is unchanged by the move.
+ *
+ * HOW IT OBSERVES. It builds a real SohMenu headless and calls the REAL
+ * production entry point, `AddMenuCombo()` — not a test-only registrar. That is
+ * possible here and was not possible for `AddMenuRandomizer()` (see below):
+ * nothing in the Combo section reaches `Rando::Settings`. It is safe with no
+ * window and no ImGui context because registration is container work — every
+ * widget's heavy lifting lives in a lambda that only the draw path calls — and a
+ * `Ship::GuiWindow` constructed
  * with an EMPTY visibility CVar touches the Ship::Context not at all
  * (GuiWindow.cpp guards the latch on `!mVisibilityConsoleVariable.empty()`).
  * The rows' PreFuncs and Callbacks are then called DIRECTLY, exactly as
@@ -54,20 +65,19 @@
  * back through each widget's own `valuePointer`, so the test asserts on what
  * the widget would render rather than on file-static storage it cannot see.
  *
- * WHY IT REGISTERS THE PAGE AND NOT THE WHOLE MENU. `AddMenuRandomizer()` as a
- * whole cannot run ROM-free, and not for a shallow reason: its five
- * `Rando::Settings` option groups reach `Option::AddWidget`, which **runs each
- * option's callback at registration time**
+ * WHY IT REGISTERS ONE SECTION AND NOT THE WHOLE MENU. `AddMenuRandomizer()` — the
+ * rows' host before #497 step 6 — cannot run ROM-free, and not for a shallow
+ * reason: its five `Rando::Settings` option groups reach `Option::AddWidget`,
+ * which **runs each option's callback at registration time**
  * (`Enhancements/randomizer/option.cpp:330`), and those callbacks dereference
  * `OTRGlobals::Instance->gRandoContext` — null in a display-free harness, an
  * access violation reading offset 0x80. (They also register through the GLOBAL
  * `SohGui::mSohMenu`, `option.cpp:453`, rather than through the menu whose
- * method is running.) So the Cross-Game page is its own externally linked
- * registrar, `SohGui::AddCrossGameWidgets`, and this row drives that. The scope
- * that costs: the ORDER of the sections inside `AddMenuRandomizer`, and anything
- * the option groups do to the `WidgetPath` before this page sees it, is not
- * covered here — which is exactly why the registrar pins `path.column` itself
- * instead of inheriting it.
+ * method is running.) `AddMenuCombo()` has no such dependency, which is a
+ * consequence of the move worth recording: the rows are now reachable from a
+ * headless harness through the same call production makes, so the ORDER of the
+ * pages and the `WidgetPath` each one receives ARE covered, where under the
+ * interim host they were not.
  *
  * WHY IT SEARCHES EVERY COLUMN AND CHECKS THE COLUMN INDEX ANYWAY.
  * `Menu::DrawElement` draws only `columnCount` columns, so a row in a higher
@@ -97,13 +107,6 @@
 #include "context.h"
 #include "foreign_items.h"
 
-namespace SohGui {
-// The Cross-Game page's registrar, defined in SohGui/SohMenuRandomizer.cpp and
-// declared in no header (see the header comment above). Declared here the way
-// the SohGui TUs already declare SohGui::mSohMenu.
-void AddCrossGameWidgets(SohMenu& menu, WidgetPath& path);
-} // namespace SohGui
-
 namespace {
 
 int gFailures = 0;
@@ -122,7 +125,7 @@ int gFailures = 0;
 // The menu keeps its pages in a protected member of Ship::Menu, and there is no
 // public reader — deliberately, since nothing in production needs one. A derived
 // probe is the least invasive way in: no production header changes, and the
-// widgets under test are the real ones AddMenuRandomizer built.
+// widgets under test are the real ones AddMenuCombo() built.
 class ComboRulesMenuProbe final : public SohGui::SohMenu {
   public:
     // An EMPTY visibility CVar: GuiWindow's ctor then never reaches
@@ -224,8 +227,9 @@ void ExpectDecided(WidgetInfo& row, const char* what) {
 } // namespace
 
 extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
-    printf("[TEST] combo-settings-rows: the six tier-4 combo settings are SohMenu rows in the Cross-Game section, "
-           "marked per ADR 0004 §4.2, and read-only from the save once frozen (#655, #668)\n");
+    printf("[TEST] combo-settings-rows: the six tier-4 combo settings are SohMenu rows in the Combo section's "
+           "Cross-Game Rules page, marked per ADR 0004 §4.2, and read-only from the save once frozen (#655, #668, "
+           "#497 step 6)\n");
 
     gFailures = 0;
 
@@ -235,36 +239,48 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         Combo_ComboSettingClear((ComboSettingId)i);
     }
 
-    // The page needs its section to exist first (AddSidebarEntry does
-    // menuEntries.at), which is all AddMenuRandomizer does before reaching the
-    // page. The WidgetPath is handed in with a DELIBERATELY WRONG column, so the
-    // registrar's own pin is what puts the rows where they can be drawn -- if it
-    // stopped pinning, leg 1's column check goes red instead of silently
-    // depending on the caller.
+    // The REAL production entry point, not a test-only registrar: AddMenuCombo()
+    // creates the "Combo" header, both sidebars and every row, and nothing in it
+    // reaches Rando::Settings. So the page layout under test is the one a player
+    // gets, including which column each row lands in -- the scope the interim
+    // host's lock had to give up.
     ComboRulesMenuProbe probe;
-    probe.AddMenuEntry("Randomizer", "gSettings.Menu.RandomizerSidebarSection");
-    WidgetPath path = { "Randomizer", "Cross-Game", SECTION_COLUMN_3 };
-    SohGui::AddCrossGameWidgets(probe, path);
+    probe.AddMenuCombo();
 
     // ---- Leg 1: the section and the six rows exist --------------------------
     auto& entries = probe.Entries();
-    if (!entries.contains("Randomizer")) {
-        printf("[TEST] FAIL(1): AddMenuRandomizer registered no \"Randomizer\" menu entry\n");
+    if (!entries.contains("Combo")) {
+        printf("[TEST] FAIL(1): AddMenuCombo registered no \"Combo\" menu entry -- ADR 0004 §4's tier-4 section "
+               "(#497 step 6) is gone or was renamed\n");
         return 1;
     }
-    auto& sidebars = entries.at("Randomizer").sidebars;
-    if (!sidebars.contains("Cross-Game")) {
-        printf("[TEST] FAIL(1): the \"Randomizer\" menu has no \"Cross-Game\" sidebar page -- the interim host for "
-               "the tier-4 combo rules (#509/#655) is gone or was renamed\n");
+    auto& sidebars = entries.at("Combo").sidebars;
+    if (!sidebars.contains("Cross-Game Rules")) {
+        printf("[TEST] FAIL(1): the \"Combo\" menu has no \"Cross-Game Rules\" sidebar page -- the host for the "
+               "tier-4 combo rules (#509/#655, moved by #497 step 6) is gone or was renamed\n");
         return 1;
     }
-    const SidebarEntry& page = sidebars.at("Cross-Game");
-    auto& columns = sidebars.at("Cross-Game").columnWidgets;
+    const SidebarEntry& page = sidebars.at("Cross-Game Rules");
+    auto& columns = sidebars.at("Cross-Game Rules").columnWidgets;
     if (columns.empty()) {
-        printf("[TEST] FAIL(1): the Cross-Game page has no widget columns\n");
+        printf("[TEST] FAIL(1): the Cross-Game Rules page has no widget columns\n");
         return 1;
     }
     std::vector<PageRow> rows = FlattenPage(columns);
+
+    // Leg 2 asserts a property of the WHOLE section (no pop-out for the six keys
+    // survives anywhere in it), because the window rows moved to a sibling page:
+    // checking only the rules page would make that assertion vacuous.
+    std::vector<PageRow> sectionRows = rows;
+    if (sidebars.contains("Cross-Game Windows")) {
+        for (PageRow& windowRow : FlattenPage(sidebars.at("Cross-Game Windows").columnWidgets)) {
+            sectionRows.push_back(windowRow);
+        }
+    } else {
+        printf("[TEST] FAIL: the \"Combo\" menu has no \"Cross-Game Windows\" sidebar page; leg 2's no-pop-out "
+               "assertion would be vacuous\n");
+        gFailures++;
+    }
 
     struct ExpectedRow {
         ComboSettingId id;
@@ -289,15 +305,15 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     // rewrites its own name every frame, so this is the only moment it has a
     // stable one.
     WidgetInfo* statusRow = FindRow(rows, "Combo Rules Status");
-    ROWS_CHECK(statusRow != nullptr, "the Cross-Game page has no \"Combo Rules Status\" row -- ADR 0004 §6 state 4's "
-                                     "reason has nowhere to be legible without hovering");
+    ROWS_CHECK(statusRow != nullptr, "the Cross-Game Rules page has no \"Combo Rules Status\" row -- ADR 0004 §6 "
+                                     "state 4's reason has nowhere to be legible without hovering");
 
     WidgetInfo* settingRow[COMBO_SETTING_COUNT] = { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr };
     for (const ExpectedRow& expected : kExpected) {
         const std::string name = RowName(expected.id) + expected.suffix;
         uint32_t column = 0;
         WidgetInfo* row = FindRow(rows, name, &column);
-        ROWS_CHECK(row != nullptr, "no Cross-Game row named '%s' -- the setting '%s' is unreachable in the menu",
+        ROWS_CHECK(row != nullptr, "no Cross-Game Rules row named '%s' -- the setting '%s' is unreachable in the menu",
                    name.c_str(), Combo_ComboSettingLabel(expected.id));
         if (row == nullptr) {
             continue;
@@ -321,7 +337,7 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         printf("[TEST] combo-settings-rows: %d failure(s) in leg 1; the later legs need the rows\n", gFailures);
         return gFailures;
     }
-    printf("[TEST] leg 1: all six tier-4 settings are rows in Randomizer / Cross-Game, each marked '%s'\n",
+    printf("[TEST] leg 1: all six tier-4 settings are rows in Combo / Cross-Game Rules, each marked '%s'\n",
            Combo_ComboSettingSharedMarker());
 
     // ---- Leg 2: no row is its own writer, and no pop-out is offered ---------
@@ -347,16 +363,22 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         if (row.type == WIDGET_CHECKBOX && row.name != RowName(COMBO_SETTING_SHARED_OCARINA)) {
             classCheckboxes++;
         }
+    }
+    // Over the WHOLE section, not just the rules page: the window buttons live on
+    // the sibling Cross-Game Windows page since #497 step 6, so a check confined
+    // to the rules page could never see the row it is looking for.
+    for (PageRow& pageRow : sectionRows) {
+        WidgetInfo& row = *pageRow.first;
         ROWS_CHECK(!(row.type == WIDGET_WINDOW_BUTTON && row.windowName != nullptr &&
                      std::string(row.windowName) == "Combo Settings"),
-                   "the Cross-Game page still offers a pop-out for the combo settings ('%s'); #655 replaced it with "
+                   "the Combo section still offers a pop-out for the combo settings ('%s'); #655 replaced it with "
                    "the rows above",
                    row.name.c_str());
     }
     // Twelve: six allocated classes per direction. A count rather than a floor,
     // so an appended RSBS_ITEMCLASS_* bit without a row here is red.
     ROWS_CHECK(classCheckboxes == 12,
-               "%d item-class checkboxes in the Cross-Game page, expected 12 (6 classes x 2 "
+               "%d item-class checkboxes in the Cross-Game Rules page, expected 12 (6 classes x 2 "
                "directions); an allocated RSBS_ITEMCLASS_* bit has no row",
                classCheckboxes);
     for (int which = 0; which < 2; which++) {

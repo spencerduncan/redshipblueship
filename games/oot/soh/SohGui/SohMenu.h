@@ -246,6 +246,16 @@ class SohMenu : public Ship::Menu {
      */
     static void RegisterCapability(uint32_t key, DisableInfoFunc evaluation, const char* reason);
 
+    /**
+     * Withdraw @p key again. Returns true if an entry was removed. Exists for the
+     * same reason UnregisterComboSectionPage and
+     * Combo_RegisterForeignItemPool(NULL, 0) do: the registry is process-global,
+     * so a lock that installs a synthetic capability has to be able to put it
+     * back rather than leave state behind for whichever test runs next. A row
+     * asking for a withdrawn key reads ABSENT, which is the honest answer.
+     */
+    static bool UnregisterCapability(uint32_t key);
+
     /** Is @p key's capability present right now? An UNREGISTERED key reads
      *  ABSENT: the honest answer for "a row asked for something nothing
      *  publishes" is to grey the row, not to let it look live. */
@@ -299,9 +309,18 @@ class SohMenu : public Ship::Menu {
     /**
      * Render @p info in section 6 state @p state, from @p baseName.
      *
-     * The base name is passed in rather than remembered because the state can
-     * change between frames and the suffix must not accumulate - the same reason
-     * the tier-4 status row rebuilds its name from scratch every frame.
+     * IDEMPOTENT IN @p baseName, which is what makes it safe to call from a
+     * PreFunc with `info.name` as the base - and a PreFunc is the only place a
+     * gate may live, because MenuDrawItem runs ResetDisables() before it. A
+     * per-frame call that merely appended would compound: "Row" becomes
+     * "Row - not yet available: ...", then that again next frame, and a row that
+     * went from CAPABILITY back to LIVE would keep the stale suffix forever,
+     * because LIVE would restore an already-suffixed base. So the base is
+     * normalised through StripPresentationSuffix() rather than remembered
+     * anywhere: WidgetInfo::ResetDisables() clears `disabled`, `isHidden` and
+     * `activeDisables` but NOT `name`, so nothing upstream hands this function a
+     * pristine name, and a side table keyed on the WidgetInfo address would
+     * outlive the vector that owns it.
      *
      * @p reason is the explanation for the two disabled states and the label for
      * SOH_MENU_PRESENT_INACTIVE_GAME; it must be NULL for
@@ -311,12 +330,27 @@ class SohMenu : public Ship::Menu {
      * registered CAPABILITY reason drops it for the canonical freeze label -
      * section 6's "a frozen entry's reason is not optional and is not the
      * capability reason". Both refusals log.
+     *
+     * @p reason must OUTLIVE the frame: it is stored into
+     * `WidgetOptions::disabledTooltip`, a `const char*` the draw path reads after
+     * this returns, so a `std::string::c_str()` temporary dangles. Every caller in
+     * tree passes a literal or a `src/common` accessor's static string.
      */
     static void ApplyPresentation(WidgetInfo& info, const std::string& baseName, SohMenuPresentation state,
                                   const char* reason);
 
     /** The canonical label for @p state - "" for LIVE, which is never labelled. */
     static const char* PresentationLabel(SohMenuPresentation state);
+
+    /**
+     * @p name with any suffix a previous ApplyPresentation() appended removed,
+     * repeatedly, so a name that already accumulated several normalises in one
+     * call. Only a genuine SUFFIX is cut: " - <label>" must run to the end of the
+     * string or be followed by ": ", which is the exact shape ApplyPresentation
+     * writes. A registered row name that merely CONTAINS a label word is left
+     * alone.
+     */
+    static std::string StripPresentationSuffix(const std::string& name);
 
   private:
     char mGitCommitHashTruncated[8];

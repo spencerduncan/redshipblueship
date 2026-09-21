@@ -1121,8 +1121,11 @@ spent.
     already carries in the other direction (MM's tier-1 hookshot never becomes a
     longshot in OoT).
 
-- **Presentation and locks.** A sixth row in the interim Cross-Game section
-  (`SohGui::AddCrossGameWidgets`), a `WIDGET_CHECKBOX` over a staging buffer
+- **Presentation and locks.** A sixth row alongside the other five — registered
+  by `SohGui::AddComboRulesWidgets` in the tier-4 Combo section since #497
+  step 6 moved them off the interim Cross-Game page (this bullet named
+  `SohGui::AddCrossGameWidgets`, which no longer exists; pointer corrected
+  2026-09-20, no decision changed) — a `WIDGET_CHECKBOX` over a staging buffer
   with `src/common`'s writer as its only write path, ADR 0004 §4.2's marker in
   its name, ADR 0004 §6 state 4 read-only from the save after creation — the
   2026-09-16 amendment's pattern verbatim. Locked by `cvar-classification` (six

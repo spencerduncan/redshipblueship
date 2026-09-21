@@ -310,6 +310,17 @@ void SohMenu::RegisterCapability(uint32_t key, DisableInfoFunc absentWhen, const
     GetCapabilityMap()[key] = { absentWhen, reason };
 }
 
+bool SohMenu::UnregisterCapability(uint32_t key) {
+    if (key < (uint32_t)SOH_MENU_CAP_BUILTIN_COUNT) {
+        // A built-in is installed once by GetCapabilityMap()'s own bootstrap and
+        // never re-installed, so withdrawing one would silently grey every row
+        // that asks for it for the rest of the process.
+        SPDLOG_ERROR("SohMenu::UnregisterCapability({}): refused - a built-in capability cannot be withdrawn", key);
+        return false;
+    }
+    return GetCapabilityMap().erase(key) != 0;
+}
+
 bool SohMenu::CapabilityPresent(uint32_t key) {
     auto& map = GetCapabilityMap();
     auto it = map.find(key);
@@ -337,6 +348,14 @@ const char* SohMenu::CapabilityReason(uint32_t key) {
 
 void SohMenu::ApplyCapabilityGate(WidgetInfo& info, uint32_t key) {
     if (CapabilityPresent(key)) {
+        // Restore the base NAME and nothing else. MenuDrawItem's ResetDisables()
+        // already cleared `disabled` before this PreFunc ran, and in the chained
+        // form another PreFunc may legitimately have set it again for a reason
+        // that is not this gate's - so calling ApplyPresentation(LIVE) here would
+        // un-disable a row somebody else disabled. What ResetDisables() does NOT
+        // clear is `name`, which is why a capability that came back would
+        // otherwise leave its stale "- not yet available: ..." label forever.
+        info.name = StripPresentationSuffix(info.name);
         return;
     }
     const char* reason = CapabilityReason(key);
@@ -470,20 +489,57 @@ const char* SohMenu::PresentationLabel(SohMenuPresentation state) {
     }
 }
 
+std::string SohMenu::StripPresentationSuffix(const std::string& name) {
+    // Loop, because a name that already accumulated (the defect this function
+    // exists to make impossible) carries several, and normalising it in one call
+    // is what lets a caller pass `info.name` every frame.
+    std::string out = name;
+    for (bool cut = true; cut;) {
+        cut = false;
+        for (int s = 0; s < (int)SOH_MENU_PRESENT_COUNT; s++) {
+            const char* label = PresentationLabel((SohMenuPresentation)s);
+            if (label[0] == '\0') {
+                continue; // LIVE is never labelled, so it appends nothing to cut
+            }
+            const std::string needle = std::string(" - ") + label;
+            const std::size_t at = out.rfind(needle);
+            if (at == std::string::npos) {
+                continue;
+            }
+            // Only a SUFFIX, in exactly the shape ApplyPresentation writes: the
+            // label ends the string, or a ": <detail>" follows it. A registered
+            // row that merely contains the words is not rewritten.
+            const std::size_t after = at + needle.size();
+            if (after == out.size() || out.compare(after, 2, ": ") == 0) {
+                out.erase(at);
+                cut = true;
+                break;
+            }
+        }
+    }
+    return out;
+}
+
 void SohMenu::ApplyPresentation(WidgetInfo& info, const std::string& baseName, SohMenuPresentation state,
                                 const char* reason) {
     const char* label = PresentationLabel(state);
     const bool haveReason = (reason != nullptr && reason[0] != '\0');
+
+    // A COPY, taken before anything is assigned to info.name: callers pass
+    // `info.name` itself (ApplyCapabilityGate does), so baseName may alias the
+    // member this function overwrites. Normalising here is what makes a
+    // per-frame call idempotent - see the header for the two defects it closes.
+    const std::string base = StripPresentationSuffix(baseName);
 
     if (state == SOH_MENU_PRESENT_LIVE) {
         if (haveReason) {
             // Section 6: a live entry carries no gate reason. A control that
             // works and explains why it does not is the same lie as a control
             // that does not work and says nothing.
-            SPDLOG_WARN("SohMenu::ApplyPresentation(\"{}\"): LIVE with a reason (\"{}\") - reason dropped",
-                        baseName, reason);
+            SPDLOG_WARN("SohMenu::ApplyPresentation(\"{}\"): LIVE with a reason (\"{}\") - reason dropped", base,
+                        reason);
         }
-        info.name = baseName;
+        info.name = base;
         if (info.options != nullptr) {
             info.options->disabled = false;
             info.options->disabledTooltip = "";
@@ -501,7 +557,7 @@ void SohMenu::ApplyPresentation(WidgetInfo& info, const std::string& baseName, S
         std::string(reason).find(PresentationLabel(SOH_MENU_PRESENT_FROZEN)) != std::string::npos) {
         SPDLOG_WARN("SohMenu::ApplyPresentation(\"{}\"): a CAPABILITY gate may not borrow the freeze reason "
                     "(\"{}\") - substituting the capability label",
-                    baseName, reason);
+                    base, reason);
         detail = label;
     }
     if (state == SOH_MENU_PRESENT_FROZEN && haveReason) {
@@ -510,7 +566,7 @@ void SohMenu::ApplyPresentation(WidgetInfo& info, const std::string& baseName, S
             if (capability.reason != nullptr && std::string(reason) == capability.reason) {
                 SPDLOG_WARN("SohMenu::ApplyPresentation(\"{}\"): a FROZEN row may not carry a capability reason "
                             "(\"{}\") - substituting the freeze label",
-                            baseName, reason);
+                            base, reason);
                 detail = label;
                 break;
             }
@@ -527,7 +583,7 @@ void SohMenu::ApplyPresentation(WidgetInfo& info, const std::string& baseName, S
         suffix += ": ";
         suffix += detail;
     }
-    info.name = suffix.empty() ? baseName : (baseName + " - " + suffix);
+    info.name = suffix.empty() ? base : (base + " - " + suffix);
 
     if (info.options == nullptr) {
         return;
