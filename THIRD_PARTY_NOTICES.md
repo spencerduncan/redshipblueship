@@ -18,23 +18,61 @@ not a choice — see [Elections](#elections)). The mechanical part of this file 
 now locked by a CTest row, `FontLicense`
 (`src/common/tests/test_font_license.c`).
 
+**Corrected again 2026-09-21 after review.** The first pass of that re-verification
+read each upstream's *root* `LICENSE` and nothing else, which made it miss whole
+classes of obligation. Everything below now reflects these corrections, each
+verified against the named upstream file at the revision this tree uses: the
+embedded **Font Awesome 4** icon face (compiled into the binary, absent from the
+Fonts table entirely); **Dear ImGui's vendored stb headers**, which do offer a
+choice and are compiled, so a third election is recorded; **fmt**, pulled in by
+spdlog's default vcpkg feature; **espeak-ng** (GPL-3.0, optional, Linux) and
+**single-header-metal-cpp** (Apache-2.0, Apple platforms), neither of which was
+inventoried; the three third-party notices **vendored inside libultraship's
+`StrHash64`**; four copyright lines that did not match their upstream's text
+(prism-processor, StormLib, SDL_GameControllerDB, and GLEW's own formatting);
+**bzip2**, which the previous pass claimed it could not fetch and which is in fact
+served as git from the host it names; and **GLEW's `LICENSE.txt`**, which is now
+reproduced verbatim instead of being approximated by a generic BSD-3-Clause
+template whose clause 3 says the opposite of GLEW's.
+
 **No copyrighted Nintendo asset ships in this repository.** Game assets are
 extracted at build time from original Ocarina of Time and Majora's Mask ROMs the
 user supplies.
 
 ## Summary of the licensing picture
 
-* Every component that is compiled into `redship`, or shipped beside it, is
-  under a **permissive** license: MIT, MIT No Attribution, CC0-1.0, zlib,
-  BSD-3-Clause, the PNG Reference Library License v2, the bzip2 license, or the
-  SIL Open Font License 1.1 for fonts.
-* Two components let the user **choose** which license to take them under. This
-  project has chosen, and the choices are recorded with their upstream evidence
-  under [Elections](#elections). Every other component offers no choice at all,
-  and is used under the single license its upstream publishes.
-* **No GPL, LGPL, AGPL or MPL code is present in the tree or linked into the
-  binary.** The only copyleft references anywhere in this repository are three
-  documentation passages (`docs/adr/0006-netplay-transport-scope.md:204`,
+* Every component compiled into a **default Windows or Linux `redship`**, or
+  shipped beside it, is under a **permissive** license: MIT, MIT No Attribution,
+  CC0-1.0, zlib, BSD-3-Clause, the PNG Reference Library License v2, the bzip2
+  license, or the SIL Open Font License 1.1 for fonts.
+* **Two platform/option-conditional exceptions to that sentence**, both added to
+  the inventory on 2026-09-21 after review found them missing:
+  * **single-header-metal-cpp** is **Apache-2.0**, and
+    `libultraship/cmake/dependencies/mac.cmake` /`ios.cmake` fetch it
+    unconditionally on Apple platforms. Apache-2.0 is permissive but not one of
+    the licenses enumerated above, and it carries a NOTICE-propagation condition
+    (§4(d)) the others do not.
+  * **espeak-ng** is **GPL-3.0**. It is optional and Linux-only, its headers are
+    compiled when `find_library(ESPEAK espeak-ng)` succeeds, and the library
+    itself is reached with `dlopen` at runtime rather than linked. CI's Linux
+    jobs install `libespeak-ng-dev`, so they do compile against it. See the row
+    in [External libraries](#external-libraries-linked-from-the-system-or-vcpkg)
+    for exactly what that means for redistribution.
+* **Three** components let the recipient **choose** which license to take them
+  under. This project has chosen, and the choices are recorded with their
+  upstream evidence under [Elections](#elections). Every other component offers
+  no choice at all, and is used under the single license its upstream publishes.
+* **No GPL, LGPL, AGPL or MPL source is present in this tree, and no copyleft
+  code is linked into `redship` at build time** — statically or dynamically — in
+  any configuration this repository builds. The one qualification, stated rather
+  than buried: on Linux, when espeak-ng is installed, GPL-3.0 **headers** are
+  compiled into the speech-synthesizer TUs and the GPL-3.0 **library** is loaded
+  with `dlopen("libespeak-ng.so", ...)` at runtime
+  (`games/oot/soh/Enhancements/speechsynthesizer/ESpeakSpeechSynthesizer.{h,cpp}`).
+  A redistributor of a Linux binary built that way must reach its own conclusion
+  about that arrangement; this file's job is to say it is there. Beyond that, the
+  only copyleft references anywhere in this repository are three documentation
+  passages (`docs/adr/0006-netplay-transport-scope.md:204`,
   `docs/adr/0007-grant-relay-netplay.md:59`,
   `docs/netplay-increment-1-spike.md:343`) that name GPL-3.0 prior art
   explicitly in order to record that it was **not** read, adapted or vendored.
@@ -63,6 +101,7 @@ here for completeness; it is part of the same unresolved status as SoH.
 | Component | Path in tree | License | Copyright | Upstream | License text in-tree |
 |---|---|---|---|---|---|
 | libultraship | `libultraship/` | MIT | Copyright (c) 2022 kenix3 kenixwhisperwind@gmail.com | https://github.com/spencerduncan/libultraship (fork of https://github.com/Kenix3/libultraship) | **yes** — `libultraship/LICENSE` |
+| libcore `Crc` / SHA-1, vendored inside libultraship as `StrHash64` | `libultraship/src/ship/utils/StrHash64.cpp`, `libultraship/include/ship/utils/StrHash64.h` | **three cumulative notices**: MIT, zlib, and BSD-3-Clause (ReichlSoft) | Copyright (c) 2006 Anton Samokhvalov (MIT); Copyright (C) 1995-2004 Jean-loup Gailly and Mark Adler (zlib); Copyright (c) 2003, Dominik Reichl <dominik.reichl@t-online.de>, All rights reserved (BSD-3-Clause, ReichlSoft) | libcore 0.22.7 (`lib/hash/Crc.cpp`), as recorded in the file's own header | **yes** — all three notices are reproduced at the head of both files |
 | Fast3D | `libultraship/src/fast/`, `libultraship/include/fast/` | MIT | Copyright (c) 2020 Emill, MaikelChan | vendored inside libultraship | **yes** — `libultraship/src/fast/LICENSE.txt`, `libultraship/include/fast/LICENSE.txt` |
 | ZAPDTR | `ZAPDTR/` | MIT | Copyright (c) 2020 Zelda Reverse Engineering Team | https://github.com/spencerduncan/ZAPDTR (fork of https://github.com/HarbourMasters/ZAPDTR) | **yes** — `ZAPDTR/LICENSE` |
 | OTRExporter | `OTRExporter/` | MIT | Copyright (c) 2022 Harbour Masters | https://github.com/spencerduncan/OTRExporter (fork of https://github.com/HarbourMasters/OTRExporter) | **yes** — `OTRExporter/LICENSE` |
@@ -83,14 +122,23 @@ notices must accompany a distributed build.
 | Component | Declared at | License | Copyright | Upstream |
 |---|---|---|---|---|
 | Dear ImGui (v1.91.9b-docking, patched) | `libultraship/cmake/dependencies/common.cmake` | MIT | Copyright (c) 2014-2025 Omar Cornut | https://github.com/ocornut/imgui |
+| stb headers **vendored inside Dear ImGui** — `imstb_rectpack.h`, `imstb_truetype.h`, `imstb_textedit.h`, compiled via `imgui_draw.cpp` and `imgui_widgets.cpp` | same ImGui `FetchContent` at tag `v1.91.9b-docking` | MIT **or** public domain, at the recipient's choice — **MIT elected**, see [Elections](#elections) | Copyright (c) 2017 Sean Barrett | vendored inside https://github.com/ocornut/imgui |
 | stb_image (pinned `0bc88af4`) | `libultraship/cmake/dependencies/common.cmake` | MIT **or** public domain, at the user's choice — **MIT elected**, see [Elections](#elections) | Copyright (c) 2017 Sean Barrett | https://github.com/nothings/stb |
 | dr_libs (pinned `da35f9d6`) | `games/oot/CMakeLists.txt:463`, `games/mm/CMakeLists.txt:36` | Unlicense (public domain) **or** MIT No Attribution, at the user's choice — **MIT-0 elected**, see [Elections](#elections) | David Reid | https://github.com/mackron/dr_libs |
 | thread-pool (v4.1.0) | `libultraship/cmake/dependencies/common.cmake` | MIT | Copyright (c) 2024 Barak Shoshany | https://github.com/bshoshany/thread-pool |
-| prism-processor (pinned `bbcbc7e3`) | `libultraship/cmake/dependencies/common.cmake` | MIT | KiritoDv | https://github.com/KiritoDv/prism-processor |
-| StormLib (v9.25, optional — `INCLUDE_MPQ_SUPPORT`) | `libultraship/cmake/dependencies/common.cmake` | MIT | Copyright (c) Ladislav Zezula | https://github.com/ladislav-zezula/StormLib |
+| prism-processor (pinned `bbcbc7e3`) | `libultraship/cmake/dependencies/common.cmake` | MIT | Copyright (c) 2025 Lywx & coco875 admin@undervolt.dev | https://github.com/KiritoDv/prism-processor |
+| StormLib (v9.25, optional — `INCLUDE_MPQ_SUPPORT`) | `libultraship/cmake/dependencies/common.cmake` | MIT | Copyright (c) 1999-2013 Ladislav Zezula | https://github.com/ladislav-zezula/StormLib |
 | libgfxd (optional — `GFX_DEBUG_DISASSEMBLER`) | `libultraship/cmake/dependencies/common.cmake` | MIT | Copyright (c) 2016-2021 glank | https://github.com/glankk/libgfxd |
-| SDL_GameControllerDB (`gamecontrollerdb.txt`, downloaded and installed beside the binary) | `games/oot/CMakeLists.txt:907`, `games/mm/CMakeLists.txt:1061` | zlib | the SDL_GameControllerDB contributors | https://github.com/mdqinc/SDL_GameControllerDB |
+| SDL_GameControllerDB (`gamecontrollerdb.txt`, downloaded and installed beside the binary) | `games/oot/CMakeLists.txt:907`, `games/mm/CMakeLists.txt:1061` | zlib | Copyright (C) 1997-2025 Sam Lantinga <slouken@libsdl.org> | https://github.com/mdqinc/SDL_GameControllerDB |
+| single-header-metal-cpp (**Apple platforms only**) | `libultraship/cmake/dependencies/mac.cmake:18-20`, `ios.cmake:73-75` | **Apache-2.0** | Copyright Apple Inc. (metal-cpp); single-header repackaging by briaguya-ai | https://github.com/briaguya-ai/single-header-metal-cpp |
 | linuxdeploy (AppImage packaging tool only; not linked) | `CMake/Packaging.cmake:62` | MIT | Copyright (c) TheAssassin and contributors | https://github.com/linuxdeploy/linuxdeploy |
+
+`single-header-metal-cpp` is fetched unconditionally by the macOS and iOS
+dependency files, so an Apple build compiles it in. Apache-2.0 is permissive, but
+unlike every other row here it conditions redistribution on propagating any
+`NOTICE` file the upstream ships (§4(d)) and on stating changes (§4(b)). This
+project builds and tests only Windows and Linux; an Apple redistribution needs
+that notice carried and is not covered by the enumeration in the summary above.
 
 ### External libraries linked from the system or vcpkg
 
@@ -103,7 +151,7 @@ to the distributed binary.
 |---|---|---|---|
 | SDL2 | zlib | Copyright (C) 1997-2026 Sam Lantinga <slouken@libsdl.org> | https://github.com/libsdl-org/SDL |
 | SDL2_net | zlib | Copyright (C) 1997-2026 Sam Lantinga | https://github.com/libsdl-org/SDL_net |
-| GLEW | Modified BSD **and** MIT (**not** a choice — corrected 2026-09-21; see [Elections](#elections)) | Copyright (C) 2002-2007 Milan Ikits, Marcelo E. Magallon; Copyright (C) 2002 Lev Povalahev; Mesa 3-D: Copyright (C) 1999-2007 Brian Paul; Copyright (c) 2007 The Khronos Group Inc. | https://github.com/nigels-com/glew |
+| GLEW | Modified BSD **and** MIT (**not** a choice — corrected 2026-09-21; see [Elections](#elections)). Its own `LICENSE.txt` is reproduced verbatim in the [Appendix](#glew-licensetxt-reproduced-verbatim) | Copyright (C) 2002-2007, Milan Ikits <milan ikits[]ieee org>; Copyright (C) 2002-2007, Marcelo E. Magallon <mmagallo[]debian org>; Copyright (C) 2002, Lev Povalahev; Mesa 3-D: Copyright (C) 1999-2007 Brian Paul; Copyright (c) 2007 The Khronos Group Inc. | https://github.com/nigels-com/glew |
 | GLFW | zlib/libpng | Copyright (c) 2002-2006 Marcus Geelnard; Copyright (c) 2006-2019 Camilla Lowy | https://github.com/glfw/glfw |
 | zlib | zlib | (C) 1995-2026 Jean-loup Gailly and Mark Adler | https://github.com/madler/zlib |
 | bzip2 | bzip2 license (BSD-style) | Copyright (C) 1996-2019 Julian R Seward | https://sourceware.org/bzip2/ |
@@ -112,25 +160,76 @@ to the distributed binary.
 | nlohmann/json | MIT | Copyright (c) 2013-2025 Niels Lohmann | https://github.com/nlohmann/json |
 | TinyXML-2 (vcpkg copy) | zlib | Lee Thomason | https://github.com/leethomason/tinyxml2 |
 | spdlog | MIT | Copyright (c) 2016 - present, Gabi Melman and spdlog contributors | https://github.com/gabime/spdlog |
+| fmt (**pulled in by spdlog**, not requested directly) | MIT | Copyright (c) 2012 - present, Victor Zverovich and {fmt} contributors | https://github.com/fmtlib/fmt |
 | libogg | BSD-3-Clause | Copyright (c) 2002, Xiph.org Foundation | https://github.com/xiph/ogg |
 | libvorbis | BSD-3-Clause | Copyright (c) 2002-2020 Xiph.org Foundation | https://github.com/xiph/vorbis |
 | opus | BSD-3-Clause | Copyright (c) 2001-2011 Xiph.Org, Skype Limited, Octasic, Jean-Marc Valin, Timothy B. Terriberry, CSIRO, Gregory Maxwell, Mark Borgerding, Erik de Castro Lopo | https://github.com/xiph/opus |
 | opusfile | BSD-3-Clause | Copyright (c) 1994-2013 Xiph.Org Foundation and contributors | https://github.com/xiph/opusfile |
+| espeak-ng (**optional, Linux; GPL-3.0** — see the paragraph below) | GPL-3.0 | Copyright (C) 2005-2014 Jonathan Duddington; Copyright (C) 2015-2025 Reece H. Dunn and the espeak-ng contributors | https://github.com/espeak-ng/espeak-ng |
 | OpenGL (system) | platform-provided; no bundled code | — | — |
+
+**fmt** is in this table because it arrives whether or not anybody asks for it.
+`CMakeLists.txt:38` requests `spdlog` from vcpkg; the vcpkg `spdlog` port declares
+`"default-features": ["fmt", "tz-offset"]`, and the `fmt` feature depends on the
+`fmt` port — so a plain `spdlog` request installs and links fmt. spdlog's own
+`LICENSE` ends by saying so: "This software depends on the fmt lib (MIT License),
+and users must comply to its license". MIT's condition is the copyright line, and
+it is now here.
+
+**espeak-ng** is the one copyleft dependency this build can touch, and its shape
+matters. `games/oot/CMakeLists.txt:193-196` runs `find_library(ESPEAK espeak-ng)`
+and *excludes* `soh/Enhancements/speechsynthesizer/ESpeak*` when it is absent, so
+on a machine without it nothing about it is compiled. When it is present —
+which includes CI's Linux jobs, since `.github/workflows/apt-deps.txt` installs
+`libespeak-ng-dev` — `ESpeakSpeechSynthesizer.h` includes
+`<espeak-ng/speak_lib.h>` and the library is obtained at runtime with
+`dlopen("libespeak-ng.so", ...)` rather than being linked. Windows builds do not
+have it at all. It is inventoried here because "the build compiles against a
+GPL-3.0 header" is exactly the fact a redistributor needs, and because an
+inventory that lists a packaging tool and a downloaded text file while omitting
+this would not be an audit. Its text is not reproduced below: GPL-3.0 is long,
+this project ships no espeak-ng code, and the obligation attaches to whoever
+distributes a binary built with that path enabled —
+https://github.com/espeak-ng/espeak-ng/blob/master/COPYING.
 
 ### Fonts
 
 Both game trees carry the same custom font set
 (`games/oot/assets/custom/fonts/`, `games/mm/assets/custom/fonts/`). The license
 column below is taken from each font file's own `name` table (name ID 13, the
-license description) — not from a distribution page.
+license description) — not from a distribution page — except where the row says
+otherwise.
+
+**A font does not have to be a file to ship.** The fifth row below is
+base85-compressed into a libultraship header and pushed into the ImGui atlas at
+startup, so it is *inside the executable*: it was missing from this table until
+2026-09-21 because the table had been built by listing the two asset directories.
+Both halves are now covered here and in `OFL.txt`.
 
 | Font | Path in tree | License | Copyright (name ID 0) | Upstream |
 |---|---|---|---|---|
-| Inconsolata Regular | `games/{oot,mm}/assets/custom/fonts/Inconsolata-Regular.ttf` | SIL Open Font License 1.1 | Copyright 2006 The Inconsolata Project Authors | https://github.com/cyrealtype/Inconsolata |
-| Montserrat Regular | `games/{oot,mm}/assets/custom/fonts/Montserrat-Regular.ttf` | SIL Open Font License 1.1 | Copyright 2011 The Montserrat Project Authors | https://github.com/JulietaUla/Montserrat |
-| Noto Sans JP Regular | `games/oot/assets/custom/fonts/NotoSansJP-Regular.ttf` | SIL Open Font License 1.1 | (c) 2014-2021 Adobe, with Reserved Font Name 'Source' | https://github.com/notofonts/noto-cjk |
+| Inconsolata Regular | `games/{oot,mm}/assets/custom/fonts/Inconsolata-Regular.ttf` | SIL Open Font License 1.1 | Copyright 2006 The Inconsolata Project Authors (https://github.com/cyrealtype/Inconsolata) | https://github.com/cyrealtype/Inconsolata |
+| Montserrat Regular | `games/{oot,mm}/assets/custom/fonts/Montserrat-Regular.ttf` | SIL Open Font License 1.1 | Copyright 2011 The Montserrat Project Authors (https://github.com/JulietaUla/Montserrat) | https://github.com/JulietaUla/Montserrat |
+| Noto Sans JP Regular | `games/oot/assets/custom/fonts/NotoSansJP-Regular.ttf` | SIL Open Font License 1.1 | (c) 2014-2021 Adobe (http://www.adobe.com/), with Reserved Font Name 'Source'. — plus name ID 7: `Source is a trademark of Adobe in the United States and/or other countries.` | https://github.com/notofonts/noto-cjk |
 | Press Start 2P Regular | `games/{oot,mm}/assets/custom/fonts/PressStart2P-Regular.ttf` | SIL Open Font License 1.1 | Copyright 2012 The Press Start 2P Project Authors (cody@zone38.net), with Reserved Font Name "Press Start 2P" | https://fonts.google.com/specimen/Press+Start+2P |
+| **Font Awesome 4** (`fontawesome-webfont.ttf`, 165548 bytes) — **embedded, not a file** | `libultraship/include/ship/window/gui/Fonts.h` (base85 array `fontawesome_compressed_data_base85`) | SIL Open Font License 1.1 — **stated by upstream's `README.md` at ref `4.x`**, not by the font's `name` table, which carries no name ID 13; its name ID 14 license URL is `http://fontawesome.io/license/` | Copyright Dave Gandy 2016. All rights reserved. | https://github.com/FortAwesome/Font-Awesome (4.x) |
+| IconsFontAwesome4.h (icon-name macros for the face above; no font data) | `libultraship/include/ship/window/gui/IconsFontAwesome4.h` | generated file — see the note below | generated by `GenerateIconFontCppHeaders.py` from `FortAwesome/Font-Awesome` `4.x` `src/icons.yml` | https://github.com/juliettef/IconFontCppHeaders |
+
+Font Awesome 4 is loaded unconditionally: `libultraship/src/ship/window/gui/
+Gui.cpp:153` calls `AddFontFromMemoryCompressedBase85TTF` on that array, and both
+ports do it again (`games/oot/soh/OTRGlobals.cpp:2393`,
+`games/mm/2s2h/BenPort.cpp:520`), so every window RedShipBlueShip draws renders
+its icons from it. Upstream's `README.md` at ref `4.x` says, under "License": "The
+Font Awesome font is licensed under the SIL OFL 1.1" — with the CSS/LESS/Sass
+under MIT and the documentation under CC BY 3.0, none of which this project uses.
+Its name-ID-0 string does read "All rights reserved", which is common boilerplate
+in OFL-licensed faces and is reproduced unaltered in `OFL.txt` because that is
+what the OFL requires; unlike the font removed below, this one states a license
+URL (name ID 14) and its upstream states a grant, so it is licensed, not
+ungranted. `IconsFontAwesome4.h` contains only `#define`s of codepoint names
+derived from that upstream's `src/icons.yml`; the generator carries no license
+statement in the emitted header, and its provenance is recorded here so nobody has
+to rediscover where a header with no copyright line came from.
 
 `Fipps-Regular.otf` used to be a fifth row here, with an unresolved status. It
 was **deleted from both trees on 2026-09-21** rather than resolved; see
@@ -140,7 +239,8 @@ The SIL Open Font License 1.1 requires its text, and each font's copyright
 notice, to travel with the font files (OFL 1.1 condition 2). Both are now in the
 tree beside them: **`games/oot/assets/custom/fonts/OFL.txt`** and
 **`games/mm/assets/custom/fonts/OFL.txt`**. Each names every font in the table
-above with that font's `name`-table copyright line, and reproduces the OFL 1.1
+above — including the embedded Font Awesome face, which has no directory to sit
+in — with that font's `name`-table copyright line, and reproduces the OFL 1.1
 body verbatim. Because this repository's custom-asset step packs everything under
 `assets/custom/` into `soh.o2r` / `2ship.o2r` verbatim
 (`OTRExporter/OTRExporter/Main.cpp`), the notice travels inside the shipped
@@ -167,10 +267,30 @@ Sans JP's name ID 7 asserts `Source is a trademark of Adobe`, which is reproduce
 in `games/oot/assets/custom/fonts/OFL.txt` alongside its copyright line.
 
 `src/common/tests/test_font_license.c` (CTest row `FontLicense`, `redship` tier)
-asserts all of this mechanically: no `Fipps*` file in either fonts directory, the
-expected fonts still present, an `OFL.txt` in each directory carrying the OFL 1.1
-body and every covered font's notice, `games/mm/LICENSE` being the CC0 text, and
-no source file naming the removed font.
+asserts the mechanical parts of this, and it is worth being exact about which,
+because a first draft of this paragraph overclaimed:
+
+* Each fonts directory is **enumerated**, and every `.ttf`/`.otf` in it must be a
+  font this file inventories. Re-adding the removed font under any other name
+  fails the row, as does adding a fifth face nobody has written a notice for.
+  (The earlier version only rejected filenames beginning `Fipps`, which a rename
+  walked straight past.)
+* Each font file's own `name` table is **parsed in the test**, and its name-ID-0
+  copyright string must appear verbatim in `OFL.txt`. So the binding asserted is
+  between the shipped bytes and the shipped notice — swapping in a differently
+  dated build of the same family fails until the notice is updated. Noto Sans JP's
+  name ID 7 trademark line and the embedded Font Awesome notice are additionally
+  required by literal, since neither comes from a `name` table the row can parse
+  (Font Awesome is not a file in the tree).
+* Both `OFL.txt` copies must carry the OFL 1.1 body and be **byte-identical**
+  (see above for why the archive layer forces that), `games/mm/LICENSE` must be
+  the CC0 text, and no source or build file under `games/`, `src/`, `rsbs/` or
+  `CMake/` may name the removed font.
+
+What it does **not** assert: anything about `OTRExporter/` (see "Resolved by
+removal" below for the copy that remains there), anything about the contents of a
+built `.o2r`, and anything about MM's `2s2h/BenPort.cpp`, which no configuration in
+this repository compiles.
 
 ## OoTMM
 
@@ -249,6 +369,7 @@ The rules this table follows, so that it can be audited rather than trusted:
 |---|---|---|---|---|
 | stb_image | `stb_image.h` pinned at `0bc88af4de5fb022db643c2d8e549a0927749354` (`libultraship/cmake/dependencies/common.cmake:55`) | MIT **or** public domain (the Unlicense) | **MIT** | `LICENSE` at that commit, line 1: `This software is available under 2 licenses -- choose whichever you prefer.` Line 3 heads the elected branch: `ALTERNATIVE A - MIT License`, with `Copyright (c) 2017 Sean Barrett`. (Line 21 is `ALTERNATIVE B - Public Domain (www.unlicense.org)`, not taken.) |
 | dr_libs (`dr_wav.h`, `dr_mp3.h`, `dr_flac.h`) | repository pinned at `da35f9d6c7374a95353fd1df1d394d44ab66cf01` (`games/oot/CMakeLists.txt`, `games/mm/CMakeLists.txt`) | the Unlicense (public domain) **or** MIT No Attribution | **MIT No Attribution (MIT-0)** | `LICENSE` at that commit, lines 1-2: `This software is available as a choice of the following licenses. Choose whichever you prefer.` Line 30 heads the elected branch: `ALTERNATIVE 2 - MIT No Attribution`. (Line 5 is `ALTERNATIVE 1 - Public Domain (www.unlicense.org)`, not taken.) The same two alternatives are repeated at the end of each `dr_*.h` header. |
+| stb code **vendored inside Dear ImGui** — `imstb_rectpack.h`, `imstb_truetype.h`, `imstb_textedit.h` | ImGui tag `v1.91.9b-docking` (`libultraship/cmake/dependencies/common.cmake`) | MIT **or** public domain (the Unlicense) | **MIT** | The offer is inside each vendored header, not in ImGui's root `LICENSE.txt` (which is MIT-only and is why the previous pass missed these). At that tag: `imstb_truetype.h:5047` `This software is available under 2 licenses -- choose whichever you prefer.`, `:5049` `ALTERNATIVE A - MIT License`, `:5050` `Copyright (c) 2017 Sean Barrett`, `:5067` `ALTERNATIVE B - Public Domain (www.unlicense.org)`. The identical sentence is at `imstb_rectpack.h:589` (`ALTERNATIVE A` at `:591`) and `imstb_textedit.h:1431` (`ALTERNATIVE A` at `:1433`). All three are compiled: `imgui_draw.cpp` includes rectpack and truetype, `imgui_widgets.cpp` includes textedit, and both are in the `ImGui` target's sources. |
 
 MIT-0 is MIT with the attribution condition removed; its text is in the
 [Appendix](#mit-no-attribution-mit-0). Electing it rather than the Unlicense
@@ -262,27 +383,51 @@ is nothing to elect. That negative claim was measured rather than assumed: on
 2026-09-21 the upstream license text of each component below was fetched
 read-only and scanned for choice-of-license language (`choose whichever`,
 `choice of the following`, `available under 2 licenses`, `ALTERNATIVE n`, `at
-your option`). Two components matched — the two elected above. Every other file
-scanned as a single license. The one component not re-fetched this pass is
-**bzip2**, whose canonical distribution is not a Git host this scan could reach
-(`https://sourceware.org/bzip2/`); its single BSD-style license is carried from
-the earlier verification and is listed below unchanged.
+your option`).
+
+**How that scan was wrong, and how it was fixed.** The first pass read each
+upstream's **root `LICENSE` file only** and reported two matches. That coverage
+rule cannot see a choice offered inside a *vendored source file*, which is exactly
+where the third one was: Dear ImGui's root `LICENSE.txt` is MIT-only, while the
+three `imstb_*.h` headers it bundles — two of which are compiled into `redship` —
+each carry stb's "choose whichever you prefer" sentence verbatim. The scan is now
+per *compiled file* for the vendoring cases, and the count is **three**: stb_image,
+dr_libs, and imgui's bundled stb headers. Anyone re-auditing should assume the same
+failure mode elsewhere and check vendored trees, not just roots — the entry for
+libultraship's `StrHash64` in the inventory above is the other thing this
+correction turned up (three cumulative notices, not a choice).
+
+**bzip2 was re-fetched too, and the earlier excuse for not doing so was wrong.**
+The previous text said its canonical distribution "is not a Git host this scan
+could reach". It is: `https://sourceware.org/git/?p=bzip2.git;a=summary` answers
+200, and `…;a=blob_plain;f=LICENSE;hb=HEAD` returns the license text, whose line 4
+reads `documentation, are copyright (C) 1996-2019 Julian R Seward.  All` —
+matching this file's inventory row — with no choice-of-license language anywhere in
+its 42 lines. So bzip2 is verified on the same footing as everything else, and the
+audit has no advertised hole.
 
 The ones where somebody might expect a choice, and why there is none:
 
 | Component | Why no election | What is carried instead |
 |---|---|---|
-| GLEW | **Not a choice — the earlier "tri-licensed" wording in this file was wrong, corrected 2026-09-21.** `LICENSE.txt` is three *cumulative* notices over three bodies of code GLEW is assembled from: GLEW itself (Modified BSD, lines 1-28), the Mesa 3-D graphics library (MIT, lines 31-51) and Khronos Group material (MIT-style, lines 54-73). There is no "choose whichever you prefer" sentence anywhere in the file, so all three apply at once. | Both the BSD-3-Clause and MIT texts in the [Appendix](#appendix-license-texts), plus all four copyright lines in the inventory table. |
+| GLEW | **Not a choice — the earlier "tri-licensed" wording in this file was wrong, corrected 2026-09-21.** `LICENSE.txt` is three *cumulative* notices over three bodies of code GLEW is assembled from: GLEW itself (Modified BSD, lines 1-28), the Mesa 3-D graphics library (MIT, lines 31-51) and Khronos Group material (MIT-style, lines 54-73). There is no "choose whichever you prefer" sentence anywhere in the file, so all three apply at once. | **GLEW's own `LICENSE.txt`, reproduced verbatim** in the [Appendix](#glew-licensetxt-reproduced-verbatim). It is not pointed at the generic templates: GLEW's clause 3 is a *permission* ("The name of the author may be used to endorse or promote products derived from this software without specific prior written permission"), where the BSD-3-Clause template's clause 3 is the opposite prohibition; its disclaimer says `THE COPYRIGHT OWNER OR CONTRIBUTORS` where the template says `HOLDER`; its Mesa disclaimer names `BRIAN PAUL`; and its Khronos notice is written over "Materials", not "Software". Its own clause 2 requires binary redistributions to reproduce *that* list of conditions, so a lookalike does not discharge it. |
+| stb code vendored inside Dear ImGui | A choice **is** offered — see [Elections made](#elections-made). Listed here only so the previous version of this row, which treated imgui as a single MIT component, is visibly superseded. | MIT elected; the [MIT License](#mit-license) text with `Copyright (c) 2017 Sean Barrett`. |
+| libultraship's `StrHash64` (vendored libcore `Crc`) | **Not a choice — three cumulative notices**, like GLEW: an MIT grant (Anton Samokhvalov), the zlib terms (Gailly and Adler) and a three-clause BSD grant naming ReichlSoft (Dominik Reichl), each marked in the file as applying "to some parts of this code". | The three notices as they stand at the head of `libultraship/include/ship/utils/StrHash64.h` and `.cpp`, which is where they already are; the Reichl BSD-3-Clause copyright line is reproduced in the inventory table above because clause 2 requires a binary distribution to carry it. |
+| single-header-metal-cpp | Apache-2.0 only; the license itself offers nothing to elect. Apple platforms only. | Referenced by URL below. Its §4(d) NOTICE condition is the reason it is called out in the summary rather than folded into the permissive list. |
+| espeak-ng | GPL-3.0 only. Optional, Linux only. | Referenced by URL below; see the paragraph under [External libraries](#external-libraries-linked-from-the-system-or-vcpkg). |
+| fmt | MIT only. | The [MIT License](#mit-license) text with `Copyright (c) 2012 - present, Victor Zverovich and {fmt} contributors`. |
+| Font Awesome 4 (embedded) | SIL Open Font License 1.1 only, per upstream's `README.md` at `4.x`; the OFL is explicitly non-relicensable (condition 5). | `games/{oot,mm}/assets/custom/fonts/OFL.txt`, which carries its notice even though the face is embedded rather than a file in those directories. |
 | GLFW | "zlib/libpng license" is **one** license under two names, not two options. `LICENSE.md` states a single set of terms under Marcus Geelnard's and Camilla Löwy's copyrights. | The [zlib License](#zlib-license) text. |
 | SDL2, SDL2_net, zlib, TinyXML-2, SDL_GameControllerDB | zlib license only. | The [zlib License](#zlib-license) text. |
 | libzip, libogg, libvorbis, opus, opusfile | BSD-3-Clause only. | The [BSD 3-Clause License](#bsd-3-clause-license) text. |
 | libpng | PNG Reference Library License v2 only. The v1/v2 split is a *version* boundary, not an offer. | Referenced by URL below. |
 | bzip2 | The bzip2 license (BSD-style) only. | Referenced by URL below. |
 | Inconsolata, Montserrat, Noto Sans JP, Press Start 2P | SIL Open Font License 1.1 only; the OFL is explicitly non-relicensable (condition 5). | `games/{oot,mm}/assets/custom/fonts/OFL.txt`, in the tree beside the fonts. |
+| libzip, libogg, libvorbis, opus, opusfile (BSD-3-Clause) — repeated here for the appendix's sake | BSD-3-Clause only. | The generic [BSD 3-Clause License](#bsd-3-clause-license) text, which **is** their wording. GLEW is deliberately *not* in that list any more; see its row above. |
 | 2Ship2Harkinian (`games/mm/`) | CC0-1.0 only. Already the CC0 posture this project would elect — but it is the upstream's single license, not a choice made here. | `games/mm/LICENSE`. |
 | 3drando (`games/oot/soh/Enhancements/randomizer/3drando/`) | MIT only. | `.../3drando/LICENSE.md`, already in the tree. |
 | libultraship, Fast3D, ZAPDTR, OTRExporter, libgfxd, Automate-VCPKG | MIT only. | Each one's own `LICENSE` in the tree (see the inventory's "License text in-tree" column). |
-| Dear ImGui, thread-pool, prism-processor, StormLib, nlohmann/json, spdlog, linuxdeploy | MIT only. | The [MIT License](#mit-license) text with each component's copyright line. |
+| Dear ImGui (its own code), thread-pool, prism-processor, StormLib, nlohmann/json, spdlog, linuxdeploy | MIT only. For Dear ImGui this means its own `LICENSE.txt`; the stb headers it vendors are a separate row above. | The [MIT License](#mit-license) text with each component's copyright line. |
 | OoTMM | **Not a choice.** The root `LICENSE` is MIT and governs; `packages/core/package.json:12`'s `"license": "ISC"` is a scaffolding leftover, recorded under [OoTMM](#ootmm) above. A conflicting metadata field is a discrepancy to note, not an option to elect. | The [MIT License](#mit-license) text with `Copyright (c) 2020-2022 OoTMM Team`. |
 | Ship of Harkinian (`games/oot/`) | **No license at all** is published upstream, so there is nothing to choose between. See [Unresolved license status](#unresolved-license-status). | Nothing; the status is stated rather than papered over. |
 | OpenGL (system) | Platform-provided; no bundled code. | — |
@@ -322,15 +467,49 @@ stopped shipping it. It arrived in the initial commit as part of the vendored
 Ship of Harkinian and 2Ship2Harkinian trees; nothing this project authored added
 it.
 
-It was never the default overlay font (`gOverlayFont` defaults to
-`Press Start 2P`), so the removal is a menu option disappearing, not a visual
-change for anyone who had not gone looking for it. A player whose config still
-names it is mapped back to `Press Start 2P` by
+It was never the default overlay font (`CVAR_GAME_OVERLAY_FONT`, which expands to
+`gSettings.OverlayFont` in this build — `CMake/lus-cvars.cmake:16` over
+`CMake/soh-cvars.cmake`'s `gSettings` prefix, both set before libultraship's own
+`gOverlayFont` default and therefore winning the CACHE race; `gOverlayFont` is the
+pre-migration spelling that `games/oot/soh/config/ConfigMigrators.h:1534` renames
+away — defaults to `Press Start 2P`), so the removal is a menu option
+disappearing, not a visual change for anyone who had not gone looking for it. A
+player whose config still names it is mapped back to `Press Start 2P` by
 `SOH::ResolveOverlayFontName` in `games/oot/soh/OTRGlobals.cpp` before the name
 reaches libultraship, which is also what stops
 `Ship::GameOverlay::SetCurrentFont`'s `mFonts[name]` (`operator[]`) inserting a
-null-valued entry that the font combo would then list as a dead row. Recorded in
+null-valued entry that the font combo would then list as a dead row.
+
+**One consequence of resolving rather than rejecting, stated plainly.** Because the
+resolved name IS loaded, `SetCurrentFont` now reaches its tail, which writes the
+name into `CVAR_GAME_OVERLAY_FONT` and schedules a config flush. So the first
+launch after this change **overwrites** a stale selection in
+`shipofharkinian.json` with `Press Start 2P`; the previous behaviour left the
+stale string in the file untouched (and the overlay drawn in ImGui's built-in
+face, because `mCurrentFont` stayed at its initial `"Default"`). Rendering in a
+font this project ships was preferred over preserving a name that no build
+contains. No save data is affected — this is a settings key. Recorded in
 `docs/known-issues.md`.
+
+**A third, byte-identical copy of the file is still in the tree, in a submodule.**
+`OTRExporter/assets/fonts/Fipps-Regular.otf` — blob
+`9334dad594277ba8339786217d75260e58436dc8`, md5
+`f939d3db2e61212c288325fc8b0bb255`, the same 34220 bytes as the two copies deleted
+above — is present at the pinned gitlink `a9567801` of
+`https://github.com/spencerduncan/OTRExporter`, this project's own fork. It is
+disclosed here because `git submodule update --init` is a documented build step, so
+every source checkout still materialises it, and because the sentence "deleted from
+both trees" would otherwise read as "gone".
+
+What it does and does not affect: **it does not reach any shipped archive.**
+`CMakeLists.txt` passes `--custom-assets-path` as `games/oot/assets/custom` or
+`games/mm/assets/custom` and nothing else (four call sites), `OTRExporter`'s own
+sources reference `assets/fonts` nowhere, and no `install()` or packaging step
+touches `OTRExporter/assets`. So `soh.o2r`, `2ship.o2r` and every distributed
+binary are clean. Removing the remaining copy is a change to the fork's own
+repository and a different review path from this one; it is listed under [Open
+items for the operator](#open-items-for-the-operator). The `FontLicense` row does
+not scan it, and its output says what it scanned rather than "the tree".
 
 ## Open items for the operator
 
@@ -339,6 +518,19 @@ These are documentation/packaging gaps, not blockers:
 * Decide the disposition of the one remaining unresolved item above (Ship of
   Harkinian's absent license) before any public binary release. Note that it
   cannot be resolved by an election, only by a decision about redistribution.
+* **Delete `assets/fonts/Fipps-Regular.otf` in `spencerduncan/OTRExporter` and
+  bump the gitlink here.** It is the operator's own fork, it is the last copy of
+  the ungranted font any checkout of this project materialises, and nothing in
+  either repository reads it (see "Resolved by removal" above for the evidence
+  that it reaches no archive). It is left for a separate change because the
+  submodules are outside this pass's scope.
+* **Carry Apache-2.0's `NOTICE` requirement if an Apple build is ever
+  distributed** (single-header-metal-cpp, §4(d)). Windows and Linux builds are
+  unaffected.
+* **Decide whether Linux release builds should be configured without espeak-ng**,
+  or whether a GPL-3.0 `dlopen` dependency is acceptable in a distributed binary.
+  The build already degrades cleanly without it — `find_library` failing simply
+  drops the speech-synthesizer TUs.
 
 ## Appendix: license texts
 
@@ -396,8 +588,13 @@ the following restrictions:
 
 ### BSD 3-Clause License
 
-Applies to libzip, libogg, libvorbis, opus, opusfile and (as one of its three
-options) GLEW.
+Applies to libzip, libogg, libvorbis, opus and opusfile.
+
+**GLEW is deliberately not in that list.** An earlier version of this line said
+"and (as one of its three options) GLEW", which contradicted the [Elections](#elections)
+table 120-odd lines above — GLEW's three notices are cumulative, not options — and
+pointed GLEW's reader at wording GLEW does not use. GLEW's full text is its own
+section below.
 
 ```
 Redistribution and use in source and binary forms, with or without
@@ -422,6 +619,96 @@ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+```
+
+### GLEW (`LICENSE.txt`, reproduced verbatim)
+
+Reproduced in full rather than approximated, because GLEW's clause 2 conditions
+binary redistribution on reproducing *this* list of conditions and *this*
+disclaimer, and the generic BSD-3-Clause template above differs from it in
+substance: the template's clause 3 forbids using the copyright holder's name to
+endorse products, where GLEW's third bullet *permits* using the author's name;
+the template says `THE COPYRIGHT HOLDER OR CONTRIBUTORS` where GLEW says
+`THE COPYRIGHT OWNER OR CONTRIBUTORS`; GLEW's Mesa disclaimer names `BRIAN PAUL`;
+and GLEW's Khronos notice is written over "Materials" rather than "Software".
+All three notices below apply at once — none of them is an option
+(see [Elections](#elections)). Fetched read-only from `nigels-com/glew` on
+2026-09-21; 73 lines, trailing whitespace and all.
+
+```
+The OpenGL Extension Wrangler Library
+Copyright (C) 2002-2007, Milan Ikits <milan ikits[]ieee org>
+Copyright (C) 2002-2007, Marcelo E. Magallon <mmagallo[]debian org>
+Copyright (C) 2002, Lev Povalahev
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without 
+modification, are permitted provided that the following conditions are met:
+
+* Redistributions of source code must retain the above copyright notice, 
+  this list of conditions and the following disclaimer.
+* Redistributions in binary form must reproduce the above copyright notice, 
+  this list of conditions and the following disclaimer in the documentation 
+  and/or other materials provided with the distribution.
+* The name of the author may be used to endorse or promote products 
+  derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE 
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+THE POSSIBILITY OF SUCH DAMAGE.
+
+
+Mesa 3-D graphics library
+Version:  7.0
+
+Copyright (C) 1999-2007  Brian Paul   All Rights Reserved.
+
+Permission is hereby granted, free of charge, to any person obtaining a
+copy of this software and associated documentation files (the "Software"),
+to deal in the Software without restriction, including without limitation
+the rights to use, copy, modify, merge, publish, distribute, sublicense,
+and/or sell copies of the Software, and to permit persons to whom the
+Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included
+in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+BRIAN PAUL BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
+AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+
+Copyright (c) 2007 The Khronos Group Inc.
+
+Permission is hereby granted, free of charge, to any person obtaining a
+copy of this software and/or associated documentation files (the
+"Materials"), to deal in the Materials without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Materials, and to
+permit persons to whom the Materials are furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be included
+in all copies or substantial portions of the Materials.
+
+THE MATERIALS ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+MATERIALS OR THE USE OR OTHER DEALINGS IN THE MATERIALS.
 ```
 
 ### MIT No Attribution (MIT-0)
