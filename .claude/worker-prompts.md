@@ -134,7 +134,10 @@ are the reasoning behind them.
   your change is meant to move a world, re-pin deliberately
   (`cmake --build <dir> --target regen-golden-digests`) in its own commit stating
   which fields moved and why; if it is not, a red golden row is the bug report.
-  Full policy: `docs/determinism-goldens.md`.
+  Two things the rows do NOT give you: the two seed rows **skip** in a ROM-staged
+  local run and run on the **Linux CI leg only** (the Windows job runs `^redship$`),
+  so a golden is never checked automatically on MSVC; and they pin the archive-free
+  world, not a player's (#702). Full policy: `docs/determinism-goldens.md`.
 - This project is pre-release: invalidating an existing save to land a fix is
   acceptable and does not need product sign-off, but every PR that invalidates a
   save format or a paired file's identity must say so explicitly in its body.

@@ -1442,8 +1442,14 @@ if(BUILD_TESTING)
     # PROFILE COVERAGE. Two OoT profiles, because a single golden would pin one
     # settings profile's fill and say nothing about whether a change is
     # settings-sensitive:
-    #   - `default` is the SHIPPED profile (no RSBS_DIAG_CVARS at all), i.e. the
-    #     world a player actually gets;
+    #   - `default` is the shipped SETTINGS profile (no RSBS_DIAG_CVARS at all),
+    #     generated ARCHIVE-FREE. It is NOT the world a player gets, and saying so
+    #     here would contradict the archive note 20 lines below: a player runs with
+    #     oot.o2r/mm.o2r mounted, which changes the settings string and therefore
+    #     the whole fill (#702). It is a world THIS generator produces under the
+    #     shipped settings, and a change to the fill moves it the same way it would
+    #     move a player's — which is what makes it a usable oracle. When #702 lands,
+    #     one golden covers both environments and this distinction goes away;
     #   - `profile-v1` is the pinned "RSBS unified pinned profile v1"
     #     (ShuffleSongs=2) the self-diff rows above use, so the golden and the
     #     self-diff describe the same world and can be read against each other.
@@ -1460,9 +1466,20 @@ if(BUILD_TESTING)
     # target further down are generated from these specs, so a golden can never
     # be RE-PINNED under a different profile than the row CHECKS it under. That
     # drift would be silent and green — the worst possible failure for an oracle —
-    # and it is the reason this is a table instead of six hand-written blocks.
-    # THE ARCHIVE SET IS PART OF THE PIN, and the last field says which goldens
-    # depend on it. MEASURED, not assumed: with the ROM-derived oot.o2r mounted,
+    # and it is the reason this is a table instead of six hand-written blocks. The
+    # guarantee is only worth as much as the fields both consumers actually read:
+    # the regen loop below reads all of 1, 2, 3, 4 and 5, and a field added here
+    # must be wired into both consumers in the same commit.
+    #
+    # WHERE THESE ROWS ARE ACTUALLY ENFORCED: on the LINUX CI leg only. `LABEL
+    # rando` puts them in the Linux-only tier (the rows bring up a Fast3dWindow;
+    # Linux CI has xvfb-run, a hosted Windows runner has no equivalent and runs
+    # `^redship$` alone), and the two archive-sensitive rows additionally SKIP in a
+    # ROM-staged local tree. One automated gate, no Windows gate: see the header of
+    # CMake/CheckGoldenDigest.cmake and docs/determinism-goldens.md.
+    #
+    # THE ARCHIVE SET IS PART OF THE PIN, and field 4 says which goldens depend on
+    # it. MEASURED, not assumed: with the ROM-derived oot.o2r mounted,
     # the 2,449 per-area exclude-location options drop out of the settings string
     # Playthrough_Init hashes (3087 per-option lines against 638; the 638 shared
     # lines are byte-equal), the fill is re-seeded differently and the whole OoT
@@ -1602,10 +1619,11 @@ if(BUILD_TESTING)
     #     cmake --build <build-dir> --target regen-golden-digests
     #
     # Regenerates every golden in `tests/golden/` from THIS binary, under exactly
-    # the dispatch and environment its CTest row checks it with (both come from
-    # the REDSHIP_GOLDEN_DIGESTS table above, so they cannot drift apart). The
-    # resulting `git diff` of those files IS the review artifact, and a re-pin
-    # commit must say which fields moved and why — docs/determinism-goldens.md.
+    # the dispatch, the environment AND the archive-sensitivity its CTest row
+    # checks it with — all three come from the REDSHIP_GOLDEN_DIGESTS table above,
+    # so the row and the re-pin cannot disagree about any of them. The resulting
+    # `git diff` of those files IS the review artifact, and a re-pin commit must
+    # say which fields moved and why — docs/determinism-goldens.md.
     #
     # NOT part of `all`, and deliberately not a CTest row: re-pinning is an act
     # of authorship, and a target that regenerated goldens as a side effect of a
@@ -1616,9 +1634,18 @@ if(BUILD_TESTING)
     # and mm.o2r out of the build directory first: they change the OoT settings
     # string and therefore the whole fill (see the table above), and a golden
     # re-pinned with them mounted pins a world CI can never reproduce, so every
-    # archive-free run would then go red. REGEN deliberately does NOT skip on
-    # their presence — an author asking to re-pin gets what they asked for — so
-    # this is the one step the machinery leaves to a human.
+    # archive-free run would then go red.
+    #
+    # THAT IS NOW ENFORCED, NOT REQUESTED. The archive-sensitivity field is passed
+    # through below, and CheckGoldenDigest REFUSES a REGEN of an archive-sensitive
+    # golden while oot.o2r/mm.o2r are in WORK_DIR (error names both paths;
+    # -DALLOW_ROM_ARCHIVE_REGEN=ON overrides deliberately). The previous version of
+    # this block asked a human to remember instead, which was the weakest possible
+    # defense for the most damaging mistake this target can make: WORKING_DIRECTORY
+    # below is ${CMAKE_BINARY_DIR}, i.e. exactly the ROM-staged tree the operator
+    # builds in, the local `rando` tier SKIPS the rows that would object there, and
+    # the first symptom of a bad re-pin is a red Linux leg on this PR and on every
+    # PR after it.
     # ========================================================================
     add_custom_target(regen-golden-digests
         COMMENT "Re-pinning the golden determinism digests in tests/golden/ (#688)")
@@ -1627,6 +1654,11 @@ if(BUILD_TESTING)
         list(GET _golden_fields 1 _golden_name)
         list(GET _golden_fields 2 _golden_dispatch)
         list(GET _golden_fields 3 _golden_env_var)
+        # Field 4 is read HERE too, not only by the CTest row above. Reading it in
+        # one consumer and not the other is what let the regen target behave
+        # identically for an archive-sensitive and an archive-insensitive golden
+        # while this block claimed the table made that impossible.
+        list(GET _golden_fields 4 _golden_archive_free_only)
         list(GET _golden_fields 5 _golden_extra_env)
         set(_golden_env "SDL_AUDIODRIVER=dummy" "RSBS_DISABLE_OTR_INIT=1")
         if(_golden_extra_env)
@@ -1641,6 +1673,7 @@ if(BUILD_TESTING)
                     -DDIGEST_ENV=${_golden_env_var}
                     -DGOLDEN_DIR=${REDSHIP_GOLDEN_DIR}
                     -DGOLDEN_NAME=${_golden_name}
+                    -DSKIP_IF_ROM_ARCHIVES=${_golden_archive_free_only}
                     -DREGEN=ON
                     -P ${CMAKE_CURRENT_LIST_DIR}/CheckGoldenDigest.cmake
             # Explicit, because the binary resolves oot.o2r/mm.o2r/soh.o2r

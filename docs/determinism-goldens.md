@@ -80,13 +80,17 @@ One command, and it is the only supported way:
 cmake --build build-cmake --target regen-golden-digests      # Linux: wrap in xvfb-run
 ```
 
-It regenerates every golden from the binary in that build directory, under
-exactly the dispatch and environment its CTest row checks it with — both come
-from the single `REDSHIP_GOLDEN_DIGESTS` table in `CMake/SingleExecutable.cmake`,
-so a golden cannot be re-pinned under a different profile than the row checks it
-under. It needs a GL-capable display and the **port archives only** (`soh.o2r`,
-`2ship.o2r`, `redship.o2r`) — move `oot.o2r` and `mm.o2r` out of the build
-directory first, for the reason in "The archive set is part of the pin" below.
+It regenerates every golden from the binary in that build directory, under exactly
+the dispatch, the environment **and** the archive-sensitivity its CTest row checks it
+with — all three come from the single `REDSHIP_GOLDEN_DIGESTS` table in
+`CMake/SingleExecutable.cmake`, so a golden cannot be re-pinned under a different
+profile, or in a different archive environment, than the row checks it under.
+
+It needs a GL-capable display and the **port archives only** (`soh.o2r`,
+`2ship.o2r`, `redship.o2r`). Move `oot.o2r` and `mm.o2r` out of the build directory
+first — and if you forget, the target **stops with an error naming both files** rather
+than silently pinning a world CI cannot reproduce. Reason and override in "The archive
+set is part of the pin" below.
 
 The target is deliberately not part of `all` and is not a CTest row. Re-pinning is
 an act of authorship; a target that regenerated goldens as a side effect of a
@@ -104,6 +108,11 @@ build would turn the oracle back into a no-op.
 4. Re-pinning is a save-invalidating act in spirit: a player generating the same
    seed before and after gets different worlds. Say so in the PR body, as the
    pre-release save policy in `.claude/worker-prompts.md` requires.
+5. **Re-pin on Windows**, because the committed bytes being Windows-generated is the
+   only thing that makes the Linux CI leg a cross-platform check (see "Platform
+   portability"). No automated gate compares MSVC output to a stored world. If you
+   re-pin on Linux instead, say so in the commit body and state that the portability
+   property is unchecked until somebody re-pins on Windows.
 
 ## The archive set is part of the pin
 
@@ -127,21 +136,53 @@ Consequences you will actually hit:
   `GoldenSeedDigestProfileV1`**, printing the reason. That is deliberate. A red row
   there would claim "you moved the world" when nothing moved, and a permanently red
   row in the local merge gate is worse than no row. To exercise them locally, move
-  `oot.o2r` and `mm.o2r` out of `build-cmake` and re-run.
+  `oot.o2r` and `mm.o2r` out of `build-cmake` and re-run. Combined with
+  "Which gate runs these rows" below, this means the two seed rows are enforced on
+  exactly one gate — the Linux CI leg — and on nothing else.
 * **`GoldenPairedAttemptDigest` is archive-insensitive and is enforced
   everywhere** — measured: a golden regenerated with ROM archives staged and one
   regenerated without them are byte-identical, and the ROM-staged file passed
   unchanged on archive-free Linux CI.
-* **Re-pin with the port archives only.** `REGEN` deliberately does *not* skip on
-  ROM-archive presence — an author asking to re-pin gets what they asked for — so
-  this is the one step the machinery leaves to a human. A golden re-pinned with
-  `oot.o2r` mounted pins a world CI cannot reproduce, and every CI run then goes
-  red.
+* **Re-pin with the port archives only — and the machinery now enforces that.**
+  `regen-golden-digests` **refuses** to re-pin an archive-sensitive golden while
+  `oot.o2r`/`mm.o2r` sit in the build directory, and the error names both paths to
+  move. This used to be a human-only rule stated in three places, which was the
+  weakest possible defense for the most damaging mistake the target can make: it
+  runs with its working directory pinned to the build tree, that tree is the
+  ROM-staged one in a normal local build, the local `rando` tier *skips* the rows
+  that would object, and the first symptom is a red Linux leg on your PR and on
+  every PR after it. `-DALLOW_ROM_ARCHIVE_REGEN=ON` is the deliberate override; it
+  warns loudly and pins the ROM-mounted world.
 
 The underlying option-construction asymmetry is a real defect in its own right (the
 headless harness fingerprints a different option set than a ROM-mounted run does),
 tracked as #702. Fixing it would let one golden cover both environments and remove
 the skip. It is not the goldens' job to hide it.
+
+## Which gate runs these rows
+
+Exactly one: the **Linux CI leg**. This is written down because the first version of
+this machinery claimed "the Linux and Windows CI legs" and that was never true.
+
+| Gate | Runs the golden rows? | Why |
+|---|---|---|
+| Linux CI (`build-linux`) | **yes**, all three | runs `ctest --label-regex '^rando$'` under `xvfb-run` |
+| Windows CI (`build-windows`) | **no** | runs `ctest --label-regex '^redship$'` only; the `rando` rows bring up a Fast3dWindow and a hosted Windows runner has no `xvfb-run` equivalent |
+| Operator's local ROM-staged run | `GoldenPairedAttemptDigest` only | the two seed rows skip — see "The archive set is part of the pin" |
+| Operator's local archive-free run | **yes**, all three | this is how the goldens are generated and re-pinned |
+
+Consequences to keep in mind rather than rediscover:
+
+* A regression that moved a pinned world **only on MSVC** would not be caught by any
+  automated gate. Windows output is compared against a stored world only when
+  somebody re-pins on Windows, or runs the `rando` tier locally archive-free.
+* The three rows are one Linux job away from being unenforced. If that job's `rando`
+  step is ever narrowed, narrow it explicitly and say so here.
+* Whether the golden rows *could* run on a hosted Windows runner is being
+  **measured, not assumed** — the Windows job carries a `Probe whether the golden
+  rows can run on Windows CI` step whose only job is to answer that. The answer and
+  its evidence land in this bullet; until then, treat "Windows cannot run them" as
+  an expectation about the runner's OpenGL, not a finding.
 
 ## Platform portability
 
@@ -163,12 +204,24 @@ field for field (`settingsHash` 01CBE129, `placementHash` 98F07849, `foreignOoTH
 9362087A, `comboSettingsHash` EAF43DC3, and every per-slot line), so the variable
 was the archive set, not the platform. Windows and Linux agree.
 
-The measurement also stays live rather than becoming folklore: the committed
-goldens are Windows-generated bytes and the Linux CI leg checks *those same bytes*,
-so the Linux `rando` tier passing **is** the cross-platform statement. Every golden
-row prints its full digest before comparing, and the Linux job cats the digest
-artifacts in every run, pass or fail, so both platforms' worlds can always be read
-off two logs.
+**How live that measurement stays, precisely.** The committed goldens are
+Windows-generated bytes and the Linux CI leg checks *those same bytes*, so while
+that holds, the Linux `rando` tier passing is also a cross-platform statement. It
+holds only as long as every re-pin is generated on Windows. Nothing enforces that,
+and a golden re-pinned on Linux would make the Linux leg check Linux-generated bytes
+— still a valid stability oracle, but no longer a portability statement, and nothing
+would detect the change of meaning (see "Which gate runs these rows": the Windows
+job never evaluates a golden).
+
+So the rule is explicit, and it is rule 5 of the re-pin policy above:
+
+> **Re-pin on Windows.** If you re-pin on Linux, say so in the commit body and state
+> that the cross-platform property is no longer being checked by CI until somebody
+> re-pins on Windows or runs the archive-free `rando` tier on Windows and reports it.
+
+Every golden row prints its full digest before comparing, and the Linux job cats the
+digest artifacts in every run, pass or fail, so the Linux world can always be read
+off a log and compared by hand against a Windows run.
 
 Portability also has a mechanism behind it, which is why it was worth measuring
 rather than assuming. The fill's randomness is `ShipUtils::next32` — a PCG-style
@@ -186,8 +239,21 @@ players different worlds* — into a silenced test.
 
 ## Adding a golden
 
-Add one line to `REDSHIP_GOLDEN_DIGESTS` in `CMake/SingleExecutable.cmake`
-(`<ctest-name>|<golden-name>|<dispatch>|<digest-env-var>|<extra-env>`), then run
-the regen target and commit the new file. The dispatch must write its digest to
-the named environment variable's path and must emit one `key=value` per line;
-free text cannot be diffed field by field and the checker refuses it.
+Add one line to `REDSHIP_GOLDEN_DIGESTS` in `CMake/SingleExecutable.cmake`. The
+format is **six** pipe-separated fields:
+
+```
+<ctest-name>|<golden-name>|<dispatch>|<digest-env-var>|<archive-free-only>|<extra-env>
+```
+
+`<archive-free-only>` is `ON` when the pinned world depends on the archive set —
+`ON` makes the CTest row **skip** when `oot.o2r`/`mm.o2r` are present in the build
+directory, and makes the regen target **refuse** to re-pin there (see "The archive
+set is part of the pin"). Use `OFF` only when you have measured that the digest is
+identical with and without the ROM archives. A five-field line aborts configure at
+`list(GET _golden_fields 5 ...)` with `list index: 5 out of range`; both consumers
+read all six.
+
+Then run the regen target and commit the new file. The dispatch must write its
+digest to the named environment variable's path and must emit one `key=value` per
+line; free text cannot be diffed field by field and the checker refuses it.

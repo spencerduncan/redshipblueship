@@ -51,20 +51,38 @@
 # ARCHIVE-FREE world and a ROM-staged local run is a DIFFERENT, unpinned world.
 # Such a run SKIPS this row rather than failing it: a red row there would say
 # "you moved the world" when nothing moved, and a permanently red row in the
-# operator's local merge gate is worse than no row at all. Enforcement lives where
-# it is reproducible — every PR's Linux and Windows CI legs, which are archive-free.
+# operator's local merge gate is worse than no row at all.
 # The mm-paired-attempt digest is NOT archive-sensitive (measured: a ROM-staged
 # Windows golden passed unchanged on archive-free Linux CI), so its row carries no
 # such guard.
 #
+# WHICH GATE ACTUALLY RUNS THESE ROWS — exactly ONE, the LINUX CI leg. Stated here
+# because this file used to claim "every PR's Linux and Windows CI legs", and that
+# was never true. All three golden rows carry `LABEL rando`, and the `rando` tier is
+# Linux-only: its rows bring up a Fast3dWindow, which Linux CI gets from xvfb-run
+# and a hosted Windows runner has no equivalent of. The Windows job runs
+# `ctest --label-regex '^redship$'` and therefore never evaluates a golden
+# (.github/workflows/generate-builds.yml). Together with the SKIP above that means
+# the two seed rows are enforced on exactly ONE automated gate and are NOT enforced
+# in the operator's ROM-staged local run. So: do not write "the CI legs" (plural)
+# about these rows, and do not assume a Windows/MSVC-only regression in a pinned
+# world would be caught automatically — it would not. What that costs the
+# portability claim, and the re-pin rule that keeps the claim alive, are in
+# docs/determinism-goldens.md ("Platform portability").
+#
 # Usage (see the rows in CMake/SingleExecutable.cmake):
 #   cmake -DREDSHIP_EXE=<redship> -DWORK_DIR=<dir> -DDISPATCH=rando-determinism
 #         -DDIGEST_ENV=RSBS_SEED_DIGEST_OUT -DGOLDEN_DIR=<repo>/tests/golden
-#         -DGOLDEN_NAME=seed-digest-default [-DREGEN=ON]
+#         -DGOLDEN_NAME=seed-digest-default [-DSKIP_IF_ROM_ARCHIVES=ON] [-DREGEN=ON]
 #         -P CheckGoldenDigest.cmake
 # REGEN=ON writes the generated digest over the golden instead of comparing. It is
 # the ONLY supported way to re-pin — see docs/determinism-goldens.md and the
-# `regen-golden-digests` target.
+# `regen-golden-digests` target. A REGEN of an archive-SENSITIVE golden is REFUSED
+# while oot.o2r/mm.o2r sit in WORK_DIR: that re-pin would silently record a world
+# CI cannot reproduce and turn the Linux leg red for this PR and every PR after it,
+# and "the machinery leaves this to a human" is exactly the kind of prose guarantee
+# #688 exists to disbelieve. -DALLOW_ROM_ARCHIVE_REGEN=ON is the deliberate
+# override for an author who really means it.
 
 foreach(_required REDSHIP_EXE WORK_DIR DISPATCH DIGEST_ENV GOLDEN_DIR GOLDEN_NAME)
     if(NOT DEFINED ${_required})
@@ -78,11 +96,21 @@ endif()
 # ----------------------------------------------------------------------------
 # The archive-environment guard (see the header). Checked BEFORE generating, so a
 # ROM-staged run does not spend a generation to reach a verdict it cannot give.
-# The row's SKIP_REGULAR_EXPRESSION matches the marker below, so CTest reports
-# SKIPPED with this reason rather than PASSED — a silent pass here would be the
-# same vacuity #688 is about.
+#
+# It guards BOTH directions, because the two failure modes are not symmetric:
+#   - COMPARE in a ROM-staged tree would be red about a move that did not happen,
+#     so it SKIPS. The row's SKIP_REGULAR_EXPRESSION matches the marker below, so
+#     CTest reports SKIPPED with this reason rather than PASSED — a silent pass
+#     here would be the same vacuity #688 is about.
+#   - REGEN in a ROM-staged tree writes a world CI can never reproduce and is
+#     REFUSED. That direction is the dangerous one and it used to be unguarded:
+#     the one documented re-pin command pins its cwd to ${CMAKE_BINARY_DIR}, which
+#     in the operator's tree IS the ROM-staged directory, the local rando tier
+#     then SKIPS the very rows that would object, and the damage first appears as
+#     a red Linux leg on this PR and on every PR after it. A human-only rule was
+#     the whole of the defense; now it is a check, with an explicit override.
 # ----------------------------------------------------------------------------
-if(SKIP_IF_ROM_ARCHIVES AND NOT REGEN)
+if(SKIP_IF_ROM_ARCHIVES)
     set(_rom_archives "")
     foreach(_rom oot.o2r mm.o2r)
         if(EXISTS "${WORK_DIR}/${_rom}")
@@ -91,17 +119,42 @@ if(SKIP_IF_ROM_ARCHIVES AND NOT REGEN)
     endforeach()
     if(_rom_archives)
         string(REPLACE ";" ", " _rom_list "${_rom_archives}")
-        message(STATUS
-            "RSBS_GOLDEN_SKIP: CheckGoldenDigest(${GOLDEN_NAME}) needs an ARCHIVE-FREE run and found ${_rom_list} in "
-            "${WORK_DIR}.\n"
-            "  The goldens pin the world generated with the PORT archives only, because that is the world hosted CI "
-            "can reproduce (a runner never has ROM-derived archives). With oot.o2r mounted the per-area "
-            "exclude-location option groups drop out of the settings string Playthrough_Init hashes, the fill is "
-            "re-seeded differently, and this run generates a DIFFERENT, unpinned world — so comparing it to the "
-            "golden would report a move that did not happen.\n"
-            "  This row is enforced on every PR by the archive-free CI legs. To run it here, move oot.o2r and mm.o2r "
-            "out of ${WORK_DIR} first. See docs/determinism-goldens.md.")
-        return()
+        if(REGEN AND ALLOW_ROM_ARCHIVE_REGEN)
+            message(WARNING
+                "CheckGoldenDigest(${GOLDEN_NAME}): re-pinning an ARCHIVE-SENSITIVE golden with ${_rom_list} mounted "
+                "in ${WORK_DIR}, because -DALLOW_ROM_ARCHIVE_REGEN=ON was passed.\n"
+                "  The resulting golden pins the ROM-MOUNTED world, which hosted CI cannot reproduce: the Linux leg "
+                "will go red on this PR and on every PR after it until the golden is re-pinned archive-free. Only do "
+                "this if that is genuinely what you meant.")
+        elseif(REGEN)
+            message(FATAL_ERROR
+                "CheckGoldenDigest(${GOLDEN_NAME}): RE-PIN REFUSED — this golden is ARCHIVE-SENSITIVE and the "
+                "ROM-derived archive(s) ${_rom_list} are present in ${WORK_DIR}.\n"
+                "  Move these two files out of that directory and re-run the target:\n"
+                "      ${WORK_DIR}/oot.o2r\n"
+                "      ${WORK_DIR}/mm.o2r\n"
+                "  Why this is refused rather than warned about: with oot.o2r mounted the per-area exclude-location "
+                "option groups drop out of the settings string Playthrough_Init hashes, the fill is re-seeded "
+                "differently, and the whole OoT world moves. A golden re-pinned here therefore pins a world hosted CI "
+                "can NEVER reproduce — and because the local rando tier SKIPS these same rows in a ROM-staged tree, "
+                "nothing local would object; the first symptom would be a red Linux leg on this PR and on every PR "
+                "after it.\n"
+                "  If you really mean to pin the ROM-mounted world, pass -DALLOW_ROM_ARCHIVE_REGEN=ON. See "
+                "docs/determinism-goldens.md.")
+        else()
+            message(STATUS
+                "RSBS_GOLDEN_SKIP: CheckGoldenDigest(${GOLDEN_NAME}) needs an ARCHIVE-FREE run and found "
+                "${_rom_list} in ${WORK_DIR}.\n"
+                "  The goldens pin the world generated with the PORT archives only, because that is the world hosted "
+                "CI can reproduce (a runner never has ROM-derived archives). With oot.o2r mounted the per-area "
+                "exclude-location option groups drop out of the settings string Playthrough_Init hashes, the fill is "
+                "re-seeded differently, and this run generates a DIFFERENT, unpinned world — so comparing it to the "
+                "golden would report a move that did not happen.\n"
+                "  This row is enforced on every PR by the archive-free LINUX CI leg — the only leg that runs the "
+                "`rando` tier, and therefore the ONLY automated gate that evaluates it. To run it here, move oot.o2r "
+                "and mm.o2r out of ${WORK_DIR} first. See docs/determinism-goldens.md.")
+            return()
+        endif()
     endif()
 endif()
 

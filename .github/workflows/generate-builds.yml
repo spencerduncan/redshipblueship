@@ -667,6 +667,21 @@ jobs:
         $ctest = Join-Path (Split-Path -Parent (Get-Command cmake).Source) 'ctest.exe'
         & $ctest --version
         & $ctest --test-dir bw --output-on-failure --label-regex '^redship$' --no-tests=error
+    # MEASUREMENT, not a gate (#688 review). The three golden rows carry LABEL
+    # rando, so the step above never evaluates one and the Linux leg is the only
+    # automated gate for a moved world — which also means an MSVC-only regression in
+    # a pinned world is caught by nothing. Before writing that down as permanent, we
+    # find out whether a hosted windows-latest runner can run them at all: they need
+    # the Fast3dWindow bring-up every rando row performs, and a hosted runner's
+    # OpenGL is expected to be the GDI generic 1.1 implementation. This step is here
+    # to turn that expectation into an observation. If the rows pass, they become a
+    # second real gate and this comment becomes a gate description; if they cannot
+    # run, the step goes away and docs/determinism-goldens.md records the failure
+    # output it produced.
+    - name: Probe whether the golden rows can run on Windows CI (#688)
+      run: |
+        $ctest = Join-Path (Split-Path -Parent (Get-Command cmake).Source) 'ctest.exe'
+        & $ctest --test-dir bw --output-on-failure --tests-regex '^Golden' --no-tests=error
     - name: Package (Windows)
       run: |
         cd bw
