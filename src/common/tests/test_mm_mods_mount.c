@@ -168,7 +168,22 @@ extern "C" int MMModsMount_RunHeadless(const char* sohArchive, const char* mmArc
         { "./mods", "mods/mm/10-mod.o2r", true, "a lexically_normal()'d path against a './' root" },
         { "mods", "./mods/mm/10-mod.o2r", true, "a './' path against a bare root" },
         { "./mods", "./mods/mm/sub/20-mod.o2r", true, "nested under mods/mm" },
+#if defined(_WIN32)
+        // Windows only, and deliberately so. '\' is a path separator on Windows,
+        // which std::filesystem::path splits on, so the predicate classifies this
+        // correctly there. On POSIX '\' is a LEGAL FILENAME CHARACTER — a file
+        // really can be called `mm\10-mod.o2r` — and the predicate must NOT
+        // reinterpret it as a separator, or such a file sitting in the mods root
+        // would be handed to MM. Asserting the Windows answer on Linux was this
+        // row's first CI failure, and the predicate is right: the difference is
+        // real.
+        //
+        // Neither glob relies on this either way: both pass generic_string()
+        // (forward slashes) on both platforms — mod_menu's
+        // `p.path().generic_string()` and MountMMModArchives's `generic`, with
+        // roots built by LocateFileAcrossAppDirs, which concatenates with '/'.
         { "./mods", ".\\mods\\mm\\10-mod.o2r", true, "native Windows separators" },
+#endif
         { "./mods", "./mods/MM/10-mod.o2r", true, "the reserved name is case-insensitive" },
         { "./mods", "./mods/10-mod.o2r", false, "the root belongs to OoT" },
         { "./mods", "./mods/sub/10-mod.o2r", false, "any other subfolder belongs to OoT" },

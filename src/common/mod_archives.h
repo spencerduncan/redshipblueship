@@ -106,6 +106,14 @@ const char* Combo_ModsSubdirForGame(GameId game);
  * Path-shaped, not filesystem-shaped: it compares lexically normalized paths and
  * never touches the disk, so it gives the same answer for a file that has since
  * been deleted and is safe to call from inside a directory-iteration loop.
+ *
+ * SEPARATORS. Whatever std::filesystem::path treats as a separator on the host
+ * platform, and nothing more. So '\' splits on Windows and does NOT on POSIX,
+ * where it is a legal filename character — a POSIX file genuinely called
+ * `mm\x.o2r` in the mods root stays OoT's rather than being handed to MM.
+ * Neither caller depends on that either way: both globs pass generic_string()
+ * (forward slashes) on both platforms, against a root that
+ * LocateFileAcrossAppDirs built by concatenating with '/'.
  */
 bool Combo_ModPathIsForGame(GameId game, const char* modsRoot, const char* path);
 
