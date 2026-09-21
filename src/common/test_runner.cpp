@@ -1181,16 +1181,31 @@ TestResult Test_ComboCreationEvent(void) {
             return TEST_FAIL;
         }
         // A slower host must get MORE, never less — the point of calibrating at
-        // all. Pinning the scale afterwards keeps the rest of this row
-        // reproducible on any CI machine.
-        Combo_GenBudget_SetHostScalePercentOverride(200);
-        if (Combo_GenBudget_FillBudgetMs(0) < perAttempt) {
-            printf("[TEST] FAIL: a 2x-slower host got a SMALLER budget\n");
+        // all. BOTH SIDES OF THE COMPARISON ARE OVERRIDDEN SCALES, which is what
+        // makes the monotonicity claim host-independent; the reference side is
+        // established FIRST for the same reason.
+        //
+        // Comparing the 200% override against `perAttempt` — the budget at
+        // whatever scale THIS host measured — is what this leg used to do, and it
+        // is only true on a host that measures at or below 200%. A GitHub Linux
+        // runner measured 300% (per-attempt 90000ms), so pinning 200% correctly
+        // produced a smaller number and the row failed with "a 2x-slower host got
+        // a SMALLER budget" while asserting nothing about the scaling at all. The
+        // same runner had passed this row hours earlier; the defect is latent in
+        // the assertion, not in the budget code, and a re-run on a faster runner
+        // would only have hidden it.
+        Combo_GenBudget_SetHostScalePercentOverride(100);
+        const uint32_t referenceBudget = Combo_GenBudget_FillBudgetMs(0);
+        if (referenceBudget != (uint32_t)RSBS_GENBUDGET_FLOOR_MS) {
+            printf("[TEST] FAIL: the reference host did not get exactly the floor (%ums, expected %u)\n",
+                   referenceBudget, (unsigned)RSBS_GENBUDGET_FLOOR_MS);
             return TEST_FAIL;
         }
-        Combo_GenBudget_SetHostScalePercentOverride(100);
-        if (Combo_GenBudget_FillBudgetMs(0) != (uint32_t)RSBS_GENBUDGET_FLOOR_MS) {
-            printf("[TEST] FAIL: the reference host did not get exactly the floor\n");
+        Combo_GenBudget_SetHostScalePercentOverride(200);
+        const uint32_t doubledBudget = Combo_GenBudget_FillBudgetMs(0);
+        if (doubledBudget < referenceBudget) {
+            printf("[TEST] FAIL: a 2x-slower host got a SMALLER budget (%ums against the reference host's %ums)\n",
+                   doubledBudget, referenceBudget);
             return TEST_FAIL;
         }
         Combo_GenBudget_SetHostScalePercentOverride(0);
