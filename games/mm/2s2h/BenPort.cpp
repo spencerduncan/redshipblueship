@@ -174,7 +174,7 @@ const char* const kOverlayFontFallback = "Press Start 2P";
 const char* ResolveOverlayFontName(const char* requested) {
     if (requested != nullptr) {
         for (const char* loaded : kOverlayFontNames) {
-            if (strcmp(requested, loaded) == 0) {
+            if (loaded != nullptr && strcmp(requested, loaded) == 0) {
                 return loaded;
             }
         }

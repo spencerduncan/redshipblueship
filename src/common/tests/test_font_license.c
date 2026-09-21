@@ -70,7 +70,11 @@
 // same approach as test_cvar_classification.c and test_seq_map_bounds.c.
 namespace SOH {
 const char* ResolveOverlayFontName(const char* requested);
-}
+const char* ResolveOverlayFontNameIn(const char* requested, const char* const* loaded, std::size_t loadedCount,
+                                     const char* fallback);
+const char* const* OverlayFontNames(std::size_t* count);
+const char* OverlayFontFallback();
+} // namespace SOH
 
 #define FONTLIC_CHECK(cond, msg)                \
     do {                                        \
@@ -223,40 +227,111 @@ TestResult Test_FontLicense(void) {
     printf("[TEST] font-license: no unlicensed font ships, the OFL and CC0 texts are in the tree, and a stale "
            "gOverlayFont resolves (license follow-up to #578)\n");
 
-    // ---- (0) The resolver, which needs no source tree ----------------------
-    // Both directions. A resolver that returned the fallback unconditionally
-    // would pass an unknown-name-only check while breaking every real
-    // selection, so the pass-through is asserted too.
+    // ---- (0) The resolution RULE, over a set it can be wrong about ----------
+    //
+    // Driven through ResolveOverlayFontNameIn with a synthetic three-member set
+    // whose fallback is its FIRST member, on purpose. The production set has one
+    // member and that member IS the fallback, so asking the one-argument form
+    // whether it "passed the name through" is unanswerable: pass-through and
+    // fallback return the same string. With three members, a resolver that
+    // answered the fallback unconditionally fails on "Beta" and "Gamma".
     {
-        const char* kFallback = "Press Start 2P";
-        const char* resolvedKnown = SOH::ResolveOverlayFontName("Press Start 2P");
-        FONTLIC_CHECK(resolvedKnown != nullptr && strcmp(resolvedKnown, kFallback) == 0,
-                      "SOH::ResolveOverlayFontName did not pass a LOADED font name through unchanged — a resolver "
-                      "that answers the fallback to everything silently discards every real selection");
+        static const char* const kSynthetic[] = { "Alpha", "Beta", "Gamma" };
+        const char* kSyntheticFallback = kSynthetic[0];
+        const std::size_t kSyntheticCount = sizeof(kSynthetic) / sizeof(kSynthetic[0]);
 
-        static const char* const kUnknown[] = {
-            "Fipps",         // the removed font, as an old config still spells it
-            "Default",       // GameOverlay's initial mCurrentFont, never in mFonts
-            "",              // an empty CVar string
-            "press start 2p" // right font, wrong case: SetCurrentFont is case-sensitive
-        };
-        for (const char* name : kUnknown) {
-            const char* resolved = SOH::ResolveOverlayFontName(name);
-            if (resolved == nullptr || strcmp(resolved, kFallback) != 0) {
-                printf("[TEST] FAIL: SOH::ResolveOverlayFontName(\"%s\") returned \"%s\", not \"%s\". An unloaded "
-                       "name reaching SetCurrentFont inserts a null mFonts entry that DrawSettings() then offers as "
-                       "a dead font.\n",
-                       name, resolved == nullptr ? "(null)" : resolved, kFallback);
+        for (std::size_t i = 0; i < kSyntheticCount; i++) {
+            const char* resolved =
+                SOH::ResolveOverlayFontNameIn(kSynthetic[i], kSynthetic, kSyntheticCount, kSyntheticFallback);
+            if (resolved == nullptr || strcmp(resolved, kSynthetic[i]) != 0) {
+                printf("[TEST] FAIL: the resolver did not pass the loaded name \"%s\" through — it returned \"%s\". "
+                       "A resolver that answers the fallback to every input would satisfy the unknown-name cases "
+                       "below while silently discarding every real font selection.\n",
+                       kSynthetic[i], resolved == nullptr ? "(null)" : resolved);
                 return TEST_FAIL;
             }
         }
 
-        const char* resolvedNull = SOH::ResolveOverlayFontName(nullptr);
-        FONTLIC_CHECK(resolvedNull != nullptr && strcmp(resolvedNull, kFallback) == 0,
-                      "SOH::ResolveOverlayFontName(nullptr) must answer the fallback, not crash or return null — "
-                      "CVarGetString can hand back null if the default is ever dropped");
-        printf("[TEST]   resolver: 1 known name passes through, %zu unknown names plus null map to \"%s\"\n",
-               sizeof(kUnknown) / sizeof(kUnknown[0]), kFallback);
+        // Non-members, including the shapes a real config can produce.
+        static const char* const kSyntheticMisses[] = {
+            "Delta",  // simply not loaded
+            "alpha",  // right name, wrong case: SetCurrentFont is case-sensitive
+            "",       // an empty CVar string
+            "Alpha "  // trailing space
+        };
+        for (const char* miss : kSyntheticMisses) {
+            const char* resolved =
+                SOH::ResolveOverlayFontNameIn(miss, kSynthetic, kSyntheticCount, kSyntheticFallback);
+            if (resolved == nullptr || strcmp(resolved, kSyntheticFallback) != 0) {
+                printf("[TEST] FAIL: the resolver answered \"%s\" for the unloaded name \"%s\" instead of the "
+                       "fallback \"%s\". An unloaded name reaching SetCurrentFont inserts a null mFonts entry "
+                       "(operator[]) that DrawSettings() then offers as a dead font.\n",
+                       resolved == nullptr ? "(null)" : resolved, miss, kSyntheticFallback);
+                return TEST_FAIL;
+            }
+        }
+
+        const char* nullCase = SOH::ResolveOverlayFontNameIn(nullptr, kSynthetic, kSyntheticCount, kSyntheticFallback);
+        FONTLIC_CHECK(nullCase != nullptr && strcmp(nullCase, kSyntheticFallback) == 0,
+                      "the resolver must answer the fallback for a null request, not crash or return null — "
+                      "CVarGetString can hand back null if its default is ever dropped");
+        printf("[TEST]   rule: %zu loaded names pass through, %zu non-members plus null map to the fallback\n",
+               kSyntheticCount, sizeof(kSyntheticMisses) / sizeof(kSyntheticMisses[0]));
+    }
+
+    // ---- (0b) The PRODUCTION set the one-argument form closes over ----------
+    {
+        std::size_t loadedCount = 0;
+        const char* const* loaded = SOH::OverlayFontNames(&loadedCount);
+        const char* fallback = SOH::OverlayFontFallback();
+        FONTLIC_CHECK(loaded != nullptr && fallback != nullptr,
+                      "games/oot/soh/OTRGlobals.cpp exposes no overlay-font candidate set");
+        FONTLIC_CHECK(loadedCount >= 1, "the overlay-font candidate set is empty, so every persisted name would "
+                                        "resolve to a fallback that is itself not loaded");
+
+        // The fallback must be a MEMBER of the loaded set. A fallback that is not
+        // loaded reintroduces the exact defect the resolver exists to prevent:
+        // SetCurrentFont would insert a null mFonts row for it.
+        bool fallbackIsLoaded = false;
+        for (std::size_t i = 0; i < loadedCount; i++) {
+            if (loaded[i] != nullptr && strcmp(loaded[i], fallback) == 0) {
+                fallbackIsLoaded = true;
+                break;
+            }
+        }
+        FONTLIC_CHECK(fallbackIsLoaded,
+                      "the overlay-font fallback is not one of the names the TU loads — resolving to it would insert "
+                      "the very null mFonts entry this resolver exists to prevent");
+
+        // Every declared name resolves to itself through the production entry
+        // point, and the removed font does not.
+        for (std::size_t i = 0; i < loadedCount; i++) {
+            const char* resolved = SOH::ResolveOverlayFontName(loaded[i]);
+            if (resolved == nullptr || strcmp(resolved, loaded[i]) != 0) {
+                printf("[TEST] FAIL: SOH::ResolveOverlayFontName(\"%s\") returned \"%s\" for a name the TU declares "
+                       "it loads.\n",
+                       loaded[i], resolved == nullptr ? "(null)" : resolved);
+                return TEST_FAIL;
+            }
+        }
+        static const char* const kStaleConfigValues[] = {
+            "Fipps",   // the removed font, as an old config still spells it
+            "Default", // GameOverlay's initial mCurrentFont, never in mFonts
+            ""         // an empty CVar string
+        };
+        for (const char* stale : kStaleConfigValues) {
+            const char* resolved = SOH::ResolveOverlayFontName(stale);
+            if (resolved == nullptr || strcmp(resolved, fallback) != 0) {
+                printf("[TEST] FAIL: SOH::ResolveOverlayFontName(\"%s\") returned \"%s\", not the fallback \"%s\".\n",
+                       stale, resolved == nullptr ? "(null)" : resolved, fallback);
+                return TEST_FAIL;
+            }
+        }
+        FONTLIC_CHECK(SOH::ResolveOverlayFontName(nullptr) != nullptr,
+                      "SOH::ResolveOverlayFontName(nullptr) must not return null");
+        printf("[TEST]   production set: %zu loaded name(s), fallback \"%s\" is one of them, %zu stale values plus "
+               "null fall back\n",
+               loadedCount, fallback, sizeof(kStaleConfigValues) / sizeof(kStaleConfigValues[0]));
     }
 
 #ifndef RSBS_SOURCE_DIR

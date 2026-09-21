@@ -2,6 +2,7 @@
 #include "OTRAudio.h"
 #include <algorithm>
 #include <atomic>
+#include <cstddef>
 #include <cstring>
 #include <type_traits>
 #include <filesystem>
@@ -408,6 +409,31 @@ static const char* const kOverlayFontNames[] = { "Press Start 2P" };
 const char* const kOverlayFontFallback = "Press Start 2P";
 
 /**
+ * The resolution rule, over an EXPLICIT candidate set.
+ *
+ * Split out from the one-argument form below so it can be tested against a set
+ * with more than one member. That is not gold-plating: this TU currently loads
+ * exactly one font, and that one font is also the fallback, so a test of the
+ * one-argument form alone cannot tell "passed the requested name through" apart
+ * from "answered the fallback to everything" — the two produce the same string.
+ * Driven with a multi-member set, the distinction is observable.
+ *
+ * Returns a member of @p loaded when @p requested names one, else @p fallback.
+ * Never null for a non-null @p fallback, and never the caller's buffer.
+ */
+const char* ResolveOverlayFontNameIn(const char* requested, const char* const* loaded, std::size_t loadedCount,
+                                     const char* fallback) {
+    if (requested != nullptr && loaded != nullptr) {
+        for (std::size_t i = 0; i < loadedCount; i++) {
+            if (loaded[i] != nullptr && strcmp(requested, loaded[i]) == 0) {
+                return loaded[i];
+            }
+        }
+    }
+    return fallback;
+}
+
+/**
  * Map a persisted `gOverlayFont` value onto a font this TU actually loaded.
  *
  * Ship::GameOverlay::SetCurrentFont() looks the name up with `mFonts[name]` —
@@ -416,19 +442,25 @@ const char* const kOverlayFontFallback = "Press Start 2P";
  * inserted row then appears in GameOverlay::DrawSettings()'s combo as a
  * selectable dead font that can never be made current. Resolving the name here,
  * BEFORE the call, is what stops that row from being created at all.
- *
- * Returns a pointer to a string literal with static storage duration — one of
- * `kOverlayFontNames` or `kOverlayFontFallback`. Never null, never the caller's
- * buffer.
  */
 const char* ResolveOverlayFontName(const char* requested) {
-    if (requested != nullptr) {
-        for (const char* loaded : kOverlayFontNames) {
-            if (strcmp(requested, loaded) == 0) {
-                return loaded;
-            }
-        }
+    return ResolveOverlayFontNameIn(requested, kOverlayFontNames,
+                                    sizeof(kOverlayFontNames) / sizeof(kOverlayFontNames[0]), kOverlayFontFallback);
+}
+
+/**
+ * The candidate set the one-argument form uses, for the test that asserts the
+ * fallback is itself one of the loaded names. A fallback that is NOT loaded
+ * would reintroduce the exact defect this resolver exists to prevent.
+ */
+const char* const* OverlayFontNames(std::size_t* count) {
+    if (count != nullptr) {
+        *count = sizeof(kOverlayFontNames) / sizeof(kOverlayFontNames[0]);
     }
+    return kOverlayFontNames;
+}
+
+const char* OverlayFontFallback() {
     return kOverlayFontFallback;
 }
 
