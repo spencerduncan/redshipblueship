@@ -173,9 +173,23 @@ TestResult Test_SetMenuCount(void) {
         "games/mm/2s2h/BenGui/BenGui.cpp", // excluded from every target -- see (2)
         "games/oot/soh/SohGui/SohGui.cpp", // the one live shell
     };
+    // THIS FILE IS SKIPPED, and the tautology is worth naming rather than
+    // hiding: the scan looks for the text "SetMenu(", and a test that talks about
+    // "SetMenu(" contains it -- in its needle, in its allowlist rationale and in
+    // every failure message. Measured, not assumed: before this skip the row
+    // reported 10 call sites here and failed on itself. The accepted limitation
+    // is that a genuine Ship::Gui::SetMenu CALL added inside this one file would
+    // not be caught; that file is this invariant's own test, reviewed with it, and
+    // the alternative (assembling the needle from fragments at runtime so the
+    // literal never appears contiguously) buys that one case at the cost of a
+    // scan nobody can read.
+    static const char* const kSelf = "src/common/tests/test_setmenu_count.c";
     int totalCallSites = 0;
     bool sawOoTCallSite = false;
     for (const SetMenuInvFile& f : tree) {
+        if (f.relPath == kSelf) {
+            continue;
+        }
         const int hits = SetMenuInvCount(f.text, "SetMenu(");
         if (hits == 0) {
             continue;
