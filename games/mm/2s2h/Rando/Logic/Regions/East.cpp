@@ -74,7 +74,11 @@ static RegisterShipInitFunc initFunc([]() {
         },
         .connections = {
             CONNECTION(RR_BENEATH_THE_GRAVEYARD_NIGHT_2_BOSS, CAN_USE_EXPLOSIVE),
-            CONNECTION(RR_BENEATH_THE_GRAVEYARD_NIGHT_2_GRAVE_BEFORE_PIT, HAS_MAGIC && HAS_ITEM(ITEM_LENS_OF_TRUTH)),
+            // #578 part 2 — MMRT_LENS ("Fewer Lens Requirements (MM)"), default off. North.cpp's
+            // header note carries the rationale and names the two sites the trick excludes; one of
+            // them is RC_ROAD_TO_IKANA_STONE_MASK further down THIS file, which is why that check
+            // keeps a bare Lens term.
+            CONNECTION(RR_BENEATH_THE_GRAVEYARD_NIGHT_2_GRAVE_BEFORE_PIT, MM_TRICK(MMRT_LENS) || (HAS_MAGIC && HAS_ITEM(ITEM_LENS_OF_TRUTH))),
         },
     };
     Regions[RR_BENEATH_THE_GRAVEYARD_NIGHT_2_GRAVE_BEFORE_PIT] = RandoRegion{ .name = "Night 2 Grave Before Pit", .sceneId = SCENE_HAKASHITA,
@@ -95,7 +99,7 @@ static RegisterShipInitFunc initFunc([]() {
             EXIT(ENTRANCE(IKANA_GRAVEYARD, 2),              ENTRANCE(BENEATH_THE_GRAVERYARD, 0), true),
         },
         .connections = {
-            CONNECTION(RR_BENEATH_THE_GRAVEYARD_NIGHT_2_GRAVE_AFTER_PIT, HAS_MAGIC && HAS_ITEM(ITEM_LENS_OF_TRUTH)),
+            CONNECTION(RR_BENEATH_THE_GRAVEYARD_NIGHT_2_GRAVE_AFTER_PIT, MM_TRICK(MMRT_LENS) || (HAS_MAGIC && HAS_ITEM(ITEM_LENS_OF_TRUTH))), // #578 part 2 — MMRT_LENS
         },
     };
     Regions[RR_GHOST_HUT] = RandoRegion{ .sceneId = SCENE_TOUGITES,
@@ -286,6 +290,11 @@ static RegisterShipInitFunc initFunc([]() {
     Regions[RR_ROAD_TO_IKANA_BELOW_LEDGE] = RandoRegion{ .name = "Below Ledge", .sceneId = SCENE_IKANAMAE,
         .checks = {
             CHECK(RC_ROAD_TO_IKANA_POT, CAN_HOOK_SCARECROW),
+            // #578 part 2 — DELIBERATELY NOT gated by MMRT_LENS. This is Shiro, the Stone Mask
+            // check, and OoTMM's MM_LENS definition excludes it by name ("excluding Shiro (Stone
+            // Mask check) and climbing the wall to Darmani"). Seeing Shiro at all is the check, so
+            // relaxing the Lens here would not be "fewer lens requirements", it would be a
+            // different trick — and there is no key for it, so there is no gate.
             CHECK(RC_ROAD_TO_IKANA_STONE_MASK, HAS_ITEM(ITEM_LENS_OF_TRUTH) && HAS_MAGIC && HAS_BOTTLE && (CAN_ACCESS(RED_POTION_REFILL) || CAN_ACCESS(BLUE_POTION_REFILL))),
             CHECK(RC_ENEMY_DROP_BLUE_BUBBLE, CanKillEnemy(ACTOR_EN_BB) && IS_NIGHT()), // Night only
             CHECK(RC_ENEMY_DROP_REAL_BOMBCHU, CanKillEnemy(ACTOR_EN_RAT) && IS_DAY()), // Day only

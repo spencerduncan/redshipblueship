@@ -27,20 +27,30 @@
  * WHAT THIS TABLE DOES *NOT* DO YET
  * ============================================================================
  *
- * It declares the vocabulary; it does not wire it. Exactly TWO keys have a
- * binding in this PR — `MMRT_KEG_EXPLOSIVES` (Logic/Logic.h's
- * `CAN_USE_EXPLOSIVE`, #578 finding (a)) and `MMRT_GBT_BOSS_KEY_ICE`
- * (Logic/Regions/GreatBayTemple.cpp, finding (b)). Every other live-capable key
- * is declared, settable, folded into the frozen identity, and consulted by
- * nothing. That is deliberate (operator ruling 2026-09-17: #578 is split, part 1
- * is the substrate). It is also WHY the keys must land first: the trick set
- * freezes into pairing identity at creation, so a file created before the
- * vocabulary existed has no honest answer for what its frozen trick set was.
+ * It declares the vocabulary; most of it is still unwired. TEN of the 86 keys
+ * have a binding today: part 1's two findings — `MMRT_KEG_EXPLOSIVES`
+ * (Logic/Logic.h's `CAN_USE_EXPLOSIVE`, finding (a)) and `MMRT_GBT_BOSS_KEY_ICE`
+ * (Logic/Regions/GreatBayTemple.cpp, finding (b)) — plus part 2's eight first
+ * candidates: `MMRT_LENS`, `MMRT_PALACE_BEAN_SKIP`, `MMRT_DARMANI_WALL`,
+ * `MMRT_ZORA_HALL_HUMAN`, `MMRT_GORON_BOMB_JUMP`,
+ * `MMRT_DOG_RACE_CHEST_NOTHING`, `MMRT_POST_OFFICE_GAME` and
+ * `MMRT_HIVE_BOMBCHU`.
+ *
+ * `kBoundTricks` in Rando/OptionsUiSingleExe.cpp is the AUTHORITATIVE list — it
+ * is what the pane reads and what the two locks iterate. This paragraph is prose
+ * and can rot; that array cannot, without turning `mm-trick-bindings` red.
+ *
+ * Every other live-capable key is declared, settable, folded into the frozen
+ * identity, and consulted by nothing. That is deliberate (operator ruling
+ * 2026-09-17: #578 is split; part 3 authors the remaining bindings). It is also
+ * WHY the keys had to land first: the trick set freezes into pairing identity at
+ * creation, so a file created before the vocabulary existed has no honest answer
+ * for what its frozen trick set was.
  *
  * A declared-but-unbound key is not a vacuous control in ADR 0004 §5's sense
  * while it is described honestly, which is what the pane's per-row evidence is
- * for: the row says "no logic binding yet (part 2)" rather than pretending to
- * change the world.
+ * for: the row says "no logic binding yet" rather than pretending to change the
+ * world.
  */
 #include "Tricks.h"
 

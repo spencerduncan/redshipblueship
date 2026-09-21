@@ -25,9 +25,13 @@ static RegisterShipInitFunc initFunc([]() {
     };
     Regions[RR_DOGGY_RACETRACK] = RandoRegion{ .sceneId = SCENE_F01_B,
         .checks = {
-            // TODO: Trick: Jumpslash to clip through (similar to Clock Town Straw).
-            // Zora can just climb up, adding it to logic for now but if someone wants to make it a trick later feel free.
-            CHECK(RC_DOGGY_RACETRACK_CHEST, HAS_ITEM(ITEM_HOOKSHOT) || CAN_USE_DAY2_RAIN_BEAN || CAN_BE_ZORA),
+            // #578 part 2 — MMRT_DOG_RACE_CHEST_NOTHING, DEFAULT OFF. The TODO asked for the
+            // jumpslash clip; OoTMM merges every itemless route into one key, "Doggy Racetrack Chest
+            // with Nothing" ("Climb the fence and make a precise jump to get to the chest"), so the
+            // disjunct carries NO item term. The existing Zora leg is left alone: the second TODO
+            // line says it is in logic deliberately, and gating it would TIGHTEN tricks-off logic,
+            // which this pass does not do (part 3 owns that question).
+            CHECK(RC_DOGGY_RACETRACK_CHEST, HAS_ITEM(ITEM_HOOKSHOT) || CAN_USE_DAY2_RAIN_BEAN || CAN_BE_ZORA || MM_TRICK(MMRT_DOG_RACE_CHEST_NOTHING)),
             CHECK(RC_DOGGY_RACETRACK_PIECE_OF_HEART,    HAS_ITEM(ITEM_MASK_TRUTH)),
             CHECK(RC_DOGGY_RACETRACK_POT_01, true),
             CHECK(RC_DOGGY_RACETRACK_POT_02, true),
@@ -113,8 +117,17 @@ static RegisterShipInitFunc initFunc([]() {
             EXIT(ENTRANCE(GORMAN_TRACK, 0),                 ENTRANCE(MILK_ROAD, 3), true),
         },
         .connections = {
-            // TODO: Trick to Goron bomb jump over the fence
-            CONNECTION(RR_MILK_ROAD_BEHIND_FENCE, (RANDO_EVENTS[RE_COWS_FROM_ALIENS] && IS_NIGHT2()) || FINAL_DAY()),
+            // #578 part 2 — MMRT_GORON_BOMB_JUMP, DEFAULT OFF, both directions (the mirror disjunct
+            // is on RR_MILK_ROAD_BEHIND_FENCE below). OoTMM's "Bomb Jump Fences as Goron": "Place
+            // down bombs or a Powder Keg, then use the Goron Pound to leap into the air and get
+            // damaged mid-air by the explosion to hop over fences."
+            //
+            // The item term is written out rather than reusing CAN_USE_EXPLOSIVE, because the
+            // maneuver needs an explosive you can PLACE AND OUTLIVE as Goron: a Blast Mask cannot be
+            // worn as Goron and a Bombchu drives away instead of sitting under you, and both are in
+            // CAN_USE_EXPLOSIVE. The Powder Keg leg needs no separate MMRT_KEG_EXPLOSIVES gate —
+            // the keg is named by THIS trick's own definition, not borrowed as a generic explosive.
+            CONNECTION(RR_MILK_ROAD_BEHIND_FENCE, (RANDO_EVENTS[RE_COWS_FROM_ALIENS] && IS_NIGHT2()) || FINAL_DAY() || (MM_TRICK(MMRT_GORON_BOMB_JUMP) && CAN_BE_GORON && (HAS_ITEM(ITEM_BOMB) || HAS_ITEM(ITEM_POWDER_KEG)))),
         },
         .events = {
             EVENT(RE_ACCESS_PICTOGRAPH_TINGLE, HAS_ITEM(ITEM_PICTOGRAPH_BOX)),
@@ -129,8 +142,10 @@ static RegisterShipInitFunc initFunc([]() {
             EXIT(ENTRANCE(GORMAN_TRACK, 3),                 ENTRANCE(MILK_ROAD, 2), true),
         },
         .connections = {
-            // TODO: Trick to Goron bomb jump over the fence
-            CONNECTION(RR_MILK_ROAD, (RANDO_EVENTS[RE_COWS_FROM_ALIENS] && IS_NIGHT2()) || FINAL_DAY()),
+            // #578 part 2 — MMRT_GORON_BOMB_JUMP, DEFAULT OFF. The mirror of RR_MILK_ROAD's
+            // disjunct above (which carries the reasoning); the fence is hoppable from either side,
+            // so gating only one direction would make the region a one-way trap.
+            CONNECTION(RR_MILK_ROAD, (RANDO_EVENTS[RE_COWS_FROM_ALIENS] && IS_NIGHT2()) || FINAL_DAY() || (MM_TRICK(MMRT_GORON_BOMB_JUMP) && CAN_BE_GORON && (HAS_ITEM(ITEM_BOMB) || HAS_ITEM(ITEM_POWDER_KEG)))),
         },
     };
     Regions[RR_RANCH_BARN] = RandoRegion{ .sceneId = SCENE_OMOYA,

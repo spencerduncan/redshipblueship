@@ -110,6 +110,19 @@ static RegisterShipInitFunc initFunc([]() {
         },
         .connections = {
             CONNECTION(RR_DEKU_PALACE_OUTSIDE, true),
+            // #578 part 2 — MMRT_PALACE_BEAN_SKIP, DEFAULT OFF. This is the edge the TODO below
+            // (above RR_DEKU_PALACE_INSIDE_UPPER_CELL_SIDE) describes: "a backflip onto the doorway
+            // and then an angled roll jump to grab the upper ledge". OoTMM's MM_PALACE_BEAN_SKIP is
+            // the same maneuver ("Backflip onto the doorframe in the left side of Deku Palace to
+            // skip planting the beans"), and its stated EFFECT is what this edge delivers — the
+            // upper ring is a cycle (cell side <-> upper middle <-> bean side), so reaching the cell
+            // side from the lower floor reaches the bean side without CAN_USE_DAY2_RAIN_BEAN, i.e.
+            // without the bottle-or-Storms watering the bean needs.
+            //
+            // The TRICK IS THE WHOLE CONDITION on purpose: the maneuver is plain Human Link
+            // movement and needs no item, and no form change happens on this edge (the lower floor
+            // is already reached as Deku from outside, and Link may be Human once inside).
+            CONNECTION(RR_DEKU_PALACE_INSIDE_UPPER_CELL_SIDE, MM_TRICK(MMRT_PALACE_BEAN_SKIP)),
         },
     };
     Regions[RR_DEKU_PALACE_INSIDE_UPPER_CELL_SIDE_LEDGE] = RandoRegion{ .name = "Inside, Upper", .sceneId = SCENE_22DEKUCITY,
@@ -122,7 +135,9 @@ static RegisterShipInitFunc initFunc([]() {
             CONNECTION(RR_DEKU_PALACE_INSIDE_LOWER, true),
         },
     };
-    // TODO: There is a trick you can do to get up to the dekunut with a backflip onto the doorway and then an angled roll jump to grab the upper ledge
+    // The trick this TODO asked for — "a backflip onto the doorway and then an angled roll jump to
+    // grab the upper ledge" — is bound as MMRT_PALACE_BEAN_SKIP on RR_DEKU_PALACE_INSIDE_LOWER's
+    // connection to this region (#578 part 2). The TODO is resolved, so it is gone.
     Regions[RR_DEKU_PALACE_INSIDE_UPPER_CELL_SIDE] = RandoRegion{ .name = "Inside, Upper", .sceneId = SCENE_22DEKUCITY,
         .checks = {
             CHECK(RC_ENEMY_DROP_MAD_SCRUB, CanKillEnemy(ACTOR_EN_DEKUNUTS) && CAN_BE_DEKU),

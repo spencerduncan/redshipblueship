@@ -708,22 +708,48 @@ extern "C" void MM_RandoOptionsUi_Register(void) {
 // address of the dispatcher and let the linker prove it. There is no equivalent
 // address to take here: a binding is a token inside a `std::function` in a region
 // definition, not a symbol. So the claim is transcribed, and the lock that keeps
-// it honest is different in kind: `mm-trick-table` EVALUATES the two bound keys'
-// real conditions with the trick off and then on, and fails if the verdict does
-// not move. A key listed here whose binding was deleted turns that red; a key
-// bound in part 2 and not listed here draws disabled-with-reason, which is
-// wrong-but-visible rather than wrong-and-silent.
+// it honest is different in kind: `mm-trick-table` EVALUATES part 1's two bound
+// keys' real conditions with the trick off and then on, and `mm-trick-bindings`
+// (#578 part 2) does the same, row by row, for every key part 2 bound — both fail
+// if the verdict does not move. A key listed here whose binding was deleted turns
+// one of those red; a key bound in a region file and not listed here draws
+// disabled-with-reason, which is wrong-but-visible rather than wrong-and-silent.
 //
-// Part 2 adds keys to this list as it authors their bindings. Keep it sorted the
+// Part 3 adds keys to this list as it authors their bindings. Keep it sorted the
 // way the table is (id order) so the diff reads as an append.
 namespace {
 
+// ID ORDER, not the order the parts landed in — one list a reader can diff
+// against the table, rather than two appended blocks that interleave.
 const MMRandoTrickId kBoundTricks[] = {
-    // Logic/Logic.h's CAN_USE_EXPLOSIVE — 32 uses across Regions/ plus the
-    // CanKillEnemy table (#578 finding (a)).
+    // part 2. Logic/Regions/{BeneathTheWell,East,IkanaCastle,North,
+    // SnowheadTemple}.cpp — 16 `ITEM_LENS_OF_TRUTH` terms, i.e. every one in
+    // Regions/ except the two the trick's own definition excludes (North.cpp's
+    // header note names them).
+    MMRT_LENS,
+    // part 2. Logic/Regions/South.cpp — RR_DEKU_PALACE_INSIDE_LOWER's new
+    // connection to RR_DEKU_PALACE_INSIDE_UPPER_CELL_SIDE.
+    MMRT_PALACE_BEAN_SKIP,
+    // part 2. Logic/Regions/North.cpp — the Mountain Village -> Goron Graveyard
+    // exit, the site MMRT_LENS excludes by name.
+    MMRT_DARMANI_WALL,
+    // part 2. Logic/Regions/West.cpp — the four Zora Hall back-room doors.
+    MMRT_ZORA_HALL_HUMAN,
+    // part 2. Logic/Regions/MilkRoad.cpp — RR_MILK_ROAD <->
+    // RR_MILK_ROAD_BEHIND_FENCE, both directions.
+    MMRT_GORON_BOMB_JUMP,
+    // part 1 (finding (a)). Logic/Logic.h's CAN_USE_EXPLOSIVE — 32 uses across
+    // Regions/ plus the CanKillEnemy table.
     MMRT_KEG_EXPLOSIVES,
-    // Logic/Regions/GreatBayTemple.cpp — the compass-room boss-key connection
-    // (#578 finding (b)).
+    // part 2. Logic/Regions/MilkRoad.cpp — RC_DOGGY_RACETRACK_CHEST.
+    MMRT_DOG_RACE_CHEST_NOTHING,
+    // part 2. Logic/Regions/Central.cpp — RC_CLOCK_TOWN_WEST_POSTMAN_MINIGAME.
+    MMRT_POST_OFFICE_GAME,
+    // part 2. Logic/Regions/WoodfallTemple.cpp (the water-room hive) and
+    // Logic/Regions/PiratesFortress.cpp (RE_PIRATE_FORTRESS_BEEHIVE_HIT).
+    MMRT_HIVE_BOMBCHU,
+    // part 1 (finding (b)). Logic/Regions/GreatBayTemple.cpp — the compass-room
+    // boss-key connection.
     MMRT_GBT_BOSS_KEY_ICE,
 };
 
@@ -801,11 +827,11 @@ std::vector<ComboMMTrickDesc>& TrickDescriptorTable() {
         desc.bound = IsBoundTrick(mmRandoTrickId);
         if (row.reserved) {
             // The MM row's own reason, which names the OoT item. Reserved beats
-            // unbound in the message because it is the harder blocker: part 2
-            // cannot bind these at all.
+            // unbound in the message because it is the harder blocker: no
+            // region-file pass can bind these at all until increment 3.
             desc.disabledReason = row.reservedReason;
         } else if (!desc.bound) {
-            desc.disabledReason = "No logic binding yet (#578 part 2)";
+            desc.disabledReason = "No logic binding yet (#578 part 3)";
         } else {
             desc.disabledReason = "";
         }

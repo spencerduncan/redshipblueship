@@ -144,7 +144,9 @@ static RegisterShipInitFunc initFunc([]() {
         },
         .connections = {
             CONNECTION(RR_IKANA_CASTLE_CEILING_ROOM, CAN_USE_SWORD || CAN_USE_PROJECTILE),
-            CONNECTION(RR_IKANA_CASTLE_BUBBLE_ROOM, HAS_ITEM(ITEM_LENS_OF_TRUTH) && HAS_MAGIC && CAN_BE_DEKU && (HAS_ITEM(ITEM_BOW) || HAS_ITEM(ITEM_BOMB)))
+            // #578 part 2 — MMRT_LENS ("Fewer Lens Requirements (MM)"), default off. North.cpp's
+            // header note carries the rationale and names the two sites the trick excludes.
+            CONNECTION(RR_IKANA_CASTLE_BUBBLE_ROOM, (MM_TRICK(MMRT_LENS) || (HAS_ITEM(ITEM_LENS_OF_TRUTH) && HAS_MAGIC)) && CAN_BE_DEKU && (HAS_ITEM(ITEM_BOW) || HAS_ITEM(ITEM_BOMB)))
         },
     };
     Regions[RR_IKANA_CASTLE_THRONE_ROOM] = RandoRegion{ .name = "Throne Room", .sceneId = SCENE_IKNINSIDE,

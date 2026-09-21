@@ -17,7 +17,14 @@ static RegisterShipInitFunc initFunc([]() {
             EXIT(ENTRANCE(PIRATES_FORTRESS, 2),             ENTRANCE(PIRATES_FORTRESS_INTERIOR, 1), true),
         },
         .events = {
-            EVENT(RE_PIRATE_FORTRESS_BEEHIVE_HIT, (HAS_ITEM(ITEM_BOW) || (CAN_BE_DEKU && HAS_MAGIC))),
+            // #578 part 2 — MMRT_HIVE_BOMBCHU, DEFAULT OFF. The same OoTMM key as the Woodfall
+            // Temple water-room hive, and the reason this file is touched at all: the trick's own
+            // definition is "the beehives across Termina", so binding it to one temple hive and not
+            // to the other hive the graph actually gates a check on would be a partial binding
+            // wearing a whole trick's name. No Great Fairy Mask conjunct here: the fairy-collection
+            // problem is specific to the Woodfall hive, and this event only asks whether the hive
+            // can be BROKEN, which is what drops the barrels' contents into reach.
+            EVENT(RE_PIRATE_FORTRESS_BEEHIVE_HIT, (HAS_ITEM(ITEM_BOW) || (CAN_BE_DEKU && HAS_MAGIC) || (MM_TRICK(MMRT_HIVE_BOMBCHU) && HAS_ITEM(ITEM_BOMBCHU)))),
         },
     };
     Regions[RR_PIRATES_FORTRESS_CAPTAIN_ROOM] = RandoRegion{ .name = "Captain Room", .sceneId = SCENE_PIRATE,
