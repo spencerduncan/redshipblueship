@@ -195,10 +195,21 @@ static RegisterShipInitFunc initFunc([]() {
             // #578 part 3 — MMRT_BOMBER_GUESS ("Guess the Bombers' Code for Astral Observatory from 120
             // possible combinations. Grants access to the Bomber's Notebook check when entering ECT
             // from the Bombers Hideout."), DEFAULT OFF, as a whole-event disjunct: knowing the code is
-            // exactly what hide-and-seek buys, and the notebook check is already gated on this event in
-            // both regions that carry it, so the tooltip's second sentence follows with no second edit.
-            // Its sibling MMRT_BOMBER_BACKFLIP is NOT bound here and must not be: that trick's own
-            // definition says it does NOT grant the notebook, and this event is what the notebook reads.
+            // exactly what hide-and-seek buys.
+            //
+            // Its second sentence does NOT follow from this edit, and an earlier draft of this comment
+            // wrongly said it did. RC_CLOCK_TOWN_BOMBERS_NOTEBOOK is carried by two regions — line 96
+            // under RR_CLOCK_TOWN_EAST and line 160 under RR_CLOCK_TOWN_NORTH — and BOTH read nothing but
+            // RANDO_EVENTS[RE_BOMBER_CODE]: no entry-direction term, no Bombers' Hideout term, because
+            // this graph models neither. So with the trick on, the notebook becomes reachable wherever the
+            // event is read, which is WIDER than the trick's own text grants (it names entering ECT from
+            // the hideout). Narrowing it to that would mean giving the notebook a direction-or-hideout
+            // term the graph cannot currently express — a kind (3) / graph-shape follow-up, filed as such
+            // rather than papered over here. That the distinction is real to the reference project shows
+            // in the sibling MMRT_BOMBER_BACKFLIP, whose text ends "Does not grant access to the Bomber's
+            // Notebook check when entering ECT from the Bombers Hideout": it is NOT bound to this event
+            // and must not be, because this event is what the notebook reads and this graph would hand it
+            // the notebook anyway.
             EVENT(RE_BOMBER_CODE,
                 MM_TRICK(MMRT_BOMBER_GUESS) ||
                 (RANDO_EVENTS[RE_BOMBERS_NORTH_DAY1] && RANDO_EVENTS[RE_BOMBERS_WEST_DAY1] && RANDO_EVENTS[RE_BOMBERS_EAST_DAY1]) ||
@@ -242,10 +253,23 @@ static RegisterShipInitFunc initFunc([]() {
             // a wallet term (ADULTS_WALLET above is already free). No item term: the Child Wallet is
             // what you start with, so the trick's own requirement is the empty one.
             //
-            // Its sibling MMRT_BANK_ONE_WALLET is deliberately NOT bound: both rewards are priced at
-            // exactly one upgrade here, so "one less wallet" and "no extra wallets" would be the SAME
-            // disjunct and one of the two keys would be indistinguishable from the other. Telling them
-            // apart needs these rows to carry the per-reward rupee thresholds first.
+            // Its sibling MMRT_BANK_ONE_WALLET is NOT bound, and the reason is WHICH ROW it names — not
+            // that it would restate this disjunct. (An earlier draft of this comment claimed the two keys
+            // would be the SAME disjunct because both rows are priced at one upgrade. That was wrong:
+            // ONE_WALLET's own text prices the two rewards DIFFERENTLY — one free, one at the Adult
+            // Wallet — so a faithful binding could never coincide with NO_WALLET's "both free".) The
+            // trick prices rewards by deposited TOTAL: "The 500-Rupee item reward will only require the
+            // Child Wallet, and the 1000-rupee item reward will require the Adult Wallet." These rows
+            // carry no totals. The rando's own banker (Rando/ActorBehavior/EnGinko.cpp) pays out at
+            // 200 -> ADULTS_WALLET, 1000 -> INTEREST, 5000 -> PIECE_OF_HEART, so under the SHIPPED ladder
+            // the trick's "500-Rupee reward" names no row at all and its "1000-rupee reward" is INTEREST,
+            // which this graph already prices at exactly the Adult Wallet. The 500/1000 pair it does
+            // match is the reduced ladder in Enhancements/DifficultyOptions/CustomBankRewardThresholds.cpp
+            // (100 / 500 / 1000), behind an enhancement CVar the logic graph does not read — and under
+            // THAT ladder "the 500-Rupee reward" is INTEREST while "the 1000-rupee reward" is
+            // PIECE_OF_HEART, the opposite row from the shipped one. So the binding would free exactly
+            // ONE of these two rows and leave the other at >= 1, and which one depends on a runtime
+            // toggle: that is a ruling, not a widening. Kind (3) in #697's sort.
             CHECK(RC_CLOCK_TOWN_WEST_BANK_PIECE_OF_HEART, CUR_UPG_VALUE(UPG_WALLET) >= 1 || MM_TRICK(MMRT_BANK_NO_WALLET)),
             CHECK(RC_CLOCK_TOWN_WEST_BANK_INTEREST, CUR_UPG_VALUE(UPG_WALLET) >= 1 || MM_TRICK(MMRT_BANK_NO_WALLET)),
             CHECK(RC_CLOCK_TOWN_WEST_SISTERS_PIECE_OF_HEART, HAS_ITEM(ITEM_MASK_KAMARO) && (IS_NIGHT1() || IS_NIGHT2())),

@@ -362,10 +362,18 @@ static RegisterShipInitFunc initFunc([]() {
             CHECK(RC_ZORA_HALL_SCRUB_DEED,           Flags_GetRandoInf(RANDO_INF_OBTAINED_DEED_MOUNTAIN) && CAN_BE_GORON),
             // #578 part 3 — MMRT_ZORA_HALL_SCRUB_HP_NO_DEKU ("As either Goron or Zora Link, jump up to
             // the heart piece."), DEFAULT OFF. Only the CAN_BE_DEKU term (the Deku-flower route up to
-            // the heart piece) is widened; the deed flag and CAN_BE_GORON stay conjuncts. The trick's
-            // own "Goron or Zora" is written out rather than leaned on, even though CAN_BE_GORON
-            // already implies it today: if the deed's own terms are ever re-shaped, the trick's
-            // requirement should not silently come along.
+            // the heart piece) is widened; the deed flag and CAN_BE_GORON stay conjuncts.
+            //
+            // SO THE BINDING IS NARROWER THAN THE TRICK'S TEXT, and that is worth stating plainly rather
+            // than dressing up: because the vanilla CAN_BE_GORON conjunct survives OUTSIDE the widened
+            // term, the trick's own CAN_BE_ZORA leg is dead today — a Zora-only player holding the
+            // Mountain Title Deed cannot use this trick, though the tooltip says they can ("As either
+            // Goron or Zora Link"). The inner "Goron or Zora" is written out anyway so the trick's own
+            // requirement is recorded where a later reader can act on it, not because it buys anything
+            // now. Relaxing the outer CAN_BE_GORON would change the TRICKS-OFF condition of this check
+            // (the deed row above needs Goron for its own reasons), so it is kind (3) in #697's sort and
+            // not part 3's business. mm_trick_bindings_test.cpp's surviving-conjunct arm pins the outer
+            // term in place so this stays a known narrowing rather than drifting into a silent widening.
             CHECK(RC_ZORA_HALL_SCRUB_PIECE_OF_HEART, Flags_GetRandoInf(RANDO_INF_OBTAINED_DEED_MOUNTAIN) && CAN_BE_GORON && (CAN_BE_DEKU || (MM_TRICK(MMRT_ZORA_HALL_SCRUB_HP_NO_DEKU) && (CAN_BE_GORON || CAN_BE_ZORA)))),
             CHECK(RC_ZORA_HALL_SCRUB_POTION_REFILL,  CAN_BE_ZORA),
         },
