@@ -187,6 +187,18 @@ int OoT_MenuCapabilityGating_RunHeadless(void);
 // off. Needs the display-free shared bring-up for the same reason the row above
 // does. Returns 0 on pass, non-zero on fail.
 int OoT_MenuComboSection_RunHeadless(void);
+// The curated MM enhancement page (games/oot/soh/soh_menu_mm_enhancements_test.cpp,
+// #682): MM's own menu TU is excluded from the single exe, so its enhancement
+// toggles had no widget anywhere -- #653 is what that cost. This row is the
+// PRESENTATION half: the contributed Combo page is registered, every
+// RSBS::kHostedMmEnhancements key has a row bound to exactly that key inside the
+// one column the page draws, and each row's ADR 0004 §5 presentation matches its
+// manifest liveness class (driven twice, because ApplyPresentation runs from a
+// PreFunc with its own name as the base). Synthetic Partial/Dormant rows drive
+// the disabled path, which the all-Live shipped manifest otherwise never
+// exercises. Needs the same display-free shared bring-up as the two rows above.
+// Returns 0 on pass, non-zero on fail.
+int OoT_MenuMmEnhancementRows_RunHeadless(void);
 // MM single-exe hook dispatch (games/mm/2s2h/mm_hook_dispatch_test.cpp, #511 /
 // #438): the COND_* macros park registrations in the MM-owned S2H::GameHooks
 // registry, but ShouldActorInit / OnActorInit / OnActorDraw / OnOpenText
@@ -218,6 +230,19 @@ int MM_RegistrarCoverage_RunHeadless(void);
 // display-free shared bring-up first (CVarSetInteger). Returns 0 on pass,
 // non-zero on fail.
 int MM_ClockShuffleSongs_RunHeadless(void);
+// The curated MM enhancement keys' liveness evidence
+// (games/mm/2s2h/mm_enhancement_toggles_test.cpp, #682): the EVIDENCE half of the
+// pair above, MM-side because the registries are. Per key: exactly one
+// S2H::ShipInit registrar under the CVar the menu row writes, the registry empty
+// with the key off, exactly one registrant with it on, and nothing in the other
+// keys' registries -- arming one at a time is what makes the attribution exact.
+// It is the only possible gate for MM's RegisterAutosave, whose name OoT's static
+// twin satisfies. Its last leg drives the real MM_GameOver_Update from
+// GAMEOVER_DEATH_FADE_OUT with gEnhancements.Kaleido.GameOver cleared and then
+// set, because that key has no registrar at all and its read site IS its
+// evidence (#653's recommended lock). Needs the display-free shared bring-up.
+// Returns 0 on pass, non-zero on fail.
+int MM_EnhancementToggles_RunHeadless(void);
 // Entrance -> region cache boundary (games/mm/2s2h/mm_entrance_region_cache_test.cpp,
 // #659): Rando::Logic::Regions is filled by eighteen ShipInit registrars in link
 // order, and the cache inside GetRegionIdFromEntrance used to be guarded on its
@@ -2839,6 +2864,24 @@ static TestResult Test_MenuComboSection(void) {
     return OoT_MenuComboSection_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #682's presentation half. Same display-free shared bring-up as the row above,
+// for the same reason: AddMenuCombo registers rows whose PreFuncs and option
+// defaults read the Ship::Context singleton's ConsoleVariables, and this row also
+// runs each row's PreFunc itself.
+static TestResult Test_MenuMmEnhancementRows(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return OoT_MenuMmEnhancementRows_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // MM tracker registration surface (#392). The bridge (see the extern decl at
 // the top) constructs a standalone Ship::Gui, so it needs the same
 // display-free shared bring-up as boot-oot: GuiWindow ctors read
@@ -2945,6 +2988,27 @@ static TestResult Test_MMClockShuffleSongs(void) {
     }
 
     return MM_ClockShuffleSongs_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #682's evidence half. Same display-free shared bring-up and the same reason as
+// mm-clock-shuffle-songs: it drives MM's registrars through CVarSetInteger +
+// MM_ShipInit_OnCVarChanged, and reads the Ship::Context singleton's
+// ConsoleVariables. It leaves every key at 0 and every probed registry drained
+// (its leg 4 is that assertion), so it is order-free with respect to every other
+// row -- including mm-registrar-coverage, which asserts OnGameStateDrawFinish is
+// empty before its own bring-up.
+static TestResult Test_MMEnhancementToggles(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_EnhancementToggles_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // The entrance -> region cache's registration boundary (#659). Same display-free
@@ -3791,6 +3855,21 @@ const TestDescriptor gTests[] = {
     // row runs in its own process under the rando label).
     {"oot-entrance-pin", "The Happy Mask Shop pair never enters OoT's entrance-shuffle pools (#661)",
      Test_OoTEntrancePin},
+    // #682's two halves. Both display-free and ROM-free, and both order-free:
+    // menu-mm-enhancement-rows builds its own SohMenu probes and touches only
+    // their private registries, and mm-enhancement-toggles leaves every key at 0,
+    // every probed S2H::GameHooks registry drained, and the gSaveContext fields
+    // its game-over leg writes restored. They are appended after
+    // archive-hotswap-logic for the same reason the two rows above are: neither
+    // touches the combo entrance table, so the "keep LAST" comment's dependency
+    // does not apply to them.
+    {"menu-mm-enhancement-rows",
+     "The curated MM enhancement page's rows bind their manifest keys and render their liveness class (#682)",
+     Test_MenuMmEnhancementRows},
+    {"mm-enhancement-toggles",
+     "Every curated MM enhancement key reaches a live provider, and the key the menu writes is the one MM re-arms on "
+     "(#682)",
+     Test_MMEnhancementToggles},
     {"rando-entrance-pin", "A generated seed with interior shuffle ON keeps the mask-shop door vanilla (#661)",
      Test_RandoEntrancePin},
     {nullptr, nullptr, nullptr}  // Sentinel

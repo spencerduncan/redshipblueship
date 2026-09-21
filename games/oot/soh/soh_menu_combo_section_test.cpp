@@ -48,6 +48,13 @@
  *     rather than duplicates, an invalid registration is refused, and
  *     `UnregisterComboSectionPage` puts the registry back.
  *
+ *     #682 LANDED and leg 5's counts are now BASELINE-RELATIVE. A production page
+ *     ("MM Enhancements", SohGui/SohMenuComboMmEnhancements.cpp) registers from a
+ *     file-scope initializer, so the registry is no longer empty when any test
+ *     runs. Leg 5 measures the delta its own registration makes and asserts the
+ *     return to the baseline it started from; the production page's own shape is
+ *     MenuMmEnhancementRows' invariant, not this row's.
+ *
  * WHAT IS NOT COVERED. The six tier-4 rules' own behaviour — the staging buffers,
  * the freeze gate, the values-from-the-save rule — is `ComboSettingsRows`, which
  * followed the rows here. This row owns the section's SHAPE. Appearance is
@@ -58,6 +65,7 @@
 
 #include "soh/SohGui/SohMenu.h"
 
+#include <cstddef>
 #include <cstdio>
 #include <string>
 #include <vector>
@@ -335,18 +343,27 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
     }
 
     // ---- Leg 5: the extension point (#682's seam) --------------------------
-    COMBO_CHECK(SohGui::GetComboSectionPages().empty(),
-                "the contributed-page registry is not empty before this leg registers anything (%zu entries); a "
-                "leaked page from another row would make the assertions below ambiguous",
-                SohGui::GetComboSectionPages().size());
+    // BASELINE, not zero, as of #682. When this row was written the registry was
+    // empty in every process, so the assertions below could be absolute. It is no
+    // longer: SohGui/SohMenuComboMmEnhancements.cpp registers the production "MM
+    // Enhancements" page from a file-scope initializer, which by design runs
+    // before any test does. So this leg measures the DELTA its own registration
+    // makes instead. The baseline is still checked for the thing the original
+    // assertion was really guarding against — a page LEAKED by an earlier row in
+    // the shared AllTests process — by the unregister-loop above plus the
+    // return-to-baseline check at the end of the leg. That the production page
+    // itself is registered, with the right rows, is MenuMmEnhancementRows' job,
+    // not this row's.
+    const std::size_t baselinePages = SohGui::GetComboSectionPages().size();
 
     gExtRan = 0;
     gExtColumn = -1;
     gExtSectionName.clear();
     gExtSidebarName.clear();
     SohGui::RegisterComboSectionPage(kExtPageName, 2, ExtRegistrar);
-    COMBO_CHECK(SohGui::GetComboSectionPages().size() == 1, "registering one page left %zu in the registry",
-                SohGui::GetComboSectionPages().size());
+    COMBO_CHECK(SohGui::GetComboSectionPages().size() == baselinePages + 1,
+                "registering one page left %zu in the registry, expected the baseline %zu plus one",
+                SohGui::GetComboSectionPages().size(), baselinePages);
 
     // Refusals: a page with no name, no registrar or no column would either
     // never draw or be #640 by construction.
@@ -354,9 +371,10 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
     SohGui::RegisterComboSectionPage("", 1, ExtRegistrar);
     SohGui::RegisterComboSectionPage("No Registrar", 1, nullptr);
     SohGui::RegisterComboSectionPage("No Columns", 0, ExtRegistrar);
-    COMBO_CHECK(SohGui::GetComboSectionPages().size() == 1,
-                "RegisterComboSectionPage accepted an invalid page: the registry holds %zu, expected 1",
-                SohGui::GetComboSectionPages().size());
+    COMBO_CHECK(SohGui::GetComboSectionPages().size() == baselinePages + 1,
+                "RegisterComboSectionPage accepted an invalid page: the registry holds %zu, expected the baseline %zu "
+                "plus one",
+                SohGui::GetComboSectionPages().size(), baselinePages);
 
     {
         ComboSectionMenuProbe extProbe;
@@ -384,11 +402,11 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
         // Contributed pages come LAST, so a contributor cannot reorder the
         // shipped ones out from under a player's persisted selection.
         auto& order = extProbe.Entries().at("Combo").sidebarOrder;
-        COMBO_CHECK(order.size() >= 3,
-                    "the Combo section has %zu sidebars in order, expected the two shipped plus the "
-                    "contributed one",
-                    order.size());
-        if (order.size() >= 3) {
+        COMBO_CHECK(order.size() >= baselinePages + 3,
+                    "the Combo section has %zu sidebars in order, expected the two shipped plus the %zu already "
+                    "registered plus the one this leg added",
+                    order.size(), baselinePages);
+        if (order.size() >= baselinePages + 3) {
             COMBO_CHECK(order.at(0) == "Cross-Game Rules" && order.at(1) == "Cross-Game Windows" &&
                             order.back() == kExtPageName,
                         "sidebar order is [%s, %s, ..., %s]; the shipped pages must come first and contributed ones "
@@ -402,8 +420,9 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
     // never draws.
     gExtReplacementRan = 0;
     SohGui::RegisterComboSectionPage(kExtPageName, 1, ExtReplacementRegistrar);
-    COMBO_CHECK(SohGui::GetComboSectionPages().size() == 1,
-                "a same-name re-registration duplicated the page (%zu entries)", SohGui::GetComboSectionPages().size());
+    COMBO_CHECK(SohGui::GetComboSectionPages().size() == baselinePages + 1,
+                "a same-name re-registration duplicated the page (%zu entries, baseline %zu)",
+                SohGui::GetComboSectionPages().size(), baselinePages);
     {
         ComboSectionMenuProbe replaceProbe;
         gExtRan = 0;
@@ -416,8 +435,12 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
     COMBO_CHECK(SohGui::UnregisterComboSectionPage(kExtPageName), "UnregisterComboSectionPage did not remove the page");
     COMBO_CHECK(!SohGui::UnregisterComboSectionPage(kExtPageName),
                 "UnregisterComboSectionPage removed a page twice, so the registry held a duplicate");
-    COMBO_CHECK(SohGui::GetComboSectionPages().empty(), "the registry still holds %zu contributed pages",
-                SohGui::GetComboSectionPages().size());
+    // Back to the baseline, not to empty: this leg must leave the registry
+    // exactly as it found it, which is the leak check the opening assertion used
+    // to be.
+    COMBO_CHECK(SohGui::GetComboSectionPages().size() == baselinePages,
+                "the registry holds %zu contributed pages, expected the baseline %zu it started from",
+                SohGui::GetComboSectionPages().size(), baselinePages);
     {
         ComboSectionMenuProbe cleanProbe;
         cleanProbe.AddMenuCombo();
