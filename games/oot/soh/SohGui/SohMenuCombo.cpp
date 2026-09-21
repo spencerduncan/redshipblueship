@@ -99,9 +99,8 @@ static bool comboRuleSharedOcarina;   // #668: ComboSettingsRecord.comboFlags' s
 // a class is a new checkbox here; re-pointing an existing bit is forbidden
 // there, because these are .redsave format.
 static const uint16_t comboRuleClassBits[6] = {
-    (uint16_t)RSBS_ITEMCLASS_PROGRESSION,    (uint16_t)RSBS_ITEMCLASS_SONGS,
-    (uint16_t)RSBS_ITEMCLASS_MASKS,          (uint16_t)RSBS_ITEMCLASS_DUNGEON_ITEMS,
-    (uint16_t)RSBS_ITEMCLASS_DUNGEON_REWARD, (uint16_t)RSBS_ITEMCLASS_SIDEQUEST,
+    (uint16_t)RSBS_ITEMCLASS_PROGRESSION,   (uint16_t)RSBS_ITEMCLASS_SONGS,          (uint16_t)RSBS_ITEMCLASS_MASKS,
+    (uint16_t)RSBS_ITEMCLASS_DUNGEON_ITEMS, (uint16_t)RSBS_ITEMCLASS_DUNGEON_REWARD, (uint16_t)RSBS_ITEMCLASS_SIDEQUEST,
 };
 
 // The four pinned RSBS_COMBO_DIR_* enumerators (1..4, static_asserted in
@@ -279,7 +278,6 @@ static void ComboRuleStatusPreFunc(WidgetInfo& info) {
     info.name = comboRuleStatusText;
 }
 
-
 // ============================================================================
 // The contributed-page registry (#497 step 6's extension point)
 // ============================================================================
@@ -430,8 +428,7 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
                 .PreFunc([which, bit](WidgetInfo& info) {
                     ComboSettingsRecord shown;
                     const bool decided = ComboRuleShownRecord(&shown);
-                    comboRuleItemClass[which][bit] =
-                        (ComboRuleClassMask(shown, which) & comboRuleClassBits[bit]) != 0;
+                    comboRuleItemClass[which][bit] = (ComboRuleClassMask(shown, which) & comboRuleClassBits[bit]) != 0;
                     ComboRuleApplyDecided(info, decided);
                 })
                 .Callback([classId, which](WidgetInfo& info) {
@@ -503,7 +500,6 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
         .Options(ButtonOptions()
                      .Size(ImVec2(250.f, 0.f))
                      .Tooltip("Clears all six rules back to the values RedShipBlueShip ships with."));
-
 }
 
 /**

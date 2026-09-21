@@ -189,8 +189,9 @@ extern "C" int OoT_MenuCapabilityGating_RunHeadless(void) {
     // any test that does not look. This is the look.
     for (uint32_t key = 0; key < (uint32_t)SohGui::SOH_MENU_CAP_BUILTIN_COUNT; key++) {
         const std::string reason = SohGui::SohMenu::CapabilityReason(key);
-        CAP_CHECK(!reason.empty(), "built-in capability %u publishes no reason; a row gated on it would grey itself "
-                                   "with an empty tooltip, which reads as a bug in the menu",
+        CAP_CHECK(!reason.empty(),
+                  "built-in capability %u publishes no reason; a row gated on it would grey itself "
+                  "with an empty tooltip, which reads as a bug in the menu",
                   key);
         bool namesAnIssue = false;
         for (std::size_t i = 0; i + 1 < reason.size(); i++) {
@@ -285,8 +286,9 @@ extern "C" int OoT_MenuCapabilityGating_RunHeadless(void) {
     if (mmPoolCount > 0 && mmPool != nullptr) {
         // PRESENT.
         RunPreFunc(*mmRow);
-        CAP_CHECK(!mmRow->options->disabled, "'%s' is disabled while MM's pool IS registered -- the capability is "
-                                             "present and the row must be live",
+        CAP_CHECK(!mmRow->options->disabled,
+                  "'%s' is disabled while MM's pool IS registered -- the capability is "
+                  "present and the row must be live",
                   kMmRowBase.c_str());
         CAP_CHECK(mmRow->name == kMmRowBase, "'%s' carries a state label while its capability is present: '%s'",
                   kMmRowBase.c_str(), mmRow->name.c_str());
@@ -302,8 +304,9 @@ extern "C" int OoT_MenuCapabilityGating_RunHeadless(void) {
         for (int frame = 0; frame < 3; frame++) {
             RunPreFunc(*mmRow);
         }
-        CAP_CHECK(mmRow->options->disabled, "'%s' is still enabled with its capability absent -- ADR 0004 §5's one "
-                                            "forbidden outcome, a functional-looking control over nothing",
+        CAP_CHECK(mmRow->options->disabled,
+                  "'%s' is still enabled with its capability absent -- ADR 0004 §5's one "
+                  "forbidden outcome, a functional-looking control over nothing",
                   kMmRowBase.c_str());
         CAP_CHECK(std::string(Tooltip(*mmRow)) == mmReason,
                   "'%s' greyed itself with '%s', not the capability reason '%s'", kMmRowBase.c_str(), Tooltip(*mmRow),
@@ -449,7 +452,8 @@ extern "C" int OoT_MenuCapabilityGating_RunHeadless(void) {
             stateRow->name = kStateRowBase;
             stateRow->ResetDisables();
             SohGui::SohMenu::ApplyPresentation(*stateRow, stateRow->name, (SohGui::SohMenuPresentation)from,
-                                               from == (int)SohGui::SOH_MENU_PRESENT_LIVE ? nullptr : "Reason A (#497)");
+                                               from == (int)SohGui::SOH_MENU_PRESENT_LIVE ? nullptr
+                                                                                          : "Reason A (#497)");
             stateRow->ResetDisables();
             SohGui::SohMenu::ApplyPresentation(*stateRow, stateRow->name, (SohGui::SohMenuPresentation)to,
                                                to == (int)SohGui::SOH_MENU_PRESENT_LIVE ? nullptr : "Reason B (#497)");

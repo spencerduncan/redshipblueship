@@ -158,8 +158,7 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
 
     // The registry is process-global, so start from a known state rather than
     // from whatever ran before in AllTests.
-    while (SohGui::UnregisterComboSectionPage(kExtPageName)) {
-    }
+    while (SohGui::UnregisterComboSectionPage(kExtPageName)) {}
 
     // ---- Leg 1: the section, its header CVar, and its two shipped pages -----
     ComboSectionMenuProbe probe;
@@ -173,8 +172,7 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
     }
     MainMenuEntry& combo = entries.at("Combo");
     COMBO_CHECK(combo.label == "Combo", "the tier-4 header is labelled '%s'", combo.label.c_str());
-    COMBO_CHECK(combo.sidebarCvar != nullptr &&
-                    std::string(combo.sidebarCvar) == "gSettings.Menu.ComboSidebarSection",
+    COMBO_CHECK(combo.sidebarCvar != nullptr && std::string(combo.sidebarCvar) == "gSettings.Menu.ComboSidebarSection",
                 "the Combo header's sidebar CVar is '%s'; MainMenuEntry::sidebarCvar is where the last-viewed sidebar "
                 "persists, and a header sharing another's key would move both",
                 combo.sidebarCvar != nullptr ? combo.sidebarCvar : "(null)");
@@ -199,8 +197,9 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
         COMBO_CHECK(page.columnCount >= 1, "Combo / %s declares %u columns", pageName, page.columnCount);
         // #640, verbatim: an empty multi-column page leaves Menu::DrawElement's
         // SetNextWindowPos unconsumed and undocks the "Main Game" window.
-        COMBO_CHECK(RowCount(page) > 0, "Combo / %s is registered with no widgets at all -- #640's failure mode, which "
-                                        "undocks libultraship's \"Main Game\" window rather than merely looking empty",
+        COMBO_CHECK(RowCount(page) > 0,
+                    "Combo / %s is registered with no widgets at all -- #640's failure mode, which "
+                    "undocks libultraship's \"Main Game\" window rather than merely looking empty",
                     pageName);
         // Every row must be in a column the page actually draws.
         for (uint32_t column = 0; column < page.columnWidgets.size(); column++) {
@@ -262,23 +261,24 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
         SidebarEntry& windows = combo.sidebars.at("Cross-Game Windows");
         for (const WindowRow& expected : kWindowRows) {
             WidgetInfo* row = FindRow(windows, expected.rowName);
-            COMBO_CHECK(row != nullptr, "the Cross-Game Windows page has no \"%s\" row -- that window is reachable "
-                                        "only from the console again",
+            COMBO_CHECK(row != nullptr,
+                        "the Cross-Game Windows page has no \"%s\" row -- that window is reachable "
+                        "only from the console again",
                         expected.rowName);
             if (row == nullptr) {
                 continue;
             }
             COMBO_CHECK(row->type == WIDGET_WINDOW_BUTTON, "row '%s' has widget type %d, expected WIDGET_WINDOW_BUTTON",
                         expected.rowName, (int)row->type);
-            COMBO_CHECK(row->cVar != nullptr && std::string(row->cVar) == expected.cVar,
-                        "row '%s' binds CVar '%s', expected '%s' -- WINDOW_BUTTON reads .CVar for its open/close label, "
-                        "so a mismatch is a button that reads wrong while working",
-                        expected.rowName, row->cVar != nullptr ? row->cVar : "(null)", expected.cVar);
+            COMBO_CHECK(
+                row->cVar != nullptr && std::string(row->cVar) == expected.cVar,
+                "row '%s' binds CVar '%s', expected '%s' -- WINDOW_BUTTON reads .CVar for its open/close label, "
+                "so a mismatch is a button that reads wrong while working",
+                expected.rowName, row->cVar != nullptr ? row->cVar : "(null)", expected.cVar);
             COMBO_CHECK(row->windowName != nullptr && std::string(row->windowName) == expected.windowName,
                         "row '%s' names window '%s', expected '%s' -- ToggleVisibility is looked up BY THIS NAME, so a "
                         "mismatch is a button that opens nothing",
-                        expected.rowName, row->windowName != nullptr ? row->windowName : "(null)",
-                        expected.windowName);
+                        expected.rowName, row->windowName != nullptr ? row->windowName : "(null)", expected.windowName);
             auto options = std::static_pointer_cast<UIWidgets::WindowButtonOptions>(row->options);
             COMBO_CHECK(options != nullptr && !options->embedWindow,
                         "row '%s' embeds its window; the embed path calls DrawElement() directly and bypasses MM's "
@@ -384,8 +384,9 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
         // Contributed pages come LAST, so a contributor cannot reorder the
         // shipped ones out from under a player's persisted selection.
         auto& order = extProbe.Entries().at("Combo").sidebarOrder;
-        COMBO_CHECK(order.size() >= 3, "the Combo section has %zu sidebars in order, expected the two shipped plus the "
-                                       "contributed one",
+        COMBO_CHECK(order.size() >= 3,
+                    "the Combo section has %zu sidebars in order, expected the two shipped plus the "
+                    "contributed one",
                     order.size());
         if (order.size() >= 3) {
             COMBO_CHECK(order.at(0) == "Cross-Game Rules" && order.at(1) == "Cross-Game Windows" &&
