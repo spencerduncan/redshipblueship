@@ -3278,6 +3278,33 @@ TestResult Test_MMTrickBindings(void) {
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// MM's REAL ComboLogicEngine, behind lane K1's coordinator surface (#645
+// increment 3). Same bring-up and the same reason as the two trick rows above:
+// every answer the engine gives comes from a std::function inside the
+// ShipInit-populated Rando::Logic::Regions, and the row runs the real
+// CrawlReachableRegions and Rando::GiveItem paths — so `--test all` skips it and
+// it runs as a rando-label CTest. The coordinator itself is locked over synthetic
+// stub engines by the three combo-logic-* rows, which need neither.
+extern "C" int MM_ComboLogicEngine_RunHeadless(void);
+
+TestResult Test_MMComboLogicEngine(void) {
+    printf("[TEST] mm-combo-logic-engine: MM's registered ComboLogicEngine against the real region graph (#645)\n");
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    int rc = MM_ComboLogicEngine_RunHeadless();
+    printf("[TEST] %s: MM combo-logic engine rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // Spoiler-drop identity gate (#610). Drives the REAL spoiler-LOAD consumer pair
 // (Rando::Spoiler::LoadFromFile + ApplyToSaveContext — the two calls
 // OnFileCreate's LOAD branch makes) over a spoiler written by the real writer
@@ -4017,6 +4044,16 @@ const TestDescriptor gTests[] = {
      "The single-bag fill is seed-determined, `none` draws from all empties with no round run, and beat-either is "
      "never biased (#645)",
      Test_ComboLogicFill},
+    // MM's REAL engine behind that surface (#645 increment 3). Needs MM's boot for
+    // the same reason mm-trick-gbt-gate does — every answer is a std::function
+    // inside the ShipInit-populated Rando::Logic::Regions — so `--test all` skips
+    // it (below) and it runs as a rando-label CTest. It restores gSaveContext and
+    // the game-events queue depth byte-for-byte and un-does its own placements, so
+    // it is otherwise order-free.
+    {"mm-combo-logic-engine",
+     "MM's ComboLogicEngine answers from the real region graph, brackets the live save byte-exactly, is monotone "
+     "under assume and agrees with itself (#645, ADR 0010 inc. 3)",
+     Test_MMComboLogicEngine},
     {nullptr, nullptr, nullptr}  // Sentinel
 };
 
@@ -4102,6 +4139,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "combo-creation-event") == 0 ||
                 strcmp(gTests[i].name, "mm-trick-gbt-gate") == 0 ||
                 strcmp(gTests[i].name, "mm-trick-bindings") == 0 ||
+                strcmp(gTests[i].name, "mm-combo-logic-engine") == 0 ||
                 strcmp(gTests[i].name, "rando-entrance-pin") == 0) {
                 printf("\n--- Skipping: %s (needs display; runs as a rando-label CTest) ---\n", gTests[i].name);
                 continue;

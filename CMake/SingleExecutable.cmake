@@ -1639,6 +1639,29 @@ if(BUILD_TESTING)
     redship_add_test(NAME ComboLogicFixpoint COMMAND redship --test combo-logic-fixpoint)
     redship_add_test(NAME ComboLogicFill COMMAND redship --test combo-logic-fill)
 
+    # MM's REAL engine behind that surface (#645 increment 3, lane K2b):
+    # games/mm/2s2h/Rando/ComboLogicEngineSingleExe.cpp driven through
+    # Combo_Logic_GetEngine(GAME_MM) — which makes the first leg a
+    # registrar-elision lock too, since MM publishes the vtable from a file-scope
+    # static in a TU nothing else references (#516/#678).
+    #
+    # Tier `rando`, not `redship`, and the reason is the same one MMTrickGbtGate
+    # and MMTrickBindings give: every answer comes from a std::function inside the
+    # ShipInit-populated Rando::Logic::Regions, and the row additionally runs
+    # CrawlReachableRegions and the REAL Rando::GiveItem path a dozen times. Audit
+    # §6.3 lists "can MM's crawl run without a display" as undetermined, so this
+    # row is not the place to find out; MMMajoraGoal shows a display-free MM graph
+    # row is possible, and moving this one down a tier is a follow-up with a
+    # measurement attached, not a tidy-up.
+    #
+    # Timeout above the 180 its siblings use: the round is a full MM crawl plus a
+    # reachable-check evaluation, and the monotonicity leg runs one round per
+    # granted item (nine) plus the repeat-grant pair.
+    redship_add_test(NAME MMComboLogicEngine COMMAND redship --test mm-combo-logic-engine
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)
     # These tests actually boot the games and verify boot completion
