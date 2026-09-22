@@ -177,8 +177,10 @@ const char* Combo_ModsRootForGame(GameId game);
  *
  * It is what gates OoT's `mods/mm` skip: reserving the subfolder when MM is NOT
  * globbing that tree would leave archives there mounted by neither game. Compares
- * `weakly_canonical` forms, so two spellings of one directory agree and a
- * not-yet-created directory still answers. False on a NULL/empty argument.
+ * `weakly_canonical(absolute(...))` forms, so a relative spelling and an absolute
+ * one for the same directory agree, and a directory that does not exist yet still
+ * answers — `weakly_canonical` alone does not do either, because it leaves a
+ * relative path with no existing prefix relative. False on a NULL/empty argument.
  */
 bool Combo_ModsRootsAreShared(const char* ootModsRoot, const char* mmModsRoot);
 

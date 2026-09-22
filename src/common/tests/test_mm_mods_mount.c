@@ -89,10 +89,14 @@
  *      leg an archive there is skipped by OoT and never seen by MM: mounted by
  *      NEITHER game, which is the failure the disjointness check in (1) is about and
  *      structurally cannot see, since it is only ever handed one root.
- *   8. One tree, one traversal rule: an archive reachable only through a symlinked
+ *   8. One tree, one traversal rule: an archive reachable only through a linked
  *      folder under `mods/mm` is mounted, the way OoT has always mounted one under
- *      `mods/`. SKIPS with a printed reason where a directory symlink cannot be
- *      created (Windows without Developer Mode); CI's Linux job runs it.
+ *      `mods/`. A directory symlink where the platform allows one; on Windows,
+ *      where that needs Developer Mode or SeCreateSymbolicLinkPrivilege, a
+ *      JUNCTION, which needs neither and which MSVC's iterator descends into only
+ *      with `follow_directory_symlink`. If neither can be created the leg prints
+ *      that it did not run and the PASS line says so — the summary never claims a
+ *      leg that skipped.
  *
  * ANTI-VACUITY. Every "the mod owns it" assertion is preceded by the matching
  * "the base owns it" precondition on the SAME path, so each leg is a measured
@@ -132,6 +136,7 @@
 #include <ship/resource/archive/ArchiveManager.h>
 
 #include <cstdio>
+#include <cstdlib> /* std::system, for the Windows junction fallback in part 10 */
 #include <filesystem>
 #include <memory>
 #include <string>
@@ -582,6 +587,11 @@ extern "C" int MMModsMount_RunHeadless(const char* sohArchive, const char* mmArc
     auto archiveSnapshot = archiveMgr->GetArchives();
 
     int rc = 0;
+    // Whether part 10 (one tree, one traversal rule) actually ran. It needs a
+    // directory link and can be denied one, so the PASS summary reports what was
+    // measured instead of asserting the leg unconditionally — a summary that claims
+    // a leg which silently skipped is how a row stops being read.
+    bool sharedWalkLegRan = false;
     Combo_ClearModArchives(GAME_OOT);
     Combo_ClearModArchives(GAME_MM);
 
@@ -901,19 +911,45 @@ extern "C" int MMModsMount_RunHeadless(const char* sohArchive, const char* mmArc
                 rc = 17;
                 break;
             }
+            const std::filesystem::path linkPath = root / "mm" / "linked";
             std::error_code linkEc;
-            std::filesystem::create_directory_symlink(linkTarget, root / "mm" / "linked", linkEc);
+            std::filesystem::create_directory_symlink(linkTarget, linkPath, linkEc);
+            const char* linkKind = linkEc ? nullptr : "directory symlink";
+#if defined(_WIN32)
+            // Fall back to a JUNCTION, which is the point of this branch rather than
+            // a convenience: `create_directory_symlink` needs Developer Mode or
+            // SeCreateSymbolicLinkPrivilege on Windows, so without this the leg
+            // never ran on a developer workstation or on CI's Windows job — a lock
+            // observable on one of three platforms. A junction is a reparse point
+            // MSVC's <filesystem> reports as `file_type::junction` and, measured on
+            // this workstation, `recursive_directory_iterator` descends into it ONLY
+            // with follow_directory_symlink: 1 file found with
+            // skip_permission_denied alone, 2 with the shared options. So it
+            // exercises the exact divergence PR #704 shipped.
+            //
+            // mklink is a cmd builtin and needs no privilege; the alternative is
+            // CreateDirectoryW + DeviceIoControl(FSCTL_SET_REPARSE_POINT), which
+            // would drag windows.h into a TU that includes libultraship's headers.
             if (linkEc) {
-                printf("[mm-mods-mount] NOTE: directory symlinks are unavailable here (%s) — the shared-walk-options "
-                       "leg did not run. It runs on CI's Linux job.\n",
+                const std::string mklink = "cmd /c mklink /J \"" + linkPath.string() + "\" \"" +
+                                           linkTarget.string() + "\" >nul 2>&1";
+                std::error_code existsEc;
+                if (std::system(mklink.c_str()) == 0 && std::filesystem::exists(linkPath, existsEc)) {
+                    linkKind = "directory junction";
+                }
+            }
+#endif
+            if (linkKind == nullptr) {
+                printf("[mm-mods-mount] NOTE: no directory symlink or junction could be created here (%s) — the "
+                       "shared-walk-options leg did not run, and this run does NOT cover it.\n",
                        linkEc.message().c_str());
             } else {
                 const int mountedWithLink = MM_MountModArchivesHeadless(rootStr.c_str());
                 if (mountedWithLink != 3 || Combo_GetModArchiveCount(GAME_MM) != 3) {
-                    printf("[TEST] FAIL(17): with an archive reachable only through a symlinked folder under mods/mm, "
+                    printf("[TEST] FAIL(17): with an archive reachable only through a linked folder (%s) under mods/mm, "
                            "MM mounted %d and has %d registered, expected 3 and 3 — MM's walk is not following "
                            "directory symlinks, which OoT's walk over the same tree does (#670, PR #704 review)\n",
-                           mountedWithLink, Combo_GetModArchiveCount(GAME_MM));
+                           linkKind, mountedWithLink, Combo_GetModArchiveCount(GAME_MM));
                     rc = 17;
                     break;
                 }
@@ -925,12 +961,14 @@ extern "C" int MMModsMount_RunHeadless(const char* sohArchive, const char* mmArc
                     }
                 }
                 if (!sawLinked) {
-                    printf("[TEST] FAIL(17): MM mounted 3 archives but none of them is the one behind the symlink — "
-                           "the count is right for the wrong reason\n");
+                    printf("[TEST] FAIL(17): MM mounted 3 archives but none of them is the one behind the link — the "
+                           "count is right for the wrong reason\n");
                     rc = 17;
                     break;
                 }
-                printf("[mm-mods-mount] the symlinked folder under mods/mm was traversed: 3 MM mods mounted\n");
+                printf("[mm-mods-mount] the linked folder under mods/mm was traversed (%s): 3 MM mods mounted\n",
+                       linkKind);
+                sharedWalkLegRan = true;
             }
         }
     } while (false);
@@ -945,8 +983,10 @@ extern "C" int MMModsMount_RunHeadless(const char* sohArchive, const char* mmArc
         printf("[mm-mods-mount] PASS: MM mounted 2 of 4 staged files (mods/mm only, nested included, sorted by stem) "
                "and OoT claimed exactly the 1 in the root, both registries fed, the override beats MM's base archive, "
                "an OoT path is reclaimed by soh.o2r on the switch to OoT and the override returns on the switch back, "
-               "a second mount is a no-op, OoT claims all 3 again when MM's root is a DIFFERENT directory, and MM "
-               "traverses a symlinked folder under mods/mm the way OoT traverses one under mods/\n");
+               "a second mount is a no-op, and OoT claims all 3 again when MM's root is a DIFFERENT directory. The "
+               "shared-walk-options leg (MM traverses a linked folder under mods/mm the way OoT traverses one under "
+               "mods/) %s\n",
+               sharedWalkLegRan ? "ran and passed." : "DID NOT RUN here: no directory link could be created.");
     }
     return rc;
 }

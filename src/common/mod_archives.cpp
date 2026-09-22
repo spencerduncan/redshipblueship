@@ -171,23 +171,42 @@ extern "C" bool Combo_ModsRootsAreShared(const char* ootModsRoot, const char* mm
     if (ootModsRoot == nullptr || ootModsRoot[0] == '\0' || mmModsRoot == nullptr || mmModsRoot[0] == '\0') {
         return false;
     }
-    // weakly_canonical, not string equality and not lexically_normal: the two
-    // roots are produced by two separate LocateFileAcrossAppDirs calls that can
-    // legitimately spell the same directory differently ("./mods" vs "mods" vs an
-    // absolute pref-dir path that happens to be the CWD), and weakly_canonical
-    // resolves the existing prefix — including symlinks and the CWD — while still
-    // answering for a directory that does not exist yet. On error (a path with no
-    // resolvable prefix) fall back to the normalized spelling rather than
-    // guessing: a wrong "shared" answer reserves mods/mm from OoT in a build where
-    // MM never looks there, and a wrong "not shared" answer double-mounts every MM
-    // mod, so both directions matter and neither is a safe default.
+    // absolute() FIRST, then weakly_canonical, and not string equality: the two
+    // roots are produced by two separate LocateFileAcrossAppDirs calls that
+    // legitimately spell the same directory differently. One of them is typically
+    // relative ("./mods" or "mods", the install-folder fallback) and the other
+    // absolute (SDL_GetPrefPath's, or SHIP_HOME's), and those two are the same
+    // directory exactly when the relative one resolves against the current
+    // directory to the absolute one.
+    //
+    // weakly_canonical alone does NOT settle that: it canonicalizes the longest
+    // EXISTING prefix and appends the rest lexically, so for a relative path with
+    // no existing prefix — which is the normal case here, since this is asked
+    // before `mods` has been created — MSVC hands back the relative spelling
+    // unchanged and the comparison against an absolute path is false. The #670 row
+    // caught exactly that ("absolute vs relative, same directory" came back not
+    // shared), and answering "not shared" for one shared tree is the direction that
+    // double-mounts every MM mod under both games. absolute() removes the
+    // dependence on whether the directory exists yet; weakly_canonical still runs,
+    // so a symlinked or ".."-laden existing prefix resolves.
+    //
+    // On error (absolute() can fail with no current directory) fall back to the
+    // lexically normalized spellings rather than guessing: a wrong "shared" answer
+    // reserves mods/mm from OoT in a build where MM never looks there, and a wrong
+    // "not shared" answer double-mounts, so both directions matter and neither is a
+    // safe default.
     std::error_code ootEc;
     std::error_code mmEc;
-    const std::filesystem::path ootPath = std::filesystem::weakly_canonical(ootModsRoot, ootEc);
-    const std::filesystem::path mmPath = std::filesystem::weakly_canonical(mmModsRoot, mmEc);
+    const std::filesystem::path ootAbs = std::filesystem::absolute(ootModsRoot, ootEc);
+    const std::filesystem::path mmAbs = std::filesystem::absolute(mmModsRoot, mmEc);
     if (ootEc || mmEc) {
         return std::filesystem::path(ootModsRoot).lexically_normal() ==
                std::filesystem::path(mmModsRoot).lexically_normal();
+    }
+    const std::filesystem::path ootPath = std::filesystem::weakly_canonical(ootAbs, ootEc);
+    const std::filesystem::path mmPath = std::filesystem::weakly_canonical(mmAbs, mmEc);
+    if (ootEc || mmEc) {
+        return ootAbs.lexically_normal() == mmAbs.lexically_normal();
     }
     return ootPath == mmPath;
 }
