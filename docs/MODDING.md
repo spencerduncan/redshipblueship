@@ -43,7 +43,31 @@ case-insensitively, so `mods/MM/` works too. `mods/mm/` is created for you on
 first run, with a `majoras_mask_mod_files_go_here.txt` marker inside.
 
 Nothing else in the tree is reserved: `mods/anything-else/` is OoT's, like the
-root.
+root. `mm` is reserved only as the **first** folder under `mods/` —
+`mods/my-pack/mm/` is OoT's.
+
+**`mods/mm/` is reserved from OoT only while the two games really do share one
+folder.** The sharing comes from that portable-build lookup, not from the source, so
+the combo compares the two folders at runtime instead of assuming: whenever they
+resolve to different directories, nothing is globbing OoT's `mods/mm/` but OoT, and
+OoT keeps it — exactly as before this feature existed. You only ever lose a folder to
+MM when MM is actually reading it. (A `NON_PORTABLE` build is what separates them, by
+using a per-app-name preferences folder. `SHIP_HOME` on Linux, and the install-folder
+fallback that applies until one of those preferences folders actually contains a
+`mods`, bring them back together — which is why this is a runtime comparison and not
+a build flag.)
+
+Both halves of the tree are also **walked** the same way: recursively, following
+directory symlinks (so you can keep one library of mods and link it into an
+install), and skipping a subfolder the OS will not let the game read rather than
+abandoning the whole walk.
+
+If something else about your `mods/` folder does stop a walk part-way — a broken
+symlink or reparse point is the usual cause — the walk is not abandoned silently:
+OoT prints `[OoT] WARNING: the walk of mods folder … ended early` and names how many
+archives it had found. Mods that would have come after that point are not offered in
+the mod menu and are dropped from your enabled list, so it is worth fixing rather
+than ignoring.
 
 > **Upgrading: if you already have a `mods/mm/` folder, its archives change
 > owner.** OoT's mods folder has always been searched recursively, so anything you
@@ -84,9 +108,19 @@ overrides a base asset at all.
   not; an MM mod menu at parity is tracked as a follow-up issue. It is listed here
   rather than papered over, because the alternative available today — making MM
   read OoT's `EnabledMods` setting — would let a stale OoT list silently disable an
-  MM mod, which is a worse asymmetry, not a smaller one. The *other* half of the
-  question, which file types count as a mod archive, was cheap to align and has
-  been: both sides use OoT's rule.
+  MM mod, which is a worse asymmetry, not a smaller one.
+
+  Two related differences that were **not** worth keeping have been aligned
+  instead: which file types count as a mod archive (both sides use OoT's rule, see
+  above), and how the folder is walked (both sides follow directory symlinks and
+  skip unreadable subfolders — for a while MM's half did not follow symlinks, so a
+  linked mod folder worked under `mods/` and silently did nothing under
+  `mods/mm/`).
+
+  One more difference is bookkeeping rather than behaviour you can see: OoT mounts
+  only the archives its enabled list names and identifies them by file name with
+  the extension removed, so two archives with the same name in different
+  subfolders count as one. MM mounts everything it finds.
 - **Between the two games:** OoT and MM already ship many colliding resource
   paths of their own — 151 object names, 14 actor overlays and all three
   `gameplay_*_keep` archives (`docs/resource-namespace-audit.md`), plus 595 paths
