@@ -3911,7 +3911,9 @@ const TestDescriptor gTests[] = {
     // archive-extension rule as pure path logic. Needs nothing staged and no
     // bring-up, so it runs (and can fail) in the archive-less netplay-relay job
     // where mm-mods-mount SKIPs.
-    {"mm-mods-partition", "The shared mods/ tree partition and archive-extension rule are total and disjoint (#670)",
+    {"mm-mods-partition",
+     "Each game's claim on the shared mods/ tree is pinned independently, disjoint everywhere and total under the "
+     "root; plus the roots-shared gate and the shared archive-extension rule (#670)",
      Test_MMModsPartition},
     // The tier-4 combo settings' menu rows (#655). Builds a SohMenu headless, so
     // it needs the display-free shared bring-up above but no window; it writes

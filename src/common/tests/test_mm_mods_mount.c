@@ -190,19 +190,31 @@ bool MmmPathContains(const std::string& haystack, const char* needle) {
  * job that deliberately runs this label archive-less (#562), while the comment
  * here claimed "these run even when the archives are unstaged".
  *
- * WHAT THE TABLE MEASURES, and why it did not before. PR #704 shipped a table that
- * checked MM's answer against the authored expectation and then asserted
- * `oot != mm`. The predicate computed both answers from one bool in one expression
- * (`return game == GAME_MM ? isMm : !isMm;`), so that second assertion was a
- * restatement of the return statement: no input could make it fire, and no
- * counterfactual in that PR ever observed it red. Its reviewer was right. OoT's side
- * is now its own rule ("under the root, and the first component is not the reserved
- * folder"), so the two CAN disagree, and the table therefore pins THREE outcomes
- * per path — MM's, OoT's, and the derived partition property:
+ * WHAT THE PARTITION CHECKS MEASURE, and why they did not before. PR #704 shipped a
+ * table that checked MM's answer against the authored expectation and then asserted
+ * that `oot == mm` never happened. The predicate computed both answers from one bool
+ * in one expression (`return game == GAME_MM ? isMm : !isMm;`), so that second
+ * assertion was a restatement of the return statement: no input could make it fire,
+ * and no counterfactual in that PR ever observed it red. Its reviewer was right.
+ * Two changes, because fixing only the first would have left the second assertion
+ * just as unreachable:
  *
- *   - every path is claimed by at most one game (disjointness), and
- *   - every path UNDER THE ROOT is claimed by exactly one (totality on the domain
- *     that a directory iteration can actually produce).
+ *   (a) OoT's side is its OWN rule in the production predicate now ("under the root,
+ *       and the first component is not the reserved folder"), not the negation of
+ *       MM's, so the two CAN disagree. The table below therefore pins EACH game's
+ *       answer per path against the authored expectation — two measurements, not one
+ *       restated.
+ *   (b) The partition PROPERTIES — never both, never neither under the root — moved
+ *       OUT of that table into a sweep over generated paths that carry no authored
+ *       expectation at all (kShapes below). Inside the pinned loop those properties
+ *       are unreachable BY CONSTRUCTION, however the predicate is written: once
+ *       `mm == (owner == kOwnerMm)` and `oot == (owner == kOwnerOoT)` have both
+ *       passed, "both claimed" would need `owner` to be two values at once and
+ *       "neither claimed, under the root" would need it to be a third. Only a
+ *       property asserted about paths nobody wrote an expectation for can go red —
+ *       and it does: give MM's rule a prefix match and `mods/mmx/x.o2r` is claimed
+ *       TWICE; drop a folder name from OoT's rule and `mods/sub/x.o2r` is claimed by
+ *       NOBODY. Neither of those shapes needs to be in the pinned table.
  *
  * A path in some other tree is claimed by NEITHER, which is the honest answer and
  * a behaviour change: the negation-based predicate answered "OoT's" for it.
@@ -282,20 +294,11 @@ extern "C" int MMModsPartition_RunHeadless(void) {
                    oot ? "claimed" : "did not claim", c.path, c.root, c.why);
             return 2;
         }
-        // Disjoint: never both. A path claimed twice is mounted twice and
-        // registered under both games, and #593's switch-time re-apply then stacks
-        // it over the OTHER game's base archives on every arrival.
-        if (oot && mm) {
-            printf("[TEST] FAIL(2): partition is not disjoint: both games claimed '%s' (%s)\n", c.path, c.why);
-            return 2;
-        }
-        // Total, over the domain that matters: a path under the root claimed by
-        // neither game would be a mod silently mounted by nobody.
-        if (c.owner != kOwnerNeither && !oot && !mm) {
-            printf("[TEST] FAIL(2): partition is not total: neither game claimed '%s', which is under the root (%s)\n",
-                   c.path, c.why);
-            return 2;
-        }
+        // NO disjointness or totality assertion here, deliberately. With both pins
+        // above satisfied those two properties are unreachable by construction — see
+        // point (b) of this function's comment — so asserting them in this loop is
+        // the same shape of non-lock PR #704 shipped. They are measured below, over
+        // paths that carry no authored expectation.
         if (mm) {
             mmClaims++;
         } else if (oot) {
@@ -305,8 +308,81 @@ extern "C" int MMModsPartition_RunHeadless(void) {
         }
     }
     MMM_ASSERT(mmClaims > 0 && ootClaims > 0 && neitherClaims > 0, 2,
-               "the partition table did not exercise all three outcomes — the disjointness and totality checks would "
-               "be one-sided");
+               "the pinned partition table did not exercise all three outcomes, so at least one of the three is not "
+               "pinned at all");
+
+    // ---- The partition PROPERTIES, over unpinned paths -------------------------
+    // Generated shapes, on purpose: nobody authored an expected owner for these, so
+    // "exactly one claimant under the root" and "no claimant outside it" are real
+    // measurements of the two rules against each other rather than of each rule
+    // against a hand-written answer. This is the half that has a reachable red.
+    //
+    // Shapes chosen so that a plausible drift in EITHER rule is caught: `mmx`/`xmm`/
+    // `mm2`/`m`/`mm-extra` catch an MM rule that starts matching by prefix, substring
+    // or truncation (both games would claim them); `sub`/`a`/`z-pack`/`MoDs`/the
+    // root-level file catch an OoT rule that stops claiming some ordinary folder
+    // (neither game would). Deep tails check that only the FIRST component decides.
+    struct Shape {
+        const char* first; // the first component under the root; "" for a root-level file
+        const char* tail;  // the rest, relative to that component
+    };
+    static const Shape kShapes[] = {
+        { "", "x.o2r" },         { "", "y.otr" },          { "mm", "x.o2r" },
+        { "mm", "deep/x.o2r" },  { "MM", "x.o2r" },        { "mM", "deep/deeper/x.otr" },
+        { "mmx", "x.o2r" },      { "xmm", "x.o2r" },       { "mm2", "deep/x.o2r" },
+        { "m", "x.o2r" },        { "mm-extra", "x.o2r" },  { "mm.o2r", "x.o2r" },
+        { "sub", "x.o2r" },      { "sub", "mm/x.o2r" },    { "sub", "deep/mm/x.o2r" },
+        { "a", "x.o2r" },        { "z-pack", "deep/x.o2r" }, { "MoDs", "x.o2r" },
+        { "notes.txt", "x" },    { "mm ", "x.o2r" },
+    };
+    // Three root spellings, because the two globs are handed the root by
+    // LocateFileAcrossAppDirs and the properties must not depend on how it spelled it.
+    const std::string absRoot = (std::filesystem::current_path() / "mods").generic_string();
+    const char* kRoots[] = { "./mods", "mods", absRoot.c_str() };
+    int sweptUnder = 0;
+    for (const char* rootSpelling : kRoots) {
+        for (const auto& s : kShapes) {
+            std::string p = std::string(rootSpelling) + "/";
+            if (s.first[0] != '\0') {
+                p += std::string(s.first) + "/";
+            }
+            p += s.tail;
+            const bool mm = Combo_ModPathIsForGame(GAME_MM, rootSpelling, p.c_str());
+            const bool oot = Combo_ModPathIsForGame(GAME_OOT, rootSpelling, p.c_str());
+            if (mm && oot) {
+                printf("[TEST] FAIL(2): partition is not disjoint: BOTH games claimed '%s' under root '%s'. A path "
+                       "claimed twice is mounted twice and registered under both games, and #593's switch-time "
+                       "re-apply then stacks it over the OTHER game's base archives on every arrival.\n",
+                       p.c_str(), rootSpelling);
+                return 2;
+            }
+            if (!mm && !oot) {
+                printf("[TEST] FAIL(2): partition is not total: NEITHER game claimed '%s', which is under root '%s'. "
+                       "A mod archive there would be mounted by nobody, which is silent.\n",
+                       p.c_str(), rootSpelling);
+                return 2;
+            }
+            sweptUnder++;
+        }
+    }
+    // The complement: outside the root, neither game claims. This is where the
+    // negation-based predicate was wrong (it answered "OoT's" for every one of
+    // these), and it is what makes "total" a statement about a domain instead of
+    // about every string.
+    static const char* kOutside[] = {
+        "./elsewhere/mm/x.o2r", "./elsewhere/x.o2r", "./modsx/mm/x.o2r",   "./modsx/x.o2r",
+        "../mods/mm/x.o2r",     "./mods/../x.o2r",   "./mods/../mm/x.o2r", "./mods",
+        "./mods/.",             "./mods/..",
+    };
+    for (const char* p : kOutside) {
+        if (Combo_ModPathIsForGame(GAME_MM, "./mods", p) || Combo_ModPathIsForGame(GAME_OOT, "./mods", p)) {
+            printf("[TEST] FAIL(2): '%s' is not under './mods', yet a game claimed it — the partition's domain is "
+                   "paths under the root, and a claim outside it would have OoT (or MM) mount a file from a tree it "
+                   "never walked\n",
+                   p);
+            return 2;
+        }
+    }
 
     // ---- The roots-shared gate ------------------------------------------------
     // Combo_ModPathIsForGame answers "whose half of a SHARED tree is this". It is
@@ -317,8 +393,10 @@ extern "C" int MMModsPartition_RunHeadless(void) {
     // unconditionally and its body claimed "the partition still holds" in that
     // configuration; it does not — an archive at `<soh-prefdir>/mods/mm/x.o2r` was
     // skipped by OoT while MM globbed a different directory entirely, so it was
-    // mounted by NEITHER game, which is the exact gap the disjointness check above
-    // is supposed to be about and cannot see, because it is handed one root.
+    // mounted by NEITHER game. That is the same "mounted by nobody" failure the
+    // totality sweep above is about, and no partition check can see it, because the
+    // partition is asked about one root and this failure lives in the relationship
+    // between two. Hence a separate predicate with its own cases.
     struct RootsCase {
         const char* oot;
         const char* mm;
@@ -378,10 +456,12 @@ extern "C" int MMModsPartition_RunHeadless(void) {
     MMM_ASSERT(!Combo_ModArchiveExtensionIsValid(""), 3, "an empty extension is accepted as a mod archive");
     MMM_ASSERT(!Combo_ModArchiveExtensionIsValid(nullptr), 3, "a NULL extension is accepted as a mod archive");
 
-    printf("[mm-mods-partition] PASS: %d MM / %d OoT / %d neither path cases, each game's answer pinned "
-           "independently, never both and never neither under the root; %d roots-shared cases; degenerate arguments "
-           "claim nothing; one extension rule for both games (.o2r/.otr yes, .zip no)\n",
-           mmClaims, ootClaims, neitherClaims, (int)(sizeof(kRootCases) / sizeof(kRootCases[0])));
+    printf("[mm-mods-partition] PASS: %d MM / %d OoT / %d neither pinned path cases, each game's answer pinned "
+           "independently; %d unpinned paths under the root each claimed by exactly one game and %d outside it claimed "
+           "by neither; %d roots-shared cases; degenerate arguments claim nothing; one extension rule for both games "
+           "(.o2r/.otr yes, .zip no)\n",
+           mmClaims, ootClaims, neitherClaims, sweptUnder, (int)(sizeof(kOutside) / sizeof(kOutside[0])),
+           (int)(sizeof(kRootCases) / sizeof(kRootCases[0])));
     return 0;
 }
 

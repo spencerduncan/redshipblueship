@@ -131,6 +131,15 @@ bool PathIsOoTs(const char* modsRoot, const char* path) {
 // every call rather than cached: LocateFileAcrossAppDirs's answer CHANGES once a
 // mods folder is created (MM creates mods/mm during boot and then globs it), so
 // a cache would freeze the pre-creation answer.
+//
+// The mutex serializes the slot WRITES, which is what keeps two games' concurrent
+// lookups from tearing each other's std::string. It does NOT make the returned
+// pointer safe against a second call FOR THE SAME game from another thread — that
+// would reassign the very string the first caller is holding, and no lock held
+// inside this function can cover the caller's use of the result. Both call sites
+// are single-threaded boot/GUI-init paths and copy the result immediately
+// (games/oot/soh/Enhancements/mod_menu.cpp, games/mm/2s2h/GameExports_SingleExe.cpp);
+// the header states the per-game lifetime that callers must respect.
 std::string sModsRoots[3];
 std::mutex sModsRootsMutex;
 

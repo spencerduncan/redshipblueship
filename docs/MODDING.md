@@ -48,12 +48,14 @@ root. `mm` is reserved only as the **first** folder under `mods/` —
 
 **`mods/mm/` is reserved from OoT only while the two games really do share one
 folder.** The sharing comes from that portable-build lookup, not from the source, so
-the combo checks it at runtime instead of assuming it: if a build resolves the two
-mods folders to different directories (a `NON_PORTABLE` build uses a per-app-name
-preferences folder; `SHIP_HOME` on Linux collapses them again even then), then
-nothing is globbing OoT's `mods/mm/` but OoT, and OoT keeps it — exactly as before
-this feature existed. You only ever lose a folder to MM when MM is actually reading
-it.
+the combo compares the two folders at runtime instead of assuming: whenever they
+resolve to different directories, nothing is globbing OoT's `mods/mm/` but OoT, and
+OoT keeps it — exactly as before this feature existed. You only ever lose a folder to
+MM when MM is actually reading it. (A `NON_PORTABLE` build is what separates them, by
+using a per-app-name preferences folder. `SHIP_HOME` on Linux, and the install-folder
+fallback that applies until one of those preferences folders actually contains a
+`mods`, bring them back together — which is why this is a runtime comparison and not
+a build flag.)
 
 Both halves of the tree are also **walked** the same way: recursively, following
 directory symlinks (so you can keep one library of mods and link it into an

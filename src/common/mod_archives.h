@@ -68,9 +68,15 @@
  * ONLY WHEN THE TWO ROOTS ARE THE SAME DIRECTORY. The collapse above is a
  * property of a portable build, not of the source: with `NON_PORTABLE` defined,
  * `GetAppDirectoryPath` returns `SDL_GetPrefPath(NULL, appName)` and the two
- * lookups land in genuinely different directories — and on Linux `SHIP_HOME`
- * collapses them again even then, so the answer is not a compile-time constant in
- * either direction. If OoT reserved `mods/mm` unconditionally, then in a
+ * lookups land in genuinely different directories. Three separate things collapse
+ * them again, none of them a compile-time constant: `SHIP_HOME` on Linux (returned
+ * before the `NON_PORTABLE` branch is reached), the app-bundle and
+ * current-directory fallbacks inside `LocateFileAcrossAppDirs` (it only returns the
+ * per-app-name path when that path EXISTS, so both games answer `./mods` until one
+ * of the pref-dir folders is created), and the creation of one of those folders,
+ * which flips the answer for one game at MM's boot and not for the other. So the
+ * question is asked at the moment OoT walks, of the two roots in hand, rather than
+ * decided by an `#ifdef`. If OoT reserved `mods/mm` unconditionally, then in a
  * non-portable build an archive at `<soh-prefdir>/mods/mm/x.o2r` would be skipped
  * by OoT while MM only ever globs `<2s2h-prefdir>/mods/mm` — mounted by NEITHER
  * game. That is exactly the gap the #670 row's disjointness check is supposed to
@@ -150,7 +156,9 @@ const char* Combo_ModsSubdirForGame(GameId game);
  * (MM creates `mods/mm` during boot and then globs it). The returned pointer is
  * owned by a per-game slot and stays valid until the next call FOR THE SAME game,
  * so `Combo_ModsRootsAreShared(Combo_ModsRootForGame(GAME_OOT),
- * Combo_ModsRootForGame(GAME_MM))` is well defined.
+ * Combo_ModsRootForGame(GAME_MM))` is well defined. Copy it if you need it past
+ * that; a caller that holds it across another call for its own game is holding a
+ * dangling pointer, and no lock inside this function can help with that.
  */
 const char* Combo_ModsRootForGame(GameId game);
 
@@ -161,8 +169,11 @@ const char* Combo_ModsRootForGame(GameId game);
  * True in a portable build, where `GetAppDirectoryPath` ignores its appName
  * argument and both lookups land on `./mods`. False when the two resolve
  * elsewhere, which `NON_PORTABLE` does (`SDL_GetPrefPath(NULL, appName)` per app
- * name) — and true again under `SHIP_HOME` on Linux even with `NON_PORTABLE`, so
- * this is a runtime question and not a `#ifdef`.
+ * name) — and true again under `SHIP_HOME` on Linux even with `NON_PORTABLE`, and
+ * true under `NON_PORTABLE` alone until one of the two pref directories actually
+ * contains a `mods` (until then `LocateFileAcrossAppDirs` falls through to the
+ * install folder and then to `./mods` for both games). So this is a runtime
+ * question, asked of the two roots in hand, and not a `#ifdef`.
  *
  * It is what gates OoT's `mods/mm` skip: reserving the subfolder when MM is NOT
  * globbing that tree would leave archives there mounted by neither game. Compares
