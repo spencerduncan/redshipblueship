@@ -572,6 +572,14 @@ extern "C" {
 // resolves the staged MM-side archive, SKIPping when it is absent.
 #include "tests/test_mm_extension_rescan.c"
 
+// #670 MM mods/ mount + shared-mods-tree partition lock. FILE SCOPE (compiled as
+// C++): it drives the C++-linkage ArchiveManager to ask which archive owns a
+// contested path, calls MM's production glob through
+// MM_MountModArchivesHeadless, and calls the production
+// Combo_EnsureGameArchivesLoaded for both switch directions. Must be included
+// AFTER test_curated_archive_order.c so the wrapper can reuse CaoResolveArchive.
+#include "tests/test_mm_mods_mount.c"
+
 // #577 cross-game model resolution lock. FILE SCOPE (compiled as C++): it walks
 // a parsed Fast::DisplayList and drives the C++-linkage ResourceManager /
 // ArchiveManager. The wrapper (Test_CrossGameModel below) performs the
@@ -2319,6 +2327,55 @@ TestResult Test_MMExtensionRescan(void) {
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #670: MM mounted no mod archives at all in single-exe (its glob is in the
+// excluded BenPort.cpp), so Combo_GetModArchiveCount(GAME_MM) was structurally 0
+// and #593's switch-time re-apply was a permanent no-op for MM. The body stages a
+// private mods/ tree from copies of the two staged archives, runs MM's real
+// glob/mount over it, and drives the production Combo_EnsureGameArchivesLoaded in
+// both directions.
+//
+// The display-free shared bring-up is needed because the body asks the shared
+// ArchiveManager who owns a contested path, and because
+// Combo_EnsureGameArchivesLoaded re-adds soh.o2r through it. SKIPs when either
+// curated archive is unstaged — the netplay-relay job re-runs this label
+// archive-less on purpose (#562).
+// #670: the shared-tree partition and the shared archive-extension rule, as pure
+// path logic. No archive, no Ship::Context, so it NEVER skips — which is the point
+// of it being its own row: this was part 1 of Test_MMModsMount, which returns
+// TEST_SKIP before reaching the body when either curated archive is unstaged, so
+// the only lock on Combo_ModPathIsForGame did not run in the one CI job that
+// deliberately runs this label archive-less (#562).
+TestResult Test_MMModsPartition(void) {
+    int rc = MMModsPartition_RunHeadless();
+    printf("[TEST] %s: mm mods partition rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+TestResult Test_MMModsMount(void) {
+    const std::string sohArchive = CaoResolveArchive("soh.o2r");
+    const std::string mmArchive = CaoResolveArchive("2ship.o2r");
+    if (sohArchive.empty() || mmArchive.empty()) {
+        printf("[TEST] SKIP: no staged archive to stand in for a base archive and a mod (soh.o2r '%s', "
+               "2ship.o2r '%s')\n",
+               sohArchive.c_str(), mmArchive.c_str());
+        return TEST_SKIP;
+    }
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    int rc = MMModsMount_RunHeadless(sohArchive.c_str(), mmArchive.c_str());
+    printf("[TEST] %s: mm mods mount rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // #605: scripts/make_redship_otr.py must refuse a curated model whose display
 // list carries a raw segmented texture reference (see the module docstring's
 // constraint 5), not just a path collision or a dispatched resource type
@@ -3840,6 +3897,22 @@ const TestDescriptor gTests[] = {
     // in particular) must have run already. SKIPs when 2ship.o2r is unstaged.
     {"mm-extension-rescan", "A rescan after MM's archives mount adds MM extension entries, keeps OoT's (#618)",
      Test_MMExtensionRescan},
+    // #670: MM's mods/mm mount, the shared mods/ tree partition, and an MM mod
+    // override that survives a switch without shadowing an OoT path. Placed here,
+    // next to mm-extension-rescan, for the same reason: it MOUNTS extra archives
+    // (two stand-in mods plus whatever Combo_EnsureGameArchivesLoaded re-adds) into
+    // the shared ArchiveManager, so every row that reads soh.o2r paths through the
+    // ResourceManager must have run first. It restores the manager's archive list
+    // from a snapshot on the way out, so nothing after it inherits the re-order.
+    {"mm-mods-mount", "MM mounts mods/mm; the shared mods tree is partitioned and the override survives a switch "
+                      "(#670)",
+     Test_MMModsMount},
+    // #670, the archive-free half: the shared mods/ tree partition and the shared
+    // archive-extension rule as pure path logic. Needs nothing staged and no
+    // bring-up, so it runs (and can fail) in the archive-less netplay-relay job
+    // where mm-mods-mount SKIPs.
+    {"mm-mods-partition", "The shared mods/ tree partition and archive-extension rule are total and disjoint (#670)",
+     Test_MMModsPartition},
     // The tier-4 combo settings' menu rows (#655). Builds a SohMenu headless, so
     // it needs the display-free shared bring-up above but no window; it writes
     // the five gCombo.Rando.* keys and freezes gComboCtx, and restores both.
