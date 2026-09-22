@@ -118,3 +118,5 @@ games/mm/2s2h/mm_trick_bindings_test.cpp
 games/oot/soh/SohGui/CreationProgressOverlay.cpp
 games/oot/soh/SohGui/CreationProgressOverlay.h
 games/oot/soh/Enhancements/randomizer/ComboLogicEngineOoT.cpp
+games/mm/2s2h/Rando/ComboLogicEngineSingleExe.cpp
+games/mm/2s2h/mm_combo_logic_engine_test.cpp

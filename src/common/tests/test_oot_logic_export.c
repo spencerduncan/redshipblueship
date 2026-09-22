@@ -139,6 +139,18 @@ int OoT_ComboLogic_TestForceAdultStart(int adult);
 // The unified save buffer (src/common/unified_save.c): one char array both games
 // reinterpret. Compared byte for byte by claim 5.
 extern char gSaveContext[];
+
+// MM's rando CORE bring-up (games/mm/2s2h/GameExports_SingleExe.cpp:1752):
+// ShipInit registrars + Rando::Init, asset-free and once-guarded. Needed by the
+// composed-round leg below, because MM's engine answers out of
+// Rando::Logic::Regions and refuses beginQuery while that map is empty. See the
+// re-scoping note at that leg.
+void MM_Rando_InitCore(void);
+// MM's own diagnostics surface (games/mm/2s2h/Rando/ComboLogicEngineSingleExe.cpp),
+// so the composed round can say whether MM's side actually ran rather than
+// inferring it.
+int MM_ComboLogic_SnapshotLive(void);
+int MM_ComboLogic_ShrinkObservations(void);
 }
 
 #define OLE_ASSERT(cond, msg)                                                   \
@@ -858,15 +870,34 @@ TestResult OoTLogicExport_Run(void) {
     // ------------------------------------------------------------------
     // One COMPOSED round, through the coordinator's own bracket.
     // ------------------------------------------------------------------
-    // The MM half is the trivial stub declared at the top of this file: it proves
-    // nothing about MM (that engine is a separate lane) and exists only so
-    // Combo_Logic_RunRound will run at all — it refuses with one engine, by
-    // design.
+    // RE-SCOPED BY LANE K2B, which is what this leg's own tripwire asked for. It
+    // used to REQUIRE that no MM engine existed and install the trivial stub
+    // declared at the top of this file, because MM's export was a concurrent lane
+    // and a stub silently replacing a real engine would have made the round's
+    // "goalMM == 0" a statement about the stub. MM's engine has landed and
+    // registers itself at static-init, so this leg now PREFERS IT: the round below
+    // runs over BOTH REAL ENGINES and is the only pair-level lock in the tree. The
+    // stub survives for a build in which MM's engine is absent.
+    //
+    // Two things the real-MM path needs, and why:
+    //   - MM_Rando_InitCore(). MM's engine answers out of Rando::Logic::Regions,
+    //     which MM's own ShipInit registrars populate, and it REFUSES beginQuery
+    //     while that map is empty (deliberately: an empty graph would answer
+    //     "nothing is reachable", which is indistinguishable from a world in which
+    //     nothing is). This process booted OoT, so nothing has run MM's bring-up.
+    //     It is asset-free and once-guarded.
+    //   - the save/digest assertions AFTER the round are what make bringing MM up
+    //     here safe to assert rather than hope: OoT's unified save buffer must come
+    //     back byte-identical and the world digest unchanged.
     const ComboLogicEngine* priorMm = Combo_Logic_GetEngine(GAME_MM);
-    OLE_ASSERT(priorMm == nullptr,
-               "an MM engine is already registered — this row's stub would replace a real engine; re-scope the "
-               "composed-round leg now that lane K2b has landed");
-    OLE_ASSERT(Combo_Logic_RegisterEngine(GAME_MM, &kMmStubEngine), "the MM stub would not register");
+    const bool usingRealMm = (priorMm != nullptr);
+    if (usingRealMm) {
+        MM_Rando_InitCore();
+        printf("[TEST] oot-logic-export: composed round will use MM's REAL registered engine\n");
+    } else {
+        printf("[TEST] oot-logic-export: no MM engine registered - composed round falls back to this file's stub\n");
+        OLE_ASSERT(Combo_Logic_RegisterEngine(GAME_MM, &kMmStubEngine), "the MM stub would not register");
+    }
 
     Combo_Logic_ResetPlacements();
     ComboLogicBagItem bag[4];
@@ -897,8 +928,29 @@ TestResult OoTLogicExport_Run(void) {
     // on OoT alone. This is also the lock that `goalReached` is not a constant
     // zero: the stub MM half answers 0, so a 1 here can only come from OoT.
     OLE_ASSERT(roundResult.goalOoT == 1, "the composed round could not prove OoT's own half over a beatable world");
-    OLE_ASSERT(roundResult.goalMM == 0, "the MM stub reported a goal it does not have");
+    // MM's half is 0 either way, and for a reason in both cases: the stub answers
+    // 0 unconditionally, and MM's REAL engine cannot reach RR_MOON_MAJORAS_LAIR
+    // from the arrival with nothing placed and nothing assumed (the Moon needs Oath
+    // plus the remains/masks counts). So the `goalExpression == 1` below can only
+    // come from OoT's half, which is what makes it a lock on goalReached rather
+    // than a tautology.
+    OLE_ASSERT(roundResult.goalMM == 0,
+               "MM's half reported the goal as PROVED with nothing placed and nothing assumed - either the stub is "
+               "answering something it does not have, or MM's real engine reached Majora's lair from South Clock Town "
+               "on an empty bag");
     OLE_ASSERT(roundResult.goalExpression == 1, "beat-either did not hold although OoT's half proved");
+    if (usingRealMm) {
+        // MM's side really ran, and left its bracket balanced. Without this, a
+        // round in which MM's engine was somehow skipped would pass on OoT's
+        // answers alone.
+        OLE_ASSERT(roundResult.candidatesMM > 0,
+                   "the composed round collected no MM candidate hosts although MM's real engine is registered - "
+                   "MM's half of the round did not run, so nothing here is a pair-level fact");
+        OLE_ASSERT(MM_ComboLogic_SnapshotLive() == 0,
+                   "the composed round left MM's snapshot LIVE - MM's save is still owned by the engine");
+        OLE_ASSERT(MM_ComboLogic_ShrinkObservations() == 0,
+                   "MM's reachability shrank inside the composed round");
+    }
     // The monotonicity watchdog inside the coordinator did not fire, which is a
     // real statement about the OoT engine: its candidate count and crossing flag
     // never fell inside the round.
@@ -911,11 +963,14 @@ TestResult OoTLogicExport_Run(void) {
                "the composed round wrote the player's save");
     OLE_ASSERT(OoT_ComboLogic_TestWorldDigest() == worldDigest0, "the composed round moved a placement");
 
-    // Leave the registry as it was found, so a later row in the same process is
-    // not driven by this file's stub.
+    // Leave the registry EXACTLY as it was found, so a later row in the same
+    // process is neither driven by this file's stub nor left with MM un-registered.
     Combo_Logic_ResetPlacements();
-    Combo_Logic_RegisterEngine(GAME_MM, nullptr);
-    OLE_ASSERT(Combo_Logic_GetEngine(GAME_MM) == nullptr, "the MM stub did not un-register");
+    if (!usingRealMm) {
+        Combo_Logic_RegisterEngine(GAME_MM, nullptr);
+    }
+    OLE_ASSERT(Combo_Logic_GetEngine(GAME_MM) == priorMm,
+               "the composed-round leg did not restore MM's registration to what it found");
 
     printf("[TEST] PASS: the OoT engine satisfies the combo-logic contract over the real graph; no placement moved "
            "and the live save is byte-identical\n");
