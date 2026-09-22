@@ -92,6 +92,12 @@ first — and if you forget, the target **stops with an error naming both files*
 than silently pinning a world CI cannot reproduce. Reason and override in "The archive
 set is part of the pin" below.
 
+Re-pinning does **not** use the archive-free sandbox the checking rows use in a
+ROM-staged tree (same section). That is a decision, not an oversight: a sandbox that
+is subtly wrong turns a *checking* row red and somebody reads the field diff, but
+would make a *re-pin* silently record a world nobody asked for — which is the whole
+reason the refusal exists.
+
 The target is deliberately not part of `all` and is not a CTest row. Re-pinning is
 an act of authorship; a target that regenerated goldens as a side effect of a
 build would turn the oracle back into a no-op.
@@ -131,13 +137,46 @@ every cross-game table keyed on the settings fingerprint.
 
 Consequences you will actually hit:
 
-* **A ROM-staged local `rando` run SKIPS `GoldenSeedDigestDefault` and
-  `GoldenSeedDigestProfileV1`**, printing the reason. That is deliberate. A red row
-  there would claim "you moved the world" when nothing moved, and a permanently red
-  row in the local merge gate is worse than no row. To exercise them locally, move
-  `oot.o2r` and `mm.o2r` out of `build-cmake` and re-run. So the two seed rows are
-  enforced by CI (both legs — see "Which gate runs these rows") and by a local
-  archive-free run, and by nothing in the operator's normal ROM-staged merge gate.
+* **A ROM-staged local `rando` run runs `GoldenSeedDigestDefault` and
+  `GoldenSeedDigestProfileV1` from an archive-free sandbox**, and enforces them.
+  Comparing a ROM-staged generation against these goldens would be red about a move
+  that did not happen, so for one PR the two rows simply **skipped** in the
+  operator's tree — which meant the gate this project's policy calls *the* merge gate
+  had neither a green half nor a red half for them, and the only local coverage was a
+  run nobody performs routinely. The rows now build a sandbox instead:
+  `build-cmake/golden-archive-free/<golden-name>/`, holding a hard link to the
+  binary and to the **port archives only**, with the dispatch run inside it. The
+  executable has to be in there because
+  `Ship::Context::LocateFileAcrossAppDirs` searches the app-config directory (the
+  cwd, in a portable build) **and the executable's own directory** before falling
+  back to `./`, so moving only the working directory would still find
+  `build-cmake/oot.o2r`. The port set is an **allowlist** (`soh.o2r`, `2ship.o2r`,
+  `redship.o2r`), so a ROM-derived archive the checker has never heard of cannot
+  leak in by not being named — and because that makes a re-scan of the sandbox for
+  ROM names unfailable by construction, the two checks that *can* fail are the ones
+  the code makes instead: the port archives are resolved from the build directory
+  **and from the binary's own directory** (they are not always the same directory)
+  and a sandbox that ends up with none of them **fails**, rather than generating a
+  no-archive world and blaming the fill; and `$SHIP_HOME`, the one directory the
+  loader probes that the allowlist cannot control, is refused when a ROM-derived
+  archive sits in it.
+
+  **What travels into the sandbox, exhaustively:** the binary, the port archives the
+  environment actually has, and `shipofharkinian.json` (so the window backend and
+  every configured CVar come along). **What deliberately does not:** `mods/` — which
+  since #670/#704 is resolved through the same probe list and therefore *is*
+  load-bearing for the resource set — plus `assets/`, `gamecontrollerdb.txt`,
+  `imgui.ini`, `Randomizer/`, `randomizer-mm/`, `Save/` and any earlier run's
+  output. Dropping them is the intended reading (a hosted runner has none of them),
+  but it is **not** the same claim as "the archive set is the only difference from a
+  run in the build directory", which this page and the code both made for one PR and
+  which any tree with mods staged falsifies. A golden covering a modded resource set
+  would be a new golden with its own pinned inputs.
+
+  If the sandbox cannot be built, the row **fails** — it does not skip. A sandbox
+  that cannot be built is a broken harness, not a false world move, and the failure
+  message names both ways out (fix the reason it gives, or move `oot.o2r`/`mm.o2r`
+  out of the build directory, which needs no sandbox at all).
 * **`GoldenPairedAttemptDigest` is archive-insensitive and is enforced
   everywhere** — measured: a golden regenerated with ROM archives staged and one
   regenerated without them are byte-identical, and the ROM-staged file passed
@@ -148,15 +187,35 @@ Consequences you will actually hit:
   move. This used to be a human-only rule stated in three places, which was the
   weakest possible defense for the most damaging mistake the target can make: it
   runs with its working directory pinned to the build tree, that tree is the
-  ROM-staged one in a normal local build, the local `rando` tier *skips* the rows
-  that would object, and the first symptom is a red Linux leg on your PR and on
-  every PR after it. `-DALLOW_ROM_ARCHIVE_REGEN=ON` is the deliberate override; it
-  warns loudly and pins the ROM-mounted world.
+  ROM-staged one in a normal local build, the local `rando` tier *skipped* the rows
+  that would have objected, and the first symptom is a red Linux leg on your PR and
+  on every PR after it. (The checking rows no longer skip there — see the first
+  bullet — but a re-pin still has no business happening in that tree, which is why
+  the refusal stays even though the skip that made it invisible is gone.)
+  **The deliberate override is its own target:**
+
+  ```
+  cmake --build build-cmake --target regen-golden-digests-rom-mounted
+  ```
+
+  It forwards `-DALLOW_ROM_ARCHIVE_REGEN=ON`, warns loudly, and pins the
+  ROM-mounted world — which hosted CI cannot reproduce, so the Linux leg goes red
+  on your PR and on every PR after it until the golden is re-pinned archive-free.
+  Almost nobody should want this. It is a target rather than a `-D` on the build
+  command because `cmake --build` does not forward `-D` to the inner `cmake -P`,
+  and a cache entry would persist: somebody would set it once and every later
+  re-pin in that tree would quietly pin the ROM-mounted world. For one PR this
+  override was documented in four places while no caller forwarded the variable at
+  all, so it could not be reached by any spelling; the checker now **fails** a
+  REGEN caller that leaves it undefined.
 
 The underlying option-construction asymmetry is a real defect in its own right (the
 headless harness fingerprints a different option set than a ROM-mounted run does),
-tracked as #702. Fixing it would let one golden cover both environments and remove
-the skip. It is not the goldens' job to hide it.
+tracked as #702. Fixing it would let one golden cover both environments and make the
+sandbox unnecessary — the field-4 machinery, the re-pin refusal and the sandbox all
+exist only because the two environments disagree. (This sentence used to say "remove
+the skip"; there is no skip left to remove, and there was already only a fallback one
+when it was written.) It is not the goldens' job to hide it.
 
 ## Which gate runs these rows
 
@@ -169,7 +228,7 @@ why Windows *could not*.
 |---|---|---|
 | Linux CI (`build-linux`) | **yes**, all three | `ctest --label-regex '^rando$'` under `xvfb-run` |
 | Windows CI (`build-windows`) | **yes**, all three | a dedicated `--tests-regex '^Golden'` step; the `redship` label step does not include them |
-| Operator's local ROM-staged run | `GoldenPairedAttemptDigest` only | the two seed rows skip — see "The archive set is part of the pin" |
+| Operator's local ROM-staged run | **yes**, all three | the two seed rows generate in an archive-free sandbox under `build-cmake/golden-archive-free/` — see "The archive set is part of the pin" |
 | Operator's local archive-free run | **yes**, all three | this is how the goldens are generated and re-pinned |
 
 The Windows step exists because the golden rows carry `LABEL rando` and that job runs
@@ -188,8 +247,14 @@ Things to keep in view rather than rediscover:
 * Both legs check the **same committed bytes**, which is what makes "MSVC and GCC
   generate the same world for the same seed" a property CI re-verifies on every PR
   rather than a measurement somebody took once. See "Platform portability".
-* The two seed rows are still **not** enforced in a ROM-staged local run. The
-  operator's local merge gate skips them; CI is where they bite.
+* The two seed rows are enforced in a ROM-staged local run too, but by a
+  different mechanism than on CI: CI's environment *is* archive-free, while the
+  local row **constructs** an archive-free environment. If that construction fails,
+  the row **fails** — there is no skip path on any gate, so a `SKIPPED` golden row
+  means somebody re-added one. The earlier version of this machinery skipped there,
+  which left the enforcement of these two rows resting on a human noticing a skip
+  message; the reason the skip existed (a COMPARE in a ROM-staged tree is red about a
+  move that did not happen) never applied to "the sandbox could not be built".
 
 ## Platform portability
 
@@ -220,9 +285,13 @@ folklore, and a golden re-pinned on one platform would silently stop saying anyt
 about the other. It also means a re-pin from **either** platform is fine, which is the
 opposite of the rule this page briefly carried when only Linux ran the rows.
 
-Every golden row prints its full digest before comparing, and the Linux job cats the
-digest artifacts in every run, pass or fail, so both platforms' worlds can be read off
-their logs directly.
+Every golden row prints its full digest before comparing (with the environment it
+generated in, `work-dir` or `archive-free-sandbox`, on the same line), and **both**
+jobs dump the digest artifacts in every run, pass or fail — `cat` on Linux,
+`Get-Content` on Windows, each behind `if: always()` — so both platforms' worlds can
+be read off their logs directly. The Windows half of that was missing for one PR
+while this page claimed it: the fix and the measurement that found it are in
+`.github/workflows/generate-builds.yml`.
 
 Portability also has a mechanism behind it, which is why it was worth measuring
 rather than assuming. The fill's randomness is `ShipUtils::next32` — a PCG-style
@@ -247,18 +316,33 @@ format is **six** pipe-separated fields:
 <ctest-name>|<golden-name>|<dispatch>|<digest-env-var>|<archive-free-only>|<extra-env>
 ```
 
-`<archive-free-only>` is `ON` when the pinned world depends on the archive set —
-`ON` makes the CTest row **skip** when `oot.o2r`/`mm.o2r` are present in the build
-directory, and makes the regen target **refuse** to re-pin there (see "The archive
-set is part of the pin"). Use `OFF` only when you have measured that the digest is
-identical with and without the ROM archives. A five-field line aborts configure at
-`list(GET _golden_fields 5 ...)` with `list index: 5 out of range`; both consumers
-read all six.
+`<archive-free-only>` is `ON` when the pinned world depends on the archive set. What
+`ON` does, exactly, when `oot.o2r`/`mm.o2r` are present in the build directory:
+
+* the **CTest row** builds an archive-free sandbox under
+  `<build>/golden-archive-free/<golden-name>/` — a hard link to the binary, the port
+  archives, `shipofharkinian.json` — and runs its dispatch *there*, so the row is
+  enforced rather than skipped in a ROM-staged tree. If that sandbox cannot be built
+  the row **fails**; it never skips. (`ON` used to mean "skip in a ROM-staged tree",
+  and this paragraph still said so for one PR after the sandbox landed — in the one
+  section a future golden-adder reads to learn what field 4 does.)
+* the **re-pin targets refuse**: `regen-golden-digests` stops with an error naming
+  `oot.o2r` and `mm.o2r`, and only `regen-golden-digests-rom-mounted` (which forwards
+  `-DALLOW_ROM_ARCHIVE_REGEN=ON`) will pin the ROM-mounted world.
+
+Both behaviours are described in "The archive set is part of the pin". Use `OFF` only
+when you have measured that the digest is identical with and without the ROM
+archives. A five-field line aborts configure at `list(GET _golden_fields 5 ...)` with
+`list index: 5 out of range`; all three consumers — the CTest loop and the two re-pin
+targets — read all six.
 
 **Name the row `Golden...`.** The `LABEL rando` the loop applies gets it run on Linux
 CI automatically, but the Windows leg selects these rows by `--tests-regex '^Golden'`,
-so a row named anything else is silently enforced on one leg only — the exact gap this
-page's "Which gate runs these rows" section exists to close.
+so a row named anything else would be enforced on one leg only — the exact gap this
+page's "Which gate runs these rows" section exists to close. **This is checked, not
+requested:** the loop in `CMake/SingleExecutable.cmake` aborts configure with a
+`FATAL_ERROR` on a row name that does not match `^Golden`. If you ever change the
+pattern, change the workflow's regex and that check together.
 
 Then run the regen target and commit the new file. The dispatch must write its
 digest to the named environment variable's path and must emit one `key=value` per

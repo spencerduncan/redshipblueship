@@ -142,10 +142,14 @@ are the reasoning behind them.
   your change is meant to move a world, re-pin deliberately
   (`cmake --build <dir> --target regen-golden-digests`) in its own commit stating
   which fields moved and why; if it is not, a red golden row is the bug report.
-  Two things the rows do NOT give you: the two seed rows **skip** in a ROM-staged
-  local run, so your local merge gate does not check them (both CI legs do — Linux
-  in the `rando` tier, Windows in its own `^Golden` step); and they pin the
-  archive-free world, not a player's (#702). Full policy:
+  All three rows run in a ROM-staged local run as well as on both CI legs: the two
+  archive-sensitive ones generate from an archive-free sandbox under
+  `build-cmake/golden-archive-free/` (they used to SKIP there, which left the local
+  merge gate with no golden coverage at all). No golden row has a skip path on any
+  gate any more: a sandbox that cannot be built FAILS the row, because a broken
+  harness is a finding and a skip would put the gate back to enforcing nothing. A
+  SKIPPED golden row means somebody re-added a skip. What the rows still do NOT give
+  you: they pin the archive-free world, not a player's (#702). Full policy:
   `docs/determinism-goldens.md`.
 - This project is pre-release: invalidating an existing save to land a fix is
   acceptable and does not need product sign-off, but every PR that invalidates a

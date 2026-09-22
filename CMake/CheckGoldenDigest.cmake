@@ -35,7 +35,7 @@
 # Windows. A byte compare would report every field as moved on one of the two
 # platforms and teach everyone to distrust the row.
 #
-# THE ARCHIVE SET IS PART OF THE PIN (SKIP_IF_ROM_ARCHIVES), and that is a
+# THE ARCHIVE SET IS PART OF THE PIN (ARCHIVE_FREE_ONLY), and that is a
 # measurement, not a precaution. The OoT seed digest moves when the ROM-DERIVED
 # archives (oot.o2r / mm.o2r) are mounted beside the binary, for a reason that has
 # nothing to do with the platform: with them present, the 2,449 per-area
@@ -48,36 +48,66 @@
 # the entire world.
 #
 # Hosted CI can never have ROM-derived archives, so the goldens pin the
-# ARCHIVE-FREE world and a ROM-staged local run is a DIFFERENT, unpinned world.
-# Such a run SKIPS this row rather than failing it: a red row there would say
-# "you moved the world" when nothing moved, and a permanently red row in the
-# operator's local merge gate is worse than no row at all.
-# The mm-paired-attempt digest is NOT archive-sensitive (measured: a ROM-staged
-# Windows golden passed unchanged on archive-free Linux CI), so its row carries no
-# such guard.
+# ARCHIVE-FREE world; running the binary inside a ROM-staged build directory
+# generates a DIFFERENT, unpinned world. The mm-paired-attempt digest is NOT
+# archive-sensitive (measured: a ROM-staged Windows golden passed unchanged on
+# archive-free Linux CI), so its row carries no such guard.
 #
-# WHICH GATES ACTUALLY RUN THESE ROWS — the Linux CI leg and the Windows CI leg,
-# and the wording here is careful because it was wrong once in each direction. The
-# original text claimed "every PR's Linux and Windows CI legs" while only Linux ran
-# them: all three rows carry `LABEL rando`, and the Windows job runs
-# `ctest --label-regex '^redship$'`. The obvious correction was to write down that
-# Windows CANNOT run them, on the reasoning that every `rando` row brings up a
-# Fast3dWindow and a hosted runner's OpenGL is the GDI generic 1.1 implementation.
-# That reasoning was never measured, and it is wrong: the three rows run and pass on
-# windows-latest in 5.4s (run 35648094332, job 106493621321). So the Windows job now
-# carries a `--tests-regex '^Golden'` step and both legs check the SAME committed
-# bytes, which is what makes cross-platform agreement a thing CI re-verifies rather
-# than folklore (docs/determinism-goldens.md, "Platform portability").
+# A ROM-STAGED RUN THEREFORE BUILDS AN ARCHIVE-FREE SANDBOX RATHER THAN SKIPPING
+# (the review follow-up to #688). Before it, these rows ALWAYS skipped in the
+# operator's ROM-staged tree — the gate this project's policy calls the merge gate
+# — so the two seed rows had neither a green half nor a red half locally, and the
+# skip was the only thing anyone had looked for. The binary resolves every archive
+# through Ship::Context::LocateFileAcrossAppDirs, which searches the app-config dir
+# (the cwd, in a portable build), then THE EXECUTABLE'S OWN DIRECTORY, then "./",
+# so changing the working directory is not enough on its own: the executable has to
+# live in the sandbox too. `_archive_free_sandbox` below hard-links the binary and
+# an ALLOWLIST of port archives (soh.o2r / 2ship.o2r / redship.o2r) into
+# ${WORK_DIR}/golden-archive-free/<NAME>/ and runs the dispatch there. An allowlist,
+# not a denylist, so a ROM-derived archive this file has never heard of cannot leak
+# in by being unlisted.
+#
+# WHAT THE SANDBOX ASSERTS, and what it used to only claim. Because the sandbox is
+# wiped and then populated from that allowlist, re-scanning it afterwards for
+# ROM-derived names — the "the defining property is asserted, not assumed" check the
+# first version of this carried — could not fail for any input: dead code where a
+# safety property was advertised. The checks that CAN fail are the two the code now
+# makes: the port set is RESOLVED from ${WORK_DIR} and from the executable's own
+# directory and an empty result is a refusal (a sandbox holding the binary alone
+# generates a no-archive world and would fail the row about a move that never
+# happened), and $SHIP_HOME — the one directory the loader probes that the allowlist
+# cannot control — is refused when a ROM-derived archive sits in it. Each placement
+# is checked as it is made, so reaching the end of the population loop means every
+# resolved file is in the sandbox. If the sandbox cannot be built, the row FAILS: a
+# broken harness is a finding, not a skip (see the guard below).
+#
+# REGEN DELIBERATELY DOES NOT USE THE SANDBOX — see the refusal below. The two
+# directions fail differently: a sandbox that is subtly wrong turns a COMPARE row
+# RED and a human reads the field diff, but would make a REGEN silently pin a world
+# nobody asked for, which is the exact accident the refusal exists to prevent.
+#
+# WHICH GATES ACTUALLY RUN THESE ROWS — both CI legs, and (since the sandbox) the
+# operator's local ROM-staged run too. The wording here is careful because it was
+# wrong once in each direction. The original text claimed "every PR's Linux and
+# Windows CI legs" while only Linux ran them: all three rows carry `LABEL rando`,
+# and the Windows job runs `ctest --label-regex '^redship$'`. The obvious correction
+# was to write down that Windows CANNOT run them, on the reasoning that every
+# `rando` row brings up a Fast3dWindow and a hosted runner's OpenGL is the GDI
+# generic 1.1 implementation. That reasoning was never measured, and it is wrong:
+# the three rows run and pass on windows-latest in 5.4s (run 35648094332, job
+# 106493621321). So the Windows job now carries a `--tests-regex '^Golden'` step and
+# both legs check the SAME committed bytes, which is what makes cross-platform
+# agreement a thing CI re-verifies rather than folklore
+# (docs/determinism-goldens.md, "Platform portability").
 #
 # Still true and still worth knowing: the rows are selected by NAME on Windows, not
-# by label — the `rando` tier as a whole remains untried there — and the two
-# archive-sensitive rows are NOT enforced in the operator's ROM-staged local run
-# (see the SKIP above). Two CI gates, no local gate.
+# by label — the `rando` tier as a whole remains untried there.
 #
 # Usage (see the rows in CMake/SingleExecutable.cmake):
 #   cmake -DREDSHIP_EXE=<redship> -DWORK_DIR=<dir> -DDISPATCH=rando-determinism
 #         -DDIGEST_ENV=RSBS_SEED_DIGEST_OUT -DGOLDEN_DIR=<repo>/tests/golden
-#         -DGOLDEN_NAME=seed-digest-default [-DSKIP_IF_ROM_ARCHIVES=ON] [-DREGEN=ON]
+#         -DGOLDEN_NAME=seed-digest-default [-DARCHIVE_FREE_ONLY=ON]
+#         [-DREGEN=ON -DALLOW_ROM_ARCHIVE_REGEN=ON|OFF]
 #         -P CheckGoldenDigest.cmake
 # REGEN=ON writes the generated digest over the golden instead of comparing. It is
 # the ONLY supported way to re-pin — see docs/determinism-goldens.md and the
@@ -86,16 +116,203 @@
 # CI cannot reproduce and turn the Linux leg red for this PR and every PR after it,
 # and "the machinery leaves this to a human" is exactly the kind of prose guarantee
 # #688 exists to disbelieve. -DALLOW_ROM_ARCHIVE_REGEN=ON is the deliberate
-# override for an author who really means it.
+# override for an author who really means it, and every REGEN caller must pass the
+# variable one way or the other (see the contract check below) — the first version
+# of this script documented the override in four places while no caller forwarded
+# it, so it could not be reached at all.
 
 foreach(_required REDSHIP_EXE WORK_DIR DISPATCH DIGEST_ENV GOLDEN_DIR GOLDEN_NAME)
     if(NOT DEFINED ${_required})
         message(FATAL_ERROR "CheckGoldenDigest: -D${_required}=<value> is required")
     endif()
 endforeach()
+
+# The REGEN caller contract, checked before anything expensive so a caller that
+# gets it wrong learns immediately and without a binary. `cmake -P` has no cache
+# and imports no environment, so a variable this script reads is reachable ONLY if
+# the caller puts it on the command line: an override the callers do not forward is
+# not an override, it is prose. Requiring it to be DEFINED (either value) makes a
+# new REGEN caller that forgets fail loudly instead of inheriting the refusal
+# silently — which is how -DALLOW_ROM_ARCHIVE_REGEN=ON came to be documented in
+# four places while being unreachable through the one documented re-pin command.
+if(REGEN AND NOT DEFINED ALLOW_ROM_ARCHIVE_REGEN)
+    message(FATAL_ERROR
+        "CheckGoldenDigest(${GOLDEN_NAME}): a REGEN caller must pass -DALLOW_ROM_ARCHIVE_REGEN=ON or =OFF.\n"
+        "  It is the documented override for the ROM-staged re-pin refusal below, and `cmake -P` cannot read it "
+        "from a cache or the environment — an unforwarded override is unreachable. The re-pin targets generated in "
+        "CMake/SingleExecutable.cmake forward it: `regen-golden-digests` passes OFF, "
+        "`regen-golden-digests-rom-mounted` passes ON.")
+endif()
+
 if(NOT EXISTS "${REDSHIP_EXE}")
     message(FATAL_ERROR "CheckGoldenDigest: redship binary not found: ${REDSHIP_EXE}")
 endif()
+
+# ROM-derived archives: the set whose presence beside the binary changes the world
+# an archive-sensitive golden pins. Port archives ship with the build and are part
+# of every environment, hosted CI included.
+set(_rom_archive_names oot.o2r oot-mq.o2r mm.o2r mm.otr mm.zip)
+set(_port_archive_names soh.o2r 2ship.o2r redship.o2r)
+
+# ----------------------------------------------------------------------------
+# Build an archive-free sandbox: a directory holding the binary and the PORT
+# archives only, so a run whose cwd and whose executable both live in it resolves
+# no ROM-derived archive anywhere. Hard links where the filesystem allows them
+# (the binary is ~68 MB and this runs per row, per ctest invocation), a copy
+# otherwise. Returns the directory, the executable to run and the port archives it
+# actually holds through out_dir / out_exe / out_ports, or leaves them empty and
+# explains why in out_reason.
+#
+# WHAT TRAVELS INTO THE SANDBOX, exhaustively: the binary, whichever of the three
+# PORT archives the source environment actually has, and `shipofharkinian.json`.
+# WHAT DELIBERATELY DOES NOT: `mods/` (resolved through the same
+# LocateFileAcrossAppDirs probe list since #670/#704, so it IS load-bearing for the
+# resource set), `assets/`, `gamecontrollerdb.txt`, `imgui.ini`, `Randomizer/`,
+# `randomizer-mm/`, `Save/`, and any previous run's output. Dropping them is the
+# intended reading of these goldens — they pin the world a hosted runner can
+# reproduce and a runner has none of those — but it is NOT the same statement as
+# "the archive set is the only difference from a run in the build directory", which
+# is what this comment used to make and which any local tree with mods staged
+# falsifies. A golden that covers a modded resource set would be a new golden with
+# its own pinned inputs, not this sandbox.
+# ----------------------------------------------------------------------------
+function(_archive_free_sandbox work_dir exe golden_name rom_names port_names
+                               out_dir out_exe out_ports out_reason)
+    set(${out_dir} "" PARENT_SCOPE)
+    set(${out_exe} "" PARENT_SCOPE)
+    set(${out_ports} "" PARENT_SCOPE)
+    set(${out_reason} "" PARENT_SCOPE)
+
+    string(REPLACE ";" ", " _port_list "${port_names}")
+
+    set(_dir "${work_dir}/golden-archive-free/${golden_name}")
+    # Rebuilt from scratch every run: a stale link to a previous build's binary,
+    # or a file somebody dropped in by hand, would make this row report on an
+    # environment nobody chose.
+    file(REMOVE_RECURSE "${_dir}")
+    # No "if it does not exist, return a reason" check here, and that is measured
+    # rather than assumed: `file(MAKE_DIRECTORY)` without the RESULT keyword (which
+    # this project's 3.26 floor predates) emits a FATAL error of its own when it
+    # cannot create the path — verified by putting a regular file where
+    # golden-archive-free/ has to be, which aborts the script at this line. So a
+    # reason branch here could never run, and the row goes red through CMake's own
+    # message either way.
+    file(MAKE_DIRECTORY "${_dir}")
+
+    get_filename_component(_exe_name "${exe}" NAME)
+    get_filename_component(_exe_dir "${exe}" DIRECTORY)
+
+    # WHERE THE PORT ARCHIVES COME FROM: ${work_dir} first, then the EXECUTABLE'S
+    # OWN DIRECTORY — the two places the loader itself looks — because they are not
+    # always the same directory. A multi-config MSVC build puts
+    # $<TARGET_FILE:redship> in <build>/<Config>/ while WORK_DIR is <build>, and a
+    # tree where the ROM archives were staged before the archive-generating target
+    # ran has them split the same way. The first version of this function resolved
+    # from ${work_dir} only, with no else branch and no post-condition: in such a
+    # tree it built a sandbox holding the BINARY ALONE, announced it as "binary and
+    # port archives only", generated a world with no archives mounted at all and
+    # failed the row about a move that never happened — the same false red the old
+    # SKIP existed to avoid, now under a message asserting the environment was
+    # correct. So which port archives this environment HAS is measured here, and an
+    # empty answer is a refusal rather than a quiet sandbox.
+    set(_want_ports "")
+    set(_port_sources "")
+    foreach(_port IN LISTS port_names)
+        if(EXISTS "${work_dir}/${_port}")
+            list(APPEND _want_ports "${_port}")
+            list(APPEND _port_sources "${work_dir}/${_port}")
+        elseif(EXISTS "${_exe_dir}/${_port}")
+            list(APPEND _want_ports "${_port}")
+            list(APPEND _port_sources "${_exe_dir}/${_port}")
+        endif()
+    endforeach()
+    if(NOT _want_ports)
+        # string(CONCAT) rather than several arguments to set(): set() with more than
+        # one value makes a LIST, and the reason then reaches the failure message with
+        # a literal `;` at every line break.
+        string(CONCAT _reason
+            "no port archive (${_port_list}) was found in ${work_dir} or in the binary's own directory ${_exe_dir}, so "
+            "the sandbox would hold the binary alone and generate a world with NO archives mounted — which is not the "
+            "world these goldens pin (they pin the PORT-archive world hosted CI runs). Build the archive targets, or "
+            "stage the port archives beside the binary, and re-run")
+        set(${out_reason} "${_reason}" PARENT_SCOPE)
+        return()
+    endif()
+
+    set(_sources "${exe}")
+    set(_targets "${_dir}/${_exe_name}")
+    list(APPEND _sources ${_port_sources})
+    foreach(_port IN LISTS _want_ports)
+        list(APPEND _targets "${_dir}/${_port}")
+    endforeach()
+
+    # Every placement is checked HERE, which is what makes the sandbox's contents
+    # an assertion rather than a hope: this loop returns a reason for the first
+    # file that did not land, so reaching its end means the binary and every one of
+    # ${_want_ports} is in ${_dir}.
+    list(LENGTH _sources _count)
+    math(EXPR _last "${_count} - 1")
+    foreach(_i RANGE ${_last})
+        list(GET _sources ${_i} _src)
+        list(GET _targets ${_i} _dst)
+        file(CREATE_LINK "${_src}" "${_dst}" RESULT _link_result COPY_ON_ERROR)
+        if(NOT _link_result STREQUAL "0" OR NOT EXISTS "${_dst}")
+            set(${out_reason} "could not place ${_src} in the sandbox: ${_link_result}" PARENT_SCOPE)
+            return()
+        endif()
+    endforeach()
+
+    # The window backend and every other CVar the local tree is configured with
+    # travel into the sandbox. Copied rather than linked: the run rewrites its
+    # config on exit, and a hard link would write that back into the build
+    # directory's own config. See this function's header for what does and does not
+    # travel — this is not "everything except the archives".
+    if(EXISTS "${work_dir}/shipofharkinian.json")
+        file(COPY_FILE "${work_dir}/shipofharkinian.json" "${_dir}/shipofharkinian.json" ONLY_IF_DIFFERENT)
+    endif()
+
+    # THE ONE LEAK THE ALLOWLIST CANNOT PREVENT. Everything placed above comes from
+    # a fixed allowlist into a directory that was just wiped, so re-scanning the
+    # sandbox for ROM-derived names — which is what this spot used to do — could not
+    # fail for any input: it was dead code standing in for the safety property,
+    # while the property that CAN be violated went unchecked.
+    #
+    # It is this one. The binary resolves an archive through
+    # Ship::Context::LocateFileAcrossAppDirs: the app-CONFIG directory first, then
+    # the executable's own directory, then "./". The last two are the sandbox. The
+    # first is "." in a portable build — the sandbox again — EXCEPT that
+    # libultraship reads $SHIP_HOME instead when it is set
+    # (libultraship/src/ship/Context.cpp, the __linux__/__APPLE__ branches of
+    # GetAppDirectoryPath), so a ROM-derived archive sitting in $SHIP_HOME is
+    # resolved BEFORE the sandbox's own directory and the sandbox is not
+    # archive-free at all. Checked host-independently, and therefore conservative on
+    # Windows where the port ignores SHIP_HOME: a ROM archive in a SHIP_HOME this
+    # row cannot rule out makes the row say so rather than pin an environment it
+    # cannot describe.
+    #
+    # A NON_PORTABLE build (libultraship's option, OFF by default and OFF in every
+    # configuration this repo uses) resolves the app-config dir through SDL's pref
+    # path, which this script cannot compute; such a build is outside what the
+    # sandbox claims.
+    if(DEFINED ENV{SHIP_HOME})
+        foreach(_rom IN LISTS rom_names)
+            if(EXISTS "$ENV{SHIP_HOME}/${_rom}")
+                string(CONCAT _reason
+                    "SHIP_HOME=$ENV{SHIP_HOME} contains ${_rom}, and the loader searches the app-config directory "
+                    "BEFORE the executable's own directory, so that ROM-derived archive would be mounted from inside "
+                    "the sandbox — the sandbox would not be archive-free. Move it out of SHIP_HOME, or unset SHIP_HOME "
+                    "for this run")
+                set(${out_reason} "${_reason}" PARENT_SCOPE)
+                return()
+            endif()
+        endforeach()
+    endif()
+
+    string(REPLACE ";" ", " _got_ports "${_want_ports}")
+    set(${out_dir} "${_dir}" PARENT_SCOPE)
+    set(${out_exe} "${_dir}/${_exe_name}" PARENT_SCOPE)
+    set(${out_ports} "${_got_ports}" PARENT_SCOPE)
+endfunction()
 
 # ----------------------------------------------------------------------------
 # The archive-environment guard (see the header). Checked BEFORE generating, so a
@@ -103,20 +320,29 @@ endif()
 #
 # It guards BOTH directions, because the two failure modes are not symmetric:
 #   - COMPARE in a ROM-staged tree would be red about a move that did not happen,
-#     so it SKIPS. The row's SKIP_REGULAR_EXPRESSION matches the marker below, so
-#     CTest reports SKIPPED with this reason rather than PASSED — a silent pass
-#     here would be the same vacuity #688 is about.
+#     so it runs in an archive-free SANDBOX instead, and FAILS when that sandbox
+#     cannot be built. There is no skip path any more: these rows are green or red
+#     everywhere. The skip this replaced carried the wrong justification — "a
+#     COMPARE here would be red about a move that did not happen" is an argument
+#     about the ROM-staged tree, not about a sandbox that could not be built, and
+#     the latter is a harness fault whose fix is named in the failure message. It
+#     also left the local gate one silent step from the zero-coverage state #688 is
+#     about, with prose asking a human to read the skip reason as the only thing in
+#     the way.
 #   - REGEN in a ROM-staged tree writes a world CI can never reproduce and is
 #     REFUSED. That direction is the dangerous one and it used to be unguarded:
 #     the one documented re-pin command pins its cwd to ${CMAKE_BINARY_DIR}, which
 #     in the operator's tree IS the ROM-staged directory, the local rando tier
-#     then SKIPS the very rows that would object, and the damage first appears as
+#     then SKIPPED the very rows that would object, and the damage first appears as
 #     a red Linux leg on this PR and on every PR after it. A human-only rule was
 #     the whole of the defense; now it is a check, with an explicit override.
 # ----------------------------------------------------------------------------
-if(SKIP_IF_ROM_ARCHIVES)
+set(_run_dir "${WORK_DIR}")
+set(_run_exe "${REDSHIP_EXE}")
+set(_run_env "work-dir")
+if(ARCHIVE_FREE_ONLY)
     set(_rom_archives "")
-    foreach(_rom oot.o2r mm.o2r)
+    foreach(_rom IN LISTS _rom_archive_names)
         if(EXISTS "${WORK_DIR}/${_rom}")
             list(APPEND _rom_archives "${_rom}")
         endif()
@@ -134,31 +360,66 @@ if(SKIP_IF_ROM_ARCHIVES)
             message(FATAL_ERROR
                 "CheckGoldenDigest(${GOLDEN_NAME}): RE-PIN REFUSED — this golden is ARCHIVE-SENSITIVE and the "
                 "ROM-derived archive(s) ${_rom_list} are present in ${WORK_DIR}.\n"
-                "  Move these two files out of that directory and re-run the target:\n"
+                "  Move these files out of that directory and re-run the target:\n"
                 "      ${WORK_DIR}/oot.o2r\n"
                 "      ${WORK_DIR}/mm.o2r\n"
                 "  Why this is refused rather than warned about: with oot.o2r mounted the per-area exclude-location "
                 "option groups drop out of the settings string Playthrough_Init hashes, the fill is re-seeded "
                 "differently, and the whole OoT world moves. A golden re-pinned here therefore pins a world hosted CI "
-                "can NEVER reproduce — and because the local rando tier SKIPS these same rows in a ROM-staged tree, "
-                "nothing local would object; the first symptom would be a red Linux leg on this PR and on every PR "
-                "after it.\n"
-                "  If you really mean to pin the ROM-mounted world, pass -DALLOW_ROM_ARCHIVE_REGEN=ON. See "
+                "can NEVER reproduce, and the first symptom would be a red Linux leg on this PR and on every PR after "
+                "it.\n"
+                "  The COMPARE direction does NOT refuse: it runs the dispatch in an archive-free sandbox under "
+                "${WORK_DIR}/golden-archive-free/. REGEN deliberately does not use that sandbox — a sandbox that is "
+                "subtly wrong turns a COMPARE row red and a human reads the field diff, but would make a re-pin "
+                "silently record the wrong world, which is what this refusal is for.\n"
+                "  If you really mean to pin the ROM-mounted world, build the "
+                "`regen-golden-digests-rom-mounted` target (it passes -DALLOW_ROM_ARCHIVE_REGEN=ON). See "
                 "docs/determinism-goldens.md.")
         else()
-            message(STATUS
-                "RSBS_GOLDEN_SKIP: CheckGoldenDigest(${GOLDEN_NAME}) needs an ARCHIVE-FREE run and found "
-                "${_rom_list} in ${WORK_DIR}.\n"
-                "  The goldens pin the world generated with the PORT archives only, because that is the world hosted "
-                "CI can reproduce (a runner never has ROM-derived archives). With oot.o2r mounted the per-area "
-                "exclude-location option groups drop out of the settings string Playthrough_Init hashes, the fill is "
-                "re-seeded differently, and this run generates a DIFFERENT, unpinned world — so comparing it to the "
-                "golden would report a move that did not happen.\n"
-                "  This row IS enforced on every PR, by both archive-free CI legs: Linux runs it as part of the "
-                "`rando` tier under xvfb-run, and Windows runs it by name in its own `--tests-regex '^Golden'` step. "
-                "It is not enforced HERE, in a ROM-staged tree. To run it here, move oot.o2r and mm.o2r out of "
-                "${WORK_DIR} first. See docs/determinism-goldens.md.")
-            return()
+            _archive_free_sandbox("${WORK_DIR}" "${REDSHIP_EXE}" "${GOLDEN_NAME}"
+                                  "${_rom_archive_names}" "${_port_archive_names}"
+                                  _sandbox_dir _sandbox_exe _sandbox_ports _sandbox_reason)
+            if(_sandbox_dir)
+                set(_run_dir "${_sandbox_dir}")
+                set(_run_exe "${_sandbox_exe}")
+                set(_run_env "archive-free-sandbox")
+                message(STATUS
+                    "CheckGoldenDigest(${GOLDEN_NAME}): ${_rom_list} are present in ${WORK_DIR}, which would generate "
+                    "a DIFFERENT, unpinned world — running the dispatch in the archive-free sandbox ${_sandbox_dir} "
+                    "instead (the binary plus the port archives ${_sandbox_ports}, and shipofharkinian.json; NOT "
+                    "mods/, assets/ or any other build-directory content — see CheckGoldenDigest.cmake's "
+                    "_archive_free_sandbox header). This is what makes the row enforceable in a ROM-staged local tree "
+                    "rather than skipped there.")
+            else()
+                # A BROKEN HARNESS IS RED, NOT SKIPPED. This used to emit an
+                # `RSBS_GOLDEN_SKIP:` marker that the row's SKIP_REGULAR_EXPRESSION
+                # turned into SKIPPED with exit 0 — which put the local merge gate
+                # one silent step away from the zero-coverage state this whole
+                # mechanism exists to leave behind, and inherited the justification
+                # for a DIFFERENT condition: skipping was defensible when the
+                # alternative was a COMPARE in a ROM-staged tree going red about a
+                # move that did not happen, and it is not defensible for "the
+                # sandbox could not be built", which is a harness fault with a
+                # one-line fix. So it fails, and the message carries both ways out.
+                message(FATAL_ERROR
+                    "CheckGoldenDigest(${GOLDEN_NAME}): needs an ARCHIVE-FREE run, found ${_rom_list} in ${WORK_DIR}, "
+                    "and could not build the archive-free sandbox — ${_sandbox_reason}.\n"
+                    "  THIS ROW SAYS NOTHING ABOUT WHETHER THE WORLD MOVED. It is failing on the harness, not on a "
+                    "digest: no generation ran. It does not skip, because a SKIPPED row here would leave this gate "
+                    "with neither a green half nor a red half for the golden, which is the vacuity #688 was filed "
+                    "about.\n"
+                    "  Two ways out, both real:\n"
+                    "    1. fix the sandbox — the reason above names what could not be done; or\n"
+                    "    2. move oot.o2r and mm.o2r out of ${WORK_DIR} and re-run, which needs no sandbox at all:\n"
+                    "         ${WORK_DIR}/oot.o2r\n"
+                    "         ${WORK_DIR}/mm.o2r\n"
+                    "  Why the sandbox exists: the goldens pin the world generated with the PORT archives only, "
+                    "because that is the world hosted CI can reproduce (a runner never has ROM-derived archives). With "
+                    "oot.o2r mounted the per-area exclude-location option groups drop out of the settings string "
+                    "Playthrough_Init hashes, the fill is re-seeded differently, and a run in ${WORK_DIR} generates a "
+                    "DIFFERENT, unpinned world — so comparing THAT to the golden would report a move that did not "
+                    "happen. See docs/determinism-goldens.md.")
+            endif()
         endif()
     endif()
 endif()
@@ -172,9 +433,14 @@ set(_actual "${WORK_DIR}/golden-${GOLDEN_NAME}-actual.txt")
 # error rather than a silent pass against week-old bytes.
 file(REMOVE "${_actual}")
 
+# WORKING_DIRECTORY is explicit even in the plain case, where it is the value this
+# row inherited from ctest anyway: the sandbox above is only archive-free because
+# the run happens INSIDE it, so "where did this run happen" must not be an
+# inherited accident.
 execute_process(
     COMMAND ${CMAKE_COMMAND} -E env "${DIGEST_ENV}=${_actual}"
-            "${REDSHIP_EXE}" --test ${DISPATCH}
+            "${_run_exe}" --test ${DISPATCH}
+    WORKING_DIRECTORY "${_run_dir}"
     RESULT_VARIABLE _rc
     OUTPUT_VARIABLE _out
     ERROR_VARIABLE _err
@@ -183,17 +449,22 @@ if(NOT _rc EQUAL 0)
     message(FATAL_ERROR
         "CheckGoldenDigest(${GOLDEN_NAME}): '--test ${DISPATCH}' exited ${_rc} — generation failed before any "
         "comparison could happen, so this row says NOTHING about whether the world moved.\n"
+        "  ran: ${_run_exe}\n  in:  ${_run_dir} [${_run_env}]\n"
         "stdout:\n${_out}\nstderr:\n${_err}")
 endif()
 if(NOT EXISTS "${_actual}")
     message(FATAL_ERROR
         "CheckGoldenDigest(${GOLDEN_NAME}): '--test ${DISPATCH}' reported success but wrote no digest at "
         "${_actual} (is ${DIGEST_ENV} the right variable for this dispatch?).\n"
+        "  ran: ${_run_exe}\n  in:  ${_run_dir} [${_run_env}]\n"
         "stdout:\n${_out}\nstderr:\n${_err}")
 endif()
 
 # ----------------------------------------------------------------------------
-# Normalise: CR-stripped, blank-free, ordered list of `key=value` lines.
+# Normalise: CR-stripped, ordered list of lines. Blank lines and free text are
+# NOT dropped here — they are refused by _digest_keys below, in both directions,
+# because a digest writer that emits them is a bug to report rather than noise to
+# absorb.
 # ----------------------------------------------------------------------------
 function(_digest_lines path out_var)
     file(READ "${path}" _raw)
@@ -203,14 +474,39 @@ function(_digest_lines path out_var)
     set(${out_var} "${_lines}" PARENT_SCOPE)
 endfunction()
 
+# Split `key=value` lines into a key list plus one <prefix><key> variable each,
+# and FATAL_ERROR on any line that is not `key=value` — including an empty one,
+# which is what an interior blank line becomes. Defined here, above BOTH callers,
+# because the REGEN branch validates through it before it writes: a blank or
+# free-text line pinned into a golden would make every later COMPARE of that
+# golden die in this same function, on a file tests/golden/README.md forbids
+# hand-editing.
+function(_digest_keys lines out_keys prefix)
+    set(_keys "")
+    foreach(_line IN LISTS lines)
+        if(_line MATCHES "^([A-Za-z0-9_]+)=(.*)$")
+            list(APPEND _keys "${CMAKE_MATCH_1}")
+            set(${prefix}${CMAKE_MATCH_1} "${CMAKE_MATCH_2}" PARENT_SCOPE)
+        else()
+            message(FATAL_ERROR
+                "CheckGoldenDigest(${GOLDEN_NAME}): digest line is not `key=value`: '${_line}'. The golden format is "
+                "one field per line; a writer that emits free text cannot be diffed field by field.")
+        endif()
+    endforeach()
+    set(${out_keys} "${_keys}" PARENT_SCOPE)
+endfunction()
+
 _digest_lines("${_actual}" _actual_lines)
 
 # The digest as the CI LOG will carry it. Requirement, not decoration: the Linux
 # leg's digest is only knowable from its log, and "are Windows and Linux the same
 # world?" is a question about two logs. Printed before any comparison so it is
-# present even when the row fails.
+# present even when the row fails. The environment is part of the line because an
+# archive-sensitive digest only means something together with the archive set that
+# produced it.
 string(REPLACE ";" "\n  " _pretty "${_actual_lines}")
-message(STATUS "[golden-digest] ${GOLDEN_NAME} host=${CMAKE_HOST_SYSTEM_NAME} dispatch=${DISPATCH}\n  ${_pretty}")
+message(STATUS "[golden-digest] ${GOLDEN_NAME} host=${CMAKE_HOST_SYSTEM_NAME} dispatch=${DISPATCH} "
+               "env=${_run_env}\n  ${_pretty}")
 
 # ----------------------------------------------------------------------------
 # Resolve the golden: per-platform file first, portable file second.
@@ -228,8 +524,18 @@ endif()
 if(REGEN)
     get_filename_component(_golden_dir "${_golden}" DIRECTORY)
     file(MAKE_DIRECTORY "${_golden_dir}")
-    # Write through _digest_lines' normalisation rather than copying the raw
-    # file, so a stray blank line or a free-text line cannot reach a golden.
+    # VALIDATE before writing, through the same `key=value` rule the comparison
+    # applies. _digest_lines normalises CR and trailing newlines and NOTHING else
+    # — it does not drop an interior blank line or a free-text line, and a golden
+    # carrying one would make every later COMPARE of it die in _digest_keys, red
+    # forever, on a file nobody may hand-edit. So the malformed digest is refused
+    # at re-pin time, where the writer that produced it is the thing to fix.
+    _digest_keys("${_actual_lines}" _regen_keys "_regen_")
+    if(NOT _regen_keys)
+        message(FATAL_ERROR
+            "CheckGoldenDigest(${GOLDEN_NAME}): '--test ${DISPATCH}' produced an EMPTY digest at ${_actual}; "
+            "refusing to pin a golden with no fields — it would pass against anything.")
+    endif()
     # Line endings are NOT guaranteed here — CMake's file(WRITE) still lands CRLF
     # on Windows (measured) — and deliberately do not have to be: the comparison
     # above strips CR before diffing, and .gitattributes' `* text=auto eol=lf`
@@ -237,8 +543,10 @@ if(REGEN)
     # re-pinned on Linux produce the same blob and the same reviewable diff.
     string(REPLACE ";" "\n" _normalised "${_actual_lines}")
     file(WRITE "${_golden}" "${_normalised}\n")
+    list(LENGTH _regen_keys _regen_field_count)
     message(STATUS
-        "CheckGoldenDigest(${GOLDEN_NAME}): RE-PINNED ${_golden_kind} golden ${_golden}.\n"
+        "CheckGoldenDigest(${GOLDEN_NAME}): RE-PINNED ${_golden_kind} golden ${_golden} "
+        "(${_regen_field_count} field(s), generated in ${_run_dir} [${_run_env}]).\n"
         "  The DIFF of that file is the review artifact. Commit it with a body that states which fields moved and "
         "why the new world is the intended one (docs/determinism-goldens.md).")
     return()
@@ -266,21 +574,6 @@ _digest_lines("${_golden}" _golden_lines)
 # so a field added to a digest later defaults to the strict reading.
 # ----------------------------------------------------------------------------
 set(_input_fields seed settingsHash sourceIsRando comboSettingsHash comboSettings ladderMasterSeed)
-
-function(_digest_keys lines out_keys prefix)
-    set(_keys "")
-    foreach(_line IN LISTS lines)
-        if(_line MATCHES "^([A-Za-z0-9_]+)=(.*)$")
-            list(APPEND _keys "${CMAKE_MATCH_1}")
-            set(${prefix}${CMAKE_MATCH_1} "${CMAKE_MATCH_2}" PARENT_SCOPE)
-        else()
-            message(FATAL_ERROR
-                "CheckGoldenDigest(${GOLDEN_NAME}): digest line is not `key=value`: '${_line}'. The golden format is "
-                "one field per line; a writer that emits free text cannot be diffed field by field.")
-        endif()
-    endforeach()
-    set(${out_keys} "${_keys}" PARENT_SCOPE)
-endfunction()
 
 _digest_keys("${_golden_lines}" _gkeys "_g_")
 _digest_keys("${_actual_lines}" _akeys "_a_")
@@ -336,6 +629,7 @@ if(_moved_outputs OR _moved_inputs OR _missing OR _added)
         "CheckGoldenDigest(${GOLDEN_NAME}): this build does not reproduce the pinned world.\n"
         "  golden: ${_golden} [${_golden_kind}]\n"
         "  actual: ${_actual}\n"
+        "  ran in: ${_run_dir} [${_run_env}]\n"
         "  host:   ${CMAKE_HOST_SYSTEM_NAME}"
         "${_report}"
         "\n  IF THE MOVE IS INTENDED, re-pin DELIBERATELY — the golden's diff is the review artifact:\n"
@@ -350,4 +644,5 @@ endif()
 list(LENGTH _gkeys _field_count)
 message(STATUS
     "CheckGoldenDigest(${GOLDEN_NAME}): ${_field_count} field(s) match the ${_golden_kind} golden "
-    "${_golden} on ${CMAKE_HOST_SYSTEM_NAME} — the pinned world did not move.")
+    "${_golden} on ${CMAKE_HOST_SYSTEM_NAME} (generated in ${_run_dir} [${_run_env}]) — the pinned world did not "
+    "move.")
