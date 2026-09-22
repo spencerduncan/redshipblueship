@@ -84,13 +84,18 @@
  *       overrides every size, so the full-bag run is one env var away and its
  *       numbers are what the epic comment quotes.
  *
- *   (B) MM'S HOST POOL IS SET EXPLICITLY. MM's graph names ~2200 checks and
- *       `ComboLogicCollectFrom` REFUSES a fill with `ERR_CAPACITY` when an engine
- *       offers more than `RSBS_COMBO_LOGIC_PLACEMENT_CAP` = 1024 hosts rather than
- *       truncating. That is itself a finding and the row prints it; to then be
- *       able to measure anything at all it narrows MM's pool through
- *       `MM_ComboLogic_SetHostPool` — the increment-4 seam, doing exactly the job
- *       `GeneratePools`' `checkPool` will do — and says so.
+ *   (B) MM'S HOST POOL CAN BE NARROWED, AND BY DEFAULT IS NOT. The first draft of
+ *       this row narrowed it unconditionally, because `ComboLogicCollectFrom` sized
+ *       its scratch by `RSBS_COMBO_LOGIC_PLACEMENT_CAP` (1024) and MM's graph offers
+ *       ~2250 hosts, so an honest MM enumeration refused the first bag item of the
+ *       first fill with `ERR_CAPACITY`. PR #717 fixed exactly that on main — the
+ *       enumeration is now bounded by `RSBS_COMBO_LOGIC_HOST_CAP` (4096), sized by
+ *       the two check id-spaces rather than by the bag — so the narrowing is no
+ *       longer needed and the row measures MM's WHOLE graph host set by default.
+ *       `RSBS_COMBO_MEASURE_MM_HOSTS` still narrows it through
+ *       `MM_ComboLogic_SetHostPool` (the increment-4 seam, doing exactly the job
+ *       `GeneratePools`' `checkPool` will do) for a smaller, faster configuration.
+ *       The row prints both caps against both measured figures either way.
  *
  *   (C) ONE HOST, ONE PROFILE, TRICKS OFF. The numbers are this workstation's,
  *       under the shipped default profile with MM never booted into play. Other
@@ -368,12 +373,15 @@ TestResult ComboLogicMeasure_Run(void) {
 
     const int ootBagTarget = EnvInt("RSBS_COMBO_MEASURE_OOT_BAG", 16, 1, RSBS_COMBO_LOGIC_BAG_CAP);
     const int mmBagTarget = EnvInt("RSBS_COMBO_MEASURE_MM_BAG", 16, 1, RSBS_COMBO_LOGIC_BAG_CAP);
-    const int mmHostTarget = EnvInt("RSBS_COMBO_MEASURE_MM_HOSTS", 256, 1, RSBS_COMBO_LOGIC_PLACEMENT_CAP);
+    // 0 (the default) means DO NOT NARROW: measure MM's whole graph host set. See
+    // approximation (B) — the narrowing existed only to dodge a cap PR #717 removed.
+    const int mmHostTarget = EnvInt("RSBS_COMBO_MEASURE_MM_HOSTS", 0, 0, RSBS_COMBO_LOGIC_HOST_CAP);
     const int roundSamples = EnvInt("RSBS_COMBO_MEASURE_ROUNDS", 5, 1, 64);
     const int fillAttempts = EnvInt("RSBS_COMBO_MEASURE_ATTEMPTS", 3, 1, RSBS_COMBO_LOGIC_FILL_RETRIES);
-    printf("[TEST] combo-logic-measure: configuration oot-bag<=%d mm-bag<=%d mm-hosts<=%d round-samples=%d "
+    printf("[TEST] combo-logic-measure: configuration oot-bag<=%d mm-bag<=%d mm-hosts=%s round-samples=%d "
            "fill-attempts=%d (all four are RSBS_COMBO_MEASURE_* overridable; the defaults are a CI budget)\n",
-           ootBagTarget, mmBagTarget, mmHostTarget, roundSamples, fillAttempts);
+           ootBagTarget, mmBagTarget, (mmHostTarget > 0) ? "narrowed (see below)" : "MM's whole graph", roundSamples,
+           fillAttempts);
 
     // ------------------------------------------------------------------
     // This host, against #582's budget. Printed, never asserted.
@@ -499,29 +507,47 @@ TestResult ComboLogicMeasure_Run(void) {
            (int)RSBS_COMBO_LOGIC_BAG_CAP, (fullUnionBag > RSBS_COMBO_LOGIC_BAG_CAP) ? "OVER the cap" : "inside the cap",
            (fullUnionBag > RSBS_COMBO_LOGIC_BAG_CAP) ? (fullUnionBag - (int)RSBS_COMBO_LOGIC_BAG_CAP)
                                                      : ((int)RSBS_COMBO_LOGIC_BAG_CAP - fullUnionBag));
-    printf("[TEST] combo-logic-measure: MM hosts=%d against RSBS_COMBO_LOGIC_PLACEMENT_CAP=%d -> %s. Over the cap, "
-           "ComboLogicCollectFrom REFUSES the fill with ERR_CAPACITY rather than truncating, so the `none` rung "
-           "(which draws from allEmptyHosts) cannot run over MM's whole graph as the caps stand.\n",
-           mmGraphHosts, (int)RSBS_COMBO_LOGIC_PLACEMENT_CAP,
-           (mmGraphHosts > RSBS_COMBO_LOGIC_PLACEMENT_CAP) ? "OVER the cap" : "inside the cap");
-    printf("[TEST] combo-logic-measure: OoT hosts=%d against the same cap -> %s\n", ootOwned,
-           (ootOwned > RSBS_COMBO_LOGIC_PLACEMENT_CAP) ? "OVER the cap" : "inside the cap");
+    // TWO DIFFERENT CAPS, and conflating them is a mistake this row made once. What
+    // bounds ONE ENUMERATION is RSBS_COMBO_LOGIC_HOST_CAP (PR #717 introduced it
+    // precisely because the placement cap was wrong for this job and an honest MM
+    // enumeration refused the first bag item of the first fill). What bounds
+    // PLACEMENTS ON ONE HOST GAME is RSBS_COMBO_LOGIC_PLACEMENT_CAP, and a fill can
+    // only exceed it by placing that many items, which the bag cap already bounds.
+    printf("[TEST] combo-logic-measure: MM hosts=%d against RSBS_COMBO_LOGIC_HOST_CAP=%d (what bounds ONE "
+           "enumeration; ComboLogicCollectFrom refuses rather than truncates above it) -> %s\n",
+           mmGraphHosts, (int)RSBS_COMBO_LOGIC_HOST_CAP,
+           (mmGraphHosts > RSBS_COMBO_LOGIC_HOST_CAP) ? "OVER the cap" : "inside the cap");
+    printf("[TEST] combo-logic-measure: OoT hosts=%d against the same host cap -> %s\n", ootOwned,
+           (ootOwned > RSBS_COMBO_LOGIC_HOST_CAP) ? "OVER the cap" : "inside the cap");
+    printf("[TEST] combo-logic-measure: RSBS_COMBO_LOGIC_PLACEMENT_CAP=%d bounds PLACEMENTS PER HOST GAME, not the "
+           "enumeration: MM's %d hosts exceed it, but a fill cannot place on more than min(bag, cap) of them and the "
+           "bag cap is %d — so it binds only if the bag ever outgrows it.\n",
+           (int)RSBS_COMBO_LOGIC_PLACEMENT_CAP, mmGraphHosts, (int)RSBS_COMBO_LOGIC_BAG_CAP);
 
     // ------------------------------------------------------------------
-    // Approximation B: narrow MM's host pool through the increment-4 seam so a
-    // fill can run at all. Restored to the graph default in the teardown.
+    // Approximation B: narrow MM's host pool ONLY if asked. Restored to the graph
+    // default in the teardown either way.
     // ------------------------------------------------------------------
-    std::vector<uint16_t> mmAllHosts((size_t)mmGraphHosts, 0);
-    CLM_ASSERT(mm->allEmptyHosts(mm->self, mmAllHosts.data(), mmGraphHosts) == mmGraphHosts,
-               "MM's allEmptyHosts disagreed with its own count");
-    const std::vector<uint16_t> mmPool = StrideSample(mmAllHosts, mmHostTarget);
-    MM_ComboLogic_SetHostPool(mmPool.data(), (int)mmPool.size());
-    const int mmPooledHosts = mm->allEmptyHosts(mm->self, nullptr, 0);
-    printf("[TEST] combo-logic-measure: MM host pool narrowed through MM_ComboLogic_SetHostPool to %d hosts (stride "
-           "sample of %d; this is the increment-4 seam standing in for GeneratePools' checkPool)\n",
-           mmPooledHosts, mmGraphHosts);
-    CLM_ASSERT(mmPooledHosts > 0 && mmPooledHosts <= RSBS_COMBO_LOGIC_PLACEMENT_CAP,
-               "the narrowed MM pool is empty or still over the placement cap");
+    int mmPooledHosts = mmGraphHosts;
+    if (mmHostTarget > 0) {
+        std::vector<uint16_t> mmAllHosts((size_t)mmGraphHosts, 0);
+        CLM_ASSERT(mm->allEmptyHosts(mm->self, mmAllHosts.data(), mmGraphHosts) == mmGraphHosts,
+                   "MM's allEmptyHosts disagreed with its own count");
+        const std::vector<uint16_t> mmPool = StrideSample(mmAllHosts, mmHostTarget);
+        MM_ComboLogic_SetHostPool(mmPool.data(), (int)mmPool.size());
+        mmPooledHosts = mm->allEmptyHosts(mm->self, nullptr, 0);
+        printf("[TEST] combo-logic-measure: MM host pool NARROWED through MM_ComboLogic_SetHostPool to %d hosts "
+               "(stride sample of %d; the increment-4 seam standing in for GeneratePools' checkPool)\n",
+               mmPooledHosts, mmGraphHosts);
+        CLM_ASSERT(mmPooledHosts > 0, "the narrowed MM pool is empty");
+    } else {
+        printf("[TEST] combo-logic-measure: MM host pool NOT narrowed: all %d graph hosts are offered, which is what "
+               "PR #717's RSBS_COMBO_LOGIC_HOST_CAP made possible\n",
+               mmGraphHosts);
+    }
+    CLM_ASSERT(mmPooledHosts <= RSBS_COMBO_LOGIC_HOST_CAP,
+               "MM offers more hosts in one enumeration than RSBS_COMBO_LOGIC_HOST_CAP allows, so every fill below "
+               "would refuse with ERR_CAPACITY on its first bag item");
 
     // ------------------------------------------------------------------
     // THE MEASUREMENT BAG. OoT's half comes from hosts this row EMPTIES, so the
@@ -757,6 +783,35 @@ TestResult ComboLogicMeasure_Run(void) {
            "cost is dominated by two full closures whose size does not depend on the assumed-set size, so linear is "
            "the honest first order — but the assume loop itself is O(bag) per round, which makes the true curve "
            "super-linear. It is an underestimate, not an overestimate.\n");
+
+    // THE ATTEMPT ARITHMETIC, which is the number #582 is actually about. The
+    // isolated round above is measured with EMPTY placement tables, so it pays
+    // neither the crossing exchange nor the post-restore placement re-apply — and
+    // the re-apply is one `place` per placement per round for a restoring side,
+    // which MM is. The fill's own wall/rounds is therefore the honest per-round
+    // figure, and the budget is per ATTEMPT while the fill may take up to
+    // RSBS_COMBO_LOGIC_FILL_RETRIES of them within one seed.
+    const double fillPerRoundMs = (beatEitherA.res.rounds > 0)
+                                      ? (beatEitherA.wallMs / (double)beatEitherA.res.rounds)
+                                      : roundStats.median;
+    const double fullBagOneAttemptMs = fillPerRoundMs * fullBagRounds;
+    printf("[TEST] combo-logic-measure: PER-ROUND INSIDE THE FILL: %.1fms (%.1fms wall / %d rounds) against %.1fms for "
+           "an isolated round — the difference is the crossing exchange and the post-restore placement re-apply, "
+           "which the isolated round does not pay because its tables are empty.\n",
+           fillPerRoundMs, beatEitherA.wallMs, beatEitherA.res.rounds, roundStats.median);
+    printf("[TEST] combo-logic-measure: EXTRAPOLATED PER ATTEMPT (arithmetic): the full union bag over %.0f rounds at "
+           "%.1fms = %.0fms = %.1fs per attempt, i.e. %.2fx the 30000ms floor and %.2fx this host's %ums per-attempt "
+           "budget. At the coordinator's default of %d batch roll-backs that is %.0fs worst case against a %ums "
+           "total-creation budget -> %s.\n",
+           fullBagRounds, fillPerRoundMs, fullBagOneAttemptMs, fullBagOneAttemptMs / 1000.0,
+           fullBagOneAttemptMs / (double)RSBS_GENBUDGET_FLOOR_MS,
+           fullBagOneAttemptMs / (double)Combo_GenBudget_FillBudgetMs(0),
+           (unsigned)Combo_GenBudget_FillBudgetMs(0), (int)RSBS_COMBO_LOGIC_FILL_RETRIES,
+           (fullBagOneAttemptMs * (double)RSBS_COMBO_LOGIC_FILL_RETRIES) / 1000.0,
+           (unsigned)Combo_GenBudget_TotalBudgetMs(),
+           ((fullBagOneAttemptMs * (double)RSBS_COMBO_LOGIC_FILL_RETRIES) > (double)Combo_GenBudget_TotalBudgetMs())
+               ? "OVER the total budget, so the retry count is a budget decision and not only a quality one"
+               : "inside the total budget");
     printf("[TEST] combo-logic-measure: MM harvests during the measurement=%d, MM shrink observations=%d\n",
            MM_ComboLogic_HarvestCount(), MM_ComboLogic_ShrinkObservations());
 
