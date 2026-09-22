@@ -616,6 +616,14 @@ extern "C" {
 // included, so redship_common takes no header dependency on OoT's port glue.
 #include "tests/test_font_license.c"
 
+// The OoT half of the combo-logic engine surface (ADR 0010 increment 3, #645,
+// lane K2a). Unlike test_combo_logic.c above — which drives the coordinator over
+// synthetic stubs — this one drives the REGISTERED OoT engine over the REAL rando
+// graph after a real headless generation, so it belongs to the `rando` tier. FILE
+// SCOPE (compiled as C++); it forward-declares the shared harness helpers because
+// this include sits above their definitions.
+#include "tests/test_oot_logic_export.c"
+
 // MM scene-command EXECUTE regression (issue #344). Unlike the parse test, the
 // body runs the parsed commands against a PlayState, so it needs MM's global.h
 // — which lives in an MM TU (games/mm/2s2h/mm_scene_execute_test.cpp) to keep
@@ -3577,6 +3585,22 @@ TestResult Test_MMDeathDeclineAutosave(void) {
     return MM_DeathDeclineAutosave_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// The OoT combo-logic engine over the real rando graph (#645, lane K2a). The
+// wrapper owns the display-free bring-up because CreateHarnessStyleContext is a
+// file-static defined above here but BELOW the tests/ include block, which is the
+// same reason Test_CrossGameModel is split this way.
+TestResult Test_OoTLogicExport(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    static char oleArg0[] = "redship";
+    static char* oleArgv[] = { oleArg0, nullptr };
+    InitOTRForMMFirstBoot(1, oleArgv);
+    return OoTLogicExport_Run();
+}
+
 TestResult Test_RoundtripIntegrity(void) {
     printf("[TEST] roundtrip-integrity: OoT SaveContext byte-integrity across roundtrip (issue #262)\n");
     int failures = TestRoundtripIntegrity_Run();
@@ -4209,6 +4233,13 @@ const TestDescriptor gTests[] = {
      "The single-bag fill is seed-determined, `none` draws from all empties with no round run, and beat-either is "
      "never biased (#645)",
      Test_ComboLogicFill},
+    // The OoT ENGINE behind that coordinator (#645, lane K2a). `rando` tier: every
+    // fact it asserts is a function of a fill result and of the region graph, so a
+    // ROM-free run would make the whole row vacuous rather than red.
+    {"oot-logic-export",
+     "OoT's real solver satisfies the combo-logic engine contract: the detach resets, identical queries agree across "
+     "a residue-producing search, and no placement or save byte moves (#645)",
+     Test_OoTLogicExport},
     {nullptr, nullptr, nullptr}  // Sentinel
 };
 
@@ -4294,7 +4325,8 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "combo-creation-event") == 0 ||
                 strcmp(gTests[i].name, "mm-trick-gbt-gate") == 0 ||
                 strcmp(gTests[i].name, "mm-trick-bindings") == 0 ||
-                strcmp(gTests[i].name, "rando-entrance-pin") == 0) {
+                strcmp(gTests[i].name, "rando-entrance-pin") == 0 ||
+                strcmp(gTests[i].name, "oot-logic-export") == 0) {
                 printf("\n--- Skipping: %s (needs display; runs as a rando-label CTest) ---\n", gTests[i].name);
                 continue;
             }
