@@ -2280,6 +2280,13 @@ void RunCommands(Gfx* Commands, const std::vector<std::unordered_map<Mtx*, MtxF>
     ImGui::PopStyleColor();
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// Frames this process has demonstrably finished. Read by
+// OoT_Graph_HasPresentedFrame below; see the increment at the end of
+// Graph_ProcessGfxCommands for what it is for.
+static uint64_t sOoTPresentedFrames = 0;
+#endif
+
 // C->C++ Bridge
 extern "C" void Graph_ProcessGfxCommands(Gfx* commands) {
     // Guard audio runtime calls - only notify audio thread if audio is enabled
@@ -2356,7 +2363,27 @@ extern "C" void Graph_ProcessGfxCommands(Gfx* commands) {
     // OTRTODO: FIGURE OUT END FRAME POINT
     /* if (OTRGlobals::Instance->context->lastScancode != -1)
          OTRGlobals::Instance->context->lastScancode = -1;*/
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // THE CREATION OVERLAY'S PRECONDITION (#582). The paired creation presents
+    // its own gui-only frames from inside the blocking call
+    // (SohGui/CreationProgressOverlay.cpp), and the one thing that must be true
+    // before it is allowed to do that is that this process is ALREADY producing
+    // frames. A unit-test harness constructs a real Fast3dWindow (the `rando`
+    // tier needs one) but never runs the game loop, so nothing there has ever
+    // gone through the sequence above; starting to render from inside a test's
+    // creation call would be the overlay's own idea rather than a continuation
+    // of a live render loop. One counter, incremented where a frame demonstrably
+    // completed, makes "a live render loop exists" a checked fact.
+    sOoTPresentedFrames++;
+#endif
 }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+extern "C" int OoT_Graph_HasPresentedFrame(void) {
+    return sOoTPresentedFrames > 0 ? 1 : 0;
+}
+#endif
 
 extern "C" void OTRGetPixelDepthPrepare(float x, float y) {
     auto wnd = std::dynamic_pointer_cast<Fast::Fast3dWindow>(Ship::Context::GetInstance()->GetWindow());

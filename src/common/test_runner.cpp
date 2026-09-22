@@ -8,6 +8,7 @@
 #include "entrance.h"
 #include "foreign_items.h" // ADR 0010 inc. 2: the frozen record + the O8 give-caps surface
 #include "gen_budget.h"    // ADR 0010 inc. 2: the #582 fill budget + progress surface
+#include "gen_progress_overlay.h" // #582: the on-screen creation-progress surface
 #include "save.h"          // the #533 slot-session surface the creation/arrival legs reset
 
 #include "integration_test_hooks.h"
@@ -605,6 +606,9 @@ extern "C" {
 // of them are unavailable.
 #include "tests/test_curated_archive_generator.c"
 
+// The creation-progress surface's state machine (#582). Display-free by
+// construction: the row installs a counting painter, never a renderer.
+#include "tests/test_gen_progress_overlay.c"
 // The font-licensing invariant (license follow-up to #578). FILE SCOPE
 // (compiled as C++): it scans the asset and source trees via RSBS_SOURCE_DIR
 // and calls SOH::ResolveOverlayFontName, which is defined in
@@ -1202,6 +1206,18 @@ TestResult Test_RandoDeterminism(void) {
 //   8  the #582 budget numbers are the ruled ones
 //   9  #585's join is in force (MM_Rando_Logic_JoinOrderProbe: red before the
 //      fix, green after)
+//  10  the #582 on-screen progress overlay PAINTS FROM INSIDE the blocking
+//      creation call — the one observation that needs both a real window (this
+//      tier has one) and a real paired creation (only this row runs one), and
+//      the one a display-free row provably cannot make. Four parts: (a) frames
+//      are presented from inside the call; (b) the install RE-ARMS after the
+//      slots are cleared, which the row forces on purpose; (c) those frames
+//      carry ImGui's mouse and keyboard suppression, because they submit the
+//      whole SoH menu while the creation's gSaveContext bracket is active; and
+//      (d) a GuiWindow registered beside SoH's trackers, and drawn from the same
+//      Gui::DrawMenu() loop, saw OoT's save bytes on those frames rather than
+//      MM's in-flight world — the property leg 4's post-creation byte compare
+//      structurally cannot see
 //
 // WHY THE `rando` TIER. Every leg downstream of 1 needs a REAL OoT fill: the
 // creation event refuses to run without a live pairing identity, and the
@@ -1216,6 +1232,18 @@ uint32_t MM_Rando_OnSaveInitDispatchCount(void);
 int MM_Rando_Logic_JoinOrderProbe(void);
 void MM_Rando_LastPairedSpoilerStats(int* outForward, int* outReverse, int* outIdentityOk);
 int Combo_ConsumeFrozenState(const char* gameId, void* saveContext, size_t size);
+// #582's overlay leg. games/oot/soh/SohGui/CreationProgressOverlay.h documents
+// why the probe returns whether it could present rather than asserting it.
+int OoT_CreationProgressOverlay_TestPresentOnce(void);
+uint32_t OoT_CreationProgressOverlay_TestPresentedFrames(void);
+int OoT_CreationProgressOverlay_TestIsArmed(void);
+int OoT_CreationProgressOverlay_TestLastFrameSuppressedInput(void);
+int OoT_CreationProgressOverlay_TestLastRefusal(void);
+int OoT_CreationProgressOverlay_TestInstallSaveObserver(void);
+uint32_t OoT_CreationProgressOverlay_TestObservedSaveSignature(void);
+uint32_t OoT_CreationProgressOverlay_TestObservedSaveDraws(void);
+uint32_t OoT_CreationProgressOverlay_TestObservedBracketedDraws(void);
+uint32_t OoT_CreationProgressOverlay_TestObservedMismatchedDraws(void);
 // The UNIFIED save buffer (src/common/unified_save.c): one char array both games
 // reinterpret through their own layouts. Declared as what it is, because leg 4
 // compares it byte for byte and neither game's struct spans all of it.
@@ -1376,7 +1404,79 @@ TestResult Test_ComboCreationEvent(void) {
 
     const uint32_t dispatchesBeforeCreation = MM_Rando_OnSaveInitDispatchCount();
     sCreationPhaseCount = 0;
+
+    // ------------------------------------------------------------------
+    // Leg 10 (#582) — THE OVERLAY ACTUALLY PAINTS DURING THE CREATION.
+    //
+    // This is the only place in the suite where that can be observed: the leg
+    // needs a real Fast3dWindow (this tier has one) AND a real paired creation
+    // (this row is the only one that runs one). The self-probe below answers
+    // "can this process present a gui-only frame at all" first, so a renderer
+    // that cannot (software GL, a backend that declines frames) skips the leg
+    // instead of reddening a row about creation.
+    //
+    // The count is taken AROUND the creation, so what it proves is specifically
+    // that frames were pumped from INSIDE the blocking call — which is the whole
+    // deliverable, and the thing a green display-free row cannot show.
+    //
+    // PRESENTED frames, not painter invocations. ComboGenOverlay_PaintCount()
+    // counts calls into the painter, every one of which could have bailed at a
+    // guard; the presented counter only moves when the whole StartDraw ->
+    // EndFrame sequence completed. Asserting the former would have been the
+    // vacuous version of this leg.
+    const int overlayRendererWorks = OoT_CreationProgressOverlay_TestPresentOnce();
+    const uint32_t overlayPresentsBefore = OoT_CreationProgressOverlay_TestPresentedFrames();
+    // 10c — WHICH WORLD'S BYTES A PUMPED FRAME'S WIDGETS READ. Registered with the
+    // same Gui SoH registers its item and check trackers with, and drawn from the
+    // same `for (mGuiWindows)` loop inside Gui::DrawMenu(), so what it records is
+    // what a tracker left open across a creation would have read. Leg 4 below
+    // cannot see this: it compares gSaveContext AFTER the creation returned, where
+    // the seam has already restored OoT's snapshot unconditionally — it stays green
+    // with the paint bracket deleted outright.
+    const int saveObserverRegistered = OoT_CreationProgressOverlay_TestInstallSaveObserver();
+    ComboGenOverlay_Reset();
+    printf("[TEST] overlay: this process %s present a gui-only frame\n", overlayRendererWorks ? "CAN" : "canNOT");
+    if (overlayRendererWorks && !OoT_CreationProgressOverlay_TestIsArmed()) {
+        printf("[TEST] FAIL: the overlay presented a probe frame yet reports itself un-armed (#582)\n");
+        return TEST_FAIL;
+    }
+    // WHY THE SKIP IS NOT A FREE PASS. "This process cannot present" is a legitimate
+    // answer on a software-GL or frame-declining box, and the leg below skips for it.
+    // It is NOT legitimate when the install ARMED the overlay — the install asked the
+    // same questions and said yes — so a refusal from one of the wiring guards is a
+    // defect being hidden by a skip. This row was shipped once with a missing
+    // render-thread latch: every paint refused OFF_THREAD, the probe answered
+    // "canNOT", and leg 10 skipped itself green on a workstation that can present.
+    if (!overlayRendererWorks && OoT_CreationProgressOverlay_TestIsArmed()) {
+        const int refusal = OoT_CreationProgressOverlay_TestLastRefusal();
+        if (refusal != RSBS_GENOVERLAY_REFUSED_WINDOW_CLOSING && refusal != RSBS_GENOVERLAY_REFUSED_NO_RENDER_LOOP &&
+            refusal != RSBS_GENOVERLAY_REFUSED_FRAME_DECLINED) {
+            printf("[TEST] FAIL: the overlay armed itself — so this process IS presentable — yet the probe frame was "
+                   "refused by guard %d, which is a wiring defect and not a headless box (#582)\n",
+                   refusal);
+            return TEST_FAIL;
+        }
+        printf("[TEST] overlay: armed, and the probe was declined by the environment (guard %d)\n", refusal);
+    }
+    // THE INSTALL'S RED HALF. The probe above already installed, so the slots are
+    // armed; clearing them here is what a process that installs, tears down and
+    // creates again does — and it is what the shipped teardown of
+    // test_gen_progress_overlay.c does to the same process-global slots. With the
+    // install's old shape (a `gInstalled` once-guard ABOVE the slot writes, with
+    // only the thread latch outside it) this clearing was PERMANENT: the creation
+    // below would present nothing and leg 10 would go red. The install now either
+    // arms all three slots or arms none, so it re-arms here.
+    ComboGenOverlay_SetPainter(NULL);
+    Combo_GenProgress_SetDisplaySink(NULL);
+
     const int created = OoT_RunPairedCreationEvent(0);
+    // The observer formed its verdict INSIDE each frame (it had to; see
+    // OoT_Creation_LiveSaveIsOoTSnapshot). These are its tallies.
+    const uint32_t observedSaveDraws = OoT_CreationProgressOverlay_TestObservedSaveDraws();
+    const uint32_t observedBracketedDraws = OoT_CreationProgressOverlay_TestObservedBracketedDraws();
+    const uint32_t observedMismatchedDraws = OoT_CreationProgressOverlay_TestObservedMismatchedDraws();
+    const uint32_t overlayPaints = ComboGenOverlay_PaintCount();
+    const uint32_t overlayPresents = OoT_CreationProgressOverlay_TestPresentedFrames() - overlayPresentsBefore;
     const uint32_t dispatchesAfterCreation = MM_Rando_OnSaveInitDispatchCount();
     const uint32_t creationMs = Combo_GenProgress_Current()->elapsedMs;
     Combo_GenProgress_SetSink(NULL);
@@ -1389,9 +1489,92 @@ TestResult Test_ComboCreationEvent(void) {
         // gSaveContext is ONE buffer both games reinterpret. If the bracket ever
         // stops restoring it, the file the seam is in the middle of creating is
         // overwritten with MM's world and written to disk that way.
+        //
+        // WHAT THIS DOES *NOT* COVER, stated because the first cut of #582 claimed
+        // it did. The overlay's paint bracket swaps OoT's snapshot in for a frame
+        // and MM's bytes back afterwards; only the RESTORE half could ever land
+        // here, and only if it were missing entirely — this comparison runs after
+        // the creation returned, where the seam restores OoT's snapshot
+        // unconditionally anyway. Deleting both of the bracket's memcpys leaves
+        // this leg green. Which world a pumped frame's widgets READ is leg 10c's
+        // job, and it needed its own observer.
         printf("[TEST] FAIL: the creation event did not restore OoT's gSaveContext byte-exact — MM's world leaked "
                "into the file being created (src/common/unified_save.c)\n");
         return TEST_FAIL;
+    }
+    // Leg 10's verdict. A renderer that could present a probe frame and then
+    // painted nothing across a whole paired creation means the surface is wired
+    // to nothing — exactly the state this issue was open for.
+    if (overlayRendererWorks) {
+        if (overlayPresents == 0) {
+            printf("[TEST] FAIL: this process can present a gui-only frame, yet the paired creation PRESENTED %u "
+                   "(painter invoked %u times) — the on-screen progress surface is not reached from inside the "
+                   "blocking call (#582)\n",
+                   (unsigned)overlayPresents, (unsigned)overlayPaints);
+            return TEST_FAIL;
+        }
+        printf("[TEST] overlay: the paired creation PRESENTED %u frames from inside the blocking call (painter "
+               "invoked %u times) (#582)\n",
+               (unsigned)overlayPresents, (unsigned)overlayPaints);
+        // A pumped frame submits SoH's whole menu and every registered GuiWindow
+        // (Gui::StartDraw -> DrawMenu) while the creation seam's gSaveContext
+        // bracket is active. If input is live on those frames, a click runs a menu
+        // handler re-entrantly on the render thread in the middle of the creation.
+        // Read from the live io INSIDE the last pumped frame, not from the line
+        // that sets it.
+        if (!OoT_CreationProgressOverlay_TestLastFrameSuppressedInput()) {
+            printf("[TEST] FAIL: the creation's pumped frames accepted input — the whole SoH menu was live and "
+                   "clickable during the creation (#582)\n");
+            return TEST_FAIL;
+        }
+        printf("[TEST] overlay: those frames were submitted with mouse and keyboard suppressed, so the menu they "
+               "draw is inert\n");
+        // 10c's verdict. The observer draws from inside Gui::DrawMenu()'s
+        // registered-window loop, which is one statement INSIDE gui->StartDraw() —
+        // so this is red unless the gSaveContext bracket wraps the whole
+        // StartDraw -> EndFrame sequence. It was not, in the first cut of #582: the
+        // bracket wrapped only the overlay's own ImGui draw, and every tracker on
+        // the frame read MM's in-flight world as OoT inventory with nothing
+        // observing it.
+        if (!saveObserverRegistered) {
+            printf("[TEST] FAIL: this process presented frames from inside the creation yet the save observer could "
+                   "not register — leg 10c cannot be evaluated and must not pass silently (#582)\n");
+            return TEST_FAIL;
+        }
+        if (observedSaveDraws == 0) {
+            printf("[TEST] FAIL: %u frames were presented from inside the creation and the registered save observer "
+                   "was drawn on NONE of them — the pumped frame does not run Gui::DrawMenu's window loop, so "
+                   "nothing here observes what a tracker would read (#582)\n",
+                   (unsigned)overlayPresents);
+            return TEST_FAIL;
+        }
+        // NON-VACUITY, and it is not padding. A frame painted outside the creation's
+        // bracket (the terminal one is) has no answer to give, so a run whose only
+        // observed frames were those would report zero mismatches no matter how
+        // wrong the bracket is — which is exactly how the first version of this leg
+        // passed under a deliberately mis-placed bracket.
+        if (observedBracketedDraws == 0) {
+            printf("[TEST] FAIL: the save observer was drawn on %u frames but on NONE of them was the creation's "
+                   "gSaveContext bracket active — every answer it gave was vacuous, so leg 10c proved nothing "
+                   "(#582)\n",
+                   (unsigned)observedSaveDraws);
+            return TEST_FAIL;
+        }
+        if (observedMismatchedDraws != 0) {
+            printf("[TEST] FAIL: on %u of %u bracketed frames a widget drawn from Gui::DrawMenu's window loop was "
+                   "shown MM's in-flight world (gSaveContext signature %08X) instead of OoT's snapshot — the paint "
+                   "bracket does not cover Gui::StartDraw, so SoH's item and check trackers read MM bytes as OoT "
+                   "inventory during the creation (#582)\n",
+                   (unsigned)observedMismatchedDraws, (unsigned)observedBracketedDraws,
+                   (unsigned)OoT_CreationProgressOverlay_TestObservedSaveSignature());
+            return TEST_FAIL;
+        }
+        printf("[TEST] overlay: a GuiWindow registered beside the trackers was drawn on %u frames, %u of them with "
+               "the creation bracket active, and was shown OoT's world on every one of those\n",
+               (unsigned)observedSaveDraws, (unsigned)observedBracketedDraws);
+    } else {
+        printf("[TEST] overlay: SKIPPED the paint assertion — this renderer cannot present a gui-only frame here "
+               "(the phase channel's stderr leg is the surface in that case)\n");
     }
     if (dispatchesAfterCreation != dispatchesBeforeCreation + 1u) {
         printf("[TEST] FAIL: the creation event dispatched MM generation %u times, expected exactly 1\n",
@@ -4017,6 +4200,15 @@ const TestDescriptor gTests[] = {
     // label in its own process).
     {"mm-trick-bindings", "Every trick part 2 bound closes its edge off and opens it on, and none removes reach (#578)",
      Test_MMTrickBindings},
+    // #582: the on-screen creation-progress surface's headless half — the two
+    // channel legs' independence, the monotone bar across the attempt ladder,
+    // the state machine's two terminal edges, and "no painter means no
+    // behaviour". Appended at the end of the block; it touches only its own
+    // sinks and restores them, so it is order-free.
+    {"gen-progress-overlay",
+     "Creation progress reaches both channel legs, the bar never rewinds across the ladder, and the overlay's state "
+     "machine has two distinct terminal edges (#582)",
+     Test_GenProgressOverlay},
     // The font-licensing invariant (license follow-up to #578). Order-free: an
     // asset/source scan under RSBS_SOURCE_DIR plus SOH::ResolveOverlayFontName,
     // a pure function over string literals. It reads no globals and writes none,
