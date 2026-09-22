@@ -88,13 +88,63 @@ int OoT_CreationProgressOverlay_TestIsArmed(void);
  * ImGuiConfigFlags_NoMouse and ImGuiConfigFlags_NoKeyboard both in force, read
  * from the live io INSIDE that frame.
  *
- * A pumped frame draws SoH's whole menu (Gui::StartDraw -> DrawMenu, Gui::EndDraw
- * -> DrawFloatingWindows) while the creation seam's gSaveContext bracket is
+ * A pumped frame draws SoH's whole menu and every registered GuiWindow
+ * (Gui::StartDraw -> DrawMenu) while the creation seam's gSaveContext bracket is
  * active, so a click landing on a menu handler would run it re-entrantly in the
  * middle of the creation. The suppression is what stops that, and this is how a
  * row sees it rather than taking a comment's word for it.
  */
 int OoT_CreationProgressOverlay_TestLastFrameSuppressedInput(void);
+
+/**
+ * TEST SEAM. Register a GuiWindow that records a signature of `gSaveContext` from
+ * inside `Gui::DrawMenu()`'s registered-window loop -- the same loop, on the same
+ * frame, that draws SoH's item and check trackers.
+ *
+ * WHY IT HAS TO BE A REGISTERED WINDOW. The property under test is "a widget drawn
+ * on a pumped frame sees OoT's save bytes, not MM's in-flight world". The
+ * creation row's byte-exact comparison cannot see it: that runs after the creation
+ * returns, where the seam has already restored OoT's snapshot unconditionally, so
+ * it stays green with the paint bracket deleted. Only an observer standing where
+ * the trackers stand can go red for the thing that actually hurts a player.
+ *
+ * @return 1 when it registered (or was already registered), 0 when this process
+ *         has no Gui to register with. Registering resets the counters. Nothing
+ *         in a shipping path calls this, and it submits no ImGui window of its
+ *         own.
+ */
+int OoT_CreationProgressOverlay_TestInstallSaveObserver(void);
+
+/** TEST SEAM. The gSaveContext signature of the last frame the observer found
+ *  SHOWING THE WRONG WORLD. Only meaningful when the mismatch count below is
+ *  nonzero; it exists so the failure message can name what was on screen. */
+uint32_t OoT_CreationProgressOverlay_TestObservedSaveSignature(void);
+
+/** TEST SEAM. How many frames the observer has been drawn on at all since it was
+ *  registered. */
+uint32_t OoT_CreationProgressOverlay_TestObservedSaveDraws(void);
+
+/**
+ * TEST SEAM. Draws that happened while the creation's gSaveContext bracket was
+ * ACTIVE — the only frames whose answer means anything.
+ *
+ * A row must require this to be nonzero before it believes the mismatch count.
+ * That is not defensive padding: the first version of this observer remembered one
+ * signature and compared it after the creation, and because the LAST painted frame
+ * of a creation is the terminal one — after the bracket closed — it reported
+ * success even with the bracket deliberately mis-placed. Separating "frames that
+ * could answer" from "frames that answered wrong" is what makes the zero mean
+ * something.
+ */
+uint32_t OoT_CreationProgressOverlay_TestObservedBracketedDraws(void);
+
+/**
+ * TEST SEAM. Of those, how many were shown MM's in-flight world where OoT's
+ * snapshot belonged. Any nonzero value is the reviewed defect live: SoH's item and
+ * check trackers, drawn from the same loop as this observer, would be reading MM's
+ * bytes as OoT inventory in the middle of creating the player's file.
+ */
+uint32_t OoT_CreationProgressOverlay_TestObservedMismatchedDraws(void);
 
 #ifdef __cplusplus
 }

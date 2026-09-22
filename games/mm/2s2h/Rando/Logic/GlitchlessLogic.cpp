@@ -12,10 +12,19 @@ uint64_t GetUnixTimestamp();
 }
 
 #ifdef RSBS_SINGLE_EXECUTABLE
-// The creation-progress overlay (#582). This loop is the ONLY place in the
-// paired creation that runs long enough to need a heartbeat: everything else
-// the creation event does reports a phase and moves on within milliseconds,
-// while one pass of this fill can occupy the whole per-attempt budget.
+// The creation-progress overlay (#582). This loop is the only place in the paired
+// creation that needs a HEARTBEAT — a repaint from inside an open-ended grind —
+// because one pass of this fill can occupy the whole per-attempt budget while
+// nothing else in it would report.
+//
+// NOT because everything else finishes in milliseconds; the first cut of #582 said
+// that without measuring, and the review was right to disbelieve it. Two other
+// stretches are long enough for a player to notice: MM's rando-core init before
+// the ladder, and the spoiler join after it. Both are bounded, single calls rather
+// than loops, so each got a phase REPORT (which paints once, with a caption naming
+// what is happening) instead of a heartbeat, and both are timed on every creation
+// — the "[MM] creation: the pre-fill stretch ..." and "... post-fill stretch ..."
+// lines in GameExports_SingleExe.cpp — so the claim is a number in the log.
 #include "gen_progress_overlay.h"
 #endif
 

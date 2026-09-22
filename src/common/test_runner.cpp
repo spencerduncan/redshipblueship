@@ -1201,11 +1201,15 @@ TestResult Test_RandoDeterminism(void) {
 //  10  the #582 on-screen progress overlay PAINTS FROM INSIDE the blocking
 //      creation call — the one observation that needs both a real window (this
 //      tier has one) and a real paired creation (only this row runs one), and
-//      the one a display-free row provably cannot make. Three parts: (a) frames
+//      the one a display-free row provably cannot make. Four parts: (a) frames
 //      are presented from inside the call; (b) the install RE-ARMS after the
 //      slots are cleared, which the row forces on purpose; (c) those frames
 //      carry ImGui's mouse and keyboard suppression, because they submit the
-//      whole SoH menu while the creation's gSaveContext bracket is active
+//      whole SoH menu while the creation's gSaveContext bracket is active; and
+//      (d) a GuiWindow registered beside SoH's trackers, and drawn from the same
+//      Gui::DrawMenu() loop, saw OoT's save bytes on those frames rather than
+//      MM's in-flight world — the property leg 4's post-creation byte compare
+//      structurally cannot see
 //
 // WHY THE `rando` TIER. Every leg downstream of 1 needs a REAL OoT fill: the
 // creation event refuses to run without a live pairing identity, and the
@@ -1227,6 +1231,11 @@ uint32_t OoT_CreationProgressOverlay_TestPresentedFrames(void);
 int OoT_CreationProgressOverlay_TestIsArmed(void);
 int OoT_CreationProgressOverlay_TestLastFrameSuppressedInput(void);
 int OoT_CreationProgressOverlay_TestLastRefusal(void);
+int OoT_CreationProgressOverlay_TestInstallSaveObserver(void);
+uint32_t OoT_CreationProgressOverlay_TestObservedSaveSignature(void);
+uint32_t OoT_CreationProgressOverlay_TestObservedSaveDraws(void);
+uint32_t OoT_CreationProgressOverlay_TestObservedBracketedDraws(void);
+uint32_t OoT_CreationProgressOverlay_TestObservedMismatchedDraws(void);
 // The UNIFIED save buffer (src/common/unified_save.c): one char array both games
 // reinterpret through their own layouts. Declared as what it is, because leg 4
 // compares it byte for byte and neither game's struct spans all of it.
@@ -1409,6 +1418,14 @@ TestResult Test_ComboCreationEvent(void) {
     // vacuous version of this leg.
     const int overlayRendererWorks = OoT_CreationProgressOverlay_TestPresentOnce();
     const uint32_t overlayPresentsBefore = OoT_CreationProgressOverlay_TestPresentedFrames();
+    // 10c — WHICH WORLD'S BYTES A PUMPED FRAME'S WIDGETS READ. Registered with the
+    // same Gui SoH registers its item and check trackers with, and drawn from the
+    // same `for (mGuiWindows)` loop inside Gui::DrawMenu(), so what it records is
+    // what a tracker left open across a creation would have read. Leg 4 below
+    // cannot see this: it compares gSaveContext AFTER the creation returned, where
+    // the seam has already restored OoT's snapshot unconditionally — it stays green
+    // with the paint bracket deleted outright.
+    const int saveObserverRegistered = OoT_CreationProgressOverlay_TestInstallSaveObserver();
     ComboGenOverlay_Reset();
     printf("[TEST] overlay: this process %s present a gui-only frame\n", overlayRendererWorks ? "CAN" : "canNOT");
     if (overlayRendererWorks && !OoT_CreationProgressOverlay_TestIsArmed()) {
@@ -1445,6 +1462,11 @@ TestResult Test_ComboCreationEvent(void) {
     Combo_GenProgress_SetDisplaySink(NULL);
 
     const int created = OoT_RunPairedCreationEvent(0);
+    // The observer formed its verdict INSIDE each frame (it had to; see
+    // OoT_Creation_LiveSaveIsOoTSnapshot). These are its tallies.
+    const uint32_t observedSaveDraws = OoT_CreationProgressOverlay_TestObservedSaveDraws();
+    const uint32_t observedBracketedDraws = OoT_CreationProgressOverlay_TestObservedBracketedDraws();
+    const uint32_t observedMismatchedDraws = OoT_CreationProgressOverlay_TestObservedMismatchedDraws();
     const uint32_t overlayPaints = ComboGenOverlay_PaintCount();
     const uint32_t overlayPresents = OoT_CreationProgressOverlay_TestPresentedFrames() - overlayPresentsBefore;
     const uint32_t dispatchesAfterCreation = MM_Rando_OnSaveInitDispatchCount();
@@ -1460,10 +1482,14 @@ TestResult Test_ComboCreationEvent(void) {
         // stops restoring it, the file the seam is in the middle of creating is
         // overwritten with MM's world and written to disk that way.
         //
-        // Since #582 this also covers the overlay's paint bracket
-        // (OoT_Creation_PaintWithOoTSaveVisible): every painted frame swaps OoT's
-        // snapshot in and MM's in-flight bytes back, and a swap that failed to
-        // restore either direction lands here.
+        // WHAT THIS DOES *NOT* COVER, stated because the first cut of #582 claimed
+        // it did. The overlay's paint bracket swaps OoT's snapshot in for a frame
+        // and MM's bytes back afterwards; only the RESTORE half could ever land
+        // here, and only if it were missing entirely — this comparison runs after
+        // the creation returned, where the seam restores OoT's snapshot
+        // unconditionally anyway. Deleting both of the bracket's memcpys leaves
+        // this leg green. Which world a pumped frame's widgets READ is leg 10c's
+        // job, and it needed its own observer.
         printf("[TEST] FAIL: the creation event did not restore OoT's gSaveContext byte-exact — MM's world leaked "
                "into the file being created (src/common/unified_save.c)\n");
         return TEST_FAIL;
@@ -1482,13 +1508,12 @@ TestResult Test_ComboCreationEvent(void) {
         printf("[TEST] overlay: the paired creation PRESENTED %u frames from inside the blocking call (painter "
                "invoked %u times) (#582)\n",
                (unsigned)overlayPresents, (unsigned)overlayPaints);
-        // A pumped frame submits SoH's whole menu and every floating window
-        // (Gui::StartDraw -> DrawMenu, Gui::EndDraw -> DrawFloatingWindows) while
-        // the creation seam's gSaveContext bracket is active. If input is live on
-        // those frames, a click runs a menu handler re-entrantly on the render
-        // thread in the middle of the creation — and the bracket does not cover it,
-        // because the swap only wraps the overlay's own draw. Read from the live io
-        // INSIDE the last pumped frame, not from the line that sets it.
+        // A pumped frame submits SoH's whole menu and every registered GuiWindow
+        // (Gui::StartDraw -> DrawMenu) while the creation seam's gSaveContext
+        // bracket is active. If input is live on those frames, a click runs a menu
+        // handler re-entrantly on the render thread in the middle of the creation.
+        // Read from the live io INSIDE the last pumped frame, not from the line
+        // that sets it.
         if (!OoT_CreationProgressOverlay_TestLastFrameSuppressedInput()) {
             printf("[TEST] FAIL: the creation's pumped frames accepted input — the whole SoH menu was live and "
                    "clickable during the creation (#582)\n");
@@ -1496,6 +1521,49 @@ TestResult Test_ComboCreationEvent(void) {
         }
         printf("[TEST] overlay: those frames were submitted with mouse and keyboard suppressed, so the menu they "
                "draw is inert\n");
+        // 10c's verdict. The observer draws from inside Gui::DrawMenu()'s
+        // registered-window loop, which is one statement INSIDE gui->StartDraw() —
+        // so this is red unless the gSaveContext bracket wraps the whole
+        // StartDraw -> EndFrame sequence. It was not, in the first cut of #582: the
+        // bracket wrapped only the overlay's own ImGui draw, and every tracker on
+        // the frame read MM's in-flight world as OoT inventory with nothing
+        // observing it.
+        if (!saveObserverRegistered) {
+            printf("[TEST] FAIL: this process presented frames from inside the creation yet the save observer could "
+                   "not register — leg 10c cannot be evaluated and must not pass silently (#582)\n");
+            return TEST_FAIL;
+        }
+        if (observedSaveDraws == 0) {
+            printf("[TEST] FAIL: %u frames were presented from inside the creation and the registered save observer "
+                   "was drawn on NONE of them — the pumped frame does not run Gui::DrawMenu's window loop, so "
+                   "nothing here observes what a tracker would read (#582)\n",
+                   (unsigned)overlayPresents);
+            return TEST_FAIL;
+        }
+        // NON-VACUITY, and it is not padding. A frame painted outside the creation's
+        // bracket (the terminal one is) has no answer to give, so a run whose only
+        // observed frames were those would report zero mismatches no matter how
+        // wrong the bracket is — which is exactly how the first version of this leg
+        // passed under a deliberately mis-placed bracket.
+        if (observedBracketedDraws == 0) {
+            printf("[TEST] FAIL: the save observer was drawn on %u frames but on NONE of them was the creation's "
+                   "gSaveContext bracket active — every answer it gave was vacuous, so leg 10c proved nothing "
+                   "(#582)\n",
+                   (unsigned)observedSaveDraws);
+            return TEST_FAIL;
+        }
+        if (observedMismatchedDraws != 0) {
+            printf("[TEST] FAIL: on %u of %u bracketed frames a widget drawn from Gui::DrawMenu's window loop was "
+                   "shown MM's in-flight world (gSaveContext signature %08X) instead of OoT's snapshot — the paint "
+                   "bracket does not cover Gui::StartDraw, so SoH's item and check trackers read MM bytes as OoT "
+                   "inventory during the creation (#582)\n",
+                   (unsigned)observedMismatchedDraws, (unsigned)observedBracketedDraws,
+                   (unsigned)OoT_CreationProgressOverlay_TestObservedSaveSignature());
+            return TEST_FAIL;
+        }
+        printf("[TEST] overlay: a GuiWindow registered beside the trackers was drawn on %u frames, %u of them with "
+               "the creation bracket active, and was shown OoT's world on every one of those\n",
+               (unsigned)observedSaveDraws, (unsigned)observedBracketedDraws);
     } else {
         printf("[TEST] overlay: SKIPPED the paint assertion — this renderer cannot present a gui-only frame here "
                "(the phase channel's stderr leg is the surface in that case)\n");

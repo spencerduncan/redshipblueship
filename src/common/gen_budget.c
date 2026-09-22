@@ -227,7 +227,14 @@ void Combo_GenProgress_Begin(void) {
     sProgress.maxAttempts = 0;
     sProgress.elapsedMs = 0;
     sProgress.budgetMs = 0;
-    sProgress.detail = kGenPhaseNames[RSBS_GENPHASE_IDLE];
+    // NOT kGenPhaseNames[IDLE] (#582's review). The phase IS idle — nothing has
+    // begun filling yet — but this record is the FIRST thing the on-screen surface
+    // shows, and it stays on screen for the whole pre-fill stretch (MM's rando core
+    // init and the vanilla bootstrap, measured in the creation log). A bar at 2%
+    // captioned "Idle" is a bar that looks broken. The phase stays IDLE so the
+    // weights and the existing phase-order assertions are untouched; only the words
+    // the player reads change, which is what `detail` is for.
+    sProgress.detail = "preparing to build your paired world";
     fprintf(stderr, "[Combo] creation progress: BEGIN (per-attempt budget %ums, total budget %ums, host scale %u%%)\n",
             Combo_GenBudget_FillBudgetMs(0), Combo_GenBudget_TotalBudgetMs(), Combo_GenBudget_HostScalePercent());
     fflush(stderr);

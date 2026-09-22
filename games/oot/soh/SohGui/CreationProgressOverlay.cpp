@@ -55,20 +55,33 @@
  *    anyway rather than trusting that analysis forever.
  *
  *    WHAT ELSE IS ON A PUMPED FRAME, STATED PLAINLY. `Gui::StartDraw()` is
- *    `StartFrame(); DrawMenu(); CalculateGameViewport();` and `Gui::EndDraw()` is
- *    `DrawGame(); EndFrame(); DrawFloatingWindows(); CheckSaveCvars();`
- *    (libultraship/src/ship/window/gui/Gui.cpp), so a pumped frame submits SoH's
- *    whole menu and every registered floating window, not only this overlay.
+ *    `StartFrame(); DrawMenu(); CalculateGameViewport();` -- and `DrawMenu()` ends
+ *    by Update()ing and Draw()ing EVERY registered GuiWindow, which is where SoH's
+ *    item and check trackers live. `Gui::EndDraw()` is `DrawGame(); EndFrame();
+ *    DrawFloatingWindows(); CheckSaveCvars();`, and in this tree
+ *    `DrawFloatingWindows()` draws no SoH window at all -- it is only ImGui's
+ *    multi-viewport platform pass. So a pumped frame submits SoH's whole menu and
+ *    every registered window, not only this overlay, and it does it in StartDraw.
  *    DRAWING them is harmless -- they read, and the gSaveContext bracket below is
- *    what makes what they read correct. ACCEPTING INPUT on them is not:
- *    `HandleEvents()` feeds ImGui real input, so a click would run a menu handler
- *    re-entrantly on the render thread in the middle of the creation, with the
- *    bracket active and MM's world live in `gSaveContext` outside the paint. So
- *    every pumped frame is submitted with `ImGuiConfigFlags_NoMouse |
+ *    what makes what they read correct, which is why that bracket must wrap this
+ *    WHOLE sequence and not just this file's own draw. ACCEPTING INPUT on them is
+ *    not harmless: `HandleEvents()` feeds ImGui real input, so a click would run a
+ *    menu handler re-entrantly on the render thread in the middle of the creation.
+ *    So every pumped frame is submitted with `ImGuiConfigFlags_NoMouse |
  *    ImGuiConfigFlags_NoKeyboard` and a cleared input queue, restored the moment
  *    the frame ends. The menu is therefore VISIBLE during a creation and inert.
  *    That, and not the dimming rect, is what makes "nothing else is actionable"
  *    true; the rect only says so to the player.
+ *
+ *    RESTORED BY RAII, NOT BY A TRAILING ASSIGNMENT, and that was a real defect
+ *    rather than a style point. SoH's menu widgets and `Gui::CheckSaveCvars()` ->
+ *    `ConsoleVariables()->Save()` do resource lookups and file I/O; an exception
+ *    escaping the draw past a trailing `io.ConfigFlags = saved;` would have left
+ *    ImGui with mouse and keyboard suppressed for the rest of the session, and the
+ *    same escape past a trailing `gPainting = false;` would have left every later
+ *    paint refusing at RSBS_GENOVERLAY_REFUSED_REENTRANT -- a permanently
+ *    input-dead game with a permanently dead overlay. Both latches are guards now,
+ *    the same shape the gSaveContext bracket one frame deeper already used.
  * 3. Nothing here blocks. `IsFrameReady()` is polled, never waited on: SDL2's
  *    backend returns true unconditionally and DXGI's can decline, and a decline
  *    means "skip this paint", not "spin". A minimised window therefore costs
@@ -89,20 +102,39 @@
  * ============================================================================
  * THE ONE HAZARD THAT NEEDED A FIX, NOT A COMMENT
  * ============================================================================
- * `gui->StartDraw()`/`EndDraw()` draw the menu and every registered floating
- * window -- including SoH's item and check trackers, which read `gSaveContext`
- * on every draw. During the creation event `gSaveContext` holds MM's world
- * reinterpreted through OoT's layout, so a player who leaves the item tracker
- * open would have had it read MM bytes as OoT inventory: at best nonsense, at
- * worst an out-of-range index into a texture table, in the middle of creating
- * their file.
+ * `Gui::StartDraw()` is `StartFrame(); DrawMenu(); CalculateGameViewport();`, and
+ * `Gui::DrawMenu()` ends with a loop over every registered GuiWindow:
  *
- * So every painted frame runs under `OoT_Creation_PaintWithOoTSaveVisible`,
- * which swaps OoT's snapshot back in for the duration of the paint and MM's
- * in-flight bytes back afterwards. The swap is whole-buffer and therefore
- * invisible to the fill, and it makes the guarantee simple to state: a pumped
- * frame sees exactly the `gSaveContext` bytes the surrounding file-select frames
- * see.
+ *     for (auto& windowIter : mGuiWindows) { it->Update(); it->Draw(); }
+ *
+ * SoH's item and check trackers ARE two of those entries (SohGui.cpp's
+ * `AddGuiWindow(mCheckTrackerWindow)` / `AddGuiWindow(mItemTrackerWindow)`), and
+ * they read `gSaveContext` on every draw. During the creation event
+ * `gSaveContext` holds MM's world reinterpreted through OoT's layout, so a player
+ * who leaves the item tracker open would have had it read MM bytes as OoT
+ * inventory: at best nonsense, at worst an out-of-range index into a texture
+ * table, in the middle of creating their file.
+ *
+ * So the WHOLE frame -- `StartDraw` through `EndFrame`, not just this overlay's
+ * own ImGui draw -- runs under `OoT_Creation_PaintWithOoTSaveVisible`, which swaps
+ * OoT's snapshot in for the duration and MM's in-flight bytes back afterwards
+ * (RAII, so a throw out of the draw cannot skip the restore). The swap is
+ * whole-buffer and therefore invisible to the fill, and it makes the guarantee
+ * simple to state: every widget on a pumped frame sees exactly the `gSaveContext`
+ * bytes the surrounding file-select frames see.
+ *
+ * WHERE THIS WAS WRONG, BECAUSE THE SHAPE OF THE MISTAKE IS THE LESSON. The first
+ * cut named `Gui::EndDraw` / `DrawFloatingWindows` as the tracker draw site and
+ * wrapped only `DrawOverlayContents()`. Both halves were wrong together:
+ * `Gui::DrawFloatingWindows()` in this tree draws no SoH window at all (it is
+ * `ImGui::UpdatePlatformWindows()` / `RenderPlatformWindowsDefault()` under
+ * `ImGuiConfigFlags_ViewportsEnable`), and the trackers draw one statement EARLIER
+ * than the bracket was -- inside `gui->StartDraw()`. The hazard was identified
+ * correctly and then fenced in the wrong place, and nothing went red, because no
+ * row observed the bytes a pumped frame's widgets actually read. There is one now:
+ * a test-registered GuiWindow records a signature of `gSaveContext` from inside
+ * that same `DrawMenu` loop, and the creation row compares it against OoT's
+ * snapshot (see CreationSaveObserverWindow below).
  *
  * ============================================================================
  * WHAT THIS FILE DOES NOT DO
@@ -120,6 +152,36 @@
  * install asks CanPresentHere() and arms nothing when the answer is no, which is
  * what makes a headless creation the pre-#582 code path rather than a path through
  * bailing guards.
+ *
+ * ============================================================================
+ * WHICH PHASES THIS SURFACE CAN ACTUALLY SHOW, AND WHICH IT CANNOT
+ * ============================================================================
+ * The brief asked for "freeze, OoT fill, MM fill attempt n of N, crossing passes,
+ * validation, publish". Half of that list is reported from
+ * 3drando/playthrough.cpp -- FREEZE, OOT_FILL, SPOILER and CROSSINGS -- which runs
+ * on the MENU-side `randoThread`, where this painter refuses at
+ * RSBS_GENOVERLAY_REFUSED_OFF_THREAD by design (that thread must not touch ImGui,
+ * the GL context or the Fast3D interpreter). Those phases are on the stderr leg
+ * and on the file-select menu's own "generating" caption; they are not on this
+ * overlay and cannot be without moving generation off that worker.
+ *
+ * In the CREATION path -- the blocking one this file exists for -- the sequence a
+ * player sees is, in order:
+ *
+ *   1. "Preparing to build your paired world"           (Begin, phase IDLE)
+ *   2. "Preparing Majora's Mask's logic tables"         (phase IDLE, before
+ *                                                        MM_Rando_InitCore)
+ *   3. "Building the Majora's Mask world (attempt n of N)" (MM_FILL, per rung)
+ *   4. "Writing the paired spoiler"                     (SPOILER)
+ *   5. "Saving"                                         (PUBLISH)
+ *   6. "Done" / "Failed"                                (End)
+ *
+ * Steps 2 and 4 exist because the review of the first cut found two stretches with
+ * no report at all -- MM's rando-core init before the ladder, and the spoiler join
+ * after it -- during which the last painted frame's caption was stale. Both are
+ * also MEASURED on every creation (the "[MM] creation: the pre-fill stretch ..."
+ * and "post-fill stretch ..." lines), so the cost of an unreported stretch is a
+ * number in the log rather than an estimate in a comment.
  */
 
 #ifdef RSBS_SINGLE_EXECUTABLE
@@ -133,6 +195,7 @@
 #include <libultraship/libultraship.h>
 #include <ship/Context.h>
 #include <ship/window/gui/Gui.h>
+#include <ship/window/gui/GuiWindow.h>
 
 #include <cstdio>
 #include <cstring>
@@ -149,6 +212,12 @@
 // `#ifndef __cplusplus`, and this file needs exactly these two symbols.
 extern "C" void OoT_Creation_PaintWithOoTSaveVisible(void (*paint)(void));
 extern "C" int OoT_Graph_HasPresentedFrame(void);
+/** An FNV-1a signature of the whole live gSaveContext, and the in-frame verdict
+ *  "is this OoT's snapshot or MM's in-flight world?" (both ForeignItemsSingleExe.cpp).
+ *  The save observer below is their only caller; see those functions' headers for
+ *  why the verdict has to be formed inside the frame. */
+extern "C" uint32_t OoT_Creation_SaveSignature(void);
+extern "C" int OoT_Creation_LiveSaveIsOoTSnapshot(void);
 
 namespace {
 
@@ -216,7 +285,98 @@ int gLastRefusal = RSBS_GENOVERLAY_REFUSED_NONE;
  *  gPainting. */
 const ComboGenOverlayView* gPaintingView = nullptr;
 
+/** The frame under construction, for the same reason gPaintingView is a file
+ *  static: the gSaveContext bracket is a C seam taking a plain `void(*)()`, and
+ *  the whole StartDraw -> EndFrame sequence now runs inside it. Only ever written
+ *  and read on the render thread, under gPainting; the shared_ptrs that own these
+ *  live in PresentOneGuiFrame's frame for the whole of the call. */
+Ship::Gui* gFrameGui = nullptr;
+Fast::Fast3dWindow* gFrameFast = nullptr;
+
 const char* kWindowName = "Creating your paired world";
+
+// ---------------------------------------------------------------------------
+// THE SAVE-BYTES OBSERVER (test-only; registered by the creation row, never by a
+// shipping path)
+// ---------------------------------------------------------------------------
+//
+// WHAT IT EXISTS TO MAKE RED. The claim "a pumped frame's widgets see OoT's bytes,
+// not MM's" had no red half anywhere. combo-creation-event's byte-exact leg runs
+// AFTER the creation returns, and the creation seam restores OoT's snapshot
+// unconditionally on its way out, so that comparison is green whether the paint
+// bracket exists, wraps the right region, or has been deleted outright. Deleting
+// both of OoT_Creation_PaintWithOoTSaveVisible's memcpys would not have reddened
+// anything -- which is exactly how the bracket came to be wrapped around the one
+// draw on the frame that did NOT need it.
+//
+// So the observation is taken where it matters: this is a real Ship::GuiWindow,
+// registered with the same Gui the trackers are registered with, and Draw() is
+// called on it from inside `Gui::DrawMenu()`'s `for (mGuiWindows)` loop -- the
+// same loop, on the same frame, as `mItemTrackerWindow` and `mCheckTrackerWindow`.
+//
+// THE VERDICT IS FORMED PER FRAME, NOT REMEMBERED AND COMPARED AFTERWARDS, and the
+// first attempt at this lock got that wrong in a way worth recording because it is
+// the same class of mistake as the defect it was written for. Recording only the
+// last frame's signature and comparing it after the creation is VACUOUS: the last
+// painted frame of a creation is the terminal one, which happens after the bracket
+// closed, so the remembered value is OoT's world however wrong the bracket is. The
+// counterfactual proved it -- with the bracket deliberately put back around
+// DrawOverlayContents alone, that version of this observer still reported "read
+// OoT's world every time". So each draw asks OoT_Creation_LiveSaveIsOoTSnapshot()
+// while the answer can still be "no", and the counters below separate "frames where
+// a bracket was active" (the ones that can answer) from "frames that answered
+// wrong".
+//
+// Draw() is overridden rather than DrawElement() so the observer submits no ImGui
+// window of its own: DrawMenu calls Draw() unconditionally, and this thing only
+// has to READ.
+uint32_t gObservedSaveSignature = 0;
+uint32_t gObservedSaveDraws = 0;
+/** Draws that happened while a creation bracket was active -- the only ones whose
+ *  answer means anything, and the count a row must require to be nonzero before it
+ *  believes the verdict. */
+uint32_t gObservedBracketedDraws = 0;
+/** Draws that saw MM's in-flight world where OoT's snapshot belonged. Any nonzero
+ *  value is the reviewed defect, live. */
+uint32_t gObservedMismatchedDraws = 0;
+
+const char* kSaveObserverWindowName = "RSBS creation save observer (#582)";
+
+class CreationSaveObserverWindow final : public Ship::GuiWindow {
+  public:
+    // An EMPTY console variable on purpose: GuiWindow's constructor only touches
+    // ConsoleVariables when it has a name to sync, and a test seam must not write
+    // a CVar into the player's config.
+    CreationSaveObserverWindow() : Ship::GuiWindow("", true, kSaveObserverWindowName) {
+    }
+
+    void Draw() override {
+        gObservedSaveDraws++;
+        const int verdict = OoT_Creation_LiveSaveIsOoTSnapshot();
+        if (verdict == 0) {
+            // Outside a creation bracket: the terminal paint, or the self-probe.
+            // Nothing to answer.
+            return;
+        }
+        gObservedBracketedDraws++;
+        if (verdict < 0) {
+            gObservedMismatchedDraws++;
+            // Kept for the failure message: which world this frame was shown.
+            gObservedSaveSignature = OoT_Creation_SaveSignature();
+        }
+    }
+
+    void DrawElement() override {
+    }
+
+  protected:
+    void InitElement() override {
+    }
+    void UpdateElement() override {
+    }
+};
+
+std::shared_ptr<CreationSaveObserverWindow> gSaveObserver;
 
 /**
  * The ImGui half. Runs with OoT's gSaveContext visible and an ImGui frame
@@ -285,11 +445,77 @@ void DrawOverlayContents() {
     ImGui::PopStyleVar(2);
 }
 
-/** Step 3 of the paint: everything that needs an ImGui frame, with OoT's save
- *  bytes visible. Plain function so the C bracket can take its address. */
-void PaintUnderOoTSave() {
+/**
+ * THE WHOLE FRAME, run with OoT's save bytes visible.
+ *
+ * A plain function so the C bracket (which takes a `void(*)()`) can take its
+ * address, and the WHOLE sequence rather than just DrawOverlayContents() because
+ * `gui->StartDraw()` is where SoH's registered windows -- the item and check
+ * trackers among them -- are drawn. See the file comment's hazard section.
+ */
+void PaintOneFrameUnderOoTSave() {
+    if (gFrameGui == nullptr || gFrameFast == nullptr) {
+        // Unreachable: the caller sets both before entering the bracket. Cheap
+        // enough to check rather than to reason about a null deref inside a frame.
+        return;
+    }
+    gFrameGui->StartDraw();
+    gFrameFast->StartFrame();
+    gFrameFast->RunGuiOnly();
     DrawOverlayContents();
+    gFrameGui->EndDraw();
+    gFrameFast->EndFrame();
 }
+
+/**
+ * The paint latch, as a guard. `gPainting` is what refuses a nested paint, and a
+ * throw out of the draw that skipped a trailing `gPainting = false` would leave
+ * every later paint refusing at RSBS_GENOVERLAY_REFUSED_REENTRANT for the rest of
+ * the process -- a permanently dead overlay, from one exception during one frame.
+ */
+struct PaintLatch {
+    explicit PaintLatch(const ComboGenOverlayView* view) {
+        gPainting = true;
+        gPaintingView = view;
+    }
+    ~PaintLatch() {
+        gPaintingView = nullptr;
+        gPainting = false;
+        gFrameGui = nullptr;
+        gFrameFast = nullptr;
+    }
+    PaintLatch(const PaintLatch&) = delete;
+    PaintLatch& operator=(const PaintLatch&) = delete;
+};
+
+/**
+ * ImGui's input suppression for exactly one frame, as a guard, for the same
+ * reason: SoH's menu widgets and `Gui::CheckSaveCvars()` do resource lookups and
+ * file I/O, and an escape past a trailing `io.ConfigFlags = saved;` would leave
+ * the process with mouse and keyboard suppressed for the rest of the session.
+ */
+struct ImGuiInputSuppression {
+    ImGuiIO& io;
+    ImGuiConfigFlags saved;
+
+    explicit ImGuiInputSuppression(ImGuiIO& ioRef) : io(ioRef), saved(ioRef.ConfigFlags) {
+        // NoMouse clears the hovered window (imgui.cpp, UpdateMouseInputs) so no
+        // widget can be hovered or activated, and NoKeyboard calls
+        // io.ClearInputKeys() at the top of NewFrame. The queue is cleared as well
+        // so input made during the creation is DROPPED rather than delivered to the
+        // first real frame afterwards -- ImGui itself does exactly this on focus
+        // loss.
+        io.ConfigFlags |= ImGuiConfigFlags_NoMouse | ImGuiConfigFlags_NoKeyboard;
+        io.ClearEventsQueue();
+        io.ClearInputKeys();
+        io.ClearInputMouse();
+    }
+    ~ImGuiInputSuppression() {
+        io.ConfigFlags = saved;
+    }
+    ImGuiInputSuppression(const ImGuiInputSuppression&) = delete;
+    ImGuiInputSuppression& operator=(const ImGuiInputSuppression&) = delete;
+};
 
 /**
  * Present ONE gui-only frame. The sequence is RunExtract's, and every guard is
@@ -316,12 +542,33 @@ bool PresentOneGuiFrame(const ComboGenOverlayView* view) {
     if (gPainting) {
         return false;
     }
+    // THE NULL CHECKS COME FIRST, before anything that touches the renderer, and
+    // the ordering is the point. `WindowIsRunning()` (libultraship's windowbridge)
+    // is `Context::GetInstance()->GetWindow()->IsRunning()` -- two unguarded
+    // dereferences -- and this function's own model further down admits that both
+    // can be absent. Asking the closing question through the bridge BEFORE checking
+    // them made the guard that exists to keep this path safe in a process without a
+    // window the one that would crash on it. Reachability is narrow (the install's
+    // CanPresentHere() saw both, so this needs a teardown or a window replaced
+    // between install and paint) and the fix costs nothing.
+    gLastRefusal = RSBS_GENOVERLAY_REFUSED_NO_CONTEXT;
+    std::shared_ptr<Ship::Context> ctx = Ship::Context::GetInstance();
+    if (ctx == nullptr) {
+        return false;
+    }
+    std::shared_ptr<Ship::Window> window = ctx->GetWindow();
+    if (window == nullptr) {
+        return false;
+    }
     gLastRefusal = RSBS_GENOVERLAY_REFUSED_WINDOW_CLOSING;
-    if (!WindowIsRunning()) {
+    if (!window->IsRunning()) {
         // The player closed the window mid-creation. The backend's Close() only
         // sets a flag (GfxWindowBackendSDL2::Close), so this is safe to observe
         // and the right thing to do with it is stop drawing into a window on its
         // way out; the creation finishes and the game loop exits after it.
+        //
+        // Asked on the pointer this function already null-checked rather than
+        // through WindowIsRunning(), which would re-fetch and re-deref both.
         return false;
     }
     gLastRefusal = RSBS_GENOVERLAY_REFUSED_NO_RENDER_LOOP;
@@ -339,12 +586,6 @@ bool PresentOneGuiFrame(const ComboGenOverlayView* view) {
         return false;
     }
 
-    gLastRefusal = RSBS_GENOVERLAY_REFUSED_NO_CONTEXT;
-    std::shared_ptr<Ship::Context> ctx = Ship::Context::GetInstance();
-    if (ctx == nullptr) {
-        return false;
-    }
-    std::shared_ptr<Ship::Window> window = ctx->GetWindow();
     std::shared_ptr<Fast::Fast3dWindow> fast = std::dynamic_pointer_cast<Fast::Fast3dWindow>(window);
     gLastRefusal = RSBS_GENOVERLAY_REFUSED_NO_FAST3D;
     if (fast == nullptr) {
@@ -364,8 +605,12 @@ bool PresentOneGuiFrame(const ComboGenOverlayView* view) {
     }
     gLastRefusal = RSBS_GENOVERLAY_REFUSED_FRAME_DECLINED;
 
-    gPainting = true;
-    gPaintingView = view;
+    // RAII from here down: everything below can throw (SoH's menu draw does
+    // resource lookups; CheckSaveCvars writes a file), and both latches have a
+    // session-lifetime consequence if their restore is skipped.
+    PaintLatch latch(view);
+    gFrameGui = gui.get();
+    gFrameFast = fast.get();
 
     // Pump OS messages first: this is what stops Windows painting the window
     // white and calling it unresponsive, and it is why a bar drawn from here is
@@ -374,45 +619,20 @@ bool PresentOneGuiFrame(const ComboGenOverlayView* view) {
 
     bool presented = false;
     if (fast->IsFrameReady()) {
-        // INPUT SUPPRESSION, for the duration of this one frame.
-        //
-        // A pumped frame submits the whole SoH menu and every floating window
-        // (Gui::StartDraw -> DrawMenu, Gui::EndDraw -> DrawFloatingWindows), and
-        // HandleEvents() above has just fed ImGui real input. Without this, a
-        // click during the creation would run a menu handler re-entrantly on the
-        // render thread while the creation seam's bracket is active and MM's world
-        // is live in gSaveContext outside the paint -- which the whole-buffer swap
-        // does NOT cover, because it only wraps PaintUnderOoTSave.
-        //
-        // The flags are ImGui's own mechanism for this: NoMouse clears the hovered
-        // window (imgui.cpp, UpdateMouseInputs) so no widget can be hovered or
-        // activated, and NoKeyboard calls io.ClearInputKeys() at the top of
-        // NewFrame. The queue is cleared as well so input made during the creation
-        // is DROPPED rather than delivered to the first real frame afterwards --
-        // ImGui itself does exactly this on focus loss. Restored right after the
-        // frame, so the game's own frames are untouched.
-        ImGuiIO& io = ImGui::GetIO();
-        const ImGuiConfigFlags savedConfigFlags = io.ConfigFlags;
-        io.ConfigFlags |= ImGuiConfigFlags_NoMouse | ImGuiConfigFlags_NoKeyboard;
-        io.ClearEventsQueue();
-        io.ClearInputKeys();
-        io.ClearInputMouse();
+        // INPUT SUPPRESSION, for the duration of this one frame. A pumped frame
+        // submits the whole SoH menu and every registered window, and
+        // HandleEvents() above has just fed ImGui real input.
+        ImGuiInputSuppression suppressed(ImGui::GetIO());
 
-        gui->StartDraw();
-        fast->StartFrame();
-        fast->RunGuiOnly();
-        OoT_Creation_PaintWithOoTSaveVisible(&PaintUnderOoTSave);
-        gui->EndDraw();
-        fast->EndFrame();
+        // THE WHOLE FRAME UNDER OoT's SAVE BYTES. StartDraw draws the trackers, so
+        // the bracket has to start before it, not between it and EndDraw.
+        OoT_Creation_PaintWithOoTSaveVisible(&PaintOneFrameUnderOoTSave);
 
-        io.ConfigFlags = savedConfigFlags;
         presented = true;
         gPresentedFrames++;
         gLastRefusal = RSBS_GENOVERLAY_REFUSED_NONE;
     }
 
-    gPaintingView = nullptr;
-    gPainting = false;
     return presented;
 }
 
@@ -494,6 +714,50 @@ extern "C" int OoT_CreationProgressOverlay_TestIsArmed(void) {
 
 extern "C" int OoT_CreationProgressOverlay_TestLastRefusal(void) {
     return gLastRefusal;
+}
+
+extern "C" int OoT_CreationProgressOverlay_TestInstallSaveObserver(void) {
+    // Registered exactly where SoH registers its trackers, so what it observes is
+    // what they would observe. Returns 0 when there is nothing to register with,
+    // which is the same "this process cannot present" answer the probe gives and
+    // the row treats it the same way.
+    std::shared_ptr<Ship::Context> ctx = Ship::Context::GetInstance();
+    if (ctx == nullptr) {
+        return 0;
+    }
+    std::shared_ptr<Fast::Fast3dWindow> fast = std::dynamic_pointer_cast<Fast::Fast3dWindow>(ctx->GetWindow());
+    if (fast == nullptr) {
+        return 0;
+    }
+    std::shared_ptr<Ship::Gui> gui = fast->GetGui();
+    if (gui == nullptr) {
+        return 0;
+    }
+    if (gSaveObserver == nullptr) {
+        gSaveObserver = std::make_shared<CreationSaveObserverWindow>();
+        gui->AddGuiWindow(gSaveObserver);
+    }
+    gObservedSaveSignature = 0;
+    gObservedSaveDraws = 0;
+    gObservedBracketedDraws = 0;
+    gObservedMismatchedDraws = 0;
+    return 1;
+}
+
+extern "C" uint32_t OoT_CreationProgressOverlay_TestObservedSaveSignature(void) {
+    return gObservedSaveSignature;
+}
+
+extern "C" uint32_t OoT_CreationProgressOverlay_TestObservedSaveDraws(void) {
+    return gObservedSaveDraws;
+}
+
+extern "C" uint32_t OoT_CreationProgressOverlay_TestObservedBracketedDraws(void) {
+    return gObservedBracketedDraws;
+}
+
+extern "C" uint32_t OoT_CreationProgressOverlay_TestObservedMismatchedDraws(void) {
+    return gObservedMismatchedDraws;
 }
 
 extern "C" int OoT_CreationProgressOverlay_TestLastFrameSuppressedInput(void) {

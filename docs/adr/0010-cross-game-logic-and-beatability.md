@@ -1078,9 +1078,13 @@ nothing here is presentable, leaving the painter slot empty so the fill's heartb
 guard is false and the fill does not read its clock a second time — a headless
 paired creation is the pre-#582 code path, not a path through bailing guards. And a
 pumped frame is submitted with ImGui's mouse and keyboard suppressed, because
-`Gui::StartDraw`/`EndDraw` submit SoH's whole menu and every floating window, so
-without the suppression a click during a creation would run a menu handler
-re-entrantly on the render thread with MM's world live in `gSaveContext`.
+`Gui::StartDraw` → `Gui::DrawMenu` submits SoH's whole menu and every registered
+`GuiWindow`, so without the suppression a click during a creation would run a menu
+handler re-entrantly on the render thread. Both that suppression and the painter's
+own re-entrancy latch are RAII guards rather than trailing assignments: the draw
+does resource lookups and file I/O (`Gui::CheckSaveCvars` → `ConsoleVariables::Save`),
+and an escape past a trailing restore would have left the process input-dead and
+the overlay permanently refusing.
 
 **Three positions this does not move.** (1) PR #581 §2a still holds: the
 repaint decision is made with milliseconds the fill had already computed for its
@@ -1101,11 +1105,37 @@ asymmetry intact at the second stop, where a windowed host would fail a creation
 the same host completed headless. Wall elapsed is still what a player is shown and
 what the P12 line measures; only the number that DECIDES excludes presentation.
 (3) The creation
-event's snapshot bracket is unchanged in effect and gained a second use: a
-painted frame runs with OoT's snapshot swapped in and MM's in-flight bytes
-swapped back after, because `Gui::EndDraw` draws every registered floating window
-and SoH's trackers read `gSaveContext` — which, inside the bracket, holds MM's
-world through OoT's layout.
+event's snapshot bracket is unchanged in effect and gained a second use: the WHOLE
+pumped frame — `Gui::StartDraw` through `Interpreter::EndFrame` — runs with OoT's
+snapshot swapped in and MM's in-flight bytes swapped back after, because
+`Gui::StartDraw` → `Gui::DrawMenu` Draw()s every registered `GuiWindow` and SoH's
+item and check trackers are two of them; inside the bracket `gSaveContext` holds
+MM's world through OoT's layout. Review of the first cut found this recorded
+wrongly here and implemented wrongly there: it named `Gui::EndDraw` /
+`DrawFloatingWindows` as the tracker draw site (in this tree `DrawFloatingWindows`
+draws no SoH window at all — it is ImGui's multi-viewport platform pass) and
+wrapped only the overlay's own ImGui draw, one statement AFTER the trackers had
+already drawn. The correction is recorded rather than quietly fixed because the
+failure mode is instructive: the hazard was identified correctly, fenced in the
+wrong place, and no row went red, since the only assertion pointed at it compared
+`gSaveContext` AFTER the creation returned — where the seam restores OoT's snapshot
+unconditionally — and stayed green with the bracket deleted. The lock now is a
+`GuiWindow` registered beside the trackers, recording the bytes it is shown from
+inside that same `DrawMenu` loop.
+
+**Which phases this surface can show, stated because the brief's list is wider
+than the answer.** `FREEZE`, `OOT_FILL`, `SPOILER` and `CROSSINGS` are reported
+from `3drando/playthrough.cpp`, which runs on the menu-side `randoThread`; the
+painter refuses there by design (that thread must not touch ImGui, the GL context
+or the Fast3D interpreter), so those phases live on the stderr leg and on file
+select's own "generating" caption. In the blocking CREATION path the overlay shows:
+"Preparing to build your paired world" → "Preparing Majora's Mask's logic tables" →
+"Building the Majora's Mask world (attempt n of N)" → "Writing the paired spoiler"
+→ "Saving" → done/failed. The second and fourth captions were added by the same
+review: MM's rando-core init before the ladder and the spoiler join after it had no
+report at all, so the surface's first sight was a bar captioned with the IDLE
+phase's name. Both stretches are now also timed on every creation, so their cost is
+a number in the log rather than an estimate in a comment.
 
 The rest of the *progress surface* paragraph (two sessions per creation, the
 stderr leg, the second session as P12's measurement) is unchanged and still

@@ -941,12 +941,25 @@ static_assert(MM_SAVE_CONTEXT_SIZE <= sizeof(SaveContext),
 // The snapshot buffer was a static local inside OoT_RunPairedCreationEvent; it
 // is at file scope now because a SECOND caller needs it. The overlay paints
 // FROM INSIDE the bracketed call (that is the whole point of #582: the thread
-// that would draw is the thread MM's fill is running on), and Gui::EndDraw
-// draws every registered floating window — including SoH's item and check
-// trackers, which read gSaveContext every frame. Inside the bracket that buffer
-// holds MM's world reinterpreted through OoT's layout, so an open tracker would
-// read MM bytes as OoT inventory: nonsense at best, an out-of-range table index
-// at worst, in the middle of creating the player's file.
+// that would draw is the thread MM's fill is running on), and
+// `Gui::StartDraw()` -> `Gui::DrawMenu()` draws every registered GuiWindow —
+// including SoH's item and check trackers (SohGui.cpp's AddGuiWindow calls),
+// which read gSaveContext every frame. Inside the bracket that buffer holds
+// MM's world reinterpreted through OoT's layout, so an open tracker would read
+// MM bytes as OoT inventory: nonsense at best, an out-of-range table index at
+// worst, in the middle of creating the player's file.
+//
+// NAMING THE DRAW SITE CORRECTLY IS LOAD-BEARING, and the first cut of #582 got
+// it wrong in a way that misplaced the fix. It said `Gui::EndDraw` /
+// `DrawFloatingWindows` and handed this bracket only the overlay's own ImGui
+// draw — so the trackers, which draw one statement EARLIER inside
+// `Gui::StartDraw()`, were outside it and still read MM's bytes. In this tree
+// `Gui::DrawFloatingWindows()` draws no SoH window at all; it is
+// ImGui::UpdatePlatformWindows / RenderPlatformWindowsDefault under
+// ImGuiConfigFlags_ViewportsEnable. The painter now hands this bracket the WHOLE
+// StartDraw -> EndFrame sequence (CreationProgressOverlay.cpp), which is what
+// makes the guarantee below true of every widget on a pumped frame rather than
+// only of the progress window.
 //
 // So a painted frame runs under OoT's bytes and MM's are put back afterwards.
 // The swap is WHOLE-BUFFER in both directions, which is what makes it invisible
@@ -982,6 +995,62 @@ extern "C" void OoT_Creation_PaintWithOoTSaveVisible(void (*paint)(void)) {
         }
     } restore;
     paint();
+}
+
+/**
+ * An FNV-1a signature of the WHOLE live gSaveContext (#582's review).
+ *
+ * TEST SEAM WITH A PURPOSE THE POST-HOC COMPARISON COULD NOT SERVE. The
+ * combo-creation-event row already compares gSaveContext byte for byte AFTER the
+ * creation returns, and that comparison is green whether or not the paint bracket
+ * exists at all — the unconditional restore above puts OoT's bytes back either
+ * way. What it cannot see is which world's bytes a widget drawn on a PUMPED FRAME
+ * read while the creation was still in flight, which is exactly the property the
+ * bracket is for and exactly where the first cut of #582 got it wrong.
+ *
+ * So the bytes get a cheap identity a test-registered GuiWindow can record from
+ * inside `Gui::DrawMenu()`'s own loop — the same loop the item and check trackers
+ * draw from — and compare against the post-creation value. A signature rather
+ * than a copy because the observer runs inside a frame and must not spend 136 KB
+ * of memcpy per draw, and because equality is the whole question.
+ */
+extern "C" uint32_t OoT_Creation_SaveSignature(void) {
+    const unsigned char* bytes = (const unsigned char*)&gSaveContext;
+    uint32_t hash = 2166136261u;
+    for (size_t i = 0; i < sizeof(SaveContext); i++) {
+        hash ^= (uint32_t)bytes[i];
+        hash *= 16777619u;
+    }
+    return hash;
+}
+
+/**
+ * IS THE LIVE gSaveContext OoT's SNAPSHOT RIGHT NOW? Asked from inside a pumped
+ * frame, while the creation is still in flight (#582's review).
+ *
+ * @return 0 when no creation bracket is active, so there is nothing to check;
+ *         1 when a bracket IS active and the live buffer is byte-identical to
+ *         OoT's snapshot — i.e. this frame's widgets are looking at the same world
+ *         the surrounding file-select frames look at;
+ *        -1 when a bracket is active and the live buffer is MM's in-flight world.
+ *
+ * WHY THE COMPARISON HAPPENS HERE AND NOT IN THE TEST. The question is only
+ * meaningful DURING the bracket, and a row cannot see inside a frame. Recording a
+ * signature and comparing it afterwards is not equivalent and was tried first: the
+ * LAST frame of a creation is the terminal paint, which happens after the bracket
+ * closed, so a remembered-last-value observer reads OoT's world no matter how
+ * wrong the bracket is, and the check passes vacuously. The verdict has to be
+ * formed frame by frame, while the answer can still be "no".
+ *
+ * memcmp rather than the signature above because exactness is free here: this runs
+ * at most at the overlay's 10 Hz repaint interval, and only in a process that
+ * registered the observer.
+ */
+extern "C" int OoT_Creation_LiveSaveIsOoTSnapshot(void) {
+    if (!sCreationBracketActive) {
+        return 0;
+    }
+    return memcmp(&gSaveContext, sOoTSaveSnapshot, sizeof(SaveContext)) == 0 ? 1 : -1;
 }
 
 /**
@@ -1085,6 +1154,11 @@ extern "C" int OoT_RunPairedCreationEvent(int slot) {
 
     sCreationBracketActive = false;
     memcpy(&gSaveContext, sOoTSaveSnapshot, sizeof(SaveContext));
+    // The OoT-side tail, measured for the same reason MM measures its two
+    // stretches (#582's review asked for numbers rather than the assertion that
+    // "everything else reports a phase and moves on within milliseconds"). This one
+    // is the shortfall stats read and a toast, and the number below is what says so.
+    const uint32_t ootTailStartMs = Combo_GenProgress_ElapsedMs();
 
     if (mmRc != 0) {
         // TERMINAL. Retract everything the freeze published so no artifact of a
@@ -1175,6 +1249,11 @@ extern "C" int OoT_RunPairedCreationEvent(int slot) {
         }
     }
 
+    fprintf(stderr,
+            "[OoT] creation event: the OoT-side tail after MM's half returned (shortfall stats + toast) took %ums "
+            "(#582)\n",
+            Combo_GenProgress_ElapsedMs() - ootTailStartMs);
+    fflush(stderr);
     Combo_GenProgress_Report((uint8_t)RSBS_GENPHASE_PUBLISH, 0, nullptr);
     Combo_GenProgress_End(true);
     fprintf(stderr, "[OoT] creation event: slot %d complete — both halves authored under one frozen identity\n", slot);

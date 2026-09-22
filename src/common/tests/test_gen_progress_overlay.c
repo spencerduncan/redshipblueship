@@ -68,9 +68,13 @@
  *     and this goes red.
  *
  * Deliberately absent: anything about appearance, and anything about the
- * gSaveContext paint bracket (that one needs a real creation and is exercised by
- * combo-creation-event's byte-exact leg, which would fail if the bracket's new
- * swap did not restore).
+ * gSaveContext paint bracket. That one needs a real creation AND a real renderer,
+ * and it is locked by combo-creation-event's leg 10c, which registers a GuiWindow
+ * beside SoH's trackers and compares the gSaveContext signature that window reads
+ * from inside `Gui::DrawMenu()` against OoT's world. The row's byte-exact leg 4 is
+ * NOT that lock and was once claimed to be: it compares the buffer after the
+ * creation returned, where the seam restores OoT's snapshot unconditionally, so it
+ * stays green with the paint bracket deleted.
  *
  * Linkage note: #included into test_runner.cpp at file scope like its siblings.
  */
