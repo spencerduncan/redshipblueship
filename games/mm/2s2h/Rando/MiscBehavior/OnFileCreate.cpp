@@ -375,7 +375,15 @@ void Rando::MiscBehavior::OnFileCreate(s16 fileNum) {
                         if (attempt > 0) {
                             memcpy(&gSaveContext, &sPreAttemptSave, sizeof(SaveContext));
                             Combo_ClearForeignPlacements();
-                            if (Combo_GenProgress_ElapsedMs() > totalBudgetMs) {
+                            // GENERATION elapsed, not WALL elapsed (#582). The
+                            // overlay's frames wait for vblank, and charging
+                            // those waits to this stop would make one seed on
+                            // one machine abort here with a window on screen and
+                            // succeed headless — the same asymmetry the fill's
+                            // per-attempt stop credits away, at the OTHER stop.
+                            // Identical to wall elapsed whenever nothing painted,
+                            // so every headless row's arithmetic is unchanged.
+                            if (Combo_GenProgress_GenerationElapsedMs() > totalBudgetMs) {
                                 // A WALL-CLOCK STOP, NOT A RUNG. Same rule as the
                                 // per-attempt abort below and for the same
                                 // reason: how many attempts a machine gets
@@ -388,8 +396,9 @@ void Rando::MiscBehavior::OnFileCreate(s16 fileNum) {
                                 fprintf(stderr,
                                         "[MM] paired generation: the whole creation exceeded its %ums budget after "
                                         "%d attempt(s) — stopping the ladder (a wall-clock stop NEVER climbs a "
-                                        "rung)\n",
-                                        totalBudgetMs, attempt);
+                                        "rung; %ums generating of %ums wall, %ums presenting)\n",
+                                        totalBudgetMs, attempt, Combo_GenProgress_GenerationElapsedMs(),
+                                        Combo_GenProgress_ElapsedMs(), Combo_GenProgress_PresentationMs());
                                 throw std::runtime_error(
                                     "Paired generation exceeded the creation's total wall-clock budget after " +
                                     std::to_string(attempt) + " attempt(s)");

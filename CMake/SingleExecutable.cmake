@@ -100,6 +100,11 @@ set(REDSHIP_COMMON_SOURCES
     # and the phase channel the creation seam reports into. APPENDED, never
     # reordered.
     ${CMAKE_SOURCE_DIR}/src/common/gen_budget.c
+    # The ON-SCREEN creation-progress surface's state machine (#582). The
+    # presentation half lives in games/oot/soh/SohGui/CreationProgressOverlay.cpp;
+    # this half is game-header-free C so a headless row can drive it. APPENDED,
+    # never reordered.
+    ${CMAKE_SOURCE_DIR}/src/common/gen_progress_overlay.c
 )
 
 # Windows-specific: import thunks for libultraship compatibility
@@ -1245,7 +1250,10 @@ if(BUILD_TESTING)
     # survives the shared-gSaveContext bracket byte-exact, the arrival hydrates
     # or refuses and NEVER generates (a dispatch counter, not a comment), the
     # #582 budget is the ruled one, the pair writes ONE spoiler carrying both
-    # crossing directions (#660), and #585's join is in force.
+    # crossing directions (#660), #585's join is in force, and (#582) the
+    # on-screen progress overlay paints frames from INSIDE the blocking creation
+    # call — which needs both a real window and a real creation, so this row is
+    # the only place in the suite where it can be observed at all.
     #
     # In the `rando` tier for the same correctness reason as the row above: the
     # creation event refuses to run without a live pairing identity, and every
@@ -1583,6 +1591,15 @@ if(BUILD_TESTING)
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+
+    # #582: the on-screen creation-progress surface. Default `redship` tier — it
+    # installs a COUNTING painter rather than a renderer, so the whole row runs
+    # with no window, no ImGui and no archives. The painting half (SohGui's
+    # RunGuiOnly pump) genuinely needs a GPU and is verified by playtest; what
+    # this row protects is everything that goes wrong silently: a bar that
+    # rewinds across the attempt ladder, a channel leg displacing the other, and
+    # a terminal edge that never reaches the presenter.
+    redship_add_test(NAME GenProgressOverlay COMMAND redship --test gen-progress-overlay)
 
     # #670: MM mounted NO mod archives in single-exe — its whole mod-mount
     # sequence is in the excluded games/mm/2s2h/BenPort.cpp, so
