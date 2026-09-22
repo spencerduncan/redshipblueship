@@ -38,20 +38,30 @@
  *
  * WHAT THIS ROW ASSERTS, against the production functions:
  *
- *   1. The partition is total and disjoint, over path spellings that actually
- *      occur: "./mods" vs "mods", '\' separators, "MM" in any case, the
- *      near-misses "mmx"/"xmm", a nested archive, and a path outside the root.
- *      Plus the shared extension rule, which is the other half of "whose file is
- *      this": `.o2r` yes, `.otr` yes (this build compiles the MPQ reader in),
- *      `.zip` no for BOTH games.
+ *   1. The partition, over path spellings that actually occur: "./mods" vs "mods",
+ *      '\' separators, "MM" in any case, the near-misses "mmx"/"xmm", a nested
+ *      archive, and paths outside the root. Each game's answer is pinned
+ *      INDEPENDENTLY against the table (the two sides of the predicate are two
+ *      rules now, not one bool and its negation — see MMModsPartition_RunHeadless),
+ *      and the derived properties are disjointness everywhere plus totality over
+ *      paths under the root. Plus Combo_ModsRootsAreShared, which is what decides
+ *      whether there is one shared tree to partition at all, and the shared
+ *      extension rule, the other half of "whose file is this": `.o2r` yes, `.otr`
+ *      yes (this build compiles the MPQ reader in), `.zip` no for BOTH games.
  *   1b. OoT's real glob honours the partition too. MM's half being locked is the
  *      easy half; the dangerous direction is a mod registered under the WRONG
  *      game, because THAT survives the switch, and before this leg existed the
  *      whole `#ifdef` block in mod_menu.cpp could be deleted with every row still
  *      green. OoT_MountModArchivesHeadless drives CollectOoTModFiles — the same
- *      function UpdateModFiles's own loop iterates — and the leg asserts OoT
+ *      function UpdateModFiles's own loop iterates — and MountAndRegisterOoTMod, the
+ *      same per-archive mount+register pair the init leg calls. The leg asserts OoT
  *      claims the root-level archive and registers NEITHER mods/mm archive under
- *      GAME_OOT.
+ *      GAME_OOT. What the seam does NOT drive, and what therefore stays uncovered,
+ *      is the init leg's menu bookkeeping around that call: the enabled-set filter
+ *      and the stem-keyed `filePaths` map that collapses two same-stem archives in
+ *      different subfolders to one registration. PR #704's docstring claimed the
+ *      seam registered "exactly as the init leg does"; it does not, and the seam's
+ *      own contract now says so.
  *   2. MM's real glob (MM_MountModArchivesHeadless -> MountMMModArchives) mounts
  *      the two staged mods/mm archives and NOT the root-level one, recurses into
  *      mods/mm/sub, ignores a non-archive file, sorts by file-name stem, and
@@ -72,6 +82,17 @@
  *      via the registry MM's mount fed in (2).
  *   6. A second mount is idempotent: neither registry grows and mod precedence
  *      does not move.
+ *   7. The two roots are not always one directory. Handed a DIFFERENT MM root — the
+ *      non-portable configuration, where LocateFileAcrossAppDirs really does
+ *      separate by app name — OoT's walk claims all three staged archives,
+ *      `mods/mm` included, because nothing else is globbing that tree. Without this
+ *      leg an archive there is skipped by OoT and never seen by MM: mounted by
+ *      NEITHER game, which is the failure the disjointness check in (1) is about and
+ *      structurally cannot see, since it is only ever handed one root.
+ *   8. One tree, one traversal rule: an archive reachable only through a symlinked
+ *      folder under `mods/mm` is mounted, the way OoT has always mounted one under
+ *      `mods/`. SKIPS with a printed reason where a directory symlink cannot be
+ *      created (Windows without Developer Mode); CI's Linux job runs it.
  *
  * ANTI-VACUITY. Every "the mod owns it" assertion is preceded by the matching
  * "the base owns it" precondition on the SAME path, so each leg is a measured
@@ -123,9 +144,10 @@ extern "C" {
 // supplied mods root (games/mm/2s2h/GameExports_SingleExe.cpp, #670).
 int MM_MountModArchivesHeadless(const char* modsRoot);
 // OoT's production mods walk (CollectOoTModFiles, the one UpdateModFiles's loop
-// iterates) plus its init-leg registration, over an explicitly supplied root
-// (games/oot/soh/Enhancements/mod_menu.cpp, #670).
-int OoT_MountModArchivesHeadless(const char* modsRoot);
+// iterates) plus the per-archive mount+register pair the init leg calls, over
+// explicitly supplied OoT and MM roots (games/oot/soh/Enhancements/mod_menu.cpp,
+// #670). The second root is what decides whether `mods/mm` is reserved at all.
+int OoT_MountModArchivesHeadless(const char* modsRoot, const char* mmModsRoot);
 // MM's archive-origin registry, fed by RecordMMArchivePath — what the #344
 // Room/Cutscene factory dispatcher and the #618 "mm" extension scope key on.
 bool Combo_ArchivePathIsMM(const char* path);
@@ -158,8 +180,8 @@ bool MmmPathContains(const std::string& haystack, const char* needle) {
 } // namespace
 
 /**
- * The partition and the shared extension rule, as pure path logic: no filesystem,
- * no archive, no Ship::Context.
+ * The partition, the roots-shared question and the shared extension rule, as path
+ * logic: no archive, no Ship::Context.
  *
  * Its own CTest row (MMModsPartition) precisely so it cannot be skipped. This was
  * part 1 of MMModsMount, whose wrapper returns TEST_SKIP before calling the body
@@ -167,6 +189,23 @@ bool MmmPathContains(const std::string& haystack, const char* needle) {
  * Combo_ModPathIsForGame, the predicate both globs share, did not run in the one CI
  * job that deliberately runs this label archive-less (#562), while the comment
  * here claimed "these run even when the archives are unstaged".
+ *
+ * WHAT THE TABLE MEASURES, and why it did not before. PR #704 shipped a table that
+ * checked MM's answer against the authored expectation and then asserted
+ * `oot != mm`. The predicate computed both answers from one bool in one expression
+ * (`return game == GAME_MM ? isMm : !isMm;`), so that second assertion was a
+ * restatement of the return statement: no input could make it fire, and no
+ * counterfactual in that PR ever observed it red. Its reviewer was right. OoT's side
+ * is now its own rule ("under the root, and the first component is not the reserved
+ * folder"), so the two CAN disagree, and the table therefore pins THREE outcomes
+ * per path — MM's, OoT's, and the derived partition property:
+ *
+ *   - every path is claimed by at most one game (disjointness), and
+ *   - every path UNDER THE ROOT is claimed by exactly one (totality on the domain
+ *     that a directory iteration can actually produce).
+ *
+ * A path in some other tree is claimed by NEITHER, which is the honest answer and
+ * a behaviour change: the negation-based predicate answered "OoT's" for it.
  *
  * The spellings covered are the ones that actually reach the two globs: modsRoot
  * arrives from LocateFileAcrossAppDirs (can be "./mods"), while mod_menu hands over
@@ -176,20 +215,22 @@ bool MmmPathContains(const std::string& haystack, const char* needle) {
  * @return 0 pass, non-zero failure code.
  */
 extern "C" int MMModsPartition_RunHeadless(void) {
-    printf("[TEST] mm-mods-partition: the shared mods/ tree partition and the shared archive-extension rule, as pure "
-           "path logic (#670)\n");
+    printf("[TEST] mm-mods-partition: the shared mods/ tree partition, the roots-shared gate and the shared "
+           "archive-extension rule, as path logic (#670)\n");
 
+    enum ModsOwner { kOwnerMm, kOwnerOoT, kOwnerNeither };
     struct PartitionCase {
         const char* root;
         const char* path;
-        bool isMm;
+        ModsOwner owner;
         const char* why;
     };
     static const PartitionCase kCases[] = {
-        { "./mods", "./mods/mm/10-mod.o2r", true, "the plain MM case" },
-        { "./mods", "mods/mm/10-mod.o2r", true, "a lexically_normal()'d path against a './' root" },
-        { "mods", "./mods/mm/10-mod.o2r", true, "a './' path against a bare root" },
-        { "./mods", "./mods/mm/sub/20-mod.o2r", true, "nested under mods/mm" },
+        { "./mods", "./mods/mm/10-mod.o2r", kOwnerMm, "the plain MM case" },
+        { "./mods", "mods/mm/10-mod.o2r", kOwnerMm, "a lexically_normal()'d path against a './' root" },
+        { "mods", "./mods/mm/10-mod.o2r", kOwnerMm, "a './' path against a bare root" },
+        { "./mods", "./mods/mm/sub/20-mod.o2r", kOwnerMm, "nested under mods/mm" },
+        { "./mods", "./mods/../mods/mm/10-mod.o2r", kOwnerMm, "a path that normalizes back into mods/mm" },
 #if defined(_WIN32)
         // Windows only, and deliberately so. '\' is a path separator on Windows,
         // which std::filesystem::path splits on, so the predicate classifies this
@@ -204,38 +245,107 @@ extern "C" int MMModsPartition_RunHeadless(void) {
         // (forward slashes) on both platforms — mod_menu's
         // `p.path().generic_string()` and MountMMModArchives's `generic`, with
         // roots built by LocateFileAcrossAppDirs, which concatenates with '/'.
-        { "./mods", ".\\mods\\mm\\10-mod.o2r", true, "native Windows separators" },
+        { "./mods", ".\\mods\\mm\\10-mod.o2r", kOwnerMm, "native Windows separators" },
 #endif
-        { "./mods", "./mods/MM/10-mod.o2r", true, "the reserved name is case-insensitive" },
-        { "./mods", "./mods/10-mod.o2r", false, "the root belongs to OoT" },
-        { "./mods", "./mods/sub/10-mod.o2r", false, "any other subfolder belongs to OoT" },
-        { "./mods", "./mods/mmx/10-mod.o2r", false, "'mmx' is not 'mm' (prefix near-miss)" },
-        { "./mods", "./mods/xmm/10-mod.o2r", false, "'xmm' is not 'mm' (suffix near-miss)" },
-        { "./mods", "./mods/mm-extra/10-mod.o2r", false, "'mm-extra' is not 'mm'" },
-        { "./mods", "./elsewhere/mm/10-mod.o2r", false, "outside the root is not MM's" },
+        { "./mods", "./mods/MM/10-mod.o2r", kOwnerMm, "the reserved name is case-insensitive" },
+        { "./mods", "./mods/10-mod.o2r", kOwnerOoT, "the root belongs to OoT" },
+        { "./mods", "./mods/sub/10-mod.o2r", kOwnerOoT, "any other subfolder belongs to OoT" },
+        { "./mods", "./mods/mmx/10-mod.o2r", kOwnerOoT, "'mmx' is not 'mm' (prefix near-miss)" },
+        { "./mods", "./mods/xmm/10-mod.o2r", kOwnerOoT, "'xmm' is not 'mm' (suffix near-miss)" },
+        { "./mods", "./mods/mm-extra/10-mod.o2r", kOwnerOoT, "'mm-extra' is not 'mm'" },
+        { "./mods", "./mods/sub/mm/10-mod.o2r", kOwnerOoT, "'mm' is reserved only as the FIRST component" },
+        // The three NEITHER cases. These are what makes the disjointness check a
+        // measurement rather than a tautology: with OoT's side written as the
+        // negation of MM's, every one of them came back "OoT's", so no input could
+        // ever produce two equal answers.
+        { "./mods", "./elsewhere/mm/10-mod.o2r", kOwnerNeither, "a different tree entirely is neither game's" },
+        { "./mods", "./other/10-mod.o2r", kOwnerNeither, "outside the root, and not mm-shaped either" },
+        { "./mods", "./mods/../outside/10-mod.o2r", kOwnerNeither, "a path that normalizes OUT of the root" },
+        { "./mods", "./mods", kOwnerNeither, "the mods root itself is not a file either game claims" },
     };
     int mmClaims = 0;
     int ootClaims = 0;
+    int neitherClaims = 0;
     for (const auto& c : kCases) {
         const bool mm = Combo_ModPathIsForGame(GAME_MM, c.root, c.path);
         const bool oot = Combo_ModPathIsForGame(GAME_OOT, c.root, c.path);
-        if (mm != c.isMm) {
+        if (mm != (c.owner == kOwnerMm)) {
             printf("[TEST] FAIL(2): partition: MM %s '%s' under root '%s' (%s)\n",
                    mm ? "claimed" : "did not claim", c.path, c.root, c.why);
             return 2;
         }
-        // Total AND disjoint: exactly one game claims every path. If this ever
-        // held for neither, a mod would silently be mounted by nobody; if for
-        // both, by everybody.
-        if (oot == mm) {
-            printf("[TEST] FAIL(2): partition is not a partition: both games answered %s for '%s' (%s)\n",
-                   mm ? "true" : "false", c.path, c.why);
+        // OoT's answer against the AUTHORED expectation, not against MM's. The two
+        // are computed by two independent rules now, so this is a second
+        // measurement and not the same one restated.
+        if (oot != (c.owner == kOwnerOoT)) {
+            printf("[TEST] FAIL(2): partition: OoT %s '%s' under root '%s' (%s)\n",
+                   oot ? "claimed" : "did not claim", c.path, c.root, c.why);
             return 2;
         }
-        mm ? mmClaims++ : ootClaims++;
+        // Disjoint: never both. A path claimed twice is mounted twice and
+        // registered under both games, and #593's switch-time re-apply then stacks
+        // it over the OTHER game's base archives on every arrival.
+        if (oot && mm) {
+            printf("[TEST] FAIL(2): partition is not disjoint: both games claimed '%s' (%s)\n", c.path, c.why);
+            return 2;
+        }
+        // Total, over the domain that matters: a path under the root claimed by
+        // neither game would be a mod silently mounted by nobody.
+        if (c.owner != kOwnerNeither && !oot && !mm) {
+            printf("[TEST] FAIL(2): partition is not total: neither game claimed '%s', which is under the root (%s)\n",
+                   c.path, c.why);
+            return 2;
+        }
+        if (mm) {
+            mmClaims++;
+        } else if (oot) {
+            ootClaims++;
+        } else {
+            neitherClaims++;
+        }
     }
-    MMM_ASSERT(mmClaims > 0 && ootClaims > 0, 2,
-               "the partition table exercised only one side — the disjointness check would be one-sided");
+    MMM_ASSERT(mmClaims > 0 && ootClaims > 0 && neitherClaims > 0, 2,
+               "the partition table did not exercise all three outcomes — the disjointness and totality checks would "
+               "be one-sided");
+
+    // ---- The roots-shared gate ------------------------------------------------
+    // Combo_ModPathIsForGame answers "whose half of a SHARED tree is this". It is
+    // the right question only when the two games really do glob one directory,
+    // which is a portable-build property and NOT a source-level one: with
+    // NON_PORTABLE the roots are per-app-name pref directories, and SHIP_HOME
+    // collapses them again on Linux even then. PR #704 reserved `mods/mm` from OoT
+    // unconditionally and its body claimed "the partition still holds" in that
+    // configuration; it does not — an archive at `<soh-prefdir>/mods/mm/x.o2r` was
+    // skipped by OoT while MM globbed a different directory entirely, so it was
+    // mounted by NEITHER game, which is the exact gap the disjointness check above
+    // is supposed to be about and cannot see, because it is handed one root.
+    struct RootsCase {
+        const char* oot;
+        const char* mm;
+        bool shared;
+        const char* why;
+    };
+    const std::string cwdMods = (std::filesystem::current_path() / "mods").generic_string();
+    const RootsCase kRootCases[] = {
+        { "./mods", "./mods", true, "the portable-build collapse: one identical string" },
+        { "./mods", "mods", true, "two spellings of one directory" },
+        { "mods", cwdMods.c_str(), true, "absolute vs relative, same directory" },
+        { "./mods", "./mods/mm", false, "MM's own subfolder is not OoT's root" },
+        { "./mods", "./other-mods", false, "the non-portable case: two different directories" },
+        { "./soh-prefdir/mods", "./2s2h-prefdir/mods", false, "two per-app-name pref directories" },
+    };
+    for (const auto& c : kRootCases) {
+        const bool shared = Combo_ModsRootsAreShared(c.oot, c.mm);
+        if (shared != c.shared) {
+            printf("[TEST] FAIL(2): Combo_ModsRootsAreShared('%s','%s') = %s, expected %s (%s)\n", c.oot, c.mm,
+                   shared ? "true" : "false", c.shared ? "true" : "false", c.why);
+            return 2;
+        }
+    }
+    MMM_ASSERT(!Combo_ModsRootsAreShared(nullptr, "./mods"), 3, "a NULL OoT root was called shared");
+    MMM_ASSERT(!Combo_ModsRootsAreShared("./mods", nullptr), 3, "a NULL MM root was called shared");
+    MMM_ASSERT(!Combo_ModsRootsAreShared("", "./mods"), 3, "an empty OoT root was called shared");
+    MMM_ASSERT(!Combo_ModsRootsAreShared("./mods", ""), 3, "an empty MM root was called shared");
 
     // Degenerate arguments claim nothing, for either game: a NULL root must not
     // make every path MM's by accident, nor make every path OoT's.
@@ -268,9 +378,10 @@ extern "C" int MMModsPartition_RunHeadless(void) {
     MMM_ASSERT(!Combo_ModArchiveExtensionIsValid(""), 3, "an empty extension is accepted as a mod archive");
     MMM_ASSERT(!Combo_ModArchiveExtensionIsValid(nullptr), 3, "a NULL extension is accepted as a mod archive");
 
-    printf("[mm-mods-partition] PASS: %d MM / %d OoT path cases, exactly one claimant each; degenerate arguments claim "
-           "nothing; one extension rule for both games (.o2r/.otr yes, .zip no)\n",
-           mmClaims, ootClaims);
+    printf("[mm-mods-partition] PASS: %d MM / %d OoT / %d neither path cases, each game's answer pinned "
+           "independently, never both and never neither under the root; %d roots-shared cases; degenerate arguments "
+           "claim nothing; one extension rule for both games (.o2r/.otr yes, .zip no)\n",
+           mmClaims, ootClaims, neitherClaims, (int)(sizeof(kRootCases) / sizeof(kRootCases[0])));
     return 0;
 }
 
@@ -576,7 +687,9 @@ extern "C" int MMModsMount_RunHeadless(const char* sohArchive, const char* mmArc
         // the two globs are measured against one another: MM claimed exactly the
         // two under mods/mm, OoT must claim exactly the one in the root.
         Combo_ClearModArchives(GAME_OOT);
-        const int ootClaimed = OoT_MountModArchivesHeadless(root.generic_string().c_str());
+        // Both roots are the staged tree: the SHARED-tree case, which is what a
+        // portable build has and what every release ships.
+        const int ootClaimed = OoT_MountModArchivesHeadless(root.generic_string().c_str(), root.generic_string().c_str());
         if (ootClaimed != 1 || Combo_GetModArchiveCount(GAME_OOT) != 1) {
             printf("[TEST] FAIL(14): OoT's glob claimed %d archive(s) and registered %d, expected 1 and 1 (only the "
                    "root-level one; the two under mods/mm are MM's and notes.txt is not an archive)\n",
@@ -613,10 +726,132 @@ extern "C" int MMModsMount_RunHeadless(const char* sohArchive, const char* mmArc
             rc = 15;
             break;
         }
-        if (OoT_MountModArchivesHeadless(nullptr) != -1 || OoT_MountModArchivesHeadless("") != -1) {
-            printf("[TEST] FAIL(15): OoT's seam did not report -1 for a NULL/empty mods root\n");
+        const std::string rootStr = root.generic_string();
+        if (OoT_MountModArchivesHeadless(nullptr, rootStr.c_str()) != -1 ||
+            OoT_MountModArchivesHeadless("", rootStr.c_str()) != -1 ||
+            OoT_MountModArchivesHeadless(rootStr.c_str(), nullptr) != -1 ||
+            OoT_MountModArchivesHeadless(rootStr.c_str(), "") != -1) {
+            printf("[TEST] FAIL(15): OoT's seam did not report -1 for a NULL/empty root\n");
             rc = 15;
             break;
+        }
+
+        // ---- Part 9: the two roots are NOT always the same directory -------
+        // The partition is a property of a SHARED tree, and the tree is shared only
+        // because a portable build's LocateFileAcrossAppDirs ignores its appName.
+        // With NON_PORTABLE it does not (SDL_GetPrefPath per app name,
+        // libultraship/src/ship/Context.cpp), so OoT's root and MM's root are
+        // different directories and MM never looks under OoT's. Reserving `mods/mm`
+        // from OoT there would leave an archive at `<soh-prefdir>/mods/mm/x.o2r`
+        // mounted by NEITHER game — the silent gap the disjointness assertion in
+        // MMModsPartition is about and structurally cannot see, since it is handed
+        // one root. PR #704 shipped exactly that, with a body claiming the partition
+        // still held.
+        //
+        // Same staged tree, same walk, only MM's root differs: OoT must now claim
+        // ALL THREE archives, mods/mm included, i.e. behave exactly as it did before
+        // #670. This is the leg that goes red if the gate is deleted (it reported 1).
+        Combo_ClearModArchives(GAME_OOT);
+        const std::string foreignMmRoot = (root / "not-mms-root").generic_string();
+        const int ootClaimedUnshared = OoT_MountModArchivesHeadless(rootStr.c_str(), foreignMmRoot.c_str());
+        if (ootClaimedUnshared != 3 || Combo_GetModArchiveCount(GAME_OOT) != 3) {
+            printf("[TEST] FAIL(16): with MM globbing a DIFFERENT root, OoT claimed %d archive(s) and registered %d, "
+                   "expected 3 and 3 — `mods/mm` is reserved from OoT even though nothing else mounts it, so those "
+                   "archives are mounted by neither game (#670, PR #704 review)\n",
+                   ootClaimedUnshared, Combo_GetModArchiveCount(GAME_OOT));
+            rc = 16;
+            break;
+        }
+        {
+            bool sawMmSubdirArchive = false;
+            for (int i = 0; i < Combo_GetModArchiveCount(GAME_OOT); i++) {
+                const char* p = Combo_GetModArchive(GAME_OOT, i);
+                if (p != nullptr && MmmPathContains(p, "20-soh.o2r")) {
+                    sawMmSubdirArchive = true;
+                }
+            }
+            if (!sawMmSubdirArchive) {
+                printf("[TEST] FAIL(16): OoT claimed 3 archives but not the nested mods/mm one — the count is right "
+                       "for the wrong reason\n");
+                rc = 16;
+                break;
+            }
+        }
+        // MM's registry is untouched: the unshared case changes who claims OoT's
+        // tree, not who claims MM's.
+        if (Combo_GetModArchiveCount(GAME_MM) != 2) {
+            printf("[TEST] FAIL(16): the unshared-roots leg changed MM's registry (now %d entries, expected 2)\n",
+                   Combo_GetModArchiveCount(GAME_MM));
+            rc = 16;
+            break;
+        }
+        Combo_ClearModArchives(GAME_OOT);
+
+        // ---- Part 10: one tree, one traversal rule ------------------------
+        // OoT's walk has always passed `follow_directory_symlink`; MM's new glob
+        // passed only `skip_permission_denied`, so the installation docs/MODDING.md
+        // blesses — a mod that ships as its own folder, kept in one library and
+        // linked into an install — worked under `mods/` and silently did nothing
+        // under `mods/mm/`. Both now take Rsbs::kModsWalkOptions.
+        //
+        // SKIPPED, not failed, where a directory symlink cannot be created: on
+        // Windows that needs Developer Mode or SeCreateSymbolicLinkPrivilege, and a
+        // row that went red on a privilege would be a worse lock than one that says
+        // out loud which half of itself ran. CI's Linux job always creates it.
+        {
+            const std::filesystem::path linkTarget = root / "linked-library";
+            // One error_code per step, checked immediately — the same discipline the
+            // staging block above states: std::filesystem's overloads CLEAR ec on
+            // success, so a shared one lets a later success erase an earlier failure
+            // and the leg would assert a property of a file that is not there.
+            std::error_code mkdirEc;
+            std::filesystem::create_directories(linkTarget, mkdirEc);
+            if (mkdirEc) {
+                printf("[TEST] FAIL(17): could not create the symlink target directory (%s)\n",
+                       mkdirEc.message().c_str());
+                rc = 17;
+                break;
+            }
+            const std::string linkedMod = (linkTarget / "30-link.o2r").generic_string();
+            std::error_code copyEc;
+            std::filesystem::copy_file(mmArchive, linkedMod, copyOpts, copyEc);
+            if (copyEc) {
+                printf("[TEST] FAIL(17): could not stage the archive behind the symlink (%s)\n",
+                       copyEc.message().c_str());
+                rc = 17;
+                break;
+            }
+            std::error_code linkEc;
+            std::filesystem::create_directory_symlink(linkTarget, root / "mm" / "linked", linkEc);
+            if (linkEc) {
+                printf("[mm-mods-mount] NOTE: directory symlinks are unavailable here (%s) — the shared-walk-options "
+                       "leg did not run. It runs on CI's Linux job.\n",
+                       linkEc.message().c_str());
+            } else {
+                const int mountedWithLink = MM_MountModArchivesHeadless(rootStr.c_str());
+                if (mountedWithLink != 3 || Combo_GetModArchiveCount(GAME_MM) != 3) {
+                    printf("[TEST] FAIL(17): with an archive reachable only through a symlinked folder under mods/mm, "
+                           "MM mounted %d and has %d registered, expected 3 and 3 — MM's walk is not following "
+                           "directory symlinks, which OoT's walk over the same tree does (#670, PR #704 review)\n",
+                           mountedWithLink, Combo_GetModArchiveCount(GAME_MM));
+                    rc = 17;
+                    break;
+                }
+                bool sawLinked = false;
+                for (int i = 0; i < Combo_GetModArchiveCount(GAME_MM); i++) {
+                    const char* p = Combo_GetModArchive(GAME_MM, i);
+                    if (p != nullptr && MmmPathContains(p, "30-link.o2r")) {
+                        sawLinked = true;
+                    }
+                }
+                if (!sawLinked) {
+                    printf("[TEST] FAIL(17): MM mounted 3 archives but none of them is the one behind the symlink — "
+                           "the count is right for the wrong reason\n");
+                    rc = 17;
+                    break;
+                }
+                printf("[mm-mods-mount] the symlinked folder under mods/mm was traversed: 3 MM mods mounted\n");
+            }
         }
     } while (false);
 
@@ -630,7 +865,8 @@ extern "C" int MMModsMount_RunHeadless(const char* sohArchive, const char* mmArc
         printf("[mm-mods-mount] PASS: MM mounted 2 of 4 staged files (mods/mm only, nested included, sorted by stem) "
                "and OoT claimed exactly the 1 in the root, both registries fed, the override beats MM's base archive, "
                "an OoT path is reclaimed by soh.o2r on the switch to OoT and the override returns on the switch back, "
-               "and a second mount is a no-op\n");
+               "a second mount is a no-op, OoT claims all 3 again when MM's root is a DIFFERENT directory, and MM "
+               "traverses a symlinked folder under mods/mm the way OoT traverses one under mods/\n");
     }
     return rc;
 }

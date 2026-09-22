@@ -168,17 +168,50 @@ static void WarnOnceOnRehomedEnabledMod(const std::filesystem::path& skipped) {
 // drives). A lock over a second copy of this loop would keep passing after someone
 // deleted the partition from the copy that ships.
 //
+// @param modsPath   OoT's mods root.
+// @param mmModsPath MM's mods root, as MM itself resolves it
+//                   (Combo_ModsRootForGame(GAME_MM)). Only its IDENTITY with
+//                   @p modsPath matters: `mods/mm` is reserved for MM only when MM
+//                   is really globbing this same directory. Ignored without
+//                   RSBS_SINGLE_EXECUTABLE, where there is no MM.
 // @return the entries of @p modsPath that are OoT's mod archives, in iteration
 //         order. Unchanged behaviour for standalone SoH: without
 //         RSBS_SINGLE_EXECUTABLE the only filter is IsValidExtension, as before.
-std::vector<std::filesystem::path> CollectOoTModFiles(const std::string& modsPath) {
+std::vector<std::filesystem::path> CollectOoTModFiles(const std::string& modsPath, const std::string& mmModsPath) {
     std::vector<std::filesystem::path> claimed;
-    if (modsPath.empty() || !std::filesystem::exists(modsPath) || !std::filesystem::is_directory(modsPath)) {
+    std::error_code ec;
+    if (modsPath.empty() || !std::filesystem::is_directory(modsPath, ec)) {
         return claimed;
     }
-    for (const std::filesystem::directory_entry& p : std::filesystem::recursive_directory_iterator(
-             modsPath, std::filesystem::directory_options::follow_directory_symlink)) {
-        if (p.is_directory()) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #670, corrected after PR #704's review: the skip below exists ONLY because MM
+    // globs this very directory. In a non-portable build the two roots are
+    // different directories (SDL_GetPrefPath per app name), MM never looks under
+    // OoT's root, and reserving `mm` there would leave an archive at
+    // `<soh-prefdir>/mods/mm/x.o2r` mounted by NEITHER game. Ask, do not assume:
+    // `SHIP_HOME` collapses the two roots again on Linux even with NON_PORTABLE, so
+    // this is not a compile-time fact in either direction.
+    const bool reserveMmSubdir = Combo_ModsRootsAreShared(modsPath.c_str(), mmModsPath.c_str());
+#else
+    (void)mmModsPath;
+#endif
+    // The SHARED walk options and the same error_code discipline MM's glob uses
+    // (Rsbs::kModsWalkOptions, src/common/mod_archives.h): one tree must not have
+    // two traversal rules. In standalone SoH the options stay upstream's
+    // follow_directory_symlink, but the iteration is error_code-driven here too —
+    // a broken reparse point in a player's mods folder used to throw out of
+    // UpdateModFiles at GUI init.
+    constexpr std::filesystem::directory_options kWalkOptions =
+#ifdef RSBS_SINGLE_EXECUTABLE
+        Rsbs::kModsWalkOptions;
+#else
+        std::filesystem::directory_options::follow_directory_symlink;
+#endif
+    std::error_code walkEc;
+    for (std::filesystem::recursive_directory_iterator it(modsPath, kWalkOptions, walkEc), end;
+         it != end && !walkEc; it.increment(walkEc)) {
+        std::error_code entryEc;
+        if (it->is_directory(entryEc)) {
             continue;
         }
 #ifdef RSBS_SINGLE_EXECUTABLE
@@ -194,17 +227,42 @@ std::vector<std::filesystem::path> CollectOoTModFiles(const std::string& modsPat
         // behaviour for an install that already had an archive under mods/mm (that
         // file was an OoT mod and is now MM's); the notice above is why that is not
         // silent.
-        if (!Combo_ModPathIsForGame(GAME_OOT, modsPath.c_str(), p.path().generic_string().c_str())) {
-            WarnOnceOnRehomedEnabledMod(p.path());
+        if (reserveMmSubdir &&
+            !Combo_ModPathIsForGame(GAME_OOT, modsPath.c_str(), it->path().generic_string().c_str())) {
+            WarnOnceOnRehomedEnabledMod(it->path());
             continue;
         }
 #endif
-        if (!IsValidExtension(p.path().extension().generic_string())) {
+        if (!IsValidExtension(it->path().extension().generic_string())) {
             continue;
         }
-        claimed.push_back(p.path());
+        claimed.push_back(it->path());
     }
     return claimed;
+}
+
+// #670, corrected after PR #704's review: the per-archive mount+register PAIR,
+// one definition, so the seam below genuinely drives what ships. AddArchive then
+// Combo_RegisterModArchive, in that order — the order is the contract, because
+// #593's switch-time re-apply replays the registry in registration order — and
+// without consulting AddArchive's return value, which is upstream's own choice
+// here and not an oversight this seam may quietly "fix".
+//
+// What is NOT in here, and therefore not driven by the seam, is the init leg's
+// menu bookkeeping around it: which stems the enabled set names, and the
+// stem-keyed `filePaths` map that collapses two same-stem archives in different
+// subfolders to one. See OoT_MountModArchivesHeadless's contract.
+static void MountAndRegisterOoTMod(const std::string& modArchivePath) {
+    GetArchiveManager()->AddArchive(modArchivePath);
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #593: OoT mounts its mods HERE, at GUI init — long after the base
+    // archives — and relies on ArchiveManager's last-added-wins resolution to
+    // make the override stick. Every cross-game switch re-adds oot.o2r/soh.o2r
+    // on top (EnsureGameArchivesLoaded, rsbs/src/main.cpp), which silently
+    // revoked that. Recording the mount lets the switch path re-apply it in this
+    // exact order.
+    Combo_RegisterModArchive(GAME_OOT, modArchivePath.c_str());
+#endif
 }
 
 void UpdateModFiles(bool init = false, bool reset = false) {
@@ -225,7 +283,15 @@ void UpdateModFiles(bool init = false, bool reset = false) {
             // CollectOoTModFiles above — one definition, shared with the seam the
             // lock drives. Everything below is this function's own bookkeeping,
             // unchanged.
-            for (const std::filesystem::path& modPath : CollectOoTModFiles(modsPath)) {
+            // #670: MM's root, asked for the way MM asks for it, so the reserve
+            // decision inside the walk is made against the directory MM really
+            // globs rather than against an assumption about the build flags.
+#ifdef RSBS_SINGLE_EXECUTABLE
+            const std::string mmModsPath = Combo_ModsRootForGame(GAME_MM);
+#else
+            const std::string mmModsPath;
+#endif
+            for (const std::filesystem::path& modPath : CollectOoTModFiles(modsPath, mmModsPath)) {
                 std::string filename =
                     modPath.filename().generic_string().substr(0, modPath.filename().generic_string().rfind("."));
                 bool enabled =
@@ -246,19 +312,7 @@ void UpdateModFiles(bool init = false, bool reset = false) {
                 std::vector<std::string> enabledTemp(enabledModFiles);
                 for (std::string mod : enabledTemp) {
                     if (filePaths.contains(mod)) {
-                        const std::string modArchivePath = filePaths.at(mod).generic_string();
-                        GetArchiveManager()->AddArchive(modArchivePath);
-#ifdef RSBS_SINGLE_EXECUTABLE
-                        // #593: OoT mounts its mods HERE, at GUI init — long
-                        // after the base archives — and relies on
-                        // ArchiveManager's last-added-wins resolution to make
-                        // the override stick. Every cross-game switch re-adds
-                        // oot.o2r/soh.o2r on top (EnsureGameArchivesLoaded,
-                        // rsbs/src/main.cpp), which silently revoked that.
-                        // Recording the mount lets the switch path re-apply it
-                        // in this exact order.
-                        Combo_RegisterModArchive(GAME_OOT, modArchivePath.c_str());
-#endif
+                        MountAndRegisterOoTMod(filePaths.at(mod).generic_string());
                     } else {
                         enabledModFiles.erase(std::find(enabledModFiles.begin(), enabledModFiles.end(), mod));
                         changed = true;
@@ -276,24 +330,41 @@ void UpdateModFiles(bool init = false, bool reset = false) {
 /**
  * Headless seam for the #670 partition lock (src/common/tests/test_mm_mods_mount.c).
  *
- * Runs OoT's REAL mods walk — CollectOoTModFiles, the very function
- * UpdateModFiles's loop above iterates, so the partition skip and the extension
- * filter have one definition and deleting either from the production walk turns
- * this red — over an explicitly supplied root, then performs UpdateModFiles's
- * init-leg registration on what it claims: AddArchive followed by
- * Combo_RegisterModArchive(GAME_OOT, ...), in that order, and without consulting
- * AddArchive's return value, exactly as the init leg does.
+ * WHAT IT REALLY DRIVES, stated exactly — the first version of this comment
+ * claimed the seam performs the init-leg registration "exactly as the init leg
+ * does", and PR #704's reviewer was right that it does not:
  *
- * The root is a parameter rather than resolved through LocateFileAcrossAppDirs so
- * the row can stage a private tree and never touch the player's ./mods. Nothing
- * else in the menu's state is read or written: not the enabled-mods CVar, not
- * filePaths, not enabledModFiles.
+ *   - CollectOoTModFiles, the very function UpdateModFiles's loop iterates. The
+ *     walk, its directory_options, the roots-shared question, the `mods/mm` skip
+ *     and the extension filter are therefore genuinely shared: delete any of them
+ *     from the production walk and this goes red.
+ *   - MountAndRegisterOoTMod, the very function the init leg calls per archive. The
+ *     PAIR and its ORDER — AddArchive then Combo_RegisterModArchive(GAME_OOT, ...),
+ *     return value ignored — are therefore shared too.
  *
+ * WHAT IT DOES NOT DRIVE, and which no row covers: the init leg's menu bookkeeping
+ * around that call. The shipping leg iterates the ENABLED set and registers only
+ * `filePaths.at(stem)`, a map keyed by file-name stem, so two claimed archives with
+ * the same stem in different subfolders collapse to ONE registration and a disabled
+ * archive is claimed by the walk but never mounted. This seam registers every path
+ * the walk returns. Reading a count from this seam is therefore a measurement of
+ * the walk and of the mount pair, NOT of the enabled-set filter.
+ *
+ * Both roots are parameters rather than resolved through LocateFileAcrossAppDirs so
+ * the row can stage a private tree and never touch the player's ./mods — and so it
+ * can drive the non-portable case, where MM's root is a DIFFERENT directory and OoT
+ * must keep its own `mods/mm`. Nothing else in the menu's state is read or written:
+ * not the enabled-mods CVar, not filePaths, not enabledModFiles.
+ *
+ * @param modsRoot   OoT's mods root.
+ * @param mmModsRoot MM's mods root. Pass the same string for the shared-tree
+ *                   (portable) case; a different directory for the non-portable
+ *                   one.
  * @return how many archives OoT claimed and registered, or -1 for a NULL/empty
  *         root or with no live ArchiveManager.
  */
-extern "C" int OoT_MountModArchivesHeadless(const char* modsRoot) {
-    if (modsRoot == nullptr || modsRoot[0] == '\0') {
+extern "C" int OoT_MountModArchivesHeadless(const char* modsRoot, const char* mmModsRoot) {
+    if (modsRoot == nullptr || modsRoot[0] == '\0' || mmModsRoot == nullptr || mmModsRoot[0] == '\0') {
         return -1;
     }
     auto ctx = Ship::Context::GetInstance();
@@ -303,10 +374,8 @@ extern "C" int OoT_MountModArchivesHeadless(const char* modsRoot) {
     }
 
     int registered = 0;
-    for (const std::filesystem::path& modPath : CollectOoTModFiles(std::string(modsRoot))) {
-        const std::string modArchivePath = modPath.generic_string();
-        GetArchiveManager()->AddArchive(modArchivePath);
-        Combo_RegisterModArchive(GAME_OOT, modArchivePath.c_str());
+    for (const std::filesystem::path& modPath : CollectOoTModFiles(std::string(modsRoot), std::string(mmModsRoot))) {
+        MountAndRegisterOoTMod(modPath.generic_string());
         registered++;
     }
     return registered;

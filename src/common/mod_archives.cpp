@@ -9,6 +9,8 @@
 
 #include "mod_archives.h"
 
+#include <ship/Context.h>
+
 #include <cctype>
 #include <deque>
 #include <filesystem>
@@ -21,6 +23,18 @@ namespace {
 // why the tree is partitioned at all (the portable-build collapse of
 // LocateFileAcrossAppDirs's appName argument) and why OoT keeps the root.
 constexpr const char kMmModsSubdir[] = "mm";
+
+// The app short names the two ports hand LocateFileAcrossAppDirs, in ONE place.
+// games/oot/soh/OTRGlobals.h's `appShortName` and
+// games/mm/2s2h/GameExports_SingleExe.cpp's `kMmAppName` are the originals, and
+// both mods lookups now go through Combo_ModsRootForGame below rather than
+// spelling the call out again. A drift between two copies of "2s2h" would be
+// silent and expensive: Combo_ModsRootsAreShared would answer "not shared", OoT
+// would claim mods/mm although MM is globbing that very directory, and every MM
+// mod would be mounted twice and registered under BOTH games — the cross-game
+// shadowing the partition exists to prevent.
+constexpr const char kOoTAppShortName[] = "soh";
+constexpr const char kMmAppShortName[] = "2s2h";
 
 // One list per game, in mount order. Indexed by GameId, so slot 0 (GAME_NONE)
 // is present but never used.
@@ -46,7 +60,8 @@ bool IEqualsAscii(const std::string& a, const char* b) {
     return i == a.size() && b[i] == '\0';
 }
 
-// Is `path` inside `<modsRoot>/mm`, at any depth?
+// `path` relative to `modsRoot`, or an empty path when `path` does not lie under
+// `modsRoot` at all.
 //
 // lexically_relative, not a textual prefix compare: the two strings reach this
 // function from different places and are not spelled the same way. modsRoot
@@ -54,29 +69,70 @@ bool IEqualsAscii(const std::string& a, const char* b) {
 // already lexically_normal()'d ("mods/mm/x.o2r") from mod_menu's own
 // bookkeeping, or with native '\' separators on Windows. Comparing the
 // normalized RELATIVE path makes all of those spellings agree, and a path that
-// is not under the root at all yields a ".." first component and is rejected
-// rather than silently treated as MM's.
-bool PathIsUnderMmSubdir(const char* modsRoot, const char* path) {
+// is not under the root at all yields a ".." first component, which is what
+// "outside" is recognised by.
+std::filesystem::path RelativeToModsRoot(const char* modsRoot, const char* path) {
     if (modsRoot == nullptr || modsRoot[0] == '\0' || path == nullptr || path[0] == '\0') {
-        return false;
+        return {};
     }
 
-    std::error_code ec;
     const std::filesystem::path rootPath = std::filesystem::path(modsRoot).lexically_normal();
     const std::filesystem::path filePath = std::filesystem::path(path).lexically_normal();
     const std::filesystem::path rel = filePath.lexically_relative(rootPath);
-    (void)ec;
-
-    if (rel.empty()) {
-        return false;
-    }
 
     auto it = rel.begin();
     if (it == rel.end()) {
+        return {};
+    }
+    // ".." — a different tree entirely. "." — the root directory itself, which is
+    // not a file either game can claim.
+    const std::string first = it->generic_string();
+    if (first == ".." || first == ".") {
+        return {};
+    }
+    return rel;
+}
+
+// MM's rule: the first component under the root is the reserved `mm` folder.
+bool PathIsUnderMmSubdir(const char* modsRoot, const char* path) {
+    const std::filesystem::path rel = RelativeToModsRoot(modsRoot, path);
+    if (rel.empty()) {
         return false;
     }
-    return IEqualsAscii(it->generic_string(), kMmModsSubdir);
+    return IEqualsAscii(rel.begin()->generic_string(), kMmModsSubdir);
 }
+
+// OoT's rule, computed independently rather than as `!PathIsUnderMmSubdir`: the
+// path lies under the root AND its first component is not a folder reserved for
+// another game.
+//
+// Why not the negation, which is shorter and "total by construction"? Because
+// then there is no partition to check. Two answers derived from one bool in one
+// expression cannot disagree, so the disjointness assertion in the #670 row
+// (test_mm_mods_mount.c) was a restatement of the return statement with no
+// reachable red half — the reviewer of PR #704 was right about that. Written as
+// its own rule the two CAN disagree, so the row's table measures something: it
+// pins each game's answer per path against the authored expectation, and the
+// disjointness and totality checks fire when the two rules drift. The price is
+// that totality now holds only over paths under the root, which is the honest
+// domain anyway — a path in a different tree belongs to neither game, and the
+// old code answered "OoT's" for it.
+bool PathIsOoTs(const char* modsRoot, const char* path) {
+    const std::filesystem::path rel = RelativeToModsRoot(modsRoot, path);
+    if (rel.empty()) {
+        return false;
+    }
+    return !IEqualsAscii(rel.begin()->generic_string(), kMmModsSubdir);
+}
+
+// Resolved mods roots, one slot per game, so the pointers two calls hand back
+// are independent and `f(Combo_ModsRootForGame(GAME_OOT),
+// Combo_ModsRootForGame(GAME_MM))` is well defined. Deliberately re-resolved on
+// every call rather than cached: LocateFileAcrossAppDirs's answer CHANGES once a
+// mods folder is created (MM creates mods/mm during boot and then globs it), so
+// a cache would freeze the pre-creation answer.
+std::string sModsRoots[3];
+std::mutex sModsRootsMutex;
 
 } // namespace
 
@@ -88,13 +144,43 @@ extern "C" bool Combo_ModPathIsForGame(GameId game, const char* modsRoot, const 
     if (!ValidGame(game) || modsRoot == nullptr || modsRoot[0] == '\0' || path == nullptr || path[0] == '\0') {
         return false;
     }
-    // Exactly one of the two claims any path: MM claims mods/mm, OoT claims the
-    // complement. Writing OoT's side as the negation rather than as its own rule
-    // is what makes the partition total by construction, and it keeps OoT's
-    // behaviour for every path that is not under mods/mm bit-for-bit what it was
-    // before #670.
-    const bool isMm = PathIsUnderMmSubdir(modsRoot, path);
-    return game == GAME_MM ? isMm : !isMm;
+    // Two independent rules, not one bool and its negation. See PathIsOoTs.
+    return game == GAME_MM ? PathIsUnderMmSubdir(modsRoot, path) : PathIsOoTs(modsRoot, path);
+}
+
+extern "C" const char* Combo_ModsRootForGame(GameId game) {
+    if (!ValidGame(game)) {
+        return "";
+    }
+    const char* appName = game == GAME_MM ? kMmAppShortName : kOoTAppShortName;
+    std::lock_guard<std::mutex> lock(sModsRootsMutex);
+    sModsRoots[(int)game] = Ship::Context::LocateFileAcrossAppDirs("mods", appName);
+    return sModsRoots[(int)game].c_str();
+}
+
+extern "C" bool Combo_ModsRootsAreShared(const char* ootModsRoot, const char* mmModsRoot) {
+    if (ootModsRoot == nullptr || ootModsRoot[0] == '\0' || mmModsRoot == nullptr || mmModsRoot[0] == '\0') {
+        return false;
+    }
+    // weakly_canonical, not string equality and not lexically_normal: the two
+    // roots are produced by two separate LocateFileAcrossAppDirs calls that can
+    // legitimately spell the same directory differently ("./mods" vs "mods" vs an
+    // absolute pref-dir path that happens to be the CWD), and weakly_canonical
+    // resolves the existing prefix — including symlinks and the CWD — while still
+    // answering for a directory that does not exist yet. On error (a path with no
+    // resolvable prefix) fall back to the normalized spelling rather than
+    // guessing: a wrong "shared" answer reserves mods/mm from OoT in a build where
+    // MM never looks there, and a wrong "not shared" answer double-mounts every MM
+    // mod, so both directions matter and neither is a safe default.
+    std::error_code ootEc;
+    std::error_code mmEc;
+    const std::filesystem::path ootPath = std::filesystem::weakly_canonical(ootModsRoot, ootEc);
+    const std::filesystem::path mmPath = std::filesystem::weakly_canonical(mmModsRoot, mmEc);
+    if (ootEc || mmEc) {
+        return std::filesystem::path(ootModsRoot).lexically_normal() ==
+               std::filesystem::path(mmModsRoot).lexically_normal();
+    }
+    return ootPath == mmPath;
 }
 
 extern "C" bool Combo_ModArchiveExtensionIsValid(const char* extension) {

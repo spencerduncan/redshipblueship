@@ -61,9 +61,24 @@
  * partition is asymmetric on purpose:
  *
  *   - MM's mods are the ones under `mods/mm/` (at any depth).
- *   - OoT's mods are everything else: the root and any other subfolder. OoT
- *     keeps the root because existing installs and every upstream SoH mod
- *     distribution already put archives there.
+ *   - OoT's mods are everything else UNDER ITS OWN ROOT: the root itself and any
+ *     other subfolder. OoT keeps the root because existing installs and every
+ *     upstream SoH mod distribution already put archives there.
+ *
+ * ONLY WHEN THE TWO ROOTS ARE THE SAME DIRECTORY. The collapse above is a
+ * property of a portable build, not of the source: with `NON_PORTABLE` defined,
+ * `GetAppDirectoryPath` returns `SDL_GetPrefPath(NULL, appName)` and the two
+ * lookups land in genuinely different directories — and on Linux `SHIP_HOME`
+ * collapses them again even then, so the answer is not a compile-time constant in
+ * either direction. If OoT reserved `mods/mm` unconditionally, then in a
+ * non-portable build an archive at `<soh-prefdir>/mods/mm/x.o2r` would be skipped
+ * by OoT while MM only ever globs `<2s2h-prefdir>/mods/mm` — mounted by NEITHER
+ * game. That is exactly the gap the #670 row's disjointness check is supposed to
+ * catch, and it cannot, because it is only ever handed one root. So OoT reserves
+ * the subfolder only when `Combo_ModsRootsAreShared` says MM is really globbing
+ * the same tree; otherwise OoT keeps its whole tree, `mods/mm` included, exactly
+ * as it did before #670. (PR #704 shipped the unconditional reservation and a PR
+ * body claiming "the partition still holds" in that configuration. It did not.)
  *
  * THIS RE-HOMES ARCHIVES THAT WERE ALREADY OoT's. It is not a no-op for existing
  * installs, and an earlier version of this comment ("a subdirectory that had no
@@ -82,11 +97,32 @@
  * Combo_ModPathIsForGame is the single definition of that split, used by BOTH
  * globs (games/oot/soh/Enhancements/mod_menu.cpp and
  * games/mm/2s2h/GameExports_SingleExe.cpp), so the two can never disagree about
- * who owns a file. Total and disjoint by construction: for any path, exactly one
- * of the two games claims it. Combo_ModArchiveExtensionIsValid is the same
- * arrangement for the other half of the question — "is this file a mod archive at
- * all" — because one shared tree must not accept different file types in its two
- * halves.
+ * who owns a file. Its two sides are computed by two INDEPENDENT rules rather than
+ * one bool and its negation, so that the #670 row's disjointness and totality
+ * assertions have a reachable red half instead of being a restatement of the
+ * return statement; the domain over which the partition is total is "paths under
+ * the root", a path in some other tree belonging to neither game.
+ * Combo_ModArchiveExtensionIsValid is the same arrangement for the other half of
+ * the question — "is this file a mod archive at all" — because one shared tree
+ * must not accept different file types in its two halves, and kModsWalkOptions is
+ * the same arrangement for how the tree is WALKED.
+ *
+ * THE STATED ASYMMETRIES. Everything about the two halves of this one tree is
+ * aligned except the following, which are listed here and in docs/MODDING.md
+ * rather than papered over:
+ *
+ *   - Enable/disable/reorder. OoT's half has a mod menu; MM's half mounts every
+ *     archive it finds, sorted by stem. Making MM read OoT's EnabledMods CVar
+ *     would let a stale OoT list silently disable an MM mod, which is worse.
+ *   - Registration bookkeeping. OoT registers only the archives its enabled set
+ *     names, keyed by file-name STEM (so two same-stem archives in different
+ *     subfolders collapse to one); MM registers every archive it mounts.
+ *
+ * The walk itself is NOT on that list any more: both globs take the same
+ * directory_options and the same error_code discipline (see kModsWalkOptions).
+ * PR #704 shipped a third, unstated divergence there — OoT followed directory
+ * symlinks and MM did not, so the "a mod may ship as its own folder" installation
+ * the docs bless worked under `mods/` and silently did nothing under `mods/mm/`.
  */
 
 #ifndef RSBS_MOD_ARCHIVES_H
@@ -106,17 +142,55 @@ extern "C" {
 const char* Combo_ModsSubdirForGame(GameId game);
 
 /**
+ * The mods directory @p game globs, as LocateFileAcrossAppDirs resolves it —
+ * i.e. `LocateFileAcrossAppDirs("mods", "soh"|"2s2h")` with the app short name in
+ * ONE place instead of one per port. Never NULL; "" for an unknown game.
+ *
+ * Re-resolved on every call, because the answer changes once the folder exists
+ * (MM creates `mods/mm` during boot and then globs it). The returned pointer is
+ * owned by a per-game slot and stays valid until the next call FOR THE SAME game,
+ * so `Combo_ModsRootsAreShared(Combo_ModsRootForGame(GAME_OOT),
+ * Combo_ModsRootForGame(GAME_MM))` is well defined.
+ */
+const char* Combo_ModsRootForGame(GameId game);
+
+/**
+ * Do @p ootModsRoot and @p mmModsRoot name the same directory — i.e. is there
+ * really ONE shared mods tree to partition?
+ *
+ * True in a portable build, where `GetAppDirectoryPath` ignores its appName
+ * argument and both lookups land on `./mods`. False when the two resolve
+ * elsewhere, which `NON_PORTABLE` does (`SDL_GetPrefPath(NULL, appName)` per app
+ * name) — and true again under `SHIP_HOME` on Linux even with `NON_PORTABLE`, so
+ * this is a runtime question and not a `#ifdef`.
+ *
+ * It is what gates OoT's `mods/mm` skip: reserving the subfolder when MM is NOT
+ * globbing that tree would leave archives there mounted by neither game. Compares
+ * `weakly_canonical` forms, so two spellings of one directory agree and a
+ * not-yet-created directory still answers. False on a NULL/empty argument.
+ */
+bool Combo_ModsRootsAreShared(const char* ootModsRoot, const char* mmModsRoot);
+
+/**
  * Does the mod file at @p path belong to @p game?
  *
- * @param modsRoot the mods directory both games glob, as
- *                 LocateFileAcrossAppDirs returned it (e.g. "./mods").
+ * @param modsRoot the mods directory @p game globs, as LocateFileAcrossAppDirs
+ *                 returned it (e.g. "./mods").
  * @param path     a file path yielded by iterating @p modsRoot.
  *
  * GAME_MM is true exactly when @p path is under `<modsRoot>/mm` at any depth,
  * matched case-insensitively — the reserved folder name must not depend on how
- * the player typed it. GAME_OOT is the exact complement, so the two partition
- * every path between them with no gap and no overlap. False for an unknown
- * game, and false for both games on a NULL/empty argument.
+ * the player typed it. GAME_OOT is true exactly when @p path is under @p modsRoot
+ * and its first component is NOT that reserved folder. Two independent rules, so
+ * over the paths an iteration of @p modsRoot can yield they partition with no gap
+ * and no overlap, and a drift between them is detectable rather than impossible
+ * to express. A path in some other tree entirely belongs to NEITHER game (the
+ * pre-#704-review code answered "OoT's" for it), as does @p modsRoot itself.
+ * False for an unknown game, and false for both games on a NULL/empty argument.
+ *
+ * NOTE: this answers "whose half of a SHARED tree is this". It is the right
+ * question only when the two games' roots really are one directory; ask
+ * Combo_ModsRootsAreShared first. OoT's glob does.
  *
  * Path-shaped, not filesystem-shaped: it compares lexically normalized paths and
  * never touches the disk, so it gives the same answer for a file that has since
@@ -187,6 +261,38 @@ void Combo_EnsureGameArchivesLoaded(GameId targetGame);
 
 #ifdef __cplusplus
 }
+
+#include <filesystem>
+
+namespace Rsbs {
+
+/**
+ * The ONE directory_options both globs over the shared mods/ tree use
+ * (CollectOoTModFiles in games/oot/soh/Enhancements/mod_menu.cpp and
+ * MountMMModArchives in games/mm/2s2h/GameExports_SingleExe.cpp).
+ *
+ * `follow_directory_symlink` because the documented installation for a mod that
+ * ships as its own folder (docs/MODDING.md) is a folder under `mods/`, and a
+ * symlinked folder is how a player keeps one library of mods in two installs. OoT
+ * has always followed them; PR #704 gave MM's new glob the default (do not
+ * follow), so the same trick worked under `mods/` and silently did nothing under
+ * `mods/mm/` — one tree, two traversal rules, with the same user-visible symptom
+ * ("my mod did nothing") the shared extension rule exists to avoid.
+ *
+ * `skip_permission_denied` because a player's mods folder is arbitrary user data:
+ * an unreadable subdirectory must cost that subdirectory, not the whole walk.
+ *
+ * Both walks also drive the iterator through the `error_code` overloads for the
+ * same reason: nothing in a mods folder — a broken reparse point, a deleted entry
+ * mid-walk — may throw out of either game's boot path. A symlink LOOP is the one
+ * case `follow_directory_symlink` makes reachable, and it surfaces there as an
+ * error_code that ends the walk rather than as an exception.
+ */
+inline constexpr std::filesystem::directory_options kModsWalkOptions =
+    std::filesystem::directory_options::follow_directory_symlink |
+    std::filesystem::directory_options::skip_permission_denied;
+
+} // namespace Rsbs
 #endif
 
 #endif /* RSBS_MOD_ARCHIVES_H */

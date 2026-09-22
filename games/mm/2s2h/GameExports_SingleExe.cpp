@@ -995,10 +995,16 @@ static int MountMMModArchives(const std::string& modsRoot) {
     // walkEc is the ITERATION's error and controls the loop; entryEc is separate
     // and per-entry. Sharing one would end the walk on the first entry whose
     // status could not be read, silently dropping every mod after it.
+    //
+    // Rsbs::kModsWalkOptions, the SAME options OoT's walk over the same tree uses
+    // (src/common/mod_archives.h). This originally passed only
+    // skip_permission_denied while OoT followed directory symlinks, so a mod
+    // installed through a symlinked folder — the documented "a mod may ship as its
+    // own folder" layout, kept in one library and linked into two installs — worked
+    // under mods/ and silently did nothing under mods/mm/. One tree, one traversal
+    // rule.
     std::error_code walkEc;
-    for (std::filesystem::recursive_directory_iterator
-             it(modsRoot, std::filesystem::directory_options::skip_permission_denied, walkEc),
-         end;
+    for (std::filesystem::recursive_directory_iterator it(modsRoot, Rsbs::kModsWalkOptions, walkEc), end;
          it != end && !walkEc; it.increment(walkEc)) {
         const std::filesystem::path& p = it->path();
         std::error_code entryEc;
@@ -1046,7 +1052,12 @@ static int MountMMModArchives(const std::string& modsRoot) {
  */
 static void MMCreateModFolder() {
     try {
-        const std::string existing = Ship::Context::LocateFileAcrossAppDirs("mods", kMmAppName);
+        // Combo_ModsRootForGame(GAME_MM), not LocateFileAcrossAppDirs("mods",
+        // kMmAppName) spelled out again: OoT's walk compares its own root against
+        // this one to decide whether `mods/mm` is reserved at all, and two copies of
+        // the lookup that drifted would silently turn that comparison into a
+        // double-mount of every MM mod (src/common/mod_archives.h).
+        const std::string existing = Combo_ModsRootForGame(GAME_MM);
         std::string mmModsPath =
             (std::filesystem::path(existing.empty() ? Ship::Context::GetPathRelativeToAppDirectory("mods", kMmAppName)
                                                     : existing) /
@@ -1164,7 +1175,7 @@ static int LoadMMArchives() {
     // then picks their paths up on the pass it already makes, with no further
     // change. A failure to mount a mod is never fatal to MM's boot.
     MMCreateModFolder();
-    (void)MountMMModArchives(Ship::Context::LocateFileAcrossAppDirs("mods", kMmAppName));
+    (void)MountMMModArchives(Combo_ModsRootForGame(GAME_MM));
 
     sMMArchivesLoaded = true;
     return 0;
