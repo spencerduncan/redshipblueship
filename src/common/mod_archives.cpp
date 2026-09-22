@@ -9,11 +9,18 @@
 
 #include "mod_archives.h"
 
+#include <cctype>
 #include <deque>
+#include <filesystem>
 #include <mutex>
 #include <string>
 
 namespace {
+
+// The one subdirectory of the shared mods/ tree that is MM's. See the header for
+// why the tree is partitioned at all (the portable-build collapse of
+// LocateFileAcrossAppDirs's appName argument) and why OoT keeps the root.
+constexpr const char kMmModsSubdir[] = "mm";
 
 // One list per game, in mount order. Indexed by GameId, so slot 0 (GAME_NONE)
 // is present but never used.
@@ -29,7 +36,89 @@ bool ValidGame(GameId game) {
     return game == GAME_OOT || game == GAME_MM;
 }
 
+bool IEqualsAscii(const std::string& a, const char* b) {
+    size_t i = 0;
+    for (; i < a.size() && b[i] != '\0'; i++) {
+        if (std::tolower((unsigned char)a[i]) != std::tolower((unsigned char)b[i])) {
+            return false;
+        }
+    }
+    return i == a.size() && b[i] == '\0';
+}
+
+// Is `path` inside `<modsRoot>/mm`, at any depth?
+//
+// lexically_relative, not a textual prefix compare: the two strings reach this
+// function from different places and are not spelled the same way. modsRoot
+// comes from LocateFileAcrossAppDirs and can be "./mods"; a path can arrive
+// already lexically_normal()'d ("mods/mm/x.o2r") from mod_menu's own
+// bookkeeping, or with native '\' separators on Windows. Comparing the
+// normalized RELATIVE path makes all of those spellings agree, and a path that
+// is not under the root at all yields a ".." first component and is rejected
+// rather than silently treated as MM's.
+bool PathIsUnderMmSubdir(const char* modsRoot, const char* path) {
+    if (modsRoot == nullptr || modsRoot[0] == '\0' || path == nullptr || path[0] == '\0') {
+        return false;
+    }
+
+    std::error_code ec;
+    const std::filesystem::path rootPath = std::filesystem::path(modsRoot).lexically_normal();
+    const std::filesystem::path filePath = std::filesystem::path(path).lexically_normal();
+    const std::filesystem::path rel = filePath.lexically_relative(rootPath);
+    (void)ec;
+
+    if (rel.empty()) {
+        return false;
+    }
+
+    auto it = rel.begin();
+    if (it == rel.end()) {
+        return false;
+    }
+    return IEqualsAscii(it->generic_string(), kMmModsSubdir);
+}
+
 } // namespace
+
+extern "C" const char* Combo_ModsSubdirForGame(GameId game) {
+    return game == GAME_MM ? kMmModsSubdir : "";
+}
+
+extern "C" bool Combo_ModPathIsForGame(GameId game, const char* modsRoot, const char* path) {
+    if (!ValidGame(game) || modsRoot == nullptr || modsRoot[0] == '\0' || path == nullptr || path[0] == '\0') {
+        return false;
+    }
+    // Exactly one of the two claims any path: MM claims mods/mm, OoT claims the
+    // complement. Writing OoT's side as the negation rather than as its own rule
+    // is what makes the partition total by construction, and it keeps OoT's
+    // behaviour for every path that is not under mods/mm bit-for-bit what it was
+    // before #670.
+    const bool isMm = PathIsUnderMmSubdir(modsRoot, path);
+    return game == GAME_MM ? isMm : !isMm;
+}
+
+extern "C" bool Combo_ModArchiveExtensionIsValid(const char* extension) {
+    if (extension == nullptr || extension[0] == '\0') {
+        return false;
+    }
+    const std::string ext(extension);
+    if (IEqualsAscii(ext, ".o2r")) {
+        return true;
+    }
+#ifdef INCLUDE_MPQ_SUPPORT
+    // Gated exactly as OoT gates it: the .otr reader is StormLib, which is only
+    // linked in when MPQ support is on. This project sets INCLUDE_MPQ_SUPPORT ON
+    // unconditionally (CMakeLists.txt:217) and libultraship exports it PUBLIC
+    // (CMakeLists.txt:237), so both halves see the same answer; the #670 partition
+    // row asserts .otr is accepted, which is what would go red if this TU ever
+    // stopped seeing the definition.
+    if (IEqualsAscii(ext, ".otr")) {
+        return true;
+    }
+#endif
+    // .zip deliberately absent. See the header.
+    return false;
+}
 
 extern "C" void Combo_RegisterModArchive(GameId game, const char* path) {
     if (!ValidGame(game) || path == nullptr || path[0] == '\0') {

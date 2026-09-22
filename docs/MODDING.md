@@ -1,5 +1,117 @@
 # Modding
 
+There are two unrelated kinds of "mod" here, and this document covers both:
+
+- **Asset mods** — a `.o2r` archive that replaces textures, models, sequences or
+  text at runtime. HD texture packs, retextures and custom music are these. No
+  compiler needed; you drop a file in a folder. See
+  [Asset mods and where they live](#asset-mods-and-where-they-live) below.
+- **Code mods** — a fork of the source with your own C/C++ changes. That is the
+  rest of this document, starting at [Preface](#preface).
+
+## Asset mods and where they live
+
+RedShipBlueShip is ONE executable running BOTH games, and the two games share one
+libultraship resource manager. That has two consequences you need to know before
+you install anything.
+
+### The folders
+
+```
+<install dir>/
+  mods/                      <- Ocarina of Time asset mods  (*.o2r)
+    my-oot-texture-pack.o2r
+    mods-in-subfolders-are-fine/
+      another-oot-mod.o2r
+    mm/                      <- Majora's Mask asset mods    (*.o2r)
+      my-mm-texture-pack.o2r
+      mods-in-subfolders-are-fine/
+        another-mm-mod.o2r
+```
+
+**`mods/` is OoT's. `mods/mm/` is MM's.** Both are searched recursively, so a mod
+distributed as its own folder works in either.
+
+Why the two games do not simply get one folder each: both ports ask libultraship
+for their mods directory by app name — `"soh"` for OoT, `"2s2h"` for MM — but in a
+**portable** build (which is what every RedShipBlueShip release is)
+`Context::GetAppDirectoryPath` ignores that app name and returns the install
+directory. Both lookups therefore land on the same `mods/`. OoT keeps the root so
+that existing installs and every upstream Ship of Harkinian mod keep working
+unchanged; MM gets the reserved `mm` subfolder. The folder name is matched
+case-insensitively, so `mods/MM/` works too. `mods/mm/` is created for you on
+first run, with a `majoras_mask_mod_files_go_here.txt` marker inside.
+
+Nothing else in the tree is reserved: `mods/anything-else/` is OoT's, like the
+root.
+
+> **Upgrading: if you already have a `mods/mm/` folder, its archives change
+> owner.** OoT's mods folder has always been searched recursively, so anything you
+> had at `mods/mm/*.o2r` — a mod that happened to ship inside a folder called `mm`,
+> a Majora-themed OoT retexture pack — was an **OoT** mod and was listed in OoT's
+> mod menu. From this version that folder is MM's: those archives are mounted for
+> MM and no longer for OoT. Move them up into `mods/` (or into
+> `mods/some-other-name/`) to keep them as OoT mods. If one of them is still listed
+> in OoT's enabled mods, OoT prints a one-line `[OoT] NOTE:` about it on startup.
+
+Both games accept the same archive types: `.o2r`, and `.otr` for older mods.
+A `.zip` is **not** mounted for either game, because a mod is usually *distributed*
+as a zip that contains the `.o2r` — unpack it. (Standalone 2Ship does mount a
+`.zip`; the combo deliberately does not, so that one shared folder tree does not
+accept different file types on its two sides.)
+
+Loose (unpacked) asset files are **not** supported for either game — neither port
+mounts a directory as an archive, so assets have to be inside an archive.
+
+### Which mod wins
+
+libultraship resolves a resource path by **last archive mounted wins**; there is no
+priority field. Each game mounts its base archives first (`oot.o2r`/`oot-mq.o2r` +
+`soh.o2r`, or `mm.o2r` + `2ship.o2r`) and then its mods, which is exactly why a mod
+overrides a base asset at all.
+
+- **Between two mods of the same game:** later wins. OoT's order is the one you
+  set in its in-game mod menu (Enhancements → Mods), where you can enable,
+  disable and drag to reorder. MM has no such menu yet: **every** archive under
+  `mods/mm/` is mounted, sorted by file name ignoring the extension, so `10-base`
+  loses to `20-override`. Rename to reorder; move the file out of `mods/mm/` to
+  disable it. (Precisely, MM compares the whole path with the extension removed,
+  which is upstream 2Ship's own comparator — so a subfolder name participates
+  too: `mods/mm/aaa/z.o2r` loses to `mods/mm/bbb/a.o2r`.)
+
+  **This is a known asymmetry inside one game, and it is not the intended end
+  state.** OoT's half of the tree has enable/disable/reorder and MM's half does
+  not; an MM mod menu at parity is tracked as a follow-up issue. It is listed here
+  rather than papered over, because the alternative available today — making MM
+  read OoT's `EnabledMods` setting — would let a stale OoT list silently disable an
+  MM mod, which is a worse asymmetry, not a smaller one. The *other* half of the
+  question, which file types count as a mod archive, was cheap to align and has
+  been: both sides use OoT's rule.
+- **Between the two games:** OoT and MM already ship many colliding resource
+  paths of their own — 151 object names, 14 actor overlays and all three
+  `gameplay_*_keep` archives (`docs/resource-namespace-audit.md`), plus 595 paths
+  shared by `soh.o2r` and `2ship.o2r` (`docs/asset-collision-analysis.md`). The
+  combo resolves that by re-mounting the **arriving** game's base archives and
+  then its mods on every cross-game switch, so whichever game you are playing owns
+  every path it ships.
+
+  A mod is resolved by that same mechanism and introduces no new kind of
+  collision. If an MM mod happens to ship a path OoT also uses, it owns that path
+  only while you are in MM; the switch back to OoT hands it to
+  `oot.o2r`/`oot-mq.o2r`/`soh.o2r` again, and vice versa. This is why the
+  `mods/mm/` split matters: a mod placed in the wrong folder gets registered as
+  the other game's, and *that* mis-registration would survive the switch and
+  shadow the game you are actually playing.
+
+### Troubleshooting
+
+MM logs every mount to stderr. `[MM] Loaded mod archive: <path>` means it was
+mounted; `[MM] Mounted N mod archive(s) from ...` is the total. A
+`[MM] WARNING: could not mount mod archive` line means the file is not a readable
+archive. If you see no lines at all, the archives are not under `mods/mm/`.
+
+---
+
 > So you would like to create a code mod? _BUCKLE UP_
 
 ## Preface

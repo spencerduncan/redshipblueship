@@ -37,16 +37,122 @@
  *     known path keeps its ORIGINAL position, because relative mod precedence
  *     is user-visible (OoT's mod menu reorders it deliberately).
  *   - The registry records paths only. It never mounts anything itself.
+ *
+ * ---------------------------------------------------------------------------
+ * The shared mods/ tree (issue #670)
+ * ---------------------------------------------------------------------------
+ *
+ * Both ports look their mods folder up with
+ * `Ship::Context::LocateFileAcrossAppDirs("mods", <appShortName>)` — "soh" for
+ * OoT, "2s2h" for MM. In a PORTABLE build (`NON_PORTABLE=OFF`, which is what
+ * this project configures and what every release ships)
+ * `Context::GetAppDirectoryPath(appName)` ignores its appName argument entirely
+ * and returns "." (libultraship/src/ship/Context.cpp), so BOTH lookups resolve
+ * to the SAME `./mods` directory. The per-app-name separation upstream relies on
+ * exists only in non-portable builds.
+ *
+ * That collapse is why MM cannot simply re-use upstream BenPort's glob: it would
+ * mount every OoT mod a second time and register it under GAME_MM, and the
+ * switch-time re-apply above would then stack OoT's mods on top of MM's base
+ * archives on every arrival in MM — a cross-game shadowing that SURVIVES the
+ * switch, which is strictly worse than the bug being fixed.
+ *
+ * So the one shared `mods/` tree is partitioned by subdirectory, and the
+ * partition is asymmetric on purpose:
+ *
+ *   - MM's mods are the ones under `mods/mm/` (at any depth).
+ *   - OoT's mods are everything else: the root and any other subfolder. OoT
+ *     keeps the root because existing installs and every upstream SoH mod
+ *     distribution already put archives there.
+ *
+ * THIS RE-HOMES ARCHIVES THAT WERE ALREADY OoT's. It is not a no-op for existing
+ * installs, and an earlier version of this comment ("a subdirectory that had no
+ * meaning before #670") was simply wrong. OoT's glob is, and always was, a
+ * `recursive_directory_iterator` over the WHOLE tree
+ * (games/oot/soh/Enhancements/mod_menu.cpp), so an archive a player already had
+ * at `mods/mm/*.o2r` — a mod distributed inside a folder somebody named `mm`, a
+ * Majora-themed OoT retexture pack — was enumerated, offered in OoT's mod menu
+ * and mounted as an OoT mod. After this change the same file is MM's: mounted for
+ * MM, and no longer mounted for OoT. The change of owner is deliberate (the
+ * folder name is the only signal available in one shared tree), but it IS a
+ * migration. So that it is not a silent one for the installs that actually have
+ * such a file, OoT's walk warns once on stderr when it skips an archive under
+ * `mods/mm/` whose name OoT's own enabled-mods CVar still lists.
+ *
+ * Combo_ModPathIsForGame is the single definition of that split, used by BOTH
+ * globs (games/oot/soh/Enhancements/mod_menu.cpp and
+ * games/mm/2s2h/GameExports_SingleExe.cpp), so the two can never disagree about
+ * who owns a file. Total and disjoint by construction: for any path, exactly one
+ * of the two games claims it. Combo_ModArchiveExtensionIsValid is the same
+ * arrangement for the other half of the question — "is this file a mod archive at
+ * all" — because one shared tree must not accept different file types in its two
+ * halves.
  */
 
 #ifndef RSBS_MOD_ARCHIVES_H
 #define RSBS_MOD_ARCHIVES_H
 
-#include "game.h"
+#include "game.h" /* GameId; also pulls stdbool.h for the bool return below */
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/**
+ * Subdirectory of the shared mods/ tree that holds @p game's mod archives,
+ * relative to the mods root: "" for OoT (the root itself) and "mm" for MM.
+ * Never NULL; "" for an unknown game.
+ */
+const char* Combo_ModsSubdirForGame(GameId game);
+
+/**
+ * Does the mod file at @p path belong to @p game?
+ *
+ * @param modsRoot the mods directory both games glob, as
+ *                 LocateFileAcrossAppDirs returned it (e.g. "./mods").
+ * @param path     a file path yielded by iterating @p modsRoot.
+ *
+ * GAME_MM is true exactly when @p path is under `<modsRoot>/mm` at any depth,
+ * matched case-insensitively — the reserved folder name must not depend on how
+ * the player typed it. GAME_OOT is the exact complement, so the two partition
+ * every path between them with no gap and no overlap. False for an unknown
+ * game, and false for both games on a NULL/empty argument.
+ *
+ * Path-shaped, not filesystem-shaped: it compares lexically normalized paths and
+ * never touches the disk, so it gives the same answer for a file that has since
+ * been deleted and is safe to call from inside a directory-iteration loop.
+ *
+ * SEPARATORS. Whatever std::filesystem::path treats as a separator on the host
+ * platform, and nothing more. So '\' splits on Windows and does NOT on POSIX,
+ * where it is a legal filename character — a POSIX file genuinely called
+ * `mm\x.o2r` in the mods root stays OoT's rather than being handed to MM.
+ * Neither caller depends on that either way: both globs pass generic_string()
+ * (forward slashes) on both platforms, against a root that
+ * LocateFileAcrossAppDirs built by concatenating with '/'.
+ */
+bool Combo_ModPathIsForGame(GameId game, const char* modsRoot, const char* path);
+
+/**
+ * Is @p extension (with its leading dot, as
+ * `std::filesystem::path::extension()` yields it) a mod archive this build can
+ * mount? Case-insensitive; false for NULL.
+ *
+ * ONE rule for both halves of the shared mods/ tree, which is the point of it.
+ * The rule is OoT's, unchanged: `.o2r` always; `.otr` only where the MPQ reader
+ * is compiled in (INCLUDE_MPQ_SUPPORT — without it libultraship cannot read one
+ * at all); and `.zip` NEVER, because a mod is most often DISTRIBUTED as a zip
+ * containing the .o2r, and mounting the wrapper silently mounts nothing useful
+ * while looking like success (the reason is stated in OoT's own
+ * IsValidExtension).
+ *
+ * MM's single-exe glob used to take `.zip` too, copied from upstream BenPort
+ * (games/mm/2s2h/BenPort.cpp). That made one folder tree accept different file
+ * types on its two sides — the same distribution zip mounted under `mods/mm/` and
+ * ignored under `mods/` — so MM now shares this rule instead. Nothing regresses:
+ * MM mounted no mods at all in single-exe builds before #670, so there is no
+ * installed base of MM `.zip` mods to break here.
+ */
+bool Combo_ModArchiveExtensionIsValid(const char* extension);
 
 /**
  * Record that @p game mounted the mod archive at @p path.
