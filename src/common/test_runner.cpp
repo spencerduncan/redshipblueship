@@ -624,6 +624,15 @@ extern "C" {
 // this include sits above their definitions.
 #include "tests/test_oot_logic_export.c"
 
+// Increment 3's first two MEASUREMENTS (#645, lane K3): what one linked round
+// costs and whether the single-bag assumed fill converges, over BOTH real
+// engines. Same tier and the same reason as the row above (a ROM-free process has
+// no generated world, so every count would be zero and every sanity assertion
+// vacuous), and the same FILE SCOPE / C++ compilation. It asserts no timing — PR
+// #581 §2a's rule — only that everything terminates, the same seed reproduces,
+// and production state comes back byte-identical.
+#include "tests/test_combo_logic_measure.c"
+
 // MM scene-command EXECUTE regression (issue #344). Unlike the parse test, the
 // body runs the parsed commands against a PlayState, so it needs MM's global.h
 // — which lives in an MM TU (games/mm/2s2h/mm_scene_execute_test.cpp) to keep
@@ -3628,6 +3637,40 @@ TestResult Test_OoTLogicExport(void) {
     return OoTLogicExport_Run();
 }
 
+// Increment 3's two measurements (#645, lane K3). Same split and the same
+// bring-up as Test_OoTLogicExport above: the body needs a real OoT generation AND
+// MM's rando graph, and CreateHarnessStyleContext is a file-static defined below
+// the tests/ include block, so the bring-up lives in the wrapper.
+TestResult Test_ComboLogicMeasure(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    static char clmArg0[] = "redship";
+    static char* clmArgv[] = { clmArg0, nullptr };
+    InitOTRForMMFirstBoot(1, clmArgv);
+    return ComboLogicMeasure_Run();
+}
+
+// The NULL-play give probe (#645, lane K3). Its own dispatch rather than an env
+// mode of combo-logic-measure, because as an env mode an exported
+// RSBS_COMBO_MEASURE_PROBE turned that measuring row into a green no-op that ran no
+// generation and no assertion but S1 — and CTest does not scrub the inherited
+// environment. It has NO CTest row: its intended outcome is an access violation on
+// a bad id, which is a diagnostic, not a lock. Same bring-up as its sibling.
+TestResult Test_ComboLogicGiveProbe(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    static char clgpArg0[] = "redship";
+    static char* clgpArgv[] = { clgpArg0, nullptr };
+    InitOTRForMMFirstBoot(1, clgpArgv);
+    return ComboLogicGiveProbe_Run();
+}
+
 TestResult Test_RoundtripIntegrity(void) {
     printf("[TEST] roundtrip-integrity: OoT SaveContext byte-integrity across roundtrip (issue #262)\n");
     int failures = TestRoundtripIntegrity_Run();
@@ -4290,6 +4333,26 @@ const TestDescriptor gTests[] = {
      "An engine may offer a whole check pool of hosts, a beginQuery that refuses after detaching still gets its "
      "endQuery (with or without a snapshot), and RunFill takes both tables empty (#701)",
      Test_ComboLogicContractEdges},
+    // Increment 3's two §6.3 MEASUREMENTS, over both real engines at once (#645,
+    // lane K3). Needs a real OoT generation AND MM's rando graph, hence the
+    // `rando` tier and the `--test all` skip below. It asserts no timing: only
+    // that every round and fill terminates, that the same coordinator seed
+    // reproduces while a different one does not, that OoT's world digest comes back
+    // equal, and that the unified save buffer comes back byte-identical to the state
+    // MM's shipped profile left it in — checked BEFORE the teardown's restoring
+    // memcpy, which is the whole content of that assertion.
+    {"combo-logic-measure",
+     "The linked round's cost and the single-bag fill's convergence, measured over both real solvers; asserts "
+     "termination, seed reproducibility and that the measurement returns the live save to the profile-applied state, "
+     "never a wall clock (#645)",
+     Test_ComboLogicMeasure},
+    // The give probe, deliberately a SEPARATE dispatch with no CTest row: it is
+    // designed to abort the process on an id whose give dereferences a NULL
+    // MM_gPlayState or gRegEditor, and it measures nothing.
+    {"combo-logic-give-probe",
+     "Diagnostic, NOT a lock: walks MM's giveable vanilla ids through Rando::GiveItem headlessly so a fault names the "
+     "id on stderr. No CTest row; RSBS_COMBO_PROBE_FROM resumes past a known fault (#645)",
+     Test_ComboLogicGiveProbe},
     {nullptr, nullptr, nullptr}  // Sentinel
 };
 
@@ -4376,6 +4439,11 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "mm-trick-gbt-gate") == 0 ||
                 strcmp(gTests[i].name, "mm-trick-bindings") == 0 ||
                 strcmp(gTests[i].name, "mm-combo-logic-engine") == 0 ||
+                strcmp(gTests[i].name, "combo-logic-measure") == 0 ||
+                // Also skipped for a second reason: it is a diagnostic whose
+                // intended outcome on a bad id is a process abort, so it must never
+                // run inside a suite whose result is a pass/fail count.
+                strcmp(gTests[i].name, "combo-logic-give-probe") == 0 ||
                 strcmp(gTests[i].name, "rando-entrance-pin") == 0 ||
                 strcmp(gTests[i].name, "oot-logic-export") == 0) {
                 printf("\n--- Skipping: %s (needs display; runs as a rando-label CTest) ---\n", gTests[i].name);

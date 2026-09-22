@@ -264,12 +264,22 @@
 
 #include "Rando/Rando.h"
 #include "Rando/Types.h"
+#include "Rando/Foreign.h" // Rando::Foreign::ResolvePairedProfile — measurement bridge only
 #include "Rando/StaticData/StaticData.h"
 #include "Rando/Logic/Logic.h"
 
 extern "C" {
 #include "variables.h"
 #include "functions.h"
+// `gRegEditor` / RegEditor: MM's give paths write REG slots through it and it is
+// NULL until a real boot's Regs_Init allocates it. Needed only by
+// MM_ComboLogic_ApplyShippedProfile's stand-in guard at the bottom of this file.
+#include "regs.h"
+// The MM-prefixed save initialiser, declared rather than reached for through an
+// umbrella header — the same declaration mm_rando_gen_test.cpp makes, for the
+// same reason. Used ONLY by MM_ComboLogic_ApplyShippedProfile at the bottom of
+// this file; no vtable call touches it.
+void MM_Sram_InitNewSave(void);
 }
 
 #include "mm_game_hooks.h" // MM_GameEvents_Queue()
@@ -898,6 +908,271 @@ extern "C" int MM_ComboLogic_SnapshotLive(void) {
 /** How many placements this engine currently holds for the coordinator. */
 extern "C" int MM_ComboLogic_HeldPlacementCount(void) {
     return (int)sHeld.size();
+}
+
+// ============================================================================
+// THE MEASUREMENT BRIDGES (#645 increment 3's first two work items, lane K3)
+// ============================================================================
+//
+// Two read-only-ish accessors the measurement row in src/common cannot write for
+// itself, because it has no MM enum in scope by design (ADR 0002). Neither is
+// called by production and neither is called by the vtable above.
+//
+// ONE OF THEM CAN TOUCH `Ship_Random`, AND THE CLAIM IS QUALIFIED RATHER THAN
+// ABSOLUTE. `MM_ComboLogic_PoolVanillaItems` consumes none — that is why it reads
+// `Rando::StaticData::Checks` instead of calling `GeneratePools`, and the
+// difference is listed as deviation (3) in its own doc. But
+// `MM_ComboLogic_ApplyShippedProfile` calls `Rando::GrantStartingItems()`, and
+// StartingItems.cpp:56-59 has one branch that both RE-SEEDS and draws the global
+// stream: with `RO_CLOCK_SHUFFLE` == `RO_GENERIC_YES` and
+// `RO_CLOCK_SHUFFLE_PROGRESSIVE` == `RO_CLOCK_SHUFFLE_RANDOM` it runs
+// `Ship_Random_Seed(rando.finalSeed)` and then `Ship_Random(0, 5)` to pick a
+// starting time item. So: on the SHIPPED DEFAULT profile, which is the only profile
+// the measurement row runs, clock shuffle is off and that branch does not fire, and
+// the bridge consumes nothing. Under a clock-shuffle profile it does, and it also
+// leaves the stream reseeded to `finalSeed` rather than where it found it. The
+// coordinator contract's "a query must consume none" (combo_logic.h's seed
+// paragraph) is a property of the VTABLE, which this bridge is not part of; a future
+// caller that needs the absolute property must save and restore the stream around
+// `GrantStartingItems` — and `Ship_Random`'s state is TU-local statics in
+// ShipUtils.cpp with no getter today, so that is a new accessor, not a local fix.
+//
+// WHY THEY ARE HERE AND NOT IN THE MEASUREMENT ROW'S OWN TU: the row needs (a)
+// MM's half of the union bag and (b) MM's rounds to run against MM's SHIPPED
+// PROFILE rather than a zeroed save, and both facts are spelled `RandoItemId`,
+// `Rando::StaticData::Checks` and `RANDO_SAVE_OPTIONS`.
+
+/**
+ * MM'S HALF OF THE UNION BAG: the VANILLA item of every host in the CURRENT host
+ * universe, which is the graph's whole check set or — once
+ * `MM_ComboLogic_SetHostPool` has been called — that pool.
+ *
+ * WHY THE VANILLA ITEMS ARE THE POOL, and where this is an OVER-estimate.
+ * `GeneratePools` builds MM's item pool by walking exactly the same region-graph
+ * check set and pushing `randoStaticCheck.randoItemId` — the check's vanilla item
+ * — once per pooled check (GeneratePools.cpp: "Initialize the check with it's
+ * vanilla item", then `itemPool.push_back(randoStaticCheck.randoItemId)`). So this
+ * IS that multiset, with three differences, all of them named rather than hidden:
+ *
+ *  (1) SETTINGS-CONDITIONAL NARROWING IS NOT APPLIED, for the same reason A3
+ *      gives for the host universe: skulltulas-off, owls-off, cows-off, frogs-off,
+ *      shops-off and the user's exclude list all drop rows from MM's real pool,
+ *      and applying them here would duplicate `GeneratePools`' settings reading in
+ *      a second place. The answer is therefore a SUPERSET of MM's real default
+ *      pool, which for a COST measurement errs in the conservative direction.
+ *  (2) THE NO-VANILLA-LOCATION ADDITIONS ARE ABSENT: `RI_PROGRESSIVE_SWORD`,
+ *      `RI_SHIELD_HERO`, boss/enemy souls, clock items, `RI_ABILITY_SWIM`,
+ *      ocarina buttons, triforce pieces and traps have no vanilla check, so no
+ *      host names them. On the shipped default profile all but the first two are
+ *      off anyway.
+ *  (3) THE STARTING-ITEM REMOVAL AND THE PLENTIFUL DUPLICATION ARE ABSENT. Both
+ *      are `GeneratePools` steps after the walk, and the second draws from
+ *      `Ship_Random` — which is precisely why this accessor may not call
+ *      `GeneratePools` and reads the static table instead.
+ *
+ * TWO IDS ARE EXCLUDED, and the reason is state outside the save rather than
+ * tidiness: `RI_TRAP` reaches
+ * `Rando::MiscBehavior::OfferTrapItem()` and `RI_TRIFORCE_PIECE` at the required
+ * count dispatches `GameInteractor_ExecuteOnGameCompletion()` and emplaces a
+ * `GIEventTransition` — a hook dispatch NO snapshot/restore undoes (the file
+ * header's "what is not proved here" list). Neither is a vanilla check's item on
+ * any profile, so excluding them changes no realistic answer; they are excluded so
+ * that a future static-table edit cannot quietly put one in a measurement bag.
+ * Everything else `IsGiveableItemId` accepts is admitted, including the ordinary
+ * `MM_Item_Give(MM_gPlayState, ...)` default branch — which is the same path MM's
+ * OWN fill grants its whole pool through (`GlitchlessLogic.cpp:221`), headlessly,
+ * in the green `mm-rando-gen` and `mm-paired-attempt` rows.
+ *
+ * Same truncation contract as the two enumerators: at most `cap` entries written,
+ * the TOTAL always returned. `outItems` and `outHosts` may each be NULL.
+ */
+extern "C" int MM_ComboLogic_PoolVanillaItems(uint16_t* outItems, uint16_t* outHosts, int cap) {
+    int total = 0;
+    for (uint16_t hostCheck : HostUniverse()) {
+        const auto it = Rando::StaticData::Checks.find((RandoCheckId)hostCheck);
+        if (it == Rando::StaticData::Checks.end()) {
+            continue;
+        }
+        const uint16_t vanilla = (uint16_t)it->second.randoItemId;
+        if (!IsGiveableItemId(vanilla)) {
+            continue;
+        }
+        if (vanilla == (uint16_t)RI_TRAP || vanilla == (uint16_t)RI_TRIFORCE_PIECE) {
+            continue; // see the block above: both reach outside the save
+        }
+        if (total < cap) {
+            if (outItems != nullptr) {
+                outItems[total] = vanilla;
+            }
+            if (outHosts != nullptr) {
+                outHosts[total] = hostCheck;
+            }
+        }
+        total++;
+    }
+    return total;
+}
+
+/**
+ * THE NULL-PLAY GIVE PROBE, and the reason it exists rather than an argument.
+ *
+ * Audit §6.3 lists as undetermined "whether any branch of `GiveItem`/`ConvertItem`
+ * reachable only with foreign items present touches state outside
+ * `gSaveContext`". The measurement row hit that question the hard way: granting a
+ * stride sample of MM's graph-wide vanilla items headlessly, with `MM_gPlayState`
+ * NULL, produced an ACCESS VIOLATION (write near address 0) for some samples and
+ * not others. That is the hazard `ForeignItemsSingleExe.cpp`'s header enumerates
+ * from source — `Item_GiveImpl`'s skull-token count and its two icon-load pairs —
+ * reaching a running process for the first time.
+ *
+ * So this walks a caller-supplied id list, printing `index` and `id` to STDERR
+ * (unbuffered, and flushed) BEFORE each give. A crash therefore names the id that
+ * caused it in the log, and `startIndex` lets the next run resume past it, so a
+ * few runs enumerate the whole unsafe set. That set is then excluded by NAME in
+ * `MM_ComboLogic_PoolVanillaItems` above, each with the branch it dies in.
+ *
+ * WHAT ONE RUN CAN AND CANNOT ESTABLISH, stated because a RESUMED run is not a walk
+ * of the whole list. The gives are CUMULATIVE into one save: the loop takes ONE
+ * snapshot, gives every id from `startIndex` onwards into it, and restores once at
+ * the end. A run with `startIndex > 0` therefore gives NONE of the ids before it,
+ * and any leg that faults only with prior state present is unreachable by that run —
+ * which is exactly the class `MM_ComboLogic_ApplyShippedProfile`'s doc names below
+ * (the two `Item_GiveImpl` legs that need a bottle or trade item already in an
+ * EQUIPPED slot). What a single run FROM INDEX 0 supports is "no id in this list
+ * faulted when given cumulatively, in this order, from this starting profile" — not
+ * "no order of these ids faults", and not a statement about ids the list does not
+ * contain (`MM_ComboLogic_PoolVanillaItems` excludes `RI_TRAP` and
+ * `RI_TRIFORCE_PIECE` a priori, by reasoning rather than by measurement). Run it
+ * from 0 whenever the answer is meant to be about the whole list; resume only to
+ * walk PAST an id already known to fault.
+ *
+ * IT IS NOT CALLED BY ANY CTEST ROW, and as of the review of PR #722 it is not
+ * reachable from the measurement row either: it has its own dispatch,
+ * `redship --test combo-logic-give-probe`. That separation is deliberate. While it
+ * was an env mode of `combo-logic-measure`, an exported `RSBS_COMBO_MEASURE_PROBE`
+ * in a shell or a CI image turned the measuring row into a green no-op — the
+ * silent-green class this tree keeps catching — and CTest does not scrub an
+ * inherited environment. It is kept rather than deleted after use because the set it
+ * derived will need re-deriving the next time MM's item table or `Item_GiveImpl`'s
+ * guards change, and a probe nobody can re-run is a claim nobody can re-check.
+ *
+ * @return the number of gives that RETURNED. A crash means the process died and
+ *         nothing is returned at all; that is the signal.
+ */
+extern "C" int MM_ComboLogic_ProbeGives(const uint16_t* ids, int count, int startIndex) {
+    if (ids == nullptr || count <= 0) {
+        return 0;
+    }
+    if (!Snapshot(nullptr)) {
+        fprintf(stderr, "[MM ComboLogic] probe: snapshot failed; refusing to give into the live save\n");
+        return 0;
+    }
+    int given = 0;
+    for (int i = (startIndex > 0) ? startIndex : 0; i < count; ++i) {
+        if (!IsGiveableItemId(ids[i])) {
+            continue;
+        }
+        fprintf(stderr, "[MM ComboLogic] probe: index=%d id=%u\n", i, (unsigned)ids[i]);
+        fflush(stderr);
+        Rando::GiveItem(Rando::ConvertItem((RandoItemId)ids[i]));
+        given++;
+    }
+    fprintf(stderr, "[MM ComboLogic] probe: %d gives returned without a fault\n", given);
+    fflush(stderr);
+    Restore(nullptr);
+    return given;
+}
+
+/**
+ * Put MM's save into the state THE CREATION SEAM puts it in, so a measured round
+ * is a question about MM's SHIPPED PROFILE rather than about a zeroed struct.
+ *
+ * WHY THE MEASUREMENT NEEDS THIS. The engine's own row (`mm-combo-logic-engine`)
+ * runs against whatever `gSaveContext` holds, which in a standalone ctest process
+ * is static-init zeros: every `randoSaveOptions` entry 0, every trick bit 0. That
+ * is a legal configuration and it is fine for a CONTRACT lock, but it is not the
+ * profile a player generates under, and MM's per-round cost is a function of how
+ * many regions and checks the crawl walks — which the options and the trick set
+ * decide. Measuring the zeroed profile and reporting it as the shipped one would
+ * be the same class of claim this tree keeps catching.
+ *
+ * WHAT IT DOES, in the order the creation seam does it:
+ *   1. `MM_Sram_InitNewSave()` — a fresh MM save (the same call
+ *      `mm_rando_gen_test.cpp` makes headlessly), so no bottle and no trade item
+ *      is held, let alone C- or D-equipped. That matters: the two
+ *      `Item_GiveImpl` legs that dereference a NULL `MM_gPlayState`
+ *      (ForeignItemsSingleExe.cpp's enumerated legs 2 and 3) are reachable ONLY
+ *      from a save that already holds one in an equipped slot.
+ *   2. `saveType = SAVETYPE_RANDO`, so every `IS_RANDO`-gated registrar and
+ *      condition reads this as a rando world.
+ *   3. `Rando::Foreign::ResolvePairedProfile(false)` — resolves the authoring CVars into
+ *      `RANDO_SAVE_OPTIONS` and `randoSaveTricks`, which is exactly what freezes
+ *      the profile a fill runs under. SOLO (`paired == false`) deliberately: that
+ *      path returns before touching `gComboCtx.mmProfileDigest`, so a measurement
+ *      cannot stamp or trip a cross-game identity.
+ *   4. `Rando::GrantStartingItems()` — A1's "at file creation the live save holds
+ *      exactly the world's starting inventory". Without it the round's starting
+ *      state is an empty save, which under-states reachability everywhere.
+ *
+ * AND ONE BOOT-TIME DEPENDENCY IT STANDS IN FOR, which the probe ABOVE found the
+ * hard way rather than from source. `gRegEditor` (games/mm/src/code/z_debug.c) is a
+ * plain NULL pointer until `Regs_Init()` allocates it out of MM's system arena
+ * during a real `MM_Game_Init`, and MM's give paths write REG slots through it:
+ * `Rando::GiveItem(RI_TINGLE_MAP_*)` ends in
+ * `Inventory_SetWorldMapCloudVisibility`, whose last statement is
+ * `R_MINIMAP_DISABLED = false` — i.e. `gRegEditor->data[14 * 96 + 95]`, a WRITE at
+ * offset 0xb52 off a null pointer. Six ids fault there:
+ * RI_TINGLE_MAP_CLOCK_TOWN, _GREAT_BAY, _ROMANI_RANCH, _SNOWHEAD, _STONE_TOWER,
+ * _WOODFALL — found by resuming `MM_ComboLogic_ProbeGives` past each fault in turn,
+ * which is how the stand-in below came to exist.
+ *
+ * WHAT THAT IS AND IS NOT EVIDENCE OF. With the stand-in installed, ONE cumulative
+ * run of the probe from index 0 over the whole giveable-vanilla list returns without
+ * a fault: `combo-logic-give-probe` reported 2168 of 2168 on the workstation this
+ * increment was measured on, and it prints both numbers so the claim is re-checkable
+ * rather than quoted. That is the strongest statement this method supports, and
+ * it is still narrower than "no give reaches outside `gSaveContext`": the run fixes
+ * ONE order and ONE starting profile, `RI_TRAP` and `RI_TRIFORCE_PIECE` are excluded
+ * from the list a priori (see `MM_ComboLogic_PoolVanillaItems` above, which names
+ * them as the two known outside-the-save cases), and order-dependent legs other than
+ * the equipped-slot pair are not enumerated at all. The probe's own doc states the
+ * cumulative-order limit in full.
+ *
+ * THAT IS NOT A NEW DEFECT AND IT IS NOT IN `Item_GiveImpl`. It is the same
+ * boot-time dependency the PRODUCTION creation seam already stands in for
+ * (`GameExports_SingleExe.cpp`, the `if (gRegEditor == NULL)` static right after
+ * `MM_Rando_InitCore()`) and that `mm_rando_gen_test.cpp` stands in for with the
+ * same static and a comment naming the same 0xb52 — so a paired creation with
+ * "Starting Maps and Compasses" on is already safe. What the probe establishes is
+ * that the hazard list in `ForeignItemsSingleExe.cpp`'s header is INCOMPLETE as a
+ * guide: all three legs it enumerates are inside `Item_GiveImpl`, and this one
+ * never reaches `MM_Item_Give` at all — it is in `GiveItem`'s own switch. Any
+ * future caller that drives MM's give path outside a boot needs this guard too,
+ * which is why it is here rather than in the measurement row: it belongs with
+ * "the state the creation seam puts MM in".
+ *
+ * IT WRITES `gSaveContext`, and the caller MUST bracket it. The measurement row
+ * copies the whole unified buffer before calling and restores it afterwards, and
+ * then re-asserts OoT's world digest — the same outer bracket
+ * `MM_ComboLogicEngine_RunHeadless` uses.
+ *
+ * @return `RANDO_SAVE_OPTIONS[RO_LOGIC]` as resolved, so the row can PRINT which
+ *         logic mode it measured instead of asserting one it did not read.
+ */
+extern "C" int MM_ComboLogic_ApplyShippedProfile(void) {
+    // The REG storage a real boot's Regs_Init would have allocated. Same static,
+    // same guard and the same reason as the production creation seam's — see the
+    // boot-time-dependency block above for the six ids that fault without it and
+    // for why that list is not the one ForeignItemsSingleExe.cpp enumerates.
+    if (gRegEditor == NULL) {
+        static RegEditor sMeasurementRegEditor = {};
+        gRegEditor = &sMeasurementRegEditor;
+    }
+    MM_Sram_InitNewSave();
+    gSaveContext.save.shipSaveInfo.saveType = SAVETYPE_RANDO;
+    Rando::Foreign::ResolvePairedProfile(false);
+    Rando::GrantStartingItems();
+    return (int)RANDO_SAVE_OPTIONS[RO_LOGIC];
 }
 
 #endif /* RSBS_SINGLE_EXECUTABLE */
