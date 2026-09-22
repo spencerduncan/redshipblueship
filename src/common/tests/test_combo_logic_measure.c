@@ -215,6 +215,40 @@ std::vector<uint16_t> StrideSample(const std::vector<uint16_t>& src, int target)
     return out;
 }
 
+/**
+ * How many of `ids` are DISTINCT, and therefore how many rows both engines'
+ * `assumeOwnItem` will silently collapse.
+ *
+ * THIS IS NOT A STATISTIC, IT IS THE DEAD-END'S CAUSE. Both engine TUs document
+ * that they DE-DUPLICATE by id within a round, and both give the same reason: the
+ * K1 contract says repeats "must be harmless" and neither port's give path has
+ * that property — OoT's progressive rows are `SetUpgrade(x, CurrentUpgrade + 1)`
+ * with no clamp (so a repeat past the top tier walks into the next upgrade's
+ * bits), and MM's stray fairies, small keys, skull tokens and triforce pieces all
+ * `++`. Both chose sound-but-pessimistic, and both recorded that a
+ * multiplicity-aware assume is a contract change for a later increment.
+ *
+ * The consequence is measurable and this is where it shows: a real bag holds many
+ * copies of one id — OoT's small keys, bombchus, wallet, quiver, bomb bag and
+ * strength tiers; MM's small keys and stray fairies — and under de-dup a round
+ * evaluates reachability as if the player held ONE of each. Deep dungeon
+ * interiors then never enter the reached set, so the reached empty-host supply is
+ * far smaller than the bag, and the fill dead-ends with ERR_NO_CANDIDATE. Printing
+ * the collapse alongside the dead-end predictor is what makes the dead end
+ * attributable to the surface rather than to MM's graph.
+ */
+int DistinctCount(const std::vector<uint16_t>& ids) {
+    std::vector<bool> seen(1u << 16, false);
+    int distinct = 0;
+    for (const uint16_t id : ids) {
+        if (!seen[id]) {
+            seen[id] = true;
+            ++distinct;
+        }
+    }
+    return distinct;
+}
+
 /** Milliseconds, wall clock, as a double so a sub-millisecond round does not read
  *  as zero. `steady_clock` and not `system_clock`: nothing here is compared with a
  *  timestamp taken elsewhere, and a monotonic clock cannot be moved by NTP
@@ -547,6 +581,20 @@ TestResult ComboLogicMeasure_Run(void) {
     printf("[TEST] combo-logic-measure: measurement bag=%d (OoT %d of %d, MM %d of %d) — a deterministic stride "
            "sample; see approximation (A)\n",
            bagCount, (int)ootBagItems.size(), ootFullBagHalf, (int)mmBagItems.size(), mmPooledItemTotal);
+
+    // THE DE-DUP COLLAPSE. Both engines' `assumeOwnItem` drops a repeat of an id
+    // already granted this round, so these are the rows a round does not see.
+    const int ootDistinct = DistinctCount(ootBagItems);
+    const int mmDistinct = DistinctCount(mmBagItems);
+    const int ootFullDistinct = DistinctCount(ootAdvItems);
+    printf("[TEST] combo-logic-measure: DE-DUP COLLAPSE: OoT half %d rows -> %d distinct ids (%d collapsed), MM half "
+           "%d rows -> %d distinct (%d collapsed). The WHOLE OoT advancement half is %d rows -> %d distinct (%d "
+           "collapsed). Both engines' assumeOwnItem drops a repeat within a round (no multiplicity on the K1 "
+           "surface), so a round evaluates reachability as if the player held ONE of each — which is why the reached "
+           "host supply below can be far short of the bag.\n",
+           (int)ootBagItems.size(), ootDistinct, (int)ootBagItems.size() - ootDistinct, (int)mmBagItems.size(),
+           mmDistinct, (int)mmBagItems.size() - mmDistinct, ootFullBagHalf, ootFullDistinct,
+           ootFullBagHalf - ootFullDistinct);
 
     // ==================================================================
     // M2: ONE LINKED ROUND, at the fill's most expensive assumed-set size.
