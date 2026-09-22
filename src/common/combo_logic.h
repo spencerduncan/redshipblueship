@@ -275,11 +275,21 @@ const char* Combo_Logic_StatusName(int status);
 //     neither `endQuery` nor `restore`. Sides opened BEFORE the refusing one are
 //     torn down in full.
 //
-// WHAT AN ENGINE MUST THEREFORE TOLERATE: `endQuery` on a round that never
-// opened. It must be a no-op in that case, not an unwind of state it never set —
-// a flag tested at the top is the whole of it. Refusing in `beginQuery` BEFORE
-// mutating anything is the shape that makes this trivially true, and it is the
-// shape both engines take.
+// WHAT AN ENGINE MUST THEREFORE TOLERATE, stated as the two teardowns a
+// part-opened side can actually receive:
+//
+//   * WITHOUT a snapshot pair: `endQuery` on a round that never opened. It must be
+//     a no-op there, not an unwind of state the engine never set — a flag tested at
+//     the top is the whole of it.
+//   * WITH a snapshot pair, when `snapshot` succeeded and `beginQuery` then
+//     refused: `restore`, THEN A FULL RE-APPLY OF THAT SIDE'S WHOLE PLACEMENT TABLE
+//     THROUGH `place`, then `endQuery` — all three on an engine whose `beginQuery`
+//     returned zero. So `restore` and `place` must both be callable outside an open
+//     query bracket, and `place` must still be idempotent there. This is the shape
+//     MM meets, because MM is the side that snapshots.
+//
+// Refusing in `beginQuery` BEFORE mutating anything is what makes both trivially
+// true, and it is the shape both engines take.
 //
 // RSBS_COMBO_RUNG_NONE RUNS NO ROUND AT ALL. Under that rung the only engine
 // calls are `clearPlacements` (the reset), `allEmptyHosts` and `place` — no

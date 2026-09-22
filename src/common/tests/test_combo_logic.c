@@ -11,7 +11,7 @@
  * each a required mask. That is small enough to reason about exactly and rich
  * enough to carry every property the coordinator claims.
  *
- * Three rows, split by what each one can prove:
+ * Four rows, split by what each one can prove:
  *
  *   combo-logic-engine-surface — the CONTRACT. Registration refuses a bad ABI,
  *   a hole in the vtable, and a snapshot without its restore; un-registration
@@ -59,6 +59,19 @@
  *   `all-reachable` rung refuses a world whose placed host is never reached
  *   where `beatable` accepts it.
  *
+ *   combo-logic-contract-edges — the contract's EDGES, which the three rows above
+ *   cannot reach because their worlds are six hosts per side and their stubs never
+ *   refuse a call. An engine offering 2300 hosts is ACCEPTED (the enumeration cap
+ *   is a game's check id-space, not the bag) and one host past
+ *   RSBS_COMBO_LOGIC_HOST_CAP is REFUSED rather than truncated. Both part-opened
+ *   teardowns of the bracket's ownership rule: a `beginQuery` that refuses with no
+ *   snapshot pair still gets `endQuery` and no `restore`, and one that refuses
+ *   AFTER a successful `snapshot` gets `restore`, a full re-apply of its whole
+ *   table, and `endQuery` — with a harsh restore, so the re-apply is measured and
+ *   not assumed. A refused `snapshot` gets none of the three. And `RunFill` takes
+ *   both tables EMPTY at every attempt, engines included, so an authored partial
+ *   world is discarded rather than extended.
+ *
  * Linkage note: #included into test_runner.cpp at FILE SCOPE and therefore
  * compiled as C++, like every other file in this directory; every symbol under
  * test is C-linkage through combo_logic.h.
@@ -88,10 +101,23 @@ namespace {
 const int kClMaxHosts = 16;
 const int kClMaxItems = 8;
 
-/** First id of the SYNTHETIC host pool (`ClEngine.syntheticHosts`). Disjoint from
- *  every authored host id below, so a synthetic world and an authored one can
- *  never be confused for one another. */
-const uint16_t kClSyntheticHostBase = 1000;
+/**
+ * First id of each side's SYNTHETIC host pool (`ClEngine.syntheticHosts`).
+ *
+ * ONE BASE PER GAME, AND FAR APART, for the same reason the authored ids below are
+ * disjoint: the fixture's trap is that an OoT id and an MM id can never be mistaken
+ * for one another, so a misrouted host is a DETECTED ADR 0002 violation rather than
+ * a plausible-looking wrong answer (the #356 class). A single shared base would have
+ * broken exactly that in the one world that offers thousands of hosts —
+ * `ClBuildWideHostWorld(2300, 4)` would have had both sides offering 1000..1003.
+ *
+ * The widest pool either side is built with here is RSBS_COMBO_LOGIC_HOST_CAP + 1
+ * (4097), so OoT occupies at most 1000..5096 and MM at most 20000..24096: two
+ * disjoint runs, both inside the coordinator's 0..65535 occupancy id-space, and both
+ * disjoint from every authored id.
+ */
+const uint16_t kClSyntheticHostBaseOoT = 1000;
+const uint16_t kClSyntheticHostBaseMM = 20000;
 
 // OoT-side ids. Disjoint from the MM ids below ON PURPOSE: that disjointness is
 // what turns a misrouted id into a detected ADR 0002 violation instead of a
@@ -142,8 +168,9 @@ struct ClEngine {
     /**
      * When nonzero, this engine's host enumeration is SYNTHETIC: both
      * `reachedEmptyHosts` and `allEmptyHosts` offer `syntheticHosts` ids
-     * (kClSyntheticHostBase + i, ascending) and `checkReached` answers yes for all
-     * of them, in place of the authored table.
+     * (`ClSyntheticBase(this engine) + i`, ascending — a different base per game, so
+     * the two sides' synthetic pools stay disjoint) and `checkReached` answers yes
+     * for all of them, in place of the authored table.
      *
      * It exists because the quantity the coordinator's host scratch must hold is a
      * GAME'S CHECK POOL — OoT's `RandomizerCheck` has 2528 rows and MM's 2258 —
@@ -341,10 +368,18 @@ int ClCrossingOpen(void* self) {
     return ((e->crossingRequires & e->have) == e->crossingRequires) ? 1 : 0;
 }
 
-/** Is `host` one of this engine's synthetic ids? */
+/** This engine's synthetic pool base. Per GAME, never shared — see the two
+ *  constants' rationale at the top of the fixture. */
+uint16_t ClSyntheticBase(const ClEngine* e) {
+    return (e->game == (uint8_t)GAME_OOT) ? kClSyntheticHostBaseOoT : kClSyntheticHostBaseMM;
+}
+
+/** Is `host` one of this engine's synthetic ids? An id from the OTHER side's
+ *  synthetic pool answers NO, which is the point: a misrouted synthetic host
+ *  reads as "not a host of mine" instead of as a plausible one. */
 bool ClIsSyntheticHost(const ClEngine* e, uint16_t host) {
-    return e->syntheticHosts > 0 && host >= kClSyntheticHostBase &&
-           (int)(host - kClSyntheticHostBase) < e->syntheticHosts;
+    const uint16_t base = ClSyntheticBase(e);
+    return e->syntheticHosts > 0 && host >= base && (int)(host - base) < e->syntheticHosts;
 }
 
 /**
@@ -358,9 +393,10 @@ bool ClIsSyntheticHost(const ClEngine* e, uint16_t host) {
  * of the world, which is the whole quantity under test.
  */
 int ClEnumerateSynthetic(const ClEngine* e, uint16_t* out, int cap) {
+    const uint16_t base = ClSyntheticBase(e);
     for (int i = 0; i < e->syntheticHosts; ++i) {
         if (out != NULL && i < cap) {
-            out[i] = (uint16_t)(kClSyntheticHostBase + i);
+            out[i] = (uint16_t)(base + i);
         }
     }
     return e->syntheticHosts;
@@ -731,6 +767,10 @@ void ClBuildUnreachedOnlyWorld() {
  * (OoT 2528 `RandomizerCheck` rows, MM 2258), and it has nothing to do with how
  * many bag items a side can RECEIVE. A coordinator that conflated the two refuses
  * this world outright.
+ *
+ * The two sides' pools are DISJOINT here as everywhere else in the fixture: OoT's
+ * runs from kClSyntheticHostBaseOoT and MM's from kClSyntheticHostBaseMM, so the
+ * ADR 0002 routing trap still has teeth in a world of thousands of hosts.
  */
 void ClBuildWideHostWorld(int ootHosts, int mmHosts) {
     ClResetEngine(&gClOoT, (uint8_t)GAME_OOT);
@@ -1402,7 +1442,13 @@ TestResult Test_ComboLogicFill(void) {
 //   half. The `began` bookkeeping recorded SUCCESS, so a `beginQuery` that
 //   detached and then refused was never handed its `endQuery` and the engine
 //   stayed coupled to a simulated save — audit §1.8's hazard, reachable through
-//   the contract's own refusal path.
+//   the contract's own refusal path. Locked in BOTH configurations, because the
+//   teardown a part-opened side receives depends on whether it snapshotted:
+//   without a snapshot it gets `endQuery` alone (scenario 3), and WITH a
+//   successful one it gets `restore`, a full re-apply of its whole table, and then
+//   `endQuery` on an engine whose `beginQuery` returned zero (scenario 4). The
+//   second is the harder shape and it is the one an engine author will meet first,
+//   because MM is the side that snapshots.
 //
 //   RUNFILL'S RESET. Rows 1-3 author with Combo_Logic_Place OR fill; never both
 //   over the same tables. So nothing observed that a fill empties both tables and
@@ -1423,24 +1469,52 @@ TestResult Test_ComboLogicContractEdges(void) {
     // shape of the FIRST fill a real engine drives, not a synthetic extreme.
     {
         const int wide = 2300;
+        const int narrow = 4;
 
-        ClBuildWideHostWorld(wide, 4);
+        ClBuildWideHostWorld(wide, narrow);
+
+        // THE TWO SYNTHETIC POOLS ARE DISJOINT, asserted over the world actually
+        // built rather than left to the reader of two constants. This is the one
+        // world where it could quietly stop being true, and it is what keeps a
+        // misrouted host id DETECTABLE here instead of plausible — the ADR 0002 /
+        // #356 trap the whole fixture rests on. Both pools are contiguous runs, so
+        // their endpoints decide the question.
+        {
+            const uint16_t ootFirst = ClSyntheticBase(&gClOoT);
+            const uint16_t ootLast = (uint16_t)(ootFirst + wide - 1);
+            const uint16_t mmFirst = ClSyntheticBase(&gClMM);
+            const uint16_t mmLast = (uint16_t)(mmFirst + narrow - 1);
+
+            CL_ASSERT(!ClIsSyntheticHost(&gClMM, ootFirst) && !ClIsSyntheticHost(&gClMM, ootLast) &&
+                          !ClIsSyntheticHost(&gClOoT, mmFirst) && !ClIsSyntheticHost(&gClOoT, mmLast),
+                      "the two sides' synthetic host pools must be DISJOINT: a shared base would let a host "
+                      "misrouted between the engines read as a correct answer in the one world big enough to hide it");
+        }
+
         CL_ASSERT(ClRunFill(one, 1, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_NONE, 0x1D5Fu, &res) ==
                       RSBS_COMBO_LOGIC_OK,
                   "`none` must accept an engine offering far more hosts than the PLACEMENT cap: an enumeration is "
                   "bounded by the game's check pool, and MM's alone is ~2250");
         CL_ASSERT(res.placed == 1, "and the bag item must actually be placed");
 
-        ClBuildWideHostWorld(wide, 4);
+        ClBuildWideHostWorld(wide, narrow);
         CL_ASSERT(ClRunFill(one, 1, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_BEATABLE, 0x1D5Fu, &res) ==
                       RSBS_COMBO_LOGIC_OK,
                   "and so must a PROVING rung, which collects through the very same scratch buffer");
         CL_ASSERT(res.placed == 1 && res.goalProven, "one item placed, the goal proved");
+        CL_ASSERT(ClContractClean(), "with no query outside a bracket and no id misrouted between the two pools");
     }
 
     // --- 2. ... and past the ENUMERATION cap it is refused, not truncated ---
     // The other side of the same line. Without this half, raising the cap could
     // have been "make the buffer big enough that nobody notices truncation".
+    //
+    // NO RED HALF ON MAIN, stated so the row is not read as stronger than it is:
+    // increment 3 refused above ITS cap too (`total > RSBS_COMBO_LOGIC_PLACEMENT_CAP`
+    // returned ERR_CAPACITY), so lowering the cap back cannot make this scenario
+    // fail — only scenario 1 sees that. What this half locks is a FUTURE
+    // coordinator that answers a too-large enumeration by truncating instead of
+    // refusing, which no determinism row could see.
     {
         ClBuildWideHostWorld(RSBS_COMBO_LOGIC_HOST_CAP + 1, 4);
         CL_ASSERT(ClRunFill(one, 1, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_NONE, 0x1D5Fu, &res) ==
@@ -1449,9 +1523,12 @@ TestResult Test_ComboLogicContractEdges(void) {
                   "to a prefix of one engine's table and no determinism row can see it");
         CL_ASSERT(Combo_Logic_PlacementCount(GAME_OOT) == 0 && Combo_Logic_PlacementCount(GAME_MM) == 0,
                   "and place nothing");
+        CL_ASSERT(ClContractClean(), "and the refusal costs no contract violation on the way out");
     }
 
     // --- 3. a beginQuery that refuses AFTER its detach still gets endQuery --
+    // The side that does NOT snapshot: the teardown it is owed is `endQuery` and
+    // nothing else. Scenario 4 is the same refusal on a side that DID snapshot.
     {
         ComboLogicRoundResult round;
 
@@ -1469,10 +1546,62 @@ TestResult Test_ComboLogicContractEdges(void) {
                   "(audit §1.8)");
         CL_ASSERT(gClOoT.beginCalls == 1 && gClOoT.endCalls == 1 && !gClOoT.detached,
                   "and the side that opened BEFORE the refusal is torn down in full");
+        CL_ASSERT(gClMM.restores == 0,
+                  "and nothing was restored: this side declared no snapshot pair, so the other half of the ownership "
+                  "rule is not owed here — which is what makes scenario 4 a DIFFERENT teardown and not a repeat");
         CL_ASSERT(ClContractClean(), "and no query ran outside a bracket");
     }
 
-    // --- 4. a refused snapshot is neither queried nor restored -------------
+    // --- 4. ... and a SNAPSHOTTED side that refuses gets restore + re-apply --
+    //
+    // The configuration the ownership rule was actually written for, and the one no
+    // scenario reached before: `snapshot` SUCCEEDS, then `beginQuery` detaches and
+    // refuses. The part-opened side is then owed all three halves of the teardown —
+    // `restore` (because the blob exists), a full re-apply of its whole placement
+    // table through `place`, and `endQuery` on an engine whose `beginQuery` returned
+    // zero. MM is the side that snapshots in the real pairing, so this is the shape
+    // a real engine meets first, and the header's tolerance paragraph names it.
+    //
+    // `restoreDropsPlacements` is what makes the re-apply MEASURABLE rather than
+    // asserted: the restore hands the engine's table back empty, so the row can only
+    // be present afterwards if the coordinator put it back.
+    {
+        ComboLogicRoundResult round;
+
+        ClBuildCrossingWorld(0u);
+        gClMM.withSnapshot = true;
+        gClMM.restoreDropsPlacements = true;
+        gClMM.refuseBeginQuery = true;
+        ClInstall();
+
+        CL_ASSERT(Combo_Logic_Place(GAME_MM, 20, ClItem((uint8_t)GAME_OOT, kOotLens), RSBS_ITEMCLASS_PROGRESSION),
+                  "author one MM-hosted placement, so the teardown's re-apply has something to put back");
+        CL_ASSERT(Combo_Logic_PlacementCount(GAME_MM) == 1 && gClMM.placedCount == 1,
+                  "both tables hold it before the round");
+
+        CL_ASSERT(ClRunRound(RSBS_COMBO_GOAL_BEAT_BOTH, NULL, 0, &round) == RSBS_COMBO_LOGIC_ERR_ENGINE_REFUSED,
+                  "a refused beginQuery aborts the round as an engine refusal, snapshot or no snapshot");
+        CL_ASSERT(gClMM.snapshots == 1 && gClMM.beginCalls == 1,
+                  "the snapshot was taken and SUCCEEDED, and only then did beginQuery refuse");
+        CL_ASSERT(gClMM.restores == 1,
+                  "restore is owed from the SNAPSHOT's return, not from the round's: the blob exists and holds the "
+                  "pre-round bytes, so leaving it uncalled abandons the live save in query shape");
+        CL_ASSERT(gClMM.endCalls == 1,
+                  "and endQuery is still owed from the beginQuery CALL, on a side that never opened");
+        CL_ASSERT(!gClMM.detached,
+                  "so the refusing side is re-coupled to the live game rather than left on a simulated save "
+                  "(audit §1.8)");
+        CL_ASSERT(gClMM.placedCount == 1 && gClMM.placedHost[0] == 20,
+                  "and the FULL re-apply ran on that part-opened side: the harsh restore emptied the engine's table "
+                  "and the coordinator put its own row back");
+        CL_ASSERT(Combo_Logic_PlacementCount(GAME_MM) == 1,
+                  "while the coordinator's own table is untouched by the refusal — the refusal describes the round");
+        CL_ASSERT(gClOoT.beginCalls == 1 && gClOoT.endCalls == 1 && !gClOoT.detached,
+                  "and the side opened before the refusal is torn down in full");
+        CL_ASSERT(ClContractClean(), "with no query outside a bracket and no foreign id in MM's own table");
+    }
+
+    // --- 5. a refused snapshot is neither queried nor restored -------------
     {
         ComboLogicRoundResult round;
 
@@ -1491,9 +1620,10 @@ TestResult Test_ComboLogicContractEdges(void) {
         CL_ASSERT(gClMM.restores == 0, "and nothing may be restored out of a blob that was never captured");
         CL_ASSERT(gClOoT.beginCalls == 1 && gClOoT.endCalls == 1 && !gClOoT.detached,
                   "while the side opened before it is still torn down in full");
+        CL_ASSERT(ClContractClean(), "and no query ran on a side whose snapshot refused");
     }
 
-    // --- 5. RunFill takes the tables EMPTY, on both fill paths --------------
+    // --- 6. RunFill takes the tables EMPTY, on both fill paths --------------
     // Authored rows carrying ids that are in NO bag (Boots, Mask), so "did the
     // fill keep them" is answerable without depending on where the union draw
     // sent the bag's own items.
@@ -1525,6 +1655,7 @@ TestResult Test_ComboLogicContractEdges(void) {
                       "and neither authored item survives anywhere in either table");
             CL_ASSERT(gClOoT.placedCount + gClMM.placedCount == bagCount,
                       "and the ENGINES forgot too: the reset calls clearPlacements on both sides");
+            CL_ASSERT(ClContractClean(), "the contract traps must stay clear");
         }
     }
 
