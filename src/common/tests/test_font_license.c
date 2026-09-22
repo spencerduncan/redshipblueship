@@ -61,13 +61,23 @@
  * indirectly, by the absence of the file the packer would have picked up
  * (`OTRExporter/OTRExporter/Main.cpp` reads every file under the custom-assets
  * path that is not a format-suffixed PNG and adds it verbatim, so the tree IS
- * the archive's font manifest). It also does NOT scan `OTRExporter/`, where a
- * third byte-identical copy of the removed font still sits at
- * `OTRExporter/assets/fonts/Fipps-Regular.otf` in the pinned fork submodule.
- * That copy reaches no archive (no `--custom-assets-path` points at it) and
- * removing it is a change to another repository; THIRD_PARTY_NOTICES.md
- * discloses it. This row's PASS line says what it scanned rather than claiming
- * the whole tree.
+ * the archive's font manifest).
+ *
+ * THE SUBMODULE IS NOW IN SCOPE (2026-09-21). A third byte-identical copy of the
+ * removed font used to sit at `OTRExporter/assets/fonts/Fipps-Regular.otf` in the
+ * pinned fork, and this row used to disclaim it as another repository's problem.
+ * It was removed fork-side and the pin here moved, so the disclaimer is gone and
+ * `OTRExporter/assets/fonts` is scanned instead — otherwise the next pin bump
+ * could bring the file back with nothing red. That directory carries no `OFL.txt`
+ * and is packed into no archive, so the inventory-plus-notice rule the two
+ * custom-asset trees get would be the wrong rule for it. What is asserted there
+ * is the GRANT, read out of each font's own `name` table: a font file with
+ * neither a license description (name ID 13) nor a license URL (name ID 14)
+ * fails. That is precisely what separates the removed font (neither record
+ * present; its ID 0 reads "All rights reserved") from the one that remains
+ * (`PressStart2P-Regular.ttf`, whose ID 13 names OFL 1.1), and unlike a filename
+ * check it does not care what the file is called. This row's PASS line says what
+ * it scanned rather than claiming the whole tree.
  *
  * ONE MORE THING THE ARCHIVE LAYER FORCES. The two `OFL.txt` copies are
  * byte-identical, and that is asserted here rather than left to whoever edits
@@ -175,7 +185,7 @@ std::string FontLicRead(const std::filesystem::path& path, bool& ok) {
 
 /**
  * Every source or build file under @p relRoot, with its repo-relative path. The
- * roots are narrow (`games`, `src`, `rsbs`, `CMake`) on purpose: a scan from the
+ * roots are narrow (`games`, `src`, `rsbs`, `CMake`, `OTRExporter`) on purpose: a scan from the
  * repo root would walk `.claude/worktrees/`, where other lanes' full checkouts
  * live, and count their references as this tree's. Mirrors test_setmenu_count.c's
  * slurp.
@@ -422,6 +432,19 @@ const FontLicExtraNotice kExtraOflNotices[] = {
 /// describing the build and must be revisited rather than left over-claiming.
 const char* const kEmbeddedFontHeader = "libultraship/include/ship/window/gui/Fonts.h";
 const char* const kEmbeddedFontSymbol = "fontawesome_compressed_data_base85";
+
+/**
+ * The exporter submodule's own font directory, and the rule that applies to it.
+ *
+ * Nothing packs it and it has no OFL.txt, so it gets the GRANT rule rather than
+ * the inventory rule: every font file in it must carry a license description
+ * (`name` ID 13) or a license URL (`name` ID 14). Non-font files are ignored
+ * here — this directory is not an archive manifest, so a stray README is not a
+ * redistribution the way a stray file in a custom-asset tree is.
+ */
+const char* const kExporterFontsDir = "OTRExporter/assets/fonts";
+const std::uint16_t kNameIdLicenseDescription = 13;
+const std::uint16_t kNameIdLicenseUrl = 14;
 
 /// The construction that makes "the fallback is one of the loaded names" true
 /// without a test having to run — the one guarantee available over MM's
@@ -772,6 +795,79 @@ TestResult Test_FontLicense(void) {
                oflTexts[0].size(), parsedNotices);
     }
 
+    // ---- (2e) The exporter submodule's fonts must carry a GRANT -------------
+    //
+    // This directory used to be the one place this row looked away from, on the
+    // grounds that the copy of the removed font living there was another
+    // repository's problem. It was removed fork-side and the pin here moved, so
+    // the exemption is gone. The rule is deliberately NOT the one the two
+    // custom-asset trees get: nothing packs this directory into an archive and
+    // there is no OFL.txt beside it, so demanding an inventory and a matching
+    // notice would fail on the fork's own contents rather than on a problem.
+    //
+    // What it demands instead is the thing the removed font could never satisfy
+    // and the surviving font satisfies trivially: a license grant in the font's
+    // own `name` table. Fipps-Regular.otf has no ID 13 and no ID 14 at all (its
+    // ID 0 is "Copyright (c) 2007 by Stefanie Koerner (pheist). All rights
+    // reserved."); PressStart2P-Regular.ttf's ID 13 is the OFL 1.1 sentence. So
+    // moving the pin back to the old commit fails this block by name, and a
+    // renamed or newly added ungranted font fails it just the same — which a
+    // filename check would not.
+    {
+        const std::filesystem::path exporterFonts = repoRoot / kExporterFontsDir;
+        bool listed = false;
+        const std::vector<std::string> names = FontLicListDir(exporterFonts, listed);
+        if (!listed) {
+            printf("[TEST] FAIL: %s is not a directory. The OTRExporter submodule must be initialised for this row to "
+                   "assert anything about it (`git submodule update --init`); a silent skip is how the ungranted font "
+                   "that used to live here came back unnoticed.\n",
+                   kExporterFontsDir);
+            return TEST_FAIL;
+        }
+
+        int grantedFonts = 0;
+        for (const std::string& name : names) {
+            if (!FontLicIsFontFile(name)) {
+                continue;
+            }
+            bool fontRead = false;
+            const std::string bytes = FontLicRead(exporterFonts / name, fontRead);
+            if (!fontRead) {
+                printf("[TEST] FAIL: could not read %s/%s to parse its `name` table\n", kExporterFontsDir,
+                       name.c_str());
+                return TEST_FAIL;
+            }
+            std::string description;
+            std::string url;
+            std::string why;
+            const bool hasDescription =
+                FontLicNameString(bytes, kNameIdLicenseDescription, description, why) && !description.empty();
+            const bool hasUrl = FontLicNameString(bytes, kNameIdLicenseUrl, url, why) && !url.empty();
+            if (!hasDescription && !hasUrl) {
+                std::string copyright;
+                std::string ignored;
+                if (!FontLicNameString(bytes, 0, copyright, ignored)) {
+                    copyright = "(no readable `name` ID 0 either)";
+                }
+                printf("[TEST] FAIL: %s/%s grants nothing. Its `name` table has no license description (ID 13) and no "
+                       "license URL (ID 14); its copyright line reads:\n"
+                       "[TEST]         %s\n"
+                       "[TEST]       A font with no grant does not belong in a source tree this project redistributes, "
+                       "whatever it is called and whether or not anything loads it. Either the OTRExporter pin moved "
+                       "back to a commit that still carries the removed font, or a new ungranted font was added there. "
+                       "Remove it fork-side and move the pin; see THIRD_PARTY_NOTICES.md, \"Resolved by removal\".\n",
+                       kExporterFontsDir, name.c_str(), copyright.c_str());
+                return TEST_FAIL;
+            }
+            grantedFonts++;
+        }
+        FONTLIC_CHECK(grantedFonts >= 1,
+                      "no font file at all in OTRExporter/assets/fonts — the grant check above passes vacuously over "
+                      "an empty directory, and this row should be revisited rather than left asserting nothing there");
+        printf("[TEST]   %s: %zu file(s), %d font(s), every one carrying a `name`-table license grant (ID 13 or 14)\n",
+               kExporterFontsDir, names.size(), grantedFonts);
+    }
+
     // ---- (3) MM's CC0 grant is visible in this repository ------------------
     {
         bool read = false;
@@ -792,13 +888,21 @@ TestResult Test_FontLicense(void) {
     // name BY CONSTRUCTION. The MM site is locked textually because its TU is in
     // no target's source list, so nothing here can call it.
     {
-        static const char* const kRoots[] = { "games", "src", "rsbs", "CMake" };
+        // `OTRExporter` joined this list on 2026-09-21, when the font it used to
+        // carry was removed fork-side and the pin here moved. It is small (a few
+        // dozen source and CMake files; its `assets/` tree holds none) and it is
+        // the tool that builds the shipped archives, so a reference to a removed
+        // font reappearing there is the same creep toward a load as one in this
+        // repository's own sources. It does NOT widen the resolver counts below:
+        // the exporter contains no overlay-font call site.
+        static const char* const kRoots[] = { "games", "src", "rsbs", "CMake", "OTRExporter" };
         std::vector<FontLicFile> tree;
         for (const char* relRoot : kRoots) {
             bool ok = false;
             std::vector<FontLicFile> part = FontLicSlurp(repoRoot, relRoot, ok);
             if (!ok) {
-                printf("[TEST] FAIL: source root %s/%s not found; this row cannot run from a relocated build\n",
+                printf("[TEST] FAIL: source root %s/%s not found; this row cannot run from a relocated build, and an "
+                       "uninitialised submodule root must fail rather than shrink the scan\n",
                        RSBS_SOURCE_DIR, relRoot);
                 return TEST_FAIL;
             }
@@ -806,8 +910,8 @@ TestResult Test_FontLicense(void) {
                 tree.push_back(std::move(f));
             }
         }
-        FONTLIC_CHECK(!tree.empty(), "scanned games/, src/, rsbs/ and CMake/ and found no source files at all — the "
-                                     "scan would vacuously pass, which is worse than not running it");
+        FONTLIC_CHECK(!tree.empty(), "scanned games/, src/, rsbs/, CMake/ and OTRExporter/ and found no source files "
+                                     "at all — the scan would vacuously pass, which is worse than not running it");
 
         int resolvedCallSites = 0;
         int bareCallSites = 0;
@@ -868,15 +972,17 @@ TestResult Test_FontLicense(void) {
                    kFallbackByConstruction, constructedFallbacks);
             return TEST_FAIL;
         }
-        printf("[TEST]   scanned %zu source/build files (1 skipped as this row's own source): 0 name the removed "
-               "font, 2 resolved SetCurrentFont call sites, 0 bare, 2 fallbacks loaded by construction\n",
+        printf("[TEST]   scanned %zu source/build files under games/ src/ rsbs/ CMake/ OTRExporter/ (1 skipped as this "
+               "row's own source): 0 name the removed font, 2 resolved SetCurrentFont call sites, 0 bare, 2 fallbacks "
+               "loaded by construction\n",
                tree.size());
     }
 
     printf("[TEST] PASS: both custom-asset font directories hold exactly their inventoried set, each shipped font's "
-           "own name-table notice is in the byte-identical OFL.txt beside them, CC0 covers games/mm, and no file "
-           "under games/ src/ rsbs/ CMake/ names the removed font (OTRExporter/ is a submodule and is not scanned — "
-           "see THIRD_PARTY_NOTICES.md, \"Resolved by removal\")\n");
+           "own name-table notice is in the byte-identical OFL.txt beside them, every font in the pinned "
+           "OTRExporter/assets/fonts carries a name-table license grant, CC0 covers games/mm, and no source or build "
+           "file under games/ src/ rsbs/ CMake/ OTRExporter/ names the removed font (see THIRD_PARTY_NOTICES.md, "
+           "\"Resolved by removal\")\n");
     return TEST_PASS;
 #endif // RSBS_SOURCE_DIR
 }
