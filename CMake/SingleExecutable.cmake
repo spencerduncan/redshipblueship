@@ -1474,8 +1474,9 @@ if(BUILD_TESTING)
     # literal it was distinguishing itself from. What a golden row does IS the
     # cheaper half of what SeedDeterminism does: one windowed bring-up and one
     # generation, against two of each. 300 is headroom for a loaded hosted runner
-    # under llvmpipe rather than a derived figure — all three rows together take
-    # 5.4 s on windows-latest.
+    # under llvmpipe rather than a derived figure. Measured on the merged tip (run
+    # 35650187916): all three rows together take 10.9 s on the Windows leg and
+    # 4.5 s on the Linux leg.
     # ========================================================================
     # ONE TABLE, TWO CONSUMERS: the CTest rows below and the regen-golden-digests
     # target further down are generated from these specs, so a golden can never
