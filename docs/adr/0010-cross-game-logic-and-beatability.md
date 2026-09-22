@@ -1046,3 +1046,34 @@ Two corrections to D10, found while closing O4:
    re-measurement did) remains fine — the directive bars outbound reports,
    not inbound reads.
 
+### 2026-09-21 -- O9: MM's per-trick vocabulary now exists, part-bound
+
+Section 3.1 above (and the O9 row) still read "MM does not have it yet" /
+"pending a source inventory". That premise is stale as of `#578` parts 1-2
+(PR #686, PR #696), re-measured directly against
+`games/mm/2s2h/Rando/StaticData/TrickIds.h` and
+`games/mm/2s2h/Rando/StaticData/Tricks.cpp` at `origin/main` on this date:
+
+- **86** `MMRT_*` keys are declared in `TrickIds.h` (append-only, `MMRT_MAX`
+  sentinel; the enumerator's number is folded into every written MM rando
+  save and the paired profile identity string, so the space is frozen the
+  same way OoT's settings hash is).
+- **20** of those 86 are declared `reserved = true` in `Tricks.cpp`'s table
+  and are unconditionally inert (`IsTrickEnabled` returns false) -- OoTMM
+  combo tricks that need an OoT-side item, not expressible in MM-only terms
+  until increment 3's single bag exists.
+- **10** of the remaining 66 are wired into a region's logic guard as an
+  `MM_TRICK(...)`-guarded disjunct (`kBoundTricks` in
+  `games/mm/2s2h/Rando/OptionsUiSingleExe.cpp` is the authoritative list; a
+  `mm-trick-bindings` lock fails if that array drifts from what is actually
+  consulted). Two shipped with the substrate (PR #686); eight more followed
+  (PR #696). The remaining plain widenings over already-declared keys are
+  tracked as `#697` (`#578` part 3, in flight at this date).
+
+So O9's first question -- does MM grow an `RT_*`-equivalent option table --
+is answered **yes**, and the second -- ship coarse and refine later -- is
+what is happening: the vocabulary is declared in full, consulted in part.
+O9 stays open until the remaining bindings (and any tightenings #697 finds)
+land; this paragraph corrects the stale "does not have it yet" premise in
+3.1 and records the numbers as measured, it does not close O9. No other
+decided text in this ADR changes.
