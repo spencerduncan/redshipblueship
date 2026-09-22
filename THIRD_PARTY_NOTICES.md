@@ -192,6 +192,16 @@ this project ships no espeak-ng code, and the obligation attaches to whoever
 distributes a binary built with that path enabled —
 https://github.com/espeak-ng/espeak-ng/blob/master/COPYING.
 
+**The operator ruled on 2026-09-21 to KEEP espeak-ng**, because it is the
+accessibility feature on Linux — it is what drives the screen-reader speech path,
+and dropping it to simplify a license question would remove a capability from the
+players who need it most. Nothing above is softened by that ruling: the GPL-3.0
+header compilation and the runtime `dlopen` are still exactly as described, and a
+redistributor of a Linux binary built with that path enabled still has to reach
+its own conclusion about them. The decision recorded here is that the feature
+stays and the question is answered at distribution time, not that the question
+went away.
+
 ### Fonts
 
 Both game trees carry the same custom font set
@@ -232,7 +242,8 @@ statement in the emitted header, and its provenance is recorded here so nobody h
 to rediscover where a header with no copyright line came from.
 
 `Fipps-Regular.otf` used to be a fifth row here, with an unresolved status. It
-was **deleted from both trees on 2026-09-21** rather than resolved; see
+was **deleted from both trees on 2026-09-21** rather than resolved, and the third
+copy, in the `OTRExporter` submodule, was deleted fork-side the same day; see
 [Unresolved license status](#unresolved-license-status).
 
 The SIL Open Font License 1.1 requires its text, and each font's copyright
@@ -284,13 +295,19 @@ because a first draft of this paragraph overclaimed:
   (Font Awesome is not a file in the tree).
 * Both `OFL.txt` copies must carry the OFL 1.1 body and be **byte-identical**
   (see above for why the archive layer forces that), `games/mm/LICENSE` must be
-  the CC0 text, and no source or build file under `games/`, `src/`, `rsbs/` or
-  `CMake/` may name the removed font.
+  the CC0 text, and no source or build file under `games/`, `src/`, `rsbs/`,
+  `CMake/` or `OTRExporter/` may name the removed font.
+* Every font file in the pinned submodule's `OTRExporter/assets/fonts` must carry
+  a **license grant in its own `name` table** (ID 13 or ID 14). This is a
+  different and weaker rule than the custom-asset trees get, for the reason given
+  under [Resolved by removal](#resolved-by-removal); what it buys is that moving
+  the gitlink back to a commit carrying the ungranted font fails the row.
 
-What it does **not** assert: anything about `OTRExporter/` (see "Resolved by
-removal" below for the copy that remains there), anything about the contents of a
-built `.o2r`, and anything about MM's `2s2h/BenPort.cpp`, which no configuration in
-this repository compiles.
+What it does **not** assert: anything about the contents of a built `.o2r`,
+anything about MM's `2s2h/BenPort.cpp`, which no configuration in this repository
+compiles, and — in `OTRExporter/assets/fonts` specifically — nothing about
+inventory completeness or notice texts, only that each font present grants
+something.
 
 ## OoTMM
 
@@ -491,25 +508,63 @@ font this project ships was preferred over preserving a name that no build
 contains. No save data is affected — this is a settings key. Recorded in
 `docs/known-issues.md`.
 
-**A third, byte-identical copy of the file is still in the tree, in a submodule.**
-`OTRExporter/assets/fonts/Fipps-Regular.otf` — blob
+**The third, byte-identical copy — the one in the submodule — was removed
+fork-side on 2026-09-21 at `a26d3937`.** It was
+`OTRExporter/assets/fonts/Fipps-Regular.otf`: blob
 `9334dad594277ba8339786217d75260e58436dc8`, md5
 `f939d3db2e61212c288325fc8b0bb255`, the same 34220 bytes as the two copies deleted
-above — is present at the pinned gitlink `a9567801` of
-`https://github.com/spencerduncan/OTRExporter`, this project's own fork. It is
+above, present at the previously pinned gitlink `a9567801` of
+`https://github.com/spencerduncan/OTRExporter`, this project's own fork. It was
 disclosed here because `git submodule update --init` is a documented build step, so
-every source checkout still materialises it, and because the sentence "deleted from
-both trees" would otherwise read as "gone".
+every source checkout materialised it, and because the sentence "deleted from both
+trees" would otherwise have read as "gone".
 
-What it does and does not affect: **it does not reach any shipped archive.**
-`CMakeLists.txt` passes `--custom-assets-path` as `games/oot/assets/custom` or
-`games/mm/assets/custom` and nothing else (four call sites), `OTRExporter`'s own
-sources reference `assets/fonts` nowhere, and no `install()` or packaging step
-touches `OTRExporter/assets`. So `soh.o2r`, `2ship.o2r` and every distributed
-binary are clean. Removing the remaining copy is a change to the fork's own
-repository and a different review path from this one; it is listed under [Open
-items for the operator](#open-items-for-the-operator). The `FontLicense` row does
-not scan it, and its output says what it scanned rather than "the tree".
+The gitlink now points at
+`a26d3937b0aa73c21db7ff969010c8129140d400`, the merge commit that fork PR
+`spencerduncan/OTRExporter#1` produced, and it is the new tip of
+`claude/namespace-exporter-globals`. Its first parent is the previously pinned and
+tested `a95678017c73ebeacd68bd5156bc80ff8d50a6f0`; its second is
+`ca696842bfc90966d704e7fe43ef7d42a6bfc25a`, the one deletion commit. `git diff
+--stat` between the old pin and the new is exactly one file — `assets/fonts/
+Fipps-Regular.otf`, 34220 bytes, gone — and `git log --oneline` between them is
+exactly those two commits. Nothing else in the exporter moved, and the three
+commits this project depends on remain ancestors of the new pin. No checkout of
+this project materialises the font any more, in any tree, at any pin.
+
+The PR was merged with a **merge commit** rather than squashed or rebased,
+deliberately: a squash would have rewritten `a9567801` — the SHA this project has
+actually built and tested against — out of existence. The branch the deletion was
+authored on is `claude/remove-fipps-font`, stacked on
+`claude/namespace-exporter-globals` and **not** on the fork's default branch
+`develop`, which lacks the three commits this project depends on (the per-variant
+exporter-globals namespacing that ended the exit-time double destruction, the
+single-exe IPO disable, and the MSVC Release debug-info fix). Basing this work on
+`develop`, or merging it there, would have been a regression.
+
+What the copy did and did not affect while it was there, kept for the record:
+**it never reached any shipped archive.** `CMakeLists.txt` passes
+`--custom-assets-path` as `games/oot/assets/custom` or `games/mm/assets/custom` and
+nothing else (four call sites), `OTRExporter`'s own sources reference `assets/fonts`
+nowhere, and no `install()` or packaging step touches `OTRExporter/assets`. So
+`soh.o2r`, `2ship.o2r` and every distributed binary were clean before this removal
+as well as after it.
+
+**The `FontLicense` row now scans that directory**, which it previously and
+explicitly did not. The rule it applies there is not the custom-asset trees' rule:
+nothing packs `OTRExporter/assets/fonts` and there is no `OFL.txt` beside it, so
+demanding an inventory and a matching notice would fail on the fork's contents
+rather than on a problem. What is required instead is a **grant** in each font's
+own `name` table — a license description (ID 13) or a license URL (ID 14). The
+removed font had neither; the one file that remains,
+`OTRExporter/assets/fonts/PressStart2P-Regular.ttf`, states OFL 1.1 at ID 13 and
+`http://scripts.sil.org/OFL` at ID 14. So moving the pin back to `a9567801` turns
+the row red by name, and so does a renamed or newly added ungranted font, which a
+filename check would not catch. `OTRExporter/` also joined the source/build-file
+scan for the removed font's name. (Noted, not widened here: that fork's
+`PressStart2P-Regular.ttf` has no `OFL.txt` beside it. It is packed into nothing
+and shipped by nothing, so no distribution of this project relies on that notice;
+the two copies that ARE shipped, under `games/*/assets/custom/fonts/`, each carry
+one.)
 
 ## Open items for the operator
 
@@ -518,19 +573,24 @@ These are documentation/packaging gaps, not blockers:
 * Decide the disposition of the one remaining unresolved item above (Ship of
   Harkinian's absent license) before any public binary release. Note that it
   cannot be resolved by an election, only by a decision about redistribution.
-* **Delete `assets/fonts/Fipps-Regular.otf` in `spencerduncan/OTRExporter` and
-  bump the gitlink here.** It is the operator's own fork, it is the last copy of
-  the ungranted font any checkout of this project materialises, and nothing in
-  either repository reads it (see "Resolved by removal" above for the evidence
-  that it reaches no archive). It is left for a separate change because the
-  submodules are outside this pass's scope.
+* ~~**Delete `assets/fonts/Fipps-Regular.otf` in `spencerduncan/OTRExporter` and
+  bump the gitlink here.**~~ **Done 2026-09-21.** The operator ruled that day to go
+  ahead with the fork change; the file was deleted on the fork's
+  `claude/remove-fipps-font` branch (stacked on
+  `claude/namespace-exporter-globals`, never on `develop`), merged there with a
+  merge commit, and the gitlink here was moved to that merge commit
+  `a26d3937`. See [Resolved by removal](#resolved-by-removal) for the
+  evidence and for the `FontLicense` scan that now keeps it out.
 * **Carry Apache-2.0's `NOTICE` requirement if an Apple build is ever
   distributed** (single-header-metal-cpp, §4(d)). Windows and Linux builds are
   unaffected.
-* **Decide whether Linux release builds should be configured without espeak-ng**,
-  or whether a GPL-3.0 `dlopen` dependency is acceptable in a distributed binary.
-  The build already degrades cleanly without it — `find_library` failing simply
-  drops the speech-synthesizer TUs.
+* **Whether a GPL-3.0 `dlopen` dependency is acceptable in a distributed Linux
+  binary** is still an open question, but it is no longer a question about whether
+  to keep the dependency: the operator ruled on 2026-09-21 that espeak-ng **stays**,
+  because it is the Linux accessibility feature. The build does still degrade
+  cleanly without it (`find_library` failing simply drops the speech-synthesizer
+  TUs), so configuring a particular release without it remains available as a
+  packaging choice — it is not the default and not the plan.
 
 ## Appendix: license texts
 
