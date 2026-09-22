@@ -264,12 +264,18 @@
 
 #include "Rando/Rando.h"
 #include "Rando/Types.h"
+#include "Rando/Foreign.h" // Rando::ResolvePairedProfile — used only by the measurement bridge
 #include "Rando/StaticData/StaticData.h"
 #include "Rando/Logic/Logic.h"
 
 extern "C" {
 #include "variables.h"
 #include "functions.h"
+// The MM-prefixed save initialiser, declared rather than reached for through an
+// umbrella header — the same declaration mm_rando_gen_test.cpp makes, for the
+// same reason. Used ONLY by MM_ComboLogic_ApplyShippedProfile at the bottom of
+// this file; no vtable call touches it.
+void MM_Sram_InitNewSave(void);
 }
 
 #include "mm_game_hooks.h" // MM_GameEvents_Queue()
@@ -898,6 +904,137 @@ extern "C" int MM_ComboLogic_SnapshotLive(void) {
 /** How many placements this engine currently holds for the coordinator. */
 extern "C" int MM_ComboLogic_HeldPlacementCount(void) {
     return (int)sHeld.size();
+}
+
+// ============================================================================
+// THE MEASUREMENT BRIDGES (#645 increment 3's first two work items, lane K3)
+// ============================================================================
+//
+// Two read-only-ish accessors the measurement row in src/common cannot write for
+// itself, because it has no MM enum in scope by design (ADR 0002). Neither is
+// called by production, neither is called by the vtable above, and neither
+// consumes `Ship_Random`.
+//
+// WHY THEY ARE HERE AND NOT IN THE MEASUREMENT ROW'S OWN TU: the row needs (a)
+// MM's half of the union bag and (b) MM's rounds to run against MM's SHIPPED
+// PROFILE rather than a zeroed save, and both facts are spelled `RandoItemId`,
+// `Rando::StaticData::Checks` and `RANDO_SAVE_OPTIONS`.
+
+/**
+ * MM'S HALF OF THE UNION BAG: the VANILLA item of every host in the CURRENT host
+ * universe, which is the graph's whole check set or — once
+ * `MM_ComboLogic_SetHostPool` has been called — that pool.
+ *
+ * WHY THE VANILLA ITEMS ARE THE POOL, and where this is an OVER-estimate.
+ * `GeneratePools` builds MM's item pool by walking exactly the same region-graph
+ * check set and pushing `randoStaticCheck.randoItemId` — the check's vanilla item
+ * — once per pooled check (GeneratePools.cpp: "Initialize the check with it's
+ * vanilla item", then `itemPool.push_back(randoStaticCheck.randoItemId)`). So this
+ * IS that multiset, with three differences, all of them named rather than hidden:
+ *
+ *  (1) SETTINGS-CONDITIONAL NARROWING IS NOT APPLIED, for the same reason A3
+ *      gives for the host universe: skulltulas-off, owls-off, cows-off, frogs-off,
+ *      shops-off and the user's exclude list all drop rows from MM's real pool,
+ *      and applying them here would duplicate `GeneratePools`' settings reading in
+ *      a second place. The answer is therefore a SUPERSET of MM's real default
+ *      pool, which for a COST measurement errs in the conservative direction.
+ *  (2) THE NO-VANILLA-LOCATION ADDITIONS ARE ABSENT: `RI_PROGRESSIVE_SWORD`,
+ *      `RI_SHIELD_HERO`, boss/enemy souls, clock items, `RI_ABILITY_SWIM`,
+ *      ocarina buttons, triforce pieces and traps have no vanilla check, so no
+ *      host names them. On the shipped default profile all but the first two are
+ *      off anyway.
+ *  (3) THE STARTING-ITEM REMOVAL AND THE PLENTIFUL DUPLICATION ARE ABSENT. Both
+ *      are `GeneratePools` steps after the walk, and the second draws from
+ *      `Ship_Random` — which is precisely why this accessor may not call
+ *      `GeneratePools` and reads the static table instead.
+ *
+ * TWO IDS ARE EXCLUDED and the reason is a crash, not tidiness: `RI_TRAP` reaches
+ * `Rando::MiscBehavior::OfferTrapItem()` and `RI_TRIFORCE_PIECE` at the required
+ * count dispatches `GameInteractor_ExecuteOnGameCompletion()` and emplaces a
+ * `GIEventTransition` — a hook dispatch NO snapshot/restore undoes (the file
+ * header's "what is not proved here" list). Neither is a vanilla check's item on
+ * any profile, so excluding them changes no realistic answer; they are excluded so
+ * that a future static-table edit cannot quietly put one in a measurement bag.
+ * Everything else `IsGiveableItemId` accepts is admitted, including the ordinary
+ * `MM_Item_Give(MM_gPlayState, ...)` default branch — which is the same path MM's
+ * OWN fill grants its whole pool through (`GlitchlessLogic.cpp:221`), headlessly,
+ * in the green `mm-rando-gen` and `mm-paired-attempt` rows.
+ *
+ * Same truncation contract as the two enumerators: at most `cap` entries written,
+ * the TOTAL always returned. `outItems` and `outHosts` may each be NULL.
+ */
+extern "C" int MM_ComboLogic_PoolVanillaItems(uint16_t* outItems, uint16_t* outHosts, int cap) {
+    int total = 0;
+    for (uint16_t hostCheck : HostUniverse()) {
+        const auto it = Rando::StaticData::Checks.find((RandoCheckId)hostCheck);
+        if (it == Rando::StaticData::Checks.end()) {
+            continue;
+        }
+        const uint16_t vanilla = (uint16_t)it->second.randoItemId;
+        if (!IsGiveableItemId(vanilla)) {
+            continue;
+        }
+        if (vanilla == (uint16_t)RI_TRAP || vanilla == (uint16_t)RI_TRIFORCE_PIECE) {
+            continue; // see the block above: both reach outside the save
+        }
+        if (total < cap) {
+            if (outItems != nullptr) {
+                outItems[total] = vanilla;
+            }
+            if (outHosts != nullptr) {
+                outHosts[total] = hostCheck;
+            }
+        }
+        total++;
+    }
+    return total;
+}
+
+/**
+ * Put MM's save into the state THE CREATION SEAM puts it in, so a measured round
+ * is a question about MM's SHIPPED PROFILE rather than about a zeroed struct.
+ *
+ * WHY THE MEASUREMENT NEEDS THIS. The engine's own row (`mm-combo-logic-engine`)
+ * runs against whatever `gSaveContext` holds, which in a standalone ctest process
+ * is static-init zeros: every `randoSaveOptions` entry 0, every trick bit 0. That
+ * is a legal configuration and it is fine for a CONTRACT lock, but it is not the
+ * profile a player generates under, and MM's per-round cost is a function of how
+ * many regions and checks the crawl walks — which the options and the trick set
+ * decide. Measuring the zeroed profile and reporting it as the shipped one would
+ * be the same class of claim this tree keeps catching.
+ *
+ * WHAT IT DOES, in the order the creation seam does it:
+ *   1. `MM_Sram_InitNewSave()` — a fresh MM save (the same call
+ *      `mm_rando_gen_test.cpp` makes headlessly), so no bottle and no trade item
+ *      is held, let alone C- or D-equipped. That matters: the two
+ *      `Item_GiveImpl` legs that dereference a NULL `MM_gPlayState`
+ *      (ForeignItemsSingleExe.cpp's enumerated legs 2 and 3) are reachable ONLY
+ *      from a save that already holds one in an equipped slot.
+ *   2. `saveType = SAVETYPE_RANDO`, so every `IS_RANDO`-gated registrar and
+ *      condition reads this as a rando world.
+ *   3. `Rando::ResolvePairedProfile(false)` — resolves the authoring CVars into
+ *      `RANDO_SAVE_OPTIONS` and `randoSaveTricks`, which is exactly what freezes
+ *      the profile a fill runs under. SOLO (`paired == false`) deliberately: that
+ *      path returns before touching `gComboCtx.mmProfileDigest`, so a measurement
+ *      cannot stamp or trip a cross-game identity.
+ *   4. `Rando::GrantStartingItems()` — A1's "at file creation the live save holds
+ *      exactly the world's starting inventory". Without it the round's starting
+ *      state is an empty save, which under-states reachability everywhere.
+ *
+ * IT WRITES `gSaveContext`, and the caller MUST bracket it. The measurement row
+ * copies the whole unified buffer before calling and restores it afterwards, and
+ * then re-asserts OoT's world digest — the same outer bracket
+ * `MM_ComboLogicEngine_RunHeadless` uses.
+ *
+ * @return `RANDO_SAVE_OPTIONS[RO_LOGIC]` as resolved, so the row can PRINT which
+ *         logic mode it measured instead of asserting one it did not read.
+ */
+extern "C" int MM_ComboLogic_ApplyShippedProfile(void) {
+    MM_Sram_InitNewSave();
+    gSaveContext.save.shipSaveInfo.saveType = SAVETYPE_RANDO;
+    Rando::ResolvePairedProfile(false);
+    Rando::GrantStartingItems();
+    return (int)RANDO_SAVE_OPTIONS[RO_LOGIC];
 }
 
 #endif /* RSBS_SINGLE_EXECUTABLE */

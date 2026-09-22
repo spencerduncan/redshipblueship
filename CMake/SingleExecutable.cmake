@@ -1698,6 +1698,39 @@ if(BUILD_TESTING)
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
+    # Increment 3's FIRST TWO WORK ITEMS, which are measurements rather than
+    # features (#645; solver-inventory audit §6.3): what one linked round costs
+    # against the #582 30 s floor, and whether a single-bag assumed fill over MM's
+    # forward-authored graph converges. Both are questions about
+    # Combo_Logic_RunRound / Combo_Logic_RunFill driven over BOTH REAL engines, and
+    # neither is answerable any other way — which is why this row exists at all.
+    #
+    # IT ASSERTS NO TIMING. PR #581 §2a's rule is that a wall clock never decides
+    # anything here, and a row that went red when this shared build host got busy
+    # would be deleted and its measurement lost with it. What it asserts is that
+    # every round and fill TERMINATES inside the coordinator's watchdog, that the
+    # same coordinator seed reproduces the same placement digest while a different
+    # seed does not, and that OoT's world placement digest and the whole unified
+    # save buffer come back BYTE-IDENTICAL. The numbers are printed for the epic.
+    #
+    # Tier `rando`, for the correctness reason the two rows above give: a ROM-free
+    # process has no generated OoT world and no populated Rando::Logic::Regions, so
+    # the bag would be empty and every sanity assertion would pass as 0 == 0.
+    #
+    # TIMEOUT 1800, which is high on purpose and is not a symptom of a slow test.
+    # The row runs one real OoT generation, then five assumed FILLS, and a fill
+    # runs one reachability round PER BAG ITEM (audit §4.3) where each round is a
+    # full OoT ReachabilitySearch plus a full MM CrawlReachableRegions plus a
+    # whole-SaveContext memcpy. The default bag is deliberately a stride SAMPLE of
+    # the real union bag so that the row fits a CI budget at all; the four
+    # RSBS_COMBO_MEASURE_* variables open it up to the whole bag for the local run
+    # whose numbers the epic quotes. If this row ever needs to be cheap, shrink the
+    # sample through those variables — do not shrink the timeout.
+    redship_add_test(NAME ComboLogicMeasure COMMAND redship --test combo-logic-measure
+        LABEL rando
+        TIMEOUT 1800
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)
     # These tests actually boot the games and verify boot completion

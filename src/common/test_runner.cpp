@@ -624,6 +624,15 @@ extern "C" {
 // this include sits above their definitions.
 #include "tests/test_oot_logic_export.c"
 
+// Increment 3's first two MEASUREMENTS (#645, lane K3): what one linked round
+// costs and whether the single-bag assumed fill converges, over BOTH real
+// engines. Same tier and the same reason as the row above (a ROM-free process has
+// no generated world, so every count would be zero and every sanity assertion
+// vacuous), and the same FILE SCOPE / C++ compilation. It asserts no timing — PR
+// #581 §2a's rule — only that everything terminates, the same seed reproduces,
+// and production state comes back byte-identical.
+#include "tests/test_combo_logic_measure.c"
+
 // MM scene-command EXECUTE regression (issue #344). Unlike the parse test, the
 // body runs the parsed commands against a PlayState, so it needs MM's global.h
 // — which lives in an MM TU (games/mm/2s2h/mm_scene_execute_test.cpp) to keep
@@ -3628,6 +3637,22 @@ TestResult Test_OoTLogicExport(void) {
     return OoTLogicExport_Run();
 }
 
+// Increment 3's two measurements (#645, lane K3). Same split and the same
+// bring-up as Test_OoTLogicExport above: the body needs a real OoT generation AND
+// MM's rando graph, and CreateHarnessStyleContext is a file-static defined below
+// the tests/ include block, so the bring-up lives in the wrapper.
+TestResult Test_ComboLogicMeasure(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    static char clmArg0[] = "redship";
+    static char* clmArgv[] = { clmArg0, nullptr };
+    InitOTRForMMFirstBoot(1, clmArgv);
+    return ComboLogicMeasure_Run();
+}
+
 TestResult Test_RoundtripIntegrity(void) {
     printf("[TEST] roundtrip-integrity: OoT SaveContext byte-integrity across roundtrip (issue #262)\n");
     int failures = TestRoundtripIntegrity_Run();
@@ -4286,6 +4311,16 @@ const TestDescriptor gTests[] = {
      "MM's ComboLogicEngine answers from the real region graph, brackets the live save byte-exactly, harvests its "
      "own-origin placements, is monotone under assume and agrees with itself (#645, ADR 0010 inc. 3)",
      Test_MMComboLogicEngine},
+    // Increment 3's two §6.3 MEASUREMENTS, over both real engines at once (#645,
+    // lane K3). Needs a real OoT generation AND MM's rando graph, hence the
+    // `rando` tier and the `--test all` skip below. It asserts no timing: only
+    // that every round and fill terminates, that the same coordinator seed
+    // reproduces while a different one does not, and that OoT's world digest and
+    // the whole unified save buffer come back byte-identical.
+    {"combo-logic-measure",
+     "The linked round's cost and the single-bag fill's convergence, measured over both real solvers; asserts "
+     "termination, seed reproducibility and byte-identical production state, never a wall clock (#645)",
+     Test_ComboLogicMeasure},
     {nullptr, nullptr, nullptr}  // Sentinel
 };
 
@@ -4372,6 +4407,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "mm-trick-gbt-gate") == 0 ||
                 strcmp(gTests[i].name, "mm-trick-bindings") == 0 ||
                 strcmp(gTests[i].name, "mm-combo-logic-engine") == 0 ||
+                strcmp(gTests[i].name, "combo-logic-measure") == 0 ||
                 strcmp(gTests[i].name, "rando-entrance-pin") == 0 ||
                 strcmp(gTests[i].name, "oot-logic-export") == 0) {
                 printf("\n--- Skipping: %s (needs display; runs as a rando-label CTest) ---\n", gTests[i].name);
