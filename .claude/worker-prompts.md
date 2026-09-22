@@ -145,10 +145,11 @@ are the reasoning behind them.
   All three rows run in a ROM-staged local run as well as on both CI legs: the two
   archive-sensitive ones generate from an archive-free sandbox under
   `build-cmake/golden-archive-free/` (they used to SKIP there, which left the local
-  merge gate with no golden coverage at all). A golden row reported SKIPPED locally
-  now means the sandbox could not be built — read its message, do not read it as a
-  pass. What the rows still do NOT give you: they pin the archive-free world, not a
-  player's (#702). Full policy:
+  merge gate with no golden coverage at all). No golden row has a skip path on any
+  gate any more: a sandbox that cannot be built FAILS the row, because a broken
+  harness is a finding and a skip would put the gate back to enforcing nothing. A
+  SKIPPED golden row means somebody re-added a skip. What the rows still do NOT give
+  you: they pin the archive-free world, not a player's (#702). Full policy:
   `docs/determinism-goldens.md`.
 - This project is pre-release: invalidating an existing save to land a fix is
   acceptable and does not need product sign-off, but every PR that invalidates a

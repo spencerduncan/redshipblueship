@@ -1478,14 +1478,18 @@ if(BUILD_TESTING)
     # 35650187916): all three rows together take 10.9 s on the Windows leg and
     # 4.5 s on the Linux leg.
     # ========================================================================
-    # ONE TABLE, TWO CONSUMERS: the CTest rows below and the regen-golden-digests
-    # target further down are generated from these specs, so a golden can never
-    # be RE-PINNED under a different profile than the row CHECKS it under. That
-    # drift would be silent and green — the worst possible failure for an oracle —
-    # and it is the reason this is a table instead of six hand-written blocks. The
-    # guarantee is only worth as much as the fields both consumers actually read:
-    # the regen loop below reads all of 1, 2, 3, 4 and 5, and a field added here
-    # must be wired into both consumers in the same commit.
+    # ONE TABLE, THREE CONSUMERS: the CTest rows below, and BOTH re-pin targets
+    # generated from REDSHIP_GOLDEN_REGEN_TARGETS further down
+    # (`regen-golden-digests` and `regen-golden-digests-rom-mounted`, one inner loop
+    # over this table each). A golden therefore can never be RE-PINNED under a
+    # different profile than the row CHECKS it under. That drift would be silent and
+    # green — the worst possible failure for an oracle — and it is the reason this is
+    # a table instead of nine hand-written blocks. The guarantee is only worth as
+    # much as the fields every consumer actually reads: the regen loop below reads
+    # all of 1, 2, 3, 4 and 5, and a field added here must be wired into all three
+    # consumers in the same commit. (This header said "TWO CONSUMERS" for one PR
+    # after the second re-pin target was added, in the comment whose whole job is to
+    # tell the next author how many places a new field must reach.)
     #
     # WHERE THESE ROWS ARE ACTUALLY ENFORCED: on BOTH CI legs and in the operator's
     # local ROM-staged run, and `LABEL rando` is only half of how. Linux runs them
@@ -1496,7 +1500,9 @@ if(BUILD_TESTING)
     # rows need. The two archive-sensitive rows used to SKIP in a ROM-staged local
     # tree, leaving the merge gate with no golden coverage at all; they now run their
     # dispatch from an archive-free sandbox instead (CheckGoldenDigest.cmake), so the
-    # local gate enforces them too.
+    # local gate enforces them too — and a sandbox that cannot be built FAILS the row
+    # rather than skipping it, so no path is left on which one of these rows reports
+    # nothing.
     #
     # If you add a golden row it lands in the Linux tier automatically, and on
     # Windows only because its name starts with `Golden`. That prefix is no longer a
@@ -1517,6 +1523,12 @@ if(BUILD_TESTING)
     # it hard-links the binary and the PORT archives into
     # <build>/golden-archive-free/<name>/ and runs the dispatch there, because the
     # binary resolves archives from its own directory as well as from the cwd. The
+    # port archives are resolved from the build directory AND from the binary's own
+    # directory, and a sandbox that ends up with none of them fails rather than
+    # pinning a no-archive world. `mods/`, `assets/` and the rest of the build
+    # directory do NOT travel into the sandbox — the goldens pin the world a hosted
+    # runner reproduces, and the sandbox is not "the build directory minus the ROM
+    # archives" (CheckGoldenDigest.cmake, _archive_free_sandbox). The
     # mm-paired-attempt digest is archive-INSENSITIVE (measured: a ROM-staged
     # Windows golden passed unchanged on archive-free Linux CI), so it carries no
     # guard and is enforced everywhere.
@@ -1571,17 +1583,16 @@ if(BUILD_TESTING)
             LABEL rando
             TIMEOUT 300
             ENVIRONMENT ${_golden_env})
-        if(_golden_archive_free_only)
-            # The FALLBACK path only. A ROM-staged run normally generates in an
-            # archive-free sandbox and compares for real; it emits this marker, and
-            # CTest turns it into SKIPPED, only when that sandbox cannot be built —
-            # and the message then says plainly that this gate is enforcing nothing.
-            # Without the property that case would PASS silently, which is the
-            # vacuity #688 is about. Set directly rather than through
-            # redship_add_test: one property on two rows is not worth widening a
-            # helper every lane shares.
-            set_tests_properties(${_golden_row} PROPERTIES SKIP_REGULAR_EXPRESSION "RSBS_GOLDEN_SKIP:")
-        endif()
+        # NO SKIP PROPERTY, DELIBERATELY. These two rows carried
+        # `SKIP_REGULAR_EXPRESSION "RSBS_GOLDEN_SKIP:"` for the fallback where the
+        # archive-free sandbox could not be built, which meant the local merge gate
+        # was one silent step — a sandbox that fails to build for any reason — from
+        # the zero-coverage state this machinery exists to end, with prose asking a
+        # human to read the skip reason as the only thing in the way. A sandbox that
+        # cannot be built is a broken harness, not a false world move, so
+        # CheckGoldenDigest FATAL_ERRORs there instead and names both ways out. Every
+        # golden row is now green or red on every gate; a SKIPPED golden row means
+        # somebody re-added a skip path.
     endforeach()
 
     # #661 end to end: the OoTEntrancePin row above proves the pair is not a POOL

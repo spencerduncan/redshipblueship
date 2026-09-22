@@ -65,11 +65,21 @@
 # an ALLOWLIST of port archives (soh.o2r / 2ship.o2r / redship.o2r) into
 # ${WORK_DIR}/golden-archive-free/<NAME>/ and runs the dispatch there. An allowlist,
 # not a denylist, so a ROM-derived archive this file has never heard of cannot leak
-# in by being unlisted; and the populated sandbox is re-checked for every
-# ROM-derived name before the run, so a leak FAILS the row instead of quietly
-# pinning the wrong environment. If the sandbox cannot be built at all, the row
-# falls back to the SKIP it always did, saying plainly that the local gate is then
-# not enforcing it.
+# in by being unlisted.
+#
+# WHAT THE SANDBOX ASSERTS, and what it used to only claim. Because the sandbox is
+# wiped and then populated from that allowlist, re-scanning it afterwards for
+# ROM-derived names — the "the defining property is asserted, not assumed" check the
+# first version of this carried — could not fail for any input: dead code where a
+# safety property was advertised. The checks that CAN fail are the two the code now
+# makes: the port set is RESOLVED from ${WORK_DIR} and from the executable's own
+# directory and an empty result is a refusal (a sandbox holding the binary alone
+# generates a no-archive world and would fail the row about a move that never
+# happened), and $SHIP_HOME — the one directory the loader probes that the allowlist
+# cannot control — is refused when a ROM-derived archive sits in it. Each placement
+# is checked as it is made, so reaching the end of the population loop means every
+# resolved file is in the sandbox. If the sandbox cannot be built, the row FAILS: a
+# broken harness is a finding, not a skip (see the guard below).
 #
 # REGEN DELIBERATELY DOES NOT USE THE SANDBOX — see the refusal below. The two
 # directions fail differently: a sandbox that is subtly wrong turns a COMPARE row
@@ -149,35 +159,97 @@ set(_port_archive_names soh.o2r 2ship.o2r redship.o2r)
 # archives only, so a run whose cwd and whose executable both live in it resolves
 # no ROM-derived archive anywhere. Hard links where the filesystem allows them
 # (the binary is ~68 MB and this runs per row, per ctest invocation), a copy
-# otherwise. Returns the directory and the executable to run through out_dir /
-# out_exe, or leaves both empty and explains why in out_reason.
+# otherwise. Returns the directory, the executable to run and the port archives it
+# actually holds through out_dir / out_exe / out_ports, or leaves them empty and
+# explains why in out_reason.
+#
+# WHAT TRAVELS INTO THE SANDBOX, exhaustively: the binary, whichever of the three
+# PORT archives the source environment actually has, and `shipofharkinian.json`.
+# WHAT DELIBERATELY DOES NOT: `mods/` (resolved through the same
+# LocateFileAcrossAppDirs probe list since #670/#704, so it IS load-bearing for the
+# resource set), `assets/`, `gamecontrollerdb.txt`, `imgui.ini`, `Randomizer/`,
+# `randomizer-mm/`, `Save/`, and any previous run's output. Dropping them is the
+# intended reading of these goldens — they pin the world a hosted runner can
+# reproduce and a runner has none of those — but it is NOT the same statement as
+# "the archive set is the only difference from a run in the build directory", which
+# is what this comment used to make and which any local tree with mods staged
+# falsifies. A golden that covers a modded resource set would be a new golden with
+# its own pinned inputs, not this sandbox.
 # ----------------------------------------------------------------------------
-function(_archive_free_sandbox work_dir exe golden_name rom_names port_names out_dir out_exe out_reason)
+function(_archive_free_sandbox work_dir exe golden_name rom_names port_names
+                               out_dir out_exe out_ports out_reason)
     set(${out_dir} "" PARENT_SCOPE)
     set(${out_exe} "" PARENT_SCOPE)
+    set(${out_ports} "" PARENT_SCOPE)
     set(${out_reason} "" PARENT_SCOPE)
+
+    string(REPLACE ";" ", " _port_list "${port_names}")
 
     set(_dir "${work_dir}/golden-archive-free/${golden_name}")
     # Rebuilt from scratch every run: a stale link to a previous build's binary,
     # or a file somebody dropped in by hand, would make this row report on an
     # environment nobody chose.
     file(REMOVE_RECURSE "${_dir}")
+    # No "if it does not exist, return a reason" check here, and that is measured
+    # rather than assumed: `file(MAKE_DIRECTORY)` without the RESULT keyword (which
+    # this project's 3.26 floor predates) emits a FATAL error of its own when it
+    # cannot create the path — verified by putting a regular file where
+    # golden-archive-free/ has to be, which aborts the script at this line. So a
+    # reason branch here could never run, and the row goes red through CMake's own
+    # message either way.
     file(MAKE_DIRECTORY "${_dir}")
-    if(NOT IS_DIRECTORY "${_dir}")
-        set(${out_reason} "could not create ${_dir}" PARENT_SCOPE)
+
+    get_filename_component(_exe_name "${exe}" NAME)
+    get_filename_component(_exe_dir "${exe}" DIRECTORY)
+
+    # WHERE THE PORT ARCHIVES COME FROM: ${work_dir} first, then the EXECUTABLE'S
+    # OWN DIRECTORY — the two places the loader itself looks — because they are not
+    # always the same directory. A multi-config MSVC build puts
+    # $<TARGET_FILE:redship> in <build>/<Config>/ while WORK_DIR is <build>, and a
+    # tree where the ROM archives were staged before the archive-generating target
+    # ran has them split the same way. The first version of this function resolved
+    # from ${work_dir} only, with no else branch and no post-condition: in such a
+    # tree it built a sandbox holding the BINARY ALONE, announced it as "binary and
+    # port archives only", generated a world with no archives mounted at all and
+    # failed the row about a move that never happened — the same false red the old
+    # SKIP existed to avoid, now under a message asserting the environment was
+    # correct. So which port archives this environment HAS is measured here, and an
+    # empty answer is a refusal rather than a quiet sandbox.
+    set(_want_ports "")
+    set(_port_sources "")
+    foreach(_port IN LISTS port_names)
+        if(EXISTS "${work_dir}/${_port}")
+            list(APPEND _want_ports "${_port}")
+            list(APPEND _port_sources "${work_dir}/${_port}")
+        elseif(EXISTS "${_exe_dir}/${_port}")
+            list(APPEND _want_ports "${_port}")
+            list(APPEND _port_sources "${_exe_dir}/${_port}")
+        endif()
+    endforeach()
+    if(NOT _want_ports)
+        # string(CONCAT) rather than several arguments to set(): set() with more than
+        # one value makes a LIST, and the reason then reaches the failure message with
+        # a literal `;` at every line break.
+        string(CONCAT _reason
+            "no port archive (${_port_list}) was found in ${work_dir} or in the binary's own directory ${_exe_dir}, so "
+            "the sandbox would hold the binary alone and generate a world with NO archives mounted — which is not the "
+            "world these goldens pin (they pin the PORT-archive world hosted CI runs). Build the archive targets, or "
+            "stage the port archives beside the binary, and re-run")
+        set(${out_reason} "${_reason}" PARENT_SCOPE)
         return()
     endif()
 
-    get_filename_component(_exe_name "${exe}" NAME)
     set(_sources "${exe}")
     set(_targets "${_dir}/${_exe_name}")
-    foreach(_port IN LISTS port_names)
-        if(EXISTS "${work_dir}/${_port}")
-            list(APPEND _sources "${work_dir}/${_port}")
-            list(APPEND _targets "${_dir}/${_port}")
-        endif()
+    list(APPEND _sources ${_port_sources})
+    foreach(_port IN LISTS _want_ports)
+        list(APPEND _targets "${_dir}/${_port}")
     endforeach()
 
+    # Every placement is checked HERE, which is what makes the sandbox's contents
+    # an assertion rather than a hope: this loop returns a reason for the first
+    # file that did not land, so reaching its end means the binary and every one of
+    # ${_want_ports} is in ${_dir}.
     list(LENGTH _sources _count)
     math(EXPR _last "${_count} - 1")
     foreach(_i RANGE ${_last})
@@ -191,26 +263,55 @@ function(_archive_free_sandbox work_dir exe golden_name rom_names port_names out
     endforeach()
 
     # The window backend and every other CVar the local tree is configured with
-    # travel into the sandbox, so the ONLY difference between this run and a run
-    # in ${work_dir} is the archive set. Copied rather than linked: the run
-    # rewrites its config on exit, and a hard link would write that back into the
-    # build directory's own config.
+    # travel into the sandbox. Copied rather than linked: the run rewrites its
+    # config on exit, and a hard link would write that back into the build
+    # directory's own config. See this function's header for what does and does not
+    # travel — this is not "everything except the archives".
     if(EXISTS "${work_dir}/shipofharkinian.json")
         file(COPY_FILE "${work_dir}/shipofharkinian.json" "${_dir}/shipofharkinian.json" ONLY_IF_DIFFERENT)
     endif()
 
-    # The point of the sandbox, re-checked rather than assumed. If any ROM-derived
-    # name is resolvable from here, this row must not pretend to be the
-    # archive-free gate.
-    foreach(_rom IN LISTS rom_names)
-        if(EXISTS "${_dir}/${_rom}")
-            set(${out_reason} "the sandbox ${_dir} still contains ${_rom}" PARENT_SCOPE)
-            return()
-        endif()
-    endforeach()
+    # THE ONE LEAK THE ALLOWLIST CANNOT PREVENT. Everything placed above comes from
+    # a fixed allowlist into a directory that was just wiped, so re-scanning the
+    # sandbox for ROM-derived names — which is what this spot used to do — could not
+    # fail for any input: it was dead code standing in for the safety property,
+    # while the property that CAN be violated went unchecked.
+    #
+    # It is this one. The binary resolves an archive through
+    # Ship::Context::LocateFileAcrossAppDirs: the app-CONFIG directory first, then
+    # the executable's own directory, then "./". The last two are the sandbox. The
+    # first is "." in a portable build — the sandbox again — EXCEPT that
+    # libultraship reads $SHIP_HOME instead when it is set
+    # (libultraship/src/ship/Context.cpp, the __linux__/__APPLE__ branches of
+    # GetAppDirectoryPath), so a ROM-derived archive sitting in $SHIP_HOME is
+    # resolved BEFORE the sandbox's own directory and the sandbox is not
+    # archive-free at all. Checked host-independently, and therefore conservative on
+    # Windows where the port ignores SHIP_HOME: a ROM archive in a SHIP_HOME this
+    # row cannot rule out makes the row say so rather than pin an environment it
+    # cannot describe.
+    #
+    # A NON_PORTABLE build (libultraship's option, OFF by default and OFF in every
+    # configuration this repo uses) resolves the app-config dir through SDL's pref
+    # path, which this script cannot compute; such a build is outside what the
+    # sandbox claims.
+    if(DEFINED ENV{SHIP_HOME})
+        foreach(_rom IN LISTS rom_names)
+            if(EXISTS "$ENV{SHIP_HOME}/${_rom}")
+                string(CONCAT _reason
+                    "SHIP_HOME=$ENV{SHIP_HOME} contains ${_rom}, and the loader searches the app-config directory "
+                    "BEFORE the executable's own directory, so that ROM-derived archive would be mounted from inside "
+                    "the sandbox — the sandbox would not be archive-free. Move it out of SHIP_HOME, or unset SHIP_HOME "
+                    "for this run")
+                set(${out_reason} "${_reason}" PARENT_SCOPE)
+                return()
+            endif()
+        endforeach()
+    endif()
 
+    string(REPLACE ";" ", " _got_ports "${_want_ports}")
     set(${out_dir} "${_dir}" PARENT_SCOPE)
     set(${out_exe} "${_dir}/${_exe_name}" PARENT_SCOPE)
+    set(${out_ports} "${_got_ports}" PARENT_SCOPE)
 endfunction()
 
 # ----------------------------------------------------------------------------
@@ -219,11 +320,15 @@ endfunction()
 #
 # It guards BOTH directions, because the two failure modes are not symmetric:
 #   - COMPARE in a ROM-staged tree would be red about a move that did not happen,
-#     so it runs in an archive-free SANDBOX instead (and only skips, with the
-#     marker below, when the sandbox cannot be built at all). The row's
-#     SKIP_REGULAR_EXPRESSION matches that marker, so CTest reports SKIPPED with
-#     the reason rather than PASSED — a silent pass here would be the same vacuity
-#     #688 is about.
+#     so it runs in an archive-free SANDBOX instead, and FAILS when that sandbox
+#     cannot be built. There is no skip path any more: these rows are green or red
+#     everywhere. The skip this replaced carried the wrong justification — "a
+#     COMPARE here would be red about a move that did not happen" is an argument
+#     about the ROM-staged tree, not about a sandbox that could not be built, and
+#     the latter is a harness fault whose fix is named in the failure message. It
+#     also left the local gate one silent step from the zero-coverage state #688 is
+#     about, with prose asking a human to read the skip reason as the only thing in
+#     the way.
 #   - REGEN in a ROM-staged tree writes a world CI can never reproduce and is
 #     REFUSED. That direction is the dangerous one and it used to be unguarded:
 #     the one documented re-pin command pins its cwd to ${CMAKE_BINARY_DIR}, which
@@ -273,7 +378,7 @@ if(ARCHIVE_FREE_ONLY)
         else()
             _archive_free_sandbox("${WORK_DIR}" "${REDSHIP_EXE}" "${GOLDEN_NAME}"
                                   "${_rom_archive_names}" "${_port_archive_names}"
-                                  _sandbox_dir _sandbox_exe _sandbox_reason)
+                                  _sandbox_dir _sandbox_exe _sandbox_ports _sandbox_reason)
             if(_sandbox_dir)
                 set(_run_dir "${_sandbox_dir}")
                 set(_run_exe "${_sandbox_exe}")
@@ -281,26 +386,39 @@ if(ARCHIVE_FREE_ONLY)
                 message(STATUS
                     "CheckGoldenDigest(${GOLDEN_NAME}): ${_rom_list} are present in ${WORK_DIR}, which would generate "
                     "a DIFFERENT, unpinned world — running the dispatch in the archive-free sandbox ${_sandbox_dir} "
-                    "instead (binary and port archives only). This is what makes the row enforceable in a ROM-staged "
-                    "local tree rather than skipped there.")
+                    "instead (the binary plus the port archives ${_sandbox_ports}, and shipofharkinian.json; NOT "
+                    "mods/, assets/ or any other build-directory content — see CheckGoldenDigest.cmake's "
+                    "_archive_free_sandbox header). This is what makes the row enforceable in a ROM-staged local tree "
+                    "rather than skipped there.")
             else()
-                message(STATUS
-                    "RSBS_GOLDEN_SKIP: CheckGoldenDigest(${GOLDEN_NAME}) needs an ARCHIVE-FREE run, found "
-                    "${_rom_list} in ${WORK_DIR}, and could not build the archive-free sandbox "
-                    "(${_sandbox_reason}).\n"
-                    "  THIS GATE IS THEREFORE NOT ENFORCING THIS ROW: it is neither green nor red here, and only the "
-                    "two CI legs (Linux's `rando` tier under xvfb-run, Windows' own `--tests-regex '^Golden'` step) "
-                    "are checking this golden. Normally a ROM-staged run does NOT skip — it hard-links the binary and "
-                    "the port archives into ${WORK_DIR}/golden-archive-free/${GOLDEN_NAME} and runs there — so this "
-                    "message means that sandbox could not be built, not that skipping is the design.\n"
-                    "  The goldens pin the world generated with the PORT archives only, because that is the world "
-                    "hosted CI can reproduce (a runner never has ROM-derived archives). With oot.o2r mounted the "
-                    "per-area exclude-location option groups drop out of the settings string Playthrough_Init hashes, "
-                    "the fill is re-seeded differently, and a run in ${WORK_DIR} generates a DIFFERENT, unpinned "
-                    "world — so comparing it to the golden would report a move that did not happen.\n"
-                    "  To enforce it here without the sandbox, move oot.o2r and mm.o2r out of ${WORK_DIR} and re-run. "
-                    "See docs/determinism-goldens.md.")
-                return()
+                # A BROKEN HARNESS IS RED, NOT SKIPPED. This used to emit an
+                # `RSBS_GOLDEN_SKIP:` marker that the row's SKIP_REGULAR_EXPRESSION
+                # turned into SKIPPED with exit 0 — which put the local merge gate
+                # one silent step away from the zero-coverage state this whole
+                # mechanism exists to leave behind, and inherited the justification
+                # for a DIFFERENT condition: skipping was defensible when the
+                # alternative was a COMPARE in a ROM-staged tree going red about a
+                # move that did not happen, and it is not defensible for "the
+                # sandbox could not be built", which is a harness fault with a
+                # one-line fix. So it fails, and the message carries both ways out.
+                message(FATAL_ERROR
+                    "CheckGoldenDigest(${GOLDEN_NAME}): needs an ARCHIVE-FREE run, found ${_rom_list} in ${WORK_DIR}, "
+                    "and could not build the archive-free sandbox — ${_sandbox_reason}.\n"
+                    "  THIS ROW SAYS NOTHING ABOUT WHETHER THE WORLD MOVED. It is failing on the harness, not on a "
+                    "digest: no generation ran. It does not skip, because a SKIPPED row here would leave this gate "
+                    "with neither a green half nor a red half for the golden, which is the vacuity #688 was filed "
+                    "about.\n"
+                    "  Two ways out, both real:\n"
+                    "    1. fix the sandbox — the reason above names what could not be done; or\n"
+                    "    2. move oot.o2r and mm.o2r out of ${WORK_DIR} and re-run, which needs no sandbox at all:\n"
+                    "         ${WORK_DIR}/oot.o2r\n"
+                    "         ${WORK_DIR}/mm.o2r\n"
+                    "  Why the sandbox exists: the goldens pin the world generated with the PORT archives only, "
+                    "because that is the world hosted CI can reproduce (a runner never has ROM-derived archives). With "
+                    "oot.o2r mounted the per-area exclude-location option groups drop out of the settings string "
+                    "Playthrough_Init hashes, the fill is re-seeded differently, and a run in ${WORK_DIR} generates a "
+                    "DIFFERENT, unpinned world — so comparing THAT to the golden would report a move that did not "
+                    "happen. See docs/determinism-goldens.md.")
             endif()
         endif()
     endif()

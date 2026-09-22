@@ -152,11 +152,31 @@ Consequences you will actually hit:
   back to `./`, so moving only the working directory would still find
   `build-cmake/oot.o2r`. The port set is an **allowlist** (`soh.o2r`, `2ship.o2r`,
   `redship.o2r`), so a ROM-derived archive the checker has never heard of cannot
-  leak in by not being named, and the populated sandbox is re-checked for every
-  ROM-derived name before the run. `shipofharkinian.json` is copied in, so the
-  archive set is the *only* difference from a run in the build directory.
-  If the sandbox cannot be built at all, the row falls back to the old SKIP and the
-  message says outright that this gate is then enforcing nothing.
+  leak in by not being named — and because that makes a re-scan of the sandbox for
+  ROM names unfailable by construction, the two checks that *can* fail are the ones
+  the code makes instead: the port archives are resolved from the build directory
+  **and from the binary's own directory** (they are not always the same directory)
+  and a sandbox that ends up with none of them **fails**, rather than generating a
+  no-archive world and blaming the fill; and `$SHIP_HOME`, the one directory the
+  loader probes that the allowlist cannot control, is refused when a ROM-derived
+  archive sits in it.
+
+  **What travels into the sandbox, exhaustively:** the binary, the port archives the
+  environment actually has, and `shipofharkinian.json` (so the window backend and
+  every configured CVar come along). **What deliberately does not:** `mods/` — which
+  since #670/#704 is resolved through the same probe list and therefore *is*
+  load-bearing for the resource set — plus `assets/`, `gamecontrollerdb.txt`,
+  `imgui.ini`, `Randomizer/`, `randomizer-mm/`, `Save/` and any earlier run's
+  output. Dropping them is the intended reading (a hosted runner has none of them),
+  but it is **not** the same claim as "the archive set is the only difference from a
+  run in the build directory", which this page and the code both made for one PR and
+  which any tree with mods staged falsifies. A golden covering a modded resource set
+  would be a new golden with its own pinned inputs.
+
+  If the sandbox cannot be built, the row **fails** — it does not skip. A sandbox
+  that cannot be built is a broken harness, not a false world move, and the failure
+  message names both ways out (fix the reason it gives, or move `oot.o2r`/`mm.o2r`
+  out of the build directory, which needs no sandbox at all).
 * **`GoldenPairedAttemptDigest` is archive-insensitive and is enforced
   everywhere** — measured: a golden regenerated with ROM archives staged and one
   regenerated without them are byte-identical, and the ROM-staged file passed
@@ -167,10 +187,11 @@ Consequences you will actually hit:
   move. This used to be a human-only rule stated in three places, which was the
   weakest possible defense for the most damaging mistake the target can make: it
   runs with its working directory pinned to the build tree, that tree is the
-  ROM-staged one in a normal local build, the local `rando` tier *skips* the rows
-  that would object, and the first symptom is a red Linux leg on your PR and on
-  every PR after it. (The checking rows no longer skip there — see the first bullet
-  — but a re-pin still has no business happening in that tree.)
+  ROM-staged one in a normal local build, the local `rando` tier *skipped* the rows
+  that would have objected, and the first symptom is a red Linux leg on your PR and
+  on every PR after it. (The checking rows no longer skip there — see the first
+  bullet — but a re-pin still has no business happening in that tree, which is why
+  the refusal stays even though the skip that made it invisible is gone.)
   **The deliberate override is its own target:**
 
   ```
@@ -190,8 +211,11 @@ Consequences you will actually hit:
 
 The underlying option-construction asymmetry is a real defect in its own right (the
 headless harness fingerprints a different option set than a ROM-mounted run does),
-tracked as #702. Fixing it would let one golden cover both environments and remove
-the skip. It is not the goldens' job to hide it.
+tracked as #702. Fixing it would let one golden cover both environments and make the
+sandbox unnecessary — the field-4 machinery, the re-pin refusal and the sandbox all
+exist only because the two environments disagree. (This sentence used to say "remove
+the skip"; there is no skip left to remove, and there was already only a fallback one
+when it was written.) It is not the goldens' job to hide it.
 
 ## Which gate runs these rows
 
@@ -226,8 +250,11 @@ Things to keep in view rather than rediscover:
 * The two seed rows are enforced in a ROM-staged local run too, but by a
   different mechanism than on CI: CI's environment *is* archive-free, while the
   local row **constructs** an archive-free environment. If that construction fails,
-  the row skips rather than lying, and says so — so a `SKIPPED` golden row in a
-  local tier run is a finding about the harness, not a pass.
+  the row **fails** — there is no skip path on any gate, so a `SKIPPED` golden row
+  means somebody re-added one. The earlier version of this machinery skipped there,
+  which left the enforcement of these two rows resting on a human noticing a skip
+  message; the reason the skip existed (a COMPARE in a ROM-staged tree is red about a
+  move that did not happen) never applied to "the sandbox could not be built".
 
 ## Platform portability
 
@@ -289,13 +316,25 @@ format is **six** pipe-separated fields:
 <ctest-name>|<golden-name>|<dispatch>|<digest-env-var>|<archive-free-only>|<extra-env>
 ```
 
-`<archive-free-only>` is `ON` when the pinned world depends on the archive set —
-`ON` makes the CTest row **skip** when `oot.o2r`/`mm.o2r` are present in the build
-directory, and makes the regen target **refuse** to re-pin there (see "The archive
-set is part of the pin"). Use `OFF` only when you have measured that the digest is
-identical with and without the ROM archives. A five-field line aborts configure at
-`list(GET _golden_fields 5 ...)` with `list index: 5 out of range`; both consumers
-read all six.
+`<archive-free-only>` is `ON` when the pinned world depends on the archive set. What
+`ON` does, exactly, when `oot.o2r`/`mm.o2r` are present in the build directory:
+
+* the **CTest row** builds an archive-free sandbox under
+  `<build>/golden-archive-free/<golden-name>/` — a hard link to the binary, the port
+  archives, `shipofharkinian.json` — and runs its dispatch *there*, so the row is
+  enforced rather than skipped in a ROM-staged tree. If that sandbox cannot be built
+  the row **fails**; it never skips. (`ON` used to mean "skip in a ROM-staged tree",
+  and this paragraph still said so for one PR after the sandbox landed — in the one
+  section a future golden-adder reads to learn what field 4 does.)
+* the **re-pin targets refuse**: `regen-golden-digests` stops with an error naming
+  `oot.o2r` and `mm.o2r`, and only `regen-golden-digests-rom-mounted` (which forwards
+  `-DALLOW_ROM_ARCHIVE_REGEN=ON`) will pin the ROM-mounted world.
+
+Both behaviours are described in "The archive set is part of the pin". Use `OFF` only
+when you have measured that the digest is identical with and without the ROM
+archives. A five-field line aborts configure at `list(GET _golden_fields 5 ...)` with
+`list index: 5 out of range`; all three consumers — the CTest loop and the two re-pin
+targets — read all six.
 
 **Name the row `Golden...`.** The `LABEL rando` the loop applies gets it run on Linux
 CI automatically, but the Windows leg selects these rows by `--tests-regex '^Golden'`,
