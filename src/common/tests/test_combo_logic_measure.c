@@ -811,8 +811,10 @@ TestResult ComboLogicMeasure_Run(void) {
                                       : roundStats.median;
     const double fullBagOneAttemptMs = fillPerRoundMs * fullBagRounds;
     printf("[TEST] combo-logic-measure: PER-ROUND INSIDE THE FILL: %.1fms (%.1fms wall / %d rounds) against %.1fms for "
-           "an isolated round — the difference is the crossing exchange and the post-restore placement re-apply, "
-           "which the isolated round does not pay because its tables are empty.\n",
+           "an isolated round. The gap is work the isolated round cannot pay because its tables are EMPTY — the "
+           "post-restore placement re-apply (one `place` per placement per round, for a restoring side, which MM is) "
+           "and the crossing exchange. Which of the two dominates is NOT measured here: the row counts exchanges only "
+           "for the isolated rounds, where the answer is trivially zero.\n",
            fillPerRoundMs, beatEitherA.wallMs, beatEitherA.res.rounds, roundStats.median);
     printf("[TEST] combo-logic-measure: EXTRAPOLATED PER ATTEMPT (arithmetic): the full union bag over %.0f rounds at "
            "%.1fms = %.0fms = %.1fs per attempt, i.e. %.2fx the 30000ms floor and %.2fx this host's %ums per-attempt "
