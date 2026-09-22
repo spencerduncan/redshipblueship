@@ -11,10 +11,11 @@
  *
  * THREADING: game thread only, like every other src/common coordinator. The
  * working buffers below are file-static rather than stack-allocated (the host
- * buffers dominate: RSBS_COMBO_LOGIC_HOST_CAP is 4096 ids, so three candidate
- * buffers plus one scratch are ~32 KB, and the bag adds ~3 KB; the fill recurses
- * nowhere), which is only safe because of that. A future off-thread caller must
- * marshal, exactly as shared_items.h's sourced-grant seam requires.
+ * buffers dominate: RSBS_COMBO_LOGIC_HOST_CAP is 4096 ids, so the three candidate
+ * buffers and the scratch come to 32 KB, with the bag buffers a few KB on top, and
+ * the fill recurses nowhere), which is only safe because of that. A future
+ * off-thread caller must marshal, exactly as shared_items.h's sourced-grant seam
+ * requires.
  */
 
 #include "combo_logic.h"
@@ -689,12 +690,13 @@ static int ComboLogicRoundRun(const ComboLogicBagItem* assumed, int assumedCount
 
     // --- close the bracket, in reverse --------------------------------------
     //
-    // Both halves are driven by what was CALLED, which is what makes this correct
-    // over a round that was abandoned part-opened: a side whose `snapshot` refused
-    // has neither flag set and is skipped entirely (nothing was captured, and it
-    // was never asked to begin), while every side opened before it is torn down in
-    // full. combo_logic.h states the rule as a contract because an engine has to
-    // be able to rely on it.
+    // Each half is gated by what actually happened, not by whether the round
+    // succeeded: `snapped` by a snapshot that RETURNED nonzero (there is nothing to
+    // put back otherwise), `beginCalled` by the CALL. That is what makes this
+    // correct over a round abandoned part-opened — a side whose `snapshot` refused
+    // has neither flag set and is skipped entirely, while every side opened before
+    // it is torn down in full. combo_logic.h states the rule as a contract,
+    // because an engine has to be able to rely on it.
     for (int s = 1; s >= 0; --s) {
         const uint8_t g = order[s];
         const ComboLogicEngine* e = sEngines[g];
