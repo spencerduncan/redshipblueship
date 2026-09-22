@@ -918,9 +918,12 @@ extern "C" int MMModsMount_RunHeadless(const char* sohArchive, const char* mmArc
 #if defined(_WIN32)
             // Fall back to a JUNCTION, which is the point of this branch rather than
             // a convenience: `create_directory_symlink` needs Developer Mode or
-            // SeCreateSymbolicLinkPrivilege on Windows, so without this the leg
-            // never ran on a developer workstation or on CI's Windows job — a lock
-            // observable on one of three platforms. A junction is a reparse point
+            // SeCreateSymbolicLinkPrivilege on Windows, and without this fallback the
+            // leg did not run on the workstation this was developed on (measured: "A
+            // required privilege is not held by the client") — and the other two
+            // platforms' runs of MMModsMount SKIP whenever soh.o2r/2ship.o2r are
+            // unstaged, which is how CI's Linux job runs this label. A junction is a
+            // reparse point
             // MSVC's <filesystem> reports as `file_type::junction` and, measured on
             // this workstation, `recursive_directory_iterator` descends into it ONLY
             // with follow_directory_symlink: 1 file found with
