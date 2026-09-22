@@ -66,10 +66,23 @@
  *      ever uses (the whole bag; the fill's first round assumes bag-1). min /
  *      median / max over a sample, plus the alternations each round needed.
  *
+ *      THAT NUMBER IS NOT THE BUDGET'S NUMBER, and the row says so where it
+ *      prints both. An isolated round runs with EMPTY placement tables, so it
+ *      pays neither the crossing exchange nor the post-restore placement
+ *      re-apply — and the re-apply is one `place` per placement per round for a
+ *      restoring side, which MM is. The fill's own wall/rounds is therefore also
+ *      reported, and it is roughly double.
+ *
  * (M3) THE FILL, under the proved no-tricks rung and under `none`, for three
  *      coordinator seeds and both GOALs that have an evaluator. Reported: wall
  *      time, rounds, rounds per placed item, attempts (hence batch roll-backs),
  *      dead-ends, and whether the GOAL became provable.
+ *
+ * (M4) THE BUDGET ARITHMETIC: the full union bag's cost PER ATTEMPT from M2's
+ *      in-fill figure, against #582's floor and this host's calibrated
+ *      per-attempt budget — and then times `RSBS_COMBO_LOGIC_FILL_RETRIES`
+ *      against the total-creation budget, because the budget is per attempt while
+ *      the fill may take up to that many within one seed.
  *
  * THE THREE APPROXIMATIONS, named here so nobody reads a number as more than it
  * is:
@@ -79,10 +92,12 @@
  *       even inside the cap a fill runs one round per bag item — so a full-bag
  *       fill is minutes of wall clock and five of them is not a CI row. The row
  *       therefore measures a deterministic STRIDE SAMPLE of each half, prints the
- *       full figures beside the sampled ones, and extrapolates the full-bag total
- *       arithmetically from the measured median round. `RSBS_COMBO_MEASURE_*`
- *       overrides every size, so the full-bag run is one env var away and its
- *       numbers are what the epic comment quotes.
+ *       full figures beside the sampled ones, and extrapolates the full bag
+ *       arithmetically — twice, once from the isolated median round and once from
+ *       the in-fill per-round figure, because the two differ by a factor of two
+ *       and only the second is what a budget should be compared against.
+ *       `RSBS_COMBO_MEASURE_*` overrides every size, so a larger run is one env
+ *       var away; the epic comment quotes the 32-item and 512-item runs.
  *
  *   (B) MM'S HOST POOL CAN BE NARROWED, AND BY DEFAULT IS NOT. The first draft of
  *       this row narrowed it unconditionally, because `ComboLogicCollectFrom` sized
