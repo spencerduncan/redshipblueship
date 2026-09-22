@@ -5,8 +5,10 @@
 #include <ship/utils/StringHelper.h>
 
 #include "mod_menu.h"
+// #670: the one-time re-homing notice and the early-ended-walk warning both go to
+// stderr, and the second of those is in code standalone SoH compiles too.
+#include <cstdio>
 #ifdef RSBS_SINGLE_EXECUTABLE
-#include <cstdio>         // #670: the one-time re-homing notice goes to stderr
 #include "mod_archives.h" // src/common — #593, mod mounts must survive a game switch
 #endif
 #include "soh/OTRGlobals.h"
@@ -175,8 +177,26 @@ static void WarnOnceOnRehomedEnabledMod(const std::filesystem::path& skipped) {
 //                   is really globbing this same directory. Ignored without
 //                   RSBS_SINGLE_EXECUTABLE, where there is no MM.
 // @return the entries of @p modsPath that are OoT's mod archives, in iteration
-//         order. Unchanged behaviour for standalone SoH: without
-//         RSBS_SINGLE_EXECUTABLE the only filter is IsValidExtension, as before.
+//         order.
+//
+// WHAT CHANGED FOR STANDALONE SoH (no RSBS_SINGLE_EXECUTABLE). Corrected after PR
+// #716's review, whose reviewer was right that the previous line here claimed
+// "unchanged behaviour" on the one axis where it is not unchanged:
+//   - The FILTER is unchanged: IsValidExtension and nothing else. No partition, no
+//     roots-shared question, no `mods/mm` skip.
+//   - The WALK is not. Upstream used the THROWING recursive_directory_iterator
+//     overloads, so an unreadable subdirectory or a broken reparse point threw out
+//     of UpdateModFiles at GUI init. This walk is error_code-driven, and as first
+//     written it would instead have stopped early and silently dropped every mod
+//     after the bad entry — UpdateModFiles then erases those stems from the enabled
+//     set as "missing", so a player's mod disappears with no message at all, in
+//     iteration order. Two things make the change safe rather than silent:
+//     `skip_permission_denied` is now in the options on BOTH sides of the #ifdef, so
+//     the common case costs that one subdirectory instead of the rest of the walk;
+//     and an error that does end the walk is reported on stderr below.
+//   - Covered by no row: every build this tree produces defines
+//     RSBS_SINGLE_EXECUTABLE (CI builds no standalone SoH), so the #else branch is
+//     compiled nowhere here. The divergence is removed, not locked.
 std::vector<std::filesystem::path> CollectOoTModFiles(const std::string& modsPath, const std::string& mmModsPath) {
     std::vector<std::filesystem::path> claimed;
     std::error_code ec;
@@ -197,15 +217,21 @@ std::vector<std::filesystem::path> CollectOoTModFiles(const std::string& modsPat
 #endif
     // The SHARED walk options and the same error_code discipline MM's glob uses
     // (Rsbs::kModsWalkOptions, src/common/mod_archives.h): one tree must not have
-    // two traversal rules. In standalone SoH the options stay upstream's
-    // follow_directory_symlink, but the iteration is error_code-driven here too —
-    // a broken reparse point in a player's mods folder used to throw out of
-    // UpdateModFiles at GUI init.
+    // two traversal rules.
+    //
+    // The #else spells the SAME TWO OPTIONS out because mod_archives.h is a
+    // single-exe include here (see the top of this file), not because standalone SoH
+    // wants different ones. It carried only follow_directory_symlink until PR #716's
+    // review: paired with the error_code overloads below, a permission-denied
+    // subdirectory then ENDED the walk instead of costing one directory, and every
+    // mod after it vanished from the menu without a message. If these two lists ever
+    // have to differ, say why here.
     constexpr std::filesystem::directory_options kWalkOptions =
 #ifdef RSBS_SINGLE_EXECUTABLE
         Rsbs::kModsWalkOptions;
 #else
-        std::filesystem::directory_options::follow_directory_symlink;
+        std::filesystem::directory_options::follow_directory_symlink |
+        std::filesystem::directory_options::skip_permission_denied;
 #endif
     std::error_code walkEc;
     for (std::filesystem::recursive_directory_iterator it(modsPath, kWalkOptions, walkEc), end;
@@ -237,6 +263,18 @@ std::vector<std::filesystem::path> CollectOoTModFiles(const std::string& modsPat
             continue;
         }
         claimed.push_back(it->path());
+    }
+    // An error_code-driven walk that ends early returns a PREFIX of the tree, and
+    // UpdateModFiles cannot tell that from "those mods are gone": it erases their
+    // stems from the enabled set as missing. Say so, once, with the count already
+    // collected, so the symptom ("some of my mods vanished") has a cause on stderr
+    // instead of being invisible. Not fatal: a prefix of the mods is still better
+    // than upstream's exception out of GUI init.
+    if (walkEc) {
+        fprintf(stderr,
+                "[OoT] WARNING: the walk of mods folder '%s' ended early after %d archive(s): %s. Mods that sort "
+                "after that point were NOT offered in the mod menu and will be dropped from the enabled list.\n",
+                modsPath.c_str(), (int)claimed.size(), walkEc.message().c_str());
     }
     return claimed;
 }
@@ -274,7 +312,18 @@ void UpdateModFiles(bool init = false, bool reset = false) {
     unsupportedFiles.clear();
     filePaths.clear();
     bool changed = false;
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #670, PR #716's review: the same resolver MM's root comes from
+    // (Combo_ModsRootForGame -> LocateFileAcrossAppDirs("mods",
+    // Combo_ModsAppShortName(GAME_OOT))), so the two roots the roots-shared gate
+    // below compares are produced by ONE piece of code rather than by two copies of
+    // the call that could drift. Identical to the upstream line while
+    // Combo_ModsAppShortName(GAME_OOT) and appShortName agree, which the #670 row
+    // asserts (OoT_ModsAppShortName, below).
+    std::string modsPath = Combo_ModsRootForGame(GAME_OOT);
+#else
     std::string modsPath = Ship::Context::LocateFileAcrossAppDirs("mods", appShortName);
+#endif
     std::map<std::string, std::string> tempMods;
     if (modsPath.length() > 0 && std::filesystem::exists(modsPath)) {
         std::vector<std::filesystem::path> enabledFiles;
@@ -327,6 +376,24 @@ void UpdateModFiles(bool init = false, bool reset = false) {
 }
 
 #ifdef RSBS_SINGLE_EXECUTABLE
+/**
+ * The app short name THIS port's mods lookups pass, straight off
+ * games/oot/soh/OTRGlobals.h's `appShortName`.
+ *
+ * Seam for the #670 row's app-short-name leg, which pins it equal to
+ * Combo_ModsAppShortName(GAME_OOT). "soh" has two definitions — that one, and the
+ * port-global here, which names the app DIRECTORY in some forty places and cannot be
+ * replaced from src/common. If they drift, OoT reads its config and archives out of
+ * one app directory and its mods out of another, and CheckAndCreateModFolder
+ * (games/oot/soh/OTRGlobals.cpp, the one mods path still resolved from
+ * `appShortName` directly, through the GetPathRelativeToAppDirectory API this
+ * resolver does not wrap) creates the folder in the wrong one. A row is the only
+ * thing that can catch that; there is no way to make it one definition.
+ */
+extern "C" const char* OoT_ModsAppShortName(void) {
+    return appShortName.c_str();
+}
+
 /**
  * Headless seam for the #670 partition lock (src/common/tests/test_mm_mods_mount.c).
  *

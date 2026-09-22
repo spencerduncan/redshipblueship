@@ -24,15 +24,35 @@ namespace {
 // LocateFileAcrossAppDirs's appName argument) and why OoT keeps the root.
 constexpr const char kMmModsSubdir[] = "mm";
 
-// The app short names the two ports hand LocateFileAcrossAppDirs, in ONE place.
-// games/oot/soh/OTRGlobals.h's `appShortName` and
-// games/mm/2s2h/GameExports_SingleExe.cpp's `kMmAppName` are the originals, and
-// both mods lookups now go through Combo_ModsRootForGame below rather than
-// spelling the call out again. A drift between two copies of "2s2h" would be
-// silent and expensive: Combo_ModsRootsAreShared would answer "not shared", OoT
-// would claim mods/mm although MM is globbing that very directory, and every MM
-// mod would be mounted twice and registered under BOTH games — the cross-game
-// shadowing the partition exists to prevent.
+// The app short names the two MODS-ROOT lookups hand LocateFileAcrossAppDirs.
+// Stated exactly, because an earlier version of this comment claimed more than the
+// code did and the claim was the entire reason the constants exist (PR #716's
+// review):
+//
+//   - "2s2h" HAS ONE DEFINITION FOR MM'S MODS PATHS: this one.
+//     games/mm/2s2h/GameExports_SingleExe.cpp's `kMmAppName` is a reference to it
+//     (Combo_ModsAppShortName(GAME_MM)), not a second literal, so the four MM sites
+//     that use it — the mods-root lookup, MMCreateModFolder's
+//     GetPathRelativeToAppDirectory fallback two lines below it, the mm.o2r probe
+//     and the export dir — cannot drift apart. It WAS a second `"2s2h"` literal,
+//     and the hazard was not hypothetical: the two were used in the same function,
+//     MMCreateModFolder resolving `existing` through Combo_ModsRootForGame and its
+//     fallback through the local literal, so renaming the obvious-looking one made
+//     MM create one folder and glob another.
+//   - "soh" still has TWO definitions: this one and OoT's port-global
+//     `appShortName` (games/oot/soh/OTRGlobals.h), which names the app directory in
+//     some forty places and cannot be replaced from here. They MUST agree, and the
+//     #670 partition row pins them equal (test_mm_mods_mount.c's app-short-name
+//     leg, through the OoT_ModsAppShortName seam) instead of asserting it in prose.
+//   - Other "2s2h" spellings in the tree are NOT unified by this and are not mods:
+//     rsbs/src/main.cpp's boot app-name pick, src/common/archive_check.cpp's
+//     install probe.
+//
+// Why it matters: OoT's walk asks Combo_ModsRootsAreShared whether MM is globbing
+// the same tree, and gets "not shared" if the two roots were resolved under names
+// that drifted. OoT would then claim mods/mm although MM is globbing that very
+// directory, and every MM mod would be mounted twice and registered under BOTH
+// games — the cross-game shadowing the partition exists to prevent.
 constexpr const char kOoTAppShortName[] = "soh";
 constexpr const char kMmAppShortName[] = "2s2h";
 
@@ -102,21 +122,32 @@ bool PathIsUnderMmSubdir(const char* modsRoot, const char* path) {
     return IEqualsAscii(rel.begin()->generic_string(), kMmModsSubdir);
 }
 
-// OoT's rule, computed independently rather than as `!PathIsUnderMmSubdir`: the
-// path lies under the root AND its first component is not a folder reserved for
-// another game.
+// OoT's rule: the path lies under the root AND its first component is not the
+// folder reserved for MM.
 //
-// Why not the negation, which is shorter and "total by construction"? Because
-// then there is no partition to check. Two answers derived from one bool in one
-// expression cannot disagree, so the disjointness assertion in the #670 row
-// (test_mm_mods_mount.c) was a restatement of the return statement with no
-// reachable red half — the reviewer of PR #704 was right about that. Written as
-// its own rule the two CAN disagree, so the row's table measures something: it
-// pins each game's answer per path against the authored expectation, and the
-// disjointness and totality checks fire when the two rules drift. The price is
-// that totality now holds only over paths under the root, which is the honest
-// domain anyway — a path in a different tree belongs to neither game, and the
-// old code answered "OoT's" for it.
+// WHAT THIS IS AND IS NOT, stated precisely (PR #716's review corrected an earlier
+// comment here that overclaimed): this is ONE rule written out twice, the second
+// copy negated, over the same helper and the same constant. It is NOT two
+// independent tests of two independent properties, and no input can make the two
+// copies disagree while both read
+// `IEqualsAscii(rel.begin()->generic_string(), kMmModsSubdir)` off the same `rel`.
+//
+// The duplication is deliberate anyway, and buys two specific things over
+// `return game == GAME_MM ? isMm : !isMm;` (PR #704's shape):
+//
+//   1. A path OUTSIDE the root is now claimed by NEITHER game. The one-expression
+//      form answered "OoT's" for `./elsewhere/mm/x.o2r` against root `./mods`,
+//      which is wrong and is pinned in the row's table.
+//   2. A one-sided hand-edit of either copy — the realistic way this drifts, e.g.
+//      teaching MM's side a prefix match or giving OoT's side a second reserved
+//      name — becomes observable, because the row's generated sweep then sees a
+//      path claimed twice or claimed by nobody. Both reds were produced that way
+//      and observed.
+//
+// What it does NOT buy, and what the row's comment now says instead of the
+// opposite: the sweep's "both games claimed it" branch cannot fire against the
+// implementation as written, so it is a lock on the duplication staying in step,
+// not a measurement of a partition property over the input space.
 bool PathIsOoTs(const char* modsRoot, const char* path) {
     const std::filesystem::path rel = RelativeToModsRoot(modsRoot, path);
     if (rel.empty()) {
@@ -153,15 +184,26 @@ extern "C" bool Combo_ModPathIsForGame(GameId game, const char* modsRoot, const 
     if (!ValidGame(game) || modsRoot == nullptr || modsRoot[0] == '\0' || path == nullptr || path[0] == '\0') {
         return false;
     }
-    // Two independent rules, not one bool and its negation. See PathIsOoTs.
+    // One rule written out twice, the second copy negated, and NOT two independent
+    // tests — see PathIsOoTs for what that does and does not buy.
     return game == GAME_MM ? PathIsUnderMmSubdir(modsRoot, path) : PathIsOoTs(modsRoot, path);
+}
+
+extern "C" const char* Combo_ModsAppShortName(GameId game) {
+    if (!ValidGame(game)) {
+        return "";
+    }
+    // The same object every time, not a copy: MM's kMmAppName holds this pointer,
+    // and the #670 row asserts the identity so a re-introduced second literal is
+    // caught rather than merely equal.
+    return game == GAME_MM ? kMmAppShortName : kOoTAppShortName;
 }
 
 extern "C" const char* Combo_ModsRootForGame(GameId game) {
     if (!ValidGame(game)) {
         return "";
     }
-    const char* appName = game == GAME_MM ? kMmAppShortName : kOoTAppShortName;
+    const char* appName = Combo_ModsAppShortName(game);
     std::lock_guard<std::mutex> lock(sModsRootsMutex);
     sModsRoots[(int)game] = Ship::Context::LocateFileAcrossAppDirs("mods", appName);
     return sModsRoots[(int)game].c_str();

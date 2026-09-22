@@ -6,15 +6,30 @@
  *
  * TWO CTest rows (label "redship"), both dispatched from src/common/test_runner.cpp:
  *
- *   MMModsPartition ("mm-mods-partition") — the shared-tree partition and the
- *     shared extension rule, as pure path logic. No archive, no filesystem, no
- *     Ship::Context, so it NEVER skips: it runs in the archive-less netplay-relay
- *     job too (#562). It used to be part 1 of the row below, which meant the only
- *     lock on Combo_ModPathIsForGame — the predicate BOTH globs depend on — was
- *     skipped in exactly that job, together with a comment claiming the opposite.
+ *   MMModsPartition ("mm-mods-partition") — the shared-tree partition, the
+ *     roots-shared gate, the shared extension rule and the app-short-name
+ *     agreement, as pure path logic. No archive, no filesystem, no Ship::Context, so
+ *     it NEVER skips: it runs in the archive-less netplay-relay job too (#562). It
+ *     used to be part 1 of the row below, which meant the only lock on
+ *     Combo_ModPathIsForGame — the predicate BOTH globs depend on — was skipped in
+ *     exactly that job, together with a comment claiming the opposite.
  *   MMModsMount ("mm-mods-mount") — everything that needs real archives: both
  *     production globs, both registries, the ownership legs and the switch round
  *     trip. SKIPs when soh.o2r or 2ship.o2r is unstaged.
+ *
+ * WHERE MMModsMount RUNS, measured rather than assumed (PR #716's review asked, and
+ * the answer is in that PR's own CI logs). CI's build-linux and build-windows jobs
+ * both download soh.o2r and 2ship.o2r and stage them next to the ctest working
+ * directory (.github/workflows/generate-builds.yml, the "Stage port archives"
+ * steps), so this row RUNS there: on PR #716's tip it reported `Passed 0.10 sec`
+ * (Linux) and `Passed 0.17 sec` (Windows). The control is the netplay-relay job,
+ * which re-runs the same label with nothing staged: the same row reports
+ * `***Skipped 0.02 sec` there, because the wrapper in test_runner.cpp returns
+ * TEST_SKIP -> 77 and CMake declares SKIP_RETURN_CODE 77 for it. A skip is therefore
+ * DISTINGUISHABLE from a pass in any CI log, which is what makes "it ran" a
+ * measurement. What no CI log shows is a passing row's stdout (ctest is run with
+ * --output-on-failure), so the leg-by-leg reporting below carries the detail; part
+ * 10 is written so that on POSIX it cannot be skipped silently at all.
  *
  * WHAT WAS BROKEN. MM's whole mod-mount sequence lives in
  * games/mm/2s2h/BenPort.cpp's InitOTR, and games/mm/CMakeLists.txt:244 EXCLUDES
@@ -40,11 +55,12 @@
  *
  *   1. The partition, over path spellings that actually occur: "./mods" vs "mods",
  *      '\' separators, "MM" in any case, the near-misses "mmx"/"xmm", a nested
- *      archive, and paths outside the root. Each game's answer is pinned
- *      INDEPENDENTLY against the table (the two sides of the predicate are two
- *      rules now, not one bool and its negation — see MMModsPartition_RunHeadless),
- *      and the derived properties are disjointness everywhere plus totality over
- *      paths under the root. Plus Combo_ModsRootsAreShared, which is what decides
+ *      archive, and paths outside the root. Each game's answer is pinned against the
+ *      table SEPARATELY — two assertions, not one and its negation — and a sweep over
+ *      generated paths then checks that the predicate's two duplicated halves stay
+ *      in step. Read MMModsPartition_RunHeadless for exactly what that sweep can and
+ *      cannot catch; it is a lock on a duplication, not a partition property
+ *      measured over the input space. Plus Combo_ModsRootsAreShared, which decides
  *      whether there is one shared tree to partition at all, and the shared
  *      extension rule, the other half of "whose file is this": `.o2r` yes, `.otr`
  *      yes (this build compiles the MPQ reader in), `.zip` no for BOTH games.
@@ -94,9 +110,11 @@
  *      `mods/`. A directory symlink where the platform allows one; on Windows,
  *      where that needs Developer Mode or SeCreateSymbolicLinkPrivilege, a
  *      JUNCTION, which needs neither and which MSVC's iterator descends into only
- *      with `follow_directory_symlink`. If neither can be created the leg prints
- *      that it did not run and the PASS line says so — the summary never claims a
- *      leg that skipped.
+ *      with `follow_directory_symlink`. On POSIX a link that cannot be created is a
+ *      FAILURE, not a skip — nothing there needs a privilege — which is what makes a
+ *      green CI Linux run evidence that this leg ran. Only on Windows, and only
+ *      after both mechanisms fail, does it print that it did not run; the PASS line
+ *      then repeats that, so the summary never claims a leg that skipped.
  *
  * ANTI-VACUITY. Every "the mod owns it" assertion is preceded by the matching
  * "the base owns it" precondition on the SAME path, so each leg is a measured
@@ -156,6 +174,12 @@ int OoT_MountModArchivesHeadless(const char* modsRoot, const char* mmModsRoot);
 // MM's archive-origin registry, fed by RecordMMArchivePath — what the #344
 // Room/Cutscene factory dispatcher and the #618 "mm" extension scope key on.
 bool Combo_ArchivePathIsMM(const char* path);
+// The app short name each port's own mods lookups really pass: OoT's port-global
+// `appShortName` (games/oot/soh/Enhancements/mod_menu.cpp) and MM's `kMmAppName`
+// (games/mm/2s2h/GameExports_SingleExe.cpp). The app-short-name leg below is what
+// keeps them from drifting away from src/common's constants (#670, PR #716 review).
+const char* OoT_ModsAppShortName(void);
+const char* MM_ModsAppShortName(void);
 }
 
 namespace {
@@ -195,31 +219,48 @@ bool MmmPathContains(const std::string& haystack, const char* needle) {
  * job that deliberately runs this label archive-less (#562), while the comment
  * here claimed "these run even when the archives are unstaged".
  *
- * WHAT THE PARTITION CHECKS MEASURE, and why they did not before. PR #704 shipped a
- * table that checked MM's answer against the authored expectation and then asserted
- * that `oot == mm` never happened. The predicate computed both answers from one bool
- * in one expression (`return game == GAME_MM ? isMm : !isMm;`), so that second
- * assertion was a restatement of the return statement: no input could make it fire,
- * and no counterfactual in that PR ever observed it red. Its reviewer was right.
- * Two changes, because fixing only the first would have left the second assertion
- * just as unreachable:
+ * WHAT THESE CHECKS MEASURE — stated conservatively, because two rounds of review
+ * have now landed on this exact spot and the second one (PR #716) was right that the
+ * first fix's description overclaimed.
  *
- *   (a) OoT's side is its OWN rule in the production predicate now ("under the root,
- *       and the first component is not the reserved folder"), not the negation of
- *       MM's, so the two CAN disagree. The table below therefore pins EACH game's
- *       answer per path against the authored expectation — two measurements, not one
- *       restated.
- *   (b) The partition PROPERTIES — never both, never neither under the root — moved
- *       OUT of that table into a sweep over generated paths that carry no authored
- *       expectation at all (kShapes below). Inside the pinned loop those properties
- *       are unreachable BY CONSTRUCTION, however the predicate is written: once
- *       `mm == (owner == kOwnerMm)` and `oot == (owner == kOwnerOoT)` have both
- *       passed, "both claimed" would need `owner` to be two values at once and
- *       "neither claimed, under the root" would need it to be a third. Only a
- *       property asserted about paths nobody wrote an expectation for can go red —
- *       and it does: give MM's rule a prefix match and `mods/mmx/x.o2r` is claimed
- *       TWICE; drop a folder name from OoT's rule and `mods/sub/x.o2r` is claimed by
- *       NOBODY. Neither of those shapes needs to be in the pinned table.
+ * The history. PR #704 shipped a table that checked MM's answer against the authored
+ * expectation and then asserted `oot == mm` never happened. The predicate computed
+ * both answers from one bool in one expression (`return game == GAME_MM ? isMm :
+ * !isMm;`), so that assertion was a restatement of the return statement: no input
+ * could fire it. Its reviewer was right. What changed, and what did not:
+ *
+ *   (a) The production predicate's two sides are now two separate expressions
+ *       (PathIsUnderMmSubdir and PathIsOoTs, src/common/mod_archives.cpp) — but they
+ *       are ONE rule written twice, the second copy negated, over the same helper
+ *       and the same constant. They are NOT independent tests, and for every input
+ *       `oot == !mm` still holds exactly (both call RelativeToModsRoot with the same
+ *       arguments; when it returns empty both are false). The table below pins each
+ *       game's answer against the authored expectation separately, which is two
+ *       assertions rather than one and its negation — that part did change, and it
+ *       is what catches a rule that stops claiming its own side.
+ *   (b) The disjointness and totality checks moved OUT of the pinned table into a
+ *       sweep over GENERATED paths (kShapes below) that carry no authored
+ *       expectation. Inside the pinned loop they were unreachable by construction,
+ *       however the predicate is written: once `mm == (owner == kOwnerMm)` and
+ *       `oot == (owner == kOwnerOoT)` have both passed, "both claimed" needs `owner`
+ *       to be two values at once and "neither claimed, under the root" a third.
+ *
+ * What the sweep therefore IS, exactly:
+ *
+ *   - "BOTH games claimed it" CANNOT fire for any path against the shipped
+ *     implementation. It fires only once someone edits ONE of the two duplicated
+ *     copies of `IEqualsAscii(rel.begin()->generic_string(), kMmModsSubdir)` — which
+ *     is the realistic way this code drifts, and which was observed red twice
+ *     (teaching MM's side to ignore a trailing version digit made `mods/mm2/deep/
+ *     x.o2r` claimed twice; giving OoT's side a second reserved name made
+ *     `mods/a/x.o2r` claimed by nobody). Call it a lock on the duplication staying
+ *     in step. Do NOT call it a partition property measured over the input space.
+ *   - "NEITHER game claimed it, under the root" exercises the SHARED helper: it
+ *     fires when RelativeToModsRoot starts calling an under-root path outside, or
+ *     when one copy grows a reserved name the other does not know.
+ *   - The generated shapes are still worth their keep for a second reason: nobody
+ *     authored an owner for them, so a rule that starts matching by prefix,
+ *     substring or truncation is caught on paths the pinned table never mentions.
  *
  * A path in some other tree is claimed by NEITHER, which is the honest answer and
  * a behaviour change: the negation-based predicate answered "OoT's" for it.
@@ -291,9 +332,10 @@ extern "C" int MMModsPartition_RunHeadless(void) {
                    mm ? "claimed" : "did not claim", c.path, c.root, c.why);
             return 2;
         }
-        // OoT's answer against the AUTHORED expectation, not against MM's. The two
-        // are computed by two independent rules now, so this is a second
-        // measurement and not the same one restated.
+        // OoT's answer against the AUTHORED expectation, not against MM's. That is
+        // what makes it a second assertion rather than the first one restated — it
+        // does NOT mean the two production rules can disagree (they are one rule and
+        // its negation; see this function's comment).
         if (oot != (c.owner == kOwnerOoT)) {
             printf("[TEST] FAIL(2): partition: OoT %s '%s' under root '%s' (%s)\n",
                    oot ? "claimed" : "did not claim", c.path, c.root, c.why);
@@ -302,8 +344,8 @@ extern "C" int MMModsPartition_RunHeadless(void) {
         // NO disjointness or totality assertion here, deliberately. With both pins
         // above satisfied those two properties are unreachable by construction — see
         // point (b) of this function's comment — so asserting them in this loop is
-        // the same shape of non-lock PR #704 shipped. They are measured below, over
-        // paths that carry no authored expectation.
+        // the same shape of non-lock PR #704 shipped. The sweep below checks the
+        // predicate's two duplicated halves against each other instead.
         if (mm) {
             mmClaims++;
         } else if (oot) {
@@ -316,11 +358,17 @@ extern "C" int MMModsPartition_RunHeadless(void) {
                "the pinned partition table did not exercise all three outcomes, so at least one of the three is not "
                "pinned at all");
 
-    // ---- The partition PROPERTIES, over unpinned paths -------------------------
+    // ---- The two duplicated halves, checked against each other -----------------
     // Generated shapes, on purpose: nobody authored an expected owner for these, so
-    // "exactly one claimant under the root" and "no claimant outside it" are real
-    // measurements of the two rules against each other rather than of each rule
-    // against a hand-written answer. This is the half that has a reachable red.
+    // this measures the predicate's two halves against each other rather than each
+    // half against a hand-written answer.
+    //
+    // WHAT IT CATCHES, precisely (PR #716's review): a ONE-SIDED edit of the two
+    // duplicated copies of the reserved-folder comparison, and a regression in the
+    // RelativeToModsRoot helper they share. It cannot catch anything about the
+    // shipped implementation, in which `oot == !mm` holds for every input — the
+    // "BOTH claimed" branch below is unreachable until such an edit exists. It is a
+    // lock on a deliberate duplication, not a property of the input space.
     //
     // Shapes chosen so that a plausible drift in EITHER rule is caught: `mmx`/`xmm`/
     // `mm2`/`m`/`mm-extra` catch an MM rule that starts matching by prefix, substring
@@ -354,16 +402,22 @@ extern "C" int MMModsPartition_RunHeadless(void) {
             p += s.tail;
             const bool mm = Combo_ModPathIsForGame(GAME_MM, rootSpelling, p.c_str());
             const bool oot = Combo_ModPathIsForGame(GAME_OOT, rootSpelling, p.c_str());
+            // Reachable only once the two duplicated halves of the predicate have
+            // been edited apart — that is what this branch is for, and it is not a
+            // statement about which paths exist.
             if (mm && oot) {
-                printf("[TEST] FAIL(2): partition is not disjoint: BOTH games claimed '%s' under root '%s'. A path "
-                       "claimed twice is mounted twice and registered under both games, and #593's switch-time "
-                       "re-apply then stacks it over the OTHER game's base archives on every arrival.\n",
+                printf("[TEST] FAIL(2): the two halves of the mods partition have drifted apart: BOTH games claimed "
+                       "'%s' under root '%s'. A path claimed twice is mounted twice and registered under both games, "
+                       "and #593's switch-time re-apply then stacks it over the OTHER game's base archives on every "
+                       "arrival.\n",
                        p.c_str(), rootSpelling);
                 return 2;
             }
             if (!mm && !oot) {
-                printf("[TEST] FAIL(2): partition is not total: NEITHER game claimed '%s', which is under root '%s'. "
-                       "A mod archive there would be mounted by nobody, which is silent.\n",
+                printf("[TEST] FAIL(2): NEITHER game claimed '%s', which is under root '%s' — either the shared "
+                       "RelativeToModsRoot helper now reads an under-root path as outside, or one half of the "
+                       "predicate grew a reserved folder name the other does not know. A mod archive there would be "
+                       "mounted by nobody, which is silent.\n",
                        p.c_str(), rootSpelling);
                 return 2;
             }
@@ -461,10 +515,45 @@ extern "C" int MMModsPartition_RunHeadless(void) {
     MMM_ASSERT(!Combo_ModArchiveExtensionIsValid(""), 3, "an empty extension is accepted as a mod archive");
     MMM_ASSERT(!Combo_ModArchiveExtensionIsValid(nullptr), 3, "a NULL extension is accepted as a mod archive");
 
-    printf("[mm-mods-partition] PASS: %d MM / %d OoT / %d neither pinned path cases, each game's answer pinned "
-           "independently; %d unpinned paths under the root each claimed by exactly one game and %d outside it claimed "
-           "by neither; %d roots-shared cases; degenerate arguments claim nothing; one extension rule for both games "
-           "(.o2r/.otr yes, .zip no)\n",
+    // ---- The app short names the two mods lookups pass --------------------------
+    // The third thing a shared mods/ tree needs, after "whose file is this" and "is
+    // this a mod archive at all": both games must be asking about the SAME tree.
+    // Each root is LocateFileAcrossAppDirs("mods", <app short name>), and
+    // Combo_ModsRootsAreShared compares the two results — so a drift between the
+    // names does not fail loudly, it answers "not shared", un-reserves `mods/mm`,
+    // and has OoT mount and register every MM mod as well (the cross-game shadowing
+    // that SURVIVES a switch, #593). PR #716's review found the comment claiming
+    // this was structurally impossible while three copies of the names existed.
+    //
+    // Two different assertions, because the two names are in different situations:
+    MMM_ASSERT(std::string(Combo_ModsAppShortName(GAME_OOT)) == "soh", 3,
+               "the shared mods app short name for OoT is not 'soh' — every existing install's mods folder moves");
+    MMM_ASSERT(std::string(Combo_ModsAppShortName(GAME_MM)) == "2s2h", 3,
+               "the shared mods app short name for MM is not '2s2h' — every existing install's mods/mm folder moves");
+    MMM_ASSERT(std::string(Combo_ModsAppShortName(GAME_NONE)).empty(), 3, "GAME_NONE has a mods app short name");
+    // "soh" genuinely has TWO definitions: this one and OoT's port-global
+    // appShortName (games/oot/soh/OTRGlobals.h), which names the app DIRECTORY in
+    // some forty places and cannot be replaced from src/common. String equality is
+    // the strongest available check, and it is the one that matters: if they drift,
+    // OoT reads its config out of one app directory and its mods out of another, and
+    // CheckAndCreateModFolder creates the folder in the wrong one.
+    MMM_ASSERT(std::string(OoT_ModsAppShortName()) == Combo_ModsAppShortName(GAME_OOT), 3,
+               "OoT's port-global appShortName and the shared mods app short name have drifted apart — OoT's mods root "
+               "and its app directory are no longer the same tree");
+    // MM's kMmAppName is a REFERENCE to the shared constant, so the check here is
+    // pointer identity rather than equal text: re-introducing a second `"2s2h"`
+    // literal (which is what this branch's earlier revision shipped, two lines from
+    // the call that used the shared one) goes red even though the strings match.
+    MMM_ASSERT(MM_ModsAppShortName() == Combo_ModsAppShortName(GAME_MM), 3,
+               "MM's kMmAppName is no longer the same object as Combo_ModsAppShortName(GAME_MM) — MM's mods app name "
+               "has a second definition again, and renaming one of them silently splits MMCreateModFolder from "
+               "MountMMModArchives");
+
+    printf("[mm-mods-partition] PASS: %d MM / %d OoT / %d neither pinned path cases, each game's answer asserted "
+           "separately; %d unpinned paths under the root each claimed by exactly one game and %d outside it claimed "
+           "by neither (a lock on the predicate's two duplicated halves staying in step, not a property of the input "
+           "space); %d roots-shared cases; degenerate arguments claim nothing; one extension rule for both games "
+           "(.o2r/.otr yes, .zip no); both ports' mods app short names agree with src/common's\n",
            mmClaims, ootClaims, neitherClaims, sweptUnder, (int)(sizeof(kOutside) / sizeof(kOutside[0])),
            (int)(sizeof(kRootCases) / sizeof(kRootCases[0])));
     return 0;
@@ -779,7 +868,8 @@ extern "C" int MMModsMount_RunHeadless(const char* sohArchive, const char* mmArc
         Combo_ClearModArchives(GAME_OOT);
         // Both roots are the staged tree: the SHARED-tree case, which is what a
         // portable build has and what every release ships.
-        const int ootClaimed = OoT_MountModArchivesHeadless(root.generic_string().c_str(), root.generic_string().c_str());
+        const std::string rootStr = root.generic_string();
+        const int ootClaimed = OoT_MountModArchivesHeadless(rootStr.c_str(), rootStr.c_str());
         if (ootClaimed != 1 || Combo_GetModArchiveCount(GAME_OOT) != 1) {
             printf("[TEST] FAIL(14): OoT's glob claimed %d archive(s) and registered %d, expected 1 and 1 (only the "
                    "root-level one; the two under mods/mm are MM's and notes.txt is not an archive)\n",
@@ -816,7 +906,6 @@ extern "C" int MMModsMount_RunHeadless(const char* sohArchive, const char* mmArc
             rc = 15;
             break;
         }
-        const std::string rootStr = root.generic_string();
         if (OoT_MountModArchivesHeadless(nullptr, rootStr.c_str()) != -1 ||
             OoT_MountModArchivesHeadless("", rootStr.c_str()) != -1 ||
             OoT_MountModArchivesHeadless(rootStr.c_str(), nullptr) != -1 ||
@@ -884,10 +973,22 @@ extern "C" int MMModsMount_RunHeadless(const char* sohArchive, const char* mmArc
         // linked into an install — worked under `mods/` and silently did nothing
         // under `mods/mm/`. Both now take Rsbs::kModsWalkOptions.
         //
-        // SKIPPED, not failed, where a directory symlink cannot be created: on
-        // Windows that needs Developer Mode or SeCreateSymbolicLinkPrivilege, and a
-        // row that went red on a privilege would be a worse lock than one that says
-        // out loud which half of itself ran. CI's Linux job always creates it.
+        // WHERE THIS LEG IS ALLOWED TO SKIP, and where it is not (PR #716's review
+        // asked how anyone knows it ever runs):
+        //
+        //   - On POSIX, NOWHERE. `symlink(2)` needs no privilege, so a failure to
+        //     create a directory symlink in a directory this row just created is a
+        //     real failure and reported as FAIL(17). That is what makes CI's green
+        //     build-linux job EVIDENCE that this leg ran: the row cannot pass there
+        //     without it. (The row itself skips wholesale when soh.o2r/2ship.o2r are
+        //     unstaged, which is the netplay-relay job; see the file header for how
+        //     that skip is distinguishable from a pass in a CI log.)
+        //   - On Windows, after BOTH mechanisms fail. `create_directory_symlink`
+        //     needs Developer Mode or SeCreateSymbolicLinkPrivilege, and the junction
+        //     fallback below needs neither — but if some environment denies both, a
+        //     row going red on a privilege would be a worse lock than one that says
+        //     out loud which half of itself ran. It then prints that it did not run
+        //     and the PASS line repeats it.
         {
             const std::filesystem::path linkTarget = root / "linked-library";
             // One error_code per step, checked immediately — the same discipline the
@@ -920,15 +1021,14 @@ extern "C" int MMModsMount_RunHeadless(const char* sohArchive, const char* mmArc
             // a convenience: `create_directory_symlink` needs Developer Mode or
             // SeCreateSymbolicLinkPrivilege on Windows, and without this fallback the
             // leg did not run on the workstation this was developed on (measured: "A
-            // required privilege is not held by the client") — and the other two
-            // platforms' runs of MMModsMount SKIP whenever soh.o2r/2ship.o2r are
-            // unstaged, which is how CI's Linux job runs this label. A junction is a
-            // reparse point
-            // MSVC's <filesystem> reports as `file_type::junction` and, measured on
-            // this workstation, `recursive_directory_iterator` descends into it ONLY
-            // with follow_directory_symlink: 1 file found with
-            // skip_permission_denied alone, 2 with the shared options. So it
-            // exercises the exact divergence PR #704 shipped.
+            // required privilege is not held by the client") — nor, therefore, on
+            // CI's build-windows job, which runs this row with the archives staged
+            // and so reaches this code. A junction is a reparse point MSVC's
+            // <filesystem> reports as `file_type::junction` and, measured on this
+            // workstation, `recursive_directory_iterator` descends into it ONLY with
+            // follow_directory_symlink: 1 file found with skip_permission_denied
+            // alone, 2 with the shared options. So it exercises the exact divergence
+            // PR #704 shipped.
             //
             // mklink is a cmd builtin and needs no privilege; the alternative is
             // CreateDirectoryW + DeviceIoControl(FSCTL_SET_REPARSE_POINT), which
@@ -943,15 +1043,28 @@ extern "C" int MMModsMount_RunHeadless(const char* sohArchive, const char* mmArc
             }
 #endif
             if (linkKind == nullptr) {
-                printf("[mm-mods-mount] NOTE: no directory symlink or junction could be created here (%s) — the "
-                       "shared-walk-options leg did not run, and this run does NOT cover it.\n",
+#if !defined(_WIN32)
+                // POSIX: no privilege is involved, so this is a failure, not an
+                // environment limitation. Hard-failing here is what lets a green
+                // build-linux job stand as evidence that this leg RAN, instead of
+                // leaving "it probably ran" to be argued from a duration.
+                printf("[TEST] FAIL(17): could not create a directory symlink at %s (%s). On this platform that needs "
+                       "no privilege, so the shared-walk-options leg must not be skipped here\n",
+                       linkPath.generic_string().c_str(), linkEc.message().c_str());
+                rc = 17;
+                break;
+#else
+                printf("[mm-mods-mount] NOTE: neither a directory symlink nor a junction could be created here (%s) — "
+                       "the shared-walk-options leg did not run, and this run does NOT cover it.\n",
                        linkEc.message().c_str());
+#endif
             } else {
                 const int mountedWithLink = MM_MountModArchivesHeadless(rootStr.c_str());
                 if (mountedWithLink != 3 || Combo_GetModArchiveCount(GAME_MM) != 3) {
-                    printf("[TEST] FAIL(17): with an archive reachable only through a linked folder (%s) under mods/mm, "
-                           "MM mounted %d and has %d registered, expected 3 and 3 — MM's walk is not following "
-                           "directory symlinks, which OoT's walk over the same tree does (#670, PR #704 review)\n",
+                    printf("[TEST] FAIL(17): with an archive reachable only through a linked folder (%s) under "
+                           "mods/mm, MM mounted %d and has %d registered, expected 3 and 3 — MM's walk is not "
+                           "following directory symlinks, which OoT's walk over the same tree does (#670, PR #704 "
+                           "review)\n",
                            linkKind, mountedWithLink, Combo_GetModArchiveCount(GAME_MM));
                     rc = 17;
                     break;
@@ -989,7 +1102,9 @@ extern "C" int MMModsMount_RunHeadless(const char* sohArchive, const char* mmArc
                "a second mount is a no-op, and OoT claims all 3 again when MM's root is a DIFFERENT directory. The "
                "shared-walk-options leg (MM traverses a linked folder under mods/mm the way OoT traverses one under "
                "mods/) %s\n",
-               sharedWalkLegRan ? "ran and passed." : "DID NOT RUN here: no directory link could be created.");
+               sharedWalkLegRan ? "ran and passed."
+                                : "DID NOT RUN here: no directory link could be created (only reachable on Windows; "
+                                  "on POSIX that is a FAIL, not a skip).");
     }
     return rc;
 }

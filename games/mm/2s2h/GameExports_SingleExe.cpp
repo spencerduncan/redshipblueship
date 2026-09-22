@@ -214,7 +214,22 @@ extern "C" void MM_OTRMessage_Init(void);
 // src/common/archive_check.cpp's MM spec: the extraction flow exports
 // mm.o2r to this app directory, which is the first location the archive
 // availability checks probe.
-static const char kMmAppName[] = "2s2h";
+//
+// #670, PR #716's review: a REFERENCE to src/common/mod_archives.cpp's constant,
+// not a second `"2s2h"` literal. It used to be its own literal, and the drift that
+// cost is two lines apart in MMCreateModFolder below: `existing` comes from
+// Combo_ModsRootForGame(GAME_MM) and the fallback from
+// GetPathRelativeToAppDirectory("mods", kMmAppName), so renaming this one — the
+// obvious, single-looking definition — made MM create `<new>/mods/mm` while
+// MountMMModArchives globbed `<old>/mods`. Now there is one definition to rename.
+// The #670 partition row asserts the POINTER identity (not just equal text)
+// through the MM_ModsAppShortName seam, so a re-introduced literal goes red.
+static const char* const kMmAppName = Combo_ModsAppShortName(GAME_MM);
+
+// Seam for that assertion: what THIS translation unit's mods lookups actually pass.
+extern "C" const char* MM_ModsAppShortName(void) {
+    return kMmAppName;
+}
 
 // Track if MM has been initialized (for re-entry after game switch)
 static bool sMMInitialized = false;
@@ -1058,6 +1073,12 @@ static void MMCreateModFolder() {
         // this one to decide whether `mods/mm` is reserved at all, and two copies of
         // the lookup that drifted would silently turn that comparison into a
         // double-mount of every MM mod (src/common/mod_archives.h).
+        //
+        // The fallback on the next line still spells a lookup out, because
+        // GetPathRelativeToAppDirectory is a different API — but the NAME it passes
+        // is the same object this call used (kMmAppName is a reference to
+        // Combo_ModsAppShortName(GAME_MM) as of PR #716's review), so the two cannot
+        // disagree about which app directory MM owns.
         const std::string existing = Combo_ModsRootForGame(GAME_MM);
         std::string mmModsPath =
             (std::filesystem::path(existing.empty() ? Ship::Context::GetPathRelativeToAppDirectory("mods", kMmAppName)
