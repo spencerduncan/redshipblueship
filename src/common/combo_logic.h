@@ -137,7 +137,10 @@ extern "C" {
 /** Under RSBS_COMBO_RUNG_ALL_REACHABLE only: the GOAL was provable but some
  *  placed host was not reached in the final round. */
 #define RSBS_COMBO_LOGIC_ERR_NOT_ALL_REACHED 8
-/** A fixed capacity was exceeded (bag size, placements per host game). */
+/** A fixed capacity was exceeded: the bag size (RSBS_COMBO_LOGIC_BAG_CAP),
+ *  placements on one host game (RSBS_COMBO_LOGIC_PLACEMENT_CAP), or the hosts one
+ *  engine offered in ONE enumeration (RSBS_COMBO_LOGIC_HOST_CAP). Those are three
+ *  different quantities and are sized separately — see the capacity block. */
 #define RSBS_COMBO_LOGIC_ERR_CAPACITY 9
 /** An engine refused a call it is contractually required to satisfy —
  *  `beginQuery` or `snapshot` returned 0, or `place` returned 0 for a host the
@@ -155,8 +158,33 @@ const char* Combo_Logic_StatusName(int status);
  *  pass only (audit amendment 2) — OoT's remaining-advancement set plus MM's
  *  shuffled pool — so the real figure is low hundreds. */
 #define RSBS_COMBO_LOGIC_BAG_CAP 512
-/** Placements per HOST game. RAM only: see the placement-table note below. */
+/** Placements per HOST game. RAM only: see the placement-table note below. It
+ *  bounds what one side can RECEIVE out of the bag, so it is sized against the
+ *  bag (above) and NOT against either game's check pool. */
 #define RSBS_COMBO_LOGIC_PLACEMENT_CAP 1024
+/**
+ * Hosts one engine may OFFER in ONE enumeration — `reachedEmptyHosts` and
+ * `allEmptyHosts`. IT IS A DIFFERENT QUANTITY FROM RSBS_COMBO_LOGIC_PLACEMENT_CAP
+ * and it is the one the collector's scratch must be sized by, which is the
+ * distinction increment 3 got wrong (it sized the scratch by the placement cap,
+ * so the first honest engine would have aborted the first fill on the first bag
+ * item with ERR_CAPACITY, for a reason with nothing to do with the world).
+ *
+ * The bound is A GAME'S CHECK ID-SPACE, not the bag: an engine enumerating "every
+ * shuffled check I do not consider assigned" answers with its whole pool. Today
+ * OoT's `RandomizerCheck` runs to `RC_MAX` = 2528 rows and MM's to 2258, so 4096
+ * carries either side whole with better than half again of headroom — and both
+ * ports are free to add checks without anyone re-deriving this number.
+ *
+ * Exceeding it is still REFUSED (RSBS_COMBO_LOGIC_ERR_CAPACITY) and never
+ * truncated: a truncated candidate list would silently narrow the world to a
+ * prefix of one engine's table, which no determinism row could see. The refusal
+ * names this constant, so the fix when a port outgrows it is to raise this line.
+ */
+#define RSBS_COMBO_LOGIC_HOST_CAP 4096
+#if RSBS_COMBO_LOGIC_HOST_CAP < RSBS_COMBO_LOGIC_PLACEMENT_CAP
+#error "RSBS_COMBO_LOGIC_HOST_CAP must be at least the placement cap: every placed host was first an offered host"
+#endif
 /** Watchdog bound on one round's inner alternations. NOT the termination
  *  argument — convergence follows from monotonicity over a finite lattice; this
  *  bound exists to turn a VIOLATED premise into a diagnosis instead of a hang.
@@ -218,13 +246,38 @@ const char* Combo_Logic_StatusName(int status);
 //   until !changed
 //   read: crossingOpen, goalReached, reachedEmptyHosts, checkReached
 //   for each side S, in reverse:
-//       if (S.restore) { S.restore(); re-apply all of P[S] through S.place() }
-//       S.endQuery()
+//       if (S snapshotted) { S.restore(); re-apply all of P[S] through S.place() }
+//       if (S.beginQuery was CALLED)  S.endQuery()
 //
 // The re-apply runs ONLY for a side that restored. A side with no snapshot never
 // lost anything, so re-placing there would be pure cost — and the cost is not
 // small: it is one `place` per placement per round, and the fill runs a round
 // per bag item.
+//
+// THE BRACKET'S OWNERSHIP RULE, when a round is abandoned part-opened. A round
+// can fail while the two sides are being opened — `snapshot` refuses, or
+// `beginQuery` refuses — and the teardown above then runs over a bracket that is
+// only half there. Exactly one rule decides it, and it is per CALL, not per
+// success:
+//
+//   * `restore` is called iff `snapshot` was called AND RETURNED NONZERO. There is
+//     nothing to put back otherwise, and a restore over a blob that was never
+//     captured would write stale bytes over live state.
+//   * `endQuery` is called iff `beginQuery` WAS CALLED AT ALL — including when it
+//     returned zero. The engine's detach lives in `beginQuery` and its only
+//     documented inverse lives in `endQuery` (`Logic::mSaveContext` for OoT), so
+//     a `beginQuery` that detaches and then refuses would otherwise leave the
+//     engine coupled to a simulated save for the rest of the process. That was
+//     increment 3's behaviour and it is the audit §1.8 hazard exactly.
+//   * A side whose `snapshot` refused is never asked to begin, and therefore gets
+//     neither `endQuery` nor `restore`. Sides opened BEFORE the refusing one are
+//     torn down in full.
+//
+// WHAT AN ENGINE MUST THEREFORE TOLERATE: `endQuery` on a round that never
+// opened. It must be a no-op in that case, not an unwind of state it never set —
+// a flag tested at the top is the whole of it. Refusing in `beginQuery` BEFORE
+// mutating anything is the shape that makes this trivially true, and it is the
+// shape both engines take.
 //
 // RSBS_COMBO_RUNG_NONE RUNS NO ROUND AT ALL. Under that rung the only engine
 // calls are `clearPlacements` (the reset), `allEmptyHosts` and `place` — no
@@ -304,6 +357,13 @@ typedef struct ComboLogicEngine {
      *
      * @return nonzero on success. Zero aborts the round with
      *         RSBS_COMBO_LOGIC_ERR_ENGINE_REFUSED.
+     *
+     * `endQuery` IS STILL CALLED WHEN THIS RETURNS ZERO (the ownership rule in
+     * the CALL ORDER block above). So an engine has two ways to be correct and
+     * must pick one: refuse BEFORE touching anything — the recommended shape,
+     * since a validation-only failure needs no inverse — or make `endQuery`
+     * unwind whatever the partial open left behind. What it must NOT do is
+     * detach, refuse, and expect nobody to notice.
      */
     int (*beginQuery)(void* self);
 
@@ -480,8 +540,14 @@ typedef struct ComboLogicEngine {
     /**
      * End the round. Release whatever `beginQuery` set up and RESTORE THE
      * ENGINE'S COUPLING TO THE LIVE GAME — OoT re-points `Logic::mSaveContext`
-     * at `&gSaveContext` here (audit §4.4). Called exactly once per round, last,
-     * after `restore` and after the placement re-apply.
+     * at `&gSaveContext` here (audit §4.4). Called last, after `restore` and
+     * after the placement re-apply.
+     *
+     * CALLED ONCE FOR EVERY `beginQuery` CALL, INCLUDING ONE THAT RETURNED ZERO.
+     * So it must be safe on a round that never opened: an engine tests its own
+     * "am I in a round" flag at the top and returns, because unwinding a detach
+     * it never performed is worse than doing nothing. It is NOT called for a side
+     * whose `snapshot` refused, because that side was never asked to begin.
      */
     void (*endQuery)(void* self);
 
@@ -497,6 +563,9 @@ typedef struct ComboLogicEngine {
      * @return `snapshot` returns nonzero on success; zero aborts the round with
      *         RSBS_COMBO_LOGIC_ERR_ENGINE_REFUSED. A failed snapshot must never
      *         be followed by queries — that is the whole point of the return.
+     *         Concretely: that side gets no `beginQuery`, hence no `endQuery`,
+     *         and no `restore` either (there is nothing captured to put back).
+     *         `restore` is called iff `snapshot` returned nonzero.
      */
     int (*snapshot)(void* self);
     void (*restore)(void* self);
@@ -558,6 +627,12 @@ void Combo_Logic_ResetPlacements(void);
  * precisely this shape to rebuild both tables from a spoiler's foreign section
  * without either game's header in scope (the inverse
  * `Combo_GetForeignItemByNameFor` already serves).
+ *
+ * IT DOES NOT COMPOSE WITH Combo_Logic_RunFill. Every fill attempt begins by
+ * emptying both tables and both engines (see the reset paragraph at
+ * Combo_Logic_RunFill), so authoring rows here and then asking the fill to do
+ * "the rest of the bag" discards every row authored. Authoring and filling are
+ * alternatives for one world, not stages of one.
  *
  * IT PROVES NOTHING. Authoring bypasses the round, so it makes no reachability
  * claim about the host and no GOAL claim about the world; proof is
@@ -744,6 +819,17 @@ typedef struct {
  * DETERMINISM: the whole result is a pure function of (`bag` contents and
  * order, `goal`, `logicRung`, `seed`, `maxAttempts`, the two registered
  * engines). Same inputs, same placements, byte for byte.
+ *
+ * THE FILL OWNS THE TABLES, AND IT TAKES THEM EMPTY. Every attempt — the first
+ * one included, and the single attempt the `none` rung runs — begins with
+ * Combo_Logic_ResetPlacements(), so whatever the two tables held when the call
+ * arrived is DISCARDED before the first item is placed, and discarded from both
+ * ENGINES too (that reset calls each one's `clearPlacements`). This is stated here
+ * and not only at the reset, because the caller who needs to know is the one
+ * standing at this call with rows already in the tables: there is no
+ * keep-existing-placements mode, and a fill is never a continuation of an
+ * authored partial world (see Combo_Logic_Place). Only a refusal taken BEFORE any
+ * attempt leaves the tables alone — the paragraph below.
  *
  * ON FAILURE OF AN ATTEMPT the placement tables hold the LAST attempt's partial
  * state; a caller that means to discard them calls Combo_Logic_ResetPlacements().

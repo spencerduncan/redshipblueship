@@ -1638,6 +1638,12 @@ if(BUILD_TESTING)
     redship_add_test(NAME ComboLogicEngineSurface COMMAND redship --test combo-logic-engine-surface)
     redship_add_test(NAME ComboLogicFixpoint COMMAND redship --test combo-logic-fixpoint)
     redship_add_test(NAME ComboLogicFill COMMAND redship --test combo-logic-fill)
+    # The increment-3 review follow-up (#701): the host-enumeration cap, the
+    # failed-bracket ownership rule, and RunFill's table reset. Same fixture, same
+    # `redship` tier — but it drives a SYNTHETIC host pool of a few thousand ids,
+    # because the quantity under test is the size of a game's check pool and six
+    # authored hosts cannot express it.
+    redship_add_test(NAME ComboLogicContractEdges COMMAND redship --test combo-logic-contract-edges)
 
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)

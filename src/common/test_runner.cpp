@@ -4017,6 +4017,10 @@ const TestDescriptor gTests[] = {
      "The single-bag fill is seed-determined, `none` draws from all empties with no round run, and beat-either is "
      "never biased (#645)",
      Test_ComboLogicFill},
+    {"combo-logic-contract-edges",
+     "An engine may offer a whole check pool of hosts, a beginQuery that refuses after detaching still gets its "
+     "endQuery, and RunFill takes both tables empty (#701)",
+     Test_ComboLogicContractEdges},
     {nullptr, nullptr, nullptr}  // Sentinel
 };
 

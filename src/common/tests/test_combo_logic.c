@@ -88,6 +88,11 @@ namespace {
 const int kClMaxHosts = 16;
 const int kClMaxItems = 8;
 
+/** First id of the SYNTHETIC host pool (`ClEngine.syntheticHosts`). Disjoint from
+ *  every authored host id below, so a synthetic world and an authored one can
+ *  never be confused for one another. */
+const uint16_t kClSyntheticHostBase = 1000;
+
 // OoT-side ids. Disjoint from the MM ids below ON PURPOSE: that disjointness is
 // what turns a misrouted id into a detected ADR 0002 violation instead of a
 // plausible-looking wrong answer (the #356 class).
@@ -134,12 +139,38 @@ struct ClEngine {
      *  Models an engine that rejects a host it had itself offered — the branch
      *  whose table entry the coordinator must take back out. */
     bool refuseNextNewPlace;
+    /**
+     * When nonzero, this engine's host enumeration is SYNTHETIC: both
+     * `reachedEmptyHosts` and `allEmptyHosts` offer `syntheticHosts` ids
+     * (kClSyntheticHostBase + i, ascending) and `checkReached` answers yes for all
+     * of them, in place of the authored table.
+     *
+     * It exists because the quantity the coordinator's host scratch must hold is a
+     * GAME'S CHECK POOL — OoT's `RandomizerCheck` has 2528 rows and MM's 2258 —
+     * and `kClMaxHosts` authored hosts cannot express a list that size. Only a
+     * stub that offers thousands can tell a scratch sized by the placement cap
+     * (1024) from one sized by the id space.
+     */
+    int syntheticHosts;
+    /** `beginQuery` performs its detach and THEN refuses. The point is the
+     *  ordering: the coordinator owes `endQuery` for a bracket that was opened
+     *  far enough to detach, whatever `beginQuery` returned. */
+    bool refuseBeginQuery;
+    /** `snapshot` refuses, having captured nothing. That side must then get no
+     *  `beginQuery`, no `endQuery` and no `restore`. */
+    bool refuseSnapshot;
     ClFault fault;
 
     // --- live state ------------------------------------------------------
     uint32_t have;
     uint32_t reached;
     bool inQuery;
+    /** MODELS OoT'S COUPLING. `beginQuery` sets it (OoT's `Logic::Reset(true)`
+     *  re-points `mSaveContext` at a heap copy) and `endQuery` is the only thing
+     *  that clears it (`mSaveContext` back to `&gSaveContext`, audit §4.4). An
+     *  engine left `detached` after a round is audit §1.8's hazard: the next
+     *  in-game progressive give resolves against a simulated save. */
+    bool detached;
     int expands;
     int beginCalls;
     int endCalls;
@@ -239,6 +270,14 @@ int ClBeginQuery(void* self) {
         e->sawDoubleBegin = true;
     }
     e->beginCalls++;
+    // THE DETACH FIRST, then the step that can fail — OoT's engine order exactly
+    // (`Logic::Reset(true)` runs before anything else in its `beginQuery`). A
+    // refusal from here on has already changed the engine's coupling, so the only
+    // thing that can put it back is `endQuery`.
+    e->detached = true;
+    if (e->refuseBeginQuery) {
+        return 0;
+    }
     e->inQuery = true;
     e->expands = 0;
     // The world's STARTING inventory. This is the call whose omission would make
@@ -253,6 +292,11 @@ void ClEndQuery(void* self) {
     ClEngine* e = (ClEngine*)self;
     e->endCalls++;
     e->inQuery = false;
+    // THE INVERSE OF THE DETACH, and the only one there is. Unconditional on
+    // purpose: the coordinator may reach here on a round that never opened (a
+    // `beginQuery` that refused after detaching), and re-coupling is exactly what
+    // that case needs.
+    e->detached = false;
 }
 
 void ClAssumeOwnItem(void* self, uint16_t ownItemId) {
@@ -297,10 +341,38 @@ int ClCrossingOpen(void* self) {
     return ((e->crossingRequires & e->have) == e->crossingRequires) ? 1 : 0;
 }
 
+/** Is `host` one of this engine's synthetic ids? */
+bool ClIsSyntheticHost(const ClEngine* e, uint16_t host) {
+    return e->syntheticHosts > 0 && host >= kClSyntheticHostBase &&
+           (int)(host - kClSyntheticHostBase) < e->syntheticHosts;
+}
+
+/**
+ * The synthetic enumeration shared by both host calls: ascending ids (the order
+ * contract), every one of them offered, and the TOTAL returned even when it
+ * exceeds `cap` so the coordinator can tell truncation from exhaustion.
+ *
+ * It deliberately does not filter this engine's own placements. Occupancy has
+ * exactly one authority and it is the coordinator's tables (combo_logic.h), so
+ * over-reporting is free — and here it keeps the offered COUNT a fixed property
+ * of the world, which is the whole quantity under test.
+ */
+int ClEnumerateSynthetic(const ClEngine* e, uint16_t* out, int cap) {
+    for (int i = 0; i < e->syntheticHosts; ++i) {
+        if (out != NULL && i < cap) {
+            out[i] = (uint16_t)(kClSyntheticHostBase + i);
+        }
+    }
+    return e->syntheticHosts;
+}
+
 int ClCheckReached(void* self, uint16_t hostCheck) {
     ClEngine* e = (ClEngine*)self;
     if (!e->inQuery) {
         e->sawQueryOutsideRound = true;
+    }
+    if (ClIsSyntheticHost(e, hostCheck)) {
+        return 1;
     }
     const int i = ClHostIndex(e, hostCheck);
     if (i < 0) {
@@ -312,6 +384,9 @@ int ClCheckReached(void* self, uint16_t hostCheck) {
 int ClReachedEmptyHosts(void* self, uint16_t* out, int cap) {
     ClEngine* e = (ClEngine*)self;
     int total = 0;
+    if (e->syntheticHosts > 0) {
+        return ClEnumerateSynthetic(e, out, cap);
+    }
     for (int i = 0; i < e->hostCount; ++i) {
         const bool reached = (e->reached & (1u << i)) != 0u;
         const bool forced = (e->alwaysOffer & (1u << i)) != 0u;
@@ -337,6 +412,9 @@ int ClReachedEmptyHosts(void* self, uint16_t* out, int cap) {
 int ClAllEmptyHosts(void* self, uint16_t* out, int cap) {
     ClEngine* e = (ClEngine*)self;
     int total = 0;
+    if (e->syntheticHosts > 0) {
+        return ClEnumerateSynthetic(e, out, cap);
+    }
     for (int i = 0; i < e->hostCount; ++i) {
         if (!e->overReport && ClOwnPlacementIndex(e, e->hostId[i]) >= 0) {
             continue;
@@ -416,6 +494,12 @@ void ClClearPlacements(void* self) {
 int ClSnapshot(void* self) {
     ClEngine* e = (ClEngine*)self;
     e->snapshots++;
+    if (e->refuseSnapshot) {
+        // NOTHING WAS CAPTURED. So the coordinator must not restore this side, and
+        // must not query it either — a query under a failed snapshot writes MM's
+        // live save with no way back (combo_logic.h on the pair).
+        return 0;
+    }
     e->snapHave = e->have;
     e->snapReached = e->reached;
     e->snapPlaced = e->placedCount;
@@ -636,6 +720,45 @@ void ClBuildUnreachedOnlyWorld() {
     gClMM.crossingRequires = 0u;
     gClMM.goalRequires = 0u;
     ClInstall();
+}
+
+/**
+ * A world whose engines OFFER many more hosts than the placement cap, both halves
+ * proving unconditionally, nothing else going on.
+ *
+ * It is about ONE quantity: the size of the list an engine hands back from
+ * `reachedEmptyHosts` / `allEmptyHosts`. That is bounded by the game's check pool
+ * (OoT 2528 `RandomizerCheck` rows, MM 2258), and it has nothing to do with how
+ * many bag items a side can RECEIVE. A coordinator that conflated the two refuses
+ * this world outright.
+ */
+void ClBuildWideHostWorld(int ootHosts, int mmHosts) {
+    ClResetEngine(&gClOoT, (uint8_t)GAME_OOT);
+    ClAddItem(&gClOoT, kOotSword);
+    gClOoT.syntheticHosts = ootHosts;
+    gClOoT.crossingRequires = 0u;
+    gClOoT.goalRequires = 0u;
+
+    ClResetEngine(&gClMM, (uint8_t)GAME_MM);
+    ClAddItem(&gClMM, kMmOcarina);
+    gClMM.syntheticHosts = mmHosts;
+    gClMM.crossingRequires = 0u;
+    gClMM.goalRequires = 0u;
+    ClInstall();
+}
+
+/** Does either coordinator table hold a placement carrying `id`? */
+bool ClAnyTableHolds(uint16_t id) {
+    const GameId both[2] = { GAME_OOT, GAME_MM };
+    for (int s = 0; s < 2; ++s) {
+        for (int i = 0; i < Combo_Logic_PlacementCount(both[s]); ++i) {
+            ComboLogicPlacement p;
+            if (Combo_Logic_PlacementAt(both[s], i, &p) && p.item.id == id) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 /** The bag both fill worlds use. Five advancement items, both origins. */
@@ -1257,5 +1380,155 @@ TestResult Test_ComboLogicFill(void) {
 
     ClUninstall();
     printf("[TEST] combo-logic-fill: PASS\n");
+    return TEST_PASS;
+}
+
+// ============================================================================
+// Row 4 — the contract's edges (the increment-3 review follow-up, #701)
+// ============================================================================
+//
+// Three properties the first three rows could not see, each one because the
+// fixture was too small or too well-behaved to reach it:
+//
+//   THE HOST-ENUMERATION CAP. Rows 1-3 author at most six hosts per side, so no
+//   scratch buffer was ever close to full and it did not matter that the buffer
+//   was sized by RSBS_COMBO_LOGIC_PLACEMENT_CAP rather than by a game's check
+//   pool. MM's real pool is ~2258 checks and OoT's ~2528, so the first honest
+//   engine would have met ERR_CAPACITY on the first bag item of the first fill.
+//   Locked with a synthetic pool on both sides of the cap.
+//
+//   THE FAILED BRACKET. Rows 1-3 never make `beginQuery` or `snapshot` refuse, so
+//   two of the three documented triggers of ERR_ENGINE_REFUSED had only a green
+//   half. The `began` bookkeeping recorded SUCCESS, so a `beginQuery` that
+//   detached and then refused was never handed its `endQuery` and the engine
+//   stayed coupled to a simulated save — audit §1.8's hazard, reachable through
+//   the contract's own refusal path.
+//
+//   RUNFILL'S RESET. Rows 1-3 author with Combo_Logic_Place OR fill; never both
+//   over the same tables. So nothing observed that a fill empties both tables and
+//   both engines before its first placement, which is what a spoiler-load caller
+//   following Combo_Logic_Place's own invitation would collide with.
+
+TestResult Test_ComboLogicContractEdges(void) {
+    printf("[TEST] combo-logic-contract-edges: the host-enumeration cap, the failed bracket's ownership, RunFill's "
+           "reset\n");
+
+    ComboLogicFillResult res;
+    ComboLogicBagItem one[1];
+    one[0] = ClBagItem((uint8_t)GAME_OOT, kOotSword, RSBS_ITEMCLASS_PROGRESSION);
+
+    // --- 1. an offered host list is bounded by the CHECK POOL --------------
+    // 2300 hosts: comfortably past RSBS_COMBO_LOGIC_PLACEMENT_CAP (1024) and
+    // squarely inside the range MM's own ~2258-check pool occupies, so this is the
+    // shape of the FIRST fill a real engine drives, not a synthetic extreme.
+    {
+        const int wide = 2300;
+
+        ClBuildWideHostWorld(wide, 4);
+        CL_ASSERT(ClRunFill(one, 1, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_NONE, 0x1D5Fu, &res) ==
+                      RSBS_COMBO_LOGIC_OK,
+                  "`none` must accept an engine offering far more hosts than the PLACEMENT cap: an enumeration is "
+                  "bounded by the game's check pool, and MM's alone is ~2250");
+        CL_ASSERT(res.placed == 1, "and the bag item must actually be placed");
+
+        ClBuildWideHostWorld(wide, 4);
+        CL_ASSERT(ClRunFill(one, 1, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_BEATABLE, 0x1D5Fu, &res) ==
+                      RSBS_COMBO_LOGIC_OK,
+                  "and so must a PROVING rung, which collects through the very same scratch buffer");
+        CL_ASSERT(res.placed == 1 && res.goalProven, "one item placed, the goal proved");
+    }
+
+    // --- 2. ... and past the ENUMERATION cap it is refused, not truncated ---
+    // The other side of the same line. Without this half, raising the cap could
+    // have been "make the buffer big enough that nobody notices truncation".
+    {
+        ClBuildWideHostWorld(RSBS_COMBO_LOGIC_HOST_CAP + 1, 4);
+        CL_ASSERT(ClRunFill(one, 1, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_NONE, 0x1D5Fu, &res) ==
+                      RSBS_COMBO_LOGIC_ERR_CAPACITY,
+                  "one host past RSBS_COMBO_LOGIC_HOST_CAP must REFUSE: a truncated candidate list narrows the world "
+                  "to a prefix of one engine's table and no determinism row can see it");
+        CL_ASSERT(Combo_Logic_PlacementCount(GAME_OOT) == 0 && Combo_Logic_PlacementCount(GAME_MM) == 0,
+                  "and place nothing");
+    }
+
+    // --- 3. a beginQuery that refuses AFTER its detach still gets endQuery --
+    {
+        ComboLogicRoundResult round;
+
+        ClBuildCrossingWorld(0u);
+        gClMM.refuseBeginQuery = true;
+        ClInstall();
+
+        CL_ASSERT(ClRunRound(RSBS_COMBO_GOAL_BEAT_BOTH, NULL, 0, &round) == RSBS_COMBO_LOGIC_ERR_ENGINE_REFUSED,
+                  "a refused beginQuery must abort the round as an engine refusal");
+        CL_ASSERT(gClMM.beginCalls == 1, "the refusing side was asked to begin");
+        CL_ASSERT(gClMM.endCalls == gClMM.beginCalls,
+                  "and must have been told to end: endQuery is owed from the CALL, not from the return");
+        CL_ASSERT(!gClMM.detached,
+                  "so the engine does not stay detached from the live game — the whole reason the rule is per call "
+                  "(audit §1.8)");
+        CL_ASSERT(gClOoT.beginCalls == 1 && gClOoT.endCalls == 1 && !gClOoT.detached,
+                  "and the side that opened BEFORE the refusal is torn down in full");
+        CL_ASSERT(ClContractClean(), "and no query ran outside a bracket");
+    }
+
+    // --- 4. a refused snapshot is neither queried nor restored -------------
+    {
+        ComboLogicRoundResult round;
+
+        ClBuildCrossingWorld(0u);
+        gClMM.withSnapshot = true;
+        gClMM.refuseSnapshot = true;
+        ClInstall();
+
+        CL_ASSERT(ClRunRound(RSBS_COMBO_GOAL_BEAT_BOTH, NULL, 0, &round) == RSBS_COMBO_LOGIC_ERR_ENGINE_REFUSED,
+                  "a refused snapshot must abort the round as an engine refusal");
+        CL_ASSERT(gClMM.snapshots == 1, "the snapshot was attempted");
+        CL_ASSERT(gClMM.beginCalls == 0,
+                  "and nothing was begun on that side: a failed snapshot must never be followed by a query");
+        CL_ASSERT(gClMM.endCalls == 0,
+                  "so nothing is owed back either — endQuery follows beginQuery, and beginQuery never ran");
+        CL_ASSERT(gClMM.restores == 0, "and nothing may be restored out of a blob that was never captured");
+        CL_ASSERT(gClOoT.beginCalls == 1 && gClOoT.endCalls == 1 && !gClOoT.detached,
+                  "while the side opened before it is still torn down in full");
+    }
+
+    // --- 5. RunFill takes the tables EMPTY, on both fill paths --------------
+    // Authored rows carrying ids that are in NO bag (Boots, Mask), so "did the
+    // fill keep them" is answerable without depending on where the union draw
+    // sent the bag's own items.
+    {
+        ComboLogicBagItem bag[8];
+        const int bagCount = ClBuildFillBag(bag);
+        const uint8_t rungs[2] = { RSBS_COMBO_RUNG_NONE, RSBS_COMBO_RUNG_BEATABLE };
+
+        for (int r = 0; r < 2; ++r) {
+            ClBuildFillWorld(true);
+            CL_ASSERT(Combo_Logic_Place(GAME_OOT, 10, ClItem((uint8_t)GAME_OOT, kOotBoots),
+                                        RSBS_ITEMCLASS_PROGRESSION),
+                      "author one row the way a spoiler load would");
+            CL_ASSERT(Combo_Logic_Place(GAME_MM, 20, ClItem((uint8_t)GAME_MM, kMmMask), RSBS_ITEMCLASS_PROGRESSION),
+                      "and one on the other side");
+            CL_ASSERT(Combo_Logic_PlacementCount(GAME_OOT) == 1 && Combo_Logic_PlacementCount(GAME_MM) == 1,
+                      "both tables hold their authored row");
+            CL_ASSERT(ClAnyTableHolds(kOotBoots) && ClAnyTableHolds(kMmMask), "by id, before the fill");
+
+            CL_ASSERT(ClRunFill(bag, bagCount, RSBS_COMBO_GOAL_BEAT_BOTH, rungs[r], 0x0FFu, &res) ==
+                          RSBS_COMBO_LOGIC_OK,
+                      "the fill over those tables must succeed");
+            CL_ASSERT(res.placed == bagCount,
+                      "and hold ONLY its own bag: every attempt begins with Combo_Logic_ResetPlacements(), so an "
+                      "authored partial world is discarded, not extended");
+            CL_ASSERT(Combo_Logic_PlacementCount(GAME_OOT) + Combo_Logic_PlacementCount(GAME_MM) == bagCount,
+                      "the two tables agree with the result");
+            CL_ASSERT(!ClAnyTableHolds(kOotBoots) && !ClAnyTableHolds(kMmMask),
+                      "and neither authored item survives anywhere in either table");
+            CL_ASSERT(gClOoT.placedCount + gClMM.placedCount == bagCount,
+                      "and the ENGINES forgot too: the reset calls clearPlacements on both sides");
+        }
+    }
+
+    ClUninstall();
+    printf("[TEST] combo-logic-contract-edges: PASS\n");
     return TEST_PASS;
 }
