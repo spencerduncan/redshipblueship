@@ -10,10 +10,12 @@
  * ROM-free test harness drives it with stub engines.
  *
  * THREADING: game thread only, like every other src/common coordinator. The
- * working buffers below are file-static rather than stack-allocated (a bag of
- * 512 items plus two 1024-host candidate lists is ~6 KB, and the fill recurses
- * nowhere), which is only safe because of that. A future off-thread caller must
- * marshal, exactly as shared_items.h's sourced-grant seam requires.
+ * working buffers below are file-static rather than stack-allocated (the host
+ * buffers dominate: RSBS_COMBO_LOGIC_HOST_CAP is 4096 ids, so the three candidate
+ * buffers and the scratch come to 32 KB, with the bag buffers a few KB on top, and
+ * the fill recurses nowhere), which is only safe because of that. A future
+ * off-thread caller must marshal, exactly as shared_items.h's sourced-grant seam
+ * requires.
  */
 
 #include "combo_logic.h"
@@ -366,14 +368,24 @@ static void ComboLogicShuffle(int* order, int count, uint32_t* rng) {
 // One round
 // ============================================================================
 
-/** Candidate hosts collected from one engine, filtered by our own occupancy. */
+/**
+ * Candidate hosts collected from one engine, filtered by our own occupancy.
+ *
+ * SIZED BY RSBS_COMBO_LOGIC_HOST_CAP, NOT BY THE PLACEMENT CAP. What has to fit
+ * here is one engine's ENTIRE offered host list — its whole shuffled-check pool
+ * under the `none` rung — which is bounded by that game's check id-space (2528
+ * enumerators for OoT, 2258 for MM), not by how many bag items one side can
+ * receive. Sizing it by RSBS_COMBO_LOGIC_PLACEMENT_CAP (1024) was increment 3's
+ * defect: the first engine that enumerated honestly would have tripped
+ * ERR_CAPACITY on the first bag item of the first fill.
+ */
 typedef struct {
-    uint16_t host[RSBS_COMBO_LOGIC_PLACEMENT_CAP];
+    uint16_t host[RSBS_COMBO_LOGIC_HOST_CAP];
     int count;
 } ComboLogicHostBuf;
 
 static ComboLogicHostBuf sCandidates[RSBS_FOREIGN_POOL_ORIGIN_COUNT];
-static uint16_t sHostScratch[RSBS_COMBO_LOGIC_PLACEMENT_CAP];
+static uint16_t sHostScratch[RSBS_COMBO_LOGIC_HOST_CAP];
 
 /**
  * Ask one engine for its candidate hosts and keep the ones our tables do not
@@ -387,10 +399,10 @@ static uint16_t sHostScratch[RSBS_COMBO_LOGIC_PLACEMENT_CAP];
  *                    hosts are drawn from all empties". The two differ in more
  *                    than breadth: `allEmptyHosts` is legal OUTSIDE a query
  *                    bracket and `reachedEmptyHosts` is not.
- * @return RSBS_COMBO_LOGIC_OK, or ERR_CAPACITY when the engine reports more
- *         hosts than the scratch buffer holds — refused rather than truncated,
+ * @return RSBS_COMBO_LOGIC_OK, or ERR_CAPACITY when the engine reports more than
+ *         RSBS_COMBO_LOGIC_HOST_CAP hosts — refused rather than truncated,
  *         because a truncated candidate set silently narrows the world to a
- *         prefix of one engine's table.
+ *         prefix of one engine's table, and no determinism row could see that.
  */
 static int ComboLogicCollectFrom(uint8_t game, bool reachedOnly) {
     ComboLogicHostBuf* buf = &sCandidates[game];
@@ -401,14 +413,16 @@ static int ComboLogicCollectFrom(uint8_t game, bool reachedOnly) {
         return RSBS_COMBO_LOGIC_ERR_NO_ENGINE;
     }
 
-    const int total = reachedOnly ? e->reachedEmptyHosts(e->self, sHostScratch, RSBS_COMBO_LOGIC_PLACEMENT_CAP)
-                                  : e->allEmptyHosts(e->self, sHostScratch, RSBS_COMBO_LOGIC_PLACEMENT_CAP);
+    const int total = reachedOnly ? e->reachedEmptyHosts(e->self, sHostScratch, RSBS_COMBO_LOGIC_HOST_CAP)
+                                  : e->allEmptyHosts(e->self, sHostScratch, RSBS_COMBO_LOGIC_HOST_CAP);
     if (total < 0) {
         return RSBS_COMBO_LOGIC_ERR_ENGINE_REFUSED;
     }
-    if (total > RSBS_COMBO_LOGIC_PLACEMENT_CAP) {
-        fprintf(stderr, "[ComboLogic] %s engine offered %d candidate hosts; the buffer holds %d\n",
-                Game_ToString((GameId)game), total, RSBS_COMBO_LOGIC_PLACEMENT_CAP);
+    if (total > RSBS_COMBO_LOGIC_HOST_CAP) {
+        fprintf(stderr,
+                "[ComboLogic] %s engine offered %d hosts; RSBS_COMBO_LOGIC_HOST_CAP is %d — raise that constant "
+                "rather than truncating the world\n",
+                Game_ToString((GameId)game), total, RSBS_COMBO_LOGIC_HOST_CAP);
         return RSBS_COMBO_LOGIC_ERR_CAPACITY;
     }
 
@@ -487,7 +501,10 @@ static void ComboLogicResetRoundResult(ComboLogicRoundResult* res) {
 static int ComboLogicRoundRun(const ComboLogicBagItem* assumed, int assumedCount, uint8_t goal,
                               ComboLogicRoundResult* res) {
     const uint8_t order[2] = { (uint8_t)GAME_OOT, (uint8_t)GAME_MM };
-    bool began[RSBS_FOREIGN_POOL_ORIGIN_COUNT] = { false, false, false };
+    /** `beginQuery` was CALLED on this side — not "it succeeded". The teardown
+     *  owes `endQuery` from the call, not from the return: see the bracket
+     *  ownership rule in combo_logic.h. */
+    bool beginCalled[RSBS_FOREIGN_POOL_ORIGIN_COUNT] = { false, false, false };
     bool snapped[RSBS_FOREIGN_POOL_ORIGIN_COUNT] = { false, false, false };
     int status = RSBS_COMBO_LOGIC_OK;
     uint32_t prevObs[4] = { 0u, 0u, 0u, 0u };
@@ -517,12 +534,20 @@ static int ComboLogicRoundRun(const ComboLogicBagItem* assumed, int assumedCount
             }
             snapped[g] = true;
         }
+        // MARKED BEFORE THE CALL, DELIBERATELY. `beginQuery` is where an engine
+        // detaches (OoT re-points `Logic::mSaveContext` at a heap copy) and
+        // `endQuery` is the only documented inverse, so a refusal that happened
+        // AFTER a partial detach must still get its inverse. Marking on success
+        // instead — increment 3's shape — left OoT pointed at a simulated save for
+        // the rest of the process, which is audit §1.8's hazard exactly. The cost
+        // of the other direction is one no-op call into an engine that never
+        // opened, which combo_logic.h now requires every engine to absorb.
+        beginCalled[g] = true;
         if (!e->beginQuery(e->self)) {
             fprintf(stderr, "[ComboLogic] %s engine refused beginQuery\n", Game_ToString((GameId)g));
             status = RSBS_COMBO_LOGIC_ERR_ENGINE_REFUSED;
             break;
         }
-        began[g] = true;
     }
 
     // --- seed the assumed set --------------------------------------------
@@ -664,6 +689,14 @@ static int ComboLogicRoundRun(const ComboLogicBagItem* assumed, int assumedCount
     }
 
     // --- close the bracket, in reverse --------------------------------------
+    //
+    // Each half is gated by what actually happened, not by whether the round
+    // succeeded: `snapped` by a snapshot that RETURNED nonzero (there is nothing to
+    // put back otherwise), `beginCalled` by the CALL. That is what makes this
+    // correct over a round abandoned part-opened — a side whose `snapshot` refused
+    // has neither flag set and is skipped entirely, while every side opened before
+    // it is torn down in full. combo_logic.h states the rule as a contract,
+    // because an engine has to be able to rely on it.
     for (int s = 1; s >= 0; --s) {
         const uint8_t g = order[s];
         const ComboLogicEngine* e = sEngines[g];
@@ -684,7 +717,7 @@ static int ComboLogicRoundRun(const ComboLogicBagItem* assumed, int assumedCount
                 }
             }
         }
-        if (began[g]) {
+        if (beginCalled[g]) {
             e->endQuery(e->self);
         }
     }

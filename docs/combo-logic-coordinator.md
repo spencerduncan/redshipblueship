@@ -46,14 +46,20 @@ test restores the registry instead of leaving process-global state behind.
 
 ## 2. The bracket semantics
 
+`src/common/combo_logic.h` is the NORMATIVE statement of the call order and of
+the ownership rule below — an engine implementation reads the header, not this
+note. What follows is the same rule with the reasons attached, and it is kept in
+step with the header on purpose: increment 3 shipped a weaker version here than
+in the header and the follow-up (#717) corrected it.
+
 Per round, for both sides, in this order:
 
 ```
 if (S.snapshot) S.snapshot()      // BEFORE beginQuery
 S.beginQuery()
 ... assume the set, alternate to a fixpoint, read every fact ...
-if (S.restore) { S.restore(); re-apply all of P[S] through S.place() }
-S.endQuery()
+if (S snapshotted OK) { S.restore(); re-apply all of P[S] through S.place() }
+if (S.beginQuery was CALLED)  S.endQuery()
 ```
 
 - **Snapshot before `beginQuery`**, because the restore has to undo whatever
@@ -73,8 +79,41 @@ S.endQuery()
   restoring engine's state contains every placement the coordinator has decided.*
   That is why `place` must be idempotent for the same `(host, item)`.
 - **`endQuery` is last**, after the restore and the re-apply, because it is where
-  OoT re-points `Logic::mSaveContext` at the live save (audit §4.4/§1.8) — the
-  engine must still be in query shape while the re-apply runs.
+  OoT re-points `Logic::mSaveContext` at the live save (audit §4.4/§1.8) — on a
+  round that opened, the engine must still be in query shape while the re-apply
+  runs.
+
+### The ownership rule, when a round is abandoned part-opened
+
+A round can fail while the two sides are still being opened: `snapshot` refuses,
+or `beginQuery` refuses. The teardown then runs over a bracket that is only half
+there, and exactly one rule decides each half. **It is per CALL, not per
+success**, and both gates are the ones in the pseudo-code above:
+
+| half | called iff | why not the other reading |
+|---|---|---|
+| `restore` | `snapshot` was called **and returned nonzero** | Gating on the mere presence of the `restore` pointer would restore out of a blob that was never captured, writing stale bytes over live state. |
+| `endQuery` | `beginQuery` **was called at all**, whatever it returned | The engine's detach lives in `beginQuery` and its only documented inverse lives in `endQuery` (OoT's `Logic::mSaveContext`). A `beginQuery` that detaches and then refuses would otherwise leave the engine coupled to a simulated save for the rest of the process — audit §1.8's hazard, reached through the contract's own refusal path. That was increment 3's behaviour. |
+
+A side whose `snapshot` refused is therefore **never asked to begin**, and gets
+neither `endQuery` nor `restore`. Sides opened *before* the refusing one are torn
+down in full.
+
+**What an engine must tolerate**, which is the part an engine author needs and the
+reason this is a contract rather than a behaviour — two different teardowns,
+depending on whether the side snapshotted:
+
+- *No snapshot pair*: one `endQuery` on a round that never opened. A no-op there,
+  not an unwind of state the engine never set.
+- *A snapshot pair whose `snapshot` succeeded before `beginQuery` refused*:
+  `restore`, **then a full re-apply of that side's whole placement table through
+  `place`**, then `endQuery` — all three on an engine whose `beginQuery` returned
+  zero. So `restore` and `place` must both work outside an open query bracket, and
+  `place` must still be idempotent there. MM is the side that snapshots, so MM is
+  the side that meets this.
+
+Both configurations are locked in `test_combo_logic.c`'s
+`ComboLogicContractEdges` row (scenarios 3 and 4).
 
 ## 3. Four things the audit's surface did not have
 
@@ -199,6 +238,45 @@ Three points worth stating because a reviewer could reasonably expect otherwise:
   per fill and a coordinator drawing from a game's stream would make the world a
   function of the search's shape rather than of the identity.
 
+### 4.1 Three capacities, three different quantities
+
+The header sizes three caps separately, and conflating any two of them is a real
+defect rather than a tidiness question (increment 3 conflated the first and the
+third; #717 split them):
+
+| cap | bounds | today | sized against |
+|---|---|---|---|
+| `RSBS_COMBO_LOGIC_BAG_CAP` (512) | bag items in one fill | low hundreds | both games' last general advancement pass (audit amendment 2) |
+| `RSBS_COMBO_LOGIC_PLACEMENT_CAP` (1024) | placements on **one host game** | ≤ the bag | the bag — it bounds what one side can *receive* |
+| `RSBS_COMBO_LOGIC_HOST_CAP` (4096) | hosts one engine may **offer in one enumeration** (`reachedEmptyHosts` / `allEmptyHosts`) | OoT 2528, MM 2258 | **a game's check id-space**, not the bag |
+
+The third is the one the collector's scratch buffer must be sized by. An engine
+answering "every shuffled check I do not consider assigned" hands back its whole
+pool, so a scratch sized by the placement cap would have met `ERR_CAPACITY` on the
+**first bag item of the first fill** — and reported "this seed cannot be filled"
+for a reason with nothing to do with the world. A `#error` in the header keeps the
+host cap at least the placement cap, because every placed host was first an
+offered host.
+
+Above the cap the behaviour is to **refuse, never truncate**: a truncated
+candidate list silently narrows the world to a prefix of one engine's table, and
+no determinism row could see that. The refusal names the constant to raise.
+
+### 4.2 `Combo_Logic_RunFill` resets both placement tables at every attempt
+
+Every attempt — on both fill paths, the `none` rung included — begins with
+`Combo_Logic_ResetPlacements()`, which clears both coordinator tables *and* calls
+each registered engine's `clearPlacements`. So both tables and both engines are
+empty before the first item is placed.
+
+Stated here because `Combo_Logic_Place` invites a spoiler-load caller to rebuild
+both tables from a spoiler's foreign section, and `RunFill`'s post-conditions read
+as "the fill only ever adds". **There is no keep-existing-placements mode**, and a
+fill is not a continuation of an authored partial world: anything authored before
+a fill is discarded, not extended. Adding such a mode would change
+`ComboLogicFillRequest`, which increment 3 and its follow-up deliberately did not
+do.
+
 `RSBS_COMBO_GOAL_TRIFORCE_HUNT` **refuses** with
 `RSBS_COMBO_LOGIC_ERR_UNSUPPORTED_GOAL`. Answer O10 rules one shared piece count
 across both worlds, that carrier does not exist, and per-half composition is what
@@ -245,7 +323,7 @@ Not oversights. Each has an owner.
 
 ## 7. What the locks prove, and what they do not
 
-Three `redship` rows, all over two synthetic bitmask stub engines.
+Four `redship` rows, all over two synthetic bitmask stub engines.
 
 Proved: the registration refusals; the GOAL truth table including
 `beat-either`'s OR never narrowing to an XOR and triforce-hunt refusing; that a
@@ -269,6 +347,25 @@ world where the two host sources disagree it places into the unreached host whil
 bracket on either engine; `beat-either` placing byte-identically to `beat-both`
 where both halves prove, and not starving the permitted unbeatable half's checks;
 and `all-reachable` refusing a world `beatable` accepts.
+
+The fourth row (`ComboLogicContractEdges`, #717) is the contract's EDGES, which
+the first three could not reach because their worlds are six hosts per side and
+their stubs never refuse: an engine offering 2300 hosts is accepted on both the
+`none` and a proving rung and one past `RSBS_COMBO_LOGIC_HOST_CAP` is refused
+rather than truncated; **both** part-opened teardowns of §2's ownership rule — a
+side that refused `beginQuery` without a snapshot pair gets `endQuery` and no
+`restore`, and one that refused it *after* a successful `snapshot` gets `restore`,
+a full re-apply of its whole table, and `endQuery`, with a harsh restore proving
+the re-apply actually ran; a refused `snapshot` getting neither; and `RunFill`
+discarding an authored partial world from both tables *and* both engines (§4.2).
+
+**Three** of that row's six scenarios have **no red half on `origin/main`**, and
+they are locked as contract rather than as regressions: the enumeration cap's
+*refusal* (increment 3 refused above its own smaller cap too, so it never
+truncated either — only a hypothetical truncating coordinator makes that half
+red), the refused `snapshot` (main already gated `restore` on the snapshot's
+return), and `RunFill`'s reset (already true, just undocumented). The three that do
+have one are the cap's *acceptance* and the two failed-bracket teardowns.
 
 Asserted of the stub rather than of the coordinator, and therefore **not** proved
 here: the junk cover. `ClPlace` makes a foreign item into a local junk item

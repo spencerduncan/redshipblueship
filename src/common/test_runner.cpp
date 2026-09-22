@@ -4286,6 +4286,10 @@ const TestDescriptor gTests[] = {
      "MM's ComboLogicEngine answers from the real region graph, brackets the live save byte-exactly, harvests its "
      "own-origin placements, is monotone under assume and agrees with itself (#645, ADR 0010 inc. 3)",
      Test_MMComboLogicEngine},
+    {"combo-logic-contract-edges",
+     "An engine may offer a whole check pool of hosts, a beginQuery that refuses after detaching still gets its "
+     "endQuery (with or without a snapshot), and RunFill takes both tables empty (#701)",
+     Test_ComboLogicContractEdges},
     {nullptr, nullptr, nullptr}  // Sentinel
 };
 
