@@ -50,6 +50,7 @@
 // MM_Rando_ComputeProfileStamp — the arrival's identity re-resolution
 // (#498/#564: compare against the creation-frozen mmProfileDigest).
 #include "combo_mm_options_view.h"
+#include "gen_budget.h" // src/common — the #582 creation-progress channel
 // OoT_Notification_Emit — the shared toast overlay (#427 bridge): the arrival
 // refusal must be player-visible in-game, not only in the file panel.
 #include "notification_bridge.h"
@@ -4154,6 +4155,20 @@ extern "C" int MM_Rando_GenerateAtCreation(int slot, const char* ootSpoilerPath)
     // An empty region graph after this call is not checked separately: the
     // generation below throws "No checks in logic" from GeneratePools, which
     // lands in the same terminal-failure return as every other dead end.
+    //
+    // REPORTED AND MEASURED (#582's review). This stretch — MM's whole rando core
+    // (region graph, static data, trick tables) plus the vanilla bootstrap — sits
+    // BETWEEN Combo_GenProgress_Begin() and the ladder's first MM_FILL report, and
+    // the first cut of #582 claimed without measuring that "everything else the
+    // creation event does reports a phase and moves on within milliseconds". Two
+    // changes rather than one assertion: the phase channel gets a record here so
+    // the overlay's caption names what the player is waiting for instead of showing
+    // the IDLE phase's name, and the duration is printed on EVERY creation so the
+    // claim is a number in the log rather than an estimate in a comment. The phase
+    // stays IDLE on purpose: nothing has begun filling yet, and inventing a phase
+    // would move every weight the bar is built on.
+    const uint32_t rsbsPrepStartMs = Combo_GenProgress_ElapsedMs();
+    Combo_GenProgress_Report((uint8_t)RSBS_GENPHASE_IDLE, 0, "preparing Majora's Mask's logic tables");
     MM_Rando_InitCore();
 
     // Registers are read by logic predicates through R_* macros and are only
@@ -4170,7 +4185,15 @@ extern "C" int MM_Rando_GenerateAtCreation(int slot, const char* ootSpoilerPath)
     // binary and this seam does not acquire a private copy of it.
     memset(&gSaveContext, 0, sizeof(SaveContext));
     MM_Sram_InitNewSave();
+    fprintf(stderr,
+            "[MM] creation: the pre-fill stretch (rando core init + vanilla bootstrap) took %ums — this is the window "
+            "the overlay captions before the ladder's first attempt report (#582)\n",
+            Combo_GenProgress_ElapsedMs() - rsbsPrepStartMs);
+    fflush(stderr);
     GameInteractor_ExecuteOnSaveInit(0);
+    // Where MM's own post-fill stretch starts (the spoiler join and the shadow
+    // arm). Measured for the same reason the pre-fill one is.
+    const uint32_t rsbsPostFillStartMs = Combo_GenProgress_ElapsedMs();
 
     if (gSaveContext.save.shipSaveInfo.saveType != SAVETYPE_RANDO) {
         // OnFileCreate's catch ran: the attempt ladder was exhausted, or the
@@ -4191,6 +4214,11 @@ extern "C" int MM_Rando_GenerateAtCreation(int slot, const char* ootSpoilerPath)
     // gSaveContext, and the caller RESTORES OoT's bytes over it the instant this
     // function returns. There is exactly one window in which both the MM world
     // and the OoT spoiler document exist, and this is it.
+    //
+    // Reported as well as done: this is the second of the two stretches the review
+    // of #582 found unreported, and after the ladder's last attempt a bar captioned
+    // "Building the Majora's Mask world (attempt n of N)" is stale copy.
+    Combo_GenProgress_Report((uint8_t)RSBS_GENPHASE_SPOILER, 0, "writing the paired spoiler");
     if (ootSpoilerPath != NULL && ootSpoilerPath[0] != 0) {
         MM_Rando_AugmentSpoilerWithPairedHalf(ootSpoilerPath);
     }
@@ -4219,9 +4247,9 @@ extern "C" int MM_Rando_GenerateAtCreation(int slot, const char* ootSpoilerPath)
 
     fprintf(stderr,
             "[MM] creation: MM half authored and armed for slot %d (mmFinalSeed=%08X foreignPlacements=%d "
-            "ladderAttempt=%d)\n",
+            "ladderAttempt=%d; MM's post-fill stretch — spoiler join + shadow arm — took %ums)\n",
             slot, gSaveContext.save.shipSaveInfo.rando.finalSeed, Combo_CountForeignPlacements(),
-            MM_Rando_PairedGenLastAttempts());
+            MM_Rando_PairedGenLastAttempts(), Combo_GenProgress_ElapsedMs() - rsbsPostFillStartMs);
     fflush(stderr);
     return 0;
 }

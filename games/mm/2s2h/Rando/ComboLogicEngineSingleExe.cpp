@@ -48,7 +48,20 @@
  *     `GiveItem`'s triforce-completion branch emplaces a transition into that
  *     queue (GiveItem.cpp), and a simulated completion must not leak a queued
  *     warp into gameplay;
- *   - `restore` memcpy's back and truncates the queue to that depth.
+ *   - plus `Rando::Logic::gCurrentRegionTime` (ADDED IN REVIEW). It is a
+ *     `thread_local uint64_t` declared at Logic.h:105 and defined at
+ *     Logic.cpp:17 — state OUTSIDE the save that both halves of a crawl write:
+ *     `FindReachableRegions` assigns it per region, and
+ *     `EvaluateReachableChecks` re-assigns it through `SetCurrentRegionTime`
+ *     (Logic.h:121-124). So every `expand` leaves it holding whichever region
+ *     the crawl finished on, and the lock's whole-struct memcmp cannot see that.
+ *     The precedent for bracketing it is already in this tree
+ *     (mm_trick_bindings_test.cpp:573 and :803 save and restore it around their
+ *     work). It is one word, and the contract says this pair "captures
+ *     everything this engine's queries will mutate" — so it is in the pair
+ *     rather than named as an exception;
+ *   - `restore` memcpy's back, truncates the queue to that depth, and puts
+ *     `gCurrentRegionTime` back.
  *
  * Both are idempotent and both are safe out of order, because the coordinator's
  * teardown is allowed to run after a bracket that never opened (see `EndQuery`).
@@ -116,6 +129,36 @@
  *      below is that seam, and it is also what lets a lock author a small pool
  *      with a known answer.
  *
+ *      CORRECTED IN REVIEW — shops and Tingle shops are NOT unconditional.
+ *      An earlier draft of this TU listed `RCTYPE_SHOP` and `RCTYPE_TINGLE_SHOP`
+ *      among the rows "GeneratePools excludes UNCONDITIONALLY". That was false,
+ *      and it made this paragraph's own claim false with it:
+ *      `GeneratePools.cpp:116-118` skips Tingle shops only when
+ *      `randoSaveOptions[RO_SHUFFLE_TINGLE_SHOPS] == RO_GENERIC_NO`, and
+ *      `:126-131` skips shops only when `RO_SHUFFLE_SHOPS == RO_GENERIC_NO`
+ *      AND the row is neither `RC_CURIOSITY_SHOP_SPECIAL_ITEM` nor
+ *      `RC_BOMB_SHOP_ITEM_04_OR_CURIOSITY_SHOP_ITEM` ("We always want shuffle"
+ *      — those two are in MM's real `checkPool` in EVERY settings
+ *      configuration). Excluding them here was therefore a settings-conditional
+ *      NARROWING applied unconditionally, and it had two teeth: `place` shares
+ *      this predicate, so it returned 0 — i.e.
+ *      RSBS_COMBO_LOGIC_ERR_ENGINE_REFUSED — on the two always-shuffled shop
+ *      checks, and `MM_ComboLogic_SetHostPool` silently dropped them, so the
+ *      increment-4 seam could not hand MM's real pool in intact. Both rows are
+ *      gone; shops stay in the universe and the pool seam decides.
+ *      ONE CAVEAT that belongs to the coordinator rather than here: a FOREIGN
+ *      cover on a shop host is a separate question, and MM already has a
+ *      predicate for it — `Rando::IsEligibleHost` / `IsAllowedHostClass`
+ *      (Foreign.cpp:460-467) rejects shop classes because "the shop give/price
+ *      flow and spoiler shape differ from the ordinary eligible->CheckQueue path
+ *      THE GENERIC FOREIGN PRESENTATION targets". That reason IS
+ *      foreign-specific (an earlier draft of this header claimed it was not),
+ *      so it cannot justify removing shops from the universe for MM-origin
+ *      placement too. What the contract is missing is a PER-ORIGIN host
+ *      predicate; until it has one, increment 4 must consult
+ *      `Rando::IsEligibleHost` before choosing a shop host for a foreign item.
+ *      That is stated in the PR as a contract gap, not worked around here.
+ *
  * (A4) The host universe is LARGER THAN THE COORDINATOR'S SCRATCH BUFFER, and
  *      that is a fact about MM rather than a choice here: MM's graph names on
  *      the order of a thousand-plus checks against
@@ -129,13 +172,63 @@
  * (A5) `expand` must answer "did anything become reachable that was not
  *      reachable at the previous expand of this round". MM's crawl is a FULL
  *      RECOMPUTE from the arrival entrance; it does not carry an incremental
- *      frontier. This engine therefore recomputes and DIFFS against the round's
- *      accumulated sets. The accumulation is a union, so a recompute that came
- *      back SMALLER cannot hide: it is counted and logged
- *      (`MM_ComboLogic_ShrinkObservations`), and the lock asserts that counter
- *      is zero over the item set it exercises. That is a real, falsifiable
- *      statement about MM's monotonicity, where simply trusting the union would
- *      have been a silent over-approximation.
+ *      frontier. This engine therefore recomputes and DIFFS against what the
+ *      round last reported.
+ *
+ *      CORRECTED IN REVIEW — the round reports the LATEST RECOMPUTE, not a
+ *      union. An earlier draft accumulated a union across the round's expands
+ *      and, on a recompute that came back smaller, kept the union anyway while
+ *      counting and logging the shrink. That was the silent over-approximation
+ *      this note claimed to have avoided, and it was worse than trusting MM:
+ *      the union keeps the candidate COUNT flat, which is exactly the observable
+ *      the coordinator's own monotone detector watches
+ *      (combo_logic.c:583-598), so a genuine non-monotonicity in MM's dialect
+ *      would have left `RSBS_COMBO_LOGIC_ERR_NON_MONOTONE` unfired — a state
+ *      combo_logic.h:112-116 says "is refused, never worked around" — while the
+ *      engine went on reporting regions and checks as reachable that its own
+ *      latest recompute says are not. Only the extern "C" counter would have
+ *      known, and nothing outside this row reads it.
+ *      Now: `sRound.regions` / `sRound.checks` / `sRound.regionTimeStates` are
+ *      ASSIGNED from each recompute. A shrink is still counted and logged, and
+ *      it now also SHOWS: the reported reached-host count falls, the crossing
+ *      flag may fall, and the coordinator refuses the round. The unsound
+ *      direction (claiming reachability that does not hold) is gone; the cost is
+ *      that an MM-side non-monotonicity fails a fill instead of being papered
+ *      over, which is what ADR 0010 §2.3 asks for.
+ *      A side benefit: `regionTimeStates` and `regions` now always come from ONE
+ *      crawl, so the crawl `goalReached` hands to `MmGoalMajoraDefeated` can no
+ *      longer contain a region id absent from its time-state map — which
+ *      `SetCurrentRegionTime`'s `.at()` (Logic.h:121-124) would throw on for any
+ *      future goal term that consults time states.
+ *
+ * (A6) `expand` MUST HARVEST OWN-ORIGIN PLACEMENTS, and an earlier draft of this
+ *      TU did not (added in review). The contract assigns that job to `expand`
+ *      in two places: combo_logic.h:441-445 says `place` must not grant because
+ *      "the coordinator decides when an item counts as held (`assumeOwnItem`,
+ *      and the harvest of own-origin items that `expand` does when their host
+ *      becomes reached)", and combo_logic.c:437-440 says own-origin placements
+ *      are skipped by the exchange precisely because "harvesting an item from a
+ *      reached check in its OWN game is the engine's own `expand` (that is what
+ *      OoT's `ReachabilitySearch` already does)". OoT's side genuinely does it:
+ *      ReachabilitySearch -> ProcessRegion -> AddCheckToLogic ->
+ *      ApplyOrStoreItem -> `loc->ApplyPlacedItemEffect()`.
+ *      Without it the round is not a reachability evaluation under the partial
+ *      placement P at all: MM's candidate set would SHRINK as the fill places
+ *      rather than hold steady, and the final round (assumed set empty) could
+ *      only ever prove MM's goal from the starting inventory — so `goalMM` would
+ *      be ~always 0, i.e. ERR_GOAL_UNPROVABLE under beat-both and MM's half
+ *      silently unproved under beat-either.
+ *      MM already had the primitive and it was unused: `ComputeReachableCheckSet`
+ *      (Logic.cpp:408-456) is exactly crawl-then-`GiveItem(ConvertItem(placed))`
+ *      to closure, with the same heap memcpy and queue-depth bracket this engine
+ *      copied. `Expand` now runs that closure, restricted to hosts THIS
+ *      COORDINATOR placed on (`sHeld`, `item.originGame == GAME_MM`) — MM's own
+ *      vanilla and fill-assigned items are deliberately NOT harvested, because
+ *      the coordinator's bag is the authority on what the pair's world holds and
+ *      crediting MM's untouched vanilla contents would prove a world nobody
+ *      authored. The harvest goes through the SAME dedup as A2, so a counted
+ *      item placed twice grants once: pessimistic in the same direction, for the
+ *      same reason.
  *
  * ============================================================================
  * WHAT IS NOT PROVED HERE — read this before trusting the give path
@@ -227,6 +320,9 @@ RoundState sRound;
 // The snapshot bracket. Heap, as Logic.cpp's closure argues.
 std::unique_ptr<SaveContext> sSnapshot;
 size_t sSnapshotQueueDepth = 0;
+// Rando::Logic::gCurrentRegionTime — thread_local, outside the save, written by
+// both halves of every crawl. See the bracket note in the file header.
+uint64_t sSnapshotRegionTime = 0;
 bool sSnapshotLive = false;
 
 // Diagnostics the lock reads. Observable rather than internal because "did MM's
@@ -237,6 +333,10 @@ int sShrinkObservations = 0;
 int sBeginQueryRefusals = 0;
 int sEndQueryCalls = 0;
 int sRedundantEndQueries = 0;
+// How many own-origin placed items `expand` has harvested (A6). Observable so
+// the lock can assert the harvest actually fired rather than inferring it from a
+// reachability number that could move for another reason.
+int sHarvests = 0;
 
 // ============================================================================
 // The host universe (A3)
@@ -262,10 +362,13 @@ bool sHostPoolSet = false;
  *   - `SCENE_LAST_BS` is Majora's arena, whose two pots GeneratePools declines
  *     outright ("We may never shuffle these 2 pots"). They are also exactly the
  *     two checks mm_majora_goal_test.cpp pins as the lair's whole fill-visible
- *     surface, so offering them as hosts would contradict a live lock;
- *   - shops and Tingle shops: their give/price flow differs from the ordinary
- *     eligible -> CheckQueue path (Foreign.cpp's IsAllowedHostClass says so for
- *     the foreign case, and the reason is not foreign-specific). */
+ *     surface, so offering them as hosts would contradict a live lock.
+ *
+ *  THAT IS THE WHOLE LIST. Shops and Tingle shops were here and are not
+ *  `GeneratePools`-unconditional — see A3's correction in the file header for
+ *  what that cost (`place` refusing the two always-shuffled shop checks, and
+ *  `MM_ComboLogic_SetHostPool` silently dropping them). Anything settings-shaped
+ *  belongs to the pool seam, not to this predicate, which also gates `place`. */
 bool IsUnconditionallyExcluded(RandoCheckId randoCheckId) {
     if (randoCheckId == RC_UNKNOWN || (uint32_t)randoCheckId >= (uint32_t)RC_MAX) {
         return true;
@@ -275,9 +378,6 @@ bool IsUnconditionallyExcluded(RandoCheckId randoCheckId) {
         return true;
     }
     if (it->second.sceneId == SCENE_LAST_BS) {
-        return true;
-    }
-    if (it->second.randoCheckType == RCTYPE_SHOP || it->second.randoCheckType == RCTYPE_TINGLE_SHOP) {
         return true;
     }
     return false;
@@ -354,6 +454,7 @@ int Snapshot(void* self) {
     }
     memcpy(sSnapshot.get(), &gSaveContext, sizeof(SaveContext));
     sSnapshotQueueDepth = MM_GameEvents_Queue().size();
+    sSnapshotRegionTime = Rando::Logic::gCurrentRegionTime;
     sSnapshotLive = true;
     return 1;
 }
@@ -372,6 +473,7 @@ void Restore(void* self) {
     if (MM_GameEvents_Queue().size() > sSnapshotQueueDepth) {
         MM_GameEvents_Queue().resize(sSnapshotQueueDepth);
     }
+    Rando::Logic::gCurrentRegionTime = sSnapshotRegionTime;
     // The buffer stays allocated (it is reused every round) but stops being
     // LIVE, so a second restore cannot re-apply a stale save over newer state.
     sSnapshotLive = false;
@@ -417,49 +519,105 @@ void AssumeOwnItem(void* self, uint16_t ownItemId) {
     Rando::GiveItem(Rando::ConvertItem((RandoItemId)ownItemId));
 }
 
+/**
+ * One complete reachability evaluation under the coordinator's partial
+ * placement (A5 + A6).
+ *
+ * TERMINATION. The outer loop runs another pass only when the harvest granted at
+ * least one id it had never granted before, and every grant inserts into
+ * `sRound.granted`, a set of distinct RandoItemIds bounded by RI_MAX. So the
+ * number of passes is bounded by the number of distinct MM-origin items the
+ * coordinator has placed, plus one. This is the same closure
+ * `ComputeReachableCheckSet` runs (Logic.cpp:408-456) and terminates for the
+ * same reason.
+ */
 int Expand(void* self) {
     (void)self;
-    // A5: full recompute, then diff against the round's accumulation.
-    const Rando::Logic::ReachabilityCrawl crawl = Rando::Logic::CrawlReachableRegions(kMmArrivalEntrance);
-    const std::set<RandoCheckId> reached = Rando::Logic::EvaluateReachableChecks(crawl);
+    int changed = 0;
+    bool grantedThisPass = true;
 
-    bool shrank = false;
-    for (RandoRegionId regionId : sRound.regions) {
-        if (crawl.reachableRegions.find(regionId) == crawl.reachableRegions.end()) {
-            shrank = true;
-            break;
-        }
-    }
-    if (!shrank) {
-        for (RandoCheckId randoCheckId : sRound.checks) {
-            if (reached.find(randoCheckId) == reached.end()) {
+    while (grantedThisPass) {
+        grantedThisPass = false;
+
+        const Rando::Logic::ReachabilityCrawl crawl = Rando::Logic::CrawlReachableRegions(kMmArrivalEntrance);
+        const std::set<RandoCheckId> reached = Rando::Logic::EvaluateReachableChecks(crawl);
+
+        // --- did MM's answer SHRINK relative to what this round last reported?
+        bool shrank = false;
+        for (RandoRegionId regionId : sRound.regions) {
+            if (crawl.reachableRegions.find(regionId) == crawl.reachableRegions.end()) {
                 shrank = true;
                 break;
             }
         }
-    }
-    if (shrank) {
-        // Counted and named, not swallowed. The union below would otherwise
-        // paper over a real monotonicity violation in MM's own dialect, and the
-        // coordinator's own detector watches the candidate COUNT, which a union
-        // keeps flat.
-        sShrinkObservations++;
-        fprintf(stderr, "[MM ComboLogic] expand: a recompute came back SMALLER than this round's accumulation — MM "
-                        "reachability is not monotone under the items granted (ADR 0010 §2.3)\n");
+        if (!shrank) {
+            for (RandoCheckId randoCheckId : sRound.checks) {
+                if (reached.find(randoCheckId) == reached.end()) {
+                    shrank = true;
+                    break;
+                }
+            }
+        }
+        if (shrank) {
+            // A5: counted, logged, AND REPORTED. The assignment below is what
+            // makes this visible to the coordinator's own monotone detector
+            // (combo_logic.c:583-598) instead of being hidden behind a union
+            // that keeps the candidate count flat.
+            sShrinkObservations++;
+            fprintf(stderr, "[MM ComboLogic] expand: a recompute came back SMALLER than this round's previous answer "
+                            "— MM reachability is not monotone under the items granted (ADR 0010 §2.3). The smaller "
+                            "set is what this round now reports.\n");
+            changed = 1;
+        }
+
+        // --- did it GROW?
+        if (!changed) {
+            for (RandoRegionId regionId : crawl.reachableRegions) {
+                if (sRound.regions.find(regionId) == sRound.regions.end()) {
+                    changed = 1;
+                    break;
+                }
+            }
+        }
+        if (!changed) {
+            for (RandoCheckId randoCheckId : reached) {
+                if (sRound.checks.find(randoCheckId) == sRound.checks.end()) {
+                    changed = 1;
+                    break;
+                }
+            }
+        }
+
+        // --- the round reports THIS recompute. Not a union (A5).
+        sRound.regions = crawl.reachableRegions;
+        sRound.checks = reached;
+        sRound.regionTimeStates = crawl.regionTimeStates;
+
+        // --- A6: harvest the coordinator's OWN-ORIGIN placements whose host is
+        // now reached. Same dedup as A2, so a counted item placed twice grants
+        // once. MM's own vanilla and fill-assigned check contents are NOT
+        // harvested: the coordinator's bag is the authority on what this pair's
+        // world holds.
+        for (const auto& entry : sHeld) {
+            if (entry.second.item.originGame != (uint8_t)GAME_MM) {
+                continue;
+            }
+            if (sRound.checks.find((RandoCheckId)entry.first) == sRound.checks.end()) {
+                continue;
+            }
+            if (!IsGiveableItemId(entry.second.item.id)) {
+                continue;
+            }
+            if (!sRound.granted.insert(entry.second.item.id).second) {
+                continue;
+            }
+            Rando::GiveItem(Rando::ConvertItem((RandoItemId)entry.second.item.id));
+            sHarvests++;
+            grantedThisPass = true;
+            changed = 1;
+        }
     }
 
-    int changed = 0;
-    for (RandoRegionId regionId : crawl.reachableRegions) {
-        if (sRound.regions.insert(regionId).second) {
-            changed = 1;
-        }
-    }
-    for (RandoCheckId randoCheckId : reached) {
-        if (sRound.checks.insert(randoCheckId).second) {
-            changed = 1;
-        }
-    }
-    sRound.regionTimeStates = crawl.regionTimeStates;
     sRound.expands++;
     return changed;
 }
@@ -699,6 +857,14 @@ extern "C" int MM_ComboLogic_ShrinkObservations(void) {
     return sShrinkObservations;
 }
 
+/** How many own-origin placed items `expand` has harvested since the last
+ *  counter reset (A6). Zero across a round in which the coordinator placed an
+ *  MM-origin item on a REACHED host means the harvest is not running, which
+ *  makes MM's half of the goal unprovable in every fill. */
+extern "C" int MM_ComboLogic_HarvestCount(void) {
+    return sHarvests;
+}
+
 /** `beginQuery` refusals, `endQuery` calls, and how many of those landed with no
  *  round open (the failed-bracket teardown path). Any pointer may be NULL. */
 extern "C" void MM_ComboLogic_BracketCounters(int* outBeginRefusals, int* outEndCalls, int* outRedundantEnds) {
@@ -719,6 +885,7 @@ extern "C" void MM_ComboLogic_ResetCounters(void) {
     sBeginQueryRefusals = 0;
     sEndQueryCalls = 0;
     sRedundantEndQueries = 0;
+    sHarvests = 0;
 }
 
 /** Is a snapshot currently LIVE (taken and not yet restored)? The lock asserts

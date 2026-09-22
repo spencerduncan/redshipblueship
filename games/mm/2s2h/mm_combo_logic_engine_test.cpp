@@ -20,7 +20,27 @@
  *
  * ORDER OF THE LEGS IS DELIBERATE: every save-touching leg runs inside an outer
  * byte snapshot, and the byte-exactness legs run BEFORE the rounds, so that a
- * round which leaks state cannot make the byte-exactness claim pass.
+ * round which leaks state cannot make the byte-exactness claim pass. Leg numbers
+ * are also the FAILURE CODES, so they are never renumbered; 11 belongs to the
+ * entry point's own preconditions, which is why RunLegs goes 10 -> 12.
+ *
+ * WHAT REVIEW CHANGED IN THIS ROW, because three of its claims were weaker than
+ * their comments said:
+ *   - leg 6 observed `crossingOpen` only TRUE and `goalReached` only FALSE, so a
+ *     constant answer passed. LEG 12 observes the other polarity of both, by
+ *     graph surgery under a scope guard, and also observes the shrink detector
+ *     firing and the round REPORTING the smaller set.
+ *   - leg 8's repeat-grant row compared reachability, which a removed dedup does
+ *     not move (the second grant of most ids collapses to RI_JUNK). It now reads
+ *     MM's two genuine counters directly, and measures what a raw double give
+ *     does to them in the same bracket.
+ *   - leg 7's third round was described as a residue lock, but the residue it
+ *     named self-heals at the top of every crawl. Its rationale is restated and
+ *     it now asserts the residue is genuinely present, and poisons it by hand.
+ *   - LEG 13 is new: `expand` must harvest own-origin placements, and did not.
+ *   - LEG 14 is new: the two always-shuffled shop checks must be placeable hosts.
+ *   - leg 5 parked the whole region graph into a function-local and restored it
+ *     after four early-returning assertions. It is a scope guard now.
  *
  * ============================================================================
  * WHICH GiveItem / ConvertItem BRANCHES THIS ROW DOES *NOT* EXERCISE
@@ -62,6 +82,7 @@
 
 #include "global.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <map>
@@ -102,6 +123,7 @@ void MM_Rando_InitCore(void);
 // The engine's own diagnostics surface (ComboLogicEngineSingleExe.cpp).
 void MM_ComboLogic_SetHostPool(const uint16_t* checks, int count);
 int MM_ComboLogic_ShrinkObservations(void);
+int MM_ComboLogic_HarvestCount(void);
 void MM_ComboLogic_BracketCounters(int* outBeginRefusals, int* outEndCalls, int* outRedundantEnds);
 void MM_ComboLogic_ResetCounters(void);
 int MM_ComboLogic_SnapshotLive(void);
@@ -109,6 +131,75 @@ int MM_ComboLogic_HeldPlacementCount(void);
 }
 
 namespace {
+
+// ============================================================================
+// Scope guards — an early return out of a graph-surgery leg must not leave the
+// process's region graph rewritten
+// ============================================================================
+//
+// WHY THESE EXIST (review finding). Legs 5, 12 and 13 mutate
+// `Rando::Logic::Regions`, which is process-global and shared with every other
+// row in a `--test all` process. An earlier draft of leg 5 parked the whole graph
+// into a function-local and restored it by hand AFTER four CE_ASSERTs — each of
+// which returns from RunLegs(). Any one of them firing destroyed the parked copy
+// and left `Regions` permanently EMPTY, so every later diagnostic in the process
+// became vacuous and the reported failure pointed at the wrong thing. The guards
+// below make the restore unconditional.
+
+/** Parks the whole region graph, leaving `Regions` empty, and swaps it back on
+ *  scope exit however the scope is left. */
+struct ParkedGraphGuard {
+    std::map<RandoRegionId, Rando::Logic::RandoRegion> parked;
+    ParkedGraphGuard() {
+        parked.swap(Rando::Logic::Regions);
+    }
+    ~ParkedGraphGuard() {
+        Rando::Logic::Regions.swap(parked);
+    }
+    ParkedGraphGuard(const ParkedGraphGuard&) = delete;
+    ParkedGraphGuard& operator=(const ParkedGraphGuard&) = delete;
+};
+
+/** Copies one region's `exits` map and puts it back on scope exit, so a leg may
+ *  add or remove an authored edge without leaking the edit. It copies rather
+ *  than moves, so the graph stays usable inside the scope; `Regions.size()` is
+ *  unchanged either way, which matters because `GetRegionIdFromEntrance`'s cache
+ *  is keyed on that size (#659). */
+struct RegionExitsGuard {
+    RandoRegionId regionId;
+    std::map<s32, Rando::Logic::RandoRegionExit> saved;
+    explicit RegionExitsGuard(RandoRegionId id) : regionId(id), saved(Rando::Logic::Regions[id].exits) {
+    }
+    ~RegionExitsGuard() {
+        Rando::Logic::Regions[regionId].exits = saved;
+    }
+    RegionExitsGuard(const RegionExitsGuard&) = delete;
+    RegionExitsGuard& operator=(const RegionExitsGuard&) = delete;
+};
+
+/** Restores the whole live save (and the game-events queue depth, and
+ *  `gCurrentRegionTime`) on scope exit. Used by the legs that mutate the save
+ *  OUTSIDE a round bracket, because by A1 the live save is a round's starting
+ *  state and such a mutation is not undone by `restore`. */
+struct SaveGuard {
+    std::unique_ptr<SaveContext> saved = std::make_unique<SaveContext>();
+    size_t depth = 0;
+    uint64_t regionTime = 0;
+    SaveGuard() {
+        memcpy(saved.get(), &gSaveContext, sizeof(SaveContext));
+        depth = MM_GameEvents_Queue().size();
+        regionTime = Rando::Logic::gCurrentRegionTime;
+    }
+    ~SaveGuard() {
+        memcpy(&gSaveContext, saved.get(), sizeof(SaveContext));
+        if (MM_GameEvents_Queue().size() > depth) {
+            MM_GameEvents_Queue().resize(depth);
+        }
+        Rando::Logic::gCurrentRegionTime = regionTime;
+    }
+    SaveGuard(const SaveGuard&) = delete;
+    SaveGuard& operator=(const SaveGuard&) = delete;
+};
 
 #define CE_ASSERT(cond, code, msg)                                                      \
     do {                                                                                \
@@ -189,6 +280,52 @@ const std::vector<uint16_t> kSaveOnlyGrants = {
     (uint16_t)RI_WOODFALL_BOSS_KEY, (uint16_t)RI_OCARINA_BUTTON_A,     (uint16_t)RI_FROG_BLUE,
 };
 
+/** The WHOLE reached-host list of one round (RunRound only samples 32), so a leg
+ *  can pick hosts that are reached and hosts that are not. */
+std::vector<uint16_t> ReachedHostList() {
+    std::vector<uint16_t> out;
+    if (!gEngine->snapshot(gEngine->self)) {
+        return out;
+    }
+    if (!gEngine->beginQuery(gEngine->self)) {
+        gEngine->restore(gEngine->self);
+        gEngine->endQuery(gEngine->self);
+        return out;
+    }
+    for (int i = 0; i < RSBS_COMBO_LOGIC_MAX_ROUND_ITERATIONS; ++i) {
+        if (!gEngine->expand(gEngine->self)) {
+            break;
+        }
+    }
+    const int total = gEngine->reachedEmptyHosts(gEngine->self, nullptr, 0);
+    if (total > 0) {
+        out.assign((size_t)total, 0);
+        gEngine->reachedEmptyHosts(gEngine->self, out.data(), total);
+    }
+    gEngine->restore(gEngine->self);
+    gEngine->endQuery(gEngine->self);
+    return out;
+}
+
+/** Every host the engine offers, in its own ascending order. */
+std::vector<uint16_t> AllHostList() {
+    std::vector<uint16_t> out;
+    const int total = gEngine->allEmptyHosts(gEngine->self, nullptr, 0);
+    if (total > 0) {
+        out.assign((size_t)total, 0);
+        gEngine->allEmptyHosts(gEngine->self, out.data(), total);
+    }
+    return out;
+}
+
+/** Drops the engine's placements on scope exit, so a failed assertion in a
+ *  placement leg cannot leave the coordinator's writes in MM's check table. */
+struct PlacementsGuard {
+    ~PlacementsGuard() {
+        gEngine->clearPlacements(gEngine->self);
+    }
+};
+
 int RunLegs() {
     // ---- Leg 1: the engine is REGISTERED, and its vtable has no holes --------
     // This is also the registrar-elision lock: MM's engine publishes itself from
@@ -251,6 +388,26 @@ int RunLegs() {
                       "function of the engine's own table, and duplicates would let one host be drawn twice");
         }
 
+        // A3's CORRECTION, locked here: the two shop checks GeneratePools
+        // shuffles in EVERY configuration must be in the host universe.
+        // GeneratePools.cpp:126-131 skips RCTYPE_SHOP only when
+        // RO_SHUFFLE_SHOPS == RO_GENERIC_NO *and* the row is neither of these two
+        // ("We always want shuffle ..."), so an unconditional shop exclusion in
+        // this engine is a settings-conditional NARROWING dressed as a fact —
+        // and because `place` shares the predicate, it also made the two
+        // always-shuffled rows un-placeable (RSBS_COMBO_LOGIC_ERR_ENGINE_REFUSED)
+        // and silently dropped them from MM_ComboLogic_SetHostPool.
+        {
+            const uint16_t* begin = full.data();
+            const uint16_t* end = full.data() + allTotal;
+            CE_ASSERT(std::find(begin, end, (uint16_t)RC_CURIOSITY_SHOP_SPECIAL_ITEM) != end, 3,
+                      "RC_CURIOSITY_SHOP_SPECIAL_ITEM is not in the host universe - GeneratePools shuffles it in "
+                      "every settings configuration, so excluding it is a narrowing this engine may not make (it "
+                      "also makes `place` refuse a host MM's real pool contains)");
+            CE_ASSERT(std::find(begin, end, (uint16_t)RC_BOMB_SHOP_ITEM_04_OR_CURIOSITY_SHOP_ITEM) != end, 3,
+                      "RC_BOMB_SHOP_ITEM_04_OR_CURIOSITY_SHOP_ITEM is not in the host universe - same fact");
+        }
+
         // Truncation: return is still the TOTAL, and the prefix is the same ids.
         // NOT named `small`: Windows' rpcndr.h defines `small` as `char`.
         std::vector<uint16_t> truncBuf(4, 0xFFFF);
@@ -265,11 +422,13 @@ int RunLegs() {
     }
 
     // ---- Leg 4: snapshot/restore is byte-exact over the WHOLE struct --------
-    // and over the game-events queue depth, which is state OUTSIDE the save.
+    // and over the two pieces of state OUTSIDE the save that a query writes: the
+    // game-events queue depth, and Rando::Logic::gCurrentRegionTime.
     {
         auto reference = std::make_unique<SaveContext>();
         memcpy(reference.get(), &gSaveContext, sizeof(SaveContext));
         const size_t referenceDepth = MM_GameEvents_Queue().size();
+        const uint64_t referenceRegionTime = Rando::Logic::gCurrentRegionTime;
 
         CE_ASSERT(MM_ComboLogic_SnapshotLive() == 0, 4, "a snapshot was already live before leg 4 took one");
         CE_ASSERT(gEngine->snapshot(gEngine->self) != 0, 4, "snapshot refused");
@@ -292,12 +451,24 @@ int RunLegs() {
                                                               .cutsceneIndex = 0,
                                                               .transitionTrigger = TRANS_TRIGGER_START,
                                                               .transitionType = TRANS_TYPE_FADE_BLACK });
+        // And move gCurrentRegionTime, the thread_local uint64_t OUTSIDE the save
+        // that FindReachableRegions and SetCurrentRegionTime both assign
+        // (Logic.cpp:17, Logic.h:105/121-124). No memcmp of the save can see it,
+        // which is exactly why the bracket has to carry it: the contract says the
+        // pair "captures everything this engine's queries will mutate", and
+        // mm_trick_bindings_test.cpp already treats this word as bracket state.
+        Rando::Logic::gCurrentRegionTime = ~referenceRegionTime;
         CE_ASSERT(memcmp(reference.get(), &gSaveContext, sizeof(SaveContext)) != 0, 4,
                   "the mutation leg did not actually change gSaveContext - leg 4 would pass vacuously");
         CE_ASSERT(MM_GameEvents_Queue().size() == referenceDepth + 1, 4,
                   "the queue push did not take - the queue-depth half of leg 4 would pass vacuously");
+        CE_ASSERT(Rando::Logic::gCurrentRegionTime != referenceRegionTime, 4,
+                  "the gCurrentRegionTime mutation did not take - that half of leg 4 would pass vacuously");
 
         gEngine->restore(gEngine->self);
+        CE_ASSERT(Rando::Logic::gCurrentRegionTime == referenceRegionTime, 4,
+                  "restore did not put Rando::Logic::gCurrentRegionTime back - it is state OUTSIDE gSaveContext that "
+                  "every crawl writes, so the whole-struct memcmp below cannot see it leaking out of the bracket");
         CE_ASSERT(memcmp(reference.get(), &gSaveContext, sizeof(SaveContext)) == 0, 4,
                   "restore did not put gSaveContext back BYTE FOR BYTE over the whole struct");
         CE_ASSERT(MM_GameEvents_Queue().size() == referenceDepth, 4,
@@ -330,23 +501,31 @@ int RunLegs() {
         int beginRefusalsBefore = 0, endCallsBefore = 0, redundantBefore = 0;
         MM_ComboLogic_BracketCounters(&beginRefusalsBefore, &endCallsBefore, &redundantBefore);
 
-        // Take the graph away, exactly as an ordering mistake would.
-        std::map<RandoRegionId, Rando::Logic::RandoRegion> parked;
-        parked.swap(Rando::Logic::Regions);
-        CE_ASSERT(Rando::Logic::Regions.empty(), 5, "the graph could not be parked - leg 5 would be vacuous");
+        // Take the graph away, exactly as an ordering mistake would. UNDER A
+        // SCOPE GUARD: every CE_ASSERT below returns out of RunLegs(), and an
+        // earlier draft's hand-written swap-back never ran on those paths, so one
+        // failed assertion left Rando::Logic::Regions permanently empty and every
+        // later leg's diagnosis meaningless.
+        {
+            ParkedGraphGuard parkGuard;
+            CE_ASSERT(Rando::Logic::Regions.empty(), 5, "the graph could not be parked - leg 5 would be vacuous");
 
-        CE_ASSERT(gEngine->snapshot(gEngine->self) != 0, 5, "snapshot refused with no graph (it must not care)");
-        const int began = gEngine->beginQuery(gEngine->self);
-        CE_ASSERT(began == 0, 5,
-                  "beginQuery ACCEPTED with an empty region graph - every later answer would be 'nothing is "
-                  "reachable', which is indistinguishable from a world in which nothing is");
+            CE_ASSERT(gEngine->snapshot(gEngine->self) != 0, 5, "snapshot refused with no graph (it must not care)");
+            const int began = gEngine->beginQuery(gEngine->self);
+            if (began != 0) {
+                // Do not leave a live snapshot behind on the failure path either.
+                gEngine->restore(gEngine->self);
+                gEngine->endQuery(gEngine->self);
+            }
+            CE_ASSERT(began == 0, 5,
+                      "beginQuery ACCEPTED with an empty region graph - every later answer would be 'nothing is "
+                      "reachable', which is indistinguishable from a world in which nothing is");
 
-        // The coordinator's teardown, on a bracket that never opened.
-        gEngine->restore(gEngine->self);
-        gEngine->endQuery(gEngine->self);
-        gEngine->endQuery(gEngine->self); // and twice
-
-        Rando::Logic::Regions.swap(parked);
+            // The coordinator's teardown, on a bracket that never opened.
+            gEngine->restore(gEngine->self);
+            gEngine->endQuery(gEngine->self);
+            gEngine->endQuery(gEngine->self); // and twice
+        }
         CE_ASSERT(!Rando::Logic::Regions.empty(), 5, "the graph was not restored after leg 5");
 
         int beginRefusalsAfter = 0, endCallsAfter = 0, redundantAfter = 0;
@@ -364,10 +543,18 @@ int RunLegs() {
         CE_ASSERT(after.beganOk != 0, 5, "beginQuery still refuses after the graph came back - the refusal latched");
     }
 
-    // ---- Leg 6: a real round, and the two facts that make it non-vacuous ----
+    // ---- Leg 6: a real round over the real graph, from a bare start ---------
     //
-    // Both are concrete claims about MM's authored graph rather than about this
-    // engine's plumbing, so a bug that made every answer constant fails here:
+    // WHAT THIS LEG DOES *NOT* PROVE (corrected in review). An earlier draft
+    // claimed a bug making every answer constant would fail here. It would not:
+    // this leg observes `crossingOpen` only in its TRUE state and `goalReached`
+    // only in its FALSE state, so a `crossingOpen` hardwired to 1 and a
+    // `goalReached` hardwired to 0 both pass — and the second is the specific bug
+    // the code is exposed to, because `GoalReached` synthesizes a
+    // ReachabilityCrawl out of the round's own accumulated regions, and
+    // populating that from the wrong set yields a constant false. LEG 12 is the
+    // leg that observes the other polarity of both, and it is where that claim
+    // now lives. What this leg locks is the bare answers themselves:
     //   - the crossing IS open from the arrival with nothing assumed. Audit §4.5:
     //     RR_CLOCK_TOWN_SOUTH -> RR_CLOCK_TOWER_INTERIOR is EXIT(..., true) and
     //     the arrival entrance resolves to RR_CLOCK_TOWN_SOUTH, so the MM->OoT
@@ -409,14 +596,30 @@ int RunLegs() {
         CE_ASSERT(MM_GameEvents_Queue().size() == referenceDepth, 6, "a bare round changed the game-events queue");
     }
 
-    // ---- Leg 7: IDENTICAL QUERIES AGREE, including after an unrelated crawl --
+    // ---- Leg 7: IDENTICAL QUERIES AGREE, including over event residue -------
     //
-    // The OoT engine's version of this leg is the residue bug's direct lock; MM's
-    // hazard is the same shape from the other side. CrawlReachableRegions ZEROES
-    // and re-fires RANDO_EVENTS in the live save, so an unbracketed crawl between
-    // two rounds is exactly the state leak that would make the second round
-    // answer a different question.
+    // RESTATED IN REVIEW. The earlier text said the third round's hazard was that
+    // "CrawlReachableRegions ZEROES and re-fires RANDO_EVENTS in the live save, so
+    // an unbracketed crawl between two rounds is exactly the state leak that would
+    // make the second round answer a different question". That is backwards as a
+    // hazard: the zeroing is the DEFENCE, not the leak. Logic.cpp:281-285 zeroes
+    // every RANDO_EVENTS[i] at the top of every crawl ("stale RANDO_EVENTS from a
+    // previous evaluation must not satisfy this one"), so whatever an unbracketed
+    // crawl leaves behind is wiped by the next round's first crawl, and the
+    // sub-leg as written would have passed with snapshot/restore replaced by
+    // no-ops.
+    //
+    // WHAT IT LOCKS NOW. Event residue in the live save does not change the
+    // answer, stated as a falsifiable claim rather than an assumed hazard: the
+    // residue is asserted to be genuinely PRESENT before the third round runs (an
+    // unrelated crawl leaves a populated RANDO_EVENTS, and the leg additionally
+    // poisons the array by hand), and the third round must still agree with
+    // `bare`. This is the regression an upstream pull that drops the zeroing loop
+    // would trip, which is a real way for it to go red. The real bracket lock for
+    // a round that MUTATES state is leg 8's post-grant whole-struct memcmp, and
+    // leg 4's is the one for the bracket itself.
     {
+        SaveGuard leg7Guard; // the hand poison below is an UNBRACKETED save write
         const RoundObservation again = RunRound({});
         CE_ASSERT(again.crossingOpen == bare.crossingOpen && again.goalReached == bare.goalReached &&
                       again.reachedHosts == bare.reachedHosts && again.allHosts == bare.allHosts &&
@@ -426,10 +629,28 @@ int RunLegs() {
                   "two back-to-back identical rounds reported the same NUMBER of hosts but different host IDS");
 
         // An unrelated crawl, outside any bracket, the way the check tracker
-        // would run one.
+        // would run one. It leaves a populated RANDO_EVENTS in the LIVE save.
         const Rando::Logic::ReachabilityCrawl unrelated =
             Rando::Logic::CrawlReachableRegions(gSaveContext.save.entrance);
         (void)Rando::Logic::EvaluateReachableChecks(unrelated);
+
+        // NON-VACUITY, and then some. Prove the residue is really there, and then
+        // poison the array outright so the third round faces event counts no crawl
+        // would ever have produced. If the zeroing loop at Logic.cpp:281-285 ever
+        // goes away, this is what goes red.
+        bool residuePresent = false;
+        for (int i = 0; i < RE_MAX; i++) {
+            if (RANDO_EVENTS[i] != 0) {
+                residuePresent = true;
+                break;
+            }
+        }
+        CE_ASSERT(residuePresent, 7,
+                  "an unbracketed crawl left RANDO_EVENTS entirely zero - there is no event residue for the third "
+                  "round to be immune to, so this sub-leg would pass vacuously");
+        for (int i = 0; i < RE_MAX; i++) {
+            RANDO_EVENTS[i] = 0x7F;
+        }
 
         const RoundObservation third = RunRound({});
         CE_ASSERT(third.crossingOpen == bare.crossingOpen && third.goalReached == bare.goalReached &&
@@ -492,6 +713,74 @@ int RunLegs() {
                   8,
                   "assuming the same ids twice in one round changed the answer - MM's stray-fairy, small-key, "
                   "skull-token and triforce gives are COUNTERS, so a double grant over-states the world");
+
+        // THE DEDUP, READ OFF THE COUNTERS THEMSELVES (added in review).
+        //
+        // The reachability comparison above is NOT a lock on A2's dedup. With the
+        // dedup removed, most of the second grants collapse to RI_JUNK anyway —
+        // ConvertItem's `!IsItemObtainable` arm returns RI_JUNK
+        // (ConvertItem.cpp:646-671) and IsItemObtainable is false for an
+        // already-held item — so only the two genuine COUNTERS in the list would
+        // move save state at all, and neither of them is a logic term whose loss
+        // shows up in `reachedHosts`. So this sub-leg reads the counters directly,
+        // INSIDE the bracket where the grants land, and it measures the red half
+        // in the same breath: the same two ids given twice through MM's OWN give
+        // path (bypassing the engine) must advance the counters by TWO, which is
+        // what would happen to every round if the dedup went away.
+        {
+            const int fairyIdx = DUNGEON_SCENE_INDEX_WOODFALL_TEMPLE;
+            CE_ASSERT(gEngine->snapshot(gEngine->self) != 0, 8, "snapshot refused in the dedup sub-leg");
+            CE_ASSERT(gEngine->beginQuery(gEngine->self) != 0, 8, "beginQuery refused in the dedup sub-leg");
+
+            // Zero both counters first, INSIDE the bracket, so the arithmetic is
+            // exact regardless of what this row inherited. A negative key count is
+            // GiveItem's "no keys yet" sentinel and takes its `= 1` branch rather
+            // than its `++`, which would make a relative assertion wrong
+            // (GiveItem.cpp:55-63).
+            gSaveContext.save.saveInfo.inventory.strayFairies[fairyIdx] = 0;
+            DUNGEON_KEY_COUNT(fairyIdx) = 0;
+
+            // Through the ENGINE, twice each.
+            gEngine->assumeOwnItem(gEngine->self, (uint16_t)RI_WOODFALL_STRAY_FAIRY);
+            gEngine->assumeOwnItem(gEngine->self, (uint16_t)RI_WOODFALL_STRAY_FAIRY);
+            gEngine->assumeOwnItem(gEngine->self, (uint16_t)RI_WOODFALL_SMALL_KEY);
+            gEngine->assumeOwnItem(gEngine->self, (uint16_t)RI_WOODFALL_SMALL_KEY);
+
+            const int fairyAfterEngine = (int)gSaveContext.save.saveInfo.inventory.strayFairies[fairyIdx];
+            const int keyAfterEngine = (int)DUNGEON_KEY_COUNT(fairyIdx);
+            printf("[TEST] mm-combo-logic-engine: dedup: two engine grants each -> woodfall fairies=%d keys=%d\n",
+                   fairyAfterEngine, keyAfterEngine);
+            CE_ASSERT(fairyAfterEngine == 1, 8,
+                      "assumeOwnItem granted RI_WOODFALL_STRAY_FAIRY TWICE in one round - GiveItem.cpp:17 is a `++`, "
+                      "so the round now proves reachability with a fairy the player does not have (A2's dedup is "
+                      "gone)");
+            CE_ASSERT(keyAfterEngine == 1, 8,
+                      "assumeOwnItem granted RI_WOODFALL_SMALL_KEY TWICE in one round - GiveItem.cpp:55-63 is a `++`, "
+                      "so the round holds a key the player does not have");
+
+            // THE RED HALF, MEASURED IN THE SAME BREATH: MM's own give path really
+            // does count, so the 1s above are the dedup doing work rather than an
+            // item that happens to be inert.
+            Rando::GiveItem(Rando::ConvertItem(RI_WOODFALL_STRAY_FAIRY));
+            Rando::GiveItem(Rando::ConvertItem(RI_WOODFALL_STRAY_FAIRY));
+            Rando::GiveItem(Rando::ConvertItem(RI_WOODFALL_SMALL_KEY));
+            Rando::GiveItem(Rando::ConvertItem(RI_WOODFALL_SMALL_KEY));
+            const int fairyAfterRaw = (int)gSaveContext.save.saveInfo.inventory.strayFairies[fairyIdx];
+            const int keyAfterRaw = (int)DUNGEON_KEY_COUNT(fairyIdx);
+            printf("[TEST] mm-combo-logic-engine: dedup: two RAW gives each on top -> woodfall fairies=%d keys=%d "
+                   "(this is the number a round would carry with the dedup removed)\n",
+                   fairyAfterRaw, keyAfterRaw);
+            CE_ASSERT(fairyAfterRaw == 3, 8,
+                      "two raw GiveItem(ConvertItem(RI_WOODFALL_STRAY_FAIRY)) calls did NOT advance the stray-fairy "
+                      "counter by two - the item has become idempotent, so the dedup assertion above no longer "
+                      "distinguishes anything and A2 must be re-stated");
+            CE_ASSERT(keyAfterRaw == 3, 8,
+                      "two raw GiveItem(ConvertItem(RI_WOODFALL_SMALL_KEY)) calls did NOT advance the Woodfall key "
+                      "count by two - same conclusion");
+
+            gEngine->restore(gEngine->self);
+            gEngine->endQuery(gEngine->self);
+        }
 
         CE_ASSERT(MM_ComboLogic_ShrinkObservations() == shrinksBefore, 8,
                   "a recompute inside a round came back SMALLER than the round's accumulation: MM's reachability is "
@@ -609,6 +898,346 @@ int RunLegs() {
         MM_ComboLogic_SetHostPool(nullptr, 0);
         CE_ASSERT(gEngine->allEmptyHosts(gEngine->self, nullptr, 0) == allTotal, 10,
                   "clearing the explicit host pool did not restore the graph's check set");
+    }
+
+    // ---- Leg 12: THE OTHER POLARITY of crossingOpen and goalReached, and the
+    //      shrink detector, all actually observed ---------------------------
+    //
+    // ADDED IN REVIEW, because legs 6-8 observe `crossingOpen` only TRUE and
+    // `goalReached` only FALSE. A `crossingOpen` hardwired to 1 and a
+    // `goalReached` hardwired to 0 pass every one of them — including leg 7's
+    // self-consistency comparisons and leg 8's `obs.crossingOpen >= prevCrossing`,
+    // which any constant satisfies. `goalReached` is the one that matters most,
+    // because it synthesizes a ReachabilityCrawl out of the round's own
+    // accumulated regions (ComboLogicEngineSingleExe.cpp's GoalReached), and
+    // forgetting to populate `crawl.reachableRegions`, or populating it from the
+    // wrong set, yields a constant false that nothing else in this row would
+    // notice.
+    //
+    // Both halves need GRAPH SURGERY, because both observables are unconditional
+    // facts about MM's authored graph from the arrival: the crossing edge is
+    // `EXIT(..., true)` and the lair sits behind a full playthrough. The surgery
+    // is under RegionExitsGuard, which restores the region's exits however the
+    // scope is left, and the save writes are under SaveGuard, because by A1 an
+    // unbracketed save write IS a round's starting state and `restore` will not
+    // undo it.
+    {
+        SaveGuard leg12Save;
+
+        // ---- 12a: crossingOpen goes FALSE when its one authored edge is gone.
+        // RR_CLOCK_TOWER_INTERIOR has exactly one edge in: RR_CLOCK_TOWN_SOUTH's
+        // EXIT(ENTRANCE(CLOCK_TOWER_INTERIOR, 1), ENTRANCE(SOUTH_CLOCK_TOWN, 0),
+        // true) at Regions/Central.cpp:230. Nothing else in the graph names that
+        // entrance and RR_MAX's save-warp/owl exits do not include it, so removing
+        // it must close the crossing and nothing else.
+        {
+            RegionExitsGuard southGuard(RR_CLOCK_TOWN_SOUTH);
+            const size_t erased =
+                Rando::Logic::Regions[RR_CLOCK_TOWN_SOUTH].exits.erase(ENTRANCE(CLOCK_TOWER_INTERIOR, 1));
+            CE_ASSERT(erased == 1, 12,
+                      "RR_CLOCK_TOWN_SOUTH no longer carries the EXIT to ENTRANCE(CLOCK_TOWER_INTERIOR, 1) - the "
+                      "MM->OoT crossing edge moved, so this leg cannot close it and leg 6's crossing claim needs "
+                      "re-stating against wherever it now lives (audit §4.5)");
+
+            const RoundObservation closed = RunRound({});
+            CE_ASSERT(closed.beganOk != 0, 12, "beginQuery refused with the crossing edge removed");
+            CE_ASSERT(closed.crossingOpen == 0, 12,
+                      "crossingOpen is still TRUE with the ONLY authored edge into RR_CLOCK_TOWER_INTERIOR removed - "
+                      "the observable is not reading the round's reachable region set, so leg 6's TRUE answer proves "
+                      "nothing");
+            CE_ASSERT(closed.reachedHosts > 0, 12,
+                      "the round reached no hosts at all with one town edge removed - the surgery broke more than the "
+                      "crossing and 12a is measuring the wrong thing");
+        }
+        // And it comes back, so 12a did not permanently rewrite the graph.
+        {
+            const RoundObservation reopened = RunRound({});
+            CE_ASSERT(reopened.crossingOpen == 1, 12,
+                      "the crossing did not reopen after 12a's guard put RR_CLOCK_TOWN_SOUTH's exits back");
+        }
+
+        // ---- 12b: goalReached goes TRUE on both conjuncts, and only then.
+        // MM_GOAL is `RR_MOON_MAJORAS_LAIR reachable AND CanDefeatMajora()`
+        // (Logic.h:966-968). The lair's own reachability stays exactly where MM
+        // authored it, so the leg does not touch Moon.cpp's gate: it gives the
+        // ARRIVAL region a synthetic one-way exit to ENTRANCE(MAJORAS_LAIR, 0),
+        // which `GetRegionIdFromEntrance` already resolves to the lair (it is the
+        // lair's registered oneWayEntrance), and whose condition the leg controls
+        // through the save. Regions.size() is unchanged, so the #659
+        // entrance->region cache is not disturbed.
+        {
+            RegionExitsGuard southGuard(RR_CLOCK_TOWN_SOUTH);
+            Rando::Logic::Regions[RR_CLOCK_TOWN_SOUTH].exits[ENTRANCE(MAJORAS_LAIR, 0)] =
+                Rando::Logic::RandoRegionExit{ ONE_WAY_EXIT, [] { return HAS_MAGIC; },
+                                               std::string("synthetic (mm-combo-logic-engine leg 12)") };
+            // A SECOND synthetic edge on the same gate, to RR_MOON_ZORA_TRIAL,
+            // whose RC_MOON_TRIAL_ZORA_PIECE_OF_HEART is CHECK(..., true) and is
+            // not one of the unconditionally excluded rows. 12c needs it: the
+            // lair's own two pots are SCENE_LAST_BS and therefore NOT hosts, so a
+            // shrink that loses only the lair moves no HOST count — and the host
+            // count (with the crossing flag) is the only observable
+            // combo_logic.c's monotone detector watches. Measured on this tree
+            // without this edge: the lair left the reported set, the goal fell to
+            // 0, and reachedHosts stayed at 444, i.e. ERR_NON_MONOTONE could not
+            // have fired. With it, the same flip also loses a real host.
+            Rando::Logic::Regions[RR_CLOCK_TOWN_SOUTH].exits[ENTRANCE(MOON_ZORA_TRIAL, 0)] =
+                Rando::Logic::RandoRegionExit{ ONE_WAY_EXIT, [] { return HAS_MAGIC; },
+                                               std::string("synthetic (mm-combo-logic-engine leg 12)") };
+            CE_ASSERT(Rando::Logic::GetRegionIdFromEntrance(ENTRANCE(MAJORAS_LAIR, 0)) == RR_MOON_MAJORAS_LAIR, 12,
+                      "ENTRANCE(MAJORAS_LAIR, 0) no longer resolves to RR_MOON_MAJORAS_LAIR - 12b's synthetic edge "
+                      "would lead somewhere else and prove nothing");
+            CE_ASSERT(Rando::Logic::GetRegionIdFromEntrance(ENTRANCE(MOON_ZORA_TRIAL, 0)) == RR_MOON_ZORA_TRIAL, 12,
+                      "ENTRANCE(MOON_ZORA_TRIAL, 0) no longer resolves to RR_MOON_ZORA_TRIAL - 12c's host-count "
+                      "shrink would have nothing to lose");
+
+            // The DEFEAT conjunct, as mm_majora_goal_test.cpp establishes it: a
+            // Kokiri sword in human form is enough. Asserted directly first, so a
+            // FALSE goal below cannot be blamed on a kit that never satisfied it.
+            gSaveContext.save.playerForm = PLAYER_FORM_HUMAN;
+            SET_EQUIP_VALUE(EQUIP_TYPE_SWORD, EQUIP_VALUE_SWORD_KOKIRI);
+            CE_ASSERT(Rando::Logic::CanDefeatMajora(), 12,
+                      "CanDefeatMajora() is false with a Kokiri sword in human form - mm_majora_goal_test.cpp says it "
+                      "is true, so 12b's kit no longer satisfies the goal's second conjunct");
+
+            // LAIR REACHABLE + DEFEATABLE -> the goal is TRUE. This is the
+            // observation leg 6 cannot make.
+            gSaveContext.save.saveInfo.playerData.isMagicAcquired = true;
+            const RoundObservation reachable = RunRound({});
+            CE_ASSERT(reachable.beganOk != 0, 12, "beginQuery refused in 12b");
+            printf("[TEST] mm-combo-logic-engine: leg 12b: lair reachable + Majora-capable -> goal=%d "
+                   "(reachedHosts=%d)\n",
+                   reachable.goalReached, reachable.reachedHosts);
+            CE_ASSERT(reachable.goalReached == 1, 12,
+                      "goalReached is FALSE with RR_MOON_MAJORAS_LAIR reachable AND CanDefeatMajora() true - "
+                      "GoalReached is not handing MmGoalMajoraDefeated the round's real region set, so every FALSE it "
+                      "has ever reported is uninformative");
+
+            // SECOND CONJUNCT ALONE IS NOT ENOUGH: lair reachable, no weapon.
+            SET_EQUIP_VALUE(EQUIP_TYPE_SWORD, EQUIP_VALUE_SWORD_NONE);
+            const bool defeatableWithoutKit = Rando::Logic::CanDefeatMajora();
+            if (!defeatableWithoutKit) {
+                const RoundObservation noKit = RunRound({});
+                CE_ASSERT(noKit.goalReached == 0, 12,
+                          "goalReached is TRUE with the lair reachable but Majora not defeatable - the second "
+                          "conjunct is not being evaluated");
+            }
+            SET_EQUIP_VALUE(EQUIP_TYPE_SWORD, EQUIP_VALUE_SWORD_KOKIRI);
+
+            // ---- 12c: THE SHRINK DETECTOR, OBSERVED RED. A5's correction says a
+            // recompute that comes back smaller is REPORTED, not unioned away, so
+            // the coordinator's own monotone detector can see it. Inside one
+            // bracket: open the synthetic edge, expand, then close it and expand
+            // again. The engine must count the shrink AND report the smaller
+            // answer (the goal goes back to FALSE). With the union restored, the
+            // count still rises but the goal stays TRUE — which is precisely the
+            // silent over-approximation.
+            MM_ComboLogic_ResetCounters();
+            CE_ASSERT(gEngine->snapshot(gEngine->self) != 0, 12, "snapshot refused in 12c");
+            CE_ASSERT(gEngine->beginQuery(gEngine->self) != 0, 12, "beginQuery refused in 12c");
+            gSaveContext.save.saveInfo.playerData.isMagicAcquired = true;
+            (void)gEngine->expand(gEngine->self);
+            const int goalWide = gEngine->goalReached(gEngine->self) ? 1 : 0;
+            const int hostsWide = gEngine->reachedEmptyHosts(gEngine->self, nullptr, 0);
+            CE_ASSERT(goalWide == 1, 12, "12c's wide state did not reach the goal - the sub-leg has nothing to shrink");
+
+            gSaveContext.save.saveInfo.playerData.isMagicAcquired = false;
+            (void)gEngine->expand(gEngine->self);
+            const int goalNarrow = gEngine->goalReached(gEngine->self) ? 1 : 0;
+            const int hostsNarrow = gEngine->reachedEmptyHosts(gEngine->self, nullptr, 0);
+            const int shrinks = MM_ComboLogic_ShrinkObservations();
+            gEngine->restore(gEngine->self);
+            gEngine->endQuery(gEngine->self);
+
+            printf("[TEST] mm-combo-logic-engine: leg 12c: wide goal=%d hosts=%d -> narrow goal=%d hosts=%d, "
+                   "shrinkObservations=%d\n",
+                   goalWide, hostsWide, goalNarrow, hostsNarrow, shrinks);
+            CE_ASSERT(shrinks >= 1, 12,
+                      "a recompute that lost regions and checks was not counted as a shrink - the detector behind "
+                      "MM_ComboLogic_ShrinkObservations does not fire, so leg 8's `== shrinksBefore` proves nothing");
+            CE_ASSERT(goalNarrow == 0, 12,
+                      "the round still reports the GOAL as reached after a recompute in which the lair became "
+                      "unreachable - the engine is unioning the shrunk answer away, which is the silent "
+                      "over-approximation A5 forbids (the coordinator's own monotone detector would stay green while "
+                      "the fill proves reachability that does not hold)");
+            CE_ASSERT(hostsNarrow < hostsWide, 12,
+                      "the reported reached-host count did not fall across a shrink - that count is the observable "
+                      "combo_logic.c's monotone detector watches, so ERR_NON_MONOTONE could never fire");
+        }
+        MM_ComboLogic_ResetCounters();
+    }
+
+    // ---- Leg 13: expand HARVESTS the coordinator's own-origin placements -----
+    //
+    // ADDED IN REVIEW. combo_logic.h:441-445 and combo_logic.c:437-440 both put
+    // this job on `expand`: `place` may not grant, the exchange deliberately skips
+    // own-origin items, and the reason given is that harvesting from a reached
+    // check in its OWN game is the engine's own `expand` — which is what OoT's
+    // ReachabilitySearch -> AddCheckToLogic -> ApplyPlacedItemEffect does. MM's
+    // `Expand` did not, so a round could only ever prove MM's goal from the
+    // starting inventory and MM's candidate set SHRANK as the fill placed.
+    //
+    // THE MEASUREMENT, with both numbers taken in this row so neither half is
+    // argued: placing the nine save-only items on nine REACHED hosts must give
+    // the same reachability as ASSUMING them (less the nine hosts that are now
+    // occupied), while placing them on nine UNREACHED hosts must give the bare
+    // answer. An engine that never harvests produces the bare answer in both.
+    {
+        PlacementsGuard placementsGuard;
+        auto leg13Reference = std::make_unique<SaveContext>();
+        memcpy(leg13Reference.get(), &gSaveContext, sizeof(SaveContext));
+        CE_ASSERT(MM_ComboLogic_HeldPlacementCount() == 0, 13, "leg 13 started with placements already held");
+
+        const RoundObservation baseBare = RunRound({});
+        const RoundObservation assumedNine = RunRound(kSaveOnlyGrants);
+        CE_ASSERT(baseBare.beganOk != 0 && assumedNine.beganOk != 0, 13, "beginQuery refused in leg 13's baselines");
+        CE_ASSERT(assumedNine.reachedHosts > baseBare.reachedHosts, 13,
+                  "assuming the nine save-only items did not widen reachability here, so leg 13 has no gap to "
+                  "attribute to the harvest");
+
+        const std::vector<uint16_t> reachedHosts = ReachedHostList();
+        const std::vector<uint16_t> allHosts = AllHostList();
+        CE_ASSERT(reachedHosts.size() >= kSaveOnlyGrants.size(), 13, "fewer reached hosts than items to place");
+        std::vector<uint16_t> unreachedHosts;
+        {
+            const std::set<uint16_t> reachedSet(reachedHosts.begin(), reachedHosts.end());
+            for (uint16_t h : allHosts) {
+                if (reachedSet.find(h) == reachedSet.end()) {
+                    unreachedHosts.push_back(h);
+                }
+            }
+        }
+        CE_ASSERT(unreachedHosts.size() >= kSaveOnlyGrants.size(), 13,
+                  "fewer than nine UNREACHED hosts exist - leg 13 cannot measure the no-harvest number");
+
+        const int nine = (int)kSaveOnlyGrants.size();
+
+        // ---- 13a: on REACHED hosts, the harvest must reproduce the assume.
+        {
+            const int harvestsBefore = MM_ComboLogic_HarvestCount();
+            for (int i = 0; i < nine; ++i) {
+                SharedItem it;
+                it.originGame = (uint8_t)GAME_MM;
+                it.flags = 0;
+                it.id = kSaveOnlyGrants[(size_t)i];
+                CE_ASSERT(gEngine->place(gEngine->self, reachedHosts[(size_t)i], it) != 0, 13,
+                          "place refused an MM-origin item on a host the engine had itself offered as reached");
+            }
+            const RoundObservation placedReached = RunRound({});
+            const int harvested = MM_ComboLogic_HarvestCount() - harvestsBefore;
+            printf("[TEST] mm-combo-logic-engine: leg 13a: bare=%d assumed9=%d placedOnReached=%d (expect %d) "
+                   "harvested=%d\n",
+                   baseBare.reachedHosts, assumedNine.reachedHosts, placedReached.reachedHosts,
+                   assumedNine.reachedHosts - nine, harvested);
+            CE_ASSERT(placedReached.beganOk != 0, 13, "beginQuery refused in 13a");
+            CE_ASSERT(harvested >= nine, 13,
+                      "expand harvested fewer than the nine MM-origin items the coordinator placed on REACHED hosts - "
+                      "the harvest the K1 contract assigns to `expand` is not running");
+            CE_ASSERT(placedReached.reachedHosts == assumedNine.reachedHosts - nine, 13,
+                      "a round with the nine items PLACED on reached hosts did not reach what the same nine items "
+                      "ASSUMED reach (less the nine now-occupied hosts) - the own-origin harvest is missing or "
+                      "partial, so MM's half of the goal is unprovable in every fill and its candidate set shrinks "
+                      "as the fill places");
+            gEngine->clearPlacements(gEngine->self);
+        }
+
+        // ---- 13b: on UNREACHED hosts, nothing is harvested. THIS IS THE RED HALF
+        // of 13a, measured rather than argued: it is the number 13a would have
+        // produced with no harvest at all.
+        {
+            const int harvestsBefore = MM_ComboLogic_HarvestCount();
+            for (int i = 0; i < nine; ++i) {
+                SharedItem it;
+                it.originGame = (uint8_t)GAME_MM;
+                it.flags = 0;
+                it.id = kSaveOnlyGrants[(size_t)i];
+                CE_ASSERT(gEngine->place(gEngine->self, unreachedHosts[(size_t)i], it) != 0, 13,
+                          "place refused an MM-origin item on an unreached host");
+            }
+            const RoundObservation placedUnreached = RunRound({});
+            const int harvested = MM_ComboLogic_HarvestCount() - harvestsBefore;
+            printf("[TEST] mm-combo-logic-engine: leg 13b: placedOnUnreached=%d (bare=%d) harvested=%d\n",
+                   placedUnreached.reachedHosts, baseBare.reachedHosts, harvested);
+            CE_ASSERT(harvested == 0, 13,
+                      "expand harvested an item from a host it never reached - the harvest is not gated on "
+                      "reachability, so the fill would credit items the player cannot get to");
+            CE_ASSERT(placedUnreached.reachedHosts == baseBare.reachedHosts, 13,
+                      "placing nine items on UNREACHED hosts changed reachability - either the harvest ignored "
+                      "reachedness, or `place` itself is moving the crawl");
+            gEngine->clearPlacements(gEngine->self);
+        }
+
+        // ---- 13c: a FOREIGN placement is NOT harvested here. Crossing exchange
+        // is the coordinator's job (combo_logic.c's ComboLogicExchangeFrom), and
+        // the host physically holds RI_JUNK, so there is nothing for MM to credit.
+        {
+            const int harvestsBefore = MM_ComboLogic_HarvestCount();
+            SharedItem foreign;
+            foreign.originGame = (uint8_t)GAME_OOT;
+            foreign.flags = 0;
+            foreign.id = 0x1234;
+            CE_ASSERT(gEngine->place(gEngine->self, reachedHosts[0], foreign) != 0, 13,
+                      "place refused an OoT-origin item on a reached host");
+            const RoundObservation placedForeign = RunRound({});
+            CE_ASSERT(MM_ComboLogic_HarvestCount() == harvestsBefore, 13,
+                      "expand harvested a FOREIGN placement - MM cannot interpret an OoT id, and the crossing "
+                      "exchange is the coordinator's call, not the engine's");
+            CE_ASSERT(placedForeign.reachedHosts == baseBare.reachedHosts - 1, 13,
+                      "a single foreign placement on a reached host did not simply remove that host from the reached "
+                      "enumeration");
+            gEngine->clearPlacements(gEngine->self);
+        }
+
+        CE_ASSERT(MM_ComboLogic_HeldPlacementCount() == 0, 13, "leg 13 left placements behind");
+        CE_ASSERT(memcmp(leg13Reference.get(), &gSaveContext, sizeof(SaveContext)) == 0, 13,
+                  "leg 13 did not leave gSaveContext as it found it - a harvest escaped the round bracket, or "
+                  "clearPlacements did not put a host's prior contents back");
+    }
+
+    // ---- Leg 14: the two always-shuffled SHOP checks are real hosts ---------
+    //
+    // A3's correction has teeth beyond the enumeration asserted in leg 3:
+    // `IsUnconditionallyExcluded` also gates `place`, so while shops were treated
+    // as unconditional, `place` returned 0 — i.e.
+    // RSBS_COMBO_LOGIC_ERR_ENGINE_REFUSED (combo_logic.h:141-145) — on two checks
+    // that are in MM's real `checkPool` in every settings configuration, and
+    // `MM_ComboLogic_SetHostPool` dropped them silently, so increment 4's seam
+    // could not hand MM's pool in intact.
+    {
+        PlacementsGuard placementsGuard;
+        const uint16_t shopHosts[2] = { (uint16_t)RC_CURIOSITY_SHOP_SPECIAL_ITEM,
+                                        (uint16_t)RC_BOMB_SHOP_ITEM_04_OR_CURIOSITY_SHOP_ITEM };
+        auto reference = std::make_unique<SaveContext>();
+        memcpy(reference.get(), &gSaveContext, sizeof(SaveContext));
+
+        SharedItem mmItem;
+        mmItem.originGame = (uint8_t)GAME_MM;
+        mmItem.flags = 0;
+        mmItem.id = (uint16_t)RI_MASK_BUNNY;
+        for (uint16_t host : shopHosts) {
+            CE_ASSERT(gEngine->place(gEngine->self, host, mmItem) != 0, 14,
+                      "place refused an always-shuffled SHOP check as a host - GeneratePools puts both of these in "
+                      "checkPool under every setting, so a fill that hands MM's real pool to the coordinator would "
+                      "die with RSBS_COMBO_LOGIC_ERR_ENGINE_REFUSED");
+        }
+
+        // And the pool seam keeps them, instead of dropping them on the floor.
+        MM_ComboLogic_SetHostPool(shopHosts, 2);
+        const int poolTotal = gEngine->allEmptyHosts(gEngine->self, nullptr, 0);
+        MM_ComboLogic_SetHostPool(nullptr, 0);
+        gEngine->clearPlacements(gEngine->self);
+        // Both are HELD at the point the pool was read, so the enumeration is
+        // empty; what matters is that SetHostPool did not silently discard them,
+        // which the successful places above already show. Re-read with nothing
+        // held.
+        MM_ComboLogic_SetHostPool(shopHosts, 2);
+        const int poolTotalFree = gEngine->allEmptyHosts(gEngine->self, nullptr, 0);
+        MM_ComboLogic_SetHostPool(nullptr, 0);
+        CE_ASSERT(poolTotal == 0, 14, "a host pool of two HELD checks should enumerate nothing");
+        CE_ASSERT(poolTotalFree == 2, 14,
+                  "MM_ComboLogic_SetHostPool silently dropped the two always-shuffled shop checks - the increment-4 "
+                  "seam cannot hand MM's real pool in intact");
+        CE_ASSERT(memcmp(reference.get(), &gSaveContext, sizeof(SaveContext)) == 0, 14,
+                  "leg 14 did not leave gSaveContext as it found it");
     }
 
     return 0;
