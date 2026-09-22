@@ -20,7 +20,10 @@
  * `Combo_Logic_GetEngine(GAME_OOT)` — not a copy of it — so a lock here stops
  * passing the moment the engine moves.
  *
- * The seven claims, and what each one would catch:
+ * The claims, and what each one would catch. Numbered as they were when this row
+ * was written; 3b, 3c and 7b were added in response to review, which found that
+ * two of the original legs could not go red for the reason the PR gave and that
+ * one fixture rested on an unchecked assumption:
  *
  *  1. REGISTRATION. The engine is published by a file-scope registrar in
  *     soh_rando, which means it survived the WHOLE_ARCHIVE link and passed the
@@ -31,11 +34,19 @@
  *     that forgot `AccessReset` would report the previous round's residue here,
  *     and this is the differential that shows it.
  *  3. IDENTICAL QUERIES AGREE — three times: twice back to back, and once after
- *     a BARE `ReachabilitySearch` with no reset in front of it. That third leg is
- *     the direct lock on the residue defect: the bare search is precisely the
- *     call shape that made the #656 gate answer 48-of-57 against a truth of 57,
- *     and `beginQuery`'s `Logic::Reset(true)` is the only reason the answer comes
- *     back the same.
+ *     a BARE `ReachabilitySearch` with no reset in front of it. The bare search is
+ *     precisely the call shape that made the #656 gate answer 48-of-57 against a
+ *     truth of 57. WHAT THIS LEG LOCKS IS "some reset happens before an answer is
+ *     read", and no more: `expand` re-derives the round's inventory with its own
+ *     `Logic::Reset(true)`, so it keeps this green even if `beginQuery`'s reset is
+ *     deleted. Review caught the first version of this file claiming otherwise.
+ *  3b. `beginQuery`'S OWN RESET, ATTRIBUTABLY. Residue is created deliberately and
+ *     the simulated inventory is read BETWEEN `beginQuery` and the first `expand`,
+ *     where it must be empty. Nothing but `beginQuery`'s `Logic::Reset(true)` can
+ *     satisfy that, so deleting it turns this red — which is how it was checked.
+ *  3c. INPUT VALIDATION. An id that is in range and is not an item (a gap row in
+ *     `itemTable`) must be refused by `assumeOwnItem` and by `place`, not handed to
+ *     `Item::ApplyEffect`.
  *  4. MONOTONICITY, NON-VACUOUSLY. Every advancement-bearing location is emptied
  *     so the baseline closure is genuinely PARTIAL, then the same items are
  *     ASSUMED and the closure must be STRICTLY larger. Without the emptying step
@@ -45,16 +56,29 @@
  *     (the state a loaded save leaves it in), a whole round plus a `place` leaves
  *     the unified save buffer byte-for-byte identical and leaves
  *     `Logic::mSaveContext` pointing back at it. Catches the §1.8 hazard the
- *     audit names: a query that applied item effects into the player's save.
- *  6. `endQuery` AFTER A FAILED `beginQuery`, and twice. The coordinator may tear
- *     down a side whose bracket never opened (a snapshot can succeed before a
- *     `beginQuery` refuses), so the teardown must be a no-op there rather than
- *     "restoring" a pointer nobody saved.
+ *     audit names: a query that applied item effects into the player's save. This
+ *     is also, as review pointed out, what locks the detach itself —
+ *     `assumeOwnItem` runs before the first `expand`, so without `beginQuery`'s
+ *     `Reset(true)` the grants land in `gSaveContext` and the memcmp fails.
+ *     Extended on review to the OTHER half of an item effect: `place` must not
+ *     move `Logic::inLogic[]` either, which the save-context bracket cannot cover.
+ *  6. `endQuery` TWICE, and after a refused `beginQuery`. DEFENSIVE, not a
+ *     coordinator obligation: the coordinator as merged tears down only a side it
+ *     opened (`if (began[g]) e->endQuery(...)`, and `began[g]` is set only after
+ *     `beginQuery` returned nonzero). Review was right that the first version of
+ *     this file claimed an obligation the coordinator does not impose. What the leg
+ *     provokes is the refusal it CAN provoke — a second `beginQuery` inside an open
+ *     query — and then that a repeated teardown is a no-op.
  *  7. THE HOST SURFACE. `allEmptyHosts` is a superset of `reachedEmptyHosts`,
- *     both are ascending and de-duplicated, a small `cap` truncates the WRITE
- *     while the return still reports the TOTAL, and the id space the engine can
- *     enumerate is wider than `RSBS_COMBO_LOGIC_PLACEMENT_CAP` — which is the
- *     fact a coordinator scratch buffer has to be sized from.
+ *     both are ascending and de-duplicated, and a small `cap` truncates the WRITE
+ *     while the return still reports the TOTAL.
+ *  7b. THE SIZING FACT, MEASURED. The engine's widest possible answer is measured
+ *     over a world with every owned host emptied and asserted against
+ *     `RSBS_COMBO_LOGIC_PLACEMENT_CAP`, the size of the coordinator's host scratch
+ *     buffer. The first version compared `RC_MAX` with that cap, which review
+ *     correctly called a tautology over two compile-time constants: the real bound
+ *     is |`ctx->allLocations`|, it is settings-dependent, and it is what decides
+ *     whether `ComboLogicCollectFrom` refuses a fill with ERR_CAPACITY.
  *
  * Plus one composed round through `Combo_Logic_RunRound` against a deliberately
  * trivial MM stub, so the OoT engine is shown to work inside the coordinator's
@@ -95,6 +119,11 @@ extern "C" int Rando_HeadlessSeedTest(const char* seedStr);
 extern "C" {
 int OoT_ComboLogic_TestCheckIdSpace(void);
 int OoT_ComboLogic_TestItemIdSpace(void);
+int OoT_ComboLogic_TestOwnedHostCount(void);
+int OoT_ComboLogic_TestOwnedHosts(uint16_t* out, int cap);
+int OoT_ComboLogic_TestLogicValsHeld(void);
+uint32_t OoT_ComboLogic_TestLogicValDigest(void);
+int OoT_ComboLogic_TestFindGapItemId(void);
 int OoT_ComboLogic_TestLastReachedChecks(void);
 int OoT_ComboLogic_TestLastReachedRegions(void);
 int OoT_ComboLogic_TestReachedCheckCountNow(void);
@@ -268,12 +297,13 @@ TestResult OoTLogicExport_Run(void) {
     printf("[TEST] oot-logic-export: OoT check id space RC_MAX=%d, item id space RG_MAX=%d (coordinator placement "
            "cap %d)\n",
            idSpace, itemIdSpace, (int)RSBS_COMBO_LOGIC_PLACEMENT_CAP);
-    // THE SIZING FACT, asserted rather than commented: a coordinator buffer that
-    // has to hold "every host this engine can enumerate" must be sized from the
-    // CHECK ID SPACE and not from the placement cap, because the id space is
-    // larger. This is the number the scratch buffer in combo_logic.c needs.
-    OLE_ASSERT(idSpace > (int)RSBS_COMBO_LOGIC_PLACEMENT_CAP,
-               "RC_MAX no longer exceeds the placement cap — re-read the coordinator's host-buffer sizing");
+    // NO ASSERTION ON THOSE TWO NUMBERS. The first version of this row asserted
+    // `RC_MAX > RSBS_COMBO_LOGIC_PLACEMENT_CAP` and called it the coordinator's
+    // sizing fact; review was right that it is a comparison of two compile-time
+    // constants, true on main, true with this change reverted, and true whatever
+    // any engine does. The real sizing fact is |allLocations|, it is
+    // settings-dependent, and it is measured below over a fully emptied world once
+    // a generation exists.
 
     // ------------------------------------------------------------------
     // A REAL generation. Everything below is vacuous without it.
@@ -285,6 +315,54 @@ TestResult OoTLogicExport_Run(void) {
     const uint32_t worldDigest0 = OoT_ComboLogic_TestWorldDigest();
     printf("[TEST] oot-logic-export: world placement digest after generation = %08X\n", worldDigest0);
     OLE_ASSERT(worldDigest0 != 0u, "the world digest is zero — no fill result is visible to the engine");
+
+    // ------------------------------------------------------------------
+    // THE SIZING FACT, MEASURED. (Replaces a constant-vs-constant assertion.)
+    // ------------------------------------------------------------------
+    // What bounds `allEmptyHosts` is not RC_MAX — the enumeration skips every id
+    // outside `ctx->allLocations` — but |allLocations|, which
+    // `Context::GenerateLocationPool` grows as pot/grass/crate/fish/scrub/...
+    // shuffles are enabled. That is the number `ComboLogicCollectFrom`'s
+    // `RSBS_COMBO_LOGIC_PLACEMENT_CAP`-sized scratch buffer has to hold, and the
+    // number whose excess makes the coordinator refuse a fill with ERR_CAPACITY
+    // instead of truncating. So it is measured here, in the only state where the
+    // engine's answer IS that maximum: with every owned host emptied.
+    const int ownedTotal = OoT_ComboLogic_TestOwnedHostCount();
+    OLE_ASSERT(ownedTotal > 0, "the engine owns no host at all over a generated world");
+    std::vector<uint16_t> ownedHosts((size_t)ownedTotal, 0);
+    OLE_ASSERT(OoT_ComboLogic_TestOwnedHosts(ownedHosts.data(), ownedTotal) == ownedTotal,
+               "the owned-host bridge reported a different total on its write call");
+    std::vector<uint16_t> ownedPriorItems((size_t)ownedTotal, 0);
+    for (int i = 0; i < ownedTotal; i++) {
+        int advancement = 0;
+        OLE_ASSERT(OoT_ComboLogic_TestPlacedItemAt(ownedHosts[(size_t)i], &ownedPriorItems[(size_t)i], &advancement),
+                   "an owned host is not a real row");
+        OLE_ASSERT(OoT_ComboLogic_TestSetPlacedItem(ownedHosts[(size_t)i], 0 /* RG_NONE */),
+                   "could not empty an owned host for the sizing measurement");
+    }
+    const int widestAnswer = e->allEmptyHosts(e->self, nullptr, 0);
+    printf("[TEST] oot-logic-export: the engine's WIDEST allEmptyHosts answer is %d (|allLocations| = %d, RC_MAX = %d, "
+           "coordinator host buffer = %d)\n",
+           widestAnswer, ownedTotal, idSpace, (int)RSBS_COMBO_LOGIC_PLACEMENT_CAP);
+    OLE_ASSERT(widestAnswer == ownedTotal,
+               "with every owned host emptied, allEmptyHosts does not equal |allLocations| — the enumeration and the "
+               "ownership set disagree");
+    // THE ASSERTION THAT CAN GO RED, unlike the constant it replaced: if the
+    // settings ever put more hosts in the pool than the coordinator's scratch
+    // buffer holds, `ComboLogicCollectFrom` returns RSBS_COMBO_LOGIC_ERR_CAPACITY
+    // and the paired fill is refused outright. Observed red by hand on this branch
+    // by generating with the pot/grass/crate/beehive/tree/bush/freestanding
+    // shuffles on (RSBS_DIAG_CVARS) — see the PR body for the numbers.
+    OLE_ASSERT(widestAnswer <= (int)RSBS_COMBO_LOGIC_PLACEMENT_CAP,
+               "the OoT engine can offer more hosts than the coordinator's host buffer holds, so "
+               "ComboLogicCollectFrom would refuse the fill with ERR_CAPACITY — size that buffer from the location "
+               "pool, not from the placement cap");
+    for (int i = 0; i < ownedTotal; i++) {
+        OLE_ASSERT(OoT_ComboLogic_TestSetPlacedItem(ownedHosts[(size_t)i], ownedPriorItems[(size_t)i]),
+                   "could not restore an owned host after the sizing measurement");
+    }
+    OLE_ASSERT(OoT_ComboLogic_TestWorldDigest() == worldDigest0,
+               "the sizing measurement did not restore the world byte-identically");
 
     // ------------------------------------------------------------------
     // Claim 2: the reset is real. Between `beginQuery` and the first `expand`
@@ -339,18 +417,86 @@ TestResult OoTLogicExport_Run(void) {
     OLE_ASSERT(OleSameAnswer(q1, q2), "two identical queries back to back disagree");
 
     const int residueReached = OoT_ComboLogic_TestRunUnrelatedSearch();
+    const int residueVals = OoT_ComboLogic_TestLogicValsHeld();
     printf("[TEST] oot-logic-export: an UNRELATED bare ReachabilitySearch (no Logic::Reset) left %d checks "
-           "reached\n",
-           residueReached);
+           "reached and %d logic values held\n",
+           residueReached, residueVals);
     OLE_ASSERT(residueReached >= 0, "the unrelated-search bridge found no live solver");
     OLE_ASSERT(OleRunQuery(e, assumed, &q3), "query 3 refused");
     OlePrintAnswer("query 3 (after an unrelated search)", q3);
+    // WHAT THIS LEG LOCKS, stated exactly, because review caught the PR body
+    // attributing it to the wrong reset: SOME reset happens before an answer is
+    // read. It does not attribute that reset to `beginQuery`, because `expand`
+    // re-derives the round's inventory with its own `Logic::Reset(true)` and would
+    // keep this green on its own. The attribution is the next leg.
     OLE_ASSERT(OleSameAnswer(q1, q3),
-               "a query run after an unrelated bare search disagrees with the same query run before it — beginQuery "
-               "is inheriting the previous search's simulated inventory (#656's defect class)");
+               "a query run after an unrelated bare search disagrees with the same query run before it — the round is "
+               "inheriting the previous search's simulated inventory (#656's defect class)");
+
+    // ------------------------------------------------------------------
+    // Claim 3b: `beginQuery`'s OWN reset, attributably.
+    // ------------------------------------------------------------------
+    // The residue is re-created and then read BETWEEN `beginQuery` and the first
+    // `expand`. `Logic::Reset(true)` memsets `inLogic` (logic.cpp:2660) and nothing
+    // later in `Reset` sets a logic value, so 0 here is a fact about `beginQuery`
+    // alone: no `expand` has run, `Regions::AccessReset`/`LocationReset` do not
+    // touch the simulated inventory, and deleting `beginQuery`'s `Reset(true)`
+    // leaves this reading `residueVals2`. Observed red exactly that way — see the
+    // PR body.
+    const int residueReached2 = OoT_ComboLogic_TestRunUnrelatedSearch();
+    const int residueVals2 = OoT_ComboLogic_TestLogicValsHeld();
+    OLE_ASSERT(residueVals2 > 0,
+               "a bare ReachabilitySearch left NO simulated inventory behind, so the residue leg has nothing to "
+               "detect and cannot attribute anything");
+    OLE_ASSERT(e->beginQuery(e->self), "beginQuery refused for the residue-attribution leg");
+    const int valsAfterBegin = OoT_ComboLogic_TestLogicValsHeld();
+    const int reachedAfterBegin = OoT_ComboLogic_TestReachedCheckCountNow();
+    e->endQuery(e->self);
+    printf("[TEST] oot-logic-export: residue before beginQuery = %d logic values (%d checks reached); immediately "
+           "after beginQuery, before any expand = %d logic values (%d checks reached)\n",
+           residueVals2, residueReached2, valsAfterBegin, reachedAfterBegin);
+    OLE_ASSERT(valsAfterBegin == 0,
+               "beginQuery left the previous search's simulated inventory in place — its Logic::Reset(true) is not "
+               "happening, and every answer of the round would be about a world holding items it was not asked "
+               "about (#656's defect class)");
 
     OLE_ASSERT(OoT_ComboLogic_TestWorldDigest() == worldDigest0,
                "three queries moved a placement in the generated world");
+
+    // ------------------------------------------------------------------
+    // INPUT VALIDATION: an id that is in RANGE and is not an ITEM.
+    // ------------------------------------------------------------------
+    // `itemTable` is a fixed `std::array<Item, RG_MAX>` whose unassigned rows are
+    // default-constructed, so a range-only check hands a gap row straight to
+    // `Item::ApplyEffect`. The engine tests IDENTITY instead; this leg proves the
+    // test is there and that a gap changes nothing.
+    const int gapItemId = OoT_ComboLogic_TestFindGapItemId();
+    printf("[TEST] oot-logic-export: lowest gap row in the item table = %d (RG_MAX = %d)\n", gapItemId, itemIdSpace);
+    if (gapItemId > 0) {
+        OLE_ASSERT(e->beginQuery(e->self), "beginQuery refused for the gap-item leg");
+        const int valsBeforeGap = OoT_ComboLogic_TestLogicValsHeld();
+        e->assumeOwnItem(e->self, (uint16_t)gapItemId);
+        const int valsAfterGap = OoT_ComboLogic_TestLogicValsHeld();
+        e->expand(e->self);
+        const int reachedWithGap = OoT_ComboLogic_TestLastReachedChecks();
+        e->endQuery(e->self);
+        printf("[TEST] oot-logic-export: assuming the gap id left %d -> %d logic values held and reached %d checks\n",
+               valsBeforeGap, valsAfterGap, reachedWithGap);
+        OLE_ASSERT(valsAfterGap == valsBeforeGap,
+                   "assumeOwnItem applied a gap row's effect — the id check is a range test, not an identity test");
+        SharedItem gapItem;
+        memset(&gapItem, 0, sizeof(gapItem));
+        gapItem.originGame = (uint8_t)GAME_OOT;
+        gapItem.id = (uint16_t)gapItemId;
+        // A REAL host, so the refusal is attributable to the ITEM and not to the
+        // host check (place validates the host first).
+        OLE_ASSERT(e->place(e->self, ownedHosts[0], gapItem) == 0,
+                   "place accepted an OoT-origin item id with no real row in the item table");
+    } else {
+        printf("[TEST] oot-logic-export: the item table has no gap row, so the identity test is defence in depth "
+               "here rather than a reachable refusal\n");
+    }
+    OLE_ASSERT(OoT_ComboLogic_TestWorldDigest() == worldDigest0, "the gap-item leg moved a placement");
 
     // ------------------------------------------------------------------
     // Claim 4: monotonicity, NON-VACUOUSLY, by making the baseline partial.
@@ -460,6 +606,45 @@ TestResult OoTLogicExport_Run(void) {
                "allEmptyHosts answers differently outside a query bracket — it is consulting round state");
 
     // ------------------------------------------------------------------
+    // Pick the place leg's two hosts NOW, from a list the ENGINE vouches for.
+    // ------------------------------------------------------------------
+    // The first version of this row took `emptiedChecks[0]` and `[1]` — the two
+    // lowest-id advancement-bearing checks — on faith. Review was right that
+    // membership of `ctx->allLocations` is not implied by "an advancement item was
+    // placed there" (`GenerateLocationPool` excludes gossip stones, static hints and
+    // the chest game, while Link's Pocket and the dungeon rewards arrive by other
+    // paths), and the row's own numbers showed it: 322 emptied against 321 owned
+    // empties. A host outside `allLocations` is invisible to `allEmptyHosts`, so the
+    // "exactly one more empty host" assertion would have failed pointing at the
+    // engine instead of at the fixture. So the hosts are drawn from the engine's own
+    // enumeration, intersected with the checks whose prior item this row knows how
+    // to restore.
+    std::vector<uint16_t> allList((size_t)allTotal, 0);
+    OLE_ASSERT(e->allEmptyHosts(e->self, allList.data(), allTotal) == allTotal,
+               "allEmptyHosts reported a different total on the write call");
+    std::vector<uint16_t> emptiedItemById((size_t)idSpace, 0xFFFF);
+    for (size_t i = 0; i < emptiedChecks.size(); i++) {
+        emptiedItemById[(size_t)emptiedChecks[i]] = emptiedItems[i];
+    }
+    uint16_t placeLegHost[2] = { 0, 0 };
+    uint16_t placeLegItem[2] = { 0, 0 };
+    int placeLegChosen = 0;
+    for (int i = 0; i < allTotal && placeLegChosen < 2; i++) {
+        const uint16_t id = allList[(size_t)i];
+        if (id < (uint16_t)idSpace && emptiedItemById[(size_t)id] != 0xFFFF) {
+            placeLegHost[placeLegChosen] = id;
+            placeLegItem[placeLegChosen] = emptiedItemById[(size_t)id];
+            placeLegChosen++;
+        }
+    }
+    OLE_ASSERT(placeLegChosen == 2,
+               "no two hosts the engine itself offers are among the emptied checks — the place leg has no sound "
+               "fixture, so it must not run on assumed ones");
+    printf("[TEST] oot-logic-export: place-leg hosts %u and %u, both taken from the engine's own allEmptyHosts "
+           "list\n",
+           (unsigned)placeLegHost[0], (unsigned)placeLegHost[1]);
+
+    // ------------------------------------------------------------------
     // Restore the world, and prove it came back byte-identical.
     // ------------------------------------------------------------------
     for (size_t i = 0; i < emptiedChecks.size(); i++) {
@@ -505,10 +690,9 @@ TestResult OoTLogicExport_Run(void) {
     // "no host available" would assert nothing at all — the vacuity this row is
     // built to refuse. The host is restored immediately afterwards and the world
     // digest re-checked.
-    OLE_ASSERT(emptiedChecks.size() >= 2, "the place leg needs two distinct hosts to free");
     const int emptyBase = e->allEmptyHosts(e->self, nullptr, 0);
-    const uint16_t placeHost = emptiedChecks[0];
-    const uint16_t placeHostItem = emptiedItems[0];
+    const uint16_t placeHost = placeLegHost[0];
+    const uint16_t placeHostItem = placeLegItem[0];
     OLE_ASSERT(OoT_ComboLogic_TestSetPlacedItem(placeHost, 0 /* RG_NONE */), "could not free a host for the place leg");
     const int placeHostTotal = e->allEmptyHosts(e->self, nullptr, 0);
     printf("[TEST] oot-logic-export: empty hosts %d -> %d after freeing host %u for the place leg\n", emptyBase,
@@ -520,6 +704,16 @@ TestResult OoTLogicExport_Run(void) {
     ownItem.originGame = (uint8_t)GAME_OOT;
     ownItem.id = assumed[0];
 
+    // A KNOWN-CLEAN `Logic::inLogic[]` first, so the next assertion is not
+    // satisfied by a flag the last search already set. An empty bracket gives it:
+    // `beginQuery`'s `Logic::Reset(true)` memsets the array and no `expand` follows.
+    OLE_ASSERT(e->beginQuery(e->self), "beginQuery refused while establishing the place leg's clean baseline");
+    e->endQuery(e->self);
+    OLE_ASSERT(OoT_ComboLogic_TestLogicValsHeld() == 0,
+               "an empty query bracket did not leave Logic::inLogic clean, so the place leg cannot attribute a "
+               "change to `place`");
+    const uint32_t logicValsBeforePlace = OoT_ComboLogic_TestLogicValDigest();
+
     OLE_ASSERT(e->place(e->self, placeHost, ownItem), "place refused a host the engine itself offered");
     // IDEMPOTENT for the same (host, item): the coordinator re-applies its whole
     // table after every snapshot restore, so a repeat is a no-op and not a refusal.
@@ -527,6 +721,19 @@ TestResult OoTLogicExport_Run(void) {
     OLE_ASSERT(OoT_ComboLogic_TestLogicIsAttachedToLiveSave() == 1, "place left Logic pointed somewhere else");
     OLE_ASSERT(memcmp(saveBefore, gSaveContext, sizeof(saveBefore)) == 0,
                "place wrote the player's save — the item effect was not bracketed");
+    // THE OTHER HALF OF THE GRANT, which the save-context bracket cannot reach and
+    // which the first version of this row never looked at: `Item::ApplyEffect` also
+    // calls `logic->Set(logicVal, true)` (item.cpp:56), writing `Logic::inLogic[]` —
+    // a member of the Logic object, not of `mSaveContext`. Parking the save pointer
+    // does not redirect it, so before the fix a `place` granted the item's logic
+    // value on the live singleton every region guard reads, and under the
+    // coordinator's `none` rung (which runs no round, hence no `Logic::Reset`)
+    // nothing ever cleared it. Observed red by removing the engine's save/restore.
+    OLE_ASSERT(OoT_ComboLogic_TestLogicValsHeld() == 0,
+               "place granted the item's LOGIC VALUE on the live Logic singleton — Item::ApplyEffect's "
+               "logic->Set(logicVal) is outside the save-context bracket and must be saved and restored");
+    OLE_ASSERT(OoT_ComboLogic_TestLogicValDigest() == logicValsBeforePlace,
+               "place perturbed Logic::inLogic[]");
     OLE_ASSERT(e->allEmptyHosts(e->self, nullptr, 0) == emptyBase, "a placed host is still offered as empty");
 
     // A FOREIGN-origin placement leaves a LOCAL junk item in the host; the foreign
@@ -538,8 +745,8 @@ TestResult OoTLogicExport_Run(void) {
     memset(&foreignItem, 0, sizeof(foreignItem));
     foreignItem.originGame = (uint8_t)GAME_MM;
     foreignItem.id = kAbsurdMmItemId;
-    const uint16_t foreignHost = emptiedChecks[1];
-    const uint16_t foreignHostItem = emptiedItems[1];
+    const uint16_t foreignHost = placeLegHost[1];
+    const uint16_t foreignHostItem = placeLegItem[1];
     OLE_ASSERT(OoT_ComboLogic_TestSetPlacedItem(foreignHost, 0 /* RG_NONE */),
                "could not free a host for the foreign-cover leg");
     OLE_ASSERT(e->place(e->self, foreignHost, foreignItem), "place refused an MM-origin item on an OoT host");
@@ -556,6 +763,8 @@ TestResult OoTLogicExport_Run(void) {
 
     OLE_ASSERT(e->allEmptyHosts(e->self, nullptr, 0) == emptyBase,
                "the junk-covered host is still offered as empty");
+    OLE_ASSERT(OoT_ComboLogic_TestLogicValsHeld() == 0,
+               "the junk cover granted its logic value on the live Logic singleton");
 
     // The roll-back returns both hosts to what they held BEFORE — here empty,
     // because that is what this leg made them — and nothing else moves.
@@ -571,9 +780,11 @@ TestResult OoTLogicExport_Run(void) {
     // ------------------------------------------------------------------
     // Claim 6: endQuery after a FAILED beginQuery, and endQuery twice.
     // ------------------------------------------------------------------
-    // The coordinator may tear down a side whose bracket never opened: a snapshot
-    // can succeed before that side's beginQuery refuses. A second beginQuery
-    // without a teardown is the refusal this file can provoke on demand.
+    // DEFENSIVE, and labelled as such after review: the coordinator as merged calls
+    // the teardown only under `if (began[g])`, so it never tears down a side whose
+    // bracket did not open. A second beginQuery without a teardown is the refusal
+    // this file CAN provoke, and what follows is the real obligation — a repeated
+    // endQuery must not run a second teardown.
     OLE_ASSERT(e->beginQuery(e->self), "beginQuery refused before the double-begin leg");
     const int beginsBefore = OoT_ComboLogic_TestBeginCount();
     const int endsBefore = OoT_ComboLogic_TestEndCount();
