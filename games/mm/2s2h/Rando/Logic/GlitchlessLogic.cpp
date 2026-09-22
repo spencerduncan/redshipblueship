@@ -11,6 +11,23 @@ extern "C" {
 uint64_t GetUnixTimestamp();
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// The creation-progress overlay (#582). This loop is the only place in the paired
+// creation that needs a HEARTBEAT — a repaint from inside an open-ended grind —
+// because one pass of this fill can occupy the whole per-attempt budget while
+// nothing else in it would report.
+//
+// NOT because everything else finishes in milliseconds; the first cut of #582 said
+// that without measuring, and the review was right to disbelieve it. Two other
+// stretches are long enough for a player to notice: MM's rando-core init before
+// the ladder, and the spoiler join after it. Both are bounded, single calls rather
+// than loops, so each got a phase REPORT (which paints once, with a caption naming
+// what is happening) instead of a heartbeat, and both are timed on every creation
+// — the "[MM] creation: the pre-fill stretch ..." and "... post-fill stretch ..."
+// lines in GameExports_SingleExe.cpp — so the claim is a number in the log.
+#include "gen_progress_overlay.h"
+#endif
+
 namespace Rando {
 
 namespace Logic {
@@ -83,6 +100,52 @@ void ApplyGlitchlessLogicToSaveContext(std::vector<RandoCheckId>& checkPool, std
     };
 
     while (true) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // ------------------------------------------------------------------
+        // THE ON-SCREEN HEARTBEAT (#582).
+        //
+        // The paired creation runs on the thread that renders, so without a
+        // pump from in here the window produces no frame and answers no OS
+        // message for the whole of this fill. The overlay itself decides how
+        // rarely to paint (RSBS_GENOVERLAY_REPAINT_INTERVAL_MS); this loop only
+        // offers it the elapsed time it had already computed for the timeout
+        // check below, so no new clock and no new decision enter the fill.
+        //
+        // THE CREDIT IS THE LOAD-BEARING PART. A painted frame waits for
+        // vblank, and charging that wait to the fill's wall-clock budget would
+        // give a host with a window measurably less generation headroom than
+        // the same host running headless — two different abort probabilities
+        // for one seed on one machine, decided by whether anything was on
+        // screen. So presentation time is added back to `tick`: the budget
+        // keeps measuring GENERATION, exactly as it does with no overlay
+        // installed. The guard means a headless run does not even read the
+        // clock twice.
+        //
+        // THIS CREDIT IS ONE OF TWO, and it covers only the PER-ATTEMPT stop
+        // below. The creation's other wall-clock stop — the ladder's TOTAL
+        // budget in OnFileCreate.cpp — is credited by the
+        // Combo_GenProgress_PresentationBegin/End bracket inside the overlay's
+        // own Paint(), in gen_budget's clock, because `tick` here is a
+        // GetUnixTimestamp() value and only a delta in that same clock may be
+        // added to it. Crediting one and not the other (the first cut of #582)
+        // just moved the windowed-vs-headless asymmetry to the stop nobody was
+        // looking at.
+        if (ComboGenOverlay_WantsHeartbeat()) {
+            const uint64_t beforePaint = GetUnixTimestamp();
+            ComboGenOverlay_Heartbeat((uint32_t)(beforePaint >= tick ? beforePaint - tick : 0));
+            const uint64_t afterPaint = GetUnixTimestamp();
+            // GUARDED, because GetUnixTimestamp() is system_clock and can step
+            // BACKWARDS (an NTP correction mid-generation). An unguarded
+            // subtraction would underflow to an enormous credit, push `tick`
+            // far into the future, and make the check below underflow in turn
+            // and abort the fill instantly. A backwards step simply credits
+            // nothing, which leaves this loop exactly as exposed to a clock
+            // step as it already was and no more.
+            if (afterPaint >= beforePaint) {
+                tick += afterPaint - beforePaint;
+            }
+        }
+#endif
         // Break if we've been running for too long
         if (GetUnixTimestamp() - tick > timeoutBudgetMs) {
             handleError("Logic Generation Timeout", /*wallClock=*/true);

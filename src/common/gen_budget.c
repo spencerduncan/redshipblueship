@@ -147,11 +147,22 @@ const char* Combo_GenPhaseName(uint8_t phase) {
 
 static ComboGenProgress sProgress = { RSBS_GENPHASE_IDLE, 0, 0, 0, 0, "idle" };
 static ComboGenProgressSink sProgressSink = NULL;
+static ComboGenProgressSink sDisplaySink = NULL;
 static uint32_t sProgressStartMs = 0;
 static bool sProgressRunning = false;
+/** Time this creation has spent presenting, in GenBudgetNowMs units. See the
+ *  header: the TOTAL budget's stop is compared against elapsed MINUS this, so a
+ *  windowed host and a headless one get the same generation headroom. */
+static uint32_t sPresentationMs = 0;
+static uint32_t sPresentationStartMs = 0;
+static bool sPresentationOpen = false;
 
 void Combo_GenProgress_SetSink(ComboGenProgressSink sink) {
     sProgressSink = sink;
+}
+
+void Combo_GenProgress_SetDisplaySink(ComboGenProgressSink sink) {
+    sDisplaySink = sink;
 }
 
 const ComboGenProgress* Combo_GenProgress_Current(void) {
@@ -172,18 +183,70 @@ uint32_t Combo_GenProgress_ElapsedMs(void) {
     return (now >= sProgressStartMs) ? (now - sProgressStartMs) : 0u;
 }
 
+void Combo_GenProgress_PresentationBegin(void) {
+    // Outside a session there is nothing to credit (the terminal paint happens
+    // after End has already stopped the clock), and a nested bracket would
+    // double-count the inner interval.
+    if (!sProgressRunning || sPresentationOpen) {
+        return;
+    }
+    sPresentationStartMs = GenBudgetNowMs();
+    sPresentationOpen = true;
+}
+
+void Combo_GenProgress_PresentationEnd(void) {
+    if (!sPresentationOpen) {
+        return;
+    }
+    sPresentationOpen = false;
+    const uint32_t now = GenBudgetNowMs();
+    if (now > sPresentationStartMs) {
+        // A backwards step credits nothing rather than wrapping into an enormous
+        // credit that would disable the total-budget stop for the rest of the
+        // creation. Same rule as the per-attempt credit's guard.
+        sPresentationMs += now - sPresentationStartMs;
+    }
+}
+
+uint32_t Combo_GenProgress_PresentationMs(void) {
+    return sPresentationMs;
+}
+
+uint32_t Combo_GenProgress_GenerationElapsedMs(void) {
+    const uint32_t elapsed = Combo_GenProgress_ElapsedMs();
+    return (elapsed > sPresentationMs) ? (elapsed - sPresentationMs) : 0u;
+}
+
 void Combo_GenProgress_Begin(void) {
     sProgressStartMs = GenBudgetNowMs();
     sProgressRunning = true;
+    sPresentationMs = 0;
+    sPresentationOpen = false;
     sProgress.phase = RSBS_GENPHASE_IDLE;
     sProgress.attempt = 0;
     sProgress.maxAttempts = 0;
     sProgress.elapsedMs = 0;
     sProgress.budgetMs = 0;
-    sProgress.detail = kGenPhaseNames[RSBS_GENPHASE_IDLE];
+    // NOT kGenPhaseNames[IDLE] (#582's review). The phase IS idle — nothing has
+    // begun filling yet — but this record is the FIRST thing the on-screen surface
+    // shows, and it stays on screen for the whole pre-fill stretch (MM's rando core
+    // init and the vanilla bootstrap, measured in the creation log). A bar at 2%
+    // captioned "Idle" is a bar that looks broken. The phase stays IDLE so the
+    // weights and the existing phase-order assertions are untouched; only the words
+    // the player reads change, which is what `detail` is for.
+    sProgress.detail = "preparing to build your paired world";
     fprintf(stderr, "[Combo] creation progress: BEGIN (per-attempt budget %ums, total budget %ums, host scale %u%%)\n",
             Combo_GenBudget_FillBudgetMs(0), Combo_GenBudget_TotalBudgetMs(), Combo_GenBudget_HostScalePercent());
     fflush(stderr);
+
+    // THE ON-SCREEN LEG ONLY (#582). An overlay has to exist before the first
+    // phase lands, or the player stares at a frozen file-select screen for the
+    // whole of the first MM fill attempt. The phase-order sink is deliberately
+    // NOT told: it records transitions, and a synthetic IDLE entry at index 0
+    // would shift every index the existing row asserts about.
+    if (sDisplaySink != NULL) {
+        sDisplaySink(&sProgress);
+    }
 }
 
 void Combo_GenProgress_Report(uint8_t phase, int attempt, const char* detail) {
@@ -212,6 +275,9 @@ void Combo_GenProgress_Report(uint8_t phase, int attempt, const char* detail) {
     if (sProgressSink != NULL) {
         sProgressSink(&sProgress);
     }
+    if (sDisplaySink != NULL) {
+        sDisplaySink(&sProgress);
+    }
 }
 
 void Combo_GenProgress_End(bool ok) {
@@ -225,13 +291,22 @@ void Combo_GenProgress_End(bool ok) {
     // THE P12 MEASUREMENT. "Measure the linked round against the ~30 s floor"
     // asked for a number, and this is where the number is produced on every real
     // creation — not only in a benchmark somebody has to remember to run.
-    fprintf(stderr, "[Combo] creation progress: %s in %ums (per-attempt budget %ums, floor %ums)\n",
-            ok ? "COMPLETE" : "FAILED", sProgress.elapsedMs, Combo_GenBudget_FillBudgetMs(0),
-            (unsigned)RSBS_GENBUDGET_FLOOR_MS);
+    // The presentation split is printed with it, because "the bar cost the
+    // generation nothing" is a claim about numbers and this is where the numbers
+    // are. Zero on a headless host by construction.
+    fprintf(stderr,
+            "[Combo] creation progress: %s in %ums wall (%ums generating, %ums presenting; per-attempt budget %ums, "
+            "floor %ums)\n",
+            ok ? "COMPLETE" : "FAILED", sProgress.elapsedMs,
+            (sProgress.elapsedMs > sPresentationMs) ? (sProgress.elapsedMs - sPresentationMs) : 0u, sPresentationMs,
+            Combo_GenBudget_FillBudgetMs(0), (unsigned)RSBS_GENBUDGET_FLOOR_MS);
     fflush(stderr);
 
     if (sProgressSink != NULL) {
         sProgressSink(&sProgress);
+    }
+    if (sDisplaySink != NULL) {
+        sDisplaySink(&sProgress);
     }
 }
 
