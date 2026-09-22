@@ -1,0 +1,959 @@
+/**
+ * ComboLogicEngineOoT.cpp — the OoT half of the combo-logic coordinator's
+ * engine surface (ADR 0010 increment 3, #645; O4 = COMPOSITION).
+ *
+ * ============================================================================
+ * WHAT THIS IS
+ * ============================================================================
+ *
+ * `src/common/combo_logic.h` declares a `ComboLogicEngine` vtable: eleven
+ * required calls plus an optional snapshot/restore pair, over game-neutral
+ * scalars only. This TU implements that vtable for OoT out of the primitives
+ * `3drando` already has, and registers it at process start. It is the ONE place
+ * besides ForeignItemsSingleExe.cpp where `RG_*` / `RC_*` / `RR_*` may be in
+ * scope on the OoT side (ADR 0002): everything leaves here as a `SharedItem`,
+ * a host check id, or a plain int.
+ *
+ * **NOTHING HERE RUNS IN A PRODUCTION PATH.** Registering an engine does not
+ * call it: no creation seam, no `Fill()` and no arrival invokes
+ * `Combo_Logic_RunRound` or `Combo_Logic_RunFill` at this commit, and the
+ * coordinator refuses any paired fill until BOTH engines are registered (MM's
+ * is a separate lane). The registrar below therefore changes no generated
+ * world — see the PR's world-unchanged evidence.
+ *
+ * ============================================================================
+ * THE MAPPING, CALL BY CALL, AND WHY EACH ONE IS THE PRIMITIVE IT IS
+ * ============================================================================
+ *
+ *   beginQuery        `Logic::Reset(true)` — THE DETACH. `NewSaveContext()`
+ *                     allocates a fresh heap `SaveContext` and points
+ *                     `Logic::mSaveContext` at it, so the whole round's
+ *                     simulated inventory lives off the live save
+ *                     (audit §1.8 / §4.2). Then `Regions::AccessReset()`,
+ *                     `ctx->LocationReset()` and `ApplyStartingInventory()`, so
+ *                     the round begins at the WORLD'S STARTING INVENTORY with a
+ *                     defined (empty) reached set even before the first
+ *                     `expand`.
+ *   assumeOwnItem     `Item::ApplyEffect()` on the item the `RG_*` names, into
+ *                     the detached save. DE-DUPLICATED per round — see the
+ *                     block at OoT_ComboLogic_AssumeOwnItem, which is the one
+ *                     place this implementation could not take the contract
+ *                     literally without corrupting the inventory.
+ *   expand            one `ReachabilitySearch(ctx->allLocations)`. Returns
+ *                     whether the closure GREW since this round's previous
+ *                     expand, measured on (#reached checks, #reached regions).
+ *   crossingOpen      `RegionTable(RR_MARKET_MASK_SHOP)->Child()` (audit §4.5).
+ *                     The Happy Mask Shop pair is pinned out of OoT's own
+ *                     entrance shuffle, so this region key is the crossing in
+ *                     every world.
+ *   checkReached      `ItemLocation::IsAddedToPool()`.
+ *   reachedEmptyHosts reached, item-free, coordinator-unassigned checks in
+ *                     ASCENDING `RC_*` order.
+ *   allEmptyHosts     the same set WITHOUT the reachability term, and without
+ *                     consulting any round state — the `none` rung's host
+ *                     source, legal outside a bracket.
+ *   goalReached       `RG_TRIFORCE` REACHED, which is `CheckBeatable`'s own
+ *                     condition (`fill.cpp:445`) read as a fact instead of
+ *                     recomputed — `CheckBeatable` itself calls `ResetLogic`
+ *                     and would throw the round's state away, and the contract
+ *                     requires a pure read.
+ *   place             OoT-origin: `Context::PlaceItemInLocation`. MM-origin: a
+ *                     fixed junk cover and nothing else — the foreign identity
+ *                     stays in the coordinator's table, never in OoT's.
+ *   clearPlacements   restore every host this engine was given back to the item
+ *                     it held BEFORE the coordinator touched it.
+ *   endQuery          re-point `Logic::mSaveContext` where it was, which is the
+ *                     audit's §4.4 re-attach obligation.
+ *   snapshot/restore  BOTH NULL. OoT's queries are pure once detached, so there
+ *                     is nothing to bracket; supplying a pair that copied
+ *                     `gSaveContext` would cost 136 KB per round to restore
+ *                     bytes no query writes.
+ *
+ * ============================================================================
+ * THE THREE HAZARDS THIS FILE EXISTS TO NOT FALL INTO
+ * ============================================================================
+ *
+ * (1) THE RESIDUE. `ReachabilitySearch` does NOT reset the `logic` singleton's
+ *     simulated inventory: `ResetLogic` clears region bits and pool marks and
+ *     then ADDS the starting inventory on top of whatever the last search left
+ *     collected (`fill.cpp:315-329`). A round that skipped `Logic::Reset(true)`
+ *     would answer a question about a world holding strictly more items than it
+ *     was asked about, silently, and it looks like the fill working. This is not
+ *     hypothetical in this tree: the #656 reverse-placement gate reported 48 of
+ *     57 hosts reachable against a truth of 57 for exactly this reason. So
+ *     `beginQuery` resets, and the lock runs the same query twice back to back
+ *     AND once after an unrelated bare search, and requires all three answers to
+ *     agree.
+ *
+ * (2) THE LIVE SAVE. On save load the port points `Logic` at `&gSaveContext`
+ *     (`logic.cpp:2164`), so a query issued without the detach applies item
+ *     effects INTO the player's save. Every mutating primitive this file calls
+ *     is therefore inside the detach — including `place`, which is called
+ *     OUTSIDE a round (see the bracket at OoT_ComboLogic_Place).
+ *
+ * (3) THE RE-ATTACH. `endQuery` must leave `Logic::mSaveContext` pointing where
+ *     `beginQuery` found it, or the next in-game progressive give resolves
+ *     against a stale simulated save (audit §1.8 hazard 1, §4.4). Two cases, and
+ *     only one of them is restorable: if it pointed at `&gSaveContext` we
+ *     re-point there exactly (and release the round's heap copy, or the fill
+ *     leaks ~136 KB per round); if it pointed at a HEAP context — i.e. a
+ *     generation was mid-flight — `Logic::Reset(true)`'s own `NewSaveContext()`
+ *     already `free()`d it (`logic.cpp:2310-2315`), so that pointer cannot be
+ *     restored by anyone and the correct end state is the fresh detached context
+ *     we leave. That is the same state OoT's own `AssumedFill` leaves between
+ *     its per-item `logic->Reset()` calls, so a mid-generation caller is
+ *     unaffected. Stated rather than silently reinterpreted.
+ */
+#ifdef RSBS_SINGLE_EXECUTABLE
+
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <vector>
+
+#include "soh/OTRGlobals.h"
+#include "soh/Enhancements/randomizer/randomizerTypes.h"
+#include "soh/Enhancements/randomizer/static_data.h"
+#include "soh/Enhancements/randomizer/item.h"
+#include "soh/Enhancements/randomizer/item_location.h"
+#include "soh/Enhancements/randomizer/location_access.h"
+#include "soh/Enhancements/randomizer/logic.h"
+#include "soh/Enhancements/randomizer/SeedContext.h"
+#include "3drando/fill.hpp"
+#include "3drando/starting_inventory.hpp"
+
+#include "combo_logic.h" // src/common — the vtable this file implements
+#include "context.h"     // src/common — SharedItem, GameId
+
+extern "C" {
+#include <z64.h>
+#include "variables.h"
+}
+
+namespace {
+
+// ============================================================================
+// Engine state. File-static, so `self` is NULL — which combo_logic.h documents
+// as what a real engine passes (only a test needs `self`).
+// ============================================================================
+
+/** The check id space, which is also the widest `reachedEmptyHosts` /
+ *  `allEmptyHosts` answer this engine can produce. A coordinator scratch buffer
+ *  must be sized from this, not from its placement cap. */
+constexpr int kOoTCheckIdSpace = (int)RC_MAX;
+
+/** The junk an MM-origin placement leaves physically in the OoT host. FIXED, not
+ *  drawn: `GetJunkItem()` consumes the fill's RNG stream (`item_pool.cpp:70-77`)
+ *  and an engine call must consume none — a query runs a variable number of
+ *  times per fill, so one draw in here would make the world a function of the
+ *  search's shape (combo_logic.h, "AN ENGINE MUST LEAVE UNTOUCHED"). */
+constexpr RandomizerGet kOoTForeignJunkCover = RG_BLUE_RUPEE;
+
+struct OoTComboPlacement {
+    RandomizerCheck host;
+    RandomizerGet priorItem; // what the host held before the coordinator arrived
+    SharedItem item;         // origin-tagged; may be MM-origin
+};
+
+/** Hosts the COORDINATOR gave this engine, and nothing else. `clearPlacements`
+ *  restores exactly these and touches nothing it did not put there. */
+OoTComboPlacement sPlacements[RSBS_COMBO_LOGIC_PLACEMENT_CAP];
+int sPlacementCount = 0;
+
+/** In-query state. `sInQuery` is what makes `endQuery` idempotent and safe after
+ *  a FAILED `beginQuery`: the coordinator may call the teardown on a side whose
+ *  bracket never opened, and a teardown that re-pointed the save context on that
+ *  path would "restore" a pointer nobody saved. */
+bool sInQuery = false;
+/** True iff `beginQuery` found `Logic::mSaveContext == &gSaveContext`. Only then
+ *  is the prior pointer restorable — see hazard (3) in the file header. */
+bool sPriorWasLiveSave = false;
+
+/** Items already granted THIS round, by `RG_*` id. See the de-dup block. */
+std::vector<bool> sGranted;
+
+/** Closure size at this round's previous `expand`, for the `changed` answer. */
+int sPrevReachedChecks = -1;
+int sPrevReachedRegions = -1;
+
+/** Counters the locks read; production never does. */
+int sLastExpandReachedChecks = 0;
+int sLastExpandReachedRegions = 0;
+int sBeginQueryCount = 0;
+int sEndQueryCount = 0;
+
+// ============================================================================
+// Small helpers
+// ============================================================================
+
+Rando::Logic* OoTComboLogicSingleton() {
+    // The free `logic` pointer the region files and `fill.cpp` use is rebound by
+    // RegionTable_Init; going through it (rather than through
+    // Rando::Context::GetLogic()) is what keeps this engine reading the SAME
+    // singleton every guard in location_access/ reads.
+    return logic;
+}
+
+bool OoTComboLogicReady() {
+    // Every mutating primitive below needs all three. `Logic::Reset(true)` in
+    // particular reaches `OTRGlobals::Instance->HasOriginal()` through
+    // InitSaveContext (`logic.cpp:2305`), so a process with no OTRGlobals must be
+    // refused rather than crashed.
+    return OTRGlobals::Instance != nullptr && Rando::Context::GetInstance() != nullptr &&
+           OoTComboLogicSingleton() != nullptr;
+}
+
+/** Does `rc` name a real row in the location table? A gap is default-constructed
+ *  and keeps RC_UNKNOWN_CHECK, so the identity test rejects it — the same test
+ *  OoT_Foreign_IsEligibleHostImpl uses, for the same reason. */
+bool OoTComboLogicIsRealCheck(RandomizerCheck rc) {
+    if (rc <= RC_UNKNOWN_CHECK || rc >= RC_MAX) {
+        return false;
+    }
+    Rando::Location* loc = Rando::StaticData::GetLocation(rc);
+    return loc != nullptr && loc->GetRandomizerCheck() == rc;
+}
+
+/**
+ * The hosts this engine OWNS: rows the CURRENT world's fill actually considers.
+ *
+ * `ctx->allLocations` is rebuilt per fill attempt (`fill.cpp:1225`), so it is a
+ * function of the graph and the settings and not of anything a round does — which
+ * is what the ORDER contract needs. The bitset is rebuilt on every call rather
+ * than cached because a cache would silently answer for the PREVIOUS attempt's
+ * world after a re-generation, which is the same class of bug `addedToPool`
+ * residue already is (audit §1.8).
+ */
+const std::vector<bool>& OoTComboLogicOwnedHosts() {
+    static std::vector<bool> owned;
+    owned.assign((size_t)kOoTCheckIdSpace, false);
+    auto ctx = Rando::Context::GetInstance();
+    if (ctx == nullptr) {
+        return owned;
+    }
+    for (const RandomizerCheck rc : ctx->allLocations) {
+        if (rc > RC_UNKNOWN_CHECK && rc < RC_MAX) {
+            owned[(size_t)rc] = true;
+        }
+    }
+    return owned;
+}
+
+int OoTComboLogicPlacementIndex(RandomizerCheck rc) {
+    for (int i = 0; i < sPlacementCount; ++i) {
+        if (sPlacements[i].host == rc) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+/** Reached checks over the WHOLE id space, which is the closure observable
+ *  `expand` compares round-internally. */
+int OoTComboLogicReachedCheckCount() {
+    auto ctx = Rando::Context::GetInstance();
+    if (ctx == nullptr) {
+        return 0;
+    }
+    int count = 0;
+    for (int i = 1; i < kOoTCheckIdSpace; ++i) {
+        const RandomizerCheck rc = (RandomizerCheck)i;
+        if (!OoTComboLogicIsRealCheck(rc)) {
+            continue;
+        }
+        Rando::ItemLocation* il = ctx->GetItemLocation(rc);
+        if (il != nullptr && il->IsAddedToPool()) {
+            ++count;
+        }
+    }
+    return count;
+}
+
+/** Reached regions, counted over the four age/time bits. A region can open for
+ *  an age this expand that it did not hold last expand WITHOUT any new check
+ *  becoming reachable, so counting region bits as well as checks is what stops
+ *  `expand` reporting "nothing new" one alternation early. */
+int OoTComboLogicReachedRegionCount() {
+    int count = 0;
+    // The same range `Regions::GetAllRegions()` builds (`location_access.cpp:1063`)
+    // — that helper is file-local to location_access.cpp and not declared in the
+    // header, so the range is written out here rather than reached for.
+    for (int i = (int)RR_NONE + 1; i < (int)RR_MAX; ++i) {
+        Region* region = RegionTable((RandomizerRegion)i);
+        if (region == nullptr) {
+            continue;
+        }
+        count += region->childDay ? 1 : 0;
+        count += region->childNight ? 1 : 0;
+        count += region->adultDay ? 1 : 0;
+        count += region->adultNight ? 1 : 0;
+    }
+    return count;
+}
+
+/**
+ * A detached `SaveContext` this engine owns, allocated once and reused.
+ *
+ * WHY `place` NEEDS IT. `Context::PlaceItemInLocation` applies the item's effect
+ * immediately under Glitchless REGARDLESS of its `applyEffectImmediately`
+ * argument (`SeedContext.cpp:141-145`), and `place` is called OUTSIDE any query
+ * bracket — between rounds, and in a round's teardown. With `Logic` attached to
+ * `&gSaveContext` (its state whenever a save is loaded) an unbracketed place
+ * would write the item into the PLAYER'S SAVE. combo_logic.h is explicit that
+ * `place` must not grant the item; this is how OoT honours that without
+ * reimplementing the port's placement bookkeeping.
+ *
+ * Allocated through `Logic`'s own `NewSaveContext()` with `mSaveContext` parked
+ * at NULL first, so it frees nothing on the way and the engine owns exactly one
+ * extra `SaveContext` for the life of the process.
+ */
+SaveContext* OoTComboLogicScratchSave() {
+    static SaveContext* scratch = nullptr;
+    if (scratch == nullptr) {
+        Rando::Logic* lg = OoTComboLogicSingleton();
+        if (lg == nullptr) {
+            return nullptr;
+        }
+        SaveContext* prior = lg->GetSaveContext(); // may allocate if none yet
+        lg->SetSaveContext(nullptr);               // so NewSaveContext frees nothing
+        lg->NewSaveContext();
+        scratch = lg->GetSaveContext();
+        lg->SetSaveContext(prior);
+    }
+    return scratch;
+}
+
+// ============================================================================
+// The vtable
+// ============================================================================
+
+int OoT_ComboLogic_BeginQuery(void* self) {
+    (void)self;
+    // Validate BEFORE mutating anything, so a refusal leaves no half-open
+    // bracket for `endQuery` to guess about.
+    if (!OoTComboLogicReady()) {
+        fprintf(stderr, "[OoT/ComboLogic] beginQuery refused: no OTRGlobals / Rando::Context / logic singleton\n");
+        return 0;
+    }
+    if (sInQuery) {
+        // The coordinator calls beginQuery exactly once per round. A second one
+        // without a teardown is a coordinator bug, and silently re-detaching
+        // would orphan the first round's heap context.
+        fprintf(stderr, "[OoT/ComboLogic] beginQuery refused: a query is already open\n");
+        return 0;
+    }
+
+    auto ctx = Rando::Context::GetInstance();
+    Rando::Logic* lg = OoTComboLogicSingleton();
+
+    sPriorWasLiveSave = (lg->GetSaveContext() == &gSaveContext);
+
+    // THE DETACH. Everything the round simulates lands in the fresh heap
+    // SaveContext this allocates, never in gSaveContext.
+    lg->Reset(true);
+
+    // A DEFINED starting state even before the first `expand`: region bits and
+    // pool marks cleared, the settings' starting inventory applied. Without
+    // these, `crossingOpen` and `checkReached` between `beginQuery` and the
+    // first `expand` would report the PREVIOUS round's residue — and the lock
+    // asserts the crossing is CLOSED here and OPEN after expand, which is the
+    // differential that proves the reset happens at all.
+    Regions::AccessReset();
+    ctx->LocationReset();
+    ApplyStartingInventory();
+
+    sGranted.assign((size_t)RG_MAX, false);
+    sPrevReachedChecks = -1;
+    sPrevReachedRegions = -1;
+    sInQuery = true;
+    ++sBeginQueryCount;
+    return 1;
+}
+
+/**
+ * Grant one OoT item into the detached simulated inventory.
+ *
+ * DE-DUPLICATION IS LOAD-BEARING, AND IT IS THE ONE PLACE THIS ENGINE COULD NOT
+ * TAKE THE K1 CONTRACT LITERALLY. combo_logic.h says this call "MAY BE CALLED
+ * REPEATEDLY, with the same id, within one round ... Repeats must be harmless."
+ * `Logic::ApplyItemEffect` does not have that property for OoT's progressives:
+ * `RG_PROGRESSIVE_STRENGTH` does `SetUpgrade(UPG_STRENGTH, CurrentUpgrade + 1)`
+ * with NO upper clamp (`logic.cpp:1799-1809`; the bomb bag, quiver, wallet and
+ * scale rows are the same shape), and `SetUpgrade` writes a masked bitfield — so
+ * the fourth grant of a three-tier upgrade walks into the NEXT upgrade's bits.
+ * That is not merely "not harmless", it can LOWER another capacity, which is the
+ * monotonicity violation the whole assumed fill rests on not happening.
+ *
+ * So a repeat of an id already granted this round is dropped. The cost, stated
+ * plainly rather than left for someone to discover: a bag holding TWO copies of
+ * the same progressive id grants ONE tier per round, not two. That is
+ * CONSERVATIVE — the round proves reachability under strictly less inventory
+ * than the assumption nominally allows, so nothing it proves reachable is
+ * actually unreachable — and it is the only reading available, because the
+ * surface passes no multiplicity. A multiplicity-aware assume needs a count on
+ * the call; that is a contract change for a later increment, recorded in the PR.
+ */
+void OoT_ComboLogic_AssumeOwnItem(void* self, uint16_t ownItemId) {
+    (void)self;
+    if (!sInQuery || !OoTComboLogicReady()) {
+        return;
+    }
+    if (ownItemId == (uint16_t)RG_NONE || ownItemId >= (uint16_t)RG_MAX) {
+        fprintf(stderr, "[OoT/ComboLogic] assumeOwnItem ignored: %u is not an OoT item id\n", (unsigned)ownItemId);
+        return;
+    }
+    if (sGranted.size() > (size_t)ownItemId) {
+        if (sGranted[(size_t)ownItemId]) {
+            return; // already held this round; see the block above
+        }
+        sGranted[(size_t)ownItemId] = true;
+    }
+    Rando::StaticData::RetrieveItem((RandomizerGet)ownItemId).ApplyEffect();
+}
+
+/**
+ * One reachability expansion.
+ *
+ * `ReachabilitySearch` recomputes the WHOLE closure from `RR_ROOT` each call
+ * (its `ResetLogic` clears region bits and pool marks first) over the CURRENT
+ * simulated inventory, harvesting every placed item it reaches as it goes. So
+ * one call is already a fixpoint over the placements; what the coordinator's
+ * alternation adds is the items that arrive from the OTHER game between calls.
+ *
+ * `changed` is therefore "did the closure GROW since this round's last expand",
+ * measured on two counts that can only rise while the inventory only rises. It
+ * is not "did the search do work" — the search does the same work every time.
+ * The first expand of a round always reports change (there is no previous
+ * measurement), which is correct: something opened, namely everything.
+ */
+int OoT_ComboLogic_Expand(void* self) {
+    (void)self;
+    if (!sInQuery || !OoTComboLogicReady()) {
+        return 0;
+    }
+    auto ctx = Rando::Context::GetInstance();
+
+    // The return value is deliberately unused: with placed items everywhere and
+    // calculatingAvailableChecks false the returned vector holds only the EMPTY
+    // reachable locations, while the `addedToPool` marks the search set along the
+    // way are the complete closure — and those marks are what `checkReached`,
+    // `reachedEmptyHosts` and `goalReached` read.
+    ReachabilitySearch(ctx->allLocations);
+
+    const int checks = OoTComboLogicReachedCheckCount();
+    const int regions = OoTComboLogicReachedRegionCount();
+    sLastExpandReachedChecks = checks;
+    sLastExpandReachedRegions = regions;
+
+    const bool grew = (sPrevReachedChecks < 0) || (checks > sPrevReachedChecks) || (regions > sPrevReachedRegions);
+    sPrevReachedChecks = checks;
+    sPrevReachedRegions = regions;
+    return grew ? 1 : 0;
+}
+
+int OoT_ComboLogic_CrossingOpen(void* self) {
+    (void)self;
+    if (!OoTComboLogicReady()) {
+        return 0;
+    }
+    // Audit §4.5: the OoT->MM crossing is the Happy Mask Shop, which is
+    // child-only and day-entered; the coordinator's observable is the region's
+    // CHILD access. A region fact, not a new graph edge — no region file changes
+    // for increment 3 (audit amendment 3).
+    Region* shop = RegionTable(RR_MARKET_MASK_SHOP);
+    return (shop != nullptr && shop->Child()) ? 1 : 0;
+}
+
+int OoT_ComboLogic_CheckReached(void* self, uint16_t hostCheck) {
+    (void)self;
+    if (!OoTComboLogicReady() || !OoTComboLogicIsRealCheck((RandomizerCheck)hostCheck)) {
+        return 0;
+    }
+    Rando::ItemLocation* il = Rando::Context::GetInstance()->GetItemLocation((RandomizerCheck)hostCheck);
+    return (il != nullptr && il->IsAddedToPool()) ? 1 : 0;
+}
+
+/**
+ * Shared body of the two host enumerations. `reachedOnly` adds the reachability
+ * term and nothing else, which is what makes `allEmptyHosts` a SUPERSET of
+ * `reachedEmptyHosts` by construction rather than by review.
+ *
+ * ORDER: ascending `RC_*` id. A function of the location table alone — it cannot
+ * be perturbed by the order items were granted this round, which is the property
+ * combo_logic.h requires so that the coordinator's uniform draw is a function of
+ * the seed and not of the search's shape.
+ *
+ * TRUNCATION: at most `cap` ids are written and the TOTAL is always returned, in
+ * both the count-only and the write case, so the coordinator can tell a
+ * truncated answer from an exhausted one. The total is bounded only by the check
+ * id space (RC_MAX, `OoT_ComboLogic_TestCheckIdSpace`), NOT by the coordinator's
+ * placement cap — a caller sizing a buffer must size it from the id space.
+ */
+int OoTComboLogicEnumerateHosts(uint16_t* out, int cap, bool reachedOnly) {
+    if (!OoTComboLogicReady()) {
+        return 0;
+    }
+    auto ctx = Rando::Context::GetInstance();
+    const std::vector<bool>& owned = OoTComboLogicOwnedHosts();
+
+    int total = 0;
+    for (int i = 1; i < kOoTCheckIdSpace; ++i) {
+        const RandomizerCheck rc = (RandomizerCheck)i;
+        if (!owned[(size_t)i] || !OoTComboLogicIsRealCheck(rc)) {
+            continue;
+        }
+        Rando::ItemLocation* il = ctx->GetItemLocation(rc);
+        if (il == nullptr) {
+            continue;
+        }
+        // "Unassigned" is: nothing is in it, AND this engine has not been given
+        // it by the coordinator. The second term is belt-and-braces (a host the
+        // coordinator placed on holds either a real item or the junk cover, so
+        // the first term already excludes it) and it keeps the two facts
+        // independent, so a future junk cover of RG_NONE could not resurrect a
+        // filled host as a candidate.
+        if (il->GetPlacedRandomizerGet() != RG_NONE || OoTComboLogicPlacementIndex(rc) >= 0) {
+            continue;
+        }
+        if (reachedOnly && !il->IsAddedToPool()) {
+            continue;
+        }
+        if (out != nullptr && total < cap) {
+            out[total] = (uint16_t)rc;
+        }
+        ++total;
+    }
+    return total;
+}
+
+int OoT_ComboLogic_ReachedEmptyHosts(void* self, uint16_t* out, int cap) {
+    (void)self;
+    return OoTComboLogicEnumerateHosts(out, cap, true);
+}
+
+int OoT_ComboLogic_AllEmptyHosts(void* self, uint16_t* out, int cap) {
+    (void)self;
+    // CALLED OUTSIDE ANY ROUND, and this body honours that: it consults the
+    // location table and the engine's own placements, never `sInQuery`, the
+    // simulated inventory or the reached marks.
+    return OoTComboLogicEnumerateHosts(out, cap, false);
+}
+
+/**
+ * Is OoT's half beaten right now?
+ *
+ * `CheckBeatable`'s condition, read as a FACT rather than recomputed. The
+ * condition itself is `fill.cpp:445`: a location holding `RG_TRIFORCE` becomes
+ * `addedToPool`. Calling `CheckBeatable()` here instead would call `ResetLogic`
+ * and throw away the round's inventory — the contract wants a pure read, and a
+ * goal probe that reset the search would make every round after it answer a
+ * different question.
+ *
+ * The scan covers the whole id space because WHICH check holds the triforce is a
+ * settings answer (`RC_GANON` normally, `RC_TRIFORCE_COMPLETED` under triforce
+ * hunt — `item_pool.cpp:322-331`), and a world with no `RG_TRIFORCE` placed at
+ * all (no fill in this process) correctly answers 0.
+ */
+int OoT_ComboLogic_GoalReached(void* self) {
+    (void)self;
+    if (!OoTComboLogicReady()) {
+        return 0;
+    }
+    auto ctx = Rando::Context::GetInstance();
+    for (int i = 1; i < kOoTCheckIdSpace; ++i) {
+        const RandomizerCheck rc = (RandomizerCheck)i;
+        if (!OoTComboLogicIsRealCheck(rc)) {
+            continue;
+        }
+        Rando::ItemLocation* il = ctx->GetItemLocation(rc);
+        if (il != nullptr && il->GetPlacedRandomizerGet() == RG_TRIFORCE && il->IsAddedToPool()) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+/**
+ * Record that an OoT host holds `item`.
+ *
+ * Own-origin: `Context::PlaceItemInLocation`, the port's own primitive, so the
+ * location's bookkeeping is whatever OoT's fill would have produced.
+ * Foreign-origin: the host physically receives a FIXED OoT junk item and the
+ * foreign identity stays in the coordinator's table — a raw `RI_*` never enters
+ * OoT's tables (ADR 0002), and the junk is the degrade the whole cross-game
+ * feature already relies on (`foreign_items.h`: with the placement table absent
+ * the check just yields the junk it really holds).
+ *
+ * BRACKETED, because this is called outside any query: see
+ * OoTComboLogicScratchSave. The bracket is what makes "place must not grant the
+ * item" true in the only sense that matters — the PLAYER'S save is not written —
+ * while leaving the effect to land in scratch that the next `beginQuery` wipes.
+ *
+ * IDEMPOTENT for the same (host, item): the coordinator re-applies its whole
+ * table after every snapshot restore, so a repeat is a no-op and not a refusal.
+ */
+int OoT_ComboLogic_Place(void* self, uint16_t hostCheck, SharedItem item) {
+    (void)self;
+    if (!OoTComboLogicReady()) {
+        return 0;
+    }
+    const RandomizerCheck rc = (RandomizerCheck)hostCheck;
+    if (!OoTComboLogicIsRealCheck(rc)) {
+        fprintf(stderr, "[OoT/ComboLogic] place refused: %u is not a real OoT check\n", (unsigned)hostCheck);
+        return 0;
+    }
+    auto ctx = Rando::Context::GetInstance();
+    Rando::ItemLocation* il = ctx->GetItemLocation(rc);
+    if (il == nullptr) {
+        return 0;
+    }
+
+    const int existing = OoTComboLogicPlacementIndex(rc);
+    if (existing >= 0) {
+        const SharedItem& held = sPlacements[existing].item;
+        if (held.originGame == item.originGame && held.id == item.id) {
+            return 1; // idempotent re-apply
+        }
+        fprintf(stderr,
+                "[OoT/ComboLogic] place: OoT check %u already holds origin=%u id=%u; replacing with origin=%u id=%u\n",
+                (unsigned)hostCheck, (unsigned)held.originGame, (unsigned)held.id, (unsigned)item.originGame,
+                (unsigned)item.id);
+    } else if (sPlacementCount >= RSBS_COMBO_LOGIC_PLACEMENT_CAP) {
+        fprintf(stderr, "[OoT/ComboLogic] place refused: engine placement table full (%d)\n",
+                (int)RSBS_COMBO_LOGIC_PLACEMENT_CAP);
+        return 0;
+    }
+
+    RandomizerGet toPlace;
+    if (item.originGame == (uint8_t)GAME_OOT) {
+        if (item.id == (uint16_t)RG_NONE || item.id >= (uint16_t)RG_MAX) {
+            fprintf(stderr, "[OoT/ComboLogic] place refused: %u is not an OoT item id\n", (unsigned)item.id);
+            return 0;
+        }
+        toPlace = (RandomizerGet)item.id;
+    } else if (item.originGame == (uint8_t)GAME_NONE) {
+        fprintf(stderr, "[OoT/ComboLogic] place refused: item carries no origin\n");
+        return 0;
+    } else {
+        toPlace = kOoTForeignJunkCover;
+    }
+
+    const int slot = (existing >= 0) ? existing : sPlacementCount;
+    if (existing < 0) {
+        sPlacements[slot].host = rc;
+        sPlacements[slot].priorItem = il->GetPlacedRandomizerGet();
+        ++sPlacementCount;
+    }
+    sPlacements[slot].item = item;
+
+    // The bracket. Restored unconditionally, because the re-attach rule only
+    // means something if nothing can leave `Logic` pointing somewhere else.
+    Rando::Logic* lg = OoTComboLogicSingleton();
+    SaveContext* prior = lg->GetSaveContext();
+    SaveContext* scratch = OoTComboLogicScratchSave();
+    const bool bracket = (scratch != nullptr && prior == &gSaveContext);
+    if (bracket) {
+        lg->SetSaveContext(scratch);
+    }
+    ctx->PlaceItemInLocation(rc, toPlace, false);
+    if (bracket) {
+        lg->SetSaveContext(prior);
+    }
+    return 1;
+}
+
+void OoT_ComboLogic_ClearPlacements(void* self) {
+    (void)self;
+    if (!OoTComboLogicReady()) {
+        sPlacementCount = 0;
+        return;
+    }
+    auto ctx = Rando::Context::GetInstance();
+    // Restore the PRIOR item, not RG_NONE: the coordinator draws its hosts from
+    // this engine's empty lists, so the prior is RG_NONE in the fill's own shape,
+    // but Combo_Logic_Place can author onto any host and a roll-back that wrote
+    // RG_NONE over somebody else's placement would corrupt a world it never
+    // decided.
+    for (int i = sPlacementCount - 1; i >= 0; --i) {
+        Rando::ItemLocation* il = ctx->GetItemLocation(sPlacements[i].host);
+        if (il != nullptr) {
+            il->SetPlacedItem(sPlacements[i].priorItem);
+        }
+    }
+    sPlacementCount = 0;
+}
+
+/**
+ * End the round and put `Logic`'s coupling back.
+ *
+ * SAFE AFTER A FAILED `beginQuery` AND SAFE TWICE. `sInQuery` is the guard: a
+ * teardown on a side whose bracket never opened returns immediately, so there is
+ * no double-restore and no "restore" of a pointer nobody captured. The
+ * coordinator is entitled to call this in both cases (a side may be snapshotted
+ * before its `beginQuery` refuses), so the guard is a contract obligation and
+ * not defensive padding.
+ */
+void OoT_ComboLogic_EndQuery(void* self) {
+    (void)self;
+    if (!sInQuery) {
+        return;
+    }
+    sInQuery = false;
+    ++sEndQueryCount;
+
+    Rando::Logic* lg = OoTComboLogicSingleton();
+    if (lg == nullptr) {
+        return;
+    }
+    if (!sPriorWasLiveSave) {
+        // The prior pointer was a heap context that `Logic::Reset(true)` already
+        // free()d; the honest end state is the fresh detached context we hold.
+        return;
+    }
+    SaveContext* mine = lg->GetSaveContext();
+    lg->SetSaveContext(&gSaveContext);
+    if (mine != nullptr && mine != &gSaveContext && mine != OoTComboLogicScratchSave()) {
+        // Released with free(), mirroring `Logic::NewSaveContext` exactly
+        // (`logic.cpp:2310-2315`). Without this the fill orphans one ~136 KB
+        // SaveContext per ROUND — and it runs a round per bag item — because the
+        // next round's Reset(true) sees mSaveContext == &gSaveContext and frees
+        // nothing. The new/free mismatch is the port's own inherited UB (audit
+        // §1.8 hazard 2), recorded there and not introduced here.
+        free(mine);
+    }
+}
+
+// ============================================================================
+// Registration
+// ============================================================================
+//
+// File-scope initializer, so the engine is published before main() and before
+// any test or gameplay code can ask for it. This TU lives in soh_rando, which
+// links WHOLE_ARCHIVE (games/oot/CMakeLists.txt), so the initializer is never
+// dropped as unreferenced — the same property the foreign pool's registrar
+// relies on, and the reason this file sits in this directory.
+//
+// snapshot/restore are BOTH NULL: OoT's queries are pure once detached.
+
+const ComboLogicEngine kOoTComboLogicEngine = {
+    /* abiVersion        */ RSBS_COMBO_LOGIC_ENGINE_ABI,
+    /* self              */ nullptr,
+    /* beginQuery        */ OoT_ComboLogic_BeginQuery,
+    /* assumeOwnItem     */ OoT_ComboLogic_AssumeOwnItem,
+    /* expand            */ OoT_ComboLogic_Expand,
+    /* crossingOpen      */ OoT_ComboLogic_CrossingOpen,
+    /* checkReached      */ OoT_ComboLogic_CheckReached,
+    /* reachedEmptyHosts */ OoT_ComboLogic_ReachedEmptyHosts,
+    /* allEmptyHosts     */ OoT_ComboLogic_AllEmptyHosts,
+    /* goalReached       */ OoT_ComboLogic_GoalReached,
+    /* place             */ OoT_ComboLogic_Place,
+    /* clearPlacements   */ OoT_ComboLogic_ClearPlacements,
+    /* endQuery          */ OoT_ComboLogic_EndQuery,
+    /* snapshot          */ nullptr,
+    /* restore           */ nullptr,
+};
+
+struct OoTComboLogicRegistrar {
+    OoTComboLogicRegistrar() {
+        Combo_Logic_RegisterEngine(GAME_OOT, &kOoTComboLogicEngine);
+    }
+};
+const OoTComboLogicRegistrar gOoTComboLogicRegistrar;
+
+} // namespace
+
+// ============================================================================
+// TEST BRIDGES (rando tier; src/common/tests/test_oot_logic_export.c)
+// ============================================================================
+//
+// Each one exposes ONE fact src/common cannot name for itself, because it has no
+// OoT enum in scope by design. None is called by production, and none of them
+// re-implements a rule — the locks drive the REAL vtable above through
+// Combo_Logic_GetEngine(GAME_OOT).
+
+/** RC_MAX: the check id space, and the bound a caller must size a host buffer
+ *  from. A coordinator scratch buffer has to hold this many ids, which is
+ *  strictly more than RSBS_COMBO_LOGIC_PLACEMENT_CAP. */
+extern "C" int OoT_ComboLogic_TestCheckIdSpace(void) {
+    return kOoTCheckIdSpace;
+}
+
+/** RG_MAX: the item id space, for the locks' id-range assertions. */
+extern "C" int OoT_ComboLogic_TestItemIdSpace(void) {
+    return (int)RG_MAX;
+}
+
+/** Reached checks and reached region-bits as of the last `expand`. The closure
+ *  observable, so a lock can assert the closure GREW under an assumption instead
+ *  of taking monotonicity on trust. */
+extern "C" int OoT_ComboLogic_TestLastReachedChecks(void) {
+    return sLastExpandReachedChecks;
+}
+
+extern "C" int OoT_ComboLogic_TestLastReachedRegions(void) {
+    return sLastExpandReachedRegions;
+}
+
+/** Reached checks RIGHT NOW, recomputed. Distinct from the cached pair above:
+ *  the locks use this to read the closure after calls the engine did not
+ *  make. */
+extern "C" int OoT_ComboLogic_TestReachedCheckCountNow(void) {
+    return OoTComboLogicReachedCheckCount();
+}
+
+/** 1 iff `Logic::mSaveContext == &gSaveContext`. The re-attach rule's whole
+ *  observable (audit §4.4). */
+extern "C" int OoT_ComboLogic_TestLogicIsAttachedToLiveSave(void) {
+    Rando::Logic* lg = logic;
+    return (lg != nullptr && lg->GetSaveContext() == &gSaveContext) ? 1 : 0;
+}
+
+/** Point `Logic` at the live save, returning the previous attachment. The locks
+ *  use it to put the engine in the state a LOADED SAVE puts it in, which is the
+ *  only state in which the re-attach rule and the live-save bracket have
+ *  anything to protect. */
+extern "C" int OoT_ComboLogic_TestAttachLogicToLiveSave(void) {
+    Rando::Logic* lg = logic;
+    if (lg == nullptr) {
+        return -1;
+    }
+    const int previous = (lg->GetSaveContext() == &gSaveContext) ? 1 : 0;
+    lg->SetSaveContext(&gSaveContext);
+    return previous;
+}
+
+/** How many times the vtable's begin/end have run. A lock reads these to prove
+ *  a teardown after a FAILED begin did not count as a query. */
+extern "C" int OoT_ComboLogic_TestBeginCount(void) {
+    return sBeginQueryCount;
+}
+
+extern "C" int OoT_ComboLogic_TestEndCount(void) {
+    return sEndQueryCount;
+}
+
+/**
+ * The residue producer: one BARE `ReachabilitySearch` with no preceding
+ * `Logic::Reset`, which is exactly the call shape that made the #656 gate answer
+ * 48-of-57 against a truth of 57.
+ *
+ * Exists so a lock can run an UNRELATED search between two identical queries and
+ * require the second answer to match the first. Without this bridge that lock
+ * cannot exist at all from src/common, and the residue defect — the one this
+ * engine's `beginQuery` is built to prevent — would be untested.
+ *
+ * @return the reached-check count the bare search leaves behind, or -1 if the
+ *         solver is not live.
+ */
+extern "C" int OoT_ComboLogic_TestRunUnrelatedSearch(void) {
+    if (!OoTComboLogicReady()) {
+        return -1;
+    }
+    auto ctx = Rando::Context::GetInstance();
+    ReachabilitySearch(ctx->allLocations);
+    return OoTComboLogicReachedCheckCount();
+}
+
+/**
+ * The item a check holds, and whether it is an ADVANCEMENT item.
+ *
+ * The locks use it to build a genuinely PARTIAL closure over the real graph:
+ * empty every advancement-bearing location, and the world collapses towards
+ * sphere zero, which is the only way a post-fill process can observe
+ * monotonicity doing work (with All Locations Reachable on and every item
+ * placed, the baseline closure is already total and "assuming more did not
+ * shrink it" is satisfied by a constant).
+ *
+ * @return 1 while `rc` names a real row, 0 otherwise.
+ */
+extern "C" int OoT_ComboLogic_TestPlacedItemAt(uint16_t rc, uint16_t* outItemId, int* outAdvancement) {
+    if (!OoTComboLogicReady() || !OoTComboLogicIsRealCheck((RandomizerCheck)rc)) {
+        return 0;
+    }
+    Rando::ItemLocation* il = Rando::Context::GetInstance()->GetItemLocation((RandomizerCheck)rc);
+    if (il == nullptr) {
+        return 0;
+    }
+    const RandomizerGet placed = il->GetPlacedRandomizerGet();
+    if (outItemId != nullptr) {
+        *outItemId = (uint16_t)placed;
+    }
+    if (outAdvancement != nullptr) {
+        *outAdvancement = (placed != RG_NONE && Rando::StaticData::RetrieveItem(placed).IsAdvancement()) ? 1 : 0;
+    }
+    return 1;
+}
+
+/** Write a check's placed item WITHOUT applying its effect — `SetPlacedItem`
+ *  alone, so the locks can empty and then exactly restore a set of hosts and
+ *  assert the world digest came back byte-identical. Test-only. */
+extern "C" int OoT_ComboLogic_TestSetPlacedItem(uint16_t rc, uint16_t itemId) {
+    if (!OoTComboLogicReady() || !OoTComboLogicIsRealCheck((RandomizerCheck)rc)) {
+        return 0;
+    }
+    if (itemId >= (uint16_t)RG_MAX) {
+        return 0;
+    }
+    Rando::ItemLocation* il = Rando::Context::GetInstance()->GetItemLocation((RandomizerCheck)rc);
+    if (il == nullptr) {
+        return 0;
+    }
+    il->SetPlacedItem((RandomizerGet)itemId);
+    return 1;
+}
+
+/**
+ * An FNV-1a digest over (check id, placed item) for the WHOLE id space — the
+ * generated world's placement, as this process holds it.
+ *
+ * This is the lane's own world-unchanged observable: every lock that perturbs
+ * the world takes it before and after and requires equality, so "the engine
+ * changed no placement" is measured rather than argued. It is NOT the golden
+ * seed digest and must not be presented as one; it covers OoT's item locations
+ * only.
+ */
+extern "C" uint32_t OoT_ComboLogic_TestWorldDigest(void) {
+    uint32_t hash = 2166136261u;
+    if (!OoTComboLogicReady()) {
+        return 0;
+    }
+    auto ctx = Rando::Context::GetInstance();
+    for (int i = 1; i < kOoTCheckIdSpace; ++i) {
+        const RandomizerCheck rc = (RandomizerCheck)i;
+        if (!OoTComboLogicIsRealCheck(rc)) {
+            continue;
+        }
+        Rando::ItemLocation* il = ctx->GetItemLocation(rc);
+        const uint32_t placed = (il == nullptr) ? 0u : (uint32_t)il->GetPlacedRandomizerGet();
+        const uint32_t words[2] = { (uint32_t)i, placed };
+        for (int b = 0; b < 8; ++b) {
+            hash ^= (uint32_t)((words[b / 4] >> ((b % 4) * 8)) & 0xFFu);
+            hash *= 16777619u;
+        }
+    }
+    return hash;
+}
+
+/**
+ * Force the SELECTED STARTING AGE to adult (1) or child (0), returning the
+ * previous value, so a lock can ask what `crossingOpen` answers from an adult
+ * start without paying a second whole generation.
+ *
+ * LEGITIMATE BECAUSE `AccessReset` READS THE OPTION AT CALL TIME
+ * (`location_access.cpp:1092-1097`): the starting age is not baked into the
+ * graph, it is the bit `RR_ROOT` gets when a query begins. The lock restores the
+ * previous value and re-asserts the world digest, so no placement moves.
+ *
+ * @return the previous value (0 child, 1 adult), or -1 if there is no context.
+ */
+extern "C" int OoT_ComboLogic_TestForceAdultStart(int adult) {
+    auto ctx = Rando::Context::GetInstance();
+    if (ctx == nullptr) {
+        return -1;
+    }
+    const int previous = ctx->GetOption(RSK_SELECTED_STARTING_AGE).Is(RO_AGE_CHILD) ? 0 : 1;
+    ctx->GetOption(RSK_SELECTED_STARTING_AGE).Set((adult != 0) ? RO_AGE_ADULT : RO_AGE_CHILD);
+    return previous;
+}
+
+#endif // RSBS_SINGLE_EXECUTABLE
