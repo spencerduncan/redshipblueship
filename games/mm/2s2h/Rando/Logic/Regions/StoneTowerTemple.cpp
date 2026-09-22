@@ -256,11 +256,26 @@ static RegisterShipInitFunc initFunc([]() {
             // done off a bomb you stand beside, and CAN_USE_EXPLOSIVE also admits Bombchus, the Blast
             // Mask and (under MMRT_KEG_EXPLOSIVES) a Powder Keg, which are not that trick.
             //
-            // NOT WIDENED, stated so the narrowing is reviewable rather than silent: this region's
-            // connection to RR_STONE_TOWER_TEMPLE_INVERTED_LAVA_FLIP_ROOM also carries CAN_BE_DEKU, and
-            // the tooltip's "this room can be traversed" arguably reaches it. Nothing in the file says
-            // whether that Deku term is the updraft crossing or the door beyond it, so widening it would
-            // be a guess; it is recorded on #697 as an item a judgement is owed on.
+            // WHAT IN THIS ROOM IS AND IS NOT WIDENED — exhaustive, because the first pass's note was
+            // not. It named ONE un-widened sibling and left three unmentioned, which is worse than
+            // saying nothing at all: a reader trusts a note that presents itself as complete. The line
+            // drawn, stated as a rule so it can be checked: the tooltip licenses TRAVERSING this room,
+            // so the widening covers the checks whose own RC names sit on the updraft structures
+            // (UPDRAFTS_BRIDGE_POT_01/02 and UPDRAFTS_LEDGE_POT_01..04, below) and the room's outbound
+            // traversal to RR_STONE_TOWER_TEMPLE_INVERTED_LAVA_FLIP_ROOM (widened in .connections below,
+            // with its own evidence).
+            //
+            // NOT widened, all three of them, and recorded on #697 as judgements still owed:
+            //   RC_STONE_TOWER_TEMPLE_INVERTED_EAST_UPPER_CHEST  (CAN_BE_DEKU && CAN_PLAY_SONG(ELEGY))
+            //   RC_STONE_TOWER_TEMPLE_INVERTED_EAST_MIDDLE_CHEST (bare CAN_BE_DEKU)
+            //   RC_STONE_TOWER_TEMPLE_INVERTED_EAST_LOWER_CHEST  (CAN_BE_DEKU && CAN_USE_MAGIC_ARROW(FIRE))
+            // — the three rows immediately above. They are DESTINATIONS at particular heights on the
+            // east wall rather than the crossing, and nothing in this file ties their Deku term to the
+            // updrafts specifically rather than to what a Deku flower does once you are up there (hold
+            // a position, hover, aim). That the middle one is textually identical to a widened pot is a
+            // coincidence of spelling, not evidence about the route; widening a destination the trick's
+            // own text does not name is the over-widening that hands a fill a route a player cannot
+            // take, so these three wait for someone who can say which it is.
             CHECK(RC_STONE_TOWER_TEMPLE_INVERTED_UPDRAFTS_BRIDGE_POT_01, CAN_BE_DEKU || (MM_TRICK(MMRT_ST_UPDRAFTS) && (CAN_BE_GORON || HAS_ITEM(ITEM_BOMB)))),
             CHECK(RC_STONE_TOWER_TEMPLE_INVERTED_UPDRAFTS_BRIDGE_POT_02, CAN_BE_DEKU || (MM_TRICK(MMRT_ST_UPDRAFTS) && (CAN_BE_GORON || HAS_ITEM(ITEM_BOMB)))),
             CHECK(RC_STONE_TOWER_TEMPLE_INVERTED_UPDRAFTS_LEDGE_POT_01, CAN_BE_DEKU || (MM_TRICK(MMRT_ST_UPDRAFTS) && (CAN_BE_GORON || HAS_ITEM(ITEM_BOMB)))),
@@ -276,7 +291,22 @@ static RegisterShipInitFunc initFunc([]() {
         },
         .connections = {
             CONNECTION(RR_STONE_TOWER_TEMPLE_INVERTED_ENTRANCE, true),
-            CONNECTION(RR_STONE_TOWER_TEMPLE_INVERTED_LAVA_FLIP_ROOM, KEY_COUNT(STONE_TOWER_TEMPLE) >= 3 && CAN_BE_DEKU),
+            // #578 part 3 (second pass) — MMRT_ST_UPDRAFTS again, on this room's outbound TRAVERSAL.
+            //
+            // THE FIRST PASS SAID THE FILE WAS SILENT ABOUT WHETHER THIS DEKU TERM IS THE UPDRAFT
+            // CROSSING OR THE DOOR BEYOND IT. It is not silent, and a reviewer was right to point
+            // twelve lines down: the MIRROR of this edge, inside RR_STONE_TOWER_TEMPLE_INVERTED_LAVA_
+            // FLIP_ROOM, is `CONNECTION(RR_STONE_TOWER_TEMPLE_INVERTED_WIND_ROOM,
+            // KEY_COUNT(STONE_TOWER_TEMPLE) >= 3)` with NO Deku term at all. A locked door is symmetric
+            // and this graph DOES carry the small-key count symmetrically across the pair; the Deku term
+            // is carried in one direction only. A one-way form requirement between two rooms whose door
+            // is already modelled by the key count is the climb INSIDE this room — the updraft crossing
+            // to the door — which is exactly what the tooltip's "this room can be traversed" relaxes.
+            //
+            // KEY_COUNT survives OUTSIDE the trick's parentheses, so this is the one binding of this
+            // pass that needs, and has, a leg-(f) survivor arm in mm_trick_bindings_test.cpp: Deku
+            // satisfied and zero keys must stay shut with the trick both off and on.
+            CONNECTION(RR_STONE_TOWER_TEMPLE_INVERTED_LAVA_FLIP_ROOM, KEY_COUNT(STONE_TOWER_TEMPLE) >= 3 && (CAN_BE_DEKU || (MM_TRICK(MMRT_ST_UPDRAFTS) && (CAN_BE_GORON || HAS_ITEM(ITEM_BOMB))))),
         },
         .events = {
             EVENT(RE_STONE_TOWER_TEMPLE_DEEP_POOL_SUN_SWITCH, CAN_USE_MAGIC_ARROW(LIGHT)),

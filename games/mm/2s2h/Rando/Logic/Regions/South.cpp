@@ -179,19 +179,20 @@ static RegisterShipInitFunc initFunc([]() {
             EXIT(ENTRANCE(DEKU_SHRINE, 0),                  ENTRANCE(DEKU_PALACE, 4), RANDO_EVENTS[RE_CLEARED_WOODFALL_TEMPLE] && CAN_TRAVERSE_WAIST_DEEP_WATER),
         },
         .connections = {
-            // #578 part 3 (second pass) — MMRT_PALACE_GUARD_SKIP ("Backflip over Deku Palace Guards —
-            // With a precise backflip on the fence, jump over the guards as Human Link"), DEFAULT OFF.
-            //
-            // WHY THIS CAN_BE_DEKU IS THE GUARDS AND NOT THE WATER: the bean-side connection on the
-            // very next line crosses the same poison water and carries the cleared-swamp alternative
-            // `(CAN_BE_DEKU || (RE_CLEARED_WOODFALL_TEMPLE && CAN_TRAVERSE_WAIST_DEEP_WATER))`, and the
-            // RC_ENEMY_DROP_MINI_BABA check above it carries the same pair. This connection has the bare
-            // Deku term with no water alternative, so what it models is the thing only Deku Link gets
-            // past — the guards at the palace entrance.
-            //
-            // The trick names no item ("as Human Link"), so the disjunct is the predicate alone and the
-            // vanilla term is kept verbatim beside it.
-            CONNECTION(RR_DEKU_PALACE_INSIDE_LOWER, CAN_BE_DEKU || MM_TRICK(MMRT_PALACE_GUARD_SKIP)),
+            // #578: MMRT_PALACE_GUARD_SKIP ("Backflip over Deku Palace Guards") WOULD go on this bare
+            // CAN_BE_DEKU, and the second pass of part 3 bound it here and then took it back out under
+            // review. The seam is not decided by anything in this file, and both readings survive it:
+            // either the term is the GUARDS (the only thing at the palace entrance that a Deku form
+            // gets past, and the one obstacle the trick's text names), or it is the poison water that
+            // the other three ways out of this region all model —
+            // RC_ENEMY_DROP_MINI_BABA above, the bean-side connection below and the DEKU_SHRINE exit
+            // each carry `RE_CLEARED_WOODFALL_TEMPLE && CAN_TRAVERSE_WAIST_DEEP_WATER` as the non-Deku
+            // way across. If it is the water, a trick-gated disjunct here lets a zero-item Human Link
+            // who cannot swim and has not cleared Woodfall reach RR_DEKU_PALACE_INSIDE_LOWER, whose
+            // heart piece is `true` — a route the fill may use and a player cannot take. Over-widening
+            // is the failure that breaks a seed, so this one waits: #697 carries it as a judgement owed,
+            // beside MMRT_CAPE_LIKE_LIKE_BOMBCHU, which was refused for the same reason.
+            CONNECTION(RR_DEKU_PALACE_INSIDE_LOWER, CAN_BE_DEKU),
             CONNECTION(RR_DEKU_PALACE_INSIDE_UPPER_BEAN_SIDE, (CAN_BE_DEKU || (RANDO_EVENTS[RE_CLEARED_WOODFALL_TEMPLE] && CAN_TRAVERSE_WAIST_DEEP_WATER)) && CAN_USE_DAY2_RAIN_BEAN),
         },
     };

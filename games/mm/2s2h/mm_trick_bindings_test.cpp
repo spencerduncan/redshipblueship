@@ -294,6 +294,31 @@ void InvBowIceArrowsAndMagic() {
     gSaveContext.save.saveInfo.playerData.isMagicAcquired = true;
 }
 
+/** Three Stone Tower Temple small keys AND the Goron Mask: the wind room's
+ *  outbound edge is `KEY_COUNT(..) >= 3 && (CAN_BE_DEKU || (trick && (CAN_BE_GORON
+ *  || bomb)))`, so the green half needs the key count satisfied and no Deku Mask.
+ *  KEY_COUNT reads shipSaveInfo.rando.foundDungeonKeys, which is the RANDO tally
+ *  and not inventory.dungeonKeys — the wrong one of those two is a green half that
+ *  never goes green. */
+void InvStoneTowerKeys3AndGoron() {
+    gSaveContext.save.shipSaveInfo.rando.foundDungeonKeys[DUNGEON_SCENE_INDEX_STONE_TOWER_TEMPLE] = 3;
+    Give(ITEM_MASK_GORON);
+}
+
+/** Leg (b)'s control for that edge: the keys stay, the trick's own terms (Goron
+ *  Mask, bomb) are gone, so with the trick ON the edge must still refuse. */
+void InvStoneTowerKeys3Only() {
+    gSaveContext.save.shipSaveInfo.rando.foundDungeonKeys[DUNGEON_SCENE_INDEX_STONE_TOWER_TEMPLE] = 3;
+}
+
+/** Leg (f)'s arm for that edge: the VANILLA disjunct satisfied (Deku Mask) and
+ *  the surviving outer conjunct — the three small keys — cleared. Shut with the
+ *  trick off and on, or KEY_COUNT was deleted or swallowed into the trick's
+ *  parentheses. */
+void InvDekuNoStoneTowerKeys() {
+    Give(ITEM_MASK_DEKU);
+}
+
 /** The same save minus the ONE item the trick's own text names — the Ice
  *  Arrows — so the control takes away the arrow rather than the whole bow-and-
  *  magic apparatus. */
@@ -442,12 +467,18 @@ const Probe kProbes[] = {
 
     // ---- #578 part 3, second pass --------------------------------------
     //
-    // Five more keys. NONE of them needs a leg-(f) arm: every one of these five
-    // widenings appends its disjunct at the TOP level of the condition, so there is
-    // no conjunct left outside the trick's parentheses for an arm to clear. Where a
-    // vanilla conjunction survives (the water wheel's Zora-and-swim pair, Woodfall
-    // rupee 06's Deku-and-explosive pair) it survives INSIDE its own disjunct, which
-    // legs (a)/(b) already cover.
+    // Four keys over sixteen edges. THREE of the four need no leg-(f) arm, and that
+    // is a claim about their shape rather than an omission: their disjuncts append at
+    // the TOP level of the condition, so no conjunct is left outside the trick's
+    // parentheses for an arm to clear. Where a vanilla conjunction survives (the
+    // water wheel's Zora-and-swim pair, Woodfall rupee 06's Deku-and-explosive pair)
+    // it survives INSIDE its own disjunct, which legs (a)/(b) cover.
+    //
+    // MMRT_ST_UPDRAFTS IS THE EXCEPTION, which an earlier version of this comment
+    // denied in a blanket sentence: its sixth edge, the wind room's outbound
+    // traversal, is `KEY_COUNT(STONE_TOWER_TEMPLE) >= 3 && (CAN_BE_DEKU || (trick &&
+    // ...))`, so the key count survives outside the parentheses and kSurvivorProbes
+    // carries the arm that clears it.
 
     // MMRT_GBT_WATERWHEEL_GORON. The Goron Mask alone: no Zora Mask and no swim
     // flag, so the vanilla disjunct is false. The control drops the mask, which is
@@ -494,11 +525,15 @@ const Probe kProbes[] = {
       (int32_t)RC_STONE_TOWER_TEMPLE_INVERTED_UPDRAFTS_LEDGE_POT_03, kAllTime, InvGoronOnly, InvEmpty },
     { MMRT_ST_UPDRAFTS, "ISTT's updraft ledge pot 04 as Goron", EDGE_CHECK, RR_STONE_TOWER_TEMPLE_INVERTED_WIND_ROOM,
       (int32_t)RC_STONE_TOWER_TEMPLE_INVERTED_UPDRAFTS_LEDGE_POT_04, kAllTime, InvGoronOnly, InvEmpty },
-    // MMRT_PALACE_GUARD_SKIP. "As Human Link" carries no item term and the Deku
-    // term was the connection's whole condition, so there is nothing for a control
-    // arm to take away — the same shape as MMRT_WELL_HSW above.
-    { MMRT_PALACE_GUARD_SKIP, "Deku Palace's interior past the guards as Human", EDGE_CONNECTION,
-      RR_DEKU_PALACE_OUTSIDE, (int32_t)RR_DEKU_PALACE_INSIDE_LOWER, kAllTime, InvEmpty, NULL },
+    // MMRT_ST_UPDRAFTS's sixth edge: the room's outbound TRAVERSAL, whose Deku term
+    // the mirror edge's missing one identifies as the in-room climb (the region
+    // file's note carries the argument). Three keys and the Goron Mask for the green
+    // half; the control keeps the keys and drops the trick's own terms, so a disjunct
+    // that had REPLACED the key count would be caught by leg (b) here and a key count
+    // swallowed into the parentheses by the leg-(f) arm below.
+    { MMRT_ST_UPDRAFTS, "ISTT's wind room to the flipped lava room as Goron", EDGE_CONNECTION,
+      RR_STONE_TOWER_TEMPLE_INVERTED_WIND_ROOM, (int32_t)RR_STONE_TOWER_TEMPLE_INVERTED_LAVA_FLIP_ROOM, kAllTime,
+      InvStoneTowerKeys3AndGoron, InvStoneTowerKeys3Only },
     // MMRT_IKANA_ROOF_PARKOUR. A wholly NEW edge, so the trick IS the condition and
     // the red half is the edge existing in the map and refusing — the same shape as
     // part 2's MMRT_PALACE_BEAN_SKIP.
@@ -551,6 +586,14 @@ const SurvivorProbe kSurvivorProbes[] = {
       (int32_t)RC_CLOCK_TOWN_NORTH_TINGLE_MAP_01, kNight1Only, InvBowAndGreatFairySword },
     { MMRT_NCT_TINGLE, "North Clock Town's second Tingle map stays shut at night", EDGE_CHECK, RR_CLOCK_TOWN_NORTH,
       (int32_t)RC_CLOCK_TOWN_NORTH_TINGLE_MAP_02, kNight1Only, InvBowAndGreatFairySword },
+    // KEY_COUNT(STONE_TOWER_TEMPLE) >= 3 && (CAN_BE_DEKU || (trick && (CAN_BE_GORON ||
+    // bomb))). The Deku route is satisfied and the key count is zero: with the trick
+    // OFF this arm catches the key count pulled inside the trick's parentheses (which
+    // would widen the TRICKS-OFF condition — a locked door opened by a Deku Mask), and
+    // with it ON, the key count deleted outright.
+    { MMRT_ST_UPDRAFTS, "ISTT's wind room stays shut to a keyless Deku", EDGE_CONNECTION,
+      RR_STONE_TOWER_TEMPLE_INVERTED_WIND_ROOM, (int32_t)RR_STONE_TOWER_TEMPLE_INVERTED_LAVA_FLIP_ROOM, kAllTime,
+      InvDekuNoStoneTowerKeys },
 };
 
 /** Part 1's keys, whose red/green pairs live in their own rows. Named here so

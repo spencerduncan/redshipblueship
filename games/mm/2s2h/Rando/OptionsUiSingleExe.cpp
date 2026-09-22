@@ -747,10 +747,12 @@ const MMRandoTrickId kBoundTricks[] = {
     // part 3. Logic/Regions/Central.cpp — RE_BOMBER_CODE, which is what both
     // RC_CLOCK_TOWN_BOMBERS_NOTEBOOK rows already read.
     MMRT_BOMBER_GUESS,
-    // part 3 (second pass). Logic/Regions/South.cpp — RR_DEKU_PALACE_OUTSIDE's
-    // connection to RR_DEKU_PALACE_INSIDE_LOWER, the bare Deku term that models
-    // the guards (the neighbouring water terms all carry a cleared-swamp leg).
-    MMRT_PALACE_GUARD_SKIP,
+    // MMRT_PALACE_GUARD_SKIP is deliberately NOT here. The second pass bound it on
+    // Logic/Regions/South.cpp's RR_DEKU_PALACE_OUTSIDE -> RR_DEKU_PALACE_INSIDE_LOWER
+    // connection and took it back out under review: whether that bare CAN_BE_DEKU is
+    // the guards or the poison water its three sibling edges all model is a judgement
+    // the file does not settle, and the water reading makes the binding an
+    // over-widening. #697 carries it as owed. See the note at that connection.
     // part 3. Logic/Regions/SnowheadTemple.cpp —
     // RR_SNOWHEAD_TEMPLE_PILLARS_ROOM_LOWER's connection up, that room only.
     MMRT_SHT_PILLAR_ROOM_HOOKSHOT,
