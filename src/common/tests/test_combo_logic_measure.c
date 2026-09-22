@@ -35,15 +35,31 @@
  *   S3. The same coordinator seed over the same bag reproduces the same placement
  *       digest, and a different seed does not (the sensitivity control, without
  *       which "reproducible" is satisfied by a constant).
- *   S4. PRODUCTION STATE COMES BACK BYTE-IDENTICAL: the whole unified save buffer
- *       memcmp-equal, OoT's world placement digest equal, MM holding zero
- *       coordinator placements, MM's snapshot not live, and MM's reachability
- *       never observed shrinking.
+ *   S4. THE MEASUREMENT RETURNS THE LIVE SAVE TO WHERE THE PROFILE APPLY LEFT IT:
+ *       the whole unified save buffer memcmp-equal against a baseline taken AFTER
+ *       `MM_ComboLogic_ApplyShippedProfile` and compared BEFORE the teardown's
+ *       restoring memcpy, plus OoT's world placement digest equal, MM holding zero
+ *       coordinator placements, MM's snapshot not live, and MM's reachability never
+ *       observed shrinking.
+ *
+ *       THE ORDER IS THE ASSERTION, and getting it wrong is how this row shipped a
+ *       vacuous lock for four commits. The first version compared against the OUTER
+ *       baseline — the state the row must leave behind — AFTER the memcpy that
+ *       restores it, which compares a buffer with the buffer it was just copied
+ *       from. It could not fail, and it was the most advertised assertion in the PR.
+ *       The inner baseline is the one with teeth: the rounds' Snapshot/Restore
+ *       brackets, MM's placement re-applies and OoT's beginQuery/endQuery pairs have
+ *       to put the save back for real, and nothing copies it back for them. The
+ *       outer restore still happens, after the comparison, and it is now documented
+ *       as construction rather than asserted as a property — because that is what it
+ *       is. A premise check beside the inner baseline asserts the profile apply
+ *       CHANGED the buffer, without which the two baselines are equal and S4 is
+ *       vacuous again by a different route.
  *   S5. The measurement is NON-VACUOUS: the bag is non-empty, both sides offer
  *       candidate hosts, and the fill under the proved rung actually ran rounds.
  *
  * ============================================================================
- * WHAT IS MEASURED, AND THE THREE PLACES THE ANSWER IS AN APPROXIMATION
+ * WHAT IS MEASURED, AND THE FOUR PLACES THE ANSWER IS AN APPROXIMATION
  * ============================================================================
  *
  * (M1) THE UNION BAG'S REAL SIZE, against the coordinator's own caps. Audit §4.6
@@ -78,13 +94,20 @@
  *      time, rounds, rounds per placed item, attempts (hence batch roll-backs),
  *      dead-ends, and whether the GOAL became provable.
  *
- * (M4) THE BUDGET ARITHMETIC: the full union bag's cost PER ATTEMPT from M2's
- *      in-fill figure, against #582's floor and this host's calibrated
- *      per-attempt budget — and then times `RSBS_COMBO_LOGIC_FILL_RETRIES`
- *      against the total-creation budget, because the budget is per attempt while
- *      the fill may take up to that many within one seed.
+ * (M4) THE BUDGET ARITHMETIC: the full union bag's cost for ONE BATCH from M2's
+ *      in-fill figure, against #582's floor and this host's calibrated per-attempt
+ *      budget — and then times `RSBS_COMBO_LOGIC_FILL_RETRIES` against that SAME
+ *      per-attempt budget, because all of those roll-backs happen inside one
+ *      `Combo_Logic_RunFill` and therefore inside one ladder attempt
+ *      (`combo_logic.h:766`). The total-creation budget is printed beside a LADDER-
+ *      attempt count instead, since `gen_budget.h` samples it BETWEEN attempts and it
+ *      cannot truncate a RunFill at all. The first version of this row compared the
+ *      roll-back product against the total and reported "three to four times over",
+ *      which was the wrong budget by the total multiplier and the wrong mechanism by
+ *      a level of the ladder; the honest figure is against the per-attempt budget and
+ *      it is worse, not better.
  *
- * THE THREE APPROXIMATIONS, named here so nobody reads a number as more than it
+ * THE FOUR APPROXIMATIONS, named here so nobody reads a number as more than it
  * is:
  *
  *   (A) THE MEASURED BAG IS A SAMPLE OF THE REAL BAG BY DEFAULT. The real union
@@ -118,6 +141,18 @@
  *       the #582 host-scale percent so a reader can at least locate this machine
  *       relative to the reference.
  *
+ *   (D) ONLY OoT'S HALF OF THE BAG IS REALLY IN THE BAG. The row empties the sampled
+ *       OoT hosts, so those items are in the bag and not in the world. It empties NO
+ *       MM host — MM's engine exposes no `TestSetPlacedItem` equivalent and adding
+ *       one would be production surface for a measurement's benefit — so every MM
+ *       bag row is simultaneously in the bag and still the vanilla item of its own
+ *       host. MM's side of a round therefore computes reachability over a world that
+ *       still contains the items the round is assuming, which inflates MM's reached
+ *       host supply and, through it, M2's round cost and the DEAD-END PREDICTOR.
+ *       Conservative for a COST question (more reached hosts is more work, not less)
+ *       and OPTIMISTIC for a convergence question, which is the direction that
+ *       matters when reading M3.
+ *
  * ============================================================================
  * WHY THE `rando` TIER
  * ============================================================================
@@ -149,24 +184,47 @@
 #include <vector>
 
 // ---------------------------------------------------------------------------
-// The two ports' bridges. Every one of these is already declared by
-// test_oot_logic_export.c, which is #included ABOVE this file in test_runner.cpp,
-// so re-declaring them here is a redundant-but-identical declaration rather than
-// a second definition — deliberate, so this file reads on its own and does not
-// silently depend on the include order of its neighbour.
+// The two ports' bridges, declared here so this file reads on its own and does not
+// silently depend on the include order of its neighbours in test_runner.cpp.
+//
+// WHICH ARE DUPLICATES AND WHICH ARE FIRST DECLARATIONS, spelled out because an
+// earlier version of this comment claimed "every one of these is already declared
+// by test_oot_logic_export.c, so re-declaring them is redundant-but-identical" —
+// and that was true of ten of the seventeen entries and false of the other seven,
+// which makes the stated reason for the block ("it is all duplication, therefore
+// harmless") not the reason at all. It IS harmless, but for the ordinary reason a
+// C declaration is: each one matches the single definition in the named TU, and a
+// mismatch is a link error rather than a silent second definition. The split, so a
+// future edit can keep it honest:
+//
+//   DUPLICATES of test_oot_logic_export.c's own block (:112, :120-141, :148-153),
+//   which is #included ABOVE this file: the five OoT_ComboLogic_Test* rows used
+//   here, Rando_HeadlessSeedTest, MM_Rando_InitCore, MM_ComboLogic_SnapshotLive,
+//   MM_ComboLogic_ShrinkObservations, and `extern char gSaveContext[]`.
+//
+//   FIRST DECLARATIONS in this directory: MM_ComboLogic_PoolVanillaItems,
+//   MM_ComboLogic_ApplyShippedProfile and MM_ComboLogic_ProbeGives (created by the
+//   same PR as this file), plus MM_ComboLogic_SetHostPool, MM_ComboLogic_HarvestCount,
+//   MM_ComboLogic_HeldPlacementCount and MM_ComboLogic_ResetCounters — those four
+//   exist, but their only other declarations are in MM's OWN test TU
+//   (games/mm/2s2h/mm_combo_logic_engine_test.cpp:124-130), which is a different
+//   translation unit and reaches this one through nothing at all.
 // ---------------------------------------------------------------------------
 extern "C" {
-// OoT (games/oot/soh/Enhancements/randomizer/ComboLogicEngineOoT.cpp)
+// OoT (games/oot/soh/Enhancements/randomizer/ComboLogicEngineOoT.cpp) — duplicates.
 int OoT_ComboLogic_TestOwnedHostCount(void);
 int OoT_ComboLogic_TestOwnedHosts(uint16_t* out, int cap);
 int OoT_ComboLogic_TestPlacedItemAt(uint16_t rc, uint16_t* outItemId, int* outAdvancement);
 int OoT_ComboLogic_TestSetPlacedItem(uint16_t rc, uint16_t itemId);
 uint32_t OoT_ComboLogic_TestWorldDigest(void);
 
-// OoT's headless generation (games/oot/soh/.../randomizer.cpp via the harness).
+// OoT's headless generation (games/oot/soh/.../randomizer.cpp via the harness) —
+// a duplicate.
 int Rando_HeadlessSeedTest(const char* seedStr);
 
 // MM (games/mm/2s2h/Rando/ComboLogicEngineSingleExe.cpp) + its rando bring-up.
+// MM_Rando_InitCore, MM_ComboLogic_SnapshotLive and MM_ComboLogic_ShrinkObservations
+// are duplicates; the other five are first declarations here.
 void MM_Rando_InitCore(void);
 void MM_ComboLogic_SetHostPool(const uint16_t* checks, int count);
 int MM_ComboLogic_PoolVanillaItems(uint16_t* outItems, uint16_t* outHosts, int cap);
@@ -179,7 +237,8 @@ int MM_ComboLogic_HeldPlacementCount(void);
 void MM_ComboLogic_ResetCounters(void);
 
 // The unified save buffer (src/common/unified_save.c): the one char array both
-// games reinterpret. S4 compares it byte for byte.
+// games reinterpret. S4 compares it byte for byte. A duplicate of
+// test_oot_logic_export.c:141.
 extern char gSaveContext[];
 }
 
@@ -369,6 +428,69 @@ FillMeasurement RunTimedFill(const char* label, const ComboLogicBagItem* bag, in
 } // namespace
 
 // ============================================================================
+// THE NULL-PLAY GIVE PROBE — ITS OWN DISPATCH, `combo-logic-give-probe`
+// ============================================================================
+//
+// It walks MM's whole graph-wide vanilla item list through `Rando::GiveItem` one id
+// at a time, printing each id to stderr BEFORE giving it, and returns. Its purpose
+// is to CRASH on an id whose give dereferences a NULL `MM_gPlayState` or a NULL
+// `gRegEditor`, so that the id names itself in the log — which is how the exclusion
+// list in `MM_ComboLogic_PoolVanillaItems` and the `gRegEditor` stand-in in
+// `MM_ComboLogic_ApplyShippedProfile` were both derived, and how they must be
+// re-derived whenever MM's item table or `Item_GiveImpl`'s guards change.
+//
+// WHY IT IS ITS OWN DISPATCH AND NOT AN ENV MODE OF THE ROW BELOW. It was an env
+// mode (`RSBS_COMBO_MEASURE_PROBE`) for one revision of this file, and the review of
+// PR #722 caught what that costs: the row returned TEST_PASS from the probe branch,
+// BEFORE the OoT generation, before M1/M2/M3 and before every sanity assert except
+// S1. An environment variable therefore turned the ComboLogicMeasure CTest row into
+// a green no-op that measured nothing — and CTest does not scrub the inherited
+// environment, so a developer shell or a CI image that exported the variable got
+// exactly that. This file's own "WHY THE rando TIER" paragraph exists to keep the
+// row from passing vacuously; a mode that made it pass vacuously by accident was
+// the same defect wearing the harness's own clothes. Two dispatch names cannot
+// collide that way: `combo-logic-measure` always measures, and this one always
+// probes.
+//
+// IT HAS NO CTEST ROW, deliberately: it is designed to abort the process, and a row
+// whose intended outcome is an access violation is not a lock. It is also in the
+// `--test all` skip list beside its sibling, for the same display/OTR reason.
+//
+// `RSBS_COMBO_PROBE_FROM=<n>` resumes at index n. Resuming is for walking PAST an
+// id already known to fault and nothing else: the gives are CUMULATIVE into one
+// save, so a resumed run grants none of the ids before n, and the claim it supports
+// is correspondingly weaker. MM_ComboLogic_ProbeGives' own doc states that in full.
+TestResult ComboLogicGiveProbe_Run(void) {
+    printf("[TEST] combo-logic-give-probe: walking MM's giveable vanilla item list through Rando::GiveItem with "
+           "MM_gPlayState NULL; a crash names the id on stderr. This dispatch MEASURES NOTHING — combo-logic-measure "
+           "does that (#645, audit §6.3)\n");
+
+    const int probeFrom = EnvInt("RSBS_COMBO_PROBE_FROM", 0, 0, 1 << 20);
+    MM_Rando_InitCore();
+    std::unique_ptr<unsigned char[]> probeSave(new unsigned char[OOT_SAVE_CONTEXT_SIZE]);
+    memcpy(probeSave.get(), gSaveContext, OOT_SAVE_CONTEXT_SIZE);
+    MM_ComboLogic_ApplyShippedProfile();
+    const int probeTotal = MM_ComboLogic_PoolVanillaItems(nullptr, nullptr, 0);
+    CLM_ASSERT(probeTotal > 0, "MM's graph yields no giveable vanilla item — there is nothing to probe");
+    std::vector<uint16_t> probeIds((size_t)probeTotal, 0);
+    MM_ComboLogic_PoolVanillaItems(probeIds.data(), nullptr, probeTotal);
+    printf("[TEST] combo-logic-give-probe: %d ids in the list, starting at index %d%s\n", probeTotal, probeFrom,
+           (probeFrom > 0) ? " (RESUMED: the ids before this index are NOT granted, so a fault that needs them is "
+                             "unreachable by this run)"
+                           : " (a full cumulative walk of the list)");
+    fflush(stdout);
+
+    const int returned = MM_ComboLogic_ProbeGives(probeIds.data(), probeTotal, probeFrom);
+    memcpy(gSaveContext, probeSave.get(), OOT_SAVE_CONTEXT_SIZE);
+    printf("[TEST] combo-logic-give-probe: %d of %d gives RETURNED (the process survived them). This is a statement "
+           "about ONE order and ONE starting profile, over a list that excludes RI_TRAP and RI_TRIFORCE_PIECE a "
+           "priori; it is not a statement that no order faults.\n",
+           returned, probeTotal - probeFrom);
+    printf("[TEST] PASS: the give probe walked %d ids without a fault\n", returned);
+    return TEST_PASS;
+}
+
+// ============================================================================
 // The row
 // ============================================================================
 
@@ -407,42 +529,13 @@ TestResult ComboLogicMeasure_Run(void) {
            (unsigned)Combo_GenBudget_HostScalePercent(), (unsigned)Combo_GenBudget_FillBudgetMs(0),
            (unsigned)Combo_GenBudget_TotalBudgetMs());
 
-    // ------------------------------------------------------------------
-    // THE NULL-PLAY GIVE PROBE, env-gated and never run by the CTest row.
-    // ------------------------------------------------------------------
-    // `RSBS_COMBO_MEASURE_PROBE=<startIndex+1>` walks MM's whole graph-wide
-    // vanilla item list through `Rando::GiveItem` one id at a time, printing each
-    // id to stderr BEFORE giving it, and returns. Its purpose is to CRASH on an id
-    // whose give dereferences a NULL `MM_gPlayState`, so that the id names itself
-    // in the log — which is how the exclusion list in
-    // `MM_ComboLogic_PoolVanillaItems` was derived, and how it must be re-derived
-    // whenever MM's item table or `Item_GiveImpl`'s guards change.
-    //
-    // It runs BEFORE the OoT generation on purpose: the probe needs MM's graph and
-    // MM's profile and nothing else, and skipping the generation makes the
-    // re-run-past-the-last-id loop seconds rather than minutes.
-    const int probeFrom = EnvInt("RSBS_COMBO_MEASURE_PROBE", 0, 0, 1 << 20);
-    if (probeFrom > 0) {
-        MM_Rando_InitCore();
-        std::unique_ptr<unsigned char[]> probeSave(new unsigned char[OOT_SAVE_CONTEXT_SIZE]);
-        memcpy(probeSave.get(), gSaveContext, OOT_SAVE_CONTEXT_SIZE);
-        MM_ComboLogic_ApplyShippedProfile();
-        const int probeTotal = MM_ComboLogic_PoolVanillaItems(nullptr, nullptr, 0);
-        std::vector<uint16_t> probeIds((size_t)probeTotal, 0);
-        if (probeTotal > 0) {
-            MM_ComboLogic_PoolVanillaItems(probeIds.data(), nullptr, probeTotal);
-        }
-        printf("[TEST] combo-logic-measure: PROBE MODE: walking %d MM vanilla ids from index %d through "
-               "Rando::GiveItem with MM_gPlayState NULL; a crash names the id on stderr\n",
-               probeTotal, probeFrom - 1);
-        fflush(stdout);
-        const int returned = MM_ComboLogic_ProbeGives(probeIds.data(), probeTotal, probeFrom - 1);
-        memcpy(gSaveContext, probeSave.get(), OOT_SAVE_CONTEXT_SIZE);
-        printf("[TEST] combo-logic-measure: PROBE MODE: %d gives returned; this mode measures nothing else and is "
-               "not what the CTest row runs\n",
-               returned);
-        return TEST_PASS;
-    }
+    // NO ENV-GATED EARLY RETURN LIVES HERE ANY MORE. The give probe used to be a
+    // `RSBS_COMBO_MEASURE_PROBE` mode of this function that returned TEST_PASS
+    // before the generation and before every assert except S1, so an exported
+    // environment variable could turn this row green without measuring anything.
+    // It is now its own dispatch (`ComboLogicGiveProbe_Run` above,
+    // `redship --test combo-logic-give-probe`). This function has exactly one path
+    // and it always measures.
 
     // ------------------------------------------------------------------
     // A REAL OoT generation, then MM's rando bring-up. Everything below is
@@ -474,6 +567,30 @@ TestResult ComboLogicMeasure_Run(void) {
            "granted (the state the creation seam hands MM's engine — NOT the zeroed save mm-combo-logic-engine "
            "measures)\n",
            mmLogicMode);
+
+    // ------------------------------------------------------------------
+    // S4's INNER baseline, and the reason there are two.
+    // ------------------------------------------------------------------
+    // `saveBefore` above is the state this row must LEAVE BEHIND, and it is restored
+    // by memcpy in the teardown. Comparing against it after that memcpy is a
+    // tautology — it compares a buffer with the buffer it was just copied from — and
+    // for one revision of this file that tautology was the row's most advertised
+    // assertion. `saveAfterProfile` is the honest baseline: MM's save exactly as
+    // `MM_ComboLogic_ApplyShippedProfile` left it, before any round or fill ran. The
+    // MEASUREMENT must return the save to this, and nothing in the measurement
+    // restores it from a copy — every round's Snapshot/Restore bracket has to do it
+    // for real, MM's placement re-apply has to be undone with it, and OoT's
+    // beginQuery/endQuery has to leave the live save alone. That assertion can go
+    // red, and S4 below is now that one. The outer restore is stated as construction
+    // rather than asserted as a property, because that is what it is.
+    std::unique_ptr<unsigned char[]> saveAfterProfile(new unsigned char[OOT_SAVE_CONTEXT_SIZE]);
+    memcpy(saveAfterProfile.get(), gSaveContext, OOT_SAVE_CONTEXT_SIZE);
+    // A premise check on the two baselines, not a property of the measurement:
+    // applying the shipped profile MUST move the save, or `saveAfterProfile` is the
+    // same bytes as `saveBefore` and S4 is back to being a statement about nothing.
+    CLM_ASSERT(memcmp(saveBefore.get(), saveAfterProfile.get(), OOT_SAVE_CONTEXT_SIZE) != 0,
+               "applying MM's shipped profile changed no byte of the unified save buffer — either the profile did not "
+               "apply or MM's save does not live in this buffer, and either way S4 below would be vacuous");
 
     // ==================================================================
     // M1: THE UNION BAG'S REAL SIZE, against the coordinator's caps.
@@ -565,14 +682,25 @@ TestResult ComboLogicMeasure_Run(void) {
                "would refuse with ERR_CAPACITY on its first bag item");
 
     // ------------------------------------------------------------------
-    // THE MEASUREMENT BAG. OoT's half comes from hosts this row EMPTIES, so the
-    // items are genuinely in the bag and not simultaneously in the world; MM's
-    // half comes from the narrowed pool's vanilla items.
+    // THE MEASUREMENT BAG, and the ASYMMETRY between its two halves.
+    // ------------------------------------------------------------------
+    // OoT's half comes from hosts this row EMPTIES, so those items are genuinely in
+    // the bag and not simultaneously in the world. Only the SAMPLED OoT hosts are
+    // emptied: emptying every advancement-bearing host would collapse the world
+    // towards sphere zero and make the final round's GOAL unprovable for a reason
+    // that is about the fixture rather than about the fill.
     //
-    // Only the SAMPLED OoT hosts are emptied. Emptying every advancement-bearing
-    // host would collapse the world towards sphere zero and make the final round's
-    // GOAL unprovable for a reason that is about the fixture rather than about the
-    // fill.
+    // MM'S HALF IS NOT SYMMETRIC WITH THAT, and approximation (D) in the file header
+    // is this fact. It comes from `MM_ComboLogic_PoolVanillaItems` over the CURRENT
+    // host universe — which by default (`RSBS_COMBO_MEASURE_MM_HOSTS=0`) is MM's
+    // WHOLE graph and not a narrowed pool; an earlier version of this comment said
+    // "the narrowed pool's vanilla items" and was left behind when the narrowing
+    // became opt-in. Nothing here empties an MM host, because MM's engine has no
+    // `TestSetPlacedItem` equivalent and adding one would be production surface for a
+    // measurement's benefit. So every MM bag row is an item that is in the bag AND
+    // still the vanilla item of its own host, which inflates the reachability a
+    // round computes over MM's side — in exactly the quantity M2 is measuring. The
+    // OoT half is clean; the MM half is not; the numbers are read accordingly.
     // ------------------------------------------------------------------
     std::vector<uint16_t> ootBagHostsAll = ootAdvHosts;
     const std::vector<uint16_t> ootBagHosts = StrideSample(ootBagHostsAll, ootBagTarget);
@@ -804,8 +932,22 @@ TestResult ComboLogicMeasure_Run(void) {
     // neither the crossing exchange nor the post-restore placement re-apply — and
     // the re-apply is one `place` per placement per round for a restoring side,
     // which MM is. The fill's own wall/rounds is therefore the honest per-round
-    // figure, and the budget is per ATTEMPT while the fill may take up to
-    // RSBS_COMBO_LOGIC_FILL_RETRIES of them within one seed.
+    // figure.
+    //
+    // WHICH BUDGET THE RETRY PRODUCT IS COMPARED AGAINST, because this line had it
+    // wrong by a factor of two and by the wrong mechanism. RSBS_COMBO_LOGIC_FILL_RETRIES
+    // is `maxAttempts`, and combo_logic.h:766 defines it as "Batch roll-backs within
+    // this seed... Re-rolling the SEED is the attempt ladder's job, one level up". So
+    // all ten roll-backs happen INSIDE ONE Combo_Logic_RunFill call, which is inside
+    // ONE ladder attempt — and a ladder attempt is bounded by
+    // Combo_GenBudget_FillBudgetMs(attempt), not by the total. The TOTAL budget
+    // (gen_budget.h:49-56) is "2 x the per-attempt budget, checked BETWEEN attempts...
+    // so it can never truncate an attempt that is about to succeed": it is
+    // structurally incapable of bounding a single RunFill, however long that RunFill
+    // grinds. The comparison below is therefore retries x per-attempt-cost against the
+    // PER-ATTEMPT budget. The total is printed too, but beside a LADDER-attempt count
+    // rather than beside the roll-back count, which is the only place it means
+    // anything.
     const double fillPerRoundMs = (beatEitherA.res.rounds > 0)
                                       ? (beatEitherA.wallMs / (double)beatEitherA.res.rounds)
                                       : roundStats.median;
@@ -816,32 +958,46 @@ TestResult ComboLogicMeasure_Run(void) {
            "and the crossing exchange. Which of the two dominates is NOT measured here: the row counts exchanges only "
            "for the isolated rounds, where the answer is trivially zero.\n",
            fillPerRoundMs, beatEitherA.wallMs, beatEitherA.res.rounds, roundStats.median);
-    printf("[TEST] combo-logic-measure: EXTRAPOLATED PER ATTEMPT (arithmetic): the full union bag over %.0f rounds at "
-           "%.1fms = %.0fms = %.1fs per attempt, i.e. %.2fx the 30000ms floor and %.2fx this host's %ums per-attempt "
-           "budget. At the coordinator's default of %d batch roll-backs that is %.0fs worst case against a %ums "
-           "total-creation budget -> %s.\n",
+    const double fullBagAllRollbacksMs = fullBagOneAttemptMs * (double)RSBS_COMBO_LOGIC_FILL_RETRIES;
+    printf("[TEST] combo-logic-measure: EXTRAPOLATED, ONE BATCH (arithmetic): the full union bag over %.0f rounds at "
+           "%.1fms = %.0fms = %.1fs, i.e. %.2fx the 30000ms floor and %.2fx this host's %ums PER-ATTEMPT budget\n",
            fullBagRounds, fillPerRoundMs, fullBagOneAttemptMs, fullBagOneAttemptMs / 1000.0,
            fullBagOneAttemptMs / (double)RSBS_GENBUDGET_FLOOR_MS,
            fullBagOneAttemptMs / (double)Combo_GenBudget_FillBudgetMs(0),
-           (unsigned)Combo_GenBudget_FillBudgetMs(0), (int)RSBS_COMBO_LOGIC_FILL_RETRIES,
-           (fullBagOneAttemptMs * (double)RSBS_COMBO_LOGIC_FILL_RETRIES) / 1000.0,
-           (unsigned)Combo_GenBudget_TotalBudgetMs(),
-           ((fullBagOneAttemptMs * (double)RSBS_COMBO_LOGIC_FILL_RETRIES) > (double)Combo_GenBudget_TotalBudgetMs())
-               ? "OVER the total budget, so the retry count is a budget decision and not only a quality one"
-               : "inside the total budget");
+           (unsigned)Combo_GenBudget_FillBudgetMs(0));
+    printf("[TEST] combo-logic-measure: EXTRAPOLATED, WORST-CASE RunFill: the coordinator's default of %d BATCH "
+           "ROLL-BACKS all happen inside ONE Combo_Logic_RunFill, i.e. inside ONE ladder attempt, so %.1fs is what has "
+           "to fit this host's %ums PER-ATTEMPT budget: %.2fx it -> %s\n",
+           (int)RSBS_COMBO_LOGIC_FILL_RETRIES, fullBagAllRollbacksMs / 1000.0,
+           (unsigned)Combo_GenBudget_FillBudgetMs(0),
+           fullBagAllRollbacksMs / (double)Combo_GenBudget_FillBudgetMs(0),
+           (fullBagAllRollbacksMs > (double)Combo_GenBudget_FillBudgetMs(0))
+               ? "OVER the per-attempt budget, so the roll-back count is a budget decision and not only a quality one"
+               : "inside the per-attempt budget");
+    printf("[TEST] combo-logic-measure: the %ums TOTAL-creation budget is %ux the per-attempt one and is sampled "
+           "BETWEEN LADDER ATTEMPTS (gen_budget.h), so it bounds the number of SEED re-rolls and cannot truncate a "
+           "RunFill: at %.1fs per batch it admits %.1f full-bag batches in total, which is fewer than the %d "
+           "roll-backs one RunFill is allowed. Comparing the roll-back product against it (as this row did once) "
+           "compares the wrong two numbers.\n",
+           (unsigned)Combo_GenBudget_TotalBudgetMs(), (unsigned)RSBS_GENBUDGET_TOTAL_MULTIPLIER,
+           fullBagOneAttemptMs / 1000.0, (double)Combo_GenBudget_TotalBudgetMs() / fullBagOneAttemptMs,
+           (int)RSBS_COMBO_LOGIC_FILL_RETRIES);
     printf("[TEST] combo-logic-measure: MM harvests during the measurement=%d, MM shrink observations=%d\n",
            MM_ComboLogic_HarvestCount(), MM_ComboLogic_ShrinkObservations());
 
     // ==================================================================
-    // TEARDOWN, then S4: production state byte-identical.
+    // S4 FIRST, THEN TEARDOWN. The order is the assertion.
     // ==================================================================
+    // Every S4 check below runs BEFORE the restoring memcpy, against the inner
+    // baseline taken after the profile apply. That ordering is the whole content of
+    // the assertion: after the memcpy the comparison cannot fail, and it was made in
+    // that order once.
     Combo_Logic_ResetPlacements();
     MM_ComboLogic_SetHostPool(nullptr, 0);
     for (size_t i = 0; i < ootBagHosts.size(); ++i) {
         CLM_ASSERT(OoT_ComboLogic_TestSetPlacedItem(ootBagHosts[i], ootRestoreItems[i]) == 1,
                    "could not restore an emptied OoT host");
     }
-    memcpy(gSaveContext, saveBefore.get(), OOT_SAVE_CONTEXT_SIZE);
 
     CLM_ASSERT(MM_ComboLogic_HeldPlacementCount() == 0,
                "MM's engine still holds coordinator placements after the reset — a later row would see them as "
@@ -852,13 +1008,30 @@ TestResult ComboLogicMeasure_Run(void) {
                "MM's reachability shrank inside a round — ADR 0010 §2.3 says the fill may not survive that");
     CLM_ASSERT(OoT_ComboLogic_TestWorldDigest() == worldDigest0,
                "the measurement moved an OoT placement — the world is not what the generation produced");
-    CLM_ASSERT(memcmp(saveBefore.get(), gSaveContext, OOT_SAVE_CONTEXT_SIZE) == 0,
-               "the unified save buffer is not byte-identical after the measurement");
+    // THE ONE WITH TEETH: 41 rounds' worth of Snapshot/Restore brackets, MM
+    // placement re-applies and OoT beginQuery/endQuery pairs, and the live save is
+    // back to the byte the profile apply left it at. Nothing restored it from a copy.
+    // THE RED HALF WAS OBSERVED, not argued. With MM's `Restore` memcpy
+    // (ComboLogicEngineSingleExe.cpp:482) commented out — so each round's assumed
+    // grants leak into the live save — this line fails and the row exits 1. On that
+    // SAME binary, the form this row shipped with for four commits
+    // (`memcmp(saveBefore, gSaveContext)` AFTER the outer restore) reported
+    // memcmp == 0 and would have passed. Both were printed side by side in one run
+    // before this assertion was restored; PR #722's body quotes the two lines.
+    CLM_ASSERT(memcmp(saveAfterProfile.get(), gSaveContext, OOT_SAVE_CONTEXT_SIZE) == 0,
+               "the measurement did not return the unified save buffer to the state MM's shipped profile left it in — "
+               "a round or a fill leaked an assumed grant, a placement re-apply or a snapshot into the live save");
     CLM_ASSERT(Combo_Logic_PlacementCount(GAME_OOT) == 0 && Combo_Logic_PlacementCount(GAME_MM) == 0,
                "the coordinator's placement tables are not empty after the teardown");
 
+    // THE OUTER RESTORE, stated as construction and not asserted. This puts the save
+    // back to before the profile apply, for whichever row runs next in this process.
+    // A memcmp after it would compare the buffer with its own source.
+    memcpy(gSaveContext, saveBefore.get(), OOT_SAVE_CONTEXT_SIZE);
+
     printf("[TEST] PASS: the linked round and the single-bag fill were measured over both real engines; every round "
-           "and fill terminated, the same seed reproduced, and OoT's world digest plus the whole unified save buffer "
-           "came back byte-identical\n");
+           "and fill terminated, the same seed reproduced, OoT's world digest came back equal, and the whole unified "
+           "save buffer came back byte-identical to the state MM's shipped profile left it in (checked BEFORE the "
+           "outer restore, which is construction rather than a claim)\n");
     return TEST_PASS;
 }
