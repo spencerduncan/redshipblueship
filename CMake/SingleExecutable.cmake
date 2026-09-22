@@ -1600,6 +1600,37 @@ if(BUILD_TESTING)
     # rewinds across the attempt ladder, a channel leg displacing the other, and
     # a terminal edge that never reaches the presenter.
     redship_add_test(NAME GenProgressOverlay COMMAND redship --test gen-progress-overlay)
+
+    # #670: MM mounted NO mod archives in single-exe — its whole mod-mount
+    # sequence is in the excluded games/mm/2s2h/BenPort.cpp, so
+    # Combo_GetModArchiveCount(GAME_MM) was structurally always 0 and #593's
+    # switch-time re-apply loop was a permanent no-op for MM. This row drives
+    # MM's REAL glob/mount (MountMMModArchives) against a privately staged
+    # mods/ tree and the REAL Combo_EnsureGameArchivesLoaded, and asserts:
+    # the shared mods/ tree is partitioned (MM takes mods/mm, OoT the
+    # complement, total and disjoint over the path spellings that actually
+    # occur); both registries are fed; the mod beats MM's base archive; an
+    # OoT-owned path carried BY an MM mod is reclaimed by soh.o2r on the switch
+    # to OoT; and the override returns on the switch back to MM.
+    #
+    # Same SKIP_RETURN_CODE policy as the other archive rows: it needs staged
+    # soh.o2r/2ship.o2r as the base archives and as the byte sources for the
+    # stand-in mods, and the netplay-relay job re-runs this label archive-less
+    # on purpose (#562).
+    redship_add_test(NAME MMModsMount COMMAND redship --test mm-mods-mount)
+    set_tests_properties(MMModsMount PROPERTIES SKIP_RETURN_CODE 77)
+
+    # #670, the archive-free half of that row. Combo_ModPathIsForGame is the ONE
+    # predicate both globs consult, and Combo_ModArchiveExtensionIsValid is the one
+    # rule for which files are archives at all; neither touches the disk. This row
+    # asserts both — the partition is total and disjoint over the path spellings
+    # that actually occur, and the extension set is the same on both sides of the
+    # shared tree — with nothing staged, so it also runs in the netplay-relay job
+    # that re-runs this label archive-less (#562), where MMModsMount SKIPs. It was
+    # part of MMModsMount and therefore skipped there, which is precisely the gap.
+    # No SKIP_RETURN_CODE: this row has no reason to skip, ever.
+    redship_add_test(NAME MMModsPartition COMMAND redship --test mm-mods-partition)
+
     # The font-licensing invariant (license follow-up to #578). Three facts that
     # were prose in THIRD_PARTY_NOTICES.md and are now tree state: the ungranted
     # "All rights reserved" font named in that file's "Resolved by removal"

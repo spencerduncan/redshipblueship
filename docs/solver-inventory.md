@@ -1132,21 +1132,21 @@ port cost buys nothing the two crossing edges need.
 
 | # | Prerequisite | ADR term | Status at `c8947177` |
 |---|---|---|---|
-| P1 | Move the MM profile freeze and the combo-record freeze **before** OoT's `Fill()`, at one creation seam; publish MM option *values* to `src/common` | ADR 0009 D2 amendment (`0009:251-264`); ADR 0011 D3.5/O8; ADR 0010 increment 2 | not done: freeze sits at `playthrough.cpp:140-163`, after `Fill()` (`:87`) |
-| P2 | Wire `Combo_ForeignPairingRequested()` as the pre-Fill gate | ADR 0009 D2; ADR 0010 `:615` | implemented (`foreign_items.c:77-84`), test-only caller |
-| P3 | Fix or retire the fill's `FindReachableRegions` (join discipline) | ADR 0010 D2.3 (`:360-367`); #585 | crawl fixed, fill not; global re-pin owed |
-| P4 | Author `MM_GOAL`'s "Majora defeated" predicate; expose lair reachability | ADR 0010 D1/D2 (`:186-200`) | missing (`Moon.cpp:68`; no boss row) |
+| P1 | Move the MM profile freeze and the combo-record freeze **before** OoT's `Fill()`, at one creation seam; publish MM option *values* to `src/common` | ADR 0009 D2 amendment (`0009:251-264`); ADR 0011 D3.5/O8; ADR 0010 increment 2 | not done: freeze sits at `playthrough.cpp:140-163`, after `Fill()` (`:87`) -- DELIVERED (PR #680): freeze block moved above `Fill()`, `playthrough.cpp:93-265` |
+| P2 | Wire `Combo_ForeignPairingRequested()` as the pre-Fill gate | ADR 0009 D2; ADR 0010 `:615` | implemented (`foreign_items.c:77-84`), test-only caller -- DELIVERED (PR #689, #657): `Combo_ForeignCreationGateHolds()` (`src/common/foreign_items.c:176`) gives the gate a consequence at the creation seam |
+| P3 | Fix or retire the fill's `FindReachableRegions` (join discipline) | ADR 0010 D2.3 (`:360-367`); #585 | crawl fixed, fill not; global re-pin owed -- DELIVERED (PR #680, #585): real time-state join landed in `Logic.cpp`; the budgeted re-pin was not spent (digests byte-identical) |
+| P4 | Author `MM_GOAL`'s "Majora defeated" predicate; expose lair reachability | ADR 0010 D1/D2 (`:186-200`) | missing (`Moon.cpp:68`; no boss row) -- DELIVERED (PR #690, #658): `Rando::Logic::CanDefeatMajora()` / `MmGoalMajoraDefeated()`, `Regions/Moon.cpp:69-71` |
 | P5 | Export surfaces per §4.1 on both sides, incl. the OoT detach/re-attach rule | D4 "each engine's exported query surface" (`:683`) | none exist |
-| P6 | Reachability-gate the reverse placement pass | increment 1.3 (`:535-540`), applied to both directions | forward only (`Foreign.cpp:594`); reverse ungated (`ForeignItemsSingleExe.cpp:447-453`) |
+| P6 | Reachability-gate the reverse placement pass | increment 1.3 (`:535-540`), applied to both directions | forward only (`Foreign.cpp:594`); reverse ungated (`ForeignItemsSingleExe.cpp:447-453`) -- DELIVERED (PR #689, #656): reverse gate at `ForeignItemsSingleExe.cpp:458` (`logic->Reset()`) and `:583` (`candidates.push_back`) |
 | P7 | Decide O5 (45 vs 46 slices) inside a re-pin increment | O5 (`:672`) | 45; no consumer needs the 46th today |
 | P8 | O6 tooling: the static negation probe and the CI grow-check | O6 (`:673`) | baseline is clean in both dialects (§1.2, §2.3); nothing locks it |
-| P9 | Gate the Powder-Keg disjunct so `beatable(T = ∅)` means tricks-off | O11 (`:677`); #578 finding (a) | unconditional (`Logic.h:289-291`) |
-| P10 | MM per-trick vocabulary lands so T freezes into identity | §3.3, O9; #578 | absent |
-| P11 | One spoiler artifact for the pair | #564 V23 (`:764-765`) | two artifacts (§0) |
+| P9 | Gate the Powder-Keg disjunct so `beatable(T = ∅)` means tricks-off | O11 (`:677`); #578 finding (a) | unconditional (`Logic.h:289-291`) -- DELIVERED (PR #686, #578 part 1): trick-gated, default off, `Logic.h:337-339` (`MMRT_KEG_EXPLOSIVES`) |
+| P10 | MM per-trick vocabulary lands so T freezes into identity | §3.3, O9; #578 | absent -- IN PROGRESS: substrate + 10 of 86 keys bound (PR #686, PR #696); the remaining plain widenings are #697 (#578 part 3, in flight) |
+| P11 | One spoiler artifact for the pair | #564 V23 (`:764-765`) | two artifacts (§0) -- DELIVERED (PR #680, #660): OoT's spoiler gains a top-level `"combo"` key carrying both worlds and both crossing directions; MM's standalone artifact is retired by the join (`Foreign.cpp:898-1023`) |
 | P12 | Measure the linked fixpoint's creation-time cost against the ~30 s floor | Consequences (`:746-758`); #582 | unmeasured (§6.3) |
-| P13 | `sRandoInitDone` core/asset split | increment 2 (`:571-575`) | single guard (`GameExports_SingleExe.cpp:1411-1415`) |
+| P13 | `sRandoInitDone` core/asset split | increment 2 (`:571-575`) | single guard (`GameExports_SingleExe.cpp:1411-1415`) -- DELIVERED (PR #680): core/asset phases split; also caught the GfxPatcher, tracker-icon and asset-gated ShipInit display-list hazards |
 | P14 | Decide which OoT restricted pools join the bag (recommendation: only the general pass, §4.6) | D3 "one bag" | open |
-| P15 | Pin or resolve the Happy Mask Shop interior under OoT's own entrance shuffle | §2.1 crossing edge; D11 | shuffleable today (`entrance.cpp:300-301`) |
+| P15 | Pin or resolve the Happy Mask Shop interior under OoT's own entrance shuffle | §2.1 crossing edge; D11 | shuffleable today (`entrance.cpp:300-301`) -- DELIVERED (PR #691, #661): pinned out of OoT's entrance shuffle (operator ruling 2026-09-17: pin, not dynamic resolution) |
 
 ### 6.3 What this audit could not determine statically
 
@@ -1180,20 +1180,20 @@ port cost buys nothing the two crossing edges need.
 ### 6.4 Candidate issues (for the orchestrator to file; none filed here)
 
 1. Reverse placement pass has no reachability gate — increment 1.3's
-   asymmetry (`ForeignItemsSingleExe.cpp:447-453`). (P6)
+   asymmetry (`ForeignItemsSingleExe.cpp:447-453`). (P6) -- DELIVERED, PR #689 (#656).
 2. `Combo_ForeignPairingRequested` is implemented but has no production
    caller; the pre-Fill gate ADR 0009 D2 designed is unwired
-   (`foreign_items.c:77-84`). (P2)
+   (`foreign_items.c:77-84`). (P2) -- DELIVERED, PR #689 (#657).
 3. `MM_GOAL` has no "Majora defeated" predicate (`Regions/Moon.cpp:68`;
-   `Logic.h:692-850`). (P4)
+   `Logic.h:692-850`). (P4) -- DELIVERED, PR #690 (#658).
 4. `GetRegionIdFromEntrance` caches an empty map if first called before the
    registrars run (`Logic.cpp:18-39`) — probe the init order.
 5. Two spoiler artifacts per pair against #564 V23's one-artifact
-   requirement. (P11)
+   requirement. (P11) -- DELIVERED, PR #680 (#660).
 6. O5 carrier: the consumer list for a 46th time slice (`Logic.h:75`,
    `:89-91`; `TimeLogic.cpp:18-31`). (P7)
 7. Happy Mask Shop interior is in OoT's `Interior` shuffle pool; the crossing
-   region must be pinned or resolved dynamically (`entrance.cpp:300-301`). (P15)
+   region must be pinned or resolved dynamically (`entrance.cpp:300-301`). (P15) -- DELIVERED, PR #691 (#661).
 8. ADR 0010 line anchors have drifted (`GlitchlessLogic.cpp:22/:57/:64/:258` →
    `:37-38`, `:78`, `:87-89`, `:282`; `Logic.cpp:92-136` → `:95-139`) — a doc
    fix so the increment-3 epic is not led to the wrong lines.
