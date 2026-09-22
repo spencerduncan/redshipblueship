@@ -171,10 +171,12 @@ const char* Combo_Logic_StatusName(int status);
  * item with ERR_CAPACITY, for a reason with nothing to do with the world).
  *
  * The bound is A GAME'S CHECK ID-SPACE, not the bag: an engine enumerating "every
- * shuffled check I do not consider assigned" answers with its whole pool. Today
- * OoT's `RandomizerCheck` runs to `RC_MAX` = 2528 rows and MM's to 2258, so 4096
- * carries either side whole with better than half again of headroom — and both
- * ports are free to add checks without anyone re-deriving this number.
+ * shuffled check I do not consider assigned" answers with its whole pool. Measured
+ * today: OoT's `RandomizerCheck` has 2528 enumerators up to and including `RC_MAX`
+ * and MM's has 2258, neither with an explicit initialiser, so the two id-spaces
+ * are 0..2527 and 0..2257. 4096 carries either side whole with better than half
+ * again of headroom, and both ports may add checks without anyone re-deriving this
+ * number.
  *
  * Exceeding it is still REFUSED (RSBS_COMBO_LOGIC_ERR_CAPACITY) and never
  * truncated: a truncated candidate list would silently narrow the world to a

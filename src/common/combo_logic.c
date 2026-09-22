@@ -372,11 +372,11 @@ static void ComboLogicShuffle(int* order, int count, uint32_t* rng) {
  *
  * SIZED BY RSBS_COMBO_LOGIC_HOST_CAP, NOT BY THE PLACEMENT CAP. What has to fit
  * here is one engine's ENTIRE offered host list — its whole shuffled-check pool
- * under the `none` rung — which is bounded by that game's check id-space (OoT
- * 2528, MM 2258 today), not by how many bag items one side can receive. Sizing it
- * by RSBS_COMBO_LOGIC_PLACEMENT_CAP (1024) was increment 3's defect: the first
- * engine that enumerated honestly would have tripped ERR_CAPACITY on the first bag
- * item of the first fill.
+ * under the `none` rung — which is bounded by that game's check id-space (2528
+ * enumerators for OoT, 2258 for MM), not by how many bag items one side can
+ * receive. Sizing it by RSBS_COMBO_LOGIC_PLACEMENT_CAP (1024) was increment 3's
+ * defect: the first engine that enumerated honestly would have tripped
+ * ERR_CAPACITY on the first bag item of the first fill.
  */
 typedef struct {
     uint16_t host[RSBS_COMBO_LOGIC_HOST_CAP];
