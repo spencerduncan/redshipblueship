@@ -62,6 +62,13 @@ directory symlinks (so you can keep one library of mods and link it into an
 install), and skipping a subfolder the OS will not let the game read rather than
 abandoning the whole walk.
 
+If something else about your `mods/` folder does stop a walk part-way — a broken
+symlink or reparse point is the usual cause — the walk is not abandoned silently:
+OoT prints `[OoT] WARNING: the walk of mods folder … ended early` and names how many
+archives it had found. Mods that would have come after that point are not offered in
+the mod menu and are dropped from your enabled list, so it is worth fixing rather
+than ignoring.
+
 > **Upgrading: if you already have a `mods/mm/` folder, its archives change
 > owner.** OoT's mods folder has always been searched recursively, so anything you
 > had at `mods/mm/*.o2r` — a mod that happened to ship inside a folder called `mm`,
