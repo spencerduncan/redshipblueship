@@ -1639,6 +1639,25 @@ if(BUILD_TESTING)
     redship_add_test(NAME ComboLogicFixpoint COMMAND redship --test combo-logic-fixpoint)
     redship_add_test(NAME ComboLogicFill COMMAND redship --test combo-logic-fill)
 
+    # The OoT ENGINE behind that coordinator (#645, lane K2a). `rando` tier, and
+    # for a correctness reason rather than a convenience one: every fact this row
+    # asserts is a function of a FILL RESULT and of the region graph. The reached
+    # set comes from ReachabilitySearch over areaTable, the host lists read
+    # GetPlacedRandomizerGet(), and goalReached looks for the check holding
+    # RG_TRIFORCE — so in a ROM-free process with no generation every count is zero
+    # and "the closure did not shrink" passes as 0 == 0. The row therefore runs a
+    # REAL headless generation first and asserts STRICT inequalities wherever a
+    # constant would otherwise satisfy it.
+    #
+    # Timeout 300 like the other real-generation rows: one generation, then about a
+    # dozen full reachability closures over the OoT graph (each query expands to a
+    # fixpoint, and the monotonicity leg runs two more over a deliberately
+    # collapsed world).
+    redship_add_test(NAME OoTLogicExport COMMAND redship --test oot-logic-export
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)
     # These tests actually boot the games and verify boot completion
