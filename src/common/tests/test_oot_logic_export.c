@@ -436,6 +436,8 @@ TestResult Test_OoTLogicExport(void) {
     const int allTotal = e->allEmptyHosts(e->self, nullptr, 0);
     printf("[TEST] oot-logic-export: reachedEmptyHosts=%d allEmptyHosts=%d\n", reachedTotal, allTotal);
     OLE_ASSERT(allTotal >= reachedTotal, "allEmptyHosts is not a superset of reachedEmptyHosts");
+    // Non-zero, or every assertion below it is about an empty list.
+    OLE_ASSERT(reachedTotal > 0, "the host-surface leg has no reached empty host to inspect");
 
     std::vector<uint16_t> reachedList((size_t)reachedTotal + 1, 0);
     const int reachedWritten = e->reachedEmptyHosts(e->self, reachedList.data(), reachedTotal);
@@ -507,37 +509,74 @@ TestResult Test_OoTLogicExport(void) {
     // ...and `place` is bracketed too, which matters because it is called OUTSIDE
     // a round and `PlaceItemInLocation` applies the item effect under Glitchless
     // regardless of its argument.
+    //
+    // ONE HOST IS FREED FOR THIS LEG, deliberately: the restored world is complete,
+    // so `allEmptyHosts` is legitimately empty there and a leg that skipped on
+    // "no host available" would assert nothing at all — the vacuity this row is
+    // built to refuse. The host is restored immediately afterwards and the world
+    // digest re-checked.
+    OLE_ASSERT(emptiedChecks.size() >= 2, "the place leg needs two distinct hosts to free");
+    const int emptyBase = e->allEmptyHosts(e->self, nullptr, 0);
+    const uint16_t placeHost = emptiedChecks[0];
+    const uint16_t placeHostItem = emptiedItems[0];
+    OLE_ASSERT(OoT_ComboLogic_TestSetPlacedItem(placeHost, 0 /* RG_NONE */), "could not free a host for the place leg");
     const int placeHostTotal = e->allEmptyHosts(e->self, nullptr, 0);
-    printf("[TEST] oot-logic-export: %d empty hosts available for the place leg\n", placeHostTotal);
-    if (placeHostTotal > 0) {
-        std::vector<uint16_t> placeHosts((size_t)placeHostTotal, 0);
-        e->allEmptyHosts(e->self, placeHosts.data(), placeHostTotal);
-        const uint16_t host = placeHosts[0];
-        SharedItem ownItem;
-        memset(&ownItem, 0, sizeof(ownItem));
-        ownItem.originGame = (uint8_t)GAME_OOT;
-        ownItem.id = assumed[0];
+    printf("[TEST] oot-logic-export: empty hosts %d -> %d after freeing host %u for the place leg\n", emptyBase,
+           placeHostTotal, (unsigned)placeHost);
+    OLE_ASSERT(placeHostTotal == emptyBase + 1, "freeing a host did not make it exactly one more empty host");
 
-        OLE_ASSERT(e->place(e->self, host, ownItem), "place refused a host the engine itself offered");
-        // IDEMPOTENT for the same (host, item): the coordinator re-applies its
-        // whole table after every snapshot restore.
-        OLE_ASSERT(e->place(e->self, host, ownItem), "place is not idempotent for the same host and item");
-        OLE_ASSERT(OoT_ComboLogic_TestLogicIsAttachedToLiveSave() == 1, "place left Logic pointed somewhere else");
-        OLE_ASSERT(memcmp(saveBefore, gSaveContext, sizeof(saveBefore)) == 0,
-                   "place wrote the player's save — the item effect was not bracketed");
-        // A foreign-origin placement leaves a LOCAL junk item in the host and no
-        // foreign id in OoT's tables (ADR 0002).
-        const int afterPlaceTotal = e->allEmptyHosts(e->self, nullptr, 0);
-        OLE_ASSERT(afterPlaceTotal == placeHostTotal - 1, "a placed host is still offered as empty");
+    SharedItem ownItem;
+    memset(&ownItem, 0, sizeof(ownItem));
+    ownItem.originGame = (uint8_t)GAME_OOT;
+    ownItem.id = assumed[0];
 
-        // The roll-back returns the host to what it held BEFORE, which here is
-        // empty, and restores the world digest exactly.
-        e->clearPlacements(e->self);
-        OLE_ASSERT(e->allEmptyHosts(e->self, nullptr, 0) == placeHostTotal,
-                   "clearPlacements did not return the host to unassigned");
-        OLE_ASSERT(OoT_ComboLogic_TestWorldDigest() == worldDigest0,
-                   "a place plus clearPlacements did not restore the world digest");
-    }
+    OLE_ASSERT(e->place(e->self, placeHost, ownItem), "place refused a host the engine itself offered");
+    // IDEMPOTENT for the same (host, item): the coordinator re-applies its whole
+    // table after every snapshot restore, so a repeat is a no-op and not a refusal.
+    OLE_ASSERT(e->place(e->self, placeHost, ownItem), "place is not idempotent for the same host and item");
+    OLE_ASSERT(OoT_ComboLogic_TestLogicIsAttachedToLiveSave() == 1, "place left Logic pointed somewhere else");
+    OLE_ASSERT(memcmp(saveBefore, gSaveContext, sizeof(saveBefore)) == 0,
+               "place wrote the player's save — the item effect was not bracketed");
+    OLE_ASSERT(e->allEmptyHosts(e->self, nullptr, 0) == emptyBase, "a placed host is still offered as empty");
+
+    // A FOREIGN-origin placement leaves a LOCAL junk item in the host; the foreign
+    // identity stays in the coordinator's table and no foreign id enters OoT's
+    // (ADR 0002). Asserted on the host's own recorded item id, which must be
+    // neither the MM id handed in nor RG_NONE.
+    const uint16_t kAbsurdMmItemId = 60000; // an id OoT's RG_* space does not name
+    SharedItem foreignItem;
+    memset(&foreignItem, 0, sizeof(foreignItem));
+    foreignItem.originGame = (uint8_t)GAME_MM;
+    foreignItem.id = kAbsurdMmItemId;
+    const uint16_t foreignHost = emptiedChecks[1];
+    const uint16_t foreignHostItem = emptiedItems[1];
+    OLE_ASSERT(OoT_ComboLogic_TestSetPlacedItem(foreignHost, 0 /* RG_NONE */),
+               "could not free a host for the foreign-cover leg");
+    OLE_ASSERT(e->place(e->self, foreignHost, foreignItem), "place refused an MM-origin item on an OoT host");
+    uint16_t coverItem = 0;
+    int coverAdvancement = 0;
+    OLE_ASSERT(OoT_ComboLogic_TestPlacedItemAt(foreignHost, &coverItem, &coverAdvancement),
+               "the foreign-covered host is not a real row");
+    printf("[TEST] oot-logic-export: MM-origin item %u on OoT host %u left local item id %u in the host\n",
+           (unsigned)kAbsurdMmItemId, (unsigned)foreignHost, (unsigned)coverItem);
+    OLE_ASSERT(coverItem != kAbsurdMmItemId,
+               "a raw MM item id entered OoT's location table — the junk cover did not happen (ADR 0002)");
+    OLE_ASSERT(coverItem != 0, "the foreign host was left empty instead of covered with a local junk item");
+    OLE_ASSERT(coverAdvancement == 0, "the junk cover is an advancement item; a foreign host must degrade to junk");
+
+    OLE_ASSERT(e->allEmptyHosts(e->self, nullptr, 0) == emptyBase,
+               "the junk-covered host is still offered as empty");
+
+    // The roll-back returns both hosts to what they held BEFORE — here empty,
+    // because that is what this leg made them — and nothing else moves.
+    e->clearPlacements(e->self);
+    OLE_ASSERT(e->allEmptyHosts(e->self, nullptr, 0) == emptyBase + 2,
+               "clearPlacements did not return both hosts to unassigned");
+    OLE_ASSERT(OoT_ComboLogic_TestSetPlacedItem(placeHost, placeHostItem), "could not restore the place-leg host");
+    OLE_ASSERT(OoT_ComboLogic_TestSetPlacedItem(foreignHost, foreignHostItem),
+               "could not restore the foreign-cover host");
+    OLE_ASSERT(OoT_ComboLogic_TestWorldDigest() == worldDigest0,
+               "the place leg did not restore the world digest exactly");
 
     // ------------------------------------------------------------------
     // Claim 6: endQuery after a FAILED beginQuery, and endQuery twice.

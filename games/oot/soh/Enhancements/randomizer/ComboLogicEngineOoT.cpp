@@ -29,11 +29,9 @@
  *                     allocates a fresh heap `SaveContext` and points
  *                     `Logic::mSaveContext` at it, so the whole round's
  *                     simulated inventory lives off the live save
- *                     (audit §1.8 / §4.2). Then `Regions::AccessReset()`,
- *                     `ctx->LocationReset()` and `ApplyStartingInventory()`, so
- *                     the round begins at the WORLD'S STARTING INVENTORY with a
- *                     defined (empty) reached set even before the first
- *                     `expand`.
+ *                     (audit §1.8 / §4.2). Then `Regions::AccessReset()` and
+ *                     `ctx->LocationReset()`, so the reached set is defined
+ *                     (empty) even before the first `expand`.
  *   assumeOwnItem     `Item::ApplyEffect()` on the item the `RG_*` names, into
  *                     the detached save. DE-DUPLICATED per round — see the
  *                     block at OoT_ComboLogic_AssumeOwnItem, which is the one
@@ -120,7 +118,6 @@
 #include "soh/Enhancements/randomizer/logic.h"
 #include "soh/Enhancements/randomizer/SeedContext.h"
 #include "3drando/fill.hpp"
-#include "3drando/starting_inventory.hpp"
 
 #include "combo_logic.h" // src/common — the vtable this file implements
 #include "context.h"     // src/common — SharedItem, GameId
@@ -169,8 +166,11 @@ bool sInQuery = false;
  *  is the prior pointer restorable — see hazard (3) in the file header. */
 bool sPriorWasLiveSave = false;
 
-/** Items already granted THIS round, by `RG_*` id. See the de-dup block. */
+/** Items granted THIS round: a membership bitset (the de-dup) and the ORDER they
+ *  arrived in (what `expand` re-applies). See the de-dup block and the
+ *  re-derivation block in `expand`. */
 std::vector<bool> sGranted;
+std::vector<uint16_t> sGrantedOrder;
 
 /** Closure size at this round's previous `expand`, for the `changed` answer. */
 int sPrevReachedChecks = -1;
@@ -190,8 +190,10 @@ Rando::Logic* OoTComboLogicSingleton() {
     // The free `logic` pointer the region files and `fill.cpp` use is rebound by
     // RegionTable_Init; going through it (rather than through
     // Rando::Context::GetLogic()) is what keeps this engine reading the SAME
-    // singleton every guard in location_access/ reads.
-    return logic;
+    // singleton every guard in location_access/ reads. It is a
+    // `std::shared_ptr<Rando::Logic>` there (`location_access.h:20`); this engine
+    // only ever borrows it, never keeps it.
+    return logic.get();
 }
 
 bool OoTComboLogicReady() {
@@ -352,17 +354,24 @@ int OoT_ComboLogic_BeginQuery(void* self) {
     // SaveContext this allocates, never in gSaveContext.
     lg->Reset(true);
 
-    // A DEFINED starting state even before the first `expand`: region bits and
-    // pool marks cleared, the settings' starting inventory applied. Without
-    // these, `crossingOpen` and `checkReached` between `beginQuery` and the
-    // first `expand` would report the PREVIOUS round's residue — and the lock
-    // asserts the crossing is CLOSED here and OPEN after expand, which is the
-    // differential that proves the reset happens at all.
+    // A DEFINED graph state even before the first `expand`: region bits and pool
+    // marks cleared. Without these, `crossingOpen` and `checkReached` between
+    // `beginQuery` and the first `expand` would report the PREVIOUS round's
+    // residue — and the lock asserts the crossing is CLOSED here and OPEN after
+    // the expand, which is the differential that proves the reset happens at all.
+    //
+    // THE SETTINGS' STARTING INVENTORY IS DELIBERATELY NOT APPLIED HERE. `expand`
+    // re-derives the round's whole inventory from scratch on every call (see the
+    // block there) and `ReachabilitySearch`'s own `ResetLogic` applies the
+    // starting inventory exactly once per search, so applying it here too would
+    // either be discarded or double-counted. The inventory a round evaluates
+    // against is therefore (starting inventory + everything granted), applied
+    // once each, and that is decided in one place rather than two.
     Regions::AccessReset();
     ctx->LocationReset();
-    ApplyStartingInventory();
 
     sGranted.assign((size_t)RG_MAX, false);
+    sGrantedOrder.clear();
     sPrevReachedChecks = -1;
     sPrevReachedRegions = -1;
     sInQuery = true;
@@ -408,6 +417,7 @@ void OoT_ComboLogic_AssumeOwnItem(void* self, uint16_t ownItemId) {
         }
         sGranted[(size_t)ownItemId] = true;
     }
+    sGrantedOrder.push_back(ownItemId);
     Rando::StaticData::RetrieveItem((RandomizerGet)ownItemId).ApplyEffect();
 }
 
@@ -425,6 +435,25 @@ void OoT_ComboLogic_AssumeOwnItem(void* self, uint16_t ownItemId) {
  * is not "did the search do work" — the search does the same work every time.
  * The first expand of a round always reports change (there is no previous
  * measurement), which is correct: something opened, namely everything.
+ *
+ * THE ROUND'S INVENTORY IS RE-DERIVED FROM SCRATCH ON EVERY CALL, and that is a
+ * correctness fix rather than tidiness. `ReachabilitySearch`'s `ResetLogic`
+ * APPLIES THE STARTING INVENTORY EVERY TIME (`fill.cpp:324-325`) without clearing
+ * the simulated inventory first, so a round that expands three times applies it
+ * three times. For the progressive rows that is not idempotent — each application
+ * is `SetUpgrade(x, CurrentUpgrade + 1)` — so a world whose settings start the
+ * player with a progressive item would have its wallet, quiver or strength tier
+ * INFLATED by one per extra alternation, and the round would prove reachability
+ * the player does not have. That is an OVER-approximation, which is the one
+ * direction an assumed fill may not err in.
+ *
+ * So each expand rebuilds the baseline: `Logic::Reset(true)` (inventory empty,
+ * still detached), re-apply exactly the ids granted this round in the order they
+ * arrived, then let the search apply the starting inventory once and re-harvest
+ * every placed item it reaches. The result is that `expand` is a pure function of
+ * (granted set, placements, settings): calling it twice with nothing granted in
+ * between gives the identical closure, which is also what makes the round
+ * converge in two alternations instead of drifting.
  */
 int OoT_ComboLogic_Expand(void* self) {
     (void)self;
@@ -432,6 +461,15 @@ int OoT_ComboLogic_Expand(void* self) {
         return 0;
     }
     auto ctx = Rando::Context::GetInstance();
+    Rando::Logic* lg = OoTComboLogicSingleton();
+
+    // Rebuild the round's inventory baseline — see the block above.
+    lg->Reset(true);
+    Regions::AccessReset();
+    ctx->LocationReset();
+    for (const uint16_t granted : sGrantedOrder) {
+        Rando::StaticData::RetrieveItem((RandomizerGet)granted).ApplyEffect();
+    }
 
     // The return value is deliberately unused: with placed items everywhere and
     // calculatingAvailableChecks false the returned vector holds only the EMPTY
@@ -804,7 +842,7 @@ extern "C" int OoT_ComboLogic_TestReachedCheckCountNow(void) {
 /** 1 iff `Logic::mSaveContext == &gSaveContext`. The re-attach rule's whole
  *  observable (audit §4.4). */
 extern "C" int OoT_ComboLogic_TestLogicIsAttachedToLiveSave(void) {
-    Rando::Logic* lg = logic;
+    Rando::Logic* lg = logic.get();
     return (lg != nullptr && lg->GetSaveContext() == &gSaveContext) ? 1 : 0;
 }
 
@@ -813,7 +851,7 @@ extern "C" int OoT_ComboLogic_TestLogicIsAttachedToLiveSave(void) {
  *  only state in which the re-attach rule and the live-save bracket have
  *  anything to protect. */
 extern "C" int OoT_ComboLogic_TestAttachLogicToLiveSave(void) {
-    Rando::Logic* lg = logic;
+    Rando::Logic* lg = logic.get();
     if (lg == nullptr) {
         return -1;
     }
