@@ -50,6 +50,7 @@
 // MM_Rando_ComputeProfileStamp — the arrival's identity re-resolution
 // (#498/#564: compare against the creation-frozen mmProfileDigest).
 #include "combo_mm_options_view.h"
+#include "gen_budget.h" // src/common — the #582 creation-progress channel
 // OoT_Notification_Emit — the shared toast overlay (#427 bridge): the arrival
 // refusal must be player-visible in-game, not only in the file panel.
 #include "notification_bridge.h"
@@ -213,7 +214,22 @@ extern "C" void MM_OTRMessage_Init(void);
 // src/common/archive_check.cpp's MM spec: the extraction flow exports
 // mm.o2r to this app directory, which is the first location the archive
 // availability checks probe.
-static const char kMmAppName[] = "2s2h";
+//
+// #670, PR #716's review: a REFERENCE to src/common/mod_archives.cpp's constant,
+// not a second `"2s2h"` literal. It used to be its own literal, and the drift that
+// cost is two lines apart in MMCreateModFolder below: `existing` comes from
+// Combo_ModsRootForGame(GAME_MM) and the fallback from
+// GetPathRelativeToAppDirectory("mods", kMmAppName), so renaming this one — the
+// obvious, single-looking definition — made MM create `<new>/mods/mm` while
+// MountMMModArchives globbed `<old>/mods`. Now there is one definition to rename.
+// The #670 partition row asserts the POINTER identity (not just equal text)
+// through the MM_ModsAppShortName seam, so a re-introduced literal goes red.
+static const char* const kMmAppName = Combo_ModsAppShortName(GAME_MM);
+
+// Seam for that assertion: what THIS translation unit's mods lookups actually pass.
+extern "C" const char* MM_ModsAppShortName(void) {
+    return kMmAppName;
+}
 
 // Track if MM has been initialized (for re-entry after game switch)
 static bool sMMInitialized = false;
@@ -995,10 +1011,16 @@ static int MountMMModArchives(const std::string& modsRoot) {
     // walkEc is the ITERATION's error and controls the loop; entryEc is separate
     // and per-entry. Sharing one would end the walk on the first entry whose
     // status could not be read, silently dropping every mod after it.
+    //
+    // Rsbs::kModsWalkOptions, the SAME options OoT's walk over the same tree uses
+    // (src/common/mod_archives.h). This originally passed only
+    // skip_permission_denied while OoT followed directory symlinks, so a mod
+    // installed through a symlinked folder — the documented "a mod may ship as its
+    // own folder" layout, kept in one library and linked into two installs — worked
+    // under mods/ and silently did nothing under mods/mm/. One tree, one traversal
+    // rule.
     std::error_code walkEc;
-    for (std::filesystem::recursive_directory_iterator
-             it(modsRoot, std::filesystem::directory_options::skip_permission_denied, walkEc),
-         end;
+    for (std::filesystem::recursive_directory_iterator it(modsRoot, Rsbs::kModsWalkOptions, walkEc), end;
          it != end && !walkEc; it.increment(walkEc)) {
         const std::filesystem::path& p = it->path();
         std::error_code entryEc;
@@ -1046,7 +1068,18 @@ static int MountMMModArchives(const std::string& modsRoot) {
  */
 static void MMCreateModFolder() {
     try {
-        const std::string existing = Ship::Context::LocateFileAcrossAppDirs("mods", kMmAppName);
+        // Combo_ModsRootForGame(GAME_MM), not LocateFileAcrossAppDirs("mods",
+        // kMmAppName) spelled out again: OoT's walk compares its own root against
+        // this one to decide whether `mods/mm` is reserved at all, and two copies of
+        // the lookup that drifted would silently turn that comparison into a
+        // double-mount of every MM mod (src/common/mod_archives.h).
+        //
+        // The fallback on the next line still spells a lookup out, because
+        // GetPathRelativeToAppDirectory is a different API — but the NAME it passes
+        // is the same object this call used (kMmAppName is a reference to
+        // Combo_ModsAppShortName(GAME_MM) as of PR #716's review), so the two cannot
+        // disagree about which app directory MM owns.
+        const std::string existing = Combo_ModsRootForGame(GAME_MM);
         std::string mmModsPath =
             (std::filesystem::path(existing.empty() ? Ship::Context::GetPathRelativeToAppDirectory("mods", kMmAppName)
                                                     : existing) /
@@ -1164,7 +1197,7 @@ static int LoadMMArchives() {
     // then picks their paths up on the pass it already makes, with no further
     // change. A failure to mount a mod is never fatal to MM's boot.
     MMCreateModFolder();
-    (void)MountMMModArchives(Ship::Context::LocateFileAcrossAppDirs("mods", kMmAppName));
+    (void)MountMMModArchives(Combo_ModsRootForGame(GAME_MM));
 
     sMMArchivesLoaded = true;
     return 0;
@@ -4154,6 +4187,20 @@ extern "C" int MM_Rando_GenerateAtCreation(int slot, const char* ootSpoilerPath)
     // An empty region graph after this call is not checked separately: the
     // generation below throws "No checks in logic" from GeneratePools, which
     // lands in the same terminal-failure return as every other dead end.
+    //
+    // REPORTED AND MEASURED (#582's review). This stretch — MM's whole rando core
+    // (region graph, static data, trick tables) plus the vanilla bootstrap — sits
+    // BETWEEN Combo_GenProgress_Begin() and the ladder's first MM_FILL report, and
+    // the first cut of #582 claimed without measuring that "everything else the
+    // creation event does reports a phase and moves on within milliseconds". Two
+    // changes rather than one assertion: the phase channel gets a record here so
+    // the overlay's caption names what the player is waiting for instead of showing
+    // the IDLE phase's name, and the duration is printed on EVERY creation so the
+    // claim is a number in the log rather than an estimate in a comment. The phase
+    // stays IDLE on purpose: nothing has begun filling yet, and inventing a phase
+    // would move every weight the bar is built on.
+    const uint32_t rsbsPrepStartMs = Combo_GenProgress_ElapsedMs();
+    Combo_GenProgress_Report((uint8_t)RSBS_GENPHASE_IDLE, 0, "preparing Majora's Mask's logic tables");
     MM_Rando_InitCore();
 
     // Registers are read by logic predicates through R_* macros and are only
@@ -4170,7 +4217,15 @@ extern "C" int MM_Rando_GenerateAtCreation(int slot, const char* ootSpoilerPath)
     // binary and this seam does not acquire a private copy of it.
     memset(&gSaveContext, 0, sizeof(SaveContext));
     MM_Sram_InitNewSave();
+    fprintf(stderr,
+            "[MM] creation: the pre-fill stretch (rando core init + vanilla bootstrap) took %ums — this is the window "
+            "the overlay captions before the ladder's first attempt report (#582)\n",
+            Combo_GenProgress_ElapsedMs() - rsbsPrepStartMs);
+    fflush(stderr);
     GameInteractor_ExecuteOnSaveInit(0);
+    // Where MM's own post-fill stretch starts (the spoiler join and the shadow
+    // arm). Measured for the same reason the pre-fill one is.
+    const uint32_t rsbsPostFillStartMs = Combo_GenProgress_ElapsedMs();
 
     if (gSaveContext.save.shipSaveInfo.saveType != SAVETYPE_RANDO) {
         // OnFileCreate's catch ran: the attempt ladder was exhausted, or the
@@ -4191,6 +4246,11 @@ extern "C" int MM_Rando_GenerateAtCreation(int slot, const char* ootSpoilerPath)
     // gSaveContext, and the caller RESTORES OoT's bytes over it the instant this
     // function returns. There is exactly one window in which both the MM world
     // and the OoT spoiler document exist, and this is it.
+    //
+    // Reported as well as done: this is the second of the two stretches the review
+    // of #582 found unreported, and after the ladder's last attempt a bar captioned
+    // "Building the Majora's Mask world (attempt n of N)" is stale copy.
+    Combo_GenProgress_Report((uint8_t)RSBS_GENPHASE_SPOILER, 0, "writing the paired spoiler");
     if (ootSpoilerPath != NULL && ootSpoilerPath[0] != 0) {
         MM_Rando_AugmentSpoilerWithPairedHalf(ootSpoilerPath);
     }
@@ -4219,9 +4279,9 @@ extern "C" int MM_Rando_GenerateAtCreation(int slot, const char* ootSpoilerPath)
 
     fprintf(stderr,
             "[MM] creation: MM half authored and armed for slot %d (mmFinalSeed=%08X foreignPlacements=%d "
-            "ladderAttempt=%d)\n",
+            "ladderAttempt=%d; MM's post-fill stretch — spoiler join + shadow arm — took %ums)\n",
             slot, gSaveContext.save.shipSaveInfo.rando.finalSeed, Combo_CountForeignPlacements(),
-            MM_Rando_PairedGenLastAttempts());
+            MM_Rando_PairedGenLastAttempts(), Combo_GenProgress_ElapsedMs() - rsbsPostFillStartMs);
     fflush(stderr);
     return 0;
 }

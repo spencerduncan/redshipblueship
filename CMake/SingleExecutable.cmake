@@ -100,6 +100,11 @@ set(REDSHIP_COMMON_SOURCES
     # and the phase channel the creation seam reports into. APPENDED, never
     # reordered.
     ${CMAKE_SOURCE_DIR}/src/common/gen_budget.c
+    # The ON-SCREEN creation-progress surface's state machine (#582). The
+    # presentation half lives in games/oot/soh/SohGui/CreationProgressOverlay.cpp;
+    # this half is game-header-free C so a headless row can drive it. APPENDED,
+    # never reordered.
+    ${CMAKE_SOURCE_DIR}/src/common/gen_progress_overlay.c
 )
 
 # Windows-specific: import thunks for libultraship compatibility
@@ -1245,7 +1250,10 @@ if(BUILD_TESTING)
     # survives the shared-gSaveContext bracket byte-exact, the arrival hydrates
     # or refuses and NEVER generates (a dispatch counter, not a comment), the
     # #582 budget is the ruled one, the pair writes ONE spoiler carrying both
-    # crossing directions (#660), and #585's join is in force.
+    # crossing directions (#660), #585's join is in force, and (#582) the
+    # on-screen progress overlay paints frames from INSIDE the blocking creation
+    # call — which needs both a real window and a real creation, so this row is
+    # the only place in the suite where it can be observed at all.
     #
     # In the `rando` tier for the same correctness reason as the row above: the
     # creation event refuses to run without a live pairing identity, and every
@@ -1630,6 +1638,15 @@ if(BUILD_TESTING)
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
+    # #582: the on-screen creation-progress surface. Default `redship` tier — it
+    # installs a COUNTING painter rather than a renderer, so the whole row runs
+    # with no window, no ImGui and no archives. The painting half (SohGui's
+    # RunGuiOnly pump) genuinely needs a GPU and is verified by playtest; what
+    # this row protects is everything that goes wrong silently: a bar that
+    # rewinds across the attempt ladder, a channel leg displacing the other, and
+    # a terminal edge that never reaches the presenter.
+    redship_add_test(NAME GenProgressOverlay COMMAND redship --test gen-progress-overlay)
+
     # #670: MM mounted NO mod archives in single-exe — its whole mod-mount
     # sequence is in the excluded games/mm/2s2h/BenPort.cpp, so
     # Combo_GetModArchiveCount(GAME_MM) was structurally always 0 and #593's
@@ -1684,6 +1701,48 @@ if(BUILD_TESTING)
     redship_add_test(NAME ComboLogicEngineSurface COMMAND redship --test combo-logic-engine-surface)
     redship_add_test(NAME ComboLogicFixpoint COMMAND redship --test combo-logic-fixpoint)
     redship_add_test(NAME ComboLogicFill COMMAND redship --test combo-logic-fill)
+
+    # The OoT ENGINE behind that coordinator (#645, lane K2a). `rando` tier, and
+    # for a correctness reason rather than a convenience one: every fact this row
+    # asserts is a function of a FILL RESULT and of the region graph. The reached
+    # set comes from ReachabilitySearch over areaTable, the host lists read
+    # GetPlacedRandomizerGet(), and goalReached looks for the check holding
+    # RG_TRIFORCE — so in a ROM-free process with no generation every count is zero
+    # and "the closure did not shrink" passes as 0 == 0. The row therefore runs a
+    # REAL headless generation first and asserts STRICT inequalities wherever a
+    # constant would otherwise satisfy it.
+    #
+    # Timeout 300 like the other real-generation rows: one generation, then about a
+    # dozen full reachability closures over the OoT graph (each query expands to a
+    # fixpoint, and the monotonicity leg runs two more over a deliberately
+    # collapsed world).
+    redship_add_test(NAME OoTLogicExport COMMAND redship --test oot-logic-export
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+
+    # MM's REAL engine behind that surface (#645 increment 3, lane K2b):
+    # games/mm/2s2h/Rando/ComboLogicEngineSingleExe.cpp driven through
+    # Combo_Logic_GetEngine(GAME_MM) — which makes the first leg a
+    # registrar-elision lock too, since MM publishes the vtable from a file-scope
+    # static in a TU nothing else references (#516/#678).
+    #
+    # Tier `rando`, not `redship`, and the reason is the same one MMTrickGbtGate
+    # and MMTrickBindings give: every answer comes from a std::function inside the
+    # ShipInit-populated Rando::Logic::Regions, and the row additionally runs
+    # CrawlReachableRegions and the REAL Rando::GiveItem path a dozen times. Audit
+    # §6.3 lists "can MM's crawl run without a display" as undetermined, so this
+    # row is not the place to find out; MMMajoraGoal shows a display-free MM graph
+    # row is possible, and moving this one down a tier is a follow-up with a
+    # measurement attached, not a tidy-up.
+    #
+    # Timeout above the 180 its siblings use: the round is a full MM crawl plus a
+    # reachable-check evaluation, and the monotonicity leg runs one round per
+    # granted item (nine) plus the repeat-grant pair.
+    redship_add_test(NAME MMComboLogicEngine COMMAND redship --test mm-combo-logic-engine
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)

@@ -180,11 +180,71 @@ void Combo_GenProgress_End(bool ok);
 /** The latest reported record. Never NULL. */
 const ComboGenProgress* Combo_GenProgress_Current(void);
 
-/** Milliseconds since Combo_GenProgress_Begin (0 when never begun). */
+/** Milliseconds since Combo_GenProgress_Begin (0 when never begun). WALL time,
+ *  including whatever an overlay spent presenting — this is the number a player
+ *  is shown and the number the P12 measurement prints. It is NOT the number the
+ *  ladder decides with; that is Combo_GenProgress_GenerationElapsedMs. */
 uint32_t Combo_GenProgress_ElapsedMs(void);
+
+/**
+ * PRESENTATION TIME, AND WHY BOTH WALL-CLOCK STOPS HAVE TO KNOW ABOUT IT
+ *
+ * A paired creation has exactly two wall-clock stops: the fill's PER-ATTEMPT
+ * timeout (GlitchlessLogic's `tick` against its budget) and the ladder's TOTAL
+ * budget (OnFileCreate.cpp against Combo_GenBudget_TotalBudgetMs). Since #582 a
+ * host with a window spends part of the creation presenting frames — a buffer
+ * swap that waits for vblank, ~16 ms each, at up to 10 Hz. Charging that to
+ * EITHER stop gives a windowed host measurably less generation headroom than the
+ * same host headless: two abort probabilities for one seed on one machine,
+ * decided by whether anything was on screen. Crediting only one of the two (which
+ * is what the first cut of #582 did) leaves the asymmetry in place at the other.
+ *
+ * The per-attempt stop is credited at its own site and in its own clock, because
+ * `tick` is a GetUnixTimestamp() value and only a delta in that same clock may be
+ * added to it. This pair is the credit for the TOTAL stop, measured in the clock
+ * sProgressStartMs was taken in. Two measurements of one interval, each against
+ * the baseline it is later compared with — deliberately not one number subtracted
+ * from a baseline in a different clock, which is how a CPU-time clock() and a
+ * wall-time system_clock would have been mixed.
+ *
+ * Bracketed by the state machine's Paint() (gen_progress_overlay.c), so EVERY
+ * painted frame is credited and not only the heartbeat ones: a phase transition
+ * also paints, and it also waits for vblank. Nested calls are ignored, and a
+ * bracket outside a running session credits nothing.
+ */
+void Combo_GenProgress_PresentationBegin(void);
+/** Close the bracket Combo_GenProgress_PresentationBegin opened. */
+void Combo_GenProgress_PresentationEnd(void);
+/** Milliseconds this creation has spent inside presentation brackets. Zero on a
+ *  host that painted nothing, which is what keeps a headless run's arithmetic
+ *  identical to the pre-#582 one. */
+uint32_t Combo_GenProgress_PresentationMs(void);
+/**
+ * Elapsed WITHOUT the time spent presenting: the number the ladder's total
+ * budget is compared against, so that stop measures GENERATION on every host.
+ * Never larger than Combo_GenProgress_ElapsedMs(), and equal to it whenever
+ * nothing painted.
+ */
+uint32_t Combo_GenProgress_GenerationElapsedMs(void);
 
 /** Register the presentation leg; NULL removes it. */
 void Combo_GenProgress_SetSink(ComboGenProgressSink sink);
+
+/**
+ * Register the ON-SCREEN leg (#582); NULL removes it.
+ *
+ * A SECOND SLOT RATHER THAN SHARING THE ONE ABOVE, because the two legs have
+ * different owners and neither may displace the other. The sink above is what
+ * the headless `combo-creation-event` row installs to record the phase ORDER;
+ * the shipped overlay installs here. With one slot they were mutually
+ * exclusive, so wiring the overlay would have silently emptied that row's
+ * phase-order array -- a green test asserting nothing.
+ *
+ * It also differs in WHAT it is told: this leg additionally hears
+ * Combo_GenProgress_Begin (an overlay has to appear before the first phase
+ * lands, and a phase-order recorder must not see a synthetic entry for it).
+ */
+void Combo_GenProgress_SetDisplaySink(ComboGenProgressSink sink);
 
 /** Stable short name for a phase. Never NULL. */
 const char* Combo_GenPhaseName(uint8_t phase);

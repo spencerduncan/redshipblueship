@@ -88,7 +88,18 @@ static RegisterShipInitFunc initFunc([]() {
             EXIT(ENTRANCE(IKANA_CASTLE, 4),                          ONE_WAY_EXIT, RANDO_EVENTS[RE_IKANA_CASTLE_MAIN_SUNLIGHT])
         },
         .connections = {
-            CONNECTION(RR_IKANA_CASTLE_REDEAD_WALKWAY, true)
+            CONNECTION(RR_IKANA_CASTLE_REDEAD_WALKWAY, true),
+            // #578 part 3 (second pass) — MMRT_IKANA_ROOF_PARKOUR ("Jump from Ikana Castle's Roof
+            // Interior to Exterior — Jump off of a piece of rubble to a sloped wall, walk up, and jump
+            // across the block to the outside of the fence"), DEFAULT OFF. A wholly NEW edge, like
+            // part 2's MMRT_PALACE_BEAN_SKIP: 2ship's two roof regions are named "Inner Roof" and
+            // "Outer Roof" and nothing joined them, so "Roof Interior to Exterior" IS this pair, one
+            // way, and the trick names no item — the predicate is the whole condition.
+            //
+            // What it opens, so the widening is legible: the Outer Roof grants
+            // RE_IKANA_CASTLE_RIGHT_SUNLIGHT unconditionally and reaches the Bubble Room and the Front
+            // Entrance. With the trick off this connection is closed and none of that changes.
+            CONNECTION(RR_IKANA_CASTLE_OUTER_ROOF, MM_TRICK(MMRT_IKANA_ROOF_PARKOUR))
         },
         .events = {
             EVENT(RE_IKANA_CASTLE_MAIN_SUNLIGHT, CAN_BE_GORON && HAS_ITEM(ITEM_POWDER_KEG)),
