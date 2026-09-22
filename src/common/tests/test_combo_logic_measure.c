@@ -151,6 +151,7 @@ void MM_Rando_InitCore(void);
 void MM_ComboLogic_SetHostPool(const uint16_t* checks, int count);
 int MM_ComboLogic_PoolVanillaItems(uint16_t* outItems, uint16_t* outHosts, int cap);
 int MM_ComboLogic_ApplyShippedProfile(void);
+int MM_ComboLogic_ProbeGives(const uint16_t* ids, int count, int startIndex);
 int MM_ComboLogic_ShrinkObservations(void);
 int MM_ComboLogic_HarvestCount(void);
 int MM_ComboLogic_SnapshotLive(void);
@@ -348,6 +349,43 @@ TestResult ComboLogicMeasure_Run(void) {
            (unsigned)RSBS_GENBUDGET_FLOOR_MS, (unsigned)RSBS_GENBUDGET_CEILING_MS,
            (unsigned)Combo_GenBudget_HostScalePercent(), (unsigned)Combo_GenBudget_FillBudgetMs(0),
            (unsigned)Combo_GenBudget_TotalBudgetMs());
+
+    // ------------------------------------------------------------------
+    // THE NULL-PLAY GIVE PROBE, env-gated and never run by the CTest row.
+    // ------------------------------------------------------------------
+    // `RSBS_COMBO_MEASURE_PROBE=<startIndex+1>` walks MM's whole graph-wide
+    // vanilla item list through `Rando::GiveItem` one id at a time, printing each
+    // id to stderr BEFORE giving it, and returns. Its purpose is to CRASH on an id
+    // whose give dereferences a NULL `MM_gPlayState`, so that the id names itself
+    // in the log — which is how the exclusion list in
+    // `MM_ComboLogic_PoolVanillaItems` was derived, and how it must be re-derived
+    // whenever MM's item table or `Item_GiveImpl`'s guards change.
+    //
+    // It runs BEFORE the OoT generation on purpose: the probe needs MM's graph and
+    // MM's profile and nothing else, and skipping the generation makes the
+    // re-run-past-the-last-id loop seconds rather than minutes.
+    const int probeFrom = EnvInt("RSBS_COMBO_MEASURE_PROBE", 0, 0, 1 << 20);
+    if (probeFrom > 0) {
+        MM_Rando_InitCore();
+        std::unique_ptr<unsigned char[]> probeSave(new unsigned char[OOT_SAVE_CONTEXT_SIZE]);
+        memcpy(probeSave.get(), gSaveContext, OOT_SAVE_CONTEXT_SIZE);
+        MM_ComboLogic_ApplyShippedProfile();
+        const int probeTotal = MM_ComboLogic_PoolVanillaItems(nullptr, nullptr, 0);
+        std::vector<uint16_t> probeIds((size_t)probeTotal, 0);
+        if (probeTotal > 0) {
+            MM_ComboLogic_PoolVanillaItems(probeIds.data(), nullptr, probeTotal);
+        }
+        printf("[TEST] combo-logic-measure: PROBE MODE: walking %d MM vanilla ids from index %d through "
+               "Rando::GiveItem with MM_gPlayState NULL; a crash names the id on stderr\n",
+               probeTotal, probeFrom - 1);
+        fflush(stdout);
+        const int returned = MM_ComboLogic_ProbeGives(probeIds.data(), probeTotal, probeFrom - 1);
+        memcpy(gSaveContext, probeSave.get(), OOT_SAVE_CONTEXT_SIZE);
+        printf("[TEST] combo-logic-measure: PROBE MODE: %d gives returned; this mode measures nothing else and is "
+               "not what the CTest row runs\n",
+               returned);
+        return TEST_PASS;
+    }
 
     // ------------------------------------------------------------------
     // A REAL OoT generation, then MM's rando bring-up. Everything below is
@@ -555,6 +593,21 @@ TestResult ComboLogicMeasure_Run(void) {
            roundSamples, roundStats.min, roundStats.median, roundStats.max, iterStats.min, iterStats.median,
            iterStats.max);
 
+    // THE DEAD-END PREDICTOR, printed because it is what a failed fill below
+    // means. An assumed fill's assumed set SHRINKS as items are placed (the
+    // assumed set is the bag MINUS what is already placed), so the reached-host
+    // supply is at its LARGEST in the first round and falls monotonically from
+    // there. The first round's supply is therefore an UPPER BOUND on how many
+    // items the proved rung can ever place: a bag larger than this number
+    // dead-ends with ERR_NO_CANDIDATE for a capacity reason, not a logic one, and
+    // no re-shuffle within the seed can fix it.
+    const int reachedSupply = firstRound.candidatesOoT + firstRound.candidatesMM;
+    printf("[TEST] combo-logic-measure: DEAD-END PREDICTOR: first-round reached empty hosts = %d OoT + %d MM = %d, "
+           "against a bag of %d -> %s. The assumed set shrinks as the fill places, so this supply only falls; a bag "
+           "above it cannot be placed under the proved rung however often the batch is rolled back.\n",
+           firstRound.candidatesOoT, firstRound.candidatesMM, reachedSupply, bagCount,
+           (reachedSupply >= bagCount) ? "sufficient at the start" : "ALREADY SHORT at the start");
+
     // S5: non-vacuity. Both sides must actually be participating, or every
     // number above is a statement about one engine.
     CLM_ASSERT(firstRound.candidatesOoT > 0, "the round collected no OoT candidate host — OoT's half did not run");
@@ -619,7 +672,12 @@ TestResult ComboLogicMeasure_Run(void) {
     CLM_ASSERT(beatEitherARepeat.res.placed == beatEitherA.res.placed &&
                    beatEitherARepeat.res.placementDigest == beatEitherA.res.placementDigest,
                "the same seed placed differently on a second fill over the same bag and the same engines");
-    if (beatEitherA.status == RSBS_COMBO_LOGIC_OK && beatEitherB.status == RSBS_COMBO_LOGIC_OK) {
+    // The control is guarded on both fills having PLACED something, not on both
+    // having succeeded: a fill that dead-ends still placed hundreds of items and
+    // its digest is still a function of the seed, so requiring success here would
+    // make the control skip in exactly the configurations where the fill is most
+    // interesting.
+    if (beatEitherA.res.placed > 0 && beatEitherB.res.placed > 0) {
         CLM_ASSERT(beatEitherB.res.placementDigest != beatEitherA.res.placementDigest,
                    "two DIFFERENT coordinator seeds placed identically — the seed does not reach the draw, so the "
                    "same-seed agreement above is a statement about a constant");
