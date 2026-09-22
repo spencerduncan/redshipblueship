@@ -1477,28 +1477,48 @@ if(BUILD_TESTING)
     # table (foreignCount plus its per-slot foreign<n> lines, MM checks hosting
     # OoT items) are in every one of these digests.
     #
-    # Timeout matches the single-run rows plus headroom, not SeedDeterminism's:
-    # one windowed bring-up, one generation.
+    # Timeout is 300, which is the number SeedDeterminism carries too — the
+    # clause that used to sit here ("not SeedDeterminism's") described the same
+    # literal it was distinguishing itself from. What a golden row does IS the
+    # cheaper half of what SeedDeterminism does: one windowed bring-up and one
+    # generation, against two of each. 300 is headroom for a loaded hosted runner
+    # under llvmpipe rather than a derived figure. Measured on the merged tip (run
+    # 35650187916): all three rows together take 10.9 s on the Windows leg and
+    # 4.5 s on the Linux leg.
     # ========================================================================
-    # ONE TABLE, TWO CONSUMERS: the CTest rows below and the regen-golden-digests
-    # target further down are generated from these specs, so a golden can never
-    # be RE-PINNED under a different profile than the row CHECKS it under. That
-    # drift would be silent and green — the worst possible failure for an oracle —
-    # and it is the reason this is a table instead of six hand-written blocks. The
-    # guarantee is only worth as much as the fields both consumers actually read:
-    # the regen loop below reads all of 1, 2, 3, 4 and 5, and a field added here
-    # must be wired into both consumers in the same commit.
+    # ONE TABLE, THREE CONSUMERS: the CTest rows below, and BOTH re-pin targets
+    # generated from REDSHIP_GOLDEN_REGEN_TARGETS further down
+    # (`regen-golden-digests` and `regen-golden-digests-rom-mounted`, one inner loop
+    # over this table each). A golden therefore can never be RE-PINNED under a
+    # different profile than the row CHECKS it under. That drift would be silent and
+    # green — the worst possible failure for an oracle — and it is the reason this is
+    # a table instead of nine hand-written blocks. The guarantee is only worth as
+    # much as the fields every consumer actually reads: the regen loop below reads
+    # all of 1, 2, 3, 4 and 5, and a field added here must be wired into all three
+    # consumers in the same commit. (This header said "TWO CONSUMERS" for one PR
+    # after the second re-pin target was added, in the comment whose whole job is to
+    # tell the next author how many places a new field must reach.)
     #
-    # WHERE THESE ROWS ARE ACTUALLY ENFORCED: on BOTH CI legs, and `LABEL rando` is
-    # only half of how. Linux runs them inside the `rando` tier under xvfb-run. The
-    # Windows job runs `^redship$` and would therefore skip them entirely, so it
-    # carries a separate `--tests-regex '^Golden'` step — measured to work on
-    # windows-latest, against the expectation that a hosted runner could not bring up
-    # the Fast3dWindow these rows need. The two archive-sensitive rows additionally
-    # SKIP in a ROM-staged local tree, so there is no LOCAL gate for them. If you add
-    # a golden row, it lands in the Linux tier automatically and on Windows only
-    # because its name starts with `Golden` — keep that prefix. Full picture: the
-    # header of CMake/CheckGoldenDigest.cmake and docs/determinism-goldens.md.
+    # WHERE THESE ROWS ARE ACTUALLY ENFORCED: on BOTH CI legs and in the operator's
+    # local ROM-staged run, and `LABEL rando` is only half of how. Linux runs them
+    # inside the `rando` tier under xvfb-run. The Windows job runs `^redship$` and
+    # would therefore skip them entirely, so it carries a separate
+    # `--tests-regex '^Golden'` step — measured to work on windows-latest, against
+    # the expectation that a hosted runner could not bring up the Fast3dWindow these
+    # rows need. The two archive-sensitive rows used to SKIP in a ROM-staged local
+    # tree, leaving the merge gate with no golden coverage at all; they now run their
+    # dispatch from an archive-free sandbox instead (CheckGoldenDigest.cmake), so the
+    # local gate enforces them too — and a sandbox that cannot be built FAILS the row
+    # rather than skipping it, so no path is left on which one of these rows reports
+    # nothing.
+    #
+    # If you add a golden row it lands in the Linux tier automatically, and on
+    # Windows only because its name starts with `Golden`. That prefix is no longer a
+    # request: the loop below FATAL_ERRORs at configure time on a row named anything
+    # else, because a row that quietly runs on one leg only is the gap this whole
+    # block exists to close, and three prose sites asking for the prefix did not
+    # stop it. Full picture: the header of CMake/CheckGoldenDigest.cmake and
+    # docs/determinism-goldens.md.
     #
     # THE ARCHIVE SET IS PART OF THE PIN, and field 4 says which goldens depend on
     # it. MEASURED, not assumed: with the ROM-derived oot.o2r mounted,
@@ -1506,8 +1526,17 @@ if(BUILD_TESTING)
     # Playthrough_Init hashes (3087 per-option lines against 638; the 638 shared
     # lines are byte-equal), the fill is re-seeded differently and the whole OoT
     # world moves. Hosted CI can never have ROM-derived archives, so the goldens
-    # pin the archive-free world and a ROM-staged local run SKIPS those rows with
-    # a printed reason instead of going red about a move that did not happen. The
+    # pin the archive-free world, and a ROM-staged local run neither compares
+    # against it (that would be red about a move that did not happen) nor skips:
+    # it hard-links the binary and the PORT archives into
+    # <build>/golden-archive-free/<name>/ and runs the dispatch there, because the
+    # binary resolves archives from its own directory as well as from the cwd. The
+    # port archives are resolved from the build directory AND from the binary's own
+    # directory, and a sandbox that ends up with none of them fails rather than
+    # pinning a no-archive world. `mods/`, `assets/` and the rest of the build
+    # directory do NOT travel into the sandbox — the goldens pin the world a hosted
+    # runner reproduces, and the sandbox is not "the build directory minus the ROM
+    # archives" (CheckGoldenDigest.cmake, _archive_free_sandbox). The
     # mm-paired-attempt digest is archive-INSENSITIVE (measured: a ROM-staged
     # Windows golden passed unchanged on archive-free Linux CI), so it carries no
     # guard and is enforced everywhere.
@@ -1525,6 +1554,21 @@ if(BUILD_TESTING)
     foreach(_golden_spec IN LISTS REDSHIP_GOLDEN_DIGESTS)
         string(REPLACE "|" ";" _golden_fields "${_golden_spec}")
         list(GET _golden_fields 0 _golden_row)
+        # The Windows leg selects these rows by `--tests-regex '^Golden'` while the
+        # `LABEL rando` below gets them onto Linux unconditionally, so a row named
+        # anything else is enforced on one leg and silently absent from the other —
+        # exactly the state this machinery was built to leave behind, and exactly
+        # what happened for a full PR. Asserted here rather than asked for in prose,
+        # in the same spirit as redship_add_test's hard failure on an unparsed
+        # keyword: if you rename this pattern, rename it in
+        # .github/workflows/generate-builds.yml first.
+        if(NOT _golden_row MATCHES "^Golden")
+            message(FATAL_ERROR
+                "REDSHIP_GOLDEN_DIGESTS: the CTest row name must start with `Golden`, and '${_golden_row}' does not. "
+                "The Windows CI job runs these rows by name (--tests-regex '^Golden' in "
+                ".github/workflows/generate-builds.yml); a differently named row would be enforced on the Linux leg "
+                "only, with nothing anywhere saying so. Rename the row, or change BOTH the regex and this check.")
+        endif()
         list(GET _golden_fields 1 _golden_name)
         list(GET _golden_fields 2 _golden_dispatch)
         list(GET _golden_fields 3 _golden_env_var)
@@ -1542,19 +1586,21 @@ if(BUILD_TESTING)
                     -DDIGEST_ENV=${_golden_env_var}
                     -DGOLDEN_DIR=${REDSHIP_GOLDEN_DIR}
                     -DGOLDEN_NAME=${_golden_name}
-                    -DSKIP_IF_ROM_ARCHIVES=${_golden_archive_free_only}
+                    -DARCHIVE_FREE_ONLY=${_golden_archive_free_only}
                     -P ${CMAKE_CURRENT_LIST_DIR}/CheckGoldenDigest.cmake
             LABEL rando
             TIMEOUT 300
             ENVIRONMENT ${_golden_env})
-        if(_golden_archive_free_only)
-            # CTest turns the marker into SKIPPED, so a ROM-staged local run says
-            # "not applicable here, and here is why" instead of either going red
-            # about a move that did not happen or passing silently. Set directly
-            # rather than through redship_add_test: one property on three rows is
-            # not worth widening a helper every lane shares.
-            set_tests_properties(${_golden_row} PROPERTIES SKIP_REGULAR_EXPRESSION "RSBS_GOLDEN_SKIP:")
-        endif()
+        # NO SKIP PROPERTY, DELIBERATELY. These two rows carried
+        # `SKIP_REGULAR_EXPRESSION "RSBS_GOLDEN_SKIP:"` for the fallback where the
+        # archive-free sandbox could not be built, which meant the local merge gate
+        # was one silent step — a sandbox that fails to build for any reason — from
+        # the zero-coverage state this machinery exists to end, with prose asking a
+        # human to read the skip reason as the only thing in the way. A sandbox that
+        # cannot be built is a broken harness, not a false world move, so
+        # CheckGoldenDigest FATAL_ERRORs there instead and names both ways out. Every
+        # golden row is now green or red on every gate; a SKIPPED golden row means
+        # somebody re-added a skip path.
     endforeach()
 
     # #661 end to end: the OoTEntrancePin row above proves the pair is not a POOL
@@ -1655,6 +1701,12 @@ if(BUILD_TESTING)
     redship_add_test(NAME ComboLogicEngineSurface COMMAND redship --test combo-logic-engine-surface)
     redship_add_test(NAME ComboLogicFixpoint COMMAND redship --test combo-logic-fixpoint)
     redship_add_test(NAME ComboLogicFill COMMAND redship --test combo-logic-fill)
+    # The increment-3 review follow-up (#701): the host-enumeration cap, the
+    # failed-bracket ownership rule, and RunFill's table reset. Same fixture, same
+    # `redship` tier — but it drives a SYNTHETIC host pool of a few thousand ids,
+    # because the quantity under test is the size of a game's check pool and six
+    # authored hosts cannot express it.
+    redship_add_test(NAME ComboLogicContractEdges COMMAND redship --test combo-logic-contract-edges)
 
     # The OoT ENGINE behind that coordinator (#645, lane K2a). `rando` tier, and
     # for a correctness reason rather than a convenience one: every fact this row
@@ -1799,51 +1851,72 @@ if(BUILD_TESTING)
     #
     # THAT IS NOW ENFORCED, NOT REQUESTED. The archive-sensitivity field is passed
     # through below, and CheckGoldenDigest REFUSES a REGEN of an archive-sensitive
-    # golden while oot.o2r/mm.o2r are in WORK_DIR (error names both paths;
-    # -DALLOW_ROM_ARCHIVE_REGEN=ON overrides deliberately). The previous version of
-    # this block asked a human to remember instead, which was the weakest possible
-    # defense for the most damaging mistake this target can make: WORKING_DIRECTORY
-    # below is ${CMAKE_BINARY_DIR}, i.e. exactly the ROM-staged tree the operator
-    # builds in, the local `rando` tier SKIPS the rows that would object there, and
-    # the first symptom of a bad re-pin is a red Linux leg on this PR and on every
-    # PR after it.
+    # golden while oot.o2r/mm.o2r are in WORK_DIR (the error names both paths). The
+    # previous version of this block asked a human to remember instead, which was
+    # the weakest possible defense for the most damaging mistake this target can
+    # make: WORKING_DIRECTORY below is ${CMAKE_BINARY_DIR}, i.e. exactly the
+    # ROM-staged tree the operator builds in, and the first symptom of a bad re-pin
+    # is a red Linux leg on this PR and on every PR after it.
+    #
+    # TWO TARGETS, BECAUSE AN OVERRIDE NOBODY CAN REACH IS NOT AN OVERRIDE. The
+    # refusal documents `-DALLOW_ROM_ARCHIVE_REGEN=ON` as the deliberate way out,
+    # and for one PR that sentence stood in four places while the command line
+    # generated here did not carry the variable at all: `cmake -P` has no cache and
+    # imports no environment, so `cmake --build <dir> --target regen-golden-digests`
+    # could not set it by any spelling. It is forwarded now, explicitly on both
+    # targets — OFF on the normal one, ON on `regen-golden-digests-rom-mounted` —
+    # and CheckGoldenDigest FATAL_ERRORs on a REGEN caller that leaves it undefined,
+    # so the next caller that forgets finds out immediately. A target rather than a
+    # cache entry: the override is then per-invocation and named at the point of
+    # use, instead of a variable somebody sets once and forgets while every later
+    # re-pin in that tree silently pins the ROM-mounted world.
     # ========================================================================
-    add_custom_target(regen-golden-digests
-        COMMENT "Re-pinning the golden determinism digests in tests/golden/ (#688)")
-    foreach(_golden_spec IN LISTS REDSHIP_GOLDEN_DIGESTS)
-        string(REPLACE "|" ";" _golden_fields "${_golden_spec}")
-        list(GET _golden_fields 1 _golden_name)
-        list(GET _golden_fields 2 _golden_dispatch)
-        list(GET _golden_fields 3 _golden_env_var)
-        # Field 4 is read HERE too, not only by the CTest row above. Reading it in
-        # one consumer and not the other is what let the regen target behave
-        # identically for an archive-sensitive and an archive-insensitive golden
-        # while this block claimed the table made that impossible.
-        list(GET _golden_fields 4 _golden_archive_free_only)
-        list(GET _golden_fields 5 _golden_extra_env)
-        set(_golden_env "SDL_AUDIODRIVER=dummy" "RSBS_DISABLE_OTR_INIT=1")
-        if(_golden_extra_env)
-            list(APPEND _golden_env "${_golden_extra_env}")
-        endif()
-        add_custom_command(TARGET regen-golden-digests POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E env ${_golden_env}
-                    ${CMAKE_COMMAND}
-                    -DREDSHIP_EXE=$<TARGET_FILE:redship>
-                    -DWORK_DIR=${CMAKE_BINARY_DIR}
-                    -DDISPATCH=${_golden_dispatch}
-                    -DDIGEST_ENV=${_golden_env_var}
-                    -DGOLDEN_DIR=${REDSHIP_GOLDEN_DIR}
-                    -DGOLDEN_NAME=${_golden_name}
-                    -DSKIP_IF_ROM_ARCHIVES=${_golden_archive_free_only}
-                    -DREGEN=ON
-                    -P ${CMAKE_CURRENT_LIST_DIR}/CheckGoldenDigest.cmake
-            # Explicit, because the binary resolves oot.o2r/mm.o2r/soh.o2r
-            # relative to its working directory and a re-pin against a
-            # half-staged directory would pin a world nobody can reproduce.
-            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-            VERBATIM)
+    set(REDSHIP_GOLDEN_REGEN_TARGETS
+        "regen-golden-digests|OFF|Re-pinning the golden determinism digests in tests/golden/ (#688)"
+        "regen-golden-digests-rom-mounted|ON|Re-pinning the golden determinism digests WITH the ROM archives mounted: pins a world hosted CI cannot reproduce (#688)"
+    )
+    foreach(_regen_spec IN LISTS REDSHIP_GOLDEN_REGEN_TARGETS)
+        string(REPLACE "|" ";" _regen_fields "${_regen_spec}")
+        list(GET _regen_fields 0 _regen_target)
+        list(GET _regen_fields 1 _regen_allow_rom)
+        list(GET _regen_fields 2 _regen_comment)
+        add_custom_target(${_regen_target} COMMENT "${_regen_comment}")
+        foreach(_golden_spec IN LISTS REDSHIP_GOLDEN_DIGESTS)
+            string(REPLACE "|" ";" _golden_fields "${_golden_spec}")
+            list(GET _golden_fields 1 _golden_name)
+            list(GET _golden_fields 2 _golden_dispatch)
+            list(GET _golden_fields 3 _golden_env_var)
+            # Field 4 is read HERE too, not only by the CTest row above. Reading it
+            # in one consumer and not the other is what let the regen target behave
+            # identically for an archive-sensitive and an archive-insensitive golden
+            # while this block claimed the table made that impossible.
+            list(GET _golden_fields 4 _golden_archive_free_only)
+            list(GET _golden_fields 5 _golden_extra_env)
+            set(_golden_env "SDL_AUDIODRIVER=dummy" "RSBS_DISABLE_OTR_INIT=1")
+            if(_golden_extra_env)
+                list(APPEND _golden_env "${_golden_extra_env}")
+            endif()
+            add_custom_command(TARGET ${_regen_target} POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E env ${_golden_env}
+                        ${CMAKE_COMMAND}
+                        -DREDSHIP_EXE=$<TARGET_FILE:redship>
+                        -DWORK_DIR=${CMAKE_BINARY_DIR}
+                        -DDISPATCH=${_golden_dispatch}
+                        -DDIGEST_ENV=${_golden_env_var}
+                        -DGOLDEN_DIR=${REDSHIP_GOLDEN_DIR}
+                        -DGOLDEN_NAME=${_golden_name}
+                        -DARCHIVE_FREE_ONLY=${_golden_archive_free_only}
+                        -DALLOW_ROM_ARCHIVE_REGEN=${_regen_allow_rom}
+                        -DREGEN=ON
+                        -P ${CMAKE_CURRENT_LIST_DIR}/CheckGoldenDigest.cmake
+                # Explicit, because the binary resolves oot.o2r/mm.o2r/soh.o2r
+                # relative to its working directory and a re-pin against a
+                # half-staged directory would pin a world nobody can reproduce.
+                WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+                VERBATIM)
+        endforeach()
+        add_dependencies(${_regen_target} redship)
     endforeach()
-    add_dependencies(regen-golden-digests redship)
 
     # Must come after every redship_add_test()/redship_test_exempt() above —
     # writes the manifest TestRegistrationComplete reads.

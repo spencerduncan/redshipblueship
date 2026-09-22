@@ -696,6 +696,29 @@ jobs:
       run: |
         $ctest = Join-Path (Split-Path -Parent (Get-Command cmake).Source) 'ctest.exe'
         & $ctest --test-dir bw --output-on-failure --tests-regex '^Golden' --no-tests=error
+    # The Windows twin of build-linux's "Print this build's golden determinism
+    # digests" step, and it exists for the reason that step states: with only
+    # `--output-on-failure`, a PASSING row's digest never reaches the log, so "do
+    # Windows and Linux generate the same world for the same seed?" was answerable
+    # from the logs exactly when the answer was already bad news. For one PR the
+    # dump existed on the Linux leg only while docs/determinism-goldens.md claimed
+    # both legs had it — measured on the merged tip: run 35650187916, Windows job
+    # 106500643608 carried zero digest lines, Linux job 106500643765 carried all
+    # three in full. `if: always()`, and after the rows rather than instead of
+    # them: the artifacts are what the rows compared, so this leg's world is in
+    # every log, pass or fail.
+    - name: Print this build's golden determinism digests (Windows) (#688)
+      if: always()
+      run: |
+        $files = @(Get-ChildItem -Path bw -Filter 'golden-*-actual.txt' -File -ErrorAction SilentlyContinue)
+        if ($files.Count -eq 0) {
+          Write-Host 'no golden digest artifacts were produced'
+        } else {
+          foreach ($f in $files) {
+            Write-Host "===== $($f.Name) ====="
+            Get-Content -LiteralPath $f.FullName
+          }
+        }
     - name: Package (Windows)
       run: |
         cd bw
