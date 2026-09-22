@@ -523,6 +523,28 @@ TestResult OoTLogicExport_Run(void) {
            emptiedChecks.size());
     OLE_ASSERT(!emptiedChecks.empty(), "the fill placed no advancement item — the monotonicity leg would be vacuous");
 
+    // HOW UNWARRANTED THE OLD PLACE-LEG FIXTURE WAS, counted rather than argued.
+    // "An advancement item was placed here" does not imply "this check is in
+    // ctx->allLocations", and therefore does not imply the engine can see it: the
+    // dungeon rewards and Link's Pocket are filled by paths that do not go through
+    // `GenerateLocationPool`. Any emptied check counted here is invisible to
+    // `allEmptyHosts`, so picking one as a place-leg host would have made "freeing a
+    // host made exactly one more empty host" fail and point at the engine.
+    std::vector<bool> ownedById((size_t)idSpace, false);
+    for (int i = 0; i < ownedTotal; i++) {
+        ownedById[(size_t)ownedHosts[(size_t)i]] = true;
+    }
+    int emptiedButUnowned = 0;
+    for (const uint16_t host : emptiedChecks) {
+        if (host < (uint16_t)idSpace && !ownedById[(size_t)host]) {
+            emptiedButUnowned++;
+        }
+    }
+    printf("[TEST] oot-logic-export: %d of those %zu emptied checks are NOT in the engine's host set, and "
+           "emptiedChecks[0] (%u) %s\n",
+           emptiedButUnowned, emptiedChecks.size(), (unsigned)emptiedChecks[0],
+           ownedById[(size_t)emptiedChecks[0]] ? "happens to be owned" : "is NOT owned");
+
     for (const uint16_t host : emptiedChecks) {
         OLE_ASSERT(OoT_ComboLogic_TestSetPlacedItem(host, 0 /* RG_NONE */), "could not empty a location");
     }
