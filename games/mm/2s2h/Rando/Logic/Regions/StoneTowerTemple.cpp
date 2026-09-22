@@ -241,12 +241,32 @@ static RegisterShipInitFunc initFunc([]() {
             CHECK(RC_STONE_TOWER_TEMPLE_INVERTED_EAST_UPPER_CHEST, CAN_BE_DEKU && CAN_PLAY_SONG(ELEGY)),
             CHECK(RC_STONE_TOWER_TEMPLE_INVERTED_EAST_MIDDLE_CHEST, CAN_BE_DEKU),
             CHECK(RC_STONE_TOWER_TEMPLE_INVERTED_EAST_LOWER_CHEST, CAN_BE_DEKU && CAN_USE_MAGIC_ARROW(FIRE)),
-            CHECK(RC_STONE_TOWER_TEMPLE_INVERTED_UPDRAFTS_BRIDGE_POT_01, CAN_BE_DEKU),
-            CHECK(RC_STONE_TOWER_TEMPLE_INVERTED_UPDRAFTS_BRIDGE_POT_02, CAN_BE_DEKU),
-            CHECK(RC_STONE_TOWER_TEMPLE_INVERTED_UPDRAFTS_LEDGE_POT_01, CAN_BE_DEKU),
-            CHECK(RC_STONE_TOWER_TEMPLE_INVERTED_UPDRAFTS_LEDGE_POT_02, CAN_BE_DEKU),
-            CHECK(RC_STONE_TOWER_TEMPLE_INVERTED_UPDRAFTS_LEDGE_POT_03, CAN_BE_DEKU),
-            CHECK(RC_STONE_TOWER_TEMPLE_INVERTED_UPDRAFTS_LEDGE_POT_04, CAN_BE_DEKU),
+            // #578 part 3 (second pass) — MMRT_ST_UPDRAFTS ("Stone Tower Updrafts without Deku Mask —
+            // This room can be traversed using Recoil Flips or Goron Mask instead of Deku Mask"),
+            // DEFAULT OFF, on the six checks whose own RC names say UPDRAFTS.
+            //
+            // WHY HERE AND NOT THE OUTDOOR STONE TOWER, since the key's prefix is `ST_` and our area
+            // column says MMRTA_STONE_TOWER: by elimination. `Logic/Regions/East.cpp`'s outdoor
+            // RR_STONE_TOWER_* regions gate on HOOKSHOT / ELEGY / GORON / ZORA / CAN_GROW_BEAN_PLANT and
+            // carry no Deku updraft term at all, so the only updraft vocabulary in the graph is this
+            // room's. A binding needs a term the tooltip's "instead of Deku Mask" can name, and these
+            // are the only ones.
+            //
+            // The substitute is CAN_BE_GORON or a plain BOMB, NOT CAN_USE_EXPLOSIVE: a recoil flip is
+            // done off a bomb you stand beside, and CAN_USE_EXPLOSIVE also admits Bombchus, the Blast
+            // Mask and (under MMRT_KEG_EXPLOSIVES) a Powder Keg, which are not that trick.
+            //
+            // NOT WIDENED, stated so the narrowing is reviewable rather than silent: this region's
+            // connection to RR_STONE_TOWER_TEMPLE_INVERTED_LAVA_FLIP_ROOM also carries CAN_BE_DEKU, and
+            // the tooltip's "this room can be traversed" arguably reaches it. Nothing in the file says
+            // whether that Deku term is the updraft crossing or the door beyond it, so widening it would
+            // be a guess; it is recorded on #697 as an item a judgement is owed on.
+            CHECK(RC_STONE_TOWER_TEMPLE_INVERTED_UPDRAFTS_BRIDGE_POT_01, CAN_BE_DEKU || (MM_TRICK(MMRT_ST_UPDRAFTS) && (CAN_BE_GORON || HAS_ITEM(ITEM_BOMB)))),
+            CHECK(RC_STONE_TOWER_TEMPLE_INVERTED_UPDRAFTS_BRIDGE_POT_02, CAN_BE_DEKU || (MM_TRICK(MMRT_ST_UPDRAFTS) && (CAN_BE_GORON || HAS_ITEM(ITEM_BOMB)))),
+            CHECK(RC_STONE_TOWER_TEMPLE_INVERTED_UPDRAFTS_LEDGE_POT_01, CAN_BE_DEKU || (MM_TRICK(MMRT_ST_UPDRAFTS) && (CAN_BE_GORON || HAS_ITEM(ITEM_BOMB)))),
+            CHECK(RC_STONE_TOWER_TEMPLE_INVERTED_UPDRAFTS_LEDGE_POT_02, CAN_BE_DEKU || (MM_TRICK(MMRT_ST_UPDRAFTS) && (CAN_BE_GORON || HAS_ITEM(ITEM_BOMB)))),
+            CHECK(RC_STONE_TOWER_TEMPLE_INVERTED_UPDRAFTS_LEDGE_POT_03, CAN_BE_DEKU || (MM_TRICK(MMRT_ST_UPDRAFTS) && (CAN_BE_GORON || HAS_ITEM(ITEM_BOMB)))),
+            CHECK(RC_STONE_TOWER_TEMPLE_INVERTED_UPDRAFTS_LEDGE_POT_04, CAN_BE_DEKU || (MM_TRICK(MMRT_ST_UPDRAFTS) && (CAN_BE_GORON || HAS_ITEM(ITEM_BOMB)))),
             CHECK(RC_STONE_TOWER_TEMPLE_INVERTED_WIND_ROOM_FREESTANDING_RUPEE_01, CAN_USE_MAGIC_ARROW(LIGHT) && HAS_ITEM(ITEM_HOOKSHOT)),
             CHECK(RC_STONE_TOWER_TEMPLE_INVERTED_WIND_ROOM_FREESTANDING_RUPEE_02, CAN_USE_MAGIC_ARROW(LIGHT) && HAS_ITEM(ITEM_HOOKSHOT)),
             CHECK(RC_STONE_TOWER_TEMPLE_INVERTED_WIND_ROOM_FREESTANDING_RUPEE_03, CAN_USE_MAGIC_ARROW(LIGHT)),

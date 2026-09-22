@@ -360,7 +360,14 @@ static RegisterShipInitFunc initFunc([]() {
             CHECK(RC_ENEMY_DROP_SKULLTULA, CanKillEnemy(ACTOR_EN_ST)),
         },
         .connections = {
-            CONNECTION(RR_GREAT_BAY_TEMPLE_CENTRAL_ROOM,  CAN_BE_ZORA && CAN_USE_ABILITY(SWIM)),
+            // #578 part 3 (second pass) — MMRT_GBT_WATERWHEEL_GORON ("Cross GBT Waterwheel Room as
+            // Goron — Skip the first yellow turnkey with a precise Goron Roll"), DEFAULT OFF. The
+            // TARGET region is not guessed from the display name: the RESERVED sibling
+            // MMRT_GBT_WATERWHEEL_HOVERS says "Similar to using Goron, Hover Boots can be used to get
+            // on the water wheel and then reach the central room", which names this connection. Goron
+            // rolls the wheel rather than swimming, so CAN_BE_GORON is the disjunct's own term and the
+            // vanilla Zora-and-swim pair is kept verbatim as the other disjunct.
+            CONNECTION(RR_GREAT_BAY_TEMPLE_CENTRAL_ROOM,  (CAN_BE_ZORA && CAN_USE_ABILITY(SWIM)) || (MM_TRICK(MMRT_GBT_WATERWHEEL_GORON) && CAN_BE_GORON)),
             CONNECTION(RR_GREAT_BAY_TEMPLE_ENTRANCE,      true),
         }
     };

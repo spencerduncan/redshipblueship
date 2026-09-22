@@ -283,6 +283,25 @@ void InvDekuAndDeedMountain() {
     Flags_SetRandoInf(RANDO_INF_OBTAINED_DEED_MOUNTAIN);
 }
 
+// ---- part 3's second pass ------------------------------------------------
+
+/** CAN_USE_MAGIC_ARROW(ICE) in full: the Bow, the Ice Arrows, and magic. All
+ *  three, because the macro is a conjunction and a save missing any one of them
+ *  gives a green half that never goes green. */
+void InvBowIceArrowsAndMagic() {
+    Give(ITEM_BOW);
+    Give(ITEM_ARROW_ICE);
+    gSaveContext.save.saveInfo.playerData.isMagicAcquired = true;
+}
+
+/** The same save minus the ONE item the trick's own text names — the Ice
+ *  Arrows — so the control takes away the arrow rather than the whole bow-and-
+ *  magic apparatus. */
+void InvBowAndMagicNoIceArrows() {
+    Give(ITEM_BOW);
+    gSaveContext.save.saveInfo.playerData.isMagicAcquired = true;
+}
+
 /** A Bow (so CAN_USE_PROJECTILE, the vanilla disjunct, is true) AND the sword the
  *  trick names, so the arm is meaningful with the trick both off and on; what the
  *  row withholds is IS_DAY(), through its clock rather than its inventory. */
@@ -420,6 +439,71 @@ const Probe kProbes[] = {
       (int32_t)RC_CLOCK_TOWN_NORTH_TINGLE_MAP_01, kAllTime, InvGreatFairySword, InvEmpty },
     { MMRT_NCT_TINGLE, "North Clock Town's second Tingle map by jump slash", EDGE_CHECK, RR_CLOCK_TOWN_NORTH,
       (int32_t)RC_CLOCK_TOWN_NORTH_TINGLE_MAP_02, kAllTime, InvGreatFairySword, InvEmpty },
+
+    // ---- #578 part 3, second pass --------------------------------------
+    //
+    // Five more keys. NONE of them needs a leg-(f) arm: every one of these five
+    // widenings appends its disjunct at the TOP level of the condition, so there is
+    // no conjunct left outside the trick's parentheses for an arm to clear. Where a
+    // vanilla conjunction survives (the water wheel's Zora-and-swim pair, Woodfall
+    // rupee 06's Deku-and-explosive pair) it survives INSIDE its own disjunct, which
+    // legs (a)/(b) already cover.
+
+    // MMRT_GBT_WATERWHEEL_GORON. The Goron Mask alone: no Zora Mask and no swim
+    // flag, so the vanilla disjunct is false. The control drops the mask, which is
+    // the trick's own item term.
+    { MMRT_GBT_WATERWHEEL_GORON, "Great Bay Temple's central room from the water wheel as Goron", EDGE_CONNECTION,
+      RR_GREAT_BAY_TEMPLE_WATER_WHEEL_ROOM, (int32_t)RR_GREAT_BAY_TEMPLE_CENTRAL_ROOM, kAllTime, InvGoronOnly,
+      InvEmpty },
+    // MMRT_WFT_RUPEES_ICE, all SIX rupees, one row each for the reason the ISTT
+    // rupees have eight: leg (e) reads both of its sets off one binary, so an
+    // unprobed sibling's tightening passes it. Bow + Ice Arrows + magic and no mask
+    // of any kind, so every vanilla disjunct on all six rows is false — including
+    // row 05's CAN_USE_EXPLOSIVE, since the save holds no bomb, chu, Blast Mask or
+    // keg.
+    { MMRT_WFT_RUPEES_ICE, "Woodfall Temple's pre-Odolwa rupee 01 off an ice platform", EDGE_CHECK,
+      RR_WOODFALL_TEMPLE_PRE_BOSS_ROOM, (int32_t)RC_WOODFALL_TEMPLE_PRE_BOSS_FREESTANDING_RUPEE_01, kAllTime,
+      InvBowIceArrowsAndMagic, InvBowAndMagicNoIceArrows },
+    { MMRT_WFT_RUPEES_ICE, "Woodfall Temple's pre-Odolwa rupee 02 off an ice platform", EDGE_CHECK,
+      RR_WOODFALL_TEMPLE_PRE_BOSS_ROOM, (int32_t)RC_WOODFALL_TEMPLE_PRE_BOSS_FREESTANDING_RUPEE_02, kAllTime,
+      InvBowIceArrowsAndMagic, InvBowAndMagicNoIceArrows },
+    { MMRT_WFT_RUPEES_ICE, "Woodfall Temple's pre-Odolwa rupee 03 off an ice platform", EDGE_CHECK,
+      RR_WOODFALL_TEMPLE_PRE_BOSS_ROOM, (int32_t)RC_WOODFALL_TEMPLE_PRE_BOSS_FREESTANDING_RUPEE_03, kAllTime,
+      InvBowIceArrowsAndMagic, InvBowAndMagicNoIceArrows },
+    { MMRT_WFT_RUPEES_ICE, "Woodfall Temple's pre-Odolwa rupee 04 off an ice platform", EDGE_CHECK,
+      RR_WOODFALL_TEMPLE_PRE_BOSS_ROOM, (int32_t)RC_WOODFALL_TEMPLE_PRE_BOSS_FREESTANDING_RUPEE_04, kAllTime,
+      InvBowIceArrowsAndMagic, InvBowAndMagicNoIceArrows },
+    { MMRT_WFT_RUPEES_ICE, "Woodfall Temple's pre-Odolwa rupee 05 off an ice platform", EDGE_CHECK,
+      RR_WOODFALL_TEMPLE_PRE_BOSS_ROOM, (int32_t)RC_WOODFALL_TEMPLE_PRE_BOSS_FREESTANDING_RUPEE_05, kAllTime,
+      InvBowIceArrowsAndMagic, InvBowAndMagicNoIceArrows },
+    { MMRT_WFT_RUPEES_ICE, "Woodfall Temple's pre-Odolwa rupee 06 off an ice platform", EDGE_CHECK,
+      RR_WOODFALL_TEMPLE_PRE_BOSS_ROOM, (int32_t)RC_WOODFALL_TEMPLE_PRE_BOSS_FREESTANDING_RUPEE_06, kAllTime,
+      InvBowIceArrowsAndMagic, InvBowAndMagicNoIceArrows },
+    // MMRT_ST_UPDRAFTS, all SIX updraft checks. The Goron Mask alone satisfies the
+    // trick's disjunct; the control empties the save, which clears both of its arms
+    // (mask and bomb) at once.
+    { MMRT_ST_UPDRAFTS, "ISTT's updraft bridge pot 01 as Goron", EDGE_CHECK, RR_STONE_TOWER_TEMPLE_INVERTED_WIND_ROOM,
+      (int32_t)RC_STONE_TOWER_TEMPLE_INVERTED_UPDRAFTS_BRIDGE_POT_01, kAllTime, InvGoronOnly, InvEmpty },
+    { MMRT_ST_UPDRAFTS, "ISTT's updraft bridge pot 02 as Goron", EDGE_CHECK, RR_STONE_TOWER_TEMPLE_INVERTED_WIND_ROOM,
+      (int32_t)RC_STONE_TOWER_TEMPLE_INVERTED_UPDRAFTS_BRIDGE_POT_02, kAllTime, InvGoronOnly, InvEmpty },
+    { MMRT_ST_UPDRAFTS, "ISTT's updraft ledge pot 01 as Goron", EDGE_CHECK, RR_STONE_TOWER_TEMPLE_INVERTED_WIND_ROOM,
+      (int32_t)RC_STONE_TOWER_TEMPLE_INVERTED_UPDRAFTS_LEDGE_POT_01, kAllTime, InvGoronOnly, InvEmpty },
+    { MMRT_ST_UPDRAFTS, "ISTT's updraft ledge pot 02 as Goron", EDGE_CHECK, RR_STONE_TOWER_TEMPLE_INVERTED_WIND_ROOM,
+      (int32_t)RC_STONE_TOWER_TEMPLE_INVERTED_UPDRAFTS_LEDGE_POT_02, kAllTime, InvGoronOnly, InvEmpty },
+    { MMRT_ST_UPDRAFTS, "ISTT's updraft ledge pot 03 as Goron", EDGE_CHECK, RR_STONE_TOWER_TEMPLE_INVERTED_WIND_ROOM,
+      (int32_t)RC_STONE_TOWER_TEMPLE_INVERTED_UPDRAFTS_LEDGE_POT_03, kAllTime, InvGoronOnly, InvEmpty },
+    { MMRT_ST_UPDRAFTS, "ISTT's updraft ledge pot 04 as Goron", EDGE_CHECK, RR_STONE_TOWER_TEMPLE_INVERTED_WIND_ROOM,
+      (int32_t)RC_STONE_TOWER_TEMPLE_INVERTED_UPDRAFTS_LEDGE_POT_04, kAllTime, InvGoronOnly, InvEmpty },
+    // MMRT_PALACE_GUARD_SKIP. "As Human Link" carries no item term and the Deku
+    // term was the connection's whole condition, so there is nothing for a control
+    // arm to take away — the same shape as MMRT_WELL_HSW above.
+    { MMRT_PALACE_GUARD_SKIP, "Deku Palace's interior past the guards as Human", EDGE_CONNECTION,
+      RR_DEKU_PALACE_OUTSIDE, (int32_t)RR_DEKU_PALACE_INSIDE_LOWER, kAllTime, InvEmpty, NULL },
+    // MMRT_IKANA_ROOF_PARKOUR. A wholly NEW edge, so the trick IS the condition and
+    // the red half is the edge existing in the map and refusing — the same shape as
+    // part 2's MMRT_PALACE_BEAN_SKIP.
+    { MMRT_IKANA_ROOF_PARKOUR, "Ikana Castle's outer roof from the inner roof", EDGE_CONNECTION,
+      RR_IKANA_CASTLE_INNER_ROOF, (int32_t)RR_IKANA_CASTLE_OUTER_ROOF, kAllTime, InvEmpty, NULL },
 };
 
 /**

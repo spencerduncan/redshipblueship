@@ -169,12 +169,26 @@ static RegisterShipInitFunc initFunc([]() {
             CHECK(RC_WOODFALL_TEMPLE_PRE_BOSS_POT_01, CAN_BE_DEKU && HAS_ITEM(ITEM_BOW)),
             CHECK(RC_WOODFALL_TEMPLE_PRE_BOSS_POT_02, CAN_BE_DEKU && HAS_ITEM(ITEM_BOW)),
             CHECK(RC_WOODFALL_TEMPLE_SF_PRE_BOSS_PILLAR, CAN_BE_DEKU && HAS_ITEM(ITEM_BOW)),
-            CHECK(RC_WOODFALL_TEMPLE_PRE_BOSS_FREESTANDING_RUPEE_01, CAN_BE_DEKU || CAN_BE_ZORA),
-            CHECK(RC_WOODFALL_TEMPLE_PRE_BOSS_FREESTANDING_RUPEE_02, CAN_BE_DEKU || CAN_BE_ZORA),
-            CHECK(RC_WOODFALL_TEMPLE_PRE_BOSS_FREESTANDING_RUPEE_03, CAN_BE_DEKU || CAN_BE_ZORA),
-            CHECK(RC_WOODFALL_TEMPLE_PRE_BOSS_FREESTANDING_RUPEE_04, CAN_BE_DEKU || CAN_BE_ZORA),
-            CHECK(RC_WOODFALL_TEMPLE_PRE_BOSS_FREESTANDING_RUPEE_05, CAN_BE_DEKU && HAS_ITEM(ITEM_BOW) || CAN_BE_ZORA || CAN_USE_EXPLOSIVE),
-            CHECK(RC_WOODFALL_TEMPLE_PRE_BOSS_FREESTANDING_RUPEE_06, CAN_BE_DEKU && (CAN_BE_ZORA || CAN_USE_EXPLOSIVE)),
+            // #578 part 3 (second pass) — MMRT_WFT_RUPEES_ICE ("Collect the Pillar Rupees in Woodfall
+            // Temple using Ice Arrows — The rupees next to Odolwa's door can be jumped to after
+            // creating ice platforms in the water"), DEFAULT OFF, on all SIX of them.
+            //
+            // WHY THE WHOLE SET AND NOT A CHOSEN SUBSET: Odolwa's door is this region's own exit
+            // (ENTRANCE(ODOLWAS_LAIR, 0) below), and these six are the only rupees the graph places in
+            // the room, so "the rupees next to Odolwa's door" names the set by elimination. That is the
+            // same reading MMRT_ISTT_RUPEES_GORON was bound under in the first pass, where the tooltip
+            // was likewise plural and the room's rupee set likewise unique.
+            //
+            // Each vanilla condition is kept BYTE-FOR-BYTE and the disjunct is appended; `&&` binds
+            // tighter than `||`, so rows 05 and 06 parse exactly as before with the trick off. The
+            // trick's own item term is CAN_USE_MAGIC_ARROW(ICE) (Bow + Ice Arrows + magic), a conjunct
+            // of the disjunct rather than a replacement for anything.
+            CHECK(RC_WOODFALL_TEMPLE_PRE_BOSS_FREESTANDING_RUPEE_01, CAN_BE_DEKU || CAN_BE_ZORA || (MM_TRICK(MMRT_WFT_RUPEES_ICE) && CAN_USE_MAGIC_ARROW(ICE))),
+            CHECK(RC_WOODFALL_TEMPLE_PRE_BOSS_FREESTANDING_RUPEE_02, CAN_BE_DEKU || CAN_BE_ZORA || (MM_TRICK(MMRT_WFT_RUPEES_ICE) && CAN_USE_MAGIC_ARROW(ICE))),
+            CHECK(RC_WOODFALL_TEMPLE_PRE_BOSS_FREESTANDING_RUPEE_03, CAN_BE_DEKU || CAN_BE_ZORA || (MM_TRICK(MMRT_WFT_RUPEES_ICE) && CAN_USE_MAGIC_ARROW(ICE))),
+            CHECK(RC_WOODFALL_TEMPLE_PRE_BOSS_FREESTANDING_RUPEE_04, CAN_BE_DEKU || CAN_BE_ZORA || (MM_TRICK(MMRT_WFT_RUPEES_ICE) && CAN_USE_MAGIC_ARROW(ICE))),
+            CHECK(RC_WOODFALL_TEMPLE_PRE_BOSS_FREESTANDING_RUPEE_05, CAN_BE_DEKU && HAS_ITEM(ITEM_BOW) || CAN_BE_ZORA || CAN_USE_EXPLOSIVE || (MM_TRICK(MMRT_WFT_RUPEES_ICE) && CAN_USE_MAGIC_ARROW(ICE))),
+            CHECK(RC_WOODFALL_TEMPLE_PRE_BOSS_FREESTANDING_RUPEE_06, CAN_BE_DEKU && (CAN_BE_ZORA || CAN_USE_EXPLOSIVE) || (MM_TRICK(MMRT_WFT_RUPEES_ICE) && CAN_USE_MAGIC_ARROW(ICE))),
             CHECK(RC_ENEMY_DROP_SKULLTULA, CAN_BE_DEKU && CanKillEnemy(ACTOR_EN_ST)),
             CHECK(RC_ENEMY_DROP_DRAGONFLY, CanKillEnemy(ACTOR_EN_GRASSHOPPER)),
         },

@@ -179,7 +179,19 @@ static RegisterShipInitFunc initFunc([]() {
             EXIT(ENTRANCE(DEKU_SHRINE, 0),                  ENTRANCE(DEKU_PALACE, 4), RANDO_EVENTS[RE_CLEARED_WOODFALL_TEMPLE] && CAN_TRAVERSE_WAIST_DEEP_WATER),
         },
         .connections = {
-            CONNECTION(RR_DEKU_PALACE_INSIDE_LOWER, CAN_BE_DEKU),
+            // #578 part 3 (second pass) — MMRT_PALACE_GUARD_SKIP ("Backflip over Deku Palace Guards —
+            // With a precise backflip on the fence, jump over the guards as Human Link"), DEFAULT OFF.
+            //
+            // WHY THIS CAN_BE_DEKU IS THE GUARDS AND NOT THE WATER: the bean-side connection on the
+            // very next line crosses the same poison water and carries the cleared-swamp alternative
+            // `(CAN_BE_DEKU || (RE_CLEARED_WOODFALL_TEMPLE && CAN_TRAVERSE_WAIST_DEEP_WATER))`, and the
+            // RC_ENEMY_DROP_MINI_BABA check above it carries the same pair. This connection has the bare
+            // Deku term with no water alternative, so what it models is the thing only Deku Link gets
+            // past — the guards at the palace entrance.
+            //
+            // The trick names no item ("as Human Link"), so the disjunct is the predicate alone and the
+            // vanilla term is kept verbatim beside it.
+            CONNECTION(RR_DEKU_PALACE_INSIDE_LOWER, CAN_BE_DEKU || MM_TRICK(MMRT_PALACE_GUARD_SKIP)),
             CONNECTION(RR_DEKU_PALACE_INSIDE_UPPER_BEAN_SIDE, (CAN_BE_DEKU || (RANDO_EVENTS[RE_CLEARED_WOODFALL_TEMPLE] && CAN_TRAVERSE_WAIST_DEEP_WATER)) && CAN_USE_DAY2_RAIN_BEAN),
         },
     };

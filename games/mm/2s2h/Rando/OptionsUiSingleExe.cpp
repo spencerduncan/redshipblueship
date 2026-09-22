@@ -747,6 +747,10 @@ const MMRandoTrickId kBoundTricks[] = {
     // part 3. Logic/Regions/Central.cpp — RE_BOMBER_CODE, which is what both
     // RC_CLOCK_TOWN_BOMBERS_NOTEBOOK rows already read.
     MMRT_BOMBER_GUESS,
+    // part 3 (second pass). Logic/Regions/South.cpp — RR_DEKU_PALACE_OUTSIDE's
+    // connection to RR_DEKU_PALACE_INSIDE_LOWER, the bare Deku term that models
+    // the guards (the neighbouring water terms all carry a cleared-swamp leg).
+    MMRT_PALACE_GUARD_SKIP,
     // part 3. Logic/Regions/SnowheadTemple.cpp —
     // RR_SNOWHEAD_TEMPLE_PILLARS_ROOM_LOWER's connection up, that room only.
     MMRT_SHT_PILLAR_ROOM_HOOKSHOT,
@@ -761,17 +765,29 @@ const MMRandoTrickId kBoundTricks[] = {
     // part 3. Logic/Regions/West.cpp — RC_ZORA_HALL_SCRUB_PIECE_OF_HEART's
     // CAN_BE_DEKU term; the Mountain Title Deed flag and CAN_BE_GORON kept.
     MMRT_ZORA_HALL_SCRUB_HP_NO_DEKU,
+    // part 3 (second pass). Logic/Regions/IkanaCastle.cpp — a NEW one-way edge
+    // from RR_IKANA_CASTLE_INNER_ROOF to RR_IKANA_CASTLE_OUTER_ROOF.
+    MMRT_IKANA_ROOF_PARKOUR,
     // part 2. Logic/Regions/Central.cpp — RC_CLOCK_TOWN_WEST_POSTMAN_MINIGAME.
     MMRT_POST_OFFICE_GAME,
     // part 3. Logic/Regions/BeneathTheWell.cpp — the Dexihand room's
     // RE_ACCESS_HOT_SPRING_WATER.
     MMRT_WELL_HSW,
+    // part 3 (second pass). Logic/Regions/GreatBayTemple.cpp — the water-wheel
+    // room's connection to the central room; CAN_BE_GORON is the trick's own term.
+    MMRT_GBT_WATERWHEEL_GORON,
     // part 3. Logic/Regions/GreatBayTemple.cpp —
     // RC_GREAT_BAY_TEMPLE_ENTRANCE_CHEST, with the Bow as the disjunct's own term.
     MMRT_GBT_ENTRANCE_BOW,
+    // part 3 (second pass). Logic/Regions/StoneTowerTemple.cpp — the six
+    // Deku-gated checks in the inverted wind room whose RC names say UPDRAFTS.
+    MMRT_ST_UPDRAFTS,
     // part 3. Logic/Regions/Central.cpp — the two Clock Town West bank rewards
     // that carry a wallet term.
     MMRT_BANK_NO_WALLET,
+    // part 3 (second pass). Logic/Regions/WoodfallTemple.cpp — all six
+    // freestanding rupees in the room outside Odolwa's door.
+    MMRT_WFT_RUPEES_ICE,
     // part 3. Logic/Regions/StoneTowerTemple.cpp — the eight Zora-gated
     // pre-Twinmold floating rupees.
     MMRT_ISTT_RUPEES_GORON,
