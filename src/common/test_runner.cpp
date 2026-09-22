@@ -3402,6 +3402,22 @@ TestResult Test_MMDeathDeclineAutosave(void) {
     return MM_DeathDeclineAutosave_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// The OoT combo-logic engine over the real rando graph (#645, lane K2a). The
+// wrapper owns the display-free bring-up because CreateHarnessStyleContext is a
+// file-static defined above here but BELOW the tests/ include block, which is the
+// same reason Test_CrossGameModel is split this way.
+TestResult Test_OoTLogicExport(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    static char oleArg0[] = "redship";
+    static char* oleArgv[] = { oleArg0, nullptr };
+    InitOTRForMMFirstBoot(1, oleArgv);
+    return OoTLogicExport_Run();
+}
+
 TestResult Test_RoundtripIntegrity(void) {
     printf("[TEST] roundtrip-integrity: OoT SaveContext byte-integrity across roundtrip (issue #262)\n");
     int failures = TestRoundtripIntegrity_Run();

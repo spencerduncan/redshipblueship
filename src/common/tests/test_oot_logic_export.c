@@ -78,16 +78,14 @@
 
 #include <cstdio>
 #include <cstring>
-#include <memory>
 #include <vector>
 
-// The harness the `rando` tier rows share. Forward-declared rather than reached
-// for: every `tests/*.c` is #included into test_runner.cpp ABOVE the point that
-// file defines them, and a forward declaration of a function defined later in the
-// same translation unit is precisely what that situation needs.
-static std::shared_ptr<Ship::Context> CreateHarnessStyleContext(void);
+// The ONE harness call this body makes for itself. `CreateHarnessStyleContext` is
+// a file-static defined further down test_runner.cpp than this include lands, so
+// the display-free bring-up stays in the WRAPPER (`Test_OoTLogicExport`, beside
+// the other rando-tier wrappers) and this file holds the body — the same split
+// test_crossgame_model.c uses, for the same reason.
 extern "C" int Rando_HeadlessSeedTest(const char* seedStr);
-extern "C" void InitOTRForMMFirstBoot(int argc, char* argv[]);
 
 // ---------------------------------------------------------------------------
 // The engine's test bridges (games/oot/soh/Enhancements/randomizer/
@@ -245,19 +243,11 @@ void OlePrintAnswer(const char* label, const OleQueryAnswer& a) {
 
 } // namespace
 
-TestResult Test_OoTLogicExport(void) {
+/** The row's whole body. The caller (Test_OoTLogicExport in test_runner.cpp) has
+ *  already brought up the shared Ship::Context and run InitOTRForMMFirstBoot. */
+TestResult OoTLogicExport_Run(void) {
     printf("[TEST] oot-logic-export: OoT's real solver satisfies the combo-logic engine contract (ADR 0010 "
            "increment 3, #645)\n");
-
-    auto shipCtx = CreateHarnessStyleContext();
-    if (!shipCtx) {
-        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
-        return TEST_FAIL;
-    }
-
-    static char arg0[] = "redship";
-    static char* fakeArgv[] = { arg0, nullptr };
-    InitOTRForMMFirstBoot(1, fakeArgv);
 
     // ------------------------------------------------------------------
     // Claim 1: the engine is REGISTERED, which means the registrar survived the
@@ -603,11 +593,15 @@ TestResult Test_OoTLogicExport(void) {
     // ------------------------------------------------------------------
     // The crossing under an ADULT start, MEASURED and printed.
     // ------------------------------------------------------------------
-    // The lane brief expected this to be FALSE. It is reported rather than
-    // assumed, because `AccessReset` only decides which bit `RR_ROOT` starts with
-    // and OoT's own Temple of Time age crossover can still deliver child access
-    // from an adult start. The assertion pinned below is whatever this row
-    // measures, and the PR records which it was.
+    // MEASURED before it was pinned, because it was not obvious: `AccessReset`
+    // only decides which bit `RR_ROOT` starts with, and OoT's Temple of Time age
+    // crossover can deliver child access from an adult start, which would have
+    // left the crossing open anyway. It does not — an adult start reaches 435
+    // checks and the Happy Mask Shop is not among them, because the shop's own
+    // exit is guarded on `logic->IsChild` (market.cpp:37) and reaching the Door of
+    // Time as adult does not give an adult child access. So the crossing observable
+    // genuinely DISCRIMINATES, which is what stops `crossingOpen` from being
+    // "return 1".
     const int priorAge = OoT_ComboLogic_TestForceAdultStart(1);
     OLE_ASSERT(priorAge == 0, "the generated world did not start as child, so the age leg has no baseline");
     OleQueryAnswer adult;
@@ -616,6 +610,11 @@ TestResult Test_OoTLogicExport(void) {
     printf("[TEST] oot-logic-export: crossingOpen from an ADULT start = %d (child start = %d)\n", adult.crossingOpen,
            crossingAfterExpand);
     OoT_ComboLogic_TestForceAdultStart(priorAge);
+    OLE_ASSERT(adult.reachedChecks > 0, "the adult-start query reached nothing at all, so its crossing answer is "
+                                        "about a dead graph rather than about the crossing");
+    OLE_ASSERT(adult.crossingOpen == 0,
+               "the crossing reads OPEN from an adult start — crossingOpen is not discriminating on the child term "
+               "the Happy Mask Shop's own exit is guarded by");
 
     OleQueryAnswer childAgain;
     OLE_ASSERT(OleRunQuery(e, std::vector<uint16_t>(), &childAgain), "the restored child-start query refused");
