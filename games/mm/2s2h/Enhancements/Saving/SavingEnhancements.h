@@ -25,6 +25,12 @@ bool SavingEnhancements_AutosaveArmed();
 void SavingEnhancements_ResetAutosaveInterval();
 uint64_t SavingEnhancements_GetLastAutosaveTimestamp();
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// #693: the periodic autosave's interval (ms), from the MM-only minutes key the
+// unified menu's MM Enhancements slider writes. Contract on the definition.
+uint32_t SavingEnhancements_AutosaveIntervalMs();
+#endif
+
 #ifdef __cplusplus
 }
 #endif

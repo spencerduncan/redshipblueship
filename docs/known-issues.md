@@ -113,12 +113,14 @@ exports it drives (PRs [#714](https://github.com/spencerduncan/redshipblueship/p
   ([#438](https://github.com/spencerduncan/redshipblueship/issues/438), 14 of 23
   hook types remain). The pane says which and why; an option that is enabled and
   does nothing is a bug worth reporting.
-- **MM's autosave INTERVAL is still config-file-only.** The curated MM enhancement
-  toggles — the game-over prompt, `BetterSongOfDoubleTime`, `SkipSoTCutscenes`,
-  and a pointer to the shared `Autosave` checkbox on OoT's Enhancements page — are
-  now hosted on **Combo → MM Enhancements** (PR [#695](https://github.com/spencerduncan/redshipblueship/pull/695), [#682](https://github.com/spencerduncan/redshipblueship/issues/682)). MM's
-  autosave interval (`gEnhancements.Saving.AutosaveInterval`) has no row yet;
-  set it in `shipofharkinian.json` or the console ([#693](https://github.com/spencerduncan/redshipblueship/issues/693)).
+- **MM's enhancement toggles live on Combo → MM Enhancements.** The curated MM
+  enhancement toggles — the game-over prompt, `BetterSongOfDoubleTime`,
+  `SkipSoTCutscenes`, a pointer to the shared `Autosave` checkbox on OoT's
+  Enhancements page, and (since [#693](https://github.com/spencerduncan/redshipblueship/issues/693)) MM's own autosave interval slider
+  (`gEnhancements.Saving.AutosaveInterval`, 1–60 minutes, default 5, shown once
+  Autosave is on) — are hosted there (PR [#695](https://github.com/spencerduncan/redshipblueship/pull/695), [#682](https://github.com/spencerduncan/redshipblueship/issues/682)). The slider sets
+  Majora's Mask's interval only; Ocarina of Time's autosave interval is a fixed
+  3 minutes.
 
 ### Back up your saves. Seriously.
 

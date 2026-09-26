@@ -199,9 +199,31 @@ void DrawAutosaveIcon() {
     }
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+/**
+ * #693: the periodic autosave's interval in Unix milliseconds, read from the
+ * MM-only minutes key exactly as HandleAutoSave always read it (default 5).
+ *
+ * Hoisted out of HandleAutoSave, with the upstream literal and default kept
+ * byte-for-byte, so the one read site HandleAutoSave uses is also the one the
+ * mm-enhancement-toggles lock measures: the unified menu's "MM Enhancements"
+ * page now hosts a slider on this key, and a slider whose key or unit drifted
+ * from this read would move a value nothing consults (#499's failure). The
+ * key is NOT OoT's: OoT's twin (soh/Enhancements/QoL/Autosave.cpp) hardcodes
+ * three minutes with no CVar, which is why RSBS::kMustStayDistinct holds it.
+ */
+extern "C" uint32_t SavingEnhancements_AutosaveIntervalMs() {
+    return CVarGetInteger("gEnhancements.Saving.AutosaveInterval", 5) * 60000;
+}
+#endif
+
 void HandleAutoSave() {
     // Check if the interval has passed in minutes.
+#ifdef RSBS_SINGLE_EXECUTABLE
+    autosaveInterval = SavingEnhancements_AutosaveIntervalMs();
+#else
     autosaveInterval = CVarGetInteger("gEnhancements.Saving.AutosaveInterval", 5) * 60000;
+#endif
     currentTimestamp = GetUnixTimestamp();
     if ((currentTimestamp - lastSaveTimestamp) < autosaveInterval) {
         return;

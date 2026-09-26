@@ -79,6 +79,28 @@
  * that is harmless only because `z_play.c:1173` already calls it and the TU lives
  * in `2ship_src` rather than in an elidable enhancement archive.
  *
+ * LEG 6 IS #693's, the one non-boolean row: MM's autosave INTERVAL
+ * (`gEnhancements.Saving.AutosaveInterval`, minutes). Like Kaleido.GameOver it
+ * has no registrar of its own — HandleAutoSave reads it inline on every tick —
+ * so leg 1's registrar-less loop already asserts nothing registered under it.
+ * What leg 6 adds is the evidence for the other two legs:
+ *   - its GATE (`shownWhileKey`, gEnhancements.Autosave) is the key whose ONE
+ *     registrar arms the tick that performs the read, so the setting is live
+ *     exactly when the gate is on;
+ *   - its READ SITE reads the manifest key in the manifest's unit, with the
+ *     manifest's default: cleared -> sliderDefault minutes, and at sliderMin and
+ *     sliderMax -> those minutes, all in the milliseconds HandleAutoSave compares.
+ *     A slider whose default drifted from the read default makes "reset" and
+ *     "never touched" two different intervals; a unit drift (seconds for minutes)
+ *     makes the slider's label a lie. Neither is a crash.
+ * The read site is `SavingEnhancements_AutosaveIntervalMs`, the one function
+ * HandleAutoSave itself calls. Naming it here is an inbound reference into
+ * SavingEnhancements.cpp, which would be the vacuity trap described above
+ * EXCEPT that the TU is already pinned by GameExports_SingleExe.cpp's extern "C"
+ * calls (SavingEnhancements_AutosaveArmed / _ResetAutosaveInterval /
+ * _AdvancePlaytime) and named by mm_death_decline_autosave_test.cpp; leg 1's
+ * Autosave registrar count is the link evidence and does not rest on this name.
+ *
  * WHAT THIS ROW DOES NOT COVER. That an enabled toggle produces the right
  * behaviour in play. Song of Double Time refusing an unowned half-day, the
  * game-over prompt's own artwork (`icon_item_gameover_static` /
@@ -112,7 +134,9 @@ extern "C" int MM_EnhancementToggles_RunHeadless(void) {
 #include "mm_game_hooks.h"
 
 #include "cvar_shared_keys.h"
+#include "2s2h/Enhancements/Saving/SavingEnhancements.h"
 
+#include <climits>
 #include <cstring>
 #include <string>
 #include <vector>
@@ -184,6 +208,22 @@ constexpr ProbeBinding kProbes[] = {
     { "gEnhancements.Songs.SkipSoTCutscenes", "OnActorUpdate[ACTOR_EN_TEST6]", SkipSotProbe },
 };
 constexpr size_t kProbeCount = sizeof(kProbes) / sizeof(kProbes[0]);
+
+/**
+ * #693: the registrar-less SLIDER keys, each bound to the production read site
+ * that consumes it. Leg 6 asserts, both directions, that every SliderInt manifest
+ * row has a binding here and every binding is a SliderInt manifest row.
+ */
+struct ReadSiteBinding {
+    const char* key;
+    uint32_t (*readMs)();
+    uint32_t msPerUnit; ///< The slider's unit (minutes) in the read site's unit (ms).
+};
+
+constexpr ReadSiteBinding kReadSites[] = {
+    { "gEnhancements.Saving.AutosaveInterval", SavingEnhancements_AutosaveIntervalMs, 60000u },
+};
+constexpr size_t kReadSiteCount = sizeof(kReadSites) / sizeof(kReadSites[0]);
 
 /** Set a key and re-drive MM's registrars for it through the production path,
  *  mirroring exactly what a unified-menu widget does on a click (#539). */
@@ -462,6 +502,85 @@ extern "C" int MM_EnhancementToggles_RunHeadless(void) {
     }
     printf("[TEST] leg 5: gEnhancements.Kaleido.GameOver's read site selects the vanilla reload when cleared and the "
            "kaleido prompt arm when set\n");
+
+    // ---- Leg 6 (#693): the slider rows' gate and read site -----------------
+    {
+        size_t sliderRows = 0;
+        for (size_t i = 0; i < RSBS::kHostedMmEnhancementCount; i++) {
+            const RSBS::HostedMmEnhancement& row = RSBS::kHostedMmEnhancements[i];
+            if (row.widget != RSBS::MmEnhancementWidget::SliderInt) {
+                continue;
+            }
+            sliderRows++;
+
+            const ReadSiteBinding* site = nullptr;
+            for (size_t r = 0; r < kReadSiteCount; r++) {
+                if (std::strcmp(kReadSites[r].key, row.key) == 0) {
+                    site = &kReadSites[r];
+                }
+            }
+            if (site == nullptr) {
+                printf("[TEST] FAIL(10): manifest slider \"%s\" has no read-site binding in this row; its liveness "
+                       "claim is unmeasured\n",
+                       row.key);
+                return 10;
+            }
+
+            // The gate: the key whose single registrar arms the tick that reads
+            // this one. Exactly one, for leg 1's attribution reason.
+            if (row.shownWhileKey != nullptr) {
+                const int gateRegistrars = MM_ShipInit_RegistrarCountForPath(row.shownWhileKey);
+                if (gateRegistrars != 1) {
+                    printf("[TEST] FAIL(10): \"%s\" is gated on \"%s\", which has %d ShipInit registrars, expected "
+                           "exactly 1 -- the gate the menu hides this row behind is not the key that arms its read\n",
+                           row.key, row.shownWhileKey, gateRegistrars);
+                    return 10;
+                }
+            }
+
+            // The read site, three points: cleared (the provider's own default),
+            // the minimum and the maximum.
+            const int saved = CVarGetInteger(row.key, INT32_MIN);
+            int failures = 0;
+
+            CVarClear(row.key);
+            const uint32_t atDefault = site->readMs();
+            if (atDefault != (uint32_t)row.sliderDefault * site->msPerUnit) {
+                printf("[TEST] FAIL(11): with \"%s\" cleared, the read site yields %u ms; the slider's default %d "
+                       "would mean %u ms. \"Reset to default\" and \"never touched\" disagree\n",
+                       row.key, atDefault, row.sliderDefault, (uint32_t)row.sliderDefault * site->msPerUnit);
+                failures++;
+            }
+            const int points[] = { row.sliderMin, row.sliderMax };
+            for (int v : points) {
+                CVarSetInteger(row.key, v);
+                const uint32_t got = site->readMs();
+                if (got != (uint32_t)v * site->msPerUnit) {
+                    printf("[TEST] FAIL(11): with \"%s\" = %d, the read site yields %u ms, expected %u ms -- the "
+                           "slider writes a key or a unit its provider does not read\n",
+                           row.key, v, got, (uint32_t)v * site->msPerUnit);
+                    failures++;
+                }
+            }
+
+            // Back as found: absent stays absent, so a shared `--test all`
+            // process does not inherit an interval nobody set.
+            if (saved == INT32_MIN) {
+                CVarClear(row.key);
+            } else {
+                CVarSetInteger(row.key, saved);
+            }
+            if (failures != 0) {
+                return 11;
+            }
+        }
+        ET_ASSERT(sliderRows == kReadSiteCount, 10,
+                  "the read-site table and the manifest disagree on how many slider rows there are -- a binding "
+                  "outlived its row, or a slider was added without one");
+        ET_ASSERT(sliderRows >= 1, 10, "no manifest slider row: #693's autosave interval row is missing");
+    }
+    printf("[TEST] leg 6: each slider key's gate has exactly one registrar, and its read site reads the manifest key "
+           "in the manifest's unit with the manifest's default\n");
 
     printf("[TEST] mm-enhancement-toggles: PASS\n");
     return 0;
