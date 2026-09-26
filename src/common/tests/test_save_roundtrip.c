@@ -192,10 +192,13 @@ TestResult Test_SaveHeader(void) {
     SAVE_ASSERT(h.ootSize == OOT_SAVE_CONTEXT_SIZE, "bad ootSize");
     SAVE_ASSERT(h.mmSize == MM_SAVE_CONTEXT_SIZE, "bad mmSize");
 
-    // Read the payload and confirm the stored CRC actually verifies.
-    std::vector<uint8_t> payload(h.comboSize + h.ootSize + h.mmSize);
+    // Read the payload and confirm the stored CRC actually verifies. From
+    // format v3 the payload is Tiers 1-3 plus the self-sized Tier-4 crossing
+    // block (ADR 0010 O7), so the CRC covers everything after the header.
+    std::vector<uint8_t> payload(h.comboSize + h.ootSize + h.mmSize + Combo_Crossings_SerializedSize());
     in.read(reinterpret_cast<char*>(payload.data()), static_cast<std::streamsize>(payload.size()));
     SAVE_ASSERT(in.gcount() == static_cast<std::streamsize>(payload.size()), "short payload read");
+    SAVE_ASSERT(in.peek() == std::char_traits<char>::eof(), "bytes after the Tier-4 crossing block");
     SAVE_ASSERT(h.crc32 != 0u, "CRC unexpectedly zero");
     SAVE_ASSERT(rsbs::SaveManager::Crc32(payload.data(), payload.size()) == h.crc32, "CRC does not verify");
 
