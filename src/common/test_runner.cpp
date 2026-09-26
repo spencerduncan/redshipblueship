@@ -1927,6 +1927,127 @@ TestResult Test_ForeignPlacementOoT(void) {
     }
 
     // ------------------------------------------------------------------
+    // THE GIVE-CAPABILITY NARROWING, on the REAL pass (#681; ADR 0011 O8).
+    // ------------------------------------------------------------------
+    // Criterion 3 is profile-conditional now: a soul / ocarina-button / swim /
+    // clock row is drawn only when the paired MM world's FROZEN profile
+    // published that family's capability. Two profiles over the SAME live fill:
+    //
+    //  - the shipped profile, which arms none of the four families. Generation
+    //    published it (Playthrough_Init -> MM_Rando_PublishProfileGiveCaps), so
+    //    it must read "published, zero" — not "unpublished" — and re-running
+    //    the pass must reproduce the generated table BYTE FOR BYTE. That is what
+    //    makes "the narrowing only narrows" checkable: today's worlds did not
+    //    move.
+    //  - a profile that arms every family, under a class record narrowed to
+    //    PROGRESSION (the class every capability row is in) so the draw is dense
+    //    enough in capability rows that "none placed" would be a real signal
+    //    rather than a 3% draw. It must place at least one capability row, never
+    //    more than RSBS_FOREIGN_GIVECAP_FAMILY_BUDGET of one family, and the SAME
+    //    class record with the capabilities UNARMED must place none — the pair
+    //    that distinguishes "narrowed by the profile" from "never drawn".
+    {
+        if (!Combo_ForeignGiveCapsPublished((uint8_t)GAME_MM) || Combo_ForeignGiveCaps((uint8_t)GAME_MM) != 0u) {
+            printf("[TEST] FAIL: after a shipped-profile generation the MM give capabilities read published=%d "
+                   "caps=%04X; expected published with nothing armed (#681)\n",
+                   Combo_ForeignGiveCapsPublished((uint8_t)GAME_MM) ? 1 : 0,
+                   (unsigned)Combo_ForeignGiveCaps((uint8_t)GAME_MM));
+            return TEST_FAIL;
+        }
+
+        const ComboForeignItemDef* mmPool = nullptr;
+        const int mmPoolCount = Combo_GetForeignItemPoolFor((uint8_t)GAME_MM, &mmPool);
+        auto capsOfPlaced = [&](const SharedItem& item) -> uint16_t {
+            for (int row = 0; row < mmPoolCount; row++) {
+                if (mmPool[row].item.id == item.id) {
+                    return mmPool[row].requiredGiveCaps;
+                }
+            }
+            return 0xFFFFu; // not a pool row at all: reported below
+        };
+        // Per-family counts of the capability rows in the live table; returns
+        // the total, or -1 when a slot names a row the pool does not have.
+        auto countCapabilityRows = [&](int outPerFamily[4]) -> int {
+            int total = 0;
+            for (int f = 0; f < 4; f++) {
+                outPerFamily[f] = 0;
+            }
+            for (int slot = 0; slot < (int)RSBS_FOREIGN_PLACEMENT_CAP; slot++) {
+                const ComboForeignPlacement& p = gComboCtx.foreignPlacementsOoT[slot];
+                if (p.item.originGame == (uint8_t)GAME_NONE) {
+                    continue;
+                }
+                const uint16_t caps = capsOfPlaced(p.item);
+                if (caps == 0xFFFFu) {
+                    return -1;
+                }
+                for (int f = 0; f < 4; f++) {
+                    if ((caps & (1u << f)) != 0) {
+                        outPerFamily[f]++;
+                        total++;
+                    }
+                }
+            }
+            return total;
+        };
+
+        int perFamily[4];
+        if (countCapabilityRows(perFamily) != 0) {
+            printf("[TEST] FAIL: the shipped-profile world hosts a capability row its profile does not arm (#681)\n");
+            return TEST_FAIL;
+        }
+
+        const ComboSettingsRecord savedRecord = gComboCtx.comboSettings;
+        gComboCtx.comboSettings.itemClassMM = (uint16_t)RSBS_ITEMCLASS_PROGRESSION;
+
+        // Narrowed class, capabilities UNARMED (published, zero): no capability row.
+        OoT_PlaceForeignItems();
+        const int unarmedCaps = countCapabilityRows(perFamily);
+        if (unarmedCaps != 0 || Combo_CountForeignPlacementsOoT() <= 0) {
+            printf("[TEST] FAIL: with no give capability armed the PROGRESSION-only draw placed %d capability row(s) "
+                   "over %d placements; expected 0 over at least 1 (#681)\n",
+                   unarmedCaps, Combo_CountForeignPlacementsOoT());
+            gComboCtx.comboSettings = savedRecord;
+            return TEST_FAIL;
+        }
+
+        // Same class, every family ARMED.
+        Combo_PublishForeignGiveCaps((uint8_t)GAME_MM, RSBS_GIVECAP_ALL_V1);
+        OoT_PlaceForeignItems();
+        const int armedCaps = countCapabilityRows(perFamily);
+        bool overBudget = false;
+        for (int f = 0; f < 4; f++) {
+            if (perFamily[f] > RSBS_FOREIGN_GIVECAP_FAMILY_BUDGET) {
+                overBudget = true;
+            }
+        }
+        printf("[TEST] foreign-placement-oot: PROGRESSION-only, every capability armed: %d of %d placements are "
+               "capability rows (souls %d, buttons %d, swim %d, clocks %d; budget %d per family)\n",
+               armedCaps, Combo_CountForeignPlacementsOoT(), perFamily[0], perFamily[1], perFamily[2], perFamily[3],
+               RSBS_FOREIGN_GIVECAP_FAMILY_BUDGET);
+        Combo_PublishForeignGiveCaps((uint8_t)GAME_MM, 0u);
+        gComboCtx.comboSettings = savedRecord;
+        if (armedCaps <= 0) {
+            printf("[TEST] FAIL: with every give capability armed the PROGRESSION-only draw placed no capability row "
+                   "- the profile-conditional rows are not reachable by the draw (#681)\n");
+            return TEST_FAIL;
+        }
+        if (overBudget) {
+            printf("[TEST] FAIL: one give-capability family exceeded its per-seed budget of %d (#681)\n",
+                   RSBS_FOREIGN_GIVECAP_FAMILY_BUDGET);
+            return TEST_FAIL;
+        }
+
+        // Back to the shipped profile and record: the generated table, byte for byte.
+        OoT_PlaceForeignItems();
+        if (memcmp(firstRun, gComboCtx.foreignPlacementsOoT, sizeof(firstRun)) != 0) {
+            printf("[TEST] FAIL: the shipped profile no longer reproduces the generated table after the capability "
+                   "probes - the narrowing is not free (#681)\n");
+            return TEST_FAIL;
+        }
+    }
+
+    // ------------------------------------------------------------------
     // THE REACHABILITY GATE, on the REAL pass (#656; ADR 0010 increment 1.3).
     // ------------------------------------------------------------------
     // The forward pass (MM) has filtered its candidates through

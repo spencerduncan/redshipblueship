@@ -681,11 +681,43 @@ extern "C" int OoT_PlaceForeignItems(void) {
             (unsigned)Combo_ComboDirection(), poolSize, (unsigned)Combo_ComboItemClassFor((uint8_t)GAME_MM),
             poolIndices.size(), poolCount, Combo_ComboSettingsFrozen() ? 1 : 0);
 
+    // THE PER-FAMILY BUDGET (#681; RSBS_FOREIGN_GIVECAP_FAMILY_BUDGET in
+    // foreign_items.h). A capability row (requiredGiveCaps != 0) is drawable
+    // only when the frozen MM profile arms its family — Combo_ForeignPoolDrawFor
+    // already enforced that — and at most BUDGET rows of one family place per
+    // seed. A row drawn after its family is spent is set aside WITHOUT drawing a
+    // host, and the attempt does not count toward `wanted`. With no family
+    // armed no capability row is drawable, so the budget never fires and the
+    // stream below is the one this loop always consumed: that is what keeps a
+    // default-profile world byte-identical.
+    static_assert(RSBS_GIVECAP_ALL_V1 == 0x000Fu, "one budget counter per allocated give-capability bit");
+    int familyPlaced[4] = { 0, 0, 0, 0 };
+    auto familyOf = [](uint16_t caps) -> int {
+        for (int bit = 0; bit < 4; bit++) {
+            if ((caps & (1u << bit)) != 0) {
+                return bit;
+            }
+        }
+        return -1;
+    };
+
     int placed = 0;
-    for (int i = 0; i < wanted; i++) {
+    for (int i = 0; i < wanted && !poolIndices.empty(); i++) {
         const size_t poolPick = (size_t)(OoT_Foreign_SelectNext() % (uint32_t)poolIndices.size());
         const int poolEntry = poolIndices[poolPick];
         poolIndices.erase(poolIndices.begin() + (std::ptrdiff_t)poolPick);
+
+        const int family = familyOf(pool[poolEntry].requiredGiveCaps);
+        if (family >= 0) {
+            if (familyPlaced[family] >= RSBS_FOREIGN_GIVECAP_FAMILY_BUDGET) {
+                fprintf(stderr,
+                        "[OoT] foreign placement: '%s' set aside - its give-capability family is at budget (%d)\n",
+                        pool[poolEntry].name, RSBS_FOREIGN_GIVECAP_FAMILY_BUDGET);
+                i--;
+                continue;
+            }
+            familyPlaced[family]++;
+        }
 
         const size_t hostPick = (size_t)(OoT_Foreign_SelectNext() % (uint32_t)candidates.size());
         const RandomizerCheck hostCheck = candidates[hostPick];

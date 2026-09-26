@@ -75,6 +75,29 @@ typedef struct {
     // GetTextureByName (the same string GetTextureForItemId returns); see
     // Combo_GetForeignItemIconName.
     const char* iconName;
+    // THE GIVE CAPABILITY THIS ROW NEEDS (#681; ADR 0011 decision 3.5 / answer
+    // O8). Zero — every row either pool shipped before #681, and every OoT row —
+    // means the give is UNCONDITIONALLY effectful (criterion 3) and the row is
+    // drawable whenever its class is armed. Nonzero is exactly ONE
+    // RSBS_GIVECAP_* bit (defined further down this header): the row's give only
+    // means something when the ORIGIN game's frozen option profile arms that
+    // family (enemy/boss souls, ocarina buttons, swim, clocks), so
+    // Combo_ForeignPoolDrawFor admits it only when
+    // Combo_ForeignGiveCapsArm(originGame, requiredGiveCaps) holds for the
+    // profile this creation froze. An item Termina would never deliver under
+    // that profile is therefore never advertised as a crossing — the promise
+    // criterion 3 protects — while a profile that arms the family gets it.
+    //
+    // THE ORDERING INVARIANT HOLDS: the six criteria still run first (a row is
+    // in the table at all only if it passed them, with criterion 3 read as
+    // "unconditional, OR conditional on a published capability"), the class
+    // bitset selects among the survivors, and this column can only NARROW that
+    // selection. No capability can readmit a #525 shared resource, because no
+    // such row is in any table to be readmitted.
+    //
+    // Trailing member, so every existing aggregate initializer (and every
+    // synthetic test pool) zero-fills it and keeps its old meaning.
+    uint16_t requiredGiveCaps;
 } ComboForeignItemDef;
 
 // WHY THE ARTICLE IS PART OF THE DESCRIPTOR (#510). A cross-game item is
@@ -519,8 +542,16 @@ int Combo_ForeignPoolClassMembersFor(uint8_t originGame, uint16_t classMask, int
 
 /**
  * THE PRODUCTION DRAW: Combo_ForeignPoolClassMembersFor under the RESOLVED
- * class bitset for @p originGame. Both placement passes call this, so "which
- * classes are armed" is read from the frozen record in exactly one place.
+ * class bitset for @p originGame, NARROWED by each row's requiredGiveCaps
+ * against the give capabilities @p originGame's frozen profile published
+ * (#681): a row whose capability is not armed — including every capability
+ * row in a process where nothing was published — is not drawn. Both placement
+ * passes call this, so "which classes are armed" and "which gives this world
+ * can deliver" are read in exactly one place.
+ *
+ * Capability rows sit at the END of their pool table, so with no capability
+ * armed the result is the identity permutation over the unconditional prefix —
+ * the same indices, in the same order, as before the column existed.
  *
  * With the shipped defaults (every allocated bit) the result is the identity
  * permutation 0..poolCount-1 — byte-identical to the table both passes walked
@@ -1245,6 +1276,23 @@ bool Combo_ForeignGiveCapsArm(uint8_t originGame, uint32_t caps);
 /** Retire the session's published caps (a new creation, a session
  *  invalidation). */
 void Combo_ClearForeignGiveCaps(void);
+
+/**
+ * THE PER-FAMILY DRAW BUDGET (#681). At most this many crossings of any ONE
+ * give-capability family per direction per seed.
+ *
+ * The secondary reason criterion 3 gave for keeping souls out — "~55 rows;
+ * admitting them would make a uniform draw of 8 mostly souls" — outlives the
+ * primary one. With every family armed the MM pool is 116 unconditional rows
+ * plus 63 capability rows (51 souls, 5 buttons, swim, 6 clocks), so a uniform
+ * draw of 8 would average about 2.8 capability crossings and let one family
+ * take the whole cap on an unlucky seed. The budget bounds each family instead
+ * of reweighting the draw: a drawn row whose family is already at budget is
+ * set aside and the draw continues WITHOUT consuming a host, so unconditional
+ * rows keep exactly the odds they had and a world whose profile arms nothing
+ * draws byte-identically to one built before the column existed.
+ */
+#define RSBS_FOREIGN_GIVECAP_FAMILY_BUDGET 2
 
 /**
  * The last forward placement pass's counts, and whether they were a SHORTFALL

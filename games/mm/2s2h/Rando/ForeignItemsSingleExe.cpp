@@ -141,20 +141,25 @@ extern "C" {
 //      at most 8 slots on a green rupee. Excluded with it: RI_GOLD_DUST_REFILL,
 //      which is typed RITYPE_LESSER but is semantically a bottle refill.
 //
-//  (3) Its give in Rando::GiveItem is UNCONDITIONALLY effectful — it changes MM
-//      save state whatever options the paired MM world was generated under.
-//      This is the load-bearing one, and it is what excludes the enemy/boss
-//      SOULS, the OCARINA BUTTONS, RI_ABILITY_SWIM, and the RI_TIME_* /
-//      RI_TIME_PROGRESSIVE clock items: each of those gives is a bare
-//      rando-inf/week-event flag whose only meaning comes from a specific MM
-//      shuffle setting, and OoT's placement pass runs at OoT generation time —
-//      possibly before the paired MM world exists at all — so it CANNOT read
-//      MM's option profile to find out. A settings-gated entry would be a
-//      crossing the player is promised in OoT ("it will be awarded there!") and
-//      then silently never receives in Termina, which is worse than no crossing.
-//      (Souls are also ~55 rows; admitting them would make a uniform draw of 8
-//      mostly souls and crowd out everything else. That is the secondary reason,
-//      not the reason.)
+//  (3) Its give in Rando::GiveItem is effectful in the world it lands in:
+//      either UNCONDITIONALLY — it changes MM save state whatever options the
+//      paired MM world was generated under — or CONDITIONALLY ON A PUBLISHED
+//      CAPABILITY (#681). The enemy/boss SOULS, the OCARINA BUTTONS,
+//      RI_ABILITY_SWIM and the RI_TIME_* half-day clocks are bare rando-inf flags
+//      whose only meaning comes from one MM shuffle setting each. They used to be
+//      excluded outright because OoT's placement pass "CANNOT read MM's option
+//      profile"; since ADR 0010 increment 2 (PR #680) the MM profile freezes
+//      BEFORE OoT's Fill() and MM_Rando_PublishProfileGiveCaps publishes which
+//      families it arms, so those rows are now members TAGGED with the
+//      capability they need (ComboForeignItemDef::requiredGiveCaps), and the draw
+//      admits a tagged row only when the frozen profile arms its family. A
+//      crossing the player is promised in OoT ("it will be awarded there!")
+//      therefore still always means something in Termina; what changed is that a
+//      profile which DOES shuffle souls now gets souls. The old secondary reason
+//      (~55 soul rows crowding a draw of 8) is answered by
+//      RSBS_FOREIGN_GIVECAP_FAMILY_BUDGET in the reverse pass, not by exclusion.
+//      RI_TIME_PROGRESSIVE stays OUT under this criterion: its give depends on
+//      the clock-shuffle MODE, which no published capability describes.
 //
 //  (4) Its give fires no GLOBAL WORLD EVENT. This excludes RI_TRIFORCE_PIECE and
 //      RI_TRIFORCE_PIECE_PREVIOUS: Rando::GiveItem increments
@@ -522,6 +527,414 @@ static const ComboForeignItemDef kForeignPoolMMV1[] = {
       "Stone Tower Stray Fairy",
       "a ",
       RSBS_ITEMCLASS_SIDEQUEST },
+
+    // ========================================================================
+    // CAPABILITY ROWS (#681; ADR 0011 decision 3.5 / answer O8). Criterion 3 as
+    // amended above: each of these gives is effectful ONLY under a specific MM
+    // shuffle setting, so each row carries the RSBS_GIVECAP_* bit for that
+    // setting and Combo_ForeignPoolDrawFor admits it only when the paired MM
+    // world's FROZEN profile published that capability. They are APPENDED, never
+    // interleaved, so a profile that arms none of them draws exactly the indices
+    // it drew before this block existed.
+    //
+    // All PROGRESSION: in a world that shuffles them, a soul, an ocarina button,
+    // the swim ability and a half-day clock each unlock logic, which is the
+    // published meaning of that bit.
+    //
+    // What stayed out, and why (both are in kForeignExclusionsMM below):
+    //   - RI_SOUL_BOSS_MAJORA, criterion 4. Under the Triforce hunt the hunt's
+    //     completion GRANTS this soul, and that grant is what stops Majora being
+    //     beaten early (GiveItem.cpp; GeneratePools drops the soul from the boss
+    //     pool in that mode). A crossing of it would bypass the world's goal.
+    //   - RI_TIME_PROGRESSIVE, still criterion 3. Its give converts through
+    //     RO_CLOCK_SHUFFLE_PROGRESSIVE and degrades to RI_JUNK in the RANDOM mode
+    //     (ConvertItem.cpp), and RSBS_GIVECAP_CLOCKS says only that clocks are
+    //     shuffled, not in which mode. The six concrete half-day rows below set
+    //     their own RANDO_INF flag directly in every mode, so they represent the
+    //     family instead.
+    // ========================================================================
+    // --- RSBS_GIVECAP_SOULS
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_BOSS_GOHT },
+      "Soul of Goht",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_BOSS_GYORG },
+      "Soul of Gyorg",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_BOSS_ODOLWA },
+      "Soul of Odolwa",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_BOSS_TWINMOLD },
+      "Soul of Twinmold",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_ALIEN },
+      "Soul of Aliens",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_ARMOS },
+      "Soul of Armos",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_BAD_BAT },
+      "Soul of Bad Bats",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_BEAMOS },
+      "Soul of Beamos",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_BOE },
+      "Soul of Boes",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_BUBBLE },
+      "Soul of Bubbles",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_CHUCHU },
+      "Soul of Chuchus",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_CAPTAIN_KEETA },
+      "Soul of Captain Keeta",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_DEATH_ARMOS },
+      "Soul of Death Armos",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_DEEP_PYTHON },
+      "Soul of Deep Pythons",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_DEKU_BABA },
+      "Soul of Deku Babas",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_DEXIHAND },
+      "Soul of Dexihands",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_DINOLFOS },
+      "Soul of Dinolfos",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_DODONGO },
+      "Soul of Dodongos",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_DRAGONFLY },
+      "Soul of Dragonflies",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_EENO },
+      "Soul of Eenos",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_EYEGORE },
+      "Soul of Eyegores",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_FREEZARD },
+      "Soul of Freezards",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_GARO },
+      "Soul of Garos",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_GEKKO },
+      "Soul of Gekkos",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_GIANT_BEE },
+      "Soul of Giant Bees",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_GOMESS },
+      "Soul of Gomess",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_GUAY },
+      "Soul of Guays",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_HIPLOOP },
+      "Soul of Hiploops",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_IGOS_DU_IKANA },
+      "Soul of Igos du Ikana",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_IRON_KNUCKLE },
+      "Soul of Iron Knuckles",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_KEESE },
+      "Soul of Keese",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_LEEVER },
+      "Soul of Leevers",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_LIKE_LIKE },
+      "Soul of Like Likes",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_MAD_SCRUB },
+      "Soul of Mad Scrubs",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_NEJIRON },
+      "Soul of Nejirons",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_OCTOROK },
+      "Soul of Octoroks",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_PEAHAT },
+      "Soul of Peahats",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_PIRATE },
+      "Soul of Pirates",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_POE },
+      "Soul of Poes",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_REDEAD },
+      "Soul of Redeads",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_SHELLBLADE },
+      "Soul of Shellblades",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_SKULLFISH },
+      "Soul of Skullfish",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_SKULLTULA },
+      "Soul of Skulltulas",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_SNAPPER },
+      "Soul of Snappers",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_STALCHILD },
+      "Soul of Stalchildren",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_TAKKURI },
+      "Soul of Takkuri",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_TEKTITE },
+      "Soul of Tektites",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_WALLMASTER },
+      "Soul of Wallmasters",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_WART },
+      "Soul of Warts",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_WIZROBE },
+      "Soul of Wizrobes",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_ENEMY_WOLFOS },
+      "Soul of Wolfos",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SOULS },
+    // --- RSBS_GIVECAP_OCARINA_BUTTONS
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_OCARINA_BUTTON_A },
+      "A Button",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_OCARINA_BUTTONS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_OCARINA_BUTTON_C_DOWN },
+      "C Down Button",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_OCARINA_BUTTONS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_OCARINA_BUTTON_C_RIGHT },
+      "C Right Button",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_OCARINA_BUTTONS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_OCARINA_BUTTON_C_LEFT },
+      "C Left Button",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_OCARINA_BUTTONS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_OCARINA_BUTTON_C_UP },
+      "C Up Button",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_OCARINA_BUTTONS },
+    // --- RSBS_GIVECAP_SWIM
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_ABILITY_SWIM },
+      "Ability to Swim",
+      "the ",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_SWIM },
+    // --- RSBS_GIVECAP_CLOCKS
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_TIME_DAY_1 },
+      "Time (Day 1)",
+      "",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_CLOCKS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_TIME_NIGHT_1 },
+      "Time (Night 1)",
+      "",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_CLOCKS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_TIME_DAY_2 },
+      "Time (Day 2)",
+      "",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_CLOCKS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_TIME_NIGHT_2 },
+      "Time (Night 2)",
+      "",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_CLOCKS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_TIME_DAY_3 },
+      "Time (Day 3)",
+      "",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_CLOCKS },
+    { { (uint8_t)GAME_MM, 0, (uint16_t)RI_TIME_NIGHT_3 },
+      "Time (Night 3)",
+      "",
+      RSBS_ITEMCLASS_PROGRESSION,
+      nullptr,
+      RSBS_GIVECAP_CLOCKS },
 };
 
 static constexpr int kForeignPoolMMCount = sizeof(kForeignPoolMMV1) / sizeof(kForeignPoolMMV1[0]);
@@ -539,17 +952,17 @@ static constexpr int kForeignPoolMMCount = sizeof(kForeignPoolMMV1) / sizeof(kFo
 //
 // It is the ADJUDICATED set, not a machine sweep of RI_UNKNOWN..RI_MAX. Two
 // criteria are not decidable from any table this build can read: criterion 3 is
-// a property of the PAIRED world's option profile, which OoT's placement pass
-// cannot see (ADR 0011 decision 3.5 / answer O8 keep it blanket until the MM
-// freeze moves ahead of Fill() AND a values-publishing src/common surface
-// exists), and criterion 4 is a property of a give's control flow. Guessing
+// a property of the PAIRED world's option profile, which this TU cannot see at
+// authoring time (since #681 the capability rows carry that dependency as data
+// and the draw resolves it against the published profile; the rows below are
+// the gives no published capability covers), and criterion 4 is a property of
+// a give's control flow. Guessing
 // either is exactly the promise -- "it will be awarded there!" -- that criteria
 // 3 and 4 exist to protect.
 //
-// The soul rows are REPRESENTED rather than enumerated: there are ~55 of them,
-// all excluded by criterion 3 for one reason (a bare rando-inf flag whose
-// meaning comes from an MM shuffle setting), and listing every one would make
-// this table a second copy of the enum instead of a record of decisions.
+// Until #681 the soul rows were REPRESENTED here by a single row. They are
+// capability-tagged members now; only Majora's soul is still out, under
+// criterion 4.
 namespace {
 struct ForeignExclusionMM {
     uint16_t id;
@@ -565,21 +978,21 @@ const ForeignExclusionMM kForeignExclusionsMM[] = {
     //     semantically a bottle refill.
     { (uint16_t)RI_JUNK, (uint8_t)RSBS_FOREIGN_CRIT_NOT_JUNK },
     { (uint16_t)RI_GOLD_DUST_REFILL, (uint8_t)RSBS_FOREIGN_CRIT_NOT_JUNK },
-    // (3) Settings-armed gives. Each is a bare rando-inf / week-event flag whose
-    //     only meaning comes from a specific MM shuffle setting.
-    { (uint16_t)RI_SOUL_ENEMY_DINOLFOS, (uint8_t)RSBS_FOREIGN_CRIT_UNCONDITIONAL_GIVE }, // representative soul row
-    { (uint16_t)RI_OCARINA_BUTTON_A, (uint8_t)RSBS_FOREIGN_CRIT_UNCONDITIONAL_GIVE },
-    { (uint16_t)RI_OCARINA_BUTTON_C_DOWN, (uint8_t)RSBS_FOREIGN_CRIT_UNCONDITIONAL_GIVE },
-    { (uint16_t)RI_OCARINA_BUTTON_C_RIGHT, (uint8_t)RSBS_FOREIGN_CRIT_UNCONDITIONAL_GIVE },
-    { (uint16_t)RI_OCARINA_BUTTON_C_LEFT, (uint8_t)RSBS_FOREIGN_CRIT_UNCONDITIONAL_GIVE },
-    { (uint16_t)RI_OCARINA_BUTTON_C_UP, (uint8_t)RSBS_FOREIGN_CRIT_UNCONDITIONAL_GIVE },
-    { (uint16_t)RI_ABILITY_SWIM, (uint8_t)RSBS_FOREIGN_CRIT_UNCONDITIONAL_GIVE },
+    // (3) A give whose effect depends on a setting NO published capability
+    //     describes. The souls, ocarina buttons, swim and the six half-day
+    //     clocks left this list with #681 (they are capability-tagged members
+    //     now); the progressive clock stays, because it resolves through the
+    //     clock-shuffle MODE and is junk in the RANDOM mode.
     { (uint16_t)RI_TIME_PROGRESSIVE, (uint8_t)RSBS_FOREIGN_CRIT_UNCONDITIONAL_GIVE },
     // (4) Global world event: Rando::GiveItem's Triforce branch fires
     //     GameInteractor_ExecuteOnGameCompletion() and queues a forced scene
     //     transition once the required count is reached.
     { (uint16_t)RI_TRIFORCE_PIECE, (uint8_t)RSBS_FOREIGN_CRIT_NO_WORLD_EVENT },
     { (uint16_t)RI_TRIFORCE_PIECE_PREVIOUS, (uint8_t)RSBS_FOREIGN_CRIT_NO_WORLD_EVENT },
+    //     ...and Majora's soul with them: under the hunt the hunt's completion
+    //     GRANTS it, and that grant is the goal gate, so a crossing of it
+    //     bypasses the world's goal. #681 kept it out when the other souls came in.
+    { (uint16_t)RI_SOUL_BOSS_MAJORA, (uint8_t)RSBS_FOREIGN_CRIT_NO_WORLD_EVENT },
     // (5) Reward, not punishment.
     { (uint16_t)RI_TRAP, (uint8_t)RSBS_FOREIGN_CRIT_REWARD },
     // (6) #525 shared cross-game resources -- the eighteen rows that LEFT this
