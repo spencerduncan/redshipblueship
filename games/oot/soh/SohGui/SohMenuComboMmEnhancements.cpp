@@ -47,12 +47,14 @@
  * `SohMenu::ApplyPresentation(SOH_MENU_PRESENT_CAPABILITY, reason)` from its own
  * PreFunc rather than through a capability key nothing could evaluate.
  *
- * ALL FOUR ROWS ARE LIVE TODAY and no carve-out was needed for any of them:
+ * ALL FIVE ROWS ARE LIVE TODAY and no carve-out was needed for any of them:
  * #679 already WHOLE_ARCHIVE'd the two Songs providers, `SavingEnhancements.cpp`
  * is pulled into the link by the extern "C" references `GameExports_SingleExe.cpp`
  * makes to it (and its `RegisterSavingEnhancements` is on
  * check-registrar-elision.sh's required-symbol allowlist), and the game-over
- * readers are decomp TUs in `2ship_src` that `z_play.c` calls. The disabled
+ * readers are decomp TUs in `2ship_src` that `z_play.c` calls. #693's autosave
+ * interval is read by that same SavingEnhancements.cpp, on the tick the Autosave
+ * registrar arms. The disabled
  * branch below is therefore untaken by the shipped data; it is kept, and locked
  * from synthetic rows by MenuMmEnhancementRows, because the next row added to
  * the allowlist may well not be live, and discovering that the disabled path was
@@ -130,6 +132,26 @@ WidgetFunc PresentationPreFunc(std::size_t index) {
     };
 }
 
+/**
+ * #693: the PreFunc for a row whose setting is moot while another key is off.
+ * HIDDEN, not disabled, and deliberately not through ApplyPresentation: the
+ * provider is not absent (which is what SOH_MENU_PRESENT_CAPABILITY says), the
+ * parent feature is simply off, and OoT's own "Notification on Autosave" row
+ * already renders exactly this relationship by hiding. `MenuDrawItem` runs
+ * `ResetDisables()` (which clears `isHidden`) before every draw, so this must be
+ * a PreFunc re-evaluated each frame, and a row that is ALSO non-live composes
+ * both: the gate first, then the presentation.
+ */
+WidgetFunc ShownWhilePreFunc(std::size_t index) {
+    return [index](WidgetInfo& info) {
+        const RSBS::HostedMmEnhancement& row = RSBS::kHostedMmEnhancements[index];
+        info.isHidden = CVarGetInteger(row.shownWhileKey, 0) == 0;
+        if (row.liveness != RSBS::MmEnhancementLiveness::Live) {
+            SohMenu::ApplyPresentation(info, info.name, PresentationFor(row.liveness), row.reason);
+        }
+    };
+}
+
 } // namespace
 
 /**
@@ -178,12 +200,32 @@ void AddMmEnhancementWidgets(SohMenu& menu, WidgetPath& path) {
         // These keys are preferences with no freeze and no choke point, so the
         // widget IS the writer, and the ShipInit::Init call it already makes is
         // what re-arms MM (#539).
-        WidgetInfo& info = menu.AddWidget(path, row.label, WIDGET_CVAR_CHECKBOX)
-                               .CVar(row.key)
-                               .RaceDisable(false)
-                               .Options(CheckboxOptions().Tooltip(row.tooltip));
-        if (row.liveness != RSBS::MmEnhancementLiveness::Live) {
-            info.PreFunc(PresentationPreFunc(i));
+        //
+        // #693 adds the one non-boolean row, MM's autosave interval, as a
+        // WIDGET_CVAR_SLIDER_INT in minutes. Same writer argument: the slider
+        // calls CVarSetInteger itself, and its provider reads the key inline on
+        // every tick, so there is nothing for ShipInit to re-arm.
+        WidgetInfo* info = nullptr;
+        if (row.widget == RSBS::MmEnhancementWidget::SliderInt) {
+            info = &menu.AddWidget(path, row.label, WIDGET_CVAR_SLIDER_INT)
+                        .CVar(row.key)
+                        .RaceDisable(false)
+                        .Options(IntSliderOptions()
+                                     .Min(row.sliderMin)
+                                     .Max(row.sliderMax)
+                                     .DefaultValue(row.sliderDefault)
+                                     .Format(row.sliderFormat)
+                                     .Tooltip(row.tooltip));
+        } else {
+            info = &menu.AddWidget(path, row.label, WIDGET_CVAR_CHECKBOX)
+                        .CVar(row.key)
+                        .RaceDisable(false)
+                        .Options(CheckboxOptions().Tooltip(row.tooltip));
+        }
+        if (row.shownWhileKey != nullptr) {
+            info->PreFunc(ShownWhilePreFunc(i));
+        } else if (row.liveness != RSBS::MmEnhancementLiveness::Live) {
+            info->PreFunc(PresentationPreFunc(i));
         }
     }
 }
@@ -194,8 +236,9 @@ void AddMmEnhancementWidgets(SohMenu& menu, WidgetPath& path) {
  * function-local call would need a caller, and the only candidate is the TU this
  * seam exists to avoid editing.
  *
- * One column, and the page holds six widgets (the heading separator, three
- * checkboxes, and the pointer row's separator + text), so it is not #640's empty
+ * One column, and the page holds seven widgets (the heading separator, three
+ * checkboxes, the pointer row's separator + text, and #693's interval slider
+ * right after the pointer row it belongs to), so it is not #640's empty
  * multi-column page.
  */
 static RegisterComboSectionPage_t sMmEnhancementsPage(kMmEnhancementsPage, 1, AddMmEnhancementWidgets);

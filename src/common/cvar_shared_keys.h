@@ -597,6 +597,23 @@ enum class MmEnhancementHosting {
     HostedElsewhere,
 };
 
+/**
+ * The widget a row draws (#693). Every row before #693 was a boolean read with
+ * `CVarGetInteger`, so the page emitted checkboxes unconditionally; the MM
+ * autosave interval is an integer in MINUTES, and a checkbox over it would write
+ * 1 (a one-minute interval) for "on" and 0 for "off" (an interval of zero, which
+ * saves on every eligible frame). The kind is data rather than a guess the page
+ * makes from the key, so the menu lock can assert it.
+ */
+enum class MmEnhancementWidget {
+    /// `WIDGET_CVAR_CHECKBOX`; the provider reads the key as a boolean.
+    Checkbox,
+    /// `WIDGET_CVAR_SLIDER_INT` over [sliderMin, sliderMax], default
+    /// `sliderDefault`, which MUST equal the provider's own read default so that
+    /// "reset to default" and "never touched" mean the same value.
+    SliderInt,
+};
+
 /** One hosted MM enhancement, with the evidence for its liveness class. */
 struct HostedMmEnhancement {
     const char* key;     ///< The CVar the provider TU reads. Never NULL or empty.
@@ -623,6 +640,19 @@ struct HostedMmEnhancement {
     /// control that looks broken, and a live row with one is a control that
     /// looks broken and is not.
     const char* reason;
+
+    // ---- #693: trailing and defaulted, so the checkbox rows need no edit ----
+    MmEnhancementWidget widget = MmEnhancementWidget::Checkbox;
+    int sliderMin = 0;                  ///< SliderInt only; 0 for a Checkbox.
+    int sliderMax = 0;                  ///< SliderInt only; 0 for a Checkbox.
+    int sliderDefault = 0;              ///< SliderInt only: the provider's read default.
+    const char* sliderFormat = nullptr; ///< SliderInt only: the value's printf format.
+    /// A key whose value gates whether this row means anything at all: the row is
+    /// HIDDEN while it reads 0, the precedent being OoT's own "Notification on
+    /// Autosave" row (SohMenuEnhancements.cpp). NULL for an ungated row. This is
+    /// not a liveness class: the provider is linked either way; the gate says the
+    /// SETTING is moot while its parent feature is off.
+    const char* shownWhileKey = nullptr;
 };
 
 inline constexpr HostedMmEnhancement kHostedMmEnhancements[] = {
@@ -677,10 +707,50 @@ inline constexpr HostedMmEnhancement kHostedMmEnhancements[] = {
     // removed for the tier-4 rules. The row points at the live control instead.
     { "gEnhancements.Autosave", "Autosave (hosted under Enhancements)",
       "Applies to both games. The control is Enhancements -> Saving -> \"Autosave\"; clicking it re-arms Majora's "
-      "Mask's periodic owl save too (#614/#629). Majora's Mask's interval is a separate, Majora's-Mask-only key "
-      "(gEnhancements.Saving.AutosaveInterval, 5 minutes) that no widget writes yet.",
-      "games/mm/2s2h/Enhancements/Saving/SavingEnhancements.cpp:463", "gEnhancements.Autosave",
+      "Mask's periodic owl save too (#614/#629). Majora's Mask's own interval is the slider below, shown once "
+      "Autosave is on.",
+      "games/mm/2s2h/Enhancements/Saving/SavingEnhancements.cpp:485", "gEnhancements.Autosave",
       "OnGameStateDrawFinish", MmEnhancementHosting::HostedElsewhere, MmEnhancementLiveness::Live, "" },
+
+    // #693: MM's autosave INTERVAL, the Autosave item's only genuinely
+    // un-hosted half. Minutes, 1-60, default 5: BenMenu.cpp's own slider
+    // (excluded from this build) and HandleAutoSave's read default, verbatim.
+    //
+    // THE THREE LEGS. (1) The provider TU links: it is SavingEnhancements.cpp,
+    // the same TU as the Autosave row above, whose ShipInit registrar
+    // MMEnhancementToggles leg 1 counts (and GameExports_SingleExe.cpp's
+    // extern "C" references pin it besides). (2) NO REGISTRAR OF ITS OWN, so
+    // `registrarKey` is NULL: HandleAutoSave reads the key inline on every tick
+    // through SavingEnhancements_AutosaveIntervalMs, so a change takes effect on
+    // the next tick with nothing to re-arm. What arms the tick is
+    // RegisterAutosave under gEnhancements.Autosave, which is exactly
+    // `shownWhileKey`: while Autosave is off the interval is moot and the row
+    // hides. (3) The hook HandleAutoSave rides, OnGameStateUpdate, is dispatched
+    // by MM's game.c (GameState_Update) through the single-exe S2H::GameHooks
+    // executor in GameExports_SingleExe.cpp. MMEnhancementToggles leg 6 measures
+    // the read site itself: key cleared, at the minimum and at the maximum; leg 7
+    // measures the CONSUMER: it arms the gate, invokes the one OnGameStateUpdate
+    // registrant that arming added (the real tick into HandleAutoSave) with the
+    // last save 90 s ago, and requires the interval check to pass at 1 minute and
+    // block at 2, cleared and the maximum, then that the tick is gone with the
+    // gate off.
+    //
+    // DISTINCT FROM OoT, and it must stay so (kMustStayDistinct above, the
+    // static_assert at the end of this header, and CvarClassification's (3c-2)
+    // scan, which fails if games/oot ever names this key). OoT's interval is a hardcoded
+    // THREE_MINUTES_IN_UNIX with no CVar, so there is no OoT key to converge
+    // ONTO. Converging would mean either a slider that claims to set OoT's
+    // interval and does nothing there (#499's shape again), or an edit to OoT's
+    // vendored Autosave.cpp that invents a CVar upstream does not have and moves
+    // OoT's 3-minute behaviour onto MM's 5-minute default without anyone asking.
+    // Hence the "Majora's Mask only" label. A preference: no freeze, no digest,
+    // no .redsave impact.
+    { "gEnhancements.Saving.AutosaveInterval", "MM Autosave Interval: %d minutes",
+      "Majora's Mask only. How often Majora's Mask's periodic owl save fires while Autosave is on. Ocarina of "
+      "Time's autosave interval is a fixed 3 minutes and this slider does not change it.",
+      "games/mm/2s2h/Enhancements/Saving/SavingEnhancements.cpp:216 (read by HandleAutoSave, :223)", nullptr, "",
+      MmEnhancementHosting::OwnRow, MmEnhancementLiveness::Live, "", MmEnhancementWidget::SliderInt, 1, 60, 5,
+      "%d minutes", "gEnhancements.Autosave" },
 };
 
 inline constexpr std::size_t kHostedMmEnhancementCount =
@@ -702,6 +772,16 @@ constexpr bool MmEnhStringEqual(const char* a, const char* b) {
     return a[i] == b[i];
 }
 
+/** constexpr: is `key` held apart as an MM key in kMustStayDistinct? */
+constexpr bool MmEnhKeyMustStayDistinct(const char* key) {
+    for (const DistinctPair& pair : kMustStayDistinct) {
+        if (MmEnhStringEqual(pair.mmKey, key)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 /**
  * The invariants a row cannot be allowed to break, checked at COMPILE time so a
  * badly-classified row is a red build before it is a red test:
@@ -714,6 +794,12 @@ constexpr bool MmEnhStringEqual(const char* a, const char* b) {
  *    no registrar to attribute, or a registrar nothing can attribute, is a
  *    liveness claim nobody can check.
  *  - keys are unique. Two rows on one key would draw two controls over it.
+ *  - (#693) a Checkbox row carries no slider data; a SliderInt row has a
+ *    non-empty range with its default inside it and a format, and is its own
+ *    writer (a pointer row draws no control, so a slider kind there is a lie).
+ *  - (#693) a gate key is never the row's own key, and names a key some OTHER
+ *    row of this manifest accounts for, so the gate is itself a hosted,
+ *    evidenced key rather than a free-floating literal.
  */
 constexpr bool HostedMmEnhancementsAreHonest() {
     for (std::size_t i = 0; i < kHostedMmEnhancementCount; i++) {
@@ -733,6 +819,31 @@ constexpr bool HostedMmEnhancementsAreHonest() {
         }
         for (std::size_t j = i + 1; j < kHostedMmEnhancementCount; j++) {
             if (MmEnhStringEqual(row.key, kHostedMmEnhancements[j].key)) {
+                return false;
+            }
+        }
+        if (row.widget == MmEnhancementWidget::Checkbox) {
+            if (row.sliderMin != 0 || row.sliderMax != 0 || row.sliderDefault != 0 || row.sliderFormat != nullptr) {
+                return false;
+            }
+        } else {
+            if (row.hosting != MmEnhancementHosting::OwnRow || row.sliderMin >= row.sliderMax ||
+                row.sliderDefault < row.sliderMin || row.sliderDefault > row.sliderMax ||
+                MmEnhStringEmpty(row.sliderFormat)) {
+                return false;
+            }
+        }
+        if (row.shownWhileKey != nullptr) {
+            if (MmEnhStringEqual(row.shownWhileKey, row.key)) {
+                return false;
+            }
+            bool gateHosted = false;
+            for (std::size_t j = 0; j < kHostedMmEnhancementCount; j++) {
+                if (j != i && MmEnhStringEqual(row.shownWhileKey, kHostedMmEnhancements[j].key)) {
+                    gateHosted = true;
+                }
+            }
+            if (!gateHosted) {
                 return false;
             }
         }
@@ -778,12 +889,24 @@ inline constexpr std::size_t kComboKeyCount = sizeof(kComboKeys) / sizeof(kCombo
 // red test.
 static_assert(kComboKeyCount == 10, "six gCombo.Rando.* identity keys + four gCombo.Windows.* preferences = 10");
 
-// #682's curated allowlist is exactly the four keys the issue names. Pinning the
-// count makes both a silently dropped row and a quietly WIDENED allowlist a
-// compile error: widening is #427 item 3's separate decision, not a side effect.
-static_assert(kHostedMmEnhancementCount == 4,
-              "#682's curated MM enhancement allowlist: Kaleido.GameOver, Songs.BetterSongOfDoubleTime, "
-              "Songs.SkipSoTCutscenes, Autosave");
+// #682's curated allowlist was exactly the four keys that issue named; #693 adds
+// a fifth, deliberately: the Autosave row's MM-only interval, whose provider is
+// the same already-linked TU (SavingEnhancements.cpp), so it widens no archive
+// and is not #427 item 3's "WHOLE_ARCHIVE the lot" call. Pinning the count makes
+// both a silently dropped row and a quietly WIDENED allowlist a compile error.
+static_assert(kHostedMmEnhancementCount == 5,
+              "the curated MM enhancement allowlist: #682's Kaleido.GameOver, Songs.BetterSongOfDoubleTime, "
+              "Songs.SkipSoTCutscenes and Autosave, plus #693's Saving.AutosaveInterval");
+// #693: hosting the interval must not quietly converge it with OoT's. OoT has no
+// interval CVar (THREE_MINUTES_IN_UNIX), so the key stays an MM-only key held in
+// kMustStayDistinct. This assert is unconditional and does not look at the
+// manifest: all it refuses is the key being DROPPED from that table, the first
+// step of exactly the rename the table exists to refuse. The other direction --
+// OoT starting to read the key while it stays listed -- is not a compile-time
+// question; CvarClassification's (3c-2) source scan is what fails on it.
+static_assert(MmEnhKeyMustStayDistinct("gEnhancements.Saving.AutosaveInterval"),
+              "the hosted MM autosave interval must stay in kMustStayDistinct: OoT hardcodes its own 3-minute "
+              "interval with no CVar, so the two intervals must not converge (#693)");
 static_assert(HostedMmEnhancementsAreHonest(),
               "a hosted MM enhancement row is dishonest: a missing key/label/tooltip/provider, a reason that does "
               "not match its liveness class, a registry probe with no registrar (or the reverse), or two rows on "

@@ -645,6 +645,11 @@ extern "C" {
 // Same tier, same FILE SCOPE / C++ compilation and the same reason as the row
 // above: with no generated world every count it reads would be zero.
 #include "tests/test_combo_logic_multiplicity.c"
+// #705: loose (unpacked) asset folders for both games — the discovery rule
+// (loose-mods-discovery, archive-free, never skips) and the real mounts over a
+// staged mods tree plus the production switch-time re-apply (loose-mods-mount,
+// SKIPs when soh.o2r/2ship.o2r is unstaged). FILE SCOPE, compiled as C++.
+#include "tests/test_loose_mods_mount.c"
 // ADR 0010 answer O6's CI grow-check over both REAL engines (#645, #500): the
 // bag granted one copy at a time in four orders, tricks off and on, the reached
 // check and region sets never shrinking, a planted negation observed red. Same
@@ -2815,6 +2820,44 @@ TestResult Test_MMModsMount(void) {
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #705: which folders are each game's loose asset layer. Lists a staged directory
+// tree only — no archive, no Ship::Context — so it never skips.
+TestResult Test_LooseModsDiscovery(void) {
+    int rc = LooseModsDiscovery_RunHeadless();
+    printf("[TEST] %s: loose mods discovery rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #705: a loose file under each game's mods partition overrides like a packed mod,
+// is registered only to its own game, and is shadowed on arrival in the other game on
+// the paths that game's base archives ship. Same bring-up and SKIP policy as Test_MMModsMount: the
+// staged archives are the base archives the loose files must beat and the byte
+// sources for the packed stand-ins.
+TestResult Test_LooseModsMount(void) {
+    const std::string sohArchive = CaoResolveArchive("soh.o2r");
+    const std::string mmArchive = CaoResolveArchive("2ship.o2r");
+    if (sohArchive.empty() || mmArchive.empty()) {
+        printf("[TEST] SKIP: no staged archive to stand in for a base archive and a packed mod (soh.o2r '%s', "
+               "2ship.o2r '%s')\n",
+               sohArchive.c_str(), mmArchive.c_str());
+        return TEST_SKIP;
+    }
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    int rc = LooseModsMount_RunHeadless(sohArchive.c_str(), mmArchive.c_str());
+    printf("[TEST] %s: loose mods mount rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // #605: scripts/make_redship_otr.py must refuse a curated model whose display
 // list carries a raw segmented texture reference (see the module docstring's
 // constraint 5), not just a path collision or a dispatched resource type
@@ -4653,6 +4696,18 @@ const TestDescriptor gTests[] = {
      "on one set, tricks only add, the coordinator's prefixes never lose a host, and a planted negated edge goes "
      "red at its item's grant (ADR 0010 O6)",
      Test_ComboLogicMonotonicity},
+    // #705: loose (unpacked) asset folders. The mount row MOUNTS extra archives into
+    // the shared ArchiveManager and restores it from a snapshot on the way out, the
+    // mm-mods-mount discipline; placed last so nothing after it could inherit a
+    // re-order even if that restore regressed.
+    {"loose-mods-discovery",
+     "Each game's loose asset folder is found only as the first folder of its own half of the shared mods/ tree "
+     "(#705)",
+     Test_LooseModsDiscovery},
+    {"loose-mods-mount",
+     "A loose file under each game's mods partition overrides its base archive and packed mods, is re-applied on "
+     "arrival, is registered only to its own game, and is shadowed by the other game's base archives there (#705)",
+     Test_LooseModsMount},
     {nullptr, nullptr, nullptr}  // Sentinel
 };
 

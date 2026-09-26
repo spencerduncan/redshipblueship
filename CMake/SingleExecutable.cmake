@@ -1827,6 +1827,21 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #705: loose (unpacked) asset mods for both games. Nothing mounted a directory
+    # as an archive, although libultraship's FolderArchive does exactly that for an
+    # extension-less AddArchive path; each game now mounts `<mods>/loose` (OoT) or
+    # `<mods>/mm/loose` (MM) after its packed mods through one shared helper.
+    # LooseModsDiscovery pins which folders count, over a staged directory tree, with
+    # nothing else staged — it never skips. LooseModsMount drives both ports' real
+    # mod paths and the real switch-time re-apply over a staged tree with a loose
+    # file under each partition and asserts, by the bytes a load returns, that each
+    # overrides its game's base archive and packed mod, is registered only to its own
+    # game, and is shadowed on arrival in the other game on every path that game's
+    # base archives ship (a path they do not ship stays resolvable, as for a packed
+    # mod). It SKIPs (77) when soh.o2r/2ship.o2r is unstaged, the #670 policy.
+    redship_add_test(NAME LooseModsDiscovery COMMAND redship --test loose-mods-discovery)
+    redship_add_test(NAME LooseModsMount COMMAND redship --test loose-mods-mount)
+    set_tests_properties(LooseModsMount PROPERTIES SKIP_RETURN_CODE 77)
     # ADR 0010 answer O6's CI GROW-CHECK (#645, #500): the third of O6's three
     # mechanisms (the review rule and the static probe,
     # .github/scripts/check-monotonicity-negations.py, are the other two). Over
