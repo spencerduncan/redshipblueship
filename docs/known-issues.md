@@ -1,8 +1,8 @@
 # Known issues
 
-**Applies to:** `main` at `7bab54bd` (2026-09-17, PR #680) and the GitHub Actions builds cut from
+**Applies to:** `main` at `3b860bf3` (2026-09-22, PR #722) and the GitHub Actions builds cut from
 it; the `v0.1.1-prealpha` tag (2026-07-03) is older than everything in the first section.
-**Last updated:** 2026-09-17.
+**Last updated:** 2026-09-26.
 
 RedShipBlueShip is **pre-alpha**. It boots Ocarina of Time and Majora's Mask from
 one executable, round-trips between them through the Happy Mask Shop ↔ Clock Tower
@@ -26,12 +26,15 @@ The headline feature is real but partial. Phase 3.1 (tracker
 3.2 — cross-game *logic* — has its **increment 2 merged** (PR
 [#680](https://github.com/spencerduncan/redshipblueship/pull/680), 2026-09-17):
 generation now happens once, at file creation, not on first arrival. Increment 3
-(the single-bag fill and the beatability proof) has not started
+(the single-bag fill and the beatability proof) has started but **is not wired into
+generation**: the combo-logic coordinator (PRs [#701](https://github.com/spencerduncan/redshipblueship/pull/701), [#717](https://github.com/spencerduncan/redshipblueship/pull/717)), both games' solver
+exports it drives (PRs [#714](https://github.com/spencerduncan/redshipblueship/pull/714), [#715](https://github.com/spencerduncan/redshipblueship/pull/715)) and a first cost/convergence measurement
+(PR [#722](https://github.com/spencerduncan/redshipblueship/pull/722)) are on `main`, and no generated world uses any of it yet
 ([#500](https://github.com/spencerduncan/redshipblueship/issues/500), epics
 [#644](https://github.com/spencerduncan/redshipblueship/issues/644) delivered,
 [#645](https://github.com/spencerduncan/redshipblueship/issues/645) in progress).
 
-**What ships at `7bab54bd`:**
+**What ships at `3b860bf3`:**
 
 - **One seed, one paired world, items crossing in both directions.** Generating an
   OoT randomizer seed also generates a paired Majora's Mask world; OoT items are
@@ -69,9 +72,21 @@ generation now happens once, at file creation, not on first arrival. Increment 3
   items are only hosted on checks the MM crawl can reach (PRs
   [#580](https://github.com/spencerduncan/redshipblueship/pull/580),
   [#581](https://github.com/spencerduncan/redshipblueship/pull/581)). Each half is
-  beatable on its own terms. The progress surface is text-only for now — an
-  on-screen bar remains open
-  ([#582](https://github.com/spencerduncan/redshipblueship/issues/582)).
+  beatable on its own terms. **An on-screen progress bar now paints during
+  file creation** (PR [#707](https://github.com/spencerduncan/redshipblueship/pull/707), [#582](https://github.com/spencerduncan/redshipblueship/issues/582)): the blocking creation pumps frames, so
+  the window stays responsive and shows which phase and attempt it is on instead
+  of freezing for up to the whole budget. Menu input is suppressed while it
+  paints.
+- **The Happy Mask Shop door is never shuffled.** It is the OoT ↔ MM crossing, so
+  OoT's own entrance randomizer now leaves both directions of it out of every
+  shuffle pool; under interior (or any) entrance shuffle the door you walk
+  through is still the door to Termina (PR [#691](https://github.com/spencerduncan/redshipblueship/pull/691), [#661](https://github.com/spencerduncan/redshipblueship/issues/661)).
+- **Paired MM worlds can enable individual Majora's Mask logic tricks.** MM now
+  has a per-trick vocabulary (86 trick keys, frozen into the world's identity
+  like OoT's), and **25** of them currently widen a real logic edge (PRs
+  [#686](https://github.com/spencerduncan/redshipblueship/pull/686), [#696](https://github.com/spencerduncan/redshipblueship/pull/696), [#703](https://github.com/spencerduncan/redshipblueship/pull/703), [#713](https://github.com/spencerduncan/redshipblueship/pull/713); [#578](https://github.com/spencerduncan/redshipblueship/issues/578)). Every trick is off by default. A
+  trick whose edge is not bound yet draws disabled-with-reason in the MM options
+  pane rather than enabled-and-inert; the remaining bindings are [#697](https://github.com/spencerduncan/redshipblueship/issues/697).
 - **You may opt into one shared Ocarina across both games** — off by default,
   frozen at file creation like every other combo rule: obtaining an ocarina in
   either game grants it in the other (PR
@@ -98,13 +113,12 @@ generation now happens once, at file creation, not on first arrival. Increment 3
   ([#438](https://github.com/spencerduncan/redshipblueship/issues/438), 14 of 23
   hook types remain). The pane says which and why; an option that is enabled and
   does nothing is a bug worth reporting.
-- **MM's own enhancement toggles (not randomizer options) are config-file-only.**
-  The MM-side enhancement CVars — the game-over prompt, `BetterSongOfDoubleTime`,
-  `SkipSoTCutscenes`, `Autosave` — have no row in the unified menu yet; set them
-  in `shipofharkinian.json` or the console. A hosted, per-row-verified menu
-  surface is tracked on
-  [#682](https://github.com/spencerduncan/redshipblueship/issues/682) and is not
-  in this build.
+- **MM's autosave INTERVAL is still config-file-only.** The curated MM enhancement
+  toggles — the game-over prompt, `BetterSongOfDoubleTime`, `SkipSoTCutscenes`,
+  and a pointer to the shared `Autosave` checkbox on OoT's Enhancements page — are
+  now hosted on **Combo → MM Enhancements** (PR [#695](https://github.com/spencerduncan/redshipblueship/pull/695), [#682](https://github.com/spencerduncan/redshipblueship/issues/682)). MM's
+  autosave interval (`gEnhancements.Saving.AutosaveInterval`) has no row yet;
+  set it in `shipofharkinian.json` or the console ([#693](https://github.com/spencerduncan/redshipblueship/issues/693)).
 
 ### Back up your saves. Seriously.
 
@@ -319,6 +333,14 @@ Duplicate entrance-link registrations are rejected instead of silently shadowing
 The macOS CI build is **disabled** (`.github/workflows/generate-builds.yml`,
 `build-macos`) due to an unresolved linker issue. No macOS artifacts are produced.
 Windows and Linux only.
+
+### ~~MM mods and texture packs never load~~ — RESOLVED ([#670](https://github.com/spencerduncan/redshipblueship/issues/670), PRs [#704](https://github.com/spencerduncan/redshipblueship/pull/704), [#716](https://github.com/spencerduncan/redshipblueship/pull/716))
+
+MM now mounts its asset mods in the single executable. Both games share one
+`mods/` folder: the root is OoT's and `mods/mm/` is MM's, each searched
+recursively, and a mod under one partition is never registered for the other
+game. Layout and precedence are in `docs/MODDING.md`. Loose (unpacked) asset
+folders are still not mounted for either game ([#705](https://github.com/spencerduncan/redshipblueship/issues/705)); pack them as `.o2r`.
 
 ### You must supply your own ROMs
 

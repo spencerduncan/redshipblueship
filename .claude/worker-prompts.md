@@ -1,24 +1,25 @@
-# Worker loop goals — 2026-09-21 wave (wave 4; updated 2026-09-21)
+# Worker loop goals — 2026-09-26 wave (wave 5)
 
-**Where the phases stand.** Wave 3 closed epic #644 (ADR 0010 increment 2,
-merged PR #680) and its remaining prerequisites for increment 3: #656, #657,
-#659, #667 (PR #689), #658 (PR #690), and #661 (PR #691, which also closed
-#644). O4 (composition vs. unification) is **ruled: composition** (operator,
-2026-09-17; ADR 0010 amendment). Increment 3 itself is epic **#645** and this
-wave lands its first real slice: the combo-logic coordinator and stub-engine
-locks (lane K1), the two real solver exports it is written against (lanes
-K2a/K2b), and the first cost/convergence measurements over those exports
-(lane K3) — none of it wired into a production path yet. Alongside increment
-3: a real golden determinism digest so "the world did not change" is
-enforceable rather than asserted (#688, lane Q), the remaining plain
-widenings in MM's per-trick vocabulary (#578 part 3, #697, lane T3), MM's
-`mods/` folder never mounting in single-exe (#670, lane M), the on-screen
-generation-progress bar (#582, lane P), license-attribution and font-license
-follow-up (lane N), and this tracker/docs sweep (lane H). Phase 3.1 (#492)
-and Phase 3.2's increment-2 epic (#644) are both closed. Community reports
-#634/#635/#636 remain human-filed and hands-off, tracked agent-side as
-#640/#638/#639 (resolved in earlier waves; #634/#640's Anchor-page regression
-is the only one still open, unrelated to this wave).
+**Where the phases stand.** Wave 4 landed increment 3's first real slice for
+epic **#645**, none of it wired into a production path: the combo-logic
+coordinator (PR #701, follow-up #717), both real solver exports it drives
+(OoT PR #715, MM PR #714), and the first cost/convergence measurement over
+them (PR #722, `combo-logic-measure`). The measured verdict (#645 comment of
+2026-09-22): one linked round is 2 alternations and 4-10 ms; one attempt
+extrapolates to 0.63-0.87x the #582 30 s floor, ten retries do not fit the
+2x total budget; placement converges but the GOAL is unprovable on every
+seed, because both engines de-duplicate assumed items by id within a round
+(OoT's 321 advancement rows are 105 distinct ids). **Operator ruling
+2026-09-26: multiplicity** — the coordinator passes copies, the engines
+handle repeats — and the bag model must also cover plentiful surplus
+(OoT `RO_ITEM_POOL_PLENTIFUL`, MM `RO_PLENTIFUL_ITEMS`), more checks than
+items (junk fill), and traps as a per-game filler class (OoT `RG_ICE_TRAP`,
+MM `RI_TRAP`; no trap crosses games this increment). Also merged in wave 4:
+golden determinism digests, enforced locally since #718 (#688, PR #700);
+MM per-trick bindings to 25 of 86 keys (#697, PRs #703/#713); MM `mods/`
+mounting (#670, PRs #704/#716); the on-screen creation progress bar (#582,
+PR #707). Community reports #634/#635/#636 remain human-filed and
+hands-off, tracked agent-side as #640/#638/#639.
 
 ## Lanes — one card per lane in `.claude/lanes/`
 
@@ -28,40 +29,32 @@ you do fewer. Then read your own card and the issue or ADR it names.
 
 | Lane | Branch | Serves | Owns, roughly |
 |---|---|---|---|
-| K1 | `claude/inc3-coordinator-core` | #645 increment 3: the combo-logic coordinator and engine surface, locked over stub engines | new `src/common/combo_logic.{h,c}`, new `src/common/tests/test_combo_logic.c`; `src/common` only, not wired into any production path |
-| K2a | `claude/inc3-oot-logic-export` | #645: implement K1's engine surface over OoT's real solver | new TU beside `ForeignItemsSingleExe.cpp` (guard `RSBS_SINGLE_EXECUTABLE`), its test; starts only after K1 merges |
-| K2b | `claude/inc3-mm-logic-export` | #645: implement K1's engine surface over MM's real solver | new TU under `games/mm/2s2h/Rando/` beside the foreign-items TU, its test; starts only after K1 merges |
-| K3 | `claude/inc3-linked-round-measurements` | #645: measure the linked round's cost and the assumed fill's convergence over the real K2a/K2b exports | a new measurement test TU, minimal read-only accessors in the K2a/K2b export TUs if needed; starts only after K1, K2a and K2b all merge |
-| Q | `claude/688-golden-determinism-digest` | #688 (the determinism rows prove reproducibility, not stability — no golden digest exists to re-pin) | `CMake/Check*Determinism.cmake` (or new siblings), new golden files, the determinism rows in `CMake/SingleExecutable.cmake` (append only), the three false "digests are pinned" comments, a new docs page, one bullet in this file's Standing conventions |
-| T3 | `claude/578-mm-tricks-part3` | #697 (#578 part 3: bind the remaining plain widenings in MM's per-trick vocabulary) | `games/mm/2s2h/Rando/Logic/Regions/*.cpp` (touched seams only), the `MMTrickBindings` test, `OptionsUiSingleExe.cpp` (`kBoundTricks` only) |
-| M | `claude/670-mm-mods-folder-mount` | #670 (MM never mounts its `mods/` folder in single-exe) | MM's archive-mount path in `games/mm/2s2h/` (`GameExports_SingleExe.cpp` / `BenPort.cpp`), `src/common` mount helpers if any, `docs/MODDING.md`, a new test |
-| P | `claude/582-creation-progress-bar` | #582 (the on-screen generation-progress bar; the phase channel exists, nothing paints) | the progress sink/overlay under `games/oot/soh/SohGui/` or `src/common/`, the creation call site at function granularity, its tests |
-| H | `claude/wave4-tracker-docs-hygiene` | Tracker + docs hygiene after wave 3 (this file, epic #644/#645 bookkeeping, the solver-inventory audit's delivered prerequisites, ADR 0010 O9) | `docs/solver-inventory.md` (status annotations only), `docs/adr/0010-*.md` (amendment only), this file, `.claude/lanes/*.md`. No local build. |
-| N | `claude/license-elections-and-fipps-removal` | License follow-up: attribution name, remove the all-rights-reserved Fipps font, ship required license texts, elect MIT/CC0 wherever upstream offers it | `LICENSE`, `THIRD_PARTY_NOTICES.md`, `docs/CREDITS.md`, `docs/known-issues.md`, both `OTRGlobals.cpp`/`BenPort.cpp` `LoadFont("Fipps", ...)` call sites, both games' `assets/custom/fonts/` |
+| K4 | `claude/inc3-multiplicity-contract` | #645: multiplicity in the assume contract, and the surplus / filler / trap rules of the bag (the 2026-09-26 ruling) | `src/common/combo_logic.{h,c}`, the `assumeOwnItem`/`place`/pool-export functions of BOTH engine TUs, `test_combo_logic.c`, `test_combo_logic_measure.c` |
+| K5 | `claude/inc3-o8-classification-table` | #645: ADR 0010 O8, the single-owner item classification table (progression / junk / renewable / trap) with per-game sources | `src/common/shared_items.{h,c}`, a NEW `classify` export in each engine TU (function granularity), `test_shared_items*.c`; NOT `combo_logic.*` |
+| K8 | `claude/inc3-o6-monotonicity-tooling` | #645: ADR 0010 O6, the CI grow-check over both engines and the static negation probe | a new test TU, a new `.github/scripts/` probe with `--self-test`, a CI step (append), a `docs/` page, one Standing-conventions bullet here; branches only after K4 merges |
+| W | `claude/world-moving-bundle-583-681-643-719` | #583 drop order, #681 criterion-3 narrowing, #643 O5 46th slice, #719 Deku-stick gate — each with its own golden re-pin | the files each item names, `tests/golden/*`, ADR 0010/0011 amendment paragraphs (append only); NOT `combo_logic.*` or the engine TUs |
+| G2 | `claude/693-autosave-interval-host` | #693: host MM's autosave interval on the Combo → MM Enhancements page | the MM Enhancements page and its manifest (`kHostedMmEnhancementCount` and its lock) |
+| C1 | `claude/709-windows-rando-tier-trial` | #709: measure running the whole `rando` tier on the Windows CI runner | `.github/workflows/generate-builds.yml` (the Windows gate step); evidence is CI |
+| M3 | `claude/705-loose-asset-mods` | #705: loose (unpacked) asset directories mount as mods for both games | the mods mount path in both games, `docs/MODDING.md`, a redship-tier row |
+| H2 | `claude/wave5-tracker-docs-hygiene` | Tracker + docs hygiene for wave 5 (#645 body, #708, solver-inventory status, ADR 0010 O9, this file, known issues) | `docs/solver-inventory.md` (status annotations only), `docs/adr/0010-*.md` (amendments only), `docs/known-issues.md`, this file, `.claude/lanes/*.md`. No local build. |
 
-Shared-file hotspots this wave: `games/mm/2s2h/Rando/Logic/Regions/*.cpp` is
-touched only by **lane T3** (no other lane this wave binds MM trick edges).
-`.claude/worker-prompts.md` (this file) is written by both **lane H** (this
-header, the lane table, hotspots) and **lane Q** (one bullet under Standing
-conventions, the re-pin procedure) — expect a small, easy merge. ADR 0010 is
-**read-only for everyone except lane H this wave** (the O9 amendment-log
-entry only; no decided text changes). `docs/solver-inventory.md` is likewise
-**lane H only** this wave (status annotations on already-decided rows; no
-rewritten analysis).
+Shared-file hotspots this wave: **both engine TUs**
+(`ComboLogicEngineOoT.cpp`, `ComboLogicEngineSingleExe.cpp`) are edited by
+**K4** (assume/place/pool functions) and **K5** (a new `classify` export)
+at function granularity — expect a merge, never a rewrite of the other's
+functions. `combo_logic.*` is **K4 only**; `shared_items.*` is **K5 only**.
+ADR 0010 is appended by **H2** (amendments) and **W** (O5 / criterion-3
+answer rows, by dated amendment) — both append-only. This file is written by
+**H2** (header, lane table) and **K8** (one Standing-conventions bullet).
+`tests/golden/*` moves only in **W**, one re-pin commit per intended change.
 
-Ordering that is load-bearing: **lane K2a and lane K2b both branch only
-after lane K1 merges** (they implement the contract `combo_logic.h`
-declares); **lane K3 branches only after K1, K2a and K2b all merge** (it
-measures the two real exports through the coordinator). All three report
-`blocked` and stop rather than branching early if their prerequisite is not
-yet on `main`. Lane H and lane N have local-build status stated on their own
-card (H: no build, docs only; N: builds, both tiers). Determinism digests
-(`SeedDeterminism`, `MMRandoGen`, `MMPairedAttemptDeterminism`,
-`HeadlessForeignDigest`) move only where a lane's brief says a re-pin is
-allowed; every other lane asserts the digests stay byte-identical. None of
-K1/K2a/K2b/K3's work is wired into a production path, so it cannot move a
-generated world by construction — each lane still states that explicitly
-rather than relying on the digests to prove it.
+Ordering that is load-bearing: **K8 branches only after K4 merges** (the
+grow-check assumes copies one at a time through the multiplicity contract)
+and reports `blocked` otherwise. Every lane except W proves it moved no
+world by the three golden rows — `GoldenSeedDigestDefault`,
+`GoldenSeedDigestProfileV1`, `GoldenPairedAttemptDigest` — staying green
+with the golden files untouched, and says so by row name. Local-build
+status is on each card (H2 and C1: no local build).
 
 This file deliberately holds almost no state. Its failure mode is going stale
 — an earlier revision claimed "Wave 3" and "eleven commits awaiting push" for a
@@ -74,9 +67,9 @@ gets updated as work lands.
 | What | Where |
 |---|---|
 | Phase 3.2 tracker (ADR 0010 increments, O4/O9, wave sweeps) | **#500** |
-| ADR 0010 increment epics | **#644** (increment 2, merged PR #680; CLOSED 2026-09-21, all prerequisites delivered) → **#645** (increment 3, single-bag fill; O4 ruled composition; coordinator/exports/measurement in flight, lanes K1/K2a/K2b/K3) |
+| ADR 0010 increment epics | **#644** (increment 2, merged PR #680; CLOSED 2026-09-21, all prerequisites delivered) → **#645** (increment 3, single-bag fill; O4 ruled composition; coordinator, both exports and the first measurement merged in wave 4; multiplicity ruled 2026-09-26; lanes K4/K5/K8 in wave 5) |
 | The O4 solver-inventory audit | `docs/solver-inventory.md` (PR #647); recommended composition; **RULED composition** (operator, 2026-09-17; ADR 0010 amendment) |
-| MM per-trick vocabulary (O9) | #578: part 1 (substrate, PR #686) and part 2 (first bindings, PR #696) merged; part 3 (#697, remaining plain widenings, lane T3) in flight |
+| MM per-trick vocabulary (O9) | #578 (closed): parts 1-2 (PR #686, PR #696) and part 3's two passes (PR #703, PR #713) merged, 25 of 86 keys bound; #697 open for the owed seams and the `MMRT_PALACE_GUARD_SKIP` judgement |
 | Phase 3.1 tracker (closed) | #492 |
 | Combo-level settings (ADR 0011) | #498, `docs/adr/0011-combo-level-settings.md` |
 | MM hook dispatch coverage | #438 |
