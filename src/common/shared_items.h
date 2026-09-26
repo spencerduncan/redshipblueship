@@ -293,7 +293,7 @@ void Combo_ClearSharedItemOutbox(void);
 // That is OoTMM's SHARED_BOMBCHU shape (one quantity, two answers), so this
 // table does NOT yet prevent it; it only makes each game's answer single and
 // checkable. One class per shared quantity, decided here, is owed by the lane
-// that wires the table into the bag (it needs each game to tag which of its ids
+// that wires the table into the bag (#731; it needs each game to tag which of its ids
 // feed which #525 kind, which only the game TUs can say under ADR 0002). Until
 // then a consumer must not assume the two origins' rows for one shared quantity
 // agree.
