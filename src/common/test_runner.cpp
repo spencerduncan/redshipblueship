@@ -3981,6 +3981,22 @@ TestResult Test_ComboLogicMonotonicity(void) {
     return ComboLogicMonotonicity_Run();
 }
 
+// The bag composition rule over both real pools (#645 lane K9; #731, #733). Same
+// bring-up split as Test_ComboLogicMeasure above, for the same reason; the row
+// body lives in tests/test_combo_logic_measure.c beside the composition helpers
+// it shares with the measurement.
+TestResult Test_ComboLogicBagComposition(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    static char clbcArg0[] = "redship";
+    static char* clbcArgv[] = { clbcArg0, nullptr };
+    InitOTRForMMFirstBoot(1, clbcArgv);
+    return ComboLogicBagComposition_Run();
+}
+
 TestResult Test_RoundtripIntegrity(void) {
     printf("[TEST] roundtrip-integrity: OoT SaveContext byte-integrity across roundtrip (issue #262)\n");
     int failures = TestRoundtripIntegrity_Run();
@@ -4708,6 +4724,13 @@ const TestDescriptor gTests[] = {
      "A loose file under each game's mods partition overrides its base archive and packed mods, is re-applied on "
      "arrival, is registered only to its own game, and is shadowed by the other game's base archives there (#705)",
      Test_LooseModsMount},
+    // The bag composition rule over both real pools (#645 lane K9). Needs a
+    // generation; skipped by `--test all` below like its siblings.
+    {"combo-logic-bag-composition",
+     "Over both real pools: the composed bag holds progression copies only (plentiful copies as surplus, restricted "
+     "passes confined, filler and traps counted), surplus follows the profile, and MM's heart rows are REQUIRED and "
+     "load-bearing for CHECK_MAX_HP (#731, #733)",
+     Test_ComboLogicBagComposition},
     {nullptr, nullptr, nullptr}  // Sentinel
 };
 
@@ -4798,6 +4821,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "combo-logic-measure") == 0 ||
                 strcmp(gTests[i].name, "combo-logic-multiplicity") == 0 ||
                 strcmp(gTests[i].name, "combo-logic-monotonicity") == 0 ||
+                strcmp(gTests[i].name, "combo-logic-bag-composition") == 0 ||
                 // Also skipped for a second reason: it is a diagnostic whose
                 // intended outcome on a bad id is a process abort, so it must never
                 // run inside a suite whose result is a pass/fail count.

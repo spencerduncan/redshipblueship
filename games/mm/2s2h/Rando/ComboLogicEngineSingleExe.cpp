@@ -1286,9 +1286,19 @@ extern "C" int MM_ComboLogic_ProbeGives(const uint16_t* ids, int count, int star
  *      the profile a fill runs under. SOLO (`paired == false`) deliberately: that
  *      path returns before touching `gComboCtx.mmProfileDigest`, so a measurement
  *      cannot stamp or trip a cross-game identity.
- *   4. `Rando::GrantStartingItems()` — A1's "at file creation the live save holds
- *      exactly the world's starting inventory". Without it the round's starting
- *      state is an empty save, which under-states reachability everywhere.
+ *   4. `Rando::SetStartingItemsInSave(..., GetStartingItemsFromConfig())`, then
+ *      `Rando::GrantStartingItems()` — A1's "at file creation the live save holds
+ *      exactly the world's starting inventory", in the creation seam's own order
+ *      (OnFileCreate.cpp persists the configured list into the save, and only
+ *      then grants it). Without the first half the grant reads a fresh save's
+ *      EMPTY starting-item list and grants nothing: until lane K9 this bridge did
+ *      exactly that, so every measured MM world started without the default
+ *      sword, shield, Ocarina and Song of Time. That stayed invisible while the
+ *      measurement's MM bag was the static vanilla walk (which holds the
+ *      Ocarina and the song at their vanilla checks); it stops being invisible
+ *      the moment the bag is GeneratePools' real pool, which REMOVES the starting
+ *      items — a world that neither starts with the Ocarina nor has one in the
+ *      pool can never reach Majora.
  *
  * AND ONE BOOT-TIME DEPENDENCY IT STANDS IN FOR, which the probe ABOVE found the
  * hard way rather than from source. `gRegEditor` (games/mm/src/code/z_debug.c) is a
@@ -1347,8 +1357,137 @@ extern "C" int MM_ComboLogic_ApplyShippedProfile(void) {
     MM_Sram_InitNewSave();
     gSaveContext.save.shipSaveInfo.saveType = SAVETYPE_RANDO;
     Rando::Foreign::ResolvePairedProfile(false);
+    auto startingItems = Rando::GetStartingItemsFromConfig();
+    Rando::SetStartingItemsInSave(gSaveContext.save.shipSaveInfo.rando, startingItems);
     Rando::GrantStartingItems();
     return (int)RANDO_SAVE_OPTIONS[RO_LOGIC];
+}
+
+// ============================================================================
+// THE POOL EXPORT (#645 increment 3, lane K9): MM's half of bag composition
+// ============================================================================
+//
+// What MM hands Combo_Logic_ComposeBag (combo_logic.h, THE BAG COMPOSITION RULE):
+// the rows of a `GeneratePools` result, with the PLENTIFUL mark on exactly the
+// copies RO_PLENTIFUL_ITEMS appended — read from the record GeneratePools.cpp
+// keeps where the port decides, never re-derived. No class is decided here.
+
+// GeneratePools.cpp, RSBS_SINGLE_EXECUTABLE only (see the seam there).
+extern size_t gRsbsComboPlentifulFrom;
+extern size_t gRsbsComboPlentifulTo;
+extern size_t gRsbsComboPoolSize;
+
+/**
+ * Mark a `GeneratePools` result: `outFlags[i]` = RSBS_COMBO_POOL_PLENTIFUL for
+ * every row RO_PLENTIFUL_ITEMS appended, 0 otherwise.
+ *
+ * THE POOL MUST BE THE ONE THE MOST RECENT `GeneratePools` CALL RETURNED, AS IT
+ * RETURNED IT — in particular BEFORE OnFileCreate's balance step, which erases
+ * junk rows from the front and would shift the plentiful tail. The record carries
+ * the pool's final size and a mismatch is refused (-1), which catches a stale
+ * record (Menu.cpp's metrics refresh also calls GeneratePools) and a balanced
+ * pool alike. It cannot catch a same-size impostor; the caller owns passing the
+ * pool it just generated.
+ *
+ * @return the number of rows marked, or -1 (refused, nothing written).
+ */
+extern "C" int MM_ComboLogic_MarkPoolRows(const uint16_t* pool, int count, uint16_t* outFlags) {
+    if (pool == nullptr || outFlags == nullptr || count < 0 || (size_t)count != gRsbsComboPoolSize ||
+        gRsbsComboPlentifulFrom > gRsbsComboPlentifulTo || gRsbsComboPlentifulTo > gRsbsComboPoolSize) {
+        return -1;
+    }
+    int marked = 0;
+    for (int i = 0; i < count; ++i) {
+        const bool plentiful = (size_t)i >= gRsbsComboPlentifulFrom && (size_t)i < gRsbsComboPlentifulTo;
+        outFlags[i] = plentiful ? RSBS_COMBO_POOL_PLENTIFUL : 0u;
+        marked += plentiful ? 1 : 0;
+    }
+    return marked;
+}
+
+/**
+ * MEASUREMENT BRIDGE: MM's real pool under the profile the live save holds —
+ * `GeneratePools` run over a HEAP COPY of the save's rando info (so neither the
+ * live `randoSaveChecks` nor anything else in the save is written), with the
+ * configured starting items persisted into the copy first, exactly as
+ * OnFileCreate does. Returns the item pool (with its plentiful marks) and the
+ * check pool, the host list MM's creation would shuffle over.
+ *
+ * IT CONSUMES `Ship_Random`: GeneratePools draws shop and Tingle prices and, under
+ * RO_PLENTIFUL_ITEMS, the half of the lesser rows it duplicates. That is the same
+ * stream and the same draws the creation seam's own GeneratePools call makes, so
+ * a caller must call this INSTEAD of generating, never in addition — which is why
+ * it is a measurement bridge and not a production entry (production marks its own
+ * GeneratePools result through MM_ComboLogic_MarkPoolRows).
+ *
+ * Same truncation contract as the enumerators: at most `itemCap` / `checkCap`
+ * written, the item TOTAL returned and the check total through `outCheckTotal`.
+ * -1 when the region graph is not up.
+ */
+extern "C" int MM_ComboLogic_TestGeneratePool(uint16_t* outItems, uint16_t* outFlags, int itemCap,
+                                              uint16_t* outChecks, int checkCap, int* outCheckTotal) {
+    if (Rando::Logic::Regions.empty()) {
+        return -1;
+    }
+    std::unique_ptr<RandoSaveInfo> info = std::make_unique<RandoSaveInfo>();
+    memcpy(info.get(), &gSaveContext.save.shipSaveInfo.rando, sizeof(RandoSaveInfo));
+    auto startingItems = Rando::GetStartingItemsFromConfig();
+    Rando::SetStartingItemsInSave(*info, startingItems);
+    std::vector<RandoCheckId> checkPool;
+    std::vector<RandoItemId> itemPool;
+    Rando::Logic::GeneratePools(*info, checkPool, itemPool);
+
+    std::vector<uint16_t> items(itemPool.size(), 0);
+    for (size_t i = 0; i < itemPool.size(); ++i) {
+        items[i] = (uint16_t)itemPool[i];
+    }
+    std::vector<uint16_t> flags(items.size(), 0);
+    if (!items.empty() && MM_ComboLogic_MarkPoolRows(items.data(), (int)items.size(), flags.data()) < 0) {
+        return -1;
+    }
+    const int total = (int)items.size();
+    for (int i = 0; i < total && i < itemCap; ++i) {
+        if (outItems != nullptr) {
+            outItems[i] = items[(size_t)i];
+        }
+        if (outFlags != nullptr) {
+            outFlags[i] = flags[(size_t)i];
+        }
+    }
+    const int checkTotal = (int)checkPool.size();
+    for (int i = 0; i < checkTotal && i < checkCap; ++i) {
+        if (outChecks != nullptr) {
+            outChecks[i] = (uint16_t)checkPool[(size_t)i];
+        }
+    }
+    if (outCheckTotal != nullptr) {
+        *outCheckTotal = checkTotal;
+    }
+    return total;
+}
+
+/**
+ * TEST BRIDGE (#733): the two MM checks Regions/East.cpp gates on
+ * `CHECK_MAX_HP(4)` — the Ikana Canyon ghost hut's piece of heart and the Poe
+ * sister enemy drop — so combo-logic-bag-composition can assert they are reached
+ * exactly when the round holds the heart rows. At most `cap` written; the total
+ * (2) returned.
+ */
+extern "C" int MM_ComboLogic_TestHeartGatedChecks(uint16_t* out, int cap) {
+    const uint16_t gated[] = { (uint16_t)RC_IKANA_CANYON_GHOST_HUT_PIECE_OF_HEART, (uint16_t)RC_ENEMY_DROP_POE_SISTER };
+    const int total = (int)(sizeof(gated) / sizeof(gated[0]));
+    for (int i = 0; i < total && i < cap; ++i) {
+        if (out != nullptr) {
+            out[i] = gated[i];
+        }
+    }
+    return total;
+}
+
+/** TEST BRIDGE: the live save's maximum health as CHECK_MAX_HP reads it
+ *  (`healthCapacity`, 16 per heart). */
+extern "C" int MM_ComboLogic_TestHealthCapacity(void) {
+    return (int)gSaveContext.save.saveInfo.playerData.healthCapacity;
 }
 
 // ============================================================================
@@ -1452,6 +1591,79 @@ extern "C" int MM_ComboLogic_RoundCopiesGranted(void) {
 
 #include "shared_items.h" // src/common — the owner this source registers with
 
+namespace {
+/**
+ * The #525 SHARED KIND an MM item's give feeds (shared_items.h, "ONE CLASS PER
+ * CROSS-GAME SHARED QUANTITY", #731), or 0 — the twin of OoT's
+ * OoTFillClassSharedKind. Three of these kinds are where MM's own fill predicate
+ * and OoT's disagree (bombchus, double defense, hearts); the owner reconciles
+ * each kind to ONE class, so MM's RITYPE_HEALTH / RITYPE_JUNK copies of them
+ * answer PROGRESSION through Combo_ItemClassOf. That is also #733's decision:
+ * CHECK_MAX_HP(4) gates two MM checks, and the heart rows the proof needs are
+ * therefore REQUIRED bag rows.
+ */
+uint8_t MMFillClassSharedKind(RandoItemId ri) {
+    switch (ri) {
+        case RI_RUPEE_GREEN:
+        case RI_RUPEE_BLUE:
+        case RI_RUPEE_RED:
+        case RI_RUPEE_PURPLE:
+        case RI_RUPEE_SILVER:
+        case RI_RUPEE_HUGE:
+            return RSBS_SHARED_RES_RUPEES;
+        case RI_HEART_PIECE:
+        case RI_HEART_CONTAINER:
+            return RSBS_SHARED_RES_HEALTH_QUARTERS;
+        case RI_RECOVERY_HEART:
+            return RSBS_SHARED_RES_HEALTH_CURRENT;
+        case RI_DOUBLE_DEFENSE:
+            return RSBS_SHARED_RES_DOUBLE_DEFENSE;
+        case RI_PROGRESSIVE_WALLET:
+        case RI_WALLET_ADULT:
+        case RI_WALLET_GIANT:
+            return RSBS_SHARED_RES_WALLET_TIER;
+        case RI_PROGRESSIVE_MAGIC:
+            return RSBS_SHARED_RES_MAGIC_LEVEL;
+        case RI_MAGIC_JAR_SMALL:
+        case RI_MAGIC_JAR_BIG:
+            return RSBS_SHARED_RES_MAGIC_CURRENT;
+        case RI_PROGRESSIVE_BOW:
+        case RI_QUIVER_40:
+        case RI_QUIVER_50:
+            return RSBS_SHARED_RES_QUIVER_TIER;
+        case RI_PROGRESSIVE_BOMB_BAG:
+        case RI_BOMB_BAG_20:
+        case RI_BOMB_BAG_30:
+        case RI_BOMB_BAG_40:
+            return RSBS_SHARED_RES_BOMB_BAG_TIER;
+        case RI_ARROWS_10:
+        case RI_ARROWS_30:
+        case RI_ARROWS_50:
+            return RSBS_SHARED_RES_ARROW_COUNT;
+        case RI_BOMBS_5:
+        case RI_BOMBS_10:
+            return RSBS_SHARED_RES_BOMB_COUNT;
+        case RI_BOMBCHU:
+        case RI_BOMBCHU_5:
+        case RI_BOMBCHU_10:
+            return RSBS_SHARED_RES_BOMBCHU_COUNT;
+        case RI_DEKU_STICK:
+        case RI_DEKU_STICKS_5:
+            return RSBS_SHARED_RES_STICK_COUNT;
+        case RI_DEKU_NUT:
+        case RI_DEKU_NUTS_5:
+        case RI_DEKU_NUTS_10:
+            return RSBS_SHARED_RES_NUT_COUNT;
+        case RI_HOOKSHOT:
+            return RSBS_SHARED_RES_HOOKSHOT_TIER;
+        case RI_OCARINA:
+            return RSBS_SHARED_RES_OCARINA_TIER;
+        default:
+            return 0u;
+    }
+}
+} // namespace
+
 /**
  * Classify one MM item id (ComboItemClassifyFn). The precedence is the owner's
  * (shared_items.h): TRAP, then PROGRESSION by MM's OWN fill predicate, then
@@ -1481,7 +1693,7 @@ extern "C" int MM_ComboLogic_RoundCopiesGranted(void) {
  * exists to express).
  */
 extern "C" int MM_ComboLogic_ClassifyItem(uint16_t id, ComboItemClassRow* out) {
-    ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u };
+    ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u, 0u };
     if (out != nullptr) {
         *out = row;
     }
@@ -1521,6 +1733,7 @@ extern "C" int MM_ComboLogic_ClassifyItem(uint16_t id, ComboItemClassRow* out) {
     } else if (ri == RI_TRIFORCE_PIECE) {
         row.armedBy = RSBS_FILL_ARM_WORLD_EVENT;
     }
+    row.sharedKind = (row.fillClass == RSBS_FILL_CLASS_TRAP) ? 0u : MMFillClassSharedKind(ri);
     if (out != nullptr) {
         *out = row;
     }

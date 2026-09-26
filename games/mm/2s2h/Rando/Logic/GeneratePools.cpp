@@ -8,6 +8,18 @@ extern "C" {
 #include "ShipUtils.h"
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// RedShipBlueShip (#645 increment 3, lane K9): where RO_PLENTIFUL_ITEMS' copies
+// sit in the last `itemPool` this function returned — [from, to), both 0 when
+// plentiful added none — and that pool's final size, so a consumer can tell it is
+// marking the pool this record describes. RECORDED where the port decides (its
+// all-or-nothing test and its random half of the lesser rows), never re-derived;
+// read by MM_ComboLogic_MarkPoolRows (ComboLogicEngineSingleExe.cpp).
+size_t gRsbsComboPlentifulFrom = 0;
+size_t gRsbsComboPlentifulTo = 0;
+size_t gRsbsComboPoolSize = 0;
+#endif
+
 namespace Rando {
 
 namespace Logic {
@@ -230,6 +242,9 @@ void GeneratePools(RandoSaveInfo& saveInfo, std::vector<RandoCheckId>& checkPool
         }
     }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+    gRsbsComboPlentifulFrom = itemPool.size();
+#endif
     // Plentiful
     if (saveInfo.randoSaveOptions[RO_PLENTIFUL_ITEMS] == RO_GENERIC_YES) {
         int replaceableItems = 0;
@@ -277,6 +292,9 @@ void GeneratePools(RandoSaveInfo& saveInfo, std::vector<RandoCheckId>& checkPool
         }
     }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+    gRsbsComboPlentifulTo = itemPool.size();
+#endif
     // Traps
     if (saveInfo.randoSaveOptions[RO_SHUFFLE_TRAPS] == RO_GENERIC_YES) {
         int trapsToShuffle = saveInfo.randoSaveOptions[RO_TRAP_AMOUNT];
@@ -285,6 +303,9 @@ void GeneratePools(RandoSaveInfo& saveInfo, std::vector<RandoCheckId>& checkPool
             trapsToShuffle--;
         }
     }
+#ifdef RSBS_SINGLE_EXECUTABLE
+    gRsbsComboPoolSize = itemPool.size();
+#endif
 }
 
 } // namespace Logic

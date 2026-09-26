@@ -19,6 +19,7 @@
  */
 
 #include "combo_logic.h"
+#include "shared_items.h" // the O8 owner the bag builder reads (game-header-free)
 
 #include <stdio.h>
 #include <string.h>
@@ -1257,6 +1258,121 @@ finish:
         res.placementDigest = 0u;
         res.droppedDigest = 0u;
     }
+    if (out != NULL) {
+        *out = res;
+    }
+    return status;
+}
+
+// ============================================================================
+// THE BAG COMPOSITION RULE (#645 increment 3, lane K9) — see combo_logic.h
+// ============================================================================
+//
+// The one place the fill's bag meets the O8 classification owner. Everything
+// below reads classes and arming words through shared_items.h and names no game
+// enum, so ADR 0002 holds here exactly as it does for the rest of this TU.
+
+const char* Combo_Logic_ComposeDispositionName(int disposition) {
+    switch (disposition) {
+        case RSBS_COMBO_COMPOSE_REQUIRED: return "required";
+        case RSBS_COMBO_COMPOSE_SURPLUS: return "surplus";
+        case RSBS_COMBO_COMPOSE_CONFINED: return "confined";
+        case RSBS_COMBO_COMPOSE_RENEWABLE: return "renewable";
+        case RSBS_COMBO_COMPOSE_JUNK: return "junk";
+        case RSBS_COMBO_COMPOSE_TRAP: return "trap";
+        case RSBS_COMBO_COMPOSE_UNCLASSIFIED: return "unclassified";
+        default: return "(unknown)";
+    }
+}
+
+int Combo_Logic_ComposeDisposition(SharedItem item, uint16_t poolFlags, uint32_t armed) {
+    // First match decides, in the order the header's table lists them.
+    switch (Combo_ItemClassOf(item)) {
+        case RSBS_FILL_CLASS_TRAP:
+            return RSBS_COMBO_COMPOSE_TRAP;
+        case RSBS_FILL_CLASS_JUNK:
+            return RSBS_COMBO_COMPOSE_JUNK;
+        case RSBS_FILL_CLASS_RENEWABLE:
+            return RSBS_COMBO_COMPOSE_RENEWABLE;
+        case RSBS_FILL_CLASS_PROGRESSION:
+            break;
+        default:
+            return RSBS_COMBO_COMPOSE_UNCLASSIFIED;
+    }
+    if ((Combo_ItemClassArmedBy(item) & ~armed) != 0u) {
+        return RSBS_COMBO_COMPOSE_CONFINED;
+    }
+    return ((poolFlags & RSBS_COMBO_POOL_PLENTIFUL) != 0u) ? RSBS_COMBO_COMPOSE_SURPLUS : RSBS_COMBO_COMPOSE_REQUIRED;
+}
+
+int Combo_Logic_ComposeBag(const ComboLogicComposeRequest* req, ComboLogicBagItem* outBag, int outCap,
+                           int* outPoolIndex, ComboLogicComposeResult* out) {
+    ComboLogicComposeResult res;
+    memset(&res, 0, sizeof(res));
+    int status = RSBS_COMBO_LOGIC_OK;
+
+    if (req == NULL || req->rowCount < 0 || (req->rowCount > 0 && req->rows == NULL) || outCap < 0 ||
+        (outCap > 0 && outBag == NULL)) {
+        status = RSBS_COMBO_LOGIC_ERR_BAD_REQUEST;
+        goto finish;
+    }
+
+    for (int i = 0; i < req->rowCount; ++i) {
+        const ComboLogicPoolRow* row = &req->rows[i];
+        const uint8_t origin = row->item.originGame;
+        if (!ComboLogicIsGame(origin)) {
+            fprintf(stderr, "[ComboLogic] compose refused: pool row %d carries no origin game\n", i);
+            status = RSBS_COMBO_LOGIC_ERR_BAD_REQUEST;
+            continue; // keep counting: the counts describe the whole pool on a refusal too
+        }
+        if ((row->poolFlags & (uint16_t)~RSBS_COMBO_POOL_FLAGS_KNOWN) != 0u) {
+            // An unknown pool flag is refused, never ignored: a flag this build
+            // does not understand would otherwise be composed as a REQUIRED copy.
+            fprintf(stderr, "[ComboLogic] compose refused: pool row %d carries unknown pool flags 0x%04X\n", i,
+                    (unsigned)row->poolFlags);
+            status = RSBS_COMBO_LOGIC_ERR_BAD_REQUEST;
+            continue;
+        }
+        const uint32_t armed = (origin == (uint8_t)GAME_OOT) ? req->armedOoT : req->armedMM;
+        const int disposition = Combo_Logic_ComposeDisposition(row->item, row->poolFlags, armed);
+        ComboLogicComposeCounts* counts = &res.perGame[origin];
+        counts->rows[disposition]++;
+        if ((row->poolFlags & RSBS_COMBO_POOL_PLENTIFUL) != 0u) {
+            counts->plentiful++;
+        }
+        if (disposition == RSBS_COMBO_COMPOSE_UNCLASSIFIED) {
+            // A pool row nobody classified: the owner is not ready, or the pool
+            // holds an id no fill places. Either way the bag would be a guess.
+            fprintf(stderr, "[ComboLogic] compose refused: pool row %d (%s id %u) has no fill class\n", i,
+                    Game_ToString((GameId)origin), (unsigned)row->item.id);
+            status = RSBS_COMBO_LOGIC_ERR_BAD_REQUEST;
+            continue;
+        }
+        if (disposition != RSBS_COMBO_COMPOSE_REQUIRED && disposition != RSBS_COMBO_COMPOSE_SURPLUS) {
+            continue; // counted for its own game's pass; never a bag row
+        }
+        if (res.bagCount < outCap) {
+            ComboLogicBagItem* b = &outBag[res.bagCount];
+            memset(b, 0, sizeof(*b));
+            b->item.originGame = origin;
+            b->item.id = row->item.id;
+            b->itemClass = 0u;
+            b->bagFlags = (disposition == RSBS_COMBO_COMPOSE_SURPLUS) ? RSBS_COMBO_BAG_SURPLUS : 0u;
+            if (outPoolIndex != NULL) {
+                outPoolIndex[res.bagCount] = i;
+            }
+        }
+        res.bagCount++;
+    }
+
+    if (status == RSBS_COMBO_LOGIC_OK && (res.bagCount > outCap || res.bagCount > RSBS_COMBO_LOGIC_BAG_CAP)) {
+        fprintf(stderr, "[ComboLogic] compose refused: %d bag rows exceed the output capacity %d or the bag cap %d\n",
+                res.bagCount, outCap, RSBS_COMBO_LOGIC_BAG_CAP);
+        status = RSBS_COMBO_LOGIC_ERR_CAPACITY;
+    }
+
+finish:
+    res.status = status;
     if (out != NULL) {
         *out = res;
     }

@@ -1855,6 +1855,23 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # THE BAG COMPOSITION RULE over both REAL pools (#645 increment 3, lane K9;
+    # #731, #733): the composed bag holds progression copies only, plentiful copies
+    # are surplus, OoT's restricted passes confine their families, filler and traps
+    # are counted and never admitted, and MM's heart rows are REQUIRED and
+    # load-bearing for CHECK_MAX_HP(4) over MM's real engine (with a red half). Two
+    # rows, one per profile, because each needs its own OoT generation: the shipped
+    # defaults, and a plentiful profile (OoT plentiful + extra ice traps, MM
+    # plentiful + traps) that also fills a small surplus-bearing bag over the real
+    # engines. `rando` tier for the siblings' reason.
+    redship_add_test(NAME ComboLogicBagComposition COMMAND redship --test combo-logic-bag-composition
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    redship_add_test(NAME ComboLogicBagCompositionPlentiful COMMAND redship --test combo-logic-bag-composition
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1;RSBS_COMBO_PROFILE=plentiful")
 
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)

@@ -79,6 +79,7 @@
 
 #include "../combo_logic.h"
 #include "../context.h"
+#include "../shared_items.h"
 #include "../test_runner.h"
 
 #include <cstdio>
@@ -1534,11 +1535,17 @@ TestResult Test_ComboLogicContractEdges(void) {
     one[0] = ClBagItem((uint8_t)GAME_OOT, kOotSword, RSBS_ITEMCLASS_PROGRESSION);
 
     // --- 1. an offered host list is bounded by the CHECK POOL --------------
-    // 2300 hosts: comfortably past RSBS_COMBO_LOGIC_PLACEMENT_CAP (1024) and
-    // squarely inside the range MM's own ~2258-check pool occupies, so this is the
-    // shape of the FIRST fill a real engine drives, not a synthetic extreme.
+    // 2300 hosts: past RSBS_COMBO_LOGIC_PLACEMENT_CAP (2048 since #727 raised it
+    // from 1024 to carry the composed bag) and squarely inside the range MM's own
+    // ~2258-check pool occupies, so this is the shape of the FIRST fill a real
+    // engine drives, not a synthetic extreme. The static assert keeps "past the
+    // placement cap, inside the host cap" TRUE rather than a sentence that a later
+    // cap raise could silently falsify (#727 caught exactly that: at a 4096
+    // placement cap this world would no longer distinguish the two caps).
     {
         const int wide = 2300;
+        static_assert(2300 > RSBS_COMBO_LOGIC_PLACEMENT_CAP && 2300 <= RSBS_COMBO_LOGIC_HOST_CAP,
+                      "leg 1's world must sit between the placement cap and the host cap");
         const int narrow = 4;
 
         ClBuildWideHostWorld(wide, narrow);
@@ -1828,6 +1835,186 @@ bool ClLeftoverConsistent(GameId g, int expected) {
         }
     }
     return true;
+}
+
+} // namespace
+
+namespace {
+
+// ---------------------------------------------------------------------------
+// Leg C's synthetic classification sources. OoT: 1 progression, 2 progression
+// confined by keysanity, 3 renewable, 4 junk, 5 trap, 6 progression feeding the
+// bombchu kind. MM: 1 progression, 2 RENEWABLE feeding the bombchu kind (so it
+// reconciles to OoT id 6's PROGRESSION), 3 trap, 4 junk, 5 progression that needs
+// the souls give capability. Every other id is not a fill item.
+// ---------------------------------------------------------------------------
+int ClComposeOoTClassify(uint16_t id, ComboItemClassRow* out) {
+    ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u, 0u };
+    switch (id) {
+        case 1: row.fillClass = RSBS_FILL_CLASS_PROGRESSION; break;
+        case 2: row.fillClass = RSBS_FILL_CLASS_PROGRESSION; row.armedBy = RSBS_FILL_ARM_SMALL_KEYS_ROAM; break;
+        case 3: row.fillClass = RSBS_FILL_CLASS_RENEWABLE; break;
+        case 4: row.fillClass = RSBS_FILL_CLASS_JUNK; break;
+        case 5: row.fillClass = RSBS_FILL_CLASS_TRAP; break;
+        case 6: row.fillClass = RSBS_FILL_CLASS_PROGRESSION; row.sharedKind = RSBS_SHARED_RES_BOMBCHU_COUNT; break;
+        default: *out = row; return 0;
+    }
+    *out = row;
+    return 1;
+}
+
+int ClComposeMMClassify(uint16_t id, ComboItemClassRow* out) {
+    ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u, 0u };
+    switch (id) {
+        case 1: row.fillClass = RSBS_FILL_CLASS_PROGRESSION; break;
+        case 2: row.fillClass = RSBS_FILL_CLASS_RENEWABLE; row.sharedKind = RSBS_SHARED_RES_BOMBCHU_COUNT; break;
+        case 3: row.fillClass = RSBS_FILL_CLASS_TRAP; break;
+        case 4: row.fillClass = RSBS_FILL_CLASS_JUNK; break;
+        case 5: row.fillClass = RSBS_FILL_CLASS_PROGRESSION; row.armedBy = RSBS_FILL_ARM_SOULS; break;
+        default: *out = row; return 0;
+    }
+    *out = row;
+    return 1;
+}
+
+const ComboItemClassSource kClComposeOoTSource = { RSBS_ITEM_CLASS_SOURCE_ABI, 16u, ClComposeOoTClassify };
+const ComboItemClassSource kClComposeMMSource = { RSBS_ITEM_CLASS_SOURCE_ABI, 16u, ClComposeMMClassify };
+
+ComboLogicPoolRow ClPoolRow(uint8_t origin, uint16_t id, uint16_t poolFlags) {
+    ComboLogicPoolRow row;
+    memset(&row, 0, sizeof(row));
+    row.item.originGame = origin;
+    row.item.id = id;
+    row.poolFlags = poolFlags;
+    return row;
+}
+
+/** Swaps both real classification sources for the synthetic pair and puts the
+ *  real ones back on EVERY exit of leg C (an early CL_ASSERT return included),
+ *  so a failure here cannot leave a later row classifying through a fixture. */
+struct ClComposeSourceGuard {
+    const ComboItemClassSource* realOoT;
+    const ComboItemClassSource* realMM;
+    bool installed = false;
+    ClComposeSourceGuard()
+        : realOoT(Combo_GetItemClassSource((uint8_t)GAME_OOT)), realMM(Combo_GetItemClassSource((uint8_t)GAME_MM)) {
+        Combo_TestUnregisterItemClassSource((uint8_t)GAME_OOT);
+        Combo_TestUnregisterItemClassSource((uint8_t)GAME_MM);
+        installed = Combo_RegisterItemClassSource((uint8_t)GAME_OOT, &kClComposeOoTSource) &&
+                    Combo_RegisterItemClassSource((uint8_t)GAME_MM, &kClComposeMMSource);
+    }
+    ~ClComposeSourceGuard() {
+        Combo_TestUnregisterItemClassSource((uint8_t)GAME_OOT);
+        Combo_TestUnregisterItemClassSource((uint8_t)GAME_MM);
+        if (realOoT != nullptr) {
+            Combo_RegisterItemClassSource((uint8_t)GAME_OOT, realOoT);
+        }
+        if (realMM != nullptr) {
+            Combo_RegisterItemClassSource((uint8_t)GAME_MM, realMM);
+        }
+    }
+};
+
+TestResult ClComposeLeg(void) {
+    const ClComposeSourceGuard guard;
+    CL_ASSERT(guard.installed, "C: both synthetic classification sources installed");
+
+    const uint8_t O = (uint8_t)GAME_OOT;
+    const uint8_t M = (uint8_t)GAME_MM;
+    const uint16_t P = RSBS_COMBO_POOL_PLENTIFUL;
+    const ComboLogicPoolRow pool[] = {
+        ClPoolRow(O, 1, 0), ClPoolRow(O, 1, P), ClPoolRow(O, 2, 0), ClPoolRow(O, 3, 0), ClPoolRow(O, 4, P),
+        ClPoolRow(O, 5, 0), ClPoolRow(M, 1, 0), ClPoolRow(M, 2, 0), ClPoolRow(M, 2, P), ClPoolRow(M, 3, 0),
+        ClPoolRow(M, 4, 0), ClPoolRow(M, 5, 0), ClPoolRow(O, 1, 0), ClPoolRow(O, 6, 0),
+    };
+    const int poolCount = (int)(sizeof(pool) / sizeof(pool[0]));
+    ComboLogicComposeRequest req;
+    memset(&req, 0, sizeof(req));
+    req.rows = pool;
+    req.rowCount = poolCount;
+
+    // C1. THE RULE TABLE, nothing armed.
+    ComboLogicBagItem bag[16];
+    int index[16];
+    ComboLogicComposeResult res;
+    CL_ASSERT(Combo_Logic_ComposeBag(&req, bag, 16, index, &res) == RSBS_COMBO_LOGIC_OK, "C1: the compose succeeds");
+    // pool order, REQUIRED and SURPLUS only: O1, O1(surplus), M1, M2 (renewable,
+    // reconciled to PROGRESSION through the bombchu kind), M2(surplus), O1, O6.
+    const int expectIndex[] = { 0, 1, 6, 7, 8, 12, 13 };
+    const uint16_t expectFlags[] = { 0, RSBS_COMBO_BAG_SURPLUS, 0, 0, RSBS_COMBO_BAG_SURPLUS, 0, 0 };
+    CL_ASSERT(res.bagCount == 7, "C1: exactly the progression copies of both pools enter the bag");
+    for (int i = 0; i < 7; ++i) {
+        CL_ASSERT(index[i] == expectIndex[i], "C1: bag rows keep POOL ORDER (a stable filter)");
+        CL_ASSERT(bag[i].item.originGame == pool[index[i]].item.originGame && bag[i].item.id == pool[index[i]].item.id,
+                  "C1: each bag row is its pool row's copy");
+        CL_ASSERT(bag[i].bagFlags == expectFlags[i], "C1: a PLENTIFUL progression copy is SURPLUS, any other REQUIRED");
+        CL_ASSERT(bag[i].itemClass == 0u, "C1: the ADR 0011 selection bit is the draw's, not the builder's");
+        CL_ASSERT(Combo_ItemClassOf(bag[i].item) == RSBS_FILL_CLASS_PROGRESSION,
+                  "C1: NO trap, junk or renewable row is ever in the bag");
+    }
+    const ComboLogicComposeCounts& co = res.perGame[O];
+    const ComboLogicComposeCounts& cm = res.perGame[M];
+    CL_ASSERT(co.rows[RSBS_COMBO_COMPOSE_REQUIRED] == 3 && co.rows[RSBS_COMBO_COMPOSE_SURPLUS] == 1 &&
+                  co.rows[RSBS_COMBO_COMPOSE_CONFINED] == 1 && co.rows[RSBS_COMBO_COMPOSE_RENEWABLE] == 1 &&
+                  co.rows[RSBS_COMBO_COMPOSE_JUNK] == 1 && co.rows[RSBS_COMBO_COMPOSE_TRAP] == 1 &&
+                  co.rows[RSBS_COMBO_COMPOSE_UNCLASSIFIED] == 0 && co.plentiful == 2,
+              "C1: OoT's rows are counted per disposition (the PLENTIFUL junk copy is junk, not surplus)");
+    CL_ASSERT(cm.rows[RSBS_COMBO_COMPOSE_REQUIRED] == 2 && cm.rows[RSBS_COMBO_COMPOSE_SURPLUS] == 1 &&
+                  cm.rows[RSBS_COMBO_COMPOSE_CONFINED] == 1 && cm.rows[RSBS_COMBO_COMPOSE_RENEWABLE] == 0 &&
+                  cm.rows[RSBS_COMBO_COMPOSE_JUNK] == 1 && cm.rows[RSBS_COMBO_COMPOSE_TRAP] == 1 && cm.plentiful == 1,
+              "C1: MM's rows are counted per disposition; the renewable bombchu row reconciled to progression");
+    CL_ASSERT(Combo_Logic_ComposeDisposition(pool[2].item, 0u, 0u) == RSBS_COMBO_COMPOSE_CONFINED &&
+                  Combo_Logic_ComposeDisposition(pool[2].item, 0u, RSBS_FILL_ARM_SMALL_KEYS_ROAM) ==
+                      RSBS_COMBO_COMPOSE_REQUIRED &&
+                  Combo_Logic_ComposeDisposition(pool[2].item, P, RSBS_FILL_ARM_SMALL_KEYS_ROAM) ==
+                      RSBS_COMBO_COMPOSE_SURPLUS,
+              "C1: a confined family joins the bag exactly when its setting hands it to the general pass");
+    CL_ASSERT(Combo_Logic_ComposeDisposition(pool[5].item, 0u, 0xFFFFFFFFu) == RSBS_COMBO_COMPOSE_TRAP,
+              "C1: a trap is a trap under every armed word");
+
+    // C2. ARMING, per ORIGIN: keysanity arms OoT's key; the souls cap arms MM's
+    //     soul row; neither word arms the other game's row.
+    req.armedOoT = RSBS_FILL_ARM_SMALL_KEYS_ROAM;
+    req.armedMM = RSBS_FILL_ARM_SOULS;
+    CL_ASSERT(Combo_Logic_ComposeBag(&req, bag, 16, index, &res) == RSBS_COMBO_LOGIC_OK && res.bagCount == 9 &&
+                  res.perGame[O].rows[RSBS_COMBO_COMPOSE_CONFINED] == 0 &&
+                  res.perGame[M].rows[RSBS_COMBO_COMPOSE_CONFINED] == 0,
+              "C2: armed families enter the bag");
+    req.armedOoT = RSBS_FILL_ARM_SOULS;
+    req.armedMM = RSBS_FILL_ARM_SMALL_KEYS_ROAM;
+    CL_ASSERT(Combo_Logic_ComposeBag(&req, bag, 16, index, &res) == RSBS_COMBO_LOGIC_OK && res.bagCount == 7,
+              "C2: the armed word is per ORIGIN - one game's settings never arm the other's rows");
+    req.armedOoT = 0u;
+    req.armedMM = 0u;
+
+    // C3. CAPACITY: refused, counts complete, nothing past the cap written.
+    ComboLogicBagItem capped[3];
+    memset(capped, 0xAB, sizeof(capped));
+    CL_ASSERT(Combo_Logic_ComposeBag(&req, capped, 2, nullptr, &res) == RSBS_COMBO_LOGIC_ERR_CAPACITY &&
+                  res.bagCount == 7,
+              "C3: more admitted rows than the output holds is REFUSED, and bagCount still says how many");
+    CL_ASSERT(capped[2].item.id == 0xABABu, "C3: nothing is written past the caller's capacity");
+
+    // C4. REFUSALS: an unclassified row, an unknown pool flag, a row with no
+    //     origin — each refuses the whole compose.
+    ComboLogicPoolRow bad[3] = { ClPoolRow(O, 1, 0), ClPoolRow(O, 9, 0), ClPoolRow(M, 1, 0) };
+    req.rows = bad;
+    req.rowCount = 3;
+    CL_ASSERT(Combo_Logic_ComposeBag(&req, bag, 16, index, &res) == RSBS_COMBO_LOGIC_ERR_BAD_REQUEST &&
+                  res.perGame[O].rows[RSBS_COMBO_COMPOSE_UNCLASSIFIED] == 1,
+              "C4: a pool row the owner has no class for refuses the compose (the bag would be a guess)");
+    bad[1] = ClPoolRow(O, 1, 0x8000u);
+    CL_ASSERT(Combo_Logic_ComposeBag(&req, bag, 16, index, &res) == RSBS_COMBO_LOGIC_ERR_BAD_REQUEST,
+              "C4: an unknown pool flag is refused, never read as a REQUIRED copy");
+    bad[1] = ClPoolRow((uint8_t)GAME_NONE, 1, 0);
+    CL_ASSERT(Combo_Logic_ComposeBag(&req, bag, 16, index, &res) == RSBS_COMBO_LOGIC_ERR_BAD_REQUEST,
+              "C4: a row with no origin game is refused");
+    CL_ASSERT(Combo_Logic_ComposeBag(nullptr, bag, 16, index, &res) == RSBS_COMBO_LOGIC_ERR_BAD_REQUEST,
+              "C4: a NULL request is refused");
+
+    printf("[TEST] combo-logic-bag-model: C composition rule: 14 pool rows -> 7 bag rows (5 required, 2 surplus); "
+           "confined, filler and trap rows counted per game and never admitted\n");
+    return TEST_PASS;
 }
 
 } // namespace
@@ -2135,6 +2322,18 @@ TestResult Test_ComboLogicBagModel(void) {
     }
 
     ClUninstall();
+
+    // ------------------------------------------------------------------
+    // C. THE BAG COMPOSITION RULE (#645 lane K9): Combo_Logic_ComposeBag over
+    //    SYNTHETIC classification sources for both origins, so every row of the
+    //    rule table in combo_logic.h is exercised on ids whose class the lock
+    //    itself authored — including the shared-kind reconciliation (#731) the
+    //    builder reads through Combo_ItemClassOf.
+    // ------------------------------------------------------------------
+    if (ClComposeLeg() != TEST_PASS) {
+        return TEST_FAIL;
+    }
+
     printf("[TEST] combo-logic-bag-model: PASS\n");
     return TEST_PASS;
 }
