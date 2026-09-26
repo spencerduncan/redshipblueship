@@ -89,6 +89,13 @@
  *      restoring side, which MM is. The fill's own wall/rounds is therefore also
  *      reported, and it is roughly double.
  *
+ * (M2b) ONE ROUND WITH MM'S WHOLE VANILLA POOL ASSUMED (added with the
+ *      multiplicity ruling, combo_logic.h ABI 3): whether MM's half is provable
+ *      at all from the pool the bag's MM half is sampled from. It is what
+ *      localises a `beat-both` failure to the SAMPLE (approximation A) rather
+ *      than to the fill: on 2026-09-26 it read goalMM=1 while every capped
+ *      measurement bag read goalMM=0 before a single item was placed.
+ *
  * (M3) THE FILL, under the proved no-tricks rung and under `none`, for three
  *      coordinator seeds and both GOALs that have an evaluator. Reported: wall
  *      time, rounds, rounds per placed item, attempts (hence batch roll-backs),
@@ -295,26 +302,20 @@ std::vector<uint16_t> StrideSample(const std::vector<uint16_t>& src, int target)
 }
 
 /**
- * How many of `ids` are DISTINCT, and therefore how many rows both engines'
- * `assumeOwnItem` will silently collapse.
+ * How many of `ids` are DISTINCT — i.e. how many copies are REPEATS of an id
+ * already in the bag.
  *
- * THIS IS NOT A STATISTIC, IT IS THE DEAD-END'S CAUSE. Both engine TUs document
- * that they DE-DUPLICATE by id within a round, and both give the same reason: the
- * K1 contract says repeats "must be harmless" and neither port's give path has
- * that property — OoT's progressive rows are `SetUpgrade(x, CurrentUpgrade + 1)`
- * with no clamp (so a repeat past the top tier walks into the next upgrade's
- * bits), and MM's stray fairies, small keys, skull tokens and triforce pieces all
- * `++`. Both chose sound-but-pessimistic, and both recorded that a
- * multiplicity-aware assume is a contract change for a later increment.
- *
- * The consequence is measurable and this is where it shows: a real bag holds many
- * copies of one id — OoT's small keys, bombchus, wallet, quiver, bomb bag and
- * strength tiers; MM's small keys and stray fairies — and under de-dup a round
- * evaluates reachability as if the player held ONE of each. Deep dungeon
- * interiors then never enter the reached set, so the reached empty-host supply is
- * far smaller than the bag, and the fill dead-ends with ERR_NO_CANDIDATE. Printing
- * the collapse alongside the dead-end predictor is what makes the dead end
- * attributable to the surface rather than to MM's graph.
+ * THIS WAS THE DEAD-END'S CAUSE, and it is printed so the fix stays measured.
+ * Under combo_logic.h ABI 2 both engines' `assumeOwnItem` de-duplicated by id
+ * within a round (OoT because its progressive rows walk past the top tier, MM
+ * because its counter gives `++`), so a round held ONE of each id: the 2026-09-22
+ * measurement found OoT's whole advancement half to be 321 rows but only 105
+ * distinct ids, and no world could be proved (#645). ABI 3 (the operator's
+ * multiplicity ruling, 2026-09-26) makes every row a counted copy — OoT clamps
+ * progressive copies at the top tier, MM clamps its counters at their maxima —
+ * so the repeats this function counts are now copies the round SEES. The number
+ * is kept beside the proof result as the attribution: a proof that still fails
+ * with every copy counted fails for a different reason.
  */
 int DistinctCount(const std::vector<uint16_t>& ids) {
     std::vector<bool> seen(1u << 16, false);
@@ -405,6 +406,13 @@ FillMeasurement RunTimedFill(const char* label, const ComboLogicBagItem* bag, in
            label, Combo_Logic_StatusName(m.status), m.wallMs, m.res.attempts, m.res.placed, m.res.rounds,
            roundsPerPlaced, m.res.goalProven ? 1 : 0, m.res.proofSkipped ? 1 : 0, m.res.allHostsReached ? 1 : 0,
            m.res.placementDigest);
+    // THE BAG MODEL's accounting (combo_logic.h). The shipped profile has no
+    // plentiful pool, so surplus is 0 here; leftover hosts are what each game's
+    // own junk pass would fill.
+    printf("[TEST] combo-logic-measure:      %-22s required placed=%d surplus placed=%d dropped=%d leftover hosts "
+           "OoT=%d MM=%d\n",
+           label, m.res.requiredPlaced, m.res.surplusPlaced, m.res.surplusDropped, m.res.leftoverHostsOoT,
+           m.res.leftoverHostsMM);
     // Roll-backs and dead-ends, spelled out rather than left to be inferred from
     // `attempts`: a batch roll-back is what the coordinator does on a dead end
     // WITHIN one seed, and it is a different mechanism from the attempt ladder
@@ -751,19 +759,33 @@ TestResult ComboLogicMeasure_Run(void) {
            "sample; see approximation (A)\n",
            bagCount, (int)ootBagItems.size(), ootFullBagHalf, (int)mmBagItems.size(), mmPooledItemTotal);
 
-    // THE DE-DUP COLLAPSE. Both engines' `assumeOwnItem` drops a repeat of an id
-    // already granted this round, so these are the rows a round does not see.
+    // THE REPEATS. Under ABI 2 both engines dropped these rows within a round;
+    // under ABI 3 every one is a counted copy (see DistinctCount).
     const int ootDistinct = DistinctCount(ootBagItems);
     const int mmDistinct = DistinctCount(mmBagItems);
     const int ootFullDistinct = DistinctCount(ootAdvItems);
-    printf("[TEST] combo-logic-measure: DE-DUP COLLAPSE: OoT half %d rows -> %d distinct ids (%d collapsed), MM half "
-           "%d rows -> %d distinct (%d collapsed). The WHOLE OoT advancement half is %d rows -> %d distinct (%d "
-           "collapsed). Both engines' assumeOwnItem drops a repeat within a round (no multiplicity on the K1 "
-           "surface), so a round evaluates reachability as if the player held ONE of each — which is why the reached "
-           "host supply below can be far short of the bag.\n",
+    printf("[TEST] combo-logic-measure: MULTIPLICITY: OoT half %d rows = %d distinct ids + %d repeated copies, MM half "
+           "%d rows = %d distinct + %d repeated. The WHOLE OoT advancement half is %d rows = %d distinct + %d "
+           "repeated. Under ABI 3 every repeated copy is COUNTED by the round (one assumeOwnItem per copy; both "
+           "engines clamp progressives at the top tier and counters at their maxima) — under ABI 2 all of them were "
+           "dropped, which is what made the proof fail on 2026-09-22.\n",
            (int)ootBagItems.size(), ootDistinct, (int)ootBagItems.size() - ootDistinct, (int)mmBagItems.size(),
            mmDistinct, (int)mmBagItems.size() - mmDistinct, ootFullBagHalf, ootFullDistinct,
            ootFullBagHalf - ootFullDistinct);
+    // WHICH COMPOSITIONS CAN SAY ANYTHING ABOUT MULTIPLICITY (review of PR #728).
+    // An OoT row the bag does not carry stays NATIVELY PLACED in OoT's world, and
+    // OoT's own search harvests it; so with a sampled OoT half, OoT's goal is
+    // carried by the native fill and the round reads goalOoT=1 before a single
+    // bag item is placed. Only a bag carrying the WHOLE OoT advancement half puts
+    // every repeated OoT copy through `assumeOwnItem`, which is what the ABI-2
+    // de-dup broke — so only that composition is evidence about the fix.
+    if ((int)ootBagItems.size() < ootFullBagHalf) {
+        printf("[TEST] combo-logic-measure: NOT DIAGNOSTIC FOR MULTIPLICITY: the OoT half carries %d of %d OoT "
+               "advancement rows; the other %d stay natively placed and are harvested by OoT's own search, so OoT's "
+               "goal here is carried by the native fill. Set RSBS_COMBO_MEASURE_OOT_BAG>=%d for a composition that "
+               "puts every OoT copy through assumeOwnItem.\n",
+               (int)ootBagItems.size(), ootFullBagHalf, ootFullBagHalf - (int)ootBagItems.size(), ootFullBagHalf);
+    }
 
     // ==================================================================
     // M2: ONE LINKED ROUND, at the fill's most expensive assumed-set size.
@@ -833,6 +855,52 @@ TestResult ComboLogicMeasure_Run(void) {
                "so nothing measured here is a PAIR-level cost");
     CLM_ASSERT(firstRound.crossingOpenOoT == 1,
                "OoT's crossing read CLOSED, so the arrival gate suppressed MM for the whole measurement");
+
+    // ------------------------------------------------------------------
+    // M2b. CAN MM'S HALF BE PROVED AT ALL FROM MM'S WHOLE POOL? (ABI 3)
+    // ------------------------------------------------------------------
+    // The round above assumes the MEASUREMENT bag, whose MM half is a stride
+    // SAMPLE (approximation A) and is capped by RSBS_COMBO_LOGIC_BAG_CAP. If its
+    // goalMM is 0, that alone cannot say whether the fill failed or the sample
+    // simply does not carry what Majora needs. So one more round assumes the
+    // measurement bag's OoT half plus EVERY row of MM's giveable vanilla pool —
+    // RunRound has no bag cap — and prints MM's goal. A 1 here and a 0 above
+    // localises a beat-both failure to the SAMPLE, not to the fill or the
+    // surface; a 0 here says MM's goal is unprovable from its whole vanilla pool
+    // under this profile, which is a different finding. Printed, not asserted:
+    // it is a measurement of the fixture.
+    {
+        std::vector<ComboLogicBagItem> wholeMm;
+        for (const uint16_t id : ootBagItems) {
+            ComboLogicBagItem row;
+            memset(&row, 0, sizeof(row));
+            row.item.originGame = (uint8_t)GAME_OOT;
+            row.item.id = id;
+            wholeMm.push_back(row);
+        }
+        for (const uint16_t id : mmPooledItems) {
+            ComboLogicBagItem row;
+            memset(&row, 0, sizeof(row));
+            row.item.originGame = (uint8_t)GAME_MM;
+            row.item.id = id;
+            wholeMm.push_back(row);
+        }
+        ComboLogicRoundRequest req;
+        memset(&req, 0, sizeof(req));
+        req.assumed = wholeMm.data();
+        req.assumedCount = (int)wholeMm.size();
+        req.goal = RSBS_COMBO_GOAL_BEAT_BOTH;
+        ComboLogicRoundResult res;
+        const double t0 = NowMs();
+        const int status = Combo_Logic_RunRound(&req, &res);
+        const double ms = NowMs() - t0;
+        CLM_ASSERT(status == RSBS_COMBO_LOGIC_OK, "the whole-MM-pool round did not succeed");
+        printf("[TEST] combo-logic-measure: M2b WHOLE MM POOL ASSUMED (%d OoT rows + all %d MM rows): %.1fms "
+               "goalOoT=%d goalMM=%d beat-both=%d candidatesMM=%d — against goalMM=%d for the measurement bag's "
+               "sampled MM half\n",
+               (int)ootBagItems.size(), mmPooledItemTotal, ms, res.goalOoT, res.goalMM, res.goalExpression,
+               res.candidatesMM, firstRound.goalMM);
+    }
 
     // ==================================================================
     // M3: THE FILL — convergence, per rung, per GOAL, per seed.

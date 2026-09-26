@@ -85,25 +85,37 @@
  *      exists), and the fix belongs in the contract: `beginQuery` needs to say
  *      whose job the starting state is. It is not this engine's, because MM
  *      cannot re-derive it.
+ *      RESOLVED IN THE CONTRACT (ABI 3): combo_logic.h's `beginQuery` entry now
+ *      assigns it — for an engine with no detached save, THE CALLER of
+ *      RunRound/RunFill puts the live save in the file-creation starting state
+ *      first (`MM_Sram_InitNewSave`, the frozen profile, `GrantStartingItems`),
+ *      and a round opened on a mid-game save is a caller defect.
  *
- * (A2) `assumeOwnItem` says repeats "must be harmless", and separately that the
- *      call is made once per assumed-set entry AND again on every crossing
- *      exchange delivery. Those two sentences are in tension for MM, because
- *      several of MM's gives are COUNTERS, not idempotent sets: stray fairies,
- *      dungeon small keys, skull tokens and triforce pieces all `++`
- *      (GiveItem.cpp). Granting twice is therefore observable, and the two
- *      readings disagree:
- *        - no dedup: an exchange re-delivery double-grants, so the round proves
- *          reachability with an item the player does not have. UNSOUND.
- *        - dedup by id: a bag holding TWO of the same id (two Woodfall small
- *          keys is the ordinary case) grants once, so the round under-states
- *          reachability. Sound but pessimistic.
- *      This engine DEDUPS BY ID within a round, because unsoundness is the one
- *      failure mode ADR 0010 §2.3 says the fill may not have, and a pessimistic
- *      round only narrows the world. The contract needs a multiplicity-aware
- *      assume (or a delivery key the engine can dedup on) before a counted item
- *      may appear in the bag more than once; that is recorded in the PR rather
- *      than worked around here.
+ * (A2) MULTIPLICITY — RESOLVED BY THE CONTRACT (ABI 3, operator ruling
+ *      2026-09-26). The ABI-2 contract said `assumeOwnItem` repeats "must be
+ *      harmless" and, separately, that the same id could arrive from seeding and
+ *      from an exchange; MM's counter gives (stray fairies, small keys, skull
+ *      tokens, triforce pieces all `++` in GiveItem.cpp) made the two readings
+ *      disagree, and this engine chose to DEDUP BY ID — sound, but a round then
+ *      held one Woodfall key however many the bag carried, and no real world
+ *      could be proved (#645, 2026-09-22).
+ *      The contract now says exactly what a repeat is: ONE CALL IS ONE COPY, and
+ *      the coordinator never delivers a copy twice (seeding covers the unplaced
+ *      rows, the exchange covers each placement once per round). So this engine
+ *      COUNTS EVERY CALL, and makes each item shape exact:
+ *        - PROGRESSIVES self-clamp in MM's own give path: `ConvertItem` returns
+ *          RI_JUNK once `IsItemObtainable` says the top tier is held
+ *          (ConvertItem.cpp's RI_PROGRESSIVE_* arms), so a surplus copy is inert.
+ *        - SET ITEMS are idempotent (`IsItemObtainable` -> RI_JUNK once held).
+ *        - COUNTERS are the one shape MM does NOT bound — `IsItemObtainable`
+ *          answers true for them unconditionally — so this engine clamps them
+ *          at their MAXIMUM before giving (MmGiveOneCopy): small keys, stray
+ *          fairies and skull tokens at the number of copies MM's own static check
+ *          table holds as vanilla items (derived, never hard-coded; the lock
+ *          prints them), triforce pieces at the seed's `RO_TRIFORCE_PIECES_MAX`.
+ *          No MM logic term asks for more than the world contains, so the clamp
+ *          never lowers an answer; it keeps a plentiful surplus from claiming a
+ *          count the world cannot hold, or overflowing the counter's storage.
  *
  * (A3) `allEmptyHosts` is specified as "the engine's own shuffled-check table
  *      minus the hosts it already holds ... the same shape as asking a pool
@@ -226,9 +238,9 @@
  *      vanilla and fill-assigned items are deliberately NOT harvested, because
  *      the coordinator's bag is the authority on what the pair's world holds and
  *      crediting MM's untouched vanilla contents would prove a world nobody
- *      authored. The harvest goes through the SAME dedup as A2, so a counted
- *      item placed twice grants once: pessimistic in the same direction, for the
- *      same reason.
+ *      authored. The harvest is PER PLACED HOST, once per round (the contract's
+ *      `expand` rule): two hosts holding the same id are two copies and both are
+ *      granted, through the same counter clamp as A2.
  *
  * ============================================================================
  * WHAT IS NOT PROVED HERE — read this before trusting the give path
@@ -320,8 +332,14 @@ struct RoundState {
     // can hand a real ReachabilityCrawl to MM's own MmGoalMajoraDefeated instead
     // of restating its condition.
     std::unordered_map<RandoRegionId, Rando::Logic::RegionTimeState> regionTimeStates;
-    // Ids already granted this round (A2's dedup).
-    std::set<uint16_t> granted;
+    // Hosts whose own-origin placement `expand` has already harvested this round
+    // (A6): ONE grant per placed host per round, however many passes run.
+    std::set<uint16_t> harvestedHosts;
+    // Copies granted this round, by either path. APPEND-ONLY: nothing but
+    // `beginQuery` resets it, and nothing takes a grant back out of the save
+    // before the round's `restore` — this engine's half of the contract's "no
+    // copy ever leaves a round".
+    int copiesGranted = 0;
     int expands = 0;
 };
 
@@ -450,6 +468,131 @@ bool IsGiveableItemId(uint16_t riId) {
 }
 
 // ============================================================================
+// Counter maxima (A2) — the one item shape MM's give path does not bound
+// ============================================================================
+
+/** Which counter an id advances. */
+enum class MmCounterKind { None, SmallKey, StrayFairy, SkullToken, Triforce };
+
+struct MmCounterInfo {
+    MmCounterKind kind = MmCounterKind::None;
+    int index = 0; // dungeon scene index (keys, fairies) or scene id (tokens)
+};
+
+MmCounterInfo MmCounterFor(uint16_t riId) {
+    MmCounterInfo c;
+    switch ((RandoItemId)riId) {
+        case RI_WOODFALL_SMALL_KEY:
+            c = { MmCounterKind::SmallKey, DUNGEON_SCENE_INDEX_WOODFALL_TEMPLE };
+            break;
+        case RI_SNOWHEAD_SMALL_KEY:
+            c = { MmCounterKind::SmallKey, DUNGEON_SCENE_INDEX_SNOWHEAD_TEMPLE };
+            break;
+        case RI_GREAT_BAY_SMALL_KEY:
+            c = { MmCounterKind::SmallKey, DUNGEON_SCENE_INDEX_GREAT_BAY_TEMPLE };
+            break;
+        case RI_STONE_TOWER_SMALL_KEY:
+            c = { MmCounterKind::SmallKey, DUNGEON_SCENE_INDEX_STONE_TOWER_TEMPLE };
+            break;
+        // RI_CLOCK_TOWN_STRAY_FAIRY is a flag (SET_WEEKEVENTREG), not a counter.
+        case RI_WOODFALL_STRAY_FAIRY:
+            c = { MmCounterKind::StrayFairy, DUNGEON_SCENE_INDEX_WOODFALL_TEMPLE };
+            break;
+        case RI_SNOWHEAD_STRAY_FAIRY:
+            c = { MmCounterKind::StrayFairy, DUNGEON_SCENE_INDEX_SNOWHEAD_TEMPLE };
+            break;
+        case RI_GREAT_BAY_STRAY_FAIRY:
+            c = { MmCounterKind::StrayFairy, DUNGEON_SCENE_INDEX_GREAT_BAY_TEMPLE };
+            break;
+        case RI_STONE_TOWER_STRAY_FAIRY:
+            c = { MmCounterKind::StrayFairy, DUNGEON_SCENE_INDEX_STONE_TOWER_TEMPLE };
+            break;
+        case RI_GS_TOKEN_SWAMP:
+            c = { MmCounterKind::SkullToken, SCENE_KINSTA1 };
+            break;
+        case RI_GS_TOKEN_OCEAN:
+            c = { MmCounterKind::SkullToken, SCENE_KINDAN2 };
+            break;
+        case RI_TRIFORCE_PIECE:
+        case RI_TRIFORCE_PIECE_PREVIOUS:
+            c = { MmCounterKind::Triforce, 0 };
+            break;
+        default:
+            break;
+    }
+    return c;
+}
+
+/** The counter's value in the live save — what MM's own logic reads for it
+ *  (KEY_COUNT reads `foundDungeonKeys`, Logic.h). */
+int MmCounterValue(const MmCounterInfo& c) {
+    switch (c.kind) {
+        case MmCounterKind::SmallKey:
+            return (int)gSaveContext.save.shipSaveInfo.rando.foundDungeonKeys[c.index];
+        case MmCounterKind::StrayFairy:
+            return (int)gSaveContext.save.saveInfo.inventory.strayFairies[c.index];
+        case MmCounterKind::SkullToken:
+            return (int)Inventory_GetSkullTokenCount((s16)c.index);
+        case MmCounterKind::Triforce:
+            return (int)gSaveContext.save.shipSaveInfo.rando.foundTriforcePieces;
+        default:
+            return 0;
+    }
+}
+
+/**
+ * The counter's MAXIMUM. Keys, fairies and tokens: the number of copies of that
+ * id MM's own static check table holds as VANILLA items — MM's own statement of
+ * how many exist, derived rather than hard-coded, and cached (the table is
+ * static). Triforce pieces: the seed's `RO_TRIFORCE_PIECES_MAX`, because the
+ * piece count is a setting, not a property of the vanilla world.
+ */
+int MmCounterMax(uint16_t riId, const MmCounterInfo& c) {
+    if (c.kind == MmCounterKind::None) {
+        return -1;
+    }
+    if (c.kind == MmCounterKind::Triforce) {
+        return (int)RANDO_SAVE_OPTIONS[RO_TRIFORCE_PIECES_MAX];
+    }
+    static std::map<uint16_t, int> sVanillaCopies;
+    const auto hit = sVanillaCopies.find(riId);
+    if (hit != sVanillaCopies.end()) {
+        return hit->second;
+    }
+    int copies = 0;
+    for (const auto& entry : Rando::StaticData::Checks) {
+        if (entry.second.randoCheckId != RC_UNKNOWN && (uint16_t)entry.second.randoItemId == riId) {
+            copies++;
+        }
+    }
+    sVanillaCopies[riId] = copies;
+    return copies;
+}
+
+int sCounterClamps = 0; // copies a clamp absorbed; the lock reads it
+
+/**
+ * GIVE ONE COPY. The single give path both `assumeOwnItem` and the A6 harvest
+ * use, so the two sources of a copy cannot drift apart. A counter already at
+ * its maximum absorbs the copy (counted in sCounterClamps); everything else goes
+ * through MM's own `GiveItem(ConvertItem(...))`, whose progressive and set-item
+ * arms bound themselves.
+ */
+void MmGiveOneCopy(uint16_t riId) {
+    const MmCounterInfo c = MmCounterFor(riId);
+    if (c.kind != MmCounterKind::None) {
+        const int max = MmCounterMax(riId, c);
+        if (max >= 0 && MmCounterValue(c) >= max) {
+            sCounterClamps++;
+            sRound.copiesGranted++;
+            return;
+        }
+    }
+    Rando::GiveItem(Rando::ConvertItem((RandoItemId)riId));
+    sRound.copiesGranted++;
+}
+
+// ============================================================================
 // The vtable
 // ============================================================================
 
@@ -507,7 +650,8 @@ int BeginQuery(void* self) {
     sRound.regions.clear();
     sRound.checks.clear();
     sRound.regionTimeStates.clear();
-    sRound.granted.clear();
+    sRound.harvestedHosts.clear();
+    sRound.copiesGranted = 0;
     sRound.expands = 0;
     return 1;
 }
@@ -522,11 +666,9 @@ void AssumeOwnItem(void* self, uint16_t ownItemId) {
                 (unsigned)ownItemId);
         return;
     }
-    // A2: dedup by id within the round. Sound-but-pessimistic beats unsound.
-    if (!sRound.granted.insert(ownItemId).second) {
-        return;
-    }
-    Rando::GiveItem(Rando::ConvertItem((RandoItemId)ownItemId));
+    // A2: ONE CALL IS ONE COPY. No dedup — the coordinator never delivers a
+    // copy twice — and counters stop at their maximum inside MmGiveOneCopy.
+    MmGiveOneCopy(ownItemId);
 }
 
 /**
@@ -534,10 +676,10 @@ void AssumeOwnItem(void* self, uint16_t ownItemId) {
  * placement (A5 + A6).
  *
  * TERMINATION. The outer loop runs another pass only when the harvest granted at
- * least one id it had never granted before, and every grant inserts into
- * `sRound.granted`, a set of distinct RandoItemIds bounded by RI_MAX. So the
- * number of passes is bounded by the number of distinct MM-origin items the
- * coordinator has placed, plus one. This is the same closure
+ * least one copy from a host it had never harvested before this round, and every
+ * harvest inserts that host into `sRound.harvestedHosts`, which is bounded by
+ * the placements this engine holds. So the number of passes is bounded by the
+ * number of MM-origin placements, plus one. This is the same closure
  * `ComputeReachableCheckSet` runs (Logic.cpp:408-456) and terminates for the
  * same reason.
  */
@@ -604,10 +746,10 @@ int Expand(void* self) {
         sRound.regionTimeStates = crawl.regionTimeStates;
 
         // --- A6: harvest the coordinator's OWN-ORIGIN placements whose host is
-        // now reached. Same dedup as A2, so a counted item placed twice grants
-        // once. MM's own vanilla and fill-assigned check contents are NOT
-        // harvested: the coordinator's bag is the authority on what this pair's
-        // world holds.
+        // now reached — ONCE PER HOST PER ROUND, so two hosts holding the same id
+        // grant two copies and no host grants twice. MM's own vanilla and
+        // fill-assigned check contents are NOT harvested: the coordinator's bag is
+        // the authority on what this pair's world holds.
         for (const auto& entry : sHeld) {
             if (entry.second.item.originGame != (uint8_t)GAME_MM) {
                 continue;
@@ -618,10 +760,10 @@ int Expand(void* self) {
             if (!IsGiveableItemId(entry.second.item.id)) {
                 continue;
             }
-            if (!sRound.granted.insert(entry.second.item.id).second) {
+            if (!sRound.harvestedHosts.insert(entry.first).second) {
                 continue;
             }
-            Rando::GiveItem(Rando::ConvertItem((RandoItemId)entry.second.item.id));
+            MmGiveOneCopy(entry.second.item.id);
             sHarvests++;
             grantedThisPass = true;
             changed = 1;
@@ -786,7 +928,8 @@ void EndQuery(void* self) {
     sRound.regions.clear();
     sRound.checks.clear();
     sRound.regionTimeStates.clear();
-    sRound.granted.clear();
+    sRound.harvestedHosts.clear();
+    sRound.copiesGranted = 0;
 }
 
 const ComboLogicEngine kMmEngine = {
@@ -896,6 +1039,7 @@ extern "C" void MM_ComboLogic_ResetCounters(void) {
     sEndQueryCalls = 0;
     sRedundantEndQueries = 0;
     sHarvests = 0;
+    sCounterClamps = 0;
 }
 
 /** Is a snapshot currently LIVE (taken and not yet restored)? The lock asserts
@@ -1173,6 +1317,210 @@ extern "C" int MM_ComboLogic_ApplyShippedProfile(void) {
     Rando::Foreign::ResolvePairedProfile(false);
     Rando::GrantStartingItems();
     return (int)RANDO_SAVE_OPTIONS[RO_LOGIC];
+}
+
+// ============================================================================
+// MULTIPLICITY BRIDGES (rando tier; src/common/tests/test_combo_logic_multiplicity.c)
+// ============================================================================
+//
+// src/common cannot name an RI_* (ADR 0002), so the counter rows are exposed as
+// small integer KINDS: 0 Woodfall small key, 1 Stone Tower small key, 2 Woodfall
+// stray fairy, 3 swamp skull token.
+
+namespace {
+const RandoItemId kMmComboCounterKinds[] = {
+    RI_WOODFALL_SMALL_KEY,
+    RI_STONE_TOWER_SMALL_KEY,
+    RI_WOODFALL_STRAY_FAIRY,
+    RI_GS_TOKEN_SWAMP,
+};
+constexpr int kMmComboCounterKindCount = (int)(sizeof(kMmComboCounterKinds) / sizeof(kMmComboCounterKinds[0]));
+} // namespace
+
+extern "C" int MM_ComboLogic_TestCounterKindCount(void) {
+    return kMmComboCounterKindCount;
+}
+
+/** The RI_* a kind names, for `assumeOwnItem`; -1 out of range. */
+extern "C" int MM_ComboLogic_TestCounterItemId(int kind) {
+    if (kind < 0 || kind >= kMmComboCounterKindCount) {
+        return -1;
+    }
+    return (int)kMmComboCounterKinds[kind];
+}
+
+/** The kind's current count in the live save (inside a round: the round's). */
+extern "C" int MM_ComboLogic_TestCounterValue(int kind) {
+    if (kind < 0 || kind >= kMmComboCounterKindCount) {
+        return -1;
+    }
+    return MmCounterValue(MmCounterFor((uint16_t)kMmComboCounterKinds[kind]));
+}
+
+/** The kind's maximum — the engine's own rule, not a copy of it. */
+extern "C" int MM_ComboLogic_TestCounterMax(int kind) {
+    if (kind < 0 || kind >= kMmComboCounterKindCount) {
+        return -1;
+    }
+    const uint16_t id = (uint16_t)kMmComboCounterKinds[kind];
+    return MmCounterMax(id, MmCounterFor(id));
+}
+
+/** Zero a kind's counter in the live save, so a lock's arithmetic is exact. Call
+ *  it only INSIDE a snapshot bracket. Keys are zeroed in both of GiveItem's
+ *  fields, so its `< 0` "no keys yet" sentinel branch is not taken. */
+extern "C" void MM_ComboLogic_TestZeroCounter(int kind) {
+    if (kind < 0 || kind >= kMmComboCounterKindCount) {
+        return;
+    }
+    const MmCounterInfo c = MmCounterFor((uint16_t)kMmComboCounterKinds[kind]);
+    switch (c.kind) {
+        case MmCounterKind::SmallKey:
+            gSaveContext.save.shipSaveInfo.rando.foundDungeonKeys[c.index] = 0;
+            DUNGEON_KEY_COUNT(c.index) = 0;
+            break;
+        case MmCounterKind::StrayFairy:
+            gSaveContext.save.saveInfo.inventory.strayFairies[c.index] = 0;
+            break;
+        case MmCounterKind::SkullToken:
+            if (c.index == SCENE_KINSTA1) {
+                gSaveContext.save.saveInfo.skullTokenCount &= 0x0000FFFF;
+            } else {
+                gSaveContext.save.saveInfo.skullTokenCount &= 0xFFFF0000;
+            }
+            break;
+        default:
+            break;
+    }
+}
+
+/** Copies a counter clamp has absorbed since the last MM_ComboLogic_ResetCounters. */
+extern "C" int MM_ComboLogic_CounterClamps(void) {
+    return sCounterClamps;
+}
+
+/** Copies granted in the CURRENT round, by either path (0 outside a round). */
+extern "C" int MM_ComboLogic_RoundCopiesGranted(void) {
+    return sRound.copiesGranted;
+}
+
+// ============================================================================
+// THE FILL-CLASS SOURCE (ADR 0010 answer O8; #645 increment 3, lane K5)
+// ============================================================================
+//
+// MM's rows for the single-owner classification table in src/common/
+// shared_items.{h,c} — the twin of the OoT source in ComboLogicEngineOoT.cpp.
+// This TU is the SOURCE, never the owner: the owner walks it once and every
+// consumer reads the owner's stored row. It lives here because this is already
+// the MM TU that may name `RI_*` for the coordinator (ADR 0002) and it links
+// WHOLE_ARCHIVE, so the registrar survives the link as the engine's does.
+//
+// Deliberately NOT inside the engine's vtable or the pool bridges K4's
+// multiplicity work edits: the bag will read the owner table, not this function.
+
+#include "shared_items.h" // src/common — the owner this source registers with
+
+/**
+ * Classify one MM item id (ComboItemClassifyFn). The precedence is the owner's
+ * (shared_items.h): TRAP, then PROGRESSION by MM's OWN fill predicate, then
+ * RENEWABLE, then JUNK.
+ *
+ * MM's fill predicate is GlitchlessLogic.cpp's non-junk test — `randoItemType`
+ * is neither RITYPE_JUNK nor RITYPE_HEALTH — taken verbatim. It is generous
+ * (maps, compasses, owl statues, Tingle maps and the gold-dust refill are all
+ * RITYPE_LESSER and therefore non-junk to MM's fill), and it calls RI_TRAP
+ * non-junk too, which is exactly why TRAP is decided first.
+ *
+ * RENEWABLE: the rest of RITYPE_JUNK — ammo, rupees, refills, recovery hearts,
+ * magic jars — except RI_JUNK itself, the cover item a skipped or foreign-hosting
+ * check holds, which is JUNK. RITYPE_HEALTH (heart pieces, heart containers,
+ * double defense) is JUNK: not regainable, and not progression to MM's fill.
+ *
+ * NOT A FILL ITEM (returns 0): ids past RI_MAX or with no Items row, the two
+ * sentinels RI_UNKNOWN and RI_NONE, and RI_TRIFORCE_PIECE_PREVIOUS, which
+ * Items.cpp says "only exists to aid in the drawing of unique models" — CheckQueue
+ * swaps it in for display, and no pool ever holds it.
+ *
+ * ARMING: the four criterion-3 give-capability families (souls, ocarina buttons,
+ * swim, clock items) carry their RSBS_GIVECAP_* bit, and triforce pieces are a
+ * per-world goal quantity. No confinement family: MM's fill places its whole pool
+ * in one pass, so no MM setting holds an item in a restricted pass (small keys
+ * included — which is the asymmetry with OoT's keysanity the owner's predicate
+ * exists to express).
+ */
+extern "C" int MM_ComboLogic_ClassifyItem(uint16_t id, ComboItemClassRow* out) {
+    ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u };
+    if (out != nullptr) {
+        *out = row;
+    }
+    if (Rando::StaticData::Items.empty()) {
+        return -1; // a static std::map in another TU: not constructed yet
+    }
+    if (id >= (uint16_t)RI_MAX) {
+        return 0;
+    }
+    const RandoItemId ri = (RandoItemId)id;
+    const auto it = Rando::StaticData::Items.find(ri);
+    if (it == Rando::StaticData::Items.end() || ri == RI_UNKNOWN || ri == RI_NONE || ri == RI_TRIFORCE_PIECE_PREVIOUS) {
+        return 0;
+    }
+    const RandoItemType type = it->second.randoItemType;
+
+    if (ri == RI_TRAP) {
+        row.fillClass = RSBS_FILL_CLASS_TRAP;
+    } else if (type != RITYPE_JUNK && type != RITYPE_HEALTH) {
+        row.fillClass = RSBS_FILL_CLASS_PROGRESSION;
+    } else if (type == RITYPE_JUNK && ri != RI_JUNK) {
+        row.fillClass = RSBS_FILL_CLASS_RENEWABLE;
+    } else {
+        row.fillClass = RSBS_FILL_CLASS_JUNK;
+    }
+
+    // The same contiguous ranges GeneratePools.cpp walks to add these families.
+    if ((ri >= RI_SOUL_BOSS_GOHT && ri <= RI_SOUL_BOSS_TWINMOLD) ||
+        (ri >= RI_SOUL_ENEMY_ALIEN && ri <= RI_SOUL_ENEMY_WOLFOS)) {
+        row.armedBy = RSBS_FILL_ARM_SOULS;
+    } else if (ri >= RI_OCARINA_BUTTON_A && ri <= RI_OCARINA_BUTTON_C_UP) {
+        row.armedBy = RSBS_FILL_ARM_OCARINA_BUTTONS;
+    } else if (ri == RI_ABILITY_SWIM) {
+        row.armedBy = RSBS_FILL_ARM_SWIM;
+    } else if (ri >= RI_TIME_DAY_1 && ri <= RI_TIME_PROGRESSIVE) {
+        row.armedBy = RSBS_FILL_ARM_CLOCKS;
+    } else if (ri == RI_TRIFORCE_PIECE) {
+        row.armedBy = RSBS_FILL_ARM_WORLD_EVENT;
+    }
+    if (out != nullptr) {
+        *out = row;
+    }
+    return 1;
+}
+
+namespace {
+const ComboItemClassSource kMMItemClassSource = {
+    /* abiVersion */ RSBS_ITEM_CLASS_SOURCE_ABI,
+    /* idSpace    */ (uint16_t)RI_MAX,
+    /* classify   */ MM_ComboLogic_ClassifyItem,
+};
+
+struct MMItemClassRegistrar {
+    MMItemClassRegistrar() {
+        Combo_RegisterItemClassSource(GAME_MM, &kMMItemClassSource);
+    }
+};
+const MMItemClassRegistrar gMMItemClassRegistrar;
+} // namespace
+
+/** TEST BRIDGE (redship tier): MM's own fill predicate for one id, read directly
+ *  off Rando::StaticData::Items and NOT through the classifier, so the lock can
+ *  check the classifier's precedence against it. 1 non-junk (the fill's
+ *  "may unlock something"), 0 junk or health, -1 no Items row. */
+extern "C" int MM_ComboLogic_TestFillAdvancement(uint16_t id) {
+    const auto it = Rando::StaticData::Items.find((RandoItemId)id);
+    if (id >= (uint16_t)RI_MAX || it == Rando::StaticData::Items.end()) {
+        return -1;
+    }
+    const RandoItemType type = it->second.randoItemType;
+    return (type != RITYPE_JUNK && type != RITYPE_HEALTH) ? 1 : 0;
 }
 
 #endif /* RSBS_SINGLE_EXECUTABLE */

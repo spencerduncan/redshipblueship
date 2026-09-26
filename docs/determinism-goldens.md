@@ -227,23 +227,32 @@ why Windows *could not*.
 | Gate | Runs the golden rows? | How |
 |---|---|---|
 | Linux CI (`build-linux`) | **yes**, all three | `ctest --label-regex '^rando$'` under `xvfb-run` |
-| Windows CI (`build-windows`) | **yes**, all three | a dedicated `--tests-regex '^Golden'` step; the `redship` label step does not include them |
+| Windows CI (`build-windows`) | **yes**, all three | `ctest --label-regex '^rando$'` — the whole tier, like Linux (#709) |
 | Operator's local ROM-staged run | **yes**, all three | the two seed rows generate in an archive-free sandbox under `build-cmake/golden-archive-free/` — see "The archive set is part of the pin" |
 | Operator's local archive-free run | **yes**, all three | this is how the goldens are generated and re-pinned |
 
-The Windows step exists because the golden rows carry `LABEL rando` and that job runs
-the `redship` label only, so for one PR they were enforced on exactly one gate. The
-expectation was that Windows *could not* run them: the `rando` rows bring up a
-Fast3dWindow, and a hosted `windows-latest` runner's OpenGL was assumed to be the GDI
-generic 1.1 implementation. **Measured instead of assumed, and the assumption was
-wrong** — 3/3 passed in 5.4 s on `windows-latest` (run 35648094332, job 106493621321).
+The golden rows carry `LABEL rando`, and for one PR the Windows job ran the `redship`
+label only, so they were enforced on exactly one gate. The expectation was that
+Windows *could not* run them: the `rando` rows bring up a Fast3dWindow, and a hosted
+`windows-latest` runner's OpenGL was assumed to be the GDI generic 1.1
+implementation. **Measured instead of assumed, and the assumption was wrong** — first
+the three golden rows (3/3 in 5.4 s, run 35648094332, job 106493621321; the job then
+selected them by `--tests-regex '^Golden'`), then the whole tier (#709):
+
+| `rando` tier on `windows-latest` | Rows | ctest time | Step time |
+|---|---|---|---|
+| PR #723, run 36226677282, attempt 1 (job 108362021770) | 28/28 passed, 0 skipped | 46.1 s | 46 s |
+| PR #723, run 36226677282, attempt 2 (job 108370383924) | 28/28 passed, 0 skipped | 68.0 s | 69 s |
+| Linux leg, same PR, attempt 1 (xvfb-run) | 28/28 passed | 38.1 s | — |
+| Before: Golden-only step, the three main runs of 2026-09-22 | 3/3 | — | 7-10 s |
+
+So the Windows job runs the whole label, at a cost of about a minute of job time.
 
 Things to keep in view rather than rediscover:
 
-* The rows are selected **by name**, not by label. The `rando` tier as a whole is
-  still Linux-only; only these three are known to run on a hosted Windows runner. Do
-  not widen the step to `--label-regex rando` without measuring it — that measurement
-  is #709.
+* The rows are selected **by label** on both legs. A new golden row needs no
+  particular name to be enforced on Windows (it did until #709: a row not named
+  `Golden...` would have run on Linux only, and configure refused such a name).
 * Both legs check the **same committed bytes**, which is what makes "MSVC and GCC
   generate the same world for the same seed" a property CI re-verifies on every PR
   rather than a measurement somebody took once. See "Platform portability".
@@ -277,8 +286,8 @@ field for field (`settingsHash` 01CBE129, `placementHash` 98F07849, `foreignOoTH
 was the archive set, not the platform. Windows and Linux agree.
 
 **The measurement is re-taken on every PR, not remembered.** Both CI legs compare the
-**same committed golden bytes** — Linux/GCC under `xvfb-run`, Windows/MSVC in its own
-`--tests-regex '^Golden'` step — so "MSVC and GCC produce the same world for the same
+**same committed golden bytes** — Linux/GCC under `xvfb-run`, Windows/MSVC in its
+`rando` tier step — so "MSVC and GCC produce the same world for the same
 seed" is a property CI would go red about, on whichever leg diverged. That is why the
 Windows step exists and why it must not be dropped: without it the property reverts to
 folklore, and a golden re-pinned on one platform would silently stop saying anything
@@ -336,13 +345,10 @@ archives. A five-field line aborts configure at `list(GET _golden_fields 5 ...)`
 `list index: 5 out of range`; all three consumers — the CTest loop and the two re-pin
 targets — read all six.
 
-**Name the row `Golden...`.** The `LABEL rando` the loop applies gets it run on Linux
-CI automatically, but the Windows leg selects these rows by `--tests-regex '^Golden'`,
-so a row named anything else would be enforced on one leg only — the exact gap this
-page's "Which gate runs these rows" section exists to close. **This is checked, not
-requested:** the loop in `CMake/SingleExecutable.cmake` aborts configure with a
-`FATAL_ERROR` on a row name that does not match `^Golden`. If you ever change the
-pattern, change the workflow's regex and that check together.
+**The row's name is free.** The `LABEL rando` the loop applies gets it run on both CI
+legs and locally (see "Which gate runs these rows"). Naming it `Golden...` is still
+the convention, but since #709 nothing selects on the name, and configure no longer
+refuses another one.
 
 Then run the regen target and commit the new file. The dispatch must write its
 digest to the named environment variable's path and must emit one `key=value` per
