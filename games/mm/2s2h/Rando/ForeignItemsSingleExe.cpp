@@ -549,10 +549,13 @@ static const ComboForeignItemDef kForeignPoolMMV1[] = {
     //     pool in that mode). A crossing of it would bypass the world's goal.
     //   - RI_TIME_PROGRESSIVE, still criterion 3. Its give converts through
     //     RO_CLOCK_SHUFFLE_PROGRESSIVE and degrades to RI_JUNK in the RANDOM mode
-    //     (ConvertItem.cpp), and RSBS_GIVECAP_CLOCKS says only that clocks are
-    //     shuffled, not in which mode. The six concrete half-day rows below set
-    //     their own RANDO_INF flag directly in every mode, so they represent the
-    //     family instead.
+    //     (ConvertItem.cpp), and RSBS_GIVECAP_CLOCKS does not say which
+    //     progressive mode is on. The six concrete half-day rows below set their
+    //     own RANDO_INF flag directly, so they represent the family instead -
+    //     and RSBS_GIVECAP_CLOCKS is published only in the RANDOM clock mode
+    //     (MM_Rando_PublishProfileGiveCaps), because the progressive modes read
+    //     ownership as a count of half-days owned in order, which an
+    //     out-of-order concrete crossing would contradict.
     // ========================================================================
     // --- RSBS_GIVECAP_SOULS
     { { (uint8_t)GAME_MM, 0, (uint16_t)RI_SOUL_BOSS_GOHT },

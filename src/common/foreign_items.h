@@ -1247,7 +1247,11 @@ int OoT_Rando_Foreign_RecordPickup(uint16_t rc);
 #define RSBS_GIVECAP_OCARINA_BUTTONS 0x0002u
 /** Swim-ability shuffle (MM: RO_SHUFFLE_SWIM). */
 #define RSBS_GIVECAP_SWIM 0x0004u
-/** Clock shuffle (MM: RO_CLOCK_SHUFFLE) — the RI_TIME_* family. */
+/** Clock shuffle in the RANDOM clock mode (MM: RO_CLOCK_SHUFFLE on AND
+ *  RO_CLOCK_SHUFFLE_PROGRESSIVE == RANDOM) — the concrete RI_TIME_* family.
+ *  The progressive modes do not publish it: their logic reads ownership as a
+ *  count of half-days owned in order, which a concrete out-of-order crossing
+ *  would contradict (#681 review). */
 #define RSBS_GIVECAP_CLOCKS 0x0008u
 /** Every bit ALLOCATED at v1. Append only; an unallocated bit in a published
  *  word comes from a newer build and is masked off rather than reinterpreted. */

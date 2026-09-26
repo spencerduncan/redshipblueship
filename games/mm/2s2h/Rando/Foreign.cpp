@@ -927,7 +927,15 @@ extern "C" void MM_Rando_PublishProfileGiveCaps(int fromSave) {
     if (values[RO_SHUFFLE_SWIM] != RO_GENERIC_OFF) {
         caps |= RSBS_GIVECAP_SWIM;
     }
-    if (values[RO_CLOCK_SHUFFLE] != RO_GENERIC_OFF) {
+    // Clocks arm only in the RANDOM clock mode (#681 review). The capability
+    // admits the six CONCRETE half-day rows, and the two progressive modes read
+    // time ownership as a COUNT (Logic.h, OwnsHalfDayForMode: ASCENDING owns
+    // "the first N" half-days, DESCENDING "the last N") because their world
+    // only ever hands half-days out in that order (ConvertItem.cpp,
+    // RI_TIME_PROGRESSIVE). A crossed Time (Night 3) in an ascending world would
+    // set the Night 3 flag while the logic read "Day 1 owned" off the count. In
+    // RANDOM mode both read each flag, so a concrete crossing means what it says.
+    if (values[RO_CLOCK_SHUFFLE] != RO_GENERIC_OFF && values[RO_CLOCK_SHUFFLE_PROGRESSIVE] == RO_CLOCK_SHUFFLE_RANDOM) {
         caps |= RSBS_GIVECAP_CLOCKS;
     }
 

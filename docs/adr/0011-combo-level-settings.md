@@ -1215,6 +1215,27 @@ narrowing itself is now delivered, on branch
   consumes the stream it always did.
 - **The ordering invariant holds**: the six criteria admit, the class bitset
   selects, the capability only narrows.
+- **Clocks arm only in the RANDOM clock mode** (added on review of the same
+  branch). The six concrete half-day rows set their own
+  `RANDO_INF_OBTAINED_CLOCK_*` flag in every mode, but the two progressive modes
+  never hand out a half-day out of order (`ConvertItem.cpp`, the
+  `RI_TIME_PROGRESSIVE` case), and MM's logic reads ownership in those modes as
+  a count rather than per flag (`Logic.h`, `OwnsHalfDayForMode`: ASCENDING owns
+  "the first N" half-days, DESCENDING "the last N"). A crossed Time (Night 3) in
+  an ascending world would set the Night 3 flag while the logic read "Day 1
+  owned" off the count, so the flags and the logic would describe two different
+  worlds. `MM_Rando_PublishProfileGiveCaps` therefore publishes
+  `RSBS_GIVECAP_CLOCKS` only when clock shuffle is on **and**
+  `RO_CLOCK_SHUFFLE_PROGRESSIVE` is RANDOM (its default), where both read the
+  flags. Concrete-clock crossings never break a progressive world's ordering;
+  in a progressive world the clock family is simply unarmed. Lock:
+  `mm-paired-profile` Fail(75)/(76) (RANDOM arms, ASCENDING and DESCENDING do
+  not, clock shuffle off never does), observed red before the gate.
+- **The armed draw is pinned exactly**, not only bounded:
+  `GoldenSeedDigestArmedCaps` (`tests/golden/seed-digest-armed-caps.txt`)
+  generates the golden seed with all four families armed through MM's own
+  option CVars and pins the reverse table. A reorder of the capability rows, a
+  new budget constant or a changed set-aside stream moves it.
 - **Measured:** the shipped MM profile arms none of the four families (every
   option defaults OFF), so the creation freeze publishes `caps=0000` and the
   three golden rows pass with the golden files untouched -- no generated world
