@@ -767,13 +767,26 @@ extern "C" int OoT_CreationProgressOverlay_TestLastFrameSuppressedInput(void) {
 
 extern "C" void OoT_CreationProgressOverlay_TestDrawContents(const ComboGenOverlayView* view) {
     // The caller (the UI snapshot harness) has an ImGui frame open and owns the
-    // pump; this only submits the overlay's widgets into it. The painting view is
-    // the same file static DrawOverlayContents reads on a real paint, set for the
-    // duration of the call and cleared again so no later paint inherits it.
-    const ComboGenOverlayView* saved = gPaintingView;
-    gPaintingView = view;
+    // pump; this only submits the overlay's widgets into it. It follows the file's
+    // own rules for the statics a paint uses (property 2 above):
+    //  - gPaintingView is only ever read under gPainting, so this takes the same
+    //    PaintLatch a real paint takes, and refuses when a paint already holds it;
+    //  - both are restored by RAII, so a throw out of DrawOverlayContents cannot
+    //    leave gPaintingView pointing at the caller's stack-local view;
+    //  - gLastPumpedConfigFlags is what the creation row's suppression check reads
+    //    (OoT_CreationProgressOverlay_TestLastFrameSuppressedInput), and a test
+    //    draw is not a pumped frame, so its value is put back on the way out.
+    if (gPainting) {
+        return;
+    }
+    struct PumpedFlagsKeep {
+        uint32_t saved = gLastPumpedConfigFlags;
+        ~PumpedFlagsKeep() {
+            gLastPumpedConfigFlags = saved;
+        }
+    } keepFlags;
+    PaintLatch latch(view);
     DrawOverlayContents();
-    gPaintingView = saved;
 }
 
 extern "C" int OoT_CreationProgressOverlay_TestPresentOnce(void) {

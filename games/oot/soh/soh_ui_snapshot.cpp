@@ -24,12 +24,28 @@
  * WHAT IT ASSERTS IS STRUCTURE, NEVER APPEARANCE: the drawable is the profile
  * size; each PNG decodes back to the same hash; the page is not blank; the menu
  * window and the page's own section child were active (so the selection did not
- * silently fall back to the first sidebar entry); the text log names the page;
- * the frame converged; no popup leaked; no game framebuffer was composited; the
- * player's config and imgui.ini were not touched; the runtime lint has no hit
- * outside its baseline. "Does ours look like SoH" is judged by whoever reads the
- * composites. No pixel is ever compared against a stored image, and nothing here
- * reads or writes tests/golden/ or runs a generation.
+ * silently fall back to the first sidebar entry); the text log holds a string
+ * only the page's BODY draws (the sidebar labels are drawn on every page, so a
+ * sidebar name proves nothing) and that string is absent from a sibling page's
+ * capture; every authored state and every hover shows its own distinguishing
+ * text, and that text is ABSENT from the contrast capture (the unauthored state,
+ * or the same state without the hover), so reverting the authoring or the pointer
+ * injection turns the row red; a pane's state text was inside a captured view
+ * (panes are scrolled like menu pages and their .txt holds only what was on
+ * screen); the frame converged; no popup leaked; no game framebuffer was
+ * composited; no ImGui frame was left open; the player's config and imgui.ini
+ * were not touched; the runtime lint has no hit outside its baseline. "Does ours
+ * look like SoH" is judged by whoever reads the composites. No pixel is ever
+ * compared against a stored image, and nothing here reads or writes tests/golden/
+ * or runs a generation.
+ *
+ * RSBS_UI_SNAPSHOT_SABOTAGE (comma list) breaks one mechanism on purpose so its
+ * assert can be SEEN going red: no-state (EnterState authors nothing), no-hover
+ * (no pointer injection), no-scroll (panes keep their first view), throw (the
+ * first project page's first row throws mid-draw), leave-open (the exception
+ * path leaves the ImGui frame open, the pre-fix behaviour), keep-imgui-ini (the
+ * player's imgui.ini path is left armed). A sabotaged run is expected to fail;
+ * docs/ui-style-guide.md section 12 lists what each one must turn red.
  *
  * ============================================================================
  * HOW A FRAME IS MADE (and why each step is where it is)
@@ -102,6 +118,7 @@
 #include <memory>
 #include <set>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -172,6 +189,21 @@ struct Options {
     std::string baseline;
     std::string cvars;
     std::string lintBaseline;
+    std::string sabotage;
+
+    bool Sabotaged(const char* what) const {
+        for (size_t at = 0; at < sabotage.size();) {
+            size_t comma = sabotage.find(',', at);
+            if (comma == std::string::npos) {
+                comma = sabotage.size();
+            }
+            if (sabotage.compare(at, comma - at, what) == 0 && std::strlen(what) == comma - at) {
+                return true;
+            }
+            at = comma + 1;
+        }
+        return false;
+    }
 };
 
 std::string EnvOr(const char* name, const std::string& fallback) {
@@ -195,6 +227,7 @@ Options ReadOptions(const char* pagesArg, const char* outArg) {
     o.baseline = EnvOr("RSBS_UI_SNAPSHOT_BASELINE", "");
     o.cvars = EnvOr("RSBS_UI_SNAPSHOT_CVARS", "");
     o.lintBaseline = EnvOr("RSBS_UI_LINT_BASELINE", "");
+    o.sabotage = EnvOr("RSBS_UI_SNAPSHOT_SABOTAGE", "");
     return o;
 }
 
@@ -574,6 +607,10 @@ struct Renderer {
 struct HookState {
     bool installed = false;
     bool logEnabled = false;
+    // False while a PANE is captured: its .txt then holds only the items that
+    // were inside a clip rect this frame, i.e. what the PNG shows, so a state's
+    // text can be asserted to be ON SCREEN and not merely submitted.
+    bool unclipLog = true;
     std::string lastLog;
     bool hoverActive = false;
     ImVec2 hoverPos = ImVec2(0, 0);
@@ -601,6 +638,11 @@ void HookNewFramePost(ImGuiContext* ctx, ImGuiContextHook*) {
     // what the frame draws. LogBegin also sets ItemUnclipByLog, so rows scrolled
     // out of a child's view are still logged -- the .txt covers the whole page.
     ImGui::LogToBuffer(0);
+    if (!gHooks.unclipLog) {
+        // LogBegin just set it; ItemAdd then returns false for a clipped item
+        // (Text, TreeNode, Checkbox, ...), which is what keeps it out of the log.
+        ctx->ItemUnclipByLog = false;
+    }
 }
 
 void HookEndFramePre(ImGuiContext* ctx, ImGuiContextHook*) {
@@ -684,6 +726,14 @@ struct PageSpec {
     std::vector<std::string> states; // "" = the default state
     std::vector<std::string> hovers; // hover variant names (MENU_PAGE only)
     std::vector<std::string> expectText;
+    // MENU_PAGE: a string only this page's body draws (assert 6); empty when no
+    // registered row yields one, which fails the page.
+    std::string bodyText;
+    // Per state: strings that must appear in that state's captures (union over
+    // its scroll views), and the state whose captures must NOT contain them --
+    // the capture the row would produce if EnterState stopped authoring.
+    std::map<std::string, std::vector<std::string>> stateText;
+    std::map<std::string, std::string> stateContrast;
     bool scroll = true;
     bool needsRom = false;
 };
@@ -709,6 +759,7 @@ struct Capture {
     float scrollY = 0.0f;
     float scrollMax = 0.0f;
     std::string hover;
+    std::string hoverText; // the tooltip prefix a hover capture must show
     std::vector<std::string> found;
     std::vector<std::string> missing;
     size_t popupsQueued = 0;
@@ -800,6 +851,10 @@ class Session {
     // state authoring
     void EnterState(const PageSpec& p, const std::string& state);
     void LeaveState(const PageSpec& p, const std::string& state);
+    void CheckStateText();
+    void CheckBodyText();
+    void CloseAbandonedFrame();
+    bool sabotageThrowArmed = false;
 
     // outputs
     void WriteComposites();
@@ -880,6 +935,19 @@ bool Session::ChooseProfile(std::string& why) {
 // ---- bring-up ------------------------------------------------------------------
 
 const char* kConfigName = "rsbs-ui-snapshot.json";
+/** The Context's short name; also the appName every app-directory lookup here
+ *  passes, so none of them dereferences Ship::Context::GetInstance() (which the
+ *  NON_PORTABLE branch of GetAppDirectoryPath does when appName is empty, and
+ *  which does not exist yet for the isolation check's "before" digests). */
+const char* kShortName = "soh";
+
+/** Where the Context will read @p name from: GetAppDirectoryPath honours
+ *  SHIP_HOME (Linux, macOS) and the platform pref path (NON_PORTABLE), and the
+ *  Context resolves its config file through exactly this call (Context.cpp,
+ *  InitConfiguration), so the harness writes its pins where they are read. */
+std::string AppPath(const std::string& name) {
+    return Ship::Context::GetPathRelativeToAppDirectory(name, kShortName);
+}
 
 bool Session::BringUp(std::string& why) {
     if (!ChooseProfile(why)) {
@@ -906,7 +974,11 @@ bool Session::BringUp(std::string& why) {
     // config path a process names is the one the Context keeps), so the player's
     // shipofharkinian.json is never read or written, and every CVar starts at its
     // default -- which is what "pinned" means for the theme, the scale, the
-    // background opacity and the rest. Only the values below are set.
+    // background opacity and the rest. Only the values below are set. It is
+    // written to the SAME resolved path the Context reads (AppPath): relative to
+    // the working directory it would miss whenever SHIP_HOME or the pref path
+    // moves the app directory, and the run would silently use a stale config
+    // that CheckSaveCvars had persisted there.
     {
         std::string json = "{\n  \"Window\": {\n    \"Backend\": { \"Id\": ";
         json += (be == Backend::DX11) ? "0, \"Name\": \"DirectX\"" : "1, \"Name\": \"OpenGL\"";
@@ -914,8 +986,11 @@ bool Session::BringUp(std::string& why) {
                 ",\n    \"PositionX\": " + std::to_string(profile.posX) +
                 ",\n    \"PositionY\": " + std::to_string(profile.posY) +
                 ",\n    \"Fullscreen\": { \"Enabled\": false }\n  }\n}\n";
-        if (!WriteTextFile(kConfigName, json)) {
-            why = std::string("could not write ") + kConfigName;
+        const std::string configPath = AppPath(kConfigName);
+        std::error_code mk;
+        fs::create_directories(fs::path(configPath).parent_path(), mk);
+        if (!WriteTextFile(configPath, json)) {
+            why = "could not write " + configPath;
             return false;
         }
     }
@@ -925,7 +1000,7 @@ bool Session::BringUp(std::string& why) {
     // workstation therefore defaults to GL.)
     SDL_SetHint(SDL_HINT_WINDOW_NO_ACTIVATION_WHEN_SHOWN, "1");
 
-    auto ctx = Ship::Context::CreateUninitializedInstance(RSBS_WINDOW_TITLE " - UI snapshot", "soh", kConfigName);
+    auto ctx = Ship::Context::CreateUninitializedInstance(RSBS_WINDOW_TITLE " - UI snapshot", kShortName, kConfigName);
     if (ctx == nullptr) {
         why = "could not create the Ship::Context";
         return false;
@@ -971,7 +1046,12 @@ bool Session::BringUp(std::string& why) {
 
     // Before the first NewFrame, which is when ImGui would load imgui.ini: the
     // run must neither read the player's window layout nor write one.
-    ImGui::GetIO().IniFilename = nullptr;
+    // RSBS_UI_SNAPSHOT_SABOTAGE=keep-imgui-ini leaves Gui::Init's path armed, so
+    // ImGui saves the layout there within IniSavingRate (5 s) of the first new
+    // window, and the isolation assert (assert 10) must go red.
+    if (!opt.Sabotaged("keep-imgui-ini")) {
+        ImGui::GetIO().IniFilename = nullptr;
+    }
     // ImGui's recoverable-error tooltip would flicker over every capture after a
     // widget misbehaves; the harness reports the error itself, so the debug log
     // is the one channel left on (ImGui requires at least one).
@@ -1065,8 +1145,108 @@ void Session::ApplyCvarOverrides() {
 
 // ---- page list -----------------------------------------------------------------
 
+// Defined with the runtime lint below.
+std::string VisibleLabel(const std::string& name);
+bool IsInteractive(WidgetType t);
+
+/** At most @p max characters of @p s, cut back to a word boundary. A tooltip is
+ *  hard-wrapped at about 60 characters (UIWidgets::WrappedText), so a prefix of
+ *  40 always lies on its first logged line. */
+std::string WordPrefix(const std::string& s, size_t max) {
+    if (s.size() <= max) {
+        return s;
+    }
+    size_t cut = s.rfind(' ', max);
+    if (cut == std::string::npos || cut < max / 2) {
+        cut = max;
+    }
+    std::string out = s.substr(0, cut);
+    while (!out.empty() && (out.back() == ' ' || out.back() == ',' || out.back() == ':')) {
+        out.pop_back();
+    }
+    return out;
+}
+
+/**
+ * The first trick row DrawTricksSection draws once its first area is open: the
+ * lowest area id that has a row (it walks areas in id order), and that area's
+ * first row in table order. @p areaOut receives the area id, -1 if none.
+ */
+const ComboMMTrickDesc* FirstTrickArea(int* areaOut) {
+    *areaOut = -1;
+    const ComboMMTrickDesc* best = nullptr;
+    for (int i = 0; i < Combo_MMTrickCount(); i++) {
+        const ComboMMTrickDesc* d = Combo_MMTrickAt(i);
+        if (d != nullptr && (best == nullptr || d->area < best->area)) {
+            best = d;
+        }
+    }
+    if (best != nullptr) {
+        *areaOut = (int)best->area;
+    }
+    return best;
+}
+
+/**
+ * Assert 6's string for a menu page: something only the page BODY draws.
+ *
+ * The sidebar loop (Menu.cpp) draws every sidebar label of the active header,
+ * and the header bar every header, on every frame, so a sidebar name is in the
+ * log whichever page is selected. This takes the first registered row whose
+ * label is not a substring of that chrome, preferring a section header (stable
+ * across states), then an interactive row, then a note. A row with a PreFunc is
+ * skipped: a PreFunc may rename it (the status line) or hide it (a gated row)
+ * per state. CheckBodyText then proves the choice discriminates, against a
+ * sibling page's capture.
+ */
+std::string PickBodyText(Ship::Menu& m, const std::string& header, const std::string& sidebar) {
+    auto& entries = MenuEntries(m);
+    if (!entries.contains(header) || !entries.at(header).sidebars.contains(sidebar)) {
+        return std::string();
+    }
+    std::vector<std::string> chrome;
+    for (const auto& [h, e] : entries) {
+        chrome.push_back(h);
+    }
+    for (const std::string& s : entries.at(header).sidebarOrder) {
+        chrome.push_back(s);
+    }
+    auto usable = [&](const std::string& label) {
+        if (label.size() < 4) {
+            return false;
+        }
+        for (const std::string& c : chrome) {
+            if (c.find(label) != std::string::npos) {
+                return false;
+            }
+        }
+        return true;
+    };
+    const SidebarEntry& page = entries.at(header).sidebars.at(sidebar);
+    for (int pass = 0; pass < 3; pass++) {
+        for (const auto& column : page.columnWidgets) {
+            for (const WidgetInfo& row : column) {
+                if (row.preFunc) {
+                    continue;
+                }
+                const bool want = pass == 0   ? row.type == WIDGET_SEPARATOR_TEXT
+                                  : pass == 1 ? IsInteractive(row.type)
+                                              : row.type == WIDGET_TEXT;
+                if (!want) {
+                    continue;
+                }
+                const std::string label = WordPrefix(VisibleLabel(row.name), 40);
+                if (usable(label)) {
+                    return label;
+                }
+            }
+        }
+    }
+    return std::string();
+}
+
 void Session::BuildPageList() {
-    auto menuPage = [](const std::string& header, const std::string& sidebar, Origin origin) {
+    auto menuPage = [this](const std::string& header, const std::string& sidebar, Origin origin) {
         PageSpec p;
         p.id = header + "/" + sidebar;
         p.header = header;
@@ -1074,7 +1254,19 @@ void Session::BuildPageList() {
         p.origin = origin;
         p.kind = Kind::MENU_PAGE;
         p.states = { "" };
-        p.expectText = { sidebar };
+        p.bodyText = PickBodyText(*menu, header, sidebar);
+        // A page whose only row is a WIDGET_CUSTOM draws its own widgets, so no
+        // registered name is drawn; its string is named here instead, and
+        // CheckBodyText holds it to the same sibling contrast.
+        static const std::map<std::string, std::string> kCustomBody = {
+            { "Randomizer/Tricks/Glitches", "Enable Visible" }, // DrawTricksMenu's button row
+        };
+        if (p.bodyText.empty() && kCustomBody.contains(p.id)) {
+            p.bodyText = kCustomBody.at(p.id);
+        }
+        if (!p.bodyText.empty()) {
+            p.expectText = { p.bodyText };
+        }
         return p;
     };
 
@@ -1129,8 +1321,33 @@ void Session::BuildPageList() {
             if (sidebar == "Cross-Game Rules") {
                 p.states = { "unpaired", "paired-legacy", "frozen", "corrupt" };
                 p.hovers = { "direction", "frozen-slider" };
+                // The status line's four sentences (ComboRuleStatusPreFunc in
+                // SohMenuCombo.cpp). Copied, deliberately: a rewording there
+                // turns this row red and the lane updates the words here.
+                p.stateText["unpaired"] = { "They govern the crossing between both games" };
+                p.stateText["paired-legacy"] = { "The world you are paired with predates them" };
+                p.stateText["frozen"] = { "Already decided: this paired world" };
+                p.stateText["corrupt"] = { "frozen but no paired world is live" };
+                p.stateContrast = { { "unpaired", "paired-legacy" },
+                                    { "paired-legacy", "unpaired" },
+                                    { "frozen", "unpaired" },
+                                    { "corrupt", "unpaired" } };
             } else if (sidebar == "MM Enhancements") {
                 p.states = { "", "autosave" };
+                // The row gated on gEnhancements.Autosave (the table's
+                // shownWhileKey), which hides while Autosave is off.
+                for (std::size_t i = 0; i < RSBS::kHostedMmEnhancementCount; i++) {
+                    const RSBS::HostedMmEnhancement& e = RSBS::kHostedMmEnhancements[i];
+                    if (e.shownWhileKey != nullptr && std::strcmp(e.shownWhileKey, "gEnhancements.Autosave") == 0 &&
+                        e.label != nullptr) {
+                        p.stateText["autosave"] = { VisibleLabel(e.label) };
+                    }
+                }
+                if (p.stateText["autosave"].empty()) {
+                    Fail("Combo/MM Enhancements: no hosted row is gated on gEnhancements.Autosave, so the autosave "
+                         "state has nothing to show");
+                }
+                p.stateContrast = { { "autosave", "" } };
             }
             pages.push_back(p);
         }
@@ -1150,7 +1367,25 @@ void Session::BuildPageList() {
         p.states = { "unpaired", "frozen", "mm-suspended", "tricks-open" };
         p.compareWith = "Randomizer/Logic/Access";
         p.expectText = { ComboGui::kComboMMOptionsWindowName };
-        p.scroll = false;
+        // ComboMmOptionsWindow.cpp's pairing summary, frozen banner, active-game
+        // line and Tricks headline, plus the first trick row of the area the
+        // tricks-open state expands (FirstTrickArea). Matched against the pane's
+        // VISIBLE-ONLY log, so each one was on screen in some captured view.
+        p.stateText["unpaired"] = { "No paired world yet" };
+        p.stateText["frozen"] = { "Frozen at creation" };
+        p.stateText["mm-suspended"] = { "Majora's Mask - suspended" };
+        p.stateText["tricks-open"] = { "trick keys are wired to logic" };
+        {
+            int area = -1;
+            const ComboMMTrickDesc* first = FirstTrickArea(&area);
+            if (first != nullptr && first->label != nullptr) {
+                p.stateText["tricks-open"].push_back(VisibleLabel(first->label));
+            }
+        }
+        p.stateContrast = { { "unpaired", "frozen" },
+                            { "frozen", "unpaired" },
+                            { "mm-suspended", "unpaired" },
+                            { "tricks-open", "unpaired" } };
         pages.push_back(p);
     }
     {
@@ -1160,7 +1395,6 @@ void Session::BuildPageList() {
         p.window = ComboGui::kComboSpoilerWindowName;
         p.states = { "paired" };
         p.expectText = { ComboGui::kComboSpoilerWindowName };
-        p.scroll = false;
         pages.push_back(p);
     }
     {
@@ -1170,7 +1404,6 @@ void Session::BuildPageList() {
         p.window = ComboGui::kComboTrackerWindowName;
         p.states = { "paired", "unpaired" };
         p.expectText = { ComboGui::kComboTrackerWindowName };
-        p.scroll = false;
         pages.push_back(p);
     }
     {
@@ -1240,12 +1473,28 @@ bool Session::PumpFrame(UiImage* img, bool hover, const std::function<void()>& e
     // they never converge. They are game HUD, not menu, so they are cleared.
     gui->GetGameOverlay()->ClearNotifications();
 
-    gHooks.hoverActive = hover;
+    // NewFrame IM_ASSERTs that the previous frame was ended ("Forgot to call
+    // Render() or EndFrame()"), and IM_ASSERT is assert(): a Debug build (the
+    // project's default CMAKE_BUILD_TYPE) aborts the whole run right there, with
+    // no manifest. A Release build compiles the assert out and would carry on, so
+    // the condition is checked HERE, in every build type, and fails the run by
+    // name instead of depending on which build caught it.
+    {
+        ImGuiContext& g = *GImGui;
+        if (g.FrameCount != 0 && g.FrameCountEnded != g.FrameCount) {
+            Fail("an ImGui frame was left open by the previous pump (FrameCount " + std::to_string(g.FrameCount) +
+                 ", FrameCountEnded " + std::to_string(g.FrameCountEnded) +
+                 "); ImGui::NewFrame would assert here in a Debug build");
+            CloseAbandonedFrame();
+        }
+    }
+
+    gHooks.hoverActive = hover && !opt.Sabotaged("no-hover");
     gHooks.logEnabled = true;
     bool ok = true;
     bool interpreterFrame = false;
     {
-        InputSuppression suppressed(ImGui::GetIO(), !hover);
+        InputSuppression suppressed(ImGui::GetIO(), !gHooks.hoverActive);
         try {
             gui->StartDraw();
             fast->StartFrame();
@@ -1282,14 +1531,18 @@ bool Session::PumpFrame(UiImage* img, bool hover, const std::function<void()>& e
             fast->EndFrame();
         } catch (const std::exception& e) {
             // A widget threw mid-frame (MenuDrawItem catches only
-            // bad_variant_access). The ImGui frame is left open ON PURPOSE: the next
-            // NewFrame resets the window and popup stacks itself, which measured
-            // clean, while unwinding it here with ErrorRecoveryTryToRecoverState +
-            // EndFrame left every later capture blank. Only the text log is closed,
-            // so the next capture's .txt does not start with this frame's text, and
-            // the interpreter's frame is presented if it was started.
+            // bad_variant_access). The text log is closed first, so the next
+            // capture's .txt does not start with this frame's text; then the
+            // ImGui frame is CLOSED, because the next NewFrame asserts that it was
+            // (see the guard at the top of this function); then the interpreter's
+            // frame is presented if it was started. RSBS_UI_SNAPSHOT_SABOTAGE=
+            // leave-open skips the close, which is the behaviour this replaced,
+            // and the guard then fails the run.
             if (GImGui->LogEnabled) {
                 ImGui::LogFinish();
+            }
+            if (!opt.Sabotaged("leave-open")) {
+                CloseAbandonedFrame();
             }
             if (interpreterFrame) {
                 fast->EndFrame();
@@ -1300,6 +1553,29 @@ bool Session::PumpFrame(UiImage* img, bool hover, const std::function<void()>& e
     }
     gHooks.hoverActive = false;
     return ok;
+}
+
+void Session::CloseAbandonedFrame() {
+    ImGuiContext& g = *GImGui;
+    if (!g.WithinFrameScope || g.FrameCountEnded == g.FrameCount) {
+        return;
+    }
+    // Unwind whatever Begin/Push the throw skipped, then end the frame. The
+    // recovery reports each unbalanced call through IM_ASSERT_USER_ERROR, which
+    // asserts when ConfigErrorRecoveryEnableAssert is set (the default), so a
+    // Debug build would abort in the recovery itself: off for the unwind only,
+    // since the page is already failed by name.
+    ImGuiIO& io = g.IO;
+    const bool savedAssert = io.ConfigErrorRecoveryEnableAssert;
+    io.ConfigErrorRecoveryEnableAssert = false;
+    ImGui::ErrorRecoveryTryToRecoverState(&g.StackSizesInNewFrame);
+    ImGui::EndFrame();
+    io.ConfigErrorRecoveryEnableAssert = savedAssert;
+    if ((io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) != 0) {
+        // NewFrame also asserts UpdatePlatformWindows ran after EndFrame when
+        // viewports are on (the harness pins them off; this is belt and braces).
+        ImGui::UpdatePlatformWindows();
+    }
 }
 
 bool Session::Settle(Capture& c, bool hover, const std::function<void()>& extra,
@@ -1461,6 +1737,9 @@ GameId gSavedGame = GAME_NONE;
 void Session::EnterState(const PageSpec& p, const std::string& state) {
     gSavedGame = Context_GetCurrentGame();
     ComboContext_Init();
+    if (opt.Sabotaged("no-state")) {
+        return;
+    }
     if (p.id == "Combo/Cross-Game Rules") {
         if (state == "paired-legacy") {
             AuthorPairing();
@@ -1562,8 +1841,15 @@ void Session::Finish(Capture& c, const PageSpec& p) {
                    std::to_string(c.distinct) + " colours)";
         return;
     }
-    // Assert 6: the text names the page.
+    // Assert 6: the text holds a string only this page's body draws (menu
+    // pages; see PickBodyText), or the pane's own title (panes, overlay, modal).
     c.textHash = Ui_Fnv1a64(c.text.data(), c.text.size(), UI_FNV1A64_OFFSET);
+    if (p.kind == Kind::MENU_PAGE && p.bodyText.empty()) {
+        c.status = "fail";
+        c.reason = "no registered row of this page yields a string only its body draws (every candidate has a "
+                   "PreFunc or is a substring of a header or sidebar label), so reachability by text is unprovable";
+        return;
+    }
     for (const std::string& want : p.expectText) {
         if (c.text.find(want) != std::string::npos) {
             c.found.push_back(want);
@@ -1669,6 +1955,28 @@ void Session::CaptureMenuPage(const PageSpec& p) {
         }
         EnterState(p, state);
         Navigate(p);
+        // RSBS_UI_SNAPSHOT_SABOTAGE=throw: the first project page's first row
+        // throws once, mid-draw, inside the menu window and its section child --
+        // the shape of the Settings > General std::map::at this harness met.
+        WidgetInfo* throwRow = nullptr;
+        WidgetFunc throwSaved;
+        if (opt.Sabotaged("throw") && !sabotageThrowArmed && p.origin == Origin::RSBS) {
+            throwRow = FindRow(*menu, p.header, p.sidebar, [](const WidgetInfo&) { return true; });
+            if (throwRow != nullptr) {
+                sabotageThrowArmed = true;
+                throwSaved = throwRow->preFunc;
+                auto fired = std::make_shared<bool>(false);
+                throwRow->preFunc = [throwSaved, fired](WidgetInfo& info) {
+                    if (!*fired) {
+                        *fired = true;
+                        throw std::runtime_error("RSBS_UI_SNAPSHOT_SABOTAGE=throw");
+                    }
+                    if (throwSaved) {
+                        throwSaved(info);
+                    }
+                };
+            }
+        }
         // Scroll every column back to the top before the first capture: a page
         // captured earlier in this process may have left its children scrolled.
         std::vector<ImGuiWindow*> kids;
@@ -1717,6 +2025,9 @@ void Session::CaptureMenuPage(const PageSpec& p) {
                 ImGui::SetScrollY(w, std::min(w->ScrollMax.y, w->Scroll.y + step));
             }
             scrollIndex++;
+        }
+        if (throwRow != nullptr) {
+            throwRow->preFunc = throwSaved;
         }
 
         // Hover variants: the tooltip is part of the page's look.
@@ -1783,6 +2094,42 @@ void Session::CaptureMenuPage(const PageSpec& p) {
             }
             row->postFunc = savedPost;
             Finish(c, p);
+            // The tooltip this row shows NOW (a PreFunc may have disabled it, and a
+            // disabled row shows its disabled tooltip instead), as a prefix that
+            // sits on the tooltip's first wrapped line.
+            if (row->options != nullptr) {
+                const char* tip = (row->options->disabled && row->options->disabledTooltip != nullptr &&
+                                   row->options->disabledTooltip[0] != '\0')
+                                      ? row->options->disabledTooltip
+                                      : row->options->tooltip;
+                c.hoverText = WordPrefix(tip != nullptr ? tip : "", 40);
+            }
+            if (c.status == "pass") {
+                if (c.hoverText.empty()) {
+                    c.status = "fail";
+                    c.reason = "the hovered row \"" + label + "\" has no tooltip to show";
+                } else if (c.text.find(c.hoverText) == std::string::npos) {
+                    c.status = "fail";
+                    c.reason = "the hover capture shows no tooltip: \"" + c.hoverText + "\" is not in its text";
+                } else {
+                    // Contrast: the same state's captures WITHOUT the pointer must not
+                    // hold it, or its presence here proves nothing about a tooltip.
+                    for (const Capture& other : captures) {
+                        if (other.id == c.id && other.state == c.state && other.hover.empty() &&
+                            other.text.find(c.hoverText) != std::string::npos) {
+                            c.status = "fail";
+                            c.reason = "\"" + c.hoverText + "\" is also in " + other.variant +
+                                       ", captured without the pointer, so it does not prove a tooltip";
+                            break;
+                        }
+                    }
+                }
+                if (c.status == "pass") {
+                    c.found.push_back(c.hoverText);
+                } else {
+                    c.missing.push_back(c.hoverText);
+                }
+            }
             Record(std::move(c));
             // Put the pointer away and re-settle so the next capture has no hover.
             PumpFrame(nullptr, false, nullptr, why);
@@ -1806,18 +2153,37 @@ const char* PaneCvar(const std::string& window) {
     return nullptr;
 }
 
+/**
+ * The ImGui ids of the Tricks header and of its first area's tree node, as
+ * DrawTricksSection (ComboMmOptionsWindow.cpp) forms them inside the pane's
+ * Begin: CollapsingHeader("Tricks") at the window's root id, then
+ * PushID("tricks"), PushID(area), TreeNode(areaName). Their open state lives in
+ * the pane window's StateStorage, which is what the tricks-open state writes.
+ */
+void TricksOpenIds(ImGuiWindow* w, ImGuiID* header, ImGuiID* firstArea) {
+    *header = ImHashStr("Tricks", 0, w->ID);
+    *firstArea = 0;
+    int area = -1;
+    const ComboMMTrickDesc* first = FirstTrickArea(&area);
+    if (first != nullptr && first->areaName != nullptr) {
+        const ImGuiID tricks = ImHashStr("tricks", 0, w->ID);
+        const ImGuiID areaSeed = ImHashData(&area, sizeof(area), tricks);
+        *firstArea = ImHashStr(first->areaName, 0, areaSeed);
+    }
+}
+
 void Session::CaptureWindowPage(const PageSpec& p) {
     const char* cvar = PaneCvar(p.window);
     for (const std::string& state : p.states) {
-        const std::string variant = VariantName(state, "");
-        if (!Selected(p, variant)) {
+        const std::string base = VariantName(state, "");
+        if (!Selected(p, base) && !Selected(p, VariantName(state, "scroll0"))) {
             continue;
         }
-        Capture c;
-        c.id = p.id;
-        c.state = state;
-        c.variant = variant;
         if (cvar == nullptr || gui->GetGuiWindow(p.window) == nullptr) {
+            Capture c;
+            c.id = p.id;
+            c.state = state;
+            c.variant = base;
             c.status = "fail";
             c.reason = "the pane \"" + p.window + "\" is not registered";
             c.spec = &p;
@@ -1829,25 +2195,71 @@ void Session::CaptureWindowPage(const PageSpec& p) {
         // These panes read their visibility CVar LIVE in Draw() (they override it),
         // so setting the CVar is what opens them; Show() would do nothing.
         CVarSetInteger(cvar, 1);
-        std::function<void()> before;
-        if (state == "tricks-open") {
-            before = [&p]() {
-                ImGuiWindow* w = ImGui::FindWindowByName(p.window.c_str());
-                if (w != nullptr) {
-                    w->StateStorage.SetInt(w->GetID("Tricks"), 1);
-                }
-            };
-        }
-        if (Settle(c, false, nullptr, before)) {
-            Oracle(p, c);
-        }
-        Finish(c, p);
-        Record(std::move(c));
-        if (state == "tricks-open") {
+        const bool tricks = (state == "tricks-open");
+        auto setTricksOpen = [&p](int open) {
             ImGuiWindow* w = ImGui::FindWindowByName(p.window.c_str());
             if (w != nullptr) {
-                w->StateStorage.SetInt(w->GetID("Tricks"), 0);
+                ImGuiID header = 0;
+                ImGuiID area = 0;
+                TricksOpenIds(w, &header, &area);
+                w->StateStorage.SetInt(header, open);
+                if (area != 0) {
+                    w->StateStorage.SetInt(area, open);
+                }
             }
+        };
+        // The pane's .txt is VISIBLE-ONLY (see HookState::unclipLog), so a state's
+        // text is asserted against what some captured view actually showed.
+        gHooks.unclipLog = false;
+        // The pane scrolls as a whole (it has no section children), and it is
+        // stepped the way a menu page's columns are, one view minus a 48 px
+        // overlap per capture, so a long pane (the MM options, the Tricks section
+        // under them) is captured to its end instead of to its first fold.
+        int scrollIndex = 0;
+        for (;;) {
+            Capture c;
+            c.id = p.id;
+            c.state = state;
+            c.scrollIndex = scrollIndex;
+            c.variant = VariantName(state, "scroll" + std::to_string(scrollIndex));
+            auto before = [&]() {
+                if (tricks) {
+                    setTricksOpen(1);
+                }
+                if (scrollIndex == 0) {
+                    ImGuiWindow* w = ImGui::FindWindowByName(p.window.c_str());
+                    if (w != nullptr) {
+                        ImGui::SetScrollY(w, 0.0f);
+                    }
+                }
+            };
+            if (Settle(c, false, nullptr, before)) {
+                Oracle(p, c);
+            }
+            ImGuiWindow* w = ImGui::FindWindowByName(p.window.c_str());
+            if (w != nullptr) {
+                c.scrollY = w->Scroll.y;
+                c.scrollMax = w->ScrollMax.y;
+            }
+            Finish(c, p);
+            const bool unfinished = w != nullptr && c.status == "pass" && c.scrollY + 0.5f < c.scrollMax;
+            const bool more = unfinished && scrollIndex < kMaxScrollSteps && !opt.Sabotaged("no-scroll");
+            if (unfinished && !more) {
+                c.reason = opt.Sabotaged("no-scroll")
+                               ? "scroll sequence stopped at the first view (RSBS_UI_SNAPSHOT_SABOTAGE=no-scroll)"
+                               : "scroll sequence truncated at " + std::to_string(kMaxScrollSteps + 1) + " views";
+            }
+            Record(std::move(c));
+            if (!more) {
+                break;
+            }
+            const float step = std::max(64.0f, w->InnerRect.GetHeight() - 48.0f);
+            ImGui::SetScrollY(w, std::min(w->ScrollMax.y, w->Scroll.y + step));
+            scrollIndex++;
+        }
+        gHooks.unclipLog = true;
+        if (tricks) {
+            setTricksOpen(0);
         }
         CVarSetInteger(cvar, 0);
         LeaveState(p, state);
@@ -1913,6 +2325,122 @@ void Session::CaptureModal(const PageSpec& p) {
         c.reason = "the modal did not dismiss (PopupsQueued " + std::to_string(SohGui::PopupsQueued()) + ")";
     }
     Record(std::move(c));
+}
+
+// ---- state and body text ---------------------------------------------------------------------
+
+/** Every capture of @p id in @p state without a hover, text concatenated. */
+std::string StateText(const std::vector<Capture>& all, const std::string& id, const std::string& state, bool* any) {
+    std::string out;
+    *any = false;
+    for (const Capture& c : all) {
+        if (c.id == id && c.state == state && c.hover.empty() && c.image.rgba != nullptr) {
+            out += c.text;
+            out += "\n";
+            *any = true;
+        }
+    }
+    return out;
+}
+
+/** The first capture of @p id in @p state without a hover. */
+Capture* FirstStateCapture(std::vector<Capture>& all, const std::string& id, const std::string& state) {
+    for (Capture& c : all) {
+        if (c.id == id && c.state == state && c.hover.empty()) {
+            return &c;
+        }
+    }
+    return nullptr;
+}
+
+void Session::CheckStateText() {
+    // Each authored state must SHOW its own text (in the union of its views; for
+    // a pane those views are visible-only), and that text must be ABSENT from
+    // the contrast state's captures. The contrast is what the state would look
+    // like if EnterState authored nothing, so the pair is the red half: revert
+    // the authoring and the "present" check fails; pick a string every state
+    // draws and the "absent" check fails.
+    for (const PageSpec& p : pages) {
+        for (const auto& [state, wants] : p.stateText) {
+            bool any = false;
+            StateText(captures, p.id, state, &any);
+            Capture* first = FirstStateCapture(captures, p.id, state);
+            if (!any || first == nullptr || first->status != "pass") {
+                continue; // not captured this run (a page selector), or already failed
+            }
+            std::string why;
+            for (const std::string& want : wants) {
+                // Credited to the view that showed it, so the manifest says WHERE.
+                Capture* shownIn = nullptr;
+                for (Capture& c : captures) {
+                    if (c.id == p.id && c.state == state && c.hover.empty() && c.text.find(want) != std::string::npos) {
+                        shownIn = &c;
+                        break;
+                    }
+                }
+                if (shownIn == nullptr) {
+                    first->missing.push_back(want);
+                    if (why.empty()) {
+                        why = "state \"" + state + "\" does not show \"" + want + "\" in any captured view";
+                    }
+                } else {
+                    shownIn->found.push_back(want);
+                }
+            }
+            const auto contrast = p.stateContrast.find(state);
+            if (why.empty() && contrast != p.stateContrast.end()) {
+                bool haveContrast = false;
+                const std::string other = StateText(captures, p.id, contrast->second, &haveContrast);
+                for (const std::string& want : wants) {
+                    if (haveContrast && other.find(want) != std::string::npos) {
+                        why = "\"" + want + "\" is also shown in state \"" + contrast->second +
+                              "\", so it does not prove state \"" + state + "\" was authored";
+                        break;
+                    }
+                }
+            }
+            if (!why.empty()) {
+                first->status = "fail";
+                first->reason = why;
+                Fail(p.id + "@" + first->variant + ": " + why);
+            }
+        }
+    }
+}
+
+void Session::CheckBodyText() {
+    // Assert 6's discrimination: a page's body string must be absent from a
+    // sibling page's capture (same header, so the same sidebar and header
+    // chrome), or it names the chrome and not the page.
+    for (const PageSpec& p : pages) {
+        if (p.kind != Kind::MENU_PAGE || p.bodyText.empty()) {
+            continue;
+        }
+        Capture* mine = nullptr;
+        for (Capture& c : captures) {
+            if (c.id == p.id && c.status == "pass" && c.image.rgba != nullptr) {
+                mine = &c;
+                break;
+            }
+        }
+        if (mine == nullptr) {
+            continue;
+        }
+        for (const Capture& other : captures) {
+            if (other.spec == nullptr || other.spec->kind != Kind::MENU_PAGE || other.spec->header != p.header ||
+                other.id == p.id || other.image.rgba == nullptr) {
+                continue;
+            }
+            if (other.text.find(p.bodyText) != std::string::npos) {
+                mine->status = "fail";
+                mine->reason = "its body string \"" + p.bodyText + "\" is also in " + other.id +
+                               (other.variant.empty() ? "" : "@" + other.variant) +
+                               ", so it does not identify the page";
+                Fail(p.id + ": " + mine->reason);
+            }
+            break; // one sibling is the contrast
+        }
+    }
 }
 
 // ---- composites ---------------------------------------------------------------------------
@@ -2050,6 +2578,7 @@ bool Session::WriteManifest() {
     j += std::string("\"windowActivated\":") + (windowActivated ? "true" : "false") + ",";
     j += "\"settle\":[" + std::to_string(opt.settleMin) + "," + std::to_string(opt.settleMax) + "],";
     j += "\"pages\":\"" + JsonEscape(opt.pages) + "\",";
+    j += "\"sabotage\":\"" + JsonEscape(opt.sabotage) + "\",";
     j += "\"baseline\":\"" + JsonEscape(opt.baseline) + "\"},\n \"pages\":[\n";
     for (size_t i = 0; i < captures.size(); i++) {
         const Capture& c = captures[i];
@@ -2065,6 +2594,9 @@ bool Session::WriteManifest() {
             j += std::string(",\"kind\":\"") + KindName(p->kind) + "\"";
             j += ",\"header\":\"" + JsonEscape(p->header) + "\",\"sidebar\":\"" + JsonEscape(p->sidebar) + "\"";
             j += ",\"compareWith\":\"" + JsonEscape(p->compareWith) + "\"";
+            if (p->kind == Kind::MENU_PAGE) {
+                j += ",\"bodyText\":\"" + JsonEscape(p->bodyText) + "\"";
+            }
             if (p->compareDefaulted) {
                 j += ",\"compareDefaulted\":true";
             }
@@ -2079,6 +2611,9 @@ bool Session::WriteManifest() {
             j += ",\"scroll\":null";
         }
         j += c.hover.empty() ? ",\"hover\":null" : ",\"hover\":\"" + JsonEscape(c.hover) + "\"";
+        if (!c.hoverText.empty()) {
+            j += ",\"hoverText\":\"" + JsonEscape(c.hoverText) + "\"";
+        }
         j += ",\"settleFrames\":" + std::to_string(c.settleFrames);
         j += std::string(",\"converged\":") + (c.converged ? "true" : "false");
         j += ",\"size\":[" + std::to_string(c.size[0]) + "," + std::to_string(c.size[1]) + "]";
@@ -2440,7 +2975,7 @@ int Session::Run() {
     // Assert 10's "before": the player's files in the directory the binary resolves
     // its config and ImGui layout from.
     for (const char* f : { "shipofharkinian.json", "imgui.ini" }) {
-        isolationBefore[f] = FileDigest(Ship::Context::GetPathRelativeToAppDirectory(f));
+        isolationBefore[f] = FileDigest(AppPath(f));
     }
 
     std::string why;
@@ -2510,6 +3045,8 @@ int Session::Run() {
         menu->Show();
     }
 
+    CheckStateText();
+    CheckBodyText();
     WriteComposites();
     WriteIterComposites();
     RuntimeLint();
@@ -2517,7 +3054,7 @@ int Session::Run() {
 
     // Assert 10's "after".
     for (const auto& [f, digest] : isolationBefore) {
-        const std::string now = FileDigest(Ship::Context::GetPathRelativeToAppDirectory(f));
+        const std::string now = FileDigest(AppPath(f));
         if (now != digest) {
             Fail(std::string("isolation: ") + f + " changed during the run (" + digest + " -> " + now + ")");
         }

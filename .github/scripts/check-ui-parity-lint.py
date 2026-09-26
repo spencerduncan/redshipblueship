@@ -34,8 +34,20 @@ Rules (level; what it catches):
 Hits are keyed WITHOUT line numbers (rule | path | normalised source text), so
 unrelated edits do not churn the baseline. `.github/scripts/ui-lint-baseline.txt`
 is a multiset of accepted hits: the check fails on any error/warn hit not in it
-AND on any baseline entry no longer hit (the baseline may only shrink; delete the
-stale lines). The hits in it today ARE the migration list.
+AND on any baseline entry no longer hit (delete the stale lines). The hits in it
+today ARE the migration list.
+
+"The baseline may only shrink" is ENFORCED, not only asked for: with
+--no-grow-against REF (CI runs it on every pull request, REF = the base branch)
+the check fails when this baseline, or the runtime lint's
+.github/scripts/ui-runtime-lint-baseline.txt, holds any entry the REF copy does
+not. Otherwise a PR could add a hit and the matching baseline line together and
+pass. A baseline file absent at REF is being introduced and is not compared.
+
+Slices in ui-lint-files.txt: `path::Function` lints one function's body;
+`path::@from=TOKEN` lints from the line holding TOKEN's first occurrence to the
+end of the file -- for an SoH-shipped file whose project-added code is one
+trailing region (SohMenu.cpp), so SoH's own literals above it are never linted.
 
 Usage:
   check-ui-parity-lint.py                  check against the baseline
@@ -43,6 +55,8 @@ Usage:
   check-ui-parity-lint.py --write-baseline regenerate the baseline (review the diff:
                                            it must only lose lines)
   check-ui-parity-lint.py --self-test      synthetic fixtures, both halves of every rule
+  check-ui-parity-lint.py --no-grow-against origin/main
+                                           also fail if either baseline gained an entry
 """
 import argparse
 import collections
@@ -57,6 +71,7 @@ import tempfile
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 FILES_LIST = ".github/scripts/ui-lint-files.txt"
 BASELINE = ".github/scripts/ui-lint-baseline.txt"
+RUNTIME_BASELINE = ".github/scripts/ui-runtime-lint-baseline.txt"
 
 LEVEL = {
     "S0": "error", "S1": "error", "S2": "error", "S3": "error", "S4": "error", "S5": "warn", "S6": "error",
@@ -104,6 +119,15 @@ class Unit:
 
     def line_of(self, pos, code=True):
         return self.first_line + (self.code if code else self.raw).count("\n", 0, pos)
+
+
+def slice_from(path, text, token):
+    """From the start of the line holding @p token's first occurrence to EOF."""
+    at = text.find(token)
+    if at < 0:
+        return None
+    start = text.rfind("\n", 0, at) + 1
+    return Unit(path + "::@from=" + token, text[start:], text.count("\n", 0, start) + 1)
 
 
 def slice_function(path, text, name):
@@ -245,7 +269,12 @@ def load_units(root, entries):
             raise SystemExit(f"{FILES_LIST} lists '{path}', which does not exist (a stale entry is an error, "
                              "or the lint silently loses coverage)")
         text = open(full, encoding="utf-8", errors="replace").read()
-        if func:
+        if func.startswith("@from="):
+            unit = slice_from(path, text, func[len("@from="):])
+            if unit is None:
+                raise SystemExit(f"{FILES_LIST}: token '{func[len('@from='):]}' not found in {path}")
+            units.append(unit)
+        elif func:
             unit = slice_function(path, text, func)
             if unit is None:
                 raise SystemExit(f"{FILES_LIST}: function '{func}' not found in {path}")
@@ -322,17 +351,53 @@ def key(hit):
     return f"{rule} | {path} | {text.strip()}"
 
 
-def read_baseline(root):
-    p = os.path.join(root, BASELINE)
+def baseline_entries(text):
+    """A baseline file's entries as a multiset: non-blank, non-comment lines."""
+    c = collections.Counter()
+    for line in text.split("\n"):
+        if line.strip() and not line.lstrip().startswith("#"):
+            c[line.strip()] += 1
+    return c
+
+
+def read_baseline(root, rel=BASELINE):
+    p = os.path.join(root, rel)
     if not os.path.isfile(p):
         return collections.Counter()
-    c = collections.Counter()
     with open(p, encoding="utf-8") as f:
-        for line in f:
-            line = line.rstrip("\n")
-            if line.strip() and not line.lstrip().startswith("#"):
-                c[line.strip()] += 1
-    return c
+        return baseline_entries(f.read())
+
+
+def baseline_growth(base_text, now_text):
+    """Entries @p now_text holds that @p base_text does not (multiset difference).
+    A reworded entry counts: its old line leaves and a new one arrives."""
+    return baseline_entries(now_text) - baseline_entries(base_text)
+
+
+def check_no_growth(root, ref, out=sys.stdout):
+    """Fail when either lint baseline gained an entry relative to git @p ref."""
+    grown_total = 0
+    for rel in (BASELINE, RUNTIME_BASELINE):
+        shown = subprocess.run(["git", "-C", root, "show", f"{ref}:{rel}"], capture_output=True, text=True,
+                               encoding="utf-8")
+        if shown.returncode != 0:
+            if "exists on disk, but not in" in shown.stderr or "does not exist in" in shown.stderr:
+                print(f"no-grow: {rel} does not exist at {ref}; it is being introduced, not compared", file=out)
+                continue
+            print(f"no-grow: cannot read {rel} at {ref}: {shown.stderr.strip()}", file=out)
+            return 2
+        now_path = os.path.join(root, rel)
+        now = open(now_path, encoding="utf-8").read() if os.path.isfile(now_path) else ""
+        grown = baseline_growth(shown.stdout, now)
+        for k, n in sorted(grown.items()):
+            print(f"GREW  ({n}x) {rel}: {k}", file=out)
+        grown_total += sum(grown.values())
+    if grown_total:
+        print(f"FAIL: the lint baselines gained {grown_total} entr(y/ies) relative to {ref}. They may only shrink: "
+              "fix the surface instead of accepting the hit.", file=out)
+        return 1
+    print(f"no-grow: OK, neither baseline gained an entry relative to {ref}", file=out)
+    return 0
 
 
 BASELINE_HEADER = """# UI parity lint baseline (.github/scripts/check-ui-parity-lint.py).
@@ -352,9 +417,13 @@ def main(argv):
     ap.add_argument("--report", action="store_true")
     ap.add_argument("--write-baseline", action="store_true")
     ap.add_argument("--self-test", action="store_true")
+    ap.add_argument("--no-grow-against", metavar="REF")
     args = ap.parse_args(argv)
     if args.self_test:
         return self_test()
+    grow_rc = 0
+    if args.no_grow_against:
+        grow_rc = check_no_growth(args.root, args.no_grow_against)
 
     sets = read_file_sets(args.root)
     hits = run_rules(args.root, sets)
@@ -387,7 +456,7 @@ def main(argv):
         print(f"FAIL: {sum(new.values())} new hit(s), {sum(stale.values())} stale baseline entr(y/ies)")
         return 1
     print(f"OK: {sum(have.values())} gated hit(s), all in the baseline")
-    return 0
+    return grow_rc
 
 
 # ---------------------------------------------------------------------------
@@ -509,6 +578,32 @@ def self_test():
             stale_rc = main(["--root", root])
         expect(stale_rc == 1, "a stale baseline entry passed")
 
+        # @from= slices: an SoH-shipped file's own literal above the token is not
+        # linted, the project's literal below it is.
+        with open(os.path.join(root, "shipped.cpp"), "w", encoding="utf-8") as f:
+            f.write('const char* soh = "SoH text (#1234)";\n// project region\n'
+                    'constexpr const char* kOurs = "Our reason (#497)";\n')
+        s7_hits = []
+        for u in load_units(root, ["shipped.cpp::@from=kOurs"]):
+            rule_s7(u, s7_hits)
+        expect(len(s7_hits) == 1 and "#497" in s7_hits[0][3], f"@from= slice S7 {s7_hits}")
+        whole_hits = []
+        for u in load_units(root, ["shipped.cpp"]):
+            rule_s7(u, whole_hits)
+        expect(len(whole_hits) == 2, f"the whole-file control saw {whole_hits}")
+
+        # Growth: a new line, a reworded line and a duplicated line all grow; a
+        # deleted line and a comment do not.
+        base_bl = "# header\nS1 | a | x\nS3 | b | y\n"
+        expect(not baseline_growth(base_bl, "# header\nS1 | a | x\n"), "a shrunk baseline counted as growth")
+        expect(not baseline_growth(base_bl, base_bl + "# a new comment\n"), "a comment counted as growth")
+        expect(baseline_growth(base_bl, base_bl + "S7 | c | z\n") == collections.Counter({"S7 | c | z": 1}),
+               "an added entry was not growth")
+        expect(sum(baseline_growth(base_bl, "S1 | a | x\nS3 | b | y2\n").values()) == 1,
+               "a reworded entry was not growth")
+        expect(sum(baseline_growth(base_bl, base_bl + "S1 | a | x\n").values()) == 1,
+               "a duplicated entry was not growth")
+
         # A stale ui-lint-files.txt entry is an error, not a silent skip.
         with open(os.path.join(root, FILES_LIST), "a", encoding="utf-8") as f:
             f.write("MENU does/not/exist.cpp\n")
@@ -522,7 +617,8 @@ def self_test():
         for f in failures:
             print("SELF-TEST FAIL:", f)
         return 1
-    print("self-test: OK (S0-S11 red and green halves, baseline gate, stale-list refusal)")
+    print("self-test: OK (S0-S11 red and green halves, baseline gate, @from= slice, baseline growth, "
+          "stale-list refusal)")
     return 0
 
 

@@ -2841,8 +2841,6 @@ TestResult Test_MMModsMount(void) {
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
-// #705: which folders are each game's loose asset layer. Lists a staged directory
-// tree only — no archive, no Ship::Context — so it never skips.
 // The UI snapshot harness (see the extern decl above). Everything it takes comes
 // from the environment (RSBS_UI_SNAPSHOT_*), which the harness reads itself, so
 // the wrapper passes nothing. Needs a window and soh.o2r; `ui` label, and
@@ -2853,6 +2851,8 @@ TestResult Test_UiSnapshot(void) {
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #705: which folders are each game's loose asset layer. Lists a staged directory
+// tree only — no archive, no Ship::Context — so it never skips.
 TestResult Test_LooseModsDiscovery(void) {
     int rc = LooseModsDiscovery_RunHeadless();
     printf("[TEST] %s: loose mods discovery rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
@@ -4910,7 +4910,8 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "oot-logic-export") == 0 ||
                 // A window and soh.o2r, and a run of its own: the `ui` CTest label.
                 strcmp(gTests[i].name, "ui-snapshot") == 0) {
-                printf("\n--- Skipping: %s (needs display; runs as a rando-label CTest) ---\n", gTests[i].name);
+                printf("\n--- Skipping: %s (needs display; runs as a %s-label CTest) ---\n", gTests[i].name,
+                       strcmp(gTests[i].name, "ui-snapshot") == 0 ? "ui" : "rando");
                 continue;
             }
             // mm-registrar-coverage used to be skipped here: it is the only row

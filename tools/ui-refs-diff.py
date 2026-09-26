@@ -12,13 +12,23 @@ run to compare against. The iteration procedure runs it after every change:
 
     tools/ui-refs-diff.py <base>/manifest.json <new>/manifest.json
 
-Exit 0: every reference capture present in both runs hashes the same (pixels and
-text). Exit 1: at least one moved -- revert it, or state the minor wording change
-in the PR as rule 0 requires. Exit 2: the runs are not comparable (different
-profile, backend or ROM mode), which would make any verdict meaningless.
+Exit 0: every reference capture that passed in the base passed again and hashes
+the same (pixels and text). Exit 1: at least one moved, OR was LOST -- it passed
+in the base and is now absent, failed (a throw, a failed oracle, a blank page) or
+skipped; a reference that stops drawing is the largest possible move. Revert it,
+or state the minor wording change in the PR as rule 0 requires. Exit 2: the runs
+are not comparable (different profile, backend or ROM mode), which would make any
+verdict meaningless.
 
-Volatile pages (Settings/General shows the build version and commit) are listed
-but never gated.
+Volatile pages (Settings/General shows the build version and commit) have their
+hashes listed but not gated; losing one is still gated.
+
+WHERE THIS GUARD RUNS: only on a ROM-staged workstation. Hosted CI is ROM-free
+(both CI manifests say romFree true), where SoH's own menu is never populated and
+only Dev Tools/General registers, and CI has no base run to compare against. The
+same holds for R8 (soh-names.txt), which the harness only writes ROM-rich. So the
+original-page guard is part of the iteration procedure (docs/ui-style-guide.md
+section 12), not a CI check.
 
   --self-test   synthetic manifests, both verdicts and the refusal
 """
@@ -36,10 +46,12 @@ def load(path):
         return json.load(f)
 
 
-def refs(manifest):
+def refs(manifest, passing_only=True):
     out = {}
     for page in manifest.get("pages", []):
-        if page.get("origin") != "SOH_REFERENCE" or page.get("status") != "pass":
+        if page.get("origin") != "SOH_REFERENCE":
+            continue
+        if passing_only and page.get("status") != "pass":
             continue
         out[(page["id"], page.get("variant", ""))] = page
     return out
@@ -53,7 +65,16 @@ def compare(base, new, out=sys.stdout):
                   file=out)
         return 2
     b, n = refs(base), refs(new)
+    every_new = refs(new, passing_only=False)
     moved, same, volatile = [], 0, []
+    lost = []
+    for key in sorted(set(b) - set(n)):
+        page = every_new.get(key)
+        if page is None:
+            lost.append((key, "absent from the new run"))
+        else:
+            reason = page.get("reason", "")
+            lost.append((key, f"status {page.get('status')!r}" + (f": {reason}" if reason else "")))
     for key in sorted(set(b) & set(n)):
         pb, pn = b[key], n[key]
         changed = [f for f in ("rgbaFnv1a64", "textFnv1a64") if pb.get(f) != pn.get(f)]
@@ -63,16 +84,17 @@ def compare(base, new, out=sys.stdout):
             volatile.append((key, changed))
         else:
             moved.append((key, changed))
-    for key in sorted(set(b) - set(n)):
-        print(f"missing now: {key[0]}@{key[1]}", file=out)
+    for key, why in lost:
+        print(f"LOST: {key[0]}@{key[1]} passed in the base and is now {why}", file=out)
     for key in sorted(set(n) - set(b)):
         print(f"new capture (no baseline): {key[0]}@{key[1]}", file=out)
     for key, fields in volatile:
         print(f"volatile, not gated: {key[0]}@{key[1]} ({', '.join(fields)})", file=out)
     for key, fields in moved:
         print(f"MOVED: {key[0]}@{key[1]} ({', '.join(fields)} changed)", file=out)
-    print(f"{same} SoH reference capture(s) unchanged, {len(moved)} moved, {len(volatile)} volatile", file=out)
-    return 1 if moved else 0
+    print(f"{same} SoH reference capture(s) unchanged, {len(moved)} moved, {len(lost)} lost, "
+          f"{len(volatile)} volatile", file=out)
+    return 1 if moved or lost else 0
 
 
 def self_test():
@@ -105,6 +127,25 @@ def self_test():
         failures.append("a volatile page or one of ours was gated")
     if compare(manifest("a"), manifest("a", profile="small-960x704"), sink) != 2:
         failures.append("runs at different profiles were compared")
+    # A reference that stops drawing: throws, fails its oracle, goes blank.
+    for status in ("fail", "skip"):
+        new = manifest("a")
+        new["pages"][0]["status"] = status
+        new["pages"][0]["reason"] = "an exception escaped the frame"
+        if compare(manifest("a"), new, sink) != 1:
+            failures.append(f"a reference that passed in the base and is now {status!r} passed")
+    new = manifest("a")
+    del new["pages"][0]
+    if compare(manifest("a"), new, sink) != 1:
+        failures.append("a reference absent from the new run passed")
+    new = manifest("a")
+    new["pages"][1]["status"] = "fail"
+    if compare(manifest("a"), new, sink) != 1:
+        failures.append("a VOLATILE reference that stopped drawing passed")
+    base = manifest("a")
+    base["pages"][0]["status"] = "fail"
+    if compare(base, manifest("a"), sink) != 0:
+        failures.append("a reference that was already failing in the base was gated")
     with tempfile.TemporaryDirectory() as d:
         pa, pb = os.path.join(d, "a.json"), os.path.join(d, "b.json")
         json.dump(manifest("a"), open(pa, "w"))
@@ -114,7 +155,8 @@ def self_test():
     for f in failures:
         print("SELF-TEST FAIL:", f)
     if not failures:
-        print("self-test: OK (unchanged, moved pixels, moved text, volatile/ours not gated, incomparable refused)")
+        print("self-test: OK (unchanged, moved pixels, moved text, volatile/ours not gated, incomparable refused, "
+              "lost references gated: failed, skipped, absent, volatile)")
     return 1 if failures else 0
 
 

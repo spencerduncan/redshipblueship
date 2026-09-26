@@ -28,7 +28,7 @@ TOASTS games/mm/2s2h/Rando/ForeignItemsSingleExe.cpp
 
 PTR games/oot/soh/SohGui/SohMenuRandomizer.cpp::AddCrossGamePointerWidgets
 
-STRINGS games/oot/soh/SohGui/SohMenu.cpp
+STRINGS games/oot/soh/SohGui/SohMenu.cpp::@from=kCapReasonMMHosted
 STRINGS games/mm/2s2h/Rando/OptionsUiSingleExe.cpp
 STRINGS src/common/combo_settings_view.cpp
 STRINGS src/common/gen_progress_overlay.c
