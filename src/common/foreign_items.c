@@ -12,6 +12,7 @@
  */
 
 #include "foreign_items.h"
+#include "crossing_store.h" // ADR 0010 O7: the read path's second source
 #include "combo_settings_view.h" // the tier-4 authoring surface the resolver reads (increment 2)
 #include <stdio.h>
 #include <string.h>
@@ -961,8 +962,16 @@ int Combo_SetForeignPlacement(uint16_t mmCheckId, SharedItem item) {
     return ForeignPlaceInto(gComboCtx.foreignPlacements, mmCheckId, item);
 }
 
-const SharedItem* Combo_GetForeignPlacementForCheck(uint16_t mmCheckId) {
+const SharedItem* Combo_GetPinnedForeignPlacementForCheck(uint16_t mmCheckId) {
     return ForeignLookupIn(gComboCtx.foreignPlacements, mmCheckId);
+}
+
+const SharedItem* Combo_GetForeignPlacementForCheck(uint16_t mmCheckId) {
+    const SharedItem* pinned = Combo_GetPinnedForeignPlacementForCheck(mmCheckId);
+    // ADR 0010 O7: a host the pinned table does not list falls back to the
+    // crossing store, where the coordinator's placements persist. See the
+    // header for why pinned answers first.
+    return pinned != NULL ? pinned : Combo_Crossings_Lookup(GAME_MM, mmCheckId);
 }
 
 int Combo_CountForeignPlacements(void) {
@@ -980,7 +989,40 @@ int Combo_SetForeignPlacementOoT(uint16_t ootCheckId, SharedItem item) {
 }
 
 const SharedItem* Combo_GetForeignPlacementForOoTCheck(uint16_t ootCheckId) {
-    return ForeignLookupIn(gComboCtx.foreignPlacementsOoT, ootCheckId);
+    const SharedItem* pinned = ForeignLookupIn(gComboCtx.foreignPlacementsOoT, ootCheckId);
+    // Same two-source rule as the forward accessor above (ADR 0010 O7).
+    return pinned != NULL ? pinned : Combo_Crossings_Lookup(GAME_OOT, ootCheckId);
+}
+
+// ---- Describers: names for any item and check (ADR 0010 O7) -------------------
+
+static const ComboGameDescriber* sGameDescribers[RSBS_FOREIGN_POOL_ORIGIN_COUNT];
+
+void Combo_RegisterGameDescriber(uint8_t game, const ComboGameDescriber* describer) {
+    if (game != (uint8_t)GAME_OOT && game != (uint8_t)GAME_MM) {
+        return;
+    }
+    sGameDescribers[game] = describer;
+}
+
+const char* Combo_DescribeItemName(SharedItem item) {
+    const char* pooled = Combo_GetForeignItemName(item);
+    if (pooled != NULL) {
+        return pooled;
+    }
+    if (item.originGame != (uint8_t)GAME_OOT && item.originGame != (uint8_t)GAME_MM) {
+        return NULL;
+    }
+    const ComboGameDescriber* d = sGameDescribers[item.originGame];
+    return (d != NULL && d->itemName != NULL) ? d->itemName(item.id) : NULL;
+}
+
+const char* Combo_DescribeCheckName(uint8_t hostGame, uint16_t check) {
+    if (hostGame != (uint8_t)GAME_OOT && hostGame != (uint8_t)GAME_MM) {
+        return NULL;
+    }
+    const ComboGameDescriber* d = sGameDescribers[hostGame];
+    return (d != NULL && d->checkName != NULL) ? d->checkName(check) : NULL;
 }
 
 int Combo_CountForeignPlacementsOoT(void) {
