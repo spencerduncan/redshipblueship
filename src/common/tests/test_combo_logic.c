@@ -157,6 +157,14 @@ struct ClEngine {
     uint16_t itemId[kClMaxItems];      // index k <-> bit (1u << k)
     uint32_t crossingRequires;
     uint32_t goalRequires;
+    /** COUNTED requirements (the multiplicity ruling). A host `i` with
+     *  `hostNeedCount[i] > 0` is reached only while this engine holds at least
+     *  that many COPIES of `hostNeedItem[i]`; the goal likewise. Zero = no count
+     *  term, which is every world authored before ABI 3. */
+    uint16_t hostNeedItem[kClMaxHosts];
+    uint8_t hostNeedCount[kClMaxHosts];
+    uint16_t goalNeedItem;
+    uint8_t goalNeedCount;
     uint16_t junkId;
     bool overReport;                   // offer hosts it has already placed on
     bool restoreDropsPlacements;       // a harsh restore: the table comes back empty
@@ -191,6 +199,15 @@ struct ClEngine {
     // --- live state ------------------------------------------------------
     uint32_t have;
     uint32_t reached;
+    /** COPIES held this round, per item bit — one per `assumeOwnItem` call and
+     *  one per harvested own-origin host. `have` stays the "at least one" view. */
+    uint8_t haveCount[kClMaxItems];
+    /** Hosts whose own-origin placement was harvested THIS round: the contract's
+     *  "once per placed host per round". */
+    uint32_t harvested;
+    /** `assumeOwnItem` calls per item bit since the engine was reset — what the
+     *  one-call-per-copy locks count. Never reset by a round. */
+    int assumeCalls[kClMaxItems];
     bool inQuery;
     /** MODELS OoT'S COUPLING. `beginQuery` sets it (OoT's `Logic::Reset(true)`
      *  re-points `mSaveContext` at a heap copy) and `endQuery` is the only thing
@@ -206,6 +223,8 @@ struct ClEngine {
     int placeCalls;
     uint32_t snapHave;
     uint32_t snapReached;
+    uint8_t snapCount[kClMaxItems];
+    uint32_t snapHarvested;
     int snapPlaced;
 
     int placedCount;
@@ -257,21 +276,37 @@ int ClOwnPlacementIndex(const ClEngine* e, uint16_t host) {
     return -1;
 }
 
+/** Does this engine hold `count` copies of `id`? A zero count is no term. */
+bool ClHoldsCopies(const ClEngine* e, uint16_t id, uint8_t count) {
+    if (count == 0) {
+        return true;
+    }
+    const int k = ClBitIndex(e, id);
+    return k >= 0 && e->haveCount[k] >= count;
+}
+
+bool ClHostOpen(const ClEngine* e, int i) {
+    return (e->hostRequires[i] & e->have) == e->hostRequires[i] &&
+           ClHoldsCopies(e, e->hostNeedItem[i], e->hostNeedCount[i]);
+}
+
 /** The stub's own local fixpoint: which hosts are reached, and which of its own
  *  items it harvests from them. The own-origin harvest lives HERE and not in the
  *  coordinator on purpose — picking up your own item from your own check is the
- *  engine's own search doing what OoT's ReachabilitySearch already does. */
+ *  engine's own search doing what OoT's ReachabilitySearch already does. It is
+ *  ONCE PER HOST PER ROUND (`harvested`), so two hosts holding one id are two
+ *  copies and no host is ever counted twice. */
 void ClRecompute(ClEngine* e) {
     for (;;) {
         uint32_t nextReached = 0;
         for (int i = 0; i < e->hostCount; ++i) {
-            if ((e->hostRequires[i] & e->have) == e->hostRequires[i]) {
+            if (ClHostOpen(e, i)) {
                 nextReached |= (1u << i);
             }
         }
-        uint32_t nextHave = e->have;
+        bool harvestedAny = false;
         for (int i = 0; i < e->hostCount; ++i) {
-            if ((nextReached & (1u << i)) == 0u) {
+            if ((nextReached & (1u << i)) == 0u || (e->harvested & (1u << i)) != 0u) {
                 continue;
             }
             const int p = ClOwnPlacementIndex(e, e->hostId[i]);
@@ -280,15 +315,28 @@ void ClRecompute(ClEngine* e) {
             }
             const int k = ClBitIndex(e, e->placedItem[p].id);
             if (k >= 0) {
-                nextHave |= (1u << k);
+                e->have |= (1u << k);
+                if (e->haveCount[k] < 255) {
+                    e->haveCount[k]++;
+                }
+                e->harvested |= (1u << i);
+                harvestedAny = true;
             }
         }
-        if (nextReached == e->reached && nextHave == e->have) {
+        if (nextReached == e->reached && !harvestedAny) {
             return;
         }
         e->reached = nextReached;
-        e->have = nextHave;
     }
+}
+
+/** Total copies held, for the `changed` answer. */
+int ClCopiesHeld(const ClEngine* e) {
+    int total = 0;
+    for (int k = 0; k < e->itemCount; ++k) {
+        total += e->haveCount[k];
+    }
+    return total;
 }
 
 int ClBeginQuery(void* self) {
@@ -312,6 +360,8 @@ int ClBeginQuery(void* self) {
     // was asked about (combo_logic.h on beginQuery).
     e->have = 0u;
     e->reached = 0u;
+    memset(e->haveCount, 0, sizeof(e->haveCount));
+    e->harvested = 0u;
     return 1;
 }
 
@@ -338,6 +388,11 @@ void ClAssumeOwnItem(void* self, uint16_t ownItemId) {
         return;
     }
     e->have |= (1u << k); // may only ADD
+    // ONE CALL IS ONE COPY (ABI 3): counted, never de-duplicated.
+    if (e->haveCount[k] < 255) {
+        e->haveCount[k]++;
+    }
+    e->assumeCalls[k]++;
 }
 
 int ClExpand(void* self) {
@@ -348,6 +403,7 @@ int ClExpand(void* self) {
     e->expands++;
     const uint32_t haveBefore = e->have;
     const uint32_t reachedBefore = e->reached;
+    const int copiesBefore = ClCopiesHeld(e);
     ClRecompute(e);
     if (e->fault == CL_FAULT_SHRINK && e->expands >= 2) {
         e->reached = 0u;
@@ -357,7 +413,7 @@ int ClExpand(void* self) {
     if (e->fault == CL_FAULT_ALWAYS_CHANGED) {
         return 1;
     }
-    return (e->have != haveBefore || e->reached != reachedBefore) ? 1 : 0;
+    return (e->have != haveBefore || e->reached != reachedBefore || ClCopiesHeld(e) != copiesBefore) ? 1 : 0;
 }
 
 int ClCrossingOpen(void* self) {
@@ -468,7 +524,9 @@ int ClGoalReached(void* self) {
     if (!e->inQuery) {
         e->sawQueryOutsideRound = true;
     }
-    return ((e->goalRequires & e->have) == e->goalRequires) ? 1 : 0;
+    return ((e->goalRequires & e->have) == e->goalRequires && ClHoldsCopies(e, e->goalNeedItem, e->goalNeedCount))
+               ? 1
+               : 0;
 }
 
 int ClPlace(void* self, uint16_t hostCheck, SharedItem item) {
@@ -538,6 +596,8 @@ int ClSnapshot(void* self) {
     }
     e->snapHave = e->have;
     e->snapReached = e->reached;
+    memcpy(e->snapCount, e->haveCount, sizeof(e->snapCount));
+    e->snapHarvested = e->harvested;
     e->snapPlaced = e->placedCount;
     return 1;
 }
@@ -547,6 +607,8 @@ void ClRestore(void* self) {
     e->restores++;
     e->have = e->snapHave;
     e->reached = e->snapReached;
+    memcpy(e->haveCount, e->snapCount, sizeof(e->haveCount));
+    e->harvested = e->snapHarvested;
     // The harsh variant models a restore whose captured blob does not carry the
     // placement writes. The coordinator's re-apply is what makes the coordinator
     // correct against it either way (audit amendment 1).
@@ -610,6 +672,14 @@ ComboLogicBagItem ClBagItem(uint8_t origin, uint16_t id, uint16_t itemClass) {
     ComboLogicBagItem b;
     b.item = ClItem(origin, id);
     b.itemClass = itemClass;
+    b.bagFlags = 0u; // a REQUIRED copy
+    return b;
+}
+
+/** A SURPLUS copy (THE BAG MODEL, shape 2). */
+ComboLogicBagItem ClSurplusItem(uint8_t origin, uint16_t id, uint16_t itemClass) {
+    ComboLogicBagItem b = ClBagItem(origin, id, itemClass);
+    b.bagFlags = RSBS_COMBO_BAG_SURPLUS;
     return b;
 }
 
@@ -1661,5 +1731,348 @@ TestResult Test_ComboLogicContractEdges(void) {
 
     ClUninstall();
     printf("[TEST] combo-logic-contract-edges: PASS\n");
+    return TEST_PASS;
+}
+
+// ============================================================================
+// Row 5 — the multiplicity contract and the bag model (ABI 3, 2026-09-26)
+// ============================================================================
+//
+// THE OPERATOR'S RULING, over stub engines: one `assumeOwnItem` per COPY, every
+// copy counted, order irrelevant; and the four bag shapes — more hosts than bag
+// (leftover hosts for each game's own junk pass), more bag than hosts (surplus
+// dropped last-first, deterministically), exact fit, and surplus that the proof
+// may never lean on. The real engines' halves (OoT's top-tier clamp, MM's counter
+// maxima) are the rando-tier row `combo-logic-multiplicity`, because only the
+// ports' own give paths can show them.
+
+namespace {
+
+/** Every host open, both goals free: a world about COUNTS and SHAPES only. */
+void ClBuildOpenWorld(int ootHosts, int mmHosts) {
+    ClResetEngine(&gClOoT, (uint8_t)GAME_OOT);
+    ClAddItem(&gClOoT, kOotSword);
+    ClAddItem(&gClOoT, kOotHook);
+    ClAddItem(&gClOoT, kOotLens);
+    ClAddItem(&gClOoT, kOotBoots);
+    for (int i = 0; i < ootHosts; ++i) {
+        ClAddHost(&gClOoT, (uint16_t)(10 + i), 0u);
+    }
+    gClOoT.crossingRequires = 0u;
+    gClOoT.goalRequires = 0u;
+
+    ClResetEngine(&gClMM, (uint8_t)GAME_MM);
+    ClAddItem(&gClMM, kMmOcarina);
+    ClAddItem(&gClMM, kMmBow);
+    ClAddItem(&gClMM, kMmRemains);
+    ClAddItem(&gClMM, kMmMask);
+    for (int i = 0; i < mmHosts; ++i) {
+        ClAddHost(&gClMM, (uint16_t)(40 + i), 0u);
+    }
+    gClMM.crossingRequires = 0u;
+    gClMM.goalRequires = 0u;
+    ClInstall();
+}
+
+int ClCallsFor(const ClEngine* e, uint16_t id) {
+    const int k = ClBitIndex(e, id);
+    return (k >= 0) ? e->assumeCalls[k] : -1;
+}
+
+/** Does every coordinator placement carry a bag row, with no row used more often
+ *  than the bag holds it? The "the coordinator places bag rows and NOTHING ELSE"
+ *  half of shape 4 — no filler, no trap, no invented copy. */
+bool ClPlacementsAreBagRows(const ComboLogicBagItem* bag, int bagCount) {
+    int used[RSBS_COMBO_LOGIC_BAG_CAP];
+    memset(used, 0, sizeof(used));
+    const GameId both[2] = { GAME_OOT, GAME_MM };
+    for (int s = 0; s < 2; ++s) {
+        for (int i = 0; i < Combo_Logic_PlacementCount(both[s]); ++i) {
+            ComboLogicPlacement p;
+            Combo_Logic_PlacementAt(both[s], i, &p);
+            bool matched = false;
+            for (int b = 0; b < bagCount && !matched; ++b) {
+                if (!used[b] && bag[b].item.originGame == p.item.originGame && bag[b].item.id == p.item.id) {
+                    used[b] = 1;
+                    matched = true;
+                }
+            }
+            if (!matched) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+/** Leftover hosts of one side: counted, ascending, and disjoint from the table. */
+bool ClLeftoverConsistent(GameId g, int expected) {
+    uint16_t hosts[kClMaxHosts];
+    const int n = Combo_Logic_LeftoverHosts(g, hosts, kClMaxHosts);
+    if (n != expected) {
+        printf("[TEST]   %s leftover=%d expected=%d\n", Game_ToString(g), n, expected);
+        return false;
+    }
+    for (int i = 0; i < n; ++i) {
+        if (i > 0 && hosts[i] <= hosts[i - 1]) {
+            return false;
+        }
+        if (Combo_Logic_GetPlacement(g, hosts[i], NULL)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+} // namespace
+
+TestResult Test_ComboLogicBagModel(void) {
+    printf("[TEST] combo-logic-bag-model: one assume per COPY, and the surplus / filler / exact-fit rules of the "
+           "bag (the 2026-09-26 multiplicity ruling)\n");
+    const uint8_t kRungs[2] = { RSBS_COMBO_RUNG_BEATABLE, RSBS_COMBO_RUNG_NONE };
+
+    // ------------------------------------------------------------------
+    // M1. ONE CALL PER COPY, COUNTED — and count-sensitive, both ways.
+    // ------------------------------------------------------------------
+    {
+        ClBuildOpenWorld(2, 2);
+        gClOoT.hostNeedItem[0] = kOotHook; // host 10 needs THREE hookshots
+        gClOoT.hostNeedCount[0] = 3;
+        ClInstall();
+
+        ComboLogicBagItem three[3] = { ClBagItem((uint8_t)GAME_OOT, kOotHook, RSBS_ITEMCLASS_PROGRESSION),
+                                       ClBagItem((uint8_t)GAME_OOT, kOotHook, RSBS_ITEMCLASS_PROGRESSION),
+                                       ClBagItem((uint8_t)GAME_OOT, kOotHook, RSBS_ITEMCLASS_PROGRESSION) };
+        ComboLogicRoundResult r;
+        CL_ASSERT(ClRunRound(RSBS_COMBO_GOAL_BEAT_BOTH, three, 3, &r) == RSBS_COMBO_LOGIC_OK, "three-copy round");
+        CL_ASSERT(ClCallsFor(&gClOoT, kOotHook) == 3,
+                  "three rows of one id must be THREE assumeOwnItem calls — the coordinator passes every copy");
+        CL_ASSERT(r.candidatesOoT == 2, "with three copies assumed, the host that needs three is reached");
+
+        CL_ASSERT(ClRunRound(RSBS_COMBO_GOAL_BEAT_BOTH, three, 2, &r) == RSBS_COMBO_LOGIC_OK, "two-copy round");
+        CL_ASSERT(ClCallsFor(&gClOoT, kOotHook) == 5, "and two rows are two more calls, not one");
+        CL_ASSERT(r.candidatesOoT == 1,
+                  "with only two copies the three-copy host is NOT reached — the count reaches the engine, so the "
+                  "round is sensitive to it (the sensitivity control for the leg above)");
+
+        // THE EXCHANGE delivers each placement once per round, however many
+        // alternations run: two MM-hosted copies plus one assumed copy is three.
+        CL_ASSERT(Combo_Logic_Place(GAME_MM, 40, ClItem((uint8_t)GAME_OOT, kOotHook), RSBS_ITEMCLASS_PROGRESSION),
+                  "author an OoT hookshot on MM host 40");
+        CL_ASSERT(Combo_Logic_Place(GAME_MM, 41, ClItem((uint8_t)GAME_OOT, kOotHook), RSBS_ITEMCLASS_PROGRESSION),
+                  "and another on MM host 41");
+        const int before = ClCallsFor(&gClOoT, kOotHook);
+        CL_ASSERT(ClRunRound(RSBS_COMBO_GOAL_BEAT_BOTH, three, 1, &r) == RSBS_COMBO_LOGIC_OK, "exchange round");
+        CL_ASSERT(r.exchanged == 2, "both MM-hosted copies cross, one exchange each");
+        CL_ASSERT(r.iterations >= 2, "the round alternated more than once, so a re-delivery had its chance");
+        CL_ASSERT(ClCallsFor(&gClOoT, kOotHook) - before == 3,
+                  "one seeded copy plus two exchanged copies must be exactly THREE calls — a later alternation must "
+                  "never re-deliver a copy it already handed over");
+        CL_ASSERT(r.candidatesOoT == 2, "and three copies across two sources reach the three-copy host");
+        CL_ASSERT(ClContractClean(), "the contract traps must stay clear");
+    }
+
+    // ------------------------------------------------------------------
+    // M2. ORDER-INDEPENDENT: the same multiset in two orders, the same facts.
+    // ------------------------------------------------------------------
+    {
+        ClBuildOpenWorld(3, 1);
+        gClOoT.hostNeedItem[0] = kOotHook;
+        gClOoT.hostNeedCount[0] = 2;
+        gClOoT.hostRequires[1] = ClBit(&gClOoT, kOotSword);
+        gClOoT.goalNeedItem = kOotHook;
+        gClOoT.goalNeedCount = 3;
+        ClInstall();
+        const ComboLogicBagItem a[4] = { ClBagItem((uint8_t)GAME_OOT, kOotHook, 0), ClBagItem((uint8_t)GAME_OOT, kOotHook, 0),
+                                         ClBagItem((uint8_t)GAME_OOT, kOotSword, 0), ClBagItem((uint8_t)GAME_OOT, kOotHook, 0) };
+        const ComboLogicBagItem b[4] = { a[2], a[0], a[3], a[1] };
+        ComboLogicRoundResult ra;
+        ComboLogicRoundResult rb;
+        CL_ASSERT(ClRunRound(RSBS_COMBO_GOAL_BEAT_EITHER, a, 4, &ra) == RSBS_COMBO_LOGIC_OK, "order A");
+        CL_ASSERT(ClRunRound(RSBS_COMBO_GOAL_BEAT_EITHER, b, 4, &rb) == RSBS_COMBO_LOGIC_OK, "order B");
+        CL_ASSERT(ra.candidatesOoT == rb.candidatesOoT && ra.goalOoT == rb.goalOoT && ra.goalExpression == rb.goalExpression,
+                  "the same multiset of copies in a different order gave different facts");
+        CL_ASSERT(ra.goalOoT == 1 && ra.candidatesOoT == 3, "and those facts are the three-copy ones, not one copy's");
+    }
+
+    // ------------------------------------------------------------------
+    // M3. THE K3 SHAPE, FIXED: a world whose goal needs THREE copies of one id
+    //     is PROVED from a bag of three rows (it was unprovable under de-dup).
+    // ------------------------------------------------------------------
+    for (int r = 0; r < 1; ++r) {
+        ClBuildOpenWorld(4, 4);
+        gClOoT.goalNeedItem = kOotHook;
+        gClOoT.goalNeedCount = 3;
+        ClInstall();
+        const ComboLogicBagItem bag[3] = { ClBagItem((uint8_t)GAME_OOT, kOotHook, 0), ClBagItem((uint8_t)GAME_OOT, kOotHook, 0),
+                                           ClBagItem((uint8_t)GAME_OOT, kOotHook, 0) };
+        ComboLogicFillResult res;
+        CL_ASSERT(ClRunFill(bag, 3, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_BEATABLE, 0x1234u, &res) ==
+                      RSBS_COMBO_LOGIC_OK,
+                  "three copies placed on reached hosts must PROVE a goal that needs three — every placed copy is "
+                  "harvested once per host");
+        CL_ASSERT(res.goalProven && res.requiredPlaced == 3, "proved, with all three required copies placed");
+        // Two copies cannot prove it: the proof is really counting.
+        CL_ASSERT(ClRunFill(bag, 2, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_BEATABLE, 0x1234u, &res) ==
+                      RSBS_COMBO_LOGIC_ERR_GOAL_UNPROVABLE,
+                  "two copies must NOT prove a goal that needs three");
+    }
+
+    // ------------------------------------------------------------------
+    // S-a. MORE HOSTS THAN BAG: the coordinator places the bag and nothing else;
+    //      the rest is LEFTOVER, for each game's own junk pass (traps included).
+    // ------------------------------------------------------------------
+    for (int ri = 0; ri < 2; ++ri) {
+        ClBuildOpenWorld(6, 6);
+        const ComboLogicBagItem bag[3] = { ClBagItem((uint8_t)GAME_OOT, kOotHook, 0), ClBagItem((uint8_t)GAME_MM, kMmBow, 0),
+                                           ClBagItem((uint8_t)GAME_OOT, kOotHook, 0) };
+        ComboLogicFillResult res;
+        CL_ASSERT(ClRunFill(bag, 3, RSBS_COMBO_GOAL_BEAT_BOTH, kRungs[ri], 0xABCDu, &res) == RSBS_COMBO_LOGIC_OK,
+                  "a small bag in a big world must fill");
+        CL_ASSERT(res.placed == 3 && res.requiredPlaced == 3 && res.surplusPlaced == 0 && res.surplusDropped == 0,
+                  "exactly the bag was placed — three rows, no filler invented");
+        CL_ASSERT(res.leftoverHostsOoT + res.leftoverHostsMM == 12 - 3,
+                  "every host no row landed on is LEFTOVER, and counted");
+        CL_ASSERT(ClLeftoverConsistent(GAME_OOT, res.leftoverHostsOoT) && ClLeftoverConsistent(GAME_MM, res.leftoverHostsMM),
+                  "the leftover list is ascending, matches the count and never names a placed host");
+        CL_ASSERT(ClPlacementsAreBagRows(bag, 3), "every placement is a bag row: no junk and no trap is ever placed by "
+                                                  "the coordinator, so no trap can cross");
+        CL_ASSERT(Combo_Logic_SurplusDroppedCount() == 0, "nothing dropped");
+        CL_ASSERT(ClContractClean(), "the contract traps must stay clear");
+    }
+
+    // ------------------------------------------------------------------
+    // S-b. MORE BAG THAN HOSTS: surplus copies dropped LAST-FIRST, never a
+    //      required one, deterministically.
+    // ------------------------------------------------------------------
+    for (int ri = 0; ri < 2; ++ri) {
+        ClBuildOpenWorld(2, 2);
+        // Two required rows and four surplus rows over four hosts. Distinct ids on
+        // the surplus rows so WHICH were dropped is legible.
+        const ComboLogicBagItem bag[6] = {
+            ClBagItem((uint8_t)GAME_OOT, kOotHook, 0),     ClSurplusItem((uint8_t)GAME_OOT, kOotSword, 0),
+            ClBagItem((uint8_t)GAME_MM, kMmBow, 0),        ClSurplusItem((uint8_t)GAME_MM, kMmMask, 0),
+            ClSurplusItem((uint8_t)GAME_OOT, kOotLens, 0), ClSurplusItem((uint8_t)GAME_MM, kMmRemains, 0),
+        };
+        ComboLogicFillResult res;
+        ComboLogicFillResult again;
+        CL_ASSERT(ClRunFill(bag, 6, RSBS_COMBO_GOAL_BEAT_BOTH, kRungs[ri], 0x5EEDu, &res) == RSBS_COMBO_LOGIC_OK,
+                  "a plentiful surplus is not a failure: it is dropped");
+        CL_ASSERT(res.placed == 4 && res.requiredPlaced == 2 && res.surplusPlaced == 2 && res.surplusDropped == 2,
+                  "four hosts hold both required rows and the first two surplus rows; two surplus rows are dropped");
+        int d0 = -1;
+        int d1 = -1;
+        CL_ASSERT(Combo_Logic_SurplusDroppedCount() == 2 && Combo_Logic_SurplusDroppedAt(0, &d0) &&
+                      Combo_Logic_SurplusDroppedAt(1, &d1),
+                  "the dropped rows are readable back");
+        CL_ASSERT(d0 == 4 && d1 == 5,
+                  "the dropped rows are the LAST surplus rows in bag order (indices 4 and 5) — last-first");
+        CL_ASSERT(!Combo_Logic_SurplusDroppedAt(2, &d0), "and there are exactly two");
+        CL_ASSERT(ClAnyTableHolds(kOotHook) && ClAnyTableHolds(kMmBow), "no REQUIRED row is ever dropped");
+        CL_ASSERT(res.leftoverHostsOoT + res.leftoverHostsMM == 0, "and the world is full");
+        CL_ASSERT(ClRunFill(bag, 6, RSBS_COMBO_GOAL_BEAT_BOTH, kRungs[ri], 0x5EEDu, &again) == RSBS_COMBO_LOGIC_OK,
+                  "same seed, again");
+        CL_ASSERT(again.placementDigest == res.placementDigest && again.droppedDigest == res.droppedDigest &&
+                      again.surplusDropped == res.surplusDropped,
+                  "the SAME SEED must give the same placements AND THE SAME DROPS");
+        CL_ASSERT(res.droppedDigest != 2166136261u, "and the drop digest is not the empty one (a sensitivity check)");
+
+        // A REQUIRED overflow is a failure, never a drop.
+        const ComboLogicBagItem tooMany[5] = {
+            ClBagItem((uint8_t)GAME_OOT, kOotHook, 0), ClBagItem((uint8_t)GAME_OOT, kOotHook, 0),
+            ClBagItem((uint8_t)GAME_OOT, kOotHook, 0), ClBagItem((uint8_t)GAME_OOT, kOotHook, 0),
+            ClBagItem((uint8_t)GAME_OOT, kOotHook, 0),
+        };
+        CL_ASSERT(ClRunFill(tooMany, 5, RSBS_COMBO_GOAL_BEAT_BOTH, kRungs[ri], 0x5EEDu, &res) ==
+                      RSBS_COMBO_LOGIC_ERR_NO_CANDIDATE,
+                  "five REQUIRED rows on four hosts is a capacity failure — a required copy is never dropped");
+        CL_ASSERT(res.surplusDropped == 0 && Combo_Logic_SurplusDroppedCount() == 0, "and nothing was 'dropped'");
+    }
+
+    // ------------------------------------------------------------------
+    // S-c. EXACT FIT: nothing dropped, nothing leftover.
+    // ------------------------------------------------------------------
+    for (int ri = 0; ri < 2; ++ri) {
+        ClBuildOpenWorld(2, 2);
+        const ComboLogicBagItem bag[4] = { ClBagItem((uint8_t)GAME_OOT, kOotHook, 0), ClSurplusItem((uint8_t)GAME_OOT, kOotHook, 0),
+                                           ClBagItem((uint8_t)GAME_MM, kMmBow, 0), ClSurplusItem((uint8_t)GAME_MM, kMmBow, 0) };
+        ComboLogicFillResult res;
+        CL_ASSERT(ClRunFill(bag, 4, RSBS_COMBO_GOAL_BEAT_BOTH, kRungs[ri], 0x77u, &res) == RSBS_COMBO_LOGIC_OK,
+                  "an exact fit must fill");
+        CL_ASSERT(res.placed == 4 && res.surplusPlaced == 2 && res.surplusDropped == 0 &&
+                      res.leftoverHostsOoT + res.leftoverHostsMM == 0,
+                  "exact fit: every row placed, nothing dropped, nothing leftover");
+        if (kRungs[ri] == RSBS_COMBO_RUNG_BEATABLE) {
+            // required rounds + the proof round + the CONFIRMING round the
+            // surplus placements trigger.
+            CL_ASSERT(res.rounds == 2 + 1 + 1, "the surplus phase ran exactly one confirming round");
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // S-d. SURPLUS IS NEVER LOAD-BEARING: the proof runs with every surplus copy
+    //      absent, so a needed copy marked surplus leaves the goal unprovable.
+    // ------------------------------------------------------------------
+    {
+        ClBuildOpenWorld(4, 4);
+        gClOoT.goalNeedItem = kOotHook;
+        gClOoT.goalNeedCount = 2;
+        ClInstall();
+        const ComboLogicBagItem oneSurplus[2] = { ClBagItem((uint8_t)GAME_OOT, kOotHook, 0),
+                                                  ClSurplusItem((uint8_t)GAME_OOT, kOotHook, 0) };
+        const ComboLogicBagItem bothRequired[2] = { ClBagItem((uint8_t)GAME_OOT, kOotHook, 0),
+                                                    ClBagItem((uint8_t)GAME_OOT, kOotHook, 0) };
+        ComboLogicFillResult res;
+        CL_ASSERT(ClRunFill(oneSurplus, 2, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_BEATABLE, 9u, &res) ==
+                      RSBS_COMBO_LOGIC_ERR_GOAL_UNPROVABLE,
+                  "a goal that needs two copies must NOT be proved from one required and one SURPLUS copy — the "
+                  "proof may not lean on a droppable row");
+        CL_ASSERT(ClRunFill(bothRequired, 2, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_BEATABLE, 9u, &res) ==
+                      RSBS_COMBO_LOGIC_OK,
+                  "and the same two copies both REQUIRED prove it (the control)");
+    }
+
+    // ------------------------------------------------------------------
+    // S-e. SURPLUS LANDS ONLY WHERE THE PROVEN WORLD REACHES.
+    // ------------------------------------------------------------------
+    {
+        ClBuildUnreachedOnlyWorld(); // OoT host 10 is never reached
+        ClAddHost(&gClOoT, 11, 0u);  // ... and host 11 always is
+        ClInstall();
+        const ComboLogicBagItem bag[3] = { ClBagItem((uint8_t)GAME_OOT, kOotSword, 0),
+                                           ClSurplusItem((uint8_t)GAME_OOT, kOotSword, 0),
+                                           ClSurplusItem((uint8_t)GAME_OOT, kOotSword, 0) };
+        ComboLogicFillResult res;
+        CL_ASSERT(ClRunFill(bag, 3, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_ALL_REACHABLE, 3u, &res) ==
+                      RSBS_COMBO_LOGIC_OK,
+                  "all-reachable with surplus must succeed");
+        CL_ASSERT(res.requiredPlaced == 1 && res.surplusPlaced == 0 && res.surplusDropped == 2,
+                  "the one reached host takes the required row, and the surplus rows are DROPPED rather than put on "
+                  "the unreached host");
+        CL_ASSERT(!Combo_Logic_GetPlacement(GAME_OOT, 10, NULL), "the unreached host holds nothing from the bag");
+        CL_ASSERT(res.leftoverHostsOoT == 1 && res.allHostsReached, "it is LEFTOVER, and every placed host is reached");
+
+        CL_ASSERT(ClRunFill(bag, 3, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_NONE, 3u, &res) == RSBS_COMBO_LOGIC_OK,
+                  "`none` makes no reachability claim");
+        CL_ASSERT(res.requiredPlaced == 1 && res.surplusPlaced == 1 && res.surplusDropped == 1,
+                  "so under `none` a surplus row may take the unreached host, and only the last one is dropped");
+    }
+
+    // ------------------------------------------------------------------
+    // S-f. AN UNKNOWN BAG FLAG IS REFUSED, NOT PLACED AS REQUIRED.
+    // ------------------------------------------------------------------
+    {
+        ClBuildOpenWorld(2, 2);
+        ComboLogicBagItem bag[1] = { ClBagItem((uint8_t)GAME_OOT, kOotHook, 0) };
+        bag[0].bagFlags = 0x8000u;
+        ComboLogicFillResult res;
+        CL_ASSERT(ClRunFill(bag, 1, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_BEATABLE, 1u, &res) ==
+                      RSBS_COMBO_LOGIC_ERR_BAD_REQUEST,
+                  "a bag flag this build does not understand must be refused");
+        CL_ASSERT(res.attempts == 0 && res.placed == 0, "before any attempt");
+    }
+
+    ClUninstall();
+    printf("[TEST] combo-logic-bag-model: PASS\n");
     return TEST_PASS;
 }

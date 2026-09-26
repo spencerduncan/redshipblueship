@@ -133,6 +133,11 @@ static uint8_t sOccupied[RSBS_FOREIGN_POOL_ORIGIN_COUNT][COMBO_LOGIC_OCCUPANCY_B
  *  foreign item handed across the crossing this round. Reset per round, not per
  *  fill — an exchange is a fact about one round's granted set. */
 static uint8_t sExchanged[RSBS_FOREIGN_POOL_ORIGIN_COUNT][RSBS_COMBO_LOGIC_PLACEMENT_CAP / 8];
+/** The SURPLUS rows the last fill attempt dropped, as bag indices, in the order
+ *  they were dropped (bag order — THE BAG MODEL, shape 3). Reset with the tables,
+ *  because a drop is a fact about the attempt that built them. */
+static int sDropped[RSBS_COMBO_LOGIC_BAG_CAP];
+static int sDroppedCount;
 
 static bool ComboLogicBitGet(const uint8_t* bits, int index) {
     return (bits[index >> 3] & (uint8_t)(1u << (index & 7))) != 0;
@@ -146,6 +151,7 @@ void Combo_Logic_ResetPlacements(void) {
     memset(sPlacementCount, 0, sizeof(sPlacementCount));
     memset(sOccupied, 0, sizeof(sOccupied));
     memset(sExchanged, 0, sizeof(sExchanged));
+    sDroppedCount = 0;
 
     // Both sides must forget, or a retry is not a roll-back: the next attempt
     // would find the previous one's hosts assigned inside the engines and report
@@ -265,6 +271,20 @@ bool Combo_Logic_Place(GameId hostGame, uint16_t hostCheck, SharedItem item, uin
 static void ComboLogicDigestByte(uint32_t* h, uint8_t b) {
     *h ^= (uint32_t)b;
     *h *= 16777619u;
+}
+
+int Combo_Logic_SurplusDroppedCount(void) {
+    return sDroppedCount;
+}
+
+bool Combo_Logic_SurplusDroppedAt(int index, int* outBagIndex) {
+    if (index < 0 || index >= sDroppedCount) {
+        return false;
+    }
+    if (outBagIndex != NULL) {
+        *outBagIndex = sDropped[index];
+    }
+    return true;
 }
 
 uint32_t Combo_Logic_PlacementDigest(void) {
@@ -438,6 +458,32 @@ static int ComboLogicCollectCandidates(uint8_t game) {
     return ComboLogicCollectFrom(game, true);
 }
 
+int Combo_Logic_LeftoverHosts(GameId hostGame, uint16_t* out, int cap) {
+    const uint8_t g = (uint8_t)hostGame;
+    const ComboLogicEngine* e = ComboLogicEngineFor(g);
+    if (e == NULL) {
+        return -1;
+    }
+    // `allEmptyHosts` is the one enumeration legal outside a round, and our own
+    // occupancy bitmap is the one authority on what the fill placed — so this is
+    // exactly "what the bag did not land on", in the engine's own stable order.
+    const int total = e->allEmptyHosts(e->self, sHostScratch, RSBS_COMBO_LOGIC_HOST_CAP);
+    if (total < 0 || total > RSBS_COMBO_LOGIC_HOST_CAP) {
+        return -1;
+    }
+    int leftover = 0;
+    for (int i = 0; i < total; ++i) {
+        if (ComboLogicBitGet(sOccupied[g], (int)sHostScratch[i])) {
+            continue;
+        }
+        if (out != NULL && leftover < cap) {
+            out[leftover] = sHostScratch[i];
+        }
+        ++leftover;
+    }
+    return leftover;
+}
+
 /**
  * Hand every not-yet-exchanged FOREIGN item hosted in `hostGame`'s reached
  * checks to the engine whose id-space it belongs to.
@@ -551,6 +597,10 @@ static int ComboLogicRoundRun(const ComboLogicBagItem* assumed, int assumedCount
     }
 
     // --- seed the assumed set --------------------------------------------
+    // ONE CALL PER ROW, and a row is one COPY (ABI 3): two rows naming the same
+    // id are two copies, and the engine counts both. Nothing below ever takes a
+    // copy back out within the round — the exchange only delivers — which is the
+    // monotonicity the termination argument further down rests on.
     if (status == RSBS_COMBO_LOGIC_OK) {
         for (int i = 0; i < assumedCount; ++i) {
             const uint8_t og = assumed[i].item.originGame;
@@ -808,6 +858,97 @@ static int ComboLogicDrawAndPlace(const ComboLogicBagItem* item, uint32_t* rng, 
                 Game_ToString((GameId)hostGame), (unsigned)host);
         return RSBS_COMBO_LOGIC_ERR_ENGINE_REFUSED;
     }
+
+    // CONSUME the host from the buffer, keeping the rest in the engine's order.
+    // The per-item callers re-collect before every draw, so for them this is
+    // moot; the SURPLUS phase draws several rows from ONE round's supply (the
+    // proven world's reached hosts), and there a host left in the buffer would
+    // be drawn twice. memmove, not swap-with-last: the draw is uniform either
+    // way, but a stable order keeps the host list a function of the engine's
+    // table alone, which is the property the order contract exists for.
+    ComboLogicHostBuf* buf = &sCandidates[hostGame];
+    memmove(&buf->host[hostIndex], &buf->host[hostIndex + 1],
+            sizeof(buf->host[0]) * (size_t)(buf->count - hostIndex - 1));
+    buf->count--;
+    return RSBS_COMBO_LOGIC_OK;
+}
+
+/** Record SURPLUS row `bagIndex` as dropped, and fold it into the digest. */
+static void ComboLogicRecordDrop(const ComboLogicFillRequest* req, int bagIndex, ComboLogicFillResult* res) {
+    if (sDroppedCount < RSBS_COMBO_LOGIC_BAG_CAP) {
+        sDropped[sDroppedCount++] = bagIndex;
+    }
+    const ComboLogicBagItem* row = &req->bag[bagIndex];
+    ComboLogicDigestByte(&res->droppedDigest, (uint8_t)(bagIndex & 0xFF));
+    ComboLogicDigestByte(&res->droppedDigest, (uint8_t)((bagIndex >> 8) & 0xFF));
+    ComboLogicDigestByte(&res->droppedDigest, row->item.originGame);
+    ComboLogicDigestByte(&res->droppedDigest, (uint8_t)(row->item.id & 0xFF));
+    ComboLogicDigestByte(&res->droppedDigest, (uint8_t)((row->item.id >> 8) & 0xFF));
+    res->surplusDropped++;
+}
+
+/** The required / surplus split of the bag, each in BAG ORDER. Filled once per
+ *  fill by ComboLogicPartitionBag; the required list is then shuffled per
+ *  attempt into sBagOrder, the surplus list never is (its order IS the drop
+ *  rule). */
+static int sRequiredIdx[RSBS_COMBO_LOGIC_BAG_CAP];
+static int sRequiredCount;
+static int sSurplusIdx[RSBS_COMBO_LOGIC_BAG_CAP];
+static int sSurplusCount;
+
+static void ComboLogicPartitionBag(const ComboLogicFillRequest* req) {
+    sRequiredCount = 0;
+    sSurplusCount = 0;
+    for (int i = 0; i < req->bagCount; ++i) {
+        if ((req->bag[i].bagFlags & RSBS_COMBO_BAG_SURPLUS) != 0u) {
+            sSurplusIdx[sSurplusCount++] = i;
+        } else {
+            sRequiredIdx[sRequiredCount++] = i;
+        }
+    }
+}
+
+/**
+ * THE SURPLUS PHASE (THE BAG MODEL, shapes 2 and 3). Runs only after the
+ * required rows are all placed — and, under the proving rungs, only after the
+ * exit condition held.
+ *
+ * Walks the surplus rows IN BAG ORDER. Under the proving rungs every row draws
+ * from ONE supply, the final proof round's reached, unassigned hosts, which is
+ * already in sCandidates (arrival gate applied) and is consumed as it is drawn;
+ * no further round is run per row, because placing an item can only grow the
+ * reached set, so a host reached before a surplus placement is still reached
+ * after it. Under `none` the supply is re-collected from every empty host before
+ * each row, exactly as the required rows were placed.
+ *
+ * When the supply is empty, THIS ROW AND EVERY LATER ONE is dropped: the drop
+ * set is the tail of the surplus list, which is the last-first rule.
+ */
+static int ComboLogicPlaceSurplus(const ComboLogicFillRequest* req, bool reachedSupply, uint32_t* rng,
+                                  ComboLogicFillResult* res) {
+    for (int s = 0; s < sSurplusCount; ++s) {
+        bool deadEnd = false;
+        if (!reachedSupply) {
+            int st = ComboLogicCollectFrom((uint8_t)GAME_OOT, false);
+            if (st == RSBS_COMBO_LOGIC_OK) {
+                st = ComboLogicCollectFrom((uint8_t)GAME_MM, false);
+            }
+            if (st != RSBS_COMBO_LOGIC_OK) {
+                return st;
+            }
+        }
+        const int st = ComboLogicDrawAndPlace(&req->bag[sSurplusIdx[s]], rng, &deadEnd);
+        if (st != RSBS_COMBO_LOGIC_OK) {
+            return st;
+        }
+        if (deadEnd) {
+            for (int d = s; d < sSurplusCount; ++d) {
+                ComboLogicRecordDrop(req, sSurplusIdx[d], res);
+            }
+            return RSBS_COMBO_LOGIC_OK;
+        }
+        res->surplusPlaced++;
+    }
     return RSBS_COMBO_LOGIC_OK;
 }
 
@@ -841,12 +982,16 @@ static int ComboLogicFillNoLogic(const ComboLogicFillRequest* req, ComboLogicFil
     res->allHostsReached = false; // nothing was evaluated, so nothing is claimed
     Combo_Logic_ResetPlacements();
 
-    for (int i = 0; i < req->bagCount; ++i) {
-        sBagOrder[i] = i;
+    // REQUIRED rows first, in the per-attempt shuffle of the required list. With
+    // no surplus row in the bag the required list IS the bag in bag order, so
+    // the shuffle — and every placement a surplus-free bag made before the bag
+    // model existed — is unchanged.
+    for (int i = 0; i < sRequiredCount; ++i) {
+        sBagOrder[i] = sRequiredIdx[i];
     }
-    ComboLogicShuffle(sBagOrder, req->bagCount, &rng);
+    ComboLogicShuffle(sBagOrder, sRequiredCount, &rng);
 
-    for (int k = 0; k < req->bagCount; ++k) {
+    for (int k = 0; k < sRequiredCount; ++k) {
         bool deadEnd = false;
         int st = ComboLogicCollectFrom((uint8_t)GAME_OOT, false);
 
@@ -865,12 +1010,18 @@ static int ComboLogicFillNoLogic(const ComboLogicFillRequest* req, ComboLogicFil
             return st;
         }
         if (deadEnd) {
-            fprintf(stderr, "[ComboLogic] `none` fill ran out of free hosts with %d of %d bag items unplaced\n",
-                    req->bagCount - k, req->bagCount);
+            // A REQUIRED row is never dropped (THE BAG MODEL, shape 3): running
+            // out of hosts for one is a capacity failure, whatever surplus the
+            // bag also carries.
+            fprintf(stderr, "[ComboLogic] `none` fill ran out of free hosts with %d of %d required rows unplaced\n",
+                    sRequiredCount - k, sRequiredCount);
             return RSBS_COMBO_LOGIC_ERR_NO_CANDIDATE;
         }
+        res->requiredPlaced++;
     }
-    return RSBS_COMBO_LOGIC_OK;
+    // Then the SURPLUS rows, in bag order, from every empty host; the tail that
+    // finds none is dropped.
+    return ComboLogicPlaceSurplus(req, false, &rng, res);
 }
 
 int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* out) {
@@ -905,6 +1056,14 @@ int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* 
             status = RSBS_COMBO_LOGIC_ERR_BAD_REQUEST;
             goto finish;
         }
+        // An unknown flag is refused, never ignored: a flag this build does not
+        // understand would otherwise be placed as a REQUIRED copy.
+        if ((req->bag[i].bagFlags & (uint16_t)~RSBS_COMBO_BAG_FLAGS_KNOWN) != 0u) {
+            fprintf(stderr, "[ComboLogic] fill refused: bag entry %d carries unknown bag flags 0x%04X\n", i,
+                    (unsigned)req->bag[i].bagFlags);
+            status = RSBS_COMBO_LOGIC_ERR_BAD_REQUEST;
+            goto finish;
+        }
     }
     // The goal is validated BEFORE any placement, so an unsupported goal cannot
     // leave a half-filled world behind.
@@ -919,9 +1078,12 @@ int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* 
         goto finish;
     }
 
+    ComboLogicPartitionBag(req);
+    res.droppedDigest = 2166136261u; // FNV-1a offset basis: "nothing dropped"
+
     // The base rung is a different HOST SOURCE, not a different distribution:
     // see ComboLogicFillNoLogic. Everything below this point runs a round per
-    // bag item and is therefore the PROVING path.
+    // required row and is therefore the PROVING path.
     if (req->logicRung == RSBS_COMBO_RUNG_NONE) {
         status = ComboLogicFillNoLogic(req, &res);
         goto finish;
@@ -934,20 +1096,26 @@ int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* 
         bool deadEnd = false;
 
         res.attempts = attempt + 1;
+        res.requiredPlaced = 0;
+        res.surplusPlaced = 0;
+        res.surplusDropped = 0;
+        res.droppedDigest = 2166136261u;
         Combo_Logic_ResetPlacements();
 
-        for (int i = 0; i < req->bagCount; ++i) {
-            sBagOrder[i] = i;
+        for (int i = 0; i < sRequiredCount; ++i) {
+            sBagOrder[i] = sRequiredIdx[i];
         }
-        ComboLogicShuffle(sBagOrder, req->bagCount, &rng);
+        ComboLogicShuffle(sBagOrder, sRequiredCount, &rng);
 
-        for (int k = 0; k < req->bagCount; ++k) {
-            // The assumed set: every bag item NOT yet placed, EXCLUDING the one
-            // being placed. That exclusion is the whole of assumed fill — the
-            // item must land somewhere reachable WITHOUT itself, or the world
-            // contains a self-justifying cycle.
+        for (int k = 0; k < sRequiredCount; ++k) {
+            // The assumed set: every REQUIRED row NOT yet placed, EXCLUDING the
+            // one being placed, one entry per copy. That exclusion is the whole of
+            // assumed fill — the item must land somewhere reachable WITHOUT
+            // itself, or the world contains a self-justifying cycle. SURPLUS rows
+            // are never assumed: the proof must hold with every one of them
+            // absent, which is what makes them droppable (THE BAG MODEL, shape 2).
             int assumedCount = 0;
-            for (int j = k + 1; j < req->bagCount; ++j) {
+            for (int j = k + 1; j < sRequiredCount; ++j) {
                 sAssumedBuf[assumedCount++] = req->bag[sBagOrder[j]];
             }
 
@@ -971,6 +1139,7 @@ int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* 
                 // seed) is the layer above and is not invoked here.
                 break;
             }
+            res.requiredPlaced++;
         }
 
         if (deadEnd) {
@@ -1000,6 +1169,38 @@ int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* 
             continue;
         }
 
+        // --- the surplus phase, over the PROVEN world ----------------------
+        //
+        // sCandidates still holds the proof round's reached, unassigned hosts
+        // (arrival gate applied): the supply every surplus row draws from.
+        {
+            const int st = ComboLogicPlaceSurplus(req, true, &rng, &res);
+            if (st != RSBS_COMBO_LOGIC_OK) {
+                status = st;
+                goto finish;
+            }
+        }
+        if (res.surplusPlaced > 0) {
+            // THE CONFIRMING ROUND. Monotonicity says placing items cannot undo
+            // the proof or unreach a host; this measures it instead of assuming
+            // it. A failure here is an engine whose reachability SHRANK when an
+            // item was added — refused, never worked around (ADR 0010 §2.3).
+            const int st = ComboLogicRoundRun(NULL, 0, req->goal, &round);
+            res.rounds++;
+            if (st != RSBS_COMBO_LOGIC_OK) {
+                status = st;
+                goto finish;
+            }
+            if (round.goalExpression != 1 ||
+                (req->logicRung == RSBS_COMBO_RUNG_ALL_REACHABLE && round.allHostsReached != 1)) {
+                fprintf(stderr, "[ComboLogic] placing %d surplus rows on reached hosts UNDID the proof — an engine "
+                                "is not monotone under added items\n",
+                        res.surplusPlaced);
+                status = RSBS_COMBO_LOGIC_ERR_NON_MONOTONE;
+                goto finish;
+            }
+        }
+
         res.goalProven = true;
         res.allHostsReached = (round.allHostsReached == 1);
         status = RSBS_COMBO_LOGIC_OK;
@@ -1020,9 +1221,17 @@ finish:
     if (res.attempts > 0) {
         res.placed = Combo_Logic_PlacementCount(GAME_OOT) + Combo_Logic_PlacementCount(GAME_MM);
         res.placementDigest = Combo_Logic_PlacementDigest();
+        // THE LEFTOVER HOSTS (THE BAG MODEL, shape 4): each game's own junk pass
+        // fills exactly these. A -1 from the enumeration (no engine, or over the
+        // host cap) is reported as 0 rather than as a negative count.
+        const int lo = Combo_Logic_LeftoverHosts(GAME_OOT, NULL, 0);
+        const int lm = Combo_Logic_LeftoverHosts(GAME_MM, NULL, 0);
+        res.leftoverHostsOoT = (lo > 0) ? lo : 0;
+        res.leftoverHostsMM = (lm > 0) ? lm : 0;
     } else {
         res.placed = 0;
         res.placementDigest = 0u;
+        res.droppedDigest = 0u;
     }
     if (out != NULL) {
         *out = res;

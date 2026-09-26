@@ -18,6 +18,59 @@
 
 namespace Rando {
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// RedShipBlueShip (ADR 0010 increment 3, #645; the 2026-09-26 multiplicity
+// ruling). The combo-logic coordinator grants one COPY per `assumeOwnItem`, so a
+// round can hold more copies of a progressive item than it has tiers (a
+// plentiful surplus, a starting item plus its pool copies). Upstream's rows below
+// do `SetUpgrade(x, CurrentUpgrade(x) + 1)` with no upper bound, and `SetUpgrade`
+// ORs the level into a masked field without masking the level — so a copy past
+// the top WALKS: the wallet's two-bit field (0x3000) wraps to 0 on a fourth
+// upgrade and the carry lands in the bullet bag's bits (0x4000), LOWERING a
+// capacity, which is the monotonicity violation assumed fill cannot survive.
+//
+// While this flag is set — ONLY between the combo engine's `beginQuery` and
+// `endQuery` (ComboLogicEngineOoT.cpp) — a GRANT stops at the item's own top tier,
+// the tier `Item::GetGIEntry` itself resolves the last copy to. It is off
+// everywhere else, so OoT's own fill, its spoiler and gameplay run upstream's
+// arithmetic byte for byte; the native-fill overshoot is recorded as its own
+// defect rather than changed under the feet of every generated world.
+bool gComboLogicClampProgressives = false;
+
+/** The top tier a GRANT of the progressive row writing `upgrade` may reach.
+ *  Named (not file-local) so the combo engine's lock reads the SAME rule. */
+uint32_t ComboLogicProgressiveTopTier(uint32_t upgrade) {
+    switch (upgrade) {
+        case UPG_SCALE:
+            return 2; // silver, golden (the bronze scale is RAND_INF_CAN_SWIM)
+        case UPG_WALLET: {
+            // adult, giant, and tycoon only when the seed includes it — the same
+            // branch Item::GetGIEntry takes at wallet level 2.
+            auto rctx = Rando::Context::GetInstance();
+            const bool tycoon = rctx != nullptr && rctx->GetOption(RSK_INCLUDE_TYCOON_WALLET).Is(true);
+            return tycoon ? 3 : 2;
+        }
+        default:
+            return 3; // quiver, bomb bag, strength, bullet bag, sticks, nuts
+    }
+}
+
+namespace {
+/** `newLevel`, clamped at the top tier when the combo round asks for it and the
+ *  call is a GRANT. A removal (`state == false`) is never touched. */
+uint32_t ComboLogicClampLevel(uint32_t upgrade, uint32_t newLevel, bool state) {
+    if (!gComboLogicClampProgressives || !state) {
+        return newLevel;
+    }
+    const uint32_t top = ComboLogicProgressiveTopTier(upgrade);
+    return newLevel > top ? top : newLevel;
+}
+} // namespace
+#define RSBS_COMBO_CLAMP_LEVEL(upgrade, level) ComboLogicClampLevel((upgrade), (uint32_t)(level), state)
+#else
+#define RSBS_COMBO_CLAMP_LEVEL(upgrade, level) (level)
+#endif
+
 bool Logic::HasItem(RandomizerGet itemName) {
     switch (itemName) {
         case RG_FAIRY_OCARINA:
@@ -1803,7 +1856,7 @@ void Logic::ApplyItemEffect(Item& item, bool state) {
                         SetRandoInf(RAND_INF_CAN_GRAB, false);
                     } else {
                         auto newLevel = currentLevel + (!state ? -1 : 1);
-                        SetUpgrade(UPG_STRENGTH, newLevel);
+                        SetUpgrade(UPG_STRENGTH, RSBS_COMBO_CLAMP_LEVEL(UPG_STRENGTH, newLevel));
                     }
                 } break;
                 case RG_PROGRESSIVE_BOMB_BAG: {
@@ -1817,7 +1870,7 @@ void Logic::ApplyItemEffect(Item& item, bool state) {
                     if (currentLevel == 0 && state || currentLevel == 1 && !state) {
                         SetInventory(ITEM_BOMB, (!state ? ITEM_NONE : ITEM_BOMB));
                     }
-                    SetUpgrade(UPG_BOMB_BAG, newLevel);
+                    SetUpgrade(UPG_BOMB_BAG, RSBS_COMBO_CLAMP_LEVEL(UPG_BOMB_BAG, newLevel));
                 } break;
                 case RG_PROGRESSIVE_BOW: {
                     auto realGI = item.GetGIEntry();
@@ -1830,7 +1883,7 @@ void Logic::ApplyItemEffect(Item& item, bool state) {
                     if (currentLevel == 0 && state || currentLevel == 1 && !state) {
                         SetInventory(ITEM_BOW, (!state ? ITEM_NONE : ITEM_BOW));
                     }
-                    SetUpgrade(UPG_QUIVER, newLevel);
+                    SetUpgrade(UPG_QUIVER, RSBS_COMBO_CLAMP_LEVEL(UPG_QUIVER, newLevel));
                 } break;
                 case RG_PROGRESSIVE_SLINGSHOT: {
                     auto realGI = item.GetGIEntry();
@@ -1843,7 +1896,7 @@ void Logic::ApplyItemEffect(Item& item, bool state) {
                     if (currentLevel == 0 && state || currentLevel == 1 && !state) {
                         SetInventory(ITEM_SLINGSHOT, (!state ? ITEM_NONE : ITEM_SLINGSHOT));
                     }
-                    SetUpgrade(UPG_BULLET_BAG, newLevel);
+                    SetUpgrade(UPG_BULLET_BAG, RSBS_COMBO_CLAMP_LEVEL(UPG_BULLET_BAG, newLevel));
                 } break;
                 case RG_PROGRESSIVE_WALLET: {
                     auto realGI = item.GetGIEntry();
@@ -1858,7 +1911,7 @@ void Logic::ApplyItemEffect(Item& item, bool state) {
                         SetRandoInf(RAND_INF_HAS_WALLET, false);
                     } else {
                         auto newLevel = currentLevel + (!state ? -1 : 1);
-                        SetUpgrade(UPG_WALLET, newLevel);
+                        SetUpgrade(UPG_WALLET, RSBS_COMBO_CLAMP_LEVEL(UPG_WALLET, newLevel));
                     }
                 } break;
                 case RG_PROGRESSIVE_SCALE: {
@@ -1869,7 +1922,7 @@ void Logic::ApplyItemEffect(Item& item, bool state) {
                         SetRandoInf(RAND_INF_CAN_SWIM, false);
                     } else {
                         auto newLevel = currentLevel + (!state ? -1 : 1);
-                        SetUpgrade(UPG_SCALE, newLevel);
+                        SetUpgrade(UPG_SCALE, RSBS_COMBO_CLAMP_LEVEL(UPG_SCALE, newLevel));
                     }
                 } break;
                 case RG_PROGRESSIVE_NUT_UPGRADE: {
@@ -1883,7 +1936,7 @@ void Logic::ApplyItemEffect(Item& item, bool state) {
                     if (currentLevel == 0 && state || currentLevel == 1 && !state) {
                         SetInventory(ITEM_NUT, (!state ? ITEM_NONE : ITEM_NUT));
                     }
-                    SetUpgrade(UPG_NUTS, newLevel);
+                    SetUpgrade(UPG_NUTS, RSBS_COMBO_CLAMP_LEVEL(UPG_NUTS, newLevel));
                 } break;
                 case RG_PROGRESSIVE_STICK_UPGRADE: {
                     auto realGI = item.GetGIEntry();
@@ -1896,7 +1949,7 @@ void Logic::ApplyItemEffect(Item& item, bool state) {
                     if (currentLevel == 0 && state || currentLevel == 1 && !state) {
                         SetInventory(ITEM_STICK, (!state ? ITEM_NONE : ITEM_STICK));
                     }
-                    SetUpgrade(UPG_STICKS, newLevel);
+                    SetUpgrade(UPG_STICKS, RSBS_COMBO_CLAMP_LEVEL(UPG_STICKS, newLevel));
                 } break;
                 case RG_PROGRESSIVE_BOMBCHU_BAG: {
                     auto realGI = item.GetGIEntry();
@@ -1913,6 +1966,12 @@ void Logic::ApplyItemEffect(Item& item, bool state) {
                         break;
                     }
                     mSaveContext->magicLevel += (!state ? -1 : 1);
+#ifdef RSBS_SINGLE_EXECUTABLE
+                    // Single, double: the same top tier Item::GetGIEntry resolves to.
+                    if (gComboLogicClampProgressives && state && mSaveContext->magicLevel > 2) {
+                        mSaveContext->magicLevel = 2;
+                    }
+#endif
                 } break;
                 case RG_PROGRESSIVE_OCARINA: {
                     uint8_t i;

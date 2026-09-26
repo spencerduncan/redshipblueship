@@ -1805,6 +1805,20 @@ give dereferences a NULL MM_gPlayState/gRegEditor names itself on stderr. Its in
 process abort, which is how the RI_TINGLE_MAP_* set and the gRegEditor stand-in were derived (#645). Run by hand: \
 redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past a known fault.")
 
+    # The multiplicity ruling (2026-09-26; combo_logic.h ABI 3, #645). The bag
+    # model over stub engines is ROM-free and display-free, so it is `redship`
+    # tier: one assume per copy, order independence, and the surplus / filler /
+    # exact-fit shapes of the bag, with the drop rule's determinism.
+    redship_add_test(NAME ComboLogicBagModel COMMAND redship --test combo-logic-bag-model)
+    # The same ruling over BOTH REAL engines: OoT's progressive top-tier clamp
+    # (and the wrap it prevents, observed with the clamp off) and MM's counter
+    # maxima and per-host harvest. One OoT generation and a handful of rounds,
+    # so the real-generation rows' 300 s.
+    redship_add_test(NAME ComboLogicMultiplicity COMMAND redship --test combo-logic-multiplicity
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)
     # These tests actually boot the games and verify boot completion
