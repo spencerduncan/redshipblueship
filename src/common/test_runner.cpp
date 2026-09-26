@@ -661,6 +661,10 @@ extern "C" {
 // coordinator's triforce-hunt predicate over stub engines. Display-free and
 // ROM-free (`redship` tier). FILE SCOPE (compiled as C++).
 #include "tests/test_triforce_hunt.c"
+// #726: OoT's OWN fill under a plentiful pool — the native full-world harvest
+// never holds a progressive tier past the top, and the wallet never wraps. Same
+// tier, FILE SCOPE / C++ compilation and reason as the rows above.
+#include "tests/test_oot_plentiful_progressive.c"
 // ADR 0010 O7: the cross-game placement store and its three routes (the .redsave
 // v3 Tier-4 block, the one spoiler's combo.crossingStore section, the
 // coordinator hydrate). ROM-free and display-free; FILE SCOPE (compiled as C++)
@@ -4017,6 +4021,20 @@ TestResult Test_RandoTriforceHuntWin(void) {
     return (oot == 0 && mm == 0) ? TEST_PASS : TEST_FAIL;
 }
 
+// #726: OoT's native fill on a plentiful profile. Same bring-up as the two
+// rows above; the profile itself is set inside the row.
+TestResult Test_OoTPlentifulProgressive(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    static char plpArg0[] = "redship";
+    static char* plpArgv[] = { plpArg0, nullptr };
+    InitOTRForMMFirstBoot(1, plpArgv);
+    return OoTPlentifulProgressive_Run();
+}
+
 TestResult Test_RoundtripIntegrity(void) {
     printf("[TEST] roundtrip-integrity: OoT SaveContext byte-integrity across roundtrip (issue #262)\n");
     int failures = TestRoundtripIntegrity_Run();
@@ -4774,6 +4792,12 @@ const TestDescriptor gTests[] = {
      "Both games' real piece-give arms: unarmed each ends its own hunt as upstream; paired, only the combo requirement "
      "ends the combo, in whichever game reaches it (ADR 0010 O10)",
      Test_RandoTriforceHuntWin},
+    // #726: OoT's own fill under a plentiful pool. Needs a generation; skipped by
+    // `--test all` below like its siblings.
+    {"oot-plentiful-progressive",
+     "OoT's own fill on a plentiful + tycoon profile: after the native full-world harvest no progressive tier is "
+     "past its top and the wallet rests at the tycoon tier instead of wrapping to 0 (#726)",
+     Test_OoTPlentifulProgressive},
     {nullptr, nullptr, nullptr}  // Sentinel
 };
 
@@ -4865,6 +4889,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "combo-logic-multiplicity") == 0 ||
                 strcmp(gTests[i].name, "combo-logic-monotonicity") == 0 ||
                 strcmp(gTests[i].name, "rando-triforce-hunt-win") == 0 ||
+                strcmp(gTests[i].name, "oot-plentiful-progressive") == 0 ||
                 // Also skipped for a second reason: it is a diagnostic whose
                 // intended outcome on a bad id is a process abort, so it must never
                 // run inside a suite whose result is a pass/fail count.
