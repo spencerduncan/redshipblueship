@@ -215,6 +215,32 @@ void DrawAutosaveIcon() {
 extern "C" uint32_t SavingEnhancements_AutosaveIntervalMs() {
     return CVarGetInteger("gEnhancements.Saving.AutosaveInterval", 5) * 60000;
 }
+
+/**
+ * #693 (PR #730 review): how many times HandleAutoSave has got PAST its
+ * interval check. The count is bumped immediately after the check and before
+ * anything else HandleAutoSave does, so it records only the interval decision:
+ * whether a save then happens (player present, CanSave, not paused) plays no
+ * part. mm-enhancement-toggles leg 7 drives the real OnGameStateUpdate
+ * registrant with a controlled clock and reads this, so what it locks is
+ * HandleAutoSave's own behaviour (the interval follows the hosted key, in
+ * minutes), not merely the helper above. Read-only; nothing in play consults it.
+ */
+static uint32_t sAutosaveIntervalGatePasses = 0;
+
+extern "C" uint32_t SavingEnhancements_AutosaveIntervalGatePasses() {
+    return sAutosaveIntervalGatePasses;
+}
+
+/**
+ * #693 (PR #730 review): put the interval clock at a chosen Unix-ms value.
+ * The inverse of SavingEnhancements_GetLastAutosaveTimestamp, so a lock can
+ * place the last save a known distance in the past and then restore the clock
+ * exactly as it found it. Test-only: no production path calls it.
+ */
+extern "C" void SavingEnhancements_SetLastAutosaveTimestampForTest(uint64_t timestamp) {
+    lastSaveTimestamp = timestamp;
+}
 #endif
 
 void HandleAutoSave() {
@@ -228,6 +254,9 @@ void HandleAutoSave() {
     if ((currentTimestamp - lastSaveTimestamp) < autosaveInterval) {
         return;
     }
+#ifdef RSBS_SINGLE_EXECUTABLE
+    sAutosaveIntervalGatePasses++;
+#endif
 
     Player* player = GET_PLAYER(MM_gPlayState);
     if (player == NULL) {

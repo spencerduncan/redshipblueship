@@ -83,18 +83,36 @@
  * (`gEnhancements.Saving.AutosaveInterval`, minutes). Like Kaleido.GameOver it
  * has no registrar of its own — HandleAutoSave reads it inline on every tick —
  * so leg 1's registrar-less loop already asserts nothing registered under it.
- * What leg 6 adds is the evidence for the other two legs:
- *   - its GATE (`shownWhileKey`, gEnhancements.Autosave) is the key whose ONE
- *     registrar arms the tick that performs the read, so the setting is live
- *     exactly when the gate is on;
- *   - its READ SITE reads the manifest key in the manifest's unit, with the
- *     manifest's default: cleared -> sliderDefault minutes, and at sliderMin and
- *     sliderMax -> those minutes, all in the milliseconds HandleAutoSave compares.
- *     A slider whose default drifted from the read default makes "reset" and
- *     "never touched" two different intervals; a unit drift (seconds for minutes)
- *     makes the slider's label a lie. Neither is a crash.
- * The read site is `SavingEnhancements_AutosaveIntervalMs`, the one function
- * HandleAutoSave itself calls. Naming it here is an inbound reference into
+ * What leg 6 adds is the READ SITE's evidence: it reads the manifest key in the
+ * manifest's unit, with the manifest's default: cleared -> sliderDefault
+ * minutes, and at sliderMin and sliderMax -> those minutes, all in the
+ * milliseconds HandleAutoSave compares. A slider whose default drifted from the
+ * read default makes "reset" and "never touched" two different intervals; a
+ * unit drift (seconds for minutes) makes the slider's label a lie. Neither is a
+ * crash.
+ * The read site is `SavingEnhancements_AutosaveIntervalMs`. Leg 6 alone does NOT
+ * show that HandleAutoSave consults it (PR #730's review caught the PR claiming
+ * so); leg 7 is what does.
+ *
+ * LEG 7 closes that gap by driving the CONSUMER, not the helper. It arms the
+ * row's gate (`shownWhileKey`, gEnhancements.Autosave) through the production
+ * MM_ShipInit_OnCVarChanged path, finds the ONE OnGameStateUpdate registrant that
+ * arming added, and invokes that registrant -- the real tick, which calls the
+ * real HandleAutoSave -- over a zeroed PlayState with the interval clock placed
+ * 90 s in the past. HandleAutoSave counts every tick that gets past its interval
+ * check (`SavingEnhancements_AutosaveIntervalGatePasses`, bumped before the
+ * player/CanSave checks, so the zeroed PlayState's NULL player ends the tick
+ * there with no save). Key = 1 minute must pass; key = 2 minutes, the key
+ * cleared (5) and the slider maximum must not. That fails if HandleAutoSave
+ * reads a different key (every case reads the default 5, so the 1-minute case
+ * stays blocked) or a different unit (seconds: 1 and 2 both pass), whether or
+ * not it still calls the helper. It then turns the gate off and asserts the
+ * registrant is gone: the interval is consulted exactly while the gate the menu
+ * hides the row behind is on. (Leg 6 used to "show" that by re-counting leg 1's
+ * registrar, which proved nothing about the tick.) Clock, key, gate and
+ * MM_gPlayState are all restored.
+ *
+ * Naming the leg 6/7 functions here is an inbound reference into
  * SavingEnhancements.cpp, which would be the vacuity trap described above
  * EXCEPT that the TU is already pinned by GameExports_SingleExe.cpp's extern "C"
  * calls (SavingEnhancements_AutosaveArmed / _ResetAutosaveInterval /
@@ -440,7 +458,7 @@ extern "C" int MM_EnhancementToggles_RunHeadless(void) {
             printf("[TEST] FAIL(8): with \"%s\" cleared, GAMEOVER_DEATH_FADE_OUT left respawnFlag %d, expected -6 "
                    "(func_80169F78's reload-to-last-entrance). The read site at z_game_over.c:84 no longer selects "
                    "the vanilla arm, so the toggle's OFF state does not mean what #653 ruled it means\n",
-                   (int)gSaveContext.respawnFlag);
+                   kGameOverKey, (int)gSaveContext.respawnFlag);
             failures++;
         }
         if (gSaveContext.save.saveInfo.playerData.health != 0x30) {
@@ -526,17 +544,8 @@ extern "C" int MM_EnhancementToggles_RunHeadless(void) {
                 return 10;
             }
 
-            // The gate: the key whose single registrar arms the tick that reads
-            // this one. Exactly one, for leg 1's attribution reason.
-            if (row.shownWhileKey != nullptr) {
-                const int gateRegistrars = MM_ShipInit_RegistrarCountForPath(row.shownWhileKey);
-                if (gateRegistrars != 1) {
-                    printf("[TEST] FAIL(10): \"%s\" is gated on \"%s\", which has %d ShipInit registrars, expected "
-                           "exactly 1 -- the gate the menu hides this row behind is not the key that arms its read\n",
-                           row.key, row.shownWhileKey, gateRegistrars);
-                    return 10;
-                }
-            }
+            // The gate is not measured here: leg 1 already counts its registrar,
+            // and that it arms the tick which consults THIS key is leg 7's job.
 
             // The read site, three points: cleared (the provider's own default),
             // the minimum and the maximum.
@@ -579,8 +588,118 @@ extern "C" int MM_EnhancementToggles_RunHeadless(void) {
                   "outlived its row, or a slider was added without one");
         ET_ASSERT(sliderRows >= 1, 10, "no manifest slider row: #693's autosave interval row is missing");
     }
-    printf("[TEST] leg 6: each slider key's gate has exactly one registrar, and its read site reads the manifest key "
-           "in the manifest's unit with the manifest's default\n");
+    printf("[TEST] leg 6: each slider key's read site reads the manifest key in the manifest's unit with the "
+           "manifest's default\n");
+
+    // ---- Leg 7 (#693, PR #730 review): the ARMED tick's interval decision -----
+    {
+        using Tick = GameInteractor::OnGameStateUpdate;
+        constexpr const char* kIntervalKey = "gEnhancements.Saving.AutosaveInterval";
+        constexpr uint64_t kElapsedMs = 90000; // 1.5 minutes: past 1, short of 2
+
+        const RSBS::HostedMmEnhancement* row = nullptr;
+        for (size_t i = 0; i < RSBS::kHostedMmEnhancementCount; i++) {
+            if (std::strcmp(RSBS::kHostedMmEnhancements[i].key, kIntervalKey) == 0) {
+                row = &RSBS::kHostedMmEnhancements[i];
+            }
+        }
+        ET_ASSERT(row != nullptr && row->shownWhileKey != nullptr, 12,
+                  "the autosave interval row, or its gate, is missing from the manifest");
+
+        // Arm the gate and find the registrant arming added. Leg 4 left it off.
+        S2H::GameHooks::FlushPendingUnregistrations<Tick>();
+        std::vector<uint32_t> before;
+        for (auto& [id, fn] : S2H::GameHooks::Registry<Tick>::functions) {
+            before.push_back(id);
+        }
+        SetAndDrive(row->shownWhileKey, 1);
+        S2H::GameHooks::FlushPendingUnregistrations<Tick>();
+        std::vector<uint32_t> added;
+        for (auto& [id, fn] : S2H::GameHooks::Registry<Tick>::functions) {
+            bool seen = false;
+            for (uint32_t b : before) {
+                seen = seen || b == id;
+            }
+            if (!seen) {
+                added.push_back(id);
+            }
+        }
+        if (added.size() != 1) {
+            printf("[TEST] FAIL(12): arming \"%s\" added %zu OnGameStateUpdate registrants, expected exactly 1 (the "
+                   "autosave tick). Zero: the gate the menu hides the interval row behind arms no tick at all\n",
+                   row->shownWhileKey, added.size());
+            SetAndDrive(row->shownWhileKey, 0);
+            return 12;
+        }
+        const uint32_t tickId = added[0];
+        const Tick::fn tick = S2H::GameHooks::Registry<Tick>::functions[tickId];
+
+        const int savedKey = CVarGetInteger(kIntervalKey, INT32_MIN);
+        const uint64_t savedClock = SavingEnhancements_GetLastAutosaveTimestamp();
+        PlayState* const savedPlay = MM_gPlayState;
+        std::vector<char> storage(sizeof(PlayState), 0);
+        MM_gPlayState = reinterpret_cast<PlayState*>(storage.data());
+
+        SavingEnhancements_ResetAutosaveInterval();
+        const uint64_t past = SavingEnhancements_GetLastAutosaveTimestamp() - kElapsedMs;
+        SavingEnhancements_SetLastAutosaveTimestampForTest(past);
+
+        struct Case {
+            int minutes; ///< INT32_MIN: key cleared (the read default)
+            bool passes;
+        };
+        const Case cases[] = { { 1, true }, { 2, false }, { INT32_MIN, false }, { row->sliderMax, false } };
+        int failures = 0;
+        for (const Case& c : cases) {
+            if (c.minutes == INT32_MIN) {
+                CVarClear(kIntervalKey);
+            } else {
+                CVarSetInteger(kIntervalKey, c.minutes);
+            }
+            const uint32_t passesBefore = SavingEnhancements_AutosaveIntervalGatePasses();
+            tick();
+            const bool passed = SavingEnhancements_AutosaveIntervalGatePasses() != passesBefore;
+            if (passed != c.passes) {
+                printf("[TEST] FAIL(12): last autosave 90 s ago, \"%s\" %s %d: HandleAutoSave's interval check %s, "
+                       "expected it to %s. The armed tick does not honour the hosted key in minutes, so the slider "
+                       "moves a value HandleAutoSave does not act on\n",
+                       kIntervalKey, c.minutes == INT32_MIN ? "cleared, default" : "=",
+                       c.minutes == INT32_MIN ? row->sliderDefault : c.minutes, passed ? "passed" : "blocked",
+                       c.passes ? "pass" : "block");
+                failures++;
+            }
+            if (SavingEnhancements_GetLastAutosaveTimestamp() != past) {
+                printf("[TEST] FAIL(12): the tick moved the interval clock, i.e. a save ran over the zeroed "
+                       "PlayState; this leg must stop at the NULL player\n");
+                failures++;
+            }
+        }
+
+        // Gate back off: the registrant must go, so the interval is consulted
+        // exactly while the gate the row hides behind is on.
+        SetAndDrive(row->shownWhileKey, 0);
+        S2H::GameHooks::FlushPendingUnregistrations<Tick>();
+        if (S2H::GameHooks::Registry<Tick>::functions.count(tickId) != 0) {
+            printf("[TEST] FAIL(12): the autosave tick is still registered after \"%s\" went back off\n",
+                   row->shownWhileKey);
+            failures++;
+        }
+
+        // Back as found: play state, clock, and the key (absent stays absent).
+        MM_gPlayState = savedPlay;
+        SavingEnhancements_SetLastAutosaveTimestampForTest(savedClock);
+        if (savedKey == INT32_MIN) {
+            CVarClear(kIntervalKey);
+        } else {
+            CVarSetInteger(kIntervalKey, savedKey);
+        }
+        if (failures != 0) {
+            printf("[TEST] mm-enhancement-toggles: %d failure(s) in leg 7\n", failures);
+            return 12;
+        }
+    }
+    printf("[TEST] leg 7: the gate arms exactly one tick; with the last save 90 s ago that tick's interval check "
+           "passes at 1 minute and blocks at 2, cleared (5) and the maximum; the tick is gone once the gate is off\n");
 
     printf("[TEST] mm-enhancement-toggles: PASS\n");
     return 0;

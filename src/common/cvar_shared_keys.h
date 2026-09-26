@@ -728,10 +728,16 @@ inline constexpr HostedMmEnhancement kHostedMmEnhancements[] = {
     // hides. (3) The hook HandleAutoSave rides, OnGameStateUpdate, is dispatched
     // by MM's game.c (GameState_Update) through the single-exe S2H::GameHooks
     // executor in GameExports_SingleExe.cpp. MMEnhancementToggles leg 6 measures
-    // the read site itself: key cleared, at the minimum and at the maximum.
+    // the read site itself: key cleared, at the minimum and at the maximum; leg 7
+    // measures the CONSUMER: it arms the gate, invokes the one OnGameStateUpdate
+    // registrant that arming added (the real tick into HandleAutoSave) with the
+    // last save 90 s ago, and requires the interval check to pass at 1 minute and
+    // block at 2, cleared and the maximum, then that the tick is gone with the
+    // gate off.
     //
-    // DISTINCT FROM OoT, and it must stay so (kMustStayDistinct above, and the
-    // static_assert at the end of this header). OoT's interval is a hardcoded
+    // DISTINCT FROM OoT, and it must stay so (kMustStayDistinct above, the
+    // static_assert at the end of this header, and CvarClassification's (3c-2)
+    // scan, which fails if games/oot ever names this key). OoT's interval is a hardcoded
     // THREE_MINUTES_IN_UNIX with no CVar, so there is no OoT key to converge
     // ONTO. Converging would mean either a slider that claims to set OoT's
     // interval and does nothing there (#499's shape again), or an edit to OoT's
@@ -893,8 +899,11 @@ static_assert(kHostedMmEnhancementCount == 5,
               "Songs.SkipSoTCutscenes and Autosave, plus #693's Saving.AutosaveInterval");
 // #693: hosting the interval must not quietly converge it with OoT's. OoT has no
 // interval CVar (THREE_MINUTES_IN_UNIX), so the key stays an MM-only key held in
-// kMustStayDistinct; dropping it from there while this page hosts it would be the
-// first step of exactly the rename that table exists to refuse.
+// kMustStayDistinct. This assert is unconditional and does not look at the
+// manifest: all it refuses is the key being DROPPED from that table, the first
+// step of exactly the rename the table exists to refuse. The other direction --
+// OoT starting to read the key while it stays listed -- is not a compile-time
+// question; CvarClassification's (3c-2) source scan is what fails on it.
 static_assert(MmEnhKeyMustStayDistinct("gEnhancements.Saving.AutosaveInterval"),
               "the hosted MM autosave interval must stay in kMustStayDistinct: OoT hardcodes its own 3-minute "
               "interval with no CVar, so the two intervals must not converge (#693)");

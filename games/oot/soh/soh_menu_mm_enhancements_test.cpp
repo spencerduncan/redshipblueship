@@ -82,6 +82,7 @@
 
 #include <libultraship/bridge/consolevariablebridge.h>
 
+#include <climits>
 #include <cstddef>
 #include <cstdio>
 #include <string>
@@ -417,7 +418,10 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
                   "gated row must come after it",
                   desc.key, rowAt, desc.shownWhileKey, gateAt);
 
-        const int savedGate = CVarGetInteger(desc.shownWhileKey, 0);
+        // INT32_MIN marks "absent": the restore below clears rather than
+        // writing a 0 nobody set, the discipline MMEnhancementToggles leg 6
+        // follows (PR #730 review).
+        const int savedGate = CVarGetInteger(desc.shownWhileKey, INT32_MIN);
         const std::string beforeName = row->info->name;
 
         CVarSetInteger(desc.shownWhileKey, 0);
@@ -448,7 +452,15 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
                   "than re-evaluated per draw",
                   desc.key, desc.shownWhileKey);
 
-        CVarSetInteger(desc.shownWhileKey, savedGate);
+        // Back as found: the gate key (absent stays absent), and the widget's
+        // isHidden re-derived from it by one more real draw, so the page is not
+        // left hidden by this leg's last OFF pass.
+        if (savedGate == INT32_MIN) {
+            CVarClear(desc.shownWhileKey);
+        } else {
+            CVarSetInteger(desc.shownWhileKey, savedGate);
+        }
+        DrawPass(*row->info);
     }
     MME_CHECK(gatedRows >= 1,
               "no manifest row carries a gate; #693's interval row is gated on gEnhancements.Autosave, so this leg ran "

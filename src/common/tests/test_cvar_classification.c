@@ -135,6 +135,40 @@ bool CvarClassTreeContainsExactKey(const std::vector<std::string>& tree, const c
     return false;
 }
 
+/// Does OoT's tree NAME this key? OoT spells most CVars through the
+/// soh/cvar_prefixes.h macros (`CVAR_ENHANCEMENT("Foo")` expands to
+/// "gEnhancements.Foo" via CMake/soh-cvars.cmake), so a whole-literal search
+/// alone would miss the idiomatic OoT read. Checks the whole literal and, for
+/// the three prefixes a kMustStayDistinct key can carry, the macro form.
+bool CvarClassOotTreeNamesKey(const std::vector<std::string>& tree, const char* key) {
+    if (CvarClassTreeContainsExactKey(tree, key)) {
+        return true;
+    }
+    struct PrefixMacro {
+        const char* prefix;
+        const char* macro;
+    };
+    static const PrefixMacro kMacros[] = {
+        { "gEnhancements.", "CVAR_ENHANCEMENT(\"" },
+        { "gCheats.", "CVAR_CHEAT(\"" },
+        { "gSettings.", "CVAR_SETTING(\"" },
+    };
+    const std::string k(key);
+    for (const PrefixMacro& m : kMacros) {
+        const std::string prefix(m.prefix);
+        if (k.compare(0, prefix.size(), prefix) != 0) {
+            continue;
+        }
+        const std::string needle = std::string(m.macro) + k.substr(prefix.size()) + "\"";
+        for (const std::string& text : tree) {
+            if (text.find(needle) != std::string::npos) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 /// One scanned file, with the repo-relative path kept. The slurp above throws
 /// paths away because every question it asks is "does the tree contain X"; the
 /// menu-index reader allowlist asks "WHICH file contains X", so it needs them.
@@ -373,6 +407,39 @@ TestResult Test_CVarClassification(void) {
                        "[TEST]       If this removal is deliberate and correct, update\n"
                        "[TEST]       RSBS::kMustStayDistinct and docs/enhancement-classification.md together.\n",
                        pair.mmKey, pair.row, pair.ootKey, pair.why);
+                return TEST_FAIL;
+            }
+        }
+
+        // (3c-2) Direction 2, the OTHER half (#693, PR #730 review). (3c)
+        // only notices a pair collapsing by MM's key DISAPPEARING. The same
+        // convergence can happen with every MM key still in place: OoT starts
+        // reading MM's key (e.g. soh/Enhancements/QoL/Autosave.cpp reading
+        // gEnhancements.Saving.AutosaveInterval, so the MM-only slider on
+        // Combo -> MM Enhancements silently moves OoT's fixed 3-minute
+        // interval), or MM starts reading OoT's. So neither game may NAME the
+        // other side's key of a distinct pair. An ootKey that is prose rather
+        // than a key (the autosave interval's "(none — ...)") has nothing to
+        // search for; the scan covers games/oot and games/mm only, so the
+        // shared manifest in src/common and the menu that draws it from there
+        // are not readers here.
+        for (std::size_t i = 0; i < RSBS::kMustStayDistinctCount; i++) {
+            const RSBS::DistinctPair& pair = RSBS::kMustStayDistinct[i];
+            if (CvarClassOotTreeNamesKey(ootTree, pair.mmKey)) {
+                printf("[TEST] FAIL: OoT now names MM's \"%s\" (inventory row: %s).\n"
+                       "[TEST]       The pair is held DISTINCT; OoT's side is \"%s\".\n"
+                       "[TEST]       Why: %s\n"
+                       "[TEST]       An OoT reader of MM's key converges the pair from OoT's side: the\n"
+                       "[TEST]       MM-only control would now move OoT too. Host it from src/common's\n"
+                       "[TEST]       manifest (RSBS::kHostedMmEnhancements) rather than naming it in games/oot.\n",
+                       pair.mmKey, pair.row, pair.ootKey, pair.why);
+                return TEST_FAIL;
+            }
+            if (pair.ootKey[0] == 'g' && CvarClassTreeContainsExactKey(mmTree, pair.ootKey)) {
+                printf("[TEST] FAIL: MM now reads OoT's \"%s\" (inventory row: %s).\n"
+                       "[TEST]       The pair is held DISTINCT; MM's side is \"%s\".\n"
+                       "[TEST]       Why: %s\n",
+                       pair.ootKey, pair.row, pair.mmKey, pair.why);
                 return TEST_FAIL;
             }
         }

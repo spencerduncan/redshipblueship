@@ -278,8 +278,11 @@ The 33 keys in §3.1 + §3.2. Listed there; not repeated.
 > slider stays in the MM subsection.
 > Since #693 that slider is hosted on the unified menu's **Combo → MM Enhancements** page
 > (manifest row in `RSBS::kHostedMmEnhancements`), labelled Majora's-Mask-only; the key stays
-> in `RSBS::kMustStayDistinct`, and a `static_assert` in `src/common/cvar_shared_keys.h`
-> refuses a build that hosts it while dropping it from that table.
+> in `RSBS::kMustStayDistinct`. A `static_assert` in `src/common/cvar_shared_keys.h` fails
+> the build if the key is dropped from that table, and the `CvarClassification` source scan
+> (step 3c-2) fails if `games/oot` ever names it, spelled out or as
+> `CVAR_ENHANCEMENT("Saving.AutosaveInterval")`, which is how the two intervals would
+> converge with the table untouched.
 
 **Group B — wording drift, same meaning (7).** Confirmed by reading both implementations.
 
