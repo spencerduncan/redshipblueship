@@ -1025,6 +1025,7 @@ struct OoTComboLogicRegistrar {
         Combo_Logic_RegisterEngine(GAME_OOT, &kOoTComboLogicEngine);
     }
 };
+const OoTComboLogicRegistrar gOoTComboLogicRegistrar;
 
 // ============================================================================
 // ADR 0010 O7: NAMES FOR THE CROSSING STORE (the one spoiler's crossing section)
