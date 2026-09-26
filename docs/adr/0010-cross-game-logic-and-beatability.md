@@ -664,7 +664,8 @@ about, so the arrival remains the intro event for them and moves nowhere.
 budget = `clamp(30 s × hostScale, 30 s, 90 s)`; `hostScale` is
 `measured / reference` in integer percent, clamped to `[100 %, 300 %]`, measured
 once per process by timing a fixed 24 M-iteration integer loop against a pinned
-55 ms reference (the development workstation this increment was measured on —
+18 ms reference [corrected 2026-09-26, #708: this read "55 ms"; see the
+Amendments entry of that date] (the development workstation this increment was measured on —
 an arbitrary reference on purpose, because only the ratio is used and a
 runtime-sampled reference would make every host's scale drift). The whole
 creation additionally gets `2 ×` the per-attempt budget, checked BETWEEN ladder
@@ -837,7 +838,7 @@ bidirectional), license mechanics (→ D10).)
 | # | Question | What it decides | Owner |
 |---|---|---|---|
 | O4 | **The combo-fill implementation shape** (after the Decision 4 audit): composition's coordinator contract (each engine's exported query surface, snapshot/restore around MM's mutating queries, which TU owns the boundary under ADR 0002's one-sanctioned-TU rule) — or unification, if the audit makes that case | Increment 3's engineering core | **RULED 2026-09-17: composition** (operator; see the 2026-09-17 Amendment below). The coordinator contract is the audit's §4.1 surface with the three code-forced amendments; unification is rejected |
-| O9 | **MM per-trick vocabulary**: does MM grow an `RT_*`-equivalent option table (the graph's TODO seams name the first candidates) before increment 3, or does its trick dimension ship RO_LOGIC-coarse at first and refine later | Trick axis symmetry | Pending a source inventory of the MM trick vocabularies — 2ship upstream, the original MM Randomizer, and OoTMM's MM tricks — research running separately from this ADR |
+| O9 | **MM per-trick vocabulary**: does MM grow an `RT_*`-equivalent option table (the graph's TODO seams name the first candidates) before increment 3, or does its trick dimension ship RO_LOGIC-coarse at first and refine later | Trick axis symmetry | Pending a source inventory of the MM trick vocabularies — 2ship upstream, the original MM Randomizer, and OoTMM's MM tricks — research running separately from this ADR [annotated 2026-09-21 and 2026-09-26: the vocabulary exists — 86 keys declared, 20 reserved, 25 bound at `3b860bf3`; see the Amendments entries of those dates] |
 
 ## Non-goals → future epics
 
@@ -1172,3 +1173,73 @@ O9 stays open until the remaining bindings (and any tightenings #697 finds)
 land; this paragraph corrects the stale "does not have it yet" premise in
 3.1 and records the numbers as measured, it does not close O9. No other
 decided text in this ADR changes.
+
+### 2026-09-26 -- Decision 5's gen-budget reference is 18 ms, not 55 ms (#708)
+
+Decision 5's increment-2 text, under *The budget (#582)*, said the host
+calibration is measured "against a pinned 55 ms reference". The source pins
+**18 ms** (`src/common/gen_budget.c`, `GENBUDGET_REFERENCE_MS 18u`, beside the
+24 M-iteration `GENBUDGET_CALIBRATION_ITERATIONS` workload). **The ADR was the
+wrong one**; the number is corrected in place above with a bracketed pointer
+to this entry. The evidence, all read on this date:
+
+- **The code never held 55.** `git log -S GENBUDGET_REFERENCE_MS` names one
+  commit, the squash of PR #680 (`7bab54bd`). Across all eight of that PR's
+  pre-squash commits, from the first (`913778eb`, which introduced
+  `gen_budget.c`) to the last, the pair is `24000000u` iterations against
+  `18u` ms, unchanged. The loop was never resized, so "the ADR described an
+  earlier, larger workload" is ruled out.
+- **The 55 entered with the prose alone.** `git log -S "55 ms"` on this ADR
+  names the same squash; its source is PR #680's docs commit `490e280f`
+  ("Record ADR 0010 increment 2 as built"), which touched no code.
+- **PR #680's own body says 18**: "measured once per process by timing a
+  fixed 24 M-iteration integer loop against a **pinned 18 ms reference**
+  (this workstation, 2026-09-17)".
+- **The reference host still measures 18.** The workload's own stderr line,
+  on the development workstation, reads
+  `host calibration 18ms against a 18ms reference -> scale 100%` (#708's
+  observation) and `19ms ... -> scale 105%` (the #722 measurement runs,
+  whose #645 comment reports a host scale of 100-105%). Had the reference
+  been 55 ms, that host would measure roughly a third of the reference and
+  every figure in the #722 comment would have been labelled with a
+  different scale.
+
+**Nothing behaved wrongly and no budget moves.** Only the ratio is used, the
+constant in source is self-consistent with the workload it pins, and it is
+not re-measured here (`gen_budget.c` reserves re-measurement for a deliberate
+change of reference machine, as its own commit). No other decided text in
+this ADR changes.
+
+### 2026-09-26 -- O9: the per-trick vocabulary, re-counted after #578 part 3
+
+The 2026-09-21 O9 entry above recorded 86 keys declared, 20 reserved and
+**10** bound. Part 3 of #578 (#697) has since merged twice (PR #703 and PR
+#713), so the bound figure is stale. Re-counted directly at `origin/main` =
+`3b860bf3`:
+
+- **86** `MMRT_*` keys declared in
+  `games/mm/2s2h/Rando/StaticData/TrickIds.h` (before the `MMRT_MAX`
+  sentinel) -- unchanged.
+- **20** of them declared reserved in `Tricks.cpp`'s `MMRT(...)` table --
+  unchanged; still inert until the single bag exists.
+- **25** bound: `kBoundTricks` in
+  `games/mm/2s2h/Rando/OptionsUiSingleExe.cpp` lists 25 keys, and the set of
+  keys consulted through `MM_TRICK(...)` anywhere under
+  `games/mm/2s2h/Rando/Logic/` is the same 25 (counted by distinct key, not
+  by call site). The `mm-trick-bindings` lock keeps the two equal.
+- So **41** declared, non-reserved keys are not yet consulted by any edge.
+
+One key was bound and then withdrawn during part 3's review:
+`MMRT_PALACE_GUARD_SKIP` is deliberately absent from `kBoundTricks` (its
+comment there records why: whether the bare `CAN_BE_DEKU` on
+`RR_DEKU_PALACE_OUTSIDE -> RR_DEKU_PALACE_INSIDE_LOWER` is the guards or the
+poison water its sibling edges model is not settled by the file, and under
+the water reading the binding over-widens; #697's review comment of
+2026-09-22 adds that it would hand the fill a zero-item Human Link route).
+#697 stays open for that judgement and for the seams its review recorded as
+owed. #578, the epic, is closed.
+
+O9's position is therefore unchanged in kind from the 2026-09-21 entry --
+the vocabulary is declared in full and consulted in part -- with the part
+now 25 of 66 bindable keys. The O9 row is annotated in place with these
+numbers. No other decided text in this ADR changes.
