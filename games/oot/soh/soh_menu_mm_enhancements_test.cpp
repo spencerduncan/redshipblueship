@@ -48,12 +48,25 @@
  *      its reason in the disabled tooltip. Every Live row must come out of a
  *      draw pass with NO presentation suffix on its name and not disabled.
  *
- *   6. THE DISABLED PATH IS NEVER EXERCISED. All four shipped rows are Live
+ *   6. THE DISABLED PATH IS NEVER EXERCISED. All five shipped rows are Live
  *      today, so leg 4 below installs SYNTHETIC Partial and Dormant rows through
  *      the same code path and asserts the presentation it produces. Without that,
  *      #682's non-live branch would be untested code discovered on the day
  *      somebody adds a dormant toggle — and what it renders is the one thing ADR
  *      0004 section 5 exists to get right.
+ *
+ *   7. (#693) A NON-BOOLEAN KEY GETS A CHECKBOX, or a slider whose range or
+ *      default drifted from the manifest. MM's autosave interval is minutes; a
+ *      checkbox over it writes 1 or 0 (a one-minute interval, or one that saves
+ *      on every eligible frame), and a slider default that differs from the
+ *      provider's read default makes "reset" and "never touched" disagree.
+ *
+ *   8. (#693) A GATED ROW IGNORES ITS GATE, or hides for good. The interval is
+ *      moot while Autosave is off, so its row must be hidden then and visible,
+ *      enabled and unrenamed when Autosave is on — driven through the real
+ *      PreFunc with the gate key really written, both ways, and the gate key put
+ *      back afterwards. And it sits AFTER the row that accounts for its gate, so
+ *      the player reads "Autosave lives there" before the slider that tunes it.
  *
  * WHAT IT DOES NOT COVER. Whether an enabled toggle changes the game. That needs
  * a ROM, a play state and an operator; the ROM-free half of it is
@@ -67,6 +80,9 @@
 
 #include "cvar_shared_keys.h"
 
+#include <libultraship/bridge/consolevariablebridge.h>
+
+#include <climits>
 #include <cstddef>
 #include <cstdio>
 #include <string>
@@ -130,6 +146,21 @@ FlatRow* FindRowByCVar(std::vector<FlatRow>& rows, const char* cVar) {
         }
     }
     return nullptr;
+}
+
+/** The index in `rows` of the row whose `.CVar` is `cVar` or whose NAME is
+ *  `name` (either may be NULL), or -1. Leg 5's ordering check. */
+long IndexOfRow(std::vector<FlatRow>& rows, const char* cVar, const char* name) {
+    for (std::size_t i = 0; i < rows.size(); i++) {
+        WidgetInfo* info = rows[i].info;
+        if (cVar != nullptr && info->cVar != nullptr && std::string(info->cVar) == cVar) {
+            return (long)i;
+        }
+        if (name != nullptr && info->name == name) {
+            return (long)i;
+        }
+    }
+    return -1;
 }
 
 /** The row whose registered NAME is exactly `name`, or NULL. */
@@ -277,10 +308,42 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
         MME_CHECK(row->info->name == desc.label ||
                       row->info->name == SohGui::SohMenu::StripPresentationSuffix(row->info->name),
                   "the row on \"%s\" is named \"%s\"", desc.key, row->info->name.c_str());
-        MME_CHECK(row->info->type == WIDGET_CVAR_CHECKBOX,
-                  "the row on \"%s\" is widget type %d, not WIDGET_CVAR_CHECKBOX; these keys are read with "
-                  "CVarGetInteger as booleans",
-                  desc.key, (int)row->info->type);
+        if (desc.widget == RSBS::MmEnhancementWidget::SliderInt) {
+            // #693: an integer key gets an integer slider, over the manifest's
+            // range, with the manifest's default — which leg 6 of
+            // MMEnhancementToggles ties to the provider's own read default.
+            MME_CHECK(row->info->type == WIDGET_CVAR_SLIDER_INT,
+                      "the row on \"%s\" is widget type %d, not WIDGET_CVAR_SLIDER_INT; the provider reads an integer "
+                      "(minutes), and a checkbox over it writes 1 or 0",
+                      desc.key, (int)row->info->type);
+            // WidgetOptions is not polymorphic, so the downcast is static and
+            // guarded by the widget type (SohMenu::AddWidget installs the
+            // options alternative matching the type the row was added with).
+            std::shared_ptr<UIWidgets::IntSliderOptions> slider =
+                row->info->type == WIDGET_CVAR_SLIDER_INT && row->info->options != nullptr
+                    ? std::static_pointer_cast<UIWidgets::IntSliderOptions>(row->info->options)
+                    : nullptr;
+            if (slider == nullptr) {
+                printf("[TEST] FAIL(7): the slider on \"%s\" carries no IntSliderOptions\n", desc.key);
+                gFailures++;
+            } else {
+                MME_CHECK(slider->min == desc.sliderMin && slider->max == desc.sliderMax,
+                          "the slider on \"%s\" spans [%d, %d], the manifest says [%d, %d]", desc.key, slider->min,
+                          slider->max, desc.sliderMin, desc.sliderMax);
+                MME_CHECK(slider->defaultValue == desc.sliderDefault,
+                          "the slider on \"%s\" defaults to %d, the manifest (and the provider's read default) says "
+                          "%d",
+                          desc.key, slider->defaultValue, desc.sliderDefault);
+                MME_CHECK(slider->format != nullptr && std::string(slider->format) == desc.sliderFormat,
+                          "the slider on \"%s\" formats with \"%s\", the manifest says \"%s\"", desc.key,
+                          slider->format != nullptr ? slider->format : "(null)", desc.sliderFormat);
+            }
+        } else {
+            MME_CHECK(row->info->type == WIDGET_CVAR_CHECKBOX,
+                      "the row on \"%s\" is widget type %d, not WIDGET_CVAR_CHECKBOX; these keys are read with "
+                      "CVarGetInteger as booleans",
+                      desc.key, (int)row->info->type);
+        }
     }
     printf("[TEST] leg 2: every manifest key is bound by exactly the row its hosting class calls for\n");
 
@@ -324,6 +387,87 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
         }
     }
     printf("[TEST] leg 3: each own-row key's presentation matches its manifest liveness class, twice over\n");
+
+    // ---- Leg 5 (#693): a gated row follows its gate, both ways ----------------
+    // Numbered after leg 4 in the header's list of failure modes (7 and 8), but
+    // run here, while `rows` still points into this probe's page.
+    std::size_t gatedRows = 0;
+    for (std::size_t i = 0; i < RSBS::kHostedMmEnhancementCount; i++) {
+        const RSBS::HostedMmEnhancement& desc = RSBS::kHostedMmEnhancements[i];
+        if (desc.shownWhileKey == nullptr) {
+            continue;
+        }
+        gatedRows++;
+        FlatRow* row = FindRowByCVar(rows, desc.key);
+        if (row == nullptr) {
+            continue; // already reported by leg 2
+        }
+
+        // Ordering: the row accounting for the gate (its own control, or the
+        // pointer row's label) comes first on the page.
+        const char* gateLabel = nullptr;
+        for (std::size_t j = 0; j < RSBS::kHostedMmEnhancementCount; j++) {
+            if (std::string(RSBS::kHostedMmEnhancements[j].key) == desc.shownWhileKey) {
+                gateLabel = RSBS::kHostedMmEnhancements[j].label;
+            }
+        }
+        const long gateAt = IndexOfRow(rows, desc.shownWhileKey, gateLabel);
+        const long rowAt = IndexOfRow(rows, desc.key, nullptr);
+        MME_CHECK(gateAt >= 0 && rowAt > gateAt,
+                  "the row on \"%s\" is at page index %ld and the row accounting for its gate \"%s\" at %ld; the "
+                  "gated row must come after it",
+                  desc.key, rowAt, desc.shownWhileKey, gateAt);
+
+        // INT32_MIN marks "absent": the restore below clears rather than
+        // writing a 0 nobody set, the discipline MMEnhancementToggles leg 6
+        // follows (PR #730 review).
+        const int savedGate = CVarGetInteger(desc.shownWhileKey, INT32_MIN);
+        const std::string beforeName = row->info->name;
+
+        CVarSetInteger(desc.shownWhileKey, 0);
+        DrawPass(*row->info);
+        MME_CHECK(row->info->isHidden,
+                  "with its gate \"%s\" OFF, the row on \"%s\" is drawn; the setting is moot while its parent feature "
+                  "is off",
+                  desc.shownWhileKey, desc.key);
+
+        CVarSetInteger(desc.shownWhileKey, 1);
+        DrawPass(*row->info);
+        DrawPass(*row->info);
+        MME_CHECK(!row->info->isHidden, "with its gate \"%s\" ON, the row on \"%s\" is still hidden",
+                  desc.shownWhileKey, desc.key);
+        if (desc.liveness == RSBS::MmEnhancementLiveness::Live) {
+            MME_CHECK(!IsDisabled(*row->info), "with its gate \"%s\" ON, the Live row on \"%s\" is disabled",
+                      desc.shownWhileKey, desc.key);
+            MME_CHECK(row->info->name == beforeName,
+                      "the gated Live row on \"%s\" was renamed from \"%s\" to \"%s\"; hiding is not a presentation "
+                      "state and must not suffix the name",
+                      desc.key, beforeName.c_str(), row->info->name.c_str());
+        }
+
+        CVarSetInteger(desc.shownWhileKey, 0);
+        DrawPass(*row->info);
+        MME_CHECK(row->info->isHidden,
+                  "the row on \"%s\" stayed visible after its gate \"%s\" went back OFF; the gate is latched rather "
+                  "than re-evaluated per draw",
+                  desc.key, desc.shownWhileKey);
+
+        // Back as found: the gate key (absent stays absent), and the widget's
+        // isHidden re-derived from it by one more real draw, so the page is not
+        // left hidden by this leg's last OFF pass.
+        if (savedGate == INT32_MIN) {
+            CVarClear(desc.shownWhileKey);
+        } else {
+            CVarSetInteger(desc.shownWhileKey, savedGate);
+        }
+        DrawPass(*row->info);
+    }
+    MME_CHECK(gatedRows >= 1,
+              "no manifest row carries a gate; #693's interval row is gated on gEnhancements.Autosave, so this leg ran "
+              "on nothing");
+    printf("[TEST] leg 5: %zu gated row(s) hide with their gate off, show enabled and unrenamed with it on, re-hide "
+           "when it goes off again, and sit after the row that accounts for the gate\n",
+           gatedRows);
 
     // ---- Leg 4: the non-live path, driven with synthetic rows ---------------
     // The shipped manifest is all-Live, so without this leg #682's disabled

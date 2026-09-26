@@ -276,6 +276,13 @@ The 33 keys in §3.1 + §3.2. Listed there; not repeated.
 > therefore **(O) MM-only** and must NOT be swept into the rename. One shared checkbox
 > driving a 3-minute OoT save and a 5-minute MM save is the accepted behaviour; the interval
 > slider stays in the MM subsection.
+> Since #693 that slider is hosted on the unified menu's **Combo → MM Enhancements** page
+> (manifest row in `RSBS::kHostedMmEnhancements`), labelled Majora's-Mask-only; the key stays
+> in `RSBS::kMustStayDistinct`. A `static_assert` in `src/common/cvar_shared_keys.h` fails
+> the build if the key is dropped from that table, and the `CvarClassification` source scan
+> (step 3c-2) fails if `games/oot` ever names it, spelled out or as
+> `CVAR_ENHANCEMENT("Saving.AutosaveInterval")`, which is how the two intervals would
+> converge with the table untouched.
 
 **Group B — wording drift, same meaning (7).** Confirmed by reading both implementations.
 

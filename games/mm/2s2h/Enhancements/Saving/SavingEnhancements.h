@@ -25,6 +25,17 @@ bool SavingEnhancements_AutosaveArmed();
 void SavingEnhancements_ResetAutosaveInterval();
 uint64_t SavingEnhancements_GetLastAutosaveTimestamp();
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// #693: the periodic autosave's interval (ms), from the MM-only minutes key the
+// unified menu's MM Enhancements slider writes. Contract on the definition.
+uint32_t SavingEnhancements_AutosaveIntervalMs();
+// PR #730 review: HandleAutoSave's interval decision, observable. The count of
+// ticks that got past the interval check, and a setter for the interval clock
+// (test-only). Contracts on the definitions.
+uint32_t SavingEnhancements_AutosaveIntervalGatePasses();
+void SavingEnhancements_SetLastAutosaveTimestampForTest(uint64_t timestamp);
+#endif
+
 #ifdef __cplusplus
 }
 #endif
