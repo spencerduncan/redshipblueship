@@ -1,60 +1,110 @@
-# Worker loop goals — 2026-09-26 wave (wave 5)
+# Worker loop goals — 2026-09-26 wave (wave 6)
 
-**Where the phases stand.** Wave 4 landed increment 3's first real slice for
-epic **#645**, none of it wired into a production path: the combo-logic
-coordinator (PR #701, follow-up #717), both real solver exports it drives
-(OoT PR #715, MM PR #714), and the first cost/convergence measurement over
-them (PR #722, `combo-logic-measure`). The measured verdict (#645 comment of
-2026-09-22): one linked round is 2 alternations and 4-10 ms; one attempt
-extrapolates to 0.63-0.87x the #582 30 s floor, ten retries do not fit the
-2x total budget; placement converges but the GOAL is unprovable on every
-seed, because both engines de-duplicate assumed items by id within a round
-(OoT's 321 advancement rows are 105 distinct ids). **Operator ruling
-2026-09-26: multiplicity** — the coordinator passes copies, the engines
-handle repeats — and the bag model must also cover plentiful surplus
-(OoT `RO_ITEM_POOL_PLENTIFUL`, MM `RO_PLENTIFUL_ITEMS`), more checks than
-items (junk fill), and traps as a per-game filler class (OoT `RG_ICE_TRAP`,
-MM `RI_TRAP`; no trap crosses games this increment). Also merged in wave 4:
-golden determinism digests, enforced locally since #718 (#688, PR #700);
-MM per-trick bindings to 25 of 86 keys (#697, PRs #703/#713); MM `mods/`
-mounting (#670, PRs #704/#716); the on-screen creation progress bar (#582,
-PR #707). Community reports #634/#635/#636 remain human-filed and
-hands-off, tracked agent-side as #640/#638/#639.
+**Where the phases stand.** Wave 5 moved increment 3 of epic **#645** from
+"placement converges, the proof does not" to "the proof holds once the bag
+fits". Nothing it built is wired into a production path yet. Here is what
+landed:
+
+- **The multiplicity contract** (PR #728, `combo_logic.h` ABI 3).
+  - One `assumeOwnItem` call is one copy, and neither engine de-duplicates.
+  - Progressives clamp at their top tier behind a round-scoped flag, and
+    counters clamp at their maxima.
+  - Bag rows carry `bagFlags` (`RSBS_COMBO_BAG_SURPLUS`). The proof places
+    required rows only; surplus is placed after the proof, and leftover hosts
+    go to each game's own pass (`Combo_Logic_LeftoverHosts`).
+  - **Traps are counted pool rows in both ports**, so "a trap never crosses"
+    is a caller convention the wiring must keep, not a property of the
+    coordinator.
+- **The O8 classification table** (PR #725, `src/common/shared_items.*`).
+  - The classes are trap > progression > renewable > junk, with one source
+    per game.
+  - Nothing reads it yet. Follow-ups: #731 (one class per cross-game shared
+    quantity) and #733 (MM heart pieces gate two checks).
+- **The O6 tooling** (PR #734): the `ComboLogicMonotonicity` grow-check over
+  both engines, the negation probe with its read baseline, and the review
+  rule below.
+- **The world-moving bundle** (PR #729):
+  - #583: forward drop order, re-pinned.
+  - #681: criterion 3 is profile-conditional. This added a fourth golden,
+    `GoldenSeedDigestArmedCaps`.
+  - #643: O5, 46 time slices; no golden moved.
+  - #719: the Deku-Stick trick gate; no golden moved.
+- **Smaller changes:**
+  - the MM autosave interval slider (PR #730, #693);
+  - loose asset mods for both games (PR #732, #705);
+  - the whole `rando` tier on Windows CI (PR #723, #709).
+
+**Measured** (lane K4's #645 comment of 2026-09-26):
+
+- `beat-either` is proved on the 321+191 bag: 3/3 seeds, first attempt, 0
+  roll-backs.
+- `beat-both` fails on every bag that fits `RSBS_COMBO_LOGIC_BAG_CAP` 512.
+  The only reason is that the capped MM half is a stride sample (#727).
+- With the caps at 4096 (an uncommitted experiment), the whole 2489-row bag
+  proves `beat-both` on the first attempt in 44.5-50.9 s. That is 1.49-1.70x
+  the #582 30 s floor, at 17.9 ms per round inside the fill.
+- The bag as K8 read it:
+  - OoT: 546 rows (321 progression, 105 surplus, 114 filler, 6 ice traps).
+  - MM: 2282 rows (250 progression, 114 surplus, 1918 filler).
+
+  A bag of progression and surplus only (about 790 rows) should cut an
+  attempt to roughly a third. Wave 6 composes that bag, persists the
+  crossings, wires the fill (held for the operator), carries the shared
+  triforce count, and fixes OoT's own plentiful overshoot.
+
+Community reports #634/#635/#636 remain human-filed and hands-off. Their agent
+trackers #640/#638/#639 are all closed (PRs #651, #650, #648).
 
 ## Lanes — one card per lane in `.claude/lanes/`
 
-Read `.claude/lanes/SHARED.md` first; it carries the append-only shared-file
-protocol and the three-edit CTest registration rule that hard-fails the build if
-you do fewer. Then read your own card and the issue or ADR it names.
+Read `.claude/lanes/SHARED.md` first. It carries the append-only shared-file
+protocol and the three-edit CTest registration rule, which hard-fails the
+build if you make fewer than three edits. Then read your own card and the
+issue or ADR it names.
 
 | Lane | Branch | Serves | Owns, roughly |
 |---|---|---|---|
-| K4 | `claude/inc3-multiplicity-contract` | #645: multiplicity in the assume contract, and the surplus / filler / trap rules of the bag (the 2026-09-26 ruling) | `src/common/combo_logic.{h,c}`, the `assumeOwnItem`/`place`/pool-export functions of BOTH engine TUs, `test_combo_logic.c`, `test_combo_logic_measure.c` |
-| K5 | `claude/inc3-o8-classification-table` | #645: ADR 0010 O8, the single-owner item classification table (progression / junk / renewable / trap) with per-game sources | `src/common/shared_items.{h,c}`, a NEW `classify` export in each engine TU (function granularity), `test_shared_items*.c`; NOT `combo_logic.*` |
-| K8 | `claude/inc3-o6-monotonicity-tooling` | #645: ADR 0010 O6, the CI grow-check over both engines and the static negation probe | a new test TU, a new `.github/scripts/` probe with `--self-test`, a CI step (append), a `docs/` page, one Standing-conventions bullet here; branches only after K4 merges |
-| W | `claude/world-moving-bundle-583-681-643-719` | #583 drop order, #681 criterion-3 narrowing, #643 O5 46th slice, #719 Deku-stick gate — each with its own golden re-pin | the files each item names, `tests/golden/*`, ADR 0010/0011 amendment paragraphs (append only); NOT `combo_logic.*` or the engine TUs |
-| G2 | `claude/693-autosave-interval-host` | #693: host MM's autosave interval on the Combo → MM Enhancements page | the MM Enhancements page and its manifest (`kHostedMmEnhancementCount` and its lock) |
-| C1 | `claude/709-windows-rando-tier-trial` | #709: measure running the whole `rando` tier on the Windows CI runner | `.github/workflows/generate-builds.yml` (the Windows gate step); evidence is CI |
-| M3 | `claude/705-loose-asset-mods` | #705: loose (unpacked) asset directories mount as mods for both games | the mods mount path in both games, `docs/MODDING.md`, a redship-tier row |
-| H2 | `claude/wave5-tracker-docs-hygiene` | Tracker + docs hygiene for wave 5 (#645 body, #708, solver-inventory status, ADR 0010 O9, this file, known issues) | `docs/solver-inventory.md` (status annotations only), `docs/adr/0010-*.md` (amendments only), `docs/known-issues.md`, this file, `.claude/lanes/*.md`. No local build. |
+| K9 | `claude/inc3-bag-composition-o8` | #645, #727, #731, #733: compose the bag from the O8 table (progression and surplus only), raise the caps, re-measure | `src/common/combo_logic.{h,c}`, `src/common/shared_items.{h,c}`, the bag-building and classify functions of BOTH engine TUs, the measure/bag-model/multiplicity tests |
+| K10 | `claude/inc3-crossing-persistence-o7` | #645 O7: persist cross-game placements, print them in the one spoiler, rebuild the coordinator's tables from storage | `src/common/context.{h,c}` (the carve or a new append-only block), the persistence/hydrate functions of `foreign_items.{h,c}` (not the pool tables) and of both engine TUs, the spoiler's `"combo"` section writer |
+| K11 | `claude/inc3-single-bag-fill-wiring` | #645 D3/D5: the single-bag fill at the creation event; items leave origin pools; both pinned pools retire; all four goldens re-pinned in one commit. **PR HELD for the operator** | the creation-event seam (`ForeignItemsSingleExe.cpp`, `fill.cpp`'s general pass, `OnFileCreate.cpp`'s paired branch), `kForeignPoolV1` and the MM pinned pool, `tests/golden/*`, an ADR 0010 amendment; starts only after K9 and K10 are on `main` |
+| K12 | `claude/inc3-o10-shared-triforce-count` | ADR 0010 O10: one shared triforce piece count across both worlds | the triforce carrier in `src/common/shared_resources.*`, a new triforce function in each engine TU, each port's hunt-win seam, the coordinator's `triforce-hunt` goal predicate |
+| F26 | `claude/726-oot-progressive-overshoot` | #726: OoT's own fill overshoots progressive copies past the top tier (plentiful wraps the wallet) | the OoT clamp in `games/oot/soh/Enhancements/randomizer/logic.cpp` (inside `RSBS_SINGLE_EXECUTABLE`), a plentiful-profile lock row |
+| H3 | `claude/wave6-tracker-docs-hygiene` | Tracker and docs hygiene for wave 6 (#645 body, ADR 0010 amendments, solver-inventory status, known issues, this file) | `docs/solver-inventory.md` (status annotations only), `docs/adr/0010-*.md` (amendments only), `docs/known-issues.md`, this file, `.claude/lanes/*.md`; agent issue bodies. No local build. |
 
-Shared-file hotspots this wave: **both engine TUs**
-(`ComboLogicEngineOoT.cpp`, `ComboLogicEngineSingleExe.cpp`) are edited by
-**K4** (assume/place/pool functions) and **K5** (a new `classify` export)
-at function granularity — expect a merge, never a rewrite of the other's
-functions. `combo_logic.*` is **K4 only**; `shared_items.*` is **K5 only**.
-ADR 0010 is appended by **H2** (amendments) and **W** (O5 / criterion-3
-answer rows, by dated amendment) — both append-only. This file is written by
-**H2** (header, lane table) and **K8** (one Standing-conventions bullet).
-`tests/golden/*` moves only in **W**, one re-pin commit per intended change.
+**Shared-file hotspots this wave.**
 
-Ordering that is load-bearing: **K8 branches only after K4 merges** (the
-grow-check assumes copies one at a time through the multiplicity contract)
-and reports `blocked` otherwise. Every lane except W proves it moved no
-world by the three golden rows — `GoldenSeedDigestDefault`,
-`GoldenSeedDigestProfileV1`, `GoldenPairedAttemptDigest` — staying green
-with the golden files untouched, and says so by row name. Local-build
-status is on each card (H2 and C1: no local build).
+- **Both engine TUs** (`ComboLogicEngineOoT.cpp`, `ComboLogicEngineSingleExe.cpp`)
+  are edited by three lanes, each at function granularity:
+  - **K9**: bag-building and classify;
+  - **K10**: new persistence/hydrate functions;
+  - **K12**: a triforce carrier.
+
+  Expect merges; never rewrite another lane's functions.
+- `combo_logic.*` and `shared_items.*` are **K9's**.
+- `context.*` and the persistence half of `foreign_items.*` are **K10's**. The
+  pinned-pool half is retired by **K11**.
+- `logic.cpp`'s clamp is **F26's**.
+- ADR 0010 is appended by **H3** and later by **K11**, append-only.
+- `tests/golden/*` moves only in **K11**, in one re-pin commit.
+
+**Load-bearing ordering.**
+
+- **K11 starts only after K9's and K10's PRs are merged**, and reports
+  `blocked` otherwise.
+- **K11 supports `triforce-hunt` only if K12 is on `main`** when it starts. If
+  it is not, K11 refuses that GOAL at creation, with a reason.
+- **Production wiring is K11's alone, and its PR is HELD.** It is gated in
+  full but not merged; the operator decides when. No other lane wires the
+  coordinator into `fill.cpp`, `OnFileCreate.cpp` or the creation event.
+
+**Proving a lane moved no world.** Every lane except K11 proves it with the
+four golden rows staying green and the golden files untouched, and names the
+rows: `GoldenSeedDigestDefault`, `GoldenSeedDigestProfileV1`,
+`GoldenPairedAttemptDigest`, `GoldenSeedDigestArmedCaps`. F26 changes OoT's
+worlds under plentiful only. The shipped default is not plentiful, so if any
+golden moves, F26 stops and reports.
+
+**Local builds.** H3 does no local build. At most two lanes build at once.
 
 This file deliberately holds almost no state. Its failure mode is going stale
 — an earlier revision claimed "Wave 3" and "eleven commits awaiting push" for a
@@ -67,13 +117,13 @@ gets updated as work lands.
 | What | Where |
 |---|---|
 | Phase 3.2 tracker (ADR 0010 increments, O4/O9, wave sweeps) | **#500** |
-| ADR 0010 increment epics | **#644** (increment 2, merged PR #680; CLOSED 2026-09-21, all prerequisites delivered) → **#645** (increment 3, single-bag fill; O4 ruled composition; coordinator, both exports and the first measurement merged in wave 4; multiplicity ruled 2026-09-26; lanes K4/K5/K8 in wave 5) |
+| ADR 0010 increment epics | **#644** (increment 2, merged PR #680; CLOSED 2026-09-21, all prerequisites delivered) → **#645** (increment 3, single-bag fill; O4 ruled composition; coordinator, both exports and the first measurement merged in wave 4; multiplicity (PR #728), the O8 table (PR #725) and the O6 tooling (PR #734) merged in wave 5; lanes K9/K10/K11 (held)/K12 in wave 6) |
 | The O4 solver-inventory audit | `docs/solver-inventory.md` (PR #647); recommended composition; **RULED composition** (operator, 2026-09-17; ADR 0010 amendment) |
-| MM per-trick vocabulary (O9) | #578 (closed): parts 1-2 (PR #686, PR #696) and part 3's two passes (PR #703, PR #713) merged, 25 of 86 keys bound; #697 open for the owed seams and the `MMRT_PALACE_GUARD_SKIP` judgement |
+| MM per-trick vocabulary (O9) | #578 (closed): parts 1-2 (PR #686, PR #696) and part 3's two passes (PR #703, PR #713) merged, 25 of 86 keys bound, 26 after the Deku-Stick gate (PR #729, #719); #697 open for the owed seams and the `MMRT_PALACE_GUARD_SKIP` judgement |
 | Phase 3.1 tracker (closed) | #492 |
 | Combo-level settings (ADR 0011) | #498, `docs/adr/0011-combo-level-settings.md` |
 | MM hook dispatch coverage | #438 |
-| Community reports (human-filed, hands-off) and their agent trackers | #634 → #640 (open: Anchor page), #635 → #638 (resolved), #636 → #639 (resolved) |
+| Community reports (human-filed, hands-off) and their agent trackers | #634 → #640 (resolved, PR #651), #635 → #638 (resolved, PR #650), #636 → #639 (resolved, PR #648); the human issues stay open for the operator |
 | Player-visible known issues | `docs/known-issues.md` |
 | Phase 3 roadmap and execution plan (reasoning behind the trackers) | `docs/phase3-roadmap.md`, `docs/phase3-execution-prompt.md` |
 | Per-lane worker cards | `.claude/lanes/lane<name>.md` |
@@ -131,12 +181,12 @@ are the reasoning behind them.
   of your own binary against each other, so they detect nondeterminism only. The
   rows that fail on a MOVED world are the golden ones —
   `GoldenSeedDigestDefault`, `GoldenSeedDigestProfileV1`,
-  `GoldenPairedAttemptDigest` — which compare one run against `tests/golden/`. If
+  `GoldenPairedAttemptDigest`, `GoldenSeedDigestArmedCaps` — which compare one run against `tests/golden/`. If
   your change is meant to move a world, re-pin deliberately
   (`cmake --build <dir> --target regen-golden-digests`) in its own commit stating
   which fields moved and why; if it is not, a red golden row is the bug report.
-  All three rows run in a ROM-staged local run as well as on both CI legs: the two
-  archive-sensitive ones generate from an archive-free sandbox under
+  All four rows run in a ROM-staged local run as well as on both CI legs: the three
+  archive-sensitive seed rows generate from an archive-free sandbox under
   `build-cmake/golden-archive-free/` (they used to SKIP there, which left the local
   merge gate with no golden coverage at all). No golden row has a skip path on any
   gate any more: a sandbox that cannot be built FAILS the row, because a broken
