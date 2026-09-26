@@ -19,7 +19,18 @@ namespace Rando {
 
 namespace Logic {
 
-// Time slice enum - 45 granular time points throughout MM's 3-day cycle
+// Time slice enum - 46 granular time points throughout MM's 3-day cycle.
+//
+// 46, NOT 45 (ADR 0010 answer O5, adopted 2026-09-26, #643): TIME_NIGHT2_AM_05_30
+// is the slice OoTMM's canonical list carries between Night 2's 05:00 and Day 3's
+// dawn and this port had omitted. Inserting it RENUMBERS every Day-3 and Night-3
+// enumerator, so every ordinal-addressed consumer is derived from the enumerators
+// below rather than written as a literal: TIME_SLICE_COUNT, TIME_ALL_SLICES and
+// HALF_DAY_TIME_RANGES are all checked against the enum by static_asserts, which
+// is the "pinned where both the crawl and any data port read it" clause of O5.
+// No region guard in Logic/Regions names the new boundary yet; it is there so a
+// ported guard that needs it has somewhere to point, and so the vocabulary the
+// increment-3 coordinator and any #576 data port enumerate is the canonical one.
 enum TimeSlice {
     TIME_DAY1_AM_06_00 = 0,
     TIME_DAY1_AM_07_00,
@@ -52,6 +63,7 @@ enum TimeSlice {
     TIME_NIGHT2_AM_12_00,
     TIME_NIGHT2_AM_04_00,
     TIME_NIGHT2_AM_05_00,
+    TIME_NIGHT2_AM_05_30,
     TIME_DAY3_AM_06_00,
     TIME_DAY3_AM_07_00,
     TIME_DAY3_AM_08_00,
@@ -65,14 +77,20 @@ enum TimeSlice {
     TIME_NIGHT3_PM_11_00,
     TIME_NIGHT3_AM_12_00,
     TIME_NIGHT3_AM_04_00,
-    TIME_NIGHT3_AM_05_00 // = 44
+    TIME_NIGHT3_AM_05_00 // = 45
 };
 
 // Time slice count and bitmask constants
 // Derived from enum - update if last enum value changes
 constexpr int TIME_SLICE_COUNT = TIME_NIGHT3_AM_05_00 + 1;
 constexpr uint64_t TIME_BIT_ONE = 1ULL;              // Base value for bit shifting
-constexpr uint64_t TIME_ALL_SLICES = 0x1FFFFFFFFFFF; // All 45 time bits set
+constexpr uint64_t TIME_ALL_SLICES = 0x3FFFFFFFFFFF; // All 46 time bits set
+// The O5 pin (#643). A slice added or dropped without updating this line, or a
+// mask that disagrees with the count, is a red BUILD rather than a crawl that
+// silently ignores its last slice. The u64 has 18 bits of headroom left.
+static_assert(TIME_SLICE_COUNT == 46, "MM's canonical time-slice list is 46 (ADR 0010 answer O5, #643)");
+static_assert(TIME_ALL_SLICES == (TIME_BIT_ONE << TIME_SLICE_COUNT) - 1, "TIME_ALL_SLICES must cover every slice");
+static_assert(TIME_SLICE_COUNT <= 64, "the time mask is a uint64_t");
 
 // Half-day period definitions for Clock Shuffle
 struct HalfDayRange {
@@ -82,14 +100,28 @@ struct HalfDayRange {
 
 // Map half-day indices to their time slice ranges
 // Index 0-5 correspond to HALF_DAY1_DAY through HALF_DAY3_NIGHT
+// Written with the ENUMERATORS, not ordinals: the 46th slice (#643) renumbered
+// every Day-3/Night-3 value, and a literal table is exactly the second copy of
+// the list O5 says must not exist. The asserts below pin the tiling.
 constexpr HalfDayRange HALF_DAY_TIME_RANGES[6] = {
-    { 0, 6 },   // HALF_DAY1_DAY   (TIME_DAY1_AM_06_00 to TIME_DAY1_PM_04_00)
-    { 7, 15 },  // HALF_DAY1_NIGHT (TIME_NIGHT1_PM_06_00 to TIME_NIGHT1_AM_05_00)
-    { 16, 22 }, // HALF_DAY2_DAY   (TIME_DAY2_AM_06_00 to TIME_DAY2_PM_04_00)
-    { 23, 30 }, // HALF_DAY2_NIGHT (TIME_NIGHT2_PM_06_00 to TIME_NIGHT2_AM_05_00)
-    { 31, 36 }, // HALF_DAY3_DAY   (TIME_DAY3_AM_06_00 to TIME_DAY3_PM_01_00)
-    { 37, 44 }, // HALF_DAY3_NIGHT (TIME_NIGHT3_PM_06_00 to TIME_NIGHT3_AM_05_00)
+    { TIME_DAY1_AM_06_00, TIME_DAY1_PM_04_00 },   // HALF_DAY1_DAY   (slices 0-6)
+    { TIME_NIGHT1_PM_06_00, TIME_NIGHT1_AM_05_00 }, // HALF_DAY1_NIGHT (slices 7-15)
+    { TIME_DAY2_AM_06_00, TIME_DAY2_PM_04_00 },   // HALF_DAY2_DAY   (slices 16-22)
+    { TIME_NIGHT2_PM_06_00, TIME_NIGHT2_AM_05_30 }, // HALF_DAY2_NIGHT (slices 23-31, incl. the O5 slice)
+    { TIME_DAY3_AM_06_00, TIME_DAY3_PM_01_00 },   // HALF_DAY3_DAY   (slices 32-37)
+    { TIME_NIGHT3_PM_06_00, TIME_NIGHT3_AM_05_00 }, // HALF_DAY3_NIGHT (slices 38-45)
 };
+// The six half-days TILE the slice list: contiguous, gap-free, in order, from
+// slice 0 through the last one. GetHalfDayTimeMask and GetOwnedTimeSlices build
+// Clock Shuffle's owned-time mask from these ranges, so a gap would be a slice
+// no clock can ever grant and an overlap a slice two clocks both grant.
+static_assert(HALF_DAY_TIME_RANGES[0].startSlice == 0, "half-days start at slice 0");
+static_assert(HALF_DAY_TIME_RANGES[1].startSlice == HALF_DAY_TIME_RANGES[0].endSlice + 1, "half-days tile");
+static_assert(HALF_DAY_TIME_RANGES[2].startSlice == HALF_DAY_TIME_RANGES[1].endSlice + 1, "half-days tile");
+static_assert(HALF_DAY_TIME_RANGES[3].startSlice == HALF_DAY_TIME_RANGES[2].endSlice + 1, "half-days tile");
+static_assert(HALF_DAY_TIME_RANGES[4].startSlice == HALF_DAY_TIME_RANGES[3].endSlice + 1, "half-days tile");
+static_assert(HALF_DAY_TIME_RANGES[5].startSlice == HALF_DAY_TIME_RANGES[4].endSlice + 1, "half-days tile");
+static_assert(HALF_DAY_TIME_RANGES[5].endSlice == TIME_SLICE_COUNT - 1, "half-days end at the last slice");
 
 // Game time constants for day/night transitions
 constexpr u16 GAME_TIME_DAY_START = 0x4000;   // 6:00 AM
