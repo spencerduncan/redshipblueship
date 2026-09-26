@@ -864,6 +864,16 @@ typedef struct {
     // ADR's new claim 10. 108 clears the floor by 44 bytes, and the next carver
     // starts from 108 with the append-only second-block rule in force — never a
     // widen in place of anything ahead of it.
+    //
+    // ADR 0010 O7 (the cross-game placement records) SPENT NOTHING HERE, and the
+    // reason is arithmetic, re-measured at 4a3bf058 by compiling this header:
+    // sizeof(ComboContext) 1004, reserved[108] at offset 896, 20 bytes of record
+    // slack after the struct. 108 - 64 (the floor) = 44 spendable bytes, 64 with
+    // the slack appended; one crossing is 8 bytes, so Tier-1 could hold at most
+    // eight crossings across both directions, and the single bag produces
+    // hundreds. The records live in the .redsave format-v3 Tier-4 block instead
+    // (crossing_store.h, which states the layout and the alternatives weighed).
+    // The next carver still starts from 108.
     uint8_t reserved[108];
 } ComboContext;
 
@@ -1191,6 +1201,13 @@ typedef enum {
      * therefore join this policy's snapshot/restore pair in context.cpp in
      * the same change that carves it. That pairing is the whole reason this
      * is an explicit argument rather than a hidden policy.
+     *
+     * The CROSSING STORE (crossing_store.h, ADR 0010 O7) is in the KEEP set by
+     * the same rule: it is world identity the creation event authors (lane
+     * K11's creation seam calls Combo_Crossings_CaptureFromCoordinator), so a
+     * creation that runs before this invalidation must not be wiped by it. It
+     * lives outside gComboCtx, so it is kept by NOT clearing it; every DROP path
+     * clears it.
      *
      * The FORWARD table (foreignPlacements) is dropped even here, and the
      * reason is narrower than it used to read: at file-creation time it can
