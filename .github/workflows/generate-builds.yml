@@ -692,10 +692,14 @@ jobs:
     # committed bytes, so "MSVC and GCC generate the same world for the same seed" is
     # now a property CI re-verifies on every PR rather than a measurement somebody
     # took once (docs/determinism-goldens.md, "Platform portability").
-    - name: Run the golden determinism rows (Windows/MSVC) (#688)
+    - name: Run rando tier (Windows/MSVC) (#709, #688)
+      env:
+        # Same as build-linux's rando step: name each ShipInit func as it runs so a
+        # hang/crash inside one is attributable from the log alone (#361).
+        RSBS_TRACE_SHIP_INIT: "1"
       run: |
         $ctest = Join-Path (Split-Path -Parent (Get-Command cmake).Source) 'ctest.exe'
-        & $ctest --test-dir bw --output-on-failure --tests-regex '^Golden' --no-tests=error
+        & $ctest --test-dir bw --output-on-failure --label-regex '^rando$' --no-tests=error
     # The Windows twin of build-linux's "Print this build's golden determinism
     # digests" step, and it exists for the reason that step states: with only
     # `--output-on-failure`, a PASSING row's digest never reaches the log, so "do
