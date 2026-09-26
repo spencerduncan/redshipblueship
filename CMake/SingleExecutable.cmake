@@ -108,6 +108,10 @@ set(REDSHIP_COMMON_SOURCES
     # this half is game-header-free C so a headless row can drive it. APPENDED,
     # never reordered.
     ${CMAKE_SOURCE_DIR}/src/common/gen_progress_overlay.c
+    # The single-bag fill AT THE CREATION EVENT (ADR 0010 increment 3, D3/D5;
+    # #645 lane K11): the coordinator's one production caller. Game-header-free.
+    # APPENDED, never reordered.
+    ${CMAKE_SOURCE_DIR}/src/common/combo_single_bag.c
 )
 
 # Windows-specific: import thunks for libultraship compatibility
@@ -160,6 +164,7 @@ set(REDSHIP_COMMON_HEADERS
     # two follow-on lanes implement (#645)
     ${CMAKE_SOURCE_DIR}/src/common/combo_logic.h
     ${CMAKE_SOURCE_DIR}/src/common/crossing_store.h
+    ${CMAKE_SOURCE_DIR}/src/common/combo_single_bag.h
     ${CMAKE_SOURCE_DIR}/src/common/entrance.h
     # Header for mod_archives.cpp above (#593)
     ${CMAKE_SOURCE_DIR}/src/common/mod_archives.h

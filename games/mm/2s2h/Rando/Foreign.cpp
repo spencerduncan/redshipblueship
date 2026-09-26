@@ -503,6 +503,17 @@ static bool IsAllowedHostClass(const Rando::StaticData::RandoStaticCheck& randoS
     return false;
 }
 
+bool IsForeignHostClass(RandoCheckId randoCheckId) {
+    if (randoCheckId <= RC_UNKNOWN || randoCheckId >= RC_MAX) {
+        return false;
+    }
+    const auto staticIt = Rando::StaticData::Checks.find(randoCheckId);
+    if (staticIt == Rando::StaticData::Checks.end() || staticIt->second.randoCheckId == RC_UNKNOWN) {
+        return false;
+    }
+    return IsAllowedHostClass(staticIt->second);
+}
+
 bool IsEligibleHost(RandoCheckId randoCheckId) {
     if (randoCheckId <= RC_UNKNOWN || randoCheckId >= RC_MAX) {
         return false;
@@ -873,7 +884,12 @@ bool RecordForeignPickup(RandoCheckId randoCheckId) {
     // stage/commit outbox is RAM-only, see shared_items.h). The producer
     // de-dups an identical un-redeemed entry, so a re-fired give cannot
     // double-record.
-    return Combo_RecordSharedItem((GameId)item->originGame, item->id) >= 0;
+    //
+    // A COPY, NOT A CONTENT-DE-DUPED RECORD (ADR 0010 increment 3): under the single
+    // bag two MM hosts may hold two copies of one OoT id, and both pickups must
+    // reach OoT. This give fires once per check (the CheckQueue's obtained gate),
+    // which is the only de-dup a crossing needs — see RSBS_SHARED_ITEM_CROSSING.
+    return Combo_RecordSharedItemCrossing((GameId)item->originGame, item->id) >= 0;
 }
 
 } // namespace Foreign

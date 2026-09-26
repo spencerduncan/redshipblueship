@@ -18,6 +18,14 @@
 #include <set>
 #include <spdlog/spdlog.h>
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// ComboLogicEngineOoT.cpp: the paired world's general-pass deferral (ADR 0010
+// increment 3, lane K11). Declared here rather than through a src/common header
+// because the state lives in OoT's own engine TU.
+extern "C" int OoT_ComboLogic_DeferGeneralPassWanted(void);
+extern "C" void OoT_ComboLogic_SetGeneralPassDeferred(int deferred);
+#endif
+
 using namespace Rando;
 
 static bool placementFailure = false;
@@ -1212,6 +1220,35 @@ void VanillaFill() {
 void ClearProgress() {
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+/**
+ * THE PER-GAME REMAINDER OF A PAIRED WORLD'S GENERAL PASS, after the single-bag
+ * coordinator has placed the bag (ADR 0010 increment 3; combo_logic.h THE BAG
+ * MODEL, shape 4). Called by OoT_ComboLogic_FinishGeneralPass only.
+ *
+ * `remainingPool` is what the bag did not take: OoT's junk, renewables and TRAPS.
+ * The TRAPS go first and only into free hosts (a fixed ice trap is a counted row
+ * the settings chose, so it must not be the one a short host supply drops); then
+ * the rest, junk-padded exactly as the native FastFill pads, over every host
+ * still empty. Then the tail the native Fill() runs after its general pass,
+ * minus the playthrough (see the seam in Fill()).
+ */
+int RsbsFinishPairedGeneralPass(std::vector<RandomizerGet>& remainingPool) {
+    auto ctx = Rando::Context::GetInstance();
+    std::vector<RandomizerGet> traps =
+        FilterAndEraseFromPool(remainingPool, [](const RandomizerGet i) { return i == RG_ICE_TRAP; });
+    FastFill(traps, GetAllEmptyLocations(), true);
+    FastFill(remainingPool, GetAllEmptyLocations(), false);
+    remainingPool.clear();
+
+    ctx->CreateItemOverrides();
+    ctx->GetEntranceShuffler()->CreateEntranceOverrides();
+    CreateAllHints();
+    CreateWarpSongTexts();
+    return 1;
+}
+#endif
+
 int Fill() {
     auto ctx = Rando::Context::GetInstance();
     int retries = 0;
@@ -1398,6 +1435,46 @@ int Fill() {
         // Then place Link's Pocket Item if it has to be an advancement item
         RandomizeLinksPocket();
         StopPerformanceTimer(PT_LIMITED_CHECKS);
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // ====================================================================
+        // THE SINGLE BAG'S SEAM (ADR 0010 increment 3, D3; audit §4.6; lane K11).
+        //
+        // For a PAIRED world the general pass below — the remaining-advancement
+        // AssumedFill over ctx->allLocations and the junk FastFill — is NOT this
+        // function's to run: items leave origin pools, and one fill at the
+        // creation event draws from the union of this pool and MM's and places
+        // across both games' hosts (src/common/combo_single_bag.h). So the fill
+        // stops HERE, with the restricted passes above done exactly as before,
+        // the general pass's hosts empty, and its items still in itemPool — which
+        // is precisely the state the coordinator's OoT engine and
+        // OoT_ComboLogic_ExportPool's current-pool mode are written against.
+        //
+        // What it does NOT do here, deliberately: GeneratePlaythrough and the
+        // beatability check (OoT alone is in general not beatable under one bag;
+        // the proof is the coordinator's exit condition, over BOTH games), the
+        // WotH / barren passes that read that playthrough, the overrides and the
+        // hints. OoT_ComboLogic_FinishGeneralPass runs the per-game remainder
+        // after the coordinator has placed the bag.
+        //
+        // A restricted pass that failed still retries, the native way.
+        if (OoT_ComboLogic_DeferGeneralPassWanted()) {
+            if (!placementFailure) {
+                OoT_ComboLogic_SetGeneralPassDeferred(1);
+                SPDLOG_INFO("Paired world: the general pass is deferred to the single-bag fill at the creation event");
+                SPDLOG_DEBUG("Number of retries {}", retries);
+                return 1;
+            }
+            if (retries < 4) {
+                SPDLOG_DEBUG("A restricted pass failed. Retrying...");
+                Regions::ResetAllLocations();
+                logic->Reset();
+                ClearProgress();
+            }
+            retries++;
+            continue;
+        }
+#endif
 
         StartPerformanceTimer(PT_ADVANCEMENT_ITEMS);
         SPDLOG_INFO("Shuffling Advancement Items");

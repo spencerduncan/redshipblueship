@@ -13,6 +13,7 @@
 #ifdef RSBS_SINGLE_EXECUTABLE
 
 #include <string>
+#include <vector>
 #include "Types.h"
 
 namespace Rando {
@@ -144,6 +145,23 @@ int ForcedShortForeignPlacementsRemaining();
  *  selection predicate through MM_Rando_Foreign_IsEligibleHost instead of
  *  re-deriving it; see the bridge block at the bottom of Foreign.cpp. */
 bool IsEligibleHost(RandoCheckId randoCheckId);
+
+/** The STATIC half of IsEligibleHost: is this check of a class MM's foreign give
+ *  path delivers from (Tier A: a cycle-reset chest; never a shop or Tingle slot)?
+ *  No save state is read, so it answers for a host the fill has not filled yet —
+ *  which is the question the single-bag coordinator asks before it draws a
+ *  crossing onto an MM host (combo_logic.h `hostAcceptsForeign`, ABI 4). */
+bool IsForeignHostClass(RandoCheckId randoCheckId);
+
+/** THE PAIRED CREATION'S FILL (ADR 0010 increment 3, lane K11): the single-bag
+ *  coordinator over OoT's deferred general pass and this MM pool, then MM's own
+ *  pass over MM's leftover hosts. Defined in ComboLogicEngineSingleExe.cpp; called
+ *  from OnFileCreate's paired branch inside the attempt ladder, in place of MM's
+ *  own fill and the forward crossing pass. Throws Rando::Logic::GenerationTimeout
+ *  on the per-attempt wall-clock stop and std::runtime_error on a deterministic
+ *  dead end, exactly as MM's own fill does. */
+void RunPairedSingleBagFill(std::vector<RandoCheckId>& checkPool, std::vector<RandoItemId>& itemPool,
+                            int ladderAttempt);
 
 /** Swap deterministically-chosen junk placements for the pinned foreign pool
  *  and record them in gComboCtx.foreignPlacements. Call after the fill/logic

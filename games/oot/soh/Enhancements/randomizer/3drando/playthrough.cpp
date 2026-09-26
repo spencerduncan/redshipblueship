@@ -21,6 +21,10 @@
 // the creation event freezes the MM half's option profile too (#498/#564).
 #include "combo_mm_options_view.h"
 #include "gen_budget.h" // src/common — the #582 progress surface (OoT's half)
+// ComboLogicEngineOoT.cpp: the paired world's general pass, deferred to the
+// single-bag fill at the creation event (ADR 0010 increment 3, lane K11).
+extern "C" void OoT_ComboLogic_SetGeneralPassDeferred(int deferred);
+extern "C" int OoT_ComboLogic_GeneralPassDeferred(void);
 #endif
 
 namespace Playthrough {
@@ -32,6 +36,11 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
     Random_Init(seed);
 
     auto ctx = Rando::Context::GetInstance();
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // A new generation replaces the world, and with it any general pass a
+    // previous paired generation deferred to a creation that never happened.
+    OoT_ComboLogic_SetGeneralPassDeferred(0);
+#endif
     ctx->overrides.clear();
     ctx->ItemReset();
     ctx->HintReset();
@@ -257,6 +266,24 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
         Combo_GenProgress_End(false);
         return -1;
     }
+
+    // THE GOAL MUST HAVE AN EVALUATOR, AND THIS IS WHERE A CREATION CAN STILL BE
+    // TOLD SO (ADR 0010 increment 3, lane K11). The single-bag fill's exit
+    // condition is the frozen GOAL, and RSBS_COMBO_GOAL_TRIFORCE_HUNT has no
+    // evaluator in this build: answer O10's ONE shared piece count across both
+    // worlds is not on main (combo_logic.h, RSBS_COMBO_LOGIC_ERR_UNSUPPORTED_GOAL).
+    // Refused HERE, at Generate, with the reason, rather than after the player has
+    // named a file — and never silently proved as beat-both, which would ship a
+    // world whose stated goal is not the one that was proved.
+    if (gComboCtx.comboSettings.goal == (uint8_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT) {
+        SPDLOG_ERROR("Paired identity: the combo GOAL is triforce-hunt, which this build cannot prove (ADR 0010 "
+                     "O10's shared piece count is not built); refusing to generate");
+        fprintf(stderr, "[OoT] generation REFUSED: combo GOAL triforce-hunt has no evaluator in this build (one "
+                        "shared piece count across both worlds, ADR 0010 O10, is not built yet)\n");
+        rsbsRollbackFreeze();
+        Combo_GenProgress_End(false);
+        return -1;
+    }
 #endif
 
 #ifdef RSBS_SINGLE_EXECUTABLE
@@ -273,7 +300,16 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
 
     GenerateHash();
 
-    if (true) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // A PAIRED world's OoT half is not finished yet: Fill() stopped at its general
+    // pass, and the single-bag fill at the creation event places the rest. Its
+    // spoiler is written there, once, describing the world the player will play;
+    // a spoiler written here would describe a world with its general pass empty.
+    const bool rsbsGeneralPassDeferred = OoT_ComboLogic_GeneralPassDeferred() != 0;
+#else
+    const bool rsbsGeneralPassDeferred = false;
+#endif
+    if (!rsbsGeneralPassDeferred) {
         // TODO: Handle different types of file output (i.e. Spoiler Log, Plando Template, Patch Files, Race Files,
         // etc.)
         //  write logs
@@ -305,39 +341,12 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
 #endif
 
 #ifdef RSBS_SINGLE_EXECUTABLE
-    // #510, the reverse foreign pool: hand a few MM items to OoT checks, under
-    // the identity and the combo record frozen ABOVE Fill(). The placement
-    // stream is derived from that identity, so the order is load-bearing — not
-    // stylistic — and it is now the freeze, not this call site, that guarantees
-    // it.
-    //
-    // WHY THIS PASS STAYS HERE while the FORWARD pass moved to the file-create
-    // seam (see OoT_RunPairedCreationEvent, ForeignItemsSingleExe.cpp). Its
-    // input is OoT's finished fill, which exists exactly here; its rules are the
-    // frozen record, which now exists before the fill; and it consumes no RNG
-    // stream (a local xorshift seeded from the identity). Moving it would
-    // therefore change nothing observable while re-pinning four locks, so it
-    // moves when it has a REASON to move: increment 3's single-bag fill, where
-    // both directions become one draw over one bag and the whole fill relocates
-    // with them.
-    //
-    // The #ifdef is required, not defensive: OoT_PlaceForeignItems exists only in
-    // the single-exe build, while Playthrough_Init is ordinary OoT code that also
-    // compiles for a standalone SoH.
-    //
-    // Propagated through the return code rather than an exception. Nothing in
-    // this chain catches — Rando_HeadlessSeedTest is extern "C" — so a throw here
-    // would std::terminate the headless CI rows and the live generate alike.
-    // A PARTIAL placement is not a failure and returns >= 0; only "the pairing is
-    // on but could not be honoured at all" is negative (see foreign_items.h).
-    Combo_GenProgress_Report((uint8_t)RSBS_GENPHASE_CROSSINGS, 0, "linking Termina's items into Hyrule");
-    const int foreignPlaced = OoT_PlaceForeignItems();
-    if (foreignPlaced < 0) {
-        SPDLOG_ERROR("Cross-game foreign placement failed ({}); aborting generation", foreignPlaced);
-        rsbsRollbackFreeze();
-        Combo_GenProgress_End(false);
-        return foreignPlaced;
-    }
+    // THE REVERSE OVERLAY PASS IS RETIRED (ADR 0010 increment 3, D3; lane K11).
+    // It used to hand a few MM items to OoT chests HERE, as duplicate copies on
+    // top of OoT's finished fill. Under one bag nothing is a duplicate: every
+    // crossing is a placement the single-bag fill makes at the creation event,
+    // with the item removed from its origin's pool, and this generation has not
+    // placed its general pass at all yet.
     Combo_GenProgress_End(true);
 #endif
 

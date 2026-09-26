@@ -89,8 +89,17 @@ extern "C" {
  *  `assumeOwnItem`'s MEANING is not — one call is now one COPY, and an engine
  *  must count it (see that entry). An ABI-2 engine de-duplicated by id, which is
  *  exactly the behaviour this contract now forbids, so the number moves even
- *  though no pointer did. */
-#define RSBS_COMBO_LOGIC_ENGINE_ABI 3u
+ *  though no pointer did.
+ *
+ *  4 (2026-09-27, the production wiring, lane K11): the vtable gains ONE
+ *  OPTIONAL trailing pointer, `hostAcceptsForeign`, and bag rows gain
+ *  RSBS_COMBO_BAG_HOME_ONLY. An ABI-3 engine never answered "may a foreign
+ *  item land on this host", so the coordinator would have placed a crossing on
+ *  a host whose give path cannot deliver one (an OoT freestanding item, an MM
+ *  shop slot) and the player would have picked up the junk cover instead of a
+ *  progression item. The number moves because an old engine's silence would be
+ *  read as "every host accepts", which is exactly that defect. */
+#define RSBS_COMBO_LOGIC_ENGINE_ABI 4u
 
 // ============================================================================
 // Status codes — DIAGNOSTICS, NOT FORMAT
@@ -152,6 +161,13 @@ extern "C" {
  *  `beginQuery` or `snapshot` returned 0, or `place` returned 0 for a host the
  *  engine had itself offered as a candidate. */
 #define RSBS_COMBO_LOGIC_ERR_ENGINE_REFUSED 10
+/** The caller's fill observer asked the fill to stop (ComboLogicFillRequest's
+ *  `observer` returned nonzero). The production caller does that ONLY for a
+ *  WALL-CLOCK stop, and a wall clock never decides a world (PR #581 §2a): this
+ *  status is therefore deliberately distinct from every dead end above, so the
+ *  attempt ladder can refuse to climb a rung on it. The tables hold whatever the
+ *  interrupted attempt had placed; a caller discards them. */
+#define RSBS_COMBO_LOGIC_ERR_ABORTED 11
 
 /** Its name ("ok", "no-engine", ...), or "(unknown)". Never NULL. */
 const char* Combo_Logic_StatusName(int status);
@@ -748,6 +764,29 @@ typedef struct ComboLogicEngine {
      */
     int (*snapshot)(void* self);
     void (*restore)(void* self);
+
+    /**
+     * OPTIONAL (ABI 4). May an item of the OTHER game's origin be placed on
+     * `hostCheck`, a host in THIS engine's check id-space?
+     *
+     * WHY IT EXISTS. A crossing only exists for the player if the host's own give
+     * path can deliver a foreign item when the check is collected. Neither port
+     * delivers from every check: OoT's foreign delivery rides the RC-queue drain
+     * that its chests use, and MM's rides the ordinary eligible->CheckQueue path,
+     * which its shop and Tingle flows do not take (Foreign.cpp's host classes).
+     * A crossing placed anywhere else would be a progression item the player can
+     * never receive — they would pick up the junk cover — so the proof would be
+     * about a world that does not exist. Each engine therefore answers for its
+     * own host classes, and the coordinator never draws a foreign row onto a
+     * host that says no.
+     *
+     * NULL means every host accepts a foreign item (the synthetic stub engines'
+     * answer). A pure function of the host and the engine's static tables: legal
+     * outside a round, consumes no RNG, called during a draw.
+     *
+     * @return nonzero when a foreign-origin item may be placed on `hostCheck`.
+     */
+    int (*hostAcceptsForeign)(void* self, uint16_t hostCheck);
 } ComboLogicEngine;
 
 /**
@@ -898,9 +937,17 @@ int Combo_Logic_EvaluateGoal(uint8_t goal, int ootGoalReached, int mmGoalReached
  *  the GOAL proof may rely on (a plentiful duplicate). See THE BAG MODEL below.
  *  RAM only; not format. */
 #define RSBS_COMBO_BAG_SURPLUS 0x0001u
+/** `ComboLogicBagItem.bagFlags`: this row may only be HOSTED BY ITS OWN ORIGIN
+ *  GAME (ABI 4). It is still one bag row — assumed like any other, proved like any
+ *  other — but the draw offers it only its origin side's candidates. Set by the
+ *  production wiring for (a) every row of an origin the frozen DIRECTION does not
+ *  arm to cross (ADR 0011 decision 2.3: "the direction byte gates only what
+ *  crosses"), and (b) the CONFINED rows of THE BAG COMPOSITION RULE, which a frozen
+ *  setting keeps in their own game. RAM only; not format. */
+#define RSBS_COMBO_BAG_HOME_ONLY 0x0002u
 /** Every bag flag this build understands. A row carrying any other bit is
  *  refused (RSBS_COMBO_LOGIC_ERR_BAD_REQUEST) rather than silently ignored. */
-#define RSBS_COMBO_BAG_FLAGS_KNOWN RSBS_COMBO_BAG_SURPLUS
+#define RSBS_COMBO_BAG_FLAGS_KNOWN (RSBS_COMBO_BAG_SURPLUS | RSBS_COMBO_BAG_HOME_ONLY)
 
 /** The assumed set / bag element: ONE COPY of an origin-tagged item, the class
  *  it was admitted under, and its bag flags. The class is CARRIED, not filtered
@@ -1202,11 +1249,23 @@ typedef struct {
     int plentiful;                      // rows the export marked PLENTIFUL, whatever their disposition
 } ComboLogicComposeCounts;
 
+/** `ComboLogicComposeRequest.composeFlags`: admit CONFINED rows to the bag as
+ *  HOME_ONLY rows (REQUIRED, or SURPLUS when plentiful) instead of counting them
+ *  out. The production wiring (lane K11) sets it: under one bag there is no
+ *  general pass left in either game for a confined row to fall to, so the
+ *  coordinator places it — on its own game's hosts only, which is exactly the
+ *  confinement the frozen setting asked for. Without the flag the rule is the
+ *  K9 table verbatim, which is what the measurement rows and the rule's own lock
+ *  run. */
+#define RSBS_COMBO_COMPOSE_ADMIT_CONFINED_HOME 0x0001u
+#define RSBS_COMBO_COMPOSE_FLAGS_KNOWN RSBS_COMBO_COMPOSE_ADMIT_CONFINED_HOME
+
 typedef struct {
     const ComboLogicPoolRow* rows; // both games' pool rows, in any interleaving; NULL iff rowCount == 0
     int rowCount;
-    uint32_t armedOoT; // the frozen armed word for OoT-origin rows (RSBS_FILL_ARM_*)
-    uint32_t armedMM;  // ... and for MM-origin rows
+    uint32_t armedOoT;     // the frozen armed word for OoT-origin rows (RSBS_FILL_ARM_*)
+    uint32_t armedMM;      // ... and for MM-origin rows
+    uint16_t composeFlags; // RSBS_COMBO_COMPOSE_* flags; 0 = the rule table exactly as stated above
 } ComboLogicComposeRequest;
 
 typedef struct {
@@ -1232,6 +1291,32 @@ int Combo_Logic_ComposeBag(const ComboLogicComposeRequest* req, ComboLogicBagIte
 // THE SINGLE-BAG ASSUMED FILL
 // ============================================================================
 
+/** Where a fill is, as its observer sees it. Diagnostics, not format. */
+#define RSBS_COMBO_FILL_STAGE_ROUND 0   /**< a round for one REQUIRED row is about to run */
+#define RSBS_COMBO_FILL_STAGE_PROOF 1   /**< the exit-condition round is about to run */
+#define RSBS_COMBO_FILL_STAGE_SURPLUS 2 /**< the surplus phase is about to run */
+
+typedef struct {
+    int stage;          // RSBS_COMBO_FILL_STAGE_*
+    int attempt;        // 1-based batch attempt within this RunFill
+    int requiredPlaced; // REQUIRED rows placed so far in this attempt
+    int requiredCount;  // REQUIRED rows in the bag
+    int rounds;         // rounds run so far, across every attempt of this call
+} ComboLogicFillProgress;
+
+/**
+ * The fill's OBSERVER: called before every round and before the surplus phase,
+ * on the fill's own thread. A progress surface reports from here and pumps its
+ * frames; a wall-clock budget checks itself here.
+ *
+ * Returning NONZERO stops the fill with RSBS_COMBO_LOGIC_ERR_ABORTED. THE
+ * OBSERVER MUST NOT DECIDE ANYTHING ABOUT THE WORLD: it sees no bag row, no host
+ * and no RNG, so it cannot steer a placement, and the only thing it can do is
+ * stop. That is the #581 §2a shape the MM fill's timeout already has — a stop is
+ * never a rung.
+ */
+typedef int (*ComboLogicFillObserver)(void* ctx, const ComboLogicFillProgress* progress);
+
 typedef struct {
     const ComboLogicBagItem* bag; // the union bag; NULL iff bagCount == 0
     int bagCount;
@@ -1248,6 +1333,10 @@ typedef struct {
     /** Batch roll-backs within this seed; 0 means RSBS_COMBO_LOGIC_FILL_RETRIES.
      *  Re-rolling the SEED is the attempt ladder's job, one level up. */
     int maxAttempts;
+    /** Optional (NULL: none). See ComboLogicFillObserver. Never part of the
+     *  determinism contract below: an observer that returns zero changes nothing. */
+    ComboLogicFillObserver observer;
+    void* observerCtx;
 } ComboLogicFillRequest;
 
 typedef struct {

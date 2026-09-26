@@ -122,7 +122,7 @@ int Combo_RecordSharedItem(GameId originGame, uint16_t id) {
     for (int i = 0; i < (int)RSBS_SHARED_ITEM_CAP; i++) {
         SharedItem* slot = &gComboCtx.sharedItemsTagged[i];
         if (slot->originGame == (uint8_t)originGame && slot->id == id &&
-            (slot->flags & (RSBS_SHARED_ITEM_REDEEMED | RSBS_SHARED_ITEM_SOURCED)) == 0) {
+            (slot->flags & (RSBS_SHARED_ITEM_REDEEMED | RSBS_SHARED_ITEM_SOURCED | RSBS_SHARED_ITEM_CROSSING)) == 0) {
             return i; // already pending — leave it exactly as-is
         }
     }
@@ -131,6 +131,20 @@ int Combo_RecordSharedItem(GameId originGame, uint16_t id) {
     if (slot >= 0) {
         fprintf(stderr, "[SharedItem] recorded origin=%s id=%u in slot %d\n", Game_ToString(originGame), (unsigned)id,
                 slot);
+    }
+    return slot;
+}
+
+int Combo_RecordSharedItemCrossing(GameId originGame, uint16_t id) {
+    if (!IsRealGame(originGame)) {
+        return -1;
+    }
+    // NO content de-dup: every crossing pickup is its own copy (see
+    // RSBS_SHARED_ITEM_CROSSING). The once-per-host guarantee is the give path's.
+    int slot = AppendSharedItem(originGame, id, RSBS_SHARED_ITEM_CROSSING);
+    if (slot >= 0) {
+        fprintf(stderr, "[SharedItem] recorded crossing copy origin=%s id=%u in slot %d\n", Game_ToString(originGame),
+                (unsigned)id, slot);
     }
     return slot;
 }

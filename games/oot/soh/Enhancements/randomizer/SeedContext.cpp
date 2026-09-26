@@ -18,6 +18,11 @@
 
 #include <fstream>
 #include <spdlog/spdlog.h>
+#ifdef RSBS_SINGLE_EXECUTABLE
+// ComboLogicEngineOoT.cpp: a loaded spoiler replaces the world, so a general pass
+// deferred for the previous generation's single-bag fill no longer exists.
+extern "C" void OoT_ComboLogic_SetGeneralPassDeferred(int deferred);
+#endif
 extern "C" {
 #include <functions.h>
 }
@@ -414,6 +419,9 @@ void Context::ParseSpoiler(const char* spoilerFileName) {
     }
     mSeedGenerated = false;
     mSpoilerLoaded = false;
+#ifdef RSBS_SINGLE_EXECUTABLE
+    OoT_ComboLogic_SetGeneralPassDeferred(0);
+#endif
     try {
         nlohmann::json spoilerFileJson;
         spoilerFileStream >> spoilerFileJson;

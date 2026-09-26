@@ -158,7 +158,9 @@ TestResult ComboLogicMultiplicity_Run(void) {
     const ComboLogicEngine* oot = Combo_Logic_GetEngine(GAME_OOT);
     const ComboLogicEngine* mm = Combo_Logic_GetEngine(GAME_MM);
     CLX_ASSERT(oot != nullptr && mm != nullptr, "both real engines must be registered");
-    CLX_ASSERT(oot->abiVersion == 3u && mm->abiVersion == 3u, "both engines must speak ABI 3 (one call is one copy)");
+    CLX_ASSERT(oot->abiVersion >= 3u && mm->abiVersion >= 3u && oot->abiVersion == RSBS_COMBO_LOGIC_ENGINE_ABI &&
+                   mm->abiVersion == RSBS_COMBO_LOGIC_ENGINE_ABI,
+               "both engines must speak ABI 3 or later (one call is one copy)");
 
     CLX_ASSERT(Rando_HeadlessSeedTest("RSBSCOMBOMULTI1") == 0, "headless OoT seed generation failed");
     MM_Rando_InitCore();

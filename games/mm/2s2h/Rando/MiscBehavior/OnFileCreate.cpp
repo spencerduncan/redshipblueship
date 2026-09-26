@@ -152,6 +152,11 @@ void Rando::MiscBehavior::OnFileCreate(s16 fileNum) {
                 // genuinely fresh derivation rather than a mutation of a
                 // half-failed one.
                 // ------------------------------------------------------------
+#ifdef RSBS_SINGLE_EXECUTABLE
+                // The ladder attempt the next runGenerationOnce belongs to: the
+                // single-bag fill's seed and budget are a function of it.
+                int rsbsLadderAttempt = 0;
+#endif
                 auto runGenerationOnce = [&]() {
                     // Persist StartingItems to the save
                     auto startingItems = Rando::GetStartingItemsFromConfig();
@@ -170,7 +175,19 @@ void Rando::MiscBehavior::OnFileCreate(s16 fileNum) {
 
                     // Balance pools
                     int heartPiecesRemoved = 0;
+#ifdef RSBS_SINGLE_EXECUTABLE
+                    // ADR 0010 increment 3 (D3; lane K11): NOT for a paired world.
+                    // Its pool is not a bijection onto MM's checks any more: the
+                    // single bag places MM's progression across BOTH games' hosts,
+                    // and this step would erase or fold rows the bag admits (MM's
+                    // bombchus and hearts reconcile to PROGRESSION, #731/#733) —
+                    // combo_logic.h, "MM'S BALANCE STEP AND THE BAG". The bag is
+                    // composed from the pool GeneratePools returned, and MM's own
+                    // pass fits the rest to MM's leftover hosts (RunPairedSingleBagFill).
+                    while (!rsbsPaired && checkPool.size() != itemPool.size()) {
+#else
                     while (checkPool.size() != itemPool.size()) {
+#endif
                         if (checkPool.size() > itemPool.size()) {
                             itemPool.push_back(RI_JUNK);
                         } else {
@@ -219,6 +236,31 @@ void Rando::MiscBehavior::OnFileCreate(s16 fileNum) {
                     // Grant the starting stuff
                     Rando::GrantStartingItems();
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+                    if (rsbsPaired) {
+                        // ============================================================
+                        // THE SINGLE-BAG FILL (ADR 0010 increment 3, D3/D5; lane K11).
+                        //
+                        // Items leave origin pools: ONE fill places the union of
+                        // OoT's general-pass pool and this pool across both games'
+                        // hosts, and its exit condition is the frozen GOAL under the
+                        // frozen rung (src/common/combo_single_bag.h). It replaces,
+                        // for a paired world, BOTH of what used to run here: MM's own
+                        // fill (the RO_LOGIC branch below — the combo's frozen rung,
+                        // not MM's RO_LOGIC, decides the proof now) and the forward
+                        // crossing pass, which pinned a few OoT items onto MM junk as
+                        // duplicate overlays and is retired with them.
+                        //
+                        // The live save is in its file-creation state HERE, after
+                        // GeneratePools and the starting grant — the state the
+                        // coordinator's MM engine rounds start from. A failure throws
+                        // into the ladder's catches below: a wall-clock stop never
+                        // climbs a rung, a dead end does.
+                        Rando::Foreign::RunPairedSingleBagFill(checkPool, itemPool, rsbsLadderAttempt);
+                        return;
+                    }
+#endif
+
                     if (RANDO_SAVE_OPTIONS[RO_LOGIC] == RO_LOGIC_VANILLA) {
                         GiveItem(RI_SWORD_KOKIRI);
                         GiveItem(RI_SHIELD_HERO);
@@ -241,7 +283,7 @@ void Rando::MiscBehavior::OnFileCreate(s16 fileNum) {
                     }
 
 #ifdef RSBS_SINGLE_EXECUTABLE
-                    if (rsbsPaired) {
+                    if (false) {
                         // Lane C1 (#392): swap deterministically-chosen junk
                         // placements for the pinned OoT foreign items, recorded in
                         // gComboCtx.foreignPlacements (the MM table keeps its
@@ -409,6 +451,7 @@ void Rando::MiscBehavior::OnFileCreate(s16 fileNum) {
                                 Combo_GenBudget_FillBudgetMs(attempt);
                         }
                         Combo_GenProgress_Report((uint8_t)RSBS_GENPHASE_MM_FILL, attempt + 1, nullptr);
+                        rsbsLadderAttempt = attempt;
                         finalSeed = Rando::Foreign::MixPairedFinalSeedForAttempt((uint32_t)attempt);
                         gSaveContext.save.shipSaveInfo.rando.finalSeed = finalSeed;
                         Ship_Random_Seed(finalSeed);

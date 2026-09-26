@@ -51,6 +51,8 @@
 #include "3drando/fill.hpp"
 
 #include "foreign_items.h"       // src/common — ComboForeignItemDef, SharedItem
+#include "combo_single_bag.h" // src/common — the single-bag fill (ADR 0010 increment 3, lane K11)
+#include "crossing_store.h"   // src/common — the creation writer of the crossings (ADR 0010 O7)
 #include "shared_items.h"        // src/common — Combo_RecordSharedItem (#493)
 #include "notification_bridge.h" // src/common — the shared refusal/failure overlay
 #include "gen_budget.h"          // src/common — the #582 fill budget + progress surface
@@ -857,11 +859,14 @@ static bool OoT_Foreign_RecordPickupImpl(uint16_t rc) {
         return false;
     }
 
-    // Durable immediately (Combo_RecordSharedItem writes the serialized array,
-    // so an OoT save+quit before the next switch cannot lose the pickup — the
-    // stage/commit outbox is RAM-only, see shared_items.h). The producer de-dups
-    // an identical un-redeemed entry, so a re-fired queue cannot double-record.
-    return Combo_RecordSharedItem((GameId)item->originGame, item->id) >= 0;
+    // Durable immediately (the serialized array, so an OoT save+quit before the
+    // next switch cannot lose the pickup — the stage/commit outbox is RAM-only,
+    // see shared_items.h). ONE COPY PER PICKUP (ADR 0010 increment 3): under the
+    // single bag two OoT hosts may hold two copies of one MM id, and both must
+    // reach MM, so the record is never content-merged (RSBS_SHARED_ITEM_CROSSING).
+    // The drain's `!loc->HasObtained()` gate is what keeps one host from firing
+    // twice.
+    return Combo_RecordSharedItemCrossing((GameId)item->originGame, item->id) >= 0;
 }
 
 /**
@@ -1009,6 +1014,11 @@ static_assert(MM_SAVE_CONTEXT_SIZE <= sizeof(SaveContext),
 static char sOoTSaveSnapshot[sizeof(SaveContext)];
 static char sMmInFlightSave[sizeof(SaveContext)];
 static bool sCreationBracketActive = false;
+// MM's finished half, kept past the bracket for the ONE spoiler's join (lane K11):
+// the join reads MM's world out of gSaveContext, and under one bag it runs AFTER
+// OoT's own remainder has been placed and its spoiler written, which needs OoT's
+// bytes live. So the join gets a second, short bracket over these bytes.
+static char sMmFinishedSave[sizeof(SaveContext)];
 
 extern "C" void OoT_Creation_PaintWithOoTSaveVisible(void (*paint)(void)) {
     if (paint == nullptr) {
@@ -1097,10 +1107,29 @@ extern "C" int OoT_Creation_LiveSaveIsOoTSnapshot(void) {
  *         file", which succeeds by authoring nothing); 0 when the paired
  *         creation FAILED and the file must not be written.
  */
+// ComboLogicEngineOoT.cpp: OoT's per-game remainder after the single-bag fill.
+extern "C" int OoT_ComboLogic_FinishGeneralPass(int writeSpoiler);
+
 extern "C" int OoT_RunPairedCreationEvent(int slot) {
     if (!Combo_ForeignPairingActive()) {
         // A vanilla file, or a rando file whose stamp the KEEP identity check
-        // discarded (#597). Nothing to author; not a failure.
+        // discarded (#597). Nothing to author; not a failure — UNLESS OoT's world
+        // is a paired generation's, waiting at its general pass for a single-bag
+        // fill that can now never run (the pairing it was generated for is gone:
+        // a creation that failed and retracted it, or a stamp discarded since).
+        // That world has no general pass at all, so a file created from it would
+        // be missing most of OoT's items. Refused, the same way a failed creation
+        // is (ADR 0010 increment 3, lane K11): the player generates again.
+        if (OoT_ComboLogic_GeneralPassDeferred() != 0) {
+            fprintf(stderr,
+                    "[OoT] creation event: slot %d REFUSED — OoT's world was generated for a paired creation that no "
+                    "longer has an identity, and its general pass was never placed; generate the seed again\n",
+                    slot);
+            fflush(stderr);
+            RsbsSave_RefuseSlotGeneration(slot);
+            OoT_Creation_ReportFailureAtFileSelect(slot, 0);
+            return 0;
+        }
         return 1;
     }
 
@@ -1132,25 +1161,11 @@ extern "C" int OoT_RunPairedCreationEvent(int slot) {
                 Combo_ForeignCrossingsRequested() ? 1 : 0, crossingsAuthored ? 1 : 0);
     }
 
-    // The OoT spoiler document this creation will grow its "combo" section into
-    // (#660). CVAR_GENERAL("SpoilerLog") holds "./Randomizer/<hash-icons>.json",
-    // written minutes ago by SpoilerLog_Write; resolve it the way that writer
-    // did. Handed to the MM half rather than used here, because the join needs
-    // MM's world live in gSaveContext and the bracket below takes that away the
-    // moment the call returns.
-    std::string ootSpoilerAbsolute;
-    {
-        const std::string cvarPath = CVarGetString(CVAR_GENERAL("SpoilerLog"), "");
-        if (cvarPath.empty()) {
-            fprintf(stderr, "[OoT] creation event: no OoT spoiler on record - the paired half has nothing to join\n");
-        } else {
-            std::string relative = cvarPath;
-            if (relative.rfind("./", 0) == 0) {
-                relative = relative.substr(2);
-            }
-            ootSpoilerAbsolute = Ship::Context::GetPathRelativeToAppDirectory(relative.c_str());
-        }
-    }
+    // THE OoT SPOILER IS NOT WRITTEN YET (ADR 0010 increment 3, lane K11). A
+    // paired world's OoT half stopped at its general pass at Generate, and its
+    // spoiler is written below, once the single-bag fill inside the MM half has
+    // placed the bag and OoT's own remainder is down. So the MM half is handed
+    // no path and does not join; the join runs at the end of this function.
 
     // The creation seam's own progress session (#582). Separate from the one
     // Playthrough_Init opened around OoT's staged generation, because the two
@@ -1185,9 +1200,11 @@ extern "C" int OoT_RunPairedCreationEvent(int slot) {
     memcpy(sOoTSaveSnapshot, &gSaveContext, sizeof(SaveContext));
     sCreationBracketActive = true;
 
-    const int mmRc = MM_Rando_GenerateAtCreation(slot, ootSpoilerAbsolute.c_str());
+    const int mmRc = MM_Rando_GenerateAtCreation(slot, "");
 
     sCreationBracketActive = false;
+    // MM's finished half, kept for the spoiler join at the end (see its buffer).
+    memcpy(sMmFinishedSave, &gSaveContext, sizeof(SaveContext));
     memcpy(&gSaveContext, sOoTSaveSnapshot, sizeof(SaveContext));
     // The OoT-side tail, measured for the same reason MM measures its two
     // stretches (#582's review asked for numbers rather than the assertion that
@@ -1217,6 +1234,10 @@ extern "C" int OoT_RunPairedCreationEvent(int slot) {
         Combo_ClearForeignPlacements();
         Combo_ClearForeignPlacementsOoT();
         Combo_ClearForeignGiveCaps();
+        // The single bag's own artifacts (lane K11): no crossings for a world that
+        // was not created, and no engine record that a later fill could "restore".
+        Combo_Crossings_Clear();
+        Combo_SingleBag_Forget();
         // formatVersion 0 is the record's ABSENT tag (ADR 0011 decision 4.2) —
         // the occupancy byte that makes the other eleven usable. Zeroing it is
         // how a record is retracted; there is deliberately no "unfreeze" API,
@@ -1232,61 +1253,86 @@ extern "C" int OoT_RunPairedCreationEvent(int slot) {
     }
 
     // ------------------------------------------------------------------------
-    // THE FOREIGN-PLACEMENT SHORTFALL, SURFACED AT CREATION (#583).
+    // THE SINGLE BAG'S OoT-SIDE TAIL (ADR 0010 increment 3, D3; lane K11).
     //
-    // The under-supply rule (#580) places fewer crossings rather than stranding
-    // them on unreachable hosts. That is right, and it was invisible: a player
-    // promised four crossings who got two found out by reading the spoiler JSON.
-    // The number is decided here, so it is announced here — on the same overlay
-    // every other creation-time verdict uses, with the counts that explain it.
+    // The MM half ran the single-bag fill over both worlds and MM's own pass over
+    // MM's leftovers. What is left is OoT's, and it runs HERE because it needs
+    // OoT's bytes live (its spoiler writer reads gSaveContext.language):
     //
-    // NOT AN ERROR AND NOT A FAILURE. While crossings are duplicate overlays
-    // (increments 1-2) the origin world keeps its own copy of every pool item,
-    // so a missing crossing costs "fewer extras" and never a winnable world.
-    // The toast says fewer, the creation succeeds, and the spoiler keeps the
-    // durable record.
-    {
-        int requested = 0;
-        int placed = 0;
-        int eligible = 0;
-        int reachable = 0;
-        if (MM_Rando_LastPlacementStats(&requested, &placed, &eligible, &reachable)) {
-            fprintf(stderr,
-                    "[OoT] creation event: SHORTFALL — %d of %d cross-game items found a host in Termina "
-                    "(%d eligible host checks, %d of them reachable)\n",
-                    placed, requested, eligible, reachable);
-            fflush(stderr);
-
-            static char shortfallMessage[224];
-            snprintf(shortfallMessage, sizeof(shortfallMessage),
-                     "Only %d of %d Ocarina of Time items could be hidden in Termina - this seed's reachable "
-                     "chests ran short. Your Hyrule world still contains all of them; you will simply find "
-                     "fewer of them over there.",
-                     placed, requested);
-            ComboNotification shortfallToast;
-            memset(&shortfallToast, 0, sizeof(shortfallToast));
-            shortfallToast.prefix = "Fewer cross-game items:";
-            shortfallToast.prefixColor[0] = 1.0f;
-            shortfallToast.prefixColor[1] = 0.8f;
-            shortfallToast.prefixColor[2] = 0.3f;
-            shortfallToast.prefixColor[3] = 1.0f;
-            shortfallToast.message = shortfallMessage;
-            shortfallToast.messageColor[0] = 1.0f;
-            shortfallToast.messageColor[1] = 1.0f;
-            shortfallToast.messageColor[2] = 1.0f;
-            shortfallToast.messageColor[3] = 1.0f;
-            shortfallToast.remainingTime = 15.0f;
-            // Muted for the same reason the failure toast below is: the creation
-            // event runs inside the display-free locks as well as inside file
-            // select, and Notification::Emit's unmuted arm plays an OoT sound.
-            shortfallToast.mute = 1;
-            OoT_Notification_Emit(&shortfallToast);
+    //   1. THE CROSSINGS, captured from the coordinator's tables into the store
+    //      (ADR 0010 O7) — the one durable record of which host of either game
+    //      yields an item of the other, frozen with the world, persisted in the
+    //      .redsave's Tier-4 by the Save_SaveFile() this seam's caller runs next.
+    //   2. OoT's REMAINDER: its junk, renewables and traps onto its leftover
+    //      hosts, overrides, hints, and its spoiler document.
+    //   3. THE ONE SPOILER: MM's half joined into OoT's document as "combo", over
+    //      a second short bracket that puts MM's finished bytes back in view.
+    //   4. COMMIT: the coordinator's and both engines' roll-back records are
+    //      dropped, so no later fill can "restore" this world.
+    //
+    // A failure in any of them fails the creation the same way a failed MM half
+    // does: nothing is written, nothing of the identity survives.
+    // ------------------------------------------------------------------------
+    bool tailOk = true;
+    const int crossings = Combo_Crossings_CaptureFromCoordinator();
+    if (crossings < 0) {
+        fprintf(stderr, "[OoT] creation event: the crossing store refused the single bag's crossings (%s)\n",
+                Combo_Crossings_StatusName(crossings));
+        tailOk = false;
+    }
+    Combo_GenProgress_Report((uint8_t)RSBS_GENPHASE_CROSSINGS, 0, "Filling Hyrule's remaining checks");
+    if (tailOk && OoT_ComboLogic_FinishGeneralPass(1) != 0) {
+        fprintf(stderr, "[OoT] creation event: OoT's remainder after the single-bag fill could not run\n");
+        tailOk = false;
+    }
+    if (tailOk) {
+        Combo_GenProgress_Report((uint8_t)RSBS_GENPHASE_SPOILER, 0, "writing the paired spoiler");
+        const std::string cvarPath = CVarGetString(CVAR_GENERAL("SpoilerLog"), "");
+        if (cvarPath.empty()) {
+            fprintf(stderr, "[OoT] creation event: no OoT spoiler on record - the paired half has nothing to join\n");
+        } else {
+            std::string relative = cvarPath;
+            if (relative.rfind("./", 0) == 0) {
+                relative = relative.substr(2);
+            }
+            const std::string ootSpoilerAbsolute = Ship::Context::GetPathRelativeToAppDirectory(relative.c_str());
+            memcpy(sOoTSaveSnapshot, &gSaveContext, sizeof(SaveContext));
+            memcpy(&gSaveContext, sMmFinishedSave, sizeof(SaveContext));
+            sCreationBracketActive = true;
+            MM_Rando_AugmentSpoilerWithPairedHalf(ootSpoilerAbsolute.c_str());
+            sCreationBracketActive = false;
+            memcpy(&gSaveContext, sOoTSaveSnapshot, sizeof(SaveContext));
         }
+    }
+    const ComboSingleBagReport* bag = Combo_SingleBag_LastReport();
+    fprintf(stderr,
+            "[OoT] creation event: single bag — %d crossings stored (%d OoT items in Termina, %d MM items in Hyrule), "
+            "%d rows placed, %d surplus dropped, %d rounds, fill %ums\n",
+            crossings, bag->crossingsIntoMM, bag->crossingsIntoOoT, bag->fill.placed, bag->fill.surplusDropped,
+            bag->fill.rounds, bag->wallMs);
+    Combo_SingleBag_Forget();
+    if (!tailOk) {
+        Combo_GenProgress_End(false);
+        RsbsSave_RefuseSlotGeneration(slot);
+        OoT_Creation_ReportFailureAtFileSelect(slot, 0);
+        Context_ClearFrozenState(GAME_MM);
+        Combo_ClearForeignPlacements();
+        Combo_ClearForeignPlacementsOoT();
+        Combo_ClearForeignGiveCaps();
+        Combo_Crossings_Clear();
+        memset(&gComboCtx.comboSettings, 0, sizeof(gComboCtx.comboSettings));
+        gComboCtx.comboSettingsHash = 0;
+        gComboCtx.sourceIsRando = false;
+        gComboCtx.sharedRandoSeed = 0;
+        gComboCtx.sharedRandoSettingsHash = 0;
+        gComboCtx.mmProfileDigest = 0;
+        gComboCtx.mmPairedAttempt = 0;
+        return 0;
     }
 
     fprintf(stderr,
-            "[OoT] creation event: the OoT-side tail after MM's half returned (shortfall stats + toast) took %ums "
-            "(#582)\n",
+            "[OoT] creation event: the OoT-side tail after MM's half returned (crossings, OoT's remainder, the spoiler "
+            "join) took %ums (#582)\n",
             Combo_GenProgress_ElapsedMs() - ootTailStartMs);
     fflush(stderr);
     Combo_GenProgress_Report((uint8_t)RSBS_GENPHASE_PUBLISH, 0, nullptr);

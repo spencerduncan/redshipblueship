@@ -185,6 +185,20 @@ int Context_ArmShadowAsFrozen(GameId game, uint16_t returnEntrance);
 #define RSBS_SHARED_ITEM_SOURCED 0x02u
 
 /**
+ * SharedItem.flags bit: this entry was recorded by a CROSSING PICKUP — a host
+ * check of one game yielding an item of the other (Combo_RecordSharedItemCrossing,
+ * ADR 0010 increment 3). Each such entry is ONE COPY: under the single bag two
+ * hosts can hold two copies of one id (two OoT small keys in two MM chests), and
+ * the in-process content de-dup would merge the second pickup into the first
+ * while both were un-redeemed, losing a copy the proof counted. So content de-dup
+ * neither merges INTO nor FROM an entry with this bit, the same disjoint-domain
+ * rule RSBS_SHARED_ITEM_SOURCED already follows. The pickup itself fires once per
+ * host (both give paths gate on the check's obtained flag), which is the de-dup a
+ * crossing needs. Zero == unset holds: no legacy entry was a crossing copy.
+ */
+#define RSBS_SHARED_ITEM_CROSSING 0x04u
+
+/**
  * Capacity of ComboContext.foreignPlacements (Lane C1, #392): how many MM
  * checks can host a foreign item at once. The MVP pins ~4 OoT progression
  * items into MM checks, so 8 is generous for the shipped pool.

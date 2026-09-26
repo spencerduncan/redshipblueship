@@ -270,11 +270,14 @@
  */
 #ifdef RSBS_SINGLE_EXECUTABLE
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <map>
 #include <memory>
 #include <set>
+#include <stdexcept>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
@@ -283,6 +286,7 @@
 #include "Rando/Foreign.h" // Rando::Foreign::ResolvePairedProfile — measurement bridge only
 #include "Rando/StaticData/StaticData.h"
 #include "Rando/Logic/Logic.h"
+#include "2s2h/ShipUtils.h" // Ship_Random: MM's own pass over its leftover hosts (lane K11)
 
 extern "C" {
 #include "variables.h"
@@ -304,7 +308,10 @@ void MM_Sram_InitNewSave(void);
 // own linkage and pull in <stdbool.h>/<stdint.h> (matching Foreign.cpp and
 // ForeignItemsSingleExe.cpp).
 #include "combo_logic.h"
+#include "combo_single_bag.h" // src/common — the single-bag fill at the creation event (lane K11)
 #include "context.h"
+#include "gen_budget.h"   // src/common — the #582 per-attempt budget
+#include "shared_items.h" // src/common — the O8 class of a pool row (traps stay home)
 
 namespace {
 
@@ -369,6 +376,9 @@ int sRedundantEndQueries = 0;
 // the lock can assert the harvest actually fired rather than inferring it from a
 // reachability number that could move for another reason.
 int sHarvests = 0;
+// How many FIXED check contents `expand` has granted (A7, #737). Observable for
+// the same reason.
+int sFixedHarvests = 0;
 
 // ============================================================================
 // The host universe (A3)
@@ -772,6 +782,43 @@ int Expand(void* self) {
             grantedThisPass = true;
             changed = 1;
         }
+
+        // --- A7 (#737): the FIXED contents of reached checks OUTSIDE the host
+        // pool. When a caller hands this engine GeneratePools' check pool
+        // (MM_ComboLogic_SetHostPool, the production seam), every graph check NOT
+        // in it keeps the item GeneratePools left there: its vanilla item, because
+        // that check's category is not shuffled (the boss remains on the shipped
+        // profile, among ~1885 others). The player collects those in play and MM's
+        // own fill counts them; a round that did not would prove Majora's
+        // condition from the bag alone, which it cannot, and `beat-both` could
+        // never hold on a profile that leaves anything fixed (#737). So each such
+        // check grants its content ONCE PER ROUND when reached, through the same
+        // clamps as every other copy — monotone, like the harvest above.
+        //
+        // NEVER a pooled check's content: that host's item is the coordinator's
+        // to decide (its vanilla item is merely what GeneratePools pre-wrote). And
+        // never a USER-EXCLUDED check's (`skipped`): it holds junk by the player's
+        // choice. With no host pool set (a caller that never ran GeneratePools)
+        // there is no "outside", and nothing is granted — the pre-#737 behaviour.
+        if (sHostPoolSet) {
+            for (RandoCheckId randoCheckId : sRound.checks) {
+                const uint16_t check = (uint16_t)randoCheckId;
+                if (std::binary_search(sHostPool.begin(), sHostPool.end(), check)) {
+                    continue;
+                }
+                const RandoSaveCheck& fixedCheck = RANDO_SAVE_CHECKS[randoCheckId];
+                if (fixedCheck.skipped || !IsGiveableItemId((uint16_t)fixedCheck.randoItemId)) {
+                    continue;
+                }
+                if (!sRound.harvestedHosts.insert(check).second) {
+                    continue;
+                }
+                MmGiveOneCopy((uint16_t)fixedCheck.randoItemId);
+                sFixedHarvests++;
+                grantedThisPass = true;
+                changed = 1;
+            }
+        }
     }
 
     sRound.expands++;
@@ -914,6 +961,19 @@ void ClearPlacements(void* self) {
     sHeld.clear();
 }
 
+/**
+ * May an OoT-origin item be placed on this MM host (combo_logic.h ABI 4)? Only on
+ * the host class MM's foreign give path delivers from — the class the forward
+ * overlay pass always used (Rando::Foreign::IsForeignHostClass, Foreign.cpp):
+ * a check whose `.eligible` bit game code arms on the ordinary CheckQueue path,
+ * never a shop or Tingle slot. A crossing anywhere else would leave the player
+ * holding the RI_JUNK cover instead of the item.
+ */
+int HostAcceptsForeign(void* self, uint16_t hostCheck) {
+    (void)self;
+    return Rando::Foreign::IsForeignHostClass((RandoCheckId)hostCheck) ? 1 : 0;
+}
+
 void EndQuery(void* self) {
     (void)self;
     sEndQueryCalls++;
@@ -952,6 +1012,7 @@ const ComboLogicEngine kMmEngine = {
     /* endQuery          */ EndQuery,
     /* snapshot          */ Snapshot,
     /* restore           */ Restore,
+    /* hostAcceptsForeign*/ HostAcceptsForeign,
 };
 
 /**
@@ -1038,6 +1099,23 @@ extern "C" void MM_ComboLogic_SetHostPool(const uint16_t* checks, int count) {
     }
     sHostPool.assign(unique.begin(), unique.end());
     sHostPoolSet = true;
+}
+
+/**
+ * COMMIT (Combo_SingleBag_Forget): forget the placements this engine was given
+ * WITHOUT restoring their priors, and drop the host pool. After a creation the
+ * live save is a different world's (OoT's, once the creation bracket closes), and
+ * a later reset that "restored" these priors would write them into it.
+ */
+extern "C" void MM_ComboLogic_ForgetPlacements(void) {
+    sHeld.clear();
+    sHostPool.clear();
+    sHostPoolSet = false;
+}
+
+/** How many fixed check contents rounds have granted (A7, #737). */
+extern "C" int MM_ComboLogic_FixedHarvestCount(void) {
+    return sFixedHarvests;
 }
 
 /** How many times a recompute inside a round came back smaller than the round's
@@ -1870,6 +1948,128 @@ extern "C" int MM_ComboLogic_TestFillAdvancement(uint16_t id) {
     }
     const RandoItemType type = it->second.randoItemType;
     return (type != RITYPE_JUNK && type != RITYPE_HEALTH) ? 1 : 0;
+}
+
+
+// ============================================================================
+// THE PAIRED CREATION'S FILL (ADR 0010 increment 3, D3; lane K11)
+// ============================================================================
+//
+// Called from OnFileCreate's paired branch, INSIDE the attempt ladder, in place
+// of MM's own fill and the forward crossing pass. The live save is in its
+// file-creation state (GeneratePools has run over it, the starting items are
+// granted), which is the state combo_logic.h's `beginQuery` contract makes the
+// caller's job for an engine with no detached save.
+//
+// Throws, as MM's own fill does, so the ladder's two catches keep their meaning:
+//   - Rando::Logic::GenerationTimeout for the per-attempt WALL-CLOCK stop
+//     (RSBS_COMBO_LOGIC_ERR_ABORTED): the ladder stops and never climbs a rung on
+//     it (#581 §2a);
+//   - std::runtime_error for every deterministic dead end (no candidate, the GOAL
+//     unprovable, not all reached): a rung, re-derived from the next attempt's
+//     seed.
+// Combo_SingleBag_Run has already rolled both engines back on a failure.
+//
+// ON SUCCESS it also runs MM's OWN PASS over MM's leftover hosts (combo_logic.h,
+// THE BAG MODEL shape 4): the rows the bag did not take (MM's junk, renewables and
+// traps), traps first, the rest shuffled with MM's own fill RNG, padded with
+// RI_JUNK exactly as the native balance pads. The native balance step itself does
+// NOT run over a paired world's pool: it would erase or fold rows the bag admitted
+// (MM's bombchus and hearts are PROGRESSION), which is the decision combo_logic.h
+// ("MM'S BALANCE STEP AND THE BAG") left to this lane: the bag is composed from the
+// pre-balance pool, and only the leftovers are balanced, by this pass.
+void Rando::Foreign::RunPairedSingleBagFill(std::vector<RandoCheckId>& checkPool, std::vector<RandoItemId>& itemPool,
+                                            int ladderAttempt) {
+    std::vector<uint16_t> hosts;
+    hosts.reserve(checkPool.size());
+    for (const RandoCheckId randoCheckId : checkPool) {
+        if (randoCheckId != RC_UNKNOWN) {
+            hosts.push_back((uint16_t)randoCheckId);
+        }
+    }
+    MM_ComboLogic_SetHostPool(hosts.data(), (int)hosts.size());
+
+    std::vector<uint16_t> items(itemPool.size(), 0);
+    for (size_t i = 0; i < itemPool.size(); ++i) {
+        items[i] = (uint16_t)itemPool[i];
+    }
+    std::vector<uint16_t> flags(items.size(), 0);
+    if (!items.empty() && MM_ComboLogic_MarkPoolRows(items.data(), (int)items.size(), flags.data()) < 0) {
+        throw std::runtime_error("single-bag fill: MM's pool is not the one GeneratePools just returned");
+    }
+
+    // The per-attempt budget: the value the ladder armed on the fill's budget
+    // channel (a lock's injected value included), else the #582 budget itself.
+    const uint32_t budgetMs = (Rando::Logic::gRsbsGlitchlessTimeoutMsOverride != 0)
+                                  ? (uint32_t)Rando::Logic::gRsbsGlitchlessTimeoutMsOverride
+                                  : Combo_GenBudget_FillBudgetMs(ladderAttempt);
+
+    std::vector<uint8_t> inBag(items.size(), 0);
+    ComboSingleBagReport report;
+    const int status = Combo_SingleBag_Run(items.data(), flags.data(), (int)items.size(), ladderAttempt, budgetMs,
+                                           inBag.data(), &report);
+    if (status == RSBS_COMBO_LOGIC_ERR_ABORTED) {
+        throw Rando::Logic::GenerationTimeout("single-bag fill stopped by its " + std::to_string(budgetMs) +
+                                              "ms per-attempt budget after " + std::to_string(report.fill.rounds) +
+                                              " rounds");
+    }
+    if (status != RSBS_COMBO_LOGIC_OK) {
+        throw std::runtime_error(std::string("single-bag fill: ") + Combo_Logic_StatusName(status) + " after " +
+                                 std::to_string(report.fill.attempts) + " batch attempt(s)");
+    }
+
+    // --- MM's own pass over its leftover hosts --------------------------------
+    std::vector<RandoItemId> traps;
+    std::vector<RandoItemId> rest;
+    for (size_t i = 0; i < itemPool.size(); ++i) {
+        if (inBag[i]) {
+            continue;
+        }
+        SharedItem row = { (uint8_t)GAME_MM, 0, (uint16_t)itemPool[i] };
+        if (Combo_ItemClassOf(row) == RSBS_FILL_CLASS_TRAP) {
+            traps.push_back(itemPool[i]);
+        } else {
+            rest.push_back(itemPool[i]);
+        }
+    }
+    const int leftoverTotal = Combo_Logic_LeftoverHosts(GAME_MM, nullptr, 0);
+    if (leftoverTotal < 0) {
+        throw std::runtime_error("single-bag fill: MM's leftover hosts could not be enumerated");
+    }
+    std::vector<uint16_t> leftovers((size_t)leftoverTotal, 0);
+    if (leftoverTotal > 0) {
+        Combo_Logic_LeftoverHosts(GAME_MM, leftovers.data(), leftoverTotal);
+    }
+    // Shuffle the hosts with MM's own fill RNG (the stream the ladder seeded for
+    // this attempt), then deal traps first and the rest after.
+    for (size_t i = 0; i + 1 < leftovers.size(); ++i) {
+        std::swap(leftovers[i], leftovers[(size_t)Ship_Random((s32)i, (s32)leftovers.size())]);
+    }
+    for (size_t i = 0; i + 1 < rest.size(); ++i) {
+        std::swap(rest[i], rest[(size_t)Ship_Random((s32)i, (s32)rest.size())]);
+    }
+    size_t trapIndex = 0;
+    size_t restIndex = 0;
+    int padded = 0;
+    for (const uint16_t host : leftovers) {
+        RandoItemId item;
+        if (trapIndex < traps.size()) {
+            item = traps[trapIndex++];
+        } else if (restIndex < rest.size()) {
+            item = rest[restIndex++];
+        } else {
+            item = RI_JUNK;
+            padded++;
+        }
+        RANDO_SAVE_CHECKS[host].randoItemId = item;
+        RANDO_SAVE_CHECKS[host].shuffled = true;
+    }
+    fprintf(stderr,
+            "[MM] single-bag fill: MM's own pass put %d trap(s) and %d other row(s) on %d leftover host(s), padded %d "
+            "with junk, dropped %d trap(s) and %d other row(s) for want of hosts\n",
+            (int)trapIndex, (int)restIndex, leftoverTotal, padded, (int)(traps.size() - trapIndex),
+            (int)(rest.size() - restIndex));
+    fflush(stderr);
 }
 
 #endif /* RSBS_SINGLE_EXECUTABLE */

@@ -132,9 +132,16 @@
 #include "soh/Enhancements/randomizer/logic.h"
 #include "soh/Enhancements/randomizer/SeedContext.h"
 #include "3drando/fill.hpp"
+#include "3drando/random.hpp"
+#include "3drando/spoiler_log.hpp"
+#include "soh/util.h"
 
-#include "combo_logic.h" // src/common — the vtable this file implements
-#include "context.h"     // src/common — SharedItem, GameId
+#include <spdlog/spdlog.h>
+#include <string>
+
+#include "combo_logic.h"   // src/common — the vtable this file implements
+#include "context.h"       // src/common — SharedItem, GameId
+#include "foreign_items.h" // src/common — the frozen pairing identity and combo record
 
 extern "C" {
 #include <z64.h>
@@ -1000,6 +1007,40 @@ void OoT_ComboLogic_EndQuery(void* self) {
     }
 }
 
+/**
+ * May an MM-origin item be placed on this OoT host (combo_logic.h ABI 4)?
+ *
+ * ONLY WHERE OoT'S GIVE PATH CAN DELIVER ONE. A foreign item in an OoT check is
+ * delivered by the RC-queue drain (hook_handlers.cpp), which consults the
+ * placement table (and, behind it, the crossing store) before OoT's own give —
+ * and that drain is what OoT's TREASURE CHESTS go through. So the host class is
+ * the static half of OoT_Foreign_IsEligibleHostImpl (ForeignItemsSingleExe.cpp):
+ * an `ACTOR_EN_BOX` row, never a shop, scrub, merchant or chest-game slot, whose
+ * give-and-price flows differ from the ordinary collect path. The fill-side half
+ * of that predicate ("the fill put junk here") is the old overlay pass's and does
+ * not apply: the coordinator only ever offers EMPTY hosts, and this engine's
+ * `place` puts the junk cover there itself.
+ *
+ * A pure function of the static location table: legal outside a round, no RNG.
+ */
+int OoT_ComboLogic_HostAcceptsForeign(void* self, uint16_t hostCheck) {
+    (void)self;
+    const RandomizerCheck rc = (RandomizerCheck)hostCheck;
+    if (!OoTComboLogicIsRealCheck(rc)) {
+        return 0;
+    }
+    Rando::Location* loc = Rando::StaticData::GetLocation(rc);
+    if (loc->GetActorID() != ACTOR_EN_BOX) {
+        return 0;
+    }
+    const RandomizerCheckType checkType = loc->GetRCType();
+    if (checkType == RCTYPE_SHOP || checkType == RCTYPE_SCRUB || checkType == RCTYPE_MERCHANT ||
+        checkType == RCTYPE_CHEST_GAME || loc->IsShop()) {
+        return 0;
+    }
+    return 1;
+}
+
 // ============================================================================
 // Registration
 // ============================================================================
@@ -1028,6 +1069,7 @@ const ComboLogicEngine kOoTComboLogicEngine = {
     /* endQuery          */ OoT_ComboLogic_EndQuery,
     /* snapshot          */ nullptr,
     /* restore           */ nullptr,
+    /* hostAcceptsForeign*/ OoT_ComboLogic_HostAcceptsForeign,
 };
 
 struct OoTComboLogicRegistrar {
@@ -2195,6 +2237,178 @@ extern "C" int OoT_ComboLogic_ExportPool(int source, uint16_t* outItems, uint16_
         }
     }
     return total;
+}
+
+// ============================================================================
+// THE PAIRED WORLD'S GENERAL PASS, DEFERRED TO THE CREATION EVENT (ADR 0010
+// increment 3, D3; lane K11). See fill.cpp's seam and src/common/combo_single_bag.h.
+// ============================================================================
+//
+// Fill() stops a paired world after its restricted passes and records that here;
+// the single-bag fill (Combo_SingleBag_Run) places the bag over OoT's still-empty
+// general-pass hosts and MM's pool at the creation event; this file's
+// OoT_ComboLogic_FinishGeneralPass then runs OoT's per-game remainder (its junk,
+// renewables and traps onto its leftover hosts, overrides, hints, the spoiler).
+
+// fill.cpp: the remainder (RSBS_SINGLE_EXECUTABLE only) and the empty-host walk.
+int RsbsFinishPairedGeneralPass(std::vector<RandomizerGet>& remainingPool);
+std::vector<RandomizerCheck> GetAllEmptyLocations();
+
+namespace {
+/** OoT's world is waiting at its general-pass point for the single-bag fill. */
+bool sGeneralPassDeferred = false;
+/** TEST ONLY: run OoT's NATIVE general pass even for a paired world. */
+bool sNativeGeneralPassForTest = false;
+/** The export rows (source 0, export order) the last successful bag took. */
+std::vector<int> sBagExportRows;
+} // namespace
+
+/** Fill()'s question: should this generation stop at its general pass? Yes for a
+ *  paired world (the freeze in Playthrough_Init has run by the time Fill() asks),
+ *  unless a test asked for the native pass. */
+extern "C" int OoT_ComboLogic_DeferGeneralPassWanted(void) {
+    return (!sNativeGeneralPassForTest && Combo_ForeignPairingActive() && Combo_ComboSettingsFrozen()) ? 1 : 0;
+}
+
+/** Set by Fill() when it stops (1); cleared by every new generation, a spoiler
+ *  load, and OoT_ComboLogic_FinishGeneralPass (0). */
+extern "C" void OoT_ComboLogic_SetGeneralPassDeferred(int deferred) {
+    sGeneralPassDeferred = (deferred != 0);
+    if (!sGeneralPassDeferred) {
+        sBagExportRows.clear();
+    }
+}
+
+extern "C" int OoT_ComboLogic_GeneralPassDeferred(void) {
+    return sGeneralPassDeferred ? 1 : 0;
+}
+
+/** TEST SEAM: 1 makes Fill() run OoT's own general pass for a paired world, for
+ *  the rows that measure OoT's NATIVE fill; 0 restores production. Returns the
+ *  prior value. */
+extern "C" int OoT_ComboLogic_TestSetNativeGeneralPass(int native) {
+    const int prior = sNativeGeneralPassForTest ? 1 : 0;
+    sNativeGeneralPassForTest = (native != 0);
+    return prior;
+}
+
+extern "C" void OoT_ComboLogic_NoteBagRows(const int* exportRows, int count) {
+    sBagExportRows.clear();
+    for (int i = 0; exportRows != nullptr && i < count; ++i) {
+        sBagExportRows.push_back(exportRows[i]);
+    }
+}
+
+/**
+ * COMMIT (Combo_SingleBag_Forget): forget which hosts the coordinator gave this
+ * engine WITHOUT restoring their prior item. The record exists for the batch
+ * roll-back; kept past the creation it would let a later fill's reset write
+ * RG_NONE into this finished world's hosts.
+ */
+extern "C" void OoT_ComboLogic_ForgetPlacements(void) {
+    sPlacementCount = 0;
+}
+
+/**
+ * OoT'S PER-GAME REMAINDER, after the single-bag fill placed the bag.
+ *
+ *  1. Remove from `itemPool` the rows the bag took (OoT_ComboLogic_NoteBagRows,
+ *     in export order: source 0 enumerates `itemPool` skipping RG_NONE, and so
+ *     does this walk). What is left is OoT's junk, renewables and traps.
+ *  2. Mark every host the coordinator filled HINTABLE, as the native general
+ *     pass's AssumedFill(…, setLocationsAsHintable = true) would have.
+ *  3. Re-seed OoT's RNG from the seed hash Playthrough_Init already derived, plus
+ *     a domain tag: the time between Generate and file creation is the player's,
+ *     and nothing may let it (or anything else that drew from the stream in
+ *     between) choose this world's junk and hints.
+ *  4. fill.cpp's RsbsFinishPairedGeneralPass: traps, then junk, onto the
+ *     leftover hosts; overrides; hints; warp song texts.
+ *  5. Optionally write OoT's spoiler document (the creation seam then grows its
+ *     "combo" section).
+ *
+ * THE LIVE SAVE IS PROTECTED. Context::PlaceItemInLocation applies an item's
+ * effect under Glitchless whatever its argument says, through Logic's save
+ * context — and at file creation that can be `&gSaveContext`, the file being
+ * created. So Logic is detached for the whole remainder and re-attached after,
+ * the same bracket the engine's own query uses.
+ *
+ * @return 0 on success; nonzero when OoT's world is not at its general-pass point.
+ */
+extern "C" int OoT_ComboLogic_FinishGeneralPass(int writeSpoiler) {
+    if (!sGeneralPassDeferred || !OoTComboLogicReady()) {
+        fprintf(stderr, "[OoT/ComboLogic] finish refused: OoT's world is not waiting at its general pass\n");
+        return 1;
+    }
+    auto ctx = Rando::Context::GetInstance();
+
+    // 1. The bag's rows leave the pool.
+    std::vector<bool> taken;
+    {
+        std::vector<int> itemPoolIndexOfRow;
+        for (size_t i = 0; i < itemPool.size(); ++i) {
+            if (itemPool[i] == RG_NONE) {
+                continue;
+            }
+            itemPoolIndexOfRow.push_back((int)i);
+        }
+        taken.assign(itemPool.size(), false);
+        for (const int row : sBagExportRows) {
+            if (row >= 0 && row < (int)itemPoolIndexOfRow.size()) {
+                taken[(size_t)itemPoolIndexOfRow[(size_t)row]] = true;
+            }
+        }
+    }
+    std::vector<RandomizerGet> remaining;
+    for (size_t i = 0; i < itemPool.size(); ++i) {
+        if (!taken[i] && itemPool[i] != RG_NONE) {
+            remaining.push_back(itemPool[i]);
+        }
+    }
+    itemPool.clear();
+
+    // 2. The coordinator's OoT hosts are hintable, as the native pass's are.
+    for (int i = 0; i < sPlacementCount; ++i) {
+        Rando::ItemLocation* il = ctx->GetItemLocation(sPlacements[i].host);
+        if (il != nullptr) {
+            il->SetAsHintable();
+        }
+    }
+
+    // 3. The stream, from the identity.
+    Random_Init(SohUtils::Hash(ctx->GetHash() + std::string("|rsbs-single-bag-oot-remainder-v1")));
+
+    // 4. The remainder, with Logic detached from any live save.
+    Rando::Logic* lg = OoTComboLogicSingleton();
+    const bool priorLive = (lg->GetSaveContext() == &gSaveContext);
+    if (priorLive) {
+        lg->Reset(true);
+    }
+    const int leftovers = (int)GetAllEmptyLocations().size();
+    const int remainingRows = (int)remaining.size();
+    RsbsFinishPairedGeneralPass(remaining);
+    if (priorLive) {
+        SaveContext* mine = lg->GetSaveContext();
+        lg->SetSaveContext(&gSaveContext);
+        if (mine != nullptr && mine != &gSaveContext && mine != OoTComboLogicScratchSave(false)) {
+            free(mine); // mirrors Logic::NewSaveContext, as the engine's endQuery does
+        }
+    }
+    OoT_ComboLogic_SetGeneralPassDeferred(0);
+    fprintf(stderr,
+            "[OoT/ComboLogic] general pass finished: %d bag rows left the pool, %d per-game rows onto %d leftover "
+            "hosts, %d empty after\n",
+            (int)sBagExportRows.size(), remainingRows, leftovers, (int)GetAllEmptyLocations().size());
+
+    // 5. OoT's spoiler document.
+    if (writeSpoiler) {
+        if (SpoilerLog_Write()) {
+            SPDLOG_INFO("Writing Spoiler Log Done (paired world, after the single-bag fill)");
+        } else {
+            SPDLOG_ERROR("Writing Spoiler Log Failed (paired world)");
+        }
+    }
+    fflush(stderr);
+    return 0;
 }
 
 /**
