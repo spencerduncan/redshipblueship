@@ -139,6 +139,7 @@ void XsRestore() {
     }
     Combo_Crossings_Clear();
     ComboContext_Init();
+    Context_ClearAllFrozenStates(); // a successful LoadSlot arms the MM half
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
     mgr.SetSaveDirectory(kXsSaveDir);
     mgr.DeleteSave(0);

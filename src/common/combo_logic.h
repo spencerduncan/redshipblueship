@@ -723,11 +723,12 @@ const ComboLogicEngine* Combo_Logic_GetEngine(GameId originGame);
 // THE PLACEMENT TABLES
 // ============================================================================
 //
-// TWO tables, keyed by HOST game, in PROCESS MEMORY ONLY. They are deliberately
-// NOT in `gComboCtx`: the O7 boundary carve against `reserved[108]` is a later
-// decision of epic #645, and a carve taken here would freeze a layout before
-// the decision that sizes it. Nothing in this file is serialized, so nothing in
-// this file is .redsave format.
+// TWO tables, keyed by HOST game, in PROCESS MEMORY ONLY. Nothing in this file is
+// serialized, so nothing in this file is .redsave format. What persists of them
+// is decided by ADR 0010 O7: the CROSSING rows (item origin != host) go to the
+// crossing store (crossing_store.h, a .redsave v3 block, not a `reserved[]`
+// carve), captured from and hydrated back into these tables; own-origin rows
+// persist in each game's own save.
 
 /** One placement. RAM only; no offset here is format. */
 typedef struct {
@@ -1186,8 +1187,9 @@ int Combo_Logic_LeftoverHosts(GameId hostGame, uint16_t* out, int cap);
 //    seam calls the fill. The two engine implementations are two follow-on
 //    lanes; until both exist a paired fill cannot run at all, which is why
 //    Combo_Logic_RunFill refuses with one engine instead of half-filling.
-//  - THE O7 BOUNDARY CARVE. The placement tables are RAM, not
-//    `gComboCtx.reserved[108]`. Sizing the carve is epic #645 item 2.
+//  - THE O7 BOUNDARY CARVE. Answered (ADR 0010 amendment 2026-09-27): no
+//    `reserved[]` carve; the crossing rows persist in crossing_store.h's block
+//    and come back through Combo_Logic_HydrateTables. The tables stay RAM.
 //  - THE O8 CLASSIFICATION TABLE. `ComboLogicBagItem.itemClass` is carried
 //    from the caller and recorded on the placement; the coordinator filters
 //    nothing by it. When the single-owner table lands in
