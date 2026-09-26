@@ -31,8 +31,10 @@ What it scans
 
 What it reports
 ---------------
-Every NEGATION site (`!term`, never `!=`) and every RELATIONAL comparison over
-a player-state quantity, classified by what the negated/compared term reads:
+Every NEGATION site (`!term` or `not term`, never `!=`; also `term ^ true`,
+`term != true`, and a boolean-literal ternary `term ? false : x` /
+`term ? x : true`) and every RELATIONAL comparison over a player-state
+quantity, classified by what the negated/compared term reads:
 
   PLAYER-STATE  inventory, events, flags, counters, age/time-of-day context,
                 region access (`Here`, `AnyAgeTime`, `CAN_*`, `HAS_*`, ...).
@@ -53,8 +55,12 @@ Site classes (the first four fail the gate unless the baseline lists them):
                       return false;` — the mirror image of a negation.
   NEEDS-READING       a negation or `==`/`!=` the vocabulary cannot classify
                       (an unknown term, or `state == k` with k > 0, which is
-                      monotone only if k is the quantity's maximum). A human
-                      reading is required; the baseline records it.
+                      monotone only if k is the quantity's maximum), an `^`
+                      over state, or a player-state guard that returns a
+                      NON-CONSTANT (`if (HAS_X) return EXPR;` is
+                      `HAS_X ? EXPR : rest`, monotone only if EXPR implies
+                      rest). A human reading is required; the baseline records
+                      it.
   LEGAL-SETTING       `!` over settings only.                (shown with --list)
   LEGAL-GUARD         `if (!STATE) return false;` — "requires STATE", which is
                       monotone (MM Logic.h's enemy-soul guard is the shape).
@@ -383,6 +389,73 @@ def operand_after_rel(text, i):
     return operand_after(text, i)
 
 
+def ternary_condition_before(text, q):
+    """The condition span [start, q) of the ternary whose `?` is at text[q]:
+    back to the nearest depth-0 `(`, `[`, `{`, `,`, `;`, `?`, single `:`,
+    assignment `=`, or `return`."""
+    j, depth = q - 1, 0
+    while j >= 0:
+        c = text[j]
+        if c in ")]}":
+            depth += 1
+        elif c in "([{":
+            if depth == 0:
+                break
+            depth -= 1
+        elif depth == 0:
+            if c in ",;?":
+                break
+            if c == ":" and not (j > 0 and text[j - 1] == ":") and not (j + 1 < len(text) and text[j + 1] == ":"):
+                break
+            if c == "=" and not (j > 0 and text[j - 1] in "=!<>") and not (j + 1 < len(text) and text[j + 1] == "="):
+                break
+            if (c == "n" and text.startswith("return", j - 5)
+                    and (j - 6 < 0 or not (text[j - 6].isalnum() or text[j - 6] == "_"))):
+                return j + 1, q
+        j -= 1
+    return j + 1, q
+
+
+def ternary_colon_after(text, q):
+    """Index of the `:` that closes the true branch of the ternary at text[q],
+    or -1."""
+    i, n, depth, nested = q + 1, len(text), 0, 0
+    while i < n:
+        c = text[i]
+        if c in "([{":
+            depth += 1
+        elif c in ")]}":
+            if depth == 0:
+                return -1
+            depth -= 1
+        elif depth == 0 and c == ";":
+            return -1
+        elif depth == 0 and c == "?":
+            nested += 1
+        elif depth == 0 and c == ":":
+            if text.startswith("::", i):
+                i += 2
+                continue
+            if nested == 0:
+                return i
+            nested -= 1
+        i += 1
+    return -1
+
+
+def return_expr_guards(text):
+    """(condition span, returned expression) of every `if (C) return EXPR;`
+    whose EXPR is not a boolean literal."""
+    out = []
+    for m in re.finditer(r"\bif\s*\(", text):
+        open_i = m.end() - 1
+        close_i = match_group(text, open_i, "(", ")")
+        r = re.match(r"\s*\{?\s*return\s+([^;{}]*);", text[close_i : close_i + 400])
+        if r and r.group(1).strip() not in ("true", "false"):
+            out.append(((open_i + 1, close_i - 1), r.group(1).strip()))
+    return out
+
+
 def return_false_guards(text):
     """Spans [start, end) of the condition of every `if (C) return false;` —
     inside such a condition the polarity of every term is FLIPPED: a negated
@@ -442,24 +515,66 @@ def scan_text(game, relpath, raw):
 
     negation_spans = []
     # --- negations: `!` not followed by `=`.
-    for m in re.finditer(r"!(?!=)", text):
+    # `not` is C++'s alternative token for `!` (never an identifier).
+    for m in re.finditer(r"!(?!=)|\bnot\b", text):
         s, e = operand_after(text, m.end())
         if e <= s:
             continue
         operand = text[s:e]
+        op_txt = "!" if m.group(0) == "!" else "not "
         negation_spans.append((m.start(), e))
         kind, st, se = classify_tokens(game, operand)
         if kind == "STATE":
             if flipped(m.start()):
-                add("LEGAL-GUARD", m.start(), "!" + operand,
+                add("LEGAL-GUARD", m.start(), op_txt + operand,
                     "negated state inside `if (...) return false;` = REQUIRES " + ", ".join(sorted(set(st))))
             else:
-                add("VIOLATION-NEGATION", m.start(), "!" + operand,
+                add("VIOLATION-NEGATION", m.start(), op_txt + operand,
                     "negates player state: " + ", ".join(sorted(set(st))))
         elif kind == "SETTING":
-            add("LEGAL-SETTING", m.start(), "!" + operand, "negates settings only: " + ", ".join(sorted(set(se))))
+            add("LEGAL-SETTING", m.start(), op_txt + operand, "negates settings only: " + ", ".join(sorted(set(se))))
         else:
-            add("NEEDS-READING", m.start(), "!" + operand, "negation of a term the vocabulary does not know")
+            add("NEEDS-READING", m.start(), op_txt + operand, "negation of a term the vocabulary does not know")
+
+    # --- negation by other spellings: a boolean-literal ternary over state
+    #     (`S ? false : x` is `!S && x`; `S ? x : true` is `!S || x`) and `S ^ ...`.
+    for m in re.finditer(r"\?", text):
+        q = m.start()
+        colon = ternary_colon_after(text, q)
+        if colon < 0:
+            continue
+        cs, ce = ternary_condition_before(text, q)
+        cond = text[cs:ce].strip()
+        if not cond:
+            continue
+        kind, st, _ = classify_tokens(game, cond)
+        if kind != "STATE":
+            continue
+        true_branch = text[q + 1 : colon].strip()
+        else_true = re.match(r"\s*true\b\s*(?:[),;}]|$)", text[colon + 1 : colon + 64])
+        if true_branch == "false" or else_true:
+            shape = "? false : ..." if true_branch == "false" else "? ... : true"
+            term = cond + " " + shape
+            if flipped(q):
+                add("NEEDS-READING", q, term, "boolean-literal ternary over player state inside a flipped guard")
+            else:
+                add("VIOLATION-NEGATION", q, term,
+                    "a `" + shape + "` ternary negates player state: " + ", ".join(sorted(set(st))))
+    for m in re.finditer(r"\^(?!=)", text):
+        ls, le = operand_before(text, m.start())
+        rs, rend = operand_after_rel(text, m.end())
+        left, right = text[ls:le].strip(), text[rs:rend].strip()
+        lk, st1, _ = classify_tokens(game, left)
+        rk, st2, _ = classify_tokens(game, right)
+        if lk != "STATE" and rk != "STATE":
+            continue
+        other = right if lk == "STATE" else left
+        term = left + " ^ " + right
+        if other in ("true", "1"):
+            add("VIOLATION-NEGATION", m.start(), term,
+                "`^ true` negates player state: " + ", ".join(sorted(set(st1 + st2))))
+        else:
+            add("NEEDS-READING", m.start(), term, "exclusive-or over player state is not monotone in general")
 
     # --- comparisons over player state.
     for m in REL_RE.finditer(text):
@@ -493,6 +608,10 @@ def scan_text(game, relpath, raw):
             downward = False
         elif sop in ("<", "<="):
             downward = True
+        elif sop == "==" and other == "true":
+            downward = False
+        elif sop == "!=" and other == "true":
+            downward = True  # `S != true` is `!S`
         elif sop == "==":
             if NONE_LITERAL_RE.match(other):
                 downward = True
@@ -513,6 +632,14 @@ def scan_text(game, relpath, raw):
         if downward != guard:
             add("VIOLATION-COMPARE", m.start(), term,
                 "an 'at least' test that FORCES false" if guard else "true only while the player has LITTLE")
+
+    # --- a player-state guard returning a NON-CONSTANT: `if (S) return E;` is
+    #     `S ? E : rest`, monotone only if E implies rest.
+    for (a, b), expr in return_expr_guards(text):
+        kind, st, _ = classify_tokens(game, text[a:b])
+        if kind == "STATE":
+            add("NEEDS-READING", a, "if (" + norm(text[a:b]) + ") return " + norm(expr) + ";",
+                "a player-state guard returning a non-constant (" + ", ".join(sorted(set(st))) + ")")
 
     # --- positive state terms that force false: `if (STATE) return false;`.
     for a, b in guards:
@@ -691,6 +818,10 @@ void RegionTable_Init_Fixture() {
         LOCATION(RC_A3, GetCheckPrice() <= GetWalletCapacity()),
         // LOCATION(RC_A4, !logic->HasItem(RG_HOOKSHOT)),  a comment is not code
         LOCATION(RC_A5, logic->CanUse(RG_HOOKSHOT) && ctx->GetTrickOption(RT_X).Get() != 0),
+        LOCATION(RC_A7, logic->CanUse(logic->IsAdult ? RG_HOOKSHOT : RG_LONGSHOT)),
+        LOCATION(RC_A8, ctx->GetTrickOption(RT_X) ? false : logic->HasItem(RG_BOW)),
+        LOCATION(RC_A9, logic->HasItem(RG_BOW) ? logic->IsAdult : false),
+        LOCATION(RC_A10, logic->HasItem(RG_BOW) == true),
         /* LOCATION(RC_A6, logic->Hearts() < 3), */
     }, {
         Entrance(RR_B, []{return !ctx->GetOption(RSK_X) && logic->IsAdult;}),
@@ -743,6 +874,19 @@ PLANTS = [
      "HAS_ITEM(ITEM_HOOKSHOT)"),
     ("mm_h", "inline bool Planted2() { if (KEY_COUNT(X) >= 2) { return false; } return true; }", "VIOLATION-COMPARE",
      "KEY_COUNT(X) >= 2"),
+    # The shapes review of #734 found unflagged: other spellings of a negation.
+    ("oot", "LOCATION(RC_P5, not logic->HasItem(RG_BOW)),", "VIOLATION-NEGATION", "not logic->HasItem(RG_BOW)"),
+    ("oot", "LOCATION(RC_P6, logic->HasItem(RG_BOW) ? false : true),", "VIOLATION-NEGATION",
+     "logic->HasItem(RG_BOW) ? false"),
+    ("oot", "LOCATION(RC_P7, logic->HasItem(RG_BOW) ? logic->IsAdult : true),", "VIOLATION-NEGATION",
+     "logic->HasItem(RG_BOW) ? ... : true"),
+    ("oot", "LOCATION(RC_P8, logic->HasItem(RG_BOW) ^ true),", "VIOLATION-NEGATION", "logic->HasItem(RG_BOW) ^ true"),
+    ("oot", "LOCATION(RC_P9, logic->HasItem(RG_BOW) != true),", "VIOLATION-COMPARE", "logic->HasItem(RG_BOW) != true"),
+    ("oot", "Entrance(RR_P2, []{if (logic->CanUse(RG_HOOKSHOT)) return logic->IsAdult && false; return true;}),",
+     "NEEDS-READING", "if (logic->CanUse(RG_HOOKSHOT)) return"),
+    ("mm", "CHECK(RC_V, HAS_ITEM(ITEM_BOW) ? false : true),", "VIOLATION-NEGATION", "HAS_ITEM(ITEM_BOW) ? false"),
+    ("mm_h", "inline bool Planted3() { if (HAS_ITEM(ITEM_HOOKSHOT)) return IS_DEKU && false; return true; }",
+     "NEEDS-READING", "if (HAS_ITEM(ITEM_HOOKSHOT)) return"),
 ]
 
 

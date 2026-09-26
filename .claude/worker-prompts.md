@@ -150,8 +150,8 @@ are the reasoning behind them.
 - **Reachability conditions never negate player state (ADR 0010 O6).** In either
   graph (OoT `location_access/**`, MM `Logic/Regions/**` and `Logic.h`, and the
   helpers they call) a condition may REQUIRE an item, event, flag, count, age or
-  time but never its ABSENCE: no `!` over a player-state term, no `< k` / `== 0`
-  on a count, no `if (HAS_X) return false;`. Negating a setting, trick or option
+  time but never its ABSENCE: no `!` (or `not`, `^ true`, `? false :`) over a
+  player-state term, no `< k` / `== 0` on a count, no `if (HAS_X) return false;`. Negating a setting, trick or option
   is fine. Model "before event X" as time/region state, never as `!event`. The
   static probe (`python3 .github/scripts/check-monotonicity-negations.py`, CI job
   `monotonicity-probe`) and the `ComboLogicMonotonicity` rando row enforce it; a
