@@ -1739,6 +1739,67 @@ uint32_t OoTFillClassArmedBy(RandomizerGet rg, ItemType type) {
     }
 }
 
+/**
+ * The #525 SHARED KIND an OoT item's give feeds (shared_items.h, "ONE CLASS PER
+ * CROSS-GAME SHARED QUANTITY", #731), or 0. Tagged for every kind an ordinary
+ * pool item feeds — the owner reconciles each kind across both games, so a kind
+ * tagged here and in MM's source answers one class — and for no shop-stock row
+ * (`RG_BUY_*` is a shop's own stock, placed only into shop slots, never a pool
+ * copy the bag could carry).
+ */
+uint8_t OoTFillClassSharedKind(RandomizerGet rg) {
+    if (OoTFillClassIsRupee(rg)) {
+        return RSBS_SHARED_RES_RUPEES;
+    }
+    switch (rg) {
+        case RG_PIECE_OF_HEART:
+        case RG_HEART_CONTAINER:
+        case RG_TREASURE_GAME_HEART:
+            return RSBS_SHARED_RES_HEALTH_QUARTERS;
+        case RG_RECOVERY_HEART:
+            return RSBS_SHARED_RES_HEALTH_CURRENT;
+        case RG_DOUBLE_DEFENSE:
+            return RSBS_SHARED_RES_DOUBLE_DEFENSE;
+        case RG_PROGRESSIVE_WALLET:
+            return RSBS_SHARED_RES_WALLET_TIER;
+        case RG_PROGRESSIVE_MAGIC_METER:
+        case RG_MAGIC_SINGLE:
+        case RG_MAGIC_DOUBLE:
+            return RSBS_SHARED_RES_MAGIC_LEVEL;
+        case RG_PROGRESSIVE_BOW:
+            return RSBS_SHARED_RES_QUIVER_TIER;
+        case RG_PROGRESSIVE_BOMB_BAG:
+            return RSBS_SHARED_RES_BOMB_BAG_TIER;
+        case RG_PROGRESSIVE_STICK_UPGRADE:
+            return RSBS_SHARED_RES_STICK_TIER;
+        case RG_PROGRESSIVE_NUT_UPGRADE:
+            return RSBS_SHARED_RES_NUT_TIER;
+        case RG_ARROWS_5:
+        case RG_ARROWS_10:
+        case RG_ARROWS_30:
+            return RSBS_SHARED_RES_ARROW_COUNT;
+        case RG_BOMBS_5:
+        case RG_BOMBS_10:
+        case RG_BOMBS_20:
+            return RSBS_SHARED_RES_BOMB_COUNT;
+        case RG_BOMBCHU_5:
+        case RG_BOMBCHU_10:
+        case RG_BOMBCHU_20:
+            return RSBS_SHARED_RES_BOMBCHU_COUNT;
+        case RG_DEKU_STICK_1:
+            return RSBS_SHARED_RES_STICK_COUNT;
+        case RG_DEKU_NUTS_5:
+        case RG_DEKU_NUTS_10:
+            return RSBS_SHARED_RES_NUT_COUNT;
+        case RG_PROGRESSIVE_HOOKSHOT:
+            return RSBS_SHARED_RES_HOOKSHOT_TIER;
+        case RG_PROGRESSIVE_OCARINA:
+            return RSBS_SHARED_RES_OCARINA_TIER;
+        default:
+            return 0u;
+    }
+}
+
 } // namespace
 
 /**
@@ -1762,7 +1823,7 @@ uint32_t OoTFillClassArmedBy(RandomizerGet rg, ItemType type) {
  * are sold in shops and the Deku shield burns.
  */
 extern "C" int OoT_ComboLogic_ClassifyItem(uint16_t id, ComboItemClassRow* out) {
-    ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u };
+    ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u, 0u };
     if (out != nullptr) {
         *out = row;
     }
@@ -1794,6 +1855,9 @@ extern "C" int OoT_ComboLogic_ClassifyItem(uint16_t id, ComboItemClassRow* out) 
         row.fillClass = RSBS_FILL_CLASS_JUNK;
     }
     row.armedBy = OoTFillClassArmedBy(rg, type);
+    // A trap feeds no quantity (the owner refuses that row), and RG_ICE_TRAP is
+    // tagged nowhere above, so this is a statement rather than a filter.
+    row.sharedKind = (row.fillClass == RSBS_FILL_CLASS_TRAP) ? 0u : OoTFillClassSharedKind(rg);
     if (out != nullptr) {
         *out = row;
     }
@@ -1814,6 +1878,170 @@ struct OoTItemClassRegistrar {
 };
 const OoTItemClassRegistrar gOoTItemClassRegistrar;
 } // namespace
+
+// ============================================================================
+// THE POOL EXPORT (#645 increment 3, lane K9): OoT's half of bag composition
+// ============================================================================
+//
+// What OoT hands Combo_Logic_ComposeBag (combo_logic.h, THE BAG COMPOSITION
+// RULE): one row per pool copy, with the PLENTIFUL mark on exactly the copies
+// RO_ITEM_POOL_PLENTIFUL put into the pool, plus the CONFINEMENT half of OoT's
+// armed word from its frozen settings. It decides no class — the O8 owner does.
+
+// item_pool.cpp, RSBS_SINGLE_EXECUTABLE only: the copies plentiful added on the
+// last GenerateItemPool (see the seam there). `itemPool` is item_pool.hpp's.
+extern std::vector<RandomizerGet> gRsbsComboPlentifulAdded;
+extern std::vector<RandomizerGet> itemPool;
+
+/**
+ * The CONFINEMENT bits OoT's frozen settings arm (shared_items.h, "ONE SETTING
+ * PER CONFINEMENT BIT"): a bit is set only when its ONE setting hands the family
+ * to the GENERAL placement pass — the pass the union bag replaces (audit §4.6,
+ * P14). Every other value of those settings is a restricted pass (own dungeon,
+ * any dungeon, overworld, song locations, end of dungeon) or a fixed placement
+ * (vanilla, start-with), and an item confined that way never enters the bag.
+ * Read from the seed's own settings, which are frozen with the seed.
+ */
+extern "C" uint32_t OoT_ComboLogic_ConfinementArmed(void) {
+    auto ctx = Rando::Context::GetInstance();
+    if (ctx == nullptr) {
+        return 0u;
+    }
+    uint32_t armed = 0u;
+    if (ctx->GetOption(RSK_KEYSANITY).Is(RO_DUNGEON_ITEM_LOC_ANYWHERE)) {
+        armed |= RSBS_FILL_ARM_SMALL_KEYS_ROAM;
+    }
+    if (ctx->GetOption(RSK_BOSS_KEYSANITY).Is(RO_DUNGEON_ITEM_LOC_ANYWHERE)) {
+        armed |= RSBS_FILL_ARM_BOSS_KEYS_ROAM;
+    }
+    if (ctx->GetOption(RSK_SHUFFLE_MAPANDCOMPASS).Is(RO_DUNGEON_ITEM_LOC_ANYWHERE)) {
+        armed |= RSBS_FILL_ARM_MAPS_ROAM;
+    }
+    if (ctx->GetOption(RSK_SHUFFLE_SONGS).Is(RO_SONG_SHUFFLE_ANYWHERE)) {
+        armed |= RSBS_FILL_ARM_SONGS_ROAM;
+    }
+    if (ctx->GetOption(RSK_SHUFFLE_TOKENS).IsNot(RO_TOKENSANITY_OFF)) {
+        armed |= RSBS_FILL_ARM_TOKENS_ROAM;
+    }
+    if (ctx->GetOption(RSK_SHUFFLE_DUNGEON_REWARDS).Is(RO_DUNGEON_REWARDS_ANYWHERE)) {
+        armed |= RSBS_FILL_ARM_REWARDS_ROAM;
+    }
+    if (ctx->GetOption(RSK_GERUDO_KEYS).Is(RO_GERUDO_KEYS_ANYWHERE)) {
+        armed |= RSBS_FILL_ARM_GERUDO_KEYS_ROAM;
+    }
+    if (ctx->GetOption(RSK_GANONS_BOSS_KEY).Is(RO_GANON_BOSS_KEY_ANYWHERE)) {
+        armed |= RSBS_FILL_ARM_GANON_BOSS_KEY_ROAM;
+    }
+    return armed;
+}
+
+/** How many copies RO_ITEM_POOL_PLENTIFUL put into the pool on the last
+ *  GenerateItemPool (0 when plentiful is off). */
+extern "C" int OoT_ComboLogic_PlentifulAddedCount(void) {
+    return (int)gRsbsComboPlentifulAdded.size();
+}
+
+/**
+ * OoT'S POOL ROWS, one per copy, in a stable order.
+ *
+ * `source` picks WHICH pool:
+ *   0  THE CURRENT POOL — `itemPool` as it stands. At the production seam (the
+ *      general pass, fill.cpp's remainingAdvancementItems point, lane K11) that is
+ *      exactly the general pass's pool: the restricted passes have already erased
+ *      their items. Hosts are written as 0.
+ *   1  THE GENERATED WORLD — every OWNED host's placed item, read back after a
+ *      completed fill (the measurement's source, since a finished fill has drained
+ *      `itemPool`). Skipped, because no pool ever held them: hosts holding no fill
+ *      item, and FIXED placements (`ItemLocation::IsHidden()` — item_pool.cpp
+ *      places every vanilla/start-with/fixed item with setHidden). Link's Pocket is
+ *      skipped under RO_LINKS_POCKET_ADVANCEMENT, its own one-item pass. What this
+ *      mode CANNOT tell apart is a restricted pass's placement of an item whose
+ *      family is armed — which the builder's arming rule already excludes — so the
+ *      two modes differ only in rows the rule table sends to the same place.
+ *
+ * THE PLENTIFUL MARK: for each id, the LAST k rows of that id carry
+ * RSBS_COMBO_POOL_PLENTIFUL, where k is how many copies of it plentiful added
+ * (clamped to the rows present — a starting item removed after the pool was built
+ * leaves fewer copies, and the ones left are still the surplus). Which copy of an
+ * id is "the extra" is immaterial, since copies of one id are interchangeable.
+ *
+ * Same truncation contract as the engine enumerations: at most `cap` rows
+ * written, the TOTAL returned; -1 when the engine is not ready or `source` is
+ * unknown. Any of the three out arrays may be NULL.
+ */
+extern "C" int OoT_ComboLogic_ExportPool(int source, uint16_t* outItems, uint16_t* outHosts, uint16_t* outFlags,
+                                         int cap) {
+    if (!OoTComboLogicReady() || (source != 0 && source != 1)) {
+        return -1;
+    }
+    std::vector<uint16_t> items;
+    std::vector<uint16_t> hosts;
+    if (source == 0) {
+        for (const RandomizerGet rg : itemPool) {
+            if (rg == RG_NONE) {
+                continue;
+            }
+            items.push_back((uint16_t)rg);
+            hosts.push_back(0);
+        }
+    } else {
+        auto ctx = Rando::Context::GetInstance();
+        const bool pocketIsOwnPass = ctx->GetOption(RSK_LINKS_POCKET).Is(RO_LINKS_POCKET_ADVANCEMENT);
+        const std::vector<bool>& owned = OoTComboLogicOwnedHosts();
+        for (int rc = 1; rc < kOoTCheckIdSpace; ++rc) {
+            if (!owned[(size_t)rc] || !OoTComboLogicIsRealCheck((RandomizerCheck)rc)) {
+                continue;
+            }
+            if (pocketIsOwnPass && rc == (int)RC_LINKS_POCKET) {
+                continue;
+            }
+            Rando::ItemLocation* il = ctx->GetItemLocation((RandomizerCheck)rc);
+            if (il == nullptr || il->IsHidden()) {
+                continue;
+            }
+            const RandomizerGet placed = il->GetPlacedRandomizerGet();
+            if (!OoTComboLogicIsRealItem(placed)) {
+                continue;
+            }
+            ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u, 0u };
+            if (OoT_ComboLogic_ClassifyItem((uint16_t)placed, &row) != 1) {
+                continue; // an event row (the goal, a hint): no pool holds it
+            }
+            items.push_back((uint16_t)placed);
+            hosts.push_back((uint16_t)rc);
+        }
+    }
+
+    // The mark: walk the rows BACKWARDS spending each id's plentiful budget.
+    std::vector<int> budget((size_t)RG_MAX, 0);
+    for (const RandomizerGet rg : gRsbsComboPlentifulAdded) {
+        if (rg > RG_NONE && rg < RG_MAX) {
+            budget[(size_t)rg]++;
+        }
+    }
+    std::vector<uint16_t> flags(items.size(), 0);
+    for (size_t i = items.size(); i-- > 0;) {
+        int& left = budget[(size_t)items[i]];
+        if (left > 0) {
+            flags[i] = RSBS_COMBO_POOL_PLENTIFUL;
+            left--;
+        }
+    }
+
+    const int total = (int)items.size();
+    for (int i = 0; i < total && i < cap; ++i) {
+        if (outItems != nullptr) {
+            outItems[i] = items[(size_t)i];
+        }
+        if (outHosts != nullptr) {
+            outHosts[i] = hosts[(size_t)i];
+        }
+        if (outFlags != nullptr) {
+            outFlags[i] = flags[(size_t)i];
+        }
+    }
+    return total;
+}
 
 /**
  * TEST BRIDGE (redship tier; src/common/tests/test_shared_items_class.c): bring

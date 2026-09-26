@@ -160,14 +160,67 @@ const char* Combo_Logic_StatusName(int status);
 // Fixed capacities
 // ============================================================================
 
-/** Bag items in one fill. The union bag is both games' last general ADVANCEMENT
- *  pass only (audit amendment 2) — OoT's remaining-advancement set plus MM's
- *  shuffled pool — so the real figure is low hundreds. */
-#define RSBS_COMBO_LOGIC_BAG_CAP 512
+/**
+ * Bag rows in one fill: what Combo_Logic_ComposeBag admits — every PROGRESSION
+ * copy of both games' general-pass pools as a REQUIRED row, plus the plentiful
+ * copies as SURPLUS rows (THE BAG COMPOSITION RULE below). Filler, renewables and
+ * traps never enter the bag, which is what makes this a few hundred rows and not
+ * the 2489-row union of both whole pools the #727 measurement ran against.
+ *
+ * SIZED FROM THE LARGEST BAG MEASURED, with headroom (#727; lane K9's
+ * re-measurement over both real engines, combo-logic-measure with
+ * RSBS_COMBO_MEASURE_PROFILE): the composed bag is 307 rows on the shipped
+ * profile, 399 on the plentiful profile (OoT RO_ITEM_POOL_PLENTIFUL, MM
+ * RO_PLENTIFUL_ITEMS, traps on in both) and 784 / 799 on two runs of the
+ * "maximal" profile — plentiful plus every OoT confinement family at its
+ * general-pass value, every token, and every MM LOCATION category shuffled. The
+ * maximal figure moves between runs because MM's plentiful step duplicates a
+ * RANDOM half of its lesser rows from Ship_Random (161 vs 176 MM surplus rows).
+ *
+ * 799 IS THE LARGEST BAG MEASURED ON THE PROFILES RUN, NOT A PROVEN WORST CASE. The
+ * "maximal" profile leaves out every ITEM family that is gated on a give
+ * capability or a goal: MM's enemy souls (about 47 items), boss souls (5),
+ * ocarina buttons (5), swim (1), clock shuffle (7 time items) and triforce pieces
+ * (RO_SHUFFLE_ENEMY_SOULS / _BOSS_SOULS / _OCARINA_BUTTONS / _SWIM,
+ * RO_CLOCK_SHUFFLE, RO_SHUFFLE_TRIFORCE_PIECES), and OoT's boss souls, bean souls
+ * (10), ocarina buttons and triforce pieces. The MM families could not be run on
+ * that profile: their rows are armed by give capabilities (RSBS_FILL_ARM_SOULS,
+ * _OCARINA_BUTTONS, _SWIM, _CLOCKS, _WORLD_EVENT) that the measured frozen record
+ * does not publish (armed MM = 0), so they would land in CONFINED, which the
+ * measurement refuses for MM. UNMEASURED ESTIMATE: those families add about
+ * 80-100 progression rows, and plentiful duplicates the major ones, so roughly
+ * 150-200 more bag rows, about 1000 in total. 2048 would still carry that with
+ * about 2x headroom, but that is an estimate; the next re-measurement with
+ * those families armed moves RSBS_COMBO_LOGIC_MEASURED_WORST_BAG below. Exceeding
+ * the cap is still refused (RSBS_COMBO_LOGIC_ERR_CAPACITY), never truncated.
+ *
+ * MEMORY: every bag-sized buffer in combo_logic.c is static — the assumed-set
+ * copy (8 B/row) and the order, required, surplus and dropped index arrays
+ * (4 B/row each) — so 24 B per row of cap: 48 KB at 2048, up from 12 KB at the
+ * old 512.
+ */
+#define RSBS_COMBO_LOGIC_BAG_CAP 2048
+/** The largest composed bag measured on the three profiles run (#727; "maximal"
+ *  — see the families it leaves out, above): the number the cap above is sized
+ *  against, stated so a later re-measurement has one line to move and a static
+ *  assert keeps the 2x headroom over what WAS measured. It is not a bound on
+ *  every configuration. */
+#define RSBS_COMBO_LOGIC_MEASURED_WORST_BAG 799
+#if RSBS_COMBO_LOGIC_BAG_CAP < 2 * RSBS_COMBO_LOGIC_MEASURED_WORST_BAG
+#error "RSBS_COMBO_LOGIC_BAG_CAP must carry the measured worst composed bag with at least 2x headroom"
+#endif
 /** Placements per HOST game. RAM only: see the placement-table note below. It
  *  bounds what one side can RECEIVE out of the bag, so it is sized against the
- *  bag (above) and NOT against either game's check pool. */
-#define RSBS_COMBO_LOGIC_PLACEMENT_CAP 1024
+ *  bag (above) and NOT against either game's check pool: equal to the bag cap,
+ *  because a fill can put every bag row on one side. MEMORY: the coordinator's
+ *  tables are 8 B per placement per origin slot (3 slots, indexed by GameId) plus
+ *  a delivered bit, 49 KB at 2048 (was 24.4 KB at 1024); the OoT engine's own
+ *  placement record is sized by this constant too, 12 B a row (24 KB, was 12 KB).
+ *  With the bag buffers above the raise costs about 72 KB of static RAM. */
+#define RSBS_COMBO_LOGIC_PLACEMENT_CAP 2048
+#if RSBS_COMBO_LOGIC_PLACEMENT_CAP < RSBS_COMBO_LOGIC_BAG_CAP
+#error "RSBS_COMBO_LOGIC_PLACEMENT_CAP must carry a whole bag on one side"
+#endif
 /**
  * Hosts one engine may OFFER in ONE enumeration — `reachedEmptyHosts` and
  * `allEmptyHosts`. IT IS A DIFFERENT QUANTITY FROM RSBS_COMBO_LOGIC_PLACEMENT_CAP
@@ -954,8 +1007,11 @@ int Combo_Logic_TestLastCandidates(GameId hostGame, uint16_t* out, int cap);
 //        only `if (replaceableItems > plentifulItems.size())` (GeneratePools.cpp).
 //        A caller that wants MM's rule marks MM rows surplus only when the whole
 //        list fits, and leaves them out of the bag otherwise.
-//    Neither bag export marks surplus yet (see WHO MARKS SURPLUS below), so no
-//    caller exercises either choice today.
+//    Both pool exports mark surplus now, and both keep their port's own rule by
+//    construction: the rows they mark are the copies each port's OWN plentiful
+//    step actually admitted (OoT's fit test and random top-up, MM's
+//    all-or-nothing and its random half of the lesser rows), recorded where the
+//    port made the decision — see THE BAG COMPOSITION RULE below.
 //
 // 4. MORE HOSTS THAN BAG (filler), and TRAPS. The coordinator places BAG ROWS
 //    AND NOTHING ELSE. Hosts no row landed on are LEFTOVER, enumerated by
@@ -981,15 +1037,15 @@ int Combo_Logic_TestLastCandidates(GameId hostGame, uint16_t* out, int cap);
 //    zero MM traps and lose OoT's fixed ice traps. Neither pass is built yet;
 //    this is the rule it must follow (increment 4's bag builder).
 //
-//    A TRAP DOES NOT CROSS — BY CALLER CONVENTION, NOT BY CONSTRUCTION. The
-//    coordinator checks only a row's origin game and bag flags, so a trap row
-//    handed to it WOULD be placed on the union of both games' hosts. What keeps
-//    traps per-game today is that no bag export puts one in the bag (MM's pool
-//    export excludes `RI_TRAP` in ComboLogicEngineSingleExe.cpp; OoT's exports
-//    advancement items only). A REFUSAL — a trap-class row rejected at the bag —
-//    needs the O8 classification table (lane K5, `src/common/shared_items.*`)
-//    wired in; until then the rule rests on the caller. Whether a host could
-//    render a FOREIGN trap is out of scope this increment. The coordinator
+//    A TRAP DOES NOT CROSS — BY CONSTRUCTION OF THE BAG. Combo_Logic_ComposeBag
+//    (below) reads every pool row's class from the O8 owner and never admits a
+//    TRAP row: it is counted per game (`ComboLogicComposeCounts`) for that game's
+//    own trap pass. The fill itself still checks only a row's origin and flags —
+//    a trap row handed to Combo_Logic_RunFill directly, bypassing the builder,
+//    WOULD be placed on either game's hosts, so a production bag must come
+//    through the builder (the builder is the refusal; the fill stays
+//    table-free so its stub-engine locks keep synthetic ids). Whether a host
+//    could render a FOREIGN trap is out of scope this increment. The coordinator
 //    cannot run either per-game pass itself — they consume each game's own fill
 //    RNG, which no call on this surface may touch — so it hands over the exact
 //    host list and stops.
@@ -997,6 +1053,154 @@ int Combo_Logic_TestLastCandidates(GameId hostGame, uint16_t* out, int cap);
 // (5) EXACT FIT is the degenerate case of both: nothing dropped, nothing
 //    leftover. It is locked as its own shape because it is where an off-by-one
 //    in either rule would show.
+
+// ============================================================================
+// THE BAG COMPOSITION RULE (#645 increment 3, lane K9; ADR 0010 O8 wired in)
+// ============================================================================
+//
+// WHO FEEDS IT. Each engine TU exports its pool as POOL ROWS — one row per copy,
+// origin-tagged, with the PLENTIFUL mark on exactly the copies its own plentiful
+// setting added (OoT: `OoT_ComboLogic_ExportPool`, marking from what
+// `GenerateItemPool` recorded it moved out of `plentifulPool`, plus the ten
+// tokensanity extras; MM: `MM_ComboLogic_MarkPoolRows` over a `GeneratePools`
+// result, marking the tail `GeneratePools` recorded it appended under
+// RO_PLENTIFUL_ITEMS). Neither export decides a class: that is the O8 owner's
+// (`Combo_ItemClassOf`, shared_items.h), read here and nowhere else.
+//
+// MM'S BALANCE STEP AND THE BAG: THE BAG IS AUTHORITATIVE FOR A PAIRED WORLD.
+// MM's solo creation (OnFileCreate.cpp, after `GeneratePools`) forces
+// |itemPool| == |checkPool|: it pads with RI_JUNK, or it ERASES rows — first
+// every RITYPE_JUNK row it needs to, front first, then folds four heart pieces
+// into one container. Several rows that step erases or folds are BAG rows
+// under this rule: MM's bombchus (RI_BOMBCHU, RI_BOMBCHU_5, RI_BOMBCHU_10 are
+// RITYPE_JUNK in Items.cpp) reconcile to PROGRESSION (#731) and are REQUIRED,
+// and MM's hearts are REQUIRED (#733). On the plentiful profile MM's pool is
+// 367 rows against 283 checks, so the balance would erase 84 rows, bombchus
+// among them. The two cannot both hold, and for a PAIRED world the bag wins:
+//  - the balance exists because MM's own fill is a bijection of items onto
+//    MM's checks. A paired world has no such bijection: bag rows land on the
+//    union of both games' hosts, SURPLUS rows are droppable by construction,
+//    and leftover hosts get each game's own junk pass (THE BAG MODEL, shape 4).
+//  - the plentiful mark is only defined on the pool GeneratePools returned
+//    (`MM_ComboLogic_MarkPoolRows` refuses a pool of any other size), so the
+//    bag can only be composed BEFORE the balance.
+// So the production wiring (lane K11) composes from the pre-balance pool and
+// must NOT run MM's balance over rows this rule admitted: erasing or folding a
+// REQUIRED row after composition changes the multiplicity the proof assumed.
+// Whatever balancing a paired world still needs applies only to the rows this
+// rule sent to MM's own passes (JUNK / RENEWABLE / TRAP), which that pass fits
+// to MM's leftover hosts. If K11 decides the other way (balance first), the bag
+// must be composed after it and the plentiful tail re-derived; either way the
+// order is K11's decision to state, not a silent default.
+//
+// THE RULE, one row at a time — first match decides, and the reconciled class
+// (shared_items.h, "ONE CLASS PER CROSS-GAME SHARED QUANTITY") is the class:
+//
+//   class        arming          PLENTIFUL  -> disposition   placed by
+//   ----------   -------------   ---------     ------------   -------------------------------
+//   (none)       -               -          -> UNCLASSIFIED  nobody: the whole compose is REFUSED
+//   TRAP         -               -          -> TRAP          its own game's trap pass (counted)
+//   JUNK         -               -          -> JUNK          its own game's junk pass (counted)
+//   RENEWABLE    -               -          -> RENEWABLE     its own game's junk pass (counted)
+//   PROGRESSION  a bit unarmed   -          -> CONFINED      its own game (OoT: a restricted pass
+//                                                              or fixed placement; see below)
+//   PROGRESSION  all armed       yes        -> SURPLUS       the coordinator, AFTER the proof
+//   PROGRESSION  all armed       no         -> REQUIRED      the coordinator, IN the proof
+//
+// ARMING is the frozen record's, per ORIGIN: the item's `Combo_ItemClassArmedBy`
+// bits must all be in that origin's armed word. For OoT the word carries the
+// CONFINEMENT bits its frozen settings arm (`OoT_ComboLogic_ConfinementArmed`:
+// keysanity / boss keysanity / Ganon's boss key / gerudo keys / maps & compasses /
+// songs / dungeon rewards at their ANYWHERE value, tokens when shuffled at all),
+// which is audit §4.6's reading of P14 made executable: the union bag is OoT's
+// LAST GENERAL PASS only, and an item a restricted pass places (own-dungeon keys,
+// song-location songs, end-of-dungeon rewards, shop stock, goal pieces) never
+// enters it. For MM, whose fill has no restricted pass, the word is the published
+// give capabilities, so an MM row lands in CONFINED only when the pool holds a
+// give family the frozen profile does not arm — a pool/profile disagreement the
+// caller must refuse, because no MM pass exists to place it (the measurement
+// asserts MM CONFINED == 0 on every profile it runs).
+//
+// ORDER. Bag rows keep pool order (a stable filter): the fill shuffles REQUIRED
+// rows with its own RNG and walks SURPLUS rows in bag order, so the pool order of
+// the surplus rows decides which drop first (THE BAG MODEL, shape 3).
+//
+// REFUSALS: a NULL/negative request, a row whose origin is not a game, an
+// unknown pool flag, or ANY unclassified row -> ERR_BAD_REQUEST; more admitted
+// rows than `outCap` or than RSBS_COMBO_LOGIC_BAG_CAP -> ERR_CAPACITY. On every
+// refusal past the argument check the COUNTS are complete — every row is counted
+// exactly once: under its disposition, under UNCLASSIFIED when it carries an
+// unknown pool flag, or in `noOrigin` when it names no game — and `bagCount`
+// reports what WOULD have been admitted. The OUTPUT BUFFERS are not: the builder
+// writes admitted rows as it walks, so after a refusal `outBag` / `outPoolIndex`
+// hold a partial prefix with unspecified contents, which the caller must not
+// read as a bag.
+//
+// WHAT THE BUILDER DOES NOT DECIDE: whether a bag row may be HOSTED by the other
+// game. The fill places every bag row on the union of both games' hosts; the
+// per-item "may this leave its home game" narrowing belongs to the pool draw
+// before the bag (Combo_ForeignPoolDrawFor, ADR 0011 decision 3.1), which the
+// production wiring (lane K11) owns. A measured bag is therefore an upper bound on
+// the bag a paired world will fill.
+
+/** `ComboLogicPoolRow.poolFlags`: this copy was added by its port's PLENTIFUL
+ *  setting — beyond what the frozen settings' non-plentiful pool would hold. */
+#define RSBS_COMBO_POOL_PLENTIFUL 0x0001u
+#define RSBS_COMBO_POOL_FLAGS_KNOWN RSBS_COMBO_POOL_PLENTIFUL
+
+/** One copy in one game's exported pool. */
+typedef struct {
+    SharedItem item;    // originGame must be GAME_OOT or GAME_MM
+    uint16_t poolFlags; // RSBS_COMBO_POOL_* bits
+} ComboLogicPoolRow;
+
+/** The dispositions of the rule table above. Diagnostics, not format. */
+#define RSBS_COMBO_COMPOSE_REQUIRED 0
+#define RSBS_COMBO_COMPOSE_SURPLUS 1
+#define RSBS_COMBO_COMPOSE_CONFINED 2
+#define RSBS_COMBO_COMPOSE_RENEWABLE 3
+#define RSBS_COMBO_COMPOSE_JUNK 4
+#define RSBS_COMBO_COMPOSE_TRAP 5
+#define RSBS_COMBO_COMPOSE_UNCLASSIFIED 6
+#define RSBS_COMBO_COMPOSE_COUNT 7
+
+/** A disposition's name ("required", "surplus", ...), or "(unknown)". */
+const char* Combo_Logic_ComposeDispositionName(int disposition);
+
+/** THE RULE for one row: its disposition under the armed word of ITS origin. A
+ *  pure function of the O8 owner's stored rows and its arguments. */
+int Combo_Logic_ComposeDisposition(SharedItem item, uint16_t poolFlags, uint32_t armed);
+
+typedef struct {
+    int rows[RSBS_COMBO_COMPOSE_COUNT]; // per disposition
+    int plentiful;                      // rows the export marked PLENTIFUL, whatever their disposition
+} ComboLogicComposeCounts;
+
+typedef struct {
+    const ComboLogicPoolRow* rows; // both games' pool rows, in any interleaving; NULL iff rowCount == 0
+    int rowCount;
+    uint32_t armedOoT; // the frozen armed word for OoT-origin rows (RSBS_FILL_ARM_*)
+    uint32_t armedMM;  // ... and for MM-origin rows
+} ComboLogicComposeRequest;
+
+typedef struct {
+    int status;   // RSBS_COMBO_LOGIC_*
+    int bagCount; // rows admitted (REQUIRED + SURPLUS), even when refused for capacity
+    int noOrigin; // rows whose origin names no game (refused; counted under no game)
+    ComboLogicComposeCounts perGame[RSBS_FOREIGN_POOL_ORIGIN_COUNT]; // indexed by GameId
+} ComboLogicComposeResult;
+
+/**
+ * Compose the union bag from both games' pool rows under THE BAG COMPOSITION
+ * RULE above. Writes at most `outCap` bag rows to `outBag` (itemClass 0 — the ADR
+ * 0011 selection bit is the draw's, not this rule's; bagFlags SURPLUS on the
+ * surplus rows) and, when `outPoolIndex` is non-NULL, each bag row's index in
+ * `req->rows`, so a caller can map a row back to its host. Both buffers are
+ * meaningful ONLY when the call returns RSBS_COMBO_LOGIC_OK (see REFUSALS above).
+ * @return the status, also written to `out->status` when `out` is non-NULL.
+ */
+int Combo_Logic_ComposeBag(const ComboLogicComposeRequest* req, ComboLogicBagItem* outBag, int outCap,
+                           int* outPoolIndex, ComboLogicComposeResult* out);
 
 // ============================================================================
 // THE SINGLE-BAG ASSUMED FILL
@@ -1163,14 +1367,14 @@ int Combo_Logic_LeftoverHosts(GameId hostGame, uint16_t* out, int cap);
 //    Combo_Logic_RunFill refuses with one engine instead of half-filling.
 //  - THE O7 BOUNDARY CARVE. The placement tables are RAM, not
 //    `gComboCtx.reserved[108]`. Sizing the carve is epic #645 item 2.
-//  - THE O8 CLASSIFICATION TABLE. `ComboLogicBagItem.itemClass` is carried
-//    from the caller and recorded on the placement; the coordinator filters
-//    nothing by it. When the single-owner table lands in
-//    `src/common/shared_items.*` (answer O8) the class is read from there
-//    instead, and any narrowing belongs to the pool DRAW
-//    (`Combo_ForeignPoolDrawFor`) which already runs before the bag exists —
-//    the six membership criteria run FIRST and the bitset selects among the
-//    survivors (ADR 0011 decision 3.1), an ordering this file may not weaken.
+//  - THE O8 CLASSIFICATION TABLE INSIDE THE FILL. The table is read by the BAG
+//    BUILDER (Combo_Logic_ComposeBag, above), which decides membership; the fill
+//    reads no class and filters nothing, so its stub-engine locks keep synthetic
+//    ids. `ComboLogicBagItem.itemClass` is still the ADR 0011 selection bit,
+//    carried and recorded, and any narrowing by it belongs to the pool DRAW
+//    (`Combo_ForeignPoolDrawFor`) which runs before the bag exists — the six
+//    membership criteria run FIRST and the bitset selects among the survivors
+//    (ADR 0011 decision 3.1), an ordering this file may not weaken.
 //  - THE O10 SHARED TRIFORCE COUNT, hence triforce-hunt refusing with
 //    RSBS_COMBO_LOGIC_ERR_UNSUPPORTED_GOAL rather than being evaluated wrong.
 //  - THE SPOILER. One artifact for the pair is #564 V23 / audit P11; this
@@ -1184,16 +1388,8 @@ int Combo_Logic_LeftoverHosts(GameId hostGame, uint16_t* out, int cap);
 //    from their own game's fill RNG, which nothing on this surface may consume.
 //  - TRAPS IN THE BAG. A trap is a counted row of its own game's pool, placed by
 //    that game's own per-game pass on its own leftover hosts (THE BAG MODEL,
-//    shape 4). It stays out of this bag BY CALLER CONVENTION: nothing here can
-//    tell a trap row from any other row, because the O8 classification table
-//    (lane K5, `src/common/shared_items.*`) is not wired into the bag yet, and a
-//    trap row that WAS handed over would be placed on either game's hosts. When
-//    the table is wired, a trap-class row is REFUSED at the bag, not placed —
+//    shape 4). The bag builder never admits one (THE BAG COMPOSITION RULE);
 //    rendering a foreign trap is out of scope this increment.
-//  - WHO MARKS SURPLUS. `RSBS_COMBO_BAG_SURPLUS` is set by the caller; neither
-//    engine exports its plentiful copies as such yet (their pool exports are
-//    the measurement bridges, over the shipped profile, where plentiful is
-//    off). That export is increment 4's bag builder.
 //  - THE CROSSING EDGE'S TIME-OF-DAY TERMS (answer O2's Day-1 re-stamp and
 //    reset-time guard). Those are authored inside the engines, behind
 //    `crossingOpen`; the coordinator only reads the resulting fact.

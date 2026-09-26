@@ -279,10 +279,9 @@ void Combo_ClearSharedItemOutbox(void);
 // O8 decided where the answer lives: here, "one owner per shared item ... never
 // a per-game duplicate that can disagree with itself".
 //
-// WHAT IT DOES NOT YET DO: RECONCILE A CROSS-GAME SHARED QUANTITY. Rows are keyed
-// per (origin, id), and each game classifies its OWN copy of a #525 shared
-// quantity by its own fill predicate. For three quantities the two copies
-// disagree today, and nothing here reconciles them:
+// ONE CLASS PER CROSS-GAME SHARED QUANTITY (#731). Rows are keyed per (origin,
+// id), and each game classifies its OWN copy of a #525 shared quantity by its own
+// fill predicate. For three quantities the two predicates disagree:
 //   - bombchus (RSBS_SHARED_RES_BOMBCHU_COUNT): OoT RG_BOMBCHU_5/10/20 are
 //     advancement (item_list.cpp) -> PROGRESSION; MM RI_BOMBCHU_5/10 and
 //     RI_BOMBCHU are RITYPE_JUNK (Items.cpp) -> RENEWABLE;
@@ -290,13 +289,41 @@ void Combo_ClearSharedItemOutbox(void);
 //     advancement -> PROGRESSION; MM RI_DOUBLE_DEFENSE is RITYPE_HEALTH -> JUNK;
 //   - heart pieces and containers (RSBS_SHARED_RES_HEALTH_QUARTERS): OoT
 //     PROGRESSION, MM RITYPE_HEALTH -> JUNK.
-// That is OoTMM's SHARED_BOMBCHU shape (one quantity, two answers), so this
-// table does NOT yet prevent it; it only makes each game's answer single and
-// checkable. One class per shared quantity, decided here, is owed by the lane
-// that wires the table into the bag (#731; it needs each game to tag which of its ids
-// feed which #525 kind, which only the game TUs can say under ADR 0002). Until
-// then a consumer must not assume the two origins' rows for one shared quantity
-// agree.
+// That is OoTMM's SHARED_BOMBCHU shape (one quantity, two answers), and the owner
+// now REFUSES it rather than storing it. Each source tags, per row, the ONE #525
+// kind its give feeds (`ComboItemClassRow.sharedKind`; only the game TUs can name
+// those ids under ADR 0002), and the owner applies ONE rule in ONE place:
+//
+//   THE RECONCILED CLASS OF A SHARED KIND is the highest-ranked class among ALL
+//   rows of EVERY registered origin that feed it, ranked
+//   PROGRESSION > RENEWABLE > JUNK. Every row feeding the kind answers that class
+//   through Combo_ItemClassOf, whichever origin it belongs to.
+//
+// PROGRESSION WINS because it is the only sound direction: an MM bombchu pack
+// refills the count OoT's bombchu logic reads, so classing it as filler would let
+// the bag put something a logic term needs anywhere, with no logic (the per-game
+// junk pass places filler blind). The reverse error only costs the proof some
+// work. A TRAP row can never feed a shared kind — a trap is a per-game
+// punishment, not a quantity — so a source that tags one is stored as an invalid
+// row (unclassified), which S2 of the shared-item-class lock counts.
+//
+// WHAT THE RECONCILIATION DECIDES FOR MM'S HEARTS (#733). MM's own fill predicate
+// files RI_HEART_PIECE / RI_HEART_CONTAINER as RITYPE_HEALTH (non-advancement),
+// but MM's graph reads health: Regions/East.cpp gates RC_IKANA_CANYON_GHOST_HUT_
+// PIECE_OF_HEART and RC_ENEMY_DROP_POE_SISTER on CHECK_MAX_HP(4), found by the O6
+// grow-check (an MM heart grant grew the closure by exactly two checks). They feed
+// RSBS_SHARED_RES_HEALTH_QUARTERS, which OoT's heart rows feed as PROGRESSION, so
+// the reconciled class is PROGRESSION and the bag carries every MM heart copy as a
+// REQUIRED row. That is the decision, taken over the alternative of modelling
+// max-HP as a derived quantity the proof assumes: the proof then reads hearts
+// exactly as MM's own give path produces them (the engine grants the copy and
+// CHECK_MAX_HP reads the save), with no second model of health to keep in step.
+// combo-logic-bag-composition locks it over MM's real engine (the two checks are
+// reached with the heart rows assumed and NOT reached without them).
+//
+// Combo_ItemClassSourceOf keeps the source's own, unreconciled answer, for the
+// locks that check a source against its own game's fill predicate. Everything
+// that DECIDES something reads Combo_ItemClassOf.
 //
 // OWNER VERSUS SOURCE, AND THE ADR 0002 ARGUMENT. Deciding a class means naming
 // `RG_*` / `RI_*` and reading each game's item table (`Item::IsAdvancement()`,
@@ -476,9 +503,14 @@ void Combo_ClearSharedItemOutbox(void);
 
 /** One source row. */
 typedef struct {
-    uint8_t fillClass; /* RSBS_FILL_CLASS_* */
-    uint32_t armedBy;  /* RSBS_FILL_ARM_* the item needs armed to roam; 0 = unconditional */
+    uint8_t fillClass;  /* RSBS_FILL_CLASS_* */
+    uint32_t armedBy;   /* RSBS_FILL_ARM_* the item needs armed to roam; 0 = unconditional */
+    uint8_t sharedKind; /* the RSBS_SHARED_RES_* kind this item's give feeds (context.h); 0 = none */
 } ComboItemClassRow;
+
+/** Shared kinds the owner reconciles: [1, RSBS_ITEM_CLASS_SHARED_KIND_CAP). A row
+ *  tagging a kind at or past it is stored as invalid (unclassified). */
+#define RSBS_ITEM_CLASS_SHARED_KIND_CAP 32u
 
 /** Classify ONE id of the source's own id space.
  *  @return  1 — a fill item; `*out` holds its row (fillClass never NONE);
@@ -488,7 +520,10 @@ typedef struct {
  *          -1 — the source is not READY (its item table is not initialised). */
 typedef int (*ComboItemClassifyFn)(uint16_t id, ComboItemClassRow* out);
 
-#define RSBS_ITEM_CLASS_SOURCE_ABI 1u
+/** 2 (#731): the row gained `sharedKind`, and the owner's answer became the
+ *  RECONCILED class. A version-1 source would leave the new byte zero, which is
+ *  silently "feeds no kind", so the number moves and a stale source is refused. */
+#define RSBS_ITEM_CLASS_SOURCE_ABI 2u
 /** The owner stores rows for ids in [0, RSBS_ITEM_CLASS_ID_CAP); a source whose
  *  id space is wider is refused at registration rather than truncated. */
 #define RSBS_ITEM_CLASS_ID_CAP 1024u
@@ -544,21 +579,44 @@ uint32_t Combo_ItemClassRefusedRegistrations(void);
 int Combo_ItemClassBuild(uint8_t originGame);
 
 /** THE OWNER'S ANSWER: @p item's fill class, from the stored table (built on
- *  first use). RSBS_FILL_CLASS_NONE for an unknown origin, an id outside the
- *  source's id space, a non-fill id, or a source that is not ready. `flags` is
- *  ignored — the class belongs to (originGame, id). */
+ *  first use), RECONCILED across origins when the item feeds a shared kind (see
+ *  "ONE CLASS PER CROSS-GAME SHARED QUANTITY" above). RSBS_FILL_CLASS_NONE for an
+ *  unknown origin, an id outside the source's id space, a non-fill id, or a source
+ *  that is not ready — and, for a row that feeds a shared kind, while ANY
+ *  registered origin's table cannot be built yet (a reconciliation over half the
+ *  rows would be a different answer later). `flags` is ignored — the class
+ *  belongs to (originGame, id). */
 uint8_t Combo_ItemClassOf(SharedItem item);
+
+/** The SOURCE's own stored class for @p item, BEFORE shared-kind reconciliation:
+ *  what that game's fill predicate said. For locks that check a source against its
+ *  own predicate; nothing that decides anything may read it. */
+uint8_t Combo_ItemClassSourceOf(SharedItem item);
+
+/** The RSBS_SHARED_RES_* kind @p item feeds (0 = none, or unknown). */
+uint8_t Combo_ItemClassSharedKind(SharedItem item);
+
+/** The reconciled class of shared kind @p kind: the highest-ranked class
+ *  (PROGRESSION > RENEWABLE > JUNK) over every registered origin's rows feeding
+ *  it. RSBS_FILL_CLASS_NONE when no row feeds it, the kind is out of range, or a
+ *  registered table cannot be built yet. */
+uint8_t Combo_ItemClassKindClass(uint8_t kind);
+
+/** How many of @p originGame's fill items feed shared kind @p kind (-1 when the
+ *  table cannot be built). */
+int Combo_ItemClassKindRows(uint8_t originGame, uint8_t kind);
 
 /** The stored arming conditions of @p item (0 when unconditional or unknown). */
 uint32_t Combo_ItemClassArmedBy(SharedItem item);
 
-/** How many fill items of @p originGame's table have class @p fillClass
- *  (-1 when the table cannot be built). */
+/** How many fill items of @p originGame's table have RECONCILED class
+ *  @p fillClass (-1 when the table cannot be built). */
 int Combo_ItemClassCount(uint8_t originGame, uint8_t fillClass);
 
 /**
- * Re-walk @p originGame's source and count the ids whose (class, armedBy) differ
- * from the stored row — including an id the source now calls a fill item that
+ * Re-walk @p originGame's source and count the ids whose (class, armedBy,
+ * sharedKind) differ from the stored row — the SOURCE's answers, before
+ * reconciliation — including an id the source now calls a fill item that
  * the table does not hold, or the reverse.
  * @return 0 when source and owner agree; > 0 the number of diverging ids; -1 when
  *         the table cannot be built or the source became not ready.
@@ -573,10 +631,14 @@ const char* Combo_ItemClassName(uint8_t fillClass);
  * THE SETTINGS-CONDITIONAL PREDICATE: may @p item enter the union bag and cross
  * games in a world whose frozen settings arm @p armed (an OR of RSBS_FILL_ARM_*)?
  *
- * True only for a PROGRESSION item whose every arming condition is in @p armed.
- * Never for junk or renewable (criterion 2: junk is what a foreign host degrades
- * to; renewables are the #525 shared quantities) and never for a trap (see the
- * section header). A pure function of the stored row and its argument.
+ * True only for an item whose RECONCILED class (Combo_ItemClassOf) is PROGRESSION
+ * and whose every arming condition is in @p armed. Never for junk or renewable
+ * (criterion 2: junk is what a foreign host degrades to; a renewable is a #525
+ * shared quantity nothing logical reads) and never for a trap (see the section
+ * header). A shared-kind row whose own game calls it filler but whose kind
+ * reconciles to PROGRESSION (MM's bombchus, double defense, hearts) answers as
+ * progression here too — one quantity, one answer. A pure function of the stored
+ * rows and its argument.
  */
 bool Combo_ItemClassMayCrossUnder(SharedItem item, uint32_t armed);
 

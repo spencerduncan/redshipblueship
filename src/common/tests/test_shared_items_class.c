@@ -20,8 +20,8 @@
  *     REAL class in the owner table; no fill item is unclassified; every class
  *     occurs in both games; and every real item-table row that is NOT a fill item
  *     is one of an exact, adjudicated handful (OoT: RG_TRIFORCE and RG_HINT —
- *     RG_NONE is not a real row to OoT's identity test; MM: RI_UNKNOWN, RI_NONE,
- *     RI_TRIFORCE_PIECE_PREVIOUS). MM's row oracle is a DIFFERENT TU's bridge
+ *     RG_NONE is not a real row to OoT's identity test; MM: RI_UNKNOWN and
+ *     RI_TRIFORCE_PIECE_PREVIOUS; RI_NONE is JUNK, a real pool row). MM's row oracle is a DIFFERENT TU's bridge
  *     (ForeignItemsSingleExe.cpp), so a source that silently dropped rows is
  *     caught by an observer that is not itself.
  *  S3 TRAPS ARE NEVER PROGRESSION, and the trap-first rule is load-bearing:
@@ -65,6 +65,20 @@
  *     the owner: a pool row is an item ADR 0011 lets cross, and the owner's
  *     predicate lets only progression cross, so a renewable, junk, trap or
  *     unclassified pool row is a disagreement.
+ *  S8 ONE CLASS PER CROSS-GAME SHARED QUANTITY (#731, #733). For every #525 kind
+ *     that rows of BOTH games feed, every such row answers ONE class through
+ *     Combo_ItemClassOf, whichever game it belongs to. Bombchus, double defense
+ *     and heart quarters are each fed by both games and reconcile to PROGRESSION
+ *     — so every MM heart piece and container is PROGRESSION (#733) — and the RED
+ *     HALF is observed on the real tables: for each of those three kinds the two
+ *     SOURCES still disagree (some row's unreconciled class is not PROGRESSION),
+ *     so deleting the reconciliation turns this row red. A synthetic source proves
+ *     the rule rather than the data: its junk-class bombchu row reconciles to
+ *     OoT's PROGRESSION, and a TRAP row tagged with a kind is refused
+ *     (unclassified). No trap in either real table feeds a kind.
+ *     S3 and S4 read the SOURCE's own stored answer (Combo_ItemClassSourceOf):
+ *     they are checks of each source against its own game's predicate, which the
+ *     reconciliation deliberately does not follow.
  *
  * PROCESS STATE. AllTests runs every row in one process, so this row leaves what
  * it can as it found it: a scope guard restores the published give caps of both
@@ -175,7 +189,28 @@ int SicTrapEverythingClassify(uint16_t id, ComboItemClassRow* out) {
     return 1;
 }
 
+// S8's synthetic MM rows: id 1 a RENEWABLE bombchu row (MM's own answer for its
+// bombchu packs), id 2 a TRAP wrongly tagged with a kind, id 3 untagged JUNK.
+int SicKindClassify(uint16_t id, ComboItemClassRow* out) {
+    ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u, 0u };
+    if (id == 1u) {
+        row.fillClass = RSBS_FILL_CLASS_RENEWABLE;
+        row.sharedKind = RSBS_SHARED_RES_BOMBCHU_COUNT;
+    } else if (id == 2u) {
+        row.fillClass = RSBS_FILL_CLASS_TRAP;
+        row.sharedKind = RSBS_SHARED_RES_BOMBCHU_COUNT;
+    } else if (id == 3u) {
+        row.fillClass = RSBS_FILL_CLASS_JUNK;
+    } else {
+        *out = row;
+        return 0;
+    }
+    *out = row;
+    return 1;
+}
+
 const ComboItemClassSource kSicFlipFlopSource = { RSBS_ITEM_CLASS_SOURCE_ABI, 8u, SicFlipFlopClassify };
+const ComboItemClassSource kSicKindSource = { RSBS_ITEM_CLASS_SOURCE_ABI, 8u, SicKindClassify };
 const ComboItemClassSource kSicIntruderSource = { RSBS_ITEM_CLASS_SOURCE_ABI, 8u, SicTrapEverythingClassify };
 const ComboItemClassSource kSicBadAbiSource = { RSBS_ITEM_CLASS_SOURCE_ABI + 1u, 8u, SicFlipFlopClassify };
 const ComboItemClassSource kSicTooWideSource = { RSBS_ITEM_CLASS_SOURCE_ABI, (uint16_t)(RSBS_ITEM_CLASS_ID_CAP + 1u),
@@ -202,6 +237,9 @@ TestResult SicCoverageAndTraps(uint8_t origin, int expectedRealNonFillRows) {
         const int rv = src->classify((uint16_t)id, &direct);
         SIC_ASSERT(rv == 0 || rv == 1, "the source is ready and answers every id of its space");
         const uint8_t owned = Combo_ItemClassOf(item);
+        // S3 is a check of the SOURCE against its own game's predicate, so it reads
+        // the source's stored answer, before the shared-kind reconciliation (S8).
+        const uint8_t sourced = Combo_ItemClassSourceOf(item);
         SIC_ASSERT(owned < RSBS_FILL_CLASS_COUNT, "every stored class is a real enumerator");
         perClass[owned]++;
 
@@ -233,11 +271,12 @@ TestResult SicCoverageAndTraps(uint8_t origin, int expectedRealNonFillRows) {
         if (rv == 1) {
             const int adv = SicFillAdvancement(origin, (uint16_t)id);
             SIC_ASSERT(adv == 0 || adv == 1, "a fill item has a fill-predicate answer");
-            if (owned == RSBS_FILL_CLASS_PROGRESSION) {
+            if (sourced == RSBS_FILL_CLASS_PROGRESSION) {
                 SIC_ASSERT(adv == 1, "PROGRESSION only where the game's own fill says advancement");
             }
-            if (adv == 1 && owned != RSBS_FILL_CLASS_PROGRESSION) {
-                SIC_ASSERT(owned == RSBS_FILL_CLASS_TRAP, "advancement that is not PROGRESSION is only ever a TRAP");
+            if (adv == 1 && sourced != RSBS_FILL_CLASS_PROGRESSION) {
+                SIC_ASSERT(sourced == RSBS_FILL_CLASS_TRAP,
+                           "advancement that is not PROGRESSION is only ever a TRAP");
                 printf("[TEST] %s id %u: advancement to its own fill, classed TRAP (trap-first rule)\n",
                        SicGameName(origin), (unsigned)id);
                 trapsTheFillCallsAdvancement++;
@@ -380,11 +419,13 @@ TestResult Test_SharedItemClass(void) {
 
     // ---- S2 + S3 ------------------------------------------------------------
     // OoT: RG_TRIFORCE and RG_HINT (RG_NONE is not a real row to the identity
-    // test). MM: RI_UNKNOWN, RI_NONE, RI_TRIFORCE_PIECE_PREVIOUS.
+    // test). MM: RI_UNKNOWN, RI_TRIFORCE_PIECE_PREVIOUS — RI_NONE is a fill item
+    // (JUNK) since lane K9: GeneratePools pushes it as the vanilla item of every
+    // drop check that holds nothing.
     if (SicCoverageAndTraps((uint8_t)GAME_OOT, 2) != TEST_PASS) {
         return TEST_FAIL;
     }
-    if (SicCoverageAndTraps((uint8_t)GAME_MM, 3) != TEST_PASS) {
+    if (SicCoverageAndTraps((uint8_t)GAME_MM, 2) != TEST_PASS) {
         return TEST_FAIL;
     }
 
@@ -392,11 +433,13 @@ TestResult Test_SharedItemClass(void) {
     for (uint8_t origin = (uint8_t)GAME_OOT; origin <= (uint8_t)GAME_MM; origin++) {
         const ComboItemClassSource* src = Combo_GetItemClassSource(origin);
         for (uint32_t id = 0; id < src->idSpace; id++) {
-            ComboItemClassRow direct = { RSBS_FILL_CLASS_NONE, 0u };
+            ComboItemClassRow direct = { RSBS_FILL_CLASS_NONE, 0u, 0u };
             SicRealClassify(origin)((uint16_t)id, &direct);
             const SharedItem item = SicItem(origin, (uint16_t)id);
-            SIC_ASSERT(Combo_ItemClassOf(item) == direct.fillClass && Combo_ItemClassArmedBy(item) == direct.armedBy,
-                       "the owner's answer equals the source's for every id");
+            SIC_ASSERT(Combo_ItemClassSourceOf(item) == direct.fillClass &&
+                           Combo_ItemClassArmedBy(item) == direct.armedBy &&
+                           Combo_ItemClassSharedKind(item) == direct.sharedKind,
+                       "the owner stores the source's answer for every id");
         }
         const int diverging = Combo_ItemClassVerify(origin);
         printf("[TEST] %s: Combo_ItemClassVerify = %d\n", SicGameName(origin), diverging);
@@ -425,6 +468,25 @@ TestResult Test_SharedItemClass(void) {
                "the owner keeps ITS answer; the source's new one is only reported");
     sSicFlip = false;
 
+    // ---- S8, the RULE (synthetic MM source): one class per shared kind ------
+    SIC_ASSERT(Combo_TestUnregisterItemClassSource((uint8_t)GAME_MM), "un-register the flip-flop source");
+    SIC_ASSERT(Combo_RegisterItemClassSource((uint8_t)GAME_MM, &kSicKindSource), "synthetic kind source accepted");
+    SIC_ASSERT(Combo_ItemClassBuild((uint8_t)GAME_MM) == 2, "ids 1 and 3 are fill items; the kind-tagged trap is not");
+    SIC_ASSERT(Combo_ItemClassSourceOf(SicItem((uint8_t)GAME_MM, 1)) == RSBS_FILL_CLASS_RENEWABLE,
+               "the source's own answer for the synthetic bombchu row is kept as RENEWABLE");
+    SIC_ASSERT(Combo_ItemClassOf(SicItem((uint8_t)GAME_MM, 1)) == RSBS_FILL_CLASS_PROGRESSION,
+               "a renewable row feeding the bombchu kind answers OoT's PROGRESSION (progression wins)");
+    SIC_ASSERT(Combo_ItemClassMayCrossUnder(SicItem((uint8_t)GAME_MM, 1), 0u),
+               "and it may cross as the progression item it now is");
+    SIC_ASSERT(Combo_ItemClassOf(SicItem((uint8_t)GAME_MM, 2)) == RSBS_FILL_CLASS_NONE,
+               "a TRAP row tagged with a shared kind is refused (stored unclassified)");
+    SIC_ASSERT(Combo_ItemClassOf(SicItem((uint8_t)GAME_MM, 3)) == RSBS_FILL_CLASS_JUNK,
+               "an untagged junk row keeps its own class");
+    SIC_ASSERT(Combo_ItemClassKindClass(RSBS_SHARED_RES_BOMBCHU_COUNT) == RSBS_FILL_CLASS_PROGRESSION,
+               "the bombchu kind reconciles to PROGRESSION");
+    SIC_ASSERT(Combo_TestUnregisterItemClassSource((uint8_t)GAME_MM), "un-register the kind source");
+    SIC_ASSERT(Combo_RegisterItemClassSource((uint8_t)GAME_MM, &kSicFlipFlopSource), "flip-flop source back");
+
     // ---- S5: a second registration is refused ------------------------------
     uint32_t refused = Combo_ItemClassRefusedRegistrations();
     SIC_ASSERT(!Combo_RegisterItemClassSource((uint8_t)GAME_MM, &kSicIntruderSource),
@@ -440,7 +502,7 @@ TestResult Test_SharedItemClass(void) {
     SIC_ASSERT(Combo_RegisterItemClassSource((uint8_t)GAME_MM, mm), "the real MM source re-registers");
     SIC_ASSERT(Combo_ItemClassVerify((uint8_t)GAME_MM) == 0, "restored MM source agrees");
     SIC_ASSERT(SicTableDigest((uint8_t)GAME_MM) == mmDigest, "the restored MM table is the one built before");
-    SIC_ASSERT(Combo_ItemClassUnregistrations() == unregBefore + 2u, "both test un-registrations were counted");
+    SIC_ASSERT(Combo_ItemClassUnregistrations() == unregBefore + 4u, "every test un-registration was counted");
 
     // Now against the REAL registered sources.
     const uint32_t ootDigest = SicTableDigest((uint8_t)GAME_OOT);
@@ -547,6 +609,59 @@ TestResult Test_SharedItemClass(void) {
     // ---- S7: the foreign pools agree ---------------------------------------
     if (SicForeignPoolAgrees((uint8_t)GAME_OOT) != TEST_PASS || SicForeignPoolAgrees((uint8_t)GAME_MM) != TEST_PASS) {
         return TEST_FAIL;
+    }
+
+    // ---- S8, over the REAL tables: one class per shared kind (#731, #733) ---
+    int sharedByBoth = 0;
+    for (uint8_t kind = 1; kind < RSBS_ITEM_CLASS_SHARED_KIND_CAP; kind++) {
+        const int ootRows = Combo_ItemClassKindRows((uint8_t)GAME_OOT, kind);
+        const int mmRows = Combo_ItemClassKindRows((uint8_t)GAME_MM, kind);
+        SIC_ASSERT(ootRows >= 0 && mmRows >= 0, "both tables build");
+        if (ootRows == 0 || mmRows == 0) {
+            continue;
+        }
+        sharedByBoth++;
+        const uint8_t kindClass = Combo_ItemClassKindClass(kind);
+        SIC_ASSERT(kindClass == RSBS_FILL_CLASS_PROGRESSION || kindClass == RSBS_FILL_CLASS_RENEWABLE ||
+                       kindClass == RSBS_FILL_CLASS_JUNK,
+                   "a shared kind reconciles to a real filler-or-progression class");
+        int sourcesDisagree = 0;
+        for (uint8_t origin = (uint8_t)GAME_OOT; origin <= (uint8_t)GAME_MM; origin++) {
+            const ComboItemClassSource* src = Combo_GetItemClassSource(origin);
+            for (uint32_t id = 0; id < src->idSpace; id++) {
+                const SharedItem item = SicItem(origin, (uint16_t)id);
+                if (Combo_ItemClassSharedKind(item) != kind) {
+                    continue;
+                }
+                SIC_ASSERT(Combo_ItemClassOf(item) == kindClass,
+                           "every row feeding a shared kind answers the kind's ONE class, in both games");
+                if (Combo_ItemClassSourceOf(item) != kindClass) {
+                    sourcesDisagree++;
+                }
+            }
+        }
+        printf("[TEST] shared kind %u: OoT %d rows, MM %d rows -> %s (%d rows whose own source said otherwise)\n",
+               (unsigned)kind, ootRows, mmRows, Combo_ItemClassName(kindClass), sourcesDisagree);
+        if (kind == RSBS_SHARED_RES_BOMBCHU_COUNT || kind == RSBS_SHARED_RES_DOUBLE_DEFENSE ||
+            kind == RSBS_SHARED_RES_HEALTH_QUARTERS) {
+            SIC_ASSERT(kindClass == RSBS_FILL_CLASS_PROGRESSION,
+                       "bombchus, double defense and heart quarters reconcile to PROGRESSION (#731; #733 for hearts)");
+            SIC_ASSERT(sourcesDisagree > 0, "RED HALF: the two sources disagree about this kind, so the "
+                                            "reconciliation is what makes the classes equal");
+        }
+    }
+    printf("[TEST] shared kinds fed by both games: %d\n", sharedByBoth);
+    SIC_ASSERT(sharedByBoth >= 3, "the three #731 kinds (at least) are fed by both games");
+    SIC_ASSERT(Combo_ItemClassKindRows((uint8_t)GAME_MM, RSBS_SHARED_RES_HEALTH_QUARTERS) >= 2,
+               "MM's heart piece and heart container are tagged as heart quarters (#733)");
+    for (uint8_t origin = (uint8_t)GAME_OOT; origin <= (uint8_t)GAME_MM; origin++) {
+        const ComboItemClassSource* src = Combo_GetItemClassSource(origin);
+        for (uint32_t id = 0; id < src->idSpace; id++) {
+            const SharedItem item = SicItem(origin, (uint16_t)id);
+            if (Combo_ItemClassSourceOf(item) == RSBS_FILL_CLASS_TRAP) {
+                SIC_ASSERT(Combo_ItemClassSharedKind(item) == 0u, "no trap feeds a shared quantity");
+            }
+        }
     }
 
     printf("[TEST] shared-item-class: PASS\n");

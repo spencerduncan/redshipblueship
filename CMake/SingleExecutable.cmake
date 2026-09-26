@@ -1855,6 +1855,32 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # THE BAG COMPOSITION RULE over both REAL pools (#645 increment 3, lane K9;
+    # #731, #733): the composed bag holds progression copies only, plentiful copies
+    # are surplus, OoT's restricted passes confine their families, filler and traps
+    # are counted and never admitted, and MM's heart rows are REQUIRED and
+    # load-bearing for CHECK_MAX_HP(4) over MM's real engine (with a red half). Two
+    # rows, one per profile, because each needs its own OoT generation: the shipped
+    # defaults, and a plentiful profile (OoT plentiful + extra ice traps, MM
+    # plentiful + traps) that also fills a small surplus-bearing bag over the real
+    # engines. `rando` tier for the siblings' reason.
+    redship_add_test(NAME ComboLogicBagComposition COMMAND redship --test combo-logic-bag-composition
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    redship_add_test(NAME ComboLogicBagCompositionPlentiful COMMAND redship --test combo-logic-bag-composition
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1;RSBS_COMBO_PROFILE=plentiful")
+    # The "armed" profile (PR #738 review): plentiful plus OoT small keys, songs and
+    # Ganon's boss key at ANYWHERE and every token shuffled — the only CTest-run
+    # generation that reaches OoT_ComboLogic_ConfinementArmed with a bit set and
+    # item_pool.cpp's tokensanity plentiful record (leg B6: the exact armed word and
+    # exactly ten PLENTIFUL tokens).
+    redship_add_test(NAME ComboLogicBagCompositionArmed COMMAND redship --test combo-logic-bag-composition
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1;RSBS_COMBO_PROFILE=armed")
 
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)
