@@ -1320,22 +1320,49 @@ bool OoTFillClassIsRupee(RandomizerGet rg) {
 }
 
 /**
- * The CONFINEMENT family of an OoT item: the settings that can hold it in one of
- * OoT's restricted placement passes (keysanity, song / token / reward shuffle),
- * which run before the general pass the union bag is drawn from (ADR 0010 O4
- * amendment 2). A property of the item's family, so it is tagged on every class,
- * not only on progression. The shop's own stock (`RG_BUY_*`) is placed only into
- * shop slots and no setting lets it roam; triforce pieces are a per-world goal
- * quantity.
+ * The CONFINEMENT family of an OoT item: the ONE setting that can hold it in one
+ * of OoT's restricted placement passes or a fixed placement, which run before the
+ * general pass the union bag is drawn from (ADR 0010 O4 amendment 2). A property
+ * of the item's family, so it is tagged on every class, not only on progression.
+ *
+ * Split by SETTING, not by ItemType, because the item types straddle settings
+ * (shared_items.h, "ONE SETTING PER CONFINEMENT BIT"):
+ *   - dungeon small keys and key rings: RSK_KEYSANITY (3drando/fill.cpp confines
+ *     exactly `dungeon->GetSmallKey()` / `GetKeyRing()`);
+ *   - Gerudo Fortress keys (ITEMTYPE_FORTRESS_SMALLKEY): RSK_GERUDO_KEYS, its own
+ *     any-dungeon / overworld passes in RandomizeDungeonItems;
+ *   - treasure-game keys (ITEMTYPE_SMALLKEY, but not a dungeon's): NO confinement.
+ *     RSK_SHUFFLE_CHEST_MINIGAME only decides whether they enter the pool
+ *     (item_pool.cpp), the treasure box shop is not in the dungeon list, and no
+ *     restricted pass names them, so when present the general pass places them;
+ *   - dungeon boss keys: RSK_BOSS_KEYSANITY, which fill.cpp applies to every boss
+ *     key EXCEPT Ganon's;
+ *   - Ganon's Castle boss key: RSK_GANONS_BOSS_KEY.
+ * The shop's own stock (`RG_BUY_*`) is placed only into shop slots and no setting
+ * lets it roam; triforce pieces are a per-world goal quantity.
  */
 uint32_t OoTFillClassArmedBy(RandomizerGet rg, ItemType type) {
-    if (rg == RG_TRIFORCE_PIECE) {
-        return RSBS_FILL_ARM_WORLD_EVENT;
+    switch (rg) {
+        case RG_TRIFORCE_PIECE:
+            return RSBS_FILL_ARM_WORLD_EVENT;
+        case RG_TREASURE_GAME_SMALL_KEY:
+        case RG_TREASURE_GAME_KEY_RING:
+            return 0u;
+        case RG_GERUDO_FORTRESS_SMALL_KEY:
+        case RG_GERUDO_FORTRESS_KEY_RING:
+            return RSBS_FILL_ARM_GERUDO_KEYS_ROAM;
+        case RG_GANONS_CASTLE_BOSS_KEY:
+            return RSBS_FILL_ARM_GANON_BOSS_KEY_ROAM;
+        default:
+            break;
     }
     switch (type) {
         case ITEMTYPE_SMALLKEY:
-        case ITEMTYPE_FORTRESS_SMALLKEY:
             return RSBS_FILL_ARM_SMALL_KEYS_ROAM;
+        case ITEMTYPE_FORTRESS_SMALLKEY:
+            // Every fortress key is named above; a new one is confined by the
+            // fortress setting until someone decides otherwise.
+            return RSBS_FILL_ARM_GERUDO_KEYS_ROAM;
         case ITEMTYPE_BOSSKEY:
             return RSBS_FILL_ARM_BOSS_KEYS_ROAM;
         case ITEMTYPE_MAP:

@@ -349,6 +349,7 @@ typedef struct {
 
 static ItemClassTable sItemClass[ITEM_CLASS_ORIGINS];
 static uint32_t sItemClassRefused = 0;
+static uint32_t sItemClassUnregistered = 0;
 
 static ItemClassTable* ItemClassTableFor(uint8_t originGame) {
     if (!IsRealGame((GameId)originGame)) {
@@ -374,8 +375,13 @@ bool Combo_RegisterItemClassSource(uint8_t originGame, const ComboItemClassSourc
         return false;
     }
     if (source == NULL) {
-        memset(t, 0, sizeof(*t)); // un-register: drop the source AND every row built from it
-        return true;
+        // Not an un-registration: that door is test-only and logged
+        // (Combo_TestUnregisterItemClassSource), so a replacement can never go
+        // through here in two silent steps.
+        sItemClassRefused++;
+        fprintf(stderr, "[ItemClass] registration REFUSED for %s: NULL source (refusals: %u)\n",
+                Game_ToString((GameId)originGame), sItemClassRefused);
+        return false;
     }
     if (source->abiVersion != RSBS_ITEM_CLASS_SOURCE_ABI || source->classify == NULL || source->idSpace == 0u ||
         source->idSpace > RSBS_ITEM_CLASS_ID_CAP) {
@@ -398,6 +404,22 @@ bool Combo_RegisterItemClassSource(uint8_t originGame, const ComboItemClassSourc
     memset(t, 0, sizeof(*t));
     t->source = source;
     return true;
+}
+
+bool Combo_TestUnregisterItemClassSource(uint8_t originGame) {
+    ItemClassTable* t = ItemClassTableFor(originGame);
+    if (t == NULL || t->source == NULL) {
+        return false;
+    }
+    sItemClassUnregistered++;
+    fprintf(stderr, "[ItemClass] TEST un-registration of %s's source (un-registrations: %u)\n",
+            Game_ToString((GameId)originGame), sItemClassUnregistered);
+    memset(t, 0, sizeof(*t)); // drop the source AND every row built from it
+    return true;
+}
+
+uint32_t Combo_ItemClassUnregistrations(void) {
+    return sItemClassUnregistered;
 }
 
 const ComboItemClassSource* Combo_GetItemClassSource(uint8_t originGame) {

@@ -277,8 +277,26 @@ void Combo_ClearSharedItemOutbox(void);
 // assume to prove the goal, which ones it may use to fill the hosts left over
 // once the bag is placed, and which ones may never leave their own game — and
 // O8 decided where the answer lives: here, "one owner per shared item ... never
-// a per-game duplicate that can disagree with itself". OoTMM's SHARED_BOMBCHU,
-// classified by two settings in two places, is the failure this prevents.
+// a per-game duplicate that can disagree with itself".
+//
+// WHAT IT DOES NOT YET DO: RECONCILE A CROSS-GAME SHARED QUANTITY. Rows are keyed
+// per (origin, id), and each game classifies its OWN copy of a #525 shared
+// quantity by its own fill predicate. For three quantities the two copies
+// disagree today, and nothing here reconciles them:
+//   - bombchus (RSBS_SHARED_RES_BOMBCHU_COUNT): OoT RG_BOMBCHU_5/10/20 are
+//     advancement (item_list.cpp) -> PROGRESSION; MM RI_BOMBCHU_5/10 and
+//     RI_BOMBCHU are RITYPE_JUNK (Items.cpp) -> RENEWABLE;
+//   - double defense (RSBS_SHARED_RES_DOUBLE_DEFENSE): OoT RG_DOUBLE_DEFENSE is
+//     advancement -> PROGRESSION; MM RI_DOUBLE_DEFENSE is RITYPE_HEALTH -> JUNK;
+//   - heart pieces and containers (RSBS_SHARED_RES_HEALTH_QUARTERS): OoT
+//     PROGRESSION, MM RITYPE_HEALTH -> JUNK.
+// That is OoTMM's SHARED_BOMBCHU shape (one quantity, two answers), so this
+// table does NOT yet prevent it; it only makes each game's answer single and
+// checkable. One class per shared quantity, decided here, is owed by the lane
+// that wires the table into the bag (it needs each game to tag which of its ids
+// feed which #525 kind, which only the game TUs can say under ADR 0002). Until
+// then a consumer must not assume the two origins' rows for one shared quantity
+// agree.
 //
 // OWNER VERSUS SOURCE, AND THE ADR 0002 ARGUMENT. Deciding a class means naming
 // `RG_*` / `RI_*` and reading each game's item table (`Item::IsAdvancement()`,
@@ -384,7 +402,8 @@ void Combo_ClearSharedItemOutbox(void);
 // (ADR 0010's O4 amendment 2), so they do not cross; with MM soul shuffle
 // unarmed, an MM soul give is a bare flag with no meaning (ADR 0011 criterion 3).
 // Baking either into the static table would make the table a function of
-// settings, which is the SHARED_BOMBCHU wart again. So each row carries the
+// settings, which is the SHARED_BOMBCHU wart again (one item, two answers
+// depending on where you ask). So each row carries the
 // ARMING CONDITIONS under which it may roam, and Combo_ItemClassMayCrossUnder is
 // the predicate over a frozen world's armed set.
 //
@@ -394,17 +413,50 @@ void Combo_ClearSharedItemOutbox(void);
 // CONFINEMENT families: settings that can confine an item family to a restricted
 // placement pass. Only a game with restricted passes tags them (OoT does; MM's
 // fill places its whole pool in one pass, so its rows carry none).
+//
+// ONE SETTING PER CONFINEMENT BIT, AND ONLY THE VALUE THAT HANDS THE FAMILY TO
+// THE GENERAL PASS ARMS IT. A confinement bit means "the ONE setting named below
+// hands this family to the GENERAL placement pass" (the pass the union bag is
+// drawn from) and nothing weaker. OoT's own-dungeon, any-dungeon and overworld
+// values are all RESTRICTED passes (3drando/fill.cpp RandomizeOwnDungeon /
+// RandomizeDungeonItems), and vanilla / start-with are fixed placements that
+// never enter any pool, so for the key, map, song and reward families a
+// publisher arms the bit only for the setting's anywhere value. The families are
+// split by the setting that actually confines them, because OoT's item types
+// are not: ITEMTYPE_SMALLKEY covers the dungeon keys (RSK_KEYSANITY) and the
+// treasure-game keys (no confinement at all: RSK_SHUFFLE_CHEST_MINIGAME only
+// decides whether they enter the pool, item_pool.cpp, and no restricted pass
+// names them), ITEMTYPE_FORTRESS_SMALLKEY follows RSK_GERUDO_KEYS, and
+// ITEMTYPE_BOSSKEY covers the dungeon boss keys (RSK_BOSS_KEYSANITY) and Ganon's
+// (RSK_GANONS_BOSS_KEY). One bit over two settings could not express
+// keysanity=anywhere with gerudo keys=any-dungeon: the fortress keys would read
+// as roaming while OoT's fill still confined them, which is the unsound
+// direction.
 #define RSBS_FILL_ARM_SOULS 0x00000001u           /* == RSBS_GIVECAP_SOULS */
 #define RSBS_FILL_ARM_OCARINA_BUTTONS 0x00000002u /* == RSBS_GIVECAP_OCARINA_BUTTONS */
 #define RSBS_FILL_ARM_SWIM 0x00000004u            /* == RSBS_GIVECAP_SWIM */
 #define RSBS_FILL_ARM_CLOCKS 0x00000008u          /* == RSBS_GIVECAP_CLOCKS */
 #define RSBS_FILL_ARM_GIVECAPS_MASK 0x0000FFFFu
-#define RSBS_FILL_ARM_SMALL_KEYS_ROAM 0x00010000u /* small keys / key rings leave their own dungeon */
-#define RSBS_FILL_ARM_BOSS_KEYS_ROAM 0x00020000u  /* boss keys leave their own dungeon */
-#define RSBS_FILL_ARM_MAPS_ROAM 0x00040000u       /* maps and compasses leave their own dungeon */
-#define RSBS_FILL_ARM_SONGS_ROAM 0x00080000u      /* songs are not confined to song locations */
-#define RSBS_FILL_ARM_TOKENS_ROAM 0x00100000u     /* skulltula tokens are not confined to token locations */
-#define RSBS_FILL_ARM_REWARDS_ROAM 0x00200000u    /* dungeon rewards are not confined to reward locations */
+/** OoT dungeon small keys and key rings (the dungeon list's GetSmallKey /
+ *  GetKeyRing) are placed by the general pass: RSK_KEYSANITY == ANYWHERE. */
+#define RSBS_FILL_ARM_SMALL_KEYS_ROAM 0x00010000u
+/** OoT dungeon boss keys, Ganon's excepted, are placed by the general pass:
+ *  RSK_BOSS_KEYSANITY == ANYWHERE. */
+#define RSBS_FILL_ARM_BOSS_KEYS_ROAM 0x00020000u
+/** OoT maps and compasses are placed by the general pass:
+ *  RSK_SHUFFLE_MAPANDCOMPASS == ANYWHERE. */
+#define RSBS_FILL_ARM_MAPS_ROAM 0x00040000u
+/** OoT songs are placed by the general pass: RSK_SHUFFLE_SONGS == ANYWHERE
+ *  (song-locations and dungeon-rewards are restricted passes, off is vanilla). */
+#define RSBS_FILL_ARM_SONGS_ROAM 0x00080000u
+/** OoT skulltula tokens left in the pool are placed by the general pass:
+ *  RSK_SHUFFLE_TOKENS != OFF. The setting decides how many copies enter the pool
+ *  (the rest are fixed placements, 3drando/item_pool.cpp), never a restricted
+ *  pass, so any shuffled value arms it. */
+#define RSBS_FILL_ARM_TOKENS_ROAM 0x00100000u
+/** OoT dungeon rewards are placed by the general pass:
+ *  RSK_SHUFFLE_DUNGEON_REWARDS == ANYWHERE. */
+#define RSBS_FILL_ARM_REWARDS_ROAM 0x00200000u
 /** A per-world goal quantity (triforce pieces). No frozen record arms it this
  *  increment: whether a goal counter may cross is an undecided design question,
  *  not a setting, so such rows never cross. */
@@ -412,6 +464,15 @@ void Combo_ClearSharedItemOutbox(void);
 /** A shop's own stock row (OoT RG_BUY_*): placed only into shop slots, and no
  *  setting lets it roam, so nothing arms it. */
 #define RSBS_FILL_ARM_SHOP_STOCK 0x00800000u
+/** OoT's Gerudo Fortress small keys and key ring are placed by the general pass:
+ *  RSK_GERUDO_KEYS == ANYWHERE (any-dungeon / overworld are restricted passes,
+ *  vanilla is the carpenters' fixed placement). */
+#define RSBS_FILL_ARM_GERUDO_KEYS_ROAM 0x01000000u
+/** OoT's Ganon's Castle boss key is placed by the general pass:
+ *  RSK_GANONS_BOSS_KEY == ANYWHERE (own-dungeon, any-dungeon and overworld are
+ *  restricted passes; vanilla, start-with and every LACS / token value are fixed
+ *  placements). */
+#define RSBS_FILL_ARM_GANON_BOSS_KEY_ROAM 0x02000000u
 
 /** One source row. */
 typedef struct {
@@ -445,14 +506,28 @@ typedef struct {
  * per game from a file-scope registrar in its combo-logic engine TU.
  *
  * REFUSED (returns false, logs, and increments the durable-for-the-process
- * refusal count) when: the origin is not a real game; the ABI, the classify
- * pointer or the id space is invalid; or the origin ALREADY HAS a source — a
- * second registration never replaces the first (see the section header).
- *
- * Passing NULL un-registers the origin and discards its built table, so a test
- * can install a synthetic source and then restore the real one.
+ * refusal count) when: the origin is not a real game; @p source is NULL; the ABI,
+ * the classify pointer or the id space is invalid; or the origin ALREADY HAS a
+ * source — a second registration never replaces the first (see the section
+ * header). There is no production way to remove a source: NULL is refused, not
+ * an un-registration, so "un-register, then register another" cannot launder a
+ * replacement past the refusal.
  */
 bool Combo_RegisterItemClassSource(uint8_t originGame, const ComboItemClassSource* source);
+
+/**
+ * TEST-ONLY: remove @p originGame's source and discard its built table, so a lock
+ * can install a synthetic source and then restore the real one. Every call logs a
+ * line naming the origin, and increments the counter
+ * Combo_ItemClassUnregistrations() reads, so a replacement done through this door
+ * is never silent. Only src/common/tests/ calls it.
+ * @return true when a source was removed, false when the origin had none or is
+ *         not a real game.
+ */
+bool Combo_TestUnregisterItemClassSource(uint8_t originGame);
+
+/** Number of Combo_TestUnregisterItemClassSource removals this process. */
+uint32_t Combo_ItemClassUnregistrations(void);
 
 /** The registered source for @p originGame, or NULL. */
 const ComboItemClassSource* Combo_GetItemClassSource(uint8_t originGame);

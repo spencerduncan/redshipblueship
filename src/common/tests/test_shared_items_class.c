@@ -26,29 +26,55 @@
  *     caught by an observer that is not itself.
  *  S3 TRAPS ARE NEVER PROGRESSION, and the trap-first rule is load-bearing:
  *     every criterion-5 (reward, not punishment) exclusion of either foreign pool
- *     is TRAP in the owner; PROGRESSION holds exactly where the game's own fill
- *     predicate says "advancement" and the item is not a trap; at least one trap
- *     IS advancement to its own fill (MM's RI_TRAP is RITYPE_LESSER), so deleting
- *     the trap-first rule turns this red; and no trap may cross under any armed
- *     set.
- *  S4 SOURCES AGREE WITH THE OWNER. For every id the public owner answer equals a
- *     direct call of the source, and Combo_ItemClassVerify reports zero
- *     divergences. RED HALF, in-row: a synthetic source whose answer changes
- *     between the build and the verify is reported as diverging.
+ *     is TRAP in the owner (an independent, hand-adjudicated oracle in another
+ *     TU); at least one trap IS advancement to its own fill (MM's RI_TRAP is
+ *     RITYPE_LESSER), so deleting the trap-first rule turns this red; and no trap
+ *     may cross under any armed set. The "PROGRESSION exactly where the fill says
+ *     advancement" half is a PRECEDENCE check only: its oracle (the
+ *     *_TestFillAdvancement bridges) evaluates the same predicate expression the
+ *     classifier does, in the same TU, so it proves the classes are ordered
+ *     trap > progression > filler over that predicate, NOT that the predicate is
+ *     the right one. Choosing the predicate is argued in shared_items.h.
+ *  S4 THE OWNER STORES AND RE-CHECKS WHAT ITS SOURCE SAID. For every id the
+ *     public owner answer equals a direct call of the source, and
+ *     Combo_ItemClassVerify reports zero divergences. Both sides are pure
+ *     functions of static tables, so over the REAL sources this is a STORAGE
+ *     check (the owner kept every row it was given), not two independent
+ *     authorities agreeing. The disagreement it exists to catch is a source that
+ *     is NOT pure; its RED HALVES are (a) in-row, a synthetic source whose answer
+ *     changes between the build and the verify, and (b) in S6, the real sources
+ *     re-verified after the frozen caps are published (red if a source reads live
+ *     caps; mutation M7).
  *  S5 A SECOND REGISTRATION IS REFUSED. A synthetic source for an origin that
  *     already has one is refused and counted, the registered source is unchanged,
  *     and so is the table; the same holds for the SAME source registering twice,
- *     for GAME_NONE, and for a malformed source on an empty origin.
- *  S6 THE SETTINGS-CONDITIONAL PREDICATE. OoT's small keys are progression that
- *     do NOT cross until SMALL_KEYS_ROAM is armed; MM's rows carry no confinement
- *     family at all (MM has no restricted pass); MM's souls cross only once the
- *     frozen profile's give caps arm them, read through the published-caps
- *     surface; goal pieces never cross; and publishing caps changes no stored row
- *     — the condition is a predicate over the frozen record, not baked in.
+ *     for GAME_NONE, for a malformed source on an empty origin, and for NULL —
+ *     NULL is not an un-registration. The only way to remove a source is the
+ *     test-only Combo_TestUnregisterItemClassSource, which is counted.
+ *  S6 THE SETTINGS-CONDITIONAL PREDICATE. Each OoT key family carries exactly the
+ *     ONE setting that confines it (dungeon small keys: keysanity; fortress keys:
+ *     gerudo keys; dungeon boss keys: boss keysanity; Ganon's boss key: its own
+ *     setting), with exact row counts, and none crosses under every OTHER bit
+ *     armed; MM's rows carry no confinement family at all (MM has no restricted
+ *     pass); MM's souls cross only once the frozen profile's give caps arm them,
+ *     read through the published-caps surface; goal pieces never cross; and both
+ *     real sources still Verify clean with the caps published — the condition is
+ *     a predicate over the frozen record, not an input to the source.
  *  S7 THE FOREIGN POOLS AGREE. Every row of both registered foreign pools (the
- *     hand-adjudicated tables that already carry an itemClass) is a classified
- *     fill item and is neither TRAP nor JUNK — the pool TUs' own criteria 2 and 5
- *     and this table must not disagree about the same item.
+ *     hand-adjudicated tables that already carry an itemClass) is PROGRESSION in
+ *     the owner: a pool row is an item ADR 0011 lets cross, and the owner's
+ *     predicate lets only progression cross, so a renewable, junk, trap or
+ *     unclassified pool row is a disagreement.
+ *
+ * PROCESS STATE. AllTests runs every row in one process, so this row leaves what
+ * it can as it found it: a scope guard restores the published give caps of both
+ * origins and the real MM source on EVERY exit, failure paths included. One thing
+ * is deliberately not undone: when this process never ran the OTR bring-up, the
+ * OoT bridge creates a Rando::Context and fills OoT's static item table (the
+ * same one-way bring-up the headless seed rows perform; the Context's Logic
+ * back-edge keeps it alive). Both are idempotent for any later row: a row that
+ * needs a Context finds one, and InitItemTable is what OTR bring-up would have
+ * run anyway.
  *
  * Linkage note: #included into test_runner.cpp at FILE SCOPE and therefore
  * compiled as C++, like every other file in this directory.
@@ -202,7 +228,8 @@ TestResult SicCoverageAndTraps(uint8_t origin, int expectedRealNonFillRows) {
         SIC_ASSERT(realRow || rv == 0, "the source classifies no id that has no item row");
 
         // S3: PROGRESSION exactly where the game's own fill says advancement and
-        // the item is not a trap.
+        // the item is not a trap. A PRECEDENCE check: the oracle evaluates the same
+        // predicate as the classifier (see the file header).
         if (rv == 1) {
             const int adv = SicFillAdvancement(origin, (uint16_t)id);
             SIC_ASSERT(adv == 0 || adv == 1, "a fill item has a fill-predicate answer");
@@ -225,10 +252,6 @@ TestResult SicCoverageAndTraps(uint8_t origin, int expectedRealNonFillRows) {
            SicGameName(origin), perClass[RSBS_FILL_CLASS_PROGRESSION], perClass[RSBS_FILL_CLASS_JUNK],
            perClass[RSBS_FILL_CLASS_RENEWABLE], perClass[RSBS_FILL_CLASS_TRAP], perClass[RSBS_FILL_CLASS_NONE],
            realNonFill);
-    SIC_ASSERT(perClass[RSBS_FILL_CLASS_PROGRESSION] + perClass[RSBS_FILL_CLASS_JUNK] +
-                       perClass[RSBS_FILL_CLASS_RENEWABLE] + perClass[RSBS_FILL_CLASS_TRAP] ==
-                   fillItems,
-               "every fill item is in exactly one of the four classes");
     SIC_ASSERT(perClass[RSBS_FILL_CLASS_PROGRESSION] > 0 && perClass[RSBS_FILL_CLASS_JUNK] > 0 &&
                    perClass[RSBS_FILL_CLASS_RENEWABLE] > 0 && perClass[RSBS_FILL_CLASS_TRAP] > 0,
                "all four classes occur in each game (anti-vacuity)");
@@ -275,23 +298,65 @@ TestResult SicForeignPoolAgrees(uint8_t origin) {
         const uint8_t cls = Combo_ItemClassOf(pool[i].item);
         SIC_ASSERT(cls < RSBS_FILL_CLASS_COUNT, "a pool row's class is a real enumerator");
         perClass[cls]++;
-        if (cls == RSBS_FILL_CLASS_NONE || cls == RSBS_FILL_CLASS_TRAP || cls == RSBS_FILL_CLASS_JUNK) {
+        if (cls != RSBS_FILL_CLASS_PROGRESSION) {
             printf("[TEST] %s pool row '%s' (id %u) is %s in the owner table\n", SicGameName(origin), pool[i].name,
                    (unsigned)pool[i].item.id, Combo_ItemClassName(cls));
         }
-        SIC_ASSERT(cls != RSBS_FILL_CLASS_NONE, "every foreign-pool row is a classified fill item");
-        SIC_ASSERT(cls != RSBS_FILL_CLASS_TRAP, "no foreign-pool row is a trap (criterion 5)");
-        SIC_ASSERT(cls != RSBS_FILL_CLASS_JUNK, "no foreign-pool row is junk (criterion 2)");
+        // A pool row is an item ADR 0011 lets cross; the owner lets only
+        // PROGRESSION cross (Combo_ItemClassMayCrossUnder). Anything else —
+        // renewable included — is the two tables disagreeing about one item.
+        SIC_ASSERT(cls == RSBS_FILL_CLASS_PROGRESSION, "every foreign-pool row is PROGRESSION in the owner table");
     }
-    printf("[TEST] %s foreign pool (%d rows): progression=%d renewable=%d\n", SicGameName(origin), count,
-           perClass[RSBS_FILL_CLASS_PROGRESSION], perClass[RSBS_FILL_CLASS_RENEWABLE]);
+    printf("[TEST] %s foreign pool (%d rows): progression=%d (every row)\n", SicGameName(origin), count,
+           perClass[RSBS_FILL_CLASS_PROGRESSION]);
     return TEST_PASS;
 }
+
+// Restores, on EVERY exit of the row (an early SIC_ASSERT return included), the
+// process state the row touches: the published give caps of both origins and the
+// real MM source. See the file header's PROCESS STATE paragraph.
+struct SicStateGuard {
+    const ComboItemClassSource* realMM;
+    bool capsPublished[2];
+    uint32_t caps[2];
+
+    SicStateGuard() : realMM(Combo_GetItemClassSource((uint8_t)GAME_MM)) {
+        for (int i = 0; i < 2; i++) {
+            const uint8_t origin = i == 0 ? (uint8_t)GAME_OOT : (uint8_t)GAME_MM;
+            capsPublished[i] = Combo_ForeignGiveCapsPublished(origin);
+            caps[i] = Combo_ForeignGiveCaps(origin);
+        }
+    }
+    ~SicStateGuard() {
+        if (realMM != nullptr && Combo_GetItemClassSource((uint8_t)GAME_MM) != realMM) {
+            Combo_TestUnregisterItemClassSource((uint8_t)GAME_MM);
+            if (Combo_RegisterItemClassSource((uint8_t)GAME_MM, realMM)) {
+                printf("[TEST] scope guard: restored MM's real classification source on exit\n");
+            } else {
+                printf("[TEST] WARNING: could not restore MM's real classification source\n");
+            }
+        }
+        Combo_ClearForeignGiveCaps();
+        for (int i = 0; i < 2; i++) {
+            if (capsPublished[i]) {
+                Combo_PublishForeignGiveCaps(i == 0 ? (uint8_t)GAME_OOT : (uint8_t)GAME_MM, caps[i]);
+            }
+        }
+    }
+};
+
+// One OoT confinement family for S6: rows whose arming word is exactly `bit`.
+struct SicKeyFamily {
+    uint32_t bit;
+    int expectedProgressionRows;
+    const char* name;
+};
 
 } // namespace
 
 TestResult Test_SharedItemClass(void) {
     printf("[TEST] shared-item-class: the single-owner item classification table (ADR 0010 O8)\n");
+    const SicStateGuard guard;
 
     // ---- S1: registration -------------------------------------------------
     const ComboItemClassSource* oot = Combo_GetItemClassSource((uint8_t)GAME_OOT);
@@ -339,7 +404,14 @@ TestResult Test_SharedItemClass(void) {
     }
     // Red half: a source that answers differently after the build IS reported.
     const uint32_t mmDigest = SicTableDigest((uint8_t)GAME_MM);
-    SIC_ASSERT(Combo_RegisterItemClassSource((uint8_t)GAME_MM, nullptr), "un-register MM (test isolation)");
+    uint32_t refusedBefore = Combo_ItemClassRefusedRegistrations();
+    SIC_ASSERT(!Combo_RegisterItemClassSource((uint8_t)GAME_MM, nullptr),
+               "NULL is refused, not an un-registration (no silent replace-in-two-steps)");
+    SIC_ASSERT(Combo_ItemClassRefusedRegistrations() == refusedBefore + 1u, "the NULL refusal is counted");
+    SIC_ASSERT(Combo_GetItemClassSource((uint8_t)GAME_MM) == mm, "a refused NULL leaves the source in place");
+    const uint32_t unregBefore = Combo_ItemClassUnregistrations();
+    SIC_ASSERT(Combo_TestUnregisterItemClassSource((uint8_t)GAME_MM), "un-register MM through the test-only door");
+    SIC_ASSERT(Combo_ItemClassUnregistrations() == unregBefore + 1u, "the un-registration is counted");
     SIC_ASSERT(Combo_GetItemClassSource((uint8_t)GAME_MM) == nullptr, "un-registered");
     SIC_ASSERT(Combo_RegisterItemClassSource((uint8_t)GAME_MM, &kSicFlipFlopSource), "synthetic source accepted");
     sSicFlip = false;
@@ -359,7 +431,7 @@ TestResult Test_SharedItemClass(void) {
                "a second source for a held origin is refused (synthetic origin state)");
     SIC_ASSERT(Combo_ItemClassRefusedRegistrations() == refused + 1u, "the refusal is counted");
     SIC_ASSERT(Combo_GetItemClassSource((uint8_t)GAME_MM) == &kSicFlipFlopSource, "the held source is unchanged");
-    SIC_ASSERT(Combo_RegisterItemClassSource((uint8_t)GAME_MM, nullptr), "un-register the synthetic source");
+    SIC_ASSERT(Combo_TestUnregisterItemClassSource((uint8_t)GAME_MM), "un-register the synthetic source");
     SIC_ASSERT(!Combo_RegisterItemClassSource((uint8_t)GAME_MM, &kSicBadAbiSource), "a wrong ABI is refused");
     SIC_ASSERT(!Combo_RegisterItemClassSource((uint8_t)GAME_MM, &kSicTooWideSource),
                "an id space wider than the owner's storage is refused, not truncated");
@@ -368,6 +440,7 @@ TestResult Test_SharedItemClass(void) {
     SIC_ASSERT(Combo_RegisterItemClassSource((uint8_t)GAME_MM, mm), "the real MM source re-registers");
     SIC_ASSERT(Combo_ItemClassVerify((uint8_t)GAME_MM) == 0, "restored MM source agrees");
     SIC_ASSERT(SicTableDigest((uint8_t)GAME_MM) == mmDigest, "the restored MM table is the one built before");
+    SIC_ASSERT(Combo_ItemClassUnregistrations() == unregBefore + 2u, "both test un-registrations were counted");
 
     // Now against the REAL registered sources.
     const uint32_t ootDigest = SicTableDigest((uint8_t)GAME_OOT);
@@ -383,29 +456,43 @@ TestResult Test_SharedItemClass(void) {
                "OoT still has exactly its one trap (the intruder classes everything TRAP)");
 
     // ---- S6: the settings-conditional predicate ----------------------------
-    int ootKeys = 0;
-    for (uint32_t id = 0; id < oot->idSpace; id++) {
-        const SharedItem item = SicItem((uint8_t)GAME_OOT, (uint16_t)id);
-        if (Combo_ItemClassOf(item) != RSBS_FILL_CLASS_PROGRESSION ||
-            Combo_ItemClassArmedBy(item) != RSBS_FILL_ARM_SMALL_KEYS_ROAM) {
-            continue;
+    // Each OoT key family carries exactly the ONE setting that confines it
+    // (shared_items.h, "ONE SETTING PER CONFINEMENT BIT"). Exact counts: 8
+    // dungeons with small keys x (key + ring); the fortress key and ring; the five
+    // dungeon boss keys; Ganon's. The two treasure-game keys carry NO confinement
+    // (RSK_SHUFFLE_CHEST_MINIGAME only decides presence), so folding them — or the
+    // fortress keys — back into the keysanity family moves these counts.
+    const SicKeyFamily ootKeyFamilies[] = {
+        { RSBS_FILL_ARM_SMALL_KEYS_ROAM, 16, "dungeon small keys + key rings (RSK_KEYSANITY)" },
+        { RSBS_FILL_ARM_GERUDO_KEYS_ROAM, 2, "fortress key + key ring (RSK_GERUDO_KEYS)" },
+        { RSBS_FILL_ARM_BOSS_KEYS_ROAM, 5, "dungeon boss keys (RSK_BOSS_KEYSANITY)" },
+        { RSBS_FILL_ARM_GANON_BOSS_KEY_ROAM, 1, "Ganon's boss key (RSK_GANONS_BOSS_KEY)" },
+    };
+    for (const SicKeyFamily& family : ootKeyFamilies) {
+        int rows = 0;
+        for (uint32_t id = 0; id < oot->idSpace; id++) {
+            const SharedItem item = SicItem((uint8_t)GAME_OOT, (uint16_t)id);
+            if (Combo_ItemClassOf(item) != RSBS_FILL_CLASS_PROGRESSION || Combo_ItemClassArmedBy(item) != family.bit) {
+                continue;
+            }
+            rows++;
+            SIC_ASSERT(!Combo_ItemClassMayCrossUnder(item, 0u), "a confined OoT key does not cross unarmed");
+            SIC_ASSERT(Combo_ItemClassMayCrossUnder(item, family.bit), "an OoT key crosses once ITS setting roams");
+            SIC_ASSERT(!Combo_ItemClassMayCrossUnder(item, 0xFFFFFFFFu & ~family.bit),
+                       "no OTHER armed setting lets a confined key cross (e.g. keysanity=anywhere with gerudo keys "
+                       "confined)");
         }
-        ootKeys++;
-        SIC_ASSERT(!Combo_ItemClassMayCrossUnder(item, 0u), "an OoT small key does not cross with keys confined");
-        SIC_ASSERT(Combo_ItemClassMayCrossUnder(item, RSBS_FILL_ARM_SMALL_KEYS_ROAM),
-                   "an OoT small key crosses once keys roam");
-        SIC_ASSERT(!Combo_ItemClassMayCrossUnder(item, 0xFFFFFFFFu & ~RSBS_FILL_ARM_SMALL_KEYS_ROAM),
-                   "no OTHER armed condition lets a confined key cross");
+        printf("[TEST] OoT progression rows confined by %s: %d\n", family.name, rows);
+        SIC_ASSERT(rows == family.expectedProgressionRows,
+                   "each OoT key family is tagged with exactly its own setting (exact row count)");
     }
-    printf("[TEST] OoT progression rows confined by keysanity: %d\n", ootKeys);
-    SIC_ASSERT(ootKeys >= 9, "OoT's small keys and key rings are tagged (anti-vacuity)");
 
     Combo_ClearForeignGiveCaps();
     SIC_ASSERT(Combo_ItemClassArmedFromFrozen((uint8_t)GAME_MM) == 0u, "nothing published arms nothing");
     int mmSouls = 0;
     int mmUnconditional = 0;
     int goalPieces = 0;
-    const uint32_t mmBefore = SicTableDigest((uint8_t)GAME_MM);
+    Combo_PublishForeignGiveCaps((uint8_t)GAME_OOT, RSBS_GIVECAP_ALL_V1);
     Combo_PublishForeignGiveCaps((uint8_t)GAME_MM, RSBS_GIVECAP_ALL_V1);
     const uint32_t mmArmed = Combo_ItemClassArmedFromFrozen((uint8_t)GAME_MM);
     SIC_ASSERT(mmArmed == RSBS_GIVECAP_ALL_V1, "published give caps arm exactly their families");
@@ -444,8 +531,17 @@ TestResult Test_SharedItemClass(void) {
     printf("[TEST] MM: %d unconditional progression rows, %d soul rows; goal-piece rows (both games): %d\n",
            mmUnconditional, mmSouls, goalPieces);
     SIC_ASSERT(mmSouls >= 40 && mmUnconditional >= 100 && goalPieces == 2, "the families are populated");
-    SIC_ASSERT(SicTableDigest((uint8_t)GAME_MM) == mmBefore && Combo_ItemClassVerify((uint8_t)GAME_MM) == 0,
-               "publishing the frozen caps changed no stored row: the condition is a predicate, not the table");
+    // The stored table cannot move here (the owner builds once), so the check is
+    // on the SOURCES: re-walked with the frozen caps published, each must give the
+    // answer it gave when the table was built. A source that read the live caps
+    // (baking the condition into the class) diverges here (mutation M7).
+    for (uint8_t origin = (uint8_t)GAME_OOT; origin <= (uint8_t)GAME_MM; origin++) {
+        const int diverging = Combo_ItemClassVerify(origin);
+        printf("[TEST] %s: Combo_ItemClassVerify with the frozen caps published = %d\n", SicGameName(origin),
+               diverging);
+        SIC_ASSERT(diverging == 0,
+                   "publishing the frozen caps changes no source answer: the condition is a predicate, not an input");
+    }
     Combo_ClearForeignGiveCaps();
 
     // ---- S7: the foreign pools agree ---------------------------------------
