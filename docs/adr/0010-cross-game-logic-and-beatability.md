@@ -1291,3 +1291,218 @@ stick as a fire source is not the trick and stays ungated. The operator's
 the three golden rows pass unchanged, so the pinned worlds did not move. The
 2026-09-26 O9 count above becomes **26** bound keys (40 declared, non-reserved
 keys not yet consulted).
+
+### 2026-09-26 -- O5: merged with PR #729, and no golden moved
+
+The 2026-09-26 O5 entry above was written on the branch
+`claude/world-moving-bundle-583-681-643-719`. That branch merged to `main` as
+PR #729 (`e606a4c7`), and #643 was closed by it. The O5 commit (`ce554649`)
+needed **no golden re-pin**. The bundle's one re-pin (`d8dbcc8c`) belongs to
+#583's shuffled forward drop order, which changed only the item-id field of the
+forward `foreign<n>` triples. The same PR added a fourth golden,
+`GoldenSeedDigestArmedCaps` (`tests/golden/seed-digest-armed-caps.txt`), which
+pins a world with every give-capability family armed.
+
+O5's adoption is therefore complete on `main`. Item 10 of the #645 epic asked
+that "any pinned-seed rows the renumbering moves are re-pinned in the same
+commit as item 9's re-pin". There was nothing to carry, because the
+renumbering moved no pinned world. The three places where
+`docs/solver-inventory.md` still read 45 slices are annotated in that document
+on this date.
+
+### 2026-09-26 -- O6 delivered: all three mechanisms are on `main` (PR #734)
+
+Accepted answer O6 asked for **all three** monotonicity mechanisms. PR #734
+(`4a3bf058`) lands all three over both graphs. It is built on the multiplicity
+contract described below (ABI 3).
+
+- **The CI grow-check.** This is the `ComboLogicMonotonicity` row (rando tier,
+  `src/common/tests/test_combo_logic_monotonicity.c`). It drives **both real
+  engines through the coordinator's own surface**, granting one copy at a
+  time. It runs four orders, each with tricks off and with every trick on. It
+  asserts four things:
+  - G1: after every grant, no reached check, region, OoT age/time bit or MM
+    time slice is lost;
+  - G2: the result is order-independent, checked against a one-shot round;
+  - G3: the tricks-off closure is contained in the tricks-on closure, and is
+    strictly smaller at some step on each engine;
+  - G4: `Combo_Logic_RunRound`, run over growing prefixes, never loses a
+    candidate host and never drops a crossing or goal flag.
+
+  Each lock's red half was observed on an edge planted at runtime. No region
+  file was touched.
+- **The static probe.** This is `.github/scripts/check-monotonicity-negations.py`
+  (with `--self-test`, 24 plants), run as the build-free CI job
+  `monotonicity-probe`. It checks against
+  `.github/monotonicity-negation-baseline.txt`, where every accepted entry
+  must carry a written reading.
+  - At `e606a4c7` neither graph negated player state.
+  - The only sites that needed a reading were the three
+    `logic->StoneCount() == 3` comparisons in OoT: two in `hyrule_field.cpp`
+    and one in `temple_of_time.cpp`. `StoneCount()` is a sum of three
+    set-item booleans, so `== 3` means exactly `>= 3`. The sites are
+    **baselined as monotone**.
+- **The review rule.** This is a Standing-conventions bullet in
+  `.claude/worker-prompts.md`, and it names every spelling of a negation.
+  `docs/monotonicity.md` gives the full statement, and lists what neither
+  mechanism sees: block-bodied guards, locals, macros, non-literal ternaries,
+  and the `location_access.cpp` helpers.
+
+Closures measured on the shipped profile (checks / regions):
+
+| Engine | Tricks off | Tricks on |
+|---|---|---|
+| OoT | 1,789 / 624 | 1,794 / 626 |
+| MM | 2,256 / 314 | 2,256 / 314 |
+
+MM's final closures are equal. Its tricks-on closure is strictly larger at 218
+of 2,283 steps.
+
+One finding was filed rather than fixed (#733). MM's `RI_HEART_PIECE`, which
+O8 classes as junk, grows the closure by two checks through
+`CHECK_MAX_HP(4)`. Monotonicity still holds; the gap is in the bag model's
+classification.
+
+O6 is **delivered**. CI enforces it; this text does not.
+
+### 2026-09-26 -- O8 delivered: the classification table, with trap as a fourth class (PR #725)
+
+Accepted answer O8 asked for a single-owner classification table in the ADR
+0002 TU pair. PR #725 (`e638538c`) delivers it:
+
+- **Owner.** `src/common/shared_items.{h,c}` is the owner. It stores one
+  `(class, arming word)` per `(origin, id)`, taken from one walk of each
+  game's source. Queries take a `SharedItem`.
+- **Sources.** There is one source per game, in that game's own engine TU:
+  `OoT_ComboLogic_ClassifyItem` and `MM_ComboLogic_ClassifyItem`. The owner
+  refuses and counts a second registration, and refuses and counts a `NULL`.
+- **Classes.** In precedence order: trap > progression > renewable > junk.
+  Progression is each fill's own predicate, taken as-is: OoT's
+  `Item::IsAdvancement()` and MM's GlitchlessLogic non-junk test.
+
+**Why trap is a separate class and not junk.**
+
+- Junk and renewable rows absorb surplus: they are what a plentiful pool
+  displaces, and what fills hosts when there are more hosts than items. A trap
+  does neither. Its count is fixed by a frozen setting, and it is a trap only
+  inside its own game, which disguises it.
+- The trap rule runs first because MM's own fill predicate calls `RI_TRAP`
+  non-junk (`RITYPE_LESSER`). In any other order a trap would classify as
+  progression.
+
+**Crossing.** `Combo_ItemClassMayCrossUnder` lets an item cross only if it is
+progression and its arming conditions hold. The arming word has two halves:
+the low half holds the give-capability bits, and the high half holds OoT's
+confinement families, one setting per bit.
+
+**Not done yet:**
+
+- **Nothing reads the table yet.** Wiring it into the bag is lane K9 in wave 6.
+- **The table does not yet reconcile #525's cross-game shared quantities.**
+  Bombchus, double defense and hearts get different classes in the two games
+  (#731), and MM heart pieces gate two checks (#733, above).
+
+O8 is **delivered as a table**. What the table does to the fill arrives with
+the wiring.
+
+### 2026-09-26 -- Increment 3: multiplicity is the assume contract, and "a trap never crosses" is a caller convention (PR #728)
+
+**The ruling.** The operator ruled on 2026-09-26: "yeah multiplicity is fine."
+Items are assumed once per copy, as OoT's own assumed fill does.
+
+**The contract.** PR #728 (`9041897c`) makes this the coordinator contract:
+`combo_logic.h` `RSBS_COMBO_LOGIC_ENGINE_ABI` goes from 2 to 3. The vtable's
+shape is unchanged; what changed is the meaning of `assumeOwnItem`:
+
+- One call is one copy. The engine counts every call and never de-duplicates.
+- A repeat of a set item is inert. A progressive clamps at its top tier. A
+  counter clamps at its maximum.
+- The result is order-independent. The clamps are what make it so.
+- The own-origin harvest runs once per placed host per round.
+- `beginQuery` owns the starting state. MM has no detached save, so for MM the
+  caller puts the live save in the file-creation state first.
+
+**The OoT clamp is round-scoped.** `Rando::gComboLogicRoundClamp` in
+`logic.cpp` is on only between the OoT engine's `beginQuery` and `endQuery`.
+OoT's own fill therefore still runs upstream's unclamped arithmetic. Under a
+plentiful pool that arithmetic wraps the wallet to 0 on the fourth copy
+(#726; wave 6, lane F26).
+
+**The MM clamp is in its give path.** `MmGiveOneCopy` clamps small keys,
+stray fairies and skull tokens at maxima derived from MM's static check table,
+and clamps triforce pieces at `RO_TRIFORCE_PIECES_MAX`.
+
+**The bag model:**
+
+- One row per copy.
+- `ComboLogicBagItem.bagFlags` carries `RSBS_COMBO_BAG_SURPLUS`. Unknown flags
+  are refused.
+- The proof places and assumes **required rows only**.
+- Surplus rows are placed after the proof, in bag order. Under `beatable` and
+  `none` they go on any empty host; under `all-reachable`, only on the proven
+  world's reached hosts. A confirming round then re-checks the exit
+  condition, so a surplus copy is never load-bearing.
+- When hosts run out, the remaining surplus rows are dropped, last row first.
+  That is the coordinator's rule, not either native fill's. OoT keeps a random
+  subset (a caller matches that by pre-shuffling with OoT's RNG); MM is
+  all-or-nothing.
+- A required row is never dropped. A required overflow is `ERR_NO_CANDIDATE`.
+- Hosts left unplaced are reported through `Combo_Logic_LeftoverHosts`, for
+  each game's own pass.
+
+**Correction: traps.** The bag-model notes recorded on #645 on 2026-09-26 said
+"no trap crosses games this increment", read as a property of the bag. **It is
+not a property of the coordinator.**
+
+- In both ports traps are counted pool rows fixed by settings, not junk-pass
+  products: MM's `RI_TRAP` x `RO_TRAP_AMOUNT`, and OoT's fixed ice traps plus
+  the `RSK_ICE_TRAP_PERCENT` conversion during pool generation.
+- The coordinator would place a trap row handed to it on either game.
+- **"A trap never crosses" is therefore a caller convention.** The wiring must
+  keep traps out of the bag and hand each game's trap count to that game's own
+  pass over its leftover hosts.
+- The O8 predicate `Combo_ItemClassMayCrossUnder` already refuses a trap. But
+  a refusal at the bag waits on the O8 table being wired in (lane K9); until
+  the bag builder consults it, nothing on the coordinator's path enforces the
+  refusal.
+
+### 2026-09-26 -- Increment 3: the measured numbers after multiplicity
+
+This entry extends the 2026-09-22 measurement (PR #722; the #645 comment of
+that date) to ABI 3. The source is lane K4's #645 comment of 2026-09-26. The
+conditions are the same: the `combo-logic-measure` row, the development
+workstation at 100-105% host scale, the shipped profile, tricks off.
+
+- **One linked round is still exactly 2 alternations.** Inside the fill it
+  costs 10.5-10.7 ms at 32-512 rows and **17.9 ms at 2,489 rows**. That growth
+  is the super-linear placement re-apply the 2026-09-22 extrapolation
+  predicted.
+- **`beat-either` is proved** on the 512-row bag (OoT 321 + MM 191, the
+  2026-09-22 composition): 3 of 3 seeds, first attempt, 0 roll-backs, 1.00
+  rounds per placed item. Under ABI 2 the same bag was `goal-unprovable` after
+  3 attempts on every seed. Bags that carry only a sample of OoT's rows are
+  **not** evidence, because OoT's native placements carry OoT's goal there.
+- **`beat-both` fails at every bag that fits `RSBS_COMBO_LOGIC_BAG_CAP`
+  (512).** The cause is the bag, not the fill. The capped MM half is a stride
+  sample of MM's 2,168-row vanilla pool, so `goalMM=0` holds before any
+  placement. A round that assumes MM's whole pool reads `goalMM=1` (#727).
+- **The whole 2,489-row union bag proves `beat-both`** on the first attempt
+  with 0 roll-backs, with the caps raised to 4096. That was a local
+  experiment and was not committed.
+  - One attempt measures **44.5-50.9 s end to end, 1.49-1.70x the #582 30 s
+    floor**; `beat-either` falls in the same range.
+  - This supersedes the 2026-09-22 linear extrapolation of 0.63-0.87x.
+  - The `none` rung places the same bag in 130 ms.
+- **The bag, as lane K8 read it** (PR #734, shipped profile):
+  - OoT: 546 rows (321 progression, 105 surplus, 114 filler, 6 ice traps).
+  - MM: 2,282 rows (250 progression, 114 surplus, 1,918 filler).
+
+  The full-bag attempt is therefore dominated by MM filler that O8 classifies
+  out. Rounds scale with items placed, so a bag of progression and surplus
+  only (about 790 rows) is expected to cut an attempt to roughly a third.
+  **That is an expectation, not a measurement.** Measuring it is wave 6's
+  lane K9, which also raises the caps (#727).
+
+**Not measured:** any plentiful or trap profile over the real engines (the
+shipped profile has neither, so every real-engine surplus and drop figure is
+0), tricks-on profiles, other hosts, and play.
