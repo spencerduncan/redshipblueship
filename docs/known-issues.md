@@ -1,8 +1,8 @@
 # Known issues
 
-**Applies to:** `main` at `3b860bf3` (2026-09-22, PR #722) and the GitHub Actions builds cut from
+**Applies to:** `main` at `4a3bf058` (2026-09-26, PR #734) and the GitHub Actions builds cut from
 it; the `v0.1.1-prealpha` tag (2026-07-03) is older than everything in the first section.
-**Last updated:** 2026-09-26.
+**Last updated:** 2026-09-26 (wave-6 hygiene).
 
 RedShipBlueShip is **pre-alpha**. It boots Ocarina of Time and Majora's Mask from
 one executable, round-trips between them through the Happy Mask Shop ↔ Clock Tower
@@ -29,12 +29,15 @@ generation now happens once, at file creation, not on first arrival. Increment 3
 (the single-bag fill and the beatability proof) has started but **is not wired into
 generation**: the combo-logic coordinator (PRs [#701](https://github.com/spencerduncan/redshipblueship/pull/701), [#717](https://github.com/spencerduncan/redshipblueship/pull/717)), both games' solver
 exports it drives (PRs [#714](https://github.com/spencerduncan/redshipblueship/pull/714), [#715](https://github.com/spencerduncan/redshipblueship/pull/715)) and a first cost/convergence measurement
-(PR [#722](https://github.com/spencerduncan/redshipblueship/pull/722)) are on `main`, and no generated world uses any of it yet
+(PR [#722](https://github.com/spencerduncan/redshipblueship/pull/722)) are on `main`. Since 2026-09-26 so are three more pieces:
+the multiplicity contract with the bag's surplus / filler / trap rules (PR [#728](https://github.com/spencerduncan/redshipblueship/pull/728)),
+the item classification table (PR [#725](https://github.com/spencerduncan/redshipblueship/pull/725)), and the monotonicity grow-check and
+negation probe (PR [#734](https://github.com/spencerduncan/redshipblueship/pull/734)). No generated world uses any of it yet
 ([#500](https://github.com/spencerduncan/redshipblueship/issues/500), epics
 [#644](https://github.com/spencerduncan/redshipblueship/issues/644) delivered,
 [#645](https://github.com/spencerduncan/redshipblueship/issues/645) in progress).
 
-**What ships at `3b860bf3`:**
+**What ships at `4a3bf058`:**
 
 - **One seed, one paired world, items crossing in both directions.** Generating an
   OoT randomizer seed also generates a paired Majora's Mask world; OoT items are
@@ -83,8 +86,12 @@ exports it drives (PRs [#714](https://github.com/spencerduncan/redshipblueship/p
   through is still the door to Termina (PR [#691](https://github.com/spencerduncan/redshipblueship/pull/691), [#661](https://github.com/spencerduncan/redshipblueship/issues/661)).
 - **Paired MM worlds can enable individual Majora's Mask logic tricks.** MM now
   has a per-trick vocabulary (86 trick keys, frozen into the world's identity
-  like OoT's), and **25** of them currently widen a real logic edge (PRs
-  [#686](https://github.com/spencerduncan/redshipblueship/pull/686), [#696](https://github.com/spencerduncan/redshipblueship/pull/696), [#703](https://github.com/spencerduncan/redshipblueship/pull/703), [#713](https://github.com/spencerduncan/redshipblueship/pull/713); [#578](https://github.com/spencerduncan/redshipblueship/issues/578)). Every trick is off by default. A
+  like OoT's), and **26** of them currently widen a real logic edge (PRs
+  [#686](https://github.com/spencerduncan/redshipblueship/pull/686), [#696](https://github.com/spencerduncan/redshipblueship/pull/696), [#703](https://github.com/spencerduncan/redshipblueship/pull/703), [#713](https://github.com/spencerduncan/redshipblueship/pull/713), [#729](https://github.com/spencerduncan/redshipblueship/pull/729); [#578](https://github.com/spencerduncan/redshipblueship/issues/578)). Every trick is off by default.
+  **One of the 26 is Deku-Stick combat** (PR [#729](https://github.com/spencerduncan/redshipblueship/pull/729), [#719](https://github.com/spencerduncan/redshipblueship/issues/719)). MM's logic used to assume you
+  could fight 17 kinds of enemy with a Deku Stick, even though the matching trick is off by default.
+  Those enemies now need `Deku Stick Fighting` enabled, or another weapon. Using the stick as a fire
+  source is unchanged. None of the pinned test worlds moved. A
   trick whose edge is not bound yet draws disabled-with-reason in the MM options
   pane rather than enabled-and-inert; the remaining bindings are [#697](https://github.com/spencerduncan/redshipblueship/issues/697).
 - **You may opt into one shared Ocarina across both games** — off by default,
@@ -116,7 +123,7 @@ exports it drives (PRs [#714](https://github.com/spencerduncan/redshipblueship/p
 - **MM's enhancement toggles live on Combo → MM Enhancements.** The curated MM
   enhancement toggles — the game-over prompt, `BetterSongOfDoubleTime`,
   `SkipSoTCutscenes`, a pointer to the shared `Autosave` checkbox on OoT's
-  Enhancements page, and (since [#693](https://github.com/spencerduncan/redshipblueship/issues/693)) MM's own autosave interval slider
+  Enhancements page, and (since PR [#730](https://github.com/spencerduncan/redshipblueship/pull/730), [#693](https://github.com/spencerduncan/redshipblueship/issues/693)) MM's own autosave interval slider
   (`gEnhancements.Saving.AutosaveInterval`, 1–60 minutes, default 5, shown once
   Autosave is on) — are hosted there (PR [#695](https://github.com/spencerduncan/redshipblueship/pull/695), [#682](https://github.com/spencerduncan/redshipblueship/issues/682)). The slider sets
   Majora's Mask's interval only; Ocarina of Time's autosave interval is a fixed
@@ -148,7 +155,10 @@ file**; there is no recovery path for the old one.
 
 ## Save loss and corruption
 
-### A flag set in the scene you leave through the portal can be lost — [#635](https://github.com/spencerduncan/redshipblueship/issues/635) (community report; tracked in [#638](https://github.com/spencerduncan/redshipblueship/issues/638))
+### ~~A flag set in the scene you leave through the portal can be lost~~ — RESOLVED ([#635](https://github.com/spencerduncan/redshipblueship/issues/635), community report; tracked in [#638](https://github.com/spencerduncan/redshipblueship/issues/638), PR [#650](https://github.com/spencerduncan/redshipblueship/pull/650))
+
+Fixed by PR #650 (2026-09-11). Live scene flags are now flushed before every departure freeze, in
+both games and on both switch paths. The original report, kept for matching old saves:
 
 Collect the Heart Piece on the Clock Tower, walk straight out through the portal to
 Ocarina of Time, come back: the Heart Piece is there again, and can be collected
@@ -158,11 +168,13 @@ you picked up or triggered in the scene you left through the portal (collectible
 chests, switches, in that scene only) is not in the frozen save. Progress in every
 *other* scene is safe.
 
-**Workaround: leave and re-enter the scene through any door or loading zone before
-you cross**, or save (owl statue, Song of Time) first. The fix — flush live scene
-flags before every freeze, in both games and on both switch paths — is in flight.
+On builds older than PR #650, the workaround was to leave and re-enter the scene through any door
+or loading zone before crossing.
 
-### F10 during MM's game-over screen hands over an empty health bar — [#626](https://github.com/spencerduncan/redshipblueship/issues/626)
+### ~~F10 during MM's game-over screen hands over an empty health bar~~ — RESOLVED ([#626](https://github.com/spencerduncan/redshipblueship/issues/626), PR [#650](https://github.com/spencerduncan/redshipblueship/pull/650))
+
+Fixed by PR #650 (2026-09-11). A dead MM health bar is now revived before every departure freeze.
+The original report:
 
 Health is a shared resource between the two games, and it is applied as-is on
 arrival. Pressing the F10 debug hot-swap while MM's game-over prompt is up freezes
@@ -171,15 +183,14 @@ normal game-over exit (choosing not to continue) already revives you on the way 
 (PR [#625](https://github.com/spencerduncan/redshipblueship/pull/625)); the F10
 route bypasses it.
 
-**Workaround: do not press F10 on the game-over screen.** Answer the prompt first,
-or cross through the portal. The fix is in flight alongside #638.
+On builds older than PR #650, the workaround was not to press F10 on the game-over screen.
 
 ### ~~F10 hot-swap silently rolls back your progress~~ — RESOLVED ([#364](https://github.com/spencerduncan/redshipblueship/issues/364), PR [#400](https://github.com/spencerduncan/redshipblueship/pull/400))
 
 F10 now freezes the departing game's state and sets a return entrance, the same
 as the portal switch, and the frozen state is cleared when consumed. The historical
 symptom — resuming from the *other* game's save bytes after an F10 switch — is
-gone. The one remaining F10 hazard is the game-over case above.
+gone. The game-over case above is fixed too.
 
 ### ~~A malformed save permanently deadlocks all saving~~ — RESOLVED ([#370](https://github.com/spencerduncan/redshipblueship/issues/370), PR [#391](https://github.com/spencerduncan/redshipblueship/pull/391))
 
@@ -195,7 +206,10 @@ for all exist now. The advice stands: the format may change again.
 
 ## Crashes and hangs
 
-### Opening Network → Anchor in a wide window displaces the game view — [#634](https://github.com/spencerduncan/redshipblueship/issues/634) (community report; tracked in [#640](https://github.com/spencerduncan/redshipblueship/issues/640))
+### ~~Opening Network → Anchor in a wide window displaces the game view~~ — RESOLVED ([#634](https://github.com/spencerduncan/redshipblueship/issues/634), community report; tracked in [#640](https://github.com/spencerduncan/redshipblueship/issues/640), PR [#651](https://github.com/spencerduncan/redshipblueship/pull/651))
+
+Fixed by PR #651 (2026-09-11). `soh_port` now links whole-archive, so the page's registrar is kept,
+and a menu page with no widgets consumes its own window position. The original report:
 
 On Windows, open the menu, go to `Network → Anchor` while the window is wider than
 roughly 800 px (maximized, for example): the page's content column is empty, and
@@ -204,8 +218,7 @@ has no widgets because its menu registrar is dropped by the linker from the
 `soh_port` archive, and the empty page still positions the main game window. Not
 specific to fullscreen or DirectX 11.
 
-**Workaround: narrow the window before opening that page, or avoid the page;
-restarting restores the view.** The fix is in flight.
+On builds older than PR #651, the workaround was to narrow the window first or avoid the page.
 
 ### ~~Every normal exit heap-corrupts on Windows (Fault A)~~ — RESOLVED ([#396](https://github.com/spencerduncan/redshipblueship/issues/396))
 
@@ -250,23 +263,22 @@ MM is the newer half of the combo and still carries more debt than OoT.
 
 MM's vanilla death behaviour (reload at the area entrance with three hearts, no
 "Continue?" prompt) is the combo's shipped default; it is not a regression. The
-2ship game-over prompt enhancement (`gEnhancements.Kaleido.GameOver`) exists but
-has no row in the unified menu yet ([#682](https://github.com/spencerduncan/redshipblueship/issues/682)).
+2ship game-over prompt enhancement (`gEnhancements.Kaleido.GameOver`) is off by default.
+Since PR [#695](https://github.com/spencerduncan/redshipblueship/pull/695) ([#682](https://github.com/spencerduncan/redshipblueship/issues/682)) you can turn it on from Combo → MM Enhancements.
 ADR 0009's death-decline autosave machinery and #626's F10-during-game-over case
 only apply once that enhancement is enabled — operator ruling, 2026-09-16
 ([#653](https://github.com/spencerduncan/redshipblueship/issues/653)).
 
-### First arrival in Clock Town reads 08:00 instead of 06:00 — [#636](https://github.com/spencerduncan/redshipblueship/issues/636) (community report; tracked in [#639](https://github.com/spencerduncan/redshipblueship/issues/639))
+### ~~First arrival in Clock Town reads 08:00 instead of 06:00~~ — RESOLVED ([#636](https://github.com/spencerduncan/redshipblueship/issues/636), community report; tracked in [#639](https://github.com/spencerduncan/redshipblueship/issues/639), PR [#648](https://github.com/spencerduncan/redshipblueship/pull/648))
+
+Fixed by PR #648 (2026-09-11). A first MM arrival now re-authors the new-file clock, so the dawn
+sequence runs. The original report:
 
 The first crossing from OoT into a new MM file lands in South Clock Town at Day 1,
 8:00 AM, with no dawn sequence, instead of a new file's 6:00 AM. No time value
 leaks from OoT: the 8:00 is MM's own title-screen attract-demo clock, which the
 first-entry path never re-authors. You lose two hours of the first day and the
 dawn telop; nothing else is wrong with the clock.
-
-**Workaround: none needed for correctness** — play on, or play the Song of Time to
-start a clean cycle if the lost two hours matter to your route. The fix (re-author
-the new-file clock on first arrival so the vanilla dawn runs) is in flight.
 
 ### ~~MM enhancements do not initialize in single-executable builds~~ — RESOLVED ([#384](https://github.com/spencerduncan/redshipblueship/issues/384) PR [#408](https://github.com/spencerduncan/redshipblueship/pull/408); [#516](https://github.com/spencerduncan/redshipblueship/issues/516) PRs [#518](https://github.com/spencerduncan/redshipblueship/pull/518), [#520](https://github.com/spencerduncan/redshipblueship/pull/520), [#616](https://github.com/spencerduncan/redshipblueship/pull/616))
 
@@ -328,6 +340,32 @@ Duplicate entrance-link registrations are rejected instead of silently shadowing
 
 ---
 
+## Randomizer generation
+
+### OoT's plentiful item pool can wrap the wallet inside the fill's own logic — [#726](https://github.com/spencerduncan/redshipblueship/issues/726)
+
+This affects only OoT seeds generated with the **Plentiful** item pool (`RO_ITEM_POOL_PLENTIFUL`); the
+default pool is not affected. Plentiful adds one more copy of the wallet, bow, slingshot, bomb bag,
+strength, scale and magic.
+
+The problem is in the fill's simulated inventory. OoT's own fill counts every progressive copy with
+no upper limit, so a copy past the top tier walks past it. Measured on the wallet (a two-bit field):
+successive copies read `0 1 2 3 0 1`, and the carry spills into the bullet bag's field. So the fourth
+copy lowers the wallet the fill reasons with, from 3 to 0.
+
+What is and is not established:
+
+- The walk above was observed in a test that drives the arithmetic directly.
+- Whether a real plentiful seed's fill reaches it has not been observed yet; the premise is
+  inferred from the pool counts.
+- The combo coordinator's own rounds already clamp at the top tier (PR
+  [#728](https://github.com/spencerduncan/redshipblueship/pull/728)), but that clamp is off for OoT's own fill.
+
+**Workaround: use the default (balanced) item pool** if you want to be sure. A fix, clamping OoT's own
+fill at the top tier too, is in flight.
+
+---
+
 ## Platform and packaging
 
 ### macOS is not supported
@@ -341,8 +379,18 @@ Windows and Linux only.
 MM now mounts its asset mods in the single executable. Both games share one
 `mods/` folder: the root is OoT's and `mods/mm/` is MM's, each searched
 recursively, and a mod under one partition is never registered for the other
-game. Layout and precedence are in `docs/MODDING.md`. Loose (unpacked) asset
-folders are still not mounted for either game ([#705](https://github.com/spencerduncan/redshipblueship/issues/705)); pack them as `.o2r`.
+game. Layout and precedence are in `docs/MODDING.md`.
+
+**Loose (unpacked) asset folders now mount for both games** (PR [#732](https://github.com/spencerduncan/redshipblueship/pull/732), [#705](https://github.com/spencerduncan/redshipblueship/issues/705)).
+Put OoT's loose files in `<mods>/loose` and MM's in `<mods>/mm/loose`. Each game mounts its loose
+folder after its packed mods, so a loose file wins over a packed one.
+
+Limits, all described in `docs/MODDING.md`:
+
+- Symlinked subfolders inside `loose/` are not followed.
+- Removing a file needs a restart.
+- A top-level `version` file must be left out.
+- While you are in MM, an OoT loose file is shadowed wherever MM's base archives ship the same path.
 
 ### You must supply your own ROMs
 
@@ -407,9 +455,11 @@ Duplicate-symbol bugs are only observable on Linux (Windows links with
 
 Two rows to know about before you read a red or green as a signal:
 
-- **`build-windows` runs zero tests** — it compiles both games and ~90 test rows
-  and never invokes `ctest` ([#623](https://github.com/spencerduncan/redshipblueship/issues/623),
-  fix in flight). A green Windows job today proves the link, not the tests.
+- **`build-windows` now runs both test tiers.** It used to run none ([#623](https://github.com/spencerduncan/redshipblueship/issues/623)).
+  PR [#642](https://github.com/spencerduncan/redshipblueship/pull/642) added the `redship` tier, and since PR [#723](https://github.com/spencerduncan/redshipblueship/pull/723) ([#709](https://github.com/spencerduncan/redshipblueship/issues/709)) it also runs the whole
+  `rando` tier, every golden row included. The `rando` tier adds about a minute.
+  The first Windows run after a runner-image or compiler change rebuilds the sccache from zero and
+  takes far longer. That is a cold cache, not a regression.
 - **`IntSwitchOoTHmsToMm` always times out unattended** — it waits on the
   file-select hook, which needs a Start press the harness never sends
   ([#544](https://github.com/spencerduncan/redshipblueship/issues/544)). It is
