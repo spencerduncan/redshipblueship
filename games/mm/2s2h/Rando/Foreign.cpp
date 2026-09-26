@@ -631,9 +631,12 @@ int PlaceForeignItems() {
     // WHICH pool entries are drawable is the RULE (#495, ADR 0011 decision 3):
     // Combo_ForeignPoolDrawFor filters OoT's pool by the FROZEN itemClassOoT
     // bitset, in pool order, with NO seed term (accepted answer O3). With the
-    // shipped defaults (every allocated bit) `drawable` is the identity
-    // permutation 0..poolCount-1, so pool[drawable[i]] IS pool[i] and no
-    // generated world moves — the parity this increment is bounded by.
+    // shipped defaults (every allocated bit) `drawable` comes back as the
+    // identity 0..poolCount-1 — but that is only the INPUT to the draw: since
+    // #583 the list is Fisher-Yates-shuffled below (identity-seeded) and then
+    // truncated to `wanted`, so pool[drawable[i]] is NOT pool[i]. The class
+    // decides which rows are eligible; the shuffle decides which of them a
+    // shortfall keeps. (The goldens were re-pinned for exactly that move.)
     //
     // FILTER FIRST, THEN DRAW TO COUNT: the class decides WHICH entries may
     // cross, the pool size decides HOW MANY do. `wanted` therefore bounds on the

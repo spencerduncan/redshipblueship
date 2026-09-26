@@ -224,8 +224,9 @@ extern "C" {
 // deferred to the first frame with a live MM_gPlayState (see the file header),
 // which is item-agnostic and O(1) in pool size — the #502 design note says in as
 // many words that an allowlist audited against today's pool would expire the
-// moment somebody added a row. This pool is that row, 116 times over, and it
-// relies on the deferral instead of re-auditing it.
+// moment somebody added a row. This pool is that row 179 times over (116
+// unconditional rows plus the 63 capability rows #681 appended), and it relies
+// on the deferral instead of re-auditing it.
 //
 // ---------------------------------------------------------------------------
 // THE CLASS COLUMN (#495, ADR 0011 decision 3)

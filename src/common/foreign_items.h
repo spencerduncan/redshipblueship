@@ -550,13 +550,17 @@ int Combo_ForeignPoolClassMembersFor(uint8_t originGame, uint16_t classMask, int
  * can deliver" are read in exactly one place.
  *
  * Capability rows sit at the END of their pool table, so with no capability
- * armed the result is the identity permutation over the unconditional prefix —
+ * armed the result is the identity permutation over the UNCONDITIONAL PREFIX —
  * the same indices, in the same order, as before the column existed.
  *
- * With the shipped defaults (every allocated bit) the result is the identity
- * permutation 0..poolCount-1 — byte-identical to the table both passes walked
- * before the rule existed. That parity is a test lock (ForeignItemClass), not
- * a hope. It was ALSO claimed here to be what keeps "SeedDeterminism's
+ * The shipped profile arms no capability (every family's MM option defaults
+ * off), so under the shipped class bitset (every allocated bit) the result is
+ * the identity over that prefix — 0..(unconditional rows - 1) — NOT
+ * 0..poolCount-1. The whole table is drawn only when every family is armed.
+ * Either way this is the draw's INPUT: the forward pass shuffles it and then
+ * truncates (#583), the reverse pass draws from it without replacement, so
+ * pool order reaches a world only through those identity-seeded streams. The
+ * prefix parity is a test lock (ForeignItemClass), not a hope. It was ALSO claimed here to be what keeps "SeedDeterminism's
  * foreignOoTHash and MMRandoGen's placement digest from moving"; SeedDeterminism
  * cannot detect that (it diffs two runs of one binary — #688), so the row that
  * would actually go red on a moved draw is GoldenSeedDigestDefault, naming

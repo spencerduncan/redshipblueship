@@ -308,9 +308,12 @@ int Combo_ForeignPoolClassMembersFor(uint8_t originGame, uint16_t classMask, int
         return 0;
     }
 
-    // IN POOL ORDER, because pool order is world-visible: the forward pass
-    // assigns pool[members[i]] to the i-th drawn host, so regrouping by class
-    // here would re-order every already-generated world's crossings.
+    // IN POOL ORDER, because pool order is world-visible: it is the INPUT both
+    // placement passes consume from an identity-seeded stream (the forward pass
+    // Fisher-Yates-shuffles it and truncates, #583; the reverse pass draws from
+    // it without replacement), so regrouping by class here would re-order every
+    // already-generated world's crossings even though neither pass walks it
+    // in order any more.
     //
     // An UNCLASSIFIED row (itemClass == 0) matches no mask and is therefore
     // never drawn. That is deliberate rather than defensive — a row nobody

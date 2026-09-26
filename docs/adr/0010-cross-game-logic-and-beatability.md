@@ -1271,8 +1271,12 @@ done, on branch `claude/world-moving-bundle-583-681-643-719`:
   off; a clock-shuffle world, whose crawl takes the sequential path, is not
   pinned by any golden and was not measured.
 
-The O5 row reads **adopted (46 slices), 2026-09-26** with this entry. P7 in
-`docs/solver-inventory.md` is delivered by the same change.
+The O5 row reads **adopted (46 slices), 2026-09-26** with this entry. P7's
+decision (`docs/solver-inventory.md` section 6.2) is taken here, but that
+document is outside this change's file set and still reads 45 in three places:
+the world-state dimensions row (`:27`), the O5 entry in its open-question list
+(`:688`) and the P7 row's status (`:1141`). Until a follow-up annotates them,
+this entry and the code are the current statement.
 
 ### 2026-09-26 -- O11: Deku-Stick combat is trick-gated, like the Powder Keg (#719)
 

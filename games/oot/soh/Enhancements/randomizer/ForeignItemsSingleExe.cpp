@@ -639,9 +639,11 @@ extern "C" int OoT_PlaceForeignItems(void) {
     //
     // WHICH pool entries are drawable is now the RULE (#495, ADR 0011 decision
     // 3): Combo_ForeignPoolDrawFor filters MM's pool by the FROZEN itemClassMM
-    // bitset, in pool order. With the shipped defaults (every allocated bit) this
-    // is the identity permutation 0..poolCount-1 — byte-identical to the list
-    // this loop used to build by hand — which is what keeps foreignOoTHash from
+    // bitset, in pool order, narrowed by the frozen MM profile's published give
+    // capabilities (#681). With the shipped defaults (every allocated class bit,
+    // no capability armed) this is the identity over the UNCONDITIONAL PREFIX of
+    // the pool — byte-identical to the list this loop built by hand before the
+    // capability rows were appended — which is what keeps foreignOoTHash from
     // moving, as GoldenSeedDigestDefault checks and SeedDeterminism never could
     // (#688). There is NO seed term in the class (accepted
     // answer O3): variety comes from the draw below, and a seed-varying class

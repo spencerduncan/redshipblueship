@@ -1166,8 +1166,10 @@ TestResult Test_ForeignPoolMM(void) {
 //
 // THE THREE CLAIMS THIS ROW EXISTS FOR, in the order they can fail:
 //
-//  (P) PARITY. Under the shipped defaults the draw is the identity permutation,
-//      so every already-generated world is byte-identical. This is the pin the
+//  (P) PARITY. Under the shipped defaults the draw is the identity permutation
+//      over the unconditional prefix (no give capability is armed by the
+//      shipped profile, #681), so every already-generated world is
+//      byte-identical. This is the pin the
 //      whole increment is bounded by — SeedDeterminism's foreignOoTHash and
 //      MMRandoGen's placement digest both fold the drawn entries, so if this
 //      assertion is wrong those rows move.
@@ -1281,11 +1283,12 @@ TestResult Test_ForeignItemClass(void) {
     // ------------------------------------------------------------------
     // (P) THE PARITY PIN. Default bitset => the identity permutation.
     // ------------------------------------------------------------------
-    // Asserted as index-for-index equality with 0..poolCount-1, not merely as
-    // an equal COUNT: the forward pass assigns pool[draw[i]] to the i-th drawn
-    // host, so a permutation with the right size and the wrong order would
-    // re-order every already-generated world's crossings while passing a
-    // count check.
+    // Asserted as index-for-index equality with 0..(prefix-1), not merely as an
+    // equal COUNT: the draw is the INPUT both passes consume from identity-
+    // seeded streams (the forward pass shuffles then truncates it, #583; the
+    // reverse pass draws from it without replacement), so a list with the right
+    // size and the wrong order would re-order every already-generated world's
+    // crossings while passing a count check.
     FI_ASSERT(!Combo_ComboSettingsFrozen()); // fresh gComboCtx: the unfrozen fallback path
     for (int o = 0; o < 2; o++) {
         const uint8_t origin = kOrigins[o];
