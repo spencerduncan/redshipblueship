@@ -1506,3 +1506,27 @@ workstation at 100-105% host scale, the shipped profile, tricks off.
 **Not measured:** any plentiful or trap profile over the real engines (the
 shipped profile has neither, so every real-engine surplus and drop figure is
 0), tricks-on profiles, other hosts, and play.
+
+### 2026-09-27 -- The OoT tier clamp is no longer round-scoped (#726)
+
+The 2026-09-26 multiplicity amendment says the OoT clamp is round-scoped and
+that OoT's own fill still runs upstream's unclamped arithmetic. **That is no
+longer true of the tier half.**
+
+- **Progressive rows clamp on every grant.** In `logic.cpp`, wallet,
+  strength, scale, bomb bag, bow, slingshot, sticks, nuts and magic now stop at
+  `ComboLogicProgressiveTopTier` (magic: 2) in OoT's native fill too, not only
+  between `beginQuery` and `endQuery`.
+- **Why it was needed.** On a plentiful + tycoon profile the native full-world
+  harvest read the wallet at 0 and every other of those kinds one past its top
+  (observed by `OoTPlentifulProgressive` before the fix).
+- **Why unconditional is safe.** The clamp only touches grants, and
+  `Item::UndoEffect` (the only removal caller) has no caller, so a clamped grant
+  is never paired with an unclamped removal.
+- **Counters stay round-scoped.** `Rando::gComboLogicRoundClamp` still gates
+  the key, token, triforce-piece, heart and bean maxima.
+- **Test-only suppression.** `gComboLogicTierClampSuppressed` exists so
+  `combo-logic-multiplicity`'s clamp-off legs still observe upstream's
+  arithmetic. Nothing else sets it.
+- **Worlds.** The four goldens did not move. A plentiful + tycoon world can
+  move: seed `RSBSUNIFIED1` changed 120 of 442 OoT locations.
