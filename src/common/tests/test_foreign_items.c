@@ -46,6 +46,7 @@
 // test_shared_state_roundtrip.c does for the switch policy).
 extern "C" {
 int MM_Rando_Foreign_RecordPickup(uint16_t randoCheckId);
+void MM_Rando_Foreign_TestSetObtained(uint16_t randoCheckId, int obtained);
 int Switch_PrepareHotSwap(GameId departing, const void* saveContext, size_t size);
 int Combo_ConsumeFrozenState(const char* gameId, void* saveContext, size_t size);
 
@@ -97,6 +98,7 @@ int OoT_Foreign_IsEligibleHost(uint16_t rc);
 //                                   dereferencing, which is exactly the state
 //                                   MM's arrival point is in.
 int OoT_Rando_Foreign_RecordPickup(uint16_t rc);
+int OoT_Rando_Foreign_TestSetObtained(uint16_t rc, int obtained);
 void MM_ConsumeSharedItems(void);
 int MM_ForeignItem_TestPendingCount(void);
 uint16_t MM_ForeignItem_TestPendingAt(int index);
@@ -395,9 +397,14 @@ TestResult Test_ForeignItemGive(void) {
     FI_ASSERT(Combo_CountSharedItems(GAME_OOT, /*includeRedeemed=*/false) == 1);
     FI_ASSERT(gComboCtx.sharedItemsTagged[0].originGame == (uint8_t)GAME_OOT);
     FI_ASSERT(gComboCtx.sharedItemsTagged[0].id == pool[0].item.id);
-    FI_ASSERT(gComboCtx.sharedItemsTagged[0].flags == 0);
-    FI_ASSERT(MM_Rando_Foreign_RecordPickup(kForeignTestCheckA) == 1); // de-dup: same slot, no double
+    // One COPY per crossing pickup (ADR 0010 increment 3): the record is never
+    // content-merged, and the once-per-host gate is the check's `obtained` bit,
+    // which the CheckQueue lambda sets right after the call.
+    FI_ASSERT(gComboCtx.sharedItemsTagged[0].flags == RSBS_SHARED_ITEM_CROSSING);
+    MM_Rando_Foreign_TestSetObtained(kForeignTestCheckA, 1);
+    FI_ASSERT(MM_Rando_Foreign_RecordPickup(kForeignTestCheckA) == 0); // a later cycle: no second copy
     FI_ASSERT(Combo_CountSharedItems(GAME_OOT, /*includeRedeemed=*/false) == 1);
+    MM_Rando_Foreign_TestSetObtained(kForeignTestCheckA, 0);
 
     // ------------------------------------------------------------------
     // (b) The crossing survives MM suspend -> OoT arrival through the real
@@ -715,11 +722,22 @@ TestResult Test_ForeignItemGiveReverse(void) {
     FI_ASSERT(Combo_CountSharedItems(GAME_MM, /*includeRedeemed=*/false) == 1);
     FI_ASSERT(gComboCtx.sharedItemsTagged[0].originGame == (uint8_t)GAME_MM);
     FI_ASSERT(gComboCtx.sharedItemsTagged[0].id == placedItem.id);
-    FI_ASSERT(gComboCtx.sharedItemsTagged[0].flags == 0);
+    FI_ASSERT(gComboCtx.sharedItemsTagged[0].flags == RSBS_SHARED_ITEM_CROSSING);
 
-    // ---- (3) A re-fired queue de-dups rather than doubling -------------
-    FI_ASSERT(OoT_Rando_Foreign_RecordPickup(kForeignTestCheckA) == 1);
-    FI_ASSERT(Combo_CountSharedItems(GAME_MM, /*includeRedeemed=*/true) == 1);
+    // ---- (3) A collected host does not deliver twice -------------------
+    // The once-per-host gate is the location's collected status (the RC-queue
+    // drain checks it too); a record is one copy and is never content-merged.
+    // The gate needs OoT's location table, which a ROM-free process may not have
+    // built; there the drain's own `!loc->HasObtained()` is the whole gate and
+    // this leg has nothing to drive, which it says rather than asserting it.
+    if (OoT_Rando_Foreign_TestSetObtained(kForeignTestCheckA, 1) != 0) {
+        FI_ASSERT(OoT_Rando_Foreign_RecordPickup(kForeignTestCheckA) == 0);
+        FI_ASSERT(Combo_CountSharedItems(GAME_MM, /*includeRedeemed=*/true) == 1);
+        OoT_Rando_Foreign_TestSetObtained(kForeignTestCheckA, 0);
+    } else {
+        printf("[TEST] foreign-item-give-reverse: no OoT location table in this process; the collected-host gate is "
+               "the RC-queue drain's own check\n");
+    }
 
     // ---- (4) The crossing: OoT suspends, MM arrives, MM awards ---------
     // The real switch seam, then MM's real consumer. With no PlayState the give

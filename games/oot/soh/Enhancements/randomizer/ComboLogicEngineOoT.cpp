@@ -2378,6 +2378,20 @@ extern "C" int OoT_ComboLogic_FinishGeneralPass(int writeSpoiler) {
     Random_Init(SohUtils::Hash(ctx->GetHash() + std::string("|rsbs-single-bag-oot-remainder-v1")));
 
     // 4. The remainder, with Logic detached from any live save.
+    //
+    // THE LANGUAGE BYTE. The hint and spoiler text below resolve every message
+    // through CustomMessage::GetForCurrentLanguage, which indexes a per-language
+    // table with `gSaveContext.language` unchecked. At OoT's file-create seam that
+    // byte is the file's own, valid by construction; a caller that runs this with
+    // any other bytes in gSaveContext (a headless harness, whose MM half is live
+    // there) would index past the table. So an out-of-range byte reads as English
+    // for exactly the duration of this remainder and is put back after — the
+    // bytes are otherwise untouched.
+    const uint8_t priorLanguage = (uint8_t)gSaveContext.language;
+    const bool languageGuard = priorLanguage >= (uint8_t)LANGUAGE_MAX;
+    if (languageGuard) {
+        gSaveContext.language = LANGUAGE_ENG;
+    }
     Rando::Logic* lg = OoTComboLogicSingleton();
     const bool priorLive = (lg->GetSaveContext() == &gSaveContext);
     if (priorLive) {
@@ -2393,11 +2407,12 @@ extern "C" int OoT_ComboLogic_FinishGeneralPass(int writeSpoiler) {
             free(mine); // mirrors Logic::NewSaveContext, as the engine's endQuery does
         }
     }
+    const int bagRowsTaken = (int)sBagExportRows.size();
     OoT_ComboLogic_SetGeneralPassDeferred(0);
     fprintf(stderr,
             "[OoT/ComboLogic] general pass finished: %d bag rows left the pool, %d per-game rows onto %d leftover "
             "hosts, %d empty after\n",
-            (int)sBagExportRows.size(), remainingRows, leftovers, (int)GetAllEmptyLocations().size());
+            bagRowsTaken, remainingRows, leftovers, (int)GetAllEmptyLocations().size());
 
     // 5. OoT's spoiler document.
     if (writeSpoiler) {
@@ -2407,8 +2422,30 @@ extern "C" int OoT_ComboLogic_FinishGeneralPass(int writeSpoiler) {
             SPDLOG_ERROR("Writing Spoiler Log Failed (paired world)");
         }
     }
+    if (languageGuard) {
+        gSaveContext.language = priorLanguage;
+    }
     fflush(stderr);
     return 0;
+}
+
+/** TEST BRIDGE (combo-single-bag): OoT hosts the fill considers that hold nothing. */
+extern "C" int OoT_ComboLogic_TestEmptyHostCount(void) {
+    return OoTComboLogicReady() ? (int)GetAllEmptyLocations().size() : -1;
+}
+
+/** TEST BRIDGE (combo-single-bag): OoT locations holding an ice trap. */
+extern "C" int OoT_ComboLogic_TestCountIceTraps(void) {
+    auto ctx = Rando::Context::GetInstance();
+    if (ctx == nullptr) {
+        return -1;
+    }
+    int count = 0;
+    for (const RandomizerCheck rc : ctx->allLocations) {
+        Rando::ItemLocation* il = ctx->GetItemLocation(rc);
+        count += (il != nullptr && il->GetPlacedRandomizerGet() == RG_ICE_TRAP) ? 1 : 0;
+    }
+    return count;
 }
 
 /**

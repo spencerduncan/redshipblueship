@@ -1248,10 +1248,8 @@ if(BUILD_TESTING)
     # accepts nothing, and a "only chests are hosts" assertion passes with a
     # count of zero. The row asserts a NON-ZERO eligible-host count and prints
     # it, so host supply is visible before it becomes a shortfall.
-    redship_add_test(NAME ForeignPlacementOoT COMMAND redship --test foreign-placement-oot
-        LABEL rando
-        TIMEOUT 300
-        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # (#510's ForeignPlacementOoT row is RETIRED with the reverse overlay pass it
+    # locked; ADR 0010 increment 3, lane K11. Its successor is ComboSingleBag.)
 
     # ADR 0010 increment 2 (#644): THE MERGED CREATION EVENT, end to end. The
     # freeze precedes OoT's Fill(), the whole MM half is authored and armed at
@@ -1556,7 +1554,10 @@ if(BUILD_TESTING)
         # The paired MM world's own golden. Its digest carries the ladder rung the
         # world converged through (winningAttempt / mmPairedAttempt), so this row
         # pins not just the world but the DERIVATION that reached it.
-        "GoldenPairedAttemptDigest|paired-attempt-digest|mm-paired-attempt|RSBS_ATTEMPT_DIGEST_OUT|OFF|"
+        # ARCHIVE-SENSITIVE since ADR 0010 increment 3 (lane K11): the ladder world's
+        # identity now comes from a real OoT generation, whose settings string —
+        # and so every seed downstream of it — depends on the mounted archive set.
+        "GoldenPairedAttemptDigest|paired-attempt-digest|mm-paired-attempt|RSBS_ATTEMPT_DIGEST_OUT|ON|"
         # #681 review: the ARMED reverse draw. The three goldens above run the
         # shipped profile, which arms no give-capability family, so the
         # capability rows and the per-family budget never ran under any pin. The
@@ -1909,6 +1910,17 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     redship_add_test(NAME CrossingStoreCapacity COMMAND redship --test crossing-store-capacity)
     redship_add_test(NAME CrossingStoreRedsave COMMAND redship --test crossing-store-redsave)
     redship_add_test(NAME CrossingStoreSpoiler COMMAND redship --test crossing-store-spoiler)
+    # ADR 0010 increment 3 (lane K11): THE SINGLE-BAG FILL AT THE CREATION EVENT,
+    # over both real engines: a paired OoT generation stops at its general pass,
+    # MM's creation-time half places the union bag over both games (GOAL proven,
+    # crossings both ways on hosts whose give path can deliver them, no trap
+    # crossing, MM's fixed contents granted — #737), D5's pair-level locks paired
+    # with removal in BOTH directions, the direction gate (OFF crosses nothing and
+    # still proves), and OoT's remainder. rando tier: it needs a real generation.
+    redship_add_test(NAME ComboSingleBag COMMAND redship --test combo-single-bag
+        LABEL rando
+        TIMEOUT 600
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)

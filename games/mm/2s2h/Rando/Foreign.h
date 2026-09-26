@@ -133,6 +133,12 @@ void ForceShortForeignPlacements(int attempts);
  *  cannot pass on a world that was never really placed. */
 int ForcedShortForeignPlacementsRemaining();
 
+/** Consume one injected rung (ForceShortForeignPlacements): true when one was
+ *  armed, and the caller then fails its attempt deterministically. Since ADR 0010
+ *  increment 3 (lane K11) the single-bag fill (RunPairedSingleBagFill) is the
+ *  consumer: the forward overlay pass that used to throw here is retired. */
+bool ConsumeForcedLadderRung();
+
 /** True if this MM check is a SAFE host for a foreign (cross-game) item —
  *  i.e. the check is in the fill, holds a legal junk-class MM item, and belongs
  *  to a check class whose `.eligible` bit is armed by GAME code rather than by

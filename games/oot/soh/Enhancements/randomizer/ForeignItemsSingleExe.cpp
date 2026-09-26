@@ -859,13 +859,20 @@ static bool OoT_Foreign_RecordPickupImpl(uint16_t rc) {
         return false;
     }
 
+    // ONCE PER HOST. The drain gates on `!loc->HasObtained()` already; the same
+    // gate is here too, so the recording function cannot be the thing that
+    // double-delivers when a future caller forgets it.
+    auto ctx = Rando::Context::GetInstance();
+    Rando::ItemLocation* il = (ctx != nullptr) ? ctx->GetItemLocation((RandomizerCheck)rc) : nullptr;
+    if (il != nullptr && il->HasObtained()) {
+        return false;
+    }
+
     // Durable immediately (the serialized array, so an OoT save+quit before the
     // next switch cannot lose the pickup — the stage/commit outbox is RAM-only,
     // see shared_items.h). ONE COPY PER PICKUP (ADR 0010 increment 3): under the
     // single bag two OoT hosts may hold two copies of one MM id, and both must
     // reach MM, so the record is never content-merged (RSBS_SHARED_ITEM_CROSSING).
-    // The drain's `!loc->HasObtained()` gate is what keeps one host from firing
-    // twice.
     return Combo_RecordSharedItemCrossing((GameId)item->originGame, item->id) >= 0;
 }
 
@@ -882,6 +889,19 @@ static bool OoT_Foreign_RecordPickupImpl(uint16_t rc) {
  */
 extern "C" int OoT_Rando_Foreign_RecordPickup(uint16_t rc) {
     return OoT_Foreign_RecordPickupImpl(rc) ? 1 : 0;
+}
+
+/** TEST BRIDGE: mark an OoT check collected (or not), as the drain does after a
+ *  pickup, so a lock can drive the once-per-host gate. Returns 1 when applied, 0
+ *  when this process has no OoT location table to apply it to (a ROM-free row). */
+extern "C" int OoT_Rando_Foreign_TestSetObtained(uint16_t rc, int obtained) {
+    auto ctx = Rando::Context::GetInstance();
+    Rando::ItemLocation* il = (ctx != nullptr && rc < RC_MAX) ? ctx->GetItemLocation((RandomizerCheck)rc) : nullptr;
+    if (il == nullptr) {
+        return 0;
+    }
+    il->SetCheckStatus(obtained != 0 ? RCSHOW_COLLECTED : RCSHOW_UNCHECKED);
+    return 1;
 }
 
 /**
@@ -1110,6 +1130,42 @@ extern "C" int OoT_Creation_LiveSaveIsOoTSnapshot(void) {
 // ComboLogicEngineOoT.cpp: OoT's per-game remainder after the single-bag fill.
 extern "C" int OoT_ComboLogic_FinishGeneralPass(int writeSpoiler);
 
+/**
+ * OoT'S SIDE OF A PAIRED CREATION, after the MM half has run the single-bag fill
+ * (ADR 0010 increment 3; lane K11). Two steps, in this order:
+ *
+ *   1. THE CROSSINGS, captured from the coordinator's tables into the crossing
+ *      store (ADR 0010 O7): the one durable record of which host of either game
+ *      yields an item of the other, frozen with the world and persisted in the
+ *      .redsave's Tier-4 by the file's first Save_SaveFile().
+ *   2. OoT's REMAINDER (OoT_ComboLogic_FinishGeneralPass): its junk, renewables
+ *      and traps onto its leftover hosts, its overrides, its hints and, when
+ *      `writeSpoiler`, its spoiler document.
+ *
+ * A named function rather than lines in OoT_RunPairedCreationEvent because the
+ * headless harnesses that drive MM's half directly (the golden digests, the
+ * ladder and switch-entry rows) must complete the SAME world the creation event
+ * completes, not a copy of the steps.
+ *
+ * @return the number of crossings stored (>= 0); negative when the creation must
+ *         fail (-1 the store refused the crossings, -2 OoT's remainder could not
+ *         run). On failure the store is left empty.
+ */
+extern "C" int OoT_Creation_FinishPairedHalf(int writeSpoiler) {
+    const int crossings = Combo_Crossings_CaptureFromCoordinator();
+    if (crossings < 0) {
+        fprintf(stderr, "[OoT] creation: the crossing store refused the single bag's crossings (%s)\n",
+                Combo_Crossings_StatusName(crossings));
+        return -1;
+    }
+    if (OoT_ComboLogic_FinishGeneralPass(writeSpoiler) != 0) {
+        fprintf(stderr, "[OoT] creation: OoT's remainder after the single-bag fill could not run\n");
+        Combo_Crossings_Clear();
+        return -2;
+    }
+    return crossings;
+}
+
 extern "C" int OoT_RunPairedCreationEvent(int slot) {
     if (!Combo_ForeignPairingActive()) {
         // A vanilla file, or a rando file whose stamp the KEEP identity check
@@ -1273,18 +1329,9 @@ extern "C" int OoT_RunPairedCreationEvent(int slot) {
     // A failure in any of them fails the creation the same way a failed MM half
     // does: nothing is written, nothing of the identity survives.
     // ------------------------------------------------------------------------
-    bool tailOk = true;
-    const int crossings = Combo_Crossings_CaptureFromCoordinator();
-    if (crossings < 0) {
-        fprintf(stderr, "[OoT] creation event: the crossing store refused the single bag's crossings (%s)\n",
-                Combo_Crossings_StatusName(crossings));
-        tailOk = false;
-    }
     Combo_GenProgress_Report((uint8_t)RSBS_GENPHASE_CROSSINGS, 0, "Filling Hyrule's remaining checks");
-    if (tailOk && OoT_ComboLogic_FinishGeneralPass(1) != 0) {
-        fprintf(stderr, "[OoT] creation event: OoT's remainder after the single-bag fill could not run\n");
-        tailOk = false;
-    }
+    const int crossings = OoT_Creation_FinishPairedHalf(1);
+    bool tailOk = crossings >= 0;
     if (tailOk) {
         Combo_GenProgress_Report((uint8_t)RSBS_GENPHASE_SPOILER, 0, "writing the paired spoiler");
         const std::string cvarPath = CVarGetString(CVAR_GENERAL("SpoilerLog"), "");

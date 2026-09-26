@@ -571,6 +571,14 @@ int ForcedShortForeignPlacementsRemaining() {
     return sForcedShortPlacements;
 }
 
+bool ConsumeForcedLadderRung() {
+    if (sForcedShortPlacements <= 0) {
+        return false;
+    }
+    sForcedShortPlacements--;
+    return true;
+}
+
 // Session-scoped record of the last placement run — the spoiler's shortfall
 // section and the CI locks read it (accessor below). RAM-only on purpose: the
 // spoiler is written in the same generation event that runs the placement, so
@@ -885,10 +893,20 @@ bool RecordForeignPickup(RandoCheckId randoCheckId) {
     // de-dups an identical un-redeemed entry, so a re-fired give cannot
     // double-record.
     //
-    // A COPY, NOT A CONTENT-DE-DUPED RECORD (ADR 0010 increment 3): under the single
+    // ONCE PER HOST, AND ONE COPY PER HOST (ADR 0010 increment 3). Under the single
     // bag two MM hosts may hold two copies of one OoT id, and both pickups must
-    // reach OoT. This give fires once per check (the CheckQueue's obtained gate),
-    // which is the only de-dup a crossing needs — see RSBS_SHARED_ITEM_CROSSING.
+    // reach OoT, so the record is never content-merged (RSBS_SHARED_ITEM_CROSSING).
+    // What makes a host deliver ONCE is its `obtained` bit, which survives the
+    // three-day reset: a cycle-reset chest opened again on a later cycle raises its
+    // scene flag, OnSceneFlagSet makes the check eligible again, and the CheckQueue
+    // lambda would otherwise hand the same crossing over a second time (a second
+    // small key, a second progressive tier). The lambda sets `obtained` right after
+    // this call, so the first pickup records and every later one does not.
+    if (RANDO_SAVE_CHECKS[randoCheckId].obtained) {
+        fprintf(stderr, "[MM] foreign pickup: MM check %u already delivered its crossing on an earlier cycle\n",
+                (unsigned)randoCheckId);
+        return false;
+    }
     return Combo_RecordSharedItemCrossing((GameId)item->originGame, item->id) >= 0;
 }
 
@@ -1470,8 +1488,8 @@ extern "C" int MM_Rando_AugmentSpoilerWithPairedHalf(const char* ootSpoilerPath)
             std::ifstream verify(ootSpoilerPath);
             nlohmann::json landed;
             verify >> landed;
-            sLastSpoilerForward = (int)landed["combo"]["crossings"]["ootItemsInMM"].size();
-            sLastSpoilerReverse = (int)landed["combo"]["crossings"]["mmItemsInOoT"].size();
+            sLastSpoilerForward = (int)landed["combo"]["crossingStore"]["ootItemsInMM"].size();
+            sLastSpoilerReverse = (int)landed["combo"]["crossingStore"]["mmItemsInOoT"].size();
             sLastSpoilerIdentityOk =
                 (landed["combo"]["identity"]["masterSeed"].get<uint32_t>() == gComboCtx.sharedRandoSeed) ? 1 : 0;
         }
@@ -1550,6 +1568,19 @@ extern "C" int MM_Rando_PairedGenLastExhausted(void) {
 // ============================================================================
 extern "C" int MM_Rando_Foreign_RecordPickup(uint16_t randoCheckId) {
     return Rando::Foreign::RecordForeignPickup((RandoCheckId)randoCheckId) ? 1 : 0;
+}
+
+/** TEST BRIDGE (combo-single-bag): the static foreign-host class of an MM check. */
+extern "C" int MM_Rando_Foreign_TestIsForeignHostClass(uint16_t randoCheckId) {
+    return Rando::Foreign::IsForeignHostClass((RandoCheckId)randoCheckId) ? 1 : 0;
+}
+
+/** TEST BRIDGE: set an MM check's `obtained` bit, as the CheckQueue lambda does
+ *  right after a pickup, so a lock can drive the once-per-host gate. */
+extern "C" void MM_Rando_Foreign_TestSetObtained(uint16_t randoCheckId, int obtained) {
+    if (randoCheckId > RC_UNKNOWN && randoCheckId < RC_MAX) {
+        RANDO_SAVE_CHECKS[randoCheckId].obtained = (obtained != 0);
+    }
 }
 
 // #488's host-eligibility lock. This is the bridge that makes the lock

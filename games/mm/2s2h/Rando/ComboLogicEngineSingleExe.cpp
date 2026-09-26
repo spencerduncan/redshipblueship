@@ -1587,6 +1587,36 @@ extern "C" int MM_ComboLogic_TestGeneratePool(uint16_t* outItems, uint16_t* outF
 }
 
 /**
+ * DIGEST BRIDGE (GoldenSeedDigestArmedCaps, lane K11): the pool MM's creation
+ * would hand the single bag under the FROZEN paired profile — MM_Sram_InitNewSave,
+ * the paired profile resolution, the ladder's attempt-0 seed (GeneratePools draws
+ * prices from it), then GeneratePools over a heap copy — with its plentiful marks.
+ * Fills nothing, so an armed profile's give-capability rows can be pinned by the
+ * bag they enter without riding a fill's wall clock. Needs MM's rando core up.
+ * Writes at most `cap` rows; returns the total, or -1 on refusal.
+ */
+extern "C" int MM_ComboLogic_TestPairedPool(uint16_t* outItems, uint16_t* outFlags, int cap) {
+    if (Rando::Logic::Regions.empty()) {
+        return -1;
+    }
+    if (gRegEditor == NULL) {
+        static RegEditor sPairedPoolRegEditor = {};
+        gRegEditor = &sPairedPoolRegEditor;
+    }
+    memset(&gSaveContext, 0, sizeof(SaveContext));
+    MM_Sram_InitNewSave();
+    gSaveContext.save.shipSaveInfo.saveType = SAVETYPE_RANDO;
+    try {
+        Rando::Foreign::ResolvePairedProfile(true);
+    } catch (const std::exception& e) {
+        fprintf(stderr, "[MM ComboLogic] paired pool: the frozen profile could not be resolved: %s\n", e.what());
+        return -1;
+    }
+    Ship_Random_Seed(Rando::Foreign::MixPairedFinalSeedForAttempt(0));
+    return MM_ComboLogic_TestGeneratePool(outItems, outFlags, cap, nullptr, 0, nullptr);
+}
+
+/**
  * TEST BRIDGE (#733): the two MM checks Regions/East.cpp gates on
  * `CHECK_MAX_HP(4)` — the Ikana Canyon ghost hut's piece of heart and the Poe
  * sister enemy drop — so combo-logic-bag-composition can assert they are reached
@@ -1980,6 +2010,13 @@ extern "C" int MM_ComboLogic_TestFillAdvancement(uint16_t id) {
 // pre-balance pool, and only the leftovers are balanced, by this pass.
 void Rando::Foreign::RunPairedSingleBagFill(std::vector<RandoCheckId>& checkPool, std::vector<RandoItemId>& itemPool,
                                             int ladderAttempt) {
+    // THE LADDER'S TEST RUNG (ForceShortForeignPlacements): a deterministic dead
+    // end injected BEFORE any engine is touched, so the attempt fails the way a
+    // real one does and the next attempt re-derives from its own seed. Zero on
+    // every shipping path.
+    if (Rando::Foreign::ConsumeForcedLadderRung()) {
+        throw std::runtime_error("single-bag fill: injected ladder rung (test)");
+    }
     std::vector<uint16_t> hosts;
     hosts.reserve(checkPool.size());
     for (const RandoCheckId randoCheckId : checkPool) {

@@ -153,6 +153,7 @@ int OoT_ComboLogic_TestPlacedItemAt(uint16_t rc, uint16_t* outItemId, int* outAd
 int OoT_ComboLogic_TestSetPlacedItem(uint16_t rc, uint16_t itemId);
 uint32_t OoT_ComboLogic_TestWorldDigest(void);
 int Rando_HeadlessSeedTest(const char* seedStr);
+int OoT_ComboLogic_TestSetNativeGeneralPass(int native);
 // OoT probe (games/oot/soh/Enhancements/randomizer/ComboLogicMonotonicityOoT.cpp).
 int OoT_ComboMono_RegionBits(uint8_t* out, int cap);
 int OoT_ComboMono_ForceAllTricks(int on);
@@ -1074,6 +1075,10 @@ TestResult ComboLogicMonotonicity_Run(void) {
     CLMONO_ASSERT(oot->abiVersion == RSBS_COMBO_LOGIC_ENGINE_ABI && mm->abiVersion == RSBS_COMBO_LOGIC_ENGINE_ABI,
                   "a registered engine carries the wrong ABI");
 
+    // OoT's NATIVE general pass (lane K11): this row measures OoT's own fill or a world
+    // with its general pass placed by it, not the paired creation's single bag, so it
+    // asks Fill() not to defer the general pass (ComboLogicEngineOoT.cpp).
+    (void)OoT_ComboLogic_TestSetNativeGeneralPass(1);
     CLMONO_ASSERT(Rando_HeadlessSeedTest("RSBSCOMBOMONO1") == 0, "headless OoT seed generation failed");
     MM_Rando_InitCore();
 

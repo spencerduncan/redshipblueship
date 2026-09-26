@@ -110,6 +110,7 @@
 // the other rando-tier wrappers) and this file holds the body — the same split
 // test_crossgame_model.c uses, for the same reason.
 extern "C" int Rando_HeadlessSeedTest(const char* seedStr);
+extern "C" int OoT_ComboLogic_TestSetNativeGeneralPass(int native);
 
 // ---------------------------------------------------------------------------
 // The engine's test bridges (games/oot/soh/Enhancements/randomizer/
@@ -321,6 +322,10 @@ TestResult OoTLogicExport_Run(void) {
     // A REAL generation. Everything below is vacuous without it.
     // ------------------------------------------------------------------
     const char* kSeed = "RSBSCOMBOLOGICOOT1";
+    // OoT's NATIVE general pass (lane K11): this row reads a world whose general
+    // pass OoT's own fill placed, not the paired creation's single bag, so it asks
+    // Fill() not to defer it (ComboLogicEngineOoT.cpp).
+    (void)OoT_ComboLogic_TestSetNativeGeneralPass(1);
     const int rc = Rando_HeadlessSeedTest(kSeed);
     OLE_ASSERT(rc == 0, "headless seed generation failed");
 
