@@ -913,13 +913,21 @@ static void ComboLogicPartitionBag(const ComboLogicFillRequest* req) {
  * required rows are all placed — and, under the proving rungs, only after the
  * exit condition held.
  *
- * Walks the surplus rows IN BAG ORDER. Under the proving rungs every row draws
- * from ONE supply, the final proof round's reached, unassigned hosts, which is
- * already in sCandidates (arrival gate applied) and is consumed as it is drawn;
- * no further round is run per row, because placing an item can only grow the
- * reached set, so a host reached before a surplus placement is still reached
- * after it. Under `none` the supply is re-collected from every empty host before
- * each row, exactly as the required rows were placed.
+ * Walks the surplus rows IN BAG ORDER. The host SOURCE is the rung's:
+ *   - `all-reachable` (`reachedSupply`): ONE supply, the final proof round's
+ *     reached, unassigned hosts, already in sCandidates (arrival gate applied)
+ *     and consumed as it is drawn. No further round is run per row, because
+ *     placing an item can only grow the reached set, so a host reached before a
+ *     surplus placement is still reached after it. A surplus copy on an
+ *     UNREACHED host would break that rung's own promise, so it may not go there.
+ *   - `beatable` and `none`: EVERY empty host, re-collected before each row. A
+ *     surplus copy is by construction not load-bearing (the proof held with it
+ *     absent), so an unreached host is a harmless place for it — and it is what
+ *     both native fills do: OoT sizes its plentiful insert against ALL empty
+ *     locations (`CountEmptyLocations(false)`, item_pool.cpp) and MM counts
+ *     replaceable items over its whole pool (GeneratePools.cpp). Drawing only
+ *     from reached hosts here dropped copies while empty hosts remained, and
+ *     then handed those hosts to the junk pass.
  *
  * When the supply is empty, THIS ROW AND EVERY LATER ONE is dropped: the drop
  * set is the tail of the surplus list, which is the last-first rule.
@@ -1171,10 +1179,12 @@ int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* 
 
         // --- the surplus phase, over the PROVEN world ----------------------
         //
-        // sCandidates still holds the proof round's reached, unassigned hosts
-        // (arrival gate applied): the supply every surplus row draws from.
+        // Under `all-reachable`, sCandidates still holds the proof round's
+        // reached, unassigned hosts (arrival gate applied): the supply every
+        // surplus row draws from. Under `beatable`, every empty host is (see
+        // ComboLogicPlaceSurplus).
         {
-            const int st = ComboLogicPlaceSurplus(req, true, &rng, &res);
+            const int st = ComboLogicPlaceSurplus(req, req->logicRung == RSBS_COMBO_RUNG_ALL_REACHABLE, &rng, &res);
             if (st != RSBS_COMBO_LOGIC_OK) {
                 status = st;
                 goto finish;
@@ -1182,9 +1192,10 @@ int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* 
         }
         if (res.surplusPlaced > 0) {
             // THE CONFIRMING ROUND. Monotonicity says placing items cannot undo
-            // the proof or unreach a host; this measures it instead of assuming
-            // it. A failure here is an engine whose reachability SHRANK when an
-            // item was added — refused, never worked around (ADR 0010 §2.3).
+            // the proof or unreach a host — wherever the surplus copies landed,
+            // reached host or not; this measures it instead of assuming it. A
+            // failure here is an engine whose reachability SHRANK when an item
+            // was added — refused, never worked around (ADR 0010 §2.3).
             const int st = ComboLogicRoundRun(NULL, 0, req->goal, &round);
             res.rounds++;
             if (st != RSBS_COMBO_LOGIC_OK) {
@@ -1193,8 +1204,9 @@ int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* 
             }
             if (round.goalExpression != 1 ||
                 (req->logicRung == RSBS_COMBO_RUNG_ALL_REACHABLE && round.allHostsReached != 1)) {
-                fprintf(stderr, "[ComboLogic] placing %d surplus rows on reached hosts UNDID the proof — an engine "
-                                "is not monotone under added items\n",
+                fprintf(stderr,
+                        "[ComboLogic] placing %d surplus rows UNDID the proof — an engine is not monotone under "
+                        "added items\n",
                         res.surplusPlaced);
                 status = RSBS_COMBO_LOGIC_ERR_NON_MONOTONE;
                 goto finish;
@@ -1221,7 +1233,7 @@ finish:
     if (res.attempts > 0) {
         res.placed = Combo_Logic_PlacementCount(GAME_OOT) + Combo_Logic_PlacementCount(GAME_MM);
         res.placementDigest = Combo_Logic_PlacementDigest();
-        // THE LEFTOVER HOSTS (THE BAG MODEL, shape 4): each game's own junk pass
+        // THE LEFTOVER HOSTS (THE BAG MODEL, shape 4): each game's own per-game pass
         // fills exactly these. A -1 from the enumeration (no engine, or over the
         // host cap) is reported as 0 rather than as a negative count.
         const int lo = Combo_Logic_LeftoverHosts(GAME_OOT, NULL, 0);

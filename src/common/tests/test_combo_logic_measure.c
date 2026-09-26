@@ -766,12 +766,26 @@ TestResult ComboLogicMeasure_Run(void) {
     const int ootFullDistinct = DistinctCount(ootAdvItems);
     printf("[TEST] combo-logic-measure: MULTIPLICITY: OoT half %d rows = %d distinct ids + %d repeated copies, MM half "
            "%d rows = %d distinct + %d repeated. The WHOLE OoT advancement half is %d rows = %d distinct + %d "
-           "repeated. Under ABI 3 every repeated copy is COUNTED by the round (one assumeOwnItem per copy; OoT clamps "
-           "progressives at the top tier, MM clamps counters at their maxima) — under ABI 2 all of them were "
+           "repeated. Under ABI 3 every repeated copy is COUNTED by the round (one assumeOwnItem per copy; both "
+           "engines clamp progressives at the top tier and counters at their maxima) — under ABI 2 all of them were "
            "dropped, which is what made the proof fail on 2026-09-22.\n",
            (int)ootBagItems.size(), ootDistinct, (int)ootBagItems.size() - ootDistinct, (int)mmBagItems.size(),
            mmDistinct, (int)mmBagItems.size() - mmDistinct, ootFullBagHalf, ootFullDistinct,
            ootFullBagHalf - ootFullDistinct);
+    // WHICH COMPOSITIONS CAN SAY ANYTHING ABOUT MULTIPLICITY (review of PR #728).
+    // An OoT row the bag does not carry stays NATIVELY PLACED in OoT's world, and
+    // OoT's own search harvests it; so with a sampled OoT half, OoT's goal is
+    // carried by the native fill and the round reads goalOoT=1 before a single
+    // bag item is placed. Only a bag carrying the WHOLE OoT advancement half puts
+    // every repeated OoT copy through `assumeOwnItem`, which is what the ABI-2
+    // de-dup broke — so only that composition is evidence about the fix.
+    if ((int)ootBagItems.size() < ootFullBagHalf) {
+        printf("[TEST] combo-logic-measure: NOT DIAGNOSTIC FOR MULTIPLICITY: the OoT half carries %d of %d OoT "
+               "advancement rows; the other %d stay natively placed and are harvested by OoT's own search, so OoT's "
+               "goal here is carried by the native fill. Set RSBS_COMBO_MEASURE_OOT_BAG>=%d for a composition that "
+               "puts every OoT copy through assumeOwnItem.\n",
+               (int)ootBagItems.size(), ootFullBagHalf, ootFullBagHalf - (int)ootBagItems.size(), ootFullBagHalf);
+    }
 
     // ==================================================================
     // M2: ONE LINKED ROUND, at the fill's most expensive assumed-set size.

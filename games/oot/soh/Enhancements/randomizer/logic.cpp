@@ -16,6 +16,10 @@
 #include "src/overlays/actors/ovl_En_Door/z_en_door.h"
 #include "src/overlays/actors/ovl_Door_Shutter/z_door_shutter.h"
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "static_data.h" // ComboLogicCounterMax reads the static location table
+#endif
+
 namespace Rando {
 
 #ifdef RSBS_SINGLE_EXECUTABLE
@@ -35,7 +39,83 @@ namespace Rando {
 // everywhere else, so OoT's own fill, its spoiler and gameplay run upstream's
 // arithmetic byte for byte; the native-fill overshoot is recorded as its own
 // defect rather than changed under the feet of every generated world.
-bool gComboLogicClampProgressives = false;
+//
+// The same flag bounds OoT's COUNTER rows (small keys, Gold Skulltula tokens,
+// triforce pieces, heart capacity, magic beans), which upstream also advances
+// with no upper bound into narrow storage: `dungeonKeys` is an `s8` that
+// `GetSmallKeyCount` reads back through a `-1` "never had keys" sentinel, so the
+// 255th copy reads as ZERO keys; `GetGSCount` narrows the `s16` token count to a
+// `uint8_t`, so the 256th token reads as zero; bean ammo and
+// `triforcePiecesCollected` are 8-bit. A combo round has no bag cap of its own
+// (`Combo_Logic_RunRound` takes any assumed set), so "no bag is that big" is not
+// a bound. Each counter stops at a MAXIMUM derived from OoT's own data (see
+// ComboLogicCounterMax), and a copy at or past it is absorbed, never lowering.
+bool gComboLogicRoundClamp = false;
+
+/**
+ * The most a combo-round GRANT may raise the counter `rg` advances to, or -1 for
+ * a row that is not a bounded counter. Named (not file-local) so the combo
+ * engine's lock reads the SAME rule.
+ *
+ *  - small keys (dungeon, fortress, chest game; NOT key rings, which assign 10):
+ *    the number of locations in OoT's static location table whose VANILLA item
+ *    is that key. Vanilla and Master Quest locations both count, so it is at
+ *    least either layout's own key count, and therefore at least any
+ *    `SmallKeys(scene, n)` term either layout's logic asks for. Derived and
+ *    cached (the table is static), never hard-coded;
+ *  - Gold Skulltula tokens: likewise, the vanilla token locations;
+ *  - triforce pieces: the seed's own total, `RSK_TRIFORCE_HUNT_PIECES_TOTAL` + 1
+ *    (item_pool.cpp adds exactly that many);
+ *  - heart capacity (heart containers and pieces): 0x140, twenty hearts, OoT's
+ *    own ceiling;
+ *  - magic beans: 10, the bean pack's own size and the world's bean count.
+ *
+ * No logic term asks for more than the world contains, so a clamp at these
+ * maxima never lowers an answer; it only stops a surplus copy from wrapping the
+ * storage.
+ */
+int ComboLogicCounterMax(uint32_t rg) {
+    switch ((RandomizerGet)rg) {
+        case RG_TRIFORCE_PIECE: {
+            auto rctx = Rando::Context::GetInstance();
+            return rctx != nullptr ? (int)rctx->GetOption(RSK_TRIFORCE_HUNT_PIECES_TOTAL).Get() + 1 : -1;
+        }
+        case RG_HEART_CONTAINER:
+        case RG_PIECE_OF_HEART:
+            return 0x140;
+        case RG_MAGIC_BEAN:
+        case RG_MAGIC_BEAN_PACK:
+            return 10;
+        case RG_GOLD_SKULLTULA_TOKEN:
+        case RG_FOREST_TEMPLE_SMALL_KEY:
+        case RG_FIRE_TEMPLE_SMALL_KEY:
+        case RG_WATER_TEMPLE_SMALL_KEY:
+        case RG_SPIRIT_TEMPLE_SMALL_KEY:
+        case RG_SHADOW_TEMPLE_SMALL_KEY:
+        case RG_BOTTOM_OF_THE_WELL_SMALL_KEY:
+        case RG_GERUDO_TRAINING_GROUND_SMALL_KEY:
+        case RG_GERUDO_FORTRESS_SMALL_KEY:
+        case RG_GANONS_CASTLE_SMALL_KEY:
+        case RG_TREASURE_GAME_SMALL_KEY: {
+            static std::vector<int> sVanillaCopies;
+            if (sVanillaCopies.empty()) {
+                sVanillaCopies.assign((size_t)RG_MAX, 0);
+                for (const auto& loc : Rando::StaticData::GetLocationTable()) {
+                    const RandomizerGet vanilla = loc.GetVanillaItem();
+                    if (vanilla > RG_NONE && vanilla < RG_MAX) {
+                        sVanillaCopies[(size_t)vanilla]++;
+                    }
+                }
+            }
+            const int copies = sVanillaCopies[(size_t)rg];
+            // A counter with no vanilla location is bounded by its storage alone
+            // (the `s8` key count's positive range), never by zero.
+            return copies > 0 ? copies : 127;
+        }
+        default:
+            return -1;
+    }
+}
 
 /** The top tier a GRANT of the progressive row writing `upgrade` may reach.
  *  Named (not file-local) so the combo engine's lock reads the SAME rule. */
@@ -59,16 +139,38 @@ namespace {
 /** `newLevel`, clamped at the top tier when the combo round asks for it and the
  *  call is a GRANT. A removal (`state == false`) is never touched. */
 uint32_t ComboLogicClampLevel(uint32_t upgrade, uint32_t newLevel, bool state) {
-    if (!gComboLogicClampProgressives || !state) {
+    if (!gComboLogicRoundClamp || !state) {
         return newLevel;
     }
     const uint32_t top = ComboLogicProgressiveTopTier(upgrade);
     return newLevel > top ? top : newLevel;
 }
+
+/** `next`, the counter value a GRANT of `rg` would write over `current`, bounded
+ *  at ComboLogicCounterMax when the combo round asks for it. A counter already at
+ *  or past its maximum keeps `current`: the clamp ABSORBS a copy and never
+ *  lowers anything (a key ring's assigned 10 is left alone). A removal is never
+ *  touched. */
+int ComboLogicClampCount(uint32_t rg, int current, int next, bool state) {
+    if (!gComboLogicRoundClamp || !state) {
+        return next;
+    }
+    const int max = ComboLogicCounterMax(rg);
+    if (max < 0 || next <= current) {
+        return next;
+    }
+    if (current >= max) {
+        return current;
+    }
+    return next > max ? max : next;
+}
 } // namespace
 #define RSBS_COMBO_CLAMP_LEVEL(upgrade, level) ComboLogicClampLevel((upgrade), (uint32_t)(level), state)
+#define RSBS_COMBO_CLAMP_COUNT(rg, current, next) \
+    ComboLogicClampCount((uint32_t)(rg), (int)(current), (int)(next), state)
 #else
 #define RSBS_COMBO_CLAMP_LEVEL(upgrade, level) (level)
+#define RSBS_COMBO_CLAMP_COUNT(rg, current, next) (next)
 #endif
 
 bool Logic::HasItem(RandomizerGet itemName) {
@@ -1968,7 +2070,7 @@ void Logic::ApplyItemEffect(Item& item, bool state) {
                     mSaveContext->magicLevel += (!state ? -1 : 1);
 #ifdef RSBS_SINGLE_EXECUTABLE
                     // Single, double: the same top tier Item::GetGIEntry resolves to.
-                    if (gComboLogicClampProgressives && state && mSaveContext->magicLevel > 2) {
+                    if (gComboLogicRoundClamp && state && mSaveContext->magicLevel > 2) {
                         mSaveContext->magicLevel = 2;
                     }
 #endif
@@ -1989,10 +2091,14 @@ void Logic::ApplyItemEffect(Item& item, bool state) {
                     SetInventory(ITEM_OCARINA_FAIRY, OcarinaLookup[i]);
                 } break;
                 case RG_HEART_CONTAINER:
-                    mSaveContext->healthCapacity += (!state ? -16 : 16);
+                    mSaveContext->healthCapacity =
+                        RSBS_COMBO_CLAMP_COUNT(RG_HEART_CONTAINER, mSaveContext->healthCapacity,
+                                               mSaveContext->healthCapacity + (!state ? -16 : 16));
                     break;
                 case RG_PIECE_OF_HEART:
-                    mSaveContext->healthCapacity += (!state ? -4 : 4);
+                    mSaveContext->healthCapacity =
+                        RSBS_COMBO_CLAMP_COUNT(RG_PIECE_OF_HEART, mSaveContext->healthCapacity,
+                                               mSaveContext->healthCapacity + (!state ? -4 : 4));
                     break;
                 case RG_BOOMERANG:
                 case RG_LENS_OF_TRUTH:
@@ -2009,7 +2115,8 @@ void Logic::ApplyItemEffect(Item& item, bool state) {
                 case RG_MAGIC_BEAN_PACK: {
                     auto change = (item.GetRandomizerGet() == RG_MAGIC_BEAN ? 1 : 10);
                     auto current = GetAmmo(ITEM_BEAN);
-                    SetAmmo(ITEM_BEAN, current + (!state ? -change : change));
+                    SetAmmo(ITEM_BEAN,
+                            RSBS_COMBO_CLAMP_COUNT(RG_MAGIC_BEAN, current, current + (!state ? -change : change)));
                 } break;
                 case RG_EMPTY_BOTTLE:
                 case RG_BOTTLE_WITH_MILK:
@@ -2108,7 +2215,9 @@ void Logic::ApplyItemEffect(Item& item, bool state) {
                     SetRandoInf(RandoGetToRandInf.at(randoGet), state);
                     break;
                 case RG_TRIFORCE_PIECE:
-                    mSaveContext->ship.quest.data.randomizer.triforcePiecesCollected += (!state ? -1 : 1);
+                    mSaveContext->ship.quest.data.randomizer.triforcePiecesCollected = RSBS_COMBO_CLAMP_COUNT(
+                        RG_TRIFORCE_PIECE, mSaveContext->ship.quest.data.randomizer.triforcePiecesCollected,
+                        mSaveContext->ship.quest.data.randomizer.triforcePiecesCollected + (!state ? -1 : 1));
                     break;
                 case RG_BOMBCHU_5:
                 case RG_BOMBCHU_10:
@@ -2166,13 +2275,15 @@ void Logic::ApplyItemEffect(Item& item, bool state) {
                 if (keyring) {
                     count = 10;
                 } else {
-                    count += 1;
+                    count = RSBS_COMBO_CLAMP_COUNT(randoGet, count, count + 1);
                 }
             }
             SetSmallKeyCount(dungeonIndex, count);
         } break;
         case ITEMTYPE_TOKEN:
-            mSaveContext->inventory.gsTokens += (!state ? -1 : 1);
+            mSaveContext->inventory.gsTokens =
+                RSBS_COMBO_CLAMP_COUNT(RG_GOLD_SKULLTULA_TOKEN, mSaveContext->inventory.gsTokens,
+                                       mSaveContext->inventory.gsTokens + (!state ? -1 : 1));
             break;
         case ITEMTYPE_EVENT:
             break;

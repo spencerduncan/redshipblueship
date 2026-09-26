@@ -1738,13 +1738,19 @@ TestResult Test_ComboLogicContractEdges(void) {
 // Row 5 — the multiplicity contract and the bag model (ABI 3, 2026-09-26)
 // ============================================================================
 //
-// THE OPERATOR'S RULING, over stub engines: one `assumeOwnItem` per COPY, every
-// copy counted, order irrelevant; and the four bag shapes — more hosts than bag
-// (leftover hosts for each game's own junk pass), more bag than hosts (surplus
-// dropped last-first, deterministically), exact fit, and surplus that the proof
-// may never lean on. The real engines' halves (OoT's top-tier clamp, MM's counter
-// maxima) are the rando-tier row `combo-logic-multiplicity`, because only the
-// ports' own give paths can show them.
+// THE OPERATOR'S RULING, over stub engines, in two kinds of leg — and the
+// difference matters, so it is stated rather than left to the reader:
+//
+//   - M1-M3 are CONTRACT-SHAPE REGRESSION GUARDS OVER THE STUB. The ABI-2 de-dup
+//     lived in the two REAL engines, not in combo_logic.c, so these legs would
+//     also pass against the pre-ABI-3 coordinator plus this counting stub. What
+//     they guard is the coordinator's side of the shape: one call per row, one
+//     exchange per placement per round, and the fill carrying every copy to the
+//     engines. The ENGINE fix (counting, clamping, order independence) is locked
+//     over the real engines by the rando-tier row `combo-logic-multiplicity`.
+//   - S-a..S-f lock THE BAG MODEL's surplus / filler / exact-fit rules, which are
+//     coordinator code and new in ABI 3, so these legs can and do go red against
+//     a wrong coordinator.
 
 namespace {
 
@@ -1873,7 +1879,12 @@ TestResult Test_ComboLogicBagModel(void) {
     }
 
     // ------------------------------------------------------------------
-    // M2. ORDER-INDEPENDENT: the same multiset in two orders, the same facts.
+    // M2. THE COORDINATOR PASSES THE MULTISET THROUGH IN EITHER ORDER. The stub
+    //     counts copies commutatively by construction, so this leg cannot show
+    //     that an ENGINE is order-independent (combo-logic-multiplicity's P legs
+    //     do that over the real engines, red half observed). What it guards is
+    //     that the coordinator neither drops nor duplicates a copy depending on
+    //     where in the assumed set the copy sits.
     // ------------------------------------------------------------------
     {
         ClBuildOpenWorld(3, 1);
@@ -1899,8 +1910,10 @@ TestResult Test_ComboLogicBagModel(void) {
     }
 
     // ------------------------------------------------------------------
-    // M3. THE K3 SHAPE, FIXED: a world whose goal needs THREE copies of one id
-    //     is PROVED from a bag of three rows (it was unprovable under de-dup).
+    // M3. THE K3 SHAPE, OVER A COUNTING STUB: a world whose goal needs THREE
+    //     copies of one id is PROVED from a bag of three rows and not from two —
+    //     the fill carries every copy to the engine. (The de-dup that made the
+    //     real worlds unprovable was engine-side; see the note above.)
     // ------------------------------------------------------------------
     for (int r = 0; r < 1; ++r) {
         ClBuildOpenWorld(4, 4);
@@ -1924,7 +1937,7 @@ TestResult Test_ComboLogicBagModel(void) {
 
     // ------------------------------------------------------------------
     // S-a. MORE HOSTS THAN BAG: the coordinator places the bag and nothing else;
-    //      the rest is LEFTOVER, for each game's own junk pass (traps included).
+    //      the rest is LEFTOVER, for each game's own per-game pass (traps, junk).
     // ------------------------------------------------------------------
     for (int ri = 0; ri < 2; ++ri) {
         ClBuildOpenWorld(6, 6);
@@ -1942,7 +1955,7 @@ TestResult Test_ComboLogicBagModel(void) {
                       ClLeftoverConsistent(GAME_MM, res.leftoverHostsMM),
                   "the leftover list is ascending, matches the count and never names a placed host");
         CL_ASSERT(ClPlacementsAreBagRows(bag, 3), "every placement is a bag row: no junk and no trap is ever placed by "
-                                                  "the coordinator, so no trap can cross");
+                                                  "the coordinator, which invents no filler of its own");
         CL_ASSERT(Combo_Logic_SurplusDroppedCount() == 0, "nothing dropped");
         CL_ASSERT(ClContractClean(), "the contract traps must stay clear");
     }
@@ -2041,7 +2054,11 @@ TestResult Test_ComboLogicBagModel(void) {
     }
 
     // ------------------------------------------------------------------
-    // S-e. SURPLUS LANDS ONLY WHERE THE PROVEN WORLD REACHES.
+    // S-e. THE SURPLUS HOST SOURCE IS THE RUNG'S: reached hosts under
+    //      `all-reachable` (a surplus copy on an unreached host would break that
+    //      rung's own promise), EVERY empty host under `beatable` and `none` (a
+    //      surplus copy is not load-bearing, so an unreached host is harmless —
+    //      and both native fills size plentiful against ALL empty locations).
     // ------------------------------------------------------------------
     {
         ClBuildUnreachedOnlyWorld(); // OoT host 10 is never reached
@@ -2064,6 +2081,22 @@ TestResult Test_ComboLogicBagModel(void) {
                   "`none` makes no reachability claim");
         CL_ASSERT(res.requiredPlaced == 1 && res.surplusPlaced == 1 && res.surplusDropped == 1,
                   "so under `none` a surplus row may take the unreached host, and only the last one is dropped");
+
+        // `beatable`: the REQUIRED row still needs a reached host (the proof is
+        // over required rows), but a surplus row draws from every empty host.
+        CL_ASSERT(ClRunFill(bag, 3, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_BEATABLE, 3u, &res) ==
+                      RSBS_COMBO_LOGIC_OK,
+                  "beatable with surplus must succeed");
+        CL_ASSERT(res.goalProven, "and it is proved, surplus absent and then confirmed present");
+        CL_ASSERT(Combo_Logic_GetPlacement(GAME_OOT, 11, NULL), "the required row took the one reached host");
+        CL_ASSERT(res.requiredPlaced == 1 && res.surplusPlaced == 1 && res.surplusDropped == 1,
+                  "under `beatable` a surplus row takes the UNREACHED empty host rather than being dropped while it "
+                  "is free — only the row that finds no empty host at all is dropped");
+        CL_ASSERT(Combo_Logic_GetPlacement(GAME_OOT, 10, NULL), "the unreached host holds a surplus copy");
+        CL_ASSERT(res.leftoverHostsOoT == 0, "and nothing is left over for the junk pass");
+        int dropped = -1;
+        CL_ASSERT(Combo_Logic_SurplusDroppedAt(0, &dropped) && dropped == 2,
+                  "the dropped row is the LAST surplus row in bag order");
     }
 
     // ------------------------------------------------------------------
@@ -2074,10 +2107,31 @@ TestResult Test_ComboLogicBagModel(void) {
         ComboLogicBagItem bag[1] = { ClBagItem((uint8_t)GAME_OOT, kOotHook, 0) };
         bag[0].bagFlags = 0x8000u;
         ComboLogicFillResult res;
+        // First a fill that DROPS, so the drop record has something in it.
+        const ComboLogicBagItem dropping[6] = {
+            ClBagItem((uint8_t)GAME_OOT, kOotHook, 0),     ClSurplusItem((uint8_t)GAME_OOT, kOotSword, 0),
+            ClBagItem((uint8_t)GAME_MM, kMmBow, 0),        ClSurplusItem((uint8_t)GAME_MM, kMmMask, 0),
+            ClSurplusItem((uint8_t)GAME_OOT, kOotLens, 0), ClSurplusItem((uint8_t)GAME_MM, kMmRemains, 0),
+        };
+        CL_ASSERT(ClRunFill(dropping, 6, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_BEATABLE, 0x5EEDu, &res) ==
+                      RSBS_COMBO_LOGIC_OK,
+                  "the dropping fill ran");
+        CL_ASSERT(res.surplusDropped == 2 && Combo_Logic_SurplusDroppedCount() == 2, "it dropped two rows");
+        const int placedBefore = Combo_Logic_PlacementCount(GAME_OOT) + Combo_Logic_PlacementCount(GAME_MM);
+
         CL_ASSERT(ClRunFill(bag, 1, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_BEATABLE, 1u, &res) ==
                       RSBS_COMBO_LOGIC_ERR_BAD_REQUEST,
                   "a bag flag this build does not understand must be refused");
         CL_ASSERT(res.attempts == 0 && res.placed == 0, "before any attempt");
+        // THE REFUSAL TOUCHES NEITHER RECORD: `res` describes THIS call (nothing
+        // dropped), while the tables AND the drop record still describe the
+        // attempt that built them — the documented split (combo_logic.h,
+        // Combo_Logic_SurplusDroppedCount).
+        CL_ASSERT(res.surplusDropped == 0 && res.droppedDigest == 0u, "the refused call reports no drops of its own");
+        CL_ASSERT(Combo_Logic_PlacementCount(GAME_OOT) + Combo_Logic_PlacementCount(GAME_MM) == placedBefore,
+                  "a pre-attempt refusal left the previous fill's tables in place");
+        CL_ASSERT(Combo_Logic_SurplusDroppedCount() == 2,
+                  "and it left the previous fill's drop record in place with them, as documented");
     }
 
     ClUninstall();

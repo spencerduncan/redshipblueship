@@ -449,15 +449,29 @@ typedef struct ComboLogicEngine {
      *     copy past the top (a plentiful surplus, or a starting item plus its
      *     pool copies) must leave the inventory exactly at the top tier — never
      *     wrap, never walk into a neighbouring field, never lower anything.
-     *   - a COUNTER item (small keys, stray fairies, tokens, triforce pieces):
-     *     +1, CLAMPED AT THE COUNTER'S MAXIMUM, so a surplus copy can neither
-     *     overflow the counter's storage nor claim a count the game's own world
-     *     does not contain.
+     *   - a COUNTER item (small keys, stray fairies, tokens, triforce pieces,
+     *     heart pieces, beans): +1, CLAMPED AT THE COUNTER'S MAXIMUM, so a
+     *     surplus copy can neither overflow the counter's storage nor claim a
+     *     count the game's own world does not contain. EVERY engine clamps its
+     *     counters, and none may rest an exemption on "no bag is that big": a
+     *     round has no bag cap (Combo_Logic_RunRound takes an assumed set of any
+     *     size, and combo-logic-measure's M2b assumes 2489 rows in one), and the
+     *     ports' counters are narrow — OoT's small keys are an `s8` read back
+     *     through a `-1` sentinel, so its 255th key copy reads as ZERO keys. The
+     *     maximum must be derived from the game's own data or the seed's
+     *     settings, and must be at least the largest count any of that game's
+     *     logic terms asks for, so the clamp can never lower an answer. A copy
+     *     at the maximum is absorbed; the clamp never lowers a count either.
      *
      * ORDER-INDEPENDENT: the round's answer must be a function of the MULTISET
-     * of copies granted, not of their order. Each port's progressive and counter
-     * rows read only their own tier or count, which is what makes that true of
-     * both real engines; an engine for which it is not true must canonicalise.
+     * of copies granted, not of their order. This is NOT automatic: OoT's
+     * unclamped progressive arithmetic is order-DEPENDENT (a wallet copy past the
+     * top carries into the bullet bag's field, so [slingshot, wallet x5] and
+     * [wallet x5, slingshot] end in different inventories). With the clamps
+     * above, each progressive and counter row reads and writes only its own tier
+     * or count, which is what makes it true of both real engines — locked over
+     * both, with OoT's red half observed, by combo-logic-multiplicity (P). An
+     * engine for which it is not true must canonicalise.
      *
      * It is called BETWEEN `expand()` calls, so it must not invalidate whatever
      * `expand` accumulated — it may only ADD. NOTHING EVER REMOVES A COPY WITHIN
@@ -470,8 +484,9 @@ typedef struct ComboLogicEngine {
      * capacity, consume a resource or clear a flag breaks monotonicity, and
      * with it the soundness of the whole fill (ADR 0010 §2.3). The top-tier and
      * maximum clamps above exist precisely because the unclamped give paths CAN
-     * lower a capacity once copies outnumber tiers (OoT's wallet: a fourth
-     * upgrade copy wraps its two-bit field to zero).
+     * lower a capacity once copies outnumber tiers or the counter's storage
+     * (OoT's wallet: a fourth upgrade copy wraps its two-bit field to zero; OoT's
+     * small keys: the 255th copy reads as zero keys).
      */
     void (*assumeOwnItem)(void* self, uint16_t ownItemId);
 
@@ -877,29 +892,33 @@ int Combo_Logic_RunRound(const ComboLogicRoundRequest* req, ComboLogicRoundResul
 //    `RO_ITEM_POOL_PLENTIFUL` extras (`item_pool.cpp` `plentifulPool`), MM's
 //    `RO_PLENTIFUL_ITEMS` duplicates (`GeneratePools.cpp`). The caller (each
 //    game's pool builder, via its bag export) marks them; the coordinator never
-//    guesses. The two fills agree on what a plentiful copy is, and this rule
-//    matches them: BOTH ports add their plentiful copies ONLY WHERE THERE IS ROOM
-//    — OoT inserts `plentifulPool` only `if (itemPool.size() +
-//    plentifulPool.size() < locCount)` and otherwise tops up to exactly
-//    `locCount`; MM adds its duplicates only `if (replaceableItems >
-//    plentifulItems.size())` — and NEITHER ever gives up a base-pool item for
-//    one (OoT asserts `itemPool.size() <= locCount` before plentiful is
-//    considered). So:
+//    guesses. What the two fills agree on, and what this rule takes from them:
+//    a plentiful copy goes in ONLY WHERE THERE IS ROOM, room is counted over
+//    ALL empty locations (OoT: `locCount = ctx->CountEmptyLocations(false)`;
+//    MM: replaceable items over its whole pool), and NEITHER ever gives up a
+//    base-pool item for one (OoT asserts `itemPool.size() <= locCount` before
+//    plentiful is considered). Where they DIFFER is the shortfall, and the
+//    coordinator matches neither by itself (see shape 3). So:
 //      - The proving phase places the REQUIRED rows only, and assumes only the
 //        unplaced REQUIRED rows. The GOAL is proved with every surplus copy
 //        ABSENT. A surplus copy can therefore never be load-bearing, which is
 //        what makes it droppable, and a caller that marks a copy the world
 //        needs as surplus gets ERR_GOAL_UNPROVABLE — the honest answer.
 //      - AFTER the exit condition holds, the surplus rows are placed IN BAG
-//        ORDER, each on a host drawn uniformly (private RNG) from the hosts the
-//        PROVEN world reaches: the final proof round's reached, unassigned
-//        hosts (arrival gate applied). Placing an item can only grow
-//        reachability, so every one of those hosts stays reached, the proof
-//        stays true and the `all-reachable` rung stays satisfied — and a
-//        confirming round is run after the surplus placements to MEASURE that
-//        rather than assume it (a failure there is ERR_NON_MONOTONE).
-//        Under rung `none` the source is every empty host, as for the
-//        required rows.
+//        ORDER, each on a host drawn uniformly (private RNG) from the RUNG'S
+//        host source:
+//          `beatable`, `none`: EVERY empty host, reached or not — a surplus
+//            copy is not load-bearing, so an unreached host is a harmless place
+//            for it, and it is the room both native fills count. (An earlier
+//            version drew from the proven world's REACHED hosts under
+//            `beatable` too, and so dropped copies while empty hosts remained.)
+//          `all-reachable`: only the final proof round's reached, unassigned
+//            hosts (arrival gate applied), because that rung promises every
+//            placed host is reached. Placing an item can only grow
+//            reachability, so every one of those hosts stays reached.
+//        Either way the proof stays true, and a confirming round is run after
+//        the surplus placements to MEASURE that rather than assume it (a
+//        failure there is ERR_NON_MONOTONE).
 //
 // 3. MORE BAG THAN HOSTS (plentiful surplus). When the host supply runs out
 //    during the surplus phase, every surplus row not yet placed is DROPPED.
@@ -912,20 +931,56 @@ int Combo_Logic_RunRound(const ComboLogicRoundRequest* req, ComboLogicRoundResul
 //    could silently make the stated world unprovable, which neither native fill
 //    ever does.
 //
+//    LAST-FIRST IS THE COORDINATOR'S RULE, NOT EITHER NATIVE FILL'S, and BAG
+//    ORDER IS THE CALLER'S INSTRUMENT for matching a native one:
+//      - OoT's native shortfall keeps a RANDOM subset: when the plentiful pool
+//        does not fit, it tops up with `RandomElement(plentifulPool, true)`
+//        until `locCount` (item_pool.cpp). A caller that wants OoT's rule
+//        shuffles its OoT surplus rows WITH OoT'S OWN RNG before building the
+//        bag; the last-first tail of a random order is then a random subset.
+//      - MM's native rule is all-or-nothing: it adds the whole plentiful list
+//        only `if (replaceableItems > plentifulItems.size())` (GeneratePools.cpp).
+//        A caller that wants MM's rule marks MM rows surplus only when the whole
+//        list fits, and leaves them out of the bag otherwise.
+//    Neither bag export marks surplus yet (see WHO MARKS SURPLUS below), so no
+//    caller exercises either choice today.
+//
 // 4. MORE HOSTS THAN BAG (filler), and TRAPS. The coordinator places BAG ROWS
 //    AND NOTHING ELSE. Hosts no row landed on are LEFTOVER, enumerated by
 //    Combo_Logic_LeftoverHosts and counted in `leftoverHostsOoT/MM`, and they
-//    belong to EACH GAME'S OWN JUNK PASS after the fill — OoT's
-//    `FastFill`/`GetJunkItem()` (which is where `RG_ICE_TRAP` comes from, at
-//    `RSK_ICE_TRAP_PERCENT`, disguised through `possibleIceTrapModels`), MM's
-//    junk path (`RI_JUNK`, and `RI_TRAP` × `RO_TRAP_AMOUNT` under
-//    `RO_SHUFFLE_TRAPS`, dressed by `gRando.Traps.*`). Filler is not a bag row,
-//    so A TRAP IS NEVER A CROSSING by construction: it is drawn by its own game's
-//    junk pass onto its own game's leftover hosts, where its own disguise
-//    machinery renders it. Whether a host could render a FOREIGN trap is out of
-//    scope this increment. The coordinator cannot run those passes itself — they
-//    consume each game's own fill RNG, which no call on this surface may touch —
-//    so it hands over the exact host list and stops.
+//    belong to EACH GAME'S OWN PER-GAME PASS after the fill. That pass places
+//    two different things, and the difference matters for traps:
+//      - JUNK, drawn to fill whatever is left: OoT's `FastFill`/`GetJunkItem()`,
+//        MM's balance step (`OnFileCreate.cpp`, which appends `RI_JUNK` until
+//        the item pool matches the check pool).
+//      - TRAPS, which in BOTH ports are COUNTED POOL ROWS the settings fix, NOT a
+//        product of the junk draw: MM pushes `RI_TRAP` × `RO_TRAP_AMOUNT` into
+//        its item pool under `RO_SHUFFLE_TRAPS` (GeneratePools.cpp; a
+//        RITYPE_LESSER row, dressed at runtime by `gRando.Traps.*`); OoT adds
+//        its fixed ice traps (`RSK_BASE_ICE_TRAPS` plus
+//        `RSK_ADDITIONAL_ICE_TRAPS`) with `AddFixedItemToPool` and converts
+//        `RSK_ICE_TRAP_PERCENT` of its junk to `RG_ICE_TRAP` DURING pool
+//        generation (item_pool.cpp), with `GetJunkItem()` supplying more only
+//        in the late fills; `possibleIceTrapModels` disguises them.
+//    So the per-game pass must CARRY each game's trap count from its own pool
+//    builder and place exactly that many traps (capped by the room, as OoT's
+//    own fixed-trap insert is) on THAT GAME'S OWN leftover hosts, then junk the
+//    rest. A pass that only ran the junk draw would give a trap-enabled world
+//    zero MM traps and lose OoT's fixed ice traps. Neither pass is built yet;
+//    this is the rule it must follow (increment 4's bag builder).
+//
+//    A TRAP DOES NOT CROSS — BY CALLER CONVENTION, NOT BY CONSTRUCTION. The
+//    coordinator checks only a row's origin game and bag flags, so a trap row
+//    handed to it WOULD be placed on the union of both games' hosts. What keeps
+//    traps per-game today is that no bag export puts one in the bag (MM's pool
+//    export excludes `RI_TRAP` in ComboLogicEngineSingleExe.cpp; OoT's exports
+//    advancement items only). A REFUSAL — a trap-class row rejected at the bag —
+//    needs the O8 classification table (lane K5, `src/common/shared_items.*`)
+//    wired in; until then the rule rests on the caller. Whether a host could
+//    render a FOREIGN trap is out of scope this increment. The coordinator
+//    cannot run either per-game pass itself — they consume each game's own fill
+//    RNG, which no call on this surface may touch — so it hands over the exact
+//    host list and stops.
 //
 // (5) EXACT FIT is the degenerate case of both: nothing dropped, nothing
 //    leftover. It is locked as its own shape because it is where an off-by-one
@@ -970,8 +1025,8 @@ typedef struct {
     int surplusDropped; // SURPLUS rows dropped because the host supply ran out
     uint32_t droppedDigest; // FNV-1a over the dropped rows (bag index, origin, id);
                             // the offset basis when nothing was dropped
-    int leftoverHostsOoT;   // hosts no row landed on: each game's own junk pass
-    int leftoverHostsMM;    //   fills these, traps included (never a crossing)
+    int leftoverHostsOoT;   // hosts no row landed on: each game's own per-game pass
+    int leftoverHostsMM;    //   fills these (its counted traps, then junk)
 } ComboLogicFillResult;
 
 /**
@@ -987,9 +1042,10 @@ typedef struct {
  * placed, run one final round with NOTHING assumed and require the GOAL
  * expression — that requirement is the loop's exit condition, never a check
  * bolted on after it. Only then are the SURPLUS rows placed, in bag order, on
- * the proven world's reached hosts, the ones that find no host are dropped, and
- * a confirming round re-checks the exit condition. THE BAG MODEL block above is
- * the whole rule for surplus, drops and leftover hosts.
+ * the rung's surplus host source (every empty host under `beatable`; the proven
+ * world's reached hosts under `all-reachable`), the ones that find no host are
+ * dropped, and a confirming round re-checks the exit condition. THE BAG MODEL
+ * block above is the whole rule for surplus, drops and leftover hosts.
  *
  * THE RUNGS, and what each one actually does. They share the bag, the RNG, the
  * uniform union draw and the two tables; they do NOT share the host source,
@@ -1057,9 +1113,13 @@ typedef struct {
  */
 int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* out);
 
-/** How many SURPLUS rows the last Combo_Logic_RunFill attempt dropped (0 after a
- *  pre-attempt refusal, which leaves the record untouched, and after
- *  Combo_Logic_ResetPlacements). */
+/** How many SURPLUS rows were dropped by the fill attempt that BUILT THE CURRENT
+ *  TABLES. The record lives and dies with the tables: Combo_Logic_ResetPlacements
+ *  (which every attempt begins with) zeroes it, and a PRE-ATTEMPT REFUSAL touches
+ *  neither — so after a refused call this still reports the PREVIOUS attempt's
+ *  drops, beside that attempt's placements, while the refused call's own
+ *  `ComboLogicFillResult.surplusDropped` is 0 (the result describes the call, the
+ *  record describes the tables). Locked by combo-logic-bag-model S-f. */
 int Combo_Logic_SurplusDroppedCount(void);
 
 /** The `index`-th dropped row's BAG INDEX (into the request's `bag`), in the
@@ -1070,8 +1130,8 @@ bool Combo_Logic_SurplusDroppedAt(int index, int* outBagIndex);
 /**
  * The LEFTOVER hosts of `hostGame`: every host its engine offers through
  * `allEmptyHosts` that the coordinator's table does not hold, in the engine's
- * own stable order. This is exactly the host list that game's OWN junk pass
- * must fill after the fill — junk, and traps as that game's own filler class
+ * own stable order. This is exactly the host list that game's OWN per-game pass
+ * must fill after the fill — that game's counted trap rows, then junk
  * (THE BAG MODEL, shape 4).
  *
  * Legal outside any round (it is `allEmptyHosts` plus the occupancy filter).
@@ -1110,12 +1170,14 @@ int Combo_Logic_LeftoverHosts(GameId hostGame, uint16_t* out, int cap);
 //    coordinator hands each game its leftover host list
 //    (Combo_Logic_LeftoverHosts) and runs neither junk pass itself: both draw
 //    from their own game's fill RNG, which nothing on this surface may consume.
-//  - TRAPS IN THE BAG. A trap is its own game's FILLER, drawn by its own junk
-//    pass; it never enters this bag, so it never crosses (THE BAG MODEL, shape
-//    4). Nothing here can tell a trap row from any other row, because the O8
-//    classification table (lane K5, `src/common/shared_items.*`) is not wired
-//    into the bag yet; when it is, a trap-class row is REFUSED at the bag, not
-//    placed — rendering a foreign trap is out of scope this increment.
+//  - TRAPS IN THE BAG. A trap is a counted row of its own game's pool, placed by
+//    that game's own per-game pass on its own leftover hosts (THE BAG MODEL,
+//    shape 4). It stays out of this bag BY CALLER CONVENTION: nothing here can
+//    tell a trap row from any other row, because the O8 classification table
+//    (lane K5, `src/common/shared_items.*`) is not wired into the bag yet, and a
+//    trap row that WAS handed over would be placed on either game's hosts. When
+//    the table is wired, a trap-class row is REFUSED at the bag, not placed —
+//    rendering a foreign trap is out of scope this increment.
 //  - WHO MARKS SURPLUS. `RSBS_COMBO_BAG_SURPLUS` is set by the caller; neither
 //    engine exports its plentiful copies as such yet (their pool exports are
 //    the measurement bridges, over the shipped profile, where plentiful is
