@@ -33,14 +33,26 @@ namespace Rando {
 // upgrade and the carry lands in the bullet bag's bits (0x4000), LOWERING a
 // capacity, which is the monotonicity violation assumed fill cannot survive.
 //
-// While this flag is set — ONLY between the combo engine's `beginQuery` and
-// `endQuery` (ComboLogicEngineOoT.cpp) — a GRANT stops at the item's own top tier,
-// the tier `Item::GetGIEntry` itself resolves the last copy to. It is off
-// everywhere else, so OoT's own fill, its spoiler and gameplay run upstream's
-// arithmetic byte for byte; the native-fill overshoot is recorded as its own
-// defect rather than changed under the feet of every generated world.
+// THE TIER CLAMP IS UNCONDITIONAL (#726). Every GRANT of a progressive row stops
+// at the item's own top tier, the tier `Item::GetGIEntry` itself resolves the
+// last copy to — inside a combo round AND in OoT's own fill. PR #728 first scoped
+// it to the round, leaving OoT's native fill on upstream's arithmetic; but a
+// PLENTIFUL pool (`item_pool.cpp`, `AddItemToPool`'s first count) holds one more
+// wallet, bow, slingshot, bomb bag, strength, scale and magic copy than the
+// balanced one, and `ReachabilitySearch` harvests every copy it reaches, so the
+// native fill's own simulated save walked past the top: with the tycoon wallet
+// included the wallet read 1 2 3 0 (a 99-rupee wallet once every wallet was
+// found), and without it the third copy read as a tycoon wallet the seed does
+// not contain. OoT's native searches only ever GRANT (`Item::UndoEffect`, the one
+// `state == false` caller, has no caller), so a grant-only clamp can never meet
+// an unclamped removal. A pool that never holds more copies than tiers is
+// untouched by the clamp, so the shipped profiles' worlds do not move (locked by
+// the golden rows); a plentiful world does, which is the fix.
+// `gComboLogicTierClampSuppressed` exists ONLY so the multiplicity lock can
+// still OBSERVE upstream's arithmetic (its clamp-off legs); nothing else sets it.
 //
-// The same flag bounds OoT's COUNTER rows (small keys, Gold Skulltula tokens,
+// `gComboLogicRoundClamp` is set ONLY between the combo engine's `beginQuery`
+// and `endQuery` (ComboLogicEngineOoT.cpp), and it bounds OoT's COUNTER rows (small keys, Gold Skulltula tokens,
 // triforce pieces, heart capacity, magic beans), which upstream also advances
 // with no upper bound into narrow storage: `dungeonKeys` is an `s8` that
 // `GetSmallKeyCount` reads back through a `-1` "never had keys" sentinel, so the
@@ -50,7 +62,12 @@ namespace Rando {
 // (`Combo_Logic_RunRound` takes any assumed set), so "no bag is that big" is not
 // a bound. Each counter stops at a MAXIMUM derived from OoT's own data (see
 // ComboLogicCounterMax), and a copy at or past it is absorbed, never lowering.
+// The counters stay round-scoped: a native pool is sized from the world's own
+// locations, so OoT's own fill has no counter overflow to prevent and its
+// worlds are left exactly as they were.
 bool gComboLogicRoundClamp = false;
+/** TEST ONLY: when set, the tier clamp is off (upstream's arithmetic). */
+bool gComboLogicTierClampSuppressed = false;
 
 /**
  * The most a combo-round GRANT may raise the counter `rg` advances to, or -1 for
@@ -136,10 +153,11 @@ uint32_t ComboLogicProgressiveTopTier(uint32_t upgrade) {
 }
 
 namespace {
-/** `newLevel`, clamped at the top tier when the combo round asks for it and the
- *  call is a GRANT. A removal (`state == false`) is never touched. */
+/** `newLevel`, clamped at the top tier when the call is a GRANT — in a combo
+ *  round and in OoT's own fill alike (#726). A removal (`state == false`) is
+ *  never touched. */
 uint32_t ComboLogicClampLevel(uint32_t upgrade, uint32_t newLevel, bool state) {
-    if (!gComboLogicRoundClamp || !state) {
+    if (gComboLogicTierClampSuppressed || !state) {
         return newLevel;
     }
     const uint32_t top = ComboLogicProgressiveTopTier(upgrade);
@@ -2070,7 +2088,8 @@ void Logic::ApplyItemEffect(Item& item, bool state) {
                     mSaveContext->magicLevel += (!state ? -1 : 1);
 #ifdef RSBS_SINGLE_EXECUTABLE
                     // Single, double: the same top tier Item::GetGIEntry resolves to.
-                    if (gComboLogicRoundClamp && state && mSaveContext->magicLevel > 2) {
+                    // Unconditional on a grant, like the upgrade rows (#726).
+                    if (!gComboLogicTierClampSuppressed && state && mSaveContext->magicLevel > 2) {
                         mSaveContext->magicLevel = 2;
                     }
 #endif
