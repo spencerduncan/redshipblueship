@@ -184,7 +184,7 @@ void EnsureRegionTimeState(std::unordered_map<RandoRegionId, RegionTimeState>& r
 // The fix adopts the crawl's discipline verbatim (ADR 0010 D2.3's join rule):
 // a target already in the set is not skipped — its time slices are UNIONED with
 // the arriving set, and if that union GREW, the target is re-explored. Growth is
-// monotone and bounded by the 45-slice word, so the worklist drains.
+// monotone and bounded by the 46-slice word, so the worklist drains.
 //
 // Two shape changes come with it, both forced rather than stylistic:
 //   - ITERATIVE, not recursive. With re-exploration the recursion depth is no

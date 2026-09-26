@@ -75,6 +75,29 @@ typedef struct {
     // GetTextureByName (the same string GetTextureForItemId returns); see
     // Combo_GetForeignItemIconName.
     const char* iconName;
+    // THE GIVE CAPABILITY THIS ROW NEEDS (#681; ADR 0011 decision 3.5 / answer
+    // O8). Zero — every row either pool shipped before #681, and every OoT row —
+    // means the give is UNCONDITIONALLY effectful (criterion 3) and the row is
+    // drawable whenever its class is armed. Nonzero is exactly ONE
+    // RSBS_GIVECAP_* bit (defined further down this header): the row's give only
+    // means something when the ORIGIN game's frozen option profile arms that
+    // family (enemy/boss souls, ocarina buttons, swim, clocks), so
+    // Combo_ForeignPoolDrawFor admits it only when
+    // Combo_ForeignGiveCapsArm(originGame, requiredGiveCaps) holds for the
+    // profile this creation froze. An item Termina would never deliver under
+    // that profile is therefore never advertised as a crossing — the promise
+    // criterion 3 protects — while a profile that arms the family gets it.
+    //
+    // THE ORDERING INVARIANT HOLDS: the six criteria still run first (a row is
+    // in the table at all only if it passed them, with criterion 3 read as
+    // "unconditional, OR conditional on a published capability"), the class
+    // bitset selects among the survivors, and this column can only NARROW that
+    // selection. No capability can readmit a #525 shared resource, because no
+    // such row is in any table to be readmitted.
+    //
+    // Trailing member, so every existing aggregate initializer (and every
+    // synthetic test pool) zero-fills it and keeps its old meaning.
+    uint16_t requiredGiveCaps;
 } ComboForeignItemDef;
 
 // WHY THE ARTICLE IS PART OF THE DESCRIPTOR (#510). A cross-game item is
@@ -519,13 +542,25 @@ int Combo_ForeignPoolClassMembersFor(uint8_t originGame, uint16_t classMask, int
 
 /**
  * THE PRODUCTION DRAW: Combo_ForeignPoolClassMembersFor under the RESOLVED
- * class bitset for @p originGame. Both placement passes call this, so "which
- * classes are armed" is read from the frozen record in exactly one place.
+ * class bitset for @p originGame, NARROWED by each row's requiredGiveCaps
+ * against the give capabilities @p originGame's frozen profile published
+ * (#681): a row whose capability is not armed — including every capability
+ * row in a process where nothing was published — is not drawn. Both placement
+ * passes call this, so "which classes are armed" and "which gives this world
+ * can deliver" are read in exactly one place.
  *
- * With the shipped defaults (every allocated bit) the result is the identity
- * permutation 0..poolCount-1 — byte-identical to the table both passes walked
- * before the rule existed. That parity is a test lock (ForeignItemClass), not
- * a hope. It was ALSO claimed here to be what keeps "SeedDeterminism's
+ * Capability rows sit at the END of their pool table, so with no capability
+ * armed the result is the identity permutation over the UNCONDITIONAL PREFIX —
+ * the same indices, in the same order, as before the column existed.
+ *
+ * The shipped profile arms no capability (every family's MM option defaults
+ * off), so under the shipped class bitset (every allocated bit) the result is
+ * the identity over that prefix — 0..(unconditional rows - 1) — NOT
+ * 0..poolCount-1. The whole table is drawn only when every family is armed.
+ * Either way this is the draw's INPUT: the forward pass shuffles it and then
+ * truncates (#583), the reverse pass draws from it without replacement, so
+ * pool order reaches a world only through those identity-seeded streams. The
+ * prefix parity is a test lock (ForeignItemClass), not a hope. It was ALSO claimed here to be what keeps "SeedDeterminism's
  * foreignOoTHash and MMRandoGen's placement digest from moving"; SeedDeterminism
  * cannot detect that (it diffs two runs of one binary — #688), so the row that
  * would actually go red on a moved draw is GoldenSeedDigestDefault, naming
@@ -1212,7 +1247,11 @@ int OoT_Rando_Foreign_RecordPickup(uint16_t rc);
 #define RSBS_GIVECAP_OCARINA_BUTTONS 0x0002u
 /** Swim-ability shuffle (MM: RO_SHUFFLE_SWIM). */
 #define RSBS_GIVECAP_SWIM 0x0004u
-/** Clock shuffle (MM: RO_CLOCK_SHUFFLE) — the RI_TIME_* family. */
+/** Clock shuffle in the RANDOM clock mode (MM: RO_CLOCK_SHUFFLE on AND
+ *  RO_CLOCK_SHUFFLE_PROGRESSIVE == RANDOM) — the concrete RI_TIME_* family.
+ *  The progressive modes do not publish it: their logic reads ownership as a
+ *  count of half-days owned in order, which a concrete out-of-order crossing
+ *  would contradict (#681 review). */
 #define RSBS_GIVECAP_CLOCKS 0x0008u
 /** Every bit ALLOCATED at v1. Append only; an unallocated bit in a published
  *  word comes from a newer build and is masked off rather than reinterpreted. */
@@ -1245,6 +1284,23 @@ bool Combo_ForeignGiveCapsArm(uint8_t originGame, uint32_t caps);
 /** Retire the session's published caps (a new creation, a session
  *  invalidation). */
 void Combo_ClearForeignGiveCaps(void);
+
+/**
+ * THE PER-FAMILY DRAW BUDGET (#681). At most this many crossings of any ONE
+ * give-capability family per direction per seed.
+ *
+ * The secondary reason criterion 3 gave for keeping souls out — "~55 rows;
+ * admitting them would make a uniform draw of 8 mostly souls" — outlives the
+ * primary one. With every family armed the MM pool is 116 unconditional rows
+ * plus 63 capability rows (51 souls, 5 buttons, swim, 6 clocks), so a uniform
+ * draw of 8 would average about 2.8 capability crossings and let one family
+ * take the whole cap on an unlucky seed. The budget bounds each family instead
+ * of reweighting the draw: a drawn row whose family is already at budget is
+ * set aside and the draw continues WITHOUT consuming a host, so unconditional
+ * rows keep exactly the odds they had and a world whose profile arms nothing
+ * draws byte-identically to one built before the column existed.
+ */
+#define RSBS_FOREIGN_GIVECAP_FAMILY_BUDGET 2
 
 /**
  * The last forward placement pass's counts, and whether they were a SHORTFALL

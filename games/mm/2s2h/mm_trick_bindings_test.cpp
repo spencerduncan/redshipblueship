@@ -48,7 +48,8 @@
  *      breaks.
  *  (c) COVERAGE, against the shipped `bound` flag rather than against a list in
  *      this file. Every key the pane describes as bound-and-not-reserved must be
- *      probed here or be one of part 1's two (which their own rows cover). So
+ *      probed here or be one of the keys in kCoveredElsewhere (part 1's two and
+ *      #719's Deku-Stick key, whose own rows cover them). So
  *      adding a key to `kBoundTricks` without a probe turns this row red, which
  *      is the anti-staleness lock OptionsUiSingleExe.cpp's comment says it does
  *      not otherwise have.
@@ -596,11 +597,13 @@ const SurvivorProbe kSurvivorProbes[] = {
       InvDekuNoStoneTowerKeys },
 };
 
-/** Part 1's keys, whose red/green pairs live in their own rows. Named here so
+/** Keys whose red/green pairs live in their own rows (part 1's two, and #719's
+ *  per-actor CanKillEnemy pairs in mm-trick-table). Named here so
  *  leg (c) can be TOTAL over the bound set rather than quietly partial. */
 const MMRandoTrickId kCoveredElsewhere[] = {
-    MMRT_KEG_EXPLOSIVES,   // mm-trick-table check (g)
-    MMRT_GBT_BOSS_KEY_ICE, // mm-trick-gbt-gate
+    MMRT_KEG_EXPLOSIVES,      // mm-trick-table check (g)
+    MMRT_GBT_BOSS_KEY_ICE,    // mm-trick-gbt-gate
+    MMRT_DEKU_STICK_FIGHTING, // mm-trick-table check (j): one red/green pair per CanKillEnemy row (#719)
 };
 
 /**
@@ -820,10 +823,11 @@ extern "C" int MM_TrickBindings_RunHeadless(void) {
             if (boundCount == 0) {
                 rc = BindFail(7, "no key is described as bound at all, so the coverage leg passed vacuously");
             } else {
-                printf("[TEST]   ok: all %d bound-and-live keys are probed (%d edges here, %d keys in part 1's own "
-                       "rows)\n",
-                       boundCount, (int)(sizeof(kProbes) / sizeof(kProbes[0])),
-                       (int)(sizeof(kCoveredElsewhere) / sizeof(kCoveredElsewhere[0])));
+                printf(
+                    "[TEST]   ok: all %d bound-and-live keys are probed (%d edges here, %d keys covered by their own "
+                    "rows)\n",
+                    boundCount, (int)(sizeof(kProbes) / sizeof(kProbes[0])),
+                    (int)(sizeof(kCoveredElsewhere) / sizeof(kCoveredElsewhere[0])));
             }
         }
     }

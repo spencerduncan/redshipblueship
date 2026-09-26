@@ -637,6 +637,51 @@ extern "C" int MM_PairedProfile_RunHeadless(void) {
                     (unsigned)RANDO_SAVE_OPTIONS[RO_MINIMUM_SKULLTULA_TOKENS]);
     }
 
+    // ---- clock crossings arm only in the RANDOM clock mode (#681 review) ----
+    // RSBS_GIVECAP_CLOCKS admits the six CONCRETE half-day rows (Time (Day 1) ..
+    // Time (Night 3)) into the reverse draw. In the two progressive modes MM's
+    // logic reads time ownership as a COUNT, not per flag (Logic/Logic.h,
+    // OwnsHalfDayForMode: ASCENDING owns "the first N half-days", DESCENDING
+    // "the last N"), and the world only ever hands out half-days in that order
+    // (ConvertItem.cpp, RI_TIME_PROGRESSIVE). A crossed Time (Night 3) in an
+    // ascending world would set the Night 3 flag while the logic reads "Day 1
+    // owned" off the count: the flags and the logic would describe different
+    // worlds. So the capability is published only in RANDOM mode, where both
+    // read the flags. RED before the gate: ASCENDING and DESCENDING published it.
+    ClearAllOptionCVars();
+    CVarSetInteger(Rando::StaticData::Options[RO_CLOCK_SHUFFLE].cvar, RO_GENERIC_ON);
+    struct ClockModeCase {
+        int32_t mode;
+        bool arms;
+        const char* name;
+    };
+    static const ClockModeCase kClockModes[] = {
+        { RO_CLOCK_SHUFFLE_RANDOM, true, "RANDOM" },
+        { RO_CLOCK_SHUFFLE_ASCENDING, false, "ASCENDING" },
+        { RO_CLOCK_SHUFFLE_DESCENDING, false, "DESCENDING" },
+    };
+    for (const ClockModeCase& m : kClockModes) {
+        CVarSetInteger(Rando::StaticData::Options[RO_CLOCK_SHUFFLE_PROGRESSIVE].cvar, m.mode);
+        MM_Rando_PublishProfileGiveCaps(/*fromSave=*/0);
+        const bool armed = (Combo_ForeignGiveCaps((uint8_t)GAME_MM) & RSBS_GIVECAP_CLOCKS) != 0u;
+        if (armed != m.arms) {
+            return Fail(75,
+                        "clock shuffle ON in %s mode published RSBS_GIVECAP_CLOCKS=%d, expected %d - a concrete "
+                        "half-day crossing %s",
+                        m.name, armed ? 1 : 0, m.arms ? 1 : 0,
+                        m.arms ? "is now refused where the logic reads each flag"
+                               : "would break the progressive order the logic counts");
+        }
+    }
+    // Control: clock shuffle OFF never arms the family, in the mode that would.
+    CVarSetInteger(Rando::StaticData::Options[RO_CLOCK_SHUFFLE].cvar, RO_GENERIC_OFF);
+    CVarSetInteger(Rando::StaticData::Options[RO_CLOCK_SHUFFLE_PROGRESSIVE].cvar, RO_CLOCK_SHUFFLE_RANDOM);
+    MM_Rando_PublishProfileGiveCaps(/*fromSave=*/0);
+    if ((Combo_ForeignGiveCaps((uint8_t)GAME_MM) & RSBS_GIVECAP_CLOCKS) != 0u) {
+        return Fail(76, "clock shuffle OFF published RSBS_GIVECAP_CLOCKS");
+    }
+    Combo_ClearForeignGiveCaps();
+
     // Leave global state clean for whatever runs next.
     ClearAllOptionCVars();
     CVarClear("gRando.ExcludedChecks");

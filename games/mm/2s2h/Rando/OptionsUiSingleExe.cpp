@@ -727,6 +727,10 @@ const MMRandoTrickId kBoundTricks[] = {
     // Regions/ except the two the trick's own definition excludes (North.cpp's
     // header note names them).
     MMRT_LENS,
+    // #719. Logic/Logic.h's CAN_FIGHT_WITH_DEKU_STICK — the 17 CanKillEnemy
+    // rows that offered a Deku Stick as an ungated weapon. Combat only; the
+    // stick as a torch is not this key.
+    MMRT_DEKU_STICK_FIGHTING,
     // part 2. Logic/Regions/South.cpp — RR_DEKU_PALACE_INSIDE_LOWER's new
     // connection to RR_DEKU_PALACE_INSIDE_UPPER_CELL_SIDE.
     MMRT_PALACE_BEAN_SKIP,

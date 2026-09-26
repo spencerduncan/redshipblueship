@@ -7,7 +7,7 @@ them was tested:
 | Property | Question | Enforced by |
 |---|---|---|
 | **Reproducibility** | does the same seed produce the same world *twice in a row*? | `SeedDeterminism`, `MMPairedAttemptDeterminism` (self-diff rows) |
-| **Stability** | does the same seed still produce *the world we shipped*? | `GoldenSeedDigestDefault`, `GoldenSeedDigestProfileV1`, `GoldenPairedAttemptDigest` (golden rows) |
+| **Stability** | does the same seed still produce *the world we shipped*? | `GoldenSeedDigestDefault`, `GoldenSeedDigestProfileV1`, `GoldenPairedAttemptDigest`, `GoldenSeedDigestArmedCaps` (golden rows) |
 
 The self-diff rows run one seed twice and compare the two runs **against each
 other**. Nothing in them compares anything to a stored value, so a change that
@@ -27,7 +27,21 @@ cite a golden row, or a measured before/after comparison.
 tests/golden/seed-digest-default.txt      # --test rando-determinism, SHIPPED profile
 tests/golden/seed-digest-profile-v1.txt   # --test rando-determinism, RSBS_DIAG_CVARS=gRandoSettings.ShuffleSongs=2
 tests/golden/paired-attempt-digest.txt    # --test mm-paired-attempt, the ladder world
+tests/golden/seed-digest-armed-caps.txt   # --test rando-armed-caps-digest, every give-capability family armed (OoT half only)
 ```
+
+`seed-digest-armed-caps` exists because the shipped profile arms none of the four
+MM give-capability families (souls, ocarina buttons, swim, clocks; #681), so under
+the other goldens the 63 capability rows and the per-family budget in the reverse
+pass never run. Its dispatch arms all four through MM's own option CVars, generates
+the same seed with the same OoT settings as `seed-digest-default` (so `settingsHash`
+and `placementHash` match that file), and stops after the OoT half: the armed MM
+fill hits its 30 s wall-clock abort on this seed, and a golden riding a
+machine-speed timeout would be flaky. What it pins is the reverse table
+(`foreignOoT<n>`) under the armed draw — a reorder of the capability rows, a changed
+`RSBS_FOREIGN_GIVECAP_FAMILY_BUDGET` or a changed set-aside stream all move it. The
+dispatch refuses to write a digest whose world did not publish every family or
+hosts no capability row. It is archive-sensitive like the other two seed goldens.
 
 Each is the digest text the corresponding dispatch writes, one `key=value` per
 line. The comparison is line-by-line after stripping CR, never a byte compare:
@@ -226,10 +240,10 @@ why Windows *could not*.
 
 | Gate | Runs the golden rows? | How |
 |---|---|---|
-| Linux CI (`build-linux`) | **yes**, all three | `ctest --label-regex '^rando$'` under `xvfb-run` |
-| Windows CI (`build-windows`) | **yes**, all three | `ctest --label-regex '^rando$'` — the whole tier, like Linux (#709) |
-| Operator's local ROM-staged run | **yes**, all three | the two seed rows generate in an archive-free sandbox under `build-cmake/golden-archive-free/` — see "The archive set is part of the pin" |
-| Operator's local archive-free run | **yes**, all three | this is how the goldens are generated and re-pinned |
+| Linux CI (`build-linux`) | **yes**, all four | `ctest --label-regex '^rando$'` under `xvfb-run` |
+| Windows CI (`build-windows`) | **yes**, all four | `ctest --label-regex '^rando$'` — the whole tier, like Linux (#709) |
+| Operator's local ROM-staged run | **yes**, all four | the three seed rows generate in an archive-free sandbox under `build-cmake/golden-archive-free/` — see "The archive set is part of the pin" |
+| Operator's local archive-free run | **yes**, all four | this is how the goldens are generated and re-pinned |
 
 The golden rows carry `LABEL rando`, and for one PR the Windows job ran the `redship`
 label only, so they were enforced on exactly one gate. The expectation was that
