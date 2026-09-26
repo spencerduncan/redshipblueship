@@ -171,6 +171,12 @@ int OoT_MenuRegistrars_RunHeadless(void);
 // the display-free shared bring-up (the keys live in the CVar store). Returns 0
 // on pass, non-zero on fail.
 int OoT_ComboSettingsRows_RunHeadless(void);
+// The UI snapshot harness (games/oot/soh/soh_ui_snapshot.cpp): renders SoH's own
+// menu pages and every page this project added into PNGs, a text log and a
+// manifest under RSBS_UI_SNAPSHOT_OUT, and asserts STRUCTURE only (drawn, not
+// blank, reachable, converged, isolated). Needs a window; `ui` label.
+// Returns 0 on pass, non-zero on fail.
+int OoT_UiSnapshot_Run(const char* pages, const char* outDir);
 // SohMenu capability gating and the shared-intent marker
 // (games/oot/soh/soh_menu_capability_test.cpp, #497 steps 3 and 5). ADR 0004 §5:
 // a row may declare a capability and must render disabled-WITH-REASON when it is
@@ -670,6 +676,12 @@ extern "C" {
 // coordinator hydrate). ROM-free and display-free; FILE SCOPE (compiled as C++)
 // for rsbs::SaveManager, like test_foreign_items.c.
 #include "tests/test_crossing_store.c"
+// The UI snapshot harness's pixel half (src/common/ui_snapshot_image.c): the PNG
+// writer and decoder, the content hash, the blank-page oracle and the composites,
+// round-tripped over a synthetic image. Display-free and ROM-free, so it runs in
+// the default tier on every PR even though the window-bound harness does not.
+// FILE SCOPE (compiled as C++).
+#include "tests/test_ui_snapshot_image.c"
 
 // MM scene-command EXECUTE regression (issue #344). Unlike the parse test, the
 // body runs the parsed commands against a PlayState, so it needs MM's global.h
@@ -2835,6 +2847,16 @@ TestResult Test_MMModsMount(void) {
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// The UI snapshot harness (see the extern decl above). Everything it takes comes
+// from the environment (RSBS_UI_SNAPSHOT_*), which the harness reads itself, so
+// the wrapper passes nothing. Needs a window and soh.o2r; `ui` label, and
+// skipped by `--test all`.
+TestResult Test_UiSnapshot(void) {
+    const int rc = OoT_UiSnapshot_Run(nullptr, nullptr);
+    printf("[TEST] %s: ui-snapshot rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // #705: which folders are each game's loose asset layer. Lists a staged directory
 // tree only — no archive, no Ship::Context — so it never skips.
 TestResult Test_LooseModsDiscovery(void) {
@@ -4821,6 +4843,16 @@ const TestDescriptor gTests[] = {
      "OoT's own fill on a plentiful + tycoon profile: after the native full-world harvest no progressive tier is "
      "past its top and the wallet rests at the tycoon tier instead of wrapping to 0 (#726)",
      Test_OoTPlentifulProgressive},
+    // The UI snapshot harness: its display-free pixel half, then the window-bound
+    // capture itself (skipped by `--test all`; the `ui` CTest label runs it).
+    {"ui-snapshot-image",
+     "The UI snapshot harness's PNG writer, decoder, content hash, blank-page oracle and composites round-trip "
+     "a synthetic image",
+     Test_UiSnapshotImage},
+    {"ui-snapshot",
+     "Render SoH's reference menu pages and every RedShipBlueShip page into PNGs, text logs and a manifest "
+     "(structure-only asserts; RSBS_UI_SNAPSHOT_* env)",
+     Test_UiSnapshot},
     {nullptr, nullptr, nullptr}  // Sentinel
 };
 
@@ -4919,8 +4951,11 @@ int TestRunner_Run(const char* testName) {
                 // run inside a suite whose result is a pass/fail count.
                 strcmp(gTests[i].name, "combo-logic-give-probe") == 0 ||
                 strcmp(gTests[i].name, "rando-entrance-pin") == 0 ||
-                strcmp(gTests[i].name, "oot-logic-export") == 0) {
-                printf("\n--- Skipping: %s (needs display; runs as a rando-label CTest) ---\n", gTests[i].name);
+                strcmp(gTests[i].name, "oot-logic-export") == 0 ||
+                // A window and soh.o2r, and a run of its own: the `ui` CTest label.
+                strcmp(gTests[i].name, "ui-snapshot") == 0) {
+                printf("\n--- Skipping: %s (needs display; runs as a %s-label CTest) ---\n", gTests[i].name,
+                       strcmp(gTests[i].name, "ui-snapshot") == 0 ? "ui" : "rando");
                 continue;
             }
             // mm-registrar-coverage used to be skipped here: it is the only row
