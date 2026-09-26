@@ -1223,6 +1223,11 @@ extern "C" int OoT_RunPairedCreationEvent(int slot) {
         // because the only legitimate retraction is this one.
         memset(&gComboCtx.comboSettings, 0, sizeof(gComboCtx.comboSettings));
         gComboCtx.comboSettingsHash = 0;
+        // The O10 triforce record (ADR 0010) was frozen beside the combo record
+        // and goes with it. Left behind, it would sit next to an ABSENT goal as
+        // a hunt nobody froze, which Combo_TriforceRecordDivergence reads as
+        // damage. Four zero bytes is how every non-hunt world stores it.
+        memset(&gComboCtx.comboTriforce, 0, sizeof(gComboCtx.comboTriforce));
         gComboCtx.sourceIsRando = false;
         gComboCtx.sharedRandoSeed = 0;
         gComboCtx.sharedRandoSettingsHash = 0;

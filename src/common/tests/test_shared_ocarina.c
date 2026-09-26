@@ -81,7 +81,9 @@ TestResult Test_SharedOcarina(void) {
     // every harvest, which looks exactly like "the option is off".
     SO_ASSERT((uint8_t)RSBS_SHARED_RES_OCARINA_TIER == 18u,
               "RSBS_SHARED_RES_OCARINA_TIER moved off 18 -- these values are .redsave format, append-only");
-    SO_ASSERT(RSBS_SHARED_RES_KIND_COUNT == 19u,
+    // Greater-than, not equal: kinds are appended after the ocarina (the O10
+    // triforce count is 19), and each one raises the count again.
+    SO_ASSERT(RSBS_SHARED_RES_KIND_COUNT > (unsigned)RSBS_SHARED_RES_OCARINA_TIER,
               "RSBS_SHARED_RES_KIND_COUNT does not cover the ocarina tier; the harvest would be dropped");
 
     // ---- (1) OPTION OFF: nothing crosses, and nothing is even recorded -----

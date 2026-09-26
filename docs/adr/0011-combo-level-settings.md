@@ -1247,3 +1247,48 @@ narrowing itself is now delivered, on branch
 
 The O8 row reads **delivered, 2026-09-26** with this entry, and decision 3.5's
 "do not ship it early" is discharged: it shipped after both gates were open.
+
+### 2026-09-27 -- The O10 triforce record: a 4-byte carve at 896 beside the combo record (format note)
+
+ADR 0010 answer O10 needs a frozen combo-level triforce requirement and a
+split of pieces between the two pools. The 12-byte record cannot hold it:
+
+- The record is pinned. Its one spare byte (`spare1`) is too small for two
+  counts.
+- A value in the record would also be compared against the live CVar
+  resolution at every arrival. Nothing in the tier-4 keys resolves a triforce
+  count; it is derived from each half's own settings.
+
+So the values go in a separate block. This is the format note.
+
+- **Layout.** `ComboTriforceRecord { totalOoT, requiredOoT, totalMM,
+  requiredMM }` is four `uint8_t` fields, 4 bytes, at `.redsave` Tier-1 offset
+  **896**. It is carved from the front of `reserved[108]`, which is now
+  `reserved[104]` at offset **900**. Both offsets and the member offsets are
+  `RSBS_CTX_STATIC_ASSERT`ed in `context.h`. `test_combo_settings.c` pins 896,
+  900 and 104.
+- **Why the halves and not the sums.** MM's win arm must read the combo
+  requirement in a session where OoT's randomizer settings were never loaded.
+  Storing each half also lets each game re-derive its own half and compare it.
+  A stored sum could not say which half moved.
+- **Zero means absent.** Every world whose goal is not triforce-hunt stores
+  four zero bytes. That is also what a record written before this carve reads
+  as, so no formatVersion is needed.
+  - `RSBS_COMBO_CONTEXT_RECORD_SIZE` (1024) is unchanged, and so is
+    `RSBS_SAVE_VERSION`.
+  - An older build reads the block as reserved headroom.
+  - A pre-carve `.redsave` loads as "no hunt", which is true of every world an
+    older build could author.
+  - No save is invalidated.
+- **Consistency is checked, not trusted.** `Combo_TriforceRecordDivergence`
+  refuses a record that contradicts the combo record's goal, on the load path
+  and on the arrival refusal, as the damage bit `RSBS_COMBO_DIVERGE_TRIFORCE`.
+  The record is not folded into `comboSettingsHash`: its inputs are already in
+  the fingerprint's two half-digests, and folding it would have changed every
+  existing fingerprint's encoding.
+- **Budget.** `reserved[]` is now 104 bytes. That is 40 above ADR 0009's
+  64-byte floor, and the next carver starts from 104.
+- **KEEP set.** The record is authored by the creation event, so
+  `Context_InvalidateSessionState` keeps it with `comboSettings` under
+  `RSBS_SEED_STAMP_KEEP` and drops it on every other path, per decision 4.3's
+  rule.

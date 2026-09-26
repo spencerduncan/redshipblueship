@@ -41,6 +41,7 @@
 #include "save.h" // RsbsSave_* — MM's redship-native unified-save capture
 #include "shared_items.h"
 #include "shared_resources.h" // Shared cross-game rupees/hearts (#525)
+#include "triforce_hunt.h"    // ADR 0010 O10: the one triforce piece count, and the arrival's half check
 // #670: the per-game mod-archive registry (#593) plus the shared mods/ tree
 // partition. MM's mod mount feeds the first and obeys the second.
 #include "mod_archives.h"
@@ -3671,6 +3672,13 @@ extern "C" void MM_HarvestSharedResources(void) {
     // MM's 1 can never demote an Ocarina of Time the pool already holds — the
     // tier is monotonic, exactly as for the hookshot just above.
     Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_OCARINA_TIER, MM_ReadOcarinaTier());
+
+    // Triforce pieces (ADR 0010 answer O10), the twin of OoT's line: MM's
+    // counter is a MIRROR of the one combo count, so harvesting it max-merges
+    // MM's collects into that count. The arming gate (the frozen goal is
+    // triforce-hunt) is inside Combo_HarvestSharedResource.
+    Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_TRIFORCE_PIECES,
+                                (uint16_t)gSaveContext.save.shipSaveInfo.rando.foundTriforcePieces);
 }
 
 // ============================================================================
@@ -3948,6 +3956,16 @@ extern "C" void MM_ApplySharedResources(void) {
     if (Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_OCARINA_TIER, MM_MAX_OCARINA_TIER, &ocarinaTier) &&
         ocarinaTier >= 1u) {
         MM_EnsureInventoryItem(ITEM_OCARINA_OF_TIME);
+    }
+
+    // --- Triforce pieces (monotonic, ADR 0010 answer O10), armed only when the
+    // frozen combo goal is triforce-hunt. MM's counter becomes the whole combo
+    // count, capped at the combo total, so MM's give arm compares the combo
+    // requirement against pieces found in EITHER world.
+    uint16_t triforcePieces = gSaveContext.save.shipSaveInfo.rando.foundTriforcePieces;
+    if (Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_TRIFORCE_PIECES, Combo_TriforceHuntTotal(),
+                                  &triforcePieces)) {
+        gSaveContext.save.shipSaveInfo.rando.foundTriforcePieces = triforcePieces;
     }
 }
 
@@ -4451,7 +4469,20 @@ int MM_Rando_GateCrossGameArrival(void) {
     // pair passes here and is repaired by the transitional writer above.
     // ------------------------------------------------------------------------
     {
-        const uint32_t comboDiverged = Combo_ComboSettingsDivergence();
+        uint32_t comboDiverged = Combo_ComboSettingsDivergence();
+        // ADR 0010 answer O10: MM's half of the frozen triforce record must be
+        // what MM's own profile produces. Resolved from the SAME CVar resolution
+        // the profile gate above just matched against the creation stamp, so a
+        // mismatch here is the record contradicting the world it was frozen
+        // from — named "triforceHunt" in the refusal like any other rule.
+        // Resolved only for a frozen hunt: every other world skips it.
+        if (Combo_TriforceRecordPresent(&gComboCtx.comboTriforce)) {
+            ComboTriforceHalf mmHalf = { 0, 0 };
+            MM_Rando_ResolveTriforceHalf(/*fromSave=*/0, &mmHalf.total, &mmHalf.required);
+            if (Combo_TriforceHalfDiverges(&gComboCtx.comboTriforce, GAME_MM, &mmHalf)) {
+                comboDiverged |= RSBS_COMBO_DIVERGE_TRIFORCE;
+            }
+        }
         if (comboDiverged != 0) {
             char fields[192];
             Combo_ComboSettingsDivergenceDescribe(comboDiverged, fields, sizeof(fields));
