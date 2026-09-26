@@ -1861,6 +1861,19 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # ADR 0010 answer O10: ONE shared triforce piece count across both worlds.
+    # ComboTriforceHunt is display-free and ROM-free: the frozen record's rule and
+    # its refusal, the MONOTONIC discipline pin (a lower harvest after a full
+    # apply keeps the count), collect k in OoT and m in MM through both games'
+    # REAL shims and read k+m in both, the win decision both give arms call, and
+    # the coordinator's triforce-hunt predicate over stub engines.
+    # RandoTriforceHuntWin drives both games' REAL piece-give arms (OoT's needs a
+    # generated context, MM's dispatches GameInteractor hooks), so it is `rando`.
+    redship_add_test(NAME ComboTriforceHunt COMMAND redship --test combo-triforce-hunt)
+    redship_add_test(NAME RandoTriforceHuntWin COMMAND redship --test rando-triforce-hunt-win
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)

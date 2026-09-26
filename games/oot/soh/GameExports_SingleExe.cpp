@@ -23,7 +23,7 @@
 #include "save.h" // RsbsSave_SetActiveSlot — publish the slot MM will save into
 #include "shared_items.h"
 #include "shared_resources.h" // Shared cross-game rupees/hearts (#525)
-#include "triforce_hunt.h"     // ADR 0010 O10: the one triforce piece count's apply cap
+#include "triforce_hunt.h"    // ADR 0010 O10: the one triforce piece count's apply cap
 #include "foreign_items.h"    // OoT_ForeignItem_Give (Lane C1 redemption)
 #include "entrance.h"
 #include "soh/Enhancements/game-interactor/GameInteractor.h"

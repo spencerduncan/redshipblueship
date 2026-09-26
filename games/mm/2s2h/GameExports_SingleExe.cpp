@@ -41,7 +41,7 @@
 #include "save.h" // RsbsSave_* — MM's redship-native unified-save capture
 #include "shared_items.h"
 #include "shared_resources.h" // Shared cross-game rupees/hearts (#525)
-#include "triforce_hunt.h"     // ADR 0010 O10: the one triforce piece count, and the arrival's half check
+#include "triforce_hunt.h"    // ADR 0010 O10: the one triforce piece count, and the arrival's half check
 // #670: the per-game mod-archive registry (#593) plus the shared mods/ tree
 // partition. MM's mod mount feeds the first and obeys the second.
 #include "mod_archives.h"
