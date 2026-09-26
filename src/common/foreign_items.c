@@ -13,6 +13,7 @@
 
 #include "foreign_items.h"
 #include "combo_settings_view.h" // the tier-4 authoring surface the resolver reads (increment 2)
+#include "triforce_hunt.h"        // the O10 record joins the arrival refusal (Combo_ComboSettingsDivergence)
 #include <stdio.h>
 #include <string.h>
 
@@ -623,8 +624,12 @@ uint32_t Combo_ComboSettingsDivergenceFor(const ComboSettingsRecord* frozen, uin
 }
 
 uint32_t Combo_ComboSettingsDivergence(void) {
+    // The triforce record (ADR 0010 O10) rides the same arrival refusal: the
+    // record and the goal it serves are one identity, so a resident pair whose
+    // triforce record contradicts its combo record is refused by name here.
     return Combo_ComboSettingsDivergenceFor(&gComboCtx.comboSettings, gComboCtx.comboSettingsHash,
-                                            gComboCtx.sharedRandoSettingsHash, gComboCtx.mmProfileDigest);
+                                            gComboCtx.sharedRandoSettingsHash, gComboCtx.mmProfileDigest) |
+           Combo_TriforceRecordDivergence(&gComboCtx.comboSettings, &gComboCtx.comboTriforce);
 }
 
 const char* Combo_ComboSettingsDivergenceFieldName(uint32_t bit) {
@@ -653,6 +658,8 @@ const char* Combo_ComboSettingsDivergenceFieldName(uint32_t bit) {
             return "formatVersion";
         case RSBS_COMBO_DIVERGE_FINGERPRINT:
             return "comboSettingsHash";
+        case RSBS_COMBO_DIVERGE_TRIFORCE:
+            return "triforceHunt";
         default:
             return "(unknown)";
     }
@@ -663,7 +670,11 @@ bool Combo_ComboSettingsDivergenceIsDamage(uint32_t bits) {
     // — a record this build cannot parse, or a hash its own record and
     // half-digests do not produce. Every other bit is a property of the
     // SESSION: the file is healthy and the live resolution walked away from it.
-    return (bits & (RSBS_COMBO_DIVERGE_UNREADABLE | RSBS_COMBO_DIVERGE_FINGERPRINT)) != 0;
+    // TRIFORCE is the same class (ADR 0010 O10): the triforce record is written
+    // once, by creation, from inputs the fingerprint already pins, so a record
+    // that contradicts its own goal is the identity contradicting itself.
+    return (bits & (RSBS_COMBO_DIVERGE_UNREADABLE | RSBS_COMBO_DIVERGE_FINGERPRINT | RSBS_COMBO_DIVERGE_TRIFORCE)) !=
+           0;
 }
 
 int Combo_ComboSettingsDivergenceDescribe(uint32_t bits, char* out, size_t len) {

@@ -426,6 +426,18 @@ enum {
     // applied, so a world that never asked for it has no slot at all and its
     // `.redsave` is byte-identical to one written before the option existed.
     RSBS_SHARED_RES_OCARINA_TIER = 18,    // MONOTONIC: 0/1/2, gated by the frozen combo setting (#668)
+    // Triforce pieces (ADR 0010 answer O10). ONE piece count across both
+    // worlds: each game's own counter (OoT `triforcePiecesCollected`, MM
+    // `foundTriforcePieces`) becomes a mirror of this quantity once paired, so
+    // a collect in either game raises the one count, and max-merge SUMS across
+    // a switch because every apply materializes the whole count before the
+    // next collect adds to it (collect k in OoT, m in MM: k, then k+m).
+    //
+    // ARMED PER WORLD, like the ocarina: only a world whose FROZEN combo goal is
+    // triforce-hunt carries it (Combo_TriforceHuntArmed, triforce_hunt.h), so a
+    // world that never asked for it has no slot and its `.redsave` is
+    // byte-identical to one written before the kind existed.
+    RSBS_SHARED_RES_TRIFORCE_PIECES = 19, // MONOTONIC: the combo count, gated by the frozen goal (O10)
 };
 
 /**
@@ -543,6 +555,58 @@ RSBS_CTX_STATIC_ASSERT(offsetof(ComboSettingsRecord, formatVersion) == 0 &&
                            offsetof(ComboSettingsRecord, spare1) == 11,
                        "ComboSettingsRecord member offsets are .redsave format and must not move; the canonical "
                        "digest encoder walks them in this declaration order (ADR 0011 decision 1.4)");
+
+/**
+ * The FROZEN TRIFORCE-HUNT RECORD (ADR 0010 answer O10; ADR 0011's 2026-09-27
+ * amendment is its format note).
+ *
+ * Under the combo goal RSBS_COMBO_GOAL_TRIFORCE_HUNT the hunt is ONE count
+ * across both worlds, and its requirement is a COMBO-LEVEL decision frozen at
+ * creation. Each half's own piece settings are the INPUTS it is decided from,
+ * never the truth afterwards:
+ *
+ *   - OoT's half: RSK_TRIFORCE_HUNT on (Win or Ganon's Boss Key) contributes
+ *     `RSK_TRIFORCE_HUNT_PIECES_TOTAL + 1` pieces to OoT's own pool and
+ *     `RSK_TRIFORCE_HUNT_PIECES_REQUIRED + 1` to the requirement; off
+ *     contributes 0 and 0.
+ *   - MM's half: RO_SHUFFLE_TRIFORCE_PIECES on contributes
+ *     `RO_TRIFORCE_PIECES_MAX` pieces and `RO_TRIFORCE_PIECES_REQUIRED`; off
+ *     contributes 0 and 0.
+ *
+ * THE SPLIT RULE: the pieces stay in the pool of the game whose setting put
+ * them there (totalOoT in OoT's pool, totalMM in MM's), the combo total is
+ * their sum, and the combo requirement is the SUM OF THE TWO HALVES'
+ * REQUIREMENTS. Nothing here invents a knob (ADR 0010 §1.2: the goal's
+ * parameters are each half's own authored settings). Combo_TriforceResolve
+ * (triforce_hunt.h) is the one statement of the rule; it refuses a world with
+ * no pieces at all, a half asking for more than it holds, and a combo total
+ * past OoT's 8-bit counter.
+ *
+ * WHY THE HALVES ARE STORED, NOT JUST THE SUMS: MM's win trigger must read the
+ * combo requirement in a session where OoT's randomizer settings were never
+ * loaded, and each half can be re-derived from its own game's frozen settings
+ * and compared (Combo_TriforceHalfDiverges) — a stored sum could not say which
+ * half moved.
+ *
+ * ZERO MEANS ABSENT: every world that is not a triforce hunt stores four zero
+ * bytes, exactly what a zero-extended record from before this carve holds. A
+ * triforce hunt always has a nonzero total, so occupancy needs no tag byte.
+ */
+typedef struct {
+    uint8_t totalOoT;    // pieces OoT's own pool holds; 0 when OoT's own hunt is off
+    uint8_t requiredOoT; // OoT's contribution to the combo requirement
+    uint8_t totalMM;     // pieces MM's own pool holds; 0 when MM's own hunt is off
+    uint8_t requiredMM;  // MM's contribution to the combo requirement
+} ComboTriforceRecord;
+
+RSBS_CTX_STATIC_ASSERT(sizeof(ComboTriforceRecord) == 4,
+                       "ComboTriforceRecord is serialized raw inside the .redsave Tier-1 record; its layout is "
+                       "format (ADR 0011's 2026-09-27 amendment)");
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboTriforceRecord, totalOoT) == 0 &&
+                           offsetof(ComboTriforceRecord, requiredOoT) == 1 &&
+                           offsetof(ComboTriforceRecord, totalMM) == 2 &&
+                           offsetof(ComboTriforceRecord, requiredMM) == 3,
+                       "ComboTriforceRecord member offsets are .redsave format and must not move");
 
 typedef struct {
     char magic[8];        // "OoT+MM<3"
@@ -835,6 +899,14 @@ typedef struct {
     // zero-extended pre-ADR-0011 record must read as.
     ComboSettingsRecord comboSettings;
 
+    // ADR 0010 answer O10: the frozen triforce-hunt record (see
+    // ComboTriforceRecord above). Written once by the creation event when the
+    // frozen goal is triforce-hunt, zero otherwise, KEPT through file-create
+    // invalidation beside comboSettings, and never mutated by an arrival or a
+    // load. Carved from the FRONT of the old reserved[108], so every field above
+    // keeps its offset and a zero-extended record reads as "no hunt".
+    ComboTriforceRecord comboTriforce;
+
     // Headroom. Carve new fields from the FRONT of this array (as
     // sharedItemsTagged, sharedRandoSettingsHash, foreignPlacements, the
     // grant cursors, and the reverse placement table were) so the struct
@@ -847,7 +919,8 @@ typedef struct {
     //
     // 264 - 48 (foreignPlacementsOoT) - 4 (mmProfileDigest) - 32 (sharedResources)
     // - 48 (sharedResourcesExt) - 4 (commitGeneration) - 4 (mmPairedAttempt)
-    // - 4 (comboSettingsHash) - 12 (comboSettings) = 108.
+    // - 4 (comboSettingsHash) - 12 (comboSettings) = 108, then - 4 (comboTriforce,
+    // ADR 0010 O10) = 104.
     // ADR 0009 publishes the remaining
     // allocation across the other claimants and sets a 64-byte floor:
     // Test_SaveComboRecordFixed's scribble loop iterates sizeof(reserved), so
@@ -861,10 +934,11 @@ typedef struct {
     // grant cursors at 672 and the overflow count at 736 — the 264-byte baseline
     // was already measured after that carve, so counting it again double-counted
     // the same 64 bytes). Claim 2 landed here with ADR 0011, together with that
-    // ADR's new claim 10. 108 clears the floor by 44 bytes, and the next carver
-    // starts from 108 with the append-only second-block rule in force — never a
-    // widen in place of anything ahead of it.
-    uint8_t reserved[108];
+    // ADR's new claim 10. 108 cleared the floor by 44 bytes; the O10 triforce
+    // record then took 4, so 104 clears it by 40, and the next carver starts
+    // from 104 with the append-only second-block rule in force — never a widen
+    // in place of anything ahead of it.
+    uint8_t reserved[104];
 } ComboContext;
 
 /**
@@ -1035,16 +1109,25 @@ RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, comboSettings) ==
                            offsetof(ComboContext, comboSettingsHash) + sizeof(uint32_t),
                        "comboSettings must be carved from the FRONT of reserved[] (contiguous with "
                        "the combo settings digest); moving it changes .redsave format");
-RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, reserved) ==
+// The triforce-hunt record is the next carve (ADR 0010 answer O10, 4 bytes),
+// pinned to the literal 896 on the same terms as every carve above it.
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, comboTriforce) == 896u,
+                       "comboTriforce lives at .redsave byte offset 896; if this fires, a field "
+                       "before it grew in place - carve from reserved[] instead");
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, comboTriforce) ==
                            offsetof(ComboContext, comboSettings) + sizeof(ComboSettingsRecord),
+                       "comboTriforce must be carved from the FRONT of reserved[] (contiguous with "
+                       "the combo settings record); moving it changes .redsave format");
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, reserved) ==
+                           offsetof(ComboContext, comboTriforce) + sizeof(ComboTriforceRecord),
                        "the tagged-item array, the settings digest, both foreign-placement tables, "
                        "the grant cursors, the overflow count, the MM profile digest, BOTH shared "
                        "resource blocks, the commit generation, the paired-attempt record, the "
-                       "combo settings digest and record, and the "
+                       "combo settings digest and record, the triforce record, and the "
                        "remaining headroom must stay contiguous (no padding, no fields slipped "
                        "between them)");
-RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, reserved) == 896u,
-                       "reserved[] begins at .redsave byte offset 896 after the ADR 0011 carve; if "
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, reserved) == 900u,
+                       "reserved[] begins at .redsave byte offset 900 after the O10 triforce carve; if "
                        "this fires, a field ahead of it moved and every shipped save is being "
                        "reinterpreted - that is a format generation, not an assert edit");
 // ADR 0009's floor. reserved[] is what Test_SaveComboRecordFixed scribbles to

@@ -105,6 +105,10 @@ set(REDSHIP_COMMON_SOURCES
     # this half is game-header-free C so a headless row can drive it. APPENDED,
     # never reordered.
     ${CMAKE_SOURCE_DIR}/src/common/gen_progress_overlay.c
+    # The combo triforce hunt (ADR 0010 answer O10): the frozen record, the
+    # arming gate of the one shared piece count, and the win decision both
+    # ports' piece-give arms call. Game-header-free. APPENDED, never reordered.
+    ${CMAKE_SOURCE_DIR}/src/common/triforce_hunt.c
 )
 
 # Windows-specific: import thunks for libultraship compatibility
@@ -180,6 +184,8 @@ set(REDSHIP_COMMON_HEADERS
     # are still needed even though MM no longer hands OoT its own Options.
     ${CMAKE_SOURCE_DIR}/src/common/notification_bridge.h
     ${CMAKE_SOURCE_DIR}/src/common/notification_layout_probe.h
+    # Header for triforce_hunt.c above (ADR 0010 O10)
+    ${CMAKE_SOURCE_DIR}/src/common/triforce_hunt.h
 )
 
 # ============================================================================

@@ -374,6 +374,10 @@ void Context_InvalidateSessionState(ComboSeedStampPolicy seedPolicy) {
     // is silent in exactly one direction.
     const ComboSettingsRecord savedComboSettings = gComboCtx.comboSettings;
     const uint32_t savedComboSettingsHash = gComboCtx.comboSettingsHash;
+    // ADR 0010 answer O10: the frozen triforce-hunt record is authored by the
+    // same creation event, right after the combo record, so it is in the same
+    // KEEP set for the same reason.
+    const ComboTriforceRecord savedComboTriforce = gComboCtx.comboTriforce;
 
     // Frozen blobs and shadow copies in one call — they are the same storage
     // (FrozenStateManager::ClearFrozenState memsets the buffer AND clears
@@ -423,6 +427,10 @@ void Context_InvalidateSessionState(ComboSeedStampPolicy seedPolicy) {
         // without the other could not tell a legacy record from a torn one.
         gComboCtx.comboSettings = savedComboSettings;
         gComboCtx.comboSettingsHash = savedComboSettingsHash;
+        // The triforce record describes a goal the combo record states, so it
+        // moves with it: a kept goal of triforce-hunt with a dropped record
+        // would disarm the one shared piece count for a world that froze it.
+        gComboCtx.comboTriforce = savedComboTriforce;
     }
 
     // The unified save's ACTIVE SLOT is session state too, and it lived outside

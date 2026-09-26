@@ -834,6 +834,22 @@ int GoalReached(void* self) {
     return Rando::Logic::MmGoalMajoraDefeated(crawl) ? 1 : 0;
 }
 
+/**
+ * `triforcePieces` (ABI 4, ADR 0010 answer O10): MM's half of the ONE shared
+ * piece count — `foundTriforcePieces` in the snapshotted live save, which is
+ * where this engine's give path (MmGiveOneCopy, for both `assumeOwnItem` and
+ * the per-host harvest) puts every piece the round granted, clamped at the
+ * seed's `RO_TRIFORCE_PIECES_MAX`. A pure read; the round's restore puts the
+ * counter back with the rest of the save.
+ */
+int TriforcePieces(void* self) {
+    (void)self;
+    if (!sRound.inRound) {
+        return 0;
+    }
+    return (int)gSaveContext.save.shipSaveInfo.rando.foundTriforcePieces;
+}
+
 int Place(void* self, uint16_t hostCheck, SharedItem item) {
     (void)self;
     if (item.originGame != (uint8_t)GAME_OOT && item.originGame != (uint8_t)GAME_MM) {
@@ -948,6 +964,7 @@ const ComboLogicEngine kMmEngine = {
     /* endQuery          */ EndQuery,
     /* snapshot          */ Snapshot,
     /* restore           */ Restore,
+    /* triforcePieces    */ TriforcePieces,
 };
 
 /**

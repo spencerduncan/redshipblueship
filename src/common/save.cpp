@@ -15,6 +15,7 @@
 #include "foreign_items.h"
 #include "game.h"
 #include "shared_resources.h"
+#include "triforce_hunt.h" // ADR 0010 O10: the triforce record joins the load-time identity check
 
 #include <cstdio>
 #include <cstring>
@@ -723,8 +724,13 @@ RsbsLoadOutcome SaveManager::LoadSlot(int slot, uint32_t ootSavGeneration) {
     // way — latched, surfaced by name, and the on-disk file left precisely
     // where it is, because renaming a healthy save away for a settings change
     // is data loss wearing a refusal's clothes.
-    const uint32_t comboDiverged = Combo_ComboSettingsDivergenceFor(
-        &combo.comboSettings, combo.comboSettingsHash, combo.sharedRandoSettingsHash, combo.mmProfileDigest);
+    // The O10 triforce record (ADR 0010) is checked over the SAME just-read
+    // bytes: a record contradicting the goal beside it is damage to the stored
+    // identity, quarantined like a fingerprint mismatch.
+    const uint32_t comboDiverged =
+        Combo_ComboSettingsDivergenceFor(&combo.comboSettings, combo.comboSettingsHash, combo.sharedRandoSettingsHash,
+                                         combo.mmProfileDigest) |
+        Combo_TriforceRecordDivergence(&combo.comboSettings, &combo.comboTriforce);
     if (comboDiverged != 0) {
         char fields[192];
         Combo_ComboSettingsDivergenceDescribe(comboDiverged, fields, sizeof(fields));
