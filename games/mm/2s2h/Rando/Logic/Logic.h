@@ -370,6 +370,23 @@ void ValidateRegionTimeOwnership(RandoRegionId regionId, RandoCheckId checkId, u
     ((HAS_ITEM(ITEM_BOMB) || HAS_ITEM(ITEM_BOMBCHU) || HAS_ITEM(ITEM_MASK_BLAST) || \
       (MM_TRICK(MMRT_KEG_EXPLOSIVES) && HAS_ITEM(ITEM_POWDER_KEG) && CAN_BE_GORON)))
 #define CAN_USE_HUMAN_SWORD (GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SWORD) >= EQUIP_VALUE_SWORD_KOKIRI)
+// #719 — Deku-Stick COMBAT is now TRICK-GATED, default off, the same way and for
+// the same reason as the Powder Keg above (#578 finding (a), PR #686).
+//
+// MMRT_DEKU_STICK_FIGHTING ("Use Deku Sticks to defeat enemies instead of other
+// weapons or a sword") is OoTMM's key and ships default-off, but CanKillEnemy
+// below offered HAS_ITEM(ITEM_DEKU_STICK) as an UNGATED weapon disjunct on 17
+// actor rows — so a player who never enabled the trick was still handed every
+// kill a stick unlocks, and "Glitchless" sat above the tricks-off baseline ADR
+// 0010 answer O11 names as the shipped rung. The operator ruled the keg and
+// GBT boss-key cases "sync and gate"; this is the same class, so it is gated.
+//
+// Combat ONLY. A Deku Stick as a FIRE SOURCE (CAN_LIGHT_TORCH_NEAR_ANOTHER, and
+// the torch terms in Regions/BeneathTheWell.cpp and Regions/North.cpp) is not a
+// trick and stays ungated. Gating TIGHTENS tricks-off logic — the fill may place
+// fewer items behind a stick-only kill, never more — and MM_TRICK reads the
+// FROZEN per-file set, so a world generated with the trick on keeps expecting it.
+#define CAN_FIGHT_WITH_DEKU_STICK (MM_TRICK(MMRT_DEKU_STICK_FIGHTING) && HAS_ITEM(ITEM_DEKU_STICK))
 #define CAN_USE_SWORD (CAN_USE_HUMAN_SWORD || HAS_ITEM(ITEM_SWORD_GREAT_FAIRY) || CAN_BE_DEITY)
 // Be careful here, as some checks require you to play the song as a specific form
 #define CAN_PLAY_SONG(song)                                                   \
@@ -833,7 +850,7 @@ inline bool CanKillEnemy(ActorId EnemyId) {
                     CAN_BE_GORON || CAN_BE_ZORA);
         case ACTOR_EN_DEKUBABA: // Neck bending Deku Baba
             return (CAN_USE_SWORD || CAN_BE_DEKU || CAN_BE_GORON || CAN_BE_ZORA || HAS_ITEM(ITEM_BOW) ||
-                    CAN_USE_EXPLOSIVE || HAS_ITEM(ITEM_DEKU_STICK));
+                    CAN_USE_EXPLOSIVE || CAN_FIGHT_WITH_DEKU_STICK);
         case ACTOR_OBJ_SNOWBALL: // Large Snowball
             return (CAN_USE_EXPLOSIVE || CAN_BE_GORON || CAN_USE_MAGIC_ARROW(FIRE));
         case ACTOR_EN_AM: // Armos
@@ -842,7 +859,7 @@ inline bool CanKillEnemy(ActorId EnemyId) {
             return (CAN_USE_EXPLOSIVE);
         case ACTOR_EN_BB:     // Blue Bubble
         case ACTOR_EN_BBFALL: // Red Bubble
-            return (CAN_USE_SWORD || CAN_BE_GORON || CAN_BE_ZORA || HAS_ITEM(ITEM_BOW) || HAS_ITEM(ITEM_DEKU_STICK));
+            return (CAN_USE_SWORD || CAN_BE_GORON || CAN_BE_ZORA || HAS_ITEM(ITEM_BOW) || CAN_FIGHT_WITH_DEKU_STICK);
         case ACTOR_EN_RAT:       // Real Bombchu
         case ACTOR_EN_TUBO_TRAP: // Flying Pot
             return true;
@@ -853,41 +870,41 @@ inline bool CanKillEnemy(ActorId EnemyId) {
         case ACTOR_EN_FLOORMAS: // Floormaster
         case ACTOR_EN_WALLMAS:  // Wallmaster
             return (CAN_USE_SWORD || CAN_BE_GORON || CAN_BE_ZORA || (CAN_BE_DEKU && HAS_MAGIC) || HAS_ITEM(ITEM_BOW) ||
-                    HAS_ITEM(ITEM_DEKU_STICK));
+                    CAN_FIGHT_WITH_DEKU_STICK);
         case ACTOR_EN_FZ: // Freezard
             return (CAN_USE_SWORD || CAN_BE_GORON || CAN_BE_ZORA || CAN_USE_MAGIC_ARROW(FIRE) ||
                     HAS_ITEM(ITEM_HOOKSHOT));
         case ACTOR_EN_CROW: // Guay (Generic, excludes the one circling Clock Town En_Ruppecrow)
             return (CAN_USE_SWORD || CAN_BE_GORON || CAN_BE_ZORA || CAN_BE_DEKU || HAS_ITEM(ITEM_BOW) ||
-                    HAS_ITEM(ITEM_DEKU_STICK) || HAS_ITEM(ITEM_HOOKSHOT));
+                    CAN_FIGHT_WITH_DEKU_STICK || HAS_ITEM(ITEM_HOOKSHOT));
         case ACTOR_EN_FIREFLY: // Keese
             return (CAN_USE_SWORD || CAN_BE_GORON || CAN_BE_ZORA || CAN_BE_DEKU || HAS_ITEM(ITEM_BOW) ||
-                    HAS_ITEM(ITEM_DEKU_STICK) || HAS_ITEM(ITEM_HOOKSHOT));
+                    CAN_FIGHT_WITH_DEKU_STICK || HAS_ITEM(ITEM_HOOKSHOT));
         case ACTOR_EN_RR: // Like Like
             return (CAN_USE_SWORD || CAN_BE_GORON || CAN_BE_ZORA || (CAN_BE_DEKU && HAS_MAGIC) || HAS_ITEM(ITEM_BOW) ||
-                    HAS_ITEM(ITEM_DEKU_STICK));
+                    CAN_FIGHT_WITH_DEKU_STICK);
         case ACTOR_EN_DEKUNUTS: // Mad Scrub
             return (CAN_USE_SWORD || CAN_BE_GORON || CAN_BE_ZORA || CAN_BE_DEKU || HAS_ITEM(ITEM_BOW) ||
-                    HAS_ITEM(ITEM_DEKU_STICK) || HAS_ITEM(ITEM_HOOKSHOT));
+                    CAN_FIGHT_WITH_DEKU_STICK || HAS_ITEM(ITEM_HOOKSHOT));
         case ACTOR_EN_KAREBABA: // Wilted/Mini Babas
             return (CAN_USE_SWORD || CAN_BE_GORON || CAN_BE_ZORA || CAN_BE_DEKU);
         case ACTOR_EN_PEEHAT: // Peahat
-            return (CAN_USE_SWORD || CAN_BE_GORON || CAN_BE_ZORA || CAN_BE_DEKU || HAS_ITEM(ITEM_DEKU_STICK));
+            return (CAN_USE_SWORD || CAN_BE_GORON || CAN_BE_ZORA || CAN_BE_DEKU || CAN_FIGHT_WITH_DEKU_STICK);
         case ACTOR_EN_RD: // Redead & Gibdos
-            return (CAN_USE_SWORD || CAN_BE_DEKU || CAN_BE_GORON || CAN_BE_ZORA || HAS_ITEM(ITEM_DEKU_STICK));
+            return (CAN_USE_SWORD || CAN_BE_DEKU || CAN_BE_GORON || CAN_BE_ZORA || CAN_FIGHT_WITH_DEKU_STICK);
         case ACTOR_EN_BSB: // Captain Keeta (May be possible without bow, but the window is tight. Requiring for now)
             return (HAS_ITEM(ITEM_BOW) &&
-                    (CAN_USE_SWORD || HAS_ITEM(ITEM_DEKU_STICK) || CAN_USE_EXPLOSIVE || CAN_BE_GORON || CAN_BE_ZORA));
+                    (CAN_USE_SWORD || CAN_FIGHT_WITH_DEKU_STICK || CAN_USE_EXPLOSIVE || CAN_BE_GORON || CAN_BE_ZORA));
         case ACTOR_EN_SKB: // Stalchild
             return (CAN_USE_SWORD || CAN_BE_GORON || CAN_BE_ZORA || (CAN_BE_DEKU && HAS_MAGIC) || HAS_ITEM(ITEM_BOW) ||
-                    HAS_ITEM(ITEM_DEKU_STICK) || HAS_ITEM(ITEM_HOOKSHOT));
+                    CAN_FIGHT_WITH_DEKU_STICK || HAS_ITEM(ITEM_HOOKSHOT));
         case ACTOR_EN_TITE: // Tektite
             return (CAN_USE_SWORD || CAN_BE_GORON || CAN_BE_ZORA || (CAN_BE_DEKU && HAS_MAGIC) || HAS_ITEM(ITEM_BOW));
         case ACTOR_EN_SLIME: // Chuchus
-            return (CAN_USE_SWORD || CAN_BE_ZORA || CAN_BE_DEKU || HAS_ITEM(ITEM_BOW) || HAS_ITEM(ITEM_DEKU_STICK));
+            return (CAN_USE_SWORD || CAN_BE_ZORA || CAN_BE_DEKU || HAS_ITEM(ITEM_BOW) || CAN_FIGHT_WITH_DEKU_STICK);
         case ACTOR_EN_SNOWMAN: // Eeno
             return (CAN_USE_SWORD || CAN_BE_GORON || CAN_BE_ZORA || (CAN_BE_DEKU && HAS_MAGIC) || HAS_ITEM(ITEM_BOW) ||
-                    HAS_ITEM(ITEM_DEKU_STICK) || HAS_ITEM(ITEM_HOOKSHOT));
+                    CAN_FIGHT_WITH_DEKU_STICK || HAS_ITEM(ITEM_HOOKSHOT));
         case ACTOR_EN_WDHAND: // Dexihand (Basic kill method, seems like a pain to require other things)
             return (CAN_BE_ZORA && HAS_MAGIC);
         case ACTOR_EN_KAME: // Snapper (non Gekko Miniboss)
@@ -901,17 +918,17 @@ inline bool CanKillEnemy(ActorId EnemyId) {
             return (CAN_USE_SWORD || CAN_BE_GORON || CAN_BE_ZORA || HAS_ITEM(ITEM_HOOKSHOT));
         case ACTOR_EN_NEO_REEBA: // Leever
             return (CAN_USE_SWORD || CAN_BE_GORON || CAN_BE_ZORA || (CAN_BE_DEKU && HAS_MAGIC) || HAS_ITEM(ITEM_BOW) ||
-                    HAS_ITEM(ITEM_DEKU_STICK));
+                    CAN_FIGHT_WITH_DEKU_STICK);
         case ACTOR_EN_PP: // Hiploop
             return (CAN_USE_SWORD || CAN_BE_GORON || CAN_BE_ZORA || (CAN_BE_DEKU && HAS_MAGIC) || HAS_ITEM(ITEM_BOW) ||
-                    HAS_ITEM(ITEM_DEKU_STICK) || HAS_ITEM(ITEM_HOOKSHOT));
+                    CAN_FIGHT_WITH_DEKU_STICK || HAS_ITEM(ITEM_HOOKSHOT));
         case ACTOR_EN_PR:  // Desbreko
         case ACTOR_EN_PR2: // Skull fish
             return (CAN_BE_ZORA && HAS_MAGIC);
         case ACTOR_BOSS_05: // Bio Deku Baba
             return CAN_BE_ZORA && CAN_USE_ABILITY(SWIM);
         case ACTOR_EN_BEE: // Giant Bee
-            return (CAN_USE_SWORD || CAN_BE_GORON || CAN_BE_ZORA || CAN_BE_DEKU || HAS_ITEM(ITEM_DEKU_STICK) ||
+            return (CAN_USE_SWORD || CAN_BE_GORON || CAN_BE_ZORA || CAN_BE_DEKU || CAN_FIGHT_WITH_DEKU_STICK ||
                     CAN_USE_PROJECTILE || CAN_USE_EXPLOSIVE || HAS_ITEM(ITEM_DEKU_NUT));
         case ACTOR_EN_DRAGON: // Deep Python
             return (CAN_BE_ZORA && HAS_MAGIC);
@@ -954,7 +971,7 @@ inline bool CanKillEnemy(ActorId EnemyId) {
             // from the boss-soul pool in that mode. Mirroring the arm condition is what makes this row mean
             // "Majora can be killed in THIS world's settings" rather than "in vanilla".
             return (CAN_USE_SWORD || CAN_BE_GORON || CAN_BE_ZORA || (CAN_BE_DEKU && HAS_MAGIC) ||
-                    CAN_USE_EXPLOSIVE || HAS_ITEM(ITEM_DEKU_STICK)) &&
+                    CAN_USE_EXPLOSIVE || CAN_FIGHT_WITH_DEKU_STICK) &&
                    (Flags_GetRandoInf(RANDO_INF_OBTAINED_SOUL_OF_BOSS_MAJORA) ||
                     (RANDO_SAVE_OPTIONS[RO_SHUFFLE_BOSS_SOULS] != RO_GENERIC_YES &&
                      RANDO_SAVE_OPTIONS[RO_SHUFFLE_TRIFORCE_PIECES] != RO_GENERIC_YES));
