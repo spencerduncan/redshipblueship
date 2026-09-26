@@ -458,6 +458,18 @@ static int ComboLogicCollectCandidates(uint8_t game) {
     return ComboLogicCollectFrom(game, true);
 }
 
+int Combo_Logic_TestLastCandidates(GameId hostGame, uint16_t* out, int cap) {
+    const uint8_t g = (uint8_t)hostGame;
+    if (g >= RSBS_FOREIGN_POOL_ORIGIN_COUNT) {
+        return -1;
+    }
+    const ComboLogicHostBuf* buf = &sCandidates[g];
+    for (int i = 0; out != NULL && i < buf->count && i < cap; ++i) {
+        out[i] = buf->host[i];
+    }
+    return buf->count;
+}
+
 int Combo_Logic_LeftoverHosts(GameId hostGame, uint16_t* out, int cap) {
     const uint8_t g = (uint8_t)hostGame;
     const ComboLogicEngine* e = ComboLogicEngineFor(g);

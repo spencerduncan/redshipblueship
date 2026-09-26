@@ -26,11 +26,19 @@
  *      the row measures the operator with every trick on as well as with every
  *      trick off. `OoT_ComboMono_ForceAllTricks` saves and restores the exact
  *      prior values.
- *   3. PLANT ONE NEGATED EDGE, for the row's red half. Nothing here edits a
- *      region file: the negation is installed at runtime on ONE `Entrance` of the
- *      live `areaTable` and the whole `Entrance` object is copy-restored after.
- *      No negation is left in either graph's source (the static probe would
- *      refuse one).
+ *   3. PLANT ONE BAD EDGE, for the row's red halves. Nothing here edits a
+ *      region file: the condition is installed at runtime on ONE `Entrance` of
+ *      the live `areaTable` and the whole `Entrance` object is copy-restored
+ *      after. No such condition is left in either graph's source (the static
+ *      probe would refuse one). Three shapes, one per lock (`ComboMonoEdge`):
+ *        - NOT_HELD     "passable only while the player does NOT hold X": G1's
+ *                       and G4's red half (a shrink);
+ *        - ORDER_LATCH  "passable once Y was held while X was not, and from
+ *                       then on": G2's red half. It never shrinks along a walk,
+ *                       so G1 cannot see it, but the closure depends on the
+ *                       ORDER of the grants (and differs from the one-shot);
+ *        - TRICK_OFF    "passable only while trick K is OFF": G3's red half
+ *                       (turning tricks on loses reachability).
  *   4. SAY WHICH ITEMS THE NEGATION CAN KEY ON (an item whose effect sets a
  *      `LogicVal`, which the planted condition reads back).
  *
@@ -61,6 +69,13 @@ namespace {
 
 /** The logic value the planted condition negates. LOGIC_NONE while disarmed. */
 LogicVal sNegLogicVal = LOGIC_NONE;
+/** ORDER_LATCH only: the logic value that must be held BEFORE sNegLogicVal. */
+LogicVal sLatchLogicVal = LOGIC_NONE;
+/** ORDER_LATCH only: set the first time the condition sees Y held and X not.
+ *  Cleared by every arm, so each armed walk starts unlatched. */
+bool sLatched = false;
+/** TRICK_OFF only: the trick whose OFF state the planted edge requires. */
+RandomizerTrick sTrickKey = RT_MAX;
 
 /**
  * THE ONE NEGATED EDGE: "passable only while the player does NOT hold X". This
@@ -71,6 +86,21 @@ LogicVal sNegLogicVal = LOGIC_NONE;
  */
 bool OoTComboMonoNegatedCondition() {
     return !logic->Get(sNegLogicVal);
+}
+
+/** ORDER_LATCH: a HISTORY-dependent condition — the shape of an engine that
+ *  carries state across grants instead of re-deriving the closure. Test-only. */
+bool OoTComboMonoOrderLatchCondition() {
+    if (!sLatched && logic->Get(sLatchLogicVal) && !logic->Get(sNegLogicVal)) {
+        sLatched = true;
+    }
+    return sLatched;
+}
+
+/** TRICK_OFF: a trick read NEGATIVELY in a reachability condition, which ADR
+ *  0010 §3.2 forbids (tricks must be a monotone parameter). Test-only. */
+bool OoTComboMonoTrickOffCondition() {
+    return Rando::Context::GetInstance()->GetTrickOption(sTrickKey).Get() != (uint8_t)RO_GENERIC_ON;
 }
 
 struct ArmedEdge {
@@ -187,10 +217,43 @@ extern "C" int OoT_ComboMono_NegatableItem(uint16_t itemId) {
  * @return T (a RandomizerRegion), or -1 not ready / already armed / `negItem`
  *         not negatable, -2 no candidate region. `outParent` receives T's parent.
  */
+extern "C" int OoT_ComboMono_ArmEdge(int mode, const uint16_t* startRegions, int count, uint16_t negItem,
+                                     uint16_t latchItem, uint16_t* outParent);
+
 extern "C" int OoT_ComboMono_ArmRegionNegation(const uint16_t* startRegions, int count, uint16_t negItem,
                                                uint16_t* outParent) {
-    if (!OoTComboMonoReady() || sArmed.live || OoT_ComboMono_NegatableItem(negItem) != 1) {
+    return OoT_ComboMono_ArmEdge(0, startRegions, count, negItem, 0, outParent);
+}
+
+/**
+ * Plant ONE bad edge of shape `mode` (0 NOT_HELD on `negItem`; 1 ORDER_LATCH:
+ * "`latchItem` held while `negItem` is not, latched"; 2 TRICK_OFF on the first
+ * trick that is not on now) on the same deterministic target the NOT_HELD arm
+ * picks. Returns T, or -1 not ready / already armed / an item not negatable /
+ * no trick off, -2 no candidate region.
+ */
+extern "C" int OoT_ComboMono_ArmEdge(int mode, const uint16_t* startRegions, int count, uint16_t negItem,
+                                     uint16_t latchItem, uint16_t* outParent) {
+    if (!OoTComboMonoReady() || sArmed.live || mode < 0 || mode > 2) {
         return -1;
+    }
+    if (mode != 2 && OoT_ComboMono_NegatableItem(negItem) != 1) {
+        return -1;
+    }
+    if (mode == 1 && (OoT_ComboMono_NegatableItem(latchItem) != 1 || latchItem == negItem)) {
+        return -1;
+    }
+    RandomizerTrick trick = RT_MAX;
+    if (mode == 2) {
+        auto ctx = Rando::Context::GetInstance();
+        for (int rt = 0; rt < (int)RT_MAX && trick == RT_MAX; ++rt) {
+            if (ctx->GetTrickOption((RandomizerTrick)rt).Get() != (uint8_t)RO_GENERIC_ON) {
+                trick = (RandomizerTrick)rt;
+            }
+        }
+        if (trick == RT_MAX) {
+            return -1;
+        }
     }
     std::set<int> start;
     for (int i = 0; i < count; ++i) {
@@ -238,15 +301,30 @@ extern "C" int OoT_ComboMono_ArmRegionNegation(const uint16_t* startRegions, int
     sArmed.entrance = edge;
     sArmed.parent = edge->GetParentRegionKey();
     sArmed.target = (RandomizerRegion)chosen;
-    sNegLogicVal = Rando::StaticData::RetrieveItem((RandomizerGet)negItem).GetLogicVal();
-    edge->SetCondition(OoTComboMonoNegatedCondition);
+    sLatched = false;
+    if (mode == 0) {
+        sNegLogicVal = Rando::StaticData::RetrieveItem((RandomizerGet)negItem).GetLogicVal();
+        edge->SetCondition(OoTComboMonoNegatedCondition);
+        printf("[OoT/ComboMono] planted ONE negated edge: region %d -> %d now requires NOT holding item %u (logic "
+               "value %d)\n",
+               (int)sArmed.parent, chosen, (unsigned)negItem, (int)sNegLogicVal);
+    } else if (mode == 1) {
+        sNegLogicVal = Rando::StaticData::RetrieveItem((RandomizerGet)negItem).GetLogicVal();
+        sLatchLogicVal = Rando::StaticData::RetrieveItem((RandomizerGet)latchItem).GetLogicVal();
+        edge->SetCondition(OoTComboMonoOrderLatchCondition);
+        printf("[OoT/ComboMono] planted ONE order-latched edge: region %d -> %d opens once item %u is held while "
+               "item %u is not, and stays open\n",
+               (int)sArmed.parent, chosen, (unsigned)latchItem, (unsigned)negItem);
+    } else {
+        sTrickKey = trick;
+        edge->SetCondition(OoTComboMonoTrickOffCondition);
+        printf("[OoT/ComboMono] planted ONE trick-negated edge: region %d -> %d now requires trick %d OFF\n",
+               (int)sArmed.parent, chosen, (int)trick);
+    }
     sArmed.live = true;
     if (outParent != nullptr) {
         *outParent = (uint16_t)sArmed.parent;
     }
-    printf("[OoT/ComboMono] planted ONE negated edge: region %d -> %d now requires NOT holding item %u (logic "
-           "value %d)\n",
-           (int)sArmed.parent, chosen, (unsigned)negItem, (int)sNegLogicVal);
     return chosen;
 }
 
@@ -259,6 +337,9 @@ extern "C" int OoT_ComboMono_Disarm(void) {
     *sArmed.entrance = sArmed.saved[0];
     sArmed = ArmedEdge();
     sNegLogicVal = LOGIC_NONE;
+    sLatchLogicVal = LOGIC_NONE;
+    sLatched = false;
+    sTrickKey = RT_MAX;
     return 1;
 }
 

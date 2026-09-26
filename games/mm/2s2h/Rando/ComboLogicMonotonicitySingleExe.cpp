@@ -16,10 +16,11 @@
  *      the tricks-on run sets those bits in the live save before the round and
  *      puts back exactly the prior bytes after. Reserved keys stay inert however
  *      they are set (`MM_TRICK` forces them off), which mm-trick-table locks.
- *   2. PLANT ONE NEGATED EDGE for the red half. At runtime, on ONE connection or
+ *   2. PLANT ONE BAD EDGE for the red halves. At runtime, on ONE connection or
  *      exit of the live `Rando::Logic::Regions` map, restored from a saved copy of
- *      the `std::function` after. No region file is edited and no negation is left
- *      in either graph's source.
+ *      the `std::function` after. No region file is edited and no such condition
+ *      is left in either graph's source. The three shapes are the OoT twin's:
+ *      NOT_HELD (G1/G4), ORDER_LATCH (G2), TRICK_OFF (G3).
  *   3. SAY WHICH ITEMS THE NEGATION CAN KEY ON (a mask the starting save does not
  *      already hold, so `HAS_ITEM` flips on the grant).
  *
@@ -39,6 +40,7 @@
 #include "Rando/Types.h"
 #include "Rando/StaticData/StaticData.h"
 #include "Rando/Logic/Logic.h"
+#include "Rando/StaticData/Tricks.h"
 
 extern "C" {
 #include "variables.h"
@@ -59,6 +61,12 @@ bool sTricksForced = false;
 
 /** The inventory item the planted condition negates. */
 ItemId sNegItem = ITEM_NONE;
+/** ORDER_LATCH only: the mask that must be held BEFORE sNegItem. */
+ItemId sLatchItem = ITEM_NONE;
+/** ORDER_LATCH only: cleared by every arm. */
+bool sLatched = false;
+/** TRICK_OFF only: the trick key whose OFF state the planted edge requires. */
+int sTrickKey = -1;
 
 struct ArmedMmEdge {
     bool live = false;
@@ -133,10 +141,50 @@ extern "C" int MM_ComboMono_NegatableItem(uint16_t riId) {
  *
  * @return T, or -1 already armed / `negRi` not negatable, -2 no candidate.
  */
+extern "C" int MM_ComboMono_ArmEdge(int mode, const uint16_t* startRegions, int count, uint16_t negRi, uint16_t latchRi,
+                                    uint16_t* outSource);
+
 extern "C" int MM_ComboMono_ArmRegionNegation(const uint16_t* startRegions, int count, uint16_t negRi,
                                               uint16_t* outSource) {
-    if (sArmed.live || MM_ComboMono_NegatableItem(negRi) != 1) {
+    return MM_ComboMono_ArmEdge(0, startRegions, count, negRi, 0, outSource);
+}
+
+/**
+ * Plant ONE bad edge of shape `mode` (0 NOT_HELD on `negRi`'s mask; 1
+ * ORDER_LATCH: "`latchRi`'s mask held while `negRi`'s is not, latched"; 2
+ * TRICK_OFF on the first key that is off now and that a forced bit would turn
+ * on — a reserved key stays off whatever its bit says, so it cannot be the one)
+ * on the same deterministic target the NOT_HELD arm picks.
+ */
+extern "C" int MM_ComboMono_ArmEdge(int mode, const uint16_t* startRegions, int count, uint16_t negRi, uint16_t latchRi,
+                                    uint16_t* outSource) {
+    if (sArmed.live || mode < 0 || mode > 2) {
         return -1;
+    }
+    if (mode != 2 && MM_ComboMono_NegatableItem(negRi) != 1) {
+        return -1;
+    }
+    if (mode == 1 && (MM_ComboMono_NegatableItem(latchRi) != 1 || latchRi == negRi)) {
+        return -1;
+    }
+    int trick = -1;
+    if (mode == 2) {
+        u8* tricks = gSaveContext.save.shipSaveInfo.rando.randoSaveTricks;
+        for (int k = 0; k < (int)MMRT_MAX && trick < 0; ++k) {
+            if (Rando::StaticData::IsTrickEnabled((MMRandoTrickId)k)) {
+                continue;
+            }
+            const u8 prior = tricks[k];
+            tricks[k] = 1;
+            const bool wouldTurnOn = Rando::StaticData::IsTrickEnabled((MMRandoTrickId)k);
+            tricks[k] = prior;
+            if (wouldTurnOn) {
+                trick = k;
+            }
+        }
+        if (trick < 0) {
+            return -1;
+        }
     }
     std::set<int> start;
     for (int i = 0; i < count; ++i) {
@@ -189,10 +237,29 @@ extern "C" int MM_ComboMono_ArmRegionNegation(const uint16_t* startRegions, int 
         return -2;
     }
     const Edge e = soleEdge[chosen];
-    sNegItem = Rando::StaticData::Items.at((RandoItemId)negRi).itemId;
-    // THE ONE NEGATED EDGE: "passable only while the player does NOT hold the
-    // mask" — the shape ADR 0010 §2.3 bans, installed at runtime, test-only.
-    std::function<bool()> negated = [] { return !HAS_ITEM(sNegItem); };
+    sLatched = false;
+    std::function<bool()> negated;
+    if (mode == 0) {
+        sNegItem = Rando::StaticData::Items.at((RandoItemId)negRi).itemId;
+        // THE ONE NEGATED EDGE: "passable only while the player does NOT hold the
+        // mask" — the shape ADR 0010 §2.3 bans, installed at runtime, test-only.
+        negated = [] { return !HAS_ITEM(sNegItem); };
+    } else if (mode == 1) {
+        sNegItem = Rando::StaticData::Items.at((RandoItemId)negRi).itemId;
+        sLatchItem = Rando::StaticData::Items.at((RandoItemId)latchRi).itemId;
+        // A HISTORY-dependent condition: never shrinks along a walk, but the
+        // closure depends on the grant order. G2's red half, test-only.
+        negated = [] {
+            if (!sLatched && HAS_ITEM(sLatchItem) && !HAS_ITEM(sNegItem)) {
+                sLatched = true;
+            }
+            return sLatched;
+        };
+    } else {
+        sTrickKey = trick;
+        // A trick read NEGATIVELY (ADR 0010 §3.2 forbids it). G3's red half.
+        negated = [] { return !MM_TRICK((MMRandoTrickId)sTrickKey); };
+    }
     Rando::Logic::RandoRegion& source = Rando::Logic::Regions[e.source];
     if (e.isExit) {
         sArmed.saved = source.exits[e.exitKey].condition;
@@ -210,8 +277,17 @@ extern "C" int MM_ComboMono_ArmRegionNegation(const uint16_t* startRegions, int 
     if (outSource != nullptr) {
         *outSource = (uint16_t)e.source;
     }
-    printf("[MM ComboMono] planted ONE negated %s: region %d -> %d now requires NOT holding item 0x%02X (RI %u)\n",
-           e.isExit ? "exit" : "connection", (int)e.source, chosen, (unsigned)sNegItem, (unsigned)negRi);
+    if (mode == 0) {
+        printf("[MM ComboMono] planted ONE negated %s: region %d -> %d now requires NOT holding item 0x%02X (RI %u)\n",
+               e.isExit ? "exit" : "connection", (int)e.source, chosen, (unsigned)sNegItem, (unsigned)negRi);
+    } else if (mode == 1) {
+        printf("[MM ComboMono] planted ONE order-latched %s: region %d -> %d opens once RI %u is held while RI %u is "
+               "not, and stays open\n",
+               e.isExit ? "exit" : "connection", (int)e.source, chosen, (unsigned)latchRi, (unsigned)negRi);
+    } else {
+        printf("[MM ComboMono] planted ONE trick-negated %s: region %d -> %d now requires trick key %d OFF\n",
+               e.isExit ? "exit" : "connection", (int)e.source, chosen, sTrickKey);
+    }
     return chosen;
 }
 
@@ -229,6 +305,9 @@ extern "C" int MM_ComboMono_Disarm(void) {
     }
     sArmed = ArmedMmEdge();
     sNegItem = ITEM_NONE;
+    sLatchItem = ITEM_NONE;
+    sLatched = false;
+    sTrickKey = -1;
     return 1;
 }
 
