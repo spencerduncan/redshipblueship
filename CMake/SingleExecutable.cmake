@@ -1500,24 +1500,24 @@ if(BUILD_TESTING)
     # tell the next author how many places a new field must reach.)
     #
     # WHERE THESE ROWS ARE ACTUALLY ENFORCED: on BOTH CI legs and in the operator's
-    # local ROM-staged run, and `LABEL rando` is only half of how. Linux runs them
-    # inside the `rando` tier under xvfb-run. The Windows job runs `^redship$` and
-    # would therefore skip them entirely, so it carries a separate
-    # `--tests-regex '^Golden'` step — measured to work on windows-latest, against
-    # the expectation that a hosted runner could not bring up the Fast3dWindow these
-    # rows need. The two archive-sensitive rows used to SKIP in a ROM-staged local
+    # local ROM-staged run, all three by `LABEL rando`. Linux runs the `rando` tier
+    # under xvfb-run; Windows runs the same label directly (#709 — measured 28/28 on
+    # windows-latest, against the old expectation that a hosted runner could not
+    # bring up the Fast3dWindow these rows need; before #709 the Windows job
+    # selected only these three rows, by `--tests-regex '^Golden'`). The two
+    # archive-sensitive rows used to SKIP in a ROM-staged local
     # tree, leaving the merge gate with no golden coverage at all; they now run their
     # dispatch from an archive-free sandbox instead (CheckGoldenDigest.cmake), so the
     # local gate enforces them too — and a sandbox that cannot be built FAILS the row
     # rather than skipping it, so no path is left on which one of these rows reports
     # nothing.
     #
-    # If you add a golden row it lands in the Linux tier automatically, and on
-    # Windows only because its name starts with `Golden`. That prefix is no longer a
-    # request: the loop below FATAL_ERRORs at configure time on a row named anything
-    # else, because a row that quietly runs on one leg only is the gap this whole
-    # block exists to close, and three prose sites asking for the prefix did not
-    # stop it. Full picture: the header of CMake/CheckGoldenDigest.cmake and
+    # If you add a golden row here it gets `LABEL rando` from the loop below and so
+    # runs on both CI legs and locally; nothing else selects it. (Until #709 the
+    # Windows leg selected golden rows by name, and this loop FATAL_ERRORed on a row
+    # not named `Golden...` to keep that selection honest; with the leg running the
+    # label, the name carries no enforcement and the check was retired with it.)
+    # Full picture: the header of CMake/CheckGoldenDigest.cmake and
     # docs/determinism-goldens.md.
     #
     # THE ARCHIVE SET IS PART OF THE PIN, and field 4 says which goldens depend on
@@ -1562,21 +1562,6 @@ if(BUILD_TESTING)
     foreach(_golden_spec IN LISTS REDSHIP_GOLDEN_DIGESTS)
         string(REPLACE "|" ";" _golden_fields "${_golden_spec}")
         list(GET _golden_fields 0 _golden_row)
-        # The Windows leg selects these rows by `--tests-regex '^Golden'` while the
-        # `LABEL rando` below gets them onto Linux unconditionally, so a row named
-        # anything else is enforced on one leg and silently absent from the other —
-        # exactly the state this machinery was built to leave behind, and exactly
-        # what happened for a full PR. Asserted here rather than asked for in prose,
-        # in the same spirit as redship_add_test's hard failure on an unparsed
-        # keyword: if you rename this pattern, rename it in
-        # .github/workflows/generate-builds.yml first.
-        if(NOT _golden_row MATCHES "^Golden")
-            message(FATAL_ERROR
-                "REDSHIP_GOLDEN_DIGESTS: the CTest row name must start with `Golden`, and '${_golden_row}' does not. "
-                "The Windows CI job runs these rows by name (--tests-regex '^Golden' in "
-                ".github/workflows/generate-builds.yml); a differently named row would be enforced on the Linux leg "
-                "only, with nothing anywhere saying so. Rename the row, or change BOTH the regex and this check.")
-        endif()
         list(GET _golden_fields 1 _golden_name)
         list(GET _golden_fields 2 _golden_dispatch)
         list(GET _golden_fields 3 _golden_env_var)
@@ -1820,6 +1805,14 @@ records as a meta row. A plain --test row would only regenerate the same world w
 give dereferences a NULL MM_gPlayState/gRegEditor names itself on stderr. Its intended outcome on a bad id is a \
 process abort, which is how the RI_TINGLE_MAP_* set and the gRegEditor stand-in were derived (#645). Run by hand: \
 redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past a known fault.")
+
+    # The single-owner item classification table (ADR 0010 answer O8; #645 lane K5).
+    # Default `redship` tier: it needs no generation, because what it locks is a
+    # property of the two item TABLES — OoT's itemTable, which a bridge brings up
+    # display- and ROM-free, and MM's static Rando::StaticData::Items — and of the
+    # two registered sources that classify them. Anti-vacuity is asserted in the row
+    # (at least 200 fill items per game and every class present in each).
+    redship_add_test(NAME SharedItemClass COMMAND redship --test shared-item-class)
 
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)
