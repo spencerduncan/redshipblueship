@@ -105,6 +105,10 @@ set(REDSHIP_COMMON_SOURCES
     # this half is game-header-free C so a headless row can drive it. APPENDED,
     # never reordered.
     ${CMAKE_SOURCE_DIR}/src/common/gen_progress_overlay.c
+    # The UI snapshot harness's pixel half: RGBA buffer, libpng writer, stb
+    # decoder, FNV-1a 64 and the composites. Game-header-free C; the capture half
+    # is games/oot/soh/soh_ui_snapshot.cpp. APPENDED, never reordered.
+    ${CMAKE_SOURCE_DIR}/src/common/ui_snapshot_image.c
 )
 
 # Windows-specific: import thunks for libultraship compatibility
@@ -209,6 +213,12 @@ target_include_directories(redship_common PRIVATE
 target_link_libraries(redship_common PUBLIC
     libultraship
 )
+
+# ui_snapshot_image.c writes PNGs through libpng (already REQUIRED by the
+# top-level CMakeLists and linked through ZAPDLib, and listed in
+# THIRD_PARTY_NOTICES.md) and decodes them through libultraship's `stb` target
+# (stb_image). PRIVATE: nothing else in redship_common needs either.
+target_link_libraries(redship_common PRIVATE PNG::PNG stb)
 
 # Define COMBO_BUILDING_DLL so SharedGraphics exports symbols with __declspec(dllexport)
 target_compile_definitions(redship_common PRIVATE COMBO_BUILDING_DLL)
@@ -1855,6 +1865,26 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # The UI snapshot harness (docs/ui-style-guide.md, section 12). UiSnapshotImage is
+    # its display-free pixel half and runs in the default tier. UiSnapshot renders
+    # SoH's own menu pages and every page this project added into
+    # <build>/ui-snapshots/ and asserts STRUCTURE only -- never pixels against a
+    # stored image, never generation. It has its OWN label, `ui`, not `rando`, so
+    # CI runs it in a dedicated step with an explicit 24-bit xvfb screen and the
+    # golden rows' environment is untouched. It needs soh.o2r (the menu fonts);
+    # without oot.o2r only the ROM-free pages draw and the rest are recorded as
+    # skipped. NOT RSBS_DISABLE_OTR_INIT, unlike the rando rows: that flag also
+    # skips OTRMessage_Init, and Settings > General's Language row builds its combo
+    # map from the loaded message tables, so with it the reference page throws
+    # (std::map::at on an empty map) -- measured. soh.o2r being required is also
+    # what keeps OTRAudio_Init's synchronous audio load from hanging. The runtime
+    # lint compares against a checked-in baseline that may only shrink.
+    redship_add_test(NAME UiSnapshotImage COMMAND redship --test ui-snapshot-image)
+    redship_add_test(NAME UiSnapshot COMMAND redship --test ui-snapshot
+        LABEL ui
+        TIMEOUT 180
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy"
+                    "RSBS_UI_LINT_BASELINE=${CMAKE_SOURCE_DIR}/.github/scripts/ui-runtime-lint-baseline.txt")
 
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)

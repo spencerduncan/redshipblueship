@@ -98,3 +98,18 @@ jobs:
           else
             echo "No issues found!" >> "$GITHUB_STEP_SUMMARY"
           fi
+
+  ui-parity-lint:
+    # The static half of docs/ui-style-guide.md's lint: this project's ImGui
+    # surfaces against the SoH menu conventions (raw widgets, literal colours,
+    # TextDisabled for meaning, issue numbers in player text, window-button shape,
+    # ...). Fails on any hit not in .github/scripts/ui-lint-baseline.txt and on
+    # any baseline entry that is no longer hit -- the baseline may only shrink.
+    # Build-free; the runtime half runs inside the UiSnapshot ctest row.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Self-test the UI parity lint
+        run: python3 .github/scripts/check-ui-parity-lint.py --self-test
+      - name: Check this project's UI against the SoH conventions
+        run: python3 .github/scripts/check-ui-parity-lint.py
