@@ -1797,6 +1797,20 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # two registered sources that classify them. Anti-vacuity is asserted in the row
     # (at least 200 fill items per game and every class present in each).
     redship_add_test(NAME SharedItemClass COMMAND redship --test shared-item-class)
+    # The multiplicity ruling (2026-09-26; combo_logic.h ABI 3, #645). The bag
+    # model over stub engines is ROM-free and display-free, so it is `redship`
+    # tier: the coordinator's one-call-per-copy shape, and the surplus / filler /
+    # exact-fit shapes of the bag, with the drop rule's determinism.
+    redship_add_test(NAME ComboLogicBagModel COMMAND redship --test combo-logic-bag-model)
+    # The same ruling over BOTH REAL engines: OoT's progressive top-tier and
+    # counter clamps (and the wraps they prevent, observed with the clamp off),
+    # order independence with its red half, and MM's counter maxima and per-host
+    # harvest. One OoT generation and a handful of rounds, so the real-generation
+    # rows' 300 s.
+    redship_add_test(NAME ComboLogicMultiplicity COMMAND redship --test combo-logic-multiplicity
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)

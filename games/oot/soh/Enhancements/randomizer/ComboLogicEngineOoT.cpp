@@ -33,10 +33,11 @@
  *                     `ctx->LocationReset()`, so the reached set is defined
  *                     (empty) even before the first `expand`.
  *   assumeOwnItem     `Item::ApplyEffect()` on the item the `RG_*` names, into
- *                     the detached save. DE-DUPLICATED per round — see the
- *                     block at OoT_ComboLogic_AssumeOwnItem, which is the one
- *                     place this implementation could not take the contract
- *                     literally without corrupting the inventory.
+ *                     the detached save, ONCE PER CALL: one call is one copy
+ *                     (ABI 3). Progressive rows stop at their top tier and
+ *                     counter rows at their derived maximum, through the
+ *                     round-scoped clamp in logic.cpp — see the block at
+ *                     OoT_ComboLogic_AssumeOwnItem.
  *   expand            one `ReachabilitySearch(ctx->allLocations)`. Returns
  *                     whether the closure GREW since this round's previous
  *                     expand, measured on (#reached checks, #reached regions).
@@ -140,6 +141,16 @@ extern "C" {
 #include "variables.h"
 }
 
+namespace Rando {
+// logic.cpp, RSBS_SINGLE_EXECUTABLE only: the round-scoped clamp on the
+// progressive AND counter rows of Logic::ApplyItemEffect, and the two rules it
+// clamps to. Set by beginQuery, cleared by endQuery — see the block at
+// OoT_ComboLogic_AssumeOwnItem.
+extern bool gComboLogicRoundClamp;
+uint32_t ComboLogicProgressiveTopTier(uint32_t upgrade);
+int ComboLogicCounterMax(uint32_t rg);
+} // namespace Rando
+
 namespace {
 
 // ============================================================================
@@ -182,10 +193,11 @@ bool sInQuery = false;
  *  is the prior pointer restorable — see hazard (3) in the file header. */
 bool sPriorWasLiveSave = false;
 
-/** Items granted THIS round: a membership bitset (the de-dup) and the ORDER they
- *  arrived in (what `expand` re-applies). See the de-dup block and the
- *  re-derivation block in `expand`. */
-std::vector<bool> sGranted;
+/** The copies granted THIS round, one entry per `assumeOwnItem` call, in the
+ *  order they arrived — what `expand` re-applies. APPEND-ONLY within a round:
+ *  only `beginQuery` clears it, so no copy can leave a round once granted, which
+ *  is this engine's half of the contract's "nothing ever removes a copy within a
+ *  round" (combo_logic.h, `assumeOwnItem`). */
 std::vector<uint16_t> sGrantedOrder;
 
 /** Closure size at this round's previous `expand`, for the `changed` answer. */
@@ -196,6 +208,11 @@ int sPrevReachedRegions = -1;
 int sLastExpandReachedChecks = 0;
 int sLastExpandReachedRegions = 0;
 int sBeginQueryCount = 0;
+/** TEST ONLY (combo-logic-multiplicity's order leg): when set, `beginQuery` opens
+ *  the round WITHOUT the round clamp, so the lock can observe what the order
+ *  check reads on upstream's arithmetic — its red half. Never set outside that
+ *  leg, which puts it back. */
+bool sTestSuppressRoundClamp = false;
 int sEndQueryCount = 0;
 
 // ============================================================================
@@ -372,7 +389,7 @@ int OoTComboLogicReachedRegionCount() {
  * FRESH context and never touches this function-local static. So the scratch was
  * allocated once and then accumulated every `place`'s effects for the life of the
  * process — including the unclamped `SetUpgrade(x, CurrentUpgrade + 1)` rows,
- * which is the same non-idempotence the de-dup in `assumeOwnItem` exists for. It
+ * the walk the round-scoped clamp exists for (outside a round it is off). It
  * is not memory-unsafe (`SetUpgrade` writes a masked bitfield in-bounds) and
  * nothing reads the scratch back, but "accumulates unbounded garbage" is not a
  * thing to leave in a file whose comments are the specification. So the scratch is
@@ -508,37 +525,75 @@ int OoT_ComboLogic_BeginQuery(void* self) {
     Regions::AccessReset();
     ctx->LocationReset();
 
-    sGranted.assign((size_t)RG_MAX, false);
     sGrantedOrder.clear();
     sPrevReachedChecks = -1;
     sPrevReachedRegions = -1;
     sInQuery = true;
+    // THE ROUND CLAMP, for exactly the life of the round: every grant from here
+    // to `endQuery` — the assumed copies, `expand`'s re-application of them, the
+    // starting inventory `ReachabilitySearch` applies and the placed copies it
+    // harvests — stops at the item's top tier or the counter's maximum instead of
+    // walking the next field or wrapping the counter's storage.
+    Rando::gComboLogicRoundClamp = !sTestSuppressRoundClamp;
     ++sBeginQueryCount;
     return 1;
 }
 
 /**
- * Grant one OoT item into the detached simulated inventory.
+ * Grant ONE COPY of an OoT item into the detached simulated inventory.
  *
- * DE-DUPLICATION IS LOAD-BEARING, AND IT IS THE ONE PLACE THIS ENGINE COULD NOT
- * TAKE THE K1 CONTRACT LITERALLY. combo_logic.h says this call "MAY BE CALLED
- * REPEATEDLY, with the same id, within one round ... Repeats must be harmless."
- * `Logic::ApplyItemEffect` does not have that property for OoT's progressives:
- * `RG_PROGRESSIVE_STRENGTH` does `SetUpgrade(UPG_STRENGTH, CurrentUpgrade + 1)`
- * with NO upper clamp (`logic.cpp:1799-1809`; the bomb bag, quiver, wallet and
- * scale rows are the same shape), and `SetUpgrade` writes a masked bitfield — so
- * the fourth grant of a three-tier upgrade walks into the NEXT upgrade's bits.
- * That is not merely "not harmless", it can LOWER another capacity, which is the
- * monotonicity violation the whole assumed fill rests on not happening.
+ * ONE CALL IS ONE COPY (combo_logic.h ABI 3). The ABI-2 version of this function
+ * DE-DUPLICATED by id, because the contract then said repeats "must be harmless"
+ * and the give path is not: `RG_PROGRESSIVE_*` rows do
+ * `SetUpgrade(x, CurrentUpgrade(x) + 1)` with no upper clamp and `SetUpgrade`
+ * ORs the level into a masked field without masking the level, so a copy past
+ * the top tier walks into the NEXT field. Measured by the
+ * `combo-logic-multiplicity` row with the clamp off, which is upstream's own
+ * arithmetic: the wallet's two-bit field reads 1, 2, 3 and then 0 on the fourth
+ * upgrade, with the carry landing in the bullet bag's bits — a LOWERED capacity.
+ * The de-dup avoided that and paid for it with a round in which the player held
+ * one of each id, which is why no real world could be proved (#645, 2026-09-22).
  *
- * So a repeat of an id already granted this round is dropped. The cost, stated
- * plainly rather than left for someone to discover: a bag holding TWO copies of
- * the same progressive id grants ONE tier per round, not two. That is
- * CONSERVATIVE — the round proves reachability under strictly less inventory
- * than the assumption nominally allows, so nothing it proves reachable is
- * actually unreachable — and it is the only reading available, because the
- * surface passes no multiplicity. A multiplicity-aware assume needs a count on
- * the call; that is a contract change for a later increment, recorded in the PR.
+ * THE FIX IS A CLAMP, NOT A DE-DUP. `beginQuery` sets
+ * `Rando::gComboLogicRoundClamp` and `endQuery` clears it; while it is
+ * set, logic.cpp's progressive rows stop a GRANT at the item's own top tier —
+ * the tier `Item::GetGIEntry` itself resolves the last copy to (strength, bomb
+ * bag, quiver, bullet bag, sticks, nuts: 3; scale: 2; wallet: 3 with the tycoon
+ * wallet in the seed, else 2; magic: 2). So every copy counts, and a surplus copy
+ * is inert at the top. Scoped to the round on purpose: OoT's own fill, spoiler
+ * and gameplay keep upstream's arithmetic byte for byte, and no world moves.
+ *
+ * WHY THE CLAMP HAS TO LIVE IN logic.cpp AND NOT HERE. Copies reach
+ * `ApplyItemEffect` by three paths and this function is only one of them:
+ * `expand` re-applies `sGrantedOrder`, `ReachabilitySearch`'s `ResetLogic`
+ * applies the settings' starting inventory, and the search HARVESTS every
+ * placed copy it reaches (`ApplyOrStoreItem` -> `ApplyPlacedItemEffect`). A
+ * guard here would see the first and miss the other two — and the harvest is
+ * exactly where a plentiful surplus lands.
+ *
+ * COUNTERS ARE CLAMPED TOO, by the same flag. An earlier version of this
+ * comment said OoT's counters "need nothing" because no bag could hold enough
+ * copies to overflow one; review (PR #728) showed that bound is false:
+ * `Combo_Logic_RunRound` takes an assumed set of any size (combo-logic-measure's
+ * M2b assumes 2489 rows in one round), and the storage is narrow — `dungeonKeys`
+ * is an `s8` read back through a `-1` "never had keys" sentinel, so the 255th key
+ * copy reads as ZERO keys; `GetGSCount` narrows tokens to `uint8_t`; beans and
+ * triforce pieces are 8-bit. So logic.cpp's small-key, token, triforce-piece,
+ * heart and bean rows stop a GRANT at `Rando::ComboLogicCounterMax` — derived
+ * from OoT's own static location table (keys, tokens) or the seed's settings
+ * (triforce pieces) — and a copy at the maximum is absorbed, never lowering.
+ * Observed with the clamp off and locked with it on by combo-logic-multiplicity
+ * (C1/C2).
+ *
+ * ORDER-INDEPENDENT ONLY BECAUSE OF THE CLAMP. Unclamped, the order of copies
+ * DOES change the round: a wallet copy past the top carries into the bullet
+ * bag's field, so [slingshot, wallet x5] and [wallet x5, slingshot] end with
+ * different bullet-bag levels (and only one of them sets the slingshot's
+ * inventory slot, which is keyed on the bullet bag reading 0). Clamped, every
+ * progressive row reads and writes only its own field (and wallet, strength and
+ * scale their own first-tier flag), and every counter only its own count, so the
+ * round is a function of the multiset of copies, which the contract requires.
+ * Locked through the vtable, red half included, by combo-logic-multiplicity (P).
  */
 void OoT_ComboLogic_AssumeOwnItem(void* self, uint16_t ownItemId) {
     (void)self;
@@ -552,12 +607,7 @@ void OoT_ComboLogic_AssumeOwnItem(void* self, uint16_t ownItemId) {
         fprintf(stderr, "[OoT/ComboLogic] assumeOwnItem ignored: %u is not a real OoT item row\n", (unsigned)ownItemId);
         return;
     }
-    if (sGranted.size() > (size_t)ownItemId) {
-        if (sGranted[(size_t)ownItemId]) {
-            return; // already held this round; see the block above
-        }
-        sGranted[(size_t)ownItemId] = true;
-    }
+    // Every call is a copy: recorded, and applied, with no de-duplication.
     sGrantedOrder.push_back(ownItemId);
     Rando::StaticData::RetrieveItem((RandomizerGet)ownItemId).ApplyEffect();
 }
@@ -914,6 +964,9 @@ void OoT_ComboLogic_EndQuery(void* self) {
     }
     sInQuery = false;
     ++sEndQueryCount;
+    // The clamp is a property of the ROUND. Off again before anything else, so no
+    // later OoT evaluation — its own fill, CheckBeatable, gameplay — runs with it.
+    Rando::gComboLogicRoundClamp = false;
 
     Rando::Logic* lg = OoTComboLogicSingleton();
     if (lg == nullptr) {
@@ -1277,6 +1330,311 @@ extern "C" int OoT_ComboLogic_TestForceAdultStart(int adult) {
 }
 
 // ============================================================================
+// MULTIPLICITY BRIDGES (rando tier; src/common/tests/test_combo_logic_multiplicity.c)
+// ============================================================================
+//
+// The multiplicity ruling's OoT half is a claim about `Logic::ApplyItemEffect`'s
+// progressive rows, which src/common cannot name. These expose the rows as small
+// integer KINDS so the lock can walk them with the clamp off (upstream's own
+// arithmetic — the observation of the defect) and on (the round's behaviour),
+// and read a round's simulated tier through the vtable's own bracket.
+
+namespace {
+
+/** A progressive row the locks walk. `upgrade` < 0 is the magic meter, which is
+ *  a plain `magicLevel` counter rather than an upgrade field. */
+struct OoTComboProgressiveKind {
+    RandomizerGet rg;
+    int upgrade;
+};
+
+const OoTComboProgressiveKind kOoTComboProgressiveKinds[] = {
+    { RG_PROGRESSIVE_WALLET, UPG_WALLET },        // 0: the two-bit field that wraps
+    { RG_PROGRESSIVE_STRENGTH, UPG_STRENGTH },    // 1
+    { RG_PROGRESSIVE_SCALE, UPG_SCALE },          // 2
+    { RG_PROGRESSIVE_BOMB_BAG, UPG_BOMB_BAG },    // 3
+    { RG_PROGRESSIVE_BOW, UPG_QUIVER },           // 4
+    { RG_PROGRESSIVE_MAGIC_METER, -1 },           // 5
+    { RG_PROGRESSIVE_SLINGSHOT, UPG_BULLET_BAG }, // 6: the wallet's carry lands here
+    { RG_PROGRESSIVE_STICK_UPGRADE, UPG_STICKS }, // 7
+    { RG_PROGRESSIVE_NUT_UPGRADE, UPG_NUTS },     // 8
+};
+constexpr int kOoTComboProgressiveKindCount =
+    (int)(sizeof(kOoTComboProgressiveKinds) / sizeof(kOoTComboProgressiveKinds[0]));
+
+int OoTComboReadLevel(Rando::Logic* lg, int kind) {
+    const OoTComboProgressiveKind& k = kOoTComboProgressiveKinds[kind];
+    if (k.upgrade < 0) {
+        return (int)lg->GetSaveContext()->magicLevel;
+    }
+    return (int)lg->CurrentUpgrade((uint32_t)k.upgrade);
+}
+
+} // namespace
+
+extern "C" int OoT_ComboLogic_TestProgressiveKindCount(void) {
+    return kOoTComboProgressiveKindCount;
+}
+
+/** The `RG_*` a kind grants, so the lock can hand it to `assumeOwnItem`. */
+extern "C" int OoT_ComboLogic_TestProgressiveItemId(int kind) {
+    if (kind < 0 || kind >= kOoTComboProgressiveKindCount) {
+        return -1;
+    }
+    return (int)kOoTComboProgressiveKinds[kind].rg;
+}
+
+/** The top tier the clamp stops a kind at — logic.cpp's own rule, not a copy. */
+extern "C" int OoT_ComboLogic_TestProgressiveTopTier(int kind) {
+    if (kind < 0 || kind >= kOoTComboProgressiveKindCount) {
+        return -1;
+    }
+    const int upgrade = kOoTComboProgressiveKinds[kind].upgrade;
+    return (upgrade < 0) ? 2 : (int)Rando::ComboLogicProgressiveTopTier((uint32_t)upgrade);
+}
+
+/**
+ * Apply `grants` copies of a kind, one `Item::ApplyEffect` each, into the engine's
+ * reset scratch save, with the round clamp forced to `clamp`, recording the kind's
+ * level after every copy in `outLevels[0..grants)` and the scratch's whole
+ * `inventory.upgrades` word at the end in `*outUpgrades` (so a carry into a
+ * NEIGHBOURING field is visible, not only the kind's own field).
+ *
+ * With `clamp == 0` this is upstream's arithmetic exactly — the flag is off
+ * everywhere outside a combo round, which is the state main runs in — and it is
+ * how the lock OBSERVES the defect rather than asserting it from source. Nothing
+ * here touches the live save or the live `inLogic[]`: the save pointer is parked
+ * at the scratch and the logic values are saved and restored around the walk, the
+ * same bracket `place` uses. The previous clamp value is put back.
+ *
+ * @return the number of copies applied, or -1 when the solver is not live or the
+ *         arguments are out of range.
+ */
+extern "C" int OoT_ComboLogic_TestProgressiveWalk(int kind, int grants, int clamp, int* outLevels,
+                                                  uint32_t* outUpgrades) {
+    if (!OoTComboLogicReady() || kind < 0 || kind >= kOoTComboProgressiveKindCount || grants < 0 ||
+        outLevels == nullptr) {
+        return -1;
+    }
+    Rando::Logic* lg = OoTComboLogicSingleton();
+    SaveContext* scratch = OoTComboLogicScratchSave(true);
+    if (scratch == nullptr) {
+        return -1;
+    }
+    SaveContext* prior = lg->GetSaveContext();
+    static bool sLogicValsBeforeWalk[LOGIC_MAX];
+    OoTComboLogicSaveLogicVals(sLogicValsBeforeWalk);
+    const bool priorClamp = Rando::gComboLogicRoundClamp;
+
+    Rando::gComboLogicRoundClamp = (clamp != 0);
+    lg->SetSaveContext(scratch);
+    for (int i = 0; i < grants; ++i) {
+        Rando::StaticData::RetrieveItem(kOoTComboProgressiveKinds[kind].rg).ApplyEffect();
+        outLevels[i] = OoTComboReadLevel(lg, kind);
+    }
+    if (outUpgrades != nullptr) {
+        *outUpgrades = scratch->inventory.upgrades;
+    }
+    lg->SetSaveContext(prior);
+    Rando::gComboLogicRoundClamp = priorClamp;
+    OoTComboLogicRestoreLogicVals(sLogicValsBeforeWalk);
+    return grants;
+}
+
+/** A kind's level in the save `Logic` points at RIGHT NOW. Inside a round that is
+ *  the round's detached simulated save, so this reads what the round holds. */
+extern "C" int OoT_ComboLogic_TestRoundProgressiveLevel(int kind) {
+    Rando::Logic* lg = OoTComboLogicSingleton();
+    if (lg == nullptr || lg->GetSaveContext() == nullptr || kind < 0 || kind >= kOoTComboProgressiveKindCount) {
+        return -1;
+    }
+    return OoTComboReadLevel(lg, kind);
+}
+
+/** 1 iff the round-scoped clamp is on. It must be on exactly between the
+ *  vtable's `beginQuery` and `endQuery`, and off everywhere else. */
+extern "C" int OoT_ComboLogic_TestClampActive(void) {
+    return Rando::gComboLogicRoundClamp ? 1 : 0;
+}
+
+// ---- COUNTERS (C1/C2): the rows ComboLogicCounterMax bounds -----------------
+
+namespace {
+
+/** A counter row the locks walk. */
+const RandomizerGet kOoTComboCounterKinds[] = {
+    RG_FOREST_TEMPLE_SMALL_KEY, // 0: an s8 behind a -1 sentinel
+    RG_GOLD_SKULLTULA_TOKEN,    // 1: s16 narrowed to uint8_t by GetGSCount
+    RG_TRIFORCE_PIECE,          // 2: u8, maximum from the seed's settings
+    RG_HEART_CONTAINER,         // 3: s16 heart capacity, in 1/16 hearts
+    RG_MAGIC_BEAN,              // 4: 8-bit ammo
+};
+constexpr int kOoTComboCounterKindCount = (int)(sizeof(kOoTComboCounterKinds) / sizeof(kOoTComboCounterKinds[0]));
+
+/** The counter's value as OoT's own logic reads it. */
+int OoTComboReadCounter(Rando::Logic* lg, int kind) {
+    SaveContext* sc = lg->GetSaveContext();
+    switch (kind) {
+        case 0:
+            return (int)lg->GetSmallKeyCount(SCENE_FOREST_TEMPLE);
+        case 1:
+            return (int)lg->GetGSCount();
+        case 2:
+            return (int)sc->ship.quest.data.randomizer.triforcePiecesCollected;
+        case 3:
+            return (int)sc->healthCapacity;
+        case 4:
+            return (int)lg->GetAmmo(ITEM_BEAN);
+        default:
+            return -1;
+    }
+}
+
+/** FNV-1a over everything a grant can write in a save: the whole inventory
+ *  struct, the magic level, the heart capacity and the randomizer-inf flags. */
+uint32_t OoTComboInventoryDigest(const SaveContext* sc) {
+    uint32_t h = 2166136261u;
+    auto mix = [&h](const void* p, size_t n) {
+        const unsigned char* b = (const unsigned char*)p;
+        for (size_t i = 0; i < n; ++i) {
+            h ^= b[i];
+            h *= 16777619u;
+        }
+    };
+    mix(&sc->inventory, sizeof(sc->inventory));
+    mix(&sc->magicLevel, sizeof(sc->magicLevel));
+    mix(&sc->healthCapacity, sizeof(sc->healthCapacity));
+    mix(sc->ship.randomizerInf, sizeof(sc->ship.randomizerInf));
+    return h;
+}
+
+} // namespace
+
+extern "C" int OoT_ComboLogic_TestCounterKindCount(void) {
+    return kOoTComboCounterKindCount;
+}
+
+extern "C" int OoT_ComboLogic_TestCounterItemId(int kind) {
+    if (kind < 0 || kind >= kOoTComboCounterKindCount) {
+        return -1;
+    }
+    return (int)kOoTComboCounterKinds[kind];
+}
+
+/** The maximum the round clamp stops a counter kind at — logic.cpp's own rule. */
+extern "C" int OoT_ComboLogic_TestCounterMax(int kind) {
+    if (kind < 0 || kind >= kOoTComboCounterKindCount) {
+        return -1;
+    }
+    return Rando::ComboLogicCounterMax((uint32_t)kOoTComboCounterKinds[kind]);
+}
+
+/**
+ * The counter twin of OoT_ComboLogic_TestProgressiveWalk: `grants` copies of a
+ * counter kind, one `Item::ApplyEffect` each, into the reset scratch save with
+ * the round clamp forced to `clamp`, recording the counter as OoT's logic reads
+ * it after every copy. Same bracket (scratch save, logic values saved and
+ * restored, previous clamp put back).
+ */
+extern "C" int OoT_ComboLogic_TestCounterWalk(int kind, int grants, int clamp, int* outValues) {
+    if (!OoTComboLogicReady() || kind < 0 || kind >= kOoTComboCounterKindCount || grants < 0 || outValues == nullptr) {
+        return -1;
+    }
+    Rando::Logic* lg = OoTComboLogicSingleton();
+    SaveContext* scratch = OoTComboLogicScratchSave(true);
+    if (scratch == nullptr) {
+        return -1;
+    }
+    SaveContext* prior = lg->GetSaveContext();
+    static bool sLogicValsBeforeWalk[LOGIC_MAX];
+    OoTComboLogicSaveLogicVals(sLogicValsBeforeWalk);
+    const bool priorClamp = Rando::gComboLogicRoundClamp;
+
+    Rando::gComboLogicRoundClamp = (clamp != 0);
+    lg->SetSaveContext(scratch);
+    for (int i = 0; i < grants; ++i) {
+        Rando::StaticData::RetrieveItem(kOoTComboCounterKinds[kind]).ApplyEffect();
+        outValues[i] = OoTComboReadCounter(lg, kind);
+    }
+    lg->SetSaveContext(prior);
+    Rando::gComboLogicRoundClamp = priorClamp;
+    OoTComboLogicRestoreLogicVals(sLogicValsBeforeWalk);
+    return grants;
+}
+
+// ---- ORDER (P): the same multiset of copies in two orders -------------------
+
+/**
+ * Apply a SEQUENCE of progressive kinds, one copy each, into the reset scratch
+ * save with the round clamp forced to `clamp`, and return the scratch's
+ * inventory digest (OoTComboInventoryDigest) in `*outDigest` and its upgrades
+ * word in `*outUpgrades`. Two orders of one multiset must give one digest with
+ * the clamp on; with it off they need not, and the lock observes that they do
+ * not — which is what makes the clamp-on equality a real check.
+ */
+extern "C" int OoT_ComboLogic_TestProgressiveSequence(const int* kinds, int count, int clamp, uint32_t* outDigest,
+                                                      uint32_t* outUpgrades) {
+    if (!OoTComboLogicReady() || kinds == nullptr || count < 0 || outDigest == nullptr) {
+        return -1;
+    }
+    for (int i = 0; i < count; ++i) {
+        if (kinds[i] < 0 || kinds[i] >= kOoTComboProgressiveKindCount) {
+            return -1;
+        }
+    }
+    Rando::Logic* lg = OoTComboLogicSingleton();
+    SaveContext* scratch = OoTComboLogicScratchSave(true);
+    if (scratch == nullptr) {
+        return -1;
+    }
+    SaveContext* prior = lg->GetSaveContext();
+    static bool sLogicValsBeforeSeq[LOGIC_MAX];
+    OoTComboLogicSaveLogicVals(sLogicValsBeforeSeq);
+    const bool priorClamp = Rando::gComboLogicRoundClamp;
+
+    Rando::gComboLogicRoundClamp = (clamp != 0);
+    lg->SetSaveContext(scratch);
+    for (int i = 0; i < count; ++i) {
+        Rando::StaticData::RetrieveItem(kOoTComboProgressiveKinds[kinds[i]].rg).ApplyEffect();
+    }
+    *outDigest = OoTComboInventoryDigest(scratch);
+    if (outUpgrades != nullptr) {
+        *outUpgrades = scratch->inventory.upgrades;
+    }
+    lg->SetSaveContext(prior);
+    Rando::gComboLogicRoundClamp = priorClamp;
+    OoTComboLogicRestoreLogicVals(sLogicValsBeforeSeq);
+    return count;
+}
+
+/** The inventory digest of the save `Logic` points at RIGHT NOW (inside a round:
+ *  the round's detached simulated save). */
+extern "C" uint32_t OoT_ComboLogic_TestRoundInventoryDigest(void) {
+    Rando::Logic* lg = OoTComboLogicSingleton();
+    if (lg == nullptr || lg->GetSaveContext() == nullptr) {
+        return 0u;
+    }
+    return OoTComboInventoryDigest(lg->GetSaveContext());
+}
+
+/** A counter kind's value in the save `Logic` points at right now. */
+extern "C" int OoT_ComboLogic_TestRoundCounterValue(int kind) {
+    Rando::Logic* lg = OoTComboLogicSingleton();
+    if (lg == nullptr || lg->GetSaveContext() == nullptr || kind < 0 || kind >= kOoTComboCounterKindCount) {
+        return -1;
+    }
+    return OoTComboReadCounter(lg, kind);
+}
+
+/** TEST ONLY: open the next rounds without the round clamp (see
+ *  sTestSuppressRoundClamp). Returns the previous setting. */
+extern "C" int OoT_ComboLogic_TestSuppressRoundClamp(int suppress) {
+    const int previous = sTestSuppressRoundClamp ? 1 : 0;
+    sTestSuppressRoundClamp = (suppress != 0);
+    return previous;
+}
+
+// ============================================================================
 // THE FILL-CLASS SOURCE (ADR 0010 answer O8; #645 increment 3, lane K5)
 // ============================================================================
 //
@@ -1488,4 +1846,5 @@ extern "C" int OoT_ComboLogic_TestFillAdvancement(uint16_t id) {
     }
     return Rando::StaticData::RetrieveItem((RandomizerGet)id).IsAdvancement() ? 1 : 0;
 }
+
 #endif // RSBS_SINGLE_EXECUTABLE

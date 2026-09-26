@@ -33,7 +33,8 @@
  *   - leg 8's repeat-grant row compared reachability, which a removed dedup does
  *     not move (the second grant of most ids collapses to RI_JUNK). It now reads
  *     MM's two genuine counters directly, and measures what a raw double give
- *     does to them in the same bracket.
+ *     does to them in the same bracket. Under ABI 3 (the multiplicity ruling) it
+ *     asserts per-copy COUNTING and the counter MAXIMUM instead of a dedup.
  *   - leg 7's third round was described as a residue lock, but the residue it
  *     named self-heals at the top of every crawl. Its rationale is restated and
  *     it now asserts the residue is genuinely present, and poisons it by hand.
@@ -75,9 +76,10 @@
  *     `Inventory_IncrementSkullTokenCount`.
  *   - Every `ConvertItem` progressive branch whose "already maxed" arm is a bare
  *     `assert(false)` (RI_PROGRESSIVE_BOMB_BAG, _BOW, _MAGIC, _WALLET,
- *     _LULLABY, _SWORD). Reaching one of those is a live abort in a debug build,
- *     and it is reachable through a repeated grant — which is one of the reasons
- *     the engine dedups (its header's note A2).
+ *     _LULLABY, _SWORD). Those arms sit behind `IsItemObtainable`, which answers
+ *     false once the top tier is held, so a repeated grant of a maxed
+ *     progressive returns RI_JUNK before reaching them (ConvertItem.cpp); the
+ *     arms themselves are still not exercised here.
  */
 
 #include "global.h"
@@ -106,6 +108,7 @@ extern "C" int MM_ComboLogicEngine_RunHeadless(void) {
 
 #include "2s2h/Rando/Rando.h"
 #include "2s2h/Rando/Logic/Logic.h"
+#include "2s2h/Rando/StaticData/StaticData.h"
 
 #include "combo_logic.h"
 #include "context.h"
@@ -700,83 +703,97 @@ int RunLegs() {
                   "not reaching the give path, or the crawl is not reading the save it writes, and every monotone "
                   "assertion above is then vacuous");
 
-        // A repeated grant of the same id must change nothing (the engine's note
-        // A2: MM's counter gives are not idempotent, so the engine dedups).
+        // A SECOND COPY OF EVERY ID (ABI 3: one call is one copy). It may only ADD.
+        // The ABI-2 form of this assertion demanded the doubled round be EQUAL to
+        // the single one, because the engine then de-duplicated by id; under the
+        // multiplicity ruling a second copy is a real copy, so the claim is
+        // monotonicity, not equality.
         const RoundObservation once = RunRound(granted);
         std::vector<uint16_t> doubled = granted;
         for (uint16_t id : kSaveOnlyGrants) {
             doubled.push_back(id);
         }
         const RoundObservation repeated = RunRound(doubled);
-        CE_ASSERT(repeated.reachedHosts == once.reachedHosts && repeated.crossingOpen == once.crossingOpen &&
-                      repeated.goalReached == once.goalReached && repeated.reachedSample == once.reachedSample,
+        CE_ASSERT(repeated.reachedHosts >= once.reachedHosts && repeated.crossingOpen >= once.crossingOpen &&
+                      repeated.goalReached >= once.goalReached,
                   8,
-                  "assuming the same ids twice in one round changed the answer - MM's stray-fairy, small-key, "
-                  "skull-token and triforce gives are COUNTERS, so a double grant over-states the world");
+                  "assuming a SECOND copy of every id REDUCED the answer - a copy past a tier or a counter maximum "
+                  "lowered something, which assumed fill cannot survive (ADR 0010 §2.3)");
 
-        // THE DEDUP, READ OFF THE COUNTERS THEMSELVES (added in review).
+        // PER-COPY COUNTING AND THE COUNTER MAXIMA, READ OFF THE COUNTERS.
         //
-        // The reachability comparison above is NOT a lock on A2's dedup. With the
-        // dedup removed, most of the second grants collapse to RI_JUNK anyway —
-        // ConvertItem's `!IsItemObtainable` arm returns RI_JUNK
-        // (ConvertItem.cpp:646-671) and IsItemObtainable is false for an
-        // already-held item — so only the two genuine COUNTERS in the list would
-        // move save state at all, and neither of them is a logic term whose loss
-        // shows up in `reachedHosts`. So this sub-leg reads the counters directly,
-        // INSIDE the bracket where the grants land, and it measures the red half
-        // in the same breath: the same two ids given twice through MM's OWN give
-        // path (bypassing the engine) must advance the counters by TWO, which is
-        // what would happen to every round if the dedup went away.
+        // Reachability cannot lock this (neither counter is a logic term whose
+        // change shows in `reachedHosts` at these counts), so the sub-leg reads the
+        // counters directly, INSIDE the bracket where the grants land, and measures
+        // MM's own give path beside the engine in the same breath:
+        //   - the stray fairy's maximum is 15, so two engine copies read 2 — the
+        //     ABI-2 dedup read 1, and that 1 is the multiplicity defect;
+        //   - the Woodfall small key's maximum is the number of Woodfall keys MM's
+        //     static table holds (derived below, independently of the engine), so
+        //     two engine copies read exactly that maximum and no more;
+        //   - two RAW gives on top advance both counters by two regardless, which
+        //     is why the engine's clamp has to exist: MM's give path does not
+        //     bound a counter.
         {
             const int fairyIdx = DUNGEON_SCENE_INDEX_WOODFALL_TEMPLE;
-            CE_ASSERT(gEngine->snapshot(gEngine->self) != 0, 8, "snapshot refused in the dedup sub-leg");
-            CE_ASSERT(gEngine->beginQuery(gEngine->self) != 0, 8, "beginQuery refused in the dedup sub-leg");
+            int woodfallKeyCopies = 0;
+            for (const auto& entry : Rando::StaticData::Checks) {
+                if (entry.second.randoCheckId != RC_UNKNOWN && entry.second.randoItemId == RI_WOODFALL_SMALL_KEY) {
+                    woodfallKeyCopies++;
+                }
+            }
+            CE_ASSERT(woodfallKeyCopies >= 1, 8, "MM's static table holds no Woodfall small key - premise gone");
+
+            CE_ASSERT(gEngine->snapshot(gEngine->self) != 0, 8, "snapshot refused in the multiplicity sub-leg");
+            CE_ASSERT(gEngine->beginQuery(gEngine->self) != 0, 8, "beginQuery refused in the multiplicity sub-leg");
 
             // Zero both counters first, INSIDE the bracket, so the arithmetic is
-            // exact regardless of what this row inherited. A negative key count is
-            // GiveItem's "no keys yet" sentinel and takes its `= 1` branch rather
-            // than its `++`, which would make a relative assertion wrong
-            // (GiveItem.cpp:55-63).
+            // exact regardless of what this row inherited. Both key fields: the
+            // engine's clamp reads `foundDungeonKeys` (what KEY_COUNT reads), and a
+            // negative DUNGEON_KEY_COUNT is GiveItem's "no keys yet" sentinel, whose
+            // `= 1` branch would make a relative assertion wrong (GiveItem.cpp).
             gSaveContext.save.saveInfo.inventory.strayFairies[fairyIdx] = 0;
             DUNGEON_KEY_COUNT(fairyIdx) = 0;
+            gSaveContext.save.shipSaveInfo.rando.foundDungeonKeys[fairyIdx] = 0;
 
-            // Through the ENGINE, twice each.
+            // Through the ENGINE, (keys + 1) copies of the key and two fairies.
             gEngine->assumeOwnItem(gEngine->self, (uint16_t)RI_WOODFALL_STRAY_FAIRY);
             gEngine->assumeOwnItem(gEngine->self, (uint16_t)RI_WOODFALL_STRAY_FAIRY);
-            gEngine->assumeOwnItem(gEngine->self, (uint16_t)RI_WOODFALL_SMALL_KEY);
-            gEngine->assumeOwnItem(gEngine->self, (uint16_t)RI_WOODFALL_SMALL_KEY);
+            for (int k = 0; k < woodfallKeyCopies + 1; k++) {
+                gEngine->assumeOwnItem(gEngine->self, (uint16_t)RI_WOODFALL_SMALL_KEY);
+            }
 
             const int fairyAfterEngine = (int)gSaveContext.save.saveInfo.inventory.strayFairies[fairyIdx];
-            const int keyAfterEngine = (int)DUNGEON_KEY_COUNT(fairyIdx);
-            printf("[TEST] mm-combo-logic-engine: dedup: two engine grants each -> woodfall fairies=%d keys=%d\n",
-                   fairyAfterEngine, keyAfterEngine);
-            CE_ASSERT(fairyAfterEngine == 1, 8,
-                      "assumeOwnItem granted RI_WOODFALL_STRAY_FAIRY TWICE in one round - GiveItem.cpp:17 is a `++`, "
-                      "so the round now proves reachability with a fairy the player does not have (A2's dedup is "
-                      "gone)");
-            CE_ASSERT(keyAfterEngine == 1, 8,
-                      "assumeOwnItem granted RI_WOODFALL_SMALL_KEY TWICE in one round - GiveItem.cpp:55-63 is a `++`, "
-                      "so the round holds a key the player does not have");
+            const int keyAfterEngine = (int)gSaveContext.save.shipSaveInfo.rando.foundDungeonKeys[fairyIdx];
+            printf("[TEST] mm-combo-logic-engine: multiplicity: 2 fairy copies -> %d; %d key copies against a "
+                   "maximum of %d -> %d\n",
+                   fairyAfterEngine, woodfallKeyCopies + 1, woodfallKeyCopies, keyAfterEngine);
+            CE_ASSERT(fairyAfterEngine == 2, 8,
+                      "two engine copies of RI_WOODFALL_STRAY_FAIRY did not count as two - the engine is still "
+                      "de-duplicating by id, so a round holds one copy however many the bag carries (ABI 3 says one "
+                      "call is one copy)");
+            CE_ASSERT(keyAfterEngine == woodfallKeyCopies, 8,
+                      "a Woodfall small key copy past MM's own key count was not absorbed at the maximum (or a copy "
+                      "under it was not counted) - the counter clamp is missing or wrong");
 
-            // THE RED HALF, MEASURED IN THE SAME BREATH: MM's own give path really
-            // does count, so the 1s above are the dedup doing work rather than an
-            // item that happens to be inert.
+            // THE RED HALF, MEASURED IN THE SAME BREATH: MM's own give path does
+            // count, and does not bound.
             Rando::GiveItem(Rando::ConvertItem(RI_WOODFALL_STRAY_FAIRY));
             Rando::GiveItem(Rando::ConvertItem(RI_WOODFALL_STRAY_FAIRY));
             Rando::GiveItem(Rando::ConvertItem(RI_WOODFALL_SMALL_KEY));
             Rando::GiveItem(Rando::ConvertItem(RI_WOODFALL_SMALL_KEY));
             const int fairyAfterRaw = (int)gSaveContext.save.saveInfo.inventory.strayFairies[fairyIdx];
-            const int keyAfterRaw = (int)DUNGEON_KEY_COUNT(fairyIdx);
-            printf("[TEST] mm-combo-logic-engine: dedup: two RAW gives each on top -> woodfall fairies=%d keys=%d "
-                   "(this is the number a round would carry with the dedup removed)\n",
+            const int keyAfterRaw = (int)gSaveContext.save.shipSaveInfo.rando.foundDungeonKeys[fairyIdx];
+            printf("[TEST] mm-combo-logic-engine: multiplicity: two RAW gives each on top -> fairies=%d keys=%d "
+                   "(MM's give path does not stop at the maximum; the engine's clamp does)\n",
                    fairyAfterRaw, keyAfterRaw);
-            CE_ASSERT(fairyAfterRaw == 3, 8,
+            CE_ASSERT(fairyAfterRaw == 4, 8,
                       "two raw GiveItem(ConvertItem(RI_WOODFALL_STRAY_FAIRY)) calls did NOT advance the stray-fairy "
-                      "counter by two - the item has become idempotent, so the dedup assertion above no longer "
-                      "distinguishes anything and A2 must be re-stated");
-            CE_ASSERT(keyAfterRaw == 3, 8,
-                      "two raw GiveItem(ConvertItem(RI_WOODFALL_SMALL_KEY)) calls did NOT advance the Woodfall key "
-                      "count by two - same conclusion");
+                      "counter by two - the item has become idempotent and A2 must be re-stated");
+            CE_ASSERT(keyAfterRaw == woodfallKeyCopies + 2, 8,
+                      "two raw GiveItem(ConvertItem(RI_WOODFALL_SMALL_KEY)) calls did NOT advance the found-key count "
+                      "by two past the maximum - MM's give path now bounds the counter, and the engine's clamp is "
+                      "redundant; re-state A2");
 
             gEngine->restore(gEngine->self);
             gEngine->endQuery(gEngine->self);
