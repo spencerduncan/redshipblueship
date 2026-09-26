@@ -1634,6 +1634,104 @@ extern "C" int OoT_ComboLogic_TestSuppressRoundClamp(int suppress) {
     return previous;
 }
 
+// ---- #726: OoT's OWN fill under a plentiful pool ---------------------------
+//
+// The bridges above walk the progressive rows in a scratch save. These two read
+// what OoT's NATIVE generation reasons with: no combo round, no coordinator, the
+// same `ReachabilitySearch` over `ctx->allLocations` that the port's own fill,
+// `CheckBeatable` and playthrough run, harvesting every placed copy it reaches
+// through `ItemLocation::ApplyPlacedItemEffect`. Read by
+// src/common/tests/test_oot_plentiful_progressive.c (rando tier).
+
+/** 1 iff the generated world is the profile the #726 lock needs: a PLENTIFUL
+ *  item pool with the tycoon wallet included and infinite upgrades off (with
+ *  them on, a copy at the top resolves to the infinite item and never walks). */
+extern "C" int OoT_NativeFill_TestPlentifulTycoonProfile(void) {
+    auto ctx = Rando::Context::GetInstance();
+    if (ctx == nullptr) {
+        return 0;
+    }
+    return (ctx->GetOption(RSK_ITEM_POOL).Is(RO_ITEM_POOL_PLENTIFUL) &&
+            ctx->GetOption(RSK_INCLUDE_TYCOON_WALLET).Is(true) &&
+            ctx->GetOption(RSK_INFINITE_UPGRADES).Is(RO_INF_UPGRADES_OFF))
+               ? 1
+               : 0;
+}
+
+/**
+ * One native full-world harvest of the generated world, and each progressive
+ * kind's tier afterwards. For every kind of the table above: `outCopies[k]` is
+ * how many locations of the world hold that kind's `RG_*`, `outReached[k]` how
+ * many of those the search reached (and therefore harvested), and
+ * `outLevels[k]` the kind's level in the simulated save once the search closes.
+ *
+ * NATIVE, which is the point: refused inside a combo round, and refused if the
+ * round clamp is somehow on, so what it reads is the arithmetic OoT's own fill
+ * runs. The search starts from `Logic::Reset(true)` (the residue hazard in this
+ * file's header: a bare search would inherit the last one's inventory), and the
+ * save pointer and logic values are put back the way `endQuery` and `place` put
+ * them back.
+ *
+ * @return the number of kinds written, or -1 when the solver is not live, a round
+ *         is open, or an output is missing.
+ */
+extern "C" int OoT_NativeFill_TestHarvestProgressives(int* outLevels, int* outCopies, int* outReached) {
+    if (!OoTComboLogicReady() || sInQuery || Rando::gComboLogicRoundClamp || outLevels == nullptr ||
+        outCopies == nullptr || outReached == nullptr) {
+        return -1;
+    }
+    auto ctx = Rando::Context::GetInstance();
+    Rando::Logic* lg = OoTComboLogicSingleton();
+
+    for (int kind = 0; kind < kOoTComboProgressiveKindCount; ++kind) {
+        outCopies[kind] = 0;
+        outReached[kind] = 0;
+    }
+    for (const RandomizerCheck rc : ctx->allLocations) {
+        const RandomizerGet placed = ctx->GetItemLocation(rc)->GetPlacedRandomizerGet();
+        for (int kind = 0; kind < kOoTComboProgressiveKindCount; ++kind) {
+            if (placed == kOoTComboProgressiveKinds[kind].rg) {
+                ++outCopies[kind];
+            }
+        }
+    }
+
+    const bool priorWasLiveSave = (lg->GetSaveContext() == &gSaveContext);
+    static bool sLogicValsBeforeHarvest[LOGIC_MAX];
+    OoTComboLogicSaveLogicVals(sLogicValsBeforeHarvest);
+
+    lg->Reset(true);
+    Regions::AccessReset();
+    ctx->LocationReset();
+    ReachabilitySearch(ctx->allLocations);
+
+    for (const RandomizerCheck rc : ctx->allLocations) {
+        Rando::ItemLocation* il = ctx->GetItemLocation(rc);
+        if (!il->IsAddedToPool()) {
+            continue;
+        }
+        const RandomizerGet placed = il->GetPlacedRandomizerGet();
+        for (int kind = 0; kind < kOoTComboProgressiveKindCount; ++kind) {
+            if (placed == kOoTComboProgressiveKinds[kind].rg) {
+                ++outReached[kind];
+            }
+        }
+    }
+    for (int kind = 0; kind < kOoTComboProgressiveKindCount; ++kind) {
+        outLevels[kind] = OoTComboReadLevel(lg, kind);
+    }
+
+    if (priorWasLiveSave) {
+        SaveContext* mine = lg->GetSaveContext();
+        lg->SetSaveContext(&gSaveContext);
+        if (mine != nullptr && mine != &gSaveContext && mine != OoTComboLogicScratchSave(false)) {
+            free(mine); // mirrors Logic::NewSaveContext, as endQuery does
+        }
+    }
+    OoTComboLogicRestoreLogicVals(sLogicValsBeforeHarvest);
+    return kOoTComboProgressiveKindCount;
+}
+
 // ============================================================================
 // THE FILL-CLASS SOURCE (ADR 0010 answer O8; #645 increment 3, lane K5)
 // ============================================================================

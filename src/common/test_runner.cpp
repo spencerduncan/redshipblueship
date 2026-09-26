@@ -655,6 +655,10 @@ extern "C" {
 // check and region sets never shrinking, a planted negation observed red. Same
 // tier, FILE SCOPE / C++ compilation and reason as the two rows above.
 #include "tests/test_combo_logic_monotonicity.c"
+// #726: OoT's OWN fill under a plentiful pool — the native full-world harvest
+// never holds a progressive tier past the top, and the wallet never wraps. Same
+// tier, FILE SCOPE / C++ compilation and reason as the rows above.
+#include "tests/test_oot_plentiful_progressive.c"
 
 // MM scene-command EXECUTE regression (issue #344). Unlike the parse test, the
 // body runs the parsed commands against a PlayState, so it needs MM's global.h
@@ -3981,6 +3985,21 @@ TestResult Test_ComboLogicMonotonicity(void) {
     return ComboLogicMonotonicity_Run();
 }
 
+// #726: OoT's native fill on a plentiful profile. Same bring-up as the two
+// rows above; the profile itself is set inside the row.
+TestResult Test_OoTPlentifulProgressive(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton
+");
+        return TEST_FAIL;
+    }
+    static char plpArg0[] = "redship";
+    static char* plpArgv[] = { plpArg0, nullptr };
+    InitOTRForMMFirstBoot(1, plpArgv);
+    return OoTPlentifulProgressive_Run();
+}
+
 TestResult Test_RoundtripIntegrity(void) {
     printf("[TEST] roundtrip-integrity: OoT SaveContext byte-integrity across roundtrip (issue #262)\n");
     int failures = TestRoundtripIntegrity_Run();
@@ -4708,6 +4727,12 @@ const TestDescriptor gTests[] = {
      "A loose file under each game's mods partition overrides its base archive and packed mods, is re-applied on "
      "arrival, is registered only to its own game, and is shadowed by the other game's base archives there (#705)",
      Test_LooseModsMount},
+    // #726: OoT's own fill under a plentiful pool. Needs a generation; skipped by
+    // `--test all` below like its siblings.
+    {"oot-plentiful-progressive",
+     "OoT's own fill on a plentiful + tycoon profile: after the native full-world harvest no progressive tier is "
+     "past its top and the wallet rests at the tycoon tier instead of wrapping to 0 (#726)",
+     Test_OoTPlentifulProgressive},
     {nullptr, nullptr, nullptr}  // Sentinel
 };
 
@@ -4798,6 +4823,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "combo-logic-measure") == 0 ||
                 strcmp(gTests[i].name, "combo-logic-multiplicity") == 0 ||
                 strcmp(gTests[i].name, "combo-logic-monotonicity") == 0 ||
+                strcmp(gTests[i].name, "oot-plentiful-progressive") == 0 ||
                 // Also skipped for a second reason: it is a diagnostic whose
                 // intended outcome on a bad id is a process abort, so it must never
                 // run inside a suite whose result is a pass/fail count.

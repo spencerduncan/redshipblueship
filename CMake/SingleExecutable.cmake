@@ -1855,6 +1855,17 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #726: OoT's OWN fill under a plentiful pool. The pool holds more wallet,
+    # bow, slingshot, bomb-bag, strength, scale and magic copies than tiers, and
+    # upstream's `SetUpgrade(x, CurrentUpgrade + 1)` walked the native fill's
+    # simulated save past the top (the wallet's two-bit field wrapped to 0 on the
+    # tycoon profile). One native generation on plentiful + tycoon, then the
+    # native full-world harvest: no tier past its top, the wallet at the top.
+    # The profile is set inside the row so it travels with the lock.
+    redship_add_test(NAME OoTPlentifulProgressive COMMAND redship --test oot-plentiful-progressive
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)
