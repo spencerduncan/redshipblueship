@@ -1,20 +1,36 @@
 /**
  * @file test_loose_mods_mount.c
  * @brief #705: a loose (unpacked) asset folder in each game's half of the shared
- *        mods/ tree mounts as an archive, overrides like a packed mod, and does not
- *        cross games.
+ *        mods/ tree mounts as an archive, overrides like a packed mod, is claimed
+ *        only by its own game, and is shadowed on arrival in the other game on every
+ *        path that game's base archives ship — the same switch behaviour as a packed
+ *        mod (a path the arriving game does NOT re-provide stays resolvable).
  *
  * TWO CTest rows (label "redship"), both dispatched from src/common/test_runner.cpp:
  *
  *   LooseModsDiscovery ("loose-mods-discovery") — which folders are each game's
  *     loose layer (Rsbs::FindLooseModDirs), over a staged directory tree. Needs no
  *     archive and no Ship::Context, so it NEVER skips (it runs in the archive-less
- *     netplay-relay job too, #562).
+ *     netplay-relay job too, #562). FindLooseModDirs lists the SAME candidates for
+ *     both games (`<root>/loose`, `<root>/mm/loose`) and leaves the choice to the
+ *     partition predicate, so FAIL(4)/FAIL(5) are the red half of that filter:
+ *     with the Combo_ModPathIsForGame call removed, each game finds both folders
+ *     (observed for PR #732's review).
  *   LooseModsMount ("loose-mods-mount") — the real mounts: both ports' production
  *     mod paths (OoT_MountModArchivesHeadless, MM_MountModArchivesHeadless) over a
  *     staged mods tree holding a loose file under EACH partition, then the
  *     production switch-time Combo_EnsureGameArchivesLoaded in both directions.
  *     SKIPs when soh.o2r or 2ship.o2r is unstaged, the #670 row's policy.
+ *
+ * WHAT THE OoT HALF REALLY DRIVES. OoT_MountModArchivesHeadless calls
+ * MountOoTModLayers (games/oot/soh/Enhancements/mod_menu.cpp), the ONE function
+ * that mounts packed archives and then the loose layer, which the shipping init leg
+ * of UpdateModFiles also calls with its enabled set. So removing the OoT loose call
+ * turns FAIL(4) red (observed for PR #732's review; before that review each caller
+ * had its own loose call and the init leg's was unlocked). STILL UNLOCKED: that the
+ * init leg calls MountOoTModLayers at all — nothing drives UpdateModFiles(true),
+ * which reads the player's real mods root and the enabled-mods CVar — the same
+ * residual #670's seam documents for the packed pair.
  *
  * WHAT WAS MISSING. libultraship can serve a directory as an archive — FolderArchive,
  * constructed by ArchiveManager::AddArchive for a path with no extension — but no
@@ -33,9 +49,17 @@
  *      packed OoT mod carrying the same path was mounted before it and lost, so the
  *      loose layer is last. A nested loose path resolves too, which is what pins the
  *      separator handling (FolderArchive derives names from '/' listings).
- *   3. Entering MM does not carry OoT's loose file across: after the production
- *      Combo_EnsureGameArchivesLoaded(GAME_MM) with an EMPTY MM registry, a base MM
- *      archive owns `portVersion` again.
+ *   3. Entering MM shadows OoT's loose file on the paths MM's base archives ship:
+ *      after the production Combo_EnsureGameArchivesLoaded(GAME_MM) with an EMPTY MM
+ *      registry, a base MM archive owns `portVersion` again. Scope, stated exactly:
+ *      the switch re-adds the arriving game's base archives and mods on top; it
+ *      never UNMOUNTS the departing game's (ArchiveManager::AddArchive only pushes).
+ *      So a loose path MM's archives do NOT ship — `rsbs705/nested/oot-probe` —
+ *      still resolves, to OoT's loose folder, while in MM, exactly as a packed OoT
+ *      mod's non-colliding paths do. The row asserts that too, so the docs'
+ *      "whichever game you are playing owns every path it ships" is the pinned
+ *      behaviour; if the switch ever starts unmounting the other game's mods, that
+ *      assertion goes red and docs/MODDING.md needs the stronger wording.
  *   4. MM's production path claims its packed mod AND `<mods>/mm/loose`, records the
  *      loose folder as an MM archive (Combo_ArchivePathIsMM — the #344 dispatcher and
  *      the #618 "mm" scope key on it) and not OoT's, and leaves OoT's registry alone.
@@ -253,8 +277,8 @@ extern "C" int LooseModsDiscovery_RunHeadless(void) {
  * @return 0 pass, non-zero failure code.
  */
 extern "C" int LooseModsMount_RunHeadless(const char* sohArchive, const char* mmArchive) {
-    printf("[TEST] loose-mods-mount: a loose file under each game's mods partition overrides like a packed mod and "
-           "does not cross games (#705)\n");
+    printf("[TEST] loose-mods-mount: a loose file under each game's mods partition overrides like a packed mod, is "
+           "registered only to its own game and is shadowed by the other game's base archives there (#705)\n");
 
     auto ctx = Ship::Context::GetInstance();
     LMM_ASSERT(ctx != nullptr && ctx->GetResourceManager() != nullptr &&
@@ -410,6 +434,21 @@ extern "C" int LooseModsMount_RunHeadless(const char* sohArchive, const char* mm
             rc = 6;
             break;
         }
+        // The scope of that shadowing (see the file header, part 3): a path MM's base
+        // archives do not ship is NOT taken away from OoT's loose folder, because the
+        // switch never unmounts the departing game's archives. Pinned, so the docs'
+        // narrower claim is what is measured.
+        const std::string ownerOotProbeInMm = LmmOwnerOf(archiveMgr, kLmmOotNested);
+        printf("[loose-mods-mount] in MM, the OoT-only loose path '%s' owner=%s\n", kLmmOotNested,
+               ownerOotProbeInMm.c_str());
+        if (ownerOotProbeInMm != ootLooseAbs || LmmBytesOf(archiveMgr, kLmmOotNested) != kLmmOotNestedBytes) {
+            printf("[TEST] FAIL(6): in MM, '%s' (a path no MM archive ships) is owned by '%s', expected OoT's loose "
+                   "folder '%s' — the switch now unmounts the other game's mods; update docs/MODDING.md's switch "
+                   "wording and this assertion together\n",
+                   kLmmOotNested, ownerOotProbeInMm.c_str(), ootLooseAbs.c_str());
+            rc = 6;
+            break;
+        }
 
         // ---- Part 4: MM's production path -----------------------------------
         const int mmMounted = MM_MountModArchivesHeadless(rootStr.c_str());
@@ -537,7 +576,8 @@ extern "C" int LooseModsMount_RunHeadless(const char* sohArchive, const char* mm
     if (rc == 0) {
         printf("[loose-mods-mount] PASS: OoT mounts root-level.o2r then <mods>/loose, MM mounts 10-mm.o2r then "
                "<mods>/mm/loose; each loose file beats its game's base archive and packed mod with its own bytes "
-               "(nested paths included), stays out of the other game across both switch directions, is re-applied "
+               "(nested paths included), is shadowed by the other game's base archives on arrival there (paths that "
+               "game does not ship stay resolvable, as for packed mods), is re-applied "
                "on arrival (a file added later is picked up), and no parent folder is ever mounted\n");
     }
     return rc;

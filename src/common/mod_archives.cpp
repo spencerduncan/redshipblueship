@@ -350,38 +350,44 @@ std::vector<std::string> FindLooseModDirs(GameId game, const std::string& modsRo
         return found;
     }
 
-    // The game's half of the tree. For MM that is every first-level folder whose
-    // name is the reserved `mm` in any case — the SAME match MM's archive walk makes
-    // through Combo_ModPathIsForGame, so on a case-sensitive filesystem holding both
-    // `mods/mm` and `mods/MM` the loose layer is found in both, exactly as the
-    // archives are. Listed rather than probed at a fixed spelling for that reason.
-    std::vector<std::filesystem::path> halves;
-    if (game == GAME_OOT) {
-        halves.emplace_back(modsRoot);
-    } else {
+    // The candidates are the SAME for both games: `loose` (any case) directly in the
+    // root, and `loose` directly in each first-level folder named `mm` (any case —
+    // the match MM's archive walk makes through Combo_ModPathIsForGame, so on a
+    // case-sensitive filesystem holding both `mods/mm` and `mods/MM` the loose layer
+    // is found in both, exactly as the archives are; listed rather than probed at a
+    // fixed spelling for that reason). Which of them is THIS game's is then decided
+    // by the partition predicate and by nothing else, so the filter below is the
+    // one thing that keeps OoT from claiming `mods/mm/loose` and MM from claiming
+    // `mods/loose` (PR #732's review found the first version of this loop
+    // pre-split by game, which made the filter unreachable; the discovery row
+    // now goes red without it).
+    std::vector<std::filesystem::path> parents;
+    parents.emplace_back(modsRoot);
+    {
         std::error_code listEc;
         for (std::filesystem::directory_iterator it(modsRoot, listEc), end; !listEc && it != end;
              it.increment(listEc)) {
             std::error_code entryEc;
             if (it->is_directory(entryEc) && IEqualsAscii(it->path().filename().generic_string(), kMmModsSubdir)) {
-                halves.push_back(it->path());
+                parents.push_back(it->path());
             }
         }
     }
 
-    for (const std::filesystem::path& half : halves) {
+    for (const std::filesystem::path& parent : parents) {
         std::error_code listEc;
-        for (std::filesystem::directory_iterator it(half, listEc), end; !listEc && it != end; it.increment(listEc)) {
+        for (std::filesystem::directory_iterator it(parent, listEc), end; !listEc && it != end;
+             it.increment(listEc)) {
             std::error_code entryEc;
             if (!it->is_directory(entryEc) || !IEqualsAscii(it->path().filename().generic_string(), kLooseModsDir)) {
                 continue;
             }
             const std::string candidate = it->path().generic_string();
-            // The partition, enforced rather than inferred: `<root>/loose` is OoT's
-            // because its first component is not `mm`, `<root>/mm/loose` is MM's
-            // because it is. If either rule ever changes, a folder the OTHER game
-            // owns is refused here instead of being mounted and registered under the
-            // wrong game — which is the one mis-registration that survives a switch.
+            // The partition, enforced: `<root>/loose` is OoT's because its first
+            // component is not `mm`, `<root>/mm/loose` is MM's because it is. A
+            // folder the OTHER game owns is refused here instead of being mounted
+            // and registered under the wrong game — which is the one
+            // mis-registration that survives a switch.
             if (!Combo_ModPathIsForGame(game, modsRoot.c_str(), candidate.c_str())) {
                 continue;
             }

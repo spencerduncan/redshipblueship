@@ -115,10 +115,13 @@ The rules, the same for both games:
   AND in every packed mod of that game, whatever order the mod menu has them in.
   To turn the loose layer off, rename or empty the folder; it is not listed in
   OoT's mod menu (that list is of archives).
-- **It never crosses games.** OoT's `mods/loose/` is OoT's and MM's
+- **Each game owns its own folder.** OoT's `mods/loose/` is OoT's and MM's
   `mods/mm/loose/` is MM's, with the same switch behaviour as a packed mod (see
   "Between the two games" below): whichever game you are playing owns every path
   it ships, and its own loose files are put back on top each time you arrive.
+  Like a packed mod, the other game's folder is not unmounted when you switch, so
+  a loose file whose path the game you are playing does *not* ship is still
+  there to be found; it only matters if that game asks for such a path.
 - The folder's file list is read when the game starts, and **re-read each time you
   arrive in that game** from the other one — so a file you add while playing MM is
   picked up by OoT on your next switch to OoT, and vice versa. It is not re-read

@@ -357,12 +357,13 @@ namespace Rsbs {
  * (sorted), with generic ('/') separators. Empty when there are none, which is the
  * normal case.
  *
- * Which folders: the game's half of the tree is the root itself for OoT and each
- * first-level folder named `mm` (any case) for MM — the same split the archive walks
- * use — and inside that half, each folder named `loose` (any case). Every candidate
- * is then checked against Combo_ModPathIsForGame, so a loose folder can never be
- * claimed by the game whose half it is not in: the partition is enforced here, not
- * assumed from the path arithmetic above it. A symlinked or junctioned `loose`
+ * Which folders: the candidates are the same for both games — each folder named
+ * `loose` (any case) directly in the root, or directly in a first-level folder named
+ * `mm` (any case) — and Combo_ModPathIsForGame alone decides which are @p game's,
+ * the same split the archive walks use. So `<root>/loose` is OoT's and
+ * `<root>/mm/loose` is MM's because the predicate says so, not because the listing
+ * was pre-split by game: remove the predicate call and each game claims both, which
+ * the loose-mods-discovery row observes (PR #732's review). A symlinked or junctioned `loose`
  * folder is found (a directory entry's status follows the link); links INSIDE it are
  * libultraship's FolderArchive walk's business, which does not follow them.
  *

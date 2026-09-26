@@ -2602,8 +2602,9 @@ TestResult Test_LooseModsDiscovery(void) {
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
-// #705: a loose file under each game's mods partition overrides like a packed mod
-// and does not cross games. Same bring-up and SKIP policy as Test_MMModsMount: the
+// #705: a loose file under each game's mods partition overrides like a packed mod,
+// is registered only to its own game, and is shadowed on arrival in the other game on
+// the paths that game's base archives ship. Same bring-up and SKIP policy as Test_MMModsMount: the
 // staged archives are the base archives the loose files must beat and the byte
 // sources for the packed stand-ins.
 TestResult Test_LooseModsMount(void) {
@@ -4451,7 +4452,7 @@ const TestDescriptor gTests[] = {
      Test_LooseModsDiscovery},
     {"loose-mods-mount",
      "A loose file under each game's mods partition overrides its base archive and packed mods, is re-applied on "
-     "arrival, and never crosses games (#705)",
+     "arrival, is registered only to its own game, and is shadowed by the other game's base archives there (#705)",
      Test_LooseModsMount},
     {nullptr, nullptr, nullptr}  // Sentinel
 };

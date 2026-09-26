@@ -1819,8 +1819,10 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # nothing else staged — it never skips. LooseModsMount drives both ports' real
     # mod paths and the real switch-time re-apply over a staged tree with a loose
     # file under each partition and asserts, by the bytes a load returns, that each
-    # overrides its game's base archive and packed mod and never crosses into the
-    # other game. It SKIPs (77) when soh.o2r/2ship.o2r is unstaged, the #670 policy.
+    # overrides its game's base archive and packed mod, is registered only to its own
+    # game, and is shadowed on arrival in the other game on every path that game's
+    # base archives ship (a path they do not ship stays resolvable, as for a packed
+    # mod). It SKIPs (77) when soh.o2r/2ship.o2r is unstaged, the #670 policy.
     redship_add_test(NAME LooseModsDiscovery COMMAND redship --test loose-mods-discovery)
     redship_add_test(NAME LooseModsMount COMMAND redship --test loose-mods-mount)
     set_tests_properties(LooseModsMount PROPERTIES SKIP_RETURN_CODE 77)
