@@ -23,10 +23,14 @@ you install anything.
     my-oot-texture-pack.o2r
     mods-in-subfolders-are-fine/
       another-oot-mod.o2r
+    loose/                   <- Ocarina of Time LOOSE files (see below)
+      textures/...
     mm/                      <- Majora's Mask asset mods    (*.o2r)
       my-mm-texture-pack.o2r
       mods-in-subfolders-are-fine/
         another-mm-mod.o2r
+      loose/                 <- Majora's Mask LOOSE files   (see below)
+        textures/...
 ```
 
 **`mods/` is OoT's. `mods/mm/` is MM's.** Both are searched recursively, so a mod
@@ -84,15 +88,58 @@ as a zip that contains the `.o2r` — unpack it. (Standalone 2Ship does mount a
 `.zip`; the combo deliberately does not, so that one shared folder tree does not
 accept different file types on its two sides.)
 
-Loose (unpacked) asset files are **not** supported for either game — neither port
-mounts a directory as an archive, so assets have to be inside an archive.
+### Loose (unpacked) asset files
+
+Both games also read **unpacked** asset files, with no archive at all — handy for
+trying out one replaced texture, or for a pack you are still authoring:
+
+- **OoT:** `mods/loose/`
+- **MM:** `mods/mm/loose/`
+
+Every file under that folder is a resource, named by its path relative to the
+folder. `mods/loose/textures/foo/barTex` supplies the resource `textures/foo/barTex`,
+exactly as an `.o2r` containing the entry `textures/foo/barTex` would. The file
+contents are the same bytes that entry would hold (an exported resource, or a custom
+asset with its `.meta` file beside it). An `.o2r` is a zip file, so its entries can be
+extracted into a loose folder as-is — except a top-level file named `version`: that
+is how a BASE archive tells libultraship which ROM it came from, and a loose folder
+carrying one would register itself as another game version. Leave it out.
+
+The rules, the same for both games:
+
+- The folder name is `loose`, in any case (`Loose/`, `LOOSE/` work), and only as
+  the **first** folder of that game's half: `mods/loose/` for OoT,
+  `mods/mm/loose/` for MM. `mods/my-pack/loose/` is just a folder.
+- **Loose files win.** Each game mounts its base archives, then its packed mods,
+  then its loose folder, so a loose file overrides the same path in the base game
+  AND in every packed mod of that game, whatever order the mod menu has them in.
+  To turn the loose layer off, rename or empty the folder; it is not listed in
+  OoT's mod menu (that list is of archives).
+- **It never crosses games.** OoT's `mods/loose/` is OoT's and MM's
+  `mods/mm/loose/` is MM's, with the same switch behaviour as a packed mod (see
+  "Between the two games" below): whichever game you are playing owns every path
+  it ships, and its own loose files are put back on top each time you arrive.
+- The folder's file list is read when the game starts, and **re-read each time you
+  arrive in that game** from the other one — so a file you add while playing MM is
+  picked up by OoT on your next switch to OoT, and vice versa. It is not re-read
+  while you stay in one game, and removing a file needs a restart.
+- Neither `loose/` folder is created for you (the empty folder would add nothing).
+- Keep archives out of `loose/`. A `.o2r` placed there is still mounted as a
+  normal packed mod by the folder walk above — it always was — and is also listed,
+  uselessly, as a loose resource under its own file name.
+- A subfolder of `loose/` that is a **symlink** is not followed (the loose folder
+  itself may be one). This differs from the `.o2r` walk, which follows them; it is
+  libultraship's folder reader, not a choice made here.
+- A `mods/` or `mods/mm/` folder is never itself mounted as a loose folder: a file
+  sitting directly in `mods/` or `mods/mm/` is ignored unless it is an archive.
 
 ### Which mod wins
 
 libultraship resolves a resource path by **last archive mounted wins**; there is no
 priority field. Each game mounts its base archives first (`oot.o2r`/`oot-mq.o2r` +
 `soh.o2r`, or `mm.o2r` + `2ship.o2r`) and then its mods, which is exactly why a mod
-overrides a base asset at all.
+overrides a base asset at all. Its `loose/` folder is mounted after all of its
+packed mods, so a loose file beats both.
 
 - **Between two mods of the same game:** later wins. OoT's order is the one you
   set in its in-game mod menu (Enhancements → Mods), where you can enable,
@@ -143,6 +190,12 @@ MM logs every mount to stderr. `[MM] Loaded mod archive: <path>` means it was
 mounted; `[MM] Mounted N mod archive(s) from ...` is the total. A
 `[MM] WARNING: could not mount mod archive` line means the file is not a readable
 archive. If you see no lines at all, the archives are not under `mods/mm/`.
+
+Both games log their loose folder the same way: `[OoT] Mounted loose asset folder:
+<path> (N file(s))` or `[MM] Mounted loose asset folder: ...`. No such line means
+the folder is not where the game looks (`mods/loose/` or `mods/mm/loose/`); a
+`WARNING: could not mount loose asset folder` line names one it found but could not
+read.
 
 ---
 

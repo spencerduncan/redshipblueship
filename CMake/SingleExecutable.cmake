@@ -1805,6 +1805,20 @@ give dereferences a NULL MM_gPlayState/gRegEditor names itself on stderr. Its in
 process abort, which is how the RI_TINGLE_MAP_* set and the gRegEditor stand-in were derived (#645). Run by hand: \
 redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past a known fault.")
 
+    # #705: loose (unpacked) asset mods for both games. Nothing mounted a directory
+    # as an archive, although libultraship's FolderArchive does exactly that for an
+    # extension-less AddArchive path; each game now mounts `<mods>/loose` (OoT) or
+    # `<mods>/mm/loose` (MM) after its packed mods through one shared helper.
+    # LooseModsDiscovery pins which folders count, over a staged directory tree, with
+    # nothing else staged — it never skips. LooseModsMount drives both ports' real
+    # mod paths and the real switch-time re-apply over a staged tree with a loose
+    # file under each partition and asserts, by the bytes a load returns, that each
+    # overrides its game's base archive and packed mod and never crosses into the
+    # other game. It SKIPs (77) when soh.o2r/2ship.o2r is unstaged, the #670 policy.
+    redship_add_test(NAME LooseModsDiscovery COMMAND redship --test loose-mods-discovery)
+    redship_add_test(NAME LooseModsMount COMMAND redship --test loose-mods-mount)
+    set_tests_properties(LooseModsMount PROPERTIES SKIP_RETURN_CODE 77)
+
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)
     # These tests actually boot the games and verify boot completion
