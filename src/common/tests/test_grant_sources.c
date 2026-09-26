@@ -118,7 +118,10 @@ bool GrantTestWriteLegacySlot(const std::string& path) {
     rsbs::RsbsSaveHeader h;
     std::memset(&h, 0, sizeof(h));
     std::memcpy(h.magic, RSBS_SAVE_MAGIC, sizeof(h.magic));
-    h.version = RSBS_SAVE_VERSION;
+    // The last version WITHOUT the Tier-4 crossing block (ADR 0010 O7): this
+    // file is assembled by hand from Tiers 1-3 only, and a v3 header would
+    // promise a Tier-4 the payload does not carry.
+    h.version = RSBS_SAVE_VERSION_CROSSINGS - 1u;
     h.endian = RSBS_SAVE_ENDIAN_LE;
     h.slot = 0;
     h.headerSize = sizeof(rsbs::RsbsSaveHeader);

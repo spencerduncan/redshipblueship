@@ -7,6 +7,7 @@
  */
 
 #include "context.h"
+#include "crossing_store.h" // ADR 0010 O7: the crossing store follows the stamp policy
 // Context_InvalidateSessionState also has to drain the RAM-only shared-item
 // staging outbox, which lives in shared_items.c. Included here (a .cpp) rather
 // than from context.h so the header keeps its no-dependency shape.
@@ -307,6 +308,8 @@ void ComboContext_ClearSwitch(void) {
 
 void Context_Init(void) {
     ComboContext_Init();
+    // Cold boot: no crossings, exactly as gComboCtx has no identity.
+    Combo_Crossings_Clear();
     Context_InitFrozenStates();
     gCurrentGame = GAME_NONE;
 }
@@ -431,6 +434,15 @@ void Context_InvalidateSessionState(ComboSeedStampPolicy seedPolicy) {
         // moves with it: a kept goal of triforce-hunt with a dropped record
         // would disarm the one shared piece count for a world that froze it.
         gComboCtx.comboTriforce = savedComboTriforce;
+        // The crossing store (ADR 0010 O7) is KEPT by not being cleared: it
+        // lives outside gComboCtx, so the ComboContext_Init above never touched
+        // it. Same author and same moment as the stamp; see
+        // ComboSeedStampPolicy.
+    } else {
+        // DROP: a crossing set with no stamp behind it belongs to a dead
+        // session. Left resident it would be read by the next session's give
+        // path (foreign_items.c falls back to it) for a world nobody created.
+        Combo_Crossings_Clear();
     }
 
     // The unified save's ACTIVE SLOT is session state too, and it lived outside
@@ -450,11 +462,12 @@ void Context_InvalidateSessionState(ComboSeedStampPolicy seedPolicy) {
 
     fprintf(stderr,
             "[Context] Session state invalidated (seed stamp %s: rando=%d seed=%u settings=%08X "
-            "mmProfile=%08X reversePlacements=%d comboSettings=v%u/%08X)\n",
+            "mmProfile=%08X reversePlacements=%d comboSettings=v%u/%08X crossings=%d+%d)\n",
             (seedPolicy == RSBS_SEED_STAMP_KEEP) ? "kept" : "dropped", (int)gComboCtx.sourceIsRando,
             (unsigned)gComboCtx.sharedRandoSeed, (unsigned)gComboCtx.sharedRandoSettingsHash,
             (unsigned)gComboCtx.mmProfileDigest, Combo_CountForeignPlacementsOoT(),
-            (unsigned)gComboCtx.comboSettings.formatVersion, (unsigned)gComboCtx.comboSettingsHash);
+            (unsigned)gComboCtx.comboSettings.formatVersion, (unsigned)gComboCtx.comboSettingsHash,
+            Combo_Crossings_Count(GAME_OOT), Combo_Crossings_Count(GAME_MM));
 }
 
 int Context_InvalidateSessionOnReturnToTitle(void) {

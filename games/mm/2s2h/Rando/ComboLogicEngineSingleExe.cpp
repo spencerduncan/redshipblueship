@@ -985,6 +985,40 @@ struct ComboLogicEngineRegistrar {
 };
 const ComboLogicEngineRegistrar gComboLogicEngineRegistrar;
 
+// ============================================================================
+// ADR 0010 O7: NAMES FOR THE CROSSING STORE (the one spoiler's crossing section)
+// ============================================================================
+//
+// The MM half of the describer pair foreign_items.h declares: an MM item id or
+// an MM check id answered with a stable name from MM's static tables, nothing
+// else handed across (ADR 0002). `find`, never `operator[]`: the tables are
+// std::maps and an operator[] miss would insert a row.
+const char* MmComboDescribeItem(uint16_t id) {
+    const auto it = Rando::StaticData::Items.find((RandoItemId)id);
+    if (id == 0 || it == Rando::StaticData::Items.end()) {
+        return nullptr;
+    }
+    return it->second.spoilerName != nullptr ? it->second.spoilerName : it->second.name;
+}
+
+const char* MmComboDescribeCheck(uint16_t check) {
+    const auto it = Rando::StaticData::Checks.find((RandoCheckId)check);
+    if (check == 0 || it == Rando::StaticData::Checks.end()) {
+        return nullptr;
+    }
+    return it->second.name;
+}
+
+const ComboGameDescriber kMmComboDescriber = { MmComboDescribeItem, MmComboDescribeCheck };
+
+/** Same shape as the engine registrar above: stores a pointer, calls nothing. */
+struct MmComboDescriberRegistrar {
+    MmComboDescriberRegistrar() {
+        Combo_RegisterGameDescriber((uint8_t)GAME_MM, &kMmComboDescriber);
+    }
+};
+const MmComboDescriberRegistrar gMmComboDescriberRegistrar;
+
 } // namespace
 
 // ============================================================================

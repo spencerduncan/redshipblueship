@@ -752,11 +752,12 @@ const ComboLogicEngine* Combo_Logic_GetEngine(GameId originGame);
 // THE PLACEMENT TABLES
 // ============================================================================
 //
-// TWO tables, keyed by HOST game, in PROCESS MEMORY ONLY. They are deliberately
-// NOT in `gComboCtx`: the O7 boundary carve against `reserved[108]` is a later
-// decision of epic #645, and a carve taken here would freeze a layout before
-// the decision that sizes it. Nothing in this file is serialized, so nothing in
-// this file is .redsave format.
+// TWO tables, keyed by HOST game, in PROCESS MEMORY ONLY. Nothing in this file is
+// serialized, so nothing in this file is .redsave format. What persists of them
+// is decided by ADR 0010 O7: the CROSSING rows (item origin != host) go to the
+// crossing store (crossing_store.h, a .redsave v3 block, not a `reserved[]`
+// carve), captured from and hydrated back into these tables; own-origin rows
+// persist in each game's own save.
 
 /** One placement. RAM only; no offset here is format. */
 typedef struct {
@@ -810,6 +811,31 @@ bool Combo_Logic_PlacementAt(GameId hostGame, int index, ComboLogicPlacement* ou
 /** The placement on (hostGame, hostCheck), or false if that host is unassigned.
  *  This is the coordinator's occupancy authority. */
 bool Combo_Logic_GetPlacement(GameId hostGame, uint16_t hostCheck, ComboLogicPlacement* out);
+
+/**
+ * HYDRATE both tables from rows decided and persisted elsewhere (ADR 0010 O7:
+ * the crossing store, crossing_store.h), WITHOUT calling either engine.
+ *
+ * WHY NOT Combo_Logic_Place. Place hands every row to its host engine's `place`,
+ * which writes the host game's own table (OoT's ItemLocation, MM's
+ * RANDO_SAVE_CHECKS in the LIVE gSaveContext). At an arrival or a load those
+ * tables already hold the result, because each game's save persisted it; and in
+ * a process where MM has not booted, the live MM SaveContext is not the save
+ * being loaded at all, so an engine write there would be a write into the
+ * wrong world that a later `clearPlacements` would then "restore" from.
+ * Hydrating records the rows and nothing else.
+ *
+ * ALL OR NOTHING: every row is validated first (a real host game, an origin
+ * tag, at most RSBS_COMBO_LOGIC_PLACEMENT_CAP rows per host, no host twice
+ * within a game); on refusal the tables are untouched. On success both tables
+ * hold exactly the given rows in the given order, the round and surplus
+ * bookkeeping is reset, and neither engine was called.
+ *
+ * Like Combo_Logic_Place it PROVES NOTHING and does not compose with
+ * Combo_Logic_RunFill (every attempt starts by emptying the tables).
+ */
+bool Combo_Logic_HydrateTables(const ComboLogicPlacement* ootHosted, int ootCount, const ComboLogicPlacement* mmHosted,
+                               int mmCount);
 
 /**
  * A stable FNV-1a digest over both tables in order (host game, host check,
@@ -1228,8 +1254,9 @@ int Combo_Logic_LeftoverHosts(GameId hostGame, uint16_t* out, int cap);
 //    seam calls the fill. The two engine implementations are two follow-on
 //    lanes; until both exist a paired fill cannot run at all, which is why
 //    Combo_Logic_RunFill refuses with one engine instead of half-filling.
-//  - THE O7 BOUNDARY CARVE. The placement tables are RAM, not
-//    `gComboCtx.reserved[108]`. Sizing the carve is epic #645 item 2.
+//  - THE O7 BOUNDARY CARVE. Answered (ADR 0010 amendment 2026-09-27): no
+//    `reserved[]` carve; the crossing rows persist in crossing_store.h's block
+//    and come back through Combo_Logic_HydrateTables. The tables stay RAM.
 //  - THE O8 CLASSIFICATION TABLE. `ComboLogicBagItem.itemClass` is carried
 //    from the caller and recorded on the placement; the coordinator filters
 //    nothing by it. When the single-owner table lands in
