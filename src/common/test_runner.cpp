@@ -655,6 +655,15 @@ extern "C" {
 // check and region sets never shrinking, a planted negation observed red. Same
 // tier, FILE SCOPE / C++ compilation and reason as the two rows above.
 #include "tests/test_combo_logic_monotonicity.c"
+// #726: OoT's OWN fill under a plentiful pool — the native full-world harvest
+// never holds a progressive tier past the top, and the wallet never wraps. Same
+// tier, FILE SCOPE / C++ compilation and reason as the rows above.
+#include "tests/test_oot_plentiful_progressive.c"
+// ADR 0010 O7: the cross-game placement store and its three routes (the .redsave
+// v3 Tier-4 block, the one spoiler's combo.crossingStore section, the
+// coordinator hydrate). ROM-free and display-free; FILE SCOPE (compiled as C++)
+// for rsbs::SaveManager, like test_foreign_items.c.
+#include "tests/test_crossing_store.c"
 
 // MM scene-command EXECUTE regression (issue #344). Unlike the parse test, the
 // body runs the parsed commands against a PlayState, so it needs MM's global.h
@@ -3997,6 +4006,20 @@ TestResult Test_ComboLogicBagComposition(void) {
     return ComboLogicBagComposition_Run();
 }
 
+// #726: OoT's native fill on a plentiful profile. Same bring-up as the two
+// rows above; the profile itself is set inside the row.
+TestResult Test_OoTPlentifulProgressive(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    static char plpArg0[] = "redship";
+    static char* plpArgv[] = { plpArg0, nullptr };
+    InitOTRForMMFirstBoot(1, plpArgv);
+    return OoTPlentifulProgressive_Run();
+}
+
 TestResult Test_RoundtripIntegrity(void) {
     printf("[TEST] roundtrip-integrity: OoT SaveContext byte-integrity across roundtrip (issue #262)\n");
     int failures = TestRoundtripIntegrity_Run();
@@ -4712,6 +4735,24 @@ const TestDescriptor gTests[] = {
      "on one set, tricks only add, the coordinator's prefixes never lose a host, and a planted negated edge goes "
      "red at its item's grant (ADR 0010 O6)",
      Test_ComboLogicMonotonicity},
+    // ADR 0010 O7 (#645): the cross-game placement store. Redship tier, ROM-free.
+    {"crossing-store-roundtrip",
+     "The crossing store: capture keeps only the coordinator's crossings, both give-path accessors read them (pinned "
+     "first), hydrate rebuilds the coordinator with no engine call and re-captures byte-identical, freeze/restore/arm "
+     "leave the block exact, KEEP/DROP invalidation, a refused capture leaves the store empty (ADR 0010 O7)",
+     Test_CrossingStoreRoundtrip},
+    {"crossing-store-capacity",
+     "The crossing store holds exactly its cap per host; one over is refused and never truncated through the API and "
+     "a crafted .redsave; bad rows and repeated hosts are refused; the frozen set refuses divergence (ADR 0010 O7)",
+     Test_CrossingStoreCapacity},
+    {"crossing-store-redsave",
+     "The .redsave is format v3 and its Tier-4 is the serialized crossing block; save/load is byte-identical with MM "
+     "never booted; a refused load applies nothing; malformed and truncated blocks refuse; v2 loads empty (ADR 0010 O7)",
+     Test_CrossingStoreRedsave},
+    {"crossing-store-spoiler",
+     "combo.crossingStore round-trips write -> load byte-identical, reloads as a no-op, and refuses a different frozen "
+     "set, an unreproduced digest and an absent origin without changing the store (ADR 0010 O7)",
+     Test_CrossingStoreSpoiler},
     // #705: loose (unpacked) asset folders. The mount row MOUNTS extra archives into
     // the shared ArchiveManager and restores it from a snapshot on the way out, the
     // mm-mods-mount discipline; placed last so nothing after it could inherit a
@@ -4731,6 +4772,12 @@ const TestDescriptor gTests[] = {
      "passes confined, filler and traps counted), surplus follows the profile, and MM's heart rows are REQUIRED and "
      "load-bearing for CHECK_MAX_HP (#731, #733)",
      Test_ComboLogicBagComposition},
+    // #726: OoT's own fill under a plentiful pool. Needs a generation; skipped by
+    // `--test all` below like its siblings.
+    {"oot-plentiful-progressive",
+     "OoT's own fill on a plentiful + tycoon profile: after the native full-world harvest no progressive tier is "
+     "past its top and the wallet rests at the tycoon tier instead of wrapping to 0 (#726)",
+     Test_OoTPlentifulProgressive},
     {nullptr, nullptr, nullptr}  // Sentinel
 };
 
@@ -4822,6 +4869,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "combo-logic-multiplicity") == 0 ||
                 strcmp(gTests[i].name, "combo-logic-monotonicity") == 0 ||
                 strcmp(gTests[i].name, "combo-logic-bag-composition") == 0 ||
+                strcmp(gTests[i].name, "oot-plentiful-progressive") == 0 ||
                 // Also skipped for a second reason: it is a diagnostic whose
                 // intended outcome on a bad id is a process abort, so it must never
                 // run inside a suite whose result is a pass/fail count.

@@ -16,6 +16,7 @@
  */
 
 #include "../context.h"
+#include "../crossing_store.h" // Combo_Crossings_SerializedSize: the v3 Tier-4 length
 #include "../game.h"
 #include "../save.h"
 #include "../test_runner.h"
@@ -191,10 +192,13 @@ TestResult Test_SaveHeader(void) {
     SAVE_ASSERT(h.ootSize == OOT_SAVE_CONTEXT_SIZE, "bad ootSize");
     SAVE_ASSERT(h.mmSize == MM_SAVE_CONTEXT_SIZE, "bad mmSize");
 
-    // Read the payload and confirm the stored CRC actually verifies.
-    std::vector<uint8_t> payload(h.comboSize + h.ootSize + h.mmSize);
+    // Read the payload and confirm the stored CRC actually verifies. From
+    // format v3 the payload is Tiers 1-3 plus the self-sized Tier-4 crossing
+    // block (ADR 0010 O7), so the CRC covers everything after the header.
+    std::vector<uint8_t> payload(h.comboSize + h.ootSize + h.mmSize + Combo_Crossings_SerializedSize());
     in.read(reinterpret_cast<char*>(payload.data()), static_cast<std::streamsize>(payload.size()));
     SAVE_ASSERT(in.gcount() == static_cast<std::streamsize>(payload.size()), "short payload read");
+    SAVE_ASSERT(in.peek() == std::char_traits<char>::eof(), "bytes after the Tier-4 crossing block");
     SAVE_ASSERT(h.crc32 != 0u, "CRC unexpectedly zero");
     SAVE_ASSERT(rsbs::SaveManager::Crc32(payload.data(), payload.size()) == h.crc32, "CRC does not verify");
 
@@ -310,7 +314,9 @@ TestResult Test_SaveLegacySize(void) {
     rsbs::RsbsSaveHeader h;
     std::memset(&h, 0, sizeof(h));
     std::memcpy(h.magic, RSBS_SAVE_MAGIC, sizeof(h.magic));
-    h.version = RSBS_SAVE_VERSION;
+    // Hand-assembled from Tiers 1-3, so it claims the last version WITHOUT the
+    // Tier-4 crossing block (ADR 0010 O7) rather than RSBS_SAVE_VERSION.
+    h.version = RSBS_SAVE_VERSION_CROSSINGS - 1u;
     h.endian = RSBS_SAVE_ENDIAN_LE;
     h.slot = 0;
     h.headerSize = sizeof(rsbs::RsbsSaveHeader);
@@ -594,7 +600,9 @@ TestResult Test_SaveComboLegacyRecord(void) {
     }
 
     mgr.DeleteSave(0);
-    SAVE_ASSERT(SaveTestWriteCraftedSlot(mgr.SlotPath(0), RSBS_SAVE_VERSION, (uint32_t)sizeof(ComboContext)),
+    // v2: the crafted file carries Tiers 1-3 only (no v3 Tier-4 crossing block).
+    SAVE_ASSERT(SaveTestWriteCraftedSlot(mgr.SlotPath(0), RSBS_SAVE_VERSION_CROSSINGS - 1u,
+                                         (uint32_t)sizeof(ComboContext)),
                 "could not write v2 fixed-offset slot file");
 
     // Scribble the whole carve region so a pass cannot come from leftovers.
@@ -679,8 +687,10 @@ TestResult Test_SaveComboRecordFixed(void) {
     // The written Tier-1 length must be the budget, NOT sizeof(ComboContext) —
     // that decoupling is what keeps the on-disk size stable when the struct
     // grows. Total file length proves the padding is actually on disk.
+    // Plus the v3 Tier-4 crossing block (ADR 0010 O7), which is variable
+    // length: exactly what the resident store serializes to.
     const uintmax_t expected = sizeof(rsbs::RsbsSaveHeader) + RSBS_COMBO_CONTEXT_RECORD_SIZE +
-                               OOT_SAVE_CONTEXT_SIZE + MM_SAVE_CONTEXT_SIZE;
+                               OOT_SAVE_CONTEXT_SIZE + MM_SAVE_CONTEXT_SIZE + Combo_Crossings_SerializedSize();
     SAVE_ASSERT(std::filesystem::file_size(mgr.SlotPath(0)) == expected,
                 "slot file length does not match a fixed-size padded Tier-1");
     SAVE_ASSERT(sizeof(ComboContext) <= RSBS_COMBO_CONTEXT_RECORD_SIZE,

@@ -9,6 +9,7 @@
 #include "save.h"
 
 #include "context.h"
+#include "crossing_store.h" // the v3 Tier-4 crossing block (ADR 0010 O7)
 #include "entrance.h" // MM_ENTR_SOUTH_CLOCK_TOWN_0 — the armed blob's return entrance
 // Combo_ComboSettingsDivergenceFor — the combo-level identity check the load
 // runs over the record it just read (ADR 0011 decision 4).
@@ -104,6 +105,8 @@ const char* RefuseReasonSlug(RsbsRefuseReason reason) {
             // Same situation as RSBS_REFUSE_IDENTITY: a session refusal that
             // quarantines nothing, tagged totally for the same reason.
             return "generation";
+        case RSBS_REFUSE_CROSSINGS:
+            return "crossings";
         case RSBS_REFUSE_NONE:
         default:
             return "unknown";
@@ -143,6 +146,8 @@ const char* SaveManager::RefuseReasonLabel(RsbsRefuseReason reason) {
             return "this session diverges from this pair's creation identity";
         case RSBS_REFUSE_GENERATION:
             return "the paired Termina world could not be generated";
+        case RSBS_REFUSE_CROSSINGS:
+            return "cross-game placement record damaged";
         case RSBS_REFUSE_NONE:
         default:
             return "";
@@ -223,6 +228,17 @@ uint32_t SaveManager::StageCommit() {
         return 0;
     }
 
+    // The crossing block, serialized HERE on the game thread for the same
+    // reason Tier-1 is copied here: the write phase may run on the save worker
+    // and must read only the immutable snapshot, never the live store.
+    std::vector<uint8_t> crossings(Combo_Crossings_SerializedSize());
+    if (Combo_Crossings_Serialize(crossings.data(), crossings.size()) != crossings.size()) {
+        std::fprintf(stderr, "[RsbsSave] commit NOT staged: the crossing block did not serialize\n");
+        std::lock_guard<std::mutex> lock(mStageMtx);
+        mStaged.valid = false;
+        return 0;
+    }
+
     // Stamp the monotonic commit generation BEFORE copying, so the staged
     // Tier-1 (and therefore the artifact) carries it. gComboCtx is game-thread
     // state; mutating it here is legal precisely because staging is
@@ -238,6 +254,7 @@ uint32_t SaveManager::StageCommit() {
                            static_cast<const uint8_t*>(ootShadow) + kOoTSize);
         mStaged.mm.assign(static_cast<const uint8_t*>(mmShadow),
                           static_cast<const uint8_t*>(mmShadow) + kMMSize);
+        mStaged.crossings.swap(crossings);
         mStaged.generation = generation;
         mStaged.valid = true;
     }
@@ -278,6 +295,7 @@ bool SaveManager::WriteStagedCommit(int slot) {
     ComboContext combo;
     std::vector<uint8_t> ootBlob;
     std::vector<uint8_t> mmBlob;
+    std::vector<uint8_t> crossings;
     {
         std::lock_guard<std::mutex> lock(mStageMtx);
         if (!mStaged.valid) {
@@ -286,8 +304,9 @@ bool SaveManager::WriteStagedCommit(int slot) {
         std::memcpy(&combo, &mStaged.combo, sizeof(ComboContext));
         ootBlob = mStaged.oot;
         mmBlob = mStaged.mm;
+        crossings = mStaged.crossings;
     }
-    return WriteSlotFile(slot, combo, ootBlob.data(), mmBlob.data());
+    return WriteSlotFile(slot, combo, ootBlob.data(), mmBlob.data(), crossings);
 }
 
 bool SaveManager::Save(int slot) {
@@ -308,7 +327,7 @@ bool SaveManager::Save(int slot) {
 }
 
 bool SaveManager::WriteSlotFile(int slot, const ComboContext& combo, const uint8_t* ootBlob,
-                                const uint8_t* mmBlob) {
+                                const uint8_t* mmBlob, const std::vector<uint8_t>& crossings) {
     // One writer at a time: the OnSaveFile worker (WriteStagedCommit) and a
     // synchronous game-thread commit (MM's capture, OnExitGame) share the same
     // `.tmp` staging path per slot, and interleaved temp writes would produce
@@ -330,6 +349,9 @@ bool SaveManager::WriteSlotFile(int slot, const ComboContext& combo, const uint8
     payload.insert(payload.end(), kComboSize - sizeof(ComboContext), uint8_t{0});
     payload.insert(payload.end(), ootBlob, ootBlob + kOoTSize);
     payload.insert(payload.end(), mmBlob, mmBlob + kMMSize);
+    // Tier-4 (v3, ADR 0010 O7): the crossing block, self-sized, always present
+    // in a v3 file (16 bytes when the world has no crossings), inside the CRC.
+    payload.insert(payload.end(), crossings.begin(), crossings.end());
 
     RsbsSaveHeader header;
     std::memset(&header, 0, sizeof(header));
@@ -460,6 +482,8 @@ struct SaveManager::SlotFileData {
     std::vector<uint8_t> comboRecord;
     std::vector<uint8_t> ootBlob;
     std::vector<uint8_t> mmBlob;
+    // Tier-4 (v3+). Empty for a v1/v2 file, which carries no crossing block.
+    std::vector<uint8_t> crossings;
 };
 
 SaveManager::SlotReadResult SaveManager::ReadSlotFile(int slot, SlotFileData& out,
@@ -526,13 +550,54 @@ SaveManager::SlotReadResult SaveManager::ReadSlotFile(int slot, SlotFileData& ou
         return SlotReadResult::Refused;
     }
 
-    // CRC over Tiers 1..3 exactly as stored (not the zero-extended tails), in
-    // the same contiguous order they were written.
+    // Tier-4, the crossing block (v3+, ADR 0010 O7). Its size comes from its
+    // OWN 16-byte header, which is validated before a byte of the body is read:
+    // an oversized count is a refusal, never an allocation or a truncation.
+    out.crossings.clear();
+    if (header.version >= RSBS_SAVE_VERSION_CROSSINGS) {
+        uint8_t blockHeader[RSBS_CROSSING_BLOCK_HEADER_SIZE];
+        in.read(reinterpret_cast<char*>(blockHeader), sizeof(blockHeader));
+        if (!in || in.gcount() != static_cast<std::streamsize>(sizeof(blockHeader))) {
+            if (verbose) {
+                std::fprintf(stderr, "[RsbsSave] slot %d truncated in Tier-4 (crossing block header)\n", slot);
+            }
+            outReason = RSBS_REFUSE_TRUNCATED;
+            return SlotReadResult::Refused;
+        }
+        size_t blockSize = 0;
+        const int sizeRc = Combo_Crossings_BlockSize(blockHeader, sizeof(blockHeader), &blockSize);
+        if (sizeRc != RSBS_CROSSING_OK) {
+            if (verbose) {
+                std::fprintf(stderr, "[RsbsSave] slot %d Tier-4 crossing block header refused (%s)\n", slot,
+                             Combo_Crossings_StatusName(sizeRc));
+            }
+            outReason = RSBS_REFUSE_CROSSINGS;
+            return SlotReadResult::Refused;
+        }
+        out.crossings.assign(blockHeader, blockHeader + sizeof(blockHeader));
+        out.crossings.resize(blockSize, 0);
+        const size_t body = blockSize - sizeof(blockHeader);
+        if (body > 0) {
+            in.read(reinterpret_cast<char*>(out.crossings.data() + sizeof(blockHeader)),
+                    static_cast<std::streamsize>(body));
+            if (!in || in.gcount() != static_cast<std::streamsize>(body)) {
+                if (verbose) {
+                    std::fprintf(stderr, "[RsbsSave] slot %d truncated in Tier-4 (crossing records)\n", slot);
+                }
+                outReason = RSBS_REFUSE_TRUNCATED;
+                return SlotReadResult::Refused;
+            }
+        }
+    }
+
+    // CRC over Tiers 1..3 (and Tier-4 from v3) exactly as stored (not the
+    // zero-extended tails), in the same contiguous order they were written.
     std::vector<uint8_t> payload;
-    payload.reserve(header.comboSize + header.ootSize + header.mmSize);
+    payload.reserve(header.comboSize + header.ootSize + header.mmSize + out.crossings.size());
     payload.insert(payload.end(), out.comboRecord.begin(), out.comboRecord.begin() + header.comboSize);
     payload.insert(payload.end(), out.ootBlob.begin(), out.ootBlob.begin() + header.ootSize);
     payload.insert(payload.end(), out.mmBlob.begin(), out.mmBlob.begin() + header.mmSize);
+    payload.insert(payload.end(), out.crossings.begin(), out.crossings.end());
     if (Crc32(payload.data(), payload.size()) != header.crc32) {
         if (verbose) {
             std::fprintf(stderr, "[RsbsSave] slot %d failed CRC — file is corrupt, load refused\n", slot);
@@ -551,6 +616,22 @@ SaveManager::SlotReadResult SaveManager::ReadSlotFile(int slot, SlotFileData& ou
         }
         outReason = RSBS_REFUSE_COMBO_MAGIC;
         return SlotReadResult::Refused;
+    }
+
+    // Every row of the crossing block, validated BEFORE anything commits: a
+    // CRC-clean block can still be one no writer of this build could have
+    // produced (a host twice, an own-origin row), and committing it would hand
+    // the give path a world that is not the one generated.
+    if (header.version >= RSBS_SAVE_VERSION_CROSSINGS) {
+        const int rowsRc = Combo_Crossings_ValidateBlock(out.crossings.data(), out.crossings.size());
+        if (rowsRc != RSBS_CROSSING_OK) {
+            if (verbose) {
+                std::fprintf(stderr, "[RsbsSave] slot %d Tier-4 crossing block refused (%s), load refused\n", slot,
+                             Combo_Crossings_StatusName(rowsRc));
+            }
+            outReason = RSBS_REFUSE_CROSSINGS;
+            return SlotReadResult::Refused;
+        }
     }
 
     return SlotReadResult::Ok;
@@ -749,6 +830,21 @@ RsbsLoadOutcome SaveManager::LoadSlot(int slot, uint32_t ootSavGeneration) {
 
     // All checks passed — commit. gComboCtx and both shadows are updated.
     std::memcpy(&gComboCtx, &combo, sizeof(ComboContext));
+
+    // The crossing store travels with Tier-1 (ADR 0010 O7): the slot's own
+    // record is authoritative, so it OVERWRITES. A v1/v2 file carries no block
+    // and loads as "no crossings", which is the truth for every world a pre-v3
+    // build could author. Already validated by ReadSlotFile, so this cannot
+    // refuse; it is checked anyway because a silent miss here would be a load
+    // that kept the previous session's crossings.
+    const int crossingsRc = data.crossings.empty()
+                                ? Combo_Crossings_LoadBlock(nullptr, 0)
+                                : Combo_Crossings_LoadBlock(data.crossings.data(), data.crossings.size());
+    if (crossingsRc != RSBS_CROSSING_OK) {
+        Combo_Crossings_Clear();
+        std::fprintf(stderr, "[RsbsSave] slot %d: crossing block failed to commit after validation (%s); cleared\n",
+                     slot, Combo_Crossings_StatusName(crossingsRc));
+    }
 
     const std::vector<uint8_t>& ootBlob = data.ootBlob;
     const std::vector<uint8_t>& mmBlob = data.mmBlob;

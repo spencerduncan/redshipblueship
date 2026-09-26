@@ -178,6 +178,15 @@ bool IsForeignCheck(RandoCheckId randoCheckId);
 /** Display name for the foreign item hosted by this check, or nullptr. */
 const char* ForeignNameForCheck(RandoCheckId randoCheckId);
 
+/** PINNED-table-only twins of IsForeignCheck / ForeignNameForCheck (ADR 0010
+ *  O7). The two above read through Combo_GetForeignPlacementForCheck, which
+ *  falls back to the crossing store; the spoiler's "foreign" section is the
+ *  pinned table's COMBO COMMIT (Apply.cpp rebuilds the pinned table from it by
+ *  pool name, capped at RSBS_FOREIGN_PLACEMENT_CAP), so it must list the pinned
+ *  rows only. The store's rows have their own section, combo.crossingStore. */
+bool IsPinnedForeignCheck(RandoCheckId randoCheckId);
+const char* PinnedForeignNameForCheck(RandoCheckId randoCheckId);
+
 /** The article MM's pickup textbox prepends to that name ("the ", "a ", "an ",
  *  or "" — it carries its own trailing space). Empty string if the check hosts
  *  nothing, so callers can concatenate unconditionally.

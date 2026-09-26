@@ -1005,9 +1005,32 @@ int Combo_SetForeignPlacement(uint16_t mmCheckId, SharedItem item);
 
 /**
  * The foreign item hosted by MM check `mmCheckId`, or NULL if that check hosts
- * none. The returned pointer aliases gComboCtx (read-only use).
+ * none. The returned pointer aliases gComboCtx or the crossing store (read-only
+ * use).
+ *
+ * TWO SOURCES, PINNED FIRST (ADR 0010 O7). The pinned forward table answers
+ * first; a host it does not list falls back to the crossing store
+ * (crossing_store.h, Combo_Crossings_Lookup), which is where the single-bag
+ * coordinator's placements persist. Both give paths (MM's CheckQueue foreign
+ * branch and OoT's RC-queue drain) read through this accessor and its OoT twin,
+ * so they honour coordinator crossings without a change of their own, and the
+ * pinned lookup keeps working until lane K11 retires the pools. The two
+ * sources never overlap in a real world (K11 replaces the pinned passes with
+ * the coordinator); if they did, the pinned row would win.
+ *
+ * NOT every reader wants both. A reader that serializes the PINNED table for a
+ * loader that rebuilds the pinned table (MM's spoiler "foreign" section, which
+ * Apply.cpp's ReconstructForeignPlacements reads back by pool name and caps at
+ * RSBS_FOREIGN_PLACEMENT_CAP) must use Combo_GetPinnedForeignPlacementForCheck:
+ * the crossing store has its own spoiler section (combo.crossingStore).
  */
 const SharedItem* Combo_GetForeignPlacementForCheck(uint16_t mmCheckId);
+
+/**
+ * The PINNED forward table's row for `mmCheckId`, or NULL: no crossing-store
+ * fallback. For writers of the pinned table's own serializations (see above).
+ */
+const SharedItem* Combo_GetPinnedForeignPlacementForCheck(uint16_t mmCheckId);
 
 /** Number of occupied placement slots. */
 int Combo_CountForeignPlacements(void);
@@ -1043,9 +1066,45 @@ int Combo_SetForeignPlacementOoT(uint16_t ootCheckId, SharedItem item);
 
 /**
  * The foreign item hosted by OoT check `ootCheckId`, or NULL if that check
- * hosts none. The returned pointer aliases gComboCtx (read-only use).
+ * hosts none. The returned pointer aliases gComboCtx or the crossing store
+ * (read-only use). Pinned reverse table first, then the crossing store: the
+ * same two-source rule as Combo_GetForeignPlacementForCheck.
  */
 const SharedItem* Combo_GetForeignPlacementForOoTCheck(uint16_t ootCheckId);
+
+// ============================================================================
+// Names for ANY item and check, not just the pinned pools (ADR 0010 O7)
+// ============================================================================
+//
+// The pinned pools name only their own rows (Combo_GetForeignItemName), and
+// under the single bag a crossing can be any progression item on any check.
+// The one spoiler has to print both directions by name, and src/common cannot
+// learn a name without a game header (ADR 0002). So each game's engine TU,
+// where its enums ARE in scope, registers a describer, exactly as the pools and
+// the engines themselves register: a file-scope registrar that stores a pointer
+// and calls nothing.
+//
+// Deliberately NOT folded into Combo_GetForeignItemName: that function's NULL
+// for a non-pool id is load-bearing for the pool locks and the spoiler view's
+// divergence fallback. These are separate entry points with their own contract.
+
+typedef struct {
+    /** Stable display name of `id` in this game's item id-space, or NULL. */
+    const char* (*itemName)(uint16_t id);
+    /** Stable display name of `check` in this game's check id-space, or NULL. */
+    const char* (*checkName)(uint16_t check);
+} ComboGameDescriber;
+
+/** Register (or, with NULL, un-register) `game`'s describer. A non-game is ignored. */
+void Combo_RegisterGameDescriber(uint8_t game, const ComboGameDescriber* describer);
+
+/** The item's name: the pinned pool's row first, then the origin game's
+ *  describer. NULL when neither knows it (an unregistered game, an unknown id). */
+const char* Combo_DescribeItemName(SharedItem item);
+
+/** The name of `check` in `hostGame`'s check id-space through that game's
+ *  describer, or NULL. */
+const char* Combo_DescribeCheckName(uint8_t hostGame, uint16_t check);
 
 /** Number of occupied OoT-hosted placement slots. */
 int Combo_CountForeignPlacementsOoT(void);
