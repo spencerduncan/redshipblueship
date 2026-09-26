@@ -365,12 +365,19 @@ int RunLegs() {
     //
     // The contract makes both enumerators return the TOTAL even when they wrote
     // at most `cap`, precisely so a caller can tell truncation from exhaustion.
-    // MM is the engine where that matters: its graph names far more checks than
+    // MM is the engine where that matters: its graph names more checks than
     // RSBS_COMBO_LOGIC_PLACEMENT_CAP, so a coordinator scratch buffer sized by
     // the PLACEMENT cap instead of by the ID SPACE silently loses hosts.
+    //
+    // THE MARGIN SHRANK WITH #727. The placement cap went from 1024 to 2048
+    // (lane K9, sized against the composed bag), so a graph total of about 2250
+    // now clears it by about 200 rather than about 1230. The assertion below is
+    // unchanged and still true; the margin is printed so the next cap raise sees
+    // how close it is, and when a raise passes the graph total this leg is to be
+    // re-stated (its failure message says how), not deleted.
     const int allTotal = gEngine->allEmptyHosts(gEngine->self, nullptr, 0);
-    printf("[TEST] mm-combo-logic-engine: allEmptyHosts total=%d, RSBS_COMBO_LOGIC_PLACEMENT_CAP=%d\n", allTotal,
-           (int)RSBS_COMBO_LOGIC_PLACEMENT_CAP);
+    printf("[TEST] mm-combo-logic-engine: allEmptyHosts total=%d, RSBS_COMBO_LOGIC_PLACEMENT_CAP=%d (margin %d)\n",
+           allTotal, (int)RSBS_COMBO_LOGIC_PLACEMENT_CAP, allTotal - (int)RSBS_COMBO_LOGIC_PLACEMENT_CAP);
     CE_ASSERT(allTotal > 0, 3,
               "allEmptyHosts reports no hosts at all over the populated region graph - the host universe is empty");
     CE_ASSERT(allTotal > (int)RSBS_COMBO_LOGIC_PLACEMENT_CAP, 3,

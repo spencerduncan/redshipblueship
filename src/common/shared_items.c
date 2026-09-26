@@ -343,11 +343,18 @@ typedef struct {
     const ComboItemClassSource* source;
     bool built;
     int fillItems;
-    uint8_t fillClass[RSBS_ITEM_CLASS_ID_CAP];
+    uint8_t fillClass[RSBS_ITEM_CLASS_ID_CAP]; // the SOURCE's answer, unreconciled
     uint32_t armedBy[RSBS_ITEM_CLASS_ID_CAP];
+    uint8_t sharedKind[RSBS_ITEM_CLASS_ID_CAP];
 } ItemClassTable;
 
 static ItemClassTable sItemClass[ITEM_CLASS_ORIGINS];
+
+// The reconciled class per shared kind (#731), folded over every registered
+// origin's stored rows. Rebuilt lazily; invalidated whenever a table is built or
+// dropped, so it can never answer for a source set that no longer exists.
+static bool sKindClassValid = false;
+static uint8_t sKindClass[RSBS_ITEM_CLASS_SHARED_KIND_CAP];
 static uint32_t sItemClassRefused = 0;
 static uint32_t sItemClassUnregistered = 0;
 
@@ -358,13 +365,34 @@ static ItemClassTable* ItemClassTableFor(uint8_t originGame) {
     return &sItemClass[originGame];
 }
 
-// A row a source may legally return: "not a fill item" carries NONE, "a fill
-// item" carries exactly one real class.
+// A row a source may legally return: "not a fill item" carries NONE and feeds no
+// kind, "a fill item" carries exactly one real class. A shared kind must be in
+// range, and a TRAP never feeds one (a trap is a per-game punishment, not a
+// quantity — shared_items.h, "ONE CLASS PER CROSS-GAME SHARED QUANTITY").
 static bool ItemClassRowValid(int rv, const ComboItemClassRow* row) {
     if (rv == 0) {
-        return row->fillClass == RSBS_FILL_CLASS_NONE;
+        return row->fillClass == RSBS_FILL_CLASS_NONE && row->sharedKind == 0u;
+    }
+    if (row->sharedKind >= RSBS_ITEM_CLASS_SHARED_KIND_CAP ||
+        (row->sharedKind != 0u && row->fillClass == RSBS_FILL_CLASS_TRAP)) {
+        return false;
     }
     return rv == 1 && row->fillClass != RSBS_FILL_CLASS_NONE && row->fillClass < RSBS_FILL_CLASS_COUNT;
+}
+
+// The reconciliation rank: PROGRESSION > RENEWABLE > JUNK. NONE and TRAP rank 0
+// (neither can feed a kind — see ItemClassRowValid).
+static int ItemClassKindRank(uint8_t fillClass) {
+    switch (fillClass) {
+        case RSBS_FILL_CLASS_PROGRESSION:
+            return 3;
+        case RSBS_FILL_CLASS_RENEWABLE:
+            return 2;
+        case RSBS_FILL_CLASS_JUNK:
+            return 1;
+        default:
+            return 0;
+    }
 }
 
 bool Combo_RegisterItemClassSource(uint8_t originGame, const ComboItemClassSource* source) {
@@ -403,6 +431,7 @@ bool Combo_RegisterItemClassSource(uint8_t originGame, const ComboItemClassSourc
     }
     memset(t, 0, sizeof(*t));
     t->source = source;
+    sKindClassValid = false;
     return true;
 }
 
@@ -415,6 +444,7 @@ bool Combo_TestUnregisterItemClassSource(uint8_t originGame) {
     fprintf(stderr, "[ItemClass] TEST un-registration of %s's source (un-registrations: %u)\n",
             Game_ToString((GameId)originGame), sItemClassUnregistered);
     memset(t, 0, sizeof(*t)); // drop the source AND every row built from it
+    sKindClassValid = false;
     return true;
 }
 
@@ -442,33 +472,105 @@ int Combo_ItemClassBuild(uint8_t originGame) {
     const ComboItemClassSource* src = t->source;
     int fillItems = 0;
     for (uint32_t id = 0; id < src->idSpace; id++) {
-        ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u };
+        ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u, 0u };
         const int rv = src->classify((uint16_t)id, &row);
         if (rv < 0) {
             // Not ready: keep NOTHING. A half-built table would be cached as the
             // answer for the rest of the process.
             memset(t->fillClass, 0, sizeof(t->fillClass));
             memset(t->armedBy, 0, sizeof(t->armedBy));
+            memset(t->sharedKind, 0, sizeof(t->sharedKind));
             return -1;
         }
         if (!ItemClassRowValid(rv, &row)) {
             // "A fill item" with no class, or a class the enum does not have, is a
             // source refusing to classify. Stored as NONE so the lock that counts
             // unclassified fill items sees it, and logged so the id is named.
-            fprintf(stderr, "[ItemClass] %s id %u: invalid source row (rv=%d class=%u) stored as unclassified\n",
-                    Game_ToString((GameId)originGame), (unsigned)id, rv, (unsigned)row.fillClass);
+            fprintf(stderr,
+                    "[ItemClass] %s id %u: invalid source row (rv=%d class=%u kind=%u) stored as unclassified\n",
+                    Game_ToString((GameId)originGame), (unsigned)id, rv, (unsigned)row.fillClass,
+                    (unsigned)row.sharedKind);
             row.fillClass = RSBS_FILL_CLASS_NONE;
             row.armedBy = 0u;
+            row.sharedKind = 0u;
         }
         t->fillClass[id] = row.fillClass;
         t->armedBy[id] = row.armedBy;
+        t->sharedKind[id] = row.sharedKind;
         if (row.fillClass != RSBS_FILL_CLASS_NONE) {
             fillItems++;
         }
     }
     t->fillItems = fillItems;
     t->built = true;
+    sKindClassValid = false;
     return fillItems;
+}
+
+// Fold every registered origin's rows into one class per shared kind. False (and
+// nothing cached) while any registered table cannot be built: a fold over half
+// the rows would be a different answer once the other half arrives.
+static bool ItemClassKindsReady(void) {
+    if (sKindClassValid) {
+        return true;
+    }
+    uint8_t folded[RSBS_ITEM_CLASS_SHARED_KIND_CAP];
+    memset(folded, 0, sizeof(folded));
+    for (uint8_t origin = 0; origin < ITEM_CLASS_ORIGINS; origin++) {
+        ItemClassTable* t = ItemClassTableFor(origin);
+        if (t == NULL || t->source == NULL) {
+            continue;
+        }
+        if (Combo_ItemClassBuild(origin) < 0) {
+            return false;
+        }
+        for (uint32_t id = 0; id < t->source->idSpace; id++) {
+            const uint8_t kind = t->sharedKind[id];
+            if (kind != 0u && ItemClassKindRank(t->fillClass[id]) > ItemClassKindRank(folded[kind])) {
+                folded[kind] = t->fillClass[id];
+            }
+        }
+    }
+    memcpy(sKindClass, folded, sizeof(sKindClass));
+    sKindClassValid = true;
+    return true;
+}
+
+uint8_t Combo_ItemClassSourceOf(SharedItem item) {
+    ItemClassTable* t = ItemClassTableFor(item.originGame);
+    if (t == NULL || Combo_ItemClassBuild(item.originGame) < 0 || item.id >= t->source->idSpace) {
+        return RSBS_FILL_CLASS_NONE;
+    }
+    return t->fillClass[item.id];
+}
+
+uint8_t Combo_ItemClassSharedKind(SharedItem item) {
+    ItemClassTable* t = ItemClassTableFor(item.originGame);
+    if (t == NULL || Combo_ItemClassBuild(item.originGame) < 0 || item.id >= t->source->idSpace) {
+        return 0u;
+    }
+    return t->sharedKind[item.id];
+}
+
+uint8_t Combo_ItemClassKindClass(uint8_t kind) {
+    if (kind == 0u || kind >= RSBS_ITEM_CLASS_SHARED_KIND_CAP || !ItemClassKindsReady()) {
+        return RSBS_FILL_CLASS_NONE;
+    }
+    return sKindClass[kind];
+}
+
+int Combo_ItemClassKindRows(uint8_t originGame, uint8_t kind) {
+    ItemClassTable* t = ItemClassTableFor(originGame);
+    if (t == NULL || Combo_ItemClassBuild(originGame) < 0) {
+        return -1;
+    }
+    int rows = 0;
+    for (uint32_t id = 0; id < t->source->idSpace; id++) {
+        if (kind != 0u && t->sharedKind[id] == kind && t->fillClass[id] != RSBS_FILL_CLASS_NONE) {
+            rows++;
+        }
+    }
+    return rows;
 }
 
 uint8_t Combo_ItemClassOf(SharedItem item) {
@@ -476,7 +578,13 @@ uint8_t Combo_ItemClassOf(SharedItem item) {
     if (t == NULL || Combo_ItemClassBuild(item.originGame) < 0 || item.id >= t->source->idSpace) {
         return RSBS_FILL_CLASS_NONE;
     }
-    return t->fillClass[item.id];
+    const uint8_t kind = t->sharedKind[item.id];
+    if (kind == 0u || t->fillClass[item.id] == RSBS_FILL_CLASS_NONE) {
+        return t->fillClass[item.id];
+    }
+    // A row feeding a shared kind answers the KIND's class (#731), which needs
+    // every registered table; NONE until they can all be built.
+    return Combo_ItemClassKindClass(kind);
 }
 
 uint32_t Combo_ItemClassArmedBy(SharedItem item) {
@@ -494,7 +602,11 @@ int Combo_ItemClassCount(uint8_t originGame, uint8_t fillClass) {
     }
     int count = 0;
     for (uint32_t id = 0; id < t->source->idSpace; id++) {
-        if (t->fillClass[id] == fillClass) {
+        SharedItem item;
+        item.originGame = originGame;
+        item.flags = 0;
+        item.id = (uint16_t)id;
+        if (Combo_ItemClassOf(item) == fillClass) {
             count++;
         }
     }
@@ -508,7 +620,7 @@ int Combo_ItemClassVerify(uint8_t originGame) {
     }
     int diverging = 0;
     for (uint32_t id = 0; id < t->source->idSpace; id++) {
-        ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u };
+        ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u, 0u };
         const int rv = t->source->classify((uint16_t)id, &row);
         if (rv < 0) {
             return -1;
@@ -516,8 +628,10 @@ int Combo_ItemClassVerify(uint8_t originGame) {
         if (!ItemClassRowValid(rv, &row)) {
             row.fillClass = RSBS_FILL_CLASS_NONE;
             row.armedBy = 0u;
+            row.sharedKind = 0u;
         }
-        if (row.fillClass != t->fillClass[id] || row.armedBy != t->armedBy[id]) {
+        if (row.fillClass != t->fillClass[id] || row.armedBy != t->armedBy[id] ||
+            row.sharedKind != t->sharedKind[id]) {
             if (diverging < 8) {
                 fprintf(stderr, "[ItemClass] %s id %u DIVERGES: owner=(%s, 0x%08X) source=(%s, 0x%08X)\n",
                         Game_ToString((GameId)originGame), (unsigned)id, Combo_ItemClassName(t->fillClass[id]),

@@ -14,6 +14,15 @@ std::vector<RandomizerGet> itemPool = {};
 std::vector<RandomizerGet> lesserPool = {};
 std::vector<RandomizerGet> plentifulPool = {};
 std::vector<RandomizerGet> junkPool = {};
+#ifdef RSBS_SINGLE_EXECUTABLE
+// RedShipBlueShip (#645 increment 3, lane K9): the copies RO_ITEM_POOL_PLENTIFUL
+// actually put into `itemPool` on the last GenerateItemPool — the plentifulPool
+// entries it moved in (all of them when they fit, the random top-up otherwise)
+// and the tokensanity extras. RECORDED where the decision is made, not re-derived,
+// so the combo bag marks exactly this port's surplus (ComboLogicEngineOoT.cpp,
+// OoT_ComboLogic_PlentifulExtraCount). Written only here; read only there.
+std::vector<RandomizerGet> gRsbsComboPlentifulAdded = {};
+#endif
 const std::array<RandomizerGet, 13> JunkPoolItems = {
     RG_BOMBS_5,  RG_BOMBS_10,  RG_BOMBS_20,  RG_DEKU_NUTS_5, RG_DEKU_STICK_1, RG_DEKU_SEEDS_30, RG_RECOVERY_HEART,
     RG_ARROWS_5, RG_ARROWS_10, RG_ARROWS_30, RG_BLUE_RUPEE,  RG_RED_RUPEE,    RG_DEKU_NUTS_10,
@@ -153,6 +162,9 @@ void GenerateItemPool() {
     junkPool.clear();
     plentifulPool.clear();
     lesserPool.clear();
+#ifdef RSBS_SINGLE_EXECUTABLE
+    gRsbsComboPlentifulAdded.clear();
+#endif
     int reservedSlots = 0;
 
     // clang-format off
@@ -570,6 +582,14 @@ void GenerateItemPool() {
 
     if (ctx->GetOption(RSK_STARTING_SKULLTULA_TOKEN).Get() < tokensToAdd) {
         AddFixedItemToPool(RG_GOLD_SKULLTULA_TOKEN, tokensToAdd - ctx->GetOption(RSK_STARTING_SKULLTULA_TOKEN).Get());
+#ifdef RSBS_SINGLE_EXECUTABLE
+        if (ctx->GetOption(RSK_SHUFFLE_TOKENS).IsNot(RO_TOKENSANITY_OFF) &&
+            ctx->GetOption(RSK_ITEM_POOL).Is(RO_ITEM_POOL_PLENTIFUL)) {
+            const int added = tokensToAdd - ctx->GetOption(RSK_STARTING_SKULLTULA_TOKEN).Get();
+            gRsbsComboPlentifulAdded.insert(gRsbsComboPlentifulAdded.end(), added < 10 ? added : 10,
+                                            RG_GOLD_SKULLTULA_TOKEN);
+        }
+#endif
     }
 
     if (ctx->GetOption(RSK_SHUFFLE_BOSS_SOULS)) {
@@ -889,6 +909,9 @@ void GenerateItemPool() {
     int iceTrapstoAdd = 0;
     if (itemPool.size() + plentifulPool.size() < locCount) {
         itemPool.insert(itemPool.end(), plentifulPool.begin(), plentifulPool.end());
+#ifdef RSBS_SINGLE_EXECUTABLE
+        gRsbsComboPlentifulAdded.insert(gRsbsComboPlentifulAdded.end(), plentifulPool.begin(), plentifulPool.end());
+#endif
         // Fixed Ice Traps
         if (ctx->GetOption(RSK_BASE_ICE_TRAPS)) {
             iceTrapstoAdd++;
@@ -912,6 +935,9 @@ void GenerateItemPool() {
     } else {
         while (itemPool.size() < locCount) {
             itemPool.insert(itemPool.end(), RandomElement(plentifulPool, true));
+#ifdef RSBS_SINGLE_EXECUTABLE
+            gRsbsComboPlentifulAdded.push_back(itemPool.back());
+#endif
         }
     }
 
