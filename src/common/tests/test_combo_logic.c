@@ -1996,7 +1996,8 @@ TestResult ClComposeLeg(void) {
     CL_ASSERT(capped[2].item.id == 0xABABu, "C3: nothing is written past the caller's capacity");
 
     // C4. REFUSALS: an unclassified row, an unknown pool flag, a row with no
-    //     origin — each refuses the whole compose.
+    //     origin — each refuses the whole compose, and each is still COUNTED
+    //     exactly once (the header's "counts are complete on every refusal").
     ComboLogicPoolRow bad[3] = { ClPoolRow(O, 1, 0), ClPoolRow(O, 9, 0), ClPoolRow(M, 1, 0) };
     req.rows = bad;
     req.rowCount = 3;
@@ -2006,9 +2007,25 @@ TestResult ClComposeLeg(void) {
     bad[1] = ClPoolRow(O, 1, 0x8000u);
     CL_ASSERT(Combo_Logic_ComposeBag(&req, bag, 16, index, &res) == RSBS_COMBO_LOGIC_ERR_BAD_REQUEST,
               "C4: an unknown pool flag is refused, never read as a REQUIRED copy");
+    {
+        int sumO = 0;
+        for (int d = 0; d < RSBS_COMBO_COMPOSE_COUNT; ++d) {
+            sumO += res.perGame[O].rows[d];
+        }
+        CL_ASSERT(sumO == 2 && res.perGame[O].rows[RSBS_COMBO_COMPOSE_UNCLASSIFIED] == 1 && res.noOrigin == 0,
+                  "C4: the unknown-flag row is counted once, under UNCLASSIFIED, so the counts still cover the pool");
+    }
     bad[1] = ClPoolRow((uint8_t)GAME_NONE, 1, 0);
     CL_ASSERT(Combo_Logic_ComposeBag(&req, bag, 16, index, &res) == RSBS_COMBO_LOGIC_ERR_BAD_REQUEST,
               "C4: a row with no origin game is refused");
+    {
+        int sum = 0;
+        for (int d = 0; d < RSBS_COMBO_COMPOSE_COUNT; ++d) {
+            sum += res.perGame[O].rows[d] + res.perGame[M].rows[d];
+        }
+        CL_ASSERT(res.noOrigin == 1 && sum + res.noOrigin == 3,
+                  "C4: the no-origin row is counted in noOrigin, so per-game counts plus noOrigin cover the pool");
+    }
     CL_ASSERT(Combo_Logic_ComposeBag(nullptr, bag, 16, index, &res) == RSBS_COMBO_LOGIC_ERR_BAD_REQUEST,
               "C4: a NULL request is refused");
 

@@ -167,16 +167,30 @@ const char* Combo_Logic_StatusName(int status);
  * traps never enter the bag, which is what makes this a few hundred rows and not
  * the 2489-row union of both whole pools the #727 measurement ran against.
  *
- * SIZED FROM THE MEASURED WORST CASE, with headroom (#727; lane K9's
- * re-measurement on 2026-09-27 over both real engines, combo-logic-measure with
+ * SIZED FROM THE LARGEST BAG MEASURED, with headroom (#727; lane K9's
+ * re-measurement over both real engines, combo-logic-measure with
  * RSBS_COMBO_MEASURE_PROFILE): the composed bag is 307 rows on the shipped
  * profile, 399 on the plentiful profile (OoT RO_ITEM_POOL_PLENTIFUL, MM
  * RO_PLENTIFUL_ITEMS, traps on in both) and 784 on the "maximal" profile —
  * plentiful plus every OoT confinement family at its general-pass value, every
- * token, and every MM location category shuffled, i.e. every setting that grows
- * the bag. 2048 carries that worst case with 2.6x headroom (the static assert
- * below demands at least 2x). Exceeding it is still refused
- * (RSBS_COMBO_LOGIC_ERR_CAPACITY), never truncated.
+ * token, and every MM LOCATION category shuffled.
+ *
+ * 784 IS THE LARGEST OF THE THREE PROFILES RUN, NOT A PROVEN WORST CASE. The
+ * "maximal" profile leaves out every ITEM family that is gated on a give
+ * capability or a goal: MM's enemy souls (about 47 items), boss souls (5),
+ * ocarina buttons (5), swim (1), clock shuffle (7 time items) and triforce pieces
+ * (RO_SHUFFLE_ENEMY_SOULS / _BOSS_SOULS / _OCARINA_BUTTONS / _SWIM,
+ * RO_CLOCK_SHUFFLE, RO_SHUFFLE_TRIFORCE_PIECES), and OoT's boss souls, bean souls
+ * (10), ocarina buttons and triforce pieces. The MM families could not be run on
+ * that profile: their rows are armed by give capabilities (RSBS_FILL_ARM_SOULS,
+ * _OCARINA_BUTTONS, _SWIM, _CLOCKS, _WORLD_EVENT) that the measured frozen record
+ * does not publish (armed MM = 0), so they would land in CONFINED, which the
+ * measurement refuses for MM. UNMEASURED ESTIMATE: those families add about
+ * 80-100 progression rows, and plentiful duplicates the major ones, so roughly
+ * 150-200 more bag rows, about 1000 in total. 2048 would still carry that with
+ * about 2x headroom, but the number is an estimate; the next re-measurement with
+ * those families armed moves RSBS_COMBO_LOGIC_MEASURED_WORST_BAG below. Exceeding
+ * the cap is still refused (RSBS_COMBO_LOGIC_ERR_CAPACITY), never truncated.
  *
  * MEMORY: every bag-sized buffer in combo_logic.c is static — the assumed-set
  * copy (8 B/row) and the order, required, surplus and dropped index arrays
@@ -184,9 +198,11 @@ const char* Combo_Logic_StatusName(int status);
  * old 512.
  */
 #define RSBS_COMBO_LOGIC_BAG_CAP 2048
-/** The largest composed bag measured on any profile (#727): the number the cap
- *  above is sized against, stated so a later re-measurement has one line to move
- *  and a static assert keeps the headroom honest. */
+/** The largest composed bag measured on the three profiles run (#727; "maximal"
+ *  — see the families it leaves out, above): the number the cap above is sized
+ *  against, stated so a later re-measurement has one line to move and a static
+ *  assert keeps the 2x headroom over what WAS measured. It is not a bound on
+ *  every configuration. */
 #define RSBS_COMBO_LOGIC_MEASURED_WORST_BAG 784
 #if RSBS_COMBO_LOGIC_BAG_CAP < 2 * RSBS_COMBO_LOGIC_MEASURED_WORST_BAG
 #error "RSBS_COMBO_LOGIC_BAG_CAP must carry the measured worst composed bag with at least 2x headroom"
@@ -1049,6 +1065,32 @@ int Combo_Logic_TestLastCandidates(GameId hostGame, uint16_t* out, int cap);
 // RO_PLENTIFUL_ITEMS). Neither export decides a class: that is the O8 owner's
 // (`Combo_ItemClassOf`, shared_items.h), read here and nowhere else.
 //
+// MM'S BALANCE STEP AND THE BAG: THE BAG IS AUTHORITATIVE FOR A PAIRED WORLD.
+// MM's solo creation (OnFileCreate.cpp, after `GeneratePools`) forces
+// |itemPool| == |checkPool|: it pads with RI_JUNK, or it ERASES rows — first
+// every RITYPE_JUNK row it needs to, front first, then folds four heart pieces
+// into one container. Several rows that step erases or folds are BAG rows
+// under this rule: MM's bombchus (RI_BOMBCHU, RI_BOMBCHU_5, RI_BOMBCHU_10 are
+// RITYPE_JUNK in Items.cpp) reconcile to PROGRESSION (#731) and are REQUIRED,
+// and MM's hearts are REQUIRED (#733). On the plentiful profile MM's pool is
+// 367 rows against 283 checks, so the balance would erase 84 rows, bombchus
+// among them. The two cannot both hold, and for a PAIRED world the bag wins:
+//  - the balance exists because MM's own fill is a bijection of items onto
+//    MM's checks. A paired world has no such bijection: bag rows land on the
+//    union of both games' hosts, SURPLUS rows are droppable by construction,
+//    and leftover hosts get each game's own junk pass (THE BAG MODEL, shape 4).
+//  - the plentiful mark is only defined on the pool GeneratePools returned
+//    (`MM_ComboLogic_MarkPoolRows` refuses a pool of any other size), so the
+//    bag can only be composed BEFORE the balance.
+// So the production wiring (lane K11) composes from the pre-balance pool and
+// must NOT run MM's balance over rows this rule admitted: erasing or folding a
+// REQUIRED row after composition changes the multiplicity the proof assumed.
+// Whatever balancing a paired world still needs applies only to the rows this
+// rule sent to MM's own passes (JUNK / RENEWABLE / TRAP), which that pass fits
+// to MM's leftover hosts. If K11 decides the other way (balance first), the bag
+// must be composed after it and the plentiful tail re-derived; either way the
+// order is K11's decision to state, not a silent default.
+//
 // THE RULE, one row at a time — first match decides, and the reconciled class
 // (shared_items.h, "ONE CLASS PER CROSS-GAME SHARED QUANTITY") is the class:
 //
@@ -1083,9 +1125,14 @@ int Combo_Logic_TestLastCandidates(GameId hostGame, uint16_t* out, int cap);
 //
 // REFUSALS: a NULL/negative request, a row whose origin is not a game, an
 // unknown pool flag, or ANY unclassified row -> ERR_BAD_REQUEST; more admitted
-// rows than `outCap` or than RSBS_COMBO_LOGIC_BAG_CAP -> ERR_CAPACITY. The counts
-// are complete on every refusal (they describe the whole pool), and nothing is
-// half-admitted: on a refusal `bagCount` reports what WOULD have been admitted.
+// rows than `outCap` or than RSBS_COMBO_LOGIC_BAG_CAP -> ERR_CAPACITY. On every
+// refusal past the argument check the COUNTS are complete — every row is counted
+// exactly once: under its disposition, under UNCLASSIFIED when it carries an
+// unknown pool flag, or in `noOrigin` when it names no game — and `bagCount`
+// reports what WOULD have been admitted. The OUTPUT BUFFERS are not: the builder
+// writes admitted rows as it walks, so after a refusal `outBag` / `outPoolIndex`
+// hold a partial prefix with unspecified contents, which the caller must not
+// read as a bag.
 //
 // WHAT THE BUILDER DOES NOT DECIDE: whether a bag row may be HOSTED by the other
 // game. The fill places every bag row on the union of both games' hosts; the
@@ -1137,6 +1184,7 @@ typedef struct {
 typedef struct {
     int status;   // RSBS_COMBO_LOGIC_*
     int bagCount; // rows admitted (REQUIRED + SURPLUS), even when refused for capacity
+    int noOrigin; // rows whose origin names no game (refused; counted under no game)
     ComboLogicComposeCounts perGame[RSBS_FOREIGN_POOL_ORIGIN_COUNT]; // indexed by GameId
 } ComboLogicComposeResult;
 
@@ -1145,7 +1193,8 @@ typedef struct {
  * RULE above. Writes at most `outCap` bag rows to `outBag` (itemClass 0 — the ADR
  * 0011 selection bit is the draw's, not this rule's; bagFlags SURPLUS on the
  * surplus rows) and, when `outPoolIndex` is non-NULL, each bag row's index in
- * `req->rows`, so a caller can map a row back to its host.
+ * `req->rows`, so a caller can map a row back to its host. Both buffers are
+ * meaningful ONLY when the call returns RSBS_COMBO_LOGIC_OK (see REFUSALS above).
  * @return the status, also written to `out->status` when `out` is non-NULL.
  */
 int Combo_Logic_ComposeBag(const ComboLogicComposeRequest* req, ComboLogicBagItem* outBag, int outCap,

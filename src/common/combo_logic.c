@@ -1323,19 +1323,24 @@ int Combo_Logic_ComposeBag(const ComboLogicComposeRequest* req, ComboLogicBagIte
         if (!ComboLogicIsGame(origin)) {
             fprintf(stderr, "[ComboLogic] compose refused: pool row %d carries no origin game\n", i);
             status = RSBS_COMBO_LOGIC_ERR_BAD_REQUEST;
+            // No game to count it under: `noOrigin` counts it, so the per-game
+            // counts plus that one still account for every row.
+            res.noOrigin++;
             continue; // keep counting: the counts describe the whole pool on a refusal too
         }
+        ComboLogicComposeCounts* counts = &res.perGame[origin];
         if ((row->poolFlags & (uint16_t)~RSBS_COMBO_POOL_FLAGS_KNOWN) != 0u) {
             // An unknown pool flag is refused, never ignored: a flag this build
             // does not understand would otherwise be composed as a REQUIRED copy.
+            // It is counted UNCLASSIFIED: the rule could not place it.
             fprintf(stderr, "[ComboLogic] compose refused: pool row %d carries unknown pool flags 0x%04X\n", i,
                     (unsigned)row->poolFlags);
             status = RSBS_COMBO_LOGIC_ERR_BAD_REQUEST;
+            counts->rows[RSBS_COMBO_COMPOSE_UNCLASSIFIED]++;
             continue;
         }
         const uint32_t armed = (origin == (uint8_t)GAME_OOT) ? req->armedOoT : req->armedMM;
         const int disposition = Combo_Logic_ComposeDisposition(row->item, row->poolFlags, armed);
-        ComboLogicComposeCounts* counts = &res.perGame[origin];
         counts->rows[disposition]++;
         if ((row->poolFlags & RSBS_COMBO_POOL_PLENTIFUL) != 0u) {
             counts->plentiful++;

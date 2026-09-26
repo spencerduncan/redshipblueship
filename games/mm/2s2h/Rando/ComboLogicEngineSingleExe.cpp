@@ -172,9 +172,13 @@
  *      That is stated in the PR as a contract gap, not worked around here.
  *
  * (A4) The host universe is LARGER THAN THE COORDINATOR'S SCRATCH BUFFER, and
- *      that is a fact about MM rather than a choice here: MM's graph names on
- *      the order of a thousand-plus checks against
- *      RSBS_COMBO_LOGIC_PLACEMENT_CAP = 1024. Both enumerators therefore honour
+ *      that is a fact about MM rather than a choice here: MM's graph names about
+ *      2250 checks (mm-combo-logic-engine prints the exact total) against
+ *      RSBS_COMBO_LOGIC_PLACEMENT_CAP = 2048 since the #727 raise (it was 1024,
+ *      a margin of about 1230; it is now about 200, so a further raise of the
+ *      placement cap can pass the graph total and retire this premise — the
+ *      lock's leg 3 says to re-state it when that happens, not to delete it).
+ *      Both enumerators therefore honour
  *      the contract's truncation rule exactly — write at most `cap`, RETURN THE
  *      TOTAL — so a caller can tell truncation from exhaustion. The lock asserts
  *      the whole-graph total against that cap and prints both numbers, so a
@@ -1383,7 +1387,11 @@ extern size_t gRsbsComboPoolSize;
  *
  * THE POOL MUST BE THE ONE THE MOST RECENT `GeneratePools` CALL RETURNED, AS IT
  * RETURNED IT — in particular BEFORE OnFileCreate's balance step, which erases
- * junk rows from the front and would shift the plentiful tail. The record carries
+ * junk rows from the front and would shift the plentiful tail. For a paired world
+ * the composed bag, not that balance step, is authoritative: the balance erases
+ * RITYPE_JUNK rows (bombchus among them, now PROGRESSION under #731) and folds
+ * heart pieces (REQUIRED under #733), so it must not run over rows the bag
+ * admitted — combo_logic.h, "MM'S BALANCE STEP AND THE BAG". The record carries
  * the pool's final size and a mismatch is refused (-1), which catches a stale
  * record (Menu.cpp's metrics refresh also calls GeneratePools) and a balanced
  * pool alike. It cannot catch a same-size impostor; the caller owns passing the
@@ -1488,6 +1496,58 @@ extern "C" int MM_ComboLogic_TestHeartGatedChecks(uint16_t* out, int cap) {
  *  (`healthCapacity`, 16 per heart). */
 extern "C" int MM_ComboLogic_TestHealthCapacity(void) {
     return (int)gSaveContext.save.saveInfo.playerData.healthCapacity;
+}
+
+/**
+ * TEST BRIDGE (#733, the fill-level leg B5 of combo-logic-bag-composition): the
+ * two ids that leg names, since src/common cannot name an RI_* (ADR 0002).
+ * out[0] = RI_HEART_CONTAINER (one heart: 0x30 -> 0x40 healthCapacity, exactly
+ * what CHECK_MAX_HP(4) asks for); out[1] = RI_RUPEE_GREEN, a LOGIC-NEUTRAL
+ * stand-in row (MM's region graph reads no rupee count; Logic/ names rupees only
+ * in comments). At most `cap` written; the total (2) returned.
+ */
+extern "C" int MM_ComboLogic_TestMaxHpFixtureIds(uint16_t* out, int cap) {
+    const uint16_t ids[] = { (uint16_t)RI_HEART_CONTAINER, (uint16_t)RI_RUPEE_GREEN };
+    const int total = (int)(sizeof(ids) / sizeof(ids[0]));
+    for (int i = 0; i < total && i < cap; ++i) {
+        if (out != nullptr) {
+            out[i] = ids[i];
+        }
+    }
+    return total;
+}
+
+/**
+ * TEST BRIDGE (#733, leg B5): give each id into the LIVE save through the
+ * engine's own one-copy give path (MmGiveOneCopy — the path assumeOwnItem and
+ * the harvest share), with NO snapshot, so a fill run afterwards starts from a
+ * save that already holds them. The CALLER brackets it: it copies the unified
+ * save buffer before and copies it back after, exactly as it does around
+ * MM_ComboLogic_ApplyShippedProfile. The event-queue depth is put back here
+ * (it is state outside the save, which the round's own Restore also trims), and
+ * the clamp counter is left as it was so the multiplicity locks' reading of it
+ * is unaffected. Ids MM cannot give are skipped.
+ * @return the number of gives made.
+ */
+extern "C" int MM_ComboLogic_TestGiveIntoSave(const uint16_t* ids, int count) {
+    if (ids == nullptr || count <= 0) {
+        return 0;
+    }
+    const size_t queueDepth = MM_GameEvents_Queue().size();
+    const int clamps = sCounterClamps;
+    int given = 0;
+    for (int i = 0; i < count; ++i) {
+        if (!IsGiveableItemId(ids[i])) {
+            continue;
+        }
+        MmGiveOneCopy(ids[i]);
+        given++;
+    }
+    if (MM_GameEvents_Queue().size() > queueDepth) {
+        MM_GameEvents_Queue().resize(queueDepth);
+    }
+    sCounterClamps = clamps;
+    return given;
 }
 
 // ============================================================================

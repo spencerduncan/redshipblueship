@@ -1872,6 +1872,15 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1;RSBS_COMBO_PROFILE=plentiful")
+    # The "armed" profile (PR #738 review): plentiful plus OoT small keys, songs and
+    # Ganon's boss key at ANYWHERE and every token shuffled — the only CTest-run
+    # generation that reaches OoT_ComboLogic_ConfinementArmed with a bit set and
+    # item_pool.cpp's tokensanity plentiful record (leg B6: the exact armed word and
+    # exactly ten PLENTIFUL tokens).
+    redship_add_test(NAME ComboLogicBagCompositionArmed COMMAND redship --test combo-logic-bag-composition
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1;RSBS_COMBO_PROFILE=armed")
 
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)
