@@ -1559,3 +1559,115 @@ somewhere else, and this entry records where and why.
   both directions per host with the store digest, and a loader that rebuilds
   the store from it. Rebuilding the coordinator's tables from the store records
   the rows without calling either engine.
+
+### 2026-09-27 -- O10 delivered: one shared triforce piece count across both worlds
+
+Answer O10 decided "ONE shared triforce piece count across both worlds, carried
+shared-resource-style". Lane K12 (wave 6) builds it. Every piece is inert unless
+the FROZEN combo goal is `triforce-hunt`; the shipped default goal is
+`beat-both`, so no shipped world changes.
+
+**The rule, decided at creation.** Each half's own piece settings are inputs:
+
+- OoT's half. `RSK_TRIFORCE_HUNT` on (Win or Ganon's Boss Key) gives OoT's
+  pool `RSK_TRIFORCE_HUNT_PIECES_TOTAL + 1` pieces and adds
+  `RSK_TRIFORCE_HUNT_PIECES_REQUIRED + 1` to the requirement. Off gives 0 and 0.
+- MM's half. `RO_SHUFFLE_TRIFORCE_PIECES` on gives MM's pool
+  `RO_TRIFORCE_PIECES_MAX` pieces and adds `RO_TRIFORCE_PIECES_REQUIRED`.
+  Off gives 0 and 0.
+- Each half's pieces stay in its own pool. The combo total is the sum of the
+  two pools. The combo requirement is the sum of the two halves'
+  requirements. No knob is invented (§1.2).
+- Refused at creation: no pieces in either pool, a half that requires more
+  than its pool holds, and a combo total above 255. OoT keeps the count in an
+  8-bit counter, so 255 is the bound. MM's own slider goes to 1000, and such a
+  half is refused rather than truncated. The creation rolls back as a failed
+  fill does.
+- `Combo_TriforceResolve` (`src/common/triforce_hunt.c`) is the one statement
+  of the rule.
+
+**Where it is frozen.** The halves are stored in `ComboTriforceRecord`, a
+4-byte carve at `.redsave` offset 896 (ADR 0011's 2026-09-27 amendment is the
+format note). The creation event writes it right after the combo record, in
+`playthrough.cpp`. It is kept through file-create invalidation beside
+`comboSettings`. Every other goal stores four zero bytes.
+
+**The count.** `RSBS_SHARED_RES_TRIFORCE_PIECES` (kind 19) is MONOTONIC. It is
+armed only while the frozen goal is triforce-hunt with a valid record.
+
+- Each game's own counter (OoT `triforcePiecesCollected`, MM
+  `foundTriforcePieces`) is a mirror of the count, so neither game's counter is
+  authoritative.
+- Both harvest shims max-merge the counter. Both apply shims raise it to the
+  pool, capped at the combo total.
+- An apply puts the whole count into the arriving game before its next
+  collect, so max-merge sums across a switch: k collects in OoT and m in MM
+  read k+m in both games.
+- MONOTONIC is required, not preferred. A piece is never spent. A consumable
+  (delta) harvest reads a LOWER live value after a full apply (a counter
+  reset, a stale save) as pieces spent, and the pool loses them. Max-merge
+  keeps the count.
+- That lower harvest is the only case that tells the two disciplines apart.
+  A consumable apply records what it materialized as that game's watermark,
+  so ordinary collects across switches sum the same way under either
+  discipline: the cross-game sum leg (collect 4 in OoT, 7 in MM, then 2 and
+  1) reads 11, 13 and 14 under both. The discipline-pin leg (a full apply of
+  9, then a harvest of 4) is the one that fails under CONSUMABLE: the pool
+  drops to 4.
+
+**The win.** Each port already ends a hunt on the give that reaches its
+requirement:
+
+- OoT: `Randomizer_Item_Give`'s `RG_TRIFORCE_PIECE` arm. Under "Win" it sets
+  game-complete, autosaves and arms the credits warp.
+- MM: `Rando::GiveItem`'s `RI_TRIFORCE_PIECE` arm. It grants Majora's soul,
+  dispatches `OnGameCompletion` and queues the ending transition.
+
+Both arms now call `Combo_TriforceHuntOnPieceGiven`. Unarmed, it is each port's
+own `==`, unchanged. Armed, the threshold is the combo requirement, and the win
+fires in whichever game makes the reaching collect. OoT always takes its "Win"
+branch there, whatever mode its own setting names, because under the combo
+goal reaching the requirement is the win.
+
+**Divergence is refused.**
+
+- A stored record that contradicts its goal is `RSBS_COMBO_DIVERGE_TRIFORCE`.
+  That covers a hunt goal with no valid record, a record under another goal,
+  and bytes the rule could never write. It is on the arrival refusal
+  (`Combo_ComboSettingsDivergence`) and on the `.redsave` load check, and it is
+  classed as damage.
+- MM's arrival re-derives MM's half from the same profile resolution its
+  profile gate just matched (`MM_Rando_ResolveTriforceHalf`). A half that
+  differs from the record is refused under the same bit.
+- The halves' inputs are already pinned by the fingerprint's two half-digests.
+  The record itself is not folded into `comboSettingsHash`, so no existing
+  fingerprint moved.
+
+**The coordinator.** `combo_logic.h` goes to ABI 4 with one trailing OPTIONAL
+entry, `triforcePieces`: how many pieces this half holds in the round. It is
+an engine-neutral count, not an item id.
+
+- The triforce-hunt expression is the sum of both halves' answers, with the MM
+  half behind the arrival gate, compared (`>=`) with the frozen requirement
+  the request now carries (`Combo_Logic_EvaluateTriforceHunt`).
+- `goalReached` is not read for it.
+- A fill over an engine without the query is refused as
+  `RSBS_COMBO_LOGIC_ERR_UNSUPPORTED_GOAL`. A zero requirement is refused as a
+  bad request. Both real engines supply the query.
+
+**Locks.**
+
+- `ComboTriforceHunt` (redship) covers the format, the rule, the freeze, the
+  refusal, the discipline pin, the arming gate and the win decision. It runs
+  the cross-game sum through BOTH games' real shims and the goal predicate over
+  stub engines.
+- `RandoTriforceHuntWin` (rando) drives both games' real piece-give arms.
+
+**Not built here.**
+
+- The production wiring of the coordinator (lane K11, held).
+- A triforce piece crossing games. Criterion 4 still excludes both ports'
+  piece ids from the crossing pools.
+- The hunt's presentation: OoT's and MM's own "x of y" texts and trackers
+  still print each game's own requirement. That is GOAL-UI / O11 work.
+- The OoT half's re-derivation on arrival in OoT.

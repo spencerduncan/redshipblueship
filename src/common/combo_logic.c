@@ -367,13 +367,22 @@ int Combo_Logic_EvaluateGoal(uint8_t goal, int ootGoalReached, int mmGoalReached
         // 0010 §1.2 / answer O1) — which is why there is nothing here but the
         // disjunction.
         case RSBS_COMBO_GOAL_BEAT_EITHER: return (o || m) ? 1 : 0;
-        // Answer O10 rules ONE shared piece count across both worlds, carried
-        // shared-resource-style. That carrier does not exist (epic #645 item 5),
-        // and per-half composition is exactly what O10 rejected — so this is
-        // refused rather than approximated.
+        // Answer O10 rules ONE shared piece count across both worlds. That is a
+        // COUNT, not a boolean over the two halves — per-half composition is
+        // exactly what O10 rejected — so the boolean form has no answer for it
+        // and Combo_Logic_EvaluateTriforceHunt below is its evaluator.
         case RSBS_COMBO_GOAL_TRIFORCE_HUNT: return -1;
         default: return -1;
     }
+}
+
+int Combo_Logic_EvaluateTriforceHunt(int sharedPieces, uint16_t required) {
+    if (sharedPieces < 0 || required == 0u) {
+        // A half that could not answer, or a requirement that describes no hunt:
+        // unevaluated, never "not reached" and never "reached".
+        return -1;
+    }
+    return (sharedPieces >= (int)required) ? 1 : 0;
 }
 
 // ============================================================================
@@ -592,6 +601,9 @@ static void ComboLogicResetRoundResult(ComboLogicRoundResult* res) {
     memset(res, 0, sizeof(*res));
     res->goalExpression = -1;
     res->allHostsReached = -1;
+    res->triforcePiecesOoT = -1;
+    res->triforcePiecesMM = -1;
+    res->triforcePieces = -1;
 }
 
 /**
@@ -599,7 +611,7 @@ static void ComboLogicResetRoundResult(ComboLogicRoundResult* res) {
  * caller needs is in `res` and in sCandidates[].
  */
 static int ComboLogicRoundRun(const ComboLogicBagItem* assumed, int assumedCount, uint8_t goal,
-                              ComboLogicRoundResult* res) {
+                              uint16_t triforceRequired, ComboLogicRoundResult* res) {
     const uint8_t order[2] = { (uint8_t)GAME_OOT, (uint8_t)GAME_MM };
     /** `beginQuery` was CALLED on this side — not "it succeeded". The teardown
      *  owes `endQuery` from the call, not from the return: see the bracket
@@ -760,6 +772,21 @@ static int ComboLogicRoundRun(const ComboLogicBagItem* assumed, int assumedCount
         res->goalMM = (em->goalReached(em->self) != 0 && res->crossingOpenOoT) ? 1 : 0;
         res->goalExpression = Combo_Logic_EvaluateGoal(goal, res->goalOoT, res->goalMM);
 
+        // ADR 0010 answer O10: the triforce hunt is ONE count across both
+        // worlds. Each engine answers for its own half through the neutral
+        // `triforcePieces` query; the coordinator sums, and the MM half passes
+        // the same arrival gate as MM's goal and hosts — pieces in a Termina the
+        // player cannot enter are not pieces the player holds.
+        if (goal == (uint8_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT) {
+            const int po = (eo->triforcePieces != NULL) ? eo->triforcePieces(eo->self) : -1;
+            const int pmRaw = (em->triforcePieces != NULL) ? em->triforcePieces(em->self) : -1;
+            const int pm = (pmRaw < 0) ? -1 : (res->crossingOpenOoT ? pmRaw : 0);
+            res->triforcePiecesOoT = (po < 0) ? -1 : po;
+            res->triforcePiecesMM = pm;
+            res->triforcePieces = (po < 0 || pm < 0) ? -1 : po + pm;
+            res->goalExpression = Combo_Logic_EvaluateTriforceHunt(res->triforcePieces, triforceRequired);
+        }
+
         status = ComboLogicCollectCandidates((uint8_t)GAME_OOT);
         if (status == RSBS_COMBO_LOGIC_OK) {
             status = ComboLogicCollectCandidates((uint8_t)GAME_MM);
@@ -842,7 +869,7 @@ int Combo_Logic_RunRound(const ComboLogicRoundRequest* req, ComboLogicRoundResul
         return RSBS_COMBO_LOGIC_ERR_BAD_REQUEST;
     }
 
-    status = ComboLogicRoundRun(req->assumed, req->assumedCount, req->goal, &local);
+    status = ComboLogicRoundRun(req->assumed, req->assumedCount, req->goal, req->triforceRequired, &local);
     if (out != NULL) {
         *out = local;
     }
@@ -1128,8 +1155,11 @@ int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* 
         }
     }
     // The goal is validated BEFORE any placement, so an unsupported goal cannot
-    // leave a half-filled world behind.
-    if (Combo_Logic_EvaluateGoal(req->goal, 1, 1) < 0) {
+    // leave a half-filled world behind. triforce-hunt is a COUNT (answer O10),
+    // not a boolean, so the boolean evaluator's -1 does not refuse it; what it
+    // needs is checked below, once the engines are known.
+    const bool triforceHunt = req->goal == (uint8_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT;
+    if (!triforceHunt && Combo_Logic_EvaluateGoal(req->goal, 1, 1) < 0) {
         fprintf(stderr, "[ComboLogic] fill refused: this build has no evaluator for GOAL %u\n", (unsigned)req->goal);
         status = RSBS_COMBO_LOGIC_ERR_UNSUPPORTED_GOAL;
         goto finish;
@@ -1138,6 +1168,23 @@ int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* 
         fprintf(stderr, "[ComboLogic] fill refused: a paired fill needs both engines registered\n");
         status = RSBS_COMBO_LOGIC_ERR_NO_ENGINE;
         goto finish;
+    }
+    if (triforceHunt) {
+        // The ONE count is read through each engine's `triforcePieces`; an
+        // engine without it cannot answer for its half, and a proof that
+        // silently counted that half as zero would prove a different world.
+        if (Combo_Logic_GetEngine(GAME_OOT)->triforcePieces == NULL ||
+            Combo_Logic_GetEngine(GAME_MM)->triforcePieces == NULL) {
+            fprintf(stderr, "[ComboLogic] fill refused: triforce-hunt needs both engines' triforcePieces query (ADR "
+                            "0010 O10)\n");
+            status = RSBS_COMBO_LOGIC_ERR_UNSUPPORTED_GOAL;
+            goto finish;
+        }
+        if (req->triforceRequired == 0u) {
+            fprintf(stderr, "[ComboLogic] fill refused: triforce-hunt with no frozen requirement\n");
+            status = RSBS_COMBO_LOGIC_ERR_BAD_REQUEST;
+            goto finish;
+        }
     }
 
     ComboLogicPartitionBag(req);
@@ -1181,7 +1228,8 @@ int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* 
                 sAssumedBuf[assumedCount++] = req->bag[sBagOrder[j]];
             }
 
-            const int st = ComboLogicRoundRun(sAssumedBuf, assumedCount, req->goal, &round);
+            const int st =
+                ComboLogicRoundRun(sAssumedBuf, assumedCount, req->goal, req->triforceRequired, &round);
             res.rounds++;
             if (st != RSBS_COMBO_LOGIC_OK) {
                 // An engine-contract failure is not a dead end and retrying it
@@ -1215,7 +1263,7 @@ int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* 
         // after it (ADR 0010 §2.3). `beatable` and `all-reachable` differ only
         // in this block; `none` never reaches it (it returned above).
         {
-            const int st = ComboLogicRoundRun(NULL, 0, req->goal, &round);
+            const int st = ComboLogicRoundRun(NULL, 0, req->goal, req->triforceRequired, &round);
             res.rounds++;
             if (st != RSBS_COMBO_LOGIC_OK) {
                 status = st;
@@ -1250,7 +1298,7 @@ int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* 
             // reached host or not; this measures it instead of assuming it. A
             // failure here is an engine whose reachability SHRANK when an item
             // was added — refused, never worked around (ADR 0010 §2.3).
-            const int st = ComboLogicRoundRun(NULL, 0, req->goal, &round);
+            const int st = ComboLogicRoundRun(NULL, 0, req->goal, req->triforceRequired, &round);
             res.rounds++;
             if (st != RSBS_COMBO_LOGIC_OK) {
                 status = st;

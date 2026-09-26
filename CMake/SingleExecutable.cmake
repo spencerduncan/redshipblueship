@@ -108,6 +108,10 @@ set(REDSHIP_COMMON_SOURCES
     # this half is game-header-free C so a headless row can drive it. APPENDED,
     # never reordered.
     ${CMAKE_SOURCE_DIR}/src/common/gen_progress_overlay.c
+    # The combo triforce hunt (ADR 0010 answer O10): the frozen record, the
+    # arming gate of the one shared piece count, and the win decision both
+    # ports' piece-give arms call. Game-header-free. APPENDED, never reordered.
+    ${CMAKE_SOURCE_DIR}/src/common/triforce_hunt.c
 )
 
 # Windows-specific: import thunks for libultraship compatibility
@@ -184,6 +188,8 @@ set(REDSHIP_COMMON_HEADERS
     # are still needed even though MM no longer hands OoT its own Options.
     ${CMAKE_SOURCE_DIR}/src/common/notification_bridge.h
     ${CMAKE_SOURCE_DIR}/src/common/notification_layout_probe.h
+    # Header for triforce_hunt.c above (ADR 0010 O10)
+    ${CMAKE_SOURCE_DIR}/src/common/triforce_hunt.h
 )
 
 # ============================================================================
@@ -1856,6 +1862,19 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # a planted negated edge observed red on both engines. `rando` tier for the
     # same reason as its siblings: without a generated world every set is empty.
     redship_add_test(NAME ComboLogicMonotonicity COMMAND redship --test combo-logic-monotonicity
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # ADR 0010 answer O10: ONE shared triforce piece count across both worlds.
+    # ComboTriforceHunt is display-free and ROM-free: the frozen record's rule and
+    # its refusal, the MONOTONIC discipline pin (a lower harvest after a full
+    # apply keeps the count), collect k in OoT and m in MM through both games'
+    # REAL shims and read k+m in both, the win decision both give arms call, and
+    # the coordinator's triforce-hunt predicate over stub engines.
+    # RandoTriforceHuntWin drives both games' REAL piece-give arms (OoT's needs a
+    # generated context, MM's dispatches GameInteractor hooks), so it is `rando`.
+    redship_add_test(NAME ComboTriforceHunt COMMAND redship --test combo-triforce-hunt)
+    redship_add_test(NAME RandoTriforceHuntWin COMMAND redship --test rando-triforce-hunt-win
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")

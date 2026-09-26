@@ -964,6 +964,37 @@ extern "C" void MM_Rando_PublishProfileGiveCaps(int fromSave) {
 }
 
 // ============================================================================
+// MM's half of the combo triforce hunt (ADR 0010 answer O10; declared in
+// src/common/combo_mm_options_view.h). The third bridge of the creation
+// freeze, with MM_Rando_PublishProfileGiveCaps' two sources: the creation event
+// (and MM's arrival gate) resolves the CVars through the SAME
+// ResolveProfileValues the profile stamp hashes, a later process reads the
+// save's frozen options. MM's own pool holds RO_TRIFORCE_PIECES_MAX pieces
+// under RO_SHUFFLE_TRIFORCE_PIECES (GeneratePools.cpp), so that is the half's
+// total; RO_TRIFORCE_PIECES_REQUIRED is its contribution to the combo
+// requirement. Unclamped: the combo rule refuses what does not fit.
+// ============================================================================
+extern "C" void MM_Rando_ResolveTriforceHalf(int fromSave, uint16_t* outTotal, uint16_t* outRequired) {
+    std::vector<uint32_t> values(RO_MAX, 0);
+    if (fromSave != 0) {
+        for (auto& [randoOptionId, randoStaticOption] : Rando::StaticData::Options) {
+            values[randoOptionId] = RANDO_SAVE_OPTIONS[randoOptionId];
+        }
+    } else {
+        Rando::Foreign::ResolveProfileValues(values.data(), /*paired=*/true);
+    }
+    const bool on = values[RO_SHUFFLE_TRIFORCE_PIECES] == RO_GENERIC_YES;
+    const uint32_t total = on ? values[RO_TRIFORCE_PIECES_MAX] : 0u;
+    const uint32_t required = on ? values[RO_TRIFORCE_PIECES_REQUIRED] : 0u;
+    if (outTotal != nullptr) {
+        *outTotal = (uint16_t)(total > 0xFFFFu ? 0xFFFFu : total);
+    }
+    if (outRequired != nullptr) {
+        *outRequired = (uint16_t)(required > 0xFFFFu ? 0xFFFFu : required);
+    }
+}
+
+// ============================================================================
 // ONE SPOILER ARTIFACT PER PAIR (#660; #564 V23; solver-inventory P11;
 // ADR 0010 increment 2).
 //

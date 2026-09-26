@@ -810,6 +810,24 @@ int OoT_ComboLogic_GoalReached(void* self) {
 }
 
 /**
+ * `triforcePieces` (ABI 4, ADR 0010 answer O10): OoT's half of the ONE shared
+ * piece count, read from the DETACHED simulated save the round's `expand`
+ * rebuilt — the pieces this round assumed (`assumeOwnItem`) plus the ones its
+ * search harvested from reached hosts. Both routes grant through
+ * `ApplyItemEffect`, whose round clamp stops the counter at
+ * `RSK_TRIFORCE_HUNT_PIECES_TOTAL + 1` (`logic.cpp`), so OoT's half never
+ * answers more than OoT's own pool holds. A pure read, like `goalReached`, and
+ * 0 outside a round.
+ */
+int OoT_ComboLogic_TriforcePieces(void* self) {
+    (void)self;
+    if (!sInQuery || !OoTComboLogicReady()) {
+        return 0;
+    }
+    return (int)OoTComboLogicSingleton()->GetSaveContext()->ship.quest.data.randomizer.triforcePiecesCollected;
+}
+
+/**
  * Record that an OoT host holds `item`.
  *
  * Own-origin: `Context::PlaceItemInLocation`, the port's own primitive, so the
@@ -1018,6 +1036,7 @@ const ComboLogicEngine kOoTComboLogicEngine = {
     /* endQuery          */ OoT_ComboLogic_EndQuery,
     /* snapshot          */ nullptr,
     /* restore           */ nullptr,
+    /* triforcePieces    */ OoT_ComboLogic_TriforcePieces,
 };
 
 struct OoTComboLogicRegistrar {

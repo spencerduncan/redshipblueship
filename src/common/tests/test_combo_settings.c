@@ -166,10 +166,13 @@ TestResult Test_ComboSettingsFormat(void) {
     // ---- The carve's position and the budget it leaves ---------------------
     CS_ASSERT(offsetof(ComboContext, comboSettingsHash) == 880u, "comboSettingsHash moved off .redsave offset 880");
     CS_ASSERT(offsetof(ComboContext, comboSettings) == 884u, "comboSettings moved off .redsave offset 884");
-    CS_ASSERT(offsetof(ComboContext, reserved) == 896u, "reserved[] moved off .redsave offset 896");
-    CS_ASSERT(sizeof(((ComboContext*)0)->reserved) == 108u,
-              "reserved[] is not 108 bytes after the ADR 0011 carve — ADR 0009's budget table and context.h "
-              "must reconcile");
+    // ADR 0010 answer O10 carved the 4-byte triforce record from the front of
+    // the 108 this carve left (ADR 0011's 2026-09-27 amendment).
+    CS_ASSERT(offsetof(ComboContext, comboTriforce) == 896u, "comboTriforce moved off .redsave offset 896");
+    CS_ASSERT(offsetof(ComboContext, reserved) == 900u, "reserved[] moved off .redsave offset 900");
+    CS_ASSERT(sizeof(((ComboContext*)0)->reserved) == 104u,
+              "reserved[] is not 104 bytes after the ADR 0011 and O10 carves — ADR 0009's budget table and "
+              "context.h must reconcile");
     CS_ASSERT(sizeof(((ComboContext*)0)->reserved) >= 64u, "reserved[] fell below ADR 0009's 64-byte floor");
     CS_ASSERT(sizeof(ComboContext) <= RSBS_COMBO_CONTEXT_RECORD_SIZE, "ComboContext outgrew its Tier-1 budget");
 
@@ -395,7 +398,7 @@ TestResult Test_ComboSettingsFormat(void) {
     }
 
     ComboContext_Init();
-    printf("[TEST] PASS: the combo record is format (12 B at 884, digest at 880, reserved[108]) and its defaults "
+    printf("[TEST] PASS: the combo record is format (12 B at 884, digest at 880, reserved[104]) and its defaults "
            "reproduce today's world\n");
     return TEST_PASS;
 }

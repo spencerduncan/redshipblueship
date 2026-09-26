@@ -964,7 +964,8 @@ TestResult Test_ComboLogicEngineSurface(void) {
               "beat-either must not be narrowed to an XOR (ADR 0010 §1.2)");
     CL_ASSERT(Combo_Logic_EvaluateGoal(RSBS_COMBO_GOAL_BEAT_EITHER, 0, 0) == 0, "beat-either: neither half");
     CL_ASSERT(Combo_Logic_EvaluateGoal(RSBS_COMBO_GOAL_TRIFORCE_HUNT, 1, 1) == -1,
-              "triforce-hunt has no evaluator until answer O10's shared piece count exists");
+              "triforce-hunt is a COUNT (answer O10): the boolean form must not answer it "
+              "(Combo_Logic_EvaluateTriforceHunt does; locked by combo-triforce-hunt)");
     CL_ASSERT(Combo_Logic_EvaluateGoal(0u, 1, 1) == -1, "an unpinned GOAL value has no evaluator");
 
     // --- the fill's refusals, before any world is authored ----------------
@@ -999,7 +1000,8 @@ TestResult Test_ComboLogicEngineSurface(void) {
         const int mmCalls2 = gClMM.placeCalls;
         CL_ASSERT(ClRunFill(bag, 1, RSBS_COMBO_GOAL_TRIFORCE_HUNT, RSBS_COMBO_RUNG_BEATABLE, 1u, &res) ==
                       RSBS_COMBO_LOGIC_ERR_UNSUPPORTED_GOAL,
-                  "triforce-hunt must refuse rather than be evaluated as beat-both");
+                  "triforce-hunt over engines with no triforcePieces query must refuse rather than be evaluated as "
+                  "beat-both");
         CL_ASSERT(gClOoT.placeCalls == ootCalls2 && gClMM.placeCalls == mmCalls2,
                   "an unsupported goal must be caught before anything is placed");
         CL_ASSERT(res.placed == 0 && res.attempts == 0, "and no attempt may have run");

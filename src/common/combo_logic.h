@@ -89,8 +89,14 @@ extern "C" {
  *  `assumeOwnItem`'s MEANING is not — one call is now one COPY, and an engine
  *  must count it (see that entry). An ABI-2 engine de-duplicated by id, which is
  *  exactly the behaviour this contract now forbids, so the number moves even
- *  though no pointer did. */
-#define RSBS_COMBO_LOGIC_ENGINE_ABI 3u
+ *  though no pointer did.
+ *
+ *  4 (2026-09-27, ADR 0010 answer O10): the vtable's SHAPE grows by one trailing
+ *  OPTIONAL entry, `triforcePieces`, the engine-neutral piece query the
+ *  triforce-hunt goal reads. Every ABI-3 meaning is unchanged; an engine that
+ *  leaves the entry NULL registers as before and simply cannot answer a
+ *  triforce-hunt fill (refused with RSBS_COMBO_LOGIC_ERR_UNSUPPORTED_GOAL). */
+#define RSBS_COMBO_LOGIC_ENGINE_ABI 4u
 
 // ============================================================================
 // Status codes — DIAGNOSTICS, NOT FORMAT
@@ -108,12 +114,11 @@ extern "C" {
 /** Malformed request: NULL where a pointer is required, a negative count, an
  *  unpinned rung value, a bag item tagged GAME_NONE. */
 #define RSBS_COMBO_LOGIC_ERR_BAD_REQUEST 2
-/** The GOAL value is pinned but this build has no evaluator for it.
- *  RSBS_COMBO_GOAL_TRIFORCE_HUNT is the only such value today: it needs ADR
- *  0010 answer O10's ONE shared piece count across both worlds, which does not
- *  exist (epic #645 item 5). Refused loudly rather than silently evaluated as
- *  beat-both, which would ship a world whose stated goal is not the goal that
- *  was proved. */
+/** The GOAL value cannot be evaluated by THIS pair of engines: an unpinned GOAL
+ *  value, or RSBS_COMBO_GOAL_TRIFORCE_HUNT over an engine that does not supply
+ *  the `triforcePieces` query ADR 0010 answer O10's one shared count is read
+ *  through. Refused loudly rather than silently evaluated as beat-both, which
+ *  would ship a world whose stated goal is not the goal that was proved. */
 #define RSBS_COMBO_LOGIC_ERR_UNSUPPORTED_GOAL 3
 /** An engine's reachability is not monotone: an observable that may only grow
  *  within a round (its candidate-host count, or its crossing flag) DECREASED.
@@ -346,7 +351,8 @@ const char* Combo_Logic_StatusName(int status);
 // progressive give resolves against a stale simulated save (audit §1.8).
 
 /**
- * One engine. Every function pointer except `snapshot`/`restore` is REQUIRED;
+ * One engine. Every function pointer except `snapshot`/`restore` and the
+ * trailing optional `triforcePieces` (ABI 4) is REQUIRED;
  * registration refuses a vtable with a hole rather than crashing at the first
  * round. `self` is passed to every call and is the engine's own opaque state —
  * NULL is legal and is what a real engine (whose state is file-static in its
@@ -695,6 +701,29 @@ typedef struct ComboLogicEngine {
      */
     int (*snapshot)(void* self);
     void (*restore)(void* self);
+
+    /**
+     * OPTIONAL (ABI 4, ADR 0010 answer O10). How many triforce pieces THIS
+     * HALF holds right now in the round — the pieces of the ONE shared count
+     * that this engine's own pool contributes and this round has granted.
+     *
+     * AN ENGINE-NEUTRAL QUERY, not a game id: the coordinator never learns
+     * which item is a piece. It sums the two halves' answers into the one count
+     * (the MM half behind the ARRIVAL GATE, like MM's goal and hosts: a piece in
+     * a Termina the player cannot enter is not a piece they hold) and compares
+     * that sum with the frozen combo requirement the fill request carries. OoT:
+     * the detached simulated save's `triforcePiecesCollected`; MM: the
+     * snapshotted save's `foundTriforcePieces`. Both counters are granted
+     * through each engine's own clamped give path (`assumeOwnItem`), so a
+     * half can never answer more than its own pool holds.
+     *
+     * Valid only inside a round, like `goalReached`. Pure read. NULL means "this
+     * engine has no piece machinery": a triforce-hunt fill over it is refused
+     * with RSBS_COMBO_LOGIC_ERR_UNSUPPORTED_GOAL, and every other goal never
+     * calls it. Trailing and optional so every ABI-3 initialiser keeps its
+     * shape.
+     */
+    int (*triforcePieces)(void* self);
 } ComboLogicEngine;
 
 /**
@@ -827,15 +856,35 @@ uint32_t Combo_Logic_PlacementDigest(void);
  * The GOAL expression over the two halves' own booleans (ADR 0010 D1 §1.1).
  *
  * @param goal an RSBS_COMBO_GOAL_* value (the FROZEN record's, never a CVar's)
- * @return 1 provable, 0 not, and -1 when this build has no evaluator for `goal`
- *         (RSBS_COMBO_GOAL_TRIFORCE_HUNT — answer O10's one shared piece count
- *         does not exist yet). A caller must distinguish -1 from 0.
+ * @return 1 provable, 0 not, and -1 when `goal` is not a boolean over the two
+ *         halves. RSBS_COMBO_GOAL_TRIFORCE_HUNT is such a goal: its expression
+ *         is a COUNT (answer O10), so it answers -1 here and is evaluated by
+ *         Combo_Logic_EvaluateTriforceHunt below. A caller must distinguish -1
+ *         from 0.
  *
  * `beat-either` is a PLAIN OR and the coordinator never narrows it to an XOR:
  * an unbeatable half is permitted, both halves provable is a welcome outcome,
  * and nothing anywhere may bias toward asymmetry (ADR 0010 §1.2 / answer O1).
  */
 int Combo_Logic_EvaluateGoal(uint8_t goal, int ootGoalReached, int mmGoalReached);
+
+/**
+ * The triforce-hunt GOAL expression (ADR 0010 answer O10): the ONE shared piece
+ * count across both worlds against the frozen combo requirement.
+ *
+ * @param sharedPieces the two halves' `triforcePieces` answers summed (the MM
+ *        half behind the arrival gate); negative means a half could not answer
+ * @param required the frozen combo requirement (Combo_TriforceHuntRequired,
+ *        triforce_hunt.h — the record's, never a CVar's)
+ * @return 1 when `sharedPieces >= required`, 0 when fewer, -1 when either input
+ *         is unusable (a negative count, or a zero requirement, which describes
+ *         no hunt).
+ *
+ * `>=`, not `==`: the proof asks whether the player CAN hold the requirement.
+ * The runtime win arms test `==` because they fire once, on the give that
+ * reaches it (Combo_TriforceHuntOnPieceGiven).
+ */
+int Combo_Logic_EvaluateTriforceHunt(int sharedPieces, uint16_t required);
 
 // ============================================================================
 // ONE ROUND, EXPOSED
@@ -862,6 +911,10 @@ typedef struct {
     const ComboLogicBagItem* assumed; // the assumed set A; NULL iff assumedCount == 0
     int assumedCount;
     uint8_t goal; // RSBS_COMBO_GOAL_*
+    /** RSBS_COMBO_GOAL_TRIFORCE_HUNT only: the frozen combo requirement
+     *  (Combo_TriforceHuntRequired). Ignored by every other goal; 0 under
+     *  triforce-hunt leaves the expression unevaluated (-1). */
+    uint16_t triforceRequired;
 } ComboLogicRoundRequest;
 
 typedef struct {
@@ -881,6 +934,13 @@ typedef struct {
      *  INSIDE the round because `checkReached` is only valid before teardown —
      *  which is why the `all-reachable` rung cannot be a post-pass. */
     int allHostsReached;
+    /** Triforce-hunt rounds only (ADR 0010 answer O10); -1 otherwise, and -1 for
+     *  a half whose engine has no `triforcePieces`. The OoT half's own answer,
+     *  the MM half's AFTER the arrival gate, and their sum: the ONE count the
+     *  expression compared with the requirement. */
+    int triforcePiecesOoT;
+    int triforcePiecesMM;
+    int triforcePieces;
 } ComboLogicRoundResult;
 
 /**
@@ -1044,6 +1104,13 @@ typedef struct {
     /** Batch roll-backs within this seed; 0 means RSBS_COMBO_LOGIC_FILL_RETRIES.
      *  Re-rolling the SEED is the attempt ladder's job, one level up. */
     int maxAttempts;
+    /** RSBS_COMBO_GOAL_TRIFORCE_HUNT only (ADR 0010 answer O10): the frozen
+     *  combo requirement, from the FROZEN triforce record
+     *  (Combo_TriforceHuntRequired), never a CVar. Ignored by every other goal.
+     *  Under triforce-hunt a zero is refused as RSBS_COMBO_LOGIC_ERR_BAD_REQUEST,
+     *  and so is a pair of engines without `triforcePieces` — as
+     *  RSBS_COMBO_LOGIC_ERR_UNSUPPORTED_GOAL — both before any attempt. */
+    uint16_t triforceRequired;
 } ComboLogicFillRequest;
 
 typedef struct {
@@ -1198,8 +1265,11 @@ int Combo_Logic_LeftoverHosts(GameId hostGame, uint16_t* out, int cap);
 //    (`Combo_ForeignPoolDrawFor`) which already runs before the bag exists —
 //    the six membership criteria run FIRST and the bitset selects among the
 //    survivors (ADR 0011 decision 3.1), an ordering this file may not weaken.
-//  - THE O10 SHARED TRIFORCE COUNT, hence triforce-hunt refusing with
-//    RSBS_COMBO_LOGIC_ERR_UNSUPPORTED_GOAL rather than being evaluated wrong.
+//  - (no longer absent) THE O10 SHARED TRIFORCE COUNT. triforce-hunt is
+//    evaluated as the sum of both engines' `triforcePieces` against the frozen
+//    requirement the request carries (Combo_Logic_EvaluateTriforceHunt); the
+//    record, the shared count and the win arms live in triforce_hunt.h. It is
+//    refused only over an engine without the query, or with no requirement.
 //  - THE SPOILER. One artifact for the pair is #564 V23 / audit P11; this
 //    coordinator exposes its tables and stops there.
 //  - THE ATTEMPT LADDER. Re-rolling the seed on a failed fill is the layer

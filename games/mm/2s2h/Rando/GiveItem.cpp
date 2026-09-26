@@ -2,6 +2,9 @@
 #include "Rando/ActorBehavior/Souls.h"
 #include "Rando/MiscBehavior/MiscBehavior.h"
 #include "Rando/MiscBehavior/ClockShuffle.h"
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "triforce_hunt.h" // src/common — ADR 0010 O10: the combo requirement a paired hunt ends on
+#endif
 
 extern "C" {
 #include "variables.h"
@@ -109,8 +112,19 @@ void Rando::GiveItem(RandoItemId randoItemId) {
         case RI_TRIFORCE_PIECE:
         case RI_TRIFORCE_PIECE_PREVIOUS:
             gSaveContext.save.shipSaveInfo.rando.foundTriforcePieces++;
+#ifdef RSBS_SINGLE_EXECUTABLE
+            // ADR 0010 answer O10: under a paired triforce hunt the counter is
+            // the ONE combo count (the arrival apply raised it to every piece
+            // found in either world), and the threshold is the frozen COMBO
+            // requirement, not MM's own — which was an input to it. Unpaired, or
+            // under any other combo goal, this is MM's own `==` exactly.
+            if (Combo_TriforceHuntOnPieceGiven(GAME_MM, gSaveContext.save.shipSaveInfo.rando.foundTriforcePieces,
+                                               (uint16_t)RANDO_SAVE_OPTIONS[RO_TRIFORCE_PIECES_REQUIRED]) !=
+                RSBS_TRIFORCE_WIN_NONE) {
+#else
             if (gSaveContext.save.shipSaveInfo.rando.foundTriforcePieces ==
                 RANDO_SAVE_OPTIONS[RO_TRIFORCE_PIECES_REQUIRED]) {
+#endif
                 // Blocks the ability to beat the game through killing Majora until all Triforce Pieces are found.
                 if (!Flags_GetRandoInf(RANDO_INF_OBTAINED_SOUL_OF_BOSS_MAJORA)) {
                     Rando::GiveItem(RI_SOUL_BOSS_MAJORA);

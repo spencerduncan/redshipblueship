@@ -40,6 +40,9 @@
 #include "randomizerTypes.h"
 #include "soh/Notification/Notification.h"
 #include "soh/ObjectExtension/ObjectExtension.h"
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "triforce_hunt.h" // src/common — ADR 0010 O10: the combo requirement a paired hunt ends on
+#endif
 // Rando_HeadlessFullInitSeedTest (#560) asserts DebugConsole_Init registered its
 // commands; Context.h only forward-declares Ship::Console, so HasCommand needs
 // the complete type. <chrono>/<thread> are for that bridge's bounded worker wait.
@@ -4103,6 +4106,25 @@ extern "C" u16 Randomizer_Item_Give(PlayState* play, GetItemEntry giEntry) {
             gSaveContext.ship.quest.data.randomizer.triforcePiecesCollected++;
             GameInteractor_SetTriforceHuntPieceGiven(true);
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+            // ADR 0010 answer O10: under a paired triforce hunt the counter is
+            // the ONE combo count (the arrival apply raised it to every piece
+            // found in either world) and the threshold is the frozen COMBO
+            // requirement. Reaching it IS the combo's goal, so an armed hunt
+            // always takes the "Win" branch below, whichever mode OoT's own
+            // setting named. Unpaired, or under any other combo goal, this is
+            // OoT's own `==` and OoT's own mode, exactly.
+            if (Combo_TriforceHuntOnPieceGiven(
+                    GAME_OOT, gSaveContext.ship.quest.data.randomizer.triforcePiecesCollected,
+                    (uint16_t)(OTRGlobals::Instance->gRandomizer->GetRandoSettingValue(
+                                   RSK_TRIFORCE_HUNT_PIECES_REQUIRED) +
+                               1)) != RSBS_TRIFORCE_WIN_NONE) {
+                Flags_SetRandomizerInf(RAND_INF_GRANT_GANONS_BOSSKEY);
+
+                if (Combo_TriforceHuntArmed() ||
+                    OTRGlobals::Instance->gRandomizer->GetRandoSettingValue(RSK_TRIFORCE_HUNT) ==
+                        RO_TRIFORCE_HUNT_WIN) {
+#else
             // Give Ganon's Boss Key and teleport to credits if set to Win when goal is reached.
             if (gSaveContext.ship.quest.data.randomizer.triforcePiecesCollected ==
                 (OTRGlobals::Instance->gRandomizer->GetRandoSettingValue(RSK_TRIFORCE_HUNT_PIECES_REQUIRED) + 1)) {
@@ -4110,6 +4132,7 @@ extern "C" u16 Randomizer_Item_Give(PlayState* play, GetItemEntry giEntry) {
 
                 if (OTRGlobals::Instance->gRandomizer->GetRandoSettingValue(RSK_TRIFORCE_HUNT) ==
                     RO_TRIFORCE_HUNT_WIN) {
+#endif
                     gSaveContext.ship.stats.itemTimestamp[TIMESTAMP_TRIFORCE_COMPLETED] =
                         static_cast<u32>(GAMEPLAYSTAT_TOTAL_TIME);
                     gSaveContext.ship.stats.gameComplete = 1;
