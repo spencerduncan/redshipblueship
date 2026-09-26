@@ -411,9 +411,16 @@ jobs:
     # itself asserts (colour bits >= 8). ROM-free here, so it draws the probe menu
     # (the Combo section, the Randomizer pointer page, Dev Tools) and records the
     # ROM-only reference pages as skipped. Structure-only asserts; it never
-    # compares pixels against a stored image.
+    # compares pixels against a stored image. SHIP_HOME points at a fresh
+    # directory, which moves the Context's app directory there (Linux): the
+    # harness must write its pinned config where the Context reads it, or the
+    # window comes up at the default size and the drawable-size assert fails.
+    # The Windows twin runs without it, so both resolutions stay exercised.
     - name: Run UI snapshot harness (ui label)
-      run: xvfb-run -a -s "-screen 0 1920x1080x24" ctest --test-dir build-cmake --output-on-failure --label-regex "^ui$" --no-tests=error
+      run: |
+        export SHIP_HOME="$(mktemp -d)"
+        xvfb-run -a -s "-screen 0 1920x1080x24" ctest --test-dir build-cmake --output-on-failure --label-regex "^ui$" --no-tests=error
+        ls -la "$SHIP_HOME"
     - name: Upload UI snapshots (Linux)
       if: always()
       uses: actions/upload-artifact@v4

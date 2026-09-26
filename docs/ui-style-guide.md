@@ -234,7 +234,7 @@ Compare within the same run, the same profile and the same backend. Check:
 
 | Path | Contents |
 |---|---|
-| `pages/<slug>.png`, `pages/<slug>.txt` | the whole window, and every string the frame submitted (rows scrolled out of view included) |
+| `pages/<slug>.png`, `pages/<slug>.txt` | the whole window, and the frame's text: for a menu page every string it submitted (rows scrolled out of view included); for a pane only what was inside a clip rect, i.e. what the PNG shows |
 | `compare/<ours>__vs__<ref>[@variant].png` | the SoH reference cropped to its content, over ours |
 | `iter/<slug>.png`, `iter/<slug>.diff.png` | before over after, and the difference x4 (only with `RSBS_UI_SNAPSHOT_BASELINE`) |
 | `manifest.json` | the run (backend, readback, profile, archives) and, per capture, the hashes, the content rectangle, the settle count and the verdicts |
@@ -242,9 +242,10 @@ Compare within the same run, the same profile and the same backend. Check:
 | `soh-names.txt` | SoH's own row names and tooltips (ROM-rich runs only; R8) |
 
 **Variants:**
-- STATE: the four Cross-Game Rules states (unpaired, paired-legacy, frozen, corrupt), and the MM options pane's
-  unpaired, frozen, mm-suspended and tricks-open.
-- SCROLL: `@scrollN`, stepping each column by one view minus 48 px until the column reaches its end.
+- STATE: the four Cross-Game Rules states (unpaired, paired-legacy, frozen, corrupt), MM Enhancements' autosave,
+  and the MM options pane's unpaired, frozen, mm-suspended and tricks-open (the Tricks header and its first area open).
+- SCROLL: `@scrollN`, stepping each column (a menu page) or the pane itself (a window) by one view minus 48 px until
+  it reaches its end, at most 9 views.
 - HOVER: a pointer injected before ImGui reads input, so the tooltip is captured.
 - MODAL.
 
@@ -254,18 +255,22 @@ Compare within the same run, the same profile and the same backend. Check:
 |---|---|
 | `RSBS_UI_SNAPSHOT_PAGES` | `all` (default), `refs`, `ours`, or a comma list of ids or `*` globs, each optionally with `@variant` (e.g. `Combo/*,window/Cross-Game Spoiler@paired`) |
 | `RSBS_UI_SNAPSHOT_OUT` | the output directory (default `./ui-snapshots`) |
-| `RSBS_UI_SNAPSHOT_PROFILE` | `auto` (default), `desk-1280x800` or `small-960x704` |
+| `RSBS_UI_SNAPSHOT_PROFILE` | `auto` (default: the largest that fits the desktop), `desk-1280x800`, `small-960x704` or `min-832x600` (what a hosted Windows runner gets) |
 | `RSBS_UI_SNAPSHOT_BACKEND` | `auto` (default: GL, or DX11 on Windows when `CI` is set), `gl` or `dx11` |
 | `RSBS_UI_SNAPSHOT_SETTLE` | the minimum and maximum frames per capture (default `4,12`); a capture ends on two identical frames |
 | `RSBS_UI_SNAPSHOT_BASELINE` | a previous run's output directory, for the before/after composites and R8 |
 | `RSBS_UI_SNAPSHOT_CVARS` | `key=value;...`, applied after the pins |
+| `RSBS_UI_SNAPSHOT_SABOTAGE` | break one mechanism so its assert is SEEN going red (below); a sabotaged run must fail |
 
 **Two modes:**
 - **ROM-rich** (oot.o2r staged; the workstation) draws every SoH reference page and runs R8.
 - **ROM-free** (hosted CI) draws a probe menu holding only the sections that register without oot.o2r: the Randomizer
   pointer page, the whole Combo section and Dev Tools. The rest is recorded as `skip: needs oot.o2r`.
 
-soh.o2r is required in both modes, because the menu fonts live only there.
+soh.o2r is required in both modes, because the menu fonts live only there. The harness writes its own config
+(`rsbs-ui-snapshot.json`) to the path the Context reads it from, `GetPathRelativeToAppDirectory`, so `SHIP_HOME`
+(Linux, macOS) and a `NON_PORTABLE` pref path are honoured; hosted Linux CI runs the row with `SHIP_HOME` set to a
+fresh directory to keep that path exercised.
 
 **The harness asserts structure only:**
 - the drawable is the profile size
@@ -273,29 +278,59 @@ soh.o2r is required in both modes, because the menu fonts live only there.
 - the page is not blank
 - the menu window and the page's own section child were drawn, so a selection cannot silently fall back to another
   page
-- the text log names the page
+- the text holds a string only the page BODY draws (the manifest's `bodyText`: the first registered section header,
+  control or note with no PreFunc that is not part of the header bar or sidebar, which are drawn on every page), and
+  that string is absent from a sibling page's capture
+- each authored state shows its own text (the manifest's `found`), in some captured view, and that text is absent
+  from the state's contrast (the capture the row would produce if the state were not authored)
+- each hover shows its row's current tooltip (`hoverText`), which is absent from the same state without the pointer
 - the frame converged
 - no popup leaked
 - no game framebuffer was composited
-- the config and `imgui.ini` in the run directory are untouched
+- no ImGui frame was left open (`NewFrame` asserts this in a Debug build; the harness checks it in every build type,
+  and a page that throws mid-draw fails by name while the frame is unwound and closed)
+- the player's `shipofharkinian.json` and `imgui.ini` in the app directory are untouched
 - the runtime lint has no hit outside `.github/scripts/ui-runtime-lint-baseline.txt`
 
 It never compares pixels against a stored image, never judges likeness, and never generates a seed or touches
 `tests/golden/`.
 
-The references gate is `python tools/ui-refs-diff.py <base>/manifest.json <new>/manifest.json`. It checks that every
-SoH reference capture hashes the same as in the baseline run. Settings/General's build-version rows are
-volatile, so that page is reported but not gated.
+**Seeing each assert go red.** `RSBS_UI_SNAPSHOT_SABOTAGE` takes a comma list; each value breaks one mechanism and
+names what must fail. Run them after changing the harness itself.
+
+| Value | Breaks | Must fail |
+|---|---|---|
+| `no-state` | EnterState authors nothing | every authored state's text check ("does not show", or "also shown in state") |
+| `no-hover` | no pointer injection | every hover ("the hover capture shows no tooltip") |
+| `no-scroll` | panes keep their first view | `tricks-open` ("does not show ... in any captured view") |
+| `throw` | the first project page's first row throws mid-draw | that capture only, by name; every later capture still passes (not blank) |
+| `throw,leave-open` | the exception path leaves the ImGui frame open (the old behaviour) | the open-frame check, on the next pump |
+| `keep-imgui-ini` | `imgui.ini` stays armed and ImGui's shutdown save runs | the isolation check on `imgui.ini` |
+| `player-config` | the harness names `shipofharkinian.json` as its config | the isolation check on `shipofharkinian.json` |
+
+**The original-page guard runs on a ROM-staged workstation only.** Hosted CI is ROM-free: SoH's own menu is not
+populated there (only Dev Tools/General registers), R8's `soh-names.txt` is not written, and CI has no base run to
+compare against. So rule 0 is protected by the iteration procedure, not by CI: `python tools/ui-refs-diff.py
+<base>/manifest.json <new>/manifest.json` on two ROM-rich runs (main, then the branch), plus R8 through
+`RSBS_UI_SNAPSHOT_BASELINE`. The refs gate fails (exit 1) when a reference capture's pixels or text moved, and also
+when a reference that passed in the base is LOST: absent, failed (a throw, a failed oracle, a blank page) or skipped
+in the new run. Settings/General's build-version rows are volatile, so its hashes are reported but not gated; losing
+it is still gated.
 
 ## 13. Lint
 
-There are two halves, and both compare against a baseline that may only shrink.
+There are two halves, and each compares against a checked-in baseline. On a pull request, CI also fails when
+EITHER baseline gained an entry relative to the base branch (`check-ui-parity-lint.py --no-grow-against
+origin/<base>`, the "lint baselines may only shrink" step), so a PR cannot add a hit and its baseline line together.
+A reworded entry counts as growth: fix the surface instead.
 
 **Static:** `python .github/scripts/check-ui-parity-lint.py`. It runs in CI (static-analysis workflow) with
 `--self-test` first.
 - Rules S0-S11 are listed in the script's docstring.
-- The files and function slices it covers are listed in `.github/scripts/ui-lint-files.txt`. Rule S0 fails on any
-  ImGui-drawing TU under `src/common` or any `*SingleExe*.cpp` that is not listed.
+- The files and slices it covers are listed in `.github/scripts/ui-lint-files.txt`: `path::Function` lints one
+  function, `path::@from=TOKEN` lints from TOKEN's line to the end of the file. Inside an SoH-shipped file only our
+  code is linted: `SohMenuRandomizer.cpp::AddCrossGamePointerWidgets`, and `SohMenu.cpp` from the capability
+  reasons down. Rule S0 fails on any ImGui-drawing TU under `src/common` or any `*SingleExe*.cpp` that is not listed.
 - Accepted hits live in `.github/scripts/ui-lint-baseline.txt`, keyed without line numbers. The check fails on a new
   hit and on a stale entry.
 - `--report` prints everything. `--write-baseline` regenerates the baseline; review the diff, which must only lose

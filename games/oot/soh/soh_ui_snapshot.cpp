@@ -44,8 +44,10 @@
  * (no pointer injection), no-scroll (panes keep their first view), throw (the
  * first project page's first row throws mid-draw), leave-open (the exception
  * path leaves the ImGui frame open, the pre-fix behaviour), keep-imgui-ini (the
- * player's imgui.ini path is left armed). A sabotaged run is expected to fail;
- * docs/ui-style-guide.md section 12 lists what each one must turn red.
+ * player's imgui.ini path is left armed and ImGui's shutdown save is run),
+ * player-config (the harness names the player's shipofharkinian.json as its
+ * config). A sabotaged run is expected to fail; docs/ui-style-guide.md section
+ * 12 lists what each one must turn red.
  *
  * ============================================================================
  * HOW A FRAME IS MADE (and why each step is where it is)
@@ -970,6 +972,9 @@ bool Session::BringUp(std::string& why) {
     }
     renderer.backend = be;
 
+    // RSBS_UI_SNAPSHOT_SABOTAGE=player-config names the PLAYER's config instead:
+    // the regression assert 10 exists for (the fresh config below overwrites it).
+    const char* configName = opt.Sabotaged("player-config") ? "shipofharkinian.json" : kConfigName;
     // A FRESH config every run. The harness owns its own config file (the first
     // config path a process names is the one the Context keeps), so the player's
     // shipofharkinian.json is never read or written, and every CVar starts at its
@@ -986,7 +991,7 @@ bool Session::BringUp(std::string& why) {
                 ",\n    \"PositionX\": " + std::to_string(profile.posX) +
                 ",\n    \"PositionY\": " + std::to_string(profile.posY) +
                 ",\n    \"Fullscreen\": { \"Enabled\": false }\n  }\n}\n";
-        const std::string configPath = AppPath(kConfigName);
+        const std::string configPath = AppPath(configName);
         std::error_code mk;
         fs::create_directories(fs::path(configPath).parent_path(), mk);
         if (!WriteTextFile(configPath, json)) {
@@ -1000,7 +1005,7 @@ bool Session::BringUp(std::string& why) {
     // workstation therefore defaults to GL.)
     SDL_SetHint(SDL_HINT_WINDOW_NO_ACTIVATION_WHEN_SHOWN, "1");
 
-    auto ctx = Ship::Context::CreateUninitializedInstance(RSBS_WINDOW_TITLE " - UI snapshot", kShortName, kConfigName);
+    auto ctx = Ship::Context::CreateUninitializedInstance(RSBS_WINDOW_TITLE " - UI snapshot", kShortName, configName);
     if (ctx == nullptr) {
         why = "could not create the Ship::Context";
         return false;
@@ -1046,9 +1051,13 @@ bool Session::BringUp(std::string& why) {
 
     // Before the first NewFrame, which is when ImGui would load imgui.ini: the
     // run must neither read the player's window layout nor write one.
-    // RSBS_UI_SNAPSHOT_SABOTAGE=keep-imgui-ini leaves Gui::Init's path armed, so
-    // ImGui saves the layout there within IniSavingRate (5 s) of the first new
-    // window, and the isolation assert (assert 10) must go red.
+    // ImGui writes IniFilename in two places: the dirty-timer save after a window
+    // is moved, resized or collapsed (IniSavingRate, 5 s), and ImGui::Shutdown.
+    // Neither fires in a run as it stands (nothing moves a window, and the
+    // process exits without destroying the context), so the null is what keeps a
+    // later change from arming either. RSBS_UI_SNAPSHOT_SABOTAGE=keep-imgui-ini
+    // leaves Gui::Init's path armed and runs the shutdown's save before the
+    // isolation check, which must then go red.
     if (!opt.Sabotaged("keep-imgui-ini")) {
         ImGui::GetIO().IniFilename = nullptr;
     }
@@ -3052,6 +3061,10 @@ int Session::Run() {
     RuntimeLint();
     DumpSohNames();
 
+    if (opt.Sabotaged("keep-imgui-ini") && ImGui::GetIO().IniFilename != nullptr) {
+        // What ImGui::Shutdown does when the context is destroyed with a path set.
+        ImGui::SaveIniSettingsToDisk(ImGui::GetIO().IniFilename);
+    }
     // Assert 10's "after".
     for (const auto& [f, digest] : isolationBefore) {
         const std::string now = FileDigest(AppPath(f));
