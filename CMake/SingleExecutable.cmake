@@ -1548,6 +1548,14 @@ if(BUILD_TESTING)
         # world converged through (winningAttempt / mmPairedAttempt), so this row
         # pins not just the world but the DERIVATION that reached it.
         "GoldenPairedAttemptDigest|paired-attempt-digest|mm-paired-attempt|RSBS_ATTEMPT_DIGEST_OUT|OFF|"
+        # #681 review: the ARMED reverse draw. The three goldens above run the
+        # shipped profile, which arms no give-capability family, so the
+        # capability rows and the per-family budget never ran under any pin. The
+        # dispatch arms all four families through MM's option CVars itself and
+        # stops after the OoT half (the armed MM fill rides its wall-clock abort
+        # on this seed). Same seed and OoT settings as seed-digest-default, so the
+        # two files differ only in what the capability narrowing changed.
+        "GoldenSeedDigestArmedCaps|seed-digest-armed-caps|rando-armed-caps-digest|RSBS_SEED_DIGEST_OUT|ON|"
     )
     set(REDSHIP_GOLDEN_DIR "${CMAKE_SOURCE_DIR}/tests/golden")
 
@@ -1784,6 +1792,14 @@ if(BUILD_TESTING)
     # every assertion but S1, and CTest does not scrub the inherited environment, so
     # a developer shell or a CI image that exported it got a green row that measured
     # nothing. Two dispatch names cannot collide that way.
+    # The armed-capability golden's dispatch has no plain --test row on purpose:
+    # the GoldenSeedDigestArmedCaps row in REDSHIP_GOLDEN_DIGESTS drives it
+    # through CheckGoldenDigest.cmake, and that row is a cmake -P wrapper, which
+    # the manifest records as a meta row rather than as this dispatch's owner.
+    redship_test_exempt(rando-armed-caps-digest
+        "Driven by the GoldenSeedDigestArmedCaps golden row (cmake -P CheckGoldenDigest.cmake), which the manifest \
+records as a meta row. A plain --test row would only regenerate the same world without comparing it (#681).")
+
     redship_test_exempt(combo-logic-give-probe
         "Diagnostic, not a lock: walks MM's giveable vanilla ids through Rando::GiveItem headlessly so an id whose \
 give dereferences a NULL MM_gPlayState/gRegEditor names itself on stderr. Its intended outcome on a bad id is a \

@@ -308,9 +308,12 @@ int Combo_ForeignPoolClassMembersFor(uint8_t originGame, uint16_t classMask, int
         return 0;
     }
 
-    // IN POOL ORDER, because pool order is world-visible: the forward pass
-    // assigns pool[members[i]] to the i-th drawn host, so regrouping by class
-    // here would re-order every already-generated world's crossings.
+    // IN POOL ORDER, because pool order is world-visible: it is the INPUT both
+    // placement passes consume from an identity-seeded stream (the forward pass
+    // Fisher-Yates-shuffles it and truncates, #583; the reverse pass draws from
+    // it without replacement), so regrouping by class here would re-order every
+    // already-generated world's crossings even though neither pass walks it
+    // in order any more.
     //
     // An UNCLASSIFIED row (itemClass == 0) matches no mask and is therefore
     // never drawn. That is deliberate rather than defensive — a row nobody
@@ -334,7 +337,34 @@ int Combo_ForeignPoolClassMembersFor(uint8_t originGame, uint16_t classMask, int
 }
 
 int Combo_ForeignPoolDrawFor(uint8_t originGame, int* outIndices, int maxIndices) {
-    return Combo_ForeignPoolClassMembersFor(originGame, Combo_ComboItemClassFor(originGame), outIndices, maxIndices);
+    const ComboForeignItemDef* pool = NULL;
+    const int poolCount = Combo_GetForeignItemPoolFor(originGame, &pool);
+    if (poolCount <= 0 || pool == NULL) {
+        return 0;
+    }
+    const uint16_t classMask = Combo_ComboItemClassFor(originGame);
+
+    // The class rule first (Combo_ForeignPoolClassMembersFor's exact test), then
+    // the capability narrowing (#681). Same loop, same pool order, so the
+    // indices an unarmed profile draws are the ones this function drew before
+    // the capability column existed.
+    int selected = 0;
+    for (int i = 0; i < poolCount; i++) {
+        if ((pool[i].itemClass & classMask) == 0) {
+            continue;
+        }
+        if (pool[i].requiredGiveCaps != 0 && !Combo_ForeignGiveCapsArm(originGame, pool[i].requiredGiveCaps)) {
+            continue;
+        }
+        if (outIndices != NULL) {
+            if (selected >= maxIndices) {
+                break;
+            }
+            outIndices[selected] = i;
+        }
+        selected++;
+    }
+    return selected;
 }
 
 const char* Combo_ForeignCriterionName(uint8_t criterion) {

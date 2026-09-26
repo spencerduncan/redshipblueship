@@ -1,0 +1,17 @@
+seed=4FF39390
+settingsHash=01CBE129
+sourceIsRando=1
+placementHash=98F07849
+placedCount=490
+foreignOoTHash=D6D612B5
+foreignOoTCount=8
+comboSettingsHash=DF454DEB
+comboSettings=v1/d4/p8,8/c003F,003F/g1/r2
+foreignOoT0=566:2:67
+foreignOoT1=435:2:73
+foreignOoT2=703:2:158
+foreignOoT3=559:2:88
+foreignOoT4=454:2:208
+foreignOoT5=491:2:114
+foreignOoT6=625:2:188
+foreignOoT7=402:2:147

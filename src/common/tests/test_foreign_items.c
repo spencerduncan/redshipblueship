@@ -1128,8 +1128,19 @@ TestResult Test_ForeignPoolMM(void) {
     // three tiers and nothing took their place. Bounded rather than exact for
     // the reason above — a future shared resource removes more, and unrelated
     // work may add.
-    printf("[TEST] foreign-pool-mm: %d entries after the #525 shared-resource shrink\n", poolCount);
-    FI_ASSERT(poolCount <= 128);
+    // Counted over the UNCONDITIONAL rows (requiredGiveCaps == 0): the #681
+    // capability rows are a separate, profile-gated block appended after them,
+    // and folding them in would make this bound say nothing about the shrink.
+    int unconditionalRows = 0;
+    for (int i = 0; i < poolCount; i++) {
+        if (pool[i].requiredGiveCaps == 0) {
+            unconditionalRows++;
+        }
+    }
+    printf("[TEST] foreign-pool-mm: %d entries after the #525 shared-resource shrink (%d unconditional, %d "
+           "capability-gated)\n",
+           poolCount, unconditionalRows, poolCount - unconditionalRows);
+    FI_ASSERT(unconditionalRows <= 128);
 
     // OoT's pool must stay clear of test_combo_spoiler_view.c's floor of 3,
     // which it sat exactly on before shared ammo added the Lens, Boomerang and
@@ -1155,8 +1166,10 @@ TestResult Test_ForeignPoolMM(void) {
 //
 // THE THREE CLAIMS THIS ROW EXISTS FOR, in the order they can fail:
 //
-//  (P) PARITY. Under the shipped defaults the draw is the identity permutation,
-//      so every already-generated world is byte-identical. This is the pin the
+//  (P) PARITY. Under the shipped defaults the draw is the identity permutation
+//      over the unconditional prefix (no give capability is armed by the
+//      shipped profile, #681), so every already-generated world is
+//      byte-identical. This is the pin the
 //      whole increment is bounded by — SeedDeterminism's foreignOoTHash and
 //      MMRandoGen's placement digest both fold the drawn entries, so if this
 //      assertion is wrong those rows move.
@@ -1202,6 +1215,9 @@ TestResult Test_ForeignItemClass(void) {
            "whole (#495)\n");
 
     ComboContext_Init();
+    // Nothing published: the state of a process that neither generated nor
+    // hydrated, in which every capability row must be undrawable (#681).
+    Combo_ClearForeignGiveCaps();
 
     const uint8_t kOrigins[] = { (uint8_t)GAME_OOT, (uint8_t)GAME_MM };
 
@@ -1239,20 +1255,40 @@ TestResult Test_ForeignItemClass(void) {
         const ComboForeignItemDef* pool = NULL;
         const int poolCount = Combo_GetForeignItemPoolFor(kOrigins[o], &pool);
         FI_ASSERT(poolCount >= 1 && pool != NULL);
+        bool inCapabilityBlock = false;
         for (int i = 0; i < poolCount; i++) {
             FI_ASSERT(PopCount16(pool[i].itemClass) == 1);
             FI_ASSERT((pool[i].itemClass & (uint16_t)RSBS_ITEMCLASS_ALL_V1) == pool[i].itemClass);
+            // #681: the capability column is 0 or EXACTLY ONE allocated
+            // RSBS_GIVECAP_* bit. An unallocated bit would be masked off by
+            // Combo_ForeignGiveCapsArm and read as "requires nothing" once any
+            // profile was published: a row admitted by a bit nobody publishes.
+            const uint16_t caps = pool[i].requiredGiveCaps;
+            FI_ASSERT(caps == 0 || (PopCount16(caps) == 1 && (caps & (uint16_t)RSBS_GIVECAP_ALL_V1) == caps));
+            // OoT's gives are all unconditional: nothing on OoT's side is
+            // published, so an OoT capability row could never be drawn.
+            if (kOrigins[o] == (uint8_t)GAME_OOT) {
+                FI_ASSERT(caps == 0);
+            }
+            // Capability rows form a SUFFIX. That is what keeps the unarmed
+            // draw the identity over the unconditional prefix — the same
+            // indices every world drew before the column existed.
+            if (caps != 0) {
+                inCapabilityBlock = true;
+            }
+            FI_ASSERT(!inCapabilityBlock || caps != 0);
         }
     }
 
     // ------------------------------------------------------------------
     // (P) THE PARITY PIN. Default bitset => the identity permutation.
     // ------------------------------------------------------------------
-    // Asserted as index-for-index equality with 0..poolCount-1, not merely as
-    // an equal COUNT: the forward pass assigns pool[draw[i]] to the i-th drawn
-    // host, so a permutation with the right size and the wrong order would
-    // re-order every already-generated world's crossings while passing a
-    // count check.
+    // Asserted as index-for-index equality with 0..(prefix-1), not merely as an
+    // equal COUNT: the draw is the INPUT both passes consume from identity-
+    // seeded streams (the forward pass shuffles then truncates it, #583; the
+    // reverse pass draws from it without replacement), so a list with the right
+    // size and the wrong order would re-order every already-generated world's
+    // crossings while passing a count check.
     FI_ASSERT(!Combo_ComboSettingsFrozen()); // fresh gComboCtx: the unfrozen fallback path
     for (int o = 0; o < 2; o++) {
         const uint8_t origin = kOrigins[o];
@@ -1264,14 +1300,25 @@ TestResult Test_ForeignItemClass(void) {
         // generate a paired world with no crossings at all.
         FI_ASSERT(Combo_ComboItemClassFor(origin) == (uint16_t)RSBS_ITEMCLASS_ALL_V1);
 
+        // With no give capability published, the capability rows (#681) are
+        // undrawable and the draw is the identity over the unconditional
+        // PREFIX — for OoT, whose rows are all unconditional, the whole pool.
+        int unconditional = 0;
+        while (unconditional < poolCount && pool[unconditional].requiredGiveCaps == 0) {
+            unconditional++;
+        }
+        if (origin == (uint8_t)GAME_OOT) {
+            FI_ASSERT(unconditional == poolCount);
+        }
         std::vector<int> draw((size_t)poolCount, -1);
         const int drawCount = Combo_ForeignPoolDrawFor(origin, draw.data(), poolCount);
-        FI_ASSERT(drawCount == poolCount);
-        for (int i = 0; i < poolCount; i++) {
+        FI_ASSERT(drawCount == unconditional);
+        for (int i = 0; i < unconditional; i++) {
             FI_ASSERT(draw[(size_t)i] == i);
         }
-        printf("[TEST] foreign-item-class: origin %u parity — draw is the identity permutation over %d rows\n",
-               (unsigned)origin, poolCount);
+        printf("[TEST] foreign-item-class: origin %u parity — draw is the identity permutation over %d of %d rows "
+               "(no give capability published)\n",
+               (unsigned)origin, unconditional, poolCount);
     }
 
     // The same parity under an explicitly FROZEN default record, because that
@@ -1286,18 +1333,107 @@ TestResult Test_ForeignItemClass(void) {
             const ComboForeignItemDef* pool = NULL;
             const int poolCount = Combo_GetForeignItemPoolFor(kOrigins[o], &pool);
             FI_ASSERT(Combo_ComboItemClassFor(kOrigins[o]) == (uint16_t)RSBS_ITEMCLASS_ALL_V1);
+            int unconditional = 0;
+            while (unconditional < poolCount && pool[unconditional].requiredGiveCaps == 0) {
+                unconditional++;
+            }
             std::vector<int> draw((size_t)poolCount, -1);
-            FI_ASSERT(Combo_ForeignPoolDrawFor(kOrigins[o], draw.data(), poolCount) == poolCount);
-            for (int i = 0; i < poolCount; i++) {
+            FI_ASSERT(Combo_ForeignPoolDrawFor(kOrigins[o], draw.data(), poolCount) == unconditional);
+            for (int i = 0; i < unconditional; i++) {
                 FI_ASSERT(draw[(size_t)i] == i);
             }
         }
     }
 
     // ------------------------------------------------------------------
+    // (G) THE GIVE-CAPABILITY NARROWING (#681; ADR 0011 decision 3.5 / O8).
+    // ------------------------------------------------------------------
+    // Criterion 3 is profile-conditional: a row tagged with an RSBS_GIVECAP_*
+    // bit is drawable exactly when the origin's FROZEN profile published that
+    // capability. Four claims, all under the default (every class armed) record
+    // frozen just above:
+    //   - UNPUBLISHED and PUBLISHED-ZERO draw the same thing — the unconditional
+    //     prefix — so a profile that shuffles none of the four families (the
+    //     shipped one) reproduces today's draw byte for byte;
+    //   - each family ALONE adds exactly its own rows, appended in pool order;
+    //   - every family together draws the whole pool as the identity;
+    //   - each family has members, so none of the above is vacuous.
+    {
+        const ComboForeignItemDef* pool = NULL;
+        const int poolCount = Combo_GetForeignItemPoolFor((uint8_t)GAME_MM, &pool);
+        int unconditional = 0;
+        while (unconditional < poolCount && pool[unconditional].requiredGiveCaps == 0) {
+            unconditional++;
+        }
+        FI_ASSERT(unconditional < poolCount); // the capability block exists at all
+
+        std::vector<int> unpublished((size_t)poolCount, -1);
+        Combo_ClearForeignGiveCaps();
+        FI_ASSERT(Combo_ForeignPoolDrawFor((uint8_t)GAME_MM, unpublished.data(), poolCount) == unconditional);
+
+        std::vector<int> publishedZero((size_t)poolCount, -1);
+        Combo_PublishForeignGiveCaps((uint8_t)GAME_MM, 0u);
+        FI_ASSERT(Combo_ForeignGiveCapsPublished((uint8_t)GAME_MM));
+        FI_ASSERT(Combo_ForeignPoolDrawFor((uint8_t)GAME_MM, publishedZero.data(), poolCount) == unconditional);
+        FI_ASSERT(unpublished == publishedZero);
+
+        const uint16_t kFamilies[] = { (uint16_t)RSBS_GIVECAP_SOULS, (uint16_t)RSBS_GIVECAP_OCARINA_BUTTONS,
+                                       (uint16_t)RSBS_GIVECAP_SWIM, (uint16_t)RSBS_GIVECAP_CLOCKS };
+        int familyTotal = 0;
+        for (size_t f = 0; f < sizeof(kFamilies) / sizeof(kFamilies[0]); f++) {
+            int members = 0;
+            for (int i = 0; i < poolCount; i++) {
+                if (pool[i].requiredGiveCaps == kFamilies[f]) {
+                    members++;
+                }
+            }
+            FI_ASSERT(members >= 1);
+            familyTotal += members;
+
+            Combo_PublishForeignGiveCaps((uint8_t)GAME_MM, kFamilies[f]);
+            FI_ASSERT(Combo_ForeignGiveCapsArm((uint8_t)GAME_MM, kFamilies[f]));
+            std::vector<int> draw((size_t)poolCount, -1);
+            const int n = Combo_ForeignPoolDrawFor((uint8_t)GAME_MM, draw.data(), poolCount);
+            FI_ASSERT(n == unconditional + members);
+            int prev = -1;
+            for (int i = 0; i < n; i++) {
+                const int idx = draw[(size_t)i];
+                FI_ASSERT(idx > prev);
+                prev = idx;
+                if (i < unconditional) {
+                    FI_ASSERT(idx == i);
+                } else {
+                    // ...and nothing from any OTHER family.
+                    FI_ASSERT(pool[idx].requiredGiveCaps == kFamilies[f]);
+                }
+            }
+            printf("[TEST] foreign-item-class: MM capability %04X alone arms %d rows (%d drawable)\n",
+                   (unsigned)kFamilies[f], members, n);
+        }
+        FI_ASSERT(unconditional + familyTotal == poolCount);
+
+        Combo_PublishForeignGiveCaps((uint8_t)GAME_MM, RSBS_GIVECAP_ALL_V1);
+        std::vector<int> all((size_t)poolCount, -1);
+        FI_ASSERT(Combo_ForeignPoolDrawFor((uint8_t)GAME_MM, all.data(), poolCount) == poolCount);
+        for (int i = 0; i < poolCount; i++) {
+            FI_ASSERT(all[(size_t)i] == i);
+        }
+        printf("[TEST] foreign-item-class: MM draw %d rows with no capability armed, %d with all four\n",
+               unconditional, poolCount);
+        // The narrowing lives in the DRAW only: the class-member view and the
+        // registry keep spanning every row (claim (T) below).
+        FI_ASSERT(Combo_ForeignPoolClassMembersFor((uint8_t)GAME_MM, (uint16_t)RSBS_ITEMCLASS_ALL_V1, NULL, 0) ==
+                  poolCount);
+    }
+
+    // ------------------------------------------------------------------
     // (N) NARROWING. Each armed bit yields ONLY members of that class, the
     //     classes PARTITION the pool, and the frozen record is what selects.
+    //     Every give capability is armed here (left so by (G) above), so the
+    //     class rule is the only filter in play and the partition is over the
+    //     whole pool.
     // ------------------------------------------------------------------
+    FI_ASSERT(Combo_ForeignGiveCapsArm((uint8_t)GAME_MM, RSBS_GIVECAP_ALL_V1));
     for (int o = 0; o < 2; o++) {
         const uint8_t origin = kOrigins[o];
         const ComboForeignItemDef* pool = NULL;
@@ -1452,8 +1588,9 @@ TestResult Test_ForeignItemClass(void) {
 
     // Leave global state clean for any subsequent row in `--test all`.
     ComboContext_Init();
+    Combo_ClearForeignGiveCaps();
 
     printf("[TEST] PASS: default bitset draws the pinned pool byte-identically; a narrowed bitset draws only its "
-           "classes; the name inverse stays total\n");
+           "classes; give capabilities only narrow; the name inverse stays total\n");
     return TEST_PASS;
 }
