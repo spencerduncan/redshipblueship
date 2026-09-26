@@ -1188,6 +1188,106 @@ TestResult Test_RandoDeterminism(void) {
     return mmRc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #681 review: THE ARMED REVERSE DRAW, PINNED. Driven only by the
+// GoldenSeedDigestArmedCaps golden row (CMake/SingleExecutable.cmake,
+// REDSHIP_GOLDEN_DIGESTS), which compares the digest this writes against
+// tests/golden/seed-digest-armed-caps.txt.
+//
+// WHY IT EXISTS. The three other goldens run the shipped profile, which arms no
+// give-capability family (every family's MM option defaults off), so the
+// capability rows and the per-family budget in OoT_PlaceForeignItems never
+// execute under any pin. ForeignPlacementOoT drives the armed path but asserts
+// BOUNDS (at least one capability row, no family over budget), and a bound
+// cannot see a reorder of the 63 appended rows, a new budget constant or a
+// changed set-aside stream: each of those moves every armed world while every
+// bound stays true. This dispatch generates the SAME seed as rando-determinism
+// with all four families armed through MM's own option CVars, so the pinned
+// foreignOoT<n> lines are an armed world's exact (host, item) table.
+//
+// WHY THE MM HALF IS NOT RUN. The armed MM profile (enemy + boss soul shuffle in
+// particular) makes MM's own fill hit its 30 s wall-clock abort on this seed
+// (measured: "attempt 1/10 hit the fill's WALL-CLOCK abort"), and a golden that
+// rides a machine-speed timeout would be a flaky pin. The reverse table is
+// decided entirely on the OoT side, before MM generates anything, so the digest
+// stops after the OoT half; the MM-side fields stay pinned by the other goldens.
+//
+// The profile is set HERE rather than through RSBS_DIAG_CVARS so it travels with
+// the lock (the same choice the RandoEntrancePin row made), and the row
+// refuses to pin a world that did not actually arm every family or that hosts
+// no capability row at all - either would be a golden that pins nothing this
+// row was added for.
+TestResult Test_RandoArmedCapsDigest(void) {
+    printf("[TEST] rando-armed-caps-digest: the reverse draw with every give-capability family armed (#681)\n");
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    // MM's own option CVars, by name (the StaticData rows' "gRando.Options.<id>"
+    // keys) - the same surface the combo pane writes. Souls need BOTH shuffles
+    // (MM_Rando_PublishProfileGiveCaps); clocks arm in the default RANDOM mode.
+    static const char* const kArming[] = {
+        "gRando.Options.RO_SHUFFLE_ENEMY_SOULS",     "gRando.Options.RO_SHUFFLE_BOSS_SOULS",
+        "gRando.Options.RO_SHUFFLE_OCARINA_BUTTONS", "gRando.Options.RO_SHUFFLE_SWIM",
+        "gRando.Options.RO_CLOCK_SHUFFLE",
+    };
+    for (const char* cvar : kArming) {
+        CVarSetInteger(cvar, 1);
+    }
+
+    const char* digestOut = std::getenv("RSBS_SEED_DIGEST_OUT"); // NULL => digest to stdout
+    const int rc = Rando_HeadlessSeedDeterminismDigest("RSBSUNIFIED1", digestOut);
+    for (const char* cvar : kArming) {
+        CVarClear(cvar);
+    }
+    if (rc != 0) {
+        printf("[TEST] FAIL: armed-profile determinism digest rc=%d\n", rc);
+        return TEST_FAIL;
+    }
+
+    if (!Combo_ForeignGiveCapsPublished((uint8_t)GAME_MM) ||
+        Combo_ForeignGiveCaps((uint8_t)GAME_MM) != (uint16_t)RSBS_GIVECAP_ALL_V1) {
+        printf("[TEST] FAIL: the armed profile published caps=%04X (published=%d); expected every family (%04X) - "
+               "this golden would pin a world that is not the armed one\n",
+               (unsigned)Combo_ForeignGiveCaps((uint8_t)GAME_MM),
+               Combo_ForeignGiveCapsPublished((uint8_t)GAME_MM) ? 1 : 0, (unsigned)RSBS_GIVECAP_ALL_V1);
+        return TEST_FAIL;
+    }
+
+    const ComboForeignItemDef* mmPool = nullptr;
+    const int mmPoolCount = Combo_GetForeignItemPoolFor((uint8_t)GAME_MM, &mmPool);
+    int capabilityPlacements = 0;
+    int placements = 0;
+    for (int slot = 0; slot < (int)RSBS_FOREIGN_PLACEMENT_CAP; slot++) {
+        const ComboForeignPlacement& p = gComboCtx.foreignPlacementsOoT[slot];
+        if (p.item.originGame == (uint8_t)GAME_NONE) {
+            continue;
+        }
+        placements++;
+        for (int row = 0; row < mmPoolCount; row++) {
+            if (mmPool[row].item.id == p.item.id && mmPool[row].requiredGiveCaps != 0) {
+                capabilityPlacements++;
+                break;
+            }
+        }
+    }
+    printf("[TEST] rando-armed-caps-digest: %d of %d reverse placements are capability rows\n", capabilityPlacements,
+           placements);
+    if (capabilityPlacements <= 0) {
+        printf("[TEST] FAIL: the armed world hosts no capability row, so its golden would not pin the capability "
+               "draw or the budget - pick a seed where it does\n");
+        return TEST_FAIL;
+    }
+    printf("[TEST] PASS: armed-profile digest written\n");
+    return TEST_PASS;
+}
+
 // ============================================================================
 // ADR 0010 INCREMENT 2 — THE MERGED CREATION EVENT, END TO END (epic #644)
 //
@@ -3904,6 +4004,11 @@ const TestDescriptor gTests[] = {
     // Needs a display like rando-gen, so `--test all` skips it (below).
     {"rando-determinism", "Unified-seed producer fires + same-seed fill is reproducible (Lane B)",
      Test_RandoDeterminism},
+    // #681 review: the armed reverse draw's exact table. Driven only by the
+    // GoldenSeedDigestArmedCaps golden row; needs a display, so `--test all`
+    // skips it (below).
+    {"rando-armed-caps-digest", "Armed-profile reverse draw digest for the GoldenSeedDigestArmedCaps pin (#681)",
+     Test_RandoArmedCapsDigest},
     // Lane C0: MM's randomizer is reachable and generates headlessly. Needs a
     // display like rando-gen, so `--test all` skips it (below).
     {"mm-rando-gen", "MM rando generation runs headlessly + writes tagged spoiler (Lane C0)", Test_MMRandoGen},
@@ -4007,8 +4112,9 @@ const TestDescriptor gTests[] = {
      Test_ForeignPoolMM},
     // #495: the cross-game item class is a RULE over the pool and the class
     // BITSET is the setting. The parity half is the acceptance bar — under the
-    // shipped defaults the draw is the identity permutation, so no generated
-    // world moves — and the totality half is why the class carries no seed term.
+    // shipped defaults the draw is the identity permutation over the
+    // unconditional prefix (#681), so no generated world moves — and the
+    // totality half is why the class carries no seed term.
     {"foreign-item-class",
      "Item class is a rule: default bitset draws the pinned pool byte-identically, a narrowed one draws only its "
      "classes, the name inverse stays total (#495)",
@@ -4545,6 +4651,7 @@ int TestRunner_Run(const char* testName) {
             // this display-free suite, where they would hang the 60s timeout.
             if (strcmp(gTests[i].name, "rando-gen") == 0 || strcmp(gTests[i].name, "rando-gen-full-init") == 0 ||
                 strcmp(gTests[i].name, "rando-determinism") == 0 ||
+                strcmp(gTests[i].name, "rando-armed-caps-digest") == 0 ||
                 strcmp(gTests[i].name, "rando-hint-validity") == 0 ||
                 strcmp(gTests[i].name, "rando-hint-reload") == 0 ||
                 strcmp(gTests[i].name, "rando-hint-crossgame") == 0 ||
