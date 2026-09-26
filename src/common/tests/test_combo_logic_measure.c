@@ -89,6 +89,13 @@
  *      restoring side, which MM is. The fill's own wall/rounds is therefore also
  *      reported, and it is roughly double.
  *
+ * (M2b) ONE ROUND WITH MM'S WHOLE VANILLA POOL ASSUMED (added with the
+ *      multiplicity ruling, combo_logic.h ABI 3): whether MM's half is provable
+ *      at all from the pool the bag's MM half is sampled from. It is what
+ *      localises a `beat-both` failure to the SAMPLE (approximation A) rather
+ *      than to the fill: on 2026-09-26 it read goalMM=1 while every capped
+ *      measurement bag read goalMM=0 before a single item was placed.
+ *
  * (M3) THE FILL, under the proved no-tricks rung and under `none`, for three
  *      coordinator seeds and both GOALs that have an evaluator. Reported: wall
  *      time, rounds, rounds per placed item, attempts (hence batch roll-backs),
@@ -834,6 +841,52 @@ TestResult ComboLogicMeasure_Run(void) {
                "so nothing measured here is a PAIR-level cost");
     CLM_ASSERT(firstRound.crossingOpenOoT == 1,
                "OoT's crossing read CLOSED, so the arrival gate suppressed MM for the whole measurement");
+
+    // ------------------------------------------------------------------
+    // M2b. CAN MM'S HALF BE PROVED AT ALL FROM MM'S WHOLE POOL? (ABI 3)
+    // ------------------------------------------------------------------
+    // The round above assumes the MEASUREMENT bag, whose MM half is a stride
+    // SAMPLE (approximation A) and is capped by RSBS_COMBO_LOGIC_BAG_CAP. If its
+    // goalMM is 0, that alone cannot say whether the fill failed or the sample
+    // simply does not carry what Majora needs. So one more round assumes the
+    // measurement bag's OoT half plus EVERY row of MM's giveable vanilla pool —
+    // RunRound has no bag cap — and prints MM's goal. A 1 here and a 0 above
+    // localises a beat-both failure to the SAMPLE, not to the fill or the
+    // surface; a 0 here says MM's goal is unprovable from its whole vanilla pool
+    // under this profile, which is a different finding. Printed, not asserted:
+    // it is a measurement of the fixture.
+    {
+        std::vector<ComboLogicBagItem> wholeMm;
+        for (const uint16_t id : ootBagItems) {
+            ComboLogicBagItem row;
+            memset(&row, 0, sizeof(row));
+            row.item.originGame = (uint8_t)GAME_OOT;
+            row.item.id = id;
+            wholeMm.push_back(row);
+        }
+        for (const uint16_t id : mmPooledItems) {
+            ComboLogicBagItem row;
+            memset(&row, 0, sizeof(row));
+            row.item.originGame = (uint8_t)GAME_MM;
+            row.item.id = id;
+            wholeMm.push_back(row);
+        }
+        ComboLogicRoundRequest req;
+        memset(&req, 0, sizeof(req));
+        req.assumed = wholeMm.data();
+        req.assumedCount = (int)wholeMm.size();
+        req.goal = RSBS_COMBO_GOAL_BEAT_BOTH;
+        ComboLogicRoundResult res;
+        const double t0 = NowMs();
+        const int status = Combo_Logic_RunRound(&req, &res);
+        const double ms = NowMs() - t0;
+        CLM_ASSERT(status == RSBS_COMBO_LOGIC_OK, "the whole-MM-pool round did not succeed");
+        printf("[TEST] combo-logic-measure: M2b WHOLE MM POOL ASSUMED (%d OoT rows + all %d MM rows): %.1fms "
+               "goalOoT=%d goalMM=%d beat-both=%d candidatesMM=%d — against goalMM=%d for the measurement bag's "
+               "sampled MM half\n",
+               (int)ootBagItems.size(), mmPooledItemTotal, ms, res.goalOoT, res.goalMM, res.goalExpression,
+               res.candidatesMM, firstRound.goalMM);
+    }
 
     // ==================================================================
     // M3: THE FILL — convergence, per rung, per GOAL, per seed.
