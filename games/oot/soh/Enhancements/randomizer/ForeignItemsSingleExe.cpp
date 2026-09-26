@@ -632,9 +632,10 @@ extern "C" int OoT_PlaceForeignItems(void) {
 
     // BOTH sides are drawn without replacement. Drawing the ITEM matters as much
     // as drawing the host: the pool is far larger than the cap, so walking it in
-    // order (as the forward pass does, where pool <= cap made that equivalent)
-    // would place the same first 8 entries in every seed and make the other ~126
-    // dead weight.
+    // order would place the same first 8 entries in every seed and make the
+    // other ~126 dead weight. (The forward pass used to walk its pool in order,
+    // on the grounds that pool <= cap made that equivalent; #580's reachability
+    // gate broke the equivalence, and since #583 it shuffles before truncating.)
     //
     // WHICH pool entries are drawable is now the RULE (#495, ADR 0011 decision
     // 3): Combo_ForeignPoolDrawFor filters MM's pool by the FROZEN itemClassMM
