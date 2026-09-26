@@ -1184,3 +1184,45 @@ spent.
 - **No fill, pool or placement change.** The ocarina's #654 pool membership is
   unchanged; this setting governs only whether the instrument the player holds
   is one across both halves.
+
+### 2026-09-26 -- O8 / decision 3.5: criterion 3's narrowing delivered (#681)
+
+Decision 3.5 said criterion 3's narrowing was "designed but not yet unlocked",
+and O8 gated it on the MM freeze preceding OoT's `Fill()` plus a
+values-publishing `src/common` surface. PR #680 delivered both gates
+(`MM_Rando_PublishProfileGiveCaps`, the four `RSBS_GIVECAP_*` bits). The
+narrowing itself is now delivered, on branch
+`claude/world-moving-bundle-583-681-643-719`:
+
+- **The column.** `ComboForeignItemDef` gains `requiredGiveCaps`: 0 for every
+  pre-existing row of both pools, otherwise exactly one `RSBS_GIVECAP_*` bit.
+  `Combo_ForeignPoolDrawFor` applies the class rule and then admits a
+  capability row only when `Combo_ForeignGiveCapsArm(origin, caps)` holds for
+  the frozen profile; unpublished reads as "arms nothing". The class-member
+  view and the name registry still span every row (O3's totality is intact).
+- **The rows.** `kForeignPoolMMV1` gains 63 capability rows appended after the
+  116 unconditional ones: 51 enemy/boss souls (`SOULS`), the 5 ocarina buttons,
+  the swim ability, and the 6 concrete half-day clocks. Two stay excluded with
+  attribution: `RI_SOUL_BOSS_MAJORA` under criterion 4 (the Triforce hunt's
+  completion grants it, and that grant is the goal gate) and
+  `RI_TIME_PROGRESSIVE` still under criterion 3 (its give depends on the
+  clock-shuffle mode, which no published bit describes, and is junk in the
+  RANDOM mode).
+- **Sizing**, the question #681 left open: a per-family budget,
+  `RSBS_FOREIGN_GIVECAP_FAMILY_BUDGET` = 2 crossings per family per seed in the
+  reverse pass. A drawn row whose family is at budget is set aside without
+  drawing a host, so unconditional rows keep their odds and an unarmed profile
+  consumes the stream it always did.
+- **The ordering invariant holds**: the six criteria admit, the class bitset
+  selects, the capability only narrows.
+- **Measured:** the shipped MM profile arms none of the four families (every
+  option defaults OFF), so the creation freeze publishes `caps=0000` and the
+  three golden rows pass with the golden files untouched -- no generated world
+  moved. The real-pass lock in `foreign-placement-oot` shows the
+  narrowing both ways on one live fill: under a PROGRESSION-only class record,
+  zero capability rows with the caps unarmed and 5 of 8 placements with every
+  family armed (souls 2, buttons 1, swim 0, clocks 2; three further soul draws
+  set aside by the budget).
+
+The O8 row reads **delivered, 2026-09-26** with this entry, and decision 3.5's
+"do not ship it early" is discharged: it shipped after both gates were open.

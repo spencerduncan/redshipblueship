@@ -1243,3 +1243,47 @@ O9's position is therefore unchanged in kind from the 2026-09-21 entry --
 the vocabulary is declared in full and consulted in part -- with the part
 now 25 of 66 bindable keys. The O9 row is annotated in place with these
 numbers. No other decided text in this ADR changes.
+
+### 2026-09-26 -- O5 adopted: the canonical MM time-slice list is 46 (#643)
+
+The O5 row accepted "adopt the 46 slices -- add `NIGHT2_AM_05_30` -- with the
+u64 representation, pinned where both the crawl and any data port read it",
+and the 2026-09-17 ruling folded it into increment 3's re-pin. It has now been
+done, on branch `claude/world-moving-bundle-583-681-643-719`:
+
+- `TIME_NIGHT2_AM_05_30` sits after `TIME_NIGHT2_AM_05_00` in
+  `games/mm/2s2h/Rando/Logic/Logic.h`; every Day-3 and Night-3 enumerator moves
+  up by one (names unchanged); `TIME_ALL_SLICES` is `0x3FFFFFFFFFFF`.
+- **The pin** is a set of `static_assert`s beside the enum:
+  `TIME_SLICE_COUNT == 46`, `TIME_ALL_SLICES == (1 << TIME_SLICE_COUNT) - 1`,
+  and a count that fits the u64. `HALF_DAY_TIME_RANGES` is written with the
+  enumerators rather than ordinals, and asserts pin that the six half-days tile
+  slices 0..45 contiguously. There is one definition and no second copy.
+- The source review O5 allowed for found no authored guard that needs the new
+  boundary (`Logic/Regions/` names no 05:30 slice), so the slice is vocabulary:
+  it is there for a ported guard and for the coordinator's and any #576 data
+  port's enumeration.
+- **Measured:** the three golden rows (`GoldenSeedDigestDefault`,
+  `GoldenSeedDigestProfileV1`, `GoldenPairedAttemptDigest`) pass with the
+  golden files untouched on that commit, so under the pinned profiles the
+  crawl's results (`mmReachableCount`, `mmReachableHash`) and the MM fill did
+  not move and O5 costs no re-pin. Both pinned profiles run with clock shuffle
+  off; a clock-shuffle world, whose crawl takes the sequential path, is not
+  pinned by any golden and was not measured.
+
+The O5 row reads **adopted (46 slices), 2026-09-26** with this entry. P7 in
+`docs/solver-inventory.md` is delivered by the same change.
+
+### 2026-09-26 -- O11: Deku-Stick combat is trick-gated, like the Powder Keg (#719)
+
+O11 names `beatable(T = empty)` as the shipped rung. `CanKillEnemy` offered a
+Deku Stick as an ungated weapon on 17 actor rows while OoTMM's
+`MMRT_DEKU_STICK_FIGHTING` ships default-off, so T was not empty in that
+respect. The 17 disjuncts now read `CAN_FIGHT_WITH_DEKU_STICK`
+(`MM_TRICK(MMRT_DEKU_STICK_FIGHTING) && HAS_ITEM(ITEM_DEKU_STICK)`), the key is
+bound, and `mm-trick-table` check (j) holds a red/green pair per actor id. The
+stick as a fire source is not the trick and stays ungated. The operator's
+"sync and gate" ruling for the keg and GBT cases is the precedent. Measured:
+the three golden rows pass unchanged, so the pinned worlds did not move. The
+2026-09-26 O9 count above becomes **26** bound keys (40 declared, non-reserved
+keys not yet consulted).
