@@ -58,10 +58,12 @@
  * With oot.o2r mounted the production menu is complete and every SoH reference
  * page is drawn. Without it (hosted CI), SoH's own menu is never populated
  * (SetupMenuElements is skipped, and SohMenu::DrawElement refuses to draw an
- * unpopulated menu), so the harness installs a probe menu holding exactly the
- * sections known to register ROM-free: the Randomizer header with the
- * Cross-Game pointer page, the tier-4 Combo section, and Dev Tools. Pages that
- * need the full menu are recorded as skipped with the reason. soh.o2r is
+ * unpopulated menu), so the harness draws a probe menu of its own holding
+ * exactly the sections known to register ROM-free: the Randomizer header with
+ * the Cross-Game pointer page, the tier-4 Combo section, and Dev Tools. The
+ * probe is drawn inside each frame by the harness and never takes the Gui's
+ * single menu slot (the SetMenuCount row pins that slot to the live shell).
+ * Pages that need the full menu are recorded as skipped with the reason. soh.o2r is
  * required in both modes: the menu's fonts come only from it, and without them
  * Menu::DrawElement returns before drawing anything.
  */
@@ -80,7 +82,12 @@
 #include <ship/Context.h>
 #include <ship/window/gui/Gui.h>
 
+// The same platform split OTRGlobals.cpp uses for its SDL include.
+#ifdef __APPLE__
+#include <SDL.h>
+#else
 #include <SDL2/SDL.h>
+#endif
 
 #include <algorithm>
 #include <cctype>
@@ -339,7 +346,10 @@ std::string Trim(const std::string& s) {
 // header (the convention the menu locks already follow).
 class UiSnapshotMenu final : public SohGui::SohMenu {
   public:
-    UiSnapshotMenu() : SohGui::SohMenu(CVAR_WINDOW("Menu"), "Port Menu") {
+    // Its OWN visibility CVar: the production menu (which a ROM-free process
+    // still constructs, unpopulated) syncs "gOpenWindows.Menu" from its own state
+    // every frame, and two windows writing one key would fight over it.
+    UiSnapshotMenu() : SohGui::SohMenu("gUiSnapshot.ProbeMenu", "Port Menu") {
     }
 
     // SohMenu::DrawElement refuses until its PRIVATE mMenuElementsInitialized is
@@ -732,7 +742,12 @@ class Session {
     Renderer renderer;
     std::shared_ptr<Fast::Fast3dWindow> fast;
     std::shared_ptr<Ship::Gui> gui;
-    std::shared_ptr<Ship::Menu> menu; // what gui->GetMenu() draws
+    std::shared_ptr<Ship::Menu> menu; // the menu the pages live in (production, or the probe)
+    // ROM-free only: the probe, which the harness draws itself inside each frame.
+    // It is deliberately NOT handed to Gui::SetMenu -- that slot is single, a
+    // second SetMenu call silently replaces the live shell, and the SetMenuCount
+    // row holds the tree to exactly the two known call sites (ADR 0004 section 3).
+    std::shared_ptr<UiSnapshotMenu> probe;
     bool romFree = true;
     bool windowActivated = false;
     int colorBits[3] = { 0, 0, 0 };
@@ -1008,8 +1023,10 @@ void Session::MirrorProductionWindows() {
 void Session::BuildRomFreeMenu() {
     // The ROM-free probe: exactly the sections proven to register without an OoT
     // archive, in production's relative order (Randomizer, Combo, Dev Tools).
-    auto probe = std::make_shared<UiSnapshotMenu>();
-    gui->SetMenu(probe);
+    probe = std::make_shared<UiSnapshotMenu>();
+    // What Gui::SetMenu would do for a menu, minus taking the slot: Init() runs
+    // InitElement (the window-backend tables and SoH's disabledMap).
+    probe->Init();
     probe->AddMenuEntry("Randomizer", CVAR_SETTING("Menu.RandomizerSidebarSection"));
     WidgetPath path = { "Randomizer", "Cross-Game", SECTION_COLUMN_1 };
     SohGui::AddCrossGamePointerWidgets(*probe, path);
@@ -1237,6 +1254,13 @@ bool Session::PumpFrame(UiImage* img, bool hover, const std::function<void()>& e
             if (!renderer.ClearColour(interp.get())) {
                 why = "colour clear failed: " + renderer.lastError;
                 ok = false;
+            }
+            if (probe != nullptr) {
+                // Top-level ImGui windows may be begun anywhere inside the frame,
+                // so this is the same "Main Menu" window DrawMenu would submit for
+                // a menu in the Gui's slot.
+                probe->Update();
+                probe->Draw();
             }
             if (extra) {
                 extra();
