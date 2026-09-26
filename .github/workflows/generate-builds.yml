@@ -808,3 +808,29 @@ jobs:
       env:
         GH_TOKEN: ${{ github.token }}
       run: gh api -X DELETE "repos/${GITHUB_REPOSITORY}/git/${GITHUB_REF}"
+
+  monotonicity-probe:
+    # ADR 0010 answer O6's STATIC PROBE (#645, #500). The combo fill is sound
+    # only while reachability is monotone in items (ADR 0010 section 2.3), and
+    # O6 enforces that three ways at once: the review rule
+    # (.claude/worker-prompts.md, docs/monotonicity.md), the rando-tier CI
+    # grow-check (ComboLogicMonotonicity), and this scan. It reads both graphs'
+    # condition sources — OoT's location_access region files, MM's
+    # Logic/Regions files and Logic.h — for negations and downward comparisons
+    # over PLAYER-STATE terms (a negated settings/trick term is legal), and
+    # fails on any hit not in .github/monotonicity-negation-baseline.txt, whose
+    # every entry carries a reading and is printed on every run. Build-free, so
+    # it runs as its own fast job, like odr-declaration-gate.
+    runs-on: ubuntu-latest
+    steps:
+    - name: Git Checkout
+      uses: actions/checkout@v4
+    - name: Self-test the monotonicity probe
+      # Regression guard on the step below: plants sixteen violations in
+      # fixture trees and asserts each is classified and fails the gate, that
+      # comments and strings are ignored, that the legal shapes pass, that a
+      # baselined site passes only with a reading, that a stale entry fails,
+      # and that vacuous input is refused.
+      run: python3 .github/scripts/check-monotonicity-negations.py --self-test
+    - name: Scan both logic graphs for player-state negations (ADR 0010 O6)
+      run: python3 .github/scripts/check-monotonicity-negations.py
