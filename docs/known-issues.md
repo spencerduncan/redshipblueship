@@ -342,27 +342,16 @@ Duplicate entrance-link registrations are rejected instead of silently shadowing
 
 ## Randomizer generation
 
-### OoT's plentiful item pool can wrap the wallet inside the fill's own logic — [#726](https://github.com/spencerduncan/redshipblueship/issues/726)
+### ~~OoT's plentiful item pool can wrap the wallet inside the fill's own logic~~ — RESOLVED ([#726](https://github.com/spencerduncan/redshipblueship/issues/726))
 
-This affects only OoT seeds generated with the **Plentiful** item pool (`RO_ITEM_POOL_PLENTIFUL`); the
-default pool is not affected. Plentiful adds one more copy of the wallet, bow, slingshot, bomb bag,
-strength, scale and magic.
+OoT's own fill now stops every progressive grant at the item's top tier, as the combo coordinator's
+rounds already did. Before the fix, a **Plentiful** pool (one more wallet, bow, slingshot, bomb bag,
+strength, scale and magic than balanced) walked the fill's simulated inventory past the top: on a
+plentiful + tycoon-wallet seed the wallet read 0 after the fourth copy (observed), and every other
+of those items read one tier past its top. `OoTPlentifulProgressive` (rando tier) locks it.
 
-The problem is in the fill's simulated inventory. OoT's own fill counts every progressive copy with
-no upper limit, so a copy past the top tier walks past it. Measured on the wallet (a two-bit field):
-successive copies read `0 1 2 3 0 1`, and the carry spills into the bullet bag's field. So the fourth
-copy lowers the wallet the fill reasons with, from 3 to 0.
-
-What is and is not established:
-
-- The walk above was observed in a test that drives the arithmetic directly.
-- Whether a real plentiful seed's fill reaches it has not been observed yet; the premise is
-  inferred from the pool counts.
-- The combo coordinator's own rounds already clamp at the top tier (PR
-  [#728](https://github.com/spencerduncan/redshipblueship/pull/728)), but that clamp is off for OoT's own fill.
-
-**Workaround: use the default (balanced) item pool** if you want to be sure. A fix, clamping OoT's own
-fill at the top tier too, is in flight.
+Plentiful worlds can differ from before the fix when the wrap happened mid-fill; balanced, scarce
+and minimal worlds, and the shipped default, do not move (the golden rows are unchanged).
 
 ---
 

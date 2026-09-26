@@ -12,8 +12,9 @@
  * order leg over it cannot go red. Both are the ports' own code. So this row
  * drives the two real engines:
  *
- *   O1. OoT, THE DEFECT, OBSERVED. With the round clamp OFF — upstream's own
- *       arithmetic, the state every non-combo caller runs in — successive
+ *   O1. OoT, THE DEFECT, OBSERVED. With the clamp OFF — upstream's own
+ *       arithmetic (the walk bridges also suppress logic.cpp's tier clamp,
+ *       which since #726 is on for every grant, native fill included) — successive
  *       `RG_PROGRESSIVE_WALLET` copies walk the wallet's two-bit field past its
  *       top and it reads LOWER than before (the carry lands in the bullet bag's
  *       bits). That is the monotonicity violation the ABI-2 de-dup existed to

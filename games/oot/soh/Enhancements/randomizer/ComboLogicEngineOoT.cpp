@@ -147,6 +147,9 @@ namespace Rando {
 // clamps to. Set by beginQuery, cleared by endQuery — see the block at
 // OoT_ComboLogic_AssumeOwnItem.
 extern bool gComboLogicRoundClamp;
+// TEST ONLY: suppresses logic.cpp's tier clamp, which is otherwise on for every
+// grant, in and out of a round (#726).
+extern bool gComboLogicTierClampSuppressed;
 uint32_t ComboLogicProgressiveTopTier(uint32_t upgrade);
 int ComboLogicCounterMax(uint32_t rg);
 } // namespace Rando
@@ -209,8 +212,9 @@ int sLastExpandReachedChecks = 0;
 int sLastExpandReachedRegions = 0;
 int sBeginQueryCount = 0;
 /** TEST ONLY (combo-logic-multiplicity's order leg): when set, `beginQuery` opens
- *  the round WITHOUT the round clamp, so the lock can observe what the order
- *  check reads on upstream's arithmetic — its red half. Never set outside that
+ *  the round WITHOUT the round clamp and with logic.cpp's tier clamp suppressed
+ *  (#726), so the lock can observe what the order check reads on upstream's
+ *  arithmetic — its red half. Never set outside that
  *  leg, which puts it back. */
 bool sTestSuppressRoundClamp = false;
 int sEndQueryCount = 0;
@@ -535,6 +539,9 @@ int OoT_ComboLogic_BeginQuery(void* self) {
     // harvests — stops at the item's top tier or the counter's maximum instead of
     // walking the next field or wrapping the counter's storage.
     Rando::gComboLogicRoundClamp = !sTestSuppressRoundClamp;
+    // The tier clamp is on everywhere (#726); only the order leg's red half
+    // turns it off, for its suppressed round.
+    Rando::gComboLogicTierClampSuppressed = sTestSuppressRoundClamp;
     ++sBeginQueryCount;
     return 1;
 }
@@ -560,8 +567,10 @@ int OoT_ComboLogic_BeginQuery(void* self) {
  * the tier `Item::GetGIEntry` itself resolves the last copy to (strength, bomb
  * bag, quiver, bullet bag, sticks, nuts: 3; scale: 2; wallet: 3 with the tycoon
  * wallet in the seed, else 2; magic: 2). So every copy counts, and a surplus copy
- * is inert at the top. Scoped to the round on purpose: OoT's own fill, spoiler
- * and gameplay keep upstream's arithmetic byte for byte, and no world moves.
+ * is inert at the top. The TIER half of that clamp is no longer round-scoped
+ * (#726): OoT's own fill overshot the same way on a plentiful pool, so logic.cpp
+ * now stops every grant at the top tier; the round flag still bounds the
+ * counters below.
  *
  * WHY THE CLAMP HAS TO LIVE IN logic.cpp AND NOT HERE. Copies reach
  * `ApplyItemEffect` by three paths and this function is only one of them:
@@ -967,6 +976,7 @@ void OoT_ComboLogic_EndQuery(void* self) {
     // The clamp is a property of the ROUND. Off again before anything else, so no
     // later OoT evaluation — its own fill, CheckBeatable, gameplay — runs with it.
     Rando::gComboLogicRoundClamp = false;
+    Rando::gComboLogicTierClampSuppressed = false;
 
     Rando::Logic* lg = OoTComboLogicSingleton();
     if (lg == nullptr) {
@@ -1440,9 +1450,9 @@ extern "C" int OoT_ComboLogic_TestProgressiveTopTier(int kind) {
  * `inventory.upgrades` word at the end in `*outUpgrades` (so a carry into a
  * NEIGHBOURING field is visible, not only the kind's own field).
  *
- * With `clamp == 0` this is upstream's arithmetic exactly — the flag is off
- * everywhere outside a combo round, which is the state main runs in — and it is
- * how the lock OBSERVES the defect rather than asserting it from source. Nothing
+ * With `clamp == 0` this is upstream's arithmetic exactly — the round clamp off
+ * AND logic.cpp's otherwise-unconditional tier clamp suppressed (#726) — and it
+ * is how the lock OBSERVES the defect rather than asserting it from source. Nothing
  * here touches the live save or the live `inLogic[]`: the save pointer is parked
  * at the scratch and the logic values are saved and restored around the walk, the
  * same bracket `place` uses. The previous clamp value is put back.
@@ -1465,8 +1475,10 @@ extern "C" int OoT_ComboLogic_TestProgressiveWalk(int kind, int grants, int clam
     static bool sLogicValsBeforeWalk[LOGIC_MAX];
     OoTComboLogicSaveLogicVals(sLogicValsBeforeWalk);
     const bool priorClamp = Rando::gComboLogicRoundClamp;
+    const bool priorTierSuppressed = Rando::gComboLogicTierClampSuppressed;
 
     Rando::gComboLogicRoundClamp = (clamp != 0);
+    Rando::gComboLogicTierClampSuppressed = (clamp == 0);
     lg->SetSaveContext(scratch);
     for (int i = 0; i < grants; ++i) {
         Rando::StaticData::RetrieveItem(kOoTComboProgressiveKinds[kind].rg).ApplyEffect();
@@ -1477,6 +1489,7 @@ extern "C" int OoT_ComboLogic_TestProgressiveWalk(int kind, int grants, int clam
     }
     lg->SetSaveContext(prior);
     Rando::gComboLogicRoundClamp = priorClamp;
+    Rando::gComboLogicTierClampSuppressed = priorTierSuppressed;
     OoTComboLogicRestoreLogicVals(sLogicValsBeforeWalk);
     return grants;
 }
@@ -1631,8 +1644,10 @@ extern "C" int OoT_ComboLogic_TestProgressiveSequence(const int* kinds, int coun
     static bool sLogicValsBeforeSeq[LOGIC_MAX];
     OoTComboLogicSaveLogicVals(sLogicValsBeforeSeq);
     const bool priorClamp = Rando::gComboLogicRoundClamp;
+    const bool priorTierSuppressed = Rando::gComboLogicTierClampSuppressed;
 
     Rando::gComboLogicRoundClamp = (clamp != 0);
+    Rando::gComboLogicTierClampSuppressed = (clamp == 0);
     lg->SetSaveContext(scratch);
     for (int i = 0; i < count; ++i) {
         Rando::StaticData::RetrieveItem(kOoTComboProgressiveKinds[kinds[i]].rg).ApplyEffect();
@@ -1643,6 +1658,7 @@ extern "C" int OoT_ComboLogic_TestProgressiveSequence(const int* kinds, int coun
     }
     lg->SetSaveContext(prior);
     Rando::gComboLogicRoundClamp = priorClamp;
+    Rando::gComboLogicTierClampSuppressed = priorTierSuppressed;
     OoTComboLogicRestoreLogicVals(sLogicValsBeforeSeq);
     return count;
 }
@@ -1672,6 +1688,104 @@ extern "C" int OoT_ComboLogic_TestSuppressRoundClamp(int suppress) {
     const int previous = sTestSuppressRoundClamp ? 1 : 0;
     sTestSuppressRoundClamp = (suppress != 0);
     return previous;
+}
+
+// ---- #726: OoT's OWN fill under a plentiful pool ---------------------------
+//
+// The bridges above walk the progressive rows in a scratch save. These two read
+// what OoT's NATIVE generation reasons with: no combo round, no coordinator, the
+// same `ReachabilitySearch` over `ctx->allLocations` that the port's own fill,
+// `CheckBeatable` and playthrough run, harvesting every placed copy it reaches
+// through `ItemLocation::ApplyPlacedItemEffect`. Read by
+// src/common/tests/test_oot_plentiful_progressive.c (rando tier).
+
+/** 1 iff the generated world is the profile the #726 lock needs: a PLENTIFUL
+ *  item pool with the tycoon wallet included and infinite upgrades off (with
+ *  them on, a copy at the top resolves to the infinite item and never walks). */
+extern "C" int OoT_NativeFill_TestPlentifulTycoonProfile(void) {
+    auto ctx = Rando::Context::GetInstance();
+    if (ctx == nullptr) {
+        return 0;
+    }
+    return (ctx->GetOption(RSK_ITEM_POOL).Is(RO_ITEM_POOL_PLENTIFUL) &&
+            ctx->GetOption(RSK_INCLUDE_TYCOON_WALLET).Is(true) &&
+            ctx->GetOption(RSK_INFINITE_UPGRADES).Is(RO_INF_UPGRADES_OFF))
+               ? 1
+               : 0;
+}
+
+/**
+ * One native full-world harvest of the generated world, and each progressive
+ * kind's tier afterwards. For every kind of the table above: `outCopies[k]` is
+ * how many locations of the world hold that kind's `RG_*`, `outReached[k]` how
+ * many of those the search reached (and therefore harvested), and
+ * `outLevels[k]` the kind's level in the simulated save once the search closes.
+ *
+ * NATIVE, which is the point: refused inside a combo round, and refused if the
+ * round clamp is somehow on, so what it reads is the arithmetic OoT's own fill
+ * runs. The search starts from `Logic::Reset(true)` (the residue hazard in this
+ * file's header: a bare search would inherit the last one's inventory), and the
+ * save pointer and logic values are put back the way `endQuery` and `place` put
+ * them back.
+ *
+ * @return the number of kinds written, or -1 when the solver is not live, a round
+ *         is open, or an output is missing.
+ */
+extern "C" int OoT_NativeFill_TestHarvestProgressives(int* outLevels, int* outCopies, int* outReached) {
+    if (!OoTComboLogicReady() || sInQuery || Rando::gComboLogicRoundClamp || Rando::gComboLogicTierClampSuppressed ||
+        outLevels == nullptr || outCopies == nullptr || outReached == nullptr) {
+        return -1;
+    }
+    auto ctx = Rando::Context::GetInstance();
+    Rando::Logic* lg = OoTComboLogicSingleton();
+
+    for (int kind = 0; kind < kOoTComboProgressiveKindCount; ++kind) {
+        outCopies[kind] = 0;
+        outReached[kind] = 0;
+    }
+    for (const RandomizerCheck rc : ctx->allLocations) {
+        const RandomizerGet placed = ctx->GetItemLocation(rc)->GetPlacedRandomizerGet();
+        for (int kind = 0; kind < kOoTComboProgressiveKindCount; ++kind) {
+            if (placed == kOoTComboProgressiveKinds[kind].rg) {
+                ++outCopies[kind];
+            }
+        }
+    }
+
+    const bool priorWasLiveSave = (lg->GetSaveContext() == &gSaveContext);
+    static bool sLogicValsBeforeHarvest[LOGIC_MAX];
+    OoTComboLogicSaveLogicVals(sLogicValsBeforeHarvest);
+
+    lg->Reset(true);
+    Regions::AccessReset();
+    ctx->LocationReset();
+    ReachabilitySearch(ctx->allLocations);
+
+    for (const RandomizerCheck rc : ctx->allLocations) {
+        Rando::ItemLocation* il = ctx->GetItemLocation(rc);
+        if (!il->IsAddedToPool()) {
+            continue;
+        }
+        const RandomizerGet placed = il->GetPlacedRandomizerGet();
+        for (int kind = 0; kind < kOoTComboProgressiveKindCount; ++kind) {
+            if (placed == kOoTComboProgressiveKinds[kind].rg) {
+                ++outReached[kind];
+            }
+        }
+    }
+    for (int kind = 0; kind < kOoTComboProgressiveKindCount; ++kind) {
+        outLevels[kind] = OoTComboReadLevel(lg, kind);
+    }
+
+    if (priorWasLiveSave) {
+        SaveContext* mine = lg->GetSaveContext();
+        lg->SetSaveContext(&gSaveContext);
+        if (mine != nullptr && mine != &gSaveContext && mine != OoTComboLogicScratchSave(false)) {
+            free(mine); // mirrors Logic::NewSaveContext, as endQuery does
+        }
+    }
+    OoTComboLogicRestoreLogicVals(sLogicValsBeforeHarvest);
+    return kOoTComboProgressiveKindCount;
 }
 
 // ============================================================================
