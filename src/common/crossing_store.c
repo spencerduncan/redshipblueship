@@ -112,10 +112,10 @@ const SharedItem* Combo_Crossings_Lookup(GameId hostGame, uint16_t hostCheck) {
     if (side < 0 || hostCheck == 0) {
         return NULL;
     }
-    // Linear, and deliberately so: at most RSBS_CROSSING_STORE_CAP (1024) u16
+    // Linear, and deliberately so: at most RSBS_CROSSING_STORE_CAP (2048) u16
     // compares per miss. It is reached through the give-path accessors, so it
     // runs per pickup (CheckQueue) and also from MM's per-actor/per-draw
-    // foreign-check probes (EnBox, DrawItem): a bounded scan of an 8 KiB table,
+    // foreign-check probes (EnBox, DrawItem): a bounded scan of a 16 KiB table,
     // not a measurable cost. An index would be a second structure to keep
     // coherent with every writer.
     for (int i = 0; i < sCount[side]; ++i) {
