@@ -82,12 +82,12 @@ void MM_ComboLogic_ResetCounters(void);
 extern char gSaveContext[];
 }
 
-#define CLX_ASSERT(cond, msg)                                                   \
-    do {                                                                        \
-        if (!(cond)) {                                                          \
-            printf("[TEST] FAIL: %s (%s:%d)\n", (msg), __FILE__, __LINE__);      \
-            return TEST_FAIL;                                                   \
-        }                                                                       \
+#define CLX_ASSERT(cond, msg)                                               \
+    do {                                                                    \
+        if (!(cond)) {                                                      \
+            printf("[TEST] FAIL: %s (%s:%d)\n", (msg), __FILE__, __LINE__); \
+            return TEST_FAIL;                                               \
+        }                                                                   \
     } while (0)
 
 namespace {
@@ -263,8 +263,8 @@ TestResult ComboLogicMultiplicity_Run(void) {
         const int granted = MM_ComboLogic_RoundCopiesGranted();
         mm->restore(mm->self);
         mm->endQuery(mm->self);
-        printf("[TEST] combo-logic-multiplicity: M1 %-22s max=%d (derived), %d copies -> %s\n", kMmKindName[kind],
-               max, copies, ok ? "counted to the maximum and stopped" : "WRONG");
+        printf("[TEST] combo-logic-multiplicity: M1 %-22s max=%d (derived), %d copies -> %s\n", kMmKindName[kind], max,
+               copies, ok ? "counted to the maximum and stopped" : "WRONG");
         CLX_ASSERT(ok, "an MM counter did not count one per copy up to its maximum and stop there");
         CLX_ASSERT(granted == copies, "the round did not record every copy it was given");
         clampsExpected += 2;

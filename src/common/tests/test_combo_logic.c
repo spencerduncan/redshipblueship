@@ -1883,14 +1883,17 @@ TestResult Test_ComboLogicBagModel(void) {
         gClOoT.goalNeedItem = kOotHook;
         gClOoT.goalNeedCount = 3;
         ClInstall();
-        const ComboLogicBagItem a[4] = { ClBagItem((uint8_t)GAME_OOT, kOotHook, 0), ClBagItem((uint8_t)GAME_OOT, kOotHook, 0),
-                                         ClBagItem((uint8_t)GAME_OOT, kOotSword, 0), ClBagItem((uint8_t)GAME_OOT, kOotHook, 0) };
+        const ComboLogicBagItem a[4] = { ClBagItem((uint8_t)GAME_OOT, kOotHook, 0),
+                                         ClBagItem((uint8_t)GAME_OOT, kOotHook, 0),
+                                         ClBagItem((uint8_t)GAME_OOT, kOotSword, 0),
+                                         ClBagItem((uint8_t)GAME_OOT, kOotHook, 0) };
         const ComboLogicBagItem b[4] = { a[2], a[0], a[3], a[1] };
         ComboLogicRoundResult ra;
         ComboLogicRoundResult rb;
         CL_ASSERT(ClRunRound(RSBS_COMBO_GOAL_BEAT_EITHER, a, 4, &ra) == RSBS_COMBO_LOGIC_OK, "order A");
         CL_ASSERT(ClRunRound(RSBS_COMBO_GOAL_BEAT_EITHER, b, 4, &rb) == RSBS_COMBO_LOGIC_OK, "order B");
-        CL_ASSERT(ra.candidatesOoT == rb.candidatesOoT && ra.goalOoT == rb.goalOoT && ra.goalExpression == rb.goalExpression,
+        CL_ASSERT(ra.candidatesOoT == rb.candidatesOoT && ra.goalOoT == rb.goalOoT &&
+                      ra.goalExpression == rb.goalExpression,
                   "the same multiset of copies in a different order gave different facts");
         CL_ASSERT(ra.goalOoT == 1 && ra.candidatesOoT == 3, "and those facts are the three-copy ones, not one copy's");
     }
@@ -1904,7 +1907,8 @@ TestResult Test_ComboLogicBagModel(void) {
         gClOoT.goalNeedItem = kOotHook;
         gClOoT.goalNeedCount = 3;
         ClInstall();
-        const ComboLogicBagItem bag[3] = { ClBagItem((uint8_t)GAME_OOT, kOotHook, 0), ClBagItem((uint8_t)GAME_OOT, kOotHook, 0),
+        const ComboLogicBagItem bag[3] = { ClBagItem((uint8_t)GAME_OOT, kOotHook, 0),
+                                           ClBagItem((uint8_t)GAME_OOT, kOotHook, 0),
                                            ClBagItem((uint8_t)GAME_OOT, kOotHook, 0) };
         ComboLogicFillResult res;
         CL_ASSERT(ClRunFill(bag, 3, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_BEATABLE, 0x1234u, &res) ==
@@ -1924,7 +1928,8 @@ TestResult Test_ComboLogicBagModel(void) {
     // ------------------------------------------------------------------
     for (int ri = 0; ri < 2; ++ri) {
         ClBuildOpenWorld(6, 6);
-        const ComboLogicBagItem bag[3] = { ClBagItem((uint8_t)GAME_OOT, kOotHook, 0), ClBagItem((uint8_t)GAME_MM, kMmBow, 0),
+        const ComboLogicBagItem bag[3] = { ClBagItem((uint8_t)GAME_OOT, kOotHook, 0),
+                                           ClBagItem((uint8_t)GAME_MM, kMmBow, 0),
                                            ClBagItem((uint8_t)GAME_OOT, kOotHook, 0) };
         ComboLogicFillResult res;
         CL_ASSERT(ClRunFill(bag, 3, RSBS_COMBO_GOAL_BEAT_BOTH, kRungs[ri], 0xABCDu, &res) == RSBS_COMBO_LOGIC_OK,
@@ -1933,7 +1938,8 @@ TestResult Test_ComboLogicBagModel(void) {
                   "exactly the bag was placed — three rows, no filler invented");
         CL_ASSERT(res.leftoverHostsOoT + res.leftoverHostsMM == 12 - 3,
                   "every host no row landed on is LEFTOVER, and counted");
-        CL_ASSERT(ClLeftoverConsistent(GAME_OOT, res.leftoverHostsOoT) && ClLeftoverConsistent(GAME_MM, res.leftoverHostsMM),
+        CL_ASSERT(ClLeftoverConsistent(GAME_OOT, res.leftoverHostsOoT) &&
+                      ClLeftoverConsistent(GAME_MM, res.leftoverHostsMM),
                   "the leftover list is ascending, matches the count and never names a placed host");
         CL_ASSERT(ClPlacementsAreBagRows(bag, 3), "every placement is a bag row: no junk and no trap is ever placed by "
                                                   "the coordinator, so no trap can cross");
@@ -1994,8 +2000,10 @@ TestResult Test_ComboLogicBagModel(void) {
     // ------------------------------------------------------------------
     for (int ri = 0; ri < 2; ++ri) {
         ClBuildOpenWorld(2, 2);
-        const ComboLogicBagItem bag[4] = { ClBagItem((uint8_t)GAME_OOT, kOotHook, 0), ClSurplusItem((uint8_t)GAME_OOT, kOotHook, 0),
-                                           ClBagItem((uint8_t)GAME_MM, kMmBow, 0), ClSurplusItem((uint8_t)GAME_MM, kMmBow, 0) };
+        const ComboLogicBagItem bag[4] = { ClBagItem((uint8_t)GAME_OOT, kOotHook, 0),
+                                           ClSurplusItem((uint8_t)GAME_OOT, kOotHook, 0),
+                                           ClBagItem((uint8_t)GAME_MM, kMmBow, 0),
+                                           ClSurplusItem((uint8_t)GAME_MM, kMmBow, 0) };
         ComboLogicFillResult res;
         CL_ASSERT(ClRunFill(bag, 4, RSBS_COMBO_GOAL_BEAT_BOTH, kRungs[ri], 0x77u, &res) == RSBS_COMBO_LOGIC_OK,
                   "an exact fit must fill");
