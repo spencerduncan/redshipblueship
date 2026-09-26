@@ -1805,6 +1805,14 @@ give dereferences a NULL MM_gPlayState/gRegEditor names itself on stderr. Its in
 process abort, which is how the RI_TINGLE_MAP_* set and the gRegEditor stand-in were derived (#645). Run by hand: \
 redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past a known fault.")
 
+    # The single-owner item classification table (ADR 0010 answer O8; #645 lane K5).
+    # Default `redship` tier: it needs no generation, because what it locks is a
+    # property of the two item TABLES — OoT's itemTable, which a bridge brings up
+    # display- and ROM-free, and MM's static Rando::StaticData::Items — and of the
+    # two registered sources that classify them. Anti-vacuity is asserted in the row
+    # (at least 200 fill items per game and every class present in each).
+    redship_add_test(NAME SharedItemClass COMMAND redship --test shared-item-class)
+
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)
     # These tests actually boot the games and verify boot completion

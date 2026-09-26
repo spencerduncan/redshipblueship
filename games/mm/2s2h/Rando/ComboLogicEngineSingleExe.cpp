@@ -1175,4 +1175,122 @@ extern "C" int MM_ComboLogic_ApplyShippedProfile(void) {
     return (int)RANDO_SAVE_OPTIONS[RO_LOGIC];
 }
 
+// ============================================================================
+// THE FILL-CLASS SOURCE (ADR 0010 answer O8; #645 increment 3, lane K5)
+// ============================================================================
+//
+// MM's rows for the single-owner classification table in src/common/
+// shared_items.{h,c} — the twin of the OoT source in ComboLogicEngineOoT.cpp.
+// This TU is the SOURCE, never the owner: the owner walks it once and every
+// consumer reads the owner's stored row. It lives here because this is already
+// the MM TU that may name `RI_*` for the coordinator (ADR 0002) and it links
+// WHOLE_ARCHIVE, so the registrar survives the link as the engine's does.
+//
+// Deliberately NOT inside the engine's vtable or the pool bridges K4's
+// multiplicity work edits: the bag will read the owner table, not this function.
+
+#include "shared_items.h" // src/common — the owner this source registers with
+
+/**
+ * Classify one MM item id (ComboItemClassifyFn). The precedence is the owner's
+ * (shared_items.h): TRAP, then PROGRESSION by MM's OWN fill predicate, then
+ * RENEWABLE, then JUNK.
+ *
+ * MM's fill predicate is GlitchlessLogic.cpp's non-junk test — `randoItemType`
+ * is neither RITYPE_JUNK nor RITYPE_HEALTH — taken verbatim. It is generous
+ * (maps, compasses, owl statues, Tingle maps and the gold-dust refill are all
+ * RITYPE_LESSER and therefore non-junk to MM's fill), and it calls RI_TRAP
+ * non-junk too, which is exactly why TRAP is decided first.
+ *
+ * RENEWABLE: the rest of RITYPE_JUNK — ammo, rupees, refills, recovery hearts,
+ * magic jars — except RI_JUNK itself, the cover item a skipped or foreign-hosting
+ * check holds, which is JUNK. RITYPE_HEALTH (heart pieces, heart containers,
+ * double defense) is JUNK: not regainable, and not progression to MM's fill.
+ *
+ * NOT A FILL ITEM (returns 0): ids past RI_MAX or with no Items row, the two
+ * sentinels RI_UNKNOWN and RI_NONE, and RI_TRIFORCE_PIECE_PREVIOUS, which
+ * Items.cpp says "only exists to aid in the drawing of unique models" — CheckQueue
+ * swaps it in for display, and no pool ever holds it.
+ *
+ * ARMING: the four criterion-3 give-capability families (souls, ocarina buttons,
+ * swim, clock items) carry their RSBS_GIVECAP_* bit, and triforce pieces are a
+ * per-world goal quantity. No confinement family: MM's fill places its whole pool
+ * in one pass, so no MM setting holds an item in a restricted pass (small keys
+ * included — which is the asymmetry with OoT's keysanity the owner's predicate
+ * exists to express).
+ */
+extern "C" int MM_ComboLogic_ClassifyItem(uint16_t id, ComboItemClassRow* out) {
+    ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u };
+    if (out != nullptr) {
+        *out = row;
+    }
+    if (Rando::StaticData::Items.empty()) {
+        return -1; // a static std::map in another TU: not constructed yet
+    }
+    if (id >= (uint16_t)RI_MAX) {
+        return 0;
+    }
+    const RandoItemId ri = (RandoItemId)id;
+    const auto it = Rando::StaticData::Items.find(ri);
+    if (it == Rando::StaticData::Items.end() || ri == RI_UNKNOWN || ri == RI_NONE || ri == RI_TRIFORCE_PIECE_PREVIOUS) {
+        return 0;
+    }
+    const RandoItemType type = it->second.randoItemType;
+
+    if (ri == RI_TRAP) {
+        row.fillClass = RSBS_FILL_CLASS_TRAP;
+    } else if (type != RITYPE_JUNK && type != RITYPE_HEALTH) {
+        row.fillClass = RSBS_FILL_CLASS_PROGRESSION;
+    } else if (type == RITYPE_JUNK && ri != RI_JUNK) {
+        row.fillClass = RSBS_FILL_CLASS_RENEWABLE;
+    } else {
+        row.fillClass = RSBS_FILL_CLASS_JUNK;
+    }
+
+    // The same contiguous ranges GeneratePools.cpp walks to add these families.
+    if ((ri >= RI_SOUL_BOSS_GOHT && ri <= RI_SOUL_BOSS_TWINMOLD) ||
+        (ri >= RI_SOUL_ENEMY_ALIEN && ri <= RI_SOUL_ENEMY_WOLFOS)) {
+        row.armedBy = RSBS_FILL_ARM_SOULS;
+    } else if (ri >= RI_OCARINA_BUTTON_A && ri <= RI_OCARINA_BUTTON_C_UP) {
+        row.armedBy = RSBS_FILL_ARM_OCARINA_BUTTONS;
+    } else if (ri == RI_ABILITY_SWIM) {
+        row.armedBy = RSBS_FILL_ARM_SWIM;
+    } else if (ri >= RI_TIME_DAY_1 && ri <= RI_TIME_PROGRESSIVE) {
+        row.armedBy = RSBS_FILL_ARM_CLOCKS;
+    } else if (ri == RI_TRIFORCE_PIECE) {
+        row.armedBy = RSBS_FILL_ARM_WORLD_EVENT;
+    }
+    if (out != nullptr) {
+        *out = row;
+    }
+    return 1;
+}
+
+namespace {
+const ComboItemClassSource kMMItemClassSource = {
+    /* abiVersion */ RSBS_ITEM_CLASS_SOURCE_ABI,
+    /* idSpace    */ (uint16_t)RI_MAX,
+    /* classify   */ MM_ComboLogic_ClassifyItem,
+};
+
+struct MMItemClassRegistrar {
+    MMItemClassRegistrar() {
+        Combo_RegisterItemClassSource(GAME_MM, &kMMItemClassSource);
+    }
+};
+const MMItemClassRegistrar gMMItemClassRegistrar;
+} // namespace
+
+/** TEST BRIDGE (redship tier): MM's own fill predicate for one id, read directly
+ *  off Rando::StaticData::Items and NOT through the classifier, so the lock can
+ *  check the classifier's precedence against it. 1 non-junk (the fill's
+ *  "may unlock something"), 0 junk or health, -1 no Items row. */
+extern "C" int MM_ComboLogic_TestFillAdvancement(uint16_t id) {
+    const auto it = Rando::StaticData::Items.find((RandoItemId)id);
+    if (id >= (uint16_t)RI_MAX || it == Rando::StaticData::Items.end()) {
+        return -1;
+    }
+    const RandoItemType type = it->second.randoItemType;
+    return (type != RITYPE_JUNK && type != RITYPE_HEALTH) ? 1 : 0;
+}
 #endif /* RSBS_SINGLE_EXECUTABLE */

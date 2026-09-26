@@ -12,6 +12,7 @@
  */
 
 #include "shared_items.h"
+#include "foreign_items.h" // Combo_ForeignGiveCaps, RSBS_GIVECAP_* (src/common; game-header-free like this TU)
 #include <stdio.h>
 #include <string.h>
 
@@ -313,4 +314,227 @@ int Combo_CountSharedItems(GameId game, bool includeRedeemed) {
 
 void Combo_ClearSharedItemOutbox(void) {
     sOutboxCount = 0;
+}
+
+// ============================================================================
+// The single-owner item classification table (ADR 0010 answer O8)
+//
+// See shared_items.h for the model. Storage is fixed and static: one class byte
+// and one arming word per id per origin, RSBS_ITEM_CLASS_ID_CAP ids each — a few
+// KB, and no allocation that a failed build could leak or a test could forget to
+// free. Game thread only, like everything else in this TU.
+// ============================================================================
+
+// The low half of the arming word IS the give-capability word, so a published
+// frozen profile arms rows with no translation table to drift.
+RSBS_CTX_STATIC_ASSERT(RSBS_FILL_ARM_SOULS == RSBS_GIVECAP_SOULS &&
+                           RSBS_FILL_ARM_OCARINA_BUTTONS == RSBS_GIVECAP_OCARINA_BUTTONS &&
+                           RSBS_FILL_ARM_SWIM == RSBS_GIVECAP_SWIM && RSBS_FILL_ARM_CLOCKS == RSBS_GIVECAP_CLOCKS &&
+                           (RSBS_GIVECAP_ALL_V1 & ~RSBS_FILL_ARM_GIVECAPS_MASK) == 0u,
+                       "the give-capability half of RSBS_FILL_ARM_* must be bit-identical to RSBS_GIVECAP_*");
+RSBS_CTX_STATIC_ASSERT(RSBS_FILL_CLASS_NONE == 0u && RSBS_FILL_CLASS_PROGRESSION == 1u &&
+                           RSBS_FILL_CLASS_JUNK == 2u && RSBS_FILL_CLASS_RENEWABLE == 3u &&
+                           RSBS_FILL_CLASS_TRAP == 4u && RSBS_FILL_CLASS_COUNT == 5u,
+                       "RSBS_FILL_CLASS_* values are pinned and append-only");
+
+#define ITEM_CLASS_ORIGINS 3 /* indexed by GameId: GAME_NONE (unused), GAME_OOT, GAME_MM */
+
+typedef struct {
+    const ComboItemClassSource* source;
+    bool built;
+    int fillItems;
+    uint8_t fillClass[RSBS_ITEM_CLASS_ID_CAP];
+    uint32_t armedBy[RSBS_ITEM_CLASS_ID_CAP];
+} ItemClassTable;
+
+static ItemClassTable sItemClass[ITEM_CLASS_ORIGINS];
+static uint32_t sItemClassRefused = 0;
+
+static ItemClassTable* ItemClassTableFor(uint8_t originGame) {
+    if (!IsRealGame((GameId)originGame)) {
+        return NULL;
+    }
+    return &sItemClass[originGame];
+}
+
+// A row a source may legally return: "not a fill item" carries NONE, "a fill
+// item" carries exactly one real class.
+static bool ItemClassRowValid(int rv, const ComboItemClassRow* row) {
+    if (rv == 0) {
+        return row->fillClass == RSBS_FILL_CLASS_NONE;
+    }
+    return rv == 1 && row->fillClass != RSBS_FILL_CLASS_NONE && row->fillClass < RSBS_FILL_CLASS_COUNT;
+}
+
+bool Combo_RegisterItemClassSource(uint8_t originGame, const ComboItemClassSource* source) {
+    ItemClassTable* t = ItemClassTableFor(originGame);
+    if (t == NULL) {
+        sItemClassRefused++;
+        fprintf(stderr, "[ItemClass] registration REFUSED: origin %u is not a real game\n", (unsigned)originGame);
+        return false;
+    }
+    if (source == NULL) {
+        memset(t, 0, sizeof(*t)); // un-register: drop the source AND every row built from it
+        return true;
+    }
+    if (source->abiVersion != RSBS_ITEM_CLASS_SOURCE_ABI || source->classify == NULL || source->idSpace == 0u ||
+        source->idSpace > RSBS_ITEM_CLASS_ID_CAP) {
+        sItemClassRefused++;
+        fprintf(stderr, "[ItemClass] registration REFUSED for %s: abi=%u classify=%s idSpace=%u (cap %u)\n",
+                Game_ToString((GameId)originGame), (unsigned)source->abiVersion,
+                source->classify != NULL ? "set" : "NULL", (unsigned)source->idSpace, RSBS_ITEM_CLASS_ID_CAP);
+        return false;
+    }
+    if (t->source != NULL) {
+        // ONE SOURCE PER ORIGIN (O8). Refused, never replaced: two sources for
+        // one id space is the duplicate that can disagree with itself, and there
+        // is no principled winner. Even the SAME source registering twice is
+        // refused — a registrar that runs twice is a bug worth a line in the log.
+        sItemClassRefused++;
+        fprintf(stderr, "[ItemClass] registration REFUSED for %s: a source is already registered (refusals: %u)\n",
+                Game_ToString((GameId)originGame), sItemClassRefused);
+        return false;
+    }
+    memset(t, 0, sizeof(*t));
+    t->source = source;
+    return true;
+}
+
+const ComboItemClassSource* Combo_GetItemClassSource(uint8_t originGame) {
+    const ItemClassTable* t = ItemClassTableFor(originGame);
+    return t != NULL ? t->source : NULL;
+}
+
+uint32_t Combo_ItemClassRefusedRegistrations(void) {
+    return sItemClassRefused;
+}
+
+int Combo_ItemClassBuild(uint8_t originGame) {
+    ItemClassTable* t = ItemClassTableFor(originGame);
+    if (t == NULL || t->source == NULL) {
+        return -1;
+    }
+    if (t->built) {
+        return t->fillItems;
+    }
+    const ComboItemClassSource* src = t->source;
+    int fillItems = 0;
+    for (uint32_t id = 0; id < src->idSpace; id++) {
+        ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u };
+        const int rv = src->classify((uint16_t)id, &row);
+        if (rv < 0) {
+            // Not ready: keep NOTHING. A half-built table would be cached as the
+            // answer for the rest of the process.
+            memset(t->fillClass, 0, sizeof(t->fillClass));
+            memset(t->armedBy, 0, sizeof(t->armedBy));
+            return -1;
+        }
+        if (!ItemClassRowValid(rv, &row)) {
+            // "A fill item" with no class, or a class the enum does not have, is a
+            // source refusing to classify. Stored as NONE so the lock that counts
+            // unclassified fill items sees it, and logged so the id is named.
+            fprintf(stderr, "[ItemClass] %s id %u: invalid source row (rv=%d class=%u) stored as unclassified\n",
+                    Game_ToString((GameId)originGame), (unsigned)id, rv, (unsigned)row.fillClass);
+            row.fillClass = RSBS_FILL_CLASS_NONE;
+            row.armedBy = 0u;
+        }
+        t->fillClass[id] = row.fillClass;
+        t->armedBy[id] = row.armedBy;
+        if (row.fillClass != RSBS_FILL_CLASS_NONE) {
+            fillItems++;
+        }
+    }
+    t->fillItems = fillItems;
+    t->built = true;
+    return fillItems;
+}
+
+uint8_t Combo_ItemClassOf(SharedItem item) {
+    ItemClassTable* t = ItemClassTableFor(item.originGame);
+    if (t == NULL || Combo_ItemClassBuild(item.originGame) < 0 || item.id >= t->source->idSpace) {
+        return RSBS_FILL_CLASS_NONE;
+    }
+    return t->fillClass[item.id];
+}
+
+uint32_t Combo_ItemClassArmedBy(SharedItem item) {
+    ItemClassTable* t = ItemClassTableFor(item.originGame);
+    if (t == NULL || Combo_ItemClassBuild(item.originGame) < 0 || item.id >= t->source->idSpace) {
+        return 0u;
+    }
+    return t->armedBy[item.id];
+}
+
+int Combo_ItemClassCount(uint8_t originGame, uint8_t fillClass) {
+    ItemClassTable* t = ItemClassTableFor(originGame);
+    if (t == NULL || Combo_ItemClassBuild(originGame) < 0) {
+        return -1;
+    }
+    int count = 0;
+    for (uint32_t id = 0; id < t->source->idSpace; id++) {
+        if (t->fillClass[id] == fillClass) {
+            count++;
+        }
+    }
+    return count;
+}
+
+int Combo_ItemClassVerify(uint8_t originGame) {
+    ItemClassTable* t = ItemClassTableFor(originGame);
+    if (t == NULL || Combo_ItemClassBuild(originGame) < 0) {
+        return -1;
+    }
+    int diverging = 0;
+    for (uint32_t id = 0; id < t->source->idSpace; id++) {
+        ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u };
+        const int rv = t->source->classify((uint16_t)id, &row);
+        if (rv < 0) {
+            return -1;
+        }
+        if (!ItemClassRowValid(rv, &row)) {
+            row.fillClass = RSBS_FILL_CLASS_NONE;
+            row.armedBy = 0u;
+        }
+        if (row.fillClass != t->fillClass[id] || row.armedBy != t->armedBy[id]) {
+            if (diverging < 8) {
+                fprintf(stderr, "[ItemClass] %s id %u DIVERGES: owner=(%s, 0x%08X) source=(%s, 0x%08X)\n",
+                        Game_ToString((GameId)originGame), (unsigned)id, Combo_ItemClassName(t->fillClass[id]),
+                        (unsigned)t->armedBy[id], Combo_ItemClassName(row.fillClass), (unsigned)row.armedBy);
+            }
+            diverging++;
+        }
+    }
+    return diverging;
+}
+
+const char* Combo_ItemClassName(uint8_t fillClass) {
+    switch (fillClass) {
+        case RSBS_FILL_CLASS_NONE:
+            return "(none)";
+        case RSBS_FILL_CLASS_PROGRESSION:
+            return "progression";
+        case RSBS_FILL_CLASS_JUNK:
+            return "junk";
+        case RSBS_FILL_CLASS_RENEWABLE:
+            return "renewable";
+        case RSBS_FILL_CLASS_TRAP:
+            return "trap";
+        default:
+            return "(unknown)";
+    }
+}
+
+bool Combo_ItemClassMayCrossUnder(SharedItem item, uint32_t armed) {
+    if (Combo_ItemClassOf(item) != RSBS_FILL_CLASS_PROGRESSION) {
+        return false; // junk, renewable, trap and non-items never cross (shared_items.h)
+    }
+    const uint32_t needs = Combo_ItemClassArmedBy(item);
+    return (needs & ~armed) == 0u;
+}
+
+uint32_t Combo_ItemClassArmedFromFrozen(uint8_t originGame) {
+    if (!IsRealGame((GameId)originGame) || !Combo_ForeignGiveCapsPublished(originGame)) {
+        return 0u; // nothing frozen is published: nothing conditional is armed
+    }
+    return Combo_ForeignGiveCaps(originGame) & RSBS_FILL_ARM_GIVECAPS_MASK;
 }
