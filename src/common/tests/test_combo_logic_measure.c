@@ -62,21 +62,27 @@
  * WHAT IS MEASURED, AND THE FOUR PLACES THE ANSWER IS AN APPROXIMATION
  * ============================================================================
  *
- * (M1) THE UNION BAG'S REAL SIZE, against the coordinator's own caps. Audit §4.6
+ * (M1) THE COMPOSED BAG (lane K9), against the coordinator's own caps. Audit §4.6
  *      says the union bag is "the last general pass" — OoT's
  *      `remainingAdvancementItems` (`fill.cpp:1405-1407`) plus MM's whole shuffled
- *      pool. Both halves are measured over the real world:
+ *      pool — and since lane K9 the bag is COMPOSED from both games' real pool
+ *      exports by Combo_Logic_ComposeBag under THE BAG COMPOSITION RULE
+ *      (combo_logic.h): progression copies REQUIRED, plentiful copies SURPLUS,
+ *      restricted-pass families CONFINED to their own game, filler and traps
+ *      counted and never admitted.
  *
- *      OoT's half is read back from the GENERATED WORLD: every owned host whose
- *      placed item `IsAdvancement()`. That is a SUPERSET of the general pass,
- *      because the six restricted passes that run BEFORE it (dungeon rewards,
- *      own-dungeon items, restricted songs, Link's pocket) also place advancement
- *      items and their hosts are indistinguishable afterwards. Conservative for a
- *      cost measurement, and stated rather than papered over.
+ *      OoT's pool is read back from the GENERATED WORLD
+ *      (`OoT_ComboLogic_ExportPool` source 1): every owned host's fill item,
+ *      skipping fixed placements (`IsHidden()`), so the restricted passes'
+ *      families are told apart by the frozen confinement word rather than lumped
+ *      in as the pre-K9 "every advancement-bearing host" superset did.
  *
- *      MM's half is `MM_ComboLogic_PoolVanillaItems`, which is `GeneratePools`'
- *      own walk without its RNG; that accessor's comment names its own three
- *      deviations.
+ *      MM's pool is `GeneratePools`' REAL pool under the resolved profile
+ *      (`MM_ComboLogic_TestGeneratePool`, over a heap copy of the save's rando
+ *      info), and MM's host pool is GeneratePools' own check pool.
+ *
+ *      THE PROFILE is RSBS_COMBO_MEASURE_PROFILE: "shipped" (the CI default),
+ *      "plentiful" or "maximal" — see ClmProfileApply.
  *
  * (M2) ONE LINKED ROUND, timed at the MOST EXPENSIVE assumed-set size the fill
  *      ever uses (the whole bag; the fill's first round assumes bag-1). min /
@@ -117,10 +123,9 @@
  * THE FOUR APPROXIMATIONS, named here so nobody reads a number as more than it
  * is:
  *
- *   (A) THE MEASURED BAG IS A SAMPLE OF THE REAL BAG BY DEFAULT. The real union
- *       bag exceeds `RSBS_COMBO_LOGIC_BAG_CAP` (the row prints by how much), and
- *       even inside the cap a fill runs one round per bag item — so a full-bag
- *       fill is minutes of wall clock and five of them is not a CI row. The row
+ *   (A) THE MEASURED BAG IS A SAMPLE OF THE COMPOSED BAG BY DEFAULT. A fill runs
+ *       one round per bag item, so eight full-bag fills are minutes of wall clock
+ *       and not a CI row. The row
  *       therefore measures a deterministic STRIDE SAMPLE of each half, prints the
  *       full figures beside the sampled ones, and extrapolates the full bag
  *       arithmetically — twice, once from the isolated median round and once from
@@ -129,36 +134,28 @@
  *       `RSBS_COMBO_MEASURE_*` overrides every size, so a larger run is one env
  *       var away; the epic comment quotes the 32-item and 512-item runs.
  *
- *   (B) MM'S HOST POOL CAN BE NARROWED, AND BY DEFAULT IS NOT. The first draft of
- *       this row narrowed it unconditionally, because `ComboLogicCollectFrom` sized
- *       its scratch by `RSBS_COMBO_LOGIC_PLACEMENT_CAP` (1024) and MM's graph offers
- *       ~2250 hosts, so an honest MM enumeration refused the first bag item of the
- *       first fill with `ERR_CAPACITY`. PR #717 fixed exactly that on main — the
- *       enumeration is now bounded by `RSBS_COMBO_LOGIC_HOST_CAP` (4096), sized by
- *       the two check id-spaces rather than by the bag — so the narrowing is no
- *       longer needed and the row measures MM's WHOLE graph host set by default.
- *       `RSBS_COMBO_MEASURE_MM_HOSTS` still narrows it through
- *       `MM_ComboLogic_SetHostPool` (the increment-4 seam, doing exactly the job
- *       `GeneratePools`' `checkPool` will do) for a smaller, faster configuration.
- *       The row prints both caps against both measured figures either way.
+ *   (B) MM'S HOST POOL IS GeneratePools' CHECK POOL (lane K9), handed to MM's
+ *       engine through `MM_ComboLogic_SetHostPool` — the increment-4 seam doing the
+ *       job it was built for. `RSBS_COMBO_MEASURE_MM_HOSTS` narrows it further by
+ *       stride sample for a smaller, faster configuration. The row prints both
+ *       caps against the measured figures either way.
  *
- *   (C) ONE HOST, ONE PROFILE, TRICKS OFF. The numbers are this workstation's,
- *       under the shipped default profile with MM never booted into play. Other
- *       hosts, non-default profiles and tricks-on are NOT measured; the row prints
- *       the #582 host-scale percent so a reader can at least locate this machine
+ *   (C) ONE HOST, THREE PROFILES, TRICKS OFF. The numbers are this workstation's,
+ *       under the profile RSBS_COMBO_MEASURE_PROFILE names, with MM never booted
+ *       into play. Other hosts and tricks-on are NOT measured; the row prints the
+ *       #582 host-scale percent so a reader can at least locate this machine
  *       relative to the reference.
  *
- *   (D) ONLY OoT'S HALF OF THE BAG IS REALLY IN THE BAG. The row empties the sampled
- *       OoT hosts, so those items are in the bag and not in the world. It empties NO
- *       MM host — MM's engine exposes no `TestSetPlacedItem` equivalent and adding
- *       one would be production surface for a measurement's benefit — so every MM
- *       bag row is simultaneously in the bag and still the vanilla item of its own
- *       host. MM's side of a round therefore computes reachability over a world that
- *       still contains the items the round is assuming, which inflates MM's reached
- *       host supply and, through it, M2's round cost and the DEAD-END PREDICTOR.
- *       Conservative for a COST question (more reached hosts is more work, not less)
- *       and OPTIMISTIC for a convergence question, which is the direction that
- *       matters when reading M3.
+ *   (D) OoT'S FREE HOSTS ARE ONLY ITS BAG ROWS' HOSTS. The row empties the sampled
+ *       OoT bag rows' hosts, so those items are in the bag and not in the world;
+ *       every other OoT host keeps what the per-game fill put there — including the
+ *       filler hosts a production creation would hand the coordinator free. So the
+ *       OoT host supply is SMALLER than production's, which is pessimistic for a
+ *       convergence question and makes surplus DROPS appear that production would
+ *       not see (the plentiful profile drops some for exactly this reason). MM empties
+ *       nothing and needs to: its engine harvests only coordinator placements, never
+ *       a host's vanilla contents — which is also why a check OUTSIDE MM's check pool
+ *       gives the round nothing (M2d measures what that costs MM's goal).
  *
  * ============================================================================
  * WHY THE `rando` TIER
@@ -297,20 +294,41 @@ int EnvInt(const char* name, int fallback, int lo, int hi) {
 // combo-logic-bag-composition
 // ============================================================================
 //
-// TWO PROFILES, chosen by name so a row can print what it ran:
+// THREE PROFILES, chosen by name so a row can print what it ran:
 //   "shipped"   — both games' shipped defaults (OoT's base ice traps are on by
 //                 default; MM's traps and both plentiful settings are off).
 //   "plentiful" — OoT RSK_ITEM_POOL = Plentiful plus five additional ice traps;
 //                 MM RO_PLENTIFUL_ITEMS and RO_SHUFFLE_TRAPS on (RO_TRAP_AMOUNT
 //                 stays at its default). The profile that exercises the SURPLUS
 //                 rule and both games' TRAP rows over the real engines.
+//   "maximal"   — "plentiful" plus every setting that GROWS the composed bag:
+//                 OoT's key, boss-key, Ganon's-key, gerudo-key, map/compass, song
+//                 and reward families at their ANYWHERE value (so they join the
+//                 general pass instead of being confined) and every token
+//                 shuffled; every MM location category shuffled (remains, tokens,
+//                 owls, frogs, cows, pots, crates, barrels, grass, freestanding,
+//                 snowballs, enemy drops, shops, Tingle shops). The worst case the
+//                 bag cap (#727) is sized against; measurement only, no CTest row.
 // OoT's half is applied through RSBS_DIAG_CVARS, the harness's own non-default
 // settings door (Rando_HeadlessSeedTest applies it after creating the options);
 // MM's through its authoring CVars, which MM_ComboLogic_ApplyShippedProfile
 // resolves into the save. Both are undone by ClmProfileRestore.
 
+bool ClmProfileIsMaximal(const char* profile) {
+    return profile != nullptr && strcmp(profile, "maximal") == 0;
+}
+
+/** True for both profiles that turn plentiful on. */
 bool ClmProfileIsPlentiful(const char* profile) {
-    return profile != nullptr && strcmp(profile, "plentiful") == 0;
+    return profile != nullptr && (strcmp(profile, "plentiful") == 0 || ClmProfileIsMaximal(profile));
+}
+
+/** The canonical profile name for an environment value (NULL/unknown -> shipped). */
+const char* ClmProfileName(const char* env) {
+    if (ClmProfileIsMaximal(env)) {
+        return "maximal";
+    }
+    return ClmProfileIsPlentiful(env) ? "plentiful" : "shipped";
 }
 
 void ClmSetEnv(const char* name, const char* value) {
@@ -326,13 +344,42 @@ void ClmSetEnv(const char* name, const char* value) {
 }
 
 const char* const kClmMmPlentifulCvars[] = { "gRando.Options.RO_PLENTIFUL_ITEMS", "gRando.Options.RO_SHUFFLE_TRAPS" };
+const char* const kClmMmMaximalCvars[] = {
+    "gRando.Options.RO_SHUFFLE_BOSS_REMAINS",   "gRando.Options.RO_SHUFFLE_GOLD_SKULLTULAS",
+    "gRando.Options.RO_SHUFFLE_OWL_STATUES",    "gRando.Options.RO_SHUFFLE_FROGS",
+    "gRando.Options.RO_SHUFFLE_COWS",           "gRando.Options.RO_SHUFFLE_POT_DROPS",
+    "gRando.Options.RO_SHUFFLE_CRATE_DROPS",    "gRando.Options.RO_SHUFFLE_BARREL_DROPS",
+    "gRando.Options.RO_SHUFFLE_GRASS_DROPS",    "gRando.Options.RO_SHUFFLE_FREESTANDING_ITEMS",
+    "gRando.Options.RO_SHUFFLE_SNOWBALL_DROPS", "gRando.Options.RO_SHUFFLE_ENEMY_DROPS",
+    "gRando.Options.RO_SHUFFLE_SHOPS",          "gRando.Options.RO_SHUFFLE_TINGLE_SHOPS",
+};
+// OoT's "maximal" CVars: plentiful + five extra ice traps, every confinement
+// family at its ANYWHERE index (RandoOptionDungeonItemLocation 5, songs 3, rewards
+// 4, gerudo keys 3, Ganon's boss key 5) and all tokens shuffled (3).
+const char* const kClmOoTMaximalCvars[] = {
+    "gRandoSettings.ItemPool",          "gRandoSettings.AdditionalIceTraps", "gRandoSettings.Keysanity",
+    "gRandoSettings.BossKeysanity",     "gRandoSettings.StartingMapsCompasses", "gRandoSettings.ShuffleSongs",
+    "gRandoSettings.ShuffleTokens",     "gRandoSettings.ShuffleDungeonReward", "gRandoSettings.GerudoKeys",
+    "gRandoSettings.ShuffleGanonBossKey",
+};
 
 /** Apply `profile` before the OoT generation and MM's profile resolution. */
 void ClmProfileApply(const char* profile) {
     if (!ClmProfileIsPlentiful(profile)) {
         return;
     }
-    ClmSetEnv("RSBS_DIAG_CVARS", "gRandoSettings.ItemPool=0,gRandoSettings.AdditionalIceTraps=5");
+    if (ClmProfileIsMaximal(profile)) {
+        ClmSetEnv("RSBS_DIAG_CVARS",
+                  "gRandoSettings.ItemPool=0,gRandoSettings.AdditionalIceTraps=5,gRandoSettings.Keysanity=5,"
+                  "gRandoSettings.BossKeysanity=5,gRandoSettings.StartingMapsCompasses=5,gRandoSettings.ShuffleSongs=3,"
+                  "gRandoSettings.ShuffleTokens=3,gRandoSettings.ShuffleDungeonReward=4,gRandoSettings.GerudoKeys=3,"
+                  "gRandoSettings.ShuffleGanonBossKey=5");
+        for (const char* cvar : kClmMmMaximalCvars) {
+            CVarSetInteger(cvar, 1);
+        }
+    } else {
+        ClmSetEnv("RSBS_DIAG_CVARS", "gRandoSettings.ItemPool=0,gRandoSettings.AdditionalIceTraps=5");
+    }
     for (const char* cvar : kClmMmPlentifulCvars) {
         CVarSetInteger(cvar, 1);
     }
@@ -343,9 +390,13 @@ void ClmProfileRestore(const char* profile) {
         return;
     }
     ClmSetEnv("RSBS_DIAG_CVARS", nullptr);
-    CVarClear("gRandoSettings.ItemPool");
-    CVarClear("gRandoSettings.AdditionalIceTraps");
+    for (const char* cvar : kClmOoTMaximalCvars) {
+        CVarClear(cvar);
+    }
     for (const char* cvar : kClmMmPlentifulCvars) {
+        CVarClear(cvar);
+    }
+    for (const char* cvar : kClmMmMaximalCvars) {
         CVarClear(cvar);
     }
 }
@@ -375,19 +426,31 @@ struct ClmComposed {
  */
 bool ClmCompose(ClmComposed& c) {
     const int ootTotal = OoT_ComboLogic_ExportPool(1, nullptr, nullptr, nullptr, 0);
-    int mmCheckTotal = 0;
-    const int mmTotal = MM_ComboLogic_TestGeneratePool(nullptr, nullptr, 0, nullptr, 0, &mmCheckTotal);
-    if (ootTotal <= 0 || mmTotal <= 0 || mmCheckTotal <= 0) {
-        printf("[TEST] compose: an export returned nothing (OoT %d, MM %d rows / %d checks)\n", ootTotal, mmTotal,
-               mmCheckTotal);
+    if (ootTotal <= 0) {
+        printf("[TEST] compose: OoT's export returned nothing (%d)\n", ootTotal);
         return false;
     }
     std::vector<uint16_t> ootItems((size_t)ootTotal), ootHosts((size_t)ootTotal), ootFlags((size_t)ootTotal);
     OoT_ComboLogic_ExportPool(1, ootItems.data(), ootHosts.data(), ootFlags.data(), ootTotal);
-    std::vector<uint16_t> mmItems((size_t)mmTotal), mmFlags((size_t)mmTotal);
-    c.mmChecks.assign((size_t)mmCheckTotal, 0);
-    MM_ComboLogic_TestGeneratePool(mmItems.data(), mmFlags.data(), mmTotal, c.mmChecks.data(), mmCheckTotal,
-                                   &mmCheckTotal);
+    // MM's pool in ONE call, into buffers sized up front. GeneratePools consumes
+    // Ship_Random (and under RO_PLENTIFUL_ITEMS draws WHICH lesser rows to
+    // duplicate), so a count-then-fill pair would be two DIFFERENT pools — the
+    // first "maximal" measurement read its count from one and its rows from
+    // another and showed two phantom RI_UNKNOWN rows where the pools differed.
+    const int kMmItemCap = 8192;
+    std::vector<uint16_t> mmItems((size_t)kMmItemCap), mmFlags((size_t)kMmItemCap);
+    c.mmChecks.assign((size_t)RSBS_COMBO_LOGIC_HOST_CAP, 0);
+    int mmCheckTotal = 0;
+    const int mmTotal = MM_ComboLogic_TestGeneratePool(mmItems.data(), mmFlags.data(), kMmItemCap, c.mmChecks.data(),
+                                                       RSBS_COMBO_LOGIC_HOST_CAP, &mmCheckTotal);
+    if (mmTotal <= 0 || mmTotal > kMmItemCap || mmCheckTotal <= 0 || mmCheckTotal > RSBS_COMBO_LOGIC_HOST_CAP) {
+        printf("[TEST] compose: MM's export returned %d rows / %d checks (caps %d / %d)\n", mmTotal, mmCheckTotal,
+               kMmItemCap, (int)RSBS_COMBO_LOGIC_HOST_CAP);
+        return false;
+    }
+    mmItems.resize((size_t)mmTotal);
+    mmFlags.resize((size_t)mmTotal);
+    c.mmChecks.resize((size_t)mmCheckTotal);
     c.rows.clear();
     c.ootHost.clear();
     for (int i = 0; i < ootTotal; ++i) {
@@ -705,9 +768,9 @@ TestResult ComboLogicMeasure_Run(void) {
     // THE PROFILE (lane K9): "shipped" by default, "plentiful" through
     // RSBS_COMBO_MEASURE_PROFILE — see ClmProfileApply. Applied before the OoT
     // generation and MM's profile resolution, undone after the teardown.
-    const char* profileEnv = getenv("RSBS_COMBO_MEASURE_PROFILE");
-    const char* profile = ClmProfileIsPlentiful(profileEnv) ? "plentiful" : "shipped";
-    printf("[TEST] combo-logic-measure: profile \"%s\" (RSBS_COMBO_MEASURE_PROFILE=plentiful selects the other)\n",
+    const char* profile = ClmProfileName(getenv("RSBS_COMBO_MEASURE_PROFILE"));
+    printf("[TEST] combo-logic-measure: profile \"%s\" (RSBS_COMBO_MEASURE_PROFILE=plentiful|maximal selects the "
+           "others)\n",
            profile);
     ClmProfileApply(profile);
 
@@ -1028,9 +1091,46 @@ TestResult ComboLogicMeasure_Run(void) {
                 fillerRows++;
             }
         }
-        const std::vector<ComboLogicBagItem>* sets[2] = { &required, &withFiller };
-        const char* names[2] = { "M2b MM REQUIRED rows", "M2c + MM filler rows" };
-        for (int s = 0; s < 2; ++s) {
+        // M2d: + the VANILLA item of every MM graph check that is NOT in the check
+        // pool — the fixed contents MM's own creation leaves in place (a category
+        // whose shuffle is off keeps its vanilla item) and that MM's engine never
+        // harvests (it grants only coordinator placements). M2c=0 with M2d=1 says
+        // MM's goal needs those fixed contents: a harvest the engine does not do.
+        std::vector<ComboLogicBagItem> withFixed = withFiller;
+        int fixedRows = 0;
+        int fixedProgression = 0;
+        {
+            MM_ComboLogic_SetHostPool(nullptr, 0); // the whole graph, for this one read
+            const int graphTotal = MM_ComboLogic_PoolVanillaItems(nullptr, nullptr, 0);
+            std::vector<uint16_t> gItems((size_t)(graphTotal > 0 ? graphTotal : 0));
+            std::vector<uint16_t> gHosts((size_t)(graphTotal > 0 ? graphTotal : 0));
+            if (graphTotal > 0) {
+                MM_ComboLogic_PoolVanillaItems(gItems.data(), gHosts.data(), graphTotal);
+            }
+            MM_ComboLogic_SetHostPool(mmHostPool.data(), (int)mmHostPool.size());
+            std::vector<bool> pooled(1u << 16, false);
+            for (const uint16_t check : composed.mmChecks) {
+                pooled[check] = true;
+            }
+            for (int i = 0; i < graphTotal; ++i) {
+                if (pooled[gHosts[(size_t)i]]) {
+                    continue;
+                }
+                ComboLogicBagItem row;
+                memset(&row, 0, sizeof(row));
+                row.item.originGame = (uint8_t)GAME_MM;
+                row.item.id = gItems[(size_t)i];
+                withFixed.push_back(row);
+                fixedRows++;
+                fixedProgression += (Combo_ItemClassOf(row.item) == RSBS_FILL_CLASS_PROGRESSION) ? 1 : 0;
+            }
+        }
+        const std::vector<ComboLogicBagItem>* sets[3] = { &required, &withFiller, &withFixed };
+        const char* names[3] = { "M2b MM REQUIRED rows", "M2c + MM filler rows", "M2d + MM fixed vanilla contents" };
+        printf("[TEST] combo-logic-measure: M2d adds %d fixed vanilla contents of MM graph checks outside the check pool "
+               "(%d of them PROGRESSION-class)\n",
+               fixedRows, fixedProgression);
+        for (int s = 0; s < 3; ++s) {
             ComboLogicRoundRequest req;
             memset(&req, 0, sizeof(req));
             req.assumed = sets[s]->data();
@@ -1043,7 +1143,7 @@ TestResult ComboLogicMeasure_Run(void) {
             CLM_ASSERT(status == RSBS_COMBO_LOGIC_OK, "an M2b/M2c round did not succeed");
             printf("[TEST] combo-logic-measure: %s assumed (%d rows; %d filler rows): %.1fms goalOoT=%d goalMM=%d "
                    "beat-both=%d candidatesMM=%d — against goalMM=%d for the measurement bag\n",
-                   names[s], req.assumedCount, (s == 1) ? fillerRows : 0, ms, res.goalOoT, res.goalMM,
+                   names[s], req.assumedCount, (s >= 1) ? fillerRows : 0, ms, res.goalOoT, res.goalMM,
                    res.goalExpression, res.candidatesMM, firstRound.goalMM);
         }
     }
@@ -1057,12 +1157,20 @@ TestResult ComboLogicMeasure_Run(void) {
     const uint32_t kSeedC = 0xA11CE003u;
 
     // (1) the proved no-tricks rung, default GOAL. `beat-both` is the shipped
-    //     default (O11) and it is measured FIRST, with one attempt: MM's half has
-    //     to prove Majora defeated from South Clock Town, and whether it can under
-    //     a sampled bag is exactly the thing being measured rather than assumed.
-    const FillMeasurement beatBoth =
-        RunTimedFill("beatable/beat-both", bag.data(), bagCount, RSBS_COMBO_GOAL_BEAT_BOTH,
-                     RSBS_COMBO_RUNG_BEATABLE, kSeedA, 1);
+    //     default (O11) and it is measured FIRST, on all three coordinator seeds
+    //     (lane K9: one seed could not tell a provable bag from a lucky order):
+    //     MM's half has to prove Majora defeated from South Clock Town, and whether
+    //     it can under the measured bag is exactly the thing being measured rather
+    //     than assumed.
+    const FillMeasurement beatBothA =
+        RunTimedFill("beatable/beat-both A", bag.data(), bagCount, RSBS_COMBO_GOAL_BEAT_BOTH,
+                     RSBS_COMBO_RUNG_BEATABLE, kSeedA, fillAttempts);
+    const FillMeasurement beatBothB =
+        RunTimedFill("beatable/beat-both B", bag.data(), bagCount, RSBS_COMBO_GOAL_BEAT_BOTH,
+                     RSBS_COMBO_RUNG_BEATABLE, kSeedB, fillAttempts);
+    const FillMeasurement beatBothC =
+        RunTimedFill("beatable/beat-both C", bag.data(), bagCount, RSBS_COMBO_GOAL_BEAT_BOTH,
+                     RSBS_COMBO_RUNG_BEATABLE, kSeedC, fillAttempts);
 
     // (2) the same rung under `beat-either`, which OoT's half alone can satisfy —
     //     the configuration in which the fill's CONVERGENCE (rather than MM's
@@ -1118,6 +1226,35 @@ TestResult ComboLogicMeasure_Run(void) {
     printf("[TEST] combo-logic-measure: FILL VARIANCE across 3 coordinator seeds (beatable/beat-either): "
            "min=%.1fms median=%.1fms max=%.1fms\n",
            fillStats.min, fillStats.median, fillStats.max);
+    // THE SUMMARY THE EPIC QUOTES (lane K9): per GOAL, how many of the three seeds
+    // proved, the roll-backs they needed, the per-attempt wall time against #582's
+    // floor and ceiling, and rounds per placed item.
+    {
+        const FillMeasurement* goals[2][3] = { { &beatBothA, &beatBothB, &beatBothC },
+                                               { &beatEitherA, &beatEitherB, &beatEitherC } };
+        const char* goalNames[2] = { "beat-both", "beat-either" };
+        for (int g = 0; g < 2; ++g) {
+            int proved = 0;
+            int rollbacks = 0;
+            double worstAttemptMs = 0.0;
+            double roundsPerPlaced = 0.0;
+            for (int s = 0; s < 3; ++s) {
+                const FillMeasurement& f = *goals[g][s];
+                proved += (f.status == RSBS_COMBO_LOGIC_OK && f.res.goalProven) ? 1 : 0;
+                rollbacks += (f.res.attempts > 0) ? (f.res.attempts - 1) : 0;
+                const double perAttempt = (f.res.attempts > 0) ? (f.wallMs / (double)f.res.attempts) : f.wallMs;
+                worstAttemptMs = (perAttempt > worstAttemptMs) ? perAttempt : worstAttemptMs;
+                roundsPerPlaced += (f.res.placed > 0) ? ((double)f.res.rounds / (double)f.res.placed) : 0.0;
+            }
+            printf("[TEST] combo-logic-measure: SUMMARY %-11s profile=%s bag=%d proved %d/3 seeds, batch roll-backs "
+                   "%d, worst per-attempt wall %.1fms = %.2fx the %ums floor / %.2fx the %ums ceiling, mean "
+                   "rounds/placed %.2f\n",
+                   goalNames[g], profile, bagCount, proved, rollbacks, worstAttemptMs,
+                   worstAttemptMs / (double)RSBS_GENBUDGET_FLOOR_MS, (unsigned)RSBS_GENBUDGET_FLOOR_MS,
+                   worstAttemptMs / (double)RSBS_GENBUDGET_CEILING_MS, (unsigned)RSBS_GENBUDGET_CEILING_MS,
+                   roundsPerPlaced / 3.0);
+        }
+    }
 
     // ==================================================================
     // THE #582 ARITHMETIC. Measurement, then extrapolation, labelled.
@@ -1346,8 +1483,7 @@ int ClbRoundWithProbe(const std::vector<ComboLogicBagItem>& assumed, ClbRoundPro
 } // namespace
 
 TestResult ComboLogicBagComposition_Run(void) {
-    const char* profileEnv = getenv("RSBS_COMBO_PROFILE");
-    const char* profile = ClmProfileIsPlentiful(profileEnv) ? "plentiful" : "shipped";
+    const char* profile = ClmProfileName(getenv("RSBS_COMBO_PROFILE"));
     const bool plentiful = ClmProfileIsPlentiful(profile);
     printf("[TEST] combo-logic-bag-composition: THE BAG COMPOSITION RULE over both real pools, profile \"%s\" "
            "(#645 lane K9; #731, #733)\n",
@@ -1387,7 +1523,7 @@ TestResult ComboLogicBagComposition_Run(void) {
                "B1: no real pool row is unclassified");
     CLB_ASSERT(ko.rows[RSBS_COMBO_COMPOSE_REQUIRED] > 0 && km.rows[RSBS_COMBO_COMPOSE_REQUIRED] > 0,
                "B1: both games contribute REQUIRED rows (anti-vacuity)");
-    CLB_ASSERT(ko.rows[RSBS_COMBO_COMPOSE_CONFINED] > 0,
+    CLB_ASSERT(ClmProfileIsMaximal(profile) || ko.rows[RSBS_COMBO_COMPOSE_CONFINED] > 0,
                "B1: OoT's restricted passes confine something on this profile (own-dungeon keys, song locations, "
                "end-of-dungeon rewards) — the P14 exclusion is live, not vacuous");
     CLB_ASSERT(km.rows[RSBS_COMBO_COMPOSE_CONFINED] == 0, "B1: MM confines nothing (it has no restricted pass)");

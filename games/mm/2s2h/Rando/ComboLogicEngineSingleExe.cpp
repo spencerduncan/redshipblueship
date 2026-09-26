@@ -1424,8 +1424,8 @@ extern "C" int MM_ComboLogic_MarkPoolRows(const uint16_t* pool, int count, uint1
  * written, the item TOTAL returned and the check total through `outCheckTotal`.
  * -1 when the region graph is not up.
  */
-extern "C" int MM_ComboLogic_TestGeneratePool(uint16_t* outItems, uint16_t* outFlags, int itemCap,
-                                              uint16_t* outChecks, int checkCap, int* outCheckTotal) {
+extern "C" int MM_ComboLogic_TestGeneratePool(uint16_t* outItems, uint16_t* outFlags, int itemCap, uint16_t* outChecks,
+                                              int checkCap, int* outCheckTotal) {
     if (Rando::Logic::Regions.empty()) {
         return -1;
     }
@@ -1680,10 +1680,20 @@ uint8_t MMFillClassSharedKind(RandoItemId ri) {
  * check holds, which is JUNK. RITYPE_HEALTH (heart pieces, heart containers,
  * double defense) is JUNK: not regainable, and not progression to MM's fill.
  *
- * NOT A FILL ITEM (returns 0): ids past RI_MAX or with no Items row, the two
- * sentinels RI_UNKNOWN and RI_NONE, and RI_TRIFORCE_PIECE_PREVIOUS, which
- * Items.cpp says "only exists to aid in the drawing of unique models" — CheckQueue
- * swaps it in for display, and no pool ever holds it.
+ * RI_NONE ("nothing") IS A FILL ITEM, class JUNK (lane K9, measured): it is the
+ * vanilla item of every drop check that holds nothing — pots, grass, crates and the
+ * like — and GeneratePools pushes it into the pool like any other vanilla item once
+ * those categories are shuffled (the "maximal" measurement profile's MM pool held
+ * 86 RI_NONE rows). A pool row the owner could not classify would make the bag
+ * builder refuse the whole pool, and "a host that gives nothing" is exactly what
+ * filler is: not progression, not regainable. It never crosses (junk never does)
+ * and is never given (IsGiveableItemId still refuses it), so the #488 sentinel
+ * hazard the giveable test guards against is not reopened.
+ *
+ * NOT A FILL ITEM (returns 0): ids past RI_MAX or with no Items row, the sentinel
+ * RI_UNKNOWN, and RI_TRIFORCE_PIECE_PREVIOUS, which Items.cpp says "only exists to
+ * aid in the drawing of unique models" — CheckQueue swaps it in for display, and
+ * no pool ever holds it.
  *
  * ARMING: the four criterion-3 give-capability families (souls, ocarina buttons,
  * swim, clock items) carry their RSBS_GIVECAP_* bit, and triforce pieces are a
@@ -1705,7 +1715,7 @@ extern "C" int MM_ComboLogic_ClassifyItem(uint16_t id, ComboItemClassRow* out) {
     }
     const RandoItemId ri = (RandoItemId)id;
     const auto it = Rando::StaticData::Items.find(ri);
-    if (it == Rando::StaticData::Items.end() || ri == RI_UNKNOWN || ri == RI_NONE || ri == RI_TRIFORCE_PIECE_PREVIOUS) {
+    if (it == Rando::StaticData::Items.end() || ri == RI_UNKNOWN || ri == RI_TRIFORCE_PIECE_PREVIOUS) {
         return 0;
     }
     const RandoItemType type = it->second.randoItemType;
@@ -1714,7 +1724,7 @@ extern "C" int MM_ComboLogic_ClassifyItem(uint16_t id, ComboItemClassRow* out) {
         row.fillClass = RSBS_FILL_CLASS_TRAP;
     } else if (type != RITYPE_JUNK && type != RITYPE_HEALTH) {
         row.fillClass = RSBS_FILL_CLASS_PROGRESSION;
-    } else if (type == RITYPE_JUNK && ri != RI_JUNK) {
+    } else if (type == RITYPE_JUNK && ri != RI_JUNK && ri != RI_NONE) {
         row.fillClass = RSBS_FILL_CLASS_RENEWABLE;
     } else {
         row.fillClass = RSBS_FILL_CLASS_JUNK;

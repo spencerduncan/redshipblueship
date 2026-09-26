@@ -167,16 +167,19 @@ const char* Combo_Logic_StatusName(int status);
  * traps never enter the bag, which is what makes this a few hundred rows and not
  * the 2489-row union of both whole pools the #727 measurement ran against.
  *
- * SIZED FROM THE MEASURED WORST CASE, with headroom (#727, lane K9's
- * re-measurement on 2026-09-27, both real engines): the composed bag on the
- * shipped profile and on a plentiful profile (OoT RO_ITEM_POOL_PLENTIFUL, MM
- * RO_PLENTIFUL_ITEMS, traps on in both) — see RSBS_COMBO_LOGIC_MEASURED_WORST_BAG
- * for the number and the PR / #645 comment for the per-profile breakdown. 2048
- * carries that worst case with better than 2x headroom. Exceeding it is still
- * refused (RSBS_COMBO_LOGIC_ERR_CAPACITY), never truncated.
+ * SIZED FROM THE MEASURED WORST CASE, with headroom (#727; lane K9's
+ * re-measurement on 2026-09-27 over both real engines, combo-logic-measure with
+ * RSBS_COMBO_MEASURE_PROFILE): the composed bag is 307 rows on the shipped
+ * profile, 399 on the plentiful profile (OoT RO_ITEM_POOL_PLENTIFUL, MM
+ * RO_PLENTIFUL_ITEMS, traps on in both) and 784 on the "maximal" profile —
+ * plentiful plus every OoT confinement family at its general-pass value, every
+ * token, and every MM location category shuffled, i.e. every setting that grows
+ * the bag. 2048 carries that worst case with 2.6x headroom (the static assert
+ * below demands at least 2x). Exceeding it is still refused
+ * (RSBS_COMBO_LOGIC_ERR_CAPACITY), never truncated.
  *
  * MEMORY: every bag-sized buffer in combo_logic.c is static — the assumed-set
- * copy (8 B/row), the order, required, surplus and dropped index arrays
+ * copy (8 B/row) and the order, required, surplus and dropped index arrays
  * (4 B/row each) — so 24 B per row of cap: 48 KB at 2048, up from 12 KB at the
  * old 512.
  */
@@ -184,7 +187,7 @@ const char* Combo_Logic_StatusName(int status);
 /** The largest composed bag measured on any profile (#727): the number the cap
  *  above is sized against, stated so a later re-measurement has one line to move
  *  and a static assert keeps the headroom honest. */
-#define RSBS_COMBO_LOGIC_MEASURED_WORST_BAG 1024
+#define RSBS_COMBO_LOGIC_MEASURED_WORST_BAG 784
 #if RSBS_COMBO_LOGIC_BAG_CAP < 2 * RSBS_COMBO_LOGIC_MEASURED_WORST_BAG
 #error "RSBS_COMBO_LOGIC_BAG_CAP must carry the measured worst composed bag with at least 2x headroom"
 #endif
@@ -192,9 +195,10 @@ const char* Combo_Logic_StatusName(int status);
  *  bounds what one side can RECEIVE out of the bag, so it is sized against the
  *  bag (above) and NOT against either game's check pool: equal to the bag cap,
  *  because a fill can put every bag row on one side. MEMORY: the coordinator's
- *  two tables are 8 B per placement per origin slot (3 slots, indexed by GameId)
- *  plus a delivered bit, ~49 KB at 2048 (was ~25 KB at 1024); the OoT engine's
- *  own placement record is sized by this constant too (~24 KB at 2048). */
+ *  tables are 8 B per placement per origin slot (3 slots, indexed by GameId) plus
+ *  a delivered bit, 49 KB at 2048 (was 24.4 KB at 1024); the OoT engine's own
+ *  placement record is sized by this constant too, 12 B a row (24 KB, was 12 KB).
+ *  With the bag buffers above the raise costs about 72 KB of static RAM. */
 #define RSBS_COMBO_LOGIC_PLACEMENT_CAP 2048
 #if RSBS_COMBO_LOGIC_PLACEMENT_CAP < RSBS_COMBO_LOGIC_BAG_CAP
 #error "RSBS_COMBO_LOGIC_PLACEMENT_CAP must carry a whole bag on one side"

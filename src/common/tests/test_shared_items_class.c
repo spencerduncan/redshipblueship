@@ -20,8 +20,8 @@
  *     REAL class in the owner table; no fill item is unclassified; every class
  *     occurs in both games; and every real item-table row that is NOT a fill item
  *     is one of an exact, adjudicated handful (OoT: RG_TRIFORCE and RG_HINT —
- *     RG_NONE is not a real row to OoT's identity test; MM: RI_UNKNOWN, RI_NONE,
- *     RI_TRIFORCE_PIECE_PREVIOUS). MM's row oracle is a DIFFERENT TU's bridge
+ *     RG_NONE is not a real row to OoT's identity test; MM: RI_UNKNOWN and
+ *     RI_TRIFORCE_PIECE_PREVIOUS; RI_NONE is JUNK, a real pool row). MM's row oracle is a DIFFERENT TU's bridge
  *     (ForeignItemsSingleExe.cpp), so a source that silently dropped rows is
  *     caught by an observer that is not itself.
  *  S3 TRAPS ARE NEVER PROGRESSION, and the trap-first rule is load-bearing:
@@ -419,11 +419,13 @@ TestResult Test_SharedItemClass(void) {
 
     // ---- S2 + S3 ------------------------------------------------------------
     // OoT: RG_TRIFORCE and RG_HINT (RG_NONE is not a real row to the identity
-    // test). MM: RI_UNKNOWN, RI_NONE, RI_TRIFORCE_PIECE_PREVIOUS.
+    // test). MM: RI_UNKNOWN, RI_TRIFORCE_PIECE_PREVIOUS — RI_NONE is a fill item
+    // (JUNK) since lane K9: GeneratePools pushes it as the vanilla item of every
+    // drop check that holds nothing.
     if (SicCoverageAndTraps((uint8_t)GAME_OOT, 2) != TEST_PASS) {
         return TEST_FAIL;
     }
-    if (SicCoverageAndTraps((uint8_t)GAME_MM, 3) != TEST_PASS) {
+    if (SicCoverageAndTraps((uint8_t)GAME_MM, 2) != TEST_PASS) {
         return TEST_FAIL;
     }
 
