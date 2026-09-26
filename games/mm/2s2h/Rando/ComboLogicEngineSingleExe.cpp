@@ -1054,6 +1054,38 @@ extern "C" int MM_ComboLogic_HeldPlacementCount(void) {
     return (int)sHeld.size();
 }
 
+/**
+ * READ-ONLY, TEST ONLY: this round's REGION SET — the regions of the latest
+ * recompute (A5) in ascending id order, and each one's joined time slices.
+ *
+ * Why it exists (ADR 0010 answer O6, the `combo-logic-monotonicity` grow-check):
+ * the vtable reports CHECKS (`checkReached`) but not regions, and O6's grow-check
+ * asserts that neither the reached check set NOR the reached region set ever
+ * shrinks as items are granted. A region can open, or gain time slices, without
+ * any new check becoming reachable, so the check set alone would let a region-side
+ * regression through. `sRound` is file-static, so this is the only way to read it;
+ * it writes nothing and is called by nothing but that row.
+ *
+ * At most `cap` entries are written to each non-NULL array; the TOTAL is
+ * returned (the enumerators' truncation contract). Zero outside a round.
+ */
+extern "C" int MM_ComboLogic_TestRoundRegions(uint16_t* outRegions, uint64_t* outTimeSlices, int cap) {
+    int total = 0;
+    for (const RandoRegionId regionId : sRound.regions) {
+        if (total < cap) {
+            if (outRegions != nullptr) {
+                outRegions[total] = (uint16_t)regionId;
+            }
+            if (outTimeSlices != nullptr) {
+                const auto it = sRound.regionTimeStates.find(regionId);
+                outTimeSlices[total] = (it != sRound.regionTimeStates.end()) ? it->second.timeSlices : 0;
+            }
+        }
+        total++;
+    }
+    return total;
+}
+
 // ============================================================================
 // THE MEASUREMENT BRIDGES (#645 increment 3's first two work items, lane K3)
 // ============================================================================

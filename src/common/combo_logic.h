@@ -870,6 +870,18 @@ typedef struct {
  */
 int Combo_Logic_RunRound(const ComboLogicRoundRequest* req, ComboLogicRoundResult* out);
 
+/**
+ * READ-ONLY, TEST ONLY: the candidate host SET behind the latest round's
+ * `candidatesOoT` / `candidatesMM` for `hostGame`, in the engine's order.
+ *
+ * Why it exists (ADR 0010 answer O6, the `combo-logic-monotonicity` row's G4): a
+ * COUNT cannot see a host lost in the same step another is gained, so "the
+ * coordinator never reaches fewer hosts over a longer bag prefix" is asserted on
+ * the sets. It reads the buffer the round already filled and writes nothing.
+ * At most `cap` written, the TOTAL returned; -1 for a game with no buffer.
+ */
+int Combo_Logic_TestLastCandidates(GameId hostGame, uint16_t* out, int cap);
+
 // ============================================================================
 // THE BAG MODEL — copies, surplus, filler and traps (operator ruling 2026-09-26)
 // ============================================================================

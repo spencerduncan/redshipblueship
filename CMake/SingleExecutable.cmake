@@ -1842,6 +1842,19 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     redship_add_test(NAME LooseModsDiscovery COMMAND redship --test loose-mods-discovery)
     redship_add_test(NAME LooseModsMount COMMAND redship --test loose-mods-mount)
     set_tests_properties(LooseModsMount PROPERTIES SKIP_RETURN_CODE 77)
+    # ADR 0010 answer O6's CI GROW-CHECK (#645, #500): the third of O6's three
+    # mechanisms (the review rule and the static probe,
+    # .github/scripts/check-monotonicity-negations.py, are the other two). Over
+    # both REAL engines, from the shipped profile's starting state: the bag
+    # granted one copy at a time in four orders, tricks off and every trick on,
+    # asserting the reached check and region sets never shrink; order
+    # independence; tricks only add; coordinator prefixes never lose a host; and
+    # a planted negated edge observed red on both engines. `rando` tier for the
+    # same reason as its siblings: without a generated world every set is empty.
+    redship_add_test(NAME ComboLogicMonotonicity COMMAND redship --test combo-logic-monotonicity
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)

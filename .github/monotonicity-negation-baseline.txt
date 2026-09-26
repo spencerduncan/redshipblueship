@@ -1,0 +1,18 @@
+# Accepted sites for .github/scripts/check-monotonicity-negations.py (ADR 0010 answer O6).
+#
+# Every line is `path | class | term | reading`. The READING is the argument that
+# the site is monotone in player state; an entry without one is refused, and the
+# probe PRINTS every accepted site with its reading on every run, so nothing here
+# is silenced. An entry that stops matching any site fails the gate as STALE —
+# delete it with the fix that removed the site.
+#
+# Adding an entry is a review decision (docs/monotonicity.md, "The review rule"):
+# prefer rewriting the condition positively. An entry is right only when the
+# condition is ALREADY monotone and the probe's text heuristic cannot see why.
+#
+# Baseline at origin/main e606a4c7 (2026-09-26): zero player-state NEGATIONS in
+# either graph (the audit's §1.2/§2.3 claim holds for `!`); three equality
+# comparisons on OoT's spiritual-stone count, read below. MM has no entry.
+
+games/oot/soh/Enhancements/randomizer/location_access/overworld/hyrule_field.cpp | NEEDS-READING | logic->StoneCount() == 3 | Logic::StoneCount() (logic.cpp) is HasItem(RG_KOKIRI_EMERALD) + HasItem(RG_GORON_RUBY) + HasItem(RG_ZORA_SAPPHIRE): a sum of three set-item booleans, so 3 is its MAXIMUM and `== 3` is exactly `>= 3` - true once all three stones are held and never false again. A repeated stone copy is a set item (inert), so no multiplicity can push the sum past 3. Monotone.
+games/oot/soh/Enhancements/randomizer/location_access/overworld/temple_of_time.cpp | NEEDS-READING | logic->StoneCount() == 3 | Same term as hyrule_field.cpp's: StoneCount() is bounded above by 3 (three set-item HasItem terms), so `== 3` is `>= 3`. Monotone.

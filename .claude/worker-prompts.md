@@ -147,5 +147,15 @@ are the reasoning behind them.
 - This project is pre-release: invalidating an existing save to land a fix is
   acceptable and does not need product sign-off, but every PR that invalidates a
   save format or a paired file's identity must say so explicitly in its body.
+- **Reachability conditions never negate player state (ADR 0010 O6).** In either
+  graph (OoT `location_access/**`, MM `Logic/Regions/**` and `Logic.h`, and the
+  helpers they call) a condition may REQUIRE an item, event, flag, count, age or
+  time but never its ABSENCE: no `!` (or `not`, `^ true`, `? false :`) over a
+  player-state term, no `< k` / `== 0` on a count, no `if (HAS_X) return false;`. Negating a setting, trick or option
+  is fine. Model "before event X" as time/region state, never as `!event`. The
+  static probe (`python3 .github/scripts/check-monotonicity-negations.py`, CI job
+  `monotonicity-probe`) and the `ComboLogicMonotonicity` rando row enforce it; a
+  new probe-baseline entry needs a written reading proving the site monotone.
+  Details: `docs/monotonicity.md`.
 
 See `CLAUDE.md` for build, test, and architecture basics.

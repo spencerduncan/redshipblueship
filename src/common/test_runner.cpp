@@ -650,6 +650,11 @@ extern "C" {
 // staged mods tree plus the production switch-time re-apply (loose-mods-mount,
 // SKIPs when soh.o2r/2ship.o2r is unstaged). FILE SCOPE, compiled as C++.
 #include "tests/test_loose_mods_mount.c"
+// ADR 0010 answer O6's CI grow-check over both REAL engines (#645, #500): the
+// bag granted one copy at a time in four orders, tricks off and on, the reached
+// check and region sets never shrinking, a planted negation observed red. Same
+// tier, FILE SCOPE / C++ compilation and reason as the two rows above.
+#include "tests/test_combo_logic_monotonicity.c"
 
 // MM scene-command EXECUTE regression (issue #344). Unlike the parse test, the
 // body runs the parsed commands against a PlayState, so it needs MM's global.h
@@ -3962,6 +3967,20 @@ TestResult Test_ComboLogicMultiplicity(void) {
     return ComboLogicMultiplicity_Run();
 }
 
+// ADR 0010 answer O6's grow-check over both real engines (#645, #500). Same
+// bring-up split as Test_ComboLogicMeasure above, for the same reason.
+TestResult Test_ComboLogicMonotonicity(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    static char clmonoArg0[] = "redship";
+    static char* clmonoArgv[] = { clmonoArg0, nullptr };
+    InitOTRForMMFirstBoot(1, clmonoArgv);
+    return ComboLogicMonotonicity_Run();
+}
+
 TestResult Test_RoundtripIntegrity(void) {
     printf("[TEST] roundtrip-integrity: OoT SaveContext byte-integrity across roundtrip (issue #262)\n");
     int failures = TestRoundtripIntegrity_Run();
@@ -4669,6 +4688,14 @@ const TestDescriptor gTests[] = {
      "(each wraps or overshoots without the clamp), rounds are order-independent (red half observed), MM counters "
      "stop at their derived maxima, and the own-origin harvest is per host (#645)",
      Test_ComboLogicMultiplicity},
+    // ADR 0010 answer O6's grow-check (#645, #500). Needs a generation; skipped
+    // by `--test all` below like its siblings.
+    {"combo-logic-monotonicity",
+     "Over both real engines: the bag (required, surplus and filler copies, traps included) granted one copy at a "
+     "time in four orders, tricks off and on - the reached check and region sets never shrink, the orders close "
+     "on one set, tricks only add, the coordinator's prefixes never lose a host, and a planted negated edge goes "
+     "red at its item's grant (ADR 0010 O6)",
+     Test_ComboLogicMonotonicity},
     // #705: loose (unpacked) asset folders. The mount row MOUNTS extra archives into
     // the shared ArchiveManager and restores it from a snapshot on the way out, the
     // mm-mods-mount discipline; placed last so nothing after it could inherit a
@@ -4770,6 +4797,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "mm-combo-logic-engine") == 0 ||
                 strcmp(gTests[i].name, "combo-logic-measure") == 0 ||
                 strcmp(gTests[i].name, "combo-logic-multiplicity") == 0 ||
+                strcmp(gTests[i].name, "combo-logic-monotonicity") == 0 ||
                 // Also skipped for a second reason: it is a diagnostic whose
                 // intended outcome on a bad id is a process abort, so it must never
                 // run inside a suite whose result is a pass/fail count.
