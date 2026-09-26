@@ -58,6 +58,12 @@
  *      sites agree bit-exact under identical inputs, because a creation stamp
  *      that disagreed with the arrival resolution would refuse every pair.
  *  (i) the resolved trick set REACHES THE SAVE, which is what (f) then reads.
+ *  (j) #719, the same shape as (g) for the Deku Stick: every CanKillEnemy row
+ *      that offered `HAS_ITEM(ITEM_DEKU_STICK)` as an ungated weapon, probed
+ *      over a HUMAN-form save whose only qualifying kit is the stick — dead with
+ *      MMRT_DEKU_STICK_FIGHTING off, killable with it on, and a no-stick control
+ *      that proves the rest of the save satisfies nothing. RED before the gate on
+ *      every row.
  *
  * Deliberately NOT asserted: that any particular unbound key does something.
  * 84 of the 86 keys are declared and consulted by nothing in this PR (part 2
@@ -439,6 +445,81 @@ extern "C" int MM_TrickTable_RunHeadless(void) {
     if (!Rando::Logic::CanKillEnemy(ACTOR_EN_VM)) {
         return Fail(41, "a real bomb no longer satisfies an explosive-only edge — the gate caught the wrong "
                         "disjunct");
+    }
+
+    // ---- (j) #719: Deku-Stick COMBAT is trick-gated, row by row -------------
+    // Every CanKillEnemy row that offers a Deku Stick as a weapon, probed with
+    // the save's ONLY qualifying kit being a stick (plus, for Captain Keeta, the
+    // Bow his row requires on its own). Three arms per actor, because each
+    // catches a different mistake:
+    //   control   no stick, trick ON  -> dead-end. The rest of the save satisfies
+    //             nothing, so the other two arms are about the stick alone. The
+    //             form is set HUMAN on purpose: a zeroed save reads
+    //             PLAYER_FORM_FIERCE_DEITY, which makes CAN_USE_SWORD true and
+    //             every row below vacuously green.
+    //   red       stick, trick OFF    -> dead-end. RED before #719: the stick was
+    //             an ungated disjunct on all 17 rows.
+    //   green     stick, trick ON     -> killable. The gate joined the disjunct
+    //             rather than deleting it.
+    // Actor ids sharing a row (Bubbles, Floor/Wallmasters) are probed together,
+    // so a row later split in two cannot lose its gate on one half unnoticed.
+    {
+        struct StickRow {
+            ActorId actor;
+            const char* what;
+            bool needsBow;
+        };
+        static const StickRow kStickRows[] = {
+            { ACTOR_EN_DEKUBABA, "Deku Baba", false }, { ACTOR_EN_BB, "Blue Bubble", false },
+            { ACTOR_EN_BBFALL, "Red Bubble", false },  { ACTOR_EN_FLOORMAS, "Floormaster", false },
+            { ACTOR_EN_WALLMAS, "Wallmaster", false }, { ACTOR_EN_CROW, "Guay", false },
+            { ACTOR_EN_FIREFLY, "Keese", false },      { ACTOR_EN_RR, "Like Like", false },
+            { ACTOR_EN_DEKUNUTS, "Mad Scrub", false }, { ACTOR_EN_PEEHAT, "Peahat", false },
+            { ACTOR_EN_RD, "Redead / Gibdo", false },  { ACTOR_EN_BSB, "Captain Keeta", true },
+            { ACTOR_EN_SKB, "Stalchild", false },      { ACTOR_EN_SLIME, "Chuchu", false },
+            { ACTOR_EN_SNOWMAN, "Eeno", false },       { ACTOR_EN_NEO_REEBA, "Leever", false },
+            { ACTOR_EN_PP, "Hiploop", false },         { ACTOR_EN_BEE, "Giant Bee", false },
+            { ACTOR_BOSS_07, "Majora", false },
+        };
+        auto armStickSave = [](bool needsBow, bool withStick) {
+            ResetSaveWithEmptyInventory();
+            ClearAllTrickCVars();
+            gSaveContext.save.playerForm = PLAYER_FORM_HUMAN;
+            if (needsBow) {
+                GiveInventoryItem(ITEM_BOW);
+            }
+            if (withStick) {
+                GiveInventoryItem(ITEM_DEKU_STICK);
+            }
+        };
+        for (const StickRow& row : kStickRows) {
+            armStickSave(row.needsBow, false);
+            SetFrozenTrick(MMRT_DEKU_STICK_FIGHTING, true);
+            if (Rando::Logic::CanKillEnemy(row.actor)) {
+                return Fail(60,
+                            "%s: killable with NO Deku Stick and the trick on — this probe's save satisfies the row "
+                            "without the stick, so its red/green pair would prove nothing",
+                            row.what);
+            }
+            armStickSave(row.needsBow, true);
+            SetFrozenTrick(MMRT_DEKU_STICK_FIGHTING, false);
+            if (Rando::Logic::CanKillEnemy(row.actor)) {
+                return Fail(61,
+                            "%s: with MMRT_DEKU_STICK_FIGHTING OFF a Deku Stick still kills it — the stick is an "
+                            "ungated weapon disjunct, so Glitchless assumes a default-off trick (#719)",
+                            row.what);
+            }
+            SetFrozenTrick(MMRT_DEKU_STICK_FIGHTING, true);
+            if (!Rando::Logic::CanKillEnemy(row.actor)) {
+                return Fail(62,
+                            "%s: with MMRT_DEKU_STICK_FIGHTING ON a Deku Stick does NOT kill it — the gate removed "
+                            "the route instead of gating it (#719)",
+                            row.what);
+            }
+        }
+        SetFrozenTrick(MMRT_DEKU_STICK_FIGHTING, false);
+        printf("[TEST] mm-trick-table: Deku-Stick combat gated on %d actor ids (17 CanKillEnemy rows) (#719)\n",
+               (int)(sizeof(kStickRows) / sizeof(kStickRows[0])));
     }
 
     // ---- (h) IDENTITY: the trick set is folded into the digest -------------

@@ -12,7 +12,8 @@
  * zero-extends to an empty table), the hosting checks degrade to the junk
  * they physically hold: nothing crashes, nothing aliases.
  *
- * Determinism: selection uses a LOCAL xorshift32 stream seeded from the
+ * Determinism: selection uses LOCAL xorshift32 streams (one orders the pool,
+ * one picks hosts — #583) seeded from the
  * paired-world identity (master seed + settings digest + MM final seed), so
  * it can never be perturbed by other Ship_Random consumers, and candidate
  * order comes from std::map's sorted iteration. Same gComboCtx + same MM
@@ -72,6 +73,7 @@
 #include <fstream>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 extern "C" {
@@ -413,6 +415,24 @@ static uint32_t SelectNext() {
     return sSelectState;
 }
 
+// THE DRAW-ORDER STREAM (#583): a SECOND local xorshift32, seeded from the same
+// identity under its own suffix, that permutes the drawable pool BEFORE the
+// host loop walks it. A separate stream rather than extra draws on sSelectState,
+// so the HOST sequence is exactly the one it always was: a full-supply world
+// picks the same hosts as before and only which item sits on which host moves,
+// which is the smallest re-pin that fixes the bias and keeps the #580 gate's
+// ungated-selection replay (mm_rando_gen_test.cpp) valid without a rewrite.
+static uint32_t sOrderState;
+
+static uint32_t OrderNext() {
+    uint32_t x = sOrderState;
+    x ^= x << 13;
+    x ^= x >> 17;
+    x ^= x << 5;
+    sOrderState = (x != 0) ? x : 0xB5297A4Du;
+    return sOrderState;
+}
+
 // ---------------------------------------------------------------------------
 // Host eligibility (#488).
 //
@@ -611,9 +631,12 @@ int PlaceForeignItems() {
     // WHICH pool entries are drawable is the RULE (#495, ADR 0011 decision 3):
     // Combo_ForeignPoolDrawFor filters OoT's pool by the FROZEN itemClassOoT
     // bitset, in pool order, with NO seed term (accepted answer O3). With the
-    // shipped defaults (every allocated bit) `drawable` is the identity
-    // permutation 0..poolCount-1, so pool[drawable[i]] IS pool[i] and no
-    // generated world moves — the parity this increment is bounded by.
+    // shipped defaults (every allocated bit) `drawable` comes back as the
+    // identity 0..poolCount-1 — but that is only the INPUT to the draw: since
+    // #583 the list is Fisher-Yates-shuffled below (identity-seeded) and then
+    // truncated to `wanted`, so pool[drawable[i]] is NOT pool[i]. The class
+    // decides which rows are eligible; the shuffle decides which of them a
+    // shortfall keeps. (The goldens were re-pinned for exactly that move.)
     //
     // FILTER FIRST, THEN DRAW TO COUNT: the class decides WHICH entries may
     // cross, the pool size decides HOW MANY do. `wanted` therefore bounds on the
@@ -687,18 +710,49 @@ int PlaceForeignItems() {
             "reachability gate)\n",
             poolCount, candidates.size(), sLastPlacementStats.eligibleHosts);
 
-    sSelectState =
-        Ship_Hash(std::to_string(gComboCtx.sharedRandoSeed) + ":" + std::to_string(gComboCtx.sharedRandoSettingsHash) +
-                  ":" + std::to_string(gSaveContext.save.shipSaveInfo.rando.finalSeed) + ":foreign-v1");
+    const std::string identity = std::to_string(gComboCtx.sharedRandoSeed) + ":" +
+                                 std::to_string(gComboCtx.sharedRandoSettingsHash) + ":" +
+                                 std::to_string(gSaveContext.save.shipSaveInfo.rando.finalSeed);
+    sSelectState = Ship_Hash(identity + ":foreign-v1");
     if (sSelectState == 0) {
         sSelectState = 0xB5297A4Du;
     }
 
+    // SHUFFLE, THEN TRUNCATE (#583). The loop below walks `drawable` in order
+    // and stops when `wanted` is met OR the reachable hosts run out, so whatever
+    // sits at the TAIL of the list is what a shortfall drops — and so is whatever
+    // a pool size below the drawable count leaves out. Walking the pool in table
+    // order made that the same rows in every seed: with the four-row OoT pool
+    // and two reachable hosts, Boomerang and Megaton Hammer never crossed, which
+    // is precisely the "same items every seed" condition those two rows were
+    // added to remove. The comment in the reverse pass (ForeignItemsSingleExe.cpp)
+    // already named the equivalence this relied on — "walking it in order ... where
+    // pool <= cap made that equivalent" — and #580's reachability gate is what
+    // broke it: pool <= cap no longer implies the whole pool places.
+    //
+    // A Fisher-Yates permutation from an identity-seeded stream makes the kept
+    // prefix a uniformly random subset in every seed and the same subset for the
+    // same identity. The permutation is SUPPLY-INDEPENDENT (it consumes exactly
+    // drawable.size()-1 draws before any host is looked at), so how many hosts
+    // happened to be reachable cannot change which item is first in line.
+    //
+    // `requested` and `placed` are untouched by the order, so the creation-time
+    // shortfall surface (MM_Rando_LastPlacementStats, #680) reads exactly what it
+    // read before; only WHICH items made it changes.
+    sOrderState = Ship_Hash(identity + ":foreign-order-v1");
+    if (sOrderState == 0) {
+        sOrderState = 0xB5297A4Du;
+    }
+    for (size_t k = drawable.size(); k > 1; k--) {
+        const size_t j = (size_t)(OrderNext() % (uint32_t)k);
+        std::swap(drawable[k - 1], drawable[j]);
+    }
+
     int placed = 0;
     for (int i = 0; i < wanted && !candidates.empty(); i++) {
-        // The i-th DRAWABLE entry, not the i-th pool row. Under the shipped
-        // defaults these are the same index, which is the parity pin; under a
-        // narrowed bitset this is what keeps the pass inside the armed classes.
+        // The i-th entry of the SHUFFLED drawable list — never the i-th pool
+        // row. The class filter decided which rows are in the list; the shuffle
+        // above decided their order; this loop only truncates.
         const ComboForeignItemDef& entry = pool[drawable[(size_t)i]];
 
         const size_t pick = (size_t)(SelectNext() % (uint32_t)candidates.size());
@@ -873,7 +927,15 @@ extern "C" void MM_Rando_PublishProfileGiveCaps(int fromSave) {
     if (values[RO_SHUFFLE_SWIM] != RO_GENERIC_OFF) {
         caps |= RSBS_GIVECAP_SWIM;
     }
-    if (values[RO_CLOCK_SHUFFLE] != RO_GENERIC_OFF) {
+    // Clocks arm only in the RANDOM clock mode (#681 review). The capability
+    // admits the six CONCRETE half-day rows, and the two progressive modes read
+    // time ownership as a COUNT (Logic.h, OwnsHalfDayForMode: ASCENDING owns
+    // "the first N" half-days, DESCENDING "the last N") because their world
+    // only ever hands half-days out in that order (ConvertItem.cpp,
+    // RI_TIME_PROGRESSIVE). A crossed Time (Night 3) in an ascending world would
+    // set the Night 3 flag while the logic read "Day 1 owned" off the count. In
+    // RANDOM mode both read each flag, so a concrete crossing means what it says.
+    if (values[RO_CLOCK_SHUFFLE] != RO_GENERIC_OFF && values[RO_CLOCK_SHUFFLE_PROGRESSIVE] == RO_CLOCK_SHUFFLE_RANDOM) {
         caps |= RSBS_GIVECAP_CLOCKS;
     }
 

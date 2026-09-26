@@ -17,7 +17,8 @@
  * empty-inventory leg is NOT: with NDEBUG the old default branch returned false
  * too, so "false with nothing" passed before the change. The legs that go red
  * without the ACTOR_BOSS_07 row are the POSITIVE ones (leg 3's sword, Goron,
- * Zora, magic-Deku, explosive and Deku-stick kits, and leg 6's composed goal):
+ * Zora, magic-Deku, explosive and Deku-stick kits -- the stick under
+ * MMRT_DEKU_STICK_FIGHTING since #719 -- and leg 6's composed goal):
  * the old switch answered false for every one of them. Verified red that way
  * before green.
  *
@@ -220,10 +221,22 @@ int RunLegs() {
               "bombs alone cannot defeat Majora - explosives carry the EXPLOSIVE effect, one of the four Wrath "
               "accepts while stunned");
 
+    // The Deku stick deals the damage (ANIM_FRAME_CHECK on Wrath), but since #719
+    // Glitchless only COUNTS it as a weapon under MMRT_DEKU_STICK_FIGHTING, the
+    // default-off OoTMM trick: a stick-only Majora kill is the trick, not the
+    // baseline. Both halves are asserted, so neither the gate nor the row's stick
+    // term can go missing unnoticed.
     ClearKit();
     GiveInventoryItem(ITEM_DEKU_STICK);
+    gSaveContext.save.shipSaveInfo.rando.randoSaveTricks[MMRT_DEKU_STICK_FIGHTING] = 0;
+    MG_ASSERT(!CanDefeatMajora(), 3,
+              "a Deku stick alone defeats Majora with MMRT_DEKU_STICK_FIGHTING OFF - stick combat is a default-off "
+              "trick (#719), so tricks-off Glitchless must not assume it");
+    gSaveContext.save.shipSaveInfo.rando.randoSaveTricks[MMRT_DEKU_STICK_FIGHTING] = 1;
     MG_ASSERT(CanDefeatMajora(), 3,
-              "a Deku stick alone cannot defeat Majora - Deku stick is ANIM_FRAME_CHECK on Wrath");
+              "a Deku stick alone cannot defeat Majora with MMRT_DEKU_STICK_FIGHTING ON - Deku stick is "
+              "ANIM_FRAME_CHECK on Wrath");
+    gSaveContext.save.shipSaveInfo.rando.randoSaveTricks[MMRT_DEKU_STICK_FIGHTING] = 0;
 
     // ---- Leg 4: the stun-only kits, which is the fight's real constraint ---
     ClearKit();

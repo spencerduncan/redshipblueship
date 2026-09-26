@@ -893,6 +893,107 @@ extern "C" int MM_Rando_HeadlessGenTest(void) {
         fprintf(stderr, "[MM-RANDO-GEN] under-supply verified: placed 2 of %d, shortfall recorded in the spoiler\n",
                 poolCount);
 
+        // ------------------------------------------------------------------
+        // Drop order under shortfall (#583): SHUFFLE, THEN TRUNCATE.
+        //
+        // Same injected shortfall (two reachable eligible hosts, a pool of
+        // `poolCount`), re-run under a series of paired identities. The pass
+        // must drop a DIFFERENT subset across identities and the SAME subset
+        // twice for one identity, and the creation-time surface
+        // (MM_Rando_LastPlacementStats, #680) must report the same counts on
+        // every run: the order moved, the numbers did not.
+        //
+        // Certain-red counterfactual: walk `drawable` in table order again (the
+        // pre-#583 loop) and every identity keeps the first two pool rows and
+        // drops the tail, so this fails with one kept set across all twelve
+        // identities and the tail row never placed. Only the identity's
+        // master-seed term is perturbed; it feeds both selection streams and
+        // nothing else PlaceForeignItems reads (the host candidates come from
+        // the save, not from gComboCtx).
+        // ------------------------------------------------------------------
+        {
+            const ComboForeignItemDef* orderPool = nullptr;
+            const int orderPoolCount = Combo_GetForeignItemPool(&orderPool);
+            auto placedMask = [&]() -> uint32_t {
+                uint32_t mask = 0;
+                for (int slot = 0; slot < (int)RSBS_FOREIGN_PLACEMENT_CAP; slot++) {
+                    const ComboForeignPlacement& fp = gComboCtx.foreignPlacements[slot];
+                    if (fp.item.originGame == GAME_NONE) {
+                        continue;
+                    }
+                    for (int row = 0; row < orderPoolCount && row < 32; row++) {
+                        if (orderPool[row].item.originGame == fp.item.originGame &&
+                            orderPool[row].item.id == fp.item.id) {
+                            mask |= 1u << row;
+                        }
+                    }
+                }
+                return mask;
+            };
+            const uint32_t savedMasterSeed = gComboCtx.sharedRandoSeed;
+            std::set<uint32_t> keptSets;
+            bool tailEverPlaced = false;
+            const uint32_t tailBit =
+                (orderPoolCount > 0 && orderPoolCount <= 32) ? (1u << (orderPoolCount - 1)) : 0u;
+            for (uint32_t probe = 0; probe < 12; probe++) {
+                gComboCtx.sharedRandoSeed = savedMasterSeed ^ (0x9E3779B9u * (probe + 1));
+                uint32_t firstMask = 0;
+                for (int rerun = 0; rerun < 2; rerun++) {
+                    int orderPlaced = -1;
+                    try {
+                        orderPlaced = Rando::Foreign::PlaceForeignItems();
+                    } catch (const std::exception& e) {
+                        gComboCtx.sharedRandoSeed = savedMasterSeed;
+                        fprintf(stderr, "[MM-RANDO-GEN] FAIL(33): drop-order probe %u threw: %s\n", probe, e.what());
+                        return 33;
+                    }
+                    int surfRequested = -1;
+                    int surfPlaced = -1;
+                    int surfReachable = -1;
+                    const int surfShort =
+                        MM_Rando_LastPlacementStats(&surfRequested, &surfPlaced, nullptr, &surfReachable);
+                    if (orderPlaced != 2 || surfPlaced != 2 || surfRequested != poolCount || surfReachable != 2 ||
+                        surfShort != 1) {
+                        gComboCtx.sharedRandoSeed = savedMasterSeed;
+                        fprintf(stderr,
+                                "[MM-RANDO-GEN] FAIL(33): drop-order probe %u: placed %d, surface reports placed %d "
+                                "of requested %d over %d reachable hosts (shortfall=%d); expected 2 of %d over 2, "
+                                "shortfall=1\n",
+                                probe, orderPlaced, surfPlaced, surfRequested, surfReachable, surfShort, poolCount);
+                        return 33;
+                    }
+                    const uint32_t mask = placedMask();
+                    if (rerun == 0) {
+                        firstMask = mask;
+                    } else if (mask != firstMask) {
+                        gComboCtx.sharedRandoSeed = savedMasterSeed;
+                        fprintf(stderr,
+                                "[MM-RANDO-GEN] FAIL(33): drop-order probe %u kept pool set %03X then %03X for ONE "
+                                "identity; the order is not a function of the paired identity\n",
+                                probe, firstMask, mask);
+                        return 33;
+                    }
+                }
+                keptSets.insert(firstMask);
+                if ((firstMask & tailBit) != 0) {
+                    tailEverPlaced = true;
+                }
+            }
+            gComboCtx.sharedRandoSeed = savedMasterSeed;
+            if (keptSets.size() < 2 || !tailEverPlaced) {
+                fprintf(stderr,
+                        "[MM-RANDO-GEN] FAIL(33): under a 2-host shortfall 12 identities kept %zu distinct pool "
+                        "subset(s) and the pool's tail row was %splaced; the shortfall drops the TAIL, not a random "
+                        "subset (#583)\n",
+                        keptSets.size(), tailEverPlaced ? "" : "never ");
+                return 33;
+            }
+            fprintf(stderr,
+                    "[MM-RANDO-GEN] drop order verified: 12 identities kept %zu distinct 2-of-%d subsets, stable "
+                    "within each identity; the tail row crossed in at least one (#583)\n",
+                    keptSets.size(), poolCount);
+        }
+
         // Restore the world and the real run's placements for the phases below.
         memcpy(&gSaveContext, shortSnapshot.get(), sizeof(SaveContext));
         Combo_ClearForeignPlacements();
