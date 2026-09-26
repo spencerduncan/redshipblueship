@@ -655,6 +655,12 @@ extern "C" {
 // check and region sets never shrinking, a planted negation observed red. Same
 // tier, FILE SCOPE / C++ compilation and reason as the two rows above.
 #include "tests/test_combo_logic_monotonicity.c"
+// ADR 0010 answer O10: one shared triforce piece count across both worlds — the
+// frozen record's rule, the freeze and its refusal, the MONOTONIC discipline pin,
+// the cross-game sum through BOTH games' real shims, the win decision, and the
+// coordinator's triforce-hunt predicate over stub engines. Display-free and
+// ROM-free (`redship` tier). FILE SCOPE (compiled as C++).
+#include "tests/test_triforce_hunt.c"
 // #726: OoT's OWN fill under a plentiful pool — the native full-world harvest
 // never holds a progressive tier past the top, and the wallet never wraps. Same
 // tier, FILE SCOPE / C++ compilation and reason as the rows above.
@@ -3990,6 +3996,31 @@ TestResult Test_ComboLogicMonotonicity(void) {
     return ComboLogicMonotonicity_Run();
 }
 
+// ADR 0010 answer O10's win trigger, in BOTH games' real piece-give arms: OoT's
+// Randomizer_Item_Give reads the seed's settings through a generated context,
+// and MM's Rando::GiveItem dispatches GameInteractor hooks, so both need the
+// same bring-up as the rows above. Assertions in
+// games/oot/soh/oot_triforce_hunt_test.cpp and games/mm/2s2h/mm_triforce_hunt_test.cpp.
+extern "C" int OoT_TriforceHuntWin_RunGenerated(void);
+extern "C" int MM_TriforceHuntWin_RunHeadless(void);
+TestResult Test_RandoTriforceHuntWin(void) {
+    printf("[TEST] rando-triforce-hunt-win: a paired triforce hunt ends at the combo requirement, in whichever game "
+           "reaches it (ADR 0010 O10)\n");
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    static char tfwArg0[] = "redship";
+    static char* tfwArgv[] = { tfwArg0, nullptr };
+    InitOTRForMMFirstBoot(1, tfwArgv);
+    const int oot = OoT_TriforceHuntWin_RunGenerated();
+    const int mm = MM_TriforceHuntWin_RunHeadless();
+    printf("[TEST] %s: rando-triforce-hunt-win (OoT rc=%d, MM rc=%d)\n", (oot == 0 && mm == 0) ? "PASS" : "FAIL", oot,
+           mm);
+    return (oot == 0 && mm == 0) ? TEST_PASS : TEST_FAIL;
+}
+
 // The bag composition rule over both real pools (#645 lane K9; #731, #733). Same
 // bring-up split as Test_ComboLogicMeasure above, for the same reason; the row
 // body lives in tests/test_combo_logic_measure.c beside the composition helpers
@@ -4765,6 +4796,18 @@ const TestDescriptor gTests[] = {
      "A loose file under each game's mods partition overrides its base archive and packed mods, is re-applied on "
      "arrival, is registered only to its own game, and is shadowed by the other game's base archives there (#705)",
      Test_LooseModsMount},
+    // ADR 0010 answer O10. The first row is display-free and ROM-free; the
+    // second drives both games' real give arms and is skipped by `--test all`
+    // below like its rando-tier siblings.
+    {"combo-triforce-hunt",
+     "One shared triforce piece count across both worlds: the frozen record's rule and refusal, the MONOTONIC "
+     "discipline pin, k+m in both games through both real shims, the win decision, and the coordinator's "
+     "triforce-hunt predicate over stub engines (ADR 0010 O10)",
+     Test_ComboTriforceHunt},
+    {"rando-triforce-hunt-win",
+     "Both games' real piece-give arms: unarmed each ends its own hunt as upstream; paired, only the combo requirement "
+     "ends the combo, in whichever game reaches it (ADR 0010 O10)",
+     Test_RandoTriforceHuntWin},
     // The bag composition rule over both real pools (#645 lane K9). Needs a
     // generation; skipped by `--test all` below like its siblings.
     {"combo-logic-bag-composition",
@@ -4868,6 +4911,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "combo-logic-measure") == 0 ||
                 strcmp(gTests[i].name, "combo-logic-multiplicity") == 0 ||
                 strcmp(gTests[i].name, "combo-logic-monotonicity") == 0 ||
+                strcmp(gTests[i].name, "rando-triforce-hunt-win") == 0 ||
                 strcmp(gTests[i].name, "combo-logic-bag-composition") == 0 ||
                 strcmp(gTests[i].name, "oot-plentiful-progressive") == 0 ||
                 // Also skipped for a second reason: it is a diagnostic whose

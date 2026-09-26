@@ -20,6 +20,7 @@
 // src/common — MM_Rando_ComputeProfileStamp (defined MM-side, Foreign.cpp):
 // the creation event freezes the MM half's option profile too (#498/#564).
 #include "combo_mm_options_view.h"
+#include "triforce_hunt.h" // src/common — the frozen O10 triforce record (ADR 0010)
 #include "gen_budget.h" // src/common — the #582 progress surface (OoT's half)
 #endif
 
@@ -137,6 +138,7 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
     const uint32_t rsbsPriorMmProfileDigest = gComboCtx.mmProfileDigest;
     const ComboSettingsRecord rsbsPriorComboSettings = gComboCtx.comboSettings;
     const uint32_t rsbsPriorComboSettingsHash = gComboCtx.comboSettingsHash;
+    const ComboTriforceRecord rsbsPriorComboTriforce = gComboCtx.comboTriforce;
     const uint32_t rsbsPriorGiveCaps = Combo_ForeignGiveCaps((uint8_t)GAME_MM);
     const bool rsbsPriorGiveCapsPublished = Combo_ForeignGiveCapsPublished((uint8_t)GAME_MM);
     auto rsbsRollbackFreeze = [&]() {
@@ -146,6 +148,7 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
         gComboCtx.mmProfileDigest = rsbsPriorMmProfileDigest;
         gComboCtx.comboSettings = rsbsPriorComboSettings;
         gComboCtx.comboSettingsHash = rsbsPriorComboSettingsHash;
+        gComboCtx.comboTriforce = rsbsPriorComboTriforce;
         Combo_ClearForeignGiveCaps();
         if (rsbsPriorGiveCapsPublished) {
             Combo_PublishForeignGiveCaps((uint8_t)GAME_MM, rsbsPriorGiveCaps);
@@ -236,6 +239,39 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
         Combo_FreezeComboSettings(&comboSettings);
         SPDLOG_INFO("Paired identity: combo settings frozen at creation (fingerprint {:08X})",
                     gComboCtx.comboSettingsHash);
+    }
+
+    // ADR 0010 answer O10: under the combo goal triforce-hunt, the ONE piece
+    // count's requirement and the split of pieces between the two pools freeze
+    // HERE, from each half's own settings (the rule is at ComboTriforceRecord,
+    // context.h). Every other goal — the shipped default among them — stores
+    // four zero bytes and this block changes nothing. Reads settings only, so it
+    // consumes no RNG and moves no world. A hunt the rule cannot describe (no
+    // pieces in either pool, a half requiring more than it holds, a combo total
+    // past OoT's 8-bit counter) is refused like a failed fill: rolled back,
+    // nothing generated.
+    {
+        ComboTriforceHalf ootHalf = { 0, 0 };
+        ComboTriforceHalf mmHalf = { 0, 0 };
+        // The halves are only resolved for a hunt: every other world reads
+        // nothing here, not even MM's CVars.
+        if (gComboCtx.comboSettings.goal == (uint8_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT) {
+            if (ctx->GetOption(RSK_TRIFORCE_HUNT).IsNot(RO_TRIFORCE_HUNT_OFF)) {
+                ootHalf.total = (uint16_t)(ctx->GetOption(RSK_TRIFORCE_HUNT_PIECES_TOTAL).Get() + 1);
+                ootHalf.required = (uint16_t)(ctx->GetOption(RSK_TRIFORCE_HUNT_PIECES_REQUIRED).Get() + 1);
+            }
+            MM_Rando_ResolveTriforceHalf(/*fromSave=*/0, &mmHalf.total, &mmHalf.required);
+        }
+        const int triforceStatus = Combo_TriforceFreezeAtCreation(&ootHalf, &mmHalf);
+        if (triforceStatus != RSBS_TRIFORCE_OK) {
+            SPDLOG_ERROR("Paired identity: the combo goal is triforce-hunt but the two halves' piece settings cannot "
+                         "describe one ({}: OoT {} of {}, MM {} of {}); aborting generation (ADR 0010 O10)",
+                         Combo_TriforceStatusName(triforceStatus), ootHalf.required, ootHalf.total, mmHalf.required,
+                         mmHalf.total);
+            rsbsRollbackFreeze();
+            Combo_GenProgress_End(false);
+            return -1;
+        }
     }
 
     // THE GATE'S SECOND ACT (#657). Asking the CVars before Fill() is only half

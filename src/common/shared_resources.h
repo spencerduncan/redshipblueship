@@ -147,17 +147,19 @@ extern "C" {
  * table, which is indexed by KIND (stable) rather than by slot (slots are found
  * by scan and a future compaction could move them).
  */
-#define RSBS_SHARED_RES_KIND_COUNT 19u
+#define RSBS_SHARED_RES_KIND_COUNT 20u
 
 /**
  * Is `kind` ARMED for this world?
  *
- * Seventeen of the eighteen kinds are unconditional: #525 decided that both
+ * Seventeen of the nineteen kinds are unconditional: #525 decided that both
  * games share one wallet, one health bar, one magic meter, one set of ammo and
  * one hookshot, and no save can turn that off. RSBS_SHARED_RES_OCARINA_TIER
  * (#668) is the first that a PLAYER chooses, through the tier-4
  * `gCombo.Rando.SharedOcarina` key frozen into ComboSettingsRecord.comboFlags
- * at file creation.
+ * at file creation. RSBS_SHARED_RES_TRIFORCE_PIECES (ADR 0010 O10) is the
+ * second: armed only while the FROZEN combo goal is triforce-hunt with a valid
+ * frozen triforce record (Combo_TriforceHuntArmed, triforce_hunt.h).
  *
  * THE GATE LIVES HERE, ONCE, AND BOTH ENTRY POINTS CONSULT IT. A gate written
  * into the four per-game call sites instead would be four chances to gate one

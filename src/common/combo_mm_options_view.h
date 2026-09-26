@@ -267,6 +267,21 @@ uint32_t MM_Rando_ComputeProfileStamp(void);
 void MM_Rando_PublishProfileGiveCaps(int fromSave);
 
 /**
+ * MM's HALF of the combo triforce hunt (ADR 0010 answer O10; the rule is at
+ * ComboTriforceRecord, context.h): with RO_SHUFFLE_TRIFORCE_PIECES on,
+ * `*outTotal = RO_TRIFORCE_PIECES_MAX` and `*outRequired =
+ * RO_TRIFORCE_PIECES_REQUIRED`; off, both 0. Values are reported unclamped so
+ * the combo rule can refuse an out-of-range half rather than store a truncated
+ * one. The third MM_Rando_* bridge of the creation freeze, with the SAME two
+ * sources as MM_Rando_PublishProfileGiveCaps: `fromSave == 0` resolves the
+ * CVars through the creation stamp's own ResolveProfileValues (OoT's creation
+ * event, and MM's arrival gate, which compares it with the frozen record's MM
+ * half); nonzero reads the save's frozen RANDO_SAVE_OPTIONS. Either out-pointer
+ * may be NULL. DEFINED MM-SIDE in games/mm/2s2h/Rando/Foreign.cpp.
+ */
+void MM_Rando_ResolveTriforceHalf(int fromSave, uint16_t* outTotal, uint16_t* outRequired);
+
+/**
  * Pairing header for the pane: whether a paired world exists, its identity, and
  * the MM profile digest it was generated under.
  *

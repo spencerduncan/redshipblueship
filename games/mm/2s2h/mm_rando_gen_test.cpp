@@ -2947,6 +2947,15 @@ extern "C" int MM_Rando_HeadlessPairedExhaustion(void) {
     gComboCtx.sharedRandoSeed = kDefaultProfileConvergingSeed;
     gComboCtx.sharedRandoSettingsHash = 0x0E8A0570u;
     gComboCtx.mmProfileDigest = 0;
+    // The O10 triforce record (ADR 0010) a triforce-hunt creation would have
+    // frozen in Playthrough_Init before this seam ran. No production goal can be
+    // a hunt yet, so it is planted: the retraction below must take it with the
+    // rest of the identity (FAIL(20)), or the context is left holding a hunt
+    // record beside an absent goal, which reads as damage.
+    gComboCtx.comboTriforce.totalOoT = 5;
+    gComboCtx.comboTriforce.requiredOoT = 3;
+    gComboCtx.comboTriforce.totalMM = 4;
+    gComboCtx.comboTriforce.requiredMM = 3;
 
     // THE CREATION EVENT, end to end — which since ADR 0010 increment 2 is where
     // a terminal ladder failure lands. It raises the whole refusal surface
@@ -2972,6 +2981,15 @@ extern "C" int MM_Rando_HeadlessPairedExhaustion(void) {
                 gComboCtx.sourceIsRando ? 1 : 0, gComboCtx.sharedRandoSeed, (unsigned)gComboCtx.mmProfileDigest,
                 Combo_ComboSettingsFrozen() ? 1 : 0);
         return 19;
+    }
+    if (gComboCtx.comboTriforce.totalOoT != 0 || gComboCtx.comboTriforce.requiredOoT != 0 ||
+        gComboCtx.comboTriforce.totalMM != 0 || gComboCtx.comboTriforce.requiredMM != 0) {
+        fprintf(stderr,
+                "[MM-EXHAUST] FAIL(20): the failed creation left the frozen TRIFORCE record behind (OoT %u of %u, MM "
+                "%u of %u) beside a retracted combo record - a hunt nobody froze (ADR 0010 O10)\n",
+                (unsigned)gComboCtx.comboTriforce.requiredOoT, (unsigned)gComboCtx.comboTriforce.totalOoT,
+                (unsigned)gComboCtx.comboTriforce.requiredMM, (unsigned)gComboCtx.comboTriforce.totalMM);
+        return 20;
     }
     if (!MM_Rando_PairedGenLastExhausted() || MM_Rando_PairedGenLastAttempts() != MM_Rando_PairedGenMaxAttempts()) {
         fprintf(stderr,

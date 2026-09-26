@@ -903,6 +903,14 @@ int Combo_FreezeLegacyComboSettings(void);
  *  whole justification for storing twelve bytes is that the refusal can name
  *  WHICH RULE diverged — and "comboFlags" is a field name, not a rule. */
 #define RSBS_COMBO_DIVERGE_SHARED_OCARINA 0x0800u
+/** The frozen triforce-hunt record (ADR 0010 answer O10, ComboTriforceRecord)
+ *  does not agree with the combo record beside it or with the half its own game
+ *  re-derives: a hunt goal with no valid record, a record under any other goal,
+ *  or a half that is not what that game's frozen settings produce. DAMAGE, not a
+ *  session change: the record is written once by the creation event from inputs
+ *  the fingerprint and the MM profile digest already pin, so a disagreement here
+ *  is the stored identity contradicting itself. See triforce_hunt.h. */
+#define RSBS_COMBO_DIVERGE_TRIFORCE 0x1000u
 
 /**
  * Which FIELDS differ between a frozen record and a live resolution, as
