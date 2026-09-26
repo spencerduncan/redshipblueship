@@ -633,8 +633,15 @@ extern "C" {
 // and production state comes back byte-identical.
 #include "tests/test_combo_logic_measure.c"
 
+// The single-owner item classification table (ADR 0010 answer O8; #645 lane K5):
+// the owner in shared_items.{h,c} driven over the REAL sources both engine TUs
+// register, against both games' real item tables. Display-free and ROM-free (OoT's
+// item table is brought up by a bridge; MM's is a static map), so it is a `redship`
+// row. FILE SCOPE (compiled as C++).
+#include "tests/test_shared_items_class.c"
 // The multiplicity ruling over both REAL engines (#645, combo_logic.h ABI 3):
-// OoT's progressive top-tier clamp, MM's counter maxima and per-host harvest.
+// OoT's progressive and counter clamps, order independence, MM's counter maxima
+// and per-host harvest.
 // Same tier, same FILE SCOPE / C++ compilation and the same reason as the row
 // above: with no generated world every count it reads would be zero.
 #include "tests/test_combo_logic_multiplicity.c"
@@ -4373,15 +4380,23 @@ const TestDescriptor gTests[] = {
      "Diagnostic, NOT a lock: walks MM's giveable vanilla ids through Rando::GiveItem headlessly so a fault names the "
      "id on stderr. No CTest row; RSBS_COMBO_PROBE_FROM resumes past a known fault (#645)",
      Test_ComboLogicGiveProbe},
+    // The single-owner item classification table (ADR 0010 O8; #645 lane K5).
+    {"shared-item-class",
+     "One fill class (progression/junk/renewable/trap) per item of both games, owned by shared_items.c and sourced "
+     "from each engine TU: full coverage, traps never progression, sources agree, a second registration is refused, "
+     "and crossing is a predicate over the frozen settings (ADR 0010 O8)",
+     Test_SharedItemClass},
     // The multiplicity ruling (2026-09-26, combo_logic.h ABI 3). The stub half is
     // ROM-free; the real-engine half needs a generation and is skipped by
     // `--test all` below like its siblings.
     {"combo-logic-bag-model",
-     "One assume per COPY, order-independent; surplus copies dropped last-first and deterministically, leftover "
-     "hosts handed to each game's own junk pass, exact fit, and surplus never load-bearing (#645)",
+     "One assume per COPY (coordinator shape over a counting stub); surplus copies on the rung's host source and "
+     "dropped last-first and deterministically, leftover hosts handed to each game's own per-game pass, exact fit, "
+     "and surplus never load-bearing (#645)",
      Test_ComboLogicBagModel},
     {"combo-logic-multiplicity",
-     "Over both real engines: OoT progressive copies stop at the top tier (and wrap without the clamp), MM counters "
+     "Over both real engines: OoT progressive copies stop at the top tier and OoT counters at their derived maxima "
+     "(each wraps or overshoots without the clamp), rounds are order-independent (red half observed), MM counters "
      "stop at their derived maxima, and the own-origin harvest is per host (#645)",
      Test_ComboLogicMultiplicity},
     {nullptr, nullptr, nullptr}  // Sentinel

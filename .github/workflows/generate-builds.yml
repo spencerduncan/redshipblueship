@@ -653,13 +653,7 @@ jobs:
     # and Windows CRT behavior had no automated coverage — the operator's
     # local ctest runs were the de facto Windows gate. The tier needs no
     # display, no ROM and no GPU (rows that need extracted archives or
-    # redship.o2r self-skip with exit 77, exactly as on Linux). The `rando`
-    # tier is NOT run here as a tier: its rows bring up a Fast3dWindow (xvfb-run
-    # on Linux), which this comment used to assert a hosted Windows runner has no
-    # equivalent of. That assertion was never measured and is now known to be at
-    # least partly wrong — the three `Golden*` rando rows DO run here, see the
-    # next step. What remains true is that the tier as a whole has not been tried
-    # (#709); the untested part is the claim, not a fact.
+    # redship.o2r self-skip with exit 77, exactly as on Linux).
     #
     # ctest is resolved next to the cmake.exe the configure step already
     # used (same install, same version) rather than trusting a second PATH
@@ -670,32 +664,36 @@ jobs:
         $ctest = Join-Path (Split-Path -Parent (Get-Command cmake).Source) 'ctest.exe'
         & $ctest --version
         & $ctest --test-dir bw --output-on-failure --label-regex '^redship$' --no-tests=error
-    # THE GOLDEN ROWS, ON MSVC (#688 and its review). The step above runs the
-    # `redship` label, which does not include them: all three carry LABEL rando.
-    # Without this step the Linux leg would be the ONLY automated gate that can fail
-    # on a moved world, and an MSVC-only regression in a pinned world would be caught
-    # by nothing — while the goldens' whole cross-platform claim rests on the
-    # committed (Windows-generated) bytes also reproducing on GCC.
+    # THE WHOLE `rando` TIER, ON MSVC (#709; the golden rows of #688 are in it).
+    # This job used to assert that the rando tier could not run here: every rando row
+    # brings up a Fast3dWindow (xvfb-run on Linux), and a hosted windows-latest
+    # runner's OpenGL was assumed to be too old for that. Measured, not assumed:
+    # first the three Golden* rows (3/3 in 5.4 s, run 35648094332, job 106493621321,
+    # which is why this step used to be `--tests-regex '^Golden'`), then the whole
+    # label on PR #723 — 28/28 passed on two attempts of run 36226677282
+    # (jobs 108362021770 and 108370383924), in 46.1 s and 68.0 s of ctest time (the
+    # second runner was slower across the board: the redship tier took 29.0 s and
+    # 44.0 s), against 38.1 s for the same 28 rows on the Linux leg. The step grew
+    # from 7-10 s (Golden only, the three main runs of 2026-09-22) to 46-69 s, so
+    # the tier costs this job about a minute. No row self-skipped and none failed.
     #
-    # Selected by name rather than by label, and that is the point: the `rando` tier
-    # as a whole is still Linux-only (see the note above), but these three rows were
-    # MEASURED to run here. The expectation was that they could not — a hosted
-    # windows-latest runner's OpenGL was assumed to be the GDI generic 1.1
-    # implementation, too old for the Fast3dWindow bring-up every rando row performs.
-    # A probe step said otherwise: 3/3 passed in 5.4s on windows-latest
-    # (run 35648094332, job 106493621321). So the rows are a gate here, not a note in
-    # a doc about why they cannot be. Whether the REST of the rando tier also runs on
-    # this runner is untested and tracked in #709; do not widen this to
-    # `--label-regex rando` without measuring it, which is what #709 is for.
+    # Selected by LABEL now, which also retires a trap: a golden row used to be
+    # enforced on this leg only if its name started with `Golden`. Any row carrying
+    # `LABEL rando` runs on both legs. Not continue-on-error: a tier that cannot fail
+    # is the vacuity #688 was filed about.
     #
     # Consequence worth keeping in view: this leg and the Linux leg check the SAME
-    # committed bytes, so "MSVC and GCC generate the same world for the same seed" is
-    # now a property CI re-verifies on every PR rather than a measurement somebody
-    # took once (docs/determinism-goldens.md, "Platform portability").
-    - name: Run the golden determinism rows (Windows/MSVC) (#688)
+    # committed golden bytes, so "MSVC and GCC generate the same world for the same
+    # seed" is a property CI re-verifies on every PR rather than a measurement
+    # somebody took once (docs/determinism-goldens.md, "Platform portability").
+    - name: Run rando tier (Windows/MSVC) (#709, #688)
+      env:
+        # Same as build-linux's rando step: name each ShipInit func as it runs so a
+        # hang/crash inside one is attributable from the log alone (#361).
+        RSBS_TRACE_SHIP_INIT: "1"
       run: |
         $ctest = Join-Path (Split-Path -Parent (Get-Command cmake).Source) 'ctest.exe'
-        & $ctest --test-dir bw --output-on-failure --tests-regex '^Golden' --no-tests=error
+        & $ctest --test-dir bw --output-on-failure --label-regex '^rando$' --no-tests=error
     # The Windows twin of build-linux's "Print this build's golden determinism
     # digests" step, and it exists for the reason that step states: with only
     # `--output-on-failure`, a PASSING row's digest never reaches the log, so "do

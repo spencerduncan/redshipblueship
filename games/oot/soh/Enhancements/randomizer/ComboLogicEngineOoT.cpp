@@ -1634,4 +1634,217 @@ extern "C" int OoT_ComboLogic_TestSuppressRoundClamp(int suppress) {
     return previous;
 }
 
+// ============================================================================
+// THE FILL-CLASS SOURCE (ADR 0010 answer O8; #645 increment 3, lane K5)
+// ============================================================================
+//
+// OoT's rows for the single-owner classification table in src/common/
+// shared_items.{h,c}. This TU is the SOURCE, never the owner: it answers "which
+// class is this RG_*" once per id when the owner builds its table, and every
+// consumer then reads the owner's stored row. It lives here, beside the engine,
+// because this is already the OoT TU that may name `RG_*` for the coordinator
+// (ADR 0002) and it links WHOLE_ARCHIVE, so the registrar below survives the link
+// exactly as the engine's does.
+//
+// Deliberately NOT inside the engine's vtable or any function K4's multiplicity
+// work edits: the bag will read the owner table, not this function.
+
+#include "shared_items.h" // src/common — the owner this source registers with
+
+namespace {
+
+/** OoT's item table is filled by `Rando::StaticData::InitItemTable` at OTR
+ *  bring-up; before that every row is default-constructed. The same readiness
+ *  test menu.cpp's hint locks use: the RG_NONE sentinel has a name once the
+ *  table exists. */
+bool OoTFillClassTableReady() {
+    return !Rando::StaticData::RetrieveItem(RG_NONE).GetName().GetEnglish().empty();
+}
+
+/** Money: a renewable whatever GetItemCategory() files it under (the huge and
+ *  treasure-game rupees are LESSER/MAJOR, the rest JUNK). */
+bool OoTFillClassIsRupee(RandomizerGet rg) {
+    switch (rg) {
+        case RG_GREEN_RUPEE:
+        case RG_BLUE_RUPEE:
+        case RG_RED_RUPEE:
+        case RG_PURPLE_RUPEE:
+        case RG_HUGE_RUPEE:
+        case RG_TREASURE_GAME_GREEN_RUPEE:
+            return true;
+        default:
+            return false;
+    }
+}
+
+/**
+ * The CONFINEMENT family of an OoT item: the ONE setting that can hold it in one
+ * of OoT's restricted placement passes or a fixed placement, which run before the
+ * general pass the union bag is drawn from (ADR 0010 O4 amendment 2). A property
+ * of the item's family, so it is tagged on every class, not only on progression.
+ *
+ * Split by SETTING, not by ItemType, because the item types straddle settings
+ * (shared_items.h, "ONE SETTING PER CONFINEMENT BIT"):
+ *   - dungeon small keys and key rings: RSK_KEYSANITY (3drando/fill.cpp confines
+ *     exactly `dungeon->GetSmallKey()` / `GetKeyRing()`);
+ *   - Gerudo Fortress keys (ITEMTYPE_FORTRESS_SMALLKEY): RSK_GERUDO_KEYS, its own
+ *     any-dungeon / overworld passes in RandomizeDungeonItems;
+ *   - treasure-game keys (ITEMTYPE_SMALLKEY, but not a dungeon's): NO confinement.
+ *     RSK_SHUFFLE_CHEST_MINIGAME only decides whether they enter the pool
+ *     (item_pool.cpp), the treasure box shop is not in the dungeon list, and no
+ *     restricted pass names them, so when present the general pass places them;
+ *   - dungeon boss keys: RSK_BOSS_KEYSANITY, which fill.cpp applies to every boss
+ *     key EXCEPT Ganon's;
+ *   - Ganon's Castle boss key: RSK_GANONS_BOSS_KEY.
+ * The shop's own stock (`RG_BUY_*`) is placed only into shop slots and no setting
+ * lets it roam; triforce pieces are a per-world goal quantity.
+ */
+uint32_t OoTFillClassArmedBy(RandomizerGet rg, ItemType type) {
+    switch (rg) {
+        case RG_TRIFORCE_PIECE:
+            return RSBS_FILL_ARM_WORLD_EVENT;
+        case RG_TREASURE_GAME_SMALL_KEY:
+        case RG_TREASURE_GAME_KEY_RING:
+            return 0u;
+        case RG_GERUDO_FORTRESS_SMALL_KEY:
+        case RG_GERUDO_FORTRESS_KEY_RING:
+            return RSBS_FILL_ARM_GERUDO_KEYS_ROAM;
+        case RG_GANONS_CASTLE_BOSS_KEY:
+            return RSBS_FILL_ARM_GANON_BOSS_KEY_ROAM;
+        default:
+            break;
+    }
+    switch (type) {
+        case ITEMTYPE_SMALLKEY:
+            return RSBS_FILL_ARM_SMALL_KEYS_ROAM;
+        case ITEMTYPE_FORTRESS_SMALLKEY:
+            // Every fortress key is named above; a new one is confined by the
+            // fortress setting until someone decides otherwise.
+            return RSBS_FILL_ARM_GERUDO_KEYS_ROAM;
+        case ITEMTYPE_BOSSKEY:
+            return RSBS_FILL_ARM_BOSS_KEYS_ROAM;
+        case ITEMTYPE_MAP:
+        case ITEMTYPE_COMPASS:
+            return RSBS_FILL_ARM_MAPS_ROAM;
+        case ITEMTYPE_SONG:
+            return RSBS_FILL_ARM_SONGS_ROAM;
+        case ITEMTYPE_TOKEN:
+            return RSBS_FILL_ARM_TOKENS_ROAM;
+        case ITEMTYPE_DUNGEONREWARD:
+            return RSBS_FILL_ARM_REWARDS_ROAM;
+        case ITEMTYPE_SHOP:
+            return RSBS_FILL_ARM_SHOP_STOCK;
+        default:
+            return 0u;
+    }
+}
+
+} // namespace
+
+/**
+ * Classify one OoT item id (ComboItemClassifyFn). The precedence is the owner's
+ * (shared_items.h): TRAP, then PROGRESSION by OoT's own `IsAdvancement()`, then
+ * RENEWABLE, then JUNK.
+ *
+ * NOT A FILL ITEM (returns 0): ids past RG_MAX, gap rows (the identity test
+ * OoTComboLogicIsRealItem already applies to every engine input), and the
+ * ITEMTYPE_EVENT rows — RG_NONE (the sentinel), RG_TRIFORCE (the goal, placed at
+ * RC_GANON / RC_TRIFORCE_COMPLETED by item_pool.cpp's fixed placement) and
+ * RG_HINT (placed on gossip stones by hints.cpp). Each of those is placed by a
+ * fixed placement and is never drawn from any fill pool, and classing the goal
+ * item as "junk" because it is not advancement would be a wrong answer, not a
+ * conservative one.
+ *
+ * RENEWABLE, precisely: every refill and drop; every shop-stock row except
+ * RG_SOLD_OUT (a shop sells it again); money; and the remaining ITEM rows that
+ * OoT's own category files as JUNK (recovery heart, fish, milk). The two
+ * non-advancement EQUIP rows (Deku and Hylian shields) are renewable too: both
+ * are sold in shops and the Deku shield burns.
+ */
+extern "C" int OoT_ComboLogic_ClassifyItem(uint16_t id, ComboItemClassRow* out) {
+    ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u };
+    if (out != nullptr) {
+        *out = row;
+    }
+    if (!OoTFillClassTableReady()) {
+        return -1;
+    }
+    if (id >= (uint16_t)RG_MAX) {
+        return 0;
+    }
+    const RandomizerGet rg = (RandomizerGet)id;
+    if (!OoTComboLogicIsRealItem(rg)) {
+        return 0;
+    }
+    Rando::Item& item = Rando::StaticData::RetrieveItem(rg);
+    const ItemType type = item.GetItemType();
+    if (type == ITEMTYPE_EVENT) {
+        return 0;
+    }
+
+    if (rg == RG_ICE_TRAP) {
+        row.fillClass = RSBS_FILL_CLASS_TRAP;
+    } else if (item.IsAdvancement()) {
+        row.fillClass = RSBS_FILL_CLASS_PROGRESSION;
+    } else if (type == ITEMTYPE_REFILL || type == ITEMTYPE_DROP || type == ITEMTYPE_EQUIP ||
+               (type == ITEMTYPE_SHOP && rg != RG_SOLD_OUT) || OoTFillClassIsRupee(rg) ||
+               (type == ITEMTYPE_ITEM && item.GetCategory() == ITEM_CATEGORY_JUNK)) {
+        row.fillClass = RSBS_FILL_CLASS_RENEWABLE;
+    } else {
+        row.fillClass = RSBS_FILL_CLASS_JUNK;
+    }
+    row.armedBy = OoTFillClassArmedBy(rg, type);
+    if (out != nullptr) {
+        *out = row;
+    }
+    return 1;
+}
+
+namespace {
+const ComboItemClassSource kOoTItemClassSource = {
+    /* abiVersion */ RSBS_ITEM_CLASS_SOURCE_ABI,
+    /* idSpace    */ (uint16_t)RG_MAX,
+    /* classify   */ OoT_ComboLogic_ClassifyItem,
+};
+
+struct OoTItemClassRegistrar {
+    OoTItemClassRegistrar() {
+        Combo_RegisterItemClassSource(GAME_OOT, &kOoTItemClassSource);
+    }
+};
+const OoTItemClassRegistrar gOoTItemClassRegistrar;
+} // namespace
+
+/**
+ * TEST BRIDGE (redship tier; src/common/tests/test_shared_items_class.c): bring
+ * OoT's item table up in a process that never ran the OTR bring-up — the
+ * display-free, ROM-free tier. Mirrors `Rando_HeadlessSeedTest`'s fallback order
+ * (a Context first, because InitItemTable reads the context's Logic) and
+ * `Rando_InitRegionGraphForTest`'s idempotence: a process whose table already
+ * exists is left exactly as it is.
+ *
+ * @return 0 when the table is ready afterwards, -1 otherwise.
+ */
+extern "C" int OoT_ComboLogic_TestEnsureItemTable(void) {
+    if (!OoTFillClassTableReady()) {
+        if (Rando::Context::GetInstance() == nullptr) {
+            // The Context <-> Logic shared_ptr back-edge keeps the instance alive
+            // past this scope (TrackerAdapterSingleExe.cpp documents the cycle).
+            Rando::Context::CreateInstance();
+        }
+        Rando::StaticData::InitItemTable();
+    }
+    return OoTFillClassTableReady() ? 0 : -1;
+}
+
+/** TEST BRIDGE: OoT's own fill predicate for one id, read directly off the item
+ *  table and NOT through the classifier, so the lock can check the classifier's
+ *  precedence against it. 1 advancement, 0 not, -1 not a real item row. */
+extern "C" int OoT_ComboLogic_TestFillAdvancement(uint16_t id) {
+    if (id >= (uint16_t)RG_MAX || !OoTComboLogicIsRealItem((RandomizerGet)id)) {
+        return -1;
+    }
+    return Rando::StaticData::RetrieveItem((RandomizerGet)id).IsAdvancement() ? 1 : 0;
+}
+
 #endif // RSBS_SINGLE_EXECUTABLE
