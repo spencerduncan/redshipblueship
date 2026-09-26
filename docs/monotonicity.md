@@ -202,6 +202,14 @@ belongs to the world.
 - The OoT red half went red at step 25 and the MM red half at step 10. In both,
   the planted region and one of its checks were lost at the negated item's grant.
 - G4: both goals and OoT's crossing go from 0 to 1 across the union-bag prefixes.
+- A printed diagnostic (not asserted) names every FILLER or TRAP grant that still
+  grew the closure. That would be an item the O8 owner files as filler while a
+  logic term reads it. OoT: none. MM: one. `RI_HEART_PIECE` (class junk; MM's
+  own fill predicate treats `RITYPE_HEALTH` as non-advancement too) added 2
+  checks at the grant that took the save to four hearts. That is consistent with
+  the two `CHECK_MAX_HP(4)` checks in `Regions/East.cpp` (the Ikana Canyon ghost
+  hut heart piece and the Poe Sister drop). Monotonicity holds; the finding
+  concerns classification, and it is tracked in #733.
 - The whole row takes about 30 s. It asserts no timing.
 
 **What it does not claim:**

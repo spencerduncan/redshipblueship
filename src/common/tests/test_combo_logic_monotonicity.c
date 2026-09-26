@@ -586,6 +586,30 @@ TestResult WalkEngine(Side& s, const Bag& bag, int (*forceTricks)(int), int (*ne
             finals[o] = w.final_;
             if (o == 0 && tricks == 0) {
                 forwardOff = w;
+                // DIAGNOSTIC, not asserted: a FILLER or TRAP copy (forward order
+                // puts them after every progression and surplus row) that still
+                // GREW the closure is an item the O8 owner files as filler but a
+                // logic term reads. The fill places filler with no logic at all, so
+                // each one printed here is worth a reading.
+                const int fillerFrom = bag.required + bag.surplus;
+                int grewOnFiller = 0;
+                for (int k = fillerFrom; k + 1 < (int)w.trace.size(); ++k) {
+                    const Closure& before = w.trace[(size_t)k];
+                    const Closure& after = w.trace[(size_t)k + 1];
+                    if (after.checkCount != before.checkCount || after.regionBits != before.regionBits) {
+                        SharedItem si;
+                        memset(&si, 0, sizeof(si));
+                        si.originGame = (uint8_t)s.game;
+                        si.id = fwd[(size_t)k];
+                        printf("[TEST] combo-logic-monotonicity: %s FILLER GREW THE CLOSURE: item %u (class %s) at step "
+                               "%d: +%d checks, +%d region bits\n",
+                               s.name, (unsigned)si.id, Combo_ItemClassName(Combo_ItemClassOf(si)), k,
+                               after.checkCount - before.checkCount, after.regionBits - before.regionBits);
+                        grewOnFiller++;
+                    }
+                }
+                printf("[TEST] combo-logic-monotonicity: %s: %d filler/trap grant(s) grew the closure\n", s.name,
+                       grewOnFiller);
             }
             if (o == 0 && tricks == 1) {
                 // G3: step-wise containment, tricks-off within tricks-on.
