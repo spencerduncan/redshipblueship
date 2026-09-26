@@ -83,12 +83,18 @@ nlohmann::json GenerateFromSaveContext() {
             { "mmProfileDigest", gComboCtx.mmProfileDigest },
         };
 
+        // The PINNED table only (ADR 0010 O7). The give-path accessors also
+        // answer from the crossing store, whose rows are printed in the one
+        // spoiler's combo.crossingStore; this section is the pinned table's
+        // commit, reloaded by pool NAME and capped at the pinned table's size,
+        // so a store row here would be printed twice and, for any item outside
+        // the pools or past the cap, make the spoiler unloadable.
         spoiler["foreign"] = nlohmann::json::object();
         for (auto& [randoCheckId, randoStaticCheck] : Rando::StaticData::Checks) {
-            if (randoStaticCheck.randoCheckId == RC_UNKNOWN || !Rando::Foreign::IsForeignCheck(randoCheckId)) {
+            if (randoStaticCheck.randoCheckId == RC_UNKNOWN || !Rando::Foreign::IsPinnedForeignCheck(randoCheckId)) {
                 continue;
             }
-            const char* foreignName = Rando::Foreign::ForeignNameForCheck(randoCheckId);
+            const char* foreignName = Rando::Foreign::PinnedForeignNameForCheck(randoCheckId);
             spoiler["foreign"][randoStaticCheck.name] = {
                 { "originGame", "OOT" },
                 { "item", foreignName != nullptr ? foreignName : "(unknown foreign item)" },

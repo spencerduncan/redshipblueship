@@ -63,6 +63,9 @@
 // (see context.h's header comment).
 #include "foreign_items.h"
 #include "shared_items.h"
+// ADR 0010 O7: the crossing store the "combo" spoiler section prints and the
+// spoiler-load path rebuilds.
+#include "crossing_store.h"
 // Combo_CVarIsExplicitInt — "did the player choose this, or is it just the
 // default", which is what the paired logic pin now turns on.
 #include "combo_mm_options_view.h"
@@ -811,6 +814,22 @@ const char* ForeignNameForCheck(RandoCheckId randoCheckId) {
     return Combo_GetForeignItemName(*item);
 }
 
+static const SharedItem* PinnedPlacementFor(RandoCheckId randoCheckId) {
+    if (randoCheckId == RC_UNKNOWN) {
+        return nullptr;
+    }
+    return Combo_GetPinnedForeignPlacementForCheck((uint16_t)randoCheckId);
+}
+
+bool IsPinnedForeignCheck(RandoCheckId randoCheckId) {
+    return PinnedPlacementFor(randoCheckId) != nullptr;
+}
+
+const char* PinnedForeignNameForCheck(RandoCheckId randoCheckId) {
+    const SharedItem* item = PinnedPlacementFor(randoCheckId);
+    return item != nullptr ? Combo_GetForeignItemName(*item) : nullptr;
+}
+
 const char* ForeignArticleForCheck(RandoCheckId randoCheckId) {
     const SharedItem* item = PlacementFor(randoCheckId);
     if (item == nullptr) {
@@ -993,6 +1012,322 @@ extern "C" void MM_Rando_LastPairedSpoilerStats(int* outForward, int* outReverse
     }
 }
 
+// ============================================================================
+// THE CROSSING STORE IN THE ONE SPOILER (ADR 0010 O7; #660's one-artifact rule)
+//
+// combo.crossingStore prints the crossing store (src/common/crossing_store.h),
+// the persistent record of every cross-game placement the single-bag
+// coordinator made, per host, in both directions, in the store's own order. It
+// sits beside the older combo.crossings lists (the pinned pools' overlay
+// passes) rather than replacing them, because those lists keep describing the
+// pinned tables until lane K11 retires them.
+//
+// WHAT THE LOADER READS BACK IS THE NUMBERS. Every row carries its host check
+// id, its origin tag and its item id as integers, plus display names beside
+// them. The names are for people: they come from the describers (and the
+// pinned pools), and a name is not a key, the #356 lesson the (originGame,
+// name) inverse exists for. The integers are ADR 0002-clean on their own,
+// because the id never travels without its origin tag and the host never
+// travels without its list (the list IS the host game). An ABSENT or
+// MISMATCHED origin refuses the row, and the row refuses the section: ADR
+// 0009's consequence for the spoiler-load path, "refuse rather than guess".
+//
+// The section also carries the store's digest, and the loader refuses a
+// section whose rows do not reproduce it, so a hand-edited or truncated section
+// cannot load as a different world that happens to parse.
+// ============================================================================
+namespace {
+
+const char* CrossingGameKey(uint8_t game) {
+    return game == (uint8_t)GAME_OOT ? "oot" : (game == (uint8_t)GAME_MM ? "mm" : "none");
+}
+
+/** combo.identity: the full identity tuple (#564 V23), one builder for both
+ *  writers of the "combo" object, so the crossing loader's gate always has the
+ *  terms it compares. */
+nlohmann::json ComboIdentityJson() {
+    return {
+        { "masterSeed", gComboCtx.sharedRandoSeed },
+        { "ootSettingsHash", gComboCtx.sharedRandoSettingsHash },
+        { "mmProfileDigest", gComboCtx.mmProfileDigest },
+        { "comboSettingsHash", gComboCtx.comboSettingsHash },
+        { "mmFinalSeed", gSaveContext.save.shipSaveInfo.rando.finalSeed },
+        { "mmPairedAttempt", gComboCtx.mmPairedAttempt },
+    };
+}
+
+/**
+ * The #610 rule for combo.crossingStore: the section is loaded only into the
+ * world it names. Refused (true, with the term) when there is no live pairing,
+ * when combo.identity is absent or omits a term, or when masterSeed,
+ * ootSettingsHash or comboSettingsHash differ from the resident stamp.
+ * mmProfileDigest follows Apply.cpp's ForeignIdentityDiverges exactly: ZERO on
+ * either side is a legacy pre-freeze pair and is not compared.
+ */
+bool CrossingIdentityDiverges(const nlohmann::json& doc, std::string& why) {
+    if (!Combo_ForeignPairingActive()) {
+        why = "no live cross-game pairing: there is no world these crossings could belong to";
+        return true;
+    }
+    if (!doc["combo"].contains("identity") || !doc["combo"]["identity"].is_object()) {
+        why = "combo.identity is absent, so the section cannot be shown to name this world";
+        return true;
+    }
+    const nlohmann::json& id = doc["combo"]["identity"];
+    const auto term = [&](const char* name, uint32_t& v) {
+        if (!id.contains(name) || !id[name].is_number_unsigned() || id[name].get<uint64_t>() > 0xFFFFFFFFull) {
+            return false;
+        }
+        v = (uint32_t)id[name].get<uint64_t>();
+        return true;
+    };
+    const struct {
+        const char* name;
+        uint32_t resident;
+    } kExact[3] = {
+        { "masterSeed", gComboCtx.sharedRandoSeed },
+        { "ootSettingsHash", gComboCtx.sharedRandoSettingsHash },
+        { "comboSettingsHash", gComboCtx.comboSettingsHash },
+    };
+    for (const auto& t : kExact) {
+        uint32_t v = 0;
+        if (!term(t.name, v)) {
+            why = std::string("combo.identity omits '") + t.name + "'";
+            return true;
+        }
+        if (v != t.resident) {
+            char buf[160];
+            snprintf(buf, sizeof(buf), "combo.identity.%s is %08X but this world's is %08X", t.name, (unsigned)v,
+                     (unsigned)t.resident);
+            why = buf;
+            return true;
+        }
+    }
+    uint32_t profile = 0;
+    if (term("mmProfileDigest", profile) && profile != 0 && gComboCtx.mmProfileDigest != 0 &&
+        profile != gComboCtx.mmProfileDigest) {
+        char buf[160];
+        snprintf(buf, sizeof(buf), "combo.identity.mmProfileDigest is %08X but this world's is %08X", (unsigned)profile,
+                 (unsigned)gComboCtx.mmProfileDigest);
+        why = buf;
+        return true;
+    }
+    return false;
+}
+
+nlohmann::json CrossingStoreSpoilerSection() {
+    char digest[16];
+    snprintf(digest, sizeof(digest), "%08X", (unsigned)Combo_Crossings_Digest());
+    nlohmann::json section = {
+        { "formatVersion", RSBS_CROSSING_BLOCK_FORMAT },
+        { "digest", digest },
+    };
+    // List key -> host game. "ootItemsInMM" is the forward direction's name in
+    // combo.crossings, kept so a reader joins the two sections on one word.
+    const struct {
+        const char* key;
+        uint8_t host;
+    } kLists[2] = { { "ootItemsInMM", (uint8_t)GAME_MM }, { "mmItemsInOoT", (uint8_t)GAME_OOT } };
+    for (const auto& list : kLists) {
+        nlohmann::json rows = nlohmann::json::array();
+        const int count = Combo_Crossings_Count((GameId)list.host);
+        for (int i = 0; i < count; ++i) {
+            ComboCrossing c;
+            if (!Combo_Crossings_At((GameId)list.host, i, &c)) {
+                continue;
+            }
+            const char* hostName = Combo_DescribeCheckName(list.host, c.hostCheck);
+            const char* itemName = Combo_DescribeItemName(c.item);
+            rows.push_back({
+                { "host", CrossingGameKey(list.host) },
+                { "hostCheck", c.hostCheck },
+                { "hostCheckName", hostName != nullptr ? nlohmann::json(hostName) : nlohmann::json(nullptr) },
+                { "origin", CrossingGameKey(c.item.originGame) },
+                { "itemId", c.item.id },
+                { "itemName", itemName != nullptr ? nlohmann::json(itemName) : nlohmann::json(nullptr) },
+                { "itemClass", c.itemClass },
+                { "flags", c.item.flags },
+            });
+        }
+        section[list.key] = rows;
+    }
+    return section;
+}
+
+/** One list of the section back into rows; false (with a reason) on anything
+ *  that is not exactly what CrossingStoreSpoilerSection writes. */
+bool CrossingRowsFromSection(const nlohmann::json& section, const char* key, uint8_t host,
+                             std::vector<ComboCrossing>& out, std::string& why) {
+    const uint8_t origin = host == (uint8_t)GAME_OOT ? (uint8_t)GAME_MM : (uint8_t)GAME_OOT;
+    if (!section.contains(key) || !section[key].is_array()) {
+        why = std::string("missing list '") + key + "'";
+        return false;
+    }
+    for (const auto& row : section[key]) {
+        const auto uintField = [&](const char* name, uint32_t max, uint32_t& v) {
+            if (!row.is_object() || !row.contains(name) || !row[name].is_number_unsigned()) {
+                return false;
+            }
+            const uint64_t raw = row[name].get<uint64_t>();
+            if (raw > max) {
+                return false;
+            }
+            v = (uint32_t)raw;
+            return true;
+        };
+        uint32_t hostCheck = 0;
+        uint32_t itemId = 0;
+        uint32_t itemClass = 0;
+        uint32_t flags = 0;
+        if (!uintField("hostCheck", 0xFFFFu, hostCheck) || !uintField("itemId", 0xFFFFu, itemId) ||
+            !uintField("itemClass", 0xFFFFu, itemClass) || !uintField("flags", 0xFFu, flags)) {
+            why = std::string("a row of '") + key + "' has a missing or out-of-range number";
+            return false;
+        }
+        if (!row.contains("origin") || !row["origin"].is_string() ||
+            row["origin"].get<std::string>() != CrossingGameKey(origin) || !row.contains("host") ||
+            !row["host"].is_string() || row["host"].get<std::string>() != CrossingGameKey(host)) {
+            why = std::string("a row of '") + key + "' has an absent or mismatched origin/host tag";
+            return false;
+        }
+        ComboCrossing c;
+        c.hostCheck = (uint16_t)hostCheck;
+        c.itemClass = (uint16_t)itemClass;
+        c.item.originGame = origin;
+        c.item.flags = (uint8_t)flags;
+        c.item.id = (uint16_t)itemId;
+        out.push_back(c);
+    }
+    return true;
+}
+
+} // namespace
+
+/**
+ * Write combo.crossingStore (and combo.identity, which its loader gates on)
+ * from the resident store and stamp into the JSON document at @p path, creating
+ * the document when the file does not exist. The production writer
+ * (MM_Rando_AugmentSpoilerWithPairedHalf) builds the same two keys inline;
+ * this entry exists for the ROM-free round-trip lock and for a caller that has a
+ * spoiler document but no paired MM half to augment.
+ * @return 0 on success, negative on an unreadable or unwritable file.
+ */
+extern "C" int MM_Rando_WriteCrossingSpoilerSection(const char* path) {
+    if (path == nullptr || path[0] == '\0') {
+        return -1;
+    }
+    try {
+        nlohmann::json doc = nlohmann::json::object();
+        {
+            std::ifstream in(path);
+            if (in.is_open()) {
+                in >> doc;
+            }
+        }
+        doc["combo"]["identity"] = ComboIdentityJson();
+        doc["combo"]["crossingStore"] = CrossingStoreSpoilerSection();
+        std::ofstream out(path);
+        if (!out.is_open()) {
+            return -2;
+        }
+        out << doc.dump(4) << std::endl;
+        return out ? 0 : -3;
+    } catch (const std::exception& e) {
+        fprintf(stderr, "[MM] spoiler: writing combo.crossingStore FAILED (%s)\n", e.what());
+        return -4;
+    }
+}
+
+/**
+ * THE SPOILER-LOAD PATH for crossings (ADR 0010 O7): rebuild the crossing store
+ * from combo.crossingStore of the document at @p path.
+ *
+ * The #610 rule first: combo.identity must name the live pairing
+ * (CrossingIdentityDiverges), or nothing is read further. Then all or nothing,
+ * and frozen: the section's digest is recomputed over the PARSED rows
+ * (Combo_Crossings_DigestRows, no store write) and a mismatch is refused before
+ * anything is committed; only then do the rows go through
+ * Combo_Crossings_Replace, so an UNSET store takes them, an identical frozen
+ * set is unchanged, and a different frozen set (including a world frozen with
+ * NO crossings) is refused and left as it was. No refusal writes to the store
+ * (Combo_Crossings_WriteGeneration does not move).
+ *
+ * Rebuilds the STORE only. Rebuilding the coordinator's tables from it is
+ * Combo_Crossings_HydrateCoordinator, a separate step so a caller that only
+ * needs the give path does not touch the coordinator.
+ *
+ * @return the number of crossings loaded (>= 0), or negative: -1 no path, -2
+ *         unreadable document, -3 no combo.crossingStore section, -4 unknown
+ *         formatVersion, -5 a malformed or untagged row, -6 the store refused the
+ *         rows (see stderr: capacity, duplicate host, own-origin row, or a
+ *         different frozen set), -7 the digest does not match the rows, -8 the
+ *         section does not name the live pairing (the #610 identity gate).
+ */
+extern "C" int MM_Rando_LoadCrossingsFromSpoiler(const char* path) {
+    if (path == nullptr || path[0] == '\0') {
+        return -1;
+    }
+    nlohmann::json doc;
+    try {
+        std::ifstream in(path);
+        if (!in.is_open()) {
+            return -2;
+        }
+        in >> doc;
+    } catch (const std::exception& e) {
+        fprintf(stderr, "[MM] spoiler: crossing load could not parse '%s' (%s)\n", path, e.what());
+        return -2;
+    }
+    if (!doc.is_object() || !doc.contains("combo") || !doc["combo"].is_object() ||
+        !doc["combo"].contains("crossingStore") || !doc["combo"]["crossingStore"].is_object()) {
+        fprintf(stderr, "[MM] spoiler: '%s' carries no combo.crossingStore section\n", path);
+        return -3;
+    }
+    {
+        std::string why;
+        if (CrossingIdentityDiverges(doc, why)) {
+            fprintf(stderr, "[MM] spoiler: combo.crossingStore REFUSED: %s; the store is unchanged (#610)\n",
+                    why.c_str());
+            return -8;
+        }
+    }
+    const nlohmann::json& section = doc["combo"]["crossingStore"];
+    if (!section.contains("formatVersion") || !section["formatVersion"].is_number_unsigned() ||
+        section["formatVersion"].get<uint32_t>() != RSBS_CROSSING_BLOCK_FORMAT) {
+        fprintf(stderr, "[MM] spoiler: combo.crossingStore has an unknown formatVersion; refused\n");
+        return -4;
+    }
+
+    std::vector<ComboCrossing> ootHosted;
+    std::vector<ComboCrossing> mmHosted;
+    std::string why;
+    if (!CrossingRowsFromSection(section, "mmItemsInOoT", (uint8_t)GAME_OOT, ootHosted, why) ||
+        !CrossingRowsFromSection(section, "ootItemsInMM", (uint8_t)GAME_MM, mmHosted, why)) {
+        fprintf(stderr, "[MM] spoiler: combo.crossingStore refused: %s\n", why.c_str());
+        return -5;
+    }
+
+    // The digest of the PARSED rows, before anything is written: a refusal
+    // here must not publish the rows and then retract them.
+    char digest[16];
+    snprintf(digest, sizeof(digest), "%08X",
+             (unsigned)Combo_Crossings_DigestRows(ootHosted.data(), (int)ootHosted.size(), mmHosted.data(),
+                                                  (int)mmHosted.size()));
+    if (!section.contains("digest") || !section["digest"].is_string() ||
+        section["digest"].get<std::string>() != digest) {
+        fprintf(stderr, "[MM] spoiler: combo.crossingStore rows do not reproduce its digest (%s); refused\n", digest);
+        return -7;
+    }
+    const int rc =
+        Combo_Crossings_Replace(ootHosted.data(), (int)ootHosted.size(), mmHosted.data(), (int)mmHosted.size());
+    if (rc < 0) {
+        return -6;
+    }
+    fprintf(stderr, "[MM] spoiler: crossing store rebuilt from '%s' (%d OoT-hosted, %d MM-hosted, digest %s)\n", path,
+            Combo_Crossings_Count(GAME_OOT), Combo_Crossings_Count(GAME_MM), digest);
+    return rc;
+}
+
 extern "C" int MM_Rando_AugmentSpoilerWithPairedHalf(const char* ootSpoilerPath) {
     sLastSpoilerForward = 0;
     sLastSpoilerReverse = 0;
@@ -1018,14 +1353,7 @@ extern "C" int MM_Rando_AugmentSpoilerWithPairedHalf(const char* ootSpoilerPath)
         // The full identity tuple, embedded (#564 V23): a reader can tell which
         // pair this is without trusting the filename, and a future load path can
         // refuse a document whose identity is not the world being played.
-        combo["identity"] = {
-            { "masterSeed", gComboCtx.sharedRandoSeed },
-            { "ootSettingsHash", gComboCtx.sharedRandoSettingsHash },
-            { "mmProfileDigest", gComboCtx.mmProfileDigest },
-            { "comboSettingsHash", gComboCtx.comboSettingsHash },
-            { "mmFinalSeed", gSaveContext.save.shipSaveInfo.rando.finalSeed },
-            { "mmPairedAttempt", gComboCtx.mmPairedAttempt },
-        };
+        combo["identity"] = ComboIdentityJson();
         combo["comboSettings"] = {
             { "formatVersion", gComboCtx.comboSettings.formatVersion },
             { "direction", gComboCtx.comboSettings.direction },
@@ -1048,7 +1376,11 @@ extern "C" int MM_Rando_AugmentSpoilerWithPairedHalf(const char* ootSpoilerPath)
         nlohmann::json forward = nlohmann::json::array();
         nlohmann::json reverse = nlohmann::json::array();
         for (int i = 1; i < RC_MAX; i++) {
-            const SharedItem* hosted = Combo_GetForeignPlacementForCheck((uint16_t)i);
+            // The PINNED table only. Combo_GetForeignPlacementForCheck now falls
+            // back to the crossing store (ADR 0010 O7), whose rows have their
+            // own list below in combo.crossingStore; reading through it here
+            // would print every coordinator crossing twice, once unnamed.
+            const SharedItem* hosted = Combo_GetPinnedForeignPlacementForCheck((uint16_t)i);
             if (hosted == nullptr) {
                 continue;
             }
@@ -1071,6 +1403,10 @@ extern "C" int MM_Rando_AugmentSpoilerWithPairedHalf(const char* ootSpoilerPath)
             reverse.push_back({ { "ootCheckId", row->mmCheckId }, { "mmItem", name != nullptr ? name : "?" } });
         }
         combo["crossings"] = { { "ootItemsInMM", forward }, { "mmItemsInOoT", reverse } };
+
+        // The crossing store, per host, both directions (ADR 0010 O7): the
+        // single bag's placements, from the same storage the give path reads.
+        combo["crossingStore"] = CrossingStoreSpoilerSection();
 
         // The shortfall, durably (#583): the toast is seen once, this is kept.
         const Rando::Foreign::PlacementStats& stats = Rando::Foreign::LastPlacementStats();

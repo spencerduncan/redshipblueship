@@ -76,6 +76,9 @@ set(REDSHIP_COMMON_SOURCES
     # no shipping TU registers an engine, so the coordinator is reachable only
     # from its own locks.
     ${CMAKE_SOURCE_DIR}/src/common/combo_logic.c
+    # ADR 0010 O7: the cross-game placement store (which hosts of each game hold
+    # an item of the other) and its .redsave v3 Tier-4 codec. Game-header-free.
+    ${CMAKE_SOURCE_DIR}/src/common/crossing_store.c
     ${CMAKE_SOURCE_DIR}/src/common/entrance.cpp
     # Per-game registry of the user mod archives each port mounted (#593), so
     # the base-archive re-add on every cross-game switch can put them back on
@@ -156,6 +159,7 @@ set(REDSHIP_COMMON_HEADERS
     # Header for combo_logic.c above — it also carries the ENGINE CONTRACT the
     # two follow-on lanes implement (#645)
     ${CMAKE_SOURCE_DIR}/src/common/combo_logic.h
+    ${CMAKE_SOURCE_DIR}/src/common/crossing_store.h
     ${CMAKE_SOURCE_DIR}/src/common/entrance.h
     # Header for mod_archives.cpp above (#593)
     ${CMAKE_SOURCE_DIR}/src/common/mod_archives.h
@@ -1866,6 +1870,14 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # ADR 0010 O7 (#645): the cross-game placement store. Where the single bag's
+    # crossings persist (the .redsave v3 Tier-4 block), how the give path reads
+    # them, how the one spoiler prints and reloads them, and how the coordinator's
+    # tables are rebuilt from them. ROM-free and display-free: the default tier.
+    redship_add_test(NAME CrossingStoreRoundtrip COMMAND redship --test crossing-store-roundtrip)
+    redship_add_test(NAME CrossingStoreCapacity COMMAND redship --test crossing-store-capacity)
+    redship_add_test(NAME CrossingStoreRedsave COMMAND redship --test crossing-store-redsave)
+    redship_add_test(NAME CrossingStoreSpoiler COMMAND redship --test crossing-store-spoiler)
 
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)

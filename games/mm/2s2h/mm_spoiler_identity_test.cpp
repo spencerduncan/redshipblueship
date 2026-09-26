@@ -98,6 +98,7 @@
 // src/common — outside any extern "C" block; these headers manage their own
 // linkage (matching Foreign.cpp / mm_rando_options_test.cpp).
 #include "foreign_items.h"
+#include "crossing_store.h" // ADR 0010 O7: the store rows the "foreign" section must not list
 #include "shared_items.h"
 #include "save.h"                // the #533 REFUSED surface this gate reports through
 #include "notification_bridge.h" // the player-visible half of that surface
@@ -269,6 +270,51 @@ extern "C" int MM_SpoilerIdentity_RunHeadless(void) {
     nlohmann::json staged = Rando::Spoiler::GenerateFromSaveContext();
     if (!staged.contains("foreign") || !staged["foreign"].is_object() || staged["foreign"].size() != 1) {
         return Fail(5, "the real writer did not emit a one-entry 'foreign' section for the fixture world");
+    }
+
+    // ---- ADR 0010 O7 (PR #736 review): the "foreign" section is PINNED-only --
+    // The give-path accessor falls back to the crossing store, and this
+    // section is the pinned table's commit (reloaded below by pool NAME, capped
+    // at RSBS_FOREIGN_PLACEMENT_CAP). A store row printed here is printed twice
+    // in the one spoiler and, for a non-pool item or past the cap, makes it
+    // unloadable. Put an MM-hosted crossing in the store on a second check,
+    // prove the give path DOES see it (so the writer could have read it), and
+    // assert the real writer's section is byte-for-byte the pinned-only one.
+    {
+        RandoCheckId storeHost = RC_UNKNOWN;
+        for (auto& [randoCheckId, randoStaticCheck] : Rando::StaticData::Checks) {
+            if (randoStaticCheck.randoCheckId != RC_UNKNOWN && randoCheckId != host) {
+                storeHost = randoCheckId;
+                break;
+            }
+        }
+        if (storeHost == RC_UNKNOWN) {
+            return Fail(90, "no second check exists to host the crossing-store fixture row");
+        }
+        ComboCrossing row;
+        row.hostCheck = (uint16_t)storeHost;
+        row.itemClass = 0x0001;
+        row.item = pool[poolCount > 1 ? 1 : 0].item; // a POOL item: its name resolves, so a leak would print it
+        Combo_Crossings_Clear();
+        if (Combo_Crossings_Replace(nullptr, 0, &row, 1) != 1) {
+            Combo_Crossings_Clear();
+            return Fail(91, "could not seed the crossing-store fixture row");
+        }
+        const bool giveSeesIt = Rando::Foreign::IsForeignCheck(storeHost);
+        nlohmann::json withStore = Rando::Spoiler::GenerateFromSaveContext();
+        Combo_Crossings_Clear();
+        if (!giveSeesIt) {
+            return Fail(92, "the give-path accessor does not see the crossing-store row, so this leg proves nothing");
+        }
+        const char* storeName = Rando::StaticData::Checks.at(storeHost).name;
+        if (!withStore.contains("foreign") || withStore["foreign"].contains(storeName) ||
+            withStore["foreign"] != staged["foreign"]) {
+            return Fail(93,
+                        "the spoiler's pinned-table 'foreign' section lists crossing-store host %s (%d entries, "
+                        "expected the 1 pinned row): the one spoiler prints the store's rows twice and its loader "
+                        "reads them into the pinned table",
+                        storeName, withStore.contains("foreign") ? (int)withStore["foreign"].size() : -1);
+        }
     }
 
     // Stage it exactly as HandleFileDropped does: the file lands in the spoiler

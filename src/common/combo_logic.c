@@ -268,6 +268,48 @@ bool Combo_Logic_Place(GameId hostGame, uint16_t hostCheck, SharedItem item, uin
     return true;
 }
 
+/** One side's rows for Combo_Logic_HydrateTables, validated against a scratch
+ *  occupancy map so a refusal leaves the live tables untouched. */
+static bool ComboLogicHydrateSideValid(uint8_t hostGame, const ComboLogicPlacement* rows, int count) {
+    static uint8_t seen[COMBO_LOGIC_OCCUPANCY_BYTES];
+    if (count < 0 || count > RSBS_COMBO_LOGIC_PLACEMENT_CAP || (count > 0 && rows == NULL)) {
+        return false;
+    }
+    memset(seen, 0, sizeof(seen));
+    for (int i = 0; i < count; ++i) {
+        if (!ComboLogicIsGame(rows[i].item.originGame) || ComboLogicBitGet(seen, (int)rows[i].hostCheck)) {
+            fprintf(stderr, "[ComboLogic] hydrate refused: %s row %d (check %u) is untagged or a repeated host\n",
+                    Game_ToString((GameId)hostGame), i, (unsigned)rows[i].hostCheck);
+            return false;
+        }
+        ComboLogicBitSet(seen, (int)rows[i].hostCheck);
+    }
+    return true;
+}
+
+bool Combo_Logic_HydrateTables(const ComboLogicPlacement* ootHosted, int ootCount, const ComboLogicPlacement* mmHosted,
+                               int mmCount) {
+    if (!ComboLogicHydrateSideValid((uint8_t)GAME_OOT, ootHosted, ootCount) ||
+        !ComboLogicHydrateSideValid((uint8_t)GAME_MM, mmHosted, mmCount)) {
+        return false;
+    }
+    // The table half of Combo_Logic_ResetPlacements, deliberately WITHOUT its
+    // engine half: the engines never saw these rows, so there is nothing for
+    // them to forget, and a clearPlacements here would roll back whatever the
+    // engines hold from an unrelated run.
+    memset(sPlacementCount, 0, sizeof(sPlacementCount));
+    memset(sOccupied, 0, sizeof(sOccupied));
+    memset(sExchanged, 0, sizeof(sExchanged));
+    sDroppedCount = 0;
+    for (int i = 0; i < ootCount; ++i) {
+        ComboLogicAddPlacement((uint8_t)GAME_OOT, ootHosted[i].hostCheck, ootHosted[i].item, ootHosted[i].itemClass);
+    }
+    for (int i = 0; i < mmCount; ++i) {
+        ComboLogicAddPlacement((uint8_t)GAME_MM, mmHosted[i].hostCheck, mmHosted[i].item, mmHosted[i].itemClass);
+    }
+    return true;
+}
+
 static void ComboLogicDigestByte(uint32_t* h, uint8_t b) {
     *h ^= (uint32_t)b;
     *h *= 16777619u;

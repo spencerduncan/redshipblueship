@@ -1507,6 +1507,59 @@ workstation at 100-105% host scale, the shipped profile, tricks off.
 shipped profile has neither, so every real-engine surplus and drop figure is
 0), tricks-on profiles, other hosts, and play.
 
+### 2026-09-27 -- O7 answered: the crossings persist in a new .redsave block, not in `reserved[]` (#645)
+
+O7 accepted "the increment-3 epic sizes the carve against `reserved[]` under the
+append-only second-block rule and the 64-byte floor". Sizing it showed the
+carve cannot hold what increment 3 produces, so the carriers O7 names (an
+origin-tagged `SharedItem`, a host check id, and game-neutral bounds) persist
+somewhere else, and this entry records where and why.
+
+- **Measured, not quoted.** Compiling `context.h` at `4a3bf058`:
+  `sizeof(ComboContext)` = 1004, `reserved[108]` at offset 896,
+  `RSBS_COMBO_CONTEXT_RECORD_SIZE` = 1024 (20 bytes of slack after the struct).
+  The 124 and 132 figures earlier in this ADR are historical; 108 is live.
+- **The arithmetic.** 108 - 64 = 44 spendable bytes (64 with the slack
+  appended). One crossing record is 8 bytes (host check u16, item class u16,
+  `SharedItem` 4), so Tier-1 could hold at most eight crossings across both
+  directions. Under the single bag the crossing count is a fill outcome, not a
+  pool size, and the union bag measured in wave 5 is 546 OoT rows and 2282 MM
+  rows, so the count is bounded by the coordinator's per-host cap, not by eight.
+- **The decision: layout (a), a new append-only block.** `.redsave` format
+  version 3 appends a self-sized Tier-4 after Tier-3: a 16-byte header
+  (magic `RSXP`, block format 1, record size 8, the two per-host counts, a
+  reserved word) and 8 bytes per crossing, OoT-hosted rows first, each list in
+  the coordinator's order. An empty world costs 16 bytes; the acceptance bound
+  is `RSBS_CROSSING_STORE_CAP` per host game, tied to the coordinator's
+  per-host placement cap. The block is inside the payload CRC, staged by the
+  #569 commit choke point with Tier-1 and both shadows, and zero bytes of
+  `reserved[]` are spent: the next carver still starts from 108.
+- **Rejected: (b)** a foreign sentinel in each game's own check record
+  pointing into a compact list. The list still needs a home (it is (a) minus
+  the host id), the sentinel writes into both ports' vendored save layouts
+  (against the composition ruling), OoT's durable copy is its own `.sav`,
+  a second artifact that can skew against the `.redsave` (#531), and the
+  degrade invariant (an absent crossing record leaves the host yielding the
+  junk it really holds) is lost. **Rejected: (c)** the bounds as a `reserved[]`
+  carve with the records elsewhere. The records still need (a), and a count in
+  Tier-1 is a second source of truth that a zero-extended record or a torn
+  write can contradict; the CRC already covers every byte of (a).
+- **Format consequence.** `RSBS_SAVE_VERSION` 2 -> 3
+  (`RSBS_SAVE_VERSION_CROSSINGS`). v1 and v2 files still load, as "no
+  crossings", which is true of every world a pre-v3 build could author; a v3
+  file is refused by a pre-v3 build. No save is invalidated. A malformed or
+  over-cap block refuses the load as `RSBS_REFUSE_CROSSINGS` (quarantined),
+  never truncated.
+- **Semantics.** The crossing set is world identity frozen at creation: the
+  store follows the seed-stamp policy (KEEP on the creation path, DROP on
+  every other); the spoiler-load writer is frozen (an empty store takes the
+  rows, an identical set is a no-op, a different set is refused); the creation
+  writer (lane K11's call, not made in production yet) leaves the store empty
+  when it refuses. The one spoiler's `"combo"` section gains `crossingStore`,
+  both directions per host with the store digest, and a loader that rebuilds
+  the store from it. Rebuilding the coordinator's tables from the store records
+  the rows without calling either engine.
+
 ### 2026-09-27 -- The OoT tier clamp is no longer round-scoped (#726)
 
 The 2026-09-26 multiplicity amendment says the OoT clamp is round-scoped and
