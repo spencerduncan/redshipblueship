@@ -982,8 +982,9 @@ static bool MMIsModArchiveExtension(const std::filesystem::path& p) {
  *
  * @param modsRoot the shared mods directory (LocateFileAcrossAppDirs("mods")).
  *                 Only the `mm` subtree of it is MM's; see the block comment.
- * @return how many archives mounted successfully (0 when the folder is absent or
- *         holds no MM mod, which is the normal case and not an error).
+ * @return how many archives mounted successfully, plus the loose asset folders
+ *         (#705) mounted after them (0 when the folder is absent or holds no MM
+ *         mod, which is the normal case and not an error).
  *
  * Idempotent in the sense that matters: AddArchive on an already-mounted path
  * re-adds it (harmless, it only re-asserts the same ownership) while
@@ -1057,6 +1058,19 @@ static int MountMMModArchives(const std::string& modsRoot) {
     if (mounted > 0) {
         fprintf(stderr, "[MM] Mounted %d mod archive(s) from %s/%s\n", mounted, modsRoot.c_str(),
                 Combo_ModsSubdirForGame(GAME_MM));
+    }
+
+    // #705: MM's loose (unpacked) asset folder, `mods/mm/loose`, AFTER the packed
+    // mods — the same shared helper, at the same point in the mount order, as OoT's
+    // `mods/loose` (MountOoTLooseMods, games/oot/soh/Enhancements/mod_menu.cpp), so
+    // the two halves of one game resolve base -> packed -> loose alike. The helper
+    // registers each folder with Combo_RegisterModArchive(GAME_MM, ...); it is also
+    // recorded here as an MM archive, for the same two reasons as a packed mod (the
+    // #344 scene/cutscene dispatcher and the #618 "mm" extension scope key on
+    // RecordMMArchivePath, by the archive's GetPath(), which is this exact string).
+    for (const std::string& looseDir : Rsbs::MountLooseModDirs(GAME_MM, modsRoot)) {
+        RecordMMArchivePath(looseDir);
+        mounted++;
     }
     return mounted;
 }

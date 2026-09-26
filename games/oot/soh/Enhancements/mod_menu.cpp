@@ -303,6 +303,56 @@ static void MountAndRegisterOoTMod(const std::string& modArchivePath) {
 #endif
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// #705: OoT's loose (unpacked) asset folder, `<mods>/loose`, mounted as a
+// FolderArchive AFTER the packed mods — the same helper, at the same point in the
+// mount order, as MM's `<mods>/mm/loose` (MountMMModArchives,
+// games/mm/2s2h/GameExports_SingleExe.cpp), so the two halves of one game have one
+// modding rule: base archives, then packed mods, then loose files. The helper
+// registers it with Combo_RegisterModArchive(GAME_OOT, ...) so the switch-time
+// re-apply keeps it on top.
+//
+// Not in the mod menu's enabled list, deliberately: the list is keyed by archive
+// file-name stem and persisted in a CVar, and the loose folder is not an archive.
+// Rename or empty the folder to turn it off. Called only from MountOoTModLayers
+// below, so the init leg and OoT_MountModArchivesHeadless cannot disagree on it.
+static int MountOoTLooseMods(const std::string& modsPath) {
+    return (int)Rsbs::MountLooseModDirs(GAME_OOT, modsPath).size();
+}
+#endif
+
+// The whole OoT mount sequence, ONE definition, called by BOTH the init leg of
+// UpdateModFiles and OoT_MountModArchivesHeadless (PR #732's review): each packed
+// archive in the order given, through the mount/register pair above, THEN the #705
+// loose layer. Before this existed the two callers each made their own loose call,
+// so deleting the init leg's — the one a player's boot runs — left every row green.
+// Now the loose call lives only here, and the #705 row, which drives this through
+// the seam, goes red if it is removed.
+//
+// What stays unlocked, as for #670's pair: that the init leg calls THIS at all. No
+// row drives UpdateModFiles(true), which reads the player's real mods root and the
+// enabled-mods CVar. The caller decides WHICH archives and in what order (the init
+// leg: the enabled set, in the menu's order; the seam: every archive the walk
+// claims); this decides everything after that.
+//
+// @return how many packed archives were mounted and registered plus how many loose
+//         folders were.
+static int MountOoTModLayers(const std::vector<std::filesystem::path>& packedInMountOrder,
+                             const std::string& modsPath) {
+    int mounted = 0;
+    for (const std::filesystem::path& modPath : packedInMountOrder) {
+        MountAndRegisterOoTMod(modPath.generic_string());
+        mounted++;
+    }
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #705: the loose layer, LAST, so it wins over every packed mod.
+    mounted += MountOoTLooseMods(modsPath);
+#else
+    (void)modsPath;
+#endif
+    return mounted;
+}
+
 void UpdateModFiles(bool init = false, bool reset = false) {
     if (init || reset) {
         enabledModFiles.clear();
@@ -359,14 +409,20 @@ void UpdateModFiles(bool init = false, bool reset = false) {
             }
             if (init) {
                 std::vector<std::string> enabledTemp(enabledModFiles);
+                // The enabled set, in the menu's order; mounted by the one sequence
+                // the seam below shares (MountOoTModLayers: these, then the loose
+                // layer). Collected first and mounted after the bookkeeping, in the
+                // same order the loop used to mount them in.
+                std::vector<std::filesystem::path> toMount;
                 for (std::string mod : enabledTemp) {
                     if (filePaths.contains(mod)) {
-                        MountAndRegisterOoTMod(filePaths.at(mod).generic_string());
+                        toMount.push_back(filePaths.at(mod));
                     } else {
                         enabledModFiles.erase(std::find(enabledModFiles.begin(), enabledModFiles.end(), mod));
                         changed = true;
                     }
                 }
+                (void)MountOoTModLayers(toMount, modsPath);
             }
         }
         if (changed) {
@@ -405,11 +461,14 @@ extern "C" const char* OoT_ModsAppShortName(void) {
  *     walk, its directory_options, the roots-shared question, the `mods/mm` skip
  *     and the extension filter are therefore genuinely shared: delete any of them
  *     from the production walk and this goes red.
- *   - MountAndRegisterOoTMod, the very function the init leg calls per archive. The
- *     PAIR and its ORDER — AddArchive then Combo_RegisterModArchive(GAME_OOT, ...),
- *     return value ignored — are therefore shared too.
+ *   - MountOoTModLayers, the very function the init leg calls with its enabled
+ *     set: MountAndRegisterOoTMod per archive — the PAIR and its ORDER, AddArchive
+ *     then Combo_RegisterModArchive(GAME_OOT, ...), return value ignored — and then
+ *     the #705 loose layer. So the pair, and "loose after packed", are shared too:
+ *     delete the loose call and the #705 row goes red (observed, PR #732).
  *
- * WHAT IT DOES NOT DRIVE, and which no row covers: the init leg's menu bookkeeping
+ * WHAT IT DOES NOT DRIVE, and which no row covers: the init leg's CALL of
+ * MountOoTModLayers (nothing drives UpdateModFiles(true)), and its menu bookkeeping
  * around that call. The shipping leg iterates the ENABLED set and registers only
  * `filePaths.at(stem)`, a map keyed by file-name stem, so two claimed archives with
  * the same stem in different subfolders collapse to ONE registration and a disabled
@@ -427,8 +486,9 @@ extern "C" const char* OoT_ModsAppShortName(void) {
  * @param mmModsRoot MM's mods root. Pass the same string for the shared-tree
  *                   (portable) case; a different directory for the non-portable
  *                   one.
- * @return how many archives OoT claimed and registered, or -1 for a NULL/empty
- *         root or with no live ArchiveManager.
+ * @return how many archives OoT claimed and registered, PLUS the loose asset
+ *         folders (#705, MountOoTLooseMods) it mounted and registered after them,
+ *         or -1 for a NULL/empty root or with no live ArchiveManager.
  */
 extern "C" int OoT_MountModArchivesHeadless(const char* modsRoot, const char* mmModsRoot) {
     if (modsRoot == nullptr || modsRoot[0] == '\0' || mmModsRoot == nullptr || mmModsRoot[0] == '\0') {
@@ -440,12 +500,10 @@ extern "C" int OoT_MountModArchivesHeadless(const char* modsRoot, const char* mm
         return -1;
     }
 
-    int registered = 0;
-    for (const std::filesystem::path& modPath : CollectOoTModFiles(std::string(modsRoot), std::string(mmModsRoot))) {
-        MountAndRegisterOoTMod(modPath.generic_string());
-        registered++;
-    }
-    return registered;
+    // #705 / PR #732's review: the SAME sequence function the init leg calls, so the
+    // loose layer after the packed mods is shared, not copied.
+    return MountOoTModLayers(CollectOoTModFiles(std::string(modsRoot), std::string(mmModsRoot)),
+                             std::string(modsRoot));
 }
 #endif
 
