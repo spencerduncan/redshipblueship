@@ -3990,8 +3990,7 @@ TestResult Test_ComboLogicMonotonicity(void) {
 TestResult Test_OoTPlentifulProgressive(void) {
     auto ctx = CreateHarnessStyleContext();
     if (!ctx) {
-        printf("[TEST] FAIL: could not create Ship::Context singleton
-");
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
         return TEST_FAIL;
     }
     static char plpArg0[] = "redship";
