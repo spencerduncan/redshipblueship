@@ -22,6 +22,11 @@
 // Index 0 = OoT hosts (MM-origin items), 1 = MM hosts (OoT-origin items).
 static ComboCrossing sRows[2][RSBS_CROSSING_STORE_CAP];
 static int sCount[2];
+// FROZEN vs UNSET (crossing_store.h, "FROZEN EMPTY IS NOT UNSET"): the counts
+// alone cannot tell a world frozen with no crossings from a store nobody wrote.
+static bool sFrozen;
+// Bumped by every write; see Combo_Crossings_WriteGeneration.
+static uint32_t sWriteGeneration;
 
 // Parse / capture scratch, so a refused write never touches sRows.
 static ComboCrossing sScratch[2][RSBS_CROSSING_STORE_CAP];
@@ -74,6 +79,16 @@ void Combo_Crossings_Clear(void) {
     sCount[0] = 0;
     sCount[1] = 0;
     memset(sRows, 0, sizeof(sRows));
+    sFrozen = false;
+    ++sWriteGeneration;
+}
+
+bool Combo_Crossings_IsFrozen(void) {
+    return sFrozen;
+}
+
+uint32_t Combo_Crossings_WriteGeneration(void) {
+    return sWriteGeneration;
 }
 
 int Combo_Crossings_Count(GameId hostGame) {
@@ -97,9 +112,12 @@ const SharedItem* Combo_Crossings_Lookup(GameId hostGame, uint16_t hostCheck) {
     if (side < 0 || hostCheck == 0) {
         return NULL;
     }
-    // Linear, and deliberately so: the read path runs once per pickup, over at
-    // most RSBS_CROSSING_STORE_CAP rows. An index would be a second structure to
-    // keep coherent with every writer for no measurable gain.
+    // Linear, and deliberately so: at most RSBS_CROSSING_STORE_CAP (1024) u16
+    // compares per miss. It is reached through the give-path accessors, so it
+    // runs per pickup (CheckQueue) and also from MM's per-actor/per-draw
+    // foreign-check probes (EnBox, DrawItem): a bounded scan of an 8 KiB table,
+    // not a measurable cost. An index would be a second structure to keep
+    // coherent with every writer.
     for (int i = 0; i < sCount[side]; ++i) {
         if (sRows[side][i].hostCheck == hostCheck) {
             return &sRows[side][i].item;
@@ -152,6 +170,8 @@ static void CrossingCommit(const ComboCrossing* oot, int ootCount, const ComboCr
     }
     sCount[0] = ootCount;
     sCount[1] = mmCount;
+    sFrozen = true;
+    ++sWriteGeneration;
 }
 
 int Combo_Crossings_Replace(const ComboCrossing* ootHosted, int ootCount, const ComboCrossing* mmHosted,
@@ -165,9 +185,11 @@ int Combo_Crossings_Replace(const ComboCrossing* ootHosted, int ootCount, const 
         return rc;
     }
 
-    if (sCount[0] != 0 || sCount[1] != 0) {
-        // FROZEN. The resident set is the world's identity; a second writer may
-        // only agree with it.
+    if (sFrozen) {
+        // FROZEN, possibly EMPTY. The resident set is the world's identity; a
+        // second writer may only agree with it. A world frozen with zero
+        // crossings refuses a non-empty set exactly as a populated one refuses
+        // a different one: the counts alone cannot say which, so the flag does.
         bool same = (sCount[0] == ootCount && sCount[1] == mmCount);
         for (int i = 0; same && i < ootCount; ++i) {
             same = CrossingRowEqual(&sRows[0][i], &ootHosted[i]);
@@ -277,21 +299,24 @@ size_t Combo_Crossings_SerializedSize(void) {
            (size_t)(sCount[0] + sCount[1]) * (size_t)RSBS_CROSSING_RECORD_SIZE;
 }
 
-size_t Combo_Crossings_Serialize(uint8_t* out, size_t cap) {
-    const size_t total = Combo_Crossings_SerializedSize();
+/** The one encoder: `rows[side]` / `counts[side]`, already bounded by the caller. */
+static size_t CrossingSerializeRows(const ComboCrossing* const rows[2], const int counts[2], uint8_t* out,
+                                    size_t cap) {
+    const size_t total =
+        (size_t)RSBS_CROSSING_BLOCK_HEADER_SIZE + (size_t)(counts[0] + counts[1]) * (size_t)RSBS_CROSSING_RECORD_SIZE;
     if (out == NULL || cap < total) {
         return 0;
     }
     memcpy(out, RSBS_CROSSING_BLOCK_MAGIC, 4);
     PutU16(out + 4, (uint16_t)RSBS_CROSSING_BLOCK_FORMAT);
     PutU16(out + 6, (uint16_t)RSBS_CROSSING_RECORD_SIZE);
-    PutU16(out + 8, (uint16_t)sCount[0]);
-    PutU16(out + 10, (uint16_t)sCount[1]);
+    PutU16(out + 8, (uint16_t)counts[0]);
+    PutU16(out + 10, (uint16_t)counts[1]);
     PutU32(out + 12, 0u);
     uint8_t* p = out + RSBS_CROSSING_BLOCK_HEADER_SIZE;
     for (int side = 0; side < 2; ++side) {
-        for (int i = 0; i < sCount[side]; ++i) {
-            const ComboCrossing* r = &sRows[side][i];
+        for (int i = 0; i < counts[side]; ++i) {
+            const ComboCrossing* r = &rows[side][i];
             PutU16(p + 0, r->hostCheck);
             PutU16(p + 2, r->itemClass);
             p[4] = r->item.originGame;
@@ -303,14 +328,34 @@ size_t Combo_Crossings_Serialize(uint8_t* out, size_t cap) {
     return total;
 }
 
-uint32_t Combo_Crossings_Digest(void) {
-    const size_t n = Combo_Crossings_Serialize(sImage, sizeof(sImage));
+size_t Combo_Crossings_Serialize(uint8_t* out, size_t cap) {
+    const ComboCrossing* const rows[2] = { sRows[0], sRows[1] };
+    return CrossingSerializeRows(rows, sCount, out, cap);
+}
+
+static uint32_t CrossingFnv(const uint8_t* bytes, size_t n) {
     uint32_t h = 0x811C9DC5u;
     for (size_t i = 0; i < n; ++i) {
-        h ^= sImage[i];
+        h ^= bytes[i];
         h *= 0x01000193u;
     }
     return h;
+}
+
+uint32_t Combo_Crossings_Digest(void) {
+    return CrossingFnv(sImage, Combo_Crossings_Serialize(sImage, sizeof(sImage)));
+}
+
+uint32_t Combo_Crossings_DigestRows(const ComboCrossing* ootHosted, int ootCount, const ComboCrossing* mmHosted,
+                                    int mmCount) {
+    if (ootCount < 0 || ootCount > (int)RSBS_CROSSING_STORE_CAP || mmCount < 0 ||
+        mmCount > (int)RSBS_CROSSING_STORE_CAP || (ootCount > 0 && ootHosted == NULL) ||
+        (mmCount > 0 && mmHosted == NULL)) {
+        return 0u;
+    }
+    const ComboCrossing* const rows[2] = { ootHosted, mmHosted };
+    const int counts[2] = { ootCount, mmCount };
+    return CrossingFnv(sImage, CrossingSerializeRows(rows, counts, sImage, sizeof(sImage)));
 }
 
 int Combo_Crossings_BlockSize(const uint8_t* header, size_t headerLen, size_t* outTotal) {
@@ -370,7 +415,8 @@ int Combo_Crossings_ValidateBlock(const uint8_t* block, size_t len) {
 
 int Combo_Crossings_LoadBlock(const uint8_t* block, size_t len) {
     if (block == NULL && len == 0) {
-        Combo_Crossings_Clear();
+        // A pre-crossing file: its world has none, and that is FROZEN, not unset.
+        CrossingCommit(NULL, 0, NULL, 0);
         return RSBS_CROSSING_OK;
     }
     const int rc = CrossingParse(block, len);

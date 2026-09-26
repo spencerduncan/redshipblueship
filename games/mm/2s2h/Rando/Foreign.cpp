@@ -814,6 +814,22 @@ const char* ForeignNameForCheck(RandoCheckId randoCheckId) {
     return Combo_GetForeignItemName(*item);
 }
 
+static const SharedItem* PinnedPlacementFor(RandoCheckId randoCheckId) {
+    if (randoCheckId == RC_UNKNOWN) {
+        return nullptr;
+    }
+    return Combo_GetPinnedForeignPlacementForCheck((uint16_t)randoCheckId);
+}
+
+bool IsPinnedForeignCheck(RandoCheckId randoCheckId) {
+    return PinnedPlacementFor(randoCheckId) != nullptr;
+}
+
+const char* PinnedForeignNameForCheck(RandoCheckId randoCheckId) {
+    const SharedItem* item = PinnedPlacementFor(randoCheckId);
+    return item != nullptr ? Combo_GetForeignItemName(*item) : nullptr;
+}
+
 const char* ForeignArticleForCheck(RandoCheckId randoCheckId) {
     const SharedItem* item = PlacementFor(randoCheckId);
     if (item == nullptr) {
@@ -1026,6 +1042,79 @@ const char* CrossingGameKey(uint8_t game) {
     return game == (uint8_t)GAME_OOT ? "oot" : (game == (uint8_t)GAME_MM ? "mm" : "none");
 }
 
+/** combo.identity: the full identity tuple (#564 V23), one builder for both
+ *  writers of the "combo" object, so the crossing loader's gate always has the
+ *  terms it compares. */
+nlohmann::json ComboIdentityJson() {
+    return {
+        { "masterSeed", gComboCtx.sharedRandoSeed },
+        { "ootSettingsHash", gComboCtx.sharedRandoSettingsHash },
+        { "mmProfileDigest", gComboCtx.mmProfileDigest },
+        { "comboSettingsHash", gComboCtx.comboSettingsHash },
+        { "mmFinalSeed", gSaveContext.save.shipSaveInfo.rando.finalSeed },
+        { "mmPairedAttempt", gComboCtx.mmPairedAttempt },
+    };
+}
+
+/**
+ * The #610 rule for combo.crossingStore: the section is loaded only into the
+ * world it names. Refused (true, with the term) when there is no live pairing,
+ * when combo.identity is absent or omits a term, or when masterSeed,
+ * ootSettingsHash or comboSettingsHash differ from the resident stamp.
+ * mmProfileDigest follows Apply.cpp's ForeignIdentityDiverges exactly: ZERO on
+ * either side is a legacy pre-freeze pair and is not compared.
+ */
+bool CrossingIdentityDiverges(const nlohmann::json& doc, std::string& why) {
+    if (!Combo_ForeignPairingActive()) {
+        why = "no live cross-game pairing: there is no world these crossings could belong to";
+        return true;
+    }
+    if (!doc["combo"].contains("identity") || !doc["combo"]["identity"].is_object()) {
+        why = "combo.identity is absent, so the section cannot be shown to name this world";
+        return true;
+    }
+    const nlohmann::json& id = doc["combo"]["identity"];
+    const auto term = [&](const char* name, uint32_t& v) {
+        if (!id.contains(name) || !id[name].is_number_unsigned() || id[name].get<uint64_t>() > 0xFFFFFFFFull) {
+            return false;
+        }
+        v = (uint32_t)id[name].get<uint64_t>();
+        return true;
+    };
+    const struct {
+        const char* name;
+        uint32_t resident;
+    } kExact[3] = {
+        { "masterSeed", gComboCtx.sharedRandoSeed },
+        { "ootSettingsHash", gComboCtx.sharedRandoSettingsHash },
+        { "comboSettingsHash", gComboCtx.comboSettingsHash },
+    };
+    for (const auto& t : kExact) {
+        uint32_t v = 0;
+        if (!term(t.name, v)) {
+            why = std::string("combo.identity omits '") + t.name + "'";
+            return true;
+        }
+        if (v != t.resident) {
+            char buf[160];
+            snprintf(buf, sizeof(buf), "combo.identity.%s is %08X but this world's is %08X", t.name, (unsigned)v,
+                     (unsigned)t.resident);
+            why = buf;
+            return true;
+        }
+    }
+    uint32_t profile = 0;
+    if (term("mmProfileDigest", profile) && profile != 0 && gComboCtx.mmProfileDigest != 0 &&
+        profile != gComboCtx.mmProfileDigest) {
+        char buf[160];
+        snprintf(buf, sizeof(buf), "combo.identity.mmProfileDigest is %08X but this world's is %08X", (unsigned)profile,
+                 (unsigned)gComboCtx.mmProfileDigest);
+        why = buf;
+        return true;
+    }
+    return false;
+}
+
 nlohmann::json CrossingStoreSpoilerSection() {
     char digest[16];
     snprintf(digest, sizeof(digest), "%08X", (unsigned)Combo_Crossings_Digest());
@@ -1115,9 +1204,10 @@ bool CrossingRowsFromSection(const nlohmann::json& section, const char* key, uin
 } // namespace
 
 /**
- * Write combo.crossingStore from the resident store into the JSON document at
- * @p path, creating the document when the file does not exist. The production
- * writer (MM_Rando_AugmentSpoilerWithPairedHalf) builds the same section inline;
+ * Write combo.crossingStore (and combo.identity, which its loader gates on)
+ * from the resident store and stamp into the JSON document at @p path, creating
+ * the document when the file does not exist. The production writer
+ * (MM_Rando_AugmentSpoilerWithPairedHalf) builds the same two keys inline;
  * this entry exists for the ROM-free round-trip lock and for a caller that has a
  * spoiler document but no paired MM half to augment.
  * @return 0 on success, negative on an unreadable or unwritable file.
@@ -1134,6 +1224,7 @@ extern "C" int MM_Rando_WriteCrossingSpoilerSection(const char* path) {
                 in >> doc;
             }
         }
+        doc["combo"]["identity"] = ComboIdentityJson();
         doc["combo"]["crossingStore"] = CrossingStoreSpoilerSection();
         std::ofstream out(path);
         if (!out.is_open()) {
@@ -1151,11 +1242,15 @@ extern "C" int MM_Rando_WriteCrossingSpoilerSection(const char* path) {
  * THE SPOILER-LOAD PATH for crossings (ADR 0010 O7): rebuild the crossing store
  * from combo.crossingStore of the document at @p path.
  *
- * All or nothing, and frozen: the rows go through Combo_Crossings_Replace, so an
- * empty store takes them, an identical one is unchanged, and a DIFFERENT frozen
- * set is refused and left as it was. The section's digest must be reproduced by
- * the rows it lists; a section that does not reproduce it is refused and the
- * store is left as it was before the call.
+ * The #610 rule first: combo.identity must name the live pairing
+ * (CrossingIdentityDiverges), or nothing is read further. Then all or nothing,
+ * and frozen: the section's digest is recomputed over the PARSED rows
+ * (Combo_Crossings_DigestRows, no store write) and a mismatch is refused before
+ * anything is committed; only then do the rows go through
+ * Combo_Crossings_Replace, so an UNSET store takes them, an identical frozen
+ * set is unchanged, and a different frozen set (including a world frozen with
+ * NO crossings) is refused and left as it was. No refusal writes to the store
+ * (Combo_Crossings_WriteGeneration does not move).
  *
  * Rebuilds the STORE only. Rebuilding the coordinator's tables from it is
  * Combo_Crossings_HydrateCoordinator, a separate step so a caller that only
@@ -1165,7 +1260,8 @@ extern "C" int MM_Rando_WriteCrossingSpoilerSection(const char* path) {
  *         unreadable document, -3 no combo.crossingStore section, -4 unknown
  *         formatVersion, -5 a malformed or untagged row, -6 the store refused the
  *         rows (see stderr: capacity, duplicate host, own-origin row, or a
- *         different frozen set), -7 the digest does not match the rows.
+ *         different frozen set), -7 the digest does not match the rows, -8 the
+ *         section does not name the live pairing (the #610 identity gate).
  */
 extern "C" int MM_Rando_LoadCrossingsFromSpoiler(const char* path) {
     if (path == nullptr || path[0] == '\0') {
@@ -1187,6 +1283,14 @@ extern "C" int MM_Rando_LoadCrossingsFromSpoiler(const char* path) {
         fprintf(stderr, "[MM] spoiler: '%s' carries no combo.crossingStore section\n", path);
         return -3;
     }
+    {
+        std::string why;
+        if (CrossingIdentityDiverges(doc, why)) {
+            fprintf(stderr, "[MM] spoiler: combo.crossingStore REFUSED: %s; the store is unchanged (#610)\n",
+                    why.c_str());
+            return -8;
+        }
+    }
     const nlohmann::json& section = doc["combo"]["crossingStore"];
     if (!section.contains("formatVersion") || !section["formatVersion"].is_number_unsigned() ||
         section["formatVersion"].get<uint32_t>() != RSBS_CROSSING_BLOCK_FORMAT) {
@@ -1203,23 +1307,21 @@ extern "C" int MM_Rando_LoadCrossingsFromSpoiler(const char* path) {
         return -5;
     }
 
-    const bool wasEmpty = Combo_Crossings_Count(GAME_OOT) == 0 && Combo_Crossings_Count(GAME_MM) == 0;
+    // The digest of the PARSED rows, before anything is written: a refusal
+    // here must not publish the rows and then retract them.
+    char digest[16];
+    snprintf(digest, sizeof(digest), "%08X",
+             (unsigned)Combo_Crossings_DigestRows(ootHosted.data(), (int)ootHosted.size(), mmHosted.data(),
+                                                  (int)mmHosted.size()));
+    if (!section.contains("digest") || !section["digest"].is_string() ||
+        section["digest"].get<std::string>() != digest) {
+        fprintf(stderr, "[MM] spoiler: combo.crossingStore rows do not reproduce its digest (%s); refused\n", digest);
+        return -7;
+    }
     const int rc =
         Combo_Crossings_Replace(ootHosted.data(), (int)ootHosted.size(), mmHosted.data(), (int)mmHosted.size());
     if (rc < 0) {
         return -6;
-    }
-    char digest[16];
-    snprintf(digest, sizeof(digest), "%08X", (unsigned)Combo_Crossings_Digest());
-    if (!section.contains("digest") || !section["digest"].is_string() ||
-        section["digest"].get<std::string>() != digest) {
-        // Undo only what this call wrote: an identical, already-frozen set was
-        // not written by it (Replace was a no-op), so it is left in place.
-        if (wasEmpty) {
-            Combo_Crossings_Clear();
-        }
-        fprintf(stderr, "[MM] spoiler: combo.crossingStore rows do not reproduce its digest (%s); refused\n", digest);
-        return -7;
     }
     fprintf(stderr, "[MM] spoiler: crossing store rebuilt from '%s' (%d OoT-hosted, %d MM-hosted, digest %s)\n", path,
             Combo_Crossings_Count(GAME_OOT), Combo_Crossings_Count(GAME_MM), digest);
@@ -1251,14 +1353,7 @@ extern "C" int MM_Rando_AugmentSpoilerWithPairedHalf(const char* ootSpoilerPath)
         // The full identity tuple, embedded (#564 V23): a reader can tell which
         // pair this is without trusting the filename, and a future load path can
         // refuse a document whose identity is not the world being played.
-        combo["identity"] = {
-            { "masterSeed", gComboCtx.sharedRandoSeed },
-            { "ootSettingsHash", gComboCtx.sharedRandoSettingsHash },
-            { "mmProfileDigest", gComboCtx.mmProfileDigest },
-            { "comboSettingsHash", gComboCtx.comboSettingsHash },
-            { "mmFinalSeed", gSaveContext.save.shipSaveInfo.rando.finalSeed },
-            { "mmPairedAttempt", gComboCtx.mmPairedAttempt },
-        };
+        combo["identity"] = ComboIdentityJson();
         combo["comboSettings"] = {
             { "formatVersion", gComboCtx.comboSettings.formatVersion },
             { "direction", gComboCtx.comboSettings.direction },
@@ -1285,14 +1380,7 @@ extern "C" int MM_Rando_AugmentSpoilerWithPairedHalf(const char* ootSpoilerPath)
             // back to the crossing store (ADR 0010 O7), whose rows have their
             // own list below in combo.crossingStore; reading through it here
             // would print every coordinator crossing twice, once unnamed.
-            const SharedItem* hosted = nullptr;
-            for (int s = 0; s < (int)RSBS_FOREIGN_PLACEMENT_CAP; s++) {
-                const ComboForeignPlacement* row = &gComboCtx.foreignPlacements[s];
-                if (row->item.originGame != (uint8_t)GAME_NONE && row->mmCheckId == (uint16_t)i) {
-                    hosted = &row->item;
-                    break;
-                }
-            }
+            const SharedItem* hosted = Combo_GetPinnedForeignPlacementForCheck((uint16_t)i);
             if (hosted == nullptr) {
                 continue;
             }

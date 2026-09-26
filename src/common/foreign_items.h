@@ -1017,8 +1017,20 @@ int Combo_SetForeignPlacement(uint16_t mmCheckId, SharedItem item);
  * pinned lookup keeps working until lane K11 retires the pools. The two
  * sources never overlap in a real world (K11 replaces the pinned passes with
  * the coordinator); if they did, the pinned row would win.
+ *
+ * NOT every reader wants both. A reader that serializes the PINNED table for a
+ * loader that rebuilds the pinned table (MM's spoiler "foreign" section, which
+ * Apply.cpp's ReconstructForeignPlacements reads back by pool name and caps at
+ * RSBS_FOREIGN_PLACEMENT_CAP) must use Combo_GetPinnedForeignPlacementForCheck:
+ * the crossing store has its own spoiler section (combo.crossingStore).
  */
 const SharedItem* Combo_GetForeignPlacementForCheck(uint16_t mmCheckId);
+
+/**
+ * The PINNED forward table's row for `mmCheckId`, or NULL: no crossing-store
+ * fallback. For writers of the pinned table's own serializations (see above).
+ */
+const SharedItem* Combo_GetPinnedForeignPlacementForCheck(uint16_t mmCheckId);
 
 /** Number of occupied placement slots. */
 int Combo_CountForeignPlacements(void);

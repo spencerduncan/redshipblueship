@@ -88,24 +88,42 @@
  *
  *   Combo_Crossings_CaptureFromCoordinator  THE CREATION WRITER (lane K11 calls
  *       it; nothing in production does at this commit). Authors the store from
- *       the coordinator's tables, overwriting whatever was resident. A refusal
- *       leaves the store EMPTY: a refused creation must not leave a previous
- *       world's crossings behind for the file it failed to create.
+ *       the coordinator's tables, overwriting whatever was resident, and
+ *       FREEZES it. A refusal leaves the store EMPTY and UNSET: a refused
+ *       creation must not leave a previous world's crossings behind for the
+ *       file it failed to create.
  *   Combo_Crossings_Replace  THE HYDRATE WRITER (the spoiler-load route).
  *       One-game semantics: the crossing set is world identity frozen at
- *       creation, so this writes into an EMPTY store only, is a no-op when the
- *       rows are identical to what is resident, and REFUSES a different set
- *       (the store is left untouched): divergence is corruption, never a
- *       choice to honour. All-or-nothing: one refused row refuses the set.
+ *       creation, so this writes into an UNSET store only (and freezes it), is
+ *       a no-op when the rows are identical to a FROZEN set, and REFUSES a
+ *       different set (the store is left untouched): divergence is corruption,
+ *       never a choice to honour. All-or-nothing: one refused row refuses the
+ *       set. Its only production-intended caller, the spoiler loader
+ *       (MM_Rando_LoadCrossingsFromSpoiler), first refuses a section whose
+ *       combo.identity does not name the live pairing (the #610 rule).
  *   Combo_Crossings_LoadBlock  THE .redsave LOAD. The slot's own record is
  *       authoritative (it follows Context_InvalidateSessionOnSlotLoad's clear),
- *       so it overwrites after validating every byte. A malformed block
- *       refuses the whole load (RSBS_REFUSE_CROSSINGS) and changes nothing.
+ *       so it overwrites after validating every byte, and FREEZES the store. A
+ *       malformed block refuses the whole load (RSBS_REFUSE_CROSSINGS) and
+ *       changes nothing.
+ *
+ * FROZEN EMPTY IS NOT UNSET. A world frozen with zero crossings (a v3 block
+ * with both counts 0, or a v1/v2 file, which no pre-crossing build could have
+ * given crossings) is as frozen as one with hundreds: Replace refuses any
+ * non-empty set into it. Only Combo_Crossings_Clear (cold boot, a DROP
+ * invalidation, a refused capture) returns the store to UNSET.
  *
  * Session scope: the store is process RAM, like gComboCtx. Freeze/restore and
- * shadow arming never touch it (both games are in one process). Session
- * invalidation (context.cpp) KEEPs it on the creation path and DROPs it on
- * every other, the rule the reverse placement table already follows.
+ * shadow arming never touch it (both games are in one process); that is a
+ * property of where it lives, not of any code here, and the ROM-free lock on it
+ * is a regression guard only. Session invalidation (context.cpp) KEEPs it on
+ * the creation path and DROPs it on every other, the rule the reverse placement
+ * table already follows. An ARRIVAL-time pairing refusal
+ * (MM_Rando_PairOnCrossGameArrival's RsbsSave_RefuseSlotIdentity /
+ * RsbsSave_RefuseSlotGeneration) does NOT clear it, exactly as it does not
+ * clear the pinned reverse table or the identity stamp: the slot is latched
+ * against writes, so nothing reaches disk. What the give path should do for a
+ * refused half is lane K11's decision, not this store's.
  */
 
 #ifndef RSBS_COMMON_CROSSING_STORE_H
@@ -159,8 +177,23 @@ typedef struct {
 /** Human-readable name of an RSBS_CROSSING_* status. */
 const char* Combo_Crossings_StatusName(int status);
 
-/** Empty the store (both host games). */
+/** Empty the store (both host games) and return it to UNSET (not frozen). */
 void Combo_Crossings_Clear(void);
+
+/**
+ * True once a writer has frozen the store for the resident world (capture, an
+ * accepted Replace, or a .redsave load, including a load of a world with no
+ * crossings); false after Combo_Crossings_Clear. See "FROZEN EMPTY IS NOT UNSET".
+ */
+bool Combo_Crossings_IsFrozen(void);
+
+/**
+ * A counter bumped by EVERY write to the store (a commit or a clear). A caller
+ * that samples it before and after a refused call can prove the call wrote
+ * nothing, not merely that the end state happens to match (publish-then-
+ * retract leaves the same end state and still bumps this twice).
+ */
+uint32_t Combo_Crossings_WriteGeneration(void);
 
 /** Crossings hosted in `hostGame`, or 0 for a non-game. */
 int Combo_Crossings_Count(GameId hostGame);
@@ -216,6 +249,16 @@ int Combo_Crossings_HydrateCoordinator(void);
  *  same crossings in the same order. Printed in the spoiler section. */
 uint32_t Combo_Crossings_Digest(void);
 
+/**
+ * The digest Combo_Crossings_Digest would report if the store held exactly
+ * these rows, computed WITHOUT touching the store: a loader compares a printed
+ * digest against its parsed rows before anything is committed. Counts outside
+ * [0, RSBS_CROSSING_STORE_CAP] (or a NULL list with a positive count) return 0;
+ * such rows are refused by every writer anyway.
+ */
+uint32_t Combo_Crossings_DigestRows(const ComboCrossing* ootHosted, int ootCount, const ComboCrossing* mmHosted,
+                                    int mmCount);
+
 /** Bytes Combo_Crossings_Serialize writes for the resident store. */
 size_t Combo_Crossings_SerializedSize(void);
 
@@ -237,8 +280,10 @@ int Combo_Crossings_ValidateBlock(const uint8_t* block, size_t len);
 
 /**
  * THE .redsave LOAD WRITER: validate every byte of `block`, then overwrite the
- * store with it. A refusal changes nothing. `block == NULL` with `len == 0` is
- * a legacy (pre-crossing, format version < 3) file and empties the store.
+ * store with it and freeze it. A refusal changes nothing. `block == NULL` with
+ * `len == 0` is a legacy (pre-crossing, format version < 3) file: the store is
+ * emptied and FROZEN EMPTY, because no build that wrote that file could have
+ * given its world a crossing.
  */
 int Combo_Crossings_LoadBlock(const uint8_t* block, size_t len);
 

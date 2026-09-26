@@ -962,8 +962,12 @@ int Combo_SetForeignPlacement(uint16_t mmCheckId, SharedItem item) {
     return ForeignPlaceInto(gComboCtx.foreignPlacements, mmCheckId, item);
 }
 
+const SharedItem* Combo_GetPinnedForeignPlacementForCheck(uint16_t mmCheckId) {
+    return ForeignLookupIn(gComboCtx.foreignPlacements, mmCheckId);
+}
+
 const SharedItem* Combo_GetForeignPlacementForCheck(uint16_t mmCheckId) {
-    const SharedItem* pinned = ForeignLookupIn(gComboCtx.foreignPlacements, mmCheckId);
+    const SharedItem* pinned = Combo_GetPinnedForeignPlacementForCheck(mmCheckId);
     // ADR 0010 O7: a host the pinned table does not list falls back to the
     // crossing store, where the coordinator's placements persist. See the
     // header for why pinned answers first.
