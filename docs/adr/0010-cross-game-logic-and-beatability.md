@@ -1603,8 +1603,17 @@ armed only while the frozen goal is triforce-hunt with a valid record.
 - An apply puts the whole count into the arriving game before its next
   collect, so max-merge sums across a switch: k collects in OoT and m in MM
   read k+m in both games.
-- MONOTONIC is required, not preferred. A delta harvest would count the
-  mirrored pieces a second time on every switch.
+- MONOTONIC is required, not preferred. A piece is never spent. A consumable
+  (delta) harvest reads a LOWER live value after a full apply (a counter
+  reset, a stale save) as pieces spent, and the pool loses them. Max-merge
+  keeps the count.
+- That lower harvest is the only case that tells the two disciplines apart.
+  A consumable apply records what it materialized as that game's watermark,
+  so ordinary collects across switches sum the same way under either
+  discipline: the cross-game sum leg (collect 4 in OoT, 7 in MM, then 2 and
+  1) reads 11, 13 and 14 under both. The discipline-pin leg (a full apply of
+  9, then a harvest of 4) is the one that fails under CONSUMABLE: the pool
+  drops to 4.
 
 **The win.** Each port already ends a hunt on the give that reaches its
 requirement:

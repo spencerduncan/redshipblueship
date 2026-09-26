@@ -68,9 +68,14 @@ static bool IsMonotonicKind(uint8_t kind) {
         case RSBS_SHARED_RES_HOOKSHOT_TIER:
         case RSBS_SHARED_RES_OCARINA_TIER:
         // ADR 0010 O10: the one triforce piece count. MONOTONIC because a piece
-        // is never spent, and it must be: each game's counter is a MIRROR that
-        // every apply raises to the whole count, so a delta harvest would count
-        // the mirrored pieces a second time on every switch.
+        // is never spent. A consumable harvest reads a LOWER live value after a
+        // full apply (a counter reset, a stale save) as pieces spent and takes
+        // them out of the pool; max-merge keeps the count. That is the only
+        // behaviour that tells the two disciplines apart: a consumable apply
+        // records what it materialized as the watermark, so ordinary collects
+        // across switches sum the same way under either (the cross-game sum in
+        // combo-triforce-hunt passes under both; its discipline-pin leg is the
+        // one that fails under CONSUMABLE).
         case RSBS_SHARED_RES_TRIFORCE_PIECES:
             return true;
         default:

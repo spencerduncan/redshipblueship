@@ -36,6 +36,11 @@
  *      behind the arrival gate) against the frozen requirement — never either
  *      half's goalReached — and a fill proves it, or reports it unprovable, or
  *      refuses a pair of engines without the query.
+ *   T10 THE .redsave LOAD REFUSAL, through the real SaveManager::LoadSlot: a
+ *      file whose stored triforce record contradicts the goal beside it (a
+ *      beat-both world carrying a hunt record) is refused as damage and
+ *      quarantined, and nothing is committed; the same world with the four
+ *      zero bytes loads.
  *
  * The real give arms themselves are locked in the rando tier
  * (rando-triforce-hunt-win), because both need a booted game.
@@ -44,12 +49,15 @@
 #include "../combo_logic.h"
 #include "../context.h"
 #include "../foreign_items.h"
+#include "../save.h"
 #include "../shared_resources.h"
 #include "../test_runner.h"
 #include "../triforce_hunt.h"
 
 #include <cstdio>
 #include <cstring>
+#include <filesystem>
+#include <vector>
 
 // The two games' shim-driving helpers (games/oot/soh/oot_triforce_hunt_test.cpp,
 // games/mm/2s2h/mm_triforce_hunt_test.cpp) and the real shims they drive
@@ -127,6 +135,35 @@ int TfPool(uint8_t kind) {
 
 bool TfRecordZero(const ComboTriforceRecord* r) {
     return r->totalOoT == 0 && r->requiredOoT == 0 && r->totalMM == 0 && r->requiredMM == 0;
+}
+
+// T10's own save directory: RsbsSave_HasQuarantine reports ANY .bak beside the
+// slot, so an earlier run's evidence must not be able to satisfy the leg.
+const char* const kTfLoadTestDir = "rsbs_test_triforce_hunt_load";
+
+/** Write slot 0 for a paired world whose combo record is what THIS session
+ *  resolves (so no field or fingerprint divergence can fire) and whose triforce
+ *  record is `rec`. Returns false when the save could not be written. */
+bool TfWriteSlot(const ComboTriforceRecord& rec) {
+    rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
+    RsbsSave_ResetSlotSessionState();
+    mgr.DeleteSave(0); // arms the write latch (#533)
+    ComboContext_Init();
+    Combo_ResetSharedResourceWatermarks();
+    Context_InitFrozenStates();
+    std::vector<uint8_t> oot(OOT_SAVE_CONTEXT_SIZE, 0x3Cu);
+    std::vector<uint8_t> mm(MM_SAVE_CONTEXT_SIZE, 0xC3u);
+    Context_UpdateShadowCopy(GAME_OOT, oot.data(), oot.size());
+    Context_UpdateShadowCopy(GAME_MM, mm.data(), mm.size());
+    gComboCtx.sourceIsRando = true;
+    gComboCtx.sharedRandoSeed = 0x7F0CE0A1u;
+    gComboCtx.sharedRandoSettingsHash = 0x7F0C5EA1u;
+    gComboCtx.mmProfileDigest = 0x7F0C4DA1u;
+    ComboSettingsRecord settings;
+    Combo_ResolveComboSettings(&settings);
+    Combo_FreezeComboSettings(&settings);
+    gComboCtx.comboTriforce = rec;
+    return mgr.Save(0);
 }
 
 // ---- The stub engine (T9) --------------------------------------------------
@@ -719,6 +756,50 @@ TestResult Test_ComboTriforceHunt(void) {
                    "a round over a half that cannot answer must leave the count and the expression unevaluated");
 
         TfRestoreEngines();
+    }
+
+    // ---- T10: the .redsave load refusal (SaveManager::LoadSlot) -----------------
+    {
+        std::error_code ec;
+        std::filesystem::remove_all(kTfLoadTestDir, ec); // no stale .bak from an earlier run
+        rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
+        mgr.SetSaveDirectory(kTfLoadTestDir);
+
+        // Counter-leg first: the same world with the four zero bytes every
+        // non-hunt world stores loads, so the refusal below is the record's.
+        ComboTriforceRecord zero;
+        memset(&zero, 0, sizeof(zero));
+        TFH_ASSERT(TfWriteSlot(zero), "fixture: Save(0) failed for the healthy world");
+        RsbsSave_ResetSlotSessionState();
+        ComboContext_Init();
+        TFH_ASSERT(mgr.Load(0), "a beat-both .redsave with a zero triforce record was refused - the load check is not "
+                                "the record's");
+        TFH_ASSERT(Combo_ComboSettingsFrozen() && TfRecordZero(&gComboCtx.comboTriforce),
+                   "the healthy world did not load its record");
+
+        // A beat-both world carrying a hunt record: a hunt nobody froze.
+        ComboTriforceRecord stray;
+        stray.totalOoT = 5;
+        stray.requiredOoT = 3;
+        stray.totalMM = 4;
+        stray.requiredMM = 3;
+        TFH_ASSERT(TfWriteSlot(stray), "fixture: Save(0) failed for the torn world");
+        TFH_ASSERT(RsbsSave_HasQuarantine(0) == 0, "fixture: a quarantine exists before the refused load");
+        RsbsSave_ResetSlotSessionState();
+        ComboContext_Init();
+        TFH_ASSERT(!mgr.Load(0), "a .redsave whose triforce record contradicts its goal was COMMITTED - the load "
+                                 "check does not read the O10 record (save.cpp)");
+        TFH_ASSERT(RsbsSave_GetSlotRefuseReason(0) == (int)RSBS_REFUSE_IDENTITY,
+                   "the triforce-record refusal must be RSBS_REFUSE_IDENTITY");
+        TFH_ASSERT(RsbsSave_IsSlotWritable(0) == 0, "a refused load must latch the slot against writes (#533)");
+        TFH_ASSERT(RsbsSave_HasQuarantine(0) == 1,
+                   "a contradicting triforce record is DAMAGE to the stored identity and must be quarantined");
+        TFH_ASSERT(!Combo_ComboSettingsFrozen() && TfRecordZero(&gComboCtx.comboTriforce),
+                   "a refused load committed the torn record over the resident context");
+
+        RsbsSave_ResetSlotSessionState();
+        mgr.DeleteSave(0);
+        std::filesystem::remove_all(kTfLoadTestDir, ec);
     }
 
     ComboContext_Init();

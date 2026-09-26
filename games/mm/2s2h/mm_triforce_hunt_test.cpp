@@ -25,8 +25,11 @@
  *          to the combo requirement, not the threshold — and reaching the COMBO
  *          requirement does.
  *      It also checks MM_Rando_ResolveTriforceHalf reads MM's half the way the
- *      record's rule says (both sources), and that the MM arrival's half
- *      compare refuses a half the record did not freeze.
+ *      record's rule says, from BOTH sources: the save's frozen options
+ *      (fromSave=1) and the CVar resolution (fromSave=0) that both production
+ *      callers use (the creation event in playthrough.cpp and MM's arrival
+ *      gate). And it checks that the arrival's half compare refuses a half the
+ *      record did not freeze.
  *
  * COUNTERFACTUAL, run before landing: replace the Combo_TriforceHuntOnPieceGiven
  * call in Rando/GiveItem.cpp with upstream's `== RANDO_SAVE_OPTIONS[...]` and
@@ -57,6 +60,9 @@ extern "C" int MM_TriforceHuntTest_Count(void) {
 #else
 
 #include "2s2h/Rando/Rando.h"
+#include "2s2h/Rando/StaticData/StaticData.h"
+
+#include <libultraship/bridge/consolevariablebridge.h>
 
 #include "combo_mm_options_view.h" // MM_Rando_ResolveTriforceHalf
 #include "context.h"
@@ -221,6 +227,38 @@ extern "C" int MM_TriforceHuntWin_RunHeadless(void) {
         RANDO_SAVE_OPTIONS[RO_TRIFORCE_PIECES_MAX] = 1000;
         MM_Rando_ResolveTriforceHalf(/*fromSave=*/1, &total, &required);
         MTH_ASSERT(total == 1000, "MM's half was truncated before the rule could see it");
+
+        // The CVAR source (fromSave=0): what the creation event freezes from and
+        // what MM's arrival gate compares against. The save is scribbled with
+        // other values first so a pass cannot come from the save's options.
+        ArmHuntSave(0);
+        RANDO_SAVE_OPTIONS[RO_TRIFORCE_PIECES_MAX] = 9;
+        RANDO_SAVE_OPTIONS[RO_TRIFORCE_PIECES_REQUIRED] = 8;
+        const char* const shuffleCVar = Rando::StaticData::Options[RO_SHUFFLE_TRIFORCE_PIECES].cvar;
+        const char* const maxCVar = Rando::StaticData::Options[RO_TRIFORCE_PIECES_MAX].cvar;
+        const char* const requiredCVar = Rando::StaticData::Options[RO_TRIFORCE_PIECES_REQUIRED].cvar;
+        CVarSetInteger(shuffleCVar, RO_GENERIC_YES);
+        CVarSetInteger(maxCVar, kMmTotal);
+        CVarSetInteger(requiredCVar, kMmRequired);
+        total = 0xFFFF;
+        required = 0xFFFF;
+        MM_Rando_ResolveTriforceHalf(/*fromSave=*/0, &total, &required);
+        const bool cvarOn = total == kMmTotal && required == kMmRequired;
+        CVarSetInteger(shuffleCVar, RO_GENERIC_NO);
+        MM_Rando_ResolveTriforceHalf(/*fromSave=*/0, &total, &required);
+        const bool cvarOff = total == 0 && required == 0;
+        CVarSetInteger(shuffleCVar, RO_GENERIC_YES);
+        CVarSetInteger(maxCVar, 1000);
+        MM_Rando_ResolveTriforceHalf(/*fromSave=*/0, &total, &required);
+        const bool cvarWide = total == 1000;
+        CVarClear(shuffleCVar);
+        CVarClear(maxCVar);
+        CVarClear(requiredCVar);
+        MTH_ASSERT(cvarOn, "MM_Rando_ResolveTriforceHalf(fromSave=0) did not read MM's pool size and requirement from "
+                           "the option CVars - the creation event would freeze, and the arrival compare against, "
+                           "something other than MM's settings");
+        MTH_ASSERT(cvarOff, "MM's hunt OFF in the CVars must contribute no pieces and no requirement");
+        MTH_ASSERT(cvarWide, "MM's CVar half was truncated before the rule could see it");
 
         // The arrival's half compare (GameExports_SingleExe.cpp) against the
         // record frozen above: MM's own half matches, a moved one does not.

@@ -31,6 +31,15 @@
  *                                        fingerprint, and is NOT refused
  *   leg 3 — the same file taken through a SECOND crossing
  *                                     -> compares rather than re-freezing
+ *   leg 4 — a frozen TRIFORCE HUNT (ADR 0010 O10) whose MM half is not what
+ *           MM's option CVars resolve now
+ *                                     -> the refusal NAMES "triforceHunt";
+ *                                        the same world whose MM half does
+ *                                        match refuses without that name.
+ *           No session can author the goal yet, so both halves of the leg
+ *           also carry the "goal" field divergence; the leg is about which
+ *           refusal names triforceHunt, which only the gate's MM half
+ *           compare (GameExports_SingleExe.cpp) can decide.
  *
  * NON-VACUITY. A gate that refused everything would pass leg 1 and prove
  * nothing. Two things close that, in different places and deliberately so:
@@ -57,6 +66,9 @@
 #include <string>
 
 #include "Rando/Rando.h"
+#include "Rando/StaticData/StaticData.h"
+
+#include <libultraship/bridge/consolevariablebridge.h>
 
 // src/common — outside any extern "C" block; these headers manage their own
 // linkage (matching Foreign.cpp / mm_spoiler_identity_test.cpp).
@@ -64,6 +76,7 @@
 #include "save.h"                  // the #533 REFUSED surface this gate reports through
 #include "notification_bridge.h"   // the player-visible half of that surface
 #include "combo_mm_options_view.h" // MM_Rando_ComputeProfileStamp — the profile leg's input
+#include "triforce_hunt.h"         // Combo_TriforceFreezeAtCreation — leg 4's frozen record
 
 extern "C" {
 #include "variables.h"
@@ -313,6 +326,65 @@ extern "C" int MM_ComboSettingsGate_RunHeadless(void) {
         }
         if (RsbsSave_IsSlotWritable(kSlot) != 1) {
             return Fail(31, "leg 3: a second crossing of a healthy pair was refused");
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    // Leg 4 — the O10 triforce record's MM half, compared at the arrival.
+    // ------------------------------------------------------------------------
+    {
+        // MM's hunt OFF in the CVars (the option defaults), so MM's live half
+        // resolves to (0, 0) and the profile stamp below is taken over it.
+        CVarClear(Rando::StaticData::Options[RO_SHUFFLE_TRIFORCE_PIECES].cvar);
+        CVarClear(Rando::StaticData::Options[RO_TRIFORCE_PIECES_MAX].cvar);
+        CVarClear(Rando::StaticData::Options[RO_TRIFORCE_PIECES_REQUIRED].cvar);
+        const ComboTriforceHalf ootHalf = { 5, 3 };
+        const ComboTriforceHalf mmOff = { 0, 0 };
+        const ComboTriforceHalf mmMoved = { 4, 3 };
+
+        for (int moved = 0; moved <= 1; moved++) {
+            ComboContext_Init();
+            ArmPairing();
+            ArmVanillaBootstrapSave();
+            ResetRefusalSurface();
+            ComboSettingsRecord hunt;
+            Combo_ResolveComboSettings(&hunt);
+            hunt.goal = (uint8_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT;
+            Combo_FreezeComboSettings(&hunt);
+            if (Combo_TriforceFreezeAtCreation(&ootHalf, moved != 0 ? &mmMoved : &mmOff) != RSBS_TRIFORCE_OK ||
+                !Combo_TriforceRecordPresent(&gComboCtx.comboTriforce)) {
+                return Fail(40, "leg 4 setup: the triforce-hunt record did not freeze");
+            }
+            if ((Combo_ComboSettingsDivergence() & RSBS_COMBO_DIVERGE_TRIFORCE) != 0) {
+                return Fail(41, "leg 4 setup: the stored record already diverges before the MM half is compared");
+            }
+
+            if (RunArrival(/*hadFrozenState=*/0) < 0) {
+                return 99;
+            }
+            if (moved != 0) {
+                const int rc = AssertRefusedNaming(42, "leg 4 (MM's triforce half moved)", "triforceHunt");
+                if (rc != 0) {
+                    return rc;
+                }
+            } else {
+                // Refused (by the goal no session can author yet), but NOT for
+                // the triforce record: MM's half matches what MM resolves.
+                const int rc = AssertRefusedNaming(47, "leg 4 (MM's triforce half matches)", "goal");
+                if (rc != 0) {
+                    return rc;
+                }
+                ComboNotification toast;
+                memset(&toast, 0, sizeof(toast));
+                OoT_Notification_PeekLastForTest(&toast);
+                const std::string message = toast.message != nullptr ? toast.message : "";
+                if (message.find("triforceHunt") != std::string::npos) {
+                    return Fail(52,
+                                "leg 4: an MM half that MATCHES the frozen record was refused as triforceHunt "
+                                "(message: '%s')",
+                                message.c_str());
+                }
+            }
         }
     }
 
