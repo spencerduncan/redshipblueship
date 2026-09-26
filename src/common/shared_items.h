@@ -267,6 +267,331 @@ int Combo_CountSharedItems(GameId game, bool includeRedeemed);
  */
 void Combo_ClearSharedItemOutbox(void);
 
+// ============================================================================
+// THE SINGLE-OWNER ITEM CLASSIFICATION TABLE (ADR 0010 answer O8; #645, #500)
+// ============================================================================
+//
+// WHAT IT ANSWERS. For every item either game's fill can place, ONE fill class:
+// progression, junk, renewable or trap. The combined fill (increment 3's single
+// bag) needs that answer for BOTH games in one place — which items it must
+// assume to prove the goal, which ones it may use to fill the hosts left over
+// once the bag is placed, and which ones may never leave their own game — and
+// O8 decided where the answer lives: here, "one owner per shared item ... never
+// a per-game duplicate that can disagree with itself".
+//
+// WHAT IT DOES NOT YET DO: RECONCILE A CROSS-GAME SHARED QUANTITY. Rows are keyed
+// per (origin, id), and each game classifies its OWN copy of a #525 shared
+// quantity by its own fill predicate. For three quantities the two copies
+// disagree today, and nothing here reconciles them:
+//   - bombchus (RSBS_SHARED_RES_BOMBCHU_COUNT): OoT RG_BOMBCHU_5/10/20 are
+//     advancement (item_list.cpp) -> PROGRESSION; MM RI_BOMBCHU_5/10 and
+//     RI_BOMBCHU are RITYPE_JUNK (Items.cpp) -> RENEWABLE;
+//   - double defense (RSBS_SHARED_RES_DOUBLE_DEFENSE): OoT RG_DOUBLE_DEFENSE is
+//     advancement -> PROGRESSION; MM RI_DOUBLE_DEFENSE is RITYPE_HEALTH -> JUNK;
+//   - heart pieces and containers (RSBS_SHARED_RES_HEALTH_QUARTERS): OoT
+//     PROGRESSION, MM RITYPE_HEALTH -> JUNK.
+// That is OoTMM's SHARED_BOMBCHU shape (one quantity, two answers), so this
+// table does NOT yet prevent it; it only makes each game's answer single and
+// checkable. One class per shared quantity, decided here, is owed by the lane
+// that wires the table into the bag (#731; it needs each game to tag which of its ids
+// feed which #525 kind, which only the game TUs can say under ADR 0002). Until
+// then a consumer must not assume the two origins' rows for one shared quantity
+// agree.
+//
+// OWNER VERSUS SOURCE, AND THE ADR 0002 ARGUMENT. Deciding a class means naming
+// `RG_*` / `RI_*` and reading each game's item table (`Item::IsAdvancement()`,
+// `RandoStaticItem::randoItemType`), which ADR 0002 confines to that game's own
+// TUs — this pair includes no game header and must not start. So each game is
+// the single SOURCE of its own rows: it registers a classify function, over its
+// own id space, from a file-scope registrar in its combo-logic engine TU
+// (OoT: ComboLogicEngineOoT.cpp; MM: ComboLogicEngineSingleExe.cpp). And this
+// pair is the single OWNER of the answer: it walks the source ONCE, stores the
+// rows, and every consumer reads the stored row, never the source. What crosses
+// the boundary is (origin, id, class, arming bits) — scalars, exactly what a
+// SharedItem already is. Two properties make "single" enforceable rather than
+// hoped for:
+//   - ONE SOURCE PER ORIGIN. A second registration for an origin that already
+//     has one is REFUSED (and counted), not replaced — unlike the foreign-pool
+//     registry, which replaces and logs. Two sources for one id space is the
+//     "duplicate that can disagree" O8 forbids, so there is no winner to pick.
+//   - THE OWNER CAN CATCH ITS SOURCE DIVERGING. Combo_ItemClassVerify re-walks
+//     the source and counts every id whose answer no longer matches the stored
+//     row, so a source that is not a pure function of its static item table (a
+//     classify that read a live setting, say) goes red instead of quietly
+//     answering differently at fill time than it did when the table was built.
+//
+// WHEN THE ROWS ARE TAKEN. At the FIRST QUERY after registration, not inside the
+// registrar: neither item table is guaranteed initialised when a file-scope
+// registrar runs (OoT's is filled by Rando::StaticData::InitItemTable at OTR
+// bring-up; MM's is a static std::map in another TU, unordered against this
+// one). A source that is not ready yet says so (-1) and the owner builds nothing
+// and caches nothing, so a premature query answers NONE instead of freezing an
+// empty table for the rest of the process.
+//
+// THE FOUR CLASSES, precedence first — the first rule that matches decides:
+//   1. TRAP        a punishment the host game disguises with its own machinery
+//                  (OoT RG_ICE_TRAP via GetJunkItem()/possibleIceTrapModels; MM
+//                  RI_TRAP via gRando.Traps / OfferTrapItem). FIRST, because MM's
+//                  own fill predicate calls RI_TRAP non-junk (it is typed
+//                  RITYPE_LESSER), so under any other order a trap would be
+//                  PROGRESSION — and a trap in the assumed bag is an item the
+//                  proof "has" that the player never gets.
+//   2. PROGRESSION the game's OWN fill predicate says it may unlock something:
+//                  OoT `Item::IsAdvancement()`; MM "randoItemType is neither
+//                  RITYPE_JUNK nor RITYPE_HEALTH" (GlitchlessLogic.cpp's
+//                  non-junk test). Taken verbatim, including where it is
+//                  generous (MM calls maps, owl statues and a gold-dust refill
+//                  non-junk): classing an item the fill considers useful as
+//                  filler would let the bag put something logic needs anywhere,
+//                  which is unsound, while the generous reading only costs the
+//                  proof some work. Progression outranks renewable for the same
+//                  reason — OoT's bombchu packs are advancement AND regainable.
+//   3. RENEWABLE   not progression, and its effect can be regained in play:
+//                  rupees, ammo, refills, recovery hearts, anything a shop
+//                  sells again.
+//   4. JUNK        everything else a fill places: maps and compasses outside
+//                  logic, heart pieces MM's fill treats as filler, MM's RI_JUNK
+//                  cover item.
+//
+// WHY TRAP IS A FOURTH CLASS AND NOT JUNK. O8 named three classes; the fourth is
+// justified only because the bag must treat the two differently, and it must:
+//   - JUNK (and RENEWABLE) is the SURPLUS ABSORBER. When copies outnumber hosts —
+//     OoT's RO_ITEM_POOL_PLENTIFUL and MM's RO_PLENTIFUL_ITEMS both add surplus
+//     progression copies and let filler make room (MM's plentiful pass counts
+//     exactly the JUNK+HEALTH entries as `replaceableItems`) — junk is what may be
+//     dropped or replaced, and when hosts outnumber the bag it is what fills
+//     them, drawn from the HOST game's own junk.
+//   - A TRAP is neither. Its count is fixed by a frozen setting (MM
+//     RO_TRAP_AMOUNT; OoT's ice-trap pool mode and percentage), so shedding one
+//     to make room changes the world the settings describe; and it is only a trap
+//     in its own game, whose models disguise it — this increment no trap crosses (a
+//     foreign trap the host cannot render is out of scope, per the 2026-09-26
+//     operator note), which Combo_ItemClassMayCrossUnder enforces.
+// Junk does not cross either (criterion 2), but for a different reason and with
+// a different consequence: junk is interchangeable with the host's own junk, a
+// trap is interchangeable with nothing.
+//
+// THE CLASS IS NOT A MULTIPLICITY. The class is per (origin, id); how many
+// copies of an id the bag holds (several small keys, plentiful's surplus copies)
+// is the bag's business (the 2026-09-26 multiplicity ruling). A surplus copy of a
+// progression item is still progression — whether the proof needs it is a
+// question about the bag, not about the item.
+//
+// NOT TO BE CONFUSED WITH RSBS_ITEMCLASS_* (foreign_items.h). Those are ADR 0011's
+// frozen, user-armed SELECTION bits over the hand-adjudicated foreign pools
+// (songs, masks, dungeon items ...). These are the fill's structural classes over
+// every item. Orthogonal axes; neither is derived from the other.
+
+/** The fill classes. Pinned values (a lock prints and compares them), append-only. */
+#define RSBS_FILL_CLASS_NONE 0u        /* not a fill item in this id space (gap, sentinel, event row) */
+#define RSBS_FILL_CLASS_PROGRESSION 1u /* the game's own fill predicate says it may unlock something */
+#define RSBS_FILL_CLASS_JUNK 2u        /* filler that is not regainable in play */
+#define RSBS_FILL_CLASS_RENEWABLE 3u   /* filler whose effect a player can regain in play */
+#define RSBS_FILL_CLASS_TRAP 4u        /* a per-game punishment disguised by its own game */
+/** One past the highest class. */
+#define RSBS_FILL_CLASS_COUNT 5u
+
+// ----------------------------------------------------------------------------
+// SETTINGS-CONDITIONAL CROSSING: arming conditions, NOT baked into the class
+// ----------------------------------------------------------------------------
+//
+// The class is a property of the item. Whether a progression item may enter the
+// union bag and cross games is ALSO a property of the frozen settings: with OoT
+// keysanity confined to the item's own dungeon, OoT's small keys are placed by a
+// restricted pass and never reach the general pass the union bag is drawn from
+// (ADR 0010's O4 amendment 2), so they do not cross; with MM soul shuffle
+// unarmed, an MM soul give is a bare flag with no meaning (ADR 0011 criterion 3).
+// Baking either into the static table would make the table a function of
+// settings, which is the SHARED_BOMBCHU wart again (one item, two answers
+// depending on where you ask). So each row carries the
+// ARMING CONDITIONS under which it may roam, and Combo_ItemClassMayCrossUnder is
+// the predicate over a frozen world's armed set.
+//
+// The low half is the give-capability families, bit-for-bit the RSBS_GIVECAP_*
+// values of foreign_items.h (asserted in shared_items.c), so the frozen profile
+// MM already publishes arms them with no translation. The high half is the
+// CONFINEMENT families: settings that can confine an item family to a restricted
+// placement pass. Only a game with restricted passes tags them (OoT does; MM's
+// fill places its whole pool in one pass, so its rows carry none).
+//
+// ONE SETTING PER CONFINEMENT BIT, AND ONLY THE VALUE THAT HANDS THE FAMILY TO
+// THE GENERAL PASS ARMS IT. A confinement bit means "the ONE setting named below
+// hands this family to the GENERAL placement pass" (the pass the union bag is
+// drawn from) and nothing weaker. OoT's own-dungeon, any-dungeon and overworld
+// values are all RESTRICTED passes (3drando/fill.cpp RandomizeOwnDungeon /
+// RandomizeDungeonItems), and vanilla / start-with are fixed placements that
+// never enter any pool, so for the key, map, song and reward families a
+// publisher arms the bit only for the setting's anywhere value. The families are
+// split by the setting that actually confines them, because OoT's item types
+// are not: ITEMTYPE_SMALLKEY covers the dungeon keys (RSK_KEYSANITY) and the
+// treasure-game keys (no confinement at all: RSK_SHUFFLE_CHEST_MINIGAME only
+// decides whether they enter the pool, item_pool.cpp, and no restricted pass
+// names them), ITEMTYPE_FORTRESS_SMALLKEY follows RSK_GERUDO_KEYS, and
+// ITEMTYPE_BOSSKEY covers the dungeon boss keys (RSK_BOSS_KEYSANITY) and Ganon's
+// (RSK_GANONS_BOSS_KEY). One bit over two settings could not express
+// keysanity=anywhere with gerudo keys=any-dungeon: the fortress keys would read
+// as roaming while OoT's fill still confined them, which is the unsound
+// direction.
+#define RSBS_FILL_ARM_SOULS 0x00000001u           /* == RSBS_GIVECAP_SOULS */
+#define RSBS_FILL_ARM_OCARINA_BUTTONS 0x00000002u /* == RSBS_GIVECAP_OCARINA_BUTTONS */
+#define RSBS_FILL_ARM_SWIM 0x00000004u            /* == RSBS_GIVECAP_SWIM */
+#define RSBS_FILL_ARM_CLOCKS 0x00000008u          /* == RSBS_GIVECAP_CLOCKS */
+#define RSBS_FILL_ARM_GIVECAPS_MASK 0x0000FFFFu
+/** OoT dungeon small keys and key rings (the dungeon list's GetSmallKey /
+ *  GetKeyRing) are placed by the general pass: RSK_KEYSANITY == ANYWHERE. */
+#define RSBS_FILL_ARM_SMALL_KEYS_ROAM 0x00010000u
+/** OoT dungeon boss keys, Ganon's excepted, are placed by the general pass:
+ *  RSK_BOSS_KEYSANITY == ANYWHERE. */
+#define RSBS_FILL_ARM_BOSS_KEYS_ROAM 0x00020000u
+/** OoT maps and compasses are placed by the general pass:
+ *  RSK_SHUFFLE_MAPANDCOMPASS == ANYWHERE. */
+#define RSBS_FILL_ARM_MAPS_ROAM 0x00040000u
+/** OoT songs are placed by the general pass: RSK_SHUFFLE_SONGS == ANYWHERE
+ *  (song-locations and dungeon-rewards are restricted passes, off is vanilla). */
+#define RSBS_FILL_ARM_SONGS_ROAM 0x00080000u
+/** OoT skulltula tokens left in the pool are placed by the general pass:
+ *  RSK_SHUFFLE_TOKENS != OFF. The setting decides how many copies enter the pool
+ *  (the rest are fixed placements, 3drando/item_pool.cpp), never a restricted
+ *  pass, so any shuffled value arms it. */
+#define RSBS_FILL_ARM_TOKENS_ROAM 0x00100000u
+/** OoT dungeon rewards are placed by the general pass:
+ *  RSK_SHUFFLE_DUNGEON_REWARDS == ANYWHERE. */
+#define RSBS_FILL_ARM_REWARDS_ROAM 0x00200000u
+/** A per-world goal quantity (triforce pieces). No frozen record arms it this
+ *  increment: whether a goal counter may cross is an undecided design question,
+ *  not a setting, so such rows never cross. */
+#define RSBS_FILL_ARM_WORLD_EVENT 0x00400000u
+/** A shop's own stock row (OoT RG_BUY_*): placed only into shop slots, and no
+ *  setting lets it roam, so nothing arms it. */
+#define RSBS_FILL_ARM_SHOP_STOCK 0x00800000u
+/** OoT's Gerudo Fortress small keys and key ring are placed by the general pass:
+ *  RSK_GERUDO_KEYS == ANYWHERE (any-dungeon / overworld are restricted passes,
+ *  vanilla is the carpenters' fixed placement). */
+#define RSBS_FILL_ARM_GERUDO_KEYS_ROAM 0x01000000u
+/** OoT's Ganon's Castle boss key is placed by the general pass:
+ *  RSK_GANONS_BOSS_KEY == ANYWHERE (own-dungeon, any-dungeon and overworld are
+ *  restricted passes; vanilla, start-with and every LACS / token value are fixed
+ *  placements). */
+#define RSBS_FILL_ARM_GANON_BOSS_KEY_ROAM 0x02000000u
+
+/** One source row. */
+typedef struct {
+    uint8_t fillClass; /* RSBS_FILL_CLASS_* */
+    uint32_t armedBy;  /* RSBS_FILL_ARM_* the item needs armed to roam; 0 = unconditional */
+} ComboItemClassRow;
+
+/** Classify ONE id of the source's own id space.
+ *  @return  1 — a fill item; `*out` holds its row (fillClass never NONE);
+ *           0 — no fill item: a gap, a sentinel, or a row no fill ever draws
+ *               (OoT's ITEMTYPE_EVENT rows; MM's draw-only aliases). `*out` is
+ *               set to { NONE, 0 };
+ *          -1 — the source is not READY (its item table is not initialised). */
+typedef int (*ComboItemClassifyFn)(uint16_t id, ComboItemClassRow* out);
+
+#define RSBS_ITEM_CLASS_SOURCE_ABI 1u
+/** The owner stores rows for ids in [0, RSBS_ITEM_CLASS_ID_CAP); a source whose
+ *  id space is wider is refused at registration rather than truncated. */
+#define RSBS_ITEM_CLASS_ID_CAP 1024u
+
+/** What a game registers. `idSpace` is the EXCLUSIVE bound of its id space
+ *  (RG_MAX / RI_MAX). */
+typedef struct {
+    uint32_t abiVersion; /* RSBS_ITEM_CLASS_SOURCE_ABI */
+    uint16_t idSpace;
+    ComboItemClassifyFn classify;
+} ComboItemClassSource;
+
+/**
+ * Register @p source as THE classification source for @p originGame. Called once
+ * per game from a file-scope registrar in its combo-logic engine TU.
+ *
+ * REFUSED (returns false, logs, and increments the durable-for-the-process
+ * refusal count) when: the origin is not a real game; @p source is NULL; the ABI,
+ * the classify pointer or the id space is invalid; or the origin ALREADY HAS a
+ * source — a second registration never replaces the first (see the section
+ * header). There is no production way to remove a source: NULL is refused, not
+ * an un-registration, so "un-register, then register another" cannot launder a
+ * replacement past the refusal.
+ */
+bool Combo_RegisterItemClassSource(uint8_t originGame, const ComboItemClassSource* source);
+
+/**
+ * TEST-ONLY: remove @p originGame's source and discard its built table, so a lock
+ * can install a synthetic source and then restore the real one. Every call logs a
+ * line naming the origin, and increments the counter
+ * Combo_ItemClassUnregistrations() reads, so a replacement done through this door
+ * is never silent. Only src/common/tests/ calls it.
+ * @return true when a source was removed, false when the origin had none or is
+ *         not a real game.
+ */
+bool Combo_TestUnregisterItemClassSource(uint8_t originGame);
+
+/** Number of Combo_TestUnregisterItemClassSource removals this process. */
+uint32_t Combo_ItemClassUnregistrations(void);
+
+/** The registered source for @p originGame, or NULL. */
+const ComboItemClassSource* Combo_GetItemClassSource(uint8_t originGame);
+
+/** Number of refused registrations this process (read-only; locks). */
+uint32_t Combo_ItemClassRefusedRegistrations(void);
+
+/**
+ * Build (or return the already-built) owner table for @p originGame by walking
+ * its source once over [0, idSpace).
+ * @return the number of FILL ITEMS stored (>= 0); -1 when there is no source or
+ *         the source is not ready (nothing is cached — a later call retries).
+ */
+int Combo_ItemClassBuild(uint8_t originGame);
+
+/** THE OWNER'S ANSWER: @p item's fill class, from the stored table (built on
+ *  first use). RSBS_FILL_CLASS_NONE for an unknown origin, an id outside the
+ *  source's id space, a non-fill id, or a source that is not ready. `flags` is
+ *  ignored — the class belongs to (originGame, id). */
+uint8_t Combo_ItemClassOf(SharedItem item);
+
+/** The stored arming conditions of @p item (0 when unconditional or unknown). */
+uint32_t Combo_ItemClassArmedBy(SharedItem item);
+
+/** How many fill items of @p originGame's table have class @p fillClass
+ *  (-1 when the table cannot be built). */
+int Combo_ItemClassCount(uint8_t originGame, uint8_t fillClass);
+
+/**
+ * Re-walk @p originGame's source and count the ids whose (class, armedBy) differ
+ * from the stored row — including an id the source now calls a fill item that
+ * the table does not hold, or the reverse.
+ * @return 0 when source and owner agree; > 0 the number of diverging ids; -1 when
+ *         the table cannot be built or the source became not ready.
+ */
+int Combo_ItemClassVerify(uint8_t originGame);
+
+/** A class's name ("progression", "junk", "renewable", "trap", "(none)"), or
+ *  "(unknown)" past the table. Never NULL. */
+const char* Combo_ItemClassName(uint8_t fillClass);
+
+/**
+ * THE SETTINGS-CONDITIONAL PREDICATE: may @p item enter the union bag and cross
+ * games in a world whose frozen settings arm @p armed (an OR of RSBS_FILL_ARM_*)?
+ *
+ * True only for a PROGRESSION item whose every arming condition is in @p armed.
+ * Never for junk or renewable (criterion 2: junk is what a foreign host degrades
+ * to; renewables are the #525 shared quantities) and never for a trap (see the
+ * section header). A pure function of the stored row and its argument.
+ */
+bool Combo_ItemClassMayCrossUnder(SharedItem item, uint32_t armed);
+
+/**
+ * The armed set a FROZEN world publishes for crossings originating in
+ * @p originGame, as far as this tree publishes one today: the give-capability
+ * bits of that game's frozen profile when published (foreign_items.h,
+ * Combo_ForeignGiveCaps), and NOTHING for the confinement families — no game
+ * publishes its keysanity / song / token / reward confinement to src/common yet,
+ * so every row that needs one reads as unarmed, which is the conservative answer
+ * (the item stays in its own game). Publishing those is the wiring lane's job,
+ * not a guess this function makes.
+ */
+uint32_t Combo_ItemClassArmedFromFrozen(uint8_t originGame);
+
 #ifdef __cplusplus
 }
 #endif
