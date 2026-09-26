@@ -403,6 +403,25 @@ jobs:
           echo "===== $f ====="
           cat "$f"
         done
+    # The UI snapshot harness (docs/ui-style-guide.md section 12): SoH's own menu
+    # pages and every page this project added, rendered the same way into
+    # build-cmake/ui-snapshots/ for an agent or reviewer to compare. Its OWN label
+    # and its OWN step, so the rando step above (and the golden rows in it) keep
+    # xvfb-run's default screen: this one needs a 24-bit visual, which the row
+    # itself asserts (colour bits >= 8). ROM-free here, so it draws the probe menu
+    # (the Combo section, the Randomizer pointer page, Dev Tools) and records the
+    # ROM-only reference pages as skipped. Structure-only asserts; it never
+    # compares pixels against a stored image.
+    - name: Run UI snapshot harness (ui label)
+      run: xvfb-run -a -s "-screen 0 1920x1080x24" ctest --test-dir build-cmake --output-on-failure --label-regex "^ui$" --no-tests=error
+    - name: Upload UI snapshots (Linux)
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: ui-snapshots-linux
+        path: build-cmake/ui-snapshots/
+        if-no-files-found: warn
+        retention-days: 14
     - name: Package
       run: |
         (cd build-cmake && cpack -G External)
@@ -717,6 +736,23 @@ jobs:
             Get-Content -LiteralPath $f.FullName
           }
         }
+    # The Windows twin of build-linux's UI snapshot step. The harness picks the
+    # DirectX 11 backend here (auto: DX11 when CI is set on Windows; a hosted
+    # runner has no usable desktop GL) and reads back through the swap chain, and
+    # picks the largest profile that fits the runner's desktop, recorded in the
+    # manifest. Never compare these images with the Linux ones.
+    - name: Run UI snapshot harness (Windows) (ui label)
+      run: |
+        $ctest = Join-Path (Split-Path -Parent (Get-Command cmake).Source) 'ctest.exe'
+        & $ctest --test-dir bw --output-on-failure --label-regex '^ui$' --no-tests=error
+    - name: Upload UI snapshots (Windows)
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: ui-snapshots-windows
+        path: bw/ui-snapshots/
+        if-no-files-found: warn
+        retention-days: 14
     - name: Package (Windows)
       run: |
         cd bw

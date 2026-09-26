@@ -1,0 +1,39 @@
+# The files and function slices .github/scripts/check-ui-parity-lint.py lints:
+# everything RedShipBlueShip added that draws player-facing ImGui or feeds it
+# strings. Format: <SET> <path>[::<function>]   (# starts a comment)
+#
+#   MENU           SohMenu registrars this project owns (menu pages)
+#   PANES          our GuiWindow panes and overlays
+#   SETTINGS_PANE  the subset of PANES that is a settings surface (S4 applies)
+#   TOASTS         the TUs whose notification toasts carry hand-picked colours
+#   PTR            a project-added function inside an SoH-shipped file
+#   STRINGS        tables and views whose strings reach the player (S7 only)
+#   EXCLUDED       draws ImGui, deliberately not linted, with the reason
+#
+# Every ImGui-drawing TU under src/common and every *SingleExe*.cpp must appear
+# here in SOME set (rule S0), so a new surface cannot escape the lint. A listed
+# path that does not exist is an error, not a skip.
+
+MENU games/oot/soh/SohGui/SohMenuCombo.cpp
+MENU games/oot/soh/SohGui/SohMenuComboMmEnhancements.cpp
+
+PANES src/common/ComboMmOptionsWindow.cpp
+PANES src/common/ComboSpoilerWindow.cpp
+PANES src/common/ComboTrackerWindow.cpp
+PANES games/oot/soh/SohGui/CreationProgressOverlay.cpp
+SETTINGS_PANE src/common/ComboMmOptionsWindow.cpp
+
+TOASTS games/oot/soh/Enhancements/randomizer/ForeignItemsSingleExe.cpp
+TOASTS games/mm/2s2h/Rando/ForeignItemsSingleExe.cpp
+
+PTR games/oot/soh/SohGui/SohMenuRandomizer.cpp::AddCrossGamePointerWidgets
+
+STRINGS games/oot/soh/SohGui/SohMenu.cpp
+STRINGS games/mm/2s2h/Rando/OptionsUiSingleExe.cpp
+STRINGS src/common/combo_settings_view.cpp
+STRINGS src/common/gen_progress_overlay.c
+STRINGS src/common/combo_mm_options_view.c
+STRINGS src/common/combo_mm_tricks_view.c
+
+EXCLUDED src/common/ComboSettingsWindow.cpp   retired from the menu; console-only, kept with its lock
+EXCLUDED src/common/ComboMenuBar.cpp          compiled but never constructed

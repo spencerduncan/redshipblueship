@@ -340,7 +340,7 @@ uint32_t gObservedBracketedDraws = 0;
  *  value is the reviewed defect, live. */
 uint32_t gObservedMismatchedDraws = 0;
 
-const char* kSaveObserverWindowName = "RSBS creation save observer (#582)";
+const char* kSaveObserverWindowName = "RSBS creation save observer (#582)"; // ui-lint: internal-id
 
 class CreationSaveObserverWindow final : public Ship::GuiWindow {
   public:
@@ -763,6 +763,17 @@ extern "C" uint32_t OoT_CreationProgressOverlay_TestObservedMismatchedDraws(void
 extern "C" int OoT_CreationProgressOverlay_TestLastFrameSuppressedInput(void) {
     const uint32_t needed = (uint32_t)(ImGuiConfigFlags_NoMouse | ImGuiConfigFlags_NoKeyboard);
     return (gLastPumpedConfigFlags & needed) == needed ? 1 : 0;
+}
+
+extern "C" void OoT_CreationProgressOverlay_TestDrawContents(const ComboGenOverlayView* view) {
+    // The caller (the UI snapshot harness) has an ImGui frame open and owns the
+    // pump; this only submits the overlay's widgets into it. The painting view is
+    // the same file static DrawOverlayContents reads on a real paint, set for the
+    // duration of the call and cleared again so no later paint inherits it.
+    const ComboGenOverlayView* saved = gPaintingView;
+    gPaintingView = view;
+    DrawOverlayContents();
+    gPaintingView = saved;
 }
 
 extern "C" int OoT_CreationProgressOverlay_TestPresentOnce(void) {

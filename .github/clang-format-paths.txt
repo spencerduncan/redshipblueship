@@ -122,3 +122,4 @@ games/mm/2s2h/Rando/ComboLogicEngineSingleExe.cpp
 games/mm/2s2h/mm_combo_logic_engine_test.cpp
 games/oot/soh/Enhancements/randomizer/ComboLogicMonotonicityOoT.cpp
 games/mm/2s2h/Rando/ComboLogicMonotonicitySingleExe.cpp
+games/oot/soh/soh_ui_snapshot.cpp

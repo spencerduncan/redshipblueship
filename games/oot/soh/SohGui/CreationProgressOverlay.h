@@ -146,6 +146,21 @@ uint32_t OoT_CreationProgressOverlay_TestObservedBracketedDraws(void);
  */
 uint32_t OoT_CreationProgressOverlay_TestObservedMismatchedDraws(void);
 
+/**
+ * TEST SEAM for the UI snapshot harness (`redship --test ui-snapshot`). Submits
+ * the overlay's ImGui for @p view into the ImGui frame the CALLER already has
+ * open, and nothing else: no StartDraw/EndDraw, no present, no latch, no
+ * gSaveContext bracket.
+ *
+ * It exists because OoT_CreationProgressOverlay_TestPresentOnce cannot serve a
+ * capture: that seam owns the whole frame and presents it, so the swap happens
+ * before anyone could read the framebuffer back. The harness owns its own frame
+ * pump (it has to read back between EndDraw and the present) and only needs the
+ * overlay's widgets submitted inside it. Nothing in a shipping path calls this.
+ */
+struct ComboGenOverlayView;
+void OoT_CreationProgressOverlay_TestDrawContents(const struct ComboGenOverlayView* view);
+
 #ifdef __cplusplus
 }
 #endif
