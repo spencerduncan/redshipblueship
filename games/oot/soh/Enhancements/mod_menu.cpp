@@ -303,6 +303,24 @@ static void MountAndRegisterOoTMod(const std::string& modArchivePath) {
 #endif
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// #705: OoT's loose (unpacked) asset folder, `<mods>/loose`, mounted as a
+// FolderArchive AFTER the packed mods — the same helper, at the same point in the
+// mount order, as MM's `<mods>/mm/loose` (MountMMModArchives,
+// games/mm/2s2h/GameExports_SingleExe.cpp), so the two halves of one game have one
+// modding rule: base archives, then packed mods, then loose files. The helper
+// registers it with Combo_RegisterModArchive(GAME_OOT, ...) so the switch-time
+// re-apply keeps it on top.
+//
+// Not in the mod menu's enabled list, deliberately: the list is keyed by archive
+// file-name stem and persisted in a CVar, and the loose folder is not an archive.
+// Rename or empty the folder to turn it off. One definition shared by the init leg
+// and OoT_MountModArchivesHeadless, for the same reason as the pair above.
+static int MountOoTLooseMods(const std::string& modsPath) {
+    return (int)Rsbs::MountLooseModDirs(GAME_OOT, modsPath).size();
+}
+#endif
+
 void UpdateModFiles(bool init = false, bool reset = false) {
     if (init || reset) {
         enabledModFiles.clear();
@@ -367,6 +385,10 @@ void UpdateModFiles(bool init = false, bool reset = false) {
                         changed = true;
                     }
                 }
+#ifdef RSBS_SINGLE_EXECUTABLE
+                // #705: the loose layer, LAST, so it wins over every packed mod.
+                (void)MountOoTLooseMods(modsPath);
+#endif
             }
         }
         if (changed) {
@@ -427,8 +449,9 @@ extern "C" const char* OoT_ModsAppShortName(void) {
  * @param mmModsRoot MM's mods root. Pass the same string for the shared-tree
  *                   (portable) case; a different directory for the non-portable
  *                   one.
- * @return how many archives OoT claimed and registered, or -1 for a NULL/empty
- *         root or with no live ArchiveManager.
+ * @return how many archives OoT claimed and registered, PLUS the loose asset
+ *         folders (#705, MountOoTLooseMods) it mounted and registered after them,
+ *         or -1 for a NULL/empty root or with no live ArchiveManager.
  */
 extern "C" int OoT_MountModArchivesHeadless(const char* modsRoot, const char* mmModsRoot) {
     if (modsRoot == nullptr || modsRoot[0] == '\0' || mmModsRoot == nullptr || mmModsRoot[0] == '\0') {
@@ -445,6 +468,8 @@ extern "C" int OoT_MountModArchivesHeadless(const char* modsRoot, const char* mm
         MountAndRegisterOoTMod(modPath.generic_string());
         registered++;
     }
+    // #705: and the loose layer after them, exactly as the init leg does.
+    registered += MountOoTLooseMods(std::string(modsRoot));
     return registered;
 }
 #endif

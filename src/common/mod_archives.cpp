@@ -10,12 +10,19 @@
 #include "mod_archives.h"
 
 #include <ship/Context.h>
+#include <ship/resource/ResourceManager.h>
+#include <ship/resource/archive/Archive.h>
+#include <ship/resource/archive/ArchiveManager.h>
 
+#include <algorithm>
 #include <cctype>
+#include <cstdio>
 #include <deque>
+#include <exception>
 #include <filesystem>
 #include <mutex>
 #include <string>
+#include <vector>
 
 namespace {
 
@@ -23,6 +30,9 @@ namespace {
 // why the tree is partitioned at all (the portable-build collapse of
 // LocateFileAcrossAppDirs's appName argument) and why OoT keeps the root.
 constexpr const char kMmModsSubdir[] = "mm";
+
+// The folder, inside each game's half, whose files are mounted loose (#705).
+constexpr const char kLooseModsDir[] = "loose";
 
 // The app short names the two MODS-ROOT lookups hand LocateFileAcrossAppDirs.
 // Stated exactly, because an earlier version of this comment claimed more than the
@@ -323,3 +333,109 @@ extern "C" void Combo_ClearModArchives(GameId game) {
     std::lock_guard<std::mutex> lock(sModArchivesMutex);
     sModArchives[(int)game].clear();
 }
+
+extern "C" const char* Combo_LooseModsDirName(void) {
+    return kLooseModsDir;
+}
+
+namespace Rsbs {
+
+std::vector<std::string> FindLooseModDirs(GameId game, const std::string& modsRoot) {
+    std::vector<std::string> found;
+    if (!ValidGame(game) || modsRoot.empty()) {
+        return found;
+    }
+    std::error_code rootEc;
+    if (!std::filesystem::is_directory(modsRoot, rootEc)) {
+        return found;
+    }
+
+    // The game's half of the tree. For MM that is every first-level folder whose
+    // name is the reserved `mm` in any case — the SAME match MM's archive walk makes
+    // through Combo_ModPathIsForGame, so on a case-sensitive filesystem holding both
+    // `mods/mm` and `mods/MM` the loose layer is found in both, exactly as the
+    // archives are. Listed rather than probed at a fixed spelling for that reason.
+    std::vector<std::filesystem::path> halves;
+    if (game == GAME_OOT) {
+        halves.emplace_back(modsRoot);
+    } else {
+        std::error_code listEc;
+        for (std::filesystem::directory_iterator it(modsRoot, listEc), end; !listEc && it != end;
+             it.increment(listEc)) {
+            std::error_code entryEc;
+            if (it->is_directory(entryEc) && IEqualsAscii(it->path().filename().generic_string(), kMmModsSubdir)) {
+                halves.push_back(it->path());
+            }
+        }
+    }
+
+    for (const std::filesystem::path& half : halves) {
+        std::error_code listEc;
+        for (std::filesystem::directory_iterator it(half, listEc), end; !listEc && it != end; it.increment(listEc)) {
+            std::error_code entryEc;
+            if (!it->is_directory(entryEc) || !IEqualsAscii(it->path().filename().generic_string(), kLooseModsDir)) {
+                continue;
+            }
+            const std::string candidate = it->path().generic_string();
+            // The partition, enforced rather than inferred: `<root>/loose` is OoT's
+            // because its first component is not `mm`, `<root>/mm/loose` is MM's
+            // because it is. If either rule ever changes, a folder the OTHER game
+            // owns is refused here instead of being mounted and registered under the
+            // wrong game — which is the one mis-registration that survives a switch.
+            if (!Combo_ModPathIsForGame(game, modsRoot.c_str(), candidate.c_str())) {
+                continue;
+            }
+            found.push_back(candidate);
+        }
+    }
+
+    // Deterministic mount order when there is more than one (only reachable for MM,
+    // on a case-sensitive filesystem). Directory iteration order is unspecified.
+    std::sort(found.begin(), found.end());
+    return found;
+}
+
+std::vector<std::string> MountLooseModDirs(GameId game, const std::string& modsRoot) {
+    std::vector<std::string> mounted;
+    auto ctx = Ship::Context::GetInstance();
+    if (ctx == nullptr || ctx->GetResourceManager() == nullptr ||
+        ctx->GetResourceManager()->GetArchiveManager() == nullptr) {
+        return mounted;
+    }
+    auto archiveMgr = ctx->GetResourceManager()->GetArchiveManager();
+    const char* tag = game == GAME_MM ? "[MM]" : "[OoT]";
+
+    for (const std::string& dir : FindLooseModDirs(game, modsRoot)) {
+        // Absolute, normal, '/'-separated: see the header for why FolderArchive
+        // needs exactly this spelling. lexically_normal of a directory path can keep
+        // a trailing separator; FolderArchive appends its own.
+        std::error_code absEc;
+        const std::filesystem::path abs = std::filesystem::absolute(dir, absEc);
+        std::string archivePath = (absEc ? std::filesystem::path(dir) : abs).lexically_normal().generic_string();
+        while (archivePath.size() > 1 && archivePath.back() == '/') {
+            archivePath.pop_back();
+        }
+
+        std::shared_ptr<Ship::Archive> archive;
+        try {
+            archive = archiveMgr->AddArchive(archivePath);
+        } catch (const std::exception& e) {
+            fprintf(stderr, "%s WARNING: could not mount loose asset folder, its files will NOT apply: %s (%s)\n", tag,
+                    archivePath.c_str(), e.what());
+            continue;
+        }
+        if (archive == nullptr) {
+            fprintf(stderr, "%s WARNING: could not mount loose asset folder, its files will NOT apply: %s\n", tag,
+                    archivePath.c_str());
+            continue;
+        }
+        Combo_RegisterModArchive(game, archivePath.c_str());
+        const auto files = archive->ListFiles();
+        fprintf(stderr, "%s Mounted loose asset folder: %s (%d file(s))\n", tag, archivePath.c_str(),
+                files != nullptr ? (int)files->size() : 0);
+        mounted.push_back(archivePath);
+    }
+    return mounted;
+}
+
+} // namespace Rsbs

@@ -19,6 +19,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <csignal>
+#include <exception>
 #include <filesystem>
 #include <string>
 
@@ -120,7 +121,16 @@ extern "C" void Combo_EnsureGameArchivesLoaded(GameId targetGame) {
             continue;
         }
 
-        if (archiveManager->AddArchive(std::string(modPath))) {
+        // #705: a registered mod can be a loose asset FOLDER, and re-adding one
+        // re-walks it with libultraship's throwing directory iterator. A folder
+        // that became unreadable since boot must cost that one mod, not the switch.
+        std::shared_ptr<Ship::Archive> reapplied;
+        try {
+            reapplied = archiveManager->AddArchive(std::string(modPath));
+        } catch (const std::exception& e) {
+            fprintf(stderr, "[RSBS] WARNING: re-applying mod %s threw (%s)\n", modPath, e.what());
+        }
+        if (reapplied) {
             printf("[RSBS] Mod archive re-applied over %s base archives: %s\n", Game_ToString(targetGame), modPath);
         } else {
             // Loud on purpose. Silence here is the whole bug: the mod stays

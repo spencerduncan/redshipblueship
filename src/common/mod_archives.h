@@ -134,6 +134,31 @@
  * PR #704 shipped a third, unstated divergence there — OoT followed directory
  * symlinks and MM did not, so the "a mod may ship as its own folder" installation
  * the docs bless worked under `mods/` and silently did nothing under `mods/mm/`.
+ *
+ * ---------------------------------------------------------------------------
+ * Loose (unpacked) asset folders (issue #705)
+ * ---------------------------------------------------------------------------
+ *
+ * Each game's half of the tree may also hold ONE kind of folder whose files are
+ * mounted directly as resource paths: `<mods>/loose` for OoT, `<mods>/mm/loose` for
+ * MM (Combo_LooseModsDirName, Rsbs::FindLooseModDirs). It is mounted as a
+ * libultraship FolderArchive — AddArchive on an extension-less path, which is the
+ * only way FolderArchive is ever constructed — by the ONE helper both ports call
+ * (Rsbs::MountLooseModDirs), at the same point in both mount orders: after that
+ * game's packed mods. So the precedence is the same in both halves of the one game:
+ * base archives, then packed mods, then loose files. Registered through
+ * Combo_RegisterModArchive like any packed mod, so the switch-time re-apply restores
+ * it in the same position (the re-apply's AddArchive re-walks the folder, so a file
+ * added while playing the other game is picked up on the next arrival).
+ *
+ * Why a dedicated sibling and not `mods/` itself: FolderArchive indexes EVERY file
+ * under its root, so mounting `mods/` would index each `.o2r` there as a resource
+ * path named after itself, and mounting `mods/` for OoT would also index all of
+ * `mods/mm/` — MM's half — as OoT resources. A dedicated folder inside each half has
+ * neither problem. The archive walks are NOT changed by this: an archive that
+ * someone places under `loose/` is still mounted as an archive by its game's walk
+ * (it was before #705), and is additionally indexed as an inert resource path under
+ * its own file name.
  */
 
 #ifndef RSBS_MOD_ARCHIVES_H
@@ -274,6 +299,20 @@ bool Combo_ModPathIsForGame(GameId game, const char* modsRoot, const char* path)
 bool Combo_ModArchiveExtensionIsValid(const char* extension);
 
 /**
+ * The name of the folder, inside each game's half of the shared mods/ tree, whose
+ * FILES are mounted as resource paths — a loose (unpacked) asset mod (#705):
+ * "loose". Never NULL.
+ *
+ *   <mods>/loose/...      OoT's loose assets
+ *   <mods>/mm/loose/...   MM's loose assets
+ *
+ * Matched case-insensitively, like the reserved `mm` folder, and only as the FIRST
+ * folder inside the game's half (`<mods>/loose` for OoT, `<mods>/mm/loose` for MM);
+ * `<mods>/my-pack/loose` is an ordinary folder. See Rsbs::FindLooseModDirs.
+ */
+const char* Combo_LooseModsDirName(void);
+
+/**
  * Record that @p game mounted the mod archive at @p path.
  * No-op for a NULL/empty path, an unknown game, or a duplicate registration.
  */
@@ -308,8 +347,56 @@ void Combo_EnsureGameArchivesLoaded(GameId targetGame);
 }
 
 #include <filesystem>
+#include <string>
+#include <vector>
 
 namespace Rsbs {
+
+/**
+ * The loose-asset folders @p game owns under @p modsRoot (#705), in mount order
+ * (sorted), with generic ('/') separators. Empty when there are none, which is the
+ * normal case.
+ *
+ * Which folders: the game's half of the tree is the root itself for OoT and each
+ * first-level folder named `mm` (any case) for MM — the same split the archive walks
+ * use — and inside that half, each folder named `loose` (any case). Every candidate
+ * is then checked against Combo_ModPathIsForGame, so a loose folder can never be
+ * claimed by the game whose half it is not in: the partition is enforced here, not
+ * assumed from the path arithmetic above it. A symlinked or junctioned `loose`
+ * folder is found (a directory entry's status follows the link); links INSIDE it are
+ * libultraship's FolderArchive walk's business, which does not follow them.
+ *
+ * Lists at most two directory levels; never throws.
+ */
+std::vector<std::string> FindLooseModDirs(GameId game, const std::string& modsRoot);
+
+/**
+ * Mount every folder FindLooseModDirs returns as a libultraship FolderArchive (an
+ * AddArchive on an extension-less path), then Combo_RegisterModArchive(@p game,
+ * path) for each, so #593's switch-time re-apply puts it back on top exactly as it
+ * does a packed mod.
+ *
+ * CALL IT AFTER THE GAME'S PACKED MODS: the loose layer is mounted last and
+ * therefore wins every path it ships over the base archives AND over the game's
+ * packed mods (last-added-wins, ArchiveManager::AddArchive). Both ports do.
+ *
+ * Mounted by ABSOLUTE, lexically normal, '/'-separated path, and that exact string
+ * is what is registered and returned. Both halves of that are load-bearing, because
+ * of how FolderArchive::Open derives resource names: it lists the folder with
+ * generic ('/') paths and takes everything after `<archivePath>/` — so a path with
+ * '\' separators on Windows would not match its own listing at all (and Open then
+ * indexes past the end of a one-element split), and a relative path is a far likelier
+ * substring of a deeper file's path, which would cut that file's resource name short.
+ *
+ * Never throws: FolderArchive's walk uses the THROWING directory iterator (an
+ * unreadable subfolder raises filesystem_error), and nothing in a player's mods
+ * folder may throw out of either game's boot path. A folder that fails to mount is
+ * reported on stderr and skipped.
+ *
+ * @return the paths mounted and registered, in mount order. Callers with a second
+ *         registry of their own (MM's RecordMMArchivePath) record these too.
+ */
+std::vector<std::string> MountLooseModDirs(GameId game, const std::string& modsRoot);
 
 /**
  * The ONE directory_options both globs over the shared mods/ tree use
