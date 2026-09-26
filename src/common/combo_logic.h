@@ -171,11 +171,13 @@ const char* Combo_Logic_StatusName(int status);
  * re-measurement over both real engines, combo-logic-measure with
  * RSBS_COMBO_MEASURE_PROFILE): the composed bag is 307 rows on the shipped
  * profile, 399 on the plentiful profile (OoT RO_ITEM_POOL_PLENTIFUL, MM
- * RO_PLENTIFUL_ITEMS, traps on in both) and 784 on the "maximal" profile —
- * plentiful plus every OoT confinement family at its general-pass value, every
- * token, and every MM LOCATION category shuffled.
+ * RO_PLENTIFUL_ITEMS, traps on in both) and 784 / 799 on two runs of the
+ * "maximal" profile — plentiful plus every OoT confinement family at its
+ * general-pass value, every token, and every MM LOCATION category shuffled. The
+ * maximal figure moves between runs because MM's plentiful step duplicates a
+ * RANDOM half of its lesser rows from Ship_Random (161 vs 176 MM surplus rows).
  *
- * 784 IS THE LARGEST OF THE THREE PROFILES RUN, NOT A PROVEN WORST CASE. The
+ * 799 IS THE LARGEST BAG MEASURED ON THE PROFILES RUN, NOT A PROVEN WORST CASE. The
  * "maximal" profile leaves out every ITEM family that is gated on a give
  * capability or a goal: MM's enemy souls (about 47 items), boss souls (5),
  * ocarina buttons (5), swim (1), clock shuffle (7 time items) and triforce pieces
@@ -188,7 +190,7 @@ const char* Combo_Logic_StatusName(int status);
  * measurement refuses for MM. UNMEASURED ESTIMATE: those families add about
  * 80-100 progression rows, and plentiful duplicates the major ones, so roughly
  * 150-200 more bag rows, about 1000 in total. 2048 would still carry that with
- * about 2x headroom, but the number is an estimate; the next re-measurement with
+ * about 2x headroom, but that is an estimate; the next re-measurement with
  * those families armed moves RSBS_COMBO_LOGIC_MEASURED_WORST_BAG below. Exceeding
  * the cap is still refused (RSBS_COMBO_LOGIC_ERR_CAPACITY), never truncated.
  *
@@ -203,7 +205,7 @@ const char* Combo_Logic_StatusName(int status);
  *  against, stated so a later re-measurement has one line to move and a static
  *  assert keeps the 2x headroom over what WAS measured. It is not a bound on
  *  every configuration. */
-#define RSBS_COMBO_LOGIC_MEASURED_WORST_BAG 784
+#define RSBS_COMBO_LOGIC_MEASURED_WORST_BAG 799
 #if RSBS_COMBO_LOGIC_BAG_CAP < 2 * RSBS_COMBO_LOGIC_MEASURED_WORST_BAG
 #error "RSBS_COMBO_LOGIC_BAG_CAP must carry the measured worst composed bag with at least 2x headroom"
 #endif
