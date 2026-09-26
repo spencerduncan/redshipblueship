@@ -95,13 +95,11 @@
 # `rando` row brings up a Fast3dWindow and a hosted runner's OpenGL is the GDI
 # generic 1.1 implementation. That reasoning was never measured, and it is wrong:
 # the three rows run and pass on windows-latest in 5.4s (run 35648094332, job
-# 106493621321). So the Windows job now carries a `--tests-regex '^Golden'` step and
-# both legs check the SAME committed bytes, which is what makes cross-platform
-# agreement a thing CI re-verifies rather than folklore
+# 106493621321), and so, measured next (#709), does the whole `rando` tier: 28/28
+# on two attempts of PR #723's run. The Windows job now runs `--label-regex
+# '^rando$'` like Linux, both legs check the SAME committed bytes, and that is what
+# makes cross-platform agreement a thing CI re-verifies rather than folklore
 # (docs/determinism-goldens.md, "Platform portability").
-#
-# Still true and still worth knowing: the rows are selected by NAME on Windows, not
-# by label — the `rando` tier as a whole remains untried there.
 #
 # Usage (see the rows in CMake/SingleExecutable.cmake):
 #   cmake -DREDSHIP_EXE=<redship> -DWORK_DIR=<dir> -DDISPATCH=rando-determinism
