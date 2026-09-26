@@ -8,6 +8,8 @@
  *   Tier 1  ComboContext     (cross-game flags / shared items / last game)
  *   Tier 2  OoT SaveContext  (header.ootSize bytes; OOT_SAVE_CONTEXT_SIZE when written by this build)
  *   Tier 3  MM  SaveContext  (header.mmSize bytes; MM_SAVE_CONTEXT_SIZE when written by this build)
+ *   Tier 4  crossing block   (format version 3+ only; self-sized, see crossing_store.h: which
+ *                            hosts of each game hold an item of the other, ADR 0010 O7)
  *
  * This is the HEADLESS CORE: the format, the SaveManager, and round-trip /
  * validation unit tests. It serializes the cross-game shadow copies that the
@@ -33,6 +35,16 @@
  *   origin-tagged sharedItems requires — does not change the serialized size
  *   at all and does not orphan existing saves. See context.h for the growth
  *   contract that keeps the prefix property true.
+ * - Tier-4 (format version 3, ADR 0010 O7) is the cross-game CROSSING BLOCK:
+ *   a 16-byte self-describing header that carries its own two counts, then 8
+ *   bytes per crossing (crossing_store.h has the byte layout and the reasons
+ *   it is a block and not a reserved[] carve). The 32-byte header cannot grow
+ *   (DeserializeHeader pins headerSize by equality), so the block sizes itself
+ *   and the VERSION says whether it is there: a v1/v2 file has no Tier-4 and
+ *   loads with an EMPTY crossing store (those builds wrote no crossings); a v3
+ *   file must carry one. The payload CRC covers Tiers 1..4 for v3. An
+ *   oversized count is refused from the block header before the body is read
+ *   (RSBS_REFUSE_CROSSINGS), never truncated.
  */
 
 #ifndef RSBS_COMMON_SAVE_H
@@ -45,7 +57,14 @@
 
 // On-disk constants (visible to both C and C++).
 #define RSBS_SAVE_MAGIC      "REDSHIP1"  // 8 bytes, NOT NUL-terminated on disk
-#define RSBS_SAVE_VERSION    2u          // version THIS build writes
+#define RSBS_SAVE_VERSION    3u          // version THIS build writes
+// The first version that carries the Tier-4 crossing block (ADR 0010 O7). v3
+// changes nothing about Tiers 0-3; it APPENDS Tier-4, which is why v1 and v2
+// stay inside the read window below: they load with an empty crossing store,
+// which is exactly the truth for every world a pre-v3 build could author. A v3
+// file is refused by a pre-v3 build (version outside its window), the ordinary
+// forward-compatibility refusal.
+#define RSBS_SAVE_VERSION_CROSSINGS 3u
 // Oldest version this build can still read. v1 files predate the fixed-size
 // Tier-1 record: their comboSize is the raw sizeof(ComboContext) of the build
 // that wrote them, which is a prefix of the current layout and therefore
@@ -107,6 +126,13 @@ typedef enum RsbsRefuseReason {
     // to an UNPAIRED vanilla Termina and must never capture that world into
     // the pair's .redsave (see RefuseSlotGeneration).
     RSBS_REFUSE_GENERATION,
+    // ADR 0010 O7: the v3 Tier-4 crossing block is malformed (bad magic,
+    // format, record size or reserved word; a host listed twice; a row with
+    // host 0, no origin tag, or the host's OWN origin) or claims more crossings
+    // than this build's RSBS_CROSSING_STORE_CAP. Evidence, quarantined like a
+    // CRC failure: loading it would hand the give path a world that is not the
+    // one generated, and truncating it would drop crossings silently.
+    RSBS_REFUSE_CROSSINGS,
 } RsbsRefuseReason;
 
 // What a load attempt actually did — richer than the old bool, because ABSENT
@@ -201,7 +227,7 @@ struct RsbsSaveHeader {
     uint32_t comboSize;   // Tier-1 bytes as stored (RSBS_COMBO_CONTEXT_RECORD_SIZE at write time)
     uint32_t ootSize;     // Tier-2 bytes as stored (== OOT_SAVE_CONTEXT_SIZE at write time)
     uint32_t mmSize;      // Tier-3 bytes as stored (== MM_SAVE_CONTEXT_SIZE at write time)
-    uint32_t crc32;       // CRC32 over Tiers 1..3 (the payload after the header)
+    uint32_t crc32;       // CRC32 over the payload after the header: Tiers 1..3, and Tier-4 from v3
 };
 #pragma pack(pop)
 
@@ -522,7 +548,8 @@ private:
     // flight), and both use the same `.tmp` staging path — unserialized, the
     // interleaved temp writes produce a CRC-invalid file that the next load
     // refuses.
-    bool WriteSlotFile(int slot, const ComboContext& combo, const uint8_t* ootBlob, const uint8_t* mmBlob);
+    bool WriteSlotFile(int slot, const ComboContext& combo, const uint8_t* ootBlob, const uint8_t* mmBlob,
+                       const std::vector<uint8_t>& crossings);
 
     std::string mSaveDir = "Save";
 
@@ -546,6 +573,10 @@ private:
         ComboContext combo{};
         std::vector<uint8_t> oot;
         std::vector<uint8_t> mm;
+        // The crossing store (ADR 0010 O7), serialized on the game thread at
+        // stage time with the rest of the snapshot, so the crossings and the
+        // world they describe are one commit (#569).
+        std::vector<uint8_t> crossings;
         uint32_t generation = 0;
         bool valid = false;
     };

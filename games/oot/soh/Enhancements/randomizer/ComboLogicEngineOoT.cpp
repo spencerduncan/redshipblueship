@@ -1027,6 +1027,46 @@ struct OoTComboLogicRegistrar {
 };
 const OoTComboLogicRegistrar gOoTComboLogicRegistrar;
 
+// ============================================================================
+// ADR 0010 O7: NAMES FOR THE CROSSING STORE (the one spoiler's crossing section)
+// ============================================================================
+//
+// Under the single bag a crossing can be any OoT item on any MM check, and the
+// pinned pool names only its own rows. This is the OoT half of the describer
+// pair foreign_items.h declares: it answers an OoT id or an OoT check with a
+// stable name and hands nothing else across (ADR 0002). Both tables are static
+// arrays whose rows are default-constructed until OTR bring-up fills them, so
+// an empty name reads as "unknown" (NULL) instead of an empty string.
+const char* OoTComboDescribeItem(uint16_t id) {
+    if (id == 0 || id >= (uint16_t)RG_MAX) {
+        return nullptr;
+    }
+    const std::string& name = Rando::StaticData::RetrieveItem((RandomizerGet)id).GetName().GetEnglish();
+    return name.empty() ? nullptr : name.c_str();
+}
+
+const char* OoTComboDescribeCheck(uint16_t check) {
+    if (check == 0 || check >= (uint16_t)RC_MAX) {
+        return nullptr;
+    }
+    const Rando::Location* location = Rando::StaticData::GetLocation((RandomizerCheck)check);
+    if (location == nullptr) {
+        return nullptr;
+    }
+    const std::string& name = location->GetName();
+    return name.empty() ? nullptr : name.c_str();
+}
+
+const ComboGameDescriber kOoTComboDescriber = { OoTComboDescribeItem, OoTComboDescribeCheck };
+
+/** Same shape as the engine registrar above: stores a pointer, calls nothing. */
+struct OoTComboDescriberRegistrar {
+    OoTComboDescriberRegistrar() {
+        Combo_RegisterGameDescriber((uint8_t)GAME_OOT, &kOoTComboDescriber);
+    }
+};
+const OoTComboDescriberRegistrar gOoTComboDescriberRegistrar;
+
 } // namespace
 
 // ============================================================================
