@@ -35,23 +35,19 @@
 # Windows. A byte compare would report every field as moved on one of the two
 # platforms and teach everyone to distrust the row.
 #
-# THE ARCHIVE SET IS PART OF THE PIN (ARCHIVE_FREE_ONLY), and that is a
-# measurement, not a precaution. The OoT seed digest moves when the ROM-DERIVED
-# archives (oot.o2r / mm.o2r) are mounted beside the binary, for a reason that has
-# nothing to do with the platform: with them present, the 2,449 per-area
-# exclude-location options (option groups RSG_EXCLUDES_KOKIRI_FOREST ..
-# RSG_EXCLUDES_GANONS_CASTLE) contribute NOTHING to the settings string
-# Playthrough_Init hashes, and without them all 2,449 do. Every other option is
-# character-identical between the two runs — measured by dumping the per-option
-# text both ways, 3087 lines against 638, with the 638 shared lines byte-equal.
-# Since the fill is re-seeded with Hash(seed + settingsStr), that difference moves
-# the entire world.
-#
-# Hosted CI can never have ROM-derived archives, so the goldens pin the
-# ARCHIVE-FREE world; running the binary inside a ROM-staged build directory
-# generates a DIFFERENT, unpinned world. The mm-paired-attempt digest is NOT
-# archive-sensitive (measured: a ROM-staged Windows golden passed unchanged on
-# archive-free Linux CI), so its row carries no such guard.
+# THE ARCHIVE SET IS PART OF THE PIN (ARCHIVE_FREE_ONLY). Hosted CI can never have
+# ROM-derived archives, so the goldens pin the ARCHIVE-FREE world. Until #702 the
+# ROM-mounted world was a different one: with oot.o2r mounted the SoH menu reached
+# Settings::CreateOptions() before the per-area exclude-location lists were filled,
+# the 32 RSG_EXCLUDES_* groups copied empty lists, and the settings string
+# Playthrough_Init hashes folded 638 option lines instead of 3087 — a different
+# fill seed and a different world from the same binary. Since #702 both
+# environments fold the same set, so a ROM-staged COMPARE runs the dispatch in BOTH
+# (the sandbox below, and the build directory with the ROM archives mounted) and
+# requires both digests to equal the golden and each other; see "THE SECOND
+# ENVIRONMENT" further down. ARCHIVE_FREE_ONLY keeps its name from when the two
+# worlds differed; it now means "pinned archive-free, and proven equal ROM-mounted
+# wherever both environments exist".
 #
 # A ROM-STAGED RUN THEREFORE BUILDS AN ARCHIVE-FREE SANDBOX RATHER THAN SKIPPING
 # (the review follow-up to #688). Before it, these rows ALWAYS skipped in the
@@ -349,23 +345,24 @@ if(ARCHIVE_FREE_ONLY)
         string(REPLACE ";" ", " _rom_list "${_rom_archives}")
         if(REGEN AND ALLOW_ROM_ARCHIVE_REGEN)
             message(WARNING
-                "CheckGoldenDigest(${GOLDEN_NAME}): re-pinning an ARCHIVE-SENSITIVE golden with ${_rom_list} mounted "
+                "CheckGoldenDigest(${GOLDEN_NAME}): re-pinning an archive-free golden with ${_rom_list} mounted "
                 "in ${WORK_DIR}, because -DALLOW_ROM_ARCHIVE_REGEN=ON was passed.\n"
-                "  The resulting golden pins the ROM-MOUNTED world, which hosted CI cannot reproduce: the Linux leg "
-                "will go red on this PR and on every PR after it until the golden is re-pinned archive-free. Only do "
-                "this if that is genuinely what you meant.")
+                "  The resulting golden pins the ROM-MOUNTED world. Since #702 that should be the archive-free world "
+                "too; if it is not, hosted CI cannot reproduce it and both CI legs go red on this PR and on every PR "
+                "after it until the golden is re-pinned archive-free. Only do this if that is genuinely what you "
+                "meant.")
         elseif(REGEN)
             message(FATAL_ERROR
-                "CheckGoldenDigest(${GOLDEN_NAME}): RE-PIN REFUSED — this golden is ARCHIVE-SENSITIVE and the "
+                "CheckGoldenDigest(${GOLDEN_NAME}): RE-PIN REFUSED — this golden is pinned ARCHIVE-FREE and the "
                 "ROM-derived archive(s) ${_rom_list} are present in ${WORK_DIR}.\n"
                 "  Move these files out of that directory and re-run the target:\n"
                 "      ${WORK_DIR}/oot.o2r\n"
                 "      ${WORK_DIR}/mm.o2r\n"
-                "  Why this is refused rather than warned about: with oot.o2r mounted the per-area exclude-location "
-                "option groups drop out of the settings string Playthrough_Init hashes, the fill is re-seeded "
-                "differently, and the whole OoT world moves. A golden re-pinned here therefore pins a world hosted CI "
-                "can NEVER reproduce, and the first symptom would be a red Linux leg on this PR and on every PR after "
-                "it.\n"
+                "  Why this is refused rather than warned about: a re-pin records ONE run, and the only environment "
+                "hosted CI can reproduce is the archive-free one. Since #702 the ROM-mounted world should be the same "
+                "world, but that is what the COMPARE rows establish, not something a re-pin may assume: until #702 a "
+                "golden re-pinned here pinned a different world (the exclude-location option groups dropped out of "
+                "the settings string), and the first symptom was a red Linux leg on that PR and every PR after it.\n"
                 "  The COMPARE direction does NOT refuse: it runs the dispatch in an archive-free sandbox under "
                 "${WORK_DIR}/golden-archive-free/. REGEN deliberately does not use that sandbox — a sandbox that is "
                 "subtly wrong turns a COMPARE row red and a human reads the field diff, but would make a re-pin "
@@ -412,11 +409,9 @@ if(ARCHIVE_FREE_ONLY)
                     "         ${WORK_DIR}/oot.o2r\n"
                     "         ${WORK_DIR}/mm.o2r\n"
                     "  Why the sandbox exists: the goldens pin the world generated with the PORT archives only, "
-                    "because that is the world hosted CI can reproduce (a runner never has ROM-derived archives). With "
-                    "oot.o2r mounted the per-area exclude-location option groups drop out of the settings string "
-                    "Playthrough_Init hashes, the fill is re-seeded differently, and a run in ${WORK_DIR} generates a "
-                    "DIFFERENT, unpinned world — so comparing THAT to the golden would report a move that did not "
-                    "happen. See docs/determinism-goldens.md.")
+                    "because that is the world hosted CI can reproduce (a runner never has ROM-derived archives), and "
+                    "a ROM-staged run checks that world AND the ROM-mounted one, requiring them to be equal (#702). "
+                    "See docs/determinism-goldens.md.")
             endif()
         endif()
     endif()

@@ -1487,13 +1487,10 @@ if(BUILD_TESTING)
     # settings profile's fill and say nothing about whether a change is
     # settings-sensitive:
     #   - `default` is the shipped SETTINGS profile (no RSBS_DIAG_CVARS at all),
-    #     generated ARCHIVE-FREE. It is NOT the world a player gets, and saying so
-    #     here would contradict the archive note 20 lines below: a player runs with
-    #     oot.o2r/mm.o2r mounted, which changes the settings string and therefore
-    #     the whole fill (#702). It is a world THIS generator produces under the
-    #     shipped settings, and a change to the fill moves it the same way it would
-    #     move a player's — which is what makes it a usable oracle. When #702 lands,
-    #     one golden covers both environments and this distinction goes away;
+    #     generated ARCHIVE-FREE. Until #702 that was a different world from the one
+    #     a ROM-mounted run generates (the exclude-location groups dropped out of
+    #     the settings string there); since #702 it is the same world, and a
+    #     ROM-staged run checks both environments against this one golden;
     #   - `profile-v1` is the pinned "RSBS unified pinned profile v1"
     #     (ShuffleSongs=2) the self-diff rows above use, so the golden and the
     #     self-diff describe the same world and can be read against each other.
@@ -1530,12 +1527,13 @@ if(BUILD_TESTING)
     # under xvfb-run; Windows runs the same label directly (#709 — measured 28/28 on
     # windows-latest, against the old expectation that a hosted runner could not
     # bring up the Fast3dWindow these rows need; before #709 the Windows job
-    # selected only these three rows, by `--tests-regex '^Golden'`). The two
+    # selected only these three rows, by `--tests-regex '^Golden'`). The
     # archive-sensitive rows used to SKIP in a ROM-staged local
     # tree, leaving the merge gate with no golden coverage at all; they now run their
-    # dispatch from an archive-free sandbox instead (CheckGoldenDigest.cmake), so the
-    # local gate enforces them too — and a sandbox that cannot be built FAILS the row
-    # rather than skipping it, so no path is left on which one of these rows reports
+    # dispatch from an archive-free sandbox AND, since #702, in the ROM-mounted build
+    # directory too (CheckGoldenDigest.cmake), so the local gate enforces them in
+    # both environments — and a sandbox that cannot be built FAILS the row rather
+    # than skipping it, so no path is left on which one of these rows reports
     # nothing.
     #
     # If you add a golden row here it gets `LABEL rando` from the loop below and so
@@ -1546,26 +1544,23 @@ if(BUILD_TESTING)
     # Full picture: the header of CMake/CheckGoldenDigest.cmake and
     # docs/determinism-goldens.md.
     #
-    # THE ARCHIVE SET IS PART OF THE PIN, and field 4 says which goldens depend on
-    # it. MEASURED, not assumed: with the ROM-derived oot.o2r mounted,
-    # the 2,449 per-area exclude-location options drop out of the settings string
-    # Playthrough_Init hashes (3087 per-option lines against 638; the 638 shared
-    # lines are byte-equal), the fill is re-seeded differently and the whole OoT
-    # world moves. Hosted CI can never have ROM-derived archives, so the goldens
-    # pin the archive-free world, and a ROM-staged local run neither compares
-    # against it (that would be red about a move that did not happen) nor skips:
-    # it hard-links the binary and the PORT archives into
+    # THE ARCHIVE SET IS PART OF THE PIN, and field 4 says how. Hosted CI can
+    # never have ROM-derived archives, so the goldens pin the archive-free world.
+    # Until #702 the ROM-mounted world was a different one (the 2,449 per-area
+    # exclude-location options dropped out of the settings string Playthrough_Init
+    # hashes: 638 folded option lines against 3087); since #702 it is the same
+    # world, and a ROM-staged local run proves that on every row: it
+    # hard-links the binary and the PORT archives into
     # <build>/golden-archive-free/<name>/ and runs the dispatch there, because the
-    # binary resolves archives from its own directory as well as from the cwd. The
+    # binary resolves archives from its own directory as well as from the cwd, THEN
+    # runs it again in the build directory with oot.o2r/mm.o2r mounted, and
+    # requires both digests to equal the golden and each other. The
     # port archives are resolved from the build directory AND from the binary's own
     # directory, and a sandbox that ends up with none of them fails rather than
     # pinning a no-archive world. `mods/`, `assets/` and the rest of the build
     # directory do NOT travel into the sandbox — the goldens pin the world a hosted
     # runner reproduces, and the sandbox is not "the build directory minus the ROM
-    # archives" (CheckGoldenDigest.cmake, _archive_free_sandbox). The
-    # mm-paired-attempt digest is archive-INSENSITIVE (measured: a ROM-staged
-    # Windows golden passed unchanged on archive-free Linux CI), so it carries no
-    # guard and is enforced everywhere.
+    # archives" (CheckGoldenDigest.cmake, _archive_free_sandbox).
     # Fields: <ctest-name>|<golden-name>|<dispatch>|<digest-env-var>|<archive-free-only>|<extra-env>
     set(REDSHIP_GOLDEN_DIGESTS
         "GoldenSeedDigestDefault|seed-digest-default|rando-determinism|RSBS_SEED_DIGEST_OUT|ON|"
@@ -1573,9 +1568,9 @@ if(BUILD_TESTING)
         # The paired MM world's own golden. Its digest carries the ladder rung the
         # world converged through (winningAttempt / mmPairedAttempt), so this row
         # pins not just the world but the DERIVATION that reached it.
-        # ARCHIVE-SENSITIVE since ADR 0010 increment 3 (lane K11): the ladder world's
-        # identity now comes from a real OoT generation, whose settings string —
-        # and so every seed downstream of it — depends on the mounted archive set.
+        # Field 4 ON since ADR 0010 increment 3 (lane K11): the ladder world's
+        # identity comes from a real OoT generation, whose settings string depended
+        # on the mounted archive set until #702.
         "GoldenPairedAttemptDigest|paired-attempt-digest|mm-paired-attempt|RSBS_ATTEMPT_DIGEST_OUT|ON|"
         # #681 review: the ARMED reverse draw. The three goldens above run the
         # shipped profile, which arms no give-capability family, so the
@@ -2114,10 +2109,12 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     #
     # RUN IT WITH THE PORT ARCHIVES ONLY (soh.o2r / 2ship.o2r / redship.o2r) and
     # a GL-capable display; on a headless Linux box, under xvfb-run. Move oot.o2r
-    # and mm.o2r out of the build directory first: they change the OoT settings
-    # string and therefore the whole fill (see the table above), and a golden
-    # re-pinned with them mounted pins a world CI can never reproduce, so every
-    # archive-free run would then go red.
+    # and mm.o2r out of the build directory first: a re-pin records one run, and
+    # the archive-free environment is the one CI reproduces. Until #702 a golden
+    # re-pinned with them mounted pinned a different world (they changed the OoT
+    # settings string, see the table above) and every archive-free run went red;
+    # since #702 the COMPARE rows prove the two environments agree, but the re-pin
+    # still records the one CI can check.
     #
     # THAT IS NOW ENFORCED, NOT REQUESTED. The archive-sensitivity field is passed
     # through below, and CheckGoldenDigest REFUSES a REGEN of an archive-sensitive
