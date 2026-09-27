@@ -283,7 +283,7 @@ theme, scale and background opacity, multi-viewports off, and MSAA 1.
 | Creation overlay | SoH's progress modal ("ROM Extraction", a harness copy of `RunExtract`'s modal and frame pushes, held to `RunExtract` by lint rule C1) |
 | Creation overlay over the open menu | SoH's modal over the same menu page ("Clear Config@over-menu") |
 | Cross-Game Rules Reset confirm, MM options Reset confirm | the SoH modal ("Clear Config") |
-| The creation shortfall and failure toasts | SoH's toast shape ("Game autosaved") |
+| The creation shortfall, failure and goal-warning toasts | SoH's toast shape ("Game autosaved") |
 
 Compare within the same run, the same profile and the same backend. Check:
 - the fonts, rounding, borders and theme tints
@@ -324,13 +324,13 @@ MAX_PATH through the extended-length namespace, so a long output directory no lo
 - SCROLL: `@scrollN`, stepping each column (a menu page) or the pane itself (a window) by one view minus 48 px until
   it reaches its end, at most 9 views.
 - HOVER: a pointer injected before ImGui reads input, so the tooltip is captured. Cross-Game Rules hovers its
-  direction combobox and (frozen) its first slider; Majora's Mask hovers its first row and Windows its MM Item
-  Tracker toggle (`PageSpec::hoverRows`, a named row, captured in the page's first state). The MM options pane hovers
-  its first row (unpaired and frozen), its first capability-blocked row, and in the Tricks states a live, an unbound,
-  a reserved and a frozen trick (`PageSpec::paneHovers`, found through the `combo_ui` rect recorder); a disabled row's
-  hover must show SoH's disabled shape with no tracker number. Pane hovers are composited against Settings > Graphics'
-  Current FPS hover (`PageSpec::hoverCompareWith`), SoH's one captured tooltip: SoH's Tricks page draws its trick
-  names as plain text with no item id, so no hover can be injected there.
+  direction and goal comboboxes and (frozen) its first slider and its goal row; Majora's Mask hovers its first row and
+  Windows its MM Item Tracker toggle (`PageSpec::hoverRows`, a named row, captured in the page's first state). The MM
+  options pane hovers its first row (unpaired and frozen), its first capability-blocked row, and in the Tricks states a
+  live, an unbound, a reserved and a frozen trick (`PageSpec::paneHovers`, found through the `combo_ui` rect
+  recorder); a disabled row's hover must show SoH's disabled shape with no tracker number. Pane hovers are composited
+  against Settings > Graphics' Current FPS hover (`PageSpec::hoverCompareWith`), SoH's one captured tooltip: SoH's
+  Tricks page draws its trick names as plain text with no item id, so no hover can be injected there.
 - MODAL: SoH's "Clear Config" reference, the Cross-Game Rules Reset confirm, and the MM options pane's Reset confirm
   (queued through `Combo_MMOptionsRequestReset`, the call the pane's button makes).
 - `over-menu` (the creation overlay, and SoH's "Clear Config" as its reference): Combo > Cross-Game Rules left open
@@ -340,9 +340,10 @@ MAX_PATH through the extended-length namespace, so a long output directory no lo
   the box equals the bare pixel blended with the style's `ImGuiCol_ModalWindowDimBg`, within 2 per channel. SoH's
   modal passes the same pixel check, so "dims the way a modal dims" is measured, not read off the picture.
 - TOAST: a page emits one toast through its production emitter (`OoT_Creation_EmitShortfallToast`,
-  `OoT_Creation_ReportFailureAtFileSelect`), captures it, and clears it (`OoT_Notification_ClearForTest`). Its oracle
-  finds exactly one `notification#` window, requires it inside the window's width, and measures "not blank" inside the
-  toast's own rectangle. ROM-free, the harness registers its own Notifications window, so CI draws them too.
+  `OoT_Creation_ReportFailureAtFileSelect`, `OoT_Creation_EmitGoalWarningToast`), captures it, and clears it
+  (`OoT_Notification_ClearForTest`). Its oracle finds exactly one `notification#` window, requires it inside the
+  window's width, and measures "not blank" inside the toast's own rectangle. ROM-free, the harness registers its own
+  Notifications window, so CI draws them too.
 
 **Environment:**
 

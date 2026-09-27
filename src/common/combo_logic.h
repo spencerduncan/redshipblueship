@@ -957,6 +957,12 @@ uint32_t Combo_Logic_PlacementDigest(void);
  * `beat-either` is a PLAIN OR and the coordinator never narrows it to an XOR:
  * an unbeatable half is permitted, both halves provable is a welcome outcome,
  * and nothing anywhere may bias toward asymmetry (ADR 0010 §1.2 / answer O1).
+ *
+ * `beat-oot` and `beat-mm` (OoTMM's `ganon` / `majora`) are ONE half's boolean
+ * alone: the other half is no term of the expression, whatever it answers. The
+ * MM half the coordinator passes in has already been through the arrival gate
+ * (Termina is entered through OoT's crossing), so `beat-mm` still requires that
+ * crossing to be provably open.
  */
 int Combo_Logic_EvaluateGoal(uint8_t goal, int ootGoalReached, int mmGoalReached);
 
@@ -1540,6 +1546,13 @@ typedef struct {
                             // the offset basis when nothing was dropped
     int leftoverHostsOoT;   // hosts no row landed on: each game's own per-game pass
     int leftoverHostsMM;    //   fills these (its counted traps, then junk)
+    // --- THE PROOF'S HALVES (ADR 0010 §1.2's creation warning). The last proving
+    //     round's own per-half answers (1 proved, 0 not), whichever GOAL was the
+    //     exit condition; -1 when no proving round held (every failure, a
+    //     pre-attempt refusal, and rung `none`). Reporting only: nothing in the
+    //     fill reads them, so they move no placement.
+    int goalOoT;
+    int goalMM;
 } ComboLogicFillResult;
 
 /**
@@ -1625,6 +1638,28 @@ typedef struct {
  * @return the status, also written to `out->status` when `out` is non-NULL.
  */
 int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* out);
+
+/** Combo_Logic_UnprovedHalves' bits: a half whose goal carries no proof. */
+#define RSBS_COMBO_HALF_OOT 0x1u
+#define RSBS_COMBO_HALF_MM 0x2u
+
+/**
+ * THE HALVES A CREATED WORLD CARRIES NO PROOF FOR (ADR 0010 §1.2: an accepted
+ * world with an unproved half is "accepted, not refused, with a visible warning
+ * at creation naming the half that carries no proof").
+ *
+ * Read off a SUCCESSFUL fill's proving round, never off the GOAL alone: under
+ * `beat-oot` MM's half is no term of the exit condition, but when the round
+ * happened to prove it anyway it carries a proof and is not named. Under
+ * `beat-both` a successful fill names nothing, so the shipped default never
+ * warns.
+ *
+ * @return 0 when both halves are proved, or when `res` is NULL or not a
+ *         successful fill (a failed fill created no world to warn about);
+ *         otherwise RSBS_COMBO_HALF_OOT and/or RSBS_COMBO_HALF_MM. Rung `none`
+ *         proved nothing, so it names both.
+ */
+uint32_t Combo_Logic_UnprovedHalves(const ComboLogicFillResult* res);
 
 /** How many SURPLUS rows were dropped by the fill attempt that BUILT THE CURRENT
  *  TABLES. The record lives and dies with the tables: Combo_Logic_ResetPlacements
