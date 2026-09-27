@@ -31,10 +31,15 @@
  * session, and says which of the two cases the player is in. Changes are saved
  * immediately (there is no Edit / Apply step: nothing here closes the game).
  *
- * Locked by MMModSet (the model: enable, disable, reorder, the rules, persistence)
- * and MMModsMount (a disabled archive is neither mounted nor registered and the
- * chosen order wins, across both switch directions); drawn and compared by
- * UiSnapshot.
+ * Locked by MMModSet (the model: enable, disable, reorder, the rules, persistence,
+ * and the read-only model a partial walk or a missing mods/mm leaves) and
+ * MMModsMount (a disabled archive is neither mounted nor registered and the chosen
+ * order wins, across both switch directions); drawn and compared by UiSnapshot,
+ * whose empty, listed and unfinished states each assert their own note, and which
+ * fails when a Combo page it has a reference for is not registered (so this page's
+ * registrar cannot silently drop out of the harness). NOT locked by a row: the
+ * arrow-to-action mapping in DrawMmModList (up = Raise, down = Lower, right =
+ * Disable, left = Enable), which no harness clicks.
  */
 
 #include "SohMenu.h"
@@ -54,7 +59,9 @@ using namespace UIWidgets;
 namespace {
 
 /** The sidebar label. Selection persists by display name, so this is the one
- *  spelling; the harness finds the page through the registry, not this literal. */
+ *  spelling. UiSnapshot's reference table (soh_ui_snapshot.cpp, kCompare) repeats
+ *  it and fails when no registered Combo page carries it, so a rename or an elided
+ *  registrar turns that row red instead of silently dropping the captures. */
 constexpr const char* kMmModsPage = "MM Mods";
 
 /** The note row's text, rewritten by its PreFunc every frame. */
@@ -70,12 +77,17 @@ void EnsureScanned() {
 
 void MmModsNotePreFunc(WidgetInfo& info) {
     EnsureScanned();
+    // Each case opens with different words, so a player can say which one they see.
     if (Combo_MMModSet_EnabledCount() == 0 && Combo_MMModSet_DisabledCount() == 0) {
         sMmModsNote = "No Majora's Mask mods found. Put .o2r files in the mods/mm folder, then rescan.";
+    } else if (!Combo_MMModSet_Editable()) {
+        // mm_mod_set.h rule 4: a walk that ended early is read-only.
+        sMmModsNote = "The last scan of the mods/mm folder did not finish, so this list cannot be changed. Rescan "
+                      "to try again.";
     } else if (Combo_MMModSet_RestartPending()) {
-        sMmModsNote = "Majora's Mask has already loaded its mods. Restart the game to apply these changes.";
+        sMmModsNote = "Restart the game to apply your changes. Majora's Mask loaded its mods before you made them.";
     } else if (Combo_MMModSet_MountedThisSession()) {
-        sMmModsNote = "Majora's Mask has already loaded its mods. Changes here apply after a restart.";
+        sMmModsNote = "Majora's Mask has loaded the mods listed here. A change made now applies after a restart.";
     } else {
         sMmModsNote = "Changes apply when Majora's Mask starts. Mods higher in the list override those below them.";
     }
@@ -105,6 +117,8 @@ void DrawMmModList(WidgetInfo& info) {
     EnsureScanned();
     MmModAction pendingAction = MmModAction::None;
     std::string pendingKey;
+    // Rule 4: the model refuses every edit while it is read-only; the arrows say so.
+    const bool locked = !Combo_MMModSet_Editable();
 
     if (ImGui::BeginTable("tableMmMods", 2, ImGuiTableFlags_BordersH | ImGuiTableFlags_BordersV)) {
         ImGui::TableSetupColumn("Enabled Mods", ImGuiTableColumnFlags_WidthStretch, 200.0f);
@@ -125,13 +139,13 @@ void DrawMmModList(WidgetInfo& info) {
             }
             const std::string key(raw);
             ImGui::PushID(key.c_str());
-            DrawArrow("up", ICON_FA_ARROW_UP, "Moves this mod up, so it overrides the mods below it.", i == 0,
+            DrawArrow("up", ICON_FA_ARROW_UP, "Moves this mod up, so it overrides the mods below it.", locked || i == 0,
                       MmModAction::Raise, key, pendingAction, pendingKey);
             ImGui::SameLine();
-            DrawArrow("down", ICON_FA_ARROW_DOWN, "Moves this mod down, below the next mod.", i == enabledCount - 1,
-                      MmModAction::Lower, key, pendingAction, pendingKey);
+            DrawArrow("down", ICON_FA_ARROW_DOWN, "Moves this mod down, below the next mod.",
+                      locked || i == enabledCount - 1, MmModAction::Lower, key, pendingAction, pendingKey);
             ImGui::SameLine();
-            DrawArrow("off", ICON_FA_ARROW_RIGHT, "Disables this mod. Majora's Mask will not load it.", false,
+            DrawArrow("off", ICON_FA_ARROW_RIGHT, "Disables this mod. Majora's Mask will not load it.", locked,
                       MmModAction::Disable, key, pendingAction, pendingKey);
             ImGui::SameLine();
             ImGui::Text("%s", key.c_str());
@@ -147,7 +161,7 @@ void DrawMmModList(WidgetInfo& info) {
             }
             const std::string key(raw);
             ImGui::PushID(key.c_str());
-            DrawArrow("on", ICON_FA_ARROW_LEFT, "Enables this mod at the top of the list.", false, MmModAction::Enable,
+            DrawArrow("on", ICON_FA_ARROW_LEFT, "Enables this mod at the top of the list.", locked, MmModAction::Enable,
                       key, pendingAction, pendingKey);
             ImGui::SameLine();
             ImGui::Text("%s", key.c_str());
@@ -204,10 +218,5 @@ void AddMmModsWidgets(SohMenu& menu, WidgetPath& path) {
  *  column, and the page always holds its note, section, button and list, so it is
  *  never #640's empty page. */
 static RegisterComboSectionPage_t sMmModsPage(kMmModsPage, 1, AddMmModsWidgets);
-
-/** The page's registered name, for the harness and locks. */
-const char* MmModsPageName() {
-    return kMmModsPage;
-}
 
 } // namespace SohGui

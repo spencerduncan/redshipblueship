@@ -32,6 +32,9 @@ namespace {
  */
 struct MMModSetModel {
     bool scanned = false;
+    /// The walk behind this model could see all of MM's half (rule 4). Every
+    /// setter refuses, and Persist writes nothing, while this is false.
+    bool editable = false;
     /// Enabled keys in mount order (last = highest priority).
     std::vector<std::string> enabled;
     /// The persisted disabled list: present keys AND absent ones (rule 3).
@@ -75,7 +78,9 @@ void WriteList(const char* cvar, const std::vector<std::string>& keys) {
 /** Write both lists and ask the GUI to save the config on its next frame, the way
  *  every SoH CVar widget does (and OoT's mod menu does after changing its list). */
 void Persist() {
-    if (!StoreAvailable()) {
+    // Rule 4: a model from a walk that could not see all of MM's half is never
+    // written back. The setters refuse first; this is the backstop.
+    if (!sModel.editable || !StoreAvailable()) {
         return;
     }
     WriteList(RSBS_CVAR_MM_ENABLED_MODS, sModel.enabled);
@@ -97,28 +102,13 @@ void RebuildDisabledShown() {
 }
 
 /** Make @p resolution the model, over the keys @p discovered. */
-void Adopt(const std::vector<std::string>& discovered, const Rsbs::MMModSetResolution& resolution) {
+void Adopt(const std::vector<std::string>& discovered, const Rsbs::MMModSetResolution& resolution, bool editable) {
     sModel.scanned = true;
+    sModel.editable = editable;
     sModel.present = std::set<std::string>(discovered.begin(), discovered.end());
     sModel.enabled = resolution.enabled;
     sModel.disabled = resolution.disabled;
     RebuildDisabledShown();
-}
-
-/** Resolve @p archives against the CVars, adopt the answer, and persist it when the
- *  rules changed the lists and the walk that found them was complete (rule 4). */
-void ResolveAndAdopt(const std::vector<Rsbs::MMModArchive>& archives, bool complete) {
-    std::vector<std::string> keys;
-    keys.reserve(archives.size());
-    for (const Rsbs::MMModArchive& a : archives) {
-        keys.push_back(a.key);
-    }
-    const Rsbs::MMModSetResolution resolution =
-        Rsbs::ResolveMMModSet(keys, ReadList(RSBS_CVAR_MM_ENABLED_MODS), ReadList(RSBS_CVAR_MM_DISABLED_MODS));
-    Adopt(keys, resolution);
-    if (resolution.changed && complete) {
-        Persist();
-    }
 }
 
 std::vector<std::string>::iterator FindKey(std::vector<std::string>& list, const char* key) {
@@ -218,11 +208,11 @@ MMModSetResolution ResolveMMModSet(const std::vector<std::string>& discoveredInD
     return out;
 }
 
-std::vector<MMModArchive> CollectMMModArchives(const std::string& modsRoot, bool* complete) {
+std::vector<MMModArchive> CollectMMModArchives(const std::string& modsRoot, MMModWalkStatus* status) {
     std::vector<MMModArchive> found;
-    if (complete != nullptr) {
-        *complete = true;
-    }
+    MMModWalkStatus local;
+    MMModWalkStatus& st = status != nullptr ? *status : local;
+    st = MMModWalkStatus();
     std::error_code ec;
     if (modsRoot.empty() || !std::filesystem::is_directory(modsRoot, ec)) {
         return found;
@@ -246,7 +236,16 @@ std::vector<MMModArchive> CollectMMModArchives(const std::string& modsRoot, bool
          it != end && !walkEc; it.increment(walkEc)) {
         const std::filesystem::path& p = it->path();
         std::error_code entryEc;
-        if (it->is_directory(entryEc) || !Combo_ModArchiveExtensionIsValid(p.extension().string().c_str())) {
+        if (it->is_directory(entryEc)) {
+            // MM's own folder, recognised by the same predicate that assigns the
+            // files under it, so "the folder exists" and "its files are MM's"
+            // cannot disagree about case or links (rule 4).
+            if (it.depth() == 0 && Combo_ModPathIsForGame(GAME_MM, modsRoot.c_str(), p.generic_string().c_str())) {
+                st.folderPresent = true;
+            }
+            continue;
+        }
+        if (!Combo_ModArchiveExtensionIsValid(p.extension().string().c_str())) {
             continue;
         }
         const std::string generic = p.generic_string();
@@ -259,9 +258,7 @@ std::vector<MMModArchive> CollectMMModArchives(const std::string& modsRoot, bool
         paths.push_back(generic);
     }
     if (walkEc) {
-        if (complete != nullptr) {
-            *complete = false;
-        }
+        st.complete = false;
         std::fprintf(stderr,
                      "[MM] WARNING: the walk of mods folder '%s/%s' ended early after %d archive(s): %s. The enabled "
                      "and disabled mod lists are not updated from this walk.\n",
@@ -280,10 +277,24 @@ std::vector<MMModArchive> CollectMMModArchives(const std::string& modsRoot, bool
     return found;
 }
 
+void AdoptMMModWalk(const std::vector<MMModArchive>& archives, const MMModWalkStatus& status) {
+    std::vector<std::string> keys;
+    keys.reserve(archives.size());
+    for (const MMModArchive& a : archives) {
+        keys.push_back(a.key);
+    }
+    const MMModSetResolution resolution =
+        ResolveMMModSet(keys, ReadList(RSBS_CVAR_MM_ENABLED_MODS), ReadList(RSBS_CVAR_MM_DISABLED_MODS));
+    Adopt(keys, resolution, status.Persistable());
+    if (resolution.changed) {
+        Persist(); // writes nothing unless the walk was Persistable (rule 4)
+    }
+}
+
 std::vector<std::string> MMModArchivesToMount(const std::string& modsRoot) {
-    bool complete = true;
-    const std::vector<MMModArchive> archives = CollectMMModArchives(modsRoot, &complete);
-    ResolveAndAdopt(archives, complete);
+    MMModWalkStatus status;
+    const std::vector<MMModArchive> archives = CollectMMModArchives(modsRoot, &status);
+    AdoptMMModWalk(archives, status);
 
     std::vector<std::string> paths;
     paths.reserve(sModel.enabled.size());
@@ -306,9 +317,9 @@ extern "C" int Combo_MMModSet_Scan(const char* modsRoot) {
     if (modsRoot == nullptr || modsRoot[0] == '\0') {
         return -1;
     }
-    bool complete = true;
-    const std::vector<Rsbs::MMModArchive> archives = Rsbs::CollectMMModArchives(std::string(modsRoot), &complete);
-    ResolveAndAdopt(archives, complete);
+    Rsbs::MMModWalkStatus status;
+    const std::vector<Rsbs::MMModArchive> archives = Rsbs::CollectMMModArchives(std::string(modsRoot), &status);
+    Rsbs::AdoptMMModWalk(archives, status);
     return (int)archives.size();
 }
 
@@ -318,6 +329,10 @@ extern "C" bool Combo_MMModSet_Scanned(void) {
 
 extern "C" void Combo_MMModSet_Reset(void) {
     sModel = MMModSetModel();
+}
+
+extern "C" bool Combo_MMModSet_Editable(void) {
+    return sModel.editable;
 }
 
 extern "C" int Combo_MMModSet_EnabledCount(void) {
@@ -343,7 +358,7 @@ extern "C" const char* Combo_MMModSet_DisabledKey(int index) {
 }
 
 extern "C" bool Combo_MMModSet_SetEnabled(const char* key, bool enabled) {
-    if (key == nullptr || key[0] == '\0' || sModel.present.count(key) == 0) {
+    if (!sModel.editable || key == nullptr || key[0] == '\0' || sModel.present.count(key) == 0) {
         return false;
     }
     auto inEnabled = FindKey(sModel.enabled, key);
@@ -368,7 +383,7 @@ extern "C" bool Combo_MMModSet_SetEnabled(const char* key, bool enabled) {
 }
 
 static bool MoveEnabled(const char* key, int step) {
-    if (key == nullptr) {
+    if (!sModel.editable || key == nullptr) {
         return false;
     }
     auto it = FindKey(sModel.enabled, key);
@@ -402,12 +417,13 @@ extern "C" bool Combo_MMModSet_RestartPending(void) {
     return sModel.mounted && sModel.enabled != sModel.mountedOrder;
 }
 
-extern "C" void Combo_MMModSet_LoadForTest(const char* const* keysInDefaultOrder, int count) {
+extern "C" void Combo_MMModSet_LoadForTest(const char* const* keysInDefaultOrder, int count, bool walkComplete) {
     std::vector<std::string> keys;
     for (int i = 0; keysInDefaultOrder != nullptr && i < count; i++) {
         if (keysInDefaultOrder[i] != nullptr && keysInDefaultOrder[i][0] != '\0') {
             keys.emplace_back(keysInDefaultOrder[i]);
         }
     }
-    Adopt(keys, Rsbs::ResolveMMModSet(keys, ReadList(RSBS_CVAR_MM_ENABLED_MODS), ReadList(RSBS_CVAR_MM_DISABLED_MODS)));
+    Adopt(keys, Rsbs::ResolveMMModSet(keys, ReadList(RSBS_CVAR_MM_ENABLED_MODS), ReadList(RSBS_CVAR_MM_DISABLED_MODS)),
+          walkComplete);
 }

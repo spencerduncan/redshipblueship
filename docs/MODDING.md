@@ -165,7 +165,11 @@ packed mods, so a loose file beats both.
   choices are saved in its own two settings (`gSettings.MM.EnabledMods`,
   `gSettings.MM.DisabledMods`), not in OoT's `EnabledMods`: sharing OoT's list
   would let a stale OoT entry silently disable an MM mod. A disabled mod stays
-  disabled even if you move its file out of the folder and back.
+  disabled even if you move its file out of the folder and back. If `mods/mm/`
+  itself is missing, MM leaves both lists alone (OoT does the same when its mods
+  folder is missing), and if a scan of the folder stops part-way (an unreadable
+  folder, a broken link) the page shows what it found but will not change or save
+  anything until a rescan gets all the way through.
 
   Two related differences that were **not** worth keeping have been aligned
   instead: which file types count as a mod archive (both sides use OoT's rule, see

@@ -143,7 +143,7 @@
 #include "combo_ui.h"
 #include "context.h"
 #include "cvar_shared_keys.h"
-#include "mm_mod_set.h" // #706: the MM Mods page's model, authored for its "listed" state
+#include "mm_mod_set.h" // #706: the MM Mods page's model, authored for its three states
 #include "foreign_items.h"
 #include "gen_progress_overlay.h"
 #include "headless_crash.h"
@@ -1636,6 +1636,18 @@ void Session::BuildPageList() {
     };
     auto& entries = MenuEntries(*menu);
     if (entries.contains("Combo")) {
+        // Every page named in kCompare must be registered. The loop below captures
+        // what IS registered, so without this a contributed page whose registrar
+        // was elided or renamed would vanish from the run and the row stay green
+        // (#706's review).
+        for (const auto& [named, reference] : kCompare) {
+            const auto& order = entries.at("Combo").sidebarOrder;
+            if (std::find(order.begin(), order.end(), named) == order.end()) {
+                Fail("Combo/" + named + " has a reference (" + reference +
+                     ") but no registered Combo page carries that name: its registrar was elided or renamed, so "
+                     "its captures would silently drop out of this run");
+            }
+        }
         for (const std::string& sidebar : entries.at("Combo").sidebarOrder) {
             PageSpec p = menuPage("Combo", sidebar, Origin::RSBS);
             auto it = kCompare.find(sidebar);
@@ -1690,12 +1702,18 @@ void Session::BuildPageList() {
                     p.hoverRows["first-row"] = RSBS::kHostedMmEnhancements[0].label;
                 }
             } else if (sidebar == "MM Mods") {
-                // "": whatever the harness's own mods root holds (normally
-                // nothing, so the empty-folder note). "listed": a synthetic list
-                // with one disabled mod, so both columns and every arrow draw.
-                p.states = { "", "listed" };
-                p.stateText["listed"] = { kMmModsListedEnabled[0], kMmModsListedDisabled };
-                p.stateContrast = { { "listed", "" } };
+                // "": an empty model, so the empty-folder note. "listed": a
+                // synthetic list with one disabled mod, so both columns and every
+                // arrow draw. "unfinished": the same list from a walk that ended
+                // early, which is read-only (mm_mod_set.h rule 4): its note, and
+                // every arrow disabled. All three are authored through the model's
+                // test seam, so the harness's own mods folder cannot change them.
+                p.states = { "", "listed", "unfinished" };
+                p.stateText[""] = { "No Majora's Mask mods found" };
+                p.stateText["listed"] = { kMmModsListedEnabled[0], kMmModsListedDisabled,
+                                          "Changes apply when Majora's Mask starts" };
+                p.stateText["unfinished"] = { kMmModsListedEnabled[0], "did not finish" };
+                p.stateContrast = { { "", "listed" }, { "listed", "" }, { "unfinished", "listed" } };
                 p.hovers = { "rescan" };
                 p.hoverRows["rescan"] = "Rescan Mods Folder";
             } else if (sidebar == "Windows") {
@@ -2282,14 +2300,16 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
             CVarSetInteger("gEnhancements.Autosave", 1);
         }
     } else if (p.id == "Combo/MM Mods") {
-        // The page scans lazily when the model is empty, so "" draws the harness's
-        // own (normally empty) mods root; "listed" loads a synthetic list through
-        // the model's test seam, which persists nothing and reads no disk.
+        // Every state loads its model through the test seam, which persists
+        // nothing and reads no disk, so the page never scans the harness's own
+        // mods root (it scans lazily only when the model is empty).
         Combo_MMModSet_Reset();
-        if (state == "listed") {
+        if (state == "listed" || state == "unfinished") {
             CVarSetString(RSBS_CVAR_MM_DISABLED_MODS, kMmModsListedDisabled);
             const char* keys[] = { kMmModsListedEnabled[0], kMmModsListedEnabled[1], kMmModsListedDisabled };
-            Combo_MMModSet_LoadForTest(keys, 3);
+            Combo_MMModSet_LoadForTest(keys, 3, state == "listed");
+        } else {
+            Combo_MMModSet_LoadForTest(nullptr, 0, true);
         }
     } else if (p.id == "Settings/Graphics") {
         if (state == "match-refresh-rate") {

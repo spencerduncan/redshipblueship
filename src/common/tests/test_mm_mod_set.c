@@ -27,6 +27,15 @@
  *      disabled (rule 3); an archive added later arrives enabled at the top.
  *   E. MM's mount record: nothing pending before MM mounts, nothing pending right
  *      after, pending after a reorder, and not pending once the order is put back.
+ *   F. Rule 4, a missing mods/mm (#706's review): with the player's lists stored
+ *      and no mods/mm folder (and with no mods root at all), neither a scan nor
+ *      MM's own mount writes the lists, the model is read-only, and every setter
+ *      refuses; once the folder exists the next scan drops the absent enabled
+ *      entry and keeps the absent disabled one, as OoT does with its folder.
+ *   G. Rule 4, a walk that ended early (#706's review): a real walk with its last
+ *      archive cut off, adopted as incomplete, writes nothing, is read-only, and
+ *      refuses every setter, so a click on the page cannot persist the truncated
+ *      order; a complete rescan restores the stored order and editing.
  *
  * Included at FILE SCOPE by test_runner.cpp (compiled as C++).
  */
@@ -241,6 +250,118 @@ int MmsTreeLegs(const std::filesystem::path& root) {
     return 0;
 }
 
+/** The two persisted lists, as one string, for "nothing was written" checks. */
+std::string MmsStored() {
+    return MmsCVar(RSBS_CVAR_MM_ENABLED_MODS) + " / " + MmsCVar(RSBS_CVAR_MM_DISABLED_MODS);
+}
+
+/** Every setter, on keys that exist in the model: all must refuse while it is
+ *  read-only. */
+bool MmsAnySetterAccepted(const char* enabledKey, const char* disabledKey) {
+    return Combo_MMModSet_Raise(enabledKey) || Combo_MMModSet_Lower(enabledKey) ||
+           Combo_MMModSet_SetEnabled(enabledKey, false) || Combo_MMModSet_SetEnabled(disabledKey, true);
+}
+
+int MmsMissingFolderLegs(const std::filesystem::path& root) {
+    const std::string rootStr = root.generic_string();
+    // ---- F: no mods/mm, the lists stored -----------------------------------
+    // The root exists and holds an OoT archive, so the walk runs and finds
+    // nothing of MM's: the case where the pre-review code dropped every enabled
+    // entry and cleared the CVar.
+    MMS_ASSERT(MmsTouch(root / "root-level.o2r"), 20, "could not stage %s", rootStr.c_str());
+    CVarSetString(RSBS_CVAR_MM_ENABLED_MODS, "keep-a.o2r|keep-b.o2r");
+    CVarSetString(RSBS_CVAR_MM_DISABLED_MODS, "keep-off.o2r");
+    const std::string stored = MmsStored();
+    Combo_MMModSet_Reset();
+    MMS_ASSERT(Combo_MMModSet_Scan(rootStr.c_str()) == 0 && Combo_MMModSet_Scanned(), 20,
+               "a scan of a root with no mods/mm did not find 0");
+    MMS_ASSERT(MmsStored() == stored, 20,
+               "a scan with mods/mm missing rewrote the lists to '%s' (were '%s'): OoT leaves its list alone when its "
+               "folder is missing, and MM must too",
+               MmsStored().c_str(), stored.c_str());
+    MMS_ASSERT(!Combo_MMModSet_Editable(), 20, "the model from a missing mods/mm is editable");
+    Combo_MMModSet_Reset();
+    MMS_ASSERT(Rsbs::MMModArchivesToMount(rootStr).empty() && MmsStored() == stored, 20,
+               "MM's own mount with mods/mm missing rewrote the lists to '%s' (were '%s')", MmsStored().c_str(),
+               stored.c_str());
+    // No mods root at all: the same.
+    Combo_MMModSet_Reset();
+    MMS_ASSERT(Combo_MMModSet_Scan((rootStr + "/does-not-exist").c_str()) == 0 && MmsStored() == stored &&
+                   !Combo_MMModSet_Editable(),
+               20, "a scan of a missing root rewrote the lists to '%s' or is editable", MmsStored().c_str());
+
+    // The folder comes back with one of the two enabled archives: now the rules
+    // apply, the absent enabled entry goes and the absent disabled one stays.
+    MMS_ASSERT(MmsTouch(root / "mm" / "keep-b.o2r"), 21, "could not stage mm/keep-b.o2r");
+    Combo_MMModSet_Reset();
+    MMS_ASSERT(Combo_MMModSet_Scan(rootStr.c_str()) == 1 && Combo_MMModSet_Editable(), 21,
+               "the scan with mods/mm back did not find 1 editable archive");
+    MMS_ASSERT(MmsCVar(RSBS_CVAR_MM_ENABLED_MODS) == "keep-b.o2r" &&
+                   MmsCVar(RSBS_CVAR_MM_DISABLED_MODS) == "keep-off.o2r",
+               21, "with mods/mm present the lists became '%s', expected keep-b.o2r / keep-off.o2r",
+               MmsStored().c_str());
+    // An EMPTY mods/mm is a present folder (MM creates it at boot): the rules apply.
+    std::error_code ec;
+    std::filesystem::remove(root / "mm" / "keep-b.o2r", ec);
+    Combo_MMModSet_Reset();
+    MMS_ASSERT(Combo_MMModSet_Scan(rootStr.c_str()) == 0 && Combo_MMModSet_Editable() &&
+                   MmsCVar(RSBS_CVAR_MM_ENABLED_MODS).empty() &&
+                   MmsCVar(RSBS_CVAR_MM_DISABLED_MODS) == "keep-off.o2r",
+               21, "an empty but present mods/mm gave editable=%d and lists '%s', expected editable, nothing "
+               "enabled and keep-off kept",
+               (int)Combo_MMModSet_Editable(), MmsStored().c_str());
+    return 0;
+}
+
+int MmsPartialWalkLegs(const std::filesystem::path& root) {
+    const std::string rootStr = root.generic_string();
+    // ---- G: a walk that ended early ----------------------------------------
+    for (const char* rel : { "mm/10-a.o2r", "mm/20-b.o2r", "mm/30-c.o2r", "mm/40-off.o2r" }) {
+        MMS_ASSERT(MmsTouch(root / rel), 22, "could not stage %s under %s", rel, rootStr.c_str());
+    }
+    // The player's order, 30-c on top, and 40-off turned off.
+    CVarSetString(RSBS_CVAR_MM_ENABLED_MODS, "10-a.o2r|20-b.o2r|30-c.o2r");
+    CVarSetString(RSBS_CVAR_MM_DISABLED_MODS, "40-off.o2r");
+    const std::string stored = MmsStored();
+
+    Rsbs::MMModWalkStatus status;
+    std::vector<Rsbs::MMModArchive> walked = Rsbs::CollectMMModArchives(rootStr, &status);
+    MMS_ASSERT(walked.size() == 4 && status.complete && status.folderPresent && status.Persistable(), 22,
+               "precondition: the real walk found %zu archive(s), complete=%d folderPresent=%d, expected 4, 1, 1",
+               walked.size(), (int)status.complete, (int)status.folderPresent);
+    // A walk that broke after 20-b: the prefix it would have yielded, reported
+    // incomplete. (An iteration error cannot be produced on demand from a real
+    // folder, so the walk's own result is cut where one would have cut it.)
+    walked.resize(2);
+    status.complete = false;
+    Combo_MMModSet_Reset();
+    Rsbs::AdoptMMModWalk(walked, status);
+    MMS_ASSERT(MmsStored() == stored, 22,
+               "adopting a partial walk rewrote the lists to '%s' (were '%s'): 30-c would lose its place",
+               MmsStored().c_str(), stored.c_str());
+    MMS_ASSERT(!Combo_MMModSet_Editable() && MmsShownEnabled() == "20-b.o2r|10-a.o2r", 22,
+               "the partial model is editable=%d and shows '%s', expected read-only and 20-b|10-a",
+               (int)Combo_MMModSet_Editable(), MmsShownEnabled().c_str());
+    // The page's four arrows, on keys the partial model holds.
+    MMS_ASSERT(!MmsAnySetterAccepted("10-a.o2r", "40-off.o2r") && !MmsAnySetterAccepted("20-b.o2r", "40-off.o2r"),
+               22, "a setter accepted an edit on the read-only partial model");
+    MMS_ASSERT(MmsStored() == stored && MmsShownEnabled() == "20-b.o2r|10-a.o2r", 22,
+               "a refused edit on the partial model changed the lists to '%s' or the model to '%s'",
+               MmsStored().c_str(), MmsShownEnabled().c_str());
+
+    // A complete rescan: the stored order is back, and so is editing.
+    MMS_ASSERT(Combo_MMModSet_Scan(rootStr.c_str()) == 4 && Combo_MMModSet_Editable(), 23,
+               "the complete rescan did not find 4 editable archives");
+    MMS_ASSERT(MmsShownEnabled() == "30-c.o2r|20-b.o2r|10-a.o2r" && MmsShownDisabled() == "40-off.o2r" &&
+                   MmsStored() == stored,
+               23, "after the complete rescan: shown '%s' / '%s', stored '%s'", MmsShownEnabled().c_str(),
+               MmsShownDisabled().c_str(), MmsStored().c_str());
+    MMS_ASSERT(Combo_MMModSet_Lower("30-c.o2r") && MmsCVar(RSBS_CVAR_MM_ENABLED_MODS) == "10-a.o2r|30-c.o2r|20-b.o2r",
+               23, "an edit after the complete rescan was refused or not persisted ('%s')",
+               MmsCVar(RSBS_CVAR_MM_ENABLED_MODS).c_str());
+    return 0;
+}
+
 } // namespace
 
 extern "C" int MMModSet_RunHeadless(void) {
@@ -260,6 +381,16 @@ extern "C" int MMModSet_RunHeadless(void) {
         rc = MmsTreeLegs(root);
     }
     std::filesystem::remove_all(root, ec);
+    if (rc == 0) {
+        Combo_MMModSet_Reset();
+        rc = MmsMissingFolderLegs(root);
+    }
+    std::filesystem::remove_all(root, ec);
+    if (rc == 0) {
+        Combo_MMModSet_Reset();
+        rc = MmsPartialWalkLegs(root);
+    }
+    std::filesystem::remove_all(root, ec);
 
     Combo_MMModSet_Reset();
     if (savedEnabled.empty()) {
@@ -276,8 +407,9 @@ extern "C" int MMModSet_RunHeadless(void) {
         printf(
             "[mm-mod-set] PASS: the rules (unset = walk order, new on top, both = disabled, missing enabled dropped, "
             "missing disabled kept), the scan's partition and extension rule, disable/raise/lower/enable persisted "
-            "and rebuilt identically from the lists, a disabled mod that leaves and returns is still disabled, and "
-            "the restart note follows MM's mount\n");
+            "and rebuilt identically from the lists, a disabled mod that leaves and returns is still disabled, "
+            "the restart note follows MM's mount, and a missing mods/mm or a walk that ended early writes nothing "
+            "and refuses every edit\n");
     }
     return rc;
 }
