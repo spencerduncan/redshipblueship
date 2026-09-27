@@ -20,6 +20,14 @@ void ObjectExtension::Free(const void* object) {
     });
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+size_t ObjectExtension::ClearAll() {
+    const size_t cleared = Data.size();
+    Data.clear();
+    return cleared;
+}
+#endif
+
 extern "C" void ObjectExtension_Free(const void* object) {
     ObjectExtension::GetInstance().Free(object);
 }

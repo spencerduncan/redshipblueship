@@ -50,6 +50,10 @@ void BgSpot06Objects_WaterPlaneCutsceneLower(BgSpot06Objects* this, PlayState* p
 
 s32 Object_Spawn(ObjectContext* objectCtx, s16 objectId);
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+void OoT_BgSpot06Objects_Reset(void);
+#endif
+
 const ActorInit Bg_Spot06_Objects_InitVars = {
     ACTOR_BG_SPOT06_OBJECTS,
     ACTORCAT_PROP,
@@ -60,7 +64,11 @@ const ActorInit Bg_Spot06_Objects_InitVars = {
     (ActorFunc)BgSpot06Objects_Destroy,
     (ActorFunc)BgSpot06Objects_Update,
     (ActorFunc)BgSpot06Objects_Draw,
+#ifdef RSBS_SINGLE_EXECUTABLE
+    (ActorResetFunc)OoT_BgSpot06Objects_Reset,
+#else
     NULL,
+#endif
 };
 
 static ColliderJntSphElementInit sJntSphItemsInit[1] = {
@@ -643,3 +651,39 @@ void BgSpot06Objects_WaterPlaneCutsceneLower(BgSpot06Objects* this, PlayState* p
 
     func_8002F948(&this->dyna.actor, NA_SE_EV_WATER_LEVEL_DOWN - SFX_FLAG);
 }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// [RSBS #750] BgSpot06Objects_Destroy zeroes the Lake Hylia water-control state (actionCounter, waterMovement,
+// switchPressed, prevSwitchState); actionCounter == 0 is what spawns the floor switch. Nothing but Destroy ever put
+// it back. A cross-game departure abandons OoT's Play gamestate without deleting its actors
+// (OoT_RetireAbandonedSession, GameExports_SingleExe.cpp), so it kept the abandoned session's value.
+// OoT_Actor_FreeOverlay calls this only once the overlay has no clients, when every Destroy has already restored the
+// initial value, so on a normal teardown it changes nothing.
+void OoT_BgSpot06Objects_Reset(void) {
+    actionCounter = 0;
+    waterMovement = 0;
+    switchPressed = 0;
+    prevSwitchState = 0;
+}
+
+// [RSBS #750] Seed and read the static(s) above for the oot-abandoned-session-statics row
+// (games/oot/soh/oot_abandoned_session_test.cpp): dirty != 0 puts them where a live client leaves them, 0 puts back
+// the initial value; the check is nonzero while any is not at its initial value.
+void OoT_BgSpot06Objects_SetDestroyStaticsForTest(s32 dirty) {
+    if (dirty) {
+        actionCounter = 2;
+        waterMovement = -1;
+        switchPressed = 1;
+        prevSwitchState = 1;
+    } else {
+        actionCounter = 0;
+        waterMovement = 0;
+        switchPressed = 0;
+        prevSwitchState = 0;
+    }
+}
+
+s32 OoT_BgSpot06Objects_DestroyStaticsDirtyForTest(void) {
+    return (actionCounter != 0) || (waterMovement != 0) || (switchPressed != 0) || (prevSwitchState != 0);
+}
+#endif

@@ -36,6 +36,10 @@ void func_809EEA00(EnDivingGame* this, PlayState* play);
 void func_809EEA90(EnDivingGame* this, PlayState* play);
 void func_809EEAF8(EnDivingGame* this, PlayState* play);
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+void OoT_EnDivingGame_Reset(void);
+#endif
+
 const ActorInit En_Diving_Game_InitVars = {
     ACTOR_EN_DIVING_GAME,
     ACTORCAT_NPC,
@@ -46,7 +50,11 @@ const ActorInit En_Diving_Game_InitVars = {
     (ActorFunc)EnDivingGame_Destroy,
     (ActorFunc)EnDivingGame_Update,
     (ActorFunc)EnDivingGame_Draw,
+#ifdef RSBS_SINGLE_EXECUTABLE
+    (ActorResetFunc)OoT_EnDivingGame_Reset,
+#else
     NULL,
+#endif
 };
 
 // used to ensure there's only one instance of this actor.
@@ -580,3 +588,29 @@ void EnDivingGame_Draw(Actor* thisx, PlayState* play) {
     SkelAnime_DrawSkeletonOpa(play, &this->skelAnime, EnDivingGame_OverrideLimbDraw, NULL, this);
     CLOSE_DISPS(play->state.gfxCtx);
 }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// [RSBS #750] EnDivingGame_Destroy clears the one-instance latch sHasSpawned when the instance that set it goes; its
+// Init kills every later instance while it is set. Nothing but Destroy ever put it back. A cross-game departure
+// abandons OoT's Play gamestate without deleting its actors (OoT_RetireAbandonedSession, GameExports_SingleExe.cpp),
+// so it kept the abandoned session's value. OoT_Actor_FreeOverlay calls this only once the overlay has no clients,
+// when every Destroy has already restored the initial value, so on a normal teardown it changes nothing.
+void OoT_EnDivingGame_Reset(void) {
+    sHasSpawned = false;
+}
+
+// [RSBS #750] Seed and read the static(s) above for the oot-abandoned-session-statics row
+// (games/oot/soh/oot_abandoned_session_test.cpp): dirty != 0 puts them where a live client leaves them, 0 puts back
+// the initial value; the check is nonzero while any is not at its initial value.
+void OoT_EnDivingGame_SetDestroyStaticsForTest(s32 dirty) {
+    if (dirty) {
+        sHasSpawned = true;
+    } else {
+        sHasSpawned = false;
+    }
+}
+
+s32 OoT_EnDivingGame_DestroyStaticsDirtyForTest(void) {
+    return sHasSpawned != false;
+}
+#endif

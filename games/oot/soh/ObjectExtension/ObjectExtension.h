@@ -88,6 +88,18 @@ class ObjectExtension {
     // Removes all data from an object
     void Free(const void* object);
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // [RSBS #750] Removes all data from every object. Only for a session whose
+    // objects are ALL gone without OoT_Actor_Delete having run for them (a
+    // cross-game departure retires the Play gamestate without Play_Destroy).
+    // Every key here is an actor, so after such a departure each entry is a
+    // stale address the next session's arena reuses.
+    size_t ClearAll();
+    size_t Count() const {
+        return Data.size();
+    }
+#endif
+
   private:
     ObjectExtension() = default;
 

@@ -38,6 +38,10 @@ static Vec3s D_80AD8C30[] = {
     { 0x0B4E, 0xFE66, 0xF87E }, { 0x0B4A, 0xFE66, 0xF97A }, { 0x0B4A, 0xFE98, 0xF9FC }, { 0x0BAE, 0xFE98, 0xF9FC },
 };
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+void OoT_EnPoRelay_Reset(void);
+#endif
+
 const ActorInit En_Po_Relay_InitVars = {
     ACTOR_EN_PO_RELAY,
     ACTORCAT_NPC,
@@ -48,7 +52,11 @@ const ActorInit En_Po_Relay_InitVars = {
     (ActorFunc)EnPoRelay_Destroy,
     (ActorFunc)EnPoRelay_Update,
     (ActorFunc)EnPoRelay_Draw,
+#ifdef RSBS_SINGLE_EXECUTABLE
+    (ActorResetFunc)OoT_EnPoRelay_Reset,
+#else
     NULL,
+#endif
 };
 
 static ColliderCylinderInit OoT_sCylinderInit = {
@@ -442,3 +450,29 @@ void EnPoRelay_Draw(Actor* thisx, PlayState* play) {
     SkelAnime_DrawSkeletonOpa(play, &this->skelAnime, NULL, EnPoRelay_PostLimbDraw, &this->actor);
     CLOSE_DISPS(play->state.gfxCtx);
 }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// [RSBS #750] EnPoRelay_Destroy clears the one-instance latch D_80AD8D24 when the instance that set it goes; its
+// Init kills every later instance while it is set. Nothing but Destroy ever put it back. A cross-game departure
+// abandons OoT's Play gamestate without deleting its actors (OoT_RetireAbandonedSession, GameExports_SingleExe.cpp),
+// so it kept the abandoned session's value. OoT_Actor_FreeOverlay calls this only once the overlay has no clients,
+// when every Destroy has already restored the initial value, so on a normal teardown it changes nothing.
+void OoT_EnPoRelay_Reset(void) {
+    D_80AD8D24 = 0;
+}
+
+// [RSBS #750] Seed and read the static(s) above for the oot-abandoned-session-statics row
+// (games/oot/soh/oot_abandoned_session_test.cpp): dirty != 0 puts them where a live client leaves them, 0 puts back
+// the initial value; the check is nonzero while any is not at its initial value.
+void OoT_EnPoRelay_SetDestroyStaticsForTest(s32 dirty) {
+    if (dirty) {
+        D_80AD8D24 = 1;
+    } else {
+        D_80AD8D24 = 0;
+    }
+}
+
+s32 OoT_EnPoRelay_DestroyStaticsDirtyForTest(void) {
+    return D_80AD8D24 != 0;
+}
+#endif

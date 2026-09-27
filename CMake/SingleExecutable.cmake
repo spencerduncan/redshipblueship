@@ -1989,6 +1989,14 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # #626 twin), and the other game's arrival apply shows it rather than the
     # one-heart floor. Both directions, real drivers, ROM-free and display-free.
     redship_add_test(NAME ComboGameOverRevive COMMAND redship --test combo-gameover-revive)
+    # #750, the OoT leg of #666 (games/oot/soh/oot_abandoned_session_test.cpp):
+    # the same departure shape on OoT, whose numLoaded is never zeroed again
+    # after the ActorDB entry is created. The row drives OoT's registered
+    # suspend twice and checks each abandoned session's overlays are reset once
+    # after the graph is retired, client-free ones are not, no client count
+    # outlives a departure, the statics only Destroy restored are restored, and
+    # no per-actor ObjectExtension entry survives.
+    redship_add_test(NAME OoTAbandonedSessionStatics COMMAND redship --test oot-abandoned-session-statics)
 
     # MM'S ENABLED MOD SET (#706): enable, disable and reorder round-trip through
     # the persisted lists, and the scan's rules, over a staged tree of empty files.
