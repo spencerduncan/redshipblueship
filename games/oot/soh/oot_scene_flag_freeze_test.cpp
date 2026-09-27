@@ -106,26 +106,48 @@ void ArmLiveOoTSession(void) {
 // not compile. The source-level guard is the FUNC scan in
 // .github/scripts/check-odr-declaration-collisions.py.
 //
-// Arranges state the reset must undo (a link, a startup entrance, an F10
-// request) so the reset is observed, not assumed. Returns false if any of it
-// survived, or if the production links could not be registered afterwards:
-// Entrance_RegisterDefaultLinks refuses a door that some link already claims,
-// so a true return is proof the link table really was cleared by a call that
-// reached the combo entrance module.
+// Arranges every piece of state the reset must undo -- a link, a pending
+// entrance switch, a startup entrance, an F10 request and both games'
+// cross-game arrival latches -- and checks each one really is armed before the
+// call, so every clause after it is observed, not assumed. Returns false if any
+// of it was not armed, if any of it survived, or if the production links could
+// not be registered afterwards: Entrance_RegisterDefaultLinks refuses a door
+// that some link already claims, so a true return is proof the link table
+// really was cleared by a call that reached the combo entrance module.
+//
+// Wiping the arrival latch on every call (including the final cleanup) is a
+// change from the old composed reset, which left it alone. The MM twin always
+// did this, and it is what ComboEntrance_Init means: session state starts clean.
 bool ResetEntranceTable(void) {
     if (Entrance_GetLinkCount() == 0) {
         (void)Entrance_RegisterDefaultLinks();
     }
+    gPendingSwitch.requested = true;
+    gPendingSwitch.targetGame = GAME_MM;
     Combo_SetStartupEntrance(OOT_ENTR_MARKET_FROM_MASK_SHOP);
     Combo_RequestGameSwitch();
+    Entrance_NoteCrossGameArrival(GAME_OOT);
+    Entrance_NoteCrossGameArrival(GAME_MM);
+
+    if (Entrance_GetLinkCount() == 0 || !gPendingSwitch.requested || !Combo_HasStartupEntrance() ||
+        !Combo_IsGameSwitchRequested() || !Entrance_IsCrossGameHalf(GAME_OOT) || !Entrance_IsCrossGameHalf(GAME_MM)) {
+        printf("[TEST] ResetEntranceTable could not arm the state it checks: links=%zu pending=%d startup=%d "
+               "f10=%d halfOoT=%d halfMM=%d\n",
+               Entrance_GetLinkCount(), (int)gPendingSwitch.requested, (int)Combo_HasStartupEntrance(),
+               (int)Combo_IsGameSwitchRequested(), (int)Entrance_IsCrossGameHalf(GAME_OOT),
+               (int)Entrance_IsCrossGameHalf(GAME_MM));
+        return false;
+    }
 
     ComboEntrance_Init();
 
-    if (Entrance_GetLinkCount() != 0 || Combo_HasStartupEntrance() || Combo_IsGameSwitchRequested() ||
-        gPendingSwitch.requested) {
-        printf("[TEST] ComboEntrance_Init left state behind: links=%zu startup=%d f10=%d pending=%d\n",
-               Entrance_GetLinkCount(), (int)Combo_HasStartupEntrance(), (int)Combo_IsGameSwitchRequested(),
-               (int)gPendingSwitch.requested);
+    if (Entrance_GetLinkCount() != 0 || gPendingSwitch.requested || Combo_HasStartupEntrance() ||
+        Combo_IsGameSwitchRequested() || Entrance_IsCrossGameHalf(GAME_OOT) || Entrance_IsCrossGameHalf(GAME_MM)) {
+        printf("[TEST] ComboEntrance_Init left state behind: links=%zu pending=%d startup=%d f10=%d halfOoT=%d "
+               "halfMM=%d\n",
+               Entrance_GetLinkCount(), (int)gPendingSwitch.requested, (int)Combo_HasStartupEntrance(),
+               (int)Combo_IsGameSwitchRequested(), (int)Entrance_IsCrossGameHalf(GAME_OOT),
+               (int)Entrance_IsCrossGameHalf(GAME_MM));
         return false;
     }
     return Entrance_RegisterDefaultLinks();
