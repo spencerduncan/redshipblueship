@@ -52,7 +52,14 @@
  * (Combo_ComboSettingsFrozen: a paired world created since ADR 0011, or a
  * legacy pair after its first crossing). An unpaired file, a vanilla file and a
  * legacy pair before its first crossing see each game's ending exactly as
- * upstream wrote it, and no bit is written.
+ * upstream wrote it, and no bit is written. (So a legacy pair that beat Ganon
+ * before its first crossing, which then freezes beat-both, must beat him again:
+ * accepted, saves are pre-release; ADR 0010's 2026-09-27 D1 amendment.)
+ *
+ * TRIFORCE HUNT AND THE BOSSES: OoTMM locks both away. Here a boss is locked
+ * only by its own half's hunt when that half's hunt is on; the other half's
+ * boss stays fightable and its defeat is withheld, never an ending (the ADR
+ * amendment gives the reason).
  *
  * NOT COVERED: a half's OWN triforce hunt in a world whose combo goal is not
  * triforce-hunt still ends that half's game through its own win arm

@@ -2030,9 +2030,11 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # THE PAIRED GAME'S END (#762, OoTMM parity): the frozen goal's predicate over
     # the two final-boss defeats recorded in sharedFlags, the decision for every
     # goal value in both orders (beat-both withholds the first boss's ending and
-    # plays the second's), unpaired files ending as upstream, and both ports' REAL
-    # ending sites (BossGanon2's warp, Majora's warp and new-day save) on a heap
-    # PlayState. ROM-free and display-free: default tier.
+    # plays the second's), unpaired files ending as upstream, each port's redirect
+    # over a replica of its site's assignments on a heap PlayState, Time Splits'
+    # real completion, the fail-open answer for an unevaluable goal, and, from
+    # source (RSBS_SOURCE_DIR), that every call site is wired under its guard and
+    # no other completion writer exists. ROM-free and display-free: default tier.
     redship_add_test(NAME ComboGoalEnding COMMAND redship --test combo-goal-ending)
 
     # ========================================================================

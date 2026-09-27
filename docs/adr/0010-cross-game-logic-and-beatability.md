@@ -2026,7 +2026,13 @@ that leaves it false plays no ending.
   Ganon's Tower under entrance shuffle). `mm/play/play.c` sets "Majora
   beaten" on the arrival that starts MM's ending and, when the goal is not
   met, sets day 0 at 05:59, makes the new-day save and warps to the start of
-  a new cycle. Neither shows a message. Under the triforce goals the last
+  a new cycle. Neither shows a message or an item-get: each also calls
+  `sendSelfTriforce()` / `sendSelfMajorasMask()`, which marks the boss's NPC
+  check obtained, and whose `Multi_SendSelfItem` is a no-op unless
+  `CFG_MULTIPLAYER` is set (`common/multi/multi.c` `Multi_BeforeSend`); in a
+  multiworld the echo arrives with that NPC check already marked, so
+  `MultiProcessMessageItemWAL` gives nothing (`common/mark.c` `Mark_GetOot`
+  / `Mark_GetMm` read the same bitmap). Under the triforce goals the last
   piece calls `comboCreditWarp()` (`common/triggers.c`) and both final
   bosses are locked away (`oot/doors.c`, `mm/actors/En/En_Js.c`).
 - **The record.** Each game's final-boss defeat is one bit in
@@ -2041,8 +2047,9 @@ that leaves it false plays no ending.
   mean the same thing by a goal. `triforce-hunt` is the shared piece count
   against the frozen combo requirement (`Combo_Logic_EvaluateTriforceHunt`);
   neither boss is a term of it.
-- **The ending sites** (guarded by `RSBS_SINGLE_EXECUTABLE`): BossGanon2's
-  final blow gates OoT's "game complete" stat mark, and its warp to the
+- **The ending sites** (guarded by `RSBS_SINGLE_EXECUTABLE`): Ganon's
+  final blow (the `OnBossDefeat` hook in `BossDefeatTimestamps.cpp`) gates
+  OoT's "game complete" stat mark, and BossGanon2's warp to the
   Chamber of the Sages (cutscene 0xFFF2) is rewritten, when the goal is
   unmet, to Ganon's Tower as an adult after one save
   (`ComboGoalEndingOoT.cpp`). Ganon's Tower is used in every case because
@@ -2051,12 +2058,43 @@ that leaves it false plays no ending.
   (cutscene 0xFFF7) is rewritten, when the goal is unmet, to OoTMM's
   sequence: day 0 at 05:59, MM's own new-day save
   (`Sram_SaveSpecialNewDay`), South Clock Town (`ComboGoalEndingMM.cpp`).
-  Without a frozen combo record every site is a no-op and each game ends
-  as upstream.
+  Time Splits' completion (`TimeSplitCompleteSplits`, which runs when the
+  player's last split is collected, and Ganon can be that split) is the
+  third writer of OoT's mark and asks the same question read-only
+  (`Combo_GoalAllowsCompletion`). Without a frozen combo record every site
+  is a no-op and each game ends as upstream.
+- **Fail direction.** A frozen goal that cannot be evaluated (a goal byte
+  outside the pinned table, or a triforce-hunt record that fails its check,
+  which disarms the hunt) FAILS OPEN: the defeat is recorded and the game
+  ends as its own game, with an ERROR in the log. Withholding there would
+  leave a paired world that can never end. Creation and the `.redsave`
+  load refuse both states, so this is the answer for a damaged record.
+- **Triforce hunt and the bosses (a divergence from OoTMM).** OoTMM locks
+  both bosses away under its triforce goals. Here each boss is locked by
+  its own half's hunt when that half's hunt is on (SoH keeps Ganon's Boss
+  Key out of the pool and grants it with the hunt; 2S2H withholds Majora's
+  soul until the hunt completes), but the combo record requires only one
+  half's hunt to be on, so the other half's boss can be reachable. That boss
+  is fightable and its defeat is withheld (the player is returned to the
+  game) rather than locked: locking it means a new condition in that half's
+  logic graph, which the composition ruling keeps upstream-shaped, and the
+  outcome for the goal is the same (no boss ever ends a triforce-hunt world).
+- **Legacy pairs (pre-ADR-0011).** Before its first crossing a legacy pair
+  has no frozen record, so a defeat there is "own" and is not recorded; the
+  first crossing freezes the shipped default, beat-both. A legacy pair that
+  beat Ganon before its first crossing therefore has Majora withheld and
+  must beat Ganon again (OoT's ending does not save, so the pre-Ganon save
+  is still there). Accepted: saves are pre-release.
 - **Not covered:** a half's own triforce hunt in a world whose combo goal
-  is not triforce-hunt still ends that half's game through its own win arm.
+  is not triforce-hunt still ends that half's game through its own win arm
+  (#768).
 
-Locked by `ComboGoalEnding` (the predicate for all five values, the
-decision for every goal in both orders, unpaired files, the record's
-lifetime, and both ports' real ending sites on a heap PlayState). The Goal
+Locked by `ComboGoalEnding`: the predicate for all five values; the
+decision for every goal in both orders; unpaired files; the record's
+lifetime; each port's redirect over a replica of its site's assignments
+on a heap PlayState (the actors are not run); the real Time Splits
+completion; the fail-open answer; and, from source, that every call site
+makes its call right after the upstream lines it follows under its guard,
+that the replicas replay the actors' lines, and that no other completion
+writer exists (with the counterfactuals run inside the row). The Goal
 row's tooltip now says "The paired game ends when the goal is met".
