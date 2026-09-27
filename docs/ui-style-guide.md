@@ -170,6 +170,13 @@ and on ours (R-N4).
 - **R-S3.** A disabled reason lives in the tooltip, never in the label and never inline. A state that must be legible
   WITHOUT hovering (ADR 0004 sections 4.2 and 6) is one gray note row above the group (`SohMenuRandomizer.cpp:627-629`).
   That note also survives a race lockout, which replaces the tooltip (`Menu.cpp:301-305`).
+- **R-S3a.** A row gated through SohMenu's capability and presentation API gets both halves from it (ADR 0004's
+  2026-09-27 amendment): `SohMenu::ApplyPresentation` / `CapabilityGate` keep the row's name and write shape (a) through
+  `SohMenu::DisabledTooltip`; the group's note is a gray `WIDGET_TEXT` row with `.HideInSearch(true)` and
+  `.RaceDisable(false)` whose PreFunc is `SohMenu::CapabilityNote(key)` or calls `SohMenu::ApplyPresentationNote`. The
+  editable-but-not-active state is the note alone ("Majora's Mask is suspended; these take effect when you return.").
+  A capability's tracking issue is a separate field of its record (`RegisterCapability(key, predicate, text, issue)`),
+  never part of the text a player reads.
 - **R-S4.** `RaceDisable` defaults to true (`MenuTypes.h:113`). Mark cosmetic and QoL rows `.RaceDisable(false)`.
 - **R-S5.** Destructive buttons confirm through `SohGui::RegisterPopup(title, message, "Reset", "Cancel", cb, nullptr)`
   (`SohMenuSettings.cpp:419-432`).

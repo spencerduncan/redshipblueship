@@ -1454,6 +1454,15 @@ void Session::BuildPageList() {
         p.hovers = { "capability", "frozen" };
         p.hoverRows = { { "capability", kProbeGatedRow }, { "frozen", kProbeDecidedRow } };
         p.hoverStates = { "" };
+        {
+            const std::vector<std::string> notes = {
+                SohGui::SohMenu::PresentationNoteText(SohGui::SOH_MENU_PRESENT_INACTIVE_GAME),
+                std::string("Unavailable: ") + SohGui::SohMenu::CapabilityReason(SohGui::SOH_MENU_CAP_COMBO_PAIRED),
+                SohGui::SohMenu::PresentationNoteText(SohGui::SOH_MENU_PRESENT_FROZEN),
+            };
+            p.stateText[""] = notes;
+            p.stateText["race-lockout"] = notes;
+        }
         p.bodyText = "Suspended Game";
         p.expectText = { p.bodyText };
         pages.push_back(p);
@@ -1937,6 +1946,9 @@ void Session::LeaveState(const PageSpec& p, const std::string& state) {
  * every state this page authors, because EnterState resets gComboCtx), the other
  * two gated rows through SohMenu::ApplyPresentation. The rows join R5/R6 while
  * installed, so a presentation that rewrites a row's name is a runtime-lint hit.
+ * No group title repeats a reason fragment ("Already Decided"): SeparatorText
+ * logs as "--- <title>", which would hold the "- <Reason>" tooltip line and
+ * defeat the hover contrast.
  */
 void Session::InstallRowStateProbe() {
     auto soh = std::dynamic_pointer_cast<SohGui::SohMenu>(menu);
@@ -1951,6 +1963,13 @@ void Session::InstallRowStateProbe() {
         .ValuePointer(&gProbeLive)
         .Options(UIWidgets::CheckboxOptions().Tooltip("Toggles a setting that applies now."));
     soh->AddWidget(path, "Suspended Game", WIDGET_SEPARATOR_TEXT);
+    soh->AddWidget(path, "Suspended Game Note", WIDGET_TEXT)
+        .RaceDisable(false)
+        .HideInSearch(true)
+        .PreFunc([](WidgetInfo& note) {
+            SohGui::SohMenu::ApplyPresentationNote(note, SohGui::SOH_MENU_PRESENT_INACTIVE_GAME);
+        })
+        .Options(UIWidgets::TextOptions().Color(UIWidgets::Colors::Gray));
     soh->AddWidget(path, kProbeSuspendedRow, WIDGET_CHECKBOX)
         .ValuePointer(&gProbeSuspended)
         .PreFunc([](WidgetInfo& info) {
@@ -1959,12 +1978,23 @@ void Session::InstallRowStateProbe() {
         })
         .Options(UIWidgets::CheckboxOptions().Tooltip("Toggles a setting that takes effect in Majora's Mask."));
     path.column = SECTION_COLUMN_2;
-    soh->AddWidget(path, "Not Yet Available", WIDGET_SEPARATOR_TEXT);
+    soh->AddWidget(path, "Gated by Capability", WIDGET_SEPARATOR_TEXT);
+    soh->AddWidget(path, "Gated by Capability Note", WIDGET_TEXT)
+        .RaceDisable(false)
+        .HideInSearch(true)
+        .PreFunc(SohGui::SohMenu::CapabilityNote(SohGui::SOH_MENU_CAP_COMBO_PAIRED))
+        .Options(UIWidgets::TextOptions().Color(UIWidgets::Colors::Gray));
     soh->AddWidget(path, kProbeGatedRow, WIDGET_CHECKBOX)
         .ValuePointer(&gProbeGated)
         .PreFunc(SohGui::SohMenu::CapabilityGate(SohGui::SOH_MENU_CAP_COMBO_PAIRED))
         .Options(UIWidgets::CheckboxOptions().Tooltip("Toggles a setting that needs a paired world."));
-    soh->AddWidget(path, "Already Decided", WIDGET_SEPARATOR_TEXT);
+    soh->AddWidget(path, "Frozen at Creation", WIDGET_SEPARATOR_TEXT);
+    soh->AddWidget(path, "Frozen at Creation Note", WIDGET_TEXT)
+        .RaceDisable(false)
+        .HideInSearch(true)
+        .PreFunc(
+            [](WidgetInfo& note) { SohGui::SohMenu::ApplyPresentationNote(note, SohGui::SOH_MENU_PRESENT_FROZEN); })
+        .Options(UIWidgets::TextOptions().Color(UIWidgets::Colors::Gray));
     soh->AddWidget(path, kProbeDecidedRow, WIDGET_CHECKBOX)
         .ValuePointer(&gProbeDecided)
         .PreFunc([](WidgetInfo& info) {

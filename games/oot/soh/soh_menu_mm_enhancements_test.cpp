@@ -513,25 +513,20 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
             MME_CHECK(IsDisabled(*row->info), "the synthetic non-live row \"%s\" came out of a draw pass ENABLED",
                       c.name);
             const char* tip = DisabledTooltipOf(*row->info);
-            MME_CHECK(tip != nullptr && std::string(tip) == c.reason,
+            // SoH's disabled row (ADR 0004's 2026-09-27 amendment): MenuDrawItem's
+            // own tooltip shape around the reason, and the row's own name.
+            const std::string wantTip = std::string("This setting is disabled because: \n\n- ") + c.reason;
+            MME_CHECK(tip != nullptr && std::string(tip) == wantTip,
                       "the synthetic non-live row \"%s\" carries disabled tooltip \"%s\", expected \"%s\"", c.name,
-                      tip != nullptr ? tip : "(null)", c.reason);
-            MME_CHECK(row->info->name != std::string(c.name),
-                      "the synthetic non-live row's NAME is unchanged (\"%s\"). ADR 0004's rule is that a row a player "
-                      "must read without hovering says its state in the name, not only in a tooltip",
-                      row->info->name.c_str());
-            MME_CHECK(row->info->name == afterOne,
-                      "the synthetic non-live row's name grew across two draw passes: \"%s\" then \"%s\". "
-                      "ResetDisables() does not clear `name`, so a PreFunc that appended rather than normalising "
-                      "through StripPresentationSuffix compounds every frame",
+                      tip != nullptr ? tip : "(null)", wantTip.c_str());
+            MME_CHECK(row->info->name == std::string(c.name) && afterOne == std::string(c.name),
+                      "the synthetic non-live row's NAME changed (\"%s\", then \"%s\"). SoH rewrites a name at runtime "
+                      "only on TEXT rows; the state belongs in the tooltip and the group's gray note",
                       afterOne.c_str(), row->info->name.c_str());
-            MME_CHECK(SohGui::SohMenu::StripPresentationSuffix(row->info->name) == std::string(c.name),
-                      "stripping the presentation suffix from \"%s\" does not give back \"%s\"",
-                      row->info->name.c_str(), c.name);
         }
     }
-    printf("[TEST] leg 4: a Partial and a Dormant row both render disabled, with their reason, and their names do not "
-           "compound across frames\n");
+    printf("[TEST] leg 4: a Partial and a Dormant row both render disabled, with SoH's disabled tooltip around their "
+           "reason, and keep their names\n");
 
     if (gFailures == 0) {
         printf("[TEST] menu-mm-enhancement-rows: PASS\n");

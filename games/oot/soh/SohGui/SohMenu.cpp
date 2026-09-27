@@ -4,7 +4,9 @@
 #include <ship/utils/StringHelper.h>
 #include <spdlog/fmt/fmt.h>
 
+#include <cctype>
 #include <string>
+#include <unordered_map>
 
 // src/common - the capability predicates' observed facts and the one
 // definition of ADR 0004 section 4.2's marker (#497 steps 3 and 5). ADR 0008
@@ -204,24 +206,33 @@ void SohMenu::DrawElement() {
 
 namespace {
 
+/** A built-in capability's player text and the issue that tracks its absence. */
+struct CapabilityReasonText {
+    const char* text;
+    uint32_t issue;
+};
+
 /**
- * The built-in capabilities' reasons. String literals, because
- * `UIWidgets::WidgetOptions::disabledTooltip` is a `const char*` the draw path
- * reads after the PreFunc returns - a std::string temporary would dangle.
- *
- * Each one names the issue that tracks the absence. That is not decoration: the
- * two stale-reason incidents this mechanism exists to prevent (#438's remainder,
- * then #669) were both reasons nobody could trace back to a tracker, and the
- * gating lock refuses a reason with no `#NNN` in it for exactly that reason.
+ * The built-in capabilities' reasons, split into what a player reads and what
+ * the record keeps (ADR 0004's 2026-09-27 amendment: "follow the SoH idiom").
+ * The text is in SoH's disabled-reason style - a short Title Case fragment like
+ * disabledMap's "Save Not Loaded" or "Available Only on DirectX" - and carries
+ * no issue number, because no SoH disabled reason does. The issue is recorded
+ * beside it, where the gating lock reads it: the two stale-reason incidents this
+ * mechanism exists to prevent (#438's remainder, then #669) were reasons nobody
+ * could trace back to a tracker, and that requirement moved from the visible
+ * string to the record, it did not go away. String literals, because the text
+ * reaches a `const char*` the draw path reads after the PreFunc returns.
  */
-constexpr const char* kCapReasonMMHosted =
-    "Not yet available: Majora's Mask support is not in this build - MM's item pool never registered (#392)";
-constexpr const char* kCapReasonComboHosted =
-    "Not yet available: the cross-game settings store is not reachable in this process (#498)";
-constexpr const char* kCapReasonComboPaired =
-    "Not yet available: no paired Majora's Mask world yet - generate a randomized Ocarina of Time seed first (#492)";
-constexpr const char* kCapReasonSingleExe =
-    "Only available in the combined RedShipBlueShip executable (#392)";
+constexpr CapabilityReasonText kCapReasonMMHosted = { "Majora's Mask Not in This Build", 392 };
+constexpr CapabilityReasonText kCapReasonComboHosted = { "Cross-Game Settings Unavailable", 498 };
+constexpr CapabilityReasonText kCapReasonComboPaired = { "No Paired World Yet", 492 };
+constexpr CapabilityReasonText kCapReasonSingleExe = { "Available Only in RedShipBlueShip", 392 };
+/** A row that asks for a capability nothing in this build publishes (#497). */
+constexpr CapabilityReasonText kCapReasonUnregistered = { "Not Available in This Build", 497 };
+
+/** SoH's disabled-tooltip opening, exactly as MenuDrawItem writes it (Menu.cpp). */
+constexpr const char* kDisabledTooltipHead = "This setting is disabled because: \n";
 
 /**
  * MM's half, observed rather than named (#640's rule). MM's
@@ -259,7 +270,8 @@ bool SingleExeAbsent(disabledInfo& info) {
 #endif
 }
 
-/** Does @p text carry a `#NNN` issue reference? */
+/** Does @p text carry a `#NNN` issue reference? Player text must not: the
+ *  number belongs to the record (SohMenuCapabilityRecord::issue). */
 bool NamesAnIssue(const char* text) {
     if (text == nullptr) {
         return false;
@@ -272,42 +284,75 @@ bool NamesAnIssue(const char* text) {
     return false;
 }
 
+/** Case-insensitive containment, for the two borrowed-wording rules: the
+ *  fragments are Title Case now and a caller's text may not be. */
+bool ContainsNoCase(const char* haystack, const char* needle) {
+    if (haystack == nullptr || needle == nullptr || needle[0] == '\0') {
+        return false;
+    }
+    std::string h(haystack);
+    std::string n(needle);
+    for (char& ch : h) {
+        ch = (char)std::tolower((unsigned char)ch);
+    }
+    for (char& ch : n) {
+        ch = (char)std::tolower((unsigned char)ch);
+    }
+    return h.find(n) != std::string::npos;
+}
+
+SohMenuCapabilityRecord MakeRecord(DisableInfoFunc absentWhen, const CapabilityReasonText& reason) {
+    SohMenuCapabilityRecord record;
+    record.gate = { absentWhen, reason.text };
+    record.issue = reason.issue;
+    return record;
+}
+
 } // namespace
 
-std::unordered_map<uint32_t, disabledInfo>& SohMenu::GetCapabilityMap() {
+std::unordered_map<uint32_t, SohMenuCapabilityRecord>& SohMenu::GetCapabilityMap() {
     // A function-local static, not a member: a contributing TU's file-scope
     // registrar runs before any SohMenu exists, and a row's PreFunc has to
     // resolve its capability in a harness that never reaches InitElement.
-    static std::unordered_map<uint32_t, disabledInfo> capabilityMap;
+    static std::unordered_map<uint32_t, SohMenuCapabilityRecord> capabilityMap;
     static bool builtinsInstalled = false;
     if (!builtinsInstalled) {
         // Assigned directly rather than through RegisterCapability, which would
         // re-enter this accessor while the flag is still false.
         builtinsInstalled = true;
-        capabilityMap[(uint32_t)SOH_MENU_CAP_MM_HOSTED] = { MMHostedAbsent, kCapReasonMMHosted };
-        capabilityMap[(uint32_t)SOH_MENU_CAP_COMBO_HOSTED] = { ComboHostedAbsent, kCapReasonComboHosted };
-        capabilityMap[(uint32_t)SOH_MENU_CAP_COMBO_PAIRED] = { ComboPairedAbsent, kCapReasonComboPaired };
-        capabilityMap[(uint32_t)SOH_MENU_CAP_SINGLE_EXE] = { SingleExeAbsent, kCapReasonSingleExe };
+        capabilityMap[(uint32_t)SOH_MENU_CAP_MM_HOSTED] = MakeRecord(MMHostedAbsent, kCapReasonMMHosted);
+        capabilityMap[(uint32_t)SOH_MENU_CAP_COMBO_HOSTED] = MakeRecord(ComboHostedAbsent, kCapReasonComboHosted);
+        capabilityMap[(uint32_t)SOH_MENU_CAP_COMBO_PAIRED] = MakeRecord(ComboPairedAbsent, kCapReasonComboPaired);
+        capabilityMap[(uint32_t)SOH_MENU_CAP_SINGLE_EXE] = MakeRecord(SingleExeAbsent, kCapReasonSingleExe);
     }
     return capabilityMap;
 }
 
-void SohMenu::RegisterCapability(uint32_t key, DisableInfoFunc absentWhen, const char* reason) {
+void SohMenu::RegisterCapability(uint32_t key, DisableInfoFunc absentWhen, const char* reason, uint32_t issue) {
     if (absentWhen == nullptr || reason == nullptr || reason[0] == '\0') {
         SPDLOG_ERROR("SohMenu::RegisterCapability({}): refused - a capability needs both an observed predicate and a "
                      "reason a player can read",
                      key);
         return;
     }
-    if (!NamesAnIssue(reason)) {
-        // Logged, not refused: a build that silently dropped the capability
-        // would draw the row ENABLED, which is the one outcome section 5 forbids.
-        // The gating lock is what turns this into a red test.
-        SPDLOG_WARN("SohMenu::RegisterCapability({}): reason names no issue (#NNN) - \"{}\". A reason nobody can "
+    if (issue == 0) {
+        // Logged, not refused: an unregistered key reads ABSENT, so dropping
+        // this one would grey its rows with the generic fallback instead of the
+        // reason the caller wrote. The gating lock is what turns this into a red
+        // test (CapabilityTraceable).
+        SPDLOG_WARN("SohMenu::RegisterCapability({}): no tracking issue recorded for \"{}\". A reason nobody can "
                     "trace is a reason nobody retires.",
                     key, reason);
     }
-    GetCapabilityMap()[key] = { absentWhen, reason };
+    if (NamesAnIssue(reason)) {
+        SPDLOG_WARN("SohMenu::RegisterCapability({}): the player text \"{}\" carries an issue number; it belongs in "
+                    "the record, not in the tooltip",
+                    key, reason);
+    }
+    SohMenuCapabilityRecord record;
+    record.gate = { absentWhen, reason };
+    record.issue = issue;
+    GetCapabilityMap()[key] = record;
 }
 
 bool SohMenu::UnregisterCapability(uint32_t key) {
@@ -333,29 +378,38 @@ bool SohMenu::CapabilityPresent(uint32_t key) {
     // convention (DISABLE_FOR_NO_VSYNC evaluates !CanDisableVerticalSync()), so
     // the predicate answers ABSENT and presence is its negation. One meaning of
     // `active` across both maps is worth the inversion here.
-    it->second.active = it->second.evaluation(it->second);
-    return !it->second.active;
+    disabledInfo& gate = it->second.gate;
+    gate.active = gate.evaluation(gate);
+    return !gate.active;
 }
 
 const char* SohMenu::CapabilityReason(uint32_t key) {
     auto& map = GetCapabilityMap();
     auto it = map.find(key);
-    if (it == map.end() || it->second.reason == nullptr) {
+    if (it == map.end() || it->second.gate.reason == nullptr) {
         return "";
     }
-    return it->second.reason;
+    return it->second.gate.reason;
+}
+
+uint32_t SohMenu::CapabilityIssue(uint32_t key) {
+    auto& map = GetCapabilityMap();
+    auto it = map.find(key);
+    return it == map.end() ? 0u : it->second.issue;
+}
+
+bool SohMenu::CapabilityTraceable(uint32_t key) {
+    const char* text = CapabilityReason(key);
+    return text[0] != '\0' && CapabilityIssue(key) != 0 && !NamesAnIssue(text);
 }
 
 void SohMenu::ApplyCapabilityGate(WidgetInfo& info, uint32_t key) {
     if (CapabilityPresent(key)) {
-        // Restore the base NAME and nothing else. MenuDrawItem's ResetDisables()
-        // already cleared `disabled` before this PreFunc ran, and in the chained
-        // form another PreFunc may legitimately have set it again for a reason
-        // that is not this gate's - so calling ApplyPresentation(LIVE) here would
-        // un-disable a row somebody else disabled. What ResetDisables() does NOT
-        // clear is `name`, which is why a capability that came back would
-        // otherwise leave its stale "- not yet available: ..." label forever.
-        info.name = StripPresentationSuffix(info.name);
+        // Nothing to do. MenuDrawItem's ResetDisables() already cleared
+        // `disabled` before this PreFunc ran, and in the chained form another
+        // PreFunc may legitimately have set it again for a reason that is not
+        // this gate's - so calling ApplyPresentation(LIVE) here would un-disable
+        // a row somebody else disabled. The name is the row's own in every state.
         return;
     }
     const char* reason = CapabilityReason(key);
@@ -363,7 +417,7 @@ void SohMenu::ApplyCapabilityGate(WidgetInfo& info, uint32_t key) {
         // An unregistered key. Say so rather than greying the row with an empty
         // tooltip, which reads as a bug in the menu instead of a missing
         // capability.
-        reason = "Not yet available: this control declares a capability nothing in this build publishes (#497)";
+        reason = kCapReasonUnregistered.text;
     }
     ApplyPresentation(info, info.name, SOH_MENU_PRESENT_CAPABILITY, reason);
 }
@@ -383,6 +437,26 @@ WidgetFunc SohMenu::CapabilityGate(uint32_t key, WidgetFunc chained) {
             return;
         }
         ApplyCapabilityGate(info, key);
+    };
+}
+
+WidgetFunc SohMenu::CapabilityNote(uint32_t key) {
+    return [key](WidgetInfo& note) {
+        if (CapabilityPresent(key)) {
+            ApplyPresentationNote(note, SOH_MENU_PRESENT_LIVE);
+            return;
+        }
+        // "Unavailable: <Reason>." - one stored sentence per distinct reason,
+        // because the note's name is assigned from it every frame and a
+        // temporary would be rebuilt (and reallocated) sixty times a second.
+        static std::unordered_map<std::string, std::string> sentences;
+        const char* reason = CapabilityReason(key);
+        const std::string text = reason[0] != '\0' ? reason : kCapReasonUnregistered.text;
+        auto it = sentences.find(text);
+        if (it == sentences.end()) {
+            it = sentences.emplace(text, "Unavailable: " + text + ".").first;
+        }
+        ApplyPresentationNote(note, SOH_MENU_PRESENT_CAPABILITY, it->second.c_str());
     };
 }
 
@@ -475,45 +549,92 @@ int SohMenu::ApplySharedIntentMarkers() {
 }
 
 const char* SohMenu::PresentationLabel(SohMenuPresentation state) {
+    // SoH's disabled-reason style: short Title Case fragments ("Save Not
+    // Loaded", Menu.cpp's "Race Lockout Active").
     switch (state) {
         case SOH_MENU_PRESENT_LIVE:
-            return ""; // never labelled: a live row that explains itself reads as broken
+            return ""; // never explained: a live row that explains itself reads as broken
         case SOH_MENU_PRESENT_INACTIVE_GAME:
-            return "not active now";
+            return "Not Active Now";
         case SOH_MENU_PRESENT_CAPABILITY:
-            return "not yet available";
+            return "Not Yet Available";
         case SOH_MENU_PRESENT_FROZEN:
-            return "already decided";
+            return "Already Decided";
         default:
             return "";
     }
 }
 
+const char* SohMenu::PresentationNoteText(SohMenuPresentation state) {
+    switch (state) {
+        case SOH_MENU_PRESENT_INACTIVE_GAME:
+            return "Majora's Mask is suspended; these take effect when you return.";
+        case SOH_MENU_PRESENT_CAPABILITY:
+            return "These settings are not available yet.";
+        case SOH_MENU_PRESENT_FROZEN:
+            return "Already decided when this world was created.";
+        case SOH_MENU_PRESENT_LIVE:
+        default:
+            return "";
+    }
+}
+
+const char* SohMenu::DisabledTooltip(const char* reason) {
+    // Node-based storage: a stored string's c_str() survives rehashing, and one
+    // copy per distinct reason bounds it by the reasons the menu can show.
+    static std::unordered_map<std::string, std::string> tooltips;
+    const std::string key = (reason != nullptr) ? reason : "";
+    auto it = tooltips.find(key);
+    if (it == tooltips.end()) {
+        it = tooltips.emplace(key, std::string(kDisabledTooltipHead) + "\n- " + key).first;
+    }
+    return it->second.c_str();
+}
+
+void SohMenu::ApplyPresentationNote(WidgetInfo& note, SohMenuPresentation state, const char* sentence) {
+    if (state == SOH_MENU_PRESENT_LIVE) {
+        // A live group says nothing about itself.
+        note.isHidden = true;
+        return;
+    }
+    const char* text = (sentence != nullptr && sentence[0] != '\0') ? sentence : PresentationNoteText(state);
+    if (note.name != text) {
+        note.name = text;
+    }
+}
+
 std::string SohMenu::StripPresentationSuffix(const std::string& name) {
-    // Loop, because a name that already accumulated (the defect this function
-    // exists to make impossible) carries several, and normalising it in one call
-    // is what lets a caller pass `info.name` every frame.
+    // Loop, because a name that accumulated several suffixes (the defect the old
+    // name-writing presentation had to guard against) normalises in one call.
+    // Both spellings: the lower-case labels the old composition wrote, and the
+    // current Title Case fragments.
     std::string out = name;
     for (bool cut = true; cut;) {
         cut = false;
-        for (int s = 0; s < (int)SOH_MENU_PRESENT_COUNT; s++) {
-            const char* label = PresentationLabel((SohMenuPresentation)s);
-            if (label[0] == '\0') {
-                continue; // LIVE is never labelled, so it appends nothing to cut
+        for (int s = 0; s < (int)SOH_MENU_PRESENT_COUNT && !cut; s++) {
+            const std::string title = PresentationLabel((SohMenuPresentation)s);
+            if (title.empty()) {
+                continue; // LIVE is never labelled, so nothing to cut
             }
-            const std::string needle = std::string(" - ") + label;
-            const std::size_t at = out.rfind(needle);
-            if (at == std::string::npos) {
-                continue;
+            std::string lower = title;
+            for (char& ch : lower) {
+                ch = (char)std::tolower((unsigned char)ch);
             }
-            // Only a SUFFIX, in exactly the shape ApplyPresentation writes: the
-            // label ends the string, or a ": <detail>" follows it. A registered
-            // row that merely contains the words is not rewritten.
-            const std::size_t after = at + needle.size();
-            if (after == out.size() || out.compare(after, 2, ": ") == 0) {
-                out.erase(at);
-                cut = true;
-                break;
+            for (const std::string& label : { title, lower }) {
+                const std::string needle = " - " + label;
+                const std::size_t at = out.rfind(needle);
+                if (at == std::string::npos) {
+                    continue;
+                }
+                // Only a SUFFIX, in exactly the shape the old composition wrote:
+                // the label ends the string, or a ": <detail>" follows it. A
+                // registered row that merely contains the words is not rewritten.
+                const std::size_t after = at + needle.size();
+                if (after == out.size() || out.compare(after, 2, ": ") == 0) {
+                    out.erase(at);
+                    cut = true;
+                    break;
+                }
             }
         }
     }
@@ -522,14 +643,16 @@ std::string SohMenu::StripPresentationSuffix(const std::string& name) {
 
 void SohMenu::ApplyPresentation(WidgetInfo& info, const std::string& baseName, SohMenuPresentation state,
                                 const char* reason) {
-    const char* label = PresentationLabel(state);
     const bool haveReason = (reason != nullptr && reason[0] != '\0');
 
-    // A COPY, taken before anything is assigned to info.name: callers pass
-    // `info.name` itself (ApplyCapabilityGate does), so baseName may alias the
-    // member this function overwrites. Normalising here is what makes a
-    // per-frame call idempotent - see the header for the two defects it closes.
+    // The row's own name, in every state (SoH rewrites a name at runtime only on
+    // TEXT rows; the state goes in the tooltip and the group's note). Compared
+    // before it is assigned, because callers pass `info.name` itself and
+    // baseName may alias the member this writes.
     const std::string base = StripPresentationSuffix(baseName);
+    if (info.name != base) {
+        info.name = base;
+    }
 
     if (state == SOH_MENU_PRESENT_LIVE) {
         if (haveReason) {
@@ -539,7 +662,6 @@ void SohMenu::ApplyPresentation(WidgetInfo& info, const std::string& baseName, S
             SPDLOG_WARN("SohMenu::ApplyPresentation(\"{}\"): LIVE with a reason (\"{}\") - reason dropped", base,
                         reason);
         }
-        info.name = base;
         if (info.options != nullptr) {
             info.options->disabled = false;
             info.options->disabledTooltip = "";
@@ -547,6 +669,17 @@ void SohMenu::ApplyPresentation(WidgetInfo& info, const std::string& baseName, S
         return;
     }
 
+    if (state == SOH_MENU_PRESENT_INACTIVE_GAME) {
+        // Section 6 point 2: readable AND EDITABLE. Collapsing this into
+        // "disabled" would wrongly imply the setting is broken; the group's gray
+        // note (ApplyPresentationNote) is what denies "this takes effect now".
+        if (info.options != nullptr) {
+            info.options->disabled = false;
+        }
+        return;
+    }
+
+    const char* label = PresentationLabel(state);
     const char* detail = haveReason ? reason : label;
 
     // The two rules section 6 states in prose, enforced here so a caller cannot
@@ -554,7 +687,7 @@ void SohMenu::ApplyPresentation(WidgetInfo& info, const std::string& baseName, S
     // says ALREADY DECIDED, and a player who reads the wrong one goes looking
     // for a bug in the right one."
     if (state == SOH_MENU_PRESENT_CAPABILITY && haveReason &&
-        std::string(reason).find(PresentationLabel(SOH_MENU_PRESENT_FROZEN)) != std::string::npos) {
+        ContainsNoCase(reason, PresentationLabel(SOH_MENU_PRESENT_FROZEN))) {
         SPDLOG_WARN("SohMenu::ApplyPresentation(\"{}\"): a CAPABILITY gate may not borrow the freeze reason "
                     "(\"{}\") - substituting the capability label",
                     base, reason);
@@ -563,7 +696,7 @@ void SohMenu::ApplyPresentation(WidgetInfo& info, const std::string& baseName, S
     if (state == SOH_MENU_PRESENT_FROZEN && haveReason) {
         for (auto& [key, capability] : GetCapabilityMap()) {
             (void)key;
-            if (capability.reason != nullptr && std::string(reason) == capability.reason) {
+            if (capability.gate.reason != nullptr && std::string(reason) == capability.gate.reason) {
                 SPDLOG_WARN("SohMenu::ApplyPresentation(\"{}\"): a FROZEN row may not carry a capability reason "
                             "(\"{}\") - substituting the freeze label",
                             base, reason);
@@ -573,30 +706,14 @@ void SohMenu::ApplyPresentation(WidgetInfo& info, const std::string& baseName, S
         }
     }
 
-    // The state goes in the row NAME as well as the tooltip. Section 4.2's
-    // "legible without hovering" is the reason, and there is a mechanical one
-    // too: MenuDrawItem's race-lockout branch overwrites disabledTooltip
-    // outright, so a state that lived only there would vanish under a race
-    // lockout.
-    std::string suffix = std::string(label);
-    if (haveReason && std::string(detail) != std::string(label)) {
-        suffix += ": ";
-        suffix += detail;
-    }
-    info.name = suffix.empty() ? base : (base + " - " + suffix);
-
     if (info.options == nullptr) {
         return;
     }
-    if (state == SOH_MENU_PRESENT_INACTIVE_GAME) {
-        // Section 6 point 2: readable AND EDITABLE. Collapsing this into
-        // "disabled" would wrongly imply the setting is broken; the label is what
-        // denies "this takes effect now".
-        info.options->disabled = false;
-        return;
-    }
+    // SoH's disabled row: greyed, with MenuDrawItem's own tooltip shape. Under a
+    // race lockout MenuDrawItem replaces this tooltip with its own reason, which
+    // is why the group's note, not this tooltip, carries the state.
     info.options->disabled = true;
-    info.options->disabledTooltip = (detail != nullptr) ? detail : label;
+    info.options->disabledTooltip = DisabledTooltip(detail);
 }
 
 } // namespace SohGui
