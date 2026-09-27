@@ -122,12 +122,15 @@
  * aligned except the following, which are listed here and in docs/MODDING.md
  * rather than papered over:
  *
- *   - Enable/disable/reorder. OoT's half has a mod menu; MM's half mounts every
- *     archive it finds, sorted by stem. Making MM read OoT's EnabledMods CVar
- *     would let a stale OoT list silently disable an MM mod, which is worse.
- *   - Registration bookkeeping. OoT registers only the archives its enabled set
- *     names, keyed by file-name STEM (so two same-stem archives in different
- *     subfolders collapse to one); MM registers every archive it mounts.
+ *   - Enable/disable/reorder live in two menus with two CVar pairs. OoT's half
+ *     has its mod menu over `gSettings.EnabledMods`; MM's half has the Combo >
+ *     MM Mods page over its own enabled/disabled lists (#706, mm_mod_set.h).
+ *     Making MM read OoT's EnabledMods CVar would let a stale OoT list silently
+ *     disable an MM mod, which is worse.
+ *   - Registration bookkeeping. Both register only the archives their enabled
+ *     set names, but OoT keys them by file-name STEM (so two same-stem archives
+ *     in different subfolders collapse to one) and MM by the path inside
+ *     `mods/mm` (so they stay two).
  *
  * The walk itself is NOT on that list any more: both globs take the same
  * directory_options and the same error_code discipline (see kModsWalkOptions).

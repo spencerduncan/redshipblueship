@@ -116,6 +116,15 @@
  *      after both mechanisms fail, does it print that it did not run; the PASS line
  *      then repeats that, so the summary never claims a leg that skipped.
  *
+ *   11. MM's enabled set (#706) decides what mounts: with one archive disabled and
+ *      the player's order reversing the stem sort, MM mounts and registers only the
+ *      two enabled archives, in the player's order, so the player's top mod owns
+ *      the contested path; the switch to OoT hands the path back to soh.o2r and the
+ *      switch back re-applies exactly those two — the disabled archive, which the
+ *      stem sort would have mounted last and let win, never appears. The row
+ *      starts every earlier leg from UNSET lists and restores the process's own
+ *      values at the end (MM's mount persists the lists it resolves).
+ *
  * ANTI-VACUITY. Every "the mod owns it" assertion is preceded by the matching
  * "the base owns it" precondition on the SAME path, so each leg is a measured
  * change of ownership rather than a standing truth. The contested path is
@@ -161,6 +170,10 @@
 #include <vector>
 
 #include "../mod_archives.h"
+#include "../mm_mod_set.h" // #706: MM's enabled set, which Part 11 drives
+
+#include <libultraship/bridge/consolevariablebridge.h>
+#include <utility>
 
 extern "C" {
 // MM's production mod glob + mount + both registrations, over an explicitly
@@ -681,8 +694,17 @@ extern "C" int MMModsMount_RunHeadless(const char* sohArchive, const char* mmArc
     // measured instead of asserting the leg unconditionally — a summary that claims
     // a leg which silently skipped is how a row stops being read.
     bool sharedWalkLegRan = false;
+    bool enabledSetLegRan = false;
     Combo_ClearModArchives(GAME_OOT);
     Combo_ClearModArchives(GAME_MM);
+    // #706: MM's mount now reads (and persists) its enabled-set CVars. Every leg
+    // before Part 11 measures the DEFAULT set, so start from unset lists, and put
+    // the process's own values back afterwards so no later row inherits ours.
+    const std::string savedEnabledMods = CVarGetString(RSBS_CVAR_MM_ENABLED_MODS, "");
+    const std::string savedDisabledMods = CVarGetString(RSBS_CVAR_MM_DISABLED_MODS, "");
+    CVarClear(RSBS_CVAR_MM_ENABLED_MODS);
+    CVarClear(RSBS_CVAR_MM_DISABLED_MODS);
+    Combo_MMModSet_Reset();
 
     do {
         // ---- Part 2: MM's base archive owns the contested path -------------
@@ -1087,6 +1109,120 @@ extern "C" int MMModsMount_RunHeadless(const char* sohArchive, const char* mmArc
                 sharedWalkLegRan = true;
             }
         }
+        // ---- Part 11: MM's enabled set decides what mounts, and in what order (#706)
+        // Before #706 MM mounted every archive under mods/mm, so a disabled state
+        // did not exist and #593's "the switch replays the registry, it never
+        // re-globs" protection had nothing to protect for MM. A fresh tree:
+        //   mm/10-mm.o2r   a copy of 2ship.o2r
+        //   mm/20-soh.o2r  a copy of soh.o2r
+        //   mm/30-off.o2r  a copy of 2ship.o2r, which the STEM SORT would mount
+        //                  last and let win — the player turns it off
+        // and the player's order puts 10-mm on top (mount order 20-soh, 10-mm).
+        // Each outcome below differs from what the pre-#706 mount would do: it
+        // would mount 3, register 3, and hand the contested path to 30-off.
+        {
+            const std::filesystem::path setRoot = std::filesystem::current_path(ec) / "rsbs_test_mods_706";
+            std::filesystem::remove_all(setRoot, ec);
+            std::filesystem::create_directories(setRoot / "mm", ec);
+            const std::string setA = (setRoot / "mm" / "10-mm.o2r").generic_string();
+            const std::string setB = (setRoot / "mm" / "20-soh.o2r").generic_string();
+            const std::string setOff = (setRoot / "mm" / "30-off.o2r").generic_string();
+            bool staged = !ec;
+            for (const auto& [from, to] : { std::pair<const char*, const std::string*>{ mmArchive, &setA },
+                                            std::pair<const char*, const std::string*>{ sohArchive, &setB },
+                                            std::pair<const char*, const std::string*>{ mmArchive, &setOff } }) {
+                std::error_code copyEc;
+                std::filesystem::copy_file(from, *to, copyOpts, copyEc);
+                staged = staged && !copyEc;
+            }
+            if (!staged) {
+                printf("[TEST] FAIL(18): could not stage the #706 enabled-set tree at %s\n",
+                       setRoot.generic_string().c_str());
+                std::filesystem::remove_all(setRoot, ec);
+                rc = 18;
+                break;
+            }
+
+            // Anti-vacuity: without an enabled set the walk's own order mounts
+            // 30-off LAST, so it would own the contested path.
+            {
+                const std::vector<Rsbs::MMModArchive> walked =
+                    Rsbs::CollectMMModArchives(setRoot.generic_string(), nullptr);
+                if (walked.size() != 3 || walked.back().key != "30-off.o2r") {
+                    printf("[TEST] FAIL(18): precondition — the staged walk found %zu archive(s) and sorts '%s' last, "
+                           "expected 3 with 30-off.o2r last\n",
+                           walked.size(), walked.empty() ? "(none)" : walked.back().key.c_str());
+                    std::filesystem::remove_all(setRoot, ec);
+                    rc = 18;
+                    break;
+                }
+            }
+
+            Combo_ClearModArchives(GAME_MM);
+            Combo_MMModSet_Reset();
+            CVarSetString(RSBS_CVAR_MM_ENABLED_MODS, "20-soh.o2r|10-mm.o2r");
+            CVarSetString(RSBS_CVAR_MM_DISABLED_MODS, "30-off.o2r");
+
+            const int setMounted = MM_MountModArchivesHeadless(setRoot.generic_string().c_str());
+            const char* first = Combo_GetModArchive(GAME_MM, 0);
+            const char* second = Combo_GetModArchive(GAME_MM, 1);
+            if (setMounted != 2 || Combo_GetModArchiveCount(GAME_MM) != 2 || first == nullptr || second == nullptr ||
+                !MmmPathContains(first, "20-soh.o2r") || !MmmPathContains(second, "10-mm.o2r")) {
+                printf("[TEST] FAIL(18): with 30-off disabled and 10-mm above 20-soh, MM mounted %d and registered %d "
+                       "([0]='%s' [1]='%s'), expected 2: 20-soh then 10-mm (#706)\n",
+                       setMounted, Combo_GetModArchiveCount(GAME_MM), first != nullptr ? first : "(null)",
+                       second != nullptr ? second : "(null)");
+                rc = 18;
+            } else if (Combo_ArchivePathIsMM(setOff.c_str())) {
+                printf("[TEST] FAIL(18): the disabled archive is in MM's archive-origin registry, so it was mounted\n");
+                rc = 18;
+            }
+            if (rc == 0) {
+                const std::string ownerSet = MmmOwnerOf(archiveMgr, kMmmContestedPath);
+                Combo_EnsureGameArchivesLoaded(GAME_OOT);
+                const std::string ownerSetInOot = MmmOwnerOf(archiveMgr, kMmmContestedPath);
+                Combo_EnsureGameArchivesLoaded(GAME_MM);
+                const std::string ownerSetBack = MmmOwnerOf(archiveMgr, kMmmContestedPath);
+                printf("[mm-mods-mount] #706 enabled set: '%s' owner after mount=%s, in OoT=%s, back in MM=%s\n",
+                       kMmmContestedPath, ownerSet.c_str(), ownerSetInOot.c_str(), ownerSetBack.c_str());
+                if (!MmmPathContains(ownerSet, "rsbs_test_mods_706") || !MmmPathContains(ownerSet, "10-mm.o2r")) {
+                    printf("[TEST] FAIL(19): the player's top mod (10-mm) does not own the contested path after the "
+                           "mount ('%s') — the chosen order is not the mount order\n",
+                           ownerSet.c_str());
+                    rc = 19;
+                } else if (MmmPathContains(ownerSetInOot, "rsbs_test_mods")) {
+                    printf("[TEST] FAIL(19): an MM mod still owns the contested path while OoT is active ('%s')\n",
+                           ownerSetInOot.c_str());
+                    rc = 19;
+                } else if (!MmmPathContains(ownerSetBack, "rsbs_test_mods_706") ||
+                           !MmmPathContains(ownerSetBack, "10-mm.o2r")) {
+                    printf("[TEST] FAIL(19): after the switch back to MM the contested path is owned by '%s', not by "
+                           "the player's top mod — the re-apply resurrected the disabled archive or lost the order "
+                           "(#593, #706)\n",
+                           ownerSetBack.c_str());
+                    rc = 19;
+                } else if (Combo_GetModArchiveCount(GAME_MM) != 2) {
+                    printf("[TEST] FAIL(19): the round trip changed MM's registry to %d entries\n",
+                           Combo_GetModArchiveCount(GAME_MM));
+                    rc = 19;
+                }
+            }
+            if (rc == 0 && (!Combo_MMModSet_MountedThisSession() || Combo_MMModSet_RestartPending())) {
+                printf("[TEST] FAIL(19): after the mount the model reports mounted=%d restartPending=%d, expected 1 "
+                       "and 0\n",
+                       (int)Combo_MMModSet_MountedThisSession(), (int)Combo_MMModSet_RestartPending());
+                rc = 19;
+            }
+            if (rc == 0) {
+                enabledSetLegRan = true;
+            }
+            Combo_MMModSet_Reset();
+            // setRoot is removed after the do-block, once SetArchives has closed
+            // the archives mounted from it (Windows cannot delete an open file).
+            if (rc != 0) {
+                break;
+            }
+        }
     } while (false);
 
     // Leave the shared manager and both registries EXACTLY as we found them.
@@ -1094,6 +1230,18 @@ extern "C" int MMModsMount_RunHeadless(const char* sohArchive, const char* mmArc
     Combo_ClearModArchives(GAME_OOT);
     Combo_ClearModArchives(GAME_MM);
     std::filesystem::remove_all(root, ec);
+    std::filesystem::remove_all(std::filesystem::current_path(ec) / "rsbs_test_mods_706", ec);
+    Combo_MMModSet_Reset();
+    if (savedEnabledMods.empty()) {
+        CVarClear(RSBS_CVAR_MM_ENABLED_MODS);
+    } else {
+        CVarSetString(RSBS_CVAR_MM_ENABLED_MODS, savedEnabledMods.c_str());
+    }
+    if (savedDisabledMods.empty()) {
+        CVarClear(RSBS_CVAR_MM_DISABLED_MODS);
+    } else {
+        CVarSetString(RSBS_CVAR_MM_DISABLED_MODS, savedDisabledMods.c_str());
+    }
 
     if (rc == 0) {
         printf("[mm-mods-mount] PASS: MM mounted 2 of 4 staged files (mods/mm only, nested included, sorted by stem) "
@@ -1105,6 +1253,10 @@ extern "C" int MMModsMount_RunHeadless(const char* sohArchive, const char* mmArc
                sharedWalkLegRan ? "ran and passed."
                                 : "DID NOT RUN here: no directory link could be created (only reachable on Windows; "
                                   "on POSIX that is a FAIL, not a skip).");
+        printf("[mm-mods-mount] #706 enabled set: %s\n",
+               enabledSetLegRan ? "a disabled archive was neither mounted nor registered, the player's order was the "
+                                  "mount order, and both held across EnsureGameArchivesLoaded(OoT) then (MM)"
+                                : "DID NOT RUN");
     }
     return rc;
 }

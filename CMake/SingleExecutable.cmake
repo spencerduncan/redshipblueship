@@ -125,6 +125,10 @@ set(REDSHIP_COMMON_SOURCES
     # #645 lane K11): the coordinator's one production caller. Game-header-free.
     # APPENDED, never reordered.
     ${CMAKE_SOURCE_DIR}/src/common/combo_single_bag.c
+    # Majora's Mask's enabled mod set (#706): which mods/mm archives MM mounts and
+    # in what order, read by MM's mount and the Combo > MM Mods page. Game-header-
+    # free. APPENDED, never reordered.
+    ${CMAKE_SOURCE_DIR}/src/common/mm_mod_set.cpp
     # A foreign item's icon inside the host's get-item textbox (#607): the
     # registry each ORIGIN game answers through. Game-header-free. APPENDED,
     # never reordered.
@@ -209,6 +213,8 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/notification_layout_probe.h
     # Header for triforce_hunt.c above (ADR 0010 O10)
     ${CMAKE_SOURCE_DIR}/src/common/triforce_hunt.h
+    # Header for mm_mod_set.cpp above (#706)
+    ${CMAKE_SOURCE_DIR}/src/common/mm_mod_set.h
 )
 
 # ============================================================================
@@ -1995,6 +2001,11 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         TIMEOUT 600
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
+    # MM'S ENABLED MOD SET (#706): enable, disable and reorder round-trip through
+    # the persisted lists, and the scan's rules, over a staged tree of empty files.
+    # Needs the console variables only: ROM-free and display-free, the default
+    # tier. MMModsMount proves the same set drives the real mount and the re-apply.
+    redship_add_test(NAME MMModSet COMMAND redship --test mm-mod-set)
     # A FOREIGN ITEM'S ICON IN MM'S GET-ITEM TEXTBOX (#607, Tier 2b of #494): every
     # OoT progression item answers a well-formed icon with an MM textbox branch,
     # unknown ids and half-answers fall back, and the REAL CustomMessage load, the

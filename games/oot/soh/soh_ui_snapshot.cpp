@@ -145,6 +145,7 @@
 #include "crossing_store.h" // the crossings the tracker and spoiler states author (#755)
 #include "cvar_shared_keys.h"
 #include "game.h" // MM_SAVE_CONTEXT_SIZE (the authored MM shadow)
+#include "mm_mod_set.h" // #706: the MM Mods page's model, authored for its three states
 #include "foreign_items.h"
 #include "gen_progress_overlay.h"
 #include "headless_crash.h"
@@ -735,6 +736,11 @@ const char* KindName(Kind k) {
     }
     return "?";
 }
+
+// The MM Mods page's "listed" state (#706): two enabled archives, one in a
+// subfolder, and one disabled, so both columns and every arrow are drawn.
+const char* const kMmModsListedEnabled[] = { "10-hd-textures.o2r", "packs/20-retro-hud.o2r" };
+const char* const kMmModsListedDisabled = "30-alt-link.o2r";
 
 struct PageSpec {
     std::string id;
@@ -1669,9 +1675,28 @@ void Session::BuildPageList() {
         { "Cross-Game Rules", "Randomizer/General" },
         { "Windows", "Randomizer/Item Tracker" },
         { "Majora's Mask", "Enhancements/Quality of Life" },
+        // OoT's own mod menu (Settings/Mod Menu, which embeds ModMenuWindow)
+        // cannot be the reference: with the harness's fresh config and no mods
+        // folder, its GetEnabledModsFromCVar yields one empty name, UpdateModFiles
+        // leaves it in place when the folder is absent, and DrawMods's
+        // filePaths.at("") throws. Tricks/Glitches is SoH's other two-column
+        // Disabled/Enabled table page, the layout this page shares.
+        { "MM Mods", "Randomizer/Tricks/Glitches" },
     };
     auto& entries = MenuEntries(*menu);
     if (entries.contains("Combo")) {
+        // Every page named in kCompare must be registered. The loop below captures
+        // what IS registered, so without this a contributed page whose registrar
+        // was elided or renamed would vanish from the run and the row stay green
+        // (#706's review).
+        for (const auto& [named, reference] : kCompare) {
+            const auto& order = entries.at("Combo").sidebarOrder;
+            if (std::find(order.begin(), order.end(), named) == order.end()) {
+                Fail("Combo/" + named + " has a reference (" + reference +
+                     ") but no registered Combo page carries that name: its registrar was elided or renamed, so "
+                     "its captures would silently drop out of this run");
+            }
+        }
         for (const std::string& sidebar : entries.at("Combo").sidebarOrder) {
             PageSpec p = menuPage("Combo", sidebar, Origin::RSBS);
             auto it = kCompare.find(sidebar);
@@ -1725,6 +1750,23 @@ void Session::BuildPageList() {
                     p.hovers = { "first-row" };
                     p.hoverRows["first-row"] = RSBS::kHostedMmEnhancements[0].label;
                 }
+            } else if (sidebar == "MM Mods") {
+                // "": an empty model, so the empty-folder note. "listed": a
+                // synthetic list with one disabled mod, so both columns and every
+                // arrow draw. "unfinished": the same list from a walk that ended
+                // early, which is read-only (mm_mod_set.h rule 4): its note, and
+                // every arrow disabled. All three are authored through the model's
+                // test seam, so the harness's own mods folder cannot change them.
+                p.states = { "", "listed", "unfinished" };
+                p.stateText[""] = { "No Majora's Mask mods found" };
+                p.stateText["listed"] = { kMmModsListedEnabled[0], kMmModsListedDisabled,
+                                          "Changes apply when Majora's Mask starts" };
+                // Only the note: the list itself is the same as "listed" (the contrast),
+                // so a file name here could not prove this state was authored.
+                p.stateText["unfinished"] = { "did not finish" };
+                p.stateContrast = { { "", "listed" }, { "listed", "" }, { "unfinished", "listed" } };
+                p.hovers = { "rescan" };
+                p.hoverRows["rescan"] = "Rescan Mods Folder";
             } else if (sidebar == "Windows") {
                 // An MM tracker toggle: SoH's "Toggles the <Window>." plus the
                 // sentence that explains its blank window under Ocarina of Time.
@@ -2311,6 +2353,18 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
         if (state == "autosave") {
             CVarSetInteger("gEnhancements.Autosave", 1);
         }
+    } else if (p.id == "Combo/MM Mods") {
+        // Every state loads its model through the test seam, which persists
+        // nothing and reads no disk, so the page never scans the harness's own
+        // mods root (it scans lazily only when the model is empty).
+        Combo_MMModSet_Reset();
+        if (state == "listed" || state == "unfinished") {
+            CVarSetString(RSBS_CVAR_MM_DISABLED_MODS, kMmModsListedDisabled);
+            const char* keys[] = { kMmModsListedEnabled[0], kMmModsListedEnabled[1], kMmModsListedDisabled };
+            Combo_MMModSet_LoadForTest(keys, 3, state == "listed");
+        } else {
+            Combo_MMModSet_LoadForTest(nullptr, 0, true);
+        }
     } else if (p.id == "Settings/Graphics") {
         if (state == "match-refresh-rate") {
             CVarSetInteger(CVAR_SETTING("MatchRefreshRate"), 1);
@@ -2342,6 +2396,11 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
 }
 
 void Session::LeaveState(const PageSpec& p, const std::string& state) {
+    if (p.id == "Combo/MM Mods") {
+        CVarClear(RSBS_CVAR_MM_ENABLED_MODS);
+        CVarClear(RSBS_CVAR_MM_DISABLED_MODS);
+        Combo_MMModSet_Reset();
+    }
     if (p.id == "Combo/Majora's Mask" && state == "autosave") {
         CVarClear("gEnhancements.Autosave");
     }
