@@ -41,6 +41,7 @@ const ComboSettingDesc kComboSettingDescs[COMBO_SETTING_COUNT] = {
     { RSBS_CVAR_COMBO_RANDO_ITEM_CLASS_OOT, "OoT Item Classes" },
     { RSBS_CVAR_COMBO_RANDO_ITEM_CLASS_MM, "MM Item Classes" },
     { RSBS_CVAR_COMBO_RANDO_SHARED_OCARINA, "Shared Ocarina" },
+    { RSBS_CVAR_COMBO_RANDO_GOAL, "Goal" },
 };
 
 bool ComboSettingIdValid(ComboSettingId id) {
@@ -81,6 +82,8 @@ int32_t Combo_ComboSettingDefault(ComboSettingId id) {
             // their fields: one definition of "what ships", even when the field
             // is a bitset and the key is one of its bits (#668).
             return (defaults.comboFlags & (uint8_t)RSBS_COMBO_FLAG_SHARED_OCARINA) != 0u ? 1 : 0;
+        case COMBO_SETTING_GOAL:
+            return (int32_t)defaults.goal;
         default:
             return 0;
     }
@@ -116,6 +119,14 @@ bool Combo_ComboSettingValueValid(ComboSettingId id, int32_t value) {
             // produce the same world, which is precisely what the pinned value
             // spaces exist to prevent.
             return value == 0 || value == 1;
+        case COMBO_SETTING_GOAL:
+            // The pinned enumerators and nothing else, the direction's rule. 0
+            // is a legacy record's "unset" (ADR 0010 D1's growth contract: it
+            // makes no beatability claim) and is never a choice; a value past
+            // the table is a goal this build has no evaluator for.
+            return value == (int32_t)RSBS_COMBO_GOAL_BEAT_BOTH || value == (int32_t)RSBS_COMBO_GOAL_BEAT_EITHER ||
+                   value == (int32_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT || value == (int32_t)RSBS_COMBO_GOAL_BEAT_OOT ||
+                   value == (int32_t)RSBS_COMBO_GOAL_BEAT_MM;
         default:
             return false;
     }

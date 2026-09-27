@@ -965,6 +965,69 @@ TestResult OoTLogicExport_Run(void) {
     OLE_ASSERT(roundResult.iterations > 0 && roundResult.iterations < RSBS_COMBO_LOGIC_MAX_ROUND_ITERATIONS,
                "the composed round did not converge inside the watchdog bound");
 
+    // ------------------------------------------------------------------
+    // THE SINGLE-GAME GOALS over both real engines (ADR 0010 D1, appended
+    // 2026-09-27: OoTMM's 'ganon' and 'majora'). This world is exactly the one
+    // they are about: OoT's half proves (a beatable generated world) and MM's
+    // does not (nothing placed or assumed in Termina), as the round above just
+    // asserted. So a goal with no MM term must prove it, and the same world
+    // under a goal that has one must not -- the red half, on the real engines.
+    // ------------------------------------------------------------------
+    {
+        const uint8_t kGoals[3] = { (uint8_t)RSBS_COMBO_GOAL_BEAT_OOT, (uint8_t)RSBS_COMBO_GOAL_BEAT_MM,
+                                    (uint8_t)RSBS_COMBO_GOAL_BEAT_BOTH };
+        const int kExpected[3] = { 1, 0, 0 };
+        for (int g = 0; g < 3; g++) {
+            ComboLogicRoundRequest goalReq = req;
+            goalReq.goal = kGoals[g];
+            ComboLogicRoundResult goalRound;
+            OLE_ASSERT(Combo_Logic_RunRound(&goalReq, &goalRound) == RSBS_COMBO_LOGIC_OK,
+                       "a single-game-goal round over the real engines did not succeed");
+            printf("[TEST] oot-logic-export: goal %u round: goalOoT=%d goalMM=%d goalExpr=%d\n", (unsigned)kGoals[g],
+                   goalRound.goalOoT, goalRound.goalMM, goalRound.goalExpression);
+            OLE_ASSERT(goalRound.goalOoT == 1 && goalRound.goalMM == 0,
+                       "the single-game-goal rounds must see the composed round's world (OoT proves, MM does not)");
+            OLE_ASSERT(goalRound.goalExpression == kExpected[g],
+                       "the goal expression is not the half the goal names (beat-oot 1, beat-mm 0, beat-both 0)");
+        }
+
+        // THE FILL, which is what a creation runs: the OoT progression copies
+        // above as the bag (at most four; three on this seed), both real
+        // engines' hosts, the proved rung.
+        // Only with MM's REAL engine: a stub MM half would make "MM cannot
+        // prove" a property of the stub.
+        if (usingRealMm) {
+            int fillStatus[3] = { -1, -1, -1 };
+            ComboLogicFillResult fillRes[3];
+            for (int g = 0; g < 3; g++) {
+                ComboLogicFillRequest freq;
+                memset(&freq, 0, sizeof(freq));
+                freq.bag = bag;
+                freq.bagCount = bagCount;
+                freq.goal = kGoals[g];
+                freq.logicRung = (uint8_t)RSBS_COMBO_RUNG_BEATABLE;
+                freq.seed = 0x60A1u;
+                freq.maxAttempts = 2;
+                memset(&fillRes[g], 0, sizeof(fillRes[g]));
+                fillStatus[g] = Combo_Logic_RunFill(&freq, &fillRes[g]);
+                printf("[TEST] oot-logic-export: goal %u fill over the real engines: %s placed=%d (OoT %d, MM %d) "
+                       "rounds=%d attempts=%d goalProven=%d\n",
+                       (unsigned)kGoals[g], Combo_Logic_StatusName(fillStatus[g]), fillRes[g].placed,
+                       Combo_Logic_PlacementCount(GAME_OOT), Combo_Logic_PlacementCount(GAME_MM), fillRes[g].rounds,
+                       fillRes[g].attempts, fillRes[g].goalProven ? 1 : 0);
+                Combo_Logic_ResetPlacements();
+            }
+            OLE_ASSERT(fillStatus[0] == RSBS_COMBO_LOGIC_OK && fillRes[0].goalProven &&
+                           fillRes[0].placed == bagCount && fillRes[0].rounds > 0,
+                       "beat-oot did not prove a world whose OoT half proves: a goal with no MM term must not need "
+                       "MM's half");
+            OLE_ASSERT(fillStatus[1] == RSBS_COMBO_LOGIC_ERR_GOAL_UNPROVABLE,
+                       "RED HALF: beat-mm over the same bag, seed and engines must be unprovable");
+            OLE_ASSERT(fillStatus[2] == RSBS_COMBO_LOGIC_ERR_GOAL_UNPROVABLE,
+                       "RED HALF: beat-both over the same bag, seed and engines must be unprovable");
+        }
+    }
+
     OLE_ASSERT(OoT_ComboLogic_TestLogicIsAttachedToLiveSave() == 1,
                "the composed round left Logic detached from the live save");
     OLE_ASSERT(memcmp(saveBefore, gSaveContext, sizeof(saveBefore)) == 0,

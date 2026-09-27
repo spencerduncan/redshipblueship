@@ -6,8 +6,9 @@
  * Renders src/common/combo_tracker_view.h's model: the combo identity header,
  * one panel per game fed ONLY by that game's registered adapter, and the
  * cross-game placements from gComboCtx. Every panel is labelled with its
- * freshness — the inactive game's data is honest about being "as of last
- * freeze/save" (MM) or "as of suspend" (OoT), never presented as live.
+ * freshness — the inactive game's data is honest about being "As of the last
+ * game switch or save" (MM's shadow, written at freeze/save) or "As of the last
+ * game switch" (OoT's heap, stopped at suspend), never presented as live.
  *
  * Common-owned Gui window (ADR 0008), the ComboSpoilerWindow pattern: it
  * reads gComboCtx and the adapter surfaces and NOTHING else — no gSaveContext

@@ -1513,9 +1513,10 @@ void Context_InvalidateSessionOnSlotLoad(void);
  *   - both games copy the current scene's live flags (play->actorCtx) into
  *     gSaveContext, which a normal scene transition does from
  *     Actor_CleanupContext and a cross-game departure never reaches (#638);
- *   - MM additionally revives a dead health bar (health <= 0 -> three hearts,
- *     healthAccumulator cleared) so an F10 during the game-over screen freezes
- *     a resumable MM half and hands OoT a live shared bar (#626).
+ *   - both games revive a dead health bar (health <= 0 -> the game's own
+ *     continue value, healthAccumulator cleared) so an F10 during the
+ *     game-over screen freezes a resumable half and hands the other game a
+ *     live shared bar (MM #626, OoT #664).
  *
  * Every production freeze driver calls this immediately before its freeze:
  * Combo_CheckEntranceSwitch before Combo_FreezeState, and

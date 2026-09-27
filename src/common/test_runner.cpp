@@ -3894,6 +3894,26 @@ TestResult Test_Context(void) {
     return TEST_PASS;
 }
 
+// #664: an F10 from EITHER game's game-over screen hands the other game a live
+// shared health bar. Driver in games/oot/soh/oot_gameover_revive_test.cpp (MM
+// layout through games/mm/2s2h/mm_gameover_revive_test.cpp). ROM-free and
+// display-free; takes the shared bring-up for ONE reason: leg 5 drives OoT's
+// FullHealthSpawn CVar, and the CVar bridge dereferences the Ship::Context
+// singleton unconditionally.
+extern "C" int OoT_GameOverRevive_RunHeadless(void);
+TestResult Test_ComboGameOverRevive(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    return OoT_GameOverRevive_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // ============================================================================
 // Test registry
 // ============================================================================
@@ -4602,6 +4622,11 @@ const TestDescriptor gTests[] = {
      "MM's enabled mod set: enable, disable and reorder round-trip through the persisted lists; unset lists keep the "
      "stem order, new archives arrive enabled on top, a disabled mod stays disabled (#706)",
      Test_MMModSet},
+    {"combo-gameover-revive",
+     "An F10 from either game's game-over screen revives the departing bar to that game's continue value (a spent "
+     "fairy's refill mid-revive) before the freeze, and the other game arrives with it, not the one-heart floor "
+     "(#664, #626)",
+     Test_ComboGameOverRevive},
     {nullptr, nullptr, nullptr}  // Sentinel
 };
 

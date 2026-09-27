@@ -9,7 +9,7 @@
  * SUSPENDS OoT (audio+graph only) rather than shutting it down, so the heap —
  * and every status the trackers wrote into it — survives the entire MM
  * session. The view labels the result live only while OoT is the running
- * game, "as of suspend" otherwise.
+ * game ("Updated live"), and stale otherwise ("As of the last game switch").
  *
  * NULL-SAFETY IS THE CONTRACT. Rando::Context::GetInstance() is a weak_ptr
  * lock — NULL until something creates the context (an MM-first session that

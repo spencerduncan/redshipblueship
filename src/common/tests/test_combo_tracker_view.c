@@ -43,6 +43,13 @@
  *    (MM side), the redeemed bit from the tagged array, and vanish when the
  *    world is unpaired ("not paired" must never render as "no crossings").
  *
+ * 7. FRESHNESS LABELS ARE PLAYER WORDING (UI parity M8). The window prints the
+ *    label as a gray note with a closing period, so every label, for both
+ *    games and every freshness, starts upper case, carries no closing
+ *    punctuation, and names no mechanism a player never sees ("freeze",
+ *    "shadow", "suspend", "heap"): the stale wording is "As of the last game
+ *    switch", with MM adding "or save".
+ *
  * Linkage note: #included into test_runner.cpp at FILE SCOPE (compiled as
  * C++), but every symbol it drives is extern-C. It needs the display-free
  * shared bring-up (the OoT-side authoring seam constructs Rando::Context),
@@ -278,6 +285,26 @@ extern "C" int Combo_TrackerView_RunHeadless(void) {
     ComboContext_Init();
     CTV_ASSERT(Combo_TrackerForeignCount((uint8_t)GAME_MM) == 0);
     CTV_ASSERT(Combo_TrackerForeignCount((uint8_t)GAME_OOT) == 0);
+
+    // ---- 7. Freshness labels are player wording ---------------------------
+    {
+        const uint8_t games[2] = { (uint8_t)GAME_OOT, (uint8_t)GAME_MM };
+        const uint8_t fresh[3] = { COMBO_TRACKER_FRESH_LIVE, COMBO_TRACKER_FRESH_STALE,
+                                   COMBO_TRACKER_FRESH_UNAVAILABLE };
+        for (uint8_t g : games) {
+            for (uint8_t f : fresh) {
+                const char* label = Combo_TrackerFreshnessLabel(g, f);
+                CTV_ASSERT(label != NULL && label[0] >= 'A' && label[0] <= 'Z');
+                const size_t len = strlen(label);
+                CTV_ASSERT(label[len - 1] != '.' && label[len - 1] != ')');
+                for (const char* jargon : { "freeze", "shadow", "suspend", "heap" }) {
+                    CTV_ASSERT(strstr(label, jargon) == NULL);
+                }
+            }
+        }
+        CTV_ASSERT(strcmp(Combo_TrackerFreshnessLabel((uint8_t)GAME_OOT, COMBO_TRACKER_FRESH_STALE),
+                          Combo_TrackerFreshnessLabel((uint8_t)GAME_MM, COMBO_TRACKER_FRESH_STALE)) != 0);
+    }
 
     // ---- Leave global state clean -----------------------------------------
     // Adapters stay registered (the production state); the shadow goes back to

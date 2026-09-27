@@ -374,6 +374,9 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         { COMBO_SETTING_ITEM_CLASS_OOT, WIDGET_SEPARATOR_TEXT, "" },
         { COMBO_SETTING_ITEM_CLASS_MM, WIDGET_SEPARATOR_TEXT, "" },
         { COMBO_SETTING_SHARED_OCARINA, WIDGET_CHECKBOX, "" },
+        // ADR 0010 D1's goal: a combobox over the five pinned RSBS_COMBO_GOAL_*
+        // enumerators, the direction row's shape.
+        { COMBO_SETTING_GOAL, WIDGET_COMBOBOX, "" },
     };
 
     // Captured by its REGISTERED name, before any PreFunc runs: the status row
@@ -383,7 +386,7 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     ROWS_CHECK(statusRow != nullptr, "the Cross-Game Rules page has no \"Combo Rules Status\" row -- ADR 0004 §6 "
                                      "state 4's reason has nowhere to be legible without hovering");
 
-    WidgetInfo* settingRow[COMBO_SETTING_COUNT] = { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr };
+    WidgetInfo* settingRow[COMBO_SETTING_COUNT] = {};
     for (const ExpectedRow& expected : kExpected) {
         const std::string name = RowName(expected.id) + expected.suffix;
         uint32_t column = 0;
@@ -412,8 +415,69 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         printf("[TEST] combo-settings-rows: %d failure(s) in leg 1; the later legs need the rows\n", gFailures);
         return gFailures;
     }
-    printf("[TEST] leg 1: all six tier-4 settings are rows in Combo / Cross-Game Rules, each marked '%s'\n",
+    printf("[TEST] leg 1: all seven tier-4 settings are rows in Combo / Cross-Game Rules, each marked '%s'\n",
            Combo_ComboSettingSharedMarker());
+
+    // ---- Leg 1b: the goal row offers exactly OoTMM's goals, in its words ----
+    // The value space is the pinned RSBS_COMBO_GOAL_* table (1..5) and each label
+    // is OoTMM's own name for the value (packages/core/src/settings/data.ts:
+    // any, ganon, majora, both, triforce; its triforce3 is not offered). A
+    // sixth entry would be a goal this
+    // build has no evaluator for; a missing one, a value the player cannot pick.
+    // Its tooltip names every value as a "Value: effect" line (ui-style-guide
+    // R-N6), so a label with no explanation is red too.
+    {
+        WidgetInfo* goalRow = settingRow[COMBO_SETTING_GOAL];
+        auto goalOptions = std::static_pointer_cast<UIWidgets::ComboboxOptions>(goalRow->options);
+        const struct {
+            uint8_t value;
+            const char* label;
+        } kGoalLabels[] = {
+            { (uint8_t)RSBS_COMBO_GOAL_BEAT_BOTH, "Ganon & Majora" },
+            { (uint8_t)RSBS_COMBO_GOAL_BEAT_EITHER, "Any Final Boss" },
+            { (uint8_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT, "Triforce Hunt" },
+            { (uint8_t)RSBS_COMBO_GOAL_BEAT_OOT, "Ganon" },
+            { (uint8_t)RSBS_COMBO_GOAL_BEAT_MM, "Majora" },
+        };
+        ROWS_CHECK(goalOptions->comboMap.size() == 5, "the goal row offers %zu values, expected the five pinned goals",
+                   goalOptions->comboMap.size());
+        const std::string tooltip = goalOptions->tooltip != nullptr ? goalOptions->tooltip : "";
+        for (const auto& g : kGoalLabels) {
+            ROWS_CHECK(Combo_ComboSettingValueValid(COMBO_SETTING_GOAL, (int32_t)g.value),
+                       "goal %u is offered by the row but refused by the model's value space", (unsigned)g.value);
+            ROWS_CHECK(goalOptions->comboMap.contains((int32_t)g.value) &&
+                           std::string(goalOptions->comboMap.at((int32_t)g.value)) == g.label,
+                       "goal %u is not labelled '%s' (OoTMM's name for it)", (unsigned)g.value, g.label);
+            ROWS_CHECK(tooltip.find(std::string("\n") + g.label + ": ") != std::string::npos,
+                       "the goal row's tooltip has no '%s: effect' line", g.label);
+        }
+        // ADR 0010 section 1.2: a goal that leaves a half without proof is
+        // "documented at the setting". Each such line names what may be
+        // unfinishable, and the tooltip does not promise that meeting the goal
+        // ends the game (OoTMM's does; this build plays each game's own ending).
+        const struct {
+            const char* label;
+            const char* warns;
+        } kGoalWarnings[] = {
+            { "Any Final Boss", "The other game may be unfinishable." },
+            { "Ganon", "Majora's Mask may be unfinishable." },
+            { "Majora", "Ocarina of Time may be unfinishable." },
+        };
+        for (const auto& w : kGoalWarnings) {
+            const size_t at = tooltip.find(std::string("\n") + w.label + ": ");
+            const size_t end = at == std::string::npos ? std::string::npos : tooltip.find('\n', at + 1);
+            const std::string line = at == std::string::npos ? "" : tooltip.substr(at + 1, end - at - 1);
+            ROWS_CHECK(line.find(w.warns) != std::string::npos,
+                       "the goal row's '%s' line does not say '%s' (ADR 0010 section 1.2: documented at the setting)",
+                       w.label, w.warns);
+        }
+        ROWS_CHECK(tooltip.find("does not end the paired game") != std::string::npos,
+                   "the goal row's tooltip must say that meeting the goal does not end the paired game");
+        ROWS_CHECK(Combo_ComboSettingDefault(COMBO_SETTING_GOAL) == (int32_t)RSBS_COMBO_GOAL_BEAT_BOTH,
+                   "the goal's shipped default is %d, expected beat-both (OoTMM's default is 'both')",
+                   (int)Combo_ComboSettingDefault(COMBO_SETTING_GOAL));
+        printf("[TEST] leg 1b: the goal row offers the five pinned goals in OoTMM's words, default Ganon & Majora\n");
+    }
 
     // ---- Leg 2: no row is its own writer, and no pop-out is offered ---------
     // The enforcement rule (ADR 0004 §6): the gate is on the src/common writers,
@@ -477,6 +541,8 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                "the writer refused a pre-creation class mask");
     ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_SHARED_OCARINA, 1) == 1,
                "the writer refused a pre-creation shared-ocarina flag");
+    ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_GOAL, (int32_t)RSBS_COMBO_GOAL_BEAT_OOT) == 1,
+               "the writer refused a pre-creation goal");
 
     RunAllPreFuncs(rows);
     ROWS_CHECK(Combo_ComboSettingReadOnlyReason() == nullptr, "the model reports a read-only reason before creation");
@@ -497,6 +563,9 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     ROWS_CHECK(StagedBool(*settingRow[COMBO_SETTING_SHARED_OCARINA]) == 1,
                "the shared-ocarina row staged %d, expected the authored 1",
                StagedBool(*settingRow[COMBO_SETTING_SHARED_OCARINA]));
+    ROWS_CHECK(StagedInt(*settingRow[COMBO_SETTING_GOAL]) == (int32_t)RSBS_COMBO_GOAL_BEAT_OOT,
+               "the goal row staged %d, expected the authored %d (Ganon)", StagedInt(*settingRow[COMBO_SETTING_GOAL]),
+               (int)RSBS_COMBO_GOAL_BEAT_OOT);
     {
         // The OoT set is SONGS alone, so exactly one of its six boxes is ticked.
         int ticked = 0;
@@ -553,6 +622,7 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     frozen.itemClassOoT = (uint16_t)(RSBS_ITEMCLASS_PROGRESSION | RSBS_ITEMCLASS_MASKS); // authored: SONGS
     frozen.itemClassMM = 0;                                                              // authored: MASKS
     frozen.comboFlags = 0;                                                               // authored: ON (#668)
+    frozen.goal = (uint8_t)RSBS_COMBO_GOAL_BEAT_MM;                                      // authored: BEAT_OOT
     Combo_FreezeComboSettings(&frozen);
     ROWS_CHECK(Combo_ComboSettingsFrozen(), "Combo_FreezeComboSettings left the record unfrozen");
     ROWS_CHECK(Combo_ComboSettingReadOnlyReason() != nullptr, "the model reports no read-only reason once frozen");
@@ -576,6 +646,11 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                "the frozen shared-ocarina row staged %d; it must show the SAVE's OFF, not the CVar's ON -- the "
                "world was built without a shared ocarina and a row that showed otherwise would be lying about it",
                StagedBool(*settingRow[COMBO_SETTING_SHARED_OCARINA]));
+    ExpectDecided(*settingRow[COMBO_SETTING_GOAL], "the goal row");
+    ROWS_CHECK(StagedInt(*settingRow[COMBO_SETTING_GOAL]) == (int32_t)RSBS_COMBO_GOAL_BEAT_MM,
+               "the frozen goal row staged %d; it must show the SAVE's %d (Majora), not the CVar's %d (Ganon) -- the "
+               "world was proved against the frozen goal",
+               StagedInt(*settingRow[COMBO_SETTING_GOAL]), (int)RSBS_COMBO_GOAL_BEAT_MM, (int)RSBS_COMBO_GOAL_BEAT_OOT);
     for (int which = 0; which < 2; which++) {
         const uint16_t mask = (which == 0) ? frozen.itemClassOoT : frozen.itemClassMM;
         for (int bit = 0; bit < 6; bit++) {
@@ -656,6 +731,29 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                    "after a refused toggle the shared-ocarina row staged %d; the next frame must restore the "
                    "save's OFF",
                    StagedBool(ocarinaRow));
+
+        // And the goal: a decided world's goal is what its creation PROVED, so
+        // an edit that reached the store would make the next arrival diverge
+        // from the stamp (and be refused), and one that reached the record would
+        // name a goal nothing proved.
+        WidgetInfo& goalRow = *settingRow[COMBO_SETTING_GOAL];
+        *std::get<int32_t*>(goalRow.valuePointer) = (int32_t)RSBS_COMBO_GOAL_BEAT_EITHER;
+        ROWS_CHECK(goalRow.callback != nullptr, "the goal row has no Callback");
+        if (goalRow.callback != nullptr) {
+            goalRow.callback(goalRow);
+        }
+        int32_t storedGoal = 0;
+        ROWS_CHECK(Combo_ComboSettingReadStore(COMBO_SETTING_GOAL, &storedGoal) &&
+                       storedGoal == (int32_t)RSBS_COMBO_GOAL_BEAT_OOT,
+                   "a post-creation goal edit reached the store (read back %d, expected the authored %d untouched)",
+                   storedGoal, (int)RSBS_COMBO_GOAL_BEAT_OOT);
+        ROWS_CHECK(gComboCtx.comboSettings.goal == (uint8_t)RSBS_COMBO_GOAL_BEAT_MM,
+                   "a post-creation goal edit moved the frozen record's goal to %u",
+                   (unsigned)gComboCtx.comboSettings.goal);
+        RunPreFunc(goalRow);
+        ROWS_CHECK(StagedInt(goalRow) == (int32_t)RSBS_COMBO_GOAL_BEAT_MM,
+                   "after a refused write the goal row staged %d; the next frame must restore the save's %d",
+                   StagedInt(goalRow), (int)RSBS_COMBO_GOAL_BEAT_MM);
     }
 
     // ---- Leg 7: an unknown direction cannot take the process down ----------
@@ -692,6 +790,32 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                    "the direction combo map holds %zu entries, expected the four "
                    "pinned RSBS_COMBO_DIR_* enumerators",
                    options->comboMap.size());
+
+        // The goal row has the same hazard: RSBS_COMBO_GOAL_* is append-only
+        // .redsave format too, and a legacy record's goal 0 means "unset".
+        WidgetInfo& goalRow = *settingRow[COMBO_SETTING_GOAL];
+        auto goalOptions = std::static_pointer_cast<UIWidgets::ComboboxOptions>(goalRow.options);
+        for (const int32_t unknownGoal : { (int32_t)9, (int32_t)0 }) {
+            ComboSettingsRecord futureGoal = frozen;
+            futureGoal.goal = (uint8_t)unknownGoal;
+            Combo_FreezeComboSettings(&futureGoal);
+            RunPreFunc(goalRow);
+            ROWS_CHECK(goalOptions->comboMap.contains(unknownGoal),
+                       "the goal row did not teach its combo map the unknown goal %d; comboMap.at() would throw",
+                       unknownGoal);
+            ROWS_CHECK(StagedInt(goalRow) == unknownGoal,
+                       "the goal row clamped the unknown goal %d to %d instead of showing what the save holds",
+                       unknownGoal, StagedInt(goalRow));
+            ROWS_CHECK(goalOptions->comboMap.size() == 6,
+                       "the goal combo map holds %zu entries while showing unknown goal %d; expected the five pinned "
+                       "goals plus that one (a taught entry must be withdrawn before the next is taught)",
+                       goalOptions->comboMap.size(), unknownGoal);
+        }
+        Combo_FreezeComboSettings(&frozen);
+        RunPreFunc(goalRow);
+        ROWS_CHECK(goalOptions->comboMap.size() == 5 && !goalOptions->comboMap.contains(0),
+                   "the goal combo map holds %zu entries after the shown goal became a pinned one, expected five",
+                   goalOptions->comboMap.size());
     }
 
     // ---- Leg 8: the status line names each state, without hovering ----------
@@ -757,7 +881,8 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                        Combo_ComboSettingSet(COMBO_SETTING_POOL_SIZE_MM, 3) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_ITEM_CLASS_OOT, (int32_t)RSBS_ITEMCLASS_SONGS) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_ITEM_CLASS_MM, (int32_t)RSBS_ITEMCLASS_MASKS) == 1 &&
-                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_OCARINA, 1) == 1,
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_OCARINA, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_GOAL, (int32_t)RSBS_COMBO_GOAL_BEAT_MM) == 1,
                    "the writer refused a pre-creation value leg 9 needs");
         for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
             ROWS_CHECK(Combo_ComboSettingIsExplicit((ComboSettingId)i),
@@ -808,7 +933,7 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
             }
         }
         gRecordedPopups.clear();
-        printf("[TEST] leg 9: Reset queues one confirm; Cancel clears nothing, and its Reset button clears all six "
+        printf("[TEST] leg 9: Reset queues one confirm; Cancel clears nothing, and its Reset button clears all seven "
                "rules\n");
     }
 

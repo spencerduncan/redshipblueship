@@ -520,6 +520,52 @@ extern "C" const char* OoT_Creation_TestLastSequence(void) {
     return sCreationSequence;
 }
 
+// ADR 0010 section 1.2's creation warning: the halves the last SUCCESSFUL paired
+// creation carried no proof for (Combo_Logic_UnprovedHalves). RSBS_COMBO_HALF_NONE_YET
+// until an event reaches its end, so a lock can tell "warned about nothing" from
+// "never asked".
+#define RSBS_COMBO_HALF_NONE_YET 0xFFFFFFFFu
+static uint32_t sCreationUnprovedHalves = RSBS_COMBO_HALF_NONE_YET;
+
+/** TEST BRIDGE: the halves the last paired creation warned about (see above). */
+extern "C" uint32_t OoT_Creation_TestLastUnprovedHalves(void) {
+    return sCreationUnprovedHalves;
+}
+
+/**
+ * THE GOAL WARNING (ADR 0010 section 1.2), in SoH's own toast shape: one line,
+ * the default colours, muted for the same reason as the failure toast below (the
+ * creation event also runs inside the display-free locks).
+ *
+ * @param unprovedHalves RSBS_COMBO_HALF_* bits (Combo_Logic_UnprovedHalves);
+ *        0 draws nothing. Its own function so the ui tier's
+ *        "toast/creation-goal-warning" page draws the production toast.
+ *
+ * The copy names the game, spelled out (docs/ui-style-guide.md R-N8), and fits
+ * the 53 characters an 832-px window shows on the overlay's one line.
+ */
+extern "C" void OoT_Creation_EmitGoalWarningToast(uint32_t unprovedHalves) {
+    const char* message = nullptr;
+    switch (unprovedHalves & (RSBS_COMBO_HALF_OOT | RSBS_COMBO_HALF_MM)) {
+        case RSBS_COMBO_HALF_MM:
+            message = "Majora's Mask may be unfinishable.";
+            break;
+        case RSBS_COMBO_HALF_OOT:
+            message = "Ocarina of Time may be unfinishable.";
+            break;
+        case RSBS_COMBO_HALF_OOT | RSBS_COMBO_HALF_MM:
+            message = "neither game is proven finishable.";
+            break;
+        default:
+            return;
+    }
+    Notification::Emit({
+        .prefix = "Not proven:",
+        .message = message,
+        .mute = true,
+    });
+}
+
 /**
  * RETRACT A FAILED PAIRED CREATION: everything the freeze and the event published,
  * so no artifact of a half-created world survives — no identity for a later
@@ -655,6 +701,7 @@ extern "C" int OoT_RunPairedCreationEvent(int slot) {
 
     sCreationSequenceLen = 0;
     sCreationSequence[0] = 0;
+    sCreationUnprovedHalves = RSBS_COMBO_HALF_NONE_YET;
     const int mmRc = MM_Rando_AuthorHalfAtCreation(slot, "");
     CreationStep('M');
 
@@ -745,6 +792,10 @@ extern "C" int OoT_RunPairedCreationEvent(int slot) {
             "%d rows placed, %d surplus dropped, %d rounds, fill %ums\n",
             crossings, bag->crossingsIntoMM, bag->crossingsIntoOoT, bag->fill.placed, bag->fill.surplusDropped,
             bag->fill.rounds, bag->wallMs);
+    // Read off the fill before Forget drops its report: which halves the world
+    // is being created WITHOUT a proof for (none under beat-both).
+    const uint32_t unprovedHalves = Combo_Logic_UnprovedHalves(&bag->fill);
+    const unsigned frozenGoal = (unsigned)bag->goal;
     Combo_SingleBag_Forget();
     if (!tailOk) {
         // A tail failure before the arm leaves nothing armed; the arm itself
@@ -760,6 +811,20 @@ extern "C" int OoT_RunPairedCreationEvent(int slot) {
             Combo_GenProgress_ElapsedMs() - ootTailStartMs, sCreationSequence);
     fflush(stderr);
     Combo_GenProgress_End(true);
+    // ADR 0010 section 1.2: a world accepted with a half that carries no proof is
+    // created WITH A VISIBLE WARNING naming that half, at creation, never
+    // discovered in a bug report. After the progress overlay closes, so the
+    // toast is not drawn under it.
+    sCreationUnprovedHalves = unprovedHalves;
+    if (unprovedHalves != 0u) {
+        fprintf(stderr,
+                "[OoT] creation event: slot %d created under GOAL %u with NO PROOF for %s%s%s -- accepted, as ADR 0010 "
+                "section 1.2 permits, and warned\n",
+                slot, frozenGoal, (unprovedHalves & RSBS_COMBO_HALF_OOT) != 0u ? "Ocarina of Time" : "",
+                (unprovedHalves == (RSBS_COMBO_HALF_OOT | RSBS_COMBO_HALF_MM)) ? " and " : "",
+                (unprovedHalves & RSBS_COMBO_HALF_MM) != 0u ? "Majora's Mask" : "");
+        OoT_Creation_EmitGoalWarningToast(unprovedHalves);
+    }
     fprintf(stderr, "[OoT] creation event: slot %d complete — both halves authored under one frozen identity\n", slot);
     fflush(stderr);
     return 1;
