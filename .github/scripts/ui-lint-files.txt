@@ -37,3 +37,4 @@ STRINGS src/common/combo_mm_tricks_view.c
 
 EXCLUDED src/common/ComboSettingsWindow.cpp   retired from the menu; console-only, kept with its lock
 EXCLUDED src/common/ComboMenuBar.cpp          compiled but never constructed
+EXCLUDED src/common/combo_ui.cpp              raw-ImGui fallback for a link without SohGui/ComboUiSoh.cpp; the shipped binary installs SoH's table (ComboMMOptionsWindow asserts it)

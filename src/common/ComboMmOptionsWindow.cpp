@@ -5,6 +5,15 @@
  * See ComboMmOptionsWindow.h for the contract. Every value drawn here comes
  * from combo_mm_options_view.h; this file holds no state of its own and caches
  * nothing, so a CVar changed anywhere else shows up on the next frame.
+ *
+ * DRAWN WITH SoH's WIDGETS (UI parity M6; docs/ui-style-guide.md section 10).
+ * Every row goes through the `combo_ui` seam (combo_ui.h), which the shipped
+ * binary implements with SoH's own helpers (games/oot/soh/SohGui/ComboUiSoh.cpp),
+ * so the pane reads as one of SoH's randomizer option pages: themed widgets,
+ * combobox and slider labels above, a SeparatorText per group, gray notes for
+ * state, one orange sentence per warning, and every disabled row's reason in its
+ * disabled tooltip in SoH's shape rather than printed beside it. The Tricks
+ * section below the groups is not migrated yet (its own change, M6 part 2).
  */
 
 #include "ComboMmOptionsWindow.h"
@@ -20,125 +29,98 @@
 #include "ComboSettingsWindow.h" // Combo_ComboSettingsWindow_Init — the tier-4 twin of this pane
 #include "combo_mm_options_view.h"
 #include "combo_mm_tricks_view.h" // the per-trick table (#578 part 1)
+#include "combo_ui.h"             // SoH's widgets, without an SoH header (UI parity M6)
 #include "context.h"              // Context_GetCurrentGame — for the "MM is suspended" state
 
 namespace ComboGui {
 
 namespace {
 
-/**
- * Draw the pane-wide warnings.
- *
- * These are pane-wide because their causes are: they are properties of the
- * paired-generation pipeline, not of any one option. Repeating them 47 times as
- * per-row reason strings would bury the per-row reasons that ARE specific.
- *
- * A third standing warning used to live here — the dormant cycle-save hooks —
- * and was retired by #514, which gave Before/AfterEndOfCycleSave real dispatch.
- * It is not replaced by a "now fixed" notice: the pane states current hazards,
- * and a resolved one is simply absent.
- */
-void DrawStandingWarnings(bool frozen) {
-    const ImVec4 warn(0.98f, 0.76f, 0.24f, 1.0f);
-
-    if (!frozen) {
-        // (1) The timing contract (#498/#564): the profile freezes into the
-        // paired world's identity at the CREATION event, and after that a
-        // divergent arrival is refused, never honored. The old copy here —
-        // "set them before you cross" — taught the retired renegotiation
-        // window and went with it (#564 V5).
-        ImGui::TextColored(warn, "These freeze into the paired world's identity.");
-        ImGui::TextWrapped("Generating a randomized Ocarina of Time world stamps these options into the pair's "
-                           "identity. From that point they are locked: the Majora's Mask half is generated under "
-                           "exactly this profile, and a crossing whose options no longer match is refused.");
-        ImGui::Spacing();
-    }
-
-    // (2) The silent-vanilla-revert hazard. A paired generation that throws
-    // reverts the save to vanilla with no retry and no error surface; the
-    // player just gets a vanilla MM. Logic mode is the setting most likely to
-    // cause it, so the warning lives next to the options rather than in a log.
-    ImGui::TextColored(warn, "A failed generation falls back to vanilla Majora's Mask.");
-    ImGui::TextWrapped("Paired generation is attempt-free by design. If your settings make the fill dead-end, the MM "
-                       "file becomes an ordinary vanilla file rather than reporting an error. Glitchless logic is the "
-                       "setting most likely to do this.");
-    ImGui::Separator();
+const ComboUiTable& Ui() {
+    return *ComboUi_Get();
 }
 
-/** The pairing header: which world these options describe, if any. */
-void DrawPairingSummary() {
+/**
+ * The frozen state's disabled reason, in SoH's reason style (a short Title Case
+ * fragment, "Save Not Loaded"). The same words SohMenu gives its FROZEN
+ * presentation (SohMenu::PresentationLabel) and the Combo > Cross-Game Rules
+ * rows carry, so the paired world's two authoring surfaces say one thing.
+ */
+constexpr const char* kFrozenReason = "Already Decided";
+
+/**
+ * The state note: one gray note at the top of the pane, SoH's way of making a
+ * state legible without hovering (docs/ui-style-guide.md R-S3, R-X1), and the
+ * shape Combo > Cross-Game Rules' status row already has.
+ *
+ * Three states, three different facts:
+ *  - FROZEN (ADR 0004 §6's fourth state, #564 V25): the profile was stamped into
+ *    the world's identity at creation. The note names the ACTUAL escape, which
+ *    is not obvious and is not "create a new paired world": the stamp lands at
+ *    generation, so re-generating re-stamps the same profile, and the only
+ *    unfreezing events are Context_InvalidateSessionState's drop paths, the
+ *    title screen first among them. It prints NO fingerprint: the one number a
+ *    player is shown for the world is Combo > Cross-Game Rules' (the whole
+ *    pair's comboSettingsHash, which folds this profile's digest in), and a
+ *    second "fingerprint" here, the MM profile digest alone, would name the
+ *    same world with a different number.
+ *  - PAIRED, NOT FROZEN (#564 V8): a legacy pre-freeze pair, whose profile
+ *    freezes at its first crossing.
+ *  - UNPAIRED: no world yet; these freeze into the next one at generation.
+ */
+void DrawStatusNote(bool frozen) {
     ComboMMProfileSummary summary;
     Combo_MMProfileSummary(&summary);
 
-    if (!summary.paired) {
-        // "Not paired" and "paired with a default profile" are different facts.
-        // Rendering a seedless header would tell the player these options
-        // belong to a world that does not exist.
-        ImGui::TextWrapped("No paired world yet. Generate a randomized Ocarina of Time world; the Majora's Mask half "
-                           "derives from it, using the options below.");
-        ImGui::Separator();
-        return;
+    if (frozen) {
+        Ui().NoteText("Already decided when this world was created. Return to the title screen to choose options "
+                      "for a new world.");
+    } else if (summary.paired) {
+        Ui().NoteText("Your paired world predates saved Majora's Mask options. These are saved into it when you "
+                      "first cross into Majora's Mask.");
+    } else {
+        // "Not paired" and "paired with a default profile" are different facts:
+        // a seedless header would describe a world that does not exist.
+        Ui().NoteText("No paired world yet. These options are saved into the next paired world when it is "
+                      "generated.");
     }
 
-    ImGui::Text("Paired seed: %u", (unsigned)summary.sharedRandoSeed);
-    ImGui::Text("OoT settings digest: %08X", (unsigned)summary.sharedRandoSettingsHash);
-    if (summary.mmProfileDigest == 0) {
-        // Zero means "identity not frozen" (#564 V8) — for a post-freeze pair
-        // this state is unreachable (creation stamps it), so a paired world
-        // showing it is a LEGACY pre-freeze pair whose profile freezes at its
-        // first crossing.
-        ImGui::TextUnformatted("MM profile: not frozen (pre-freeze pair; freezes at the first crossing)");
-    } else {
-        ImGui::Text("MM profile digest: %08X (frozen at creation)", (unsigned)summary.mmProfileDigest);
+    // ADR 0004 §6's third state, editable but not the running game. Not shown
+    // once frozen, where "editable" would be false.
+    if (!frozen && Context_GetCurrentGame() != GAME_MM) {
+        Ui().NoteText("Majora's Mask is suspended; these options stay editable.");
     }
-    ImGui::Separator();
 }
 
 /**
- * The FOURTH presentation state (ADR 0004 §6 as amended by #564 V25):
- * frozen-at-creation, read-only, with the reason stated where the rows are.
- * Distinct from "live", from "editable but suspended", and from "disabled by
- * capability" — collapsing it into any of those would misdescribe it.
+ * The pane-wide warnings, one orange sentence each (SoH's warning colour).
  *
- * The copy names the ACTUAL escape, which is not obvious and is not "create a
- * new paired world": the stamp lands at GENERATION (Playthrough_Init), so a
- * player who generates a seed and only then wants different MM options is
- * frozen with no file in existence yet, and re-generating re-stamps the same
- * frozen profile. The only unfreezing events are the DROP paths in
- * Context_InvalidateSessionState — returning to the title screen (the reset
- * route through TitleSetup), starting a vanilla file, or loading a slot whose
- * .redsave is unfrozen. Telling the player to "create a new paired world"
- * without naming the title screen is advice they cannot act on, which is ADR
- * 0004 §5's vacuous gate wearing a help string.
+ * Pane-wide because their causes are: they are properties of the paired
+ * generation pipeline, not of any one option. Repeating them 47 times as per-row
+ * reasons would bury the per-row reasons that ARE specific.
+ *
+ * (1) The timing contract (#498/#564): the profile freezes into the paired
+ * world's identity at the CREATION event, and after that a divergent arrival is
+ * refused, never honored. Not shown once frozen: the state note says it.
+ * (2) The silent vanilla revert: a paired generation that throws reverts the MM
+ * file to vanilla with no error surface, and logic mode is the setting most
+ * likely to cause it, so the warning lives next to the options.
+ *
+ * A third standing warning used to live here (the dormant cycle-save hooks) and
+ * was retired by #514. The pane states current hazards; a resolved one is absent.
  */
-void DrawFrozenBanner() {
-    ImGui::TextColored(ImVec4(0.55f, 0.78f, 0.98f, 1.0f), "Frozen at creation");
-    ImGui::TextWrapped("This paired world's Majora's Mask profile was stamped into its identity when the world was "
-                       "generated. The options below show the authoring surface read-only; changing them is no "
-                       "longer possible for this pair. To play different MM options, return to the title screen — "
-                       "these unlock there — then set them and generate a new seed.");
-    ImGui::Separator();
-}
-
-/**
- * The third presentation state (ADR 0004 section 6): editable, but not the
- * running game. Distinct from "live" and from "disabled by capability" —
- * collapsing it into either would misdescribe it.
- */
-void DrawActiveGameState() {
-    if (Context_GetCurrentGame() == GAME_MM) {
-        ImGui::TextUnformatted("Majora's Mask - running");
-    } else {
-        ImGui::TextDisabled("Majora's Mask - suspended (these stay editable)");
+void DrawStandingWarnings(bool frozen) {
+    if (!frozen) {
+        Ui().WarningText("Generating a paired world locks these options in, and a crossing whose options differ "
+                         "is refused.");
     }
-    ImGui::Spacing();
+    Ui().WarningText("If these options make generation fail, Majora's Mask falls back to a vanilla file; "
+                     "Glitchless logic is the most likely cause.");
 }
 
-/** Tooltip helper: MM's own menu attaches these on hover, so this one does too. */
+/** Tooltip helper for the rows not yet drawn through the seam (the Tricks section). */
 void HoverTooltip(const char* text) {
-    if (text != nullptr && text[0] != '\0' && ImGui::IsItemHovered()) {
-        ImGui::SetTooltip("%s", text);
-    }
+    Ui().Tooltip(text);
 }
 
 /** True when the row must be drawn disabled with its reason (ADR 0004 §5). */
@@ -146,76 +128,64 @@ bool IsCapabilityBlocked(const ComboMMOptionDesc* desc) {
     return desc->liveness == COMBO_MM_LIVENESS_PARTIAL || desc->liveness == COMBO_MM_LIVENESS_DORMANT;
 }
 
-void DrawOptionRow(const ComboMMOptionDesc* desc) {
+/**
+ * One option row, through the seam.
+ *
+ * Disabled for either of two causes, and the reason goes in the DISABLED
+ * TOOLTIP in SoH's shape ("This setting is disabled because:" then "- <reason>"
+ * per cause), never beside the row: a capability block (ADR 0004 §5, the model's
+ * own reason string) and the freeze. A row that is both lists both. The freeze is
+ * also stated without hovering, once, by the state note (R-S3).
+ */
+void DrawOptionRow(const ComboMMOptionDesc* desc, bool frozen) {
     const bool blocked = IsCapabilityBlocked(desc);
-
-    if (blocked) {
-        ImGui::BeginDisabled();
-    }
+    ComboUiWidgetOpts opts;
+    opts.tooltip = desc->tooltip;
+    opts.disabled = blocked || frozen;
+    opts.disabledTooltip =
+        ComboUi_DisabledTooltip(frozen ? kFrozenReason : nullptr, blocked ? desc->disabledReason : nullptr);
 
     int32_t value = Combo_MMOptionGetValue(desc);
 
     switch ((ComboMMOptionWidget)desc->widget) {
         case COMBO_MM_WIDGET_CHECKBOX: {
             bool on = value != 0;
-            if (ImGui::Checkbox(desc->label, &on)) {
+            if (Ui().Checkbox(desc->label, &on, &opts)) {
                 Combo_MMOptionSetValue(desc, on ? 1 : 0);
             }
             break;
         }
         case COMBO_MM_WIDGET_COMBO: {
             // valueCount is asserted non-zero for every combo row by the
-            // MMRandoOptions lock; the guard is here so a broken table
-            // degrades to an unusable row rather than indexing out of bounds.
-            const char* preview = "(no values)";
-            if (desc->valueLabels != NULL && desc->valueCount > 0 && value >= 0 && value < (int32_t)desc->valueCount) {
-                preview = desc->valueLabels[value];
-            }
-            if (desc->valueLabels != NULL && ImGui::BeginCombo(desc->label, preview)) {
-                for (int i = 0; i < (int)desc->valueCount; i++) {
-                    const bool selected = (value == i);
-                    if (ImGui::Selectable(desc->valueLabels[i], selected)) {
-                        Combo_MMOptionSetValue(desc, i);
-                    }
-                    if (selected) {
-                        ImGui::SetItemDefaultFocus();
-                    }
-                }
-                ImGui::EndCombo();
+            // MMRandoOptions lock; the seam still shows an index it has no label
+            // for as "Unknown (N)" rather than indexing out of bounds.
+            if (Ui().Combobox(desc->label, &value, desc->valueLabels, (int)desc->valueCount, &opts)) {
+                Combo_MMOptionSetValue(desc, value);
             }
             break;
         }
         case COMBO_MM_WIDGET_SLIDER: {
-            int v = (int)value;
-            if (ImGui::SliderInt(desc->label, &v, (int)desc->minValue, (int)desc->maxValue)) {
-                Combo_MMOptionSetValue(desc, (int32_t)v);
+            if (Ui().SliderInt(desc->label, &value, desc->minValue, desc->maxValue, "%d", &opts)) {
+                Combo_MMOptionSetValue(desc, value);
             }
             break;
         }
         case COMBO_MM_WIDGET_TIME: {
             // Minutes since midnight, shown as the clock time the player sees.
-            int v = (int)value;
-            char label[32];
-            snprintf(label, sizeof(label), "%02d:%02d", v / 60, v % 60);
-            if (ImGui::SliderInt(desc->label, &v, (int)desc->minValue, (int)desc->maxValue, label)) {
-                Combo_MMOptionSetValue(desc, (int32_t)v);
+            // The text is the slider's whole format (it holds no conversion).
+            char clock[32];
+            snprintf(clock, sizeof(clock), "%02d:%02d", (int)value / 60, (int)value % 60);
+            if (Ui().SliderInt(desc->label, &value, desc->minValue, desc->maxValue, clock, &opts)) {
+                Combo_MMOptionSetValue(desc, value);
             }
             break;
         }
-        default:
-            ImGui::TextDisabled("%s (unsupported widget)", desc->label);
+        default: {
+            char note[160];
+            snprintf(note, sizeof(note), "%s cannot be shown in this build.", desc->label);
+            Ui().NoteText(note);
             break;
-    }
-
-    HoverTooltip(desc->tooltip);
-
-    if (blocked) {
-        ImGui::EndDisabled();
-        // The reason is NOT a tooltip. ADR 0004 §5 requires the explanation to
-        // be legible without hovering, because a disabled control with no
-        // visible cause reads as a bug in the port.
-        ImGui::SameLine();
-        ImGui::TextDisabled("- %s", desc->disabledReason);
+        }
     }
 }
 
@@ -263,7 +233,7 @@ void DrawTrickRow(const ComboMMTrickDesc* desc) {
  *
  * Frozen wraps the whole section the same way it wraps each option group — the
  * rows stay READABLE (a frozen trick set is worth seeing) and every widget is
- * inert, with the cause stated once by DrawFrozenBanner.
+ * inert, with the cause stated once by the state note.
  */
 void DrawTricksSection(bool frozen) {
     const int count = Combo_MMTrickCount();
@@ -336,6 +306,27 @@ void DrawTricksSection(bool frozen) {
     ImGui::PopID();
 }
 
+/**
+ * Reset's action, run by the confirm's Reset button.
+ *
+ * Clears the CVars rather than writing the defaults back. The two are NOT the
+ * same: ResolvePairedProfile distinguishes "the player chose this" from "nobody
+ * ever touched it" via the explicit-value probe, and writing a value equal to the
+ * default would make the pin think a choice was made. Tricks reset with the
+ * options: a reset that left a trick armed would leave the profile, and so the
+ * frozen identity, in a state the button claims it cleared. Under a freeze the
+ * writers refuse on their own, so a confirm answered after a freeze landed
+ * changes nothing.
+ */
+void ResetAllOptions(void*) {
+    for (int i = 0; i < Combo_MMOptionCount(); i++) {
+        Combo_MMOptionClear(Combo_MMOptionAt(i));
+    }
+    for (int i = 0; i < Combo_MMTrickCount(); i++) {
+        Combo_MMTrickClear(Combo_MMTrickAt(i));
+    }
+}
+
 } // namespace
 
 void ComboMmOptionsWindow::Draw() {
@@ -348,15 +339,20 @@ void ComboMmOptionsWindow::Draw() {
         return;
     }
 
+    // SoH's pane chrome: Ship::GuiWindow::Draw passes its visibility to
+    // ImGui::Begin, so every SoH pane (the tracker settings popouts among them)
+    // carries a close button in its title bar. Closing clears the visibility
+    // CVar through SetVisibility, which also schedules the save, exactly as a
+    // closed SoH pane does.
+    bool open = true;
     ImGui::SetNextWindowSize(ImVec2(620.0f, 560.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin(kComboMMOptionsWindowName, nullptr, ImGuiWindowFlags_NoFocusOnAppearing)) {
-        ImGui::End();
-        return;
+    if (ImGui::Begin(kComboMMOptionsWindowName, &open, ImGuiWindowFlags_NoFocusOnAppearing)) {
+        DrawElement();
     }
-
-    DrawElement();
-
     ImGui::End();
+    if (!open) {
+        SetVisibility(false);
+    }
 }
 
 void ComboMmOptionsWindow::DrawElement() {
@@ -364,23 +360,22 @@ void ComboMmOptionsWindow::DrawElement() {
     if (count == 0) {
         // The MM descriptor table did not register. Say so rather than
         // rendering an empty pane, which would read as "MM has no options".
-        ImGui::TextWrapped("Majora's Mask option table is not available in this build.");
+        Ui().NoteText("The Majora's Mask option table is not available in this build.");
         return;
     }
 
-    // Read once per frame so every widget below agrees with the banner: the
+    // Read once per frame so every widget below agrees with the note: the
     // writers reject on their own (the pane is not the gate, just its face).
     const bool frozen = Combo_MMProfileFrozen();
 
-    DrawPairingSummary();
-    DrawActiveGameState();
-    if (frozen) {
-        DrawFrozenBanner();
-    }
+    DrawStatusNote(frozen);
     DrawStandingWarnings(frozen);
 
     // Grouped in MM's own taxonomy rather than in id order: id order is the
-    // enum's, which interleaves access conditions with hints with shuffles.
+    // enum's, which interleaves access conditions with hints with shuffles. A
+    // SeparatorText per group, as SoH's randomizer option pages do
+    // (option.cpp's OptionGroup::AddWidgets), rather than a collapsing header:
+    // a settings surface shows its settings.
     for (uint8_t group = 0; group < (uint8_t)COMBO_MM_GROUP_COUNT; group++) {
         // Count first so an empty group draws no header at all — a permanently
         // empty section implies options are missing from it.
@@ -395,28 +390,16 @@ void ComboMmOptionsWindow::DrawElement() {
             continue;
         }
 
-        if (!ImGui::CollapsingHeader(Combo_MMOptionGroupName(group), ImGuiTreeNodeFlags_DefaultOpen)) {
-            continue;
-        }
+        Ui().SeparatorText(Combo_MMOptionGroupName(group));
         ImGui::PushID((int)group);
-        // Frozen wraps the whole group body: the rows stay visible (the frozen
-        // profile is worth READING) but every widget is inert. The reason is
-        // stated once, legibly, by DrawFrozenBanner above — ADR 0004 §5's
-        // "disabled with a visible cause", pane-wide because the cause is.
-        if (frozen) {
-            ImGui::BeginDisabled();
-        }
         for (int i = 0; i < count; i++) {
             const ComboMMOptionDesc* desc = Combo_MMOptionAt(i);
             if (desc == NULL || desc->group != group) {
                 continue;
             }
             ImGui::PushID(i);
-            DrawOptionRow(desc);
+            DrawOptionRow(desc, frozen);
             ImGui::PopID();
-        }
-        if (frozen) {
-            ImGui::EndDisabled();
         }
         ImGui::PopID();
     }
@@ -426,31 +409,18 @@ void ComboMmOptionsWindow::DrawElement() {
     // (combo_mm_tricks_view.h explains why the tables are separate).
     DrawTricksSection(frozen);
 
-    ImGui::Separator();
-    if (frozen) {
-        // The Reset button is a 47-write batch; drawing it live under a frozen
-        // profile would be a control that (correctly) does nothing — ADR 0004
-        // §5's vacuous gate. Disabled, with its cause inline.
-        ImGui::BeginDisabled();
-        ImGui::Button("Reset all to defaults");
-        ImGui::EndDisabled();
-        ImGui::SameLine();
-        ImGui::TextDisabled("- profile frozen at creation");
-    } else if (ImGui::Button("Reset all to defaults")) {
-        // Clears the CVars rather than writing the defaults back. The two are
-        // NOT the same: ResolvePairedProfile distinguishes "the player chose
-        // this" from "nobody ever touched it" via CVarExists, and writing a
-        // value equal to the default would make the pin think a choice was
-        // made.
-        for (int i = 0; i < count; i++) {
-            Combo_MMOptionClear(Combo_MMOptionAt(i));
-        }
-        // Tricks reset with the options: "reset all" that left a trick armed
-        // would leave the profile — and therefore the frozen identity — in a
-        // state the button claims it cleared.
-        for (int i = 0; i < Combo_MMTrickCount(); i++) {
-            Combo_MMTrickClear(Combo_MMTrickAt(i));
-        }
+    // The Reset button is a 47-write batch plus the tricks. SoH's primary-action
+    // width, and SoH's confirm-first rule for a destructive button (R-S5). Under a
+    // frozen profile it is disabled with the freeze as its reason: a live Reset
+    // there would be a control that (correctly) does nothing, ADR 0004 §5's
+    // vacuous gate.
+    Ui().Spacer(0.0f);
+    ComboUiWidgetOpts resetOpts;
+    resetOpts.tooltip = "Resets every Majora's Mask randomizer option and trick to its default value.";
+    resetOpts.disabled = frozen;
+    resetOpts.disabledTooltip = ComboUi_DisabledTooltip(frozen ? kFrozenReason : nullptr, nullptr);
+    if (Ui().Button("Reset All to Defaults", COMBO_UI_WIDTH_PRIMARY, &resetOpts) && !frozen) {
+        Combo_MMOptionsRequestReset();
     }
 }
 
@@ -465,11 +435,19 @@ void RegisterComboMmOptionsWindow(std::shared_ptr<Ship::Gui> gui) {
         return;
     }
 
-    gui->AddGuiWindow(
-        std::make_shared<ComboMmOptionsWindow>(kComboMMOptionsVisibilityCVar, kComboMMOptionsWindowName));
+    gui->AddGuiWindow(std::make_shared<ComboMmOptionsWindow>(kComboMMOptionsVisibilityCVar, kComboMMOptionsWindowName));
 }
 
 } // namespace ComboGui
+
+extern "C" void Combo_MMOptionsRequestReset(void) {
+    // SoH's confirm shape ("Clear Config", SohMenuSettings.cpp): a title, what
+    // the action does, "Continue?", the action's verb, Cancel.
+    ComboUi_Get()->Confirm(ComboGui::kComboMMOptionsResetTitle,
+                           "This will reset every Majora's Mask randomizer option and trick to its default value.\n"
+                           "Continue?",
+                           "Reset", "Cancel", ComboGui::ResetAllOptions, nullptr);
+}
 
 extern "C" void Combo_MMOptionsWindow_Init(void) {
     // Publish MM's descriptor table first. Done here rather than from a

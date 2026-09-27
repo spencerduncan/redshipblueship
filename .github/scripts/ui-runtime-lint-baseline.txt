@@ -6,6 +6,3 @@
 # The baseline may only SHRINK: a fixed row makes its line stale and the row fails
 # until the line is deleted. Never add a line to make the row pass. R2w/R4w are
 # warnings and are never listed here.
-R3 | MM options pane | Retired (ADR 0010 O1): no code will ever read this option
-R3 | MM options pane | Retired: this option never had a consumer and, by operator ruling (ADR 0010 answer O1), ne
-R3 | MM options pane/Tricks | No logic binding yet (#578 part 3)
