@@ -33,7 +33,7 @@
 // OTRGlobals.h only forward-declares Rando::Context, which is enough to hold
 // the shared_ptr but not to call through it.
 #include "soh/Enhancements/randomizer/SeedContext.h"
-// #750: OoT_RetireAbandonedSession walks the actor DB and drops every
+// #750: OoT_RetireAbandonedSession resets the actor DB's clients and drops every
 // per-actor object extension of the session a departure abandons.
 #include "soh/ActorDB.h"
 #include "soh/ObjectExtension/ObjectExtension.h"
@@ -58,8 +58,6 @@ void OoT_Audio_PreNMI(void);
 // re-entry after a switch re-inits the system arena under any suspended
 // gamestate, so the frame loop must cold-start instead of resuming.
 void OoT_Graph_ResetRunFrameContext(void);
-// z_actor.c: runs an overlay's reset once it has no clients (#750).
-void OoT_Actor_FreeOverlay(ActorDBEntry* dbEntry);
 // Defined below OoT_Game_Suspend, which calls it (#750).
 void OoT_RetireAbandonedSession(void);
 // Wait for the OTR audio std::thread to finish any in-flight buffer before
@@ -941,9 +939,13 @@ void OoT_Game_Suspend(void) {
  *    beehive, fairy or scrub, the actor-list index, enemy maximum health). The
  *    next session's arena reuses those addresses.
  *
- * Both are done here, at the point the session is abandoned. Entries already
- * at zero clients are skipped on purpose: they were reset when their last
- * client went, and not every reset is idempotent. The actors' own Destroy
+ * Both are done here, at the point the session is abandoned. An entry with
+ * clients is marked client-free and its reset runs once, which is everything
+ * OoT_Actor_FreeOverlay does at zero clients apart from a debug print that
+ * reads HREG(20) through gGameInfo (calling reset directly keeps this
+ * independent of that system-arena allocation). Entries already at zero
+ * clients are skipped on purpose: they were reset when their last client
+ * went, and not every reset is idempotent. The actors' own Destroy
  * functions are NOT run: they take the PlayState of a gamestate that has
  * already been retired (dynapoly, colliders, lights, skeletons). Overlays whose
  * Destroy is what restores a static got that restore in a reset of their own
@@ -964,7 +966,9 @@ void OoT_RetireAbandonedSession(void) {
                 continue;
             }
             entry->numLoaded = 0;
-            OoT_Actor_FreeOverlay(entry);
+            if (entry->reset != NULL) {
+                entry->reset();
+            }
             overlays++;
         }
     }

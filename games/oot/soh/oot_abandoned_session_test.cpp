@@ -27,9 +27,9 @@
  *
  * THE FIX UNDER TEST. OoT_Game_Suspend calls OoT_RetireAbandonedSession
  * (games/oot/soh/GameExports_SingleExe.cpp) right after the graph is retired:
- * every ActorDB entry with clients is marked client-free and freed through
- * OoT_Actor_FreeOverlay (so its reset runs once), entries at zero are left
- * alone, and every ObjectExtension entry is dropped. Each overlay whose
+ * every ActorDB entry with clients is marked client-free and its reset runs
+ * once (what OoT_Actor_FreeOverlay does at zero clients), entries at zero are
+ * left alone, and every ObjectExtension entry is dropped. Each overlay whose
  * Destroy was the only thing restoring a static has a reset that restores it.
  *
  * THE INVARIANTS, observed through the REAL departure (OoT's registered
