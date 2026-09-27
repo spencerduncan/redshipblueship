@@ -97,7 +97,9 @@
 
 #include "soh/SohGui/SohMenu.h"
 
+#include <cctype>
 #include <cstdio>
+#include <functional>
 #include <memory>
 #include <string>
 #include <variant>
@@ -106,6 +108,15 @@
 #include "combo_settings_view.h"
 #include "context.h"
 #include "foreign_items.h"
+
+// The Reset confirm's registrar (SohMenuCombo.cpp). Declared here rather than
+// in a header, so no production header grows a test-only entry point. SoH's
+// popup machinery runs a button only from an ImGui frame, so this lock swaps in
+// a recorder to reach the popup's Reset action.
+namespace SohGui {
+extern void (*gComboRulePopupRegistrar)(std::string, std::string, std::string, std::string, std::function<void()>,
+                                        std::function<void()>);
+} // namespace SohGui
 
 namespace {
 
@@ -146,6 +157,19 @@ const uint16_t kClassBits[6] = {
     (uint16_t)RSBS_ITEMCLASS_PROGRESSION,   (uint16_t)RSBS_ITEMCLASS_SONGS,          (uint16_t)RSBS_ITEMCLASS_MASKS,
     (uint16_t)RSBS_ITEMCLASS_DUNGEON_ITEMS, (uint16_t)RSBS_ITEMCLASS_DUNGEON_REWARD, (uint16_t)RSBS_ITEMCLASS_SIDEQUEST,
 };
+
+// The class checkboxes' names, restated for the same reason: each is the
+// class's display name plus a per-direction "##" ID suffix, because the same six
+// names appear under both directions and a name is the widget's ID.
+const char* const kClassNames[6] = {
+    "Progression", "Songs", "Masks", "Dungeon Items", "Dungeon Rewards", "Sidequest Items",
+};
+const char* const kClassIdSuffix[2] = { "##OoTClass", "##MMClass" };
+
+/** The checkbox name for class @p bit of direction @p which (0 OoT, 1 MM). */
+std::string ClassRowName(int which, int bit) {
+    return std::string(kClassNames[bit]) + kClassIdSuffix[which];
+}
 
 /** The row name the menu builds for @p id: §4.2's marker, then the model's label. */
 std::string RowName(ComboSettingId id) {
@@ -208,20 +232,69 @@ int StagedBool(WidgetInfo& row) {
 }
 
 /**
- * Assert @p row is in ADR 0004 §6 state 4: disabled, with the reason string the
- * MODEL owns. The string identity matters as much as the disabling — a row that
+ * The disabled tooltip a frozen row must show: MenuDrawItem's disabled shape
+ * ("This setting is disabled because: \n" then "\n- Reason", Menu.cpp) around
+ * the MODEL's reason in SoH's Title Case ("already decided" -> "Already
+ * Decided"). Built here from Combo_ComboSettingReadOnlyReason, so a row whose
+ * tooltip carries words the model does not own is red.
+ */
+std::string ExpectedDecidedTooltip() {
+    const char* reason = Combo_ComboSettingReadOnlyReason();
+    std::string text = "This setting is disabled because: \n\n- ";
+    bool wordStart = true;
+    for (const char* c = (reason != nullptr) ? reason : ""; *c != '\0'; c++) {
+        text += wordStart ? (char)std::toupper((unsigned char)*c) : *c;
+        wordStart = (*c == ' ');
+    }
+    return text;
+}
+
+/**
+ * Assert @p row is in ADR 0004 §6 state 4: disabled, with the reason the MODEL
+ * owns. The reason's identity matters as much as the disabling — a row that
  * greyed itself with a capability reason ("not yet available") would send a
  * player hunting for a missing feature instead of telling them the choice was
- * already made.
+ * already made. Compared EXACTLY against the model's reason in SoH's disabled
+ * shape: a containment check passed a hard-coded tooltip that added
+ * renderer-only words ("When This World Was Created") the corrupt state
+ * contradicts.
  */
 void ExpectDecided(WidgetInfo& row, const char* what) {
     const char* reason = Combo_ComboSettingReadOnlyReason();
+    const std::string tip = row.options->disabledTooltip != nullptr ? row.options->disabledTooltip : "";
+    const std::string want = ExpectedDecidedTooltip();
     ROWS_CHECK(row.options->disabled, "%s must be read-only once the record is frozen", what);
-    ROWS_CHECK(reason != nullptr && row.options->disabledTooltip != nullptr &&
-                   std::string(row.options->disabledTooltip) == std::string(reason != nullptr ? reason : ""),
-               "%s must carry the model's reason (%s), not a capability reason; it carries '%s'", what,
-               reason != nullptr ? reason : "(null)",
-               row.options->disabledTooltip != nullptr ? row.options->disabledTooltip : "(null)");
+    ROWS_CHECK(reason != nullptr && tip == want,
+               "%s must carry exactly the model's reason (%s) in SoH's disabled shape, not a capability reason or "
+               "renderer-only words; it carries '%s', expected '%s'",
+               what, reason != nullptr ? reason : "(null)", tip.c_str(), want.c_str());
+}
+
+/** One popup the Reset row queued through gComboRulePopupRegistrar. */
+struct RecordedPopup {
+    std::string title;
+    std::string button1;
+    std::string button2;
+    std::function<void()> onButton1;
+    std::function<void()> onButton2;
+};
+std::vector<RecordedPopup> gRecordedPopups;
+
+void RecordPopup(std::string title, std::string message, std::string button1, std::string button2,
+                 std::function<void()> onButton1, std::function<void()> onButton2) {
+    (void)message;
+    gRecordedPopups.push_back(RecordedPopup{ std::move(title), std::move(button1), std::move(button2),
+                                             std::move(onButton1), std::move(onButton2) });
+}
+
+/** The index of the row named @p name in the flattened page, or -1. */
+int RowIndex(std::vector<PageRow>& rows, const std::string& name) {
+    for (std::size_t i = 0; i < rows.size(); i++) {
+        if (rows.at(i).first->name == name) {
+            return (int)i;
+        }
+    }
+    return -1;
 }
 
 } // namespace
@@ -382,9 +455,8 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                "directions); an allocated RSBS_ITEMCLASS_* bit has no row",
                classCheckboxes);
     for (int which = 0; which < 2; which++) {
-        const std::string prefix = (which == 0) ? "Ocarina of Time item class: " : "Majora's Mask item class: ";
         for (int bit = 0; bit < 6; bit++) {
-            const std::string name = prefix + Combo_ForeignItemClassName(kClassBits[bit]);
+            const std::string name = ClassRowName(which, bit);
             ROWS_CHECK(FindRow(rows, name) != nullptr, "no checkbox row named '%s'", name.c_str());
         }
     }
@@ -427,8 +499,7 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         // The OoT set is SONGS alone, so exactly one of its six boxes is ticked.
         int ticked = 0;
         for (int bit = 0; bit < 6; bit++) {
-            WidgetInfo* box = FindRow(rows, std::string("Ocarina of Time item class: ") +
-                                                Combo_ForeignItemClassName(kClassBits[bit]));
+            WidgetInfo* box = FindRow(rows, ClassRowName(0, bit));
             if (box == nullptr) {
                 continue;
             }
@@ -504,10 +575,9 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                "world was built without a shared ocarina and a row that showed otherwise would be lying about it",
                StagedBool(*settingRow[COMBO_SETTING_SHARED_OCARINA]));
     for (int which = 0; which < 2; which++) {
-        const std::string prefix = (which == 0) ? "Ocarina of Time item class: " : "Majora's Mask item class: ";
         const uint16_t mask = (which == 0) ? frozen.itemClassOoT : frozen.itemClassMM;
         for (int bit = 0; bit < 6; bit++) {
-            WidgetInfo* box = FindRow(rows, prefix + Combo_ForeignItemClassName(kClassBits[bit]));
+            WidgetInfo* box = FindRow(rows, ClassRowName(which, bit));
             if (box == nullptr) {
                 continue;
             }
@@ -522,10 +592,26 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     // the two "places nothing" lines is shown. A note that never hides would
     // report an empty pool for a world that has one.
     {
-        WidgetInfo* ootNote = FindRow(rows, "No Ocarina of Time classes armed: this direction places nothing.");
-        WidgetInfo* mmNote = FindRow(rows, "No Majora's Mask classes armed: this direction places nothing.");
+        WidgetInfo* ootNote = FindRow(rows, "No Ocarina of Time items will cross.");
+        WidgetInfo* mmNote = FindRow(rows, "No Majora's Mask items will cross.");
         ROWS_CHECK(ootNote != nullptr && ootNote->isHidden, "the OoT empty-set note is shown for a non-empty mask");
         ROWS_CHECK(mmNote != nullptr && !mmNote->isHidden, "the MM empty-set note is hidden for an empty mask");
+
+        // Where each note sits: directly under its group's separator, ABOVE the
+        // six checkboxes (docs/ui-style-guide.md R-S3: a state that must be
+        // legible without hovering is one gray note row above the group). A
+        // note after the six boxes reads as a footnote to the last one.
+        const char* notes[2] = { "No Ocarina of Time items will cross.", "No Majora's Mask items will cross." };
+        const ComboSettingId groups[2] = { COMBO_SETTING_ITEM_CLASS_OOT, COMBO_SETTING_ITEM_CLASS_MM };
+        for (int which = 0; which < 2; which++) {
+            const int header = RowIndex(rows, RowName(groups[which]));
+            const int note = RowIndex(rows, notes[which]);
+            const int firstBox = RowIndex(rows, ClassRowName(which, 0));
+            ROWS_CHECK(header >= 0 && note == header + 1 && firstBox == note + 1,
+                       "the empty-set note '%s' is at row %d; it must sit directly under its separator (row %d) and "
+                       "above the group's first checkbox (row %d)",
+                       notes[which], note, header, firstBox);
+        }
     }
     printf("[TEST] leg 5: once frozen every row is read-only with the model's reason and shows the save's record\n");
 
@@ -627,14 +713,101 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         gComboCtx.sourceIsRando = false;
         gComboCtx.sharedRandoSettingsHash = 0;
         RunPreFunc(*statusRow);
-        ROWS_CHECK(statusRow->name.find("corrupt session state") != std::string::npos,
+        ROWS_CHECK(statusRow->name.find("Session state is corrupt") != std::string::npos,
                    "a frozen record with no live pairing is not named as corrupt: '%s'", statusRow->name.c_str());
+
+        // Paired but not frozen: a legacy pre-carve pair (ADR 0011 decision 4.2).
+        // Its first crossing freezes the SHIPPED DEFAULTS and then compares that
+        // record against the live CVars (foreign_items.c,
+        // Combo_FreezeLegacyComboSettings then Combo_ComboSettingsDivergence), so
+        // a rule edited before that crossing is REFUSED there. The note must say
+        // to keep the defaults until then; "changes apply to the next world"
+        // alone told the player an edit was harmless to this one.
+        ComboContext_Init();
+        gComboCtx.sourceIsRando = true;
+        gComboCtx.sharedRandoSeed = 0xC0FFEE55u;
+        gComboCtx.sharedRandoSettingsHash = 0x5EED0055u;
+        gComboCtx.mmProfileDigest = 0x4D4D0055u;
+        RunPreFunc(*statusRow);
+        ROWS_CHECK(statusRow->name.find("predates these rules") != std::string::npos &&
+                       statusRow->name.find("Keep them at the defaults until you have crossed into it") !=
+                           std::string::npos,
+                   "the paired-legacy status line does not tell the player to keep the defaults until the first "
+                   "crossing (an edit before it is refused at that crossing): '%s'",
+                   statusRow->name.c_str());
 
         // Unfrozen and unpaired: the ordinary pre-creation state.
         ComboContext_Init();
         RunPreFunc(*statusRow);
-        ROWS_CHECK(statusRow->name.find("freeze into the paired world's identity") != std::string::npos,
+        ROWS_CHECK(statusRow->name.find("saved into the next paired world") != std::string::npos,
                    "the pre-creation status line does not say these freeze at creation: '%s'", statusRow->name.c_str());
+    }
+
+    // ---- Leg 9: Reset asks first, and its Reset button clears every rule ------
+    // The row's Callback only queues a confirm (SoH's Clear Config shape); the
+    // action is the popup's Reset button. The snapshot harness proves the popup
+    // is queued and drawn, but dismisses it without running a button, so this
+    // leg is the only place the ACTION is checked. Cancel must clear nothing.
+    {
+        ComboContext_Init();
+        ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, (int32_t)RSBS_COMBO_DIR_FORWARD) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_POOL_SIZE_OOT, 2) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_POOL_SIZE_MM, 3) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_ITEM_CLASS_OOT, (int32_t)RSBS_ITEMCLASS_SONGS) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_ITEM_CLASS_MM, (int32_t)RSBS_ITEMCLASS_MASKS) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_OCARINA, 1) == 1,
+                   "the writer refused a pre-creation value leg 9 needs");
+        for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
+            ROWS_CHECK(Combo_ComboSettingIsExplicit((ComboSettingId)i),
+                       "leg 9 set '%s' but the store holds no explicit value, so the reset check would be vacuous",
+                       Combo_ComboSettingLabel((ComboSettingId)i));
+        }
+
+        WidgetInfo* resetRow = FindRow(rows, "Reset Combo Rules");
+        ROWS_CHECK(resetRow != nullptr && resetRow->type == WIDGET_BUTTON && resetRow->callback != nullptr,
+                   "the Cross-Game Rules page has no \"Reset Combo Rules\" button with a Callback");
+        auto savedRegistrar = SohGui::gComboRulePopupRegistrar;
+        SohGui::gComboRulePopupRegistrar = RecordPopup;
+        gRecordedPopups.clear();
+        if (resetRow != nullptr && resetRow->callback != nullptr) {
+            RunPreFunc(*resetRow);
+            ROWS_CHECK(!resetRow->options->disabled, "the Reset row is disabled before the creation event");
+            resetRow->callback(*resetRow);
+        }
+        SohGui::gComboRulePopupRegistrar = savedRegistrar;
+        for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
+            ROWS_CHECK(Combo_ComboSettingIsExplicit((ComboSettingId)i),
+                       "the Reset row cleared '%s' before any confirm was accepted",
+                       Combo_ComboSettingLabel((ComboSettingId)i));
+        }
+        ROWS_CHECK(gRecordedPopups.size() == 1, "the Reset row queued %zu popups, expected one confirm",
+                   gRecordedPopups.size());
+        if (gRecordedPopups.size() == 1) {
+            RecordedPopup& popup = gRecordedPopups.at(0);
+            ROWS_CHECK(popup.title == "Reset Combo Rules" && popup.button1 == "Reset" && popup.button2 == "Cancel",
+                       "the Reset confirm is '%s' with buttons '%s' / '%s', expected 'Reset Combo Rules' with "
+                       "'Reset' / 'Cancel'",
+                       popup.title.c_str(), popup.button1.c_str(), popup.button2.c_str());
+            if (popup.onButton2 != nullptr) {
+                popup.onButton2();
+            }
+            for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
+                ROWS_CHECK(Combo_ComboSettingIsExplicit((ComboSettingId)i), "Cancel cleared '%s'",
+                           Combo_ComboSettingLabel((ComboSettingId)i));
+            }
+            ROWS_CHECK(popup.onButton1 != nullptr, "the Reset confirm's Reset button has no action");
+            if (popup.onButton1 != nullptr) {
+                popup.onButton1();
+            }
+            for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
+                ROWS_CHECK(!Combo_ComboSettingIsExplicit((ComboSettingId)i),
+                           "the Reset confirm's Reset button left '%s' explicitly set",
+                           Combo_ComboSettingLabel((ComboSettingId)i));
+            }
+        }
+        gRecordedPopups.clear();
+        printf("[TEST] leg 9: Reset queues one confirm; Cancel clears nothing, and its Reset button clears all six "
+               "rules\n");
     }
 
     // Leave the process clean: this row writes the six tier-4 keys and freezes

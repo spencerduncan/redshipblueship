@@ -236,8 +236,8 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
         SidebarEntry& rules = combo.sidebars.at("Cross-Game Rules");
         COMBO_CHECK(FindRow(rules, "Combo Rules Status") != nullptr,
                     "the Cross-Game Rules page has no \"Combo Rules Status\" row");
-        COMBO_CHECK(FindRow(rules, "Reset Combo Rules To Defaults") != nullptr,
-                    "the Cross-Game Rules page has no \"Reset Combo Rules To Defaults\" row");
+        COMBO_CHECK(FindRow(rules, "Reset Combo Rules") != nullptr,
+                    "the Cross-Game Rules page has no \"Reset Combo Rules\" row");
         COMBO_CHECK(RowCount(rules) >= 20,
                     "the Cross-Game Rules page holds %zu widgets; the six tier-4 settings alone are a status line, a "
                     "combobox, two sliders, two bitset headers with six checkboxes each, a checkbox and a button",
