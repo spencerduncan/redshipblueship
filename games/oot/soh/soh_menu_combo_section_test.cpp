@@ -32,7 +32,12 @@
  *     button that looks right and opens nothing. Leg 3 pins all seven pairs, and
  *     `EmbedWindow(false)` with them: the embed path calls `DrawElement()`
  *     directly and bypasses MM's `MMActiveGated` wrapper, the only thing keeping
- *     MM tracker UI from drawing while OoT is the running game.
+ *     MM tracker UI from drawing while OoT is the running game. It also pins the
+ *     page's SoH shape (UI parity M5, the shape of Randomizer > Item Tracker):
+ *     each button sits directly under its own separator and carries SoH's
+ *     "Toggles the <Window>." / "Enables the separate <Window> Settings Window."
+ *     tooltip, and every MM tracker row says it shows only while Majora's Mask is
+ *     running.
  *
  *  5. THE PLAYER'S SIDEBAR SELECTION IS STRANDED. Sidebar selection persists BY
  *     DISPLAY-NAME STRING into `gSettings.Menu.RandomizerSidebarSection`, so
@@ -55,6 +60,16 @@
  *     return to the baseline it started from; the production page's own shape is
  *     MenuMmEnhancementRows' invariant, not this row's.
  *
+ *  7. A RENAMED PAGE STRANDS THE SELECTION. The Windows page shipped as "Cross-Game
+ *     Windows" and was renamed on 2026-09-27 because the old name was wider than
+ *     the 200 px sidebar (the snapshot harness drew it as "ross-Game Window");
+ *     the same day "MM Enhancements" became "Majora's Mask", because its 192 px
+ *     label left the selected highlight no padding. Selection persists by
+ *     display name in gSettings.Menu.ComboSidebarSection, so leg 6 drives
+ *     AddMenuCombo over a config holding each old name and requires the new one
+ *     afterwards (a registered page, so the carry table cannot name a page that
+ *     does not exist), and leaves every other value alone.
+ *
  * WHAT IS NOT COVERED. The six tier-4 rules' own behaviour — the staging buffers,
  * the freeze gate, the values-from-the-save rule — is `ComboSettingsRows`, which
  * followed the rows here. This row owns the section's SHAPE. Appearance is
@@ -64,6 +79,8 @@
 #ifdef RSBS_SINGLE_EXECUTABLE
 
 #include "soh/SohGui/SohMenu.h"
+
+#include <libultraship/bridge/consolevariablebridge.h>
 
 #include <cstddef>
 #include <cstdio>
@@ -116,6 +133,20 @@ WidgetInfo* FindRow(SidebarEntry& page, const std::string& name, uint32_t* colum
                     *columnOut = column;
                 }
                 return &row;
+            }
+        }
+    }
+    return nullptr;
+}
+
+// The row registered directly before `row` in its column, or null when `row`
+// opens the column. The Windows page's SoH shape is "separator, then its
+// button", so this is how leg 3 reads which separator a button sits under.
+const WidgetInfo* RowBefore(SidebarEntry& page, const WidgetInfo* row) {
+    for (auto& column : page.columnWidgets) {
+        for (std::size_t i = 0; i < column.size(); i++) {
+            if (&column.at(i) == row) {
+                return i == 0 ? nullptr : &column.at(i - 1);
             }
         }
     }
@@ -194,7 +225,9 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
         COMBO_CHECK(inOrder, "\"Combo\" is in menuEntries but not in menuOrder, so it would never be drawn");
     }
 
-    const char* kShippedPages[] = { "Cross-Game Rules", "Cross-Game Windows" };
+    // "Windows" shipped as "Cross-Game Windows" until 2026-09-27; leg 6 pins the
+    // rename's carried selection.
+    const char* kShippedPages[] = { "Cross-Game Rules", "Windows" };
     for (const char* pageName : kShippedPages) {
         if (!combo.sidebars.contains(pageName)) {
             printf("[TEST] FAIL(1): the Combo section has no \"%s\" sidebar page\n", pageName);
@@ -249,6 +282,8 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
         const char* rowName;
         const char* cVar;
         const char* windowName;
+        const char* separator; // the SEPARATOR_TEXT directly above the button
+        const char* tooltip;
     };
     // The authoritative constants are ComboGui::kComboMMOptions*/kComboSpoiler*/
     // kComboTracker* (src/common/ComboMmOptionsWindow.h, ComboSpoilerWindow.h,
@@ -256,21 +291,35 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
     // (games/mm/2s2h/TrackersGuiSingleExe.h). Restated as literals here on
     // purpose: the point is that the menu's spelling and the window's agree, and
     // sharing a constant would make them agree by construction instead.
+    // The separators and tooltips are SoH's own tracker-page copy
+    // (SohMenuRandomizer.cpp's Item Tracker page), restated here so a rewording
+    // is a deliberate lock edit.
     const WindowRow kWindowRows[] = {
-        { "Toggle MM Randomizer Options", "gCombo.Windows.MMOptions", "Majora's Mask Randomizer Options" },
-        { "Toggle Cross-Game Spoiler", "gCombo.Windows.Spoiler", "Cross-Game Spoiler" },
-        { "Toggle Combo Tracker", "gCombo.Windows.Tracker", "Combo Tracker" },
-        { "Toggle MM Item Tracker", "gWindows.ItemTracker", "MM Item Tracker" },
-        { "Popout MM Item Tracker Settings", "gWindows.ItemTrackerSettings", "MM Item Tracker Settings" },
-        { "Toggle MM Check Tracker", "gWindows.CheckTracker", "MM Check Tracker" },
-        { "Popout MM Check Tracker Settings", "gWindows.CheckTrackerSettings", "MM Check Tracker Settings" },
+        { "Toggle MM Randomizer Options", "gCombo.Windows.MMOptions", "Majora's Mask Randomizer Options",
+          "MM Randomizer Options", "Toggles the Majora's Mask Randomizer Options." },
+        { "Toggle Cross-Game Spoiler", "gCombo.Windows.Spoiler", "Cross-Game Spoiler", "Cross-Game Spoiler",
+          "Toggles the Cross-Game Spoiler." },
+        { "Toggle Combo Tracker", "gCombo.Windows.Tracker", "Combo Tracker", "Combo Tracker",
+          "Toggles the Combo Tracker." },
+        { "Toggle MM Item Tracker", "gWindows.ItemTracker", "MM Item Tracker", "MM Item Tracker",
+          "Toggles the MM Item Tracker. Majora's Mask only." },
+        { "Popout MM Item Tracker Settings", "gWindows.ItemTrackerSettings", "MM Item Tracker Settings",
+          "MM Item Tracker Settings", "Enables the separate MM Item Tracker Settings Window. Majora's Mask only." },
+        { "Toggle MM Check Tracker", "gWindows.CheckTracker", "MM Check Tracker", "MM Check Tracker",
+          "Toggles the MM Check Tracker. Majora's Mask only." },
+        { "Popout MM Check Tracker Settings", "gWindows.CheckTrackerSettings", "MM Check Tracker Settings",
+          "MM Check Tracker Settings", "Enables the separate MM Check Tracker Settings Window. Majora's Mask only." },
     };
-    if (combo.sidebars.contains("Cross-Game Windows")) {
-        SidebarEntry& windows = combo.sidebars.at("Cross-Game Windows");
+    if (!combo.sidebars.contains("Windows")) {
+        printf("[TEST] FAIL(3): the Combo section has no \"Windows\" page, so none of its seven window rows can be "
+               "checked\n");
+        gFailures++;
+    } else {
+        SidebarEntry& windows = combo.sidebars.at("Windows");
         for (const WindowRow& expected : kWindowRows) {
             WidgetInfo* row = FindRow(windows, expected.rowName);
             COMBO_CHECK(row != nullptr,
-                        "the Cross-Game Windows page has no \"%s\" row -- that window is reachable "
+                        "the Windows page has no \"%s\" row -- that window is reachable "
                         "only from the console again",
                         expected.rowName);
             if (row == nullptr) {
@@ -293,8 +342,27 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
                         "MMActiveGated Draw wrapper, which is the only thing keeping MM tracker UI from drawing while "
                         "Ocarina of Time is the running game",
                         expected.rowName);
+            // The SoH tracker-page shape: this button's own separator directly
+            // above it, and SoH's tooltip voice.
+            const WidgetInfo* above = RowBefore(windows, row);
+            COMBO_CHECK(above != nullptr && above->type == WIDGET_SEPARATOR_TEXT && above->name == expected.separator,
+                        "row '%s' sits under '%s', expected its own separator '%s' -- SoH's tracker pages give every "
+                        "window a separator of its own (Randomizer > Item Tracker)",
+                        expected.rowName, above != nullptr ? above->name.c_str() : "(nothing)", expected.separator);
+            const char* tip = options != nullptr ? options->tooltip : nullptr;
+            COMBO_CHECK(tip != nullptr && std::string(tip) == expected.tooltip,
+                        "row '%s' has tooltip \"%s\", expected \"%s\"", expected.rowName,
+                        tip != nullptr ? tip : "(null)", expected.tooltip);
+            // One line, as SoH's own tracker tooltips are: UIWidgets::WrappedText
+            // breaks at 80 characters, and the longer MM caveat this replaced
+            // wrapped a lone "running." onto a second line.
+            COMBO_CHECK(tip == nullptr || std::string(tip).size() <= 80,
+                        "row '%s' has a %zu-character tooltip; UIWidgets::WrappedText wraps past 80, and SoH's tracker "
+                        "tooltips are one line",
+                        expected.rowName, tip != nullptr ? std::string(tip).size() : (std::size_t)0);
         }
-        printf("[TEST] leg 3: all %d cross-game window rows carry a matching CVar/WindowName pair and stay pop-out\n",
+        printf("[TEST] leg 3: all %d cross-game window rows carry a matching CVar/WindowName pair, stay pop-out, and "
+               "sit under their own separator with SoH's tooltip\n",
                (int)(sizeof(kWindowRows) / sizeof(kWindowRows[0])));
     }
 
@@ -320,6 +388,19 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
         } else {
             SidebarEntry& page = randoSidebars.at("Cross-Game");
             COMBO_CHECK(RowCount(page) > 0, "Randomizer / Cross-Game survives with no widgets -- #640's failure mode");
+            // The MEASURE (UI parity M2): two declared columns with the rows in
+            // the first, so the gray note wraps at Randomizer > General's column
+            // width instead of running as one line across the whole page.
+            COMBO_CHECK(page.columnCount == 2,
+                        "Randomizer / Cross-Game declares %u columns, expected 2: with one, its gray note runs as a "
+                        "single line across the page instead of wrapping like Randomizer > General's notes",
+                        page.columnCount);
+            for (std::size_t column = 1; column < page.columnWidgets.size(); column++) {
+                COMBO_CHECK(page.columnWidgets.at(column).empty(),
+                            "Randomizer / Cross-Game has %zu widget(s) in column %zu; the pointer rows belong in the "
+                            "first",
+                            page.columnWidgets.at(column).size(), column);
+            }
             bool pointsAtCombo = false;
             for (auto& column : page.columnWidgets) {
                 for (WidgetInfo& row : column) {
@@ -407,8 +488,7 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
                     "registered plus the one this leg added",
                     order.size(), baselinePages);
         if (order.size() >= baselinePages + 3) {
-            COMBO_CHECK(order.at(0) == "Cross-Game Rules" && order.at(1) == "Cross-Game Windows" &&
-                            order.back() == kExtPageName,
+            COMBO_CHECK(order.at(0) == "Cross-Game Rules" && order.at(1) == "Windows" && order.back() == kExtPageName,
                         "sidebar order is [%s, %s, ..., %s]; the shipped pages must come first and contributed ones "
                         "last",
                         order.at(0).c_str(), order.at(1).c_str(), order.back().c_str());
@@ -449,6 +529,46 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
     }
     printf("[TEST] leg 5: a contributed page is created after the shipped ones with a pinned column, replaces on "
            "re-registration, is refused when invalid, and unregisters cleanly\n");
+
+    // ---- Leg 6: the renamed Windows page carries a persisted selection ------
+    // Menu::DrawElement reads gSettings.Menu.ComboSidebarSection as a display
+    // name and falls back to the first page when no sidebar has it, so without
+    // the carry a config saved on the old name would silently land on Cross-Game
+    // Rules. The key is restored to whatever it held, so AllTests order cannot
+    // leak a selection into a later row.
+    {
+        const char* kSidebarKey = "gSettings.Menu.ComboSidebarSection";
+        const std::string saved = CVarGetString(kSidebarKey, "");
+        struct Carry {
+            const char* before;
+            const char* after;
+        };
+        const Carry kCarries[] = {
+            { "Cross-Game Windows", "Windows" },    // the old name moves to the new one
+            { "Windows", "Windows" },               // the new name stays
+            { "MM Enhancements", "Majora's Mask" }, // the second rename, the same day
+            { "Majora's Mask", "Majora's Mask" },
+            { "Cross-Game Rules", "Cross-Game Rules" }, // a page never renamed is left alone
+        };
+        for (const Carry& carry : kCarries) {
+            CVarSetString(kSidebarKey, carry.before);
+            ComboSectionMenuProbe carryProbe;
+            carryProbe.AddMenuCombo();
+            const std::string now = CVarGetString(kSidebarKey, "");
+            COMBO_CHECK(now == carry.after, "a config holding \"%s\" reads \"%s\" after AddMenuCombo, expected \"%s\"",
+                        carry.before, now.c_str(), carry.after);
+            COMBO_CHECK(carryProbe.Entries().at("Combo").sidebars.contains(now),
+                        "the carried selection \"%s\" names no Combo page, so the menu would fall back to the first",
+                        now.c_str());
+        }
+        if (saved.empty()) {
+            CVarClear(kSidebarKey);
+        } else {
+            CVarSetString(kSidebarKey, saved.c_str());
+        }
+        printf("[TEST] leg 6: selections saved on \"Cross-Game Windows\" and \"MM Enhancements\" are carried to "
+               "\"Windows\" and \"Majora's Mask\"; every other value is left alone\n");
+    }
 
     if (gFailures == 0) {
         printf("[TEST] menu-combo-section: PASS\n");

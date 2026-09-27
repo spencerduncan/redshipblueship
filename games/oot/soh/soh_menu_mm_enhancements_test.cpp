@@ -34,9 +34,18 @@
  *   2. A ROW IS BOUND TO THE WRONG KEY, or to none. `WIDGET_CVAR_CHECKBOX` with a
  *      null or misspelled `.CVar` draws and writes nothing the provider reads.
  *
- *   3. A ROW IS REGISTERED PAST THE COLUMN COUNT. The page declares one column
- *      and `Menu::DrawElement` iterates `columnCount` columns, so a row in a
- *      higher one is registered and never drawn.
+ *   3. A ROW IS REGISTERED PAST THE COLUMN COUNT, or in the wrong column. The
+ *      page declares three columns (UI parity M3: the column measure of its
+ *      reference, Enhancements > Quality of Life) and `Menu::DrawElement`
+ *      iterates `columnCount` columns, so a row in a higher one is registered and
+ *      never drawn. The toggles fill the first column; the first pointer row
+ *      opens the second and the rows after it stay there, so a pointer and the
+ *      rows gated on it are read together. The third is empty, for the measure.
+ *
+ *   9. A TOOLTIP LEAVES SoH's VOICE (docs/ui-style-guide.md R-TT2, R-TT4,
+ *      R-TT6). Every own-row tooltip opens with a present-tense verb, is at most
+ *      two sentences, and ends with the "Majora's Mask only." caveat. The
+ *      runtime lint counts none of that, so leg 6 does.
  *
  *   4. THE PAGE IS EMPTY, or the pointer row is the only thing on it. #640: an
  *      empty multi-column page leaves `SetNextWindowPos` unconsumed and undocks
@@ -247,9 +256,9 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
         for (const SohGui::ComboSectionPage& page : SohGui::GetComboSectionPages()) {
             if (page.sidebarName == pageName) {
                 registered = true;
-                MME_CHECK(page.columnCount == 1,
-                          "the MM enhancement page declares %u columns; it registers rows in the first one only, and "
-                          "Menu::DrawElement iterates columnCount columns",
+                MME_CHECK(page.columnCount == 3,
+                          "the MM enhancement page declares %u columns, expected 3: Quality of Life's count, so its "
+                          "rows have that page's width (the toggles in the first, the Autosave group in the second)",
                           page.columnCount);
                 MME_CHECK(page.registrar != nullptr, "the MM enhancement page registered a null registrar");
             }
@@ -286,15 +295,74 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
     MME_CHECK(rows.size() >= RSBS::kHostedMmEnhancementCount + 1,
               "the MM enhancement page holds %zu widgets; %zu manifest rows plus a heading is the minimum", rows.size(),
               RSBS::kHostedMmEnhancementCount + (std::size_t)1);
-    for (FlatRow& row : rows) {
-        MME_CHECK(row.column == (uint32_t)SECTION_COLUMN_1,
-                  "row \"%s\" is registered in column %u; the page draws one column, so anything past the first is "
-                  "registered and never drawn",
-                  row.info->name.c_str(), row.column);
+    // Which column each row belongs in, from the manifest: the first pointer
+    // row's label opens the second column, and nothing before it may be there.
+    const char* firstPointerLabel = nullptr;
+    for (std::size_t i = 0; i < RSBS::kHostedMmEnhancementCount && firstPointerLabel == nullptr; i++) {
+        if (RSBS::kHostedMmEnhancements[i].hosting == RSBS::MmEnhancementHosting::HostedElsewhere) {
+            firstPointerLabel = RSBS::kHostedMmEnhancements[i].label;
+        }
     }
-    printf("[TEST] leg 1: the page is registered through the extension point, declares one column and holds %zu "
-           "widgets\n",
-           rows.size());
+    bool inSecondGroup = false;
+    std::size_t perColumn[2] = { 0, 0 };
+    for (FlatRow& row : rows) {
+        if (firstPointerLabel != nullptr && row.info->type == WIDGET_SEPARATOR_TEXT &&
+            row.info->name == firstPointerLabel) {
+            inSecondGroup = true;
+        }
+        const uint32_t expected = inSecondGroup ? (uint32_t)SECTION_COLUMN_2 : (uint32_t)SECTION_COLUMN_1;
+        MME_CHECK(row.column == expected,
+                  "row \"%s\" is registered in column %u, expected %u: the toggles fill the first column and the "
+                  "first pointer row opens the second (a row past the page's two columns is never drawn)",
+                  row.info->name.c_str(), row.column, expected);
+        if (row.column < 2) {
+            perColumn[row.column]++;
+        }
+    }
+    MME_CHECK(perColumn[0] > 0 && perColumn[1] > 0,
+              "the page's columns hold %zu and %zu widgets; an empty column in a multi-column page is #640's failure "
+              "mode",
+              perColumn[0], perColumn[1]);
+    printf("[TEST] leg 1: the page is registered through the extension point, declares three columns and holds %zu "
+           "widgets (%zu toggles side, %zu Autosave side)\n",
+           rows.size(), perColumn[0], perColumn[1]);
+
+    // ---- Leg 6: every own-row tooltip is in SoH's voice -----------------------
+    // R-TT2 (present tense, verb first: SoH's "Makes...", "Allows...",
+    // "Toggles..." -- a third-person verb, so the first word ends in 's'),
+    // R-TT4 (one or two sentences, the trailing caveat included) and R-TT6 (the
+    // caveat trails). A pointer row's text is a gray note, not a tooltip, and
+    // is not held to this.
+    {
+        const std::string kCaveat = " Majora's Mask only.";
+        for (std::size_t i = 0; i < RSBS::kHostedMmEnhancementCount; i++) {
+            const RSBS::HostedMmEnhancement& e = RSBS::kHostedMmEnhancements[i];
+            if (e.hosting != RSBS::MmEnhancementHosting::OwnRow) {
+                continue;
+            }
+            const std::string tip = e.tooltip != nullptr ? e.tooltip : "";
+            const std::string firstWord = tip.substr(0, tip.find(' '));
+            MME_CHECK(!firstWord.empty() && firstWord.back() == 's',
+                      "\"%s\"'s tooltip opens with \"%s\", not a present-tense verb (R-TT2: \"Makes...\", "
+                      "\"Toggles...\")",
+                      e.key, firstWord.c_str());
+            std::size_t sentences = 0;
+            for (std::size_t at = tip.find(". "); at != std::string::npos; at = tip.find(". ", at + 2)) {
+                sentences++;
+            }
+            if (!tip.empty() && tip.back() == '.') {
+                sentences++;
+            }
+            MME_CHECK(sentences >= 1 && sentences <= 2,
+                      "\"%s\"'s tooltip is %zu sentences; SoH's are one or two, the trailing caveat included (R-TT4)",
+                      e.key, sentences);
+            MME_CHECK(
+                tip.size() > kCaveat.size() && tip.compare(tip.size() - kCaveat.size(), kCaveat.size(), kCaveat) == 0,
+                "\"%s\"'s tooltip does not end with \"%s\" (R-TT6: the caveat trails)", e.key, kCaveat.c_str() + 1);
+        }
+        printf("[TEST] leg 6: every own-row tooltip opens with a verb, is at most two sentences and ends with the "
+               "Majora's Mask caveat\n");
+    }
 
     // ---- Leg 2: every manifest key has a row, bound to that key -------------
     for (std::size_t i = 0; i < RSBS::kHostedMmEnhancementCount; i++) {

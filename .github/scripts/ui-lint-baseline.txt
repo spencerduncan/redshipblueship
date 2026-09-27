@@ -56,11 +56,3 @@ S6 | src/common/ComboMmOptionsWindow.cpp | ImGui::SetTooltip("%s", text);
 S7 | games/mm/2s2h/Rando/OptionsUiSingleExe.cpp | No logic binding yet (#578 part 3)
 S7 | games/mm/2s2h/Rando/OptionsUiSingleExe.cpp | Retired (ADR 0010 O1): no code will ever read this option
 S7 | games/mm/2s2h/Rando/OptionsUiSingleExe.cpp | Retired: this option never had a consumer and, by operator ruling (ADR 0010 answer O1), never will.
-S7 | games/oot/soh/SohGui/SohMenuRandomizer.cpp::AddCrossGamePointerWidgets | The cross-game combo rules, the cross-game windows and Majora's Mask's trackers now live under the C
-S9 | games/oot/soh/SohGui/SohMenuCombo.cpp | .CVar("gCombo.Windows.MMOptions")
-S9 | games/oot/soh/SohGui/SohMenuCombo.cpp | .CVar("gCombo.Windows.Spoiler")
-S9 | games/oot/soh/SohGui/SohMenuCombo.cpp | .CVar("gCombo.Windows.Tracker")
-S9 | games/oot/soh/SohGui/SohMenuCombo.cpp | .CVar("gWindows.CheckTracker")
-S9 | games/oot/soh/SohGui/SohMenuCombo.cpp | .CVar("gWindows.CheckTrackerSettings")
-S9 | games/oot/soh/SohGui/SohMenuCombo.cpp | .CVar("gWindows.ItemTracker")
-S9 | games/oot/soh/SohGui/SohMenuCombo.cpp | .CVar("gWindows.ItemTrackerSettings")

@@ -88,8 +88,17 @@ namespace {
  * DISPLAY-NAME STRING into `gSettings.Menu.ComboSidebarSection`, so renaming it
  * strands every config that last had it open — the measured reason ADR 0004's
  * resolved call 1 refused to rename a header.
+ *
+ * RENAMED 2026-09-27 (UI parity, lane U3) from "MM Enhancements", and carried:
+ * that label measured 192 px in Montserrat 24, the sidebar child's whole clip
+ * width, so the selected entry's highlight lost its side padding and its
+ * rounded corners to the clip rect. "Majora's Mask" fits with the padding SoH's
+ * own entries get. SohMenuCombo.cpp's ComboSidebarCarryRenamedSelection moves a
+ * stored "MM Enhancements" to this name before the first draw reads the key,
+ * and MenuComboSection leg 6 pins it (and that the carried-to name is a
+ * registered page, so the two spellings cannot drift apart silently).
  */
-constexpr const char* kMmEnhancementsPage = "MM Enhancements";
+constexpr const char* kMmEnhancementsPage = "Majora's Mask";
 
 /** ADR 0004 section 6's state for a row whose provider is not fully live. */
 SohMenuPresentation PresentationFor(RSBS::MmEnhancementLiveness liveness) {
@@ -162,12 +171,26 @@ WidgetFunc ShownWhilePreFunc(std::size_t index) {
  * name, so that the row exercises the real seam instead of a shortcut.
  */
 void AddMmEnhancementWidgets(SohMenu& menu, WidgetPath& path) {
+    // THREE COLUMNS, TWO FILLED (UI parity M3): the column measure of the page's
+    // reference, Enhancements > Quality of Life, which registers three. The
+    // toggles take the first and the Autosave group the second; the third is
+    // left empty, so every row is exactly as wide as the Quality of Life row it
+    // is read beside. As one full-width column the interval slider ran the
+    // whole width of the page, three times as wide as any slider on Quality of
+    // Life, and as two columns it was still half again as wide. An empty
+    // trailing column is not #640: Menu::DrawElement takes the column path when
+    // ANY column holds widgets and draws only those. The split is by manifest
+    // ORDER: the first pointer row opens the second column and everything after
+    // it stays there, so a pointer row and the rows gated on it (which the
+    // manifest lists after it, MenuMmEnhancementRows leg 5) share a column.
+    path.column = SECTION_COLUMN_1;
     menu.AddWidget(path, "Majora's Mask Enhancements", WIDGET_SEPARATOR_TEXT);
 
     for (std::size_t i = 0; i < RSBS::kHostedMmEnhancementCount; i++) {
         const RSBS::HostedMmEnhancement& row = RSBS::kHostedMmEnhancements[i];
 
         if (row.hosting == RSBS::MmEnhancementHosting::HostedElsewhere) {
+            path.column = SECTION_COLUMN_2;
             // A POINTER ROW, not a second checkbox. Something in the unified menu
             // already writes this key, and since #539 every SohMenu widget
             // funnels through OoT's `ShipInit::Init`, which forwards to MM's
@@ -236,12 +259,12 @@ void AddMmEnhancementWidgets(SohMenu& menu, WidgetPath& path) {
  * function-local call would need a caller, and the only candidate is the TU this
  * seam exists to avoid editing.
  *
- * One column, and the page holds seven widgets (the heading separator, three
- * checkboxes, the pointer row's separator + text, and #693's interval slider
- * right after the pointer row it belongs to), so it is not #640's empty
- * multi-column page.
+ * Three columns, Quality of Life's count, and the page holds seven widgets (the
+ * heading separator and three checkboxes in the first; the pointer row's
+ * separator + text and #693's interval slider right after it in the second; the
+ * third empty, for the measure), so the page is not #640's empty page.
  */
-static RegisterComboSectionPage_t sMmEnhancementsPage(kMmEnhancementsPage, 1, AddMmEnhancementWidgets);
+static RegisterComboSectionPage_t sMmEnhancementsPage(kMmEnhancementsPage, 3, AddMmEnhancementWidgets);
 
 /** The page's registered name, for the lock. Defined here so the test cannot
  *  drift from the registration by spelling the literal a second time. */
