@@ -11,6 +11,13 @@
 #include "soh/ResourceManagerHelpers.h"
 #include "soh/Enhancements/game-interactor/GameInteractor_Hooks.h"
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// RSBS (#762): the paired game's end under the frozen combo goal. Declared here
+// because games/oot/src/**.c has no src/common on its include path; defined in
+// soh/Enhancements/randomizer/ComboGoalEndingOoT.cpp.
+int OoT_ComboGoal_RedirectEndingIfWithheld(PlayState* play);
+#endif
+
 #include <string.h>
 
 #define FLAGS                                                                                 \
@@ -1862,6 +1869,11 @@ void func_8090120C(BossGanon2* this, PlayState* play) {
             play->transitionTrigger = TRANS_TRIGGER_START;
             play->transitionType = TRANS_TYPE_FADE_WHITE;
             play->linkAgeOnLoad = 1;
+#ifdef RSBS_SINGLE_EXECUTABLE
+            // RSBS (#762): a paired world whose frozen goal is still unmet gets no
+            // ending here; the warp is rewritten to Ganon's Tower (combo_goal.h).
+            OoT_ComboGoal_RedirectEndingIfWithheld(play);
+#endif
             break;
     }
 

@@ -2,6 +2,10 @@
 #include "soh/ShipInit.hpp"
 
 extern "C" SaveContext gSaveContext;
+#ifdef RSBS_SINGLE_EXECUTABLE
+// soh/Enhancements/randomizer/ComboGoalEndingOoT.cpp
+extern "C" int OoT_ComboGoal_OnGanonDefeated(void);
+#endif
 
 #define BOSS_DEFEAT_TIMESTAMP(actorID, timestamp) \
     COND_ID_HOOK(OnBossDefeat, actorID, true,     \
@@ -19,8 +23,17 @@ static void RegisterBossDefeatTimestamps() {
     BOSS_DEFEAT_TIMESTAMP(ACTOR_BOSS_GANON, TIMESTAMP_DEFEAT_GANONDORF);
     BOSS_DEFEAT_TIMESTAMP(ACTOR_BOSS_GANON2, TIMESTAMP_DEFEAT_GANON);
 
-    COND_ID_HOOK(OnBossDefeat, ACTOR_BOSS_GANON2, true,
-                 [](void* refActor) { gSaveContext.ship.stats.gameComplete = true; });
+    COND_ID_HOOK(OnBossDefeat, ACTOR_BOSS_GANON2, true, [](void* refActor) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // RSBS (#762): in a paired world whose frozen goal is still unmet the
+        // game is not complete, so OoT's stat timers keep running. The defeat is
+        // recorded (src/common/combo_goal.h).
+        if (!OoT_ComboGoal_OnGanonDefeated()) {
+            return;
+        }
+#endif
+        gSaveContext.ship.stats.gameComplete = true;
+    });
 }
 
 static RegisterShipInitFunc initFunc(RegisterBossDefeatTimestamps);

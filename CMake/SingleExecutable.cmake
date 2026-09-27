@@ -129,6 +129,10 @@ set(REDSHIP_COMMON_SOURCES
     # registry each ORIGIN game answers through. Game-header-free. APPENDED,
     # never reordered.
     ${CMAKE_SOURCE_DIR}/src/common/foreign_textbox_icon.c
+    # The paired game's END under the frozen combo goal (#762, OoTMM parity):
+    # the defeat record, the goal predicate and the decision both ports' ending
+    # sites call. Game-header-free. APPENDED, never reordered.
+    ${CMAKE_SOURCE_DIR}/src/common/combo_goal.c
 )
 
 # Windows-specific: import thunks for libultraship compatibility
@@ -209,6 +213,8 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/notification_layout_probe.h
     # Header for triforce_hunt.c above (ADR 0010 O10)
     ${CMAKE_SOURCE_DIR}/src/common/triforce_hunt.h
+    # Header for combo_goal.c above (#762)
+    ${CMAKE_SOURCE_DIR}/src/common/combo_goal.h
 )
 
 # ============================================================================
@@ -1990,6 +1996,14 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # vendored header decode and the icon draw put OoT's texture in MM's textbox at
     # its own format and size. Static tables and a heap PlayState: default tier.
     redship_add_test(NAME ForeignTextboxIcon COMMAND redship --test foreign-textbox-icon)
+
+    # THE PAIRED GAME'S END (#762, OoTMM parity): the frozen goal's predicate over
+    # the two final-boss defeats recorded in sharedFlags, the decision for every
+    # goal value in both orders (beat-both withholds the first boss's ending and
+    # plays the second's), unpaired files ending as upstream, and both ports' REAL
+    # ending sites (BossGanon2's warp, Majora's warp and new-day save) on a heap
+    # PlayState. ROM-free and display-free: default tier.
+    redship_add_test(NAME ComboGoalEnding COMMAND redship --test combo-goal-ending)
 
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)

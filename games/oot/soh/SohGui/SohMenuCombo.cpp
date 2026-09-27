@@ -522,8 +522,9 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
         .Callback([](WidgetInfo& info) { Combo_ComboSettingSet(COMBO_SETTING_GOAL, comboRuleGoal); })
         .Options(ComboboxOptions()
                      .ComboMap(comboRuleGoalOptions)
-                     .Tooltip("Chooses which final boss the seed guarantees you can reach and defeat. Meeting it "
-                              "does not end the paired game: each boss plays its own game's ending.\n\n"
+                     .Tooltip("Chooses which final boss the seed guarantees you can reach and defeat. The paired "
+                              "game ends when the goal is met. A final boss defeated before then sends you back "
+                              "into its game.\n\n"
                               "Ganon & Majora: Defeat both Ganon and Majora, in any order. Both games are "
                               "finishable.\n"
                               "Any Final Boss: Defeat either Ganon or Majora. The other game may be unfinishable.\n"

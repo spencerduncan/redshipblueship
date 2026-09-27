@@ -2009,3 +2009,54 @@ first attempt, all three placed on MM checks, and returns `goal-unprovable`
 under `beat-mm` and `beat-both` on the same bag, seed and engines); and by
 `ComboSingleBag`, which checks that the real creation event computes its
 warning from its own fill and, under the shipped `beat-both`, names nothing.
+
+### 2026-09-27 -- D1: meeting the goal ends the paired game (#762)
+
+The divergence the previous amendment recorded is closed. The paired game
+now ends the way OoTMM's does: the final-boss defeat that makes the frozen
+goal expression true plays its own game's ending, and a final-boss defeat
+that leaves it false plays no ending.
+
+- **What OoTMM does** (read at OoTMM/OoTMM 57cc028b,
+  `packages/generator/src`): `common/config.c` `Config_IsGoal()` is false
+  while the goal names a boss that is not yet beaten. `oot/play/play.c`
+  `endGame()` sets the durable "Ganon beaten" flag on OoT's post-Ganon
+  ending entrance, saves, and plays the ending only when `Config_IsGoal()`
+  holds; otherwise the player stays in OoT (Ganon's Castle exterior, or
+  Ganon's Tower under entrance shuffle). `mm/play/play.c` sets "Majora
+  beaten" on the arrival that starts MM's ending and, when the goal is not
+  met, sets day 0 at 05:59, makes the new-day save and warps to the start of
+  a new cycle. Neither shows a message. Under the triforce goals the last
+  piece calls `comboCreditWarp()` (`common/triggers.c`) and both final
+  bosses are locked away (`oot/doors.c`, `mm/actors/En/En_Js.c`).
+- **The record.** Each game's final-boss defeat is one bit in
+  `gComboCtx.sharedFlags` word 0 (bit 0 Ganon, bit 1 Majora), the first
+  bits ADR 0002's kept array has carried. It is session state: the
+  creation event's invalidation zeroes it (the KEEP set does not name it),
+  the `.redsave` Tier-1 record carries it, and it is resident across a game
+  switch.
+- **The predicate** (`src/common/combo_goal.c`, `Combo_GoalMet`) reads the
+  FROZEN goal only and evaluates it with the coordinator's own expression
+  (`Combo_Logic_EvaluateGoal`), so the runtime end and the creation's proof
+  mean the same thing by a goal. `triforce-hunt` is the shared piece count
+  against the frozen combo requirement (`Combo_Logic_EvaluateTriforceHunt`);
+  neither boss is a term of it.
+- **The ending sites** (guarded by `RSBS_SINGLE_EXECUTABLE`): BossGanon2's
+  final blow gates OoT's "game complete" stat mark, and its warp to the
+  Chamber of the Sages (cutscene 0xFFF2) is rewritten, when the goal is
+  unmet, to Ganon's Tower as an adult after one save
+  (`ComboGoalEndingOoT.cpp`). Ganon's Tower is used in every case because
+  OoT's own load puts a save made in Ganon's arena there. Majora's final
+  blow gates MM's `OnGameCompletion`, and its warp to Termina Field
+  (cutscene 0xFFF7) is rewritten, when the goal is unmet, to OoTMM's
+  sequence: day 0 at 05:59, MM's own new-day save
+  (`Sram_SaveSpecialNewDay`), South Clock Town (`ComboGoalEndingMM.cpp`).
+  Without a frozen combo record every site is a no-op and each game ends
+  as upstream.
+- **Not covered:** a half's own triforce hunt in a world whose combo goal
+  is not triforce-hunt still ends that half's game through its own win arm.
+
+Locked by `ComboGoalEnding` (the predicate for all five values, the
+decision for every goal in both orders, unpaired files, the record's
+lifetime, and both ports' real ending sites on a heap PlayState). The Goal
+row's tooltip now says "The paired game ends when the goal is met".

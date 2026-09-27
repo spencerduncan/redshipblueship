@@ -706,6 +706,11 @@ extern "C" {
 // (its MM half is games/mm/2s2h/Rando/ForeignTextboxIconSingleExe.cpp). FILE
 // SCOPE (compiled as C++).
 #include "tests/test_foreign_textbox_icon.c"
+// The paired game's end under the frozen combo goal (#762): the predicate, the
+// decision for every goal in both orders, and both ports' real ending sites (their
+// halves are games/oot/soh/oot_combo_goal_test.cpp and
+// games/mm/2s2h/mm_combo_goal_test.cpp). FILE SCOPE (compiled as C++).
+#include "tests/test_combo_goal.c"
 
 // MM scene-command EXECUTE regression (issue #344). Unlike the parse test, the
 // body runs the parsed commands against a PlayState, so it needs MM's global.h
@@ -4612,6 +4617,11 @@ const TestDescriptor gTests[] = {
      "item answers a well-formed icon with an MM textbox branch, unknown ids fall back to the icon-less textbox, and "
      "the real load, header decode and draw carry it (#607)",
      Test_ForeignTextboxIcon},
+    {"combo-goal-ending",
+     "The paired game ends when the frozen goal is met, in the game whose final boss meets it: beat-both withholds "
+     "the first boss's ending and plays the second's, single-game goals end on their own boss, triforce-hunt on the "
+     "shared count, unpaired files as upstream, through both ports' real ending sites (#762)",
+     Test_ComboGoalEnding},
     {nullptr, nullptr, nullptr}  // Sentinel
 };
 

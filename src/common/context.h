@@ -654,8 +654,9 @@ typedef struct {
     GameId sourceGame;
     uint16_t sourceEntrance;
     // KEPT (ADR 0002): origin-neutral event bits, so the shape has no id-space
-    // aliasing hazard. Still unwired; which bit means what is assigned by Lane
-    // A1 and later — until something writes a bit, every word stays zero.
+    // aliasing hazard. Assigned bits (append-only, never renumbered):
+    //   word 0 bit 0/1 -- OoT's / MM's final boss defeated (#762, combo_goal.h).
+    // Every other bit stays zero until something assigns it here.
     uint32_t sharedFlags[64];
     // RETIRED IN PLACE (ADR 0002): never wired — zero non-test producers or
     // consumers ever shipped, and the un-tagged uint16_t shape is exactly the
