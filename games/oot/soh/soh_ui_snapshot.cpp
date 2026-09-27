@@ -48,8 +48,10 @@
  * player's imgui.ini path is left armed and ImGui's shutdown save is run),
  * player-config (the harness names the player's shipofharkinian.json as its
  * config), hover-first-line (a hovered row draws only its tooltip's first
- * line). A sabotaged run is expected to fail; docs/ui-style-guide.md section
- * 12 lists what each one must turn red.
+ * line), no-menu-under (the creation overlay's over-menu variant leaves the
+ * menu hidden), no-dim (the creation overlay's dim is drawn transparent). A
+ * sabotaged run is expected to fail; docs/ui-style-guide.md section 12 lists
+ * what each one must turn red.
  *
  * ============================================================================
  * HOW A FRAME IS MADE (and why each step is where it is)
@@ -93,7 +95,9 @@
 #include "soh/OTRGlobals.h"
 #include "soh/SohGui/SohGui.hpp"
 #include "soh/SohGui/SohMenu.h"
+#include "soh/SohGui/UIWidgets.hpp"
 #include "soh/SohGui/CreationProgressOverlay.h"
+#include "soh/Notification/Notification.h"
 
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -112,6 +116,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cinttypes>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -133,11 +138,13 @@
 #include "combo_mm_options_view.h"
 #include "combo_mm_tricks_view.h"
 #include "combo_settings_view.h"
+#include "combo_ui.h"
 #include "context.h"
 #include "cvar_shared_keys.h"
 #include "foreign_items.h"
 #include "gen_progress_overlay.h"
 #include "headless_crash.h"
+#include "notification_bridge.h"
 #include "rsbs_version.h"
 #include "ui_snapshot_image.h"
 
@@ -146,6 +153,10 @@ extern "C" int OoT_InitSharedContextSubsystems(void);
 extern "C" void MM_TrackersGui_Init(void);
 // The build-stamp commit hash (games/oot/src/boot/build.c), for the manifest.
 extern "C" const char OoT_gGitCommitHash[];
+// The creation seam's two toasts (games/oot/soh/Enhancements/randomizer/ForeignItemsSingleExe.cpp),
+// drawn from their production emitters so a toast page shows what a player gets.
+extern "C" void OoT_Creation_EmitShortfallToast(int placed, int requested);
+extern "C" void OoT_Creation_ReportFailureAtFileSelect(int slot, int reason);
 
 namespace SohGui {
 // Defined in SohMenuRandomizer.cpp and declared in no header (the combo section
@@ -701,7 +712,7 @@ struct InputSuppression {
 // The page model
 // ============================================================================
 
-enum class Kind { MENU_PAGE, WINDOW, OVERLAY, MODAL };
+enum class Kind { MENU_PAGE, WINDOW, OVERLAY, MODAL, TOAST };
 enum class Origin { RSBS, SOH_REFERENCE };
 
 const char* KindName(Kind k) {
@@ -714,6 +725,8 @@ const char* KindName(Kind k) {
             return "OVERLAY";
         case Kind::MODAL:
             return "MODAL";
+        case Kind::TOAST:
+            return "TOAST";
     }
     return "?";
 }
@@ -724,7 +737,7 @@ struct PageSpec {
     Kind kind = Kind::MENU_PAGE;
     std::string header;
     std::string sidebar;
-    std::string window; // WINDOW/OVERLAY/MODAL: the ImGui window name to crop
+    std::string window; // WINDOW/OVERLAY/MODAL: the ImGui window name to crop (TOAST: a name prefix)
     std::string compareWith;
     bool compareDefaulted = false;
     std::vector<std::string> states; // "" = the default state
@@ -753,6 +766,16 @@ struct PageSpec {
     // The row-state probe: a harness-only Combo sidebar installed for this page's
     // captures and removed afterwards (see InstallRowStateProbe).
     bool rowStateProbe = false;
+    // WINDOW only: hover variants on a pane row, found by the label it passes to
+    // the combo_ui seam (a pane has no WidgetInfo whose postFunc could be
+    // wrapped), each captured in one named state.
+    struct PaneHover {
+        std::string name;
+        std::string state;
+        std::string label;
+        bool disabled = false; // the row is disabled: its tooltip must be SoH's disabled shape
+    };
+    std::vector<PaneHover> paneHovers;
 };
 
 struct Capture {
@@ -881,9 +904,13 @@ class Session {
     void CaptureWindowPage(const PageSpec& p);
     void CaptureOverlay(const PageSpec& p);
     void CaptureModal(const PageSpec& p);
+    void CaptureModalVariant(const PageSpec& p, const std::string& state);
+    void CaptureToast(const PageSpec& p);
     void Navigate(const PageSpec& p);
     std::vector<ImGuiWindow*> SectionChildren(const PageSpec& p);
     bool Oracle(const PageSpec& p, Capture& c);
+    bool HoverVerdict(Capture& c, const std::string& label, const std::string& authoredTip);
+    static void DisabledShapeVerdict(Capture& c, const std::string& label, const std::string& authoredTip);
     void Finish(Capture& c, const PageSpec& p);
     void Record(Capture&& c);
 
@@ -1377,8 +1404,42 @@ void Session::BuildPageList() {
         p.origin = Origin::SOH_REFERENCE;
         p.kind = Kind::MODAL;
         p.window = "Clear Config";
-        p.states = { "" };
+        // over-menu: the same modal over the same open menu page the creation
+        // overlay's over-menu variant sits on (Combo > Cross-Game Rules), so the
+        // two can be read side by side: the dim, and what shows through the box.
+        p.states = { "", "over-menu" };
         p.expectText = { "Clear Config", "Cancel" };
+        p.scroll = false;
+        pages.push_back(p);
+    }
+    {
+        // SoH's one progress dialog: the ROM-extraction modal (OTRGlobals.cpp,
+        // RunExtract), drawn by PushExtractionFrameStyle + DrawExtractionReference
+        // below at a fixed half-way state. The creation overlay is a progress
+        // dialog too, so this is its reference; "Clear Config" stays the reference
+        // for confirms. The copy is held to RunExtract's style statements by the
+        // static lint (check-ui-parity-lint.py, "C1"), so it cannot drift silently.
+        PageSpec p;
+        p.id = "modal/ROM Extraction";
+        p.origin = Origin::SOH_REFERENCE;
+        p.kind = Kind::MODAL;
+        p.window = "ROM Extraction";
+        p.states = { "" };
+        p.expectText = { "ROM Extraction", "Extracting" };
+        p.scroll = false;
+        pages.push_back(p);
+    }
+    {
+        // SoH's own toast shape (Enhancements/QoL/Autosave.cpp): one short message,
+        // Notification::Options' default colours and the player's configured
+        // duration. Muted here only so the harness plays no sound.
+        PageSpec p;
+        p.id = "toast/Game Autosaved";
+        p.origin = Origin::SOH_REFERENCE;
+        p.kind = Kind::TOAST;
+        p.window = "notification#";
+        p.states = { "" };
+        p.expectText = { "Game autosaved" };
         p.scroll = false;
         pages.push_back(p);
     }
@@ -1495,14 +1556,32 @@ void Session::BuildPageList() {
         p.states = { "unpaired", "frozen", "mm-suspended", "tricks-open" };
         p.compareWith = "Randomizer/Logic/Access";
         p.expectText = { ComboGui::kComboMMOptionsWindowName };
-        // ComboMmOptionsWindow.cpp's pairing summary, frozen banner, active-game
-        // line and Tricks headline, plus the first trick row of the area the
-        // tricks-open state expands (FirstTrickArea). Matched against the pane's
-        // VISIBLE-ONLY log, so each one was on screen in some captured view.
+        // ComboMmOptionsWindow.cpp's state note (unpaired, frozen), its
+        // suspended note and the Tricks headline, plus the first trick row of the
+        // area the tricks-open state expands (FirstTrickArea). Matched against
+        // the pane's VISIBLE-ONLY log, so each one was on screen in some
+        // captured view.
         p.stateText["unpaired"] = { "No paired world yet" };
-        p.stateText["frozen"] = { "Frozen at creation" };
-        p.stateText["mm-suspended"] = { "Majora's Mask - suspended" };
+        p.stateText["frozen"] = { "Already decided when this world was created" };
+        p.stateText["mm-suspended"] = { "Majora's Mask is suspended" };
         p.stateText["tricks-open"] = { "trick keys are wired to logic" };
+        // Hovers, through the combo_ui seam's rect recorder: the first option row
+        // (its description), the first capability-blocked row (SoH's disabled
+        // shape with the model's reason), and the first row again while frozen
+        // (the same shape, "Already Decided"). The rows come from the table, so
+        // a relabel moves the hover with it.
+        if (Combo_MMOptionCount() > 0 && Combo_MMOptionAt(0) != nullptr) {
+            p.paneHovers.push_back({ "first-row", "unpaired", Combo_MMOptionAt(0)->label, false });
+            p.paneHovers.push_back({ "frozen-row", "frozen", Combo_MMOptionAt(0)->label, true });
+        }
+        for (int i = 0; i < Combo_MMOptionCount(); i++) {
+            const ComboMMOptionDesc* d = Combo_MMOptionAt(i);
+            if (d != nullptr &&
+                (d->liveness == COMBO_MM_LIVENESS_PARTIAL || d->liveness == COMBO_MM_LIVENESS_DORMANT)) {
+                p.paneHovers.push_back({ "blocked-row", "unpaired", d->label, true });
+                break;
+            }
+        }
         {
             int area = -1;
             const ComboMMTrickDesc* first = FirstTrickArea(&area);
@@ -1551,14 +1630,48 @@ void Session::BuildPageList() {
         p.scroll = false;
         pages.push_back(p);
     }
+    // Ours: the MM options pane's Reset confirm, queued through the same call
+    // the pane's Reset button makes (Combo_MMOptionsRequestReset), so the capture
+    // is the popup a player gets.
+    {
+        PageSpec p;
+        p.id = std::string("modal/") + ComboGui::kComboMMOptionsResetTitle;
+        p.origin = Origin::RSBS;
+        p.kind = Kind::MODAL;
+        p.window = ComboGui::kComboMMOptionsResetTitle;
+        p.states = { "" };
+        p.compareWith = "modal/Clear Config";
+        p.expectText = { ComboGui::kComboMMOptionsResetTitle, "Cancel" };
+        p.scroll = false;
+        pages.push_back(p);
+    }
     {
         PageSpec p;
         p.id = "overlay/creation-progress";
         p.kind = Kind::OVERLAY;
-        p.window = "Creating your paired world";
+        p.window = "Creating Your Paired World";
+        // over-menu: the menu left open under the overlay, as a pumped frame draws
+        // it (Gui::StartDraw -> DrawMenu). A modal dims the menu too, and this
+        // variant's oracle (DimOracle) requires the overlay's dim to: the menu
+        // drawn, the dim window between it and the box, and every pixel outside
+        // the box equal to the undimmed menu blended with ModalWindowDimBg.
+        p.states = { "", "over-menu" };
+        p.compareWith = "modal/ROM Extraction";
+        p.expectText = { "Creating Your Paired World" };
+        p.scroll = false;
+        pages.push_back(p);
+    }
+    for (const auto& [id, text] : std::vector<std::pair<std::string, std::string>>{
+             { "toast/creation-shortfall", "Fewer cross-game items:" },
+             { "toast/creation-failure", "Not created:" },
+         }) {
+        PageSpec p;
+        p.id = id;
+        p.kind = Kind::TOAST;
+        p.window = "notification#";
         p.states = { "" };
-        p.compareWith = "modal/Clear Config";
-        p.expectText = { "Creating your paired world" };
+        p.compareWith = "toast/Game Autosaved";
+        p.expectText = { text };
         p.scroll = false;
         pages.push_back(p);
     }
@@ -2080,6 +2193,9 @@ std::string ComboMapAudit(Ship::Menu& m, const PageSpec& p) {
     return out;
 }
 
+/** The capture cropped to its content rectangle plus a 4 px margin (defined with the composites). */
+bool CropContent(const Capture& c, UiImage* outImg);
+
 void Session::Finish(Capture& c, const PageSpec& p) {
     c.spec = &p;
     if (c.status == "fail" && c.reason.find("exception") != std::string::npos && p.kind == Kind::MENU_PAGE) {
@@ -2101,9 +2217,18 @@ void Session::Finish(Capture& c, const PageSpec& p) {
                    std::to_string(profile.w) + "x" + std::to_string(profile.h);
         return;
     }
-    // Assert 3: not blank.
+    // Assert 3: not blank. A toast is a small window in a corner by design, so its
+    // share of the whole frame says nothing about it (SoH's own "Game autosaved"
+    // covers 0.3% of a 1280x800 frame); it is measured inside its own rectangle,
+    // which CaptureToast's oracle has already required to be exactly one window.
     uint32_t modal = 0;
-    UiImage_Stats(&c.image, 4096, &modal, &c.nonBlank, &c.distinct);
+    UiImage toastCrop = { 0, 0, nullptr };
+    const UiImage* measured = &c.image;
+    if (p.kind == Kind::TOAST && CropContent(c, &toastCrop)) {
+        measured = &toastCrop;
+    }
+    UiImage_Stats(measured, 4096, &modal, &c.nonBlank, &c.distinct);
+    UiImage_Free(&toastCrop);
     if (c.nonBlank < 0.005 || c.distinct < 16) {
         c.status = "fail";
         c.reason = "the capture is blank (" + std::to_string(c.nonBlank * 100.0) + "% non-modal pixels, " +
@@ -2430,70 +2555,11 @@ void Session::CaptureMenuPage(const PageSpec& p) {
                 row->options->tooltip = savedTooltip;
             }
             Finish(c, p);
-            // Every authored line of the tooltip this row's PreFunc set up (a
-            // disabled row shows its disabled tooltip instead), each as a prefix
-            // that sits on that line's first wrapped line. All of them, not the
-            // first: SoH's disabled shape opens every disabled row's tooltip with
-            // the same "This setting is disabled because:", so only the reason line
-            // shows that THIS row's tooltip was drawn.
-            c.hoverLines = TooltipLinePrefixes(authoredTip);
-            c.hoverText = c.hoverLines.empty() ? std::string() : c.hoverLines.front();
-            if (c.status == "pass") {
-                if (c.hoverLines.empty()) {
-                    c.status = "fail";
-                    c.reason = "the hovered row \"" + label + "\" has no tooltip to show";
-                }
-                for (const std::string& line : c.hoverLines) {
-                    if (c.status != "pass") {
-                        break;
-                    }
-                    if (c.text.find(line) == std::string::npos) {
-                        c.status = "fail";
-                        c.reason =
-                            "the hover capture does not show its row's tooltip: \"" + line + "\" is not in its text";
-                        break;
-                    }
-                    // Contrast: the same state's captures WITHOUT the pointer must not
-                    // hold it, or its presence here proves nothing about a tooltip.
-                    for (const Capture& other : captures) {
-                        if (other.id == c.id && other.state == c.state && other.hover.empty() &&
-                            other.text.find(line) != std::string::npos) {
-                            c.status = "fail";
-                            c.reason = "\"" + line + "\" is also in " + other.variant +
-                                       ", captured without the pointer, so it does not prove a tooltip";
-                            break;
-                        }
-                    }
-                }
-                // The row-state probe's hovers are the four presentation states'
-                // disabled rows: each must show SoH's disabled shape (a), and no
-                // tracker number (ADR 0004's 2026-09-27 amendment). Checked on the
-                // AUTHORED tooltip, which the loop above has just proved is drawn.
-                if (c.status == "pass" && p.rowStateProbe) {
-                    const std::string head = "This setting is disabled because:";
-                    bool number = false;
-                    for (std::size_t k = 0; k + 1 < authoredTip.size(); k++) {
-                        if (authoredTip[k] == '#' && authoredTip[k + 1] >= '0' && authoredTip[k + 1] <= '9') {
-                            number = true;
-                        }
-                    }
-                    if (authoredTip.compare(0, head.size(), head) != 0) {
-                        c.status = "fail";
-                        c.reason = "the hovered row \"" + label + "\" does not show SoH's disabled tooltip (\"" + head +
-                                   "\" then \"- <Reason>\"): \"" + authoredTip + "\"";
-                    } else if (number) {
-                        c.status = "fail";
-                        c.reason = "the hovered row \"" + label + "\" prints a tracker number in its tooltip: \"" +
-                                   authoredTip + "\"; the issue belongs in the capability's record, not in the pixels";
-                    }
-                }
-                for (const std::string& line : c.hoverLines) {
-                    if (c.text.find(line) != std::string::npos) {
-                        c.found.push_back(line);
-                    } else {
-                        c.missing.push_back(line);
-                    }
-                }
+            // The row-state probe's hovers are the four presentation states'
+            // disabled rows: each must show SoH's disabled shape (a), and no
+            // tracker number (ADR 0004's 2026-09-27 amendment).
+            if (HoverVerdict(c, label, authoredTip) && p.rowStateProbe) {
+                DisabledShapeVerdict(c, label, authoredTip);
             }
             Record(std::move(c));
             // Put the pointer away and re-settle so the next capture has no hover.
@@ -2506,7 +2572,104 @@ void Session::CaptureMenuPage(const PageSpec& p) {
     }
 }
 
+/**
+ * A hover capture's verdict, shared by menu rows and pane rows: every authored
+ * line of the tooltip the row set up (a disabled row shows its disabled tooltip
+ * instead), each as a prefix that sits on that line's first wrapped line, must
+ * be in the capture's text. All of them, not the first: SoH's disabled shape
+ * opens every disabled row's tooltip with the same "This setting is disabled
+ * because:", so only the reason line shows that THIS row's tooltip was drawn.
+ * Each line must also be ABSENT from the same state's captures without the
+ * pointer, or its presence proves nothing about a tooltip. Returns false when the
+ * capture had already failed (nothing was judged).
+ */
+bool Session::HoverVerdict(Capture& c, const std::string& label, const std::string& authoredTip) {
+    c.hoverLines = TooltipLinePrefixes(authoredTip);
+    c.hoverText = c.hoverLines.empty() ? std::string() : c.hoverLines.front();
+    if (c.status != "pass") {
+        return false;
+    }
+    if (c.hoverLines.empty()) {
+        c.status = "fail";
+        c.reason = "the hovered row \"" + label + "\" has no tooltip to show";
+    }
+    for (const std::string& line : c.hoverLines) {
+        if (c.status != "pass") {
+            break;
+        }
+        if (c.text.find(line) == std::string::npos) {
+            c.status = "fail";
+            c.reason = "the hover capture does not show its row's tooltip: \"" + line + "\" is not in its text";
+            break;
+        }
+        for (const Capture& other : captures) {
+            if (other.id == c.id && other.state == c.state && other.hover.empty() &&
+                other.text.find(line) != std::string::npos) {
+                c.status = "fail";
+                c.reason = "\"" + line + "\" is also in " + other.variant +
+                           ", captured without the pointer, so it does not prove a tooltip";
+                break;
+            }
+        }
+    }
+    for (const std::string& line : c.hoverLines) {
+        if (c.text.find(line) != std::string::npos) {
+            c.found.push_back(line);
+        } else {
+            c.missing.push_back(line);
+        }
+    }
+    return true;
+}
+
+/**
+ * A hovered DISABLED row's tooltip must be SoH's disabled shape (a) ("This
+ * setting is disabled because:" then "- <Reason>") and carry no tracker number
+ * (ADR 0004's 2026-09-27 amendment). Checked on the AUTHORED tooltip, which
+ * HoverVerdict has just proved is drawn; a no-op on a capture that already failed.
+ */
+void Session::DisabledShapeVerdict(Capture& c, const std::string& label, const std::string& authoredTip) {
+    if (c.status != "pass") {
+        return;
+    }
+    const std::string head = "This setting is disabled because:";
+    bool number = false;
+    for (std::size_t k = 0; k + 1 < authoredTip.size(); k++) {
+        if (authoredTip[k] == '#' && authoredTip[k + 1] >= '0' && authoredTip[k + 1] <= '9') {
+            number = true;
+        }
+    }
+    if (authoredTip.compare(0, head.size(), head) != 0) {
+        c.status = "fail";
+        c.reason = "the hovered row \"" + label + "\" does not show SoH's disabled tooltip (\"" + head +
+                   "\" then \"- <Reason>\"): \"" + authoredTip + "\"";
+    } else if (number) {
+        c.status = "fail";
+        c.reason = "the hovered row \"" + label + "\" prints a tracker number in its tooltip: \"" + authoredTip +
+                   "\"; the issue belongs in the capability's record, not in the pixels";
+    }
+}
+
 // ---- panes, overlay, modal ------------------------------------------------------------------
+
+/** The combo_ui rect recorder's sink for one pane hover: the row whose label matches. */
+struct PaneHoverProbe {
+    std::string label;
+    bool found = false;
+    ImRect rect;
+    std::string tooltip;
+};
+
+void PaneHoverRecord(void* user, const char* label, const char* tooltip, float minX, float minY, float maxX,
+                     float maxY) {
+    PaneHoverProbe* probe = static_cast<PaneHoverProbe*>(user);
+    if (label == nullptr || probe->label != label) {
+        return;
+    }
+    probe->found = true;
+    probe->rect = ImRect(minX, minY, maxX, maxY);
+    probe->tooltip = tooltip != nullptr ? tooltip : "";
+}
 
 const char* PaneCvar(const std::string& window) {
     if (window == ComboGui::kComboMMOptionsWindowName) {
@@ -2625,6 +2788,60 @@ void Session::CaptureWindowPage(const PageSpec& p) {
             ImGui::SetScrollY(w, std::min(w->ScrollMax.y, w->Scroll.y + step));
             scrollIndex++;
         }
+
+        // Hover variants: the row is found by the label it hands the combo_ui
+        // seam, whose rect recorder reports where it drew and the tooltip a hover
+        // shows; then it is scrolled into view and hovered the way a menu row is.
+        for (const PageSpec::PaneHover& ph : p.paneHovers) {
+            if (ph.state != state) {
+                continue;
+            }
+            const std::string variant = VariantName(state, "hover-" + ph.name);
+            if (!Selected(p, variant)) {
+                continue;
+            }
+            Capture c;
+            c.id = p.id;
+            c.state = state;
+            c.variant = variant;
+            c.hover = ph.label;
+            PaneHoverProbe probe;
+            probe.label = ph.label;
+            ComboUi_SetRectRecorder(PaneHoverRecord, &probe);
+            std::string why;
+            for (int i = 0; i < 4; i++) {
+                probe.found = false;
+                if (!PumpFrame(nullptr, false, nullptr, why)) {
+                    break;
+                }
+                ImGuiWindow* pane = ImGui::FindWindowByName(p.window.c_str());
+                if (probe.found && pane != nullptr) {
+                    const ImRect clip = pane->InnerClipRect;
+                    if (probe.rect.Min.y >= clip.Min.y && probe.rect.Max.y <= clip.Max.y) {
+                        break;
+                    }
+                    ImGui::SetScrollY(
+                        pane, std::max(0.0f, pane->Scroll.y + probe.rect.Min.y - clip.Min.y - clip.GetHeight() / 3.0f));
+                }
+            }
+            if (!probe.found) {
+                c.status = "fail";
+                c.reason = "no pane row labelled \"" + ph.label + "\" was drawn through the combo_ui seam";
+            } else {
+                gHooks.hoverPos = probe.rect.GetCenter();
+                if (Settle(c, true, nullptr, nullptr)) {
+                    Oracle(p, c);
+                }
+            }
+            ComboUi_SetRectRecorder(nullptr, nullptr);
+            Finish(c, p);
+            if (HoverVerdict(c, ph.label, probe.tooltip) && ph.disabled) {
+                DisabledShapeVerdict(c, ph.label, probe.tooltip);
+            }
+            Record(std::move(c));
+            // Put the pointer away and re-settle so the next capture has no hover.
+            PumpFrame(nullptr, false, nullptr, why);
+        }
         gHooks.unclipLog = true;
         if (tricks) {
             setTricksOpen(0);
@@ -2634,46 +2851,338 @@ void Session::CaptureWindowPage(const PageSpec& p) {
     }
 }
 
-void Session::CaptureOverlay(const PageSpec& p) {
-    if (!Selected(p, "")) {
+/** The menu page every over-menu variant sits on: one of ours, drawn on a ROM-free run too. */
+PageSpec OverMenuPage() {
+    PageSpec under;
+    under.header = "Combo";
+    under.sidebar = "Cross-Game Rules";
+    return under;
+}
+
+// The creation overlay's dim window (CreationProgressOverlay.cpp, kDimWindowName).
+// Named here rather than exported: a rename turns the over-menu oracle red by
+// name, which is the point of it.
+constexpr const char* kOverlayDimWindow = "##CreationProgressDim";
+
+/**
+ * THE OVER-MENU ORACLE: is the menu under this box dimmed the way a modal dims it?
+ *
+ * @p bare is the same menu page settled with nothing over it; @p c is the capture
+ * with the dimming surface over it, its contentRect already the box (Oracle).
+ * Three requirements, each failing the capture by name:
+ *   1. the menu was drawn ("Main Menu" active in the dimmed frame), and the bare
+ *      frame is not nearly uniform outside the box (so there was a menu to dim);
+ *   2. when @p dimWindow is named (the overlay draws its own dim), that window was
+ *      drawn and sits above the menu and below the box in the display order;
+ *   3. every pixel outside the box equals the bare pixel blended with the style's
+ *      ImGuiCol_ModalWindowDimBg, as the GPU blends it, within 2 per channel.
+ * A real BeginPopupModal passes the same check with @p dimWindow null (ImGui draws
+ * that dim itself), which is what makes "dims the way a modal dims" a measured
+ * claim rather than a reading of the picture.
+ */
+void DimOracle(const UiImage& bare, Capture& c, const char* dimWindow, const char* boxWindow) {
+    if (c.status != "pass") {
         return;
     }
-    // A fixed view, so the capture is the same picture every run: half way, the
-    // first of three attempts, 12.3 s of a 30 s budget.
-    ComboGenOverlayView view;
-    memset(&view, 0, sizeof(view));
-    view.state = (uint8_t)RSBS_GENOVERLAY_SHOWN;
-    view.phase = (uint8_t)RSBS_GENPHASE_MM_FILL;
-    view.attempt = 1;
-    view.maxAttempts = 3;
-    view.fraction = 0.5f;
-    view.elapsedMs = 12300;
-    view.budgetMs = 30000;
-    snprintf(view.caption, sizeof(view.caption), "Building the Majora's Mask world (attempt 1 of 3)");
-    menu->Hide();
-    Capture c;
-    c.id = p.id;
-    auto extra = [&view]() { OoT_CreationProgressOverlay_TestDrawContents(&view); };
-    if (Settle(c, false, extra, nullptr)) {
-        Oracle(p, c);
+    ImGuiContext& g = *GImGui;
+    auto fail = [&c](const std::string& why) {
+        c.status = "fail";
+        c.reason = why;
+    };
+    ImGuiWindow* menuWindow = ImGui::FindWindowByName("Main Menu");
+    if (menuWindow == nullptr || !menuWindow->Active) {
+        fail("the menu under the dim was not drawn (\"Main Menu\" not active)");
+        return;
     }
-    Finish(c, p);
-    Record(std::move(c));
+    auto orderOf = [&g](ImGuiWindow* w) {
+        for (int i = 0; i < g.Windows.Size; i++) {
+            if (g.Windows[i] == w) {
+                return i;
+            }
+        }
+        return -1;
+    };
+    if (dimWindow != nullptr) {
+        ImGuiWindow* dim = ImGui::FindWindowByName(dimWindow);
+        ImGuiWindow* box = ImGui::FindWindowByName(boxWindow);
+        if (dim == nullptr || !dim->Active) {
+            fail(std::string("the dim window \"") + dimWindow + "\" was not drawn");
+            return;
+        }
+        const int m = orderOf(menuWindow);
+        const int d = orderOf(dim);
+        const int b = box == nullptr ? -1 : orderOf(box);
+        if (!(m < d && d < b)) {
+            fail("display order is menu " + std::to_string(m) + ", dim " + std::to_string(d) + ", box " +
+                 std::to_string(b) + " (back to front); the dim must sit above the menu and below the box");
+            return;
+        }
+    }
+    const UiImage& img = c.image;
+    if (bare.rgba == nullptr || img.rgba == nullptr || bare.w != img.w || bare.h != img.h) {
+        fail("no undimmed capture of the same size to compare the dim with");
+        return;
+    }
+    // The dim as the frame drew it: the style colour with the style alpha, packed
+    // to 8 bits per channel (GetColorU32), then blended src-alpha over the menu.
+    ImVec4 dimColour = ImGui::GetStyle().Colors[ImGuiCol_ModalWindowDimBg];
+    dimColour.w *= ImGui::GetStyle().Alpha;
+    const ImU32 packed = ImGui::ColorConvertFloat4ToU32(dimColour);
+    const float src[3] = { (float)((packed >> IM_COL32_R_SHIFT) & 0xFF), (float)((packed >> IM_COL32_G_SHIFT) & 0xFF),
+                           (float)((packed >> IM_COL32_B_SHIFT) & 0xFF) };
+    const float alpha = (float)((packed >> IM_COL32_A_SHIFT) & 0xFF) / 255.0f;
+    // The box, grown by 2 px for its border's antialiased edge.
+    const int bx0 = (int)std::floor(c.contentRect[0]) - 2;
+    const int by0 = (int)std::floor(c.contentRect[1]) - 2;
+    const int bx1 = (int)std::ceil(c.contentRect[0] + c.contentRect[2]) + 2;
+    const int by1 = (int)std::ceil(c.contentRect[1] + c.contentRect[3]) + 2;
+    int64_t checked = 0;
+    int64_t off = 0;
+    int firstX = -1;
+    int firstY = -1;
+    int got[3] = { 0, 0, 0 };
+    int want[3] = { 0, 0, 0 };
+    std::set<uint32_t> bareColours;
+    for (int y = 0; y < img.h; y++) {
+        for (int x = 0; x < img.w; x++) {
+            if (x >= bx0 && x < bx1 && y >= by0 && y < by1) {
+                continue;
+            }
+            const size_t o = ((size_t)y * (size_t)img.w + (size_t)x) * 4;
+            checked++;
+            if (bareColours.size() < 64) {
+                bareColours.insert((uint32_t)bare.rgba[o] | ((uint32_t)bare.rgba[o + 1] << 8) |
+                                   ((uint32_t)bare.rgba[o + 2] << 16));
+            }
+            bool ok = true;
+            int expected[3];
+            for (int ch = 0; ch < 3; ch++) {
+                expected[ch] = (int)std::lround(src[ch] * alpha + (float)bare.rgba[o + ch] * (1.0f - alpha));
+                if (std::abs((int)img.rgba[o + ch] - expected[ch]) > 2) {
+                    ok = false;
+                }
+            }
+            if (!ok) {
+                if (off == 0) {
+                    firstX = x;
+                    firstY = y;
+                    for (int ch = 0; ch < 3; ch++) {
+                        got[ch] = img.rgba[o + ch];
+                        want[ch] = expected[ch];
+                    }
+                }
+                off++;
+            }
+        }
+    }
+    if (bareColours.size() < 16) {
+        fail("outside the box the undimmed frame has only " + std::to_string(bareColours.size()) +
+             " colours: there is no menu under the dim to check");
+        return;
+    }
+    if (off != 0) {
+        auto rgb = [](const int v[3]) {
+            return "(" + std::to_string(v[0]) + "," + std::to_string(v[1]) + "," + std::to_string(v[2]) + ")";
+        };
+        fail(std::to_string(off) + " of " + std::to_string(checked) +
+             " pixels outside the box are not the menu dimmed by ModalWindowDimBg (first at " + std::to_string(firstX) +
+             "," + std::to_string(firstY) + ": " + rgb(got) + ", expected " + rgb(want) + ")");
+    }
+}
+
+void Session::CaptureOverlay(const PageSpec& p) {
+    for (const std::string& state : p.states) {
+        const std::string variant = VariantName(state, "");
+        if (!Selected(p, variant)) {
+            continue;
+        }
+        // A fixed view, so the capture is the same picture every run: half way, the
+        // first of three attempts, 12.3 s of a 30 s budget.
+        ComboGenOverlayView view;
+        memset(&view, 0, sizeof(view));
+        view.state = (uint8_t)RSBS_GENOVERLAY_SHOWN;
+        view.phase = (uint8_t)RSBS_GENPHASE_MM_FILL;
+        view.attempt = 1;
+        view.maxAttempts = 3;
+        view.fraction = 0.5f;
+        view.elapsedMs = 12300;
+        view.budgetMs = 30000;
+        snprintf(view.caption, sizeof(view.caption), "Building the Majora's Mask world (attempt 1 of 3)");
+        const bool overMenu = state == "over-menu";
+        Capture c;
+        c.id = p.id;
+        c.variant = variant;
+        c.state = state;
+        // RSBS_UI_SNAPSHOT_SABOTAGE=no-menu-under leaves the menu hidden under the
+        // over-menu variant; =no-dim draws the overlay's dim fully transparent.
+        // Each must turn DimOracle red.
+        if (overMenu && !opt.Sabotaged("no-menu-under")) {
+            Navigate(OverMenuPage());
+        } else {
+            menu->Hide();
+        }
+        Capture bare;
+        if (overMenu && !Settle(bare, false, nullptr, nullptr)) {
+            c.status = "fail";
+            c.reason = "the menu alone did not settle: " + bare.reason;
+        }
+        const bool noDim = opt.Sabotaged("no-dim");
+        auto extra = [&view, noDim]() {
+            if (noDim) {
+                ImGui::PushStyleColor(ImGuiCol_ModalWindowDimBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
+            }
+            OoT_CreationProgressOverlay_TestDrawContents(&view);
+            if (noDim) {
+                ImGui::PopStyleColor();
+            }
+        };
+        if (c.status == "pass" && Settle(c, false, extra, nullptr)) {
+            if (Oracle(p, c) && overMenu) {
+                DimOracle(bare.image, c, kOverlayDimWindow, p.window.c_str());
+            }
+        }
+        UiImage_Free(&bare.image);
+        Finish(c, p);
+        Record(std::move(c));
+    }
+}
+
+/**
+ * SoH's ROM-extraction progress modal, reproduced for the reference page
+ * "modal/ROM Extraction". RunExtract (OTRGlobals.cpp, the ImGui-driven
+ * extraction flow ported from upstream SoH) pushes two style colours around its
+ * WHOLE frame -- the themed active title bar and an opaque DarkGray modal dim,
+ * both still in force when ImGui::Render draws the dim -- and five more around
+ * the modal itself. PushExtractionFrameStyle/PopExtractionFrameStyle are the
+ * first two, called outside the harness's frames for the same reason;
+ * DrawExtractionReference is the modal, with a fixed state instead of a live
+ * extraction (half way, one archive file named). It is a copy because the
+ * original is inline in a boot loop and cannot be called. The static lint's C1
+ * check (.github/scripts/check-ui-parity-lint.py) compares every style push,
+ * pop, the modal's flags and the bar's size in these three functions with
+ * RunExtract's, statement for statement, so the copy cannot drift silently.
+ */
+void PushExtractionFrameStyle() {
+    UIWidgets::Colors themeColor =
+        static_cast<UIWidgets::Colors>(CVarGetInteger(CVAR_SETTING("Menu.Theme"), UIWidgets::Colors::LightBlue));
+    ImGui::PushStyleColor(ImGuiCol_TitleBgActive, UIWidgets::ColorValues.at(themeColor));
+    ImGui::PushStyleColor(ImGuiCol_ModalWindowDimBg, UIWidgets::ColorValues.at(UIWidgets::Colors::DarkGray));
+}
+
+/**
+ * RunExtract calls OpenPopup and BeginPopupModal with ImGui's implicit fallback
+ * window current; the harness's frame has none at the point extra ImGui is
+ * submitted, and both calls hash the popup's name through the current window, so
+ * the copy opens an empty, input-less host window first. The modal is still its
+ * own top-level window; only the popup's id is seeded differently.
+ *
+ * @p mode: 0 opens (or keeps) the modal, 1 submits CloseCurrentPopup (the
+ * teardown frame), 2 only reports through @p open whether it is still open.
+ */
+void DrawExtractionReference(int mode, bool* open) {
+    ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(1.0f, 1.0f), ImGuiCond_Always);
+    ImGui::Begin("##ExtractionReferenceHost", nullptr,
+                 ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoInputs |
+                     ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav);
+    if (open != nullptr) {
+        *open = ImGui::IsPopupOpen("ROM Extraction");
+    }
+    if (mode == 2) {
+        ImGui::End();
+        return;
+    }
+    const bool close = mode == 1;
+    if (!close && !ImGui::IsPopupOpen("ROM Extraction")) {
+        ImGui::OpenPopup("ROM Extraction");
+    }
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 3.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10.0f, 8.0f));
+    auto color = UIWidgets::ColorValues.at(THEME_COLOR);
+    ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(color.x, color.y, color.z, 0.6f));
+    ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(color.x, color.y, color.z, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.0f, 0.0f, 0.0f, 0.3f));
+    if (ImGui::BeginPopupModal("ROM Extraction", NULL,
+                               ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
+                                   ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings)) {
+        ImGui::Text("Extracting %s...%s", "gameplay_keep", "");
+        ImGui::ProgressBar(0.5f, ImVec2(600.0f, 50.0f), "50%");
+        if (close) {
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
+    ImGui::PopStyleColor(3);
+    ImGui::PopStyleVar(2);
+    ImGui::End();
+}
+
+void PopExtractionFrameStyle() {
+    ImGui::PopStyleColor(2);
 }
 
 void Session::CaptureModal(const PageSpec& p) {
-    if (!Selected(p, "")) {
-        return;
+    for (const std::string& state : p.states) {
+        const std::string variant = VariantName(state, "");
+        if (Selected(p, variant)) {
+            CaptureModalVariant(p, state);
+        }
     }
-    menu->Hide();
+}
+
+void Session::CaptureModalVariant(const PageSpec& p, const std::string& state) {
     Capture c;
     c.id = p.id;
-    if (p.origin == Origin::SOH_REFERENCE) {
+    c.variant = VariantName(state, "");
+    c.state = state;
+    // A modal's background dim fades in over about a sixth of a second of REAL
+    // time (NewFrame advances DimBgRatio by DeltaTime * 6), so how many frames it
+    // takes depends on the host's frame rate and the capture would race it.
+    // Start every frame fully dimmed instead: the picture is the settled one,
+    // deterministically.
+    auto fullDim = []() { GImGui->DimBgRatio = 1.0f; };
+    // over-menu: the menu page the creation overlay's over-menu variant sits on,
+    // settled alone first so DimOracle has the undimmed picture.
+    const bool overMenu = state == "over-menu";
+    Capture bare;
+    if (overMenu) {
+        Navigate(OverMenuPage());
+        if (!Settle(bare, false, nullptr, fullDim)) {
+            c.status = "fail";
+            c.reason = "the menu alone did not settle: " + bare.reason;
+            UiImage_Free(&bare.image);
+            Finish(c, p);
+            Record(std::move(c));
+            return;
+        }
+    } else {
+        menu->Hide();
+    }
+    // The extraction reference is drawn inside the frame, not queued.
+    const bool extraction = p.origin == Origin::SOH_REFERENCE && p.window == "ROM Extraction";
+    int extractionMode = 0;
+    bool extractionOpen = false;
+    std::function<void()> extra;
+    if (extraction) {
+        extra = [&extractionMode, &extractionOpen]() { DrawExtractionReference(extractionMode, &extractionOpen); };
+    } else if (p.origin == Origin::SOH_REFERENCE) {
         // SoH's own strings (SohMenuSettings.cpp, the "Clear Devices" button), with
         // null callbacks: nothing is cleared, and the popup is dismissed below.
         SohGui::RegisterPopup(
             "Clear Config", "This will completely erase the controls config, including registered devices.\nContinue?",
             "Clear", "Cancel", nullptr, nullptr);
+    } else if (p.window == ComboGui::kComboMMOptionsResetTitle) {
+        // Ours, a pane's: the call the pane's Reset button makes, which queues the
+        // confirm through the combo_ui seam. DismissPopup below never runs the
+        // popup's buttons, so nothing is reset.
+        Combo_MMOptionsRequestReset();
+        if (SohGui::PopupsQueued() == 0) {
+            c.status = "fail";
+            c.reason = "the MM options pane's Reset queued no confirm popup";
+            c.spec = &p;
+            Record(std::move(c));
+            return;
+        }
     } else {
         // Ours: fire the button row's own Callback, which queues its confirm.
         // DismissPopup below never runs the popup's buttons, so nothing is reset.
@@ -2684,6 +3193,7 @@ void Session::CaptureModal(const PageSpec& p) {
             c.status = "fail";
             c.reason = "no Reset button row with a Callback on " + p.header + "/" + p.sidebar;
             c.spec = &p;
+            UiImage_Free(&bare.image);
             Record(std::move(c));
             return;
         }
@@ -2692,29 +3202,110 @@ void Session::CaptureModal(const PageSpec& p) {
             c.status = "fail";
             c.reason = "the Reset button queued no confirm popup";
             c.spec = &p;
+            UiImage_Free(&bare.image);
             Record(std::move(c));
             return;
         }
     }
-    // A modal's background dim fades in over about a sixth of a second of REAL
-    // time (NewFrame advances DimBgRatio by DeltaTime * 6), so how many frames it
-    // takes depends on the host's frame rate and the capture would race it.
-    // Start every frame fully dimmed instead: the picture is the settled one,
-    // deterministically.
-    auto fullDim = []() { GImGui->DimBgRatio = 1.0f; };
-    if (Settle(c, false, nullptr, fullDim)) {
-        Oracle(p, c);
+    // RunExtract's frame-wide pushes, outside the frames as RunExtract has them.
+    if (extraction) {
+        PushExtractionFrameStyle();
     }
+    if (Settle(c, false, extra, fullDim)) {
+        if (Oracle(p, c) && overMenu) {
+            DimOracle(bare.image, c, nullptr, p.window.c_str());
+        }
+    }
+    UiImage_Free(&bare.image);
     Finish(c, p);
     // Teardown, then assert nothing is left queued for the pages after this one.
-    SohGui::DismissPopup(p.window);
     std::string why;
-    PumpFrame(nullptr, false, nullptr, why);
-    PumpFrame(nullptr, false, nullptr, why);
+    if (extraction) {
+        extractionMode = 1;
+        PumpFrame(nullptr, false, extra, why);
+        extractionMode = 2;
+        PumpFrame(nullptr, false, extra, why);
+        PopExtractionFrameStyle();
+        if (extractionOpen && c.status == "pass") {
+            c.status = "fail";
+            c.reason = "the extraction reference modal did not close";
+        }
+    } else {
+        SohGui::DismissPopup(p.window);
+        PumpFrame(nullptr, false, nullptr, why);
+        PumpFrame(nullptr, false, nullptr, why);
+    }
     if (SohGui::PopupsQueued() != 0 && c.status == "pass") {
         c.status = "fail";
         c.reason = "the modal did not dismiss (PopupsQueued " + std::to_string(SohGui::PopupsQueued()) + ")";
     }
+    Record(std::move(c));
+}
+
+void Session::CaptureToast(const PageSpec& p) {
+    if (!Selected(p, "")) {
+        return;
+    }
+    menu->Hide();
+    Capture c;
+    c.id = p.id;
+    c.spec = &p;
+    // The toasts draw from SoH's Notification::Window, which SohGui registers with
+    // the rest of its windows (SetupGuiElements; ROM-rich only). ROM-free, the
+    // harness registers one of its own under the same name, with no CVar (a
+    // GuiWindow with a CVar name writes it into the config), so hosted CI draws
+    // the same toasts.
+    if (gui->GetGuiWindow("Notifications Window") == nullptr) {
+        auto window = std::make_shared<Notification::Window>("", true, "Notifications Window");
+        gui->AddGuiWindow(window);
+    }
+    OoT_Notification_ClearForTest();
+    if (p.id == "toast/Game Autosaved") {
+        Notification::Emit({ .message = "Game autosaved", .mute = true });
+    } else if (p.id == "toast/creation-shortfall") {
+        // Two of four: the numbers a small under-supplied seed reports.
+        OoT_Creation_EmitShortfallToast(2, 4);
+    } else if (p.id == "toast/creation-failure") {
+        OoT_Creation_ReportFailureAtFileSelect(0, 0);
+    }
+    if (Settle(c, false, nullptr, nullptr)) {
+        // The window is named "notification#<id>" and the id is the overlay's
+        // own counter, so the oracle finds it by prefix: every active toast
+        // window, whose union is the content rectangle.
+        float x0 = 1e9f, y0 = 1e9f, x1 = -1e9f, y1 = -1e9f;
+        int found = 0;
+        for (ImGuiWindow* w : GImGui->Windows) {
+            if (w == nullptr || !w->Active || std::string(w->Name).rfind(p.window, 0) != 0) {
+                continue;
+            }
+            found++;
+            x0 = std::min(x0, w->Pos.x);
+            y0 = std::min(y0, w->Pos.y);
+            x1 = std::max(x1, w->Pos.x + w->Size.x);
+            y1 = std::max(y1, w->Pos.y + w->Size.y);
+        }
+        if (found != 1) {
+            c.status = "fail";
+            c.reason = std::to_string(found) + " toast window(s) drawn; the page emits exactly one";
+        } else {
+            c.contentRect[0] = x0;
+            c.contentRect[1] = y0;
+            c.contentRect[2] = x1 - x0;
+            c.contentRect[3] = y1 - y0;
+            // A toast wider than the window is drawn off its left edge: SoH's
+            // overlay draws every field on ONE line and never wraps.
+            if (x0 < 0.0f || x1 > (float)profile.w) {
+                c.status = "fail";
+                c.reason = "the toast runs off the window (x " + std::to_string((int)x0) + " to " +
+                           std::to_string((int)x1) + " of " + std::to_string(profile.w) + ")";
+            }
+        }
+    }
+    Finish(c, p);
+    // Teardown: nothing may linger into the pages after this one.
+    OoT_Notification_ClearForTest();
+    std::string why;
+    PumpFrame(nullptr, false, nullptr, why);
     Record(std::move(c));
 }
 
@@ -3310,6 +3901,32 @@ int Session::RuntimeLint() {
     return bad;
 }
 
+/**
+ * R8's one volatile pair: SoH's Settings > General "About" column names the
+ * binary's own build (SohMenuSettings.cpp: "Branch: <branch>", "Commit: <hash>"),
+ * so any two differently committed binaries differ there although no SoH wording
+ * changed. Both sides of the comparison mask those two values; every other row,
+ * the About column's other rows included, is compared byte for byte.
+ */
+static std::string MaskBuildStamp(const std::string& names) {
+    std::istringstream in(names);
+    std::string line;
+    std::string out;
+    while (std::getline(in, line)) {
+        const size_t a = line.find(" | ");
+        if (a != std::string::npos && line.rfind("Settings/General | ", 0) == 0) {
+            const size_t b = line.find(" | ", a + 3);
+            const std::string row = line.substr(a + 3, b == std::string::npos ? std::string::npos : b - a - 3);
+            if (row.rfind("Commit: ", 0) == 0 || row.rfind("Branch: ", 0) == 0) {
+                line = line.substr(0, a + 3) + row.substr(0, 8) + "<build stamp>" +
+                       (b == std::string::npos ? std::string() : line.substr(b));
+            }
+        }
+        out += line + "\n";
+    }
+    return out;
+}
+
 void Session::DumpSohNames() {
     if (romFree) {
         return;
@@ -3342,9 +3959,12 @@ void Session::DumpSohNames() {
             }
         }
     }
+    body = MaskBuildStamp(body);
     WriteTextFile(out / "soh-names.txt", body);
     if (!opt.baseline.empty()) {
-        const std::string before = ReadTextFile(fs::path(opt.baseline) / "soh-names.txt");
+        // Masked again on read: a baseline written before the mask existed
+        // carries its build's literal commit and branch.
+        const std::string before = MaskBuildStamp(ReadTextFile(fs::path(opt.baseline) / "soh-names.txt"));
         if (!before.empty() && before != body) {
             Fail("R8: SoH's own row names or tooltips differ from the baseline run's soh-names.txt");
         }
@@ -3458,6 +4078,9 @@ int Session::Run() {
                     break;
                 case Kind::MODAL:
                     CaptureModal(p);
+                    break;
+                case Kind::TOAST:
+                    CaptureToast(p);
                     break;
             }
         } catch (const std::exception& e) { Fail(p.id + ": an exception escaped the capture: " + e.what()); }
