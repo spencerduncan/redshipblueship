@@ -1712,7 +1712,9 @@ void Session::BuildPageList() {
                 p.stateText[""] = { "No Majora's Mask mods found" };
                 p.stateText["listed"] = { kMmModsListedEnabled[0], kMmModsListedDisabled,
                                           "Changes apply when Majora's Mask starts" };
-                p.stateText["unfinished"] = { kMmModsListedEnabled[0], "did not finish" };
+                // Only the note: the list itself is the same as "listed" (the contrast),
+                // so a file name here could not prove this state was authored.
+                p.stateText["unfinished"] = { "did not finish" };
                 p.stateContrast = { { "", "listed" }, { "listed", "" }, { "unfinished", "listed" } };
                 p.hovers = { "rescan" };
                 p.hoverRows["rescan"] = "Rescan Mods Folder";
