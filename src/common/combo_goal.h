@@ -82,7 +82,10 @@ extern "C" {
 
 // ---- The decision -----------------------------------------------------------
 /** Not paired (no frozen combo record): the game plays its own ending exactly
- *  as upstream does, and nothing is recorded. */
+ *  as upstream does, and nothing is recorded. Also the FAIL-OPEN answer for a
+ *  paired world whose frozen goal cannot be evaluated (see
+ *  Combo_GoalOnFinalBossDefeated): the defeat is recorded and the game ends as
+ *  its own game, never "withhold forever". */
 #define RSBS_GOAL_ENDING_OWN 0
 /** Paired, and the frozen goal is met: the game plays its own ending, and that
  *  ending is the end of the paired game. */
@@ -118,10 +121,27 @@ bool Combo_GoalFinalBossRecorded(GameId game);
 bool Combo_GoalMetNow(int liveTriforcePieces);
 
 /**
+ * May a game mark ITSELF complete right now (OoT's gameplay-stat
+ * `gameComplete`, which freezes its timers)? True unpaired (upstream), true when
+ * the frozen goal is met, true when it cannot be evaluated (fail open, as the
+ * decision below); false only while a paired goal is evaluably unmet. Reads,
+ * never records: for completion writers that are not a final-boss site (OoT's
+ * Time Splits' last split).
+ */
+bool Combo_GoalAllowsCompletion(int liveTriforcePieces);
+
+/**
  * THE ONE DECISION both ports' ending sites call: at the final-boss defeat, and
  * again where the game would start its ending. Idempotent: it records `game`'s
  * defeat (armed only) and returns RSBS_GOAL_ENDING_*. A second call for the
  * same defeat returns the same answer and changes nothing further.
+ *
+ * FAIL DIRECTION: a frozen goal that cannot be evaluated (Combo_GoalMet -1: a
+ * goal byte outside the pinned table, or triforce-hunt whose record fails its
+ * check) answers RSBS_GOAL_ENDING_OWN and logs an ERROR, because "withhold"
+ * there would mean a paired world that can never end while its hunt is
+ * disarmed. Creation and the .redsave load refuse both states; this is the
+ * answer for a damaged record that got past them.
  */
 int Combo_GoalOnFinalBossDefeated(GameId game, int liveTriforcePieces);
 

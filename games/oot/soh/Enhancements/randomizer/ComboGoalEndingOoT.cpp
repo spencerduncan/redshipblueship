@@ -21,7 +21,13 @@
  *      load puts a save made in Ganon's arena (z_sram.c maps SCENE_GANON_BOSS to
  *      ENTR_GANONS_TOWER_0), so the live warp and a reload of that save agree.
  *
- * Unpaired (no frozen combo record) both are no-ops and OoT ends as upstream.
+ * A third writer of `gameComplete` is not a final-boss site: Time Splits marks
+ * the game complete when the player's LAST split is collected or skipped
+ * (TimeSplitCompleteSplits), and Ganon is a split. OoT_ComboGoal_GameMayComplete
+ * gates that write with the same answer, read-only: not while the paired goal is
+ * unmet.
+ *
+ * Unpaired (no frozen combo record) all three are no-ops and OoT ends as upstream.
  */
 
 #ifdef RSBS_SINGLE_EXECUTABLE
@@ -50,6 +56,10 @@ int LiveTriforcePieces() {
 
 extern "C" int OoT_ComboGoal_OnGanonDefeated(void) {
     return Combo_GoalOnFinalBossDefeated(GAME_OOT, LiveTriforcePieces()) != RSBS_GOAL_ENDING_WITHHOLD ? 1 : 0;
+}
+
+extern "C" int OoT_ComboGoal_GameMayComplete(void) {
+    return Combo_GoalAllowsCompletion(LiveTriforcePieces()) ? 1 : 0;
 }
 
 extern "C" int OoT_ComboGoal_RedirectEndingIfWithheld(PlayState* play) {

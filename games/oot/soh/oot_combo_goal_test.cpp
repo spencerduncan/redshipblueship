@@ -1,15 +1,19 @@
 /**
  * @file oot_combo_goal_test.cpp
  * OoT's half of the combo-goal-ending lock (src/common/tests/test_combo_goal.c):
- * runs OoT's REAL ending site, as BossGanon2's death cutscene leaves it, against
- * whatever world the row has frozen, and reports which way it went.
+ * runs OoT's ending redirect over a replica of BossGanon2's ending warp, and Time
+ * Splits' real completion, against whatever world the row has frozen.
  *
- * The site is BossGanon2's `case 20` in z_boss_ganon2.c: upstream's four
+ * The site is BossGanon2's `case 20` in z_boss_ganon2.c: upstream's five
  * assignments (the Chamber of the Sages with cutscene 0xFFF2 and a child Link,
  * which is the ending and then the credits), then
  * OoT_ComboGoal_RedirectEndingIfWithheld. This helper performs exactly those
  * assignments on a zeroed PlayState and calls the same function, so the row
- * observes what the actor would leave behind. gSaveContext.fileNum is the 0xFF
+ * observes what the redirect leaves behind over a REPLICA of the actor's
+ * assignments: the actor itself is not run. That the actor really makes this
+ * call after exactly these assignments, under its guard, is the row's source
+ * leg (E7 in test_combo_goal.c), which also fails when this replica drifts from
+ * the actor. gSaveContext.fileNum is the 0xFF
  * "no file" value, so Play_PerformSave (the withheld path's one save) returns
  * without writing; the row does not test saving.
  */
@@ -69,6 +73,24 @@ extern "C" int OoT_ComboGoalTest_EndingSite(void) {
         return 1;
     }
     return -1;
+}
+
+void TimeSplitCompleteSplits(); // soh/Enhancements/timesplits/TimeSplits.cpp (C++ linkage)
+
+/**
+ * Time Splits' completion, the REAL function: what it leaves in
+ * `gameComplete` when the player's last split (Ganon, say) is collected.
+ * 1 marked complete, 0 left running. OoT's stats are put back afterwards.
+ */
+extern "C" int OoT_ComboGoalTest_TimeSplitsComplete(void) {
+    std::unique_ptr<SaveContext> saved(new SaveContext);
+    memcpy(saved.get(), &gSaveContext, sizeof(SaveContext));
+    gSaveContext.ship.quest.data.randomizer.triforcePiecesCollected = 0;
+    gSaveContext.ship.stats.gameComplete = false;
+    TimeSplitCompleteSplits();
+    const int complete = gSaveContext.ship.stats.gameComplete ? 1 : 0;
+    memcpy(&gSaveContext, saved.get(), sizeof(SaveContext));
+    return complete;
 }
 
 /** The final-blow half: 1 when OoT's stats may mark the game complete. */

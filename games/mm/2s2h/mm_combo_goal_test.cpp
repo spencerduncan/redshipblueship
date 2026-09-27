@@ -1,15 +1,18 @@
 /**
  * @file mm_combo_goal_test.cpp
  * MM's half of the combo-goal-ending lock (src/common/tests/test_combo_goal.c):
- * runs MM's REAL ending site, as Majora's death cutscene leaves it, against
+ * runs MM's ending redirect over a replica of Majora's ending warp, against
  * whatever world the row has frozen, and reports which way it went.
  *
  * The site is Boss07_Wrath_DeathCutscene's warp in z_boss_07.c: upstream's three
  * assignments (Termina Field with cutscene 0xFFF7, which is the ending and then
  * the credits), then MM_ComboGoal_RedirectEndingIfWithheld. This helper
  * performs exactly those assignments on a zeroed PlayState and calls the same
- * function, so the row observes what the actor would leave behind, including
- * the new-day save's roll-over of the cycle. It runs in the shape a cross-game
+ * function, so the row observes what the redirect leaves behind, including the
+ * new-day save's roll-over of the cycle. The actor itself is not run: that it
+ * makes this call after exactly these assignments, under its guard, is the
+ * row's source leg (E7 in test_combo_goal.c), which also fails when this
+ * replica drifts from the actor. It runs in the shape a cross-game
  * MM session runs in (fileNum 0xFF, no flash write) with no unified-save slot
  * established, so the save's commit writes nothing; MM's live save context and
  * the slot are put back afterwards.

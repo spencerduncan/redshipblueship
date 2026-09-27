@@ -60,10 +60,9 @@ bool Combo_GoalFinalBossRecorded(GameId game) {
     return flag != 0u && (gComboCtx.sharedFlags[RSBS_SHARED_FLAGS_WORD_GOAL] & flag) != 0u;
 }
 
-bool Combo_GoalMetNow(int liveTriforcePieces) {
-    if (!Combo_GoalArmed()) {
-        return false;
-    }
+/** The frozen goal's state over the live record: 1 met, 0 not met, -1 cannot
+ *  be evaluated. Armed callers only. */
+static int GoalStateNow(int liveTriforcePieces) {
     int pieces = -1;
     uint16_t required = 0u;
     const uint8_t goal = gComboCtx.comboSettings.goal;
@@ -79,7 +78,16 @@ bool Combo_GoalMetNow(int liveTriforcePieces) {
         required = Combo_TriforceHuntRequired();
     }
     return Combo_GoalMet(goal, Combo_GoalFinalBossRecorded(GAME_OOT), Combo_GoalFinalBossRecorded(GAME_MM), pieces,
-                         required) == 1;
+                         required);
+}
+
+bool Combo_GoalMetNow(int liveTriforcePieces) {
+    return Combo_GoalArmed() && GoalStateNow(liveTriforcePieces) == 1;
+}
+
+bool Combo_GoalAllowsCompletion(int liveTriforcePieces) {
+    // Unpaired: upstream. Unevaluable: fail open, as the decision does.
+    return !Combo_GoalArmed() || GoalStateNow(liveTriforcePieces) != 0;
 }
 
 int Combo_GoalOnFinalBossDefeated(GameId game, int liveTriforcePieces) {
@@ -89,8 +97,23 @@ int Combo_GoalOnFinalBossDefeated(GameId game, int liveTriforcePieces) {
     }
     const bool firstRecord = (gComboCtx.sharedFlags[RSBS_SHARED_FLAGS_WORD_GOAL] & flag) == 0u;
     gComboCtx.sharedFlags[RSBS_SHARED_FLAGS_WORD_GOAL] |= flag;
-    const int ending = Combo_GoalMetNow(liveTriforcePieces) ? RSBS_GOAL_ENDING_PLAY : RSBS_GOAL_ENDING_WITHHOLD;
+    const int state = GoalStateNow(liveTriforcePieces);
+    // FAIL OPEN. A goal that cannot be evaluated (a goal byte outside the pinned
+    // table, or triforce-hunt whose record fails its check, so the requirement
+    // reads 0) would otherwise withhold every ending forever while the hunt
+    // itself is disarmed: a world that can never end. Creation and the .redsave
+    // load refuse both states, so this is a damaged record; the defeating game
+    // then ends as its own game, as upstream does, and the log says why.
+    const int ending =
+        state == 1 ? RSBS_GOAL_ENDING_PLAY : (state == 0 ? RSBS_GOAL_ENDING_WITHHOLD : RSBS_GOAL_ENDING_OWN);
     if (firstRecord) {
+        if (state < 0) {
+            fprintf(stderr,
+                    "[Combo] goal: ERROR: frozen goal %u cannot be evaluated (triforce requirement %u); %s's final "
+                    "boss ends its own game instead of never ending the paired game\n",
+                    (unsigned)gComboCtx.comboSettings.goal, (unsigned)Combo_TriforceHuntRequired(),
+                    game == GAME_OOT ? "OoT" : "MM");
+        }
         fprintf(stderr, "[Combo] goal: %s final boss defeated under goal %u -> %s\n", game == GAME_OOT ? "OoT" : "MM",
                 (unsigned)gComboCtx.comboSettings.goal, Combo_GoalEndingName(ending));
     }
