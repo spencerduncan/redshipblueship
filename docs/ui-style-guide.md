@@ -298,7 +298,7 @@ MAX_PATH through the extended-length namespace, so a long output directory no lo
 - SCROLL: `@scrollN`, stepping each column (a menu page) or the pane itself (a window) by one view minus 48 px until
   it reaches its end, at most 9 views.
 - HOVER: a pointer injected before ImGui reads input, so the tooltip is captured. Cross-Game Rules hovers its
-  direction combobox and (frozen) its first slider; Majora's Mask hovers its first row and Windows its MM Item
+  direction and goal comboboxes and (frozen) its first slider; Majora's Mask hovers its first row and Windows its MM Item
   Tracker toggle (`PageSpec::hoverRows`, a named row, captured in the page's first state). The MM options pane hovers
   its first row (unpaired and frozen) and its first capability-blocked row (`PageSpec::paneHovers`, found through the
   `combo_ui` rect recorder); a disabled row's hover must show SoH's disabled shape with no tracker number.
