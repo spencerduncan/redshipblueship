@@ -19,6 +19,7 @@
 
 #include "ComboMmOptionsWindow.h"
 
+#include <cfloat>
 #include <cstdio>
 
 #include <imgui.h>
@@ -218,7 +219,7 @@ void DrawTrickRow(const ComboMMTrickDesc* desc, bool frozen) {
         Combo_MMTrickSetValue(desc, on);
     }
     for (int c = 0; c < (int)desc->chipCount && c < COMBO_MM_TRICK_MAX_CHIPS; c++) {
-        Ui().TagChip(desc->chipLabels[c], desc->chipTones[c]);
+        Ui().TagChip(desc->chipLabels[c], desc->chipTones[c], &opts);
     }
     Ui().RowText(desc->label, &opts);
 }
@@ -336,6 +337,7 @@ void ComboMmOptionsWindow::Draw() {
     // closed SoH pane does.
     bool open = true;
     ImGui::SetNextWindowSize(ImVec2(620.0f, 560.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSizeConstraints(ImVec2(kComboMMOptionsMinWidth, 0.0f), ImVec2(FLT_MAX, FLT_MAX));
     if (ImGui::Begin(kComboMMOptionsWindowName, &open, ImGuiWindowFlags_NoFocusOnAppearing)) {
         DrawElement();
     }

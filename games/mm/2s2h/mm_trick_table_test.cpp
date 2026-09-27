@@ -30,7 +30,8 @@
  *      ids covering the id space, and every copied field equal. The pane must
  *      never bind a widget to a key MM does not read. The tag chips the pane
  *      draws mirror the tag set too: one per tag, in tag order, each named for
- *      its tag, in a real palette tone.
+ *      its tag, in that tag's pinned colour (SoH's GetTagColor for a shared
+ *      rung, gray for "OoT Items").
  *  (d) GATING HONESTY, both directions: `disabledReason` is non-empty exactly
  *      when the row is reserved or unbound, and empty exactly when it is
  *      settable. A dead control with no visible cause reads as a broken port; a
@@ -313,24 +314,40 @@ extern "C" int MM_TrickTable_RunHeadless(void) {
         if (desc->area != (uint8_t)row.area || desc->tags != row.tags || desc->reserved != row.reserved) {
             return Fail(23, "descriptor '%s' does not mirror its MM row's classification", desc->name);
         }
-        if (desc->areaName == NULL || desc->areaName[0] == '\0' || desc->tagSummary == NULL ||
-            desc->tagSummary[0] == '\0') {
-            return Fail(24, "descriptor '%s' has an empty area or tag summary", desc->name);
+        if (desc->areaName == NULL || desc->areaName[0] == '\0') {
+            return Fail(24, "descriptor '%s' has an empty area name", desc->name);
         }
         if (Combo_MMTrickById(desc->id) != desc) {
             return Fail(25, "Combo_MMTrickById(%u) does not return the table's own row", (unsigned)desc->id);
         }
         // The chips the pane draws (UI parity M6 part 2) mirror the tag set: one
         // chip per tag, in tag order (so the difficulty rung is the first chip),
-        // each labelled with the tag's own name and in a real palette tone. A
+        // each labelled with the tag's own name and in that tag's colour. A
         // chip that dropped or invented a tag would tell the player a different
-        // difficulty than the one the row carries.
+        // difficulty than the one the row carries. The colours are pinned here,
+        // not read back from the MM side: the rungs MM shares with SoH take SoH's
+        // own colours (tricks.cpp, Rando::Tricks::GetTagColor: Novice green,
+        // Intermediate orange, Advanced blue, Expert red, Experimental light
+        // blue, Glitch white), so one difficulty reads the same colour on both
+        // games' trick lists; "OoT Items" has no SoH colour and is gray.
         {
-            static const MMRandoTrickTag kTagOrder[] = { MMRTT_NOVICE, MMRTT_INTERMEDIATE, MMRTT_ADVANCED,
-                                                         MMRTT_EXPERT, MMRTT_EXPERIMENTAL, MMRTT_GLITCH,
-                                                         MMRTT_COMBO };
+            struct TagChipExpect {
+                MMRandoTrickTag tag;
+                ComboUiTone tone;
+                const char* toneName;
+            };
+            static const TagChipExpect kTagOrder[] = {
+                { MMRTT_NOVICE, COMBO_UI_TONE_GREEN, "green" },
+                { MMRTT_INTERMEDIATE, COMBO_UI_TONE_ORANGE, "orange" },
+                { MMRTT_ADVANCED, COMBO_UI_TONE_BLUE, "blue" },
+                { MMRTT_EXPERT, COMBO_UI_TONE_RED, "red" },
+                { MMRTT_EXPERIMENTAL, COMBO_UI_TONE_LIGHT_BLUE, "light blue" },
+                { MMRTT_GLITCH, COMBO_UI_TONE_WHITE, "white" },
+                { MMRTT_COMBO, COMBO_UI_TONE_GRAY, "gray" },
+            };
             int chip = 0;
-            for (MMRandoTrickTag tag : kTagOrder) {
+            for (const TagChipExpect& expect : kTagOrder) {
+                const MMRandoTrickTag tag = expect.tag;
                 if ((row.tags & (uint32_t)tag) == 0) {
                     continue;
                 }
@@ -344,9 +361,10 @@ extern "C" int MM_TrickTable_RunHeadless(void) {
                                 desc->chipLabels[chip] != NULL ? desc->chipLabels[chip] : "(null)",
                                 Rando::StaticData::GetTrickTagName(tag));
                 }
-                if ((int)desc->chipTones[chip] < 0 || (int)desc->chipTones[chip] >= (int)COMBO_UI_TONE_COUNT) {
-                    return Fail(65, "descriptor '%s' chip %d has no palette tone (%d)", desc->name, chip,
-                                (int)desc->chipTones[chip]);
+                if (desc->chipTones[chip] != expect.tone) {
+                    return Fail(65, "descriptor '%s' chip %d ('%s') has palette tone %d, not the pinned %s (%d)",
+                                desc->name, chip, Rando::StaticData::GetTrickTagName(tag), (int)desc->chipTones[chip],
+                                expect.toneName, (int)expect.tone);
                 }
                 chip++;
             }

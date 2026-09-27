@@ -742,6 +742,10 @@ struct PageSpec {
     // Per state: a different reference for that state's captures (the MM options
     // pane's tricks-open state is read against SoH's Tricks page, not Logic/Access).
     std::map<std::string, std::string> stateCompareWith;
+    // Hover captures: the page whose hover capture they are read against, when
+    // the state's reference has none (SoH's Tricks page draws its trick names
+    // as plain text with no item id, so no hover of its own can be injected).
+    std::string hoverCompareWith;
     bool compareDefaulted = false;
     std::vector<std::string> states; // "" = the default state
     std::vector<std::string> hovers; // hover variant names (MENU_PAGE only)
@@ -1588,7 +1592,7 @@ void Session::BuildPageList() {
         p.id = std::string("window/") + ComboGui::kComboMMOptionsWindowName;
         p.kind = Kind::WINDOW;
         p.window = ComboGui::kComboMMOptionsWindowName;
-        p.states = { "unpaired", "frozen", "mm-suspended", "tricks-open", "tricks-frozen" };
+        p.states = { "unpaired", "frozen", "mm-suspended", "tricks-open", "tricks-frozen", "tricks-narrow" };
         p.compareWith = "Randomizer/Logic/Access";
         p.expectText = { ComboGui::kComboMMOptionsWindowName };
         // ComboMmOptionsWindow.cpp's state note (unpaired, frozen) and its
@@ -1603,6 +1607,12 @@ void Session::BuildPageList() {
         // follows; every other state against Logic/Access.
         p.stateCompareWith["tricks-open"] = "Randomizer/Tricks/Glitches";
         p.stateCompareWith["tricks-frozen"] = "Randomizer/Tricks/Glitches";
+        p.stateCompareWith["tricks-narrow"] = "Randomizer/Tricks/Glitches";
+        // Every pane hover (option rows and trick rows) is read against SoH's
+        // own menu-row tooltip, Settings > Graphics' Current FPS: the same
+        // UIWidgets tooltip chrome DrawTricksMenu's name cell uses, in the only
+        // SoH capture that shows a tooltip.
+        p.hoverCompareWith = "Settings/Graphics";
         // Hovers, through the combo_ui seam's rect recorder: the first option row
         // (its description), the first capability-blocked row (SoH's disabled
         // shape with the model's reason), and the first row again while frozen
@@ -1663,13 +1673,17 @@ void Session::BuildPageList() {
                 if (live != nullptr) {
                     p.paneHovers.push_back({ "trick-frozen", "tricks-frozen", live->label, true });
                 }
+                // tricks-narrow is the same area, live, with the pane resized to
+                // the narrowest the player can make it (the pane's size
+                // constraint; CaptureWindowPage asks for 1 px and asserts it got
+                // exactly kComboMMOptionsMinWidth): how the longest names wrap
+                // at the worst width a player can choose.
+                p.stateText["tricks-narrow"] = { WordPrefix(VisibleLabel(longest->label), 16) };
             }
         }
-        p.stateContrast = { { "unpaired", "frozen" },
-                            { "frozen", "unpaired" },
-                            { "mm-suspended", "unpaired" },
-                            { "tricks-open", "unpaired" },
-                            { "tricks-frozen", "unpaired" } };
+        p.stateContrast = { { "unpaired", "frozen" },        { "frozen", "unpaired" },
+                            { "mm-suspended", "unpaired" },  { "tricks-open", "unpaired" },
+                            { "tricks-frozen", "unpaired" }, { "tricks-narrow", "unpaired" } };
         pages.push_back(p);
     }
     {
@@ -2814,15 +2828,25 @@ void Session::CaptureWindowPage(const PageSpec& p) {
         // These panes read their visibility CVar LIVE in Draw() (they override it),
         // so setting the CVar is what opens them; Show() would do nothing.
         CVarSetInteger(cvar, 1);
-        const bool tricks = (state == "tricks-open" || state == "tricks-frozen");
+        const bool narrow = (state == "tricks-narrow");
+        const bool tricks = (state == "tricks-open" || state == "tricks-frozen" || narrow);
         auto setTricksOpen = [&p, &state](int open) {
             ImGuiWindow* w = ImGui::FindWindowByName(p.window.c_str());
             if (w != nullptr) {
-                for (ImGuiID area : TricksOpenAreaIds(w, state == "tricks-frozen")) {
+                for (ImGuiID area : TricksOpenAreaIds(w, state != "tricks-open")) {
                     w->StateStorage.SetInt(area, open);
                 }
             }
         };
+        // tricks-narrow asks for a 1 px wide pane every frame; the pane's size
+        // constraint is what holds it at its minimum. The size it had is put
+        // back after the state.
+        ImVec2 sizeBefore(0.0f, 0.0f);
+        if (narrow) {
+            if (ImGuiWindow* w = ImGui::FindWindowByName(p.window.c_str())) {
+                sizeBefore = w->SizeFull;
+            }
+        }
         // The pane's .txt is VISIBLE-ONLY (see HookState::unclipLog), so a state's
         // text is asserted against what some captured view actually showed.
         gHooks.unclipLog = false;
@@ -2841,6 +2865,9 @@ void Session::CaptureWindowPage(const PageSpec& p) {
                 if (tricks) {
                     setTricksOpen(1);
                 }
+                if (narrow) {
+                    ImGui::SetWindowSize(p.window.c_str(), ImVec2(1.0f, sizeBefore.y > 0.0f ? sizeBefore.y : 560.0f));
+                }
                 if (scrollIndex == 0) {
                     ImGuiWindow* w = ImGui::FindWindowByName(p.window.c_str());
                     if (w != nullptr) {
@@ -2855,6 +2882,15 @@ void Session::CaptureWindowPage(const PageSpec& p) {
             if (w != nullptr) {
                 c.scrollY = w->Scroll.y;
                 c.scrollMax = w->ScrollMax.y;
+                // The narrowed pane must sit at exactly its minimum: wider means
+                // the 1 px request did not land (the capture would show the
+                // default layout and prove nothing), narrower means the pane lost
+                // its size constraint.
+                if (narrow && c.status == "pass" && std::fabs(w->Size.x - ComboGui::kComboMMOptionsMinWidth) > 0.5f) {
+                    c.status = "fail";
+                    c.reason = "tricks-narrow drew the pane " + std::to_string((int)w->Size.x) +
+                               " px wide, not its minimum " + std::to_string((int)ComboGui::kComboMMOptionsMinWidth);
+                }
             }
             Finish(c, p);
             const bool unfinished = w != nullptr && c.status == "pass" && c.scrollY + 0.5f < c.scrollMax;
@@ -2929,6 +2965,9 @@ void Session::CaptureWindowPage(const PageSpec& p) {
         gHooks.unclipLog = true;
         if (tricks) {
             setTricksOpen(0);
+        }
+        if (narrow && sizeBefore.x > 0.0f) {
+            ImGui::SetWindowSize(p.window.c_str(), sizeBefore);
         }
         CVarSetInteger(cvar, 0);
         LeaveState(p, state);
@@ -3542,7 +3581,9 @@ void Session::WriteComposites() {
         }
         const auto perState = c.spec->stateCompareWith.find(c.state);
         const std::string& compareWith =
-            perState != c.spec->stateCompareWith.end() ? perState->second : c.spec->compareWith;
+            (!c.hover.empty() && !c.spec->hoverCompareWith.empty())
+                ? c.spec->hoverCompareWith
+                : (perState != c.spec->stateCompareWith.end() ? perState->second : c.spec->compareWith);
         if (compareWith.empty()) {
             continue;
         }

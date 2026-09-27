@@ -169,14 +169,26 @@ void SohTooltip(const char* text) {
     }
 }
 
-void SohTagChip(const char* label, ComboUiTone tone) {
-    // Rando::Tricks::DrawTagChips (tricks.cpp), one chip.
+void SohTagChip(const char* label, ComboUiTone tone, const ComboUiWidgetOpts* opts) {
+    // Rando::Tricks::DrawTagChips (tricks.cpp), one chip. SoH draws every chip
+    // disabled, and ImGui's BeginDisabled only dims when nothing outside it
+    // already has, so on a disabled row (whose checkbox and name are dimmed) the
+    // chip is dimmed by the same DisabledAlpha once more, by hand: without it a
+    // disabled row's chips would read exactly as bright as a live row's.
+    const bool rowDisabled = opts != nullptr && opts->disabled;
+    if (rowDisabled) {
+        const ImGuiStyle& style = ImGui::GetStyle();
+        ImGui::PushStyleVar(ImGuiStyleVar_Alpha, style.Alpha * style.DisabledAlpha);
+    }
     ImGui::SameLine();
     ImGui::BeginDisabled();
     UIWidgets::PushStyleButton(ToneColor(tone));
     ImGui::SmallButton(label);
     UIWidgets::PopStyleButton();
     ImGui::EndDisabled();
+    if (rowDisabled) {
+        ImGui::PopStyleVar();
+    }
 }
 
 void SohConfirm(const char* title, const char* message, const char* confirmLabel, const char* cancelLabel,

@@ -115,8 +115,14 @@ typedef struct {
     void (*WarningText)(const char* text);
     /** Tooltip for the item drawn last, when hovered (UIWidgets::Tooltip: wrapped at 80 characters). */
     void (*Tooltip)(const char* text);
-    /** A small inert chip in `tone`, on the current line (SoH's trick tag chips). */
-    void (*TagChip)(const char* label, ComboUiTone tone);
+    /**
+     * A small inert chip in `tone`, on the current line (SoH's trick tag chips,
+     * which SoH draws disabled). `opts` is the row's options: when
+     * `opts->disabled` the chip dims once more, as the row's control and name
+     * do, so a disabled row reads disabled end to end (ImGui does not dim a
+     * nested BeginDisabled again). NULL is a live row.
+     */
+    void (*TagChip)(const char* label, ComboUiTone tone, const ComboUiWidgetOpts* opts);
     /**
      * Queue a confirm modal (SohGui::RegisterPopup): `confirmLabel` runs
      * `onConfirm(user)`, `cancelLabel` closes it. The call only queues; the modal

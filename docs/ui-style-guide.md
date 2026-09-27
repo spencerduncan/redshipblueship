@@ -217,13 +217,7 @@ and on ours (R-N4).
   settings panes or menu pages.
 - **Trick lists** follow `DrawTricksMenu` (`SohMenuRandomizer.cpp:171-551`): a filter; "Disable All" and "Enable All"
   250 px buttons; a two-column Disabled/Enabled table of area tree nodes; coloured tag chips (`tricks.cpp:101-110`); and
-  the description as a tooltip. A trick list that is one section of a settings pane (the MM options pane's Tricks)
-  keeps the pane's own row: a `SeparatorText`, one gray note, then an area tree node per area (closed by default, so
-  the section does not bury the Reset button), and per trick the pane's themed checkbox, the tag chips with the
-  difficulty rung first (SoH's rung colours), then the name (`RowText`, wrapped with a hanging indent), with the
-  description as the tooltip of the whole row [project rule]. An unavailable or frozen trick is disabled with its
-  reason in shape (a), never printed beside it, and a chip label is one or two words, because it shares the line
-  with the name.
+  the description as a tooltip.
 - **Modals** are a centred `BeginPopupModal` with text and themed buttons (`SohModals.cpp:55-83`).
 - **Progress dialogs** look like SoH's ROM-extraction modal (`OTRGlobals.cpp`, `RunExtract`): the popup background;
   the title bar in the theme colour (`RunExtract` pushes `ImGuiCol_TitleBgActive` around its whole frame, as SoH's
@@ -301,8 +295,9 @@ MAX_PATH through the extended-length namespace, so a long output directory no lo
 - STATE: the five Cross-Game Rules states (unpaired, paired-legacy, frozen, corrupt, and empty-oot-classes, the one
   that draws an empty-set note), Majora's Mask's autosave,
   and the MM options pane's unpaired, frozen, mm-suspended, tricks-open (its first area and the first area holding a
-  reserved trick open) and tricks-frozen (frozen, with the area of the longest trick name open); the two Tricks
-  states are compared with Randomizer > Tricks/Glitches (`PageSpec::stateCompareWith`).
+  reserved trick open), tricks-frozen (frozen, with the area of the longest trick name open) and tricks-narrow (that
+  area live, the pane resized to its minimum width, which the capture asserts); the Tricks states are compared with
+  Randomizer > Tricks/Glitches (`PageSpec::stateCompareWith`).
 - SCROLL: `@scrollN`, stepping each column (a menu page) or the pane itself (a window) by one view minus 48 px until
   it reaches its end, at most 9 views.
 - HOVER: a pointer injected before ImGui reads input, so the tooltip is captured. Cross-Game Rules hovers its
@@ -310,7 +305,9 @@ MAX_PATH through the extended-length namespace, so a long output directory no lo
   Tracker toggle (`PageSpec::hoverRows`, a named row, captured in the page's first state). The MM options pane hovers
   its first row (unpaired and frozen), its first capability-blocked row, and in the Tricks states a live, an unbound,
   a reserved and a frozen trick (`PageSpec::paneHovers`, found through the `combo_ui` rect recorder); a disabled row's
-  hover must show SoH's disabled shape with no tracker number.
+  hover must show SoH's disabled shape with no tracker number. Pane hovers are composited against Settings > Graphics'
+  Current FPS hover (`PageSpec::hoverCompareWith`), SoH's one captured tooltip: SoH's Tricks page draws its trick
+  names as plain text with no item id, so no hover can be injected there.
 - MODAL: SoH's "Clear Config" reference, the Cross-Game Rules Reset confirm, and the MM options pane's Reset confirm
   (queued through `Combo_MMOptionsRequestReset`, the call the pane's button makes).
 - `over-menu` (the creation overlay, and SoH's "Clear Config" as its reference): Combo > Cross-Game Rules left open

@@ -71,16 +71,13 @@ typedef struct {
     uint8_t area;         // MMRandoTrickArea
     const char* areaName; // display name for `area`; never NULL
     uint32_t tags;        // bitwise OR of MMRandoTrickTag; never 0
-    /** The tag set as one human string, e.g. "Advanced, OoT Items".
-     *  Pre-joined MM-side so common code never learns the tag enum. */
-    const char* tagSummary;
     /**
      * The tag set as SoH's trick chips (Rando::Tricks::DrawTagChips): one label
      * and palette tone per tag, in tag order, so the difficulty rung is always
-     * the first chip. Decided MM-side for the same reason as `tagSummary` (common
-     * code never learns the tag enum); SoH's own rung colours (tricks.cpp's
-     * GetTagColor) where MM shares the rung. `mm-trick-table` asserts the chips
-     * mirror `tags` exactly.
+     * the first chip. Decided MM-side so common code never learns the tag
+     * enum; SoH's own rung colours (tricks.cpp's GetTagColor) where MM shares
+     * the rung. `mm-trick-table` asserts the chips mirror `tags` exactly, and
+     * each shared rung's tone.
      */
     uint8_t chipCount;
     const char* chipLabels[COMBO_MM_TRICK_MAX_CHIPS];
