@@ -519,18 +519,12 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
         .Options(ComboboxOptions()
                      .ComboMap(comboRuleGoalOptions)
                      .Tooltip("Chooses what you must do to finish the paired world. The seed is built so it can "
-                              "be done.
-
-                              "
-                              "Ganon & Majora: Defeat both Ganon and Majora, in any order.
-                              "
-                              "Any Final Boss: Defeat either Ganon or Majora.
-                              "
+                              "be done.\n\n"
+                              "Ganon & Majora: Defeat both Ganon and Majora, in any order.\n"
+                              "Any Final Boss: Defeat either Ganon or Majora.\n"
                               "Triforce Hunt: Collect Triforce Pieces from both games. Paired worlds cannot be "
-                              "created with this goal yet.
-                              "
-                              "Ganon: Defeat Ganon.
-                              "
+                              "created with this goal yet.\n"
+                              "Ganon: Defeat Ganon.\n"
                               "Majora: Defeat Majora."));
 
     menu.AddWidget(path, "Item Crossing", WIDGET_SEPARATOR_TEXT);
