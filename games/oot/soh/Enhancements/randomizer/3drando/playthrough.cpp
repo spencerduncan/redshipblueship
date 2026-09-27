@@ -26,6 +26,31 @@
 // single-bag fill at the creation event (ADR 0010 increment 3, lane K11).
 extern "C" void OoT_ComboLogic_SetGeneralPassDeferred(int deferred);
 extern "C" int OoT_ComboLogic_GeneralPassDeferred(void);
+
+// #702: a record of what the LAST settings fold below actually folded, so a
+// rando-tier row can assert that the per-area exclude-location groups reach the
+// fingerprint at their shipped sizes (RandoSettingsFoldExcludes,
+// games/oot/soh/oot_settings_fold_test.cpp). Written only by the fold, read only
+// by that row. It counts option lines; it is not a copy of the string.
+namespace {
+constexpr int kRsbsFoldExcludeGroups = RSG_EXCLUDES_GANONS_CASTLE - RSG_EXCLUDES_KOKIRI_FOREST + 1;
+uint32_t sRsbsFoldTotalLines = 0;
+uint32_t sRsbsFoldExcludeLines[kRsbsFoldExcludeGroups] = {};
+int sRsbsFoldRuns = 0;
+} // namespace
+
+// Returns how many folds have run in this process (0 = none yet) and fills the
+// total option-line count plus, for up to `groupCap` groups in RSG_EXCLUDES_*
+// order, the number of lines each exclude group contributed.
+extern "C" int OoT_Rando_LastSettingsFold(uint32_t* outTotalLines, uint32_t* outExcludeLines, int groupCap) {
+    if (outTotalLines != nullptr) {
+        *outTotalLines = sRsbsFoldTotalLines;
+    }
+    for (int i = 0; outExcludeLines != nullptr && i < groupCap && i < kRsbsFoldExcludeGroups; i++) {
+        outExcludeLines[i] = sRsbsFoldExcludeLines[i];
+    }
+    return sRsbsFoldRuns;
+}
 #endif
 
 namespace Playthrough {
@@ -54,6 +79,12 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
     // once the settings have been finalized turn them into a string for hashing
     std::string settingsStr;
     auto& optionGroups = Rando::Settings::GetInstance()->GetOptionGroups();
+#ifdef RSBS_SINGLE_EXECUTABLE
+    sRsbsFoldTotalLines = 0;
+    for (uint32_t& lines : sRsbsFoldExcludeLines) {
+        lines = 0;
+    }
+#endif
     for (size_t i = 0; i < RSG_MAX; i++) {
         auto& optionGroup = optionGroups[i];
         // don't go through non-menus
@@ -73,10 +104,19 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
                     } else {
                         settingsStr += option->GetOptionText(ctx->GetOption(option->GetKey()).Get());
                     }
+#ifdef RSBS_SINGLE_EXECUTABLE
+                    sRsbsFoldTotalLines++;
+                    if (i >= RSG_EXCLUDES_KOKIRI_FOREST && i <= RSG_EXCLUDES_GANONS_CASTLE) {
+                        sRsbsFoldExcludeLines[i - RSG_EXCLUDES_KOKIRI_FOREST]++;
+                    }
+#endif
                 }
             }
         }
     }
+#ifdef RSBS_SINGLE_EXECUTABLE
+    sRsbsFoldRuns++;
+#endif
 
     // Lane B (ADR 0002 §3): fingerprint the finalized settings profile BEFORE the
     // DontGenerateSpoiler build-version mixing below, so the digest identifies the

@@ -382,12 +382,12 @@ if(ARCHIVE_FREE_ONLY)
                 set(_run_exe "${_sandbox_exe}")
                 set(_run_env "archive-free-sandbox")
                 message(STATUS
-                    "CheckGoldenDigest(${GOLDEN_NAME}): ${_rom_list} are present in ${WORK_DIR}, which would generate "
-                    "a DIFFERENT, unpinned world — running the dispatch in the archive-free sandbox ${_sandbox_dir} "
-                    "instead (the binary plus the port archives ${_sandbox_ports}, and shipofharkinian.json; NOT "
-                    "mods/, assets/ or any other build-directory content — see CheckGoldenDigest.cmake's "
-                    "_archive_free_sandbox header). This is what makes the row enforceable in a ROM-staged local tree "
-                    "rather than skipped there.")
+                    "CheckGoldenDigest(${GOLDEN_NAME}): ${_rom_list} are present in ${WORK_DIR} — running the "
+                    "dispatch in the archive-free sandbox ${_sandbox_dir} (the binary plus the port archives "
+                    "${_sandbox_ports}, and shipofharkinian.json; NOT mods/, assets/ or any other build-directory "
+                    "content — see CheckGoldenDigest.cmake's _archive_free_sandbox header) AND in ${WORK_DIR} with "
+                    "those archives mounted, and comparing BOTH to the golden and to each other (#702: one golden "
+                    "covers both environments).")
             else()
                 # A BROKEN HARNESS IS RED, NOT SKIPPED. This used to emit an
                 # `RSBS_GOLDEN_SKIP:` marker that the row's SKIP_REGULAR_EXPRESSION
@@ -423,40 +423,41 @@ if(ARCHIVE_FREE_ONLY)
 endif()
 
 # ----------------------------------------------------------------------------
-# Generate. One process, one run, its own output path.
+# Generate. One process per environment, each with its own output path.
 # ----------------------------------------------------------------------------
-set(_actual "${WORK_DIR}/golden-${GOLDEN_NAME}-actual.txt")
 # A stale artifact from a previous invocation must never be mistaken for this
 # run's output, so "the run succeeded but wrote nothing" stays an unambiguous
 # error rather than a silent pass against week-old bytes.
-file(REMOVE "${_actual}")
-
+#
 # WORKING_DIRECTORY is explicit even in the plain case, where it is the value this
 # row inherited from ctest anyway: the sandbox above is only archive-free because
 # the run happens INSIDE it, so "where did this run happen" must not be an
 # inherited accident.
-execute_process(
-    COMMAND ${CMAKE_COMMAND} -E env "${DIGEST_ENV}=${_actual}"
-            "${_run_exe}" --test ${DISPATCH}
-    WORKING_DIRECTORY "${_run_dir}"
-    RESULT_VARIABLE _rc
-    OUTPUT_VARIABLE _out
-    ERROR_VARIABLE _err
-)
-if(NOT _rc EQUAL 0)
-    message(FATAL_ERROR
-        "CheckGoldenDigest(${GOLDEN_NAME}): '--test ${DISPATCH}' exited ${_rc} — generation failed before any "
-        "comparison could happen, so this row says NOTHING about whether the world moved.\n"
-        "  ran: ${_run_exe}\n  in:  ${_run_dir} [${_run_env}]\n"
-        "stdout:\n${_out}\nstderr:\n${_err}")
-endif()
-if(NOT EXISTS "${_actual}")
-    message(FATAL_ERROR
-        "CheckGoldenDigest(${GOLDEN_NAME}): '--test ${DISPATCH}' reported success but wrote no digest at "
-        "${_actual} (is ${DIGEST_ENV} the right variable for this dispatch?).\n"
-        "  ran: ${_run_exe}\n  in:  ${_run_dir} [${_run_env}]\n"
-        "stdout:\n${_out}\nstderr:\n${_err}")
-endif()
+function(_golden_generate run_dir run_exe run_env actual)
+    file(REMOVE "${actual}")
+    execute_process(
+        COMMAND ${CMAKE_COMMAND} -E env "${DIGEST_ENV}=${actual}"
+                "${run_exe}" --test ${DISPATCH}
+        WORKING_DIRECTORY "${run_dir}"
+        RESULT_VARIABLE _rc
+        OUTPUT_VARIABLE _out
+        ERROR_VARIABLE _err
+    )
+    if(NOT _rc EQUAL 0)
+        message(FATAL_ERROR
+            "CheckGoldenDigest(${GOLDEN_NAME}): '--test ${DISPATCH}' exited ${_rc} — generation failed before any "
+            "comparison could happen, so this row says NOTHING about whether the world moved.\n"
+            "  ran: ${run_exe}\n  in:  ${run_dir} [${run_env}]\n"
+            "stdout:\n${_out}\nstderr:\n${_err}")
+    endif()
+    if(NOT EXISTS "${actual}")
+        message(FATAL_ERROR
+            "CheckGoldenDigest(${GOLDEN_NAME}): '--test ${DISPATCH}' reported success but wrote no digest at "
+            "${actual} (is ${DIGEST_ENV} the right variable for this dispatch?).\n"
+            "  ran: ${run_exe}\n  in:  ${run_dir} [${run_env}]\n"
+            "stdout:\n${_out}\nstderr:\n${_err}")
+    endif()
+endfunction()
 
 # ----------------------------------------------------------------------------
 # Normalise: CR-stripped, ordered list of lines. Blank lines and free text are
@@ -494,6 +495,8 @@ function(_digest_keys lines out_keys prefix)
     set(${out_keys} "${_keys}" PARENT_SCOPE)
 endfunction()
 
+set(_actual "${WORK_DIR}/golden-${GOLDEN_NAME}-actual.txt")
+_golden_generate("${_run_dir}" "${_run_exe}" "${_run_env}" "${_actual}")
 _digest_lines("${_actual}" _actual_lines)
 
 # The digest as the CI LOG will carry it. Requirement, not decoration: the Linux
@@ -562,6 +565,35 @@ endif()
 _digest_lines("${_golden}" _golden_lines)
 
 # ----------------------------------------------------------------------------
+# THE SECOND ENVIRONMENT (#702): one golden covers both. Until #702 the settings
+# string Playthrough_Init hashes depended on which archives were mounted, so the
+# ROM-mounted world was a DIFFERENT world from the pinned one and a ROM-staged run
+# could only check the archive-free half, in the sandbox above. With the option
+# groups built the same way in both environments, the ROM-mounted world IS the
+# pinned world, and a ROM-staged run now generates it too — in the build
+# directory, with oot.o2r/mm.o2r mounted, i.e. the environment a player has — and
+# compares it against the SAME golden. So in the operator's tree every golden row
+# checks both worlds against one file, and additionally against each other, which
+# is the cross-environment lock on `settingsHash` (and every other field) that
+# #702 asks for: the same binary, run archive-free and ROM-mounted, must write the
+# same digest.
+#
+# Hosted CI has only the archive-free environment, so there this second run does
+# not happen and the row says so in its STATUS line; the lock's ROM half is
+# enforced wherever ROM archives are staged (the operator's local merge gate).
+# ----------------------------------------------------------------------------
+set(_rom_run OFF)
+if(_run_env STREQUAL "archive-free-sandbox")
+    set(_rom_run ON)
+    set(_rom_actual "${WORK_DIR}/golden-${GOLDEN_NAME}-actual-rom-mounted.txt")
+    _golden_generate("${WORK_DIR}" "${REDSHIP_EXE}" "rom-mounted-work-dir" "${_rom_actual}")
+    _digest_lines("${_rom_actual}" _rom_lines)
+    string(REPLACE ";" "\n  " _rom_pretty "${_rom_lines}")
+    message(STATUS "[golden-digest] ${GOLDEN_NAME} host=${CMAKE_HOST_SYSTEM_NAME} dispatch=${DISPATCH} "
+                   "env=rom-mounted-work-dir\n  ${_rom_pretty}")
+endif()
+
+# ----------------------------------------------------------------------------
 # Compare, field by field.
 #
 # INPUTS are the question the fill was asked; OUTPUTS are the answer it gave. A
@@ -573,34 +605,33 @@ _digest_lines("${_golden}" _golden_lines)
 # ----------------------------------------------------------------------------
 set(_input_fields seed settingsHash sourceIsRando comboSettingsHash comboSettings ladderMasterSeed)
 
-_digest_keys("${_golden_lines}" _gkeys "_g_")
-_digest_keys("${_actual_lines}" _akeys "_a_")
-
-set(_moved_outputs "")
-set(_moved_inputs "")
-set(_missing "")
-set(_added "")
-
-foreach(_key IN LISTS _gkeys)
-    if(_key IN_LIST _akeys)
-        if(NOT "${_a_${_key}}" STREQUAL "${_g_${_key}}")
-            if(_key IN_LIST _input_fields)
-                list(APPEND _moved_inputs "    ${_key}: golden '${_g_${_key}}' -> this build '${_a_${_key}}'")
-            else()
-                list(APPEND _moved_outputs "    ${_key}: golden '${_g_${_key}}' -> this build '${_a_${_key}}'")
+# Diff `actual_lines` (`actual_label`) against `ref_lines` (`ref_label`) and put a
+# field-by-field report into `out_report`, empty when every field matches.
+function(_digest_diff ref_lines ref_label actual_lines actual_label out_report)
+    _digest_keys("${ref_lines}" _rkeys "_r_")
+    _digest_keys("${actual_lines}" _akeys "_a_")
+    set(_moved_outputs "")
+    set(_moved_inputs "")
+    set(_missing "")
+    set(_added "")
+    foreach(_key IN LISTS _rkeys)
+        if(_key IN_LIST _akeys)
+            if(NOT "${_a_${_key}}" STREQUAL "${_r_${_key}}")
+                if(_key IN_LIST _input_fields)
+                    list(APPEND _moved_inputs "    ${_key}: ${ref_label} '${_r_${_key}}' -> ${actual_label} '${_a_${_key}}'")
+                else()
+                    list(APPEND _moved_outputs "    ${_key}: ${ref_label} '${_r_${_key}}' -> ${actual_label} '${_a_${_key}}'")
+                endif()
             endif()
+        else()
+            list(APPEND _missing "    ${_key} (was '${_r_${_key}}')")
         endif()
-    else()
-        list(APPEND _missing "    ${_key} (was '${_g_${_key}}')")
-    endif()
-endforeach()
-foreach(_key IN LISTS _akeys)
-    if(NOT _key IN_LIST _gkeys)
-        list(APPEND _added "    ${_key} = '${_a_${_key}}'")
-    endif()
-endforeach()
-
-if(_moved_outputs OR _moved_inputs OR _missing OR _added)
+    endforeach()
+    foreach(_key IN LISTS _akeys)
+        if(NOT _key IN_LIST _rkeys)
+            list(APPEND _added "    ${_key} = '${_a_${_key}}'")
+        endif()
+    endforeach()
     set(_report "")
     if(_moved_outputs)
         string(REPLACE ";" "\n" _block "${_moved_outputs}")
@@ -617,19 +648,56 @@ if(_moved_outputs OR _moved_inputs OR _missing OR _added)
     endif()
     if(_missing)
         string(REPLACE ";" "\n" _block "${_missing}")
-        string(APPEND _report "\n  FIELDS THE GOLDEN HAS AND THIS BUILD DID NOT EMIT:\n${_block}\n")
+        string(APPEND _report "\n  FIELDS ${ref_label} HAS AND ${actual_label} DID NOT EMIT:\n${_block}\n")
     endif()
     if(_added)
         string(REPLACE ";" "\n" _block "${_added}")
-        string(APPEND _report "\n  FIELDS THIS BUILD EMITTED THAT THE GOLDEN DOES NOT HAVE:\n${_block}\n")
+        string(APPEND _report "\n  FIELDS ${actual_label} EMITTED THAT ${ref_label} DOES NOT HAVE:\n${_block}\n")
+    endif()
+    set(${out_report} "${_report}" PARENT_SCOPE)
+endfunction()
+
+_digest_diff("${_golden_lines}" "golden" "${_actual_lines}" "this-build" _report)
+set(_cross_report "")
+set(_rom_report "")
+if(_rom_run)
+    _digest_diff("${_golden_lines}" "golden" "${_rom_lines}" "rom-mounted" _rom_report)
+    _digest_diff("${_actual_lines}" "archive-free" "${_rom_lines}" "rom-mounted" _cross_report)
+endif()
+
+set(_failure "")
+if(_report)
+    string(APPEND _failure
+        "\n  THE PINNED WORLD MOVED — this build does not reproduce the golden in ${_run_dir} [${_run_env}]:"
+        "${_report}")
+endif()
+if(_cross_report)
+    # Named separately from a moved golden because it is a different bug: the
+    # archive set changed the world again, which is #702 regressing, whatever the
+    # golden says. It is reported even when the archive-free half matches.
+    string(APPEND _failure
+        "\n  THE ARCHIVE SET CHANGED THE WORLD (#702 regressed) — the same binary generated a different digest "
+        "ROM-mounted (${WORK_DIR}, oot.o2r/mm.o2r mounted) than archive-free (${_run_dir}):"
+        "${_cross_report}")
+elseif(_rom_report)
+    string(APPEND _failure
+        "\n  THE ROM-MOUNTED WORLD does not reproduce the golden in ${WORK_DIR} [rom-mounted-work-dir]:"
+        "${_rom_report}")
+endif()
+
+if(_failure)
+    set(_rom_line "")
+    if(_rom_run)
+        set(_rom_line "\n  rom-mounted actual: ${_rom_actual}")
     endif()
     message(FATAL_ERROR
-        "CheckGoldenDigest(${GOLDEN_NAME}): this build does not reproduce the pinned world.\n"
+        "CheckGoldenDigest(${GOLDEN_NAME}): this build does not reproduce the pinned world in every environment "
+        "it ran in.\n"
         "  golden: ${_golden} [${_golden_kind}]\n"
-        "  actual: ${_actual}\n"
-        "  ran in: ${_run_dir} [${_run_env}]\n"
+        "  actual: ${_actual} [${_run_env}]"
+        "${_rom_line}\n"
         "  host:   ${CMAKE_HOST_SYSTEM_NAME}"
-        "${_report}"
+        "${_failure}"
         "\n  IF THE MOVE IS INTENDED, re-pin DELIBERATELY — the golden's diff is the review artifact:\n"
         "      cmake --build <build-dir> --target regen-golden-digests\n"
         "  and commit the changed file(s) stating which fields moved and why (docs/determinism-goldens.md).\n"
@@ -639,8 +707,16 @@ if(_moved_outputs OR _moved_inputs OR _missing OR _added)
         "not evidence against this failure.")
 endif()
 
+_digest_keys("${_golden_lines}" _gkeys "_g_")
 list(LENGTH _gkeys _field_count)
-message(STATUS
-    "CheckGoldenDigest(${GOLDEN_NAME}): ${_field_count} field(s) match the ${_golden_kind} golden "
-    "${_golden} on ${CMAKE_HOST_SYSTEM_NAME} (generated in ${_run_dir} [${_run_env}]) — the pinned world did not "
-    "move.")
+if(_rom_run)
+    message(STATUS
+        "CheckGoldenDigest(${GOLDEN_NAME}): ${_field_count} field(s) match the ${_golden_kind} golden "
+        "${_golden} on ${CMAKE_HOST_SYSTEM_NAME} in BOTH environments — archive-free (${_run_dir}) and ROM-mounted "
+        "(${WORK_DIR}) — so the pinned world did not move and the archive set does not change it (#702).")
+else()
+    message(STATUS
+        "CheckGoldenDigest(${GOLDEN_NAME}): ${_field_count} field(s) match the ${_golden_kind} golden "
+        "${_golden} on ${CMAKE_HOST_SYSTEM_NAME} (generated in ${_run_dir} [${_run_env}]) — the pinned world did not "
+        "move. No ROM-derived archive is staged here, so the ROM-mounted half of this row (#702) did not run.")
+endif()

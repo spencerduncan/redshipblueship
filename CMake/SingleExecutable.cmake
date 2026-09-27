@@ -2037,6 +2037,22 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # no other completion writer exists. ROM-free and display-free: default tier.
     redship_add_test(NAME ComboGoalEnding COMMAND redship --test combo-goal-ending)
 
+    # #702: the per-area exclude-location option groups reach OoT's settings
+    # fingerprint at their shipped sizes (nonzero, equal to each area's exclude
+    # options counted independently from the static location table), and the fold
+    # a real generation ran read exactly that many lines from each. The row runs
+    # in the build directory, so it tests whichever init order that directory's
+    # archive set produces: in a ROM-staged tree the SoH menu is set up first,
+    # which is the order that used to leave all 32 groups empty (red on a binary
+    # without the fix, observed). Hosted CI cannot mount a ROM-derived archive, so
+    # there it is green with or without the fix; the cross-environment half of the
+    # lock is the golden rows, which run in both environments where both exist
+    # (CheckGoldenDigest.cmake). Tier `rando`: it generates, so it needs a window.
+    redship_add_test(NAME RandoSettingsFoldExcludes COMMAND redship --test rando-settings-fold-excludes
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)
     # These tests actually boot the games and verify boot completion
