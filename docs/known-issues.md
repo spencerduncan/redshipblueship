@@ -46,10 +46,15 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
   side. Which items may cross is decided by a rule-defined item class (PR
   [#631](https://github.com/spencerduncan/redshipblueship/pull/631)) and the frozen direction.
 - **Hearts and capacity upgrades are counted once for the pair.** Health is one shared
-  bar, so the bag keeps 44 Pieces of Heart, 6 Heart Containers and 1 Double Defense out
-  of both games' 100 heart items. The rest become junk in their home game, and the bar
-  stops at 20 hearts (PR [#744](https://github.com/spencerduncan/redshipblueship/pull/744)). Every capacity-like shared family is trimmed
-  to its maximum the same way.
+  bar. On the shipped profile the two pools hold 76 Pieces of Heart, 15 Heart Containers
+  and 2 Double Defense; the bag keeps 44, 6 and 1 (OoT 14 + 4 + 1, MM 30 + 2 + 0), and the
+  bar stops at 20 hearts (PR [#744](https://github.com/spencerduncan/redshipblueship/pull/744)). That is 42 trimmed heart and
+  double-defense rows. Capacity families whose top tier is the same in both games (magic,
+  quiver, bomb bag, and the wallet when OoT has no tycoon's wallet) are trimmed to the
+  shared maximum the same way; with them, 51 rows (OoT 22, MM 29) become filler in their
+  home game. Families whose top tiers differ keep every copy and cost a known dead pickup:
+  the hookshot (OoT 2, MM 1) always, and the ocarina when the frozen rules arm it. Stick
+  and nut capacity exist only in OoT and are unchanged.
 - **Both worlds are generated together, once, at file creation.** Freeze, the single-bag
   fill, each game's own pass over its leftover checks (traps and junk stay in their home
   game), one spoiler with a `combo` section, one atomic identity publish, and the MM shadow
@@ -106,6 +111,11 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
 - **Nothing of the switch has been played yet.** Every claim above comes from tests,
   measurements and UI captures. The playtest is
   [`playtest-2026-09.md`](playtest-2026-09.md).
+- **The in-game crossing views are empty.** Combo > Windows > Toggle Cross-Game Spoiler
+  and the Combo Tracker's cross-game section still read the tables the single bag no longer
+  writes, so they show nothing for a new world. The spoiler JSON's `combo.crossingStore`
+  lists every crossing with display names
+  ([#755](https://github.com/spencerduncan/redshipblueship/issues/755)).
 - **Paired-world hints are partial.** OoT's hints have no pair-level Way of the Hero
   or barren analysis. Crossing hosts are never hinted, and an OoT item that crossed is
   hinted as "Termina" (PR [#743](https://github.com/spencerduncan/redshipblueship/pull/743)).
