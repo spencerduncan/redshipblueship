@@ -20,8 +20,10 @@
 
 #include "combo_logic.h"
 #include "shared_items.h" // the O8 owner the bag builder reads (game-header-free)
+#include "shared_resources.h" // RSBS_SHARED_RES_KIND_COUNT, for THE SHARED-QUANTITY TRIM (game-header-free)
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 // ============================================================================
@@ -1511,6 +1513,7 @@ const char* Combo_Logic_ComposeDispositionName(int disposition) {
         case RSBS_COMBO_COMPOSE_JUNK: return "junk";
         case RSBS_COMBO_COMPOSE_TRAP: return "trap";
         case RSBS_COMBO_COMPOSE_UNCLASSIFIED: return "unclassified";
+        case RSBS_COMBO_COMPOSE_TRIMMED: return "trimmed";
         default: return "(unknown)";
     }
 }
@@ -1535,14 +1538,171 @@ int Combo_Logic_ComposeDisposition(SharedItem item, uint16_t poolFlags, uint32_t
     return ((poolFlags & RSBS_COMBO_POOL_PLENTIFUL) != 0u) ? RSBS_COMBO_COMPOSE_SURPLUS : RSBS_COMBO_COMPOSE_REQUIRED;
 }
 
+// ----------------------------------------------------------------------------
+// THE SHARED-QUANTITY TRIM (lane K13) — combo_logic.h has the rule, shared_items.h
+// the per-kind policy and why unequal ceilings are kept whole.
+// ----------------------------------------------------------------------------
+
+/** The trimmed pool rows of the last compose, in pool order. */
+static int sComposeTrimmed[RSBS_COMBO_LOGIC_BAG_CAP];
+static int sComposeTrimmedCount = 0;
+
+int Combo_Logic_ComposeTrimmedCount(void) {
+    return sComposeTrimmedCount;
+}
+
+bool Combo_Logic_ComposeTrimmedAt(int index, int* outPoolIndex) {
+    if (index < 0 || index >= sComposeTrimmedCount || index >= RSBS_COMBO_LOGIC_BAG_CAP) {
+        return false;
+    }
+    if (outPoolIndex != NULL) {
+        *outPoolIndex = sComposeTrimmed[index];
+    }
+    return true;
+}
+
+/** The health grades, by unit size; a tier kind has the one grade 0 ("any"). */
+#define COMBO_TRIM_GRADE_ANY 0u
+
+/** Does pool row `i` belong to group (kind, grade, disposition)? */
+static bool ComboTrimInGroup(const ComboLogicComposeRequest* req, const uint8_t* disp, int i, uint8_t kind,
+                             uint8_t grade, uint8_t disposition) {
+    if (disp[i] != disposition) {
+        return false;
+    }
+    const SharedItem item = req->rows[i].item;
+    if (Combo_ItemClassSharedKind(item) != kind) {
+        return false;
+    }
+    return grade == COMBO_TRIM_GRADE_ANY || Combo_ItemClassSharedUnits(item) == grade;
+}
+
+/** Per-origin counts of one group. */
+static void ComboTrimCount(const ComboLogicComposeRequest* req, const uint8_t* disp, uint8_t kind, uint8_t grade,
+                           uint8_t disposition, int* outOoT, int* outMM) {
+    int nO = 0;
+    int nM = 0;
+    for (int i = 0; i < req->rowCount; ++i) {
+        if (ComboTrimInGroup(req, disp, i, kind, grade, disposition)) {
+            if (req->rows[i].item.originGame == (uint8_t)GAME_OOT) {
+                nO++;
+            } else {
+                nM++;
+            }
+        }
+    }
+    *outOoT = nO;
+    *outMM = nM;
+}
+
+/** The private stream for one (kind, grade, disposition, origin) choice. */
+static uint32_t ComboTrimSeed(uint32_t trimSeed, uint8_t kind, uint8_t grade, uint8_t disposition, uint8_t origin) {
+    uint32_t s = trimSeed ^ (0x9E3779B9u * (uint32_t)kind) ^ (0x85EBCA6Bu * ((uint32_t)grade + 1u)) ^
+                 (0xC2B2AE35u * ((uint32_t)disposition + 1u)) ^ (0x27D4EB2Fu * ((uint32_t)origin + 1u));
+    (void)ComboLogicRngNext(&s);
+    return s;
+}
+
+/**
+ * Trim one group to `budget` copies (both games together). `scratch` holds at
+ * least rowCount ints. Removed rows become TRIMMED and move between the
+ * per-origin counts.
+ */
+static void ComboTrimGroup(const ComboLogicComposeRequest* req, uint8_t* disp, int* scratch, uint8_t kind,
+                           uint8_t grade, uint8_t disposition, int budget, ComboLogicComposeResult* res) {
+    int nO = 0;
+    int nM = 0;
+    ComboTrimCount(req, disp, kind, grade, disposition, &nO, &nM);
+    if (budget < 0 || nO + nM <= budget) {
+        return;
+    }
+    int keep[3] = { 0, 0, 0 }; // indexed by GameId
+    Combo_SharedQuantitySplit(budget, nO, nM, ComboTrimSeed(req->trimSeed, kind, grade, disposition, 0u),
+                              &keep[GAME_OOT], &keep[GAME_MM]);
+    const uint8_t origins[2] = { (uint8_t)GAME_OOT, (uint8_t)GAME_MM };
+    for (int o = 0; o < 2; ++o) {
+        const uint8_t origin = origins[o];
+        int n = 0;
+        for (int i = 0; i < req->rowCount; ++i) {
+            if (req->rows[i].item.originGame == origin && ComboTrimInGroup(req, disp, i, kind, grade, disposition)) {
+                scratch[n++] = i;
+            }
+        }
+        if (n <= keep[origin]) {
+            continue;
+        }
+        // A uniformly random keep-set: shuffle the game's rows in the group with
+        // the private stream, keep the first `keep`, trim the rest.
+        uint32_t rng = ComboTrimSeed(req->trimSeed, kind, grade, disposition, origin);
+        ComboLogicShuffle(scratch, n, &rng);
+        for (int k = keep[origin]; k < n; ++k) {
+            disp[scratch[k]] = (uint8_t)RSBS_COMBO_COMPOSE_TRIMMED;
+            res->perGame[origin].rows[disposition]--;
+            res->perGame[origin].rows[RSBS_COMBO_COMPOSE_TRIMMED]++;
+        }
+    }
+}
+
+static void ComboTrimSharedQuantities(const ComboLogicComposeRequest* req, uint8_t* disp, int* scratch,
+                                      ComboLogicComposeResult* res) {
+    const uint16_t start =
+        (req->startingHealthOoT > req->startingHealthMM) ? req->startingHealthOoT : req->startingHealthMM;
+    for (uint8_t kind = 1u; kind < (uint8_t)RSBS_SHARED_RES_KIND_COUNT; ++kind) {
+        ComboSharedQuantityPolicy policy;
+        if (!Combo_SharedQuantityPolicyOf(kind, &policy) || policy.policy != RSBS_SHARED_QTY_TRIM_TO_SHARED_MAX) {
+            continue;
+        }
+        if (policy.budget == RSBS_SHARED_QTY_BUDGET_HEALTH) {
+            const uint8_t grades[2] = { (uint8_t)RSBS_SHARED_QTY_UNITS_PIECE, (uint8_t)RSBS_SHARED_QTY_UNITS_CONTAINER };
+            int nO[2];
+            int nM[2];
+            for (int g = 0; g < 2; ++g) {
+                ComboTrimCount(req, disp, kind, grades[g], (uint8_t)RSBS_COMBO_COMPOSE_REQUIRED, &nO[g], &nM[g]);
+            }
+            int pieces = 0;
+            int containers = 0;
+            if (Combo_SharedQuantityHealthBudget(start, nO[0] + nM[0], nO[1] + nM[1], &pieces, &containers) < 0) {
+                continue; // unreachable: ComposeBag refused an unpublished start; never trim to zero
+            }
+            ComboTrimGroup(req, disp, scratch, kind, grades[0], (uint8_t)RSBS_COMBO_COMPOSE_REQUIRED, pieces, res);
+            ComboTrimGroup(req, disp, scratch, kind, grades[1], (uint8_t)RSBS_COMBO_COMPOSE_REQUIRED, containers, res);
+            for (int g = 0; g < 2; ++g) {
+                int sO = 0;
+                int sM = 0;
+                ComboTrimCount(req, disp, kind, grades[g], (uint8_t)RSBS_COMBO_COMPOSE_SURPLUS, &sO, &sM);
+                ComboTrimGroup(req, disp, scratch, kind, grades[g], (uint8_t)RSBS_COMBO_COMPOSE_SURPLUS,
+                               (sO > sM) ? sO : sM, res);
+            }
+            continue;
+        }
+        int nO = 0;
+        int nM = 0;
+        ComboTrimCount(req, disp, kind, COMBO_TRIM_GRADE_ANY, (uint8_t)RSBS_COMBO_COMPOSE_REQUIRED, &nO, &nM);
+        const int budget = Combo_SharedQuantityTierBudget(&policy, nO, nM);
+        if (budget < 0) {
+            continue; // unequal ceilings: the family keeps every copy, surplus included
+        }
+        ComboTrimGroup(req, disp, scratch, kind, COMBO_TRIM_GRADE_ANY, (uint8_t)RSBS_COMBO_COMPOSE_REQUIRED, budget,
+                       res);
+        int sO = 0;
+        int sM = 0;
+        ComboTrimCount(req, disp, kind, COMBO_TRIM_GRADE_ANY, (uint8_t)RSBS_COMBO_COMPOSE_SURPLUS, &sO, &sM);
+        ComboTrimGroup(req, disp, scratch, kind, COMBO_TRIM_GRADE_ANY, (uint8_t)RSBS_COMBO_COMPOSE_SURPLUS,
+                       (sO > sM) ? sO : sM, res);
+    }
+}
+
 int Combo_Logic_ComposeBag(const ComboLogicComposeRequest* req, ComboLogicBagItem* outBag, int outCap,
                            int* outPoolIndex, ComboLogicComposeResult* out) {
     ComboLogicComposeResult res;
     memset(&res, 0, sizeof(res));
     int status = RSBS_COMBO_LOGIC_OK;
+    uint8_t* disp = NULL;
+    int* scratch = NULL;
+    sComposeTrimmedCount = 0;
 
     if (req == NULL || req->rowCount < 0 || (req->rowCount > 0 && req->rows == NULL) || outCap < 0 ||
-        (outCap > 0 && outBag == NULL)) {
+        (outCap > 0 && outBag == NULL) || (req->quantityFlags & (uint16_t)~RSBS_COMBO_QUANTITY_FLAGS_KNOWN) != 0u) {
         status = RSBS_COMBO_LOGIC_ERR_BAD_REQUEST;
         goto finish;
     }
@@ -1551,10 +1711,31 @@ int Combo_Logic_ComposeBag(const ComboLogicComposeRequest* req, ComboLogicBagIte
         status = RSBS_COMBO_LOGIC_ERR_BAD_REQUEST;
         goto finish;
     }
+    if ((req->quantityFlags & RSBS_COMBO_QUANTITY_KEEP_ALL) == 0u &&
+        (req->startingHealthOoT == 0u || req->startingHealthMM == 0u)) {
+        // THE SHARED-QUANTITY TRIM's health budget is a function of the frozen
+        // starting bar; an unpublished one is refused, never guessed (combo_logic.h).
+        fprintf(stderr,
+                "[ComboLogic] compose refused: the shared-quantity trim needs both frozen starting healths "
+                "(OoT 0x%X, MM 0x%X; 0 = not published)\n",
+                (unsigned)req->startingHealthOoT, (unsigned)req->startingHealthMM);
+        status = RSBS_COMBO_LOGIC_ERR_BAD_REQUEST;
+        goto finish;
+    }
+    if (req->rowCount > 0) {
+        disp = (uint8_t*)malloc((size_t)req->rowCount);
+        scratch = (int*)malloc(sizeof(int) * (size_t)req->rowCount);
+        if (disp == NULL || scratch == NULL) {
+            status = RSBS_COMBO_LOGIC_ERR_CAPACITY;
+            goto finish;
+        }
+    }
 
+    // ---- pass 1: THE RULE, one row at a time --------------------------------
     for (int i = 0; i < req->rowCount; ++i) {
         const ComboLogicPoolRow* row = &req->rows[i];
         const uint8_t origin = row->item.originGame;
+        disp[i] = (uint8_t)RSBS_COMBO_COMPOSE_UNCLASSIFIED;
         if (!ComboLogicIsGame(origin)) {
             fprintf(stderr, "[ComboLogic] compose refused: pool row %d carries no origin game\n", i);
             status = RSBS_COMBO_LOGIC_ERR_BAD_REQUEST;
@@ -1576,6 +1757,7 @@ int Combo_Logic_ComposeBag(const ComboLogicComposeRequest* req, ComboLogicBagIte
         }
         const uint32_t armed = (origin == (uint8_t)GAME_OOT) ? req->armedOoT : req->armedMM;
         const int disposition = Combo_Logic_ComposeDisposition(row->item, row->poolFlags, armed);
+        disp[i] = (uint8_t)disposition;
         counts->rows[disposition]++;
         if ((row->poolFlags & RSBS_COMBO_POOL_PLENTIFUL) != 0u) {
             counts->plentiful++;
@@ -1586,24 +1768,43 @@ int Combo_Logic_ComposeBag(const ComboLogicComposeRequest* req, ComboLogicBagIte
             fprintf(stderr, "[ComboLogic] compose refused: pool row %d (%s id %u) has no fill class\n", i,
                     Game_ToString((GameId)origin), (unsigned)row->item.id);
             status = RSBS_COMBO_LOGIC_ERR_BAD_REQUEST;
+        }
+    }
+
+    // ---- pass 2: THE SHARED-QUANTITY TRIM -----------------------------------
+    if ((req->quantityFlags & RSBS_COMBO_QUANTITY_KEEP_ALL) == 0u && req->rowCount > 0) {
+        ComboTrimSharedQuantities(req, disp, scratch, &res);
+    }
+
+    // ---- pass 3: the bag, a STABLE filter of the pool -----------------------
+    for (int i = 0; i < req->rowCount; ++i) {
+        if (disp[i] == (uint8_t)RSBS_COMBO_COMPOSE_TRIMMED) {
+            if (sComposeTrimmedCount < RSBS_COMBO_LOGIC_BAG_CAP) {
+                sComposeTrimmed[sComposeTrimmedCount] = i;
+            }
+            sComposeTrimmedCount++;
             continue;
         }
         // A CONFINED row enters only under RSBS_COMBO_COMPOSE_ADMIT_CONFINED_HOME,
-        // and then as a HOME_ONLY row: still counted CONFINED above, so the counts
-        // keep saying which rows a frozen setting holds at home.
-        const bool confinedHome = disposition == RSBS_COMBO_COMPOSE_CONFINED &&
+        // and then as a HOME_ONLY row: still counted CONFINED in pass 1, so the
+        // counts keep saying which rows a frozen setting holds at home. It is
+        // admitted HERE, after the trim, so it never sat in a trim group and
+        // never counted toward a shared budget (B7 pins that no trim-family row
+        // is confinable).
+        const bool confinedHome = disp[i] == (uint8_t)RSBS_COMBO_COMPOSE_CONFINED &&
                                   (req->composeFlags & RSBS_COMBO_COMPOSE_ADMIT_CONFINED_HOME) != 0u;
-        if (disposition != RSBS_COMBO_COMPOSE_REQUIRED && disposition != RSBS_COMBO_COMPOSE_SURPLUS && !confinedHome) {
+        if (disp[i] != (uint8_t)RSBS_COMBO_COMPOSE_REQUIRED && disp[i] != (uint8_t)RSBS_COMBO_COMPOSE_SURPLUS &&
+            !confinedHome) {
             continue; // counted for its own game's pass; never a bag row
         }
         if (res.bagCount < outCap) {
             ComboLogicBagItem* b = &outBag[res.bagCount];
             memset(b, 0, sizeof(*b));
-            b->item.originGame = origin;
-            b->item.id = row->item.id;
+            b->item.originGame = req->rows[i].item.originGame;
+            b->item.id = req->rows[i].item.id;
             b->itemClass = 0u;
-            const bool surplus = (disposition == RSBS_COMBO_COMPOSE_SURPLUS) ||
-                                 (confinedHome && (row->poolFlags & RSBS_COMBO_POOL_PLENTIFUL) != 0u);
+            const bool surplus = (disp[i] == (uint8_t)RSBS_COMBO_COMPOSE_SURPLUS) ||
+                                 (confinedHome && (req->rows[i].poolFlags & RSBS_COMBO_POOL_PLENTIFUL) != 0u);
             b->bagFlags = (uint16_t)((surplus ? RSBS_COMBO_BAG_SURPLUS : 0u) |
                                      (confinedHome ? RSBS_COMBO_BAG_HOME_ONLY : 0u));
             if (outPoolIndex != NULL) {
@@ -1613,13 +1814,18 @@ int Combo_Logic_ComposeBag(const ComboLogicComposeRequest* req, ComboLogicBagIte
         res.bagCount++;
     }
 
-    if (status == RSBS_COMBO_LOGIC_OK && (res.bagCount > outCap || res.bagCount > RSBS_COMBO_LOGIC_BAG_CAP)) {
-        fprintf(stderr, "[ComboLogic] compose refused: %d bag rows exceed the output capacity %d or the bag cap %d\n",
-                res.bagCount, outCap, RSBS_COMBO_LOGIC_BAG_CAP);
+    if (status == RSBS_COMBO_LOGIC_OK && (res.bagCount > outCap || res.bagCount > RSBS_COMBO_LOGIC_BAG_CAP ||
+                                          sComposeTrimmedCount > RSBS_COMBO_LOGIC_BAG_CAP)) {
+        fprintf(stderr,
+                "[ComboLogic] compose refused: %d bag rows exceed the output capacity %d or the bag cap %d (or %d "
+                "trimmed rows exceed the trim record)\n",
+                res.bagCount, outCap, RSBS_COMBO_LOGIC_BAG_CAP, sComposeTrimmedCount);
         status = RSBS_COMBO_LOGIC_ERR_CAPACITY;
     }
 
 finish:
+    free(disp);
+    free(scratch);
     res.status = status;
     if (out != NULL) {
         *out = res;

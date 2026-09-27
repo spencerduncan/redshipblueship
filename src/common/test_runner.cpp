@@ -688,6 +688,12 @@ extern "C" {
 // both real engines, and D5's pair-level locks paired with removal. rando tier;
 // FILE SCOPE (compiled as C++) like its combo-logic siblings.
 #include "tests/test_combo_single_bag.c"
+// THE SHARED-QUANTITY POOL POLICY and the composer's trim (lane K13; #525 x #645):
+// the policy table, the budgets, the trim over a synthetic pool shaped like both
+// shipped pools, and the play-side carrier walk. ROM-free and display-free; FILE
+// SCOPE (compiled as C++). Its SqpDeadHeartPickups is also called by
+// combo-logic-bag-composition B7 (declared there).
+#include "tests/test_shared_quantity_policy.c"
 
 // MM scene-command EXECUTE regression (issue #344). Unlike the parse test, the
 // body runs the parsed commands against a PlayState, so it needs MM's global.h
@@ -4522,6 +4528,11 @@ const TestDescriptor gTests[] = {
      "The single-bag fill at the creation event over both real engines: the GOAL proven with crossings both ways on "
      "deliverable hosts, D5's removal locks in both directions, the direction gate, and OoT's remainder",
      Test_ComboSingleBag},
+    {"shared-quantity-policy",
+     "Capacity-like shared families are trimmed to the shared maximum: 44 pieces + 6 containers + 1 double defense, "
+     "tiers to the pools' own ceiling (unequal ceilings kept whole), removed copies become origin filler, and the "
+     "trimmed hearts end the shared bar at exactly 320 with zero dead pickups (lane K13)",
+     Test_SharedQuantityPolicy},
     {nullptr, nullptr, nullptr}  // Sentinel
 };
 

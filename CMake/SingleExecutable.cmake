@@ -1952,6 +1952,16 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         TIMEOUT 600
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
+    # THE SHARED-QUANTITY POOL POLICY (lane K13; #525 x #645 increment 3): every
+    # capacity-like #525 family is trimmed in the bag composer to what the one shared
+    # quantity can absorb (health 44 pieces + 6 containers, double defense 1, tiers to
+    # the pools' own ceiling; unequal ceilings kept whole), the removed copies become
+    # filler for their origin game, and the trimmed hearts end the shared bar at 320
+    # with zero dead pickups through the REAL carrier. Synthetic sources and the real
+    # carrier: ROM-free and display-free, so the default tier. The same trim over
+    # both REAL pools is combo-logic-bag-composition B7.
+    redship_add_test(NAME SharedQuantityPolicy COMMAND redship --test shared-quantity-policy)
+
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)
     # These tests actually boot the games and verify boot completion

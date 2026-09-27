@@ -514,6 +514,12 @@ typedef struct {
     uint8_t fillClass;  /* RSBS_FILL_CLASS_* */
     uint32_t armedBy;   /* RSBS_FILL_ARM_* the item needs armed to roam; 0 = unconditional */
     uint8_t sharedKind; /* the RSBS_SHARED_RES_* kind this item's give feeds (context.h); 0 = none */
+    /** How many UNITS of `sharedKind` one copy grants (ABI 3, #525 pool policy). 0 is
+     *  read as 1, so every tier copy (one progressive step) needs no value. The one
+     *  kind whose copies differ in size is health: the unit is ONE HEART PIECE (a
+     *  quarter heart, 4 health units), so a piece is 1 and a heart container is 4.
+     *  Meaningless (and stored as 0) for a row that feeds no kind. */
+    uint8_t sharedUnits;
 } ComboItemClassRow;
 
 /** Shared kinds the owner reconciles: [1, RSBS_ITEM_CLASS_SHARED_KIND_CAP). A row
@@ -530,8 +536,12 @@ typedef int (*ComboItemClassifyFn)(uint16_t id, ComboItemClassRow* out);
 
 /** 2 (#731): the row gained `sharedKind`, and the owner's answer became the
  *  RECONCILED class. A version-1 source would leave the new byte zero, which is
- *  silently "feeds no kind", so the number moves and a stale source is refused. */
-#define RSBS_ITEM_CLASS_SOURCE_ABI 2u
+ *  silently "feeds no kind", so the number moves and a stale source is refused.
+ *  3 (#525 pool policy): the row gained `sharedUnits`. A version-2 source would
+ *  leave it zero, which reads as ONE unit — right for every tier copy and for a
+ *  heart piece, silently wrong for a heart container (4) — so the number moves
+ *  again. */
+#define RSBS_ITEM_CLASS_SOURCE_ABI 3u
 /** The owner stores rows for ids in [0, RSBS_ITEM_CLASS_ID_CAP); a source whose
  *  id space is wider is refused at registration rather than truncated. */
 #define RSBS_ITEM_CLASS_ID_CAP 1024u
@@ -604,6 +614,11 @@ uint8_t Combo_ItemClassSourceOf(SharedItem item);
 /** The RSBS_SHARED_RES_* kind @p item feeds (0 = none, or unknown). */
 uint8_t Combo_ItemClassSharedKind(SharedItem item);
 
+/** How many units of its shared kind one copy of @p item grants
+ *  (`ComboItemClassRow.sharedUnits`, a 0 from the source read as 1); 0 when the
+ *  item feeds no kind or is unknown. */
+uint8_t Combo_ItemClassSharedUnits(SharedItem item);
+
 /** The reconciled class of shared kind @p kind: the highest-ranked class
  *  (PROGRESSION > RENEWABLE > JUNK) over every registered origin's rows feeding
  *  it. RSBS_FILL_CLASS_NONE when no row feeds it, the kind is out of range, or a
@@ -661,6 +676,177 @@ bool Combo_ItemClassMayCrossUnder(SharedItem item, uint32_t armed);
  * not a guess this function makes.
  */
 uint32_t Combo_ItemClassArmedFromFrozen(uint8_t originGame);
+
+// ============================================================================
+// THE SHARED-QUANTITY POOL POLICY (#525 x #645 increment 3; lane K13)
+// ============================================================================
+//
+// THE QUESTION IT ANSWERS (the operator, 2026-09-27): "we aren't accidentally
+// reducing heart containers, pieces of heart, ammo/rupees to single count are
+// we? ... the repeats are something we're going to need to flex on because we
+// don't want to increase the maximum heart count."
+//
+// NOT TO SINGLE COUNT: the bag keeps one row per copy (combo_logic.h, THE BAG
+// MODEL shape 1), and renewables (rupees, ammo, refills) never enter the bag at
+// all; each game's own junk pass keeps its own counts. THE REAL DEFECT WAS THE
+// OPPOSITE ONE: #525 made health, double defense, magic, the four ammo capacity
+// tiers, the hookshot, the wallet and (when armed) the ocarina ONE quantity
+// spanning both games, but both games' full pools of those items were still
+// placed. Each port sizes its heart pool to take ITS OWN bar from the starting
+// hearts to 20: on the shipped (balanced) profile OoT's pool carries 11 heart
+// containers + 24 pieces (the treasure-game piece included; item_pool.cpp sizes
+// it from RSK_STARTING_HEARTS, so vanilla OoT's 8 + 36 is not the randomizer's
+// shape) and MM's 4 + 52, 17 hearts of items EACH,
+// against a shared bar that starts at 3 hearts and clamps at
+// RSBS_SHARED_RES_MAX_HEALTH_QUARTERS (20): about half of every heart pickup in a
+// full paired run lands on a bar the carrier has already clamped, a DEAD pickup.
+// Same shape, smaller, for every capacity-like family.
+//
+// THE POLICY, per #525 kind. What shared_resources.h says is ALWAYS shared is
+// trimmed; the one conditionally shared capacity (the ocarina, armed per world
+// by the frozen combo record) is trimmed only when armed; nothing else is.
+//
+//   kind                    policy             budget (COPIES the bag keeps, both games together)
+//   ----------------------  -----------------  ----------------------------------------------------
+//   HEALTH_QUARTERS         TRIM_TO_SHARED_MAX HEALTH: 44 pieces + 6 containers at 3 starting hearts
+//                                              (OoTMM's sharedHealth numbers; 17 hearts = the whole
+//                                              3 -> 20 headroom); see Combo_SharedQuantityHealthBudget
+//   DOUBLE_DEFENSE          TRIM_TO_SHARED_MAX TIER, fixed cap 1 (OoTMM: one double defense)
+//   MAGIC_LEVEL, QUIVER_,   TRIM_TO_SHARED_MAX TIER: the larger pool count, unless ceilings differ (below)
+//   BOMB_BAG_, STICK_,
+//   NUT_, HOOKSHOT_,
+//   WALLET_TIER
+//   OCARINA_TIER            TRIM when armed    TIER; KEEP_ALL while the frozen record does not share it
+//   everything else         KEEP_ALL           rupees, current health / magic, the five ammo COUNTS,
+//                                              bombchus, triforce pieces: renewable or counted, never
+//                                              a capacity the carrier clamps
+//
+// A TIER BUDGET IS READ OFF THE POOLS: the larger of the two games' REQUIRED copy
+// counts (OoTMM's "three progressive items" / "two"). Each port sizes its pool to
+// reach its own top from where its settings start it, so settings follow
+// automatically (a tycoon wallet adds OoT's third copy, a starting-with setting
+// removes one). The larger count is enough for BOTH games once the tier is shared:
+// MM's pool carries only two progressive bomb bags because its first comes from a
+// vanilla shop, and OoT's three reach the top the shared tier is.
+//
+// A GAME'S CEILING is its GIVE PATH's top tier: double defense 1/1, magic 2/2, the
+// four ammo capacities 3/3, hookshot 2 (OoT, the longshot) / 1 (MM), the ocarina
+// 2 / 1 — for these the same numbers the shared carrier's shims clamp with
+// (GameExports_SingleExe.cpp) — and the wallet 2 / 2, which is NOT the carrier's
+// number (OOT_/MM_MAX_WALLET_TIER are 3; both progressive-wallet gives stop at the
+// giant's wallet). OoT's progressive wallet reaches its third tier (the tycoon's
+// wallet) only when its pool carries that copy, so a game's ceiling is raised to
+// its own pool count where the pool holds more.
+//
+// UNEQUAL CEILINGS ARE KEPT WHOLE, and this is a correctness rule, not caution.
+// A copy's give is an INCREMENT in its own game (`CurrentUpgrade + 1`, clamped at
+// that game's top) on a live value the shared carrier raised on arrival; the
+// shared tier is the MAX of both games' tiers. So when the two games' ceilings
+// differ (OoT's hookshot reaches the longshot, MM's stops at the hookshot; the
+// ocarina 2 vs 1; a tycoon OoT wallet), a low-ceiling copy is effective only
+// while the shared tier is below ITS ceiling. Trimming to the budget then has
+// exactly two choices and both are wrong: keep a low-ceiling copy and the top
+// tier becomes unobtainable in every pickup order that meets a high copy first
+// (OoT hookshot, then MM hookshot: MM's give clamps at 1 and no longshot is left
+// in the world); drop the low game's copies and that game's ENGINE never assumes
+// the family at all (neither engine models the other game's shared tier), so the
+// proof loses every MM check behind the hookshot. Such a family keeps every copy
+// and costs exactly (sum - budget) dead pickups, reported, never hidden.
+//
+// EQUAL CEILINGS SUM, which is why trimming them is safe: every kept copy, of
+// either origin, raises the shared tier by one from wherever the carrier left it,
+// in every pickup order, up to the shared top. Health is the same argument over
+// quarters (both bars clamp at 20 hearts).
+//
+// WHAT THE COMPOSER DOES WITH IT (combo_logic.h, THE SHARED-QUANTITY TRIM): the
+// kept copies are chosen deterministically from identity and spread across both
+// games in proportion to each game's own count (so both worlds keep heart
+// checks); the removed copies go back to their origin game as FILLER for its
+// leftover junk pass, OoTMM's outcome ("freed slots become filler").
+
+/** Pinned values (printed and compared), append-only. */
+#define RSBS_SHARED_QTY_KEEP_ALL 0u
+#define RSBS_SHARED_QTY_TRIM_TO_SHARED_MAX 1u
+
+/** How a TRIM kind's budget is counted. */
+#define RSBS_SHARED_QTY_BUDGET_NONE 0u   /* KEEP_ALL: no budget */
+#define RSBS_SHARED_QTY_BUDGET_TIER 1u   /* one copy = one tier step; budget = the pools' own ceiling */
+#define RSBS_SHARED_QTY_BUDGET_HEALTH 2u /* per unit grade: pieces (1) and containers (4) */
+
+/** OoTMM's sharedHealth pool (packages/logic/src/world/transform.ts): 44 pieces
+ *  and 6 containers for both games = 17 hearts, the whole 3 -> 20 headroom. */
+#define RSBS_SHARED_QTY_HEART_PIECES 44
+#define RSBS_SHARED_QTY_HEART_CONTAINERS 6
+/** The health units (0x10 per heart) both ports start a file with by default.
+ *  Documentation for tests and prints ONLY: an unpublished (0) starting health is
+ *  refused, never read as this. */
+#define RSBS_SHARED_QTY_DEFAULT_START_HEALTH 0x30u
+/** The unit sizes of the two health grades (ComboItemClassRow.sharedUnits). */
+#define RSBS_SHARED_QTY_UNITS_PIECE 1u
+#define RSBS_SHARED_QTY_UNITS_CONTAINER 4u
+
+typedef struct {
+    uint8_t policy;   /* RSBS_SHARED_QTY_* */
+    uint8_t budget;   /* RSBS_SHARED_QTY_BUDGET_* */
+    uint8_t fixedCap; /* TIER only: an absolute cap in copies on top of the pools' counts; 0 = none */
+    uint8_t ceilingOoT; /* TIER only: OoT's give-path top tier (raised to OoT's pool count when that is larger) */
+    uint8_t ceilingMM;  /* TIER only: MM's, likewise */
+} ComboSharedQuantityPolicy;
+
+/**
+ * The policy row of #525 kind @p kind, with the one conditional kind resolved
+ * against the FROZEN record (Combo_SharedResourceKindArmed): an unarmed ocarina
+ * is KEEP_ALL. Returns false (and writes KEEP_ALL) for a kind that is not a real
+ * shared resource. A pure function of the kind and the frozen arming.
+ */
+bool Combo_SharedQuantityPolicyOf(uint8_t kind, ComboSharedQuantityPolicy* out);
+
+/** "keep-all" / "trim-to-shared-max", or "(unknown)". Never NULL. */
+const char* Combo_SharedQuantityPolicyName(uint8_t policy);
+
+/**
+ * THE HEALTH BUDGET, in copies per grade, for a world whose shared bar starts at
+ * @p startingHealth health units (0x10 per heart): the MAX of the two games'
+ * frozen starting health, because the shared bar is a max-merge from its first
+ * harvest. 0 means NOT PUBLISHED and is REFUSED (returns -1, writes 0 / 0): there
+ * is no default, because a guessed three hearts under-trims a two-heart world
+ * below its shared maximum. RSBS_SHARED_QTY_DEFAULT_START_HEALTH names both ports'
+ * default for tests and prints; nothing reads it as a fallback.
+ *
+ * The budget in quarters is (320 - start) / 4. Pieces take min(44, budget); the
+ * rest is containers, with a remainder under one heart going to pieces. At three
+ * starting hearts that is exactly OoTMM's 44 + 6 (68 quarters, 17 hearts); four
+ * starting hearts is 44 + 5; two is 44 + 7. When a grade has fewer copies
+ * AVAILABLE than its budget (@p piecesAvailable, @p containersAvailable; negative
+ * = unlimited), the unused quarters move to the other grade: four pieces per
+ * missing container, and one container per missing heart of pieces ROUNDED UP
+ * (14 missing pieces move FOUR containers), so a pool short of one grade still
+ * fills the bar. The kept units reach the budget whenever the pool holds that
+ * much and exceed it by at most three quarters (a partial container the carrier
+ * clamps); a shortfall would be a below-maximum reduction, an overfill is not.
+ *
+ * @return the budget in quarters, or -1 when @p startingHealth is 0.
+ */
+int Combo_SharedQuantityHealthBudget(uint16_t startingHealth, int piecesAvailable, int containersAvailable,
+                                     int* outPieces, int* outContainers);
+
+/**
+ * THE TIER BUDGET for a TRIM kind whose REQUIRED copies are @p ootCopies and
+ * @p mmCopies: the larger count, capped by the row's `fixedCap`. Returns -1, KEEP
+ * EVERY COPY, when both games hold copies and their CEILINGS differ (each game's
+ * `ceiling*` raised to its own copy count; see the section header), and when the
+ * policy is not a TIER trim.
+ */
+int Combo_SharedQuantityTierBudget(const ComboSharedQuantityPolicy* policy, int ootCopies, int mmCopies);
+
+/**
+ * THE SPREAD: split @p budget kept copies between the two games in proportion to
+ * their own counts. Largest remainder; every game that holds a copy keeps at
+ * least one when the budget allows one per holder; an exact tie in the remainders
+ * goes to the game @p tieSeed's low bit names (0 = OoT). Outputs never exceed the
+ * game's own count and sum to min(budget, ootCopies + mmCopies).
+ */
+void Combo_SharedQuantitySplit(int budget, int ootCopies, int mmCopies, uint32_t tieSeed, int* outOoT, int* outMM);
 
 #ifdef __cplusplus
 }

@@ -169,7 +169,7 @@ uint32_t SicTableDigest(uint8_t origin) {
 bool sSicFlip = false;
 
 int SicFlipFlopClassify(uint16_t id, ComboItemClassRow* out) {
-    ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u };
+    ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u, 0u, 0u };
     if (id == 0u) {
         *out = row;
         return 0;
@@ -189,7 +189,7 @@ int SicTrapEverythingClassify(uint16_t id, ComboItemClassRow* out) {
 // S8's synthetic MM rows: id 1 a RENEWABLE bombchu row (MM's own answer for its
 // bombchu packs), id 2 a TRAP wrongly tagged with a kind, id 3 untagged JUNK.
 int SicKindClassify(uint16_t id, ComboItemClassRow* out) {
-    ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u, 0u };
+    ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u, 0u, 0u };
     if (id == 1u) {
         row.fillClass = RSBS_FILL_CLASS_RENEWABLE;
         row.sharedKind = RSBS_SHARED_RES_BOMBCHU_COUNT;
