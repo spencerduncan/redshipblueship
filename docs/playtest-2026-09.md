@@ -24,7 +24,7 @@ No release has been cut since `v0.1.1-prealpha` (July), which is far older than 
    - Paired files from #680 up to the switch are **not** refused. They load and play the world they were created with, which is the old overlay world (crossed items still in their home pool). Nothing in this playtest applies to them.
    - A pre-switch paired world cannot be re-created from its seed: the same seed now makes a different world.
    - A paired world's OoT spoiler loaded on its own at file select is refused with a toast (it would be an unfinishable solo OoT world). That refusal is expected.
-3. **Set everything first.** Open the menu (Esc) and set Combo > Cross-Game Rules, Combo > Windows > Toggle MM Randomizer Options (including its Tricks section), and OoT's own Randomizer settings. All of it freezes when you press Generate in step 4.
+3. **Set everything first.** Open the menu (Esc) and set Combo > Cross-Game Rules, Combo > MM Randomizer and Combo > MM Tricks, and OoT's own Randomizer settings. All of it freezes when you press Generate in step 4.
 4. **Generate the seed.** Randomizer > General. For a seed you choose, tick "Manual seed entry" and type it in the Seed box; leave the box empty for a random one. Press **Generate Randomizer** (enabled only on file select, with no file loaded). The spoiler JSON is written to `Randomizer/<seed hash>.json`; the "Spoiler File:" line names it.
 5. **Create the file.** On file select, pick an empty slot, choose the **Randomizer** quest, then **Start Randomizer** (grayed out until a seed exists), enter a name and confirm. The paired world is filled now, behind the creation overlay (A1).
 6. **Write down** the seed, the build commit, and every non-default setting. You need them for any report.
@@ -46,7 +46,7 @@ Run them in order; later groups assume a created world. "Expect" is what the mer
 
 ### B. Tricks ([#696](https://github.com/spencerduncan/redshipblueship/pull/696), [#713](https://github.com/spencerduncan/redshipblueship/pull/713), [#729](https://github.com/spencerduncan/redshipblueship/pull/729))
 
-1. Open the MM Randomizer Options' **Tricks** section. Every trick is off by default. A trick with no logic binding yet draws disabled with a reason ([#697](https://github.com/spencerduncan/redshipblueship/issues/697)).
+1. Open **Combo > MM Tricks**. Every trick is off by default. A trick with no logic binding yet draws disabled with a reason ([#697](https://github.com/spencerduncan/redshipblueship/issues/697)).
 2. **A keg-gated site: the Lone Peak Shrine boulder chest** (`RC_LONE_PEAK_SHRINE_BOULDER_CHEST` in the spoiler's `combo.mm.checks`). With "Use Powder Kegs as Explosives" **off**, logic opens that boulder only with Bombs, Bombchus or the Blast Mask. So that chest must never hold your first explosive (`RI_PROGRESSIVE_BOMB_BAG`, `RI_BOMBCHU*`, `RI_MASK_BLAST`) when no other one is reachable first. More generally, a trick-off world must never leave a Powder Keg as your only way through a boulder, hidden grotto or breakable wall; if it does, report the site.
 3. **The world moves.** Create a second world from the same manual seed with the trick **on**. The placements should differ (the trick set is frozen into the identity), and a keg may now be required. Do the same with "Deku Stick Fighting".
 
@@ -58,9 +58,9 @@ Run them in order; later groups assume a created world. "Expect" is what the mer
 
 ### D. Menus ([#745](https://github.com/spencerduncan/redshipblueship/pull/745), [#746](https://github.com/spencerduncan/redshipblueship/pull/746), [#748](https://github.com/spencerduncan/redshipblueship/pull/748))
 
-1. The Combo sidebar lists **Cross-Game Rules**, **Windows** and **Majora's Mask** (a saved selection of the old names "Cross-Game Windows" or "MM Enhancements" should carry over). Randomizer > Cross-Game shows only a "Moved to Combo" note.
+1. The Combo sidebar lists **Cross-Game Rules**, **Windows**, **Majora's Mask**, **MM Randomizer** and **MM Tricks** (the last three together, in that order; **MM Mods** also appears). A saved selection of the old names "Cross-Game Windows" or "MM Enhancements" should carry over. Randomizer > Cross-Game shows only a "Moved to Combo" note.
 2. **Combo > Majora's Mask:** the toggles, and MM's autosave interval slider (1-60 min, default 5; visible once Autosave is on). Check whether a non-default interval changes when MM's owl autosave fires. This has never been checked in play.
-3. **MM Randomizer Options pane:** click through every section, and use its close button.
+3. **Combo > MM Randomizer and Combo > MM Tricks** (pages since 2026-09-27; they were a pop-out window). See "MM options as pages" below.
 4. **Capability rows:** a row that is unavailable keeps its own name and explains itself only in the disabled tooltip (for example "No Paired World Yet"). A gray note sits above the group. No tooltip should show an issue number.
 
 ### E. Game over
@@ -77,6 +77,16 @@ Run them in order; later groups assume a created world. "Expect" is what the mer
 ### G. Shared Ocarina ([#675](https://github.com/spencerduncan/redshipblueship/pull/675))
 
 Turn Shared Ocarina on before creation. Get an ocarina in OoT, cross, and confirm MM has one. Then do the reverse on a second file.
+
+### H. MM options as pages (ADR 0004's 2026-09-27 host amendment)
+
+MM's randomizer options and tricks moved out of the pop-out window into two Combo pages. Nothing about what they do changed. Check the move:
+
+1. **Where each option lives.** Combo > **MM Randomizer** has two columns. Column 1: a gray note ("No paired world yet. ..."), while Ocarina of Time is running a second gray note ("Majora's Mask is suspended; these options stay editable."), two orange warnings, then **Logic & Conditions** (Logic, Dungeon Access, Trials Access, the four Moon/Majora access counts, and the retired "Majora Access: Remains", disabled with "Option is Retired") and **Shuffle Options** (cows, owls, freestanding items, pots, snowballs, boss remains, Gold Skulltula tokens and their minimum, stray fairies, frogs, shops, Tingle maps, crates, barrels, grass). Column 2: **Items** (Plentiful Items, traps and their count, boss and enemy souls, enemy drops, ocarina buttons, swim, Triforce Hunt and its two counts, Shuffle Time, Time Progression, Final Hours Start Time shown as HH:MM), **Starting Items** (hearts, consumables, wallet, maps and compasses), **Hints** (six hint toggles), and **Reset MM Randomizer Options**, which asks first. Combo > **MM Tricks** is shaped like Randomizer > Tricks/Glitches: a filter, Disable All and Enable All, and a Disabled/Enabled table by area. Move a trick with its arrow. A trick the logic does not support yet stays in Disabled with a greyed arrow; hovering its name says why.
+2. **Every option is there once.** The page should hold the same options the window did (47 rows). Search the menu for "Shuffle Cows": you should see both OoT's and MM's rows, and ticking one must not tick the other.
+3. **What froze.** Set a few options and tricks, then press Generate Randomizer. Every row on both pages goes grey; hovering one shows "This setting is disabled because:" and "- Already Decided"; both pages' notes read "Already decided when this world was created. ..."; Reset, the arrows, Disable All and Enable All are greyed. The area headers still open and close. Return to the title screen: the pages are editable again.
+4. **What the Windows page still offers.** Combo > Windows holds only live-play tools: Toggle Cross-Game Spoiler, Toggle Combo Tracker, Toggle MM Item Tracker, Popout MM Item Tracker Settings, Toggle MM Check Tracker and Popout MM Check Tracker Settings. There is no "Toggle MM Randomizer Options" any more. A config that last had the options window open keeps an unused `gCombo.Windows.MMOptions` entry; it does nothing.
+5. **A second world.** With a trick turned on from Combo > MM Tricks, create a world, note the placements, then create another from the same manual seed with the trick off. They should differ, as they did from the window.
 
 ## 4. What to report, and how
 
@@ -102,6 +112,6 @@ Turn Shared Ocarina on before creation. Get an ocarina in OoT, cross, and confir
 - **Crossed MM hearts, Double Defense and Bombchus** may cross since [#738](https://github.com/spencerduncan/redshipblueship/pull/738); their in-game give was never checked (A4).
 - **Hookshot:** one dead pickup by design (A7).
 - **Loose mods:** no loose texture was checked on screen, and a custom asset with a `.meta` file is uncovered ([#732](https://github.com/spencerduncan/redshipblueship/pull/732)).
-- **Small windows:** the Cross-Game Rules page and the MM options pane were not rendered at 960x704 or below 800 px wide, where the columns collapse ([#742](https://github.com/spencerduncan/redshipblueship/pull/742), [#748](https://github.com/spencerduncan/redshipblueship/pull/748)). Try one.
+- **Small windows:** the Cross-Game Rules page and the MM options (then a pane, now Combo > MM Randomizer) were not rendered at 960x704 or below 800 px wide, where the columns collapse ([#742](https://github.com/spencerduncan/redshipblueship/pull/742), [#748](https://github.com/spencerduncan/redshipblueship/pull/748)). Try one.
 - **In-game crossing views:** the Cross-Game Spoiler window and the Combo Tracker's cross-game section are empty for new worlds ([#755](https://github.com/spencerduncan/redshipblueship/issues/755)).
 - **Renderers:** only OpenGL was captured locally. DX11 and llvmpipe renders come from CI, and macOS is not built.

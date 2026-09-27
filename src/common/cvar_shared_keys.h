@@ -901,10 +901,11 @@ static_assert(kDisputedClassificationKeyCount == 0,
 
 inline constexpr std::size_t kComboKeyCount = sizeof(kComboKeys) / sizeof(kComboKeys[0]);
 // Seven identity keys (the five of ADR 0011 increment 2, SharedOcarina (#668)
-// and Goal (ADR 0010 D1)) + four window-visibility preferences. Pinning the
-// count makes a silently dropped row a compile error; the lock's tree scan makes
-// a silently ADDED key a red test.
-static_assert(kComboKeyCount == 11, "seven gCombo.Rando.* identity keys + four gCombo.Windows.* preferences = 11");
+// and Goal (ADR 0010 D1)) + three window-visibility preferences (the MM
+// randomizer options window's left with it on 2026-09-27, when the options
+// became Combo pages). Pinning the count makes a silently dropped row a compile
+// error; the lock's tree scan makes a silently ADDED key a red test.
+static_assert(kComboKeyCount == 10, "seven gCombo.Rando.* identity keys + three gCombo.Windows.* preferences = 10");
 
 // #682's curated allowlist was exactly the four keys that issue named; #693 adds
 // a fifth, deliberately: the Autosave row's MM-only interval, whose provider is
