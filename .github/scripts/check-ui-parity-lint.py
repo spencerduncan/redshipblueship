@@ -31,6 +31,13 @@ Rules (level; what it catches):
   S11 error  a WIDGET_WINDOW_BUTTON row not shaped like SoH's: name starts
              "Toggle "/"Popout ", and the chain sets .WindowName( and
              .HideInSearch(true)
+  C1  error  a harness COPY of an SoH surface (REFERENCE_COPIES: a reference
+             page the UI snapshot must draw itself because the original is
+             inline in code it cannot call) whose style statements -- every
+             Push/PopStyleVar/Color, the colour locals they read, the
+             BeginPopupModal flags and the ProgressBar size -- no longer match
+             the original's, statement for statement. Not baselined: a
+             drifted copy is not a reference any more.
 
 Hits are keyed WITHOUT line numbers (rule | path | normalised source text), so
 unrelated edits do not churn the baseline. `.github/scripts/ui-lint-baseline.txt`
@@ -347,6 +354,74 @@ def run_rules(root, sets):
     return hits
 
 
+# ---------------------------------------------------------------------------
+# C1: harness copies of SoH surfaces, held to their originals
+# ---------------------------------------------------------------------------
+
+# (reference page, original file, [functions], copy file, [functions, in order]).
+# The copy's functions are concatenated in the order given and compared with the
+# original's as one sequence.
+REFERENCE_COPIES = [
+    ("modal/ROM Extraction", "games/oot/soh/OTRGlobals.cpp", ["RunExtract"], "games/oot/soh/soh_ui_snapshot.cpp",
+     ["PushExtractionFrameStyle", "DrawExtractionReference", "PopExtractionFrameStyle"]),
+]
+
+STYLE_STATEMENT = re.compile(r"UIWidgets::Colors\s+themeColor\s*=[^;]*;|auto\s+color\s*=[^;]*;|"
+                             r"ImGui::(?:Push|Pop)Style(?:Var|Color)\([^;]*\);|"
+                             r"ImGui::BeginPopupModal\((?:[^()]|\([^()]*\))*\)|ImGui::ProgressBar\([^;]*;", re.S)
+
+
+def style_statements(code):
+    """The style-bearing statements of @p code, in order, whitespace-normalised.
+    A ProgressBar keeps only its size: its fraction and label are live state."""
+    out = []
+    for m in STYLE_STATEMENT.finditer(code):
+        t = norm(m.group(0))
+        if t.startswith("ImGui::ProgressBar"):
+            size = re.search(r"ImVec2\([^)]*\)", t)
+            t = "ImGui::ProgressBar(size " + (size.group(0) if size else "?") + ")"
+        out.append(t)
+    return out
+
+
+def check_reference_copies(root, copies):
+    problems = []
+    for name, opath, ofuncs, cpath, cfuncs in copies:
+        seqs = []
+        for path, funcs in ((opath, ofuncs), (cpath, cfuncs)):
+            full = os.path.join(root, path)
+            if not os.path.isfile(full):
+                problems.append(f"C1 {name}: {path} does not exist")
+                break
+            with open(full, encoding="utf-8", errors="replace") as f:
+                text = f.read()
+            seq = []
+            for fn in funcs:
+                u = slice_function(path, text, fn)
+                if u is None:
+                    problems.append(f"C1 {name}: no function {fn} in {path}")
+                    seq = None
+                    break
+                seq += style_statements(u.code)
+            if seq is None:
+                break
+            seqs.append(seq)
+        if len(seqs) != 2:
+            continue
+        orig, copy = seqs
+        if not orig:
+            problems.append(f"C1 {name}: no style statements found in {opath} ({', '.join(ofuncs)})")
+            continue
+        if orig != copy:
+            n = max(len(orig), len(copy))
+            i = next(k for k in range(n) if k >= len(orig) or k >= len(copy) or orig[k] != copy[k])
+            o = orig[i] if i < len(orig) else "(none)"
+            c = copy[i] if i < len(copy) else "(none)"
+            problems.append(f"C1 {name}: the copy in {cpath} no longer matches {opath} at style statement {i + 1}: "
+                            f"original `{o}`, copy `{c}`")
+    return problems
+
+
 def key(hit):
     rule, path, _, text = hit
     return f"{rule} | {path} | {text.strip()}"
@@ -442,6 +517,9 @@ def main(argv):
                 f.write(k + "\n")
         print(f"wrote {BASELINE} ({len(gated)} entries)")
         return 0
+    copy_problems = check_reference_copies(args.root, REFERENCE_COPIES)
+    for problem in copy_problems:
+        print(problem)
     if args.report:
         return 0
 
@@ -453,10 +531,12 @@ def main(argv):
         print(f"NEW   ({n}x) {k}")
     for k, n in sorted(stale.items()):
         print(f"STALE ({n}x) {k}  -- fixed? delete it from {BASELINE}")
-    if new or stale:
-        print(f"FAIL: {sum(new.values())} new hit(s), {sum(stale.values())} stale baseline entr(y/ies)")
+    if new or stale or copy_problems:
+        print(f"FAIL: {sum(new.values())} new hit(s), {sum(stale.values())} stale baseline entr(y/ies), "
+              f"{len(copy_problems)} drifted reference cop(y/ies)")
         return 1
-    print(f"OK: {sum(have.values())} gated hit(s), all in the baseline")
+    print(f"OK: {sum(have.values())} gated hit(s), all in the baseline; "
+          f"{len(REFERENCE_COPIES)} reference cop(y/ies) match their originals")
     return grow_rc
 
 
@@ -506,17 +586,62 @@ FIX_TOAST = r'''
 '''
 
 
+FIX_COPY_ORIG = r'''
+void Loop::Run(int argc, char* argv[]) {
+    UIWidgets::Colors themeColor = Theme();
+    ImGui::PushStyleColor(ImGuiCol_TitleBgActive, UIWidgets::ColorValues.at(themeColor));
+    if (ImGui::BeginPopupModal("Box", NULL, ImGuiWindowFlags_NoMove)) {
+        ImGui::ProgressBar(live / 100.0f, ImVec2(600.0f, 50.0f), label.c_str());
+        ImGui::EndPopup();
+    }
+    ImGui::PopStyleColor(1);
+}
+'''
+
+FIX_COPY = r'''
+void CopyPush() {
+    UIWidgets::Colors themeColor = Theme();
+    ImGui::PushStyleColor(ImGuiCol_TitleBgActive, UIWidgets::ColorValues.at(themeColor)); // same, commented
+}
+
+void CopyDraw() {
+    if (ImGui::BeginPopupModal("Box", NULL,
+                               ImGuiWindowFlags_NoMove)) {
+        ImGui::ProgressBar(0.5f, ImVec2(600.0f, 50.0f), "50%");
+        ImGui::EndPopup();
+    }
+}
+
+void CopyPop() {
+    ImGui::PopStyleColor(1);
+}
+'''
+
+FIX_COPIES = [("fixture", "orig.cpp", ["Run"], "copy.cpp", ["CopyPush", "CopyDraw", "CopyPop"])]
+
+
 def self_test():
+    global REFERENCE_COPIES
     failures = []
 
     def expect(cond, what):
         if not cond:
             failures.append(what)
 
+    saved_copies = REFERENCE_COPIES
+    REFERENCE_COPIES = FIX_COPIES
+    try:
+        return self_test_body(failures, expect)
+    finally:
+        REFERENCE_COPIES = saved_copies
+
+
+def self_test_body(failures, expect):
     with tempfile.TemporaryDirectory() as root:
         os.makedirs(os.path.join(root, ".github", "scripts"))
         os.makedirs(os.path.join(root, "src", "common"))
         for name, body in (("menu.cpp", FIX_MENU), ("src/common/Pane.cpp", FIX_PANE), ("toast.cpp", FIX_TOAST),
+                           ("orig.cpp", FIX_COPY_ORIG), ("copy.cpp", FIX_COPY),
                            ("src/common/Unlisted.cpp", "void f() { ImGui::Text(\"x\"); }\n"),
                            ("src/common/Quiet.cpp", "// ImGui::Text(\"only a comment\")\n")):
             with open(os.path.join(root, name), "w", encoding="utf-8") as f:
@@ -605,6 +730,27 @@ def self_test():
         expect(sum(baseline_growth(base_bl, base_bl + "S1 | a | x\n").values()) == 1,
                "a duplicated entry was not growth")
 
+        # C1: a faithful copy (split lines, a trailing comment, live fraction and
+        # label) matches; a changed size, a changed colour, a dropped pop and a
+        # missing function each fail, and main() fails with them.
+        green = check_reference_copies(root, FIX_COPIES)
+        expect(green == [], f"C1 green {green}")
+        for old, new, what in (('ImVec2(600.0f, 50.0f), "50%"', 'ImVec2(520.0f, 32.0f), "50%"', "a resized bar"),
+                               ("ColorValues.at(themeColor)); // same", "ColorValues.at(Black)); // same",
+                                "a recoloured push"),
+                               ("    ImGui::PopStyleColor(1);\n}", "}", "a dropped pop"),
+                               ("void CopyPop()", "void CopyPopRenamed()", "a missing function")):
+            drifted = FIX_COPY.replace(old, new)
+            expect(drifted != FIX_COPY, f"the C1 fixture edit for {what} changed nothing")
+            with open(os.path.join(root, "copy.cpp"), "w", encoding="utf-8") as f:
+                f.write(drifted)
+            red = check_reference_copies(root, FIX_COPIES)
+            expect(len(red) == 1, f"C1 did not catch {what}: {red}")
+            with contextlib.redirect_stdout(quiet):
+                expect(main(["--root", root]) == 1, f"main() passed with {what}")
+        with open(os.path.join(root, "copy.cpp"), "w", encoding="utf-8") as f:
+            f.write(FIX_COPY)
+
         # A stale ui-lint-files.txt entry is an error, not a silent skip.
         with open(os.path.join(root, FILES_LIST), "a", encoding="utf-8") as f:
             f.write("MENU does/not/exist.cpp\n")
@@ -618,8 +764,8 @@ def self_test():
         for f in failures:
             print("SELF-TEST FAIL:", f)
         return 1
-    print("self-test: OK (S0-S11 red and green halves, baseline gate, @from= slice, baseline growth, "
-          "stale-list refusal)")
+    print("self-test: OK (S0-S11 red and green halves, C1 reference copies, baseline gate, @from= slice, "
+          "baseline growth, stale-list refusal)")
     return 0
 
 

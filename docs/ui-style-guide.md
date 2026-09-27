@@ -219,6 +219,23 @@ and on ours (R-N4).
   250 px buttons; a two-column Disabled/Enabled table of area tree nodes; coloured tag chips (`tricks.cpp:101-110`); and
   the description as a tooltip.
 - **Modals** are a centred `BeginPopupModal` with text and themed buttons (`SohModals.cpp:55-83`).
+- **Progress dialogs** look like SoH's ROM-extraction modal (`OTRGlobals.cpp`, `RunExtract`): the popup background;
+  the title bar in the theme colour (`RunExtract` pushes `ImGuiCol_TitleBgActive` around its whole frame, as SoH's
+  graphics loop does around every frame); a border of black at 0.3 alpha; and a bar with rounding 3, padding 10x8, the
+  theme colour as the fill and the same colour at 0.6 alpha as the track, 600 x 50 at the default scale (in font
+  units). The dim is the one deliberate difference: `RunExtract` also pushes an OPAQUE DarkGray
+  `ImGuiCol_ModalWindowDimBg`, because it runs before the game exists and there is nothing behind it. A progress
+  dialog over the game or file select dims with the style's own `ImGuiCol_ModalWindowDimBg`, as SoH's in-game modals
+  do (`SohModals.cpp`). The creation overlay (`CreationProgressOverlay.cpp`) is a plain window rather than a popup
+  for teardown reasons, so it draws that dim itself: a full-viewport, input-less window brought to the display front,
+  never the background draw list (that renders behind the game image and the menu). Its frame is pumped outside
+  SoH's per-frame title-bar push, so it pushes the theme colour onto its own title bar.
+- **Toasts** are `Notification::Emit` with `Notification::Options`' default colours and the player's configured
+  duration, as every SoH toast is (`Autosave.cpp`'s "Game autosaved"): an optional short prefix and one short message.
+  The overlay draws every field on ONE line at 1.8x and never wraps, so a toast is about 53 characters at most (the
+  width of the 832-px window the ui tier renders); the UI snapshot's toast pages fail when a toast leaves the window.
+  R-N8 still applies: spell out "Majora's Mask" and "Ocarina of Time" in a toast's sentence. Mute it when the call
+  site can run without audio.
 
 ## 11. Anti-patterns
 
@@ -248,7 +265,10 @@ theme, scale and background opacity, multi-viewports off, and MSAA 1.
 | Combo > Majora's Mask (was MM Enhancements) | Enhancements > Quality of Life (same three-column measure) |
 | Randomizer > Cross-Game | Randomizer > General (its gray note, at its two-column measure) |
 | MM Randomizer Options pane / Tricks | Randomizer > Logic/Access / Tricks/Glitches |
-| Creation overlay, Cross-Game Rules Reset confirm, MM options Reset confirm | the SoH modal ("Clear Config") |
+| Creation overlay | SoH's progress modal ("ROM Extraction", a harness copy of `RunExtract`'s modal and frame pushes, held to `RunExtract` by lint rule C1) |
+| Creation overlay over the open menu | SoH's modal over the same menu page ("Clear Config@over-menu") |
+| Cross-Game Rules Reset confirm, MM options Reset confirm | the SoH modal ("Clear Config") |
+| The creation shortfall and failure toasts | SoH's toast shape ("Game autosaved") |
 
 Compare within the same run, the same profile and the same backend. Check:
 - the fonts, rounding, borders and theme tints
@@ -284,6 +304,16 @@ MAX_PATH through the extended-length namespace, so a long output directory no lo
   `combo_ui` rect recorder); a disabled row's hover must show SoH's disabled shape with no tracker number.
 - MODAL: SoH's "Clear Config" reference, the Cross-Game Rules Reset confirm, and the MM options pane's Reset confirm
   (queued through `Combo_MMOptionsRequestReset`, the call the pane's button makes).
+- `over-menu` (the creation overlay, and SoH's "Clear Config" as its reference): Combo > Cross-Game Rules left open
+  under the box, as a real pumped frame draws it. The page is first settled alone, then with the box over it, and
+  `DimOracle` requires three things: "Main Menu" was drawn (and the bare frame is not nearly uniform outside the box);
+  the overlay's own dim window sits above the menu and below the box in the display order; and every pixel outside
+  the box equals the bare pixel blended with the style's `ImGuiCol_ModalWindowDimBg`, within 2 per channel. SoH's
+  modal passes the same pixel check, so "dims the way a modal dims" is measured, not read off the picture.
+- TOAST: a page emits one toast through its production emitter (`OoT_Creation_EmitShortfallToast`,
+  `OoT_Creation_ReportFailureAtFileSelect`), captures it, and clears it (`OoT_Notification_ClearForTest`). Its oracle
+  finds exactly one `notification#` window, requires it inside the window's width, and measures "not blank" inside the
+  toast's own rectangle. ROM-free, the harness registers its own Notifications window, so CI draws them too.
 
 **Environment:**
 
@@ -347,6 +377,8 @@ names what must fail. Run them after changing the harness itself.
 | `keep-imgui-ini` | `imgui.ini` stays armed and ImGui's shutdown save runs | the isolation check on `imgui.ini` |
 | `player-config` | the harness names `shipofharkinian.json` as its config | the isolation check on `shipofharkinian.json` |
 | `hover-first-line` | a hovered row draws only the first line of its tooltip | every hover whose tooltip has a second line ("does not show its row's tooltip") |
+| `no-menu-under` | the overlay's `over-menu` variant leaves the menu hidden | that capture ("the menu under the dim was not drawn") |
+| `no-dim` | the overlay's dim is drawn fully transparent | that capture ("... pixels outside the box are not the menu dimmed by ModalWindowDimBg") |
 
 **The original-page guard runs on a ROM-staged workstation only.** Hosted CI is ROM-free: SoH's own menu is not
 populated there (only Dev Tools/General registers), R8's `soh-names.txt` is not written, and CI has no base run to
@@ -367,6 +399,9 @@ A reworded entry counts as growth: fix the surface instead.
 **Static:** `python .github/scripts/check-ui-parity-lint.py`. It runs in CI (static-analysis workflow) with
 `--self-test` first.
 - Rules S0-S11 are listed in the script's docstring.
+- Rule C1 holds each harness COPY of an SoH surface to its original (`REFERENCE_COPIES` in the script): today the
+  "ROM Extraction" reference, whose three harness functions must carry `RunExtract`'s style pushes and pops, colour
+  locals, modal flags and bar size statement for statement. It is never baselined: a drifted copy is not a reference.
 - The files and slices it covers are listed in `.github/scripts/ui-lint-files.txt`: `path::Function` lints one
   function, `path::@from=TOKEN` lints from TOKEN's line to the end of the file. Inside an SoH-shipped file only our
   code is linted: `SohMenuRandomizer.cpp::AddCrossGamePointerWidgets`, and `SohMenu.cpp` from the capability

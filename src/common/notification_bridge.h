@@ -93,6 +93,12 @@ void OoT_Notification_Emit(const ComboNotification* notification);
 // stored toast, so they are valid only until the store is next mutated.
 int OoT_Notification_PeekLastForTest(ComboNotification* out);
 
+// Test-only: drop every queued toast. The UI snapshot's toast pages
+// (games/oot/soh/soh_ui_snapshot.cpp) emit a toast, capture it and clear it here,
+// so the toast cannot sit in a corner of every page captured after it. Nothing
+// in a shipping path calls this.
+void OoT_Notification_ClearForTest(void);
+
 #ifdef __cplusplus
 } // extern "C"
 

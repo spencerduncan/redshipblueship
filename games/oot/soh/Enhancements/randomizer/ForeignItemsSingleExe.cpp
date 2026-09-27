@@ -41,6 +41,7 @@
 #include <vector>
 
 #include "soh/OTRGlobals.h"
+#include "soh/Notification/Notification.h" // the shortfall and failure toasts, in SoH's own shape
 #include "soh/Enhancements/randomizer/randomizerTypes.h"
 #include "soh/Enhancements/randomizer/static_data.h"
 #include "soh/Enhancements/randomizer/item.h"
@@ -50,10 +51,9 @@
 // header entrance.cpp reaches it through, from the same directory.
 #include "3drando/fill.hpp"
 
-#include "foreign_items.h"       // src/common — ComboForeignItemDef, SharedItem
-#include "shared_items.h"        // src/common — Combo_RecordSharedItem (#493)
-#include "notification_bridge.h" // src/common — the shared refusal/failure overlay
-#include "gen_budget.h"          // src/common — the #582 fill budget + progress surface
+#include "foreign_items.h" // src/common — ComboForeignItemDef, SharedItem
+#include "shared_items.h"  // src/common — Combo_RecordSharedItem (#493)
+#include "gen_budget.h"    // src/common — the #582 fill budget + progress surface
 
 extern "C" {
 #include <z64.h>
@@ -948,6 +948,7 @@ extern "C" int MM_Rando_GenerateAtCreation(int slot, const char* ootSpoilerPath)
 // standing up OoT's file select.
 extern "C" void RsbsSave_RefuseSlotGeneration(int slot);
 extern "C" void OoT_Creation_ReportFailureAtFileSelect(int slot, int reason);
+extern "C" void OoT_Creation_EmitShortfallToast(int placed, int requested);
 // The ON-SCREEN progress surface's presentation half (#582),
 // games/oot/soh/SohGui/CreationProgressOverlay.cpp. Installed from the seam
 // below rather than at boot so the thread it latches as "the renderer's" is
@@ -1262,30 +1263,7 @@ extern "C" int OoT_RunPairedCreationEvent(int slot) {
                     placed, requested, eligible, reachable);
             fflush(stderr);
 
-            static char shortfallMessage[224];
-            snprintf(shortfallMessage, sizeof(shortfallMessage),
-                     "Only %d of %d Ocarina of Time items could be hidden in Termina - this seed's reachable "
-                     "chests ran short. Your Hyrule world still contains all of them; you will simply find "
-                     "fewer of them over there.",
-                     placed, requested);
-            ComboNotification shortfallToast;
-            memset(&shortfallToast, 0, sizeof(shortfallToast));
-            shortfallToast.prefix = "Fewer cross-game items:";
-            shortfallToast.prefixColor[0] = 1.0f;
-            shortfallToast.prefixColor[1] = 0.8f;
-            shortfallToast.prefixColor[2] = 0.3f;
-            shortfallToast.prefixColor[3] = 1.0f;
-            shortfallToast.message = shortfallMessage;
-            shortfallToast.messageColor[0] = 1.0f;
-            shortfallToast.messageColor[1] = 1.0f;
-            shortfallToast.messageColor[2] = 1.0f;
-            shortfallToast.messageColor[3] = 1.0f;
-            shortfallToast.remainingTime = 15.0f;
-            // Muted for the same reason the failure toast below is: the creation
-            // event runs inside the display-free locks as well as inside file
-            // select, and Notification::Emit's unmuted arm plays an OoT sound.
-            shortfallToast.mute = 1;
-            OoT_Notification_Emit(&shortfallToast);
+            OoT_Creation_EmitShortfallToast(placed, requested);
         }
     }
 
@@ -1299,6 +1277,34 @@ extern "C" int OoT_RunPairedCreationEvent(int slot) {
     fprintf(stderr, "[OoT] creation event: slot %d complete — both halves authored under one frozen identity\n", slot);
     fflush(stderr);
     return 1;
+}
+
+/**
+ * THE SHORTFALL TOAST (#583), in SoH's own toast shape.
+ *
+ * SoH's toasts are one short line in Notification::Options' default colours
+ * (Enhancements/QoL/Autosave.cpp's "Game autosaved", Plandomizer.cpp's "Invalid
+ * Spoiler Log Format"); this one used to carry hand-picked RGBA and three
+ * sentences, which the overlay draws as ONE line at 1.8x -- several times the
+ * width of the window. It keeps the fact that matters (how many of the requested
+ * items found a host) and leaves the explanation to the stderr line above its
+ * caller and to the spoiler, which records every crossing.
+ *
+ * Its own function so the UI snapshot can draw the production toast
+ * (`redship --test ui-snapshot`, the toast pages) rather than a copy of it.
+ * Duration: the player's own Notifications.Duration, as every SoH toast.
+ * Muted for the same reason the failure toast below is: the creation event runs
+ * inside the display-free locks as well as inside file select, and
+ * Notification::Emit's unmuted arm plays an OoT sound.
+ */
+extern "C" void OoT_Creation_EmitShortfallToast(int placed, int requested) {
+    char message[96];
+    snprintf(message, sizeof(message), "%d of %d placed in Termina.", placed, requested);
+    Notification::Emit({
+        .prefix = "Fewer cross-game items:",
+        .message = message,
+        .mute = true,
+    });
 }
 
 /**
@@ -1323,9 +1329,19 @@ extern "C" int OoT_RunPairedCreationEvent(int slot) {
  * just because its production caller is better equipped. The toast is the
  * surface; the sound is not load-bearing.
  *
- * VISUAL, THEREFORE UNVERIFIABLE BY THE TIERS. The locks assert the CREATION's
- * verdict (no file written, no identity left, slot refused); that the toast
- * renders is a playtest observation. Stated rather than implied.
+ * THE TOAST IS CHECKED BY THE UI TIER, the verdict by the creation locks. The
+ * locks assert the CREATION's verdict (no file written, no identity left, slot
+ * refused). The ui tier's UiSnapshot row draws this function's toast through the
+ * real Notifications window (the "toast/creation-failure" page) and fails it if
+ * the toast is missing, blank, or runs off an 832-px window. What neither can
+ * show is the toast over a live file select; that is still a playtest
+ * observation.
+ *
+ * THE COPY is one line, because the notification overlay draws prefix and
+ * message on ONE line at 1.8x and never wraps: about 53 characters fit the
+ * smallest window the ui tier renders (832 px). "Not created" says both that
+ * no file exists and that nothing was saved; "Majora's Mask" is spelled out
+ * (docs/ui-style-guide.md R-N8: only labels abbreviate it).
  *
  * @param slot   the slot whose creation failed.
  * @param reason reserved for a future failure taxonomy; 0 today ("generation
@@ -1339,23 +1355,11 @@ extern "C" void OoT_Creation_ReportFailureAtFileSelect(int slot, int reason) {
             slot);
     fflush(stderr);
 
-    ComboNotification failureToast;
-    memset(&failureToast, 0, sizeof(failureToast));
-    failureToast.prefix = "File NOT created:";
-    failureToast.prefixColor[0] = 0.9f;
-    failureToast.prefixColor[1] = 0.35f;
-    failureToast.prefixColor[2] = 0.3f;
-    failureToast.prefixColor[3] = 1.0f;
-    failureToast.message = "The paired Majora's Mask world could not be generated for this seed and these "
-                           "settings. Nothing was saved. Try a different seed, or relax the Majora's Mask "
-                           "options, and create the file again.";
-    failureToast.messageColor[0] = 1.0f;
-    failureToast.messageColor[1] = 1.0f;
-    failureToast.messageColor[2] = 1.0f;
-    failureToast.messageColor[3] = 1.0f;
-    failureToast.remainingTime = 20.0f;
-    failureToast.mute = 1; // see the header: this seam is driven by display-free locks too
-    OoT_Notification_Emit(&failureToast);
+    Notification::Emit({
+        .prefix = "Not created:",
+        .message = "try a new seed or Majora's Mask options.",
+        .mute = true, // see the header: this seam is driven by display-free locks too
+    });
 }
 
 #endif // RSBS_SINGLE_EXECUTABLE
