@@ -1972,6 +1972,12 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # carrier: ROM-free and display-free, so the default tier. The same trim over
     # both REAL pools is combo-logic-bag-composition B7.
     redship_add_test(NAME SharedQuantityPolicy COMMAND redship --test shared-quantity-policy)
+    # #666: a cross-game departure retires MM's Play gamestate without
+    # MM_Play_Destroy. The row drives MM's registered suspend and checks it
+    # resets every overlay that still had clients (En_Test4's clock latch) after
+    # the graph is retired, skips client-free ones, restores the statics only
+    # Destroy used to restore, and drops every per-actor ObjectExtension entry.
+    redship_add_test(NAME MMAbandonedSessionStatics COMMAND redship --test mm-abandoned-session-statics)
 
     # MM'S ENABLED MOD SET (#706): enable, disable and reorder round-trip through
     # the persisted lists, and the scan's rules, over a staged tree of empty files.

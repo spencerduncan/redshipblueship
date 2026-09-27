@@ -5494,4 +5494,38 @@ void EnInvadepoh_Reset() {
         sAliens[i] = NULL;
         sAlienStateFlags[i] = 0;
     }
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // [RSBS #666] The UFO, Night-3 Cremia and Night-3 Romani Destroy helpers
+    // (dispatched from EnInvadepoh_Destroy) are the only thing that clears these
+    // three. A cross-game departure abandons MM's Play gamestate without deleting
+    // its actors (MM_ActorOverlayTable_RetireAbandonedClients, z_actor.c), so each
+    // would keep pointing into the discarded arena: Night3Cremia_Walk dereferences
+    // sNight3Romani, and a stale non-NULL sUfo stops the cows and abductors from
+    // killing themselves. This runs only once the overlay has no clients, when
+    // every Destroy has already cleared them, so a normal teardown is unchanged.
+    sUfo = NULL;
+    sNight3Cremia = NULL;
+    sNight3Romani = NULL;
+#endif
 }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// [RSBS #666] Seed and read sUfo, sNight3Cremia and sNight3Romani for the
+// mm-abandoned-session-statics row (games/mm/2s2h/mm_resume_state_test.cpp):
+// dirty != 0 leaves them where live clients do, 0 puts back NULL; the check is
+// nonzero while any of them is not NULL.
+void MM_EnInvadepoh_SetDestroyStaticsForTest(s32 dirty) {
+    static u8 sSentinel[sizeof(EnInvadepoh)];
+
+    // Never dereferenced: the row only seeds and reads the pointers.
+    EnInvadepoh* stale = dirty ? (EnInvadepoh*)sSentinel : NULL;
+
+    sUfo = stale;
+    sNight3Cremia = stale;
+    sNight3Romani = stale;
+}
+
+s32 MM_EnInvadepoh_DestroyStaticsDirtyForTest(void) {
+    return (sUfo != NULL) || (sNight3Cremia != NULL) || (sNight3Romani != NULL);
+}
+#endif
