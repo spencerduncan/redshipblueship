@@ -85,43 +85,49 @@ void ArmLiveOoTSession(void) {
 // request. Combo_CheckEntranceSwitch suppresses its freeze when a switch is
 // already pending (wasAlreadyPending), so every entrance leg needs this first.
 //
-// DELIBERATELY NOT Entrance_Init(), even though that is the one call this wants
-// and is what the MM twin uses. This TU cannot name that function.
+// ComboEntrance_Init(), the same reset the MM twin uses -- and, since #665, part
+// of that issue's lock.
 //
-// src/common/entrance.h declares the combo Entrance_Init with C++ linkage
-// exactly so it does not collide with OoT's own C-linkage Entrance_* family
-// (see the "C++ API" banner in that header). But <z64.h> reaches
-// soh/Enhancements/randomizer/randomizer_entrance.h through
-// games/oot/include/z64save.h, and that header declares
+// Until #665 the combo reset was spelled Entrance_Init and this TU could not
+// name it. <z64.h> reaches soh/Enhancements/randomizer/randomizer_entrance.h
+// through games/oot/include/z64save.h, and that header declares
 // `extern "C" void Entrance_Init(void)` -- SoH's ENTRANCE-SHUFFLE initializer,
-// a different function with the same spelling and the same signature. So in any
-// OoT-side TU the name is already taken by the time entrance.h is read:
-//   - <z64.h> first (the only order MSVC accepts here): calls bind to SoH's
-//     randomizer init, which walks Randomizer_GetEntranceOverrides() and
-//     gEntranceTable with no rando context. That is not a subtle wrong answer;
-//     it is an access violation, and it is how this row first failed.
-//   - entrance.h first: MSVC rejects the file outright, C2732 "linkage
-//     specification contradicts earlier specification for Entrance_Init".
-// /FORCE:MULTIPLE (CMakeLists.txt) keeps the duplicate DEFINITION quiet at link
-// time, so nothing warns either way.
+// a different function with the same spelling and signature. With <z64.h> first
+// (the only order MSVC accepted) the call bound to SoH's init, which walks
+// Randomizer_GetEntranceOverrides() and gEntranceTable with no rando context:
+// an access violation, which is how this row first failed (PR #650). With
+// entrance.h first MSVC rejected the file with C2732. The two were distinct
+// link symbols (C vs mangled C++), so no link-time gate could see the pair.
+// The row used to compose the reset from primitives instead.
 //
-// The way out is to stop using the ambiguous spelling and compose the same
-// state reset out of combo entry points whose names nothing else claims. This is
-// Entrance_Init's body (src/common/entrance.cpp), term for term:
-//   Entrance_ClearLinks()          -> gEntranceLinks.clear()
-//   Combo_ClearPendingSwitch()     -> gPendingSwitch = {}
-//   Combo_ClearStartupEntrance()   -> sStartupEntrance / Present / Game
-//   Combo_ClearGameSwitchRequest() -> sGameSwitchRequested = false
+// This TU includes <z64.h> AND entrance.h and calls the combo reset by name, so
+// a regression to a port's spelling fails here: it binds to the port's function
+// (the checks below then see an uncleared table, or the call crashes) or it does
+// not compile. The source-level guard is the FUNC scan in
+// .github/scripts/check-odr-declaration-collisions.py.
 //
-// Returns false if the table was NOT actually reset. That is not a formality:
-// Entrance_RegisterDefaultLinks refuses a door that some link already claims, so
-// a true return is proof the link table really was cleared -- which is the same
-// thing as proof that these calls reached the combo entrance module at all.
+// Arranges state the reset must undo (a link, a startup entrance, an F10
+// request) so the reset is observed, not assumed. Returns false if any of it
+// survived, or if the production links could not be registered afterwards:
+// Entrance_RegisterDefaultLinks refuses a door that some link already claims,
+// so a true return is proof the link table really was cleared by a call that
+// reached the combo entrance module.
 bool ResetEntranceTable(void) {
-    Entrance_ClearLinks();
-    Combo_ClearPendingSwitch();
-    Combo_ClearStartupEntrance();
-    Combo_ClearGameSwitchRequest();
+    if (Entrance_GetLinkCount() == 0) {
+        (void)Entrance_RegisterDefaultLinks();
+    }
+    Combo_SetStartupEntrance(OOT_ENTR_MARKET_FROM_MASK_SHOP);
+    Combo_RequestGameSwitch();
+
+    ComboEntrance_Init();
+
+    if (Entrance_GetLinkCount() != 0 || Combo_HasStartupEntrance() || Combo_IsGameSwitchRequested() ||
+        gPendingSwitch.requested) {
+        printf("[TEST] ComboEntrance_Init left state behind: links=%zu startup=%d f10=%d pending=%d\n",
+               Entrance_GetLinkCount(), (int)Combo_HasStartupEntrance(), (int)Combo_IsGameSwitchRequested(),
+               (int)gPendingSwitch.requested);
+        return false;
+    }
     return Entrance_RegisterDefaultLinks();
 }
 

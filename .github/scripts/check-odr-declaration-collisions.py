@@ -37,6 +37,26 @@ visible to the nm gate because both sides' C TUs are compiled into archives):
      overlapping and drop out automatically — the fix pattern goes green by
      construction, and UNWRAPPING a fixed type makes it reappear and fail.
 
+  3. FUNC scan (#665): free functions DEFINED both in src/common/** (the
+     combo layer) and anywhere under games/** (either port, the decomp C
+     layers included). Linkage does not make a same-spelled pair safe:
+     src/common's C++-linkage Entrance_Init and SoH's extern-"C"
+     Entrance_Init (the entrance-shuffle initializer) were two distinct link
+     symbols, so no link gate could see them, yet a TU that included both
+     declarations bound its calls to whichever header came first (an OoT test
+     row crashed calling SoH's init when it meant the combo's, PR #650) or
+     failed with C2732 in the other order. The fix is to give the combo
+     function a name nothing in either port claims: the combo layer renames,
+     vendored code keeps its upstream spelling. `static` definitions are
+     skipped (TU-local) and so are out-of-line member definitions (X::f).
+     The scan is textual (no preprocessor), so the audited FUNC entries are
+     all src/common/mm_stubs.* stand-ins whose MM twin never reaches the
+     single-exe link under that spelling: the MM TU is excluded
+     (fault_drawer.c, src/libultra/**), the MM body sits under `#if 0`
+     (boot/O2/sprintf.c), or MM's force-included mm_ship_utils_prefix.h
+     renames it (GetActorCategoryName -> MM_GetActorCategoryName). Audited
+     for #665 against games/mm/CMakeLists.txt and redship.map.
+
 New findings fail against a committed baseline of audited names
 (.github/odr-declaration-baseline.txt, classified in the audit issue). The
 right fix for a new hit is the established recipe — wrap the MM declaration
@@ -72,6 +92,8 @@ from collections import defaultdict
 
 OOT_TREE = os.path.join("games", "oot", "soh")
 MM_TREE = os.path.join("games", "mm", "2s2h")
+COMMON_TREE = os.path.join("src", "common")
+GAMES_TREE = "games"
 BASELINE_REL = os.path.join(".github", "odr-declaration-baseline.txt")
 
 HDR_EXT = {".h", ".hpp", ".hh"}
@@ -82,6 +104,10 @@ SRC_EXT = {".c", ".cpp", ".cc"}
 # --self-test override via _FLOORS.
 FLOOR_HEADERS = 40
 FLOOR_TYPES = 40
+# FUNC scan floors (definition counts). When the scan was added src/common
+# yielded ~1100 definitions and games/ ~33000.
+FLOOR_COMMON_FUNCS = 200
+FLOOR_GAME_FUNCS = 5000
 
 COMMENT_RE = re.compile(r"//[^\n]*|/\*.*?\*/", re.S)
 STRING_RE = re.compile(r'"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'')
@@ -93,6 +119,16 @@ TYPE_DEF = re.compile(
     r"(\w+)\s*(?:final\s*)?(?::\s*[\w:\s,<>]+?)?\s*\{"
 )
 TYPEDEF_ANON = re.compile(r"\btypedef\s+(?:enum|struct|union)\s*(\w*)\s*\{")
+# A free-function DEFINITION that starts in column 0 (the shape of every
+# top-level definition in both ports and in src/common; statements inside
+# bodies are indented): optional return-type tokens, the name, a parameter
+# list that may hold one level of nested parentheses, then the opening brace.
+FUNC_DEF = re.compile(
+    r"^(?!\s)((?:[A-Za-z_][\w\*&:<>,\s]*?[\s\*&])?)([A-Za-z_]\w*)\s*"
+    r"\([^;{}()]*(?:\([^()]*\)[^;{}()]*)*\)\s*(?:const\s*)?(?:noexcept\s*)?\{",
+    re.M,
+)
+FUNC_NOT_A_NAME = {"if", "for", "while", "switch", "return", "sizeof", "catch", "do", "else"}
 
 
 def read_text(path):
@@ -198,6 +234,46 @@ def scan_tree(tree):
     return guards, types, where, n_headers
 
 
+def parse_func_defs(text):
+    """Yield the names of the non-static free functions DEFINED in text."""
+    text = strip_noise(text)
+    for m in FUNC_DEF.finditer(text):
+        prefix, name = m.group(1), m.group(2)
+        if name in FUNC_NOT_A_NAME or "#" in prefix:
+            continue
+        if prefix.rstrip().endswith("::"):
+            continue  # out-of-line member definition: qualified, cannot collide
+        if re.search(r"\bstatic\b", prefix):
+            continue  # TU-local
+        yield name
+
+
+def scan_funcs(tree):
+    """name -> set of files defining a non-static free function by that name."""
+    defs = defaultdict(set)
+    for p in walk(tree, HDR_EXT | SRC_EXT):
+        rel = os.path.relpath(p).replace("\\", "/")
+        for name in parse_func_defs(read_text(p)):
+            defs[name].add(rel)
+    return defs
+
+
+def compute_func_findings(common, games, floors=(FLOOR_COMMON_FUNCS, FLOOR_GAME_FUNCS)):
+    """FUNC findings: names defined as free functions in both src/common and
+    games/. Returns (findings, error) like compute_findings."""
+    fc, fg = floors
+    if len(common) < fc or len(games) < fg:
+        return None, (f"vacuous scan: function definitions common={len(common)} "
+                      f"games={len(games)} below floors {fc}/{fg} — refusing to "
+                      "pass on empty data")
+    findings = []
+    for name in sorted(set(common) & set(games)):
+        findings.append((f"FUNC {name}",
+                         f"  {name}(): {';'.join(sorted(common[name])[:3])} <-> "
+                         f"{';'.join(sorted(games[name])[:3])}"))
+    return findings, None
+
+
 def compute_findings(oot, mm, floors=(FLOOR_HEADERS, FLOOR_TYPES)):
     """Return (findings, error). findings is a sorted list of baseline keys
     with human context; error is an exit-2 message or None."""
@@ -244,10 +320,19 @@ def run_check(root, write_baseline=False):
             print(f"error: missing tree {tree} — run from the repo root; "
                   "refusing to pass vacuously", file=sys.stderr)
             return 2
+    if not os.path.isdir(COMMON_TREE):
+        print(f"error: missing tree {COMMON_TREE} — refusing to pass vacuously",
+              file=sys.stderr)
+        return 2
     findings, err = compute_findings(scan_tree(OOT_TREE), scan_tree(MM_TREE))
     if err:
         print(f"error: {err}", file=sys.stderr)
         return 2
+    func_findings, err = compute_func_findings(scan_funcs(COMMON_TREE), scan_funcs(GAMES_TREE))
+    if err:
+        print(f"error: {err}", file=sys.stderr)
+        return 2
+    findings += func_findings
 
     if write_baseline:
         with open(BASELINE_REL, "w", encoding="utf-8", newline="\n") as fh:
@@ -288,6 +373,9 @@ def run_check(root, write_baseline=False):
               "(2s2h/ObjectExtension/ActorListIndex.h). Extend the baseline "
               "only with\nan audit note proving identical layout or "
               "unreachability.", file=sys.stderr)
+        print("\nA FUNC finding is a src/common function spelled like a "
+              "function one of the ports\ndefines (#665): rename the "
+              "src/common side to a name no port claims.", file=sys.stderr)
         return 1
     print(f"OK: {len(current)} audited duplicate declarations, no new ones "
           f"({len(stale)} stale baseline entr{'y' if len(stale)==1 else 'ies'}).")
@@ -323,6 +411,39 @@ namespace Ship { class Menu { void* p[4]; }; }
 } // namespace S2H
 #endif
 """
+
+
+FIX_GAME_FUNCS = """#ifdef __cplusplus
+extern "C" {
+#endif
+void Entrance_Init(void) {
+    Entrance_ResetEntranceTable();
+}
+static void HelperOnlyStatic(void) {
+}
+#ifdef __cplusplus
+}
+#endif
+void Table::Reset(void) {
+}
+"""
+
+FIX_COMMON_DUP = """namespace {
+std::vector<int> gLinks;
+}
+void Entrance_Init(void) {
+    gLinks.clear();
+}
+static void HelperOnlyStatic(void) {
+}
+void Other::Reset(void) {
+}
+bool Entrance_RegisterDefaultLinks(void) {
+    return true;
+}
+"""
+
+FIX_COMMON_FIXED = FIX_COMMON_DUP.replace("void Entrance_Init(void)", "void ComboEntrance_Init(void)")
 
 
 def _fixture_tree(base, rel, files):
@@ -365,6 +486,25 @@ def self_test():
         empty = _fixture_tree(tmp, "mm_empty", {})
         f, err = compute_findings(scan_tree(oot), scan_tree(empty), floors)
         expect("empty tree refuses vacuous pass", err is not None)
+
+        # FUNC scan (#665). RED: a src/common definition spelled like a port's
+        # (the Entrance_Init shape: C++ linkage on one side, extern "C" on the
+        # other) must be flagged.
+        ffloors = (1, 1)
+        game = _fixture_tree(tmp, "games", {"randomizer_entrance.c": FIX_GAME_FUNCS})
+        common = _fixture_tree(tmp, "common_dup", {"entrance.cpp": FIX_COMMON_DUP})
+        f, err = compute_func_findings(scan_funcs(common), scan_funcs(game), ffloors)
+        keys = {k for k, _ in (f or [])}
+        expect("flags src/common function spelled like a port's", err is None and "FUNC Entrance_Init" in keys)
+        expect("ignores static and member definitions of a shared name",
+               "FUNC HelperOnlyStatic" not in keys and "FUNC Reset" not in keys)
+        # GREEN: the renamed combo function produces no finding.
+        commonf = _fixture_tree(tmp, "common_fixed", {"entrance.cpp": FIX_COMMON_FIXED})
+        f, err = compute_func_findings(scan_funcs(commonf), scan_funcs(game), ffloors)
+        expect("renamed combo function produces no FUNC finding", err is None and not f)
+        # VACUOUS
+        f, err = compute_func_findings(scan_funcs(commonf), scan_funcs(empty), ffloors)
+        expect("empty games tree refuses vacuous FUNC pass", err is not None)
 
     if failures:
         print(f"self-test FAILED: {failures}", file=sys.stderr)
