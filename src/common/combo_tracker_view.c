@@ -112,6 +112,14 @@ static uint32_t MMBlobReadU32(const uint8_t* blob, uint32_t offset) {
  * marker. An all-zero shadow — MM never entered this session — fails the
  * compare and reads as UNAVAILABLE rather than as a vanilla save with zero
  * progress.
+ *
+ * A RANDOMIZED save type is the second proof of a resident MM world (#755). The
+ * paired creation event arms MM's half of a new world in this shadow without
+ * MM's file-select marker: observed on the ComboSingleBag pinned seed after
+ * OoT_Creation_AuthorRandoFile, newf is six zero bytes and saveType is
+ * SAVETYPE_RANDO. Gated on the marker alone, a fresh paired world read "no data"
+ * for MM and none of its MM-hosted crossings could say whether it was found.
+ * SAVETYPE_RANDO is nonzero, so an all-zero shadow still reads as absent.
  */
 static const uint8_t* MMBlobIfPresent(void) {
     if (!sMMRegistered) {
@@ -122,7 +130,9 @@ static const uint8_t* MMBlobIfPresent(void) {
         return NULL;
     }
     if (sMMDesc.newfLen > 0 && memcmp(blob + sMMDesc.newfOffset, sMMDesc.newf, sMMDesc.newfLen) != 0) {
-        return NULL;
+        if (sMMDesc.saveTypeRando == 0 || MMBlobReadU32(blob, sMMDesc.saveTypeOffset) != sMMDesc.saveTypeRando) {
+            return NULL;
+        }
     }
     return blob;
 }

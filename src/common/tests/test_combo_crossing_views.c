@@ -292,6 +292,27 @@ TestResult ComboCrossingViews_RunSynthetic(void) {
     ComboSpoilerSummary summary;
     Combo_SpoilerPairingSummary(&summary);
     CXV_ASSERT(summary.paired && summary.mmHosted == 3 && summary.ootHosted == 2);
+    // The creation event's shape: MM's half armed with a rando save type but
+    // without MM's file-select marker (observed after OoT_Creation_AuthorRandoFile;
+    // the world row runs the real one). MM's found state is still read.
+    {
+        std::vector<uint8_t> unmarked = blob;
+        memset(unmarked.data() + desc->newfOffset, 0, desc->newfLen);
+        Context_UpdateShadowCopy(GAME_MM, unmarked.data(), unmarked.size());
+        const std::vector<CxvRow> unmarkedRows = CxvPaneRows((uint8_t)GAME_MM, &ok);
+        CXV_ASSERT(ok && unmarkedRows == inMM);
+        Combo_TrackerForeignProgress((uint8_t)GAME_MM, &mmProgress);
+        CXV_ASSERT(mmProgress.found == 1 && mmProgress.freshness == COMBO_TRACKER_FRESH_STALE);
+        // ...but an all-zero shadow (MM never entered) is still no data at all.
+        std::vector<uint8_t> zero((size_t)MM_SAVE_CONTEXT_SIZE, 0);
+        Context_UpdateShadowCopy(GAME_MM, zero.data(), zero.size());
+        Combo_TrackerForeignProgress((uint8_t)GAME_MM, &mmProgress);
+        CXV_ASSERT(mmProgress.found == 0 && mmProgress.freshness == COMBO_TRACKER_FRESH_UNAVAILABLE);
+        ComboTrackerForeignRow unknownRow;
+        CXV_ASSERT(Combo_TrackerForeignRowAt((uint8_t)GAME_MM, 0, &unknownRow) &&
+                   unknownRow.found == COMBO_TRACKER_FOUND_UNKNOWN);
+        Context_UpdateShadowCopy(GAME_MM, blob.data(), blob.size());
+    }
 
     // ---- 4. a game switch --------------------------------------------------
     // Into MM: OoT's heap is suspended, not gone; its found state stays and is
@@ -318,8 +339,8 @@ TestResult ComboCrossingViews_RunSynthetic(void) {
     CXV_ASSERT(ok);
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
     mgr.SetSaveDirectory(kCxvSaveDir);
-    mgr.DeleteSave(0);
     mgr.ResetSlotSessionState();
+    mgr.DeleteSave(0); // an erase is what unlatches the slot for this session's write
     CXV_ASSERT(mgr.Save(0));
 
     ComboContext_Init();
@@ -435,6 +456,8 @@ TestResult ComboCrossingViews_RunWorld(void) {
                            pane[i].hostName == r["hostCheckName"].get<std::string>());
             }
             // A fresh world: its own game's save has collected none of the hosts.
+            // For MM that save is the shadow the creation event armed, without
+            // MM's file-select marker (see MMBlobIfPresent): NO, not UNKNOWN.
             CXV_ASSERT(pane[i].found == COMBO_TRACKER_FOUND_NO);
             if (i < 3) {
                 printf("[TEST] combo-crossing-views-world:   %s -> %s%s\n", pane[i].hostName.c_str(),
