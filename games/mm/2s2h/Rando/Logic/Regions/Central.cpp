@@ -263,25 +263,28 @@ static RegisterShipInitFunc initFunc([]() {
             // a wallet term (ADULTS_WALLET above is already free). No item term: the Child Wallet is
             // what you start with, so the trick's own requirement is the empty one.
             //
-            // Its sibling MMRT_BANK_ONE_WALLET is NOT bound, and the reason is WHICH ROW it names — not
-            // that it would restate this disjunct. (An earlier draft of this comment claimed the two keys
-            // would be the SAME disjunct because both rows are priced at one upgrade. That was wrong:
-            // ONE_WALLET's own text prices the two rewards DIFFERENTLY — one free, one at the Adult
-            // Wallet — so a faithful binding could never coincide with NO_WALLET's "both free".) The
-            // trick prices rewards by deposited TOTAL: "The 500-Rupee item reward will only require the
-            // Child Wallet, and the 1000-rupee item reward will require the Adult Wallet." These rows
-            // carry no totals. The rando's own banker (Rando/ActorBehavior/EnGinko.cpp) pays out at
-            // 200 -> ADULTS_WALLET, 1000 -> INTEREST, 5000 -> PIECE_OF_HEART, so under the SHIPPED ladder
-            // the trick's "500-Rupee reward" names no row at all and its "1000-rupee reward" is INTEREST,
-            // which this graph already prices at exactly the Adult Wallet. The 500/1000 pair it does
-            // match is the reduced ladder in Enhancements/DifficultyOptions/CustomBankRewardThresholds.cpp
-            // (100 / 500 / 1000), behind an enhancement CVar the logic graph does not read — and under
-            // THAT ladder "the 500-Rupee reward" is INTEREST while "the 1000-rupee reward" is
-            // PIECE_OF_HEART, the opposite row from the shipped one. So the binding would free exactly
-            // ONE of these two rows and leave the other at >= 1, and which one depends on a runtime
-            // toggle: that is a ruling, not a widening. Kind (3) in #697's sort.
-            CHECK(RC_CLOCK_TOWN_WEST_BANK_PIECE_OF_HEART, CUR_UPG_VALUE(UPG_WALLET) >= 1 || MM_TRICK(MMRT_BANK_NO_WALLET)),
-            CHECK(RC_CLOCK_TOWN_WEST_BANK_INTEREST, CUR_UPG_VALUE(UPG_WALLET) >= 1 || MM_TRICK(MMRT_BANK_NO_WALLET)),
+            // #697 third pass — MMRT_BANK_ONE_WALLET ("The 500-Rupee item reward will only require the
+            // Child Wallet, and the 1000-rupee item reward will require the Adult Wallet."), DEFAULT OFF,
+            // and a TIGHTENING of the heart piece. The earlier passes could not tell which row the
+            // tooltip's rupee totals name: the banker here (Rando/ActorBehavior/EnGinko.cpp) pays out at
+            // 200 / 1000 / 5000 (ADULTS_WALLET / INTEREST / PIECE_OF_HEART), not OoTMM's 200 / 500 /
+            // 1000, and a reduced 100 / 500 / 1000 ladder sits behind an enhancement CVar. OoTMM's logic
+            // answers it by POSITION, not by total — clock_town.yml, with `can_use_wallet(n)` meaning
+            // "holds the n-th wallet" (1 Child, 2 Adult, 3 Giant):
+            //
+            //   "Clock Town Bank Reward 1": can_use_wallet(1)
+            //   "Clock Town Bank Reward 2": can_use_wallet(2) || (can_use_wallet(1) && (ONE || NO))
+            //   "Clock Town Bank Reward 3": can_use_wallet(3) || (can_use_wallet(2) && ONE) ||
+            //                               (can_use_wallet(1) && NO)
+            //
+            // So reward 2 is INTEREST and reward 3 is PIECE_OF_HEART, whatever the ladder's totals. That
+            // makes INTEREST a plain widening (Child Wallet under either key) and exposes one TIGHTENING:
+            // the third reward is Giant's-Wallet in OoTMM's tricks-off logic, and this row admitted the
+            // Adult Wallet unconditionally — which is exactly what ONE_WALLET grants. Following OoTMM
+            // (operator directive 2026-09-27), the heart piece now wants the Giant's Wallet with the
+            // tricks off, the Adult Wallet under ONE_WALLET, and nothing under NO_WALLET.
+            CHECK(RC_CLOCK_TOWN_WEST_BANK_PIECE_OF_HEART, CUR_UPG_VALUE(UPG_WALLET) >= 2 || (CUR_UPG_VALUE(UPG_WALLET) >= 1 && MM_TRICK(MMRT_BANK_ONE_WALLET)) || MM_TRICK(MMRT_BANK_NO_WALLET)),
+            CHECK(RC_CLOCK_TOWN_WEST_BANK_INTEREST, CUR_UPG_VALUE(UPG_WALLET) >= 1 || MM_TRICK(MMRT_BANK_ONE_WALLET) || MM_TRICK(MMRT_BANK_NO_WALLET)),
             CHECK(RC_CLOCK_TOWN_WEST_SISTERS_PIECE_OF_HEART, HAS_ITEM(ITEM_MASK_KAMARO) && (IS_NIGHT1() || IS_NIGHT2())),
         },
         .exits = { //     TO                                         FROM

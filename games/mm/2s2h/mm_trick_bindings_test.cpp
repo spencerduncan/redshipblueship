@@ -481,6 +481,11 @@ void InvBowFireAndMagic() {
     gSaveContext.save.saveInfo.playerData.isMagicAcquired = true;
 }
 
+/** The Adult Wallet (upgrade level 1): the second of OoTMM's three wallets. */
+void InvAdultWallet() {
+    MM_Inventory_ChangeUpgrade(UPG_WALLET, 1);
+}
+
 /** The boss-key edge: the Zora Mask and CAN_USE_MAGIC_ARROW(ICE). */
 void InvZoraAndIce() {
     Give(ITEM_MASK_ZORA);
@@ -834,6 +839,15 @@ const Probe kProbes[] = {
       (int32_t)RC_ZORA_HALL_SCRUB_PIECE_OF_HEART, kAllTime, InvZoraMask, InvEmpty },
     { MMRT_ZORA_HALL_SCRUB_HP_NO_DEKU, "the Zora Hall scrub's heart piece as a Deku Goron with no deed", EDGE_CHECK,
       RR_ZORA_HALL_LULUS_ROOM, (int32_t)RC_ZORA_HALL_SCRUB_PIECE_OF_HEART, kAllTime, InvDekuAndGoron, NULL },
+    // MMRT_BANK_ONE_WALLET, both rewards. INTEREST (OoTMM's reward 2) with the Child
+    // Wallet; nothing is left to take away. PIECE_OF_HEART (reward 3) is the
+    // TIGHTENING: with the Adult Wallet its red half is the tricks-off route that used
+    // to be open; the control is the Child Wallet, which ONE_WALLET does not admit
+    // there.
+    { MMRT_BANK_ONE_WALLET, "the bank's interest reward with only the Child Wallet", EDGE_CHECK, RR_CLOCK_TOWN_WEST,
+      (int32_t)RC_CLOCK_TOWN_WEST_BANK_INTEREST, kAllTime, InvEmpty, NULL },
+    { MMRT_BANK_ONE_WALLET, "the bank's heart piece with the Adult Wallet", EDGE_CHECK, RR_CLOCK_TOWN_WEST,
+      (int32_t)RC_CLOCK_TOWN_WEST_BANK_PIECE_OF_HEART, kAllTime, InvAdultWallet, InvEmpty },
     // MMRT_TWINMOLD_BOW, a TIGHTENING: the RED half of this row is the tricks-off
     // Bow-only kill that used to be open. Twinmold is CanKillEnemy (Logic.h), so the
     // row probes the boss room's heart container, which reads it directly. Boss souls

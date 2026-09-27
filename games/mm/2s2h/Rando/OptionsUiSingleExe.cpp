@@ -815,6 +815,10 @@ const MMRandoTrickId kBoundTricks[] = {
     // #697 third pass. Logic/Regions/GreatBayTemple.cpp — the central room's four
     // tunnels, through GBT_CAN_RIDE_CENTRAL_GEYSER.
     MMRT_GBT_CENTRAL_GEYSER,
+    // #697 third pass. Logic/Regions/Central.cpp — the two Clock Town West bank
+    // rewards by OoTMM's reward POSITION: INTEREST free, PIECE_OF_HEART at the Adult
+    // Wallet (a TIGHTENING: tricks-off it now wants the Giant's Wallet).
+    MMRT_BANK_ONE_WALLET,
     // part 3. Logic/Regions/Central.cpp — the two Clock Town West bank rewards
     // that carry a wallet term.
     MMRT_BANK_NO_WALLET,
