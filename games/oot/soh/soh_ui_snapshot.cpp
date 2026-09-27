@@ -28,7 +28,8 @@
  * only the page's BODY draws (the sidebar labels are drawn on every page, so a
  * sidebar name proves nothing) and that string is absent from a sibling page's
  * capture; every authored state and every hover shows its own distinguishing
- * text, and that text is ABSENT from the contrast capture (the unauthored state,
+ * text (for a hover, every authored line of the row's tooltip), and that text is
+ * ABSENT from the contrast capture (the unauthored state,
  * or the same state without the hover), so reverting the authoring or the pointer
  * injection turns the row red; a pane's state text was inside a captured view
  * (panes are scrolled like menu pages and their .txt holds only what was on
@@ -46,7 +47,8 @@
  * path leaves the ImGui frame open, the pre-fix behaviour), keep-imgui-ini (the
  * player's imgui.ini path is left armed and ImGui's shutdown save is run),
  * player-config (the harness names the player's shipofharkinian.json as its
- * config). A sabotaged run is expected to fail; docs/ui-style-guide.md section
+ * config), hover-first-line (a hovered row draws only its tooltip's first
+ * line). A sabotaged run is expected to fail; docs/ui-style-guide.md section
  * 12 lists what each one must turn red.
  *
  * ============================================================================
@@ -761,7 +763,8 @@ struct Capture {
     float scrollY = 0.0f;
     float scrollMax = 0.0f;
     std::string hover;
-    std::string hoverText; // the tooltip prefix a hover capture must show
+    std::string hoverText;               // the first line's prefix (the manifest's hoverText)
+    std::vector<std::string> hoverLines; // every authored line's prefix; a hover must show them all
     std::vector<std::string> found;
     std::vector<std::string> missing;
     size_t popupsQueued = 0;
@@ -803,6 +806,10 @@ class Session {
     std::shared_ptr<UiSnapshotMenu> probe;
     bool romFree = true;
     bool windowActivated = false;
+    // compare/ and iter/ images that could not be written. Counted into the
+    // summary line and the manifest: a missing composite is what an agent
+    // iterating from the output directory would otherwise never notice.
+    int compositeWriteFailures = 0;
     int colorBits[3] = { 0, 0, 0 };
     std::vector<PageSpec> pages;
     std::vector<Capture> captures;
@@ -1180,6 +1187,27 @@ std::string WordPrefix(const std::string& in, size_t max) {
     return out;
 }
 
+/** WordPrefix of every authored line of @p tip that has any text. A tooltip in
+ *  SoH's disabled shape is "This setting is disabled because: ", a blank line,
+ *  then "- Reason": its first line is shared by every disabled SoH row, so the
+ *  reason line is the one that proves this row's tooltip was drawn. */
+std::vector<std::string> TooltipLinePrefixes(const std::string& tip) {
+    std::vector<std::string> out;
+    size_t at = 0;
+    while (at <= tip.size()) {
+        size_t nl = tip.find('\n', at);
+        if (nl == std::string::npos) {
+            nl = tip.size();
+        }
+        const std::string prefix = WordPrefix(tip.substr(at, nl - at), 40);
+        if (prefix.find_first_not_of(" \t") != std::string::npos) {
+            out.push_back(prefix);
+        }
+        at = nl + 1;
+    }
+    return out;
+}
+
 /**
  * The first trick row DrawTricksSection draws once its first area is open: the
  * lowest area id that has a row (it walks areas in id order), and that area's
@@ -1332,19 +1360,24 @@ void Session::BuildPageList() {
                 p.compareDefaulted = true;
             }
             if (sidebar == "Cross-Game Rules") {
-                p.states = { "unpaired", "paired-legacy", "frozen", "corrupt" };
+                p.states = { "unpaired", "paired-legacy", "frozen", "corrupt", "empty-oot-classes" };
                 p.hovers = { "direction", "frozen-slider" };
                 // The status line's four sentences (ComboRuleStatusPreFunc in
                 // SohMenuCombo.cpp). Copied, deliberately: a rewording there
                 // turns this row red and the lane updates the words here.
                 p.stateText["unpaired"] = { "saved into the next paired world" };
-                p.stateText["paired-legacy"] = { "Your paired world predates these rules" };
+                p.stateText["paired-legacy"] = { "Your paired world predates these rules",
+                                                 "Keep them at the defaults until you have crossed into it once" };
                 p.stateText["frozen"] = { "Already decided when this world was created" };
                 p.stateText["corrupt"] = { "Session state is corrupt" };
+                // An empty OoT class mask: the one state that draws the
+                // empty-set note (SohMenuCombo.cpp's class loop).
+                p.stateText["empty-oot-classes"] = { "No Ocarina of Time items will cross." };
                 p.stateContrast = { { "unpaired", "paired-legacy" },
                                     { "paired-legacy", "unpaired" },
                                     { "frozen", "unpaired" },
-                                    { "corrupt", "unpaired" } };
+                                    { "corrupt", "unpaired" },
+                                    { "empty-oot-classes", "unpaired" } };
             } else if (sidebar == "MM Enhancements") {
                 p.states = { "", "autosave" };
                 // The row gated on gEnhancements.Autosave (the table's
@@ -1784,6 +1817,9 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
                 gComboCtx.sourceIsRando = false;
                 gComboCtx.sharedRandoSettingsHash = 0;
             }
+        } else if (state == "empty-oot-classes") {
+            // Unpaired, so the writer takes it; LeaveState clears the key.
+            Combo_ComboSettingSet(COMBO_SETTING_ITEM_CLASS_OOT, 0);
         }
     } else if (p.id == "Combo/MM Enhancements") {
         if (state == "autosave") {
@@ -1805,6 +1841,9 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
 void Session::LeaveState(const PageSpec& p, const std::string& state) {
     if (p.id == "Combo/MM Enhancements" && state == "autosave") {
         CVarClear("gEnhancements.Autosave");
+    }
+    if (p.id == "Combo/Cross-Game Rules" && state == "empty-oot-classes") {
+        Combo_ComboSettingClear(COMBO_SETTING_ITEM_CLASS_OOT);
     }
     ComboContext_Init();
     Context_SetCurrentGame(gSavedGame);
@@ -2085,6 +2124,43 @@ void Session::CaptureMenuPage(const PageSpec& p) {
                 Record(std::move(c));
                 continue;
             }
+            // Wrap the row's preFunc to record the tooltip it AUTHORED this frame:
+            // the one the oracle then looks for, every line of it. Recorded before
+            // anything later in MenuDrawItem (a race lockout replaces a disabled
+            // tooltip with its own) could change it, so a replaced tooltip is red.
+            // RSBS_UI_SNAPSHOT_SABOTAGE=hover-first-line then cuts what the row
+            // DRAWS to the first line, which must turn the hover red.
+            WidgetFunc savedPre = row->preFunc;
+            const char* savedTooltip = row->options != nullptr ? row->options->tooltip : nullptr;
+            const bool firstLineOnly = opt.Sabotaged("hover-first-line");
+            std::string authoredTip;
+            std::string drawnTip;
+            row->preFunc = [savedPre, savedTooltip, firstLineOnly, &authoredTip, &drawnTip](WidgetInfo& info) {
+                if (info.options != nullptr) {
+                    // Undo last frame's sabotage first: a row whose PreFunc does not
+                    // rewrite its tooltip would otherwise read the cut one back as
+                    // authored, and the sabotage would prove nothing.
+                    info.options->tooltip = savedTooltip;
+                }
+                if (savedPre) {
+                    savedPre(info);
+                }
+                if (info.options == nullptr) {
+                    return;
+                }
+                const bool useDisabled = info.options->disabled && info.options->disabledTooltip != nullptr &&
+                                         info.options->disabledTooltip[0] != '\0';
+                const char* tip = useDisabled ? info.options->disabledTooltip : info.options->tooltip;
+                authoredTip = tip != nullptr ? tip : "";
+                if (firstLineOnly) {
+                    drawnTip = authoredTip.substr(0, authoredTip.find('\n'));
+                    if (useDisabled) {
+                        info.options->disabledTooltip = drawnTip.c_str();
+                    } else {
+                        info.options->tooltip = drawnTip.c_str();
+                    }
+                }
+            };
             // Wrap the row's postFunc (MenuDrawItem runs it right after the
             // widget) to learn where the widget is; restore it afterwards.
             WidgetFunc savedPost = row->postFunc;
@@ -2123,41 +2199,52 @@ void Session::CaptureMenuPage(const PageSpec& p) {
                 }
             }
             row->postFunc = savedPost;
-            Finish(c, p);
-            // The tooltip this row shows NOW (a PreFunc may have disabled it, and a
-            // disabled row shows its disabled tooltip instead), as a prefix that
-            // sits on the tooltip's first wrapped line.
+            row->preFunc = savedPre;
             if (row->options != nullptr) {
-                const char* tip = (row->options->disabled && row->options->disabledTooltip != nullptr &&
-                                   row->options->disabledTooltip[0] != '\0')
-                                      ? row->options->disabledTooltip
-                                      : row->options->tooltip;
-                c.hoverText = WordPrefix(tip != nullptr ? tip : "", 40);
+                row->options->tooltip = savedTooltip;
             }
+            Finish(c, p);
+            // Every authored line of the tooltip this row's PreFunc set up (a
+            // disabled row shows its disabled tooltip instead), each as a prefix
+            // that sits on that line's first wrapped line. All of them, not the
+            // first: SoH's disabled shape opens every disabled row's tooltip with
+            // the same "This setting is disabled because:", so only the reason line
+            // shows that THIS row's tooltip was drawn.
+            c.hoverLines = TooltipLinePrefixes(authoredTip);
+            c.hoverText = c.hoverLines.empty() ? std::string() : c.hoverLines.front();
             if (c.status == "pass") {
-                if (c.hoverText.empty()) {
+                if (c.hoverLines.empty()) {
                     c.status = "fail";
                     c.reason = "the hovered row \"" + label + "\" has no tooltip to show";
-                } else if (c.text.find(c.hoverText) == std::string::npos) {
-                    c.status = "fail";
-                    c.reason = "the hover capture shows no tooltip: \"" + c.hoverText + "\" is not in its text";
-                } else {
+                }
+                for (const std::string& line : c.hoverLines) {
+                    if (c.status != "pass") {
+                        break;
+                    }
+                    if (c.text.find(line) == std::string::npos) {
+                        c.status = "fail";
+                        c.reason =
+                            "the hover capture does not show its row's tooltip: \"" + line + "\" is not in its text";
+                        break;
+                    }
                     // Contrast: the same state's captures WITHOUT the pointer must not
                     // hold it, or its presence here proves nothing about a tooltip.
                     for (const Capture& other : captures) {
                         if (other.id == c.id && other.state == c.state && other.hover.empty() &&
-                            other.text.find(c.hoverText) != std::string::npos) {
+                            other.text.find(line) != std::string::npos) {
                             c.status = "fail";
-                            c.reason = "\"" + c.hoverText + "\" is also in " + other.variant +
+                            c.reason = "\"" + line + "\" is also in " + other.variant +
                                        ", captured without the pointer, so it does not prove a tooltip";
                             break;
                         }
                     }
                 }
-                if (c.status == "pass") {
-                    c.found.push_back(c.hoverText);
-                } else {
-                    c.missing.push_back(c.hoverText);
+                for (const std::string& line : c.hoverLines) {
+                    if (c.text.find(line) != std::string::npos) {
+                        c.found.push_back(line);
+                    } else {
+                        c.missing.push_back(line);
+                    }
                 }
             }
             Record(std::move(c));
@@ -2556,9 +2643,11 @@ void Session::WriteComposites() {
                                      (c.variant.empty() ? "" : "@" + Slug(c.variant)) + ".png";
             const std::string path = (out / name).string();
             if (UiImage_WritePng(&fitted, path.c_str()) != 0) {
-                // Not a failed capture, but never silent: on Windows a long output
-                // directory pushes these names past MAX_PATH and the composites an
-                // agent reads simply do not exist.
+                // Not a failed capture, but never silent: counted into the summary
+                // line and the manifest. (UiImage_WritePng retries a Windows path
+                // past MAX_PATH through the extended-length namespace, so this is
+                // a real write failure, not a long output directory.)
+                compositeWriteFailures++;
                 printf("[UI-SNAPSHOT] warning: could not write %s (%zu characters)\n", path.c_str(), path.size());
             }
         }
@@ -2590,6 +2679,7 @@ void Session::WriteIterComposites() {
             UiImage_FitLongSide(&stacked, 1568, &fitted) == 0) {
             const std::string path = (out / ("iter/" + stem)).string();
             if (UiImage_WritePng(&fitted, path.c_str()) != 0) {
+                compositeWriteFailures++;
                 printf("[UI-SNAPSHOT] warning: could not write %s (%zu characters)\n", path.c_str(), path.size());
             }
         }
@@ -2597,7 +2687,9 @@ void Session::WriteIterComposites() {
         if (UiImage_AbsDiffX4(&before, &c.image, &diff, &changed) == 0) {
             c.changedPixels = (int64_t)changed;
             std::string diffName = stem.substr(0, stem.size() - 4) + ".diff.png";
-            UiImage_WritePng(&diff, (out / ("iter/" + diffName)).string().c_str());
+            if (UiImage_WritePng(&diff, (out / ("iter/" + diffName)).string().c_str()) != 0) {
+                compositeWriteFailures++;
+            }
         }
         UiImage_Free(&before);
         UiImage_Free(&stacked);
@@ -2641,6 +2733,7 @@ bool Session::WriteManifest() {
     j += "\"settle\":[" + std::to_string(opt.settleMin) + "," + std::to_string(opt.settleMax) + "],";
     j += "\"pages\":\"" + JsonEscape(opt.pages) + "\",";
     j += "\"sabotage\":\"" + JsonEscape(opt.sabotage) + "\",";
+    j += "\"compositeWriteFailures\":" + std::to_string(compositeWriteFailures) + ",";
     j += "\"baseline\":\"" + JsonEscape(opt.baseline) + "\"},\n \"pages\":[\n";
     for (size_t i = 0; i < captures.size(); i++) {
         const Capture& c = captures[i];
@@ -2675,6 +2768,11 @@ bool Session::WriteManifest() {
         j += c.hover.empty() ? ",\"hover\":null" : ",\"hover\":\"" + JsonEscape(c.hover) + "\"";
         if (!c.hoverText.empty()) {
             j += ",\"hoverText\":\"" + JsonEscape(c.hoverText) + "\"";
+            j += ",\"hoverLines\":[";
+            for (size_t k = 0; k < c.hoverLines.size(); k++) {
+                j += (k == 0 ? "\"" : ",\"") + JsonEscape(c.hoverLines[k]) + "\"";
+            }
+            j += "]";
         }
         j += ",\"settleFrames\":" + std::to_string(c.settleFrames);
         j += std::string(",\"converged\":") + (c.converged ? "true" : "false");
@@ -3144,8 +3242,8 @@ int Session::Run() {
     for (Capture& c : captures) {
         UiImage_Free(&c.image);
     }
-    printf("[UI-SNAPSHOT] %d captured, %d skipped, %zu failure(s); output in %s\n", captured, skipped, failures.size(),
-           fs::absolute(out).string().c_str());
+    printf("[UI-SNAPSHOT] %d captured, %d skipped, %zu failure(s), %d composite(s) not written; output in %s\n",
+           captured, skipped, failures.size(), compositeWriteFailures, fs::absolute(out).string().c_str());
     return failures.empty() ? 0 : 1;
 }
 

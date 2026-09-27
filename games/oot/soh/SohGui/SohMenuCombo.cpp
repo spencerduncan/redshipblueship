@@ -55,7 +55,9 @@
 #include "combo_settings_view.h"
 #include "foreign_items.h"
 
+#include <cctype> // toupper, for the disabled reason's Title Case
 #include <cstdio> // snprintf, for the combo-rule status line and fingerprint
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -133,13 +135,25 @@ static const char* const comboRuleClassTooltips[6] = {
 };
 static const char* const comboRuleClassIdSuffix[2] = { "##OoTClass", "##MMClass" };
 
-// The disabled tooltip of every rule row once the world is frozen: MenuDrawItem's
-// own disabled shape ("This setting is disabled because: \n" then "\n- Reason",
-// Menu.cpp), written directly because the reason is not a DisableOption. The
-// reason fragment is the model's Combo_ComboSettingReadOnlyReason ("already
-// decided") in SoH's Title Case reason style.
-static const char* const kComboRuleDecidedTooltip =
-    "This setting is disabled because: \n\n- Already Decided When This World Was Created";
+// The disabled tooltip of every rule row once the world is frozen, rebuilt by
+// ComboRuleDecidedTooltip. Storage for the const char* WidgetOptions holds.
+static std::string comboRuleDecidedTooltip;
+
+/**
+ * The Reset confirm's registrar: SohGui::RegisterPopup. A pointer so the headless
+ * lock (soh_combo_settings_rows_test.cpp) can record the popup and run its Reset
+ * button. SoH's popup machinery only runs a button from an ImGui frame, so the
+ * lock could not reach the action any other way. Externally linked and declared
+ * in no header, like AddComboRulesWidgets. Production never reassigns it.
+ */
+void (*gComboRulePopupRegistrar)(std::string, std::string, std::string, std::string, std::function<void()>,
+                                 std::function<void()>) = SohGui::RegisterPopup;
+
+/** Queues a confirm popup through gComboRulePopupRegistrar. */
+static void ComboRuleRegisterPopup(const char* title, const char* message, const char* confirm, const char* cancel,
+                                   std::function<void()> onConfirm) {
+    gComboRulePopupRegistrar(title, message, confirm, cancel, std::move(onConfirm), nullptr);
+}
 
 // A direction value the direction row's combo map had to be taught about at
 // runtime, or 0. See ComboRuleDirectionPreFunc: std::map::at throws, and
@@ -183,8 +197,33 @@ static bool ComboRuleShownRecord(ComboSettingsRecord* out) {
 }
 
 /**
+ * The disabled tooltip, built from the MODEL's reason each time it is needed:
+ * MenuDrawItem's own disabled shape ("This setting is disabled because: \n" then
+ * "\n- Reason", Menu.cpp), with Combo_ComboSettingReadOnlyReason ("already
+ * decided") put in SoH's Title Case reason style ("Race Lockout Active"). It is
+ * written here rather than through a DisableOption because the reason is not
+ * one of SoH's. Nothing is added to the model's words: the frozen-but-unpaired
+ * (corrupt) state greys the same rows, and the gray note is where the states
+ * differ.
+ */
+static const char* ComboRuleDecidedTooltip() {
+    const char* reason = Combo_ComboSettingReadOnlyReason();
+    std::string text = "This setting is disabled because: \n\n- ";
+    bool wordStart = true;
+    for (const char* c = (reason != nullptr) ? reason : ""; *c != '\0'; c++) {
+        text += wordStart ? (char)std::toupper((unsigned char)*c) : *c;
+        wordStart = (*c == ' ');
+    }
+    if (text != comboRuleDecidedTooltip) {
+        comboRuleDecidedTooltip = text;
+    }
+    return comboRuleDecidedTooltip.c_str();
+}
+
+/**
  * The read-only half of state 4. The reason is the MODEL's
- * (Combo_ComboSettingReadOnlyReason, "already decided"), shown in the shape
+ * (Combo_ComboSettingReadOnlyReason, "already decided", via
+ * ComboRuleDecidedTooltip), shown in the shape
  * MenuDrawItem gives every disabled SoH row, and is deliberately NOT a capability
  * reason: a capability gate says "not yet available" and sends a player hunting
  * for a missing feature, while a freeze says "already decided". It tracks
@@ -202,7 +241,7 @@ static void ComboRuleApplyDecided(WidgetInfo& info, bool decided) {
         return;
     }
     info.options->disabled = true;
-    info.options->disabledTooltip = kComboRuleDecidedTooltip;
+    info.options->disabledTooltip = ComboRuleDecidedTooltip();
 }
 
 /**
@@ -274,9 +313,13 @@ static void ComboRuleDirectionPreFunc(WidgetInfo& info) {
  *     built from and the escape that actually exists (the title screen, where
  *     Context_InvalidateSessionState drops the freeze — not "create a new
  *     file", which is advice a player cannot act on from here);
- *   - paired but not frozen: a legacy pre-carve pair (ADR 0011 decision 4.2),
- *     whose rules are the shipped defaults recorded at its first crossing, so
- *     these rows describe the NEXT world rather than the live one;
+ *   - paired but not frozen: a legacy pre-carve pair (ADR 0011 decision 4.2).
+ *     Its first crossing freezes the SHIPPED DEFAULTS
+ *     (Combo_FreezeLegacyComboSettings), and the same crossing then compares
+ *     that record against the live CVars (Combo_ComboSettingsDivergence). A
+ *     rule edited before that first crossing is REFUSED there, so the note must
+ *     tell the player to keep the defaults until they have crossed once. After
+ *     that the record is frozen and the frozen branch applies;
  *   - unpaired: these freeze into the next paired world at generation.
  */
 static void ComboRuleStatusPreFunc(WidgetInfo& info) {
@@ -301,8 +344,8 @@ static void ComboRuleStatusPreFunc(WidgetInfo& info) {
                  (unsigned)summary.comboSettingsHash);
     } else if (summary.paired) {
         snprintf(buffer, sizeof(buffer),
-                 "Your paired world predates these rules and uses the defaults. Changes here apply to the next "
-                 "world you create.");
+                 "Your paired world predates these rules and will use the defaults. Keep them at the defaults "
+                 "until you have crossed into it once.");
     } else {
         snprintf(buffer, sizeof(buffer),
                  "These rules are saved into the next paired world when it is generated, and cannot be changed "
@@ -481,9 +524,9 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
     // SohMenuSettings.cpp); the popup's own Reset button does the work.
     menu.AddWidget(path, "Reset Combo Rules", WIDGET_BUTTON)
         .Callback([](WidgetInfo& info) {
-            SohGui::RegisterPopup("Reset Combo Rules",
-                                  "This will reset every cross-game rule to its default value.\nContinue?", "Reset",
-                                  "Cancel", ComboRuleResetAll, nullptr);
+            ComboRuleRegisterPopup("Reset Combo Rules",
+                                   "This will reset every cross-game rule to its default value.\nContinue?", "Reset",
+                                   "Cancel", ComboRuleResetAll);
         })
         .PreFunc([](WidgetInfo& info) {
             // A live Reset under a frozen record would be a control that
@@ -503,6 +546,22 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
         const int which = ComboRuleClassIndex(classId);
 
         menu.AddWidget(path, ComboRuleRowName(classId), WIDGET_SEPARATOR_TEXT);
+        // An empty mask is legal (ADR 0011 decision 3.3) but worth naming: the
+        // placement pass logs "no crossings" and places nothing, and a player
+        // who did not mean that would read it as a broken pool. A state that
+        // must be legible without hovering is one gray note row ABOVE its group
+        // (docs/ui-style-guide.md R-S3), under the separator, the way SoH's
+        // Randomizer > General opens its Enhancements group with a gray note.
+        menu.AddWidget(path, which == 0 ? "No Ocarina of Time items will cross." : "No Majora's Mask items will cross.",
+                       WIDGET_TEXT)
+            .RaceDisable(false)
+            .HideInSearch(true)
+            .PreFunc([which](WidgetInfo& info) {
+                ComboSettingsRecord shown;
+                ComboRuleShownRecord(&shown);
+                info.isHidden = ComboRuleClassMask(shown, which) != 0;
+            })
+            .Options(TextOptions().Color(UIWidgets::Colors::Gray));
         for (int bit = 0; bit < 6; bit++) {
             menu.AddWidget(path, std::string(comboRuleClassNames[bit]) + comboRuleClassIdSuffix[which], WIDGET_CHECKBOX)
                 .ValuePointer(&comboRuleItemClass[which][bit])
@@ -523,19 +582,6 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
                 })
                 .Options(CheckboxOptions().Tooltip(comboRuleClassTooltips[bit]));
         }
-        // An empty mask is legal (ADR 0011 decision 3.3) but worth naming: the
-        // placement pass logs "no crossings" and places nothing, and a player
-        // who did not mean that would read it as a broken pool.
-        menu.AddWidget(path, which == 0 ? "No Ocarina of Time items will cross." : "No Majora's Mask items will cross.",
-                       WIDGET_TEXT)
-            .RaceDisable(false)
-            .HideInSearch(true)
-            .PreFunc([which](WidgetInfo& info) {
-                ComboSettingsRecord shown;
-                ComboRuleShownRecord(&shown);
-                info.isHidden = ComboRuleClassMask(shown, which) != 0;
-            })
-            .Options(TextOptions().Color(UIWidgets::Colors::Gray));
     }
 }
 

@@ -97,9 +97,9 @@
 
 #include "soh/SohGui/SohMenu.h"
 
-#include <algorithm>
 #include <cctype>
 #include <cstdio>
+#include <functional>
 #include <memory>
 #include <string>
 #include <variant>
@@ -108,6 +108,15 @@
 #include "combo_settings_view.h"
 #include "context.h"
 #include "foreign_items.h"
+
+// The Reset confirm's registrar (SohMenuCombo.cpp). Declared here rather than
+// in a header, so no production header grows a test-only entry point. SoH's
+// popup machinery runs a button only from an ImGui frame, so this lock swaps in
+// a recorder to reach the popup's Reset action.
+namespace SohGui {
+extern void (*gComboRulePopupRegistrar)(std::string, std::string, std::string, std::string, std::function<void()>,
+                                        std::function<void()>);
+} // namespace SohGui
 
 namespace {
 
@@ -223,29 +232,69 @@ int StagedBool(WidgetInfo& row) {
 }
 
 /**
+ * The disabled tooltip a frozen row must show: MenuDrawItem's disabled shape
+ * ("This setting is disabled because: \n" then "\n- Reason", Menu.cpp) around
+ * the MODEL's reason in SoH's Title Case ("already decided" -> "Already
+ * Decided"). Built here from Combo_ComboSettingReadOnlyReason, so a row whose
+ * tooltip carries words the model does not own is red.
+ */
+std::string ExpectedDecidedTooltip() {
+    const char* reason = Combo_ComboSettingReadOnlyReason();
+    std::string text = "This setting is disabled because: \n\n- ";
+    bool wordStart = true;
+    for (const char* c = (reason != nullptr) ? reason : ""; *c != '\0'; c++) {
+        text += wordStart ? (char)std::toupper((unsigned char)*c) : *c;
+        wordStart = (*c == ' ');
+    }
+    return text;
+}
+
+/**
  * Assert @p row is in ADR 0004 §6 state 4: disabled, with the reason the MODEL
  * owns. The reason's identity matters as much as the disabling — a row that
  * greyed itself with a capability reason ("not yet available") would send a
  * player hunting for a missing feature instead of telling them the choice was
- * already made. The tooltip is SoH's disabled shape (MenuDrawItem's "This
- * setting is disabled because:" then "- Reason"), so the model's reason is
- * CONTAINED, compared without case (SoH writes reasons in Title Case).
+ * already made. Compared EXACTLY against the model's reason in SoH's disabled
+ * shape: a containment check passed a hard-coded tooltip that added
+ * renderer-only words ("When This World Was Created") the corrupt state
+ * contradicts.
  */
 void ExpectDecided(WidgetInfo& row, const char* what) {
     const char* reason = Combo_ComboSettingReadOnlyReason();
-    auto lower = [](std::string s) {
-        std::transform(s.begin(), s.end(), s.begin(), [](unsigned char ch) { return (char)std::tolower(ch); });
-        return s;
-    };
     const std::string tip = row.options->disabledTooltip != nullptr ? row.options->disabledTooltip : "";
+    const std::string want = ExpectedDecidedTooltip();
     ROWS_CHECK(row.options->disabled, "%s must be read-only once the record is frozen", what);
-    ROWS_CHECK(reason != nullptr && lower(tip).find(lower(reason)) != std::string::npos,
-               "%s must carry the model's reason (%s), not a capability reason; it carries '%s'", what,
-               reason != nullptr ? reason : "(null)", tip.c_str());
-    ROWS_CHECK(tip.rfind("This setting is disabled because:", 0) == 0,
-               "%s's disabled tooltip is not in SoH's disabled shape (\"This setting is disabled because:\" then "
-               "\"- Reason\"): '%s'",
-               what, tip.c_str());
+    ROWS_CHECK(reason != nullptr && tip == want,
+               "%s must carry exactly the model's reason (%s) in SoH's disabled shape, not a capability reason or "
+               "renderer-only words; it carries '%s', expected '%s'",
+               what, reason != nullptr ? reason : "(null)", tip.c_str(), want.c_str());
+}
+
+/** One popup the Reset row queued through gComboRulePopupRegistrar. */
+struct RecordedPopup {
+    std::string title;
+    std::string button1;
+    std::string button2;
+    std::function<void()> onButton1;
+    std::function<void()> onButton2;
+};
+std::vector<RecordedPopup> gRecordedPopups;
+
+void RecordPopup(std::string title, std::string message, std::string button1, std::string button2,
+                 std::function<void()> onButton1, std::function<void()> onButton2) {
+    (void)message;
+    gRecordedPopups.push_back(RecordedPopup{ std::move(title), std::move(button1), std::move(button2),
+                                             std::move(onButton1), std::move(onButton2) });
+}
+
+/** The index of the row named @p name in the flattened page, or -1. */
+int RowIndex(std::vector<PageRow>& rows, const std::string& name) {
+    for (std::size_t i = 0; i < rows.size(); i++) {
+        if (rows.at(i).first->name == name) {
+            return (int)i;
+        }
+    }
+    return -1;
 }
 
 } // namespace
@@ -547,6 +596,22 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         WidgetInfo* mmNote = FindRow(rows, "No Majora's Mask items will cross.");
         ROWS_CHECK(ootNote != nullptr && ootNote->isHidden, "the OoT empty-set note is shown for a non-empty mask");
         ROWS_CHECK(mmNote != nullptr && !mmNote->isHidden, "the MM empty-set note is hidden for an empty mask");
+
+        // Where each note sits: directly under its group's separator, ABOVE the
+        // six checkboxes (docs/ui-style-guide.md R-S3: a state that must be
+        // legible without hovering is one gray note row above the group). A
+        // note after the six boxes reads as a footnote to the last one.
+        const char* notes[2] = { "No Ocarina of Time items will cross.", "No Majora's Mask items will cross." };
+        const ComboSettingId groups[2] = { COMBO_SETTING_ITEM_CLASS_OOT, COMBO_SETTING_ITEM_CLASS_MM };
+        for (int which = 0; which < 2; which++) {
+            const int header = RowIndex(rows, RowName(groups[which]));
+            const int note = RowIndex(rows, notes[which]);
+            const int firstBox = RowIndex(rows, ClassRowName(which, 0));
+            ROWS_CHECK(header >= 0 && note == header + 1 && firstBox == note + 1,
+                       "the empty-set note '%s' is at row %d; it must sit directly under its separator (row %d) and "
+                       "above the group's first checkbox (row %d)",
+                       notes[which], note, header, firstBox);
+        }
     }
     printf("[TEST] leg 5: once frozen every row is read-only with the model's reason and shows the save's record\n");
 
@@ -651,11 +716,98 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         ROWS_CHECK(statusRow->name.find("Session state is corrupt") != std::string::npos,
                    "a frozen record with no live pairing is not named as corrupt: '%s'", statusRow->name.c_str());
 
+        // Paired but not frozen: a legacy pre-carve pair (ADR 0011 decision 4.2).
+        // Its first crossing freezes the SHIPPED DEFAULTS and then compares that
+        // record against the live CVars (foreign_items.c,
+        // Combo_FreezeLegacyComboSettings then Combo_ComboSettingsDivergence), so
+        // a rule edited before that crossing is REFUSED there. The note must say
+        // to keep the defaults until then; "changes apply to the next world"
+        // alone told the player an edit was harmless to this one.
+        ComboContext_Init();
+        gComboCtx.sourceIsRando = true;
+        gComboCtx.sharedRandoSeed = 0xC0FFEE55u;
+        gComboCtx.sharedRandoSettingsHash = 0x5EED0055u;
+        gComboCtx.mmProfileDigest = 0x4D4D0055u;
+        RunPreFunc(*statusRow);
+        ROWS_CHECK(statusRow->name.find("predates these rules") != std::string::npos &&
+                       statusRow->name.find("Keep them at the defaults until you have crossed into it") !=
+                           std::string::npos,
+                   "the paired-legacy status line does not tell the player to keep the defaults until the first "
+                   "crossing (an edit before it is refused at that crossing): '%s'",
+                   statusRow->name.c_str());
+
         // Unfrozen and unpaired: the ordinary pre-creation state.
         ComboContext_Init();
         RunPreFunc(*statusRow);
         ROWS_CHECK(statusRow->name.find("saved into the next paired world") != std::string::npos,
                    "the pre-creation status line does not say these freeze at creation: '%s'", statusRow->name.c_str());
+    }
+
+    // ---- Leg 9: Reset asks first, and its Reset button clears every rule ------
+    // The row's Callback only queues a confirm (SoH's Clear Config shape); the
+    // action is the popup's Reset button. The snapshot harness proves the popup
+    // is queued and drawn, but dismisses it without running a button, so this
+    // leg is the only place the ACTION is checked. Cancel must clear nothing.
+    {
+        ComboContext_Init();
+        ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, (int32_t)RSBS_COMBO_DIR_FORWARD) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_POOL_SIZE_OOT, 2) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_POOL_SIZE_MM, 3) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_ITEM_CLASS_OOT, (int32_t)RSBS_ITEMCLASS_SONGS) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_ITEM_CLASS_MM, (int32_t)RSBS_ITEMCLASS_MASKS) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_OCARINA, 1) == 1,
+                   "the writer refused a pre-creation value leg 9 needs");
+        for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
+            ROWS_CHECK(Combo_ComboSettingIsExplicit((ComboSettingId)i),
+                       "leg 9 set '%s' but the store holds no explicit value, so the reset check would be vacuous",
+                       Combo_ComboSettingLabel((ComboSettingId)i));
+        }
+
+        WidgetInfo* resetRow = FindRow(rows, "Reset Combo Rules");
+        ROWS_CHECK(resetRow != nullptr && resetRow->type == WIDGET_BUTTON && resetRow->callback != nullptr,
+                   "the Cross-Game Rules page has no \"Reset Combo Rules\" button with a Callback");
+        auto savedRegistrar = SohGui::gComboRulePopupRegistrar;
+        SohGui::gComboRulePopupRegistrar = RecordPopup;
+        gRecordedPopups.clear();
+        if (resetRow != nullptr && resetRow->callback != nullptr) {
+            RunPreFunc(*resetRow);
+            ROWS_CHECK(!resetRow->options->disabled, "the Reset row is disabled before the creation event");
+            resetRow->callback(*resetRow);
+        }
+        SohGui::gComboRulePopupRegistrar = savedRegistrar;
+        for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
+            ROWS_CHECK(Combo_ComboSettingIsExplicit((ComboSettingId)i),
+                       "the Reset row cleared '%s' before any confirm was accepted",
+                       Combo_ComboSettingLabel((ComboSettingId)i));
+        }
+        ROWS_CHECK(gRecordedPopups.size() == 1, "the Reset row queued %zu popups, expected one confirm",
+                   gRecordedPopups.size());
+        if (gRecordedPopups.size() == 1) {
+            RecordedPopup& popup = gRecordedPopups.at(0);
+            ROWS_CHECK(popup.title == "Reset Combo Rules" && popup.button1 == "Reset" && popup.button2 == "Cancel",
+                       "the Reset confirm is '%s' with buttons '%s' / '%s', expected 'Reset Combo Rules' with "
+                       "'Reset' / 'Cancel'",
+                       popup.title.c_str(), popup.button1.c_str(), popup.button2.c_str());
+            if (popup.onButton2 != nullptr) {
+                popup.onButton2();
+            }
+            for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
+                ROWS_CHECK(Combo_ComboSettingIsExplicit((ComboSettingId)i), "Cancel cleared '%s'",
+                           Combo_ComboSettingLabel((ComboSettingId)i));
+            }
+            ROWS_CHECK(popup.onButton1 != nullptr, "the Reset confirm's Reset button has no action");
+            if (popup.onButton1 != nullptr) {
+                popup.onButton1();
+            }
+            for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
+                ROWS_CHECK(!Combo_ComboSettingIsExplicit((ComboSettingId)i),
+                           "the Reset confirm's Reset button left '%s' explicitly set",
+                           Combo_ComboSettingLabel((ComboSettingId)i));
+            }
+        }
+        gRecordedPopups.clear();
+        printf("[TEST] leg 9: Reset queues one confirm; Cancel clears nothing, and its Reset button clears all six "
+               "rules\n");
     }
 
     // Leave the process clean: this row writes the six tier-4 keys and freezes
