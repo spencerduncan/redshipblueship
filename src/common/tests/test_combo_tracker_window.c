@@ -54,6 +54,7 @@
 #include "../combo_tracker_view.h"
 #include "../combo_ui.h"
 #include "../context.h"
+#include "../crossing_store.h"
 #include "../foreign_items.h"
 #include "../test_runner.h"
 #include "test_named_items.h"
@@ -134,13 +135,21 @@ bool TrackerDriveModelReads(void) {
         }
 
         const int crossings = Combo_TrackerForeignCount(games[g]);
+        ComboTrackerForeignProgress progress;
+        Combo_TrackerForeignProgress(games[g], &progress);
+        if (progress.total != crossings || progress.found < 0 || progress.found > progress.total) {
+            return false; // the note's counts and the table must agree
+        }
         for (int i = 0; i < crossings; i++) {
             ComboTrackerForeignRow foreignRow;
             if (!Combo_TrackerForeignRowAt(games[g], i, &foreignRow)) {
                 return false; // the count and the walk must agree
             }
-            if (foreignRow.itemName == NULL) {
-                return false; // contractually never NULL (placeholder otherwise)
+            if (foreignRow.itemName == NULL || foreignRow.itemArticle == NULL) {
+                return false; // contractually never NULL (placeholder / "" otherwise)
+            }
+            if (foreignRow.found > COMBO_TRACKER_FOUND_YES) {
+                return false; // the cell prints one of three words
             }
         }
     }
@@ -197,6 +206,7 @@ extern "C" int Combo_TrackerWindow_RunHeadless(void) {
         const bool adapters = (state % 2) == 0;
 
         ComboContext_Init();
+        Combo_Crossings_Clear();
         if (adapters) {
             MM_TrackerAdapter_Register();
             OoT_TrackerAdapter_Register();
@@ -212,6 +222,16 @@ extern "C" int Combo_TrackerWindow_RunHeadless(void) {
             CTW_ASSERT(TestNamedItem((uint8_t)GAME_OOT, "Lens of Truth", &item));
             CTW_ASSERT(Combo_SetForeignPlacement(0x0401, item) >= 0);
             CTW_ASSERT(Combo_TrackerForeignCount((uint8_t)GAME_MM) == 1);
+            // ...and a crossing-store row in the other direction, the single
+            // bag's only source (#755).
+            SharedItem mmItem;
+            CTW_ASSERT(TestNamedItem((uint8_t)GAME_MM, "Lens of Truth", &mmItem));
+            ComboCrossing ootHosted;
+            ootHosted.hostCheck = 0x0123;
+            ootHosted.itemClass = 0x0001;
+            ootHosted.item = mmItem;
+            CTW_ASSERT(Combo_Crossings_Replace(&ootHosted, 1, nullptr, 0) == 1);
+            CTW_ASSERT(Combo_TrackerForeignCount((uint8_t)GAME_OOT) == 1);
         } else {
             CTW_ASSERT(Combo_TrackerForeignCount((uint8_t)GAME_MM) == 0);
         }
@@ -270,6 +290,12 @@ extern "C" int Combo_TrackerWindow_RunHeadless(void) {
         CTW_ASSERT(hasToken("ICON_FA_CHECK_SQUARE_O"));
         CTW_ASSERT(hasToken("ICON_FA_MINUS_SQUARE_O"));
         CTW_ASSERT(hasToken("ICON_FA_SQUARE_O"));
+        // One notation for a found state (#766 review): a crossing row leads its
+        // check name with the same glyph, with no Yes/No "Collected" column, and
+        // the section says "Crossings" as the notes and the spoiler JSON do.
+        CTW_ASSERT(text.find("FoundGlyph(row.found)") != std::string::npos);
+        CTW_ASSERT(text.find("\"Collected\"") == std::string::npos);
+        CTW_ASSERT(text.find("\"Cross-Game Placements\"") == std::string::npos);
         CTW_ASSERT(text.find("[x]") == std::string::npos);
         CTW_ASSERT(text.find("[s]") == std::string::npos);
         CTW_ASSERT(text.find("[ ]") == std::string::npos);
@@ -295,6 +321,7 @@ extern "C" int Combo_TrackerWindow_RunHeadless(void) {
     OoT_TrackerAdapter_Register();
     CVarClear(ComboGui::kComboTrackerVisibilityCVar);
     ComboContext_Init();
+    Combo_Crossings_Clear();
 
     printf("[TEST] PASS: tracker window registers de-collided and idempotently, and its draw path is inert under "
            "GAME_OOT/GAME_MM/GAME_NONE with adapters present, absent, and a paired world\n");
