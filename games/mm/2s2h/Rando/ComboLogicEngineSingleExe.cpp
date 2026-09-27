@@ -1418,6 +1418,17 @@ extern "C" int MM_ComboLogic_ApplyShippedProfile(void) {
     return (int)RANDO_SAVE_OPTIONS[RO_LOGIC];
 }
 
+/**
+ * MM's FROZEN starting health, in health units (0x10 per heart), for
+ * ComboLogicComposeRequest.startingHealthMM (THE SHARED-QUANTITY TRIM's health
+ * budget, lane K13): RO_STARTING_HEALTH stores whole hearts, exactly as
+ * StartingItems.cpp reads it. Reads the save's resolved options, so call it after
+ * the profile is resolved into the save.
+ */
+extern "C" uint16_t MM_ComboLogic_StartingHealth(void) {
+    return (uint16_t)(RANDO_SAVE_OPTIONS[RO_STARTING_HEALTH] * 0x10);
+}
+
 // ============================================================================
 // THE POOL EXPORT (#645 increment 3, lane K9): MM's half of bag composition
 // ============================================================================
@@ -1814,7 +1825,7 @@ uint8_t MMFillClassSharedKind(RandoItemId ri) {
  * exists to express).
  */
 extern "C" int MM_ComboLogic_ClassifyItem(uint16_t id, ComboItemClassRow* out) {
-    ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u, 0u };
+    ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u, 0u, 0u };
     if (out != nullptr) {
         *out = row;
     }
@@ -1855,6 +1866,11 @@ extern "C" int MM_ComboLogic_ClassifyItem(uint16_t id, ComboItemClassRow* out) {
         row.armedBy = RSBS_FILL_ARM_WORLD_EVENT;
     }
     row.sharedKind = (row.fillClass == RSBS_FILL_CLASS_TRAP) ? 0u : MMFillClassSharedKind(ri);
+    // The size of one copy in its kind's units (ABI 3, the #525 pool policy): a
+    // heart container is four heart pieces; every other copy is one unit.
+    row.sharedUnits = (row.sharedKind == 0u)       ? 0u
+                      : (ri == RI_HEART_CONTAINER) ? (uint8_t)RSBS_SHARED_QTY_UNITS_CONTAINER
+                                                   : (uint8_t)RSBS_SHARED_QTY_UNITS_PIECE;
     if (out != nullptr) {
         *out = row;
     }

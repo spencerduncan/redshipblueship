@@ -1996,7 +1996,7 @@ uint8_t OoTFillClassSharedKind(RandomizerGet rg) {
  * are sold in shops and the Deku shield burns.
  */
 extern "C" int OoT_ComboLogic_ClassifyItem(uint16_t id, ComboItemClassRow* out) {
-    ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u, 0u };
+    ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u, 0u, 0u };
     if (out != nullptr) {
         *out = row;
     }
@@ -2031,6 +2031,12 @@ extern "C" int OoT_ComboLogic_ClassifyItem(uint16_t id, ComboItemClassRow* out) 
     // A trap feeds no quantity (the owner refuses that row), and RG_ICE_TRAP is
     // tagged nowhere above, so this is a statement rather than a filter.
     row.sharedKind = (row.fillClass == RSBS_FILL_CLASS_TRAP) ? 0u : OoTFillClassSharedKind(rg);
+    // The size of one copy in its kind's units (ABI 3, the #525 pool policy): a
+    // heart container is four heart pieces; every other copy is one unit (a
+    // piece, the treasure-game piece, or one progressive tier step).
+    row.sharedUnits = (row.sharedKind == 0u)       ? 0u
+                      : (rg == RG_HEART_CONTAINER) ? (uint8_t)RSBS_SHARED_QTY_UNITS_CONTAINER
+                                                   : (uint8_t)RSBS_SHARED_QTY_UNITS_PIECE;
     if (out != nullptr) {
         *out = row;
     }
@@ -2108,6 +2114,21 @@ extern "C" uint32_t OoT_ComboLogic_ConfinementArmed(void) {
     return armed;
 }
 
+/**
+ * OoT's FROZEN starting health, in health units (0x10 per heart), for
+ * ComboLogicComposeRequest.startingHealthOoT (THE SHARED-QUANTITY TRIM's health
+ * budget, lane K13): RSK_STARTING_HEARTS stores hearts - 1, exactly as
+ * item_pool.cpp and savefile.cpp read it. 0 when no context exists (the composer
+ * then reads three hearts).
+ */
+extern "C" uint16_t OoT_ComboLogic_StartingHealth(void) {
+    auto ctx = Rando::Context::GetInstance();
+    if (ctx == nullptr) {
+        return 0u;
+    }
+    return (uint16_t)((ctx->GetOption(RSK_STARTING_HEARTS).Get() + 1) * 0x10);
+}
+
 /** How many copies RO_ITEM_POOL_PLENTIFUL put into the pool on the last
  *  GenerateItemPool (0 when plentiful is off). */
 extern "C" int OoT_ComboLogic_PlentifulAddedCount(void) {
@@ -2176,7 +2197,7 @@ extern "C" int OoT_ComboLogic_ExportPool(int source, uint16_t* outItems, uint16_
             if (!OoTComboLogicIsRealItem(placed)) {
                 continue;
             }
-            ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u, 0u };
+            ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u, 0u, 0u };
             if (OoT_ComboLogic_ClassifyItem((uint16_t)placed, &row) != 1) {
                 continue; // an event row (the goal, a hint): no pool holds it
             }

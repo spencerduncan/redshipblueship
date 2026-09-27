@@ -13,6 +13,7 @@
 
 #include "shared_items.h"
 #include "foreign_items.h" // Combo_ForeignGiveCaps, RSBS_GIVECAP_* (src/common; game-header-free like this TU)
+#include "shared_resources.h" // Combo_SharedResourceKindArmed, RSBS_SHARED_RES_MAX_HEALTH_QUARTERS (pool policy)
 #include <stdio.h>
 #include <string.h>
 
@@ -346,6 +347,7 @@ typedef struct {
     uint8_t fillClass[RSBS_ITEM_CLASS_ID_CAP]; // the SOURCE's answer, unreconciled
     uint32_t armedBy[RSBS_ITEM_CLASS_ID_CAP];
     uint8_t sharedKind[RSBS_ITEM_CLASS_ID_CAP];
+    uint8_t sharedUnits[RSBS_ITEM_CLASS_ID_CAP]; // normalized: >= 1 where sharedKind != 0, else 0
 } ItemClassTable;
 
 static ItemClassTable sItemClass[ITEM_CLASS_ORIGINS];
@@ -378,6 +380,15 @@ static bool ItemClassRowValid(int rv, const ComboItemClassRow* row) {
         return false;
     }
     return rv == 1 && row->fillClass != RSBS_FILL_CLASS_NONE && row->fillClass < RSBS_FILL_CLASS_COUNT;
+}
+
+// A row's units as stored: a source's 0 reads as ONE unit (every tier copy and a
+// heart piece), and a row feeding no kind stores 0 whatever the source wrote.
+static uint8_t ItemClassNormalizedUnits(const ComboItemClassRow* row) {
+    if (row->sharedKind == 0u) {
+        return 0u;
+    }
+    return (row->sharedUnits == 0u) ? 1u : row->sharedUnits;
 }
 
 // The reconciliation rank: PROGRESSION > RENEWABLE > JUNK. NONE and TRAP rank 0
@@ -472,7 +483,7 @@ int Combo_ItemClassBuild(uint8_t originGame) {
     const ComboItemClassSource* src = t->source;
     int fillItems = 0;
     for (uint32_t id = 0; id < src->idSpace; id++) {
-        ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u, 0u };
+        ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u, 0u, 0u };
         const int rv = src->classify((uint16_t)id, &row);
         if (rv < 0) {
             // Not ready: keep NOTHING. A half-built table would be cached as the
@@ -480,6 +491,7 @@ int Combo_ItemClassBuild(uint8_t originGame) {
             memset(t->fillClass, 0, sizeof(t->fillClass));
             memset(t->armedBy, 0, sizeof(t->armedBy));
             memset(t->sharedKind, 0, sizeof(t->sharedKind));
+            memset(t->sharedUnits, 0, sizeof(t->sharedUnits));
             return -1;
         }
         if (!ItemClassRowValid(rv, &row)) {
@@ -497,6 +509,7 @@ int Combo_ItemClassBuild(uint8_t originGame) {
         t->fillClass[id] = row.fillClass;
         t->armedBy[id] = row.armedBy;
         t->sharedKind[id] = row.sharedKind;
+        t->sharedUnits[id] = ItemClassNormalizedUnits(&row);
         if (row.fillClass != RSBS_FILL_CLASS_NONE) {
             fillItems++;
         }
@@ -550,6 +563,14 @@ uint8_t Combo_ItemClassSharedKind(SharedItem item) {
         return 0u;
     }
     return t->sharedKind[item.id];
+}
+
+uint8_t Combo_ItemClassSharedUnits(SharedItem item) {
+    ItemClassTable* t = ItemClassTableFor(item.originGame);
+    if (t == NULL || Combo_ItemClassBuild(item.originGame) < 0 || item.id >= t->source->idSpace) {
+        return 0u;
+    }
+    return t->sharedUnits[item.id];
 }
 
 uint8_t Combo_ItemClassKindClass(uint8_t kind) {
@@ -620,7 +641,7 @@ int Combo_ItemClassVerify(uint8_t originGame) {
     }
     int diverging = 0;
     for (uint32_t id = 0; id < t->source->idSpace; id++) {
-        ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u, 0u };
+        ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u, 0u, 0u };
         const int rv = t->source->classify((uint16_t)id, &row);
         if (rv < 0) {
             return -1;
@@ -631,7 +652,7 @@ int Combo_ItemClassVerify(uint8_t originGame) {
             row.sharedKind = 0u;
         }
         if (row.fillClass != t->fillClass[id] || row.armedBy != t->armedBy[id] ||
-            row.sharedKind != t->sharedKind[id]) {
+            row.sharedKind != t->sharedKind[id] || ItemClassNormalizedUnits(&row) != t->sharedUnits[id]) {
             if (diverging < 8) {
                 fprintf(stderr, "[ItemClass] %s id %u DIVERGES: owner=(%s, 0x%08X) source=(%s, 0x%08X)\n",
                         Game_ToString((GameId)originGame), (unsigned)id, Combo_ItemClassName(t->fillClass[id]),
@@ -673,4 +694,214 @@ uint32_t Combo_ItemClassArmedFromFrozen(uint8_t originGame) {
         return 0u; // nothing frozen is published: nothing conditional is armed
     }
     return Combo_ForeignGiveCaps(originGame) & RSBS_FILL_ARM_GIVECAPS_MASK;
+}
+
+// ============================================================================
+// THE SHARED-QUANTITY POOL POLICY (lane K13) — see shared_items.h
+// ============================================================================
+
+bool Combo_SharedQuantityPolicyOf(uint8_t kind, ComboSharedQuantityPolicy* out) {
+    ComboSharedQuantityPolicy p = { RSBS_SHARED_QTY_KEEP_ALL, RSBS_SHARED_QTY_BUDGET_NONE, 0u, 0u, 0u };
+    const bool real = (kind != (uint8_t)RSBS_SHARED_RES_NONE && kind < RSBS_SHARED_RES_KIND_COUNT);
+    if (real) {
+        switch (kind) {
+            case RSBS_SHARED_RES_HEALTH_QUARTERS:
+                p.policy = RSBS_SHARED_QTY_TRIM_TO_SHARED_MAX;
+                p.budget = RSBS_SHARED_QTY_BUDGET_HEALTH;
+                break;
+            // The per-game ceilings are the give paths' tops: for every kind but the
+            // wallet the same numbers the carrier's shims apply with (OOT_/MM_MAX_*_TIER,
+            // GameExports_SingleExe.cpp; restated here because this TU names no game
+            // header). The wallet is the exception, see its case.
+            case RSBS_SHARED_RES_DOUBLE_DEFENSE:
+                p.policy = RSBS_SHARED_QTY_TRIM_TO_SHARED_MAX;
+                p.budget = RSBS_SHARED_QTY_BUDGET_TIER;
+                p.fixedCap = 1u; // one flag, one copy (OoTMM: "one Double Defense for both games")
+                p.ceilingOoT = 1u;
+                p.ceilingMM = 1u;
+                break;
+            case RSBS_SHARED_RES_WALLET_TIER:
+                // NOT the carrier's number: OOT_/MM_MAX_WALLET_TIER are 3 (the
+                // carrier's clamp admits a tycoon tier), but both progressive-wallet
+                // GIVE paths stop at the giant's wallet (MM's ConvertItem:
+                // CUR_UPG_VALUE(UPG_WALLET) >= 2); OoT's reaches the tycoon's only
+                // when its pool carries that copy, which the pool count raises the
+                // ceiling to.
+            case RSBS_SHARED_RES_MAGIC_LEVEL:
+                p.policy = RSBS_SHARED_QTY_TRIM_TO_SHARED_MAX;
+                p.budget = RSBS_SHARED_QTY_BUDGET_TIER;
+                p.ceilingOoT = 2u;
+                p.ceilingMM = 2u;
+                break;
+            case RSBS_SHARED_RES_QUIVER_TIER:
+            case RSBS_SHARED_RES_BOMB_BAG_TIER:
+            case RSBS_SHARED_RES_STICK_TIER:
+            case RSBS_SHARED_RES_NUT_TIER:
+                p.policy = RSBS_SHARED_QTY_TRIM_TO_SHARED_MAX;
+                p.budget = RSBS_SHARED_QTY_BUDGET_TIER;
+                p.ceilingOoT = 3u; // OOT_MAX_AMMO_TIER
+                p.ceilingMM = 3u;  // MM_MAX_AMMO_TIER
+                break;
+            case RSBS_SHARED_RES_HOOKSHOT_TIER:
+            case RSBS_SHARED_RES_OCARINA_TIER:
+                p.policy = RSBS_SHARED_QTY_TRIM_TO_SHARED_MAX;
+                p.budget = RSBS_SHARED_QTY_BUDGET_TIER;
+                p.ceilingOoT = 2u; // OOT_MAX_HOOKSHOT_TIER / OOT_MAX_OCARINA_TIER
+                p.ceilingMM = 1u;  // MM_MAX_HOOKSHOT_TIER / MM_MAX_OCARINA_TIER
+                break;
+            default:
+                // Rupees, current health / magic, the five ammo counts and the
+                // triforce count: renewable or counted, never a capacity.
+                break;
+        }
+        // The one arming gate, read from the one place it lives: a kind the
+        // frozen record does not share keeps each game's own copies untrimmed.
+        if (p.policy != RSBS_SHARED_QTY_KEEP_ALL && !Combo_SharedResourceKindArmed(kind)) {
+            p.policy = RSBS_SHARED_QTY_KEEP_ALL;
+            p.budget = RSBS_SHARED_QTY_BUDGET_NONE;
+            p.fixedCap = 0u;
+            p.ceilingOoT = 0u;
+            p.ceilingMM = 0u;
+        }
+    }
+    if (out != NULL) {
+        *out = p;
+    }
+    return real;
+}
+
+const char* Combo_SharedQuantityPolicyName(uint8_t policy) {
+    switch (policy) {
+        case RSBS_SHARED_QTY_KEEP_ALL:
+            return "keep-all";
+        case RSBS_SHARED_QTY_TRIM_TO_SHARED_MAX:
+            return "trim-to-shared-max";
+        default:
+            return "(unknown)";
+    }
+}
+
+int Combo_SharedQuantityHealthBudget(uint16_t startingHealth, int piecesAvailable, int containersAvailable,
+                                     int* outPieces, int* outContainers) {
+    if (startingHealth == 0u) {
+        // NOT PUBLISHED. There is no default: a guessed three hearts under-trims a
+        // two-heart world below its shared maximum (72 quarters of headroom, 68
+        // kept), which is the reduction this policy exists to prevent.
+        if (outPieces != NULL) {
+            *outPieces = 0;
+        }
+        if (outContainers != NULL) {
+            *outContainers = 0;
+        }
+        return -1;
+    }
+    const int start = (int)startingHealth;
+    int budget = ((int)RSBS_SHARED_RES_MAX_HEALTH_QUARTERS - start) / 4; // in quarters (heart pieces)
+    if (budget < 0) {
+        budget = 0;
+    }
+    int pieces = (budget < RSBS_SHARED_QTY_HEART_PIECES) ? budget : RSBS_SHARED_QTY_HEART_PIECES;
+    int containers = (budget - pieces) / 4;
+    pieces += (budget - pieces) % 4; // a remainder under one heart stays in pieces
+    // Move what a short grade cannot use to the other grade, computed from the
+    // ORIGINAL split so the two moves cannot feed each other.
+    const int pieceShort = (piecesAvailable >= 0 && piecesAvailable < pieces) ? pieces - piecesAvailable : 0;
+    const int containerShort =
+        (containersAvailable >= 0 && containersAvailable < containers) ? containers - containersAvailable : 0;
+    pieces += 4 * containerShort;
+    // Rounded UP: a piece shortfall that is not a whole heart still needs a whole
+    // container to cover it. The partial overfill (under one heart) only clamps at
+    // the carrier; rounding down would leave the bar short of its maximum.
+    containers += (pieceShort + 3) / 4;
+    if (piecesAvailable >= 0 && pieces > piecesAvailable) {
+        pieces = piecesAvailable;
+    }
+    if (containersAvailable >= 0 && containers > containersAvailable) {
+        containers = containersAvailable;
+    }
+    if (outPieces != NULL) {
+        *outPieces = pieces;
+    }
+    if (outContainers != NULL) {
+        *outContainers = containers;
+    }
+    return budget;
+}
+
+int Combo_SharedQuantityTierBudget(const ComboSharedQuantityPolicy* policy, int ootCopies, int mmCopies) {
+    if (policy == NULL || policy->policy != RSBS_SHARED_QTY_TRIM_TO_SHARED_MAX ||
+        policy->budget != RSBS_SHARED_QTY_BUDGET_TIER || ootCopies < 0 || mmCopies < 0) {
+        return -1;
+    }
+    const int ceilO = ((int)policy->ceilingOoT > ootCopies) ? (int)policy->ceilingOoT : ootCopies;
+    const int ceilM = ((int)policy->ceilingMM > mmCopies) ? (int)policy->ceilingMM : mmCopies;
+    if (ootCopies > 0 && mmCopies > 0 && ceilO != ceilM) {
+        return -1; // UNEQUAL CEILINGS ARE KEPT WHOLE (shared_items.h)
+    }
+    int budget = (ootCopies > mmCopies) ? ootCopies : mmCopies;
+    if (policy->fixedCap != 0u && budget > (int)policy->fixedCap) {
+        budget = (int)policy->fixedCap;
+    }
+    return budget;
+}
+
+void Combo_SharedQuantitySplit(int budget, int ootCopies, int mmCopies, uint32_t tieSeed, int* outOoT, int* outMM) {
+    int keepO = 0;
+    int keepM = 0;
+    if (ootCopies < 0) {
+        ootCopies = 0;
+    }
+    if (mmCopies < 0) {
+        mmCopies = 0;
+    }
+    const int total = ootCopies + mmCopies;
+    if (budget < 0) {
+        budget = 0;
+    }
+    if (budget >= total) {
+        keepO = ootCopies;
+        keepM = mmCopies;
+    } else if (budget > 0) {
+        // Largest remainder in integers: quota_g = budget * n_g / total.
+        keepO = (int)(((long long)budget * ootCopies) / total);
+        keepM = (int)(((long long)budget * mmCopies) / total);
+        const long long remO = ((long long)budget * ootCopies) % total;
+        const long long remM = ((long long)budget * mmCopies) % total;
+        int left = budget - keepO - keepM; // 0 or 1 with two games
+        while (left > 0) {
+            bool toOoT;
+            if (keepO >= ootCopies) {
+                toOoT = false;
+            } else if (keepM >= mmCopies) {
+                toOoT = true;
+            } else if (remO != remM) {
+                toOoT = remO > remM;
+            } else {
+                toOoT = (tieSeed & 1u) == 0u;
+            }
+            if (toOoT) {
+                keepO++;
+            } else {
+                keepM++;
+            }
+            left--;
+        }
+        // Both worlds keep a copy of a family both hold, when the budget allows
+        // one per holder: take it from the larger share.
+        if (budget >= 2) {
+            if (ootCopies > 0 && keepO == 0 && keepM > 1) {
+                keepO++;
+                keepM--;
+            } else if (mmCopies > 0 && keepM == 0 && keepO > 1) {
+                keepM++;
+                keepO--;
+            }
+        }
+    }
+    if (outOoT != NULL) {
+        *outOoT = keepO;
+    }
+    if (outMM != NULL) {
+        *outMM = keepM;
+    }
 }
