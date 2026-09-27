@@ -1805,3 +1805,60 @@ as a solo OoT world at file select: the pairing and its crossings are not
 rebuilt from a spoiler there. A netplay peer's sourced grants share the
 shared-item array with crossing pickups and are not yet made to leave the
 crossings' slots free.
+
+### 2026-09-27 -- Increment 3: the single bag is the trimmed bag (PR #744 integrated, lane K11b)
+
+PR #744 (lane K13) made the bag composer trim every capacity-like shared
+family (health, double defense, the capacity tiers) to what the one shared
+quantity can absorb, and refuse a trimming request that does not publish both
+frozen starting healths. The production caller now composes with it:
+
+- `Combo_SingleBag_Run` publishes both games' frozen starting healths
+  (`OoT_ComboLogic_StartingHealth`, `MM_ComboLogic_StartingHealth`) and a trim
+  seed, `Combo_SingleBag_TrimSeed()`: the frozen identity under its own domain
+  tag and without the ladder attempt, so every ladder attempt fills the same
+  bag. Production never sets `RSBS_COMBO_QUANTITY_KEEP_ALL`.
+- A trimmed row goes back to its origin game's own pass as one filler copy,
+  never as the item: OoT adds one `GetJunkItem()` per trimmed row to its
+  remainder (after re-seeding the remainder stream), and MM's own pass adds one
+  `RI_JUNK` per trimmed row. Both passes still deal traps first. Handing the
+  rows back as themselves (what the per-game passes did with every non-bag row)
+  put the dead pickups straight back: on the pinned seed the finished world
+  then held 89 heart rows, 48 of them dead.
+- `RSBS_COMBO_COMPOSE_ADMIT_CONFINED_HOME` admits a CONFINED row in the
+  composer's bag-writing pass, after the trim, so a confined row sits outside
+  every shared budget. No trim-family item is confinable (#744's B7).
+- Nothing else in the seam moved: `hostAcceptsForeign`, `maxCrossingsPerSide`,
+  the #680 order, the #582 budget and the #581 section 2a rule are as above.
+- No ADR 0011 record field changes meaning. The trim reads the starting
+  healths from the settings the identity already froze, and its seed from the
+  identity, so no new byte is recorded and the fingerprint is unchanged.
+
+**What it measured.** Shipped profile, development workstation (host
+calibration 18 ms against the 18 ms reference, scale 100%, per-attempt budget
+30 s, no compile running at the time), one real creation
+(`RSBS_CSB_SAMPLE=1 redship --test combo-single-bag`, seed `RSBSSAMPLE0`):
+
+| | |
+|---|---|
+| End to end | 6.14 s = OoT Generate 0.19 s + MM's creation-time half 5.61 s + OoT's tail 0.33 s |
+| Fill | 5.61 s, 256 rounds, 1 batch attempt, 0 roll-backs, first ladder attempt |
+| Bag | 255 rows (OoT 64, MM 191; 306 before the trim); 22 OoT + 29 MM rows trimmed to filler |
+| Crossings | 32 OoT items into MM, 64 MM items into OoT (the per-side bound) |
+| Hearts | 50 heart rows in the finished world, all placed by the coordinator; 50 pickups from 3 hearts, 0 dead, the bar ends at 320 |
+
+The earlier figures (one seed at 14.8 s; the 30-seed mean of 9.7 s for MM's
+half) were taken over the untrimmed 306-row bag and a busier workstation, so
+this single creation is not a like-for-like comparison. A one-batch fill is
+256 rounds now against 307.
+
+**Locked.** `ComboSingleBag` leg D4 walks every max-health row of the finished
+production creation (OoT's final world, MM's shuffled checks and each
+crossing's real item from the crossing store) through the real shared carrier
+from the frozen bar: on the pinned seed 50 pickups, 0 dead, bar at 320, and
+exactly the 50 heart rows the coordinator placed. Red with the trimmed rows
+handed back as themselves: 89 heart rows, 48 dead. D5 still holds both ways
+on the pinned seed (an OoT Bottle with Ruto's Letter on
+`RC_WOODFALL_TEMPLE_BOW_CHEST`; MM's New Wave Bossa Nova on Gerudo Training
+Ground Maze Right Side Chest); direction OFF makes all 255 rows home-only.
+The four goldens moved once more, in one re-pin commit.
