@@ -42,9 +42,11 @@
  *   5. FullHealthSpawn on: the revive gives the full capacity, exactly as OoT's
  *      continue leg and Sram_OpenSave do.
  *
- * Counterfactual: with the GAME_OOT dispatch removed, leg 1 fails at the frozen
- * bar (0, not STARTING_HEALTH) and leg 5 fails likewise; with the hook's gate
- * removed, leg 4 fails; with it unconditional, leg 3 fails.
+ * COUNTERFACTUALS, each run against a rebuilt binary before landing: with the
+ * GAME_OOT dispatch removed from Combo_FlushLiveStateForFreeze (main's shape),
+ * leg 1 fails at the frozen-bar assertion; with the hook's gameMode gate
+ * removed, leg 4 fails; with the live-bar early return removed, leg 3 fails;
+ * with the FullHealthSpawn read ignored, leg 5 fails.
  */
 
 #include <z64.h>
