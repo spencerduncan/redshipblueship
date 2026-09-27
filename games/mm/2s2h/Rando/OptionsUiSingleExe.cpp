@@ -806,6 +806,9 @@ const MMRandoTrickId kBoundTricks[] = {
     // part 3. Logic/Regions/GreatBayTemple.cpp —
     // RC_GREAT_BAY_TEMPLE_ENTRANCE_CHEST, with the Bow as the disjunct's own term.
     MMRT_GBT_ENTRANCE_BOW,
+    // #697 third pass. Logic/Regions/PiratesFortress.cpp — the plaza's upper chest as
+    // Goron (OoTMM's only MM-only use of the key).
+    MMRT_OOB_MOVEMENT,
     // part 3 (second pass). Logic/Regions/StoneTowerTemple.cpp — the six
     // Deku-gated checks in the inverted wind room whose RC names say UPDRAFTS.
     MMRT_ST_UPDRAFTS,

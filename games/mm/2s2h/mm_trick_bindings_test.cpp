@@ -752,6 +752,10 @@ const Probe kProbes[] = {
     { MMRT_GBT_FIRELESS, "Great Bay Temple's boss-key chest via ice platforms, fireless", EDGE_CONNECTION,
       RR_GREAT_BAY_TEMPLE_COMPASS_ROOM, (int32_t)RR_GREAT_BAY_TEMPLE_COMPASS_ROOM_WITH_BOSS_KEY_CHEST, kAllTime,
       InvZoraAndIce, InvBowIceArrowsAndMagic },
+    // MMRT_OOB_MOVEMENT. The Goron Mask and no Hookshot; the control drops the mask.
+    { MMRT_OOB_MOVEMENT, "the Pirates' Fortress plaza upper chest as Goron, out of bounds", EDGE_CHECK,
+      RR_PIRATES_FORTRESS_PLAZA_RIGHT, (int32_t)RC_PIRATE_FORTRESS_PLAZA_UPPER_CHEST, kAllTime, InvGoronOnly,
+      InvEmpty },
     // MMRT_GORON_BOMB_JUMP's OoTMM sites. Goron + bomb for the green half. Fences
     // (CAN_GORON_BOMB_JUMP_FENCE) take the keg control, the general shape takes the
     // Goron Mask alone.
