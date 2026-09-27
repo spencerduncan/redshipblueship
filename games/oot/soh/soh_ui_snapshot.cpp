@@ -144,7 +144,7 @@
 #include "context.h"
 #include "crossing_store.h" // the crossings the tracker and spoiler states author (#755)
 #include "cvar_shared_keys.h"
-#include "game.h" // MM_SAVE_CONTEXT_SIZE (the authored MM shadow)
+#include "game.h"       // MM_SAVE_CONTEXT_SIZE (the authored MM shadow)
 #include "mm_mod_set.h" // #706: the MM Mods page's model, authored for its three states
 #include "foreign_items.h"
 #include "gen_progress_overlay.h"
