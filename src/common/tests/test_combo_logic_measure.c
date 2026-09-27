@@ -263,11 +263,21 @@ int MM_ComboLogic_TestHealthCapacity(void);
 int MM_ComboLogic_TestMaxHpFixtureIds(uint16_t* out, int cap);
 int MM_ComboLogic_TestGiveIntoSave(const uint16_t* ids, int count);
 int OoT_ComboLogic_TestCounterItemId(int kind);
+// Lane K13's frozen starting-health exports, for THE SHARED-QUANTITY TRIM's health
+// budget (ComboLogicEngineOoT.cpp / ComboLogicEngineSingleExe.cpp).
+uint16_t OoT_ComboLogic_StartingHealth(void);
+uint16_t MM_ComboLogic_StartingHealth(void);
 
 // libultraship's C CVar bridge, for the plentiful profile's MM options.
 void CVarSetInteger(const char* name, int32_t value);
 void CVarClear(const char* name);
 }
+
+// THE PLAY-SIDE CHECK (lane K13): award every heart row of a bag, interleaved by
+// origin, through the REAL shared carrier and count the pickups the 20-heart clamp
+// swallowed. Defined in test_shared_quantity_policy.c (included after this file).
+int SqpDeadHeartPickups(const ComboLogicBagItem* bag, int count, uint16_t startHealth, int* outPickups,
+                        int* outFinal);
 
 namespace {
 
@@ -453,7 +463,47 @@ struct ClmComposed {
     std::vector<int> bagPoolIndex; // bag row -> index into `rows`
     ComboLogicComposeResult res;
     int status = RSBS_COMBO_LOGIC_ERR_BAD_REQUEST;
+    // THE SHARED-QUANTITY TRIM (lane K13): the request's inputs, and the pool rows it
+    // removed (each one filler for its origin game's own junk pass).
+    uint32_t trimSeed = 0;
+    uint16_t startingHealthOoT = 0;
+    uint16_t startingHealthMM = 0;
+    std::vector<int> trimmed;
 };
+
+/** The composer's trim seed for the measurement rows: fixed, so every run of a
+ *  row composes the same bag (production derives it from the frozen identity). */
+constexpr uint32_t kClmTrimSeed = 0x5A0B7A11u;
+
+/** Compose `c.rows` again (NOT re-exported: MM's export consumes Ship_Random) with
+ *  `quantityFlags`, into `bag`; returns the status and fills `res`, and the trimmed
+ *  pool rows into `trimmed` when non-NULL. */
+int ClmRecompose(const ClmComposed& c, uint16_t quantityFlags, std::vector<ComboLogicBagItem>& bag,
+                 ComboLogicComposeResult& res, std::vector<int>* trimmed) {
+    ComboLogicComposeRequest req;
+    memset(&req, 0, sizeof(req));
+    req.rows = c.rows.data();
+    req.rowCount = (int)c.rows.size();
+    req.armedOoT = c.armedOoT;
+    req.armedMM = c.armedMM;
+    req.trimSeed = c.trimSeed;
+    req.startingHealthOoT = c.startingHealthOoT;
+    req.startingHealthMM = c.startingHealthMM;
+    req.quantityFlags = quantityFlags;
+    bag.assign((size_t)RSBS_COMBO_LOGIC_BAG_CAP, ComboLogicBagItem());
+    const int status = Combo_Logic_ComposeBag(&req, bag.data(), RSBS_COMBO_LOGIC_BAG_CAP, nullptr, &res);
+    bag.resize((size_t)((status == RSBS_COMBO_LOGIC_OK) ? res.bagCount : 0));
+    if (trimmed != nullptr) {
+        trimmed->clear();
+        for (int i = 0; i < Combo_Logic_ComposeTrimmedCount(); ++i) {
+            int idx = -1;
+            if (Combo_Logic_ComposeTrimmedAt(i, &idx)) {
+                trimmed->push_back(idx);
+            }
+        }
+    }
+    return status;
+}
 
 /**
  * Export both pools and compose the bag. OoT's pool is read back from the
@@ -515,12 +565,19 @@ bool ClmCompose(ClmComposed& c) {
     c.armedOoT = OoT_ComboLogic_ConfinementArmed() | Combo_ItemClassArmedFromFrozen((uint8_t)GAME_OOT);
     c.armedMM = Combo_ItemClassArmedFromFrozen((uint8_t)GAME_MM);
 
+    c.trimSeed = kClmTrimSeed;
+    c.startingHealthOoT = OoT_ComboLogic_StartingHealth();
+    c.startingHealthMM = MM_ComboLogic_StartingHealth();
+
     ComboLogicComposeRequest req;
     memset(&req, 0, sizeof(req));
     req.rows = c.rows.data();
     req.rowCount = (int)c.rows.size();
     req.armedOoT = c.armedOoT;
     req.armedMM = c.armedMM;
+    req.trimSeed = c.trimSeed;
+    req.startingHealthOoT = c.startingHealthOoT;
+    req.startingHealthMM = c.startingHealthMM;
     c.bag.assign((size_t)RSBS_COMBO_LOGIC_BAG_CAP, ComboLogicBagItem());
     c.bagPoolIndex.assign((size_t)RSBS_COMBO_LOGIC_BAG_CAP, -1);
     c.status = Combo_Logic_ComposeBag(&req, c.bag.data(), RSBS_COMBO_LOGIC_BAG_CAP, c.bagPoolIndex.data(), &c.res);
@@ -529,6 +586,13 @@ bool ClmCompose(ClmComposed& c) {
     const int kept = (c.status != RSBS_COMBO_LOGIC_OK) ? 0 : c.res.bagCount;
     c.bag.resize((size_t)kept);
     c.bagPoolIndex.resize((size_t)kept);
+    c.trimmed.clear();
+    for (int i = 0; i < Combo_Logic_ComposeTrimmedCount(); ++i) {
+        int idx = -1;
+        if (Combo_Logic_ComposeTrimmedAt(i, &idx)) {
+            c.trimmed.push_back(idx);
+        }
+    }
     return true;
 }
 
@@ -543,12 +607,15 @@ void ClmPrintComposition(const char* tag, const char* profile, const ClmComposed
     for (const GameId g : games) {
         const ComboLogicComposeCounts& k = c.res.perGame[(int)g];
         printf("[TEST] %s: %s required=%d surplus=%d confined=%d | renewable=%d junk=%d trap=%d unclassified=%d | "
-               "plentiful-marked=%d\n",
+               "trimmed=%d (filler for its own junk pass) | plentiful-marked=%d\n",
                tag, Game_ToString(g), k.rows[RSBS_COMBO_COMPOSE_REQUIRED], k.rows[RSBS_COMBO_COMPOSE_SURPLUS],
                k.rows[RSBS_COMBO_COMPOSE_CONFINED], k.rows[RSBS_COMBO_COMPOSE_RENEWABLE],
                k.rows[RSBS_COMBO_COMPOSE_JUNK], k.rows[RSBS_COMBO_COMPOSE_TRAP],
-               k.rows[RSBS_COMBO_COMPOSE_UNCLASSIFIED], k.plentiful);
+               k.rows[RSBS_COMBO_COMPOSE_UNCLASSIFIED], k.rows[RSBS_COMBO_COMPOSE_TRIMMED], k.plentiful);
     }
+    printf("[TEST] %s: shared-quantity trim: starting health OoT=0x%X MM=0x%X, seed 0x%08X, %d pool rows trimmed\n",
+           tag, (unsigned)c.startingHealthOoT, (unsigned)c.startingHealthMM, (unsigned)c.trimSeed,
+           (int)c.trimmed.size());
     printf("[TEST] %s: composed bag=%d rows (status %s) against RSBS_COMBO_LOGIC_BAG_CAP=%d and "
            "RSBS_COMBO_LOGIC_MEASURED_WORST_BAG=%d; the union of both whole pools would be %d rows\n",
            tag, c.res.bagCount, Combo_Logic_StatusName(c.status), (int)RSBS_COMBO_LOGIC_BAG_CAP,
@@ -981,6 +1048,30 @@ TestResult ComboLogicMeasure_Run(void) {
         mmBagItems.push_back(composed.bag[idx].item.id);
         surplusInBag += (composed.bag[idx].bagFlags & RSBS_COMBO_BAG_SURPLUS) ? 1 : 0;
     }
+    // THE SHARED-QUANTITY TRIM's removed OoT copies occupy no host in production
+    // (each is one filler copy for OoT's own junk pass, placed after the fill), so
+    // their hosts are emptied like the bag rows' and restored in the teardown.
+    // Without this the OoT engine would still collect every trimmed heart from the
+    // generated world and the measurement would prove over hearts the world no
+    // longer has. MM needs nothing: its engine never harvests vanilla contents.
+    int ootTrimmedHostsEmptied = 0;
+    for (const int poolIdx : composed.trimmed) {
+        if (composed.rows[(size_t)poolIdx].item.originGame != (uint8_t)GAME_OOT) {
+            continue;
+        }
+        const uint16_t host = composed.ootHost[(size_t)poolIdx];
+        uint16_t item = 0;
+        int advancement = 0;
+        CLM_ASSERT(OoT_ComboLogic_TestPlacedItemAt(host, &item, &advancement) == 1 &&
+                       item == composed.rows[(size_t)poolIdx].item.id,
+                   "a trimmed OoT row's host no longer holds the row's item");
+        ootBagHosts.push_back(host);
+        ootRestoreItems.push_back(item);
+        CLM_ASSERT(OoT_ComboLogic_TestSetPlacedItem(host, 0) == 1, "could not empty a trimmed OoT row's host");
+        ootTrimmedHostsEmptied++;
+    }
+    printf("[TEST] combo-logic-measure: %d trimmed OoT rows' hosts emptied (their copies are filler now)\n",
+           ootTrimmedHostsEmptied);
     const int bagCount = (int)bag.size();
     CLM_ASSERT(bagCount > 0, "the measurement bag is empty");
     CLM_ASSERT(bagCount <= RSBS_COMBO_LOGIC_BAG_CAP, "the measurement bag exceeds the coordinator's bag cap");
@@ -1637,6 +1728,153 @@ TestResult ComboLogicBagComposition_Run(void) {
         CLB_ASSERT(ko.rows[RSBS_COMBO_COMPOSE_SURPLUS] > 0 && km.rows[RSBS_COMBO_COMPOSE_SURPLUS] > 0,
                    "B2: both games contribute SURPLUS rows under plentiful");
         CLB_ASSERT(km.rows[RSBS_COMBO_COMPOSE_TRAP] > 0, "B2: MM's shuffled traps are counted as TRAP rows");
+    }
+
+    // ---- B7: THE SHARED-QUANTITY TRIM over both REAL pools (lane K13) -------
+    {
+        std::vector<ComboLogicBagItem> untrimmed;
+        ComboLogicComposeResult ures;
+        memset(&ures, 0, sizeof(ures));
+        CLB_ASSERT(ClmRecompose(c, RSBS_COMBO_QUANTITY_KEEP_ALL, untrimmed, ures, nullptr) == RSBS_COMBO_LOGIC_OK,
+                   "B7: the untrimmed compose of the same rows is accepted");
+        // Per TRIM kind (and health grade): both games' REQUIRED + SURPLUS rows,
+        // untrimmed -> trimmed. Printed for every trim kind so the kept-whole
+        // families are visible too.
+        struct B7Family {
+            uint8_t kind;
+            uint8_t units; // 0 = any
+            const char* name;
+        };
+        const B7Family families[] = {
+            { RSBS_SHARED_RES_HEALTH_QUARTERS, RSBS_SHARED_QTY_UNITS_PIECE, "heart pieces" },
+            { RSBS_SHARED_RES_HEALTH_QUARTERS, RSBS_SHARED_QTY_UNITS_CONTAINER, "heart containers" },
+            { RSBS_SHARED_RES_DOUBLE_DEFENSE, 0, "double defense" },
+            { RSBS_SHARED_RES_MAGIC_LEVEL, 0, "magic" },
+            { RSBS_SHARED_RES_QUIVER_TIER, 0, "quiver" },
+            { RSBS_SHARED_RES_BOMB_BAG_TIER, 0, "bomb bag" },
+            { RSBS_SHARED_RES_STICK_TIER, 0, "stick capacity" },
+            { RSBS_SHARED_RES_NUT_TIER, 0, "nut capacity" },
+            { RSBS_SHARED_RES_HOOKSHOT_TIER, 0, "hookshot" },
+            { RSBS_SHARED_RES_WALLET_TIER, 0, "wallet" },
+            { RSBS_SHARED_RES_OCARINA_TIER, 0, "ocarina" },
+        };
+        auto countIn = [](const std::vector<ComboLogicBagItem>& bag, uint8_t origin, uint8_t kind, uint8_t units,
+                          int surplus) {
+            int n = 0;
+            for (const ComboLogicBagItem& b : bag) {
+                const int isSurplus = ((b.bagFlags & RSBS_COMBO_BAG_SURPLUS) != 0u) ? 1 : 0;
+                if (b.item.originGame == origin && Combo_ItemClassSharedKind(b.item) == kind &&
+                    (units == 0 || Combo_ItemClassSharedUnits(b.item) == units) && isSurplus == surplus) {
+                    n++;
+                }
+            }
+            return n;
+        };
+        int required[3][16];
+        memset(required, 0, sizeof(required));
+        for (size_t f = 0; f < sizeof(families) / sizeof(families[0]); ++f) {
+            const B7Family& fam = families[f];
+            const int uo = countIn(untrimmed, GAME_OOT, fam.kind, fam.units, 0);
+            const int um = countIn(untrimmed, GAME_MM, fam.kind, fam.units, 0);
+            const int to = countIn(c.bag, GAME_OOT, fam.kind, fam.units, 0);
+            const int tm = countIn(c.bag, GAME_MM, fam.kind, fam.units, 0);
+            required[GAME_OOT][f] = to;
+            required[GAME_MM][f] = tm;
+            printf("[TEST] combo-logic-bag-composition: B7 %-16s REQUIRED untrimmed OoT %d + MM %d = %d -> trimmed "
+                   "OoT %d + MM %d = %d; SURPLUS untrimmed %d -> trimmed %d\n",
+                   fam.name, uo, um, uo + um, to, tm, to + tm,
+                   countIn(untrimmed, GAME_OOT, fam.kind, fam.units, 1) +
+                       countIn(untrimmed, GAME_MM, fam.kind, fam.units, 1),
+                   countIn(c.bag, GAME_OOT, fam.kind, fam.units, 1) + countIn(c.bag, GAME_MM, fam.kind, fam.units, 1));
+        }
+        CLB_ASSERT(required[GAME_OOT][0] + required[GAME_MM][0] == RSBS_SHARED_QTY_HEART_PIECES &&
+                       required[GAME_OOT][1] + required[GAME_MM][1] == RSBS_SHARED_QTY_HEART_CONTAINERS &&
+                       required[GAME_OOT][2] + required[GAME_MM][2] == 1,
+                   "B7: the composed bag holds exactly 44 heart-piece rows + 6 container rows + 1 double defense "
+                   "across both games (REQUIRED)");
+        CLB_ASSERT(required[GAME_OOT][0] > 0 && required[GAME_MM][0] > 0 && required[GAME_OOT][1] > 0 &&
+                       required[GAME_MM][1] > 0,
+                   "B7: both worlds keep heart pieces and heart containers");
+        // Filler accounting per origin.
+        const uint8_t games2[2] = { (uint8_t)GAME_OOT, (uint8_t)GAME_MM };
+        int trimmedTotal = 0;
+        for (const uint8_t g : games2) {
+            int ub = 0;
+            int tb = 0;
+            int listed = 0;
+            for (const ComboLogicBagItem& b : untrimmed) {
+                ub += (b.item.originGame == g) ? 1 : 0;
+            }
+            for (const ComboLogicBagItem& b : c.bag) {
+                tb += (b.item.originGame == g) ? 1 : 0;
+            }
+            for (const int idx : c.trimmed) {
+                listed += (c.rows[(size_t)idx].item.originGame == g) ? 1 : 0;
+            }
+            const int filler = c.res.perGame[g].rows[RSBS_COMBO_COMPOSE_TRIMMED];
+            printf("[TEST] combo-logic-bag-composition: B7 %s: untrimmed bag %d rows, trimmed %d, filler gained %d\n",
+                   Game_ToString((GameId)g), ub, tb, filler);
+            CLB_ASSERT(filler == ub - tb && listed == filler,
+                       "B7: the filler each game gains equals the copies removed from its origin, and each is listed");
+            trimmedTotal += filler;
+        }
+        CLB_ASSERT(trimmedTotal == (int)c.trimmed.size() && trimmedTotal == ures.bagCount - c.res.bagCount,
+                   "B7: the sum of both games' filler gained equals the removed count");
+        // Nothing but a TRIM family moved; rupees in particular are untouched.
+        std::vector<int> againTrimmed;
+        std::vector<ComboLogicBagItem> againBag;
+        ComboLogicComposeResult ares;
+        CLB_ASSERT(ClmRecompose(c, 0u, againBag, ares, &againTrimmed) == RSBS_COMBO_LOGIC_OK &&
+                       againTrimmed == c.trimmed && ares.bagCount == c.res.bagCount,
+                   "B7: the trim is a pure function of the rows and the seed (recomposed identically)");
+        int rupeeRows = 0;
+        for (const int idx : c.trimmed) {
+            ComboSharedQuantityPolicy pol;
+            const uint8_t kind = Combo_ItemClassSharedKind(c.rows[(size_t)idx].item);
+            CLB_ASSERT(Combo_SharedQuantityPolicyOf(kind, &pol) && pol.policy == RSBS_SHARED_QTY_TRIM_TO_SHARED_MAX,
+                       "B7: every trimmed row feeds a TRIM_TO_SHARED_MAX kind");
+        }
+        for (const ComboLogicPoolRow& r : c.rows) {
+            rupeeRows += (Combo_ItemClassSharedKind(r.item) == RSBS_SHARED_RES_RUPEES) ? 1 : 0;
+        }
+        CLB_ASSERT(rupeeRows > 0, "B7: the real pools carry rupee rows (the KEEP_ALL control is not vacuous)");
+        for (int d = 0; d < RSBS_COMBO_COMPOSE_COUNT; ++d) {
+            if (d == RSBS_COMBO_COMPOSE_REQUIRED || d == RSBS_COMBO_COMPOSE_SURPLUS ||
+                d == RSBS_COMBO_COMPOSE_TRIMMED) {
+                continue;
+            }
+            CLB_ASSERT(c.res.perGame[GAME_OOT].rows[d] == ures.perGame[GAME_OOT].rows[d] &&
+                           c.res.perGame[GAME_MM].rows[d] == ures.perGame[GAME_MM].rows[d],
+                       "B7: renewable (rupees), junk, trap and confined counts are identical trimmed and untrimmed");
+        }
+        // The play-side check over the REAL bags: the operator's actual concern.
+        const uint16_t start =
+            (c.startingHealthOoT > c.startingHealthMM) ? c.startingHealthOoT : c.startingHealthMM;
+        int tp = 0;
+        int tf = 0;
+        int up = 0;
+        int uf = 0;
+        std::vector<ComboLogicBagItem> untrimmedAgain;
+        ComboLogicComposeResult ures2;
+        CLB_ASSERT(ClmRecompose(c, RSBS_COMBO_QUANTITY_KEEP_ALL, untrimmedAgain, ures2, nullptr) ==
+                       RSBS_COMBO_LOGIC_OK,
+                   "B7: the untrimmed bag recomposes");
+        const int deadTrimmed = SqpDeadHeartPickups(c.bag.data(), (int)c.bag.size(), start, &tp, &tf);
+        const int deadUntrimmed =
+            SqpDeadHeartPickups(untrimmedAgain.data(), (int)untrimmedAgain.size(), start, &up, &uf);
+        printf("[TEST] combo-logic-bag-composition: B7 DEAD HEART PICKUPS (profile \"%s\", starting bar 0x%X, "
+               "OoT/MM interleaved through the real carrier): UNTRIMMED %d of %d pickups dead, bar 0x%X; TRIMMED %d "
+               "of %d dead, bar 0x%X\n",
+               profile, (unsigned)(start != 0u ? start : RSBS_SHARED_QTY_DEFAULT_START_HEALTH), deadUntrimmed, up,
+               (unsigned)uf, deadTrimmed, tp, (unsigned)tf);
+        CLB_ASSERT(deadUntrimmed > 0, "B7 RED HALF: the untrimmed real bag clamps heart pickups at the 20-heart bar");
+        if (!plentiful) {
+            CLB_ASSERT(deadTrimmed == 0 && tf == (int)RSBS_SHARED_RES_MAX_HEALTH_QUARTERS,
+                       "B7: the trimmed real bag's hearts end the shared bar at exactly 320 with ZERO dead pickups");
+        } else {
+            CLB_ASSERT(tf == (int)RSBS_SHARED_RES_MAX_HEALTH_QUARTERS && deadTrimmed < deadUntrimmed,
+                       "B7: under plentiful the REQUIRED hearts fill the bar and only the surplus copies clamp");
+        }
     }
 
     // ---- B3: MM's hearts are REQUIRED rows, and the proof reads them (#733) --

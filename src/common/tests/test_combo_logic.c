@@ -1851,7 +1851,7 @@ namespace {
 // the souls give capability. Every other id is not a fill item.
 // ---------------------------------------------------------------------------
 int ClComposeOoTClassify(uint16_t id, ComboItemClassRow* out) {
-    ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u, 0u };
+    ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u, 0u, 0u };
     switch (id) {
         case 1: row.fillClass = RSBS_FILL_CLASS_PROGRESSION; break;
         case 2: row.fillClass = RSBS_FILL_CLASS_PROGRESSION; row.armedBy = RSBS_FILL_ARM_SMALL_KEYS_ROAM; break;
@@ -1866,7 +1866,7 @@ int ClComposeOoTClassify(uint16_t id, ComboItemClassRow* out) {
 }
 
 int ClComposeMMClassify(uint16_t id, ComboItemClassRow* out) {
-    ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u, 0u };
+    ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u, 0u, 0u };
     switch (id) {
         case 1: row.fillClass = RSBS_FILL_CLASS_PROGRESSION; break;
         case 2: row.fillClass = RSBS_FILL_CLASS_RENEWABLE; row.sharedKind = RSBS_SHARED_RES_BOMBCHU_COUNT; break;
