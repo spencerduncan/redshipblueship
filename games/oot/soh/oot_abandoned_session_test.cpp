@@ -36,7 +36,8 @@
  * GameOps suspend, the call GameRunner makes on both switch paths):
  *   (a) every entry that had clients has none, and its reset ran exactly once,
  *       only after the graph (and with it OoT_gPlayState) was retired;
- *   (b) an entry with NO clients is not reset again;
+ *   (b) an entry with NO clients is not reset (FreeOverlay semantics: a reset
+ *       runs only for an overlay that loses its last client);
  *   (c) each overlay whose Destroy was the only thing restoring a static has
  *       that static back at its initial value (seeded to what a live client
  *       leaves, read back through the TU's accessors);
@@ -367,7 +368,7 @@ extern "C" int OoT_AbandonedSessionStatics_RunHeadless(void) {
     OAS_ASSERT(probeCallsFirst == 1, "an overlay with abandoned clients was not reset exactly once");
     OAS_ASSERT(sProbeSawRetiredGraph, "the abandoned session was retired before the graph (OoT_gPlayState still set)");
     OAS_ASSERT(first.idleClients == 0 && sIdleProbeResetCalls == 0,
-               "an overlay with no clients was reset again (resets are not all idempotent)");
+               "an overlay with no clients was reset (FreeOverlay resets only an overlay losing its last client)");
     OAS_ASSERT(first.destroyMaintainedClients == 0, "a Destroy-maintained overlay still counts abandoned clients");
     OAS_ASSERT(first.staleStatics == 0, "a static only Destroy restored survived the abandoned session");
     OAS_ASSERT(first.listIndex == -1, "a per-actor ObjectExtension entry survived the abandoned session");

@@ -945,12 +945,17 @@ void OoT_Game_Suspend(void) {
  * OoT_Actor_FreeOverlay does at zero clients apart from a debug print that
  * reads HREG(20) through gGameInfo (calling reset directly keeps this
  * independent of that system-arena allocation). Entries already at zero
- * clients are skipped on purpose: they were reset when their last client
- * went, and not every reset is idempotent. The actors' own Destroy
- * functions are NOT run: they take the PlayState of a gamestate that has
- * already been retired (dynapoly, colliders, lights, skeletons). Overlays whose
- * Destroy is what restores a static got that restore in a reset of their own
- * (the [RSBS #750] blocks under games/oot/src/overlays/actors).
+ * clients are skipped: they were reset when their last client went, and
+ * skipping them keeps this seam equal to what OoT_Actor_FreeOverlay would
+ * have done for the abandoned clients (a reset runs only for an overlay that
+ * loses its last client). Every reset in the tree today is idempotent (plain
+ * assignments, memsets, loops of assignments), so the skip is about matching
+ * FreeOverlay and staying correct for a future reset that is not, not a
+ * present hazard. The actors' own Destroy functions are NOT run: they take
+ * the PlayState of a gamestate that has already been retired (dynapoly,
+ * colliders, lights, skeletons). Overlays whose Destroy is what restores a
+ * static got that restore in a reset of their own (the [RSBS #750] blocks
+ * under games/oot/src/overlays/actors).
  *
  * The oot-abandoned-session-statics row (oot_abandoned_session_test.cpp) drives
  * OoT_GetGameOps()->suspend, so it fails if this call leaves OoT_Game_Suspend
