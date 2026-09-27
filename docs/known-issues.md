@@ -76,9 +76,11 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
   is **refused** when you next cross, and the save slot is marked refused rather
   than silently overwritten (PR
   [#568](https://github.com/spencerduncan/redshipblueship/pull/568)). Set MM's
-  options *before* creating the file: `Combo → Windows → Toggle MM Randomizer
-  Options` (moved from Randomizer → Cross-Game by PR
-  [#745](https://github.com/spencerduncan/redshipblueship/pull/745)).
+  options *before* creating the file: `Combo → MM Randomizer` and `Combo → MM
+  Tricks` (menu pages since 2026-09-27; before that a pop-out window opened from
+  `Combo → Windows`, and before PR
+  [#745](https://github.com/spencerduncan/redshipblueship/pull/745) from
+  Randomizer → Cross-Game).
 - **The pair is generated with logic set to Glitchless** by default, and the fill proves
   `beat-both` (the only goal a production world has today) over both games' logic.
   It runs behind a deterministic attempt ladder with a host-calibrated budget (~30 s
@@ -99,8 +101,8 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
   could fight 17 kinds of enemy with a Deku Stick, even though the matching trick is off by default.
   Those enemies now need `Deku Stick Fighting` enabled, or another weapon. Using the stick as a fire
   source is unchanged. None of the pinned test worlds moved. A
-  trick whose edge is not bound yet draws disabled-with-reason in the MM options
-  pane rather than enabled-and-inert; the remaining bindings are [#697](https://github.com/spencerduncan/redshipblueship/issues/697).
+  trick whose edge is not bound yet draws disabled-with-reason on Combo → MM
+  Tricks rather than enabled-and-inert; the remaining bindings are [#697](https://github.com/spencerduncan/redshipblueship/issues/697).
 - **You may opt into one shared Ocarina across both games** — off by default,
   frozen at file creation like every other combo rule: obtaining an ocarina in
   either game grants it in the other (PR
@@ -136,10 +138,10 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
   with a toast ("Not created: try a new seed or Majora's Mask options."). No creation in
   the 30-seed sample needed more than two fill batches, which bounds the failure rate
   below about 10%, not at zero. No partial or corrupt file is left behind.
-- **Some MM randomizer options are disabled-with-reason** in the MM options pane:
+- **Some MM randomizer options are disabled-with-reason** on Combo → MM Randomizer:
   their gameplay hooks are not yet dispatched in the single-executable build
   ([#438](https://github.com/spencerduncan/redshipblueship/issues/438), 14 of 23
-  hook types remain). The pane says which and why; an option that is enabled and
+  hook types remain). The page says which and why; an option that is enabled and
   does nothing is a bug worth reporting.
 - **MM's enhancement toggles live on Combo → Majora's Mask** (named MM Enhancements until 2026-09-27). The curated MM
   enhancement toggles — the game-over prompt, `BetterSongOfDoubleTime`,
@@ -337,7 +339,7 @@ from returning.
 
 14 of MM's 23 game-hook types have no dispatch point in the single-exe build.
 Randomizer options and enhancements that depend on those hooks are shown
-disabled-with-reason in the MM options pane rather than silently doing nothing.
+disabled-with-reason on the MM randomizer page rather than silently doing nothing.
 The actor-init, actor-draw and open-text hooks (PR
 [#512](https://github.com/spencerduncan/redshipblueship/pull/512)), the pause-menu
 and file-select hooks (PR [#547](https://github.com/spencerduncan/redshipblueship/pull/547))
@@ -350,7 +352,7 @@ and the item/progression trio (PR
 
 ### ~~MM's clock-shuffle randomizer option was unreachable~~ — RESOLVED ([#678](https://github.com/spencerduncan/redshipblueship/issues/678), PR [#679](https://github.com/spencerduncan/redshipblueship/pull/679))
 
-`RO_CLOCK_SHUFFLE` is now live and reachable in the MM options pane. The two
+`RO_CLOCK_SHUFFLE` is now live and reachable on Combo → MM Randomizer. The two
 `2ship_enh` translation units it depends on (`BetterSongOfDoubleTime.cpp`,
 `SkipSoTCutscenes.cpp`) were dropped by plain archive linking because they
 register only through a file-scope `RegisterShipInitFunc`; a targeted
@@ -428,7 +430,7 @@ install's config is not read.
 ### Some menu entries are stubs
 
 Settings entries backed by unimplemented functionality are grayed out or labeled
-where they were caught; the MM randomizer options pane labels each row live,
+where they were caught; the MM randomizer options page labels each row live,
 partial, dormant or generation-only with a reason. This pass was not exhaustive —
 an enabled-looking toggle that does nothing is a plausible bug, and worth reporting.
 

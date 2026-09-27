@@ -221,6 +221,12 @@ int OoT_MenuComboSection_RunHeadless(void);
 // exercises. Needs the same display-free shared bring-up as the two rows above.
 // Returns 0 on pass, non-zero on fail.
 int OoT_MenuMmEnhancementRows_RunHeadless(void);
+// MM's randomizer options and tricks as Combo pages
+// (games/oot/soh/soh_menu_mm_randomizer_pages_test.cpp; ADR 0004's 2026-09-27
+// host amendment): the registered rows equal MM's descriptor table, sit in the
+// page model's columns, carry its states and write only through the gated
+// writers. Same display-free shared bring-up as the row above. Returns 0 on pass.
+int OoT_MenuMmRandomizerPages_RunHeadless(void);
 // MM single-exe hook dispatch (games/mm/2s2h/mm_hook_dispatch_test.cpp, #511 /
 // #438): the COND_* macros park registrations in the MM-owned S2H::GameHooks
 // registry, but ShouldActorInit / OnActorInit / OnActorDraw / OnOpenText
@@ -290,10 +296,11 @@ int MM_TrackersGui_RunHeadless(void);
 // spoiler window's ctor reads ConsoleVariables off the Ship::Context
 // singleton, so its body needs the display-free shared bring-up below.
 int Combo_SpoilerWindow_RunHeadless(void);
-// src/common/tests/test_combo_mm_options_window.c — the MM options pane's
-// window lock; same bridge shape and the same reason (GuiWindow ctor reads
+// src/common/tests/test_combo_mm_options_page.c — the MM options pages' view
+// model (the pane it replaced was a window; the bridge shape stayed, because
+// the model's init brings up the tier-4 settings window, whose ctor reads
 // ConsoleVariables off the Ship::Context singleton).
-int Combo_MMOptionsWindow_RunHeadless(void);
+int Combo_MMOptionsPage_RunHeadless(void);
 // src/common/tests/test_combo_tracker_view.c — the combo tracker's per-game
 // adapters (#458). Needs the shared bring-up because the OoT authoring seam
 // constructs a real Rando::Context. test_combo_tracker_window.c is the
@@ -471,11 +478,12 @@ extern "C" {
 // the C++-linkage ComboGui::RegisterComboSpoilerWindow.
 #include "tests/test_combo_spoiler_window.c"
 
-// The MM randomizer options pane's window (#497 step 4, ADR 0004 + 0008): same
-// registration/idempotence/de-collision shape, plus a tripwire that a pane which
-// deliberately READS the active game still never reads that game's save. FILE
-// SCOPE — it drives the C++-linkage ComboGui::RegisterComboMmOptionsWindow.
-#include "tests/test_combo_mm_options_window.c"
+// The MM randomizer options pages' view model (ADR 0004's 2026-09-27 host
+// amendment; the pop-out window it replaced was #497 step 4's): the columns, the
+// row states and reasons, the notes, the freeze gate on the writers, and the
+// combo_ui seam the trick rows still draw through. FILE SCOPE, compiled as C++,
+// like the window lock it replaces.
+#include "tests/test_combo_mm_options_page.c"
 
 // The combo settings pane's window (ADR 0011 increment 2, ADR 0004 §6 + 0008):
 // same registration/idempotence/de-collision shape as the two above, plus the
@@ -3249,6 +3257,24 @@ static TestResult Test_MenuMmEnhancementRows(void) {
     return OoT_MenuMmEnhancementRows_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// MM's randomizer options and tricks as Combo pages. Same display-free shared
+// bring-up as the row above, for the same reason: AddMenuCombo registers rows
+// whose PreFuncs read the Ship::Context singleton's ConsoleVariables, and this
+// row runs each row's PreFunc and Callback itself.
+static TestResult Test_MenuMmRandomizerPages(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return OoT_MenuMmRandomizerPages_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // MM tracker registration surface (#392). The bridge (see the extern decl at
 // the top) constructs a standalone Ship::Gui, so it needs the same
 // display-free shared bring-up as boot-oot: GuiWindow ctors read
@@ -3423,9 +3449,9 @@ TestResult Test_ComboSpoilerWindow(void) {
     return Combo_SpoilerWindow_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
-// MM randomizer options pane (#497 step 4, ADR 0004 + 0008). Same bring-up as
-// the two Gui bridges above and for the same reason.
-TestResult Test_ComboMMOptionsWindow(void) {
+// MM randomizer options pages' view model (ADR 0004's 2026-09-27 host
+// amendment). Same bring-up as the two Gui bridges above and for the same reason.
+TestResult Test_ComboMMOptionsPage(void) {
     auto ctx = CreateHarnessStyleContext();
     if (!ctx) {
         printf("[TEST] FAIL: could not create Ship::Context singleton\n");
@@ -3436,7 +3462,7 @@ TestResult Test_ComboMMOptionsWindow(void) {
         return TEST_FAIL;
     }
 
-    return Combo_MMOptionsWindow_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+    return Combo_MMOptionsPage_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // Combo tracker adapters (#458). No Gui, but the OoT-side authoring seam
@@ -4182,9 +4208,9 @@ const TestDescriptor gTests[] = {
     {"mm-combo-settings-gate",
      "A divergent combo record refuses at arrival BY NAME; a legacy pair freezes the shipped defaults (#498)",
      Test_MMComboSettingsGate},
-    {"combo-mm-options-window",
-     "Common-owned MM options pane registers de-collided; inert under every active game (#497)",
-     Test_ComboMMOptionsWindow},
+    {"combo-mm-options-page",
+     "The MM options pages' model: columns, row states and reasons, notes, and the freeze gate (#497)",
+     Test_ComboMMOptionsPage},
     // Netplay 1a (ADR 0005, #460): the sourced-grant model, transport-free.
     {"grant-idempotency", "Retransmit delivers once; a second gift of the same item delivers twice (ADR 0005)",
      Test_GrantIdempotency},
@@ -4508,6 +4534,10 @@ const TestDescriptor gTests[] = {
      "Every curated MM enhancement key reaches a live provider, and the key the menu writes is the one MM re-arms on "
      "(#682)",
      Test_MMEnhancementToggles},
+    {"menu-mm-randomizer-pages",
+     "MM's randomizer options and tricks are Combo pages whose rows equal the descriptor table and keep its gates "
+     "(#497)",
+     Test_MenuMmRandomizerPages},
     {"rando-entrance-pin", "A generated seed with interior shuffle ON keeps the mask-shop door vanilla (#661)",
      Test_RandoEntrancePin},
     // #578 part 2: the trick BINDINGS. Appended at the end of the block rather

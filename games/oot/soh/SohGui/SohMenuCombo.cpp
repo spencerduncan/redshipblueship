@@ -56,7 +56,6 @@
 #include "foreign_items.h"
 // The windows the Windows page opens: their registered names and visibility
 // CVars, from the constants the windows themselves are built with.
-#include "ComboMmOptionsWindow.h"
 #include "ComboSpoilerWindow.h"
 #include "ComboTrackerWindow.h"
 #include "cvar_shared_keys.h"
@@ -669,7 +668,9 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
 /**
  * The Windows page: the common-owned cross-game windows and MM's four trackers,
  * moved here with the rules (#497 step 6). Same registrar shape and same reason
- * for being externally linked.
+ * for being externally linked. It holds exactly the LIVE-PLAY tools, SoH's rule
+ * for a window (docs/ui-style-guide.md section 10): the MM randomizer options
+ * that used to open from here are pages since 2026-09-27.
  *
  * SHAPED LIKE SoH's OWN TRACKER PAGES (UI parity M5; docs/ui-style-guide.md
  * R-N7). Randomizer > Item Tracker gives each window its own SEPARATOR_TEXT over
@@ -681,9 +682,9 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
  * WINDOW_BUTTON reads .CVar only for the open/close label and calls the window's
  * own ToggleVisibility (UIWidgets.cpp:198), so .CVar MUST equal the window's ctor
  * visibility CVar and .WindowName its registered name. Both come from the
- * constants the windows are built with: ComboGui::kComboMMOptions* /
- * kComboSpoiler* / kComboTracker* (src/common/ComboMmOptionsWindow.h,
- * ComboSpoilerWindow.h, ComboTrackerWindow.h) and the RSBS_CVAR_MM_WINDOW_*
+ * constants the windows are built with: ComboGui::kComboSpoiler* /
+ * kComboTracker* (src/common/ComboSpoilerWindow.h, ComboTrackerWindow.h) and
+ * the RSBS_CVAR_MM_WINDOW_*
  * macros in src/common/cvar_shared_keys.h, which
  * games/mm/2s2h/TrackersGuiSingleExe.cpp static_asserts its own ctor CVars
  * against. The four MM window NAMES stay literals: their constants live in an MM
@@ -708,19 +709,18 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
  */
 void AddComboWindowWidgets(SohMenu& menu, WidgetPath& path) {
     // ---- The common-owned cross-game windows --------------------------------
-    // Seed configuration - always reachable, like the trackers.
-    menu.AddWidget(path, "MM Randomizer Options", WIDGET_SEPARATOR_TEXT);
-    menu.AddWidget(path, "Toggle MM Randomizer Options", WIDGET_WINDOW_BUTTON)
-        .CVar(ComboGui::kComboMMOptionsVisibilityCVar)
-        .RaceDisable(false)
-        .WindowName(ComboGui::kComboMMOptionsWindowName)
-        .HideInSearch(true)
-        .Options(WindowButtonOptions().Tooltip("Toggles the Majora's Mask Randomizer Options.").EmbedWindow(false));
+    // NO "Toggle MM Randomizer Options" ROW (2026-09-27, ADR 0004's host
+    // amendment). MM's randomizer options and tricks are settings chosen before
+    // the paired world is created, so they are pages now (Combo > MM Randomizer
+    // and Combo > MM Tricks, SohMenuComboMmRandomizer.cpp), the way SoH keeps its
+    // own randomizer settings on pages. This page keeps only the tools a player
+    // uses DURING play, as SoH's Item Tracker and Check Tracker pages do.
+    //
     // NO "Toggle Combo Settings" ROW (#655). PR #652 put one here, opening the
     // common-owned ComboSettingsWindow pane. The five settings it rendered are
     // the rows of Cross-Game Rules now, so a button that opens a second surface
     // over the same five keys would be the only way for the two to disagree. The
-    // window stays REGISTERED (ComboMmOptionsWindow.cpp and rsbs/src/main.cpp
+    // window stays REGISTERED (Combo_MMOptionsPages_Init and rsbs/src/main.cpp
     // both call Combo_ComboSettingsWindow_Init, and its headless lock still
     // drives it) but nothing in the menu writes gCombo.Windows.ComboSettings any
     // more, so it does not appear. See src/common/ComboSettingsWindow.h for why

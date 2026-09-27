@@ -4,12 +4,14 @@
  *
  * The authoring surface has its own lock (combo-settings-authoring, in
  * test_combo_settings.c). This one covers the window that renders it, in the
- * shape of test_combo_mm_options_window.c:
+ * shape of the spoiler window's lock (test_combo_spoiler_window.c):
  *
  * 1. REGISTRATION + IDEMPOTENCE + NAME DE-COLLISION. The pane lands on a bare
  *    Ship::Gui under kComboSettingsWindowName, a second registration is a
  *    no-op, and stand-ins already holding a SoH tracker name, an MM tracker
- *    name and the two sibling common-owned windows' names are undisturbed.
+ *    name and the sibling common-owned spoiler window's name are undisturbed.
+ *    (The MM randomizer options were a third sibling until 2026-09-27, when
+ *    they became Combo menu pages; there is no such window to collide with.)
  *    Gui::AddGuiWindow rejects duplicates SILENTLY from the caller's side, so a
  *    collision would present only as a window that never appears.
  *
@@ -38,7 +40,6 @@
  * display-free shared bring-up that lives (static) in test_runner.cpp.
  */
 
-#include "../ComboMmOptionsWindow.h"
 #include "../ComboSettingsWindow.h"
 #include "../ComboSpoilerWindow.h"
 #include "../combo_settings_view.h"
@@ -101,18 +102,14 @@ extern "C" int Combo_SettingsWindow_RunHeadless(void) {
         gui->AddGuiWindow(neighbours[i]);
     }
 
-    // The sibling common-owned windows: all three live in the same unprefixed
-    // name space, so a collision among them is what this file is uniquely
-    // placed to catch. Their visibility CVars are cleared first so their
-    // ctors latch "closed" and their Draw() paths stay out of ImGui below.
+    // The sibling common-owned window: both live in the same unprefixed name
+    // space, so a collision between them is what this file is uniquely placed
+    // to catch. Its visibility CVar is cleared first so its ctor latches
+    // "closed" and its Draw() path stays out of ImGui below.
     CVarClear(ComboGui::kComboSpoilerVisibilityCVar);
-    CVarClear(ComboGui::kComboMMOptionsVisibilityCVar);
     ComboGui::RegisterComboSpoilerWindow(gui);
-    ComboGui::RegisterComboMmOptionsWindow(gui);
     auto spoiler = gui->GetGuiWindow(ComboGui::kComboSpoilerWindowName);
-    auto mmOptions = gui->GetGuiWindow(ComboGui::kComboMMOptionsWindowName);
     CSW_ASSERT(spoiler != nullptr);
-    CSW_ASSERT(mmOptions != nullptr);
 
     // Keep the pane shut for every Draw() below. The live-CVar early-out is the
     // only thing between Draw() and ImGui::Begin in a process with no ImGui
@@ -123,26 +120,22 @@ extern "C" int Combo_SettingsWindow_RunHeadless(void) {
     auto window = gui->GetGuiWindow(ComboGui::kComboSettingsWindowName);
     CSW_ASSERT(window != nullptr);
     CSW_ASSERT(window != spoiler);
-    CSW_ASSERT(window != mmOptions);
 
     // Idempotence: a second registration must not replace the instance.
     ComboGui::RegisterComboSettingsWindow(gui);
     CSW_ASSERT(gui->GetGuiWindow(ComboGui::kComboSettingsWindowName) == window);
 
-    // De-collision: neither game's window names were disturbed, both sibling
-    // combo windows still resolve to themselves, and the pane took none of
-    // them.
+    // De-collision: neither game's window names were disturbed, the sibling
+    // combo window still resolves to itself, and the pane took none of them.
     for (int i = 0; i < 2; i++) {
         CSW_ASSERT(gui->GetGuiWindow(kComboSettingsNeighbourNames[i]) == neighbours[i]);
         CSW_ASSERT(gui->GetGuiWindow(kComboSettingsNeighbourNames[i]) != window);
     }
     CSW_ASSERT(gui->GetGuiWindow(ComboGui::kComboSpoilerWindowName) == spoiler);
-    CSW_ASSERT(gui->GetGuiWindow(ComboGui::kComboMMOptionsWindowName) == mmOptions);
 
     // The common-owned windows must not share a visibility CVar either — that
     // would make one un-openable without the other.
     CSW_ASSERT(strcmp(ComboGui::kComboSettingsVisibilityCVar, ComboGui::kComboSpoilerVisibilityCVar) != 0);
-    CSW_ASSERT(strcmp(ComboGui::kComboSettingsVisibilityCVar, ComboGui::kComboMMOptionsVisibilityCVar) != 0);
 
     // ---- Game-agnosticism tripwire ---------------------------------------
     // Three pairing states, because the pane renders each differently

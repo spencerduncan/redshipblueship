@@ -35,7 +35,7 @@ void Combo_RegisterMMTrickTable(const ComboMMTrickDesc* table, int count) {
         //
         // Re-registering the SAME table is silent on purpose. MM_RandoTricksUi_Register
         // is idempotent (it publishes one function-local static vector), and both
-        // Combo_MMOptionsWindow_Init and any test that wants the model without a
+        // Combo_MMOptionsPages_Init and any test that wants the model without a
         // window call it. Warning on that path would fire in the normal case and
         // teach everyone to ignore the message that matters.
         fprintf(stderr, "[MMTricks] a DIFFERENT trick table was registered (%d entries replace %d)\n", count,

@@ -72,6 +72,8 @@
 // The manifest. ADR 0008 rule 5's restatement for an OoT-hosted row: the row
 // reads src/common, never MM's headers and never either game's gSaveContext.
 #include "cvar_shared_keys.h"
+// The MM randomizer pages' names and column count, registered below.
+#include "combo_mm_options_page.h"
 
 #include <cstddef>
 #include <string>
@@ -265,6 +267,21 @@ void AddMmEnhancementWidgets(SohMenu& menu, WidgetPath& path) {
  * third empty, for the measure), so the page is not #640's empty page.
  */
 static RegisterComboSectionPage_t sMmEnhancementsPage(kMmEnhancementsPage, 3, AddMmEnhancementWidgets);
+
+/**
+ * MM's randomizer options and tricks (SohMenuComboMmRandomizer.cpp), registered
+ * HERE, right after this page, rather than from their own TU. The registry keeps
+ * registration order, and file-scope initializers in different TUs run in an
+ * order the language leaves to the linker, so this is the one way to pin the
+ * sidebar as Majora's Mask, MM Randomizer, MM Tricks: the three MM pages
+ * together, the settings under the enhancements. MenuMmRandomizerPages pins the
+ * order.
+ */
+void AddMmRandomizerOptionsWidgets(SohMenu& menu, WidgetPath& path);
+void AddMmTricksWidgets(SohMenu& menu, WidgetPath& path);
+static RegisterComboSectionPage_t sMmRandomizerPage(COMBO_MM_OPTIONS_PAGE_NAME, COMBO_MM_OPTIONS_PAGE_COLUMNS,
+                                                    AddMmRandomizerOptionsWidgets);
+static RegisterComboSectionPage_t sMmTricksPage(COMBO_MM_TRICKS_PAGE_NAME, 1, AddMmTricksWidgets);
 
 /** The page's registered name, for the lock. Defined here so the test cannot
  *  drift from the registration by spelling the literal a second time. */
