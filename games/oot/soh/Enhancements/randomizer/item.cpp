@@ -403,6 +403,10 @@ GetItemEntry Item::GetGIEntry_Copy() const {
     return *GetGIEntry();
 }
 
+const GetItemEntry* Item::GetStaticGIEntry() const {
+    return giEntry.get();
+}
+
 void Item::SetPrice(const uint16_t price_) {
     price = price_;
 }

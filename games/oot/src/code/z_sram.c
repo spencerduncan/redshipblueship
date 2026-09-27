@@ -29,7 +29,11 @@ extern void RsbsSave_ArmSlotOnCreate(int slot);
 // its include path. The definition and the whole contract live in
 // soh/Enhancements/randomizer/ForeignItemsSingleExe.cpp. Returns 0 when the
 // paired creation FAILED and this file must not be written.
-extern int OoT_RunPairedCreationEvent(int slot);
+//
+// OoT_Creation_AuthorRandoFile is the ORDER of a randomizer file's authoring
+// (the paired creation event, THEN Randomizer_InitSaveFile); see its header in
+// the same file for why that order is load-bearing under the single bag.
+extern int OoT_Creation_AuthorRandoFile(int slot);
 #endif
 
 /**
@@ -340,50 +344,51 @@ void OoT_Sram_InitSave(FileChooseContext* fileChooseCtx) {
     if (isRandoFile) {
         gSaveContext.ship.quest.id = QUEST_RANDOMIZER;
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // THE MERGED CREATION EVENT (ADR 0010 increments 2 and 3; #644), and
+        // THEN Randomizer_InitSaveFile, in that order and in one call.
+        //
+        // Until this increment the MM half of a paired world was authored the
+        // first time the player walked into the Happy Mask Shop — minutes or
+        // hours after the file existed, from whatever CVars happened to be live
+        // then. Under one-game semantics (#500's operator ruling) that is two
+        // creation events for one game. The event generates the MM world from
+        // the identity frozen before OoT's Fill(), runs the single-bag fill over
+        // both games, places OoT's own remainder, and authors and ARMS the MM
+        // shadow, so the Save_SaveFile() below writes a .redsave whose MM half
+        // is already complete. Arrival becomes hydrate-or-refuse.
+        //
+        // WHY THE EVENT RUNS FIRST (PR #743 review). A paired OoT world stops
+        // at its general pass at Generate; its general-pass hosts are empty
+        // until the single bag and OoT's remainder place them, which happens
+        // inside the event. Randomizer_InitSaveFile READS some of those hosts to
+        // hand out creation-time items (Link's Pocket, Impa's song under Skip
+        // Child Zelda, Malon's egg and Zelda's letter, the Master Sword on an
+        // adult start). Read while empty, each resolved to its vanilla item and
+        // the check was marked collected, so the player got a free vanilla item
+        // and never received the one the fill placed and proved. With the event
+        // first, every host is placed before anything reads it.
+        //
+        // What the event may rely on is unchanged by the order: the previous
+        // session is retired above; gSaveContext is snapshotted and restored
+        // whole around MM's generation (it is one buffer both games
+        // reinterpret, src/common/unified_save.c), so the snapshot is simply of
+        // this file's pre-InitSaveFile bytes; and it still runs before the only
+        // write, which is what makes failure recoverable by not writing.
+        //
+        // FAILURE FAILS THE WHOLE CREATION, AT FILE SELECT ("no partial
+        // identity, no vanilla Termina"). The event retracts the identity and
+        // raises the refusal surface itself (the #533 slot latch and the
+        // player-visible toast), so all this seam does is NOT write the file.
+        if (!OoT_Creation_AuthorRandoFile(gSaveContext.fileNum)) {
+            return;
+        }
+#else
         Randomizer_InitSaveFile();
+#endif
     } else {
         gSaveContext.ship.quest.id = currentQuest;
     }
-
-#ifdef RSBS_SINGLE_EXECUTABLE
-    // ========================================================================
-    // THE MERGED CREATION EVENT (ADR 0010 increment 2; #564's creation-event
-    // contract steps 3-4, 6 and 9; epic #644).
-    //
-    // Until this increment the MM half of a paired world was authored the first
-    // time the player walked into the Happy Mask Shop — minutes or hours after
-    // the file existed, from whatever CVars happened to be live then. Under
-    // one-game semantics (#500's operator ruling) that is two creation events
-    // for one game. This call is the second half of the one event: it generates
-    // the MM world from the identity frozen before OoT's Fill(), authors it as
-    // the MM shadow and ARMS that shadow, so the Save_SaveFile() immediately
-    // below writes a .redsave whose MM half is already complete. Arrival becomes
-    // hydrate-or-refuse with no generation capability at all.
-    //
-    // PLACED HERE, between Randomizer_InitSaveFile() and Save_SaveFile(), for
-    // three reasons. (a) The previous cross-game session is already retired
-    // (Context_InvalidateSessionOnNewGame above), so the shadow this arms cannot
-    // be confused with the dead session's. (b) OoT's own half is fully authored,
-    // so the snapshot the call brackets around MM's generation is of a FINISHED
-    // OoT save — gSaveContext is one buffer shared by both games
-    // (src/common/unified_save.c) and MM's generation writes over it. (c) It is
-    // before the only write, which is what makes failure recoverable by simply
-    // not writing.
-    //
-    // FAILURE FAILS THE WHOLE CREATION, AT FILE SELECT. ADR 0010 increment 2:
-    // "no partial identity, no vanilla Termina". The identity is already
-    // retracted inside the call; here the slot is marked REFUSED on the #533
-    // surface and the file is NOT written, so file select shows an empty slot
-    // and says why, rather than a playable OoT file whose paired half silently
-    // does not exist.
-    // The call raises the whole refusal surface itself — the #533 slot latch
-    // and the player-visible toast — so all this seam has to do is NOT write
-    // the file. File select then shows an empty slot and says why, rather than
-    // a playable OoT file whose paired half silently does not exist.
-    if (isRandoFile && !OoT_RunPairedCreationEvent(gSaveContext.fileNum)) {
-        return;
-    }
-#endif
 
     Save_SaveFile();
     SaveManager_ThreadPoolWait();

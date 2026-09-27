@@ -15,6 +15,7 @@
 #include "combo_settings_view.h"
 #include "cvar_shared_keys.h"
 #include "foreign_items.h"
+#include "combo_logic.h" // Combo_Logic_GetEngine: MM_HOSTED observes the MM engine registrar
 #include "game.h"
 
 extern "C" {
@@ -237,16 +238,16 @@ constexpr const char* kDisabledTooltipHead = "This setting is disabled because: 
 
 /**
  * MM's half, observed rather than named (#640's rule). MM's
- * 2s2h/Rando/ForeignItemsSingleExe.cpp publishes its static pool from a
- * file-scope initializer, so a non-empty MM pool means that TU linked AND its
- * initializer ran - ADR 0004 section 5 parts 1 and 2 for the WHOLE_ARCHIVE'd
+ * 2s2h/Rando/ComboLogicEngineSingleExe.cpp registers its combo-logic engine from
+ * a file-scope initializer, so a registered MM engine means that TU linked AND
+ * its initializer ran - ADR 0004 section 5 parts 1 and 2 for the WHOLE_ARCHIVE'd
  * `2ship_rando`. Taking the address of anything in that TU instead would BE the
  * explicit reference that keeps it in the link, and the gate would pass
- * vacuously.
+ * vacuously. (Until ADR 0010 increment 3 this observed MM's pinned foreign-item
+ * pool, which retired with the overlay passes.)
  */
 bool MMHostedAbsent(disabledInfo& info) {
-    const ComboForeignItemDef* pool = nullptr;
-    info.value = Combo_GetForeignItemPoolFor((uint8_t)GAME_MM, &pool);
+    info.value = Combo_Logic_GetEngine(GAME_MM) != nullptr ? 1 : 0;
     return info.value <= 0;
 }
 

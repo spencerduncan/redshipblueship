@@ -205,8 +205,8 @@ PairDecision ArrivalPairDecision(int hadFrozenState) {
 
 // Author the generation-time gComboCtx state the way Playthrough_Init does —
 // which for a new file happens BEFORE the file is created: the seed stamp,
-// then immediately the reverse placement table derived from it
-// (OoT_PlaceForeignItems clears a predecessor's rows and re-places; #510).
+// then immediately the reverse placement table derived from it (the retired
+// OoT_PlaceForeignItems cleared a predecessor's rows and re-placed; #510).
 // Mirrored rather than called for the usual reason: the real pass needs a
 // finished fill, which a headless src/common test has no business booting.
 void StampGeneratedSeed(uint32_t seed, uint32_t settingsHash) {

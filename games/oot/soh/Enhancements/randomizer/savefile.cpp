@@ -1,4 +1,6 @@
 #include "savefile.h"
+#include <cstdio>
+#include <cstring>
 #include "soh/OTRGlobals.h"
 #include "soh/ResourceManagerHelpers.h"
 #include "soh/Enhancements/game-interactor/GameInteractor.h"
@@ -46,7 +48,93 @@ static uint16_t rupeeCounts[] = {
     200, // ITEM_RUPEE_GOLD
 };
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// ============================================================================
+// TEST OBSERVATION: which item each creation-time known-check give handed out
+// (PR #743 review). Randomizer_InitSaveFile resolves Link's Pocket, Impa's song
+// and the Master Sword from their hosts' placements and gives them at file
+// creation. A paired world's general-pass hosts are filled at the creation event,
+// so the order of the two decides whether the player receives the placed item or
+// the host's vanilla one — and nothing in the save says which happened afterwards.
+// The log records the entry StartingItemGive was handed, per check, so the
+// combo-single-bag row can compare it with the placement. Bounded and cheap; the
+// shipping path writes it and nothing reads it.
+// ============================================================================
+namespace {
+struct RsbsStartingGive {
+    RandomizerCheck rc;
+    RandomizerGet placedAtGive; // what the host held when the give read it
+    GetItemEntry entry;
+};
+RsbsStartingGive sRsbsStartingGives[16];
+int sRsbsStartingGiveCount = 0;
+} // namespace
+
+extern "C" void Randomizer_TestResetStartingGiveLog(void) {
+    sRsbsStartingGiveCount = 0;
+}
+
+/** A zeroed OoT save on slot 0: the state a harness hands file creation, rather
+ *  than whatever world the previous leg left in the one shared buffer. */
+extern "C" void Randomizer_TestClearOoTSave(void) {
+    memset(&gSaveContext, 0, sizeof(SaveContext));
+    gSaveContext.fileNum = 0;
+}
+
+/** The i-th host Randomizer_InitSaveFile resolves a creation-time give from. */
+extern "C" int Randomizer_TestCreationGiveHost(int i) {
+    static const RandomizerCheck kHosts[] = { RC_LINKS_POCKET, RC_SONG_FROM_IMPA, RC_TOT_MASTER_SWORD };
+    return (i >= 0 && i < (int)(sizeof(kHosts) / sizeof(kHosts[0]))) ? (int)kHosts[i] : -1;
+}
+
+/** 1 when OoT location `rc` holds no item right now (RG_NONE). */
+extern "C" int Randomizer_TestHostEmpty(int rc) {
+    auto ctx = Rando::Context::GetInstance();
+    return (ctx != nullptr && ctx->GetItemLocation((RandomizerCheck)rc)->GetPlacedRandomizerGet() == RG_NONE) ? 1 : 0;
+}
+
+/**
+ * Did the logged creation-time give for `rc` read the item placed there?
+ * Compared as the host's RandomizerGet AT THE MOMENT OF THE GIVE, not as the
+ * GetItemEntry handed out: a progressive item's entry resolves against the save
+ * it is about to change, so the entry after the give names the next tier.
+ * @return 1 yes; 0 the give read the host while it was empty (and so handed out
+ *         the host's vanilla item) or while it held something else; -1 no give
+ *         was logged for `rc`; -2 the host is still empty.
+ */
+extern "C" int Randomizer_TestStartingGiveMatchesPlacement(int rc) {
+    auto ctx = Rando::Context::GetInstance();
+    if (ctx == nullptr || ctx->GetItemLocation((RandomizerCheck)rc)->GetPlacedRandomizerGet() == RG_NONE) {
+        return -2;
+    }
+    for (int i = 0; i < sRsbsStartingGiveCount; ++i) {
+        if (sRsbsStartingGives[i].rc != (RandomizerCheck)rc) {
+            continue;
+        }
+        const RandomizerGet placedNow = ctx->GetItemLocation((RandomizerCheck)rc)->GetPlacedRandomizerGet();
+        fprintf(stderr,
+                "[rando-creation-give] check %d: the host held RG %d when the give read it (gave mod %d gi %d); it "
+                "holds RG %d now\n",
+                rc, (int)sRsbsStartingGives[i].placedAtGive, (int)sRsbsStartingGives[i].entry.modIndex,
+                (int)sRsbsStartingGives[i].entry.getItemId, (int)placedNow);
+        return (sRsbsStartingGives[i].placedAtGive == placedNow) ? 1 : 0;
+    }
+    return -1;
+}
+#endif
+
 void StartingItemGive(GetItemEntry getItemEntry, RandomizerCheck randomizerCheck) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    if (randomizerCheck != RC_MAX &&
+        sRsbsStartingGiveCount < (int)(sizeof(sRsbsStartingGives) / sizeof(sRsbsStartingGives[0]))) {
+        auto giveCtx = Rando::Context::GetInstance();
+        sRsbsStartingGives[sRsbsStartingGiveCount++] = {
+            randomizerCheck,
+            giveCtx != nullptr ? giveCtx->GetItemLocation(randomizerCheck)->GetPlacedRandomizerGet() : RG_NONE,
+            getItemEntry
+        };
+    }
+#endif
     if (randomizerCheck != RC_MAX) {
         OTRGlobals::Instance->gRandoContext->GetItemLocation(randomizerCheck)->SetCheckStatus(RCSHOW_SAVED);
     }

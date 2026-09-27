@@ -252,8 +252,8 @@ int Combo_TrackerForeignCount(uint8_t hostGame);
  *  NULL `out`, an out-of-range index, or an unpaired world. */
 bool Combo_TrackerForeignRowAt(uint8_t hostGame, int index, ComboTrackerForeignRow* out);
 
-/** Fallback ComboTrackerForeignRow.itemName for a placement whose item is not
- *  in its origin's pinned pool (the spoiler view's placeholder rule). */
+/** Fallback ComboTrackerForeignRow.itemName for a placement whose item its
+ *  origin's describer cannot name (the spoiler view's placeholder rule). */
 #define RSBS_TRACKER_UNKNOWN_ITEM_NAME "Unknown Foreign Item"
 
 #ifdef __cplusplus

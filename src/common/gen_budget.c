@@ -29,6 +29,10 @@ static uint32_t GenBudgetNowMs(void) {
     return (uint32_t)(((uint64_t)ticks * 1000ull) / (uint64_t)CLOCKS_PER_SEC);
 }
 
+uint32_t Combo_GenBudget_NowMs(void) {
+    return GenBudgetNowMs();
+}
+
 /**
  * THE CALIBRATION WORKLOAD. A fixed, branch-light integer loop: no allocation,
  * no syscalls, no memory pressure, nothing a compiler may elide (the
