@@ -43,8 +43,11 @@ and on ours (R-N4).
   Below 800 px the columns collapse to 1 (`Menu.cpp:892`). Sidebar names are Title Case, 1-3 words, and fit the
   200 px sidebar in Montserrat 24: about 16 characters, but measure it in the snapshot PNG, because the budget is
   pixels, not characters. SoH's widest entry, "Entrance Tracker" (16), is about 169 px. Our "MM Enhancements" (15)
-  reaches the divider, and "Cross-Game Windows" (18) is clipped on both sides. The selection persists BY DISPLAY NAME (`Menu.cpp:849-852`), so never rename a shipped sidebar,
-  including ours. A page must hold at least one widget (#640, `Menu.cpp:896-904`). Pages under Combo register through
+  is 192 px, the whole child width: its text is whole, but its selected highlight has no side padding. Our "Cross-Game
+  Windows" (18) was cut on both sides ("ross-Game Window"), so that page is "Windows" since 2026-09-27. The selection
+  persists BY DISPLAY NAME (`Menu.cpp:849-852`), so never rename an SoH sidebar. One of ours is renamed only together
+  with a carry of the persisted value (`ComboSidebarCarryRenamedSelection`, `SohMenuCombo.cpp`) and a lock leg that
+  drives it (MenuComboSection leg 6). A page must hold at least one widget (#640, `Menu.cpp:896-904`). Pages under Combo register through
   `RegisterComboSectionPage` (`SohMenu.h:176-212`).
 - **Column.** Set `path.column` explicitly before each column's first row (`SohMenuEnhancements.cpp:235,284`).
 - **Section.** `WIDGET_SEPARATOR_TEXT` (`Menu.cpp:370-379`). Most SoH columns open with one
@@ -221,7 +224,7 @@ theme, scale and background opacity, multi-viewports off, and MSAA 1.
 | Ours | SoH reference |
 |---|---|
 | Combo > Cross-Game Rules | Randomizer > General |
-| Combo > Cross-Game Windows | Randomizer > Item Tracker |
+| Combo > Windows | Randomizer > Item Tracker |
 | Combo > MM Enhancements | Enhancements > Quality of Life |
 | Randomizer > Cross-Game | Randomizer > General (its gray note) |
 | MM Randomizer Options pane / Tricks | Randomizer > Logic/Access / Tricks/Glitches |
@@ -254,7 +257,9 @@ MAX_PATH through the extended-length namespace, so a long output directory no lo
   and the MM options pane's unpaired, frozen, mm-suspended and tricks-open (the Tricks header and its first area open).
 - SCROLL: `@scrollN`, stepping each column (a menu page) or the pane itself (a window) by one view minus 48 px until
   it reaches its end, at most 9 views.
-- HOVER: a pointer injected before ImGui reads input, so the tooltip is captured.
+- HOVER: a pointer injected before ImGui reads input, so the tooltip is captured. Cross-Game Rules hovers its
+  direction combobox and (frozen) its first slider; MM Enhancements hovers its first row and Windows its MM Item
+  Tracker toggle (`PageSpec::hoverRows`, a named row, captured in the page's first state).
 - MODAL.
 
 **Environment:**

@@ -61,11 +61,3 @@ S7 | games/oot/soh/SohGui/SohMenu.cpp::@from=kCapReasonMMHosted | Not yet availa
 S7 | games/oot/soh/SohGui/SohMenu.cpp::@from=kCapReasonMMHosted | Not yet available: the cross-game settings store is not reachable in this process (#498)
 S7 | games/oot/soh/SohGui/SohMenu.cpp::@from=kCapReasonMMHosted | Not yet available: this control declares a capability nothing in this build publishes (#497)
 S7 | games/oot/soh/SohGui/SohMenu.cpp::@from=kCapReasonMMHosted | Only available in the combined RedShipBlueShip executable (#392)
-S7 | games/oot/soh/SohGui/SohMenuRandomizer.cpp::AddCrossGamePointerWidgets | The cross-game combo rules, the cross-game windows and Majora's Mask's trackers now live under the C
-S9 | games/oot/soh/SohGui/SohMenuCombo.cpp | .CVar("gCombo.Windows.MMOptions")
-S9 | games/oot/soh/SohGui/SohMenuCombo.cpp | .CVar("gCombo.Windows.Spoiler")
-S9 | games/oot/soh/SohGui/SohMenuCombo.cpp | .CVar("gCombo.Windows.Tracker")
-S9 | games/oot/soh/SohGui/SohMenuCombo.cpp | .CVar("gWindows.CheckTracker")
-S9 | games/oot/soh/SohGui/SohMenuCombo.cpp | .CVar("gWindows.CheckTrackerSettings")
-S9 | games/oot/soh/SohGui/SohMenuCombo.cpp | .CVar("gWindows.ItemTracker")
-S9 | games/oot/soh/SohGui/SohMenuCombo.cpp | .CVar("gWindows.ItemTrackerSettings")

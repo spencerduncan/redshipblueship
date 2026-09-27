@@ -34,9 +34,12 @@
  *   2. A ROW IS BOUND TO THE WRONG KEY, or to none. `WIDGET_CVAR_CHECKBOX` with a
  *      null or misspelled `.CVar` draws and writes nothing the provider reads.
  *
- *   3. A ROW IS REGISTERED PAST THE COLUMN COUNT. The page declares one column
- *      and `Menu::DrawElement` iterates `columnCount` columns, so a row in a
- *      higher one is registered and never drawn.
+ *   3. A ROW IS REGISTERED PAST THE COLUMN COUNT, or in the wrong column. The
+ *      page declares two columns (UI parity M3, SoH's mixed-page shape) and
+ *      `Menu::DrawElement` iterates `columnCount` columns, so a row in a higher
+ *      one is registered and never drawn. The toggles fill the first column; the
+ *      first pointer row opens the second and the rows after it stay there, so a
+ *      pointer and the rows gated on it are read together.
  *
  *   4. THE PAGE IS EMPTY, or the pointer row is the only thing on it. #640: an
  *      empty multi-column page leaves `SetNextWindowPos` unconsumed and undocks
@@ -228,9 +231,9 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
         for (const SohGui::ComboSectionPage& page : SohGui::GetComboSectionPages()) {
             if (page.sidebarName == pageName) {
                 registered = true;
-                MME_CHECK(page.columnCount == 1,
-                          "the MM enhancement page declares %u columns; it registers rows in the first one only, and "
-                          "Menu::DrawElement iterates columnCount columns",
+                MME_CHECK(page.columnCount == 2,
+                          "the MM enhancement page declares %u columns; it registers the toggles in the first and the "
+                          "Autosave group in the second, and Menu::DrawElement iterates columnCount columns",
                           page.columnCount);
                 MME_CHECK(page.registrar != nullptr, "the MM enhancement page registered a null registrar");
             }
@@ -267,15 +270,37 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
     MME_CHECK(rows.size() >= RSBS::kHostedMmEnhancementCount + 1,
               "the MM enhancement page holds %zu widgets; %zu manifest rows plus a heading is the minimum", rows.size(),
               RSBS::kHostedMmEnhancementCount + (std::size_t)1);
-    for (FlatRow& row : rows) {
-        MME_CHECK(row.column == (uint32_t)SECTION_COLUMN_1,
-                  "row \"%s\" is registered in column %u; the page draws one column, so anything past the first is "
-                  "registered and never drawn",
-                  row.info->name.c_str(), row.column);
+    // Which column each row belongs in, from the manifest: the first pointer
+    // row's label opens the second column, and nothing before it may be there.
+    const char* firstPointerLabel = nullptr;
+    for (std::size_t i = 0; i < RSBS::kHostedMmEnhancementCount && firstPointerLabel == nullptr; i++) {
+        if (RSBS::kHostedMmEnhancements[i].hosting == RSBS::MmEnhancementHosting::HostedElsewhere) {
+            firstPointerLabel = RSBS::kHostedMmEnhancements[i].label;
+        }
     }
-    printf("[TEST] leg 1: the page is registered through the extension point, declares one column and holds %zu "
-           "widgets\n",
-           rows.size());
+    bool inSecondGroup = false;
+    std::size_t perColumn[2] = { 0, 0 };
+    for (FlatRow& row : rows) {
+        if (firstPointerLabel != nullptr && row.info->type == WIDGET_SEPARATOR_TEXT &&
+            row.info->name == firstPointerLabel) {
+            inSecondGroup = true;
+        }
+        const uint32_t expected = inSecondGroup ? (uint32_t)SECTION_COLUMN_2 : (uint32_t)SECTION_COLUMN_1;
+        MME_CHECK(row.column == expected,
+                  "row \"%s\" is registered in column %u, expected %u: the toggles fill the first column and the "
+                  "first pointer row opens the second (a row past the page's two columns is never drawn)",
+                  row.info->name.c_str(), row.column, expected);
+        if (row.column < 2) {
+            perColumn[row.column]++;
+        }
+    }
+    MME_CHECK(perColumn[0] > 0 && perColumn[1] > 0,
+              "the page's columns hold %zu and %zu widgets; an empty column in a multi-column page is #640's failure "
+              "mode",
+              perColumn[0], perColumn[1]);
+    printf("[TEST] leg 1: the page is registered through the extension point, declares two columns and holds %zu "
+           "widgets (%zu toggles side, %zu Autosave side)\n",
+           rows.size(), perColumn[0], perColumn[1]);
 
     // ---- Leg 2: every manifest key has a row, bound to that key -------------
     for (std::size_t i = 0; i < RSBS::kHostedMmEnhancementCount; i++) {

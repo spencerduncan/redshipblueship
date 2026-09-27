@@ -162,12 +162,22 @@ WidgetFunc ShownWhilePreFunc(std::size_t index) {
  * name, so that the row exercises the real seam instead of a shortcut.
  */
 void AddMmEnhancementWidgets(SohMenu& menu, WidgetPath& path) {
+    // TWO COLUMNS (UI parity M3), SoH's "mixed page" shape
+    // (docs/ui-style-guide.md section 1; Randomizer > General): the toggles in
+    // the first, the Autosave group in the second. As one full-width column the
+    // interval slider ran the whole width of the page, three times as wide as
+    // any slider on Enhancements > Quality of Life. The split is by manifest
+    // ORDER: the first pointer row opens the second column and everything after
+    // it stays there, so a pointer row and the rows gated on it (which the
+    // manifest lists after it, MenuMmEnhancementRows leg 5) share a column.
+    path.column = SECTION_COLUMN_1;
     menu.AddWidget(path, "Majora's Mask Enhancements", WIDGET_SEPARATOR_TEXT);
 
     for (std::size_t i = 0; i < RSBS::kHostedMmEnhancementCount; i++) {
         const RSBS::HostedMmEnhancement& row = RSBS::kHostedMmEnhancements[i];
 
         if (row.hosting == RSBS::MmEnhancementHosting::HostedElsewhere) {
+            path.column = SECTION_COLUMN_2;
             // A POINTER ROW, not a second checkbox. Something in the unified menu
             // already writes this key, and since #539 every SohMenu widget
             // funnels through OoT's `ShipInit::Init`, which forwards to MM's
@@ -236,12 +246,12 @@ void AddMmEnhancementWidgets(SohMenu& menu, WidgetPath& path) {
  * function-local call would need a caller, and the only candidate is the TU this
  * seam exists to avoid editing.
  *
- * One column, and the page holds seven widgets (the heading separator, three
- * checkboxes, the pointer row's separator + text, and #693's interval slider
- * right after the pointer row it belongs to), so it is not #640's empty
- * multi-column page.
+ * Two columns, and the page holds seven widgets (the heading separator and
+ * three checkboxes in the first; the pointer row's separator + text and #693's
+ * interval slider right after it in the second), so neither column is #640's
+ * empty page.
  */
-static RegisterComboSectionPage_t sMmEnhancementsPage(kMmEnhancementsPage, 1, AddMmEnhancementWidgets);
+static RegisterComboSectionPage_t sMmEnhancementsPage(kMmEnhancementsPage, 2, AddMmEnhancementWidgets);
 
 /** The page's registered name, for the lock. Defined here so the test cannot
  *  drift from the registration by spelling the literal a second time. */
