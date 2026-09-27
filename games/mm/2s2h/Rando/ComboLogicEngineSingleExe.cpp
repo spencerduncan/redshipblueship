@@ -1652,65 +1652,19 @@ extern "C" int MM_ComboLogic_MarkPoolRows(const uint16_t* pool, int count, uint1
     return marked;
 }
 
-/**
- * MEASUREMENT BRIDGE: MM's real pool under the profile the live save holds —
- * `GeneratePools` run over a HEAP COPY of the save's rando info (so neither the
- * live `randoSaveChecks` nor anything else in the save is written), with the
- * configured starting items persisted into the copy first, exactly as
- * OnFileCreate does. Returns the item pool (with its plentiful marks) and the
- * check pool, the host list MM's creation would shuffle over.
- *
- * IT CONSUMES `Ship_Random`: GeneratePools draws shop and Tingle prices and, under
- * RO_PLENTIFUL_ITEMS, the half of the lesser rows it duplicates. That is the same
- * stream and the same draws the creation seam's own GeneratePools call makes, so
- * a caller must call this INSTEAD of generating, never in addition — which is why
- * it is a measurement bridge and not a production entry (production marks its own
- * GeneratePools result through MM_ComboLogic_MarkPoolRows).
- *
- * Same truncation contract as the enumerators: at most `itemCap` / `checkCap`
- * written, the item TOTAL returned and the check total through `outCheckTotal`.
- * -1 when the region graph is not up.
- */
-/**
- * TEST ONLY — author the live save's CHECK TABLE the way MM's creation does
- * before its fill: run `GeneratePools` over a heap copy of the save's rando info
- * (with the configured starting items, exactly as MM_ComboLogic_TestGeneratePool
- * does) and copy back `randoSaveChecks` alone — every graph check's vanilla item,
- * the user-excluded checks' junk and `skipped` marks, and the rolled prices. The
- * item pool is discarded; the options and everything else in the save are left as
- * they were.
- *
- * WHY IT EXISTS (#737, lane G1). A7 grants a reached check's FIXED content from
- * `RANDO_SAVE_CHECKS`, which in a production creation `GeneratePools` has just
- * written. combo-logic-measure resolves the shipped profile into a freshly
- * initialised save and ran `GeneratePools` only over a COPY
- * (MM_ComboLogic_TestGeneratePool), so every fixed check still read the
- * initialised table's zero item, A7 granted nothing, and the row's beat-both
- * could never prove there even after #743 made it prove in production. The row
- * calls this right after MM_ComboLogic_ApplyShippedProfile, inside its outer save
- * bracket and before its post-profile baseline: part of "the state the creation
- * seam hands MM's engine". Consumes `Ship_Random` (the prices), as a creation
- * does. @return the number of checks GeneratePools pooled, or -1 with no graph.
- */
-extern "C" int MM_ComboLogic_TestAuthorCheckTable(void) {
-    if (Rando::Logic::Regions.empty()) {
-        return -1;
-    }
-    std::unique_ptr<RandoSaveInfo> info = std::make_unique<RandoSaveInfo>();
-    memcpy(info.get(), &gSaveContext.save.shipSaveInfo.rando, sizeof(RandoSaveInfo));
-    auto startingItems = Rando::GetStartingItemsFromConfig();
-    Rando::SetStartingItemsInSave(*info, startingItems);
-    std::vector<RandoCheckId> checkPool;
-    std::vector<RandoItemId> itemPool;
-    Rando::Logic::GeneratePools(*info, checkPool, itemPool);
-    static_assert(sizeof(gSaveContext.save.shipSaveInfo.rando.randoSaveChecks) == sizeof(info->randoSaveChecks),
-                  "the check table copied back is the one GeneratePools wrote");
-    memcpy(gSaveContext.save.shipSaveInfo.rando.randoSaveChecks, info->randoSaveChecks, sizeof(info->randoSaveChecks));
-    return (int)checkPool.size();
-}
+namespace {
 
-extern "C" int MM_ComboLogic_TestGeneratePool(uint16_t* outItems, uint16_t* outFlags, int itemCap, uint16_t* outChecks,
-                                              int checkCap, int* outCheckTotal) {
+/**
+ * The one body behind MM_ComboLogic_TestGeneratePool and
+ * MM_ComboLogic_TestAuthorCheckTable: ONE `GeneratePools` call over a heap copy
+ * of the save's rando info (configured starting items persisted into the copy
+ * first, exactly as OnFileCreate does), its item pool (with plentiful marks) and
+ * check pool written out under the enumerators' truncation contract, and — only
+ * when `authorCheckTable` — the copy's `randoSaveChecks` copied back into the
+ * live save. Nothing else in the save is written either way.
+ */
+int GeneratePoolBridge(bool authorCheckTable, uint16_t* outItems, uint16_t* outFlags, int itemCap, uint16_t* outChecks,
+                       int checkCap, int* outCheckTotal) {
     if (Rando::Logic::Regions.empty()) {
         return -1;
     }
@@ -1729,6 +1683,12 @@ extern "C" int MM_ComboLogic_TestGeneratePool(uint16_t* outItems, uint16_t* outF
     std::vector<uint16_t> flags(items.size(), 0);
     if (!items.empty() && MM_ComboLogic_MarkPoolRows(items.data(), (int)items.size(), flags.data()) < 0) {
         return -1;
+    }
+    if (authorCheckTable) {
+        static_assert(sizeof(gSaveContext.save.shipSaveInfo.rando.randoSaveChecks) == sizeof(info->randoSaveChecks),
+                      "the check table copied back is the one GeneratePools wrote");
+        memcpy(gSaveContext.save.shipSaveInfo.rando.randoSaveChecks, info->randoSaveChecks,
+               sizeof(info->randoSaveChecks));
     }
     const int total = (int)items.size();
     for (int i = 0; i < total && i < itemCap; ++i) {
@@ -1749,6 +1709,91 @@ extern "C" int MM_ComboLogic_TestGeneratePool(uint16_t* outItems, uint16_t* outF
         *outCheckTotal = checkTotal;
     }
     return total;
+}
+
+} // namespace
+
+/**
+ * MEASUREMENT BRIDGE: MM's real pool under the profile the live save holds —
+ * `GeneratePools` run over a HEAP COPY of the save's rando info (so neither the
+ * live `randoSaveChecks` nor anything else in the save is written), with the
+ * configured starting items persisted into the copy first, exactly as
+ * OnFileCreate does. Returns the item pool (with its plentiful marks) and the
+ * check pool, the host list MM's creation would shuffle over.
+ *
+ * IT CONSUMES `Ship_Random`: GeneratePools draws shop and Tingle prices and, under
+ * RO_PLENTIFUL_ITEMS, the half of the lesser rows it duplicates. That is the same
+ * stream and the same draws the creation seam's own GeneratePools call makes, so
+ * a caller must call this INSTEAD of generating, never in addition — which is why
+ * it is a measurement bridge and not a production entry (production marks its own
+ * GeneratePools result through MM_ComboLogic_MarkPoolRows). A caller that also
+ * needs the check table GeneratePools writes calls
+ * MM_ComboLogic_TestAuthorCheckTable INSTEAD of this, never as well: a second call
+ * draws its pool from a shifted `Ship_Random` stream, so its prices and plentiful
+ * copies would no longer be the check table's.
+ *
+ * Same truncation contract as the enumerators: at most `itemCap` / `checkCap`
+ * written, the item TOTAL returned and the check total through `outCheckTotal`.
+ * -1 when the region graph is not up.
+ */
+extern "C" int MM_ComboLogic_TestGeneratePool(uint16_t* outItems, uint16_t* outFlags, int itemCap, uint16_t* outChecks,
+                                              int checkCap, int* outCheckTotal) {
+    return GeneratePoolBridge(false, outItems, outFlags, itemCap, outChecks, checkCap, outCheckTotal);
+}
+
+/**
+ * TEST ONLY — MM_ComboLogic_TestGeneratePool AND the live save's CHECK TABLE, from
+ * the SAME `GeneratePools` call, as MM's creation has both before its fill. The
+ * pools come back exactly as MM_ComboLogic_TestGeneratePool returns them (same
+ * arguments, same truncation contract), and the heap copy's `randoSaveChecks` is
+ * copied back into the live save: every graph check's vanilla item, the
+ * user-excluded checks' junk and `skipped` marks, and the rolled prices, all from
+ * the draw that produced the returned pool. The options and everything else in
+ * the save are left as they were.
+ *
+ * WHY IT EXISTS (#737, lane G1). A7 grants a reached check's FIXED content from
+ * `RANDO_SAVE_CHECKS`, which in a production creation `GeneratePools` has just
+ * written. combo-logic-measure resolves the shipped profile into a freshly
+ * initialised save and ran `GeneratePools` only over a COPY
+ * (MM_ComboLogic_TestGeneratePool), so every fixed check still read the
+ * initialised table's zero item, A7 granted nothing, and the row's beat-both
+ * could never prove there even after #743 made it prove in production.
+ *
+ * ONE CALL, NOT TWO: a caller uses this INSTEAD of MM_ComboLogic_TestGeneratePool,
+ * never as well (see its comment), so the check table and the pool come from one
+ * draw of `Ship_Random`, as they do in a creation. It consumes `Ship_Random`
+ * exactly as MM_ComboLogic_TestGeneratePool does. -1 when the region graph is not
+ * up.
+ */
+extern "C" int MM_ComboLogic_TestAuthorCheckTable(uint16_t* outItems, uint16_t* outFlags, int itemCap,
+                                                  uint16_t* outChecks, int checkCap, int* outCheckTotal) {
+    return GeneratePoolBridge(true, outItems, outFlags, itemCap, outChecks, checkCap, outCheckTotal);
+}
+
+/**
+ * TEST ONLY — empty the authored check table at `checks`: each one's
+ * `randoItemId` becomes RI_UNKNOWN, which A7 and MM_ComboLogic_TestFixedContents
+ * skip as not giveable. For a measurement that NARROWS the host pool below
+ * GeneratePools' check pool (combo-logic-measure's RSBS_COMBO_MEASURE_MM_HOSTS):
+ * a pooled check the narrowing drops falls outside the host pool, so A7 would
+ * read it as FIXED and grant the vanilla item GeneratePools merely pre-wrote
+ * there. That is a pooled check's content, which is never A7's to grant. Emptied,
+ * it grants nothing, as before the check table was authored. Returns how many
+ * entries it emptied (RC_UNKNOWN and ids at or past RC_MAX are ignored).
+ */
+extern "C" int MM_ComboLogic_TestClearCheckContents(const uint16_t* checks, int count) {
+    if (checks == nullptr || count <= 0) {
+        return 0;
+    }
+    int cleared = 0;
+    for (int i = 0; i < count; ++i) {
+        if (checks[i] == (uint16_t)RC_UNKNOWN || checks[i] >= (uint16_t)RC_MAX) {
+            continue;
+        }
+        RANDO_SAVE_CHECKS[(RandoCheckId)checks[i]].randoItemId = RI_UNKNOWN;
+        cleared++;
+    }
+    return cleared;
 }
 
 /**
