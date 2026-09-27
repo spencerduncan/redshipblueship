@@ -138,6 +138,7 @@
 #include "combo_mm_options_view.h"
 #include "combo_mm_tricks_view.h"
 #include "combo_settings_view.h"
+#include "combo_tracker_view.h"
 #include "combo_ui.h"
 #include "context.h"
 #include "cvar_shared_keys.h"
@@ -1273,6 +1274,117 @@ std::vector<std::string> TooltipLinePrefixes(const std::string& tip) {
 }
 
 /**
+ * Cross-game placements for the spoiler's and the tracker's populated states,
+ * through the production setters (Combo_SetForeignPlacement /
+ * Combo_SetForeignPlacementOoT) with items looked up by describer name, the way
+ * the ROM-free locks do (test_named_items.h). Needs AuthorPairing first: a
+ * setter refuses an unpaired world. The ids are arbitrary host checks; the
+ * spoiler prints MM ids as hex (a name accessor is a follow-up), and the tracker
+ * resolves what its adapters can.
+ */
+constexpr const char* kSnapshotOoTItemA = "Lens of Truth";
+// The SoH pane our tracker and spoiler panes are read against (compareWith).
+constexpr const char* kSohPaneReference = "window/Check Tracker Settings";
+constexpr const char* kSnapshotOoTItemB = "Megaton Hammer";
+// The OoT check hosting the MM item in the "progress" state. The synthetic OoT
+// adapter names none of its checks this id, so the tracker's MM-to-OoT table
+// prints it as hex: a string only that table draws.
+constexpr uint16_t kSnapshotMMToOoTCheckId = 0x0123;
+constexpr const char* kSnapshotMMToOoTCheck = "Check 0x0123";
+
+extern "C" int OoT_ComboLogic_TestEnsureItemTableTransient(void);
+
+bool SnapshotNamedItem(uint8_t origin, const char* name, SharedItem* out) {
+    if (Combo_GetForeignItemByNameFor(origin, name, out)) {
+        return true;
+    }
+    // ROM-free (hosted CI): OoT's item table is not built at OTR bring-up there.
+    if (origin == (uint8_t)GAME_OOT && OoT_ComboLogic_TestEnsureItemTableTransient() == 0) {
+        return Combo_GetForeignItemByNameFor(origin, name, out);
+    }
+    return false;
+}
+
+void AuthorCrossings(bool bothDirections) {
+    SharedItem item;
+    if (SnapshotNamedItem((uint8_t)GAME_OOT, kSnapshotOoTItemA, &item)) {
+        Combo_SetForeignPlacement(0x0401, item);
+    }
+    if (SnapshotNamedItem((uint8_t)GAME_OOT, kSnapshotOoTItemB, &item)) {
+        Combo_SetForeignPlacement(0x0402, item);
+    }
+    // MM's describer reads static data, so this lookup needs no ROM-free
+    // fallback; if it ever fails, the row is missing and the "progress" state's
+    // kSnapshotMMToOoTCheck text fails the capture instead of passing silently.
+    if (bothDirections && SnapshotNamedItem((uint8_t)GAME_MM, "Lens of Truth", &item)) {
+        Combo_SetForeignPlacementOoT(kSnapshotMMToOoTCheckId, item);
+    }
+}
+
+/**
+ * A synthetic OoT tracker adapter for the tracker's "progress" state: a resident
+ * randomized world with one collected, one skipped and two open checks, so the
+ * Checks list draws every status glyph. Installed through the production
+ * registrar (Combo_Tracker_RegisterOoT) and replaced by the real adapter in
+ * LeaveState.
+ */
+struct SnapshotCheck {
+    uint16_t id;
+    const char* name;
+    bool obtained;
+    bool skipped;
+};
+constexpr SnapshotCheck kSnapshotOoTChecks[] = {
+    { 0x0101, "KF Kokiri Sword Chest", true, false },
+    { 0x0102, "KF Mido Top Left Chest", false, true },
+    { 0x0103, "KF Mido Top Right Chest", false, false },
+    { 0x0104, "Deku Tree Map Chest", false, false },
+};
+constexpr int kSnapshotOoTCheckCount = (int)(sizeof(kSnapshotOoTChecks) / sizeof(kSnapshotOoTChecks[0]));
+
+bool SnapshotOoTSummary(ComboTrackerGameSummary* out) {
+    out->hasWorld = true;
+    out->seed = 0xC0FFEE55u;
+    out->totalChecks = kSnapshotOoTCheckCount;
+    out->shuffled = kSnapshotOoTCheckCount;
+    out->obtained = 1;
+    out->skipped = 1;
+    return true;
+}
+int SnapshotOoTCheckCount(void) {
+    return kSnapshotOoTCheckCount;
+}
+bool SnapshotOoTCheckAt(int index, ComboTrackerCheckRow* out) {
+    if (index < 0 || index >= kSnapshotOoTCheckCount) {
+        return false;
+    }
+    const SnapshotCheck& c = kSnapshotOoTChecks[index];
+    out->checkId = c.id;
+    out->name = c.name;
+    out->shuffled = true;
+    out->obtained = c.obtained;
+    out->skipped = c.skipped;
+    return true;
+}
+const char* SnapshotOoTCheckName(uint16_t checkId) {
+    for (const SnapshotCheck& c : kSnapshotOoTChecks) {
+        if (c.id == checkId) {
+            return c.name;
+        }
+    }
+    return nullptr;
+}
+const ComboOoTTrackerOps kSnapshotOoTOps = { SnapshotOoTSummary, SnapshotOoTCheckCount, SnapshotOoTCheckAt,
+                                             SnapshotOoTCheckName };
+
+/** The id of the OoT panel's "Checks" tree node, as ComboTrackerWindow.cpp forms it
+ *  inside the pane's Begin: PushID((int)GAME_OOT), then TreeNode("Checks"). */
+ImGuiID TrackerOoTChecksId(ImGuiWindow* w) {
+    const int game = (int)GAME_OOT;
+    return ImHashStr("Checks", 0, ImHashData(&game, sizeof(game), w->ID));
+}
+
+/**
  * The first trick row DrawTricksSection draws once its first area is open: the
  * lowest area id that has a row (it walks areas in id order), and that area's
  * first row in table order. @p areaOut receives the area id, -1 if none.
@@ -1480,6 +1592,22 @@ void Session::BuildPageList() {
         p.states = { "" };
         p.expectText = { "Game autosaved" };
         p.scroll = false;
+        pages.push_back(p);
+    }
+    {
+        // SoH's own pane, the reference for the Combo Tracker and Cross-Game
+        // Spoiler panes (docs/ui-style-guide.md section 10): its title bar and
+        // close button, and SoH's table shape (CellPadding 8x8, BordersH|V,
+        // TableSetupColumn + TableHeadersRow) at pane scale. The Check Tracker
+        // itself draws only "Waiting for file load..." without a save.
+        PageSpec p;
+        p.id = kSohPaneReference;
+        p.origin = Origin::SOH_REFERENCE;
+        p.kind = Kind::WINDOW;
+        p.window = "Check Tracker Settings";
+        p.states = { "" };
+        p.expectText = { "Check Tracker Settings", "General settings" };
+        p.needsRom = true;
         pages.push_back(p);
     }
 
@@ -1691,8 +1819,14 @@ void Session::BuildPageList() {
         p.id = std::string("window/") + ComboGui::kComboSpoilerWindowName;
         p.kind = Kind::WINDOW;
         p.window = ComboGui::kComboSpoilerWindowName;
-        p.states = { "paired" };
+        // "crossings" authors placements (AuthorCrossings), so the table is drawn:
+        // "paired" alone holds none and only ever showed the empty note.
+        p.states = { "paired", "crossings", "unpaired" };
+        p.compareWith = kSohPaneReference;
         p.expectText = { ComboGui::kComboSpoilerWindowName };
+        p.stateText["crossings"] = { kSnapshotOoTItemA };
+        p.stateText["unpaired"] = { "No paired world" };
+        p.stateContrast = { { "crossings", "paired" }, { "unpaired", "paired" } };
         pages.push_back(p);
     }
     {
@@ -1700,8 +1834,16 @@ void Session::BuildPageList() {
         p.id = std::string("window/") + ComboGui::kComboTrackerWindowName;
         p.kind = Kind::WINDOW;
         p.window = ComboGui::kComboTrackerWindowName;
-        p.states = { "paired", "unpaired" };
+        // "progress" installs a synthetic OoT adapter with a resident world and
+        // opens its Checks list, and authors placements both ways, so the check
+        // glyphs and both placement tables are drawn: without a loaded save,
+        // "paired" only ever showed the no-data notes.
+        p.states = { "paired", "unpaired", "progress" };
+        p.compareWith = kSohPaneReference;
         p.expectText = { ComboGui::kComboTrackerWindowName };
+        p.stateText["progress"] = { kSnapshotOoTChecks[0].name, kSnapshotOoTItemA, kSnapshotMMToOoTCheck };
+        p.stateText["unpaired"] = { "No paired world" };
+        p.stateContrast = { { "progress", "paired" }, { "unpaired", "paired" } };
         pages.push_back(p);
     }
     // Ours: the Cross-Game Rules Reset confirm, opened through the row's own
@@ -2131,6 +2273,14 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
     } else if (p.kind == Kind::WINDOW) {
         if (state == "paired") {
             AuthorPairing();
+        } else if (state == "crossings") {
+            AuthorPairing();
+            AuthorCrossings(false);
+        } else if (state == "progress") {
+            AuthorPairing();
+            AuthorCrossings(true);
+            Context_SetCurrentGame(GAME_OOT);
+            Combo_Tracker_RegisterOoT(&kSnapshotOoTOps);
         }
     }
 }
@@ -2147,6 +2297,9 @@ void Session::LeaveState(const PageSpec& p, const std::string& state) {
     }
     if (p.id == "Combo/Cross-Game Rules" && state == "empty-oot-classes") {
         Combo_ComboSettingClear(COMBO_SETTING_ITEM_CLASS_OOT);
+    }
+    if (p.kind == Kind::WINDOW && state == "progress") {
+        OoT_TrackerAdapter_Register();
     }
     ComboContext_Init();
     Context_SetCurrentGame(gSavedGame);
@@ -2806,30 +2959,44 @@ std::vector<ImGuiID> TricksOpenAreaIds(ImGuiWindow* w, bool longest) {
 }
 
 void Session::CaptureWindowPage(const PageSpec& p) {
-    const char* cvar = PaneCvar(p.window);
+    // Ours read their visibility CVar LIVE in Draw() (they override it), so
+    // setting the CVar is what opens them; Show() would do nothing. An SoH pane
+    // is the other way round: Ship::GuiWindow latches the CVar in its ctor and
+    // Draw() tests IsVisible(), so it is opened with Show() and closed with Hide().
+    const bool sohPane = p.origin == Origin::SOH_REFERENCE;
+    const char* cvar = sohPane ? nullptr : PaneCvar(p.window);
+    auto guiWindow = gui->GetGuiWindow(p.window);
     for (const std::string& state : p.states) {
         const std::string base = VariantName(state, "");
         if (!Selected(p, base) && !Selected(p, VariantName(state, "scroll0"))) {
             continue;
         }
-        if (cvar == nullptr || gui->GetGuiWindow(p.window) == nullptr) {
+        if ((!sohPane && cvar == nullptr) || guiWindow == nullptr) {
             Capture c;
             c.id = p.id;
             c.state = state;
             c.variant = base;
-            c.status = "fail";
-            c.reason = "the pane \"" + p.window + "\" is not registered";
+            if (p.needsRom && romFree) {
+                c.status = "skip";
+                c.reason = "needs oot.o2r";
+            } else {
+                c.status = "fail";
+                c.reason = "the pane \"" + p.window + "\" is not registered";
+            }
             c.spec = &p;
             Record(std::move(c));
             continue;
         }
         EnterState(p, state);
         menu->Hide();
-        // These panes read their visibility CVar LIVE in Draw() (they override it),
-        // so setting the CVar is what opens them; Show() would do nothing.
-        CVarSetInteger(cvar, 1);
+        if (sohPane) {
+            guiWindow->Show();
+        } else {
+            CVarSetInteger(cvar, 1);
+        }
         const bool narrow = (state == "tricks-narrow");
         const bool tricks = (state == "tricks-open" || state == "tricks-frozen" || narrow);
+        const bool checksOpen = (state == "progress" && p.window == ComboGui::kComboTrackerWindowName);
         auto setTricksOpen = [&p, &state](int open) {
             ImGuiWindow* w = ImGui::FindWindowByName(p.window.c_str());
             if (w != nullptr) {
@@ -2864,6 +3031,12 @@ void Session::CaptureWindowPage(const PageSpec& p) {
             auto before = [&]() {
                 if (tricks) {
                     setTricksOpen(1);
+                }
+                if (checksOpen) {
+                    ImGuiWindow* tw = ImGui::FindWindowByName(p.window.c_str());
+                    if (tw != nullptr) {
+                        tw->StateStorage.SetInt(TrackerOoTChecksId(tw), 1);
+                    }
                 }
                 if (narrow) {
                     ImGui::SetWindowSize(p.window.c_str(), ImVec2(1.0f, sizeBefore.y > 0.0f ? sizeBefore.y : 560.0f));
@@ -2969,7 +3142,11 @@ void Session::CaptureWindowPage(const PageSpec& p) {
         if (narrow && sizeBefore.x > 0.0f) {
             ImGui::SetWindowSize(p.window.c_str(), sizeBefore);
         }
-        CVarSetInteger(cvar, 0);
+        if (sohPane) {
+            guiWindow->Hide();
+        } else {
+            CVarSetInteger(cvar, 0);
+        }
         LeaveState(p, state);
     }
 }
