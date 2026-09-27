@@ -308,8 +308,10 @@ extern "C" int MM_TriforceHuntWin_RunHeadless(void) {
         MTH_ASSERT(cvarOff, "MM's hunt OFF in the CVars must contribute no pieces and no requirement");
         MTH_ASSERT(cvarWide, "MM's CVar half was truncated before the rule could see it");
 
-        // The arrival's half compare (GameExports_SingleExe.cpp) against the
-        // record frozen above: MM's own half matches, a moved one does not.
+        // The arrival's half compare (GameExports_SingleExe.cpp) against a
+        // frozen triforce-hunt record: MM's own half matches, a moved one does not.
+        MTH_ASSERT(FreezeWorld((uint8_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT) == RSBS_TRIFORCE_OK,
+                   "a triforce-hunt creation over two coherent halves must freeze");
         const ComboTriforceHalf same = { kMmTotal, kMmRequired };
         const ComboTriforceHalf moved = { kMmTotal, (uint16_t)(kMmRequired - 1) };
         MTH_ASSERT(!Combo_TriforceHalfDiverges(&gComboCtx.comboTriforce, GAME_MM, &same),
