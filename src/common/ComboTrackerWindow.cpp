@@ -5,30 +5,64 @@
  * See ComboTrackerWindow.h for the contract. Every value drawn here comes
  * from combo_tracker_view.h; this file holds no state of its own and caches
  * nothing, so progress made mid-session updates on the next frame.
+ *
+ * It is drawn the way SoH draws its own tracker and editor panes
+ * (docs/ui-style-guide.md section 10): the title bar's close button, themed
+ * collapsing headers (UIWidgets::PushStyleCombobox(THEME_COLOR), as the Check
+ * Tracker Settings pane's section headers are), gray notes for state, and
+ * SoH's table shape (cell padding 8x8, horizontal and vertical borders, a
+ * header row). The header row stays in ImGui's table-header gray, as in the
+ * Check Tracker Settings pane: the theme's Header / HeaderHovered /
+ * HeaderActive colours reach a table's header row only while it is hovered or
+ * clicked. A check's status is a FontAwesome glyph, a
+ * project convention (SoH's check tracker marks status by row colour instead).
+ * src/common cannot include UIWidgets, so every styled element goes through the
+ * combo_ui seam.
  */
 
 #include "ComboTrackerWindow.h"
+
+#include <cstdio>
 
 #include <imgui.h>
 #include <ship/Context.h>
 #include <ship/window/Window.h>
 #include <ship/window/gui/Gui.h>
+#include <ship/window/gui/IconsFontAwesome4.h>
 #include <libultraship/bridge/consolevariablebridge.h>
 
 #include "combo_tracker_view.h"
+#include "combo_ui.h"
 #include "context.h" // GameId
 
 namespace ComboGui {
 
 namespace {
 
+const ComboUiTable& Ui() {
+    return *ComboUi_Get();
+}
+
 /**
- * One game's panel: summary line, freshness label, and a default-closed
+ * A check's status as a FontAwesome glyph (a project convention, style guide
+ * section 10: SoH's check tracker colours the row instead, and uses glyphs only
+ * on its skip/lock buttons): a ticked box when collected, a box with a minus
+ * when the player skipped it, an empty box otherwise.
+ */
+const char* CheckGlyph(const ComboTrackerCheckRow& row) {
+    if (row.obtained) {
+        return ICON_FA_CHECK_SQUARE_O;
+    }
+    return row.skipped ? ICON_FA_MINUS_SQUARE_O : ICON_FA_SQUARE_O;
+}
+
+/**
+ * One game's panel: freshness note, summary lines, and a default-closed
  * per-check list. Fed ONLY by that game's adapter through the view — the
  * game argument is the origin tag, and nothing here compares ids across
  * panels (ADR 0002).
  */
-void DrawGamePanel(uint8_t game, const char* title) {
+void DrawGamePanel(uint8_t game, const char* title, const ComboTrackerIdentity& identity) {
     if (!ImGui::CollapsingHeader(title, ImGuiTreeNodeFlags_DefaultOpen)) {
         return;
     }
@@ -41,24 +75,31 @@ void DrawGamePanel(uint8_t game, const char* title) {
         // "No data" is NOT "zero progress": an MM shadow that was never
         // written and a never-created OoT heap context land here, and an
         // empty check list under a 0/0 counter would misreport them.
-        ImGui::TextDisabled("No data yet.");
-        ImGui::TextWrapped("%s", game == (uint8_t)GAME_MM
-                                     ? "Majora's Mask has not been entered this session, and no unified save "
-                                       "carrying an MM half has been loaded."
-                                     : "Ocarina of Time has not booted this session.");
+        Ui().NoteText(game == (uint8_t)GAME_MM
+                          ? "No data yet. Majora's Mask has not been played this session, and no save holding its "
+                            "progress is loaded."
+                          : "No data yet. Ocarina of Time has not started this session.");
         ImGui::PopID();
         return;
     }
-
-    ImGui::TextDisabled("(%s)", Combo_TrackerFreshnessLabel(game, summary.freshness));
 
     if (!summary.hasWorld) {
-        ImGui::TextWrapped("Not a randomized world.");
+        // One note, not two: how fresh the data is says nothing without a world.
+        Ui().NoteText("Not a randomized world.");
         ImGui::PopID();
         return;
     }
 
-    ImGui::Text("Seed: %u", (unsigned)summary.seed);
+    char note[96];
+    snprintf(note, sizeof(note), "%s.", Combo_TrackerFreshnessLabel(game, summary.freshness));
+    Ui().NoteText(note);
+
+    // The pane's top line already prints the paired seed; a game whose own
+    // seed is that same number would only repeat it (MM's final seed IS the
+    // paired seed), so the panel prints its seed only when it says something new.
+    if (!identity.paired || summary.seed != identity.sharedRandoSeed) {
+        ImGui::Text("Seed: %u", (unsigned)summary.seed);
+    }
     ImGui::Text("Checks: %d / %d", summary.obtained, summary.shuffled);
     if (summary.skipped > 0) {
         ImGui::Text("Skipped: %d", summary.skipped);
@@ -75,13 +116,12 @@ void DrawGamePanel(uint8_t game, const char* title) {
             if (!row.shuffled) {
                 continue;
             }
-            const char* mark = row.obtained ? "[x]" : (row.skipped ? "[s]" : "[ ]");
             if (row.name != nullptr) {
-                ImGui::Text("%s %s", mark, row.name);
+                ImGui::Text("%s %s", CheckGlyph(row), row.name);
             } else {
                 // No name table loaded (e.g. OoT static data before OoT's
                 // first boot): the game-local id is still an honest label.
-                ImGui::Text("%s Check 0x%04X", mark, (unsigned)row.checkId);
+                ImGui::Text("%s Check 0x%04X", CheckGlyph(row), (unsigned)row.checkId);
             }
         }
         ImGui::TreePop();
@@ -90,24 +130,57 @@ void DrawGamePanel(uint8_t game, const char* title) {
     ImGui::PopID();
 }
 
-/** One direction's placement list. The direction is the accessor — the two
- *  tables are separate key spaces and are never merged (ADR 0009). */
-void DrawForeignList(uint8_t hostGame, const char* title) {
+/**
+ * One direction's placement table. The direction is the accessor — the two
+ * tables are separate key spaces and are never merged (ADR 0009). SoH's table
+ * shape (SohMenuRandomizer.cpp's location tables; the Check Tracker Settings
+ * pane's table): cell padding 8x8, horizontal and vertical borders, a header
+ * row. The header is a short Title Case name (R-N1) with no count in it
+ * (R-N4); the gray note under it says how many and which way, or that there
+ * are none.
+ */
+void DrawForeignList(uint8_t hostGame, const char* title, const char* itemGame, const char* hostName) {
     const int count = Combo_TrackerForeignCount(hostGame);
-    ImGui::Text("%s: %d", title, count);
-    for (int i = 0; i < count; i++) {
-        ComboTrackerForeignRow row;
-        if (!Combo_TrackerForeignRowAt(hostGame, i, &row)) {
-            break;
-        }
-        ImGui::Bullet();
-        if (row.hostCheckName != nullptr) {
-            ImGui::Text("%s hosts %s%s", row.hostCheckName, row.itemName, row.redeemed ? " (redeemed)" : "");
-        } else {
-            ImGui::Text("Check 0x%04X hosts %s%s", (unsigned)row.hostCheckId, row.itemName,
-                        row.redeemed ? " (redeemed)" : "");
-        }
+    Ui().SeparatorText(title);
+    char note[160];
+    if (count == 0) {
+        snprintf(note, sizeof(note), "No %s items were placed in %s checks.", itemGame, hostName);
+        Ui().NoteText(note);
+        return;
     }
+    snprintf(note, sizeof(note), "%d %s %s placed in %s checks.", count, itemGame,
+             count == 1 ? "item was" : "items were", hostName);
+    Ui().NoteText(note);
+    ImGui::PushID((int)hostGame);
+    ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(8.0f, 8.0f));
+    if (ImGui::BeginTable("##Placements", 3, ImGuiTableFlags_BordersH | ImGuiTableFlags_BordersV)) {
+        // Check names run longer than item names ("Stone Tower Temple ..."), so the
+        // check column takes the larger share and both wrap rather than clip.
+        ImGui::TableSetupColumn("Check", ImGuiTableColumnFlags_WidthStretch, 3.0f);
+        ImGui::TableSetupColumn("Item", ImGuiTableColumnFlags_WidthStretch, 2.0f);
+        ImGui::TableSetupColumn("Collected", ImGuiTableColumnFlags_WidthFixed);
+        ImGui::TableHeadersRow();
+        for (int i = 0; i < count; i++) {
+            ComboTrackerForeignRow row;
+            if (!Combo_TrackerForeignRowAt(hostGame, i, &row)) {
+                break;
+            }
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            if (row.hostCheckName != nullptr) {
+                ImGui::TextWrapped("%s", row.hostCheckName);
+            } else {
+                ImGui::TextWrapped("Check 0x%04X", (unsigned)row.hostCheckId);
+            }
+            ImGui::TableNextColumn();
+            ImGui::TextWrapped("%s", row.itemName);
+            ImGui::TableNextColumn();
+            ImGui::TextUnformatted(row.redeemed ? "Yes" : "No");
+        }
+        ImGui::EndTable();
+    }
+    ImGui::PopStyleVar();
+    ImGui::PopID();
 }
 
 } // namespace
@@ -119,15 +192,19 @@ void ComboTrackerWindow::Draw() {
         return;
     }
 
+    // SoH's pane chrome (docs/ui-style-guide.md section 10): Ship::GuiWindow::Draw
+    // passes its visibility to ImGui::Begin, so an SoH pane has a close button.
+    // Closing clears the visibility CVar through SetVisibility, which also
+    // schedules the save, as a closed SoH pane does.
+    bool open = true;
     ImGui::SetNextWindowSize(ImVec2(480.0f, 520.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin(kComboTrackerWindowName, nullptr, ImGuiWindowFlags_NoFocusOnAppearing)) {
-        ImGui::End();
-        return;
+    if (ImGui::Begin(kComboTrackerWindowName, &open, ImGuiWindowFlags_NoFocusOnAppearing)) {
+        DrawElement();
     }
-
-    DrawElement();
-
     ImGui::End();
+    if (!open) {
+        SetVisibility(false);
+    }
 }
 
 void ComboTrackerWindow::DrawElement() {
@@ -137,22 +214,24 @@ void ComboTrackerWindow::DrawElement() {
     ComboTrackerIdentity identity;
     Combo_TrackerIdentity(&identity);
     if (identity.paired) {
-        ImGui::Text("Paired world — seed %u", (unsigned)identity.sharedRandoSeed);
-        ImGui::TextDisabled("Settings digest %08X / MM profile %08X", (unsigned)identity.sharedRandoSettingsHash,
-                            (unsigned)identity.mmProfileDigest);
+        // "Paired Seed", not "Seed": each game panel below may print its own
+        // seed, and the two must not read as the same line.
+        ImGui::Text("Paired Seed: %u", (unsigned)identity.sharedRandoSeed);
     } else {
-        ImGui::TextDisabled("No paired world.");
+        Ui().NoteText("No paired world.");
     }
-    ImGui::Separator();
+    Ui().Spacer(0.0f);
 
-    DrawGamePanel((uint8_t)GAME_OOT, "Ocarina of Time");
-    DrawGamePanel((uint8_t)GAME_MM, "Majora's Mask");
+    Ui().PushTheme();
+    DrawGamePanel((uint8_t)GAME_OOT, "Ocarina of Time", identity);
+    DrawGamePanel((uint8_t)GAME_MM, "Majora's Mask", identity);
 
     if (identity.paired && ImGui::CollapsingHeader("Cross-Game Placements", ImGuiTreeNodeFlags_DefaultOpen)) {
-        DrawForeignList((uint8_t)GAME_MM, "OoT items in MM checks");
-        ImGui::Spacing();
-        DrawForeignList((uint8_t)GAME_OOT, "MM items in OoT checks");
+        DrawForeignList((uint8_t)GAME_MM, "In MM Checks", "Ocarina of Time", "Majora's Mask");
+        Ui().Spacer(0.0f);
+        DrawForeignList((uint8_t)GAME_OOT, "In OoT Checks", "Majora's Mask", "Ocarina of Time");
     }
+    Ui().PopTheme();
 }
 
 void RegisterComboTrackerWindow(std::shared_ptr<Ship::Gui> gui) {

@@ -84,6 +84,12 @@ int CosmeticGfxStub_RunHeadless(void);
 // Return 0 on pass, non-zero on fail.
 int MM_ResumeArena_RunHeadless(void);
 int MM_StartupRestore_RunHeadless(void);
+// (c) mm-abandoned-session-statics (#666) — MM's registered suspend, which
+//     retires the Play gamestate without MM_Play_Destroy, must then reset the
+//     overlays that still had clients (En_Test4's sIsLoaded latch among them),
+//     leave client-free overlays alone, restore the statics only Destroy used
+//     to restore, and drop every per-actor ObjectExtension entry.
+int MM_AbandonedSessionStatics_RunHeadless(void);
 // The cross-game arrival IS MM's intro event (#654, operator ruling 2026-09-16;
 // games/mm/2s2h/mm_combo_first_cycle_test.cpp). Vanilla MM proxies "the intro
 // has not happened yet" off "no Ocarina of Time" and degrades Termina Field to
@@ -718,6 +724,13 @@ static TestResult Test_CosmeticGfxStub(void) {
 // cannot be forward-declared from file scope here.
 static TestResult Test_MMResumeArena(void) {
     return MM_ResumeArena_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// MM abandoned-session contract (#666; see the extern decl above). Thin wrapper
+// over the C entry point in games/mm/2s2h/mm_resume_state_test.cpp. No display,
+// no ROM, no arena; a scope guard restores everything it seeds on every exit.
+static TestResult Test_MMAbandonedSessionStatics(void) {
+    return MM_AbandonedSessionStatics_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // MM extended-culling binding (see the extern decl above). Thin wrapper over
@@ -4578,9 +4591,15 @@ const TestDescriptor gTests[] = {
      "tiers to the pools' own ceiling (unequal ceilings kept whole), removed copies become origin filler, and the "
      "trimmed hearts end the shared bar at exactly 320 with zero dead pickups (lane K13)",
      Test_SharedQuantityPolicy},
+    {"mm-abandoned-session-statics",
+     "A cross-game departure retires MM's abandoned Play session: overlays with live clients are reset once "
+     "(En_Test4's clock latch) after the graph is retired, client-free overlays are not, the statics only Destroy "
+     "restored are restored, and no per-actor ObjectExtension entry survives (#666)",
+     Test_MMAbandonedSessionStatics},
     {"combo-gameover-revive",
-     "An F10 from either game's game-over screen revives the departing bar to that game's continue value before "
-     "the freeze, and the other game arrives with it, not the one-heart floor (#664, #626)",
+     "An F10 from either game's game-over screen revives the departing bar to that game's continue value (a spent "
+     "fairy's refill mid-revive) before the freeze, and the other game arrives with it, not the one-heart floor "
+     "(#664, #626)",
      Test_ComboGameOverRevive},
     {nullptr, nullptr, nullptr}  // Sentinel
 };

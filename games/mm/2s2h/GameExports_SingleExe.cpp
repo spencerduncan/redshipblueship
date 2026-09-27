@@ -78,7 +78,8 @@
 // forward-declared, or the call would not resolve to the 2ship_enh definition.
 #include "2s2h/Enhancements/GfxPatcher/PlayerCustomFlipbooks.h"
 #include "2s2h/Rando/Rando.h"
-#include "2s2h/Rando/Foreign.h" // attempt-ladder outcome accessors (ADR 0010 inc. 1.2)
+#include "2s2h/ObjectExtension/ObjectExtension.h" // #666: MM_RetireAbandonedSession
+#include "2s2h/Rando/Foreign.h"                   // attempt-ladder outcome accessors (ADR 0010 inc. 1.2)
 #include "2s2h/ShipInit.hpp"
 #include "2s2h/resource/type/2shResourceType.h"
 #include "2s2h/resource/importer/PathFactory.h"
@@ -122,6 +123,10 @@ void Regs_Init(void);
 // Retire the graph coroutine on suspend (games/mm/src/code/graph.c) —
 // mirrors OoT: the frame loop must cold-start on re-entry after a switch.
 void MM_Graph_ResetRunFrameContext(void);
+// Retire the abandoned session's actor-overlay clients (z_actor.c, #666).
+s32 MM_ActorOverlayTable_RetireAbandonedClients(void);
+// Defined below MM_Game_Suspend, which calls it.
+void MM_RetireAbandonedSession(void);
 // Audio reset for cross-game switch (issue #157) and suspend (issue #270)
 extern s32 gAudioCtxInitalized;
 void AudioThread_InitMesgQueues(void);
@@ -2170,7 +2175,53 @@ void MM_Game_Suspend(void) {
     fflush(stderr);
     MM_Graph_ResetRunFrameContext();
 
+    // The Play gamestate just retired never ran MM_Play_Destroy, so none of
+    // its actors were deleted: put back what their deletion would have (#666).
+    MM_RetireAbandonedSession();
+
     fprintf(stderr, "[MM] Game_Suspend complete\n");
+    fflush(stderr);
+}
+
+/**
+ * Undo what an ABANDONED MM Play session left behind (#666).
+ *
+ * Every departure from MM retires its Play gamestate without MM_Play_Destroy
+ * (MM_Graph_ResetRunFrameContext in MM_Game_Suspend; MM_ResumeColdBootPrep
+ * below re-arms the arena the actors lived in). So MM_Actor_Delete never runs
+ * for the actors that were live at that instant, and two things it would have
+ * done are otherwise never done:
+ *
+ *  - each actor's overlay loses a client, and the last client out runs the
+ *    profile's `reset`, which is how the port puts overlay file-scope statics
+ *    back. En_Test4's sIsLoaded is the instance that matters in play: left
+ *    latched, the next session's clock actor kills itself in EnTest4_Init,
+ *    and the arrival scene runs without it (no dawn or night transition, no
+ *    day-2 rain, no final-hours events until the next scene load).
+ *  - ObjectExtension_Free(actor) drops the per-actor data 2S2H hangs off
+ *    actor addresses (the rando check id of a pot, a grass blade or a crate,
+ *    the actor-list index, enemy maximum health). The next session's arena
+ *    reuses those addresses, and a pot whose own check is already obtained
+ *    never overwrites the entry (IdentifyPot skips the set), so it would read
+ *    the abandoned pot's check id.
+ *
+ * Both are done here, at the point the session is abandoned. The actors' own
+ * Destroy functions are NOT run: they take the PlayState of a gamestate
+ * that has already been retired (colliders, effects, audio). Overlays whose
+ * Destroy (or a per-type Destroy helper) is what restores a static got that
+ * restore in a reset of their own (En_Grasshopper, En_Holl, En_Tanron5,
+ * En_Viewer, En_Mushi2 new; En_Invadepoh's existing reset extended).
+ *
+ * The mm-abandoned-session-statics row (mm_resume_state_test.cpp) drives
+ * MM_GetGameOps()->suspend, so it fails if this call leaves MM_Game_Suspend
+ * or moves ahead of MM_Graph_ResetRunFrameContext.
+ */
+extern "C" void MM_RetireAbandonedSession(void) {
+    const s32 overlays = MM_ActorOverlayTable_RetireAbandonedClients();
+    const size_t extensions = ObjectExtension::GetInstance().ClearAll();
+
+    fprintf(stderr, "[MM] Abandoned session retired: %d overlay(s) reset, %zu object extension entries dropped\n",
+            (int)overlays, extensions);
     fflush(stderr);
 }
 

@@ -1966,10 +1966,17 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # carrier: ROM-free and display-free, so the default tier. The same trim over
     # both REAL pools is combo-logic-bag-composition B7.
     redship_add_test(NAME SharedQuantityPolicy COMMAND redship --test shared-quantity-policy)
+    # #666: a cross-game departure retires MM's Play gamestate without
+    # MM_Play_Destroy. The row drives MM's registered suspend and checks it
+    # resets every overlay that still had clients (En_Test4's clock latch) after
+    # the graph is retired, skips client-free ones, restores the statics only
+    # Destroy used to restore, and drops every per-actor ObjectExtension entry.
+    redship_add_test(NAME MMAbandonedSessionStatics COMMAND redship --test mm-abandoned-session-statics)
     # #664: an F10 from either game's game-over screen revives the departing bar
-    # to that game's continue value before the freeze (OoT_Combo_ReviveDeadHealthForFreeze
-    # and MM's #626 twin), and the other game's arrival apply shows it rather than
-    # the one-heart floor. Both directions, real drivers, ROM-free and display-free.
+    # to that game's continue value -- or, mid fairy revive, to the spent fairy's
+    # refill -- before the freeze (OoT_Combo_ReviveDeadHealthForFreeze and MM's
+    # #626 twin), and the other game's arrival apply shows it rather than the
+    # one-heart floor. Both directions, real drivers, ROM-free and display-free.
     redship_add_test(NAME ComboGameOverRevive COMMAND redship --test combo-gameover-revive)
 
     # ========================================================================

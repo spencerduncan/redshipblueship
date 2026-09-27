@@ -36,8 +36,12 @@
  *    check name and a non-NULL item name, when the host game's adapter is not
  *    registered at all.
  *
- * Deliberately absent: any assertion about appearance — operator
- * verification, no headless stand-in exists.
+ * 4. DRAWN THE SoH WAY (UI parity M8), as far as a source scan can hold it:
+ *    through the combo_ui seam, with SoH's close-button chrome, no settings
+ *    digest, and check statuses as FontAwesome glyphs rather than "[x]".
+ *
+ * Appearance itself is judged from the UiSnapshot row's captures (Combo
+ * Tracker @paired, @unpaired and @progress), not here.
  *
  * Linkage note: #included into test_runner.cpp at FILE SCOPE (compiled as
  * C++) — it drives the C++-linkage ComboGui::RegisterComboTrackerWindow.
@@ -48,13 +52,19 @@
 
 #include "../ComboTrackerWindow.h"
 #include "../combo_tracker_view.h"
+#include "../combo_ui.h"
 #include "../context.h"
 #include "../foreign_items.h"
 #include "../test_runner.h"
 #include "test_named_items.h"
 
+#include <cctype>
 #include <cstdio>
+#include <cstring>
+#include <fstream>
+#include <iterator>
 #include <memory>
+#include <string>
 
 #include <ship/window/gui/Gui.h>
 #include <ship/window/gui/GuiWindow.h>
@@ -217,6 +227,65 @@ extern "C" int Combo_TrackerWindow_RunHeadless(void) {
             CTW_ASSERT(TrackerDriveModelReads());
         }
     }
+
+#ifdef RSBS_SOURCE_DIR
+    // ---- 4. Drawn the SoH way (UI parity M8) -------------------------------
+    // Appearance itself is judged from the UiSnapshot captures; what a source
+    // scan can hold is the shape: the pane draws its notes, spacing and themed
+    // headers through the combo_ui seam (whose SoH table is installed), passes
+    // an open flag to ImGui::Begin and clears its visibility through
+    // SetVisibility when closed (SoH's pane chrome), and prints no settings
+    // digest and no TextDisabled/hand-spacing call.
+    {
+        CTW_ASSERT(ComboUi_IsInstalled());
+        std::ifstream in(std::string(RSBS_SOURCE_DIR) + "/src/common/ComboTrackerWindow.cpp", std::ios::binary);
+        CTW_ASSERT(in.good());
+        const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        CTW_ASSERT(text.find("ComboUi_Get()") != std::string::npos);
+        CTW_ASSERT(text.find(", &open,") != std::string::npos);
+        CTW_ASSERT(text.find("SetVisibility(false)") != std::string::npos);
+        CTW_ASSERT(text.find("ImGui::TextDisabled") == std::string::npos);
+        CTW_ASSERT(text.find("ImGui::Spacing") == std::string::npos);
+        CTW_ASSERT(text.find("digest") == std::string::npos);
+        // Each styled element through the seam, not just a ComboUi_Get() helper
+        // that nothing calls.
+        CTW_ASSERT(text.find("Ui().NoteText(") != std::string::npos);
+        CTW_ASSERT(text.find("Ui().SeparatorText(") != std::string::npos);
+        CTW_ASSERT(text.find("Ui().PushTheme()") != std::string::npos);
+        CTW_ASSERT(text.find("Ui().Spacer(") != std::string::npos);
+        // Every status as a glyph, and none of the three ASCII marks it replaced.
+        // Whole tokens: ICON_FA_SQUARE_O is also a substring of the other two.
+        auto hasToken = [&text](const char* tok) {
+            const size_t n = strlen(tok);
+            for (size_t at = text.find(tok); at != std::string::npos; at = text.find(tok, at + 1)) {
+                auto word = [](char ch) { return isalnum((unsigned char)ch) || ch == '_'; };
+                const bool leftOk = at == 0 || !word(text[at - 1]);
+                const bool rightOk = at + n >= text.size() || !word(text[at + n]);
+                if (leftOk && rightOk) {
+                    return true;
+                }
+            }
+            return false;
+        };
+        CTW_ASSERT(hasToken("ICON_FA_CHECK_SQUARE_O"));
+        CTW_ASSERT(hasToken("ICON_FA_MINUS_SQUARE_O"));
+        CTW_ASSERT(hasToken("ICON_FA_SQUARE_O"));
+        CTW_ASSERT(text.find("[x]") == std::string::npos);
+        CTW_ASSERT(text.find("[s]") == std::string::npos);
+        CTW_ASSERT(text.find("[ ]") == std::string::npos);
+        // SoH's table shape (style guide section 10): 8x8 cells, both borders, a
+        // header row, and no ScrollY inside a pane that scrolls as a whole.
+        CTW_ASSERT(text.find("ImGuiStyleVar_CellPadding, ImVec2(8.0f, 8.0f)") != std::string::npos);
+        CTW_ASSERT(text.find("ImGuiTableFlags_BordersH | ImGuiTableFlags_BordersV") != std::string::npos);
+        CTW_ASSERT(text.find("TableHeadersRow()") != std::string::npos);
+        CTW_ASSERT(text.find("ImGuiTableFlags_ScrollY") == std::string::npos);
+        // Section headers carry no count (R-N4), and the pane's paired seed is
+        // told apart from a game's own seed, which it does not repeat.
+        CTW_ASSERT(text.find("(%d)") == std::string::npos);
+        CTW_ASSERT(text.find("\"Paired Seed: %u\"") != std::string::npos);
+        CTW_ASSERT(text.find("summary.seed != identity.sharedRandoSeed") != std::string::npos);
+    }
+#endif
 
     Context_SetCurrentGame(prevGame);
 
