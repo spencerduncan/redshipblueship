@@ -215,8 +215,9 @@ struct CapabilityReasonText {
 /**
  * The built-in capabilities' reasons, split into what a player reads and what
  * the record keeps (ADR 0004's 2026-09-27 amendment: "follow the SoH idiom").
- * The text is in SoH's disabled-reason style - a short Title Case fragment like
- * disabledMap's "Save Not Loaded" or "Available Only on DirectX" - and carries
+ * The text is in SoH's disabled-reason style - a short fragment, mostly Title
+ * Case, like disabledMap's "Save Not Loaded" or "Available Only on DirectX" (a
+ * few of SoH's are sentence case: "Disabling VSync not supported") - and carries
  * no issue number, because no SoH disabled reason does. The issue is recorded
  * beside it, where the gating lock reads it: the two stale-reason incidents this
  * mechanism exists to prevent (#438's remainder, then #669) were reasons nobody
@@ -440,23 +441,18 @@ WidgetFunc SohMenu::CapabilityGate(uint32_t key, WidgetFunc chained) {
     };
 }
 
-WidgetFunc SohMenu::CapabilityNote(uint32_t key) {
-    return [key](WidgetInfo& note) {
+WidgetFunc SohMenu::CapabilityNote(uint32_t key, const char* sentence) {
+    return [key, sentence](WidgetInfo& note) {
         if (CapabilityPresent(key)) {
             ApplyPresentationNote(note, SOH_MENU_PRESENT_LIVE);
             return;
         }
-        // "Unavailable: <Reason>." - one stored sentence per distinct reason,
-        // because the note's name is assigned from it every frame and a
-        // temporary would be rebuilt (and reallocated) sixty times a second.
-        static std::unordered_map<std::string, std::string> sentences;
-        const char* reason = CapabilityReason(key);
-        const std::string text = reason[0] != '\0' ? reason : kCapReasonUnregistered.text;
-        auto it = sentences.find(text);
-        if (it == sentences.end()) {
-            it = sentences.emplace(text, "Unavailable: " + text + ".").first;
-        }
-        ApplyPresentationNote(note, SOH_MENU_PRESENT_CAPABILITY, it->second.c_str());
+        // A sentence-case sentence, like SoH's own gray notes and this group's
+        // siblings ("Already decided when this world was created."): the
+        // caller's, or the state's canonical one. The capability's Title Case
+        // reason fragment stays in the rows' disabled tooltip, where SoH puts a
+        // reason; pasting a fragment into a sentence reads as neither.
+        ApplyPresentationNote(note, SOH_MENU_PRESENT_CAPABILITY, sentence);
     };
 }
 
@@ -549,8 +545,8 @@ int SohMenu::ApplySharedIntentMarkers() {
 }
 
 const char* SohMenu::PresentationLabel(SohMenuPresentation state) {
-    // SoH's disabled-reason style: short Title Case fragments ("Save Not
-    // Loaded", Menu.cpp's "Race Lockout Active").
+    // SoH's disabled-reason style: short fragments, mostly Title Case ("Save
+    // Not Loaded", Menu.cpp's "Race Lockout Active").
     switch (state) {
         case SOH_MENU_PRESENT_LIVE:
             return ""; // never explained: a live row that explains itself reads as broken
@@ -568,6 +564,10 @@ const char* SohMenu::PresentationLabel(SohMenuPresentation state) {
 const char* SohMenu::PresentationNoteText(SohMenuPresentation state) {
     switch (state) {
         case SOH_MENU_PRESENT_INACTIVE_GAME:
+            // MAJORA'S-MASK-SPECIFIC (the operator's wording): every
+            // INACTIVE_GAME group today is an MM group shown while OoT plays. A
+            // group whose suspended game is Ocarina of Time must pass its own
+            // sentence to ApplyPresentationNote; this default would be false there.
             return "Majora's Mask is suspended; these take effect when you return.";
         case SOH_MENU_PRESENT_CAPABILITY:
             return "These settings are not available yet.";
@@ -645,8 +645,11 @@ void SohMenu::ApplyPresentation(WidgetInfo& info, const std::string& baseName, S
                                 const char* reason) {
     const bool haveReason = (reason != nullptr && reason[0] != '\0');
 
-    // The row's own name, in every state (SoH rewrites a name at runtime only on
-    // TEXT rows; the state goes in the tooltip and the group's note). Compared
+    // The row's own name, in every state. SoH never writes a state or an
+    // explanation into an interactive row's name: a button may relabel the
+    // action it performs ("Enable##Sail" / "Disable##Sail", SohMenuNetwork.cpp),
+    // and a TEXT row may carry a live value, but a reason goes in the tooltip
+    // (and, here, the group's gray note). Compared
     // before it is assigned, because callers pass `info.name` itself and
     // baseName may alias the member this writes.
     const std::string base = StripPresentationSuffix(baseName);
@@ -710,8 +713,12 @@ void SohMenu::ApplyPresentation(WidgetInfo& info, const std::string& baseName, S
         return;
     }
     // SoH's disabled row: greyed, with MenuDrawItem's own tooltip shape. Under a
-    // race lockout MenuDrawItem replaces this tooltip with its own reason, which
-    // is why the group's note, not this tooltip, carries the state.
+    // race lockout MenuDrawItem rebuilds the tooltip from `activeDisables` and
+    // appends "- Race Lockout Active": SoH's own disabledMap rows keep their
+    // reason there, but a tooltip written directly, as this one must be (a
+    // capability key is not a DisableOption), is REPLACED. That is a known
+    // divergence from SoH under race lockout, and why the group's note, not this
+    // tooltip, carries the state.
     info.options->disabled = true;
     info.options->disabledTooltip = DisabledTooltip(detail);
 }

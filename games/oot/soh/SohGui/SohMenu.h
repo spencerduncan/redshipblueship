@@ -122,10 +122,10 @@ inline constexpr uint32_t kSohMenuCapabilityExternalFirst = 0x1000u;
  * plus the issue that tracks the absence.
  *
  * The issue is RECORDED, NEVER DRAWN (ADR 0004's 2026-09-27 amendment). SoH's
- * disabled reasons are short Title Case fragments ("Save Not Loaded", "Match
- * Refresh Rate is Enabled") and not one of them carries a tracker number, so the
- * number lives here, where the gating lock reads it, and the pixels carry only
- * what a player can act on. The requirement it serves is unchanged: a reason
+ * disabled reasons are short fragments, mostly Title Case ("Save Not Loaded",
+ * "Match Refresh Rate is Enabled"), and not one of them carries a tracker
+ * number, so the number lives here, where the gating lock reads it, and the
+ * pixels carry only what a player can act on. The requirement it serves is unchanged: a reason
  * nobody can trace to a tracker is a reason nobody retires (#438's remainder,
  * then #669), so a built-in with `issue == 0` is a red lock.
  */
@@ -149,8 +149,10 @@ struct SohMenuCapabilityRecord {
  * greyed, with MenuDrawItem's own tooltip shape, "This setting is disabled
  * because:" then "- <Reason>". What must be legible WITHOUT hovering is said by
  * one gray note above the group (ApplyPresentationNote), which is also the only
- * part that survives a race lockout, because MenuDrawItem replaces a disabled
- * tooltip with its own there.
+ * part that survives a race lockout: MenuDrawItem rebuilds the tooltip there
+ * from `activeDisables` plus "- Race Lockout Active", so SoH's own disabledMap
+ * rows keep their reason but a tooltip written directly (ours; a capability key
+ * is not a DisableOption) is replaced. A known divergence, and the note's reason.
  *
  * The wave brief paraphrases them as "live / frozen-read-only post-creation /
  * partial-with-reason / not-available". The mapping, recorded so the two
@@ -266,8 +268,8 @@ class SohMenu : public Ship::Menu {
     /**
      * Publish a capability. @p evaluation must be an OBSERVED fact - a registry
      * lookup, a model accessor - never a transcribed claim. @p reason is the
-     * PLAYER TEXT, in SoH's disabled-reason style (a short Title Case fragment,
-     * no issue number); @p issue is the tracker for the absence, recorded in the
+     * PLAYER TEXT, in SoH's disabled-reason style (a short fragment, mostly
+     * Title Case, no issue number); @p issue is the tracker for the absence, recorded in the
      * registry and never drawn. A capability with no predicate or no text is
      * refused; one with `issue == 0` installs (dropping it would grey its rows
      * with an empty reason) but logs, and CapabilityTraceable() reports it. A
@@ -318,10 +320,13 @@ class SohMenu : public Ship::Menu {
     static WidgetFunc CapabilityGate(uint32_t key, WidgetFunc chained);
 
     /** A ready-made PreFunc for the ONE gray note above a group gated on @p key:
-     *  hidden while the capability is present, "Unavailable: <Reason>." while it
-     *  is absent. Register it as a gray `WIDGET_TEXT` row with
+     *  hidden while the capability is present; while it is absent, @p sentence,
+     *  or PresentationNoteText(SOH_MENU_PRESENT_CAPABILITY) when NULL. A
+     *  sentence-case sentence like SoH's gray notes; the capability's reason
+     *  fragment stays in the rows' disabled tooltip. @p sentence must be a literal
+     *  or otherwise outlive the menu. Register it as a gray `WIDGET_TEXT` row with
      *  `.HideInSearch(true)` and `.RaceDisable(false)`. */
-    static WidgetFunc CapabilityNote(uint32_t key);
+    static WidgetFunc CapabilityNote(uint32_t key, const char* sentence = nullptr);
 
     // ---- step 5: the marker and the four presentation states -----------
     /**
@@ -357,10 +362,13 @@ class SohMenu : public Ship::Menu {
      * `info.name` as @p baseName: MenuDrawItem runs ResetDisables() before the
      * PreFunc, so a gate applied anywhere else is cleared before it is drawn.
      *
-     * THE NAME IS NEVER THE STATE'S (SoH's idiom: SoH rewrites a name at runtime
-     * only on TEXT rows). The row keeps @p baseName in every state, normalised
-     * through StripPresentationSuffix() so a name written by an older build of
-     * this function heals rather than persists. The states:
+     * THE NAME IS NEVER THE STATE'S (SoH's idiom: SoH never writes a state or an
+     * explanation into an interactive row's name. A button may relabel the action
+     * it performs, "Enable##Sail" / "Disable##Sail" in SohMenuNetwork.cpp, and a
+     * TEXT row may carry a live value, but a reason goes in the tooltip). The
+     * row keeps @p baseName in every state, normalised through
+     * StripPresentationSuffix() so a name written by an older build of this
+     * function heals rather than persists. The states:
      *  - LIVE: enabled, no disabled tooltip. A reason handed to a LIVE row is
      *    dropped and logged (a live control that explains why it is unavailable
      *    looks broken and is not).
@@ -408,8 +416,10 @@ class SohMenu : public Ship::Menu {
     static void ApplyPresentationNote(WidgetInfo& note, SohMenuPresentation state, const char* sentence = nullptr);
 
     /** The canonical note sentence for @p state ("" for LIVE). INACTIVE_GAME's is
-     *  the operator's wording: "Majora's Mask is suspended; these take effect when
-     *  you return." */
+     *  the operator's wording and is MAJORA'S-MASK-SPECIFIC: "Majora's Mask is
+     *  suspended; these take effect when you return." Every INACTIVE_GAME group
+     *  today is an MM group; a group whose suspended game is Ocarina of Time must
+     *  pass its own sentence to ApplyPresentationNote, or this default is false. */
     static const char* PresentationNoteText(SohMenuPresentation state);
 
     /**

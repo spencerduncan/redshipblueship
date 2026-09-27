@@ -743,8 +743,11 @@ struct PageSpec {
     // Hover variant name -> the label of the row it hovers. A page that names
     // none hovers the Cross-Game Rules rows by their combo setting.
     std::map<std::string, std::string> hoverRows;
-    // When non-empty, hover variants are taken in these states only (a race
-    // lockout replaces every disabled tooltip, so a hover there proves nothing).
+    // When non-empty, hover variants are taken in these states only. A race
+    // lockout rebuilds the tooltip from `activeDisables` plus "- Race Lockout
+    // Active": it REPLACES a directly written disabled tooltip (ours) and only
+    // appends to an SoH disabledMap one, so our row's hover there shows none of
+    // its own text and proves nothing about it.
     std::vector<std::string> hoverStates;
     // The row-state probe: a harness-only Combo sidebar installed for this page's
     // captures and removed afterwards (see InstallRowStateProbe).
@@ -1457,7 +1460,7 @@ void Session::BuildPageList() {
         {
             const std::vector<std::string> notes = {
                 SohGui::SohMenu::PresentationNoteText(SohGui::SOH_MENU_PRESENT_INACTIVE_GAME),
-                std::string("Unavailable: ") + SohGui::SohMenu::CapabilityReason(SohGui::SOH_MENU_CAP_COMBO_PAIRED),
+                SohGui::SohMenu::PresentationNoteText(SohGui::SOH_MENU_PRESENT_CAPABILITY),
                 SohGui::SohMenu::PresentationNoteText(SohGui::SOH_MENU_PRESENT_FROZEN),
             };
             p.stateText[""] = notes;
@@ -2445,6 +2448,28 @@ void Session::CaptureMenuPage(const PageSpec& p) {
                                        ", captured without the pointer, so it does not prove a tooltip";
                             break;
                         }
+                    }
+                }
+                // The row-state probe's hovers are the four presentation states'
+                // disabled rows: each must show SoH's disabled shape (a), and no
+                // tracker number (ADR 0004's 2026-09-27 amendment). Checked on the
+                // AUTHORED tooltip, which the loop above has just proved is drawn.
+                if (c.status == "pass" && p.rowStateProbe) {
+                    const std::string head = "This setting is disabled because:";
+                    bool number = false;
+                    for (std::size_t k = 0; k + 1 < authoredTip.size(); k++) {
+                        if (authoredTip[k] == '#' && authoredTip[k + 1] >= '0' && authoredTip[k + 1] <= '9') {
+                            number = true;
+                        }
+                    }
+                    if (authoredTip.compare(0, head.size(), head) != 0) {
+                        c.status = "fail";
+                        c.reason = "the hovered row \"" + label + "\" does not show SoH's disabled tooltip (\"" + head +
+                                   "\" then \"- <Reason>\"): \"" + authoredTip + "\"";
+                    } else if (number) {
+                        c.status = "fail";
+                        c.reason = "the hovered row \"" + label + "\" prints a tracker number in its tooltip: \"" +
+                                   authoredTip + "\"; the issue belongs in the capability's record, not in the pixels";
                     }
                 }
                 for (const std::string& line : c.hoverLines) {

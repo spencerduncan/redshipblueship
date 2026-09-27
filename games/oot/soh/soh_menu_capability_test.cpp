@@ -44,7 +44,9 @@
  *
  *  4. A PRESENTATION THAT REWRITES THE ROW. ADR 0004's 2026-09-27 amendment
  *     ("follow the SoH idiom"): a row's NAME never carries its state — SoH
- *     rewrites a name at runtime only on TEXT rows — a disabled state is SoH's
+ *     never writes a state or an explanation into an interactive row's name (a
+ *     button may relabel its action, "Enable##Sail"/"Disable##Sail"; a TEXT row
+ *     may carry a live value) — a disabled state is SoH's
  *     disabled row with MenuDrawItem's own tooltip shape ("This setting is
  *     disabled because: " then "- <Reason>"), and what must be legible without
  *     hovering is ONE gray note above the group. A PreFunc runs every frame and
@@ -353,8 +355,9 @@ extern "C" int OoT_MenuCapabilityGating_RunHeadless(void) {
                   "'%s' greyed itself with '%s', not SoH's disabled shape around the capability reason ('%s')",
                   kMmRowBase.c_str(), Tooltip(*mmRow), SohShape(mmReason).c_str());
         CAP_CHECK(mmRow->name == kMmRowBase,
-                  "'%s' carries its state in the NAME: '%s'. SoH rewrites a name at runtime only on TEXT rows; the "
-                  "state belongs in the tooltip and the group's gray note (ADR 0004's 2026-09-27 amendment)",
+                  "'%s' carries its state in the NAME: '%s'. SoH never writes a state or an explanation into an "
+                  "interactive row's name; the state belongs in the tooltip and the group's gray note (ADR 0004's "
+                  "2026-09-27 amendment)",
                   kMmRowBase.c_str(), mmRow->name.c_str());
 
         // PRESENT again: the row must recover, NAME included.
@@ -464,8 +467,9 @@ extern "C" int OoT_MenuCapabilityGating_RunHeadless(void) {
                   "state %d left disabled=%d, expected %d -- ADR 0004 §6's table is what each presentation must deny",
                   (int)c.state, (int)stateRow->options->disabled, (int)c.expectDisabled);
         CAP_CHECK(stateRow->name == kStateRowBase,
-                  "state %d rewrote the row's NAME to '%s'. SoH rewrites a name at runtime only on TEXT rows; the "
-                  "state belongs in the tooltip and the group's gray note (ADR 0004's 2026-09-27 amendment)",
+                  "state %d rewrote the row's NAME to '%s'. SoH never writes a state or an explanation into an "
+                  "interactive row's name; the state belongs in the tooltip and the group's gray note (ADR 0004's "
+                  "2026-09-27 amendment)",
                   (int)c.state, stateRow->name.c_str());
         if (c.expectDisabled) {
             CAP_CHECK(std::string(Tooltip(*stateRow)) == SohShape(c.expectReason),
@@ -622,7 +626,8 @@ extern "C" int OoT_MenuCapabilityGating_RunHeadless(void) {
 
     // ---- Leg 7: the one gray note per gated group ---------------------------
     // What must be legible WITHOUT hovering, and what survives a race lockout
-    // (MenuDrawItem replaces a disabled tooltip there): SoH's TEXT-row idiom.
+    // (MenuDrawItem replaces a directly written disabled tooltip there, which
+    // ours must be): SoH's TEXT-row idiom.
     {
         WidgetInfo& note = *noteRow;
         for (int s = 0; s < (int)SohGui::SOH_MENU_PRESENT_COUNT; s++) {
@@ -652,8 +657,12 @@ extern "C" int OoT_MenuCapabilityGating_RunHeadless(void) {
         CAP_CHECK(note.name == "A caller's own sentence.", "the note ignored its caller's sentence: '%s'",
                   note.name.c_str());
 
-        // The capability note, over the registry: hidden while present, the
-        // capability's own player text while absent, and idempotent per frame.
+        // The capability note, over the registry: hidden while present, a
+        // sentence-case sentence while absent (the state's canonical one, or the
+        // caller's), and idempotent per frame. NOT the reason fragment pasted
+        // into a sentence ("Unavailable: No Paired World Yet."): that read as
+        // neither SoH's reason style nor its gray-note style beside sentence-case
+        // siblings, so the fragment stays in the rows' tooltip.
         const WidgetFunc capNote = SohGui::SohMenu::CapabilityNote(kSyntheticKey);
         gSyntheticAbsent = false;
         note.ResetDisables();
@@ -665,9 +674,23 @@ extern "C" int OoT_MenuCapabilityGating_RunHeadless(void) {
             note.ResetDisables();
             capNote(note);
         }
-        const std::string wantNote = std::string("Unavailable: ") + kSyntheticReason + ".";
+        const std::string wantNote = SohGui::SohMenu::PresentationNoteText(SohGui::SOH_MENU_PRESENT_CAPABILITY);
         CAP_CHECK(!note.isHidden && note.name == wantNote, "the capability note reads '%s' (hidden=%d), expected '%s'",
                   note.name.c_str(), (int)note.isHidden, wantNote.c_str());
+        CAP_CHECK(note.name.find(kSyntheticReason) == std::string::npos,
+                  "the capability note pastes the Title Case reason fragment into a sentence: '%s'", note.name.c_str());
+        const WidgetFunc ownNote = SohGui::SohMenu::CapabilityNote(kSyntheticKey, "These need a synthetic world.");
+        note.ResetDisables();
+        ownNote(note);
+        CAP_CHECK(!note.isHidden && note.name == "These need a synthetic world.",
+                  "the capability note ignored its caller's sentence: '%s' (hidden=%d)", note.name.c_str(),
+                  (int)note.isHidden);
+        gSyntheticAbsent = false;
+        note.ResetDisables();
+        ownNote(note);
+        CAP_CHECK(note.isHidden, "a capability note with its own sentence is shown while present: '%s'",
+                  note.name.c_str());
+        gSyntheticAbsent = true;
     }
     printf("[TEST] leg 7: the gray note hides for a live group, says each other state in one or two sentences with no "
            "tracker number, and follows its capability\n");
