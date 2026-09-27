@@ -406,36 +406,6 @@ void NotePairedGenerationOutcome(int attemptsTried, bool exhausted) {
     sLastPairedGenExhausted = exhausted;
 }
 
-// Local, self-contained PRNG for placement selection (see the file header).
-static uint32_t sSelectState;
-
-static uint32_t SelectNext() {
-    uint32_t x = sSelectState;
-    x ^= x << 13;
-    x ^= x >> 17;
-    x ^= x << 5;
-    sSelectState = (x != 0) ? x : 0xB5297A4Du;
-    return sSelectState;
-}
-
-// THE DRAW-ORDER STREAM (#583): a SECOND local xorshift32, seeded from the same
-// identity under its own suffix, that permutes the drawable pool BEFORE the
-// host loop walks it. A separate stream rather than extra draws on sSelectState,
-// so the HOST sequence is exactly the one it always was: a full-supply world
-// picks the same hosts as before and only which item sits on which host moves,
-// which is the smallest re-pin that fixes the bias and keeps the #580 gate's
-// ungated-selection replay (mm_rando_gen_test.cpp) valid without a rewrite.
-static uint32_t sOrderState;
-
-static uint32_t OrderNext() {
-    uint32_t x = sOrderState;
-    x ^= x << 13;
-    x ^= x >> 17;
-    x ^= x << 5;
-    sOrderState = (x != 0) ? x : 0xB5297A4Du;
-    return sOrderState;
-}
-
 // ---------------------------------------------------------------------------
 // Host eligibility (#488).
 //
@@ -514,53 +484,11 @@ bool IsForeignHostClass(RandoCheckId randoCheckId) {
     return IsAllowedHostClass(staticIt->second);
 }
 
-bool IsEligibleHost(RandoCheckId randoCheckId) {
-    if (randoCheckId <= RC_UNKNOWN || randoCheckId >= RC_MAX) {
-        return false;
-    }
-
-    const auto staticIt = Rando::StaticData::Checks.find(randoCheckId);
-    if (staticIt == Rando::StaticData::Checks.end() || staticIt->second.randoCheckId == RC_UNKNOWN) {
-        return false;
-    }
-    if (!IsAllowedHostClass(staticIt->second)) {
-        return false;
-    }
-
-    const RandoSaveCheck& randoSaveCheck = RANDO_SAVE_CHECKS[randoCheckId];
-
-    // `.shuffled` alone was the old predicate's only save-side test, and it is
-    // not sufficient in either direction. A USER-EXCLUDED check is marked
-    // `shuffled = true; randoItemId = RI_JUNK; skipped = true` by
-    // Logic/GeneratePools.cpp and is deliberately kept OUT of checkPool — so
-    // under the old predicate an excluded check was a top-priority host for a
-    // pinned progression item. `.skipped` is the bit that says so.
-    if (!randoSaveCheck.shuffled || randoSaveCheck.skipped) {
-        return false;
-    }
-
-    // RI_UNKNOWN (enumerator 0, i.e. a zero-initialised or unresolvable slot)
-    // and RI_NONE ("literally nothing") are both declared RITYPE_JUNK, so a
-    // type-only test accepts an item that is not an item. Rejecting them keeps
-    // ADR 0002's host invariant honest: a foreign host must physically hold a
-    // LEGAL junk-class MM item, because that is what the check degrades to if
-    // the placement table is ever absent.
-    const RandoItemId heldItem = randoSaveCheck.randoItemId;
-    if (heldItem == RI_UNKNOWN || heldItem == RI_NONE) {
-        return false;
-    }
-    const auto itemIt = Rando::StaticData::Items.find(heldItem);
-    if (itemIt == Rando::StaticData::Items.end()) {
-        return false;
-    }
-    return itemIt->second.randoItemType == RITYPE_JUNK;
-}
-
 // Test-only fault injection for the attempt ladder — see
 // ForceShortForeignPlacements' declaration in Foreign.h for why the lock
 // cannot get a deterministic ladder rung any other way at this tree. Zero in
 // every shipping path; decremented, not just read, so an armed count drains
-// and the winning attempt runs the REAL placement pass.
+// and the winning attempt runs the REAL single-bag fill (ConsumeForcedLadderRung).
 static int sForcedShortPlacements = 0;
 
 void ForceShortForeignPlacements(int attempts) {
@@ -579,240 +507,12 @@ bool ConsumeForcedLadderRung() {
     return true;
 }
 
-// Session-scoped record of the last placement run — the spoiler's shortfall
-// section and the CI locks read it (accessor below). RAM-only on purpose: the
-// spoiler is written in the same generation event that runs the placement, so
-// nothing durable needs to carry these numbers.
-static PlacementStats sLastPlacementStats;
-
-const PlacementStats& LastPlacementStats() {
-    return sLastPlacementStats;
-}
-
-int PlaceForeignItems() {
-    Combo_ClearForeignPlacements();
-    sLastPlacementStats = {};
-
-    if (sForcedShortPlacements > 0) {
-        // Armed only by MM_Rando_HeadlessPairedAttemptDigest. Under ADR 0010
-        // increment 1.3's under-supply rule a short placement no longer fails
-        // the attempt (place fewer, loudly — see below), so "placed nothing"
-        // is not a ladder rung anymore. The injection therefore rides the ONE
-        // deterministic generation failure this pass still owns — the
-        // structural #488 throw retained further down — landing in
-        // OnFileCreate's ladder catch exactly as a real placement-table
-        // defect would.
-        sForcedShortPlacements--;
-        fprintf(stderr,
-                "[MM] foreign placement: FAULT-INJECTED structural failure (attempt-ladder lock; %d injection(s) "
-                "left)\n",
-                sForcedShortPlacements);
-        throw std::runtime_error("foreign placement: fault-injected structural failure (attempt-ladder lock)");
-    }
-
-    if (!PairingActive()) {
-        return 0;
-    }
-
-    // THE DIRECTION GATE (ADR 0011 increment 4). Read from the FROZEN record —
-    // never a live CVar — through the same accessor OoT's reverse pass uses for
-    // its own origin. GAME_OOT is this pass's origin: it places OoT-ORIGIN items
-    // into MM checks, so it is armed by RSBS_COMBO_DIR_FORWARD and by
-    // RSBS_COMBO_DIR_BOTH.
-    //
-    // Zero placements, not a failure: RSBS_COMBO_DIR_OFF and
-    // RSBS_COMBO_DIR_REVERSE both describe real, chooseable paired worlds (ADR
-    // 0011 decision 2.3). Returning here also keeps sLastPlacementStats at its
-    // zeroed default, so OnFileCreate's shortfall alarm — which compares
-    // `placed` against `requested` — cannot read "the rules say no crossings" as
-    // "hosts ran short". Under the shipped default (BOTH) the predicate is true
-    // and nothing moves, which is what keeps MMRandoGen's placement digest and
-    // SeedDeterminism's foreign0..3 lines byte-stable.
-    if (!Combo_ComboDirectionArms((uint8_t)GAME_OOT)) {
-        fprintf(stderr,
-                "[MM] foreign placement: direction=%u does not arm OoT-origin crossings — no forward placements "
-                "(frozen=%d)\n",
-                (unsigned)Combo_ComboDirection(), Combo_ComboSettingsFrozen() ? 1 : 0);
-        return 0;
-    }
-
-    const ComboForeignItemDef* pool = nullptr;
-    const int poolCount = Combo_GetForeignItemPool(&pool);
-    if (poolCount <= 0 || pool == nullptr) {
-        return 0;
-    }
-    // How many crossings this direction may make comes from the FROZEN COMBO
-    // RECORD (ADR 0011 decision 1, accepted answer O4). Combo_ComboPoolSizeFor
-    // clamps to RSBS_FOREIGN_PLACEMENT_CAP and falls back to it for an unfrozen
-    // record, so with the shipped defaults `wanted` is poolCount exactly as
-    // before and no generated world moves. `requested` follows `wanted` rather
-    // than `poolCount` so the shortfall alarm below stays honest: placing fewer
-    // than the pool BECAUSE THE RULES SAY SO is not a host-supply shortfall.
-    const int poolSize = Combo_ComboPoolSizeFor((uint8_t)GAME_OOT);
-
-    // WHICH pool entries are drawable is the RULE (#495, ADR 0011 decision 3):
-    // Combo_ForeignPoolDrawFor filters OoT's pool by the FROZEN itemClassOoT
-    // bitset, in pool order, with NO seed term (accepted answer O3). With the
-    // shipped defaults (every allocated bit) `drawable` comes back as the
-    // identity 0..poolCount-1 — but that is only the INPUT to the draw: since
-    // #583 the list is Fisher-Yates-shuffled below (identity-seeded) and then
-    // truncated to `wanted`, so pool[drawable[i]] is NOT pool[i]. The class
-    // decides which rows are eligible; the shuffle decides which of them a
-    // shortfall keeps. (The goldens were re-pinned for exactly that move.)
-    //
-    // FILTER FIRST, THEN DRAW TO COUNT: the class decides WHICH entries may
-    // cross, the pool size decides HOW MANY do. `wanted` therefore bounds on the
-    // filtered count, never on the raw pool, or the loop would index past the
-    // filtered list the first time a class is unarmed.
-    std::vector<int> drawable((size_t)poolCount, 0);
-    const int drawableCount = Combo_ForeignPoolDrawFor((uint8_t)GAME_OOT, drawable.data(), poolCount);
-    drawable.resize((size_t)(drawableCount > 0 ? drawableCount : 0));
-
-    const int wanted = (drawableCount < poolSize) ? drawableCount : poolSize;
-    // The direction reached here necessarily ARMS this pass — the gate above
-    // returned already if it did not. Still printed: "which rules produced this
-    // world" is the first line a reader of a generation log looks for.
-    fprintf(stderr,
-            "[MM] foreign placement: combo rules direction=%u poolSizeOoT=%d classOoT=%04X (%d of %d pool entries in "
-            "class) (frozen=%d)\n",
-            (unsigned)Combo_ComboDirection(), poolSize, (unsigned)Combo_ComboItemClassFor((uint8_t)GAME_OOT),
-            drawableCount, poolCount, Combo_ComboSettingsFrozen() ? 1 : 0);
-    if (drawableCount <= 0) {
-        // Every class unarmed for this direction: a real, chooseable world under
-        // ADR 0011 decision 3.3 (the direction byte, not this, is what says
-        // "off"). Zero placements and a loud log, never a generation failure.
-        fprintf(stderr, "[MM] foreign placement: OoT item classes select no pool entry — no crossings\n");
-        return 0;
-    }
-    sLastPlacementStats.requested = wanted;
-
-    // The reachability gate (ADR 0010 increment 1.3, #500 work item 2): the
-    // closure of everything MM's own logic can reach in THIS world, under its
-    // frozen settings (options, logic mode, excludes, starting items are all
-    // already inside the save the crawl reads). Computed BEFORE the selection
-    // stream is seeded, and it consumes no RNG stream at all — same
-    // gComboCtx + same MM save still means same placements, which is what the
-    // SeedDeterminism fold locks.
-    const std::set<RandoCheckId> reachable = Rando::Logic::ComputeReachableCheckSet();
-
-    // Candidates: checks IsEligibleHost accepts AND the closure can reach, in
-    // ascending RandoCheckId order (std::map), so selection stays
-    // deterministic. The predicate is a named function rather than an inline
-    // condition precisely so the CI lock can drive it directly — see
-    // IsEligibleHost above for what it enforces and why the previous inline
-    // blocklist was unsound. Reachability composes OUTSIDE the predicate, not
-    // inside it, because IsEligibleHost is also the LOAD path's gate
-    // (Spoiler/Apply.cpp), where "reachable in the world being loaded" is
-    // already witnessed by the spoiler itself; the ROM-free eligibility lock
-    // keeps driving the predicate without needing a region graph.
-    //
-    // The junk-class requirement inside it is the one part carried over
-    // unchanged: the literal RI_JUNK sentinel alone is NOT the criterion,
-    // because the pool balancer only injects it when the check pool outnumbers
-    // the item pool (a measured CI fill had 2), while junk-class items are
-    // plentiful.
-    std::vector<RandoCheckId> candidates;
-    for (auto& [randoCheckId, randoStaticCheck] : Rando::StaticData::Checks) {
-        if (!IsEligibleHost(randoCheckId)) {
-            continue;
-        }
-        sLastPlacementStats.eligibleHosts++;
-        if (reachable.contains(randoCheckId)) {
-            sLastPlacementStats.reachableEligibleHosts++;
-            candidates.push_back(randoCheckId);
-        }
-    }
-
-    // Printed every generation on purpose: Tier A dropped the candidate set
-    // from ~2000 to a few dozen and the reachability gate narrows it again, so
-    // host supply is a number worth watching in CI logs and playtest output
-    // BEFORE it becomes a shortfall.
-    fprintf(stderr,
-            "[MM] foreign placement: %d pool items over %zu reachable eligible host checks (%d eligible before the "
-            "reachability gate)\n",
-            poolCount, candidates.size(), sLastPlacementStats.eligibleHosts);
-
-    const std::string identity = std::to_string(gComboCtx.sharedRandoSeed) + ":" +
-                                 std::to_string(gComboCtx.sharedRandoSettingsHash) + ":" +
-                                 std::to_string(gSaveContext.save.shipSaveInfo.rando.finalSeed);
-    sSelectState = Ship_Hash(identity + ":foreign-v1");
-    if (sSelectState == 0) {
-        sSelectState = 0xB5297A4Du;
-    }
-
-    // SHUFFLE, THEN TRUNCATE (#583). The loop below walks `drawable` in order
-    // and stops when `wanted` is met OR the reachable hosts run out, so whatever
-    // sits at the TAIL of the list is what a shortfall drops — and so is whatever
-    // a pool size below the drawable count leaves out. Walking the pool in table
-    // order made that the same rows in every seed: with the four-row OoT pool
-    // and two reachable hosts, Boomerang and Megaton Hammer never crossed, which
-    // is precisely the "same items every seed" condition those two rows were
-    // added to remove. The comment in the reverse pass (ForeignItemsSingleExe.cpp)
-    // already named the equivalence this relied on — "walking it in order ... where
-    // pool <= cap made that equivalent" — and #580's reachability gate is what
-    // broke it: pool <= cap no longer implies the whole pool places.
-    //
-    // A Fisher-Yates permutation from an identity-seeded stream makes the kept
-    // prefix a uniformly random subset in every seed and the same subset for the
-    // same identity. The permutation is SUPPLY-INDEPENDENT (it consumes exactly
-    // drawable.size()-1 draws before any host is looked at), so how many hosts
-    // happened to be reachable cannot change which item is first in line.
-    //
-    // `requested` and `placed` are untouched by the order, so the creation-time
-    // shortfall surface (MM_Rando_LastPlacementStats, #680) reads exactly what it
-    // read before; only WHICH items made it changes.
-    sOrderState = Ship_Hash(identity + ":foreign-order-v1");
-    if (sOrderState == 0) {
-        sOrderState = 0xB5297A4Du;
-    }
-    for (size_t k = drawable.size(); k > 1; k--) {
-        const size_t j = (size_t)(OrderNext() % (uint32_t)k);
-        std::swap(drawable[k - 1], drawable[j]);
-    }
-
-    int placed = 0;
-    for (int i = 0; i < wanted && !candidates.empty(); i++) {
-        // The i-th entry of the SHUFFLED drawable list — never the i-th pool
-        // row. The class filter decided which rows are in the list; the shuffle
-        // above decided their order; this loop only truncates.
-        const ComboForeignItemDef& entry = pool[drawable[(size_t)i]];
-
-        const size_t pick = (size_t)(SelectNext() % (uint32_t)candidates.size());
-        const RandoCheckId hostCheck = candidates[pick];
-        candidates.erase(candidates.begin() + (std::ptrdiff_t)pick);
-
-        if (Combo_SetForeignPlacement((uint16_t)hostCheck, entry.item) >= 0) {
-            placed++;
-            fprintf(stderr, "[MM] foreign placement: '%s' hosted at MM check %s\n", entry.name,
-                    Rando::StaticData::Checks[hostCheck].name);
-        } else {
-            // A refused insert while candidates remained is a STRUCTURAL
-            // defect (cap exceeded, duplicate host, untagged item), never
-            // supply — the under-supply rule below must not absorb it.
-            // Throwing lands in OnFileCreate's catch exactly as the old
-            // placed<poolCount check did for this case.
-            throw std::runtime_error("foreign placement table refused an insert for '" + std::string(entry.name) +
-                                     "' with candidates remaining — placement-table defect, not host supply");
-        }
-    }
-    sLastPlacementStats.placed = placed;
-
-    if (placed < wanted) {
-        // Under-supply (ADR 0010 increment 1.3; cap ≠ promise): fewer
-        // reachable eligible hosts than pool items means fewer placements —
-        // NEVER an unreachable placement, and (while crossings are duplicate
-        // overlays) never a failed generation: the origin world keeps its own
-        // copy, so a missing crossing degrades to "fewer extras", not
-        // "unwinnable". The spoiler carries the durable record
-        // (foreignShortfall, Spoiler/Generate.cpp); this line is the log-side
-        // alarm.
-        fprintf(stderr,
-                "[MM] foreign placement SHORTFALL: only %d of %d wanted placements made — reachable eligible hosts "
-                "exhausted (%d eligible, %d reachable); recorded in the spoiler\n",
-                placed, wanted, sLastPlacementStats.eligibleHosts, sLastPlacementStats.reachableEligibleHosts);
-    }
-    return placed;
-}
+// THE FORWARD OVERLAY PASS (PlaceForeignItems, #392/#488/#500/#583) IS RETIRED
+// (ADR 0010 increment 3, D3; lane K11). It pinned a few OoT items onto MM junk
+// hosts as duplicate copies, drawn from the retired kForeignPoolV1. Every
+// crossing is now a placement the single-bag fill makes (RunPairedSingleBagFill,
+// ComboLogicEngineSingleExe.cpp), recorded in the crossing store; the give path
+// below reads it through Combo_GetForeignPlacementForCheck unchanged.
 
 static const SharedItem* PlacementFor(RandoCheckId randoCheckId) {
     if (randoCheckId == RC_UNKNOWN) {
@@ -1442,16 +1142,6 @@ extern "C" int MM_Rando_AugmentSpoilerWithPairedHalf(const char* ootSpoilerPath)
         // single bag's placements, from the same storage the give path reads.
         combo["crossingStore"] = CrossingStoreSpoilerSection();
 
-        // The shortfall, durably (#583): the toast is seen once, this is kept.
-        const Rando::Foreign::PlacementStats& stats = Rando::Foreign::LastPlacementStats();
-        combo["crossings"]["forwardShortfall"] = {
-            { "requested", stats.requested },
-            { "placed", stats.placed },
-            { "eligibleHosts", stats.eligibleHosts },
-            { "reachableEligibleHosts", stats.reachableEligibleHosts },
-            { "short", stats.placed < stats.requested },
-        };
-
         doc["combo"] = combo;
 
         // ABSORB, then RETIRE. MM's own RSBSPAIR<masterSeed>.json is what the
@@ -1509,42 +1199,6 @@ extern "C" int MM_Rando_AugmentSpoilerWithPairedHalf(const char* ootSpoilerPath)
 }
 
 // ============================================================================
-// THE FOREIGN-PLACEMENT SHORTFALL, AT CREATION (#583; ADR 0010 increment 2;
-// declared in src/common/foreign_items.h).
-//
-// PR #580's under-supply rule places FEWER crossings rather than stranding them
-// on unreachable hosts — correct — but until now the only record of it was the
-// spoiler and a stderr line. A player promised four crossings who receives two
-// learned it by reading a JSON file. The creation event is where the number is
-// decided, so it is where the number is surfaced; this bridge is what lets the
-// OoT-side seam ask without acquiring MM's PlacementStats type.
-//
-// Session-scoped and read immediately after the generation that produced it,
-// which is why nothing durable carries these numbers.
-// ============================================================================
-extern "C" int MM_Rando_LastPlacementStats(int* outRequested, int* outPlaced, int* outEligibleHosts,
-                                           int* outReachableEligibleHosts) {
-    const Rando::Foreign::PlacementStats& stats = Rando::Foreign::LastPlacementStats();
-    if (outRequested != nullptr) {
-        *outRequested = stats.requested;
-    }
-    if (outPlaced != nullptr) {
-        *outPlaced = stats.placed;
-    }
-    if (outEligibleHosts != nullptr) {
-        *outEligibleHosts = stats.eligibleHosts;
-    }
-    if (outReachableEligibleHosts != nullptr) {
-        *outReachableEligibleHosts = stats.reachableEligibleHosts;
-    }
-    // A SHORTFALL is "the rules asked for more crossings than the world could
-    // host". Placing fewer than the whole POOL is not one (the class filter and
-    // the pool size legitimately narrow it — #495), which is why `requested`
-    // follows the drawable/pool-size minimum and not poolCount.
-    return (stats.placed < stats.requested) ? 1 : 0;
-}
-
-// ============================================================================
 // Attempt-ladder observability (ADR 0010 increment 1.2; declared in Foreign.h).
 // Read by the arrival gate to surface an exhausted ladder through the #533
 // refusal machinery, and by the MMPairedAttempt* / MMPairedExhaustion CI locks.
@@ -1583,24 +1237,11 @@ extern "C" void MM_Rando_Foreign_TestSetObtained(uint16_t randoCheckId, int obta
     }
 }
 
-// #488's host-eligibility lock. This is the bridge that makes the lock
-// non-vacuous: it calls the SAME function PlaceForeignItems' candidate loop
-// calls, so a test that drives it is testing selection, not a paraphrase of
-// selection. Without the extraction above, the only observable for "was this a
-// safe host?" would be a whole generated world.
-extern "C" int MM_Rando_Foreign_IsEligibleHost(uint16_t randoCheckId) {
-    return Rando::Foreign::IsEligibleHost((RandoCheckId)randoCheckId) ? 1 : 0;
-}
-
 // ---------------------------------------------------------------------------
-// Test-support surface for the same lock (src/common/tests/test_foreign_items.c).
-//
-// The predicate reads two things the ROM-free tier cannot reach from
-// src/common: Rando::StaticData::Checks (MM C++ static data) and
-// RANDO_SAVE_CHECKS (a field deep inside MM's gSaveContext). These accessors
-// exist so the test can build a synthetic save over the REAL check table
-// rather than a mock one. They are inspection/stamping only — none of them is
-// reachable from gameplay, and none duplicates predicate logic.
+// Test-support surface: MM's static check classes, read for the locks that
+// restate the foreign-host class independently of IsForeignHostClass (the
+// combo-single-bag row), and the RandoItemId sentinels. Inspection only — none
+// of it is reachable from gameplay, and none duplicates predicate logic.
 // ---------------------------------------------------------------------------
 
 /** RC_MAX — the exclusive upper bound for a RandoCheckId walk. */
@@ -1624,25 +1265,6 @@ extern "C" int MM_Rando_Foreign_TestCheckClass(uint16_t randoCheckId, int* outIs
         *outHasChestFlag = (it->second.flagType == FLAG_CYCL_SCENE_CHEST) ? 1 : 0;
     }
     return 1;
-}
-
-/** Stamp one row's save-side state (the three fields the predicate reads). */
-extern "C" void MM_Rando_Foreign_TestStampCheck(uint16_t randoCheckId, int shuffled, int skipped, uint16_t itemId) {
-    if (randoCheckId == 0 || randoCheckId >= (uint16_t)RC_MAX) {
-        return;
-    }
-    RandoSaveCheck& randoSaveCheck = RANDO_SAVE_CHECKS[(RandoCheckId)randoCheckId];
-    randoSaveCheck.shuffled = (shuffled != 0);
-    randoSaveCheck.skipped = (skipped != 0);
-    randoSaveCheck.randoItemId = (RandoItemId)itemId;
-}
-
-/** Stamp every row — the "synthetic all-shuffled save" the whole-table sweep
- *  runs over, and the reset the test leaves behind. */
-extern "C" void MM_Rando_Foreign_TestStampAllChecks(int shuffled, int skipped, uint16_t itemId) {
-    for (int i = 1; i < (int)RC_MAX; i++) {
-        MM_Rando_Foreign_TestStampCheck((uint16_t)i, shuffled, skipped, itemId);
-    }
 }
 
 /** The three RandoItemId values the predicate treats specially: the legal junk

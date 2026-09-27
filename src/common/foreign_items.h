@@ -1,32 +1,38 @@
 /**
  * @file foreign_items.h
- * @brief Cross-game (foreign) item placements and the pinned foreign-item pool
- *        (Phase 3.0 Lane C1, #392; ADR 0002).
+ * @brief Cross-game (foreign) item placements, their names, and the combo-level
+ *        settings record (Phase 3.0 Lane C1, #392; ADR 0002; ADR 0011).
  *
- * The MVP contract ships ONE direction, ONE item class: a pinned set of OoT
- * progression items placeable into MM checks. Two data surfaces live behind
- * this header:
+ * Data surfaces behind this header:
  *
- *  1. The PLACEMENT TABLE — `gComboCtx.foreignPlacements[]` (context.h), the
- *     serialized record of "MM check X hosts foreign item Y". Written once by
- *     MM's generation pass (Rando::Foreign::PlaceForeignItems at OnFileCreate)
- *     when a paired world generates; read by MM's give path and both spoiler
- *     surfaces. The MM save's own check table keeps a legal MM item (RI_JUNK)
- *     at hosting checks — a raw RG_* never enters an MM table (ADR 0002).
+ *  1. The PLACEMENT TABLES — `gComboCtx.foreignPlacements[]` /
+ *     `foreignPlacementsOoT[]` (context.h), the serialized "host check X holds
+ *     foreign item Y" record, and behind them the crossing store
+ *     (crossing_store.h), which is where every crossing the single-bag fill
+ *     makes lives (ADR 0010 increment 3). The give paths read both through
+ *     Combo_GetForeignPlacementForCheck / ...ForOoTCheck. A host save's own
+ *     check table keeps a legal item of its own game — a raw RG_* never enters
+ *     an MM table and a raw RI_* never enters an OoT one (ADR 0002).
  *
- *  2. The PINNED POOL — the fixed foreign-item class. Its table is DEFINED on
- *     the OoT side (games/oot/soh/Enhancements/randomizer/
- *     ForeignItemsSingleExe.cpp), the only place the real RG_* enumerators are
- *     in scope, and served here as origin-tagged SharedItems plus stable
- *     display names. MM and the tests consume it through these C entry points
- *     and never see an OoT header.
+ *  2. NAMES — each game's engine TU registers a describer (below) that answers
+ *     an item id or check id of its OWN id-space with a stable display name.
+ *     src/common never sees either game's enum.
+ *
+ * THE PINNED POOLS ARE RETIRED (ADR 0010 increment 3, D3; lane K11). Until
+ * then two hand-transcribed tables (OoT's kForeignPoolV1, MM's kForeignPoolMMV1)
+ * fed two overlay passes that pinned a few items onto the other game's junk as
+ * duplicate copies. Under one bag items LEAVE their origin pools: the single-bag
+ * fill (combo_single_bag.h) decides which items cross and where, the O8
+ * classification owner (shared_items.h) decides which items may, and nothing
+ * here enumerates a pool any more.
  *
  * The give-time flow (who calls what):
- *   MM CheckQueue foreign branch -> Combo_GetForeignPlacementForCheck ->
- *   Combo_RecordSharedItem (shared_items.h; durable immediately) -> presented
- *   with Combo_GetForeignItemName. On the next arrival in OoT, A1's consumer
- *   (Combo_RedeemSharedItemsForGame) awards it via OoT_ForeignItem_Give and
- *   marks it RSBS_SHARED_ITEM_REDEEMED — single-use per crossing.
+ *   host give path -> Combo_GetForeignPlacementForCheck (pinned table, then the
+ *   crossing store) -> Combo_RecordSharedItemCrossing (shared_items.h; durable
+ *   immediately, one copy per host) -> presented with Combo_GetForeignItemName.
+ *   On the next arrival in the origin game, A1's consumer
+ *   (Combo_RedeemSharedItemsForGame) awards it through that game's
+ *   *_ForeignItem_Give and marks it RSBS_SHARED_ITEM_REDEEMED.
  */
 
 #ifndef RSBS_COMMON_FOREIGN_ITEMS_H
@@ -38,202 +44,80 @@
 extern "C" {
 #endif
 
-/**
- * One pinned foreign-item class member: the origin-tagged item plus its
- * stable, human-readable name (used by the MM textbox presentation and by
- * both spoiler surfaces — the name is deliberately game-neutral text so the
- * spoiler stays meaningful without OoT's enum in scope).
- */
-typedef struct {
-    SharedItem item;     // originGame == GAME_OOT, flags == 0, id == the RG_* value
-    const char* name;    // e.g. "Megaton Hammer"
-    const char* article; // "the ", "a ", "an " or "" — see below
-    // WHICH ITEM CLASS THIS MEMBER BELONGS TO (#495, ADR 0011 decision 3):
-    // EXACTLY ONE allocated RSBS_ITEMCLASS_* bit, decided in the pool's own TU
-    // where the item's enum is in scope, and served back through this header so
-    // src/common can evaluate the class rule without ever translating an RG_* /
-    // RI_* itself — the same division of labour `name`, `article` and `iconName`
-    // already use.
-    //
-    // A row's class is authored, not derived at runtime, because the six
-    // membership criteria (RSBS_FOREIGN_CRIT_*) that admitted it are themselves
-    // hand-adjudicated: criterion 3 in particular ("the give is unconditionally
-    // effectful") is a property of another game's option profile, not of any
-    // table this build can read (ADR 0011 decision 3.5 / answer O8). What the
-    // rule engine below evaluates is the SELECTION — which classes are armed —
-    // over rows that have already passed the criteria.
-    //
-    // Zero means UNCLASSIFIED, which no shipping row may be: an unclassified row
-    // is selected by no mask at all and would silently leave the pool. The
-    // ForeignItemClass lock asserts exactly-one-bit over both real tables.
-    uint16_t itemClass;
-    // The host game's texture-map key for this item's arrival-toast icon, or
-    // NULL for a text-only toast. Like `name`, it is filled in by the pool's
-    // defining TU (where the item's icon is known) and served back through this
-    // header, so src/common never has to translate a foreign id into a texture.
-    // The OoT pool carries the `ITEM_*` key its Notification overlay resolves via
-    // GetTextureByName (the same string GetTextureForItemId returns); see
-    // Combo_GetForeignItemIconName.
-    const char* iconName;
-    // THE GIVE CAPABILITY THIS ROW NEEDS (#681; ADR 0011 decision 3.5 / answer
-    // O8). Zero — every row either pool shipped before #681, and every OoT row —
-    // means the give is UNCONDITIONALLY effectful (criterion 3) and the row is
-    // drawable whenever its class is armed. Nonzero is exactly ONE
-    // RSBS_GIVECAP_* bit (defined further down this header): the row's give only
-    // means something when the ORIGIN game's frozen option profile arms that
-    // family (enemy/boss souls, ocarina buttons, swim, clocks), so
-    // Combo_ForeignPoolDrawFor admits it only when
-    // Combo_ForeignGiveCapsArm(originGame, requiredGiveCaps) holds for the
-    // profile this creation froze. An item Termina would never deliver under
-    // that profile is therefore never advertised as a crossing — the promise
-    // criterion 3 protects — while a profile that arms the family gets it.
-    //
-    // THE ORDERING INVARIANT HOLDS: the six criteria still run first (a row is
-    // in the table at all only if it passed them, with criterion 3 read as
-    // "unconditional, OR conditional on a published capability"), the class
-    // bitset selects among the survivors, and this column can only NARROW that
-    // selection. No capability can readmit a #525 shared resource, because no
-    // such row is in any table to be readmitted.
-    //
-    // Trailing member, so every existing aggregate initializer (and every
-    // synthetic test pool) zero-fills it and keeps its old meaning.
-    uint16_t requiredGiveCaps;
-} ComboForeignItemDef;
-
-// WHY THE ARTICLE IS PART OF THE DESCRIPTOR (#510). A cross-game item is
-// presented as an ORDINARY pickup of whichever game the player found it in —
-// "You found the Lens of Truth!", never "it belongs to the other game". Both games
-// build that sentence by prepending a per-item article (MM:
-// Rando::StaticData::Items[].article; OoT: Item::GetArticle()), but the HOST
-// game cannot look up the FOREIGN game's item table — that is the whole ADR 0002
-// boundary. So the article has to travel with the pooled descriptor, exactly as
-// the display name already does. Without it the presentation has to hardcode
-// "the ", which is wrong for a third of the pool ("a Bottle of Milk", "an Empty
-// Bottle") and instantly reads as machine-generated.
-//
-// Includes its own trailing space when non-empty, so callers concatenate
-// article + name with no separator logic.
-
 // ============================================================================
-// The pinned pools, indexed by ORIGIN game (ADR 0009 decision 3)
+// Names for foreign items (ADR 0009 decision 3; ADR 0010 O7)
 // ============================================================================
 //
-// There is one pool PER ORIGIN GAME, not one merged pool, and each pool's table
-// is defined in the single TU where its enum is in scope — OoT's in
-// soh/Enhancements/randomizer/ForeignItemsSingleExe.cpp, MM's in
-// 2s2h/Rando/ForeignItemsSingleExe.cpp. Neither game ever sees the other's
-// header, which is the ADR 0002 / #356 constraint.
-//
-// Those TUs cannot be *called* from here without linking each game against the
-// other, so they REGISTER instead: each pool TU hands its static table to
-// Combo_RegisterForeignItemPool from a file-scope initializer, and the lookups
-// below dispatch through the registry. That also means a build with only one
-// pool linked resolves cleanly — the missing origin simply has no entries,
-// rather than failing to link.
-//
-// (originGame, name) IS THE KEY. Bare `name` is not: "Lens of Truth" is
-// literally present in BOTH pools (OoT's RG_LENS_OF_TRUTH row and MM's RI_LENS
-// row — it took the job over from "Bomb Bag", whose two halves both left when
-// shared ammo made the bomb-bag capacity a shared resource), so
-// a name-only inverse silently resolves to whichever pool it scans first and
-// writes a WRONG ORIGIN TAG into the placement table — the #356 aliasing class,
-// arriving through the one path that rebuilds state from untrusted text on
-// disk. See ADR 0009 decision 3.
+// (originGame, id) and (originGame, name) are the keys; a bare name is not.
+// "Lens of Truth" is a real display name in BOTH id-spaces (OoT's
+// RG_LENS_OF_TRUTH, MM's RI_LENS), so a name-only inverse would resolve to
+// whichever game it asked first and write a WRONG ORIGIN TAG — the #356
+// aliasing class, arriving through the path that rebuilds state from text on
+// disk. The origin is therefore always an argument, and every lookup below is
+// answered by that origin's describer alone.
 
-/** Highest origin id the pool registry indexes, exclusive (GAME_NONE..GAME_MM). */
+/** Highest GameId the per-game registries (describers, engines) index,
+ *  exclusive (GAME_NONE..GAME_MM). */
 #define RSBS_FOREIGN_POOL_ORIGIN_COUNT 3u
 
 /**
- * Publish `pool` as the pinned foreign-item pool for `originGame`. Called once
- * per pool from its defining TU's file-scope initializer, before main(). A
- * second registration for the same origin replaces the first and is logged —
- * two tables claiming one id-space is the ambiguity this whole surface exists
- * to prevent, so it must not pass silently.
+ * Display/spoiler name for a foreign item: its origin game's describer name
+ * (Combo_DescribeItemName), or NULL when the origin registered no describer or
+ * does not know the id. The SharedItem carries its own tag, so an OoT id is
+ * never named from MM's table or vice versa. Flags are ignored on purpose: a
+ * redeemed entry keeps its name.
  *
- * GAME_NONE is rejected: an untagged pool has no id-space and nothing could
- * safely be resolved out of it.
- *
- * Passing (NULL, 0) un-registers that origin, so a test can install a synthetic
- * pool for an origin whose real pool TU is not linked yet and then restore the
- * registry instead of leaving process-global state behind.
- */
-void Combo_RegisterForeignItemPool(uint8_t originGame, const ComboForeignItemDef* pool, int count);
-
-/**
- * The pinned foreign-item pool for one origin game.
- * @param originGame GAME_OOT or GAME_MM
- * @param outPool receives a pointer to that origin's static pool table (never
- *                NULL on a nonzero return; untouched on a zero return)
- * @return the number of pool entries, or 0 if that origin has no pool linked.
- */
-int Combo_GetForeignItemPoolFor(uint8_t originGame, const ComboForeignItemDef** outPool);
-
-/**
- * The OoT pool. Retained as the original single-pool entry point so the call
- * sites that predate the origin dimension keep compiling and keep their exact
- * previous behavior; new code should say which origin it means.
- */
-int Combo_GetForeignItemPool(const ComboForeignItemDef** outPool);
-
-/**
- * Display/spoiler name for a foreign item, or NULL if (originGame, id) is not
- * in that origin's pinned pool. Already origin-aware by construction — the
- * SharedItem carries its own tag — so this signature is unchanged; only the
- * pool it consults now depends on item.originGame. Flags are ignored on
- * purpose: a redeemed entry keeps its name.
+ * Before increment 3 this answered only for the pinned pool's rows, which also
+ * carried an article and an arrival-toast icon; both now come from the same
+ * describer (Combo_GetForeignItemArticle / Combo_GetForeignItemIconName).
  */
 const char* Combo_GetForeignItemName(SharedItem item);
 
 /**
- * The article that belongs in front of Combo_GetForeignItemName's result, or
- * NULL if (originGame, id) is not in that origin's pinned pool. Carries its own
- * trailing space when non-empty, so `article + name` needs no separator.
+ * The article that belongs in front of Combo_GetForeignItemName's result
+ * ("the ", "a ", "an " or "" — it carries its own trailing space, so
+ * `article + name` needs no separator), from the origin game's describer; NULL
+ * when that game registered none or does not know the id.
  *
- * Split from the name rather than baked into it because the two are consumed
- * separately: a spoiler line wants the bare name, a pickup textbox wants the
- * full "the Lens of Truth" phrase. See the note on ComboForeignItemDef.article.
+ * A cross-game item is presented as an ORDINARY pickup of whichever game the
+ * player found it in (#510), and both games build that sentence as article +
+ * name; the host cannot read the origin's item table (ADR 0002), so the article
+ * travels through the describer exactly as the name does.
  */
 const char* Combo_GetForeignItemArticle(SharedItem item);
 
 /**
- * The arrival-toast icon for a foreign item — the host game's texture-map key,
- * or NULL if (originGame, id) is not in that origin's pinned pool OR the pool
- * entry carries no icon. NULL is not a defect: Notification::Emit renders a
- * text-only toast for a null icon, the same idiom the native pickup paths use.
- *
- * The returned string is the pool's own static storage (a string literal in the
- * defining TU), so it outlives any toast that stores it as a bare pointer and
- * dereferences it at draw time (see notification_bridge.h). Origin-aware by the
- * same construction as Combo_GetForeignItemName: the tag on the SharedItem
- * selects which pool is walked, so an OoT-origin item resolves an OoT `ITEM_*`
- * key and nothing else. This is the accessor GameExports' OoT_AwardSharedItem
- * needs so the cross-game arrival toast can show the item's icon (#494).
+ * The arrival-toast icon for an item arriving in its OWN origin game (#494):
+ * that game's texture-map key, or NULL for a text-only toast (Notification::Emit
+ * renders one for a null icon, the same idiom the native pickup paths use). The
+ * string is the describer's static storage and outlives a toast that keeps the
+ * bare pointer.
  */
 const char* Combo_GetForeignItemIconName(SharedItem item);
 
 /**
- * The inverse of Combo_GetForeignItemName, keyed on (originGame, name). Used by
- * both spoiler-LOAD paths to rebuild the placement tables from a spoiler's
+ * The inverse of Combo_GetForeignItemName, keyed on (originGame, name): the
+ * lowest id in @p originGame's id-space whose describer name is @p name. Used by
+ * MM's spoiler-LOAD path to rebuild a placement table from a spoiler's
  * "foreign" section without either game's header in scope — the SharedItem is
- * copied straight out of the pinned pool, so a raw RG_* (or RI_*) is never
- * fabricated on the far side (ADR 0002).
+ * tagged by construction, so a raw RG_* (or RI_*) is never fabricated on the
+ * far side (ADR 0002).
  *
- * The origin argument is REQUIRED and is not a convenience: see the key note
- * above. A spoiler entry that does not carry an origin must be refused by its
- * caller, never guessed.
+ * TOTAL over every nameable item of that origin, independent of any frozen
+ * selection, so a spoiler that was valid at generation stays readable in a
+ * process that never generated (ADR 0011 decision 3.2).
  *
  * @param originGame GAME_OOT or GAME_MM (GAME_NONE is rejected)
  * @param name       the display name to look up (NULL is rejected)
  * @param outItem    receives the tagged SharedItem on a match (may be NULL)
- * @return true if that origin's pool has an entry with this name.
+ * @return true if that origin's describer names some id @p name.
  */
 bool Combo_GetForeignItemByNameFor(uint8_t originGame, const char* name, SharedItem* outItem);
 
 /**
- * The OoT-pool name inverse. Retained so the call sites that predate the origin
- * dimension keep compiling with their exact previous behavior (they all pass
- * names that came from the OoT pool). New code should use the _For form and
- * carry the origin explicitly.
+ * The OoT-origin name inverse. Retained so the call sites that predate the
+ * origin dimension keep their exact meaning (they all read OoT-origin names).
+ * New code should use the _For form and carry the origin explicitly.
  */
 bool Combo_GetForeignItemByName(const char* name, SharedItem* outItem);
 
@@ -437,58 +321,18 @@ RSBS_CTX_STATIC_ASSERT(RSBS_COMBO_FLAG_SHARED_OCARINA == 0x01u && RSBS_COMBO_FLA
                        "decision 1.2.1, amended 2026-09-16 for #668)");
 
 // ============================================================================
-// The six MEMBERSHIP CRITERIA, and the class rule (#495; ADR 0011 decision 3)
+// The class rule (#495; ADR 0011 decision 3; ADR 0010 increment 3)
 // ============================================================================
 //
-// WHERE THE CRITERIA LIVE. The predicates must name RG_* / RI_*, so they cannot
-// leave their pool TUs. The CRITERIA can and must (ADR 0011 decision 3.4): they
-// are numbered HERE, game-header-free, exactly as ADR 0010 answer O8 places the
-// shared-item classification table in the sanctioned shared_items pair rather
-// than in a per-game duplicate that can disagree with itself. Each pool TU
-// evaluates them against its own enum and reports, per REJECTED candidate,
-// which criterion rejected it — that attribution is what makes the lock a test
-// of the rule rather than of a table that happens to look right.
-//
-// ORDER IS THE RULE, not presentation. The criteria run FIRST and the
-// RSBS_ITEMCLASS_* bitset selects among the survivors, so no class bit can
-// widen a pool past them — in particular no bit can readmit a #525 shared
-// cross-game resource. A future increment may append classes; it may not
-// weaken that ordering.
-
-#define RSBS_FOREIGN_CRIT_NONE 0u /* not rejected — this id is a class member */
-/** A real item, not a sentinel (each game's "unknown" / "nothing" enumerators). */
-#define RSBS_FOREIGN_CRIT_REAL_ITEM 1u
-/** Not junk-class: junk is what a foreign HOST degrades to when the placement
- *  table is absent, so crossing it spends a slot on a strictly worse duplicate
- *  of what the host already physically holds. */
-#define RSBS_FOREIGN_CRIT_NOT_JUNK 2u
-/** The give is UNCONDITIONALLY effectful — it changes save state whatever
- *  options the paired world was generated under. A settings-gated entry is a
- *  crossing promised in one game and silently never delivered in the other. */
-#define RSBS_FOREIGN_CRIT_UNCONDITIONAL_GIVE 3u
-/** The give fires no GLOBAL WORLD EVENT (a completion cascade, a forced scene
- *  transition, a per-world goal quantity). */
-#define RSBS_FOREIGN_CRIT_NO_WORLD_EVENT 4u
-/** A reward, not a punishment: the far side's pickup text promises an award. */
-#define RSBS_FOREIGN_CRIT_REWARD 5u
-/** Not a #525 SHARED CROSS-GAME RESOURCE (wallet / heart / magic / ammo /
- *  hookshot). One quantity spanning both games has nothing left to cross. */
-#define RSBS_FOREIGN_CRIT_NOT_SHARED_RESOURCE 6u
-/** One past the highest criterion. */
-#define RSBS_FOREIGN_CRIT_COUNT 7u
-
-// The criteria are a published, numbered list for the same reason the value
-// spaces above are: an exclusion recorded as "criterion 4" in one TU and read
-// as "criterion 5" in a lock is worse than no attribution at all.
-RSBS_CTX_STATIC_ASSERT(RSBS_FOREIGN_CRIT_REAL_ITEM == 1u && RSBS_FOREIGN_CRIT_NOT_JUNK == 2u &&
-                           RSBS_FOREIGN_CRIT_UNCONDITIONAL_GIVE == 3u && RSBS_FOREIGN_CRIT_NO_WORLD_EVENT == 4u &&
-                           RSBS_FOREIGN_CRIT_REWARD == 5u && RSBS_FOREIGN_CRIT_NOT_SHARED_RESOURCE == 6u,
-                       "the six membership criteria are numbered in ADR 0011 decision 3.1 and both pool TUs "
-                       "report exclusions by that number");
-
-/** The criterion's name ("real-item", "not-junk", ...); "(none)" for
- *  RSBS_FOREIGN_CRIT_NONE and "(unknown)" past the table. Never NULL. */
-const char* Combo_ForeignCriterionName(uint8_t criterion);
+// The six MEMBERSHIP CRITERIA this block used to number (and the per-pool
+// exclusion tables that reported against them) retired with the pinned pools
+// (ADR 0010 increment 3, D3). Which items may cross is now the O8
+// classification owner's answer (shared_items.h, Combo_SharedItemClassFor): an
+// item enters the bag as a crossing candidate only when it is a PROGRESSION
+// row whose arming conditions the frozen profile meets. The #525 shared
+// resources are reconciled there once (#731), a world event is armed by nothing,
+// and sentinels and junk are not progression — the old criteria's outcomes,
+// decided in one place instead of two hand tables.
 
 /** One class bit's name ("progression", "songs", ...), or "(unknown)" for an
  *  unallocated bit or a mask with more than one bit set. Never NULL. */
@@ -504,6 +348,13 @@ const char* Combo_ForeignItemClassName(uint16_t classBit);
  * A FROZEN zero is honoured verbatim: inside a formatted record `itemClass == 0`
  * is a legitimate "no classes armed for this direction", and it is not a hidden
  * second OFF because the direction byte says so first (ADR 0011 decision 3.3).
+ *
+ * UNDER ONE BAG (ADR 0010 increment 3): the single-bag fill reads the
+ * PROGRESSION bit of this mask per origin, together with
+ * Combo_ComboDirectionArms. A clear bit (or an unarmed direction) makes every
+ * bag row of that origin HOME_ONLY — it is still placed, but only on its own
+ * game's checks. No other bit is read today: the bag holds progression rows
+ * only, so the other allocated classes have nothing to select among.
  * An UNFROZEN record falls back to the default instead — a zero-extended legacy
  * record would otherwise resolve to "no eligible source items at all", which is
  * the opposite of the world it was generated with.
@@ -511,64 +362,6 @@ const char* Combo_ForeignItemClassName(uint16_t classBit);
  * @return an RSBS_ITEMCLASS_* mask, or 0 for an origin with no pool.
  */
 uint16_t Combo_ComboItemClassFor(uint8_t originGame);
-
-/**
- * THE RULE EVALUATION (#495). Filter @p originGame's registered pool down to
- * the members of @p classMask, writing their INDICES into @p outIndices in POOL
- * ORDER.
- *
- * INDICES, NOT A FILTERED COPY, for two reasons that are both load-bearing.
- * Pool ORDER is world-visible — the forward pass walks the result positionally
- * and both passes draw from it — so the filter must preserve it rather than
- * regroup by class. And the `name` pointers must stay the pool's OWN storage:
- * test_foreign_items.c asserts pointer identity against Combo_GetForeignItemName,
- * so a copy would need an arena and would break that identity for no gain.
- *
- * THE REGISTRY STILL SERVES THE WHOLE POOL, and that is the whole of accepted
- * answer O3: Combo_GetForeignItemPoolFor and Combo_GetForeignItemByNameFor keep
- * spanning every item ANY class can name, independent of the frozen selection,
- * so the spoiler-LOAD inverse stays TOTAL in a process that never generated.
- * Only the DRAW narrows. A selection-scoped inverse would make a spoiler that
- * was valid at generation unreadable at load, which is the failure ADR 0011
- * decision 3.2 rejects a seed term to avoid.
- *
- * @param classMask   an RSBS_ITEMCLASS_* mask; 0 selects nothing
- * @param outIndices  receives the selected pool indices; NULL COUNTS ONLY (and
- *                    then @p maxIndices is ignored)
- * @param maxIndices  capacity of outIndices; selection stops there
- * @return the number of members selected (>= 0).
- */
-int Combo_ForeignPoolClassMembersFor(uint8_t originGame, uint16_t classMask, int* outIndices, int maxIndices);
-
-/**
- * THE PRODUCTION DRAW: Combo_ForeignPoolClassMembersFor under the RESOLVED
- * class bitset for @p originGame, NARROWED by each row's requiredGiveCaps
- * against the give capabilities @p originGame's frozen profile published
- * (#681): a row whose capability is not armed — including every capability
- * row in a process where nothing was published — is not drawn. Both placement
- * passes call this, so "which classes are armed" and "which gives this world
- * can deliver" are read in exactly one place.
- *
- * Capability rows sit at the END of their pool table, so with no capability
- * armed the result is the identity permutation over the UNCONDITIONAL PREFIX —
- * the same indices, in the same order, as before the column existed.
- *
- * The shipped profile arms no capability (every family's MM option defaults
- * off), so under the shipped class bitset (every allocated bit) the result is
- * the identity over that prefix — 0..(unconditional rows - 1) — NOT
- * 0..poolCount-1. The whole table is drawn only when every family is armed.
- * Either way this is the draw's INPUT: the forward pass shuffles it and then
- * truncates (#583), the reverse pass draws from it without replacement, so
- * pool order reaches a world only through those identity-seeded streams. The
- * prefix parity is a test lock (ForeignItemClass), not a hope. It was ALSO claimed here to be what keeps "SeedDeterminism's
- * foreignOoTHash and MMRandoGen's placement digest from moving"; SeedDeterminism
- * cannot detect that (it diffs two runs of one binary — #688), so the row that
- * would actually go red on a moved draw is GoldenSeedDigestDefault, naming
- * foreignOoTHash and the per-slot foreignOoT<n> lines as moved OUTPUT fields.
- *
- * @param outIndices NULL counts only, as above.
- */
-int Combo_ForeignPoolDrawFor(uint8_t originGame, int* outIndices, int maxIndices);
 
 // ============================================================================
 // Combo-level settings: predicates, freeze, digest, divergence (ADR 0011)
@@ -1073,33 +866,35 @@ int Combo_SetForeignPlacementOoT(uint16_t ootCheckId, SharedItem item);
 const SharedItem* Combo_GetForeignPlacementForOoTCheck(uint16_t ootCheckId);
 
 // ============================================================================
-// Names for ANY item and check, not just the pinned pools (ADR 0010 O7)
+// Names for ANY item and check (ADR 0010 O7)
 // ============================================================================
 //
-// The pinned pools name only their own rows (Combo_GetForeignItemName), and
-// under the single bag a crossing can be any progression item on any check.
-// The one spoiler has to print both directions by name, and src/common cannot
-// learn a name without a game header (ADR 0002). So each game's engine TU,
-// where its enums ARE in scope, registers a describer, exactly as the pools and
-// the engines themselves register: a file-scope registrar that stores a pointer
-// and calls nothing.
-//
-// Deliberately NOT folded into Combo_GetForeignItemName: that function's NULL
-// for a non-pool id is load-bearing for the pool locks and the spoiler view's
-// divergence fallback. These are separate entry points with their own contract.
+// Under the single bag a crossing can be any progression item on any check. The
+// one spoiler, the trackers and the pickup text all print crossings by name,
+// and src/common cannot learn a name without a game header (ADR 0002). So each
+// game's engine TU, where its enums ARE in scope, registers a describer, the
+// way the engines themselves register: a file-scope registrar that stores a
+// pointer and calls nothing. Combo_GetForeignItemName (above) is this surface
+// under its older name, kept for its callers.
 
 typedef struct {
     /** Stable display name of `id` in this game's item id-space, or NULL. */
     const char* (*itemName)(uint16_t id);
     /** Stable display name of `check` in this game's check id-space, or NULL. */
     const char* (*checkName)(uint16_t check);
+    /** The article a pickup sentence puts before itemName(id) ("the ", "a ",
+     *  "an " or ""; it carries its own trailing space), or NULL. Optional. */
+    const char* (*itemArticle)(uint16_t id);
+    /** The arrival-toast icon key for `id` IN THIS GAME's own notification
+     *  overlay, or NULL for a text-only toast. Optional. */
+    const char* (*itemIcon)(uint16_t id);
 } ComboGameDescriber;
 
 /** Register (or, with NULL, un-register) `game`'s describer. A non-game is ignored. */
 void Combo_RegisterGameDescriber(uint8_t game, const ComboGameDescriber* describer);
 
-/** The item's name: the pinned pool's row first, then the origin game's
- *  describer. NULL when neither knows it (an unregistered game, an unknown id). */
+/** The item's name through its origin game's describer. NULL for an
+ *  unregistered game or an id the describer does not know. */
 const char* Combo_DescribeItemName(SharedItem item);
 
 /** The name of `check` in `hostGame`'s check id-space through that game's
@@ -1127,105 +922,6 @@ void Combo_ClearForeignPlacementsOoT(void);
  */
 int OoT_ForeignItem_Give(uint16_t rgId);
 
-// ============================================================================
-// Reverse-direction PRODUCER: OoT's generation-time placement pass (#510)
-// ============================================================================
-//
-// Both are defined in games/oot/soh/Enhancements/randomizer/
-// ForeignItemsSingleExe.cpp and exist ONLY under RSBS_SINGLE_EXECUTABLE — the
-// whole cross-game item class is single-exe-only. Playthrough_Init is an
-// ordinary (non-single-exe) function, so its call site MUST be wrapped in
-// `#ifdef RSBS_SINGLE_EXECUTABLE` or a plain OoT build fails to link.
-
-/**
- * Place MM-origin items (kForeignPoolMMV1) into eligible OoT checks, recording
- * them in gComboCtx.foreignPlacementsOoT. Called once per generation from
- * Playthrough_Init, AFTER the gComboCtx pairing stamp — the placement is derived
- * from that identity, so it must be live first.
- *
- * Selection is deterministic (a local xorshift32 seeded from seed + settings
- * digest, never from the fill's own RNG stream) and draws BOTH the pool entry
- * and the host without replacement, because the MM pool is far larger than
- * RSBS_FOREIGN_PLACEMENT_CAP.
- *
- * @return the number of placements made (>= 0; 0 when no pairing is active,
- *         which is the normal solo-rando case), or NEGATIVE when the pairing IS
- *         active but could not be honoured at all: -1 no MM pool registered,
- *         -2 no eligible host in the finished fill. Callers propagate the
- *         negative through Playthrough_Init's existing return-code convention.
- *         It never throws — the generation chain crosses an extern "C" boundary
- *         with no try/catch, where an exception is a std::terminate.
- */
-int OoT_PlaceForeignItems(void);
-
-/**
- * May OoT check `rc` host a foreign item? The real selection predicate
- * OoT_PlaceForeignItems' candidate loop uses, exposed for the CI lock so the
- * test drives selection rather than a paraphrase of it.
- *
- * True only for a genuine treasure chest (Location::GetActorID() == ACTOR_EN_BOX
- * — OoT has no RCTYPE_CHEST; chests are RCTYPE_STANDARD) that is not commerce
- * and whose FILL placed a junk-category item there. The junk requirement is the
- * degrade invariant: if the placement table is ever absent, the check quietly
- * yields the ordinary item it really holds.
- *
- * @return 1 if eligible, 0 otherwise.
- */
-int OoT_Foreign_IsEligibleHost(uint16_t rc);
-
-/**
- * Is OoT check `rc` inside OoT's own reachable closure (#656)?
- *
- * The reachability half of the reverse pass's candidate test, composed OUTSIDE
- * OoT_Foreign_IsEligibleHost for the same reason MM composes it outside its own
- * predicate: that predicate is also the spoiler-LOAD path's gate, where
- * reachability is already witnessed by the spoiler, and the ROM-free eligibility
- * lock drives it without a region graph.
- *
- * Reads the ItemLocation pool mark the fill's own ReachabilitySearch sets — the
- * same mark ValidateEntrances tests to decide ctx->allLocationsReachable — so
- * "reachable" here means what it means to the All Locations Reachable setting
- * rather than a second definition that could drift from it.
- *
- * @return 1 when reachable, 0 otherwise (including no Rando::Context).
- */
-int OoT_Foreign_IsReachableHost(uint16_t rc);
-
-/**
- * The last reverse placement pass's host counts, before and after the
- * reachability gate (#656).
- *
- * They are EQUAL under the shipped default, because RSK_ALL_LOCATIONS_REACHABLE
- * defaults to on and the closure is then total — which is why the gate moves no
- * placement there. The ForeignPlacementOoT lock MEASURES that equality rather
- * than assuming it, and that measurement is what caught the gate's first draft
- * computing its closure over stale Logic state (48 of 57 hosts at the tail of a
- * real generation, 57 of 57 a moment later). Neither determinism row could have:
- * both compare two runs of the same binary to each other, so a deterministic
- * change of world is invisible to them.
- */
-int OoT_Foreign_TestLastEligibleHosts(void);
-int OoT_Foreign_TestLastReachableHosts(void);
-
-/**
- * TEST-ONLY. Switch the reverse pass's own reachability recompute off (0) or on
- * (1); returns the previous setting. Production never calls it and the default is
- * the production behaviour, so a build without the test TU still gates.
- *
- * It exists because the pass necessarily recomputes the closure as its first act
- * (the pool marks left after Fill() are the residue of whichever search ran
- * last, not a closure over the finished world), which would erase any
- * reachability state a lock installs before the pass could read it. With the
- * recompute off, a lock can make one host unreachable and assert the real pass
- * never chooses it — the assertion that goes red if the gate is deleted.
- */
-int OoT_Foreign_TestSetReachabilityRecompute(int enable);
-
-/** TEST-ONLY. Set (1) or clear (0) one check's reachability mark through the
- *  same ItemLocation pool API the fill's search uses. Returns 1 when applied.
- *  Pairs with OoT_Foreign_TestSetReachabilityRecompute. */
-int OoT_Foreign_TestSetHostReachable(uint16_t rc, int reachable);
-
 /**
  * THE REVERSE DIRECTION'S GIVE-PATH CORE (#493) — the exact twin of
  * MM_Rando_Foreign_RecordPickup, and the OoT counterpart of
@@ -1234,7 +930,8 @@ int OoT_Foreign_TestSetHostReachable(uint16_t rc, int reachable);
  * "OoT check @p rc was just collected; if it hosts an MM-origin foreign item,
  * author the durable crossing." Called by the RC-queue drain
  * (soh/Enhancements/randomizer/hook_handlers.cpp) — which is where OoT's rando
- * delivers CHEST checks, the only host class OoT_Foreign_IsEligibleHost accepts,
+ * delivers CHEST checks, the only host class the OoT engine's hostAcceptsForeign
+ * admits for a crossing,
  * because the vanilla chest give is suppressed for a shuffled location
  * (VB_GIVE_ITEM_FROM_CHEST) and the item is granted from the queue instead.
  *
@@ -1344,40 +1041,6 @@ bool Combo_ForeignGiveCapsArm(uint8_t originGame, uint32_t caps);
  *  invalidation). */
 void Combo_ClearForeignGiveCaps(void);
 
-/**
- * THE PER-FAMILY DRAW BUDGET (#681). At most this many crossings of any ONE
- * give-capability family per direction per seed.
- *
- * The secondary reason criterion 3 gave for keeping souls out — "~55 rows;
- * admitting them would make a uniform draw of 8 mostly souls" — outlives the
- * primary one. With every family armed the MM pool is 116 unconditional rows
- * plus 63 capability rows (51 souls, 5 buttons, swim, 6 clocks), so a uniform
- * draw of 8 would average about 2.8 capability crossings and let one family
- * take the whole cap on an unlucky seed. The budget bounds each family instead
- * of reweighting the draw: a drawn row whose family is already at budget is
- * set aside and the draw continues WITHOUT consuming a host, so unconditional
- * rows keep exactly the odds they had and a world whose profile arms nothing
- * draws byte-identically to one built before the column existed.
- */
-#define RSBS_FOREIGN_GIVECAP_FAMILY_BUDGET 2
-
-/**
- * The last forward placement pass's counts, and whether they were a SHORTFALL
- * (#583; ADR 0010 increment 2). Defined MM-side (Rando/Foreign.cpp), where the
- * PlacementStats type lives; declared here so the creation seam can surface the
- * number without acquiring an MM header.
- *
- * "Shortfall" means the rules asked for more crossings than the world could
- * host. Placing fewer than the whole POOL is NOT one — the class filter and the
- * pool size legitimately narrow it (#495) — which is why the comparison is
- * against `requested`, not against the pool count.
- *
- * Any out pointer may be NULL.
- *
- * @return 1 when the last pass fell short of what it requested, 0 otherwise.
- */
-int MM_Rando_LastPlacementStats(int* outRequested, int* outPlaced, int* outEligibleHosts,
-                                int* outReachableEligibleHosts);
 
 /**
  * Join the paired MM half onto OoT's spoiler document, producing the ONE

@@ -3855,29 +3855,17 @@ const TestDescriptor gTests[] = {
      Test_ForeignItemGiveReverse},
     // #488: host selection must reject any check class the game does not arm —
     // the give path is gated on `.eligible`, so an unarmed host strands a
-    // pinned OoT progression item and no error is ever raised.
-    {"foreign-host-eligibility",
-     "Foreign hosts limited to game-armed check classes; skipped/sentinel slots rejected (#488)",
+    // crossing and no error is ever raised.
+    {"foreign-host-eligibility", "Crossing hosts limited to game-armed check classes (#488)",
      Test_ForeignHostEligibility},
     // #502: MM's half of the crossing. The reverse row above deliberately stops
     // at a test award callback because MM_AwardSharedItem was a placeholder
     // fprintf; this one drives the real one and the real give behind it.
     {"foreign-award-mm", "MM's real award reaches the real give: once per crossing, deferred safely (#502)",
      Test_ForeignAwardMM},
-    // #510: the reverse direction's SOURCE pool. Display-free — the table is a
-    // static in the WHOLE_ARCHIVE'd 2ship_rando and its registrar runs before
-    // main() — so this also proves that registrar survived the link.
-    {"foreign-pool-mm", "MM's cross-game source pool: registered, well-formed, giveable, non-junk (#510)",
-     Test_ForeignPoolMM},
-    // #495: the cross-game item class is a RULE over the pool and the class
-    // BITSET is the setting. The parity half is the acceptance bar — under the
-    // shipped defaults the draw is the identity permutation over the
-    // unconditional prefix (#681), so no generated world moves — and the
-    // totality half is why the class carries no seed term.
-    {"foreign-item-class",
-     "Item class is a rule: default bitset draws the pinned pool byte-identically, a narrowed one draws only its "
-     "classes, the name inverse stays total (#495)",
-     Test_ForeignItemClass},
+    // #510's foreign-pool-mm and #495's foreign-item-class rows are RETIRED with
+    // the pinned pools (ADR 0010 increment 3, D3); see the note at the end of
+    // tests/test_foreign_items.c for where each claim is locked now.
     // #525: shared cross-game resources. Display-free, ROM-free and save-free —
     // everything under test is gComboCtx plus a RAM watermark table.
     {"shared-resources", "One quantity across both games: watermark, disciplines, seed, heart clamp (#525)",

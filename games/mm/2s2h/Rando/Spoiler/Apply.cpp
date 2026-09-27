@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 #include "foreign_items.h" // src/common — placement table + pinned-pool reverse lookup (Lane C1, #392)
-#include "Rando/Foreign.h" // Rando::Foreign::IsEligibleHost — the host rule the LOAD path must reapply (#488)
+#include "Rando/Foreign.h" // Rando::Foreign::IsForeignHostClass — the host rule the LOAD path must reapply (#488)
 // The #533/#568 REFUSED machinery and its player-visible half. The identity
 // gate below reports through exactly the surface #570's arrival refusal uses
 // (#610) — a divergent spoiler and a divergent arrival are the same class of
@@ -363,7 +363,7 @@ int ReconstructForeignPlacements(const nlohmann::json& spoiler) {
         //  - The half that DOES bite is the check-class allowlist — which is
         //    the one that matters, because it is the half that decides whether
         //    the host can ever be armed.
-        if (!Rando::Foreign::IsEligibleHost((RandoCheckId)p.checkId)) {
+        if (!Rando::Foreign::IsForeignHostClass((RandoCheckId)p.checkId)) {
             // Restore `shuffled` only. randoItemId deliberately KEEPS the
             // RI_JUNK written above: this branch is precisely the
             // "placement is absent" case the normalization comment describes,

@@ -72,18 +72,18 @@ static std::map<int32_t, const char*> languages = {
 // "a manifest derived from the link, not hand-maintained", and the reason is the
 // defect this whole mechanism exists to prevent: a reason string that outlives
 // its blocker (twice already - #438's remainder, then #669). So
-// SOH_MENU_CAP_MM_HOSTED asks the foreign-item pool registry whether MM's pool
-// TU actually registered, which is #640's "observe the effect, never name the
-// symbol" applied to MM's half; a test can un-register that pool and watch a
-// gated row grey itself, which is the only way to prove the gate is not
+// SOH_MENU_CAP_MM_HOSTED asks the combo-logic engine registry whether MM's
+// engine TU actually registered, which is #640's "observe the effect, never name
+// the symbol" applied to MM's half; a test can un-register that engine and watch
+// a gated row grey itself, which is the only way to prove the gate is not
 // decorative.
 typedef enum {
     /**
      * MM's half of the binary is present and its registrars ran. Observed
-     * through the foreign-item pool registry: MM's
-     * 2s2h/Rando/ForeignItemsSingleExe.cpp hands its static pool to
-     * Combo_RegisterForeignItemPool from a file-scope initializer, so a
-     * non-empty MM pool is section 5 parts 1 AND 2 for the WHOLE_ARCHIVE'd
+     * through the combo-logic engine registry: MM's
+     * 2s2h/Rando/ComboLogicEngineSingleExe.cpp hands its engine to
+     * Combo_Logic_RegisterEngine from a file-scope initializer, so a registered
+     * MM engine is section 5 parts 1 AND 2 for the WHOLE_ARCHIVE'd
      * `2ship_rando`, measured rather than assumed.
      *
      * It does NOT observe section 5 part 3 (a hook type's dispatch point). A row
@@ -205,7 +205,7 @@ void RegisterComboSectionPage(const char* sidebarName, uint32_t columnCount, Com
 
 /** Drop a contributed page again. Returns true if one was removed. Exists so a
  *  test can restore the registry rather than leave process-global state behind
- *  (the Combo_RegisterForeignItemPool(NULL, 0) precedent). */
+ *  (the Combo_Logic_RegisterEngine(game, NULL) precedent). */
 bool UnregisterComboSectionPage(const char* sidebarName);
 
 /** The contributed pages, in registration order. */
@@ -249,7 +249,7 @@ class SohMenu : public Ship::Menu {
     /**
      * Withdraw @p key again. Returns true if an entry was removed. Exists for the
      * same reason UnregisterComboSectionPage and
-     * Combo_RegisterForeignItemPool(NULL, 0) do: the registry is process-global,
+     * Combo_Logic_RegisterEngine(game, NULL) do: the registry is process-global,
      * so a lock that installs a synthetic capability has to be able to put it
      * back rather than leave state behind for whichever test runs next. A row
      * asking for a withdrawn key reads ABSENT, which is the honest answer.

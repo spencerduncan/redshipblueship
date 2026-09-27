@@ -1211,10 +1211,12 @@ int Combo_Logic_TestLastCandidates(GameId hostGame, uint16_t* out, int cap);
 //
 // WHAT THE BUILDER DOES NOT DECIDE: whether a bag row may be HOSTED by the other
 // game. The fill places every bag row on the union of both games' hosts; the
-// per-item "may this leave its home game" narrowing belongs to the pool draw
-// before the bag (Combo_ForeignPoolDrawFor, ADR 0011 decision 3.1), which the
-// production wiring (lane K11) owns. A measured bag is therefore an upper bound on
-// the bag a paired world will fill.
+// per-item "may this leave its home game" narrowing is the caller's, per row:
+// production (combo_single_bag.c, ADR 0010 increment 3) marks a row
+// RSBS_COMBO_BAG_HOME_ONLY when its origin's direction is unarmed or its
+// origin's frozen item-class mask lacks RSBS_ITEMCLASS_PROGRESSION, and the
+// fill then draws that row only onto its own game's hosts. A measured bag with
+// no row marked is the upper bound on what a paired world may cross.
 
 /** `ComboLogicPoolRow.poolFlags`: this copy was added by its port's PLENTIFUL
  *  setting — beyond what the frozen settings' non-plentiful pool would hold. */
@@ -1487,10 +1489,10 @@ int Combo_Logic_LeftoverHosts(GameId hostGame, uint16_t* out, int cap);
 //    BUILDER (Combo_Logic_ComposeBag, above), which decides membership; the fill
 //    reads no class and filters nothing, so its stub-engine locks keep synthetic
 //    ids. `ComboLogicBagItem.itemClass` is still the ADR 0011 selection bit,
-//    carried and recorded, and any narrowing by it belongs to the pool DRAW
-//    (`Combo_ForeignPoolDrawFor`) which runs before the bag exists — the six
-//    membership criteria run FIRST and the bitset selects among the survivors
-//    (ADR 0011 decision 3.1), an ordering this file may not weaken.
+//    carried and recorded; the only narrowing it drives is the per-row
+//    HOME_ONLY flag the production caller sets from it (combo_single_bag.c),
+//    which the fill honours as a host restriction, never as a membership
+//    change: classification (the bag builder) runs FIRST.
 //  - THE O10 SHARED TRIFORCE COUNT, hence triforce-hunt refusing with
 //    RSBS_COMBO_LOGIC_ERR_UNSUPPORTED_GOAL rather than being evaluated wrong.
 //  - THE SPOILER. One artifact for the pair is #564 V23 / audit P11; this

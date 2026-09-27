@@ -1046,7 +1046,14 @@ const char* MmComboDescribeItem(uint16_t id) {
     if (id == 0 || it == Rando::StaticData::Items.end()) {
         return nullptr;
     }
-    return it->second.spoilerName != nullptr ? it->second.spoilerName : it->second.name;
+    // The DISPLAY name ("Lens of Truth"), not the enum-spelled spoilerName
+    // ("RI_LENS"): the same kind of name OoT's describer serves, and the one a
+    // pickup sentence, a tracker row and the combo spoiler all print (ADR 0010
+    // increment 3 routes every crossing's presentation through here). MM display
+    // names are not unique, so the (origin, name) inverse resolves an MM name to
+    // its LOWEST id; the only reader that depends on the inverse (MM's
+    // spoiler-LOAD "foreign" section) reads OoT-origin names only.
+    return it->second.name;
 }
 
 const char* MmComboDescribeCheck(uint16_t check) {
@@ -1057,7 +1064,33 @@ const char* MmComboDescribeCheck(uint16_t check) {
     return it->second.name;
 }
 
-const ComboGameDescriber kMmComboDescriber = { MmComboDescribeItem, MmComboDescribeCheck };
+/** MM's article with the trailing space the describer contract carries (MM's
+ *  own table stores "the" / "a" / "an" / "" and GetItemName adds the space). */
+const char* MmComboDescribeArticle(uint16_t id) {
+    const auto it = Rando::StaticData::Items.find((RandoItemId)id);
+    if (id == 0 || it == Rando::StaticData::Items.end()) {
+        return nullptr;
+    }
+    const char* article = it->second.article;
+    if (article == nullptr || article[0] == '\0') {
+        return "";
+    }
+    if (strcmp(article, "the") == 0) {
+        return "the ";
+    }
+    if (strcmp(article, "a") == 0) {
+        return "a ";
+    }
+    if (strcmp(article, "an") == 0) {
+        return "an ";
+    }
+    return nullptr; // an article this mapping does not know: no article rather than a wrong one
+}
+
+// No icon: an MM item arriving in MM builds its own toast (BuildArrivalToast,
+// ForeignItemsSingleExe.cpp), so nothing asks the describer for one.
+const ComboGameDescriber kMmComboDescriber = { MmComboDescribeItem, MmComboDescribeCheck, MmComboDescribeArticle,
+                                               nullptr };
 
 /** Same shape as the engine registrar above: stores a pointer, calls nothing. */
 struct MmComboDescriberRegistrar {

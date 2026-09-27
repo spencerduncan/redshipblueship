@@ -142,6 +142,7 @@
 #include "combo_logic.h"   // src/common — the vtable this file implements
 #include "context.h"       // src/common — SharedItem, GameId
 #include "foreign_items.h" // src/common — the frozen pairing identity and combo record
+#include "soh/SohGui/ImGuiUtils.h" // GetTextureForItemId: the describer's arrival-toast icon key
 
 extern "C" {
 #include <z64.h>
@@ -1109,7 +1110,33 @@ const char* OoTComboDescribeCheck(uint16_t check) {
     return name.empty() ? nullptr : name.c_str();
 }
 
-const ComboGameDescriber kOoTComboDescriber = { OoTComboDescribeItem, OoTComboDescribeCheck };
+const char* OoTComboDescribeArticle(uint16_t id) {
+    if (id == 0 || id >= (uint16_t)RG_MAX) {
+        return nullptr;
+    }
+    // The ENGLISH article, matching the English name the describer serves.
+    return Rando::StaticData::RetrieveItem((RandomizerGet)id).GetArticle().GetEnglish().c_str();
+}
+
+/** The ITEM_* texture-map key OoT's notification overlay resolves through
+ *  GetTextureByName for this item (#494) — GetTextureForItemId of the ItemID in
+ *  the entry the row was built with. A progressive item's row has no static
+ *  entry (it resolves per tier, against Logic, at give time), so it resolves to
+ *  no key here and toasts text-only rather than reaching for Logic. */
+const char* OoTComboDescribeIcon(uint16_t id) {
+    if (id == 0 || id >= (uint16_t)RG_MAX) {
+        return nullptr;
+    }
+    const GetItemEntry* entry = Rando::StaticData::RetrieveItem((RandomizerGet)id).GetStaticGIEntry();
+    if (entry == nullptr) {
+        return nullptr;
+    }
+    const char* key = GetTextureForItemId((uint32_t)entry->itemId);
+    return (key != nullptr && key[0] != '\0') ? key : nullptr;
+}
+
+const ComboGameDescriber kOoTComboDescriber = { OoTComboDescribeItem, OoTComboDescribeCheck, OoTComboDescribeArticle,
+                                                OoTComboDescribeIcon };
 
 /** Same shape as the engine registrar above: stores a pointer, calls nothing. */
 struct OoTComboDescriberRegistrar {

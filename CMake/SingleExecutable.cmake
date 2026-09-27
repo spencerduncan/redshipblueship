@@ -449,11 +449,11 @@ if(BUILD_TESTING)
     # gComboCtx.foreignPlacements round-trips through the .redsave record.
     redship_add_test(NAME ForeignItemGive COMMAND redship --test foreign-item-give)
     redship_add_test(NAME ForeignItemGiveReverse COMMAND redship --test foreign-item-give-reverse)
-    # #488: a foreign item may only be hosted by a check class the GAME arms.
+    # #488: a crossing may only be hosted by a check class the GAME arms.
     # CheckQueue's foreign branch is nested inside `if (eligible)`, so an
-    # unarmed host strands a pinned OoT progression item and makes the paired
-    # world unwinnable with no error. Drives the real selection predicate over
-    # MM's real check table; also prints the eligible-host supply count.
+    # unarmed host strands the crossing and makes the paired world unwinnable
+    # with no error. Drives the real host-class predicate (the MM engine's
+    # hostAcceptsForeign) over MM's real check table; prints the host supply.
     redship_add_test(NAME ForeignHostEligibility COMMAND redship --test foreign-host-eligibility)
     # #502: MM's award callback was still the Lane A1 logging stub, so the whole
     # consumer walk landed on a no-op. Drives the REAL MM_ConsumeSharedItems ->
@@ -461,28 +461,9 @@ if(BUILD_TESTING)
     # crossing, order preservation, origin filtering, and that a NULL PlayState
     # defers the give instead of dereferencing it.
     redship_add_test(NAME ForeignAwardMM COMMAND redship --test foreign-award-mm)
-    # #510: the reverse direction's SOURCE pool (kForeignPoolMMV1). Display-free
-    # — the table is a static in the WHOLE_ARCHIVE'd 2ship_rando and its
-    # registrar runs before main() — so this row doubles as the runtime proof
-    # that the registrar survived the link. A dropped file-scope initializer is
-    # silent at compile and link time and would leave OoT unable to place
-    # anything (#516's dead-registrar class).
-    redship_add_test(NAME ForeignPoolMM COMMAND redship --test foreign-pool-mm)
-    # #495 / ADR 0011 decision 3: the cross-game item class is a RULE over both
-    # pools and the RSBS_ITEMCLASS_* bitset in the frozen combo record is the
-    # setting that selects it. Three claims, in the order they can fail: the
-    # DEFAULT bitset draws the pinned tables byte-identically (the parity pin —
-    # this row is the ROM-free half of it; the half that notices a MOVED draw is
-    # GoldenSeedDigestDefault, not SeedDeterminism, which as #688 established
-    # diffs two runs of one binary and stays green through any deterministic
-    # move); a
-    # NARROWED bitset draws only members of the armed classes (red before the
-    # rule engine, when the bitset was stored and compared but consumed by
-    # nothing); and the name inverse stays TOTAL over every item any class can
-    # name even with ZERO classes armed, which is why the class carries no seed
-    # term (accepted answer O3) and why the spoiler-LOAD path can run in a
-    # process that never generated. Display-free and ROM-free like its siblings.
-    redship_add_test(NAME ForeignItemClass COMMAND redship --test foreign-item-class)
+    # #510's ForeignPoolMM and #495's ForeignItemClass rows are RETIRED with the
+    # pinned pools they locked (ADR 0010 increment 3, D3; lane K11): items leave
+    # origin pools under one bag, so there is no pool to register or draw.
     # Shared cross-game resources (#525): rupees and hearts are ONE quantity
     # spanning both games. Locks the delta-harvest watermark that survives MM's
     # 500-rupee tier-3 wallet against OoT's 999 (a naive copy costs the player

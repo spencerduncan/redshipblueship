@@ -98,6 +98,7 @@
 // src/common — outside any extern "C" block; these headers manage their own
 // linkage (matching Foreign.cpp / mm_rando_options_test.cpp).
 #include "foreign_items.h"
+#include "tests/test_named_items.h" // real OoT items by name (the pinned pool retired, ADR 0010 increment 3)
 #include "crossing_store.h" // ADR 0010 O7: the store rows the "foreign" section must not list
 #include "shared_items.h"
 #include "save.h"                // the #533 REFUSED surface this gate reports through
@@ -243,7 +244,7 @@ extern "C" int MM_SpoilerIdentity_RunHeadless(void) {
         RANDO_SAVE_CHECKS[randoCheckId].randoItemId = RI_JUNK;
         RANDO_SAVE_CHECKS[randoCheckId].shuffled = true;
         RANDO_SAVE_CHECKS[randoCheckId].skipped = false;
-        if (Rando::Foreign::IsEligibleHost(randoCheckId)) {
+        if (Rando::Foreign::IsForeignHostClass(randoCheckId)) {
             host = randoCheckId;
             break;
         }
@@ -254,12 +255,12 @@ extern "C" int MM_SpoilerIdentity_RunHeadless(void) {
     }
     const char* hostName = Rando::StaticData::Checks.at(host).name;
 
-    const ComboForeignItemDef* pool = nullptr;
-    const int poolCount = Combo_GetForeignItemPoolFor((uint8_t)GAME_OOT, &pool);
-    if (poolCount <= 0 || pool == nullptr) {
-        return Fail(3, "the OoT foreign pool is not registered in this build");
+    SharedItem placed;
+    SharedItem secondItem;
+    if (!TestNamedItem((uint8_t)GAME_OOT, "Lens of Truth", &placed) ||
+        !TestNamedItem((uint8_t)GAME_OOT, "Megaton Hammer", &secondItem)) {
+        return Fail(3, "OoT's item table cannot name the fixture items in this build");
     }
-    const SharedItem placed = pool[0].item;
 
     Combo_ClearForeignPlacements();
     if (Combo_SetForeignPlacement((uint16_t)host, placed) < 0) {
@@ -274,9 +275,9 @@ extern "C" int MM_SpoilerIdentity_RunHeadless(void) {
 
     // ---- ADR 0010 O7 (PR #736 review): the "foreign" section is PINNED-only --
     // The give-path accessor falls back to the crossing store, and this
-    // section is the pinned table's commit (reloaded below by pool NAME, capped
+    // section is the pinned table's commit (reloaded below by item NAME, capped
     // at RSBS_FOREIGN_PLACEMENT_CAP). A store row printed here is printed twice
-    // in the one spoiler and, for a non-pool item or past the cap, makes it
+    // in the one spoiler and, past the cap, makes it
     // unloadable. Put an MM-hosted crossing in the store on a second check,
     // prove the give path DOES see it (so the writer could have read it), and
     // assert the real writer's section is byte-for-byte the pinned-only one.
@@ -294,7 +295,7 @@ extern "C" int MM_SpoilerIdentity_RunHeadless(void) {
         ComboCrossing row;
         row.hostCheck = (uint16_t)storeHost;
         row.itemClass = 0x0001;
-        row.item = pool[poolCount > 1 ? 1 : 0].item; // a POOL item: its name resolves, so a leak would print it
+        row.item = secondItem; // a NAMED item: its name resolves, so a leak would print it
         Combo_Crossings_Clear();
         if (Combo_Crossings_Replace(nullptr, 0, &row, 1) != 1) {
             Combo_Crossings_Clear();
@@ -510,10 +511,9 @@ extern "C" int MM_ForeignPickupGate_RunHeadless(void) {
     ComboContext_Init();
     Combo_ClearSharedItemOutbox();
 
-    const ComboForeignItemDef* pool = nullptr;
-    const int poolCount = Combo_GetForeignItemPoolFor((uint8_t)GAME_OOT, &pool);
-    if (poolCount <= 0 || pool == nullptr) {
-        return Fail(70, "the OoT foreign pool is not registered in this build");
+    SharedItem fixtureItem;
+    if (!TestNamedItem((uint8_t)GAME_OOT, "Lens of Truth", &fixtureItem)) {
+        return Fail(70, "OoT's item table cannot name the fixture item in this build");
     }
 
     RandoCheckId host = RC_UNKNOWN;
@@ -525,7 +525,7 @@ extern "C" int MM_ForeignPickupGate_RunHeadless(void) {
         RANDO_SAVE_CHECKS[randoCheckId].randoItemId = RI_JUNK;
         RANDO_SAVE_CHECKS[randoCheckId].shuffled = true;
         RANDO_SAVE_CHECKS[randoCheckId].skipped = false;
-        if (Rando::Foreign::IsEligibleHost(randoCheckId)) {
+        if (Rando::Foreign::IsForeignHostClass(randoCheckId)) {
             host = randoCheckId;
             break;
         }
@@ -541,7 +541,7 @@ extern "C" int MM_ForeignPickupGate_RunHeadless(void) {
     // record — `Combo_RecordSharedItem` has no identity parameter, so the
     // record a later genuine pair redeems would carry no evidence of where it
     // came from.
-    if (Combo_SetForeignPlacement((uint16_t)host, pool[0].item) < 0) {
+    if (Combo_SetForeignPlacement((uint16_t)host, fixtureItem) < 0) {
         return Fail(72, "could not seed the fixture placement");
     }
     if (Combo_ForeignPairingActive()) {

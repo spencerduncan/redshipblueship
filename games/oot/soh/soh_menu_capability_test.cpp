@@ -14,10 +14,10 @@
  *     control that flips a CVar and changes nothing"; a gate that can only ever
  *     report PRESENT is the same defect one level up, and it passes every test
  *     that checks only the enabled case. So leg 2 drives a REAL capability
- *     through both answers: SOH_MENU_CAP_MM_HOSTED observes whether MM's item
- *     pool registered, and the leg un-registers that pool
- *     (Combo_RegisterForeignItemPool(GAME_MM, NULL, 0), the documented
- *     test-only inverse) to watch a row grey ITSELF, then puts the pool back and
+ *     through both answers: SOH_MENU_CAP_MM_HOSTED observes whether MM's
+ *     combo-logic engine registered, and the leg un-registers that engine
+ *     (Combo_Logic_RegisterEngine(GAME_MM, NULL), the documented test-only
+ *     inverse) to watch a row grey ITSELF, then puts the engine back and
  *     watches the row recover. Neither half is asserted without the other:
  *     red-then-green in one process, over production code, with no synthetic
  *     predicate involved.
@@ -78,6 +78,7 @@
 
 #include "combo_settings_view.h"
 #include "cvar_shared_keys.h"
+#include "combo_logic.h"
 #include "foreign_items.h"
 #include "game.h"
 
@@ -271,35 +272,36 @@ extern "C" int OoT_MenuCapabilityGating_RunHeadless(void) {
     }
 
     // ---- Leg 2: a REAL capability, driven through both answers --------------
-    // SOH_MENU_CAP_MM_HOSTED observes the foreign-item pool registry rather than
-    // naming a symbol in MM's TU -- taking that address would BE the reference
-    // that keeps the TU in the link, and the gate would pass vacuously (#640's
-    // rule). Which is also why this leg can flip it: the registry has a
-    // documented un-register.
-    const ComboForeignItemDef* mmPool = nullptr;
-    const int mmPoolCount = Combo_GetForeignItemPoolFor((uint8_t)GAME_MM, &mmPool);
-    CAP_CHECK(mmPoolCount > 0 && mmPool != nullptr,
-              "MM's item pool is not registered in this build, so leg 2's PRESENT half would be vacuous and its "
-              "ABSENT half would prove nothing (pool count %d)",
-              mmPoolCount);
+    // SOH_MENU_CAP_MM_HOSTED observes the combo-logic engine registry rather
+    // than naming a symbol in MM's TU -- taking that address would BE the
+    // reference that keeps the TU in the link, and the gate would pass vacuously
+    // (#640's rule). Which is also why this leg can flip it: the registry has a
+    // documented un-register. (It observed MM's pinned item pool until that
+    // retired with the overlay passes, ADR 0010 increment 3.)
+    const ComboLogicEngine* mmEngine = Combo_Logic_GetEngine(GAME_MM);
+    CAP_CHECK(mmEngine != nullptr,
+              "MM's combo-logic engine is not registered in this build, so leg 2's PRESENT half would be vacuous "
+              "and its ABSENT half would prove nothing%s",
+              "");
 
-    if (mmPoolCount > 0 && mmPool != nullptr) {
+    if (mmEngine != nullptr) {
         // PRESENT.
         RunPreFunc(*mmRow);
         CAP_CHECK(!mmRow->options->disabled,
-                  "'%s' is disabled while MM's pool IS registered -- the capability is "
+                  "'%s' is disabled while MM's engine IS registered -- the capability is "
                   "present and the row must be live",
                   kMmRowBase.c_str());
         CAP_CHECK(mmRow->name == kMmRowBase, "'%s' carries a state label while its capability is present: '%s'",
                   kMmRowBase.c_str(), mmRow->name.c_str());
         CAP_CHECK(SohGui::SohMenu::CapabilityPresent(SohGui::SOH_MENU_CAP_MM_HOSTED),
-                  "CapabilityPresent(MM_HOSTED) is false while MM's pool holds %d entries", mmPoolCount);
+                  "CapabilityPresent(MM_HOSTED) is false while MM's engine is registered%s", "");
 
         // ABSENT. Three frames, because a per-frame PreFunc is what compounds.
-        Combo_RegisterForeignItemPool((uint8_t)GAME_MM, NULL, 0);
+        Combo_Logic_RegisterEngine(GAME_MM, NULL);
         CAP_CHECK(!SohGui::SohMenu::CapabilityPresent(SohGui::SOH_MENU_CAP_MM_HOSTED),
-                  "CapabilityPresent(MM_HOSTED) is still true with MM's pool un-registered -- the predicate is not "
-                  "observing the registry");
+                  "CapabilityPresent(MM_HOSTED) is still true with MM's engine un-registered -- the predicate is not "
+                  "observing the registry%s",
+                  "");
         const std::string mmReason = SohGui::SohMenu::CapabilityReason(SohGui::SOH_MENU_CAP_MM_HOSTED);
         for (int frame = 0; frame < 3; frame++) {
             RunPreFunc(*mmRow);
@@ -321,18 +323,17 @@ extern "C" int OoT_MenuCapabilityGating_RunHeadless(void) {
                   "'%s' accumulated its state label over 3 frames: '%s'", kMmRowBase.c_str(), mmRow->name.c_str());
 
         // PRESENT again: the row must recover, NAME included.
-        Combo_RegisterForeignItemPool((uint8_t)GAME_MM, mmPool, mmPoolCount);
+        Combo_Logic_RegisterEngine(GAME_MM, mmEngine);
         RunPreFunc(*mmRow);
         CAP_CHECK(!mmRow->options->disabled, "'%s' stayed disabled after its capability came back", kMmRowBase.c_str());
         CAP_CHECK(mmRow->name == kMmRowBase,
                   "'%s' kept a stale state label after its capability came back: '%s'. ResetDisables() clears "
                   "`disabled` but not `name`, so the gate has to restore it",
                   kMmRowBase.c_str(), mmRow->name.c_str());
-        CAP_CHECK(Combo_GetForeignItemPoolFor((uint8_t)GAME_MM, NULL) == mmPoolCount,
-                  "MM's pool was not restored to its %d entries; AllTests runs every row in ONE process", mmPoolCount);
-        printf("[TEST] leg 2: MM_HOSTED greys a row when MM's pool is un-registered and releases it when the pool "
-               "comes back (%d entries)\n",
-               mmPoolCount);
+        CAP_CHECK(Combo_Logic_GetEngine(GAME_MM) == mmEngine,
+                  "MM's engine was not restored; AllTests runs every row in ONE process%s", "");
+        printf("[TEST] leg 2: MM_HOSTED greys a row when MM's engine is un-registered and releases it when the "
+               "engine comes back\n");
     }
 
     // ---- Leg 3: the registration API, including its refusals ---------------

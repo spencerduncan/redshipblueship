@@ -281,62 +281,6 @@ void Rando::MiscBehavior::OnFileCreate(s16 fileNum) {
                         throw std::runtime_error("Logic option not implemented: " +
                                                  std::to_string(RANDO_SAVE_OPTIONS[RO_LOGIC]));
                     }
-
-#ifdef RSBS_SINGLE_EXECUTABLE
-                    if (false) {
-                        // Lane C1 (#392): swap deterministically-chosen junk
-                        // placements for the pinned OoT foreign items, recorded in
-                        // gComboCtx.foreignPlacements (the MM table keeps its
-                        // junk-class MM item — ADR 0002). Runs before the spoiler write so the
-                        // spoiler's foreign section describes this world.
-                        //
-                        // ADR 0010 increment 1.3 (#500), superseding #488's
-                        // shortfall-is-fatal stance: hosts are now gated on the
-                        // check being in MM's own reachable-check closure, and a
-                        // SHORT placement against the pinned pool is UNDER-SUPPLY
-                        // — place fewer, loudly (cap ≠ promise), never place
-                        // unreachable and never fail the generation for it. While
-                        // crossings are duplicate overlays (increments 1-2), the
-                        // origin world keeps its own copy of every pool item, so a
-                        // missing crossing degrades to "fewer extras", not the
-                        // unwinnable world #488's throw guarded against.
-                        //
-                        // Attempt-ladder interaction (increment 1.2): an
-                        // under-supply is therefore NOT a ladder rung — this
-                        // attempt already produced a complete, playable world,
-                        // and re-rolling it to chase a fuller host set would
-                        // trade that world for extras the origin world already
-                        // carries. Only the genuinely structural failure #488
-                        // also covered — the placement table refusing an insert
-                        // while candidates remained — still throws, from inside
-                        // PlaceForeignItems (the injected test rung rides the
-                        // same throw), and lands in the ladder's deterministic
-                        // dead-end catch below. The reachable-check closure is
-                        // recomputed inside every attempt against THAT attempt's
-                        // world and consumes no RNG stream, so a re-rolled
-                        // attempt's placements stay a pure function of its
-                        // attempt-derived seed. The durable record of a
-                        // shortfall is the spoiler's foreignShortfall section
-                        // (Spoiler/Generate.cpp); the stderr line here is the
-                        // greppable alarm on the generation log.
-                        // Compared against the DRAWABLE count, not the raw pool
-                        // (#495): once the frozen itemClassOoT bitset narrows the
-                        // class, placing fewer than the whole pool is the rules
-                        // working rather than hosts running short, and an alarm
-                        // that cannot tell those apart is an alarm nobody reads.
-                        // With the shipped defaults the two counts are equal, so
-                        // this line says exactly what it said before.
-                        const int drawable = Combo_ForeignPoolDrawFor((uint8_t)GAME_OOT, nullptr, 0);
-                        const int placed = Rando::Foreign::PlaceForeignItems();
-                        if (placed < drawable) {
-                            fprintf(stderr,
-                                    "[MM] OnFileCreate: paired world hosts %d of %d foreign items (reachable eligible "
-                                    "hosts ran short — see the [MM] foreign placement SHORTFALL line above; the "
-                                    "spoiler records it)\n",
-                                    placed, drawable);
-                        }
-                    }
-#endif
                 };
 
 #ifdef RSBS_SINGLE_EXECUTABLE

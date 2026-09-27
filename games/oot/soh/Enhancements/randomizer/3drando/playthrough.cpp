@@ -16,7 +16,7 @@
 #include "soh/Enhancements/debugger/performanceTimer.h"
 #include "context.h" // src/common — gComboCtx, Lane B unified-seed carrier (ADR 0002)
 #ifdef RSBS_SINGLE_EXECUTABLE
-#include "foreign_items.h" // src/common — OoT_PlaceForeignItems (#510)
+#include "foreign_items.h" // src/common — the combo record and pairing identity
 // src/common — MM_Rando_ComputeProfileStamp (defined MM-side, Foreign.cpp):
 // the creation event freezes the MM half's option profile too (#498/#564).
 #include "combo_mm_options_view.h"

@@ -99,6 +99,7 @@
 #include "../foreign_items.h"
 #include "../game.h"
 #include "../test_runner.h"
+#include "test_named_items.h"
 
 #include <cstdio>
 #include <cstring>
@@ -413,15 +414,15 @@ TestResult OoTLogicExport_Run(void) {
     // Claim 3: identical queries agree, including across a residue-producing
     // bare search. THE DIRECT LOCK ON THE #656 DEFECT CLASS.
     // ------------------------------------------------------------------
-    // The assumed set is the OoT foreign pool's own ids, read through
-    // src/common's registry so this file names no RG_*.
-    const ComboForeignItemDef* pool = nullptr;
-    const int poolCount = Combo_GetForeignItemPoolFor((uint8_t)GAME_OOT, &pool);
-    OLE_ASSERT(poolCount > 0 && pool != nullptr, "OoT's foreign item pool is not registered");
+    // The assumed set is three real OoT progression items (three of the four the
+    // retired kForeignPoolV1 held; Progressive Strength is left out because its
+    // table name is not a stable key), looked up by name so this file names no RG_*.
     std::vector<uint16_t> assumed;
-    for (int i = 0; i < poolCount; i++) {
-        OLE_ASSERT(pool[i].item.originGame == (uint8_t)GAME_OOT, "an OoT pool row is not OoT-tagged");
-        assumed.push_back(pool[i].item.id);
+    for (const char* name : { "Lens of Truth", "Boomerang", "Megaton Hammer" }) {
+        SharedItem item;
+        OLE_ASSERT(TestNamedItem((uint8_t)GAME_OOT, name, &item), "a named OoT item is missing from OoT's table");
+        OLE_ASSERT(item.originGame == (uint8_t)GAME_OOT, "a named OoT item is not OoT-tagged");
+        assumed.push_back(item.id);
     }
 
     OleQueryAnswer q1;
@@ -908,9 +909,11 @@ TestResult OoTLogicExport_Run(void) {
     ComboLogicBagItem bag[4];
     memset(bag, 0, sizeof(bag));
     int bagCount = 0;
-    for (int i = 0; i < poolCount && bagCount < 4; i++) {
-        bag[bagCount].item = pool[i].item;
-        bag[bagCount].itemClass = pool[i].itemClass;
+    for (size_t i = 0; i < assumed.size() && bagCount < 4; i++) {
+        bag[bagCount].item.originGame = (uint8_t)GAME_OOT;
+        bag[bagCount].item.flags = 0;
+        bag[bagCount].item.id = assumed[i];
+        bag[bagCount].itemClass = (uint16_t)RSBS_ITEMCLASS_PROGRESSION;
         bagCount++;
     }
 

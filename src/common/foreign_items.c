@@ -5,10 +5,9 @@
  * See foreign_items.h for the model. Like shared_items.c, this TU is
  * deliberately free of game headers: it manipulates the ADR-0002 tagged types
  * and gComboCtx only, so it compiles into redship_common and both games (and
- * the ROM-free test harness) call it directly. The pinned POOL half of the
- * header (Combo_GetForeignItemPool / Combo_GetForeignItemName /
- * OoT_ForeignItem_Give) is defined OoT-side, where the RG_* enumerators are
- * in scope.
+ * the ROM-free test harness) call it directly. Names come from each game's
+ * registered describer; the gives (OoT_ForeignItem_Give / MM_ForeignItem_Give)
+ * are defined in the games, where their enumerators are in scope.
  */
 
 #include "foreign_items.h"
@@ -300,93 +299,6 @@ uint16_t Combo_ComboItemClassFor(uint8_t originGame) {
     ComboSettingsRecord live;
     Combo_ResolveComboSettings(&live);
     return (originGame == (uint8_t)GAME_OOT) ? live.itemClassOoT : live.itemClassMM;
-}
-
-int Combo_ForeignPoolClassMembersFor(uint8_t originGame, uint16_t classMask, int* outIndices, int maxIndices) {
-    const ComboForeignItemDef* pool = NULL;
-    const int poolCount = Combo_GetForeignItemPoolFor(originGame, &pool);
-    if (poolCount <= 0 || pool == NULL) {
-        return 0;
-    }
-
-    // IN POOL ORDER, because pool order is world-visible: it is the INPUT both
-    // placement passes consume from an identity-seeded stream (the forward pass
-    // Fisher-Yates-shuffles it and truncates, #583; the reverse pass draws from
-    // it without replacement), so regrouping by class here would re-order every
-    // already-generated world's crossings even though neither pass walks it
-    // in order any more.
-    //
-    // An UNCLASSIFIED row (itemClass == 0) matches no mask and is therefore
-    // never drawn. That is deliberate rather than defensive — a row nobody
-    // classified is a row nobody adjudicated the criteria for — and the
-    // ForeignItemClass lock refuses one at CI rather than at an operator's
-    // generation.
-    int selected = 0;
-    for (int i = 0; i < poolCount; i++) {
-        if ((pool[i].itemClass & classMask) == 0) {
-            continue;
-        }
-        if (outIndices != NULL) {
-            if (selected >= maxIndices) {
-                break;
-            }
-            outIndices[selected] = i;
-        }
-        selected++;
-    }
-    return selected;
-}
-
-int Combo_ForeignPoolDrawFor(uint8_t originGame, int* outIndices, int maxIndices) {
-    const ComboForeignItemDef* pool = NULL;
-    const int poolCount = Combo_GetForeignItemPoolFor(originGame, &pool);
-    if (poolCount <= 0 || pool == NULL) {
-        return 0;
-    }
-    const uint16_t classMask = Combo_ComboItemClassFor(originGame);
-
-    // The class rule first (Combo_ForeignPoolClassMembersFor's exact test), then
-    // the capability narrowing (#681). Same loop, same pool order, so the
-    // indices an unarmed profile draws are the ones this function drew before
-    // the capability column existed.
-    int selected = 0;
-    for (int i = 0; i < poolCount; i++) {
-        if ((pool[i].itemClass & classMask) == 0) {
-            continue;
-        }
-        if (pool[i].requiredGiveCaps != 0 && !Combo_ForeignGiveCapsArm(originGame, pool[i].requiredGiveCaps)) {
-            continue;
-        }
-        if (outIndices != NULL) {
-            if (selected >= maxIndices) {
-                break;
-            }
-            outIndices[selected] = i;
-        }
-        selected++;
-    }
-    return selected;
-}
-
-const char* Combo_ForeignCriterionName(uint8_t criterion) {
-    switch (criterion) {
-        case RSBS_FOREIGN_CRIT_NONE:
-            return "(none)";
-        case RSBS_FOREIGN_CRIT_REAL_ITEM:
-            return "real-item";
-        case RSBS_FOREIGN_CRIT_NOT_JUNK:
-            return "not-junk";
-        case RSBS_FOREIGN_CRIT_UNCONDITIONAL_GIVE:
-            return "unconditional-give";
-        case RSBS_FOREIGN_CRIT_NO_WORLD_EVENT:
-            return "no-world-event";
-        case RSBS_FOREIGN_CRIT_REWARD:
-            return "reward-not-punishment";
-        case RSBS_FOREIGN_CRIT_NOT_SHARED_RESOURCE:
-            return "not-shared-resource";
-        default:
-            return "(unknown)";
-    }
 }
 
 const char* Combo_ForeignItemClassName(uint16_t classBit) {
@@ -729,123 +641,37 @@ void Combo_ComboSettingsSummary(ComboSettingsSummary* out) {
 }
 
 // ============================================================================
-// Pool registry, indexed by origin game (ADR 0009 decision 3)
+// Names (ADR 0009 decision 3; ADR 0010 O7)
 // ============================================================================
-//
-// Each pool's table is defined in the TU where its enum is in scope and lands
-// here through a file-scope registration, so neither game has to be linkable
-// from the other and a build with only one pool present still resolves. See
-// foreign_items.h for why (originGame, name) is the key and a bare name is not.
-
-static const ComboForeignItemDef* sForeignPools[RSBS_FOREIGN_POOL_ORIGIN_COUNT];
-static int sForeignPoolCounts[RSBS_FOREIGN_POOL_ORIGIN_COUNT];
-
-void Combo_RegisterForeignItemPool(uint8_t originGame, const ComboForeignItemDef* pool, int count) {
-    if (originGame == (uint8_t)GAME_NONE || originGame >= RSBS_FOREIGN_POOL_ORIGIN_COUNT) {
-        fprintf(stderr, "[ForeignItem] pool registration rejected: origin %u is not a game id-space\n",
-                (unsigned)originGame);
-        return;
-    }
-    if (pool == NULL && count == 0) {
-        // Explicit un-register. Exists so a test can install a synthetic pool
-        // for an origin whose real pool TU is not linked yet and then put the
-        // registry back, rather than leaving process-global state behind for
-        // whichever test runs next.
-        sForeignPools[originGame] = NULL;
-        sForeignPoolCounts[originGame] = 0;
-        return;
-    }
-    if (pool == NULL || count <= 0) {
-        fprintf(stderr, "[ForeignItem] pool registration rejected: empty pool for origin %u\n", (unsigned)originGame);
-        return;
-    }
-    if (sForeignPools[originGame] != NULL) {
-        // Two tables claiming one id-space is exactly the ambiguity this
-        // surface exists to prevent; it must not pass silently even though the
-        // last writer wins.
-        fprintf(stderr, "[ForeignItem] pool for origin %u re-registered (%d entries replace %d)\n",
-                (unsigned)originGame, count, sForeignPoolCounts[originGame]);
-    }
-    sForeignPools[originGame] = pool;
-    sForeignPoolCounts[originGame] = count;
-}
-
-int Combo_GetForeignItemPoolFor(uint8_t originGame, const ComboForeignItemDef** outPool) {
-    if (originGame == (uint8_t)GAME_NONE || originGame >= RSBS_FOREIGN_POOL_ORIGIN_COUNT) {
-        return 0;
-    }
-    if (sForeignPools[originGame] == NULL) {
-        return 0; // that origin's pool TU is not linked into this build
-    }
-    if (outPool != NULL) {
-        *outPool = sForeignPools[originGame];
-    }
-    return sForeignPoolCounts[originGame];
-}
-
-int Combo_GetForeignItemPool(const ComboForeignItemDef** outPool) {
-    return Combo_GetForeignItemPoolFor((uint8_t)GAME_OOT, outPool);
-}
 
 const char* Combo_GetForeignItemName(SharedItem item) {
     // Origin-aware by construction: the SharedItem carries its own tag, so the
-    // only thing the origin dimension changes is WHICH pool gets walked. An
-    // untagged item resolves to no pool and therefore to no name, which is the
-    // correct answer rather than a lucky match in whichever table came first.
-    const ComboForeignItemDef* pool = NULL;
-    const int poolCount = Combo_GetForeignItemPoolFor(item.originGame, &pool);
-    for (int i = 0; i < poolCount; i++) {
-        if (pool[i].item.originGame == item.originGame && pool[i].item.id == item.id) {
-            return pool[i].name;
-        }
-    }
-    return NULL;
+    // only thing the origin dimension changes is WHICH describer answers. An
+    // untagged item has no id-space and therefore no name.
+    return Combo_DescribeItemName(item);
 }
 
-const char* Combo_GetForeignItemArticle(SharedItem item) {
-    // Same origin-keyed walk as the name lookup — deliberately a separate entry
-    // point rather than a second out-param, so the spoiler surfaces (which want
-    // the bare name) are not forced to think about articles at all.
-    const ComboForeignItemDef* pool = NULL;
-    const int poolCount = Combo_GetForeignItemPoolFor(item.originGame, &pool);
-    for (int i = 0; i < poolCount; i++) {
-        if (pool[i].item.originGame == item.originGame && pool[i].item.id == item.id) {
-            return pool[i].article;
-        }
-    }
-    return NULL;
-}
-
-const char* Combo_GetForeignItemIconName(SharedItem item) {
-    // The icon column of the SAME origin-keyed walk. A pool entry may carry a
-    // NULL icon (its origin's toast renders text-only), so a NULL result here
-    // means either "not in the pool" or "no icon for this entry" — both of which
-    // the arrival toast treats identically, so they need not be distinguished.
-    const ComboForeignItemDef* pool = NULL;
-    const int poolCount = Combo_GetForeignItemPoolFor(item.originGame, &pool);
-    for (int i = 0; i < poolCount; i++) {
-        if (pool[i].item.originGame == item.originGame && pool[i].item.id == item.id) {
-            return pool[i].iconName;
-        }
-    }
-    return NULL;
-}
+/** One past the highest id the inverse probes. Both id-spaces are u16 and both
+ *  describers bound-check their own tables, so probing the whole space is
+ *  correct for any future enum growth; it runs only on a spoiler LOAD. */
+#define RSBS_FOREIGN_NAME_PROBE_END 0x10000u
 
 bool Combo_GetForeignItemByNameFor(uint8_t originGame, const char* name, SharedItem* outItem) {
-    // The spoiler-LOAD inverse. Reused (not re-derived) so reconstruction shares
-    // one source of truth with generation, and so a raw RG_*/RI_* is never
-    // fabricated on the far side (ADR 0002). Scoped to ONE origin's pool: the
-    // display names are not unique across pools ("Lens of Truth" is in both), so a
-    // merged scan would resolve to a wrong origin tag rather than to nothing.
-    if (name == NULL) {
+    // The spoiler-LOAD inverse. Scoped to ONE origin: the display names are not
+    // unique across games ("Lens of Truth" is in both), so a merged scan would
+    // resolve to a wrong origin tag rather than to nothing.
+    if (name == NULL || (originGame != (uint8_t)GAME_OOT && originGame != (uint8_t)GAME_MM)) {
         return false;
     }
-    const ComboForeignItemDef* pool = NULL;
-    const int poolCount = Combo_GetForeignItemPoolFor(originGame, &pool);
-    for (int i = 0; i < poolCount; i++) {
-        if (pool[i].name != NULL && strcmp(pool[i].name, name) == 0) {
+    for (uint32_t id = 1; id < RSBS_FOREIGN_NAME_PROBE_END; id++) {
+        SharedItem probe;
+        probe.originGame = originGame;
+        probe.flags = 0;
+        probe.id = (uint16_t)id;
+        const char* candidate = Combo_DescribeItemName(probe);
+        if (candidate != NULL && strcmp(candidate, name) == 0) {
             if (outItem != NULL) {
-                *outItem = pool[i].item;
+                *outItem = probe;
             }
             return true;
         }
@@ -1006,15 +832,27 @@ void Combo_RegisterGameDescriber(uint8_t game, const ComboGameDescriber* describ
 }
 
 const char* Combo_DescribeItemName(SharedItem item) {
-    const char* pooled = Combo_GetForeignItemName(item);
-    if (pooled != NULL) {
-        return pooled;
-    }
     if (item.originGame != (uint8_t)GAME_OOT && item.originGame != (uint8_t)GAME_MM) {
         return NULL;
     }
     const ComboGameDescriber* d = sGameDescribers[item.originGame];
     return (d != NULL && d->itemName != NULL) ? d->itemName(item.id) : NULL;
+}
+
+const char* Combo_GetForeignItemArticle(SharedItem item) {
+    if (item.originGame != (uint8_t)GAME_OOT && item.originGame != (uint8_t)GAME_MM) {
+        return NULL;
+    }
+    const ComboGameDescriber* d = sGameDescribers[item.originGame];
+    return (d != NULL && d->itemArticle != NULL) ? d->itemArticle(item.id) : NULL;
+}
+
+const char* Combo_GetForeignItemIconName(SharedItem item) {
+    if (item.originGame != (uint8_t)GAME_OOT && item.originGame != (uint8_t)GAME_MM) {
+        return NULL;
+    }
+    const ComboGameDescriber* d = sGameDescribers[item.originGame];
+    return (d != NULL && d->itemIcon != NULL) ? d->itemIcon(item.id) : NULL;
 }
 
 const char* Combo_DescribeCheckName(uint8_t hostGame, uint16_t check) {
