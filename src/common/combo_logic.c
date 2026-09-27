@@ -371,6 +371,11 @@ int Combo_Logic_EvaluateGoal(uint8_t goal, int ootGoalReached, int mmGoalReached
         // 0010 §1.2 / answer O1) — which is why there is nothing here but the
         // disjunction.
         case RSBS_COMBO_GOAL_BEAT_EITHER: return (o || m) ? 1 : 0;
+        // OoTMM's single-game goals ('ganon', 'majora'): one half alone. The
+        // other half's answer is deliberately not read — it is no term of the
+        // expression, so neither its truth nor its falsity may move the result.
+        case RSBS_COMBO_GOAL_BEAT_OOT: return o;
+        case RSBS_COMBO_GOAL_BEAT_MM: return m;
         // Answer O10 rules ONE shared piece count across both worlds. That is a
         // COUNT, not a boolean over the two halves — per-half composition is
         // exactly what O10 rejected — so the boolean form has no answer for it

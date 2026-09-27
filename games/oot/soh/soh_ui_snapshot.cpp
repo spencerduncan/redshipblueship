@@ -1465,7 +1465,9 @@ void Session::BuildPageList() {
             }
             if (sidebar == "Cross-Game Rules") {
                 p.states = { "unpaired", "paired-legacy", "frozen", "corrupt", "empty-oot-classes" };
-                p.hovers = { "direction", "frozen-slider" };
+                // The goal row (ADR 0010 D1) is hovered too: its tooltip carries
+                // one "Value: effect" line per goal, all of which the oracle reads.
+                p.hovers = { "direction", "goal", "frozen-slider" };
                 // The status line's four sentences (ComboRuleStatusPreFunc in
                 // SohMenuCombo.cpp). Copied, deliberately: a rewording there
                 // turns this row red and the lane updates the words here.
@@ -2446,7 +2448,9 @@ void Session::CaptureMenuPage(const PageSpec& p) {
             if (byName) {
                 label = namedRow->second;
             } else {
-                ComboSettingId targetId = (hv == "direction") ? COMBO_SETTING_DIRECTION : COMBO_SETTING_POOL_SIZE_OOT;
+                ComboSettingId targetId = (hv == "direction") ? COMBO_SETTING_DIRECTION
+                                          : (hv == "goal")    ? COMBO_SETTING_GOAL
+                                                              : COMBO_SETTING_POOL_SIZE_OOT;
                 label = Combo_ComboSettingLabel(targetId);
             }
             WidgetInfo* row = FindRow(*menu, p.header, p.sidebar, [&](const WidgetInfo& w) {

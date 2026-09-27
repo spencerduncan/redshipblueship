@@ -76,10 +76,11 @@ extern "C" {
 #endif
 
 /**
- * The six AUTHORABLE fields of ComboSettingsRecord, in the record's own
- * declaration order. `goal` and `logicRung` are deliberately NOT here: ADR
- * 0010 owns their authoring, and until it lands they freeze at their shipped
- * defaults (Combo_ComboSettingsDefaults).
+ * The AUTHORABLE fields of ComboSettingsRecord: the first six in the record's
+ * own declaration order, then `goal`, appended when ADR 0010 D1's GOAL became
+ * a player's choice (2026-09-27). `logicRung` is deliberately NOT here: ADR
+ * 0010 owns its authoring, and until that lands it freezes at its shipped
+ * default (Combo_ComboSettingsDefaults).
  *
  * THIS ENUM IS APPEND-ONLY TOO, though for a weaker reason than the record's:
  * nothing stores an id, but the SohMenu rows index staging buffers by it and
@@ -96,6 +97,10 @@ typedef enum {
     // resolver assembles the byte from every flag key instead of overlaying one
     // (see Combo_ResolveComboSettings). 0 or 1; the default is 0.
     COMBO_SETTING_SHARED_OCARINA, // gCombo.Rando.SharedOcarina -> record.comboFlags & RSBS_COMBO_FLAG_SHARED_OCARINA
+    // ADR 0010 D1's GOAL, authorable since 2026-09-27: one of the pinned
+    // RSBS_COMBO_GOAL_* enumerators (1..5). The default is beat-both, OoTMM's
+    // own default ('both').
+    COMBO_SETTING_GOAL, // gCombo.Rando.Goal -> record.goal (RSBS_COMBO_GOAL_*)
     COMBO_SETTING_COUNT
 } ComboSettingId;
 
@@ -114,7 +119,9 @@ int32_t Combo_ComboSettingDefault(ComboSettingId id);
  * Is @p value inside @p id's PINNED value space (ADR 0011 decision 1.2.1)?
  * Direction: exactly RSBS_COMBO_DIR_OFF..RSBS_COMBO_DIR_BOTH. Pool size:
  * 1..RSBS_FOREIGN_PLACEMENT_CAP. Item class: a mask with no bit outside
- * RSBS_ITEMCLASS_ALL_V1 (zero is valid). A comboFlags bit: exactly 0 or 1 —
+ * RSBS_ITEMCLASS_ALL_V1 (zero is valid). Goal: exactly one of the pinned
+ * RSBS_COMBO_GOAL_* enumerators (0 is a legacy record's "unset" and is not
+ * authorable). A comboFlags bit: exactly 0 or 1 —
  * never "nonzero is true", because a 2 stored in a boolean key is a value
  * nobody chose and the rule for those is the shipped default with a logged
  * reason. False for an invalid id.

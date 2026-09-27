@@ -1394,6 +1394,79 @@ TestResult ComboLogicMeasure_Run(void) {
                    "same-seed agreement above is a statement about a constant");
     }
 
+    // (6) THE SINGLE-GAME GOALS over both real engines (ADR 0010 D1, appended
+    //     2026-09-27: OoTMM's 'ganon' and 'majora'). A LOCK, not a measurement:
+    //     a `beat-oot` world proves with no MM goal term, and the same world
+    //     under a goal that has one does not.
+    //
+    //     THE WORLD: the measurement bag's OoT rows and NO MM row. MM's engine
+    //     harvests only coordinator placements from its shuffled checks, and
+    //     every MM item Majora's lair needs past the starting ocarina (songs,
+    //     masks, the boss keys and weapons) is a shuffled pool item, so with no
+    //     MM row placed MM's half has nothing to prove Majora with -- asserted
+    //     below as the premise rather than assumed. OoT's half proves (the OoT
+    //     rows outside the sample stay natively placed; approximation A). So the
+    //     same bag, rung and seed prove under beat-oot and are unprovable under
+    //     beat-mm and beat-both: the red half is observed on the real engines,
+    //     not only over the stubs (combo-logic-fill).
+    {
+        std::vector<ComboLogicBagItem> ootOnly;
+        for (const ComboLogicBagItem& b : bag) {
+            if (b.item.originGame == (uint8_t)GAME_OOT) {
+                ootOnly.push_back(b);
+            }
+        }
+        CLM_ASSERT(!ootOnly.empty() && (int)ootOnly.size() < bagCount,
+                   "the single-game-goal leg needs a bag with OoT rows and without the MM rows it drops");
+
+        // THE PREMISE, over one round with the whole OoT-only bag assumed.
+        const uint8_t kGoals[3] = { (uint8_t)RSBS_COMBO_GOAL_BEAT_OOT, (uint8_t)RSBS_COMBO_GOAL_BEAT_MM,
+                                    (uint8_t)RSBS_COMBO_GOAL_BEAT_BOTH };
+        int premiseExpr[3] = { -1, -1, -1 };
+        for (int g = 0; g < 3; ++g) {
+            Combo_Logic_ResetPlacements();
+            ComboLogicRoundRequest req;
+            memset(&req, 0, sizeof(req));
+            req.assumed = ootOnly.data();
+            req.assumedCount = (int)ootOnly.size();
+            req.goal = kGoals[g];
+            ComboLogicRoundResult res;
+            CLM_ASSERT(Combo_Logic_RunRound(&req, &res) == RSBS_COMBO_LOGIC_OK,
+                       "a single-game-goal premise round did not succeed");
+            CLM_ASSERT(res.crossingOpenOoT == 1 && res.goalOoT == 1 && res.goalMM == 0,
+                       "PREMISE: with only the OoT rows assumed, OoT's half must prove and MM's must not (the world "
+                       "this leg is about); pick another world if this ever moves");
+            premiseExpr[g] = res.goalExpression;
+        }
+        printf("[TEST] combo-logic-measure: SINGLE-GAME GOALS premise (%d OoT rows assumed, 0 MM rows): goalOoT=1 "
+               "goalMM=0 -> beat-oot=%d beat-mm=%d beat-both=%d\n",
+               (int)ootOnly.size(), premiseExpr[0], premiseExpr[1], premiseExpr[2]);
+        CLM_ASSERT(premiseExpr[0] == 1 && premiseExpr[1] == 0 && premiseExpr[2] == 0,
+                   "the round's goal expression is not the single half the goal names");
+
+        const FillMeasurement beatOot = RunTimedFill("beatable/beat-oot", ootOnly.data(), (int)ootOnly.size(),
+                                                     RSBS_COMBO_GOAL_BEAT_OOT, RSBS_COMBO_RUNG_BEATABLE, kSeedA,
+                                                     fillAttempts);
+        const FillMeasurement beatMm = RunTimedFill("beatable/beat-mm (red)", ootOnly.data(), (int)ootOnly.size(),
+                                                    RSBS_COMBO_GOAL_BEAT_MM, RSBS_COMBO_RUNG_BEATABLE, kSeedA,
+                                                    fillAttempts);
+        const FillMeasurement bothRed = RunTimedFill("beatable/beat-both (red)", ootOnly.data(),
+                                                     (int)ootOnly.size(), RSBS_COMBO_GOAL_BEAT_BOTH,
+                                                     RSBS_COMBO_RUNG_BEATABLE, kSeedA, fillAttempts);
+        CLM_ASSERT(beatOot.status == RSBS_COMBO_LOGIC_OK && beatOot.res.goalProven && beatOot.res.rounds > 0,
+                   "beat-oot did not prove a world whose OoT half proves: a goal with no MM term must not need "
+                   "MM's half");
+        CLM_ASSERT(beatMm.status == RSBS_COMBO_LOGIC_ERR_GOAL_UNPROVABLE,
+                   "RED HALF: beat-mm over the same bag and seed must be unprovable (MM's half cannot prove)");
+        CLM_ASSERT(bothRed.status == RSBS_COMBO_LOGIC_ERR_GOAL_UNPROVABLE,
+                   "RED HALF: beat-both over the same bag and seed must be unprovable");
+        printf("[TEST] combo-logic-measure: SINGLE-GAME GOALS over the real engines: beat-oot %s in %.1fms (%d "
+               "placed, %d rounds, %d attempt(s)); beat-mm %s, beat-both %s on the same bag and seed\n",
+               Combo_Logic_StatusName(beatOot.status), beatOot.wallMs, beatOot.res.placed, beatOot.res.rounds,
+               beatOot.res.attempts, Combo_Logic_StatusName(beatMm.status), Combo_Logic_StatusName(bothRed.status));
+        Combo_Logic_ResetPlacements();
+    }
+
     const Stats fillStats = Summarize({ beatEitherA.wallMs, beatEitherB.wallMs, beatEitherC.wallMs });
     printf("[TEST] combo-logic-measure: FILL VARIANCE across 3 coordinator seeds (beatable/beat-either): "
            "min=%.1fms median=%.1fms max=%.1fms\n",

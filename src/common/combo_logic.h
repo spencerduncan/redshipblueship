@@ -957,6 +957,12 @@ uint32_t Combo_Logic_PlacementDigest(void);
  * `beat-either` is a PLAIN OR and the coordinator never narrows it to an XOR:
  * an unbeatable half is permitted, both halves provable is a welcome outcome,
  * and nothing anywhere may bias toward asymmetry (ADR 0010 §1.2 / answer O1).
+ *
+ * `beat-oot` and `beat-mm` (OoTMM's `ganon` / `majora`) are ONE half's boolean
+ * alone: the other half is no term of the expression, whatever it answers. The
+ * MM half the coordinator passes in has already been through the arrival gate
+ * (Termina is entered through OoT's crossing), so `beat-mm` still requires that
+ * crossing to be provably open.
  */
 int Combo_Logic_EvaluateGoal(uint8_t goal, int ootGoalReached, int mmGoalReached);
 
