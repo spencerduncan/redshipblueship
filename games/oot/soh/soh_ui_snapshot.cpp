@@ -1425,9 +1425,6 @@ void Session::BuildPageList() {
              { "Randomizer", "Logic/Access" },
              { "Enhancements", "Quality of Life" },
              { "Settings", "General" },
-             // OoT's mod menu (the Popout Mod Menu Window row, which embeds
-             // ModMenuWindow): the reference for Combo/MM Mods.
-             { "Settings", "Mod Menu" },
          }) {
         PageSpec p = menuPage(h, s, Origin::SOH_REFERENCE);
         p.needsRom = true;
@@ -1499,7 +1496,13 @@ void Session::BuildPageList() {
         { "Cross-Game Rules", "Randomizer/General" },
         { "Windows", "Randomizer/Item Tracker" },
         { "Majora's Mask", "Enhancements/Quality of Life" },
-        { "MM Mods", "Settings/Mod Menu" },
+        // OoT's own mod menu (Settings/Mod Menu, which embeds ModMenuWindow)
+        // cannot be the reference: with the harness's fresh config and no mods
+        // folder, its GetEnabledModsFromCVar yields one empty name, UpdateModFiles
+        // leaves it in place when the folder is absent, and DrawMods's
+        // filePaths.at("") throws. Tricks/Glitches is SoH's other two-column
+        // Disabled/Enabled table page, the layout this page shares.
+        { "MM Mods", "Randomizer/Tricks/Glitches" },
     };
     auto& entries = MenuEntries(*menu);
     if (entries.contains("Combo")) {

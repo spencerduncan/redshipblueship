@@ -20,8 +20,9 @@
  * rather than rows in OoT's list, which would also have meant sharing OoT's
  * `EnabledMods` CVar.
  *
- * THE LOOK is OoT's mod menu, which is the reference this page is compared with in
- * the UI snapshot (Combo/MM Mods against Settings/Mod Menu): a two-column bordered
+ * THE LOOK is OoT's mod menu (the UI snapshot compares the page with
+ * Randomizer/Tricks/Glitches, SoH's other two-column Disabled/Enabled table,
+ * because OoT's mod menu page cannot be drawn in the harness): a two-column bordered
  * table, 25 px theme-coloured UIWidgets::StateButton arrows before each file name,
  * the arrow at the end of the list disabled. OoT's own two-column layout (Enabled
  * Mods / Disabled Mods, with left/right arrows) is still in mod_menu.cpp, commented
