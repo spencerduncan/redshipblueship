@@ -1220,7 +1220,8 @@ void EnGrasshopper_DrawEffects(EnGrasshopper* this, PlayState* play) {
 }
 
 #ifdef RSBS_SINGLE_EXECUTABLE
-// [RSBS #666] EnGrasshopper_Destroy releases each dragonfly's slot in sOccupiedIndices, so nothing but Destroy ever put it back. A cross-game
+// [RSBS #666] EnGrasshopper_Destroy releases each dragonfly's slot in
+// sOccupiedIndices, so nothing but Destroy ever put it back. A cross-game
 // departure abandons MM's Play gamestate without deleting its actors
 // (MM_ActorOverlayTable_RetireAbandonedClients, z_actor.c), which leaves it
 // holding the abandoned session's value. MM_Actor_FreeOverlay calls this only
@@ -1232,5 +1233,28 @@ void EnGrasshopper_Reset(void) {
     for (i = 0; i < ARRAY_COUNT(sOccupiedIndices); i++) {
         sOccupiedIndices[i] = false;
     }
+}
+
+// [RSBS #666] Seed and read the static above for the mm-abandoned-session-statics
+// row (games/mm/2s2h/mm_resume_state_test.cpp): dirty != 0 puts it where a live
+// client leaves it, 0 puts back the initial value; the check is nonzero while it
+// is not the initial value.
+void MM_EnGrasshopper_SetDestroyStaticsForTest(s32 dirty) {
+    s32 i;
+
+    for (i = 0; i < ARRAY_COUNT(sOccupiedIndices); i++) {
+        sOccupiedIndices[i] = dirty ? true : false;
+    }
+}
+
+s32 MM_EnGrasshopper_DestroyStaticsDirtyForTest(void) {
+    s32 i;
+
+    for (i = 0; i < ARRAY_COUNT(sOccupiedIndices); i++) {
+        if (sOccupiedIndices[i]) {
+            return true;
+        }
+    }
+    return false;
 }
 #endif

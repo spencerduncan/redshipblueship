@@ -1967,9 +1967,10 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # both REAL pools is combo-logic-bag-composition B7.
     redship_add_test(NAME SharedQuantityPolicy COMMAND redship --test shared-quantity-policy)
     # #666: a cross-game departure retires MM's Play gamestate without
-    # MM_Play_Destroy; MM_RetireAbandonedSession (run by MM_Game_Suspend) must
-    # reset every overlay that still had clients (En_Test4's clock latch), skip
-    # client-free ones, and drop every per-actor ObjectExtension entry. Pure.
+    # MM_Play_Destroy. The row drives MM's registered suspend and checks it
+    # resets every overlay that still had clients (En_Test4's clock latch) after
+    # the graph is retired, skips client-free ones, restores the statics only
+    # Destroy used to restore, and drops every per-actor ObjectExtension entry.
     redship_add_test(NAME MMAbandonedSessionStatics COMMAND redship --test mm-abandoned-session-statics)
 
     # ========================================================================

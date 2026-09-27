@@ -173,7 +173,8 @@ void MM_EnViewer_Draw(Actor* thisx, PlayState* play) {
 }
 
 #ifdef RSBS_SINGLE_EXECUTABLE
-// [RSBS #666] MM_EnViewer_Destroy decrements the instance counter D_8089F3E0, so nothing but Destroy ever put it back. A cross-game
+// [RSBS #666] MM_EnViewer_Destroy decrements the instance counter D_8089F3E0,
+// so nothing but Destroy ever put it back. A cross-game
 // departure abandons MM's Play gamestate without deleting its actors
 // (MM_ActorOverlayTable_RetireAbandonedClients, z_actor.c), which leaves it
 // holding the abandoned session's value. MM_Actor_FreeOverlay calls this only
@@ -181,5 +182,17 @@ void MM_EnViewer_Draw(Actor* thisx, PlayState* play) {
 // initial value, so on a normal teardown it changes nothing.
 void MM_EnViewer_Reset(void) {
     D_8089F3E0 = 0;
+}
+
+// [RSBS #666] Seed and read the static above for the mm-abandoned-session-statics
+// row (games/mm/2s2h/mm_resume_state_test.cpp): dirty != 0 puts it where a live
+// client leaves it, 0 puts back the initial value; the check is nonzero while it
+// is not the initial value.
+void MM_EnViewer_SetDestroyStaticsForTest(s32 dirty) {
+    D_8089F3E0 = dirty ? 2 : 0;
+}
+
+s32 MM_EnViewer_DestroyStaticsDirtyForTest(void) {
+    return D_8089F3E0 != 0;
 }
 #endif

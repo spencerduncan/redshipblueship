@@ -2208,11 +2208,13 @@ void MM_Game_Suspend(void) {
  * Both are done here, at the point the session is abandoned. The actors' own
  * Destroy functions are NOT run: they take the PlayState of a gamestate
  * that has already been retired (colliders, effects, audio). Overlays whose
- * Destroy is what restores a static got a reset slot of their own for this
- * (En_Grasshopper, En_Holl, En_Tanron5, En_Viewer).
+ * Destroy (or a per-type Destroy helper) is what restores a static got that
+ * restore in a reset of their own (En_Grasshopper, En_Holl, En_Tanron5,
+ * En_Viewer, En_Mushi2 new; En_Invadepoh's existing reset extended).
  *
- * extern "C" and standalone so the mm-abandoned-session-statics row
- * (mm_resume_state_test.cpp) can run the seam without a live session.
+ * The mm-abandoned-session-statics row (mm_resume_state_test.cpp) drives
+ * MM_GetGameOps()->suspend, so it fails if this call leaves MM_Game_Suspend
+ * or moves ahead of MM_Graph_ResetRunFrameContext.
  */
 extern "C" void MM_RetireAbandonedSession(void) {
     const s32 overlays = MM_ActorOverlayTable_RetireAbandonedClients();

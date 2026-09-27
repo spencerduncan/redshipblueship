@@ -84,11 +84,11 @@ int CosmeticGfxStub_RunHeadless(void);
 // Return 0 on pass, non-zero on fail.
 int MM_ResumeArena_RunHeadless(void);
 int MM_StartupRestore_RunHeadless(void);
-// (c) mm-abandoned-session-statics (#666) — MM_RetireAbandonedSession, which
-//     MM_Game_Suspend runs after retiring the Play gamestate without
-//     MM_Play_Destroy, must reset the overlays that still had clients (En_Test4's
-//     sIsLoaded latch among them), leave client-free overlays alone, and drop
-//     every per-actor ObjectExtension entry.
+// (c) mm-abandoned-session-statics (#666) — MM's registered suspend, which
+//     retires the Play gamestate without MM_Play_Destroy, must then reset the
+//     overlays that still had clients (En_Test4's sIsLoaded latch among them),
+//     leave client-free overlays alone, restore the statics only Destroy used
+//     to restore, and drop every per-actor ObjectExtension entry.
 int MM_AbandonedSessionStatics_RunHeadless(void);
 // The cross-game arrival IS MM's intro event (#654, operator ruling 2026-09-16;
 // games/mm/2s2h/mm_combo_first_cycle_test.cpp). Vanilla MM proxies "the intro
@@ -727,8 +727,8 @@ static TestResult Test_MMResumeArena(void) {
 }
 
 // MM abandoned-session contract (#666; see the extern decl above). Thin wrapper
-// over the C entry point in games/mm/2s2h/mm_resume_state_test.cpp. Pure: no
-// display, no ROM, no arena; it restores the overlay table and the latch.
+// over the C entry point in games/mm/2s2h/mm_resume_state_test.cpp. No display,
+// no ROM, no arena; a scope guard restores everything it seeds on every exit.
 static TestResult Test_MMAbandonedSessionStatics(void) {
     return MM_AbandonedSessionStatics_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
@@ -4573,7 +4573,8 @@ const TestDescriptor gTests[] = {
      Test_SharedQuantityPolicy},
     {"mm-abandoned-session-statics",
      "A cross-game departure retires MM's abandoned Play session: overlays with live clients are reset once "
-     "(En_Test4's clock latch), client-free overlays are not, and no per-actor ObjectExtension entry survives (#666)",
+     "(En_Test4's clock latch) after the graph is retired, client-free overlays are not, the statics only Destroy "
+     "restored are restored, and no per-actor ObjectExtension entry survives (#666)",
      Test_MMAbandonedSessionStatics},
     {nullptr, nullptr, nullptr}  // Sentinel
 };
