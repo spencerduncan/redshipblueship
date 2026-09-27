@@ -115,8 +115,14 @@ typedef struct {
     void (*WarningText)(const char* text);
     /** Tooltip for the item drawn last, when hovered (UIWidgets::Tooltip: wrapped at 80 characters). */
     void (*Tooltip)(const char* text);
-    /** A small inert chip in `tone`, on the current line (SoH's trick tag chips). */
-    void (*TagChip)(const char* label, ComboUiTone tone);
+    /**
+     * A small inert chip in `tone`, on the current line (SoH's trick tag chips,
+     * which SoH draws disabled). `opts` is the row's options: when
+     * `opts->disabled` the chip dims once more, as the row's control and name
+     * do, so a disabled row reads disabled end to end (ImGui does not dim a
+     * nested BeginDisabled again). NULL is a live row.
+     */
+    void (*TagChip)(const char* label, ComboUiTone tone, const ComboUiWidgetOpts* opts);
     /**
      * Queue a confirm modal (SohGui::RegisterPopup): `confirmLabel` runs
      * `onConfirm(user)`, `cancelLabel` closes it. The call only queues; the modal
@@ -124,11 +130,25 @@ typedef struct {
      */
     void (*Confirm)(const char* title, const char* message, const char* confirmLabel, const char* cancelLabel,
                     void (*onConfirm)(void* user), void* user);
-    /** Theme the header, tree-node and selectable highlight until PopTheme (UIWidgets::PushStyleHeader). */
+    /**
+     * Theme collapsing headers (and the header, tree-node and selectable
+     * highlight) until PopTheme, as SoH's tracker panes do
+     * (UIWidgets::PushStyleCombobox: rounded, 10x6 padding, theme colour at half alpha).
+     */
     void (*PushTheme)(void);
     void (*PopTheme)(void);
     /** Vertical space, SoH's UIWidgets::Spacer (0 is one item spacing). */
     void (*Spacer)(float height);
+    /**
+     * The name cell of a composite row, on the current line after the row's other
+     * items: SoH's trick-list row is a control, the tag chips, then the name
+     * (DrawTricksMenu's ImGui::Text plus UIWidgets::Tooltip). Wrapped at the
+     * pane's edge with a hanging indent under the name, dimmed when
+     * `opts->disabled`, and showing the tooltip a widget with the same options
+     * would (ComboUi_ShownTooltip), so the whole row explains itself on hover.
+     * Reports its rectangle under `text` to the rect recorder.
+     */
+    void (*RowText)(const char* text, const ComboUiWidgetOpts* opts);
 } ComboUiTable;
 
 /** Install the table the panes draw through. NULL uninstalls (back to the fallback). */

@@ -76,8 +76,9 @@ using namespace UIWidgets;
 // ============================================================================
 // Cross-Game combo rules (#655; ADR 0011 increment 2, #498; #497 step 6)
 // ============================================================================
-// The six tier-4 `gCombo.Rando.*` keys — direction, per-direction pool sizes,
-// per-direction item classes, and the shared ocarina (#668) — render as ROWS in
+// The seven tier-4 `gCombo.Rando.*` keys — direction, per-direction pool sizes,
+// per-direction item classes, the shared ocarina (#668) and the goal (ADR 0010
+// D1) — render as ROWS in
 // the Cross-Game Rules page of the tier-4 Combo section below. #497 step 6
 // moved them there from the interim host, Randomizer → Cross-Game.
 // PR #652 shipped them as a common-owned pop-out pane
@@ -103,6 +104,7 @@ static int32_t comboRuleDirection;
 static int32_t comboRulePoolSize[2];  // [0] OoT items -> MM checks, [1] MM items -> OoT checks
 static bool comboRuleItemClass[2][6]; // [0] OoT pool, [1] MM pool; second index is comboRuleClassBits'
 static bool comboRuleSharedOcarina;   // #668: ComboSettingsRecord.comboFlags' shared-ocarina bit
+static int32_t comboRuleGoal;         // ADR 0010 D1: ComboSettingsRecord.goal (RSBS_COMBO_GOAL_*)
 
 // The allocated RSBS_ITEMCLASS_* bits in bit order (foreign_items.h). Appending
 // a class is a new checkbox here; re-pointing an existing bit is forbidden
@@ -121,6 +123,24 @@ static const std::map<int32_t, const char*> comboRuleDirectionOptions = {
     { (int32_t)RSBS_COMBO_DIR_FORWARD, "OoT Items to MM" },
     { (int32_t)RSBS_COMBO_DIR_REVERSE, "MM Items to OoT" },
     { (int32_t)RSBS_COMBO_DIR_BOTH, "Both Directions" },
+};
+
+// The five pinned RSBS_COMBO_GOAL_* enumerators (1..5, static_asserted in
+// foreign_items.h), named in OoTMM's own words for its `goal` setting, whose
+// values these are (packages/core/src/settings/data.ts lists them in the order
+// any, ganon, majora, both, triforce, triforce3; triforce3 is not offered).
+// The dropdown does NOT follow that order: ComboboxOptions' comboMap is a
+// std::map keyed by the stored value, so it lists them in enumerator order --
+// the default first, then the values in the order they were appended to the
+// pinned table. Reordering would need a second, display-only numbering between
+// the row and the record, which the frozen-state and unknown-value legs read
+// directly.
+static const std::map<int32_t, const char*> comboRuleGoalOptions = {
+    { (int32_t)RSBS_COMBO_GOAL_BEAT_BOTH, "Ganon & Majora" },
+    { (int32_t)RSBS_COMBO_GOAL_BEAT_EITHER, "Any Final Boss" },
+    { (int32_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT, "Triforce Hunt" },
+    { (int32_t)RSBS_COMBO_GOAL_BEAT_OOT, "Ganon" },
+    { (int32_t)RSBS_COMBO_GOAL_BEAT_MM, "Majora" },
 };
 
 // The six item classes' player-facing names and tooltips, in comboRuleClassBits'
@@ -308,6 +328,39 @@ static void ComboRuleDirectionPreFunc(WidgetInfo& info) {
     ComboRuleApplyDecided(info, decided);
 }
 
+// A goal value the goal row's combo map had to be taught about at runtime, or
+// 0. The direction row's guard, for the same reason: std::map::at throws on an
+// unknown key, and a frozen record from a later build (or a legacy record's 0,
+// "unset") can carry a goal this build has no label for.
+static int32_t comboRuleUnknownGoal = 0;
+static bool comboRuleUnknownGoalTaught = false;
+
+/**
+ * The goal row's per-frame refresh: the direction row's, over the goal. The
+ * value is shown as what it is ("Unknown (n)") rather than clamped to a label,
+ * because a clamp would display a goal the world was not proved against.
+ */
+static void ComboRuleGoalPreFunc(WidgetInfo& info) {
+    ComboSettingsRecord shown;
+    const bool decided = ComboRuleShownRecord(&shown);
+    comboRuleGoal = (int32_t)shown.goal;
+
+    auto options = std::static_pointer_cast<ComboboxOptions>(info.options);
+    if (comboRuleUnknownGoalTaught && comboRuleUnknownGoal != comboRuleGoal) {
+        options->comboMap.erase(comboRuleUnknownGoal);
+        comboRuleUnknownGoalTaught = false;
+    }
+    if (!options->comboMap.contains(comboRuleGoal)) {
+        static char unknownLabel[32];
+        snprintf(unknownLabel, sizeof(unknownLabel), "Unknown (%d)", (int)comboRuleGoal);
+        options->comboMap[comboRuleGoal] = unknownLabel;
+        comboRuleUnknownGoal = comboRuleGoal;
+        comboRuleUnknownGoalTaught = true;
+    }
+
+    ComboRuleApplyDecided(info, decided);
+}
+
 /**
  * The status line above the rows — ADR 0004 §6 state 4's "labelled with the
  * reason and with the identity it is frozen to", and the one place the state is
@@ -439,7 +492,7 @@ const std::vector<ComboSectionPage>& GetComboSectionPages() {
  * swapped), which no compile catches.
  */
 void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
-    // Six settings, rendered as rows rather than as the pop-out pane PR #652
+    // Seven settings, rendered as rows rather than as the pop-out pane PR #652
     // shipped. See the block comment at the top of this file for why every row
     // is a pointer-based widget over a src/common writer rather than a
     // WIDGET_CVAR_* one, and for which value each row shows in which state.
@@ -459,6 +512,26 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
         .HideInSearch(true)
         .PreFunc(ComboRuleStatusPreFunc)
         .Options(TextOptions().Color(UIWidgets::Colors::Gray));
+    // The goal (ADR 0010 D1): OoTMM's `goal` setting, its values and its
+    // default. Its own group because it is what the whole world is proved
+    // against, not a rule about the crossing.
+    menu.AddWidget(path, "Win Condition", WIDGET_SEPARATOR_TEXT);
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_GOAL), WIDGET_COMBOBOX)
+        .ValuePointer(&comboRuleGoal)
+        .PreFunc(ComboRuleGoalPreFunc)
+        .Callback([](WidgetInfo& info) { Combo_ComboSettingSet(COMBO_SETTING_GOAL, comboRuleGoal); })
+        .Options(ComboboxOptions()
+                     .ComboMap(comboRuleGoalOptions)
+                     .Tooltip("Chooses which final boss the seed guarantees you can reach and defeat. Meeting it "
+                              "does not end the paired game: each boss plays its own game's ending.\n\n"
+                              "Ganon & Majora: Defeat both Ganon and Majora, in any order. Both games are "
+                              "finishable.\n"
+                              "Any Final Boss: Defeat either Ganon or Majora. The other game may be unfinishable.\n"
+                              "Triforce Hunt: Collect Triforce Pieces from both games. Paired worlds cannot be "
+                              "created with this goal yet.\n"
+                              "Ganon: Defeat Ganon. Majora's Mask may be unfinishable.\n"
+                              "Majora: Defeat Majora. Ocarina of Time may be unfinishable."));
+
     menu.AddWidget(path, "Item Crossing", WIDGET_SEPARATOR_TEXT);
 
     menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_DIRECTION), WIDGET_COMBOBOX)
@@ -661,7 +734,7 @@ void AddComboWindowWidgets(SohMenu& menu, WidgetPath& path) {
         .HideInSearch(true)
         .Options(WindowButtonOptions().Tooltip("Toggles the Cross-Game Spoiler.").EmbedWindow(false));
     // Combo tracker (#458) - both games' progress at once, the inactive game's
-    // included ("as of last freeze/save"). Race-disabled like the spoiler: its
+    // included ("As of the last game switch or save"). Race-disabled like the spoiler: its
     // cross-game section names items sitting on uncollected checks.
     menu.AddWidget(path, "Combo Tracker", WIDGET_SEPARATOR_TEXT);
     menu.AddWidget(path, "Toggle Combo Tracker", WIDGET_WINDOW_BUTTON)

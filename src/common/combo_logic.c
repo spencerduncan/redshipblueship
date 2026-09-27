@@ -371,6 +371,11 @@ int Combo_Logic_EvaluateGoal(uint8_t goal, int ootGoalReached, int mmGoalReached
         // 0010 §1.2 / answer O1) — which is why there is nothing here but the
         // disjunction.
         case RSBS_COMBO_GOAL_BEAT_EITHER: return (o || m) ? 1 : 0;
+        // OoTMM's single-game goals ('ganon', 'majora'): one half alone. The
+        // other half's answer is deliberately not read — it is no term of the
+        // expression, so neither its truth nor its falsity may move the result.
+        case RSBS_COMBO_GOAL_BEAT_OOT: return o;
+        case RSBS_COMBO_GOAL_BEAT_MM: return m;
         // Answer O10 rules ONE shared piece count across both worlds. That is a
         // COUNT, not a boolean over the two halves — per-half composition is
         // exactly what O10 rejected — so the boolean form has no answer for it
@@ -378,6 +383,23 @@ int Combo_Logic_EvaluateGoal(uint8_t goal, int ootGoalReached, int mmGoalReached
         case RSBS_COMBO_GOAL_TRIFORCE_HUNT: return -1;
         default: return -1;
     }
+}
+
+uint32_t Combo_Logic_UnprovedHalves(const ComboLogicFillResult* res) {
+    if (res == NULL || res->status != RSBS_COMBO_LOGIC_OK) {
+        return 0u; // no world was created, so there is nothing to warn about
+    }
+    if (res->proofSkipped || !res->goalProven) {
+        return RSBS_COMBO_HALF_OOT | RSBS_COMBO_HALF_MM; // rung `none`: nothing was proved
+    }
+    uint32_t halves = 0u;
+    if (res->goalOoT != 1) {
+        halves |= RSBS_COMBO_HALF_OOT;
+    }
+    if (res->goalMM != 1) {
+        halves |= RSBS_COMBO_HALF_MM;
+    }
+    return halves;
 }
 
 int Combo_Logic_EvaluateTriforceHunt(int sharedPieces, uint16_t required) {
@@ -898,6 +920,8 @@ static int sSurplusCount;
 static void ComboLogicResetFillResult(ComboLogicFillResult* out) {
     memset(out, 0, sizeof(*out));
     out->status = RSBS_COMBO_LOGIC_OK;
+    out->goalOoT = -1; // no proving round has held yet
+    out->goalMM = -1;
 }
 
 static bool ComboLogicRungIsPinned(uint8_t rung) {
@@ -1460,6 +1484,10 @@ int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* 
 
         res.goalProven = true;
         res.allHostsReached = (round.allHostsReached == 1);
+        // The proving round's own halves (the confirming round's, when surplus
+        // was placed: a superset of the proof). Reported, never read here.
+        res.goalOoT = (round.goalOoT == 1) ? 1 : 0;
+        res.goalMM = (round.goalMM == 1) ? 1 : 0;
         status = RSBS_COMBO_LOGIC_OK;
         goto finish;
     }

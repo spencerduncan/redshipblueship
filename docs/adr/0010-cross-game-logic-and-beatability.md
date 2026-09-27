@@ -1911,3 +1911,101 @@ on the pinned seed (an OoT Bottle with Ruto's Letter on
 `RC_WOODFALL_TEMPLE_BOW_CHEST`; MM's New Wave Bossa Nova on Gerudo Training
 Ground Maze Right Side Chest); direction OFF makes all 255 rows home-only.
 The four goldens moved once more, in one re-pin commit.
+
+### 2026-09-27 -- D1: `beat-oot` and `beat-mm` join the GOAL list, and the GOAL becomes a player's choice
+
+D1's table said "at minimum" and "extensible". Under the operator's
+2026-09-27 directive that OoTMM is the reference for player-facing choices,
+the list now follows OoTMM's `goal` setting
+(`packages/core/src/settings/data.ts`: `any`, `ganon`, `majora`, `both`,
+`triforce`, `triforce3`; default `both`):
+
+| Value | Goal expression | OoTMM |
+|---|---|---|
+| `beat-both` (default, 1) | `OOT_GOAL && MM_GOAL` | `both` (default) |
+| `beat-either` (2) | `OOT_GOAL \|\| MM_GOAL` | `any` |
+| `triforce-hunt` (3) | one shared piece count (O10) | `triforce` |
+| `beat-oot` (4, new) | `OOT_GOAL` | `ganon` |
+| `beat-mm` (5, new) | `MM_GOAL` | `majora` |
+
+- **The expression.** `Combo_Logic_EvaluateGoal` answers `beat-oot` and
+  `beat-mm` with one half's boolean alone. The other half is no term of the
+  expression: its truth or falsity moves nothing. This is OoTMM's own
+  evaluation (`pathfind.ts`: `case 'ganon': worldGoal = ganon`).
+- **The arrival gate still binds `beat-mm`.** The MM half the coordinator
+  evaluates is already gated on OoT's crossing being open (Termina is entered
+  through it), so `beat-mm` proves only a world whose crossing is provably
+  open.
+- **The unproved half is still filled.** The fill places every required row
+  under the same rung whatever the goal; the goal is only the exit
+  condition. A single-game goal places byte-identically to `beat-both` on a
+  world where both halves prove, for one seed (the stub lock). §1.2's
+  consequence for `beat-either` holds here in the stronger form: under
+  `beat-oot` MM's half carries no proof at all, by the player's choice.
+- **§1.2's warning is built, for every goal that can leave a half without
+  proof** (`beat-either` included, which this amendment also makes
+  selectable). Two surfaces, as the consequences section requires:
+  - *Documented at the setting.* The Goal row's tooltip line for each such
+    value names what may be unfinishable ("Ganon: Defeat Ganon. Majora's
+    Mask may be unfinishable."; "Any Final Boss: ... The other game may be
+    unfinishable.").
+  - *Warned at creation.* The fill reports its proving round's own halves
+    (`ComboLogicFillResult.goalOoT` / `goalMM`), and
+    `Combo_Logic_UnprovedHalves` names the halves that round did not prove.
+    The creation event raises a toast naming each such half ("Not proven:
+    Majora's Mask may be unfinishable.") once the progress overlay closes.
+    The warning reads the PROOF, not the goal: a `beat-oot` world whose MM
+    half happened to prove as well carries a proof for both halves and is
+    not warned about, and a `beat-both` world never is.
+  - *Not built:* §1.2's "the frozen record says so afterwards". The record
+    holds the goal, so a single-game goal's unproved half can be read off
+    it; which half a `beat-either` world left unproved is not recorded (it
+    would be a record field, a format change this amendment does not make).
+- **Triforce Quest (`triforce3`) is not added.** It is three NAMED shared
+  pieces (Power, Courage, Wisdom) with their own placement pass and specific
+  hints (`solve.ts` places them with `placeNamedTriforceWorld`; the setting's
+  own text says "Specific hints will guide you"). Neither port has that hint
+  machinery, and the O10 carrier is a count, not three named items.
+- **Authoring.** The goal is the seventh tier-4 key, `gCombo.Rando.Goal`
+  (this ADR's working name, kept), drawn as the "[Both Games] Goal" row on
+  Combo > Cross-Game Rules with OoTMM's labels. It freezes at the creation
+  event like every other rule, and the arrival and load compares refuse a
+  divergent goal by name (`goal`), as §1.1 specified. The default stays
+  `beat-both` (O11), so an unset key reproduces every existing record, its
+  fingerprint and the four goldens.
+- **What a non-default goal does to a world.** The goal is canonical byte 8,
+  so a non-default goal moves `comboSettingsHash` and with it the single
+  bag's seed: a `beat-oot` file is a different world from a `beat-both` file
+  of the same seed, and not only a weaker proof of the same one.
+- **Still refused:** `triforce-hunt` at Generate, as before (the single bag
+  does not carry the hunt yet). The row offers it, and its tooltip says that
+  a paired world cannot be created with it yet.
+- **Not built, and a divergence from OoTMM:** nothing at runtime reads the
+  goal except the triforce win. OoTMM ends the game when the goal is met
+  (its setting reads "The game will end when the specified goal is
+  reached"); here beating Ganon or Majora plays that game's own ending under
+  every goal, as it did under `beat-both`, and meeting the goal ends
+  nothing. The reason is scope, not disagreement: ending the paired game
+  needs a combo-level end state over both ports (credits and a finished
+  file across two games), which does not exist, and this amendment adds the
+  goal's authoring and proof only. The row's tooltip says so ("Meeting it
+  does not end the paired game"), so the seed's guarantee is not presented
+  as an ending. Ending on the goal is tracked in #762.
+
+Locked by `ComboLogicEngineSurface` (the truth table for all five values,
+and `Combo_Logic_UnprovedHalves` over every pair of halves); by
+`ComboLogicFixpoint` over stub engines, at the ROUND level (on the
+pair-level removal world, whose OoT half is unprovable, `beat-mm` holds and
+`beat-oot` and `beat-both` do not; with the host restored all three hold);
+by `ComboLogicFill` over stub engines, at the FILL level (`beat-oot` proves
+the world whose MM half is unprovable and names MM's half as unproved, and
+the same world and seed under `beat-mm` and under `beat-both` returns
+`goal-unprovable`; the mirror: `beat-mm` proves the world whose OoT half is
+unprovable and names OoT's half, and the same world under `beat-oot` and
+under `beat-both` returns `goal-unprovable`); by `OoTLogicExport` over both
+real engines (on a generated world whose OoT half proves and whose MM half
+does not, a fill of three OoT progression copies proves under `beat-oot`,
+first attempt, all three placed on MM checks, and returns `goal-unprovable`
+under `beat-mm` and `beat-both` on the same bag, seed and engines); and by
+`ComboSingleBag`, which checks that the real creation event computes its
+warning from its own fill and, under the shipped `beat-both`, names nothing.
