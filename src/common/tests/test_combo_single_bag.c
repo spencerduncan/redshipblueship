@@ -44,10 +44,14 @@
  *      under beat-both reads goalMM=1 with MM's engine granting reached fixed
  *      contents (A7), and goalMM=0 — beat-both 0 — with that grant switched off
  *      (MM_ComboLogic_TestSetFixedGrants, test only): the red half, observed in
- *      every run rather than once on an older binary. Then, still switched off,
- *      assuming exactly the fixed remains contents restores goalMM=1, which names
- *      the remains as the fixed content the goal runs through. The switch is put
- *      back before anything is asserted. (Lane G1; runs between B and C.)
+ *      every run rather than once on an older binary. Switched off, goalOoT falls
+ *      to 0 as well (observed, printed, not asserted): OoT items the fill hosted in
+ *      MM sit behind MM checks whose reach needs fixed MM contents, so without the
+ *      grant the pair is unprovable from both ends. Then, still switched off,
+ *      assuming exactly the fixed remains contents restores goalMM=1 (goalOoT is
+ *      printed), which names the remains as the fixed content MM's own goal runs
+ *      through. The switch is put back before anything is asserted. (Lane G1;
+ *      runs between B and C.)
  *
  * PR #743 REVIEW LEGS, each with its red half observed when it was written:
  *
@@ -638,9 +642,10 @@ TestResult ComboSingleBag_Run(void) {
         printf("[TEST] combo-single-bag: F (#737): %d fixed MM contents outside the host pool, %d of them boss "
                "remains; beat-both exit round with the fixed grant: goalOoT=%d goalMM=%d GOAL=%d (%d fixed "
                "contents granted); without it: goalOoT=%d goalMM=%d GOAL=%d (%d granted); without it but the %d "
-               "fixed remains assumed: goalMM=%d GOAL=%d\n",
+               "fixed remains assumed: goalOoT=%d goalMM=%d GOAL=%d\n",
                fixedTotal, remainsTotal, on.goalOoT, on.goalMM, on.goalExpression, grantsOn, off.goalOoT, off.goalMM,
-               off.goalExpression, grantsOff, (int)remains.size(), withRemains.goalMM, withRemains.goalExpression);
+               off.goalExpression, grantsOff, (int)remains.size(), withRemains.goalOoT, withRemains.goalMM,
+               withRemains.goalExpression);
         CSB_ASSERT(previous == 1, "MM's fixed-content grant was already switched off before leg F");
         CSB_ASSERT(remainsTotal > 0, "the shipped profile leaves no boss remains fixed, so leg F proves nothing about "
                                      "the case #737 found");
@@ -651,9 +656,9 @@ TestResult ComboSingleBag_Run(void) {
         CSB_ASSERT(off.goalMM == 0 && off.goalExpression == 0,
                    "the GOAL is provable without MM's fixed contents, so this world does not run through them and "
                    "the grant is unlocked (#737's red half not observed)");
-        CSB_ASSERT(remainsRc == RSBS_COMBO_LOGIC_OK && withRemains.goalMM == 1 && withRemains.goalExpression == 1,
+        CSB_ASSERT(remainsRc == RSBS_COMBO_LOGIC_OK && withRemains.goalMM == 1,
                    "assuming the fixed boss remains alone does not restore MM's goal: a fixed content other than "
-                   "the remains is load-bearing");
+                   "the remains is load-bearing for Majora");
         CSB_ASSERT(CsbGoalNow(goal) == 1, "leg F did not leave the world proving the GOAL");
     }
 
