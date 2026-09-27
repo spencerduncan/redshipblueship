@@ -23,6 +23,10 @@ void func_8089B870(BgJyaZurerukabe* this, PlayState* play);
 
 static f32 D_8089B9C0[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+void OoT_BgJyaZurerukabe_Reset(void);
+#endif
+
 const ActorInit Bg_Jya_Zurerukabe_InitVars = {
     ACTOR_BG_JYA_ZURERUKABE,
     ACTORCAT_BG,
@@ -33,7 +37,11 @@ const ActorInit Bg_Jya_Zurerukabe_InitVars = {
     (ActorFunc)BgJyaZurerukabe_Destroy,
     (ActorFunc)BgJyaZurerukabe_Update,
     (ActorFunc)BgJyaZurerukabe_Draw,
+#ifdef RSBS_SINGLE_EXECUTABLE
+    (ActorResetFunc)OoT_BgJyaZurerukabe_Reset,
+#else
     NULL,
+#endif
 };
 
 static s16 D_8089B9F0[4] = { 943, 1043, 1243, 1343 };
@@ -187,3 +195,41 @@ void BgJyaZurerukabe_Update(Actor* thisx, PlayState* play) {
 void BgJyaZurerukabe_Draw(Actor* thisx, PlayState* play) {
     OoT_Gfx_DrawDListOpa(play, gZurerukabeDL);
 }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// [RSBS #750] BgJyaZurerukabe_Destroy zeroes its wall's slot of the shared offset table D_8089B9C0, which the other
+// walls compare against. Nothing but Destroy ever put it back. A cross-game departure abandons OoT's Play gamestate
+// without deleting its actors (OoT_RetireAbandonedSession, GameExports_SingleExe.cpp), so it kept the abandoned
+// session's value. OoT_Actor_FreeOverlay calls this only once the overlay has no clients, when every Destroy has
+// already restored the initial value, so on a normal teardown it changes nothing.
+void OoT_BgJyaZurerukabe_Reset(void) {
+    s32 i;
+
+    for (i = 0; i < ARRAY_COUNT(D_8089B9C0); i++) {
+        D_8089B9C0[i] = 0.0f;
+    }
+}
+
+// [RSBS #750] Seed and read the static(s) above for the oot-abandoned-session-statics row
+// (games/oot/soh/oot_abandoned_session_test.cpp): dirty != 0 puts them where a live client leaves them, 0 puts back
+// the initial value; the check is nonzero while any is not at its initial value.
+void OoT_BgJyaZurerukabe_SetDestroyStaticsForTest(s32 dirty) {
+    if (dirty) {
+        s32 i;
+
+        for (i = 0; i < ARRAY_COUNT(D_8089B9C0); i++) {
+            D_8089B9C0[i] = 20.0f;
+        }
+    } else {
+        s32 i;
+
+        for (i = 0; i < ARRAY_COUNT(D_8089B9C0); i++) {
+            D_8089B9C0[i] = 0.0f;
+        }
+    }
+}
+
+s32 OoT_BgJyaZurerukabe_DestroyStaticsDirtyForTest(void) {
+    return (D_8089B9C0[0] != 0.0f) || (D_8089B9C0[1] != 0.0f) || (D_8089B9C0[2] != 0.0f) || (D_8089B9C0[3] != 0.0f);
+}
+#endif

@@ -25,6 +25,10 @@ void func_808B44CC(BgSpot15Rrbox* this, PlayState* play);
 
 static s16 D_808B4590 = 0;
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+void OoT_BgSpot15Rrbox_Reset(void);
+#endif
+
 const ActorInit Bg_Spot15_Rrbox_InitVars = {
     ACTOR_BG_SPOT15_RRBOX,
     ACTORCAT_BG,
@@ -35,7 +39,11 @@ const ActorInit Bg_Spot15_Rrbox_InitVars = {
     (ActorFunc)BgSpot15Rrbox_Destroy,
     (ActorFunc)BgSpot15Rrbox_Update,
     (ActorFunc)BgSpot15Rrbox_Draw,
+#ifdef RSBS_SINGLE_EXECUTABLE
+    (ActorResetFunc)OoT_BgSpot15Rrbox_Reset,
+#else
     NULL,
+#endif
 };
 
 static InitChainEntry OoT_sInitChain[] = {
@@ -365,3 +373,30 @@ void BgSpot15Rrbox_Update(Actor* thisx, PlayState* play) {
 void BgSpot15Rrbox_Draw(Actor* thisx, PlayState* play) {
     OoT_Gfx_DrawDListOpa(play, gLonLonMilkCrateDL);
 }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// [RSBS #750] BgSpot15Rrbox_Destroy zeroes D_808B4590, the index Init uses into the two-entry position table
+// D_808B45C4; left at 2 the next Init reads past the end of that table. Nothing but Destroy ever put it back. A
+// cross-game departure abandons OoT's Play gamestate without deleting its actors (OoT_RetireAbandonedSession,
+// GameExports_SingleExe.cpp), so it kept the abandoned session's value. OoT_Actor_FreeOverlay calls this only once
+// the overlay has no clients, when every Destroy has already restored the initial value, so on a normal teardown it
+// changes nothing.
+void OoT_BgSpot15Rrbox_Reset(void) {
+    D_808B4590 = 0;
+}
+
+// [RSBS #750] Seed and read the static(s) above for the oot-abandoned-session-statics row
+// (games/oot/soh/oot_abandoned_session_test.cpp): dirty != 0 puts them where a live client leaves them, 0 puts back
+// the initial value; the check is nonzero while any is not at its initial value.
+void OoT_BgSpot15Rrbox_SetDestroyStaticsForTest(s32 dirty) {
+    if (dirty) {
+        D_808B4590 = 2;
+    } else {
+        D_808B4590 = 0;
+    }
+}
+
+s32 OoT_BgSpot15Rrbox_DestroyStaticsDirtyForTest(void) {
+    return D_808B4590 != 0;
+}
+#endif

@@ -23,6 +23,10 @@ void BgJyaLift_Move(BgJyaLift* this, PlayState* play);
 
 static s16 sKankyoIsSpawned = false;
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+void OoT_BgJyaLift_Reset(void);
+#endif
+
 const ActorInit Bg_Jya_Lift_InitVars = {
     ACTOR_BG_JYA_LIFT,
     ACTORCAT_BG,
@@ -33,7 +37,11 @@ const ActorInit Bg_Jya_Lift_InitVars = {
     (ActorFunc)BgJyaLift_Destroy,
     (ActorFunc)BgJyaLift_Update,
     (ActorFunc)BgJyaLift_Draw,
+#ifdef RSBS_SINGLE_EXECUTABLE
+    (ActorResetFunc)OoT_BgJyaLift_Reset,
+#else
     NULL,
+#endif
 };
 
 static InitChainEntry OoT_sInitChain[] = {
@@ -163,3 +171,29 @@ void BgJyaLift_Update(Actor* thisx, PlayState* play2) {
 void BgJyaLift_Draw(Actor* thisx, PlayState* play) {
     OoT_Gfx_DrawDListOpa(play, gLiftDL);
 }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// [RSBS #750] BgJyaLift_Destroy clears the one-instance latch sKankyoIsSpawned when the instance that set it goes;
+// its Init kills every later instance while it is set. Nothing but Destroy ever put it back. A cross-game departure
+// abandons OoT's Play gamestate without deleting its actors (OoT_RetireAbandonedSession, GameExports_SingleExe.cpp),
+// so it kept the abandoned session's value. OoT_Actor_FreeOverlay calls this only once the overlay has no clients,
+// when every Destroy has already restored the initial value, so on a normal teardown it changes nothing.
+void OoT_BgJyaLift_Reset(void) {
+    sKankyoIsSpawned = false;
+}
+
+// [RSBS #750] Seed and read the static(s) above for the oot-abandoned-session-statics row
+// (games/oot/soh/oot_abandoned_session_test.cpp): dirty != 0 puts them where a live client leaves them, 0 puts back
+// the initial value; the check is nonzero while any is not at its initial value.
+void OoT_BgJyaLift_SetDestroyStaticsForTest(s32 dirty) {
+    if (dirty) {
+        sKankyoIsSpawned = true;
+    } else {
+        sKankyoIsSpawned = false;
+    }
+}
+
+s32 OoT_BgJyaLift_DestroyStaticsDirtyForTest(void) {
+    return sKankyoIsSpawned != false;
+}
+#endif

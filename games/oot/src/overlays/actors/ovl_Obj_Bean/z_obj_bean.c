@@ -73,6 +73,10 @@ void ObjBean_WaitForStepOff(ObjBean* this, PlayState* play);
 
 static ObjBean* D_80B90E30 = NULL;
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+void OoT_ObjBean_Reset(void);
+#endif
+
 const ActorInit Obj_Bean_InitVars = {
     ACTOR_OBJ_BEAN,
     ACTORCAT_BG,
@@ -83,7 +87,11 @@ const ActorInit Obj_Bean_InitVars = {
     (ActorFunc)OoT_ObjBean_Destroy,
     (ActorFunc)OoT_ObjBean_Update,
     (ActorFunc)ObjBean_Draw,
+#ifdef RSBS_SINGLE_EXECUTABLE
+    (ActorResetFunc)OoT_ObjBean_Reset,
+#else
     NULL,
+#endif
 };
 
 static ColliderCylinderInit OoT_sCylinderInit = {
@@ -945,3 +953,33 @@ void ObjBean_Draw(Actor* thisx, PlayState* play) {
         ObjBean_DrawBeanstalk(this, play);
     }
 }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// [RSBS #750] OoT_ObjBean_Destroy clears D_80B90E30, the pointer to the one bean plant being watered, when that
+// plant goes; left set it points into the discarded arena and no other plant can take the watering. Nothing but
+// Destroy ever put it back. A cross-game departure abandons OoT's Play gamestate without deleting its actors
+// (OoT_RetireAbandonedSession, GameExports_SingleExe.cpp), so it kept the abandoned session's value.
+// OoT_Actor_FreeOverlay calls this only once the overlay has no clients, when every Destroy has already restored the
+// initial value, so on a normal teardown it changes nothing.
+void OoT_ObjBean_Reset(void) {
+    D_80B90E30 = NULL;
+}
+
+// [RSBS #750] Seed and read the static(s) above for the oot-abandoned-session-statics row
+// (games/oot/soh/oot_abandoned_session_test.cpp): dirty != 0 puts them where a live client leaves them, 0 puts back
+// the initial value; the check is nonzero while any is not at its initial value.
+void OoT_ObjBean_SetDestroyStaticsForTest(s32 dirty) {
+    if (dirty) {
+        static ObjBean sSentinel;
+
+        // Never dereferenced: only compared against a live ObjBean.
+        D_80B90E30 = &sSentinel;
+    } else {
+        D_80B90E30 = NULL;
+    }
+}
+
+s32 OoT_ObjBean_DestroyStaticsDirtyForTest(void) {
+    return D_80B90E30 != NULL;
+}
+#endif

@@ -90,6 +90,13 @@ int MM_StartupRestore_RunHeadless(void);
 //     leave client-free overlays alone, restore the statics only Destroy used
 //     to restore, and drop every per-actor ObjectExtension entry.
 int MM_AbandonedSessionStatics_RunHeadless(void);
+// oot-abandoned-session-statics (#750, the OoT leg of #666) — OoT's registered
+// suspend, which retires the Play gamestate without Play_Destroy, must then
+// reset every ActorDB entry that still had clients (and zero its count, which
+// OoT never zeroes again otherwise), leave client-free entries alone, restore
+// the statics only Destroy used to restore, and drop every per-actor
+// ObjectExtension entry, on a second abandonment as on the first.
+int OoT_AbandonedSessionStatics_RunHeadless(void);
 // The cross-game arrival IS MM's intro event (#654, operator ruling 2026-09-16;
 // games/mm/2s2h/mm_combo_first_cycle_test.cpp). Vanilla MM proxies "the intro
 // has not happened yet" off "no Ocarina of Time" and degrades Termina Field to
@@ -747,6 +754,13 @@ static TestResult Test_MMResumeArena(void) {
 // no ROM, no arena; a scope guard restores everything it seeds on every exit.
 static TestResult Test_MMAbandonedSessionStatics(void) {
     return MM_AbandonedSessionStatics_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// OoT abandoned-session contract (#750; see the extern decl above). Thin wrapper
+// over the C entry point in games/oot/soh/oot_abandoned_session_test.cpp. No
+// display, no ROM; a scope guard restores everything it seeds on every exit.
+static TestResult Test_OoTAbandonedSessionStatics(void) {
+    return OoT_AbandonedSessionStatics_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // MM extended-culling binding (see the extern decl above). Thin wrapper over
@@ -4648,6 +4662,12 @@ const TestDescriptor gTests[] = {
      "the first boss's ending and plays the second's, single-game goals end on their own boss, triforce-hunt on the "
      "shared count, unpaired files as upstream, through both ports' real ending sites (#762)",
      Test_ComboGoalEnding},
+    {"oot-abandoned-session-statics",
+     "A cross-game departure retires OoT's abandoned Play session, twice: ActorDB entries with live clients are "
+     "reset once each time after the graph is retired and no client count outlives a departure, client-free entries "
+     "are not reset, the statics only Destroy restored are restored, and no per-actor ObjectExtension entry survives "
+     "(#750)",
+     Test_OoTAbandonedSessionStatics},
     {nullptr, nullptr, nullptr}  // Sentinel
 };
 
