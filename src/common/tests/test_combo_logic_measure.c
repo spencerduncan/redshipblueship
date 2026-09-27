@@ -513,7 +513,7 @@ int ClmRecompose(const ClmComposed& c, uint16_t quantityFlags, std::vector<Combo
  * Consumes MM's Ship_Random (GeneratePools' prices and plentiful half) — see
  * MM_ComboLogic_TestGeneratePool.
  */
-bool ClmCompose(ClmComposed& c) {
+bool ClmCompose(ClmComposed& c, uint16_t quantityFlags = 0u) {
     const int ootTotal = OoT_ComboLogic_ExportPool(1, nullptr, nullptr, nullptr, 0);
     if (ootTotal <= 0) {
         printf("[TEST] compose: OoT's export returned nothing (%d)\n", ootTotal);
@@ -578,6 +578,7 @@ bool ClmCompose(ClmComposed& c) {
     req.trimSeed = c.trimSeed;
     req.startingHealthOoT = c.startingHealthOoT;
     req.startingHealthMM = c.startingHealthMM;
+    req.quantityFlags = quantityFlags;
     c.bag.assign((size_t)RSBS_COMBO_LOGIC_BAG_CAP, ComboLogicBagItem());
     c.bagPoolIndex.assign((size_t)RSBS_COMBO_LOGIC_BAG_CAP, -1);
     c.status = Combo_Logic_ComposeBag(&req, c.bag.data(), RSBS_COMBO_LOGIC_BAG_CAP, c.bagPoolIndex.data(), &c.res);
@@ -967,8 +968,17 @@ TestResult ComboLogicMeasure_Run(void) {
     // passes' families are told apart, so this is no longer a superset of the
     // general pass beyond Link's-pocket-style one-off passes); MM's is GeneratePools'
     // real pool under the resolved profile.
+    // RSBS_COMBO_MEASURE_UNTRIMMED=1 composes WITHOUT the shared-quantity trim
+    // (RSBS_COMBO_QUANTITY_KEEP_ALL): the before half of lane K13's before/after
+    // measurement. It changes only which rows the bag holds; every assertion below
+    // still runs.
+    const bool untrimmed = EnvInt("RSBS_COMBO_MEASURE_UNTRIMMED", 0, 0, 1) != 0;
+    printf("[TEST] combo-logic-measure: shared-quantity trim %s (RSBS_COMBO_MEASURE_UNTRIMMED=1 turns it off)
+",
+           untrimmed ? "OFF" : "on");
     ClmComposed composed;
-    CLM_ASSERT(ClmCompose(composed), "a pool export returned nothing");
+    CLM_ASSERT(ClmCompose(composed, untrimmed ? (uint16_t)RSBS_COMBO_QUANTITY_KEEP_ALL : (uint16_t)0u),
+               "a pool export returned nothing");
     ClmPrintComposition("combo-logic-measure", profile, composed);
     CLM_ASSERT(composed.status == RSBS_COMBO_LOGIC_OK, "the composed bag was refused (see the counts above)");
     CLM_ASSERT(composed.res.perGame[GAME_MM].rows[RSBS_COMBO_COMPOSE_CONFINED] == 0,
@@ -1595,6 +1605,18 @@ TestResult ComboLogicMeasure_Run(void) {
 //     PLENTIFUL — item_pool.cpp's tokensanity "+10" under plentiful, recorded by
 //     its guarded seam (deleting that record gives 0). The red half of both was
 //     observed with a deliberately broken build (PR #738's review round).
+//  B7 THE SHARED-QUANTITY TRIM OVER BOTH REAL POOLS (lane K13). The REQUIRED
+//     bag holds exactly 44 heart-piece rows + 6 container rows + 1 double
+//     defense across both games, each world keeping some of both heart grades;
+//     every trimmed row feeds a TRIM_TO_SHARED_MAX kind and is counted as filler
+//     under its ORIGIN game (the sum equals the rows removed, per game and in
+//     all); the renewable (rupees), junk, trap and confined counts are identical
+//     trimmed and untrimmed, with rupee rows present so that control is not
+//     vacuous; the trim recomposes identically. THE PLAY-SIDE CHECK: every heart
+//     row of the bag awarded, OoT and MM interleaved, through the REAL carrier
+//     (test_shared_quantity_policy.c's SqpDeadHeartPickups) ends the bar at 320
+//     with ZERO dead pickups on the shipped profile, and the untrimmed bag of the
+//     same rows clamps (the red half, printed with its count).
 //
 // It puts back what it perturbs: the MM host pool, the coordinator tables, and
 // the whole unified save buffer (compared against the post-profile baseline
