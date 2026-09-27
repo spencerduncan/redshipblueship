@@ -57,7 +57,10 @@ static RegisterShipInitFunc initFunc([]() {
         },
         .connections = {
             // TODO: Also apparently can be reached using a trick with Goron mask and Bombs. Add trick later here
-            CONNECTION(RR_GORMAN_TRACK, RANDO_EVENTS[RE_COWS_FROM_ALIENS] && IS_NIGHT2()),
+            // #697 — that trick is MMRT_GORON_BOMB_JUMP (DEFAULT OFF): OoTMM's milk_road.yml gates all
+            // four Gorman Track fence crossings (front and back gate, both directions) with
+            // `(can_goron_bomb_jump && has_bombs) || gorman_gates_moved || ...`. No new key was needed.
+            CONNECTION(RR_GORMAN_TRACK, (RANDO_EVENTS[RE_COWS_FROM_ALIENS] && IS_NIGHT2()) || CAN_GORON_BOMB_JUMP_FENCE),
         },
     };
     Regions[RR_GORMAN_TRACK] = RandoRegion{ .sceneId = SCENE_KOEPONARACE,
@@ -92,8 +95,9 @@ static RegisterShipInitFunc initFunc([]() {
             CHECK(RC_GORMAN_TRACK_GRASS_24, true),
         },
         .connections = {
-            CONNECTION(RR_GORMAN_TRACK_FRONT, CAN_PLAY_SONG(EPONA) || (RANDO_EVENTS[RE_COWS_FROM_ALIENS] && IS_NIGHT2())),
-            CONNECTION(RR_GORMAN_TRACK_BACK, CAN_PLAY_SONG(EPONA) || (RANDO_EVENTS[RE_COWS_FROM_ALIENS] && IS_NIGHT2())),
+            // #697 — MMRT_GORON_BOMB_JUMP, DEFAULT OFF; see RR_GORMAN_TRACK_FRONT's connection above.
+            CONNECTION(RR_GORMAN_TRACK_FRONT, CAN_PLAY_SONG(EPONA) || (RANDO_EVENTS[RE_COWS_FROM_ALIENS] && IS_NIGHT2()) || CAN_GORON_BOMB_JUMP_FENCE),
+            CONNECTION(RR_GORMAN_TRACK_BACK, CAN_PLAY_SONG(EPONA) || (RANDO_EVENTS[RE_COWS_FROM_ALIENS] && IS_NIGHT2()) || CAN_GORON_BOMB_JUMP_FENCE),
         },
     };
     Regions[RR_GORMAN_TRACK_BACK] = RandoRegion{ .sceneId = SCENE_KOEPONARACE,
@@ -101,7 +105,8 @@ static RegisterShipInitFunc initFunc([]() {
             EXIT(ENTRANCE(MILK_ROAD, 2),                    ENTRANCE(GORMAN_TRACK, 3), true),
         },
         .connections = {
-            CONNECTION(RR_GORMAN_TRACK, RANDO_EVENTS[RE_COWS_FROM_ALIENS] && IS_NIGHT2()),
+            // #697 — MMRT_GORON_BOMB_JUMP, DEFAULT OFF; see RR_GORMAN_TRACK_FRONT's connection above.
+            CONNECTION(RR_GORMAN_TRACK, (RANDO_EVENTS[RE_COWS_FROM_ALIENS] && IS_NIGHT2()) || CAN_GORON_BOMB_JUMP_FENCE),
         },
     };
     Regions[RR_MILK_ROAD] = RandoRegion{ .sceneId = SCENE_ROMANYMAE,
@@ -122,12 +127,17 @@ static RegisterShipInitFunc initFunc([]() {
             // down bombs or a Powder Keg, then use the Goron Pound to leap into the air and get
             // damaged mid-air by the explosion to hop over fences."
             //
-            // The item term is written out rather than reusing CAN_USE_EXPLOSIVE, because the
-            // maneuver needs an explosive you can PLACE AND OUTLIVE as Goron: a Blast Mask cannot be
-            // worn as Goron and a Bombchu drives away instead of sitting under you, and both are in
-            // CAN_USE_EXPLOSIVE. The Powder Keg leg needs no separate MMRT_KEG_EXPLOSIVES gate —
-            // the keg is named by THIS trick's own definition, not borrowed as a generic explosive.
-            CONNECTION(RR_MILK_ROAD_BEHIND_FENCE, (RANDO_EVENTS[RE_COWS_FROM_ALIENS] && IS_NIGHT2()) || FINAL_DAY() || (MM_TRICK(MMRT_GORON_BOMB_JUMP) && CAN_BE_GORON && (HAS_ITEM(ITEM_BOMB) || HAS_ITEM(ITEM_POWDER_KEG)))),
+            // The item term is not CAN_USE_EXPLOSIVE, because the maneuver needs an explosive you can
+            // PLACE AND OUTLIVE as Goron: a Blast Mask cannot be worn as Goron and a Bombchu drives away
+            // instead of sitting under you, and both are in CAN_USE_EXPLOSIVE.
+            //
+            // #697: part 2 also admitted a Powder Keg here, reading "Place down bombs or a Powder Keg" as
+            // licence. OoTMM's own logic (milk_road.yml) writes every fence it gates with this trick as
+            // `can_goron_bomb_jump && has_bombs` — the keg leg of `can_goron_bomb_jump` never clears a
+            // fence — so this now uses CAN_GORON_BOMB_JUMP_FENCE (Logic/Logic.h), the shape every other
+            // fence in this file and in East.cpp / TerminaField.cpp shares. Trick-ON only; the tricks-off
+            // condition is untouched.
+            CONNECTION(RR_MILK_ROAD_BEHIND_FENCE, (RANDO_EVENTS[RE_COWS_FROM_ALIENS] && IS_NIGHT2()) || FINAL_DAY() || CAN_GORON_BOMB_JUMP_FENCE),
         },
         .events = {
             EVENT(RE_ACCESS_PICTOGRAPH_TINGLE, HAS_ITEM(ITEM_PICTOGRAPH_BOX)),
@@ -145,7 +155,7 @@ static RegisterShipInitFunc initFunc([]() {
             // #578 part 2 — MMRT_GORON_BOMB_JUMP, DEFAULT OFF. The mirror of RR_MILK_ROAD's
             // disjunct above (which carries the reasoning); the fence is hoppable from either side,
             // so gating only one direction would make the region a one-way trap.
-            CONNECTION(RR_MILK_ROAD, (RANDO_EVENTS[RE_COWS_FROM_ALIENS] && IS_NIGHT2()) || FINAL_DAY() || (MM_TRICK(MMRT_GORON_BOMB_JUMP) && CAN_BE_GORON && (HAS_ITEM(ITEM_BOMB) || HAS_ITEM(ITEM_POWDER_KEG)))),
+            CONNECTION(RR_MILK_ROAD, (RANDO_EVENTS[RE_COWS_FROM_ALIENS] && IS_NIGHT2()) || FINAL_DAY() || CAN_GORON_BOMB_JUMP_FENCE),
         },
     };
     Regions[RR_RANCH_BARN] = RandoRegion{ .sceneId = SCENE_OMOYA,

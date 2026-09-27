@@ -15,14 +15,12 @@ static RegisterShipInitFunc initFunc([]() {
         },
         .connections = {
             CONNECTION(RR_SNOWHEAD_TEMPLE_CENTRAL_ROOM_FIRST_FLOOR,  true),
-            // #578 part 2 — NOT BOUND, and the TODO stays. Answering it "yes" would move CAN_BE_ZORA
-            // out of the shipped Glitchless rung, i.e. TIGHTEN tricks-off logic. Part 2's contract is
-            // widenings only (every edge it touches evaluates identically with tricks off), and the
-            // one tightening in this epic so far — the Great Bay Temple boss-key edge — took an
-            // explicit operator ruling because it changes what worlds the fill can produce. There is
-            // also no declared key for it: OoTMM has no Snowhead block-room entry, so this needs a
-            // key of ours. Both halves are part 3's, along with the mirror at
-            // RR_SNOWHEAD_TEMPLE_COMPASS_ROOM below.
+            // #697 — the TODO's question is answered NO, by the reference project: OoTMM's
+            // snowhead_temple.yml climbs from its "Block Room" to "Block Room Upper" with
+            // `can_hookshot_short || (event(SNOWHEAD_PUSH_BLOCK) && is_tall)`, and `is_tall` is the
+            // Zora Mask — plain logic, no trick key. So no key is appended and nothing is tightened; the
+            // Zora term stays in the shipped rung. (OoTMM also requires the block pushed first; this graph
+            // does not model the block, which is a logic-parity difference, not a trick.)
             CONNECTION(RR_SNOWHEAD_TEMPLE_BLOCK_ROOM_UPPER, HAS_ITEM(ITEM_HOOKSHOT) || CAN_BE_ZORA), // TODO : Should using Zora for this be considered a trick?
         },
     };
@@ -96,12 +94,12 @@ static RegisterShipInitFunc initFunc([]() {
         },
         .connections = {
             CONNECTION(RR_SNOWHEAD_TEMPLE_ENTRANCE_AFTER_BLOCK, true),
-            // #578 part 2 — NOT BOUND, and the TODO stays. This one IS a widening, so the contract is
-            // not the blocker: the missing piece is a KEY. OoTMM has no Snowhead bomb-jump entry (its
-            // MMRT_GORON_BOMB_JUMP is specifically "Bomb Jump Fences as Goron", and this is a gap, not
-            // a fence), so the binding needs a key of ours, which part 1's table does not declare and
-            // which appending here would grow MMRT_MAX and therefore the frozen save array and the
-            // profile identity string. Part 3 adds the key and the disjunct together.
+            // #697 — NOT BOUND, and the TODO stays. OoTMM's own graph has no bomb jump on this bridge
+            // (its "Bridge Front" -> "Bridge Back" is `goron_fast_roll || can_hookshot || ...`), so it
+            // would need a key of our own; #697 appends a key only where OoTMM has the trick, and it does
+            // not have this one. (OoTMM DOES use MMRT_GORON_BOMB_JUMP twice in this temple — the compass
+            // room's climb to the block room's upper floor and the compass-room crate — and both are
+            // bound below.)
             CONNECTION(RR_SNOWHEAD_TEMPLE_BRIDGE_ROOM_AFTER, (CAN_BE_GORON && HAS_MAGIC) || (HAS_ITEM(ITEM_HOOKSHOT) && CAN_BE_ZORA)) // TODO : Add bomb jump trick here.
         },
     };
@@ -135,7 +133,9 @@ static RegisterShipInitFunc initFunc([]() {
             CONNECTION(RR_SNOWHEAD_TEMPLE_BRIDGE_ROOM_AFTER,    true),
             CONNECTION(RR_SNOWHEAD_TEMPLE_CENTRAL_ROOM_BOTTOM,  true),
             CONNECTION(RR_SNOWHEAD_TEMPLE_ENTRANCE_AFTER_BLOCK, HAS_ITEM(ITEM_BOW)),
-            CONNECTION(RR_SNOWHEAD_TEMPLE_PILLARS_ROOM_UPPER,         CAN_USE_MAGIC_ARROW(FIRE)),
+            // #697 — MMRT_SHT_HOT_WATER, DEFAULT OFF: OoTMM's "Snowhead Temple Center Level 1" ->
+            // "Pillars Room Upper" is `can_use_fire_short_range || trick_sht_hot_water`.
+            CONNECTION(RR_SNOWHEAD_TEMPLE_PILLARS_ROOM_UPPER,         CAN_USE_MAGIC_ARROW(FIRE) || CAN_CARRY_HOT_WATER_TO_SNOWHEAD),
             CONNECTION(RR_SNOWHEAD_TEMPLE_CENTRAL_ROOM_SCARECROW_FLOOR, CAN_HOOK_SCARECROW)
         },
     };
@@ -206,25 +206,31 @@ static RegisterShipInitFunc initFunc([]() {
     Regions[RR_SNOWHEAD_TEMPLE_COMPASS_ROOM] = RandoRegion{ .sceneId = SCENE_HAKUGIN,
         .checks = {
             CHECK(RC_SNOWHEAD_TEMPLE_COMPASS_CHEST, true),
-            CHECK(RC_SNOWHEAD_TEMPLE_COMPASS_ROOM_LEDGE_CHEST, CAN_USE_MAGIC_ARROW(FIRE)),
+            // #697 — MMRT_SHT_HOT_WATER, DEFAULT OFF: OoTMM's "Snowhead Temple Compass Room Ledge" is
+            // `can_use_fire_short_range || trick_sht_hot_water`. CAN_CARRY_HOT_WATER_TO_SNOWHEAD
+            // (Logic/Logic.h) is that trick's MM-only leg.
+            CHECK(RC_SNOWHEAD_TEMPLE_COMPASS_ROOM_LEDGE_CHEST, CAN_USE_MAGIC_ARROW(FIRE) || CAN_CARRY_HOT_WATER_TO_SNOWHEAD),
             CHECK(RC_SNOWHEAD_TEMPLE_COMPASS_ROOM_POT_01, true),
             CHECK(RC_SNOWHEAD_TEMPLE_COMPASS_ROOM_POT_02, true),
             CHECK(RC_SNOWHEAD_TEMPLE_COMPASS_ROOM_POT_03, true),
             CHECK(RC_SNOWHEAD_TEMPLE_COMPASS_ROOM_POT_04, true),
             CHECK(RC_SNOWHEAD_TEMPLE_COMPASS_ROOM_POT_05, true),
-            // #578 part 2 — NOT BOUND, and the TODO stays, for the same reason as the bridge-room
-            // bomb jump above: a widening with no declared key to hang it on (OoTMM has no Snowhead
-            // compass-room entry). Part 3 adds the key and the disjunct together.
-            CHECK(RC_SNOWHEAD_TEMPLE_SF_COMPASS_ROOM_CRATE, (CAN_USE_EXPLOSIVE && HAS_ITEM(ITEM_MASK_GREAT_FAIRY))), // TODO : Zora Mask can be used from the upper ledge to reach this after breaking the crate. Implement as a trick?
+            // #697 — MMRT_GORON_BOMB_JUMP, DEFAULT OFF: OoTMM's "Snowhead Temple SF Compass Room Crate"
+            // ends `... || can_goron_bomb_jump`. The TODO's Zora question is answered NO by the same
+            // line: OoTMM reaches the crate from the ledge with `is_tall` (Zora) and an explosive or
+            // Goron as PLAIN logic, not behind any trick — so there is no key to bind it to, and
+            // admitting it here would be a tricks-off widening, which is not a trick binding's job.
+            CHECK(RC_SNOWHEAD_TEMPLE_SF_COMPASS_ROOM_CRATE, (CAN_USE_EXPLOSIVE && HAS_ITEM(ITEM_MASK_GREAT_FAIRY)) || CAN_GORON_BOMB_JUMP), // TODO : Zora Mask can be used from the upper ledge to reach this after breaking the crate. Implement as a trick?
             CHECK(RC_ENEMY_DROP_WOLFOS, CanKillEnemy(ACTOR_EN_WF)),
         },
         .connections = {
             CONNECTION(RR_SNOWHEAD_TEMPLE_ENTRANCE_AFTER_BLOCK,     KEY_COUNT(SNOWHEAD_TEMPLE) >= 1),
-            // #578 part 2 — NOT BOUND; the mirror of the block-room seam at the top of this file,
-            // which carries the reasoning (gating it would tighten tricks-off logic, and there is no
-            // declared key). Part 3 owns both, together, because gating one and not the other would
-            // make the pair inconsistent.
-            CONNECTION(RR_SNOWHEAD_TEMPLE_BLOCK_ROOM_UPPER,   CAN_BE_ZORA || HAS_ITEM(ITEM_HOOKSHOT) || CAN_USE_MAGIC_ARROW(FIRE)), // TODO : Should using Zora for this be considered a trick?
+            // #697 — MMRT_SHT_HOT_WATER and MMRT_GORON_BOMB_JUMP, both DEFAULT OFF: OoTMM's "Snowhead
+            // Temple Compass Room" -> "Block Room Upper" is `can_use_fire_short_range || trick_sht_hot_water
+            // || can_hookshot_short || can_goron_bomb_jump`. The TODO's Zora question: OoTMM does not admit
+            // Zora from THIS side at all and admits it from the block-room side as plain logic (see the top
+            // of this file), so it is not a trick either way; the Zora term is left exactly as it was.
+            CONNECTION(RR_SNOWHEAD_TEMPLE_BLOCK_ROOM_UPPER,   CAN_BE_ZORA || HAS_ITEM(ITEM_HOOKSHOT) || CAN_USE_MAGIC_ARROW(FIRE) || CAN_CARRY_HOT_WATER_TO_SNOWHEAD || CAN_GORON_BOMB_JUMP), // TODO : Should using Zora for this be considered a trick?
             CONNECTION(RR_SNOWHEAD_TEMPLE_ICICLE_ROOM,  CAN_USE_EXPLOSIVE),
         },
     };
@@ -260,7 +266,9 @@ static RegisterShipInitFunc initFunc([]() {
           CHECK(RC_ENEMY_DROP_WOLFOS, CanKillEnemy(ACTOR_EN_WF)),
       },
       .connections = {
-          CONNECTION(RR_SNOWHEAD_TEMPLE_CENTRAL_ROOM_FIRST_FLOOR,   CAN_USE_MAGIC_ARROW(FIRE)),
+          // #697 — MMRT_SHT_HOT_WATER, DEFAULT OFF: OoTMM's "Snowhead Temple Main" -> "Center Level 1"
+          // is `can_use_fire_short_range || trick_sht_hot_water`.
+          CONNECTION(RR_SNOWHEAD_TEMPLE_CENTRAL_ROOM_FIRST_FLOOR,   CAN_USE_MAGIC_ARROW(FIRE) || CAN_CARRY_HOT_WATER_TO_SNOWHEAD),
           CONNECTION(RR_SNOWHEAD_TEMPLE_BRIDGE_ROOM_BEFORE,  true),
           CONNECTION(RR_SNOWHEAD_TEMPLE_ENTRANCE_BEFORE_BLOCK, true),
           CONNECTION(RR_SNOWHEAD_TEMPLE_COMPASS_ROOM, KEY_COUNT(SNOWHEAD_TEMPLE) >= 1),

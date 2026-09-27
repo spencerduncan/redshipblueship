@@ -751,18 +751,33 @@ const MMRandoTrickId kBoundTricks[] = {
     // part 3. Logic/Regions/East.cpp — RR_IKANA_CANYON_LOWER's connection to
     // RR_IKANA_CANYON_UPPER; the Ice Arrow term only, the Hookshot kept.
     MMRT_ICELESS_IKANA,
+    // #697 third pass. Logic/Regions/East.cpp — the Stone Tower Elegy climb,
+    // RR_STONE_TOWER_BOTTOM <-> RR_STONE_TOWER_MIDDLE, with two statues.
+    MMRT_ONE_MASK_STONE_TOWER,
+    // #697 third pass. Logic/Regions/Central.cpp — RC_CLOCK_TOWN_SOUTH_CHEST_LOWER
+    // (OoTMM's site; the upper chest is not this trick's).
+    MMRT_SCT_NOTHING,
     // part 2. Logic/Regions/MilkRoad.cpp — RR_MILK_ROAD <->
-    // RR_MILK_ROAD_BEHIND_FENCE, both directions.
+    // RR_MILK_ROAD_BEHIND_FENCE, both directions. #697 third pass: every other site
+    // OoTMM gates with it that maps onto this graph — Gorman Track (4 edges), Road to
+    // Ikana (2), Termina Field's Great Bay fence (2) and observatory ledge (2), the
+    // South Clock Town lower chest, the Ocean Spider House front-to-back, Ikana
+    // Castle's outer-to-inner roof, Woodfall Temple's pre-boss rupees 01-04 and two
+    // Snowhead Temple compass-room sites; through CAN_GORON_BOMB_JUMP(_FENCE).
     MMRT_GORON_BOMB_JUMP,
     // part 3. Logic/Regions/Central.cpp — RE_BOMBER_CODE, which is what both
     // RC_CLOCK_TOWN_BOMBERS_NOTEBOOK rows already read.
     MMRT_BOMBER_GUESS,
-    // MMRT_PALACE_GUARD_SKIP is deliberately NOT here. The second pass bound it on
-    // Logic/Regions/South.cpp's RR_DEKU_PALACE_OUTSIDE -> RR_DEKU_PALACE_INSIDE_LOWER
-    // connection and took it back out under review: whether that bare CAN_BE_DEKU is
-    // the guards or the poison water its three sibling edges all model is a judgement
-    // the file does not settle, and the water reading makes the binding an
-    // over-widening. #697 carries it as owed. See the note at that connection.
+    // #697 third pass. Logic/Regions/SpiderHouses.cpp — the Ocean Spider House
+    // heart-piece chest; the Captain's Hat is the code term the trick replaces.
+    MMRT_CAPTAIN_SKIP,
+    // #697 third pass. Logic/Regions/South.cpp — RR_DEKU_PALACE_OUTSIDE ->
+    // RR_DEKU_PALACE_INSIDE_LOWER. The second pass withdrew it (guards or water?);
+    // OoTMM's deku_palace.yml has the same region shape and says guards.
+    MMRT_PALACE_GUARD_SKIP,
+    // #697 third pass. Logic/Regions/SnowheadTemple.cpp — four Fire-Arrow sites
+    // OoTMM also opens with `trick_sht_hot_water`, via CAN_CARRY_HOT_WATER_TO_SNOWHEAD.
+    MMRT_SHT_HOT_WATER,
     // part 3. Logic/Regions/SnowheadTemple.cpp —
     // RR_SNOWHEAD_TEMPLE_PILLARS_ROOM_LOWER's connection up, that room only.
     MMRT_SHT_PILLAR_ROOM_HOOKSHOT,
@@ -771,11 +786,11 @@ const MMRandoTrickId kBoundTricks[] = {
     MMRT_KEG_EXPLOSIVES,
     // part 2. Logic/Regions/MilkRoad.cpp — RC_DOGGY_RACETRACK_CHEST.
     MMRT_DOG_RACE_CHEST_NOTHING,
-    // part 3. Logic/Regions/South.cpp — RC_SOUTHERN_SWAMP_PIECE_OF_HEART's
-    // CAN_BE_DEKU term; the Land Title Deed flag kept.
+    // part 3. Logic/Regions/South.cpp — RC_SOUTHERN_SWAMP_PIECE_OF_HEART. #697 third
+    // pass: reshaped to OoTMM's `(deed && Deku) || (trick && Goron)`.
     MMRT_SOUTHERN_SWAMP_SCRUB_HP_GORON,
-    // part 3. Logic/Regions/West.cpp — RC_ZORA_HALL_SCRUB_PIECE_OF_HEART's
-    // CAN_BE_DEKU term; the Mountain Title Deed flag and CAN_BE_GORON kept.
+    // part 3. Logic/Regions/West.cpp — RC_ZORA_HALL_SCRUB_PIECE_OF_HEART. #697 third
+    // pass: reshaped to OoTMM's `(deed && Goron && Deku) || (trick && (Goron || Zora))`.
     MMRT_ZORA_HALL_SCRUB_HP_NO_DEKU,
     // part 3 (second pass). Logic/Regions/IkanaCastle.cpp — a NEW one-way edge
     // from RR_IKANA_CASTLE_INNER_ROOF to RR_IKANA_CASTLE_OUTER_ROOF.
@@ -794,6 +809,9 @@ const MMRandoTrickId kBoundTricks[] = {
     // part 3 (second pass). Logic/Regions/StoneTowerTemple.cpp — the six
     // Deku-gated checks in the inverted wind room whose RC names say UPDRAFTS.
     MMRT_ST_UPDRAFTS,
+    // #697 third pass. Logic/Regions/GreatBayTemple.cpp — the central room's four
+    // tunnels, through GBT_CAN_RIDE_CENTRAL_GEYSER.
+    MMRT_GBT_CENTRAL_GEYSER,
     // part 3. Logic/Regions/Central.cpp — the two Clock Town West bank rewards
     // that carry a wallet term.
     MMRT_BANK_NO_WALLET,
@@ -805,6 +823,9 @@ const MMRandoTrickId kBoundTricks[] = {
     MMRT_ISTT_RUPEES_GORON,
     // part 3. Logic/Regions/Central.cpp — North Clock Town's two Tingle maps.
     MMRT_NCT_TINGLE,
+    // #697 third pass. Logic/Regions/GreatBayTemple.cpp — Green Pipe 3's five
+    // Fire-Arrow sites and the compass room's boss-key edge.
+    MMRT_GBT_FIRELESS,
     // part 2. Logic/Regions/WoodfallTemple.cpp (the water-room hive) and
     // Logic/Regions/PiratesFortress.cpp (RE_PIRATE_FORTRESS_BEEHIVE_HIT).
     MMRT_HIVE_BOMBCHU,

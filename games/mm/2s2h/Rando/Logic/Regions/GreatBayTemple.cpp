@@ -71,11 +71,15 @@ static RegisterShipInitFunc initFunc([]() {
             CHECK(RC_GREAT_BAY_TEMPLE_SF_CENTRAL_ROOM_UNDERWATER_POT,   CAN_BE_ZORA && CAN_USE_ABILITY(SWIM)),
         },
         .connections = {
-            CONNECTION(RR_GREAT_BAY_TEMPLE_COMPASS_ROOM_TUNNEL,     CAN_BE_ZORA && GBT_CAN_REVERSE_WATER_FLOW && CAN_USE_ABILITY(SWIM)),
+            // #697 — MMRT_GBT_CENTRAL_GEYSER, DEFAULT OFF, on the four tunnels out of this room.
+            // GBT_CAN_RIDE_CENTRAL_GEYSER (Logic/Logic.h) carries the OoTMM citation. It replaces only
+            // CAN_BE_ZORA: the swim ability and, where written, the reversed water flow stay outside it
+            // (OoTMM keeps `event(GB_WATER_WHEEL)` outside its trick leg on the same two exits).
+            CONNECTION(RR_GREAT_BAY_TEMPLE_COMPASS_ROOM_TUNNEL,     (CAN_BE_ZORA || GBT_CAN_RIDE_CENTRAL_GEYSER) && GBT_CAN_REVERSE_WATER_FLOW && CAN_USE_ABILITY(SWIM)),
             CONNECTION(RR_GREAT_BAY_TEMPLE_GREEN_PIPE_1,            CAN_USE_MAGIC_ARROW(ICE)),
-            CONNECTION(RR_GREAT_BAY_TEMPLE_MAP_ROOM,                CAN_BE_ZORA && CAN_USE_ABILITY(SWIM)),
-            CONNECTION(RR_GREAT_BAY_TEMPLE_PRE_BOSS_ROOM,           CAN_BE_ZORA && GBT_CAN_REVERSE_WATER_FLOW && CAN_USE_ABILITY(SWIM)),
-            CONNECTION(RR_GREAT_BAY_TEMPLE_RED_PIPE_BEFORE_WART,    CAN_BE_ZORA && CAN_USE_ABILITY(SWIM)),
+            CONNECTION(RR_GREAT_BAY_TEMPLE_MAP_ROOM,                (CAN_BE_ZORA || GBT_CAN_RIDE_CENTRAL_GEYSER) && CAN_USE_ABILITY(SWIM)),
+            CONNECTION(RR_GREAT_BAY_TEMPLE_PRE_BOSS_ROOM,           (CAN_BE_ZORA || GBT_CAN_RIDE_CENTRAL_GEYSER) && GBT_CAN_REVERSE_WATER_FLOW && CAN_USE_ABILITY(SWIM)),
+            CONNECTION(RR_GREAT_BAY_TEMPLE_RED_PIPE_BEFORE_WART,    (CAN_BE_ZORA || GBT_CAN_RIDE_CENTRAL_GEYSER) && CAN_USE_ABILITY(SWIM)),
             CONNECTION(RR_GREAT_BAY_TEMPLE_WATER_WHEEL_ROOM,        true)
         },
     };
@@ -126,7 +130,12 @@ static RegisterShipInitFunc initFunc([]() {
             // (ours; no OoTMM equivalent), DEFAULT OFF: tricks-off logic matches upstream's
             // current shape, and the route is still available to anyone who asks for it instead
             // of being deleted. The TODO is resolved, so it is gone.
-            CONNECTION(RR_GREAT_BAY_TEMPLE_COMPASS_ROOM_WITH_BOSS_KEY_CHEST,  MM_TRICK(MMRT_GBT_BOSS_KEY_ICE) && CAN_BE_ZORA && CAN_USE_MAGIC_ARROW(ICE)),
+            // #697 — MMRT_GBT_FIRELESS also opens this edge (DEFAULT OFF). OoTMM has no key like our
+            // MMRT_GBT_BOSS_KEY_ICE; the route it describes is OoTMM's "Great Bay Temple Compass Room" ->
+            // "After Boss Key" at `(can_use_ice_arrows && trick(MM_GBT_FIRELESS) && is_tall) || ...`,
+            // i.e. the fire-less way to the boss-key chest, with `is_tall` = Zora Mask in MM-only terms.
+            // Either key admits the same conjunction; with both off the edge is shut exactly as before.
+            CONNECTION(RR_GREAT_BAY_TEMPLE_COMPASS_ROOM_WITH_BOSS_KEY_CHEST,  (MM_TRICK(MMRT_GBT_BOSS_KEY_ICE) || MM_TRICK(MMRT_GBT_FIRELESS)) && CAN_BE_ZORA && CAN_USE_MAGIC_ARROW(ICE)),
             CONNECTION(RR_GREAT_BAY_TEMPLE_GEKKO,                             CAN_USE_MAGIC_ARROW(ICE) && CAN_USE_MAGIC_ARROW(FIRE)),
             CONNECTION(RR_GREAT_BAY_TEMPLE_COMPASS_ROOM_TUNNEL, CAN_USE_ABILITY(SWIM))
         },
@@ -225,10 +234,16 @@ static RegisterShipInitFunc initFunc([]() {
     };
     Regions[RR_GREAT_BAY_TEMPLE_GREEN_PIPE_3] = RandoRegion{ .sceneId = SCENE_SEA,
         .checks = {
-            CHECK(RC_GREAT_BAY_TEMPLE_GREEN_PIPE_3_CHEST,          CAN_USE_MAGIC_ARROW(FIRE)),
+            // #697 — MMRT_GBT_FIRELESS, DEFAULT OFF: "the final room in the reverse loop" is this one.
+            // OoTMM's great_bay_temple.yml writes its trick leg on exactly five Green Pipe 3 sites — the
+            // chest, the two upper pots, the exit to the map room and the GB_PIPE_GREEN2 event — and on
+            // none of the others (not the stray-fairy barrel, not the lower pot or crates). Those five
+            // are the five below whose vanilla term is the Fire Arrow. GBT_CAN_CROSS_GREEN_PIPE_3_FIRELESS
+            // (Logic/Logic.h) is its MM-only leg, Deku AND Zora.
+            CHECK(RC_GREAT_BAY_TEMPLE_GREEN_PIPE_3_CHEST,          CAN_USE_MAGIC_ARROW(FIRE) || GBT_CAN_CROSS_GREEN_PIPE_3_FIRELESS),
             CHECK(RC_GREAT_BAY_TEMPLE_GREEN_PIPE_3_LOWER_POT,      true),
-            CHECK(RC_GREAT_BAY_TEMPLE_GREEN_PIPE_3_UPPER_POT_01,   CAN_USE_MAGIC_ARROW(FIRE)),
-            CHECK(RC_GREAT_BAY_TEMPLE_GREEN_PIPE_3_UPPER_POT_02,   CAN_USE_MAGIC_ARROW(FIRE)),
+            CHECK(RC_GREAT_BAY_TEMPLE_GREEN_PIPE_3_UPPER_POT_01,   CAN_USE_MAGIC_ARROW(FIRE) || GBT_CAN_CROSS_GREEN_PIPE_3_FIRELESS),
+            CHECK(RC_GREAT_BAY_TEMPLE_GREEN_PIPE_3_UPPER_POT_02,   CAN_USE_MAGIC_ARROW(FIRE) || GBT_CAN_CROSS_GREEN_PIPE_3_FIRELESS),
             CHECK(RC_GREAT_BAY_TEMPLE_SF_GREEN_PIPE_3_BARREL,      CAN_BE_ZORA && CAN_USE_MAGIC_ARROW(FIRE) && CAN_USE_ABILITY(SWIM)),
             CHECK(RC_GREAT_BAY_TEMPLE_GREEN_PIPE_3_LARGE_CRATE_01, true),
             CHECK(RC_GREAT_BAY_TEMPLE_GREEN_PIPE_3_LARGE_CRATE_02, true),
@@ -241,10 +256,10 @@ static RegisterShipInitFunc initFunc([]() {
         },
         .connections = {
             CONNECTION(RR_GREAT_BAY_TEMPLE_GREEN_PIPE_2,  true),
-            CONNECTION(RR_GREAT_BAY_TEMPLE_MAP_ROOM,      CAN_USE_MAGIC_ARROW(FIRE)),
+            CONNECTION(RR_GREAT_BAY_TEMPLE_MAP_ROOM,      CAN_USE_MAGIC_ARROW(FIRE) || GBT_CAN_CROSS_GREEN_PIPE_3_FIRELESS),
         },
         .events = {
-            EVENT(RE_GREAT_BAY_GREEN_SWITCH_2, CAN_USE_MAGIC_ARROW(FIRE)),
+            EVENT(RE_GREAT_BAY_GREEN_SWITCH_2, CAN_USE_MAGIC_ARROW(FIRE) || GBT_CAN_CROSS_GREEN_PIPE_3_FIRELESS),
         }
     };
     Regions[RR_GREAT_BAY_TEMPLE_MAP_ROOM] = RandoRegion{ .sceneId = SCENE_SEA,

@@ -308,7 +308,10 @@ static RegisterShipInitFunc initFunc([]() {
             EXIT(ENTRANCE(IKANA_GRAVEYARD, 0),              ENTRANCE(ROAD_TO_IKANA, 2), true)
         },
         .connections = {
-            CONNECTION(RR_ROAD_TO_IKANA_FIELD_SIDE, CAN_RIDE_EPONA),
+            // #697 — MMRT_GORON_BOMB_JUMP, DEFAULT OFF, both directions: OoTMM's road_to_ikana.yml has
+            // "Road to Ikana Center" <-> "Front" at `can_play_epona || ... || (can_goron_bomb_jump &&
+            // has_bombs)` — the fence Epona jumps.
+            CONNECTION(RR_ROAD_TO_IKANA_FIELD_SIDE, CAN_RIDE_EPONA || CAN_GORON_BOMB_JUMP_FENCE),
             CONNECTION(RR_ROAD_TO_IKANA_ABOVE_LEDGE, HAS_ITEM(ITEM_HOOKSHOT) && (HAS_ITEM(ITEM_MASK_GARO) || HAS_ITEM(ITEM_MASK_GIBDO))),
         },
     };
@@ -322,7 +325,8 @@ static RegisterShipInitFunc initFunc([]() {
             EXIT(ENTRANCE(TERMINA_FIELD, 4),                ENTRANCE(ROAD_TO_IKANA, 0), true),
         },
         .connections = {
-            CONNECTION(RR_ROAD_TO_IKANA_BELOW_LEDGE, CAN_RIDE_EPONA),
+            // #697 — MMRT_GORON_BOMB_JUMP, DEFAULT OFF; the mirror of the Below Ledge connection.
+            CONNECTION(RR_ROAD_TO_IKANA_BELOW_LEDGE, CAN_RIDE_EPONA || CAN_GORON_BOMB_JUMP_FENCE),
             CONNECTION(RR_ROAD_TO_IKANA_GROTTO, CAN_BE_GORON), // TODO: Grotto mapping
         },
     };
@@ -435,7 +439,14 @@ static RegisterShipInitFunc initFunc([]() {
             EXIT(ENTRANCE(IKANA_CANYON, 3),                 ENTRANCE(STONE_TOWER, 0), true)
         },
         .connections = {
-            CONNECTION(RR_STONE_TOWER_MIDDLE, HAS_ITEM(ITEM_HOOKSHOT) && CAN_PLAY_SONG(ELEGY) && CAN_BE_GORON && CAN_BE_ZORA),
+            // #697 — MMRT_ONE_MASK_STONE_TOWER ("... allows you to climb Stone Tower using just two Elegy
+            // statues"), DEFAULT OFF. An earlier pass recorded this as needing Elegy-statue COUNTS the
+            // dialect lacks. It does not: OoTMM's macros are `can_use_elegy3` = Elegy && Zora && Goron and
+            // `can_use_elegy2` = Elegy && (Zora || Goron) (Human is the always-present third/second
+            // statue), and stone_tower.yml climbs with `(can_use_elegy3 || (can_use_elegy2 &&
+            // trick(MM_ONE_MASK_STONE_TOWER))) && can_hookshot`. This edge IS that climb; the Hookshot and
+            // the Elegy stay outside the widened term. Both directions, as the vanilla pair is written.
+            CONNECTION(RR_STONE_TOWER_MIDDLE, HAS_ITEM(ITEM_HOOKSHOT) && CAN_PLAY_SONG(ELEGY) && ((CAN_BE_GORON && CAN_BE_ZORA) || (MM_TRICK(MMRT_ONE_MASK_STONE_TOWER) && (CAN_BE_GORON || CAN_BE_ZORA)))),
         },
     };
     Regions[RR_STONE_TOWER_INVERTED_LOWER] = RandoRegion{ .sceneId = SCENE_F41,
@@ -489,7 +500,8 @@ static RegisterShipInitFunc initFunc([]() {
             CHECK(RC_ENEMY_DROP_KEESE, CanKillEnemy(ACTOR_EN_FIREFLY)),
         },
         .connections = {
-            CONNECTION(RR_STONE_TOWER_BOTTOM, HAS_ITEM(ITEM_HOOKSHOT) && CAN_PLAY_SONG(ELEGY) && CAN_BE_GORON && CAN_BE_ZORA),
+            // #697 — MMRT_ONE_MASK_STONE_TOWER, DEFAULT OFF; the mirror of RR_STONE_TOWER_BOTTOM's climb.
+            CONNECTION(RR_STONE_TOWER_BOTTOM, HAS_ITEM(ITEM_HOOKSHOT) && CAN_PLAY_SONG(ELEGY) && ((CAN_BE_GORON && CAN_BE_ZORA) || (MM_TRICK(MMRT_ONE_MASK_STONE_TOWER) && (CAN_BE_GORON || CAN_BE_ZORA)))),
             CONNECTION(RR_STONE_TOWER_UPPER, HAS_ITEM(ITEM_HOOKSHOT)),
         },
     };

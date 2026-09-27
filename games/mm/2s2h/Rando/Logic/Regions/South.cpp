@@ -179,20 +179,18 @@ static RegisterShipInitFunc initFunc([]() {
             EXIT(ENTRANCE(DEKU_SHRINE, 0),                  ENTRANCE(DEKU_PALACE, 4), RANDO_EVENTS[RE_CLEARED_WOODFALL_TEMPLE] && CAN_TRAVERSE_WAIST_DEEP_WATER),
         },
         .connections = {
-            // #578: MMRT_PALACE_GUARD_SKIP ("Backflip over Deku Palace Guards") WOULD go on this bare
-            // CAN_BE_DEKU, and the second pass of part 3 bound it here and then took it back out under
-            // review. The seam is not decided by anything in this file, and both readings survive it:
-            // either the term is the GUARDS (the only thing at the palace entrance that a Deku form
-            // gets past, and the one obstacle the trick's text names), or it is the poison water that
-            // the other three ways out of this region all model —
-            // RC_ENEMY_DROP_MINI_BABA above, the bean-side connection below and the DEKU_SHRINE exit
-            // each carry `RE_CLEARED_WOODFALL_TEMPLE && CAN_TRAVERSE_WAIST_DEEP_WATER` as the non-Deku
-            // way across. If it is the water, a trick-gated disjunct here lets a zero-item Human Link
-            // who cannot swim and has not cleared Woodfall reach RR_DEKU_PALACE_INSIDE_LOWER, whose
-            // heart piece is `true` — a route the fill may use and a player cannot take. Over-widening
-            // is the failure that breaks a seed, so this one waits: #697 carries it as a judgement owed,
-            // beside MMRT_CAPE_LIKE_LIKE_BOMBCHU, which was refused for the same reason.
-            CONNECTION(RR_DEKU_PALACE_INSIDE_LOWER, CAN_BE_DEKU),
+            // #697 — MMRT_PALACE_GUARD_SKIP ("With a precise backflip on the fence, jump over the guards as
+            // Human Link"), DEFAULT OFF. Part 3's second pass bound it here and withdrew it, because this
+            // file alone could not say whether the bare CAN_BE_DEKU is the GUARDS or the poison water the
+            // three sibling ways out of this region model. OoTMM's deku_palace.yml settles it by the same
+            // shape: its "Deku Palace Front" (this region: entered from the swamp, the water already
+            // crossed) has "Deku Palace Main" at `can_enter_deku_palace || trick(MM_PALACE_GUARD_SKIP) ||
+            // ...` with no water term, and puts the water ONLY on the way to the shrine side
+            // (`is_swamp_cleared && can_swim`) — exactly where this file puts
+            // `RE_CLEARED_WOODFALL_TEMPLE && CAN_TRAVERSE_WAIST_DEEP_WATER`. So this term is the guards,
+            // and the trick is its alternative. (OoTMM's `can_enter_deku_palace` also admits the Captain's
+            // Hat; that is a tricks-off difference, not this key's, and is left alone.)
+            CONNECTION(RR_DEKU_PALACE_INSIDE_LOWER, CAN_BE_DEKU || MM_TRICK(MMRT_PALACE_GUARD_SKIP)),
             CONNECTION(RR_DEKU_PALACE_INSIDE_UPPER_BEAN_SIDE, (CAN_BE_DEKU || (RANDO_EVENTS[RE_CLEARED_WOODFALL_TEMPLE] && CAN_TRAVERSE_WAIST_DEEP_WATER)) && CAN_USE_DAY2_RAIN_BEAN),
         },
     };
@@ -352,12 +350,14 @@ static RegisterShipInitFunc initFunc([]() {
     Regions[RR_SOUTHERN_SWAMP_NORTH] = RandoRegion{ .name = "North Tourist Section", .sceneId = SCENE_20SICHITAI,
         .checks = {
             // #578 part 3 — MMRT_SOUTHERN_SWAMP_SCRUB_HP_GORON ("Use Goron's ground pound in front of
-            // the Tourist Center door to land on the roof and reach the heart piece"), DEFAULT OFF. Only
-            // the CAN_BE_DEKU term is widened. The deed flag stays a conjunct on purpose, even though a
-            // Goron pounding off the doorframe plausibly does not need the scrub gone: the tooltip talks
-            // about the movement and nothing else, and leaving a term standing can only under-widen.
+            // the Tourist Center door to land on the roof and reach the heart piece"), DEFAULT OFF.
+            // Part 3's first pass kept the Land Title Deed as a conjunct of the trick leg too ("leaving a
+            // term standing can only under-widen"). #697's third pass takes OoTMM's answer instead
+            // (southern_swamp.yml: `(has(DEED_LAND) && has(MASK_DEKU)) || (trick(...) && has_mask_goron)`):
+            // the deed is what the DEKU route needs — the scrub's flower — and the Goron pound off the
+            // doorframe does not use the scrub at all. Tricks-off this is the same condition as before.
             // Its sibling MMRT_SOUTHERN_SWAMP_SCRUB_HP_BOOMERANG is reserved (an OoT item on every leg).
-            CHECK(RC_SOUTHERN_SWAMP_PIECE_OF_HEART, (CAN_BE_DEKU || (MM_TRICK(MMRT_SOUTHERN_SWAMP_SCRUB_HP_GORON) && CAN_BE_GORON)) && Flags_GetRandoInf(RANDO_INF_OBTAINED_DEED_LAND)),
+            CHECK(RC_SOUTHERN_SWAMP_PIECE_OF_HEART, (CAN_BE_DEKU && Flags_GetRandoInf(RANDO_INF_OBTAINED_DEED_LAND)) || (MM_TRICK(MMRT_SOUTHERN_SWAMP_SCRUB_HP_GORON) && CAN_BE_GORON)),
             CHECK(RC_SOUTHERN_SWAMP_SCRUB_DEED, Flags_GetRandoInf(RANDO_INF_OBTAINED_DEED_LAND)),
             CHECK(RC_SOUTHERN_SWAMP_SCRUB_BEANS, CAN_BE_DEKU),
             CHECK(RC_SOUTHERN_SWAMP_OWL_STATUE, CAN_USE_SWORD),

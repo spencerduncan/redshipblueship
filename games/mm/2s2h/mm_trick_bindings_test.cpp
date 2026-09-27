@@ -336,6 +336,140 @@ void InvBowAndGreatFairySword() {
     Give(ITEM_SWORD_GREAT_FAIRY);
 }
 
+// ---- #697 third pass (OoTMM-mapped bindings) -----------------------------
+
+/** A Powder Keg as Goron and NO bomb: the fence macro's control. OoTMM writes every
+ *  fence as `can_goron_bomb_jump && has_bombs`, so a keg alone must leave a fence
+ *  shut even with the trick on (and MMRT_KEG_EXPLOSIVES is off in every probe save
+ *  anyway, so the general macro's keg leg is shut too). */
+void InvGoronAndKeg() {
+    Give(ITEM_MASK_GORON);
+    Give(ITEM_POWDER_KEG);
+}
+
+void InvCaptainsHatOnly() {
+    Give(ITEM_MASK_CAPTAIN);
+}
+
+void InvGoronAndZora() {
+    Give(ITEM_MASK_GORON);
+    Give(ITEM_MASK_ZORA);
+}
+
+void InvDekuAndZora() {
+    Give(ITEM_MASK_DEKU);
+    Give(ITEM_MASK_ZORA);
+}
+
+/** The Ocarina with every button a song can need. canPlaySong() reads the five
+ *  RANDO_INF button flags, which a zeroed save does not hold, so a song setup that
+ *  set only the quest bit would be a green half that never goes green. */
+void GiveOcarinaAndButtons() {
+    Give(ITEM_OCARINA_OF_TIME);
+    Flags_SetRandoInf(RANDO_INF_OBTAINED_OCARINA_BUTTON_A);
+    Flags_SetRandoInf(RANDO_INF_OBTAINED_OCARINA_BUTTON_C_DOWN);
+    Flags_SetRandoInf(RANDO_INF_OBTAINED_OCARINA_BUTTON_C_RIGHT);
+    Flags_SetRandoInf(RANDO_INF_OBTAINED_OCARINA_BUTTON_C_LEFT);
+    Flags_SetRandoInf(RANDO_INF_OBTAINED_OCARINA_BUTTON_C_UP);
+}
+
+/** CAN_CARRY_HOT_WATER_TO_SNOWHEAD in full: a bottle, a hot spring this world
+ *  reaches (the RANDO_EVENTS bit the crawl would set), Soaring, and the Snowhead owl. */
+void InvHotWaterSoaring() {
+    Give(ITEM_BOTTLE);
+    RANDO_EVENTS[RE_ACCESS_HOT_SPRING_WATER] = 1;
+    GiveOcarinaAndButtons();
+    SET_QUEST_ITEM(QUEST_SONG_SOARING);
+    SET_OWL_WARP(OWL_WARP_SNOWHEAD);
+}
+
+/** The same minus the thing the trick's own text names: the hot spring water. */
+void InvSoaringNoHotWater() {
+    Give(ITEM_BOTTLE);
+    GiveOcarinaAndButtons();
+    SET_QUEST_ITEM(QUEST_SONG_SOARING);
+    SET_OWL_WARP(OWL_WARP_SNOWHEAD);
+}
+
+/** Stone Tower: the Hookshot and a playable Elegy, and ONE of the two masks. */
+void InvHookshotElegy() {
+    Give(ITEM_HOOKSHOT);
+    GiveOcarinaAndButtons();
+    SET_QUEST_ITEM(QUEST_SONG_ELEGY);
+}
+
+void InvHookshotElegyGoron() {
+    InvHookshotElegy();
+    Give(ITEM_MASK_GORON);
+}
+
+/** Leg (f): both masks (the vanilla climb) with the Hookshot cleared. */
+void InvElegyGoronZoraNoHookshot() {
+    GiveOcarinaAndButtons();
+    SET_QUEST_ITEM(QUEST_SONG_ELEGY);
+    Give(ITEM_MASK_GORON);
+    Give(ITEM_MASK_ZORA);
+}
+
+/** Leg (f): both masks and the Hookshot with the Elegy cleared. */
+void InvHookshotGoronZoraNoElegy() {
+    Give(ITEM_HOOKSHOT);
+    Give(ITEM_MASK_GORON);
+    Give(ITEM_MASK_ZORA);
+}
+
+/** GBT_CAN_RIDE_CENTRAL_GEYSER in full plus the swim ability every one of those
+ *  four tunnels keeps outside the trick. */
+void InvGeyserAndSwim() {
+    Give(ITEM_BOW);
+    Give(ITEM_ARROW_FIRE);
+    Give(ITEM_ARROW_ICE);
+    gSaveContext.save.saveInfo.playerData.isMagicAcquired = true;
+    Flags_SetRandoInf(RANDO_INF_OBTAINED_SWIM);
+}
+
+/** The control: the Ice Arrows gone, everything else kept. */
+void InvGeyserNoIceAndSwim() {
+    Give(ITEM_BOW);
+    Give(ITEM_ARROW_FIRE);
+    gSaveContext.save.saveInfo.playerData.isMagicAcquired = true;
+    Flags_SetRandoInf(RANDO_INF_OBTAINED_SWIM);
+}
+
+/** GBT_CAN_REVERSE_WATER_FLOW: both red switches and the Hookshot. */
+void SetReversedWaterFlow() {
+    RANDO_EVENTS[RE_GREAT_BAY_RED_SWITCH_1] = 1;
+    RANDO_EVENTS[RE_GREAT_BAY_RED_SWITCH_2] = 1;
+    Give(ITEM_HOOKSHOT);
+}
+
+void InvGeyserSwimAndFlow() {
+    InvGeyserAndSwim();
+    SetReversedWaterFlow();
+}
+
+void InvGeyserNoIceSwimAndFlow() {
+    InvGeyserNoIceAndSwim();
+    SetReversedWaterFlow();
+}
+
+/** Leg (f) for the four tunnels: the vanilla Zora route, one outer conjunct cleared. */
+void InvZoraNoSwim() {
+    Give(ITEM_MASK_ZORA);
+    SetReversedWaterFlow();
+}
+
+void InvZoraSwimNoFlow() {
+    Give(ITEM_MASK_ZORA);
+    Flags_SetRandoInf(RANDO_INF_OBTAINED_SWIM);
+}
+
+/** The boss-key edge: the Zora Mask and CAN_USE_MAGIC_ARROW(ICE). */
+void InvZoraAndIce() {
+    Give(ITEM_MASK_ZORA);
+    InvBowIceArrowsAndMagic();
+}
+
 const Probe kProbes[] = {
     // MMRT_LENS. Empty inventory and no magic, so the only way in is the trick.
     { MMRT_LENS, "Lone Peak Shrine's invisible chest without Lens of Truth", EDGE_CHECK, RR_LONE_PEAK_SHRINE,
@@ -354,11 +488,13 @@ const Probe kProbes[] = {
     { MMRT_ZORA_HALL_HUMAN, "Zora Hall's back rooms as Human (Lulu's door)", EDGE_EXIT, RR_ZORA_HALL,
       (int32_t)ENTRANCE(ZORA_HALL_ROOMS, 2), kAllTime, InvSwimAbility, InvEmpty },
     // MMRT_GORON_BOMB_JUMP, both directions. Day 1 only, because the vanilla
-    // condition has a FINAL_DAY() disjunct.
+    // condition has a FINAL_DAY() disjunct. #697: the control is a Goron with a
+    // Powder Keg and no bomb — OoTMM's fences want real bombs — so it also locks the
+    // keg OUT of the fence shape.
     { MMRT_GORON_BOMB_JUMP, "Milk Road over the fence as Goron", EDGE_CONNECTION, RR_MILK_ROAD,
-      (int32_t)RR_MILK_ROAD_BEHIND_FENCE, kDay1Only, InvGoronAndBomb, InvGoronOnly },
+      (int32_t)RR_MILK_ROAD_BEHIND_FENCE, kDay1Only, InvGoronAndBomb, InvGoronAndKeg },
     { MMRT_GORON_BOMB_JUMP, "Milk Road back over the fence as Goron (the mirror direction)", EDGE_CONNECTION,
-      RR_MILK_ROAD_BEHIND_FENCE, (int32_t)RR_MILK_ROAD, kDay1Only, InvGoronAndBomb, InvGoronOnly },
+      RR_MILK_ROAD_BEHIND_FENCE, (int32_t)RR_MILK_ROAD, kDay1Only, InvGoronAndBomb, InvGoronAndKeg },
     // MMRT_DOG_RACE_CHEST_NOTHING. "With Nothing" is literal: no item term.
     { MMRT_DOG_RACE_CHEST_NOTHING, "the Doggy Racetrack chest with nothing", EDGE_CHECK, RR_DOGGY_RACETRACK,
       (int32_t)RC_DOGGY_RACETRACK_CHEST, kAllTime, InvEmpty, NULL },
@@ -540,6 +676,143 @@ const Probe kProbes[] = {
     // part 2's MMRT_PALACE_BEAN_SKIP.
     { MMRT_IKANA_ROOF_PARKOUR, "Ikana Castle's outer roof from the inner roof", EDGE_CONNECTION,
       RR_IKANA_CASTLE_INNER_ROOF, (int32_t)RR_IKANA_CASTLE_OUTER_ROOF, kAllTime, InvEmpty, NULL },
+
+    // ---- #697, third pass: the bindings OoTMM's own logic graph maps -------
+    //
+    // Every row below cites the OoTMM site in its region file. Same shape as the
+    // passes above: a red/green pair on the real lambda, a control wherever the edge
+    // still requires something with the trick on.
+
+    // MMRT_SCT_NOTHING. "With nothing" is literal; the widened term is a top-level
+    // disjunct, so there is nothing left to take away.
+    { MMRT_SCT_NOTHING, "South Clock Town's lower chest from the roof with nothing", EDGE_CHECK, RR_CLOCK_TOWN_SOUTH,
+      (int32_t)RC_CLOCK_TOWN_SOUTH_CHEST_LOWER, kAllTime, InvEmpty, NULL },
+    // MMRT_CAPTAIN_SKIP. The Bow and no Captain's Hat; the control drops the Bow,
+    // which stays OUTSIDE the trick (kSurvivorProbes pins it with the hat on).
+    { MMRT_CAPTAIN_SKIP, "the Ocean Spider House heart-piece chest with the code guessed", EDGE_CHECK,
+      RR_OCEAN_SPIDER_HOUSE_MEETING_ROOM, (int32_t)RC_OCEAN_SPIDER_HOUSE_CHEST_PIECE_OF_HEART, kAllTime, InvBow,
+      InvEmpty },
+    // MMRT_PALACE_GUARD_SKIP. Human Link, nothing in hand: the trick is the whole
+    // alternative to the Deku Mask.
+    { MMRT_PALACE_GUARD_SKIP, "Deku Palace's inner garden past the guards as Human", EDGE_CONNECTION,
+      RR_DEKU_PALACE_OUTSIDE, (int32_t)RR_DEKU_PALACE_INSIDE_LOWER, kAllTime, InvEmpty, NULL },
+    // MMRT_ONE_MASK_STONE_TOWER, both directions. The Hookshot, a playable Elegy and
+    // the Goron Mask only; the control takes the mask away, so no statue beyond
+    // Human's remains.
+    { MMRT_ONE_MASK_STONE_TOWER, "Stone Tower's Elegy climb with two statues (Human, Goron)", EDGE_CONNECTION,
+      RR_STONE_TOWER_BOTTOM, (int32_t)RR_STONE_TOWER_MIDDLE, kAllTime, InvHookshotElegyGoron, InvHookshotElegy },
+    { MMRT_ONE_MASK_STONE_TOWER, "Stone Tower's Elegy climb with two statues, the mirror direction", EDGE_CONNECTION,
+      RR_STONE_TOWER_MIDDLE, (int32_t)RR_STONE_TOWER_BOTTOM, kAllTime, InvHookshotElegyGoron, InvHookshotElegy },
+    // MMRT_SHT_HOT_WATER, all four sites. The water, the bottle, Soaring and the
+    // Snowhead owl, and no Fire Arrows; the control drops the hot spring water.
+    { MMRT_SHT_HOT_WATER, "Snowhead Temple's central room first floor, ice melted with hot water", EDGE_CONNECTION,
+      RR_SNOWHEAD_TEMPLE_ENTRANCE_AFTER_BLOCK, (int32_t)RR_SNOWHEAD_TEMPLE_CENTRAL_ROOM_FIRST_FLOOR, kAllTime,
+      InvHotWaterSoaring, InvSoaringNoHotWater },
+    { MMRT_SHT_HOT_WATER, "Snowhead Temple's upper pillar room from the first floor, with hot water", EDGE_CONNECTION,
+      RR_SNOWHEAD_TEMPLE_CENTRAL_ROOM_FIRST_FLOOR, (int32_t)RR_SNOWHEAD_TEMPLE_PILLARS_ROOM_UPPER, kAllTime,
+      InvHotWaterSoaring, InvSoaringNoHotWater },
+    { MMRT_SHT_HOT_WATER, "Snowhead Temple's compass-room ledge chest, with hot water", EDGE_CHECK,
+      RR_SNOWHEAD_TEMPLE_COMPASS_ROOM, (int32_t)RC_SNOWHEAD_TEMPLE_COMPASS_ROOM_LEDGE_CHEST, kAllTime,
+      InvHotWaterSoaring, InvSoaringNoHotWater },
+    { MMRT_SHT_HOT_WATER, "Snowhead Temple's block room upper floor from the compass room, with hot water",
+      EDGE_CONNECTION, RR_SNOWHEAD_TEMPLE_COMPASS_ROOM, (int32_t)RR_SNOWHEAD_TEMPLE_BLOCK_ROOM_UPPER, kAllTime,
+      InvHotWaterSoaring, InvSoaringNoHotWater },
+    // MMRT_GBT_CENTRAL_GEYSER, all four tunnels. Fire + Ice Arrows, magic and the
+    // swim ability, and no Zora Mask; the tunnel and pre-boss rows also reverse the
+    // water flow, which both keep outside the trick. The control drops the Ice Arrows.
+    { MMRT_GBT_CENTRAL_GEYSER, "Great Bay Temple's map room from the central geyser without Zora", EDGE_CONNECTION,
+      RR_GREAT_BAY_TEMPLE_CENTRAL_ROOM, (int32_t)RR_GREAT_BAY_TEMPLE_MAP_ROOM, kAllTime, InvGeyserAndSwim,
+      InvGeyserNoIceAndSwim },
+    { MMRT_GBT_CENTRAL_GEYSER, "Great Bay Temple's red pipe from the central geyser without Zora", EDGE_CONNECTION,
+      RR_GREAT_BAY_TEMPLE_CENTRAL_ROOM, (int32_t)RR_GREAT_BAY_TEMPLE_RED_PIPE_BEFORE_WART, kAllTime, InvGeyserAndSwim,
+      InvGeyserNoIceAndSwim },
+    { MMRT_GBT_CENTRAL_GEYSER, "Great Bay Temple's compass-room tunnel from the central geyser without Zora",
+      EDGE_CONNECTION, RR_GREAT_BAY_TEMPLE_CENTRAL_ROOM, (int32_t)RR_GREAT_BAY_TEMPLE_COMPASS_ROOM_TUNNEL, kAllTime,
+      InvGeyserSwimAndFlow, InvGeyserNoIceSwimAndFlow },
+    { MMRT_GBT_CENTRAL_GEYSER, "Great Bay Temple's pre-boss room from the central geyser without Zora", EDGE_CONNECTION,
+      RR_GREAT_BAY_TEMPLE_CENTRAL_ROOM, (int32_t)RR_GREAT_BAY_TEMPLE_PRE_BOSS_ROOM, kAllTime, InvGeyserSwimAndFlow,
+      InvGeyserNoIceSwimAndFlow },
+    // MMRT_GBT_FIRELESS, the five Green Pipe 3 sites. Deku AND Zora and no Fire
+    // Arrows; the control drops the Zora Mask.
+    { MMRT_GBT_FIRELESS, "Great Bay Temple's green pipe 3 chest without Fire Arrows", EDGE_CHECK,
+      RR_GREAT_BAY_TEMPLE_GREEN_PIPE_3, (int32_t)RC_GREAT_BAY_TEMPLE_GREEN_PIPE_3_CHEST, kAllTime, InvDekuAndZora,
+      InvDekuOnly },
+    { MMRT_GBT_FIRELESS, "Great Bay Temple's green pipe 3 upper pot 01 without Fire Arrows", EDGE_CHECK,
+      RR_GREAT_BAY_TEMPLE_GREEN_PIPE_3, (int32_t)RC_GREAT_BAY_TEMPLE_GREEN_PIPE_3_UPPER_POT_01, kAllTime,
+      InvDekuAndZora, InvDekuOnly },
+    { MMRT_GBT_FIRELESS, "Great Bay Temple's green pipe 3 upper pot 02 without Fire Arrows", EDGE_CHECK,
+      RR_GREAT_BAY_TEMPLE_GREEN_PIPE_3, (int32_t)RC_GREAT_BAY_TEMPLE_GREEN_PIPE_3_UPPER_POT_02, kAllTime,
+      InvDekuAndZora, InvDekuOnly },
+    { MMRT_GBT_FIRELESS, "Great Bay Temple's map room from green pipe 3 without Fire Arrows", EDGE_CONNECTION,
+      RR_GREAT_BAY_TEMPLE_GREEN_PIPE_3, (int32_t)RR_GREAT_BAY_TEMPLE_MAP_ROOM, kAllTime, InvDekuAndZora, InvDekuOnly },
+    { MMRT_GBT_FIRELESS, "Great Bay Temple's second green switch without Fire Arrows", EDGE_EVENT,
+      RR_GREAT_BAY_TEMPLE_GREEN_PIPE_3, (int32_t)RE_GREAT_BAY_GREEN_SWITCH_2, kAllTime, InvDekuAndZora, InvDekuOnly },
+    // ...and the compass room's boss-key edge, which it shares with our own
+    // MMRT_GBT_BOSS_KEY_ICE (off in this save). The control drops the Zora Mask.
+    { MMRT_GBT_FIRELESS, "Great Bay Temple's boss-key chest via ice platforms, fireless", EDGE_CONNECTION,
+      RR_GREAT_BAY_TEMPLE_COMPASS_ROOM, (int32_t)RR_GREAT_BAY_TEMPLE_COMPASS_ROOM_WITH_BOSS_KEY_CHEST, kAllTime,
+      InvZoraAndIce, InvBowIceArrowsAndMagic },
+    // MMRT_GORON_BOMB_JUMP's OoTMM sites. Goron + bomb for the green half. Fences
+    // (CAN_GORON_BOMB_JUMP_FENCE) take the keg control, the general shape takes the
+    // Goron Mask alone.
+    { MMRT_GORON_BOMB_JUMP, "South Clock Town's lower chest by Goron bomb jump", EDGE_CHECK, RR_CLOCK_TOWN_SOUTH,
+      (int32_t)RC_CLOCK_TOWN_SOUTH_CHEST_LOWER, kAllTime, InvGoronAndBomb, InvGoronOnly },
+    { MMRT_GORON_BOMB_JUMP, "the Ocean Spider House's back rooms by Goron bomb jump", EDGE_CONNECTION,
+      RR_OCEAN_SPIDER_HOUSE_ENTRANCE_LOWER, (int32_t)RR_OCEAN_SPIDER_HOUSE_CENTRAL_ROOM, kAllTime, InvGoronAndBomb,
+      InvGoronOnly },
+    { MMRT_GORON_BOMB_JUMP, "Gorman Track from its front gate by Goron bomb jump", EDGE_CONNECTION,
+      RR_GORMAN_TRACK_FRONT, (int32_t)RR_GORMAN_TRACK, kAllTime, InvGoronAndBomb, InvGoronAndKeg },
+    { MMRT_GORON_BOMB_JUMP, "Gorman Track from its back gate by Goron bomb jump", EDGE_CONNECTION, RR_GORMAN_TRACK_BACK,
+      (int32_t)RR_GORMAN_TRACK, kAllTime, InvGoronAndBomb, InvGoronAndKeg },
+    { MMRT_GORON_BOMB_JUMP, "Gorman Track's front gate from the track by Goron bomb jump", EDGE_CONNECTION,
+      RR_GORMAN_TRACK, (int32_t)RR_GORMAN_TRACK_FRONT, kAllTime, InvGoronAndBomb, InvGoronAndKeg },
+    { MMRT_GORON_BOMB_JUMP, "Gorman Track's back gate from the track by Goron bomb jump", EDGE_CONNECTION,
+      RR_GORMAN_TRACK, (int32_t)RR_GORMAN_TRACK_BACK, kAllTime, InvGoronAndBomb, InvGoronAndKeg },
+    { MMRT_GORON_BOMB_JUMP, "Road to Ikana over the Epona fence by Goron bomb jump", EDGE_CONNECTION,
+      RR_ROAD_TO_IKANA_FIELD_SIDE, (int32_t)RR_ROAD_TO_IKANA_BELOW_LEDGE, kAllTime, InvGoronAndBomb, InvGoronAndKeg },
+    { MMRT_GORON_BOMB_JUMP, "Road to Ikana back over the Epona fence by Goron bomb jump", EDGE_CONNECTION,
+      RR_ROAD_TO_IKANA_BELOW_LEDGE, (int32_t)RR_ROAD_TO_IKANA_FIELD_SIDE, kAllTime, InvGoronAndBomb, InvGoronAndKeg },
+    { MMRT_GORON_BOMB_JUMP, "Termina Field's Great Bay fence by Goron bomb jump", EDGE_CONNECTION, RR_TERMINA_FIELD,
+      (int32_t)RR_TERMINA_FIELD_BEFORE_GREAT_BAY_COAST, kAllTime, InvGoronAndBomb, InvGoronAndKeg },
+    { MMRT_GORON_BOMB_JUMP, "Termina Field's Great Bay fence back by Goron bomb jump", EDGE_CONNECTION,
+      RR_TERMINA_FIELD_BEFORE_GREAT_BAY_COAST, (int32_t)RR_TERMINA_FIELD, kAllTime, InvGoronAndBomb, InvGoronAndKeg },
+    { MMRT_GORON_BOMB_JUMP, "the Astral Observatory ledge from Termina Field by Goron bomb jump", EDGE_CONNECTION,
+      RR_TERMINA_FIELD, (int32_t)RR_ASTRAL_OBSERVATORY_OUTSIDE, kAllTime, InvGoronAndBomb, InvGoronAndKeg },
+    { MMRT_GORON_BOMB_JUMP, "Termina Field from the Astral Observatory ledge by Goron bomb jump", EDGE_CONNECTION,
+      RR_ASTRAL_OBSERVATORY_OUTSIDE, (int32_t)RR_TERMINA_FIELD, kAllTime, InvGoronAndBomb, InvGoronAndKeg },
+    { MMRT_GORON_BOMB_JUMP, "Ikana Castle's inner roof from the outer roof by Goron bomb jump", EDGE_CONNECTION,
+      RR_IKANA_CASTLE_OUTER_ROOF, (int32_t)RR_IKANA_CASTLE_INNER_ROOF, kAllTime, InvGoronAndBomb, InvGoronOnly },
+    { MMRT_GORON_BOMB_JUMP, "Woodfall Temple's pre-Odolwa rupee 01 by Goron bomb jump", EDGE_CHECK,
+      RR_WOODFALL_TEMPLE_PRE_BOSS_ROOM, (int32_t)RC_WOODFALL_TEMPLE_PRE_BOSS_FREESTANDING_RUPEE_01, kAllTime,
+      InvGoronAndBomb, InvGoronOnly },
+    { MMRT_GORON_BOMB_JUMP, "Woodfall Temple's pre-Odolwa rupee 02 by Goron bomb jump", EDGE_CHECK,
+      RR_WOODFALL_TEMPLE_PRE_BOSS_ROOM, (int32_t)RC_WOODFALL_TEMPLE_PRE_BOSS_FREESTANDING_RUPEE_02, kAllTime,
+      InvGoronAndBomb, InvGoronOnly },
+    { MMRT_GORON_BOMB_JUMP, "Woodfall Temple's pre-Odolwa rupee 03 by Goron bomb jump", EDGE_CHECK,
+      RR_WOODFALL_TEMPLE_PRE_BOSS_ROOM, (int32_t)RC_WOODFALL_TEMPLE_PRE_BOSS_FREESTANDING_RUPEE_03, kAllTime,
+      InvGoronAndBomb, InvGoronOnly },
+    { MMRT_GORON_BOMB_JUMP, "Woodfall Temple's pre-Odolwa rupee 04 by Goron bomb jump", EDGE_CHECK,
+      RR_WOODFALL_TEMPLE_PRE_BOSS_ROOM, (int32_t)RC_WOODFALL_TEMPLE_PRE_BOSS_FREESTANDING_RUPEE_04, kAllTime,
+      InvGoronAndBomb, InvGoronOnly },
+    { MMRT_GORON_BOMB_JUMP, "Snowhead Temple's block room upper floor from the compass room by Goron bomb jump",
+      EDGE_CONNECTION, RR_SNOWHEAD_TEMPLE_COMPASS_ROOM, (int32_t)RR_SNOWHEAD_TEMPLE_BLOCK_ROOM_UPPER, kAllTime,
+      InvGoronAndBomb, InvGoronOnly },
+    { MMRT_GORON_BOMB_JUMP, "Snowhead Temple's compass-room fairy crate by Goron bomb jump", EDGE_CHECK,
+      RR_SNOWHEAD_TEMPLE_COMPASS_ROOM, (int32_t)RC_SNOWHEAD_TEMPLE_SF_COMPASS_ROOM_CRATE, kAllTime, InvGoronAndBomb,
+      InvGoronOnly },
+    // The two scrub heart pieces, reshaped to OoTMM's form: the trick leg no longer
+    // carries the deed. Goron alone opens both with the trick on and neither with it
+    // off; the Zora Hall one also takes Zora alone (the tooltip's "either Goron or
+    // Zora"), and a Deku Goron with no Mountain Title Deed stays shut tricks-off.
+    { MMRT_SOUTHERN_SWAMP_SCRUB_HP_GORON, "the Southern Swamp scrub's heart piece as Goron with no deed", EDGE_CHECK,
+      RR_SOUTHERN_SWAMP_NORTH, (int32_t)RC_SOUTHERN_SWAMP_PIECE_OF_HEART, kAllTime, InvGoronOnly, InvDeedLandOnly },
+    { MMRT_ZORA_HALL_SCRUB_HP_NO_DEKU, "the Zora Hall scrub's heart piece as Goron with no deed", EDGE_CHECK,
+      RR_ZORA_HALL_LULUS_ROOM, (int32_t)RC_ZORA_HALL_SCRUB_PIECE_OF_HEART, kAllTime, InvGoronOnly,
+      InvDeedMountainOnly },
+    { MMRT_ZORA_HALL_SCRUB_HP_NO_DEKU, "the Zora Hall scrub's heart piece as Zora", EDGE_CHECK, RR_ZORA_HALL_LULUS_ROOM,
+      (int32_t)RC_ZORA_HALL_SCRUB_PIECE_OF_HEART, kAllTime, InvZoraMask, InvEmpty },
+    { MMRT_ZORA_HALL_SCRUB_HP_NO_DEKU, "the Zora Hall scrub's heart piece as a Deku Goron with no deed", EDGE_CHECK,
+      RR_ZORA_HALL_LULUS_ROOM, (int32_t)RC_ZORA_HALL_SCRUB_PIECE_OF_HEART, kAllTime, InvDekuAndGoron, NULL },
 };
 
 /**
@@ -570,13 +843,12 @@ const SurvivorProbe kSurvivorProbes[] = {
     { MMRT_SOUTHERN_SWAMP_SCRUB_HP_GORON,
       "the Southern Swamp scrub's heart piece stays shut for a Deku with no Land Title Deed", EDGE_CHECK,
       RR_SOUTHERN_SWAMP_NORTH, (int32_t)RC_SOUTHERN_SWAMP_PIECE_OF_HEART, kAllTime, InvDekuOnly },
-    // deed && CAN_BE_GORON && (CAN_BE_DEKU || (trick && (CAN_BE_GORON || CAN_BE_ZORA))).
-    // TWO outer conjuncts, so two arms: the deed cleared, and the outer
-    // CAN_BE_GORON cleared. The second is the one the region file's own comment
-    // turns on — it is why the trick's Zora leg is dead — so it is pinned here.
-    { MMRT_ZORA_HALL_SCRUB_HP_NO_DEKU,
-      "the Zora Hall scrub's heart piece stays shut for a Goron Deku with no Mountain Title Deed", EDGE_CHECK,
-      RR_ZORA_HALL_LULUS_ROOM, (int32_t)RC_ZORA_HALL_SCRUB_PIECE_OF_HEART, kAllTime, InvDekuAndGoron },
+    // #697 third pass: now (deed && Goron && Deku) || (trick && (Goron || Zora)),
+    // OoTMM's shape. The deed-cleared arm this row used to carry is GONE, not
+    // forgotten: a Goron Deku with no deed is exactly what the trick now opens, so
+    // it moved to kProbes as a red/green pair (off shut, on open). What survives is
+    // the arm below: with the vanilla Deku route and the deed but no Goron and no
+    // Zora, neither disjunct can open, trick off or on.
     { MMRT_ZORA_HALL_SCRUB_HP_NO_DEKU,
       "the Zora Hall scrub's heart piece stays shut for a deed-holding Deku who is not Goron", EDGE_CHECK,
       RR_ZORA_HALL_LULUS_ROOM, (int32_t)RC_ZORA_HALL_SCRUB_PIECE_OF_HEART, kAllTime, InvDekuAndDeedMountain },
@@ -595,6 +867,40 @@ const SurvivorProbe kSurvivorProbes[] = {
     { MMRT_ST_UPDRAFTS, "ISTT's wind room stays shut to a keyless Deku", EDGE_CONNECTION,
       RR_STONE_TOWER_TEMPLE_INVERTED_WIND_ROOM, (int32_t)RR_STONE_TOWER_TEMPLE_INVERTED_LAVA_FLIP_ROOM, kAllTime,
       InvDekuNoStoneTowerKeys },
+
+    // ---- #697 third pass ----
+    // HAS_ITEM(ITEM_BOW) && (captain || trick): the hat (vanilla A) with the Bow cleared.
+    { MMRT_CAPTAIN_SKIP, "the Ocean Spider House heart-piece chest stays shut to a Captain's Hat with no Bow",
+      EDGE_CHECK, RR_OCEAN_SPIDER_HOUSE_MEETING_ROOM, (int32_t)RC_OCEAN_SPIDER_HOUSE_CHEST_PIECE_OF_HEART, kAllTime,
+      InvCaptainsHatOnly },
+    // HOOKSHOT && ELEGY && ((Goron && Zora) || (trick && (Goron || Zora))): both masks,
+    // one outer conjunct cleared per arm.
+    { MMRT_ONE_MASK_STONE_TOWER, "Stone Tower's climb stays shut without the Hookshot", EDGE_CONNECTION,
+      RR_STONE_TOWER_BOTTOM, (int32_t)RR_STONE_TOWER_MIDDLE, kAllTime, InvElegyGoronZoraNoHookshot },
+    { MMRT_ONE_MASK_STONE_TOWER, "Stone Tower's climb stays shut without the Elegy", EDGE_CONNECTION,
+      RR_STONE_TOWER_BOTTOM, (int32_t)RR_STONE_TOWER_MIDDLE, kAllTime, InvHookshotGoronZoraNoElegy },
+    { MMRT_ONE_MASK_STONE_TOWER, "Stone Tower's mirror climb stays shut without the Hookshot", EDGE_CONNECTION,
+      RR_STONE_TOWER_MIDDLE, (int32_t)RR_STONE_TOWER_BOTTOM, kAllTime, InvElegyGoronZoraNoHookshot },
+    { MMRT_ONE_MASK_STONE_TOWER, "Stone Tower's mirror climb stays shut without the Elegy", EDGE_CONNECTION,
+      RR_STONE_TOWER_MIDDLE, (int32_t)RR_STONE_TOWER_BOTTOM, kAllTime, InvHookshotGoronZoraNoElegy },
+    // (Zora || geyser) && [flow &&] SWIM: the Zora route, the swim ability cleared...
+    { MMRT_GBT_CENTRAL_GEYSER, "Great Bay Temple's map room stays shut to a Zora with no swim ability", EDGE_CONNECTION,
+      RR_GREAT_BAY_TEMPLE_CENTRAL_ROOM, (int32_t)RR_GREAT_BAY_TEMPLE_MAP_ROOM, kAllTime, InvZoraNoSwim },
+    { MMRT_GBT_CENTRAL_GEYSER, "Great Bay Temple's red pipe stays shut to a Zora with no swim ability", EDGE_CONNECTION,
+      RR_GREAT_BAY_TEMPLE_CENTRAL_ROOM, (int32_t)RR_GREAT_BAY_TEMPLE_RED_PIPE_BEFORE_WART, kAllTime, InvZoraNoSwim },
+    { MMRT_GBT_CENTRAL_GEYSER, "Great Bay Temple's compass-room tunnel stays shut to a Zora with no swim ability",
+      EDGE_CONNECTION, RR_GREAT_BAY_TEMPLE_CENTRAL_ROOM, (int32_t)RR_GREAT_BAY_TEMPLE_COMPASS_ROOM_TUNNEL, kAllTime,
+      InvZoraNoSwim },
+    { MMRT_GBT_CENTRAL_GEYSER, "Great Bay Temple's pre-boss room stays shut to a Zora with no swim ability",
+      EDGE_CONNECTION, RR_GREAT_BAY_TEMPLE_CENTRAL_ROOM, (int32_t)RR_GREAT_BAY_TEMPLE_PRE_BOSS_ROOM, kAllTime,
+      InvZoraNoSwim },
+    // ...and, on the two tunnels that also need it, the reversed water flow cleared.
+    { MMRT_GBT_CENTRAL_GEYSER, "Great Bay Temple's compass-room tunnel stays shut before the flow is reversed",
+      EDGE_CONNECTION, RR_GREAT_BAY_TEMPLE_CENTRAL_ROOM, (int32_t)RR_GREAT_BAY_TEMPLE_COMPASS_ROOM_TUNNEL, kAllTime,
+      InvZoraSwimNoFlow },
+    { MMRT_GBT_CENTRAL_GEYSER, "Great Bay Temple's pre-boss room stays shut before the flow is reversed",
+      EDGE_CONNECTION, RR_GREAT_BAY_TEMPLE_CENTRAL_ROOM, (int32_t)RR_GREAT_BAY_TEMPLE_PRE_BOSS_ROOM, kAllTime,
+      InvZoraSwimNoFlow },
 };
 
 /** Keys whose red/green pairs live in their own rows (part 1's two, and #719's

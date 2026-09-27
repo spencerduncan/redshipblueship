@@ -15,7 +15,10 @@ static RegisterShipInitFunc initFunc([]() {
             EXIT(ENTRANCE(ASTRAL_OBSERVATORY, 1),           ENTRANCE(TERMINA_FIELD, 9), true),
         },
         .connections = {
-            CONNECTION(RR_TERMINA_FIELD, CAN_GROW_BEAN_PLANT)
+            // #697 — MMRT_GORON_BOMB_JUMP, DEFAULT OFF: OoTMM's "Astral Observatory Balcony" ->
+            // "Termina Field" is `can_use_beans || ... || (can_goron_bomb_jump && has_bombs)`. The mirror
+            // (Termina Field -> this ledge) is in TerminaField.cpp.
+            CONNECTION(RR_TERMINA_FIELD, CAN_GROW_BEAN_PLANT || CAN_GORON_BOMB_JUMP_FENCE)
         },
     };
     Regions[RR_ASTRAL_OBSERVATORY_PASSAGE] = RandoRegion{ .name = "Passage", .sceneId = SCENE_TENMON_DAI,
@@ -223,7 +226,14 @@ static RegisterShipInitFunc initFunc([]() {
             CHECK(RC_CLOCK_TOWN_SOUTH_PLATFORM_PIECE_OF_HEART, true),
             CHECK(RC_CLOCK_TOWN_SCRUB_DEED, Flags_GetRandoInf(RANDO_INF_OBTAINED_MOONS_TEAR)),
             CHECK(RC_CLOCK_TOWN_SOUTH_CHEST_UPPER, ((CAN_BE_DEKU && Flags_GetRandoInf(RANDO_INF_OBTAINED_MOONS_TEAR)) || HAS_ITEM(ITEM_HOOKSHOT)) && FINAL_DAY()),
-            CHECK(RC_CLOCK_TOWN_SOUTH_CHEST_LOWER, (CAN_BE_DEKU && Flags_GetRandoInf(RANDO_INF_OBTAINED_MOONS_TEAR)) || HAS_ITEM(ITEM_HOOKSHOT)),
+            // #697 — MMRT_SCT_NOTHING ("Climb the roof with a precise jump to access the South Clock Town
+            // Chest") and MMRT_GORON_BOMB_JUMP, both DEFAULT OFF, both on the LOWER chest only. The
+            // tooltip's "the South Clock Town Chest" is singular and 2ship splits it in two; OoTMM's
+            // clock_town.yml settles which: `trick(MM_SCT_NOTHING)` and `can_goron_bomb_jump` both sit on
+            // "Clock Town South Chest Lower". OoTMM's UPPER chest carries the bomb jump only as
+            // `can_goron_bomb_jump && can_hookshot_short`, and the Hookshot alone already opens it here,
+            // so that disjunct could never change a verdict and is not written.
+            CHECK(RC_CLOCK_TOWN_SOUTH_CHEST_LOWER, (CAN_BE_DEKU && Flags_GetRandoInf(RANDO_INF_OBTAINED_MOONS_TEAR)) || HAS_ITEM(ITEM_HOOKSHOT) || MM_TRICK(MMRT_SCT_NOTHING) || CAN_GORON_BOMB_JUMP),
             CHECK(RC_CLOCK_TOWN_SOUTH_OWL_STATUE, CAN_USE_SWORD),
         },
         .exits = { //     TO                                         FROM
