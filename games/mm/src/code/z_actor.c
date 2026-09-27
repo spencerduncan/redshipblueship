@@ -3740,6 +3740,49 @@ void MM_Actor_FreeOverlay(ActorOverlay* entry) {
     }
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+/**
+ * [RSBS #666] Retire the overlay clients of an ABANDONED MM session.
+ *
+ * A cross-game departure retires MM's Play gamestate without MM_Play_Destroy
+ * (MM_Graph_ResetRunFrameContext, graph.c; MM_Game_Suspend): the actors that
+ * were live at that instant are never deleted, so MM_Actor_Delete's epilogue
+ * above -- numLoaded-- then MM_Actor_FreeOverlay, which is where the port runs
+ * each profile's `reset` to put the overlay's file-scope statics back -- never
+ * runs for them. Every overlay that had a live client keeps whatever its
+ * statics held (En_Test4's sIsLoaded latch is the named instance), and the next
+ * session's Actor_InitContext zeroes numLoaded WITHOUT calling reset, so the
+ * stale value is what that session's first client of the overlay reads.
+ *
+ * This is the part of that epilogue that is valid with the actors gone: an
+ * overlay with clients is marked client-free and freed through the same
+ * MM_Actor_FreeOverlay path a normal teardown takes. Overlays already at zero
+ * are skipped on purpose -- they were freed (and reset) when their last client
+ * went, and some resets are not idempotent (the Great Bay turtle's reset frees its
+ * managed collision copies).
+ *
+ * @return the number of overlays whose clients were retired.
+ */
+s32 MM_ActorOverlayTable_RetireAbandonedClients(void) {
+    s32 retired = 0;
+    s32 i;
+
+    for (i = 0; i < ARRAY_COUNT(gActorOverlayTable); i++) {
+        ActorOverlay* entry = &gActorOverlayTable[i];
+
+        if (entry->numLoaded <= 0) {
+            continue;
+        }
+        entry->numLoaded = 0;
+        if (entry->profile != NULL) {
+            MM_Actor_FreeOverlay(entry);
+        }
+        retired++;
+    }
+    return retired;
+}
+#endif
+
 Actor* MM_Actor_Spawn(ActorContext* actorCtx, PlayState* play, s16 actorId, f32 posX, f32 posY, f32 posZ, s16 rotX,
                    s16 rotY, s16 rotZ, s32 params) {
     return Actor_SpawnAsChildAndCutscene(actorCtx, play, actorId, posX, posY, posZ, rotX, rotY, rotZ, params,

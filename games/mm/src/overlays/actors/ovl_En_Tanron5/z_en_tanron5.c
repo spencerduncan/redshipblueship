@@ -29,6 +29,9 @@
 
 void EnTanron5_Init(Actor* thisx, PlayState* play);
 void EnTanron5_Destroy(Actor* thisx, PlayState* play);
+#ifdef RSBS_SINGLE_EXECUTABLE
+void EnTanron5_Reset(void);
+#endif
 void EnTanron5_Update(Actor* thisx, PlayState* play2);
 void EnTanron5_Draw(Actor* thisx, PlayState* play);
 
@@ -52,6 +55,9 @@ ActorProfile En_Tanron5_Profile = {
     /**/ EnTanron5_Destroy,
     /**/ EnTanron5_Update,
     /**/ EnTanron5_Draw,
+#ifdef RSBS_SINGLE_EXECUTABLE
+    /**/ EnTanron5_Reset,
+#endif
 };
 
 static ColliderCylinderInit MM_sCylinderInit = {
@@ -651,3 +657,15 @@ void EnTanron5_ItemDrop_Draw(Actor* thisx, PlayState* play) {
         CLOSE_DISPS(play->state.gfxCtx);
     }
 }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// [RSBS #666] EnTanron5_Destroy decrements sFragmentAndItemDropCount for each fragment or drop, so nothing but Destroy ever put it back. A cross-game
+// departure abandons MM's Play gamestate without deleting its actors
+// (MM_ActorOverlayTable_RetireAbandonedClients, z_actor.c), which leaves it
+// holding the abandoned session's value. MM_Actor_FreeOverlay calls this only
+// once the overlay has no clients, when every Destroy has already restored the
+// initial value, so on a normal teardown it changes nothing.
+void EnTanron5_Reset(void) {
+    sFragmentAndItemDropCount = 0;
+}
+#endif

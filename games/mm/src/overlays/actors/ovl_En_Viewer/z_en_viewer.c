@@ -12,6 +12,9 @@
 
 void MM_EnViewer_Init(Actor* thisx, PlayState* play);
 void MM_EnViewer_Destroy(Actor* thisx, PlayState* play);
+#ifdef RSBS_SINGLE_EXECUTABLE
+void MM_EnViewer_Reset(void);
+#endif
 void MM_EnViewer_Update(Actor* thisx, PlayState* play2);
 void MM_EnViewer_Draw(Actor* thisx, PlayState* play);
 
@@ -33,6 +36,9 @@ ActorProfile En_Viewer_Profile = {
     /**/ MM_EnViewer_Destroy,
     /**/ MM_EnViewer_Update,
     /**/ MM_EnViewer_Draw,
+#ifdef RSBS_SINGLE_EXECUTABLE
+    /**/ MM_EnViewer_Reset,
+#endif
 };
 
 u32 D_8089F4D0;
@@ -165,3 +171,15 @@ void MM_EnViewer_Update(Actor* thisx, PlayState* play2) {
 
 void MM_EnViewer_Draw(Actor* thisx, PlayState* play) {
 }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// [RSBS #666] MM_EnViewer_Destroy decrements the instance counter D_8089F3E0, so nothing but Destroy ever put it back. A cross-game
+// departure abandons MM's Play gamestate without deleting its actors
+// (MM_ActorOverlayTable_RetireAbandonedClients, z_actor.c), which leaves it
+// holding the abandoned session's value. MM_Actor_FreeOverlay calls this only
+// once the overlay has no clients, when every Destroy has already restored the
+// initial value, so on a normal teardown it changes nothing.
+void MM_EnViewer_Reset(void) {
+    D_8089F3E0 = 0;
+}
+#endif

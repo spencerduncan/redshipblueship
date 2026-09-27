@@ -51,6 +51,8 @@
 #include <ship/Context.h>
 
 #include "2s2h/Enhancements/Saving/SavingEnhancements.h"
+#include "2s2h/ObjectExtension/ActorListIndex.h"
+#include "2s2h/ObjectExtension/ObjectExtension.h"
 
 extern "C" {
 // GameExports_SingleExe.cpp — the resume-path cold-boot re-arm under test.
@@ -83,6 +85,12 @@ extern u8 sSeqCmdWritePos;
 // OnSaveLoad hook stamps into shipSaveContext.lastTimeLog (#617). Used here to
 // check the restored value is a fresh timestamp, not to seed it ourselves.
 uint64_t GetUnixTimestamp(void);
+// GameExports_SingleExe.cpp — what MM_Game_Suspend runs once the Play
+// gamestate is retired without MM_Play_Destroy (#666).
+void MM_RetireAbandonedSession(void);
+// ovl_En_Test4/z_en_test4.c — the clock actor's file-static latch (#666).
+s32 MM_EnTest4_IsLoadedLatchForTest(void);
+void MM_EnTest4_SetLoadedLatchForTest(s32 isLoaded);
 }
 
 extern "C" u8* MM_gSystemHeap;
@@ -411,6 +419,146 @@ extern "C" int MM_StartupRestore_RunHeadless(void) {
     Audio_SetFileSelectSettings(SAVE_AUDIO_STEREO);
 
     printf("[TEST] PASS: mm-startup-restore — restore-then-spawn contract holds\n");
+    return 0;
+}
+
+namespace {
+
+int sProbeResetCalls = 0;
+int sIdleProbeResetCalls = 0;
+
+void ProbeReset(void) {
+    sProbeResetCalls++;
+}
+
+void IdleProbeReset(void) {
+    sIdleProbeResetCalls++;
+}
+
+} // namespace
+
+/**
+ * mm-abandoned-session-statics (#666): a cross-game departure retires MM's
+ * Play gamestate without MM_Play_Destroy, so the actors live at that instant
+ * are never deleted. MM_RetireAbandonedSession -- which MM_Game_Suspend runs
+ * right after retiring the graph -- must leave the next session what a
+ * normal teardown would have:
+ *
+ *   (a) En_Test4's sIsLoaded latch is back to false. Left latched, the next
+ *       session's clock actor kills itself in EnTest4_Init;
+ *   (b) every overlay that had clients has none, and its profile's reset ran
+ *       exactly once (the path MM_Actor_Delete takes for the last client);
+ *   (c) an overlay with NO clients is not reset again: it was reset when its
+ *       last client went, and some resets free memory;
+ *   (d) the four overlays whose Destroy was the only thing restoring a static
+ *       now carry a reset slot, and their abandoned clients are retired;
+ *   (e) no per-actor ObjectExtension entry survives: the next session's arena
+ *       hands the same addresses to different actors.
+ */
+extern "C" int MM_AbandonedSessionStatics_RunHeadless(void) {
+    printf("[TEST] mm-abandoned-session-statics: an abandoned MM session's overlay statics are reset (#666)\n");
+
+    static const s16 kDestroyMaintained[] = {
+        ACTOR_EN_GRASSHOPPER,
+        ACTOR_EN_HOLL,
+        ACTOR_EN_TANRON5,
+        ACTOR_EN_VIEWER,
+    };
+
+    // Two unused overlay-table slots carry probe profiles, so (b) and (c) are
+    // observed on a reset this row owns rather than inferred.
+    s32 probeSlot = -1;
+    s32 idleSlot = -1;
+    for (s32 i = 0; i < ACTOR_ID_MAX; i++) {
+        if (gActorOverlayTable[i].profile == NULL && gActorOverlayTable[i].numLoaded == 0) {
+            if (probeSlot < 0) {
+                probeSlot = i;
+            } else {
+                idleSlot = i;
+                break;
+            }
+        }
+    }
+    RESUME_ASSERT(probeSlot >= 0 && idleSlot >= 0, "no two unused overlay-table slots for the probes");
+
+    ActorProfile probeProfile = {};
+    probeProfile.id = (s16)probeSlot;
+    probeProfile.reset = ProbeReset;
+    ActorProfile idleProfile = {};
+    idleProfile.id = (s16)idleSlot;
+    idleProfile.reset = IdleProbeReset;
+    sProbeResetCalls = 0;
+    sIdleProbeResetCalls = 0;
+
+    // (d) structurally first: without the slot there is nothing to run.
+    for (size_t k = 0; k < ARRAY_COUNT(kDestroyMaintained); k++) {
+        const ActorOverlay* entry = &gActorOverlayTable[kDestroyMaintained[k]];
+        RESUME_ASSERT(entry->profile != NULL, "Destroy-maintained overlay has no profile");
+        RESUME_ASSERT(entry->profile->reset != NULL,
+                      "an overlay whose Destroy restores a static has no reset slot, so an abandoned session "
+                      "leaves that static stale (#666)");
+    }
+
+    // The abandoned session, as MM_Game_Suspend finds it: the clock actor ran
+    // EnTest4_Init (latch set) and is still a live client; the four
+    // Destroy-maintained overlays each have a live client; the probe overlay
+    // has two; the idle probe had its last client deleted normally.
+    Actor fakeActor = {};
+    MM_EnTest4_SetLoadedLatchForTest(true);
+    gActorOverlayTable[ACTOR_EN_TEST4].numLoaded = 1;
+    for (size_t k = 0; k < ARRAY_COUNT(kDestroyMaintained); k++) {
+        gActorOverlayTable[kDestroyMaintained[k]].numLoaded = 1;
+    }
+    gActorOverlayTable[probeSlot].profile = &probeProfile;
+    gActorOverlayTable[probeSlot].numLoaded = 2;
+    gActorOverlayTable[idleSlot].profile = &idleProfile;
+    gActorOverlayTable[idleSlot].numLoaded = 0;
+    SetActorListIndex(&fakeActor, 7);
+    RESUME_ASSERT(GetActorListIndex(&fakeActor) == 7, "ObjectExtension did not take the seeded entry");
+    RESUME_ASSERT(ObjectExtension::GetInstance().Count() > 0, "ObjectExtension count does not see the seeded entry");
+
+    MM_RetireAbandonedSession();
+
+    const s32 latchAfter = MM_EnTest4_IsLoadedLatchForTest();
+    const s8 test4ClientsAfter = gActorOverlayTable[ACTOR_EN_TEST4].numLoaded;
+    const s8 probeClientsAfter = gActorOverlayTable[probeSlot].numLoaded;
+    const int probeCalls = sProbeResetCalls;
+    const int idleCalls = sIdleProbeResetCalls;
+    s32 destroyMaintainedClientsAfter = 0;
+    for (size_t k = 0; k < ARRAY_COUNT(kDestroyMaintained); k++) {
+        destroyMaintainedClientsAfter += gActorOverlayTable[kDestroyMaintained[k]].numLoaded;
+    }
+    const s16 listIndexAfter = GetActorListIndex(&fakeActor);
+    const size_t extensionsAfter = ObjectExtension::GetInstance().Count();
+
+    // Put the table back before any assertion can return.
+    gActorOverlayTable[probeSlot].profile = NULL;
+    gActorOverlayTable[probeSlot].numLoaded = 0;
+    gActorOverlayTable[idleSlot].profile = NULL;
+    gActorOverlayTable[idleSlot].numLoaded = 0;
+    gActorOverlayTable[ACTOR_EN_TEST4].numLoaded = 0;
+    for (size_t k = 0; k < ARRAY_COUNT(kDestroyMaintained); k++) {
+        gActorOverlayTable[kDestroyMaintained[k]].numLoaded = 0;
+    }
+    MM_EnTest4_SetLoadedLatchForTest(false);
+    ObjectExtension_Free(&fakeActor);
+
+    printf("[TEST] mm-abandoned-session-statics: latch %d, En_Test4 clients %d, probe clients %d, probe resets %d, "
+           "idle resets %d, Destroy-maintained clients %d, list index %d, extension entries %zu\n",
+           (int)latchAfter, (int)test4ClientsAfter, (int)probeClientsAfter, probeCalls, idleCalls,
+           (int)destroyMaintainedClientsAfter, (int)listIndexAfter, extensionsAfter);
+
+    RESUME_ASSERT(latchAfter == false,
+                  "En_Test4's sIsLoaded survived the abandoned session: the next session's clock actor kills itself");
+    RESUME_ASSERT(test4ClientsAfter == 0, "En_Test4 still counts a client from the abandoned session");
+    RESUME_ASSERT(probeClientsAfter == 0, "the probe overlay still counts clients from the abandoned session");
+    RESUME_ASSERT(probeCalls == 1, "an overlay with abandoned clients was not reset exactly once");
+    RESUME_ASSERT(idleCalls == 0, "an overlay with no clients was reset again (resets are not all idempotent)");
+    RESUME_ASSERT(destroyMaintainedClientsAfter == 0, "a Destroy-maintained overlay still counts abandoned clients");
+    RESUME_ASSERT(listIndexAfter == -1, "a per-actor ObjectExtension entry survived the abandoned session");
+    RESUME_ASSERT(extensionsAfter == 0, "ObjectExtension entries survived the abandoned session");
+
+    printf("[TEST] PASS: mm-abandoned-session-statics — the abandoned session's overlay and actor state is retired\n");
     return 0;
 }
 
