@@ -28,7 +28,9 @@
  *      non-NULL exactly when `reserved`.
  *  (c) the descriptor table MIRRORS the MM table exactly — same count, unique
  *      ids covering the id space, and every copied field equal. The pane must
- *      never bind a widget to a key MM does not read.
+ *      never bind a widget to a key MM does not read. The tag chips the pane
+ *      draws mirror the tag set too: one per tag, in tag order, each named for
+ *      its tag, in a real palette tone.
  *  (d) GATING HONESTY, both directions: `disabledReason` is non-empty exactly
  *      when the row is reserved or unbound, and empty exactly when it is
  *      settable. A dead control with no visible cause reads as a broken port; a
@@ -317,6 +319,41 @@ extern "C" int MM_TrickTable_RunHeadless(void) {
         }
         if (Combo_MMTrickById(desc->id) != desc) {
             return Fail(25, "Combo_MMTrickById(%u) does not return the table's own row", (unsigned)desc->id);
+        }
+        // The chips the pane draws (UI parity M6 part 2) mirror the tag set: one
+        // chip per tag, in tag order (so the difficulty rung is the first chip),
+        // each labelled with the tag's own name and in a real palette tone. A
+        // chip that dropped or invented a tag would tell the player a different
+        // difficulty than the one the row carries.
+        {
+            static const MMRandoTrickTag kTagOrder[] = { MMRTT_NOVICE, MMRTT_INTERMEDIATE, MMRTT_ADVANCED,
+                                                         MMRTT_EXPERT, MMRTT_EXPERIMENTAL, MMRTT_GLITCH,
+                                                         MMRTT_COMBO };
+            int chip = 0;
+            for (MMRandoTrickTag tag : kTagOrder) {
+                if ((row.tags & (uint32_t)tag) == 0) {
+                    continue;
+                }
+                if (chip >= (int)desc->chipCount || chip >= COMBO_MM_TRICK_MAX_CHIPS) {
+                    return Fail(63, "descriptor '%s' draws %u chip(s) for a larger tag set", desc->name,
+                                (unsigned)desc->chipCount);
+                }
+                if (desc->chipLabels[chip] == NULL ||
+                    strcmp(desc->chipLabels[chip], Rando::StaticData::GetTrickTagName(tag)) != 0) {
+                    return Fail(64, "descriptor '%s' chip %d reads '%s', not its tag's name '%s'", desc->name, chip,
+                                desc->chipLabels[chip] != NULL ? desc->chipLabels[chip] : "(null)",
+                                Rando::StaticData::GetTrickTagName(tag));
+                }
+                if ((int)desc->chipTones[chip] < 0 || (int)desc->chipTones[chip] >= (int)COMBO_UI_TONE_COUNT) {
+                    return Fail(65, "descriptor '%s' chip %d has no palette tone (%d)", desc->name, chip,
+                                (int)desc->chipTones[chip]);
+                }
+                chip++;
+            }
+            if (chip != (int)desc->chipCount) {
+                return Fail(66, "descriptor '%s' draws %u chip(s) for %d tag(s)", desc->name, (unsigned)desc->chipCount,
+                            chip);
+            }
         }
 
         // ---- (d) gating honesty, both directions --------------------------

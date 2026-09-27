@@ -862,6 +862,47 @@ const char* TagSummary(uint32_t tags) {
     return sTagStrings.emplace(tags, s).first->second.c_str();
 }
 
+/** A tag's chip colour, named as a combo_ui palette tone. The rungs MM shares
+ *  with SoH take SoH's colours (tricks.cpp's Tricks::GetTagColor: Novice green,
+ *  Intermediate orange, Advanced blue, Expert red, Experimental light blue,
+ *  Glitch white), so one difficulty reads the same colour on both games' trick
+ *  lists. "OoT Items" is ours and has no SoH colour: gray, the palette's
+ *  neutral, because the row that carries it is always disabled with the reason. */
+ComboUiTone TagTone(MMRandoTrickTag tag) {
+    switch (tag) {
+        case MMRTT_NOVICE:
+            return COMBO_UI_TONE_GREEN;
+        case MMRTT_INTERMEDIATE:
+            return COMBO_UI_TONE_ORANGE;
+        case MMRTT_ADVANCED:
+            return COMBO_UI_TONE_BLUE;
+        case MMRTT_EXPERT:
+            return COMBO_UI_TONE_RED;
+        case MMRTT_EXPERIMENTAL:
+            return COMBO_UI_TONE_LIGHT_BLUE;
+        case MMRTT_GLITCH:
+            return COMBO_UI_TONE_WHITE;
+        case MMRTT_COMBO:
+        default:
+            return COMBO_UI_TONE_GRAY;
+    }
+}
+
+/** Fills a descriptor's chips from its tag set, in the order TagSummary joins them. */
+void FillTagChips(ComboMMTrickDesc* desc, uint32_t tags) {
+    static const MMRandoTrickTag kAllTags[] = { MMRTT_NOVICE,       MMRTT_INTERMEDIATE, MMRTT_ADVANCED, MMRTT_EXPERT,
+                                                MMRTT_EXPERIMENTAL, MMRTT_GLITCH,       MMRTT_COMBO };
+    desc->chipCount = 0;
+    for (MMRandoTrickTag tag : kAllTags) {
+        if ((tags & (uint32_t)tag) == 0 || desc->chipCount >= COMBO_MM_TRICK_MAX_CHIPS) {
+            continue;
+        }
+        desc->chipLabels[desc->chipCount] = Rando::StaticData::GetTrickTagName(tag);
+        desc->chipTones[desc->chipCount] = TagTone(tag);
+        desc->chipCount++;
+    }
+}
+
 std::vector<ComboMMTrickDesc>& TrickDescriptorTable() {
     static std::vector<ComboMMTrickDesc> sTrickDescriptors;
     if (!sTrickDescriptors.empty()) {
@@ -883,6 +924,7 @@ std::vector<ComboMMTrickDesc>& TrickDescriptorTable() {
         desc.areaName = Rando::StaticData::GetTrickAreaName(row.area);
         desc.tags = row.tags;
         desc.tagSummary = TagSummary(row.tags);
+        FillTagChips(&desc, row.tags);
         desc.reserved = row.reserved;
         desc.bound = IsBoundTrick(mmRandoTrickId);
         if (row.reserved) {

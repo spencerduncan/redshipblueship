@@ -166,10 +166,19 @@ void FallbackSpacer(float height) {
     ImGui::Dummy(ImVec2(0.0f, height));
 }
 
+void FallbackRowText(const char* text, const ComboUiWidgetOpts* opts) {
+    const ComboUiWidgetOpts& o = OptsOrDefault(opts);
+    ImGui::SameLine();
+    ImGui::BeginDisabled(o.disabled);
+    ImGui::TextWrapped("%s", text);
+    ImGui::EndDisabled();
+    FinishItem(text, o);
+}
+
 const ComboUiTable kFallback = {
     FallbackCheckbox,  FallbackCombobox,    FallbackSliderInt, FallbackButton,  FallbackSeparatorText,
     FallbackNoteText,  FallbackWarningText, FallbackTooltip,   FallbackTagChip, FallbackConfirm,
-    FallbackPushTheme, FallbackPopTheme,    FallbackSpacer,
+    FallbackPushTheme, FallbackPopTheme,    FallbackSpacer,    FallbackRowText,
 };
 
 } // namespace

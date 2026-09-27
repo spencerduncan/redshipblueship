@@ -206,7 +206,7 @@ and on ours (R-N4).
 - Inside a pane, use the same helpers with `THEME_COLOR` (`randomizer_check_tracker.cpp:2223-2283`). From `src/common`,
   which cannot include UIWidgets, go through the `combo_ui` seam (`src/common/combo_ui.h`): a C function table
   (Checkbox, Combobox, SliderInt, Button, SeparatorText, NoteText, WarningText, Tooltip, TagChip, Confirm,
-  PushTheme/PopTheme, Spacer) that `SohGui/ComboUiSoh.cpp` implements with those helpers and installs from a file-scope
+  PushTheme/PopTheme, Spacer, RowText) that `SohGui/ComboUiSoh.cpp` implements with those helpers and installs from a file-scope
   initializer. Pass each widget its tooltip and, when disabled, a disabled tooltip from `ComboUi_DisabledTooltip`
   (shape (a) of R-S2). Every widget reports its rectangle and shown tooltip to an optional recorder, which is how the
   snapshot harness finds and hovers a pane row. With no table installed, `ComboUi_Get()` returns a raw-ImGui fallback
@@ -217,7 +217,13 @@ and on ours (R-N4).
   settings panes or menu pages.
 - **Trick lists** follow `DrawTricksMenu` (`SohMenuRandomizer.cpp:171-551`): a filter; "Disable All" and "Enable All"
   250 px buttons; a two-column Disabled/Enabled table of area tree nodes; coloured tag chips (`tricks.cpp:101-110`); and
-  the description as a tooltip.
+  the description as a tooltip. A trick list that is one section of a settings pane (the MM options pane's Tricks)
+  keeps the pane's own row: a `SeparatorText`, one gray note, then an area tree node per area (closed by default, so
+  the section does not bury the Reset button), and per trick the pane's themed checkbox, the tag chips with the
+  difficulty rung first (SoH's rung colours), then the name (`RowText`, wrapped with a hanging indent), with the
+  description as the tooltip of the whole row [project rule]. An unavailable or frozen trick is disabled with its
+  reason in shape (a), never printed beside it, and a chip label is one or two words, because it shares the line
+  with the name.
 - **Modals** are a centred `BeginPopupModal` with text and themed buttons (`SohModals.cpp:55-83`).
 - **Progress dialogs** look like SoH's ROM-extraction modal (`OTRGlobals.cpp`, `RunExtract`): the popup background;
   the title bar in the theme colour (`RunExtract` pushes `ImGuiCol_TitleBgActive` around its whole frame, as SoH's
@@ -294,14 +300,17 @@ MAX_PATH through the extended-length namespace, so a long output directory no lo
 **Variants:**
 - STATE: the five Cross-Game Rules states (unpaired, paired-legacy, frozen, corrupt, and empty-oot-classes, the one
   that draws an empty-set note), Majora's Mask's autosave,
-  and the MM options pane's unpaired, frozen, mm-suspended and tricks-open (the Tricks header and its first area open).
+  and the MM options pane's unpaired, frozen, mm-suspended, tricks-open (its first area and the first area holding a
+  reserved trick open) and tricks-frozen (frozen, with the area of the longest trick name open); the two Tricks
+  states are compared with Randomizer > Tricks/Glitches (`PageSpec::stateCompareWith`).
 - SCROLL: `@scrollN`, stepping each column (a menu page) or the pane itself (a window) by one view minus 48 px until
   it reaches its end, at most 9 views.
 - HOVER: a pointer injected before ImGui reads input, so the tooltip is captured. Cross-Game Rules hovers its
   direction combobox and (frozen) its first slider; Majora's Mask hovers its first row and Windows its MM Item
   Tracker toggle (`PageSpec::hoverRows`, a named row, captured in the page's first state). The MM options pane hovers
-  its first row (unpaired and frozen) and its first capability-blocked row (`PageSpec::paneHovers`, found through the
-  `combo_ui` rect recorder); a disabled row's hover must show SoH's disabled shape with no tracker number.
+  its first row (unpaired and frozen), its first capability-blocked row, and in the Tricks states a live, an unbound,
+  a reserved and a frozen trick (`PageSpec::paneHovers`, found through the `combo_ui` rect recorder); a disabled row's
+  hover must show SoH's disabled shape with no tracker number.
 - MODAL: SoH's "Clear Config" reference, the Cross-Game Rules Reset confirm, and the MM options pane's Reset confirm
   (queued through `Combo_MMOptionsRequestReset`, the call the pane's button makes).
 - `over-menu` (the creation overlay, and SoH's "Clear Config" as its reference): Combo > Cross-Game Rules left open

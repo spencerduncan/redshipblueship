@@ -13,7 +13,8 @@
  * combobox and slider labels above, a SeparatorText per group, gray notes for
  * state, one orange sentence per warning, and every disabled row's reason in its
  * disabled tooltip in SoH's shape rather than printed beside it. The Tricks
- * section below the groups is not migrated yet (its own change, M6 part 2).
+ * section below the groups follows SoH's Tricks page (area tree nodes; the
+ * control, the tag chips, then the name) through the same seam (M6 part 2).
  */
 
 #include "ComboMmOptionsWindow.h"
@@ -118,11 +119,6 @@ void DrawStandingWarnings(bool frozen) {
                      "Glitchless logic is the most likely cause.");
 }
 
-/** Tooltip helper for the rows not yet drawn through the seam (the Tricks section). */
-void HoverTooltip(const char* text) {
-    Ui().Tooltip(text);
-}
-
 /** True when the row must be drawn disabled with its reason (ADR 0004 §5). */
 bool IsCapabilityBlocked(const ComboMMOptionDesc* desc) {
     return desc->liveness == COMBO_MM_LIVENESS_PARTIAL || desc->liveness == COMBO_MM_LIVENESS_DORMANT;
@@ -190,63 +186,61 @@ void DrawOptionRow(const ComboMMOptionDesc* desc, bool frozen) {
 }
 
 /**
- * One trick row. Same shape as an option row, one widget narrower (every trick
- * is a checkbox) and one axis wider: the tag set is drawn inline, because the
- * difficulty rung is what a player picking tricks is actually choosing on.
+ * One trick row, in SoH's trick-list shape (DrawTricksMenu, SohMenuRandomizer.cpp):
+ * the control, the tag chips with the difficulty rung first, then the name, with
+ * the description as the row's tooltip. The control is the themed checkbox the
+ * option rows above use rather than DrawTricksMenu's move-to-the-other-column
+ * arrow: this pane is one column of settings, and a trick is one more setting in
+ * it (docs/ui-style-guide.md section 10, "Trick lists").
  *
- * A row with a non-empty `disabledReason` is drawn disabled WITH that reason
- * visible, not hidden in a tooltip — the two causes are "needs an OoT item that
- * MM cannot hold yet" (reserved, increment 3) and "no logic binding yet"
- * (#578 part 2). Both are ADR 0004 §5's disabled-with-a-visible-cause, and both
- * matter to say out loud: a trick that silently did nothing would be the vacuous
- * gate this pane exists to refuse.
+ * Disabled the way an option row is, with the reason in the DISABLED TOOLTIP in
+ * SoH's shape and never printed beside the row: the table's own reason ("Needs
+ * Hover Boots From Ocarina of Time" for a reserved row, "Not Yet Supported by
+ * Logic" for an unbound one; combo_mm_tricks_view.h) and the freeze. Both causes
+ * matter to say: a trick that silently did nothing would be the vacuous gate
+ * this pane exists to refuse (ADR 0004 §5). The whole row, name included, shows
+ * that tooltip on hover.
  */
-void DrawTrickRow(const ComboMMTrickDesc* desc) {
+void DrawTrickRow(const ComboMMTrickDesc* desc, bool frozen) {
     const bool blocked = desc->disabledReason != nullptr && desc->disabledReason[0] != '\0';
+    ComboUiWidgetOpts opts;
+    opts.tooltip = desc->tooltip;
+    opts.disabled = blocked || frozen;
+    opts.disabledTooltip =
+        ComboUi_DisabledTooltip(frozen ? kFrozenReason : nullptr, blocked ? desc->disabledReason : nullptr);
 
-    if (blocked) {
-        ImGui::BeginDisabled();
-    }
-
+    // No visible label on the box: the chips sit between the control and the
+    // name, as in SoH's rows. The key's own name keeps the id unique.
+    char id[96];
+    snprintf(id, sizeof(id), "##%s", desc->name);
     bool on = Combo_MMTrickGetValue(desc);
-    if (ImGui::Checkbox(desc->label, &on)) {
+    if (Ui().Checkbox(id, &on, &opts)) {
         Combo_MMTrickSetValue(desc, on);
     }
-    HoverTooltip(desc->tooltip);
-
-    if (blocked) {
-        ImGui::EndDisabled();
-        ImGui::SameLine();
-        ImGui::TextDisabled("- %s", desc->disabledReason);
-    } else {
-        ImGui::SameLine();
-        ImGui::TextDisabled("[%s]", desc->tagSummary);
+    for (int c = 0; c < (int)desc->chipCount && c < COMBO_MM_TRICK_MAX_CHIPS; c++) {
+        Ui().TagChip(desc->chipLabels[c], desc->chipTones[c]);
     }
+    Ui().RowText(desc->label, &opts);
 }
 
 /**
- * The Tricks section, grouped by area.
+ * The Tricks section: a SeparatorText like every option group above it, one gray
+ * note, then SoH's area tree nodes (DrawTricksMenu's grouping).
  *
- * Collapsed by default, unlike the option groups: 86 rows would otherwise push
- * every option off the first screen, and tricks are the thing a player opts into
- * rather than the thing they scan.
- *
- * Frozen wraps the whole section the same way it wraps each option group — the
- * rows stay READABLE (a frozen trick set is worth seeing) and every widget is
- * inert, with the cause stated once by the state note.
+ * The areas start closed, unlike SoH's Tricks page, which opens them: that page
+ * holds nothing but tricks, and here 86 open rows would sit between the options
+ * and the Reset button. Frozen disables every row (each with the freeze as its
+ * reason, like the option rows) but never the tree nodes: a frozen trick set is
+ * worth reading, so its areas still open.
  */
 void DrawTricksSection(bool frozen) {
+    Ui().SeparatorText("Tricks");
     const int count = Combo_MMTrickCount();
     if (count == 0) {
         // Distinct from "MM has no tricks": say the table is missing.
-        ImGui::TextDisabled("Tricks: table not available in this build.");
+        Ui().NoteText("The Majora's Mask trick table is not available in this build.");
         return;
     }
-
-    if (!ImGui::CollapsingHeader("Tricks", ImGuiTreeNodeFlags_None)) {
-        return;
-    }
-    ImGui::PushID("tricks");
 
     int settable = 0;
     for (int i = 0; i < count; i++) {
@@ -255,34 +249,33 @@ void DrawTricksSection(bool frozen) {
             settable++;
         }
     }
-    // The honest headline. Saying "86 tricks" and drawing 84 dead checkboxes
+    // The honest headline. Saying "86 tricks" and drawing 60 dead checkboxes
     // would be the overclaim; naming the split is what makes the dead ones read
-    // as staged rather than broken.
-    ImGui::TextWrapped("%d of %d trick keys are wired to logic in this build. The rest are declared so the key "
-                       "space and the frozen identity are already final; they light up as their bindings land.",
-                       settable, count);
-    ImGui::TextWrapped("These freeze into the paired world's identity exactly like the options above.");
-    ImGui::Spacing();
+    // as not yet supported rather than broken.
+    char note[200];
+    snprintf(note, sizeof(note),
+             "%d of %d tricks are supported by the randomizer logic so far. The others are shown, but cannot be "
+             "turned on yet.",
+             settable, count);
+    Ui().NoteText(note);
 
-    if (frozen) {
-        ImGui::BeginDisabled();
-    }
+    ImGui::PushID("tricks");
     // Grouped by area, in area-enum order, skipping empty areas — same rule the
     // option groups follow, for the same reason (an always-empty section implies
     // something is missing from it). The bound is the `uint8_t` field's range
     // rather than MMRTA_MAX: this file must not learn an MM enum (ADR 0009 D3),
-    // and the descriptor's own `areaName` supplies the header text.
+    // and the descriptor's own `areaName` supplies the node text. The id stack
+    // ("tricks", then the area number) is what the UI snapshot harness's
+    // tricks-open state names to open an area.
     for (int area = 0; area < 256; area++) {
-        int inArea = 0;
         const char* areaName = nullptr;
-        for (int i = 0; i < count; i++) {
+        for (int i = 0; i < count && areaName == nullptr; i++) {
             const ComboMMTrickDesc* desc = Combo_MMTrickAt(i);
             if (desc != nullptr && (int)desc->area == area) {
-                inArea++;
                 areaName = desc->areaName;
             }
         }
-        if (inArea == 0) {
+        if (areaName == nullptr) {
             continue;
         }
         ImGui::PushID(area);
@@ -293,15 +286,12 @@ void DrawTricksSection(bool frozen) {
                     continue;
                 }
                 ImGui::PushID(i);
-                DrawTrickRow(desc);
+                DrawTrickRow(desc, frozen);
                 ImGui::PopID();
             }
             ImGui::TreePop();
         }
         ImGui::PopID();
-    }
-    if (frozen) {
-        ImGui::EndDisabled();
     }
     ImGui::PopID();
 }

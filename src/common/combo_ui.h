@@ -129,6 +129,16 @@ typedef struct {
     void (*PopTheme)(void);
     /** Vertical space, SoH's UIWidgets::Spacer (0 is one item spacing). */
     void (*Spacer)(float height);
+    /**
+     * The name cell of a composite row, on the current line after the row's other
+     * items: SoH's trick-list row is a control, the tag chips, then the name
+     * (DrawTricksMenu's ImGui::Text plus UIWidgets::Tooltip). Wrapped at the
+     * pane's edge with a hanging indent under the name, dimmed when
+     * `opts->disabled`, and showing the tooltip a widget with the same options
+     * would (ComboUi_ShownTooltip), so the whole row explains itself on hover.
+     * Reports its rectangle under `text` to the rect recorder.
+     */
+    void (*RowText)(const char* text, const ComboUiWidgetOpts* opts);
 } ComboUiTable;
 
 /** Install the table the panes draw through. NULL uninstalls (back to the fallback). */
