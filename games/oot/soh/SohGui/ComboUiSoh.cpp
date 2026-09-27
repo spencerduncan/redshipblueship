@@ -169,14 +169,26 @@ void SohTooltip(const char* text) {
     }
 }
 
-void SohTagChip(const char* label, ComboUiTone tone) {
-    // Rando::Tricks::DrawTagChips (tricks.cpp), one chip.
+void SohTagChip(const char* label, ComboUiTone tone, const ComboUiWidgetOpts* opts) {
+    // Rando::Tricks::DrawTagChips (tricks.cpp), one chip. SoH draws every chip
+    // disabled, and ImGui's BeginDisabled only dims when nothing outside it
+    // already has, so on a disabled row (whose checkbox and name are dimmed) the
+    // chip is dimmed by the same DisabledAlpha once more, by hand: without it a
+    // disabled row's chips would read exactly as bright as a live row's.
+    const bool rowDisabled = opts != nullptr && opts->disabled;
+    if (rowDisabled) {
+        const ImGuiStyle& style = ImGui::GetStyle();
+        ImGui::PushStyleVar(ImGuiStyleVar_Alpha, style.Alpha * style.DisabledAlpha);
+    }
     ImGui::SameLine();
     ImGui::BeginDisabled();
     UIWidgets::PushStyleButton(ToneColor(tone));
     ImGui::SmallButton(label);
     UIWidgets::PopStyleButton();
     ImGui::EndDisabled();
+    if (rowDisabled) {
+        ImGui::PopStyleVar();
+    }
 }
 
 void SohConfirm(const char* title, const char* message, const char* confirmLabel, const char* cancelLabel,
@@ -209,9 +221,29 @@ void SohSpacer(float height) {
     UIWidgets::Spacer(height);
 }
 
+void SohRowText(const char* text, const ComboUiWidgetOpts* opts) {
+    // DrawTricksMenu's name cell (SohMenuRandomizer.cpp): ImGui::Text after the
+    // chips, then UIWidgets::Tooltip. Wrapped rather than clipped, because a pane
+    // is narrower than SoH's trick column and the longest trick names run past
+    // it; ImGui starts every wrapped line at the name's own x, so the chips keep
+    // their column. The tooltip follows UIWidgets' disabled rule (a disabled row
+    // shows its disabled tooltip) and is hovered even while disabled, as a
+    // UIWidgets widget's is.
+    const bool disabled = opts != nullptr && opts->disabled;
+    ImGui::SameLine();
+    ImGui::BeginDisabled(disabled);
+    ImGui::TextWrapped("%s", text);
+    ImGui::EndDisabled();
+    const char* shown = ComboUi_ShownTooltip(opts);
+    if (shown != nullptr && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+        ImGui::SetTooltip("%s", UIWidgets::WrappedText(shown).c_str());
+    }
+    Report(text, opts);
+}
+
 const ComboUiTable kSohTable = {
     SohCheckbox, SohCombobox, SohSliderInt, SohButton,    SohSeparatorText, SohNoteText, SohWarningText,
-    SohTooltip,  SohTagChip,  SohConfirm,   SohPushTheme, SohPopTheme,      SohSpacer,
+    SohTooltip,  SohTagChip,  SohConfirm,   SohPushTheme, SohPopTheme,      SohSpacer,   SohRowText,
 };
 
 struct InstallSohComboUi {

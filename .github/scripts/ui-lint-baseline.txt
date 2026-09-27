@@ -6,9 +6,3 @@
 # gate can fail on anything NEW. The baseline may only SHRINK: a fix makes a line
 # stale, the check then fails until the line is deleted. Never add a line to make
 # the check pass; fix the surface instead.
-S1 | src/common/ComboMmOptionsWindow.cpp | if (ImGui::Checkbox(desc->label, &on)) {
-S3 | src/common/ComboMmOptionsWindow.cpp | ImGui::TextDisabled("- %s", desc->disabledReason);
-S3 | src/common/ComboMmOptionsWindow.cpp | ImGui::TextDisabled("Tricks: table not available in this build.");
-S3 | src/common/ComboMmOptionsWindow.cpp | ImGui::TextDisabled("[%s]", desc->tagSummary);
-S4 | src/common/ComboMmOptionsWindow.cpp | if (!ImGui::CollapsingHeader("Tricks", ImGuiTreeNodeFlags_None)) {
-S5 | src/common/ComboMmOptionsWindow.cpp | ImGui::Spacing();
